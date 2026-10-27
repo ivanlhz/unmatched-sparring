@@ -1,6 +1,6 @@
 """Revision 5: arranque, guardado, miniaturas con varios GUID, rejilla del descarte, repartos tardios,
 puntos de control del turno del bot y salidas de los estados pendientes."""
-from conftest import t_discard_cards, t_return_hand_to_deck, t_shuffle_deck
+from conftest import t_discard_cards, t_play_card_face_down, t_return_hand_to_deck, t_shuffle_deck
 import dataclasses
 import json
 import math
@@ -713,7 +713,7 @@ def test_floor_labels_never_call_the_text_api_unprotected():
 
 # ---------- prueba en vivo: una mano no suelta una carta con movimiento suave ----------
 def test_cards_leaving_a_hand_move_instantly_never_smoothly():
-    play_s = lua.play_card_face_down(17601, "Green", 6.0, 1.6, -18.0, 0.0)
+    play_s = t_play_card_face_down(17601, "Green", 6.0, 1.6, -18.0, 0.0)
     assert play_s.index("o.setRotation(") < play_s.index("o.setPosition(") and "Smooth" not in play_s
     disc = t_discard_cards([17601], [(1.0, 2.0, 3.0)], 90.0)
     card_branch = disc.split('elseif o.type == "Deck"')[0]

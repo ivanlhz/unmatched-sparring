@@ -3,7 +3,8 @@ piezas por GUID, zonas de descarte, cartas sueltas y los dos mutantes que sobrev
 
 Las respuestas de TTS se modelan como las del TTS real: NO hay messageID 5; lo que devuelve un script llega como
 messageID 4 con `sparring_reply` (ver FakeTTS)."""
-from conftest import t_deal_cards, t_discard_cards, t_reset_deck, t_return_hand_to_deck, t_shuffle_deck
+from conftest import (TEST_IDENT, t_deal_cards, t_discard_cards, t_flip_card, t_play_card_face_down, t_reset_deck,
+                      t_reset_plan, t_return_hand_to_deck, t_shuffle_deck)
 import json
 import re
 import threading
@@ -652,8 +653,8 @@ def test_read_only_allowlist_is_exactly_the_pure_read_builders(bprd):
         "return_card_to_hand": lambda: lua.return_card_to_hand("abc", "Blue"),
         "discard_cards": lambda: t_discard_cards([1], [(0, 0, 0)]), "broadcast": lambda: lua.broadcast("x"),
         "move_piece": lambda: lua.move_piece(bprd, "abc", sorted(bprd.spaces)[0]),
-        "play_card_face_down": lambda: lua.play_card_face_down(1, "Blue", 0, 0, 0),
-        "flip_card": lambda: lua.flip_card("abc"), "create_panel": lambda: lua.create_panel(["medusa"]),
+        "play_card_face_down": lambda: t_play_card_face_down(1, "Blue", 0, 0, 0),
+        "flip_card": lambda: t_flip_card("abc"), "create_panel": lambda: lua.create_panel(["medusa"]),
         "draw_markings": lambda: lua.draw_markings([("DESCARTE", "abc")], [("COMBATE", 0, 0)]),
         "clear_markings": lambda: lua.clear_markings(),
         "set_health_dials": lambda: lua.set_health_dials({"abc": 3}),
@@ -664,6 +665,8 @@ def test_read_only_allowlist_is_exactly_the_pure_read_builders(bprd):
         "snapshot": lambda: lua.snapshot(_spec(bprd)),
         "composite": lambda: lua.composite([lua.broadcast("x")]),
         "reset_deck": lambda: t_reset_deck("abc", (0.0, 3.0), lua.BOT_CARD_IDS),
+        "reset_plan": lambda: t_reset_plan([("abc", (0.0, 3.0), lua.BOT_CARD_IDS, TEST_IDENT)]),
+        "hand_identities": lambda: lua.hand_identities("Blue", lua.BOT_CARD_IDS),
         "set_panel": lambda: lua.set_panel("Tu turno", {"btn_end": (True, True)}),
     }
     registered = {n for n, f in inspect.getmembers(lua, inspect.isfunction) if hasattr(f, "__wrapped__")}

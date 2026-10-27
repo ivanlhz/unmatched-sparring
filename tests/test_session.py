@@ -168,6 +168,20 @@ class Table:
         self.resets.append("human")
         return {"deck": True, "quantity": 30}
 
+    def do_reset_plan(self, s):
+        """Lo que reset_deck juntaria, sin mover nada: una entrada por bando, en el orden del script."""
+        out = []
+        for lo in re.findall(r"id < (\d+) or id > \d+", s):
+            if int(lo) < 19000:
+                total = len(self.bot_deck + self.bot_hand + self.bot_play + self.bot_discard) + len(self.stray_bot)
+            else:
+                total = 30
+            out.append({"deck": True, "loose": 0, "total": total})
+        return out
+
+    def do_hand_identities(self, s):
+        return {"pairs": [{"face": "https://img.test/face", "back": "https://img.test/back"}]}
+
     def do_deck_identities(self, s):
         n = len(re.findall(r'\{"\w+", (?:nil|\{)', s))
         return [{"found": True, "pairs": [{"face": "https://img.test/face", "back": "https://img.test/back"}]}

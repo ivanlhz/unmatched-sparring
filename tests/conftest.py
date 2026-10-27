@@ -174,7 +174,10 @@ def _shims():
             "t_discard_cards": functools.partial(lua.discard_cards, identity=TEST_IDENT, scope=scope),
             "t_reset_deck": functools.partial(lua.reset_deck, identity=TEST_IDENT, scope=scope),
             "t_return_hand_to_deck": functools.partial(lua.return_hand_to_deck, identity=TEST_IDENT),
-            "t_shuffle_deck": functools.partial(lua.shuffle_deck, identity=TEST_IDENT)}
+            "t_shuffle_deck": functools.partial(lua.shuffle_deck, identity=TEST_IDENT),
+            "t_play_card_face_down": functools.partial(lua.play_card_face_down, identity=TEST_IDENT),
+            "t_flip_card": functools.partial(lua.flip_card, identity=TEST_IDENT),
+            "t_reset_plan": functools.partial(lua.reset_plan, scope=scope)}
 
 
 globals().update(_shims())

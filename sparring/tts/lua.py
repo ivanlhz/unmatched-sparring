@@ -253,21 +253,50 @@ def _identity(identity) -> str:
     return "{" + ", ".join(rows) + "}"
 
 
-def _ours_lua(identity, id_range) -> str:
-    """Define en Lua `cardOurs(entry, fallback)` y `ours(o)`: una carta es nuestra si su CardID cae en el rango Y la
-    imagen de su CustomDeck es una de las identidades. Un Deck solo es nuestro si LO ES CADA UNA de sus cartas."""
+_IMAGE_LUA = """local function imagesOf(entry, fallback)
+  local id = entry.CardID
+  if type(id) ~= "number" then return {} end
+  local did = math.floor(id / 100)
+  for _, cd in ipairs({entry.CustomDeck or false, fallback or false}) do
+    if type(cd) == "table" then
+      local info = cd[tostring(did)] or cd[did]
+      if type(info) == "table" then return {info} end
+    end
+  end
+  local out = {}
+  if type(entry.CustomDeck) == "table" then
+    for _, info in pairs(entry.CustomDeck) do
+      if type(info) == "table" then table.insert(out, info) end
+    end
+  end
+  return out
+end
+"""
+
+
+def _range(id_range) -> tuple[str, str]:
     if not isinstance(id_range, (tuple, list)) or len(id_range) != 2:
         raise TypeError("(minimo, maximo) de CardID esperado")
-    lo, hi = _i(id_range[0]), _i(id_range[1])
+    return _i(id_range[0]), _i(id_range[1])
+
+
+def _ours_lua(identity, id_range) -> str:
+    """Define en Lua `cardOurs(entry, fallback)` y `ours(o)`: una carta es nuestra si su CardID cae en el rango Y la
+    imagen de SU DeckID es una de las identidades. La imagen se busca en el CustomDeck de la propia carta y, si ahi no
+    esta la clave del DeckID del CardID, en el del mazo que la contiene (en el guardado real 20 de las 30 cartas de
+    Hellboy traen un CustomDeck con otra clave); si la carta SI la trae, manda la suya. Un Deck solo es nuestro si LO
+    ES CADA UNA de sus cartas."""
+    lo, hi = _range(id_range)
     return f"""local IDENT = {_identity(identity)}
-local function cardOurs(entry, fallback)
+{_IMAGE_LUA}local function cardOurs(entry, fallback)
   local id = entry.CardID
   if type(id) ~= "number" or id < {lo} or id > {hi} then return false end
-  local cd = entry.CustomDeck or fallback
-  if type(cd) ~= "table" then return false end
-  local did = math.floor(id / 100)
-  local info = cd[tostring(did)] or cd[did]
-  return type(info) == "table" and IDENT[tostring(info.FaceURL) .. "|" .. tostring(info.BackURL)] == true
+  local images = imagesOf(entry, fallback)
+  if #images == 0 then return false end
+  for _, info in ipairs(images) do
+    if IDENT[tostring(info.FaceURL) .. "|" .. tostring(info.BackURL)] ~= true then return false end
+  end
+  return true
 end
 local function ours(o)
   if o.held_by_color then return false end
@@ -673,14 +702,18 @@ return JSON.encode({{moved = obj.getGUID()}})
 
 
 @_registered
-def play_card_face_down(card_id: int, seat_color: str, x: float, y: float, z: float, rot_y: float = 0) -> str:
-    """Saca la carta con ese CardID de la mano del asiento y la deja boca abajo; played=false si no esta.
+def play_card_face_down(card_id: int, seat_color: str, x: float, y: float, z: float, rot_y: float = 0,
+                        id_range: tuple[int, int] = BOT_CARD_IDS, *, identity) -> str:
+    """Saca la carta con ese CardID de la mano del asiento y la deja boca abajo; played=false si no esta. Solo cuenta
+    una carta del bando (`id_range` e imagen de `identity`): otra con el mismo CardID no se toca.
 
     El movimiento es INSTANTANEO (setRotation y luego setPosition): en TTS real, `setPositionSmooth` sobre una carta
     que esta en una zona de mano no la saca, la mano la vuelve a tirar. El resultado hay que comprobarlo leyendo la mesa."""
+    own = _ours_lua(identity, id_range)
     return f"""-- sparring:play_card_face_down
-for _, o in ipairs(Player[{_color(seat_color)}].getHandObjects(1)) do
-  if o.type == "Card" and o.getData().CardID == {_i(card_id)} then
+{own}for _, o in ipairs(Player[{_color(seat_color)}].getHandObjects(1)) do
+  local data = o.getData()
+  if o.type == "Card" and data.CardID == {_i(card_id)} and cardOurs(data, data.CustomDeck) then
     o.setRotation(Vector(0, {_f(rot_y)}, 180))
     o.setPosition(Vector({_f(x)}, {_f(y)}, {_f(z)}))
     return JSON.encode({{played = o.getGUID()}})
@@ -708,11 +741,15 @@ return JSON.encode(out)
 
 
 @_registered
-def flip_card(card_guid: str, rot_y: float = 0, face_up: bool = True) -> str:
-    """Gira una carta ya jugada (revelar o volver a ocultar)."""
+def flip_card(card_guid: str, rot_y: float = 0, face_up: bool = True, id_range: tuple[int, int] = BOT_CARD_IDS, *,
+              identity) -> str:
+    """Gira una carta ya jugada (revelar o volver a ocultar). Solo si es una carta del bando (`id_range` e imagen de
+    `identity`); si no existe o es ajena, falla sin tocar nada."""
     z = 0 if face_up else 180
+    own = _ours_lua(identity, id_range)
     return f"""-- sparring:flip_card
-local c = getObjectFromGUID({_guid(card_guid)})
+{own}local c = getObjectFromGUID({_guid(card_guid)})
+if c == nil or not ours(c) then error("la carta no existe o no es del bando") end
 c.setRotationSmooth(Vector(0, {_f(rot_y)}, {_f(z)}), false, true)
 return JSON.encode({{flipped = c.getGUID()}})
 """
@@ -1205,27 +1242,65 @@ return JSON.encode({{deck = true, quantity = 1}})
 
 
 @_registered
+def reset_plan(sides: list[tuple[str, tuple[float, float] | None, tuple[int, int], tuple]], radius: float = 2.0, *,
+               scope: Scope) -> str:
+    """Solo lectura, en UN mensaje: lo que `reset_deck` juntaria para cada bando `(deck_guid, spot, id_range,
+    identity)`, sin mover nada. Una entrada por bando, en orden: `deck` (hay mazo), `loose` (objetos sueltos del
+    bando) y `total` (cartas que acabarian en el mazo)."""
+    if not isinstance(sides, (list, tuple)) or not 1 <= len(sides) <= 2:
+        raise TypeError("lista de 1 o 2 bandos esperada")
+    blocks = []
+    for deck_guid, spot, id_range, identity in sides:
+        blocks.append(f"""table.insert(out, (function()
+{_ours_lua(identity, id_range)}local d = getObjectFromGUID({_guid(deck_guid)})
+if d ~= nil and not ours(d) then d = nil end
+{_find_deck(spot, radius)}local function size(o) if o.type == "Deck" then return o.getQuantity() end return 1 end
+local total, loose = 0, 0
+if d ~= nil then total = size(d) end
+for _, o in ipairs(scopeObjects()) do
+  if (o.type == "Card" or o.type == "Deck") and o ~= d and ours(o) then
+    total = total + size(o)
+    loose = loose + 1
+  end
+end
+return {{deck = d ~= nil, loose = loose, total = total}}
+end)())
+""")
+    return f"""-- sparring:reset_plan
+{_scope_lua(scope)}local out = {{}}
+{"".join(blocks)}return JSON.encode(out)
+"""
+
+
+@_registered
 def deck_identities(decks: list[tuple[str, tuple[float, float] | None, tuple[int, int]]], radius: float = 2.0) -> str:
-    """Solo lectura, al empezar: la identidad (FaceURL, BackURL del CustomDeck de sus cartas) de cada mazo
-    configurado, leida del propio objeto. Se halla por GUID o, si TTS lo convirtio en una Card, por posicion y rango
-    de CardID. Devuelve una entrada por mazo: `found` y los pares `face`/`back` distintos."""
+    """Solo lectura, al empezar: la identidad (FaceURL, BackURL de la imagen del DeckID de cada carta) de cada mazo
+    configurado, leida del propio objeto y solo de las cartas cuyo CardID cae en el rango del bando. Se halla por GUID
+    o, si TTS lo convirtio en una Card, por posicion: entonces TODAS sus cartas han de caer en el rango. Devuelve una
+    entrada por mazo: `found` y los pares `face`/`back` distintos de todas sus cartas."""
     if not isinstance(decks, (list, tuple)) or not 1 <= len(decks) <= 4:
         raise TypeError("lista de 1 a 4 mazos esperada")
     rows = []
     for guid, spot, rng in decks:
-        if not isinstance(rng, (tuple, list)) or len(rng) != 2:
-            raise TypeError("(minimo, maximo) de CardID esperado")
+        lo, hi = _range(rng)
         if spot is None:
             where = "nil"
         else:
             x, z, r = _spot(spot, radius)
             where = f"{{{x}, {z}, {r}}}"
-        rows.append(f"{{{_guid(guid)}, {where}, {_i(rng[0])}, {_i(rng[1])}}}")
+        rows.append(f"{{{_guid(guid)}, {where}, {lo}, {hi}}}")
     return f"""-- sparring:deck_identities
+{_IMAGE_LUA}local function entriesOf(o, data)
+  if o.type == "Card" then return {{data}} end
+  return data.ContainedObjects or {{}}
+end
 local function inRange(o, lo, hi)
-  local data = o.getData()
-  local c = (o.type == "Card") and data or (data.ContainedObjects or {{}})[1]
-  return c ~= nil and type(c.CardID) == "number" and c.CardID >= lo and c.CardID <= hi
+  local cards = entriesOf(o, o.getData())
+  if #cards == 0 then return false end
+  for _, c in ipairs(cards) do
+    if type(c.CardID) ~= "number" or c.CardID < lo or c.CardID > hi then return false end
+  end
+  return true
 end
 local out = {{}}
 for _, row in ipairs({{{", ".join(rows)}}}) do
@@ -1242,17 +1317,15 @@ for _, row in ipairs({{{", ".join(rows)}}}) do
   if d ~= nil then
     local data = d.getData()
     local seen = {{}}
-    local cards = (d.type == "Card") and {{data}} or (data.ContainedObjects or {{}})
-    for _, c in ipairs(cards) do
-      local cd = c.CustomDeck or data.CustomDeck
-      if type(cd) == "table" and type(c.CardID) == "number" then
-        local did = math.floor(c.CardID / 100)
-        local info = cd[tostring(did)] or cd[did]
-        if type(info) == "table" and info.FaceURL ~= nil and info.BackURL ~= nil then
-          local key = tostring(info.FaceURL) .. "|" .. tostring(info.BackURL)
-          if not seen[key] then
-            seen[key] = true
-            table.insert(entry.pairs, {{face = tostring(info.FaceURL), back = tostring(info.BackURL)}})
+    for _, c in ipairs(entriesOf(d, data)) do
+      if type(c.CardID) == "number" and c.CardID >= row[3] and c.CardID <= row[4] then
+        for _, info in ipairs(imagesOf(c, data.CustomDeck)) do
+          if info.FaceURL ~= nil and info.BackURL ~= nil then
+            local key = tostring(info.FaceURL) .. "|" .. tostring(info.BackURL)
+            if not seen[key] then
+              seen[key] = true
+              table.insert(entry.pairs, {{face = tostring(info.FaceURL), back = tostring(info.BackURL)}})
+            end
           end
         end
       end
@@ -1261,4 +1334,31 @@ for _, row in ipairs({{{", ".join(rows)}}}) do
   table.insert(out, entry)
 end
 return JSON.encode(out)
+"""
+
+
+@_registered
+def hand_identities(seat_color: str, id_range: tuple[int, int]) -> str:
+    """Solo lectura, ultimo recurso: la identidad de un bando leida de las cartas de su mano (solo las del rango).
+    Devuelve los pares `face`/`back` distintos."""
+    lo, hi = _range(id_range)
+    return f"""-- sparring:hand_identities
+{_IMAGE_LUA}local seen, found = {{}}, {{}}
+for _, o in ipairs(Player[{_color(seat_color)}].getHandObjects(1)) do
+  if o.type == "Card" then
+    local data = o.getData()
+    if type(data.CardID) == "number" and data.CardID >= {lo} and data.CardID <= {hi} then
+      for _, info in ipairs(imagesOf(data, data.CustomDeck)) do
+        if info.FaceURL ~= nil and info.BackURL ~= nil then
+          local key = tostring(info.FaceURL) .. "|" .. tostring(info.BackURL)
+          if not seen[key] then
+            seen[key] = true
+            table.insert(found, {{face = tostring(info.FaceURL), back = tostring(info.BackURL)}})
+          end
+        end
+      end
+    end
+  end
+end
+return JSON.encode({{pairs = found}})
 """

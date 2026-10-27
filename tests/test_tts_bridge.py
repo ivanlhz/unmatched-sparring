@@ -1,4 +1,4 @@
-from conftest import t_deal_cards, t_discard_cards
+from conftest import t_deal_cards, t_discard_cards, t_flip_card, t_play_card_face_down
 import json
 import re
 import socket
@@ -168,11 +168,11 @@ def test_move_piece_snippet(bprd):
 
 
 def test_play_and_flip_card_snippets():
-    p = lua.play_card_face_down(17615, "Blue", 1.5, 2.0, -3.0, rot_y=270)
+    p = t_play_card_face_down(17615, "Blue", 1.5, 2.0, -3.0, rot_y=270)
     assert "CardID == 17615" in p and "Vector(0, 270.0, 180)" in p and "setPosition(" in p and "Smooth" not in p
-    f_up = lua.flip_card("g1", rot_y=270)
+    f_up = t_flip_card("g1", rot_y=270)
     assert "Vector(0, 270.0, 0.0)" in f_up
-    assert "Vector(0, 270.0, 180.0)" in lua.flip_card("g1", 270, face_up=False)
+    assert "Vector(0, 270.0, 180.0)" in t_flip_card("g1", 270, face_up=False)
     for s in (p, f_up):
         assert is_sendable(s)
 
@@ -210,15 +210,15 @@ def test_new_physical_snippets(bprd):
 # ---- S5: inyeccion por argumentos de los constructores ----
 PAYLOAD = "0) UI.hide('roster') --"
 BAD = [
-    lambda b: lua.play_card_face_down(17600, "Blue", PAYLOAD, 0, 0),
-    lambda b: lua.play_card_face_down(17600, "Blue", 0, PAYLOAD, 0),
-    lambda b: lua.play_card_face_down(17600, "Blue", 0, 0, PAYLOAD),
-    lambda b: lua.play_card_face_down(17600, "Blue", 0, 0, 0, PAYLOAD),
-    lambda b: lua.play_card_face_down("17600) UI.hide('x') --", "Blue", 0, 0, 0),
-    lambda b: lua.play_card_face_down(17600, 'Blue"] UI.hide("x") --', 0, 0, 0),
-    lambda b: lua.play_card_face_down(17600, "Notacolor", 0, 0, 0),
-    lambda b: lua.play_card_face_down(True, "Blue", 0, 0, 0),
-    lambda b: lua.play_card_face_down(17600, "Blue", float("nan"), 0, 0),
+    lambda b: t_play_card_face_down(17600, "Blue", PAYLOAD, 0, 0),
+    lambda b: t_play_card_face_down(17600, "Blue", 0, PAYLOAD, 0),
+    lambda b: t_play_card_face_down(17600, "Blue", 0, 0, PAYLOAD),
+    lambda b: t_play_card_face_down(17600, "Blue", 0, 0, 0, PAYLOAD),
+    lambda b: t_play_card_face_down("17600) UI.hide('x') --", "Blue", 0, 0, 0),
+    lambda b: t_play_card_face_down(17600, 'Blue"] UI.hide("x") --', 0, 0, 0),
+    lambda b: t_play_card_face_down(17600, "Notacolor", 0, 0, 0),
+    lambda b: t_play_card_face_down(True, "Blue", 0, 0, 0),
+    lambda b: t_play_card_face_down(17600, "Blue", float("nan"), 0, 0),
     lambda b: lua.read_hand(PAYLOAD),
     lambda b: lua.count_hand('Red"] UI.hide("x") --'),
     lambda b: lua.read_discard('abc"); UI.hide("x") --'),
@@ -268,7 +268,7 @@ def test_sendable_registration_is_module_private():
 
 
 def test_numeric_arguments_are_formatted_with_repr():
-    s = lua.play_card_face_down(17600, "Blue", 1, 2, 3)
+    s = t_play_card_face_down(17600, "Blue", 1, 2, 3)
     assert "Vector(1.0, 2.0, 3.0)" in s and "CardID == 17600" in s
 
 

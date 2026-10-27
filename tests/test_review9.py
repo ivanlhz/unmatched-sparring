@@ -561,6 +561,7 @@ def test_continuar_reads_the_new_discard_card_boost_and_announces_the_total(brig
     click(session, table, Event.REVEAL)
     booster = card(game, 1, "Service Pistol")
     table.human_discard = [booster.card_id]
+    table.human_count -= 1                                # la carta del boost salio de la mano
     msgs = click(session, table, Event.BOOST)
     assert session.pending is None and session.pending_value == 0
     text = next(m for m in msgs if m.startswith("Combate"))
@@ -618,6 +619,7 @@ def test_a_boost_wait_survives_a_save_and_resume(brig):  # noqa: F811
     assert session.pending.boost_wait == {**saved["pending"]["boost_wait"]}
     assert session.panel_view()[1]["btn_boost"] == (True, True)
     table.human_discard = [card(game, 1, "Service Pistol").card_id]
+    table.human_count -= 1
     click(session, table, Event.BOOST)
     assert session.pending is None and game.players[1].discard
     from sparring import persist

@@ -28,7 +28,7 @@ from . import persist
 from .ai_medusa import MedusaAI
 from .cards import Card
 from .controller import Controller
-from .combat import GLANCE_DAMAGE, can_boost
+from .combat import FEINT, GLANCE_DAMAGE, can_boost, is_medusa_card
 from .state import ANUNG, DETECTIVE, EXHAUST_DAMAGE, HAND_LIMIT, START_HAND, Fighter, Game, RuleError
 from .tts import lua, ui
 from .tts.client import TTSClient, TTSLuaError
@@ -179,7 +179,7 @@ class Pending:
     bot_card: Card | None        # defensa del bot (human_attacks) o ataque del bot (bot_attacks)
     bot_card_guid: str | None = None
     cancel_failures: int = 0
-    boost_wait: dict | None = None   # cartas ya reveladas, sin resolver: {"card", "guid", "baseline"} (espera el BOOST del humano)
+    boost_wait: dict | None = None   # cartas ya reveladas, sin resolver: {"card", "guid", "baseline", "hand", "stuck"} (espera el BOOST del humano)
 
 
 class Session:
@@ -229,6 +229,7 @@ class Session:
         self._snap_spec: lua.SnapSpec | None = None
         self._write_seq = 0                                 # ultima escritura de mesa enviada (la sella el compuesto)
         self._deck_ident: dict[str, tuple] = {}             # "bot"/"human" -> pares (FaceURL, BackURL) de su mazo
+        self._saved_ident: dict[str, tuple] = {}            # lo mismo, leido de sesion.json (si la mesa no responde)
         self.new_game: Callable[[], Game] | None = None     # fabrica de la partida nueva al reiniciar
         self.clock: Callable[[], float] = time.monotonic    # reloj de la doble pulsacion de Reiniciar partida
         self.timing: Callable[[str], None] | None = None    # --timing: una linea por boton y por accion del bot
@@ -271,6 +272,8 @@ class Session:
             self.load_identities()
         except TABLE_ERRORS as e:
             self._table_failure(e)               # se reintenta al primer uso: sin identidad no se escribe ninguna carta
+        for side, pairs in self._saved_ident.items():
+            self._deck_ident.setdefault(side, pairs)
 
     def _begin_game(self) -> None:
         self._check_config()
@@ -315,6 +318,8 @@ class Session:
         self._write_dials(post=True)              # la mesa ensena ya la vida del motor, no la de antes del corte
         if self.game.winner is not None:
             self.say(f"Fin de partida: gana el jugador {self.game.winner}. (Deshacer fin de partida si es un error.)")
+        elif self.pending is not None and self.pending.boost_wait is not None:
+            self.say(self._boost_prompt(self.pending))
         elif self.pending is not None:
             self.say("Hay un combate pendiente: pulsa Revelar o Cancelar ataque.")
         elif self.pending_discard is not None:
@@ -723,6 +728,9 @@ class Session:
         if bot_spot is None or human_spot is None:
             raise SessionError("falta dead_spot en la configuracion: no hay donde apartar las miniaturas")
         scope = self._scope()
+        sizes = {"bot": len(fresh.players[self.bot].full_set), "human": len(fresh.players[self.human].full_set)}
+        self._flush()
+        self._check_reset_plan(scope, sizes)
         decks = {"bot": self._w(lua.reset_deck(c.bot_deck_guid, c.bot_deck_spot, lua.BOT_CARD_IDS,
                                                identity=self._identity(), scope=scope), "cards")}
         if c.human_deck_guid:
@@ -743,7 +751,6 @@ class Session:
         if want:
             self._w(lua.set_health_dials(want), "dials")
         self._flush()
-        sizes = {"bot": len(fresh.players[self.bot].full_set), "human": len(fresh.players[self.human].full_set)}
         for side, op in decks.items():
             res = op.result or {}
             if not res.get("deck") or res.get("quantity") != sizes[side]:
@@ -760,6 +767,26 @@ class Session:
         if not self._settle(clean):
             raise SessionError("el reinicio no ha dejado la mesa limpia (manos, descartes, piezas o diales); "
                                "repite Reiniciar partida")
+
+    def _check_reset_plan(self, scope: lua.Scope, sizes: dict[str, int]) -> None:
+        """Antes de mover nada: cada bando tiene que poder reunir TODAS sus cartas en su mazo. Si uno no puede, el
+        reinicio se rechaza entero (no se deja un bando devuelto y el otro no)."""
+        c = self.cfg
+        sides = [("bot", c.bot_deck_guid, c.bot_deck_spot, lua.BOT_CARD_IDS)]
+        if c.human_deck_guid:
+            sides.append(("human", c.human_deck_guid, c.human_deck_spot, lua.HUMAN_CARD_IDS))
+        plans = self.client.call_lua(lua.reset_plan(
+            [(guid, spot, rng, self._identity(side)) for side, guid, spot, rng in sides], scope=scope))
+        if not isinstance(plans, list) or len(plans) != len(sides):
+            raise TTSLuaError(f"respuesta no valida del plan de reinicio: {str(plans)[:80]!r}")
+        for (side, *_), plan in zip(sides, plans):
+            plan = plan if isinstance(plan, dict) else {}
+            total, gatherable = plan.get("total"), plan.get("deck") or (plan.get("loose") or 0) >= 2
+            if total != sizes[side] or not gatherable:
+                raise SessionError(
+                    f"no puedo reunir las {sizes[side]} cartas del mazo {'del bot' if side == 'bot' else 'tuyo'} "
+                    f"(a mi alcance hay {total if isinstance(total, int) else 0}); no he movido nada. Deja todas sus "
+                    "cartas en la mano, el descarte, la zona de combate o el mazo y repite Reiniciar partida")
 
     def _adopt_fresh(self, fresh: Game) -> None:
         """La sesion pasa a la partida nueva, conservando el cliente, la configuracion y los ajustes de ejecucion."""
@@ -792,6 +819,8 @@ class Session:
             "scheme_baseline": self.scheme_baseline, "dial_debt": self.dial_debt, "setup": self.setup,
             "dials_written": self.dials_written, "dials_attempted": self.dials_attempted,
             "start_spaces": {str(k): v for k, v in self.game.start_spaces.items()},
+            "deck_ident": {side: [list(pair) for pair in pairs]
+                           for side, pairs in {**self._saved_ident, **self._deck_ident}.items()},
         }
 
     def fingerprint(self) -> dict:
@@ -842,6 +871,7 @@ class Session:
             seen = d.get("destiny_seen")
             self.destiny_seen = None if seen is None else (int(seen[0]), str(seen[1]))
             self.game_id = d["fingerprint"]["game_id"]
+            self._saved_ident = self._load_saved_identities(d.get("deck_ident"))
         except (KeyError, TypeError, IndexError) as e:
             raise persist.StateError(f"guardado no valido: {e!r}") from None
 
@@ -849,11 +879,28 @@ class Session:
     def _load_boost_wait(raw) -> dict | None:
         if raw is None:
             return None
+        hand = raw.get("hand") if isinstance(raw, dict) else None
         if not isinstance(raw, dict) or not isinstance(raw.get("card"), int) \
                 or not isinstance(raw.get("baseline"), list) or not all(isinstance(i, int) for i in raw["baseline"]) \
-                or not (raw.get("guid") is None or isinstance(raw["guid"], str)):
+                or not (raw.get("guid") is None or isinstance(raw["guid"], str)) \
+                or not (hand is None or (isinstance(hand, int) and not isinstance(hand, bool))):
             raise KeyError("boost_wait")
-        return {"card": raw["card"], "guid": raw.get("guid"), "baseline": list(raw["baseline"])}
+        return {"card": raw["card"], "guid": raw.get("guid"), "baseline": list(raw["baseline"]), "hand": hand,
+                "stuck": raw.get("stuck") is True}
+
+    @staticmethod
+    def _load_saved_identities(raw) -> dict[str, tuple]:
+        """Las identidades guardadas se validan como las leidas de la mesa; lo que no sirve se descarta sin romper
+        el guardado (la identidad se vuelve a leer de la mesa)."""
+        out = {}
+        for side in ("bot", "human"):
+            rows = raw.get(side) if isinstance(raw, dict) else None
+            rows = rows if isinstance(rows, list) else []
+            pairs = Session._parse_pairs([{"face": r[0], "back": r[1]} for r in rows
+                                          if isinstance(r, (list, tuple)) and len(r) == 2])
+            if pairs:
+                out[side] = pairs
+        return out
 
     def _persist(self) -> None:
         if self.state_path is None:
@@ -1071,6 +1118,9 @@ class Session:
             return
         p = self.pending
         if p is not None and p.boost_wait is not None:
+            if p.boost_wait.get("stuck"):
+                self._cancel_stuck_boost(p)
+                return
             self.say("Las cartas ya estan giradas: no se puede cancelar. Pulsa Continuar (con tu carta de boost en el "
                      "descarte) o Sin boost.")
             return
@@ -1120,6 +1170,9 @@ class Session:
             return
         if self._drop_pending_if_gone():
             return
+        if p.boost_wait is not None:              # con las cartas ya giradas no hay nada boca abajo que buscar
+            self.say(self._boost_prompt(p))
+            return
         g = self.game
         seen = self._rd_face("human")
         mine = {c.card_id: c for c in g.players[self.human].full_set}
@@ -1142,14 +1195,13 @@ class Session:
         except RuleError as e:
             self.say(f"Carta ilegal: {e}. Cambiala o dale la vuelta y pulsa Revelar otra vez.")
             return
-        if p.boost_wait is not None:
-            self.say("Las cartas ya estan reveladas: pon tu carta de boost en el descarte y pulsa Continuar, "
-                     "o pulsa Sin boost.")
-            return
         human_guid = theirs[0]["guid"] if theirs else None
         if p.kind == "human_attacks" and human_card is not None and can_boost(human_card):
-            self._await_boost(p, human_card, human_guid)
-            return
+            if p.bot_card is not None and is_medusa_card(p.bot_card) and p.bot_card.title == FEINT:
+                self.say(f"{p.bot_card.title} cancela los efectos de {human_card.title}: no hay boost que jugar.")
+            else:
+                self._await_boost(p, human_card, human_guid)
+                return
         self._resolve_combat(p, human_card, human_guid, flip=True, boost=None)
 
     def _await_boost(self, p: Pending, card: Card, guid: str | None) -> None:
@@ -1157,10 +1209,11 @@ class Session:
         Continuar (lee la carta nueva del descarte) o Sin boost; Cancelar ya no vale con las cartas giradas."""
         own = {c.card_id for c in self.game.players[self.human].full_set}
         baseline = sorted({r["id"] for r in self._rd_human_discard()} & own)
-        guids = [p.bot_card_guid, guid]
-        self._flip_all(guids)
-        self._flip_queued(guids)
-        p.boost_wait = {"card": card.card_id, "guid": guid, "baseline": baseline}
+        cards = [(p.bot_card_guid, "bot"), (guid, "human")]
+        self._flip_all(cards)
+        self._flip_queued(cards)
+        p.boost_wait = {"card": card.card_id, "guid": guid, "baseline": baseline,
+                        "hand": self._rd_human_count(-1), "stuck": False}
         self.say(f"{card.title} revelado: si quieres potenciar, pon una carta de tu mano en tu descarte y pulsa "
                  "Continuar (o Sin boost).")
 
@@ -1169,6 +1222,13 @@ class Session:
 
     def _no_boost(self, _: dict) -> None:
         self._finish_boost(False)
+
+    def _boost_prompt(self, p: Pending) -> str:
+        if p.boost_wait.get("stuck"):
+            return ("El combate no se pudo resolver con la mesa actual: corrige la posicion o la carta y pulsa "
+                    "Continuar o Sin boost, o pulsa Cancelar para deshacerlo (las cartas vuelven a quedar boca abajo).")
+        return ("Las cartas ya estan reveladas: pon tu carta de boost en el descarte y pulsa Continuar, "
+                "o pulsa Sin boost.")
 
     def _finish_boost(self, use: bool) -> None:
         p = self.pending
@@ -1189,16 +1249,32 @@ class Session:
                 self.say(f"Hay {len(new)} cartas nuevas en tu descarte ({', '.join(mine[i].title for i in new)}): "
                          "deja solo la del boost y pulsa Continuar.")
                 return
+            before, now = p.boost_wait.get("hand"), self._rd_human_count(-1)
+            if isinstance(before, int) and before >= 0 and now >= 0 and now != before - 1:
+                self.say(f"El boost tiene que salir de tu mano: tenias {before} cartas y ahora tienes {now} "
+                         f"(deberian ser {max(before - 1, 0)}). Corrigelo y pulsa Continuar, o pulsa Sin boost.")
+                return
             boost = mine[new[0]]
+        self.sync_positions()                     # la mesa manda: algo pudo moverse mientras se esperaba
         self._resolve_combat(p, card, p.boost_wait["guid"], flip=False, boost=boost)
+        if self.pending is p and p.boost_wait is not None:
+            p.boost_wait["stuck"] = True          # el motor lo rechazo: Cancelar pasa a ser la salida
+
+    def _cancel_stuck_boost(self, p: Pending) -> None:
+        """Salida del combate atascado tras revelar: las dos cartas vuelven a quedar boca abajo, la del bot a su mano
+        y la accion no se gasta. La carta tuya la recoges tu."""
+        self._unflip([(p.bot_card_guid, "bot"), (p.boost_wait["guid"], "human")])
+        self._return_bot_card(p)
+        self.pending, self.pending_value, self.chosen_attacker = None, 0, None
+        self.say("Combate cancelado: la accion no se ha gastado. Recoge tu carta de la zona de combate.")
 
     def _resolve_combat(self, p: Pending, human_card: Card | None, human_guid: str | None, flip: bool,
                         boost: Card | None) -> None:
         g = self.game
         hst = g.players[self.human]
         guess = (list(hst.hand), list(hst.deck), list(hst.discard))
-        flip_guids = [p.bot_card_guid, human_guid]
-        flipped = self._flip_all(flip_guids) if flip else []
+        flip_cards = [(p.bot_card_guid, "bot"), (human_guid, "human")]
+        flipped = self._flip_all(flip_cards) if flip else []
         value = self.pending_value
         before = self._snapshot_bot()
         alive_before = {fid: f.alive for fid, f in g.fighters.items()}
@@ -1218,11 +1294,15 @@ class Session:
             if human_card is not None:
                 self._transit.pop(human_card.card_id, None)
             self._unflip(flipped)
-            self.say(f"Carta ilegal: {e}. Cambiala y pulsa Revelar otra vez.")
+            if p.boost_wait is not None:
+                self.say(f"No se puede resolver el combate: {e}. Corrige la mesa y pulsa Continuar o Sin boost "
+                         "otra vez, o pulsa Cancelar para deshacerlo.")
+            else:
+                self.say(f"Carta ilegal: {e}. Cambiala y pulsa Revelar otra vez.")
             return
         discarded_now = p.bot_card is not None and p.bot_card in g.players[self.bot].discard
         if flip:
-            self._flip_queued([None if discarded_now and guid == p.bot_card_guid else guid for guid in flip_guids])
+            self._flip_queued([(None if discarded_now and side == "bot" else guid, side) for guid, side in flip_cards])
         self.pending, self.pending_value, self.chosen_attacker = None, 0, None
         if self.pending_discard is not None:      # antes de cualquier E/S: un fallo de mesa no puede dejarlo sin base
             self.pending_discard["baseline"] = len(g.players[self.human].discard)
@@ -1402,33 +1482,39 @@ class Session:
                  if fid != skip and fid in before and f.hp != before[fid]]
         return "PV: " + ", ".join(parts) if parts else ""
 
-    def _flip_all(self, guids: list[str | None]) -> list[str]:
-        """Gira las cartas; si una falla se vuelven a ocultar las ya giradas antes de propagar el error. En modo
-        rapido no se gira aqui: `_flip_queued` las encola cuando el motor ya acepto el combate."""
-        flipped: list[str] = []
+    def _flip_script(self, guid: str, side: str, face_up: bool = True) -> str:
+        ids = lua.BOT_CARD_IDS if side == "bot" else lua.HUMAN_CARD_IDS
+        return lua.flip_card(guid, self.cfg.rot_y, face_up, ids, identity=self._identity(side))
+
+    def _flip_all(self, cards: list[tuple[str | None, str]]) -> list[tuple[str, str]]:
+        """Gira las cartas (guid, bando); si una falla se vuelven a ocultar las ya giradas antes de propagar el error.
+        En modo rapido no se gira aqui: `_flip_queued` las encola cuando el motor ya acepto el combate."""
+        flipped: list[tuple[str, str]] = []
         if self.cfg.batch:
             return flipped
         try:
-            for guid in guids:
+            for guid, side in cards:
                 if guid:
-                    self._w(lua.flip_card(guid, self.cfg.rot_y), "flip")
-                    flipped.append(guid)
+                    self._w(self._flip_script(guid, side), "flip")
+                    flipped.append((guid, side))
         except Exception:
             self._unflip(flipped)
             raise
         return flipped
 
-    def _flip_queued(self, guids: list[str | None]) -> None:
+    def _flip_queued(self, cards: list[tuple[str | None, str]]) -> None:
         if self.cfg.batch:
-            for guid in guids:
+            for guid, side in cards:
                 if guid:
-                    self._w(lua.flip_card(guid, self.cfg.rot_y), "flip")
+                    self._w(self._flip_script(guid, side), "flip")
 
-    def _unflip(self, guids: list[str]) -> None:
-        for guid in guids:
+    def _unflip(self, cards: list[tuple[str | None, str]]) -> None:
+        for guid, side in cards:
+            if not guid:
+                continue
             try:
-                self._w(lua.flip_card(guid, self.cfg.rot_y, face_up=False), "flip").result
-            except (TTSLuaError, OSError):
+                self._w(self._flip_script(guid, side, face_up=False), "flip").result
+            except TABLE_ERRORS:
                 self.say("No pude volver a ocultar una carta: giala boca abajo a mano.")
 
     def _end_action(self, _: dict) -> None:
@@ -1861,18 +1947,48 @@ class Session:
             decks.append(("human", (c.human_deck_guid, tuple(c.human_deck_spot) if c.human_deck_spot else None,
                                     lua.HUMAN_CARD_IDS)))
         res = self.client.call_lua(lua.deck_identities([d for _, d in decks]))
-        for (side, _), entry in zip(decks, res if isinstance(res, list) else []):
-            rows = entry.get("pairs") if isinstance(entry, dict) else None
-            pairs = tuple((r["face"], r["back"]) for r in rows or []
-                          if isinstance(r, dict) and all(isinstance(r.get(k), str) and lua._URL.fullmatch(r[k])
-                                                         for k in ("face", "back")))[:lua.MAX_IDENTITIES]
+        if not isinstance(res, list) or len(res) != len(decks) or not all(isinstance(e, dict) for e in res):
+            raise TTSLuaError(f"respuesta no valida de la lectura de identidades: {str(res)[:80]!r}")
+        for (side, _), entry in zip(decks, res):
+            pairs = self._parse_pairs(entry.get("pairs"))
             if entry.get("found") and pairs:
                 self._deck_ident[side] = pairs
 
+    @staticmethod
+    def _parse_pairs(rows) -> tuple:
+        if not isinstance(rows, list):
+            return ()
+        return tuple((r["face"], r["back"]) for r in rows
+                     if isinstance(r, dict) and all(isinstance(r.get(k), str) and lua._URL.fullmatch(r[k])
+                                                    for k in ("face", "back")))[:lua.MAX_IDENTITIES]
+
+    def _identity_from_hand(self, side: str) -> None:
+        """Ultimo recurso: las imagenes de las cartas de la mano del bando (solo las de su rango de CardID)."""
+        seat, rng = ((self.cfg.bot_seat, lua.BOT_CARD_IDS) if side == "bot"
+                     else (self.cfg.human_seat, lua.HUMAN_CARD_IDS))
+        res = self.client.call_lua(lua.hand_identities(seat, rng))
+        pairs = self._parse_pairs(res.get("pairs") if isinstance(res, dict) else None)
+        if pairs:
+            self._deck_ident[side] = pairs
+
     def _identity(self, side: str = "bot") -> tuple:
+        """Imagenes de las cartas del bando: de la mesa; si no, del guardado; si no, de su mano."""
+        failure: Exception | None = None
         if side not in self._deck_ident:
-            self.load_identities()
+            try:
+                self.load_identities()
+            except TABLE_ERRORS as e:
+                failure = e
+        if side not in self._deck_ident and side in self._saved_ident:
+            self._deck_ident[side] = self._saved_ident[side]
         if side not in self._deck_ident:
+            try:
+                self._identity_from_hand(side)
+            except TABLE_ERRORS as e:
+                failure = failure or e
+        if side not in self._deck_ident:
+            if failure is not None:
+                raise failure
             raise SessionError(f"no consigo leer la identidad (imagenes) del mazo {'del bot' if side == 'bot' else 'tuyo'}: "
                                "sin ella no toco ninguna carta")
         return self._deck_ident[side]
@@ -2155,8 +2271,9 @@ class Session:
                        is not None or bool(self.pending_value) or self.dirty or self.unprojected is not None
                        or bool(self.flush_failures))
         boosting = self.pending is not None and self.pending.boost_wait is not None
+        stuck = boosting and bool(self.pending.boost_wait.get("stuck"))
         states["btn_reveal"] = (self.pending is not None and not boosting, not boosting)
-        states["btn_cancel"] = (cancellable and not boosting, not boosting)
+        states["btn_cancel"] = (cancellable and (not boosting or stuck), not boosting or stuck)
         states["btn_boost"] = (boosting, boosting)
         states["btn_noboost"] = (boosting, boosting)
         states["btn_end"] = (not in_setup and g.winner is None and self.pending is None, True)
@@ -2189,6 +2306,8 @@ class Session:
         if self.pending is not None and self.pending.boost_wait is not None:
             title = next((c.title for c in g.players[self.human].full_set
                           if c.card_id == self.pending.boost_wait["card"]), "Boost")
+            if self.pending.boost_wait.get("stuck"):
+                return f"{title} sin resolver: corrige la mesa y pulsa Continuar o Sin boost, o Cancelar"
             return f"{title} revelado: pon una carta en tu descarte y pulsa Continuar o Sin boost"
         if self.pending is not None:
             wait = "tu defensa y Revelar" if self.pending.kind == "bot_attacks" else "Revelar"
@@ -2231,7 +2350,8 @@ class Session:
         try:
             if self.cfg.batch:
                 self._expect_hand = (self.cfg.bot_seat, len(self._table_hand_ids()) - 1)
-            res = self._w(lua.play_card_face_down(card.card_id, self.cfg.bot_seat, x, y, z, self.cfg.rot_y),
+            res = self._w(lua.play_card_face_down(card.card_id, self.cfg.bot_seat, x, y, z, self.cfg.rot_y,
+                                                  identity=self._identity()),
                           "cards").result
         except OSError:
             raise

@@ -37,7 +37,8 @@ DEFAULT_STATE = Path(__file__).resolve().parent.parent / "estado" / "sesion.json
 BOT, HUMAN = 0, 1
 FIGHTER_IDS = ("medusa", "harpy1", "harpy2", "harpy3", "hellboy", "lobster")
 READ_ONLY_TAGS = frozenset({"snapshot", "piece_spaces_by_guid", "read_hand", "count_hand", "read_discard",
-                            "read_face_down_cards", "inspect_guids", "read_health_dials", "zone_overlaps", "deck_identities"})
+                            "read_face_down_cards", "inspect_guids", "read_health_dials", "zone_overlaps", "deck_identities",
+                            "hand_identities", "reset_plan"})
 
 REQUIRED = ("bot_seat", "human_seat", "nicknames", "bot_card_spot", "human_card_spot", "bot_discard_spot",
             "bot_discard_zone", "bot_deck_guid", "human_discard_zone", "bot_deck_spot", "pieces")
@@ -130,7 +131,10 @@ class PlayConfig:
         lua.discard_cards([0], [cfg.bot_discard_spot], cfg.bot_discard_rot_y, identity=ident, scope=scope)
         lua.reset_deck(cfg.bot_deck_guid, cfg.bot_deck_spot, lua.BOT_CARD_IDS, identity=ident, scope=scope)
         lua.deck_identities([(cfg.bot_deck_guid, tuple(cfg.bot_deck_spot), lua.BOT_CARD_IDS)])
-        lua.play_card_face_down(0, cfg.bot_seat, *cfg.bot_card_spot, cfg.rot_y)
+        lua.play_card_face_down(0, cfg.bot_seat, *cfg.bot_card_spot, cfg.rot_y, identity=ident)
+        lua.flip_card(cfg.bot_deck_guid, cfg.rot_y, identity=ident)
+        lua.reset_plan([(cfg.bot_deck_guid, cfg.bot_deck_spot, lua.BOT_CARD_IDS, ident)], scope=scope)
+        lua.hand_identities(cfg.bot_seat, lua.BOT_CARD_IDS)
         lua.read_face_down_cards(*cfg.human_card_spot, cfg.reveal_radius)
         for name in cfg.nicknames.values():
             lua.lua_str(name)
