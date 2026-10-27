@@ -1,0 +1,116 @@
+{
+  "_notes": [
+    "Valores leidos de la mesa real (TS_AutoSave 27/10 09:29) y de autosave_222437 para las piezas. Los TODO restantes se leen en vivo con --read-only.",
+    "board_guid ec6f27 (Custom_Board 'B.P.R.D. HQ'). human_seat White (HandTrigger dd569b en -30.1,-9.0); bot_seat Green (HandTrigger f8d527 en 30.0,-9.0). Los ScriptingTriggers 742715 y 6ec8d9 estan sobre esas zonas de mano: NO son zonas de descarte (D1).",
+    "Zonas de descarte creadas por el usuario: human_discard_zone b7a0b8 (centro -12.5,0.7, ~x -18..-7) y bot_discard_zone 906a7a (centro 15.0,0.7, ~x 10.75..19.25). Son grandes a proposito: el descarte se deja EN ORDEN y repartido en una rejilla para que el rival vea lo jugado (bot_discard_spot = origen, bot_discard_step = (dx de columna, dz de fila), bot_discard_rows huecos por columna; se saltan los huecos a menos de 3 del mazo de robo).",
+    "Los mazos de robo estan dentro o al borde de esas zonas: bot_deck_guid d42056 en (11.5, 12.0) (dentro de 906a7a) y human_deck_guid 00dc9a en (-7.7, 12.5) (borde de b7a0b8). read_discard los excluye por GUID y por posicion (1.5).",
+    "pieces: las miniaturas se resuelven por GUID (los marcadores de vida comparten nombre). 04b2c9 Medusa, 328e52 / 33c5ec / 01eb1f Harpy (Custom_Token), f9789a / e6f06e Hellboy (la miniatura cambia de GUID al darle la vuelta a su estado ANUNG UN RAMA: se acepta cualquiera de los dos), e33604 Lobster Johnson (Custom_Token).",
+    "dials (solo lectura y aviso): bcd809 Medusa (max 16), 046660 Hellboy (max 18), 18c384 Lobster Johnson (max 6). Las Harpias (1 PV) no tienen dial. e17c66 'Destiny Dial' no es de vida.",
+    "Zona de combate (carta boca abajo), segun el usuario: a la DERECHA del tablero desde el asiento White, lado -z, lejos de los diales y mazos (z 12..17). human_card_spot (-2.0, -18.0) y bot_card_spot (6.0, 1.7, -18.0): entre las dos zonas de descarte en x (-18..-7 y 10.75..19.25) y pasado el borde del tablero (los puntos de enganche llegan a z -13). Configurables. off_board_dist 4.0 es una estimacion: calibrala con las distancias de --read-only.",
+    "start_spaces: casillas de salida REALES de la mesa (Medusa en la 30, Hellboy en la 3); no son las del mapa por defecto. bot_discard_bounds: (centro x, centro z, tamano x, tamano z, rotY) de la zona 906a7a leida del guardado (live.json 27/10): la rejilla del descarte solo usa huecos cuyo centro cae dentro y, llena, apila encima desde el primero. panel_position: encima de los tapetes (y 1.0) y de los objetos (~1.57).",
+    "destiny_dial e17c66 'Destiny Dial' (-4.8, 17.3): el bot lo pone a los destinos de Hellboy en su descarte (solo cartas marcadas destiny: 11 de 30). dead_spot: donde el bot aparta sus miniaturas caidas (una por pieza, separadas 1.5 en x); es una estimacion, calibrala en vivo.",
+    "Preparacion (setup): el bot reparte su mano, decide un mulligan (una vez: las 5 cartas al mazo, se baraja y se reparten 5; regla de la casa o sin confirmar, ver README) y coloca a Medusa y las Harpias segun quien empieza; el humano coloca a Hellboy y Lobster y pulsa Listo. Las casillas de salida salen del reglamento (el primer jugador ocupa la salida 1 del mapa, el segundo la 2) salvo que se fije start_spaces a mano. mulligan_bot=false lo desactiva para el bot; mulligan_human=false desactiva el boton Mulligan del humano."
+  ],
+  "board": "bprd-hq",
+  "board_guid": "ec6f27",
+  "bot_seat": "Green",
+  "human_seat": "White",
+  "nicknames": {
+    "medusa": "Medusa",
+    "harpy1": "Harpy 1",
+    "harpy2": "Harpy 2",
+    "harpy3": "Harpy 3",
+    "hellboy": "Hellboy",
+    "lobster": "Lobster Johnson"
+  },
+  "pieces": {
+    "medusa": "04b2c9",
+    "harpy1": "328e52",
+    "harpy2": "33c5ec",
+    "harpy3": "01eb1f",
+    "hellboy": [
+      "f9789a",
+      "e6f06e"
+    ],
+    "lobster": "e33604"
+  },
+  "dials": {
+    "medusa": "bcd809",
+    "hellboy": "046660",
+    "lobster": "18c384"
+  },
+  "off_board_dist": 4.0,
+  "bot_card_spot": [
+    6.0,
+    1.7,
+    -18.0
+  ],
+  "human_card_spot": [
+    -2.0,
+    -18.0
+  ],
+  "bot_discard_spot": [
+    15.0,
+    2.0,
+    -14.0
+  ],
+  "bot_discard_zone": "906a7a",
+  "bot_deck_guid": "d42056",
+  "human_discard_zone": "b7a0b8",
+  "bot_deck_spot": [
+    7.28,
+    13.93
+  ],
+  "reveal_radius": 2.0,
+  "rot_y": 0.0,
+  "panel_position": [
+    2,
+    1.8,
+    -24
+  ],
+  "probe_guids": [
+    "dd569b",
+    "f8d527",
+    "742715",
+    "6ec8d9",
+    "b7a0b8",
+    "906a7a",
+    "00dc9a",
+    "04b2c9",
+    "f9789a",
+    "e33604",
+    "328e52",
+    "33c5ec",
+    "01eb1f",
+    "bcd809",
+    "046660",
+    "18c384"
+  ],
+  "bot_discard_step": [
+    -3.6,
+    2.2
+  ],
+  "bot_discard_rows": 15,
+  "bot_discard_rot_y": 90.0,
+  "human_deck_guid": "00dc9a",
+  "human_deck_spot": [
+    -4.6,
+    13.67
+  ],
+  "bot_discard_bounds": [
+    14.97,
+    0.74,
+    35.43,
+    8.55,
+    269.1
+  ],
+  "destiny_dial": "e17c66",
+  "dead_spot": [
+    24.0,
+    2.5,
+    -20.0
+  ],
+  "setup": true,
+  "mulligan_bot": true,
+  "mulligan_human": true
+}

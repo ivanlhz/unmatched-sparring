@@ -1,0 +1,521 @@
+{
+ "key": "bprd-hq",
+ "name": "B.P.R.D. Headquarters",
+ "source": "TS_AutoSave.json 26/10/2026 21:34, board ec6f27",
+ "imageKey": "1E5B373863CF97C6FF9E3478C687923A1C3E47AD",
+ "starts": {
+  "1": 3,
+  "2": 30,
+  "3": 9,
+  "4": 24
+ },
+ "notes": "Las franjas finas marrones del borde de las casillas 1 y 2 son fallos de la importación del mapa a TTS (confirmado por Iván el 26/10/2026); no son zona.",
+ "spaces": [
+  {
+   "id": 0,
+   "local": [
+    5.772,
+    -6.345
+   ],
+   "zones": [
+    "azul",
+    "gris"
+   ],
+   "adj": [
+    1,
+    2,
+    3
+   ]
+  },
+  {
+   "id": 1,
+   "local": [
+    3.569,
+    -5.77
+   ],
+   "zones": [
+    "azul"
+   ],
+   "adj": [
+    0,
+    2,
+    15
+   ]
+  },
+  {
+   "id": 2,
+   "local": [
+    4.801,
+    -3.659
+   ],
+   "zones": [
+    "gris",
+    "azul"
+   ],
+   "adj": [
+    0,
+    1,
+    4
+   ]
+  },
+  {
+   "id": 3,
+   "local": [
+    6.971,
+    -4.067
+   ],
+   "zones": [
+    "azul"
+   ],
+   "adj": [
+    0,
+    4
+   ]
+  },
+  {
+   "id": 4,
+   "local": [
+    5.518,
+    -0.742
+   ],
+   "zones": [
+    "azul",
+    "gris",
+    "ladrillo"
+   ],
+   "adj": [
+    2,
+    3,
+    5
+   ]
+  },
+  {
+   "id": 5,
+   "local": [
+    3.207,
+    -0.454
+   ],
+   "zones": [
+    "ladrillo",
+    "rojo"
+   ],
+   "adj": [
+    4,
+    6,
+    14
+   ]
+  },
+  {
+   "id": 6,
+   "local": [
+    2.737,
+    2.845
+   ],
+   "zones": [
+    "rojo"
+   ],
+   "adj": [
+    5,
+    7,
+    11,
+    14
+   ]
+  },
+  {
+   "id": 7,
+   "local": [
+    5.5,
+    2.065
+   ],
+   "zones": [
+    "gris",
+    "ladrillo",
+    "rojo",
+    "rosa"
+   ],
+   "adj": [
+    6,
+    8,
+    10
+   ]
+  },
+  {
+   "id": 8,
+   "local": [
+    7.213,
+    2.659
+   ],
+   "zones": [
+    "ladrillo",
+    "rojo"
+   ],
+   "adj": [
+    7,
+    9
+   ]
+  },
+  {
+   "id": 9,
+   "local": [
+    7.227,
+    5.94
+   ],
+   "zones": [
+    "rojo"
+   ],
+   "adj": [
+    8,
+    10
+   ]
+  },
+  {
+   "id": 10,
+   "local": [
+    5.541,
+    5.899
+   ],
+   "zones": [
+    "rojo",
+    "rosa"
+   ],
+   "adj": [
+    7,
+    9,
+    11
+   ]
+  },
+  {
+   "id": 11,
+   "local": [
+    2.913,
+    5.764
+   ],
+   "zones": [
+    "rojo"
+   ],
+   "adj": [
+    6,
+    10,
+    12
+   ]
+  },
+  {
+   "id": 12,
+   "local": [
+    0.241,
+    6.876
+   ],
+   "zones": [
+    "rosa"
+   ],
+   "adj": [
+    11,
+    13,
+    19
+   ]
+  },
+  {
+   "id": 13,
+   "local": [
+    0.208,
+    3.148
+   ],
+   "zones": [
+    "rosa"
+   ],
+   "adj": [
+    12,
+    14,
+    17
+   ]
+  },
+  {
+   "id": 14,
+   "local": [
+    1.073,
+    -0.221
+   ],
+   "zones": [
+    "ladrillo",
+    "rojo",
+    "rosa"
+   ],
+   "adj": [
+    5,
+    6,
+    13,
+    15,
+    16,
+    17
+   ]
+  },
+  {
+   "id": 15,
+   "local": [
+    1.757,
+    -4.336
+   ],
+   "zones": [
+    "oliva"
+   ],
+   "adj": [
+    1,
+    14,
+    16
+   ]
+  },
+  {
+   "id": 16,
+   "local": [
+    -0.145,
+    -4.311
+   ],
+   "zones": [
+    "oliva"
+   ],
+   "adj": [
+    14,
+    15,
+    26
+   ]
+  },
+  {
+   "id": 17,
+   "local": [
+    -0.857,
+    0.125
+   ],
+   "zones": [
+    "ladrillo",
+    "rosa",
+    "naranja"
+   ],
+   "adj": [
+    13,
+    14,
+    18,
+    20
+   ]
+  },
+  {
+   "id": 18,
+   "local": [
+    -2.304,
+    3.234
+   ],
+   "zones": [
+    "naranja",
+    "beige"
+   ],
+   "adj": [
+    17,
+    19,
+    20,
+    29
+   ]
+  },
+  {
+   "id": 19,
+   "local": [
+    -2.366,
+    6.423
+   ],
+   "zones": [
+    "naranja",
+    "beige"
+   ],
+   "adj": [
+    12,
+    18,
+    30
+   ]
+  },
+  {
+   "id": 20,
+   "local": [
+    -2.962,
+    0.218
+   ],
+   "zones": [
+    "ladrillo",
+    "naranja"
+   ],
+   "adj": [
+    17,
+    18,
+    21
+   ]
+  },
+  {
+   "id": 21,
+   "local": [
+    -4.858,
+    0.233
+   ],
+   "zones": [
+    "turquesa",
+    "ladrillo"
+   ],
+   "adj": [
+    20,
+    22,
+    23,
+    27,
+    28
+   ]
+  },
+  {
+   "id": 22,
+   "local": [
+    -5.492,
+    -3.291
+   ],
+   "zones": [
+    "turquesa"
+   ],
+   "adj": [
+    21,
+    23,
+    24,
+    25
+   ]
+  },
+  {
+   "id": 23,
+   "local": [
+    -3.362,
+    -3.208
+   ],
+   "zones": [
+    "turquesa"
+   ],
+   "adj": [
+    21,
+    22,
+    24,
+    26
+   ]
+  },
+  {
+   "id": 24,
+   "local": [
+    -4.585,
+    -5.61
+   ],
+   "zones": [
+    "turquesa"
+   ],
+   "adj": [
+    22,
+    23,
+    25,
+    26
+   ]
+  },
+  {
+   "id": 25,
+   "local": [
+    -6.623,
+    -5.582
+   ],
+   "zones": [
+    "turquesa"
+   ],
+   "adj": [
+    22,
+    24
+   ]
+  },
+  {
+   "id": 26,
+   "local": [
+    -2.238,
+    -5.627
+   ],
+   "zones": [
+    "turquesa"
+   ],
+   "adj": [
+    16,
+    23,
+    24
+   ]
+  },
+  {
+   "id": 27,
+   "local": [
+    -6.751,
+    0.143
+   ],
+   "zones": [
+    "ladrillo"
+   ],
+   "adj": [
+    21,
+    28
+   ]
+  },
+  {
+   "id": 28,
+   "local": [
+    -6.422,
+    3.862
+   ],
+   "zones": [
+    "beige"
+   ],
+   "adj": [
+    21,
+    27,
+    29,
+    31
+   ]
+  },
+  {
+   "id": 29,
+   "local": [
+    -4.51,
+    3.934
+   ],
+   "zones": [
+    "beige"
+   ],
+   "adj": [
+    18,
+    28,
+    30,
+    31
+   ]
+  },
+  {
+   "id": 30,
+   "local": [
+    -4.467,
+    6.676
+   ],
+   "zones": [
+    "beige"
+   ],
+   "adj": [
+    19,
+    29,
+    31
+   ]
+  },
+  {
+   "id": 31,
+   "local": [
+    -6.608,
+    6.864
+   ],
+   "zones": [
+    "beige"
+   ],
+   "adj": [
+    28,
+    29,
+    30
+   ]
+  }
+ ]
+}

@@ -1,0 +1,104 @@
+{
+  "project": "unmatched-sparring",
+  "goal": "Bot sparring para Unmatched en Tabletop Simulator. Fase 1: el bot juega Medusa contra un humano con Hellboy en el mapa B.P.R.D. HQ.",
+  "features": [
+    {
+      "id": "F01",
+      "title": "Modelo de partida y mapa",
+      "status": "done",
+      "criteria": [
+        "Carga data/maps/bprd-hq.json y data/maps/azuchi-castle.json en un grafo con adyacencia simétrica y zonas por casilla",
+        "Movimiento legal: hasta N casillas, atraviesa luchadores propios, no atraviesa rivales salvo efecto que lo permita (Winged Frenzy), termina en casilla vacía",
+        "Alcance de ataque: melee = adyacente; range = adyacente o compartiendo al menos una zona",
+        "Estado: luchadores (héroe y ayudantes) con vida, casilla y dueño; mazo, mano, descarte por jugador; acciones restantes; quién tiene el turno",
+        "Agotamiento: robar con el mazo vacío hace 2 de daño a cada luchador propio",
+        "Fin de turno: descartar hasta 7 cartas en mano"
+      ]
+    },
+    {
+      "id": "F02",
+      "title": "Combate",
+      "status": "done",
+      "criteria": [
+        "Restricción de carta por luchador (nombre del luchador o any)",
+        "Ventanas IMMEDIATELY, DURING y AFTER COMBAT; en la misma ventana resuelve primero el defensor",
+        "Feint cancela todos los efectos de la carta rival",
+        "Daño de combate = ataque - defensa (mínimo 0); gana el atacante si hace 1 o más de daño de combate, si no gana el defensor",
+        "BOOST: Second Shot permite boost durante el combate sumando el boost de la carta descartada",
+        "Todas las cartas de Medusa (data/medusa_cards.json) tienen su efecto implementado y testeado",
+        "Las cartas de Hellboy (data/hellboy_cards.json + ../unmatched-memory/data/heroes/hellboy.json) tienen valor, boost, tipo, luchador y bandera destino; sus efectos los resuelve el humano, pero el motor registra vida, posición, descarte y forma (DETECTIVE OCULTO con 5 o menos destinos en el descarte, ANUNG UN RAMA con 6 o más)"
+      ],
+      "source": "Reglas de forma de Hellboy: ../unmatched-hellboy-cartas/2026-10-23_2239/unmatched-hellboy-4-personajes.html, seccion \"AHH CRAP!\" (la forma se recalcula desde el descarte; no es permanente)"
+    },
+    {
+      "id": "F03",
+      "title": "IA de Medusa (heurística)",
+      "status": "done",
+      "criteria": [
+        "Al empezar su turno usa su habilidad (1 de daño a un rival en su zona) cuando hay objetivo, priorizando matar a Lobster Johnson si tiene 1 de vida",
+        "Elige 2 acciones entre maniobra, ataque y plan con una función de valoración documentada (amenaza de Hellboy: movimiento 2 + boost posible, ANUNG UN RAMA +2 al ataque y movimiento libre). Siempre gasta sus 2 acciones (no puede pasar; una maniobra sin mover roba igual)",
+        "Hace kiting: prefiere terminar fuera del alcance de ataque de Hellboy en su próximo turno",
+        "Elige defensa (Hiss and Slither, Feint, versátiles o nada) según el valor esperado del ataque rival y la forma de Hellboy",
+        "Evita Clutching Claws y Hiss and Slither cuando a Hellboy le faltan pocos destinos para transformarse (descartar acelera su forma), salvo que gane el combate de forma decisiva",
+        "Es determinista con semilla fija para poder testear",
+        "Simulación en terminal: python -m sparring.sim juega partidas Medusa(IA) contra un Hellboy guionizado simple y termina sin excepciones en 100 partidas con semillas distintas"
+      ]
+    },
+    {
+      "id": "F04",
+      "title": "Puente con Tabletop Simulator (sin probar en vivo)",
+      "status": "done",
+      "criteria": [
+        "Cliente Python de la External Editor API: envía JSON a 127.0.0.1:39999 y escucha a 127.0.0.1:39998",
+        "Solo usa messageID 2 (custom message) y 3 (execute Lua). Nunca messageID 1 (Save & Play), que recarga la partida del usuario",
+        "Snippets Lua para: leer posición de miniaturas por nickname y convertirla a casilla (nearest snap point del Custom_Board con board.positionToWorld), leer cartas de la zona de mano del asiento del bot y del descarte por CardID, mover una miniatura a una casilla, jugar una carta boca abajo en una posición, girarla",
+        "No toca la UI global (UI.setXml del Global sobrescribe la selección de roster del savegame): el panel de botones del humano va en un objeto propio creado por el bot con obj.UI.setXml",
+        "Tests con un servidor TTS falso (mock) que verifican los mensajes enviados; ningún test abre conexión al TTS real"
+      ],
+      "note": "Solo verificado contra un servidor TTS falso; los snippets Lua no se han ejecutado en TTS real."
+    },
+    {
+      "id": "F05",
+      "title": "Sesion en vivo jugable de principio a fin (sin probar en TTS real)",
+      "status": "in-progress",
+      "criteria": [
+        "Sin caminos de congelacion: todo estado pendiente (ataque pendiente, pending_discard, descartes debidos, turno del bot a medias) tiene una salida (Revelar, Fin de accion o Cancelar ataque) y el baseline de descarte se fija antes de cualquier E/S de mesa",
+        "Reintentos: un fallo de mesa (timeout de asentamiento, reparto corto, TTS sin respuesta) deja una deuda (dirty/unprojected) que Fin de accion salda primero; el final del turno del bot no se salta ni se termina dos veces el turno del humano; el inicio del turno del bot es reanudable",
+        "La reconciliacion es idempotente con la mesa real: lo que ya esta en el descarte (incluso como Deck) cuenta como movido; discard_cards y read_discard leen dentro de objetos Deck; la mesa falsa modela Deck de 2+ cartas y mazo -> Card suelta -> vacio",
+        "bot_deck_spot es obligatorio (TypeError al construir, SessionError en start()); el agotamiento del mazo del bot hace dano de extremo a extremo y un reparto corto no reinfla el mazo del motor",
+        "Harpias manejadas: la defensa del bot ante un ataque a una Harpia es legal para Harpia y el Revelar se resuelve",
+        "python -m sparring.play crea el panel en un objeto propio (nunca UI.setXml del Global), muestra los mensajes con broadcast y bombea poll_events a Session.handle; sobrevive a eventos raros y errores internos; Ctrl+C sale limpio (codigo 130) cerrando el listener",
+        "--read-only solo envia scripts de lectura (envoltorio ReadOnlyClient + etiquetas permitidas: piece_spaces_by_guid, read_hand, count_hand, read_discard, read_face_down_cards, inspect_guids, read_health_dials, zone_overlaps) e imprime informe de objetos por GUID, miniaturas por GUID con tipo y distancia, diales de vida, manos, descartes y TODOs; avisa si una zona de descarte se solapa con una zona de mano o comparte cartas con la mano",
+        "Todos los constructores nuevos o cambiados (discard_cards, inspect_guids, broadcast) tienen casos BAD de inyeccion; solo messageID 2 y 3; los tests nunca tocan los puertos 39998/39999 (connect y bind bloqueados en conftest)",
+        "Emparejado de respuestas: TTS no envia messageID 5; cada script de constructor se envuelve (lua.request) con un id entero y responde por sendExternalMessage({sparring_reply=id,...}) (messageID 4) dentro de pcall; call_lua vacia respuestas viejas antes de enviar, descarta las de otro id y solo atribuye un error a la llamada si vuelve con su id; los messageID 3 sueltos se registran y se ignoran",
+        "Recarga de TTS (messageID 1): el cliente la registra; run_loop pausa los botones, comprueba con inspect_guids todos los GUID de la configuracion, recrea el panel y avisa; si falta alguno se detiene sin escribir en la mesa",
+        "PV y bajas por efectos: eventos HP (+1/-1 para cada luchador de ambos bandos), Retirar y Deshacer fin de partida alimentan el motor (vida, muerte, victoria) y permiten corregir una victoria falsa; read_health_dials informa de los diales y la sesion avisa de discrepancias",
+        "Adopcion de la mesa: lo que el humano mueve al descarte del bot se adopta; tras adopt_after fallos de mesa seguidos, o con Cancelar, el motor adopta mano, descarte y posiciones de la mesa; una carta del bot suelta en la mesa se devuelve a su mano en vez de repetir 'repartio 0 de 1'; deal_cards solo toma objetos con CardID del mazo del bot",
+        "Descarte ordenado: el bot deja cada carta descartada en el siguiente hueco de una rejilla dentro de su zona (saltando el mazo de robo) y read_discard excluye los mazos de robo por GUID y posicion",
+        "Reanudacion: el estado de Game y Session se guarda en JSON de forma atomica tras cada boton y --resume lo carga; start() con --first bot es reanudable por la deuda de mesa; SessionError y fallos de conexion salen como mensaje claro, no como traceback ni 'Error interno'",
+        "Piezas por GUID: piece_spaces_by_guid y move_piece con validacion y casos BAD; _project comprueba moved; una pieza lejos (off_board_dist) cuenta como fuera del tablero; ningun camino en vivo usa nombres",
+        "Mutantes N1 (linea base del descarte en Revelar) y N3 (bot_stage tras reintento) muertos por tests; etiqueta del boton y mensajes coinciden ('Fin de accion')",
+        "Marcas en el suelo (solo en modo juego): draw_markings/clear_markings dibujan DESCARTE HELLBOY, DESCARTE MEDUSA, COMBATE HELLBOY y COMBATE MEDUSA con setVectorLines en el panel propio y 3DText propios, idempotentes, sin tocar el Global ni decals; --read-only no las dibuja",
+        "Revision 5: start_spaces (config o deducido de la mesa); pieces acepta lista de GUID por miniatura; el guardado lleva huella (id de partida, hash de configuracion, GUID) y --resume rechaza el ajeno; tests/conftest.py impide escribir bajo la carpeta estado; bot_discard_bounds acota la rejilla y la envuelve apilando; reparto/jugada tardios se acreditan leyendo la mesa; guardado en los puntos de control del turno del bot; combates cuyo luchador desaparece se cancelan; manos iniciales; una accion abierta ignora otros botones de accion; poll_events descarta sparring_reply tardios; clear_markings(remove_panel) y marca sparring en las notas de GM; panel en [2, 1.8, -24]"
+      ],
+      "note": "Revision 5 (27/10) corregida con tests: casillas de salida de la mesa real, guardado con huella y guarda de tests, miniatura con varios GUID, rejilla del descarte acotada a la zona, repartos y jugadas con respuesta tardia, puntos de control del turno del bot, salidas de combates cuyo luchador desaparece, manos iniciales, doble clic, limpieza del panel. Solo verificado contra FakeTTS (que ahora imita al TTS real: sin messageID 5, respuestas por messageID 4). Se marca done solo con todo en verde y tras una prueba en vivo con --read-only; pendiente calibrar off_board_dist, la lectura de los diales y las posiciones de carta/rejilla en la mesa real."
+    },
+    {
+      "id": "F06",
+      "title": "Velocidad (un mensaje por boton) y panel nuevo con reinicio",
+      "status": "in-progress",
+      "criteria": [
+        "Cada mensaje a TTS cuesta ~0.5 s: --timing muestra por boton y por accion del bot los mensajes (call_lua) y los ms; TTSClient.calls/call_seconds/trace y Session.cost_log; FakeTTS.lua_messages cuenta en los tests",
+        "El clic lleva la instantanea: el script del panel (ui.handler_script + lua.snapshot_lua) pone Procesando..., apaga los botones y envia en el mismo sendExternalMessage la mano del bot (CardID), el conteo de la del humano, ambos descartes (sin los mazos de robo), las cartas boca abajo de los dos puntos de combate, la casilla/distancia de cada pieza por GUID y los diales",
+        "Un script compuesto por paso (lua.composite): solo compone scripts ya registrados por constructores (validados), cada uno en pcall, espera dentro de TTS a que piezas y mano se asienten y devuelve el estado resultante; casos BAD (no registrado, anidado, request, cabecera falsificada, mas de 64, expect_hand)",
+        "Objetivo cumplido en la mesa falsa: Maniobra 1, Fin de accion 1, atacar 3, Revelar 2, turno del bot de 2 acciones 3 (1 mensaje por accion); antes 7, 5, 12, 17 y 43",
+        "Panel TURNO/VIDA/PARTIDA con linea de estado viva, botones apagados por estado (interactable=false) y set_panel sobre el objeto propio; Mulligan y Listo solo en la preparacion, Reiniciar partida (doble pulsacion en 3 s) el resto del tiempo",
+        "Reiniciar partida: reset_deck devuelve cartas de ambos bandos a sus mazos y baraja, diales a vida completa y destinos a 0, miniaturas fuera del tablero (dead_spot / human_dead_spot), borra el guardado y vuelve al reparto",
+        "El bot coloca tambien al heroe del humano (Hellboy) en su casilla de salida en la preparacion, en los dos ordenes; el humano solo coloca a su ayudante",
+        "Descarte del humano: una carta boca arriba junto al mazo nunca se excluye; un contador solo baja si la carta falta en dos botones distintos; aviso si una carta se fusiona con el mazo de robo; un dial tocado a mano solo bloquea ese dial",
+        "El bot aparta tambien las miniaturas caidas del humano (human_dead_spot o la zona del bot reflejada); etiquetas del suelo pequenas, legibles desde White, fuera de su caja y sin solaparse"
+      ],
+      "note": "Solo verificado contra FakeTTS. Pendiente en vivo: la instantanea desde el script del panel, el compuesto con Wait.condition, UI.setAttribute/interactable, reset_deck, las etiquetas y human_dead_spot."
+    }
+  ]
+}
