@@ -78,7 +78,7 @@ def test_attack_and_reveal_cost_at_most_two_messages(brig):
     n = fake.lua_messages
     click(session, table, Event.REVEAL)
     assert session.pending is None and fake.lua_messages - n <= 2
-    assert len(table.flips) == 2
+    assert len(table.flips) == 1, "la carta del bot se descarta en el mismo compuesto: no se gira, solo la del humano"
 
 
 def test_each_bot_action_costs_at_most_two_messages(brig, monkeypatch):

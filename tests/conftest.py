@@ -148,3 +148,33 @@ def _default_state_goes_to_tmp(tmp_path, monkeypatch):
     """Un test que olvide --state escribe en su tmp_path, no en estado\."""
     from sparring import play
     monkeypatch.setattr(play, "DEFAULT_STATE", tmp_path / "default-state" / "sesion.json")
+
+
+TEST_IDENT = (("https://img.test/face", "https://img.test/back"),)
+
+
+@pytest.fixture(autouse=True)
+def _decks_have_a_known_identity(monkeypatch):
+    """Las sesiones de prueba arrancan con la identidad de los mazos ya leida (como tras `start`); los tests de la
+    lectura la vacian a proposito."""
+    from sparring.session import Session
+    real = Session.__init__
+
+    def init(self, *a, **kw):
+        real(self, *a, **kw)
+        self._deck_ident = {"bot": TEST_IDENT, "human": TEST_IDENT}
+    monkeypatch.setattr(Session, "__init__", init)
+
+
+def _shims():
+    import functools
+    from sparring.tts import lua
+    scope = lua.Scope(("Green", "White"), ("906a7a", "b7a0b8"), ((6.0, -18.0), (-2.0, -18.0), (11.5, 12.0)))
+    return {"t_deal_cards": functools.partial(lua.deal_cards, identity=TEST_IDENT),
+            "t_discard_cards": functools.partial(lua.discard_cards, identity=TEST_IDENT, scope=scope),
+            "t_reset_deck": functools.partial(lua.reset_deck, identity=TEST_IDENT, scope=scope),
+            "t_return_hand_to_deck": functools.partial(lua.return_hand_to_deck, identity=TEST_IDENT),
+            "t_shuffle_deck": functools.partial(lua.shuffle_deck, identity=TEST_IDENT)}
+
+
+globals().update(_shims())

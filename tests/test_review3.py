@@ -2,6 +2,7 @@
 
 Los escenarios P1-P5 salen de los scripts de reproduccion del revisor. La mesa falsa (`Table`) modela TTS de
 verdad: un descarte de 2 o mas cartas es un Deck y el mazo de 1 carta es una Card suelta."""
+from conftest import t_discard_cards
 import pytest
 
 from conftest import place
@@ -146,7 +147,7 @@ def test_n2_second_retry_does_not_resend_cards_already_on_the_pile(rig):
 
 
 def test_n2_discard_and_read_scripts_look_inside_decks():
-    s = lua.discard_cards([17600], [(5.0, 1.0, 5.0)])
+    s = t_discard_cards([17600], [(5.0, 1.0, 5.0)])
     assert 'o.type == "Deck"' in s and "takeObject" in s and "ContainedObjects" in s
     assert 'o.type == "Deck"' in lua.read_discard("abc")
 

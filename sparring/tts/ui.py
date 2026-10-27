@@ -66,7 +66,10 @@ def handler_script(snapshot: str | None = None, ids: tuple[str, ...] | list[str]
 
     Feedback local instantaneo: antes de enviar pone "Procesando..." y apaga los botones (sin ida y vuelta). Con
     `snapshot` (el fragmento de `lua.snapshot_lua`) el mensaje lleva la instantanea de la mesa tomada en el clic.
-    `busy` es global a proposito: `lua.set_panel` lo libera con setVar; si el bot no contesta en 20 s se reactiva."""
+    `busy` es global a proposito: el compuesto (`lua.composite`, tras esperar a las piezas) o `lua.set_panel` lo liberan
+    con setVar; si el bot no contesta en 20 s se reactiva, pero solo el temporizador del ULTIMO clic puede hacerlo
+    (`clickSeq`): uno viejo no desbloquea un clic posterior que aun se esta procesando. `wseq` es la ultima escritura de
+    mesa que el bot anoto en el panel (la sella en la instantanea del clic)."""
     for i in ids:
         if not re.fullmatch(r"[A-Za-z0-9_]{1,40}", i):
             raise ValueError(f"id de elemento no valido: {i!r}")
@@ -74,6 +77,8 @@ def handler_script(snapshot: str | None = None, ids: tuple[str, ...] | list[str]
     take = ("  local ok, snap = pcall(sparringSnapshot)\n  if ok then tbl.snapshot = JSON.encode(snap) end\n"
             if snapshot else "")
     return f"""{snapshot or ""}busy = false
+wseq = 0
+local clickSeq = 0
 local ALL = {all_ids}
 local function setAll(on)
   for _, id in ipairs(ALL) do UI.setAttribute(id, "interactable", on and "true" or "false") end
@@ -81,11 +86,13 @@ end
 local function send(tbl)
   if busy then return end
   busy = true
+  clickSeq = clickSeq + 1
+  local mine = clickSeq
   UI.setValue("{STATUS_ID}", "{PROCESSING}")
   setAll(false)
 {take}  sendExternalMessage(tbl)
   Wait.time(function()
-    if busy then
+    if busy and mine == clickSeq then
       busy = false
       setAll(true)
       UI.setValue("{STATUS_ID}", "Sin respuesta del bot: repite el boton")
@@ -132,6 +139,11 @@ def _text(text: str, size: int = 18, extra: str = "") -> str:
     return f'<Text color="#FFFFFF" fontSize="{size}" {extra}>{text}</Text>'.replace(" >", ">")
 
 
+def panel_height(fighter_count: int) -> int:
+    """Alto del panel en pixeles de UI (con la columna lateral de VIDA de `fighter_count` luchadores)."""
+    return 40 + 40 + 5 * (ROW_HEIGHT + 8) + 40 + (60 + 48 * fighter_count) + 40
+
+
 def panel_xml(target_ids: list[str], attacker_ids: tuple[str, ...] = ("hellboy", "lobster"),
               fighter_ids: tuple[str, ...] | None = None, rotation=PANEL_ROTATION, scale=PANEL_SCALE,
               names: dict[str, str] | None = None) -> str:
@@ -172,7 +184,7 @@ def panel_xml(target_ids: list[str], attacker_ids: tuple[str, ...] = ("hellboy",
             + _row(_button("btn_undo", "onUndoGameOver", "Deshacer fin de partida"))
             + '<InputField placeholder="valor (boost, On Earth...)" onValueChanged="onValueEdit" preferredHeight="40"/>'
             + _row(_button("btn_value", "onValueSend", "Enviar valor")) + '</VerticalLayout>')
-    height = 40 + 40 + 5 * (ROW_HEIGHT + 8) + 40 + side_h + 40
+    height = panel_height(len(fighters))
     return (f'<Panel position="0 0 -20" rotation="{rot}" scale="{sc}" width="{PANEL_WIDTH}" height="{height}" '
             f'color="#000000CC">\n  <VerticalLayout spacing="8" padding="8 8 8 8">\n    {turn}\n'
             f'    <HorizontalLayout spacing="8" preferredHeight="{side_h}">{life}{game}</HorizontalLayout>\n'

@@ -34,4 +34,4 @@ def test_message_budget_of_the_start(brig, monkeypatch):
     setup_rig(session, table, game, first=1)
     n = fake.lua_messages
     session.start()
-    assert fake.lua_messages - n <= 4
+    assert fake.lua_messages - n <= 5      # 4 + la lectura de la identidad de los mazos

@@ -65,6 +65,7 @@ class Table:
         self.stray_bot: list[dict] = []             # cartas del bot boca abajo en su punto de carta o de mazo
         self.sent: list[str] = []                   # una entrada por MENSAJE a TTS: la etiqueta del script
         self.panels: list[tuple[str, dict]] = []    # (estado, {id: (pulsable, visible)}) de cada set_panel
+        self.wseq = 0                               # ultima escritura que el compuesto anoto en el panel (wseq)
         self.composite_waits = True                 # el compuesto espera dentro de TTS a que todo se asiente
 
     def __call__(self, msg):
@@ -88,6 +89,7 @@ class Table:
             results.append({"__err": out["__error__"]} if isinstance(out, dict) and "__error__" in out else out)
         res = {"ops": results}
         if "local function sparringSnapshot" in s:
+            self.wseq = int(re.search(r"local SEQ = (\d+)", s).group(1))
             if self.composite_waits and not self.lag:
                 for fn in self._queued:
                     fn()
@@ -105,7 +107,7 @@ class Table:
                 "human_discard": [{"id": i, "guid": f"g{i}"} for i in self.human_discard],
                 "face_bot": self.stray_bot + [{"id": i, "guid": f"g{i}"} for i in self.bot_play],
                 "face_human": self.face_down, "pieces": pieces, "human_deck_qty": getattr(self, "human_deck_qty", -1),
-                "dials": {g: v for g, v in self.dials.items()}}
+                "dials": {g: v for g, v in self.dials.items()}, "seq": self.wseq}
 
     def do_snapshot(self, s):
         return self.snapshot_state()
@@ -157,7 +159,7 @@ class Table:
     def do_reset_deck(self, s):
         """Todas las cartas de un bando vuelven a su mazo (mano, descarte, boca abajo y sueltas)."""
         self.resets = getattr(self, "resets", [])
-        if int(re.search(r"first >= (\d+)", s).group(1)) < 19000:
+        if int(re.search(r"id < (\d+) or id > \d+", s).group(1)) < 19000:
             self.bot_deck.extend(self.bot_hand + self.bot_play + self.bot_discard + [r["id"] for r in self.stray_bot])
             self.bot_hand, self.bot_play, self.bot_discard, self.stray_bot = [], [], [], []
             self.resets.append("bot")
@@ -165,6 +167,11 @@ class Table:
         self.human_discard, self.face_down, self.human_hand, self.human_count = [], [], [], 0
         self.resets.append("human")
         return {"deck": True, "quantity": 30}
+
+    def do_deck_identities(self, s):
+        n = len(re.findall(r'\{"\w+", (?:nil|\{)', s))
+        return [{"found": True, "pairs": [{"face": "https://img.test/face", "back": "https://img.test/back"}]}
+                for _ in range(n)]
 
     def do_place_piece(self, s):
         guid = re.search(r'getObjectFromGUID\("(\w+)"\)', s).group(1)

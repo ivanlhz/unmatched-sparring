@@ -83,6 +83,7 @@ class TTSClient:
         self.reloads = 0                     # messageID 1 recibidos (TTS recargo la partida)
         self.foreign_errors: deque[str] = deque(maxlen=50)   # errores de Lua que no son de nuestra peticion
         self.stale_replies = 0               # respuestas descartadas por no corresponder a la peticion en curso
+        self._calling = False                # dentro de call_lua: un clic que llega ahora trae una mesa anterior a su respuesta
         self.calls = 0                       # mensajes de Lua enviados (cada uno cuesta ~0.5 s en TTS real)
         self.call_seconds = 0.0              # tiempo total esperando respuesta
         self.trace: Callable[[str], None] | None = None     # con --timing: una linea por llamada
@@ -120,6 +121,8 @@ class TTSClient:
             data = msg.get("customMessage")
             if isinstance(data, dict) and "sparring_reply" in data:
                 return False
+            if self._calling and isinstance(data, dict) and "snapshot" in data:
+                data = {k: v for k, v in data.items() if k != "snapshot"}      # mesa anterior a la escritura en curso
             self._events.append(data)
         elif kind == IN_NEW_GAME:
             self.reloads += 1
@@ -137,9 +140,11 @@ class TTSClient:
     def call_lua(self, script: str, guid: str = "-1", timeout: float | None = None):
         """Ejecuta Lua y espera su respuesta, contando la llamada y su tiempo (ver `_call_lua`)."""
         started = time.monotonic()
+        self._calling = True
         try:
             return self._call_lua(script, guid, timeout)
         finally:
+            self._calling = False
             took = time.monotonic() - started
             self.calls += 1
             self.call_seconds += took

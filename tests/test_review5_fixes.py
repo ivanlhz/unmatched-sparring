@@ -1,5 +1,6 @@
 """Revision 5: arranque, guardado, miniaturas con varios GUID, rejilla del descarte, repartos tardios,
 puntos de control del turno del bot y salidas de los estados pendientes."""
+from conftest import t_discard_cards, t_return_hand_to_deck, t_shuffle_deck
 import dataclasses
 import json
 import math
@@ -714,7 +715,7 @@ def test_floor_labels_never_call_the_text_api_unprotected():
 def test_cards_leaving_a_hand_move_instantly_never_smoothly():
     play_s = lua.play_card_face_down(17601, "Green", 6.0, 1.6, -18.0, 0.0)
     assert play_s.index("o.setRotation(") < play_s.index("o.setPosition(") and "Smooth" not in play_s
-    disc = lua.discard_cards([17601], [(1.0, 2.0, 3.0)], 90.0)
+    disc = t_discard_cards([17601], [(1.0, 2.0, 3.0)], 90.0)
     card_branch = disc.split('elseif o.type == "Deck"')[0]
     assert "o.setPosition(" in card_branch and "o.setRotation(" in card_branch and "Smooth" not in card_branch
 
@@ -767,7 +768,7 @@ def dial_rig(session, table):
 
 
 def test_discard_cards_takes_cards_out_of_decks_without_smoothing_too():
-    s = lua.discard_cards([17601], [(1.0, 2.0, 3.0)], 90.0)
+    s = t_discard_cards([17601], [(1.0, 2.0, 3.0)], 90.0)
     assert "smooth = false" in s and "smooth = true" not in s and "Smooth" not in s
 
 
@@ -1681,16 +1682,16 @@ def test_the_listo_button_exists_in_the_panel_and_is_parsed():
 
 
 def test_mulligan_builders_are_allowlisted_validated_and_never_read_only():
-    a = lua.return_hand_to_deck("Green", "d42056")
-    b = lua.shuffle_deck("d42056", (11.5, 12.0))
+    a = t_return_hand_to_deck("Green", "d42056")
+    b = t_shuffle_deck("d42056", (11.5, 12.0))
     for s in (a, b):
         assert lua.is_sendable(s)
     assert "putObject" in a and "getHandObjects(1)" in a and "d.shuffle()" in b and "d.getQuantity()" in b
     assert "17600" in a and "17629" in a
-    for bad in (lambda: lua.return_hand_to_deck("Verde", "abc"), lambda: lua.return_hand_to_deck("Green", 'x"); --'),
-                lambda: lua.return_hand_to_deck("Green", "abc", id_range=(1,)),
-                lambda: lua.shuffle_deck("a b"), lambda: lua.shuffle_deck("abc", (1,)),
-                lambda: lua.shuffle_deck("abc", (0, 0), id_range="x"), lambda: lua.shuffle_deck("abc", (0, float("inf")))):
+    for bad in (lambda: t_return_hand_to_deck("Verde", "abc"), lambda: t_return_hand_to_deck("Green", 'x"); --'),
+                lambda: t_return_hand_to_deck("Green", "abc", id_range=(1,)),
+                lambda: t_shuffle_deck("a b"), lambda: t_shuffle_deck("abc", (1,)),
+                lambda: t_shuffle_deck("abc", (0, 0), id_range="x"), lambda: t_shuffle_deck("abc", (0, float("inf")))):
         with pytest.raises((TypeError, ValueError)):
             bad()
     assert {"return_hand_to_deck", "shuffle_deck"}.isdisjoint(play.READ_ONLY_TAGS)
