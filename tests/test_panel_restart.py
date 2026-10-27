@@ -261,27 +261,6 @@ def test_a_dead_fighter_cannot_be_chosen_as_attacker_and_the_message_says_why(br
     assert any("no valido" in m for m in msgs)
 
 
-# ---------- carta fusionada con el mazo de robo ----------
-def test_a_discard_that_merges_into_the_draw_deck_is_reported(brig):
-    session, table, game, fake = brig
-    a, b = [c.card_id for c in game.players[1].full_set if c.destiny][:2]
-    table.human_discard, table.human_deck_qty = [a, b], 10
-    click(session, table, Event.END_ACTION)
-    table.human_discard, table.human_deck_qty = [a], 11            # una carta se fundio con el mazo
-    msgs = click(session, table, Event.END_ACTION)
-    assert any("se ha fusionado con tu mazo de robo" in m for m in msgs)
-    assert game.destiny_count(1) == 2, "y el contador no baja"
-
-
-def test_no_merge_warning_when_the_deck_did_not_grow(brig):
-    session, table, game, fake = brig
-    a, b = [c.card_id for c in game.players[1].full_set if c.destiny][:2]
-    table.human_discard, table.human_deck_qty = [a, b], 10
-    click(session, table, Event.END_ACTION)
-    table.human_discard = [a]
-    assert not any("fusionado" in m for m in click(session, table, Event.END_ACTION))
-
-
 # ---------- etiquetas del suelo ----------
 CARD_W, CARD_D = lua.CARD_SIZE
 

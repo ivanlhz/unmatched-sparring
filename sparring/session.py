@@ -216,6 +216,7 @@ class Session:
         self.dials_attempted: dict[str, int] = {}  # GUID -> ultimo valor que se intento escribir (verificado o no)
         self._warned: set[tuple[str, str]] = set()
         self._deck_qty = -1                                 # cartas del mazo de robo del humano en la ultima lectura
+        self._deal_check: tuple[int, int] | None = None     # (mano, descarte) del humano al repartirle la carta de Maniobra
         self._epoch = 0                                     # numero de boton atendido (para confirmar bajas del descarte)
         self._gone: dict[int, int] = {}                     # CardID que falta en el descarte de la mesa -> boton en que se vio
         self._depth = 0                                     # >0 mientras se atiende un boton, el inicio o una reanudacion
@@ -970,10 +971,71 @@ class Session:
         self._begin_action()
         self.game.use_action()
         hp0, alive0 = {fid: f.hp for fid, f in self.game.fighters.items()}, self._alive_map()
-        self.game.draw(self.human)
-        self._announce_exhaustion(hp0, alive0)
         self.moving = True
-        self.say("Maniobra: robas 1. Mueve tus miniaturas y pulsa Fin de accion.")
+        st = self.game.players[self.human]
+        if not self.cfg.human_deck_guid:
+            self.game.draw(self.human)
+            self._announce_exhaustion(hp0, alive0)
+            self.say("Maniobra: robas 1. Mueve tus miniaturas y pulsa Fin de accion.")
+            return
+        if not st.deck:                           # mazo vacio: agotamiento por el mismo camino que el del bot
+            self.game.draw(self.human)
+            self._announce_exhaustion(hp0, alive0)
+            self.say("Maniobra: tu mazo esta vacio, no robas. Mueve tus miniaturas (puedes potenciar descartando "
+                     "una carta) y pulsa Fin de accion.")
+            return
+        self._deal_maneuver_card(st)
+
+    def _deal_maneuver_card(self, st) -> None:
+        """Reparte la carta de la Maniobra del mazo del humano a su mano, en el mismo compuesto que el boton. Solo
+        cuenta cartas: nunca lee cuales tiene el humano. Un reparto fallido no se repite (la carta la roba el humano
+        a mano y el motor se ajusta a la cuenta de la mano en la siguiente lectura)."""
+        c = self.cfg
+        before, discarded = len(st.hand), len(st.discard)
+        try:
+            script = lua.deal_cards(c.human_deck_guid, 1, c.human_seat, spot=c.human_deck_spot,
+                                    id_range=lua.HUMAN_CARD_IDS, identity=self._identity("human"))
+            op = self._w(script, "cards")
+        except TABLE_ERRORS as e:
+            self.say(f"No he podido darte la carta de la Maniobra ({e}). Roba tu carta a mano y pulsa Fin de accion.")
+            return
+        drawn = self.game.draw(self.human)
+        self.say("Maniobra: te he dado 1 carta. Mueve tus miniaturas (puedes potenciar descartando una carta) y "
+                 "pulsa Fin de accion")
+
+        def check() -> bool:
+            try:
+                dealt = (op.result or {}).get("dealt")
+            except TABLE_ERRORS:
+                self.say("No he podido confirmar el reparto de tu carta: mira tu mano. Roba tu carta a mano si no "
+                         "tienes la nueva.")
+                self._deal_check = None
+                return False
+            if dealt != 1:
+                for card in drawn:
+                    if card in st.hand:
+                        st.hand.remove(card)
+                        st.deck.insert(0, card)
+                        self.game.drawn[self.human] = max(0, self.game.drawn[self.human] - 1)
+                self.say("No he podido darte la carta. Roba tu carta a mano y pulsa Fin de accion.")
+                self._deal_check = None
+                return False
+            self._deal_check = (before, discarded)
+            return True
+        self._post.append(check)
+
+    def _verify_maneuver_deal(self, real: int, discard_now: int) -> None:
+        """En la siguiente instantanea la mano del humano ha de haber subido 1 (descontando lo que haya jugado o
+        descartado desde entonces); si no, se avisa una vez y no se reparte otra vez."""
+        chk, self._deal_check = self._deal_check, None
+        if chk is None:
+            return
+        before, discarded = chk
+        if real >= before + 1:
+            return
+        played = max(0, discard_now - discarded) + len(self._rd_face("human"))
+        if real + played < before + 1:
+            self.say("La carta de la Maniobra no ha llegado a tu mano. Roba tu carta a mano.")
 
     def _announce_exhaustion(self, hp0: dict[str, float], alive0: dict[str, bool]) -> None:
         """Robar con el mazo vacio hace dano a todos: se anuncia y se escribe igual que cualquier otro dano."""
@@ -1122,7 +1184,10 @@ class Session:
         Ataque del humano sin resolver: devuelve la carta del bot a su mano (tras dos intentos fallidos se
         abandona y se pide colocarla a mano). Descarte pendiente: se anula (la mesa se resincroniza sola).
         Mesa del bot sucia (deuda sin saldar): se adopta lo que muestra la mesa. Un ataque del bot no se
-        cancela: se revela, sin carta si el humano no tiene defensa."""
+        cancela: se revela, sin carta si el humano no tiene defensa. Una carta puesta cuya respuesta llego tarde
+        (`placing`) se resuelve primero: si aterrizo pasa a ser el ataque pendiente y se devuelve como cualquier otra."""
+        if self.placing is not None:
+            self._recover_placing()
         if self._drop_pending_if_gone():
             return
         p = self.pending
@@ -1377,7 +1442,8 @@ class Session:
 
     def _announce_destiny(self, prev: tuple[int, str] | None, now: tuple[int, str]) -> None:
         if prev is not None and prev[0] != now[0]:
-            self.say(f"Destinos de Hellboy: {now[0]} (en su descarte).")
+            self.say(f"Destinos de Hellboy: {now[0]} (antes {prev[0]})." if now[0] < prev[0]
+                     else f"Destinos de Hellboy: {now[0]} (en su descarte).")
         if prev is not None and prev[1] != now[1]:
             if now[1] == ANUNG:
                 self.say(f"Hellboy pasa a ANUNG UN RAMA ({now[0]} destinos, 6 o mas): dale la vuelta a su miniatura "
@@ -2791,23 +2857,23 @@ class Session:
                 ids = ids | ({i} & known)
         by_id = {c.card_id: c for c in st.full_set}
         deck_qty = (self.snap or {}).get("human_deck_qty", -1) if self.cfg.batch else -1
-        newly_missing = False
+        fresh = [c for c in st.discard if c.card_id not in ids and c.card_id not in self._gone]
+        # Si el mazo de robo crecio justo en tantas cartas como acaban de faltar, el mazo prueba a donde fueron: la
+        # baja vale ya, sin esperar al segundo boton.
+        grew = (isinstance(deck_qty, int) and deck_qty >= 0 and self._deck_qty >= 0 and bool(fresh)
+                and deck_qty - self._deck_qty == len(fresh))
         for c in list(st.discard):
             if c.card_id in ids:
                 self._gone.pop(c.card_id, None)
                 continue
-            newly_missing = newly_missing or c.card_id not in self._gone
-            # Un contador (destinos...) solo baja por un efecto real: una carta que falta se conserva y solo sale
-            # del descarte si sigue faltando en OTRO boton (una lectura que pierde una carta no puede bajarlo).
-            if self._gone.setdefault(c.card_id, self._epoch) == self._epoch:
+            # Una carta que falta solo sale del descarte si falta tambien en OTRO boton (una lectura suelta que la
+            # pierde no puede bajar el contador de destinos), o si el mazo de robo crecio justo por ella.
+            if self._gone.setdefault(c.card_id, self._epoch) == self._epoch and not (grew and c in fresh):
                 continue
             del self._gone[c.card_id]
             st.discard.remove(c)
             st.deck.append(c)
         if isinstance(deck_qty, int) and deck_qty >= 0:
-            if newly_missing and self._deck_qty >= 0 and deck_qty > self._deck_qty:
-                self.say("Aviso: una carta de tu descarte ha desaparecido y tu mazo de robo ha crecido: "
-                         "una carta se ha fusionado con tu mazo de robo. Sacala del mazo para que cuente en el descarte.")
             self._deck_qty = deck_qty
         for i in sorted(ids & by_id.keys()):
             c = by_id[i]
@@ -2819,6 +2885,7 @@ class Session:
                 st.deck.remove(c)
             st.discard.append(c)
         real = self._rd_human_count(len(st.hand))
+        self._verify_maneuver_deal(real, len(ids))
         while len(st.hand) > real:
             st.deck.append(st.hand.pop())
         while len(st.hand) < real and st.deck:

@@ -44,6 +44,9 @@ class Table:
         self._flying: set[int] = set()
         self._reads = 0
         self.deal_calls: list[int] = []
+        self.human_deals: list[int] = []            # n de cada reparto al mazo del humano
+        self.human_deal_fails = False
+        self.human_deck_cards = 20
         self.discard_calls: list[list[int]] = []
         self.broadcasts: list[str] = []
         self.dupes: set[str] = set()
@@ -263,6 +266,13 @@ class Table:
         """Mazo realista: con 2 o mas cartas es un Deck (su GUID existe); con 1 queda una Card suelta que
         solo se halla por posicion (rama `if d == nil`); vacio no reparte nada."""
         n = int(re.search(r"math\.min\((\d+)", s).group(1))
+        if "d.deal(k, Red)" in s or 'd.deal(k, "Red")' in s:    # el mazo del humano: solo cuenta cartas
+            self.human_deals.append(n)
+            k = 0 if self.human_deal_fails else min(n, self.human_deck_cards)
+            self.human_deck_cards -= k
+            self.human_count += k
+            self.human_deck_qty = self.human_deck_cards
+            return {"dealt": k}
         self.deal_calls.append(n)
         if len(self.bot_deck) >= 2:
             k = min(n, len(self.bot_deck))
