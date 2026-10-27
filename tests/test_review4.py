@@ -364,6 +364,8 @@ def test_d6_state_is_saved_atomically_after_every_handle_and_round_trips(rig, tm
     session.state_path = tmp_path / "sesion.json"
     session.handle(Event.MANEUVER)
     hp(session, "hellboy", -1)
+    from sparring.session import Pending
+    session.pending = Pending("human_attacks", game.fighters["hellboy"], game.fighters["medusa"], None)
     session.handle(Event.VALUE, {"value": 3})
     assert session.state_path.exists() and not list(tmp_path.glob("*.tmp"))
     saved = json.loads(session.state_path.read_text(encoding="utf-8"))

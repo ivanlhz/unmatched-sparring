@@ -642,7 +642,7 @@ def test_play_cleans_leftovers_before_creating_the_panel_and_removes_everything_
 # ---------- 12. posicion del panel ----------
 def test_panel_default_position_is_above_the_mats(tmp_path):
     raw = json.loads(REAL_CONFIG.read_text(encoding="utf-8"))
-    assert raw["panel_position"] == [2, 1.8, -24]
+    assert raw["panel_position"] == [-12.5, 1.8, -24.5]  # a la derecha del descarte del humano
     raw.pop("panel_position")
     p = tmp_path / "c.json"
     p.write_text(json.dumps(raw), encoding="utf-8")
@@ -695,7 +695,7 @@ def test_create_panel_carries_the_orientation_and_play_reads_it_from_the_config(
     cfg = play.load_config(p)
     assert cfg.panel_rotation == (0.0, 0.0, 90.0) and cfg.panel_scale == (3.0, 3.0, 3.0)
     default = play.load_config(REAL_CONFIG)
-    assert default.panel_rotation == (0.0, 0.0, 270.0) and default.panel_scale == (6.0, 6.0, 6.0)
+    assert default.panel_rotation == (0.0, 0.0, 270.0) and default.panel_scale == (4.5, 4.5, 4.5)
 
 
 def test_floor_labels_never_call_the_text_api_unprotected():

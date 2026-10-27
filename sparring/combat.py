@@ -64,7 +64,9 @@ def _side_cards(ctx: CombatCtx):
 
 
 def resolve_combat(game: Game, att: Fighter, tgt: Fighter, atk_card: Card, def_card: Card | None,
-                   values: tuple[int, int] = (0, 0)) -> CombatResult:
+                   values: tuple[int, int] = (0, 0), boost: Card | None = None) -> CombatResult:
+    """`boost`: carta de impulso que el humano ha puesto en su descarte para el BOOST de su ataque (Second Shot); el
+    bot la lee de la mesa en el paso "Continuar" y entra aqui, tras el DURING del defensor."""
     if def_card is not None:
         game.check_defense_card(tgt, def_card)
         if def_card not in game.players[tgt.owner].hand:
@@ -119,6 +121,12 @@ def resolve_combat(game: Game, att: Fighter, tgt: Fighter, atk_card: Card, def_c
             result.boost_card = boost
             result.atk_parts.append(f"potencia con {boost.title} (+{boost.boost})")
 
+    if boost is not None and "atk" not in ctx.cancelled and can_boost(atk_card):
+        game.discard_card(pa, boost)
+        ctx.atk_value += boost.boost
+        result.boost_card = boost
+        result.atk_parts.append(f"potencia con {boost.title} (+{boost.boost})")
+
     damage = max(0, ctx.atk_value - ctx.def_value)
     game.damage(tgt, damage, "combat")
     won = damage >= 1
@@ -139,12 +147,17 @@ def resolve_combat(game: Game, att: Fighter, tgt: Fighter, atk_card: Card, def_c
                     result.human_effects.append(f"{card.title}: {after}")
                 elif card.title == PLANNED:
                     result.applied.append(f"{card.title}: aplicado ({card.text})")
-                elif card.text.strip():                # p. ej. el BOOST opcional de Second Shot: lo decide el humano
+                elif card.text.strip() and not can_boost(card):   # el BOOST de Second Shot ya se resolvio en el DURING
                     result.human_effects.append(f"{card.title}: {card.text}")
                 # una carta sin texto (Excalibur, Service Pistol) no tiene efecto que resolver
     for owner, card in played:
         game.players[owner].discard.append(card)
     return result
+
+
+def can_boost(card: Card) -> bool:
+    """Una carta del humano con un BOOST opcional de su propio ataque en el DURING COMBAT (Second Shot)."""
+    return not is_medusa_card(card) and "boost this attack" in card.text.lower()
 
 
 def after_text(card: Card) -> str:

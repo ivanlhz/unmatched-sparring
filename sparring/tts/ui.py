@@ -24,6 +24,8 @@ class Event(str, Enum):
     READY = "ready"
     MULLIGAN = "mulligan"
     RESTART = "restart"
+    BOOST = "boost"            # "Continuar": lee la carta de boost que el humano puso en su descarte y resuelve
+    NO_BOOST = "no_boost"      # "Sin boost": resuelve sin potenciar
 
 
 END_ACTION_LABEL = "Fin de accion"
@@ -40,7 +42,7 @@ ROW_HEIGHT = 48
 FIXED_BUTTONS = {"btn_maneuver": "onManeuver", "btn_scheme": "onScheme", "btn_reveal": "onReveal",
                  "btn_cancel": "onCancel", "btn_end": "onEndAction", "btn_undo": "onUndoGameOver",
                  "btn_value": "onValueSend", "btn_mulligan": "onMulligan", "btn_ready": "onReady",
-                 "btn_restart": "onRestart"}
+                 "btn_restart": "onRestart", "btn_boost": "onBoost", "btn_noboost": "onNoBoost"}
 SETUP_ONLY = ("btn_mulligan", "btn_ready")
 GAME_ONLY = ("btn_restart",)
 
@@ -118,6 +120,8 @@ function onUndoGameOver() send({{event = "undo_game_over"}}) end
 function onReady() send({{event = "ready"}}) end
 function onMulligan() send({{event = "mulligan"}}) end
 function onRestart() send({{event = "restart"}}) end
+function onBoost() send({{event = "boost"}}) end
+function onNoBoost() send({{event = "no_boost"}}) end
 local pending = ""
 function onValueEdit(player, value, id) pending = value end
 function onValueSend() send({{event = "value", value = tonumber(pending)}}) end
@@ -167,7 +171,9 @@ def panel_xml(target_ids: list[str], attacker_ids: tuple[str, ...] = ("hellboy",
             + f'<Text id="{STATUS_ID}" color="#FFFFFF" fontSize="22" fontStyle="Bold" preferredHeight="40">Preparando...</Text>'
             + _row(_button("btn_maneuver", "onManeuver", "Maniobra"), _button("btn_scheme", "onScheme", "Plan"))
             + who + attacks
-            + _row(_button("btn_reveal", "onReveal", "Revelar"), _button("btn_cancel", "onCancel", "Cancelar ataque"))
+            + _row(_button("btn_reveal", "onReveal", "Revelar"), _button("btn_cancel", "onCancel", "Cancelar ataque"),
+                   _button("btn_boost", "onBoost", "Continuar").replace("<Button ", '<Button active="false" '),
+                   _button("btn_noboost", "onNoBoost", "Sin boost").replace("<Button ", '<Button active="false" '))
             + _row(_button("btn_end", "onEndAction", END_ACTION_LABEL)) + '</VerticalLayout>')
     hp_rows = "".join(
         _row(f'<Text color="#FFFFFF" fontSize="16" preferredWidth="150">{label(f)}</Text>',

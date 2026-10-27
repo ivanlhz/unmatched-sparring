@@ -6,7 +6,7 @@ import pytest
 
 from fake_tts import FakeTTS
 from sparring.ai_medusa import Act, MedusaAI
-from sparring.session import Session, SessionConfig
+from sparring.session import Pending, Session, SessionConfig
 from sparring.state import Game
 from sparring.tts.client import TTSClient
 from sparring.tts.ui import Event
@@ -388,7 +388,10 @@ def test_scheme_spends_action(rig):
 
 
 def test_value_event_stores_number(rig):
-    session, _, _ = rig
+    session, _, game = rig
+    session.handle(Event.VALUE, {"value": 3})
+    assert session.pending_value == 0, "sin combate pendiente el valor no se registra (no se arrastra al siguiente)"
+    session.pending = Pending("human_attacks", game.fighters["hellboy"], game.fighters["medusa"], None)
     session.handle(Event.VALUE, {"value": 3})
     assert session.pending_value == 3
     session.handle(Event.VALUE, {"value": None})

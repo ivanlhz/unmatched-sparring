@@ -28,7 +28,7 @@ from . import persist
 from .ai_medusa import MedusaAI
 from .cards import Card
 from .controller import Controller
-from .combat import GLANCE_DAMAGE
+from .combat import GLANCE_DAMAGE, can_boost
 from .state import ANUNG, DETECTIVE, EXHAUST_DAMAGE, HAND_LIMIT, START_HAND, Fighter, Game, RuleError
 from .tts import lua, ui
 from .tts.client import TTSClient, TTSLuaError
@@ -179,6 +179,7 @@ class Pending:
     bot_card: Card | None        # defensa del bot (human_attacks) o ataque del bot (bot_attacks)
     bot_card_guid: str | None = None
     cancel_failures: int = 0
+    boost_wait: dict | None = None   # cartas ya reveladas, sin resolver: {"card", "guid", "baseline"} (espera el BOOST del humano)
 
 
 class Session:
@@ -308,8 +309,10 @@ class Session:
         if self.setup is not None:
             self.say(f"La preparacion de la partida estaba en la etapa '{self.setup['stage']}'.")
             self._setup_advance()
+            self._write_dials(post=True)
             return self._done()
         self._open(announce_turn=False)
+        self._write_dials(post=True)              # la mesa ensena ya la vida del motor, no la de antes del corte
         if self.game.winner is not None:
             self.say(f"Fin de partida: gana el jugador {self.game.winner}. (Deshacer fin de partida si es un error.)")
         elif self.pending is not None:
@@ -656,7 +659,8 @@ class Session:
                  Event.SCHEME: self._scheme, Event.REVEAL: self._reveal, Event.END_ACTION: self._end_action,
                  Event.VALUE: self._value, Event.CANCEL: self._cancel, Event.HP: self._hp,
                  Event.REMOVE: self._remove, Event.UNDO_GAME_OVER: self._undo_game_over, Event.READY: self._ready,
-                 Event.MULLIGAN: self._human_mulligan, Event.RESTART: self._restart}
+                 Event.MULLIGAN: self._human_mulligan, Event.RESTART: self._restart,
+                 Event.BOOST: self._boost, Event.NO_BOOST: self._no_boost}
         if self.setup is not None and event not in (Event.READY, Event.HP, Event.REMOVE, Event.CANCEL, Event.VALUE,
                                                     Event.MULLIGAN, Event.RESTART):
             self.say("La partida aun se esta preparando: termina la colocacion y pulsa Listo.")
@@ -777,7 +781,7 @@ class Session:
             "pending": None if p is None else {
                 "kind": p.kind, "attacker": p.attacker.fid, "target": p.target.fid,
                 "bot_card": p.bot_card.card_id if p.bot_card else None, "bot_card_guid": p.bot_card_guid,
-                "cancel_failures": p.cancel_failures},
+                "cancel_failures": p.cancel_failures, "boost_wait": p.boost_wait},
             "pending_discard": self.pending_discard, "pending_value": self.pending_value,
             "chosen_attacker": self.chosen_attacker, "moving": self.moving,
             "bot_discarded": sorted(self.bot_discarded), "dirty": self.dirty,
@@ -818,7 +822,8 @@ class Session:
             p = d["pending"]
             self.pending = None if p is None else Pending(
                 p["kind"], self.game.fighters[p["attacker"]], self.game.fighters[p["target"]],
-                by_id[p["bot_card"]] if p["bot_card"] is not None else None, p["bot_card_guid"], p["cancel_failures"])
+                by_id[p["bot_card"]] if p["bot_card"] is not None else None, p["bot_card_guid"], p["cancel_failures"],
+                self._load_boost_wait(p.get("boost_wait")))
             self.pending_discard, self.pending_value = d["pending_discard"], d["pending_value"]
             self.chosen_attacker, self.moving = d["chosen_attacker"], d["moving"]
             self.bot_discarded, self.dirty = set(d["bot_discarded"]), d["dirty"]
@@ -839,6 +844,16 @@ class Session:
             self.game_id = d["fingerprint"]["game_id"]
         except (KeyError, TypeError, IndexError) as e:
             raise persist.StateError(f"guardado no valido: {e!r}") from None
+
+    @staticmethod
+    def _load_boost_wait(raw) -> dict | None:
+        if raw is None:
+            return None
+        if not isinstance(raw, dict) or not isinstance(raw.get("card"), int) \
+                or not isinstance(raw.get("baseline"), list) or not all(isinstance(i, int) for i in raw["baseline"]) \
+                or not (raw.get("guid") is None or isinstance(raw["guid"], str)):
+            raise KeyError("boost_wait")
+        return {"card": raw["card"], "guid": raw.get("guid"), "baseline": list(raw["baseline"])}
 
     def _persist(self) -> None:
         if self.state_path is None:
@@ -981,6 +996,12 @@ class Session:
         if isinstance(raw, bool) or not isinstance(raw, (int, float)) or not math.isfinite(raw) or abs(raw) > 100:
             self.say("Valor no valido: escribe un numero entre -100 y 100.")
             return
+        if self.pending is None:
+            self.say("No hay combate pendiente: el valor extra solo vale antes de Revelar, en el combate en curso.")
+            return
+        if self.pending.boost_wait is not None:
+            self.say("El boost se lee de tu descarte al pulsar Continuar: no hace falta escribir un valor.")
+            return
         self.pending_value = int(raw)
         self.say(f"Valor extra registrado: {self.pending_value}")
 
@@ -1049,6 +1070,10 @@ class Session:
         if self._drop_pending_if_gone():
             return
         p = self.pending
+        if p is not None and p.boost_wait is not None:
+            self.say("Las cartas ya estan giradas: no se puede cancelar. Pulsa Continuar (con tu carta de boost en el "
+                     "descarte) o Sin boost.")
+            return
         if p is not None and p.kind != "human_attacks":
             self.say("No se puede cancelar un ataque del bot: revela (sin carta si no tienes defensa).")
             return
@@ -1117,10 +1142,63 @@ class Session:
         except RuleError as e:
             self.say(f"Carta ilegal: {e}. Cambiala o dale la vuelta y pulsa Revelar otra vez.")
             return
+        if p.boost_wait is not None:
+            self.say("Las cartas ya estan reveladas: pon tu carta de boost en el descarte y pulsa Continuar, "
+                     "o pulsa Sin boost.")
+            return
+        human_guid = theirs[0]["guid"] if theirs else None
+        if p.kind == "human_attacks" and human_card is not None and can_boost(human_card):
+            self._await_boost(p, human_card, human_guid)
+            return
+        self._resolve_combat(p, human_card, human_guid, flip=True, boost=None)
+
+    def _await_boost(self, p: Pending, card: Card, guid: str | None) -> None:
+        """Se giran las dos cartas y el combate queda a medias: el BOOST se juega DESPUES de revelar. Salida:
+        Continuar (lee la carta nueva del descarte) o Sin boost; Cancelar ya no vale con las cartas giradas."""
+        own = {c.card_id for c in self.game.players[self.human].full_set}
+        baseline = sorted({r["id"] for r in self._rd_human_discard()} & own)
+        guids = [p.bot_card_guid, guid]
+        self._flip_all(guids)
+        self._flip_queued(guids)
+        p.boost_wait = {"card": card.card_id, "guid": guid, "baseline": baseline}
+        self.say(f"{card.title} revelado: si quieres potenciar, pon una carta de tu mano en tu descarte y pulsa "
+                 "Continuar (o Sin boost).")
+
+    def _boost(self, _: dict) -> None:
+        self._finish_boost(True)
+
+    def _no_boost(self, _: dict) -> None:
+        self._finish_boost(False)
+
+    def _finish_boost(self, use: bool) -> None:
+        p = self.pending
+        if p is None or p.boost_wait is None:
+            self.say("No hay ningun boost pendiente.")
+            return
+        if self._drop_pending_if_gone():
+            return
+        mine = {c.card_id: c for c in self.game.players[self.human].full_set}
+        card, boost = mine[p.boost_wait["card"]], None
+        if use:
+            seen = {r["id"] for r in self._rd_human_discard() if r["id"] in mine}
+            new = sorted(seen - set(p.boost_wait["baseline"]) - {card.card_id})
+            if not new:
+                self.say("No veo ninguna carta nueva en tu descarte: ponla y pulsa Continuar, o pulsa Sin boost.")
+                return
+            if len(new) > 1:
+                self.say(f"Hay {len(new)} cartas nuevas en tu descarte ({', '.join(mine[i].title for i in new)}): "
+                         "deja solo la del boost y pulsa Continuar.")
+                return
+            boost = mine[new[0]]
+        self._resolve_combat(p, card, p.boost_wait["guid"], flip=False, boost=boost)
+
+    def _resolve_combat(self, p: Pending, human_card: Card | None, human_guid: str | None, flip: bool,
+                        boost: Card | None) -> None:
+        g = self.game
         hst = g.players[self.human]
         guess = (list(hst.hand), list(hst.deck), list(hst.discard))
-        flip_guids = [p.bot_card_guid, theirs[0]["guid"] if theirs else None]
-        flipped = self._flip_all(flip_guids)
+        flip_guids = [p.bot_card_guid, human_guid]
+        flipped = self._flip_all(flip_guids) if flip else []
         value = self.pending_value
         before = self._snapshot_bot()
         alive_before = {fid: f.alive for fid, f in g.fighters.items()}
@@ -1129,8 +1207,10 @@ class Session:
             if human_card is not None:
                 self._make_known(human_card)
                 self._transit[human_card.card_id] = 0
+            if boost is not None:
+                self._make_known(boost, keep=(human_card,))
             if p.kind == "human_attacks":
-                res = g.attack(p.attacker, p.target, human_card, p.bot_card, values=(value, 0))
+                res = g.attack(p.attacker, p.target, human_card, p.bot_card, values=(value, 0), boost=boost)
             else:
                 res = g.attack(p.attacker, p.target, p.bot_card, human_card, values=(0, value))
         except RuleError as e:
@@ -1141,7 +1221,8 @@ class Session:
             self.say(f"Carta ilegal: {e}. Cambiala y pulsa Revelar otra vez.")
             return
         discarded_now = p.bot_card is not None and p.bot_card in g.players[self.bot].discard
-        self._flip_queued([None if discarded_now and guid == p.bot_card_guid else guid for guid in flip_guids])
+        if flip:
+            self._flip_queued([None if discarded_now and guid == p.bot_card_guid else guid for guid in flip_guids])
         self.pending, self.pending_value, self.chosen_attacker = None, 0, None
         if self.pending_discard is not None:      # antes de cualquier E/S: un fallo de mesa no puede dejarlo sin base
             self.pending_discard["baseline"] = len(g.players[self.human].discard)
@@ -1352,7 +1433,8 @@ class Session:
 
     def _end_action(self, _: dict) -> None:
         if self.pending is not None and not self._drop_pending_if_gone():
-            self.say("Revela primero el combate en curso.")
+            self.say("Termina primero el boost: pulsa Continuar o Sin boost." if self.pending.boost_wait is not None
+                     else "Revela primero el combate en curso.")
             return
         if self.game.winner is not None:
             self.say("La partida ha terminado (Deshacer fin de partida si es un error de PV).")
@@ -2072,8 +2154,11 @@ class Session:
         cancellable = (self.pending is not None or self.pending_discard is not None or self.chosen_attacker
                        is not None or bool(self.pending_value) or self.dirty or self.unprojected is not None
                        or bool(self.flush_failures))
-        states["btn_reveal"] = (self.pending is not None, True)
-        states["btn_cancel"] = (cancellable, True)
+        boosting = self.pending is not None and self.pending.boost_wait is not None
+        states["btn_reveal"] = (self.pending is not None and not boosting, not boosting)
+        states["btn_cancel"] = (cancellable and not boosting, not boosting)
+        states["btn_boost"] = (boosting, boosting)
+        states["btn_noboost"] = (boosting, boosting)
         states["btn_end"] = (not in_setup and g.winner is None and self.pending is None, True)
         states["btn_undo"] = (g.winner is not None, g.winner is not None)
         waiting = in_setup and self.setup["stage"] in ("wait_human_first", "wait_human")
@@ -2101,6 +2186,10 @@ class Session:
             return "Turno del bot" + (" · en pausa, pulsa Fin de accion" if paused else "")
         n = g.actions_left
         head = f"Tu turno · {n} accion{'es' if n != 1 else ''}"
+        if self.pending is not None and self.pending.boost_wait is not None:
+            title = next((c.title for c in g.players[self.human].full_set
+                          if c.card_id == self.pending.boost_wait["card"]), "Boost")
+            return f"{title} revelado: pon una carta en tu descarte y pulsa Continuar o Sin boost"
         if self.pending is not None:
             wait = "tu defensa y Revelar" if self.pending.kind == "bot_attacks" else "Revelar"
         elif self.pending_discard is not None:
@@ -2604,8 +2693,9 @@ class Session:
             self._destiny_tried = True                # un solo intento por boton: un dial roto no frena cada lectura
             self._write_dials(only_destiny=True, post=True)   # los PV solo se escriben tras un cambio real
 
-    def _make_known(self, card: Card) -> None:
-        """La mano del humano es virtual: al verse una carta se intercambia con una de la mano virtual."""
+    def _make_known(self, card: Card, keep: tuple = ()) -> None:
+        """La mano del humano es virtual: al verse una carta se intercambia con una de la mano virtual (nunca con las
+        de `keep`, ya conocidas en este mismo paso)."""
         st = self.game.players[self.human]
         if card in st.hand:
             return
@@ -2613,6 +2703,8 @@ class Session:
             st.discard.remove(card)
         elif card in st.deck:
             st.deck.remove(card)
-        if st.hand:
-            st.deck.append(st.hand.pop())
+        spare = [c for c in st.hand if c not in keep]
+        if spare:
+            st.hand.remove(spare[-1])
+            st.deck.append(spare[-1])
         st.hand.append(card)

@@ -376,6 +376,8 @@ def test_a_bad_value_is_refused_without_an_uncaught_error_and_the_panel_is_relea
 
 def test_a_good_value_is_registered(brig):  # noqa: F811
     session, table, game, fake = brig
+    click(session, table, Event.ATTACKER, {"attacker": "att_hellboy"})
+    click(session, table, Event.ATTACK, {"target": "medusa"})
     click(session, table, Event.VALUE, {"value": 4})
     assert session.pending_value == 4
 
@@ -513,3 +515,136 @@ def test_no_off_board_warning_while_the_game_is_being_set_up(brig):  # noqa: F81
     session.setup = None
     session.sync_positions()
     assert [m for m in session.messages if "fuera del tablero" in m]
+
+
+def test_resume_writes_and_verifies_every_dial_in_the_resume_messages(brig):  # noqa: F811
+    session, table, game, fake = brig
+    game.fighters["medusa"].hp = 13                       # el motor tiene 13 y el dial del guardado marca 16
+    session.dials_written["DM"] = 16
+    n = fake.lua_messages
+    session.resume()
+    assert table.dials["DM"]["value"] == 13 and table.dial_writes, "el dial ya marca la vida del motor"
+    assert session.dials_written["DM"] == 13
+    assert fake.lua_messages - n <= 3
+
+
+# ---------- partida 5: BOOST del humano (Second Shot) ----------
+def _boost_rig(brig):
+    from test_session import card, human_plays
+    session, table, game, fake = brig
+    game.fighters["lobster"].pos = 2
+    table.positions["Lobster Johnson"] = 2
+    click(session, table, Event.ATTACKER, {"attacker": "att_lobster"})
+    click(session, table, Event.ATTACK, {"target": "medusa"})
+    assert session.pending is not None, "Lobster alcanza a Medusa"
+    second = human_plays(table, game, "Second Shot")
+    return session, table, game, fake, second, card
+
+
+def test_second_shot_reveals_both_cards_and_waits_for_the_boost_without_resolving(brig):  # noqa: F811
+    session, table, game, fake, second, card = _boost_rig(brig)
+    hp, actions = game.fighters["medusa"].hp, game.actions_left
+    msgs = click(session, table, Event.REVEAL)
+    p = session.pending
+    assert p is not None and p.boost_wait is not None and p.boost_wait["card"] == second.card_id
+    assert game.actions_left == actions and game.fighters["medusa"].hp == hp, "aun no se ha resuelto nada"
+    assert len(table.flips) == 2, "las dos cartas giradas"
+    assert any("Second Shot revelado" in m and "Continuar" in m and "Sin boost" in m for m in msgs)
+    status, states = table.panels[-1]
+    assert status == "Second Shot revelado: pon una carta en tu descarte y pulsa Continuar o Sin boost"
+    assert states["btn_boost"] == (True, True) and states["btn_noboost"] == (True, True)
+    assert states["btn_reveal"] == (False, False) and states["btn_cancel"] == (False, False)
+
+
+def test_continuar_reads_the_new_discard_card_boost_and_announces_the_total(brig):  # noqa: F811
+    session, table, game, fake, second, card = _boost_rig(brig)
+    click(session, table, Event.REVEAL)
+    booster = card(game, 1, "Service Pistol")
+    table.human_discard = [booster.card_id]
+    msgs = click(session, table, Event.BOOST)
+    assert session.pending is None and session.pending_value == 0
+    text = next(m for m in msgs if m.startswith("Combate"))
+    assert f"Lobster Johnson ataca con Second Shot (2) y potencia con Service Pistol (+{booster.boost})" in text
+    assert f"total {2 + booster.boost}" in text
+    assert booster in game.players[1].discard and second in game.players[1].discard
+    assert not any("Resuelve a mano: Second Shot" in m or "DURING COMBAT" in m for m in msgs)
+    assert table.panels[-1][1]["btn_boost"] == (False, False)
+
+
+def test_continuar_without_a_new_discard_card_waits_and_sin_boost_resolves_with_no_boost(brig):  # noqa: F811
+    session, table, game, fake, second, card = _boost_rig(brig)
+    click(session, table, Event.REVEAL)
+    msgs = click(session, table, Event.BOOST)
+    assert session.pending is not None and any("No veo ninguna carta nueva" in m for m in msgs)
+    msgs = click(session, table, Event.NO_BOOST)
+    assert session.pending is None
+    assert any(m.startswith("Combate") and "potencia" not in m and "total 2" in m for m in msgs)
+
+
+def test_two_new_discard_cards_are_ambiguous(brig):  # noqa: F811
+    session, table, game, fake, second, card = _boost_rig(brig)
+    click(session, table, Event.REVEAL)
+    table.human_discard = [card(game, 1, "Service Pistol").card_id, card(game, 1, "Excalibur").card_id]
+    msgs = click(session, table, Event.BOOST)
+    assert session.pending is not None and any("2 cartas nuevas" in m for m in msgs)
+
+
+def test_cards_in_the_discard_before_the_reveal_are_not_the_boost(brig):  # noqa: F811
+    session, table, game, fake, second, card = _boost_rig(brig)
+    old = card(game, 1, "Excalibur")
+    table.human_discard = [old.card_id]
+    click(session, table, Event.REVEAL)
+    msgs = click(session, table, Event.BOOST)
+    assert session.pending is not None and any("No veo ninguna carta nueva" in m for m in msgs)
+
+
+def test_cancel_reveal_and_end_action_are_refused_while_waiting_for_the_boost(brig):  # noqa: F811
+    session, table, game, fake, second, card = _boost_rig(brig)
+    click(session, table, Event.REVEAL)
+    for event, word in ((Event.CANCEL, "no se puede cancelar"), (Event.REVEAL, "ya estan reveladas"),
+                        (Event.END_ACTION, "Termina primero el boost")):
+        msgs = click(session, table, event)
+        assert any(word in m for m in msgs), (event, msgs)
+        assert session.pending is not None and session.pending.boost_wait is not None
+
+
+def test_a_boost_wait_survives_a_save_and_resume(brig):  # noqa: F811
+    session, table, game, fake, second, card = _boost_rig(brig)
+    click(session, table, Event.REVEAL)
+    saved = json.loads(json.dumps(session.to_dict()))
+    assert saved["pending"]["boost_wait"]["card"] == second.card_id
+    session.pending = None
+    session.load_dict(saved)
+    assert session.pending.boost_wait == {**saved["pending"]["boost_wait"]}
+    assert session.panel_view()[1]["btn_boost"] == (True, True)
+    table.human_discard = [card(game, 1, "Service Pistol").card_id]
+    click(session, table, Event.BOOST)
+    assert session.pending is None and game.players[1].discard
+    from sparring import persist
+    bad = json.loads(json.dumps(saved))
+    bad["pending"]["boost_wait"] = {"card": "x"}
+    with pytest.raises(persist.StateError):
+        session.load_dict(bad)
+
+
+def test_a_late_value_is_refused_and_never_carries_over_to_the_next_combat(brig):  # noqa: F811
+    session, table, game, fake, second, card = _boost_rig(brig)
+    click(session, table, Event.REVEAL)
+    click(session, table, Event.NO_BOOST)
+    msgs = click(session, table, Event.VALUE, {"value": 4})
+    assert session.pending_value == 0 and any("No hay combate pendiente" in m for m in msgs)
+
+
+def test_value_is_not_the_way_to_boost_while_waiting(brig):  # noqa: F811
+    session, table, game, fake, second, card = _boost_rig(brig)
+    click(session, table, Event.REVEAL)
+    msgs = click(session, table, Event.VALUE, {"value": 4})
+    assert session.pending_value == 0 and any("Continuar" in m for m in msgs)
+
+
+def test_the_panel_has_the_two_boost_buttons_hidden_by_default():
+    xml = ui.panel_xml(["medusa"])
+    for ident in ("btn_boost", "btn_noboost"):
+        assert f'active="false" fontSize="18"' in xml and f'id="{ident}"' in xml
+    assert "function onBoost" in ui.handler_script() and "function onNoBoost" in ui.handler_script()
+    assert ui.parse_event({"event": "boost"}) == (Event.BOOST, {}) and ui.Event("no_boost") is Event.NO_BOOST
