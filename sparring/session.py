@@ -179,6 +179,7 @@ class Pending:
     bot_card: Card | None        # defensa del bot (human_attacks) o ataque del bot (bot_attacks)
     bot_card_guid: str | None = None
     cancel_failures: int = 0
+    defended: bool = True        # False: el humano ataca y el bot aun no ha decidido ni puesto su defensa (se hace al Revelar)
     boost_wait: dict | None = None   # cartas ya reveladas, sin resolver: {"card", "guid", "baseline", "hand", "stuck"} (espera el BOOST del humano)
 
 
@@ -808,7 +809,7 @@ class Session:
             "pending": None if p is None else {
                 "kind": p.kind, "attacker": p.attacker.fid, "target": p.target.fid,
                 "bot_card": p.bot_card.card_id if p.bot_card else None, "bot_card_guid": p.bot_card_guid,
-                "cancel_failures": p.cancel_failures, "boost_wait": p.boost_wait},
+                "cancel_failures": p.cancel_failures, "defended": p.defended, "boost_wait": p.boost_wait},
             "pending_discard": self.pending_discard, "pending_value": self.pending_value,
             "chosen_attacker": self.chosen_attacker, "moving": self.moving,
             "bot_discarded": sorted(self.bot_discarded), "dirty": self.dirty,
@@ -852,7 +853,7 @@ class Session:
             self.pending = None if p is None else Pending(
                 p["kind"], self.game.fighters[p["attacker"]], self.game.fighters[p["target"]],
                 by_id[p["bot_card"]] if p["bot_card"] is not None else None, p["bot_card_guid"], p["cancel_failures"],
-                self._load_boost_wait(p.get("boost_wait")))
+                bool(p.get("defended", True)), self._load_boost_wait(p.get("boost_wait")))
             self.pending_discard, self.pending_value = d["pending_discard"], d["pending_value"]
             self.chosen_attacker, self.moving = d["chosen_attacker"], d["moving"]
             self.bot_discarded, self.dirty = set(d["bot_discarded"]), d["dirty"]
@@ -1078,7 +1079,10 @@ class Session:
             return
         self._begin_action()
         if self.pending is not None:              # una jugada con respuesta tardia: la carta ya esta en la mesa
-            self.say("La carta del bot ya esta en la mesa: pulsa Revelar.")
+            if not self.pending.defended:
+                self.say("Ya hay un ataque abierto: pon tu carta de ataque boca abajo y pulsa Revelar (o Cancelar).")
+            else:
+                self.say("La carta del bot ya esta en la mesa: pulsa Revelar.")
             return
         attacker = self.game.fighters[self.chosen_attacker]
         if not self.game.can_attack(attacker, target):
@@ -1089,13 +1093,18 @@ class Session:
             self.say(f"{attacker.fid} no tiene ninguna carta de ataque legal en tu mano: no se abre el combate. "
                      "Elige otro atacante u otra accion.")
             return
-        self.read_bot_hand()
-        card = self.ai.choose_defense(self.game, attacker, target)
-        guid = self._place_bot_card(card, "human_attacks", attacker, target)
-        self.pending = Pending("human_attacks", attacker, target, card, guid)
+        self.pending = Pending("human_attacks", attacker, target, None, None, defended=False)
         self.chosen_attacker = None
-        self.say(f"{attacker.fid} ataca a {target.fid}: deja tu carta boca abajo en la zona de combate"
-                 + (" (el bot ha defendido)." if card else " (el bot no defiende).") + " Pulsa Revelar.")
+        self.say(f"{attacker.fid} ataca a {target.fid}: pon tu carta de ataque boca abajo en tu zona de combate "
+                 "y pulsa Revelar.")
+
+    def _bot_defends(self, p: Pending) -> None:
+        """El bot decide y coloca su defensa DESPUES de que el humano se haya comprometido. La decision usa solo lo
+        que la IA ya sabia (estado del motor y mano del bot): jamas el CardID de la carta boca abajo del humano."""
+        self.read_bot_hand()
+        card = self.ai.choose_defense(self.game, p.attacker, p.target)
+        guid = self._place_bot_card(card, "human_attacks", p.attacker, p.target)
+        p.bot_card, p.bot_card_guid, p.defended = card, guid, True
 
     def _human_has_attack_card(self, attacker: Fighter) -> bool:
         """Solo valida (no alimenta al motor): mira la mano real del humano en la mesa. Si no se puede leer
@@ -1173,6 +1182,9 @@ class Session:
         if p.boost_wait is not None:              # con las cartas ya giradas no hay nada boca abajo que buscar
             self.say(self._boost_prompt(p))
             return
+        if self.placing is not None:              # defensa puesta cuya respuesta llego tarde: no se pone dos veces
+            self._recover_placing()
+            p = self.pending
         g = self.game
         seen = self._rd_face("human")
         mine = {c.card_id: c for c in g.players[self.human].full_set}
@@ -1186,6 +1198,8 @@ class Session:
                 if human_card is None:
                     raise RuleError("no hay ninguna carta tuya boca abajo en la zona de combate")
                 g.check_attack_card(p.attacker, human_card)
+                if not p.defended:
+                    self._bot_defends(p)
                 if p.bot_card:
                     g.check_defense_card(p.target, p.bot_card)
             else:

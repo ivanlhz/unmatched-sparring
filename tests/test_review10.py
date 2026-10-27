@@ -285,7 +285,7 @@ def rig(brig, defense=None):
 
 def test_no_boost_wait_when_the_bot_card_cancels_the_attackers_effects(brig):  # noqa: F811
     session, table, game, fake, second = rig(brig, defense=("Feint",))
-    assert session.pending.bot_card.title == "Feint"
+    assert session.pending.bot_card is None and table.bot_play == []
     msgs = click(session, table, Event.REVEAL)
     assert session.pending is None, msgs
     assert second in game.players[1].discard and not game.players[1].hand.count(second)

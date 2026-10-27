@@ -455,8 +455,11 @@ def test_human_attack_reveal_resolves_with_value_and_waits_for_end_action(rig):
     session, table, game = rig
     pistol = start_human_attack(session, table, game)
     session.handle(Event.VALUE, {"value": 2})
-    bot_card = session.pending.bot_card
+    chosen = []
+    real = session.ai.choose_defense
+    session.ai.choose_defense = lambda g, a, t: chosen.append(real(g, a, t)) or chosen[-1]
     msgs = session.handle(Event.REVEAL)
+    bot_card = chosen[0]
     assert any("Combate" in m for m in msgs)
     assert session.pending is None and session.pending_value == 0
     assert game.fighters["medusa"].hp == 16 - max(0, 7 - (bot_card.value if bot_card else 0))
@@ -581,12 +584,15 @@ def test_failed_play_aborts_the_action_without_resolving(rig, monkeypatch):
     monkeypatch.setattr(session.ai, "choose_defense", lambda g, a, t: dash)
     table.fail_play = True
     session.handle(Event.ATTACKER, {"attacker": "hellboy"})
-    msgs = session.handle(Event.ATTACK, {"target": "medusa"})
-    assert any("Error de mesa" in m for m in msgs)
-    assert session.pending is None and game.actions_left == 2 and not game.players[0].discard
-    table.fail_play = False
     session.handle(Event.ATTACK, {"target": "medusa"})
-    assert session.pending is not None, "tras el error el boton vuelve a funcionar"
+    human_plays(table, game, "Service Pistol")
+    msgs = session.handle(Event.REVEAL)
+    assert any("Error de mesa" in m for m in msgs)
+    assert session.pending is not None and not session.pending.defended
+    assert game.actions_left == 2 and not game.players[0].discard
+    table.fail_play = False
+    session.handle(Event.REVEAL)
+    assert session.pending is None, "tras el error el boton vuelve a funcionar"
 
 
 def test_bot_play_failure_in_its_own_attack_aborts(rig, monkeypatch):
@@ -800,7 +806,9 @@ def test_cancel_returns_the_bot_defense_card_and_unfreezes_the_game(rig, monkeyp
     monkeypatch.setattr(session.ai, "choose_defense", lambda g, a, t: dash)
     session.handle(Event.ATTACKER, {"attacker": "hellboy"})
     session.handle(Event.ATTACK, {"target": "medusa"})
-    assert session.pending is not None and dash.card_id in table.bot_play
+    assert session.pending is not None and table.bot_play == []
+    session._bot_defends(session.pending)    # la defensa ya puesta (p. ej. respuesta tardia recuperada)
+    assert dash.card_id in table.bot_play
     human_plays(table, game, "Second Shot")  # ilegal para Hellboy: Revelar falla siempre
     session.handle(Event.REVEAL)
     assert session.pending is not None
@@ -844,6 +852,7 @@ def test_cancel_return_failure_keeps_pending_for_retry(rig, monkeypatch):
     monkeypatch.setattr(session.ai, "choose_defense", lambda g, a, t: dash)
     session.handle(Event.ATTACKER, {"attacker": "hellboy"})
     session.handle(Event.ATTACK, {"target": "medusa"})
+    session._bot_defends(session.pending)
     table.lag = 99  # la carta no llega a la mano
     msgs = session.handle(Event.CANCEL)
     assert any("Error de mesa" in m for m in msgs) and session.pending is not None

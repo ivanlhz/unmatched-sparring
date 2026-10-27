@@ -85,6 +85,7 @@ def test_n1_cancel_gives_up_after_two_failed_returns(rig, monkeypatch):
     monkeypatch.setattr(session.ai, "choose_defense", lambda g, a, t: dash)
     session.handle(Event.ATTACKER, {"attacker": "hellboy"})
     session.handle(Event.ATTACK, {"target": "medusa"})
+    session._bot_defends(session.pending)
     table.bot_play.clear()                        # la carta ya no esta donde el bot la dejo
     first = session.handle(Event.CANCEL)
     assert session.pending is not None and any("Error de mesa" in m for m in first)

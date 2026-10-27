@@ -20,7 +20,7 @@ from sparring.tts.client import TTSClient
 from sparring.tts.ui import Event
 import test_session
 from test_play import REAL_CONFIG, cfg_file, live, free_port  # noqa: F401
-from test_session import NICK, PIECES, card, ids, rig  # noqa: F401
+from test_session import NICK, PIECES, card, human_plays, ids, rig  # noqa: F401
 
 LIVE_START = {"medusa": 30, "harpy1": 19, "harpy2": 18, "harpy3": 29, "hellboy": 3, "lobster": 0}
 
@@ -350,12 +350,13 @@ def test_a_late_face_down_play_for_a_human_attack_is_recovered_too(rig, monkeypa
     table.human_hand = ids(game, 1, "Service Pistol")
     session.handle(Event.ATTACKER, {"attacker": "att_hellboy"})
     session.handle(Event.ATTACK, {"target": "medusa"})
-    assert session.pending is None and len(table.bot_play) == 1
+    human_plays(table, game, "Service Pistol")
+    session.handle(Event.REVEAL)
+    assert session.pending is not None and not session.pending.defended and len(table.bot_play) == 1
     played = table.bot_play[0]
-    out = session.handle(Event.ATTACK, {"target": "medusa"})
-    assert session.pending and session.pending.kind == "human_attacks"
-    assert session.pending.bot_card.card_id == played and table.bot_play == [played]
-    assert any("Revelar" in m for m in out)
+    out = session.handle(Event.REVEAL)
+    assert session.pending is None and table.count("play_card_face_down") == 1 and played in table.bot_discard
+    assert any("Combate" in m for m in out) and any(session.game.players[0].discard)
 
 
 def test_a_play_that_never_reached_the_table_is_simply_replanned(rig, monkeypatch):

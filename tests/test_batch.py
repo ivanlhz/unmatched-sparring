@@ -73,11 +73,12 @@ def test_attack_and_reveal_cost_at_most_two_messages(brig):
     click(session, table, Event.ATTACKER, {"attacker": "att_hellboy"})
     n = fake.lua_messages
     click(session, table, Event.ATTACK, {"target": "medusa"})
-    assert session.pending is not None and fake.lua_messages - n <= 3   # carta del bot + validar mano + cierre
+    assert session.pending is not None and not session.pending.defended
+    assert fake.lua_messages - n <= 2                                   # validar mano + cierre; el bot aun no pone nada
     human_plays(table, game, "Service Pistol")
     n = fake.lua_messages
     click(session, table, Event.REVEAL)
-    assert session.pending is None and fake.lua_messages - n <= 2
+    assert session.pending is None and fake.lua_messages - n <= 3   # defensa del bot + giro/resolucion + cierre
     assert len(table.flips) == 1, "la carta del bot se descarta en el mismo compuesto: no se gira, solo la del humano"
 
 
