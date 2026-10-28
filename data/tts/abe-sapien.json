@@ -1,0 +1,49 @@
+{
+ "slug": "abe-sapien",
+ "_notes": [
+  "Leido de saves/Unmatched Official Tournament Table October 2026 (Hellboy).json (solo lectura): bolsa infinita a959bb > bolsa 0c03c0. Todos los GUID salen de esa bolsa interior y se conservan al sacar sus objetos.",
+  "fighters: por id de luchador del HeroDef (piece = GUID de la miniatura o ficha; lista si cambia de GUID al cambiar de estado; dial = dial de vida; dial_max = MAX_VALUE de su script). Sin dial = pieza de 1 PV.",
+  "deck.card_ids = rango de CardID de las 30 cartas; character_card_id va dentro del mismo mazo fisico (31 cartas) pero fuera del rango. deck.identity = (FaceURL, BackURL) de la hoja: lo que identifica el mazo (el CardID no basta)."
+ ],
+ "bag": {
+  "guid": "a959bb",
+  "inner": "0c03c0"
+ },
+ "deck": {
+  "guid": "89eef2",
+  "card_ids": [
+   19400,
+   19429
+  ],
+  "character_card_id": 19500,
+  "identity": [
+   {
+    "face": "https://steamusercontent-a.akamaihd.net/ugc/9237842250844387129/EFCEEAA1123B8897B6FBE074DB0D0E36C43ACA95/",
+    "back": "https://steamusercontent-a.akamaihd.net/ugc/12147883694319938728/F0F8A36A184EEBF94F20622792A8077D35068DE1/"
+   }
+  ]
+ },
+ "fighters": {
+  "abe": {
+   "piece": "4fdf31",
+   "dial": "9125b7",
+   "dial_max": 13
+  },
+  "agent1": {
+   "piece": "c2443d",
+   "nickname": "Victor"
+  },
+  "agent2": {
+   "piece": "0bf463",
+   "nickname": "Carla"
+  },
+  "agent3": {
+   "piece": "d5b205",
+   "nickname": "Kate"
+  }
+ },
+ "tokens": {
+  "intuition": "5a17e9"
+ },
+ "counter_dials": {}
+}

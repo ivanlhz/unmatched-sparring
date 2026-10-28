@@ -1,0 +1,47 @@
+{
+ "slug": "hellboy",
+ "_notes": [
+  "Leido de saves/Unmatched Official Tournament Table October 2026 (Hellboy).json (solo lectura): bolsa infinita 3efeee > bolsa c592d8. Todos los GUID salen de esa bolsa interior y se conservan al sacar sus objetos.",
+  "fighters: por id de luchador del HeroDef (piece = GUID de la miniatura o ficha; lista si cambia de GUID al cambiar de estado; dial = dial de vida; dial_max = MAX_VALUE de su script). Sin dial = pieza de 1 PV.",
+  "deck.card_ids = rango de CardID de las 30 cartas; character_card_id va dentro del mismo mazo fisico (31 cartas) pero fuera del rango. deck.identity = (FaceURL, BackURL) de la hoja: lo que identifica el mazo (el CardID no basta)."
+ ],
+ "bag": {
+  "guid": "3efeee",
+  "inner": "c592d8"
+ },
+ "deck": {
+  "guid": "00dc9a",
+  "card_ids": [
+   19700,
+   19729
+  ],
+  "character_card_id": 19600,
+  "identity": [
+   {
+    "face": "https://steamusercontent-a.akamaihd.net/ugc/16391051862655008952/BFB41BEFB7988B056C03DA80C7AAA7B8CD96F6BF/",
+    "back": "https://steamusercontent-a.akamaihd.net/ugc/9292810156568221364/8CE685661ECB73C0BEBEE721065E4DE200606E02/"
+   }
+  ]
+ },
+ "fighters": {
+  "hellboy": {
+   "piece": [
+    "f9789a",
+    "e6f06e"
+   ],
+   "dial": "046660",
+   "dial_max": 18
+  },
+  "lobster": {
+   "piece": "e33604",
+   "dial": "18c384",
+   "dial_max": 6
+  }
+ },
+ "tokens": {
+  "ability": "1644a3"
+ },
+ "counter_dials": {
+  "destiny": "e17c66"
+ }
+}
