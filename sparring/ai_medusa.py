@@ -148,8 +148,9 @@ class Model:
 
     def defense_dist(self, t: Fighter):
         destiny = self.game.destiny_count(self.opp)
-        return self.best_dist(("def", t.name, destiny),
-                              lambda c: (destiny if c.title == ON_EARTH else c.value)
+        bonus = self.game.combat_bonus_total(t.owner)     # ONGOING publico del rival (Fight Or Flight)
+        return self.best_dist(("def", t.name, destiny, bonus),
+                              lambda c: (destiny if c.title == ON_EARTH else c.value) + bonus
                               if c.can_defend and c.usable_by(t.name) else None)
 
     def p_boost(self, need: int) -> float:

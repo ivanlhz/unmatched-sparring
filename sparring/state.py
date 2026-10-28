@@ -115,6 +115,8 @@ class Game:
         self.actions_left = 2
         self.winner: int | None = None
         self.effect_shield: dict[int, int] = {}
+        # ONGOING de planes (Fight Or Flight): (bono, etiqueta) vivos de cada jugador, a TODAS sus cartas de combate
+        self.combat_bonus: list[list[tuple[int, str]]] = [[], []]
         self.drawn = [0, 0]
         self.phantom_draws = 0   # robos esperados por la IA al simular (cartas desconocidas), nunca en partida real
         self.log: list[str] = []
@@ -158,6 +160,7 @@ class Game:
                      for p in self.players]
         g.turn, g.turn_no, g.actions_left, g.winner = self.turn, self.turn_no, self.actions_left, self.winner
         g.effect_shield = dict(self.effect_shield)
+        g.combat_bonus = [list(b) for b in self.combat_bonus]
         g.drawn = [0, 0]
         g.phantom_draws = self.phantom_draws
         g.log = []
@@ -212,7 +215,22 @@ class Game:
 
     def attack_bonus_parts(self, fighter: Fighter) -> list[tuple[int, str]]:
         """(bono, etiqueta) de cada pasiva de ataque activa del heroe (Hellboy en ANUNG UN RAMA: (2, 'ANUNG UN RAMA'))."""
-        return self.players[fighter.owner].hero.attack_bonuses(self.form(fighter.owner), fighter.hero)
+        return (self.players[fighter.owner].hero.attack_bonuses(self.form(fighter.owner), fighter.hero)
+                + self.combat_bonus_parts(fighter.owner))
+
+    def add_combat_bonus(self, player: int, n: int, label: str) -> None:
+        """Un plan con ONGOING «suma n al valor de tus cartas de combate» entra en juego; se acumula con los demas."""
+        self.combat_bonus[player].append((n, label))
+
+    def combat_bonus_parts(self, player: int) -> list[tuple[int, str]]:
+        """(bono, etiqueta) del ONGOING vivo de `player`, uno por plan distinto (dos copias suman en una sola fila)."""
+        merged: dict[str, int] = {}
+        for n, label in self.combat_bonus[player]:
+            merged[label] = merged.get(label, 0) + n
+        return [(n, label) for label, n in merged.items()]
+
+    def combat_bonus_total(self, player: int) -> int:
+        return sum(n for n, _ in self.combat_bonus[player])
 
     def attack_bonus(self, fighter: Fighter) -> int:
         return sum(n for n, _ in self.attack_bonus_parts(fighter))
@@ -312,8 +330,11 @@ class Game:
         self.actions_left += n
 
     # turno
-    def begin_turn(self) -> None:
+    def begin_turn(self) -> list[tuple[int, str]]:
+        """Empieza el turno de `self.turn`: 2 acciones y caducan sus planes ONGOING. Devuelve lo que caduco."""
         self.actions_left = 2
+        expired, self.combat_bonus[self.turn] = self.combat_bonus_parts(self.turn), []
+        return expired
 
     def use_action(self) -> None:
         if self.actions_left <= 0:

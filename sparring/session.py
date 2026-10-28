@@ -28,7 +28,7 @@ from . import persist
 from .ai_medusa import MedusaAI
 from .cards import Card
 from .controller import Controller
-from .combat import FEINT, GLANCE_DAMAGE, can_boost, deck_boost, is_medusa_card
+from .combat import FEINT, FIGHT_OR_FLIGHT, FIGHT_OR_FLIGHT_BONUS, GLANCE_DAMAGE, can_boost, deck_boost, is_medusa_card
 from .state import ANUNG, DETECTIVE, EXHAUST_DAMAGE, HAND_LIMIT, START_HAND, Fighter, Game, RuleError
 from .tts import lua, ui
 from .tts.lua import ChatKind
@@ -1188,6 +1188,12 @@ class Session:
             g.grant_actions(2)
             self.say(f"Detecto {c.title}: aplicado, ganas 2 acciones (te quedan {g.actions_left}). Descartar tu mano "
                      "y robar 2 cartas lo haces tu: son tus cartas.", ChatKind.SCHEME)
+        elif c.title == FIGHT_OR_FLIGHT:
+            g.add_combat_bonus(self.human, FIGHT_OR_FLIGHT_BONUS, FIGHT_OR_FLIGHT)
+            total = g.combat_bonus_total(self.human)
+            self.say(f"Detecto {c.title}: +{FIGHT_OR_FLIGHT_BONUS} a tus cartas de combate hasta el inicio de tu siguiente "
+                     f"turno (ahora +{total}). Robar 1 y mover hasta 5 lo haces tu en la mesa; descarta el plan al "
+                     "empezar tu siguiente turno.", ChatKind.SCHEME)
         elif c.title == "Pancakes!":
             self.say(f"Detecto {c.title}: tienes que elegir dos efectos. Para curar a {g.hero(self.human).name} 2 pulsa su +1 dos veces; "
                      "el mazo y el robo los haces tu en la mesa.", ChatKind.SCHEME)
@@ -2126,11 +2132,13 @@ class Session:
             return
         seen = len(g.players[self.bot].discard)
         g.end_turn()                              # puede descartar por limite de mano: eso tambien es deuda de mesa
-        g.begin_turn()
+        expired = g.begin_turn()
         if len(g.players[self.bot].discard) > seen:
             self.say("El bot descarta " + self._discard_list(seen, {}, "limite de mano") + ".")
         self._mark_dirty()
         self._persist()
+        for n, label in expired:
+            self.say(f"{label}: caduca el +{n} a tus cartas de combate. Descarta el plan.", ChatKind.SCHEME)
         self._announce_human_start()
         try:
             self._flush_table()

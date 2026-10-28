@@ -54,8 +54,15 @@ Las otras 15 (Fleeting Moments x3, B.P.R.D. Training x2, Rekindle x2, Feint x3, 
 1. Impulsar (descartar la de arriba del mazo) cuenta como descarte desde el mazo para Wildfire? Supuesto: sí (la ardiente suma 0 y vuelve a la mano).
 2. Mazo vacío al inicio del turno o con Flame Lash: supuesto que no pasa nada (ni daño ni movimiento, suma 0). Alternativa: tratarlo como "no ardiente" y mover 2.
 3. El daño del inicio de turno es obligatorio si hay objetivo (dice "deal", no "may"). Supuesto: obligatorio.
-4. Dos Fight Or Flight en juego suman +2? Supuesto: sí.
-5. Incinerate ignorado deja el valor a 0 aunque Liz haya impulsado? Supuesto: sí.
+4. Dos Fight Or Flight en juego suman +2? Supuesto: sí (implementado: `Game.add_combat_bonus` acumula; ver «Fight Or Flight en el motor»).
+5. Incinerate ignorado deja el valor a 0 aunque Liz haya impulsado? Supuesto: sí. Y el +1 de Fight Or Flight con un efecto rival de «ignorar el valor»? Supuesto: el +1 es un efecto del jugador, no el valor impreso de la carta, así que se sigue sumando. Abierta; el motor no modela hoy ningún «ignorar valor» rival (el bot es Medusa).
 6. Burning Barrier bloquea también empujones y cambios de sitio ajenos? Supuesto: bloquea todo movimiento.
 7. Con el bot llevando a Liz en TTS, quién gira la carta del fondo cada turno (puente o humano): UX del paso 13.
 8. Confirmado por la hoja: 15 ardientes y ninguna con impulso.
+
+## Fight Or Flight en el motor (ONGOING)
+- `Game.combat_bonus[jugador]` guarda (bono, etiqueta) vivos. La sesión lo añade al detectar el plan en el descarte del humano; `resolve_scheme` lo añade si lo juega el bot. Se acumula (dos copias: +2, pregunta 4).
+- Suma al valor de toda carta de combate del dueño: ataque en su turno (vía `attack_bonus_parts`, junto a las pasivas del héroe) y defensa en el del rival, también si la carta vale 0, se cancela o es On Earth (se suma tras fijar el valor). Sin carta de defensa no hay valor al que sumar. El «valor extra» del panel es aparte y se suma.
+- Caduca en `begin_turn()` del dueño (lo devuelve para avisar). Se guarda en `combat_bonus` del `game` del guardado, solo si hay algo; un guardado viejo sin la clave carga a 0.
+- IA: `Model.defense_dist` y `attack_dist` lo leen (es público); la ISMCTS lo ve por `resolve_combat` y `attack_bonus` en la clonación. Si lo juega el bot, el motor lo aplica; la IA de Medusa no lo evalúa para sí misma (no es su carta).
+- El descarte físico del plan al caducar lo hace el humano (el chat lo recuerda).

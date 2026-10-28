@@ -21,6 +21,7 @@ def game_to_dict(g: Game) -> dict:
     return {
         "turn": g.turn, "turn_no": g.turn_no, "actions_left": g.actions_left, "winner": g.winner,
         "effect_shield": {str(k): v for k, v in g.effect_shield.items()}, "drawn": list(g.drawn),
+        **({"combat_bonus": [[list(b) for b in side] for side in g.combat_bonus]} if any(g.combat_bonus) else {}),
         "fighters": {fid: {"hp": f.hp, "pos": f.pos, "alive": f.alive, "died_at": f.died_at} for fid, f in g.fighters.items()},
         "players": [{"deck": [c.card_id for c in p.deck], "hand": [c.card_id for c in p.hand],
                      "discard": [c.card_id for c in p.discard],
@@ -36,6 +37,8 @@ def apply_game(g: Game, d: dict) -> None:
         g.turn, g.turn_no, g.actions_left, g.winner = d["turn"], d["turn_no"], d["actions_left"], d["winner"]
         g.effect_shield = {int(k): v for k, v in d["effect_shield"].items()}
         g.drawn = list(d["drawn"])
+        g.combat_bonus = [[(int(n), str(label)) for n, label in side]
+                          for side in d.get("combat_bonus") or [[], []]]
         for fid, st in d["fighters"].items():
             f = g.fighters[fid]
             f.hp, f.pos, f.alive = st["hp"], st["pos"], st["alive"]

@@ -18,6 +18,8 @@ SECOND_SHOT = "Second Shot"
 FEINT = "Feint"
 PLANNED = "Planned Recklessness"
 ON_EARTH = "On Earth As It Is In Hell"
+FIGHT_OR_FLIGHT = "Fight Or Flight"
+FIGHT_OR_FLIGHT_BONUS = 1
 
 
 def is_medusa_card(card: Card) -> bool:
@@ -81,6 +83,10 @@ def resolve_combat(game: Game, att: Fighter, tgt: Fighter, atk_card: Card, def_c
     atk_value = (atk_card.value or 0) + values[0] + bonus
     def_value = (def_card.value or 0) if def_card else 0
     def_value += values[1]
+    # ONGOING del defensor: suma al valor de su carta (tambien si vale 0 o se cancela); sin carta no hay valor al que sumar
+    def_bonus_parts = game.combat_bonus_parts(pd) if def_card is not None else []
+    def_bonus = sum(n for n, _ in def_bonus_parts)
+    def_value += def_bonus
     ctx = CombatCtx(att, tgt, atk_card, def_card, atk_value, def_value, set())
     result = CombatResult(att.fid, tgt.fid, atk_card, def_card, atk_value, def_value, 0, False)
     result.atk_parts = [f"{atk_card.title} ({atk_card.value or 0})"]
@@ -102,13 +108,14 @@ def resolve_combat(game: Game, att: Fighter, tgt: Fighter, atk_card: Card, def_c
 
     # DURING
     if def_card is not None and "def" not in ctx.cancelled and not is_medusa_card(def_card) and def_card.title == ON_EARTH:
-        ctx.def_value = game.destiny_count(pd) + values[1]
+        ctx.def_value = game.destiny_count(pd) + values[1] + def_bonus
     elif def_card is not None and "def" in ctx.cancelled and def_card.title == ON_EARTH and not is_medusa_card(def_card):
-        ctx.def_value = values[1]
+        ctx.def_value = values[1] + def_bonus
     if def_card is not None:
-        result.def_parts = [f"{def_card.title} ({ctx.def_value - values[1]})"]
+        result.def_parts = [f"{def_card.title} ({ctx.def_value - values[1] - def_bonus})"]
         if "def" in ctx.cancelled:
             result.def_parts[0] += " cancelada"
+        result.def_parts += [f"{label} (+{n})" for n, label in def_bonus_parts if n]
     if values[1]:
         result.def_parts.append(f"valor extra ({values[1]:+d})")
     if "atk" not in ctx.cancelled and is_medusa_card(atk_card) and atk_card.title == SECOND_SHOT:
@@ -235,6 +242,8 @@ def check_scheme(game: Game, fighter: Fighter, card: Card, target: Fighter | Non
 
 def resolve_scheme(game: Game, player: int, fighter: Fighter, card: Card, target: Fighter | None = None) -> list[str]:
     if not is_medusa_card(card):
+        if card.title == FIGHT_OR_FLIGHT:
+            game.add_combat_bonus(player, FIGHT_OR_FLIGHT_BONUS, FIGHT_OR_FLIGHT)
         return [f"{card.title}: {card.text}"]
     ctrl = game.controllers[player]
     if card.title == "A Momentary Glance":
