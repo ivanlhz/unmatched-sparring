@@ -464,3 +464,23 @@ Decisiones dudosas de la migracion (ver tambien `notes` de cada fichero):
 11. Counterhex Shield: tres estados separados (`immune_to_enemy_effect_damage`, `..._moves`, `..._forced_discards`)
     en vez de un estado con lista `blocks`.
 12. Abe "Leap Away" y Baba "Foul Journey": `role: combatant` (uno de los dos luchadores del combate, elige el dueno).
+
+## 11. Interpreter (C1, `sparring/effects/`)
+
+- `EffectRun(ops, Ctx(...), label)` executes one ops list. It is re-entrant: frames are `(path, idx, loop)`, bindings
+  travel as card ids / fighter ids / player numbers, and `answers` is keyed by `label/op path:ask index`
+  (for_each iterations add `@pos`). `to_dict` / `from_dict` round-trip through JSON.
+- Ops are atomic: every decision is asked before the first mutation; a paused run (`Await`) has changed nothing and
+  only the current op reruns after `resume`. Random picks are memoized in `answers`, so a rerun never rerolls.
+- Choosers: `ControllerChooser` (bot, via `Controller.choose_effect`, falling back to `choose_move` /
+  `choose_discard` / `choose_placement`), `PanelChooser` (human, always an `Await`), `SyntheticChooser` (search),
+  `ScriptedChooser` (tests).
+- `PendingChoice` / `Await` in `effects/choose.py` have the same fields and (de)serialization as the ones in
+  `combat_flow.py`; they are unified with them when that branch merges (kind `"effect"`, `extra = {key, request}`).
+- Ops that later phases implement (`cancel_effects`, `modify_value`, ... `look_hand`, `put_in_hand`) are registered
+  stubs raising `NotImplementedError("<op>: <phase>")`. Plugins register with `@plugin("<id>")` /
+  `@plugin_condition("<id>")` in `effects/ops_core.py`.
+- Decisions taken for the gaps in the spec: `defeated` = not alive (reserve included, as the engine does);
+  `summon` takes a never-placed fighter (`died_at is None`); `move` with `up_to: false` prefers spaces exactly N
+  away; `gain_action` for a player whose turn it is not does nothing; `end_turn` zeroes the owner's actions and sets
+  `run.flags["end_turn"]`; `moved_this_turn` reads `fx.turn_start_pos` (filled by C3).

@@ -28,3 +28,8 @@ class Controller:
 
     def choose_placement(self, game: "Game", fighter: "Fighter", options: list[int]) -> int | None:
         return options[0] if options else None
+
+    def choose_effect(self, game: "Game", req) -> list | None:
+        """Answer a DSL ChoiceRequest (sparring/effects/choose.py). None = use the generic per-kind fallback, which
+        goes through choose_move / choose_discard / choose_placement."""
+        return None

@@ -8,6 +8,7 @@ import json
 import os
 from pathlib import Path
 
+from .effects.state import EffectState
 from .state import Game
 
 VERSION = 1
@@ -22,6 +23,7 @@ def game_to_dict(g: Game) -> dict:
         "turn": g.turn, "turn_no": g.turn_no, "actions_left": g.actions_left, "winner": g.winner,
         "effect_shield": {str(k): v for k, v in g.effect_shield.items()}, "drawn": list(g.drawn),
         **({"combat_bonus": [[list(b) for b in side] for side in g.combat_bonus]} if any(g.combat_bonus) else {}),
+        **({"fx": g.fx.to_dict()} if not g.fx.is_empty() else {}),
         "fighters": {fid: {"hp": f.hp, "pos": f.pos, "alive": f.alive, "died_at": f.died_at} for fid, f in g.fighters.items()},
         "players": [{"deck": [c.card_id for c in p.deck], "hand": [c.card_id for c in p.hand],
                      "discard": [c.card_id for c in p.discard],
@@ -39,6 +41,7 @@ def apply_game(g: Game, d: dict) -> None:
         g.drawn = list(d["drawn"])
         g.combat_bonus = [[(int(n), str(label)) for n, label in side[-1:]]       # one ONGOING per player: keep the last
                           for side in d.get("combat_bonus") or [[], []]]
+        g.fx = EffectState.from_dict(d.get("fx"))
         for fid, st in d["fighters"].items():
             f = g.fighters[fid]
             f.hp, f.pos, f.alive = st["hp"], st["pos"], st["alive"]

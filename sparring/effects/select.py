@@ -1,0 +1,352 @@
+"""Selectors, amounts and conditions of the DSL (docs/effects-dsl.md sections 2.1-2.9).
+
+Everything takes `(game, run, ...)`; `run` supplies the context (`run.ctx`), the bindings (`$name`) and `run.ask`
+for the decisions. Nothing here mutates the game."""
+from __future__ import annotations
+
+from typing import NamedTuple
+
+from .model import EffectError
+
+SIDES = {"own", "enemy", "any"}
+
+
+class Picked(NamedTuple):
+    player: int
+    zone: str
+    card: object
+
+
+# ---------------------------------------------------------------- players
+
+def players_of(game, run, sel) -> list[int]:
+    """PlayerSel -> player numbers (`all` is owner first)."""
+    ctx, owner = run.ctx, run.ctx.owner
+    if sel == "owner":
+        return [owner]
+    if sel == "opponent":
+        return [1 - owner]
+    if sel == "all":
+        return [owner, 1 - owner]
+    if sel in ("attacking_player", "defending_player"):
+        fid = ctx.attacker_fid if sel == "attacking_player" else ctx.defender_fid
+        if fid is None:
+            raise EffectError(f"{sel}: this effect has no combat")
+        return [game.fighters[fid].owner]
+    if isinstance(sel, str) and sel.startswith("$"):
+        return run.bound(sel[1:], "players")
+    raise EffectError(f"bad player selector {sel!r}")
+
+
+def player_of(game, run, sel) -> int:
+    got = players_of(game, run, sel)
+    if len(got) != 1:
+        raise EffectError(f"player selector {sel!r} must be a single player")
+    return got[0]
+
+
+# ---------------------------------------------------------------- spaces
+
+def _ref_fighter(game, run, ref):
+    """FighterRef (a role name or $var) -> one Fighter or None."""
+    got = _role_fighters(game, run, ref)
+    return got[0] if got else None
+
+
+def space_options(game, run, sel, default_empty: bool = True, mover=None) -> list[int]:
+    """SpaceSel -> sorted space ids. `empty` (default true for placing) drops spaces held by a living fighter
+    other than `mover`."""
+    board = game.board
+    out = set(board.spaces)
+    for key in ("zone_of", "adjacent_to", "space_of", "nearest_to"):
+        if key not in sel:
+            continue
+        ref = _ref_fighter(game, run, sel[key])
+        if ref is None or ref.pos is None:
+            return []
+        if key == "zone_of":
+            out &= {s for s in board.spaces if board.share_zone(ref.pos, s)}
+        elif key == "adjacent_to":
+            out &= set(board.adj[ref.pos])
+        elif key == "space_of":
+            out &= {ref.pos}
+    if "start_space_of" in sel:
+        out &= {game.start_spaces[player_of(game, run, sel["start_space_of"])]}
+    if sel.get("empty", default_empty):
+        taken = {f.pos for f in game.fighters.values() if f.alive and f is not mover}
+        out -= taken
+    if "nearest_to" in sel and out:
+        ref = _ref_fighter(game, run, sel["nearest_to"])
+        best = min(board.distance(ref.pos, s) for s in out)
+        out = {s for s in out if board.distance(ref.pos, s) == best}
+    return sorted(out)
+
+
+# ---------------------------------------------------------------- fighters
+
+def _role_fighters(game, run, role) -> list:
+    ctx = run.ctx
+    if role == "this":
+        return [game.fighters[ctx.this_fid]] if ctx.this_fid else []
+    if role == "hero":
+        return [game.hero(ctx.owner)]
+    if role in ("attacker", "defender"):
+        fid = ctx.attacker_fid if role == "attacker" else ctx.defender_fid
+        return [game.fighters[fid]] if fid else []
+    if role == "opposing":
+        if ctx.attacker_fid is None or ctx.this_fid is None:
+            return []
+        other = ctx.defender_fid if ctx.this_fid == ctx.attacker_fid else ctx.attacker_fid
+        return [game.fighters[other]] if other else []
+    if role == "combatant":
+        return [game.fighters[f] for f in (ctx.attacker_fid, ctx.defender_fid) if f]
+    if isinstance(role, str) and role.startswith("$"):
+        return [game.fighters[f] for f in run.bound(role[1:], "fighters")]
+    raise EffectError(f"bad fighter role {role!r}")
+
+
+def fighter_candidates(game, run, sel) -> tuple[list, bool]:
+    """FighterSel -> (candidates in engine order, pick_all)."""
+    if isinstance(sel, str):
+        sel = {"role": sel}
+    owner = run.ctx.owner
+    pool = _role_fighters(game, run, sel["role"]) if "role" in sel else list(game.fighters.values())
+    side = sel.get("side", "any")
+    if side not in SIDES:
+        raise EffectError(f"bad side {side!r}")
+    kind, name = sel.get("kind", "any"), sel.get("name")
+    want_alive = sel.get("state", "alive") == "alive"
+    out = []
+    for f in pool:
+        if side == "own" and f.owner != owner or side == "enemy" and f.owner == owner:
+            continue
+        if kind == "hero" and not f.hero or kind == "sidekick" and f.hero:
+            continue
+        if name is not None and f.name != name:
+            continue
+        if f.alive != want_alive:
+            continue
+        out.append(f)
+    if "where" in sel:
+        where = sel["where"]
+        spaces = set(space_options(game, run, where, default_empty=False))
+        out = [f for f in out if f.pos in spaces]
+        if "nearest_to" in where and out:
+            ref = _ref_fighter(game, run, where["nearest_to"])
+            best = min(game.board.distance(ref.pos, f.pos) for f in out)
+            out = [f for f in out if game.board.distance(ref.pos, f.pos) == best]
+        if sel.get("other"):
+            for key in ("zone_of", "adjacent_to", "space_of", "nearest_to"):
+                if key in where:
+                    ref = _ref_fighter(game, run, where[key])
+                    out = [f for f in out if f is not ref]
+    if sel.get("other") and run.ctx.this_fid:
+        out = [f for f in out if f.fid != run.ctx.this_fid]
+    flt = sel.get("filter") or {}
+    if "attacked_this_turn" in flt:
+        out = [f for f in out if (f.fid in game.fx.attacked) == bool(flt["attacked_this_turn"])]
+    return out, sel.get("pick", "one") == "all"
+
+
+def pick_fighters(game, run, sel, chooser: int, prompt: str = "") -> list:
+    """The fighters a selector designates. `pick: one` with several candidates asks `chooser`; with none it is
+    empty (the op does nothing); `pick: all` returns every candidate (zero is fine)."""
+    cands, pick_all = fighter_candidates(game, run, sel)
+    if pick_all or len(cands) <= 1:
+        return cands
+    got = run.ask(game, "fighter", chooser, [f.fid for f in cands], 1, 1, prompt or "choose a fighter")
+    return [game.fighters[got[0]]]
+
+
+# ---------------------------------------------------------------- cards
+
+def find_card(game, card_id: int):
+    for p in game.players:
+        for c in p.full_set:
+            if c.card_id == card_id:
+                return c
+    return None
+
+
+def locate(game, card) -> tuple[int, str] | None:
+    """(player, zone) of a card that is in a hand, deck or discard; None when it is somewhere else (in combat)."""
+    for i, p in enumerate(game.players):
+        for zone, pile in (("hand", p.hand), ("deck", p.deck), ("discard", p.discard)):
+            if card in pile:
+                return i, zone
+    return None
+
+
+def card_ref(game, run, ref) -> list:
+    """CardRef -> list of Card (empty if that card is not known to this effect)."""
+    ctx = run.ctx
+    ids = {"this": ctx.card_id, "opponent_card": ctx.opp_card_id, "attack_card": ctx.attack_card_id,
+           "defense_card": ctx.defense_card_id}
+    if ref in ids:
+        card = find_card(game, ids[ref]) if ids[ref] is not None else None
+        return [] if card is None else [card]
+    if isinstance(ref, str) and ref.startswith("$"):
+        return [c for c in (find_card(game, i) for i in run.bound(ref[1:], "cards")) if c is not None]
+    raise EffectError(f"bad card reference {ref!r}")
+
+
+def _matches(card, flt: dict) -> bool:
+    if "type" in flt and card.type != flt["type"]:
+        return False
+    if "type_not" in flt and card.type == flt["type_not"]:
+        return False
+    if "tag" in flt and flt["tag"] not in card.tags:
+        return False
+    if "tag_not" in flt and flt["tag_not"] in card.tags:
+        return False
+    if "title" in flt and card.title != flt["title"]:
+        return False
+    if "fighter" in flt and card.fighter != flt["fighter"]:
+        return False
+    return True
+
+
+def card_candidates(game, run, sel: dict) -> list[Picked]:
+    """CardSel -> every card of the zone that passes `filter` and `except`, in zone order (deck: top first)."""
+    player = player_of(game, run, sel["player"])
+    zone, p = sel["zone"], game.players[player]
+    if zone == "hand":
+        pile = p.hand
+    elif zone == "discard":
+        pile = p.discard
+    elif zone == "deck":
+        pile = p.deck
+    elif zone == "in_play":
+        cid = game.fx.ongoing_card_id(player)
+        pile = [] if cid is None else [c for c in [find_card(game, cid)] if c is not None]
+    else:
+        raise EffectError(f"bad card zone {zone!r}")
+    skip = set(card_ref(game, run, sel["except"])) if "except" in sel else set()
+    flt = sel.get("filter") or {}
+    return [Picked(player, zone, c) for c in pile if c not in skip and _matches(c, flt)]
+
+
+def select_cards(game, run, sel: dict, purpose: str = "choose") -> list[Picked]:
+    """The cards a CardSel designates, deciding `chosen` through the chooser and `random` through the run's
+    memoized rng."""
+    cands = card_candidates(game, run, sel)
+    pick = sel.get("pick", "chosen")
+    if pick == "all":
+        return cands
+    n = min(int(amount(game, run, sel.get("amount", 1))), len(cands))
+    if n <= 0:
+        return []
+    if pick == "top":
+        return cands[:n]
+    if pick == "bottom":
+        return cands[::-1][:n]
+    if pick == "random":
+        return run.random_sample(cands, n)
+    chooser = player_of(game, run, sel.get("chooser", "owner"))
+    lo = 0 if sel.get("up_to") else n
+    by_id = {c.card.card_id: c for c in cands}
+    got = run.ask(game, "cards", chooser, list(by_id), lo, n, f"{purpose} cards", zone=sel["zone"], purpose=purpose)
+    return [by_id[i] for i in got]
+
+
+# ---------------------------------------------------------------- amounts
+
+def amount(game, run, a):
+    if isinstance(a, bool):
+        raise EffectError(f"bad amount {a!r}")
+    if isinstance(a, (int, float)):
+        return a
+    if isinstance(a, str) and a.startswith("$"):
+        return run.bound(a[1:], "num")
+    if not isinstance(a, dict):
+        raise EffectError(f"bad amount {a!r}")
+    times = a.get("times", 1)
+    if "attr" in a:
+        cards = card_ref(game, run, a["of"])
+        value = 0 if not cards else (cards[0].boost if a["attr"] == "boost" else (cards[0].value or 0))
+    elif "count" in a:
+        value = len(fighter_candidates(game, run, a["count"])[0])
+    elif "count_cards" in a:
+        value = len(card_candidates(game, run, a["count_cards"]))
+    elif "counter" in a:
+        player = player_of(game, run, a.get("player", "owner"))
+        value = counter_value(game, player, a["counter"])
+    elif "stat" in a:
+        value = _stat(game, run, a)
+    else:
+        raise EffectError(f"bad amount {a!r}")
+    return value * times
+
+
+def counter_value(game, player: int, name: str) -> int:
+    """HeroDef counters (destiny) are counted from the piles; ability counters live in fx.counters."""
+    if name in game.players[player].hero.counters:
+        return game.counter(player, name)
+    from .model import load_effects
+    rng = load_effects(game.players[player].hero.slug).counter_range(name)
+    return game.fx.counter_value(player, name, rng.start)
+
+
+def _stat(game, run, a):
+    stat = a["stat"]
+    if stat in ("hp", "max_hp"):
+        f = (fighter_candidates(game, run, a["fighter"])[0] or [None])[0] if "fighter" in a else game.hero(run.ctx.owner)
+        return 0 if f is None else getattr(f, stat)
+    player = player_of(game, run, a.get("player", "owner"))
+    if stat == "hand_size":
+        return len(game.players[player].hand)
+    if stat == "actions_taken_this_turn":
+        return max(0, 2 - game.actions_left) if game.turn == player else 0
+    if stat == "damage_dealt_this_combat":
+        return run.ctx.damage_dealt
+    if stat == "damage_taken_this_combat":
+        return run.ctx.damage_taken
+    raise EffectError(f"bad stat {stat!r}")
+
+
+# ---------------------------------------------------------------- conditions
+
+_COMPARE = {"<": lambda a, b: a < b, "<=": lambda a, b: a <= b, "==": lambda a, b: a == b,
+            ">=": lambda a, b: a >= b, ">": lambda a, b: a > b, "!=": lambda a, b: a != b}
+
+
+def condition(game, run, c: dict) -> bool:
+    if "all" in c:
+        return all(condition(game, run, x) for x in c["all"])
+    if "any" in c:
+        return any(condition(game, run, x) for x in c["any"])
+    if "not" in c:
+        return not condition(game, run, c["not"])
+    test = c.get("test")
+    if test == "form_is":
+        return game.form(player_of(game, run, c.get("player", "owner"))) == c["form"]
+    if test == "exists":
+        if "fighters" in c:
+            return bool(fighter_candidates(game, run, c["fighters"])[0])
+        if "cards" in c:
+            return bool(card_candidates(game, run, c["cards"]))
+        return bool(space_options(game, run, c["space"]))
+    if test == "fighter_at":
+        f = _ref_fighter(game, run, c["fighter"])
+        return f is not None and f.pos in space_options(game, run, c["space"], default_empty=False)
+    if test == "card":
+        cards = card_ref(game, run, c["card"])
+        return bool(cards) and _matches(cards[0], c.get("filter") or {})
+    if test == "combat_result":
+        won = run.ctx.combat_result == "won"
+        return won if c["result"] == "won" else not won
+    if test == "counter":
+        v = counter_value(game, player_of(game, run, c.get("player", "owner")), c["name"])
+        return v >= c.get("min", v) and v <= c.get("max", v)
+    if test == "moved_this_turn":
+        f = _ref_fighter(game, run, c["fighter"])
+        start = None if f is None else game.fx.turn_start_pos.get(f.fid)
+        return start is not None and f.pos != start
+    if test == "played_as":
+        return run.ctx.played_as == c["side"]
+    if test == "compare":
+        return _COMPARE[c["op"]](amount(game, run, c["left"]), amount(game, run, c["right"]))
+    if test == "plugin":
+        from .ops_core import plugin_test
+        return plugin_test(game, run, c)
+    raise EffectError(f"bad condition {c!r}")

@@ -6,6 +6,7 @@ from dataclasses import dataclass, field, replace
 from .board import Board
 from .cards import Card, can_be_boost
 from .controller import Controller
+from .effects.state import EffectState
 from .heroes import HeroDef, load_hero
 
 HAND_LIMIT = 7
@@ -121,6 +122,7 @@ class Game:
         self.drawn = [0, 0]
         self.phantom_draws = 0   # robos esperados por la IA al simular (cartas desconocidas), nunca en partida real
         self.log: list[str] = []
+        self.fx = EffectState()    # DSL interpreter state and hooks (docs/effects-dsl.md); inert unless fx.dsl_heroes
 
     @classmethod
     def new(cls, board: Board, seed: int, controllers: dict[int, Controller] | None = None,
@@ -171,6 +173,7 @@ class Game:
         g.drawn = [0, 0]
         g.phantom_draws = self.phantom_draws
         g.log = []
+        g.fx = self.fx.copy()
         return g
 
     # consultas
@@ -289,6 +292,9 @@ class Game:
         if source == "effect" and self.effect_shield.get(fighter.owner) == self.turn_no:
             self.log.append(f"{fighter.fid}: dano de efecto evitado")
             return 0
+        n = self.fx.adjust_damage(fighter, n, source)
+        if n <= 0:
+            return 0
         fighter.hp -= n
         self.log.append(f"{fighter.fid} -{n} ({fighter.hp:g} pv)")
         if fighter.hp <= 0:
@@ -296,6 +302,7 @@ class Game:
             fighter.alive, fighter.pos = False, None
             if fighter.hero:
                 self.winner = 1 - fighter.owner
+            self.fx.emit("fighter_defeated", fighter)
         return n
 
     def heal(self, fighter: Fighter, n: int) -> None:
@@ -304,6 +311,8 @@ class Game:
 
     def draw(self, player: int, n: int = 1, log: bool = True) -> list[Card]:
         p, drawn = self.players[player], []
+        if not self.fx.can_draw(player):
+            return drawn
         for _ in range(n):
             if not p.deck:
                 for f in self.own(player):
@@ -325,18 +334,22 @@ class Game:
     def discard_card(self, player: int, card: Card) -> None:
         self.take_from_hand(player, card)
         self.players[player].discard.append(card)
+        self.fx.emit("card_discarded", player, card)
 
     def force_discard(self, player: int, n: int, reason: str) -> list[Card]:
         hand = self.players[player].hand
         n = min(n, len(hand))
         if not n:
             return []
+        self.fx.emit("force_discard", player, n)
         chosen = self.controllers[player].choose_discard(self, player, n, reason)[:n]
         for c in chosen:
             self.discard_card(player, c)
         return chosen
 
     def grant_actions(self, n: int) -> None:
+        if not self.fx.can_gain_actions(self.turn):
+            return
         self.actions_left += n
 
     # turno
@@ -344,6 +357,7 @@ class Game:
         """Empieza el turno de `self.turn`: 2 acciones y caducan sus planes ONGOING. Devuelve lo que caduco."""
         self.actions_left = 2
         expired, self.combat_bonus[self.turn] = self.combat_bonus_parts(self.turn), []
+        self.fx.emit("start_of_turn", self.turn)
         return expired
 
     def use_action(self) -> None:
@@ -352,6 +366,7 @@ class Game:
         self.actions_left -= 1
 
     def end_turn(self) -> None:
+        self.fx.emit("end_of_turn", self.turn)
         hand = self.players[self.turn].hand
         if len(hand) > HAND_LIMIT:
             self.force_discard(self.turn, len(hand) - HAND_LIMIT, "limite de mano")
@@ -377,6 +392,7 @@ class Game:
             if f.owner != player or not f.alive:
                 raise RuleError(f"{fid} no puede moverse")
             self.move_fighter(f, dest, f.move + extra)
+        self.fx.emit("after_maneuver", player)
 
     def play_scheme(self, player: int, fighter: Fighter, card: Card, **opts) -> None:
         from .combat import check_scheme, resolve_scheme
@@ -415,6 +431,7 @@ class Game:
             if def_card not in self.players[target.owner].hand:
                 raise RuleError(f"{def_card.title} no esta en la mano de {target.fid}")
         self.use_action()
+        self.fx.emit("attacked", attacker, target, card)
         if def_card == "ask":
             def_card = self.controllers[target.owner].choose_defense(self, attacker, target)
         return resolve_combat(self, attacker, target, card, def_card, values, boost)
