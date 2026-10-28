@@ -3,7 +3,8 @@ import json
 
 import pytest
 
-from sparring.combat_flow import Phase, PendingChoice
+from conftest import give, place
+from sparring.combat_flow import RULES, CombatFlow, PendingChoice, Phase
 
 NO_DECK = lambda card_id: False  # noqa: E731
 
@@ -45,3 +46,134 @@ def test_phase_order():
     assert [p.value for p in Phase] == ["declared", "cards_set", "revealed", "immediately", "during", "damage",
                                         "after", "done"]
     assert Phase("during") is Phase.DURING
+
+
+# ---------- engine ----------
+def adjacent(game):
+    place(game, medusa=0, hellboy=1, harpy1=20, harpy2=21, harpy3=22, lobster=27)
+    return game.fighters["medusa"], game.fighters["hellboy"]
+
+
+def test_rule_order_matches_legacy_chains():
+    by_phase = {phase: [r.name for r in RULES if r.phase is phase] for phase in Phase}
+    assert by_phase[Phase.IMMEDIATELY] == ["feint", "planned_recklessness"]
+    assert by_phase[Phase.DURING] == ["on_earth_value", "second_shot", "boost_this_attack"]
+    assert by_phase[Phase.AFTER] == ["medusa_after", "bot_card_after", "human_card_after"]
+    assert [r.name for r in RULES if r.when_cancelled] == ["on_earth_value"]
+
+
+def test_defender_resolves_first(game):
+    med, hb = adjacent(game)
+    feint, planned = give(game, 0, "Feint"), give(game, 1, "Planned Recklessness")
+    flow = CombatFlow(game, med, hb, feint, planned)
+    assert flow.run() is None
+    assert [s.name for s in flow.sides] == ["def", "atk"]
+    assert flow.result.cancelled == {"atk"}                 # Planned (defender) cancels Feint before it resolves
+    assert flow.done and flow.phase is Phase.DONE
+
+
+def test_after_gate_evaluated_once(game):
+    med, hb = adjacent(game)
+    snipe, glimpse = give(game, 0, "Snipe"), give(game, 1, "Glimpse Of Hell")
+    flow = CombatFlow(game, med, hb, snipe, glimpse)
+    while flow.phase is not Phase.DAMAGE:
+        assert flow.step() is None
+    assert flow.after_open is None                           # not evaluated before entering AFTER
+    flow.step()
+    assert flow.phase is Phase.AFTER and flow.after_open is True
+    game.winner = 0                                          # a death mid-AFTER does not close the window
+    assert flow.run() is None
+    assert flow.result.human_effects and len(game.players[0].hand) == 1       # Glimpse pending for the human, Snipe drew
+
+
+def test_cancelled_side_skips_except_when_cancelled(game):
+    med, hb = adjacent(game)
+    game.players[1].discard = [c for c in game.players[1].full_set if c.destiny][:4]
+    oe, gaze = give(game, 1, "On Earth As It Is In Hell"), give(game, 0, "Gaze of Stone")
+    free = CombatFlow(game, med, hb, gaze, oe)
+    free.run()
+    assert free.result.def_value == 4 and free.result.cancelled == set()
+
+    oe2, feint = give(game, 1, "On Earth As It Is In Hell", 1), give(game, 0, "Feint")
+    cancelled = CombatFlow(game, med, hb, feint, oe2)
+    cancelled.run()
+    assert cancelled.result.cancelled == {"def"} and cancelled.result.def_value == 0
+    assert cancelled.result.def_parts[0].endswith("cancelada")
+    assert cancelled.result.applied == []                    # a cancelled On Earth heals nobody in AFTER
+
+
+# ---------- await / resume ----------
+def second_shot_rig(game):
+    """Medusa's Second Shot against On Earth with 4 destiny cards; Gaze of Stone is the boost card in hand."""
+    med, hb = adjacent(game)
+    game.players[1].discard = [c for c in game.players[1].full_set if c.destiny][:4]
+    return med, hb, give(game, 0, "Second Shot"), give(game, 1, "On Earth As It Is In Hell"), give(game, 0, "Gaze of Stone")
+
+
+def test_second_shot_awaits_in_during_after_defender_value(game):
+    med, hb, shot, on_earth, gaze = second_shot_rig(game)
+    flow = CombatFlow(game, med, hb, shot, on_earth)
+    wait = flow.run()
+    assert flow.phase is Phase.DURING and flow.pending == wait.choice
+    assert (wait.choice.kind, wait.choice.player, wait.choice.card_id, wait.choice.deck) == ("boost", 0, shot.card_id, False)
+    assert flow.ctx.def_value == 4                           # On Earth, resolved first, is already applied
+    assert gaze in game.players[0].hand and flow.result.boost_card is None      # nothing mutated while waiting
+
+
+def test_resume_with_boost_adds_it(game):
+    med, hb, shot, on_earth, gaze = second_shot_rig(game)
+    flow = CombatFlow(game, med, hb, shot, on_earth)
+    flow.run()
+    flow.resume(gaze)
+    assert flow.pending is None and flow.run() is None
+    assert flow.result.boost_card is gaze and flow.result.atk_value == shot.value + gaze.boost
+    assert gaze in game.players[0].discard and gaze not in game.players[0].hand
+
+
+def test_resume_with_none_is_no_boost(game):
+    med, hb, shot, on_earth, gaze = second_shot_rig(game)
+    flow = CombatFlow(game, med, hb, shot, on_earth)
+    flow.run()
+    flow.resume(None)
+    assert flow.run() is None
+    assert flow.result.boost_card is None and flow.result.atk_value == shot.value and gaze in game.players[0].hand
+
+
+def fresh_rig():
+    from conftest import Scripted
+    from sparring.board import Board
+    from sparring.state import Game
+    g = Game.new(Board.load("bprd-hq"), seed=3, controllers={0: Scripted(), 1: Scripted()})
+    g.turn, g.turn_no = 0, 2
+    g.begin_turn()
+    for p in g.players:
+        p.hand.clear()
+    return g
+
+
+def test_flow_roundtrip_mid_during():
+    from sparring import persist
+    from test_combat_flow_diff import result_record
+    straight, paused = fresh_rig(), fresh_rig()
+    outcomes = []
+    for g in (straight, paused):
+        med, hb, shot, on_earth, gaze = second_shot_rig(g)
+        flow = CombatFlow(g, med, hb, shot, on_earth)
+        wait = flow.run()
+        outcomes.append((flow, wait, gaze))
+    flow, wait, gaze = outcomes[0]
+    flow.resume(gaze)
+    flow.run()
+
+    flow, wait, gaze = outcomes[1]
+    saved_flow = json.loads(json.dumps(flow.to_dict()))
+    saved_game = json.loads(json.dumps(persist.game_to_dict(paused)))
+    reloaded = fresh_rig()
+    persist.apply_game(reloaded, saved_game)
+    restored = CombatFlow.from_dict(reloaded, saved_flow)
+    assert restored.phase is Phase.DURING and restored.pending == wait.choice
+    restored.resume(restored.card_by_id(gaze.card_id))
+    assert restored.run() is None
+
+    assert result_record(restored.result) == result_record(outcomes[0][0].result)
+    assert persist.game_to_dict(reloaded) == persist.game_to_dict(straight)
