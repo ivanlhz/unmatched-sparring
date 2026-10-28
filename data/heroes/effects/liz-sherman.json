@@ -1,0 +1,229 @@
+{
+ "hero": "liz-sherman",
+ "_notes": [
+  "Efectos estructurados de Liz Sherman (F07 paso 13, solo datos: el interprete no los lee todavia). Textos leidos de la hoja 199 del save del torneo el 2026-10-28.",
+  "Convenciones: `as` liga la carta que acaba de moverse a un nombre para ops posteriores; `{\"ref\": \"<nombre>.boost\"}` lee un atributo de esa carta; `this_card` es la carta que se esta resolviendo; `self`/`opponent` como jugadores; `up_to` = el dueño elige cuantos pasos (0 incluido).",
+  "Las cartas ardientes (tag burning) no tienen impulso (BOOST 0) y WILDFIRE las devuelve a la mano cuando se descartan desde la mano o el mazo; eso lo hace el plugin liz:wildfire sobre la primitiva discard, no cada carta."
+ ],
+ "ability": {
+  "text": "WILDFIRE. Whenever you discard a burning card from your hand or deck, put it into your hand. At the start of your turn, discard the bottom card of your deck. If it's a burning card, deal 1 damage to another fighter in Liz's zone. Otherwise, move Liz up to 2 spaces.",
+  "when": "start_of_turn",
+  "ops": [
+   {"op": "discard", "target": "self", "from": "deck_bottom", "amount": 1, "as": "burnt"},
+   {"op": "if", "condition": "card_has_tag", "card": "burnt", "tag": "burning",
+    "then": [{"op": "damage", "target": "other_fighter_in_hero_zone", "amount": 1, "who_chooses": "owner"}],
+    "else": [{"op": "move", "target": "self_hero", "up_to": 2}]}
+  ],
+  "always": [
+   {"op": "plugin", "id": "liz:wildfire"}
+  ],
+  "notes": "El disparador de inicio de turno cabe en primitivas. La devolucion a la mano es una regla global sobre todo descarte (habilidad, Flame Lash, Fleeting Moments, impulsos de cualquiera de los dos, efectos del rival que hagan descartar a Liz): plugin. Con el mazo vacio no se descarta nada y no pasa nada (supuesto; ver open_questions)."
+ },
+ "cards": [
+  {
+   "title": "Incinerate",
+   "uncancelable": true,
+   "effects": {
+    "immediately": [],
+    "during": [
+     {"op": "optional", "who_chooses": "opponent",
+      "cost": [{"op": "discard", "target": "opponent", "amount": 2, "who_chooses": "opponent", "from": "hand"}],
+      "then": [{"op": "modify_value", "target": "this_card", "set": 0}]}
+    ],
+    "after": [],
+    "scheme": [],
+    "boost": []
+   },
+   "notes": "'This card's effects cannot be canceled': atributo de carta `uncancelable`, que Feint y similares (cancel_effects) deben respetar. Con menos de 2 cartas en mano el rival no puede pagar. No hace falta plugin si el interprete admite optional con coste pagado por el rival y modify_value con set; si no, liz:incinerate."
+  },
+  {
+   "title": "Fireball",
+   "effects": {
+    "immediately": [
+     {"op": "damage", "target": "enemies_adjacent_to_defender", "amount": 1}
+    ],
+    "during": [], "after": [], "scheme": [], "boost": []
+   },
+   "notes": "Solo ataque: el defensor es siempre rival y no es adyacente a si mismo, asi que no recibe el dano inmediato. Adyacente = espacio conectado al del defensor."
+  },
+  {
+   "title": "Flame Lash",
+   "effects": {
+    "immediately": [],
+    "during": [
+     {"op": "discard", "target": "self", "from": "deck_bottom", "amount": 1, "as": "burnt"},
+     {"op": "modify_value", "target": "this_card", "amount": {"ref": "burnt.boost"}}
+    ],
+    "after": [
+     {"op": "gain_action", "amount": 1}
+    ],
+    "scheme": [], "boost": []
+   },
+   "notes": "Si la carta del fondo es ardiente, Wildfire la devuelve a la mano y suma 0 (no tiene impulso). Con el mazo vacio no se descarta y suma 0. La accion se gana aunque Liz pierda el combate."
+  },
+  {
+   "title": "Fleeting Moments",
+   "effects": {
+    "immediately": [], "during": [],
+    "after": [
+     {"op": "discard_random", "target": "self", "amount": 1},
+     {"op": "discard_random", "target": "opponent", "amount": 1},
+     {"op": "draw", "target": "self", "amount": 1},
+     {"op": "draw", "target": "opponent", "amount": 1}
+    ],
+    "scheme": [], "boost": []
+   },
+   "notes": "Primero descartan los dos, luego roban los dos. Si el descarte al azar de Liz es ardiente, Wildfire lo devuelve a la mano (y aun asi roba)."
+  },
+  {
+   "title": "Burning Barrier",
+   "effects": {
+    "immediately": [
+     {"op": "status", "target": "opponent_fighter", "status": "cannot_leave_space", "until": "end_of_turn"}
+    ],
+    "during": [],
+    "after": [
+     {"op": "damage", "target": "enemies_in_hero_zone", "amount": 1}
+    ],
+    "scheme": [], "boost": []
+   },
+   "notes": "Versatil: jugada en defensa, 'this turn' es el turno del atacante (no podra alejarse con su segunda accion). El dano posterior es a cada rival en la zona de Liz, sin importar quien gano."
+  },
+  {
+   "title": "Pyrotechnics",
+   "effects": {
+    "immediately": [], "during": [],
+    "after": [
+     {"op": "optional", "who_chooses": "owner",
+      "then": [
+       {"op": "choose_n", "from": "self_hand", "min": 0, "max": 2, "who_chooses": "owner", "as": "kept"},
+       {"op": "return_to_deck", "cards": "kept", "position": "bottom", "order": "owner"}
+      ]}
+    ],
+    "scheme": [], "boost": []
+   },
+   "notes": "Prepara la habilidad: una ardiente al fondo vuelve a la mano al inicio del turno y hace 1 de dano; una no ardiente da el movimiento de 2. Las cartas van boca abajo: el rival no las ve."
+  },
+  {
+   "title": "B.P.R.D. Training",
+   "effects": {
+    "immediately": [], "during": [],
+    "after": [
+     {"op": "draw", "target": "self", "amount": 1},
+     {"op": "for_each", "target": "friendly_fighters", "do": [{"op": "move", "target": "each", "up_to": 2}]}
+    ],
+    "scheme": [], "boost": []
+   },
+   "notes": "Liz no tiene ayudantes: en la practica mueve solo a Liz. Misma carta que en Hellboy (ahi mueve tambien a Lobster)."
+  },
+  {
+   "title": "Rekindle",
+   "effects": {
+    "immediately": [], "during": [],
+    "after": [
+     {"op": "choose_n", "from": "self_discard", "min": 0, "max": 3, "who_chooses": "owner", "as": "chosen"},
+     {"op": "return_to_deck", "cards": "chosen", "position": "shuffle"}
+    ],
+    "scheme": [], "boost": []
+   },
+   "notes": "Tras barajar, cualquier orden conocido del fondo del mazo (Pyrotechnics) se pierde."
+  },
+  {
+   "title": "Feint",
+   "effects": {
+    "immediately": [
+     {"op": "cancel_effects", "target": "opponent_card"}
+    ],
+    "during": [], "after": [], "scheme": [], "boost": []
+   },
+   "notes": "No cancela Incinerate (uncancelable)."
+  },
+  {
+   "title": "Evade",
+   "effects": {
+    "immediately": [], "during": [],
+    "after": [{"op": "draw", "target": "self", "amount": 1}],
+    "scheme": [], "boost": []
+   },
+   "notes": null
+  },
+  {
+   "title": "Searing Clarity",
+   "effects": {
+    "immediately": [], "during": [], "after": [],
+    "scheme": [
+     {"op": "choose_n", "from": "self_discard", "filter": {"type_not": "scheme"}, "min": 1, "max": 1, "who_chooses": "owner", "as": "chosen"},
+     {"op": "return_to_deck", "cards": "chosen", "position": "shuffle"},
+     {"op": "gain_action", "amount": 1}
+    ],
+    "boost": []
+   },
+   "notes": "Barajar es obligatorio si hay candidata (min 1 cuando el descarte tiene alguna no plan); la accion se gana igual: el plan sale gratis. Es ardiente: si se descarta desde la mano o el mazo vuelve; jugada va al descarte sin volver."
+  },
+  {
+   "title": "Fight Or Flight",
+   "effects": {
+    "immediately": [], "during": [], "after": [],
+    "scheme": [
+     {"op": "draw", "target": "self", "amount": 1},
+     {"op": "move", "target": "self_hero", "up_to": 5, "through_enemies": true},
+     {"op": "persistent_scheme", "id": "fight_or_flight",
+      "effect": [{"op": "modify_value", "target": "own_combat_cards", "amount": 1}],
+      "until": "start_of_own_next_turn", "then": "discard"}
+    ],
+    "boost": []
+   },
+   "notes": "El ONGOING no esta en unmatched-memory; sale de la carta real. Dos copias en juego suman +2 (supuesto). Se descarta al inicio del siguiente turno de Liz, antes del descarte del fondo de Wildfire (orden supuesto; no interactuan porque no es ardiente)."
+  }
+ ],
+ "selectors": {
+  "self_hero": "Liz",
+  "opponent_fighter": "el luchador rival en este combate",
+  "defender": "el luchador que defiende en este combate",
+  "enemies_adjacent_to_defender": "luchadores rivales en espacios adyacentes al del defensor (el defensor no)",
+  "enemies_in_hero_zone": "luchadores rivales en la zona de Liz",
+  "other_fighter_in_hero_zone": "cualquier luchador distinto de Liz en su zona (en 1v1, un rival); lo elige el dueño",
+  "friendly_fighters": "Liz y sus ayudantes (ninguno)",
+  "this_card": "la carta que se esta resolviendo",
+  "opponent_card": "la carta de combate del rival",
+  "own_combat_cards": "cada carta de ataque, defensa o versatil que juegue el dueño mientras dura el efecto",
+  "self_hand": "mano del dueño", "self_discard": "descarte del dueño"
+ },
+ "primitives_needed": [
+  {"op": "discard", "spec": "Extension: `from: deck_bottom` descarta la ultima carta del mazo (publica al descartarse); `from: hand` con `who_chooses: opponent` cuando descarta el rival a su eleccion; `as` liga la carta descartada. Con el mazo vacio no descarta nada y las ops que lean la ligadura leen 0."},
+  {"op": "modify_value", "spec": "Extension: `set` fija el valor absoluto (Incinerate: 0, incluido el impulso); `amount` admite `{\"ref\": \"<ligadura>.boost\"}`; dentro de persistent_scheme con target own_combat_cards es un modificador continuo (+1 por copia en juego)."},
+  {"op": "status", "spec": "Extension: estado `cannot_leave_space` hasta `end_of_turn`: ese luchador no sale de su espacio por ningun medio (movimiento, efectos propios o ajenos); supuesto, ver open_questions."},
+  {"op": "if", "spec": "Extension: condicion `card_has_tag` sobre una ligadura (`card`, `tag`); si la ligadura esta vacia (mazo vacio), la condicion es falsa y no se ejecuta `else` tampoco (ver open_questions 2)."},
+  {"op": "choose_n", "spec": "Extension: `from` self_hand|self_discard, `filter` {type_not}, `min`/`max` (min se recorta al numero de candidatas), `as` liga las elegidas."},
+  {"op": "return_to_deck", "spec": "Extension: `cards` = ligadura; `position` bottom (boca abajo, en el orden que elige `order: owner`) o shuffle (se baraja el mazo entero)."},
+  {"op": "optional", "spec": "Extension: `cost` lo paga `who_chooses` antes de `then`; si no puede pagarlo, no hay opcion."},
+  {"op": "move", "spec": "Extension: `up_to` (el dueño elige 0..n) y `through_enemies: true`."},
+  {"op": "persistent_scheme", "spec": "Extension: `until: start_of_own_next_turn` y `then: discard`; `effect` es una lista de ops continuas."},
+  {"op": "card_flag:uncancelable", "spec": "No es una op: atributo de carta que cancel_effects debe respetar (no borra los efectos de esta carta)."}
+ ],
+ "plugins": [
+  {"id": "liz:wildfire", "why": "Regla global sobre la primitiva discard: cada vez que una carta con tag burning del jugador de Liz se descarta desde su mano o su mazo (habilidad, Flame Lash, Fleeting Moments, impulso de cualquiera de los dos jugadores con el mazo de Liz, efectos del rival como Incinerate del espejo o 'descarta una carta'), en lugar del descarte va a la mano. No cabe en una op de carta porque cambia el destino de descartes que disparan otras cartas y el motor (impulsar). Jugar una carta no es descartarla: las ardientes jugadas se quedan en el descarte."}
+ ],
+ "plugins_not_needed": [
+  {"id": "liz:incinerate", "why": "Previsto en el plan; cabe en primitivas con optional (coste pagado por el rival) + modify_value set 0 + atributo uncancelable. Solo si el interprete no admite esas tres extensiones habria que hacerlo plugin."}
+ ],
+ "hidden_info": [
+  {"where": "ability / Flame Lash (fondo del mazo propio)", "rule": "La carta del fondo es desconocida para ambos hasta que se descarta; al descartarse es publica. El bot con Liz no mira el fondo antes de decidir Flame Lash: valora con la composicion restante del mazo (cartas no vistas), salvo lo que puso el mismo con Pyrotechnics, que recuerda con su orden (informacion legitima). Tras Rekindle o Searing Clarity (barajar) olvida ese orden."},
+  {"where": "Fleeting Moments (descarte al azar del rival)", "rule": "El bot nunca elige la carta: la saca el humano (o el puente) al azar; si tiene que elegir el bot por el rival, elige un indice uniforme sin mirar identidades. La carta descartada es publica: se descuenta de KnownHand si estaba vista. El robo posterior del rival es una carta no vista (cuenta +1, KnownHand igual). Su propio descarte al azar lo hace con RNG sobre su mano."},
+  {"where": "Incinerate (el rival descarta 2 a su eleccion)", "rule": "Las 2 cartas descartadas son publicas: el bot con Liz las descuenta de KnownHand y no aprende nada mas. Cuando el bot es el rival, decide solo con su propia mano."},
+  {"where": "Wildfire (ardiente vuelve a la mano)", "rule": "La carta vuelve a la mano a la vista de todos: pasa a KnownHand del rival (cuando el humano lleva a Liz, el bot la apunta como vista y la descuenta cuando se juegue)."},
+  {"where": "Pyrotechnics (cartas de la mano al fondo boca abajo)", "rule": "El rival no las ve. Cuando el humano lleva a Liz, el bot no lee cuales fueron: solo sabe que la mano baja 2 y el mazo sube 2; las cartas vistas de KnownHand no se descuentan (puede haberse ido una vista o no) y el muestreo de manos ocultas respeta solo la cuenta. Cuando el bot lleva a Liz, recuerda su propio orden del fondo."},
+  {"where": "Rekindle / Searing Clarity (del descarte al mazo)", "rule": "Las cartas elegidas son publicas (salen del descarte a la vista); el mazo se baraja: ambos conocen la composicion, nadie el orden."},
+  {"where": "Inicio de turno (descarte del fondo)", "rule": "Publico: la carta se muestra al descartarse; si es ardiente, todos ven que vuelve a la mano de Liz."}
+ ],
+ "open_questions": [
+  "1. Impulsar (descartar la carta de arriba del mazo por su impulso) cuenta como 'discard a burning card from your deck'? Supuesto: si (es un descarte desde el mazo): la ardiente suma 0 y vuelve a la mano. Confirmar con la FAQ de Restoration o con Ivan.",
+  "2. Mazo vacio al inicio del turno: no hay carta que descartar. Supuesto: no pasa nada (ni dano ni movimiento). Alternativa: tratarlo como 'no ardiente' y mover 2. Lo mismo para Flame Lash (suma 0).",
+  "3. 'Deal 1 damage to another fighter in Liz's zone' es obligatorio si hay objetivo (dice deal, no may). Supuesto: obligatorio; en 1v1 solo hay rivales.",
+  "4. Fight Or Flight: dos copias en juego dan +2? Supuesto: si (cada ONGOING suma). Y el orden al inicio del turno: primero se descartan los Fight Or Flight, luego el descarte del fondo de Wildfire (no interactuan).",
+  "5. Incinerate: 'ignore this card's value' deja el valor en 0 aunque Liz haya impulsado? Supuesto: si (todo el valor).",
+  "6. Burning Barrier: 'cannot leave their space' bloquea tambien que lo muevan efectos ajenos (empujones, intercambios)? Supuesto: bloquea todo movimiento, propio o ajeno.",
+  "7. TTS con el bot llevando a Liz: quien gira la carta del fondo cada turno (el puente o el humano)? Es de UX del paso 13; aqui solo se apunta.",
+  "8. El plan citaba 15 ardientes: confirmado por la hoja (Incinerate 1, Fireball 2, Flame Lash 3, Burning Barrier 3, Pyrotechnics 3, Searing Clarity 3). Ninguna ardiente tiene impulso."
+ ]
+}
