@@ -129,7 +129,8 @@
     {
       "id": "F09",
       "title": "IA con busqueda ISMCTS sobre el motor generico",
-      "status": "todo",
+      "status": "in-progress",
+      "note": "28/10: sparring/search/ con Protocol SearchState, MO-ISMCTS, adaptador del motor actual e IsmctsMedusa tras el flag ai=ismcts (apagado). Sin trampas probado (misma decision con otra mano oculta + tripwire). Pendiente: adaptador del motor F07, cablear play.py y partida en vivo.",
       "criteria": [
         "Sin trampas: la busqueda nunca lee la mano oculta del humano; solo usa informacion publica (descartes, conteo de mano y mazo, cartas jugadas) y lo visto legitimamente por un efecto de «mirar la mano», con las cartas ya salidas descontadas",
         "La IA del bot decide con ISMCTS: muestrea la mano oculta del rival compatible con lo visto (descartes, conteo de mano, mazo) y simula con el motor de F07",
