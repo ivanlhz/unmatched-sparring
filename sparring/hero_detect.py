@@ -2,7 +2,7 @@
 
 Un heroe esta "en la mesa" si hay un Deck o Card suelto con CardID de su rango (`data/tts/<slug>.json`, `deck.card_ids`);
 lo de dentro de las bolsas no cuenta. Cada pila se asigna al bando de cuyo sitio de mazo esta mas cerca; el bando de un
-heroe es aquel donde tiene mas cartas. Las miniaturas sueltas solo sirven para explicar el error. Si algo no esta
+heroe es aquel donde tiene mas cartas (y al menos MIN_CARDS); entre varios candidatos solo gana uno con >=2x el segundo. Las miniaturas sueltas solo sirven para explicar el error. Si algo no esta
 claro no se adivina: `HeroDetectionError` lista lo visto y dice como forzarlo con --bot-hero / --human-hero."""
 from __future__ import annotations
 
@@ -79,18 +79,22 @@ def detect_heroes(reading: TableReading, bot_spot, human_spot,
         if min(t.values()) >= MIN_CARDS:
             raise HeroDetectionError(f"{_name(slug)} tiene un mazo en cada lado de la mesa (el mismo heroe en los dos "
                                      f"bandos).\nLo visto:\n{_report(reading, totals)}\n{how}")
-    side_of = {slug: BOT if t[BOT] > t[HUMAN] else HUMAN for slug, t in totals.items()}
     chosen = list(fixed)
     for i, side in enumerate((BOT, HUMAN)):
         if chosen[i]:
             continue
         other = chosen[1 - i]
-        cands = [s for s, sd in side_of.items() if sd == side and s != other]
-        if len(cands) != 1:
-            why = "no veo ningun mazo de heroe" if not cands else f"hay {len(cands)} heroes candidatos ({', '.join(cands)})"
-            raise HeroDetectionError(f"No puedo saber el heroe del {'bot' if side == BOT else 'humano'}: {why} cerca de "
-                                     f"su sitio de mazo {spots[side]}.\nLo visto:\n{_report(reading, totals)}\n{how}")
-        chosen[i] = cands[0]
+        opposite = HUMAN if side == BOT else BOT
+        # candidato: al menos MIN_CARDS en este lado y mas que en el contrario (un empate no se reparte)
+        cands = {s: t[side] for s, t in totals.items()
+                 if s != other and t[side] >= MIN_CARDS and t[side] > t[opposite]}
+        ranked = sorted(cands, key=cands.get, reverse=True)
+        if ranked and (len(ranked) == 1 or cands[ranked[0]] >= 2 * cands[ranked[1]]):
+            chosen[i] = ranked[0]
+            continue
+        why = "no veo ningun mazo de heroe" if not ranked else f"hay {len(ranked)} heroes candidatos ({', '.join(ranked)})"
+        raise HeroDetectionError(f"No puedo saber el heroe del {'bot' if side == BOT else 'humano'}: {why} cerca de "
+                                 f"su sitio de mazo {spots[side]}.\nLo visto:\n{_report(reading, totals)}\n{how}")
     if chosen[0] == chosen[1]:
         raise HeroDetectionError(f"El mismo heroe en los dos bandos ({chosen[0]}).\n{how}")
     return chosen[0], chosen[1]
