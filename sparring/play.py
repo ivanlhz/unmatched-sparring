@@ -518,7 +518,7 @@ def recover_after_reload(session: Session, client: TTSClient, targets: list[str]
                   "el bot relea la mesa."]
 
 
-UNPACK_SPOTS = {"bot": (22.0, 2.5, -10.0), "human": (-22.0, 2.5, -10.0)}   # fuera de las manos (|x| >= 25) y de los descartes
+UNPACK_SPOTS = {"bot": (22.0, 2.5, -10.0), "human": (-22.0, 2.5, 10.5)}   # fuera de las manos (|x| >= 25) y de los descartes
 UNPACK_STEP = (0.0, 0.0, 3.0)
 
 

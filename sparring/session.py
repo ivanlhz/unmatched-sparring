@@ -197,7 +197,7 @@ class _Timed:
 
 
 # con la mano del bot a la vista solo se atiende lo que la resuelve (o no la toca: PV, retirar, valor)
-LOOK_EVENTS = (Event.LOOK_PING, Event.CANCEL, Event.END_ACTION, Event.HP, Event.REMOVE, Event.VALUE)
+LOOK_EVENTS = (Event.LOOK_PING, Event.CANCEL, Event.END_ACTION, Event.HP, Event.REMOVE, Event.VALUE, Event.RESTART)
 CARD_TYPE_NAME = {"attack": "ataque", "defense": "defensa", "versatile": "versatil", "scheme": "esquema"}
 
 SNAP_KEYS = ("bot_hand", "human_count", "bot_discard", "human_discard", "face_bot", "face_human", "pieces", "dials")
@@ -223,6 +223,7 @@ class Session:
         game.controllers[self.human] = HumanProxy(self._owe_discard)
         self.pending: Pending | None = None
         self.pending_discard: dict | None = None
+        self.look_fails = 0                      # cierres de la fila que la mesa no hizo (el segundo Cancelar fuerza la salida)
         self.look: dict | None = None            # mano del bot a la vista: {"ids", "guids", "spots"} de la fila de la mesa
         self.pending_value = 0
         self.chosen_attacker: str | None = None
@@ -764,6 +765,8 @@ class Session:
                      "mazos, la vida se restaura, las piezas salen del tablero y se borra el guardado.", ChatKind.WARNING)
             return
         self._restart_at = None
+        if self.look is not None:
+            self._look_best_effort_cancel()
         fresh = self._fresh_game()
         self._reset_table(fresh)
         self._adopt_fresh(fresh)
@@ -2622,12 +2625,19 @@ class Session:
         look, st = self.look, self.game.players[self.bot]
         by_id = {c.card_id: c for c in st.full_set}
         n = len(look["ids"])
+        if discard is None and not face_down and self.look_fails:
+            self._look_force_exit("segundo Cancelar")
+            return
         if self.cfg.batch:
             self._expect_hand = (self.cfg.bot_seat, n - 1 if (discard or face_down) else n)
-        op = self._w(lua.resolve_hand_row(
-            look["guids"], self.cfg.bot_seat, identity=self._identity(), id_range=self.cfg.bot_card_ids,
-            discard=discard, face_down=face_down, spot=self._discard_slot(len(st.discard)),
-            rot_y=self.cfg.bot_discard_rot_y), "cards")
+        try:
+            op = self._w(lua.resolve_hand_row(
+                look["guids"], self.cfg.bot_seat, identity=self._identity(), id_range=self.cfg.bot_card_ids,
+                discard=discard, face_down=face_down, spot=self._discard_slot(len(st.discard)),
+                rot_y=self.cfg.bot_discard_rot_y), "cards")
+        except TABLE_ERRORS:
+            self.look_fails += 1                  # sin lote el fallo llega ya: el segundo Cancelar fuerza la salida
+            raise
         if face_down:
             chosen = (op.result or {}).get("discarded")
             if chosen in (None, False):
@@ -2650,6 +2660,26 @@ class Session:
         self.say(f"El bot descarta {card.title} y devuelve el resto de su mano." if card is not None
                  else "Mano del bot devuelta sin descartar nada.", ChatKind.SCHEME if card is not None else ChatKind.NEUTRAL)
 
+    def _look_force_exit(self, why: str) -> None:
+        """Salida de la mirada cuando la mesa no deja cerrarla: la mesa manda. El motor suelta la fila, relee la mano y
+        deja la deuda de mesa para el proximo Fin de accion; las cartas del bot que no esten en su mano se recogen a mano."""
+        self.look, self.look_fails = None, 0
+        self.read_bot_hand()
+        self._mark_dirty()
+        self.say(f"Mirada cerrada a la fuerza ({why}): la mesa manda. Las cartas del bot que no esten en su mano "
+                 "(las de la fila) recogelas a mano y devuelvelas a ella; pulsa Fin de accion para sincronizar.",
+                 ChatKind.WARNING)
+
+    def _look_best_effort_cancel(self) -> None:
+        """Antes de reiniciar: intenta devolver la fila a la mano para que el reinicio recoja las cartas; si falla, sigue."""
+        look = self.look
+        self.look = None
+        try:
+            self._w(lua.resolve_hand_row(look["guids"], self.cfg.bot_seat, identity=self._identity(),
+                                         id_range=self.cfg.bot_card_ids), "cards").result
+        except TABLE_ERRORS:
+            pass
+
     def _look_closed(self, op: _Op, card: Card | None, look: dict) -> bool:
         """Comprobacion al cierre del boton: la mesa hizo lo que el motor ya conto. Si no (la carta no estaba, TTS fallo),
         el motor deshace el descarte y la fila vuelve a estar a la vista para repetir el ping o Cancelar."""
@@ -2659,15 +2689,20 @@ class Session:
             done = res.get("discarded") == card.card_id if card is not None else bool(res.get("found"))
             fail = None if done else "esa carta no estaba en la fila de la mesa"
         except TABLE_ERRORS as e:
-            fail = str(e)
+            fail = f"error: {e}"
         if fail is not None:
             if card is not None and card in st.discard:
                 st.discard.remove(card)
                 st.hand.append(card)
+            if not fail.startswith("error") and not (op.result or {}).get("found"):
+                self._look_force_exit("ninguna carta de la fila responde")      # apiladas, borradas...
+                return
+            self.look_fails += 1
             self.look = look
             self.say(f"La mesa no hizo el cambio ({fail}): la mano del bot sigue a la vista; repite el ping o Cancelar.",
                      ChatKind.WARNING)
             return False
+        self.look_fails = 0
         if card is not None:
             want = len(look["ids"]) - 1
             if self._settle(lambda: card.card_id in self._table_discard() and len(self._table_hand_ids()) >= want):

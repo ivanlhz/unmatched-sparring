@@ -170,11 +170,55 @@ def test_if_the_table_moves_none_the_look_is_undone(rig):
     assert any("No he podido sacar" in m for m in say(session))
 
 
+def test_cancel_with_the_whole_row_gone_adopts_the_table_instead_of_trapping_the_session(rig):
+    session, table, game = rig
+    ids = start(session, table, game)
+    press(session, table, Event.LOOK)
+    table.look_row.clear()                           # apiladas en un Deck, borradas...
+    press(session, table, Event.CANCEL)
+    assert session.look is None and session.dirty
+    assert any("a mano" in m for m in say(session))
+    press(session, table, Event.MANEUVER)
+    assert game.actions_left == 1, "los botones vuelven a funcionar"
+    assert len(game.players[0].hand) + len(game.players[0].deck) + len(game.players[0].discard) == 30
+
+
+def test_ping_when_the_whole_row_is_gone_also_exits(rig):
+    session, table, game = rig
+    ids = start(session, table, game)
+    press(session, table, Event.LOOK)
+    table.look_row.clear()
+    press(session, table, Event.LOOK_PING, {"guid": f"g{ids[0]}"})
+    assert session.look is None and game.players[0].discard == []
+
+
+def test_a_second_cancel_forces_the_exit_when_the_table_keeps_failing(rig, monkeypatch):
+    session, table, game = rig
+    start(session, table, game)
+    press(session, table, Event.LOOK)
+    real = table.do_resolve_hand_row
+    monkeypatch.setattr(table, "do_resolve_hand_row", lambda s: {"__error__": "TTS roto"})
+    press(session, table, Event.CANCEL)
+    assert session.look is not None and session.look_fails == 1
+    press(session, table, Event.CANCEL)
+    assert session.look is None and session.look_fails == 0
+
+
+def test_restart_is_allowed_with_the_row_out_and_clears_it(rig):
+    session, table, game = rig
+    start(session, table, game)
+    press(session, table, Event.LOOK)
+    assert session.panel_view()[1]["btn_restart"][0] is True
+    press(session, table, Event.RESTART)
+    press(session, table, Event.RESTART)
+    assert session.look is None and table.look_row == []
+
+
 def test_while_looking_other_buttons_are_refused(rig):
     session, table, game = rig
     start(session, table, game)
     press(session, table, Event.LOOK)
-    for event in (Event.MANEUVER, Event.SCHEME, Event.REVEAL, Event.LOOK, Event.RESTART):
+    for event in (Event.MANEUVER, Event.SCHEME, Event.REVEAL, Event.LOOK):
         press(session, table, event)
         assert session.look is not None and any("a la vista" in m for m in say(session)), event
     assert game.actions_left == 2
@@ -505,3 +549,12 @@ def test_look_keys_reach_the_session_config():
     with pytest.raises(play.ConfigError):
         cfg.session_config()
     assert SessionConfig.look_step == (0.0, 2.6)
+
+
+def test_default_unpack_columns_do_not_cross_the_look_row():
+    cfg = play.load_config(os.path.join(os.path.dirname(os.path.abspath(__file__)), "..", "config", "partida.json"))
+    x0, x1, z0, z1 = play.look_row_rect(cfg, 7)
+    for side, (x, _, z) in play.UNPACK_SPOTS.items():
+        for n in range(8):
+            zz = z + n * play.UNPACK_STEP[2]
+            assert not (x0 - 1 < x < x1 + 1 and z0 - 1 < zz < z1 + 1), (side, n)
