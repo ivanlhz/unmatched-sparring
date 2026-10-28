@@ -139,7 +139,7 @@ def resolve_combat(game: Game, att: Fighter, tgt: Fighter, atk_card: Card, def_c
             i_won = won == (side == "atk")
             if is_medusa_card(card):
                 _medusa_after(game, fighter, rival, card, i_won)
-            elif not _hellboy_after(game, fighter, card, i_won, result):
+            elif not (_hellboy_after(game, fighter, card, i_won, result) or _liz_after(game, card, result)):
                 after = after_text(card)
                 if after:
                     result.human_effects.append(f"{card.title}: {after}")
@@ -154,14 +154,30 @@ def resolve_combat(game: Game, att: Fighter, tgt: Fighter, atk_card: Card, def_c
 
 
 def can_boost(card: Card) -> bool:
-    """Una carta del humano con un BOOST opcional de su propio ataque en el DURING COMBAT (Second Shot)."""
-    return not is_medusa_card(card) and "boost this attack" in card.text.lower()
+    """Una carta del humano con un BOOST de su propio ataque en el DURING COMBAT: de la mano (Second Shot) o del
+    fondo del mazo (Flame Lash)."""
+    return not is_medusa_card(card) and ("boost this attack" in card.text.lower() or deck_boost(card))
+
+
+def deck_boost(card: Card) -> bool:
+    """Flame Lash: el BOOST es la carta del fondo del mazo, no una de la mano."""
+    text = card.text.lower()
+    return "bottom card of your deck" in text and "boost value to this card" in text
 
 
 def after_text(card: Card) -> str:
     """Solo la parte AFTER COMBAT del texto de la carta (lo de IMMEDIATELY y DURING ya lo resuelve el calculo)."""
     head, sep, tail = card.text.partition("AFTER COMBAT:")
     return tail.strip() if sep else ""
+
+
+def _liz_after(game: Game, card: Card, result: CombatResult) -> bool:
+    """Flame Lash: AFTER COMBAT gana 1 accion (siempre es la carta del atacante, en su turno)."""
+    if card.title == "Flame Lash":
+        game.grant_actions(1)
+        result.applied.append(f"{card.title}: ganas 1 accion")
+        return True
+    return False
 
 
 def _hellboy_after(game: Game, me: Fighter, card: Card, i_won: bool, result: CombatResult) -> bool:

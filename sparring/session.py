@@ -28,7 +28,7 @@ from . import persist
 from .ai_medusa import MedusaAI
 from .cards import Card
 from .controller import Controller
-from .combat import FEINT, GLANCE_DAMAGE, can_boost, is_medusa_card
+from .combat import FEINT, GLANCE_DAMAGE, can_boost, deck_boost, is_medusa_card
 from .state import ANUNG, DETECTIVE, EXHAUST_DAMAGE, HAND_LIMIT, START_HAND, Fighter, Game, RuleError
 from .tts import lua, ui
 from .tts.lua import ChatKind
@@ -1375,9 +1375,14 @@ class Session:
         self._flip_all(cards)
         self._flip_queued(cards)
         p.boost_wait = {"card": card.card_id, "guid": guid, "baseline": baseline,
-                        "hand": self._rd_human_count(-1), "stuck": False}
-        self.say(f"{card.title} revelado: si quieres potenciar, pon una carta de tu mano en tu descarte y pulsa "
-                 "Continuar (o Sin boost).", ChatKind.YOUR_TURN)
+                        "hand": self._rd_human_count(-1), "stuck": False, "deck": deck_boost(card)}
+        if p.boost_wait["deck"]:
+            self.say(f"{card.title} revelado: pon la carta del FONDO de tu mazo en tu descarte y pulsa Continuar (Sin "
+                     "boost si tu mazo esta vacio). Si es ardiente, recogela despues: Wildfire la devuelve a tu mano.",
+                     ChatKind.YOUR_TURN)
+        else:
+            self.say(f"{card.title} revelado: si quieres potenciar, pon una carta de tu mano en tu descarte y pulsa "
+                     "Continuar (o Sin boost).", ChatKind.YOUR_TURN)
 
     def _boost(self, _: dict) -> None:
         self._finish_boost(True)
@@ -1389,6 +1394,9 @@ class Session:
         if p.boost_wait.get("stuck"):
             return ("El combate no se pudo resolver con la mesa actual: corrige la posicion o la carta y pulsa "
                     "Continuar o Sin boost, o pulsa Cancelar para deshacerlo (las cartas vuelven a quedar boca abajo).")
+        if p.boost_wait.get("deck"):
+            return ("Las cartas ya estan reveladas: pon la carta del fondo de tu mazo en el descarte y pulsa "
+                    "Continuar, o pulsa Sin boost.")
         return ("Las cartas ya estan reveladas: pon tu carta de boost en el descarte y pulsa Continuar, "
                 "o pulsa Sin boost.")
 
@@ -1412,6 +1420,8 @@ class Session:
                          "deja solo la del boost y pulsa Continuar.", ChatKind.WARNING)
                 return
             before, now = p.boost_wait.get("hand"), self._rd_human_count(-1)
+            if p.boost_wait.get("deck"):          # Flame Lash: sale del fondo del mazo, la mano no cambia
+                before = -1
             if isinstance(before, int) and before >= 0 and now >= 0 and now != before - 1:
                 self.say(f"El boost tiene que salir de tu mano: tenias {before} cartas y ahora tienes {now} "
                          f"(deberian ser {max(before - 1, 0)}). Corrigelo y pulsa Continuar, o pulsa Sin boost.", ChatKind.WARNING)

@@ -516,3 +516,43 @@ def test_a_complete_plan_lets_the_restart_go_ahead(brig, tmp_path):  # noqa: F81
     assert session.game is not game
     sent = [s.split("\n")[0] for s in table.scripts]
     assert sent.index("-- sparring:reset_plan") < sent.index("-- sparring:reset_deck")
+
+
+# ---------- Flame Lash (Liz): el BOOST es la carta del fondo del mazo ----------
+FLAME = "DURING COMBAT: Discard the bottom card of your deck. Add its BOOST value to this card's value. AFTER COMBAT: Gain 1 action."
+
+
+def flame_rig(brig):
+    session, table, game, fake = brig
+    shot = card(game, 1, "Second Shot")              # el rig es de Hellboy: Second Shot hace de Flame Lash
+    object.__setattr__(shot, "title", "Flame Lash")
+    object.__setattr__(shot, "text", FLAME)
+    game.fighters["lobster"].pos = 2
+    table.positions["Lobster Johnson"] = 2
+    click(session, table, Event.ATTACKER, {"attacker": "att_lobster"})
+    click(session, table, Event.ATTACK, {"target": "medusa"})
+    flame = human_plays(table, game, "Flame Lash")
+    return session, table, game, flame
+
+
+def test_flame_lash_waits_for_the_bottom_card_and_adds_its_boost(brig):  # noqa: F811
+    session, table, game, flame = flame_rig(brig)
+    table.human_count = 4
+    msgs = click(session, table, Event.REVEAL)
+    assert session.pending.boost_wait["deck"] and any("FONDO de tu mazo" in m for m in msgs)
+    pistol = card(game, 1, "Service Pistol")
+    table.human_discard = [pistol.card_id]           # sale del mazo: la mano sigue con 4
+    hp, actions = game.fighters["medusa"].hp, game.actions_left
+    msgs = click(session, table, Event.BOOST)
+    assert session.pending is None, msgs
+    assert any(f"+{pistol.boost}" in m for m in msgs)
+    assert game.fighters["medusa"].hp <= hp - (flame.value + pistol.boost) + 4   # su defensa como mucho resta
+    assert pistol in game.players[1].discard
+    assert any("ganas 1 accion" in m for m in msgs) and game.actions_left == actions   # gasta 1, gana 1
+
+
+def test_second_shot_still_requires_the_boost_from_the_hand(brig):  # noqa: F811
+    session, table, game, fake, second = rig(brig)
+    table.human_count = 4
+    click(session, table, Event.REVEAL)
+    assert not session.pending.boost_wait["deck"]
