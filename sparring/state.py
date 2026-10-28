@@ -233,7 +233,10 @@ class Game:
         return sum(n for n, _ in self.combat_bonus[player])
 
     def attack_bonus(self, fighter: Fighter) -> int:
-        return sum(n for n, _ in self.attack_bonus_parts(fighter))
+        """Bono del PROXIMO ataque de `fighter` (lo usa la IA para medir amenazas). El ONGOING de un plan caduca al
+        empezar el turno de su dueno: si ahora no es su turno, ese bono ya no llega a su siguiente ataque."""
+        passives = self.players[fighter.owner].hero.attack_bonus(self.form(fighter.owner), fighter.hero)
+        return passives + (self.combat_bonus_total(fighter.owner) if self.turn == fighter.owner else 0)
 
     def legal_moves(self, fighter: Fighter, steps: int, through_enemies: bool = False) -> set[int]:
         return self.board.reachable(fighter.pos, steps, self.occupied(fighter.owner) - {fighter.pos},

@@ -7,6 +7,7 @@ from conftest import give, place
 from sparring import persist
 from sparring.ai_medusa import Act, MedusaAI, Model
 from sparring.combat import FIGHT_OR_FLIGHT, resolve_scheme, scheme_gain_actions
+from sparring.search.adapter import EngineState
 from sparring.tts.ui import Event
 from test_batch import brig, click  # noqa: F401
 from test_session import card, human_plays
@@ -96,8 +97,50 @@ def test_the_model_sees_the_rivals_defense_and_attack_bonus(game):
     attack = lambda: [v for _, v in Model(game, MED).attack_dist(hb) if v is not None]
     d0, a0 = defense(), attack()
     game.add_combat_bonus(HB, 1, FIGHT_OR_FLIGHT)
-    assert defense() == {p: v + 1 for p, v in d0.items()}
-    assert sorted(attack()) == sorted(v + 1 for v in a0)
+    assert defense() == {p: v + 1 for p, v in d0.items()}, "su defensa en mi turno lleva el +1"
+    assert sorted(attack()) == sorted(a0), "en mi turno su ataque siguiente ya no lo tiene: caduca antes"
+    game.turn = HB                                # en su propio turno el bonus esta vivo
+    assert sorted(attack()) == sorted(v + 1 for v in a0 if v is not None)
+
+
+def human_with_hand(game):
+    adjacent(game)
+    game.players[HB].hand[:] = [c for c in game.players[HB].full_set if c.can_attack][:4]
+    game.players[MED].hand[:] = [c for c in game.players[MED].full_set if c.can_defend][:3]
+
+
+def test_position_value_in_the_bot_turn_ignores_the_humans_expiring_bonus(game):
+    human_with_hand(game)
+    game.turn = MED
+    ai = MedusaAI(MED)
+    base = ai.position_value(game, Model(game, MED))
+    game.add_combat_bonus(HB, 1, FIGHT_OR_FLIGHT)
+    assert ai.position_value(game, Model(game, MED)) == base
+
+
+def test_position_value_in_the_humans_turn_counts_the_bonus(game):
+    human_with_hand(game)
+    game.turn = HB
+    ai = MedusaAI(MED)
+    base = ai.position_value(game, Model(game, MED))
+    game.add_combat_bonus(HB, 1, FIGHT_OR_FLIGHT)
+    assert ai.position_value(game, Model(game, MED)) < base
+
+
+def test_search_threat_follows_the_same_rule(game):
+    human_with_hand(game)
+    bot_hand = game.players[MED].hand
+    results = {}
+    for turn in (MED, HB):
+        for bonus in (False, True):
+            g = game.clone()
+            g.turn = turn
+            if bonus:
+                g.add_combat_bonus(HB, 1, FIGHT_OR_FLIGHT)
+            results[turn, bonus] = EngineState(g, MED).threat(MED)
+    assert results[MED, False] == results[MED, True], "turno del bot: el bonus caduca antes de su ataque"
+    assert results[HB, True] != results[HB, False], "turno del humano: cuenta"
+    assert bot_hand
 
 
 def test_the_bot_attack_evaluation_drops_when_the_rival_defends_with_the_bonus(game):
