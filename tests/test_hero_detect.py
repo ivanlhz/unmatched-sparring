@@ -66,7 +66,7 @@ def test_a_fixed_side_is_used_as_is_and_the_other_is_still_detected():
     (reading(), "no veo ningun mazo"),
     (reading(at_bot("medusa")), "humano"),
     (reading(at_bot("medusa"), pile("hellboy", 6.0, 12.0), at_human("liz-sherman")), "2 heroes candidatos"),
-    (reading(at_bot("medusa"), at_human("medusa")), "el mismo heroe en los dos"),
+    (reading(at_bot("medusa"), at_human("medusa")), "tiene cartas en los dos lados"),
 ])
 def test_ambiguity_is_an_error_that_lists_what_was_seen_and_how_to_force_it(r, text):
     with pytest.raises(HeroDetectionError, match=text) as e:
@@ -299,6 +299,8 @@ def test_a_tie_between_sides_is_ambiguous_not_given_to_the_human():
         detect(r)
     r = reading(pile("medusa", 7.0, 14.0, n=3), pile("medusa", -5.0, 13.5, n=3), at_bot("hellboy"))
     assert detect(r, (None, "liz-sherman")) == ("hellboy", "liz-sherman")   # 3 y 3 no cuentan
+    with pytest.raises(HeroDetectionError, match="humano"):                  # antes se regalaba al humano
+        detect(r)
 
 
 @pytest.mark.parametrize("bot", ["medusa", "hellboy", "abe-sapien", "baba-yaga", "liz-sherman"])

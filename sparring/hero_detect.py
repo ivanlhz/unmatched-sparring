@@ -77,17 +77,16 @@ def detect_heroes(reading: TableReading, bot_spot, human_spot,
            f"Slugs: {', '.join(reading.slugs)}.")
     for slug, t in totals.items():
         if min(t.values()) >= MIN_CARDS:
-            raise HeroDetectionError(f"{_name(slug)} tiene un mazo en cada lado de la mesa (el mismo heroe en los dos "
-                                     f"bandos).\nLo visto:\n{_report(reading, totals)}\n{how}")
+            raise HeroDetectionError(f"{_name(slug)} tiene cartas en los dos lados de la mesa "
+                                     f"({t[BOT]} y {t[HUMAN]}).\nLo visto:\n{_report(reading, totals)}\n{how}")
     chosen = list(fixed)
     for i, side in enumerate((BOT, HUMAN)):
         if chosen[i]:
             continue
         other = chosen[1 - i]
-        opposite = HUMAN if side == BOT else BOT
-        # candidato: al menos MIN_CARDS en este lado y mas que en el contrario (un empate no se reparte)
-        cands = {s: t[side] for s, t in totals.items()
-                 if s != other and t[side] >= MIN_CARDS and t[side] > t[opposite]}
+        # candidato: al menos MIN_CARDS en este lado; un heroe con MIN_CARDS en los dos ya fallo arriba, y uno
+        # con cartas sueltas en el lado contrario (< MIN_CARDS) o empatado por debajo del minimo no se reparte
+        cands = {s: t[side] for s, t in totals.items() if s != other and t[side] >= MIN_CARDS}
         ranked = sorted(cands, key=cands.get, reverse=True)
         if ranked and (len(ranked) == 1 or cands[ranked[0]] >= 2 * cands[ranked[1]]):
             chosen[i] = ranked[0]
