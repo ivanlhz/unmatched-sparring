@@ -227,6 +227,11 @@ class Table:
         return {g: ({"found": True, "type": "Deck", "name": "", "quantity": 20, "x": 1.0, "y": 2.0, "z": 3.0}
                     if g not in self.missing_guids else {"found": False}) for g in guids}
 
+    def do_inspect_objects(self, s):
+        guids = re.findall(r'"(\w+)"', re.search(r"ipairs\(\{(.*?)\}\)", s).group(1))
+        return {g: {"found": True, "type": "Custom_Token", "name": "", "rot_x": 0.0, "rot_y": 0.0, "rot_z": 180.0}
+                for g in guids}
+
     def do_broadcast(self, s):
         self.broadcasts.append(re.search(r'broadcastToAll\("(.*?)"', s).group(1))
         self.broadcast_colors.append(tuple(float(v) for v in re.search(r"\{([\d.]+), ([\d.]+), ([\d.]+)\}\)", s).groups()))

@@ -45,5 +45,12 @@
  "tokens": {
   "intuition": "5a17e9"
  },
+ "token_sources": {
+  "intuition": {
+   "verify_live": true,
+   "mode": "auto",
+   "note": "Another Uncanny Intuition token comes from the same object: takeObject for a bag, infinite bag or stack, clone for a single token. Confirm the object type with --read-only."
+  }
+ },
  "counter_dials": {}
 }

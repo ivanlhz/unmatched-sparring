@@ -47,6 +47,8 @@ class HeroTable:
     fighters: dict[str, FighterTable]
     tokens: dict[str, str] = field(default_factory=dict)          # fichas especiales por nombre
     counter_dials: dict[str, str] = field(default_factory=dict)   # dial de cada contador del heroe (destinos)
+    token_faces: dict[str, dict] = field(default_factory=dict)    # Z rotation of each face of a two-faced token (verify live)
+    token_sources: dict[str, dict] = field(default_factory=dict)  # how to get another copy of a token (verify live)
 
     def unpack_items(self) -> list[tuple[str, tuple[str, ...]]]:
         """(clase, GUID de cada estado) de todo lo que hay que sacar de la bolsa interior para jugar con el heroe.
@@ -84,7 +86,9 @@ def parse_hero_table(raw: dict, hero: HeroDef, where: str = "tts") -> HeroTable:
         table = HeroTable(raw["slug"], raw["bag"]["guid"], raw["bag"]["inner"], deck["guid"], (int(ids[0]), int(ids[1])),
                           int(deck["character_card_id"]),
                           tuple((i["face"], i["back"]) for i in deck["identity"]), fighters,
-                          dict(raw.get("tokens") or {}), dict(raw.get("counter_dials") or {}))
+                          dict(raw.get("tokens") or {}), dict(raw.get("counter_dials") or {}),
+                          {k: dict(v) for k, v in (raw.get("token_faces") or {}).items()},
+                          {k: dict(v) for k, v in (raw.get("token_sources") or {}).items()})
     except (KeyError, TypeError, ValueError, IndexError) as e:
         raise HeroTableError(f"{where}: datos de TTS no validos ({e!r})") from None
     _validate(table, hero, where)

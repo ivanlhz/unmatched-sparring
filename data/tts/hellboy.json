@@ -41,6 +41,17 @@
  "tokens": {
   "ability": "1644a3"
  },
+ "token_faces": {
+  "ability": {
+   "child": "30d50e",
+   "verify_live": true,
+   "faces": {
+    "occult_detective": 180,
+    "anung_un_rama": 0
+   },
+   "note": "Z rotation of the ability token for each face; rotZ 180 = OCCULT DETECTIVE (blue, start), rotZ 0 = ANUNG UN RAMA (red), inferred from the geometry of the glued child. Confirm with --read-only and one live flip. Form states of the miniature are its piece GUIDs in order (state index = position + 1)."
+  }
+ },
  "counter_dials": {
   "destiny": "e17c66"
  }

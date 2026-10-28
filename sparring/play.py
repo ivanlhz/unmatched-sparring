@@ -39,7 +39,7 @@ DEFAULT_STATE = Path(__file__).resolve().parent.parent / "estado" / "sesion.json
 BOT, HUMAN = 0, 1
 READ_ONLY_TAGS = frozenset({"snapshot", "piece_spaces_by_guid", "read_hand", "count_hand", "read_discard",
                             "read_face_down_cards", "inspect_guids", "read_health_dials", "zone_overlaps", "deck_identities",
-                            "hand_identities", "reset_plan", "table_heroes"})
+                            "hand_identities", "reset_plan", "table_heroes", "inspect_objects"})
 
 REQUIRED = ("bot_seat", "human_seat", "nicknames", "bot_card_spot", "human_card_spot", "bot_discard_spot",
             "bot_discard_zone", "bot_deck_guid", "human_discard_zone", "bot_deck_spot", "pieces")
@@ -353,6 +353,47 @@ def _titles(cfg: PlayConfig) -> dict[int, str]:
     return {c.card_id: c.title for slug in cfg.heroes for c in load_hero(slug).deck()}
 
 
+def _bridge_objects(slug: str) -> dict[str, str]:
+    """Label -> GUID of the objects whose live setup the effect bridge depends on (multi-state miniatures, two-faced
+    tokens with their glued child, token sources); empty for a hero without any."""
+    try:
+        table = load_hero_table(slug)
+    except HeroTableError:
+        return {}
+    found = {}
+    for fid, f in table.fighters.items():
+        if len(f.pieces) > 1:
+            found.update({f"{slug} {fid} state {i}": g for i, g in enumerate(f.pieces, 1)})
+    for name, spec in table.token_faces.items():
+        found[f"{slug} token {name}"] = table.tokens[name]
+        if spec.get("child"):
+            found[f"{slug} token {name} child"] = spec["child"]
+    for name in table.token_sources:
+        found[f"{slug} token {name} (source)"] = table.tokens[name]
+    return found
+
+
+def _bridge_objects_report(read: Callable, cfg: PlayConfig) -> list[str]:
+    wanted: dict[str, str] = {}
+    for slug in dict.fromkeys(cfg.heroes):
+        wanted.update(_bridge_objects(slug))
+    if not wanted:
+        return []
+    rows = read("bridge objects", lambda: lua.inspect_objects(sorted(set(wanted.values())))) or {}
+    rows = rows if isinstance(rows, dict) else {}
+    out = ["-- bridge objects (type, rotation, states; verify live)"]
+    for label, g in wanted.items():
+        d = rows.get(g) or {"found": False}
+        if not d.get("found"):
+            out.append(f"  {label} {g}: not found as a top-level object (a glued child shows under its parent)")
+            continue
+        kids = ", ".join(f"{k.get('guid')} '{k.get('name', '')}'" for k in d.get("attached") or []) or "none"
+        out.append(f"  {label} {g}: {d.get('type')} '{d.get('name', '')}' rot ({d['rot_x']:.0f}, {d['rot_y']:.0f}, "
+                   f"{d['rot_z']:.0f}) state {d.get('state_id')} of {d.get('state_ids')} quantity {d.get('quantity')} "
+                   f"attached: {kids}")
+    return out
+
+
 def read_only_report(client, cfg: PlayConfig) -> list[str]:
     """Lee la mesa y devuelve las lineas del informe. No cambia nada."""
     ro = client if isinstance(client, ReadOnlyClient) else ReadOnlyClient(client)
@@ -474,6 +515,8 @@ def read_only_report(client, cfg: PlayConfig) -> list[str]:
         out.append(f"-- boca abajo en la zona del humano: {show_ids(rows)}")
     else:
         out.append("-- boca abajo en la zona del humano: TODO (human_card_spot sin valor)")
+
+    out.extend(_bridge_objects_report(read, cfg))
 
     if cfg.todos:
         out.append("-- TODO por rellenar en la configuracion: " + ", ".join(cfg.todos))
