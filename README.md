@@ -14,7 +14,7 @@ Bot de sparring para Unmatched en Tabletop Simulator. Fase 1: el bot juega **Med
 | `sparring/ai_medusa.py` | IA heuristica; la funcion de valoracion esta documentada en la cabecera del modulo |
 | `sparring/search/` | IA por busqueda ISMCTS sin trampas (F09): `protocol.py` (lo que la busqueda pide a un motor), `ismcts.py` (busqueda), `adapter.py` (motor actual), `controller.py` (`IsmctsMedusa`, sustituto de `MedusaAI` con `--ai ismcts`) |
 | `sparring/hellboy_script.py` | Hellboy guionizado, solo para la simulacion |
-| `sparring/tts/` | Puente: `client.py` (API de editor externo), `lua.py` (snippets, instantanea y script compuesto), `ui.py` (panel de botones) |
+| `sparring/tts/` | Puente: `client.py` (API de editor externo), `lua.py` (snippets, instantanea y script compuesto), `ui.py` (panel de botones), `hero_table.py` (lo de cada heroe en la mesa, de `data/tts/<slug>.json`) |
 | `sparring/persist.py` | Guardado atomico y recarga del estado de `Game` y `Session` (`--resume`) |
 | `sparring/session.py` | Pegamento en vivo: eventos del panel -> llamadas a `Game`, y proyeccion del bot en la mesa |
 | `sparring/sim.py` | `python -m sparring.sim --games 100 --seed 0` |
@@ -27,6 +27,20 @@ Bot de sparring para Unmatched en Tabletop Simulator. Fase 1: el bot juega **Med
 .venv\Scripts\python -m pytest
 .venv\Scripts\python -m sparring.sim --games 100 --seed 0
 ```
+
+## Otro par de heroes (F07 paso 10; solo verificado contra FakeTTS)
+
+`bot_hero` / `human_hero` en `config\partida.json` aceptan `medusa`, `hellboy`, `abe-sapien`, `baba-yaga` y `liz-sherman` en cualquiera de los dos lados (no el mismo en los dos). `data/tts/<slug>.json` lleva, leido de la bolsa del heroe en `saves\Unmatched Official Tournament Table October 2026 (Hellboy).json` (solo lectura; `tests/test_tts_data.py` comprueba cada GUID): bolsa infinita y bolsa interior, GUID del mazo fisico, rango de CardID y carta de personaje, imagen (FaceURL, BackURL) de la hoja, miniatura y dial de vida de cada luchador (`fighters`, por id del HeroDef), fichas especiales (`tokens`: habilidad de Hellboy, intuicion de Abe) y diales de contador (`counter_dials`: destinos). `sparring/tts/hero_table.py` lo valida contra el HeroDef y `play.with_hero_data` lo mezcla con la configuracion (lo que la configuracion escriba a mano manda; las claves de luchadores de otros heroes se ignoran). Con Medusa vs Hellboy el resultado es exactamente el de antes.
+
+- Botones de atacante: uno por luchador del humano ("Ataca Abe Sapien", "Ataca Victor"...); la columna de VIDA lleva a los luchadores de los dos bandos.
+- Mazos: la sesion usa el rango de CardID de cada heroe y, si el mazo aun no esta en la mesa, su imagen de `data/tts`.
+- Heroe del bot sin efectos codificados: al empezar dice el texto de su habilidad ("aun no esta codificada") y juega por valor y boost con la misma IA. Solo la habilidad de inicio de turno de Medusa se ejecuta (`CODED_ABILITY_HERO` en `session.py`). Los destinos, las formas y el robo/descarte de inicio de turno de Hellboy solo se llevan cuando Hellboy es el humano.
+- Que prepara Ivan en la mesa para otro par:
+  1. Saca de su bolsa infinita la bolsa del heroe nuevo (la bolsa interior con su GUID: una bolsa infinita clona con otros GUID) y dejala en la mesa. Sin abrirla, el bot saca solo lo que falte al arrancar (`play.prepare_heroes`: miniaturas, diales, fichas y mazo, por GUID exacto y solo de bolsas normales) y lo deja en fila desde `bot_unpack_spot` / `human_unpack_spot` (cada `unpack_step`); el mazo va a `bot_deck_spot` / `human_deck_spot` y se baraja. Quita esas claves para que no toque nada. Nunca toca el Global ni envia messageID 0/1.
+  2. Aparta de los sitios de mazo (`bot_deck_spot`, `human_deck_spot`) y de las zonas de descarte el mazo y las piezas del par anterior, o dos mazos acabaran fundidos en el mismo sitio.
+  3. `start_spaces` (casillas de salida) acepta las claves `bot` / `human`; las antiguas por id de luchador de otro heroe se ignoran. Sin ellas se deducen de la mesa.
+  4. El resto (asientos, zonas de descarte, puntos de combate) es de la mesa y no cambia.
+- No esta hecho: el giro de forma y el dial de destinos de Hellboy cuando juega el bot, los efectos de las cartas de Abe, Baba Yaga y Liz (F08), y las fichas de intuicion de Abe y la de habilidad de Hellboy en la mesa (hoy solo estan en `data/tts` y se sacan de la bolsa).
 
 ## Sesion en vivo (diseno; no probado contra TTS real)
 
@@ -58,7 +72,7 @@ uv run python -m sparring.play --config config\partida.json --first human
 uv run python -m sparring.play --config config\partida.json --resume
 ```
 
-`config\partida.json` lleva los valores leidos de la mesa real (asientos, zonas de descarte, mazos, puntos de carta) y los GUID de las 6 miniaturas (`pieces`) y de los 3 diales de vida (`dials`); lo que sea `"TODO"` se rellena a mano tras `--read-only` (sin ello no se puede jugar). `--send-port`/`--listen-port` permiten usar puertos distintos de 39999/39998 (los tests usan efimeros), `--state` cambia el fichero de guardado. Los mensajes del bot salen por terminal y por `broadcastToAll`, coloreados por categoria (`ChatKind` y `CHAT_COLORS` en `sparring/tts/lua.py`): ataque del bot rojo, combate y dano naranja, movimiento azul claro, esquemas y efectos morado, habilidad de heroe dorado, instrucciones al humano verde, avisos y errores amarillo, el resto gris claro. El color va en el mismo script que el texto.
+`config\partida.json` lleva solo lo de la MESA leido de la mesa real (`bot_hero` / `human_hero`, asientos, zonas de descarte, puntos de carta y de mazo, panel, dead spots); lo propio de cada HEROE (GUID de miniaturas, diales de vida, mazo, fichas, rango de CardID, imagen del mazo, nombres) sale de `data/tts/<slug>.json` (ver "Otro par de heroes"). Lo que sea `"TODO"` se rellena a mano tras `--read-only` (sin ello no se puede jugar). `--send-port`/`--listen-port` permiten usar puertos distintos de 39999/39998 (los tests usan efimeros), `--state` cambia el fichero de guardado. Los mensajes del bot salen por terminal y por `broadcastToAll`, coloreados por categoria (`ChatKind` y `CHAT_COLORS` en `sparring/tts/lua.py`): ataque del bot rojo, combate y dano naranja, movimiento azul claro, esquemas y efectos morado, habilidad de heroe dorado, instrucciones al humano verde, avisos y errores amarillo, el resto gris claro. El color va en el mismo script que el texto.
 
 Protocolo real de TTS: no devuelve valores por el socket (no hay messageID 5). Cada script de `tts/lua.py` se envuelve con un id entero y contesta con `sendExternalMessage({sparring_reply = id, value = ...})` (messageID 4) dentro de `pcall`, de modo que tambien los errores vuelven atribuidos; los messageID 3 sueltos son de otros scripts y solo se registran. Un messageID 1 (recarga) pausa el bucle, vuelve a comprobar los GUID y recrea el panel.
 

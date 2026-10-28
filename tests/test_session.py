@@ -16,13 +16,18 @@ NICK = {"medusa": "Medusa", "harpy1": "Harpy 1", "harpy2": "Harpy 2", "harpy3": 
         "hellboy": "Hellboy", "lobster": "Lobster Johnson"}
 PIECES = {fid: "pc" + fid for fid in NICK}
 BATCH = bool(os.environ.get("SPARRING_BATCH"))     # SPARRING_BATCH=1 pasa toda la bateria por el modo rapido
-GUID_NAME = {PIECES[fid]: NICK[fid] for fid in NICK}
+GUID_NAME = {PIECES[fid]: NICK[fid] for fid in NICK}   # solo para Medusa vs Hellboy; la mesa lleva el suyo
 
 
 class Table:
     """Mesa de TTS falsa con estado: manos, mazo, descartes, cartas boca abajo y miniaturas."""
 
-    def __init__(self):
+    def __init__(self, nick: dict[str, str] | None = None, pieces: dict[str, str] | None = None, bot_cards: int = 17600):
+        self.nick = nick or NICK                          # fid -> nombre (por defecto Medusa vs Hellboy)
+        self.pieces = pieces or PIECES                    # fid -> GUID de pieza
+        self.guid_name = GUID_NAME if pieces is None else {g: self.nick[f] for f, v in pieces.items()
+                                                           for g in ([v] if isinstance(v, str) else v)}
+        self.bot_cards = bot_cards                        # primer CardID del mazo del bot
         self.positions: dict[str, int] = {}
         self.bot_hand: list[int] = []
         self.bot_deck: list[int] = []
@@ -104,7 +109,7 @@ class Table:
     def snapshot_state(self):
         self._tick()
         pieces = {}
-        for name, g in ((NICK[f], PIECES[f]) for f in NICK):
+        for name, g in ((self.nick[f], self.pieces[f] if isinstance(self.pieces[f], str) else self.pieces[f][0]) for f in self.nick):
             pieces[g] = (self.do_piece_spaces_by_guid(f'local wanted = {{"{g}"}}')[g])
         return {"bot_hand": [{"id": i, "guid": f"g{i}"} for i in self.bot_hand], "human_count": self.human_count,
                 "bot_discard": [{"id": i, "guid": f"g{i}"} for i in self.bot_discard],
@@ -127,7 +132,7 @@ class Table:
         guids = re.findall(r'"(\w+)"', re.search(r"local wanted = \{(.*?)\}", s).group(1))
         out = {}
         for g in guids:
-            name = GUID_NAME[g]
+            name = self.guid_name[g]
             if g in self.missing_pieces or name not in self.positions:
                 out[g] = {"found": False}
             else:
@@ -140,9 +145,9 @@ class Table:
         space = int(re.search(r"spaceWorld\((\d+)\)", s).group(1))
         if guid in self.move_fails or guid in self.missing_pieces:
             return {"moved": False}
-        self.moves.append((GUID_NAME[guid], space))
-        self.positions[GUID_NAME[guid]] = space
-        self.piece_dist.pop(GUID_NAME[guid], None)
+        self.moves.append((self.guid_name[guid], space))
+        self.positions[self.guid_name[guid]] = space
+        self.piece_dist.pop(self.guid_name[guid], None)
         return {"moved": guid}
 
     def do_read_health_dials(self, s):
@@ -163,7 +168,7 @@ class Table:
     def do_reset_deck(self, s):
         """Todas las cartas de un bando vuelven a su mazo (mano, descarte, boca abajo y sueltas)."""
         self.resets = getattr(self, "resets", [])
-        if int(re.search(r"id < (\d+) or id > \d+", s).group(1)) < 19000:
+        if int(re.search(r"id < (\d+) or id > \d+", s).group(1)) == self.bot_cards:
             self.bot_deck.extend(self.bot_hand + self.bot_play + self.bot_discard + [r["id"] for r in self.stray_bot])
             self.bot_hand, self.bot_play, self.bot_discard, self.stray_bot = [], [], [], []
             self.resets.append("bot")
@@ -176,7 +181,7 @@ class Table:
         """Lo que reset_deck juntaria, sin mover nada: una entrada por bando, en el orden del script."""
         out = []
         for lo in re.findall(r"id < (\d+) or id > \d+", s):
-            if int(lo) < 19000:
+            if int(lo) == self.bot_cards:
                 total = len(self.bot_deck + self.bot_hand + self.bot_play + self.bot_discard) + len(self.stray_bot)
             else:
                 total = 30
@@ -196,8 +201,8 @@ class Table:
         x, y, z = (float(v) for v in re.search(r"Vector\(([^)]*)\)", s).group(1).split(","))
         if guid in self.move_fails or guid in self.missing_pieces:
             return {"moved": False}
-        self.placed.append((GUID_NAME[guid], x, y, z))
-        self.piece_dist[GUID_NAME[guid]] = 99.0          # apartada: lejos de cualquier casilla
+        self.placed.append((self.guid_name[guid], x, y, z))
+        self.piece_dist[self.guid_name[guid]] = 99.0          # apartada: lejos de cualquier casilla
         return {"moved": guid}
 
     def do_name_pieces(self, s):

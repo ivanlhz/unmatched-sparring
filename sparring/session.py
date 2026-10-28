@@ -63,6 +63,7 @@ class Msg(str):
 ACTION_KIND = {"maneuver": ChatKind.MOVE, "glance": ChatKind.SCHEME, "frenzy": ChatKind.SCHEME}
 
 
+CODED_ABILITY_HERO = "medusa"     # el heroe cuya habilidad de inicio de turno ejecuta el motor (`medusa_ability`)
 DEFAULT_BOT_PAUSE = 1.0     # segundos entre acciones del bot en la partida real (los tests usan 0)
 
 
@@ -106,6 +107,11 @@ class SessionConfig:
     label_font: float = lua.LABEL_FONT   # tamano del texto de las etiquetas del suelo
     bot_pause: float = 0.0         # segundos de pausa tras cada accion del bot (0 = sin pausa; `play` usa 1.0)
     live_ui: bool = False          # linea de estado, botones segun el estado y anuncios por pantalla en el mismo script
+    bot_card_ids: tuple[int, int] = lua.BOT_CARD_IDS         # rango de CardID del mazo del bot (de su heroe: data/tts)
+    human_card_ids: tuple[int, int] = lua.HUMAN_CARD_IDS     # y del mazo del humano
+    deck_identity: dict[str, tuple] = field(default_factory=dict)   # "bot"/"human" -> pares (FaceURL, BackURL) de data/tts
+    bot_label: str = "MEDUSA"      # nombre de cada bando en las etiquetas del suelo (el de su heroe)
+    human_label: str = "HELLBOY"
 
 
 def human_dead_spot(cfg: "SessionConfig") -> tuple[float, float, float] | None:
@@ -300,6 +306,7 @@ class Session:
         self._check_config()
         self._preload_identities()
         self._announce_first()
+        self._announce_bot_hero()
         if self.cfg.setup:
             self.setup = {"stage": "hand", "mull_done": False, "mull_decision": None, "mull_step": "start",
                           "human_mull": False}
@@ -317,6 +324,19 @@ class Session:
         who = self._name(self.game.hero(self.game.turn))
         self.say(f"Sorteo: empieza {who}." if self.first_mode == "random"
                  else f"Empieza {who} (elegido con --first {self.first_mode}).")
+
+    def _bot_ability_coded(self) -> bool:
+        """Solo la habilidad de inicio de turno de Medusa esta codificada en el motor (`Game.medusa_ability`); las de
+        los demas heroes llegan con los efectos estructurados (F07, pasos 4 a 6)."""
+        return self.game.hero_def(self.bot).slug == CODED_ABILITY_HERO
+
+    def _announce_bot_hero(self) -> None:
+        """Un heroe del bot sin habilidad codificada: se dice su texto y se juega por valor y boost, sin romper nada."""
+        hero = self.game.hero_def(self.bot)
+        if not self._bot_ability_coded() and hero.ability:
+            self.say(f"El bot juega {hero.name}. Su habilidad ('{hero.ability}') aun no esta codificada en el motor: "
+                     "el bot la ignora y juega por valor y boost; si te afecta, aplicala tu en la mesa.",
+                     ChatKind.ABILITY)
 
     def resume(self) -> list[str]:
         with self._timed("reanudar"):
@@ -420,17 +440,22 @@ class Session:
                     self.setup["stage"] = "place_bot" if self.game.turn == self.bot else "wait_human_first"
                     if self.setup["stage"] == "wait_human_first":
                         self._setup_place_hero()
-                        self.say("Empiezas tu. Roba tus 5 cartas, coloca a Lobster Johnson en la zona de la casilla "
-                                 f"{self.game.start_spaces[self.human]} y pulsa Listo. El bot colocara despues, viendo "
-                                 "donde lo pusiste.", ChatKind.YOUR_TURN)
+                        names, many = self._sidekick_names(), len(self._sidekicks()) > 1
+                        place = (f", coloca a {names} en la zona de la casilla {self.game.start_spaces[self.human]}"
+                                 if names else "")
+                        where = ("donde " + ("los pusiste" if many else "lo pusiste")) if names else "donde esta tu heroe"
+                        self.say(f"Empiezas tu. Roba tus 5 cartas{place} y pulsa Listo. El bot colocara despues, "
+                                 f"viendo {where}.", ChatKind.YOUR_TURN)
                 elif stage == "place_bot":
                     self._require_bot_hand_matches()
                     self._setup_place()
                     if self.game.turn == self.bot:
                         self._setup_place_hero()
                         self.setup["stage"] = "wait_human"
-                        self.say("Ahora coloca a Lobster Johnson en la zona de la casilla "
-                                 f"{self.game.start_spaces[self.human]}, roba tus 5 cartas y pulsa Listo.", ChatKind.YOUR_TURN)
+                        names = self._sidekick_names()
+                        place = (f"coloca a {names} en la zona de la casilla {self.game.start_spaces[self.human]}, "
+                                 if names else "")
+                        self.say(f"Ahora {place}roba tus 5 cartas y pulsa Listo.", ChatKind.YOUR_TURN)
                     else:
                         self.setup["stage"] = "begin"
                 elif stage == "begin":
@@ -496,7 +521,7 @@ class Session:
         c, g, s = self.cfg, self.game, self.setup
         step = s.setdefault("mull_step", "start")
         if step == "start":
-            res = self._w(lua.return_hand_to_deck(c.bot_seat, c.bot_deck_guid, identity=self._identity()), "cards").result or {}
+            res = self._w(lua.return_hand_to_deck(c.bot_seat, c.bot_deck_guid, c.bot_card_ids, identity=self._identity()), "cards").result or {}
             if not res.get("deck"):
                 raise SessionError("no encuentro el mazo del bot para el mulligan")
             if not self._settle(lambda: not self._table_hand_ids()):
@@ -507,7 +532,7 @@ class Session:
             total = len(g.players[self.bot].full_set)
 
             def shuffled() -> bool:
-                r = self._w(lua.shuffle_deck(c.bot_deck_guid, c.bot_deck_spot, identity=self._identity()), "cards").result or {}
+                r = self._w(lua.shuffle_deck(c.bot_deck_guid, c.bot_deck_spot, id_range=c.bot_card_ids, identity=self._identity()), "cards").result or {}
                 return bool(r.get("shuffled")) and r.get("quantity") == total
             if not self._settle(shuffled):
                 raise SessionError(f"no pude barajar el mazo completo del bot ({total} cartas); reintenta con Listo")
@@ -623,14 +648,16 @@ class Session:
         else:
             s["human_mull"] = True
             self.say(f"Mulligan: devuelve tu mano a tu mazo, baraja y vuelve a robar {START_HAND} cartas. "
-                     "Despues coloca a Lobster Johnson y pulsa Listo.", ChatKind.YOUR_TURN)
+                     + (f"Despues coloca a {self._sidekick_names()} y pulsa Listo." if self._sidekicks()
+                        else "Despues pulsa Listo."), ChatKind.YOUR_TURN)
 
     def _human_setup_ok(self) -> bool:
         g = self.game
         self.sync_positions()
         start = g.start_spaces[self.human]
-        for fid in ("hellboy", "lobster"):
-            f = g.fighters[fid]
+        for fid, f in g.fighters.items():
+            if f.owner != self.human:
+                continue
             info = self._table_pieces().get(fid) or {}
             if not self._on_board(info) or not g.board.share_zone(start, info["space"]):
                 self.say(f"Falta colocar a {self._name(f)} en la zona de la casilla {start}.", ChatKind.WARNING)
@@ -753,10 +780,10 @@ class Session:
         sizes = {"bot": len(fresh.players[self.bot].full_set), "human": len(fresh.players[self.human].full_set)}
         self._flush()
         self._check_reset_plan(scope, sizes)
-        decks = {"bot": self._w(lua.reset_deck(c.bot_deck_guid, c.bot_deck_spot, lua.BOT_CARD_IDS,
+        decks = {"bot": self._w(lua.reset_deck(c.bot_deck_guid, c.bot_deck_spot, c.bot_card_ids,
                                                identity=self._identity(), scope=scope), "cards")}
         if c.human_deck_guid:
-            decks["human"] = self._w(lua.reset_deck(c.human_deck_guid, c.human_deck_spot, lua.HUMAN_CARD_IDS,
+            decks["human"] = self._w(lua.reset_deck(c.human_deck_guid, c.human_deck_spot, c.human_card_ids,
                                                     identity=self._identity("human"), scope=scope), "cards")
         else:
             self.say("Aviso: sin human_deck_guid no puedo devolver tus cartas a tu mazo; hazlo tu.", ChatKind.WARNING)
@@ -794,9 +821,9 @@ class Session:
         """Antes de mover nada: cada bando tiene que poder reunir TODAS sus cartas en su mazo. Si uno no puede, el
         reinicio se rechaza entero (no se deja un bando devuelto y el otro no)."""
         c = self.cfg
-        sides = [("bot", c.bot_deck_guid, c.bot_deck_spot, lua.BOT_CARD_IDS)]
+        sides = [("bot", c.bot_deck_guid, c.bot_deck_spot, c.bot_card_ids)]
         if c.human_deck_guid:
-            sides.append(("human", c.human_deck_guid, c.human_deck_spot, lua.HUMAN_CARD_IDS))
+            sides.append(("human", c.human_deck_guid, c.human_deck_spot, c.human_card_ids))
         plans = self.client.call_lua(lua.reset_plan(
             [(guid, spot, rng, self._identity(side)) for side, guid, spot, rng in sides], scope=scope))
         if not isinstance(plans, list) or len(plans) != len(sides):
@@ -1015,7 +1042,7 @@ class Session:
         before, discarded = len(st.hand), len(st.discard)
         try:
             script = lua.deal_cards(c.human_deck_guid, 1, c.human_seat, spot=c.human_deck_spot,
-                                    id_range=lua.HUMAN_CARD_IDS, identity=self._identity("human"))
+                                    id_range=c.human_card_ids, identity=self._identity("human"))
         except TABLE_ERRORS as e:
             self.say(f"No he podido darte la carta de la Maniobra ({e}). Roba tu carta a mano y pulsa Fin de accion.", ChatKind.WARNING)
             return
@@ -1120,7 +1147,7 @@ class Session:
             self.say(f"Detecto {c.title}: aplicado, ganas 2 acciones (te quedan {g.actions_left}). Descartar tu mano "
                      "y robar 2 cartas lo haces tu: son tus cartas.", ChatKind.SCHEME)
         elif c.title == "Pancakes!":
-            self.say(f"Detecto {c.title}: tienes que elegir dos efectos. Para curar a Hellboy 2 pulsa su +1 dos veces; "
+            self.say(f"Detecto {c.title}: tienes que elegir dos efectos. Para curar a {g.hero(self.human).name} 2 pulsa su +1 dos veces; "
                      "el mazo y el robo los haces tu en la mesa.", ChatKind.SCHEME)
         else:
             self.say(f"Detecto {c.title}: {c.text} Resuelvelo a mano; usa +1 / -1 para los PV.", ChatKind.SCHEME)
@@ -1159,7 +1186,8 @@ class Session:
         if not self._require_human_turn():
             return
         if self.chosen_attacker is None:
-            self.say("Elige primero quien ataca (Ataca Hellboy / Ataca Lobster).", ChatKind.WARNING)
+            who = " / ".join(f"Ataca {self._name(f)}" for f in self.game.own(self.human))
+            self.say(f"Elige primero quien ataca ({who}).", ChatKind.WARNING)
             return
         target = self.game.fighters.get(str(payload.get("target", "")))
         if target is None or target.owner != self.bot or not target.alive:
@@ -1445,6 +1473,8 @@ class Session:
         anuncia cuando cambian y cuando cambia la forma. True si el dial aun no refleja la cuenta: `destiny_seen`
         solo avanza tras una escritura verificada (`_write_dials`), asi un fallo se reintenta en la siguiente lectura."""
         g = self.game
+        if "destiny" not in g.hero_def(self.human).counters:
+            return False                          # solo el heroe con contador de destinos (Hellboy) los lleva
         now = (g.destiny_count(self.human), g.form(self.human))
         said = self._destiny_said if self._destiny_said is not None else self.destiny_seen
         prev, self._destiny_said = said, now
@@ -1577,7 +1607,7 @@ class Session:
         return "PV: " + ", ".join(parts) if parts else ""
 
     def _flip_script(self, guid: str, side: str, face_up: bool = True) -> str:
-        ids = lua.BOT_CARD_IDS if side == "bot" else lua.HUMAN_CARD_IDS
+        ids = self.cfg.bot_card_ids if side == "bot" else self.cfg.human_card_ids
         return lua.flip_card(guid, self.cfg.rot_y, face_up, ids, identity=self._identity(side))
 
     def _flip_all(self, cards: list[tuple[str | None, str]]) -> list[tuple[str, str]]:
@@ -1647,6 +1677,14 @@ class Session:
 
     def _name(self, f: Fighter) -> str:
         return self.cfg.nicknames.get(f.fid, f.fid)
+
+    def _sidekicks(self) -> list[Fighter]:
+        """Los luchadores del humano que coloca el, no el bot (todos menos su heroe)."""
+        return [f for f in self.game.own(self.human, alive_only=False) if not f.hero]
+
+    def _sidekick_names(self) -> str:
+        names = [self._name(f) for f in self._sidekicks()]
+        return names[0] if len(names) == 1 else ", ".join(names[:-1]) + " y " + names[-1] if names else ""
 
     def _after_hp_change(self, f: Fighter) -> None:
         g = self.game
@@ -1951,7 +1989,7 @@ class Session:
             self.sync_positions()
             self.sync_human()
             self.read_bot_hand()
-            target = self.ai.pick_ability_target(g)
+            target = self.ai.pick_ability_target(g) if self._bot_ability_coded() else None
             self.bot_stage = None
             if target:
                 hp0, alive0 = target.hp, self._alive_map()
@@ -2024,13 +2062,16 @@ class Session:
 
     def _announce_human_start(self) -> None:
         g = self.game
-        hb = g.hero_named("Hellboy")
+        hb = g.hero(self.human)
         form = g.form(self.human)
+        if g.hero_def(self.human).forms is None:
+            self.say("Tu turno.", ChatKind.YOUR_TURN)           # sin formas no hay robo ni descarte de inicio de turno
+            return
         self.say(f"Tu turno (forma: {form}).", ChatKind.YOUR_TURN)
         if form == DETECTIVE and hb.pos == g.start_spaces[self.bot]:
             self.say("Estas en la salida rival: puedes robar 2 cartas (hazlo en la mesa).", ChatKind.YOUR_TURN)
         elif form != DETECTIVE:
-            self.say("ANUNG UN RAMA: descarta 1 carta (obligatorio) y mueve a Hellboy hasta su BOOST, en la mesa.", ChatKind.YOUR_TURN)
+            self.say(f"ANUNG UN RAMA: descarta 1 carta (obligatorio) y mueve a {hb.name} hasta su BOOST, en la mesa.", ChatKind.YOUR_TURN)
 
     # ---------- E/S con la mesa: instantanea, cola de escrituras y script compuesto ----------
     # Cada mensaje a TTS cuesta ~0.5 s fijos, asi que el modo rapido (`cfg.batch`) minimiza mensajes:
@@ -2047,10 +2088,10 @@ class Session:
         propio objeto. El CardID no identifica un mazo (otros juegos de cartas comparten DeckID), asi que ninguna
         escritura de cartas toca algo que no tenga estas imagenes."""
         c = self.cfg
-        decks = [("bot", (c.bot_deck_guid, tuple(c.bot_deck_spot), lua.BOT_CARD_IDS))]
+        decks = [("bot", (c.bot_deck_guid, tuple(c.bot_deck_spot), c.bot_card_ids))]
         if c.human_deck_guid:
             decks.append(("human", (c.human_deck_guid, tuple(c.human_deck_spot) if c.human_deck_spot else None,
-                                    lua.HUMAN_CARD_IDS)))
+                                    c.human_card_ids)))
         res = self.client.call_lua(lua.deck_identities([d for _, d in decks]))
         if not isinstance(res, list) or len(res) != len(decks) or not all(isinstance(e, dict) for e in res):
             raise TTSLuaError(f"respuesta no valida de la lectura de identidades: {str(res)[:80]!r}")
@@ -2069,15 +2110,16 @@ class Session:
 
     def _identity_from_hand(self, side: str) -> None:
         """Ultimo recurso: las imagenes de las cartas de la mano del bando (solo las de su rango de CardID)."""
-        seat, rng = ((self.cfg.bot_seat, lua.BOT_CARD_IDS) if side == "bot"
-                     else (self.cfg.human_seat, lua.HUMAN_CARD_IDS))
+        seat, rng = ((self.cfg.bot_seat, self.cfg.bot_card_ids) if side == "bot"
+                     else (self.cfg.human_seat, self.cfg.human_card_ids))
         res = self.client.call_lua(lua.hand_identities(seat, rng))
         pairs = self._parse_pairs(res.get("pairs") if isinstance(res, dict) else None)
         if pairs:
             self._deck_ident[side] = pairs
 
     def _identity(self, side: str = "bot") -> tuple:
-        """Imagenes de las cartas del bando: de la mesa; si no, del guardado; si no, de su mano."""
+        """Imagenes de las cartas del bando: de la mesa; si no, del guardado de la sesion; si no, de los datos del heroe
+        (data/tts, p. ej. con el mazo aun en su bolsa); si no, de su mano."""
         failure: Exception | None = None
         if side not in self._deck_ident:
             try:
@@ -2086,6 +2128,8 @@ class Session:
                 failure = e
         if side not in self._deck_ident and side in self._saved_ident:
             self._deck_ident[side] = self._saved_ident[side]
+        if side not in self._deck_ident and self.cfg.deck_identity.get(side):
+            self._deck_ident[side] = tuple(self.cfg.deck_identity[side])[:lua.MAX_IDENTITIES]
         if side not in self._deck_ident:
             try:
                 self._identity_from_hand(side)
@@ -2459,7 +2503,7 @@ class Session:
                      [self.cfg.bot_seat, self.cfg.human_seat])
                     if kind == "bot_attacks" else None)
             res = self._w(lua.play_card_face_down(card.card_id, self.cfg.bot_seat, x, y, z, self.cfg.rot_y,
-                                                  identity=self._identity(), ping=ping),
+                                                  self.cfg.bot_card_ids, identity=self._identity(), ping=ping),
                           "cards").result
         except OSError:
             raise
@@ -2612,7 +2656,7 @@ class Session:
                 order = [c.card_id for c in st.discard]
                 spots = [self._discard_slot(order.index(i)) for i in todo]
                 discard_op = self._w(lua.discard_cards(todo, spots, self.cfg.bot_discard_rot_y, identity=self._identity(),
-                                                  scope=self._scope()), "cards")
+                                                  scope=self._scope(), id_range=self.cfg.bot_card_ids), "cards")
 
         def check_discard() -> None:
             if discard_op is None:
@@ -2633,7 +2677,8 @@ class Session:
         deal_op = None
         if n:
             deal_op = self._w(lua.deal_cards(self.cfg.bot_deck_guid, n, self.cfg.bot_seat,
-                                             spot=self.cfg.bot_deck_spot, identity=self._identity()), "cards")
+                                             spot=self.cfg.bot_deck_spot, id_range=self.cfg.bot_card_ids,
+                                             identity=self._identity()), "cards")
         # la carta jugada boca abajo cuenta en la mano del motor pero no esta en la mano de la mesa
         want_discard = {c.card_id for c in st.discard}
         want_hand = len([c for c in st.hand if c.card_id not in held])

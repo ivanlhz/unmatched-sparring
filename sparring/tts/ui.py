@@ -37,6 +37,7 @@ PROCESSING = "Procesando..."
 BUTTON_STYLE = 'textColor="#FFFFFF" colors="#2D6A9F|#3C86C8|#1F4C75|#555555" '
 
 ROW_HEIGHT = 48
+DEFAULT_ATTACKERS = ("hellboy", "lobster")      # sin heroes a mano: los de Medusa vs Hellboy
 
 # id de cada boton fijo -> (funcion del panel, evento)
 FIXED_BUTTONS = {"btn_maneuver": "onManeuver", "btn_scheme": "onScheme", "btn_reveal": "onReveal",
@@ -56,7 +57,7 @@ def _triple(v, name: str) -> str:
     return " ".join(f"{float(x):g}" for x in v)
 
 
-def element_ids(target_ids, attacker_ids=("hellboy", "lobster"), fighter_ids=None) -> list[str]:
+def element_ids(target_ids, attacker_ids=DEFAULT_ATTACKERS, fighter_ids=None) -> list[str]:
     """Id de todos los botones del panel (los que se apagan al pulsar y el bot reactiva segun el estado)."""
     fighters = tuple(dict.fromkeys(fighter_ids if fighter_ids is not None else (*target_ids, *attacker_ids)))
     return [*FIXED_BUTTONS, *(f"att_{a}" for a in attacker_ids), *target_ids,
@@ -148,7 +149,7 @@ def panel_height(fighter_count: int) -> int:
     return 40 + 40 + 5 * (ROW_HEIGHT + 8) + 40 + (60 + 48 * fighter_count) + 40
 
 
-def panel_xml(target_ids: list[str], attacker_ids: tuple[str, ...] = ("hellboy", "lobster"),
+def panel_xml(target_ids: list[str], attacker_ids: tuple[str, ...] = DEFAULT_ATTACKERS,
               fighter_ids: tuple[str, ...] | None = None, rotation=PANEL_ROTATION, scale=PANEL_SCALE,
               names: dict[str, str] | None = None) -> str:
     """`fighter_ids` son todos los luchadores de ambos bandos (filas de PV y Retirar); por defecto, los dos grupos."""

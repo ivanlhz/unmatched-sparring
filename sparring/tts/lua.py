@@ -569,6 +569,59 @@ return JSON.encode(out)
 """
 
 
+MAX_UNPACK = 40
+
+
+@_registered
+def unpack_from_bags(items: list[tuple[str, str, tuple[float, float, float]]]) -> str:
+    """Saca de su bolsa los objetos de un heroe que aun no estan en la mesa: `items` = (clase, GUID, sitio (x, y, z)).
+
+    Es lo unico que hace, y solo por GUID exacto: un objeto que ya esta en la mesa no se toca; uno que esta dentro de una
+    bolsa NORMAL (type Bag: una bolsa infinita clonaria el objeto con otro GUID) se saca con `takeObject({guid=...})` al
+    sitio dado; los mazos se barajan al salir. Lo que no se encuentra en ninguna bolsa de la mesa vuelve en `missing`
+    (la bolsa interior sigue dentro de la bolsa infinita del heroe: hay que sacarla a mano). Devuelve
+    `{present = [...], taken = [...], missing = [...]}`. No toca el Global ni la UI."""
+    if not isinstance(items, (list, tuple)) or not 1 <= len(items) <= MAX_UNPACK:
+        raise ValueError(f"entre 1 y {MAX_UNPACK} objetos esperados")
+    rows = []
+    for kind, guid, pos in items:
+        if kind not in ("deck", "piece", "dial", "token"):
+            raise ValueError(f"clase de objeto desconocida {kind!r}")
+        if not isinstance(pos, (tuple, list)) or len(pos) != 3:
+            raise TypeError("sitio (x, y, z) esperado")
+        rows.append(f'{{{lua_str(kind)}, {_guid(guid)}, {_f(pos[0])}, {_f(pos[1])}, {_f(pos[2])}}}')
+    return f"""-- sparring:unpack_from_bags
+local ITEMS = {{{", ".join(rows)}}}
+local bags = {{}}
+for _, o in ipairs(getObjects()) do
+  if o.type == "Bag" then table.insert(bags, o) end
+end
+local out = {{present = {{}}, taken = {{}}, missing = {{}}}}
+for _, it in ipairs(ITEMS) do
+  local kind, guid = it[1], it[2]
+  if getObjectFromGUID(guid) ~= nil then
+    table.insert(out.present, guid)
+  else
+    local source = nil
+    for _, bag in ipairs(bags) do
+      for _, e in ipairs(bag.getObjects()) do
+        if e.guid == guid then source = bag end
+      end
+      if source ~= nil then break end
+    end
+    if source == nil then
+      table.insert(out.missing, guid)
+    else
+      source.takeObject({{guid = guid, position = Vector(it[3], it[4], it[5]), smooth = false,
+                          callback_function = function(o) if kind == "deck" then o.shuffle() end end}})
+      table.insert(out.taken, guid)
+    end
+  end
+end
+return JSON.encode(out)
+"""
+
+
 @_registered
 def place_piece(guid: str, x: float, y: float, z: float) -> str:
     """Lleva la pieza con ese GUID a unas coordenadas del mundo (p. ej. fuera del tablero, a la zona de bajas);
@@ -982,15 +1035,16 @@ return JSON.encode({{removed = removed}})
 @_registered
 def create_panel(target_ids: list[str], position: tuple[float, float, float] = PANEL_POSITION,
                  rotation=ui.PANEL_ROTATION, scale=ui.PANEL_SCALE, names: dict[str, str] | None = None,
-                 snapshot: "SnapSpec | None" = None) -> str:
+                 snapshot: "SnapSpec | None" = None,
+                 attacker_ids: tuple[str, ...] = ui.DEFAULT_ATTACKERS) -> str:
     """Crea (o reutiliza) un objeto propio y le pone el panel de botones con obj.UI.setXml (nunca el Global).
 
     Solo se reutiliza un panel con nuestro nombre Y nuestras notas de GM; la posicion por defecto queda encima de
     los tapetes (que estan a y 1.0 y los objetos reposan a ~1.57)."""
     x, y, z = (_f(v) for v in position)
-    xml = ui.panel_xml(target_ids, rotation=rotation, scale=scale, names=names)
+    xml = ui.panel_xml(target_ids, attacker_ids, rotation=rotation, scale=scale, names=names)
     handler_script = ui.handler_script(snapshot_lua(snapshot, "wseq") if snapshot is not None else None,
-                                       ui.element_ids(target_ids))
+                                       ui.element_ids(target_ids, attacker_ids))
     return f"""-- sparring:create_panel
 local panel
 for _, o in ipairs(getObjects()) do
