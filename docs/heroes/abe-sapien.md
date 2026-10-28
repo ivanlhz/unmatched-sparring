@@ -35,11 +35,15 @@ Datos verificados el 28/10/2026 contra el save del torneo (`saves\Unmatched Offi
 - **Agentes**: unmatched-memory trae tres entradas (Carla, Kate, Victor) con cifras iguales; la carta de heroe los llama "B.P.R.D. AGENTS" y la restriccion de carta "B.P.R.D. AGENT". Un solo ayudante con count 3; los nombres de las fichas quedan en `tts_tokens`.
 - Valores, impulsos, tipos y copias de las 14 cartas coinciden con la fuente.
 
-## Preguntas abiertas para Ivan
+## Decisiones de Ivan (28/10)
 
-1. Agentes al empezar: confirmar 3 en tablero y que "summon" devuelve a un agente abatido (y que sin caidos no hace nada).
-2. Counterhex Shield: el overlay ya lleva el texto real; corregir tambien unmatched-memory para que coincidan?
-3. Perfect Shot: que valores se pueden predecir (0 a 7 impresos, o solo los del mazo rival) y que pasa si el rival no juega carta.
-4. Uncanny Intuition: el dano de combate que Abe hace al DEFENDER y ganar contra un atacante adyacente, activa ficha? (se asume que si).
-5. Every Possible Angle contra el bot: como ensena el bot su mano en TTS y como registra el motor la carta que vuelve encima de su mazo.
-6. Fichas de agentes (Victor, Carla, Kate): mapeo fid agent1..3 -> GUID en la config de partida (paso 10 del plan).
+- agentes: 3 en tablero; summon = revivir un abatido con 1 de vida en la zona de Abe o, sin abatidos, coger uno vivo y colocarlo en un espacio de la zona de Abe (Secure The Scene).
+- Uncanny Intuition: tambien activa ficha cuando Abe defiende y hace dano de combate a un atacante adyacente.
+- Perfect Shot: se puede predecir cualquier valor de 0 a 7; si el rival no defiende con carta, no acierta.
+- Every Possible Angle contra el bot: el bot pone su mano boca arriba (fila de look_spot, como F16) y hace ping sobre las cartas.
+- Counterhex Shield: el texto real (con ONGOING) se corrige tambien en unmatched-memory.
+- Secure The Scene: 'summon' devuelve un agente abatido con 1 de vida a la zona de Abe; si no hay ninguno abatido, el dueno coge uno vivo y lo coloca en un espacio de la zona de Abe. El agente colocado puede ser el elegido para moverse.
+
+## Preguntas abiertas
+
+- 6. Fichas de agentes en TTS: se llaman Victor, Carla y Kate; el motor los numera agent1..agent3. Hace falta el mapeo fid -> GUID en la config de la partida (paso 10 del plan), igual que las Harpias.

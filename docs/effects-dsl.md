@@ -290,7 +290,8 @@ Toda op es `{"op": "<nombre>", ...args}`. Argumentos no listados son error.
 - `immediately`, `during`, `after`: ops de combate. El motor resuelve defensor y luego atacante en cada momento;
   `cancel_effects` en IMMEDIATELY vacia los tres momentos de la carta rival (salvo `uncancelable`).
 - `scheme`: al jugar el plan. Si la carta tiene `ongoing`, tras las ops se queda en juego: sus `modifiers` valen y
-  sus `triggers` saltan hasta `until`; entonces va al descarte. Varias copias en juego suman.
+  sus `triggers` saltan hasta `until`; entonces va al descarte. Regla de Ivan (28/10): solo hay un ONGOING
+  activo a la vez; jugar otro reemplaza al activo (va al descarte).
 - `boost`: al usar la carta como impulso.
 - `ability.triggers` y `ongoing.triggers`: un solo formato (Trigger con `when: Event`). Un disparador optional lo
   decide `chooser`.
@@ -327,8 +328,8 @@ Cada fichero lista en `hidden_info` las cartas que tocan informacion oculta y la
 ## 7. Planes permanentes
 
 `ongoing` con `modifiers` (reglas y bonos continuos), `triggers` (eventos mientras sigue en juego) y `until`
-(evento que lo descarta). Varias copias o varios Pactos a la vez son legales; `discard` con `zone: in_play` quita
-uno (The Time For Deals Is Done).
+(evento que lo descarta). Regla de Ivan (28/10): un solo ONGOING activo a la vez, el nuevo reemplaza al anterior;
+`discard` con `zone: in_play` quita el activo (The Time For Deals Is Done).
 
 ## 8. Plugins
 

@@ -50,15 +50,19 @@ Las otras 15 (Fleeting Moments x3, B.P.R.D. Training x2, Rekindle x2, Feint x3, 
 - Wildfire: la ardiente que vuelve a la mano es pública: pasa a la mano conocida del rival.
 - Pyrotechnics: cartas boca abajo al fondo; el bot no lee cuáles fueron cuando el humano lleva a Liz (solo cuentas).
 
-## Preguntas abiertas para Iván
-1. Impulsar (descartar la de arriba del mazo) cuenta como descarte desde el mazo para Wildfire? Supuesto: sí (la ardiente suma 0 y vuelve a la mano).
-2. Mazo vacío al inicio del turno o con Flame Lash: supuesto que no pasa nada (ni daño ni movimiento, suma 0). Alternativa: tratarlo como "no ardiente" y mover 2.
-3. El daño del inicio de turno es obligatorio si hay objetivo (dice "deal", no "may"). Supuesto: obligatorio.
-4. Dos Fight Or Flight en juego suman +2? Supuesto: sí (implementado: `Game.add_combat_bonus` acumula; ver «Fight Or Flight en el motor»).
-5. Incinerate ignorado deja el valor a 0 aunque Liz haya impulsado? Supuesto: sí. Y el +1 de Fight Or Flight con un efecto rival de «ignorar el valor»? Supuesto: el +1 es un efecto del jugador, no el valor impreso de la carta, así que se sigue sumando. Abierta; el motor no modela hoy ningún «ignorar valor» rival (el bot es Medusa).
-6. Burning Barrier bloquea también empujones y cambios de sitio ajenos? Supuesto: bloquea todo movimiento.
-7. Con el bot llevando a Liz en TTS, quién gira la carta del fondo cada turno (puente o humano): UX del paso 13.
-8. Confirmado por la hoja: 15 ardientes y ninguna con impulso.
+## Decisiones de Ivan (28/10)
+
+- 'bottom card of your deck' es la carta de mas abajo del mazo (la ultima), no la de arriba que se roba. Es la que usan Wildfire al inicio del turno y Flame Lash.
+- mazo vacio al inicio del turno o con Flame Lash: no pasa nada (ni dano ni movimiento; Flame Lash suma 0).
+- el dano de Wildfire al inicio del turno es obligatorio si hay objetivo, y solo a UN luchador.
+- un efecto que ignore el VALOR IMPRESO no quita el +1 de Fight Or Flight; uno que ignore el VALOR, si.
+- con el bot llevando a Liz, el bot gira el fondo del mazo al inicio de su turno.
+- Incinerate: el rival puede descartar 2 cartas de la mano, ADEMAS de la carta con la que defiende, para ignorar el valor de Incinerate (queda a 0); si no defendio con carta, descartar 2 tambien vale. Con menos de 2 cartas en mano no puede pagar.
+- Burning Barrier: cannot_leave_space bloquea todo movimiento del luchador rival (propio o por efectos); a Liz si la puede mover un efecto. El dano posterior es a cada rival en la zona de Liz.
+
+## Preguntas abiertas
+
+- Fight Or Flight con dos copias: con la regla de Ivan (28/10) 'solo un ONGOING a la vez, el nuevo reemplaza al activo', la segunda copia reemplaza a la primera (+1, no +2). Pendiente: confirmar el alcance (por jugador o en toda la mesa) y cambiar el motor (Game.combat_bonus hoy acumula).
 
 ## Fight Or Flight en el motor (ONGOING)
 - `Game.combat_bonus[jugador]` guarda (bono, etiqueta) vivos. La sesión lo añade al detectar el plan en el descarte del humano; `resolve_scheme` lo añade si lo juega el bot. Se acumula (dos copias: +2, pregunta 4).

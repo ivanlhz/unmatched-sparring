@@ -3,7 +3,12 @@
  "hero": "liz-sherman",
  "notes": [
   "Efectos estructurados de Liz Sherman (F07 paso 13, solo datos: el interprete no los lee todavia). Textos leidos de la hoja 199 del save del torneo el 2026-10-28. Migrado al DSL v1 (docs/effects-dsl.md) el 2026-10-28 sin cambiar la semantica.",
-  "Las cartas ardientes (tag burning) no tienen impulso (BOOST 0). WILDFIRE las devuelve a la mano cuando se descartan desde la mano o el mazo: antes era el plugin liz:wildfire; ahora es el disparador wildfire_return (evento card_discarded), que dice exactamente lo mismo. Si el interprete prefiere un reemplazo del destino del descarte, vuelve a plugin sin tocar las cartas."
+  "Las cartas ardientes (tag burning) no tienen impulso (BOOST 0). WILDFIRE las devuelve a la mano cuando se descartan desde la mano o el mazo: antes era el plugin liz:wildfire; ahora es el disparador wildfire_return (evento card_discarded), que dice exactamente lo mismo. Si el interprete prefiere un reemplazo del destino del descarte, vuelve a plugin sin tocar las cartas.",
+  "Decision de Ivan (28/10): 'bottom card of your deck' es la carta de mas abajo del mazo (la ultima), no la de arriba que se roba. Es la que usan Wildfire al inicio del turno y Flame Lash.",
+  "Decision de Ivan (28/10): mazo vacio al inicio del turno o con Flame Lash: no pasa nada (ni dano ni movimiento; Flame Lash suma 0).",
+  "Decision de Ivan (28/10): el dano de Wildfire al inicio del turno es obligatorio si hay objetivo, y solo a UN luchador.",
+  "Decision de Ivan (28/10): un efecto que ignore el VALOR IMPRESO no quita el +1 de Fight Or Flight; uno que ignore el VALOR, si.",
+  "Decision de Ivan (28/10): con el bot llevando a Liz, el bot gira el fondo del mazo al inicio de su turno."
  ],
  "ability": {
   "text": "WILDFIRE\nWhenever you discard a burning card from your hand or deck, put it into your hand.\nAt start of your turn, discard the bottom card of your deck. If it's a burning card, deal 1 damage to another fighter in Liz's zone. Otherwise, move Liz up to 2 spaces.",
@@ -39,7 +44,7 @@
     "scheme": [],
     "boost": []
    },
-   "notes": "'This card's effects cannot be canceled': atributo de carta uncancelable, que Feint y similares (cancel_effects) deben respetar. Con menos de 2 cartas en mano el rival no puede pagar. No hace falta plugin: optional con coste pagado por el rival + set_value 0 + uncancelable (liz:incinerate del plan queda descartado)."
+   "notes": "'This card's effects cannot be canceled': atributo uncancelable que cancel_effects respeta. Decision de Ivan (28/10): el rival puede descartar 2 cartas de la mano, ADEMAS de la carta con la que defiende, para ignorar el valor de Incinerate (queda a 0); si no defendio con carta, descartar 2 tambien vale. Con menos de 2 cartas en mano no puede pagar."
   },
   {
    "title": "Fireball",
@@ -100,7 +105,7 @@
     ],
     "scheme": [], "boost": []
    },
-   "notes": "Versatil: jugada en defensa, 'this turn' es el turno del atacante (no podra alejarse con su segunda accion). El dano posterior es a cada rival en la zona de Liz, sin importar quien gano."
+   "notes": "Versatil: jugada en defensa, 'this turn' es el turno del atacante. Decision de Ivan (28/10): cannot_leave_space bloquea todo movimiento del luchador rival (propio o por efectos); a Liz si la puede mover un efecto. El dano posterior es a cada rival en la zona de Liz."
   },
   {
    "title": "Pyrotechnics",
@@ -212,13 +217,6 @@
   {"where": "Inicio de turno (descarte del fondo)", "rule": "Publico: la carta se muestra al descartarse; si es ardiente, todos ven que vuelve a la mano de Liz."}
  ],
  "open_questions": [
-  "1. Impulsar (descartar la carta de arriba del mazo por su impulso) cuenta como 'discard a burning card from your deck'? Supuesto: si (es un descarte desde el mazo): la ardiente suma 0 y vuelve a la mano. Confirmar con la FAQ de Restoration o con Ivan.",
-  "2. Mazo vacio al inicio del turno: no hay carta que descartar. Supuesto: no pasa nada (ni dano ni movimiento). Alternativa: tratarlo como 'no ardiente' y mover 2. Lo mismo para Flame Lash (suma 0).",
-  "3. 'Deal 1 damage to another fighter in Liz's zone' es obligatorio si hay objetivo (dice deal, no may). Supuesto: obligatorio; en 1v1 solo hay rivales.",
-  "4. Fight Or Flight: dos copias en juego dan +2? Supuesto: si (cada ONGOING suma). Y el orden al inicio del turno: primero se descartan los Fight Or Flight, luego el descarte del fondo de Wildfire (no interactuan).",
-  "5. Incinerate: 'ignore this card's value' deja el valor en 0 aunque Liz haya impulsado? Supuesto: si (todo el valor).",
-  "6. Burning Barrier: 'cannot leave their space' bloquea tambien que lo muevan efectos ajenos (empujones, intercambios)? Supuesto: bloquea todo movimiento, propio o ajeno.",
-  "7. TTS con el bot llevando a Liz: quien gira la carta del fondo cada turno (el puente o el humano)? Es de UX del paso 13; aqui solo se apunta.",
-  "8. El plan citaba 15 ardientes: confirmado por la hoja (Incinerate 1, Fireball 2, Flame Lash 3, Burning Barrier 3, Pyrotechnics 3, Searing Clarity 3). Ninguna ardiente tiene impulso."
+  "Fight Or Flight con dos copias: con la regla de Ivan (28/10) 'solo un ONGOING a la vez, el nuevo reemplaza al activo', la segunda copia reemplaza a la primera (+1, no +2). Pendiente: confirmar el alcance (por jugador o en toda la mesa) y cambiar el motor (Game.combat_bonus hoy acumula)."
  ]
 }

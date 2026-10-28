@@ -4,7 +4,11 @@
  "notes": [
   "Efectos estructurados de Hellboy (F07 pasos 4-6) en el DSL v1 (docs/effects-dsl.md). Texto leido de las cartas reales (hoja 197 del save del torneo) el 2026-10-28; donde unmatched-memory difiere manda la carta y se apunta en docs/heroes/hellboy.md. Migrado al esquema canonico el 2026-10-28 sin cambiar la semantica.",
   "Las formas no son un estado: se recalculan siempre desde el contador destiny del descarte (overlay forms/counters). Por eso ninguna op 'pone' la forma: solo se consulta con la condicion form_is.",
-  "Todo damage es de efecto (Horseshoes, Posthumous Power): lo para el escudo de Planned Recklessness y alcanza tambien a los propios."
+  "Todo damage es de efecto (Horseshoes, Posthumous Power): lo para el escudo de Planned Recklessness y alcanza tambien a los propios.",
+  "Decision de Ivan (28/10): Right Hand Of Doom: OCCULT DETECTIVE se evalua antes de que la propia carta llegue al descarte.",
+  "Decision de Ivan (28/10): Pancakes!: las opciones elegidas se resuelven en el orden impreso.",
+  "Decision de Ivan (28/10): cambio de forma con el bot: cambia miniatura y ficha y hace ping sobre las dos.",
+  "Decision de Ivan (28/10): elecciones del humano (Confront, Posthumous Power, Pancakes!) por botones del panel que SOLO aparecen cuando se juega la carta; mientras tanto no se muestran (ni en gris)."
  ],
  "ability": {
   "text": "AHH CRAP! At the start of the game, place the Hellboy Special Ability Token over this card with the OCCULT DETECTIVE side up. OCCULT DETECTIVE: At the start of your turn, if Hellboy is in an opponent's starting space, you may draw 2 cards. When you have 6 or more destiny cards in your discard pile, switch to ANUNG UN RAMA. ANUNG UN RAMA: At the start of your turn, discard 1 card. Move Hellboy a number of spaces up to its BOOST value. Add +2 to Hellboy's attacks. When you have 5 or fewer destiny cards in your discard pile, switch to OCCULT DETECTIVE.",
@@ -279,11 +283,6 @@
   }
  ],
  "open_questions": [
-  "Right Hand Of Doom en el AFTER: la condicion 'si Hellboy es OCCULT DETECTIVE' se evalua con la propia carta (destiny) aun fuera del descarte, es decir, con el conteo de antes de descartarla. Asi lo hace el motor y asi lo dice el reglamento (las cartas se descartan al terminar el combate), pero con 5 destinos en el descarte el jugador de Hellboy puede querer lo contrario: confirmar la regla de la casa.",
-  "Pancakes!: las dos opciones elegidas, en que orden se resuelven: el impreso en la carta o el que elija el jugador. Importa si se elige 'devolver destinos al mazo' junto con 'robar 2' con el mazo casi vacio.",
-  "Ficha de habilidad 1644a3: la lectura 'rotZ 180 = OCCULT DETECTIVE arriba' sale de que el hijo 30d50e (cara azul) esta pegado girado 180 grados; confirmar en vivo con --read-only antes de que el bot la gire solo.",
-  "Cambio de forma cuando lo lleva el bot: confirmar que basta setState sobre la miniatura (cambia el GUID entre f9789a y e6f06e) y flip sobre la ficha, y si el ping va sobre la ficha y la miniatura (los dos) o solo sobre la miniatura.",
-  "Confront jugado por el humano y perdido: como revela el bot su mano (chat, cartas boca arriba junto al panel) y como elige el humano la que descarta (botones del panel con el titulo de cada carta).",
-  "Posthumous Power y Pancakes! jugadas por el humano: la eleccion se pide por botones del panel o se deduce de la mesa (diales, posiciones, descarte). Propuesta: botones, con lectura de mesa solo como comprobacion."
+  "Ficha de habilidad 1644a3: la lectura 'rotZ 180 = OCCULT DETECTIVE arriba' sale de que el hijo 30d50e (cara azul) esta pegado girado 180 grados; confirmar en vivo con --read-only antes de que el bot la gire solo."
  ]
 }

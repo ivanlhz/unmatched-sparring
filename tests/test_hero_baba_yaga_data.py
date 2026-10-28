@@ -151,4 +151,5 @@ def test_remove_a_painful_memory_looks_then_chooses_and_the_rival_decides(effect
     used = {op["op"] for op in all_ops(effects)}
     assert used >= {"redirect_damage", "look_hand", "choose", "optional", "search_deck", "revive", "place", "end_turn", "for_each"}
     assert {h["card"].split(",")[0] for h in effects["hidden_info"]} >= {"Remove A Painful Memory", "Read The Bones", "Pact Of Secrecy"}
-    assert effects["open_questions"]
+    # Ivan resolvio las preguntas el 28/10: quedan como notas "Decision de Ivan"
+    assert any(n.startswith("Decision de Ivan") for n in effects["notes"])
