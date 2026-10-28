@@ -97,7 +97,8 @@ function group(objs)
   return {d}
 end
 function sendExternalMessage(t) table.insert(SENT, t) end
-function broadcastToAll() end
+BROADCASTS = {}
+function broadcastToAll(text, color) table.insert(BROADCASTS, {text = text, r = color[1], g = color[2], b = color[3]}) end
 function spawnObject(t) return mkobj({guid = "spawn1", type = t.type}) end
 Wait = {
   frames = function(f, n) f() end,

@@ -26,7 +26,7 @@ from .ai_medusa import MedusaAI
 from .board import Board
 from .cards import load_hellboy_deck, load_medusa_deck
 from . import persist
-from .session import TABLE_ERRORS, Session, SessionConfig, SessionError, piece_guids
+from .session import TABLE_ERRORS, Msg, Session, SessionConfig, SessionError, piece_guids
 from .state import Game
 from .tts import lua, ui
 from .tts.client import LISTEN_PORT, SEND_PORT, TTSClient, TTSLuaError
@@ -325,7 +325,7 @@ def make_announcer(client, echo: Callable[[str], None] = print, to_table: bool =
                 continue
             for chunk in lua.ascii_text(m):
                 try:
-                    client.call_lua(lua.broadcast(chunk))
+                    client.call_lua(lua.broadcast(chunk, getattr(m, "kind", lua.ChatKind.NEUTRAL)))
                 except (TTSLuaError, TimeoutError, OSError) as e:
                     echo(f"[aviso] no pude mostrar el mensaje en la mesa: {e}")
                     return
@@ -437,13 +437,13 @@ def run_loop(session: Session, client: TTSClient, stop: threading.Event, announc
             try:
                 event, payload = parse_event(raw)
             except (KeyError, ValueError, TypeError, AttributeError):
-                announce([f"Evento desconocido ignorado: {raw!r}"])
+                announce([Msg(f"Evento desconocido ignorado: {raw!r}", lua.ChatKind.WARNING)])
                 continue
             try:
                 announce(session.handle(event, payload))
             except Exception:                                    # noqa: BLE001 - la partida debe seguir
                 traceback.print_exc()
-                announce(["Error interno del bot; la partida sigue. Repite el boton o usa Cancelar ataque."])
+                announce([Msg("Error interno del bot; la partida sigue. Repite el boton o usa Cancelar ataque.", lua.ChatKind.WARNING)])
         if not events:
             stop.wait(poll)
 
