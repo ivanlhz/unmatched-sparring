@@ -6,11 +6,12 @@ colocacion inicial, y las decisiones que el motor delega a mitad de una resoluci
 forzado, recolocar Harpia) lo sigue decidiendo la heuristica de `MedusaAI` por composicion.
 
 Enganche: `make_bot_ai(cfg)` lee `cfg["ai"]`; sin la clave (o "heuristic") devuelve `MedusaAI`, con "ismcts"
-devuelve esta clase. `play.py` todavia construye `MedusaAI` directamente: para activarla en vivo basta con
-sustituir esa linea por `make_bot_ai(raw_cfg, BOT)`.
+devuelve esta clase. `play.py` la usa con `--ai` / `--ai-time`. Si la busqueda falla, la decision cae a `MedusaAI`
+con un WARNING en el log en vez de tumbar el turno.
 """
 from __future__ import annotations
 
+import logging
 import random
 from dataclasses import replace
 
@@ -22,6 +23,7 @@ from .adapter import EngineState, Knowledge, by_title, plan_frenzy, sidekick_pla
 from .ismcts import ISMCTS, SearchConfig, SearchReport
 
 DEFAULT_TIME_BUDGET = 1.5
+log = logging.getLogger(__name__)
 
 
 class IsmctsMedusa(Controller):
@@ -29,8 +31,13 @@ class IsmctsMedusa(Controller):
         self.me = me
         self.config = config or SearchConfig(time_budget=DEFAULT_TIME_BUDGET)
         self.heuristic = MedusaAI(me)
-        self.known_in_hand: dict[int, tuple[Card, ...]] = {}     # lo visto por un efecto de mirar la mano
         self.last_report: SearchReport | None = None
+        self.fallbacks = 0                                       # decisiones que cayeron a la heuristica por un fallo
+
+    def reset(self) -> None:
+        """Partida nueva (Reiniciar): se olvida el ultimo informe. Lo visto de la mano rival vive en el motor
+        (`Game.players[me].known`) y la partida nueva lo trae vacio."""
+        self.last_report = None
 
     # ---------- lo que la busqueda no decide ----------
     def should_mulligan(self, game: Game, hand) -> bool:
@@ -84,11 +91,38 @@ class IsmctsMedusa(Controller):
                        iterations=max(50, cfg.iterations // 4) if cfg.iterations is not None else None)
 
     def plan(self, game: Game) -> Act:
-        root = EngineState(game, observer=self.me, knowledge=Knowledge(dict(self.known_in_hand)))
+        try:
+            return self._plan(game)
+        except AssertionError:                 # los tripwires anti-trampas no se disfrazan de fallo de busqueda
+            raise
+        except Exception:
+            self._fell_back("plan")
+            return self.heuristic.plan(game)
+
+    def _fell_back(self, what: str) -> None:
+        self.fallbacks += 1
+        log.warning("La busqueda ISMCTS fallo en %s; decide la heuristica de MedusaAI.", what, exc_info=True)
+
+    def knowledge(self, game: Game) -> Knowledge:
+        """Lo visto por un efecto de mirar la mano rival, tal como lo lleva el motor (ya descontado de lo salido)."""
+        rival = 1 - self.me
+        return Knowledge({rival: tuple(game.players[self.me].known.cards(game.players[rival]))})
+
+    def _plan(self, game: Game) -> Act:
+        root = EngineState(game, observer=self.me, knowledge=self.knowledge(game))
         return self.to_act(game, self._decide(root))
 
     def choose_defense(self, game: Game, attacker: Fighter, target: Fighter) -> Card | None:
-        root = EngineState(game, observer=self.me, knowledge=Knowledge(dict(self.known_in_hand)),
+        try:
+            return self._choose_defense(game, attacker, target)
+        except AssertionError:
+            raise
+        except Exception:
+            self._fell_back("defensa")
+            return self.heuristic.choose_defense(game, attacker, target)
+
+    def _choose_defense(self, game: Game, attacker: Fighter, target: Fighter) -> Card | None:
+        root = EngineState(game, observer=self.me, knowledge=self.knowledge(game),
                            pending=(attacker.fid, target.fid, None))
         move = self._decide(root)[0]
         return by_title(game.players[self.me].hand, move[1]) if move[1] is not None else None
@@ -131,12 +165,14 @@ class IsmctsMedusa(Controller):
 
 
 def make_bot_ai(cfg: dict, bot: int = 0):
-    """Flag de configuracion, apagado por defecto: `"ai": "ismcts"` activa la busqueda; `ai_time_budget` (s) y
-    `ai_seed` la ajustan."""
+    """Flag de configuracion, apagado por defecto: `"ai": "ismcts"` activa la busqueda; `ai_time_budget` (s),
+    `ai_iterations` (tope por decision, para pruebas) y `ai_seed` la ajustan."""
     kind = cfg.get("ai", "heuristic")
     if kind == "heuristic":
         return MedusaAI(bot)
     if kind == "ismcts":
+        iters = cfg.get("ai_iterations")
         return IsmctsMedusa(bot, SearchConfig(time_budget=float(cfg.get("ai_time_budget", DEFAULT_TIME_BUDGET)),
+                                              iterations=None if iters is None else int(iters),
                                               seed=int(cfg.get("ai_seed", 0))))
     raise ValueError(f"ai desconocida en la configuracion: {kind!r} (heuristic | ismcts)")

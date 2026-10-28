@@ -127,6 +127,26 @@ def test_search_never_reads_the_rival_hand_objects(game, ai, monkeypatch):
 
     game.players[1].hand[:] = [Mine() for _ in range(5)]
     ai.plan(game)
+    assert ai.fallbacks == 0, "una busqueda que cae a la heuristica no demuestra nada"
+
+
+def test_the_tripwire_fails_when_determinize_does_nothing(game, ai, monkeypatch):
+    """El tripwire muerde: sin determinizar, la busqueda lee la mano real y el AssertionError sale, no se traga."""
+    from sparring.search.adapter import EngineState
+    place(game, medusa=4, hellboy=2, lobster=3, harpy1=20, harpy2=21, harpy3=22)
+    medusa_hand(game, "Second Shot", "Gaze of Stone", "Dash")
+
+    class Mine:
+        card_id = 999999
+        destiny = False
+
+        def __getattr__(self, name):
+            raise AssertionError(f"la busqueda leyo la mano real del rival ({name})")
+
+    game.players[1].hand[:] = [Mine() for _ in range(5)]
+    monkeypatch.setattr(EngineState, "determinize", lambda self, observer, rng: None)
+    with pytest.raises(AssertionError, match="mano real del rival"):
+        ai.plan(game)
 
 
 # ---------- tacticas ----------
