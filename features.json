@@ -159,7 +159,8 @@
     {
       "id": "F12",
       "title": "Ping de atacante y objetivo en los ataques del bot",
-      "status": "todo",
+      "status": "in-progress",
+      "note": "Implementado y probado con FakeTTS y lupa (play_card_face_down con ping, rama feat/f12-ping-ataque). Falta probar en vivo: que Player[bot_seat].pingTable se vea en la mesa real (el asiento del bot debe estar ocupado), que el segundo ping (objetivo, 1 s despues) no se pierda y que las dos miniaturas de Hellboy (varios GUID) hagan ping en la forma activa.",
       "criteria": [
         "Cuando un luchador del bot ataca, el bot hace ping sobre su luchador atacante y sobre el luchador objetivo del humano, para ver quien ataca a quien sin leer el mensaje",
         "Va en el mismo script del paso de ataque (sin mensajes extra a TTS) y no usa messageID 1 ni el Global UI",

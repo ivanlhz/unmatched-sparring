@@ -704,17 +704,43 @@ return JSON.encode({{moved = obj.getGUID()}})
 """
 
 
+def _ping_lua(seat_color: str, attacker_guids: list[str], target_guids: list[str]) -> str:
+    """Trozo de Lua que hace ping del asiento sobre el atacante y, algo despues, sobre el objetivo (primer GUID que
+    exista de cada lista: una miniatura puede tener varios segun su forma). Todo en pcall."""
+    for g in (attacker_guids, target_guids):
+        if not isinstance(g, (list, tuple)) or not g:
+            raise ValueError("el ping necesita al menos un GUID de atacante y de objetivo")
+    return f"""pcall(function()
+  local function pingAt(guids)
+    for _, g in ipairs(guids) do
+      local o = getObjectFromGUID(g)
+      if o ~= nil then Player[{_color(seat_color)}].pingTable(o.getPosition()) return end
+    end
+  end
+  pingAt({_guid_list(attacker_guids)})
+  local targets = {_guid_list(target_guids)}
+  Wait.time(function() pcall(pingAt, targets) end, 1.0)
+end)
+"""
+
+
 @_registered
 def play_card_face_down(card_id: int, seat_color: str, x: float, y: float, z: float, rot_y: float = 0,
-                        id_range: tuple[int, int] = BOT_CARD_IDS, *, identity) -> str:
+                        id_range: tuple[int, int] = BOT_CARD_IDS, *, identity,
+                        ping: tuple[list[str], list[str]] | None = None) -> str:
     """Saca la carta con ese CardID de la mano del asiento y la deja boca abajo; played=false si no esta. Solo cuenta
     una carta del bando (`id_range` e imagen de `identity`): otra con el mismo CardID no se toca.
 
     El movimiento es INSTANTANEO (setRotation y luego setPosition): en TTS real, `setPositionSmooth` sobre una carta
-    que esta en una zona de mano no la saca, la mano la vuelve a tirar. El resultado hay que comprobarlo leyendo la mesa."""
+    que esta en una zona de mano no la saca, la mano la vuelve a tirar. El resultado hay que comprobarlo leyendo la mesa.
+
+    `ping` = (GUID del atacante, GUID del objetivo): antes de jugar la carta, el asiento hace ping sobre la posicion
+    de cada miniatura (la del objetivo ~1 s despues, porque un segundo ping seguido pisa al primero). Va dentro de
+    pcall: un fallo del ping nunca rompe el ataque ni cambia el resultado."""
     own = _ours_lua(identity, id_range)
+    pings = _ping_lua(seat_color, *ping) if ping else ""
     return f"""-- sparring:play_card_face_down
-{own}for _, o in ipairs(Player[{_color(seat_color)}].getHandObjects(1)) do
+{pings}{own}for _, o in ipairs(Player[{_color(seat_color)}].getHandObjects(1)) do
   local data = o.getData()
   if o.type == "Card" and data.CardID == {_i(card_id)} and cardOurs(data, data.CustomDeck) then
     o.setRotation(Vector(0, {_f(rot_y)}, 180))
