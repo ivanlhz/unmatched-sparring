@@ -204,6 +204,41 @@ def test_a_second_cancel_forces_the_exit_when_the_table_keeps_failing(rig, monke
     assert session.look is None and session.look_fails == 0
 
 
+def test_a_failed_ping_does_not_make_the_first_cancel_force_the_exit(rig, monkeypatch):
+    session, table, game = rig
+    ids = start(session, table, game)
+    press(session, table, Event.LOOK)
+    real = table.do_resolve_hand_row
+    monkeypatch.setattr(table, "do_resolve_hand_row", lambda s: {"__error__": "TTS roto"})
+    press(session, table, Event.LOOK_PING, {"guid": f"g{ids[0]}"})
+    assert session.look is not None and session.look_fails == 0
+    monkeypatch.setattr(table, "do_resolve_hand_row", real)
+    press(session, table, Event.CANCEL)
+    assert session.look is None and sorted(table.bot_hand) == sorted(ids) and table.look_row == []
+
+
+def test_the_failure_counter_survives_neither_a_new_row_nor_a_restart(rig, monkeypatch):
+    session, table, game = rig
+    start(session, table, game)
+    press(session, table, Event.LOOK)
+    real = table.do_resolve_hand_row
+    monkeypatch.setattr(table, "do_resolve_hand_row", lambda s: {"__error__": "TTS roto"})
+    press(session, table, Event.CANCEL)
+    assert session.look_fails == 1
+    monkeypatch.setattr(table, "do_resolve_hand_row", real)
+    press(session, table, Event.RESTART)
+    press(session, table, Event.RESTART)
+    assert session.look is None and session.look_fails == 0
+    session.look_fails = 1                            # un resto anterior no pasa a la fila nueva
+    session.setup = None
+    set_bot_hand(table, game, *HAND)
+    session.read_bot_hand()
+    press(session, table, Event.LOOK)
+    assert session.look is not None and session.look_fails == 0
+    press(session, table, Event.CANCEL)
+    assert session.look is None and table.look_row == [] and len(table.bot_hand) == 5
+
+
 def test_restart_is_allowed_with_the_row_out_and_clears_it(rig):
     session, table, game = rig
     start(session, table, game)

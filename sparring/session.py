@@ -2569,6 +2569,7 @@ class Session:
         if not rows:
             self.say("No veo cartas en la mano del bot en la mesa.", ChatKind.WARNING)
             return
+        self.look_fails = 0                       # una fila nueva empieza sin fallos
         spots = self._look_spots(len(rows))
         if self.cfg.batch:
             self._expect_hand = (self.cfg.bot_seat, 0)
@@ -2636,7 +2637,8 @@ class Session:
                 discard=discard, face_down=face_down, spot=self._discard_slot(len(st.discard)),
                 rot_y=self.cfg.bot_discard_rot_y), "cards")
         except TABLE_ERRORS:
-            self.look_fails += 1                  # sin lote el fallo llega ya: el segundo Cancelar fuerza la salida
+            if discard is None and not face_down:
+                self.look_fails += 1              # sin lote el fallo llega ya: solo cuentan los Cancelar fallidos
             raise
         if face_down:
             chosen = (op.result or {}).get("discarded")
@@ -2673,7 +2675,7 @@ class Session:
     def _look_best_effort_cancel(self) -> None:
         """Antes de reiniciar: intenta devolver la fila a la mano para que el reinicio recoja las cartas; si falla, sigue."""
         look = self.look
-        self.look = None
+        self.look, self.look_fails = None, 0
         try:
             self._w(lua.resolve_hand_row(look["guids"], self.cfg.bot_seat, identity=self._identity(),
                                          id_range=self.cfg.bot_card_ids), "cards").result
@@ -2697,7 +2699,8 @@ class Session:
             if not fail.startswith("error") and not (op.result or {}).get("found"):
                 self._look_force_exit("ninguna carta de la fila responde")      # apiladas, borradas...
                 return
-            self.look_fails += 1
+            if card is None:
+                self.look_fails += 1              # solo un Cancelar fallido acerca la salida forzada
             self.look = look
             self.say(f"La mesa no hizo el cambio ({fail}): la mano del bot sigue a la vista; repite el ping o Cancelar.",
                      ChatKind.WARNING)
