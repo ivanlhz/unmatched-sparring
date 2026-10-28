@@ -24,10 +24,10 @@ from typing import Callable
 
 from .ai_medusa import MedusaAI
 from .board import Board
-from .cards import load_hellboy_deck, load_medusa_deck
+from .heroes import load_hero
 from . import persist
 from .session import TABLE_ERRORS, Session, SessionConfig, SessionError, piece_guids
-from .state import Game
+from .state import DEFAULT_HEROES, Game
 from .tts import lua, ui
 from .tts.client import LISTEN_PORT, SEND_PORT, TTSClient, TTSLuaError
 from .tts.ui import parse_event
@@ -35,7 +35,6 @@ from .tts.ui import parse_event
 DEFAULT_CONFIG = Path(__file__).resolve().parent.parent / "config" / "partida.json"
 DEFAULT_STATE = Path(__file__).resolve().parent.parent / "estado" / "sesion.json"
 BOT, HUMAN = 0, 1
-FIGHTER_IDS = ("medusa", "harpy1", "harpy2", "harpy3", "hellboy", "lobster")
 READ_ONLY_TAGS = frozenset({"snapshot", "piece_spaces_by_guid", "read_hand", "count_hand", "read_discard",
                             "read_face_down_cards", "inspect_guids", "read_health_dials", "zone_overlaps", "deck_identities",
                             "hand_identities", "reset_plan"})
@@ -61,6 +60,17 @@ class PlayConfig:
     raw: dict
     board: Board
     todos: list[str]
+
+    @property
+    def heroes(self) -> tuple[str, str]:
+        """(heroe del bot, heroe del humano): `bot_hero` / `human_hero` de la configuracion, por defecto Medusa vs
+        Hellboy. Cada uno debe tener su data/heroes/<slug>.json."""
+        return (str(self.raw.get("bot_hero") or DEFAULT_HEROES[0]), str(self.raw.get("human_hero") or DEFAULT_HEROES[1]))
+
+    @property
+    def fighter_ids(self) -> list[str]:
+        """Ids de luchador de los dos bandos (el bot primero): claves de nicknames, pieces y dials."""
+        return [f.fid for slug in self.heroes for f in load_hero(slug).fighters()]
 
     @property
     def panel_position(self) -> tuple[float, float, float]:
@@ -113,7 +123,7 @@ class PlayConfig:
         except (KeyError, TypeError, ValueError) as e:
             raise ConfigError(f"configuracion no valida: {e}") from None
         for key in ("nicknames", "pieces"):
-            missing = sorted(set(FIGHTER_IDS) - set(getattr(cfg, key)))
+            missing = sorted(set(self.fighter_ids) - set(getattr(cfg, key)))
             if missing:
                 raise ConfigError(f"faltan {key} de: {', '.join(missing)}")
         return cfg
@@ -181,14 +191,14 @@ class ReadOnlyClient:
         return self._client.call_lua(script, *a, **kw)
 
 
-def _titles() -> dict[int, str]:
-    return {c.card_id: c.title for c in (*load_medusa_deck(), *load_hellboy_deck())}
+def _titles(cfg: PlayConfig) -> dict[int, str]:
+    return {c.card_id: c.title for slug in cfg.heroes for c in load_hero(slug).deck()}
 
 
 def read_only_report(client, cfg: PlayConfig) -> list[str]:
     """Lee la mesa y devuelve las lineas del informe. No cambia nada."""
     ro = client if isinstance(client, ReadOnlyClient) else ReadOnlyClient(client)
-    raw, titles, out, warn = cfg.raw, _titles(), [], []
+    raw, titles, out, warn = cfg.raw, _titles(cfg), [], []
 
     def val(key):
         v = raw.get(key)
@@ -376,7 +386,7 @@ def floor_layout_warnings(cfg: PlayConfig) -> list[str]:
     """Avisos de arranque: ninguna etiqueta ni rectangulo del suelo puede quedar bajo el panel (el 27/10 las etiquetas
     MEDUSA y HELLBOY se pintaban encima de sus botones)."""
     pos, scale = cfg.panel_position, cfg.panel_scale
-    x0, x1, z0, z1 = lua.panel_footprint(pos, scale, ui.PANEL_WIDTH, ui.panel_height(len(FIGHTER_IDS)))
+    x0, x1, z0, z1 = lua.panel_footprint(pos, scale, ui.PANEL_WIDTH, ui.panel_height(len(cfg.fighter_ids)))
     warnings = []
     for name, (a0, a1, b0, b1) in floor_layout(cfg):
         if a0 < x1 and a1 > x0 and b0 < z1 and b1 > z0:
@@ -449,7 +459,7 @@ def run_loop(session: Session, client: TTSClient, stop: threading.Event, announc
 
 
 def build_game(cfg: PlayConfig, first: str, seed: int) -> Game:
-    game = Game.new(cfg.board, seed, controllers={}, medusa_player=BOT)
+    game = Game.new(cfg.board, seed, controllers={}, bot_player=BOT, heroes=cfg.heroes)
     if first in ("human", "bot"):
         game.turn = HUMAN if first == "human" else BOT
     game.begin_turn()

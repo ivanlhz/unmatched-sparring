@@ -32,7 +32,7 @@ def play(seed: int, board_key: str = "bprd-hq", verbose: bool = False, max_turns
          medusa: MedusaAI | None = None, trace: list[str] | None = None) -> Outcome:
     """`trace`: si se da, recibe una linea por turno con el registro del motor (lo que imprime `-v`)."""
     controllers = {MEDUSA: medusa or MedusaAI(MEDUSA), HELLBOY: ScriptedHellboy(HELLBOY, seed)}
-    game = Game.new(Board.load(board_key), seed, controllers, medusa_player=MEDUSA)
+    game = Game.new(Board.load(board_key), seed, controllers, bot_player=MEDUSA)
     while game.winner is None and game.turn_no <= max_turns:
         game.begin_turn()
         controllers[game.turn].take_turn(game)

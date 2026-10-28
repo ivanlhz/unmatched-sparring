@@ -1,6 +1,5 @@
 from __future__ import annotations
 
-import json
 import os
 from dataclasses import dataclass
 from pathlib import Path
@@ -13,7 +12,7 @@ HELLBOY_BASE = 19700
 
 def memory_dir() -> Path:
     """Carpeta `unmatched-memory` hermana del repo (o de cualquier antecesor: un worktree vive mas hondo);
-    `UNMATCHED_MEMORY` la fuerza."""
+    `UNMATCHED_MEMORY` la fuerza. Solo la usa el importador de heroes (tools/import_hero.py), nunca la partida."""
     forced = os.environ.get("UNMATCHED_MEMORY")
     if forced:
         return Path(forced)
@@ -22,9 +21,6 @@ def memory_dir() -> Path:
         if (candidate / "data" / "heroes").is_dir():
             return candidate
     return DATA_DIR.parent.parent / "unmatched-memory"
-
-
-HELLBOY_SOURCE = memory_dir() / "data" / "heroes" / "hellboy.json"
 
 
 @dataclass(frozen=True)
@@ -59,28 +55,10 @@ class Card:
 
 
 def load_medusa_deck() -> list[Card]:
-    raw = json.loads((DATA_DIR / "medusa_cards.json").read_text(encoding="utf-8"))
-    return [
-        Card(MEDUSA_BASE + c["idx"], c["title"], c["fighter"], c["type"], c["value"], c["boost"], c["text"])
-        for c in raw["cards"]
-    ]
+    from .heroes import load_hero
+    return load_hero("medusa").deck()
 
 
-def _hellboy_text(src: dict) -> str:
-    parts = []
-    for key, label in (("effect", ""), ("effectImmediately", "IMMEDIATELY: "), ("effectDuring", "DURING COMBAT: "), ("effectAfter", "AFTER COMBAT: ")):
-        if src.get(key):
-            parts.append(label + src[key].strip())
-    return " ".join(parts)
-
-
-def load_hellboy_deck(source=HELLBOY_SOURCE) -> list[Card]:
-    """Valores, boost y texto desde hellboy.json (por título); restricción y destino desde hellboy_cards.json."""
-    src = {c["title"]: c for c in json.loads(open(source, encoding="utf-8").read())["cards"]}
-    raw = json.loads((DATA_DIR / "hellboy_cards.json").read_text(encoding="utf-8"))
-    deck = []
-    for c in raw["cards"]:
-        s = src[c["title"]]
-        deck.append(Card(HELLBOY_BASE + c["idx"], c["title"], c["fighter"], s["type"], s["value"], s["boostValue"],
-                         _hellboy_text(s), frozenset({"destiny"} if c["destiny"] else ())))
-    return deck
+def load_hellboy_deck() -> list[Card]:
+    from .heroes import load_hero
+    return load_hero("hellboy").deck()

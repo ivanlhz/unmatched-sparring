@@ -7,8 +7,9 @@ Bot de sparring para Unmatched en Tabletop Simulator. Fase 1: el bot juega **Med
 | Modulo | Que hace |
 |---|---|
 | `sparring/board.py` | Carga `data/maps/*.json` en un grafo (adyacencia simetrica, zonas), movimiento legal y alcance melee/rango |
-| `sparring/cards.py` | Mazos de Medusa y Hellboy (CardID 17600+idx / 19700+idx) |
-| `sparring/state.py` | `Game`: luchadores, mazos/manos/descartes, acciones, agotamiento, fin de turno, formas de Hellboy |
+| `sparring/cards.py` | `Card` (valor, impulso, tipo, restriccion, texto, etiquetas) |
+| `sparring/heroes.py` | `HeroDef`: lo propio de cada heroe leido de `data/heroes/<slug>.json` (vida, movimiento, alcance, ayudantes, formas, contadores, disparadores, pasivas, hoja de CardID). Lo genera `tools/import_hero.py` desde unmatched-memory + `data/heroes/overlay/<slug>.json` |
+| `sparring/state.py` | `Game`: se construye desde HeroDef (`Game.new(..., heroes=("medusa", "hellboy"))`); luchadores, mazos/manos/descartes, acciones, agotamiento, fin de turno, formas y contadores desde datos, mano rival conocida (`KnownHand`) |
 | `sparring/combat.py` | Combate (IMMEDIATELY, DURING, AFTER; el defensor resuelve primero) y planes. Efectos de Medusa implementados; los de Hellboy los resuelve el humano |
 | `sparring/ai_medusa.py` | IA heuristica; la funcion de valoracion esta documentada en la cabecera del modulo |
 | `sparring/hellboy_script.py` | Hellboy guionizado, solo para la simulacion |

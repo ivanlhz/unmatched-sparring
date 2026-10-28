@@ -9,8 +9,11 @@
     "Zona de combate (carta boca abajo), segun el usuario: a la DERECHA del tablero desde el asiento White, lado -z, lejos de los diales y mazos (z 12..17). human_card_spot (-2.0, -18.0) y bot_card_spot (6.0, 1.7, -18.0): entre las dos zonas de descarte en x (-18..-7 y 10.75..19.25) y pasado el borde del tablero (los puntos de enganche llegan a z -13). Configurables. off_board_dist 4.0 es una estimacion: calibrala con las distancias de --read-only.",
     "start_spaces: casillas de salida REALES de la mesa (Medusa en la 30, Hellboy en la 3); no son las del mapa por defecto. bot_discard_bounds: (centro x, centro z, tamano x, tamano z, rotY) de la zona 906a7a leida del guardado (live.json 27/10): la rejilla del descarte solo usa huecos cuyo centro cae dentro y, llena, apila encima desde el primero. panel_position: encima de los tapetes (y 1.0) y de los objetos (~1.57).",
     "destiny_dial e17c66 'Destiny Dial' (-4.8, 17.3): el bot lo pone a los destinos de Hellboy en su descarte (solo cartas marcadas destiny: 11 de 30). dead_spot: donde el bot aparta sus miniaturas caidas (una por pieza, separadas 1.5 en x); es una estimacion, calibrala en vivo.",
+    "bot_hero / human_hero: slug de data/heroes/<slug>.json de cada bando (por defecto medusa y hellboy). Hoy solo esos dos tienen hoja de CardID; nicknames, pieces y dials siguen yendo por id de luchador (medusa, harpy1..3, hellboy, lobster) y los rangos de CardID del puente (lua.BOT_CARD_IDS / HUMAN_CARD_IDS) aun son los de Medusa y Hellboy (paso 10 del plan multiheroe).",
     "Preparacion (setup): el bot reparte su mano, decide un mulligan (una vez: las 5 cartas al mazo, se baraja y se reparten 5; regla de la casa o sin confirmar, ver README) y coloca a Medusa y las Harpias segun quien empieza; el humano coloca a Hellboy y Lobster y pulsa Listo. Las casillas de salida salen del reglamento (el primer jugador ocupa la salida 1 del mapa, el segundo la 2) salvo que se fije start_spaces a mano. mulligan_bot=false lo desactiva para el bot; mulligan_human=false desactiva el boton Mulligan del humano."
   ],
+  "bot_hero": "medusa",
+  "human_hero": "hellboy",
   "board": "bprd-hq",
   "board_guid": "ec6f27",
   "bot_seat": "Green",

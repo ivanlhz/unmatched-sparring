@@ -4,8 +4,9 @@ import random
 from dataclasses import dataclass, field, replace
 
 from .board import Board
-from .cards import Card, load_hellboy_deck, load_medusa_deck
+from .cards import Card
 from .controller import Controller
+from .heroes import HeroDef, load_hero
 
 HAND_LIMIT = 7
 START_HAND = 5
@@ -13,6 +14,7 @@ EXHAUST_DAMAGE = 2
 DETECTIVE = "OCCULT DETECTIVE"
 ANUNG = "ANUNG UN RAMA"
 ANUNG_THRESHOLD = 6
+DEFAULT_HEROES = ("medusa", "hellboy")     # (heroe del bot, heroe del humano)
 
 
 class RuleError(Exception):
@@ -35,12 +37,55 @@ class Fighter:
 
 
 @dataclass
+class KnownHand:
+    """Lo que un jugador sabe de la mano RIVAL por haberla visto con un efecto de «mira la mano del rival».
+
+    Solo entran cartas vistas legitimamente (`observe`), nunca la mano real del humano. Cada carta vista se
+    descuenta (`forget`) cuando sale de la mano rival por cualquier via: jugada en combate, descartada, perdida.
+    `Game.card_left_hand` es el unico punto por el que se descuenta, asi una carta vista que ya salio nunca se da
+    por jugable. La busqueda (F09) muestrea la mano oculta con `Game.hidden_hand`: las conocidas fijas y el resto
+    sacado del multiconjunto de cartas que no se han visto en ninguna pila publica."""
+    seen: list[int] = field(default_factory=list)   # CardID de las cartas vistas que siguen en la mano rival
+    turn_no: int | None = None                      # turno en que se miro (la informacion envejece)
+
+    def observe(self, cards: list[Card], turn_no: int) -> None:
+        """Sustituye lo sabido: una mirada nueva es la foto completa de la mano en ese momento."""
+        self.seen = [c.card_id for c in cards]
+        self.turn_no = turn_no
+
+    def forget(self, card: Card) -> bool:
+        """Descuenta UNA copia de esa carta (dos Second Shot vistas, una jugada: queda una). True si se sabia."""
+        try:
+            self.seen.remove(card.card_id)
+        except ValueError:
+            return False
+        if not self.seen:
+            self.turn_no = None
+        return True
+
+    def clear(self) -> None:
+        self.seen, self.turn_no = [], None
+
+    def cards(self, full_set: list[Card]) -> list[Card]:
+        by_id = {c.card_id: c for c in full_set}
+        return [by_id[i] for i in self.seen if i in by_id]
+
+    def copy(self) -> "KnownHand":
+        return KnownHand(list(self.seen), self.turn_no)
+
+
+@dataclass
 class PlayerState:
-    hero_name: str
+    hero: HeroDef
     deck: list[Card]
     full_set: list[Card]
     hand: list[Card] = field(default_factory=list)
     discard: list[Card] = field(default_factory=list)
+    known: KnownHand = field(default_factory=KnownHand)   # lo que ESTE jugador sabe de la mano del rival
+
+    @property
+    def hero_name(self) -> str:
+        return self.hero.name
 
 
 class Game:
@@ -64,24 +109,26 @@ class Game:
 
     @classmethod
     def new(cls, board: Board, seed: int, controllers: dict[int, Controller] | None = None,
-            medusa_player: int = 0, starts: tuple[str, str] = ("1", "2")) -> "Game":
+            bot_player: int = 0, starts: tuple[str, str] = ("1", "2"),
+            heroes: tuple[str, str] = DEFAULT_HEROES) -> "Game":
+        """`heroes`: (slug del heroe de `bot_player`, slug del otro); cada uno sale de data/heroes/<slug>.json.
+        `starts`: casilla de salida del mapa de cada uno, en ese mismo orden."""
         rng = random.Random(seed)
-        hb = 1 - medusa_player
+        other = 1 - bot_player
+        defs = {bot_player: load_hero(heroes[0]), other: load_hero(heroes[1])}
+        if defs[bot_player].fid == defs[other].fid:
+            raise RuleError(f"los dos jugadores no pueden llevar al mismo heroe ({heroes[0]})")
         players: list[PlayerState | None] = [None, None]
-        players[medusa_player] = PlayerState("Medusa", [], load_medusa_deck())
-        players[hb] = PlayerState("Hellboy", [], load_hellboy_deck())
-        specs = {
-            medusa_player: [("medusa", "Medusa", True, 16, 3, True)]
-            + [(f"harpy{i}", "Harpy", False, 1, 3, False) for i in (1, 2, 3)],
-            hb: [("hellboy", "Hellboy", True, 18, 2, False), ("lobster", "Lobster Johnson", False, 6, 2, True)],
-        }
-        start_spaces = {medusa_player: board.starts[starts[0]], hb: board.starts[starts[1]]}
+        for owner, h in defs.items():
+            players[owner] = PlayerState(h, [], h.deck())
+        start_spaces = {bot_player: board.starts[starts[0]], other: board.starts[starts[1]]}
         fighters, taken = [], set()
-        for owner, lst in specs.items():
-            for fid, name, hero, hp, mv, ranged in lst:
+        for owner in (bot_player, other):
+            for spec in defs[owner].fighters():
                 pos = board.nearest_free(start_spaces[owner], taken, zone_of=start_spaces[owner])
                 taken.add(pos)
-                fighters.append(Fighter(fid, name, owner, hero, hp, hp, mv, ranged, pos))
+                fighters.append(Fighter(spec.fid, spec.name, owner, spec.hero, spec.hp, spec.hp, spec.move,
+                                        spec.ranged, pos))
         for p in players:
             p.deck = list(p.full_set)
             rng.shuffle(p.deck)
@@ -95,7 +142,7 @@ class Game:
         g = Game.__new__(Game)
         g.board, g.rng, g.controllers, g.start_spaces = self.board, self.rng, self.controllers, self.start_spaces
         g.fighters = {k: replace(f) for k, f in self.fighters.items()}
-        g.players = [PlayerState(p.hero_name, list(p.deck), p.full_set, list(p.hand), list(p.discard))
+        g.players = [PlayerState(p.hero, list(p.deck), p.full_set, list(p.hand), list(p.discard), p.known.copy())
                      for p in self.players]
         g.turn, g.turn_no, g.actions_left, g.winner = self.turn, self.turn_no, self.actions_left, self.winner
         g.effect_shield = dict(self.effect_shield)
@@ -117,6 +164,9 @@ class Game:
     def hero_named(self, name: str) -> Fighter:
         return next(f for f in self.fighters.values() if f.hero and f.name == name)
 
+    def hero_def(self, player: int) -> HeroDef:
+        return self.players[player].hero
+
     def occupied(self, player: int) -> set[int]:
         return {f.pos for f in self.own(player)}
 
@@ -124,13 +174,24 @@ class Game:
         return [f for f in self.fighters.values()
                 if f.alive and f is not fighter and self.board.share_zone(fighter.pos, f.pos)]
 
+    def counter(self, player: int, name: str) -> int:
+        """Contador del heroe (Hellboy: destinos): cartas con su etiqueta en su pila."""
+        c = self.players[player].hero.counters[name]
+        pile = self.players[player].discard if c.pile == "discard" else []
+        return sum(1 for card in pile if c.tag in card.tags)
+
     def destiny_count(self, player: int) -> int:
-        return sum(1 for c in self.players[player].discard if c.destiny)
+        return self.counter(player, "destiny") if "destiny" in self.players[player].hero.counters else 0
 
     def form(self, player: int) -> str | None:
-        if self.players[player].hero_name != "Hellboy":
+        forms = self.players[player].hero.forms
+        if forms is None:
             return None
-        return ANUNG if self.destiny_count(player) >= ANUNG_THRESHOLD else DETECTIVE
+        return forms.of(self.counter(player, forms.counter))
+
+    def attack_bonus(self, fighter: Fighter) -> int:
+        """Bono de ataque de las pasivas del heroe en su forma actual (Hellboy en ANUNG UN RAMA: +2)."""
+        return self.players[fighter.owner].hero.attack_bonus(self.form(fighter.owner), fighter.hero)
 
     def legal_moves(self, fighter: Fighter, steps: int, through_enemies: bool = False) -> set[int]:
         return self.board.reachable(fighter.pos, steps, self.occupied(fighter.owner) - {fighter.pos},
@@ -139,6 +200,28 @@ class Game:
     def can_attack(self, attacker: Fighter, target: Fighter) -> bool:
         return (attacker.alive and target.alive and attacker.owner != target.owner
                 and self.board.can_reach_target(attacker.pos, target.pos, attacker.ranged))
+
+    # mano conocida del rival (efecto «mira la mano»): ver KnownHand
+    def observe_hand(self, viewer: int, cards: list[Card]) -> None:
+        """`viewer` acaba de ver la mano completa de su rival por un efecto de carta."""
+        self.players[viewer].known.observe(cards, self.turn_no)
+
+    def card_left_hand(self, owner: int, card: Card) -> None:
+        """Una carta ha salido de la mano de `owner` (jugada, descartada, perdida): su rival deja de contar con ella."""
+        self.players[1 - owner].known.forget(card)
+
+    def hidden_hand(self, viewer: int, hand_size: int | None = None) -> tuple[list[Card], list[Card], int]:
+        """Para muestrear la mano del rival de `viewer` sin trampas: (cartas conocidas, multiconjunto de candidatas
+        para el resto, cuantas faltan por sortear). Las candidatas son las cartas del rival que no estan en ninguna
+        pila publica (descarte) ni entre las conocidas; el mazo y la mano son indistinguibles desde fuera."""
+        rival = self.players[1 - viewer]
+        known = self.players[viewer].known.cards(rival.full_set)
+        size = len(rival.hand) if hand_size is None else hand_size
+        pool = list(rival.full_set)
+        for c in (*rival.discard, *known):
+            if c in pool:
+                pool.remove(c)
+        return list(known), pool, max(0, size - len(known))
 
     # mutaciones
     def move_fighter(self, fighter: Fighter, dest: int, steps: int, through_enemies: bool = False) -> None:
@@ -182,10 +265,14 @@ class Game:
             self.log.append(f"P{player} roba {len(drawn)}")
         return drawn
 
+    def take_from_hand(self, player: int, card: Card) -> None:
+        """Saca la carta de la mano para jugarla (combate); va al descarte cuando el combate termina."""
+        self.players[player].hand.remove(card)
+        self.card_left_hand(player, card)
+
     def discard_card(self, player: int, card: Card) -> None:
-        p = self.players[player]
-        p.hand.remove(card)
-        p.discard.append(card)
+        self.take_from_hand(player, card)
+        self.players[player].discard.append(card)
 
     def force_discard(self, player: int, n: int, reason: str) -> list[Card]:
         hand = self.players[player].hand
@@ -275,7 +362,7 @@ class Game:
             def_card = self.controllers[target.owner].choose_defense(self, attacker, target)
         return resolve_combat(self, attacker, target, card, def_card, values, boost)
 
-    # habilidades de inicio de turno
+    # habilidades de inicio de turno (hasta el paso 8 del plan siguen cableadas por heroe)
     def medusa_ability(self, target: Fighter) -> None:
         medusa = self.hero_named("Medusa")
         if target.owner == medusa.owner or not target.alive or not self.board.share_zone(medusa.pos, target.pos):

@@ -715,7 +715,8 @@ class Session:
     def _fresh_game(self) -> Game:
         if self.new_game is not None:
             return self.new_game()
-        game = Game.new(self.game.board, secrets.randbelow(2 ** 31), controllers={}, medusa_player=self.bot)
+        game = Game.new(self.game.board, secrets.randbelow(2 ** 31), controllers={}, bot_player=self.bot,
+                        heroes=(self.game.hero_def(self.bot).slug, self.game.hero_def(self.human).slug))
         if self.first_mode in ("human", "bot"):
             game.turn = self.human if self.first_mode == "human" else self.bot
         game.begin_turn()
