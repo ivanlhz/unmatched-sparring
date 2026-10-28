@@ -7,7 +7,7 @@ from __future__ import annotations
 
 
 class EffectState:
-    __slots__ = ("statuses", "ongoing", "counters", "modifiers", "dsl_heroes", "turn_start_pos", "attacked")
+    __slots__ = ("statuses", "ongoing", "counters", "modifiers", "dsl_heroes", "turn_start_pos", "attacked", "acting")
 
     def __init__(self) -> None:
         self.statuses: list[dict] = []                   # active status effects (name, target, until, amount)
@@ -17,23 +17,45 @@ class EffectState:
         self.dsl_heroes: set[str] = set()                # hero slugs whose cards the interpreter resolves
         self.turn_start_pos: dict[str, int] = {}         # fid -> space at the start of the turn (moved_this_turn)
         self.attacked: list[str] = []                    # fids that attacked this turn
+        self.acting: int | None = None                   # player whose effect op is running right now (transient)
 
-    # hooks (no-ops until C2-C4)
+    # hooks: the bodies live in effects/modifiers.py; the guards keep the flag-off path free
     def adjust_damage(self, fighter, n, source):
-        return n
+        if not (self.statuses or self.modifiers):
+            return n
+        from .modifiers import adjust_damage
+        return adjust_damage(self, fighter, n, source)
 
     def can_draw(self, player: int) -> bool:
-        return True
+        if not (self.statuses or self.modifiers):
+            return True
+        from .modifiers import can_draw
+        return can_draw(self, player)
 
     def can_gain_actions(self, player: int) -> bool:
-        return True
+        if not (self.statuses or self.modifiers):
+            return True
+        from .modifiers import can_gain_actions
+        return can_gain_actions(self, player)
 
     def can_force_discard(self, player: int, source_player: int) -> bool:
         """False vetoes a discard that `source_player` forces on `player` (Counterhex Shield)."""
-        return True
+        if not (self.statuses or self.modifiers):
+            return True
+        from .modifiers import can_force_discard
+        return can_force_discard(self, player, source_player)
 
-    def emit(self, name: str, *args) -> None:
-        pass
+    def can_move(self, fighter) -> bool:
+        """False when a status keeps `fighter` where it is (Burning Barrier, Counterhex Shield vs. enemy effects)."""
+        if not (self.statuses or self.modifiers):
+            return True
+        from .modifiers import can_move
+        return can_move(self, fighter)
+
+    def emit(self, name, *args) -> None:
+        if self.statuses and name in ("start_of_turn", "end_of_turn", "after_maneuver"):
+            from .modifiers import expire_on_event      # C3 replaces this body with the full event dispatch
+            expire_on_event(self, name, *args)
 
     # ongoing slot
     def ongoing_card_id(self, player: int) -> int | None:

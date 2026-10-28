@@ -249,6 +249,8 @@ class Game:
         return passives + (self.combat_bonus_total(fighter.owner) if self.turn == fighter.owner else 0)
 
     def legal_moves(self, fighter: Fighter, steps: int, through_enemies: bool = False) -> set[int]:
+        if not self.fx.can_move(fighter):
+            return {fighter.pos}
         return self.board.reachable(fighter.pos, steps, self.occupied(fighter.owner) - {fighter.pos},
                                     self.occupied(1 - fighter.owner), through_enemies)
 

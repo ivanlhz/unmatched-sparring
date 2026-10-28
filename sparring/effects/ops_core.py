@@ -21,8 +21,6 @@ PLUGINS: dict[str, Callable] = {}
 PLUGIN_TESTS: dict[str, Callable] = {}
 
 PENDING_PHASES = {
-    "cancel_effects": "C2", "modify_value": "C2", "set_value": "C2", "boost": "C2", "status": "C2",
-    "redirect_damage": "C2",
     "look_hand": "C4", "reveal": "C4", "look_deck": "C4", "search_deck": "C4", "return_to_deck": "C4",
     "put_in_hand": "C4",
 }
@@ -198,7 +196,7 @@ def _move(run, game, spec):
     plan = []
     with _trial() as set_attrs:
         for f in targets:
-            if not f.alive or f.pos is None:
+            if not f.alive or f.pos is None or not game.fx.can_move(f):
                 continue
             dests = sorted(game.legal_moves(f, steps, through))
             if not up_to:       # exactly N: the farthest spaces when some are exactly N away
@@ -228,7 +226,7 @@ def _plan_spots(game, run, fighters, where: dict, chooser: int, op_name: str, **
 @op("place")
 def _place(run, game, spec):
     chooser = _chooser(game, run, spec)
-    targets = [f for f in pick_fighters(game, run, spec["target"], chooser) if f.alive]
+    targets = [f for f in pick_fighters(game, run, spec["target"], chooser) if f.alive and game.fx.can_move(f)]
     for f, spot in _plan_spots(game, run, targets, spec["where"], chooser, "place"):
         f.pos = spot
 
@@ -238,7 +236,7 @@ def _swap(run, game, spec):
     chooser = _chooser(game, run, spec)
     a = pick_fighters(game, run, spec["target"], chooser)
     b = pick_fighters(game, run, spec["with"], chooser)
-    if a and b and a[0] is not b[0] and a[0].alive and b[0].alive:
+    if a and b and a[0] is not b[0] and a[0].alive and b[0].alive and game.fx.can_move(a[0]) and game.fx.can_move(b[0]):
         a[0].pos, b[0].pos = b[0].pos, a[0].pos
 
 
@@ -337,3 +335,6 @@ def _plugin(run, game, spec):
     except KeyError:
         raise NotImplementedError(f"plugin {spec['id']}: not registered") from None
     return handler(run, game, spec)
+
+
+from . import ops_combat  # noqa: E402,F401  (registers the combat ops over the registry above)
