@@ -373,6 +373,19 @@ def test_a_deck_that_became_a_card_is_found_by_site_and_range_and_not_taken_agai
     assert res["taken"] == [] and res["missing"] == [] and world.count("00dc9a") == 0
 
 
+def test_a_deck_far_from_its_site_with_a_changed_guid_is_found_anywhere_and_no_second_deck_is_taken(world, tmp_path):
+    """En la mesa real los mazos estan a 3-26 unidades de su sitio: el mazo cuyo GUID cambio se halla por rango en toda la
+    mesa, aunque la bolsa interior suelta aun lo liste."""
+    cfg = config_for(tmp_path)
+    x, z = cfg.raw["human_deck_spot"]
+    plan = play.unpack_plan(cfg)
+    everything_on_the_table(world, plan, skip={"00dc9a"})
+    world.add("zzzzzz", "Deck", cards=[19700 + i for i in range(20)], pos={"x": x + 26.0, "y": 1.0, "z": z - 3.0})
+    world.add("c592d8", "Bag", contents=["00dc9a"])
+    res = world.run(plan)
+    assert res["taken"] == [] and res["missing"] == [] and world.count("00dc9a") == 0
+
+
 def test_a_card_of_another_game_at_the_deck_site_does_not_count_as_the_deck(world, tmp_path):
     cfg = config_for(tmp_path)
     x, z = cfg.raw["human_deck_spot"]
@@ -449,6 +462,19 @@ def test_unpack_is_opt_in_and_never_runs_when_resuming(live, cfg_file, monkeypat
     assert seen == [1, 1]
     play.main(["--config", str(cfg_file(unpack=True)), *ports, *state, "--unpack", "--resume"])
     assert seen == [1, 1]                                          # nunca con --resume
+
+
+@pytest.mark.parametrize("value", ["false", "no", 1, "true", [1], {"a": 1}])
+def test_unpack_in_the_config_only_activates_with_exactly_true(live, cfg_file, monkeypatch, tmp_path, value):
+    table, fake, ports = live
+    seen = []
+    monkeypatch.setattr(play, "prepare_heroes", lambda *a, **k: seen.append(1))
+
+    def interrupted(*a, **k):
+        raise KeyboardInterrupt
+    monkeypatch.setattr(play, "run_loop", interrupted)
+    play.main(["--config", str(cfg_file(unpack=value)), *ports, "--state", str(tmp_path / "s.json")])
+    assert seen == []
 
 
 def test_the_real_config_has_no_unpack_keys_and_the_default_spots_clear_the_hand_zones():

@@ -577,9 +577,9 @@ def unpack_from_bags(items: list[tuple[str, tuple[str, ...], str, tuple[float, f
     """Saca de la bolsa INTERIOR de un heroe lo que no esta en la mesa. `items` = (clase, GUID de cada estado, GUID de la
     bolsa interior, sitio (x, y, z), rango de CardID si es un mazo).
 
-    Un objeto cuenta como presente (y no se toca) si responde CUALQUIERA de sus GUID; un mazo, ademas, si hay un Deck o
-    una Card cuyas cartas caen en su rango a menos de 2 del sitio del mazo (TTS convierte el mazo en Card y le cambia el
-    GUID). Si falta, solo se saca de la bolsa con ese GUID de bolsa, que ha de existir, ser type Bag y contener el GUID:
+    Un objeto cuenta como presente (y no se toca) si responde CUALQUIERA de sus GUID; un mazo, ademas, si existe EN TODA
+    LA MESA un Deck o una Card cuyas cartas caen en su rango (TTS convierte el mazo en Card y le cambia el GUID; en la mesa
+    real los mazos quedan a 3-26 unidades de su sitio, asi que la distancia no sirve; los rangos de heroes no se solapan). Si falta, solo se saca de la bolsa con ese GUID de bolsa, que ha de existir, ser type Bag y contener el GUID:
     nunca de otra bolsa de la mesa (los GUID se repiten entre bolsas del mod) ni de una infinita (clonaria). Lo que no se
     puede sacar vuelve en `missing`. Devuelve `{present, taken, missing}`. No toca el Global ni la UI."""
     if not isinstance(items, (list, tuple)) or not 1 <= len(items) <= MAX_UNPACK:
@@ -601,18 +601,15 @@ local function cardsOf(o)
   if o.type == "Card" then return {{o.getData()}} end
   return o.getData().ContainedObjects or {{}}
 end
-local function deckAt(x, z, lo, hi)
+local function deckAnywhere(lo, hi)
   for _, o in ipairs(getObjects()) do
     if o.type == "Deck" or o.type == "Card" then
-      local p = o.getPosition()
-      if (p.x - x) ^ 2 + (p.z - z) ^ 2 <= 4 then
-        local cards, ok = cardsOf(o), true
-        if #cards == 0 then ok = false end
-        for _, c in ipairs(cards) do
-          if type(c.CardID) ~= "number" or c.CardID < lo or c.CardID > hi then ok = false end
-        end
-        if ok then return true end
+      local cards, ok = cardsOf(o), true
+      if #cards == 0 then ok = false end
+      for _, c in ipairs(cards) do
+        if type(c.CardID) ~= "number" or c.CardID < lo or c.CardID > hi then ok = false end
       end
+      if ok then return true end
     end
   end
   return false
@@ -624,7 +621,7 @@ for _, it in ipairs(ITEMS) do
   for _, g in ipairs(guids) do
     if getObjectFromGUID(g) ~= nil then here = true end
   end
-  if not here and it[9] then here = deckAt(it[4], it[6], it[7], it[8]) end
+  if not here and it[9] then here = deckAnywhere(it[7], it[8]) end
   if here then
     table.insert(out.present, guids[1])
   else

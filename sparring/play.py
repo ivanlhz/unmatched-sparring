@@ -593,7 +593,7 @@ def play(cfg: PlayConfig, client: TTSClient, first: str, seed: int, stop: thread
         if not (math.isfinite(bot_pause) and 0 <= bot_pause <= 30):
             raise SessionError("--bot-pause: segundos entre 0 (sin pausa) y 30")
         scfg.bot_pause = bot_pause
-    if (unpack or cfg.raw.get("unpack")) and not resume:
+    if (unpack or cfg.raw.get("unpack") is True) and not resume:
         prepare_heroes(client, cfg, echo)
     game = build_game(cfg, first, seed)
     session = Session(game, client, make_bot_ai(ai_config(cfg, ai, ai_time), BOT), scfg, bot=BOT)
