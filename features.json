@@ -196,6 +196,21 @@
         "Decidir antes de empezar: donde se aloja el servicio, coste, y limites de uso por partida"
       ],
       "note": "Idea de Ivan (28/10) para compartir el bot con la comunidad (Unmatched Canarias). Va despues de F08 como minimo."
+    },
+    {
+      "id": "F15",
+      "title": "IA hibrida: ISMCTS propone, Jev elige con el playbook",
+      "status": "backlog",
+      "criteria": [
+        "Modo seleccionable al arrancar: --ai heuristic | ismcts | hibrida; ismcts sigue existiendo tal cual y se puede jugar solo con ella",
+        "En hibrida, la ISMCTS calcula y propone las 4-5 mejores jugadas legales con sus estadisticas; Jev (TypeSafe, via AI Gateway) elige una de esa lista usando el playbook del emparejamiento (F10) y la situacion publica",
+        "Sin trampas: a Jev solo le llega informacion publica y lo visto legitimamente por efectos de mirar la mano; nunca la mano oculta del humano",
+        "Nunca una jugada ilegal: Jev solo puede devolver un indice de la lista; si tarda mas del presupuesto, falla o devuelve algo invalido, se juega la mejor de la ISMCTS y se avisa en la terminal",
+        "Tiempo por decision acotado (busqueda + Jev) y coste por partida medido y mostrado al terminar; precio consultado antes de fijar presupuestos, no de memoria",
+        "Opcional: el bot explica su jugada en el chat en una linea",
+        "Prueba en vivo por Ivan comparando ismcts contra hibrida"
+      ],
+      "note": "Idea de Ivan (28/10). Primer modelo: Jev; Claude Haiku como alternativa si Jev no encaja. Va con F10 (playbooks). No empezar hasta que Ivan lo pida."
     }
   ]
 }
