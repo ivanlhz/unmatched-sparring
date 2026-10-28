@@ -6,7 +6,7 @@
   "Todo damage es de efecto: es lo que FATEFUL BARGAINS puede desviar y Pact Of Mortality sube en 1; el dano de combate lo calcula el motor.",
   "Las cartas con restriccion Baba Yaga las juega ella (this = hero); las ANY tambien Koschei, por eso 'adjacent to Baba Yaga' usa hero y 'your fighter' usa this.",
   "Decision de Ivan (28/10): 'takes 2 or more combat damage' es en un mismo combate; si Bound In Blood desvia el dano a Koschei, Baba Yaga no lo toma y el Pacto sigue.",
-  "Decision de Ivan (28/10): solo puede haber un ONGOING a la vez: al jugar uno nuevo, reemplaza al que estaba activo (va al descarte). The Time For Deals Is Done descarta ese.",
+  "Decision de Ivan (28/10): solo puede haber un ONGOING activo por jugador: al jugar uno nuevo, reemplaza al que estaba activo (va al descarte). The Time For Deals Is Done descarta ese.",
   "Decision de Ivan (28/10): Pact Of Secrecy 'draw up to 2': cada jugador elige cuantas (0-2).",
   "Decision de Ivan (28/10): Pact Of Mortality 'Return a defeated fighter' vale para cualquier luchador abatido, tambien del rival.",
   "Decision de Ivan (28/10): Iron Teeth y The Time For Deals Is Done tambien hacen dano a Koschei, como dice el texto."
@@ -35,7 +35,7 @@
      ]}
     ]
    },
-   "notes": "El dano alcanza tambien a Koschei si comparte zona (es 'each other fighter'). Con mas de un Pacto activo, el dueno elige cual descarta."
+   "notes": "El dano alcanza tambien a Koschei si comparte zona (es 'each other fighter'). Solo hay un ONGOING activo por jugador (regla de Ivan, 28/10): descarta ese."
   },
   {
    "title": "Iron Teeth",

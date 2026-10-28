@@ -18,7 +18,7 @@ Datos verificados el 28/10/2026 contra el save del torneo (`saves\Unmatched Offi
 
 ## Decisiones
 
-1. **Agentes: 3 en el tablero, 0 en reserva.** La carta de heroe marca "START HEALTH" con tres puntos y "x3", la misma notacion que las Harpias de Medusa (que empiezan todas en mesa); el save trae tres fichas y nada que haga de reserva. "Summon a B.P.R.D. Agent in Abe's zone" (Secure The Scene) se modela como `revive` de un agente abatido con su 1 de vida; sin agentes caidos no hace nada. Si el reglamento dice otra cosa, cambia `start_on_board`/`reserve` en el overlay y el `revive` pasa a `place` desde la reserva.
+1. **Agentes: 3 en el tablero, 0 en reserva.** La carta de heroe marca "START HEALTH" con tres puntos y "x3", la misma notacion que las Harpias de Medusa (que empiezan todas en mesa); el save trae tres fichas y nada que haga de reserva. "Summon a B.P.R.D. Agent in Abe's zone" (Secure The Scene): `revive` de un agente abatido con su 1 de vida; sin agentes caidos, el dueno coge uno vivo y lo coloca (`place`) en la zona de Abe (decision de Ivan, 28/10).
 2. **Uncanny Intuition NO necesita plugin.** Son dos disparadores con tres primitivas: `counter` de fichas (0..2), `draw` y `reveal` del ataque antes de la defensa. El "ataque boca arriba" lo comparte Perfect Shot, asi que es primitiva y no codigo de un heroe. El plan preveia `abe:uncanny_intuition`; queda como respaldo solo si el motor no quiere contadores de fichas ni el momento `attacked`.
 3. **Perfect Shot si es plugin** (`abe:perfect_shot`): decidir al jugar si va boca arriba, anunciar una prediccion y compararla en DURING COMBAT no cabe en el DSL (no hay momento "al jugar" ni "guardar y comparar") y es la unica carta de la caja que lo necesita.
 4. Convenciones de ops: `target` con eleccion la hace `who_chooses` (owner por defecto); `same` repite el ultimo objetivo elegido; `push` mueve a un rival y lo dirige el dueno del efecto; `modify_value` con `set` fija el valor (Shock And Awe "becomes 4").
@@ -42,8 +42,8 @@ Datos verificados el 28/10/2026 contra el save del torneo (`saves\Unmatched Offi
 - Perfect Shot: se puede predecir cualquier valor de 0 a 7; si el rival no defiende con carta, no acierta.
 - Every Possible Angle contra el bot: el bot pone su mano boca arriba (fila de look_spot, como F16) y hace ping sobre las cartas.
 - Counterhex Shield: el texto real (con ONGOING) se corrige tambien en unmatched-memory.
-- Secure The Scene: 'summon' devuelve un agente abatido con 1 de vida a la zona de Abe; si no hay ninguno abatido, el dueno coge uno vivo y lo coloca en un espacio de la zona de Abe. El agente colocado puede ser el elegido para moverse.
 
 ## Preguntas abiertas
 
 - 6. Fichas de agentes en TTS: se llaman Victor, Carla y Kate; el motor los numera agent1..agent3. Hace falta el mapeo fid -> GUID en la config de la partida (paso 10 del plan), igual que las Harpias.
+- Every Possible Angle: como registra el motor la carta del bot que vuelve encima de su mazo (pasa a conocida por el humano: no afecta a la informacion del bot).

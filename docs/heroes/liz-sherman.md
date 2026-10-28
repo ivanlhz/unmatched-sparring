@@ -59,13 +59,15 @@ Las otras 15 (Fleeting Moments x3, B.P.R.D. Training x2, Rekindle x2, Feint x3, 
 - con el bot llevando a Liz, el bot gira el fondo del mazo al inicio de su turno.
 - Incinerate: el rival puede descartar 2 cartas de la mano, ADEMAS de la carta con la que defiende, para ignorar el valor de Incinerate (queda a 0); si no defendio con carta, descartar 2 tambien vale. Con menos de 2 cartas en mano no puede pagar.
 - Burning Barrier: cannot_leave_space bloquea todo movimiento del luchador rival (propio o por efectos); a Liz si la puede mover un efecto. El dano posterior es a cada rival en la zona de Liz.
+- una carta sin valor de impulso no se puede usar para impulsar: las ardientes (BOOST 0) nunca se descartan como impulso.
+- un solo ONGOING activo POR JUGADOR; jugar otro reemplaza al propio activo (dos Fight Or Flight = +1). Pendiente de codigo: Game.combat_bonus aun acumula.
 
 ## Preguntas abiertas
 
-- Fight Or Flight con dos copias: con la regla de Ivan (28/10) 'solo un ONGOING a la vez, el nuevo reemplaza al activo', la segunda copia reemplaza a la primera (+1, no +2). Pendiente: confirmar el alcance (por jugador o en toda la mesa) y cambiar el motor (Game.combat_bonus hoy acumula).
+- Orden al inicio del turno de Liz: primero se descarta Fight Or Flight y luego el fondo de Wildfire. Supuesto; no interactuan.
 
 ## Fight Or Flight en el motor (ONGOING)
-- `Game.combat_bonus[jugador]` guarda (bono, etiqueta) vivos. La sesión lo añade al detectar el plan en el descarte del humano; `resolve_scheme` lo añade si lo juega el bot. Se acumula (dos copias: +2, pregunta 4).
+- `Game.combat_bonus[jugador]` guarda (bono, etiqueta) vivos. La sesión lo añade al detectar el plan en el descarte del humano; `resolve_scheme` lo añade si lo juega el bot. Hoy se acumula (dos copias: +2); con la regla de Ivan del 28/10 (un solo ONGOING activo por jugador) la segunda reemplaza a la primera (+1). Pendiente de codigo: Game.combat_bonus debe reemplazar, no acumular.
 - Suma al valor de toda carta de combate del dueño: ataque en su turno (vía `attack_bonus_parts`, junto a las pasivas del héroe) y defensa en el del rival, también si la carta vale 0, se cancela o es On Earth (se suma tras fijar el valor). Sin carta de defensa no hay valor al que sumar. El «valor extra» del panel es aparte y se suma.
 - Caduca en `begin_turn()` del dueño (lo devuelve para avisar). Se guarda en `combat_bonus` del `game` del guardado, solo si hay algo; un guardado viejo sin la clave carga a 0.
 - IA: `Model.defense_dist` y `attack_dist` lo leen (es público); la ISMCTS lo ve por `resolve_combat` y `attack_bonus` en la clonación. Si lo juega el bot, el motor lo aplica; la IA de Medusa no lo evalúa para sí misma (no es su carta).

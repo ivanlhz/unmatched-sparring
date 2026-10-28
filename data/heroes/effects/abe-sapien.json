@@ -277,7 +277,8 @@
   {"card": "Ward And Prepare", "what": "recuperar un plan del descarte propio", "bot_rule": "Informacion publica (el descarte); si lo hace el humano, el bot apunta que esa carta vuelve a la mano rival (entra en KnownHand como vista)."}
  ],
  "open_questions": [
-  "6. Fichas de agentes en TTS: se llaman Victor, Carla y Kate; el motor los numera agent1..agent3. Hace falta el mapeo fid -> GUID en la config de la partida (paso 10 del plan), igual que las Harpias."
+  "6. Fichas de agentes en TTS: se llaman Victor, Carla y Kate; el motor los numera agent1..agent3. Hace falta el mapeo fid -> GUID en la config de la partida (paso 10 del plan), igual que las Harpias.",
+  "Every Possible Angle: como registra el motor la carta del bot que vuelve encima de su mazo (pasa a conocida por el humano: no afecta a la informacion del bot)."
  ],
  "discrepancies": [
   {"card": "Counterhex Shield", "memory": "Draw 1 card. Gain 1 action.", "real": "Draw 1 card. Gain 1 action. Ongoing: Other players' effects can't damage your fighters, move your fighters, or force you to discard cards. Discard this at the start of your next turn.", "resolution": "manda la carta: texto real en el campo `text` de las dos entradas de la hoja del overlay (el importador lo prefiere); apuntado en docs/heroes/abe-sapien.md"},

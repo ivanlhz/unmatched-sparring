@@ -77,7 +77,7 @@ Vida, movimiento, tipo de ataque, valores, impulsos y copias coinciden con las c
 ## Decisiones de Ivan (28/10)
 
 - 'takes 2 or more combat damage' es en un mismo combate; si Bound In Blood desvia el dano a Koschei, Baba Yaga no lo toma y el Pacto sigue.
-- solo puede haber un ONGOING a la vez: al jugar uno nuevo, reemplaza al que estaba activo (va al descarte). The Time For Deals Is Done descarta ese.
+- solo puede haber un ONGOING activo por jugador: al jugar uno nuevo, reemplaza al que estaba activo (va al descarte). The Time For Deals Is Done descarta ese.
 - Pact Of Secrecy 'draw up to 2': cada jugador elige cuantas (0-2).
 - Pact Of Mortality 'Return a defeated fighter' vale para cualquier luchador abatido, tambien del rival.
 - Iron Teeth y The Time For Deals Is Done tambien hacen dano a Koschei, como dice el texto.

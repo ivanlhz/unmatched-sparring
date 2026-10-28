@@ -291,7 +291,7 @@ Toda op es `{"op": "<nombre>", ...args}`. Argumentos no listados son error.
   `cancel_effects` en IMMEDIATELY vacia los tres momentos de la carta rival (salvo `uncancelable`).
 - `scheme`: al jugar el plan. Si la carta tiene `ongoing`, tras las ops se queda en juego: sus `modifiers` valen y
   sus `triggers` saltan hasta `until`; entonces va al descarte. Regla de Ivan (28/10): solo hay un ONGOING
-  activo a la vez; jugar otro reemplaza al activo (va al descarte).
+  activo a la vez (uno por jugador); jugar otro reemplaza al activo (va al descarte).
 - `boost`: al usar la carta como impulso.
 - `ability.triggers` y `ongoing.triggers`: un solo formato (Trigger con `when: Event`). Un disparador optional lo
   decide `chooser`.
@@ -328,7 +328,7 @@ Cada fichero lista en `hidden_info` las cartas que tocan informacion oculta y la
 ## 7. Planes permanentes
 
 `ongoing` con `modifiers` (reglas y bonos continuos), `triggers` (eventos mientras sigue en juego) y `until`
-(evento que lo descarta). Regla de Ivan (28/10): un solo ONGOING activo a la vez, el nuevo reemplaza al anterior;
+(evento que lo descarta). Regla de Ivan (28/10): un solo ONGOING activo a la vez (uno por jugador), el nuevo reemplaza al anterior;
 `discard` con `zone: in_play` quita el activo (The Time For Deals Is Done).
 
 ## 8. Plugins
@@ -452,8 +452,10 @@ Decisiones dudosas de la migracion (ver tambien `notes` de cada fichero):
    texto la hace obligatoria si hay espacio. El DSL sigue el texto.
 5. Medusa "Gaze of Stone": los 8 de dano son de efecto (asi lo hace el motor: `game.damage` por defecto es
    `effect`, y Planned Recklessness lo para).
-6. Abe "Secure The Scene": sigue como `revive` (3 agentes en tablero, reserva 0); con reserva seria `summon`.
-7. Baba "Deathless": solo si Koschei esta abatido (como antes); pregunta abierta sin cambios.
+6. Abe "Secure The Scene": `if` hay agente abatido -> `revive` en la zona de Abe; si no, `place` de un agente vivo en la
+   zona de Abe (3 agentes en tablero, reserva 0; decision de Ivan del 28/10).
+7. Baba "Deathless": abatido -> `revive` junto a Baba Yaga con 3; vivo -> `place` junto a ella + `set_hp` 3 (decision
+   de Ivan del 28/10).
 8. Abe "Shock And Awe": `moved_this_turn` sobre `this` (el luchador que la juega), igual que antes.
 9. Hellboy "Confront": el descarte lo elige el dueno de la mano vista: `discard` con `cards: {zone: hand, player:
    opponent, chooser: owner}` tras `look_hand` (regla 3 de la seccion 6).

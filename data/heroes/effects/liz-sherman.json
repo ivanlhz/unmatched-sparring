@@ -8,7 +8,9 @@
   "Decision de Ivan (28/10): mazo vacio al inicio del turno o con Flame Lash: no pasa nada (ni dano ni movimiento; Flame Lash suma 0).",
   "Decision de Ivan (28/10): el dano de Wildfire al inicio del turno es obligatorio si hay objetivo, y solo a UN luchador.",
   "Decision de Ivan (28/10): un efecto que ignore el VALOR IMPRESO no quita el +1 de Fight Or Flight; uno que ignore el VALOR, si.",
-  "Decision de Ivan (28/10): con el bot llevando a Liz, el bot gira el fondo del mazo al inicio de su turno."
+  "Decision de Ivan (28/10): con el bot llevando a Liz, el bot gira el fondo del mazo al inicio de su turno.",
+  "Decision de Ivan (28/10): una carta sin valor de impulso no se puede usar para impulsar: las ardientes (BOOST 0) nunca se descartan como impulso.",
+  "Decision de Ivan (28/10): un solo ONGOING activo POR JUGADOR; jugar otro reemplaza al propio activo (dos Fight Or Flight = +1). Pendiente de codigo: Game.combat_bonus aun acumula."
  ],
  "ability": {
   "text": "WILDFIRE\nWhenever you discard a burning card from your hand or deck, put it into your hand.\nAt start of your turn, discard the bottom card of your deck. If it's a burning card, deal 1 damage to another fighter in Liz's zone. Otherwise, move Liz up to 2 spaces.",
@@ -25,7 +27,7 @@
     "ops": [{"op": "put_in_hand", "cards": "$card"}]}
   ],
   "passives": [],
-  "notes": "Con el mazo vacio al inicio del turno no se descarta nada y no pasa nada (ni dano ni movimiento): por eso la condicion exists sobre el mazo (open_questions 2). La devolucion a la mano es una regla sobre todo descarte del jugador de Liz: habilidad, Flame Lash, Fleeting Moments, impulsos de cualquiera de los dos, efectos del rival que hagan descartar a Liz. Jugar una carta no es descartarla: las ardientes jugadas se quedan en el descarte."
+  "notes": "Con el mazo vacio al inicio del turno no se descarta nada y no pasa nada (ni dano ni movimiento): por eso la condicion exists sobre el mazo (decision de Ivan, 28/10). La devolucion a la mano es una regla sobre todo descarte del jugador de Liz: habilidad, Flame Lash, Fleeting Moments, efectos del rival que hagan descartar a Liz. Jugar una carta no es descartarla: las ardientes jugadas se quedan en el descarte."
  },
  "cards": [
   {
@@ -203,7 +205,7 @@
     "triggers": [],
     "until": {"event": "start_of_turn", "player": "owner"}
    },
-   "notes": "El ONGOING no esta en unmatched-memory; sale de la carta real. Dos copias en juego suman +2 (supuesto). Se descarta al inicio del siguiente turno de Liz, antes del descarte del fondo de Wildfire (orden supuesto; no interactuan porque no es ardiente)."
+   "notes": "El ONGOING no esta en unmatched-memory; sale de la carta real. Con la regla de Ivan (28/10) de un solo ONGOING activo, una segunda copia reemplaza a la primera (+1); el motor aun acumula y hay que cambiarlo. Se descarta al inicio del siguiente turno de Liz, antes del descarte del fondo de Wildfire (orden supuesto; no interactuan porque no es ardiente)."
   }
  ],
  "plugins": [],
@@ -217,6 +219,6 @@
   {"where": "Inicio de turno (descarte del fondo)", "rule": "Publico: la carta se muestra al descartarse; si es ardiente, todos ven que vuelve a la mano de Liz."}
  ],
  "open_questions": [
-  "Fight Or Flight con dos copias: con la regla de Ivan (28/10) 'solo un ONGOING a la vez, el nuevo reemplaza al activo', la segunda copia reemplaza a la primera (+1, no +2). Pendiente: confirmar el alcance (por jugador o en toda la mesa) y cambiar el motor (Game.combat_bonus hoy acumula)."
+  "Orden al inicio del turno de Liz: primero se descarta Fight Or Flight y luego el fondo de Wildfire. Supuesto; no interactuan."
  ]
 }
