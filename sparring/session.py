@@ -2435,7 +2435,8 @@ class Session:
         try:
             if self.cfg.batch:
                 self._expect_hand = (self.cfg.bot_seat, len(self._table_hand_ids()) - 1)
-            ping = ((piece_guids(self.cfg.pieces[attacker.fid]), piece_guids(self.cfg.pieces[target.fid]))
+            ping = ((piece_guids(self.cfg.pieces[attacker.fid]), piece_guids(self.cfg.pieces[target.fid]),
+                     [self.cfg.bot_seat, self.cfg.human_seat])
                     if kind == "bot_attacks" else None)
             res = self._w(lua.play_card_face_down(card.card_id, self.cfg.bot_seat, x, y, z, self.cfg.rot_y,
                                                   identity=self._identity(), ping=ping),

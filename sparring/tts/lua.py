@@ -704,17 +704,27 @@ return JSON.encode({{moved = obj.getGUID()}})
 """
 
 
-def _ping_lua(seat_color: str, attacker_guids: list[str], target_guids: list[str]) -> str:
-    """Trozo de Lua que hace ping del asiento sobre el atacante y, algo despues, sobre el objetivo (primer GUID que
-    exista de cada lista: una miniatura puede tener varios segun su forma). Todo en pcall."""
-    for g in (attacker_guids, target_guids):
+def _ping_lua(seat_colors: list[str], attacker_guids: list[str], target_guids: list[str]) -> str:
+    """Trozo de Lua que hace ping sobre el atacante y, algo despues, sobre el objetivo (primer GUID que exista de cada
+    lista: una miniatura puede tener varios segun su forma). Pinga el primer asiento sentado de `seat_colors` o, si
+    ninguno lo esta, el primer jugador de `Player.getPlayers()`. Todo en pcall."""
+    for g in (attacker_guids, target_guids, seat_colors):
         if not isinstance(g, (list, tuple)) or not g:
-            raise ValueError("el ping necesita al menos un GUID de atacante y de objetivo")
+            raise ValueError("el ping necesita al menos un asiento y un GUID de atacante y de objetivo")
+    seats = "{" + ", ".join(_color(c) for c in seat_colors) + "}"
     return f"""pcall(function()
+  local function pinger()
+    for _, c in ipairs({seats}) do
+      local p = Player[c]
+      if p ~= nil and p.seated then return p end
+    end
+    local players = Player.getPlayers()
+    return players and players[1]
+  end
   local function pingAt(guids)
     for _, g in ipairs(guids) do
       local o = getObjectFromGUID(g)
-      if o ~= nil then Player[{_color(seat_color)}].pingTable(o.getPosition()) return end
+      if o ~= nil then pinger().pingTable(o.getPosition()) return end
     end
   end
   pingAt({_guid_list(attacker_guids)})
@@ -727,18 +737,18 @@ end)
 @_registered
 def play_card_face_down(card_id: int, seat_color: str, x: float, y: float, z: float, rot_y: float = 0,
                         id_range: tuple[int, int] = BOT_CARD_IDS, *, identity,
-                        ping: tuple[list[str], list[str]] | None = None) -> str:
+                        ping: tuple[list[str], list[str], list[str]] | None = None) -> str:
     """Saca la carta con ese CardID de la mano del asiento y la deja boca abajo; played=false si no esta. Solo cuenta
     una carta del bando (`id_range` e imagen de `identity`): otra con el mismo CardID no se toca.
 
     El movimiento es INSTANTANEO (setRotation y luego setPosition): en TTS real, `setPositionSmooth` sobre una carta
     que esta en una zona de mano no la saca, la mano la vuelve a tirar. El resultado hay que comprobarlo leyendo la mesa.
 
-    `ping` = (GUID del atacante, GUID del objetivo): antes de jugar la carta, el asiento hace ping sobre la posicion
-    de cada miniatura (la del objetivo ~1 s despues, porque un segundo ping seguido pisa al primero). Va dentro de
+    `ping` = (GUID del atacante, GUID del objetivo, asientos candidatos): antes de jugar la carta se hace ping sobre la
+    posicion de cada miniatura con el primer asiento sentado (el del bot puede estar vacio) (la del objetivo ~1 s despues, porque un segundo ping seguido pisa al primero). Va dentro de
     pcall: un fallo del ping nunca rompe el ataque ni cambia el resultado."""
     own = _ours_lua(identity, id_range)
-    pings = _ping_lua(seat_color, *ping) if ping else ""
+    pings = _ping_lua(ping[2], ping[0], ping[1]) if ping else ""
     return f"""-- sparring:play_card_face_down
 {pings}{own}for _, o in ipairs(Player[{_color(seat_color)}].getHandObjects(1)) do
   local data = o.getData()
