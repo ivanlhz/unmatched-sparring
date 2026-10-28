@@ -1,13 +1,73 @@
 {
  "_notes": [
-  "Solo datos basicos (F07 paso 1): sin hoja de CardID ni restricciones de luchador, el motor no puede jugar con Liz todavia (F08).",
-  "Liz no tiene ayudantes: unmatched-memory trae una entrada vacia (name '', hasSidekicks false) que se ignora.",
-  "WILDFIRE (cartas ardientes, descarte del fondo del mazo al empezar el turno) ira a plugins (plan: liz:wildfire, liz:incinerate); las 15 cartas ardientes son la pregunta 2 del plan."
+  "Hoja 199 del savegame del torneo (8x4), leida carta a carta de la imagen el 2026-10-28. CardID = 19900 + idx; 19800 = carta de personaje (hoja 198, 1x1). Las cartas sueltas del save usan la clave 188 con las mismas imagenes.",
+  "La carta de personaje dice RANGED, 16 de vida y MOVE 3: coincide con unmatched-memory (attackType range). El 'melee' de la memoria del proyecto venia del ayudante vacio.",
+  "Sin ayudantes ni fichas: la bolsa de Liz en el save solo trae la miniatura, el dial de vida (MAX_VALUE 16) y el mazo. unmatched-memory trae una entrada de ayudante vacia (name '', hasSidekicks false) que se ignora.",
+  "Cartas ardientes (etiqueta burning): las 15 con el icono de llama junto al titulo y SIN circulo de impulso (BOOST 0): Incinerate x1, Fireball x2, Flame Lash x3, Burning Barrier x3, Pyrotechnics x3, Searing Clarity x3. No hay contador ni ficha: es una propiedad impresa en la carta.",
+  "Todas las cartas llevan la banda LIZ SHERMAN (ninguna ANY): la restriccion de luchador no cambia nada mientras Liz no tenga ayudantes.",
+  "Discrepancia: Fight Or Flight tiene en la carta real un ONGOING (+1 al valor de tus cartas de combate; descartala al inicio de tu siguiente turno) que unmatched-memory no trae; el texto de la hoja manda sobre unmatched-memory (campo text por entrada).",
+  "Disparador y pasiva de WILDFIRE quedan como datos (efectos liz_wildfire_*); el motor no los interpreta hasta el paso 8 del plan y el plugin liz:wildfire (data/heroes/effects/liz-sherman.json)."
  ],
  "fid": "liz",
  "sidekicks": [],
  "forms": null,
  "counters": {},
- "triggers": [],
- "passives": []
+ "triggers": [
+  {
+   "id": "wildfire_start",
+   "when": "start_of_turn",
+   "optional": false,
+   "effect": "liz_wildfire_discard_bottom",
+   "n": 1,
+   "if_burning": {"effect": "damage", "n": 1, "target": "other_fighter_in_hero_zone"},
+   "otherwise": {"effect": "move", "n": 2, "fighter": "hero"}
+  }
+ ],
+ "passives": [
+  {
+   "id": "wildfire_return",
+   "effect": "liz_wildfire_return_to_hand",
+   "tag": "burning",
+   "from": ["hand", "deck"]
+  }
+ ],
+ "deck": {
+  "card_base": 19900,
+  "sheet_id": 199,
+  "sheet": [
+   {"idx": 0, "title": "Incinerate", "fighter": "Liz Sherman", "tags": ["burning"]},
+   {"idx": 1, "title": "Fireball", "fighter": "Liz Sherman", "tags": ["burning"]},
+   {"idx": 2, "title": "Fireball", "fighter": "Liz Sherman", "tags": ["burning"]},
+   {"idx": 3, "title": "Flame Lash", "fighter": "Liz Sherman", "tags": ["burning"]},
+   {"idx": 4, "title": "Flame Lash", "fighter": "Liz Sherman", "tags": ["burning"]},
+   {"idx": 5, "title": "Flame Lash", "fighter": "Liz Sherman", "tags": ["burning"]},
+   {"idx": 6, "title": "Fleeting Moments", "fighter": "Liz Sherman"},
+   {"idx": 7, "title": "Fleeting Moments", "fighter": "Liz Sherman"},
+   {"idx": 8, "title": "Fleeting Moments", "fighter": "Liz Sherman"},
+   {"idx": 9, "title": "Burning Barrier", "fighter": "Liz Sherman", "tags": ["burning"]},
+   {"idx": 10, "title": "Burning Barrier", "fighter": "Liz Sherman", "tags": ["burning"]},
+   {"idx": 11, "title": "Burning Barrier", "fighter": "Liz Sherman", "tags": ["burning"]},
+   {"idx": 12, "title": "Pyrotechnics", "fighter": "Liz Sherman", "tags": ["burning"]},
+   {"idx": 13, "title": "Pyrotechnics", "fighter": "Liz Sherman", "tags": ["burning"]},
+   {"idx": 14, "title": "Pyrotechnics", "fighter": "Liz Sherman", "tags": ["burning"]},
+   {"idx": 15, "title": "B.P.R.D. Training", "fighter": "Liz Sherman"},
+   {"idx": 16, "title": "B.P.R.D. Training", "fighter": "Liz Sherman"},
+   {"idx": 17, "title": "Rekindle", "fighter": "Liz Sherman"},
+   {"idx": 18, "title": "Rekindle", "fighter": "Liz Sherman"},
+   {"idx": 19, "title": "Feint", "fighter": "Liz Sherman"},
+   {"idx": 20, "title": "Feint", "fighter": "Liz Sherman"},
+   {"idx": 21, "title": "Feint", "fighter": "Liz Sherman"},
+   {"idx": 22, "title": "Evade", "fighter": "Liz Sherman"},
+   {"idx": 23, "title": "Evade", "fighter": "Liz Sherman"},
+   {"idx": 24, "title": "Searing Clarity", "fighter": "Liz Sherman", "tags": ["burning"]},
+   {"idx": 25, "title": "Searing Clarity", "fighter": "Liz Sherman", "tags": ["burning"]},
+   {"idx": 26, "title": "Searing Clarity", "fighter": "Liz Sherman", "tags": ["burning"]},
+   {"idx": 27, "title": "Fight Or Flight", "fighter": "Liz Sherman",
+    "text": "Draw 1 card. Move Liz up to 5 spaces. She may move through opposing fighters. ONGOING: Add +1 to the value of your combat cards. Discard this at the start of your next turn."},
+   {"idx": 28, "title": "Fight Or Flight", "fighter": "Liz Sherman",
+    "text": "Draw 1 card. Move Liz up to 5 spaces. She may move through opposing fighters. ONGOING: Add +1 to the value of your combat cards. Discard this at the start of your next turn."},
+   {"idx": 29, "title": "Fight Or Flight", "fighter": "Liz Sherman",
+    "text": "Draw 1 card. Move Liz up to 5 spaces. She may move through opposing fighters. ONGOING: Add +1 to the value of your combat cards. Discard this at the start of your next turn."}
+  ]
+ }
 }

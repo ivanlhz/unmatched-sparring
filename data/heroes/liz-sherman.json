@@ -15,125 +15,379 @@
  "sidekicks": [],
  "forms": null,
  "counters": {},
- "triggers": [],
- "passives": [],
+ "triggers": [
+  {
+   "id": "wildfire_start",
+   "when": "start_of_turn",
+   "optional": false,
+   "effect": "liz_wildfire_discard_bottom",
+   "n": 1,
+   "if_burning": {
+    "effect": "damage",
+    "n": 1,
+    "target": "other_fighter_in_hero_zone"
+   },
+   "otherwise": {
+    "effect": "move",
+    "n": 2,
+    "fighter": "hero"
+   }
+  }
+ ],
+ "passives": [
+  {
+   "id": "wildfire_return",
+   "effect": "liz_wildfire_return_to_hand",
+   "tag": "burning",
+   "from": [
+    "hand",
+    "deck"
+   ]
+  }
+ ],
  "deck": {
-  "card_base": null,
-  "sheet": null,
+  "card_base": 19900,
+  "sheet": 199,
   "cards": [
    {
-    "title": "Fight Or Flight",
-    "fighter": null,
-    "type": "scheme",
-    "value": null,
-    "boost": 2,
-    "copies": 3,
-    "text": "Draw 1 card. Move Liz up to 5 spaces. She may move through opposing fighters."
-   },
-   {
-    "title": "Feint",
-    "fighter": null,
-    "type": "versatile",
-    "value": 2,
-    "boost": 3,
-    "copies": 3,
-    "text": "IMMEDIATELY: Cancel all effects on your opponent's card."
-   },
-   {
-    "title": "Burning Barrier",
-    "fighter": null,
-    "type": "versatile",
-    "value": 2,
-    "boost": 0,
-    "copies": 3,
-    "text": "IMMEDIATELY: The opposing fighter cannot leave their space this turn. AFTER COMBAT: Deal 1 damage to each opposing fighter in Liz's zone."
-   },
-   {
-    "title": "Fleeting Moments",
-    "fighter": null,
-    "type": "attack",
-    "value": 4,
-    "boost": 3,
-    "copies": 3,
-    "text": "AFTER COMBAT: You and your opponent both discard 1 random card, then you both draw 1 card."
-   },
-   {
-    "title": "Pyrotechnics",
-    "fighter": null,
-    "type": "versatile",
-    "value": 3,
-    "boost": 0,
-    "copies": 3,
-    "text": "AFTER COMBAT: You may put up to 2 cards from your hand on the bottom of your deck in any order."
-   },
-   {
-    "title": "Fireball",
-    "fighter": null,
-    "type": "attack",
-    "value": 5,
-    "boost": 0,
-    "copies": 2,
-    "text": "IMMEDIATELY: Deal 1 damage to each opposing fighter adjacent to the defender."
-   },
-   {
-    "title": "Evade",
-    "fighter": null,
-    "type": "defense",
-    "value": 3,
-    "boost": 1,
-    "copies": 2,
-    "text": "AFTER COMBAT: Draw 1 card."
-   },
-   {
-    "title": "Flame Lash",
-    "fighter": null,
-    "type": "attack",
-    "value": 1,
-    "boost": 0,
-    "copies": 3,
-    "text": "DURING COMBAT: Discard the bottom card of your deck. Add its BOOST value to this card's value. AFTER COMBAT: Gain 1 action."
-   },
-   {
+    "idx": 0,
     "title": "Incinerate",
-    "fighter": null,
+    "fighter": "Liz Sherman",
     "type": "attack",
     "value": 7,
     "boost": 0,
-    "copies": 1,
-    "text": "This card's effect cannot be canceled. DURING COMBAT: Your opponent may discard 2 cards to ignore this card's value."
+    "text": "This card's effect cannot be canceled. DURING COMBAT: Your opponent may discard 2 cards to ignore this card's value.",
+    "tags": [
+     "burning"
+    ]
    },
    {
-    "title": "Rekindle",
-    "fighter": null,
+    "idx": 1,
+    "title": "Fireball",
+    "fighter": "Liz Sherman",
+    "type": "attack",
+    "value": 5,
+    "boost": 0,
+    "text": "IMMEDIATELY: Deal 1 damage to each opposing fighter adjacent to the defender.",
+    "tags": [
+     "burning"
+    ]
+   },
+   {
+    "idx": 2,
+    "title": "Fireball",
+    "fighter": "Liz Sherman",
+    "type": "attack",
+    "value": 5,
+    "boost": 0,
+    "text": "IMMEDIATELY: Deal 1 damage to each opposing fighter adjacent to the defender.",
+    "tags": [
+     "burning"
+    ]
+   },
+   {
+    "idx": 3,
+    "title": "Flame Lash",
+    "fighter": "Liz Sherman",
+    "type": "attack",
+    "value": 1,
+    "boost": 0,
+    "text": "DURING COMBAT: Discard the bottom card of your deck. Add its BOOST value to this card's value. AFTER COMBAT: Gain 1 action.",
+    "tags": [
+     "burning"
+    ]
+   },
+   {
+    "idx": 4,
+    "title": "Flame Lash",
+    "fighter": "Liz Sherman",
+    "type": "attack",
+    "value": 1,
+    "boost": 0,
+    "text": "DURING COMBAT: Discard the bottom card of your deck. Add its BOOST value to this card's value. AFTER COMBAT: Gain 1 action.",
+    "tags": [
+     "burning"
+    ]
+   },
+   {
+    "idx": 5,
+    "title": "Flame Lash",
+    "fighter": "Liz Sherman",
+    "type": "attack",
+    "value": 1,
+    "boost": 0,
+    "text": "DURING COMBAT: Discard the bottom card of your deck. Add its BOOST value to this card's value. AFTER COMBAT: Gain 1 action.",
+    "tags": [
+     "burning"
+    ]
+   },
+   {
+    "idx": 6,
+    "title": "Fleeting Moments",
+    "fighter": "Liz Sherman",
+    "type": "attack",
+    "value": 4,
+    "boost": 3,
+    "text": "AFTER COMBAT: You and your opponent both discard 1 random card, then you both draw 1 card.",
+    "tags": []
+   },
+   {
+    "idx": 7,
+    "title": "Fleeting Moments",
+    "fighter": "Liz Sherman",
+    "type": "attack",
+    "value": 4,
+    "boost": 3,
+    "text": "AFTER COMBAT: You and your opponent both discard 1 random card, then you both draw 1 card.",
+    "tags": []
+   },
+   {
+    "idx": 8,
+    "title": "Fleeting Moments",
+    "fighter": "Liz Sherman",
+    "type": "attack",
+    "value": 4,
+    "boost": 3,
+    "text": "AFTER COMBAT: You and your opponent both discard 1 random card, then you both draw 1 card.",
+    "tags": []
+   },
+   {
+    "idx": 9,
+    "title": "Burning Barrier",
+    "fighter": "Liz Sherman",
     "type": "versatile",
     "value": 2,
-    "boost": 3,
-    "copies": 2,
-    "text": "AFTER COMBAT: Shuffle up to 3 cards from your discard pile into your deck."
-   },
-   {
-    "title": "Searing Clarity",
-    "fighter": null,
-    "type": "scheme",
-    "value": null,
     "boost": 0,
-    "copies": 3,
-    "text": "Shuffle a non-scheme card from your discard pile into your deck. Gain 1 action."
+    "text": "IMMEDIATELY: The opposing fighter cannot leave their space this turn. AFTER COMBAT: Deal 1 damage to each opposing fighter in Liz's zone.",
+    "tags": [
+     "burning"
+    ]
    },
    {
+    "idx": 10,
+    "title": "Burning Barrier",
+    "fighter": "Liz Sherman",
+    "type": "versatile",
+    "value": 2,
+    "boost": 0,
+    "text": "IMMEDIATELY: The opposing fighter cannot leave their space this turn. AFTER COMBAT: Deal 1 damage to each opposing fighter in Liz's zone.",
+    "tags": [
+     "burning"
+    ]
+   },
+   {
+    "idx": 11,
+    "title": "Burning Barrier",
+    "fighter": "Liz Sherman",
+    "type": "versatile",
+    "value": 2,
+    "boost": 0,
+    "text": "IMMEDIATELY: The opposing fighter cannot leave their space this turn. AFTER COMBAT: Deal 1 damage to each opposing fighter in Liz's zone.",
+    "tags": [
+     "burning"
+    ]
+   },
+   {
+    "idx": 12,
+    "title": "Pyrotechnics",
+    "fighter": "Liz Sherman",
+    "type": "versatile",
+    "value": 3,
+    "boost": 0,
+    "text": "AFTER COMBAT: You may put up to 2 cards from your hand on the bottom of your deck in any order.",
+    "tags": [
+     "burning"
+    ]
+   },
+   {
+    "idx": 13,
+    "title": "Pyrotechnics",
+    "fighter": "Liz Sherman",
+    "type": "versatile",
+    "value": 3,
+    "boost": 0,
+    "text": "AFTER COMBAT: You may put up to 2 cards from your hand on the bottom of your deck in any order.",
+    "tags": [
+     "burning"
+    ]
+   },
+   {
+    "idx": 14,
+    "title": "Pyrotechnics",
+    "fighter": "Liz Sherman",
+    "type": "versatile",
+    "value": 3,
+    "boost": 0,
+    "text": "AFTER COMBAT: You may put up to 2 cards from your hand on the bottom of your deck in any order.",
+    "tags": [
+     "burning"
+    ]
+   },
+   {
+    "idx": 15,
     "title": "B.P.R.D. Training",
-    "fighter": null,
+    "fighter": "Liz Sherman",
     "type": "versatile",
     "value": 3,
     "boost": 1,
-    "copies": 2,
-    "text": "AFTER COMBAT: Draw 1 card. Move each friendly fighter up to 2 spaces."
+    "text": "AFTER COMBAT: Draw 1 card. Move each friendly fighter up to 2 spaces.",
+    "tags": []
+   },
+   {
+    "idx": 16,
+    "title": "B.P.R.D. Training",
+    "fighter": "Liz Sherman",
+    "type": "versatile",
+    "value": 3,
+    "boost": 1,
+    "text": "AFTER COMBAT: Draw 1 card. Move each friendly fighter up to 2 spaces.",
+    "tags": []
+   },
+   {
+    "idx": 17,
+    "title": "Rekindle",
+    "fighter": "Liz Sherman",
+    "type": "versatile",
+    "value": 2,
+    "boost": 3,
+    "text": "AFTER COMBAT: Shuffle up to 3 cards from your discard pile into your deck.",
+    "tags": []
+   },
+   {
+    "idx": 18,
+    "title": "Rekindle",
+    "fighter": "Liz Sherman",
+    "type": "versatile",
+    "value": 2,
+    "boost": 3,
+    "text": "AFTER COMBAT: Shuffle up to 3 cards from your discard pile into your deck.",
+    "tags": []
+   },
+   {
+    "idx": 19,
+    "title": "Feint",
+    "fighter": "Liz Sherman",
+    "type": "versatile",
+    "value": 2,
+    "boost": 3,
+    "text": "IMMEDIATELY: Cancel all effects on your opponent's card.",
+    "tags": []
+   },
+   {
+    "idx": 20,
+    "title": "Feint",
+    "fighter": "Liz Sherman",
+    "type": "versatile",
+    "value": 2,
+    "boost": 3,
+    "text": "IMMEDIATELY: Cancel all effects on your opponent's card.",
+    "tags": []
+   },
+   {
+    "idx": 21,
+    "title": "Feint",
+    "fighter": "Liz Sherman",
+    "type": "versatile",
+    "value": 2,
+    "boost": 3,
+    "text": "IMMEDIATELY: Cancel all effects on your opponent's card.",
+    "tags": []
+   },
+   {
+    "idx": 22,
+    "title": "Evade",
+    "fighter": "Liz Sherman",
+    "type": "defense",
+    "value": 3,
+    "boost": 1,
+    "text": "AFTER COMBAT: Draw 1 card.",
+    "tags": []
+   },
+   {
+    "idx": 23,
+    "title": "Evade",
+    "fighter": "Liz Sherman",
+    "type": "defense",
+    "value": 3,
+    "boost": 1,
+    "text": "AFTER COMBAT: Draw 1 card.",
+    "tags": []
+   },
+   {
+    "idx": 24,
+    "title": "Searing Clarity",
+    "fighter": "Liz Sherman",
+    "type": "scheme",
+    "value": null,
+    "boost": 0,
+    "text": "Shuffle a non-scheme card from your discard pile into your deck. Gain 1 action.",
+    "tags": [
+     "burning"
+    ]
+   },
+   {
+    "idx": 25,
+    "title": "Searing Clarity",
+    "fighter": "Liz Sherman",
+    "type": "scheme",
+    "value": null,
+    "boost": 0,
+    "text": "Shuffle a non-scheme card from your discard pile into your deck. Gain 1 action.",
+    "tags": [
+     "burning"
+    ]
+   },
+   {
+    "idx": 26,
+    "title": "Searing Clarity",
+    "fighter": "Liz Sherman",
+    "type": "scheme",
+    "value": null,
+    "boost": 0,
+    "text": "Shuffle a non-scheme card from your discard pile into your deck. Gain 1 action.",
+    "tags": [
+     "burning"
+    ]
+   },
+   {
+    "idx": 27,
+    "title": "Fight Or Flight",
+    "fighter": "Liz Sherman",
+    "type": "scheme",
+    "value": null,
+    "boost": 2,
+    "text": "Draw 1 card. Move Liz up to 5 spaces. She may move through opposing fighters. ONGOING: Add +1 to the value of your combat cards. Discard this at the start of your next turn.",
+    "tags": []
+   },
+   {
+    "idx": 28,
+    "title": "Fight Or Flight",
+    "fighter": "Liz Sherman",
+    "type": "scheme",
+    "value": null,
+    "boost": 2,
+    "text": "Draw 1 card. Move Liz up to 5 spaces. She may move through opposing fighters. ONGOING: Add +1 to the value of your combat cards. Discard this at the start of your next turn.",
+    "tags": []
+   },
+   {
+    "idx": 29,
+    "title": "Fight Or Flight",
+    "fighter": "Liz Sherman",
+    "type": "scheme",
+    "value": null,
+    "boost": 2,
+    "text": "Draw 1 card. Move Liz up to 5 spaces. She may move through opposing fighters. ONGOING: Add +1 to the value of your combat cards. Discard this at the start of your next turn.",
+    "tags": []
    }
   ]
  },
  "_notes": [
-  "Solo datos basicos (F07 paso 1): sin hoja de CardID ni restricciones de luchador, el motor no puede jugar con Liz todavia (F08).",
-  "Liz no tiene ayudantes: unmatched-memory trae una entrada vacia (name '', hasSidekicks false) que se ignora.",
-  "WILDFIRE (cartas ardientes, descarte del fondo del mazo al empezar el turno) ira a plugins (plan: liz:wildfire, liz:incinerate); las 15 cartas ardientes son la pregunta 2 del plan."
+  "Hoja 199 del savegame del torneo (8x4), leida carta a carta de la imagen el 2026-10-28. CardID = 19900 + idx; 19800 = carta de personaje (hoja 198, 1x1). Las cartas sueltas del save usan la clave 188 con las mismas imagenes.",
+  "La carta de personaje dice RANGED, 16 de vida y MOVE 3: coincide con unmatched-memory (attackType range). El 'melee' de la memoria del proyecto venia del ayudante vacio.",
+  "Sin ayudantes ni fichas: la bolsa de Liz en el save solo trae la miniatura, el dial de vida (MAX_VALUE 16) y el mazo. unmatched-memory trae una entrada de ayudante vacia (name '', hasSidekicks false) que se ignora.",
+  "Cartas ardientes (etiqueta burning): las 15 con el icono de llama junto al titulo y SIN circulo de impulso (BOOST 0): Incinerate x1, Fireball x2, Flame Lash x3, Burning Barrier x3, Pyrotechnics x3, Searing Clarity x3. No hay contador ni ficha: es una propiedad impresa en la carta.",
+  "Todas las cartas llevan la banda LIZ SHERMAN (ninguna ANY): la restriccion de luchador no cambia nada mientras Liz no tenga ayudantes.",
+  "Discrepancia: Fight Or Flight tiene en la carta real un ONGOING (+1 al valor de tus cartas de combate; descartala al inicio de tu siguiente turno) que unmatched-memory no trae; el texto de la hoja manda sobre unmatched-memory (campo text por entrada).",
+  "Disparador y pasiva de WILDFIRE quedan como datos (efectos liz_wildfire_*); el motor no los interpreta hasta el paso 8 del plan y el plugin liz:wildfire (data/heroes/effects/liz-sherman.json)."
  ]
 }
