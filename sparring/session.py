@@ -875,6 +875,7 @@ class Session:
         p = self.pending
         return {
             "game": persist.game_to_dict(self.game),
+            "heroes": [self.game.hero_def(self.bot).slug, self.game.hero_def(self.human).slug],
             "pending": None if p is None else {
                 "kind": p.kind, "attacker": p.attacker.fid, "target": p.target.fid,
                 "bot_card": p.bot_card.card_id if p.bot_card else None, "bot_card_guid": p.bot_card_guid,

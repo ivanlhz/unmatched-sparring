@@ -1,7 +1,7 @@
 {
   "_notes": [
     "bot_pause: segundos de pausa tras cada accion del bot (y antes de tu turno) para que la mesa no se mueva toda de golpe; 0 la desactiva; --bot-pause la sobreescribe. Es un sleep de Python: no cuesta mensajes a TTS.",
-    "bot_hero / human_hero: slug de data/heroes/<slug>.json de cada bando (por defecto medusa y hellboy). Valen medusa, hellboy, abe-sapien, baba-yaga y liz-sherman en cualquiera de los dos lados (no el mismo en los dos: sus GUID serian los mismos). Lo que esta clave deja fuera, la configuracion lo puede sobrescribir a mano (pieces, dials, nicknames, bot_deck_guid, human_deck_guid, destiny_dial), pero con otro par de heroes lo normal es no escribirlo.",
+    "bot_hero / human_hero: slug de data/heroes/<slug>.json de cada bando (medusa, hellboy, abe-sapien, baba-yaga o liz-sherman; no el mismo en los dos: sus GUID serian los mismos). \"auto\" (o la clave ausente) = el bot lo detecta al arrancar leyendo la mesa: un heroe esta si hay un Deck o Card suelto con CardID de su rango (data/tts/<slug>.json, deck.card_ids; lo de dentro de bolsas no cuenta) y es del bando de cuyo bot_deck_spot / human_deck_spot esta mas cerca; si no esta claro, se niega a empezar y lo dice. Prioridad: --bot-hero / --human-hero > valor escrito aqui > deteccion (con --resume, el guardado manda sobre la deteccion). Si la mesa no se puede leer, cae a medusa / hellboy con un aviso. Lo que esta clave deja fuera, la configuracion lo puede sobrescribir a mano (pieces, dials, nicknames, bot_deck_guid, human_deck_guid, destiny_dial), pero con otro par de heroes lo normal es no escribirlo.",
     "Valores de la MESA leidos de la mesa real (TS_AutoSave 27/10 09:29). Los TODO restantes se leen en vivo con --read-only. Lo propio de cada HEROE (GUID de miniaturas, diales, mazo, fichas, rango de CardID, identidad del mazo, nombres) ya no se escribe aqui: sale de data/tts/<slug>.json.",
     "board_guid ec6f27 (Custom_Board 'B.P.R.D. HQ'). human_seat White (HandTrigger dd569b en -30.1,-9.0); bot_seat Green (HandTrigger f8d527 en 30.0,-9.0). Los ScriptingTriggers 742715 y 6ec8d9 estan sobre esas zonas de mano: NO son zonas de descarte (D1).",
     "Zonas de descarte creadas por el usuario: human_discard_zone b7a0b8 (centro -12.5,0.7, ~x -18..-7) y bot_discard_zone 906a7a (centro 15.0,0.7, ~x 10.75..19.25). Son grandes a proposito: el descarte se deja EN ORDEN y repartido en una rejilla para que el rival vea lo jugado (bot_discard_spot = origen, bot_discard_step = (dx de columna, dz de fila), bot_discard_rows huecos por columna; se saltan los huecos a menos de 3 del mazo de robo).",
@@ -13,8 +13,8 @@
     "Mirar la mano del bot (F16, boton del panel): look_spot es el CENTRO de la fila donde el bot pone sus cartas boca arriba (estimacion, calibrala en vivo: delante del asiento del humano, fuera de las manos, los descartes y las zonas de combate; el arranque avisa si pisa el panel o una caja de combate) y look_step el (dx, dz) entre cartas (2.6 en z para cartas giradas 90 grados; hasta 12 cartas). look_rot_y (opcional) gira las cartas; por defecto bot_discard_rot_y.",
     "unpack (opcional, apagado): con --unpack o \"unpack\": true (solo el booleano true) el bot, ANTES de jugar y nunca con --resume, saca de la bolsa interior de cada heroe lo que no este en la mesa (ningun GUID de sus estados; un mazo, ademas, sin ningun Deck o Card de su rango de CardID en toda la mesa) y lo deja en fila desde bot_unpack_spot / human_unpack_spot (por defecto [22,2.5,-10] y [-22,2.5,10.5], fuera de las zonas de mano; cada unpack_step [0,0,3]); el mazo va a su sitio de mazo y se baraja. Si la bolsa interior no esta en la mesa no hace nada y avisa; nunca saca de una bolsa infinita. start_spaces acepta ids de luchador o las claves bot / human."
   ],
-  "bot_hero": "medusa",
-  "human_hero": "hellboy",
+  "bot_hero": "auto",
+  "human_hero": "auto",
   "board": "bprd-hq",
   "board_guid": "ec6f27",
   "bot_seat": "Green",

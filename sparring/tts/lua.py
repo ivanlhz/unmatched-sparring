@@ -1603,6 +1603,54 @@ return JSON.encode(out)
 """
 
 
+MAX_HERO_RANGES = 12
+MAX_HERO_GUIDS = 80
+
+
+@_registered
+def table_heroes(ranges: list[tuple[int, int]], guids: list[str]) -> str:
+    """Solo lectura, al arrancar: que heroes estan en la mesa. Para cada Deck o Card suelto en la mesa (los de dentro de
+    una bolsa no cuentan) devuelve su sitio y cuantas de sus cartas caen en cada rango de CardID de `ranges` (`counts`,
+    indexado como la lista); y, de `guids` (miniaturas), el sitio de las que estan sueltas en la mesa."""
+    if not isinstance(ranges, (list, tuple)) or not 1 <= len(ranges) <= MAX_HERO_RANGES:
+        raise TypeError(f"lista de 1 a {MAX_HERO_RANGES} rangos de CardID esperada")
+    if not isinstance(guids, (list, tuple)) or len(guids) > MAX_HERO_GUIDS:
+        raise TypeError(f"lista de hasta {MAX_HERO_GUIDS} GUID esperada")
+    rows = ", ".join("{" + ", ".join(_range(r)) + "}" for r in ranges)
+    return f"""-- sparring:table_heroes
+local ranges = {{{rows}}}
+local piles = {{}}
+for _, o in ipairs(getObjects()) do
+  if o.type == "Deck" or o.type == "Card" then
+    local data = o.getData()
+    local cards = (o.type == "Card") and {{data}} or (data.ContainedObjects or {{}})
+    local counts, any = {{}}, false
+    for i = 1, #ranges do counts[i] = 0 end
+    for _, c in ipairs(cards) do
+      if type(c.CardID) == "number" then
+        for i, r in ipairs(ranges) do
+          if c.CardID >= r[1] and c.CardID <= r[2] then counts[i] = counts[i] + 1; any = true end
+        end
+      end
+    end
+    if any then
+      local p = o.getPosition()
+      table.insert(piles, {{type = o.type, guid = o.getGUID(), x = p.x, z = p.z, counts = counts}})
+    end
+  end
+end
+local pieces = {{}}
+for _, g in ipairs({_guid_list(guids)}) do
+  local o = getObjectFromGUID(g)
+  if o ~= nil then
+    local p = o.getPosition()
+    pieces[g] = {{x = p.x, z = p.z}}
+  end
+end
+return JSON.encode({{piles = piles, pieces = pieces}})
+"""
+
+
 @_registered
 def hand_identities(seat_color: str, id_range: tuple[int, int]) -> str:
     """Solo lectura, ultimo recurso: la identidad de un bando leida de las cartas de su mano (solo las del rango).

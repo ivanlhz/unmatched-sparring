@@ -24,6 +24,7 @@ from typing import Callable
 
 from .search.controller import make_bot_ai
 from .board import Board
+from .hero_detect import HeroDetectionError, detect_heroes, read_table
 from .heroes import HeroDataError, load_hero
 from . import persist
 from .session import DEFAULT_BOT_PAUSE, TABLE_ERRORS, Msg, Session, SessionConfig, SessionError, piece_guids
@@ -38,10 +39,35 @@ DEFAULT_STATE = Path(__file__).resolve().parent.parent / "estado" / "sesion.json
 BOT, HUMAN = 0, 1
 READ_ONLY_TAGS = frozenset({"snapshot", "piece_spaces_by_guid", "read_hand", "count_hand", "read_discard",
                             "read_face_down_cards", "inspect_guids", "read_health_dials", "zone_overlaps", "deck_identities",
-                            "hand_identities", "reset_plan"})
+                            "hand_identities", "reset_plan", "table_heroes"})
 
 REQUIRED = ("bot_seat", "human_seat", "nicknames", "bot_card_spot", "human_card_spot", "bot_discard_spot",
             "bot_discard_zone", "bot_deck_guid", "human_discard_zone", "bot_deck_spot", "pieces")
+
+
+SRC_DEFAULT, SRC_OPTION, SRC_CONFIG, SRC_SAVE, SRC_TABLE = ("defecto", "opcion de arranque", "configuracion",
+                                                           "guardado", "mazos en la mesa")
+HERO_AUTO = "auto"
+
+
+def hero_setting(raw: dict, key: str) -> str | None:
+    """Heroe fijado de un bando (`bot_hero` / `human_hero`); None si es `auto` o falta: hay que detectarlo."""
+    v = raw.get(key)
+    if v is None or (isinstance(v, str) and v.strip().lower() in ("", HERO_AUTO)):
+        return None
+    return str(v)
+
+
+def hero_pair(raw: dict) -> tuple[str, str]:
+    """(heroe del bot, heroe del humano) de la configuracion; el que no este fijado cae a Medusa / Hellboy."""
+    bot, human = hero_setting(raw, "bot_hero"), hero_setting(raw, "human_hero")
+    if bot is None and human is None:
+        return DEFAULT_HEROES
+    if bot is None:        # el que falta no puede repetir al otro: cae al otro heroe por defecto
+        return (DEFAULT_HEROES[0] if human != DEFAULT_HEROES[0] else DEFAULT_HEROES[1], human)
+    if human is None:
+        return (bot, DEFAULT_HEROES[1] if bot != DEFAULT_HEROES[1] else DEFAULT_HEROES[0])
+    return bot, human
 
 
 class ConfigError(Exception):
@@ -62,12 +88,19 @@ class PlayConfig:
     board: Board
     todos: list[str]
     warnings: list[str] = field(default_factory=list)      # avisos de la configuracion (se imprimen al arrancar)
+    base: dict = field(default_factory=dict)                # la configuracion antes de `with_hero_data`
+    sources: tuple[str, str] = (SRC_DEFAULT, SRC_DEFAULT)   # de donde sale el heroe de cada bando
 
     @property
     def heroes(self) -> tuple[str, str]:
         """(heroe del bot, heroe del humano): `bot_hero` / `human_hero` de la configuracion, por defecto Medusa vs
         Hellboy. Cada uno debe tener su data/heroes/<slug>.json."""
-        return (str(self.raw.get("bot_hero") or DEFAULT_HEROES[0]), str(self.raw.get("human_hero") or DEFAULT_HEROES[1]))
+        return hero_pair(self.raw)
+
+    @property
+    def pending_heroes(self) -> tuple[bool, bool]:
+        """Bandos cuyo heroe aun hay que detectar en la mesa (`auto` o sin escribir)."""
+        return tuple(src == SRC_DEFAULT for src in self.sources)  # type: ignore[return-value]
 
     @property
     def hero_names(self) -> tuple[str, str]:
@@ -211,7 +244,7 @@ def with_hero_data(raw: dict) -> dict:
     """Completa la configuracion de la mesa con lo propio de cada heroe (`data/tts/<slug>.json`): piezas, diales,
     nombres, GUID de mazos, rangos de CardID e identidad. Lo que la configuracion diga a mano manda (una
     `partida.json` antigua con todo escrito sigue valiendo); de los luchadores solo cuentan los de los dos heroes."""
-    bot, human = (str(raw.get("bot_hero") or DEFAULT_HEROES[0]), str(raw.get("human_hero") or DEFAULT_HEROES[1]))
+    bot, human = hero_pair(raw)
     try:
         derived = table_defaults(bot, human)
         fids = {f.fid for slug in (bot, human) for f in load_hero(slug).fighters()}
@@ -227,20 +260,79 @@ def with_hero_data(raw: dict) -> dict:
     return out
 
 
-def load_config(path: str | Path) -> PlayConfig:
+def load_config(path: str | Path, bot_hero: str | None = None, human_hero: str | None = None) -> PlayConfig:
+    """`bot_hero` / `human_hero` (opciones de arranque) mandan sobre la configuracion; sin ninguno de los dos valores
+    el heroe queda por detectar (`resolve_heroes`) y, mientras tanto, es el de por defecto."""
     try:
         raw = json.loads(Path(path).read_text(encoding="utf-8"))
     except (OSError, ValueError) as e:
         raise ConfigError(f"no puedo leer la configuracion {path}: {e}") from None
+    sources = []
+    for key, option in (("bot_hero", bot_hero), ("human_hero", human_hero)):
+        if option:
+            raw[key] = option
+            sources.append(SRC_OPTION)
+        else:
+            sources.append(SRC_CONFIG if hero_setting(raw, key) else SRC_DEFAULT)
+    return build_config(raw, tuple(sources))     # type: ignore[arg-type]
+
+
+def build_config(raw: dict, sources: tuple[str, str]) -> PlayConfig:
     board_key = raw.get("board", "bprd-hq")
     if board_key not in lua.BOARD_GUIDS:
         raise ConfigError(f"tablero desconocido: {board_key!r}")
     if raw.get("board_guid") not in (None, lua.BOARD_GUIDS[board_key]):
         raise ConfigError(f"board_guid {raw['board_guid']!r} no es el del tablero {board_key} "
                           f"({lua.BOARD_GUIDS[board_key]})")
-    raw = with_hero_data(raw)
-    todos = [k for k in REQUIRED if is_todo(raw.get(k))]
-    return PlayConfig(raw, Board.load(board_key), todos)
+    full = with_hero_data(raw)
+    todos = [k for k in REQUIRED if is_todo(full.get(k))]
+    return PlayConfig(full, Board.load(board_key), todos, base=raw, sources=sources)
+
+
+def resolve_heroes(client, cfg: PlayConfig, saved: tuple[str, str] | None = None,
+                   echo: Callable[[str], None] = print) -> PlayConfig:
+    """Fija el heroe de cada bando antes de `with_hero_data`: opcion de arranque > configuracion > guardado (al
+    reanudar) > mazos de la mesa (solo lectura). Si la mesa no se puede leer, cae a Medusa / Hellboy con un aviso;
+    si se lee y no esta claro, `HeroDetectionError`."""
+    names = list(hero_pair(cfg.base))
+    sources = list(cfg.sources)
+    if saved:
+        for i in (0, 1):
+            if sources[i] == SRC_DEFAULT:
+                names[i], sources[i] = saved[i], SRC_SAVE
+    if SRC_DEFAULT in sources:
+        fixed = tuple(None if src == SRC_DEFAULT else name for name, src in zip(names, sources))
+        r, failure = cfg.raw, None
+        if not (r.get("bot_deck_spot") and r.get("human_deck_spot")) or is_todo(r.get("human_deck_spot")):
+            failure = "faltan bot_deck_spot y human_deck_spot"
+        else:
+            try:
+                reading = read_table(ReadOnlyClient(client))
+            except (TTSLuaError, TimeoutError, OSError, ValueError, TypeError, KeyError) as e:
+                failure = f"fallo la lectura de la mesa ({e})"
+        if failure:
+            cfg.warnings.append(f"no pude detectar los heroes: {failure}. Uso {DEFAULT_HEROES[0]} / {DEFAULT_HEROES[1]} "
+                                "para el bando sin fijar (fuerzalo con --bot-hero / --human-hero).")
+        else:
+            found = detect_heroes(reading, r["bot_deck_spot"], r["human_deck_spot"], fixed)
+            for i in (0, 1):
+                if sources[i] == SRC_DEFAULT:
+                    names[i], sources[i] = found[i], SRC_TABLE
+    raw = {**cfg.base, "bot_hero": names[0], "human_hero": names[1]}
+    out = build_config(raw, tuple(sources))     # type: ignore[arg-type]
+    out.warnings = list(cfg.warnings)
+    echo(describe_heroes(out))
+    return out
+
+
+def describe_heroes(cfg: PlayConfig) -> str:
+    names = [load_hero(slug).name for slug in cfg.heroes]
+    src_b, src_h = cfg.sources
+    if src_b == src_h:
+        why = "por los mazos en la mesa" if src_b == SRC_TABLE else f"por {src_b}"
+    else:
+        why = f"bot: {src_b}; humano: {src_h}"
+    return f"{'Heroes detectados' if SRC_TABLE in cfg.sources else 'Heroes'}: bot {names[0]}, humano {names[1]} ({why})"
 
 
 # ---------- modo solo lectura ----------
@@ -685,15 +777,28 @@ def parse_args(argv: list[str] | None) -> argparse.Namespace:
     ap.add_argument("--unpack", action="store_true",
                     help="antes de jugar, saca de la bolsa interior de cada heroe lo que falte en la mesa (tambien "
                          '"unpack": true en la configuracion); nunca al reanudar con --resume')
+    ap.add_argument("--bot-hero", default=None, metavar="SLUG",
+                    help="heroe del bot (slug de data/heroes: medusa, hellboy, abe-sapien, baba-yaga, liz-sherman); manda "
+                         "sobre bot_hero de la configuracion y sobre la deteccion en la mesa")
+    ap.add_argument("--human-hero", default=None, metavar="SLUG", help="heroe del humano (como --bot-hero)")
     ap.add_argument("--timing", action="store_true",
                     help="escribe, por boton y por accion del bot, los mensajes a TTS y el tiempo (y cada llamada)")
     return ap.parse_args(argv)
 
 
+def saved_heroes(state_path: str | Path) -> tuple[str, str] | None:
+    """Heroes (bot, humano) que guardo la partida; None si no los guarda (guardado anterior) o no existe."""
+    try:
+        heroes = persist.load(state_path).get("heroes")
+    except persist.StateError:
+        return None          # el error de verdad lo da `Session.load_dict` al reanudar
+    return (str(heroes[0]), str(heroes[1])) if isinstance(heroes, list) and len(heroes) == 2 else None
+
+
 def main(argv: list[str] | None = None, stop: threading.Event | None = None) -> int:
     args = parse_args(argv)
     try:
-        cfg = load_config(args.config)
+        cfg = load_config(args.config, args.bot_hero, args.human_hero)
         if not args.read_only:
             cfg.session_config()                     # falla antes de abrir puertos si falta algo
     except ConfigError as e:
@@ -701,10 +806,22 @@ def main(argv: list[str] | None = None, stop: threading.Event | None = None) -> 
         return 2
     for warning in cfg.warnings:
         print(f"Aviso: {warning}", file=sys.stderr)
+    printed = set(cfg.warnings)
     client = TTSClient(send_port=args.send_port, listen_port=args.listen_port)
     stop = stop or threading.Event()
     try:
         client.start_listening()
+        try:
+            saved = saved_heroes(args.state) if args.resume and not args.read_only else None
+            cfg = resolve_heroes(client, cfg, saved)
+            if not args.read_only:
+                cfg.session_config()
+        except (HeroDetectionError, ConfigError, persist.StateError, SessionError) as e:
+            print(f"No puedo empezar: {e}", file=sys.stderr)
+            return 2
+        for warning in dict.fromkeys(cfg.warnings):
+            if warning not in printed:
+                print(f"Aviso: {warning}", file=sys.stderr)
         if args.read_only:
             print("\n".join(read_only_report(client, cfg)))
             return 0

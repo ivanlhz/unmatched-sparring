@@ -36,6 +36,7 @@ def cfg_file(tmp_path):
     def make(**over):
         raw = json.loads(REAL_CONFIG.read_text(encoding="utf-8"))
         raw.update(FILLED)
+        raw.update(bot_hero="medusa", human_hero="hellboy")     # explicitos: la deteccion en la mesa tiene sus propios tests
         raw.update(over)
         p = tmp_path / "cfg.json"
         p.write_text(json.dumps(raw), encoding="utf-8")

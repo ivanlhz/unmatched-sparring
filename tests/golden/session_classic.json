@@ -801,6 +801,10 @@
    "turn_no": 5,
    "winner": null
   },
+  "heroes": [
+   "medusa",
+   "hellboy"
+  ],
   "limit_waived": false,
   "look": null,
   "moving": false,
