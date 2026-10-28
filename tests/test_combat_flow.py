@@ -214,7 +214,7 @@ def test_flow_roundtrip_mid_during():
     persist.apply_game(reloaded, saved_game)
     restored = CombatFlow.from_dict(reloaded, saved_flow)
     assert restored.phase is Phase.DURING and restored.pending == wait.choice
-    restored.resume(restored.card_by_id(gaze.card_id))
+    restored.resume(restored.card_by_id(gaze.card_id, wait.choice.player))
     assert restored.run() is None
 
     assert result_record(restored.result) == result_record(outcomes[0][0].result)

@@ -29,6 +29,7 @@ def press(session, table, event, payload=None):
 
 
 def start(session, table, game, *titles):
+    session.grant_look()                      # the button is hidden and refused unless a card grants the look
     set_bot_hand(table, game, *(titles or HAND))
     session.read_bot_hand()
     session.snap = None

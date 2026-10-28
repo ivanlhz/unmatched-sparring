@@ -1433,10 +1433,12 @@ _STATUS = re.compile(r"[A-Za-z0-9 _.\-!:',·]{0,90}")
 
 
 @_registered
-def set_panel(status: str, states: dict[str, tuple[bool, bool]], release_busy: bool = True) -> str:
+def set_panel(status: str, states: dict[str, tuple[bool, bool]], release_busy: bool = True,
+              labels: dict[str, str] | None = None) -> str:
     """ESCRIBE en la UI del panel PROPIO del bot (nunca el Global): la linea de estado y, por id de elemento, si se
     puede pulsar (`interactable`) y si se ve (`active`). Tambien libera el "Procesando..." del panel, salvo con
-    `release_busy=False`: dentro de un compuesto lo libera `finish` cuando las piezas ya estan quietas."""
+    `release_busy=False`: dentro de un compuesto lo libera `finish` cuando las piezas ya estan quietas. `labels`
+    (id -> texto) cambia el texto de esos botones (los de eleccion de efecto)."""
     if not isinstance(release_busy, bool):
         raise TypeError("release_busy debe ser un booleano")
     if not isinstance(status, str) or not _STATUS.fullmatch(status):
@@ -1449,6 +1451,13 @@ def set_panel(status: str, states: dict[str, tuple[bool, bool]], release_busy: b
                 or len(st) != 2 or not all(isinstance(b, bool) for b in st):
             raise ValueError(f"estado de elemento no valido: {ident!r}")
         rows.append(f'["{ident}"]={{{str(st[0]).lower()}, {str(st[1]).lower()}}}')
+    texts = []
+    for ident, text in sorted((labels or {}).items()):
+        if not isinstance(ident, str) or not PANEL_ID.fullmatch(ident) or not isinstance(text, str) \
+                or not text or not _STATUS.fullmatch(text):
+            raise ValueError(f"texto de boton no valido: {ident!r}")
+        texts.append(f'panel.UI.setValue("{ident}", "{text}")')
+    texts = "\n".join(texts) + "\n" if texts else ""
     return f"""-- sparring:set_panel
 local panel
 for _, o in ipairs(getObjects()) do
@@ -1461,7 +1470,7 @@ for id, st in pairs({{{", ".join(rows)}}}) do
   panel.UI.setAttribute(id, "interactable", tostring(st[1]))
   panel.UI.setAttribute(id, "active", tostring(st[2]))
 end
-return JSON.encode({{panel = true}})
+{texts}return JSON.encode({{panel = true}})
 """
 
 

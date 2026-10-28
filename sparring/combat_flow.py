@@ -177,13 +177,16 @@ class CombatFlow:
         if key not in self.answers:
             return False, None
         card_id = self.answers[key]
-        return True, None if card_id is None else self.card_by_id(card_id)
+        return True, None if card_id is None else self.card_by_id(card_id, self.sides[self.side_idx].fighter.owner)
 
-    def card_by_id(self, card_id: int) -> Card:
-        for p in self.game.players:
-            for c in p.full_set:
-                if c.card_id == card_id:
-                    return c
+    def _owner_of(self, card: Card) -> int:
+        return next(i for i, p in enumerate(self.game.players) if any(c is card for c in p.full_set))
+
+    def card_by_id(self, card_id: int, owner: int) -> Card:
+        """The card of `owner` with that id. Ids repeat across players in a mirror match, so the owner is required."""
+        for c in self.game.players[owner].full_set:
+            if c.card_id == card_id:
+                return c
         raise KeyError(card_id)
 
     # ---------- engine hooks (code moved from combat.resolve_combat) ----------
@@ -251,20 +254,21 @@ class CombatFlow:
                 "atk_value": res.atk_value, "def_value": res.def_value, "damage": res.damage,
                 "attacker_won": res.attacker_won, "cancelled": sorted(res.cancelled),
                 "boost_card": None if res.boost_card is None else res.boost_card.card_id,
+                "boost_owner": None if res.boost_card is None else self._owner_of(res.boost_card),
                 "atk_parts": list(res.atk_parts), "def_parts": list(res.def_parts), "applied": list(res.applied),
                 "bot_notes": list(res.bot_notes), "human_effects": list(res.human_effects)},
         }
 
     @classmethod
     def from_dict(cls, game: Game, raw: dict) -> "CombatFlow":
-        def card(card_id):
-            return None if card_id is None else flow.card_by_id(card_id)
+        def card(card_id, owner):
+            return None if card_id is None else flow.card_by_id(card_id, owner)
         att, tgt = (game.fighters[fid] for fid in raw["fids"])
         flow = cls.__new__(cls)
         flow.game, flow.att, flow.tgt, flow.values = game, att, tgt, tuple(raw["values"])
-        flow.atk_card, flow.def_card = card(raw["atk_card"]), card(raw["def_card"])
+        flow.atk_card, flow.def_card = card(raw["atk_card"], att.owner), card(raw["def_card"], tgt.owner)
         flow.phase, flow.side_idx, flow.after_open = Phase(raw["phase"]), raw["side_idx"], raw["after_open"]
-        flow.played = [(owner, card(card_id)) for owner, card_id in raw["played"]]
+        flow.played = [(owner, card(card_id, owner)) for owner, card_id in raw["played"]]
         flow.def_bonus_parts = [(n, label) for n, label in raw["def_bonus_parts"]]
         flow.answers, flow.await_key = dict(raw["answers"]), raw["await_key"]
         flow.pending = None if raw["pending"] is None else PendingChoice.from_dict(
@@ -276,11 +280,20 @@ class CombatFlow:
             flow.ctx = CombatCtx(att, tgt, flow.atk_card, flow.def_card, c["atk_value"], c["def_value"],
                                  set(c["cancelled"]))
             flow.result = CombatResult(att.fid, tgt.fid, flow.atk_card, flow.def_card, r["atk_value"], r["def_value"],
-                                       r["damage"], r["attacker_won"], set(r["cancelled"]), card(r["boost_card"]),
+                                       r["damage"], r["attacker_won"], set(r["cancelled"]), card(r["boost_card"], _boost_owner(flow, r)),
                                        list(r["human_effects"]), list(r["atk_parts"]), list(r["def_parts"]),
                                        list(r["applied"]), list(r["bot_notes"]))
             flow.sides = [Side(*s) for s in _side_cards(flow.ctx)]
         return flow
+
+
+def _boost_owner(flow: CombatFlow, saved_result: dict) -> int | None:
+    """Owner of the saved boost card; saves from before "boost_owner" existed fall back to the first deck that has it."""
+    if saved_result["boost_card"] is None:
+        return None
+    if saved_result.get("boost_owner") is not None:
+        return saved_result["boost_owner"]
+    return next(i for i, p in enumerate(flow.game.players) if any(c.card_id == saved_result["boost_card"] for c in p.full_set))
 
 
 _HOOKS = {Phase.DECLARED: CombatFlow._declare, Phase.CARDS_SET: CombatFlow._reveal, Phase.DAMAGE: CombatFlow._damage}
@@ -378,7 +391,7 @@ def legacy_chooser(game: Game, flow: CombatFlow, boost: Card | None) -> Callable
     """Answers boost choices the way the pre-flow resolve_combat did: a Medusa card asks its owner's controller (with
     the live CombatCtx); any other card uses the boost the caller already put on the table."""
     def choose(choice: PendingChoice) -> Card | None:
-        if is_medusa_card(flow.card_by_id(choice.card_id)):
+        if is_medusa_card(flow.card_by_id(choice.card_id, choice.player)):
             return game.controllers[choice.player].choose_combat_boost(game, flow.ctx)
         return boost
     return choose

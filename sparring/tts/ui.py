@@ -28,6 +28,7 @@ class Event(str, Enum):
     NO_BOOST = "no_boost"      # "Sin boost": resuelve sin potenciar
     LOOK = "look_hand"         # "Mirar mano del bot": las cartas del bot boca arriba en fila (descartar una, p. ej. Confront)
     LOOK_PING = "look_ping"    # ping (Tab) del humano sobre una carta de esa fila: la que se descarta
+    CHOICE = "choice"          # btn_choice_<i>: la opcion i (1..6) de la eleccion de efecto pendiente, en {"i": i}
 
 
 END_ACTION_LABEL = "Fin de accion"
@@ -41,12 +42,14 @@ BUTTON_STYLE = 'textColor="#FFFFFF" colors="#2D6A9F|#3C86C8|#1F4C75|#555555" '
 ROW_HEIGHT = 48
 DEFAULT_ATTACKERS = ("hellboy", "lobster")      # sin heroes a mano: los de Medusa vs Hellboy
 
+CHOICE_BUTTONS = tuple(f"btn_choice_{i}" for i in range(1, 7))     # ocultos salvo con una eleccion de efecto pendiente
+
 # id de cada boton fijo -> (funcion del panel, evento)
 FIXED_BUTTONS = {"btn_maneuver": "onManeuver", "btn_scheme": "onScheme", "btn_reveal": "onReveal",
                  "btn_cancel": "onCancel", "btn_end": "onEndAction", "btn_undo": "onUndoGameOver",
                  "btn_value": "onValueSend", "btn_mulligan": "onMulligan", "btn_ready": "onReady",
                  "btn_restart": "onRestart", "btn_boost": "onBoost", "btn_noboost": "onNoBoost",
-                 "btn_look": "onLook"}
+                 "btn_look": "onLook", **dict.fromkeys(CHOICE_BUTTONS, "onChoice")}
 SETUP_ONLY = ("btn_mulligan", "btn_ready")
 GAME_ONLY = ("btn_restart",)
 
@@ -136,6 +139,10 @@ function onRestart() send({{event = "restart"}}) end
 function onBoost() send({{event = "boost"}}) end
 function onNoBoost() send({{event = "no_boost"}}) end
 function onLook() send({{event = "look_hand"}}) end
+function onChoice(player, btn, id)
+  local n = tonumber(tostring(id):match("^btn_choice_(%d)$"))
+  if n then send({{event = "choice", i = n}}) end
+end
 lookRow = ""
 local HUMAN_SEAT = {seat}
 local PING_RADIUS = 1.6
@@ -174,13 +181,18 @@ def _row(*cells: str, height: int = ROW_HEIGHT) -> str:
     return f'<HorizontalLayout spacing="8" preferredHeight="{height}">{"".join(cells)}</HorizontalLayout>'
 
 
+def _choice_row(ids) -> str:
+    """Fila de botones de eleccion: nacen ocultos; el bot los muestra (con su texto) solo mientras hay una eleccion."""
+    return _row(*(_button(i, "onChoice", "Opcion", 16).replace("<Button ", '<Button active="false" ') for i in ids))
+
+
 def _text(text: str, size: int = 18, extra: str = "") -> str:
     return f'<Text color="#FFFFFF" fontSize="{size}" {extra}>{text}</Text>'.replace(" >", ">")
 
 
 def panel_height(fighter_count: int) -> int:
     """Alto del panel en pixeles de UI (con la columna lateral de VIDA de `fighter_count` luchadores)."""
-    return 40 + 40 + 5 * (ROW_HEIGHT + 8) + 40 + (60 + 48 * fighter_count) + 40
+    return 40 + 40 + 7 * (ROW_HEIGHT + 8) + 40 + (60 + 48 * fighter_count) + 40
 
 
 def panel_xml(target_ids: list[str], attacker_ids: tuple[str, ...] = DEFAULT_ATTACKERS,
@@ -201,7 +213,7 @@ def panel_xml(target_ids: list[str], attacker_ids: tuple[str, ...] = DEFAULT_ATT
     section = 'color="#16222FEE" padding="10 10 10 10" spacing="8"'
     who = _row(*(_button(f"att_{a}", "onAttacker", f"Ataca {label(a)}") for a in attacker_ids))
     attacks = _row(*(_button(t, "onAttack", f"Atacar a {label(t)}", 16) for t in target_ids))
-    turn = (f'<VerticalLayout {section} preferredHeight="{40 + 5 * (ROW_HEIGHT + 8) + 40}">'
+    turn = (f'<VerticalLayout {section} preferredHeight="{40 + 7 * (ROW_HEIGHT + 8) + 40}">'
             + _text("TURNO", 16, 'fontStyle="Bold"')
             + f'<Text id="{STATUS_ID}" color="#FFFFFF" fontSize="22" fontStyle="Bold" preferredHeight="40">Preparando...</Text>'
             + _row(_button("btn_maneuver", "onManeuver", "Maniobra"), _button("btn_scheme", "onScheme", "Plan"))
@@ -209,7 +221,9 @@ def panel_xml(target_ids: list[str], attacker_ids: tuple[str, ...] = DEFAULT_ATT
             + _row(_button("btn_reveal", "onReveal", "Revelar"), _button("btn_cancel", "onCancel", "Cancelar ataque"),
                    _button("btn_boost", "onBoost", "Continuar").replace("<Button ", '<Button active="false" '),
                    _button("btn_noboost", "onNoBoost", "Sin boost").replace("<Button ", '<Button active="false" '))
-            + _row(_button("btn_end", "onEndAction", END_ACTION_LABEL), _button("btn_look", "onLook", "Mirar mano del bot"))
+            + _row(_button("btn_end", "onEndAction", END_ACTION_LABEL),
+                   _button("btn_look", "onLook", "Mirar mano del bot").replace("<Button ", '<Button active="false" '))
+            + _choice_row(CHOICE_BUTTONS[:3]) + _choice_row(CHOICE_BUTTONS[3:])
             + '</VerticalLayout>')
     hp_rows = "".join(
         _row(f'<Text color="#FFFFFF" fontSize="16" preferredWidth="150">{label(f)}</Text>',

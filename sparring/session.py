@@ -29,6 +29,9 @@ from .ai_medusa import MedusaAI
 from .cards import Card, can_be_boost
 from .controller import Controller
 from .combat_flow import PendingChoice
+from .effects.choose import ControllerChooser, PanelChooser
+from .effects.run import EffectRun
+from . import session_choices as choices
 from .combat import FEINT, FIGHT_OR_FLIGHT, FIGHT_OR_FLIGHT_BONUS, GLANCE_DAMAGE, can_boost, deck_boost, is_medusa_card, scheme_gain_actions
 from .state import ANUNG, DETECTIVE, EXHAUST_DAMAGE, HAND_LIMIT, START_HAND, Fighter, Game, RuleError
 from .tts import lua, ui
@@ -198,6 +201,7 @@ class _Timed:
 
 
 # con la mano del bot a la vista solo se atiende lo que la resuelve (o no la toca: PV, retirar, valor)
+CHOICE_EVENTS = (Event.CHOICE, Event.HP, Event.REMOVE, Event.VALUE, Event.RESTART)
 LOOK_EVENTS = (Event.LOOK_PING, Event.CANCEL, Event.END_ACTION, Event.HP, Event.REMOVE, Event.VALUE, Event.RESTART)
 CARD_TYPE_NAME = {"attack": "ataque", "defense": "defensa", "versatile": "versatil", "scheme": "esquema"}
 
@@ -214,6 +218,7 @@ class Pending:
     cancel_failures: int = 0
     defended: bool = True        # False: el humano ataca y el bot aun no ha decidido ni puesto su defensa (se hace al Revelar)
     wait: PendingChoice | None = None   # cartas ya reveladas, sin resolver: espera el BOOST del humano (extra: guid, baseline, hand, stuck)
+    effect: EffectRun | None = None     # efecto de carta de este combate parado en una eleccion del humano (E1)
 
     @property
     def boost_wait(self) -> dict | None:
@@ -229,6 +234,10 @@ class Session:
         game.controllers[self.human] = HumanProxy(self._owe_discard)
         self.pending: Pending | None = None
         self.pending_discard: dict | None = None
+        self.free_effect: EffectRun | None = None   # efecto parado en una eleccion cuando no hay combate pendiente
+        self.choice_ui = choices.ChoiceUI()      # pagina y opciones marcadas de la eleccion en curso (no se guarda)
+        self.look_granted = False                # una carta le deja mirar la mano del bot (el boton se ve solo asi)
+        self._blocks_told: set[str] = set()      # restricciones ya explicadas en el chat mientras siguen activas
         self.look_fails = 0                      # cierres de la fila que la mesa no hizo (el segundo Cancelar fuerza la salida)
         self.look: dict | None = None            # mano del bot a la vista: {"ids", "guids", "spots"} de la fila de la mesa
         self.pending_value = 0
@@ -379,6 +388,10 @@ class Session:
             self._w(lua.set_look_row(self._look_entries()), "misc")     # la variable del panel no sobrevive a una recarga
             self.say("La mano del bot sigue a la vista: haz ping (Tab) sobre la carta a descartar o pulsa Cancelar.",
                      ChatKind.YOUR_TURN)
+        elif self.effect_run is not None and self.effect_run.awaiting is not None:
+            self.choice_ui = choices.ChoiceUI()
+            self.say("Hay una eleccion de efecto pendiente: " + choices.prompt_text(self.game, self.effect_run.awaiting)
+                     + ". Pulsa una de las opciones del panel.", ChatKind.YOUR_TURN)
         elif self.pending is not None and self.pending.wait is not None:
             self.say(self._boost_prompt(self.pending), ChatKind.YOUR_TURN)
         elif self.pending is not None:
@@ -704,6 +717,7 @@ class Session:
             self.say(f"Aviso: no pude poner nombre a las miniaturas ({e}).", ChatKind.WARNING)
 
     def _done(self) -> list[str]:
+        self._tell_blocks()
         self._commit()
         self._persist()
         self.snap = None                          # la mesa cambia entre botones: el siguiente trae la suya
@@ -734,7 +748,7 @@ class Session:
                  Event.REMOVE: self._remove, Event.UNDO_GAME_OVER: self._undo_game_over, Event.READY: self._ready,
                  Event.MULLIGAN: self._human_mulligan, Event.RESTART: self._restart,
                  Event.BOOST: self._boost, Event.NO_BOOST: self._no_boost,
-                 Event.LOOK: self._look_hand, Event.LOOK_PING: self._look_ping}
+                 Event.LOOK: self._look_hand, Event.LOOK_PING: self._look_ping, Event.CHOICE: self._choice}
         if self.setup is not None and event not in (Event.READY, Event.HP, Event.REMOVE, Event.CANCEL, Event.VALUE,
                                                     Event.MULLIGAN, Event.RESTART):
             self.say("La partida aun se esta preparando: termina la colocacion y pulsa Listo.", ChatKind.WARNING)
@@ -742,6 +756,9 @@ class Session:
         if self.look is not None and event not in LOOK_EVENTS:
             self.say("La mano del bot esta a la vista: haz ping (Tab) sobre la carta a descartar, o gira una boca abajo "
                      "y pulsa Fin de accion, o Cancelar para devolverlas sin descartar.", ChatKind.WARNING)
+            return self._done()
+        if self.effect_run is not None and event not in CHOICE_EVENTS:
+            self.say("Hay una eleccion de efecto pendiente: responde con uno de los botones de opcion.", ChatKind.WARNING)
             return self._done()
         if event is not Event.RESTART:
             self._restart_at = None               # cualquier otro boton desarma la confirmacion
@@ -755,6 +772,101 @@ class Session:
 
     def say(self, msg: str, kind: ChatKind = ChatKind.NEUTRAL) -> None:
         self.messages.append(Msg(msg, kind))
+
+    # ---------- elecciones de efecto del humano (E1; la logica de botones esta en session_choices) ----------
+    @property
+    def effect_run(self) -> EffectRun | None:
+        """El efecto de carta parado en una eleccion: el del combate pendiente o, sin combate, el suelto."""
+        return self.pending.effect if self.pending is not None else self.free_effect
+
+    def _set_effect(self, run: EffectRun | None) -> None:
+        if self.pending is not None:
+            self.pending.effect = run
+        else:
+            self.free_effect = run
+
+    def play_effect(self, run: EffectRun) -> list[str]:
+        """Entrada publica: arranca el efecto `run` (de una carta del humano) y deja parada la eleccion si la pide."""
+        self.messages = []
+        with self._timed("efecto"):
+            try:
+                self._begin_effect(run)
+            except RuleError as e:
+                self.say(f"Accion ilegal: {e}", ChatKind.WARNING)
+            return self._done()
+
+    def _begin_effect(self, run: EffectRun) -> None:
+        if self.effect_run is not None:
+            raise RuleError("ya hay una eleccion de efecto pendiente")
+        self._continue_effect(run)
+
+    def _continue_effect(self, run: EffectRun) -> None:
+        """Ejecuta `run` hasta el final o hasta la siguiente eleccion del humano (que queda guardada y con botones)."""
+        choosers = {self.bot: ControllerChooser(), self.human: PanelChooser()}
+        pause = run.run(self.game, choosers)
+        self._set_effect(None if pause is None else run)
+        if pause is None:
+            self._effect_finished(run)
+            return
+        req = run.awaiting
+        self.choice_ui.sync(req)
+        self.say(choices.prompt_text(self.game, req) + ": pulsa una de las opciones del panel.", ChatKind.YOUR_TURN)
+
+    def _effect_finished(self, run: EffectRun) -> None:
+        self.choice_ui = choices.ChoiceUI()
+        self.say("Efecto resuelto.", ChatKind.NEUTRAL)
+        self._write_dials(post=True)              # curaciones y dano del efecto: los diales de la mesa al dia
+
+    def _choice(self, payload: dict) -> None:
+        run = self.effect_run
+        if run is None or run.awaiting is None:
+            self.say("No hay ninguna eleccion pendiente.", ChatKind.WARNING)
+            return
+        verdict, value = choices.press(self.game, run.awaiting, self.choice_ui, payload.get("i"))
+        if verdict == "error":
+            self.say(value, ChatKind.WARNING)
+        elif verdict == "answer":
+            try:
+                run.resume(value)
+            except ValueError as e:
+                self.say(f"Respuesta no valida: {e}", ChatKind.WARNING)
+                return
+            self._continue_effect(run)
+
+    def panel_labels(self) -> dict[str, str]:
+        """Texto de los botones de eleccion visibles (vacio sin eleccion pendiente)."""
+        run = self.effect_run
+        req = None if run is None else run.awaiting
+        return choices.panel_choice_view(self.game, req, self.choice_ui)[1]
+
+    # ---------- mirar la mano del bot: solo si una carta lo permite ----------
+    def grant_look(self) -> None:
+        """Una carta del humano le deja mirar la mano del bot: el boton se ve hasta que se mire con descarte o se revoque."""
+        self.look_granted = True
+
+    def revoke_look(self) -> None:
+        self.look_granted = False
+
+    # ---------- restricciones al humano ----------
+    def _blocked_buttons(self) -> dict[str, str]:
+        out = {}
+        for r in choices.active_restrictions(self):
+            for ident in r.buttons(self):
+                out[ident] = r.reason
+        return out
+
+    def _tell_blocks(self) -> None:
+        """Explica en el chat, una sola vez mientras dura, cada restriccion que ahora esconde un boton."""
+        active = {r.name: r for r in choices.active_restrictions(self)}
+        for name, r in active.items():
+            if name not in self._blocks_told:
+                self.say(r.reason, ChatKind.WARNING)
+        self._blocks_told = set(active)
+
+    def _check_may_attack(self) -> None:
+        for r in choices.active_restrictions(self):
+            if r.name == "attack":
+                raise RuleError(r.reason)
 
     def _warn(self, fid: str, kind: str, msg: str) -> None:
         """Avisa una sola vez por pieza y motivo hasta que el problema desaparezca."""
@@ -879,14 +991,22 @@ class Session:
 
     # ---------- guardado ----------
     def to_dict(self) -> dict:
-        p = self.pending
+        saved = self._to_dict(self.pending)
+        if self.free_effect is not None:
+            saved["effect"] = self.free_effect.to_dict()
+        if self.look_granted:
+            saved["look_granted"] = True
+        return saved
+
+    def _to_dict(self, p: Pending | None) -> dict:
         return {
             "game": persist.game_to_dict(self.game),
             "heroes": [self.game.hero_def(self.bot).slug, self.game.hero_def(self.human).slug],
             "pending": None if p is None else {
                 "kind": p.kind, "attacker": p.attacker.fid, "target": p.target.fid,
                 "bot_card": p.bot_card.card_id if p.bot_card else None, "bot_card_guid": p.bot_card_guid,
-                "cancel_failures": p.cancel_failures, "defended": p.defended, "boost_wait": None if p.wait is None else p.wait.to_dict()},
+                "cancel_failures": p.cancel_failures, "defended": p.defended, "boost_wait": None if p.wait is None else p.wait.to_dict(),
+                **({"effect": p.effect.to_dict()} if p.effect is not None else {})},
             "pending_discard": self.pending_discard, "pending_value": self.pending_value, "look": self.look,
             "chosen_attacker": self.chosen_attacker, "moving": self.moving,
             "bot_discarded": sorted(self.bot_discarded), "dirty": self.dirty,
@@ -931,7 +1051,10 @@ class Session:
                 p["kind"], self.game.fighters[p["attacker"]], self.game.fighters[p["target"]],
                 by_id[p["bot_card"]] if p["bot_card"] is not None else None, p["bot_card_guid"], p["cancel_failures"],
                 bool(p.get("defended", True)),
-                self._load_boost_wait(p.get("boost_wait"), self.human, {c.card_id: c for c in self.game.players[self.human].full_set}))
+                self._load_boost_wait(p.get("boost_wait"), self.human, {c.card_id: c for c in self.game.players[self.human].full_set}),
+                None if p.get("effect") is None else EffectRun.from_dict(p["effect"]))
+            self.free_effect = None if d.get("effect") is None else EffectRun.from_dict(d["effect"])
+            self.look_granted = d.get("look_granted") is True
             self.pending_discard, self.pending_value = d["pending_discard"], d["pending_value"]
             self.look = self._load_look(d.get("look"))
             self.chosen_attacker, self.moving = d["chosen_attacker"], d["moving"]
@@ -1077,6 +1200,9 @@ class Session:
         hp0, alive0 = {fid: f.hp for fid, f in self.game.fighters.items()}, self._alive_map()
         self.moving = True
         st = self.game.players[self.human]
+        if not self.game.fx.can_draw(self.human):
+            self.say(f"Maniobra: {choices.NO_DRAW_REASON}. Mueve tus miniaturas y pulsa Fin de accion.", ChatKind.YOUR_TURN)
+            return
         if not self.cfg.human_deck_guid:
             self.game.draw(self.human)
             self._announce_exhaustion(hp0, alive0)
@@ -1240,6 +1366,7 @@ class Session:
     def _choose_attacker(self, payload: dict) -> None:
         if not self._require_human_turn():
             return
+        self._check_may_attack()
         fid = str(payload.get("attacker", "")).removeprefix("att_")
         f = self.game.fighters.get(fid)
         if f is not None and f.owner == self.human and not f.alive:
@@ -1256,6 +1383,7 @@ class Session:
     def _attack(self, payload: dict) -> None:
         if not self._require_human_turn():
             return
+        self._check_may_attack()
         if self.chosen_attacker is None:
             who = " / ".join(f"Ataca {self._name(f)}" for f in self.game.own(self.human))
             self.say(f"Elige primero quien ataca ({who}).", ChatKind.WARNING)
@@ -2426,7 +2554,7 @@ class Session:
             status, states = self.panel_view()
             shown = (status, states)
             try:
-                self._w(lua.set_panel(status, states, release_busy=not self.cfg.batch), "misc")
+                self._w(lua.set_panel(status, states, release_busy=not self.cfg.batch, labels=self.panel_labels()), "misc")
                 if self.broadcast:
                     for m in self.messages:
                         for chunk in lua.ascii_text(m):
@@ -2455,7 +2583,7 @@ class Session:
     def _refresh_panel(self) -> None:
         status, states = self.panel_view()
         try:
-            self._w(lua.set_panel(status, states, release_busy=not self.cfg.batch), "misc")
+            self._w(lua.set_panel(status, states, release_busy=not self.cfg.batch, labels=self.panel_labels()), "misc")
             self._flush()
         except (ValueError, TypeError) + TABLE_ERRORS as e:
             self.say(f"No pude actualizar el panel tras las comprobaciones ({e}).", ChatKind.WARNING)
@@ -2512,8 +2640,9 @@ class Session:
         g = self.game
         states = {i: (True, True) for i in self._panel_ids()}
         in_setup = self.setup is not None
+        choosing = self.effect_run is not None
         free = (not in_setup and g.winner is None and g.turn == self.human and self.pending is None
-                and self.pending_discard is None and not self.moving and self.look is None)
+                and self.pending_discard is None and not self.moving and self.look is None and not choosing)
 
         def alive(fid: str) -> bool:
             return g.fighters[fid].alive
@@ -2542,7 +2671,14 @@ class Session:
         states["btn_boost"] = (boosting, boosting)
         states["btn_noboost"] = (boosting, boosting)
         states["btn_end"] = (not in_setup and g.winner is None and (self.pending is None or self.look is not None), True)
-        states["btn_look"] = (self._look_blocked() is None, True)
+        states["btn_look"] = (self._look_blocked() is None and not choosing, self.look_granted)
+        if choosing:
+            for i in ("btn_reveal", "btn_cancel", "btn_end", "btn_boost", "btn_noboost"):
+                states[i] = (False, states[i][1])
+        req = self.effect_run.awaiting if choosing else None
+        states.update(choices.panel_choice_view(g, req, self.choice_ui)[0])
+        for ident in self._blocked_buttons():
+            states[ident] = (False, False)
         states["btn_undo"] = (g.winner is not None, g.winner is not None)
         waiting = in_setup and self.setup["stage"] in ("wait_human_first", "wait_human")
         states["btn_ready"] = (in_setup, in_setup)
@@ -2566,6 +2702,8 @@ class Session:
             return f"Fin de partida · gana {self._name(g.hero(g.winner))}"
         if self.look is not None:
             return "Mano del bot a la vista: Tab sobre la carta a descartar o Cancelar"
+        if self.effect_run is not None and self.effect_run.awaiting is not None:
+            return choices.safe_label(choices.prompt_text(g, self.effect_run.awaiting), "Elige una opcion", 80)
         if g.turn != self.human:
             paused = self.dial_debt or self.bot_stage is not None or self.dirty or self.flush_failures
             return "Turno del bot" + (" · en pausa, pulsa Fin de accion" if paused else "")
@@ -2593,6 +2731,8 @@ class Session:
     def _look_blocked(self) -> str | None:
         """Por que ahora no se puede mirar la mano del bot (None si se puede)."""
         g = self.game
+        if not self.look_granted:
+            return "Ninguna carta te deja mirar la mano del bot ahora."
         if self.setup is not None:
             return "La partida aun se esta preparando: termina la colocacion y pulsa Listo."
         if g.winner is not None:
@@ -2724,6 +2864,7 @@ class Session:
             card = by_id[look["ids"][look["guids"].index(discard)]] if discard else None
         self.look = None
         if card is not None:
+            self.look_granted = False             # la mirada se uso: la carta que la daba ya esta resuelta
             if card in st.hand:
                 self.game.discard_card(self.bot, card)
             else:
