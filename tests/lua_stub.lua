@@ -81,16 +81,24 @@ end
 function getObjects() local t = {} for i, o in ipairs(OBJECTS) do t[i] = o end return t end
 function getObjectFromGUID(g) for _, o in ipairs(OBJECTS) do if o.guid == g then return o end end return nil end
 Player = setmetatable({}, {__index = function(_, color)
-  return {getHandObjects = function() local t = {} for _, o in ipairs(OBJECTS) do if o.hand == color then table.insert(t, o) end end return t end,
+  return {seated = SEATED ~= nil and SEATED[color] == true, color = color,
+          getHandObjects = function() local t = {} for _, o in ipairs(OBJECTS) do if o.hand == color then table.insert(t, o) end end return t end,
+          pingTable = function(p) PINGS = PINGS or {}; table.insert(PINGS, {color = color, x = p.x, y = p.y, z = p.z}) end,
           getHandTransform = function() return {position = vec(0, 1, 0), rotation = vec(0, 0, 0)} end}
 end})
+function Player.getPlayers()
+  local t = {}
+  for _, c in ipairs(PLAYERS or {}) do t[#t + 1] = Player[c] end
+  return t
+end
 function group(objs)
   local d = mkobj({guid = "grp001", type = "Deck", cards = {}})
   for _, x in ipairs(objs) do d.putObject(x) end
   return {d}
 end
 function sendExternalMessage(t) table.insert(SENT, t) end
-function broadcastToAll() end
+BROADCASTS = {}
+function broadcastToAll(text, color) table.insert(BROADCASTS, {text = text, r = color[1], g = color[2], b = color[3]}) end
 function spawnObject(t) return mkobj({guid = "spawn1", type = t.type}) end
 Wait = {
   frames = function(f, n) f() end,

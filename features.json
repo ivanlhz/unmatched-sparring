@@ -81,7 +81,7 @@
         "Marcas en el suelo (solo en modo juego): draw_markings/clear_markings dibujan DESCARTE HELLBOY, DESCARTE MEDUSA, COMBATE HELLBOY y COMBATE MEDUSA con setVectorLines en el panel propio y 3DText propios, idempotentes, sin tocar el Global ni decals; --read-only no las dibuja",
         "Revision 5: start_spaces (config o deducido de la mesa); pieces acepta lista de GUID por miniatura; el guardado lleva huella (id de partida, hash de configuracion, GUID) y --resume rechaza el ajeno; tests/conftest.py impide escribir bajo la carpeta estado; bot_discard_bounds acota la rejilla y la envuelve apilando; reparto/jugada tardios se acreditan leyendo la mesa; guardado en los puntos de control del turno del bot; combates cuyo luchador desaparece se cancelan; manos iniciales; una accion abierta ignora otros botones de accion; poll_events descarta sparring_reply tardios; clear_markings(remove_panel) y marca sparring en las notas de GM; panel en [2, 1.8, -24]"
       ],
-      "note": "Revision 5 (27/10) corregida con tests: casillas de salida de la mesa real, guardado con huella y guarda de tests, miniatura con varios GUID, rejilla del descarte acotada a la zona, repartos y jugadas con respuesta tardia, puntos de control del turno del bot, salidas de combates cuyo luchador desaparece, manos iniciales, doble clic, limpieza del panel. Solo verificado contra FakeTTS (que ahora imita al TTS real: sin messageID 5, respuestas por messageID 4). Se marca done solo con todo en verde y tras una prueba en vivo con --read-only; pendiente calibrar off_board_dist, la lectura de los diales y las posiciones de carta/rejilla en la mesa real."
+      "note": "Revision 5 (27/10) corregida con tests: casillas de salida de la mesa real, guardado con huella y guarda de tests, miniatura con varios GUID, rejilla del descarte acotada a la zona, repartos y jugadas con respuesta tardia, puntos de control del turno del bot, salidas de combates cuyo luchador desaparece, manos iniciales, doble clic, limpieza del panel. Solo verificado contra FakeTTS (que ahora imita al TTS real: sin messageID 5, respuestas por messageID 4). Se marca done solo con todo en verde y tras una prueba en vivo con --read-only; pendiente calibrar off_board_dist, la lectura de los diales y las posiciones de carta/rejilla en la mesa real. | 28/10 en vivo: Reiniciar partida y el robo automatico al pulsar Maniobra funcionan."
     },
     {
       "id": "F06",
@@ -160,12 +160,40 @@
     {
       "id": "F12",
       "title": "Ping de atacante y objetivo en los ataques del bot",
-      "status": "todo",
+      "status": "done",
+      "note": "Probado en vivo por Ivan el 28/10: los pings se ven (salen con su color, White, y le parece bien). Sin comprobar aun: el ping sobre Hellboy en su forma alternativa.",
       "criteria": [
         "Cuando un luchador del bot ataca, el bot hace ping sobre su luchador atacante y sobre el luchador objetivo del humano, para ver quien ataca a quien sin leer el mensaje",
         "Va en el mismo script del paso de ataque (sin mensajes extra a TTS) y no usa messageID 1 ni el Global UI",
         "Probado con FakeTTS y en una partida en vivo"
       ]
+    },
+    {
+      "id": "F14",
+      "title": "Colores del chat de TTS por tipo de mensaje del bot",
+      "status": "in-progress",
+      "description": "Los mensajes del bot salen coloreados segun su categoria para leer la partida de un vistazo.",
+      "criteria": [
+        "Tabla unica categoria -> color (ChatKind y CHAT_COLORS en sparring/tts/lua.py): ataque del bot rojo, combate y dano naranja, movimiento azul claro, esquemas y efectos morado, habilidad de heroe y formas dorado, te toca / instrucciones verde, avisos y errores amarillo, neutro gris claro",
+        "Session.say recibe la categoria (neutra por defecto); el color viaja en el mismo script broadcastToAll: ningun mensaje extra a TTS, ni en modo normal ni con SPARRING_BATCH=1; nunca messageID 1 ni Global UI",
+        "El color se valida contra la tabla (ChatKind()): ninguna cadena libre llega a Lua",
+        "La salida por terminal no cambia (sin codigos de color)",
+        "Tests: color por categoria en el script, categoria de los mensajes clave, conteo de mensajes intacto y Lua con lupa"
+      ],
+      "note": "Pendiente en vivo: ver los colores en el chat real de TTS y ajustar los tonos si alguno se lee mal sobre el fondo."
+    },
+    {
+      "id": "F13",
+      "title": "Mod del Workshop con el cerebro como servicio web (futuro)",
+      "status": "backlog",
+      "criteria": [
+        "Mesa propia del sparring publicada en el Workshop de Steam, separada del save del torneo: heroes y mapas de cada oleada, mazos, descartes, diales y panel colocados de serie (sin config/partida.json por mesa)",
+        "El cerebro sigue en Python y se sirve por HTTP; el mod lo llama con WebRequest de TTS, sin que el jugador instale nada",
+        "La IA no se reescribe en Lua (el Lua de TTS corre en el hilo de la mesa y la congelaria con la ISMCTS)",
+        "Sin trampas tambien en remoto: el mod solo envia al servicio la informacion publica y lo visto por efectos de mirar la mano",
+        "Decidir antes de empezar: donde se aloja el servicio, coste, y limites de uso por partida"
+      ],
+      "note": "Idea de Ivan (28/10) para compartir el bot con la comunidad (Unmatched Canarias). Va despues de F08 como minimo."
     }
   ]
 }

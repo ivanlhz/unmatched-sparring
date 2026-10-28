@@ -16,6 +16,7 @@ import hashlib
 import math
 import re
 from dataclasses import dataclass
+from enum import Enum
 
 from ..board import Board
 from ..cards import HELLBOY_BASE, MEDUSA_BASE
@@ -682,11 +683,38 @@ def ascii_text(text: str, limit: int = 64) -> list[str]:
     return chunks
 
 
+class ChatKind(str, Enum):
+    """Categoria de un mensaje del bot; decide su color en el chat de TTS."""
+    NEUTRAL = "neutral"      # estado y preparacion
+    ATTACK = "attack"        # el bot ataca
+    COMBAT = "combat"        # resultado de combate y dano
+    MOVE = "move"            # maniobra y movimiento del bot
+    SCHEME = "scheme"        # esquemas y efectos de carta
+    ABILITY = "ability"      # habilidad de heroe y cambios de forma
+    YOUR_TURN = "your_turn"  # te toca / instrucciones al humano
+    WARNING = "warning"      # avisos y errores de sincronizacion
+
+
+# Unica fuente de colores (RGB 0-1), claros para leerse sobre el fondo oscuro del chat.
+CHAT_COLORS: dict[ChatKind, tuple[float, float, float]] = {
+    ChatKind.NEUTRAL: (0.85, 0.85, 0.85),
+    ChatKind.ATTACK: (1.0, 0.35, 0.35),
+    ChatKind.COMBAT: (1.0, 0.6, 0.2),
+    ChatKind.MOVE: (0.45, 0.75, 1.0),
+    ChatKind.SCHEME: (0.78, 0.55, 1.0),
+    ChatKind.ABILITY: (1.0, 0.82, 0.15),
+    ChatKind.YOUR_TURN: (0.4, 0.95, 0.45),
+    ChatKind.WARNING: (1.0, 1.0, 0.45),
+}
+
+
 @_registered
-def broadcast(text: str) -> str:
-    """Muestra un mensaje en pantalla a todos (no toca la mesa). Solo caracteres de la lista blanca, <= 64."""
+def broadcast(text: str, kind: ChatKind = ChatKind.NEUTRAL) -> str:
+    """Muestra un mensaje en pantalla a todos (no toca la mesa), con el color de su categoria.
+    Solo caracteres de la lista blanca, <= 64."""
+    r, g, b = CHAT_COLORS[ChatKind(kind)]        # ChatKind() rechaza cualquier categoria que no este en la tabla
     return f"""-- sparring:broadcast
-broadcastToAll({lua_str(text)}, {{1, 1, 1}})
+broadcastToAll({lua_str(text)}, {{{r}, {g}, {b}}})
 return JSON.encode({{shown = true}})
 """
 
@@ -704,17 +732,53 @@ return JSON.encode({{moved = obj.getGUID()}})
 """
 
 
+def _ping_lua(seat_colors: list[str], attacker_guids: list[str], target_guids: list[str]) -> str:
+    """Trozo de Lua que hace ping sobre el atacante y, algo despues, sobre el objetivo (primer GUID que exista de cada
+    lista: una miniatura puede tener varios segun su forma). Pinga el primer asiento sentado de `seat_colors` o, si
+    ninguno lo esta, el primer jugador de `Player.getPlayers()`. Todo en pcall."""
+    for g in (attacker_guids, target_guids, seat_colors):
+        if not isinstance(g, (list, tuple)) or not g:
+            raise ValueError("el ping necesita al menos un asiento y un GUID de atacante y de objetivo")
+    seats = "{" + ", ".join(_color(c) for c in seat_colors) + "}"
+    return f"""pcall(function()
+  local function pinger()
+    for _, c in ipairs({seats}) do
+      local p = Player[c]
+      if p ~= nil and p.seated then return p end
+    end
+    local players = Player.getPlayers()
+    return players and players[1]
+  end
+  local function pingAt(guids)
+    for _, g in ipairs(guids) do
+      local o = getObjectFromGUID(g)
+      if o ~= nil then pinger().pingTable(o.getPosition()) return end
+    end
+  end
+  pingAt({_guid_list(attacker_guids)})
+  local targets = {_guid_list(target_guids)}
+  Wait.time(function() pcall(pingAt, targets) end, 1.0)
+end)
+"""
+
+
 @_registered
 def play_card_face_down(card_id: int, seat_color: str, x: float, y: float, z: float, rot_y: float = 0,
-                        id_range: tuple[int, int] = BOT_CARD_IDS, *, identity) -> str:
+                        id_range: tuple[int, int] = BOT_CARD_IDS, *, identity,
+                        ping: tuple[list[str], list[str], list[str]] | None = None) -> str:
     """Saca la carta con ese CardID de la mano del asiento y la deja boca abajo; played=false si no esta. Solo cuenta
     una carta del bando (`id_range` e imagen de `identity`): otra con el mismo CardID no se toca.
 
     El movimiento es INSTANTANEO (setRotation y luego setPosition): en TTS real, `setPositionSmooth` sobre una carta
-    que esta en una zona de mano no la saca, la mano la vuelve a tirar. El resultado hay que comprobarlo leyendo la mesa."""
+    que esta en una zona de mano no la saca, la mano la vuelve a tirar. El resultado hay que comprobarlo leyendo la mesa.
+
+    `ping` = (GUID del atacante, GUID del objetivo, asientos candidatos): antes de jugar la carta se hace ping sobre la
+    posicion de cada miniatura con el primer asiento sentado (el del bot puede estar vacio) (la del objetivo ~1 s despues, porque un segundo ping seguido pisa al primero). Va dentro de
+    pcall: un fallo del ping nunca rompe el ataque ni cambia el resultado."""
     own = _ours_lua(identity, id_range)
+    pings = _ping_lua(ping[2], ping[0], ping[1]) if ping else ""
     return f"""-- sparring:play_card_face_down
-{own}for _, o in ipairs(Player[{_color(seat_color)}].getHandObjects(1)) do
+{pings}{own}for _, o in ipairs(Player[{_color(seat_color)}].getHandObjects(1)) do
   local data = o.getData()
   if o.type == "Card" and data.CardID == {_i(card_id)} and cardOurs(data, data.CustomDeck) then
     o.setRotation(Vector(0, {_f(rot_y)}, 180))

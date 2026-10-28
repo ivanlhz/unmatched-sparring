@@ -1296,7 +1296,7 @@ def test_a_glance_on_lobster_updates_the_dial_names_the_card_and_shows_the_hp(ri
     lobster_glance(session, table, game, monkeypatch)
     order = []
     real_say, real_call = session.say, session.client.call_lua
-    monkeypatch.setattr(session, "say", lambda m: (order.append(("say", m)), real_say(m))[1])
+    monkeypatch.setattr(session, "say", lambda m, *k: (order.append(("say", m)), real_say(m, *k))[1])
     monkeypatch.setattr(session.client, "call_lua", lambda s, *a, **k: (
         order.append(("lua", s.split("\n")[0])), real_call(s, *a, **k))[1])
     session.handle(Event.END_ACTION)

@@ -49,6 +49,7 @@ class Table:
         self.human_deck_cards = 20
         self.discard_calls: list[list[int]] = []
         self.broadcasts: list[str] = []
+        self.broadcast_colors: list[tuple[float, float, float]] = []
         self.dupes: set[str] = set()
         self.missing_guids: set[str] = set()
         self.piece_dist: dict[str, float] = {}      # nickname -> distancia a su casilla (lejos = fuera del tablero)
@@ -223,6 +224,7 @@ class Table:
 
     def do_broadcast(self, s):
         self.broadcasts.append(re.search(r'broadcastToAll\("(.*?)"', s).group(1))
+        self.broadcast_colors.append(tuple(float(v) for v in re.search(r"\{([\d.]+), ([\d.]+), ([\d.]+)\}\)", s).groups()))
         return {"shown": True}
 
     def do_create_panel(self, s):
