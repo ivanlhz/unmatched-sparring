@@ -16,7 +16,7 @@ from test_batch import brig, click  # noqa: F401  (brig es una fixture)
 from test_panel_restart import prepared, with_cfg
 from test_session import human_plays, rig, set_bot_hand, start_human_attack  # noqa: F401
 
-SMALL = SearchConfig(time_budget=5.0, iterations=40, seed=1)
+SMALL = SearchConfig(time_budget=5.0, iterations=200, seed=1)   # con 40 la jugada de la raiz era ruido (11 visitas contra 10)
 
 
 def ismcts() -> IsmctsMedusa:
