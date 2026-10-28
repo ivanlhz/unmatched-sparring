@@ -112,6 +112,9 @@ class SessionConfig:
     deck_identity: dict[str, tuple] = field(default_factory=dict)   # "bot"/"human" -> pares (FaceURL, BackURL) de data/tts
     bot_label: str = "MEDUSA"      # nombre de cada bando en las etiquetas del suelo (el de su heroe)
     human_label: str = "HELLBOY"
+    look_spot: tuple[float, float, float] = (-23.0, 2.5, 0.0)   # centro de la fila de la mano del bot a la vista (estimacion: calibrar en vivo)
+    look_step: tuple[float, float] = (0.0, 2.6)                 # (dx, dz) entre cartas de la fila
+    look_rot_y: float | None = None                              # giro de las cartas de la fila (por defecto, el del descarte del bot)
 
 
 def human_dead_spot(cfg: "SessionConfig") -> tuple[float, float, float] | None:
@@ -193,6 +196,10 @@ class _Timed:
         return False
 
 
+# con la mano del bot a la vista solo se atiende lo que la resuelve (o no la toca: PV, retirar, valor)
+LOOK_EVENTS = (Event.LOOK_PING, Event.CANCEL, Event.END_ACTION, Event.HP, Event.REMOVE, Event.VALUE)
+CARD_TYPE_NAME = {"attack": "ataque", "defense": "defensa", "versatile": "versatil", "scheme": "esquema"}
+
 SNAP_KEYS = ("bot_hand", "human_count", "bot_discard", "human_discard", "face_bot", "face_human", "pieces", "dials")
 
 
@@ -216,6 +223,7 @@ class Session:
         game.controllers[self.human] = HumanProxy(self._owe_discard)
         self.pending: Pending | None = None
         self.pending_discard: dict | None = None
+        self.look: dict | None = None            # mano del bot a la vista: {"ids", "guids", "spots"} de la fila de la mesa
         self.pending_value = 0
         self.chosen_attacker: str | None = None
         self.moving = False
@@ -359,6 +367,10 @@ class Session:
         self._write_dials(post=True)              # la mesa ensena ya la vida del motor, no la de antes del corte
         if self.game.winner is not None:
             self.say(f"Fin de partida: gana el jugador {self.game.winner}. (Deshacer fin de partida si es un error.)")
+        elif self.look is not None:
+            self._w(lua.set_look_row(self._look_entries()), "misc")     # la variable del panel no sobrevive a una recarga
+            self.say("La mano del bot sigue a la vista: haz ping (Tab) sobre la carta a descartar o pulsa Cancelar.",
+                     ChatKind.YOUR_TURN)
         elif self.pending is not None and self.pending.boost_wait is not None:
             self.say(self._boost_prompt(self.pending), ChatKind.YOUR_TURN)
         elif self.pending is not None:
@@ -713,10 +725,15 @@ class Session:
                  Event.VALUE: self._value, Event.CANCEL: self._cancel, Event.HP: self._hp,
                  Event.REMOVE: self._remove, Event.UNDO_GAME_OVER: self._undo_game_over, Event.READY: self._ready,
                  Event.MULLIGAN: self._human_mulligan, Event.RESTART: self._restart,
-                 Event.BOOST: self._boost, Event.NO_BOOST: self._no_boost}
+                 Event.BOOST: self._boost, Event.NO_BOOST: self._no_boost,
+                 Event.LOOK: self._look_hand, Event.LOOK_PING: self._look_ping}
         if self.setup is not None and event not in (Event.READY, Event.HP, Event.REMOVE, Event.CANCEL, Event.VALUE,
                                                     Event.MULLIGAN, Event.RESTART):
             self.say("La partida aun se esta preparando: termina la colocacion y pulsa Listo.", ChatKind.WARNING)
+            return self._done()
+        if self.look is not None and event not in LOOK_EVENTS:
+            self.say("La mano del bot esta a la vista: haz ping (Tab) sobre la carta a descartar, o gira una boca abajo "
+                     "y pulsa Fin de accion, o Cancelar para devolverlas sin descartar.", ChatKind.WARNING)
             return self._done()
         if event is not Event.RESTART:
             self._restart_at = None               # cualquier otro boton desarma la confirmacion
@@ -859,7 +876,7 @@ class Session:
                 "kind": p.kind, "attacker": p.attacker.fid, "target": p.target.fid,
                 "bot_card": p.bot_card.card_id if p.bot_card else None, "bot_card_guid": p.bot_card_guid,
                 "cancel_failures": p.cancel_failures, "defended": p.defended, "boost_wait": p.boost_wait},
-            "pending_discard": self.pending_discard, "pending_value": self.pending_value,
+            "pending_discard": self.pending_discard, "pending_value": self.pending_value, "look": self.look,
             "chosen_attacker": self.chosen_attacker, "moving": self.moving,
             "bot_discarded": sorted(self.bot_discarded), "dirty": self.dirty,
             "unprojected": None if self.unprojected is None else {k: list(v) for k, v in self.unprojected.items()},
@@ -904,6 +921,7 @@ class Session:
                 by_id[p["bot_card"]] if p["bot_card"] is not None else None, p["bot_card_guid"], p["cancel_failures"],
                 bool(p.get("defended", True)), self._load_boost_wait(p.get("boost_wait")))
             self.pending_discard, self.pending_value = d["pending_discard"], d["pending_value"]
+            self.look = self._load_look(d.get("look"))
             self.chosen_attacker, self.moving = d["chosen_attacker"], d["moving"]
             self.bot_discarded, self.dirty = set(d["bot_discarded"]), d["dirty"]
             un = d["unprojected"]
@@ -924,6 +942,22 @@ class Session:
             self._saved_ident = self._load_saved_identities(d.get("deck_ident"))
         except (KeyError, TypeError, IndexError) as e:
             raise persist.StateError(f"guardado no valido: {e!r}") from None
+
+    @staticmethod
+    def _load_look(raw) -> dict | None:
+        if raw is None:
+            return None
+        ok = (isinstance(raw, dict) and all(isinstance(raw.get(k), list) for k in ("ids", "guids", "spots"))
+              and 1 <= len(raw["ids"]) <= lua.MAX_LOOK_CARDS
+              and len(raw["ids"]) == len(raw["guids"]) == len(raw["spots"])
+              and all(isinstance(i, int) and not isinstance(i, bool) for i in raw["ids"])
+              and all(isinstance(g, str) and lua._GUID.fullmatch(g) for g in raw["guids"])
+              and all(isinstance(sp, list) and len(sp) == 2 and all(isinstance(v, (int, float)) and not isinstance(v, bool)
+                                                                     and math.isfinite(v) for v in sp)
+                      for sp in raw["spots"]))
+        if not ok:
+            raise KeyError("look")
+        return {"ids": list(raw["ids"]), "guids": list(raw["guids"]), "spots": [list(sp) for sp in raw["spots"]]}
 
     @staticmethod
     def _load_boost_wait(raw) -> dict | None:
@@ -1225,6 +1259,9 @@ class Session:
         Mesa del bot sucia (deuda sin saldar): se adopta lo que muestra la mesa. Un ataque del bot no se
         cancela: se revela, sin carta si el humano no tiene defensa. Una carta puesta cuya respuesta llego tarde
         (`placing`) se resuelve primero: si aterrizo pasa a ser el ataque pendiente y se devuelve como cualquier otra."""
+        if self.look is not None:
+            self._look_close()
+            return
         if self.placing is not None:
             self._recover_placing()
         if self._drop_pending_if_gone():
@@ -1642,6 +1679,9 @@ class Session:
                 self.say("No pude volver a ocultar una carta: giala boca abajo a mano.", ChatKind.WARNING)
 
     def _end_action(self, _: dict) -> None:
+        if self.look is not None:
+            self._look_close(face_down=True)
+            return
         if self.pending is not None and not self._drop_pending_if_gone():
             self.say("Termina primero el boost: pulsa Continuar o Sin boost." if self.pending.boost_wait is not None
                      else "Revela primero el combate en curso.", ChatKind.WARNING)
@@ -2397,7 +2437,7 @@ class Session:
         states = {i: (True, True) for i in self._panel_ids()}
         in_setup = self.setup is not None
         free = (not in_setup and g.winner is None and g.turn == self.human and self.pending is None
-                and self.pending_discard is None and not self.moving)
+                and self.pending_discard is None and not self.moving and self.look is None)
 
         def alive(fid: str) -> bool:
             return g.fighters[fid].alive
@@ -2416,8 +2456,8 @@ class Session:
                 states[fid] = (reach, True)
             states[f"hpm_{fid}"] = (f.alive, True)
             states[f"rm_{fid}"] = (f.alive, True)
-        cancellable = (self.pending is not None or self.pending_discard is not None or self.chosen_attacker
-                       is not None or bool(self.pending_value) or self.dirty or self.unprojected is not None
+        cancellable = (self.look is not None or self.pending is not None or self.pending_discard is not None
+                       or self.chosen_attacker is not None or bool(self.pending_value) or self.dirty or self.unprojected is not None
                        or bool(self.flush_failures))
         boosting = self.pending is not None and self.pending.boost_wait is not None
         stuck = boosting and bool(self.pending.boost_wait.get("stuck"))
@@ -2425,7 +2465,8 @@ class Session:
         states["btn_cancel"] = (cancellable and (not boosting or stuck), not boosting or stuck)
         states["btn_boost"] = (boosting, boosting)
         states["btn_noboost"] = (boosting, boosting)
-        states["btn_end"] = (not in_setup and g.winner is None and self.pending is None, True)
+        states["btn_end"] = (not in_setup and g.winner is None and (self.pending is None or self.look is not None), True)
+        states["btn_look"] = (self._look_blocked() is None, True)
         states["btn_undo"] = (g.winner is not None, g.winner is not None)
         waiting = in_setup and self.setup["stage"] in ("wait_human_first", "wait_human")
         states["btn_ready"] = (in_setup, in_setup)
@@ -2447,6 +2488,8 @@ class Session:
             return "Preparacion · el bot prepara su mesa"
         if g.winner is not None:
             return f"Fin de partida · gana {self._name(g.hero(g.winner))}"
+        if self.look is not None:
+            return "Mano del bot a la vista: Tab sobre la carta a descartar o Cancelar"
         if g.turn != self.human:
             paused = self.dial_debt or self.bot_stage is not None or self.dirty or self.flush_failures
             return "Turno del bot" + (" · en pausa, pulsa Fin de accion" if paused else "")
@@ -2470,6 +2513,172 @@ class Session:
             wait = "tu accion"
         return f"{head} · esperando {wait}"
 
+    # ---------- mirar la mano del bot (Confront Any Demon or God y similares) ----------
+    def _look_blocked(self) -> str | None:
+        """Por que ahora no se puede mirar la mano del bot (None si se puede)."""
+        g = self.game
+        if self.setup is not None:
+            return "La partida aun se esta preparando: termina la colocacion y pulsa Listo."
+        if g.winner is not None:
+            return "La partida ha terminado."
+        if self.look is not None:
+            return "La mano del bot ya esta a la vista."
+        if g.turn != self.human and self.pending is None:
+            return "Solo puedes mirar la mano del bot en tu turno o durante un combate."
+        if self.dirty or self.unprojected is not None or self.flush_failures or self.placing is not None:
+            return "La mesa del bot tiene movimientos sin reflejar: pulsa Fin de accion (o Cancelar) antes de mirar su mano."
+        held = self.pending.bot_card if self.pending is not None else None
+        if not [c for c in self.game.players[self.bot].hand if c is not held]:
+            return "El bot no tiene cartas en la mano."
+        return None
+
+    def _look_spots(self, n: int) -> list[tuple[float, float, float]]:
+        (x, y, z), (dx, dz) = self.cfg.look_spot, self.cfg.look_step
+        return [(x + (i - (n - 1) / 2) * dx, y, z + (i - (n - 1) / 2) * dz) for i in range(n)]
+
+    def _look_rot(self) -> float:
+        return self.cfg.bot_discard_rot_y if self.cfg.look_rot_y is None else self.cfg.look_rot_y
+
+    def _look_entries(self) -> list[tuple[str, float, float]]:
+        return [(g, sp[0], sp[1]) for g, sp in zip(self.look["guids"], self.look["spots"])]
+
+    def restore_look_row(self) -> None:
+        """Tras recrear el panel (TTS recargo la partida) vuelve a anotar en el la fila a la vista, si la hay."""
+        if self.look is not None:
+            self.client.call_lua(lua.set_look_row(self._look_entries()))
+
+    def _card_line(self, n: int, c: Card) -> str:
+        stats = ", ".join(p for p in (CARD_TYPE_NAME.get(c.type, c.type),
+                                      f"valor {c.value}" if c.value is not None else "", f"impulso {c.boost}") if p)
+        return f"{n}) {c.title}, {stats}: {c.text or 'sin efecto'}"
+
+    def _look_hand(self, _: dict) -> None:
+        """Pone las cartas de la mano del bot boca arriba en fila delante del humano y las lee en el chat. No gasta
+        accion. El bot no aprende nada de la mano del humano: la que se revela es la suya."""
+        why = self._look_blocked()
+        if why:
+            self.say(why, ChatKind.WARNING)
+            return
+        self.read_bot_hand()
+        st = self.game.players[self.bot]
+        by_id = {c.card_id: c for c in st.full_set}
+        rows = [r for r in self._rd_bot_hand() if r["id"] in by_id][:lua.MAX_LOOK_CARDS]
+        if not rows:
+            self.say("No veo cartas en la mano del bot en la mesa.", ChatKind.WARNING)
+            return
+        spots = self._look_spots(len(rows))
+        if self.cfg.batch:
+            self._expect_hand = (self.cfg.bot_seat, 0)
+        op = self._w(lua.show_hand_row([r["id"] for r in rows], spots, self._look_rot(), self.cfg.bot_seat,
+                                       identity=self._identity(), id_range=self.cfg.bot_card_ids), "cards")
+        # los GUID salen de la lectura de la mano: no hace falta esperar a la respuesta (un solo mensaje con el aviso)
+        self.look = {"ids": [r["id"] for r in rows], "guids": [r["guid"] for r in rows],
+                     "spots": [[sp[0], sp[2]] for sp in spots]}
+        self._post.append(lambda: self._look_shown(op))
+        self.say(f"Mano del bot ({len(rows)}): haz ping (Tab) sobre la carta a descartar. Tambien vale girar una "
+                 "boca abajo y pulsar Fin de accion; Cancelar las devuelve sin descartar.", ChatKind.YOUR_TURN)
+        for n, r in enumerate(rows, 1):
+            self.say(self._card_line(n, by_id[r["id"]]), ChatKind.SCHEME)
+
+    def _look_shown(self, op: _Op) -> bool:
+        """Comprobacion al cierre del boton: la mesa saco las cartas de la mano. Si solo saco algunas, la fila queda con
+        esas; si fallo del todo, la mirada se deshace (un error de TTS deja la fila para que Cancelar la recoja)."""
+        look = self.look
+        if look is None:
+            return True
+        try:
+            shown = {e["id"] for e in ((op.result or {}).get("shown") or []) if isinstance(e, dict)}
+        except TABLE_ERRORS as e:
+            self.say(f"TTS no confirmo que sacara las cartas ({e}); revisa la mesa y pulsa Cancelar para recogerlas.",
+                     ChatKind.WARNING)
+            return False
+        keep = [i for i, cid in enumerate(look["ids"]) if cid in shown]
+        if not keep:
+            self.look = None
+            self.read_bot_hand()
+            self.say("No he podido sacar las cartas de la mano del bot; repite Mirar mano del bot.", ChatKind.WARNING)
+            return False
+        if len(keep) < len(look["ids"]):
+            self.look = {k: [v[i] for i in keep] for k, v in look.items()}
+            self.say(f"Solo he podido sacar {len(keep)} de {len(look['ids'])} cartas; el resto sigue en su mano.",
+                     ChatKind.WARNING)
+        return True
+
+    def _look_ping(self, payload: dict) -> None:
+        guid = payload.get("guid")
+        if self.look is None:
+            self.say("No hay cartas del bot a la vista: pulsa Mirar mano del bot.", ChatKind.WARNING)
+            return
+        if guid not in self.look["guids"]:
+            self.say("Ese ping no era sobre una carta de la fila del bot.", ChatKind.WARNING)
+            return
+        self._look_close(discard=guid)
+
+    def _look_close(self, discard: str | None = None, face_down: bool = False) -> None:
+        """Cierra la fila con un solo script: la carta elegida (por ping, o la unica boca abajo) va al descarte del bot y
+        el resto vuelve a su mano; sin eleccion es Cancelar y todo vuelve. Con ping o Cancelar el motor cuenta el descarte
+        ya (la carta se conoce por su GUID) y la mesa lo confirma al cierre del boton (`_look_closed`); con la carta
+        boca abajo hay que esperar a que la mesa diga cual era."""
+        look, st = self.look, self.game.players[self.bot]
+        by_id = {c.card_id: c for c in st.full_set}
+        n = len(look["ids"])
+        if self.cfg.batch:
+            self._expect_hand = (self.cfg.bot_seat, n - 1 if (discard or face_down) else n)
+        op = self._w(lua.resolve_hand_row(
+            look["guids"], self.cfg.bot_seat, identity=self._identity(), id_range=self.cfg.bot_card_ids,
+            discard=discard, face_down=face_down, spot=self._discard_slot(len(st.discard)),
+            rot_y=self.cfg.bot_discard_rot_y), "cards")
+        if face_down:
+            chosen = (op.result or {}).get("discarded")
+            if chosen in (None, False):
+                self.say(f"Hay {(op.result or {}).get('down', 0)} cartas boca abajo en la fila: deja exactamente una (la "
+                         "que descartas) y pulsa Fin de accion, o haz ping (Tab) sobre ella.", ChatKind.WARNING)
+                return
+            card = by_id.get(chosen)
+        else:
+            card = by_id[look["ids"][look["guids"].index(discard)]] if discard else None
+        self.look = None
+        if card is not None:
+            if card in st.hand:
+                self.game.discard_card(self.bot, card)
+            else:
+                if card in st.deck:
+                    st.deck.remove(card)
+                st.discard.append(card)
+                self.game.card_left_hand(self.bot, card)
+        self._post.append(lambda: self._look_closed(op, card, look))
+        self.say(f"El bot descarta {card.title} y devuelve el resto de su mano." if card is not None
+                 else "Mano del bot devuelta sin descartar nada.", ChatKind.SCHEME if card is not None else ChatKind.NEUTRAL)
+
+    def _look_closed(self, op: _Op, card: Card | None, look: dict) -> bool:
+        """Comprobacion al cierre del boton: la mesa hizo lo que el motor ya conto. Si no (la carta no estaba, TTS fallo),
+        el motor deshace el descarte y la fila vuelve a estar a la vista para repetir el ping o Cancelar."""
+        st = self.game.players[self.bot]
+        try:
+            res = op.result or {}
+            done = res.get("discarded") == card.card_id if card is not None else bool(res.get("found"))
+            fail = None if done else "esa carta no estaba en la fila de la mesa"
+        except TABLE_ERRORS as e:
+            fail = str(e)
+        if fail is not None:
+            if card is not None and card in st.discard:
+                st.discard.remove(card)
+                st.hand.append(card)
+            self.look = look
+            self.say(f"La mesa no hizo el cambio ({fail}): la mano del bot sigue a la vista; repite el ping o Cancelar.",
+                     ChatKind.WARNING)
+            return False
+        if card is not None:
+            want = len(look["ids"]) - 1
+            if self._settle(lambda: card.card_id in self._table_discard() and len(self._table_hand_ids()) >= want):
+                self.bot_discarded.add(card.card_id)
+            else:
+                self._mark_dirty()                # el motor ya la descarto: la proxima sincronizacion termina de moverla
+                self.say(f"{card.title} aun no se ve en el descarte del bot; si no llega, pulsa Fin de accion.",
+                         ChatKind.WARNING)
+        self.read_bot_hand()
+        return True
+
     # ---------- mesa del bot ----------
     def read_bot_hand(self) -> None:
         """La mano sale de la mesa. Los robos que el motor ya conto pero el mazo aun no repartio (`drawn`) se
@@ -2484,6 +2693,10 @@ class Session:
         held = self.pending.bot_card if self.pending is not None else None
         if held is not None and held not in cards and held not in st.discard:
             cards.append(held)                    # la carta jugada boca abajo sigue siendo suya hasta resolverse
+        for card_id in (self.look["ids"] if self.look is not None else ()):
+            c = by_id.get(card_id)                # la mano a la vista esta en la fila de la mesa, no en su mano
+            if c is not None and c not in cards and c not in st.discard:
+                cards.append(c)
         unseen = [c for c in st.full_set if c not in cards and c not in st.discard]
         owed = min(self.game.drawn[self.bot], len(unseen))
         st.hand = cards + unseen[:owed]

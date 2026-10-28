@@ -353,6 +353,49 @@ class Table:
             return {"returned": guid}
         return {"returned": False}
 
+    def do_show_hand_row(self, s):
+        """La mano del bot pasa a una fila boca arriba en la mesa (fuera de su mano)."""
+        self.look_row = getattr(self, "look_row", [])
+        self.look_spots = {int(i): tuple(float(v) for v in xyz.split(","))
+                           for i, xyz in re.findall(r"\[(\d+)\]=\{([^}]*)\}", s)}
+        shown = []
+        for i in self.look_spots:
+            if i in self.bot_hand and i not in getattr(self, "look_refuse", ()):
+                self.bot_hand.remove(i)
+                self.look_row.append(i)
+                shown.append({"id": i, "guid": f"g{i}"})
+        return {"shown": shown}
+
+    def do_resolve_hand_row(self, s):
+        """Cierra la fila: la elegida (por GUID, o la unica boca abajo) al descarte y el resto a la mano."""
+        guids = re.findall(r'"(\w+)"', re.search(r"for _, g in ipairs\(\{(.*?)\}\) do", s).group(1))
+        row = [int(g[1:]) for g in guids if int(g[1:]) in self.look_row]
+        down = [i for i in row if i in getattr(self, "look_down", set())]
+        pick = re.search(r'local pick = (nil|"(\w+)")', s).group(2)
+        chosen = int(pick[1:]) if pick else None
+        if "if true then" in s:
+            if len(down) != 1:
+                return {"discarded": False, "returned": [], "found": len(row), "down": len(down)}
+            chosen = down[0]
+        elif pick and chosen not in row:
+            return {"discarded": False, "returned": [], "found": len(row), "down": len(down)}
+        returned = [i for i in row if i != chosen]
+        for i in row:
+            self.look_row.remove(i)
+        if chosen is not None:
+            self._later(lambda: self.bot_discard.append(chosen))
+        self._later(lambda: self.bot_hand.extend(returned))
+        self.resolve_args = {"chosen": chosen, "returned": returned,
+                             "spot": tuple(float(v) for v in re.search(
+                                 r"o\.setPosition\(Vector\(([^)]*)\)\)\n    discarded", s).group(1).split(","))}
+        return {"discarded": chosen if chosen is not None else False, "returned": returned, "found": len(row),
+                "down": len(down)}
+
+    def do_set_look_row(self, s):
+        self.look_vars = getattr(self, "look_vars", [])
+        self.look_vars.append(re.search(r'setVar\("lookRow", "(.*?)"\)', s).group(1))
+        return {"set": 1}
+
     def count(self, tag):
         return sum(s.startswith(f"-- sparring:{tag}") for s in self.scripts)
 

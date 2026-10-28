@@ -669,6 +669,9 @@ def test_read_only_allowlist_is_exactly_the_pure_read_builders(bprd):
         "reset_plan": lambda: t_reset_plan([("abc", (0.0, 3.0), lua.BOT_CARD_IDS, TEST_IDENT)]),
         "hand_identities": lambda: lua.hand_identities("Blue", lua.BOT_CARD_IDS),
         "set_panel": lambda: lua.set_panel("Tu turno", {"btn_end": (True, True)}),
+        "show_hand_row": lambda: lua.show_hand_row([1], [(0.0, 0.0, 0.0)], 90.0, "Blue", identity=TEST_IDENT),
+        "resolve_hand_row": lambda: lua.resolve_hand_row(["abc"], "Blue", identity=TEST_IDENT),
+        "set_look_row": lambda: lua.set_look_row([("abc", 0.0, 0.0)]),
     }
     registered = {n for n, f in inspect.getmembers(lua, inspect.isfunction) if hasattr(f, "__wrapped__")}
     assert registered == set(builders), registered ^ set(builders)

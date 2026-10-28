@@ -133,10 +133,15 @@ class PlayConfig:
                 if r.get("bot_discard_bounds") else None,
                 human_dead_spot=tuple(float(v) for v in r["human_dead_spot"]) if r.get("human_dead_spot") else None,
                 label_font=float(r.get("label_font", lua.LABEL_FONT)),
+                look_spot=tuple(float(v) for v in r.get("look_spot", SessionConfig.look_spot)),
+                look_step=tuple(float(v) for v in r.get("look_step", SessionConfig.look_step)),
+                look_rot_y=float(r["look_rot_y"]) if r.get("look_rot_y") is not None else None,
                 batch=bool(r.get("batch", True)), live_ui=bool(r.get("live_ui", True)),
                 bot_pause=float(r.get("bot_pause", DEFAULT_BOT_PAUSE)))
             if not (math.isfinite(cfg.bot_pause) and 0 <= cfg.bot_pause <= 30):
                 raise ValueError("bot_pause: segundos entre 0 (sin pausa) y 30")
+            if len(cfg.look_spot) != 3 or len(cfg.look_step) != 2:
+                raise ValueError("look_spot: (x, y, z); look_step: (dx, dz)")
             if cfg.bot_discard_bounds is not None and len(cfg.bot_discard_bounds) != 5:
                 raise ValueError("bot_discard_bounds: (centro x, centro z, tamano x, tamano z, rotY)")
             self._dry_build(cfg)
@@ -454,7 +459,33 @@ def floor_layout_warnings(cfg: PlayConfig) -> list[str]:
         if a0 < x1 and a1 > x0 and b0 < z1 and b1 > z0:
             warnings.append(f"{name} queda bajo el panel (x {x0:.1f}..{x1:.1f}, z {z0:.1f}..{z1:.1f}): "
                             "mueve panel_position o reduce panel_scale en la configuracion.")
+    warnings += look_row_warnings(cfg, floor_layout(cfg))
     return warnings
+
+
+def look_row_rect(cfg: PlayConfig, n: int = 7) -> tuple[float, float, float, float]:
+    """Rectangulo (x min, x max, z min, z max) que ocupa la fila de la mano del bot a la vista con `n` cartas."""
+    r = cfg.raw
+    x, _, z = (float(v) for v in r.get("look_spot", SessionConfig.look_spot))
+    dx, dz = (float(v) for v in r.get("look_step", SessionConfig.look_step))
+    rot = math.radians(float(r.get("look_rot_y", r.get("bot_discard_rot_y", 90.0))))
+    w, d = lua.CARD_SIZE
+    hx = abs(math.cos(rot)) * w / 2 + abs(math.sin(rot)) * d / 2
+    hz = abs(math.sin(rot)) * w / 2 + abs(math.cos(rot)) * d / 2
+    half = (n - 1) / 2
+    return (x - half * abs(dx) - hx, x + half * abs(dx) + hx, z - half * abs(dz) - hz, z + half * abs(dz) + hz)
+
+
+def look_row_warnings(cfg: PlayConfig, floor: list[tuple[str, tuple[float, float, float, float]]]) -> list[str]:
+    """Aviso de arranque: la fila de la mano del bot a la vista (hasta 7 cartas) no puede pisar el panel, las cajas de
+    combate ni las zonas de descarte."""
+    a0, a1, b0, b1 = look_row_rect(cfg)
+    pos, scale = cfg.panel_position, cfg.panel_scale
+    others = [("el panel", lua.panel_footprint(pos, scale, ui.PANEL_WIDTH, ui.panel_height(len(cfg.fighter_ids)))),
+              *((name, rect) for name, rect in floor if name.startswith(("caja de combate", "zona")))]
+    return [f"La fila de la mano del bot a la vista (look_spot, x {a0:.1f}..{a1:.1f}, z {b0:.1f}..{b1:.1f}) pisa {name}: "
+            "mueve look_spot en la configuracion." for name, (x0, x1, z0, z1) in others
+            if a0 < x1 and a1 > x0 and b0 < z1 and b1 > z0]
 
 
 def recover_after_reload(session: Session, client: TTSClient, targets: list[str],
@@ -477,8 +508,9 @@ def recover_after_reload(session: Session, client: TTSClient, targets: list[str]
             attackers = tuple(f.fid for f in session.game.own(session.human, alive_only=False))
         client.call_lua(lua.create_panel(targets, position, rotation, scale, names,
                                          snapshot=session.snapshot_spec() if session.cfg.batch else None,
-                                         attacker_ids=attackers))
+                                         attacker_ids=attackers, human_seat=session.cfg.human_seat))
         mark_floor(client, session.cfg)
+        session.restore_look_row()
     except TABLE_ERRORS as e:
         return "retry", [f"TTS recargo la partida y aun no responde ({e}); reintento."]
     session.dirty = True
@@ -612,7 +644,7 @@ def play(cfg: PlayConfig, client: TTSClient, first: str, seed: int, stop: thread
     client.call_lua(lua.clear_markings(remove_panel=True))     # restos de una ejecucion anterior que murio sin limpiar
     client.call_lua(lua.create_panel(targets, cfg.panel_position, cfg.panel_rotation, cfg.panel_scale,
                                      cfg.nicknames, snapshot=session.snapshot_spec() if scfg.batch else None,
-                                     attacker_ids=cfg.attacker_ids))
+                                     attacker_ids=cfg.attacker_ids, human_seat=scfg.human_seat))
     echo("Panel creado en la mesa. Esperando botones (Ctrl+C para salir).")
     try:
         mark_floor(client, scfg)

@@ -816,6 +816,7 @@
    "winner": null
   },
   "limit_waived": false,
+  "look": null,
   "moving": false,
   "pending": {
    "attacker": "medusa",

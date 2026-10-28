@@ -462,6 +462,127 @@ return JSON.encode({{returned = c.getGUID()}})
 """
 
 
+LOOK_VAR = "lookRow"     # variable del script del panel con la fila mostrada: "guid|x|z,guid|x|z,..." (vacia: no hay fila)
+MAX_LOOK_CARDS = 12
+
+
+def _panel_var_lua(value_expr: str) -> str:
+    """Pone la variable `lookRow` en el script del panel PROPIO (nombre y notas de GM nuestros), bajo pcall: el panel
+    sabe asi que cartas de la fila puede reconocer `onPlayerPing`. Nunca toca el Global."""
+    return f"""pcall(function()
+  for _, p in ipairs(getObjects()) do
+    if p.getName() == {lua_str(PANEL_NAME)} and p.getGMNotes() == {lua_str(MARKER)} then p.setVar("{LOOK_VAR}", {value_expr}) end
+  end
+end)
+"""
+
+
+@_registered
+def show_hand_row(card_ids: list[int], spots: list[tuple[float, float, float]], rot_y: float, seat_color: str, *,
+                  identity, id_range: tuple[int, int] = BOT_CARD_IDS) -> str:
+    """Saca de la mano del asiento las cartas con esos CardID y las pone boca arriba, cada una en su sitio (`spots[i]`
+    para `card_ids[i]`): la mano del bot a la vista de su rival (efectos de mirar la mano). INSTANTANEO (setRotation y
+    setPosition: un movimiento suave no saca una carta de una zona de mano). Solo cuenta una carta del bando (`id_range`
+    e imagen de `identity`). Anota en el panel la fila mostrada (`lookRow`) para el ping. Devuelve `{shown: [{id, guid}]}`."""
+    if not isinstance(card_ids, (list, tuple)) or not isinstance(spots, (list, tuple)) or len(card_ids) != len(spots)             or not 1 <= len(card_ids) <= MAX_LOOK_CARDS:
+        raise TypeError(f"entre 1 y {MAX_LOOK_CARDS} CardID y otros tantos sitios esperados")
+    rows = []
+    for c, sp in zip(card_ids, spots):
+        if not isinstance(sp, (tuple, list)) or len(sp) != 3:
+            raise TypeError(f"(x, y, z) esperado, llego {sp!r}")
+        rows.append(f"[{_i(c)}]={{{_f(sp[0])}, {_f(sp[1])}, {_f(sp[2])}}}")
+    own = _ours_lua(identity, id_range)
+    return f"""-- sparring:show_hand_row
+{own}local wanted = {{{", ".join(rows)}}}
+local shown, entries = {{}}, {{}}
+for _, o in ipairs(Player[{_color(seat_color)}].getHandObjects(1)) do
+  if o.type == "Card" and not o.held_by_color then
+    local data = o.getData()
+    local at = wanted[data.CardID]
+    if at ~= nil and cardOurs(data, data.CustomDeck) then
+      o.setRotation(Vector(0, {_f(rot_y)}, 0))
+      o.setPosition(Vector(at[1], at[2], at[3]))
+      table.insert(shown, {{id = data.CardID, guid = o.getGUID()}})
+      table.insert(entries, o.getGUID() .. "|" .. tostring(at[1]) .. "|" .. tostring(at[3]))
+      wanted[data.CardID] = nil
+    end
+  end
+end
+{_panel_var_lua('table.concat(entries, ",")')}return JSON.encode({{shown = shown}})
+"""
+
+
+@_registered
+def resolve_hand_row(guids: list[str], seat_color: str, *, identity, id_range: tuple[int, int] = BOT_CARD_IDS,
+                     discard: str | None = None, face_down: bool = False,
+                     spot: tuple[float, float, float] = (0.0, 0.0, 0.0), rot_y: float = 0) -> str:
+    """Cierra la fila de `show_hand_row`: devuelve a la mano del asiento todas las cartas de la fila (por GUID) menos la
+    que se descarta, que va al `spot` del descarte. La descartada es la de GUID `discard` o, con `face_down`, LA UNICA carta
+    de la fila que este boca abajo (si hay 0 o varias no mueve nada y devuelve `down`). Sin `discard` ni `face_down` es
+    Cancelar: todo vuelve a la mano. INSTANTANEO. Solo cuentan cartas del bando (`id_range`, imagen de `identity`). Vacia
+    la fila anotada en el panel. Devuelve `{discarded: CardID|false, returned: [CardID], found, down}`."""
+    if not isinstance(guids, (list, tuple)) or not 1 <= len(guids) <= MAX_LOOK_CARDS:
+        raise TypeError(f"entre 1 y {MAX_LOOK_CARDS} GUID esperados")
+    if not isinstance(face_down, bool) or (face_down and discard is not None):
+        raise TypeError("face_down es un booleano y no se combina con discard")
+    if not isinstance(spot, (tuple, list)) or len(spot) != 3:
+        raise TypeError("(x, y, z) esperado")
+    own = _ours_lua(identity, id_range)
+    pick = _guid(discard) if discard is not None else "nil"
+    return f"""-- sparring:resolve_hand_row
+{own}local objs = {{}}
+for _, g in ipairs({_guid_list(guids)}) do
+  local o = getObjectFromGUID(g)
+  if o ~= nil and o.type == "Card" and ours(o) then table.insert(objs, o) end
+end
+local pick = {pick}
+local chosen, down = nil, 0
+for _, o in ipairs(objs) do
+  if o.is_face_down then down = down + 1 end
+end
+if {"true" if face_down else "false"} then
+  if down ~= 1 then return JSON.encode({{discarded = false, returned = {{}}, found = #objs, down = down}}) end
+  for _, o in ipairs(objs) do
+    if o.is_face_down then chosen = o end
+  end
+elseif pick ~= nil then
+  for _, o in ipairs(objs) do
+    if o.getGUID() == pick then chosen = o end
+  end
+  if chosen == nil then return JSON.encode({{discarded = false, returned = {{}}, found = #objs, down = down}}) end
+end
+local t = Player[{_color(seat_color)}].getHandTransform(1)
+local discarded, returned = false, {{}}
+for _, o in ipairs(objs) do
+  local id = o.getData().CardID
+  if o == chosen then
+    o.setRotation(Vector(0, {_f(rot_y)}, 0))
+    o.setPosition(Vector({_f(spot[0])}, {_f(spot[1])}, {_f(spot[2])}))
+    discarded = id
+  else
+    o.setRotation(Vector(0, t.rotation.y, 0))
+    o.setPosition(t.position)
+    table.insert(returned, id)
+  end
+end
+{_panel_var_lua('""')}return JSON.encode({{discarded = discarded, returned = returned, found = #objs, down = down}})
+"""
+
+
+@_registered
+def set_look_row(entries: list[tuple[str, float, float]]) -> str:
+    """Vuelve a anotar en el panel la fila mostrada (GUID, x, z de cada carta), p. ej. al reanudar tras recargar la
+    partida: la variable del script del panel no sobrevive a una recarga. Lista vacia: sin fila."""
+    if not isinstance(entries, (list, tuple)) or len(entries) > MAX_LOOK_CARDS:
+        raise TypeError("lista de (GUID, x, z) esperada")
+    text = ",".join(f"{_guid(g).strip(chr(34))}|{_f(x)}|{_f(z)}" for g, x, z in entries)
+    if not re.fullmatch(r"[A-Za-z0-9|,.+\-]{0,400}", text):
+        raise ValueError("fila no admitida en Lua")
+    quoted = '"' + text + '"'
+    return ("-- sparring:set_look_row\n" + _panel_var_lua(quoted)
+            + f"return JSON.encode({{set = {len(entries)}}})\n")
+
+
 @_registered
 def discard_cards(card_ids: list[int], spots: list[tuple[float, float, float]], rot_y: float = 0, *,
                   identity, scope: Scope, id_range: tuple[int, int] = BOT_CARD_IDS) -> str:
@@ -1059,7 +1180,7 @@ return JSON.encode({{removed = removed}})
 def create_panel(target_ids: list[str], position: tuple[float, float, float] = PANEL_POSITION,
                  rotation=ui.PANEL_ROTATION, scale=ui.PANEL_SCALE, names: dict[str, str] | None = None,
                  snapshot: "SnapSpec | None" = None,
-                 attacker_ids: tuple[str, ...] = ui.DEFAULT_ATTACKERS) -> str:
+                 attacker_ids: tuple[str, ...] = ui.DEFAULT_ATTACKERS, human_seat: str | None = None) -> str:
     """Crea (o reutiliza) un objeto propio y le pone el panel de botones con obj.UI.setXml (nunca el Global).
 
     Solo se reutiliza un panel con nuestro nombre Y nuestras notas de GM; la posicion por defecto queda encima de
@@ -1067,7 +1188,8 @@ def create_panel(target_ids: list[str], position: tuple[float, float, float] = P
     x, y, z = (_f(v) for v in position)
     xml = ui.panel_xml(target_ids, attacker_ids, rotation=rotation, scale=scale, names=names)
     handler_script = ui.handler_script(snapshot_lua(snapshot, "wseq") if snapshot is not None else None,
-                                       ui.element_ids(target_ids, attacker_ids))
+                                       ui.element_ids(target_ids, attacker_ids),
+                                       human_seat or (snapshot.human_seat if snapshot is not None else None))
     return f"""-- sparring:create_panel
 local panel
 for _, o in ipairs(getObjects()) do

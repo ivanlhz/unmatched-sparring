@@ -185,6 +185,24 @@
       "note": "Pendiente en vivo: ver los colores en el chat real de TTS y ajustar los tonos si alguno se lee mal sobre el fondo."
     },
     {
+      "id": "F16",
+      "title": "Mirar la mano del bot y descartarle una carta con un ping",
+      "status": "in-progress",
+      "description": "Cartas como Confront Any Demon or God (mira la mano del rival y descarta una): hoy Ivan saca la mano del bot, la gira, elige y devuelve el resto a mano. Flujo con un boton del panel y un ping.",
+      "criteria": [
+        "Boton nuevo del panel \"Mirar mano del bot\" (btn_look): encendido solo en el turno del humano o durante un combate, con la mesa del bot al dia y alguna carta en su mano; apagado si no. No gasta accion",
+        "El bot pone sus cartas de la mano boca arriba en fila centrada en un sitio configurable (look_spot, look_step, look_rot_y en config/partida.json; el arranque avisa si la fila pisa el panel o una caja de combate) y escribe en el chat (ChatKind SCHEME) cada carta: numero, titulo, tipo, valor, impulso y el texto del efecto de data/heroes/<slug>.json",
+        "Ping (Tab) del humano sobre una carta de la fila: onPlayerPing definido en el script del objeto panel (nunca el Global), solo del asiento humano y solo si la carta es de la fila mostrada; lo reenvia por sendExternalMessage como evento look_ping",
+        "El bot descarta esa carta en su zona de descarte (siguiente hueco de la rejilla), devuelve el resto a su mano con movimientos instantaneos y lo anuncia; el motor la descuenta de la mano como un descarte forzado y no cambia nada de lo que sabe de la mano del humano",
+        "Plan B: con una carta de la fila boca abajo, Fin de accion descarta esa (0 o varias boca abajo: no mueve nada y avisa); Cancelar devuelve todas a la mano sin descartar",
+        "Mientras la fila esta a la vista solo se atienden ping, Fin de accion, Cancelar, PV, Retirar y Valor; la fila persiste en sesion.json (look) y --resume la vuelve a anotar en el panel",
+        "Mensajes a TTS: mostrar = 1 compuesto (fila, panel y avisos juntos), ping = 1, Cancelar = 1; nunca messageID 1 ni Global UI",
+        "Si la mesa no hace lo que el motor conto (carta que ya no esta, TTS falla) el motor deshace el descarte y la fila sigue a la vista; si solo saca algunas cartas, la fila queda con esas",
+        "Tests: sesion con FakeTTS (normal y SPARRING_BATCH=1), Lua real con lupa (handler de ping con stub de onPlayerPing, show/resolve de la fila) y config; Medusa vs Hellboy y los dorados no cambian salvo `look: null` en el guardado"
+      ],
+      "note": "Pendiente en vivo: que onPlayerPing llegue al script del panel con el asiento y el objeto esperados, calibrar look_spot/look_step en la mesa real, y que las cartas puestas boca arriba en la fila no las vuelva a coger la zona de mano."
+    },
+    {
       "id": "F13",
       "title": "Mod del Workshop con el cerebro como servicio web (futuro)",
       "status": "backlog",
