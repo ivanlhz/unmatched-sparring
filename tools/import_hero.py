@@ -70,7 +70,7 @@ def build(slug: str, memory: Path, overlay_dir: Path = OVERLAY_DIR) -> dict:
                 raise SystemExit(f"{slug}: la hoja del overlay cita {entry['title']!r} (idx {entry.get('idx')}), que no "
                                  f"existe en unmatched-memory; titulos conocidos: {', '.join(sorted(by_title))}")
             cards.append({"idx": entry["idx"], "title": entry["title"], "fighter": entry["fighter"], "type": src["type"],
-                          "value": src["value"], "boost": src["boostValue"], "text": card_text(src),
+                          "value": src["value"], "boost": src["boostValue"], "text": entry.get("text") or card_text(src),
                           "tags": list(entry.get("tags", ()))})
         for title, src in by_title.items():
             n = sum(1 for c in cards if c["title"] == title)
