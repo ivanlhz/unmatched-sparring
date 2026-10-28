@@ -4,6 +4,8 @@ import json
 import pytest
 
 from conftest import give, place
+from sparring.tts.ui import Event
+from test_batch import brig, click  # noqa: F401
 from sparring.combat_flow import RULES, CombatFlow, PendingChoice, Phase
 
 NO_DECK = lambda card_id: False  # noqa: E731
@@ -137,6 +139,46 @@ def test_resume_with_none_is_no_boost(game):
     flow.resume(None)
     assert flow.run() is None
     assert flow.result.boost_card is None and flow.result.atk_value == shot.value and gaze in game.players[0].hand
+
+
+def _waiting_session(brig):
+    from test_review9 import _boost_rig
+    session, table, game, fake, second, _ = _boost_rig(brig)
+    click(session, table, Event.REVEAL)
+    return session, table, game, second
+
+
+def test_old_save_boost_wait_loads_as_pending_choice(brig):
+    session, table, game, second = _waiting_session(brig)
+    saved = json.loads(json.dumps(session.to_dict()))
+    old = {k: v for k, v in saved["pending"]["boost_wait"].items() if k not in ("kind", "player", "deck", "stuck")}
+    saved["pending"]["boost_wait"] = old
+    session.pending = None
+    session.load_dict(saved)
+    wait = session.pending.wait
+    assert isinstance(wait, PendingChoice) and (wait.kind, wait.player, wait.card_id) == ("boost", session.human, second.card_id)
+    assert wait.extra["stuck"] is False and wait.deck is False
+    assert session.pending.boost_wait["card"] == second.card_id
+
+
+def test_boost_wait_save_keeps_flat_keys(brig):
+    session, table, game, second = _waiting_session(brig)
+    flat = json.loads(json.dumps(session.to_dict()))["pending"]["boost_wait"]
+    assert {"card", "guid", "baseline", "hand", "stuck", "deck"} <= set(flat) and flat["kind"] == "boost"
+    assert flat["card"] == second.card_id and session.pending.boost_wait == flat
+    session.pending.wait = None
+    assert json.loads(json.dumps(session.to_dict()))["pending"]["boost_wait"] is None
+
+
+def test_stuck_flag_persists_via_wait(brig):
+    session, table, game, second = _waiting_session(brig)
+    session.pending.wait.extra["stuck"] = True
+    saved = json.loads(json.dumps(session.to_dict()))
+    assert saved["pending"]["boost_wait"]["stuck"] is True
+    session.pending = None
+    session.load_dict(saved)
+    assert session.pending.wait.extra["stuck"] is True and session.pending.boost_wait["stuck"] is True
+    assert session.panel_view()[1]["btn_cancel"] == (True, True)
 
 
 def fresh_rig():

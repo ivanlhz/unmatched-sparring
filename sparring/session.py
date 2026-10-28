@@ -28,6 +28,7 @@ from . import persist
 from .ai_medusa import MedusaAI
 from .cards import Card, can_be_boost
 from .controller import Controller
+from .combat_flow import PendingChoice
 from .combat import FEINT, FIGHT_OR_FLIGHT, FIGHT_OR_FLIGHT_BONUS, GLANCE_DAMAGE, can_boost, deck_boost, is_medusa_card, scheme_gain_actions
 from .state import ANUNG, DETECTIVE, EXHAUST_DAMAGE, HAND_LIMIT, START_HAND, Fighter, Game, RuleError
 from .tts import lua, ui
@@ -212,7 +213,12 @@ class Pending:
     bot_card_guid: str | None = None
     cancel_failures: int = 0
     defended: bool = True        # False: el humano ataca y el bot aun no ha decidido ni puesto su defensa (se hace al Revelar)
-    boost_wait: dict | None = None   # cartas ya reveladas, sin resolver: {"card", "guid", "baseline", "hand", "stuck"} (espera el BOOST del humano)
+    wait: PendingChoice | None = None   # cartas ya reveladas, sin resolver: espera el BOOST del humano (extra: guid, baseline, hand, stuck)
+
+    @property
+    def boost_wait(self) -> dict | None:
+        """Flat save form of `wait` (read-only: mutate `wait` itself, e.g. `wait.extra["stuck"] = True`)."""
+        return None if self.wait is None else self.wait.to_dict()
 
 
 class Session:
@@ -373,7 +379,7 @@ class Session:
             self._w(lua.set_look_row(self._look_entries()), "misc")     # la variable del panel no sobrevive a una recarga
             self.say("La mano del bot sigue a la vista: haz ping (Tab) sobre la carta a descartar o pulsa Cancelar.",
                      ChatKind.YOUR_TURN)
-        elif self.pending is not None and self.pending.boost_wait is not None:
+        elif self.pending is not None and self.pending.wait is not None:
             self.say(self._boost_prompt(self.pending), ChatKind.YOUR_TURN)
         elif self.pending is not None:
             self.say("Hay un combate pendiente: pulsa Revelar o Cancelar ataque.", ChatKind.YOUR_TURN)
@@ -880,7 +886,7 @@ class Session:
             "pending": None if p is None else {
                 "kind": p.kind, "attacker": p.attacker.fid, "target": p.target.fid,
                 "bot_card": p.bot_card.card_id if p.bot_card else None, "bot_card_guid": p.bot_card_guid,
-                "cancel_failures": p.cancel_failures, "defended": p.defended, "boost_wait": p.boost_wait},
+                "cancel_failures": p.cancel_failures, "defended": p.defended, "boost_wait": None if p.wait is None else p.wait.to_dict()},
             "pending_discard": self.pending_discard, "pending_value": self.pending_value, "look": self.look,
             "chosen_attacker": self.chosen_attacker, "moving": self.moving,
             "bot_discarded": sorted(self.bot_discarded), "dirty": self.dirty,
@@ -925,7 +931,7 @@ class Session:
                 p["kind"], self.game.fighters[p["attacker"]], self.game.fighters[p["target"]],
                 by_id[p["bot_card"]] if p["bot_card"] is not None else None, p["bot_card_guid"], p["cancel_failures"],
                 bool(p.get("defended", True)),
-                self._load_boost_wait(p.get("boost_wait"), {c.card_id: c for c in self.game.players[self.human].full_set}))
+                self._load_boost_wait(p.get("boost_wait"), self.human, {c.card_id: c for c in self.game.players[self.human].full_set}))
             self.pending_discard, self.pending_value = d["pending_discard"], d["pending_value"]
             self.look = self._load_look(d.get("look"))
             self.chosen_attacker, self.moving = d["chosen_attacker"], d["moving"]
@@ -966,7 +972,8 @@ class Session:
         return {"ids": list(raw["ids"]), "guids": list(raw["guids"]), "spots": [list(sp) for sp in raw["spots"]]}
 
     @staticmethod
-    def _load_boost_wait(raw, human_cards: dict | None = None) -> dict | None:
+    def _load_boost_wait(raw, human: int, human_cards: dict | None = None) -> PendingChoice | None:
+        """Translator for the saved `boost_wait`: a dict without "kind" is the old flat format (the human's boost)."""
         if raw is None:
             return None
         hand = raw.get("hand") if isinstance(raw, dict) else None
@@ -975,10 +982,17 @@ class Session:
                 or not (raw.get("guid") is None or isinstance(raw["guid"], str)) \
                 or not (hand is None or (isinstance(hand, int) and not isinstance(hand, bool))):
             raise KeyError("boost_wait")
-        card = (human_cards or {}).get(raw["card"])
-        # Flame Lash (boost del fondo del mazo): se recalcula de la carta, asi un guardado sin la clave tambien vale
-        return {"card": raw["card"], "guid": raw.get("guid"), "baseline": list(raw["baseline"]), "hand": hand,
-                "stuck": raw.get("stuck") is True, "deck": raw.get("deck") is True or (card is not None and deck_boost(card))}
+        flat = {"kind": raw.get("kind", "boost"), "player": raw.get("player", human), "card": raw["card"],
+                "guid": raw.get("guid"), "baseline": list(raw["baseline"]), "hand": hand,
+                "stuck": raw.get("stuck") is True}
+
+        def deck_of(card_id: int) -> bool:        # Flame Lash: recomputed from the card, so a save without the key also works
+            card = (human_cards or {}).get(card_id)
+            return card is not None and deck_boost(card)
+        try:
+            return PendingChoice.from_dict({**flat, "deck": raw.get("deck")}, default_player=human, deck_of=deck_of)
+        except KeyError:
+            raise KeyError("boost_wait") from None
 
     @staticmethod
     def _load_saved_identities(raw) -> dict[str, tuple]:
@@ -1217,7 +1231,7 @@ class Session:
         if self.pending is None:
             self.say("No hay combate pendiente: el valor extra solo vale antes de Revelar, en el combate en curso.", ChatKind.WARNING)
             return
-        if self.pending.boost_wait is not None:
+        if self.pending.wait is not None:
             self.say("El boost se lee de tu descarte al pulsar Continuar: no hace falta escribir un valor.", ChatKind.WARNING)
             return
         self.pending_value = int(raw)
@@ -1290,8 +1304,8 @@ class Session:
         if self._drop_pending_if_gone():
             return
         p = self.pending
-        if p is not None and p.boost_wait is not None:
-            if p.boost_wait.get("stuck"):
+        if p is not None and p.wait is not None:
+            if p.wait.extra["stuck"]:
                 self._cancel_stuck_boost(p)
                 return
             self.say("Las cartas ya estan giradas: no se puede cancelar. Pulsa Continuar (con tu carta de boost en el "
@@ -1343,7 +1357,7 @@ class Session:
             return
         if self._drop_pending_if_gone():
             return
-        if p.boost_wait is not None:              # con las cartas ya giradas no hay nada boca abajo que buscar
+        if p.wait is not None:              # con las cartas ya giradas no hay nada boca abajo que buscar
             self.say(self._boost_prompt(p), ChatKind.YOUR_TURN)
             return
         if self.placing is not None:              # defensa puesta cuya respuesta llego tarde: no se pone dos veces
@@ -1390,9 +1404,9 @@ class Session:
         cards = [(p.bot_card_guid, "bot"), (guid, "human")]
         self._flip_all(cards)
         self._flip_queued(cards)
-        p.boost_wait = {"card": card.card_id, "guid": guid, "baseline": baseline,
-                        "hand": self._rd_human_count(-1), "stuck": False, "deck": deck_boost(card)}
-        if p.boost_wait["deck"]:
+        p.wait = PendingChoice("boost", self.human, card.card_id, deck_boost(card),
+                               {"guid": guid, "baseline": baseline, "hand": self._rd_human_count(-1), "stuck": False})
+        if p.wait.deck:
             self.say(f"{card.title} revelado: pon la carta del FONDO de tu mazo en tu descarte y pulsa Continuar (Sin "
                      "boost si tu mazo esta vacio). Si es ardiente, recogela despues: Wildfire la devuelve a tu mano.",
                      ChatKind.YOUR_TURN)
@@ -1407,10 +1421,10 @@ class Session:
         self._finish_boost(False)
 
     def _boost_prompt(self, p: Pending) -> str:
-        if p.boost_wait.get("stuck"):
+        if p.wait.extra["stuck"]:
             return ("El combate no se pudo resolver con la mesa actual: corrige la posicion o la carta y pulsa "
                     "Continuar o Sin boost, o pulsa Cancelar para deshacerlo (las cartas vuelven a quedar boca abajo).")
-        if p.boost_wait.get("deck"):
+        if p.wait.deck:
             return ("Las cartas ya estan reveladas: pon la carta del fondo de tu mazo en el descarte y pulsa "
                     "Continuar, o pulsa Sin boost.")
         return ("Las cartas ya estan reveladas: pon tu carta de boost en el descarte y pulsa Continuar, "
@@ -1418,16 +1432,16 @@ class Session:
 
     def _finish_boost(self, use: bool) -> None:
         p = self.pending
-        if p is None or p.boost_wait is None:
+        if p is None or p.wait is None:
             self.say("No hay ningun boost pendiente.", ChatKind.WARNING)
             return
         if self._drop_pending_if_gone():
             return
         mine = {c.card_id: c for c in self.game.players[self.human].full_set}
-        card, boost = mine[p.boost_wait["card"]], None
+        card, boost = mine[p.wait.card_id], None
         if use:
             seen = {r["id"] for r in self._rd_human_discard() if r["id"] in mine}
-            new = sorted(seen - set(p.boost_wait["baseline"]) - {card.card_id})
+            new = sorted(seen - set(p.wait.extra["baseline"]) - {card.card_id})
             if not new:
                 self.say("No veo ninguna carta nueva en tu descarte: ponla y pulsa Continuar, o pulsa Sin boost.", ChatKind.WARNING)
                 return
@@ -1435,27 +1449,27 @@ class Session:
                 self.say(f"Hay {len(new)} cartas nuevas en tu descarte ({', '.join(mine[i].title for i in new)}): "
                          "deja solo la del boost y pulsa Continuar.", ChatKind.WARNING)
                 return
-            before, now = p.boost_wait.get("hand"), self._rd_human_count(-1)
-            if p.boost_wait.get("deck"):          # Flame Lash: sale del fondo del mazo, la mano no cambia
+            before, now = p.wait.extra["hand"], self._rd_human_count(-1)
+            if p.wait.deck:          # Flame Lash: sale del fondo del mazo, la mano no cambia
                 before = -1
             if isinstance(before, int) and before >= 0 and now >= 0 and now != before - 1:
                 self.say(f"El boost tiene que salir de tu mano: tenias {before} cartas y ahora tienes {now} "
                          f"(deberian ser {max(before - 1, 0)}). Corrigelo y pulsa Continuar, o pulsa Sin boost.", ChatKind.WARNING)
                 return
             boost = mine[new[0]]
-            if not p.boost_wait.get("deck") and not can_be_boost(boost):
+            if not p.wait.deck and not can_be_boost(boost):
                 self.say(f"{boost.title} no tiene valor de impulso: no cuenta. Quita esa carta del descarte y pon otra "
                          "con valor de impulso, o pulsa Sin boost.", ChatKind.WARNING)
                 return
         self.sync_positions()                     # la mesa manda: algo pudo moverse mientras se esperaba
-        self._resolve_combat(p, card, p.boost_wait["guid"], flip=False, boost=boost)
-        if self.pending is p and p.boost_wait is not None:
-            p.boost_wait["stuck"] = True          # el motor lo rechazo: Cancelar pasa a ser la salida
+        self._resolve_combat(p, card, p.wait.extra["guid"], flip=False, boost=boost)
+        if self.pending is p and p.wait is not None:
+            p.wait.extra["stuck"] = True          # el motor lo rechazo: Cancelar pasa a ser la salida
 
     def _cancel_stuck_boost(self, p: Pending) -> None:
         """Salida del combate atascado tras revelar: las dos cartas vuelven a quedar boca abajo, la del bot a su mano
         y la accion no se gasta. La carta tuya la recoges tu."""
-        self._unflip([(p.bot_card_guid, "bot"), (p.boost_wait["guid"], "human")])
+        self._unflip([(p.bot_card_guid, "bot"), (p.wait.extra["guid"], "human")])
         self._return_bot_card(p)
         self.pending, self.pending_value, self.chosen_attacker = None, 0, None
         self.say("Combate cancelado: la accion no se ha gastado. Recoge tu carta de la zona de combate.")
@@ -1489,7 +1503,7 @@ class Session:
             if human_card is not None:
                 self._transit.pop(human_card.card_id, None)
             self._unflip(flipped)
-            if p.boost_wait is not None:
+            if p.wait is not None:
                 self.say(f"No se puede resolver el combate: {e}. Corrige la mesa y pulsa Continuar o Sin boost "
                          "otra vez, o pulsa Cancelar para deshacerlo.", ChatKind.WARNING)
             else:
@@ -1722,7 +1736,7 @@ class Session:
             self._look_close(face_down=True)
             return
         if self.pending is not None and not self._drop_pending_if_gone():
-            self.say("Termina primero el boost: pulsa Continuar o Sin boost." if self.pending.boost_wait is not None
+            self.say("Termina primero el boost: pulsa Continuar o Sin boost." if self.pending.wait is not None
                      else "Revela primero el combate en curso.", ChatKind.WARNING)
             return
         if self.game.winner is not None:
@@ -2525,8 +2539,8 @@ class Session:
         cancellable = (self.look is not None or self.pending is not None or self.pending_discard is not None
                        or self.chosen_attacker is not None or bool(self.pending_value) or self.dirty or self.unprojected is not None
                        or bool(self.flush_failures))
-        boosting = self.pending is not None and self.pending.boost_wait is not None
-        stuck = boosting and bool(self.pending.boost_wait.get("stuck"))
+        boosting = self.pending is not None and self.pending.wait is not None
+        stuck = boosting and bool(self.pending.wait.extra["stuck"])
         states["btn_reveal"] = (self.pending is not None and not boosting, not boosting)
         states["btn_cancel"] = (cancellable and (not boosting or stuck), not boosting or stuck)
         states["btn_boost"] = (boosting, boosting)
@@ -2561,10 +2575,10 @@ class Session:
             return "Turno del bot" + (" · en pausa, pulsa Fin de accion" if paused else "")
         n = g.actions_left
         head = f"Tu turno · {n} accion{'es' if n != 1 else ''}"
-        if self.pending is not None and self.pending.boost_wait is not None:
+        if self.pending is not None and self.pending.wait is not None:
             title = next((c.title for c in g.players[self.human].full_set
-                          if c.card_id == self.pending.boost_wait["card"]), "Boost")
-            if self.pending.boost_wait.get("stuck"):
+                          if c.card_id == self.pending.wait.card_id), "Boost")
+            if self.pending.wait.extra["stuck"]:
                 return f"{title} sin resolver: corrige la mesa y pulsa Continuar o Sin boost, o Cancelar"
             return f"{title} revelado: pon una carta en tu descarte y pulsa Continuar o Sin boost"
         if self.pending is not None:
