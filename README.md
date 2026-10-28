@@ -119,6 +119,13 @@ Cada mensaje a TTS cuesta ~0.5 s fijos y encadenarlos no ayuda (medido en vivo e
 Las reglas de forma salen de la carta de personaje, transcrita en `../unmatched-hellboy-cartas/2026-10-23_2239/unmatched-hellboy-4-personajes.html` (seccion "AHH CRAP!"):
 OCCULT DETECTIVE con 5 o menos destinos en el descarte (al empezar el turno, en una casilla de salida rival, puede robar 2); ANUNG UN RAMA con 6 o mas (al empezar el turno descarta 1 carta obligatoriamente y puede mover a Hellboy hasta el BOOST de esa carta; sus ataques suman +2). La forma no es permanente: si bajan a 5 destinos (p. ej. Pancakes!) vuelve a DETECTIVE, por eso se recalcula siempre desde el descarte (`Game.form`).
 
+## Heroes desde datos (F07, pasos 0-3 del plan)
+
+- `data/heroes/<slug>.json` es el HeroDef que lee el motor; lo genera `tools/import_hero.py` (`--all`, `--check`) desde `../unmatched-memory` (solo lectura) mas el overlay a mano `data/heroes/overlay/<slug>.json` (hoja de CardID con restricciones y etiquetas, fid, formas, contadores, disparadores, pasivas). Medusa y Hellboy completos; Abe Sapien, Baba Yaga y Liz Sherman solo con datos basicos (sin hoja de CardID no se puede jugar con ellos).
+- `Game.new(board, seed, controllers, bot_player, starts, heroes=(slug_bot, slug_humano))`; `config/partida.json` lleva `bot_hero` y `human_hero` (por defecto medusa y hellboy). Las formas (`Game.form`), los contadores (`Game.counter`, `Game.counters`), la pasiva de ataque (`Game.attack_bonus`) y los disparadores de inicio de turno activos (`Game.triggers`) salen del HeroDef.
+- Mano rival conocida (`KnownHand`, para F07 y F09): `Game.observe_hand(viewer, cards)` guarda lo visto por un efecto de «mira la mano del rival»; `Game.card_left_hand(owner, card)` es el unico punto de descuento (lo llaman `take_from_hand` y `discard_card`: combate, descartes, impulsos, planes); `Game.hidden_hand(viewer)` devuelve (conocidas, candidatas, cuantas faltan) para muestrear sin trampas. Se guarda en `sesion.json` solo si hay algo visto.
+- Tests dorados: `tests/test_golden.py` fija simulador, transcripcion FakeTTS y guardado de Medusa vs Hellboy; se regeneran a proposito con `GOLDEN_UPDATE=1`.
+
 ## Bridge: allowlist
 
 `TTSClient` solo envia Lua generado por los constructores de `tts/lua.py` (cada uno registra el hash de su script); cualquier otra cadena se rechaza. Solo salen los messageID 2 y 3.

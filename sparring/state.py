@@ -11,9 +11,8 @@ from .heroes import HeroDef, load_hero
 HAND_LIMIT = 7
 START_HAND = 5
 EXHAUST_DAMAGE = 2
-DETECTIVE = "OCCULT DETECTIVE"
-ANUNG = "ANUNG UN RAMA"
-ANUNG_THRESHOLD = 6
+DETECTIVE = "OCCULT DETECTIVE"      # nombres de las formas de Hellboy tal y como estan en data/heroes/hellboy.json
+ANUNG = "ANUNG UN RAMA"             # (los anuncios de la sesion los usan; la regla vive en los datos)
 DEFAULT_HEROES = ("medusa", "hellboy")     # (heroe del bot, heroe del humano)
 
 
@@ -180,6 +179,9 @@ class Game:
         pile = self.players[player].discard if c.pile == "discard" else []
         return sum(1 for card in pile if c.tag in card.tags)
 
+    def counters(self, player: int) -> dict[str, int]:
+        return {name: self.counter(player, name) for name in self.players[player].hero.counters}
+
     def destiny_count(self, player: int) -> int:
         return self.counter(player, "destiny") if "destiny" in self.players[player].hero.counters else 0
 
@@ -188,6 +190,12 @@ class Game:
         if forms is None:
             return None
         return forms.of(self.counter(player, forms.counter))
+
+    def triggers(self, player: int, when: str) -> list[dict]:
+        """Disparadores del heroe activos ahora: los de ese momento cuya forma (si la exigen) es la actual."""
+        form = self.form(player)
+        return [t for t in self.players[player].hero.triggers
+                if t.get("when") == when and t.get("form", form) == form]
 
     def attack_bonus(self, fighter: Fighter) -> int:
         """Bono de ataque de las pasivas del heroe en su forma actual (Hellboy en ANUNG UN RAMA: +2)."""
@@ -375,8 +383,13 @@ class Game:
             self.move_fighter(self.hero_named("Hellboy"), dest, card.boost)
 
     def hellboy_detective_draw(self, player: int) -> bool:
-        hb = self.hero_named("Hellboy")
-        if self.form(player) == DETECTIVE and hb.pos == self.start_spaces[1 - player]:
-            self.draw(player, 2)
-            return True
+        """Robo de inicio de turno en la salida rival: el disparador `draw` activo en la forma actual (Hellboy en
+        OCCULT DETECTIVE: 2 cartas) con la condicion `hero_on_rival_start`; cuantas, lo dicen los datos."""
+        hero = self.hero(player)
+        for t in self.triggers(player, "start_of_turn"):
+            if t.get("effect") != "draw" or t.get("condition") != "hero_on_rival_start":
+                continue
+            if hero.alive and hero.pos == self.start_spaces[1 - player]:
+                self.draw(player, int(t["n"]))
+                return True
         return False
