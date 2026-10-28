@@ -43,7 +43,7 @@ class CombatResult:
     atk_parts: list[str] = field(default_factory=list)      # de donde sale el total del atacante (para anunciarlo)
     def_parts: list[str] = field(default_factory=list)
     applied: list[str] = field(default_factory=list)        # efectos de despues del combate que el motor ya aplico
-    bot_ignored: list[str] = field(default_factory=list)    # efectos de cartas del bot que el motor aun no codifica
+    bot_notes: list[str] = field(default_factory=list)      # lo que el bot no resuelve de sus cartas (se anuncia)
 
 
 @dataclass
@@ -148,14 +148,13 @@ def resolve_combat(game: Game, att: Fighter, tgt: Fighter, atk_card: Card, def_c
             i_won = won == (side == "atk")
             if is_medusa_card(card):
                 _medusa_after(game, fighter, rival, card, i_won)
+            elif fighter.owner == game.bot_player:    # nunca se le pide al humano resolver un efecto del bot
+                _hellboy_after(game, fighter, card, i_won, result)
+                _liz_after(game, card, result)
+                _announce_bot_card(card, result)
             elif not (_hellboy_after(game, fighter, card, i_won, result) or _liz_after(game, card, result)):
                 after = after_text(card)
-                if fighter.owner == game.bot_player:      # nunca se le pide al humano resolver un efecto del bot
-                    if card.title == PLANNED and not after:
-                        result.applied.append(f"{card.title}: aplicado ({card.text})")
-                    elif after or card.text.strip():
-                        result.bot_ignored.append(f"{card.title}: el bot ignora este efecto: {after or card.text.strip()}")
-                elif after:
+                if after:
                     result.human_effects.append(f"{card.title}: {after}")
                 elif card.title == PLANNED:
                     result.applied.append(f"{card.title}: aplicado ({card.text})")
@@ -165,6 +164,37 @@ def resolve_combat(game: Game, att: Fighter, tgt: Fighter, atk_card: Card, def_c
     for owner, card in played:
         game.players[owner].discard.append(card)
     return result
+
+
+_MOMENT = re.compile(r"(IMMEDIATELY|DURING COMBAT|AFTER COMBAT):")
+_RIVAL_OPTION = re.compile(r"(your|the) opponent may", re.IGNORECASE)
+# momentos de las cartas no-Medusa que el motor ya resuelve solo, por titulo (lo demas del texto no esta codificado)
+CODED_MOMENTS = {"Horseshoes And Hand Grenades": {"AFTER COMBAT"}, ON_EARTH: {"DURING COMBAT", "AFTER COMBAT"},
+                 "Flame Lash": {"AFTER COMBAT"}, PLANNED: {"IMMEDIATELY"}}
+
+
+def text_parts(card: Card) -> list[tuple[str, str]]:
+    """(momento, texto) de cada parte del texto de la carta; el texto suelto antes del primer momento va con ''."""
+    pieces = _MOMENT.split(card.text)
+    out = [("", pieces[0].strip())] if pieces[0].strip() else []
+    out += [(pieces[i], pieces[i + 1].strip()) for i in range(1, len(pieces) - 1, 2)]
+    return out
+
+
+def _announce_bot_card(card: Card, result: CombatResult) -> None:
+    """Toda parte del texto de una carta del bot que el motor no resuelve se anuncia con su momento: como efecto que
+    el bot ignora, o como opcion del humano si el texto se la da al rival (Incinerate)."""
+    coded = CODED_MOMENTS.get(card.title, set())
+    if coded and card.title == PLANNED:
+        result.applied.append(f"{card.title}: aplicado ({card.text})")
+    for moment, text in text_parts(card):
+        if moment in coded or not text:
+            continue
+        label = f" ({moment})" if moment else ""
+        if _RIVAL_OPTION.search(text):
+            result.bot_notes.append(f"{card.title}: tu opcion{label}: {text} Resuelvela a mano.")
+        else:
+            result.bot_notes.append(f"{card.title}: el bot ignora este efecto{label}: {text}")
 
 
 def can_boost(card: Card) -> bool:

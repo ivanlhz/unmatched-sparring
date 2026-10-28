@@ -530,7 +530,7 @@ class MedusaAI(Controller):
                     p_dead += p * (dmg >= t.hp)
                 if not t.hero:
                     p_hit = sum(p for p, v in model.attack_dist(e) if v is not None and v > my_def)
-                    danger = HARPY_VALUE * p_hit
+                    danger = HARPY_VALUE * t.max_hp * p_hit
                 else:
                     danger = W_MEDUSA_HP * exp + LETHAL * p_dead
                 best = max(best, p_reach * danger)
@@ -630,7 +630,7 @@ class MedusaAI(Controller):
             p_hit += p * (net >= 1)
             p_block += p * (net == 0)
         if not target.hero:
-            v = -HARPY_VALUE * p_hit
+            v = -HARPY_VALUE * target.max_hp * p_hit
         else:
             v = -W_MEDUSA_HP * exp - LETHAL * p_dead
         if c is None:

@@ -67,7 +67,7 @@ def test_an_after_combat_of_a_non_medusa_bot_is_announced_as_ignored_and_never_l
     g, abe, foe, card = _bot_attacks_with_abe(bprd, "hellboy")
     res = resolve_combat(g, abe, foe, card, None)
     assert res.human_effects == []
-    assert res.bot_ignored == [f"{card.title}: el bot ignora este efecto: {after_text(card)}"]
+    assert res.bot_notes == [f"{card.title}: el bot ignora este efecto (AFTER COMBAT): {after_text(card)}"]
     assert res.atk_value == card.value                       # se juega por valor
 
 
@@ -77,4 +77,61 @@ def test_the_humans_own_after_combat_still_goes_to_the_human(bprd):
     right_hand = next(c for c in g.players[1].full_set if c.title == "Right Hand Of Doom")
     g.players[1].hand.append(right_hand)
     res = resolve_combat(g, foe, abe, right_hand, None)
-    assert [e.split(":")[0] for e in res.human_effects] == ["Right Hand Of Doom"] and res.bot_ignored == []
+    assert [e.split(":")[0] for e in res.human_effects] == ["Right Hand Of Doom"] and res.bot_notes == []
+
+
+def _box_cards():
+    from sparring.combat import text_parts
+    from sparring.heroes import load_hero
+    out = []
+    for slug in ("hellboy", "abe-sapien", "baba-yaga", "liz-sherman"):
+        seen = set()
+        for c in load_hero(slug).deck():
+            if c.title not in seen and not c.is_scheme:
+                seen.add(c.title)
+                out.append((slug, c.title))
+    return out
+
+
+@pytest.mark.parametrize("slug,title", _box_cards())
+def test_every_uncoded_moment_of_a_bot_card_is_announced_and_never_left_to_the_human(bprd, slug, title):
+    from conftest import Scripted
+    from sparring.combat import CODED_MOMENTS, text_parts, resolve_combat
+    from sparring.state import Game
+    human = "medusa"
+    g = Game.new(bprd, seed=3, controllers={0: Scripted(), 1: Scripted()}, bot_player=0, heroes=(slug, human))
+    g.turn, g.turn_no = 0, 2
+    g.begin_turn()
+    for pl in g.players:
+        pl.hand.clear()
+    me, foe = g.hero(0), g.hero(1)
+    spaces = sorted(g.board.spaces)
+    me.pos, foe.pos = spaces[0], spaces[1]
+    card = next(c for c in g.players[0].full_set if c.title == title)
+    g.players[0].hand.append(card)
+    res = resolve_combat(g, me, foe, card, None)
+    assert res.human_effects == []
+    said = res.bot_notes + res.applied
+    for moment, text in text_parts(card):
+        if moment in CODED_MOMENTS.get(title, set()):
+            assert not any(text in n for n in res.bot_notes), (title, moment)
+        else:
+            assert any(text in n and (moment in n) for n in res.bot_notes), (title, moment, said)
+    assert not any("Resuelve a mano" in n for n in said)
+
+
+def test_a_rival_option_is_announced_as_the_humans_option_not_as_ignored(bprd):
+    from conftest import Scripted
+    from sparring.combat import resolve_combat
+    from sparring.state import Game
+    g = Game.new(bprd, seed=3, controllers={0: Scripted(), 1: Scripted()}, bot_player=0, heroes=("liz-sherman", "hellboy"))
+    g.turn, g.turn_no = 0, 2
+    g.begin_turn()
+    me, foe = g.hero(0), g.hero(1)
+    spaces = sorted(g.board.spaces)
+    me.pos, foe.pos = spaces[0], spaces[1]
+    card = next(c for c in g.players[0].full_set if c.title == "Incinerate")
+    g.players[0].hand.append(card)
+    res = resolve_combat(g, me, foe, card, None)
+    option = [n for n in res.bot_notes if "Your opponent may" in n]
+    assert len(option) == 1 and "tu opcion" in option[0] and "ignora" not in option[0]

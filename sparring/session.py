@@ -1508,7 +1508,7 @@ class Session:
             self.say(f"El bot descarta {listed}.")
         for e in res.applied:
             self.say(f"Aplicado: {e}", ChatKind.WARNING)
-        for e in res.bot_ignored:
+        for e in res.bot_notes:
             self.say(e, ChatKind.WARNING)
         for e in res.human_effects:
             self.say(f"Resuelve a mano: {e}", ChatKind.WARNING)
