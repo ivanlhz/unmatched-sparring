@@ -1044,3 +1044,27 @@ def test_default_hooks_are_inert():
     fx = EffectState()
     assert fx.adjust_damage(None, 3, "effect") == 3 and fx.can_draw(0) and fx.can_gain_actions(1)
     assert fx.emit("anything", 1, 2) is None
+
+
+def test_hiss_and_slither_in_defense_reports_medusas_owner_as_the_source(game):
+    """Medusa defends on Hellboy's turn: the forcing player is Medusa (0), not the turn player (1)."""
+    calls = []
+
+    class Spy(SpyFx):
+        def can_force_discard(self, player, source_player):
+            calls.append((player, source_player))
+            return True
+    game.fx = Spy()
+    place(game, medusa=3, hellboy=4)
+    game.turn = 1
+    game.begin_turn()
+    hiss = give(game, 0, "Hiss and Slither")
+    pistol = give(game, 1, "Service Pistol")
+    game.players[1].hand.extend(game.players[1].deck[:2])
+    game.attack(game.fighters["hellboy"], game.fighters["medusa"], pistol, def_card=hiss)
+    assert calls == [(1, 0)]
+    calls.clear()
+    game.turn = 0
+    give(game, 0, "Dash")
+    game.force_discard(0, 1, "hand limit")
+    assert calls == [(0, 0)]

@@ -346,12 +346,12 @@ class Game:
         if not played:
             self.fx.emit("card_discarded", player, card, "hand")
 
-    def force_discard(self, player: int, n: int, reason: str) -> list[Card]:
+    def force_discard(self, player: int, n: int, reason: str, source: int | None = None) -> list[Card]:
         hand = self.players[player].hand
         n = min(n, len(hand))
         if not n:
             return []
-        if not self.fx.can_force_discard(player, self.turn):
+        if not self.fx.can_force_discard(player, player if source is None else source):
             return []
         self.fx.emit("force_discard", player, n)
         chosen = self.controllers[player].choose_discard(self, player, n, reason)[:n]
