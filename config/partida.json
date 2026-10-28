@@ -10,7 +10,7 @@
     "start_spaces: casillas de salida REALES de la mesa (Medusa en la 30, Hellboy en la 3); no son las del mapa por defecto. bot_discard_bounds: (centro x, centro z, tamano x, tamano z, rotY) de la zona 906a7a leida del guardado (live.json 27/10): la rejilla del descarte solo usa huecos cuyo centro cae dentro y, llena, apila encima desde el primero. panel_position: encima de los tapetes (y 1.0) y de los objetos (~1.57).",
     "dead_spot: donde el bot aparta sus miniaturas caidas (una por pieza, separadas 1.5 en x); es una estimacion, calibrala en vivo. human_dead_spot lo mismo para las del humano.",
     "Preparacion (setup): el bot reparte su mano, decide un mulligan (una vez: las 5 cartas al mazo, se baraja y se reparten 5; regla de la casa o sin confirmar, ver README) y coloca a Medusa y las Harpias segun quien empieza; el humano coloca a Hellboy y Lobster y pulsa Listo. Las casillas de salida salen del reglamento (el primer jugador ocupa la salida 1 del mapa, el segundo la 2) salvo que se fije start_spaces a mano. mulligan_bot=false lo desactiva para el bot; mulligan_human=false desactiva el boton Mulligan del humano.",
-    "bot_unpack_spot / human_unpack_spot / unpack_step: al arrancar, si falta en la mesa algun objeto de los heroes (miniaturas, diales, fichas, mazo) y su bolsa interior ya esta sacada de la bolsa infinita, el bot lo saca de ella y lo deja en fila desde ese sitio (cada unpack_step; el mazo va a su sitio de mazo y se baraja). Son estimaciones, calibralas en vivo. Quitalas para que el bot no toque nada. start_spaces acepta ids de luchador o las claves bot / human."
+    "unpack (opcional, apagado): con --unpack o \"unpack\": true el bot, ANTES de jugar y nunca con --resume, saca de la bolsa interior de cada heroe lo que no este en la mesa (ningun GUID de sus estados; un mazo, ademas, sin pila suya en su sitio de mazo) y lo deja en fila desde bot_unpack_spot / human_unpack_spot (por defecto [22,2.5,-10] y [-22,2.5,-10], fuera de las zonas de mano; cada unpack_step [0,0,3]); el mazo va a su sitio de mazo y se baraja. Si la bolsa interior no esta en la mesa no hace nada y avisa; nunca saca de una bolsa infinita. start_spaces acepta ids de luchador o las claves bot / human."
   ],
   "bot_hero": "medusa",
   "human_hero": "hellboy",
@@ -90,20 +90,5 @@
   "bot_pause": 1.0,
   "setup": true,
   "mulligan_bot": true,
-  "mulligan_human": true,
-  "bot_unpack_spot": [
-    24.0,
-    2.5,
-    0.0
-  ],
-  "human_unpack_spot": [
-    -24.0,
-    2.5,
-    0.0
-  ],
-  "unpack_step": [
-    0.0,
-    0.0,
-    3.0
-  ]
+  "mulligan_human": true
 }

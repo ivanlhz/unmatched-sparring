@@ -18,7 +18,7 @@ import secrets
 import sys
 import threading
 import traceback
-from dataclasses import dataclass
+from dataclasses import dataclass, field
 from pathlib import Path
 from typing import Callable
 
@@ -61,6 +61,7 @@ class PlayConfig:
     raw: dict
     board: Board
     todos: list[str]
+    warnings: list[str] = field(default_factory=list)      # avisos de la configuracion (se imprimen al arrancar)
 
     @property
     def heroes(self) -> tuple[str, str]:
@@ -155,8 +156,11 @@ class PlayConfig:
         out = {}
         for k, v in (self.raw.get("start_spaces") or {}).items():
             fid = hero_fid.get(str(k), str(k))
-            if fid in valid:                  # una clave de otro heroe (de una config anterior) ya no cuenta
+            if fid in valid:
                 out[fid] = int(v)
+            else:                             # una clave de otro heroe (de una config anterior) no cuenta, pero se dice
+                self.warnings.append(f"start_spaces: la clave {k!r} no es de ningun luchador de {self.heroes[0]} / "
+                                     f"{self.heroes[1]} ni bot / human: se ignora.")
         return out
 
     def _dry_build(self, cfg: SessionConfig) -> None:
@@ -482,49 +486,46 @@ def recover_after_reload(session: Session, client: TTSClient, targets: list[str]
                   "el bot relea la mesa."]
 
 
-def unpack_plan(cfg: PlayConfig) -> list[tuple[str, str, tuple[float, float, float]]]:
-    """(clase, GUID, sitio) de todo lo de los dos heroes, para sacarlo de su bolsa si falta en la mesa. El mazo va a su
-    sitio de mazo; lo demas, en fila desde `bot_unpack_spot` / `human_unpack_spot` cada `unpack_step` (0, 0, 3 por
-    defecto). Un bando sin su sitio configurado no se desempaqueta."""
-    r, step = cfg.raw, [float(v) for v in cfg.raw.get("unpack_step", (0.0, 0.0, 3.0))]
+UNPACK_SPOTS = {"bot": (22.0, 2.5, -10.0), "human": (-22.0, 2.5, -10.0)}   # fuera de las manos (|x| >= 25) y de los descartes
+UNPACK_STEP = (0.0, 0.0, 3.0)
+
+
+def unpack_plan(cfg: PlayConfig) -> list[tuple]:
+    """(clase, GUID de cada estado, bolsa interior, sitio, rango de CardID o None) de todo lo de los dos heroes. El mazo va
+    a su sitio de mazo; lo demas, en fila desde `bot_unpack_spot` / `human_unpack_spot` cada `unpack_step`."""
+    r, step = cfg.raw, [float(v) for v in cfg.raw.get("unpack_step", UNPACK_STEP)]
     out = []
     for slug, side in zip(cfg.heroes, ("bot", "human")):
-        origin = r.get(f"{side}_unpack_spot")
-        if is_todo(origin):
-            continue
+        origin = r.get(f"{side}_unpack_spot") or UNPACK_SPOTS[side]
         deck_xz = r.get(f"{side}_deck_spot")
-        n = 0
-        for kind, guid in load_hero_table(slug).unpack_items():
+        table, n = load_hero_table(slug), 0
+        for kind, guids in table.unpack_items():
             if kind == "deck" and deck_xz:
-                out.append((kind, guid, (float(deck_xz[0]), float(origin[1]), float(deck_xz[1]))))
+                out.append((kind, guids, table.inner_bag, (float(deck_xz[0]), float(origin[1]), float(deck_xz[1])),
+                            table.card_ids))
                 continue
-            out.append((kind, guid, tuple(float(o) + n * d for o, d in zip(origin, step))))
+            out.append((kind, guids, table.inner_bag, tuple(float(o) + n * d for o, d in zip(origin, step)), None))
             n += 1
     return out
 
 
 def prepare_heroes(client, cfg: PlayConfig, echo: Callable[[str], None] = print) -> None:
-    """Antes de jugar: si falta en la mesa algun objeto de los heroes (miniaturas, diales, fichas, mazo), el bot lo saca de
-    su bolsa SOLO si la bolsa interior ya esta sacada de la bolsa infinita del heroe (una infinita clonaria con otro
-    GUID). Lo que siga sin aparecer se dice con el nombre del heroe y de su bolsa. Sin `*_unpack_spot` en la configuracion
-    no hace nada (ni un mensaje a TTS)."""
+    """Solo con --unpack (o "unpack": true) y nunca al reanudar: saca de la bolsa interior de cada heroe lo que falte en
+    la mesa. Falta = no responde NINGUN GUID del objeto (todos sus estados) y, en un mazo, no hay ninguna pila suya en su
+    sitio. Se saca unicamente de la bolsa con el GUID de bolsa del heroe; si no esta en la mesa no se hace nada y se avisa
+    (el bot nunca saca nada de una bolsa infinita). Un solo mensaje a TTS."""
     plan = unpack_plan(cfg)
-    if not plan:
-        return
-    found = client.call_lua(lua.inspect_guids(sorted({g for _, g, _ in plan}))) or {}
-    todo = [it for it in plan if not (found.get(it[1]) or {}).get("found")]
-    if not todo:
-        return
-    res = client.call_lua(lua.unpack_from_bags(todo)) or {}
+    res = client.call_lua(lua.unpack_from_bags(plan)) or {}
     taken, missing = list(res.get("taken") or []), list(res.get("missing") or [])
     if taken:
         echo(f"[bot] He sacado de su bolsa {len(taken)} objeto(s) de los heroes: {', '.join(taken)}.")
     for slug in cfg.heroes:
         table = load_hero_table(slug)
-        lost = sorted(set(missing) & set(table.all_guids()))
+        lost = [g for _, guids in table.unpack_items() for g in guids[:1] if g in missing]
         if lost:
-            echo(f"[aviso] Faltan en la mesa {', '.join(lost)} de {load_hero(slug).name}: saca la bolsa {table.inner_bag} "
-                 f"de la bolsa infinita {table.bag} (o sus objetos) a la mesa y reinicia el bot.")
+            echo(f"[aviso] Faltan en la mesa {', '.join(lost)} de {load_hero(slug).name} y su bolsa interior "
+                 f"{table.inner_bag} no esta en la mesa (o no los contiene): colocalos a mano; el bot no saca nada de una "
+                 "bolsa infinita.")
 
 
 def run_loop(session: Session, client: TTSClient, stop: threading.Event, announce: Callable[[list[str]], None],
@@ -586,13 +587,14 @@ def build_game(cfg: PlayConfig, first: str, seed: int) -> Game:
 def play(cfg: PlayConfig, client: TTSClient, first: str, seed: int, stop: threading.Event,
          echo: Callable[[str], None] = print, poll: float = 0.1, state_path: Path | None = None,
          resume: bool = False, timing: bool = False, ai: str | None = None,
-         ai_time: float | None = None, bot_pause: float | None = None) -> None:
+         ai_time: float | None = None, bot_pause: float | None = None, unpack: bool = False) -> None:
     scfg = cfg.session_config()
     if bot_pause is not None:
         if not (math.isfinite(bot_pause) and 0 <= bot_pause <= 30):
             raise SessionError("--bot-pause: segundos entre 0 (sin pausa) y 30")
         scfg.bot_pause = bot_pause
-    prepare_heroes(client, cfg, echo)
+    if (unpack or cfg.raw.get("unpack")) and not resume:
+        prepare_heroes(client, cfg, echo)
     game = build_game(cfg, first, seed)
     session = Session(game, client, make_bot_ai(ai_config(cfg, ai, ai_time), BOT), scfg, bot=BOT)
     session.state_path = state_path
@@ -648,6 +650,9 @@ def parse_args(argv: list[str] | None) -> argparse.Namespace:
     ap.add_argument("--bot-pause", type=float, default=None, metavar="SEGUNDOS",
                     help="pausa entre las acciones del turno del bot y antes de tu turno (manda sobre bot_pause de "
                          f"la configuracion; por defecto {DEFAULT_BOT_PAUSE:g}; 0 la desactiva)")
+    ap.add_argument("--unpack", action="store_true",
+                    help="antes de jugar, saca de la bolsa interior de cada heroe lo que falte en la mesa (tambien "
+                         '"unpack": true en la configuracion); nunca al reanudar con --resume')
     ap.add_argument("--timing", action="store_true",
                     help="escribe, por boton y por accion del bot, los mensajes a TTS y el tiempo (y cada llamada)")
     return ap.parse_args(argv)
@@ -662,6 +667,8 @@ def main(argv: list[str] | None = None, stop: threading.Event | None = None) -> 
     except ConfigError as e:
         print(f"Configuracion: {e}", file=sys.stderr)
         return 2
+    for warning in cfg.warnings:
+        print(f"Aviso: {warning}", file=sys.stderr)
     client = TTSClient(send_port=args.send_port, listen_port=args.listen_port)
     stop = stop or threading.Event()
     try:
@@ -675,7 +682,8 @@ def main(argv: list[str] | None = None, stop: threading.Event | None = None) -> 
             print(f"Aviso: {state} se sobrescribira con la partida nueva (usa --resume para reanudarla).")
         state.parent.mkdir(parents=True, exist_ok=True)
         play(cfg, client, args.first, seed, stop, poll=args.poll, state_path=state, resume=args.resume,
-             timing=args.timing, ai=args.ai, ai_time=args.ai_time, bot_pause=args.bot_pause)
+             timing=args.timing, ai=args.ai, ai_time=args.ai_time, bot_pause=args.bot_pause,
+             unpack=args.unpack)
         return 0
     except (SessionError, persist.StateError) as e:
         print(f"No puedo empezar: {e}", file=sys.stderr)

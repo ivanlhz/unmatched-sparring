@@ -573,48 +573,74 @@ MAX_UNPACK = 40
 
 
 @_registered
-def unpack_from_bags(items: list[tuple[str, str, tuple[float, float, float]]]) -> str:
-    """Saca de su bolsa los objetos de un heroe que aun no estan en la mesa: `items` = (clase, GUID, sitio (x, y, z)).
+def unpack_from_bags(items: list[tuple[str, tuple[str, ...], str, tuple[float, float, float], tuple[int, int] | None]]) -> str:
+    """Saca de la bolsa INTERIOR de un heroe lo que no esta en la mesa. `items` = (clase, GUID de cada estado, GUID de la
+    bolsa interior, sitio (x, y, z), rango de CardID si es un mazo).
 
-    Es lo unico que hace, y solo por GUID exacto: un objeto que ya esta en la mesa no se toca; uno que esta dentro de una
-    bolsa NORMAL (type Bag: una bolsa infinita clonaria el objeto con otro GUID) se saca con `takeObject({guid=...})` al
-    sitio dado; los mazos se barajan al salir. Lo que no se encuentra en ninguna bolsa de la mesa vuelve en `missing`
-    (la bolsa interior sigue dentro de la bolsa infinita del heroe: hay que sacarla a mano). Devuelve
-    `{present = [...], taken = [...], missing = [...]}`. No toca el Global ni la UI."""
+    Un objeto cuenta como presente (y no se toca) si responde CUALQUIERA de sus GUID; un mazo, ademas, si hay un Deck o
+    una Card cuyas cartas caen en su rango a menos de 2 del sitio del mazo (TTS convierte el mazo en Card y le cambia el
+    GUID). Si falta, solo se saca de la bolsa con ese GUID de bolsa, que ha de existir, ser type Bag y contener el GUID:
+    nunca de otra bolsa de la mesa (los GUID se repiten entre bolsas del mod) ni de una infinita (clonaria). Lo que no se
+    puede sacar vuelve en `missing`. Devuelve `{present, taken, missing}`. No toca el Global ni la UI."""
     if not isinstance(items, (list, tuple)) or not 1 <= len(items) <= MAX_UNPACK:
         raise ValueError(f"entre 1 y {MAX_UNPACK} objetos esperados")
     rows = []
-    for kind, guid, pos in items:
+    for kind, guids, bag, pos, rng in items:
         if kind not in ("deck", "piece", "dial", "token"):
             raise ValueError(f"clase de objeto desconocida {kind!r}")
         if not isinstance(pos, (tuple, list)) or len(pos) != 3:
             raise TypeError("sitio (x, y, z) esperado")
-        rows.append(f'{{{lua_str(kind)}, {_guid(guid)}, {_f(pos[0])}, {_f(pos[1])}, {_f(pos[2])}}}')
+        if not isinstance(guids, (tuple, list)) or not guids:
+            raise TypeError("lista de GUID esperada")
+        lo, hi = _range(rng) if rng is not None else ("0", "0")
+        rows.append(f'{{{lua_str(kind)}, {_guid_list(guids)}, {_guid(bag)}, {_f(pos[0])}, {_f(pos[1])}, {_f(pos[2])}, '
+                    f'{lo}, {hi}, {"true" if rng is not None else "false"}}}')
     return f"""-- sparring:unpack_from_bags
 local ITEMS = {{{", ".join(rows)}}}
-local bags = {{}}
-for _, o in ipairs(getObjects()) do
-  if o.type == "Bag" then table.insert(bags, o) end
+local function cardsOf(o)
+  if o.type == "Card" then return {{o.getData()}} end
+  return o.getData().ContainedObjects or {{}}
+end
+local function deckAt(x, z, lo, hi)
+  for _, o in ipairs(getObjects()) do
+    if o.type == "Deck" or o.type == "Card" then
+      local p = o.getPosition()
+      if (p.x - x) ^ 2 + (p.z - z) ^ 2 <= 4 then
+        local cards, ok = cardsOf(o), true
+        if #cards == 0 then ok = false end
+        for _, c in ipairs(cards) do
+          if type(c.CardID) ~= "number" or c.CardID < lo or c.CardID > hi then ok = false end
+        end
+        if ok then return true end
+      end
+    end
+  end
+  return false
 end
 local out = {{present = {{}}, taken = {{}}, missing = {{}}}}
 for _, it in ipairs(ITEMS) do
-  local kind, guid = it[1], it[2]
-  if getObjectFromGUID(guid) ~= nil then
-    table.insert(out.present, guid)
+  local kind, guids = it[1], it[2]
+  local here = false
+  for _, g in ipairs(guids) do
+    if getObjectFromGUID(g) ~= nil then here = true end
+  end
+  if not here and it[9] then here = deckAt(it[4], it[6], it[7], it[8]) end
+  if here then
+    table.insert(out.present, guids[1])
   else
-    local source = nil
-    for _, bag in ipairs(bags) do
+    local bag = getObjectFromGUID(it[3])
+    local listed = false
+    if bag ~= nil and bag.type == "Bag" then
       for _, e in ipairs(bag.getObjects()) do
-        if e.guid == guid then source = bag end
+        if e.guid == guids[1] then listed = true end
       end
-      if source ~= nil then break end
     end
-    if source == nil then
-      table.insert(out.missing, guid)
+    if not listed then
+      table.insert(out.missing, guids[1])
     else
-      source.takeObject({{guid = guid, position = Vector(it[3], it[4], it[5]), smooth = false,
-                          callback_function = function(o) if kind == "deck" then o.shuffle() end end}})
-      table.insert(out.taken, guid)
+      bag.takeObject({{guid = guids[1], position = Vector(it[4], it[5], it[6]), smooth = false,
+                       callback_function = function(o) if kind == "deck" then o.shuffle() end end}})
+      table.insert(out.taken, guids[1])
     end
   end
 end

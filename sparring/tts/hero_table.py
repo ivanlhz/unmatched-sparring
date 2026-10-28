@@ -48,15 +48,16 @@ class HeroTable:
     tokens: dict[str, str] = field(default_factory=dict)          # fichas especiales por nombre
     counter_dials: dict[str, str] = field(default_factory=dict)   # dial de cada contador del heroe (destinos)
 
-    def unpack_items(self) -> list[tuple[str, str]]:
-        """(clase, GUID) de todo lo que hay que sacar de la bolsa interior para jugar con el heroe."""
-        items = [("deck", self.deck_guid)]
+    def unpack_items(self) -> list[tuple[str, tuple[str, ...]]]:
+        """(clase, GUID de cada estado) de todo lo que hay que sacar de la bolsa interior para jugar con el heroe.
+        Una pieza con varios estados (Hellboy) esta en la mesa si responde CUALQUIERA de sus GUID."""
+        items = [("deck", (self.deck_guid,))]
         for f in self.fighters.values():
-            items.append(("piece", f.pieces[0]))                # la otra cara es un estado del mismo objeto
+            items.append(("piece", f.pieces))
             if f.dial:
-                items.append(("dial", f.dial))
-        items += [("token", g) for g in self.tokens.values()]
-        items += [("dial", g) for g in self.counter_dials.values()]
+                items.append(("dial", (f.dial,)))
+        items += [("token", (g,)) for g in self.tokens.values()]
+        items += [("dial", (g,)) for g in self.counter_dials.values()]
         return items
 
     def all_guids(self) -> list[str]:

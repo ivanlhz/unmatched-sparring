@@ -22,6 +22,7 @@ from sparring.tts.client import TTSClient
 from sparring.tts.hero_table import TTS_DIR
 from sparring.tts.ui import Event
 from test_batch import click
+from test_play import cfg_file, live  # noqa: F401
 from test_session import Table, human_plays
 
 REAL_CONFIG = Path(__file__).resolve().parent.parent / "config" / "partida.json"
@@ -83,6 +84,7 @@ def test_the_config_by_hand_wins_over_the_hero_data_but_only_for_this_pair(tmp_p
     assert cfg.raw["pieces"]["medusa"] == "aaaaaa" and "hellboy" not in cfg.raw["pieces"]
     assert cfg.raw["pieces"]["liz"] == "874d20"
     assert cfg.session_config().start_spaces == {"medusa": 30, "liz": 3}
+    assert len(cfg.warnings) == 1 and "'hellboy'" in cfg.warnings[0]
 
 
 def test_a_hero_without_tts_data_or_the_same_hero_twice_is_a_clear_config_error(tmp_path):
@@ -265,69 +267,208 @@ def test_the_deck_identity_falls_back_to_the_hero_data_when_the_deck_is_not_on_t
         client.close()
         fake.close()
 
+# ---------- desempaquetar: nunca duplica nada (se ejecuta el Lua real con lupa sobre una mesa minima) ----------
+WORLD = r"""
+WORLD = {}
+local function vec(x, y, z) return {x = x, y = y, z = z} end
+Vector = function(x, y, z) return vec(x, y, z) end
+function add(o)
+  o.pos = o.pos or vec(0, 1, 0)
+  o.getPosition = function() return o.pos end
+  o.getData = function()
+    if o.type == "Card" then return {CardID = o.cid} end
+    local co = {}
+    for _, c in ipairs(o.cards or {}) do table.insert(co, {CardID = c}) end
+    return {ContainedObjects = co}
+  end
+  o.getObjects = function()
+    local out = {}
+    for _, g in ipairs(o.contents or {}) do table.insert(out, {guid = g}) end
+    return out
+  end
+  o.shuffle = function() o.shuffled = true end
+  o.takeObject = function(p)
+    for i, g in ipairs(o.contents) do
+      if g == p.guid then
+        table.remove(o.contents, i)
+        local n = add({guid = g, type = "Thing", pos = p.position})
+        if p.callback_function then p.callback_function(n) end
+        return n
+      end
+    end
+  end
+  table.insert(WORLD, o)
+  return o
+end
+getObjects = function() return WORLD end
+getObjectFromGUID = function(g) for _, o in ipairs(WORLD) do if o.guid == g then return o end end return nil end
+function count(g) local n = 0 for _, o in ipairs(WORLD) do if o.guid == g then n = n + 1 end end return n end
+"""
 
-class BagTable(Table):
-    """Mesa con los objetos de un heroe todavia en su bolsa interior (no en la mesa)."""
 
-    def __init__(self, inbag: set[str], **kw):
-        super().__init__(**kw)
-        self.inbag, self.unpacked = set(inbag), []
+@pytest.fixture
+def world():
+    pytest.importorskip("lupa")
+    from lupa import lua54
+    rt = lua54.LuaRuntime()
+    rt.execute(WORLD)
 
-    def do_inspect_guids(self, s):
-        guids = re.findall(r'"(\w+)"', re.search(r"ipairs\(\{(.*?)\}\)", s).group(1))
-        return {g: ({"found": False} if g in self.inbag else {"found": True, "type": "Card", "name": "", "x": 0, "y": 1, "z": 2})
-                for g in guids}
+    def conv(x):
+        if lua54.lua_type(x) == "table":
+            keys = list(x.keys())
+            if not keys:
+                return []
+            if all(isinstance(k, int) for k in keys):
+                return [conv(x[k]) for k in sorted(keys)]
+            return {str(k): conv(x[k]) for k in keys}
+        return x
+    rt.globals().JSON = rt.table_from({"encode": lambda v: json.dumps(conv(v))})
 
-    def do_unpack_from_bags(self, s):
-        rows = re.findall(r'\{"(\w+)", "(\w+)", ([-\d.]+), ([-\d.]+), ([-\d.]+)\}', s)
-        out = {"present": [], "taken": [], "missing": []}
-        for kind, guid, x, y, z in rows:
-            if guid in self.inbag:
-                self.inbag.discard(guid)
-                self.unpacked.append((kind, guid, float(x), float(y), float(z)))
-                out["taken"].append(guid)
-            else:
-                out["present"].append(guid)
-        return out
+    class W:
+        def add(self, guid, type_="Thing", **kw):
+            spec = {"guid": guid, "type": type_}
+            for k, v in kw.items():
+                spec[k] = rt.table_from(v) if isinstance(v, (list, dict)) else v
+            return rt.eval("add")(rt.table_from(spec))
+
+        def count(self, guid):
+            return rt.eval("count")(guid)
+
+        def run(self, plan):
+            return json.loads(rt.execute(lua.unpack_from_bags(plan).split("\n", 1)[1]))
+    return W()
 
 
-def test_the_bot_takes_the_missing_hero_objects_out_of_their_bag_at_start(tmp_path):
+def hero_plan(tmp_path, bot="medusa", human="hellboy"):
+    return play.unpack_plan(config_for(tmp_path, bot, human))
+
+
+def everything_on_the_table(w, plan, skip=()):
+    """El primer GUID de cada objeto del plan en la mesa, menos los de `skip`."""
+    for _, guids, *_ in plan:
+        if guids[0] not in skip:
+            w.add(guids[0])
+
+
+def test_a_piece_in_its_other_state_is_not_missing_and_nothing_is_duplicated(world, tmp_path):
+    """(a) Hellboy en ANUNG UN RAMA: f9789a ya es e6f06e. La bolsa interior aun guarda f9789a."""
+    plan = hero_plan(tmp_path)
+    everything_on_the_table(world, plan, skip={"f9789a"})
+    world.add("e6f06e")
+    world.add("c592d8", "Bag", contents=["f9789a"])
+    res = world.run(plan)
+    assert res["taken"] == [] and res["missing"] == []
+    assert world.count("f9789a") == 0 and world.count("e6f06e") == 1
+
+
+def test_a_deck_that_became_a_card_is_found_by_site_and_range_and_not_taken_again(world, tmp_path):
+    """(b) el mazo del humano perdio su GUID (queda una Card en su sitio): no se saca otro de la bolsa."""
+    cfg = config_for(tmp_path)
+    x, z = cfg.raw["human_deck_spot"]
+    plan = play.unpack_plan(cfg)
+    everything_on_the_table(world, plan, skip={"00dc9a"})
+    world.add("zzzzzz", "Card", cid=19705, pos={"x": x, "y": 1.0, "z": z})
+    world.add("c592d8", "Bag", contents=["00dc9a"])
+    res = world.run(plan)
+    assert res["taken"] == [] and res["missing"] == [] and world.count("00dc9a") == 0
+
+
+def test_a_card_of_another_game_at_the_deck_site_does_not_count_as_the_deck(world, tmp_path):
+    cfg = config_for(tmp_path)
+    x, z = cfg.raw["human_deck_spot"]
+    plan = play.unpack_plan(cfg)
+    everything_on_the_table(world, plan, skip={"00dc9a"})
+    world.add("yyyyyy", "Card", cid=555, pos={"x": x, "y": 1.0, "z": z})
+    world.add("c592d8", "Bag", contents=["00dc9a"])
+    assert world.run(plan)["taken"] == ["00dc9a"] and world.count("00dc9a") == 1
+
+
+def test_with_the_inner_bag_loose_on_the_table_pieces_already_out_are_not_taken_twice(world, tmp_path):
+    """(c) la bolsa interior suelta en la mesa aun lista piezas que ya estan fuera."""
+    plan = hero_plan(tmp_path)
+    everything_on_the_table(world, plan)
+    world.add("c592d8", "Bag", contents=["046660", "18c384", "e33604", "1644a3", "e17c66"])
+    world.add("e5a45c", "Bag", contents=["bcd809", "04b2c9", "328e52"])
+    res = world.run(plan)
+    assert res["taken"] == [] and res["missing"] == []
+    assert all(world.count(guids[0]) == 1 for _, guids, *_ in plan if guids[0] not in ("c592d8", "e5a45c"))
+
+
+def test_a_guid_repeated_in_another_bag_of_the_mod_is_never_taken(world, tmp_path):
+    """(e) 18c384 es el dial de Lobster y tambien "The Jackalope" de Bigfoot; bcd809 un objeto de Loki."""
+    plan = hero_plan(tmp_path)
+    everything_on_the_table(world, plan, skip={"18c384", "bcd809", "4fdf31"})
+    world.add("aaaaaa", "Bag", contents=["18c384", "bcd809", "4fdf31"])         # bolsa de otro personaje
+    res = world.run(plan)
+    assert res["taken"] == [] and set(res["missing"]) == {"18c384", "bcd809"}
+    assert world.count("18c384") == world.count("bcd809") == 0
+    world.add("c592d8", "Infinite", contents=["18c384"])                        # una infinita con ese GUID tampoco
+    assert world.run(plan)["taken"] == []
+
+
+def test_the_hero_inner_bag_gives_what_is_missing_once_and_a_second_run_takes_nothing(world, tmp_path):
+    plan = hero_plan(tmp_path, "medusa", "liz-sherman")
+    pieces = [g[0] for _, g, bag, *_ in plan if bag == "77449a"]
+    everything_on_the_table(world, plan, skip=set(pieces))
+    world.add("77449a", "Bag", contents=list(pieces))
+    first = world.run(plan)
+    assert sorted(first["taken"]) == sorted(pieces) and first["missing"] == []
+    assert all(world.count(g) == 1 for g in pieces)
+    second = world.run(plan)
+    assert second["taken"] == [] and all(world.count(g) == 1 for g in pieces)
+
+
+def test_the_inner_bag_not_on_the_table_means_a_warning_and_no_action(tmp_path):
     cfg = config_for(tmp_path, "medusa", "liz-sherman")
-    table = BagTable({"874d20", "9f9268", "b603cb"})
-    fake = FakeTTS(return_value=table)
-    client = TTSClient(send_port=fake.port, listen_port=0)
-    fake.reply_port = client.start_listening().port
-    lines = []
-    try:
-        play.prepare_heroes(client, cfg, lines.append)
-        assert sorted(g for _, g, *_ in table.unpacked) == ["874d20", "9f9268", "b603cb"]
-        deck = next(u for u in table.unpacked if u[0] == "deck")
-        assert (deck[2], deck[4]) == tuple(cfg.raw["human_deck_spot"])
-        assert any("He sacado de su bolsa 3 objeto" in line for line in lines)
-        assert table.count("unpack_from_bags") == 1 and table.count("inspect_guids") == 1
-        # nada que sacar: un solo mensaje de lectura y ninguna escritura
-        n = len(table.scripts)
-        play.prepare_heroes(client, cfg, lines.append)
-        assert [s.split("\n")[0] for s in table.scripts[n:]] == ["-- sparring:inspect_guids"]
-    finally:
-        client.close()
-        fake.close()
+    lines, calls = [], []
+
+    class Client:
+        def call_lua(self, script):
+            calls.append(script.split("\n")[0])
+            return {"present": [], "taken": [], "missing": ["874d20"]}
+    play.prepare_heroes(Client(), cfg, lines.append)
+    assert calls == ["-- sparring:unpack_from_bags"]
+    assert any("874d20" in line and "colocalos a mano" in line for line in lines)
+    assert not any("saca la bolsa" in line for line in lines)
 
 
-def test_without_unpack_spots_the_bot_never_touches_the_bags(tmp_path):
-    cfg = config_for(tmp_path, "medusa", "liz-sherman")
-    for key in ("bot_unpack_spot", "human_unpack_spot"):
-        cfg.raw.pop(key)
-    assert play.unpack_plan(cfg) == []
+def test_unpack_is_opt_in_and_never_runs_when_resuming(live, cfg_file, monkeypatch, tmp_path):
+    table, fake, ports = live
+    seen = []
+    monkeypatch.setattr(play, "prepare_heroes", lambda *a, **k: seen.append(1))
+
+    def interrupted(*a, **k):
+        raise KeyboardInterrupt
+    monkeypatch.setattr(play, "run_loop", interrupted)
+    state = ["--state", str(tmp_path / "s.json")]
+    play.main(["--config", str(cfg_file()), *ports, *state])
+    assert seen == []                                              # por defecto no
+    play.main(["--config", str(cfg_file()), *ports, *state, "--unpack"])
+    assert seen == [1]
+    play.main(["--config", str(cfg_file(unpack=True)), *ports, *state])
+    assert seen == [1, 1]
+    play.main(["--config", str(cfg_file(unpack=True)), *ports, *state, "--unpack", "--resume"])
+    assert seen == [1, 1]                                          # nunca con --resume
 
 
-def test_unpack_script_only_takes_by_exact_guid_from_normal_bags():
-    script = lua.unpack_from_bags([("piece", "874d20", (1.0, 2.0, 3.0)), ("deck", "b603cb", (4.0, 2.0, 5.0))])
-    assert script.startswith("-- sparring:unpack_from_bags") and 'o.type == "Bag"' in script
-    assert "takeObject" in script and "e.guid == guid" in script and "UI." not in script and "Global" not in script
-    with pytest.raises(ValueError):
-        lua.unpack_from_bags([("piece", 'x"); os.exit() --', (0.0, 0.0, 0.0))])
-    with pytest.raises(ValueError):
-        lua.unpack_from_bags([("bag", "874d20", (0.0, 0.0, 0.0))])
-    with pytest.raises(ValueError):
-        lua.unpack_from_bags([])
+def test_the_real_config_has_no_unpack_keys_and_the_default_spots_clear_the_hand_zones():
+    raw = json.loads(REAL_CONFIG.read_text(encoding="utf-8"))
+    assert not {"unpack", "bot_unpack_spot", "human_unpack_spot", "unpack_step"} & set(raw)
+    hands = [(-30.1, 7.0, 10, 4), (30.1, 6.9, 9.9, 3.9)]               # Purple 9bdc19 y Yellow aed1b8
+    for side, (x, y, z) in play.UNPACK_SPOTS.items():
+        for n in range(8):
+            zz = z + n * play.UNPACK_STEP[2]
+            for cx, cz, w, d in hands:
+                assert not (abs(x - cx) < w / 2 + 1 and abs(zz - cz) < d / 2 + 1), (side, n)
+
+
+def test_unpack_script_takes_only_from_the_given_bag_by_exact_guid():
+    script = lua.unpack_from_bags([("piece", ("874d20",), "77449a", (1.0, 2.0, 3.0), None),
+                                   ("deck", ("b603cb",), "77449a", (4.0, 2.0, 5.0), (19900, 19929))])
+    assert script.startswith("-- sparring:unpack_from_bags") and 'bag.type == "Bag"' in script
+    assert "takeObject" in script and "UI." not in script and "Global" not in script
+    for bad in ([("piece", ('x"); os.exit() --',), "77449a", (0.0, 0.0, 0.0), None)],
+                [("bag", ("874d20",), "77449a", (0.0, 0.0, 0.0), None)],
+                [("piece", ("874d20",), "bad guid", (0.0, 0.0, 0.0), None)], []):
+        with pytest.raises(ValueError):
+            lua.unpack_from_bags(bad)
