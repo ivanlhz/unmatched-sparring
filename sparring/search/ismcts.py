@@ -87,6 +87,19 @@ class ISMCTS:
         values = {m: edges[m].reward / edges[m].visits for m in moves if m in edges and edges[m].visits}
         return best, SearchReport(best, n, elapsed, visits, values)
 
+    def principal_variation(self, player: int, min_visits: int = 1) -> list[Hashable]:
+        """Claves mas visitadas desde la raiz del arbol de `player`, mientras haya aristas con visitas suficientes.
+        Sirve para completar una accion descompuesta en subjugadas (el controlador se detiene donde cambia el mover)."""
+        out = []
+        node = self.trees.get(player)
+        while node is not None and node.edges:
+            key, edge = max(node.edges.items(), key=lambda kv: kv[1].visits)
+            if edge.visits < min_visits:
+                break
+            out.append(key)
+            node = edge.node
+        return out
+
     def _iterate(self, root: SearchState, root_player: int, rng: random.Random) -> None:
         s = root.clone()
         s.determinize(root_player, rng)

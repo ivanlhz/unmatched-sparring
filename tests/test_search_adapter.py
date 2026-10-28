@@ -117,24 +117,63 @@ def test_action_phase_moves_cover_attacks_schemes_and_maneuvers(game):
     moves = st.legal_moves()
     kinds = {m[0] for m in moves}
     assert kinds == {"attack", "scheme", "maneuver"}
-    attacks = [m for m in moves if m[0] == "attack"]
-    assert ("attack", "medusa", "hellboy", "Second Shot") in attacks
-    assert sum(1 for m in attacks if m[3] == "Second Shot" and m[2] == "hellboy") == 1, "las copias no se repiten"
+    assert ("attack", "medusa", "hellboy") in moves and ("attack", "medusa", "lobster") in moves
     assert ("scheme", "A Momentary Glance", "hellboy", None) in moves
     boosts = {m[1] for m in moves if m[0] == "maneuver"}
     assert None in boosts and len(boosts) >= 2
+    assert len(moves) < 20, "la raiz es estrecha: la accion se descompone en subjugadas"
+    st.apply(("attack", "medusa", "hellboy"))
+    cards = st.legal_moves()
+    assert st.decision_pending() and st.player_to_move() == 0
+    assert cards == [("attack_card", "medusa", "Second Shot"), ("attack_card", "medusa", "Gaze of Stone"),
+                     ("attack_card", "medusa", "Regroup")], "titulos unicos, las copias no se repiten"
+
+
+def test_maneuver_is_three_chained_decisions(game):
+    place(game, medusa=4, hellboy=27, lobster=28, harpy1=20, harpy2=21, harpy3=22)
+    medusa_hand(game, "Regroup", "Dash")
+    st = EngineState(game, observer=0)
+    st.apply(("maneuver", "Regroup"))
+    hero_moves = st.legal_moves()
+    assert st.decision_pending() and all(m[0] == "hero_to" for m in hero_moves) and ("hero_to", 4) in hero_moves
+    assert len(hero_moves) > len(game.board.reachable(4, 3, set(), set())), "con boost 2 llega mas lejos"
+    st.apply(("hero_to", 4))
+    assert [m[0] for m in st.legal_moves()] == ["sidekicks"] * 3
+    st.apply(("sidekicks", "advance"))
+    assert not st.decision_pending() and st.game.actions_left == 1
+    assert st.game.fighters["medusa"].pos == 4
+    assert "Regroup" in [c.title for c in st.game.players[0].discard]
+    assert any(st.game.fighters[h].pos != p for h, p in (("harpy1", 20), ("harpy2", 21), ("harpy3", 22)))
+
+
+def test_single_option_subphases_resolve_themselves(game):
+    """Un solo titulo de ataque y sin ayudantes vivos: la carta y los ayudantes no abren decisiones."""
+    place(game, medusa=4, hellboy=2, lobster=3)
+    for fid in ("harpy1", "harpy2", "harpy3"):
+        game.fighters[fid].alive, game.fighters[fid].pos = False, None
+    medusa_hand(game, "Second Shot", "Second Shot")
+    fill_hand(game, 1, 5)
+    st = EngineState(game, observer=0)
+    st.apply(("attack", "medusa", "hellboy"))
+    assert st.pending is not None and st.pending[2].title == "Second Shot" and st.player_to_move() == 1
+    st2 = EngineState(game, observer=0)
+    st2.apply(("maneuver", None))
+    assert st2.phase == "maneuver_hero"
+    st2.apply(("hero_to", 4))
+    assert not st2.decision_pending() and st2.game.actions_left == 1
 
 
 def test_apply_attack_then_defend_resolves_combat(game):
     place(game, medusa=4, hellboy=2, lobster=3, harpy1=20, harpy2=21, harpy3=22)
-    medusa_hand(game, "Second Shot")
+    medusa_hand(game, "Second Shot", "Dash")
     fill_hand(game, 1, 2)
     st = EngineState(game, observer=0)
     st.determinize(0, random.Random(0))
-    st.apply(("attack", "medusa", "hellboy", "Second Shot"))
+    st.apply(("attack", "medusa", "hellboy"))
+    st.apply(("attack_card", "medusa", "Second Shot"))
     assert st.player_to_move() == 1 and all(m[0] == "defend" for m in st.legal_moves())
-    assert st.observe(("attack", "medusa", "hellboy", "Second Shot"), 1) == ("attack", "medusa", "hellboy", None)
-    assert st.observe(("attack", "medusa", "hellboy", "Second Shot"), 0) == ("attack", "medusa", "hellboy", "Second Shot")
+    assert st.observe(("attack_card", "medusa", "Second Shot"), 1) == ("attack_card", "medusa", None)
+    assert st.observe(("attack_card", "medusa", "Second Shot"), 0) == ("attack_card", "medusa", "Second Shot")
     st.apply(("defend", None))
     assert st.observe(("defend", None), 1) == ("defend", None) == st.observe(("defend", None), 0)
     assert st.game.fighters["hellboy"].hp == 18 - 3
@@ -147,9 +186,10 @@ def test_turn_ends_and_rival_start_of_turn_is_automatic(game):
     fill_hand(game, 1, 3)
     st = EngineState(game, observer=0)
     st.determinize(0, random.Random(0))
-    st.apply(("maneuver", None, (("medusa", 4), ("harpy1", 20), ("harpy2", 21), ("harpy3", 22))))
-    assert st.game.actions_left == 1
-    st.apply(("maneuver", None, (("medusa", 4), ("harpy1", 20), ("harpy2", 21), ("harpy3", 22))))
+    for _ in range(2):
+        st.apply(("maneuver", None))
+        st.apply(("hero_to", 4))
+        st.apply(("sidekicks", "stay"))
     assert st.player_to_move() == 1 and st.game.actions_left == 2 and st.game.turn == 1
 
 
@@ -163,7 +203,10 @@ def test_anung_start_is_a_decision_of_hellboy(game):
     moves = st.legal_moves()
     assert moves and all(m[0] == "anung" for m in moves)
     st.apply(moves[0])
-    assert len(st.game.players[1].hand) == 2 and st.game.actions_left == 2
+    dests = st.legal_moves()
+    assert all(m[0] == "anung_to" for m in dests) and ("anung_to", None) in dests
+    st.apply(("anung_to", None))
+    assert len(st.game.players[1].hand) == 2 and st.game.actions_left == 2 and st.game.fighters["hellboy"].pos == 27
 
 
 def test_evaluate_is_symmetric_and_terminal(game):
