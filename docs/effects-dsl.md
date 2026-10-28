@@ -485,3 +485,35 @@ Decisiones dudosas de la migracion (ver tambien `notes` de cada fichero):
   card (zeroes `game.turn`'s actions, sets `run.flags["end_turn"] = game.turn`); `choose_effect` resolves the chosen
   options in printed order, not choice order; `defeated` = died on the board (`died_at` set), reserve fighters
   are not defeated; `actions_taken_this_turn` is a stub (`NotImplementedError`, C3); `moved_this_turn` reads `fx.turn_start_pos` (filled by C3).
+
+## 12. Combat ops and modifiers (C2: `effects/ops_combat.py`, `effects/modifiers.py`, `combat_flow.py`)
+
+- Rules `dsl_immediately` / `dsl_during` / `dsl_after` come after the legacy rules; the legacy rules (feint, planned
+  recklessness, On Earth, boosts, `*_after`) step aside for a card whose owner's hero is in `fx.dsl_heroes`. Each run
+  lives in `CombatFlow.runs` (`"moment:side"`, finished ones too) and is saved under `flow.to_dict()["dsl"]`, which is
+  absent when nothing DSL happened. `PendingChoice.from_dict` accepts `kind="effect"` (key + request).
+- `flow.choosers` (player -> Chooser) defaults to the controllers; a `PanelChooser` makes the flow stop with an
+  `Await(PendingChoice("effect"))`, answered with `flow.resume(list)`.
+- Values: each side keeps a running total (never below 0). `modify_value` adds; `set_value` with a computed amount
+  ("the value becomes N": On Earth, Shock And Awe) replaces the PRINTED part and leaves bonuses (Fight Or Flight,
+  extras); `set_value` with the literal `0` ("ignore its value": Incinerate) zeroes the whole total, bonuses too.
+- `cancel_effects` marks the side as cancelled (the legacy semantic: what already resolved stays) unless the card is
+  `uncancelable`. `may_boost` cards ask a hand BOOST at the end of their DURING, either side; a card without a BOOST
+  value is refused. `combat.can_boost/deck_boost` read the data (index by CardID, `modifiers.card_effects`).
+- Statuses (`fx.statuses`, op `status`) expire through `fx.emit("start_of_turn" | "end_of_turn" | "after_maneuver",
+  player)` (`modifiers.expire_on_event`; C3 keeps calling it when it replaces `emit`). ONGOING modifiers go in
+  `fx.modifiers` with `modifiers.add_modifier(fx, owner, card_id, spec)` / `remove_modifiers(fx, card_id)` (C3 calls
+  them when the plan enters/leaves play); modifiers of kind `status`, `rule` (`effect_damage_bonus`, `no_gain_actions`)
+  and `redirect_damage` are read from there. `modify_value` modifiers are NOT read here: the ONGOING bonus reaches
+  combat through `Game.combat_bonus_parts` (C3 makes it a view of the ONGOING slot).
+- Hooks (bodies in modifiers.py): `adjust_damage` (effect damage only: immune statuses, then +N), `can_draw`,
+  `can_gain_actions`, `can_force_discard`, `can_move` (also consulted by `Game.legal_moves`). `fx.acting` is the
+  player whose op is running (`damage`, `move`, `place`, `swap`, `discard` set it); `None` means an effect of the
+  legacy path, treated as the enemy's. A discard that is the cost of an `optional` is voluntary and never vetoed.
+- `redirect_damage`: the op registers the redirection for the combat and it is applied in the DAMAGE phase (a
+  non-optional one; an optional combat redirect raises NotImplementedError, it needs a pause inside DAMAGE). Passives
+  and ONGOING `redirect_damage` act on effect damage inside the `damage` op, asking the optional ones through the
+  chooser of the passive's owner.
+- `next_attack_bonus` is consumed by the first attack of that player (`CombatFlow._reveal`).
+- Not covered: the `scheme` moment (C3), the `boost` moment of a card used as a boost, the `max_hand_size` and
+  `no_attack_as_first_action` rules (C3, Pacts), `until` events other than the turn events.

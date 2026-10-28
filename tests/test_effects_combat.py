@@ -86,6 +86,18 @@ def test_can_boost_reads_the_effects_data(bprd):
     assert can_boost(card(h, 1, "Second Shot")) and not can_boost(card(h, 0, "Second Shot"))     # Medusa: own rule
 
 
+def test_shared_card_titles_have_the_same_boost_and_cancel_flags_in_every_hero():
+    """combat.can_boost only sees a Card, so the flags are looked up by title: a title in two heroes must agree."""
+    from sparring.effects.model import EFFECTS_DIR
+    seen: dict[str, tuple] = {}
+    for path in sorted(EFFECTS_DIR.glob("*.json")):
+        if path.stem == "schema":
+            continue
+        for title, c in load_effects(path.stem).cards.items():
+            flags = (c.may_boost, c.uncancelable, modifiers.draws_bottom_for_boost(type("C", (), {"title": title})))
+            assert seen.setdefault(title, flags) == flags, title
+
+
 def test_second_shot_asks_a_boost_and_a_card_without_boost_value_is_refused(bprd):
     g = mk(bprd, ("liz-sherman", "hellboy"), ["hellboy"])
     g.turn = 1
@@ -388,8 +400,8 @@ def test_counterhex_blocks_enemy_effect_damage_moves_and_forced_discards(bprd):
     run_ops(g, discard, 0, "liz")
     assert len(g.players[1].hand) == 3
     assert not g.fx.can_force_discard(1, 0) and g.fx.can_force_discard(1, 1) and g.fx.can_force_discard(0, 1)
-    g.turn = 0
-    assert g.force_discard(1, 1, "effect") == [] and len(g.players[1].hand) == 3
+    assert g.force_discard(1, 1, "effect", 0) == [] and len(g.players[1].hand) == 3
+    assert len(g.force_discard(1, 1, "hand limit")) == 1                      # no source: the player's own discard
     assert g.damage(abe, 2, "combat") == 2                                       # combat damage is not an effect
     modifiers.remove_modifiers(g.fx, 999)
     run_ops(g, hit, 0, "liz")

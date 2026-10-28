@@ -22,27 +22,22 @@ PLAYER_STATUSES = ("immune_to_enemy_effect_damage", "immune_to_enemy_effect_move
 _DEFAULT_PLAYER = {"end_of_turn": "any", "start_of_turn": "owner", "after_maneuver": "any"}
 
 
-# ---------------------------------------------------------------- card data by id
+# ---------------------------------------------------------------- card data by title
 
 @lru_cache(maxsize=None)
-def _cards_by_id() -> dict[int, CardEffects]:
-    """CardID -> the card's effects, for every hero that has both a deck sheet and an effects file."""
-    from ..heroes import HeroDataError, load_hero
-    out: dict[int, CardEffects] = {}
+def _cards_by_title() -> dict[str, CardEffects]:
+    """Card title -> its effects, over every hero with an effects file. Titles shared by several heroes (B.P.R.D.
+    Training) carry the same flags; tests/test_effects_combat.py checks that, because combat code only has the Card
+    and a Card knows its title, not the hero's slug."""
+    out: dict[str, CardEffects] = {}
     for path in sorted(EFFECTS_DIR.glob("*.json")):
-        if path.stem == "schema":
-            continue
-        try:
-            deck = load_hero(path.stem).deck()
-        except HeroDataError:
-            continue
-        effects = load_effects(path.stem)
-        out.update({c.card_id: effects.cards[c.title] for c in deck if c.title in effects.cards})
+        if path.stem != "schema":
+            out.update({t: c for t, c in load_effects(path.stem).cards.items() if t not in out})
     return out
 
 
 def card_effects(card) -> CardEffects | None:
-    return _cards_by_id().get(card.card_id)
+    return _cards_by_title().get(card.title)
 
 
 def may_boost(card) -> bool:
@@ -51,13 +46,17 @@ def may_boost(card) -> bool:
     return fx is not None and fx.may_boost
 
 
+@lru_cache(maxsize=None)
+def _deck_boost_titles() -> frozenset[str]:
+    return frozenset(
+        title for title, fx in _cards_by_title().items()
+        if any(o["op"] == "discard" and isinstance(o.get("cards"), dict) and o["cards"].get("zone") == "deck"
+               and o["cards"].get("pick") == "bottom" for o in walk_ops(fx.moments.get("during", []))))
+
+
 def draws_bottom_for_boost(card) -> bool:
     """Flame Lash: the BOOST is the bottom card of the deck, discarded by the card's own DURING ops."""
-    fx = card_effects(card)
-    if fx is None:
-        return False
-    return any(o["op"] == "discard" and isinstance(o.get("cards"), dict) and o["cards"].get("zone") == "deck"
-               and o["cards"].get("pick") == "bottom" for o in walk_ops(fx.moments.get("during", [])))
+    return card.title in _deck_boost_titles()
 
 
 def is_uncancelable(card) -> bool:

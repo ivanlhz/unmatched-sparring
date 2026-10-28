@@ -130,3 +130,7 @@ are outside the hand mid-combat; the flow holds them and DONE discards them).
 - RuleError half-way: same exception at the same point; the session restores state as before.
 - Circular imports: `combat_flow` imports from `combat`; `combat` imports `combat_flow` inside the function.
 - ISMCTS cost: rules are a module-level list, no copies; measured with `tests/test_search_*.py`.
+
+## DSL rules (C2)
+
+After the legacy rules, `dsl_immediately`, `dsl_during` and `dsl_after` match a side whose owner's hero is in `game.fx.dsl_heroes`; the legacy rules do not match those cards. `dsl_during` also asks the free BOOST of `may_boost` cards, for either side. `PendingChoice` has a second kind, `"effect"` (key + request of the paused EffectRun), and `flow.to_dict()` gains a `"dsl"` key only when an interpreter run, value change or redirection exists. See docs/effects-dsl.md section 12.
