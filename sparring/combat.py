@@ -187,7 +187,7 @@ def _medusa_after(game: Game, me: Fighter, foe: Fighter, card: Card, i_won: bool
             if h.name == "Harpy":
                 _optional_move(game, ctrl, h, HOUNDS_STEPS)
     elif t in ("Clutching Claws", "Hiss and Slither"):
-        game.force_discard(foe.owner, 1, t)
+        game.force_discard(foe.owner, 1, t, me.owner)
 
 
 def _optional_move(game: Game, ctrl, fighter: Fighter, steps: int, through: bool = False) -> None:
