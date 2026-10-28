@@ -26,7 +26,7 @@ from typing import Callable
 
 from . import persist
 from .ai_medusa import MedusaAI
-from .cards import Card
+from .cards import Card, can_be_boost
 from .controller import Controller
 from .combat import FEINT, FIGHT_OR_FLIGHT, FIGHT_OR_FLIGHT_BONUS, GLANCE_DAMAGE, can_boost, deck_boost, is_medusa_card, scheme_gain_actions
 from .state import ANUNG, DETECTIVE, EXHAUST_DAMAGE, HAND_LIMIT, START_HAND, Fighter, Game, RuleError
@@ -1189,7 +1189,9 @@ class Session:
             self.say(f"Detecto {c.title}: aplicado, ganas 2 acciones (te quedan {g.actions_left}). Descartar tu mano "
                      "y robar 2 cartas lo haces tu: son tus cartas.", ChatKind.SCHEME)
         elif c.title == FIGHT_OR_FLIGHT:
-            g.add_combat_bonus(self.human, FIGHT_OR_FLIGHT_BONUS, FIGHT_OR_FLIGHT)
+            old = g.add_combat_bonus(self.human, FIGHT_OR_FLIGHT_BONUS, FIGHT_OR_FLIGHT)
+            if old is not None:
+                self.say(f"{c.title} reemplaza a {old}: solo hay un ONGOING activo por jugador.", ChatKind.SCHEME)
             total = g.combat_bonus_total(self.human)
             self.say(f"Detecto {c.title}: +{FIGHT_OR_FLIGHT_BONUS} a tus cartas de combate hasta el inicio de tu siguiente "
                      f"turno (ahora +{total}). Robar 1 y mover hasta 5 lo haces tu en la mesa; descarta el plan al "
@@ -1441,6 +1443,10 @@ class Session:
                          f"(deberian ser {max(before - 1, 0)}). Corrigelo y pulsa Continuar, o pulsa Sin boost.", ChatKind.WARNING)
                 return
             boost = mine[new[0]]
+            if not p.boost_wait.get("deck") and not can_be_boost(boost):
+                self.say(f"{boost.title} no tiene valor de impulso: no cuenta. Quita esa carta del descarte y pon otra "
+                         "con valor de impulso, o pulsa Sin boost.", ChatKind.WARNING)
+                return
         self.sync_positions()                     # la mesa manda: algo pudo moverse mientras se esperaba
         self._resolve_combat(p, card, p.boost_wait["guid"], flip=False, boost=boost)
         if self.pending is p and p.boost_wait is not None:

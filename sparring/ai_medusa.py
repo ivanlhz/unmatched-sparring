@@ -40,6 +40,7 @@ from __future__ import annotations
 from dataclasses import dataclass, field
 from math import ceil, comb
 
+from .cards import can_be_boost
 from .combat import GAZE_DAMAGE, GLANCE_DAMAGE, ON_EARTH, SECOND_SHOT
 from .controller import Controller
 from .state import ANUNG, EXHAUST_DAMAGE, HAND_LIMIT, Fighter, Game
@@ -369,7 +370,7 @@ class MedusaAI(Controller):
         variants: list = [(None, 0.0)]
         seen = set()
         for c in sorted(hand, key=lambda c: (keep_value(c, hand), -c.boost, c.card_id)):
-            if c.boost > 0 and c.boost not in seen:    # por cada alcance, la carta que menos duele gastar
+            if can_be_boost(c) and c.boost not in seen:    # por cada alcance, la carta que menos duele gastar
                 seen.add(c.boost)
                 variants.append((c, keep_value(c, hand) * 0.5))
         out = []
@@ -596,7 +597,7 @@ class MedusaAI(Controller):
         t = ctx.target
         now = max(0, ctx.atk_value - ctx.def_value)
         best, best_gain = None, 0.0
-        for c in hand:
+        for c in filter(can_be_boost, hand):
             net = max(0, ctx.atk_value + c.boost - ctx.def_value)
             gain = weight(t) * (min(net, t.hp) - min(now, t.hp)) - keep_value(c, hand)
             if gain > best_gain:

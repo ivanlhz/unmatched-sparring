@@ -10,7 +10,7 @@
   "Decision de Ivan (28/10): un efecto que ignore el VALOR IMPRESO no quita el +1 de Fight Or Flight; uno que ignore el VALOR, si.",
   "Decision de Ivan (28/10): con el bot llevando a Liz, el bot gira el fondo del mazo al inicio de su turno.",
   "Decision de Ivan (28/10): una carta sin valor de impulso no se puede usar para impulsar: las ardientes (BOOST 0) nunca se descartan como impulso.",
-  "Decision de Ivan (28/10): un solo ONGOING activo POR JUGADOR; jugar otro reemplaza al propio activo (dos Fight Or Flight = +1). Pendiente de codigo: Game.combat_bonus aun acumula."
+  "Decision de Ivan (28/10): un solo ONGOING activo POR JUGADOR; jugar otro reemplaza al propio activo (dos Fight Or Flight = +1). Implementado en Game.add_combat_bonus."
  ],
  "ability": {
   "text": "WILDFIRE\nWhenever you discard a burning card from your hand or deck, put it into your hand.\nAt start of your turn, discard the bottom card of your deck. If it's a burning card, deal 1 damage to another fighter in Liz's zone. Otherwise, move Liz up to 2 spaces.",

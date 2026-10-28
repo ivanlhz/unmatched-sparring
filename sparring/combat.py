@@ -6,7 +6,7 @@ from __future__ import annotations
 import re
 from dataclasses import dataclass, field
 
-from .cards import MEDUSA_BASE, Card
+from .cards import MEDUSA_BASE, Card, can_be_boost
 from .state import ANUNG, Fighter, Game, RuleError
 
 GAZE_DAMAGE = 8
@@ -123,12 +123,15 @@ def resolve_combat(game: Game, att: Fighter, tgt: Fighter, atk_card: Card, def_c
     if "atk" not in ctx.cancelled and is_medusa_card(atk_card) and atk_card.title == SECOND_SHOT:
         boost = game.controllers[pa].choose_combat_boost(game, ctx)
         if boost is not None:
+            _check_boost(boost)
             game.discard_card(pa, boost)
             ctx.atk_value += boost.boost
             result.boost_card = boost
             result.atk_parts.append(f"potencia con {boost.title} (+{boost.boost})")
 
     if boost is not None and "atk" not in ctx.cancelled and can_boost(atk_card):
+        if not deck_boost(atk_card):          # Flame Lash: the bottom deck card adds whatever it is worth, even 0
+            _check_boost(boost)
         game.discard_card(pa, boost)
         ctx.atk_value += boost.boost
         result.boost_card = boost
@@ -201,6 +204,11 @@ def can_boost(card: Card) -> bool:
     """Una carta del humano con un BOOST de su propio ataque en el DURING COMBAT: de la mano (Second Shot) o del
     fondo del mazo (Flame Lash)."""
     return not is_medusa_card(card) and ("boost this attack" in card.text.lower() or deck_boost(card))
+
+
+def _check_boost(boost: Card) -> None:
+    if not can_be_boost(boost):
+        raise RuleError(f"{boost.title} no tiene valor de impulso: no se puede impulsar con ella")
 
 
 def deck_boost(card: Card) -> bool:

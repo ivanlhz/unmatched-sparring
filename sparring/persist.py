@@ -37,7 +37,7 @@ def apply_game(g: Game, d: dict) -> None:
         g.turn, g.turn_no, g.actions_left, g.winner = d["turn"], d["turn_no"], d["actions_left"], d["winner"]
         g.effect_shield = {int(k): v for k, v in d["effect_shield"].items()}
         g.drawn = list(d["drawn"])
-        g.combat_bonus = [[(int(n), str(label)) for n, label in side]
+        g.combat_bonus = [[(int(n), str(label)) for n, label in side[-1:]]       # one ONGOING per player: keep the last
                           for side in d.get("combat_bonus") or [[], []]]
         for fid, st in d["fighters"].items():
             f = g.fighters[fid]

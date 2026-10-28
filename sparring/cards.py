@@ -35,6 +35,11 @@ def memory_dir() -> Path:
     return repo_toplevel().parent / "unmatched-memory"
 
 
+def can_be_boost(card: "Card") -> bool:
+    """Ivan's ruling (28/10): a card without a boost value cannot be used to boost."""
+    return card.boost > 0
+
+
 @dataclass(frozen=True)
 class Card:
     card_id: int

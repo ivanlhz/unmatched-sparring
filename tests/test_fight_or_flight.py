@@ -1,5 +1,5 @@
 """ONGOING de Fight Or Flight (Liz): +1 al valor de las cartas de combate de su dueno hasta el inicio de su siguiente
-turno, en ataque y en defensa, acumulable, persistente y visible para la IA. El rig es de Hellboy: la carta de plan
+turno, en ataque y en defensa, un solo ONGOING por jugador (el nuevo reemplaza), persistente y visible para la IA. El rig es de Hellboy: la carta de plan
 Pancakes! hace de Fight Or Flight (mismo recurso que los tests de Flame Lash)."""
 import json
 
@@ -43,16 +43,16 @@ def test_defense_with_the_bonus_adds_one_even_to_a_zero_value_card_and_not_witho
     assert res.def_value == 0, "sin carta de defensa no hay valor al que sumar"
 
 
-def test_second_copy_stacks_and_it_expires_only_at_the_owners_turn_start(game):
+def test_second_copy_replaces_and_it_expires_only_at_the_owners_turn_start(game):
     game.add_combat_bonus(HB, 1, FIGHT_OR_FLIGHT)
     game.add_combat_bonus(HB, 1, FIGHT_OR_FLIGHT)
-    assert game.combat_bonus_parts(HB) == [(2, FIGHT_OR_FLIGHT)]
+    assert game.combat_bonus_parts(HB) == [(1, FIGHT_OR_FLIGHT)]
     game.turn = HB
     game.end_turn()
     assert game.begin_turn() == [] and game.turn == MED, "el turno del rival no lo caduca"
-    assert game.combat_bonus_total(HB) == 2
+    assert game.combat_bonus_total(HB) == 1
     game.end_turn()
-    assert game.begin_turn() == [(2, FIGHT_OR_FLIGHT)] and game.combat_bonus_total(HB) == 0
+    assert game.begin_turn() == [(1, FIGHT_OR_FLIGHT)] and game.combat_bonus_total(HB) == 0
 
 
 def test_a_bot_playing_it_gets_the_bonus_too(game):
@@ -65,8 +65,8 @@ def test_a_bot_playing_it_gets_the_bonus_too(game):
 def test_clone_keeps_the_bonus_independent(game):
     game.add_combat_bonus(HB, 1, FIGHT_OR_FLIGHT)
     c = game.clone()
-    c.add_combat_bonus(HB, 1, FIGHT_OR_FLIGHT)
-    assert game.combat_bonus_total(HB) == 1 and c.combat_bonus_total(HB) == 2
+    c.add_combat_bonus(HB, 3, "Otro")
+    assert game.combat_bonus_total(HB) == 1 and c.combat_bonus_total(HB) == 3
 
 
 def test_other_hero_passives_still_add_up_with_it(game):

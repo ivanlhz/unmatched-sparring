@@ -4,7 +4,7 @@ import random
 from dataclasses import dataclass, field, replace
 
 from .board import Board
-from .cards import Card
+from .cards import Card, can_be_boost
 from .controller import Controller
 from .heroes import HeroDef, load_hero
 
@@ -225,16 +225,16 @@ class Game:
         return (self.players[fighter.owner].hero.attack_bonuses(self.form(fighter.owner), fighter.hero)
                 + self.combat_bonus_parts(fighter.owner))
 
-    def add_combat_bonus(self, player: int, n: int, label: str) -> None:
-        """Un plan con ONGOING «suma n al valor de tus cartas de combate» entra en juego; se acumula con los demas."""
-        self.combat_bonus[player].append((n, label))
+    def add_combat_bonus(self, player: int, n: int, label: str) -> str | None:
+        """A scheme with ONGOING "add n to the value of your combat cards" enters play. Ivan's ruling (28/10): only one
+        active ONGOING per player, the new one replaces the old. Returns the label of the replaced one (or None)."""
+        old = self.combat_bonus[player][-1][1] if self.combat_bonus[player] else None
+        self.combat_bonus[player] = [(n, label)]
+        return old
 
     def combat_bonus_parts(self, player: int) -> list[tuple[int, str]]:
-        """(bono, etiqueta) del ONGOING vivo de `player`, uno por plan distinto (dos copias suman en una sola fila)."""
-        merged: dict[str, int] = {}
-        for n, label in self.combat_bonus[player]:
-            merged[label] = merged.get(label, 0) + n
-        return [(n, label) for label, n in merged.items()]
+        """(bonus, label) of `player`'s live ONGOING (at most one)."""
+        return list(self.combat_bonus[player])
 
     def combat_bonus_total(self, player: int) -> int:
         return sum(n for n, _ in self.combat_bonus[player])
@@ -368,6 +368,8 @@ class Game:
         moves = {fid: d for fid, d in moves.items() if fid not in alive0 or self.fighters[fid].alive}
         extra = 0
         if boost_card is not None:
+            if not can_be_boost(boost_card):
+                raise RuleError(f"{boost_card.title} no tiene valor de impulso")
             extra = boost_card.boost
             self.discard_card(player, boost_card)
         for fid, dest in moves.items():

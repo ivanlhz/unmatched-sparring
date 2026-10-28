@@ -4,6 +4,7 @@ from __future__ import annotations
 
 import random
 
+from .cards import can_be_boost
 from .controller import Controller
 from .state import ANUNG, Fighter, Game
 
@@ -45,7 +46,7 @@ class ScriptedHellboy(Controller):
         return False
 
     def maneuver(self, game: Game) -> None:
-        hand = game.players[self.me].hand
+        hand = [c for c in game.players[self.me].hand if can_be_boost(c)]
         boost = None
         if hand and self.rng.random() < BOOST_PROB:
             boost = max(hand, key=lambda c: (c.boost, -c.card_id))

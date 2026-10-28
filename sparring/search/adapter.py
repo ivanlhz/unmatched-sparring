@@ -34,7 +34,7 @@ import random
 from dataclasses import dataclass, field
 from math import sqrt
 
-from ..cards import Card
+from ..cards import Card, can_be_boost
 from ..combat import is_medusa_card, resolve_combat
 from ..controller import Controller
 from ..state import ANUNG, Fighter, Game, PlayerState
@@ -231,7 +231,7 @@ class SearchController(Controller):
         t = ctx.target
         now = min(max(0, ctx.atk_value - ctx.def_value), t.hp)
         best, best_gain = None, 0.0
-        for c in hand:
+        for c in filter(can_be_boost, hand):
             net = min(max(0, ctx.atk_value + c.boost - ctx.def_value), t.hp)
             gain = net - now - 0.3 * card_worth(c)
             if gain > best_gain:
@@ -554,7 +554,7 @@ class EngineState:
     def _boost_variants(self, p: int) -> list[Card | None]:
         """Sin boost, la carta mas barata con el boost maximo y la carta mas barata de la mano (si su boost es
         otro): tres alcances como mucho."""
-        hand = [c for c in self.game.players[p].hand if c.boost > 0]
+        hand = [c for c in self.game.players[p].hand if can_be_boost(c)]
         if not hand:
             return [None]
         cheapest = min(hand, key=lambda c: (card_worth(c), c.card_id))
