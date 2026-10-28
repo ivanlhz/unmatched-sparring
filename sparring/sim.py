@@ -29,14 +29,18 @@ class Outcome:
 
 
 def play(seed: int, board_key: str = "bprd-hq", verbose: bool = False, max_turns: int = MAX_TURNS,
-         medusa: MedusaAI | None = None) -> Outcome:
+         medusa: MedusaAI | None = None, trace: list[str] | None = None) -> Outcome:
+    """`trace`: si se da, recibe una linea por turno con el registro del motor (lo que imprime `-v`)."""
     controllers = {MEDUSA: medusa or MedusaAI(MEDUSA), HELLBOY: ScriptedHellboy(HELLBOY, seed)}
     game = Game.new(Board.load(board_key), seed, controllers, medusa_player=MEDUSA)
     while game.winner is None and game.turn_no <= max_turns:
         game.begin_turn()
         controllers[game.turn].take_turn(game)
+        line = f"T{game.turn_no} P{game.turn}: " + "; ".join(game.log)
         if verbose:
-            print(f"T{game.turn_no} P{game.turn}: " + "; ".join(game.log))
+            print(line)
+        if trace is not None:
+            trace.append(line)
         game.log.clear()
         if game.winner is None:
             game.end_turn()

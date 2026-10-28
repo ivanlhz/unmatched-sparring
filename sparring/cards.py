@@ -1,13 +1,30 @@
 from __future__ import annotations
 
 import json
+import os
 from dataclasses import dataclass
+from pathlib import Path
 
 from .board import DATA_DIR
 
 MEDUSA_BASE = 17600
 HELLBOY_BASE = 19700
-HELLBOY_SOURCE = DATA_DIR.parent.parent / "unmatched-memory" / "data" / "heroes" / "hellboy.json"
+
+
+def memory_dir() -> Path:
+    """Carpeta `unmatched-memory` hermana del repo (o de cualquier antecesor: un worktree vive mas hondo);
+    `UNMATCHED_MEMORY` la fuerza."""
+    forced = os.environ.get("UNMATCHED_MEMORY")
+    if forced:
+        return Path(forced)
+    for parent in DATA_DIR.parents:
+        candidate = parent / "unmatched-memory"
+        if (candidate / "data" / "heroes").is_dir():
+            return candidate
+    return DATA_DIR.parent.parent / "unmatched-memory"
+
+
+HELLBOY_SOURCE = memory_dir() / "data" / "heroes" / "hellboy.json"
 
 
 @dataclass(frozen=True)
