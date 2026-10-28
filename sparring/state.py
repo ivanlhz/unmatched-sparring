@@ -132,6 +132,8 @@ class KnownHand:
 
     def drawn(self, card: Card, turn_no: int) -> None:
         """The rival drew `card`; if it was the known top, it is now a seen card in their hand."""
+        if self.possible:        # a blind draw may bring back one of them; the identity is not looked at
+            self.possible_hi = min(len(self.possible), self.possible_hi + 1)
         if not self.top_of_deck:
             return
         if self.top_of_deck[0] == card.card_id:

@@ -121,7 +121,7 @@ class ControllerChooser:
             picked = [c.card_id for c in ctrl.choose_discard(game, req.player, n, req.prompt)
                       if c.card_id in req.options][:req.max]
             return picked if len(picked) >= req.min else None
-        if zone in ("deck", "discard") and purpose in ("search", "return", "recover"):    # own piles: public to it
+        if of == req.player and zone in ("deck", "discard") and purpose in ("search", "return", "recover"):  # own piles
             from ..search.adapter import card_worth
             by_id = {c.card_id: c for c in game.players[of].full_set}
             ranked = sorted(req.options, key=lambda i: (-card_worth(by_id[i]), i))
