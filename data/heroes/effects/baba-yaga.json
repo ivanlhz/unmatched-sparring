@@ -4,7 +4,12 @@
  "notes": [
   "Textos copiados de las cartas reales (hoja 331 del save del torneo, 2026-10-28); donde unmatched-memory difiere, manda este fichero. Migrado al DSL v1 (docs/effects-dsl.md) el 2026-10-28 sin cambiar la semantica.",
   "Todo damage es de efecto: es lo que FATEFUL BARGAINS puede desviar y Pact Of Mortality sube en 1; el dano de combate lo calcula el motor.",
-  "Las cartas con restriccion Baba Yaga las juega ella (this = hero); las ANY tambien Koschei, por eso 'adjacent to Baba Yaga' usa hero y 'your fighter' usa this."
+  "Las cartas con restriccion Baba Yaga las juega ella (this = hero); las ANY tambien Koschei, por eso 'adjacent to Baba Yaga' usa hero y 'your fighter' usa this.",
+  "Decision de Ivan (28/10): 'takes 2 or more combat damage' es en un mismo combate; si Bound In Blood desvia el dano a Koschei, Baba Yaga no lo toma y el Pacto sigue.",
+  "Decision de Ivan (28/10): solo puede haber un ONGOING activo por jugador: al jugar uno nuevo, reemplaza al que estaba activo (va al descarte). The Time For Deals Is Done descarta ese.",
+  "Decision de Ivan (28/10): Pact Of Secrecy 'draw up to 2': cada jugador elige cuantas (0-2).",
+  "Decision de Ivan (28/10): Pact Of Mortality 'Return a defeated fighter' vale para cualquier luchador abatido, tambien del rival.",
+  "Decision de Ivan (28/10): Iron Teeth y The Time For Deals Is Done tambien hacen dano a Koschei, como dice el texto."
  ],
  "ability": {
   "text": "FATEFUL BARGAINS\nIf Baba Yaga and Koschei share a zone and Baba Yaga would take effect damage, you may have Koschei take that damage instead.",
@@ -30,7 +35,7 @@
      ]}
     ]
    },
-   "notes": "El dano alcanza tambien a Koschei si comparte zona (es 'each other fighter'). Con mas de un Pacto activo, el dueno elige cual descarta."
+   "notes": "El dano alcanza tambien a Koschei si comparte zona (es 'each other fighter'). Solo hay un ONGOING activo por jugador (regla de Ivan, 28/10): descarta ese."
   },
   {
    "title": "Iron Teeth",
@@ -140,10 +145,13 @@
     "after": [
      {"op": "if", "condition": {"test": "exists", "fighters": {"side": "own", "name": "Koschei", "state": "defeated"}}, "then": [
       {"op": "revive", "target": {"side": "own", "name": "Koschei", "state": "defeated"}, "where": {"nearest_to": "hero"}, "hp": 3, "chooser": "owner"}
+     ], "else": [
+      {"op": "place", "target": {"side": "own", "name": "Koschei"}, "where": {"nearest_to": "hero"}, "chooser": "owner"},
+      {"op": "set_hp", "target": {"side": "own", "name": "Koschei"}, "amount": 3}
      ]}
     ]
    },
-   "notes": "Modelada como 'solo si Koschei esta derrotado'. Pregunta abierta: si Koschei esta vivo, si 'Summon' lo recoloca junto a Baba Yaga y le pone 3 de vida o no hace nada."
+   "notes": "Decision de Ivan (28/10): si Koschei esta abatido vuelve lo mas cerca posible de Baba Yaga con 3 de vida; si esta vivo, se mueve lo mas cerca posible de ella y su vida pasa a 3 (lo dice la carta)."
   },
   {
    "title": "Exploit",
@@ -186,7 +194,7 @@
     "triggers": [],
     "until": {"event": "damage_taken", "target": "hero", "damage": "combat", "min": 2}
    },
-   "notes": "Se coloca cualquier heroe, propio o rival (no ayudantes)."
+   "notes": "Decision de Ivan (28/10): 'hero' es siempre el personaje principal; 'fighter' es heroe o ayudante. Se coloca cualquier heroe, propio o rival, nunca un ayudante."
   },
   {
    "title": "Pact Of Mortality",
@@ -283,13 +291,5 @@
   {"card": "Out Of Time", "info": "Ninguna: impulsar revela la carta superior del mazo, que va al descarte a la vista de todos.", "bot": "Al impulsar el humano, el bot descuenta esa carta de su modelo del mazo rival."},
   {"card": "Deathless, Death's Release, Foul Journey, Iron Teeth, Hasten Towards Death, Bound In Blood, The Time For Deals Is Done, Pact Of Mortality, Pact Of Peace", "info": "Ninguna.", "bot": "Todo lo que tocan (vida, posiciones, acciones, esquemas en juego) es publico."}
  ],
- "open_questions": [
-  "Deathless con Koschei vivo: 'Summon Koschei' sin estar derrotado, hace algo (recolocarlo junto a Baba Yaga y poner su vida a 3) o nada? Modelado como solo si esta derrotado.",
-  "'Discard this immediately if Baba Yaga takes 2 or more combat damage': se entiende 2+ de dano en un mismo combate (no acumulado en el turno). Confirmar. Con Bound In Blood desviando el dano a Koschei, Baba Yaga no lo 'toma' y el Pacto sigue.",
-  "Varios Pactos activos a la vez: no hay limite en las cartas; The Time For Deals Is Done descarta 'that scheme' (uno, a eleccion del dueno). Confirmar que no hay regla de un solo esquema permanente.",
-  "Pact Of Secrecy 'draw up to 2': cada jugador decide cuantas (0-2) o es 'roba 2 si puedes'? Modelado como decision del jugador.",
-  "Pact Of Freedom 'Place a hero in any space': incluye al heroe rival (si) y excluye ayudantes. Confirmar.",
-  "Pact Of Mortality 'Return a defeated fighter': incluye luchadores del rival? Modelado como cualquiera (lo elige el dueno); en la practica el bot revivira a Koschei.",
-  "Iron Teeth 'an adjacent fighter' y The Time For Deals Is Done 'each other fighter': confirmar que incluyen a Koschei (dano propio) tal como dice el texto."
- ]
+ "open_questions": []
 }

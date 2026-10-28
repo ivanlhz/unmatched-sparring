@@ -66,7 +66,7 @@ def test_a_fixed_side_is_used_as_is_and_the_other_is_still_detected():
     (reading(), "no veo ningun mazo"),
     (reading(at_bot("medusa")), "humano"),
     (reading(at_bot("medusa"), pile("hellboy", 6.0, 12.0), at_human("liz-sherman")), "2 heroes candidatos"),
-    (reading(at_bot("medusa"), at_human("medusa")), "el mismo heroe en los dos"),
+    (reading(at_bot("medusa"), at_human("medusa")), "tiene cartas en los dos lados"),
 ])
 def test_ambiguity_is_an_error_that_lists_what_was_seen_and_how_to_force_it(r, text):
     with pytest.raises(HeroDetectionError, match=text) as e:
@@ -266,3 +266,47 @@ def test_resume_respects_the_heroes_stored_in_the_save(wire, tmp_path, monkeypat
 def test_the_save_records_the_heroes_of_the_game(rig):
     session, table, game = rig
     assert session.to_dict()["heroes"] == ["medusa", "hellboy"]
+
+
+# ---------- robustez: cartas sueltas, mayorias y empates ----------
+def test_a_single_stray_card_of_a_third_hero_near_the_bot_spot_does_not_confuse():
+    r = reading(at_bot("medusa"), pile("hellboy", 6.5, 13.0, n=1, kind="Card"), at_human("liz-sherman"))
+    assert detect(r) == ("medusa", "liz-sherman")
+
+
+def test_two_plus_two_loose_cards_of_two_other_heroes_are_not_candidates():
+    r = reading(at_bot("medusa"), at_human("liz-sherman"),
+                pile("hellboy", 6.5, 13.0, n=2, kind="Card"), pile("abe-sapien", 6.0, 14.0, n=2, kind="Card"))
+    assert detect(r) == ("medusa", "liz-sherman")
+
+
+def test_a_four_card_pile_alone_is_not_a_candidate():
+    with pytest.raises(HeroDetectionError, match="no veo ningun mazo"):
+        detect(reading(at_bot("medusa"), at_human("hellboy", n=4)))
+
+
+def test_several_candidates_pick_the_clear_majority_only():
+    assert detect(reading(at_bot("medusa"), pile("hellboy", 6.0, 12.0, n=6), at_human("liz-sherman"))) == ("medusa", "liz-sherman")
+    with pytest.raises(HeroDetectionError, match="2 heroes candidatos"):   # 30 contra 20 no es claro
+        detect(reading(at_bot("medusa"), pile("hellboy", 6.0, 12.0, n=20), at_human("liz-sherman")))
+    with pytest.raises(HeroDetectionError, match="2 heroes candidatos"):   # 5 contra 5
+        detect(reading(pile("medusa", 7.0, 14.0, n=5), pile("hellboy", 6.0, 12.0, n=5), at_human("liz-sherman")))
+
+
+def test_a_tie_between_sides_is_ambiguous_not_given_to_the_human():
+    r = reading(pile("medusa", 7.0, 14.0, n=10), pile("medusa", -5.0, 13.5, n=10))
+    with pytest.raises(HeroDetectionError):
+        detect(r)
+    r = reading(pile("medusa", 7.0, 14.0, n=3), pile("medusa", -5.0, 13.5, n=3), at_bot("hellboy"))
+    assert detect(r, (None, "liz-sherman")) == ("hellboy", "liz-sherman")   # 3 y 3 no cuentan
+    with pytest.raises(HeroDetectionError, match="humano"):                  # antes se regalaba al humano
+        detect(r)
+
+
+@pytest.mark.parametrize("bot", ["medusa", "hellboy", "abe-sapien", "baba-yaga", "liz-sherman"])
+@pytest.mark.parametrize("human", ["medusa", "hellboy", "abe-sapien", "baba-yaga", "liz-sherman"])
+def test_every_pair_of_heroes_is_detected_in_either_seat(bot, human):
+    if bot == human:
+        pytest.skip("el mismo heroe en los dos bandos es un error")
+    stray = pile("liz-sherman" if "liz-sherman" not in (bot, human) else "hellboy", 6.5, 13.0, n=1, kind="Card")
+    assert detect(reading(at_bot(bot), at_human(human), stray)) == (bot, human)

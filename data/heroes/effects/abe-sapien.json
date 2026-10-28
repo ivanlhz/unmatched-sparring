@@ -4,7 +4,12 @@
  "notes": [
   "Especificacion de efectos de Abe Sapien (F07 paso 4, datos solamente) en el DSL v1 (docs/effects-dsl.md): ningun codigo del motor la lee todavia.",
   "Textos copiados de las cartas reales de la hoja 194 del save del torneo (2026-10-28); donde unmatched-memory difiere, manda la carta y se apunta en `discrepancies`. Migrado al esquema canonico el 2026-10-28 sin cambiar la semantica.",
-  "Un luchador abatido por el `damage` previo ya no se mueve (los selectores son alive por defecto). Mover a un luchador rival lo dirige el dueno del efecto (chooser owner), que es lo que antes se llamaba push."
+  "Un luchador abatido por el `damage` previo ya no se mueve (los selectores son alive por defecto). Mover a un luchador rival lo dirige el dueno del efecto (chooser owner), que es lo que antes se llamaba push.",
+  "Decision de Ivan (28/10): agentes: 3 en tablero; summon = revivir un abatido con 1 de vida en la zona de Abe o, sin abatidos, coger uno vivo y colocarlo en un espacio de la zona de Abe (Secure The Scene).",
+  "Decision de Ivan (28/10): Uncanny Intuition: tambien activa ficha cuando Abe defiende y hace dano de combate a un atacante adyacente.",
+  "Decision de Ivan (28/10): Perfect Shot: se puede predecir cualquier valor de 0 a 7; si el rival no defiende con carta, no acierta.",
+  "Decision de Ivan (28/10): Every Possible Angle contra el bot: el bot pone su mano boca arriba (fila de look_spot, como F16) y hace ping sobre las cartas.",
+  "Decision de Ivan (28/10): Counterhex Shield: el texto real (con ONGOING) se corrige tambien en unmatched-memory."
  ],
  "ability": {
   "text": "UNCANNY INTUITION\nYou have two Intuition tokens.\nWhen Abe deals combat damage to an adjacent fighter, activate a token.\nWhen Abe is attacked, if you have an active token, deactivate it, then draw 1 card, and the attack is played face up.",
@@ -78,13 +83,17 @@
     "immediately": [],
     "during": [],
     "after": [
-     {"op": "revive", "target": {"side": "own", "name": "B.P.R.D. Agent", "state": "defeated"}, "where": {"zone_of": "hero"}, "hp": 1, "chooser": "owner"},
+     {"op": "if", "condition": {"test": "exists", "fighters": {"side": "own", "name": "B.P.R.D. Agent", "state": "defeated"}}, "then": [
+      {"op": "revive", "target": {"side": "own", "name": "B.P.R.D. Agent", "state": "defeated"}, "where": {"zone_of": "hero"}, "hp": 1, "chooser": "owner"}
+     ], "else": [
+      {"op": "place", "target": {"side": "own", "name": "B.P.R.D. Agent"}, "where": {"zone_of": "hero"}, "chooser": "owner"}
+     ]},
      {"op": "move", "target": {"side": "own"}, "amount": 2, "up_to": true, "chooser": "owner"}
     ],
     "scheme": [],
     "boost": []
    },
-   "notes": "Solo la juega un agente. Con la lectura por defecto (3 agentes en tablero, 0 en reserva) 'summon' es devolver un agente abatido con su vida; si no hay ninguno caido, no pasa nada. Si Ivan confirma que hay reserva, cambia a `summon` desde la reserva antes que `revive` (open_questions 1). El agente revivido puede ser el elegido para moverse."
+   "notes": "Solo la juega un agente. 3 agentes en tablero, 0 en reserva. Decision de Ivan (28/10): 'summon' devuelve un agente abatido con 1 de vida a la zona de Abe; si no hay ninguno abatido, el dueno coge uno vivo y lo coloca en un espacio de la zona de Abe. El agente colocado puede ser el elegido para moverse."
   },
   {
    "title": "Leap Away",
@@ -268,12 +277,8 @@
   {"card": "Ward And Prepare", "what": "recuperar un plan del descarte propio", "bot_rule": "Informacion publica (el descarte); si lo hace el humano, el bot apunta que esa carta vuelve a la mano rival (entra en KnownHand como vista)."}
  ],
  "open_questions": [
-  "1. Agentes al empezar: la carta de heroe marca vida 1 x3 como las Harpias de Medusa y el save no tiene reserva; se asume 3 en tablero. Confirmar con el reglamento de la caja Hellboy que 'Summon a B.P.R.D. Agent' devuelve a un agente abatido (con su 1 de vida) y que sin agentes caidos no hace nada.",
-  "2. Counterhex Shield: unmatched-memory no tiene el Ongoing. El overlay ya lleva el texto real (campo `text` de la hoja, que el importador prefiere); queda corregir la fuente unmatched-memory si Ivan quiere que ambas coincidan.",
-  "3. Perfect Shot: la prediccion es publica (se anuncia al jugar boca arriba). Que valores se pueden predecir (los impresos de 0 a 7, o solo los que existen en el mazo rival) y que pasa si el rival responde sin carta (no se puede: siempre juega una defensa o nada; si no juega nada, no hay valor y no acierta).",
-  "4. Uncanny Intuition: 'combat damage to an adjacent fighter' cuenta tambien cuando Abe DEFIENDE y gana contra un atacante adyacente? (el dano de combate al atacante lo hace Abe: se asume que si).",
-  "5. Every Possible Angle contra el bot: como ensena el bot su mano al humano en TTS (cartas boca arriba en la mesa o lectura por chat) y como registra el motor que una carta del bot volvio al mazo encima.",
-  "6. Fichas de agentes en TTS: se llaman Victor, Carla y Kate; el motor los numera agent1..agent3. Hace falta el mapeo fid -> GUID en la config de la partida (paso 10 del plan), igual que las Harpias."
+  "6. Fichas de agentes en TTS: se llaman Victor, Carla y Kate; el motor los numera agent1..agent3. Hace falta el mapeo fid -> GUID en la config de la partida (paso 10 del plan), igual que las Harpias.",
+  "Every Possible Angle: como registra el motor la carta del bot que vuelve encima de su mazo (pasa a conocida por el humano: no afecta a la informacion del bot)."
  ],
  "discrepancies": [
   {"card": "Counterhex Shield", "memory": "Draw 1 card. Gain 1 action.", "real": "Draw 1 card. Gain 1 action. Ongoing: Other players' effects can't damage your fighters, move your fighters, or force you to discard cards. Discard this at the start of your next turn.", "resolution": "manda la carta: texto real en el campo `text` de las dos entradas de la hoja del overlay (el importador lo prefiere); apuntado en docs/heroes/abe-sapien.md"},

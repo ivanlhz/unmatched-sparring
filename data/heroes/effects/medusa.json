@@ -4,7 +4,9 @@
  "notes": [
   "Efectos de Medusa en el DSL v1 (docs/effects-dsl.md), escritos el 2026-10-28 a partir de lo que hoy hace el motor (sparring/combat.py: _medusa_after, resolve_scheme, check_scheme; sparring/state.py: medusa_ability). El motor sigue cableado por titulo hasta que el interprete lo sustituya; este fichero es la referencia para el test diferencial (plan, paso 5).",
   "Todo damage es de efecto: asi lo hace el motor (game.damage por defecto es 'effect'), incluidos los 8 de Gaze of Stone y los 2 de A Momentary Glance; Planned Recklessness los para.",
-  "Los movimientos son 'hasta N' con 0 incluido (el controlador puede devolver None en choose_move)."
+  "Los movimientos son 'hasta N' con 0 incluido (el controlador puede devolver None en choose_move).",
+  "Decision de Ivan (28/10): A Momentary Glance puede apuntar a un luchador propio.",
+  "Decision de Ivan (28/10): Winged Frenzy: con varias Harpias abatidas, el dueno (el bot) elige cual vuelve."
  ],
  "ability": {
   "text": "At the start of your turn, you may deal 1 damage to an opposing fighter in Medusa's zone.",
@@ -144,8 +146,5 @@
   {"card": "Second Shot", "what": "La carta de impulso se descarta boca arriba.", "bot": "Publica para los dos."},
   {"card": "Regroup, Snipe", "what": "Robos.", "bot": "Solo cambia la cuenta de la mano rival; nada se infiere del contenido."}
  ],
- "open_questions": [
-  "A Momentary Glance sobre un luchador propio (Harpia o la propia Medusa): el motor lo permite; confirmar que se quiere mantener.",
-  "Winged Frenzy: si hay varias Harpias abatidas el motor revive la primera por fid; el texto dice 'a defeated Harpy', deberia elegir el dueno."
- ]
+ "open_questions": []
 }

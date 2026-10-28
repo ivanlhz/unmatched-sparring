@@ -45,13 +45,17 @@ Todo dentro de la bolsa `3efeee` "Hellboy" > bolsa `c592d8`:
 ## Cobertura
 13/13 titulos (30/30 cartas) con entrada: 11 titulos con ops (28 cartas), 2 sin texto y sin ops (Excalibur, Service Pistol). 0 cartas con plugin. Habilidad entera con ops (2 disparadores + 1 pasiva). Vocabulario usado: draw, discard, move, damage, heal, if, optional, for_each, choose_n, modify_value, status, cancel_effects, look_hand, return_to_deck, gain_action.
 
-## Preguntas abiertas para Ivan
-1. Right Hand Of Doom: "si Hellboy es OCCULT DETECTIVE" en el AFTER se evalua antes de que la propia carta (destiny) llegue al descarte, como hace hoy el motor y dice el reglamento. Con 5 destinos en el descarte el jugador puede querer lo contrario: confirmar la regla de la casa.
-2. Pancakes!: las dos opciones elegidas, se resuelven en el orden impreso o en el que elija el jugador (importa con el mazo casi vacio).
-3. Ficha `1644a3`: confirmar en vivo con `--read-only` que rotZ 180 es la cara azul antes de que el bot la gire solo.
-4. Cambio de forma del bot: vale con `setState` en la miniatura y `flip` en la ficha, y el ping va sobre las dos o solo sobre la miniatura.
-5. Confront jugado por el humano y perdido: como revela el bot su mano (chat o cartas boca arriba) y como elige el humano (botones con el titulo de cada carta).
-6. Posthumous Power y Pancakes! jugadas por el humano: la opcion se pide por botones del panel (propuesta) o se deduce de la mesa.
+## Decisiones de Ivan (28/10)
+
+- Right Hand Of Doom: OCCULT DETECTIVE se evalua antes de que la propia carta llegue al descarte.
+- Pancakes!: las opciones elegidas se resuelven en el orden impreso.
+- cambio de forma con el bot: cambia miniatura y ficha y hace ping sobre las dos.
+- elecciones del humano (Confront, Posthumous Power, Pancakes!) por botones del panel que SOLO aparecen cuando se juega la carta; mientras tanto no se muestran (ni en gris).
+
+## Preguntas abiertas
+
+- Ficha de habilidad 1644a3: la lectura 'rotZ 180 = OCCULT DETECTIVE arriba' sale de que el hijo 30d50e (cara azul) esta pegado girado 180 grados; confirmar en vivo con --read-only antes de que el bot la gire solo.
+- Confront jugado por el humano y perdido: el bot revela su mano boca arriba con ping, por analogia con la respuesta 4 de Ivan (Every Possible Angle); el humano elige la carta con botones. Confirmar.
 
 ## Evidencia
 ```

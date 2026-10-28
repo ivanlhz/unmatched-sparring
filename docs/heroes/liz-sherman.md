@@ -28,7 +28,7 @@ Las otras 15 (Fleeting Moments x3, B.P.R.D. Training x2, Rekindle x2, Feint x3, 
 - `tests/test_hero_liz_sherman_data.py`: 4 tests de datos (sin TTS).
 
 ## Decisiones
-1. **Wildfire sigue siendo plugin (`liz:wildfire`)**: cambia el destino de cualquier descarte de ardiente desde mano o mazo, lo dispare quien lo dispare (habilidad, Flame Lash, Fleeting Moments, impulsar, efectos del rival). No es una op de carta: es un gancho sobre la primitiva `discard`. El disparador de inicio de turno sí va en ops (`discard from deck_bottom` + `if card_has_tag burning`).
+1. **Wildfire (sustituido: ya no es plugin, es el disparador `wildfire_return` del evento `card_discarded`)**: cambia el destino de cualquier descarte de ardiente desde mano o mazo, lo dispare quien lo dispare (habilidad, Flame Lash, Fleeting Moments, efectos del rival). Nunca por impulsar: una ardiente no tiene valor de impulso y no se puede usar para impulsar (Ivan, 28/10). No es una op de carta: es un gancho sobre la primitiva `discard`. El disparador de inicio de turno sí va en ops (`discard from deck_bottom` + `if card_has_tag burning`).
 2. **`liz:incinerate` no hace falta**: cabe con `optional` (quien elige y paga es el rival) + `modify_value set 0` + atributo de carta `uncancelable` que `cancel_effects` debe respetar. Si el intérprete no admite esas tres extensiones, vuelve a plugin.
 3. **La carta real manda**: Fight Or Flight tiene un ONGOING que unmatched-memory no trae. El overlay admite `text` por entrada de la hoja y `tools/import_hero.py` lo prefiere al texto de unmatched-memory (una línea). Es el único cambio fuera de datos y tests.
 4. Sin contador: `burning` es etiqueta de carta, no se cuenta en ninguna pila (a diferencia de los destinos de Hellboy).
@@ -50,18 +50,24 @@ Las otras 15 (Fleeting Moments x3, B.P.R.D. Training x2, Rekindle x2, Feint x3, 
 - Wildfire: la ardiente que vuelve a la mano es pública: pasa a la mano conocida del rival.
 - Pyrotechnics: cartas boca abajo al fondo; el bot no lee cuáles fueron cuando el humano lleva a Liz (solo cuentas).
 
-## Preguntas abiertas para Iván
-1. Impulsar (descartar la de arriba del mazo) cuenta como descarte desde el mazo para Wildfire? Supuesto: sí (la ardiente suma 0 y vuelve a la mano).
-2. Mazo vacío al inicio del turno o con Flame Lash: supuesto que no pasa nada (ni daño ni movimiento, suma 0). Alternativa: tratarlo como "no ardiente" y mover 2.
-3. El daño del inicio de turno es obligatorio si hay objetivo (dice "deal", no "may"). Supuesto: obligatorio.
-4. Dos Fight Or Flight en juego suman +2? Supuesto: sí (implementado: `Game.add_combat_bonus` acumula; ver «Fight Or Flight en el motor»).
-5. Incinerate ignorado deja el valor a 0 aunque Liz haya impulsado? Supuesto: sí. Y el +1 de Fight Or Flight con un efecto rival de «ignorar el valor»? Supuesto: el +1 es un efecto del jugador, no el valor impreso de la carta, así que se sigue sumando. Abierta; el motor no modela hoy ningún «ignorar valor» rival (el bot es Medusa).
-6. Burning Barrier bloquea también empujones y cambios de sitio ajenos? Supuesto: bloquea todo movimiento.
-7. Con el bot llevando a Liz en TTS, quién gira la carta del fondo cada turno (puente o humano): UX del paso 13.
-8. Confirmado por la hoja: 15 ardientes y ninguna con impulso.
+## Decisiones de Ivan (28/10)
+
+- 'bottom card of your deck' es la carta de mas abajo del mazo (la ultima), no la de arriba que se roba. Es la que usan Wildfire al inicio del turno y Flame Lash.
+- mazo vacio al inicio del turno o con Flame Lash: no pasa nada (ni dano ni movimiento; Flame Lash suma 0).
+- el dano de Wildfire al inicio del turno es obligatorio si hay objetivo, y solo a UN luchador.
+- un efecto que ignore el VALOR IMPRESO no quita el +1 de Fight Or Flight; uno que ignore el VALOR, si.
+- con el bot llevando a Liz, el bot gira el fondo del mazo al inicio de su turno.
+- Incinerate: el rival puede descartar 2 cartas de la mano, ADEMAS de la carta con la que defiende, para ignorar el valor de Incinerate (queda a 0); si no defendio con carta, descartar 2 tambien vale. Con menos de 2 cartas en mano no puede pagar.
+- Burning Barrier: cannot_leave_space bloquea todo movimiento del luchador rival (propio o por efectos); a Liz si la puede mover un efecto. El dano posterior es a cada rival en la zona de Liz.
+- una carta sin valor de impulso no se puede usar para impulsar: las ardientes (BOOST 0) nunca se descartan como impulso.
+- un solo ONGOING activo POR JUGADOR; jugar otro reemplaza al propio activo (dos Fight Or Flight = +1). Pendiente de codigo: Game.combat_bonus aun acumula.
+
+## Preguntas abiertas
+
+- Orden al inicio del turno de Liz: primero se descarta Fight Or Flight y luego el fondo de Wildfire. Supuesto; no interactuan.
 
 ## Fight Or Flight en el motor (ONGOING)
-- `Game.combat_bonus[jugador]` guarda (bono, etiqueta) vivos. La sesión lo añade al detectar el plan en el descarte del humano; `resolve_scheme` lo añade si lo juega el bot. Se acumula (dos copias: +2, pregunta 4).
+- `Game.combat_bonus[jugador]` guarda (bono, etiqueta) vivos. La sesión lo añade al detectar el plan en el descarte del humano; `resolve_scheme` lo añade si lo juega el bot. Hoy se acumula (dos copias: +2); con la regla de Ivan del 28/10 (un solo ONGOING activo por jugador) la segunda reemplaza a la primera (+1). Pendiente de codigo: Game.combat_bonus debe reemplazar, no acumular.
 - Suma al valor de toda carta de combate del dueño: ataque en su turno (vía `attack_bonus_parts`, junto a las pasivas del héroe) y defensa en el del rival, también si la carta vale 0, se cancela o es On Earth (se suma tras fijar el valor). Sin carta de defensa no hay valor al que sumar. El «valor extra» del panel es aparte y se suma.
 - Caduca en `begin_turn()` del dueño (lo devuelve para avisar). Se guarda en `combat_bonus` del `game` del guardado, solo si hay algo; un guardado viejo sin la clave carga a 0.
 - IA: `Model.defense_dist` y `attack_dist` lo leen (es público); la ISMCTS lo ve por `resolve_combat` y `attack_bonus` en la clonación. Si lo juega el bot, el motor lo aplica; la IA de Medusa no lo evalúa para sí misma (no es su carta).
