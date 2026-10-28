@@ -435,7 +435,7 @@ class Session:
         taken: set[int] = set()
         for player in (self.bot, self.human):
             start = g.start_spaces[player]
-            for f in sorted(g.own(player), key=lambda f: (not f.hero, f.fid)):
+            for f in sorted(g.own(player), key=lambda f: (not f.hero, f.fid)):    # solo los que estan en el tablero
                 f.pos = g.board.nearest_free(start, taken, zone_of=start)
                 taken.add(f.pos)
 
@@ -1508,6 +1508,8 @@ class Session:
             self.say(f"El bot descarta {listed}.")
         for e in res.applied:
             self.say(f"Aplicado: {e}", ChatKind.WARNING)
+        for e in res.bot_ignored:
+            self.say(e, ChatKind.WARNING)
         for e in res.human_effects:
             self.say(f"Resuelve a mano: {e}", ChatKind.WARNING)
         for fid, was in alive_before.items():

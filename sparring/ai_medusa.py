@@ -195,7 +195,7 @@ class MedusaAI(Controller):
         zone = [s for s in sorted(b.spaces) if b.share_zone(start, s) and s not in taken]
         forward = any(c.title in ("Clutching Claws", "The Hounds of Mighty Zeus") for c in hand)
         plan = {game.hero(me).fid: start}
-        for h in sorted((f for f in game.own(me) if f.name == "Harpy"), key=lambda f: f.fid):
+        for h in sorted((f for f in game.own(me) if not f.hero), key=lambda f: f.fid):
             pool = zone or [s for s in sorted(b.spaces) if s not in taken]
             if forward:
                 best = max(pool, key=lambda s: (self.harpy_score(game, h, s), -s))
@@ -208,7 +208,10 @@ class MedusaAI(Controller):
 
     # ---------- inicio de turno ----------
     def pick_ability_target(self, game: Game) -> Fighter | None:
+        """Objetivo de la habilidad de inicio de turno de Medusa; con cualquier otro heroe no hay (aun) habilidad."""
         medusa = game.hero(self.me)
+        if medusa.name != "Medusa":
+            return None
         targets = [f for f in game.foes(self.me) if game.board.share_zone(medusa.pos, f.pos)]
         if not targets:
             return None
@@ -388,7 +391,7 @@ class MedusaAI(Controller):
                     g.fighters[medusa.fid].pos = d
                     moves = {medusa.fid: d}
                     exhausting = not g.players[self.me].deck
-                    for h in sorted((x for x in g.own(self.me) if x.name == "Harpy"), key=lambda x: x.fid):
+                    for h in sorted((x for x in g.own(self.me) if not x.hero), key=lambda x: x.fid):
                         if exhausting and h.hp <= EXHAUST_DAMAGE:
                             continue    # el robo con el mazo vacio la mata antes de moverse
                         if harpies_advance:
@@ -476,7 +479,7 @@ class MedusaAI(Controller):
         if not me.alive or not rival.alive:
             return 0.0
         hp_c = min(1.0, max(0.0, (1 - me.hp / max(rival.hp, 0.5)) / 0.6))
-        harpies = [f for f in game.own(self.me, alive_only=False) if f.name == "Harpy"]
+        harpies = [f for f in game.own(self.me, alive_only=False) if not f.hero]
         side_c = sum(1 for f in harpies if not f.alive) / len(harpies) if harpies else 0.0
         clock_c = min(1.0, max(0.0, 1 - self.draw_budget(game) / CLOCK_HORIZON))
         return min(1.0, max(0.0, ((hp_c + side_c + clock_c) / 3 - 0.25) / 0.75))
@@ -525,7 +528,7 @@ class MedusaAI(Controller):
                     dmg = max(0, v - my_def)
                     exp += p * min(dmg, t.hp)
                     p_dead += p * (dmg >= t.hp)
-                if t.name == "Harpy":
+                if not t.hero:
                     p_hit = sum(p for p, v in model.attack_dist(e) if v is not None and v > my_def)
                     danger = HARPY_VALUE * p_hit
                 else:
@@ -539,7 +542,7 @@ class MedusaAI(Controller):
             if despair > 0 and e.hero and board.can_reach_target(pos[medusa.fid], pos[e.fid], medusa.ranged):
                 score += despair * WIN_PRIZE * PROGRESS_DISCOUNT * self.win_progress(game, model, medusa, e)
         for h in mine:
-            if h.name == "Harpy" and foes:
+            if not h.hero and foes:
                 score -= 0.05 * min(board.distance(pos[h.fid], pos[e.fid]) for e in foes)
         return score
 
@@ -626,7 +629,7 @@ class MedusaAI(Controller):
             p_dead += p * (net >= target.hp)
             p_hit += p * (net >= 1)
             p_block += p * (net == 0)
-        if target.name == "Harpy":
+        if not target.hero:
             v = -HARPY_VALUE * p_hit
         else:
             v = -W_MEDUSA_HP * exp - LETHAL * p_dead

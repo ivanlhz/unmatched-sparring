@@ -114,6 +114,7 @@ class Game:
         self.turn_no = 1
         self.actions_left = 2
         self.winner: int | None = None
+        self.bot_player: int | None = None     # quien lleva el bot: sus efectos aun no codificados no los resuelve el humano
         self.effect_shield: dict[int, int] = {}
         # ONGOING de planes (Fight Or Flight): (bono, etiqueta) vivos de cada jugador, a TODAS sus cartas de combate
         self.combat_bonus: list[list[tuple[int, str]]] = [[], []]
@@ -139,6 +140,10 @@ class Game:
         fighters, taken = [], set()
         for owner in (bot_player, other):
             for spec in defs[owner].fighters():
+                if not spec.on_board:       # empieza en reserva: fuera del tablero hasta que un efecto lo invoque
+                    fighters.append(Fighter(spec.fid, spec.name, owner, spec.hero, spec.hp, spec.hp, spec.move,
+                                            spec.ranged, None, alive=False))
+                    continue
                 pos = board.nearest_free(start_spaces[owner], taken, zone_of=start_spaces[owner])
                 taken.add(pos)
                 fighters.append(Fighter(spec.fid, spec.name, owner, spec.hero, spec.hp, spec.hp, spec.move,
@@ -147,6 +152,7 @@ class Game:
             p.deck = list(p.full_set)
             rng.shuffle(p.deck)
         game = cls(board, fighters, players, rng, controllers, first=rng.randrange(2), start_spaces=start_spaces)
+        game.bot_player = bot_player
         for pl in (0, 1):
             game.draw(pl, START_HAND, log=False)
         game.drawn = [0, 0]
@@ -159,6 +165,7 @@ class Game:
         g.players = [PlayerState(p.hero, list(p.deck), p.full_set, list(p.hand), list(p.discard), p.known.copy())
                      for p in self.players]
         g.turn, g.turn_no, g.actions_left, g.winner = self.turn, self.turn_no, self.actions_left, self.winner
+        g.bot_player = self.bot_player
         g.effect_shield = dict(self.effect_shield)
         g.combat_bonus = [list(b) for b in self.combat_bonus]
         g.drawn = [0, 0]

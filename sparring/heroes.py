@@ -36,6 +36,7 @@ class SidekickDef:
     hp: int
     move: int
     ranged: bool
+    start_on_board: int | None = None     # cuantos empiezan en el tablero; None = todos, el resto empieza en reserva
 
 
 @dataclass(frozen=True)
@@ -46,6 +47,7 @@ class FighterSpec:
     hp: int
     move: int
     ranged: bool
+    on_board: bool = True                 # False: empieza en reserva (fuera del tablero) hasta que un efecto lo invoque
 
 
 @dataclass(frozen=True)
@@ -93,7 +95,8 @@ class HeroDef:
         for s in self.sidekicks:
             for i in range(1, s.count + 1):
                 fid = f"{s.fid}{i}" if s.count > 1 else s.fid
-                out.append(FighterSpec(fid, s.name, False, s.hp, s.move, s.ranged))
+                on_board = s.start_on_board is None or i <= s.start_on_board
+                out.append(FighterSpec(fid, s.name, False, s.hp, s.move, s.ranged, on_board))
         return out
 
     def deck(self) -> list[Card]:
@@ -132,7 +135,8 @@ def parse_hero(raw: dict, where: str = "hero") -> HeroDef:
     try:
         slug, name = raw["slug"], raw["name"]
         sidekicks = tuple(SidekickDef(s["fid"], s["name"], int(s["count"]), int(s["hp"]), int(s["move"]),
-                                      _ranged(s["attack"], f"{where}: ayudante {s['name']}"))
+                                      _ranged(s["attack"], f"{where}: ayudante {s['name']}"),
+                                      None if s.get("start_on_board") is None else int(s["start_on_board"]))
                           for s in raw.get("sidekicks", ()))
         counters = {k: CounterDef(k, v["pile"], v["tag"]) for k, v in (raw.get("counters") or {}).items()}
         f = raw.get("forms")

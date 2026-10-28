@@ -498,3 +498,25 @@ def test_unpack_script_takes_only_from_the_given_bag_by_exact_guid():
                 [("piece", ("874d20",), "bad guid", (0.0, 0.0, 0.0), None)], []):
         with pytest.raises(ValueError):
             lua.unpack_from_bags(bad)
+
+
+# ---------- F08 fase F-B: la preparacion del bot coloca TODAS sus piezas, sea cual sea su heroe ----------
+BOT_HEROES = ["medusa", "hellboy", "abe-sapien", "baba-yaga", "liz-sherman"]
+
+
+@pytest.mark.parametrize("bot", BOT_HEROES)
+def test_the_bot_setup_places_every_piece_of_its_hero_on_the_table(tmp_path, bot):
+    human = "hellboy" if bot != "hellboy" else "medusa"
+    session, table, game, fake, cfg, client = build(tmp_path, bot, human)
+    try:
+        mine = game.own(0)
+        table.moves.clear()
+        session._setup_place()
+        moved = dict(table.moves)
+        assert set(moved) == {cfg.nicknames[f.fid] for f in mine}, (bot, table.moves)
+        assert all(moved[cfg.nicknames[f.fid]] == f.pos for f in mine)         # la mesa coincide con el motor
+        start = game.start_spaces[0]
+        assert all(game.board.share_zone(start, f.pos) for f in mine) and len({f.pos for f in mine}) == len(mine)
+    finally:
+        client.close()
+        fake.close()

@@ -43,6 +43,7 @@ class CombatResult:
     atk_parts: list[str] = field(default_factory=list)      # de donde sale el total del atacante (para anunciarlo)
     def_parts: list[str] = field(default_factory=list)
     applied: list[str] = field(default_factory=list)        # efectos de despues del combate que el motor ya aplico
+    bot_ignored: list[str] = field(default_factory=list)    # efectos de cartas del bot que el motor aun no codifica
 
 
 @dataclass
@@ -149,7 +150,12 @@ def resolve_combat(game: Game, att: Fighter, tgt: Fighter, atk_card: Card, def_c
                 _medusa_after(game, fighter, rival, card, i_won)
             elif not (_hellboy_after(game, fighter, card, i_won, result) or _liz_after(game, card, result)):
                 after = after_text(card)
-                if after:
+                if fighter.owner == game.bot_player:      # nunca se le pide al humano resolver un efecto del bot
+                    if card.title == PLANNED and not after:
+                        result.applied.append(f"{card.title}: aplicado ({card.text})")
+                    elif after or card.text.strip():
+                        result.bot_ignored.append(f"{card.title}: el bot ignora este efecto: {after or card.text.strip()}")
+                elif after:
                     result.human_effects.append(f"{card.title}: {after}")
                 elif card.title == PLANNED:
                     result.applied.append(f"{card.title}: aplicado ({card.text})")
