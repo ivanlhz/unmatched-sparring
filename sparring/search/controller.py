@@ -31,13 +31,12 @@ class IsmctsMedusa(Controller):
         self.me = me
         self.config = config or SearchConfig(time_budget=DEFAULT_TIME_BUDGET)
         self.heuristic = MedusaAI(me)
-        self.known_in_hand: dict[int, tuple[Card, ...]] = {}     # lo visto por un efecto de mirar la mano
         self.last_report: SearchReport | None = None
         self.fallbacks = 0                                       # decisiones que cayeron a la heuristica por un fallo
 
     def reset(self) -> None:
-        """Partida nueva (Reiniciar): se olvida lo visto en la anterior."""
-        self.known_in_hand = {}
+        """Partida nueva (Reiniciar): se olvida el ultimo informe. Lo visto de la mano rival vive en el motor
+        (`Game.players[me].known`) y la partida nueva lo trae vacio."""
         self.last_report = None
 
     # ---------- lo que la busqueda no decide ----------
@@ -94,6 +93,8 @@ class IsmctsMedusa(Controller):
     def plan(self, game: Game) -> Act:
         try:
             return self._plan(game)
+        except AssertionError:                 # los tripwires anti-trampas no se disfrazan de fallo de busqueda
+            raise
         except Exception:
             self._fell_back("plan")
             return self.heuristic.plan(game)
@@ -102,19 +103,26 @@ class IsmctsMedusa(Controller):
         self.fallbacks += 1
         log.warning("La busqueda ISMCTS fallo en %s; decide la heuristica de MedusaAI.", what, exc_info=True)
 
+    def knowledge(self, game: Game) -> Knowledge:
+        """Lo visto por un efecto de mirar la mano rival, tal como lo lleva el motor (ya descontado de lo salido)."""
+        rival = 1 - self.me
+        return Knowledge({rival: tuple(game.players[self.me].known.cards(game.players[rival]))})
+
     def _plan(self, game: Game) -> Act:
-        root = EngineState(game, observer=self.me, knowledge=Knowledge(dict(self.known_in_hand)))
+        root = EngineState(game, observer=self.me, knowledge=self.knowledge(game))
         return self.to_act(game, self._decide(root))
 
     def choose_defense(self, game: Game, attacker: Fighter, target: Fighter) -> Card | None:
         try:
             return self._choose_defense(game, attacker, target)
+        except AssertionError:
+            raise
         except Exception:
             self._fell_back("defensa")
             return self.heuristic.choose_defense(game, attacker, target)
 
     def _choose_defense(self, game: Game, attacker: Fighter, target: Fighter) -> Card | None:
-        root = EngineState(game, observer=self.me, knowledge=Knowledge(dict(self.known_in_hand)),
+        root = EngineState(game, observer=self.me, knowledge=self.knowledge(game),
                            pending=(attacker.fid, target.fid, None))
         move = self._decide(root)[0]
         return by_title(game.players[self.me].hand, move[1]) if move[1] is not None else None

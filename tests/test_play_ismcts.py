@@ -67,14 +67,37 @@ def test_start_mulligan_and_setup_with_the_search_ai(rig):
     assert msgs and ai.fallbacks == 0 and session.setup is not None
 
 
-def test_restart_keeps_the_search_ai_and_clears_its_memory(brig, tmp_path):  # noqa: F811
+def test_restart_keeps_the_search_ai_and_the_new_game_knows_nothing(brig, tmp_path):  # noqa: F811
     session, table, game, clock = prepared(brig, tmp_path)
     session.ai = ai = ismcts()
-    ai.known_in_hand = {1: ()}
+    game.observe_hand(0, game.players[1].full_set[:3])
     with_cfg(session, setup=True)
     click(session, table, Event.RESTART)
     click(session, table, Event.RESTART)
-    assert session.game is not game and session.ai is ai and ai.known_in_hand == {}
+    assert session.game is not game and session.ai is ai
+    assert ai.knowledge(session.game).known_in_hand == {1: ()}
+
+
+def test_a_seen_rival_hand_is_pinned_in_determinization_and_discounted_when_played(rig):
+    """Flujo de la sesion: el motor guarda lo visto (`observe_hand`), la IA lo lee de ahi y la busqueda lo respeta."""
+    import random
+    from sparring.search.adapter import EngineState
+    session, table, game = rig
+    session.ai = ai = ismcts()
+    seen = [c for c in game.players[1].full_set if c.title in ("Excalibur", "Service Pistol")][:2]
+    game.players[1].hand[:] = list(seen) + [c for c in game.players[1].full_set if c not in seen][:2]
+    game.observe_hand(0, seen)
+    know = ai.knowledge(game)
+    assert set(know.known_in_hand[1]) == set(seen)
+    st = EngineState(game, observer=0, knowledge=know)
+    for seed in range(4):
+        st.determinize(0, random.Random(seed))
+        assert all(c in st.game.players[1].hand for c in seen) and len(st.game.players[1].hand) == 4
+    game.discard_card(1, seen[0])
+    left = ai.knowledge(game).known_in_hand[1]
+    assert seen[0] not in left and seen[1] in left
+    ai.plan(game)
+    assert ai.fallbacks == 0
 
 
 def test_resume_a_saved_game_with_the_search_ai(rig, tmp_path):
