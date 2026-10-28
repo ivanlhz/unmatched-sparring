@@ -99,6 +99,72 @@
         "El bot aparta tambien las miniaturas caidas del humano (human_dead_spot o la zona del bot reflejada); etiquetas del suelo pequenas, legibles desde White, fuera de su caja y sin solaparse"
       ],
       "note": "Solo verificado contra FakeTTS. Pendiente en vivo: la instantanea desde el script del panel, el compuesto con Wait.condition, UI.setAttribute/interactable, reset_deck, las etiquetas y human_dead_spot."
+    },
+    {
+      "id": "F07",
+      "title": "Motor multiheroe (sin cambiar Medusa vs Hellboy)",
+      "status": "todo",
+      "criteria": [
+        "Tests dorados antes de tocar nada: simulador, transcripcion de sesion FakeTTS y ida y vuelta del guardado de Medusa vs Hellboy; siguen identicos al terminar",
+        "HeroDef por heroe en data/heroes/<slug>.json (vida, movimiento, alcance, ayudantes con cantidad y vida, formas, contadores, disparadores, pasivas) importado de unmatched-memory con un overlay a mano; la partida se construye desde HeroDef",
+        "Efectos de carta estructurados por momento (immediately/during/after/scheme/ongoing) en data/heroes/<slug>.cards.json, ejecutados por un interprete de primitivas en sparring/effects/; lo que no cubre una primitiva va a un plugin Python por heroe",
+        "config/partida.json gana bot_hero y human_hero (por defecto medusa y hellboy) y la config de TTS por heroe (mazos, diales, salidas) sale de data/tts/<slug>.json",
+        "Carta sin efecto codificado: el bot anuncia su texto y la juega solo por valor y boost; nunca rompe la partida",
+        "Elecciones del humano que el bot necesita saber (objetivo, opcion) por botones del panel, con el efecto pendiente guardado y reanudable; los movimientos siguen siendo fisicos",
+        "Efecto «mira la mano del rival»: el bot lee la mano del humano SOLO al resolver esa carta; guarda las cartas vistas y las va quitando de la mano conocida cuando el humano las juega, descarta o pierde; nunca da por jugable una carta vista que ya ha salido"
+      ]
+    },
+    {
+      "id": "F08",
+      "title": "Caja Hellboy completa en los dos lados",
+      "status": "todo",
+      "criteria": [
+        "Hellboy, Abe Sapien, Baba Yaga y Liz Sherman jugables por el humano contra el bot y por el bot contra el humano, en cualquier combinacion de la caja",
+        "Datos de cada heroe verificados contra las cartas reales del save del torneo (CustomDeck FaceURL), no solo contra unmatched-memory",
+        "Plugins de las cartas que no caben en primitivas (previstos: abe perfect_shot y uncanny_intuition, baba remove_painful_memory, liz incinerate y wildfire)",
+        "Una partida en vivo supervisada por Ivan por cada heroe de la caja antes de darla por hecha",
+        "Cambio de forma de Hellboy llevado por el bot: el bot cambia la miniatura y gira la ficha de habilidad al lado rojo, y hace ping sobre las dos"
+      ]
+    },
+    {
+      "id": "F09",
+      "title": "IA con busqueda ISMCTS sobre el motor generico",
+      "status": "todo",
+      "criteria": [
+        "Sin trampas: la busqueda nunca lee la mano oculta del humano; solo usa informacion publica (descartes, conteo de mano y mazo, cartas jugadas) y lo visto legitimamente por un efecto de «mirar la mano», con las cartas ya salidas descontadas",
+        "La IA del bot decide con ISMCTS: muestrea la mano oculta del rival compatible con lo visto (descartes, conteo de mano, mazo) y simula con el motor de F07",
+        "Sirve para cualquier heroe con efectos codificados, sin codigo especifico por heroe en la busqueda",
+        "Presupuesto de tiempo por decision configurable; el boton del humano sigue respondiendo por debajo de 1 s mas el tiempo de busqueda anunciado"
+      ]
+    },
+    {
+      "id": "F10",
+      "title": "Playbooks por emparejamiento",
+      "status": "todo",
+      "criteria": [
+        "Plan por heroe y rival en data/ai/<slug>.json destilado de @NoExhaustionDamage (y otras fuentes que apruebe Ivan); un heroe con un solo estilo tiene un solo plan",
+        "El playbook orienta a la ISMCTS (prioridades, evaluacion de posiciones), no sustituye la busqueda"
+      ]
+    },
+    {
+      "id": "F11",
+      "title": "Oleadas siguientes del roster",
+      "status": "todo",
+      "criteria": [
+        "Orden de Ivan: Stars and Stripes (John Henry, Wyatt Earp, Rosie the Riveter, George Washington; marzo 2026, estan en el save y no en unmatched-memory), TMNT (Leonardo, Donatello, Michelangelo, Raphael), Shredder vs Krang, Muhammad Ali vs Bruce Lee, Battle of Legends Vol. 3 (Blackbeard, Chupacabra, Loki, Pandora), y despues el resto",
+        "Cada oleada: datos verificados contra el save, plugins necesarios y una partida en vivo por heroe",
+        "Los heroes que estan en el save y no en unmatched-memory se extraen del save"
+      ]
+    },
+    {
+      "id": "F12",
+      "title": "Ping de atacante y objetivo en los ataques del bot",
+      "status": "todo",
+      "criteria": [
+        "Cuando un luchador del bot ataca, el bot hace ping sobre su luchador atacante y sobre el luchador objetivo del humano, para ver quien ataca a quien sin leer el mensaje",
+        "Va en el mismo script del paso de ataque (sin mensajes extra a TTS) y no usa messageID 1 ni el Global UI",
+        "Probado con FakeTTS y en una partida en vivo"
+      ]
     }
   ]
 }
