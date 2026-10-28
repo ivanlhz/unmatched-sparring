@@ -90,7 +90,7 @@ def test_ability_in_the_dsl_matches_the_herodef_triggers_and_passive():
     assert [t["id"] for t in ab["triggers"]] == ["detective_draw", "anung_discard_move"]
     assert all(t["when"] == {"event": "start_of_turn", "player": "owner"} for t in ab["triggers"])
     detective, anung = ab["triggers"]
-    assert detective["optional"] is True and detective["ops"] == [{"op": "draw", "player": "owner", "amount": 2}]
+    assert detective["ops"] == [{"op": "optional", "chooser": "owner", "ops": [{"op": "draw", "player": "owner", "amount": 2}]}]
     assert {"test": "form_is", "form": "OCCULT DETECTIVE"} in detective["condition"]["all"]
     assert [op["op"] for op in anung["ops"]] == ["discard", "move"]
     assert anung["ops"][0]["as"] == "fuel" and anung["ops"][1]["amount"] == {"attr": "boost", "of": "$fuel"}

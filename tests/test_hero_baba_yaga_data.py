@@ -32,7 +32,7 @@ REAL_CARDS = {
     "Pact Of Time": (1, "Baba Yaga", "scheme", None, 3),
 }
 PACTS = [t for t in REAL_CARDS if t.startswith("Pact Of")]
-PACT_END = {"event": "damage_taken", "target": "hero", "kind": "combat", "min": 2}
+PACT_END = {"event": "damage_taken", "target": "hero", "damage": "combat", "min": 2}
 
 
 @pytest.fixture(scope="module")
@@ -120,7 +120,7 @@ def test_effects_validate_and_every_pact_is_an_ongoing_scheme_that_ends_at_2_com
     peace = next(c for c in effects["cards"] if c["title"] == "Pact Of Peace")
     trig, = peace["ongoing"]["triggers"]
     assert trig["when"] == {"event": "end_of_turn", "player": "any"}
-    assert trig["ops"][0]["target"] == {"kind": "hero", "filter": {"attacked_this_turn": True}, "pick": "all"}
+    assert trig["ops"][0]["target"] == {"side": "any", "kind": "hero", "filter": {"attacked_this_turn": True}, "pick": "all"}
 
 
 def test_fateful_bargains_is_an_optional_redirect_passive_and_bound_in_blood_the_mandatory_op(effects):

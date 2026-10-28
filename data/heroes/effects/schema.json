@@ -55,7 +55,7 @@
    {"$ref": "#/$defs/Var"}
   ]},
   "PlayerOrAny": {"anyOf": [{"$ref": "#/$defs/PlayerSel"}, {"const": "any"}]},
-  "Chooser": {"anyOf": [{"enum": ["owner", "opponent", "random"]}, {"$ref": "#/$defs/Var"}]},
+  "Chooser": {"anyOf": [{"enum": ["owner", "opponent"]}, {"$ref": "#/$defs/Var"}]},
 
   "FighterRef": {"anyOf": [
    {"enum": ["this", "hero", "opposing", "attacker", "defender", "combatant"]},
@@ -66,6 +66,7 @@
    {
     "type": "object",
     "additionalProperties": false,
+    "anyOf": [{"required": ["role"]}, {"required": ["side"]}],
     "properties": {
      "role": {"$ref": "#/$defs/FighterRef"},
      "side": {"enum": ["own", "enemy", "any"]},
@@ -133,6 +134,7 @@
 
   "Amount": {"anyOf": [
    {"type": "integer"},
+   {"$ref": "#/$defs/Var"},
    {"type": "object", "additionalProperties": false, "required": ["attr", "of"],
     "properties": {"attr": {"enum": ["boost", "value"]}, "of": {"$ref": "#/$defs/CardRef"}, "times": {"type": "integer"}}},
    {"type": "object", "additionalProperties": false, "required": ["count"],
@@ -194,8 +196,8 @@
     "properties": {"event": {"const": "attacked"}, "target": {"$ref": "#/$defs/FighterSel"}}},
    {"type": "object", "additionalProperties": false, "required": ["event", "by"],
     "properties": {"event": {"const": "combat_damage_dealt"}, "by": {"$ref": "#/$defs/FighterSel"}}},
-   {"type": "object", "additionalProperties": false, "required": ["event", "target", "kind"],
-    "properties": {"event": {"const": "damage_taken"}, "target": {"$ref": "#/$defs/FighterSel"}, "kind": {"enum": ["effect", "combat", "any"]}, "min": {"type": "integer", "minimum": 1}}},
+   {"type": "object", "additionalProperties": false, "required": ["event", "target", "damage"],
+    "properties": {"event": {"const": "damage_taken"}, "target": {"$ref": "#/$defs/FighterSel"}, "damage": {"enum": ["effect", "combat", "any"]}, "min": {"type": "integer", "minimum": 1}}},
    {"type": "object", "additionalProperties": false, "required": ["event", "player", "from"],
     "properties": {"event": {"const": "card_discarded"}, "player": {"$ref": "#/$defs/PlayerOrAny"}, "from": {"type": "array", "minItems": 1, "items": {"enum": ["hand", "deck"]}}, "filter": {"$ref": "#/$defs/CardFilter"}}},
    {"type": "object", "additionalProperties": false, "required": ["event", "player"],
@@ -212,8 +214,6 @@
     "id": {"$ref": "#/$defs/Name"},
     "when": {"$ref": "#/$defs/Event"},
     "condition": {"$ref": "#/$defs/Condition"},
-    "optional": {"type": "boolean"},
-    "chooser": {"$ref": "#/$defs/Chooser"},
     "ops": {"$ref": "#/$defs/Ops"},
     "notes": {"type": "string"}
    }

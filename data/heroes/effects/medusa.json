@@ -9,8 +9,10 @@
  "ability": {
   "text": "At the start of your turn, you may deal 1 damage to an opposing fighter in Medusa's zone.",
   "triggers": [
-   {"id": "medusa_gaze", "when": {"event": "start_of_turn", "player": "owner"}, "optional": true, "chooser": "owner",
-    "ops": [{"op": "damage", "target": {"side": "enemy", "where": {"zone_of": "hero"}}, "amount": 1, "chooser": "owner"}]}
+   {"id": "medusa_gaze", "when": {"event": "start_of_turn", "player": "owner"},
+    "ops": [{"op": "optional", "chooser": "owner", "ops": [
+     {"op": "damage", "target": {"side": "enemy", "where": {"zone_of": "hero"}}, "amount": 1, "chooser": "owner"}
+    ]}]}
   ],
   "passives": [],
   "notes": "Hoy la ejecuta Game.medusa_ability(target) con el objetivo elegido por el controlador (MedusaAI o el humano); Medusa debe estar viva y el rival compartir zona con ella."

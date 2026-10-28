@@ -57,7 +57,10 @@ Convenciones del texto: "dueno" (owner) es el jugador que juega la carta o al qu
 - `title`, `copies` y `text` coinciden con el HeroDef (el texto es el de la carta real).
 - `may_boost` (opcional, por defecto false): la carta permite impulsar el propio ataque en el DURING sin coste
   ("You may BOOST this attack", "You may BOOST this card"). Es el campo que sustituye a la deteccion por texto de
-  `combat.can_boost`. No se repite como op: una carta con `may_boost` no lleva `boost` sobre `this` en `during`.
+  `combat.can_boost`. No se repite como op: una carta con `may_boost` no lleva `boost` sobre `this` en `during`, y
+  un plan no puede llevarlo. Vale en cualquier combate en que se juegue la carta: Second Shot es solo ataque,
+  pero Out Of Time es versatil y jugada en defensa impulsa la defensa (hoy el motor solo contempla el impulso del
+  ataque del humano; el interprete debe cubrir los dos lados).
 - `uncancelable` (opcional, por defecto false): `cancel_effects` no borra los efectos de esta carta.
 - `effects`: los cinco momentos, siempre presentes y siempre listas (vacias si no hay nada):
   - `immediately`, `during`, `after`: combate. Resuelve primero el defensor en cada momento.
@@ -86,7 +89,7 @@ Objeto; todo opcional salvo que se indique. Cadena = atajo de `role`.
 | campo | valores | significado |
 |---|---|---|
 | `role` | `this`, `hero`, `opposing`, `attacker`, `defender`, `combatant`, `$var` | `this`: el luchador que juega la carta (en habilidades, el heroe). `hero`: el heroe del dueno. `opposing`: el otro luchador del combate. `combatant`: uno de los dos (elige `chooser`). |
-| `side` | `own`, `enemy`, `any` (defecto `any`) | relativo al dueno |
+| `side` | `own`, `enemy`, `any` | relativo al dueno. Obligatorio si no hay `role`: "any fighter" se escribe `{"side": "any"}`, nunca `{}` |
 | `kind` | `hero`, `sidekick`, `any` (defecto `any`) | |
 | `name` | nombre de luchador del HeroDef ("Koschei", "Harpy") | |
 | `where` | SpaceSel | donde esta |
@@ -118,21 +121,25 @@ CardSel (objeto):
 | `zone` | `hand`, `discard`, `deck`, `in_play` | obligatorio. `in_play`: planes permanentes en mesa |
 | `player` | PlayerSel | obligatorio |
 | `filter` | ver abajo | |
-| `pick` | `chosen` (defecto), `all`, `random`, `top`, `bottom` | `chosen`: elige `chooser` |
-| `amount` | Amount | cuantas (no con `all`); defecto 1. Si hay menos candidatas, se recorta a las que haya |
-| `up_to` | bool (defecto false) | el que elige puede coger menos (0 incluido) |
+| `pick` | `chosen` (defecto), `all`, `random`, `top`, `bottom` | `chosen`: elige `chooser`. `random`: el azar (no existe un chooser "random"). `top`/`bottom`: solo en `deck` (la mano no tiene orden) |
+| `amount` | Amount | cuantas; defecto 1. Prohibido con `pick: all`. Si hay menos candidatas, se recorta a las que haya |
+| `up_to` | bool (defecto false) | el que elige puede coger menos (0 incluido). Solo con `pick: chosen` |
 | `chooser` | PlayerSel (defecto `owner`) | solo con `pick: chosen` |
 | `except` | CardRef | fuera las ligadas a ese nombre |
 
 CardFilter: `{"type": ..., "type_not": ..., "tag": ..., "tag_not": ..., "title": ..., "fighter": ...}`.
 
-Informacion oculta: un CardSel con `zone: hand`, `player` distinto del `chooser` y `pick: chosen` solo es legal si
-en la misma lista de ops (o en una lista que la contiene) hubo antes un `look_hand` sobre ese jugador. El
-validador lo comprueba. Con `pick: random` o con `chooser` igual al dueno de la mano no hace falta mirar.
+Informacion oculta: `hand` y `deck` son zonas ocultas. Un CardSel sobre una de ellas con `pick: chosen` y
+`chooser` distinto de `player` solo es legal si en la misma lista de ops (o en una que la contiene) hubo antes un
+`look_hand` (mano) o un `look_deck`/`search_deck` (mazo) sobre ese jugador. El validador lo comprueba. No hace
+falta mirar con `pick: random | top | bottom` (no se elige nada), con `chooser` igual al dueno de la zona, ni para
+contar: el test `exists` y el Amount `count_cards` sobre una mano o un mazo ajenos no eligen ni ensenan nada
+(Loki y Krang los necesitan). El descarte y `in_play` son publicos.
 
 ### 2.5 Cantidades (Amount)
 
-Entero, o uno de estos objetos (todos admiten `times: int` como multiplicador):
+Entero, una ligadura numerica de evento (`"$amount"`, ver 2.10), o uno de estos objetos (todos admiten
+`times: int` como multiplicador):
 
 - `{"attr": "boost" | "value", "of": CardRef}`: atributo de una carta ligada (`{"attr": "boost", "of": "$fuel"}`).
 - `{"count": FighterSel}` o `{"count_cards": CardSel}`: cuantos cumplen el selector.
@@ -142,8 +149,9 @@ Entero, o uno de estos objetos (todos admiten `times: int` como multiplicador):
 
 ### 2.6 Quien elige (chooser)
 
-`owner` (defecto) | `opponent` | `random` | `$var`. Aparece en todo lo que requiere decision (objetivo entre
-varios, destino, cuantas, opcion). Cuando elige el humano el panel pregunta; cuando elige el bot decide su IA.
+`owner` (defecto) | `opponent` | `$var` (ligadura de jugador). Aparece en todo lo que requiere decision (objetivo
+entre varios, destino, cuantas, opcion). El azar no es un chooser: se escribe `pick: random` en el CardSel. Cuando
+elige el humano el panel pregunta; cuando elige el bot decide su IA.
 
 ### 2.7 "Hasta N"
 
@@ -154,11 +162,19 @@ Una sola forma: `amount: N` + `up_to: bool`. `up_to: true` = el que elige decide
 ### 2.8 Ligaduras
 
 Una sintaxis: la op que crea la ligadura lleva `"as": "<nombre>"`; despues se referencia como `"$<nombre>"` donde
-quepa un CardRef, FighterRef o PlayerSel, y `{"attr": ..., "of": "$<nombre>"}` para leer un atributo. Crean
-ligaduras: `discard`, `draw`, `choose`, `search_deck`, `for_each` (el elemento en curso), `look_deck` y los eventos
-(ver 4). El ambito es la lista de ops donde se crea, desde la op siguiente, y las anidadas. Nombres reservados
-(no se pueden ligar): `this`, `hero`, `opposing`, `attacker`, `defender`, `combatant`, `opponent_card`,
-`attack_card`, `defense_card`.
+quepa un CardRef, FighterRef, PlayerSel o Amount, y `{"attr": ..., "of": "$<nombre>"}` para leer un atributo.
+Cada ligadura tiene un tipo y solo vale donde se espera ese tipo (el validador lo comprueba):
+
+| crea la ligadura | tipo |
+|---|---|
+| `discard`, `draw`, `choose`, `look_deck`, `search_deck` | carta(s) |
+| `damage` (los luchadores golpeados; Concussion Device) | luchador(es) |
+| `for_each` sobre `players` / sobre `fighters` | jugador / luchador |
+| eventos (ver 2.10): `$attacker`, `$target`, `$by`, `$to`, `$fighter` / `$card` / `$amount` | luchador / carta / numero |
+
+El ambito es la lista de ops donde se crea, desde la op siguiente, y las anidadas. Nombres reservados (no se
+pueden ligar): `this`, `hero`, `opposing`, `attacker`, `defender`, `combatant`, `opponent_card`, `attack_card`,
+`defense_card`.
 
 ### 2.9 Condiciones (Condition)
 
@@ -191,17 +207,19 @@ Nunca hay condiciones en cadenas.
 | `after_attack` | `fighter: FighterSel` | `$attacker`, `$target` |
 | `attacked` | `target: FighterSel` | `$attacker`, `$target`, `attack_card` |
 | `combat_damage_dealt` | `by: FighterSel` | `$by`, `$to`, `$amount` |
-| `damage_taken` | `target: FighterSel`, `kind: effect | combat | any`, `min` | `$target`, `$amount` |
+| `damage_taken` | `target: FighterSel`, `damage: effect | combat | any`, `min` | `$target`, `$amount` |
 | `card_discarded` | `player`, `from: [hand, deck]`, `filter: CardFilter` | `$card` |
 | `card_played` | `player`, `filter` | `$card` |
 | `fighter_defeated` | `fighter: FighterSel` | `$fighter` |
 
 Como caducidad (`until`): `{"event": "end_of_turn"}` = el turno en curso, sea de quien sea;
 `{"event": "start_of_turn", "player": "owner"}` = el siguiente turno del dueno;
-`{"event": "damage_taken", "target": "hero", "kind": "combat", "min": 2}` = los Pactos.
+`{"event": "damage_taken", "target": "hero", "damage": "combat", "min": 2}` = los Pactos. El tipo de dano se
+llama siempre `damage` (aqui y en `redirect_damage`); `kind` es solo el discriminador de los modificadores.
 
-Trigger: `{"id", "when": Event, "condition"?: Condition, "optional"?: bool, "chooser"?, "ops": [Op]}`. Con
-`optional` el `chooser` (defecto `owner`) decide si se ejecuta.
+Trigger: `{"id", "when": Event, "condition"?: Condition, "ops": [Op]}`. Un disparador no tiene `optional`: el
+"you may" de una habilidad se escribe con la op `optional` dentro de `ops` (Medusa, OCCULT DETECTIVE), que es la
+misma forma que en las cartas.
 
 ## 3. Ops (lista cerrada)
 
@@ -263,7 +281,7 @@ Toda op es `{"op": "<nombre>", ...args}`. Argumentos no listados son error.
 | `modify_value` | `cards: {player, type?, fighter?}`, `amount` | +N continuo a las cartas que cumplan (ANUNG +2 a los ataques de Hellboy; Fight Or Flight +1) |
 | `rule` | `rule`, `amount`? | `no_attack_as_first_action`, `effect_damage_bonus` (`amount`; no al agotamiento), `max_hand_size` (`amount`), `no_gain_actions` |
 | `status` | como la op `status` sin `until` | mientras la carta siga en juego |
-| `redirect_damage` | como la op | FATEFUL BARGAINS |
+| `redirect_damage` | como la op, con `optional` y `chooser` | FATEFUL BARGAINS. Es el unico sitio donde `optional` es un campo y no una op: un modificador no contiene ops que envolver |
 | `may_boost` | `fighter: FighterSel` | ese luchador puede impulsar sus ataques (King Arthur) |
 | `plugin` | `id` | |
 
@@ -360,6 +378,30 @@ No cabe hoy (queda para una version 2 o para plugin):
     `discard` con `up_to` liga las descartadas, y `{"count_cards"...}` cuenta un CardSel, no una ligadura. Haria
     falta `{"count_bound": "$x"}`.
 
+Encontrado por el reviewer en las cajas siguientes (sin implementar; cada punto es una extension acotada de v2):
+
+13. **Dados** (Krang, valores `?`): no hay op `roll` ni valor de carta indeterminado hasta resolver.
+14. **Segundo mazo** (Pandora): `zone` solo conoce un mazo por jugador; haria falta `deck: <nombre>` en CardSel.
+15. **Doblones y tesoreria** (Blackbeard): un contador compartido o de tablero, no del heroe; `counter` solo
+    conoce contadores del dueno.
+16. **Resultado de combate en el turno y "primera vez por turno"** (Ali, Raphael, Chupacabra): no hay `stat`
+    de combates ganados este turno ni condicion `first_time_this_turn`.
+17. **Posturas por evento** (Ali): formas que cambian por decision o por disparador; hace falta `set_form` y
+    formas sin contador (mismo hueco que 1).
+18. **Alcance de ataque modificado** (Ali Float, Shredder, Krang Missiles): no hay estado ni modificador
+    `attack_range` (melee a distancia, o alcance N).
+19. **Cancelacion parcial** (Raphael, Donatello): `cancel_effects` borra todo; faltaria `moments: [...]` o
+    "cancela solo el AFTER".
+20. **"Hasta N luchadores"** (Chupacabra): `pick` es `one` o `all`; faltaria `pick: {"up_to": N}`.
+21. **Ongoing permanente sin `until` y zona `removed`** (Donatello): `until` es obligatorio y no existe la
+    zona "fuera del juego".
+22. **Devolver `this` a la mano** (Bruce Lee, Chupacabra, Raphael): `put_in_hand` con `cards: "this"` mientras la
+    carta aun esta en combate; el orden respecto al descarte final no esta definido.
+23. **Obligar a jugar una carta y `look_hand` del rival sobre el dueno** (Loki): no hay op `force_play`, y
+    `look_hand` solo mira desde el dueno hacia `player`; haria falta `viewer`.
+24. **Menores**: condiciones sobre zonas concretas del mapa, stats por turno (acciones, movimientos), sustituir
+    la maniobra por otra cosa, Foot Soldiers (ayudantes sin carta), mano inicial distinta de 5.
+
 Lo que si se ha anadido ya por el roster aunque la caja no lo use: `summon`, `set_hp`, `swap`, `look_deck`,
 `put_in_hand`, `boost` sobre `opponent_card`, `attacked` / `after_attack` / `card_discarded` / `card_played` como
 eventos, `compare` y `stat`, `choose_effect` con `distinct`, el momento `boost`.
@@ -392,6 +434,10 @@ Equivalencias aplicadas:
 | `redirect_effect_damage` (HeroDef) / `redirect_damage` | pasiva kind `redirect_damage` |
 | `uncancelable: true` | igual (campo de carta) |
 | texto "boost this attack" | `may_boost: true` |
+| disparador con `optional: true` (Medusa, OCCULT DETECTIVE) | op `optional` dentro de `ops` |
+| `discard_random` / `chooser: random` | `pick: "random"` |
+| `kind: combat` en `until` | `damage: combat` |
+| selector de luchador sin lado (`{"where": ...}`) | `side` obligatorio sin `role` |
 
 Decisiones dudosas de la migracion (ver tambien `notes` de cada fichero):
 

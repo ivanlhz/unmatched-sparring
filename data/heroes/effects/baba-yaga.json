@@ -25,7 +25,7 @@
     "immediately": [], "during": [], "scheme": [], "boost": [],
     "after": [
      {"op": "if", "condition": {"test": "exists", "cards": {"zone": "in_play", "player": "owner", "filter": {"type": "scheme"}}}, "then": [
-      {"op": "damage", "target": {"where": {"zone_of": "hero"}, "other": true, "pick": "all"}, "amount": 2},
+      {"op": "damage", "target": {"side": "any", "where": {"zone_of": "hero"}, "other": true, "pick": "all"}, "amount": 2},
       {"op": "discard", "cards": {"zone": "in_play", "player": "owner", "filter": {"type": "scheme"}, "amount": 1, "chooser": "owner"}}
      ]}
     ]
@@ -39,7 +39,7 @@
    "effects": {
     "immediately": [], "during": [], "scheme": [], "boost": [],
     "after": [
-     {"op": "damage", "target": {"where": {"adjacent_to": "hero"}}, "amount": 1, "chooser": "owner"},
+     {"op": "damage", "target": {"side": "any", "where": {"adjacent_to": "hero"}}, "amount": 1, "chooser": "owner"},
      {"op": "if", "condition": {"test": "exists", "cards": {"zone": "in_play", "player": "owner", "filter": {"type": "scheme"}}}, "then": [
       {"op": "heal", "target": "hero", "amount": 2}
      ]}
@@ -178,13 +178,13 @@
     "immediately": [], "during": [], "after": [], "boost": [],
     "scheme": [
      {"op": "draw", "player": "owner", "amount": 2},
-     {"op": "place", "target": {"kind": "hero"}, "where": {"any": true}, "chooser": "owner"}
+     {"op": "place", "target": {"side": "any", "kind": "hero"}, "where": {"any": true}, "chooser": "owner"}
     ]
    },
    "ongoing": {
     "modifiers": [{"kind": "rule", "rule": "no_attack_as_first_action"}],
     "triggers": [],
-    "until": {"event": "damage_taken", "target": "hero", "kind": "combat", "min": 2}
+    "until": {"event": "damage_taken", "target": "hero", "damage": "combat", "min": 2}
    },
    "notes": "Se coloca cualquier heroe, propio o rival (no ayudantes)."
   },
@@ -201,7 +201,7 @@
    "ongoing": {
     "modifiers": [{"kind": "rule", "rule": "effect_damage_bonus", "amount": 1}],
     "triggers": [],
-    "until": {"event": "damage_taken", "target": "hero", "kind": "combat", "min": 2}
+    "until": {"event": "damage_taken", "target": "hero", "damage": "combat", "min": 2}
    },
    "notes": "El +1 afecta a todo dano de efecto de ambos jugadores (Iron Teeth, Hasten Towards Death, Pact Of Peace, Remove A Painful Memory, The Time For Deals Is Done y los efectos del rival), no al de combate ni al de agotamiento. Si no hay luchador derrotado, la parte inmediata no hace nada."
   },
@@ -212,7 +212,7 @@
    "effects": {
     "immediately": [], "during": [], "after": [], "boost": [],
     "scheme": [
-     {"op": "damage", "target": {"where": {"zone_of": "hero"}, "other": true, "pick": "all"}, "amount": 1},
+     {"op": "damage", "target": {"side": "any", "where": {"zone_of": "hero"}, "other": true, "pick": "all"}, "amount": 1},
      {"op": "gain_action", "amount": 1}
     ]
    },
@@ -220,9 +220,9 @@
     "modifiers": [],
     "triggers": [
      {"id": "peace_end_of_turn", "when": {"event": "end_of_turn", "player": "any"},
-      "ops": [{"op": "damage", "target": {"kind": "hero", "filter": {"attacked_this_turn": true}, "pick": "all"}, "amount": 1}]}
+      "ops": [{"op": "damage", "target": {"side": "any", "kind": "hero", "filter": {"attacked_this_turn": true}, "pick": "all"}, "amount": 1}]}
     ],
-    "until": {"event": "damage_taken", "target": "hero", "kind": "combat", "min": 2}
+    "until": {"event": "damage_taken", "target": "hero", "damage": "combat", "min": 2}
    },
    "notes": "El dano inmediato alcanza a Koschei si esta en la zona. El dano de fin de turno es de efecto: lo sube Pact Of Mortality y, si lo recibe Baba Yaga, FATEFUL BARGAINS puede pasarselo a Koschei. Solo heroes, no ayudantes que atacaron."
   },
@@ -243,7 +243,7 @@
    "ongoing": {
     "modifiers": [{"kind": "rule", "rule": "max_hand_size", "amount": 3}],
     "triggers": [],
-    "until": {"event": "damage_taken", "target": "hero", "kind": "combat", "min": 2}
+    "until": {"event": "damage_taken", "target": "hero", "damage": "combat", "min": 2}
    },
    "notes": "'Up to 2' lo decide cada jugador (0, 1 o 2). Con 2 o menos cartas en mano la eleccion se recorta a lo que hay y no se devuelve nada. El tope de mano 3 se aplica al robar (la maniobra no pasa de 3) y al final del turno segun la regla general de exceso de mano."
   },
@@ -262,7 +262,7 @@
    "ongoing": {
     "modifiers": [{"kind": "rule", "rule": "no_gain_actions"}],
     "triggers": [],
-    "until": {"event": "damage_taken", "target": "hero", "kind": "combat", "min": 2}
+    "until": {"event": "damage_taken", "target": "hero", "damage": "combat", "min": 2}
    },
    "notes": "Bloquea 'gains 1 action' de Hasten Towards Death, el de Pact Of Peace y cualquier ganancia de accion del rival (p. ej. Hellboy no tiene, Medusa tampoco). Las dos acciones normales del turno no son 'ganadas'."
   }

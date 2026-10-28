@@ -13,7 +13,7 @@
     "ops": [
      {"op": "discard", "cards": {"zone": "deck", "player": "owner", "pick": "bottom", "amount": 1}, "as": "burnt"},
      {"op": "if", "condition": {"test": "card", "card": "$burnt", "filter": {"tag": "burning"}},
-      "then": [{"op": "damage", "target": {"where": {"zone_of": "hero"}, "other": true}, "amount": 1, "chooser": "owner"}],
+      "then": [{"op": "damage", "target": {"side": "any", "where": {"zone_of": "hero"}, "other": true}, "amount": 1, "chooser": "owner"}],
       "else": [{"op": "move", "target": "hero", "amount": 2, "up_to": true}]}
     ]},
    {"id": "wildfire_return", "when": {"event": "card_discarded", "player": "owner", "from": ["hand", "deck"], "filter": {"tag": "burning"}},

@@ -216,6 +216,94 @@ def test_validator_checks_status_scope_counters_forms_names_and_plugins():
     assert len(errs) == 1 and "may_boost ya expresa el BOOST gratuito" in errs[0]
 
 
+def test_validator_treats_the_rival_deck_as_hidden_too():
+    """Elegir del mazo rival exige look_deck/search_deck previo; top/bottom/random no eligen y pasan; la mano no
+    tiene orden (sin top/bottom); exists y count_cards cuentan sin mirar."""
+    def pick_from_rival_deck(d):
+        card(d, "Snipe")["effects"]["after"].append(
+            {"op": "put_in_hand", "cards": {"zone": "deck", "player": "opponent", "amount": 1, "chooser": "owner"}})
+    errs = broken("medusa", pick_from_rival_deck)
+    assert len(errs) == 1 and "owner elige de el mazo de opponent sin un look_deck o search_deck previo" in errs[0]
+
+    def look_then_pick(d):
+        after = card(d, "Snipe")["effects"]["after"]
+        after.append({"op": "look_deck", "player": "opponent", "amount": 3, "as": "top3"})
+        after.append({"op": "put_in_hand", "cards": {"zone": "deck", "player": "opponent", "amount": 1, "chooser": "owner"}})
+    assert broken("medusa", look_then_pick) == []
+
+    def blind_picks(d):
+        after = card(d, "Snipe")["effects"]["after"]
+        after.append({"op": "discard", "cards": {"zone": "deck", "player": "opponent", "pick": "top", "amount": 1}})
+        after.append({"op": "discard", "cards": {"zone": "deck", "player": "opponent", "pick": "random", "amount": 1}})
+        after.append({"op": "if", "condition": {"test": "exists", "cards": {"zone": "hand", "player": "opponent", "filter": {"tag": "TRICK"}}},
+                      "then": [{"op": "modify_value", "card": "this", "amount": {"count_cards": {"zone": "hand", "player": "opponent"}, "times": 3}}]})
+    assert broken("medusa", blind_picks) == []
+
+    errs = broken("medusa", lambda d: card(d, "Snipe")["effects"]["after"].append(
+        {"op": "discard", "cards": {"zone": "hand", "player": "owner", "pick": "top", "amount": 1}}))
+    assert len(errs) == 1 and "la mano no tiene orden" in errs[0]
+
+
+def test_validator_reports_errors_inside_ongoing_against_the_ongoing_branch():
+    """anyOf [null, Ongoing]: un fallo dentro de un Pacto debe salir como fallo del Ongoing, no como 'debe ser null'."""
+    errs = broken("baba-yaga", lambda d: card(d, "Pact Of Peace")["ongoing"].pop("until"))
+    assert errs == ["$.cards[13].ongoing: falta el campo obligatorio 'until'"]
+    errs = broken("baba-yaga", lambda d: card(d, "Pact Of Time")["ongoing"]["modifiers"][0].update(rule="no_schemes"))
+    assert len(errs) == 1 and errs[0].startswith("$.cards[15].ongoing.modifiers[0].rule:") and "no esta entre" in errs[0]
+    errs = broken("abe-sapien", lambda d: card(d, "Counterhex Shield")["ongoing"]["triggers"].append({"id": "x", "when": {"event": "end_of_turn"}}))
+    assert errs == ["$.cards[12].ongoing.triggers[0]: falta el campo obligatorio 'ops'"]
+    # misma mejora para los selectores: un FighterSel objeto roto se explica como objeto, no como cadena
+    errs = broken("medusa", lambda d: card(d, "Dash")["effects"]["after"][0].update(target={"side": "own", "kind": "harpy"}))
+    assert len(errs) == 1 and errs[0].startswith("$.cards[3].effects.after[0].target.kind:")
+
+
+def test_event_bindings_of_amount_are_usable_and_typed():
+    """damage_taken y combat_damage_dealt ligan $amount (numero): vale como Amount y no como luchador."""
+    def draw_what_you_took(d):
+        d["ability"]["triggers"].append({"id": "payback", "when": {"event": "damage_taken", "target": "hero", "damage": "combat"},
+                                         "ops": [{"op": "draw", "player": "owner", "amount": "$amount"}]})
+    assert broken("medusa", draw_what_you_took) == []
+
+    def amount_as_fighter(d):
+        d["ability"]["triggers"].append({"id": "bad", "when": {"event": "combat_damage_dealt", "by": "hero"},
+                                         "ops": [{"op": "heal", "target": "$amount", "amount": 1}]})
+    errs = broken("medusa", amount_as_fighter)
+    assert len(errs) == 1 and "'$amount' liga un number, pero aqui (target) hace falta un fighter" in errs[0]
+
+    def fighter_as_player(d):
+        card(d, "Snipe")["effects"]["after"].append({"op": "for_each", "over": {"fighters": {"side": "own", "pick": "all"}}, "as": "f",
+                                                      "ops": [{"op": "draw", "player": "$f", "amount": 1}]})
+    errs = broken("medusa", fighter_as_player)
+    assert len(errs) == 1 and "'$f' liga un fighter, pero aqui (player) hace falta un player" in errs[0]
+
+    def card_binding_as_card_and_number(d):
+        after = card(d, "Snipe")["effects"]["after"]
+        after.append({"op": "discard", "cards": {"zone": "hand", "player": "owner"}, "as": "x"})
+        after.append({"op": "return_to_deck", "cards": "$x", "position": "top"})
+        after.append({"op": "heal", "target": "hero", "amount": {"attr": "boost", "of": "$x"}})
+    assert broken("medusa", card_binding_as_card_and_number) == []
+
+
+def test_validator_rejects_what_the_doc_forbids():
+    errs = broken("medusa", lambda d: card(d, "Snipe")["effects"]["after"].append(
+        {"op": "discard", "cards": {"zone": "hand", "player": "owner", "pick": "all", "amount": 2}}))
+    assert len(errs) == 1 and "'amount' no tiene sentido con pick 'all'" in errs[0]
+    errs = broken("medusa", lambda d: card(d, "Snipe")["effects"]["after"].append(
+        {"op": "discard", "cards": {"zone": "hand", "player": "owner", "pick": "random", "chooser": "owner", "up_to": True}}))
+    assert len(errs) == 2 and all("solo va con pick 'chosen'" in e for e in errs)
+    errs = broken("medusa", lambda d: card(d, "Snipe")["effects"]["after"].append(
+        {"op": "discard", "cards": {"zone": "hand", "player": "owner", "chooser": "random"}}))
+    assert len(errs) == 1 and "chooser" in errs[0]                       # el azar es pick random, no un chooser
+    errs = broken("medusa", lambda d: card(d, "A Momentary Glance").update(may_boost=True))
+    assert errs == ["cards[9] (A Momentary Glance): un plan no se juega en combate, no puede llevar may_boost"]
+    errs = broken("medusa", lambda d: card(d, "Dash")["effects"]["after"][0].update(target={}))
+    assert len(errs) == 1 and errs[0].startswith("$.cards[3].effects.after[0].target:") and "role" in errs[0] and "side" in errs[0]
+    errs = broken("medusa", lambda d: card(d, "Dash")["effects"]["after"][0].update(amount=0))
+    assert errs == ["cards[3] (Dash).effects.after[0] (move): move con amount 0 no mueve nada; sobra la op"]
+    errs = broken("medusa", lambda d: d["ability"]["triggers"][0].update(optional=True))
+    assert len(errs) == 1 and "campo desconocido 'optional'" in errs[0]   # el 'you may' de un disparador es la op optional
+
+
 def test_validator_cross_checks_the_herodef():
     errs = broken("medusa", lambda d: card(d, "Snipe").update(copies=4))
     assert errs == ["cards (Snipe): copies 4 pero el mazo tiene 3"]

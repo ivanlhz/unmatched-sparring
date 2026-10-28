@@ -14,8 +14,7 @@
      {"test": "form_is", "form": "OCCULT DETECTIVE"},
      {"test": "fighter_at", "fighter": "hero", "space": {"start_space_of": "opponent"}}
     ]},
-    "optional": true, "chooser": "owner",
-    "ops": [{"op": "draw", "player": "owner", "amount": 2}]},
+    "ops": [{"op": "optional", "chooser": "owner", "ops": [{"op": "draw", "player": "owner", "amount": 2}]}]},
    {"id": "anung_discard_move", "when": {"event": "start_of_turn", "player": "owner"},
     "condition": {"all": [
      {"test": "form_is", "form": "ANUNG UN RAMA"},
@@ -47,7 +46,7 @@
    "effects": {
     "immediately": [], "during": [], "scheme": [], "boost": [],
     "after": [
-     {"op": "move", "target": {"where": {"adjacent_to": "this"}}, "amount": 1, "up_to": true, "chooser": "owner"},
+     {"op": "move", "target": {"side": "any", "where": {"adjacent_to": "this"}}, "amount": 1, "up_to": true, "chooser": "owner"},
      {"op": "if", "condition": {"test": "form_is", "form": "OCCULT DETECTIVE"}, "then": [
       {"op": "move", "target": "hero", "amount": 1, "up_to": true}
      ]}
@@ -69,7 +68,7 @@
    "effects": {
     "immediately": [], "during": [], "scheme": [], "boost": [],
     "after": [
-     {"op": "damage", "target": {"where": {"zone_of": "this"}, "other": true, "pick": "all"}, "amount": 1}
+     {"op": "damage", "target": {"side": "any", "where": {"zone_of": "this"}, "other": true, "pick": "all"}, "amount": 1}
     ]
    },
    "notes": "Ataque 2 / boost 1, cualquiera. Dano de efecto (no de combate): lo para el escudo de Planned Recklessness del rival y alcanza tambien a los propios (Lobster en la misma zona). Si el luchador que la jugo murio en el combate no tiene zona y no pasa nada (el motor ya lo hace asi)."
