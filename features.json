@@ -168,6 +168,20 @@
       ]
     },
     {
+      "id": "F14",
+      "title": "Colores del chat de TTS por tipo de mensaje del bot",
+      "status": "in-progress",
+      "description": "Los mensajes del bot salen coloreados segun su categoria para leer la partida de un vistazo.",
+      "criteria": [
+        "Tabla unica categoria -> color (ChatKind y CHAT_COLORS en sparring/tts/lua.py): ataque del bot rojo, combate y dano naranja, movimiento azul claro, esquemas y efectos morado, habilidad de heroe y formas dorado, te toca / instrucciones verde, avisos y errores amarillo, neutro gris claro",
+        "Session.say recibe la categoria (neutra por defecto); el color viaja en el mismo script broadcastToAll: ningun mensaje extra a TTS, ni en modo normal ni con SPARRING_BATCH=1; nunca messageID 1 ni Global UI",
+        "El color se valida contra la tabla (ChatKind()): ninguna cadena libre llega a Lua",
+        "La salida por terminal no cambia (sin codigos de color)",
+        "Tests: color por categoria en el script, categoria de los mensajes clave, conteo de mensajes intacto y Lua con lupa"
+      ],
+      "note": "Pendiente en vivo: ver los colores en el chat real de TTS y ajustar los tonos si alguno se lee mal sobre el fondo."
+    },
+    {
       "id": "F13",
       "title": "Mod del Workshop con el cerebro como servicio web (futuro)",
       "status": "backlog",

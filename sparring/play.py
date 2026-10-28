@@ -325,7 +325,7 @@ def make_announcer(client, echo: Callable[[str], None] = print, to_table: bool =
                 continue
             for chunk in lua.ascii_text(m):
                 try:
-                    client.call_lua(lua.broadcast(chunk))
+                    client.call_lua(lua.broadcast(chunk, getattr(m, "kind", lua.ChatKind.NEUTRAL)))
                 except (TTSLuaError, TimeoutError, OSError) as e:
                     echo(f"[aviso] no pude mostrar el mensaje en la mesa: {e}")
                     return
