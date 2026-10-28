@@ -11,6 +11,7 @@ Bot de sparring para Unmatched en Tabletop Simulator. Fase 1: el bot juega **Med
 | `sparring/state.py` | `Game`: luchadores, mazos/manos/descartes, acciones, agotamiento, fin de turno, formas de Hellboy |
 | `sparring/combat.py` | Combate (IMMEDIATELY, DURING, AFTER; el defensor resuelve primero) y planes. Efectos de Medusa implementados; los de Hellboy los resuelve el humano |
 | `sparring/ai_medusa.py` | IA heuristica; la funcion de valoracion esta documentada en la cabecera del modulo |
+| `sparring/search/` | IA por busqueda ISMCTS sin trampas (F09): `protocol.py` (lo que la busqueda pide a un motor), `ismcts.py` (busqueda), `adapter.py` (motor actual), `controller.py` (`IsmctsMedusa`, sustituto de `MedusaAI` tras el flag `ai`) |
 | `sparring/hellboy_script.py` | Hellboy guionizado, solo para la simulacion |
 | `sparring/tts/` | Puente: `client.py` (API de editor externo), `lua.py` (snippets, instantanea y script compuesto), `ui.py` (panel de botones) |
 | `sparring/persist.py` | Guardado atomico y recarga del estado de `Game` y `Session` (`--resume`) |
@@ -112,6 +113,14 @@ Cada mensaje a TTS cuesta ~0.5 s fijos y encadenarlos no ayuda (medido en vivo e
 - Las miniaturas caidas del humano tambien las aparta el bot ("Lobster Johnson cae: lo he apartado."). Un luchador muerto no puede atacar y el mensaje lo dice.
 - Descarte del humano: un contador (destinos) solo baja si la carta falta en dos botones distintos; si una carta desaparece del descarte y el mazo de robo crece, el bot avisa de que se ha fusionado con el mazo. Un dial tocado a mano solo bloquea ese dial: los demas se escriben y verifican.
 - Etiquetas del suelo (`label_font` configurable, 30 por defecto): giradas 90 grados sobre Y para leerse desde White, justo fuera del borde de su caja que mira a White ("MEDUSA", "HELLBOY", "DESCARTE MEDUSA", "DESCARTE HELLBOY"); `lua.label_position` es el espejo en Python de la formula y los tests comprueban que no se solapan.
+
+## IA por busqueda ISMCTS (F09; apagada por defecto)
+
+`sparring/search/` decide con ISMCTS de observadores multiples (un arbol por jugador, cada uno indexado por lo que ese jugador ve: el rival simulado nunca lee la carta de ataque boca abajo del bot). Cada iteracion determiniza lo oculto SOLO con informacion publica: la mano del rival es una muestra de su mazo completo menos su descarte, del tamano de su conteo de mano; el orden de los dos mazos se baraja; la carta boca abajo del humano cuando el bot defiende se muestrea entre sus ataques legales. Lo visto por un efecto legitimo de mirar la mano entra por `Knowledge` (`IsmctsMedusa.known_in_hand`), ya descontado de lo que haya salido. Test de la garantia: dos partidas identicas salvo la mano oculta del rival dan la misma decision con la misma semilla, y un tripwire explota si alguien consulta esas cartas.
+
+- `protocol.py` es lo que la busqueda pide a un motor (`SearchState`: clonar, quien mueve, jugadas legales, aplicar, terminal, evaluar, observar, rollout, determinizar). El motor multiheroe (F07) implementa ese Protocol y la busqueda le sirve sin cambios.
+- `adapter.py` lo implementa para el motor actual. Las acciones se descomponen en subdecisiones encadenadas (`attack(fid, objetivo)` -> `attack_card`; `maneuver(boost)` -> `hero_to` -> `sidekicks`) para que la raiz tenga ~10 hijos en vez de ~150. Lo que el motor delega a mitad de resolucion (boost de Second Shot, Dash, Hounds, descarte forzado) va con heuristicas fijas, no en el arbol.
+- Activar: `"ai": "ismcts"` en la configuracion (`ai_time_budget` en segundos, 1.5 por defecto; `ai_seed`), via `search.controller.make_bot_ai(cfg)`. `play.py` sigue construyendo `MedusaAI`; el enganche es sustituir esa linea. Medido en esta maquina: ~1.900 iteraciones/s; una decision con el presupuesto por defecto tarda ~1.6 s.
 
 ## Formas de Hellboy (fuente)
 

@@ -12,6 +12,7 @@ sustituir esa linea por `make_bot_ai(raw_cfg, BOT)`.
 from __future__ import annotations
 
 import random
+from dataclasses import replace
 
 from ..ai_medusa import Act, MedusaAI
 from ..cards import Card
@@ -70,12 +71,17 @@ class IsmctsMedusa(Controller):
             legal = state.legal_moves()
             if pv and pv[0] in legal:
                 nxt = pv.pop(0)
-            else:
-                nxt, _ = ISMCTS(self.config).search(state, self.me)
+            else:                       # raro: el arbol no llego; una busqueda corta desde el estado intermedio
+                nxt, _ = ISMCTS(self._fallback_config()).search(state, self.me)
                 pv = []
             chosen.append(nxt)
             state.apply(nxt)
         return chosen
+
+    def _fallback_config(self) -> SearchConfig:
+        cfg = self.config
+        return replace(cfg, time_budget=cfg.time_budget / 4,
+                       iterations=max(50, cfg.iterations // 4) if cfg.iterations is not None else None)
 
     def plan(self, game: Game) -> Act:
         root = EngineState(game, observer=self.me, knowledge=Knowledge(dict(self.known_in_hand)))
