@@ -1,0 +1,183 @@
+{
+ "_source": {
+  "memory": "unmatched-memory/data/heroes/baba-yaga.json",
+  "overlay": "data/heroes/overlay/baba-yaga.json",
+  "generator": "tools/import_hero.py"
+ },
+ "slug": "baba-yaga",
+ "name": "Baba Yaga",
+ "fid": "baba",
+ "hp": 13,
+ "move": 2,
+ "attack": "range",
+ "set": "hellboy",
+ "ability": "FATEFUL BARGAINS!\nIf Baba Yaga and Koschei share a zone and Baba Yaga would take effect damage you may have Koschei take that damage instead.",
+ "sidekicks": [
+  {
+   "name": "Koschei",
+   "hp": 3,
+   "move": 2,
+   "attack": "melee",
+   "count": 1,
+   "fid": "koschei"
+  }
+ ],
+ "forms": null,
+ "counters": {},
+ "triggers": [],
+ "passives": [],
+ "deck": {
+  "card_base": null,
+  "sheet": null,
+  "cards": [
+   {
+    "title": "Deathless",
+    "fighter": null,
+    "type": "versatile",
+    "value": 3,
+    "boost": 1,
+    "copies": 3,
+    "text": "AFTER COMBAT: Summon Koschei as close to Baba Yaha as possible. Set his health to 3."
+   },
+   {
+    "title": "Hasten Towards Death",
+    "fighter": null,
+    "type": "versatile",
+    "value": 4,
+    "boost": 3,
+    "copies": 2,
+    "text": "AFTER COMBAT: Deal 1 damage to the attacking fighter. The attacking player gains 1 action."
+   },
+   {
+    "title": "Bound In Blood",
+    "fighter": null,
+    "type": "defense",
+    "value": 3,
+    "boost": 3,
+    "copies": 2,
+    "text": "DURING COMBAT: If Koschei and Baba Yaga share a zone, he takes the combat damage instead."
+   },
+   {
+    "title": "Foul Journey",
+    "fighter": null,
+    "type": "versatile",
+    "value": 2,
+    "boost": 2,
+    "copies": 3,
+    "text": "AFTER COMBAT: Place a fighter in the combat in any space. If you have an active ongoing scheme, Baba Yaga recovers 1 health."
+   },
+   {
+    "title": "Death's Release",
+    "fighter": null,
+    "type": "attack",
+    "value": 5,
+    "boost": 1,
+    "copies": 2,
+    "text": "AFTER COMBAT: Koschei recovers 2 health. Place him in any space."
+   },
+   {
+    "title": "Iron Teeth",
+    "fighter": null,
+    "type": "attack",
+    "value": 4,
+    "boost": 2,
+    "copies": 2,
+    "text": "AFTER COMBAT: Deal 1 damage to an adjacent fighter. If you have an active ongoing scheme, Baba Yaga recovers 2 health."
+   },
+   {
+    "title": "Exploit",
+    "fighter": null,
+    "type": "versatile",
+    "value": 4,
+    "boost": 3,
+    "copies": 2,
+    "text": "AFTER COMBAT: Draw 1 card."
+   },
+   {
+    "title": "Out Of Time",
+    "fighter": null,
+    "type": "versatile",
+    "value": 2,
+    "boost": 2,
+    "copies": 2,
+    "text": "DURING COMBAT: You may BOOST this card. AFTER COMBAT: End the turn."
+   },
+   {
+    "title": "Pact Of Secrecy",
+    "fighter": null,
+    "type": "scheme",
+    "value": null,
+    "boost": 3,
+    "copies": 1,
+    "text": "All players draw up to 2 cards, then shuffle all but 2 cards from their hand into their deck."
+   },
+   {
+    "title": "Pact Of Mortality",
+    "fighter": null,
+    "type": "scheme",
+    "value": null,
+    "boost": 3,
+    "copies": 1,
+    "text": "Return a defeated fighter to any space in Baba Yaga's zone. Set their healt to 3."
+   },
+   {
+    "title": "Pact Of Peace",
+    "fighter": null,
+    "type": "scheme",
+    "value": null,
+    "boost": 3,
+    "copies": 1,
+    "text": "Deal 1 damage to each other fighter in Baba Yaga's zone. Gain 1 action."
+   },
+   {
+    "title": "Pact Of Time",
+    "fighter": null,
+    "type": "scheme",
+    "value": null,
+    "boost": 3,
+    "copies": 1,
+    "text": "Each player shuffles up to 2 cards from their discard pile into their deck."
+   },
+   {
+    "title": "Pact Of Freedom",
+    "fighter": null,
+    "type": "scheme",
+    "value": null,
+    "boost": 3,
+    "copies": 1,
+    "text": "Draw 2 cards. Place a hero in any space."
+   },
+   {
+    "title": "Read The Bones",
+    "fighter": null,
+    "type": "versatile",
+    "value": 3,
+    "boost": 2,
+    "copies": 3,
+    "text": "AFTER COMBAT: Look at the top 5 cards of your deck. Put one in your hand. Randomly put rest on the bottom of your deck."
+   },
+   {
+    "title": "Remove A Painful Memory",
+    "fighter": null,
+    "type": "attack",
+    "value": 4,
+    "boost": 1,
+    "copies": 2,
+    "text": "AFTER COMBAT: Look at your opponent's hand. If you have an active ongoing scheme, choose one of those cards, then deal 2 damage to the opposing fighter unless they discard it."
+   },
+   {
+    "title": "The Time For Deals Is Done",
+    "fighter": null,
+    "type": "attack",
+    "value": 5,
+    "boost": 4,
+    "copies": 2,
+    "text": "AFTER COMBAT: If you have an active ongoing scheme, deal 2 damage to each other fighter in Baba Yaga's zone, then discard that scheme."
+   }
+  ]
+ },
+ "_notes": [
+  "Solo datos basicos (F07 paso 1): sin hoja de CardID ni restricciones de luchador, el motor no puede jugar con Baba Yaga todavia (F08).",
+  "FATEFUL BARGAINS (Koschei recibe el dano de efecto en lugar de Baba Yaga si comparten zona) queda como texto; los Pactos permanentes son la pregunta 4 del plan."
+ ]
+}

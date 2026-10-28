@@ -1,0 +1,13 @@
+{
+ "_notes": [
+  "Solo datos basicos (F07 paso 1): sin hoja de CardID ni restricciones de luchador, el motor no puede jugar con Liz todavia (F08).",
+  "Liz no tiene ayudantes: unmatched-memory trae una entrada vacia (name '', hasSidekicks false) que se ignora.",
+  "WILDFIRE (cartas ardientes, descarte del fondo del mazo al empezar el turno) ira a plugins (plan: liz:wildfire, liz:incinerate); las 15 cartas ardientes son la pregunta 2 del plan."
+ ],
+ "fid": "liz",
+ "sidekicks": [],
+ "forms": null,
+ "counters": {},
+ "triggers": [],
+ "passives": []
+}

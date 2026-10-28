@@ -1,0 +1,166 @@
+{
+ "_source": {
+  "memory": "unmatched-memory/data/heroes/abe-sapien.json",
+  "overlay": "data/heroes/overlay/abe-sapien.json",
+  "generator": "tools/import_hero.py"
+ },
+ "slug": "abe-sapien",
+ "name": "Abe Sapien",
+ "fid": "abe",
+ "hp": 13,
+ "move": 2,
+ "attack": "range",
+ "set": "hellboy",
+ "ability": "UNCANNY INTUITION\nYou have two Intuition tokens.\nWhen Abe deals combat damage to an adjacent fighter, activate a token.\nWhen Abe is attacked, if you have an active token, deactivate it, then draw 1 card, and the attack is played face up.",
+ "sidekicks": [
+  {
+   "name": "B.P.R.D. Agent",
+   "hp": 1,
+   "move": 2,
+   "attack": "range",
+   "count": 3,
+   "fid": "agent"
+  }
+ ],
+ "forms": null,
+ "counters": {},
+ "triggers": [],
+ "passives": [],
+ "deck": {
+  "card_base": null,
+  "sheet": null,
+  "cards": [
+   {
+    "title": "Arcane Dampener",
+    "fighter": null,
+    "type": "versatile",
+    "value": 2,
+    "boost": 1,
+    "copies": 2,
+    "text": "IMMEDIATELY: If the opposing fighter is adjacent, subtract 3 from the value of your opponent's card."
+   },
+   {
+    "title": "Ward And Prepare",
+    "fighter": null,
+    "type": "defense",
+    "value": 2,
+    "boost": 1,
+    "copies": 2,
+    "text": "IMMEDIATELY: Cancel all effects on your opponent's card. AFTER COMBAT: Return a scheme from your discard pile to your hand."
+   },
+   {
+    "title": "Advanced Psychometry",
+    "fighter": null,
+    "type": "attack",
+    "value": 4,
+    "boost": 3,
+    "copies": 3,
+    "text": "AFTER COMBAT: If the opposing fighter is adjacent, look at your opponent's hand."
+   },
+   {
+    "title": "Perfect Shot",
+    "fighter": null,
+    "type": "attack",
+    "value": 3,
+    "boost": 2,
+    "copies": 2,
+    "text": "You may play this card face up and predict the printed value of your opponent's card. DURING COMBAT: If you predicted correctly, add +2 to this card's value."
+   },
+   {
+    "title": "Every Possible Angle",
+    "fighter": null,
+    "type": "scheme",
+    "value": null,
+    "boost": 4,
+    "copies": 2,
+    "text": "Look at an opponent's hand and choose a card. Put it on top of their deck. Move Abe up to 3 spaces."
+   },
+   {
+    "title": "Counterhex Shield",
+    "fighter": null,
+    "type": "scheme",
+    "value": null,
+    "boost": 2,
+    "copies": 2,
+    "text": "Draw 1 card. Gain 1 action."
+   },
+   {
+    "title": "Cold Iron And Holy Water",
+    "fighter": null,
+    "type": "versatile",
+    "value": 3,
+    "boost": 2,
+    "copies": 2,
+    "text": "IMMEDIATELY: Your opponent can not gain actions or draw cards this turn."
+   },
+   {
+    "title": "Secure The Scene",
+    "fighter": null,
+    "type": "attack",
+    "value": 3,
+    "boost": 3,
+    "copies": 3,
+    "text": "AFTER COMBAT: Summon a B.P.R.D. Agent in Abe's zone. Move a friendly fighter up to 2 spaces."
+   },
+   {
+    "title": "Concussion Device",
+    "fighter": null,
+    "type": "versatile",
+    "value": 2,
+    "boost": 1,
+    "copies": 2,
+    "text": "AFTER COMBAT: Deal 2 damage to an adjacent opposing fighter and move them up to 3 spaces."
+   },
+   {
+    "title": "Shock And Awe",
+    "fighter": null,
+    "type": "versatile",
+    "value": 2,
+    "boost": 2,
+    "copies": 2,
+    "text": "DURING COMBAT: If your fighter began this turn in a different space, this card's value becomes 4. AFTER COMBAT: Your opponent discards a card."
+   },
+   {
+    "title": "B.P.R.D. Training",
+    "fighter": null,
+    "type": "versatile",
+    "value": 3,
+    "boost": 1,
+    "copies": 2,
+    "text": "AFTER COMBAT: Draw 1 card. Move each friendly fighter up to 2 spaces."
+   },
+   {
+    "title": "B.P.R.D. Utility Belt",
+    "fighter": null,
+    "type": "scheme",
+    "value": null,
+    "boost": 3,
+    "copies": 2,
+    "text": "Add +1 to your next attack this turn. A friendly fighter recovers 1 health. Move a friendly fighter up to 1 space. Gain 1 action."
+   },
+   {
+    "title": "Leap Away",
+    "fighter": null,
+    "type": "versatile",
+    "value": 4,
+    "boost": 2,
+    "copies": 2,
+    "text": "AFTER COMBAT: If you won the combat, choose one of the fighters in the combat and move them up to 4 spaces."
+   },
+   {
+    "title": "Faster. Stronger.",
+    "fighter": null,
+    "type": "attack",
+    "value": 5,
+    "boost": 2,
+    "copies": 2,
+    "text": "IMMEDIATELY: Move Abe up to 2 spaces. AFTER COMBAT: Gain 1 action."
+   }
+  ]
+ },
+ "_notes": [
+  "Solo datos basicos (F07 paso 1): sin hoja de CardID ni restricciones de luchador, el motor no puede jugar con Abe todavia (F08).",
+  "Agentes: unmatched-memory trae tres (Carla, Kate, Victor) con las mismas cifras; aqui un solo ayudante con count 3. Pregunta 1 del plan: cuantos empiezan en el tablero y cuantos en reserva.",
+  "UNCANNY INTUITION (fichas de intuicion) ira a un plugin (plan: abe:uncanny_intuition)."
+ ]
+}

@@ -1,0 +1,14 @@
+{
+ "_notes": [
+  "Solo datos basicos (F07 paso 1): sin hoja de CardID ni restricciones de luchador, el motor no puede jugar con Baba Yaga todavia (F08).",
+  "FATEFUL BARGAINS (Koschei recibe el dano de efecto en lugar de Baba Yaga si comparten zona) queda como texto; los Pactos permanentes son la pregunta 4 del plan."
+ ],
+ "fid": "baba",
+ "sidekicks": [
+  {"fid": "koschei", "name": "Koschei"}
+ ],
+ "forms": null,
+ "counters": {},
+ "triggers": [],
+ "passives": []
+}

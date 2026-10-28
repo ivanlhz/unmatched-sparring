@@ -1,0 +1,183 @@
+{
+ "_notes": [
+  "Hoja 176 del savegame (8x4), leida de la imagen el 2026-10-26. CardID = 17600 + idx; 302 = carta de personaje.",
+  "Harpy: unmatched-memory las llama Harpies y repite la entrada por miniatura; aqui una sola con count 3.",
+  "El disparador de la habilidad (1 de dano a un rival en la zona de Medusa al empezar el turno) lo ejecuta Game.medusa_ability hasta el paso 8 del plan; aqui queda como dato."
+ ],
+ "fid": "medusa",
+ "sidekicks": [
+  {
+   "fid": "harpy",
+   "name": "Harpy"
+  }
+ ],
+ "forms": null,
+ "counters": {},
+ "triggers": [
+  {
+   "id": "medusa_gaze",
+   "when": "start_of_turn",
+   "optional": true,
+   "effect": "damage",
+   "n": 1,
+   "target": "foe_in_hero_zone"
+  }
+ ],
+ "passives": [],
+ "deck": {
+  "card_base": 17600,
+  "sheet_id": 176,
+  "sheet": [
+   {
+    "idx": 0,
+    "title": "Second Shot",
+    "fighter": "Medusa"
+   },
+   {
+    "idx": 1,
+    "title": "Second Shot",
+    "fighter": "Medusa"
+   },
+   {
+    "idx": 2,
+    "title": "Second Shot",
+    "fighter": "Medusa"
+   },
+   {
+    "idx": 3,
+    "title": "Gaze of Stone",
+    "fighter": "Medusa"
+   },
+   {
+    "idx": 4,
+    "title": "Gaze of Stone",
+    "fighter": "Medusa"
+   },
+   {
+    "idx": 5,
+    "title": "Gaze of Stone",
+    "fighter": "Medusa"
+   },
+   {
+    "idx": 6,
+    "title": "Regroup",
+    "fighter": "any"
+   },
+   {
+    "idx": 7,
+    "title": "Regroup",
+    "fighter": "any"
+   },
+   {
+    "idx": 8,
+    "title": "Regroup",
+    "fighter": "any"
+   },
+   {
+    "idx": 9,
+    "title": "Dash",
+    "fighter": "any"
+   },
+   {
+    "idx": 10,
+    "title": "Dash",
+    "fighter": "any"
+   },
+   {
+    "idx": 11,
+    "title": "Dash",
+    "fighter": "any"
+   },
+   {
+    "idx": 12,
+    "title": "Snipe",
+    "fighter": "any"
+   },
+   {
+    "idx": 13,
+    "title": "Snipe",
+    "fighter": "any"
+   },
+   {
+    "idx": 14,
+    "title": "Snipe",
+    "fighter": "any"
+   },
+   {
+    "idx": 15,
+    "title": "Feint",
+    "fighter": "any"
+   },
+   {
+    "idx": 16,
+    "title": "Feint",
+    "fighter": "any"
+   },
+   {
+    "idx": 17,
+    "title": "Feint",
+    "fighter": "any"
+   },
+   {
+    "idx": 18,
+    "title": "The Hounds of Mighty Zeus",
+    "fighter": "Harpy"
+   },
+   {
+    "idx": 19,
+    "title": "The Hounds of Mighty Zeus",
+    "fighter": "Harpy"
+   },
+   {
+    "idx": 20,
+    "title": "Clutching Claws",
+    "fighter": "Harpy"
+   },
+   {
+    "idx": 21,
+    "title": "Clutching Claws",
+    "fighter": "Harpy"
+   },
+   {
+    "idx": 22,
+    "title": "Clutching Claws",
+    "fighter": "Harpy"
+   },
+   {
+    "idx": 23,
+    "title": "Hiss and Slither",
+    "fighter": "Medusa"
+   },
+   {
+    "idx": 24,
+    "title": "Hiss and Slither",
+    "fighter": "Medusa"
+   },
+   {
+    "idx": 25,
+    "title": "Hiss and Slither",
+    "fighter": "Medusa"
+   },
+   {
+    "idx": 26,
+    "title": "A Momentary Glance",
+    "fighter": "Medusa"
+   },
+   {
+    "idx": 27,
+    "title": "A Momentary Glance",
+    "fighter": "Medusa"
+   },
+   {
+    "idx": 28,
+    "title": "Winged Frenzy",
+    "fighter": "any"
+   },
+   {
+    "idx": 29,
+    "title": "Winged Frenzy",
+    "fighter": "any"
+   }
+  ]
+ }
+}

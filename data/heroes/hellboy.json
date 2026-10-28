@@ -1,0 +1,400 @@
+{
+ "_source": {
+  "memory": "unmatched-memory/data/heroes/hellboy.json",
+  "overlay": "data/heroes/overlay/hellboy.json",
+  "generator": "tools/import_hero.py"
+ },
+ "slug": "hellboy",
+ "name": "Hellboy",
+ "fid": "hellboy",
+ "hp": 18,
+ "move": 2,
+ "attack": "melee",
+ "set": "hellboy",
+ "ability": "AHH CRAP!\nAt the start of the game, place the Hellboy Special Ability Token over this card with the OCCULT DETECTIVE side up.",
+ "sidekicks": [
+  {
+   "name": "Lobster Johnson",
+   "hp": 6,
+   "move": 2,
+   "attack": "range",
+   "count": 1,
+   "fid": "lobster"
+  }
+ ],
+ "forms": {
+  "counter": "destiny",
+  "threshold": 6,
+  "below": "OCCULT DETECTIVE",
+  "at_or_above": "ANUNG UN RAMA"
+ },
+ "counters": {
+  "destiny": {
+   "pile": "discard",
+   "tag": "destiny"
+  }
+ },
+ "triggers": [
+  {
+   "id": "detective_draw",
+   "when": "start_of_turn",
+   "form": "OCCULT DETECTIVE",
+   "condition": "hero_on_rival_start",
+   "optional": true,
+   "effect": "draw",
+   "n": 2
+  },
+  {
+   "id": "anung_discard_move",
+   "when": "start_of_turn",
+   "form": "ANUNG UN RAMA",
+   "optional": false,
+   "effect": "discard_then_move_boost",
+   "n": 1,
+   "fighter": "hero"
+  }
+ ],
+ "passives": [
+  {
+   "id": "anung_attack",
+   "form": "ANUNG UN RAMA",
+   "effect": "attack_bonus",
+   "n": 2,
+   "fighter": "hero"
+  }
+ ],
+ "deck": {
+  "card_base": 19700,
+  "sheet": 197,
+  "cards": [
+   {
+    "idx": 0,
+    "title": "Excalibur",
+    "fighter": "Hellboy",
+    "type": "attack",
+    "value": 6,
+    "boost": 3,
+    "text": "",
+    "tags": [
+     "destiny"
+    ]
+   },
+   {
+    "idx": 1,
+    "title": "Right Hand Of Doom",
+    "fighter": "Hellboy",
+    "type": "attack",
+    "value": 4,
+    "boost": 1,
+    "text": "AFTER COMBAT: Move an adjacent fighter up to 1 space. If Hellboy is OCCULT DETECTIVE, move Hellboy up to 1 space.",
+    "tags": [
+     "destiny"
+    ]
+   },
+   {
+    "idx": 2,
+    "title": "Right Hand Of Doom",
+    "fighter": "Hellboy",
+    "type": "attack",
+    "value": 4,
+    "boost": 1,
+    "text": "AFTER COMBAT: Move an adjacent fighter up to 1 space. If Hellboy is OCCULT DETECTIVE, move Hellboy up to 1 space.",
+    "tags": [
+     "destiny"
+    ]
+   },
+   {
+    "idx": 3,
+    "title": "Right Hand Of Doom",
+    "fighter": "Hellboy",
+    "type": "attack",
+    "value": 4,
+    "boost": 1,
+    "text": "AFTER COMBAT: Move an adjacent fighter up to 1 space. If Hellboy is OCCULT DETECTIVE, move Hellboy up to 1 space.",
+    "tags": [
+     "destiny"
+    ]
+   },
+   {
+    "idx": 4,
+    "title": "Right Hand Of Doom",
+    "fighter": "Hellboy",
+    "type": "attack",
+    "value": 4,
+    "boost": 1,
+    "text": "AFTER COMBAT: Move an adjacent fighter up to 1 space. If Hellboy is OCCULT DETECTIVE, move Hellboy up to 1 space.",
+    "tags": [
+     "destiny"
+    ]
+   },
+   {
+    "idx": 5,
+    "title": "Service Pistol",
+    "fighter": "any",
+    "type": "attack",
+    "value": 5,
+    "boost": 2,
+    "text": "",
+    "tags": []
+   },
+   {
+    "idx": 6,
+    "title": "Horseshoes And Hand Grenades",
+    "fighter": "any",
+    "type": "attack",
+    "value": 2,
+    "boost": 1,
+    "text": "AFTER COMBAT: Deal 1 damage to each other fighter in your fighter's zone.",
+    "tags": []
+   },
+   {
+    "idx": 7,
+    "title": "Horseshoes And Hand Grenades",
+    "fighter": "any",
+    "type": "attack",
+    "value": 2,
+    "boost": 1,
+    "text": "AFTER COMBAT: Deal 1 damage to each other fighter in your fighter's zone.",
+    "tags": []
+   },
+   {
+    "idx": 8,
+    "title": "Horseshoes And Hand Grenades",
+    "fighter": "any",
+    "type": "attack",
+    "value": 2,
+    "boost": 1,
+    "text": "AFTER COMBAT: Deal 1 damage to each other fighter in your fighter's zone.",
+    "tags": []
+   },
+   {
+    "idx": 9,
+    "title": "Second Shot",
+    "fighter": "Lobster Johnson",
+    "type": "attack",
+    "value": 2,
+    "boost": 2,
+    "text": "DURING COMBAT: You may BOOST this attack.",
+    "tags": []
+   },
+   {
+    "idx": 10,
+    "title": "Second Shot",
+    "fighter": "Lobster Johnson",
+    "type": "attack",
+    "value": 2,
+    "boost": 2,
+    "text": "DURING COMBAT: You may BOOST this attack.",
+    "tags": []
+   },
+   {
+    "idx": 11,
+    "title": "Confront Any Demon or God",
+    "fighter": "Hellboy",
+    "type": "versatile",
+    "value": 3,
+    "boost": 1,
+    "text": "AFTER COMBAT: Draw 1 card. Then, if you lost the combat, look at your opponent's hand and choose 1 card for them to discard.",
+    "tags": [
+     "destiny"
+    ]
+   },
+   {
+    "idx": 12,
+    "title": "Confront Any Demon or God",
+    "fighter": "Hellboy",
+    "type": "versatile",
+    "value": 3,
+    "boost": 1,
+    "text": "AFTER COMBAT: Draw 1 card. Then, if you lost the combat, look at your opponent's hand and choose 1 card for them to discard.",
+    "tags": [
+     "destiny"
+    ]
+   },
+   {
+    "idx": 13,
+    "title": "Glimpse Of Hell",
+    "fighter": "any",
+    "type": "versatile",
+    "value": 2,
+    "boost": 3,
+    "text": "AFTER COMBAT: Draw 2 cards, then shuffle a card from your hand into your deck.",
+    "tags": []
+   },
+   {
+    "idx": 14,
+    "title": "Glimpse Of Hell",
+    "fighter": "any",
+    "type": "versatile",
+    "value": 2,
+    "boost": 3,
+    "text": "AFTER COMBAT: Draw 2 cards, then shuffle a card from your hand into your deck.",
+    "tags": []
+   },
+   {
+    "idx": 15,
+    "title": "Glimpse Of Hell",
+    "fighter": "any",
+    "type": "versatile",
+    "value": 2,
+    "boost": 3,
+    "text": "AFTER COMBAT: Draw 2 cards, then shuffle a card from your hand into your deck.",
+    "tags": []
+   },
+   {
+    "idx": 16,
+    "title": "B.P.R.D. Training",
+    "fighter": "any",
+    "type": "versatile",
+    "value": 3,
+    "boost": 2,
+    "text": "AFTER COMBAT: Draw 1 card. Move each friendly fighter up to 2 spaces.",
+    "tags": []
+   },
+   {
+    "idx": 17,
+    "title": "B.P.R.D. Training",
+    "fighter": "any",
+    "type": "versatile",
+    "value": 3,
+    "boost": 2,
+    "text": "AFTER COMBAT: Draw 1 card. Move each friendly fighter up to 2 spaces.",
+    "tags": []
+   },
+   {
+    "idx": 18,
+    "title": "B.P.R.D. Training",
+    "fighter": "any",
+    "type": "versatile",
+    "value": 3,
+    "boost": 2,
+    "text": "AFTER COMBAT: Draw 1 card. Move each friendly fighter up to 2 spaces.",
+    "tags": []
+   },
+   {
+    "idx": 19,
+    "title": "Planned Recklessness",
+    "fighter": "any",
+    "type": "versatile",
+    "value": 3,
+    "boost": 3,
+    "text": "IMMEDIATELY: Your fighters can't take damage from effects this turn. If Hellboy is OCCULT DETECTIVE, cancel all effects on your opponent's card.",
+    "tags": []
+   },
+   {
+    "idx": 20,
+    "title": "Planned Recklessness",
+    "fighter": "any",
+    "type": "versatile",
+    "value": 3,
+    "boost": 3,
+    "text": "IMMEDIATELY: Your fighters can't take damage from effects this turn. If Hellboy is OCCULT DETECTIVE, cancel all effects on your opponent's card.",
+    "tags": []
+   },
+   {
+    "idx": 21,
+    "title": "Posthumous Power",
+    "fighter": "Lobster Johnson",
+    "type": "versatile",
+    "value": 2,
+    "boost": 3,
+    "text": "AFTER COMBAT: Choose one:\n- each friendly fighter recovers 1 health\n- deal 1 damage to any fighter\n- move any fighter up to 3 spaces",
+    "tags": []
+   },
+   {
+    "idx": 22,
+    "title": "Posthumous Power",
+    "fighter": "Lobster Johnson",
+    "type": "versatile",
+    "value": 2,
+    "boost": 3,
+    "text": "AFTER COMBAT: Choose one:\n- each friendly fighter recovers 1 health\n- deal 1 damage to any fighter\n- move any fighter up to 3 spaces",
+    "tags": []
+   },
+   {
+    "idx": 23,
+    "title": "Posthumous Power",
+    "fighter": "Lobster Johnson",
+    "type": "versatile",
+    "value": 2,
+    "boost": 3,
+    "text": "AFTER COMBAT: Choose one:\n- each friendly fighter recovers 1 health\n- deal 1 damage to any fighter\n- move any fighter up to 3 spaces",
+    "tags": []
+   },
+   {
+    "idx": 24,
+    "title": "On Earth As It Is In Hell",
+    "fighter": "Hellboy",
+    "type": "defense",
+    "value": 0,
+    "boost": 2,
+    "text": "DURING COMBAT: This card's value becomes the number of destiny cards in your discard pile. AFTER COMBAT: If you lost the combat, Hellboy recovers 2 health.",
+    "tags": [
+     "destiny"
+    ]
+   },
+   {
+    "idx": 25,
+    "title": "On Earth As It Is In Hell",
+    "fighter": "Hellboy",
+    "type": "defense",
+    "value": 0,
+    "boost": 2,
+    "text": "DURING COMBAT: This card's value becomes the number of destiny cards in your discard pile. AFTER COMBAT: If you lost the combat, Hellboy recovers 2 health.",
+    "tags": [
+     "destiny"
+    ]
+   },
+   {
+    "idx": 26,
+    "title": "And Upon His Brow Is Set A Crown Of Flame",
+    "fighter": "Hellboy",
+    "type": "scheme",
+    "value": null,
+    "boost": 4,
+    "text": "Discard your hand. Draw 2 cards. Gain 2 actions.",
+    "tags": [
+     "destiny"
+    ]
+   },
+   {
+    "idx": 27,
+    "title": "And Upon His Brow Is Set A Crown Of Flame",
+    "fighter": "Hellboy",
+    "type": "scheme",
+    "value": null,
+    "boost": 4,
+    "text": "Discard your hand. Draw 2 cards. Gain 2 actions.",
+    "tags": [
+     "destiny"
+    ]
+   },
+   {
+    "idx": 28,
+    "title": "Pancakes!",
+    "fighter": "Hellboy",
+    "type": "scheme",
+    "value": null,
+    "boost": 2,
+    "text": "Chose two different effects:\n- Hellboy recovers 2 health\n- put up to 2 non-scheme cards in your discard pile on the bottom of your deck\n- draw 2 cards",
+    "tags": []
+   },
+   {
+    "idx": 29,
+    "title": "Pancakes!",
+    "fighter": "Hellboy",
+    "type": "scheme",
+    "value": null,
+    "boost": 2,
+    "text": "Chose two different effects:\n- Hellboy recovers 2 health\n- put up to 2 non-scheme cards in your discard pile on the bottom of your deck\n- draw 2 cards",
+    "tags": []
+   }
+  ]
+ },
+ "_notes": [
+  "Hoja 197 del savegame (8x4), leida a ojo el 2026-10-26. CardID = 19700 + idx; 19600 = carta de personaje.",
+  "Restricciones de luchador y etiqueta destiny de la hoja de TTS (unmatched-memory no las tiene).",
+  "Formas (carta de personaje, seccion AHH CRAP!): OCCULT DETECTIVE con 5 o menos destinos en el descarte, ANUNG UN RAMA con 6 o mas; no es permanente, se recalcula siempre desde el descarte.",
+  "Disparadores: hasta el paso 8 del plan los ejecutan Game.hellboy_detective_draw y Game.hellboy_anung_start; la pasiva attack_bonus si la lee ya el combate."
+ ]
+}

@@ -1,0 +1,139 @@
+{
+ "_source": {
+  "memory": "unmatched-memory/data/heroes/liz-sherman.json",
+  "overlay": "data/heroes/overlay/liz-sherman.json",
+  "generator": "tools/import_hero.py"
+ },
+ "slug": "liz-sherman",
+ "name": "Liz Sherman",
+ "fid": "liz",
+ "hp": 16,
+ "move": 3,
+ "attack": "range",
+ "set": "hellboy",
+ "ability": "WILDFIRE\nWhenever you discard a burning card from your hand or deck, put it into your hand.\nAt start of your turn, discard the bottom card of your deck. If it's a burning card, deal 1 damage to another fighter in Liz's zone. Otherwise, move Liz up to 2 spaces.",
+ "sidekicks": [],
+ "forms": null,
+ "counters": {},
+ "triggers": [],
+ "passives": [],
+ "deck": {
+  "card_base": null,
+  "sheet": null,
+  "cards": [
+   {
+    "title": "Fight Or Flight",
+    "fighter": null,
+    "type": "scheme",
+    "value": null,
+    "boost": 2,
+    "copies": 3,
+    "text": "Draw 1 card. Move Liz up to 5 spaces. She may move through opposing fighters."
+   },
+   {
+    "title": "Feint",
+    "fighter": null,
+    "type": "versatile",
+    "value": 2,
+    "boost": 3,
+    "copies": 3,
+    "text": "IMMEDIATELY: Cancel all effects on your opponent's card."
+   },
+   {
+    "title": "Burning Barrier",
+    "fighter": null,
+    "type": "versatile",
+    "value": 2,
+    "boost": 0,
+    "copies": 3,
+    "text": "IMMEDIATELY: The opposing fighter cannot leave their space this turn. AFTER COMBAT: Deal 1 damage to each opposing fighter in Liz's zone."
+   },
+   {
+    "title": "Fleeting Moments",
+    "fighter": null,
+    "type": "attack",
+    "value": 4,
+    "boost": 3,
+    "copies": 3,
+    "text": "AFTER COMBAT: You and your opponent both discard 1 random card, then you both draw 1 card."
+   },
+   {
+    "title": "Pyrotechnics",
+    "fighter": null,
+    "type": "versatile",
+    "value": 3,
+    "boost": 0,
+    "copies": 3,
+    "text": "AFTER COMBAT: You may put up to 2 cards from your hand on the bottom of your deck in any order."
+   },
+   {
+    "title": "Fireball",
+    "fighter": null,
+    "type": "attack",
+    "value": 5,
+    "boost": 0,
+    "copies": 2,
+    "text": "IMMEDIATELY: Deal 1 damage to each opposing fighter adjacent to the defender."
+   },
+   {
+    "title": "Evade",
+    "fighter": null,
+    "type": "defense",
+    "value": 3,
+    "boost": 1,
+    "copies": 2,
+    "text": "AFTER COMBAT: Draw 1 card."
+   },
+   {
+    "title": "Flame Lash",
+    "fighter": null,
+    "type": "attack",
+    "value": 1,
+    "boost": 0,
+    "copies": 3,
+    "text": "DURING COMBAT: Discard the bottom card of your deck. Add its BOOST value to this card's value. AFTER COMBAT: Gain 1 action."
+   },
+   {
+    "title": "Incinerate",
+    "fighter": null,
+    "type": "attack",
+    "value": 7,
+    "boost": 0,
+    "copies": 1,
+    "text": "This card's effect cannot be canceled. DURING COMBAT: Your opponent may discard 2 cards to ignore this card's value."
+   },
+   {
+    "title": "Rekindle",
+    "fighter": null,
+    "type": "versatile",
+    "value": 2,
+    "boost": 3,
+    "copies": 2,
+    "text": "AFTER COMBAT: Shuffle up to 3 cards from your discard pile into your deck."
+   },
+   {
+    "title": "Searing Clarity",
+    "fighter": null,
+    "type": "scheme",
+    "value": null,
+    "boost": 0,
+    "copies": 3,
+    "text": "Shuffle a non-scheme card from your discard pile into your deck. Gain 1 action."
+   },
+   {
+    "title": "B.P.R.D. Training",
+    "fighter": null,
+    "type": "versatile",
+    "value": 3,
+    "boost": 1,
+    "copies": 2,
+    "text": "AFTER COMBAT: Draw 1 card. Move each friendly fighter up to 2 spaces."
+   }
+  ]
+ },
+ "_notes": [
+  "Solo datos basicos (F07 paso 1): sin hoja de CardID ni restricciones de luchador, el motor no puede jugar con Liz todavia (F08).",
+  "Liz no tiene ayudantes: unmatched-memory trae una entrada vacia (name '', hasSidekicks false) que se ignora.",
+  "WILDFIRE (cartas ardientes, descarte del fondo del mazo al empezar el turno) ira a plugins (plan: liz:wildfire, liz:incinerate); las 15 cartas ardientes son la pregunta 2 del plan."
+ ]
+}

@@ -36,7 +36,11 @@ class Card:
     value: int | None
     boost: int
     text: str = ""
-    destiny: bool = False
+    tags: frozenset[str] = frozenset()     # etiquetas que cuentan los contadores del heroe (Hellboy: "destiny")
+
+    @property
+    def destiny(self) -> bool:
+        return "destiny" in self.tags
 
     def usable_by(self, fighter_name: str) -> bool:
         return self.fighter == "any" or self.fighter == fighter_name
@@ -78,5 +82,5 @@ def load_hellboy_deck(source=HELLBOY_SOURCE) -> list[Card]:
     for c in raw["cards"]:
         s = src[c["title"]]
         deck.append(Card(HELLBOY_BASE + c["idx"], c["title"], c["fighter"], s["type"], s["value"], s["boostValue"],
-                         _hellboy_text(s), c["destiny"]))
+                         _hellboy_text(s), frozenset({"destiny"} if c["destiny"] else ())))
     return deck
