@@ -3,6 +3,8 @@ piezas por GUID, zonas de descarte, cartas sueltas y los dos mutantes que sobrev
 
 Las respuestas de TTS se modelan como las del TTS real: NO hay messageID 5; lo que devuelve un script llega como
 messageID 4 con `sparring_reply` (ver FakeTTS)."""
+from conftest import (TEST_IDENT, t_deal_cards, t_discard_cards, t_flip_card, t_play_card_face_down, t_reset_deck,
+                      t_reset_plan, t_return_hand_to_deck, t_shuffle_deck)
 import json
 import re
 import threading
@@ -363,6 +365,8 @@ def test_d6_state_is_saved_atomically_after_every_handle_and_round_trips(rig, tm
     session.state_path = tmp_path / "sesion.json"
     session.handle(Event.MANEUVER)
     hp(session, "hellboy", -1)
+    from sparring.session import Pending
+    session.pending = Pending("human_attacks", game.fighters["hellboy"], game.fighters["medusa"], None)
     session.handle(Event.VALUE, {"value": 3})
     assert session.state_path.exists() and not list(tmp_path.glob("*.tmp"))
     saved = json.loads(session.state_path.read_text(encoding="utf-8"))
@@ -644,22 +648,25 @@ def test_read_only_allowlist_is_exactly_the_pure_read_builders(bprd):
         "read_face_down_cards": lambda: lua.read_face_down_cards(0, 0),
         "inspect_guids": lambda: lua.inspect_guids(["abc"]), "read_health_dials": lambda: lua.read_health_dials(["abc"]),
         "zone_overlaps": lambda: lua.zone_overlaps(["abc"]),
-        "deal_cards": lambda: lua.deal_cards("abc", 1, "Blue", spot=(0, 0)),
+        "deck_identities": lambda: lua.deck_identities([("abc", (0.0, 3.0), lua.BOT_CARD_IDS)]),
+        "deal_cards": lambda: t_deal_cards("abc", 1, "Blue", spot=(0, 0)),
         "return_card_to_hand": lambda: lua.return_card_to_hand("abc", "Blue"),
-        "discard_cards": lambda: lua.discard_cards([1], [(0, 0, 0)]), "broadcast": lambda: lua.broadcast("x"),
+        "discard_cards": lambda: t_discard_cards([1], [(0, 0, 0)]), "broadcast": lambda: lua.broadcast("x"),
         "move_piece": lambda: lua.move_piece(bprd, "abc", sorted(bprd.spaces)[0]),
-        "play_card_face_down": lambda: lua.play_card_face_down(1, "Blue", 0, 0, 0),
-        "flip_card": lambda: lua.flip_card("abc"), "create_panel": lambda: lua.create_panel(["medusa"]),
+        "play_card_face_down": lambda: t_play_card_face_down(1, "Blue", 0, 0, 0),
+        "flip_card": lambda: t_flip_card("abc"), "create_panel": lambda: lua.create_panel(["medusa"]),
         "draw_markings": lambda: lua.draw_markings([("DESCARTE", "abc")], [("COMBATE", 0, 0)]),
         "clear_markings": lambda: lua.clear_markings(),
         "set_health_dials": lambda: lua.set_health_dials({"abc": 3}),
         "name_pieces": lambda: lua.name_pieces({"abc": "Harpy 1"}),
         "place_piece": lambda: lua.place_piece("abc", 1.0, 2.0, 3.0),
-        "return_hand_to_deck": lambda: lua.return_hand_to_deck("Blue", "abc"),
-        "shuffle_deck": lambda: lua.shuffle_deck("abc", (0.0, 3.0)),
+        "return_hand_to_deck": lambda: t_return_hand_to_deck("Blue", "abc"),
+        "shuffle_deck": lambda: t_shuffle_deck("abc", (0.0, 3.0)),
         "snapshot": lambda: lua.snapshot(_spec(bprd)),
         "composite": lambda: lua.composite([lua.broadcast("x")]),
-        "reset_deck": lambda: lua.reset_deck("abc", (0.0, 3.0), lua.BOT_CARD_IDS),
+        "reset_deck": lambda: t_reset_deck("abc", (0.0, 3.0), lua.BOT_CARD_IDS),
+        "reset_plan": lambda: t_reset_plan([("abc", (0.0, 3.0), lua.BOT_CARD_IDS, TEST_IDENT)]),
+        "hand_identities": lambda: lua.hand_identities("Blue", lua.BOT_CARD_IDS),
         "set_panel": lambda: lua.set_panel("Tu turno", {"btn_end": (True, True)}),
     }
     registered = {n for n, f in inspect.getmembers(lua, inspect.isfunction) if hasattr(f, "__wrapped__")}
@@ -710,12 +717,13 @@ def test_d8_a_missing_card_with_nothing_on_the_table_still_reports_the_short_dea
 
 
 def test_d9_deal_fallback_only_takes_objects_whose_card_id_is_in_the_bot_deck_range():
-    s = lua.deal_cards("d42056", 1, "Green", spot=(11.5, 12.0))
+    s = t_deal_cards("d42056", 1, "Green", spot=(11.5, 12.0))
     assert "17600" in s and "17629" in s
-    assert s.index("ours(o)") < s.index("d = o") and "and ours(o) then d = o" in s
-    custom = lua.deal_cards("d42056", 1, "Green", spot=(1.0, 2.0), id_range=(100, 129))
-    assert " 100 " in custom or ">= 100" in custom
-    assert lua.deal_cards("d42056", 1, "Green").count("ours") == 0, "sin punto no hay busqueda"
+    assert s.index("ours(o)") < s.index("d = o") and "and ours(o) and (best == nil" in s and "o.is_face_down" in s
+    custom = t_deal_cards("d42056", 1, "Green", spot=(1.0, 2.0), id_range=(100, 129))
+    assert "id < 100 or id > 129" in custom
+    assert "and ours(o) and (best == nil" not in t_deal_cards("d42056", 1, "Green"), "sin punto no hay busqueda"
+    assert "if d ~= nil and not ours(d) then d = nil end" in s, "tambien el mazo hallado por GUID debe ser el nuestro"
 
 
 # ---------- descarte ordenado en la zona ----------

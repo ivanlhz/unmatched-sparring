@@ -64,9 +64,19 @@
   "reveal_radius": 2.0,
   "rot_y": 0.0,
   "panel_position": [
-    2,
+    -12.5,
     1.8,
-    -24
+    -24.5
+  ],
+  "panel_scale": [
+    4.5,
+    4.5,
+    4.5
+  ],
+  "human_dead_spot": [
+    -24,
+    2.5,
+    22
   ],
   "probe_guids": [
     "dd569b",

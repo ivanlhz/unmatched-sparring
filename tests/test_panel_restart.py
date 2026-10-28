@@ -1,4 +1,5 @@
 """Panel nuevo (estado, botones apagados segun el estado), reinicio, bajas del humano y etiquetas del suelo."""
+from conftest import t_reset_deck
 import dataclasses
 import json
 import re
@@ -46,7 +47,7 @@ def test_buttons_that_cannot_be_used_are_greyed_out(brig):
     assert st["btn_reveal"] == (False, True) and st["btn_cancel"] == (False, True)
     assert st["medusa"][0] is False, "sin atacante elegido no hay objetivos"
     assert st["btn_maneuver"] == (True, True) and st["att_hellboy"] == (True, True)
-    assert st["btn_undo"] == (False, True)
+    assert st["btn_undo"] == (False, False)
     click(session, table, Event.ATTACKER, {"attacker": "att_hellboy"})
     _, st = session.panel_view()
     game.fighters["hellboy"].pos = max(game.board.spaces)
@@ -210,12 +211,12 @@ def test_restart_event_and_handler_exist():
 def test_reset_deck_rejects_bad_arguments(kw):
     args = {"deck_guid": "abc", "spot": (1.0, 2.0), "id_range": lua.BOT_CARD_IDS, "radius": 2.0, **kw}
     with pytest.raises((ValueError, TypeError)):
-        lua.reset_deck(**args)
+        t_reset_deck(**args)
 
 
 def test_reset_deck_is_registered_composable_and_only_takes_its_own_side():
-    s = lua.reset_deck("abc", (1.0, 2.0), lua.HUMAN_CARD_IDS)
-    assert lua.is_sendable(s) and "first >= 19700 and first <= 19729" in s and "held_by_color" in s
+    s = t_reset_deck("abc", (1.0, 2.0), lua.HUMAN_CARD_IDS)
+    assert lua.is_sendable(s) and "id < 19700 or id > 19729" in s and "held_by_color" in s
     assert "shuffle()" in s and "Global" not in s
     assert lua.is_sendable(lua.composite([s, lua.set_health_dials({"abc": 3})]))
 
@@ -258,27 +259,6 @@ def test_a_dead_fighter_cannot_be_chosen_as_attacker_and_the_message_says_why(br
     assert "Lobster Johnson esta muerto: no puede atacar." in msgs and session.chosen_attacker is None
     msgs = click(session, table, Event.ATTACKER, {"attacker": "medusa"})
     assert any("no valido" in m for m in msgs)
-
-
-# ---------- carta fusionada con el mazo de robo ----------
-def test_a_discard_that_merges_into_the_draw_deck_is_reported(brig):
-    session, table, game, fake = brig
-    a, b = [c.card_id for c in game.players[1].full_set if c.destiny][:2]
-    table.human_discard, table.human_deck_qty = [a, b], 10
-    click(session, table, Event.END_ACTION)
-    table.human_discard, table.human_deck_qty = [a], 11            # una carta se fundio con el mazo
-    msgs = click(session, table, Event.END_ACTION)
-    assert any("se ha fusionado con tu mazo de robo" in m for m in msgs)
-    assert game.destiny_count(1) == 2, "y el contador no baja"
-
-
-def test_no_merge_warning_when_the_deck_did_not_grow(brig):
-    session, table, game, fake = brig
-    a, b = [c.card_id for c in game.players[1].full_set if c.destiny][:2]
-    table.human_discard, table.human_deck_qty = [a, b], 10
-    click(session, table, Event.END_ACTION)
-    table.human_discard = [a]
-    assert not any("fusionado" in m for m in click(session, table, Event.END_ACTION))
 
 
 # ---------- etiquetas del suelo ----------

@@ -12,6 +12,7 @@ from __future__ import annotations
 
 import argparse
 import json
+import math
 import re
 import secrets
 import sys
@@ -36,7 +37,8 @@ DEFAULT_STATE = Path(__file__).resolve().parent.parent / "estado" / "sesion.json
 BOT, HUMAN = 0, 1
 FIGHTER_IDS = ("medusa", "harpy1", "harpy2", "harpy3", "hellboy", "lobster")
 READ_ONLY_TAGS = frozenset({"snapshot", "piece_spaces_by_guid", "read_hand", "count_hand", "read_discard",
-                            "read_face_down_cards", "inspect_guids", "read_health_dials", "zone_overlaps"})
+                            "read_face_down_cards", "inspect_guids", "read_health_dials", "zone_overlaps", "deck_identities",
+                            "hand_identities", "reset_plan"})
 
 REQUIRED = ("bot_seat", "human_seat", "nicknames", "bot_card_spot", "human_card_spot", "bot_discard_spot",
             "bot_discard_zone", "bot_deck_guid", "human_discard_zone", "bot_deck_spot", "pieces")
@@ -122,9 +124,17 @@ class PlayConfig:
         lua.read_discard(cfg.bot_discard_zone, [cfg.bot_deck_guid], [cfg.bot_deck_spot])
         lua.read_discard(cfg.human_discard_zone, [cfg.human_deck_guid] if cfg.human_deck_guid else [],
                          [cfg.human_deck_spot] if cfg.human_deck_spot else [])
-        lua.deal_cards(cfg.bot_deck_guid, 1, cfg.bot_seat, spot=cfg.bot_deck_spot)
-        lua.discard_cards([0], [cfg.bot_discard_spot], cfg.bot_discard_rot_y)
-        lua.play_card_face_down(0, cfg.bot_seat, *cfg.bot_card_spot, cfg.rot_y)
+        ident = (("https://example.invalid/face", "https://example.invalid/back"),)
+        spots = [(cfg.bot_card_spot[0], cfg.bot_card_spot[2]), tuple(cfg.human_card_spot), tuple(cfg.bot_deck_spot)]
+        scope = lua.Scope((cfg.bot_seat, cfg.human_seat), (cfg.bot_discard_zone, cfg.human_discard_zone), tuple(spots))
+        lua.deal_cards(cfg.bot_deck_guid, 1, cfg.bot_seat, spot=cfg.bot_deck_spot, identity=ident)
+        lua.discard_cards([0], [cfg.bot_discard_spot], cfg.bot_discard_rot_y, identity=ident, scope=scope)
+        lua.reset_deck(cfg.bot_deck_guid, cfg.bot_deck_spot, lua.BOT_CARD_IDS, identity=ident, scope=scope)
+        lua.deck_identities([(cfg.bot_deck_guid, tuple(cfg.bot_deck_spot), lua.BOT_CARD_IDS)])
+        lua.play_card_face_down(0, cfg.bot_seat, *cfg.bot_card_spot, cfg.rot_y, identity=ident)
+        lua.flip_card(cfg.bot_deck_guid, cfg.rot_y, identity=ident)
+        lua.reset_plan([(cfg.bot_deck_guid, cfg.bot_deck_spot, lua.BOT_CARD_IDS, ident)], scope=scope)
+        lua.hand_identities(cfg.bot_seat, lua.BOT_CARD_IDS)
         lua.read_face_down_cards(*cfg.human_card_spot, cfg.reveal_radius)
         for name in cfg.nicknames.values():
             lua.lua_str(name)
@@ -133,8 +143,8 @@ class PlayConfig:
         lua.move_piece(self.board, guids[0], next(iter(self.board.spaces)))
         lua.read_health_dials(sorted({*cfg.dials.values(), *([cfg.destiny_dial] if cfg.destiny_dial else [])}))
         lua.set_health_dials({g: 0 for g in {*cfg.dials.values(), *([cfg.destiny_dial] if cfg.destiny_dial else [])}})
-        lua.return_hand_to_deck(cfg.bot_seat, cfg.bot_deck_guid)
-        lua.shuffle_deck(cfg.bot_deck_guid, cfg.bot_deck_spot)
+        lua.return_hand_to_deck(cfg.bot_seat, cfg.bot_deck_guid, identity=ident)
+        lua.shuffle_deck(cfg.bot_deck_guid, cfg.bot_deck_spot, identity=ident)
         if cfg.dead_spot is not None:
             if len(cfg.dead_spot) != 3:
                 raise ValueError("dead_spot: (x, y, z)")
@@ -333,6 +343,48 @@ def mark_floor(client, scfg: SessionConfig) -> None:
         label_font=scfg.label_font))
 
 
+def _zone_rect(bounds) -> tuple[float, float, float, float]:
+    cx, cz, w, d, rot = (float(v) for v in bounds)
+    t = math.radians(rot)
+    hx = abs(math.cos(t)) * w / 2 + abs(math.sin(t)) * d / 2
+    hz = abs(math.sin(t)) * w / 2 + abs(math.cos(t)) * d / 2
+    return cx - hx, cx + hx, cz - hz, cz + hz
+
+
+def floor_layout(cfg: PlayConfig) -> list[tuple[str, tuple[float, float, float, float]]]:
+    """Rectangulos (x min, x max, z min, z max) de todo lo que se dibuja en el suelo: las cajas de descarte y de combate
+    y sus etiquetas. Las zonas de descarte solo se conocen si la configuracion trae sus limites."""
+    r, font = cfg.raw, float(cfg.raw.get("label_font", lua.LABEL_FONT))
+    out: list[tuple[str, tuple[float, float, float, float]]] = []
+
+    def label(text: str, cx: float, cz: float, w: float, d: float, rot: float) -> None:
+        x, z, ex, ez = lua.label_position(cx, cz, w, d, rot, text, font)
+        out.append((f"etiqueta {text}", (x - ex / 2, x + ex / 2, z - ez / 2, z + ez / 2)))
+    w, d = lua.CARD_SIZE
+    for name, spot in (("MEDUSA", (r["bot_card_spot"][0], r["bot_card_spot"][2])), ("HELLBOY", r["human_card_spot"])):
+        out.append((f"caja de combate {name}", (spot[0] - w / 2, spot[0] + w / 2, spot[1] - d / 2, spot[1] + d / 2)))
+        label(name, spot[0], spot[1], w, d, 0.0)
+    for name, key in (("DESCARTE MEDUSA", "bot_discard_bounds"), ("DESCARTE HELLBOY", "human_discard_bounds")):
+        if r.get(key):
+            out.append((f"zona {name}", _zone_rect(r[key])))
+            cx, cz, bw, bd, rot = (float(v) for v in r[key])
+            label(name, cx, cz, bw, bd, rot)
+    return out
+
+
+def floor_layout_warnings(cfg: PlayConfig) -> list[str]:
+    """Avisos de arranque: ninguna etiqueta ni rectangulo del suelo puede quedar bajo el panel (el 27/10 las etiquetas
+    MEDUSA y HELLBOY se pintaban encima de sus botones)."""
+    pos, scale = cfg.panel_position, cfg.panel_scale
+    x0, x1, z0, z1 = lua.panel_footprint(pos, scale, ui.PANEL_WIDTH, ui.panel_height(len(FIGHTER_IDS)))
+    warnings = []
+    for name, (a0, a1, b0, b1) in floor_layout(cfg):
+        if a0 < x1 and a1 > x0 and b0 < z1 and b1 > z0:
+            warnings.append(f"{name} queda bajo el panel (x {x0:.1f}..{x1:.1f}, z {z0:.1f}..{z1:.1f}): "
+                            "mueve panel_position o reduce panel_scale en la configuracion.")
+    return warnings
+
+
 def recover_after_reload(session: Session, client: TTSClient, targets: list[str],
                          position: tuple[float, float, float], rotation=ui.PANEL_ROTATION,
                          scale=ui.PANEL_SCALE, names: dict[str, str] | None = None) -> tuple[str, list[str]]:
@@ -420,6 +472,8 @@ def play(cfg: PlayConfig, client: TTSClient, first: str, seed: int, stop: thread
             raise persist.StateError("--resume necesita un fichero de guardado")
         session.load_dict(persist.load(state_path))
     targets = [f.fid for f in game.own(BOT)]
+    for warning in floor_layout_warnings(cfg):
+        echo(f"[aviso] {warning}")
     client.call_lua(lua.clear_markings(remove_panel=True))     # restos de una ejecucion anterior que murio sin limpiar
     client.call_lua(lua.create_panel(targets, cfg.panel_position, cfg.panel_rotation, cfg.panel_scale,
                                      cfg.nicknames, snapshot=session.snapshot_spec() if scfg.batch else None))

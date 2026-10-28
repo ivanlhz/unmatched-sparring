@@ -1,4 +1,5 @@
 """Punto de entrada `python -m sparring.play`, siempre contra FakeTTS en puertos efimeros."""
+from conftest import t_deal_cards, t_discard_cards, t_flip_card
 import json
 import socket
 import threading
@@ -127,9 +128,9 @@ def test_read_only_with_todo_zones_reports_them_and_still_reads(live, cfg_file, 
 
 
 @pytest.mark.parametrize("script", [lambda: lua.create_panel(["medusa"]), lambda: lua.broadcast("hola"),
-                                    lambda: lua.deal_cards("abc", 1, "Blue", spot=(0, 0)),
-                                    lambda: lua.discard_cards([17600], [(0, 0, 0)]),
-                                    lambda: lua.flip_card("g1"), lambda: "return 1"])
+                                    lambda: t_deal_cards("abc", 1, "Blue", spot=(0, 0)),
+                                    lambda: t_discard_cards([17600], [(0, 0, 0)]),
+                                    lambda: t_flip_card("g1"), lambda: "return 1"])
 def test_read_only_client_refuses_anything_that_could_change_the_table(script):
     class Boom:
         def call_lua(self, *a, **k):

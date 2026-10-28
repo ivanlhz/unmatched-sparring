@@ -25,6 +25,11 @@ BOARD_GUIDS = {"bprd-hq": "ec6f27", "azuchi-castle": "e57969"}
 PANEL_NAME = "SparringPanel"
 MARKER = "sparring"      # GM notes de todo objeto propio: el nombre solo no basta para tocarlo
 PANEL_POSITION = (2, 1.8, -24)
+CARRIER_TINT = (0.02, 0.03, 0.05)   # el objeto que lleva el panel se tine casi negro: no se ve el cuadrado rojo bajo los botones
+# Tamano real del panel en la mesa: pixeles de UI x escala del panel x escala del objeto (0.4) / 100. Estimado con lo
+# visto en vivo el 27/10 (escala 6 en [2, 1.8, -24] tapaba las dos cajas de combate); recalibrar si se cambia el objeto.
+UI_PX_PER_UNIT = 100.0
+PANEL_BODY_SCALE = 0.4
 LIFT = 1.0
 SEATS = frozenset({"White", "Brown", "Red", "Orange", "Yellow", "Green", "Teal", "Blue", "Purple", "Pink",
                    "Grey", "Black"})
@@ -115,6 +120,14 @@ def _guid(g: str) -> str:
     if not isinstance(g, str) or not _GUID.fullmatch(g):
         raise ValueError(f"GUID no valido {g!r}")
     return f'"{g}"'
+
+
+def panel_footprint(position, scale, width: float, height: float) -> tuple[float, float, float, float]:
+    """(x min, x max, z min, z max) que cubre el panel en el suelo. Gira 0 0 270: su ancho corre a lo largo de z y su
+    alto a lo largo de x. Es una estimacion (ver `UI_PX_PER_UNIT`)."""
+    k = max(abs(float(scale[0])), abs(float(scale[1]))) * PANEL_BODY_SCALE / UI_PX_PER_UNIT
+    hx, hz = height * k / 2, width * k / 2
+    return position[0] - hx, position[0] + hx, position[2] - hz, position[2] + hz
 
 
 def _snaps_table(board: Board) -> str:
@@ -223,29 +236,144 @@ def _spot(spot: tuple[float, float], radius: float) -> tuple[str, str, str]:
     return _f(spot[0]), _f(spot[1]), _f(radius)
 
 
-def _find_deck(spot, radius, id_range) -> str:
-    """Lua que, si `d` es nil, busca a `d` entre los Deck/Card a menos de `radius` del punto (x, z) cuyo
-    CardID cae en `id_range` (el mazo del bot, o su ultima carta suelta). Sin punto no busca."""
-    if spot is None:
-        return ""
-    x, z, r = _spot(spot, radius)
+_URL = re.compile(r"https?://[A-Za-z0-9._~:/?#@!$&()*+,;=%\-]{1,400}")
+MAX_IDENTITIES = 8
+MAX_SCOPE_SPOTS = 8
+
+def _identity(identity) -> str:
+    """Tabla Lua de identidades de mazo: (FaceURL, BackURL) de cada CustomDeck del bando. El CardID NO identifica un
+    mazo (en el guardado real 12 juegos de cartas comparten el DeckID 176): lo que identifica es la imagen."""
+    if not isinstance(identity, (tuple, list)) or not 1 <= len(identity) <= MAX_IDENTITIES:
+        raise ValueError(f"identidad de mazo: entre 1 y {MAX_IDENTITIES} pares (FaceURL, BackURL)")
+    rows = []
+    for pair in identity:
+        if not isinstance(pair, (tuple, list)) or len(pair) != 2                 or not all(isinstance(u, str) and _URL.fullmatch(u) for u in pair):
+            raise ValueError(f"identidad de mazo no valida: {pair!r}")
+        rows.append(f'["{pair[0]}|{pair[1]}"]=true')
+    return "{" + ", ".join(rows) + "}"
+
+
+_IMAGE_LUA = """local function imagesOf(entry, fallback)
+  local id = entry.CardID
+  if type(id) ~= "number" then return {} end
+  local did = math.floor(id / 100)
+  for _, cd in ipairs({entry.CustomDeck or false, fallback or false}) do
+    if type(cd) == "table" then
+      local info = cd[tostring(did)] or cd[did]
+      if type(info) == "table" then return {info} end
+    end
+  end
+  local out = {}
+  if type(entry.CustomDeck) == "table" then
+    for _, info in pairs(entry.CustomDeck) do
+      if type(info) == "table" then table.insert(out, info) end
+    end
+  end
+  return out
+end
+"""
+
+
+def _range(id_range) -> tuple[str, str]:
     if not isinstance(id_range, (tuple, list)) or len(id_range) != 2:
         raise TypeError("(minimo, maximo) de CardID esperado")
-    lo, hi = _i(id_range[0]), _i(id_range[1])
-    return f"""local function ours(o)
-  local first
-  if o.type == "Card" then first = o.getData().CardID
-  elseif o.type == "Deck" then
-    local c = (o.getData().ContainedObjects or {{}})[1]
-    first = c and c.CardID
+    return _i(id_range[0]), _i(id_range[1])
+
+
+def _ours_lua(identity, id_range) -> str:
+    """Define en Lua `cardOurs(entry, fallback)` y `ours(o)`: una carta es nuestra si su CardID cae en el rango Y la
+    imagen de SU DeckID es una de las identidades. La imagen se busca en el CustomDeck de la propia carta y, si ahi no
+    esta la clave del DeckID del CardID, en el del mazo que la contiene (en el guardado real 20 de las 30 cartas de
+    Hellboy traen un CustomDeck con otra clave); si la carta SI la trae, manda la suya. Un Deck solo es nuestro si LO
+    ES CADA UNA de sus cartas."""
+    lo, hi = _range(id_range)
+    return f"""local IDENT = {_identity(identity)}
+{_IMAGE_LUA}local function cardOurs(entry, fallback)
+  local id = entry.CardID
+  if type(id) ~= "number" or id < {lo} or id > {hi} then return false end
+  local images = imagesOf(entry, fallback)
+  if #images == 0 then return false end
+  for _, info in ipairs(images) do
+    if IDENT[tostring(info.FaceURL) .. "|" .. tostring(info.BackURL)] ~= true then return false end
   end
-  return first ~= nil and first >= {lo} and first <= {hi}
+  return true
 end
-if d == nil then
+local function ours(o)
+  if o.held_by_color then return false end
+  local data = o.getData()
+  if o.type == "Card" then return cardOurs(data, data.CustomDeck) end
+  if o.type ~= "Deck" then return false end
+  local cards = data.ContainedObjects or {{}}
+  if #cards == 0 then return false end
+  for _, c in ipairs(cards) do
+    if not cardOurs(c, data.CustomDeck) then return false end
+  end
+  return true
+end
+"""
+
+
+@dataclass(frozen=True)
+class Scope:
+    """Donde se buscan cartas: las manos de los dos asientos, las dos zonas de descarte y el entorno de los puntos de
+    combate y del mazo. Nunca la mesa entera."""
+    seats: tuple
+    zones: tuple
+    spots: tuple
+    radius: float = 2.0
+
+
+def _scope_lua(scope: Scope) -> str:
+    if not isinstance(scope, Scope):
+        raise TypeError("se esperaba un Scope")
+    if not isinstance(scope.seats, (tuple, list)) or not 1 <= len(scope.seats) <= 2             or not isinstance(scope.zones, (tuple, list)) or not 1 <= len(scope.zones) <= 2             or not isinstance(scope.spots, (tuple, list)) or not 1 <= len(scope.spots) <= MAX_SCOPE_SPOTS:
+        raise ValueError("ambito de busqueda: 1-2 asientos, 1-2 zonas y 1-8 puntos")
+    seats = "{" + ", ".join(_color(c) for c in scope.seats) + "}"
+    zones = "{" + ", ".join(_guid(g) for g in scope.zones) + "}"
+    r = _f(scope.radius)
+    if not 0 < float(scope.radius) <= 10:
+        raise ValueError("radio del ambito entre 0 y 10")
+    return f"""local function scopeObjects()
+  local out, seen = {{}}, {{}}
+  local function add(o)
+    local g = o.getGUID()
+    if not seen[g] then seen[g] = true; table.insert(out, o) end
+  end
+  for _, seat in ipairs({seats}) do
+    for _, o in ipairs(Player[seat].getHandObjects(1)) do add(o) end
+  end
+  for _, g in ipairs({zones}) do
+    local z = getObjectFromGUID(g)
+    if z ~= nil then for _, o in ipairs(z.getObjects()) do add(o) end end
+  end
+  local spots = {_pairs(scope.spots)}
   for _, o in ipairs(getObjects()) do
     if o.type == "Deck" or o.type == "Card" then
       local p = o.getPosition()
-      if (p.x - {x}) ^ 2 + (p.z - {z}) ^ 2 <= {r} ^ 2 and not o.held_by_color and ours(o) then d = o; break end
+      for _, sp in ipairs(spots) do
+        if (p.x - sp[1]) ^ 2 + (p.z - sp[2]) ^ 2 <= {r} ^ 2 then add(o) break end
+      end
+    end
+  end
+  return out
+end
+"""
+
+
+def _find_deck(spot, radius) -> str:
+    """Lua que, si `d` es nil, busca a `d` entre los Deck/Card a menos de `radius` del punto (x, z) que `ours` acepta
+    (el mazo del bot, o su ultima carta suelta). Solo cuenta lo que esta boca abajo (una carta boca arriba junto al
+    punto es un descarte) y gana el mas cercano al punto. Sin punto no busca. Requiere `_ours_lua` antes."""
+    if spot is None:
+        return ""
+    x, z, r = _spot(spot, radius)
+    return f"""if d == nil then
+  local best = nil
+  for _, o in ipairs(getObjects()) do
+    if (o.type == "Deck" or o.type == "Card") and o.is_face_down then
+      local p = o.getPosition()
+      local d2 = (p.x - {x}) ^ 2 + (p.z - {z}) ^ 2
+      if d2 <= {r} ^ 2 and ours(o) and (best == nil or d2 < best) then d = o; best = d2 end
     end
   end
 end
@@ -254,17 +382,20 @@ end
 
 @_registered
 def deal_cards(deck_guid: str, n: int, seat_color: str, spot: tuple[float, float] | None = None,
-               radius: float = 2.0, id_range: tuple[int, int] = BOT_CARD_IDS) -> str:
+               radius: float = 2.0, id_range: tuple[int, int] = BOT_CARD_IDS, *, identity) -> str:
     """Reparte n cartas del mazo fisico a la mano del asiento (robar de verdad).
 
     Con una sola carta restante TTS deja de tener un "Deck": queda una "Card" (y el GUID del mazo puede
     desaparecer). Con `spot` (x, z del mazo) se busca ese mazo o carta suelta a menos de `radius` del punto,
-    y la carta suelta se lleva a la mano del asiento. Solo cuenta un objeto cuyo CardID cae en `id_range`
-    (el mazo del bot): una carta ajena o una ficha cerca del punto se ignora. Mazo vacio: dealt = 0."""
+    y la carta suelta se lleva a la mano del asiento. Solo cuenta un objeto (tambien el hallado por GUID) cuyas
+    cartas caen en `id_range` Y tienen la imagen de `identity` (el mazo del bot): una carta ajena, de otro juego que
+    comparta DeckID, o una ficha cerca del punto se ignora. Mazo vacio: dealt = 0."""
     color = _color(seat_color)
-    find = _find_deck(spot, radius, id_range)
+    own = _ours_lua(identity, id_range)
+    find = _find_deck(spot, radius)
     return f"""-- sparring:deal_cards
-local d = getObjectFromGUID({_guid(deck_guid)})
+{own}local d = getObjectFromGUID({_guid(deck_guid)})
+if d ~= nil and not ours(d) then d = nil end
 {find}local k = 0
 if d ~= nil and d.type == "Deck" then
   k = math.min({_i(n)}, d.getQuantity())
@@ -280,22 +411,18 @@ return JSON.encode({{dealt = k}})
 
 
 @_registered
-def return_hand_to_deck(seat_color: str, deck_guid: str, id_range: tuple[int, int] = BOT_CARD_IDS) -> str:
+def return_hand_to_deck(seat_color: str, deck_guid: str, id_range: tuple[int, int] = BOT_CARD_IDS, *,
+                        identity) -> str:
     """MULLIGAN, paso 1: mete en el mazo (putObject) todas las cartas de la mano del asiento cuyo CardID cae en
-    `id_range` (el mazo del bot). Devuelve cuantas metio; `deck = false` si el GUID del mazo no existe.
-    Comprobar siempre releyendo la mano de la mesa."""
-    if not isinstance(id_range, (tuple, list)) or len(id_range) != 2:
-        raise TypeError("(minimo, maximo) de CardID esperado")
-    lo, hi = _i(id_range[0]), _i(id_range[1])
+    `id_range` Y con la imagen de `identity` (el mazo del bot). Devuelve cuantas metio; `deck = false` si el GUID del
+    mazo no existe. Comprobar siempre releyendo la mano de la mesa."""
+    own = _ours_lua(identity, id_range)
     return f"""-- sparring:return_hand_to_deck
-local d = getObjectFromGUID({_guid(deck_guid)})
-if d == nil then return JSON.encode({{returned = 0, deck = false}}) end
+{own}local d = getObjectFromGUID({_guid(deck_guid)})
+if d == nil or not ours(d) then return JSON.encode({{returned = 0, deck = false}}) end
 local cards = {{}}
 for _, o in ipairs(Player[{_color(seat_color)}].getHandObjects(1)) do
-  if o.type == "Card" then
-    local id = o.getData().CardID
-    if id >= {lo} and id <= {hi} then table.insert(cards, o) end
-  end
+  if o.type == "Card" and ours(o) then table.insert(cards, o) end
 end
 for _, o in ipairs(cards) do d = d.putObject(o) or d end
 return JSON.encode({{returned = #cards, deck = true}})
@@ -304,12 +431,14 @@ return JSON.encode({{returned = #cards, deck = true}})
 
 @_registered
 def shuffle_deck(deck_guid: str, spot: tuple[float, float] | None = None, radius: float = 2.0,
-                 id_range: tuple[int, int] = BOT_CARD_IDS) -> str:
+                 id_range: tuple[int, int] = BOT_CARD_IDS, *, identity) -> str:
     """MULLIGAN, paso 2: baraja el mazo. Tras `putObject` el GUID del mazo puede cambiar: con `spot` se busca por
     posicion (como `deal_cards`). Devuelve `shuffled` y la cantidad de cartas que tiene, para verificarla."""
-    find = _find_deck(spot, radius, id_range)
+    own = _ours_lua(identity, id_range)
+    find = _find_deck(spot, radius)
     return f"""-- sparring:shuffle_deck
-local d = getObjectFromGUID({_guid(deck_guid)})
+{own}local d = getObjectFromGUID({_guid(deck_guid)})
+if d ~= nil and not ours(d) then d = nil end
 {find}if d ~= nil and d.type == "Deck" then
   d.shuffle()
   return JSON.encode({{shuffled = true, quantity = d.getQuantity()}})
@@ -333,14 +462,18 @@ return JSON.encode({{returned = c.getGUID()}})
 
 
 @_registered
-def discard_cards(card_ids: list[int], spots: list[tuple[float, float, float]], rot_y: float = 0) -> str:
+def discard_cards(card_ids: list[int], spots: list[tuple[float, float, float]], rot_y: float = 0, *,
+                  identity, scope: Scope, id_range: tuple[int, int] = BOT_CARD_IDS) -> str:
     """Lleva al descarte las cartas con esos CardID (de la mano, de la mesa o de dentro de un Deck).
 
     `spots[i]` es el sitio (x, y, z) de la carta `card_ids[i]`: el descarte se reparte en orden por la zona para
     que el rival vea lo jugado. Una Card suelta se mueve tal cual; de un Deck se saca la carta con takeObject
     (como mucho una por Deck y llamada, porque al quedar una sola carta TTS destruye el Deck). Devuelve los
     CardID movidos. Las Card se mueven al instante (setRotation/setPosition): si estan en una mano, un movimiento
-    suave no las saca."""
+    suave no las saca.
+
+    Solo se tocan cartas del bando (`id_range` e imagen de `identity`) que esten en el `scope`: las manos, las zonas
+    de descarte y el entorno de los puntos de combate y del mazo; nunca el resto de la mesa."""
     if not isinstance(card_ids, (list, tuple)) or not isinstance(spots, (list, tuple)) or len(card_ids) != len(spots):
         raise TypeError("lista de CardID y lista de sitios de la misma longitud esperadas")
     rows = []
@@ -350,23 +483,26 @@ def discard_cards(card_ids: list[int], spots: list[tuple[float, float, float]], 
         rows.append(f"[{_i(c)}]={{{_f(sp[0])}, {_f(sp[1])}, {_f(sp[2])}}}")
     wanted = "{" + ", ".join(rows) + "}"
     rot = f"Vector(0, {_f(rot_y)}, 0)"
+    own = _ours_lua(identity, id_range)
     return f"""-- sparring:discard_cards
-local wanted = {wanted}
+{own}{_scope_lua(scope)}local wanted = {wanted}
 local moved = {{}}
 local done = {{}}
-for _, o in ipairs(getObjects()) do
-  if o.type == "Card" then
-    local id = o.getData().CardID
-    if wanted[id] and not done[id] then
+for _, o in ipairs(scopeObjects()) do
+  if o.type == "Card" and not o.held_by_color then
+    local data = o.getData()
+    local id = data.CardID
+    if wanted[id] and not done[id] and cardOurs(data, data.CustomDeck) then
       local at = wanted[id]
       o.setRotation({rot})
       o.setPosition(Vector(at[1], at[2], at[3]))
       done[id] = true
       table.insert(moved, id)
     end
-  elseif o.type == "Deck" then
-    for _, c in ipairs(o.getData().ContainedObjects or {{}}) do
-      if wanted[c.CardID] and not done[c.CardID] then
+  elseif o.type == "Deck" and not o.held_by_color then
+    local data = o.getData()
+    for _, c in ipairs(data.ContainedObjects or {{}}) do
+      if wanted[c.CardID] and not done[c.CardID] and cardOurs(c, data.CustomDeck) then
         local at = wanted[c.CardID]
         o.takeObject({{guid = c.GUID, position = Vector(at[1], at[2], at[3]), rotation = {rot}, smooth = false}})
         done[c.CardID] = true
@@ -569,14 +705,18 @@ return JSON.encode({{moved = obj.getGUID()}})
 
 
 @_registered
-def play_card_face_down(card_id: int, seat_color: str, x: float, y: float, z: float, rot_y: float = 0) -> str:
-    """Saca la carta con ese CardID de la mano del asiento y la deja boca abajo; played=false si no esta.
+def play_card_face_down(card_id: int, seat_color: str, x: float, y: float, z: float, rot_y: float = 0,
+                        id_range: tuple[int, int] = BOT_CARD_IDS, *, identity) -> str:
+    """Saca la carta con ese CardID de la mano del asiento y la deja boca abajo; played=false si no esta. Solo cuenta
+    una carta del bando (`id_range` e imagen de `identity`): otra con el mismo CardID no se toca.
 
     El movimiento es INSTANTANEO (setRotation y luego setPosition): en TTS real, `setPositionSmooth` sobre una carta
     que esta en una zona de mano no la saca, la mano la vuelve a tirar. El resultado hay que comprobarlo leyendo la mesa."""
+    own = _ours_lua(identity, id_range)
     return f"""-- sparring:play_card_face_down
-for _, o in ipairs(Player[{_color(seat_color)}].getHandObjects(1)) do
-  if o.type == "Card" and o.getData().CardID == {_i(card_id)} then
+{own}for _, o in ipairs(Player[{_color(seat_color)}].getHandObjects(1)) do
+  local data = o.getData()
+  if o.type == "Card" and data.CardID == {_i(card_id)} and cardOurs(data, data.CustomDeck) then
     o.setRotation(Vector(0, {_f(rot_y)}, 180))
     o.setPosition(Vector({_f(x)}, {_f(y)}, {_f(z)}))
     return JSON.encode({{played = o.getGUID()}})
@@ -604,11 +744,15 @@ return JSON.encode(out)
 
 
 @_registered
-def flip_card(card_guid: str, rot_y: float = 0, face_up: bool = True) -> str:
-    """Gira una carta ya jugada (revelar o volver a ocultar)."""
+def flip_card(card_guid: str, rot_y: float = 0, face_up: bool = True, id_range: tuple[int, int] = BOT_CARD_IDS, *,
+              identity) -> str:
+    """Gira una carta ya jugada (revelar o volver a ocultar). Solo si es una carta del bando (`id_range` e imagen de
+    `identity`); si no existe o es ajena, falla sin tocar nada."""
     z = 0 if face_up else 180
+    own = _ours_lua(identity, id_range)
     return f"""-- sparring:flip_card
-local c = getObjectFromGUID({_guid(card_guid)})
+{own}local c = getObjectFromGUID({_guid(card_guid)})
+if c == nil or not ours(c) then error("la carta no existe o no es del bando") end
 c.setRotationSmooth(Vector(0, {_f(rot_y)}, {_f(z)}), false, true)
 return JSON.encode({{flipped = c.getGUID()}})
 """
@@ -620,6 +764,7 @@ CARD_SIZE = (2.2, 3.2)
 MARK_COLORS = {"discard": (1.0, 1.0, 1.0), "combat": (1.0, 0.45, 0.0)}
 # Etiquetas del suelo (3DText). White se sienta en x = -30 mirando hacia +x: el texto se lee a lo largo de -z con la
 # parte alta hacia +x, que es girar el texto plano 90 grados sobre Y (el panel usa 0 0 270 por lo mismo).
+LABEL_Y = 5.0                        # por encima de las pilas de descarte (rejilla en y 2.0 y +discard_layer por vuelta)
 LABEL_FONT = 30.0                    # un tercio del 90 anterior
 LABEL_ROTATION = (90.0, 90.0, 0.0)
 LABEL_CHAR_W = 0.012                 # ancho de un caracter por punto de fuente, en unidades del mundo (estimado)
@@ -717,7 +862,7 @@ for _, r in ipairs(rects) do
   if found ~= nil then
     local usable = pcall(function()
       if found.setPosition == nil then error("sin setPosition") end
-      found.setPosition({{r.x, 2.0, r.z}})
+      found.setPosition({{r.x, {_f(LABEL_Y)}, r.z}})
       found.setRotation({{{lrot}}})
     end)
     if usable then
@@ -728,7 +873,7 @@ for _, r in ipairs(rects) do
     end
   end
   if found == nil then
-    spawnObject({{type = "3DText", position = {{r.x, 2.0, r.z}}, rotation = {{{lrot}}},
+    spawnObject({{type = "3DText", position = {{r.x, {_f(LABEL_Y)}, r.z}}, rotation = {{{lrot}}},
       callback_function = function(o)
         o.setName(name)
         o.setGMNotes({lua_str(MARKER)})
@@ -780,7 +925,7 @@ def create_panel(target_ids: list[str], position: tuple[float, float, float] = P
     los tapetes (que estan a y 1.0 y los objetos reposan a ~1.57)."""
     x, y, z = (_f(v) for v in position)
     xml = ui.panel_xml(target_ids, rotation=rotation, scale=scale, names=names)
-    handler_script = ui.handler_script(snapshot_lua(snapshot) if snapshot is not None else None,
+    handler_script = ui.handler_script(snapshot_lua(snapshot, "wseq") if snapshot is not None else None,
                                        ui.element_ids(target_ids))
     return f"""-- sparring:create_panel
 local panel
@@ -793,6 +938,7 @@ end
 panel.setName({lua_str(PANEL_NAME)})
 panel.setGMNotes({lua_str(MARKER)})
 panel.setLock(true)
+pcall(function() panel.setColorTint({{r = {CARRIER_TINT[0]}, g = {CARRIER_TINT[1]}, b = {CARRIER_TINT[2]}}}) end)
 panel.setLuaScript([==[{handler_script}]==])
 local guid = panel.getGUID()
 Wait.time(function()
@@ -834,11 +980,17 @@ def _guid_list(guids) -> str:
     return "{" + ", ".join(_guid(g) for g in guids) + "}"
 
 
-def snapshot_lua(spec: SnapSpec) -> str:
+def snapshot_lua(spec: SnapSpec, seq_expr: str | None = None) -> str:
     """Fragmento Lua que define `sparringSnapshot()`: la mano del bot (CardID), el conteo de la mano del humano
     (secreta: solo se cuenta), los descartes de ambas zonas (sin los mazos de robo), las cartas boca abajo en los dos
     puntos de combate, la casilla mas cercana y la distancia de cada pieza por GUID y los diales. Lo usan el script de
-    lectura `snapshot`, el compuesto `composite` (estado resultante) y el script del panel (al pulsar un boton)."""
+    lectura `snapshot`, el compuesto `composite` (estado resultante) y el script del panel (al pulsar un boton).
+
+    `seq_expr` es una expresion Lua (`SEQ` en el compuesto, `wseq` en el panel) que sella la instantanea con el numero
+    de la ultima escritura de mesa que refleja: la sesion descarta la que sea anterior a su ultima escritura."""
+    if seq_expr not in (None, "SEQ", "wseq"):
+        raise ValueError("expresion de secuencia no admitida")
+    stamp = f"snap.seq = {seq_expr}\n" if seq_expr else ""
     return f"""local function sparringSnapshot()
 {_card_ids_helper()}{_board_prelude(spec.board, spec.board_guid)}local function zoneCards(guid, skip, spots, r2)
   local z = getObjectFromGUID(guid)
@@ -909,7 +1061,7 @@ for _, g in ipairs({_guid_list(spec.dials)}) do
     snap.dials[g] = {{found = true, name = o.getName(), value = value, max = max}}
   end
 end
-return snap
+{stamp}return snap
 end
 """
 
@@ -921,6 +1073,7 @@ def snapshot(spec: SnapSpec) -> str:
 
 
 MAX_OPS = 64
+MAX_COMPOSITE_BYTES = 90_000
 _OP_HEAD = re.compile(r"-- sparring:(\w+)\n")
 
 
@@ -936,39 +1089,60 @@ def _check_op(op) -> str:
 
 
 @_registered
-def composite(ops: list[str], spec: SnapSpec | None = None, expect_hand: tuple[str, int] | None = None) -> str:
+def composite(ops: list[str], spec: SnapSpec | None = None, expect_hand: tuple[str, int] | None = None,
+              seq: int = 0) -> str:
     """UN script con varias operaciones ya validadas (cada una la genero un constructor) y el estado resultante.
 
     Las operaciones se ejecutan en orden, cada una dentro de pcall (un fallo de una no frena a las demas: su
     resultado es `{__err = ...}`). Al terminar, con `spec`, se lee la mesa de nuevo y se devuelve
-    `{ops = [resultados], state = instantanea}`. Si alguna operacion movio una pieza (suave) o repartio cartas, o
-    se pide `expect_hand` = (asiento, n), se espera dentro de TTS a que las piezas esten quietas y la mano del
-    asiento tenga n cartas (maximo 2.5 s) antes de leer: asi la verificacion cabe en el mismo mensaje."""
+    `{ops = [resultados], state = instantanea}` sellada con `seq`. Si alguna operacion movio una pieza (suave) o
+    repartio cartas, o se pide `expect_hand` = (asiento, n), se espera dentro de TTS a que las piezas esten quietas
+    (`isSmoothMoving` y `resting`) y la mano del asiento tenga n cartas (maximo 2.5 s) antes de leer. Solo entonces
+    (en `finish`) se libera el "Procesando..." del panel (si hay un `set_panel` entre las operaciones) y se anota en
+    el panel `seq`, la escritura que su proxima instantanea refleja. Tamano maximo `MAX_COMPOSITE_BYTES`."""
     if not isinstance(ops, (list, tuple)) or not 1 <= len(ops) <= MAX_OPS:
         raise ValueError(f"se esperan entre 1 y {MAX_OPS} operaciones")
+    checked = [_check_op(o) for o in ops]
     body = []
-    for i, op in enumerate(_check_op(o) for o in ops):
+    for i, op in enumerate(checked):
         body.append(f"results[{i + 1}] = run(function()\n{op}end) or {{}}\n")
     if expect_hand is not None:
-        seat, n = expect_hand
-        expect = f"local expectSeat, expectN = {_color(seat)}, {_i(n)}\n"
+        eseat, n = expect_hand
+        expect = f"local expectSeat, expectN = {_color(eseat)}, {_i(n)}\n"
     else:
         expect = "local expectSeat, expectN = nil, nil\n"
-    snap = snapshot_lua(spec) if spec is not None else ""
+    snap = snapshot_lua(spec, "SEQ") if spec is not None else ""
     read = "local ok, st = pcall(sparringSnapshot)" if spec is not None else "local ok, st = true, nil"
-    return ("-- sparring:composite\nlocal __J = JSON\nlocal JSON = {encode = function(v) return v end}\n"
-            "local results = {}\n"
-            "local function run(f) local ok, r = pcall(f); if ok then return r end return {__err = tostring(r)} end\n"
-            + "".join(body) + snap + expect + f"""local function finish()
+    release = "true" if any(o.startswith("-- sparring:set_panel\n") for o in checked) else "false"
+    out = ("-- sparring:composite\nlocal __J = JSON\nlocal JSON = {encode = function(v) return v end}\n"
+           f"local SEQ = {_i(seq)}\nlocal results = {{}}\n"
+           "local function run(f) local ok, r = pcall(f); if ok then return r end return {__err = tostring(r)} end\n"
+           + "".join(body) + snap + expect + f"""local function stampPanel()
+  for _, o in ipairs(getObjects()) do
+    if o.getName() == {lua_str(PANEL_NAME)} and o.getGMNotes() == {lua_str(MARKER)} then
+      if {release} then o.setVar("busy", false) end
+      {"o.setVar(" + chr(34) + "wseq" + chr(34) + ", SEQ)" if spec is not None else ""}
+    end
+  end
+end
+local function finish()
   {read}
+  pcall(stampPanel)
   __J.encode({{ops = results, state = ok and st or nil, state_err = (not ok) and tostring(st) or nil}})
+end
+local function settled(o)
+  local okm, moving = pcall(function() return o.isSmoothMoving() end)
+  if okm and moving then return false end
+  local okr, rest = pcall(function() return o.resting end)
+  if okr and rest == false then return false end
+  return true
 end
 local function ready()
   if expectSeat ~= nil and #Player[expectSeat].getHandObjects(1) ~= expectN then return false end
   for _, r in ipairs(results) do
     if type(r.moved) == "string" then
       local o = getObjectFromGUID(r.moved)
-      if o ~= nil and not o.resting then return false end
+      if o ~= nil and not settled(o) then return false end
     end
   end
   return true
@@ -986,6 +1160,9 @@ else
 end
 return ""
 """)
+    if len(out.encode("utf-8")) > MAX_COMPOSITE_BYTES:
+        raise ValueError(f"script compuesto demasiado grande ({len(out.encode('utf-8'))} bytes)")
+    return out
 
 
 PANEL_ID = re.compile(r"[A-Za-z0-9_]{1,40}")
@@ -993,9 +1170,12 @@ _STATUS = re.compile(r"[A-Za-z0-9 _.\-!:',·]{0,90}")
 
 
 @_registered
-def set_panel(status: str, states: dict[str, tuple[bool, bool]]) -> str:
+def set_panel(status: str, states: dict[str, tuple[bool, bool]], release_busy: bool = True) -> str:
     """ESCRIBE en la UI del panel PROPIO del bot (nunca el Global): la linea de estado y, por id de elemento, si se
-    puede pulsar (`interactable`) y si se ve (`active`). Tambien libera el "Procesando..." del panel."""
+    puede pulsar (`interactable`) y si se ve (`active`). Tambien libera el "Procesando..." del panel, salvo con
+    `release_busy=False`: dentro de un compuesto lo libera `finish` cuando las piezas ya estan quietas."""
+    if not isinstance(release_busy, bool):
+        raise TypeError("release_busy debe ser un booleano")
     if not isinstance(status, str) or not _STATUS.fullmatch(status):
         raise ValueError(f"texto de estado no admitido: {status!r}")
     if not isinstance(states, dict) or len(states) > 80:
@@ -1012,7 +1192,7 @@ for _, o in ipairs(getObjects()) do
   if o.getName() == {lua_str(PANEL_NAME)} and o.getGMNotes() == {lua_str(MARKER)} then panel = o end
 end
 if panel == nil then return JSON.encode({{panel = false}}) end
-panel.setVar("busy", false)
+{'panel.setVar("busy", false)' if release_busy else ''}
 panel.UI.setValue("status", "{status}")
 for id, st in pairs({{{", ".join(rows)}}}) do
   panel.UI.setAttribute(id, "interactable", tostring(st[1]))
@@ -1026,29 +1206,22 @@ HUMAN_CARD_IDS = (HELLBOY_BASE, HELLBOY_BASE + 29)      # rango de CardID del ma
 
 
 @_registered
-def reset_deck(deck_guid: str, spot: tuple[float, float], id_range: tuple[int, int], radius: float = 2.0) -> str:
+def reset_deck(deck_guid: str, spot: tuple[float, float], id_range: tuple[int, int], radius: float = 2.0, *,
+               identity, scope: Scope) -> str:
     """REINICIO: mete en el mazo de robo TODAS las cartas de un bando (las de las manos, los descartes, las que estan
-    boca abajo en la mesa y los Deck sueltos) y lo baraja. Solo cuenta lo que tiene un CardID de `id_range` (el mazo
-    de ese bando) y no esta cogido por nadie. El mazo se halla por GUID o, si TTS lo destruyo al quedar vacio, por
-    posicion `spot`; sin mazo, se agrupan las cartas sueltas (`group`). Devuelve cuantas cartas hay en el mazo."""
-    if not isinstance(id_range, (tuple, list)) or len(id_range) != 2:
-        raise TypeError("(minimo, maximo) de CardID esperado")
-    lo, hi = _i(id_range[0]), _i(id_range[1])
-    find = _find_deck(spot, radius, id_range)
+    boca abajo en la mesa y los Deck sueltos) y lo baraja. Solo cuenta lo que tiene un CardID de `id_range` Y la
+    imagen (`identity`) de ese bando, y lo que esta en el `scope` (manos, descartes, combate y mazo; nunca la mesa
+    entera), sin que lo coja nadie. Un Deck con una sola carta ajena no se toca. El mazo se halla por GUID o, si TTS
+    lo destruyo al quedar vacio, por posicion `spot`; sin mazo, se agrupan las cartas sueltas (`group`). Devuelve
+    cuantas cartas hay en el mazo."""
+    own = _ours_lua(identity, id_range)
+    find = _find_deck(spot, radius)
     return f"""-- sparring:reset_deck
-local d = getObjectFromGUID({_guid(deck_guid)})
-{find}local function ours(o)
-  local first
-  if o.type == "Card" then first = o.getData().CardID
-  elseif o.type == "Deck" then
-    local c = (o.getData().ContainedObjects or {{}})[1]
-    first = c and c.CardID
-  end
-  return first ~= nil and first >= {lo} and first <= {hi}
-end
-local others = {{}}
-for _, o in ipairs(getObjects()) do
-  if (o.type == "Card" or o.type == "Deck") and o ~= d and not o.held_by_color and ours(o) then
+{own}{_scope_lua(scope)}local d = getObjectFromGUID({_guid(deck_guid)})
+if d ~= nil and not ours(d) then d = nil end
+{find}local others = {{}}
+for _, o in ipairs(scopeObjects()) do
+  if (o.type == "Card" or o.type == "Deck") and o ~= d and ours(o) then
     table.insert(others, o)
   end
 end
@@ -1068,4 +1241,127 @@ if d.type == "Deck" then
   return JSON.encode({{deck = true, quantity = d.getQuantity()}})
 end
 return JSON.encode({{deck = true, quantity = 1}})
+"""
+
+
+@_registered
+def reset_plan(sides: list[tuple[str, tuple[float, float] | None, tuple[int, int], tuple]], radius: float = 2.0, *,
+               scope: Scope) -> str:
+    """Solo lectura, en UN mensaje: lo que `reset_deck` juntaria para cada bando `(deck_guid, spot, id_range,
+    identity)`, sin mover nada. Una entrada por bando, en orden: `deck` (hay mazo), `loose` (objetos sueltos del
+    bando) y `total` (cartas que acabarian en el mazo)."""
+    if not isinstance(sides, (list, tuple)) or not 1 <= len(sides) <= 2:
+        raise TypeError("lista de 1 o 2 bandos esperada")
+    blocks = []
+    for deck_guid, spot, id_range, identity in sides:
+        blocks.append(f"""table.insert(out, (function()
+{_ours_lua(identity, id_range)}local d = getObjectFromGUID({_guid(deck_guid)})
+if d ~= nil and not ours(d) then d = nil end
+{_find_deck(spot, radius)}local function size(o) if o.type == "Deck" then return o.getQuantity() end return 1 end
+local total, loose = 0, 0
+if d ~= nil then total = size(d) end
+for _, o in ipairs(scopeObjects()) do
+  if (o.type == "Card" or o.type == "Deck") and o ~= d and ours(o) then
+    total = total + size(o)
+    loose = loose + 1
+  end
+end
+return {{deck = d ~= nil, loose = loose, total = total}}
+end)())
+""")
+    return f"""-- sparring:reset_plan
+{_scope_lua(scope)}local out = {{}}
+{"".join(blocks)}return JSON.encode(out)
+"""
+
+
+@_registered
+def deck_identities(decks: list[tuple[str, tuple[float, float] | None, tuple[int, int]]], radius: float = 2.0) -> str:
+    """Solo lectura, al empezar: la identidad (FaceURL, BackURL de la imagen del DeckID de cada carta) de cada mazo
+    configurado, leida del propio objeto y solo de las cartas cuyo CardID cae en el rango del bando. Se halla por GUID
+    o, si TTS lo convirtio en una Card, por posicion: entonces TODAS sus cartas han de caer en el rango. Devuelve una
+    entrada por mazo: `found` y los pares `face`/`back` distintos de todas sus cartas."""
+    if not isinstance(decks, (list, tuple)) or not 1 <= len(decks) <= 4:
+        raise TypeError("lista de 1 a 4 mazos esperada")
+    rows = []
+    for guid, spot, rng in decks:
+        lo, hi = _range(rng)
+        if spot is None:
+            where = "nil"
+        else:
+            x, z, r = _spot(spot, radius)
+            where = f"{{{x}, {z}, {r}}}"
+        rows.append(f"{{{_guid(guid)}, {where}, {lo}, {hi}}}")
+    return f"""-- sparring:deck_identities
+{_IMAGE_LUA}local function entriesOf(o, data)
+  if o.type == "Card" then return {{data}} end
+  return data.ContainedObjects or {{}}
+end
+local function inRange(o, lo, hi)
+  local cards = entriesOf(o, o.getData())
+  if #cards == 0 then return false end
+  for _, c in ipairs(cards) do
+    if type(c.CardID) ~= "number" or c.CardID < lo or c.CardID > hi then return false end
+  end
+  return true
+end
+local out = {{}}
+for _, row in ipairs({{{", ".join(rows)}}}) do
+  local d = getObjectFromGUID(row[1])
+  if d == nil and row[2] ~= nil then
+    for _, o in ipairs(getObjects()) do
+      if o.type == "Deck" or o.type == "Card" then
+        local p = o.getPosition()
+        if (p.x - row[2][1]) ^ 2 + (p.z - row[2][2]) ^ 2 <= row[2][3] ^ 2 and inRange(o, row[3], row[4]) then d = o; break end
+      end
+    end
+  end
+  local entry = {{found = d ~= nil, pairs = {{}}}}
+  if d ~= nil then
+    local data = d.getData()
+    local seen = {{}}
+    for _, c in ipairs(entriesOf(d, data)) do
+      if type(c.CardID) == "number" and c.CardID >= row[3] and c.CardID <= row[4] then
+        for _, info in ipairs(imagesOf(c, data.CustomDeck)) do
+          if info.FaceURL ~= nil and info.BackURL ~= nil then
+            local key = tostring(info.FaceURL) .. "|" .. tostring(info.BackURL)
+            if not seen[key] then
+              seen[key] = true
+              table.insert(entry.pairs, {{face = tostring(info.FaceURL), back = tostring(info.BackURL)}})
+            end
+          end
+        end
+      end
+    end
+  end
+  table.insert(out, entry)
+end
+return JSON.encode(out)
+"""
+
+
+@_registered
+def hand_identities(seat_color: str, id_range: tuple[int, int]) -> str:
+    """Solo lectura, ultimo recurso: la identidad de un bando leida de las cartas de su mano (solo las del rango).
+    Devuelve los pares `face`/`back` distintos."""
+    lo, hi = _range(id_range)
+    return f"""-- sparring:hand_identities
+{_IMAGE_LUA}local seen, found = {{}}, {{}}
+for _, o in ipairs(Player[{_color(seat_color)}].getHandObjects(1)) do
+  if o.type == "Card" then
+    local data = o.getData()
+    if type(data.CardID) == "number" and data.CardID >= {lo} and data.CardID <= {hi} then
+      for _, info in ipairs(imagesOf(data, data.CustomDeck)) do
+        if info.FaceURL ~= nil and info.BackURL ~= nil then
+          local key = tostring(info.FaceURL) .. "|" .. tostring(info.BackURL)
+          if not seen[key] then
+            seen[key] = true
+            table.insert(found, {{face = tostring(info.FaceURL), back = tostring(info.BackURL)}})
+          end
+        end
+      end
+    end
+  end
+end
+return JSON.encode({{pairs = found}})
 """

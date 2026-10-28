@@ -258,7 +258,7 @@ class Game:
             raise RuleError(f"{card.title} es de {card.fighter}: {fighter.name} no la puede jugar")
 
     def attack(self, attacker: Fighter, target: Fighter, card: Card, def_card="ask",
-               values: tuple[int, int] = (0, 0)):
+               values: tuple[int, int] = (0, 0), boost: Card | None = None):
         """Transaccional: valida alcance y las dos cartas antes de gastar la accion."""
         from .combat import resolve_combat
         if not self.can_attack(attacker, target):
@@ -273,7 +273,7 @@ class Game:
         self.use_action()
         if def_card == "ask":
             def_card = self.controllers[target.owner].choose_defense(self, attacker, target)
-        return resolve_combat(self, attacker, target, card, def_card, values)
+        return resolve_combat(self, attacker, target, card, def_card, values, boost)
 
     # habilidades de inicio de turno
     def medusa_ability(self, target: Fighter) -> None:

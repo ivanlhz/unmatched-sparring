@@ -25,7 +25,7 @@ def test_message_budget_per_button(brig, monkeypatch):
     monkeypatch.setattr(session.ai, "plan", lambda g: Act("maneuver", moves={"medusa": 0}))
     monkeypatch.setattr(session.ai, "pick_ability_target", lambda g: None)
     run("turno del bot", lambda: click(session, table, Event.END_ACTION))
-    assert spent == {"maniobra": 1, "fin de accion": 1, "atacar": 3, "revelar": 2, "turno del bot": 3}, spent
+    assert spent == {"maniobra": 1, "fin de accion": 1, "atacar": 2, "revelar": 3, "turno del bot": 3}, spent
     assert [c for label, c, _ in session.cost_log if label == "accion del bot"] == [1, 1]
 
 
@@ -34,4 +34,4 @@ def test_message_budget_of_the_start(brig, monkeypatch):
     setup_rig(session, table, game, first=1)
     n = fake.lua_messages
     session.start()
-    assert fake.lua_messages - n <= 4
+    assert fake.lua_messages - n <= 5      # 4 + la lectura de la identidad de los mazos

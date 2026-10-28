@@ -6,7 +6,7 @@ import pytest
 
 from fake_tts import FakeTTS
 from sparring.ai_medusa import Act, MedusaAI
-from sparring.session import Session, SessionConfig
+from sparring.session import Pending, Session, SessionConfig
 from sparring.state import Game
 from sparring.tts.client import TTSClient
 from sparring.tts.ui import Event
@@ -44,6 +44,9 @@ class Table:
         self._flying: set[int] = set()
         self._reads = 0
         self.deal_calls: list[int] = []
+        self.human_deals: list[int] = []            # n de cada reparto al mazo del humano
+        self.human_deal_fails = False
+        self.human_deck_cards = 20
         self.discard_calls: list[list[int]] = []
         self.broadcasts: list[str] = []
         self.dupes: set[str] = set()
@@ -65,6 +68,7 @@ class Table:
         self.stray_bot: list[dict] = []             # cartas del bot boca abajo en su punto de carta o de mazo
         self.sent: list[str] = []                   # una entrada por MENSAJE a TTS: la etiqueta del script
         self.panels: list[tuple[str, dict]] = []    # (estado, {id: (pulsable, visible)}) de cada set_panel
+        self.wseq = 0                               # ultima escritura que el compuesto anoto en el panel (wseq)
         self.composite_waits = True                 # el compuesto espera dentro de TTS a que todo se asiente
 
     def __call__(self, msg):
@@ -88,6 +92,7 @@ class Table:
             results.append({"__err": out["__error__"]} if isinstance(out, dict) and "__error__" in out else out)
         res = {"ops": results}
         if "local function sparringSnapshot" in s:
+            self.wseq = int(re.search(r"local SEQ = (\d+)", s).group(1))
             if self.composite_waits and not self.lag:
                 for fn in self._queued:
                     fn()
@@ -105,7 +110,7 @@ class Table:
                 "human_discard": [{"id": i, "guid": f"g{i}"} for i in self.human_discard],
                 "face_bot": self.stray_bot + [{"id": i, "guid": f"g{i}"} for i in self.bot_play],
                 "face_human": self.face_down, "pieces": pieces, "human_deck_qty": getattr(self, "human_deck_qty", -1),
-                "dials": {g: v for g, v in self.dials.items()}}
+                "dials": {g: v for g, v in self.dials.items()}, "seq": self.wseq}
 
     def do_snapshot(self, s):
         return self.snapshot_state()
@@ -157,7 +162,7 @@ class Table:
     def do_reset_deck(self, s):
         """Todas las cartas de un bando vuelven a su mazo (mano, descarte, boca abajo y sueltas)."""
         self.resets = getattr(self, "resets", [])
-        if int(re.search(r"first >= (\d+)", s).group(1)) < 19000:
+        if int(re.search(r"id < (\d+) or id > \d+", s).group(1)) < 19000:
             self.bot_deck.extend(self.bot_hand + self.bot_play + self.bot_discard + [r["id"] for r in self.stray_bot])
             self.bot_hand, self.bot_play, self.bot_discard, self.stray_bot = [], [], [], []
             self.resets.append("bot")
@@ -165,6 +170,25 @@ class Table:
         self.human_discard, self.face_down, self.human_hand, self.human_count = [], [], [], 0
         self.resets.append("human")
         return {"deck": True, "quantity": 30}
+
+    def do_reset_plan(self, s):
+        """Lo que reset_deck juntaria, sin mover nada: una entrada por bando, en el orden del script."""
+        out = []
+        for lo in re.findall(r"id < (\d+) or id > \d+", s):
+            if int(lo) < 19000:
+                total = len(self.bot_deck + self.bot_hand + self.bot_play + self.bot_discard) + len(self.stray_bot)
+            else:
+                total = 30
+            out.append({"deck": True, "loose": 0, "total": total})
+        return out
+
+    def do_hand_identities(self, s):
+        return {"pairs": [{"face": "https://img.test/face", "back": "https://img.test/back"}]}
+
+    def do_deck_identities(self, s):
+        n = len(re.findall(r'\{"\w+", (?:nil|\{)', s))
+        return [{"found": True, "pairs": [{"face": "https://img.test/face", "back": "https://img.test/back"}]}
+                for _ in range(n)]
 
     def do_place_piece(self, s):
         guid = re.search(r'getObjectFromGUID\("(\w+)"\)', s).group(1)
@@ -242,6 +266,13 @@ class Table:
         """Mazo realista: con 2 o mas cartas es un Deck (su GUID existe); con 1 queda una Card suelta que
         solo se halla por posicion (rama `if d == nil`); vacio no reparte nada."""
         n = int(re.search(r"math\.min\((\d+)", s).group(1))
+        if "d.deal(k, Red)" in s or 'd.deal(k, "Red")' in s:    # el mazo del humano: solo cuenta cartas
+            self.human_deals.append(n)
+            k = 0 if self.human_deal_fails else min(n, self.human_deck_cards)
+            self.human_deck_cards -= k
+            self.human_count += k
+            self.human_deck_qty = self.human_deck_cards
+            return {"dealt": k}
         self.deal_calls.append(n)
         if len(self.bot_deck) >= 2:
             k = min(n, len(self.bot_deck))
@@ -381,7 +412,10 @@ def test_scheme_spends_action(rig):
 
 
 def test_value_event_stores_number(rig):
-    session, _, _ = rig
+    session, _, game = rig
+    session.handle(Event.VALUE, {"value": 3})
+    assert session.pending_value == 0, "sin combate pendiente el valor no se registra (no se arrastra al siguiente)"
+    session.pending = Pending("human_attacks", game.fighters["hellboy"], game.fighters["medusa"], None)
     session.handle(Event.VALUE, {"value": 3})
     assert session.pending_value == 3
     session.handle(Event.VALUE, {"value": None})
@@ -431,8 +465,11 @@ def test_human_attack_reveal_resolves_with_value_and_waits_for_end_action(rig):
     session, table, game = rig
     pistol = start_human_attack(session, table, game)
     session.handle(Event.VALUE, {"value": 2})
-    bot_card = session.pending.bot_card
+    chosen = []
+    real = session.ai.choose_defense
+    session.ai.choose_defense = lambda g, a, t: chosen.append(real(g, a, t)) or chosen[-1]
     msgs = session.handle(Event.REVEAL)
+    bot_card = chosen[0]
     assert any("Combate" in m for m in msgs)
     assert session.pending is None and session.pending_value == 0
     assert game.fighters["medusa"].hp == 16 - max(0, 7 - (bot_card.value if bot_card else 0))
@@ -557,12 +594,15 @@ def test_failed_play_aborts_the_action_without_resolving(rig, monkeypatch):
     monkeypatch.setattr(session.ai, "choose_defense", lambda g, a, t: dash)
     table.fail_play = True
     session.handle(Event.ATTACKER, {"attacker": "hellboy"})
-    msgs = session.handle(Event.ATTACK, {"target": "medusa"})
-    assert any("Error de mesa" in m for m in msgs)
-    assert session.pending is None and game.actions_left == 2 and not game.players[0].discard
-    table.fail_play = False
     session.handle(Event.ATTACK, {"target": "medusa"})
-    assert session.pending is not None, "tras el error el boton vuelve a funcionar"
+    human_plays(table, game, "Service Pistol")
+    msgs = session.handle(Event.REVEAL)
+    assert any("Error de mesa" in m for m in msgs)
+    assert session.pending is not None and not session.pending.defended
+    assert game.actions_left == 2 and not game.players[0].discard
+    table.fail_play = False
+    session.handle(Event.REVEAL)
+    assert session.pending is None, "tras el error el boton vuelve a funcionar"
 
 
 def test_bot_play_failure_in_its_own_attack_aborts(rig, monkeypatch):
@@ -776,7 +816,9 @@ def test_cancel_returns_the_bot_defense_card_and_unfreezes_the_game(rig, monkeyp
     monkeypatch.setattr(session.ai, "choose_defense", lambda g, a, t: dash)
     session.handle(Event.ATTACKER, {"attacker": "hellboy"})
     session.handle(Event.ATTACK, {"target": "medusa"})
-    assert session.pending is not None and dash.card_id in table.bot_play
+    assert session.pending is not None and table.bot_play == []
+    session._bot_defends(session.pending)    # la defensa ya puesta (p. ej. respuesta tardia recuperada)
+    assert dash.card_id in table.bot_play
     human_plays(table, game, "Second Shot")  # ilegal para Hellboy: Revelar falla siempre
     session.handle(Event.REVEAL)
     assert session.pending is not None
@@ -820,6 +862,7 @@ def test_cancel_return_failure_keeps_pending_for_retry(rig, monkeypatch):
     monkeypatch.setattr(session.ai, "choose_defense", lambda g, a, t: dash)
     session.handle(Event.ATTACKER, {"attacker": "hellboy"})
     session.handle(Event.ATTACK, {"target": "medusa"})
+    session._bot_defends(session.pending)
     table.lag = 99  # la carta no llega a la mano
     msgs = session.handle(Event.CANCEL)
     assert any("Error de mesa" in m for m in msgs) and session.pending is not None

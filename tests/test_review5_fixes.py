@@ -1,5 +1,6 @@
 """Revision 5: arranque, guardado, miniaturas con varios GUID, rejilla del descarte, repartos tardios,
 puntos de control del turno del bot y salidas de los estados pendientes."""
+from conftest import t_discard_cards, t_play_card_face_down, t_return_hand_to_deck, t_shuffle_deck
 import dataclasses
 import json
 import math
@@ -19,7 +20,7 @@ from sparring.tts.client import TTSClient
 from sparring.tts.ui import Event
 import test_session
 from test_play import REAL_CONFIG, cfg_file, live, free_port  # noqa: F401
-from test_session import NICK, PIECES, card, ids, rig  # noqa: F401
+from test_session import NICK, PIECES, card, human_plays, ids, rig  # noqa: F401
 
 LIVE_START = {"medusa": 30, "harpy1": 19, "harpy2": 18, "harpy3": 29, "hellboy": 3, "lobster": 0}
 
@@ -349,12 +350,13 @@ def test_a_late_face_down_play_for_a_human_attack_is_recovered_too(rig, monkeypa
     table.human_hand = ids(game, 1, "Service Pistol")
     session.handle(Event.ATTACKER, {"attacker": "att_hellboy"})
     session.handle(Event.ATTACK, {"target": "medusa"})
-    assert session.pending is None and len(table.bot_play) == 1
+    human_plays(table, game, "Service Pistol")
+    session.handle(Event.REVEAL)
+    assert session.pending is not None and not session.pending.defended and len(table.bot_play) == 1
     played = table.bot_play[0]
-    out = session.handle(Event.ATTACK, {"target": "medusa"})
-    assert session.pending and session.pending.kind == "human_attacks"
-    assert session.pending.bot_card.card_id == played and table.bot_play == [played]
-    assert any("Revelar" in m for m in out)
+    out = session.handle(Event.REVEAL)
+    assert session.pending is None and table.count("play_card_face_down") == 1 and played in table.bot_discard
+    assert any("Combate" in m for m in out) and any(session.game.players[0].discard)
 
 
 def test_a_play_that_never_reached_the_table_is_simply_replanned(rig, monkeypatch):
@@ -641,7 +643,7 @@ def test_play_cleans_leftovers_before_creating_the_panel_and_removes_everything_
 # ---------- 12. posicion del panel ----------
 def test_panel_default_position_is_above_the_mats(tmp_path):
     raw = json.loads(REAL_CONFIG.read_text(encoding="utf-8"))
-    assert raw["panel_position"] == [2, 1.8, -24]
+    assert raw["panel_position"] == [-12.5, 1.8, -24.5]  # a la derecha del descarte del humano
     raw.pop("panel_position")
     p = tmp_path / "c.json"
     p.write_text(json.dumps(raw), encoding="utf-8")
@@ -694,7 +696,7 @@ def test_create_panel_carries_the_orientation_and_play_reads_it_from_the_config(
     cfg = play.load_config(p)
     assert cfg.panel_rotation == (0.0, 0.0, 90.0) and cfg.panel_scale == (3.0, 3.0, 3.0)
     default = play.load_config(REAL_CONFIG)
-    assert default.panel_rotation == (0.0, 0.0, 270.0) and default.panel_scale == (6.0, 6.0, 6.0)
+    assert default.panel_rotation == (0.0, 0.0, 270.0) and default.panel_scale == (4.5, 4.5, 4.5)
 
 
 def test_floor_labels_never_call_the_text_api_unprotected():
@@ -712,9 +714,9 @@ def test_floor_labels_never_call_the_text_api_unprotected():
 
 # ---------- prueba en vivo: una mano no suelta una carta con movimiento suave ----------
 def test_cards_leaving_a_hand_move_instantly_never_smoothly():
-    play_s = lua.play_card_face_down(17601, "Green", 6.0, 1.6, -18.0, 0.0)
+    play_s = t_play_card_face_down(17601, "Green", 6.0, 1.6, -18.0, 0.0)
     assert play_s.index("o.setRotation(") < play_s.index("o.setPosition(") and "Smooth" not in play_s
-    disc = lua.discard_cards([17601], [(1.0, 2.0, 3.0)], 90.0)
+    disc = t_discard_cards([17601], [(1.0, 2.0, 3.0)], 90.0)
     card_branch = disc.split('elseif o.type == "Deck"')[0]
     assert "o.setPosition(" in card_branch and "o.setRotation(" in card_branch and "Smooth" not in card_branch
 
@@ -767,7 +769,7 @@ def dial_rig(session, table):
 
 
 def test_discard_cards_takes_cards_out_of_decks_without_smoothing_too():
-    s = lua.discard_cards([17601], [(1.0, 2.0, 3.0)], 90.0)
+    s = t_discard_cards([17601], [(1.0, 2.0, 3.0)], 90.0)
     assert "smooth = false" in s and "smooth = true" not in s and "Smooth" not in s
 
 
@@ -1681,16 +1683,16 @@ def test_the_listo_button_exists_in_the_panel_and_is_parsed():
 
 
 def test_mulligan_builders_are_allowlisted_validated_and_never_read_only():
-    a = lua.return_hand_to_deck("Green", "d42056")
-    b = lua.shuffle_deck("d42056", (11.5, 12.0))
+    a = t_return_hand_to_deck("Green", "d42056")
+    b = t_shuffle_deck("d42056", (11.5, 12.0))
     for s in (a, b):
         assert lua.is_sendable(s)
     assert "putObject" in a and "getHandObjects(1)" in a and "d.shuffle()" in b and "d.getQuantity()" in b
     assert "17600" in a and "17629" in a
-    for bad in (lambda: lua.return_hand_to_deck("Verde", "abc"), lambda: lua.return_hand_to_deck("Green", 'x"); --'),
-                lambda: lua.return_hand_to_deck("Green", "abc", id_range=(1,)),
-                lambda: lua.shuffle_deck("a b"), lambda: lua.shuffle_deck("abc", (1,)),
-                lambda: lua.shuffle_deck("abc", (0, 0), id_range="x"), lambda: lua.shuffle_deck("abc", (0, float("inf")))):
+    for bad in (lambda: t_return_hand_to_deck("Verde", "abc"), lambda: t_return_hand_to_deck("Green", 'x"); --'),
+                lambda: t_return_hand_to_deck("Green", "abc", id_range=(1,)),
+                lambda: t_shuffle_deck("a b"), lambda: t_shuffle_deck("abc", (1,)),
+                lambda: t_shuffle_deck("abc", (0, 0), id_range="x"), lambda: t_shuffle_deck("abc", (0, float("inf")))):
         with pytest.raises((TypeError, ValueError)):
             bad()
     assert {"return_hand_to_deck", "shuffle_deck"}.isdisjoint(play.READ_ONLY_TAGS)

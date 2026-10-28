@@ -1,3 +1,4 @@
+from conftest import t_deal_cards, t_discard_cards, t_flip_card, t_play_card_face_down
 import json
 import re
 import socket
@@ -167,11 +168,11 @@ def test_move_piece_snippet(bprd):
 
 
 def test_play_and_flip_card_snippets():
-    p = lua.play_card_face_down(17615, "Blue", 1.5, 2.0, -3.0, rot_y=270)
+    p = t_play_card_face_down(17615, "Blue", 1.5, 2.0, -3.0, rot_y=270)
     assert "CardID == 17615" in p and "Vector(0, 270.0, 180)" in p and "setPosition(" in p and "Smooth" not in p
-    f_up = lua.flip_card("g1", rot_y=270)
+    f_up = t_flip_card("g1", rot_y=270)
     assert "Vector(0, 270.0, 0.0)" in f_up
-    assert "Vector(0, 270.0, 180.0)" in lua.flip_card("g1", 270, face_up=False)
+    assert "Vector(0, 270.0, 180.0)" in t_flip_card("g1", 270, face_up=False)
     for s in (p, f_up):
         assert is_sendable(s)
 
@@ -196,9 +197,9 @@ def test_read_face_down_snippet_does_not_flip():
 
 
 def test_new_physical_snippets(bprd):
-    d = lua.deal_cards("abc123", 2, "Blue")
+    d = t_deal_cards("abc123", 2, "Blue")
     assert "d.deal(k, \"Blue\")" in d and "math.min(2," in d
-    x = lua.discard_cards([17600, 17603], [(5.0, 1.0, 5.0), (5.0, 1.0, 7.2)], 90)
+    x = t_discard_cards([17600, 17603], [(5.0, 1.0, 5.0), (5.0, 1.0, 7.2)], 90)
     assert "[17600]={5.0, 1.0, 5.0}" in x and "[17603]={5.0, 1.0, 7.2}" in x and "Vector(0, 90.0, 0)" in x
     c = lua.count_hand("Red")
     assert 'Player["Red"]' in c
@@ -209,24 +210,24 @@ def test_new_physical_snippets(bprd):
 # ---- S5: inyeccion por argumentos de los constructores ----
 PAYLOAD = "0) UI.hide('roster') --"
 BAD = [
-    lambda b: lua.play_card_face_down(17600, "Blue", PAYLOAD, 0, 0),
-    lambda b: lua.play_card_face_down(17600, "Blue", 0, PAYLOAD, 0),
-    lambda b: lua.play_card_face_down(17600, "Blue", 0, 0, PAYLOAD),
-    lambda b: lua.play_card_face_down(17600, "Blue", 0, 0, 0, PAYLOAD),
-    lambda b: lua.play_card_face_down("17600) UI.hide('x') --", "Blue", 0, 0, 0),
-    lambda b: lua.play_card_face_down(17600, 'Blue"] UI.hide("x") --', 0, 0, 0),
-    lambda b: lua.play_card_face_down(17600, "Notacolor", 0, 0, 0),
-    lambda b: lua.play_card_face_down(True, "Blue", 0, 0, 0),
-    lambda b: lua.play_card_face_down(17600, "Blue", float("nan"), 0, 0),
+    lambda b: t_play_card_face_down(17600, "Blue", PAYLOAD, 0, 0),
+    lambda b: t_play_card_face_down(17600, "Blue", 0, PAYLOAD, 0),
+    lambda b: t_play_card_face_down(17600, "Blue", 0, 0, PAYLOAD),
+    lambda b: t_play_card_face_down(17600, "Blue", 0, 0, 0, PAYLOAD),
+    lambda b: t_play_card_face_down("17600) UI.hide('x') --", "Blue", 0, 0, 0),
+    lambda b: t_play_card_face_down(17600, 'Blue"] UI.hide("x") --', 0, 0, 0),
+    lambda b: t_play_card_face_down(17600, "Notacolor", 0, 0, 0),
+    lambda b: t_play_card_face_down(True, "Blue", 0, 0, 0),
+    lambda b: t_play_card_face_down(17600, "Blue", float("nan"), 0, 0),
     lambda b: lua.read_hand(PAYLOAD),
     lambda b: lua.count_hand('Red"] UI.hide("x") --'),
     lambda b: lua.read_discard('abc"); UI.hide("x") --'),
-    lambda b: lua.deal_cards("abc123", PAYLOAD, "Blue"),
-    lambda b: lua.deal_cards('a"); UI.hide("x") --', 1, "Blue"),
-    lambda b: lua.deal_cards("abc123", 1, PAYLOAD),
-    lambda b: lua.discard_cards([PAYLOAD], [(0, 0, 0)]),
-    lambda b: lua.discard_cards([17600], [(PAYLOAD, 0, 0)]),
-    lambda b: lua.discard_cards([17600], [(0, 0, 0)], PAYLOAD),
+    lambda b: t_deal_cards("abc123", PAYLOAD, "Blue"),
+    lambda b: t_deal_cards('a"); UI.hide("x") --', 1, "Blue"),
+    lambda b: t_deal_cards("abc123", 1, PAYLOAD),
+    lambda b: t_discard_cards([PAYLOAD], [(0, 0, 0)]),
+    lambda b: t_discard_cards([17600], [(PAYLOAD, 0, 0)]),
+    lambda b: t_discard_cards([17600], [(0, 0, 0)], PAYLOAD),
     lambda b: lua.flip_card('g"); UI.hide("x") --'),
     lambda b: lua.flip_card("g1", PAYLOAD),
     lambda b: lua.move_piece(b, 'abc") UI.hide("x") --', 1),
@@ -243,9 +244,9 @@ BAD = [
     lambda b: lua.read_health_dials([7]),
     lambda b: lua.zone_overlaps(['bf62a8"); UI.hide("x") --']),
     lambda b: lua.zone_overlaps("bf62a8"),
-    lambda b: lua.deal_cards("abc123", 1, "Blue", spot=(0, 0), id_range=(PAYLOAD, 17629)),
-    lambda b: lua.deal_cards("abc123", 1, "Blue", spot=(0, 0), id_range=(17600,)),
-    lambda b: lua.deal_cards("abc123", 1, "Blue", spot=(0, 0), id_range=(True, 17629)),
+    lambda b: t_deal_cards("abc123", 1, "Blue", spot=(0, 0), id_range=(PAYLOAD, 17629)),
+    lambda b: t_deal_cards("abc123", 1, "Blue", spot=(0, 0), id_range=(17600,)),
+    lambda b: t_deal_cards("abc123", 1, "Blue", spot=(0, 0), id_range=(True, 17629)),
     lambda b: lua.read_face_down_cards(PAYLOAD, 0),
     lambda b: lua.read_face_down_cards(0, PAYLOAD),
     lambda b: lua.read_face_down_cards(0, 0, PAYLOAD),
@@ -267,12 +268,12 @@ def test_sendable_registration_is_module_private():
 
 
 def test_numeric_arguments_are_formatted_with_repr():
-    s = lua.play_card_face_down(17600, "Blue", 1, 2, 3)
+    s = t_play_card_face_down(17600, "Blue", 1, 2, 3)
     assert "Vector(1.0, 2.0, 3.0)" in s and "CardID == 17600" in s
 
 
 def test_deal_cards_handles_single_card_and_empty_deck():
-    s = lua.deal_cards("abc123", 2, "Blue", spot=(5.0, -3.0), radius=2.0)
+    s = t_deal_cards("abc123", 2, "Blue", spot=(5.0, -3.0), radius=2.0)
     assert "d.deal(k, \"Blue\")" in s and "math.min(2," in s
     assert '"Card"' in s and "5.0" in s and "-3.0" in s and "getHandTransform" in s and is_sendable(s)
     assert "UI." not in s and "Global" not in s
@@ -291,11 +292,11 @@ def test_cancel_button_and_handler_exist():
 
 
 BAD_NEW = [
-    lambda b: lua.deal_cards("abc123", 1, "Blue", spot=(PAYLOAD, 0)),
-    lambda b: lua.deal_cards("abc123", 1, "Blue", spot=(0, PAYLOAD)),
-    lambda b: lua.deal_cards("abc123", 1, "Blue", spot=(0, 0), radius=PAYLOAD),
-    lambda b: lua.deal_cards("abc123", 1, "Blue", spot=(float("inf"), 0)),
-    lambda b: lua.deal_cards("abc123", 1, "Blue", spot=(0,)),
+    lambda b: t_deal_cards("abc123", 1, "Blue", spot=(PAYLOAD, 0)),
+    lambda b: t_deal_cards("abc123", 1, "Blue", spot=(0, PAYLOAD)),
+    lambda b: t_deal_cards("abc123", 1, "Blue", spot=(0, 0), radius=PAYLOAD),
+    lambda b: t_deal_cards("abc123", 1, "Blue", spot=(float("inf"), 0)),
+    lambda b: t_deal_cards("abc123", 1, "Blue", spot=(0,)),
     lambda b: lua.return_card_to_hand('g"); UI.hide("x") --', "Blue"),
     lambda b: lua.return_card_to_hand("g1", PAYLOAD),
     lambda b: lua.return_card_to_hand("g1", 'Blue"] UI.hide("x") --'),
@@ -311,17 +312,17 @@ def test_injection_attempts_in_new_builders_are_rejected(bprd, build):
 
 # ---- revision 3: constructores nuevos o cambiados ----
 BAD_R3 = [
-    lambda b: lua.discard_cards([17600], [(PAYLOAD, 0, 0)]),
-    lambda b: lua.discard_cards([17600], [(0, PAYLOAD, 0)]),
-    lambda b: lua.discard_cards([17600], [(0, 0, PAYLOAD)]),
-    lambda b: lua.discard_cards([17600], [(0, 0, 0)], rot_y=PAYLOAD),
-    lambda b: lua.discard_cards([PAYLOAD], [(0, 0, 0)]),
-    lambda b: lua.discard_cards(["1]=true} os.exit() --"], [(0, 0, 0)]),
-    lambda b: lua.discard_cards("17600", [(0, 0, 0)]),
-    lambda b: lua.discard_cards([17600], [(float("nan"), 0, 0)]),
-    lambda b: lua.discard_cards([17600, 17601], [(0, 0, 0)]),
-    lambda b: lua.discard_cards([17600], [(0, 0)]),
-    lambda b: lua.discard_cards([17600], "000"),
+    lambda b: t_discard_cards([17600], [(PAYLOAD, 0, 0)]),
+    lambda b: t_discard_cards([17600], [(0, PAYLOAD, 0)]),
+    lambda b: t_discard_cards([17600], [(0, 0, PAYLOAD)]),
+    lambda b: t_discard_cards([17600], [(0, 0, 0)], rot_y=PAYLOAD),
+    lambda b: t_discard_cards([PAYLOAD], [(0, 0, 0)]),
+    lambda b: t_discard_cards(["1]=true} os.exit() --"], [(0, 0, 0)]),
+    lambda b: t_discard_cards("17600", [(0, 0, 0)]),
+    lambda b: t_discard_cards([17600], [(float("nan"), 0, 0)]),
+    lambda b: t_discard_cards([17600, 17601], [(0, 0, 0)]),
+    lambda b: t_discard_cards([17600], [(0, 0)]),
+    lambda b: t_discard_cards([17600], "000"),
     lambda b: lua.read_discard("abc", ['x"); UI.hide("y") --']),
     lambda b: lua.read_discard("abc", [], [(PAYLOAD, 0)]),
     lambda b: lua.read_discard("abc", [], [(0, 0, 0)]),

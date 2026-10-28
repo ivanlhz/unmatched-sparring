@@ -95,7 +95,7 @@
         "Panel TURNO/VIDA/PARTIDA con linea de estado viva, botones apagados por estado (interactable=false) y set_panel sobre el objeto propio; Mulligan y Listo solo en la preparacion, Reiniciar partida (doble pulsacion en 3 s) el resto del tiempo",
         "Reiniciar partida: reset_deck devuelve cartas de ambos bandos a sus mazos y baraja, diales a vida completa y destinos a 0, miniaturas fuera del tablero (dead_spot / human_dead_spot), borra el guardado y vuelve al reparto",
         "El bot coloca tambien al heroe del humano (Hellboy) en su casilla de salida en la preparacion, en los dos ordenes; el humano solo coloca a su ayudante",
-        "Descarte del humano: una carta boca arriba junto al mazo nunca se excluye; un contador solo baja si la carta falta en dos botones distintos; aviso si una carta se fusiona con el mazo de robo; un dial tocado a mano solo bloquea ese dial",
+        "Descarte del humano: una carta boca arriba junto al mazo nunca se excluye; un contador solo baja si la carta falta en dos botones distintos o, en la primera instantanea, si el mazo de robo crece en tantas cartas como faltan sin que lo explique una carta menos en la mano; sin aviso de fusion con el mazo; un dial tocado a mano solo bloquea ese dial",
         "El bot aparta tambien las miniaturas caidas del humano (human_dead_spot o la zona del bot reflejada); etiquetas del suelo pequenas, legibles desde White, fuera de su caja y sin solaparse"
       ],
       "note": "Solo verificado contra FakeTTS. Pendiente en vivo: la instantanea desde el script del panel, el compuesto con Wait.condition, UI.setAttribute/interactable, reset_deck, las etiquetas y human_dead_spot."
