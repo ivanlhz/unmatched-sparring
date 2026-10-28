@@ -261,6 +261,7 @@ class Game:
 
     def can_attack(self, attacker: Fighter, target: Fighter) -> bool:
         return (attacker.alive and target.alive and attacker.owner != target.owner
+                and self.fx.may_attack(attacker.owner)
                 and self.board.can_reach_target(attacker.pos, target.pos, attacker.ranged))
 
     # mano conocida del rival (efecto «mira la mano»): ver KnownHand
@@ -339,14 +340,16 @@ class Game:
         self.players[player].hand.remove(card)
         self.card_left_hand(player, card)
 
-    def discard_card(self, player: int, card: Card, played: bool = False) -> None:
-        """`played`: the card is being used (a scheme), not discarded by an effect: no `card_discarded` event."""
+    def discard_card(self, player: int, card: Card, played: bool = False, cause: str | None = None) -> None:
+        """`played`: the card is being used (a scheme), not discarded by an effect: no `card_discarded` event.
+        `cause`: why it was discarded when that matters to a trigger ("hand_limit": Wildfire does not return it)."""
         self.take_from_hand(player, card)
         self.players[player].discard.append(card)
         if not played:
-            self.fx.emit("card_discarded", player, card, "hand")
+            self.fx.emit("card_discarded", player, card, "hand", cause)
 
-    def force_discard(self, player: int, n: int, reason: str, source: int | None = None) -> list[Card]:
+    def force_discard(self, player: int, n: int, reason: str, source: int | None = None,
+                      cause: str | None = None) -> list[Card]:
         hand = self.players[player].hand
         n = min(n, len(hand))
         if not n:
@@ -356,7 +359,7 @@ class Game:
         self.fx.emit("force_discard", player, n)
         chosen = self.controllers[player].choose_discard(self, player, n, reason)[:n]
         for c in chosen:
-            self.discard_card(player, c)
+            self.discard_card(player, c, cause=cause)
         return chosen
 
     def grant_actions(self, n: int) -> None:
@@ -384,7 +387,7 @@ class Game:
         hand = self.players[self.turn].hand
         limit = self.fx.hand_limit(self.turn, HAND_LIMIT)
         if len(hand) > limit:
-            self.force_discard(self.turn, len(hand) - limit, "limite de mano")
+            self.force_discard(self.turn, len(hand) - limit, "limite de mano", cause="hand_limit")
         self.turn = 1 - self.turn
         self.turn_no += 1
 
@@ -436,6 +439,8 @@ class Game:
                values: tuple[int, int] = (0, 0), boost: Card | None = None):
         """Transaccional: valida alcance y las dos cartas antes de gastar la accion."""
         from .combat import resolve_combat
+        if not self.fx.may_attack(attacker.owner):
+            raise RuleError(f"{attacker.fid} no puede atacar como primera accion del turno")
         if not self.can_attack(attacker, target):
             raise RuleError(f"{attacker.fid} no alcanza a {target.fid}")
         self.check_attack_card(attacker, card)
@@ -459,6 +464,8 @@ class Game:
         self.damage(target, 1)
 
     def hellboy_anung_start(self, player: int, card: Card, dest: int | None) -> None:
+        if "hellboy" in self.fx.dsl_heroes:      # the DSL trigger anung_discard_move already ran at begin_turn
+            return
         self.discard_card(player, card)
         if dest is not None:
             self.move_fighter(self.hero_named("Hellboy"), dest, card.boost)
@@ -466,6 +473,8 @@ class Game:
     def hellboy_detective_draw(self, player: int) -> bool:
         """Robo de inicio de turno en la salida rival: el disparador `draw` activo en la forma actual (Hellboy en
         OCCULT DETECTIVE: 2 cartas) con la condicion `hero_on_rival_start`; cuantas, lo dicen los datos."""
+        if "hellboy" in self.fx.dsl_heroes:      # the DSL trigger detective_draw already ran at begin_turn
+            return False
         hero = self.hero(player)
         for t in self.triggers(player, "start_of_turn"):
             if t.get("effect") != "draw" or t.get("condition") != "hero_on_rival_start":

@@ -50,6 +50,13 @@ class EffectState:
         from . import ongoing
         return ongoing.hand_limit(self.game(), player, default)
 
+    def may_attack(self, player: int) -> bool:
+        """False while an ONGOING forbids attacking as the first action of the turn (Pact Of Freedom)."""
+        if not self.dsl_heroes or not any(self.ongoing):
+            return True
+        from . import ongoing
+        return ongoing.may_attack(self.game(), player)
+
     def count_action(self) -> None:
         if self.dsl_heroes:
             self.taken += 1

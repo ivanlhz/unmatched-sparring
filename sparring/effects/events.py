@@ -18,7 +18,7 @@ from .select import _matches, condition, fighter_candidates
 # Ability triggers the engine still drives through its controllers/session (the player decides when, with the cards
 # already chosen): `Game.hellboy_detective_draw`, `Game.hellboy_anung_start`, `Game.medusa_ability`. They are skipped
 # here so nothing fires twice; `run_trigger` runs them on request and a test pins that both paths agree.
-DRIVEN_BY_THE_ENGINE = frozenset({"detective_draw", "anung_discard_move", "medusa_gaze"})
+DRIVEN_BY_THE_ENGINE = frozenset({"medusa_gaze"})
 
 _BOTS = ControllerChooser()
 
@@ -62,7 +62,8 @@ def _normalize(game, name: str, args: tuple) -> dict | None:
     if name == "after_attack":
         return {"name": name, "attacker": args[0], "target": args[1]}
     if name == "card_discarded":
-        return {"name": name, "player": args[0], "card": args[1], "zone": args[2] if len(args) > 2 else "hand"}
+        return {"name": name, "player": args[0], "card": args[1], "zone": args[2] if len(args) > 2 else "hand",
+                "cause": args[3] if len(args) > 3 else None}
     if name == "card_played":
         return {"name": name, "player": args[0], "card": args[1]}
     if name == "fighter_defeated":
@@ -144,6 +145,8 @@ def matches(game, owner: int, when: dict, ev: dict) -> bool:
         if not _player_ok(when.get("player", "owner"), ev["player"], owner):
             return False
         if "from" in when and ev.get("zone") not in when["from"]:
+            return False
+        if when.get("cause_not") is not None and ev.get("cause") == when["cause_not"]:
             return False
         return _matches(ev["card"], when.get("filter") or {})
     if name == "fighter_defeated":

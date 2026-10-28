@@ -208,7 +208,7 @@ Nunca hay condiciones en cadenas.
 | `attacked` | `target: FighterSel` | `$attacker`, `$target`, `attack_card` |
 | `combat_damage_dealt` | `by: FighterSel` | `$by`, `$to`, `$amount` |
 | `damage_taken` | `target: FighterSel`, `damage: effect | combat | any`, `min` | `$target`, `$amount` |
-| `card_discarded` | `player`, `from: [hand, deck]`, `filter: CardFilter` | `$card` |
+| `card_discarded` | `player`, `from: [hand, deck]`, `cause_not: hand_limit`?, `filter: CardFilter` | `$card` |
 | `card_played` | `player`, `filter` | `$card` |
 | `fighter_defeated` | `fighter: FighterSel` | `$fighter` |
 
@@ -501,17 +501,24 @@ Decisiones dudosas de la migracion (ver tambien `notes` de cada fichero):
   `Game.damage` call, i.e. one combat; damage redirected to Koschei hits Koschei, not her.
 - `card_discarded` carries the zone (`hand`, `deck`). `Game.discard_card(..., played=True)` (a scheme being played)
   raises no event: playing a card is not discarding it (so Wildfire does not bounce Searing Clarity back).
-- Triggers `detective_draw`, `anung_discard_move`, `medusa_gaze` are skipped by the dispatcher (the session and
-  controllers still pick cards and moves through `Game.hellboy_*` / `medusa_ability`); `events.run_trigger` runs them
-  on request and `tests/test_effects_events.py` pins that both paths give the same state.
+- Hellboy has two modes. Flag off: the wrappers `Game.hellboy_detective_draw` / `hellboy_anung_start` drive him (session,
+  adapter, script) and the dispatcher does nothing. `'hellboy'` in `dsl_heroes` (D1): the dispatcher runs his triggers
+  `detective_draw` / `anung_discard_move` at `begin_turn`, and the wrappers become no-ops (`False` / return), so nothing
+  fires twice. `medusa_gaze` is still engine-driven (`medusa_ability`) until C5. `events.run_trigger` runs a trigger on
+  request; tests pin that both modes give the same state.
+- `card_discarded` carries `cause`; `Game.end_turn`'s hand-limit discard uses `cause="hand_limit"` and Wildfire's
+  `cause_not: hand_limit` leaves such a burning card in the discard pile (Ivan, 28/10).
+- `no_attack_as_first_action` (Pact Of Freedom) is enforced in `Game.can_attack` / `Game.attack` through `fx.may_attack`
+  (`game.turn == player and fx.taken == 0`); the human side is blocked by the panel in E1.
+- `fx.parked` persistence and resuming a parked run are E1's job.
 - ONGOING slot: `fx.ongoing[player]` = `{"card_id"}` (DSL card) or `{"card_id": None, "bonus", "label"}` (the bonus
   `Game.add_combat_bonus` has always stored; saved in the old `combat_bonus` key). `Game.combat_bonus*` are views
   over it. `ongoing.resolve_scheme` plays a DSL scheme: the player's active ONGOING is replaced BEFORE the new
   card's ops run (so the new rules are not yet in force), the card leaves hand/discard while it resolves, then stays in
   play (ONGOING) or goes to the discard pile. Rules and statuses of a card in play are read from the card
   (`ongoing.active_modifiers`, `rules`, `rule_total`), never copied.
-- Wired rules: `max_hand_size` (`Game.end_turn` via `fx.hand_limit`), `no_gain_actions` and the `cannot_gain_actions`
-  status (`fx.can_gain_actions`). `effect_damage_bonus` and `no_attack_as_first_action` are exposed by
-  `ongoing.rule_total` / `ongoing.rules` for the damage and attack code (C2 / the AI).
+- Wired rules: `no_attack_as_first_action`, `max_hand_size` (`Game.end_turn` via `fx.hand_limit`), `no_gain_actions` and the `cannot_gain_actions`
+  status (`fx.can_gain_actions`). `effect_damage_bonus` is exposed by
+  `ongoing.rule_total` for the damage code (C2).
 - `put_in_hand` (discard or deck to hand) is implemented minimally in `ops_core` for Wildfire's return; a card taken
   from the discard pile is public, so the rival's `KnownHand` gets it.

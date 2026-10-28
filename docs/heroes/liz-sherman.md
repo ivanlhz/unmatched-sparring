@@ -48,6 +48,7 @@ Las otras 15 (Fleeting Moments x3, B.P.R.D. Training x2, Rekindle x2, Feint x3, 
 - Fleeting Moments: el descarte al azar del rival lo saca el humano o un índice uniforme; la carta descartada es pública y se descuenta de KnownHand. Su robo es una carta no vista.
 - Incinerate: el rival elige qué 2 descarta; públicas al descartarse.
 - Wildfire: la ardiente que vuelve a la mano es pública: pasa a la mano conocida del rival.
+- Wildfire, única excepción (Iván, 28/10): una ardiente descartada por el límite de mano al final del turno NO vuelve a la mano; se queda en el descarte (evento `card_discarded` con `cause: hand_limit`, filtrado con `cause_not` en `wildfire_return`).
 - Pyrotechnics: cartas boca abajo al fondo; el bot no lee cuáles fueron cuando el humano lleva a Liz (solo cuentas).
 
 ## Decisiones de Ivan (28/10)

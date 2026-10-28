@@ -199,7 +199,7 @@
    {"type": "object", "additionalProperties": false, "required": ["event", "target", "damage"],
     "properties": {"event": {"const": "damage_taken"}, "target": {"$ref": "#/$defs/FighterSel"}, "damage": {"enum": ["effect", "combat", "any"]}, "min": {"type": "integer", "minimum": 1}}},
    {"type": "object", "additionalProperties": false, "required": ["event", "player", "from"],
-    "properties": {"event": {"const": "card_discarded"}, "player": {"$ref": "#/$defs/PlayerOrAny"}, "from": {"type": "array", "minItems": 1, "items": {"enum": ["hand", "deck"]}}, "filter": {"$ref": "#/$defs/CardFilter"}}},
+    "properties": {"event": {"const": "card_discarded"}, "player": {"$ref": "#/$defs/PlayerOrAny"}, "from": {"type": "array", "minItems": 1, "items": {"enum": ["hand", "deck"]}}, "cause_not": {"enum": ["hand_limit"]}, "filter": {"$ref": "#/$defs/CardFilter"}}},
    {"type": "object", "additionalProperties": false, "required": ["event", "player"],
     "properties": {"event": {"const": "card_played"}, "player": {"$ref": "#/$defs/PlayerOrAny"}, "filter": {"$ref": "#/$defs/CardFilter"}}},
    {"type": "object", "additionalProperties": false, "required": ["event", "fighter"],

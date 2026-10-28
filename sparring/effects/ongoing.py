@@ -141,6 +141,11 @@ def can_gain_actions(game, player: int) -> bool:
                    for owner, m in active_modifiers(game, "status"))
 
 
+def may_attack(game, player: int) -> bool:
+    """Pact Of Freedom: nobody attacks as the first action of their own turn."""
+    return not (rules(game, "no_attack_as_first_action") and game.turn == player and game.fx.taken == 0)
+
+
 def hand_limit(game, player: int, default: int) -> int:
     return min([default] + [m["amount"] for m in rules(game, "max_hand_size")])
 

@@ -499,16 +499,69 @@ def test_a_paused_trigger_is_parked_not_lost(liz_baba):
     assert len(g.fx.parked) == 1 and g.fx.parked[0].awaiting.kind == "fighter"
 
 
+# ---------------------------------------------------------------- Wildfire and the hand limit
+
+@pytest.mark.parametrize("secrecy,limit", [(False, 7), (True, 3)])
+def test_burning_cards_discarded_for_the_hand_limit_stay_in_the_discard(liz_baba, secrecy, limit):
+    g = liz_baba
+    if secrecy:
+        ongoing.enter_play(g, 1, give(g, 1, "Pact Of Secrecy"))
+    hand = g.players[0].hand
+    burning = [give(g, 0, t) for t in ("Fireball", "Flame Lash", "Incinerate", "Burning Barrier", "Pyrotechnics")]
+    while len(hand) < 14:
+        give(g, 0, next(c.title for c in g.players[0].deck if "burning" not in c.tags))
+    g.controllers[0].discards = burning + [c for c in hand if c not in burning]
+    g.end_turn()
+    assert len(g.players[0].hand) == limit
+    assert all(c in g.players[0].discard and c not in g.players[0].hand for c in burning)    # not brought back
+
+
+def test_a_burning_card_forced_to_discard_by_an_effect_still_returns(liz_baba):
+    g = liz_baba
+    fire = give(g, 0, "Fireball")
+    g.controllers[0].discards = [fire]
+    g.force_discard(0, 1, "effect")
+    assert fire in g.players[0].hand
+
+
+# ---------------------------------------------------------------- Pact Of Freedom
+
+def test_no_attack_as_first_action_blocks_the_first_attack_of_the_turn_only(abe_baba):
+    g = abe_baba
+    ongoing.enter_play(g, 1, give(g, 1, "Pact Of Freedom"))
+    abe, baba = g.fighters["abe"], g.fighters["baba"]
+    place(g, abe=sorted(g.board.adj[baba.pos])[0])
+    atk = abe_attacker_card(g)
+    g.players[0].hand.append(atk)
+    assert not g.can_attack(abe, baba)
+    with pytest.raises(Exception, match="primera accion"):
+        g.attack(abe, baba, atk)
+    assert g.actions_left == 2 and atk in g.players[0].hand
+    g.maneuver(0, {})
+    assert g.can_attack(abe, baba)
+    g.attack(abe, baba, atk)
+
+
+def test_the_first_action_rule_is_per_player_and_needs_the_pact(abe_baba, bprd):
+    g = abe_baba
+    assert g.fx.may_attack(0)                              # no pact in play
+    ongoing.enter_play(g, 1, give(g, 1, "Pact Of Freedom"))
+    assert not g.fx.may_attack(0) and g.fx.may_attack(1)   # only the player whose turn it is has a "first action"
+    ongoing.leave_play(g, 1)
+    assert g.fx.may_attack(0)
+    assert mk(bprd, (ABE, BABA), set()).fx.may_attack(0)
+
+
 # ---------------------------------------------------------------- Hellboy: DSL triggers agree with the engine wrappers
 
-def hellboy_game(bprd):
-    g = mk(bprd, ("medusa", "hellboy"), {"hellboy"})
+def hellboy_game(bprd, dsl=True):
+    g = mk(bprd, ("medusa", "hellboy"), {"hellboy"} if dsl else set())
     g.turn = 1
     return g
 
 
 def test_hellboy_detective_draw_trigger_matches_the_engine_wrapper(bprd):
-    a, b = hellboy_game(bprd), hellboy_game(bprd)
+    a, b = hellboy_game(bprd, dsl=False), hellboy_game(bprd)
     for g in (a, b):
         g.fighters["hellboy"].pos = g.start_spaces[0]
     assert a.hellboy_detective_draw(1) is True
@@ -523,7 +576,7 @@ def test_hellboy_detective_draw_trigger_matches_the_engine_wrapper(bprd):
 
 
 def test_hellboy_anung_trigger_matches_the_engine_wrapper(bprd):
-    a, b = hellboy_game(bprd), hellboy_game(bprd)
+    a, b = hellboy_game(bprd, dsl=False), hellboy_game(bprd)
     for g in (a, b):
         g.players[1].discard = [c for c in g.players[1].full_set if c.destiny][:6]       # ANUNG UN RAMA
         assert g.form(1) == "ANUNG UN RAMA"
@@ -536,9 +589,22 @@ def test_hellboy_anung_trigger_matches_the_engine_wrapper(bprd):
     assert [c.card_id for c in b.players[1].discard] == [c.card_id for c in a.players[1].discard]
 
 
-def test_the_engine_driven_triggers_do_not_fire_twice_from_begin_turn(bprd):
+def test_flag_off_the_wrappers_drive_hellboy_and_begin_turn_does_nothing(bprd):
+    g = hellboy_game(bprd, dsl=False)
+    g.fighters["hellboy"].pos = g.start_spaces[0]
+    n = len(g.players[1].hand)
+    g.begin_turn()
+    assert len(g.players[1].hand) == n
+    assert g.hellboy_detective_draw(1) is True and len(g.players[1].hand) == n + 2
+
+
+def test_flag_on_begin_turn_runs_the_dsl_trigger_and_the_wrappers_are_inert(bprd):
     g = hellboy_game(bprd)
     g.fighters["hellboy"].pos = g.start_spaces[0]
     n = len(g.players[1].hand)
-    g.begin_turn()                                           # the session decides; the dispatcher must not draw on its own
-    assert len(g.players[1].hand) == n
+    g.begin_turn()
+    assert len(g.players[1].hand) == n + 2
+    assert g.hellboy_detective_draw(1) is False and len(g.players[1].hand) == n + 2      # no double firing
+    hand, pos = list(g.players[1].hand), g.fighters["hellboy"].pos
+    g.hellboy_anung_start(1, hand[0], pos)
+    assert g.players[1].hand == hand and g.fighters["hellboy"].pos == pos
