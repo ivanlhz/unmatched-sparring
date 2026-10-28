@@ -166,6 +166,19 @@
         "Va en el mismo script del paso de ataque (sin mensajes extra a TTS) y no usa messageID 1 ni el Global UI",
         "Probado con FakeTTS y en una partida en vivo"
       ]
+    },
+    {
+      "id": "F13",
+      "title": "Mod del Workshop con el cerebro como servicio web (futuro)",
+      "status": "backlog",
+      "criteria": [
+        "Mesa propia del sparring publicada en el Workshop de Steam, separada del save del torneo: heroes y mapas de cada oleada, mazos, descartes, diales y panel colocados de serie (sin config/partida.json por mesa)",
+        "El cerebro sigue en Python y se sirve por HTTP; el mod lo llama con WebRequest de TTS, sin que el jugador instale nada",
+        "La IA no se reescribe en Lua (el Lua de TTS corre en el hilo de la mesa y la congelaria con la ISMCTS)",
+        "Sin trampas tambien en remoto: el mod solo envia al servicio la informacion publica y lo visto por efectos de mirar la mano",
+        "Decidir antes de empezar: donde se aloja el servicio, coste, y limites de uso por partida"
+      ],
+      "note": "Idea de Ivan (28/10) para compartir el bot con la comunidad (Unmatched Canarias). Va despues de F08 como minimo."
     }
   ]
 }
