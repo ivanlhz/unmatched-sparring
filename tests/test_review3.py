@@ -334,6 +334,8 @@ def test_wildfire_forced_discard_is_accepted_when_burning_card_returned_to_hand(
     assert session.pending_discard is not None and any("Wildfire" in m for m in msgs)
     maneuver_plan(session, monkeypatch)
     msgs = session.handle(Event.END_ACTION)       # descarto una ardiente: volvio a la mano, el descarte no crece
+    assert session.pending_discard is not None and any("otra vez" in m for m in msgs)   # primero insiste
+    msgs = session.handle(Event.END_ACTION)
     assert session.pending_discard is None and not any("Aun falta" in m for m in msgs)
     assert game.turn == 1
 
@@ -346,6 +348,7 @@ def test_wildfire_hand_limit_is_accepted_and_the_turn_ends(rig, monkeypatch):
     game.actions_left = 0
     msgs = session.handle(Event.END_ACTION)
     assert session.pending_discard["kind"] == "limit" and any("Wildfire" in m for m in msgs)
+    session.handle(Event.END_ACTION)              # insiste una vez
     msgs = session.handle(Event.END_ACTION)       # no la dejo en el descarte: se le cree y el turno acaba
     assert session.pending_discard is None and any("Fin de tu turno" in m for m in msgs)
 
@@ -380,3 +383,23 @@ def test_wildfire_burning_card_taken_back_from_discard_goes_to_hand_and_is_known
     st = game.players[1]
     assert burning in st.hand and burning not in st.discard and st.deck.count(burning) == in_deck
     assert burning.card_id in game.players[0].known.seen
+
+
+def test_wildfire_burning_card_shuffled_into_deck_is_not_taken_as_returned_to_hand(rig, monkeypatch):
+    """Rekindle / Searing Clarity: la ardiente sale del descarte hacia el mazo y tu mano no crece."""
+    session, table, game = rig
+    claws_attack(session, table, game, monkeypatch)
+    liz_human(game)
+    session.handle(Event.REVEAL)
+    burning = card(game, 1, "Glimpse Of Hell", 1)
+    object.__setattr__(burning, "tags", frozenset({"burning"}))
+    table.human_discard = [burning.card_id]
+    table.human_count = 1
+    maneuver_plan(session, monkeypatch)
+    session.handle(Event.END_ACTION)
+    assert burning in game.players[1].discard
+    table.human_discard = []                          # se baraja en el mazo: la mano sigue con 1
+    for _ in range(3):
+        session.sync_human()
+        session._epoch += 1
+    assert burning not in game.players[1].discard and burning.card_id not in game.players[0].known.seen

@@ -252,6 +252,7 @@ class Session:
         self._deck_qty = -1                                 # cartas del mazo de robo del humano en la ultima lectura
         self._deal_check: tuple[int, int] | None = None     # (mano, descarte) del humano al repartirle la carta de Maniobra
         self._epoch = 0                                     # numero de boton atendido (para confirmar bajas del descarte)
+        self._wild_credit: tuple[int, int] = (-1, 0)        # Wildfire: (turno, cartas de mas en tu mano sin explicar)
         self._gone: dict[int, int] = {}                     # CardID que falta en el descarte de la mesa -> boton en que se vio
         self._depth = 0                                     # >0 mientras se atiende un boton, el inicio o una reanudacion
         self._restart_at: float | None = None               # instante del primer toque de Reiniciar partida
@@ -1870,12 +1871,21 @@ class Session:
             if d["baseline"] is None:
                 d["baseline"] = len(st.discard)
             done = len(st.discard) >= d["baseline"] + d["n"]
-        if not done and self._human_wildfire():   # las ardientes volvieron a la mano: se le cree
+        if not done and self._human_wildfire() and d.get("wildfire_asked"):
+            # segunda vez: las ardientes volvieron a la mano sin pasar por el descarte de la mesa; se le cree
             if d["kind"] == "limit":
-                while len(st.hand) > HAND_LIMIT:
-                    st.deck.append(st.hand.pop())
+                known = self.game.players[self.bot].known.seen
+                while len(st.hand) > HAND_LIMIT:        # al mazo primero las que el bot NO ha visto
+                    spare = next((c for c in reversed(st.hand) if c.card_id not in known), st.hand[-1])
+                    st.hand.remove(spare)
+                    st.deck.append(spare)
             self.say("Wildfire: doy el descarte por hecho (las ardientes vuelven a tu mano).")
             return True
+        if not done and self._human_wildfire():
+            d["wildfire_asked"] = True
+            self.say("Aun no veo el descarte en la mesa. Si descartaste ardientes que han vuelto a tu mano, pulsa "
+                     "Fin de accion otra vez y lo doy por hecho.", ChatKind.WARNING)
+            return False
         if not done:
             self.say(f"Aun falta descartar {d['n']} carta(s); lleva tambien al descarte las cartas ya jugadas.", ChatKind.WARNING)
         return done
@@ -3209,7 +3219,11 @@ class Session:
         hand_drop = max(0, len(st.hand) - real)
         grew = (isinstance(deck_qty, int) and deck_qty >= 0 and self._deck_qty >= 0 and bool(fresh)
                 and deck_qty - self._deck_qty - hand_drop >= len(fresh))
+        # Wildfire: solo vuelve a la mano una ardiente que sale del descarte si tu mano de la mesa crecio sin
+        # explicacion (la recogiste) y no la explica el mazo (Rekindle, Searing Clarity: la barajan en el mazo)
         wildfire, back = self._human_wildfire(), []
+        turn, credit = self._wild_credit
+        credit = (credit if turn == self.game.turn_no else 0) + max(0, real - len(st.hand))
         for c in list(st.discard):
             if c.card_id in ids:
                 self._gone.pop(c.card_id, None)
@@ -3221,8 +3235,9 @@ class Session:
             del self._gone[c.card_id]
             st.discard.remove(c)
             st.deck.append(c)
-            if wildfire and "burning" in c.tags:     # Wildfire: la ardiente vuelve a la mano, y a la vista
-                back.append(c)
+            if wildfire and "burning" in c.tags and not (grew and c in fresh) and len(back) < credit:
+                back.append(c)                          # vuelve a la mano, y a la vista
+        self._wild_credit = (self.game.turn_no, credit - len(back)) if wildfire else (-1, 0)
         for c in back:
             self._make_known(c, keep=tuple(back))
             self.game.players[self.bot].known.add(c, self.game.turn_no)
