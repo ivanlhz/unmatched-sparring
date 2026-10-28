@@ -67,9 +67,25 @@ class EvalWeights:
 
 @dataclass(frozen=True)
 class Knowledge:
-    """Cartas que el observador sabe que estan en la mano de un jugador por un efecto legitimo de mirar la mano,
-    ya descontadas de las que han salido (el motor las mantiene; el adaptador solo las respeta)."""
+    """A frozen snapshot of the observer's `KnownHand` (the single source of truth, kept by the engine, already
+    discounted of the cards that left): what a legitimate look-at-the-hand or reveal effect showed. The adapter only
+    respects it. Keys are the RIVAL player whose hand/deck it describes.
+    - known_in_hand: certainly in that hand.
+    - possible_in_hand / possible_bounds: seen once, maybe gone face down; between lo and hi of them are in the hand.
+    - top_of_deck: that deck's known prefix, top first."""
     known_in_hand: dict[int, tuple[Card, ...]] = field(default_factory=dict)
+    possible_in_hand: dict[int, tuple[Card, ...]] = field(default_factory=dict)
+    possible_bounds: dict[int, tuple[int, int]] = field(default_factory=dict)
+    top_of_deck: dict[int, tuple[Card, ...]] = field(default_factory=dict)
+
+    @classmethod
+    def from_game(cls, game: Game, observer: int) -> "Knowledge":
+        known, rival = game.players[observer].known, 1 - observer
+        st = game.players[rival]
+        poss = tuple(known.possible_cards(st))
+        return cls({rival: tuple(known.cards(st))}, {rival: poss},
+                   {rival: (min(known.possible_lo, len(poss)), min(known.possible_hi, len(poss)))},
+                   {rival: tuple(known.top(st))})
 
 
 def squash(x: float) -> float:
@@ -445,7 +461,9 @@ class EngineState:
                 rng.shuffle(st.deck)
                 continue
             known = [c for c in self.knowledge.known_in_hand.get(p, ()) if c not in st.discard]
-            pool = sorted((c for c in st.full_set if c not in st.discard and c not in known), key=lambda c: c.card_id)
+            top = [c for c in self.knowledge.top_of_deck.get(p, ()) if c not in st.discard and c not in known]
+            pool = sorted((c for c in st.full_set if c not in st.discard and c not in known and c not in top),
+                          key=lambda c: c.card_id)
             if self.pending is not None and self.pending[2] is None and g.fighters[self.pending[0]].owner == p:
                 attacker = g.fighters[self.pending[0]]
                 legal = [c for c in known if c.can_attack and c.usable_by(attacker.name)]
@@ -460,8 +478,20 @@ class EngineState:
                 self.pending = (self.pending[0], self.pending[1], card)
             rng.shuffle(pool)
             k = max(0, len(st.hand) - len(known))
+            maybe = [c for c in self.knowledge.possible_in_hand.get(p, ()) if c in pool]
+            if maybe and k:
+                # seen once but maybe gone face down: between lo and hi of them are in the hand, the rest back in the pool
+                lo, hi = self.knowledge.possible_bounds.get(p, (0, len(maybe)))
+                lo = min(lo, k, len(maybe))
+                chosen = rng.sample(maybe, rng.randint(lo, min(max(hi, lo), k, len(maybe))))
+                others = [c for c in pool if c not in maybe]
+                st.hand = known + chosen + others[:k - len(chosen)]
+                leftover = others[k - len(chosen):] + [c for c in maybe if c not in chosen]
+                rng.shuffle(leftover)
+                st.deck = top + leftover
+                continue
             st.hand = known + pool[:k]
-            st.deck = pool[k:]
+            st.deck = top + pool[k:]
 
     # ---------- pasos automaticos ----------
     def _advance(self) -> None:

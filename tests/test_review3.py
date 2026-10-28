@@ -340,17 +340,20 @@ def test_wildfire_forced_discard_is_accepted_when_burning_card_returned_to_hand(
     assert game.turn == 1
 
 
-def test_wildfire_hand_limit_is_accepted_and_the_turn_ends(rig, monkeypatch):
+def test_wildfire_hand_limit_discard_must_be_on_the_table(rig, monkeypatch):
+    """Ivan's ruling (28/10): the hand-limit discard is the exception to Wildfire; nothing returns to the hand."""
     session, table, game = rig
     liz_human(game)
     table.human_count = 9
     maneuver_plan(session, monkeypatch)
     game.actions_left = 0
     msgs = session.handle(Event.END_ACTION)
-    assert session.pending_discard["kind"] == "limit" and any("Wildfire" in m for m in msgs)
-    session.handle(Event.END_ACTION)              # insiste una vez
-    msgs = session.handle(Event.END_ACTION)       # no la dejo en el descarte: se le cree y el turno acaba
-    assert session.pending_discard is None and any("Fin de tu turno" in m for m in msgs)
+    assert session.pending_discard["kind"] == "limit" and not any("Wildfire" in m for m in msgs)
+    msgs = session.handle(Event.END_ACTION)
+    assert session.pending_discard is not None and any("Aun falta" in m for m in msgs)
+    table.human_count = 7                         # the two cards went to the discard for real
+    session.handle(Event.END_ACTION)
+    assert session.pending_discard is None
 
 
 def test_without_wildfire_the_forced_discard_still_waits(rig, monkeypatch):

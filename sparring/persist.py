@@ -10,7 +10,7 @@ from pathlib import Path
 
 from .effects import ongoing
 from .effects.state import EffectState
-from .state import Game
+from .state import Game, KnownHand
 
 VERSION = 1
 
@@ -31,7 +31,7 @@ def game_to_dict(g: Game) -> dict:
         "players": [{"deck": [c.card_id for c in p.deck], "hand": [c.card_id for c in p.hand],
                      "discard": [c.card_id for c in p.discard],
                      # mano rival conocida (efecto «mira la mano»): solo se escribe si hay algo que recordar
-                     **({"known": {"seen": list(p.known.seen), "turn_no": p.known.turn_no}} if p.known.seen else {})}
+                     **({"known": p.known.to_dict()} if not p.known.is_empty() else {})}
                     for p in g.players],
         "rng": list(g.rng.getstate()[:2]) + [g.rng.getstate()[2]],
     }
@@ -56,9 +56,7 @@ def apply_game(g: Game, d: dict) -> None:
             p.deck[:] = [by_id[i] for i in saved["deck"]]
             p.hand[:] = [by_id[i] for i in saved["hand"]]
             p.discard[:] = [by_id[i] for i in saved["discard"]]
-            known = saved.get("known") or {}
-            p.known.seen = [int(i) for i in known.get("seen", [])]
-            p.known.turn_no = known.get("turn_no")
+            p.known = KnownHand.from_dict(saved.get("known"))
         version, internal, gauss = d["rng"]
         g.rng.setstate((version, tuple(internal), gauss))
     except (KeyError, TypeError, ValueError, IndexError) as e:

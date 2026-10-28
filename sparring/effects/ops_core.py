@@ -23,7 +23,6 @@ PLUGIN_TESTS: dict[str, Callable] = {}
 PENDING_PHASES = {
     "cancel_effects": "C2", "modify_value": "C2", "set_value": "C2", "boost": "C2", "status": "C2",
     "redirect_damage": "C2",
-    "look_hand": "C4", "reveal": "C4", "look_deck": "C4", "search_deck": "C4", "return_to_deck": "C4",
 }
 
 
@@ -155,6 +154,7 @@ def _discard(run, game, spec):
             game.discard_card(player, card)
         elif zone == "deck":
             game.players[player].deck.remove(card)
+            game.players[1 - player].known.drop_top(card.card_id)
             game.players[player].discard.append(card)
             game.fx.emit("card_discarded", player, card, "deck")
         elif zone == "in_play":
@@ -163,20 +163,6 @@ def _discard(run, game, spec):
                 game.players[player].discard.append(card)
     if "as" in spec:
         run.bind("cards", spec["as"], [c.card_id for _, _, c in items])
-
-
-@op("put_in_hand")
-def _put_in_hand(run, game, spec):
-    """Discard or deck -> the owner's hand. Minimal (Wildfire's return); C4 owns the hidden-information rules.
-    A card taken from the discard pile was public, so the rival keeps knowing it."""
-    for player, zone, card in _cards_of(game, run, spec["cards"], "put in hand"):
-        if zone not in ("discard", "deck"):
-            continue
-        pile = game.players[player]
-        (pile.discard if zone == "discard" else pile.deck).remove(card)
-        pile.hand.append(card)
-        if zone == "discard":
-            game.players[1 - player].known.add(card, game.turn_no)
 
 
 @op("choose")
@@ -350,3 +336,6 @@ def _plugin(run, game, spec):
     except KeyError:
         raise NotImplementedError(f"plugin {spec['id']}: not registered") from None
     return handler(run, game, spec)
+
+
+from . import ops_info  # noqa: E402,F401  (registers look_hand, reveal, look_deck, search_deck, return_to_deck, put_in_hand)

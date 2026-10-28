@@ -39,53 +39,156 @@ class Fighter:
 
 @dataclass
 class KnownHand:
-    """Lo que un jugador sabe de la mano RIVAL por haberla visto con un efecto de «mira la mano del rival».
+    """What a player knows about the RIVAL's hand and deck top, learned only through card effects.
 
-    Solo entran cartas vistas legitimamente (`observe`), nunca la mano real del humano. Cada carta vista se
-    descuenta (`forget`) cuando sale de la mano rival por cualquier via: jugada en combate, descartada, perdida.
-    `Game.card_left_hand` es el unico punto por el que se descuenta, asi una carta vista que ya salio nunca se da
-    por jugable. La busqueda (F09) muestrea la mano oculta con `Game.hidden_hand`: las conocidas fijas y el resto
-    sacado del multiconjunto de cartas que no se han visto en ninguna pila publica."""
-    seen: list[int] = field(default_factory=list)   # CardID de las cartas vistas que siguen en la mano rival
-    turn_no: int | None = None                      # turno en que se miro (la informacion envejece)
+    Only legitimately seen cards enter (`observe`, `add`, `set_top`), never the real human hand. Every seen card is
+    forgotten (`forget`) when it leaves the rival hand by any route; `Game.card_left_hand` is the single place that
+    does it, so a seen card that is gone is never counted as playable. Search (F09) samples the hidden hand with
+    `Game.hidden_hand`: the known cards fixed and the rest drawn from the multiset of cards not seen in a public pile.
+
+    Three levels of certainty:
+    - `seen`: certainly in the rival hand (looked at, or revealed).
+    - `possible` with `possible_lo`..`possible_hi`: cards that were seen but may have left face down (Glimpse Of
+      Hell, Pyrotechnics, Pact Of Secrecy); between lo and hi of them are still in the hand. They stay in the
+      sampling pool, no longer as certainty.
+    - `top_of_deck`: the rival deck's known prefix, top first (Every Possible Angle puts a chosen card on top)."""
+    seen: list[int] = field(default_factory=list)       # CardID of the seen cards still in the rival hand
+    turn_no: int | None = None                          # turn when it was looked at (information ages)
+    possible: list[int] = field(default_factory=list)   # seen cards that may have left face down
+    possible_lo: int = 0
+    possible_hi: int = 0
+    top_of_deck: list[int] = field(default_factory=list)
 
     def observe(self, cards: list[Card], turn_no: int) -> None:
-        """Sustituye lo sabido: una mirada nueva es la foto completa de la mano en ese momento."""
+        """Replaces what was known: a new look is the complete snapshot of the hand at that moment."""
         self.seen = [c.card_id for c in cards]
+        self.possible, self.possible_lo, self.possible_hi = [], 0, 0
         self.turn_no = turn_no if self.seen else None
 
     def add(self, card: Card, turn_no: int) -> None:
-        """Una carta concreta ha entrado a la vista en la mano rival (Wildfire: la ardiente descartada vuelve)."""
+        """A concrete card came into view in the rival hand (Wildfire: the burning card returns)."""
         self.seen.append(card.card_id)
         if self.turn_no is None:
             self.turn_no = turn_no
 
     def forget(self, card: Card) -> bool:
-        """Descuenta UNA copia de esa carta (dos Second Shot vistas, una jugada: queda una). True si se sabia."""
+        """Discounts ONE copy of that card (two Second Shot seen, one played: one left). True if it was known."""
         try:
             self.seen.remove(card.card_id)
+            found = True
         except ValueError:
-            return False
-        if not self.seen:
+            found = False
+        if not found and card.card_id in self.possible:     # it was in the hand: one fewer of the possible ones
+            self.possible.remove(card.card_id)
+            self.possible_lo, self.possible_hi = max(0, self.possible_lo - 1), max(0, self.possible_hi - 1)
+            found = True
+            self._settle()
+        if not self.seen and not self.possible:
             self.turn_no = None
-        return True
+        return found
+
+    def degrade(self, removed: int, hand_after: int) -> None:
+        """`removed` cards left the rival hand face down (it now has `hand_after`): which ones is unknown, so
+        everything seen becomes "possible" with the count bounds that follow."""
+        pool = self.seen + self.possible
+        if not pool or removed <= 0:
+            return
+        certain = len(self.seen) + self.possible_lo
+        in_hand_max = len(self.seen) + self.possible_hi
+        self.possible = pool
+        self.possible_lo = max(0, certain - removed)
+        self.possible_hi = max(self.possible_lo, min(len(pool), hand_after, in_hand_max))
+        self.seen = []
+        self._settle()
+
+    def _settle(self) -> None:
+        """Bounds that pin the set down: all of them certainly in (promote), none in (drop)."""
+        n = len(self.possible)
+        self.possible_hi = min(self.possible_hi, n)
+        self.possible_lo = min(self.possible_lo, self.possible_hi)
+        if self.possible_hi == 0:
+            self.possible, self.possible_lo = [], 0
+        elif self.possible_lo == n:
+            self.seen, self.possible, self.possible_lo, self.possible_hi = self.seen + self.possible, [], 0, 0
 
     def clear(self) -> None:
         self.seen, self.turn_no = [], None
+        self.possible, self.possible_lo, self.possible_hi = [], 0, 0
+
+    # ---- known deck top
+    def set_top(self, ids: list[int]) -> None:
+        self.top_of_deck = list(ids)
+
+    def push_top(self, ids: list[int]) -> None:
+        """`ids` (top first) were put on top of the deck in plain sight."""
+        self.top_of_deck = list(ids) + self.top_of_deck
+
+    def drop_top(self, card_id: int) -> None:
+        """A card left the deck by a route that is not a draw: it is no longer part of the known prefix."""
+        if card_id in self.top_of_deck:
+            self.top_of_deck.remove(card_id)
+
+    def clear_top(self) -> None:
+        self.top_of_deck = []
+
+    def drawn(self, card: Card, turn_no: int) -> None:
+        """The rival drew `card`; if it was the known top, it is now a seen card in their hand."""
+        if self.possible:        # a blind draw may bring back one of them; the identity is not looked at
+            self.possible_hi = min(len(self.possible), self.possible_hi + 1)
+        if not self.top_of_deck:
+            return
+        if self.top_of_deck[0] == card.card_id:
+            self.top_of_deck.pop(0)
+            self.add(card, turn_no)
+        else:
+            self.top_of_deck = []        # an unknown card was on top: the known prefix cannot be trusted
 
     def cards(self, rival: "PlayerState") -> list[Card]:
-        """Lo visto que aun PUEDE estar en la mano rival. Se defiende de las vias que mueven cartas sin avisar
-        (reconciliacion con la mesa, adopcion): fuera lo que ya esta en su descarte o ha salido del motor."""
+        """The seen cards that can still be in the rival hand. Defends against routes that move cards without
+        notice (table reconciliation, adoption): what is already in their discard (public) is out, per copy. It
+        never looks at the rival hand or deck."""
+        return self._resolve(self.seen, rival)
+
+    def possible_cards(self, rival: "PlayerState") -> list[Card]:
+        return self._resolve(self.possible, rival)
+
+    def top(self, rival: "PlayerState") -> list[Card]:
+        """The known prefix of the rival deck as cards, top first."""
         by_id = {c.card_id: c for c in rival.full_set}
-        out = []
-        for i in self.seen:
-            c = by_id.get(i)
-            if c is not None and c not in rival.discard and (c in rival.hand or c in rival.deck):
-                out.append(c)
-        return out
+        return [by_id[i] for i in self.top_of_deck if i in by_id]
+
+    @staticmethod
+    def _resolve(ids: list[int], rival: "PlayerState") -> list[Card]:
+        by_id = {c.card_id: c for c in rival.full_set}
+        public = {c.card_id for c in rival.discard}
+        return [by_id[i] for i in ids if i in by_id and i not in public]
 
     def copy(self) -> "KnownHand":
-        return KnownHand(list(self.seen), self.turn_no)
+        return KnownHand(list(self.seen), self.turn_no, list(self.possible), self.possible_lo, self.possible_hi,
+                         list(self.top_of_deck))
+
+    def is_empty(self) -> bool:
+        return not (self.seen or self.possible or self.top_of_deck)
+
+    def to_dict(self) -> dict:
+        """Only what is non-empty, so a game that never looked at a hand saves byte-identical to before."""
+        out: dict = {}
+        if self.seen:
+            out["seen"] = list(self.seen)
+        if self.seen or self.possible:
+            out["turn_no"] = self.turn_no
+        if self.possible:
+            out["possible"] = {"ids": list(self.possible), "lo": self.possible_lo, "hi": self.possible_hi}
+        if self.top_of_deck:
+            out["top"] = list(self.top_of_deck)
+        return out
+
+    @classmethod
+    def from_dict(cls, raw: dict | None) -> "KnownHand":
+        raw = raw or {}
+        poss = raw.get("possible") or {}
+        return cls([int(i) for i in raw.get("seen", [])], raw.get("turn_no"), [int(i) for i in poss.get("ids", [])],
+                   int(poss.get("lo", 0)), int(poss.get("hi", 0)), [int(i) for i in raw.get("top", [])])
 
 
 @dataclass
@@ -331,6 +434,7 @@ class Game:
             p.hand.append(card)
             drawn.append(card)
             self.drawn[player] += 1
+            self.players[1 - player].known.drawn(card, self.turn_no)
         if log and drawn:
             self.log.append(f"P{player} roba {len(drawn)}")
         return drawn
