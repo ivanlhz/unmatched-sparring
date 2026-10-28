@@ -28,7 +28,7 @@ Las otras 15 (Fleeting Moments x3, B.P.R.D. Training x2, Rekindle x2, Feint x3, 
 - `tests/test_hero_liz_sherman_data.py`: 4 tests de datos (sin TTS).
 
 ## Decisiones
-1. **Wildfire sigue siendo plugin (`liz:wildfire`)**: cambia el destino de cualquier descarte de ardiente desde mano o mazo, lo dispare quien lo dispare (habilidad, Flame Lash, Fleeting Moments, impulsar, efectos del rival). No es una op de carta: es un gancho sobre la primitiva `discard`. El disparador de inicio de turno sí va en ops (`discard from deck_bottom` + `if card_has_tag burning`).
+1. **Wildfire (sustituido: ya no es plugin, es el disparador `wildfire_return` del evento `card_discarded`)**: cambia el destino de cualquier descarte de ardiente desde mano o mazo, lo dispare quien lo dispare (habilidad, Flame Lash, Fleeting Moments, efectos del rival). Nunca por impulsar: una ardiente no tiene valor de impulso y no se puede usar para impulsar (Ivan, 28/10). No es una op de carta: es un gancho sobre la primitiva `discard`. El disparador de inicio de turno sí va en ops (`discard from deck_bottom` + `if card_has_tag burning`).
 2. **`liz:incinerate` no hace falta**: cabe con `optional` (quien elige y paga es el rival) + `modify_value set 0` + atributo de carta `uncancelable` que `cancel_effects` debe respetar. Si el intérprete no admite esas tres extensiones, vuelve a plugin.
 3. **La carta real manda**: Fight Or Flight tiene un ONGOING que unmatched-memory no trae. El overlay admite `text` por entrada de la hoja y `tools/import_hero.py` lo prefiere al texto de unmatched-memory (una línea). Es el único cambio fuera de datos y tests.
 4. Sin contador: `burning` es etiqueta de carta, no se cuenta en ninguna pila (a diferencia de los destinos de Hellboy).
