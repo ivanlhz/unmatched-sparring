@@ -4,40 +4,17 @@ An op never decides by itself: it builds a ChoiceRequest and the chooser of `req
 run with an Await. Answers are lists of option values (fighter ids, space ids, card ids, option indexes,
 [True]/[False] for optional, [n] for amount); `[]` means "none" when `min` is 0.
 
-PendingChoice / Await mirror the types of sparring/combat_flow.py (same field names and (de)serialization) so the
-effect runner can return `Await(PendingChoice(kind="effect", ...))` through the combat flow. They are unified with
-combat_flow's classes when both branches merge; until then this module owns a compatible copy."""
+PendingChoice / Await are the combat flow's (sparring/combat_flow.py): an effect pause is
+`Await(PendingChoice(kind="effect", ..., extra={"key", "request"}))`."""
 from __future__ import annotations
 
 import random
 from dataclasses import dataclass, field
-from typing import Callable, Protocol
+from typing import Protocol
+
+from ..combat_flow import Await, PendingChoice
 
 KINDS = ("fighter", "space", "cards", "effect", "optional", "order", "amount")
-
-
-@dataclass
-class PendingChoice:
-    kind: str                 # "boost" (combat flow) or "effect" (this package)
-    player: int               # who decides
-    card_id: int | None       # card whose effect asks
-    deck: bool = False        # Flame Lash: the boost is the bottom card of the deck
-    extra: dict = field(default_factory=dict)     # caller-owned JSON-safe data
-
-    def to_dict(self) -> dict:
-        return {"kind": self.kind, "player": self.player, "card": self.card_id, "deck": self.deck, **self.extra}
-
-    @classmethod
-    def from_dict(cls, raw: dict, *, default_player: int, deck_of: Callable[[int], bool]) -> "PendingChoice":
-        card = raw["card"]
-        extra = {k: v for k, v in raw.items() if k not in ("kind", "player", "card", "deck")}
-        return cls(raw.get("kind", "effect"), raw.get("player", default_player), card,
-                   raw.get("deck", False if card is None else deck_of(card)), extra)
-
-
-@dataclass(frozen=True)
-class Await:
-    choice: PendingChoice
 
 
 @dataclass

@@ -113,12 +113,17 @@ def test_opposing_attacker_defender_combatant(g):
 
 
 def test_state_defeated_and_name_filters(g):
-    g.fighters["agent2"].alive, g.fighters["agent2"].pos = False, None
-    run, _ = go(g, [{"op": "choose", "cards": {"zone": "hand", "player": "owner", "pick": "all"}, "as": "x"},
-                    {"op": "if", "condition": {"test": "exists", "fighters": {"side": "own", "name": "B.P.R.D. Agent",
-                                                                                "state": "defeated"}},
-                     "then": [{"op": "heal", "target": "hero", "amount": 0}]}])
-    assert run.done
+    sel = {"side": "own", "name": "B.P.R.D. Agent", "state": "defeated", "pick": "all"}
+    run, _ = go(g, [{"op": "damage", "target": {"side": "own", "name": "B.P.R.D. Agent", "pick": "all"},
+                     "amount": 9, "as": "x"},
+                    {"op": "revive", "target": sel, "where": {"any": True}, "hp": 1}], ScriptedChooser())
+    assert len(run.bound("x", "fighters")) == 3 and all(g.fighters[f].alive for f in ("agent1", "agent2", "agent3"))
+    # reserve fighters (never placed) are not defeated: Pact Of Mortality must not pull them
+    for fid in ("agent1", "agent2"):
+        g.fighters[fid].alive, g.fighters[fid].pos = False, None
+    g.fighters["agent1"].died_at, g.fighters["agent2"].died_at = 4, None
+    go(g, [{"op": "revive", "target": sel, "where": {"any": True}, "hp": 1}], ScriptedChooser())
+    assert g.fighters["agent1"].alive and not g.fighters["agent2"].alive
 
 
 def test_bad_selectors_raise_effect_error(g):
@@ -166,11 +171,9 @@ def test_stat_amounts(g):
     go(g, [{"op": "heal", "target": "hero", "amount": {"stat": "max_hp", "fighter": "hero"}}])
     assert g.fighters["abe"].hp == 13
     g.fighters["abe"].hp = 1
-    go(g, [{"op": "heal", "target": "hero", "amount": {"stat": "actions_taken_this_turn"}}])
-    assert g.fighters["abe"].hp == 1
-    g.actions_left = 1
-    go(g, [{"op": "heal", "target": "hero", "amount": {"stat": "actions_taken_this_turn"}}])
-    assert g.fighters["abe"].hp == 2
+    with pytest.raises(NotImplementedError, match="^actions_taken_this_turn: C3$"):
+        go(g, [{"op": "heal", "target": "hero", "amount": {"stat": "actions_taken_this_turn"}}])
+    g.fighters["abe"].hp = 2
     go(g, [{"op": "heal", "target": "hero", "amount": {"stat": "damage_dealt_this_combat"}}], damage_dealt=3)
     assert g.fighters["abe"].hp == 5
     go(g, [{"op": "heal", "target": "hero", "amount": {"stat": "damage_taken_this_combat"}}], damage_taken=2)
@@ -315,6 +318,21 @@ def test_op_discard_from_hand_deck_and_refs(g):
     go(g, [{"op": "discard", "cards": "opponent_card"}])
 
 
+def test_discard_from_the_deck_emits_card_discarded(g):
+    g.fx = SpyFx()
+    go(g, [{"op": "discard", "cards": {"zone": "deck", "player": "owner", "pick": "top"}}])
+    assert g.fx.events == ["card_discarded"]
+
+
+def test_forced_discard_can_be_vetoed(g):
+    class NoForced(SpyFx):
+        def can_force_discard(self, player, source_player):
+            return False
+    g.fx = NoForced()
+    n = len(g.players[0].hand)
+    assert g.force_discard(0, 1, "x") == [] and len(g.players[0].hand) == n and g.fx.events == []
+
+
 def test_op_discard_random_uses_the_game_rng_and_never_asks(g):
     chooser = ScriptedChooser()
     n = len(g.players[1].hand)
@@ -366,6 +384,16 @@ def test_op_choose_binds_without_moving(g):
     run, _ = go(g, [{"op": "choose", "cards": {"zone": "hand", "player": "owner", "amount": 1}, "as": "pick"}],
                 ScriptedChooser([[card.card_id]]))
     assert run.bound("pick", "cards") == [card.card_id] and card in p.hand
+
+
+def test_choose_effect_resolves_in_printed_order_not_choice_order(g):
+    n = len(g.players[0].hand)
+    g.fighters["abe"].hp = 1
+    options = [{"label": "draw 2", "ops": [{"op": "draw", "player": "owner", "amount": 2}]},
+               {"label": "heal", "ops": [{"op": "heal", "target": "hero",
+                                           "amount": {"count_cards": {"zone": "hand", "player": "owner"}}}]}]
+    go(g, [{"op": "choose_effect", "amount": 2, "distinct": True, "options": options}], ScriptedChooser([[1], [0]]))
+    assert g.fighters["abe"].hp == 1 + n + 2        # drew first, then healed by the bigger hand
 
 
 def test_op_choose_effect_distinct_and_repeats(g):
@@ -533,8 +561,8 @@ def test_op_gain_action_and_end_turn(g):
     run, _ = go(g, [{"op": "end_turn"}])
     assert g.actions_left == 0 and run.flags["end_turn"] == 0
     g.actions_left = 2
-    run, _ = go(g, [{"op": "end_turn"}], owner=1)
-    assert g.actions_left == 2 and run.flags["end_turn"] == 1
+    run, _ = go(g, [{"op": "end_turn"}], owner=1)       # a defense card ends the ATTACKER's turn
+    assert g.actions_left == 0 and run.flags["end_turn"] == 0
 
 
 def test_op_if_then_else_and_missing_branches(g):
@@ -693,10 +721,8 @@ def test_choice_request_validation_and_roundtrip():
 def test_pending_choice_matches_the_combat_flow_shape():
     pc = PendingChoice("effect", 1, 77, False, {"key": "after/0:0"})
     assert pc.to_dict() == {"kind": "effect", "player": 1, "card": 77, "deck": False, "key": "after/0:0"}
-    back = PendingChoice.from_dict(pc.to_dict(), default_player=0, deck_of=lambda c: False)
-    assert back == pc
-    old = PendingChoice.from_dict({"card": 5}, default_player=1, deck_of=lambda c: True)
-    assert (old.kind, old.player, old.deck) == ("effect", 1, True)
+    from sparring import combat_flow
+    assert PendingChoice is combat_flow.PendingChoice and Await is combat_flow.Await
 
 
 def test_panel_chooser_pauses_and_controller_chooser_uses_the_controller(g):

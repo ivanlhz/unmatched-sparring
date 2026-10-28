@@ -157,6 +157,7 @@ def _discard(run, game, spec):
         elif zone == "deck":
             game.players[player].deck.remove(card)
             game.players[player].discard.append(card)
+            game.fx.emit("card_discarded", player, card)
         elif zone == "in_play":
             game.fx.take_ongoing(player)
             if card not in game.players[player].discard:
@@ -184,7 +185,7 @@ def _choose_effect(run, game, spec):
         picked.append(k)
         if spec.get("distinct"):
             left.remove(k)
-    return [(("options", k, "ops"), None) for k in picked]
+    return [(("options", k, "ops"), None) for k in sorted(picked)]     # resolved in printed order, not choice order
 
 
 # ---------------------------------------------------------------- board
@@ -283,9 +284,8 @@ def _gain_action(run, game, spec):
 
 @op("end_turn")
 def _end_turn(run, game, spec):
-    run.flags["end_turn"] = run.ctx.owner
-    if game.turn == run.ctx.owner:
-        game.actions_left = 0
+    run.flags["end_turn"] = game.turn      # the CURRENT turn ends, whoever owns the card (a defense can end the attacker's)
+    game.actions_left = 0
 
 
 # ---------------------------------------------------------------- control

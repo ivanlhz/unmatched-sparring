@@ -28,6 +28,10 @@ class EffectState:
     def can_gain_actions(self, player: int) -> bool:
         return True
 
+    def can_force_discard(self, player: int, source_player: int) -> bool:
+        """False vetoes a discard that `source_player` forces on `player` (Counterhex Shield)."""
+        return True
+
     def emit(self, name: str, *args) -> None:
         pass
 

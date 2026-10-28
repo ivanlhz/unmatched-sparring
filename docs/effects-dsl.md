@@ -475,12 +475,13 @@ Decisiones dudosas de la migracion (ver tambien `notes` de cada fichero):
 - Choosers: `ControllerChooser` (bot, via `Controller.choose_effect`, falling back to `choose_move` /
   `choose_discard` / `choose_placement`), `PanelChooser` (human, always an `Await`), `SyntheticChooser` (search),
   `ScriptedChooser` (tests).
-- `PendingChoice` / `Await` in `effects/choose.py` have the same fields and (de)serialization as the ones in
-  `combat_flow.py`; they are unified with them when that branch merges (kind `"effect"`, `extra = {key, request}`).
+- `PendingChoice` / `Await` are the ones of `combat_flow.py` (imported by `effects/choose.py`); an effect pause is
+  `Await(PendingChoice(kind="effect", ..., extra={"key", "request"}))`.
 - Ops that later phases implement (`cancel_effects`, `modify_value`, ... `look_hand`, `put_in_hand`) are registered
   stubs raising `NotImplementedError("<op>: <phase>")`. Plugins register with `@plugin("<id>")` /
   `@plugin_condition("<id>")` in `effects/ops_core.py`.
-- Decisions taken for the gaps in the spec: `defeated` = not alive (reserve included, as the engine does);
-  `summon` takes a never-placed fighter (`died_at is None`); `move` with `up_to: false` prefers spaces exactly N
-  away; `gain_action` for a player whose turn it is not does nothing; `end_turn` zeroes the owner's actions and sets
-  `run.flags["end_turn"]`; `moved_this_turn` reads `fx.turn_start_pos` (filled by C3).
+- Decisions taken for the gaps in the spec: `summon` takes a never-placed fighter (`died_at is None`); `move` with `up_to: false` prefers spaces exactly N
+  away; `gain_action` for a player whose turn it is not does nothing; `end_turn` ends the CURRENT turn whoever owns the
+  card (zeroes `game.turn`'s actions, sets `run.flags["end_turn"] = game.turn`); `choose_effect` resolves the chosen
+  options in printed order, not choice order; `defeated` = died on the board (`died_at` set), reserve fighters
+  are not defeated; `actions_taken_this_turn` is a stub (`NotImplementedError`, C3); `moved_this_turn` reads `fx.turn_start_pos` (filled by C3).

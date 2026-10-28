@@ -341,6 +341,8 @@ class Game:
         n = min(n, len(hand))
         if not n:
             return []
+        if not self.fx.can_force_discard(player, self.turn):
+            return []
         self.fx.emit("force_discard", player, n)
         chosen = self.controllers[player].choose_discard(self, player, n, reason)[:n]
         for c in chosen:

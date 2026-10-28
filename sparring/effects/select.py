@@ -115,7 +115,7 @@ def fighter_candidates(game, run, sel) -> tuple[list, bool]:
     if side not in SIDES:
         raise EffectError(f"bad side {side!r}")
     kind, name = sel.get("kind", "any"), sel.get("name")
-    want_alive = sel.get("state", "alive") == "alive"
+    want_alive = sel.get("state", "alive") == "alive"      # "defeated" = died on the board; reserve is neither
     out = []
     for f in pool:
         if side == "own" and f.owner != owner or side == "enemy" and f.owner == owner:
@@ -124,7 +124,7 @@ def fighter_candidates(game, run, sel) -> tuple[list, bool]:
             continue
         if name is not None and f.name != name:
             continue
-        if f.alive != want_alive:
+        if f.alive != want_alive or (not want_alive and f.died_at is None):
             continue
         out.append(f)
     if "where" in sel:
@@ -296,7 +296,7 @@ def _stat(game, run, a):
     if stat == "hand_size":
         return len(game.players[player].hand)
     if stat == "actions_taken_this_turn":
-        return max(0, 2 - game.actions_left) if game.turn == player else 0
+        raise NotImplementedError("actions_taken_this_turn: C3")
     if stat == "damage_dealt_this_combat":
         return run.ctx.damage_dealt
     if stat == "damage_taken_this_combat":
