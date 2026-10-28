@@ -62,6 +62,9 @@ class IsmctsMedusa(Controller):
     def choose_combat_boost(self, game: Game, ctx):
         return self.heuristic.choose_combat_boost(game, ctx)
 
+    def choose_effect(self, game: Game, req):
+        return self.heuristic.choose_effect(game, req)
+
     # ---------- busqueda ----------
     def _decide(self, root: EngineState) -> list:
         """Jugada de la raiz y, si la accion esta descompuesta en subjugadas, las siguientes por la variacion
