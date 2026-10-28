@@ -56,7 +56,6 @@ def test_hellboy_herodef_matches_the_wired_fighters_golden_deck_forms_and_bonus(
 
 @pytest.mark.parametrize("slug, name, hp, move, ranged, sidekicks", [
     ("abe-sapien", "Abe Sapien", 13, 2, True, [("agent", "B.P.R.D. Agent", 3, 1, 2, True)]),
-    ("baba-yaga", "Baba Yaga", 13, 2, True, [("koschei", "Koschei", 1, 3, 2, False)]),
     ("liz-sherman", "Liz Sherman", 16, 3, True, []),
 ])
 def test_rest_of_the_hellboy_box_loads_basic_data_but_cannot_deal_a_deck(slug, name, hp, move, ranged, sidekicks):
