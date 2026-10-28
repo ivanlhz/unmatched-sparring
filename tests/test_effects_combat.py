@@ -548,3 +548,114 @@ def test_flow_without_dsl_cards_serializes_exactly_as_before(bprd):
     flow = CombatFlow(g, med, hb, give(g, 0, "Snipe"), None)
     flow.run()
     assert "dsl" not in flow.to_dict()
+
+
+# ---------------------------------------------------------------- review fixes: mixed DSL / legacy transition
+
+def test_medusas_feint_cannot_cancel_incinerate_and_medusa_gets_the_pay_option(bprd):
+    for dsl in (["liz-sherman"], []):
+        g = mk(bprd, ("medusa", "liz-sherman"), dsl)
+        g.turn = 1
+        liz, med = pair(g, "liz", "medusa")
+        hand_filler(g, 0, 3)
+        g.controllers[0].queue = [[True]]
+        res = g.attack(liz, med, give(g, 1, "Incinerate"), give(g, 0, "Feint"))
+        assert res.cancelled == set()                                       # uncancelable: the legacy Feint skips it
+        if dsl:
+            assert [r.kind for r in g.controllers[0].requests][:1] == ["optional"]      # Medusa may pay 2
+            assert res.atk_value == 0
+
+
+def test_incinerate_survives_the_planned_recklessness_cancel_too(bprd):
+    g = mk(bprd, ("liz-sherman", "hellboy"), ["liz-sherman"])        # Hellboy legacy: the legacy rule runs
+    liz, hb = pair(g, "liz", "hellboy")
+    res = g.attack(liz, hb, give(g, 0, "Incinerate"), give(g, 1, "Planned Recklessness"))
+    assert "atk" not in res.cancelled
+
+
+def test_search_does_not_move_a_fighter_pinned_by_burning_barrier(bprd):
+    from sparring.search.controller import IsmctsMedusa
+    from sparring.search.ismcts import SearchConfig
+    for seed in range(2):
+        ai = IsmctsMedusa(0, SearchConfig(iterations=60, seed=seed))
+        g = Game.new(bprd, seed, controllers={0: ai}, heroes=("medusa", "liz-sherman"))
+        g.turn, g.turn_no = 0, 2
+        g.begin_turn()
+        for f in g.own(0):
+            modifiers.add_status(g.fx, "cannot_leave_space", owner=1, until={"event": "end_of_turn"}, fid=f.fid)
+        before = {f.fid: f.pos for f in g.own(0)}
+        ai.take_turn(g)
+        assert ai.fallbacks == 0
+        assert {f.fid: f.pos for f in g.own(0)} == {k: v for k, v in before.items() if g.fighters[k].alive}
+
+
+def test_the_human_is_never_paid_for_or_picked_from_by_the_synchronous_engine(bprd):
+    from sparring.combat import resolve_combat
+    from sparring.session import HumanProxy
+    owed = []
+    g = mk(bprd, ("liz-sherman", "hellboy"), ["liz-sherman"])
+    g.controllers[1] = HumanProxy(lambda n, reason: owed.append((n, reason)))
+    liz, hb = pair(g, "liz", "hellboy")
+    hand_filler(g, 1, 4)
+    before = list(g.players[1].hand)
+    res = resolve_combat(g, liz, hb, give(g, 0, "Incinerate"), None)
+    assert res.atk_value == 7 and g.players[1].hand == before and owed == []       # the option is declined, nothing paid
+
+
+def test_a_forced_pick_from_the_humans_hand_is_refused_not_guessed(bprd):
+    from sparring.session import HumanProxy
+    g = mk(bprd, ("abe-sapien", "liz-sherman"), ["abe-sapien"])
+    g.controllers[1] = HumanProxy(lambda n, reason: None)
+    abe, liz = pair(g, "abe", "liz")
+    hand_filler(g, 1, 3)
+    g.fx.turn_start_pos["abe"] = 99
+    with pytest.raises(NotImplementedError, match="needs the panel"):
+        g.attack(abe, liz, give(g, 0, "Shock And Awe"), None)
+
+
+@pytest.mark.parametrize("defense,pays", [(None, True), ("Hiss and Slither", False)])
+def test_a_bot_pays_for_incinerate_only_when_it_saves_enough(bprd, defense, pays):
+    """Default policy of a bot without its own choose_effect: pay when the damage avoided is >= 3 per card (7 vs
+    nothing: yes; 7 vs a 4: 3 damage < 6: no)."""
+    from sparring.ai_medusa import MedusaAI
+    g = mk(bprd, ("medusa", "liz-sherman"), ["liz-sherman"])
+    g.controllers[0] = MedusaAI(0)
+    g.turn = 1
+    liz, med = pair(g, "liz", "medusa")
+    hand_filler(g, 0, 3)
+    res = g.attack(liz, med, give(g, 1, "Incinerate"), give(g, 0, defense) if defense else None)
+    assert (res.atk_value == 0) is pays
+
+
+def test_a_bot_pays_when_the_hit_would_kill_it(bprd):
+    from sparring.ai_medusa import MedusaAI
+    g = mk(bprd, ("medusa", "liz-sherman"), ["liz-sherman"])
+    g.controllers[0] = MedusaAI(0)
+    g.turn = 1
+    liz, med = pair(g, "liz", "medusa")
+    med.hp = 3
+    hand_filler(g, 0, 3)
+    res = g.attack(liz, med, give(g, 1, "Incinerate"), give(g, 0, "Hiss and Slither"))       # 3 damage = all her hp
+    assert res.atk_value == 0
+
+
+def test_values_are_clamped_at_zero_at_every_step_in_timing_order(bprd):
+    """Ivan (28/10): Flame Lash (1) vs Arcane Dampener (IMMEDIATELY -3) is 0, and the DURING boost then adds to 0."""
+    g = mk(bprd, ("liz-sherman", "abe-sapien"), ["liz-sherman", "abe-sapien"])
+    liz, abe = pair(g, "liz", "abe")
+    deck = g.players[0].deck
+    bottom = max(deck, key=lambda c: c.boost)
+    deck.remove(bottom)
+    deck.append(bottom)
+    assert bottom.boost == 3
+    res = g.attack(liz, abe, give(g, 0, "Flame Lash"), give(g, 1, "Arcane Dampener"))
+    assert res.atk_value == 3 and res.atk_parts[:2] == ["Flame Lash (1)", "Arcane Dampener (-1)"]
+
+
+def test_effects_without_an_acting_player_are_the_enemys_for_damage_but_moves_stay_free(bprd):
+    g = mk(bprd, ("liz-sherman", "abe-sapien"), ["abe-sapien"])
+    liz, abe = pair(g, "liz", "abe")
+    counterhex(g, 1)
+    assert g.fx.acting is None
+    assert g.damage(abe, 3) == 0                                      # legacy-path effect damage: Counterhex stops it
+    assert g.legal_moves(abe, 3) - {abe.pos}                          # the player's own maneuver is not an enemy effect

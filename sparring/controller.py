@@ -10,6 +10,8 @@ if TYPE_CHECKING:
 class Controller:
     """Decisiones que el motor delega en quien lleva a cada jugador (IA, guion o puente con el humano)."""
 
+    human = False      # True: decides at the table, so the engine must never decide for it (effects choosers)
+
     def take_turn(self, game: "Game") -> None:
         raise NotImplementedError
 

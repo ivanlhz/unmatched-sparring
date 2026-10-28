@@ -10,7 +10,7 @@ card moment, so a pause inside an effect survives `CombatFlow.to_dict`."""
 from __future__ import annotations
 
 from . import modifiers
-from .choose import ControllerChooser
+from .choose import ControllerChooser, TableChooser
 from .model import EffectError, load_effects
 from .ops_core import OPS, op
 from .select import amount, card_ref, find_card, pick_fighters, player_of, players_of, fighter_candidates
@@ -58,8 +58,8 @@ def _set_value(run, game, spec):
     flow = _flow(run, "set_value")
     side = _side(run, game, spec["card"])
     if side is not None:
-        ignore = isinstance(spec["amount"], int) and spec["amount"] == 0      # a literal 0 is "ignore its value"
-        modifiers.set_value(flow, side, int(amount(game, run, spec["amount"])), _label(run, game), ignore)
+        n = 0 if spec.get("ignore") else int(amount(game, run, spec["amount"]))
+        modifiers.set_value(flow, side, n, _label(run, game), bool(spec.get("ignore")))
 
 
 @op("boost")
@@ -209,5 +209,10 @@ def _rival_card_id(flow, side) -> int | None:
     return None if card is None else card.card_id
 
 
-def default_choosers() -> dict:
-    return {0: ControllerChooser(), 1: ControllerChooser()}
+def default_choosers(game) -> dict:
+    """Who answers the decisions of each player in a synchronous combat: the controller of a bot, but never the
+    engine for a human (`Controller.human`): the table does that."""
+    def chooser(player):
+        ctrl = game.controllers.get(player)
+        return TableChooser() if getattr(ctrl, "human", False) else ControllerChooser()
+    return {0: chooser(0), 1: chooser(1)}

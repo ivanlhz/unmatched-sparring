@@ -104,7 +104,7 @@ def test_incinerate_flame_lash_and_fight_or_flight_in_the_dsl():
     by_title = {c["title"]: c for c in load(EFFECTS)["cards"]}
     optional, = by_title["Incinerate"]["effects"]["during"]
     assert optional["chooser"] == "opponent" and optional["cost"][0]["cards"]["amount"] == 2
-    assert optional["ops"] == [{"op": "set_value", "card": "this", "amount": 0}]
+    assert optional["ops"] == [{"op": "set_value", "card": "this", "ignore": True}]
     lash = by_title["Flame Lash"]["effects"]["during"]
     assert lash[0]["as"] == "burnt" and lash[1] == {"op": "modify_value", "card": "this", "amount": {"attr": "boost", "of": "$burnt"}}
     fof = by_title["Fight Or Flight"]

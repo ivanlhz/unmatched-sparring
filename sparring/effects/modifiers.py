@@ -191,7 +191,7 @@ def add_value(flow, side: str, n: int, label: str, record: bool = True) -> int:
     it as a modifier of the side (the announcement); a change of the printed value is not one."""
     ctx = flow.ctx
     now = ctx.atk_value if side == "atk" else ctx.def_value
-    new = max(0, now + n)
+    new = max(0, now + n)        # Ivan (28/10): never below 0 at every step, in timing order
     if side == "atk":
         ctx.atk_value = new
     else:

@@ -305,11 +305,27 @@ def _can_pay(game, run, cost: list[dict]) -> bool:
     return True
 
 
+def _cost_context(game, run, cost: list[dict], chooser: int) -> dict:
+    """What a bot needs to judge an optional cost: how many cards it discards and, inside a combat, how much damage
+    the chooser's fighter would take as things stand (and how many hit points it has left)."""
+    ctx = {}
+    cards = sum(int(c["cards"].get("amount", 1)) for c in cost
+                if c["op"] == "discard" and isinstance(c["cards"], dict) and isinstance(c["cards"].get("amount", 1), int))
+    if cards:
+        ctx["cost_cards"] = cards
+    flow = getattr(run, "flow", None)
+    if flow is not None and flow.ctx is not None and flow.tgt.owner == chooser:
+        ctx["at_stake"] = max(0, flow.ctx.atk_value - flow.ctx.def_value)
+        ctx["hp"] = flow.tgt.hp
+    return ctx
+
+
 @op("optional")
 def _optional(run, game, spec):
     cost = spec.get("cost") or []
+    chooser = _chooser(game, run, spec)
     yes = _can_pay(game, run, cost) and run.ask(
-        game, "optional", _chooser(game, run, spec), [True, False], 1, 1, "do it?")[0]
+        game, "optional", chooser, [True, False], 1, 1, "do it?", **_cost_context(game, run, cost, chooser))[0]
     if yes:
         return ([(("cost",), None)] if cost else []) + [(("ops",), None)]
     return [(("else",), None)] if spec.get("else") else []

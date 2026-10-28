@@ -40,7 +40,7 @@
     "during": [
      {"op": "optional", "chooser": "opponent",
       "cost": [{"op": "discard", "cards": {"zone": "hand", "player": "opponent", "amount": 2, "chooser": "opponent"}}],
-      "ops": [{"op": "set_value", "card": "this", "amount": 0}]}
+      "ops": [{"op": "set_value", "card": "this", "ignore": true}]}
     ],
     "after": [],
     "scheme": [],

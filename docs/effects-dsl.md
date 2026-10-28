@@ -241,7 +241,7 @@ Toda op es `{"op": "<nombre>", ...args}`. Argumentos no listados son error.
 | `summon` | `name`, `where` | `hp`, `chooser` | saca un ayudante de la reserva (`reserve` del HeroDef); sin reserva no hace nada |
 | `cancel_effects` | `card: CardRef` | | respeta `uncancelable` |
 | `modify_value` | `card: CardRef`, `amount` | | suma (negativo resta); nunca baja de 0 |
-| `set_value` | `card`, `amount` | | fija el valor (tambien 0 = "ignore its value") |
+| `set_value` | `card` y `amount` o `ignore: true` | | `amount`: el valor impreso pasa a ser N (los bonos siguen); `ignore: true`: "ignore its value", el valor total pasa a 0 (Incinerate) |
 | `boost` | `card: CardRef` | `chooser` | impulsa esa carta ahora (descarta la superior del mazo de su dueno). Para el "may BOOST" gratuito de la propia carta se usa `may_boost` |
 | `status` | `name`, `until: Event` y `target: FighterSel` o `player: PlayerSel` | `amount` | ver tabla de estados |
 | `counter` | `name` y `delta` o `set` | `player` | se recorta a min/max de `ability.counters` |
@@ -492,11 +492,19 @@ Decisiones dudosas de la migracion (ver tambien `notes` de cada fichero):
   recklessness, On Earth, boosts, `*_after`) step aside for a card whose owner's hero is in `fx.dsl_heroes`. Each run
   lives in `CombatFlow.runs` (`"moment:side"`, finished ones too) and is saved under `flow.to_dict()["dsl"]`, which is
   absent when nothing DSL happened. `PendingChoice.from_dict` accepts `kind="effect"` (key + request).
-- `flow.choosers` (player -> Chooser) defaults to the controllers; a `PanelChooser` makes the flow stop with an
+- Default choosers (`ops_combat.default_choosers`): a bot's controller (`ControllerChooser`); for a controller with
+  `human = True` (HumanProxy) a `TableChooser`: it declines every optional (nothing is paid), leaves optional picks
+  empty and refuses a forced pick (`NotImplementedError`, needs the panel, E1) - the engine never pays or picks out of
+  the human's hand. A bot without its own `choose_effect` decides an optional that costs cards with `worth_paying`: pay
+  when the damage avoided is at least 3 per card or would kill the hero (`optional` passes `cost_cards`, `at_stake`
+  and `hp` in the request).
+- Ivan's ruling (28/10): effects resolve in timing order (IMMEDIATELY before DURING; same timing, the defender first) and
+  a value never drops below 0 at EACH step: Flame Lash (1) vs Arcane Dampener (-3) is 0, then its DURING boost +3 makes 3.
+- `flow.choosers` (player -> Chooser) overrides that; a `PanelChooser` makes the flow stop with an
   `Await(PendingChoice("effect"))`, answered with `flow.resume(list)`.
 - Values: each side keeps a running total (never below 0). `modify_value` adds; `set_value` with a computed amount
   ("the value becomes N": On Earth, Shock And Awe) replaces the PRINTED part and leaves bonuses (Fight Or Flight,
-  extras); `set_value` with the literal `0` ("ignore its value": Incinerate) zeroes the whole total, bonuses too.
+  extras); `set_value` with `ignore: true` ("ignore its value": Incinerate) zeroes the whole total, bonuses too.
 - `cancel_effects` marks the side as cancelled (the legacy semantic: what already resolved stays) unless the card is
   `uncancelable`. `may_boost` cards ask a hand BOOST at the end of their DURING, either side; a card without a BOOST
   value is refused. `combat.can_boost/deck_boost` read the data (index by CardID, `modifiers.card_effects`).
@@ -508,8 +516,12 @@ Decisiones dudosas de la migracion (ver tambien `notes` de cada fichero):
   combat through `Game.combat_bonus_parts` (C3 makes it a view of the ONGOING slot).
 - Hooks (bodies in modifiers.py): `adjust_damage` (effect damage only: immune statuses, then +N), `can_draw`,
   `can_gain_actions`, `can_force_discard`, `can_move` (also consulted by `Game.legal_moves`). `fx.acting` is the
-  player whose op is running (`damage`, `move`, `place`, `swap`, `discard` set it); `None` means an effect of the
-  legacy path, treated as the enemy's. A discard that is the cost of an `optional` is voluntary and never vetoed.
+  player whose op is running (`damage`, `move`, `place`, `swap`, `discard` set it). `None` means no DSL op is running:
+  for `adjust_damage` that is an effect of the legacy engine path (Medusa's gaze...), treated as the enemy's; for
+  `can_move` it is the player's own maneuver, which is never an enemy effect (legacy-path effects that move enemy
+  fighters do not exist). A discard that is the cost of an `optional` is voluntary and never vetoed.
+- Known gap: FATEFUL BARGAINS (and any redirect passive) only acts on DSL `damage` ops; effect damage from the legacy
+  path onto Baba is not redirected until C5/D1 put the other heroes through the interpreter.
 - `redirect_damage`: the op registers the redirection for the combat and it is applied in the DAMAGE phase (a
   non-optional one; an optional combat redirect raises NotImplementedError, it needs a pause inside DAMAGE). Passives
   and ONGOING `redirect_damage` act on effect damage inside the `damage` op, asking the optional ones through the

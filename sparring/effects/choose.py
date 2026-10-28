@@ -84,6 +84,13 @@ def default_answer(req: ChoiceRequest) -> list:
     return list(req.options[:req.max])
 
 
+def worth_paying(req: ChoiceRequest) -> bool:
+    """A bot's default for an optional that costs cards: pay only when it saves at least 3 damage per card, or when
+    the damage would kill the hero. Without a combat in sight (no `at_stake`) it does not pay."""
+    stake = req.extra.get("at_stake", 0)
+    return stake >= 3 * req.extra["cost_cards"] or (stake > 0 and stake >= req.extra.get("hp", float("inf")))
+
+
 class ControllerChooser:
     """The bot: `Controller.choose_effect`, falling back to choose_move / choose_discard / choose_placement."""
 
@@ -94,6 +101,8 @@ class ControllerChooser:
         answer = ctrl.choose_effect(game, req)
         if answer is not None:
             return answer
+        if req.kind == "optional" and "cost_cards" in req.extra:
+            return [worth_paying(req)]
         if req.kind == "space":
             fighter = game.fighters.get(req.extra.get("fighter"))
             if fighter is not None:
@@ -112,6 +121,19 @@ class ControllerChooser:
             if len(picked) >= req.min:
                 return picked
         return default_answer(req)
+
+
+class TableChooser:
+    """The human, when the combat cannot stop and ask at the panel (the synchronous facade): every optional is
+    declined, an optional pick is left empty, and a forced pick is refused - the engine never pays a cost or picks a
+    card out of the human's hand for them; the table does that (E1/E2)."""
+
+    def choose(self, game, req: ChoiceRequest) -> list:
+        if req.kind == "optional":
+            return [False]
+        if req.min == 0:
+            return []
+        raise NotImplementedError(f"{req.prompt or req.kind}: a forced choice of the human needs the panel (E1)")
 
 
 class SyntheticChooser:

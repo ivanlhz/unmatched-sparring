@@ -343,14 +343,23 @@ def _is(card: Card, title: str, medusa: bool) -> bool:
 
 @rule(Phase.IMMEDIATELY, match=lambda flow, side: _is(side.card, FEINT, medusa=True) and not _dsl(flow, side))
 def feint(flow: CombatFlow, side: Side) -> None:
-    flow.ctx.cancelled.add(_other(side))
+    _cancel_rival(flow, side)
 
 
 @rule(Phase.IMMEDIATELY, match=lambda flow, side: _is(side.card, PLANNED, medusa=False) and not _dsl(flow, side))
 def planned_recklessness(flow: CombatFlow, side: Side) -> None:
     flow.game.effect_shield[side.fighter.owner] = flow.game.turn_no
     if flow.game.form(side.fighter.owner) != ANUNG:
-        flow.ctx.cancelled.add(_other(side))
+        _cancel_rival(flow, side)
+
+
+def _cancel_rival(flow: CombatFlow, side: Side) -> None:
+    """Cancels the other card's effects unless that card says they cannot be canceled (Incinerate)."""
+    from .effects.modifiers import is_uncancelable
+    target = _other(side)
+    card = flow.atk_card if target == "atk" else flow.def_card
+    if card is None or not is_uncancelable(card):
+        flow.ctx.cancelled.add(target)
 
 
 def _other(side: Side) -> str:
@@ -424,7 +433,7 @@ def human_card_after(flow: CombatFlow, side: Side) -> None:
 def _run_moment(flow: CombatFlow, side: Side, moment: str) -> Await | None:
     from .effects.ops_combat import default_choosers, run_moment
     if flow.choosers is None:
-        flow.choosers = default_choosers()
+        flow.choosers = default_choosers(flow.game)
     return run_moment(flow, side, moment)
 
 
@@ -467,9 +476,10 @@ def legacy_chooser(game: Game, flow: CombatFlow, boost: Card | None) -> Callable
     """Answers boost choices the way the pre-flow resolve_combat did: a Medusa card asks its owner's controller (with
     the live CombatCtx); any other card uses the boost the caller already put on the table."""
     def choose(choice: PendingChoice):
-        if choice.kind == "effect":         # a panel chooser paused an effect inside a synchronous combat: the controller answers
-            from .effects.choose import ChoiceRequest, ControllerChooser
-            return ControllerChooser().choose(game, ChoiceRequest.from_dict(choice.extra["request"]))
+        if choice.kind == "effect":         # a panel chooser paused an effect inside a synchronous combat
+            from .effects.choose import ChoiceRequest
+            from .effects.ops_combat import default_choosers
+            return default_choosers(game)[choice.player].choose(game, ChoiceRequest.from_dict(choice.extra["request"]))
         if is_medusa_card(flow.card_by_id(choice.card_id)) or choice.player != flow.att.owner:
             return game.controllers[choice.player].choose_combat_boost(game, flow.ctx)
         return boost
