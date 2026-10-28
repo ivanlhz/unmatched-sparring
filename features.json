@@ -81,7 +81,7 @@
         "Marcas en el suelo (solo en modo juego): draw_markings/clear_markings dibujan DESCARTE HELLBOY, DESCARTE MEDUSA, COMBATE HELLBOY y COMBATE MEDUSA con setVectorLines en el panel propio y 3DText propios, idempotentes, sin tocar el Global ni decals; --read-only no las dibuja",
         "Revision 5: start_spaces (config o deducido de la mesa); pieces acepta lista de GUID por miniatura; el guardado lleva huella (id de partida, hash de configuracion, GUID) y --resume rechaza el ajeno; tests/conftest.py impide escribir bajo la carpeta estado; bot_discard_bounds acota la rejilla y la envuelve apilando; reparto/jugada tardios se acreditan leyendo la mesa; guardado en los puntos de control del turno del bot; combates cuyo luchador desaparece se cancelan; manos iniciales; una accion abierta ignora otros botones de accion; poll_events descarta sparring_reply tardios; clear_markings(remove_panel) y marca sparring en las notas de GM; panel en [2, 1.8, -24]"
       ],
-      "note": "Revision 5 (27/10) corregida con tests: casillas de salida de la mesa real, guardado con huella y guarda de tests, miniatura con varios GUID, rejilla del descarte acotada a la zona, repartos y jugadas con respuesta tardia, puntos de control del turno del bot, salidas de combates cuyo luchador desaparece, manos iniciales, doble clic, limpieza del panel. Solo verificado contra FakeTTS (que ahora imita al TTS real: sin messageID 5, respuestas por messageID 4). Se marca done solo con todo en verde y tras una prueba en vivo con --read-only; pendiente calibrar off_board_dist, la lectura de los diales y las posiciones de carta/rejilla en la mesa real."
+      "note": "Revision 5 (27/10) corregida con tests: casillas de salida de la mesa real, guardado con huella y guarda de tests, miniatura con varios GUID, rejilla del descarte acotada a la zona, repartos y jugadas con respuesta tardia, puntos de control del turno del bot, salidas de combates cuyo luchador desaparece, manos iniciales, doble clic, limpieza del panel. Solo verificado contra FakeTTS (que ahora imita al TTS real: sin messageID 5, respuestas por messageID 4). Se marca done solo con todo en verde y tras una prueba en vivo con --read-only; pendiente calibrar off_board_dist, la lectura de los diales y las posiciones de carta/rejilla en la mesa real. | 28/10 en vivo: Reiniciar partida y el robo automatico al pulsar Maniobra funcionan."
     },
     {
       "id": "F06",
@@ -99,6 +99,86 @@
         "El bot aparta tambien las miniaturas caidas del humano (human_dead_spot o la zona del bot reflejada); etiquetas del suelo pequenas, legibles desde White, fuera de su caja y sin solaparse"
       ],
       "note": "Solo verificado contra FakeTTS. Pendiente en vivo: la instantanea desde el script del panel, el compuesto con Wait.condition, UI.setAttribute/interactable, reset_deck, las etiquetas y human_dead_spot."
+    },
+    {
+      "id": "F07",
+      "title": "Motor multiheroe (sin cambiar Medusa vs Hellboy)",
+      "status": "todo",
+      "criteria": [
+        "Tests dorados antes de tocar nada: simulador, transcripcion de sesion FakeTTS y ida y vuelta del guardado de Medusa vs Hellboy; siguen identicos al terminar",
+        "HeroDef por heroe en data/heroes/<slug>.json (vida, movimiento, alcance, ayudantes con cantidad y vida, formas, contadores, disparadores, pasivas) importado de unmatched-memory con un overlay a mano; la partida se construye desde HeroDef",
+        "Efectos de carta estructurados por momento (immediately/during/after/scheme/ongoing) en data/heroes/<slug>.cards.json, ejecutados por un interprete de primitivas en sparring/effects/; lo que no cubre una primitiva va a un plugin Python por heroe",
+        "config/partida.json gana bot_hero y human_hero (por defecto medusa y hellboy) y la config de TTS por heroe (mazos, diales, salidas) sale de data/tts/<slug>.json",
+        "Carta sin efecto codificado: el bot anuncia su texto y la juega solo por valor y boost; nunca rompe la partida",
+        "Elecciones del humano que el bot necesita saber (objetivo, opcion) por botones del panel, con el efecto pendiente guardado y reanudable; los movimientos siguen siendo fisicos",
+        "Efecto «mira la mano del rival»: el bot lee la mano del humano SOLO al resolver esa carta; guarda las cartas vistas y las va quitando de la mano conocida cuando el humano las juega, descarta o pierde; nunca da por jugable una carta vista que ya ha salido"
+      ]
+    },
+    {
+      "id": "F08",
+      "title": "Caja Hellboy completa en los dos lados",
+      "status": "todo",
+      "criteria": [
+        "Hellboy, Abe Sapien, Baba Yaga y Liz Sherman jugables por el humano contra el bot y por el bot contra el humano, en cualquier combinacion de la caja",
+        "Datos de cada heroe verificados contra las cartas reales del save del torneo (CustomDeck FaceURL), no solo contra unmatched-memory",
+        "Plugins de las cartas que no caben en primitivas (previstos: abe perfect_shot y uncanny_intuition, baba remove_painful_memory, liz incinerate y wildfire)",
+        "Una partida en vivo supervisada por Ivan por cada heroe de la caja antes de darla por hecha",
+        "Cambio de forma de Hellboy llevado por el bot: el bot cambia la miniatura y gira la ficha de habilidad al lado rojo, y hace ping sobre las dos"
+      ]
+    },
+    {
+      "id": "F09",
+      "title": "IA con busqueda ISMCTS sobre el motor generico",
+      "status": "todo",
+      "criteria": [
+        "Sin trampas: la busqueda nunca lee la mano oculta del humano; solo usa informacion publica (descartes, conteo de mano y mazo, cartas jugadas) y lo visto legitimamente por un efecto de «mirar la mano», con las cartas ya salidas descontadas",
+        "La IA del bot decide con ISMCTS: muestrea la mano oculta del rival compatible con lo visto (descartes, conteo de mano, mazo) y simula con el motor de F07",
+        "Sirve para cualquier heroe con efectos codificados, sin codigo especifico por heroe en la busqueda",
+        "Presupuesto de tiempo por decision configurable; el boton del humano sigue respondiendo por debajo de 1 s mas el tiempo de busqueda anunciado"
+      ]
+    },
+    {
+      "id": "F10",
+      "title": "Playbooks por emparejamiento",
+      "status": "todo",
+      "criteria": [
+        "Plan por heroe y rival en data/ai/<slug>.json destilado de @NoExhaustionDamage (y otras fuentes que apruebe Ivan); un heroe con un solo estilo tiene un solo plan",
+        "El playbook orienta a la ISMCTS (prioridades, evaluacion de posiciones), no sustituye la busqueda"
+      ]
+    },
+    {
+      "id": "F11",
+      "title": "Oleadas siguientes del roster",
+      "status": "todo",
+      "criteria": [
+        "Orden de Ivan: Stars and Stripes (John Henry, Wyatt Earp, Rosie the Riveter, George Washington; marzo 2026, estan en el save y no en unmatched-memory), TMNT (Leonardo, Donatello, Michelangelo, Raphael), Shredder vs Krang, Muhammad Ali vs Bruce Lee, Battle of Legends Vol. 3 (Blackbeard, Chupacabra, Loki, Pandora), y despues el resto",
+        "Cada oleada: datos verificados contra el save, plugins necesarios y una partida en vivo por heroe",
+        "Los heroes que estan en el save y no en unmatched-memory se extraen del save"
+      ]
+    },
+    {
+      "id": "F12",
+      "title": "Ping de atacante y objetivo en los ataques del bot",
+      "status": "done",
+      "note": "Probado en vivo por Ivan el 28/10: los pings se ven (salen con su color, White, y le parece bien). Sin comprobar aun: el ping sobre Hellboy en su forma alternativa.",
+      "criteria": [
+        "Cuando un luchador del bot ataca, el bot hace ping sobre su luchador atacante y sobre el luchador objetivo del humano, para ver quien ataca a quien sin leer el mensaje",
+        "Va en el mismo script del paso de ataque (sin mensajes extra a TTS) y no usa messageID 1 ni el Global UI",
+        "Probado con FakeTTS y en una partida en vivo"
+      ]
+    },
+    {
+      "id": "F13",
+      "title": "Mod del Workshop con el cerebro como servicio web (futuro)",
+      "status": "backlog",
+      "criteria": [
+        "Mesa propia del sparring publicada en el Workshop de Steam, separada del save del torneo: heroes y mapas de cada oleada, mazos, descartes, diales y panel colocados de serie (sin config/partida.json por mesa)",
+        "El cerebro sigue en Python y se sirve por HTTP; el mod lo llama con WebRequest de TTS, sin que el jugador instale nada",
+        "La IA no se reescribe en Lua (el Lua de TTS corre en el hilo de la mesa y la congelaria con la ISMCTS)",
+        "Sin trampas tambien en remoto: el mod solo envia al servicio la informacion publica y lo visto por efectos de mirar la mano",
+        "Decidir antes de empezar: donde se aloja el servicio, coste, y limites de uso por partida"
+      ],
+      "note": "Idea de Ivan (28/10) para compartir el bot con la comunidad (Unmatched Canarias). Va despues de F08 como minimo."
     }
   ]
 }
