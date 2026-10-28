@@ -76,15 +76,15 @@ def resolve_combat(game: Game, att: Fighter, tgt: Fighter, atk_card: Card, def_c
         game.take_from_hand(pd, def_card)
     played = [(pa, atk_card)] + ([(pd, def_card)] if def_card else [])
 
-    bonus = game.attack_bonus(att)           # pasiva de forma del heroe (Hellboy en ANUNG UN RAMA: +2)
+    bonus_parts = game.attack_bonus_parts(att)   # pasivas del heroe (Hellboy en ANUNG UN RAMA: +2)
+    bonus = sum(n for n, _ in bonus_parts)
     atk_value = (atk_card.value or 0) + values[0] + bonus
     def_value = (def_card.value or 0) if def_card else 0
     def_value += values[1]
     ctx = CombatCtx(att, tgt, atk_card, def_card, atk_value, def_value, set())
     result = CombatResult(att.fid, tgt.fid, atk_card, def_card, atk_value, def_value, 0, False)
     result.atk_parts = [f"{atk_card.title} ({atk_card.value or 0})"]
-    if bonus:
-        result.atk_parts.append(f"{game.form(pa)} (+{bonus})")
+    result.atk_parts += [f"{label} (+{n})" for n, label in bonus_parts if n]
     if values[0]:
         result.atk_parts.append(f"valor extra ({values[0]:+d})")
 

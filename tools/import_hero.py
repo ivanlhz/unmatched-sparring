@@ -65,7 +65,10 @@ def build(slug: str, memory: Path, overlay_dir: Path = OVERLAY_DIR) -> dict:
     if "sheet" in deck_ov:
         cards = []
         for entry in deck_ov["sheet"]:
-            src = by_title[entry["title"]]
+            src = by_title.get(entry["title"])
+            if src is None:
+                raise SystemExit(f"{slug}: la hoja del overlay cita {entry['title']!r} (idx {entry.get('idx')}), que no "
+                                 f"existe en unmatched-memory; titulos conocidos: {', '.join(sorted(by_title))}")
             cards.append({"idx": entry["idx"], "title": entry["title"], "fighter": entry["fighter"], "type": src["type"],
                           "value": src["value"], "boost": src["boostValue"], "text": card_text(src),
                           "tags": list(entry.get("tags", ()))})

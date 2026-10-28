@@ -53,6 +53,21 @@ def test_combat_breakdown_names_the_data_form(game):
     assert res.atk_value == 7 and res.atk_parts == ["Right Hand Of Doom (4)", "BLAZING (+3)"]
 
 
+def test_a_passive_without_a_form_is_labelled_by_its_id_in_the_breakdown(game):
+    hero = blazing_hero()
+    hero = type(hero)(**{**hero.__dict__, "passives": hero.passives + (
+        {"id": "iron_fist", "effect": "attack_bonus", "n": 1, "fighter": "hero"},)})
+    swap_hero(game, 1, hero)
+    assert game.attack_bonus_parts(game.fighters["hellboy"]) == [(1, "iron_fist")]
+    place(game, hellboy=1, medusa=2)
+    card = give(game, 1, "Right Hand Of Doom")
+    game.turn = 1
+    res = game.attack(game.fighters["hellboy"], game.fighters["medusa"], card, None)
+    assert res.atk_value == 5 and res.atk_parts == ["Right Hand Of Doom (4)", "iron_fist (+1)"]
+    game.players[1].discard = burning(game, 1, 3)
+    assert game.attack_bonus_parts(game.fighters["hellboy"]) == [(3, "BLAZING"), (1, "iron_fist")]
+
+
 def test_start_of_turn_triggers_are_filtered_by_form_and_their_numbers_come_from_data(game):
     swap_hero(game, 1, blazing_hero(draw_n=3))
     assert [t["id"] for t in game.triggers(1, "start_of_turn")] == ["cold_draw"]

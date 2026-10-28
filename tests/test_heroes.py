@@ -1,38 +1,50 @@
 """HeroDef y su cargador (F07 paso 1): los datos de data/heroes/<slug>.json describen exactamente lo que hoy
 esta cableado en el motor para Medusa y Hellboy, y el resto de la caja Hellboy carga sus datos basicos."""
 import json
+from pathlib import Path
 
 import pytest
 
-from sparring.cards import memory_dir
+from sparring.cards import load_hellboy_deck, load_medusa_deck, memory_dir, repo_toplevel
 from sparring.heroes import (HEROES_DIR, HeroDataError, available_heroes, load_hero, parse_hero)
 from sparring.state import ANUNG, DETECTIVE
+
+GOLDEN_DECKS = Path(__file__).resolve().parent / "golden" / "decks.json"
+DECK_FIELDS = ("card_id", "title", "fighter", "type", "value", "boost", "text", "destiny")
+
+
+def golden_deck(hero: str) -> list[dict]:
+    """Los 30 Card de cada mazo tal y como los daban los cargadores viejos (cards.py + data/*.json del commit
+    3e84597, volcados una sola vez): la referencia independiente del HeroDef."""
+    return json.loads(GOLDEN_DECKS.read_text(encoding="utf-8"))[hero]
+
+
+def as_dicts(deck) -> list[dict]:
+    return [{k: getattr(c, k) for k in DECK_FIELDS} for c in deck]
 
 
 def test_available_heroes_are_the_hellboy_box_plus_medusa():
     assert available_heroes() == ["abe-sapien", "baba-yaga", "hellboy", "liz-sherman", "medusa"]
 
 
-def test_medusa_herodef_matches_the_wired_fighters_and_deck():
-    from sparring.cards import load_medusa_deck
+def test_medusa_herodef_matches_the_wired_fighters_and_the_golden_deck():
     h = load_hero("medusa")
     assert (h.name, h.fid, h.hp, h.move, h.ranged) == ("Medusa", "medusa", 16, 3, True)
     assert [(f.fid, f.name, f.hero, f.hp, f.move, f.ranged) for f in h.fighters()] == [
         ("medusa", "Medusa", True, 16, 3, True), ("harpy1", "Harpy", False, 1, 3, False),
         ("harpy2", "Harpy", False, 1, 3, False), ("harpy3", "Harpy", False, 1, 3, False)]
-    assert h.deck() == load_medusa_deck()
+    assert as_dicts(h.deck()) == golden_deck("medusa") and as_dicts(load_medusa_deck()) == golden_deck("medusa")
     assert h.forms is None and h.counters == {} and h.attack_bonus(None, True) == 0
     assert "Medusa's zone" in h.ability
 
 
-def test_hellboy_herodef_matches_the_wired_fighters_deck_forms_and_bonus():
-    from sparring.cards import load_hellboy_deck
+def test_hellboy_herodef_matches_the_wired_fighters_golden_deck_forms_and_bonus():
     h = load_hero("hellboy")
     assert (h.name, h.fid, h.hp, h.move, h.ranged) == ("Hellboy", "hellboy", 18, 2, False)
     assert [(f.fid, f.name, f.hero, f.hp, f.move, f.ranged) for f in h.fighters()] == [
         ("hellboy", "Hellboy", True, 18, 2, False), ("lobster", "Lobster Johnson", False, 6, 2, True)]
     deck = h.deck()
-    assert deck == load_hellboy_deck()
+    assert as_dicts(deck) == golden_deck("hellboy") and as_dicts(load_hellboy_deck()) == golden_deck("hellboy")
     assert sum(c.destiny for c in deck) == 11 and all("destiny" in c.tags for c in deck if c.destiny)
     assert h.forms.counter == "destiny" and h.forms.threshold == 6
     assert h.forms.of(5) == DETECTIVE and h.forms.of(6) == ANUNG
@@ -89,6 +101,21 @@ def test_validation_rejects_bad_restrictions_sizes_types_and_counters():
         parse_hero(_hero(attack="laser"))
     with pytest.raises(HeroDataError, match="ids de luchador repetidos"):
         parse_hero(_hero(sidekicks=[{"fid": "hellboy", "name": "X", "count": 1, "hp": 1, "move": 1, "attack": "melee"}]))
+
+
+def test_memory_dir_hangs_from_the_main_repo_not_from_a_worktree_or_a_closer_folder(tmp_path, monkeypatch):
+    main = tmp_path / "develop" / "unmatched-sparring"
+    (main / ".git" / "worktrees" / "wt1").mkdir(parents=True)
+    wt = main / ".claude" / "worktrees" / "wt1"
+    wt.mkdir(parents=True)
+    (wt / ".git").write_text(f"gitdir: {main / '.git' / 'worktrees' / 'wt1'}\n", encoding="utf-8")
+    (main / ".claude" / "worktrees" / "unmatched-memory" / "data" / "heroes").mkdir(parents=True)   # senuelo cercano
+    assert repo_toplevel(wt) == main and repo_toplevel(main) == main
+    monkeypatch.setattr("sparring.cards.DATA_DIR", wt / "data")
+    monkeypatch.delenv("UNMATCHED_MEMORY", raising=False)
+    assert memory_dir() == tmp_path / "develop" / "unmatched-memory"
+    monkeypatch.setenv("UNMATCHED_MEMORY", str(tmp_path / "otro"))
+    assert memory_dir() == tmp_path / "otro"
 
 
 def test_generated_herodefs_are_up_to_date_with_memory_and_overlays():

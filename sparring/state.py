@@ -50,7 +50,7 @@ class KnownHand:
     def observe(self, cards: list[Card], turn_no: int) -> None:
         """Sustituye lo sabido: una mirada nueva es la foto completa de la mano en ese momento."""
         self.seen = [c.card_id for c in cards]
-        self.turn_no = turn_no
+        self.turn_no = turn_no if self.seen else None
 
     def forget(self, card: Card) -> bool:
         """Descuenta UNA copia de esa carta (dos Second Shot vistas, una jugada: queda una). True si se sabia."""
@@ -65,9 +65,16 @@ class KnownHand:
     def clear(self) -> None:
         self.seen, self.turn_no = [], None
 
-    def cards(self, full_set: list[Card]) -> list[Card]:
-        by_id = {c.card_id: c for c in full_set}
-        return [by_id[i] for i in self.seen if i in by_id]
+    def cards(self, rival: "PlayerState") -> list[Card]:
+        """Lo visto que aun PUEDE estar en la mano rival. Se defiende de las vias que mueven cartas sin avisar
+        (reconciliacion con la mesa, adopcion): fuera lo que ya esta en su descarte o ha salido del motor."""
+        by_id = {c.card_id: c for c in rival.full_set}
+        out = []
+        for i in self.seen:
+            c = by_id.get(i)
+            if c is not None and c not in rival.discard and (c in rival.hand or c in rival.deck):
+                out.append(c)
+        return out
 
     def copy(self) -> "KnownHand":
         return KnownHand(list(self.seen), self.turn_no)
@@ -197,9 +204,12 @@ class Game:
         return [t for t in self.players[player].hero.triggers
                 if t.get("when") == when and t.get("form", form) == form]
 
+    def attack_bonus_parts(self, fighter: Fighter) -> list[tuple[int, str]]:
+        """(bono, etiqueta) de cada pasiva de ataque activa del heroe (Hellboy en ANUNG UN RAMA: (2, 'ANUNG UN RAMA'))."""
+        return self.players[fighter.owner].hero.attack_bonuses(self.form(fighter.owner), fighter.hero)
+
     def attack_bonus(self, fighter: Fighter) -> int:
-        """Bono de ataque de las pasivas del heroe en su forma actual (Hellboy en ANUNG UN RAMA: +2)."""
-        return self.players[fighter.owner].hero.attack_bonus(self.form(fighter.owner), fighter.hero)
+        return sum(n for n, _ in self.attack_bonus_parts(fighter))
 
     def legal_moves(self, fighter: Fighter, steps: int, through_enemies: bool = False) -> set[int]:
         return self.board.reachable(fighter.pos, steps, self.occupied(fighter.owner) - {fighter.pos},
@@ -223,7 +233,7 @@ class Game:
         para el resto, cuantas faltan por sortear). Las candidatas son las cartas del rival que no estan en ninguna
         pila publica (descarte) ni entre las conocidas; el mazo y la mano son indistinguibles desde fuera."""
         rival = self.players[1 - viewer]
-        known = self.players[viewer].known.cards(rival.full_set)
+        known = self.players[viewer].known.cards(rival)
         size = len(rival.hand) if hand_size is None else hand_size
         pool = list(rival.full_set)
         for c in (*rival.discard, *known):

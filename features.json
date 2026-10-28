@@ -25,8 +25,8 @@
         "Feint cancela todos los efectos de la carta rival",
         "Daño de combate = ataque - defensa (mínimo 0); gana el atacante si hace 1 o más de daño de combate, si no gana el defensor",
         "BOOST: Second Shot permite boost durante el combate sumando el boost de la carta descartada",
-        "Todas las cartas de Medusa (data/medusa_cards.json) tienen su efecto implementado y testeado",
-        "Las cartas de Hellboy (data/hellboy_cards.json + ../unmatched-memory/data/heroes/hellboy.json) tienen valor, boost, tipo, luchador y bandera destino; sus efectos los resuelve el humano, pero el motor registra vida, posición, descarte y forma (DETECTIVE OCULTO con 5 o menos destinos en el descarte, ANUNG UN RAMA con 6 o más)"
+        "Todas las cartas de Medusa (data/heroes/medusa.json, generado desde unmatched-memory + data/heroes/overlay/medusa.json) tienen su efecto implementado y testeado",
+        "Las cartas de Hellboy (data/heroes/hellboy.json, generado desde ../unmatched-memory/data/heroes/hellboy.json + data/heroes/overlay/hellboy.json) tienen valor, boost, tipo, luchador y etiqueta destino; sus efectos los resuelve el humano, pero el motor registra vida, posición, descarte y forma (DETECTIVE OCULTO con 5 o menos destinos en el descarte, ANUNG UN RAMA con 6 o más)"
       ],
       "source": "Reglas de forma de Hellboy: ../unmatched-hellboy-cartas/2026-10-23_2239/unmatched-hellboy-4-personajes.html, seccion \"AHH CRAP!\" (la forma se recalcula desde el descarte; no es permanente)"
     },

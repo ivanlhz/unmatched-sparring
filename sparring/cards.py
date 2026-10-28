@@ -10,17 +10,29 @@ MEDUSA_BASE = 17600
 HELLBOY_BASE = 19700
 
 
+def repo_toplevel(root: Path | None = None) -> Path:
+    """Raiz del repo PRINCIPAL. Desde un worktree, `.git` es un fichero `gitdir: <principal>/.git/worktrees/<n>`
+    (lo mismo que `git rev-parse --git-common-dir`); desde el repo principal, `.git` es la carpeta."""
+    root = root or DATA_DIR.parent
+    dotgit = root / ".git"
+    if dotgit.is_file():
+        text = dotgit.read_text(encoding="utf-8").strip()
+        if text.startswith("gitdir:"):
+            gitdir = Path(text[len("gitdir:"):].strip())
+            if not gitdir.is_absolute():
+                gitdir = (root / gitdir).resolve()
+            if gitdir.parent.name == "worktrees" and gitdir.parent.parent.name == ".git":
+                return gitdir.parent.parent.parent
+    return root
+
+
 def memory_dir() -> Path:
-    """Carpeta `unmatched-memory` hermana del repo (o de cualquier antecesor: un worktree vive mas hondo);
+    """Carpeta `unmatched-memory` hermana del repo principal (nunca de un worktree ni de otra carpeta intermedia);
     `UNMATCHED_MEMORY` la fuerza. Solo la usa el importador de heroes (tools/import_hero.py), nunca la partida."""
     forced = os.environ.get("UNMATCHED_MEMORY")
     if forced:
         return Path(forced)
-    for parent in DATA_DIR.parents:
-        candidate = parent / "unmatched-memory"
-        if (candidate / "data" / "heroes").is_dir():
-            return candidate
-    return DATA_DIR.parent.parent / "unmatched-memory"
+    return repo_toplevel().parent / "unmatched-memory"
 
 
 @dataclass(frozen=True)

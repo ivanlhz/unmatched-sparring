@@ -109,12 +109,27 @@ def test_a_fresh_look_replaces_the_old_one_and_unknown_cards_are_ignored(game):
     a = give(g, 1, "Pancakes!")
     g.observe_hand(0, [a])
     g.players[1].hand.remove(a)                                  # salio por una via que el motor no vio
+    assert g.hidden_hand(0)[0] == []                             # ya no esta ni en su mano ni en su mazo: no cuenta
     assert g.players[0].known.forget(a) is True and g.players[0].known.forget(a) is False
     b = give(g, 1, "Excalibur")
     g.observe_hand(0, [b])
     assert g.players[0].known.seen == [b.card_id]
+    g.observe_hand(0, [])                                        # una mano vacia vista: nada que recordar
+    assert g.players[0].known == KnownHand([], None)
+    g.observe_hand(0, [b])
     g.players[0].known.clear()
     assert g.hidden_hand(0)[0] == []
+
+
+def test_hidden_hand_drops_seen_cards_that_reached_the_discard_without_the_hook(game):
+    g = game
+    a, b = give(g, 1, "Excalibur"), give(g, 1, "Pancakes!")
+    g.observe_hand(0, [a, b])
+    g.players[1].hand.remove(a)
+    g.players[1].discard.append(a)                               # movida a mano, como hace la reconciliacion de la mesa
+    known, pool, missing = g.hidden_hand(0)
+    assert known == [b] and a not in pool and missing == 0
+    assert g.players[0].known.seen == [a.card_id, b.card_id]     # lo recordado no se toca: solo se filtra al consultar
 
 
 def test_known_hand_survives_clone_and_save_and_the_save_format_is_untouched_when_empty(game, bprd):

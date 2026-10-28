@@ -102,16 +102,20 @@ class HeroDef:
         return [Card(self.card_base + c["idx"], c["title"], c["fighter"], c["type"], c["value"], c["boost"],
                      c.get("text", ""), frozenset(c.get("tags", ()))) for c in self.cards]
 
-    def attack_bonus(self, form: str | None, fighter_is_hero: bool) -> int:
-        """Pasivas `attack_bonus` activas en esa forma (Hellboy: +2 en ANUNG UN RAMA)."""
-        total = 0
+    def attack_bonuses(self, form: str | None, fighter_is_hero: bool) -> list[tuple[int, str]]:
+        """(bono, etiqueta) de cada pasiva `attack_bonus` activa en esa forma (Hellboy: (2, 'ANUNG UN RAMA')).
+        La etiqueta es la forma que la activa o, si la pasiva no depende de la forma, su id."""
+        out = []
         for p in self.passives:
             if p.get("effect") != "attack_bonus" or p.get("form", form) != form:
                 continue
             if p.get("fighter", "hero") == "hero" and not fighter_is_hero:
                 continue
-            total += int(p["n"])
-        return total
+            out.append((int(p["n"]), p.get("form") or p.get("id") or "pasiva"))
+        return out
+
+    def attack_bonus(self, form: str | None, fighter_is_hero: bool) -> int:
+        return sum(n for n, _ in self.attack_bonuses(form, fighter_is_hero))
 
 
 def hero_path(slug: str, heroes_dir: Path = HEROES_DIR) -> Path:

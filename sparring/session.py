@@ -1373,6 +1373,7 @@ class Session:
         g = self.game
         hst = g.players[self.human]
         guess = (list(hst.hand), list(hst.deck), list(hst.discard))
+        known_before = [pl.known.copy() for pl in g.players]      # un combate fallido no descuenta cartas vistas
         flip_cards = [(p.bot_card_guid, "bot"), (human_guid, "human")]
         flipped = self._flip_all(flip_cards) if flip else []
         value = self.pending_value
@@ -1391,6 +1392,8 @@ class Session:
                 res = g.attack(p.attacker, p.target, p.bot_card, human_card, values=(0, value))
         except RuleError as e:
             hst.hand[:], hst.deck[:], hst.discard[:] = guess
+            for pl, kn in zip(g.players, known_before):
+                pl.known = kn
             if human_card is not None:
                 self._transit.pop(human_card.card_id, None)
             self._unflip(flipped)
@@ -2914,9 +2917,13 @@ class Session:
             elif c in st.deck:
                 st.deck.remove(c)
             st.discard.append(c)
+            self.game.card_left_hand(self.human, c)     # si el bot la habia visto en tu mano, deja de contar con ella
         self._verify_maneuver_deal(real, len(ids))
-        while len(st.hand) > real:
-            st.deck.append(st.hand.pop())
+        known = self.game.players[self.bot].known.seen
+        while len(st.hand) > real:                      # la mano virtual se recorta por las cartas NO vistas
+            spare = next((c for c in reversed(st.hand) if c.card_id not in known), st.hand[-1])
+            st.hand.remove(spare)
+            st.deck.append(spare)
         while len(st.hand) < real and st.deck:
             st.hand.append(st.deck.pop(0))
         if self._track_destiny() and not self._destiny_tried:
@@ -2933,7 +2940,8 @@ class Session:
             st.discard.remove(card)
         elif card in st.deck:
             st.deck.remove(card)
-        spare = [c for c in st.hand if c not in keep]
+        known = self.game.players[self.bot].known.seen
+        spare = [c for c in st.hand if c not in keep and c.card_id not in known] or [c for c in st.hand if c not in keep]
         if spare:
             st.hand.remove(spare[-1])
             st.deck.append(spare[-1])
