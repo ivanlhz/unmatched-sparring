@@ -54,16 +54,17 @@ def test_hellboy_herodef_matches_the_wired_fighters_golden_deck_forms_and_bonus(
     assert {t["id"] for t in h.triggers} == {"detective_draw", "anung_discard_move"}
 
 
-@pytest.mark.parametrize("slug, name, hp, move, ranged, sidekicks", [
-    ("baba-yaga", "Baba Yaga", 13, 2, True, [("koschei", "Koschei", 1, 3, 2, False)]),
+@pytest.mark.parametrize("slug, name, hp, move, ranged", [
+    ("hellboy", "Hellboy", 18, 2, False),
+    ("abe-sapien", "Abe Sapien", 13, 2, True),
+    ("baba-yaga", "Baba Yaga", 13, 2, True),
+    ("liz-sherman", "Liz Sherman", 16, 3, True),
 ])
-def test_rest_of_the_hellboy_box_loads_basic_data_but_cannot_deal_a_deck(slug, name, hp, move, ranged, sidekicks):
+def test_every_hero_of_the_hellboy_box_deals_a_30_card_deck(slug, name, hp, move, ranged):
     h = load_hero(slug)
     assert (h.name, h.hp, h.move, h.ranged) == (name, hp, move, ranged)
-    assert [(s.fid, s.name, s.count, s.hp, s.move, s.ranged) for s in h.sidekicks] == sidekicks
-    assert h.card_base is None and sum(c["copies"] for c in h.cards) == 30
-    with pytest.raises(HeroDataError, match="sin hoja de CardID"):
-        h.deck()
+    deck = h.deck()
+    assert len(deck) == 30 and len({c.card_id for c in deck}) == 30
 
 
 def test_loading_an_unknown_hero_or_a_mismatched_slug_is_a_clear_error(tmp_path):
