@@ -28,7 +28,7 @@ from . import persist
 from .ai_medusa import MedusaAI
 from .cards import Card
 from .controller import Controller
-from .combat import FEINT, FIGHT_OR_FLIGHT, FIGHT_OR_FLIGHT_BONUS, GLANCE_DAMAGE, can_boost, deck_boost, is_medusa_card
+from .combat import FEINT, FIGHT_OR_FLIGHT, FIGHT_OR_FLIGHT_BONUS, GLANCE_DAMAGE, can_boost, deck_boost, is_medusa_card, scheme_gain_actions
 from .state import ANUNG, DETECTIVE, EXHAUST_DAMAGE, HAND_LIMIT, START_HAND, Fighter, Game, RuleError
 from .tts import lua, ui
 from .tts.lua import ChatKind
@@ -1197,6 +1197,11 @@ class Session:
         elif c.title == "Pancakes!":
             self.say(f"Detecto {c.title}: tienes que elegir dos efectos. Para curar a {g.hero(self.human).name} 2 pulsa su +1 dos veces; "
                      "el mazo y el robo los haces tu en la mesa.", ChatKind.SCHEME)
+        elif scheme_gain_actions(c):
+            n = scheme_gain_actions(c)
+            g.grant_actions(n)
+            self.say(f"Detecto {c.title}: ganas {n} accion{'es' if n != 1 else ''}, te quedan {g.actions_left}; "
+                     f"lo demas lo resuelves tu: {c.text} Usa +1 / -1 para los PV.", ChatKind.SCHEME)
         else:
             self.say(f"Detecto {c.title}: {c.text} Resuelvelo a mano; usa +1 / -1 para los PV.", ChatKind.SCHEME)
 

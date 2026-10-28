@@ -3,6 +3,7 @@
 que alteran el calculo del combate."""
 from __future__ import annotations
 
+import re
 from dataclasses import dataclass, field
 
 from .cards import MEDUSA_BASE, Card
@@ -172,6 +173,16 @@ def deck_boost(card: Card) -> bool:
     return "bottom card of your deck" in text and "boost value to this card" in text
 
 
+_GAIN_ACTIONS = re.compile(r"\bGain (\d+|an?|one|two) actions?\b", re.IGNORECASE)
+_WORDS = {"a": 1, "an": 1, "one": 1, "two": 2}
+
+
+def scheme_gain_actions(card: Card) -> int:
+    """Acciones que da un plan al jugarlo: los «Gain N action(s)» fuera de un AFTER COMBAT (ese es de la carta de combate)."""
+    text = card.text.split("AFTER COMBAT:")[0]
+    return sum(int(w) if w.isdigit() else _WORDS[w.lower()] for w in _GAIN_ACTIONS.findall(text))
+
+
 def after_text(card: Card) -> str:
     """Solo la parte AFTER COMBAT del texto de la carta (lo de IMMEDIATELY y DURING ya lo resuelve el calculo)."""
     head, sep, tail = card.text.partition("AFTER COMBAT:")
@@ -244,6 +255,7 @@ def resolve_scheme(game: Game, player: int, fighter: Fighter, card: Card, target
     if not is_medusa_card(card):
         if card.title == FIGHT_OR_FLIGHT:
             game.add_combat_bonus(player, FIGHT_OR_FLIGHT_BONUS, FIGHT_OR_FLIGHT)
+        game.grant_actions(scheme_gain_actions(card))     # el resto del texto lo resuelve el humano
         return [f"{card.title}: {card.text}"]
     ctrl = game.controllers[player]
     if card.title == "A Momentary Glance":

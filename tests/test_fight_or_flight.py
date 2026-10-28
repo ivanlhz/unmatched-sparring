@@ -6,7 +6,7 @@ import json
 from conftest import give, place
 from sparring import persist
 from sparring.ai_medusa import Act, MedusaAI, Model
-from sparring.combat import FIGHT_OR_FLIGHT, resolve_scheme
+from sparring.combat import FIGHT_OR_FLIGHT, resolve_scheme, scheme_gain_actions
 from sparring.tts.ui import Event
 from test_batch import brig, click  # noqa: F401
 from test_session import card, human_plays
@@ -176,3 +176,59 @@ def test_second_shot_boost_and_on_earth_still_work_with_the_bonus(game, ctl):
     oe = give(game, HB, "On Earth As It Is In Hell")
     res = game.attack(med, hb, give(game, MED, "Second Shot", 1), def_card=oe)
     assert res.def_value == 4 + 1
+
+
+# ---------- planes que dan acciones (Searing Clarity y compania) ----------
+SEARING = "Shuffle a non-scheme card from your discard pile into your deck. Gain 1 action."
+
+
+def play_plan_as(session, table, game, title, text):
+    plan = card(game, HB, "Pancakes!")
+    object.__setattr__(plan, "title", title)
+    object.__setattr__(plan, "text", text)
+    click(session, table, Event.SCHEME)
+    table.human_discard = [plan.card_id]
+    return click(session, table, Event.END_ACTION)
+
+
+def test_searing_clarity_gives_its_action_and_the_turn_does_not_end_early(brig):  # noqa: F811
+    session, table, game, fake = brig
+    msgs = play_plan_as(session, table, game, "Searing Clarity", SEARING)
+    assert game.actions_left == 2, "gasta 1 y gana 1"
+    assert any("Detecto Searing Clarity: ganas 1 accion, te quedan 2" in m and "lo demas lo resuelves tu" in m
+               for m in msgs), msgs
+    assert game.turn == HB
+
+
+def test_crown_still_gives_two_not_four(brig):  # noqa: F811
+    session, table, game, fake = brig
+    crown = next(c for c in game.players[HB].full_set if c.title.startswith("And Upon His Brow"))
+    assert "Gain 2 actions" in crown.text
+    plan = card(game, HB, crown.title)
+    click(session, table, Event.SCHEME)
+    table.human_discard = [plan.card_id]
+    click(session, table, Event.END_ACTION)
+    assert game.actions_left == 3, "gasta 1 y gana 2"
+
+
+def test_a_plan_without_gain_leaves_the_actions_alone(brig):  # noqa: F811
+    session, table, game, fake = brig
+    play_plan_as(session, table, game, "Pancakes!", "Heal 2. Draw 1 card. Shuffle.")
+    assert game.actions_left == 1
+
+
+def test_after_combat_gain_is_not_a_scheme_gain_but_a_plain_gain_is(game):
+    plan = card(game, HB, "Pancakes!")
+    object.__setattr__(plan, "text", "DURING COMBAT: x. AFTER COMBAT: Gain 1 action.")
+    assert scheme_gain_actions(plan) == 0
+    object.__setattr__(plan, "text", "Deal 1 damage. Gain 1 action. ONGOING: x")
+    assert scheme_gain_actions(plan) == 1
+
+
+def test_a_bot_scheme_with_gain_gets_the_action(game):
+    plan = card(game, HB, "Pancakes!")
+    object.__setattr__(plan, "title", "Searing Clarity")
+    object.__setattr__(plan, "text", SEARING)
+    before = game.actions_left
+    resolve_scheme(game, MED, game.hero(MED), plan)
+    assert game.actions_left == before + 1
