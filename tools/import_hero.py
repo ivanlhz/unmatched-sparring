@@ -8,7 +8,8 @@ unmatched-memory (`../unmatched-memory/data/heroes/<slug>.json`, o UNMATCHED_MEM
 vida, movimiento, alcance, ayudantes, habilidad y las cartas (titulo, tipo, valor, impulso, copias, textos).
 El overlay `data/heroes/overlay/<slug>.json` aporta lo que unmatched-memory no tiene: el id de luchador (`fid`),
 los ayudantes corregidos (nombre del sparring, fid, cantidad), la hoja de CardID (`deck.card_base` + `deck.sheet`:
-idx, titulo, restriccion de luchador y etiquetas), y formas, contadores, disparadores y pasivas.
+idx, titulo, restriccion de luchador, etiquetas y, si la carta real dice otra cosa, `text`), y formas, contadores,
+disparadores y pasivas.
 Sin hoja, el HeroDef lleva las cartas de unmatched-memory sin CardID ni restriccion y el motor no puede jugar con el."""
 from __future__ import annotations
 
@@ -70,7 +71,8 @@ def build(slug: str, memory: Path, overlay_dir: Path = OVERLAY_DIR) -> dict:
                 raise SystemExit(f"{slug}: la hoja del overlay cita {entry['title']!r} (idx {entry.get('idx')}), que no "
                                  f"existe en unmatched-memory; titulos conocidos: {', '.join(sorted(by_title))}")
             cards.append({"idx": entry["idx"], "title": entry["title"], "fighter": entry["fighter"], "type": src["type"],
-                          "value": src["value"], "boost": src["boostValue"], "text": card_text(src),
+                          "value": src["value"], "boost": src["boostValue"],
+                          "text": entry.get("text") or card_text(src),     # la carta real manda sobre unmatched-memory
                           "tags": list(entry.get("tags", ()))})
         for title, src in by_title.items():
             n = sum(1 for c in cards if c["title"] == title)

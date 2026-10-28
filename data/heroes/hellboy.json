@@ -19,7 +19,9 @@
    "move": 2,
    "attack": "range",
    "count": 1,
-   "fid": "lobster"
+   "fid": "lobster",
+   "start_on_board": 1,
+   "reserve": 0
   }
  ],
  "forms": {
@@ -395,6 +397,8 @@
   "Hoja 197 del savegame (8x4), leida a ojo el 2026-10-26. CardID = 19700 + idx; 19600 = carta de personaje.",
   "Restricciones de luchador y etiqueta destiny de la hoja de TTS (unmatched-memory no las tiene).",
   "Formas (carta de personaje, seccion AHH CRAP!): OCCULT DETECTIVE con 5 o menos destinos en el descarte, ANUNG UN RAMA con 6 o mas; no es permanente, se recalcula siempre desde el descarte.",
-  "Disparadores: hasta el paso 8 del plan los ejecutan Game.hellboy_detective_draw y Game.hellboy_anung_start; la pasiva attack_bonus si la lee ya el combate."
+  "Disparadores: hasta el paso 8 del plan los ejecutan Game.hellboy_detective_draw y Game.hellboy_anung_start; la pasiva attack_bonus si la lee ya el combate.",
+  "Verificada carta a carta el 2026-10-28 contra la FaceURL de la hoja (CustomDeck 197 del mazo 00dc9a; las cartas sueltas usan la clave 187 con las mismas imagenes) del save 'Unmatched Official Tournament Table October 2026 (Hellboy)': titulos, copias (x1/x2/x3/x4 impresos), valor, boost, tipo, luchador y corona de destino coinciden. Los efectos estructurados estan en data/heroes/effects/hellboy.json y el resumen en docs/heroes/hellboy.md.",
+  "Lobster Johnson: 1 miniatura, empieza en el tablero (start_on_board 1, reserve 0); vida 6, movimiento 2 y alcance de unmatched-memory, confirmados en la carta de personaje (CardID 19600)."
  ]
 }
