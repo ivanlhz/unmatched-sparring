@@ -362,15 +362,18 @@ end
 
 def _find_deck(spot, radius) -> str:
     """Lua que, si `d` es nil, busca a `d` entre los Deck/Card a menos de `radius` del punto (x, z) que `ours` acepta
-    (el mazo del bot, o su ultima carta suelta). Sin punto no busca. Requiere `_ours_lua` antes."""
+    (el mazo del bot, o su ultima carta suelta). Solo cuenta lo que esta boca abajo (una carta boca arriba junto al
+    punto es un descarte) y gana el mas cercano al punto. Sin punto no busca. Requiere `_ours_lua` antes."""
     if spot is None:
         return ""
     x, z, r = _spot(spot, radius)
     return f"""if d == nil then
+  local best = nil
   for _, o in ipairs(getObjects()) do
-    if o.type == "Deck" or o.type == "Card" then
+    if (o.type == "Deck" or o.type == "Card") and o.is_face_down then
       local p = o.getPosition()
-      if (p.x - {x}) ^ 2 + (p.z - {z}) ^ 2 <= {r} ^ 2 and ours(o) then d = o; break end
+      local d2 = (p.x - {x}) ^ 2 + (p.z - {z}) ^ 2
+      if d2 <= {r} ^ 2 and ours(o) and (best == nil or d2 < best) then d = o; best = d2 end
     end
   end
 end

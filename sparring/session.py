@@ -995,9 +995,14 @@ class Session:
         try:
             script = lua.deal_cards(c.human_deck_guid, 1, c.human_seat, spot=c.human_deck_spot,
                                     id_range=lua.HUMAN_CARD_IDS, identity=self._identity("human"))
-            op = self._w(script, "cards")
         except TABLE_ERRORS as e:
             self.say(f"No he podido darte la carta de la Maniobra ({e}). Roba tu carta a mano y pulsa Fin de accion.")
+            return
+        try:
+            op = self._w(script, "cards")
+        except TABLE_ERRORS as e:             # la respuesta puede llegar tarde con la carta ya repartida
+            self.say(f"No he podido confirmar el reparto de tu carta ({e}): mira tu mano; si no tienes la carta nueva, "
+                     "roba a mano y pulsa Fin de accion.")
             return
         drawn = self.game.draw(self.human)
         self.say("Maniobra: te he dado 1 carta. Mueve tus miniaturas (puedes potenciar descartando una carta) y "
@@ -2858,10 +2863,13 @@ class Session:
         by_id = {c.card_id: c for c in st.full_set}
         deck_qty = (self.snap or {}).get("human_deck_qty", -1) if self.cfg.batch else -1
         fresh = [c for c in st.discard if c.card_id not in ids and c.card_id not in self._gone]
-        # Si el mazo de robo crecio justo en tantas cartas como acaban de faltar, el mazo prueba a donde fueron: la
-        # baja vale ya, sin esperar al segundo boton.
+        real = self._rd_human_count(len(st.hand))
+        # Si el mazo de robo crecio en tantas cartas como acaban de faltar, el mazo prueba a donde fueron: la baja vale
+        # ya, sin esperar al segundo boton. El crecimiento que explica una carta menos en la mano (Vistazo al infierno:
+        # mano -> mazo) no cuenta, o una lectura suelta fallida bajaria el contador.
+        hand_drop = max(0, len(st.hand) - real)
         grew = (isinstance(deck_qty, int) and deck_qty >= 0 and self._deck_qty >= 0 and bool(fresh)
-                and deck_qty - self._deck_qty == len(fresh))
+                and deck_qty - self._deck_qty - hand_drop >= len(fresh))
         for c in list(st.discard):
             if c.card_id in ids:
                 self._gone.pop(c.card_id, None)
@@ -2884,7 +2892,6 @@ class Session:
             elif c in st.deck:
                 st.deck.remove(c)
             st.discard.append(c)
-        real = self._rd_human_count(len(st.hand))
         self._verify_maneuver_deal(real, len(ids))
         while len(st.hand) > real:
             st.deck.append(st.hand.pop())

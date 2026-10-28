@@ -719,10 +719,10 @@ def test_d8_a_missing_card_with_nothing_on_the_table_still_reports_the_short_dea
 def test_d9_deal_fallback_only_takes_objects_whose_card_id_is_in_the_bot_deck_range():
     s = t_deal_cards("d42056", 1, "Green", spot=(11.5, 12.0))
     assert "17600" in s and "17629" in s
-    assert s.index("ours(o)") < s.index("d = o") and "and ours(o) then d = o" in s
+    assert s.index("ours(o)") < s.index("d = o") and "and ours(o) and (best == nil" in s and "o.is_face_down" in s
     custom = t_deal_cards("d42056", 1, "Green", spot=(1.0, 2.0), id_range=(100, 129))
     assert "id < 100 or id > 129" in custom
-    assert "and ours(o) then d = o" not in t_deal_cards("d42056", 1, "Green"), "sin punto no hay busqueda"
+    assert "and ours(o) and (best == nil" not in t_deal_cards("d42056", 1, "Green"), "sin punto no hay busqueda"
     assert "if d ~= nil and not ours(d) then d = nil end" in s, "tambien el mazo hallado por GUID debe ser el nuestro"
 
 
