@@ -44,6 +44,25 @@ def strike_steps(board, hb_pos, target_pos):
     return min(board.distance(hb_pos, s) for s in board.adj[target_pos])
 
 
+def steps_to_strike(game, attacker, target):
+    """Pasos que necesita `attacker` para poder golpear a `target` sin atravesar rivales (los ayudantes en el
+    camino cuentan como escudo); 99 si no llega en 8."""
+    own = game.occupied(attacker.owner) - {attacker.pos}
+    enemy = game.occupied(1 - attacker.owner) - {target.pos}
+    if game.board.can_reach_target(attacker.pos, target.pos, attacker.ranged):
+        return 0
+    for steps in range(1, 9):
+        if any(game.board.can_reach_target(d, target.pos, attacker.ranged)
+               for d in game.board.reachable(attacker.pos, steps, own, enemy)):
+            return steps
+    return 99
+
+
+def harpies_adjacent_to(game, fid):
+    pos = game.fighters[fid].pos
+    return sum(1 for f in game.own(0) if not f.hero and game.board.adjacent(f.pos, pos))
+
+
 @pytest.fixture
 def ai():
     return IsmctsMedusa(0, SearchConfig(iterations=ITER, seed=11))
@@ -187,6 +206,60 @@ def test_does_not_walk_into_an_avoidable_lethal(game, ai):
     medusa, hb = game.fighters["medusa"], game.fighters["hellboy"]
     assert medusa.alive
     assert strike_steps(b, hb.pos, medusa.pos) > 2, f"Medusa termino a tiro de Hellboy sin boost (casilla {medusa.pos})"
+
+
+ITER_POSITION = 1500    # las decisiones de posicion (maniobra + politica de arpias) necesitan mas arbol que un ataque
+
+
+@pytest.fixture
+def position_ai():
+    return IsmctsMedusa(0, SearchConfig(iterations=ITER_POSITION, seed=11))
+
+
+def test_keeps_the_harpy_blocking_the_corridor_instead_of_exposing_medusa(game, position_ai):
+    """Partida de Ivan: Medusa (9 PV) en la sala turquesa con una Harpia tapando la unica entrada corta (26) y
+    Hellboy pegado a ella. Retirar las Harpias para que no mueran abre el pasillo y deja a Medusa a un paso."""
+    place(game, medusa=24, hellboy=16, lobster=15, harpy1=26, harpy2=23, harpy3=22)
+    medusa_hand(game, "Second Shot", "Regroup", "Dash", "Feint", "Winged Frenzy")
+    rival_hand(game, 5)
+    game.fighters["hellboy"].hp, game.fighters["medusa"].hp = 12, 9
+    position_ai.take_turn(game)
+    medusa, hb = game.fighters["medusa"], game.fighters["hellboy"]
+    assert medusa.alive and position_ai.fallbacks == 0
+    assert steps_to_strike(game, hb, medusa) > hb.move, f"Medusa quedo a tiro de Hellboy (casilla {medusa.pos})"
+    assert harpies_adjacent_to(game, "hellboy") >= 1, "las Harpias huyeron en vez de bloquear o presionar"
+
+
+def test_does_not_expose_medusa_to_save_a_harpy(game, position_ai):
+    """Una Harpia pegada a Hellboy va a morir; Medusa (8 PV) esta a dos pasos de el. Salvar la Harpia no vale
+    dejar a Medusa donde Hellboy la alcanza con una maniobra."""
+    place(game, medusa=30, hellboy=20, lobster=13, harpy1=21, harpy2=28, harpy3=29)
+    medusa_hand(game, "Second Shot", "Regroup", "Dash", "Feint", "Winged Frenzy")
+    rival_hand(game, 5)
+    game.fighters["hellboy"].hp, game.fighters["medusa"].hp = 12, 8
+    position_ai.take_turn(game)
+    medusa, hb = game.fighters["medusa"], game.fighters["hellboy"]
+    assert medusa.alive and position_ai.fallbacks == 0
+    assert steps_to_strike(game, hb, medusa) > hb.move, f"Medusa quedo a tiro de Hellboy (casilla {medusa.pos})"
+
+
+def test_harpies_press_when_the_rival_cannot_punish(game, position_ai):
+    """Hellboy sin cartas en mano y sin Lobster; Medusa fuera de alcance y sin cartas de ataque. Las Harpias a
+    2-3 pasos deben acercarse a presionar (y a bloquear), no quedarse atras para conservarse."""
+    place(game, medusa=25, hellboy=14, harpy1=23, harpy2=22, harpy3=21)
+    game.fighters["lobster"].alive, game.fighters["lobster"].pos, game.fighters["lobster"].hp = False, None, 0
+    medusa_hand(game, "Hiss and Slither", "Hiss and Slither", "Winged Frenzy")
+    deck = game.players[1].deck
+    plain = [c for c in deck if not c.destiny][:12]
+    for c in plain:
+        deck.remove(c)
+    game.players[1].discard = plain
+    assert len(game.players[1].hand) == 0 and harpies_adjacent_to(game, "hellboy") == 0
+    position_ai.take_turn(game)
+    medusa, hb = game.fighters["medusa"], game.fighters["hellboy"]
+    assert position_ai.fallbacks == 0
+    assert harpies_adjacent_to(game, "hellboy") >= 2, [f.pos for f in game.own(0)]
+    assert steps_to_strike(game, hb, medusa) > hb.move, f"Medusa quedo a tiro de Hellboy (casilla {medusa.pos})"
 
 
 def test_defends_with_the_strongest_card_when_a_hit_would_kill(game, ai):

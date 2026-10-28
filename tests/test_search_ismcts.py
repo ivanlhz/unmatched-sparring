@@ -20,6 +20,9 @@ class PickBest:
     def player_to_move(self):
         return 0
 
+    def turn_owner(self):
+        return 0
+
     def legal_moves(self):
         return list(self.options)
 
@@ -62,6 +65,9 @@ class HiddenDuel:
 
     def player_to_move(self):
         return 0 if self.atk is None else 1
+
+    def turn_owner(self):
+        return self.player_to_move()
 
     def legal_moves(self):
         return ["A", "B"] if self.atk is None else ["alto", "bajo"]

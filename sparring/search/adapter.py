@@ -8,36 +8,61 @@ subdecisiones encadenadas que comparten estadisticas en el arbol (la raiz tiene 
   ("attack", fid, objetivo) -> ("attack_card", fid, titulo)   el rival ve ("attack_card", fid, None)
   ("defend", titulo | None)                     resuelve el combate pendiente
   ("scheme", titulo, objetivo | None, variante) planes con efecto codificado (solo los de Medusa hoy)
-  ("maneuver", boost | None) -> ("hero_to", d) -> ("sidekicks", politica)
+  ("maneuver", boost | None) -> ("place", d, politica)   destino del heroe y politica de los ayudantes
 Las subfases con una sola opcion se resuelven solas. `decision_pending()` dice si la accion esta a medias, para
 que el controlador complete la jugada siguiendo la variacion principal.
 
 Lo que el motor delega a mitad de resolucion (boost de Second Shot, Dash, Hounds, descarte forzado, recolocar
 una Harpia) lo decide `SearchController` con heuristicas fijas: no es parte del arbol. Los ayudantes se mueven
-en bloque con una politica (quedarse, avanzar, retirarse) y solo el heroe explora todos sus destinos.
+en bloque con una politica (quedarse, avanzar, retirarse). En el arbol entran solo las colocaciones completas
+(heroe y ayudantes ya movidos) mejor puntuadas por la evaluacion estatica como posicion de final de turno
+(`PLACEMENT_KEEP`), mas las mejores desde las que el heroe golpea y quedarse quieto: con todas, la maniobra
+tenia ~30 hojas con pocas visitas cada una y el ruido elegia la casilla. El rollout no poda.
 
 Sin trampas: `determinize` solo usa `full_set`, `discard`, `len(hand)` y las cartas conocidas (`Knowledge`).
+
+Evaluacion de hoja (`evaluate`): material de cada bando (PV del heroe, PV y numero de ayudantes, mano, mazo) menos
+la amenaza sobre su heroe el turno que viene (`EngineState.threat`): dano esperado de los rivales que lo alcanzan
+de verdad (sin atravesar luchadores propios, asi un ayudante en el pasillo es un escudo), con el ataque medio del
+mazo completo del atacante contra la mejor defensa en mano, mas la probabilidad de que lo maten. Es generica
+(cualquier heroe, cualquier ayudante) y, restada al bando contrario, es la presion propia: un ayudante a tiro del
+heroe rival vale como atacante, no solo como PV que conservar. Los pesos viven en `EvalWeights` (F10 los ajusta).
 """
 from __future__ import annotations
 
 import random
 from dataclasses import dataclass, field
-from math import exp
+from math import sqrt
 
 from ..cards import Card
 from ..combat import is_medusa_card, resolve_combat
 from ..controller import Controller
-from ..state import ANUNG, Fighter, Game
+from ..state import ANUNG, Fighter, Game, PlayerState
 
 SIDEKICK_POLICIES = ("stay", "advance", "retreat")
 FRENZY_VARIANTS = ("advance", "retreat")
 ROLLOUT_ATTACK_PROB = 0.7     # en el rollout, quien puede atacar ataca casi siempre (hace visibles las amenazas)
 ROLLOUT_BOOST_PROB = 0.3
-EVAL_SIDEKICKS = 0.4
-EVAL_ALIVE = 0.15
-EVAL_HAND = 0.15
-EVAL_DECK = 0.1
-EVAL_SLOPE = 2.5
+ROLLOUT_APPROACH_PROB = 0.5   # en el rollout, el heroe que maniobra busca una casilla desde la que golpear
+BOOST_STEPS = 2               # pasos extra que un atacante puede comprar con un boost (lo tipico del mazo)
+PLACEMENT_KEEP = 6            # colocaciones de la maniobra en el arbol: las mejores por evaluacion estatica...
+PLACEMENT_STRIKE_KEEP = 2     # ...mas las mejores desde las que el heroe golpea, mas quedarse quieto
+ANUNG_FREE_STEPS = 2          # movimiento libre de ANUNG UN RAMA al empezar el turno (ver MedusaAI)
+
+
+@dataclass(frozen=True)
+class EvalWeights:
+    """Pesos de la evaluacion de hoja. Unidades: 1.0 = todos los PV del heroe."""
+    sidekicks: float = 1.0          # PV de los ayudantes vivos, medidos en PV maximos del heroe
+    alive: float = 0.15             # ayudantes vivos: un caido es un atacante y un escudo menos
+    hand: float = 0.15
+    deck: float = 0.1
+    threat: float = 0.6             # dano esperado sobre el heroe el turno que viene (fraccion de sus PV actuales)
+    lethal: float = 0.5             # probabilidad de que ese turno lo mate
+    victim_moves_first: float = 0.1 # descuento si el amenazado mueve antes: puede apartarse o golpear primero
+    boost_reach: float = 0.4        # el atacante que necesita un boost para llegar: le cuesta una carta y es incierto
+    defend_card_hp: float = 0.75    # cada ataque recibido cuesta ademas una carta de defensa (en PV equivalentes)
+    slope: float = 1.5              # escala de `squash` sobre la diferencia entre bandos
 
 
 @dataclass(frozen=True)
@@ -45,6 +70,13 @@ class Knowledge:
     """Cartas que el observador sabe que estan en la mano de un jugador por un efecto legitimo de mirar la mano,
     ya descontadas de las que han salido (el motor las mantiene; el adaptador solo las respeta)."""
     known_in_hand: dict[int, tuple[Card, ...]] = field(default_factory=dict)
+
+
+def squash(x: float) -> float:
+    """Ventaja (en vidas del heroe) a recompensa en (0, 1), con colas pesadas. Con la sigmoide, una posicion muy
+    perdida (Medusa a 3 PV frente a Hellboy entero) valia ~0,04 hiciera lo que hiciera, y un 10 % de morir ahora
+    pesaba menos que cancelar una carta; asi seguir viva se distingue de morir tambien ahi."""
+    return 0.5 + 0.5 * x / (1.0 + abs(x))
 
 
 def card_worth(c: Card) -> float:
@@ -84,6 +116,46 @@ def nearest(board, pos: int, foes: tuple[int, ...]) -> int:
     if d is None:
         d = _near_cache[key] = min((board.distance(pos, e) for e in foes), default=0)
     return d
+
+
+_strike_cache: dict[tuple, frozenset[int]] = {}
+_attack_values_cache: dict[tuple, tuple[int, ...]] = {}
+_attack_stats_cache: dict[tuple, tuple[float, float]] = {}
+
+
+def attack_stats(values: tuple[int, ...], delta: int, hp: float) -> tuple[float, float]:
+    """(dano neto medio, fraccion de cartas que matan) de un mazo de valores `values` con `delta` = bonus del
+    atacante menos la defensa del objetivo, contra `hp` PV. Se repite miles de veces por decision: con cache."""
+    key = (values, delta, hp)
+    r = _attack_stats_cache.get(key)
+    if r is None:
+        n = len(values)
+        r = _attack_stats_cache[key] = (sum(max(0, v + delta) for v in values) / n,
+                                        sum(1 for v in values if v + delta >= hp) / n)
+    return r
+
+
+def strike_spots(board, target_pos: int, ranged: bool) -> frozenset[int]:
+    """Casillas desde las que un atacante (cuerpo a cuerpo o a distancia) golpea a quien esta en `target_pos`."""
+    key = (board.key, target_pos, ranged)
+    r = _strike_cache.get(key)
+    if r is None:
+        r = _strike_cache[key] = frozenset(s for s in board.spaces if board.can_reach_target(s, target_pos, ranged))
+    return r
+
+
+def attack_values(st: PlayerState, fighter_name: str) -> tuple[int, ...]:
+    """Valores de ataque del mazo completo que puede usar `fighter_name`: informacion publica y fija en la partida."""
+    key = (st.hero_name, fighter_name)
+    v = _attack_values_cache.get(key)
+    if v is None:
+        v = _attack_values_cache[key] = tuple(c.value for c in st.full_set if c.can_attack and c.usable_by(fighter_name))
+    return v
+
+
+def free_steps(game: Game, f: Fighter) -> int:
+    """Movimiento gratis antes de maniobrar (hoy, el de ANUNG UN RAMA; lo especifico del heroe queda aqui)."""
+    return ANUNG_FREE_STEPS if f.hero and game.form(f.owner) == ANUNG else 0
 
 
 def policy_dest_from(board, pos: int, options, foes: tuple[int, ...], policy: str) -> int:
@@ -182,12 +254,13 @@ class SearchController(Controller):
 class EngineState:
     """`pending`: (fid atacante, fid objetivo, carta | None). Con carta None la jugada esta boca abajo y la
     determinizacion la muestrea (el bot eligiendo defensa). `phase`: "start", "action" o una subfase
-    ("attack_card", "maneuver_hero", "maneuver_side", "anung_to") con la decision a medias en `partial`."""
+    ("attack_card", "maneuver_place", "anung_to") con la decision a medias en `partial`."""
 
-    SUBPHASES = ("attack_card", "maneuver_hero", "maneuver_side", "anung_to")
+    SUBPHASES = ("attack_card", "maneuver_place", "anung_to")
 
     def __init__(self, game: Game, observer: int, knowledge: Knowledge | None = None,
-                 pending: tuple[str, str, Card | None] | None = None, phase: str = "action"):
+                 pending: tuple[str, str, Card | None] | None = None, phase: str = "action",
+                 weights: EvalWeights | None = None):
         self.game = game.clone()
         self.game.controllers = {0: SearchController(0, self), 1: SearchController(1, self)}
         # lo propio en orden canonico: con la misma semilla la decision no depende del orden real del mazo ni de
@@ -197,10 +270,12 @@ class EngineState:
         mine.deck.sort(key=lambda c: c.card_id)
         self.observer = observer
         self.knowledge = knowledge or Knowledge()
+        self.weights = weights or EvalWeights()
         self.pending = pending
         self.phase = phase
         self.partial: tuple = ()
         self.variant: str | None = None
+        self._eval: float | None = None
         self._advance()
 
     # ---------- Protocol ----------
@@ -208,13 +283,16 @@ class EngineState:
         c = EngineState.__new__(EngineState)
         c.game = self.game.clone()
         c.game.controllers = {0: SearchController(0, c), 1: SearchController(1, c)}
-        c.observer, c.knowledge, c.pending = self.observer, self.knowledge, self.pending
-        c.phase, c.partial, c.variant = self.phase, self.partial, self.variant
+        c.observer, c.knowledge, c.pending, c.weights = self.observer, self.knowledge, self.pending, self.weights
+        c.phase, c.partial, c.variant, c._eval = self.phase, self.partial, self.variant, self._eval
         return c
 
     def player_to_move(self) -> int:
         if self.pending is not None:
             return self.game.fighters[self.pending[1]].owner
+        return self.game.turn
+
+    def turn_owner(self) -> int:
         return self.game.turn
 
     def is_terminal(self) -> bool:
@@ -245,7 +323,7 @@ class EngineState:
         mover = self.player_to_move()
         return (g.board.key, g.turn, self.phase, self.partial, self.pending[:2] if self.pending else None,
                 g.form(1 - g.turn) if self.phase == "start" else None,
-                tuple((f.fid, f.pos) for f in g.fighters.values() if f.alive),
+                tuple((f.fid, f.pos, f.hp) for f in g.fighters.values() if f.alive),
                 tuple(sorted(c.card_id for c in g.players[mover].hand)))
 
     def _generate_moves(self) -> list:
@@ -262,12 +340,8 @@ class EngineState:
         if self.phase == "attack_card":
             f = g.fighters[self.partial[0]]
             return [("attack_card", f.fid, t) for t in self._attack_titles(p, f)]
-        if self.phase == "maneuver_hero":
-            return [("hero_to", d) for d in sorted(reach(g, hero, hero.move + self._extra()) | {hero.pos})]
-        if self.phase == "maneuver_side":
-            if not any(not f.hero for f in g.own(p)):
-                return [("sidekicks", "stay")]
-            return [("sidekicks", policy) for policy in SIDEKICK_POLICIES]
+        if self.phase == "maneuver_place":
+            return [("place", d, policy) for d, policy in self._placements(p, hero)]
         moves = self._attack_moves(p) + self._scheme_moves(p)
         moves += [("maneuver", c.title if c else None) for c in self._boost_variants(p)]
         return moves
@@ -277,6 +351,7 @@ class EngineState:
         kind = move[0]
         p = self.player_to_move()
         hand = g.players[p].hand
+        self._eval = None
         if kind == "defend":
             att, tgt, atk_card = self.pending
             self.pending = None
@@ -290,14 +365,13 @@ class EngineState:
             g.use_action()
             self.pending = (att, tgt, by_title(hand, move[2]))
         elif kind == "maneuver":
-            self.phase, self.partial = "maneuver_hero", (move[1],)
-        elif kind == "hero_to":
-            self.phase, self.partial = "maneuver_side", (self.partial[0], move[1])
-        elif kind == "sidekicks":
-            title, d = self.partial
+            self.phase, self.partial = "maneuver_place", (move[1],)
+        elif kind == "place":
+            title, = self.partial
+            _, d, policy = move
             self.phase, self.partial = "action", ()
             boost = by_title(hand, title) if title is not None else None
-            plan = sidekick_plan(g, p, boost.boost if boost else 0, move[1], hero_dest=d)
+            plan = sidekick_plan(g, p, boost.boost if boost else 0, policy, hero_dest=d)
             g.maneuver(p, dict(((g.hero(p).fid, d),) + plan), boost)
         elif kind == "scheme":
             card = by_title(hand, move[1])
@@ -332,11 +406,26 @@ class EngineState:
         g = self.game
         if g.winner is not None:
             return 1.0 if g.winner == player else 0.0
-        d = self._side_value(player) - self._side_value(1 - player)
-        return 1.0 / (1.0 + exp(-EVAL_SLOPE * d))
+        if self._eval is None:      # la busqueda pide la hoja desde los dos lados: se calcula una vez
+            self._eval = squash(self.weights.slope * self._advantage(0))
+        return self._eval if player == 0 else 1.0 - self._eval
+
+    def _advantage(self, p: int, urgent: bool = False) -> float:
+        return self._side_value(p, urgent) - self._side_value(1 - p, urgent)
+
+    def _hero_options(self, hero: Fighter) -> frozenset[int]:
+        """Donde puede acabar el heroe en la maniobra en curso (con el boost elegido), quedarse incluido."""
+        return reach(self.game, hero, hero.move + self._extra()) | {hero.pos}
 
     def rollout_move(self, rng: random.Random):
+        """Jugada legal para el motor; el destino del heroe sale del alcance completo (sin la poda del arbol, que
+        cuesta una evaluacion por casilla y en el rollout no compensa)."""
         g = self.game
+        if self.phase == "maneuver_place":
+            p = g.turn
+            dests = sorted(self._hero_options(g.hero(p)))
+            d = self._approach_dest(dests, rng) if rng.random() < ROLLOUT_APPROACH_PROB else rng.choice(dests)
+            return ("place", d, rng.choice(self._policies(p)))
         if self.pending is not None or self.phase != "action":
             return rng.choice(self.legal_moves())
         p = g.turn
@@ -349,6 +438,7 @@ class EngineState:
 
     def determinize(self, observer: int, rng: random.Random) -> None:
         g = self.game
+        self._eval = None
         for p, st in enumerate(g.players):
             if p == observer:
                 st.deck.sort(key=lambda c: c.card_id)   # el orden del propio mazo tambien es oculto: desde el canonico
@@ -396,6 +486,11 @@ class EngineState:
                     g.hellboy_detective_draw(p)
                 self.phase = "action"
                 continue
+            if self.phase == "maneuver_place":      # sin podar: aqui solo importa si hay eleccion
+                hero = g.hero(p)
+                if len(self._hero_options(hero)) == 1 and len(self._policies(p)) == 1:
+                    self.apply(("place", hero.pos, "stay"))
+                return
             if self.phase in self.SUBPHASES:
                 moves = self.legal_moves()
                 if len(moves) == 1:         # subfase sin eleccion real: se resuelve sola
@@ -473,15 +568,119 @@ class EngineState:
         title = self.partial[0]
         return by_title(self.game.players[self.game.turn].hand, title).boost if title is not None else 0
 
-    # ---------- evaluacion ----------
-    def _side_value(self, p: int) -> float:
+    def _approach_dest(self, dests: list[int], rng: random.Random) -> int:
+        """Destino del heroe en el rollout: una casilla desde la que golpea a un rival; si no hay, la mas cercana.
+        Sin esto Hellboy nunca se acercaba a Medusa en 6 jugadas y quedar a su alcance no se castigaba."""
+        g = self.game
+        p = g.turn
+        foes = foe_positions(g, p)
+        striking = [d for d in dests if d in self._striking_spots(p)]
+        if striking:
+            return rng.choice(striking)
+        return min(dests, key=lambda d: (nearest(g.board, d, foes), d))
+
+    def _striking_spots(self, p: int) -> frozenset[int]:
         g = self.game
         hero = g.hero(p)
+        return frozenset().union(*(strike_spots(g.board, e.pos, hero.ranged) for e in g.foes(p)))
+
+    def _policies(self, p: int) -> tuple[str, ...]:
+        return SIDEKICK_POLICIES if any(not f.hero for f in self.game.own(p)) else ("stay",)
+
+    def _placements(self, p: int, hero: Fighter) -> list[tuple[int, str]]:
+        """(destino del heroe, politica de ayudantes) que entran en el arbol: las `PLACEMENT_KEEP` mejores por la
+        evaluacion estatica con todos ya movidos y vista como final de turno (el rival mueve despues), las
+        `PLACEMENT_STRIKE_KEEP` mejores desde las que el heroe golpea, y quedarse quieto."""
+        g = self.game
+        options = sorted(self._hero_options(hero))
+        policies = self._policies(p)
+        if len(options) * len(policies) <= PLACEMENT_KEEP:
+            return [(d, policy) for d in options for policy in policies]
+        extra = self._extra()
+        side = [f for f in g.own(p) if not f.hero]
+        origin = {f.fid: f.pos for f in g.own(p)}
+        scored = []
+        for d in options:
+            for policy in policies:
+                plan = sidekick_plan(g, p, extra, policy, hero_dest=d)
+                hero.pos = d
+                for fid, dest in plan:
+                    g.fighters[fid].pos = dest
+                scored.append((self._exposure(1 - p, True) - self._exposure(p, True), d, policy))
+                for f in side:
+                    f.pos = origin[f.fid]
+        hero.pos = origin[hero.fid]
+        scored.sort(key=lambda x: (-x[0], x[1], x[2]))
+        spots = self._striking_spots(p)
+        striking = [(d, policy) for _, d, policy in scored if d in spots][:PLACEMENT_STRIKE_KEEP]
+        keep = {(d, policy) for _, d, policy in scored[:PLACEMENT_KEEP]} | set(striking) | {(hero.pos, "stay")}
+        return sorted(keep)
+
+    # ---------- evaluacion ----------
+    def _side_value(self, p: int, urgent: bool = False) -> float:
+        g, w = self.game, self.weights
+        hero = g.hero(p)
         side = [f for f in g.own(p, alive_only=False) if not f.hero]
-        side_max = sum(f.max_hp for f in side)
-        side_hp = sum(f.hp for f in side if f.alive) / side_max if side_max else 0.0
-        alive = sum(1 for f in side if f.alive) / len(side) if side else 0.0    # un ayudante caido es un atacante menos
+        side_hp = sum(f.hp for f in side if f.alive) / hero.max_hp      # en PV del heroe: una Harpia vale menos que Lobster
+        alive = sum(1 for f in side if f.alive) / len(side) if side else 0.0
         hand = min(len(g.players[p].hand), 7) / 7
         deck = min(len(g.players[p].deck), 10) / 10
-        return (max(hero.hp, 0) / hero.max_hp + EVAL_SIDEKICKS * side_hp + EVAL_ALIVE * alive
-                + EVAL_HAND * hand + EVAL_DECK * deck)
+        # raiz cuadrada: los primeros PV valen mas que los ultimos; seguir vivo a 3 PV no es casi lo mismo que morir
+        return (sqrt(max(hero.hp, 0) / hero.max_hp) + w.sidekicks * side_hp + w.alive * alive + w.hand * hand
+                + w.deck * deck - self._exposure(p, urgent))
+
+    def _exposure(self, p: int, urgent: bool) -> float:
+        """Lo que la amenaza sobre el heroe de `p` resta a su bando (`threat` ponderada)."""
+        w = self.weights
+        expected, lethal = self.threat(p, urgent)
+        return w.threat * expected + w.lethal * lethal
+
+    def threat(self, victim: int, urgent: bool = False) -> tuple[float, float]:
+        """Amenaza sobre el heroe de `victim` en el proximo turno del rival: (dano esperado como fraccion de sus PV
+        actuales, probabilidad de que lo maten). Cada rival cuenta si alcanza una casilla de golpeo con su movimiento
+        (sin atravesar luchadores de `victim`: los ayudantes en el camino son escudo), con descuento si necesita un
+        boost. El coste de un ataque es el valor medio del mazo completo del atacante contra la mejor defensa en
+        mano, mas la carta de defensa que gasta. Las acciones limitan: quien ya esta a tiro puede pegar dos veces;
+        quien tiene que maniobrar, una. Si el amenazado mueve antes, la amenaza se descuenta, salvo con `urgent`
+        (la posicion se mira como final de turno: lo usa la poda de colocaciones)."""
+        g, w = self.game, self.weights
+        hero = g.hero(victim)
+        if not hero.alive:
+            return 0.0, 1.0
+        attacker = 1 - victim
+        hand = g.players[victim].hand
+        best_def = max((c.value for c in hand if c.can_defend and c.usable_by(hero.name)), default=0)
+        shield = frozenset(g.occupied(victim))
+        mates = g.occupied(attacker)
+        in_range: list[tuple[float, float]] = []       # (coste por ataque, p. de matar) de quien ya esta a tiro
+        after_move: list[tuple[float, float]] = []     # idem de quien llega maniobrando (factor ya aplicado)
+        for e in g.foes(victim):
+            values = attack_values(g.players[attacker], e.name)
+            if not values:
+                continue
+            spots = strike_spots(g.board, hero.pos, e.ranged)
+            own = frozenset(mates - {e.pos})
+            steps = e.move + free_steps(g, e)
+            if e.pos in spots:
+                factor, bucket = 1.0, in_range
+            elif reach_from(g.board, e.pos, steps, own, shield) & spots:
+                factor, bucket = 1.0, after_move
+            elif reach_from(g.board, e.pos, steps + BOOST_STEPS, own, shield) & spots:
+                factor, bucket = w.boost_reach, after_move
+            else:
+                continue
+            net, kill = attack_stats(values, g.attack_bonus(e) - best_def, hero.hp)
+            bucket.append((factor * (net + (w.defend_card_hp if best_def else 0.0)), factor * kill))
+        if not in_range and not after_move:
+            return 0.0, 0.0
+        actions = g.actions_left if g.turn == attacker else 2
+        now_cost = max((c for c, _ in in_range), default=0.0)
+        now_kill = max((k for _, k in in_range), default=0.0)
+        any_cost = max(c for c, _ in in_range + after_move)
+        any_kill = max(k for _, k in in_range + after_move)
+        # dos ataques seguidos desde donde esta, o una maniobra y el mejor ataque de todos
+        expected = max(actions * now_cost, (actions - 1) * any_cost)
+        lethal = max(1 - (1 - now_kill) ** actions, any_kill if actions >= 2 else 0.0)
+        urgency = w.victim_moves_first if g.turn == victim and not urgent else 1.0
+        # sobre los PV actuales, no los maximos: el mismo golpe esperado pesa mas cuanto menos vida queda
+        return min(1.0, expected / hero.hp) * urgency, lethal * urgency

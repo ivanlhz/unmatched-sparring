@@ -28,6 +28,11 @@ class SearchState(Protocol):
 
     def player_to_move(self) -> int: ...
 
+    def turn_owner(self) -> int:
+        """De quien es el turno (quien mueve puede ser otro a mitad del turno, p. ej. el que defiende). El rollout
+        termina al cambiar: la hoja se evalua como el final de turno de quien movia, frente al turno del rival."""
+        ...
+
     def legal_moves(self) -> list[Move]:
         """Jugadas de quien mueve, en la informacion actual (tras determinizar, con la mano muestreada)."""
         ...
