@@ -1,5 +1,6 @@
 """IsmctsMedusa: sin trampas (misma decision con la mano rival cambiada), posiciones tacticas construidas y tiempo
 por decision. Presupuesto por iteraciones en los tests para que sean deterministas y rapidos."""
+import random
 import time
 
 import pytest
@@ -59,6 +60,43 @@ def test_plan_is_identical_with_another_hidden_rival_hand(game, ai):
     b = IsmctsMedusa(0, SearchConfig(iterations=ITER, seed=11)).plan(other)
     assert act_key(a) == act_key(b)
     assert ai.last_report.iterations == ITER
+
+
+SCENARIOS = [
+    # (posiciones, mano del bot): el escenario del reviewer y dos mas
+    (dict(medusa=30, hellboy=3, lobster=0, harpy1=28, harpy2=29, harpy3=31),
+     ("Second Shot", "Gaze of Stone", "Dash", "Regroup", "A Momentary Glance")),
+    (dict(medusa=4, hellboy=2, lobster=3, harpy1=20, harpy2=21, harpy3=22),
+     ("Second Shot", "Second Shot", "Clutching Claws", "Winged Frenzy", "Feint", "Snipe")),
+    (dict(medusa=15, hellboy=2, lobster=3, harpy1=0, harpy2=1, harpy3=13),
+     ("Hiss and Slither", "The Hounds of Mighty Zeus", "Regroup", "Dash")),
+]
+
+
+@pytest.mark.parametrize("scenario", range(len(SCENARIOS)))
+@pytest.mark.parametrize("seed", [11, 23])
+def test_plan_is_invariant_to_hidden_orders_of_both_decks_and_the_rival_hand(game, scenario, seed):
+    """Lo oculto (orden del mazo del bot, mano y mazo del humano) no cambia la decision con la misma semilla; el
+    orden de la mano propia (conocida) tampoco."""
+    where, titles = SCENARIOS[scenario]
+    place(game, **where)
+    medusa_hand(game, *titles)
+    rival_hand(game, 5)
+    variants = []
+    for k in range(3):
+        other = game.clone()
+        rng = random.Random(100 * scenario + 10 * seed + k)
+        rng.shuffle(other.players[0].deck)
+        rng.shuffle(other.players[0].hand)
+        rng.shuffle(other.players[1].deck)
+        n = len(other.players[1].hand)
+        pool = other.players[1].hand + other.players[1].deck
+        rng.shuffle(pool)
+        other.players[1].hand, other.players[1].deck = pool[:n], pool[n:]
+        variants.append(other)
+    assert any([c.card_id for c in v.players[0].deck] != [c.card_id for c in game.players[0].deck] for v in variants)
+    keys = {act_key(IsmctsMedusa(0, SearchConfig(iterations=300, seed=seed)).plan(g)) for g in [game] + variants}
+    assert len(keys) == 1, keys
 
 
 def test_defense_is_identical_with_another_hidden_rival_hand(game, ai):

@@ -66,7 +66,7 @@ class IsmctsMedusa(Controller):
         # el recorrido tambien determiniza: nunca se consulta la mano real del rival, ni para ver si defiende
         state.determinize(self.me, random.Random(self.config.seed))
         state.apply(move)
-        pv = search.principal_variation(self.me)[1:]
+        pv = search.principal_variation(self.me, start=move)[1:]
         while state.decision_pending() and state.player_to_move() == self.me:
             legal = state.legal_moves()
             if pv and pv[0] in legal:

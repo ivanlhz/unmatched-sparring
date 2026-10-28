@@ -190,6 +190,11 @@ class EngineState:
                  pending: tuple[str, str, Card | None] | None = None, phase: str = "action"):
         self.game = game.clone()
         self.game.controllers = {0: SearchController(0, self), 1: SearchController(1, self)}
+        # lo propio en orden canonico: con la misma semilla la decision no depende del orden real del mazo ni de
+        # la mano (lo del rival se sustituye entero al determinizar y no se lee aqui)
+        mine = self.game.players[observer]
+        mine.hand.sort(key=lambda c: c.card_id)
+        mine.deck.sort(key=lambda c: c.card_id)
         self.observer = observer
         self.knowledge = knowledge or Knowledge()
         self.pending = pending
@@ -346,19 +351,22 @@ class EngineState:
         g = self.game
         for p, st in enumerate(g.players):
             if p == observer:
-                rng.shuffle(st.deck)        # el orden del propio mazo tambien es oculto
+                st.deck.sort(key=lambda c: c.card_id)   # el orden del propio mazo tambien es oculto: desde el canonico
+                rng.shuffle(st.deck)
                 continue
             known = [c for c in self.knowledge.known_in_hand.get(p, ()) if c not in st.discard]
-            pool = [c for c in st.full_set if c not in st.discard and c not in known]
+            pool = sorted((c for c in st.full_set if c not in st.discard and c not in known), key=lambda c: c.card_id)
             if self.pending is not None and self.pending[2] is None and g.fighters[self.pending[0]].owner == p:
                 attacker = g.fighters[self.pending[0]]
                 legal = [c for c in known if c.can_attack and c.usable_by(attacker.name)]
                 if not legal:
                     legal = [c for c in pool if c.can_attack and c.usable_by(attacker.name)]
-                card = rng.choice(legal)
+                # descarte desincronizado (lo publico no explica el ataque): cualquier carta del pool, o del mazo entero
+                card = rng.choice(legal or pool or list(st.full_set))
                 if card not in known:
                     known.append(card)
-                    pool.remove(card)
+                    if card in pool:
+                        pool.remove(card)
                 self.pending = (self.pending[0], self.pending[1], card)
             rng.shuffle(pool)
             k = max(0, len(st.hand) - len(known))

@@ -108,6 +108,47 @@ def test_pending_attack_card_is_sampled_among_legal_attacks(game):
     assert ("defend", None) in moves and ("defend", "Hiss and Slither") in moves and ("defend", "Feint") in moves
 
 
+def test_pending_attack_without_legal_attack_in_public_pool_falls_back(game):
+    """Descarte desincronizado: todo ataque usable por Hellboy ya esta en su descarte. No revienta y la defensa
+    se decide contra una carta cualquiera del pool."""
+    place(game, medusa=4, hellboy=3, lobster=27, harpy1=20, harpy2=21, harpy3=22)
+    st1 = game.players[1]
+    st1.discard = [c for c in st1.full_set if c.can_attack and c.usable_by("Hellboy")]
+    st1.deck = [c for c in st1.full_set if c not in st1.discard]
+    st1.hand = st1.deck[:3]
+    st1.deck = st1.deck[3:]
+    medusa_hand(game, "Hiss and Slither")
+    game.turn, game.actions_left = 1, 1
+    st = EngineState(game, observer=0, pending=("hellboy", "medusa", None))
+    for seed in range(5):
+        sample = st.clone()
+        sample.determinize(0, random.Random(seed))
+        card = sample.pending_card()
+        assert card is not None and card in sample.game.players[1].hand and card not in st1.discard
+        sample.apply(("defend", "Hiss and Slither"))
+        assert sample.pending is None
+    from sparring.search.controller import IsmctsMedusa
+    from sparring.search.ismcts import SearchConfig
+    IsmctsMedusa(0, SearchConfig(iterations=50, seed=0)).choose_defense(game, game.fighters["hellboy"],
+                                                                      game.fighters["medusa"])
+
+
+def test_own_hand_and_deck_order_do_not_change_the_sample(game):
+    place(game, medusa=4, hellboy=2, lobster=3, harpy1=20, harpy2=21, harpy3=22)
+    medusa_hand(game, "Second Shot", "Dash", "Regroup")
+    fill_hand(game, 1, 4)
+    other = game.clone()
+    random.Random(1).shuffle(other.players[0].deck)
+    random.Random(2).shuffle(other.players[0].hand)
+    a, b = EngineState(game, observer=0), EngineState(other, observer=0)
+    a.determinize(0, random.Random(5))
+    b.determinize(0, random.Random(5))
+    assert [c.card_id for c in a.game.players[0].deck] == [c.card_id for c in b.game.players[0].deck]
+    assert [c.card_id for c in a.game.players[0].hand] == [c.card_id for c in b.game.players[0].hand]
+    assert a.legal_moves() == b.legal_moves()
+    assert game.players[0].deck != other.players[0].deck, "los originales no se tocan"
+
+
 # ---------- jugadas ----------
 
 def test_action_phase_moves_cover_attacks_schemes_and_maneuvers(game):
@@ -202,7 +243,8 @@ def test_anung_start_is_a_decision_of_hellboy(game):
     assert st.game.form(1) == ANUNG
     moves = st.legal_moves()
     assert moves and all(m[0] == "anung" for m in moves)
-    st.apply(moves[0])
+    hand = st.game.players[1].hand
+    st.apply(max(moves, key=lambda m: next(c.boost for c in hand if c.title == m[1])))   # con boost 1 no hay destino
     dests = st.legal_moves()
     assert all(m[0] == "anung_to" for m in dests) and ("anung_to", None) in dests
     st.apply(("anung_to", None))

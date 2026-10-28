@@ -137,6 +137,16 @@ def test_multiple_observer_trees_hide_the_attack_card_from_the_defender():
     assert all(e.visits > 50 for e in attacker_tree.edges.values())
 
 
+def test_principal_variation_starts_at_the_returned_move():
+    s = ISMCTS(SearchConfig(iterations=200, seed=3))
+    move, _ = s.search(HiddenDuel(), root_player=0)
+    pv = s.principal_variation(0, start=move)
+    assert pv[0] == move and pv[1] in ("alto", "bajo")
+    other = "A" if move == "B" else "B"
+    assert s.principal_variation(0, start=other)[0] == other
+    assert s.principal_variation(0, start="no existe") == []
+
+
 def test_rewards_are_from_the_movers_perspective():
     """Con el defensor ciego, al atacante le sale ~0.5 en las dos cartas; el valor medio de las aristas lo refleja."""
     s = ISMCTS(SearchConfig(iterations=400, seed=5))
