@@ -289,7 +289,6 @@
   "Pact Of Secrecy 'draw up to 2': cada jugador decide cuantas (0-2) o es 'roba 2 si puedes'? Modelado como decision del jugador.",
   "Pact Of Freedom 'Place a hero in any space': incluye al heroe rival (si) y excluye ayudantes. Confirmar.",
   "Pact Of Mortality 'Return a defeated fighter': incluye luchadores del rival? Modelado como cualquiera (lo elige el dueno); en la practica el bot revivira a Koschei.",
-  "Iron Teeth 'an adjacent fighter' y The Time For Deals Is Done 'each other fighter': confirmar que incluyen a Koschei (dano propio) tal como dice el texto.",
-  "Texto de las cartas en el HeroDef generado: tools/import_hero.py lo toma de unmatched-memory (con 'Baba Yaha', 'healt' y sin los ONGOING). Propuesta: que la hoja del overlay admita `text` para sobreescribirlo (un cambio de una linea en el importador, no hecho aqui por ser fichero compartido entre los 4 agentes)."
+  "Iron Teeth 'an adjacent fighter' y The Time For Deals Is Done 'each other fighter': confirmar que incluyen a Koschei (dano propio) tal como dice el texto."
  ]
 }

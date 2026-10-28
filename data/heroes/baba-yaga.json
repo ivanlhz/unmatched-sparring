@@ -126,7 +126,7 @@
     "type": "versatile",
     "value": 3,
     "boost": 2,
-    "text": "AFTER COMBAT: Look at the top 5 cards of your deck. Put one in your hand. Randomly put rest on the bottom of your deck.",
+    "text": "AFTER COMBAT: Look at the top 5 cards of your deck. Put one in your hand. Randomly put the rest on the bottom of your deck.",
     "tags": []
    },
    {
@@ -136,7 +136,7 @@
     "type": "versatile",
     "value": 3,
     "boost": 2,
-    "text": "AFTER COMBAT: Look at the top 5 cards of your deck. Put one in your hand. Randomly put rest on the bottom of your deck.",
+    "text": "AFTER COMBAT: Look at the top 5 cards of your deck. Put one in your hand. Randomly put the rest on the bottom of your deck.",
     "tags": []
    },
    {
@@ -146,7 +146,7 @@
     "type": "versatile",
     "value": 3,
     "boost": 2,
-    "text": "AFTER COMBAT: Look at the top 5 cards of your deck. Put one in your hand. Randomly put rest on the bottom of your deck.",
+    "text": "AFTER COMBAT: Look at the top 5 cards of your deck. Put one in your hand. Randomly put the rest on the bottom of your deck.",
     "tags": []
    },
    {
@@ -226,7 +226,7 @@
     "type": "versatile",
     "value": 3,
     "boost": 1,
-    "text": "AFTER COMBAT: Summon Koschei as close to Baba Yaha as possible. Set his health to 3.",
+    "text": "AFTER COMBAT: Summon Koschei as close to Baba Yaga as possible. Set his health to 3.",
     "tags": []
    },
    {
@@ -236,7 +236,7 @@
     "type": "versatile",
     "value": 3,
     "boost": 1,
-    "text": "AFTER COMBAT: Summon Koschei as close to Baba Yaha as possible. Set his health to 3.",
+    "text": "AFTER COMBAT: Summon Koschei as close to Baba Yaga as possible. Set his health to 3.",
     "tags": []
    },
    {
@@ -246,7 +246,7 @@
     "type": "versatile",
     "value": 3,
     "boost": 1,
-    "text": "AFTER COMBAT: Summon Koschei as close to Baba Yaha as possible. Set his health to 3.",
+    "text": "AFTER COMBAT: Summon Koschei as close to Baba Yaga as possible. Set his health to 3.",
     "tags": []
    },
    {
@@ -296,7 +296,7 @@
     "type": "scheme",
     "value": null,
     "boost": 3,
-    "text": "Draw 2 cards. Place a hero in any space.",
+    "text": "Draw 2 cards. Place a hero in any space. ONGOING: Players cannot attack as their first action each turn. Discard this immediately if Baba Yaga takes 2 or more combat damage.",
     "tags": [
      "pact"
     ]
@@ -308,7 +308,7 @@
     "type": "scheme",
     "value": null,
     "boost": 3,
-    "text": "Return a defeated fighter to any space in Baba Yaga's zone. Set their healt to 3.",
+    "text": "Return a defeated fighter to any space in Baba Yaga's zone. Set their health to 3. ONGOING: Increase all effect damage by 1, except for damage from exhaustion. Discard this immediately if Baba Yaga takes 2 or more combat damage.",
     "tags": [
      "pact"
     ]
@@ -320,7 +320,7 @@
     "type": "scheme",
     "value": null,
     "boost": 3,
-    "text": "Deal 1 damage to each other fighter in Baba Yaga's zone. Gain 1 action.",
+    "text": "Deal 1 damage to each other fighter in Baba Yaga's zone. Gain 1 action. ONGOING: At the end of each turn, deal 1 damage to each hero that attacked. Discard this immediately if Baba Yaga takes 2 or more combat damage.",
     "tags": [
      "pact"
     ]
@@ -332,7 +332,7 @@
     "type": "scheme",
     "value": null,
     "boost": 3,
-    "text": "All players draw up to 2 cards, then shuffle all but 2 cards from their hand into their deck.",
+    "text": "All players draw up to 2 cards, then shuffle all but 2 cards from their hand into their deck. ONGOING: Players have a maximum hand size of 3. Discard this immediately if Baba Yaga takes 2 or more combat damage.",
     "tags": [
      "pact"
     ]
@@ -344,7 +344,7 @@
     "type": "scheme",
     "value": null,
     "boost": 3,
-    "text": "Each player shuffles up to 2 cards from their discard pile into their deck.",
+    "text": "Each player shuffles up to 2 cards from their discard pile into their deck. ONGOING: Players cannot gain actions. Discard this immediately if Baba Yaga takes 2 or more combat damage.",
     "tags": [
      "pact"
     ]
@@ -354,7 +354,7 @@
  "_notes": [
   "Hoja 331 del savegame del torneo (8x4), leida carta a carta de la imagen el 2026-10-28. CardID = 33100 + idx; 33200 = carta de personaje (hoja 332). Las cartas sueltas del mazo llevan las claves 187/188 del mod original con las mismas imagenes: la identidad es la FaceURL, el numero sale de los DeckIDs del mazo (mismo criterio que Hellboy, 19700).",
   "Restricciones de luchador y copias de la hoja de TTS (unmatched-memory no las tiene): Baba Yaga 16, Koschei 2 (Death's Release), ANY 12.",
-  "Discrepancias con unmatched-memory (manda la carta): Deathless dice 'Baba Yaga' (no 'Baba Yaha'); Pact Of Mortality dice 'health' (no 'healt'); Read The Bones dice 'Randomly put the rest on the bottom'; la habilidad no lleva '!'. Los cinco Pactos tienen un parrafo ONGOING y la condicion de descarte que unmatched-memory omite: el texto real esta en data/heroes/effects/baba-yaga.json (el importador toma el texto de unmatched-memory).",
+  "Discrepancias con unmatched-memory (manda la carta; las entradas con `text` sobreescriben el texto del importador): Deathless dice 'Baba Yaga' (no 'Baba Yaha'); Pact Of Mortality dice 'health' (no 'healt'); Read The Bones dice 'Randomly put the rest on the bottom'; la habilidad no lleva '!'. Los cinco Pactos tienen un parrafo ONGOING y la condicion de descarte que unmatched-memory omite.",
   "Koschei: 1 ficha (Custom_Token e0c176 en el save), vida 3, cuerpo a cuerpo, movimiento 2 (el del heroe). Empieza en el tablero (1 en tablero, 0 en reserva) en el espacio de inicio del jugador; vuelve con Deathless o Pact Of Mortality con vida 3. Baba Yaga es un standee (Custom_Assetbundle 3de904); diales ae0f05 (Koschei) y dec0a9 (Baba Yaga).",
   "Sin formas ni contadores. La habilidad FATEFUL BARGAINS es una pasiva opcional de datos (redirect_effect_damage): hasta que el interprete de efectos la lea, el motor no la aplica."
  ]

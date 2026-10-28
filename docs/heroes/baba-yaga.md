@@ -68,8 +68,9 @@ protocolo del bot para cada una esta en `hidden_info`.
 - Read The Bones: "Randomly put the rest on the bottom" (memory: "put rest").
 - Habilidad: "FATEFUL BARGAINS" sin "!" (corregido en el overlay con `ability`).
 - Los cinco Pactos: memory solo tiene el efecto inmediato; faltan ONGOING y la condicion de descarte.
-- El HeroDef generado hereda el texto de memory porque `tools/import_hero.py` no admite sobreescribirlo desde el
-  overlay. Propuesta: `"text": entry.get("text", card_text(src))` en el importador (no tocado aqui: fichero compartido).
+- Corregido en el HeroDef: las entradas de la hoja del overlay llevan `text` con el texto real (Read The Bones,
+  Deathless y los 5 Pactos) y `tools/import_hero.py` lo prefiere al de memory (`entry.get("text") or card_text(src)`,
+  misma convencion que la rama de Liz).
 
 Vida, movimiento, tipo de ataque, valores, impulsos y copias coinciden con las cartas.
 
@@ -82,4 +83,3 @@ Vida, movimiento, tipo de ataque, valores, impulsos y copias coinciden con las c
 5. Pact Of Freedom "Place a hero": vale el heroe rival (si) y no ayudantes.
 6. Pact Of Mortality "a defeated fighter": tambien del rival?
 7. Iron Teeth y The Time For Deals Is Done pueden danar a Koschei (texto literal). Confirmar.
-8. Sobreescritura de texto desde el overlay en el importador (ver discrepancias).

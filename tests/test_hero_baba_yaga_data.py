@@ -92,6 +92,11 @@ def test_generated_herodef_deals_a_real_deck():
     assert sorted(c.title for c in deck if c.type == "scheme") == PACTS
     assert sum(1 for c in deck if c.fighter == "Koschei") == 2
     assert all(c.value is None for c in deck if c.type == "scheme")
+    # el texto real de la carta (overlay `text`) manda sobre unmatched-memory
+    assert all("ONGOING:" in c.text and "Discard this immediately" in c.text for c in deck if c.type == "scheme")
+    assert all("Baba Yaga as possible" in c.text for c in deck if c.title == "Deathless")
+    assert all("put the rest on the bottom" in c.text for c in deck if c.title == "Read The Bones")
+    assert not any("Yaha" in c.text or "healt " in c.text for c in deck)
 
 
 def test_every_deck_card_has_effects_and_every_pact_is_a_persistent_scheme(effects):
