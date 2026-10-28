@@ -8,8 +8,13 @@ todas las cartas de ataque posibles, como en la mesa.
 
 Cada iteracion: clonar la raiz, determinizar (muestrear lo oculto para el jugador raiz), bajar por los arboles
 eligiendo con UCB1 sobre las jugadas disponibles en ESA determinizacion (con conteo de disponibilidad), expandir
-una jugada nueva, rollout corto con `rollout_move` y retropropagar la recompensa desde el punto de vista de quien
-movio en cada arista.
+una jugada nueva, rollout con `rollout_move` hasta que cambie el turno (tope `rollout_depth`) y retropropagar la
+recompensa desde el punto de vista de quien movio en cada arista.
+
+Por que el rollout para al cambiar el turno: con un numero fijo de jugadas la hoja caia sistematicamente al
+empezar el turno de quien movio en la raiz, y la evaluacion (que descuenta la amenaza sobre quien va a mover)
+premiaba quedarse pegado al rival. Evaluar al final del turno de quien movia es mirar la posicion como lo haria
+el rival que va a jugarla; su turno lo explora el arbol, no el rollout.
 """
 from __future__ import annotations
 
@@ -28,7 +33,7 @@ class SearchConfig:
     time_budget: float = 1.5          # segundos por decision
     seed: int = 0
     c_uct: float = 0.7                # recompensas en [0, 1]
-    rollout_depth: int = 6            # jugadas de rollout tras la expansion
+    rollout_depth: int = 10           # tope de jugadas de rollout; normalmente para antes, al cambiar el turno
 
 
 @dataclass
@@ -145,7 +150,8 @@ class ISMCTS:
             if expanded:
                 break
         depth = 0
-        while not s.is_terminal() and depth < self.cfg.rollout_depth:
+        owner = s.turn_owner() if not s.is_terminal() else None
+        while not s.is_terminal() and depth < self.cfg.rollout_depth and s.turn_owner() == owner:
             s.apply(s.rollout_move(rng))
             depth += 1
         rewards: dict[int, float] = {}
