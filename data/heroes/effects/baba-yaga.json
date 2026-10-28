@@ -1,30 +1,32 @@
 {
+ "schema": 1,
  "hero": "baba-yaga",
- "_notes": [
-  "Textos copiados de las cartas reales (hoja 331 del save del torneo, 2026-10-28); donde unmatched-memory difiere, manda este fichero.",
-  "Nombres de objetivo: self_hero = Baba Yaga; koschei = su ayudante; opponent_fighter = el otro luchador del combate; combat_fighter = uno de los dos luchadores del combate (lo elige who_chooses); adjacent_fighter = un luchador adyacente a self_hero, amigo o enemigo; others_in_hero_zone = todos los demas luchadores de la zona de Baba Yaga, Koschei incluido; any_hero = cualquier heroe del tablero; any_defeated_fighter = cualquier luchador derrotado, propio o rival.",
-  "kind=effect marca dano de efecto (lo que FATEFUL BARGAINS puede desviar y Pact Of Mortality sube en 1); el dano de combate no lleva kind.",
-  "Las variables $nombre vienen de un choose_n con bind o del $player de un for_each sobre jugadores."
+ "notes": [
+  "Textos copiados de las cartas reales (hoja 331 del save del torneo, 2026-10-28); donde unmatched-memory difiere, manda este fichero. Migrado al DSL v1 (docs/effects-dsl.md) el 2026-10-28 sin cambiar la semantica.",
+  "Todo damage es de efecto: es lo que FATEFUL BARGAINS puede desviar y Pact Of Mortality sube en 1; el dano de combate lo calcula el motor.",
+  "Las cartas con restriccion Baba Yaga las juega ella (this = hero); las ANY tambien Koschei, por eso 'adjacent to Baba Yaga' usa hero y 'your fighter' usa this."
  ],
  "ability": {
   "text": "FATEFUL BARGAINS\nIf Baba Yaga and Koschei share a zone and Baba Yaga would take effect damage, you may have Koschei take that damage instead.",
-  "when": "effect_damage_to_self_hero",
-  "ops": [
-   {"op": "optional", "who_chooses": "owner", "ops": [
-    {"op": "redirect_damage", "from": "self_hero", "to": "koschei", "kind": "effect", "condition": "share_zone"}
-   ]}
-  ]
+  "triggers": [],
+  "passives": [
+   {"id": "fateful_bargains", "kind": "redirect_damage", "from": "hero", "to": {"side": "own", "name": "Koschei"}, "damage": "effect",
+    "condition": {"test": "exists", "fighters": {"side": "own", "name": "Koschei", "where": {"zone_of": "hero"}}},
+    "optional": true, "chooser": "owner"}
+  ],
+  "notes": "Pasiva opcional: mientras se resuelve dano de efecto sobre Baba Yaga, si Koschei comparte zona y esta vivo, el dueno puede pasarselo entero (no se parte). En el HeroDef figura como passives[fateful_bargains] effect redirect_effect_damage: mismo significado, un solo nombre aqui."
  },
  "cards": [
   {
    "title": "The Time For Deals Is Done",
+   "copies": 2,
    "text": "AFTER COMBAT: If you have an active ongoing scheme, deal 2 damage to each other fighter in Baba Yaga's zone, then discard that scheme.",
    "effects": {
     "immediately": [], "during": [], "scheme": [], "boost": [],
     "after": [
-     {"op": "if", "condition": "has_active_scheme", "then": [
-      {"op": "damage", "target": "others_in_hero_zone", "amount": 2, "kind": "effect"},
-      {"op": "discard", "target": "active_scheme", "who_chooses": "owner"}
+     {"op": "if", "condition": {"test": "exists", "cards": {"zone": "in_play", "player": "owner", "filter": {"type": "scheme"}}}, "then": [
+      {"op": "damage", "target": {"where": {"zone_of": "hero"}, "other": true, "pick": "all"}, "amount": 2},
+      {"op": "discard", "cards": {"zone": "in_play", "player": "owner", "filter": {"type": "scheme"}, "amount": 1, "chooser": "owner"}}
      ]}
     ]
    },
@@ -32,13 +34,14 @@
   },
   {
    "title": "Iron Teeth",
+   "copies": 2,
    "text": "AFTER COMBAT: Deal 1 damage to an adjacent fighter. If you have an active ongoing scheme, Baba Yaga recovers 2 health.",
    "effects": {
     "immediately": [], "during": [], "scheme": [], "boost": [],
     "after": [
-     {"op": "damage", "target": "adjacent_fighter", "amount": 1, "kind": "effect", "who_chooses": "owner"},
-     {"op": "if", "condition": "has_active_scheme", "then": [
-      {"op": "heal", "target": "self_hero", "amount": 2}
+     {"op": "damage", "target": {"where": {"adjacent_to": "hero"}}, "amount": 1, "chooser": "owner"},
+     {"op": "if", "condition": {"test": "exists", "cards": {"zone": "in_play", "player": "owner", "filter": {"type": "scheme"}}}, "then": [
+      {"op": "heal", "target": "hero", "amount": 2}
      ]}
     ]
    },
@@ -46,53 +49,57 @@
   },
   {
    "title": "Remove A Painful Memory",
+   "copies": 2,
    "text": "AFTER COMBAT: Look at your opponent's hand. If you have an active ongoing scheme, choose one of those cards, then deal 2 damage to the opposing fighter unless they discard it.",
    "effects": {
     "immediately": [], "during": [], "scheme": [], "boost": [],
     "after": [
-     {"op": "look_hand", "target": "opponent"},
-     {"op": "if", "condition": "has_active_scheme", "then": [
-      {"op": "choose_n", "from": "opponent_hand", "n": 1, "who_chooses": "owner", "bind": "memory"},
-      {"op": "optional", "who_chooses": "opponent",
-       "ops": [{"op": "discard", "target": "opponent", "cards": "$memory"}],
-       "else": [{"op": "damage", "target": "opponent_fighter", "amount": 2, "kind": "effect"}]}
+     {"op": "look_hand", "player": "opponent"},
+     {"op": "if", "condition": {"test": "exists", "cards": {"zone": "in_play", "player": "owner", "filter": {"type": "scheme"}}}, "then": [
+      {"op": "choose", "cards": {"zone": "hand", "player": "opponent", "amount": 1, "chooser": "owner"}, "as": "memory"},
+      {"op": "optional", "chooser": "opponent",
+       "ops": [{"op": "discard", "cards": "$memory"}],
+       "else": [{"op": "damage", "target": "opposing", "amount": 2}]}
      ]}
     ]
    },
-   "notes": "Restriccion ANY: Koschei tambien puede atacar con ella. Cabe en primitivas si optional admite la rama else decidida por el rival; el plugin baba:remove_painful_memory del plan no hace falta. Si la mano rival esta vacia, el ver mano no da nada y el resto no se aplica."
+   "notes": "Restriccion ANY: Koschei tambien puede atacar con ella. Cabe en primitivas (optional con rama else decidida por el rival); el plugin baba:remove_painful_memory del plan no hace falta. Si la mano rival esta vacia, el ver mano no da nada y el resto no se aplica (choose sin candidatas: la ligadura queda vacia y no hay nada que descartar ni decision)."
   },
   {
    "title": "Death's Release",
+   "copies": 2,
    "text": "AFTER COMBAT: Koschei recovers 2 health. Place him in any space.",
    "effects": {
     "immediately": [], "during": [], "scheme": [], "boost": [],
     "after": [
-     {"op": "heal", "target": "koschei", "amount": 2},
-     {"op": "place", "target": "koschei", "where": "any_space", "who_chooses": "owner"}
+     {"op": "heal", "target": {"side": "own", "name": "Koschei"}, "amount": 2},
+     {"op": "place", "target": {"side": "own", "name": "Koschei"}, "where": {"any": true}, "chooser": "owner"}
     ]
    },
    "notes": "Solo Koschei la juega (ataque 5): Koschei es el atacante y esta vivo al resolverla. La curacion no pasa de 3."
   },
   {
    "title": "Read The Bones",
+   "copies": 3,
    "text": "AFTER COMBAT: Look at the top 5 cards of your deck. Put one in your hand. Randomly put the rest on the bottom of your deck.",
    "effects": {
     "immediately": [], "during": [], "scheme": [], "boost": [],
     "after": [
-     {"op": "search_deck", "target": "self", "look": 5, "take": 1, "to": "hand", "rest": "bottom_random", "who_chooses": "owner"}
+     {"op": "search_deck", "player": "owner", "look": 5, "take": {"amount": 1}, "to": "hand", "rest": "bottom_random", "chooser": "owner"}
     ]
    },
    "notes": "Con menos de 5 cartas en el mazo se miran las que haya."
   },
   {
    "title": "Foul Journey",
+   "copies": 3,
    "text": "AFTER COMBAT: Place a fighter in the combat in any space. If you have an active ongoing scheme, Baba Yaga recovers 1 health.",
    "effects": {
     "immediately": [], "during": [], "scheme": [], "boost": [],
     "after": [
-     {"op": "place", "target": "combat_fighter", "where": "any_space", "who_chooses": "owner"},
-     {"op": "if", "condition": "has_active_scheme", "then": [
-      {"op": "heal", "target": "self_hero", "amount": 1}
+     {"op": "place", "target": "combatant", "where": {"any": true}, "chooser": "owner"},
+     {"op": "if", "condition": {"test": "exists", "cards": {"zone": "in_play", "player": "owner", "filter": {"type": "scheme"}}}, "then": [
+      {"op": "heal", "target": "hero", "amount": 1}
      ]}
     ]
    },
@@ -100,38 +107,39 @@
   },
   {
    "title": "Hasten Towards Death",
+   "copies": 2,
    "text": "AFTER COMBAT: Deal 1 damage to the attacking fighter. The attacking player gains 1 action.",
    "effects": {
     "immediately": [], "during": [], "scheme": [], "boost": [],
     "after": [
-     {"op": "damage", "target": "attacker", "amount": 1, "kind": "effect"},
-     {"op": "gain_action", "target": "attacking_player", "amount": 1}
+     {"op": "damage", "target": "attacker", "amount": 1},
+     {"op": "gain_action", "player": "attacking_player", "amount": 1}
     ]
    },
    "notes": "Versatil ANY: jugada como ataque, el dano lo recibe el propio atacante (si es Baba Yaga, FATEFUL BARGAINS puede pasarselo a Koschei) y la accion la gana su jugador; jugada en defensa, ambos van al rival. Con Pact Of Time activo nadie gana la accion."
   },
   {
    "title": "Out Of Time",
+   "copies": 2,
    "text": "DURING COMBAT: You may BOOST this card. AFTER COMBAT: End the turn.",
+   "may_boost": true,
    "effects": {
-    "immediately": [], "scheme": [], "boost": [],
-    "during": [
-     {"op": "optional", "who_chooses": "owner", "ops": [{"op": "boost", "card": "this"}]}
-    ],
+    "immediately": [], "during": [], "scheme": [], "boost": [],
     "after": [
      {"op": "end_turn"}
     ]
    },
-   "notes": "Termina el turno de quien lo tenga, gane o pierda el combate: en defensa corta el turno del rival. El impulso revela la carta superior del mazo (publica)."
+   "notes": "Termina el turno de quien lo tenga, gane o pierda el combate: en defensa corta el turno del rival. El impulso revela la carta superior del mazo (publica). La carta dice 'BOOST this card' (no 'this attack'): por eso el motor no debe detectarlo por texto sino por may_boost."
   },
   {
    "title": "Deathless",
+   "copies": 3,
    "text": "AFTER COMBAT: Summon Koschei as close to Baba Yaga as possible. Set his health to 3.",
    "effects": {
     "immediately": [], "during": [], "scheme": [], "boost": [],
     "after": [
-     {"op": "if", "condition": "koschei_defeated", "then": [
-      {"op": "revive", "target": "koschei", "hp": 3, "where": "nearest_to_self_hero", "who_chooses": "owner"}
+     {"op": "if", "condition": {"test": "exists", "fighters": {"side": "own", "name": "Koschei", "state": "defeated"}}, "then": [
+      {"op": "revive", "target": {"side": "own", "name": "Koschei", "state": "defeated"}, "where": {"nearest_to": "hero"}, "hp": 3, "chooser": "owner"}
      ]}
     ]
    },
@@ -139,134 +147,127 @@
   },
   {
    "title": "Exploit",
+   "copies": 2,
    "text": "AFTER COMBAT: Draw 1 card.",
    "effects": {
     "immediately": [], "during": [], "scheme": [], "boost": [],
     "after": [
-     {"op": "draw", "target": "self", "amount": 1}
+     {"op": "draw", "player": "owner", "amount": 1}
     ]
    },
    "notes": null
   },
   {
    "title": "Bound In Blood",
+   "copies": 2,
    "text": "DURING COMBAT: If Koschei and Baba Yaga share a zone, he takes the combat damage instead.",
    "effects": {
     "immediately": [], "after": [], "scheme": [], "boost": [],
     "during": [
-     {"op": "redirect_damage", "from": "self_hero", "to": "koschei", "kind": "combat", "condition": "share_zone"}
+     {"op": "redirect_damage", "from": "hero", "to": {"side": "own", "name": "Koschei"}, "damage": "combat",
+      "condition": {"test": "exists", "fighters": {"side": "own", "name": "Koschei", "where": {"zone_of": "hero"}}}}
     ]
    },
    "notes": "Defensa solo de Baba Yaga: ella es la defensora. No es opcional (a diferencia de la habilidad). Koschei recibe todo el dano de combate aunque lo mate."
   },
   {
    "title": "Pact Of Freedom",
-   "text": "Draw 2 cards. Place a hero in any space.\nONGOING: Players cannot attack as their first action each turn.\nDiscard this immediately if Baba Yaga takes 2 or more combat damage.",
+   "copies": 1,
+   "text": "Draw 2 cards. Place a hero in any space. ONGOING: Players cannot attack as their first action each turn. Discard this immediately if Baba Yaga takes 2 or more combat damage.",
    "effects": {
     "immediately": [], "during": [], "after": [], "boost": [],
     "scheme": [
-     {"op": "draw", "target": "self", "amount": 2},
-     {"op": "place", "target": "any_hero", "where": "any_space", "who_chooses": "owner"},
-     {"op": "persistent_scheme",
-      "ongoing": [{"op": "rule", "rule": "no_attack_as_first_action", "applies_to": "all_players"}],
-      "until": {"event": "combat_damage_taken", "target": "self_hero", "min": 2}}
+     {"op": "draw", "player": "owner", "amount": 2},
+     {"op": "place", "target": {"kind": "hero"}, "where": {"any": true}, "chooser": "owner"}
     ]
+   },
+   "ongoing": {
+    "modifiers": [{"kind": "rule", "rule": "no_attack_as_first_action"}],
+    "triggers": [],
+    "until": {"event": "damage_taken", "target": "hero", "kind": "combat", "min": 2}
    },
    "notes": "Se coloca cualquier heroe, propio o rival (no ayudantes)."
   },
   {
    "title": "Pact Of Mortality",
-   "text": "Return a defeated fighter to any space in Baba Yaga's zone. Set their health to 3.\nONGOING: Increase all effect damage by 1, except for damage from exhaustion.\nDiscard this immediately if Baba Yaga takes 2 or more combat damage.",
+   "copies": 1,
+   "text": "Return a defeated fighter to any space in Baba Yaga's zone. Set their health to 3. ONGOING: Increase all effect damage by 1, except for damage from exhaustion. Discard this immediately if Baba Yaga takes 2 or more combat damage.",
    "effects": {
     "immediately": [], "during": [], "after": [], "boost": [],
     "scheme": [
-     {"op": "revive", "target": "any_defeated_fighter", "hp": 3, "where": "self_hero_zone", "who_chooses": "owner"},
-     {"op": "persistent_scheme",
-      "ongoing": [{"op": "rule", "rule": "effect_damage_bonus", "amount": 1, "except": "exhaustion", "applies_to": "all_players"}],
-      "until": {"event": "combat_damage_taken", "target": "self_hero", "min": 2}}
+     {"op": "revive", "target": {"side": "any", "state": "defeated"}, "where": {"zone_of": "hero"}, "hp": 3, "chooser": "owner"}
     ]
+   },
+   "ongoing": {
+    "modifiers": [{"kind": "rule", "rule": "effect_damage_bonus", "amount": 1}],
+    "triggers": [],
+    "until": {"event": "damage_taken", "target": "hero", "kind": "combat", "min": 2}
    },
    "notes": "El +1 afecta a todo dano de efecto de ambos jugadores (Iron Teeth, Hasten Towards Death, Pact Of Peace, Remove A Painful Memory, The Time For Deals Is Done y los efectos del rival), no al de combate ni al de agotamiento. Si no hay luchador derrotado, la parte inmediata no hace nada."
   },
   {
    "title": "Pact Of Peace",
-   "text": "Deal 1 damage to each other fighter in Baba Yaga's zone. Gain 1 action.\nONGOING: At the end of each turn, deal 1 damage to each hero that attacked.\nDiscard this immediately if Baba Yaga takes 2 or more combat damage.",
+   "copies": 1,
+   "text": "Deal 1 damage to each other fighter in Baba Yaga's zone. Gain 1 action. ONGOING: At the end of each turn, deal 1 damage to each hero that attacked. Discard this immediately if Baba Yaga takes 2 or more combat damage.",
    "effects": {
     "immediately": [], "during": [], "after": [], "boost": [],
     "scheme": [
-     {"op": "damage", "target": "others_in_hero_zone", "amount": 1, "kind": "effect"},
-     {"op": "gain_action", "target": "self", "amount": 1},
-     {"op": "persistent_scheme",
-      "ongoing": [{"op": "trigger", "when": "end_of_turn", "ops": [
-       {"op": "damage", "target": "heroes_that_attacked_this_turn", "amount": 1, "kind": "effect"}
-      ]}],
-      "until": {"event": "combat_damage_taken", "target": "self_hero", "min": 2}}
+     {"op": "damage", "target": {"where": {"zone_of": "hero"}, "other": true, "pick": "all"}, "amount": 1},
+     {"op": "gain_action", "amount": 1}
     ]
+   },
+   "ongoing": {
+    "modifiers": [],
+    "triggers": [
+     {"id": "peace_end_of_turn", "when": {"event": "end_of_turn", "player": "any"},
+      "ops": [{"op": "damage", "target": {"kind": "hero", "filter": {"attacked_this_turn": true}, "pick": "all"}, "amount": 1}]}
+    ],
+    "until": {"event": "damage_taken", "target": "hero", "kind": "combat", "min": 2}
    },
    "notes": "El dano inmediato alcanza a Koschei si esta en la zona. El dano de fin de turno es de efecto: lo sube Pact Of Mortality y, si lo recibe Baba Yaga, FATEFUL BARGAINS puede pasarselo a Koschei. Solo heroes, no ayudantes que atacaron."
   },
   {
    "title": "Pact Of Secrecy",
-   "text": "All players draw up to 2 cards, then shuffle all but 2 cards from their hand into their deck.\nONGOING: Players have a maximum hand size of 3.\nDiscard this immediately if Baba Yaga takes 2 or more combat damage.",
+   "copies": 1,
+   "text": "All players draw up to 2 cards, then shuffle all but 2 cards from their hand into their deck. ONGOING: Players have a maximum hand size of 3. Discard this immediately if Baba Yaga takes 2 or more combat damage.",
    "effects": {
     "immediately": [], "during": [], "after": [], "boost": [],
     "scheme": [
-     {"op": "for_each", "target": "all_players", "ops": [
-      {"op": "draw", "target": "$player", "amount": 2, "up_to": true, "who_chooses": "$player"},
-      {"op": "choose_n", "from": "$player_hand", "n": 2, "who_chooses": "$player", "bind": "keep"},
-      {"op": "return_to_deck", "target": "$player", "cards": "all_but:$keep", "shuffle": true}
-     ]},
-     {"op": "persistent_scheme",
-      "ongoing": [{"op": "rule", "rule": "max_hand_size", "amount": 3, "applies_to": "all_players"}],
-      "until": {"event": "combat_damage_taken", "target": "self_hero", "min": 2}}
+     {"op": "for_each", "over": {"players": "all"}, "as": "p", "ops": [
+      {"op": "draw", "player": "$p", "amount": 2, "up_to": true, "chooser": "$p"},
+      {"op": "choose", "cards": {"zone": "hand", "player": "$p", "amount": 2, "chooser": "$p"}, "as": "keep"},
+      {"op": "return_to_deck", "cards": {"zone": "hand", "player": "$p", "pick": "all", "except": "$keep"}, "position": "shuffle"}
+     ]}
     ]
    },
-   "notes": "'Up to 2' lo decide cada jugador (0, 1 o 2). Con 2 o menos cartas en mano no se devuelve nada. El tope de mano 3 se aplica al robar (la maniobra no pasa de 3) y al final del turno segun la regla general de exceso de mano."
+   "ongoing": {
+    "modifiers": [{"kind": "rule", "rule": "max_hand_size", "amount": 3}],
+    "triggers": [],
+    "until": {"event": "damage_taken", "target": "hero", "kind": "combat", "min": 2}
+   },
+   "notes": "'Up to 2' lo decide cada jugador (0, 1 o 2). Con 2 o menos cartas en mano la eleccion se recorta a lo que hay y no se devuelve nada. El tope de mano 3 se aplica al robar (la maniobra no pasa de 3) y al final del turno segun la regla general de exceso de mano."
   },
   {
    "title": "Pact Of Time",
-   "text": "Each player shuffles up to 2 cards from their discard pile into their deck.\nONGOING: Players cannot gain actions.\nDiscard this immediately if Baba Yaga takes 2 or more combat damage.",
+   "copies": 1,
+   "text": "Each player shuffles up to 2 cards from their discard pile into their deck. ONGOING: Players cannot gain actions. Discard this immediately if Baba Yaga takes 2 or more combat damage.",
    "effects": {
     "immediately": [], "during": [], "after": [], "boost": [],
     "scheme": [
-     {"op": "for_each", "target": "all_players", "ops": [
-      {"op": "choose_n", "from": "$player_discard", "n": 2, "up_to": true, "who_chooses": "$player", "bind": "back"},
-      {"op": "return_to_deck", "target": "$player", "cards": "$back", "shuffle": true}
-     ]},
-     {"op": "persistent_scheme",
-      "ongoing": [{"op": "rule", "rule": "no_gain_actions", "applies_to": "all_players"}],
-      "until": {"event": "combat_damage_taken", "target": "self_hero", "min": 2}}
+     {"op": "for_each", "over": {"players": "all"}, "as": "p", "ops": [
+      {"op": "return_to_deck", "cards": {"zone": "discard", "player": "$p", "amount": 2, "up_to": true, "chooser": "$p"}, "position": "shuffle"}
+     ]}
     ]
+   },
+   "ongoing": {
+    "modifiers": [{"kind": "rule", "rule": "no_gain_actions"}],
+    "triggers": [],
+    "until": {"event": "damage_taken", "target": "hero", "kind": "combat", "min": 2}
    },
    "notes": "Bloquea 'gains 1 action' de Hasten Towards Death, el de Pact Of Peace y cualquier ganancia de accion del rival (p. ej. Hellboy no tiene, Medusa tampoco). Las dos acciones normales del turno no son 'ganadas'."
   }
  ],
- "primitives_needed": [
-  {"op": "redirect_damage",
-   "spec": "Mientras se resuelve el dano indicado (kind: combat|effect) sobre `from`, si se cumple `condition` (share_zone: from y to en la misma zona) y `to` esta vivo, el dano completo lo recibe `to` en lugar de `from`; no se parte. Usos: habilidad FATEFUL BARGAINS (opcional, efecto) y Bound In Blood (obligatoria, combate)."},
-  {"op": "rule",
-   "spec": "Modificador global de reglas vivo solo dentro del `ongoing` de un persistent_scheme. Valores: no_attack_as_first_action (la primera accion del turno de cada jugador no puede ser atacar), effect_damage_bonus {amount, except: exhaustion} (todo dano de efecto +amount, el de agotamiento no), max_hand_size {amount} (el tope de mano baja a amount para robar y para el exceso de fin de turno), no_gain_actions (todo gain_action se ignora, las 2 acciones base siguen). Usos: los 5 Pactos."},
-  {"op": "trigger",
-   "spec": "Dentro del `ongoing` de un persistent_scheme: ejecuta `ops` cuando ocurre `when` (end_of_turn: al terminar el turno de cualquier jugador). Uso: Pact Of Peace. Es el mismo concepto que los triggers del HeroDef, pero ligado a la vida del esquema."},
-  {"op": "boost",
-   "spec": "Impulsar la carta `this` en combate aunque no se eligiera impulsar al jugarla: descarta la carta superior del mazo y suma su valor de impulso al valor de esta carta. Uso: Out Of Time."},
-  {"op": "end_turn",
-   "spec": "Termina de inmediato el turno en curso, sin usar las acciones restantes; se aplican los efectos de fin de turno (triggers end_of_turn, exceso de mano). Uso: Out Of Time."},
-  {"op": "persistent_scheme",
-   "spec": "Del vocabulario comun; aqui con argumentos: `ongoing` (lista de ops rule/trigger que viven mientras la carta siga en juego) y `until` ({event: combat_damage_taken, target: self_hero, min: 2}: en cuanto Baba Yaga reciba 2 o mas de dano de combate en un mismo combate, la carta se descarta). Varios Pactos pueden estar activos a la vez."},
-  {"op": "optional",
-   "spec": "Del vocabulario comun; se pide la rama `else`: si who_chooses rechaza `ops`, se ejecuta `else`. Uso: Remove A Painful Memory (el rival elige entre descartar la carta elegida o recibir 2 de dano)."},
-  {"op": "choose_n",
-   "spec": "Del vocabulario comun; se piden `from` (opponent_hand, $player_hand, $player_discard), `up_to` (puede elegir menos de n) y `bind` (nombre de variable con las cartas elegidas, usable como $nombre o all_but:$nombre en ops posteriores)."},
-  {"op": "for_each",
-   "spec": "Del vocabulario comun; con target all_players ejecuta `ops` por cada jugador en orden de turno, empezando por el dueno, con $player ligado a ese jugador. Usos: Pact Of Secrecy, Pact Of Time."},
-  {"op": "draw",
-   "spec": "Del vocabulario comun; se pide `up_to` (who_chooses decide cuantas, de 0 a amount). Uso: Pact Of Secrecy."},
-  {"op": "discard",
-   "spec": "Del vocabulario comun; se pide que admita target active_scheme (una carta de esquema en juego del dueno, elige cual si hay varias) ademas de cartas de mano por `cards`."}
- ],
  "plugins": [],
- "_plugins_note": "El plan preveia baba:remove_painful_memory. No hace falta: look_hand + choose_n (bind) + optional con else decidido por el rival lo cubren; lo dificil (que carta elige el bot y si prefiere descartar o encajar 2) es decision de la IA, no semantica del efecto.",
  "hidden_info": [
   {"card": "Remove A Painful Memory", "info": "La mano del rival.",
    "bot": "El bot solo lee la mano del humano en ese instante (tras el combate, con la carta ya revelada) y la guarda entera en KnownHand; desde ahi descuenta cada carta que el humano juega o descarta y, cuando juega boca abajo, sabe que es una del conjunto conocido hasta que se revela. Las cartas que robe despues son desconocidas. Si no hay Pacto activo, solo mira y recuerda. Cuando es el humano quien la juega contra el bot, el bot ensena su mano (el puente TTS la muestra o la anuncia en el chat) y decide el solo entre descartar la carta elegida o recibir el dano."},

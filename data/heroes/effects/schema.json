@@ -1,0 +1,402 @@
+{
+ "$schema": "https://json-schema.org/draft/2020-12/schema",
+ "$id": "unmatched-sparring/effects/v1",
+ "title": "Efectos de carta de un heroe (DSL v1, docs/effects-dsl.md)",
+ "type": "object",
+ "additionalProperties": false,
+ "required": ["schema", "hero", "ability", "cards", "plugins"],
+ "properties": {
+  "schema": {"const": 1},
+  "hero": {"type": "string", "pattern": "^[a-z][a-z0-9-]*$"},
+  "notes": {"type": "array", "items": {"type": "string"}},
+  "ability": {
+   "type": "object",
+   "additionalProperties": false,
+   "required": ["text", "triggers", "passives"],
+   "properties": {
+    "text": {"type": "string"},
+    "counters": {
+     "type": "object",
+     "additionalProperties": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["min", "max", "start"],
+      "properties": {"min": {"type": "integer"}, "max": {"type": "integer"}, "start": {"type": "integer"}}
+     }
+    },
+    "triggers": {"type": "array", "items": {"$ref": "#/$defs/Trigger"}},
+    "passives": {"type": "array", "items": {"$ref": "#/$defs/Modifier"}},
+    "notes": {"type": ["string", "null"]}
+   }
+  },
+  "cards": {"type": "array", "minItems": 1, "items": {"$ref": "#/$defs/Card"}},
+  "plugins": {
+   "type": "array",
+   "items": {
+    "type": "object",
+    "additionalProperties": false,
+    "required": ["id", "why"],
+    "properties": {"id": {"$ref": "#/$defs/PluginId"}, "why": {"type": "string", "minLength": 1}}
+   }
+  },
+  "hidden_info": {"type": "array", "items": {"type": "object"}},
+  "open_questions": {"type": "array", "items": {"type": "string"}},
+  "discrepancies": {"type": "array", "items": {"type": "object"}},
+  "table": {"type": "object"}
+ },
+ "$defs": {
+  "Name": {"type": "string", "pattern": "^[a-z_][a-z0-9_]*$"},
+  "Var": {"type": "string", "pattern": "^\\$[a-z_][a-z0-9_]*$"},
+  "PluginId": {"type": "string", "pattern": "^[a-z][a-z0-9-]*:[a-z_][a-z0-9_]*$"},
+  "Ops": {"type": "array", "items": {"$ref": "#/$defs/Op"}},
+
+  "PlayerSel": {"anyOf": [
+   {"enum": ["owner", "opponent", "attacking_player", "defending_player"]},
+   {"$ref": "#/$defs/Var"}
+  ]},
+  "PlayerOrAny": {"anyOf": [{"$ref": "#/$defs/PlayerSel"}, {"const": "any"}]},
+  "Chooser": {"anyOf": [{"enum": ["owner", "opponent", "random"]}, {"$ref": "#/$defs/Var"}]},
+
+  "FighterRef": {"anyOf": [
+   {"enum": ["this", "hero", "opposing", "attacker", "defender", "combatant"]},
+   {"$ref": "#/$defs/Var"}
+  ]},
+  "FighterSel": {"anyOf": [
+   {"$ref": "#/$defs/FighterRef"},
+   {
+    "type": "object",
+    "additionalProperties": false,
+    "properties": {
+     "role": {"$ref": "#/$defs/FighterRef"},
+     "side": {"enum": ["own", "enemy", "any"]},
+     "kind": {"enum": ["hero", "sidekick", "any"]},
+     "name": {"type": "string", "minLength": 1},
+     "where": {"$ref": "#/$defs/SpaceSel"},
+     "other": {"type": "boolean"},
+     "state": {"enum": ["alive", "defeated"]},
+     "filter": {
+      "type": "object",
+      "additionalProperties": false,
+      "properties": {"attacked_this_turn": {"type": "boolean"}}
+     },
+     "pick": {"enum": ["one", "all"]}
+    }
+   }
+  ]},
+
+  "SpaceSel": {
+   "type": "object",
+   "additionalProperties": false,
+   "properties": {
+    "any": {"const": true},
+    "zone_of": {"$ref": "#/$defs/FighterRef"},
+    "adjacent_to": {"$ref": "#/$defs/FighterRef"},
+    "space_of": {"$ref": "#/$defs/FighterRef"},
+    "nearest_to": {"$ref": "#/$defs/FighterRef"},
+    "start_space_of": {"$ref": "#/$defs/PlayerSel"},
+    "empty": {"type": "boolean"}
+   }
+  },
+
+  "CardRef": {"anyOf": [
+   {"enum": ["this", "opponent_card", "attack_card", "defense_card"]},
+   {"$ref": "#/$defs/Var"}
+  ]},
+  "CardFilter": {
+   "type": "object",
+   "additionalProperties": false,
+   "properties": {
+    "type": {"enum": ["attack", "defense", "versatile", "scheme"]},
+    "type_not": {"enum": ["attack", "defense", "versatile", "scheme"]},
+    "tag": {"type": "string"},
+    "tag_not": {"type": "string"},
+    "title": {"type": "string"},
+    "fighter": {"type": "string"}
+   }
+  },
+  "CardSel": {
+   "type": "object",
+   "additionalProperties": false,
+   "required": ["zone", "player"],
+   "properties": {
+    "zone": {"enum": ["hand", "discard", "deck", "in_play"]},
+    "player": {"$ref": "#/$defs/PlayerSel"},
+    "filter": {"$ref": "#/$defs/CardFilter"},
+    "pick": {"enum": ["chosen", "all", "random", "top", "bottom"]},
+    "amount": {"$ref": "#/$defs/Amount"},
+    "up_to": {"type": "boolean"},
+    "chooser": {"$ref": "#/$defs/Chooser"},
+    "except": {"$ref": "#/$defs/CardRef"}
+   }
+  },
+  "Cards": {"anyOf": [{"$ref": "#/$defs/CardRef"}, {"$ref": "#/$defs/CardSel"}]},
+
+  "Amount": {"anyOf": [
+   {"type": "integer"},
+   {"type": "object", "additionalProperties": false, "required": ["attr", "of"],
+    "properties": {"attr": {"enum": ["boost", "value"]}, "of": {"$ref": "#/$defs/CardRef"}, "times": {"type": "integer"}}},
+   {"type": "object", "additionalProperties": false, "required": ["count"],
+    "properties": {"count": {"$ref": "#/$defs/FighterSel"}, "times": {"type": "integer"}}},
+   {"type": "object", "additionalProperties": false, "required": ["count_cards"],
+    "properties": {"count_cards": {"$ref": "#/$defs/CardSel"}, "times": {"type": "integer"}}},
+   {"type": "object", "additionalProperties": false, "required": ["counter"],
+    "properties": {"counter": {"$ref": "#/$defs/Name"}, "player": {"$ref": "#/$defs/PlayerSel"}, "times": {"type": "integer"}}},
+   {"type": "object", "additionalProperties": false, "required": ["stat"],
+    "properties": {
+     "stat": {"enum": ["hand_size", "hp", "max_hp", "actions_taken_this_turn", "damage_dealt_this_combat", "damage_taken_this_combat"]},
+     "player": {"$ref": "#/$defs/PlayerSel"},
+     "fighter": {"$ref": "#/$defs/FighterRef"},
+     "times": {"type": "integer"}}}
+  ]},
+
+  "Condition": {"anyOf": [
+   {"type": "object", "additionalProperties": false, "required": ["all"],
+    "properties": {"all": {"type": "array", "minItems": 1, "items": {"$ref": "#/$defs/Condition"}}}},
+   {"type": "object", "additionalProperties": false, "required": ["any"],
+    "properties": {"any": {"type": "array", "minItems": 1, "items": {"$ref": "#/$defs/Condition"}}}},
+   {"type": "object", "additionalProperties": false, "required": ["not"],
+    "properties": {"not": {"$ref": "#/$defs/Condition"}}},
+   {"$ref": "#/$defs/Test"}
+  ]},
+  "Test": {"oneOf": [
+   {"type": "object", "additionalProperties": false, "required": ["test", "form"],
+    "properties": {"test": {"const": "form_is"}, "form": {"type": "string"}, "player": {"$ref": "#/$defs/PlayerSel"}}},
+   {"type": "object", "additionalProperties": false, "required": ["test"],
+    "properties": {"test": {"const": "exists"}, "fighters": {"$ref": "#/$defs/FighterSel"}, "cards": {"$ref": "#/$defs/CardSel"}, "space": {"$ref": "#/$defs/SpaceSel"}}},
+   {"type": "object", "additionalProperties": false, "required": ["test", "fighter", "space"],
+    "properties": {"test": {"const": "fighter_at"}, "fighter": {"$ref": "#/$defs/FighterRef"}, "space": {"$ref": "#/$defs/SpaceSel"}}},
+   {"type": "object", "additionalProperties": false, "required": ["test", "card", "filter"],
+    "properties": {"test": {"const": "card"}, "card": {"$ref": "#/$defs/CardRef"}, "filter": {"$ref": "#/$defs/CardFilter"}}},
+   {"type": "object", "additionalProperties": false, "required": ["test", "result"],
+    "properties": {"test": {"const": "combat_result"}, "result": {"enum": ["won", "lost"]}}},
+   {"type": "object", "additionalProperties": false, "required": ["test", "name"],
+    "properties": {"test": {"const": "counter"}, "name": {"$ref": "#/$defs/Name"}, "min": {"type": "integer"}, "max": {"type": "integer"}, "player": {"$ref": "#/$defs/PlayerSel"}}},
+   {"type": "object", "additionalProperties": false, "required": ["test", "fighter"],
+    "properties": {"test": {"const": "moved_this_turn"}, "fighter": {"$ref": "#/$defs/FighterRef"}}},
+   {"type": "object", "additionalProperties": false, "required": ["test", "side"],
+    "properties": {"test": {"const": "played_as"}, "side": {"enum": ["attack", "defense"]}}},
+   {"type": "object", "additionalProperties": false, "required": ["test", "left", "op", "right"],
+    "properties": {"test": {"const": "compare"}, "left": {"$ref": "#/$defs/Amount"}, "op": {"enum": ["<", "<=", "==", ">=", ">", "!="]}, "right": {"$ref": "#/$defs/Amount"}}},
+   {"type": "object", "additionalProperties": false, "required": ["test", "id", "key"],
+    "properties": {"test": {"const": "plugin"}, "id": {"$ref": "#/$defs/PluginId"}, "key": {"$ref": "#/$defs/Name"}}}
+  ]},
+
+  "Event": {"oneOf": [
+   {"type": "object", "additionalProperties": false, "required": ["event"],
+    "properties": {"event": {"const": "start_of_turn"}, "player": {"$ref": "#/$defs/PlayerOrAny"}}},
+   {"type": "object", "additionalProperties": false, "required": ["event"],
+    "properties": {"event": {"const": "end_of_turn"}, "player": {"$ref": "#/$defs/PlayerOrAny"}}},
+   {"type": "object", "additionalProperties": false, "required": ["event", "player"],
+    "properties": {"event": {"const": "after_maneuver"}, "player": {"$ref": "#/$defs/PlayerOrAny"}}},
+   {"type": "object", "additionalProperties": false, "required": ["event", "fighter"],
+    "properties": {"event": {"const": "after_attack"}, "fighter": {"$ref": "#/$defs/FighterSel"}}},
+   {"type": "object", "additionalProperties": false, "required": ["event", "target"],
+    "properties": {"event": {"const": "attacked"}, "target": {"$ref": "#/$defs/FighterSel"}}},
+   {"type": "object", "additionalProperties": false, "required": ["event", "by"],
+    "properties": {"event": {"const": "combat_damage_dealt"}, "by": {"$ref": "#/$defs/FighterSel"}}},
+   {"type": "object", "additionalProperties": false, "required": ["event", "target", "kind"],
+    "properties": {"event": {"const": "damage_taken"}, "target": {"$ref": "#/$defs/FighterSel"}, "kind": {"enum": ["effect", "combat", "any"]}, "min": {"type": "integer", "minimum": 1}}},
+   {"type": "object", "additionalProperties": false, "required": ["event", "player", "from"],
+    "properties": {"event": {"const": "card_discarded"}, "player": {"$ref": "#/$defs/PlayerOrAny"}, "from": {"type": "array", "minItems": 1, "items": {"enum": ["hand", "deck"]}}, "filter": {"$ref": "#/$defs/CardFilter"}}},
+   {"type": "object", "additionalProperties": false, "required": ["event", "player"],
+    "properties": {"event": {"const": "card_played"}, "player": {"$ref": "#/$defs/PlayerOrAny"}, "filter": {"$ref": "#/$defs/CardFilter"}}},
+   {"type": "object", "additionalProperties": false, "required": ["event", "fighter"],
+    "properties": {"event": {"const": "fighter_defeated"}, "fighter": {"$ref": "#/$defs/FighterSel"}}}
+  ]},
+
+  "Trigger": {
+   "type": "object",
+   "additionalProperties": false,
+   "required": ["id", "when", "ops"],
+   "properties": {
+    "id": {"$ref": "#/$defs/Name"},
+    "when": {"$ref": "#/$defs/Event"},
+    "condition": {"$ref": "#/$defs/Condition"},
+    "optional": {"type": "boolean"},
+    "chooser": {"$ref": "#/$defs/Chooser"},
+    "ops": {"$ref": "#/$defs/Ops"},
+    "notes": {"type": "string"}
+   }
+  },
+
+  "StatusName": {"enum": [
+   "immune_to_effect_damage", "immune_to_enemy_effect_damage", "immune_to_enemy_effect_moves",
+   "immune_to_enemy_forced_discards", "cannot_gain_actions", "cannot_draw", "cannot_leave_space", "next_attack_bonus"
+  ]},
+
+  "Modifier": {"oneOf": [
+   {"type": "object", "additionalProperties": false, "required": ["kind", "cards", "amount"],
+    "properties": {
+     "kind": {"const": "modify_value"},
+     "id": {"$ref": "#/$defs/Name"},
+     "cards": {"type": "object", "additionalProperties": false, "required": ["player"],
+      "properties": {"player": {"$ref": "#/$defs/PlayerSel"}, "type": {"enum": ["attack", "defense", "versatile"]}, "fighter": {"$ref": "#/$defs/FighterSel"}}},
+     "amount": {"$ref": "#/$defs/Amount"},
+     "while": {"$ref": "#/$defs/Condition"}}},
+   {"type": "object", "additionalProperties": false, "required": ["kind", "rule"],
+    "properties": {
+     "kind": {"const": "rule"},
+     "id": {"$ref": "#/$defs/Name"},
+     "rule": {"enum": ["no_attack_as_first_action", "effect_damage_bonus", "max_hand_size", "no_gain_actions"]},
+     "amount": {"type": "integer"},
+     "while": {"$ref": "#/$defs/Condition"}}},
+   {"type": "object", "additionalProperties": false, "required": ["kind", "name"],
+    "properties": {
+     "kind": {"const": "status"},
+     "id": {"$ref": "#/$defs/Name"},
+     "name": {"$ref": "#/$defs/StatusName"},
+     "target": {"$ref": "#/$defs/FighterSel"},
+     "player": {"$ref": "#/$defs/PlayerSel"},
+     "amount": {"$ref": "#/$defs/Amount"},
+     "while": {"$ref": "#/$defs/Condition"}}},
+   {"type": "object", "additionalProperties": false, "required": ["kind", "from", "to", "damage"],
+    "properties": {
+     "kind": {"const": "redirect_damage"},
+     "id": {"$ref": "#/$defs/Name"},
+     "from": {"$ref": "#/$defs/FighterSel"},
+     "to": {"$ref": "#/$defs/FighterSel"},
+     "damage": {"enum": ["effect", "combat", "any"]},
+     "condition": {"$ref": "#/$defs/Condition"},
+     "optional": {"type": "boolean"},
+     "chooser": {"$ref": "#/$defs/Chooser"},
+     "while": {"$ref": "#/$defs/Condition"}}},
+   {"type": "object", "additionalProperties": false, "required": ["kind", "fighter"],
+    "properties": {
+     "kind": {"const": "may_boost"},
+     "id": {"$ref": "#/$defs/Name"},
+     "fighter": {"$ref": "#/$defs/FighterSel"},
+     "while": {"$ref": "#/$defs/Condition"}}},
+   {"type": "object", "additionalProperties": false, "required": ["kind", "plugin"],
+    "properties": {
+     "kind": {"const": "plugin"},
+     "id": {"$ref": "#/$defs/Name"},
+     "plugin": {"$ref": "#/$defs/PluginId"},
+     "while": {"$ref": "#/$defs/Condition"}}}
+  ]},
+
+  "Ongoing": {
+   "type": "object",
+   "additionalProperties": false,
+   "required": ["modifiers", "triggers", "until"],
+   "properties": {
+    "modifiers": {"type": "array", "items": {"$ref": "#/$defs/Modifier"}},
+    "triggers": {"type": "array", "items": {"$ref": "#/$defs/Trigger"}},
+    "until": {"$ref": "#/$defs/Event"}
+   }
+  },
+
+  "Card": {
+   "type": "object",
+   "additionalProperties": false,
+   "required": ["title", "copies", "text", "effects"],
+   "properties": {
+    "title": {"type": "string", "minLength": 1},
+    "copies": {"type": "integer", "minimum": 1},
+    "text": {"type": "string"},
+    "may_boost": {"type": "boolean"},
+    "uncancelable": {"type": "boolean"},
+    "effects": {
+     "type": "object",
+     "additionalProperties": false,
+     "required": ["immediately", "during", "after", "scheme", "boost"],
+     "properties": {
+      "immediately": {"$ref": "#/$defs/Ops"},
+      "during": {"$ref": "#/$defs/Ops"},
+      "after": {"$ref": "#/$defs/Ops"},
+      "scheme": {"$ref": "#/$defs/Ops"},
+      "boost": {"$ref": "#/$defs/Ops"}
+     }
+    },
+    "ongoing": {"anyOf": [{"type": "null"}, {"$ref": "#/$defs/Ongoing"}]},
+    "notes": {"type": ["string", "null"]}
+   }
+  },
+
+  "Op": {"oneOf": [
+   {"type": "object", "additionalProperties": false, "required": ["op", "target", "amount"],
+    "properties": {"op": {"const": "damage"}, "target": {"$ref": "#/$defs/FighterSel"}, "amount": {"$ref": "#/$defs/Amount"}, "chooser": {"$ref": "#/$defs/Chooser"}, "as": {"$ref": "#/$defs/Name"}}},
+   {"type": "object", "additionalProperties": false, "required": ["op", "target", "amount"],
+    "properties": {"op": {"const": "heal"}, "target": {"$ref": "#/$defs/FighterSel"}, "amount": {"$ref": "#/$defs/Amount"}, "chooser": {"$ref": "#/$defs/Chooser"}}},
+   {"type": "object", "additionalProperties": false, "required": ["op", "target", "amount"],
+    "properties": {"op": {"const": "set_hp"}, "target": {"$ref": "#/$defs/FighterSel"}, "amount": {"$ref": "#/$defs/Amount"}, "chooser": {"$ref": "#/$defs/Chooser"}}},
+   {"type": "object", "additionalProperties": false, "required": ["op", "player", "amount"],
+    "properties": {"op": {"const": "draw"}, "player": {"$ref": "#/$defs/PlayerSel"}, "amount": {"$ref": "#/$defs/Amount"}, "up_to": {"type": "boolean"}, "chooser": {"$ref": "#/$defs/Chooser"}, "as": {"$ref": "#/$defs/Name"}}},
+   {"type": "object", "additionalProperties": false, "required": ["op", "cards"],
+    "properties": {"op": {"const": "discard"}, "cards": {"$ref": "#/$defs/Cards"}, "as": {"$ref": "#/$defs/Name"}}},
+   {"type": "object", "additionalProperties": false, "required": ["op", "cards", "as"],
+    "properties": {"op": {"const": "choose"}, "cards": {"$ref": "#/$defs/CardSel"}, "as": {"$ref": "#/$defs/Name"}}},
+   {"type": "object", "additionalProperties": false, "required": ["op", "options", "amount"],
+    "properties": {
+     "op": {"const": "choose_effect"},
+     "options": {"type": "array", "minItems": 2, "items": {"type": "object", "additionalProperties": false, "required": ["label", "ops"],
+      "properties": {"label": {"type": "string", "minLength": 1}, "ops": {"$ref": "#/$defs/Ops"}}}},
+     "amount": {"type": "integer", "minimum": 1},
+     "distinct": {"type": "boolean"},
+     "chooser": {"$ref": "#/$defs/Chooser"}}},
+   {"type": "object", "additionalProperties": false, "required": ["op", "target", "amount", "up_to"],
+    "properties": {"op": {"const": "move"}, "target": {"$ref": "#/$defs/FighterSel"}, "amount": {"$ref": "#/$defs/Amount"}, "up_to": {"type": "boolean"}, "through_enemies": {"type": "boolean"}, "chooser": {"$ref": "#/$defs/Chooser"}}},
+   {"type": "object", "additionalProperties": false, "required": ["op", "target", "where"],
+    "properties": {"op": {"const": "place"}, "target": {"$ref": "#/$defs/FighterSel"}, "where": {"$ref": "#/$defs/SpaceSel"}, "chooser": {"$ref": "#/$defs/Chooser"}}},
+   {"type": "object", "additionalProperties": false, "required": ["op", "target", "with"],
+    "properties": {"op": {"const": "swap"}, "target": {"$ref": "#/$defs/FighterSel"}, "with": {"$ref": "#/$defs/FighterSel"}, "chooser": {"$ref": "#/$defs/Chooser"}}},
+   {"type": "object", "additionalProperties": false, "required": ["op", "target", "where", "hp"],
+    "properties": {"op": {"const": "revive"}, "target": {"$ref": "#/$defs/FighterSel"}, "where": {"$ref": "#/$defs/SpaceSel"}, "hp": {"$ref": "#/$defs/Amount"}, "chooser": {"$ref": "#/$defs/Chooser"}}},
+   {"type": "object", "additionalProperties": false, "required": ["op", "name", "where"],
+    "properties": {"op": {"const": "summon"}, "name": {"type": "string", "minLength": 1}, "where": {"$ref": "#/$defs/SpaceSel"}, "hp": {"$ref": "#/$defs/Amount"}, "chooser": {"$ref": "#/$defs/Chooser"}}},
+   {"type": "object", "additionalProperties": false, "required": ["op", "card"],
+    "properties": {"op": {"const": "cancel_effects"}, "card": {"$ref": "#/$defs/CardRef"}}},
+   {"type": "object", "additionalProperties": false, "required": ["op", "card", "amount"],
+    "properties": {"op": {"const": "modify_value"}, "card": {"$ref": "#/$defs/CardRef"}, "amount": {"$ref": "#/$defs/Amount"}}},
+   {"type": "object", "additionalProperties": false, "required": ["op", "card", "amount"],
+    "properties": {"op": {"const": "set_value"}, "card": {"$ref": "#/$defs/CardRef"}, "amount": {"$ref": "#/$defs/Amount"}}},
+   {"type": "object", "additionalProperties": false, "required": ["op", "card"],
+    "properties": {"op": {"const": "boost"}, "card": {"$ref": "#/$defs/CardRef"}, "chooser": {"$ref": "#/$defs/Chooser"}}},
+   {"type": "object", "additionalProperties": false, "required": ["op", "name", "until"],
+    "properties": {"op": {"const": "status"}, "name": {"$ref": "#/$defs/StatusName"}, "until": {"$ref": "#/$defs/Event"}, "target": {"$ref": "#/$defs/FighterSel"}, "player": {"$ref": "#/$defs/PlayerSel"}, "amount": {"$ref": "#/$defs/Amount"}}},
+   {"type": "object", "additionalProperties": false, "required": ["op", "name"],
+    "properties": {"op": {"const": "counter"}, "name": {"$ref": "#/$defs/Name"}, "delta": {"type": "integer"}, "set": {"type": "integer"}, "player": {"$ref": "#/$defs/PlayerSel"}}},
+   {"type": "object", "additionalProperties": false, "required": ["op", "amount"],
+    "properties": {"op": {"const": "gain_action"}, "amount": {"type": "integer", "minimum": 1}, "player": {"$ref": "#/$defs/PlayerSel"}}},
+   {"type": "object", "additionalProperties": false, "required": ["op"],
+    "properties": {"op": {"const": "end_turn"}}},
+   {"type": "object", "additionalProperties": false, "required": ["op", "player"],
+    "properties": {"op": {"const": "look_hand"}, "player": {"$ref": "#/$defs/PlayerSel"}}},
+   {"type": "object", "additionalProperties": false, "required": ["op", "cards", "to"],
+    "properties": {"op": {"const": "reveal"}, "cards": {"$ref": "#/$defs/Cards"}, "to": {"anyOf": [{"$ref": "#/$defs/PlayerSel"}, {"const": "all"}]}}},
+   {"type": "object", "additionalProperties": false, "required": ["op", "player", "amount", "as"],
+    "properties": {"op": {"const": "look_deck"}, "player": {"$ref": "#/$defs/PlayerSel"}, "amount": {"$ref": "#/$defs/Amount"}, "from": {"enum": ["top", "bottom"]}, "as": {"$ref": "#/$defs/Name"}}},
+   {"type": "object", "additionalProperties": false, "required": ["op", "player", "look", "take", "to", "rest"],
+    "properties": {
+     "op": {"const": "search_deck"},
+     "player": {"$ref": "#/$defs/PlayerSel"},
+     "look": {"anyOf": [{"type": "integer", "minimum": 1}, {"const": "all"}]},
+     "take": {"type": "object", "additionalProperties": false, "required": ["amount"],
+      "properties": {"amount": {"type": "integer", "minimum": 0}, "up_to": {"type": "boolean"}, "filter": {"$ref": "#/$defs/CardFilter"}}},
+     "to": {"const": "hand"},
+     "rest": {"enum": ["bottom_random", "bottom_ordered", "top_ordered", "shuffle"]},
+     "chooser": {"$ref": "#/$defs/Chooser"},
+     "as": {"$ref": "#/$defs/Name"}}},
+   {"type": "object", "additionalProperties": false, "required": ["op", "cards", "position"],
+    "properties": {"op": {"const": "return_to_deck"}, "cards": {"$ref": "#/$defs/Cards"}, "position": {"enum": ["top", "bottom", "shuffle"]}, "order": {"$ref": "#/$defs/PlayerSel"}}},
+   {"type": "object", "additionalProperties": false, "required": ["op", "cards"],
+    "properties": {"op": {"const": "put_in_hand"}, "cards": {"$ref": "#/$defs/Cards"}}},
+   {"type": "object", "additionalProperties": false, "required": ["op", "from", "to", "damage"],
+    "properties": {"op": {"const": "redirect_damage"}, "from": {"$ref": "#/$defs/FighterSel"}, "to": {"$ref": "#/$defs/FighterSel"}, "damage": {"enum": ["effect", "combat", "any"]}, "condition": {"$ref": "#/$defs/Condition"}, "optional": {"type": "boolean"}, "chooser": {"$ref": "#/$defs/Chooser"}}},
+   {"type": "object", "additionalProperties": false, "required": ["op", "ops"],
+    "properties": {"op": {"const": "optional"}, "chooser": {"$ref": "#/$defs/Chooser"}, "cost": {"$ref": "#/$defs/Ops"}, "ops": {"$ref": "#/$defs/Ops"}, "else": {"$ref": "#/$defs/Ops"}}},
+   {"type": "object", "additionalProperties": false, "required": ["op", "condition", "then"],
+    "properties": {"op": {"const": "if"}, "condition": {"$ref": "#/$defs/Condition"}, "then": {"$ref": "#/$defs/Ops"}, "else": {"$ref": "#/$defs/Ops"}}},
+   {"type": "object", "additionalProperties": false, "required": ["op", "over", "as", "ops"],
+    "properties": {
+     "op": {"const": "for_each"},
+     "over": {"anyOf": [
+      {"type": "object", "additionalProperties": false, "required": ["players"], "properties": {"players": {"const": "all"}}},
+      {"type": "object", "additionalProperties": false, "required": ["fighters"], "properties": {"fighters": {"$ref": "#/$defs/FighterSel"}}}
+     ]},
+     "as": {"$ref": "#/$defs/Name"},
+     "ops": {"$ref": "#/$defs/Ops"}}},
+   {"type": "object", "additionalProperties": false, "required": ["op", "id"],
+    "properties": {"op": {"const": "plugin"}, "id": {"$ref": "#/$defs/PluginId"}, "args": {"type": "object"}}}
+  ]}
+ }
+}

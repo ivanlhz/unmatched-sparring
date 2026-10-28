@@ -1,20 +1,15 @@
 """Datos de Hellboy (F07, caja Hellboy): el overlay y el HeroDef generado describen el mazo real de la hoja 197, y
-data/heroes/effects/hellboy.json cubre cada carta solo con ops del vocabulario comun o declaradas. Sin FakeTTS."""
+data/heroes/effects/hellboy.json cubre cada carta en el DSL v1 (docs/effects-dsl.md). Sin FakeTTS."""
 import json
 import re
 
 from sparring.board import DATA_DIR
 from sparring.heroes import HEROES_DIR, load_hero
+from tools.validate_effects import validate_file
 
 OVERLAY = HEROES_DIR / "overlay" / "hellboy.json"
 EFFECTS = HEROES_DIR / "effects" / "hellboy.json"
 CONFIG = DATA_DIR.parent / "config" / "partida.json"
-
-VOCABULARY = frozenset({
-    "damage", "heal", "draw", "discard", "discard_random", "move", "place", "push", "swap", "revive", "cancel_effects",
-    "modify_value", "status", "counter", "persistent_scheme", "look_hand", "reveal", "choose_n", "optional", "if",
-    "for_each", "gain_action", "search_deck", "return_to_deck"})
-SLOTS = frozenset({"immediately", "during", "after", "scheme", "boost"})
 
 # Leido de las imagenes de la hoja 197 el 2026-10-28 (copias impresas en cada carta): (copias, destiny, luchador)
 EXPECTED = {
@@ -43,7 +38,7 @@ def effects() -> dict:
 
 
 def ops_in(node):
-    """Todos los dicts con clave 'op' de una estructura anidada (then, ops, options, while...), en orden."""
+    """Todos los dicts con clave 'op' de una estructura anidada (then, ops, options...), en orden."""
     if isinstance(node, dict):
         if "op" in node:
             yield node
@@ -80,42 +75,43 @@ def test_herodef_sidekick_and_forms_match_the_character_card_and_token():
     assert h.attack_bonus("ANUNG UN RAMA", True) == 2 and h.attack_bonus("OCCULT DETECTIVE", True) == 0
 
 
-def test_every_deck_card_has_an_effects_entry_with_the_five_slots_and_its_copies():
+def test_effects_validate_and_cover_every_deck_card_with_its_copies():
+    assert validate_file(EFFECTS) == []
     ef = effects()
-    assert ef["hero"] == "hellboy"
+    assert ef["schema"] == 1 and ef["hero"] == "hellboy"
     by_title = {c["title"]: c for c in ef["cards"]}
-    deck_titles = {c.title for c in load_hero("hellboy").deck()}
-    assert set(by_title) == deck_titles == set(EXPECTED)
+    assert set(by_title) == {c.title for c in load_hero("hellboy").deck()} == set(EXPECTED)
     for title, card in by_title.items():
-        assert set(card["effects"]) == SLOTS, title
         assert card["copies"] == EXPECTED[title][0], title
-        assert all(isinstance(v, list) for v in card["effects"].values()), title
 
 
-def test_only_vocabulary_or_declared_ops_are_used_and_plugins_are_explained():
-    ef = effects()
-    declared = {p["op"] for p in ef["primitives_needed"]}
-    plugin_ids = {p["id"] for p in ef["plugins"]}
-    assert all(p["spec"] for p in ef["primitives_needed"]) and all(p["why"] for p in ef["plugins"])
-    assert all(i.startswith("hellboy:") for i in plugin_ids)
-    used = list(ops_in(ef["ability"])) + [o for c in ef["cards"] for o in ops_in(c["effects"])]
-    assert used, "sin ops"
-    for op in used:
-        name = op["op"]
-        if name == "plugin":
-            assert op["id"] in plugin_ids, op
-        else:
-            assert name in VOCABULARY | declared, op
-    assert declared <= VOCABULARY           # lo declarado solo extiende argumentos de ops del vocabulario
-    assert {"look_hand", "choose_n", "cancel_effects", "gain_action", "return_to_deck"} <= {o["op"] for o in used}
+def test_ability_in_the_dsl_matches_the_herodef_triggers_and_passive():
+    ab = effects()["ability"]
+    assert [t["id"] for t in ab["triggers"]] == ["detective_draw", "anung_discard_move"]
+    assert all(t["when"] == {"event": "start_of_turn", "player": "owner"} for t in ab["triggers"])
+    detective, anung = ab["triggers"]
+    assert detective["optional"] is True and detective["ops"] == [{"op": "draw", "player": "owner", "amount": 2}]
+    assert {"test": "form_is", "form": "OCCULT DETECTIVE"} in detective["condition"]["all"]
+    assert [op["op"] for op in anung["ops"]] == ["discard", "move"]
+    assert anung["ops"][0]["as"] == "fuel" and anung["ops"][1]["amount"] == {"attr": "boost", "of": "$fuel"}
+    passive, = ab["passives"]
+    assert (passive["kind"], passive["amount"], passive["while"]) == ("modify_value", 2, {"test": "form_is", "form": "ANUNG UN RAMA"})
+    assert passive["cards"] == {"player": "owner", "type": "attack", "fighter": "hero"}
 
 
-def test_cards_with_text_have_ops_and_blank_cards_have_none():
+def test_cards_with_text_have_ops_or_may_boost_and_blank_cards_have_none():
     ef = effects()
     deck = {c.title: c for c in load_hero("hellboy").deck()}
     for card in ef["cards"]:
-        n_ops = sum(1 for _ in ops_in(card["effects"]))
-        assert (n_ops > 0) == bool(deck[card["title"]].text.strip()), card["title"]
+        has_semantics = any(True for _ in ops_in(card["effects"])) or card.get("may_boost", False)
+        assert has_semantics == bool(deck[card["title"]].text.strip()), card["title"]
+    assert ef["cards"][4]["title"] == "Second Shot" and ef["cards"][4]["may_boost"] is True
+    assert ef["plugins"] == []   # la coreografia del cambio de forma esta en table, no es un efecto
+    used = {op["op"] for c in ef["cards"] for op in ops_in(c["effects"])}
+    assert {"look_hand", "choose_effect", "cancel_effects", "gain_action", "return_to_deck", "set_value", "status"} <= used
+    pancakes = next(c for c in ef["cards"] if c["title"] == "Pancakes!")
+    choose, = pancakes["effects"]["scheme"]
+    assert (choose["op"], choose["amount"], choose["distinct"], len(choose["options"])) == ("choose_effect", 2, True, 3)
 
 
 def test_hidden_info_covers_confront_and_table_objects_match_the_config():

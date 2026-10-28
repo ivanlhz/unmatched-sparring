@@ -1,54 +1,55 @@
 {
+ "schema": 1,
  "hero": "hellboy",
- "_notes": [
-  "Efectos estructurados de Hellboy (F07 pasos 4-6). Texto leido de las cartas reales (hoja 197 del save del torneo) el 2026-10-28; donde unmatched-memory difiere manda la carta y se apunta en docs/heroes/hellboy.md.",
-  "Cada op es {op, ...args}. Vocabulario comun: damage, heal, draw, discard, discard_random, move, place, push, swap, revive, cancel_effects, modify_value, status, counter, persistent_scheme, look_hand, reveal, choose_n, optional, if, for_each, gain_action, search_deck, return_to_deck. Lo que no cabe: {op: plugin, id}.",
-  "Perspectiva: 'owner' es quien juega la carta; 'self_hero' es Hellboy aunque la carta la juegue Lobster; 'self_fighter' es el luchador que la juega; 'opponent' es el jugador rival.",
-  "Las formas no son un estado: se recalculan siempre desde el contador destiny del descarte (overlay forms/counters). Por eso ningun op 'pone' la forma: solo se consulta con la condicion form_is.",
-  "move con amount N es siempre 'hasta N' (0 incluido), como en el reglamento; un movimiento obligatorio llevaria exact: true (Hellboy no tiene ninguno)."
+ "notes": [
+  "Efectos estructurados de Hellboy (F07 pasos 4-6) en el DSL v1 (docs/effects-dsl.md). Texto leido de las cartas reales (hoja 197 del save del torneo) el 2026-10-28; donde unmatched-memory difiere manda la carta y se apunta en docs/heroes/hellboy.md. Migrado al esquema canonico el 2026-10-28 sin cambiar la semantica.",
+  "Las formas no son un estado: se recalculan siempre desde el contador destiny del descarte (overlay forms/counters). Por eso ninguna op 'pone' la forma: solo se consulta con la condicion form_is.",
+  "Todo damage es de efecto (Horseshoes, Posthumous Power): lo para el escudo de Planned Recklessness y alcanza tambien a los propios."
  ],
  "ability": {
   "text": "AHH CRAP! At the start of the game, place the Hellboy Special Ability Token over this card with the OCCULT DETECTIVE side up. OCCULT DETECTIVE: At the start of your turn, if Hellboy is in an opponent's starting space, you may draw 2 cards. When you have 6 or more destiny cards in your discard pile, switch to ANUNG UN RAMA. ANUNG UN RAMA: At the start of your turn, discard 1 card. Move Hellboy a number of spaces up to its BOOST value. Add +2 to Hellboy's attacks. When you have 5 or fewer destiny cards in your discard pile, switch to OCCULT DETECTIVE.",
-  "when": "start_of_turn",
-  "ops": [
-   {"op": "if", "condition": "form_is", "form": "OCCULT DETECTIVE", "then": [
-    {"op": "if", "condition": "hero_on_rival_start", "then": [
-     {"op": "optional", "who_chooses": "owner", "ops": [{"op": "draw", "amount": 2}]}
+  "triggers": [
+   {"id": "detective_draw", "when": {"event": "start_of_turn", "player": "owner"},
+    "condition": {"all": [
+     {"test": "form_is", "form": "OCCULT DETECTIVE"},
+     {"test": "fighter_at", "fighter": "hero", "space": {"start_space_of": "opponent"}}
+    ]},
+    "optional": true, "chooser": "owner",
+    "ops": [{"op": "draw", "player": "owner", "amount": 2}]},
+   {"id": "anung_discard_move", "when": {"event": "start_of_turn", "player": "owner"},
+    "condition": {"all": [
+     {"test": "form_is", "form": "ANUNG UN RAMA"},
+     {"test": "exists", "cards": {"zone": "hand", "player": "owner"}}
+    ]},
+    "ops": [
+     {"op": "discard", "cards": {"zone": "hand", "player": "owner", "amount": 1, "chooser": "owner"}, "as": "fuel"},
+     {"op": "move", "target": "hero", "amount": {"attr": "boost", "of": "$fuel"}, "up_to": true}
     ]}
-   ]},
-   {"op": "if", "condition": "form_is", "form": "ANUNG UN RAMA", "then": [
-    {"op": "if", "condition": "hand_not_empty", "then": [
-     {"op": "discard", "target": "self_player", "amount": 1, "who_chooses": "owner", "bind": "fuel"},
-     {"op": "move", "target": "self_hero", "amount": {"ref": "fuel.boost"}}
-    ]}
-   ]}
   ],
   "passives": [
-   {"op": "modify_value", "target": "self_hero", "what": "attack_value", "amount": 2, "while": {"condition": "form_is", "form": "ANUNG UN RAMA"}}
+   {"id": "anung_attack", "kind": "modify_value", "cards": {"player": "owner", "type": "attack", "fighter": "hero"}, "amount": 2,
+    "while": {"test": "form_is", "form": "ANUNG UN RAMA"}}
   ],
-  "forms": {
-   "source": "overlay: forms + counters.destiny (11 cartas destiny de 30)",
-   "OCCULT DETECTIVE": "5 o menos destinos en el descarte",
-   "ANUNG UN RAMA": "6 o mas destinos en el descarte",
-   "notes": "El cambio es inmediato en cuanto cambia el contador (al descartar una carta jugada, al mover cartas del descarte al mazo con Pancakes!, al barajar el descarte cuando se agota el mazo). El motor ya lo recalcula desde datos; en la mesa lo representan la ficha y la miniatura (ver table)."
-  }
+  "notes": "Formas: OCCULT DETECTIVE con 5 o menos destinos en el descarte, ANUNG UN RAMA con 6 o mas (overlay forms + counters.destiny, 11 destinos de 30). El cambio es inmediato en cuanto cambia el contador (al descartar una carta jugada, al mover cartas del descarte al mazo con Pancakes!, al barajar el descarte cuando se agota el mazo). El motor ya lo recalcula desde datos; en la mesa lo representan la ficha y la miniatura (ver table). Hoy los disparadores los ejecutan Game.hellboy_detective_draw y Game.hellboy_anung_start y la pasiva la lee combat.py como attack_bonus."
  },
  "cards": [
   {
    "title": "Excalibur",
    "copies": 1,
+   "text": "",
    "effects": {"immediately": [], "during": [], "after": [], "scheme": [], "boost": []},
    "notes": "Ataque 6 / boost 3, solo Hellboy, destiny. Sin texto."
   },
   {
    "title": "Right Hand Of Doom",
    "copies": 4,
+   "text": "AFTER COMBAT: Move an adjacent fighter up to 1 space. If Hellboy is OCCULT DETECTIVE, move Hellboy up to 1 space.",
    "effects": {
     "immediately": [], "during": [], "scheme": [], "boost": [],
     "after": [
-     {"op": "move", "target": "adjacent_fighter", "amount": 1, "who_chooses": "owner"},
-     {"op": "if", "condition": "form_is", "form": "OCCULT DETECTIVE", "then": [
-      {"op": "move", "target": "self_hero", "amount": 1}
+     {"op": "move", "target": {"where": {"adjacent_to": "this"}}, "amount": 1, "up_to": true, "chooser": "owner"},
+     {"op": "if", "condition": {"test": "form_is", "form": "OCCULT DETECTIVE"}, "then": [
+      {"op": "move", "target": "hero", "amount": 1, "up_to": true}
      ]}
     ]
    },
@@ -57,18 +58,18 @@
   {
    "title": "Service Pistol",
    "copies": 1,
+   "text": "",
    "effects": {"immediately": [], "during": [], "after": [], "scheme": [], "boost": []},
    "notes": "Ataque 5 / boost 2, cualquiera. Sin texto."
   },
   {
    "title": "Horseshoes And Hand Grenades",
    "copies": 3,
+   "text": "AFTER COMBAT: Deal 1 damage to each other fighter in your fighter's zone.",
    "effects": {
     "immediately": [], "during": [], "scheme": [], "boost": [],
     "after": [
-     {"op": "for_each", "target": "other_fighters_in_zone", "of": "self_fighter", "ops": [
-      {"op": "damage", "target": "each", "amount": 1, "source": "effect"}
-     ]}
+     {"op": "damage", "target": {"where": {"zone_of": "this"}, "other": true, "pick": "all"}, "amount": 1}
     ]
    },
    "notes": "Ataque 2 / boost 1, cualquiera. Dano de efecto (no de combate): lo para el escudo de Planned Recklessness del rival y alcanza tambien a los propios (Lobster en la misma zona). Si el luchador que la jugo murio en el combate no tiene zona y no pasa nada (el motor ya lo hace asi)."
@@ -76,27 +77,22 @@
   {
    "title": "Second Shot",
    "copies": 2,
-   "effects": {
-    "immediately": [], "after": [], "scheme": [], "boost": [],
-    "during": [
-     {"op": "optional", "who_chooses": "owner", "ops": [
-      {"op": "discard", "target": "self_player", "amount": 1, "who_chooses": "owner", "bind": "boost_card"},
-      {"op": "modify_value", "target": "this_card", "amount": {"ref": "boost_card.boost"}}
-     ]}
-    ]
-   },
-   "notes": "Ataque 2 / boost 2, solo Lobster Johnson. La carta dice 'You may BOOST this card' (unmatched-memory: 'this attack'; mismo significado). Si el IMMEDIATELY rival cancela sus efectos no hay BOOST. La carta de impulso se descarta boca arriba: informacion publica."
+   "text": "DURING COMBAT: You may BOOST this attack.",
+   "may_boost": true,
+   "effects": {"immediately": [], "during": [], "after": [], "scheme": [], "boost": []},
+   "notes": "Ataque 2 / boost 2, solo Lobster Johnson. La carta dice 'You may BOOST this attack' (unmatched-memory: igual). Si el IMMEDIATELY rival cancela sus efectos no hay BOOST. La carta de impulso se descarta boca arriba: informacion publica. Hoy combat.can_boost lo detecta por texto; may_boost es el dato que lo sustituye."
   },
   {
    "title": "Confront Any Demon or God",
    "copies": 2,
+   "text": "AFTER COMBAT: Draw 1 card. Then, if you lost the combat, look at your opponent's hand and choose 1 card for them to discard.",
    "effects": {
     "immediately": [], "during": [], "scheme": [], "boost": [],
     "after": [
-     {"op": "draw", "amount": 1},
-     {"op": "if", "condition": "lost_combat", "then": [
-      {"op": "look_hand", "target": "opponent"},
-      {"op": "discard", "target": "opponent", "amount": 1, "who_chooses": "owner", "from": "seen_hand"}
+     {"op": "draw", "player": "owner", "amount": 1},
+     {"op": "if", "condition": {"test": "combat_result", "result": "lost"}, "then": [
+      {"op": "look_hand", "player": "opponent"},
+      {"op": "discard", "cards": {"zone": "hand", "player": "opponent", "amount": 1, "chooser": "owner"}}
      ]}
     ]
    },
@@ -105,11 +101,12 @@
   {
    "title": "Glimpse Of Hell",
    "copies": 3,
+   "text": "AFTER COMBAT: Draw 2 cards, then shuffle a card from your hand into your deck.",
    "effects": {
     "immediately": [], "during": [], "scheme": [], "boost": [],
     "after": [
-     {"op": "draw", "amount": 2},
-     {"op": "return_to_deck", "target": "self_player", "from": "hand", "amount": 1, "who_chooses": "owner", "position": "shuffle"}
+     {"op": "draw", "player": "owner", "amount": 2},
+     {"op": "return_to_deck", "cards": {"zone": "hand", "player": "owner", "amount": 1, "chooser": "owner"}, "position": "shuffle"}
     ]
    },
    "notes": "Versatil 2 / boost 3, cualquiera. Roba 2 y despues baraja UNA carta de la mano (cualquiera, no necesariamente una de las robadas) en el mazo, boca abajo. Si el mazo esta vacio al robar se baraja el descarte primero (regla general)."
@@ -117,13 +114,12 @@
   {
    "title": "B.P.R.D. Training",
    "copies": 3,
+   "text": "AFTER COMBAT: Draw 1 card. Move each friendly fighter up to 2 spaces.",
    "effects": {
     "immediately": [], "during": [], "scheme": [], "boost": [],
     "after": [
-     {"op": "draw", "amount": 1},
-     {"op": "for_each", "target": "friendly_fighters", "ops": [
-      {"op": "move", "target": "each", "amount": 2}
-     ]}
+     {"op": "draw", "player": "owner", "amount": 1},
+     {"op": "move", "target": {"side": "own", "pick": "all"}, "amount": 2, "up_to": true}
     ]
    },
    "notes": "Versatil 3 / boost 2, cualquiera. Cada luchador propio vivo se mueve hasta 2 (0 incluido), uno tras otro, en el orden que elija el dueno. Movimientos fisicos: el humano los hace en la mesa; el bot mueve sus miniaturas."
@@ -131,32 +127,34 @@
   {
    "title": "Planned Recklessness",
    "copies": 2,
+   "text": "IMMEDIATELY: Your fighters can't take damage from effects this turn. If Hellboy is OCCULT DETECTIVE, cancel all effects on your opponent's card.",
    "effects": {
     "during": [], "after": [], "scheme": [], "boost": [],
     "immediately": [
-     {"op": "status", "target": "friendly_fighters", "status": "immune_to_effect_damage", "until": "end_of_turn"},
-     {"op": "if", "condition": "form_is", "form": "OCCULT DETECTIVE", "then": [
-      {"op": "cancel_effects", "target": "opponent_card"}
+     {"op": "status", "name": "immune_to_effect_damage", "target": {"side": "own", "pick": "all"}, "until": {"event": "end_of_turn"}},
+     {"op": "if", "condition": {"test": "form_is", "form": "OCCULT DETECTIVE"}, "then": [
+      {"op": "cancel_effects", "card": "opponent_card"}
      ]}
     ]
    },
-   "notes": "Versatil 3 / boost 3, cualquiera (no es destiny). 'This turn' es el turno en curso, sea de quien sea: si se juega en defensa el escudo dura hasta el fin del turno del atacante. El escudo para el dano de efectos (Horseshoes, Posthumous Power, la mirada de Medusa en su turno...) pero no el de combate. La cancelacion solo en OCCULT DETECTIVE y se decide al resolver el IMMEDIATELY (la carta aun no esta en el descarte). El motor ya hace exactamente esto (combat.py, PLANNED)."
+   "notes": "Versatil 3 / boost 3, cualquiera (no es destiny). 'This turn' es el turno en curso, sea de quien sea: si se juega en defensa el escudo dura hasta el fin del turno del atacante. El escudo para el dano de efectos (Horseshoes, Posthumous Power, la mirada de Medusa en su turno...) pero no el de combate. La cancelacion solo en OCCULT DETECTIVE y se decide al resolver el IMMEDIATELY (la carta aun no esta en el descarte). El motor ya hace exactamente esto (combat.py, PLANNED; Game.effect_shield)."
   },
   {
    "title": "Posthumous Power",
    "copies": 3,
+   "text": "AFTER COMBAT: Choose one:\n- each friendly fighter recovers 1 health\n- deal 1 damage to any fighter\n- move any fighter up to 3 spaces",
    "effects": {
     "immediately": [], "during": [], "scheme": [], "boost": [],
     "after": [
-     {"op": "choose_n", "n": 1, "who_chooses": "owner", "options": [
+     {"op": "choose_effect", "amount": 1, "chooser": "owner", "options": [
       {"label": "each friendly fighter recovers 1 health", "ops": [
-       {"op": "for_each", "target": "friendly_fighters", "ops": [{"op": "heal", "target": "each", "amount": 1}]}
+       {"op": "heal", "target": {"side": "own", "pick": "all"}, "amount": 1}
       ]},
       {"label": "deal 1 damage to any fighter", "ops": [
-       {"op": "damage", "target": "any_fighter", "amount": 1, "who_chooses": "owner", "source": "effect"}
+       {"op": "damage", "target": {"side": "any"}, "amount": 1, "chooser": "owner"}
       ]},
       {"label": "move any fighter up to 3 spaces", "ops": [
-       {"op": "move", "target": "any_fighter", "amount": 3, "who_chooses": "owner"}
+       {"op": "move", "target": {"side": "any"}, "amount": 3, "up_to": true, "chooser": "owner"}
       ]}
      ]}
     ]
@@ -166,13 +164,14 @@
   {
    "title": "On Earth As It Is In Hell",
    "copies": 2,
+   "text": "DURING COMBAT: This card's value becomes the number of destiny cards in your discard pile. AFTER COMBAT: If you lost the combat, Hellboy recovers 2 health.",
    "effects": {
     "immediately": [], "scheme": [], "boost": [],
     "during": [
-     {"op": "modify_value", "target": "this_card", "set": {"ref": "counter.destiny"}}
+     {"op": "set_value", "card": "this", "amount": {"counter": "destiny", "player": "owner"}}
     ],
     "after": [
-     {"op": "if", "condition": "lost_combat", "then": [{"op": "heal", "target": "self_hero", "amount": 2}]}
+     {"op": "if", "condition": {"test": "combat_result", "result": "lost"}, "then": [{"op": "heal", "target": "hero", "amount": 2}]}
     ]
    },
    "notes": "Defensa 0 / boost 2, solo Hellboy, destiny. El valor pasa a ser el numero de destinos en el descarte en ese momento (la propia carta aun no cuenta). Si el IMMEDIATELY rival la cancela se queda en 0 y no cura. El motor ya lo hace asi (ON_EARTH en combat.py)."
@@ -180,11 +179,12 @@
   {
    "title": "And Upon His Brow Is Set A Crown Of Flame",
    "copies": 2,
+   "text": "Discard your hand. Draw 2 cards. Gain 2 actions.",
    "effects": {
     "immediately": [], "during": [], "after": [], "boost": [],
     "scheme": [
-     {"op": "discard", "target": "self_player", "amount": "all"},
-     {"op": "draw", "amount": 2},
+     {"op": "discard", "cards": {"zone": "hand", "player": "owner", "pick": "all"}},
+     {"op": "draw", "player": "owner", "amount": 2},
      {"op": "gain_action", "amount": 2}
     ]
    },
@@ -193,35 +193,23 @@
   {
    "title": "Pancakes!",
    "copies": 2,
+   "text": "Chose two different effects:\n- Hellboy recovers 2 health\n- put up to 2 non-scheme cards in your discard pile on the bottom of your deck\n- draw 2 cards",
    "effects": {
     "immediately": [], "during": [], "after": [], "boost": [],
     "scheme": [
-     {"op": "choose_n", "n": 2, "distinct": true, "who_chooses": "owner", "options": [
-      {"label": "Hellboy recovers 2 health", "ops": [{"op": "heal", "target": "self_hero", "amount": 2}]},
+     {"op": "choose_effect", "amount": 2, "distinct": true, "chooser": "owner", "options": [
+      {"label": "Hellboy recovers 2 health", "ops": [{"op": "heal", "target": "hero", "amount": 2}]},
       {"label": "put up to 2 non-scheme cards in your discard pile on the bottom of your deck", "ops": [
-       {"op": "return_to_deck", "target": "self_player", "from": "discard", "amount": 2, "who_chooses": "owner", "position": "bottom", "filter": {"type_not": "scheme"}}
+       {"op": "return_to_deck", "cards": {"zone": "discard", "player": "owner", "filter": {"type_not": "scheme"}, "amount": 2, "up_to": true, "chooser": "owner"}, "position": "bottom", "order": "owner"}
       ]},
-      {"label": "draw 2 cards", "ops": [{"op": "draw", "amount": 2}]}
+      {"label": "draw 2 cards", "ops": [{"op": "draw", "player": "owner", "amount": 2}]}
      ]}
     ]
    },
-   "notes": "Plan, boost 2, solo Hellboy (NO es destiny). La carta dice 'Choose two different effects' (unmatched-memory: 'Chose'). Devolver destinos del descarte al fondo del mazo baja el contador y puede devolver a Hellboy a OCCULT DETECTIVE: es una palanca de forma, no solo de reciclaje. Las cartas elegidas se ven al moverlas (publicas) y quedan en el fondo del mazo en orden conocido por los dos. Orden de resolucion de las dos opciones: ver open_questions."
+   "notes": "Plan, boost 2, solo Hellboy (NO es destiny). La carta dice 'Choose two different effects' (impreso: 'Chose'). Devolver destinos del descarte al fondo del mazo baja el contador y puede devolver a Hellboy a OCCULT DETECTIVE: es una palanca de forma, no solo de reciclaje. Las cartas elegidas se ven al moverlas (publicas) y quedan en el fondo del mazo en orden conocido por los dos. Orden de resolucion de las dos opciones: ver open_questions."
   }
  ],
- "primitives_needed": [
-  {"op": "discard", "spec": "Argumento bind: nombre con el que la carta descartada queda disponible para ops posteriores del mismo efecto (Second Shot: su boost; ANUNG UN RAMA: el boost de la descartada). amount 'all' = toda la mano. from 'seen_hand' = elegir entre las cartas vistas con look_hand en este mismo efecto."},
-  {"op": "move", "spec": "amount es 'hasta N' (0 incluido) salvo exact: true. amount puede ser {ref: <bind>.boost}. target adjacent_fighter = luchador vivo adyacente al self_fighter, propio o rival, elegido por who_chooses; any_fighter = cualquiera vivo; each = el del for_each en curso."},
-  {"op": "modify_value", "spec": "target this_card. amount suma (puede ser {ref: ...}); set sustituye el valor por el dado ({ref: counter.destiny} = valor actual del contador destiny del dueno). what attack_value con while {condition} = pasiva permanente mientras se cumpla la condicion (el +2 de ANUNG UN RAMA; hoy ya lo lee combat.py como attack_bonus)."},
-  {"op": "choose_n", "spec": "n opciones de options (cada una {label, ops}), distinct: true prohibe repetir; who_chooses owner. Cuando elige el humano, botones del panel con label (plan paso 7)."},
-  {"op": "for_each", "spec": "target friendly_fighters | other_fighters_in_zone (con of: self_fighter) = luchadores vivos; ops se ejecutan con target each para cada uno, en el orden que elija el dueno."},
-  {"op": "status", "spec": "immune_to_effect_damage hasta end_of_turn del turno en curso: el dano con source effect sobre esos luchadores se reduce a 0; el de combate no. Equivale a Game.effect_shield."},
-  {"op": "return_to_deck", "spec": "from hand|discard, amount (hasta), filter {type_not}, position shuffle (barajar en el mazo) | bottom (al fondo, en el orden elegido)."},
-  {"op": "if", "spec": "condition form_is (+ form), hero_on_rival_start, hand_not_empty, lost_combat (el jugador de la carta no gano ese combate: atacante sin dano o defensor que recibio dano)."},
-  {"op": "damage", "spec": "source effect | combat: solo el primero lo para immune_to_effect_damage."}
- ],
- "plugins": [
-  {"id": "hellboy:form_change_on_table", "why": "No es una regla sino coreografia de mesa: cuando el bot lleva a Hellboy y el contador destiny cruza el umbral, el bot cambia el estado de la miniatura, gira la ficha de habilidad y hace ping en las dos (regla de Ivan). Ver table.choreography. Cuando Hellboy es del humano, el bot solo anuncia el cambio."}
- ],
+ "plugins": [],
  "table": {
   "save": "saves/Unmatched Official Tournament Table October 2026 (Hellboy).json (solo lectura); todo dentro de la bolsa 3efeee 'Hellboy' > bolsa c592d8",
   "ability_token": {
@@ -244,6 +232,7 @@
            "face": "https://steamusercontent-a.akamaihd.net/ugc/16391051862655008952/BFB41BEFB7988B056C03DA80C7AAA7B8CD96F6BF/",
            "back": "https://steamusercontent-a.akamaihd.net/ugc/9292810156568221364/8CE685661ECB73C0BEBEE721065E4DE200606E02/"},
   "choreography": [
+   "Cambio de forma cuando el bot lleva a Hellboy: no es una regla sino coreografia de mesa (antes plugin hellboy:form_change_on_table). Cuando el contador destiny cruza el umbral, el bot cambia el estado de la miniatura, gira la ficha de habilidad y hace ping en las dos (regla de Ivan). Cuando Hellboy es del humano, el bot solo anuncia el cambio.",
    "1. Anunciar en el chat la forma nueva y el conteo de destinos (ya se hace).",
    "2. Miniatura: getObjectFromGUID(actual).setState(2 si ANUNG UN RAMA, 1 si OCCULT DETECTIVE); el GUID resultante es el otro de la pareja f9789a/e6f06e (la sesion ya acepta cualquiera de los dos).",
    "3. Ficha: getObjectFromGUID('1644a3').flip() solo si la cara visible no es ya la de la forma nueva (comprobar rotZ antes: 180 = azul/OCCULT DETECTIVE, 0 = rojo/ANUNG UN RAMA).",
@@ -256,7 +245,7 @@
    "card": "Confront Any Demon or God",
    "what": "look_hand sobre la mano del rival al perder el combate, y discard elegido entre lo visto.",
    "bot_plays_it": "El bot lee la mano del humano SOLO al resolver este AFTER (nunca antes, nunca en otra carta), elige la carta a descartar y guarda el resto como KnownHand del humano. Desde ese momento descuenta cada carta vista cuando el humano la juega, la descarta, la devuelve al mazo o la pierde; las que el humano robe despues son desconocidas. Nunca da por jugable una carta vista que ya salio.",
-   "human_plays_it": "El humano tiene derecho a ver la mano del bot: el bot la revela (reveal self_hand to opponent: anuncio en el chat o cartas boca arriba) y el humano elige con botones del panel que carta descarta el bot (discard who_chooses opponent)."
+   "human_plays_it": "El humano tiene derecho a ver la mano del bot: el bot la revela (anuncio en el chat o cartas boca arriba) y el humano elige con botones del panel que carta descarta el bot."
   },
   {
    "card": "Glimpse Of Hell",

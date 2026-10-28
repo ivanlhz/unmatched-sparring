@@ -1,13 +1,16 @@
-"""Datos de Baba Yaga (F08): overlay, HeroDef generado y efectos estructurados concuerdan entre si y con las
-cartas reales de la hoja 331 del save del torneo (leidas de la imagen el 2026-10-28). Sin motor, sin TTS, sin sockets."""
+"""Datos de Baba Yaga (F08): overlay, HeroDef generado y efectos estructurados (DSL v1, docs/effects-dsl.md)
+concuerdan entre si y con las cartas reales de la hoja 331 del save del torneo (leidas de la imagen el 2026-10-28).
+Sin motor, sin TTS, sin sockets."""
 import json
 
 import pytest
 
 from sparring.heroes import HEROES_DIR, load_hero
+from tools.validate_effects import validate_file
 
 OVERLAY = HEROES_DIR / "overlay" / "baba-yaga.json"
 EFFECTS = HEROES_DIR / "effects" / "baba-yaga.json"
+MOMENTS = ("immediately", "during", "after", "scheme", "boost")
 
 # (titulo, copias, restriccion, tipo, valor, impulso) tal como estan impresos en las cartas.
 REAL_CARDS = {
@@ -29,13 +32,7 @@ REAL_CARDS = {
     "Pact Of Time": (1, "Baba Yaga", "scheme", None, 3),
 }
 PACTS = [t for t in REAL_CARDS if t.startswith("Pact Of")]
-
-VOCABULARY = {
-    "damage", "heal", "draw", "discard", "discard_random", "move", "place", "push", "swap", "revive",
-    "cancel_effects", "modify_value", "status", "counter", "persistent_scheme", "look_hand", "reveal", "choose_n",
-    "optional", "if", "for_each", "gain_action", "search_deck", "return_to_deck", "plugin",
-}
-NESTED_KEYS = ("ops", "then", "else", "ongoing")
+PACT_END = {"event": "damage_taken", "target": "hero", "kind": "combat", "min": 2}
 
 
 @pytest.fixture(scope="module")
@@ -51,16 +48,20 @@ def effects():
 def walk_ops(ops):
     for op in ops:
         yield op
-        for key in NESTED_KEYS:
-            if isinstance(op.get(key), list):
-                yield from walk_ops(op[key])
+        for key in ("then", "else", "ops", "cost"):
+            yield from walk_ops(op.get(key, ()))
+        for opt in op.get("options", ()):
+            yield from walk_ops(opt["ops"])
 
 
 def all_ops(effects):
-    yield from walk_ops(effects["ability"]["ops"])
+    for t in effects["ability"]["triggers"]:
+        yield from walk_ops(t["ops"])
     for card in effects["cards"]:
-        for moment in ("immediately", "during", "after", "scheme", "boost"):
+        for moment in MOMENTS:
             yield from walk_ops(card["effects"][moment])
+        for t in (card.get("ongoing") or {}).get("triggers", ()):
+            yield from walk_ops(t["ops"])
 
 
 def test_overlay_sheet_matches_the_real_cards_and_the_save_numbering(overlay):
@@ -99,33 +100,55 @@ def test_generated_herodef_deals_a_real_deck():
     assert not any("Yaha" in c.text or "healt " in c.text for c in deck)
 
 
-def test_every_deck_card_has_effects_and_every_pact_is_a_persistent_scheme(effects):
-    assert effects["hero"] == "baba-yaga"
+def test_effects_validate_and_every_pact_is_an_ongoing_scheme_that_ends_at_2_combat_damage(effects):
+    assert validate_file(EFFECTS) == []
+    assert effects["schema"] == 1 and effects["hero"] == "baba-yaga"
     titles = [c["title"] for c in effects["cards"]]
     assert sorted(titles) == sorted(REAL_CARDS) and len(titles) == len(set(titles))
     for card in effects["cards"]:
-        assert set(card["effects"]) == {"immediately", "during", "after", "scheme", "boost"}, card["title"]
         is_pact = card["title"] in PACTS
         assert bool(card["effects"]["scheme"]) == is_pact, card["title"]
         if is_pact:
-            ps = [op for op in card["effects"]["scheme"] if op["op"] == "persistent_scheme"]
-            assert len(ps) == 1 and ps[0]["ongoing"] and ps[0]["until"]["min"] == 2, card["title"]
+            assert card["ongoing"]["until"] == PACT_END, card["title"]
+            assert card["ongoing"]["modifiers"] or card["ongoing"]["triggers"], card["title"]
             assert "ONGOING:" in card["text"] and "Discard this immediately" in card["text"]
         else:
-            assert card["effects"]["after"] or card["effects"]["during"], card["title"]
+            assert card.get("ongoing") is None
+            assert card["effects"]["after"] or card["effects"]["during"] or card.get("may_boost"), card["title"]
+    rules = {m["rule"] for c in effects["cards"] if c.get("ongoing") for m in c["ongoing"]["modifiers"] if m["kind"] == "rule"}
+    assert rules == {"no_attack_as_first_action", "effect_damage_bonus", "max_hand_size", "no_gain_actions"}
+    peace = next(c for c in effects["cards"] if c["title"] == "Pact Of Peace")
+    trig, = peace["ongoing"]["triggers"]
+    assert trig["when"] == {"event": "end_of_turn", "player": "any"}
+    assert trig["ops"][0]["target"] == {"kind": "hero", "filter": {"attacked_this_turn": True}, "pick": "all"}
 
 
-def test_only_vocabulary_or_declared_ops_are_used_and_plugins_are_declared(effects):
-    declared = {p["op"] for p in effects["primitives_needed"]}
-    plugin_ids = {p["id"] for p in effects["plugins"]}
-    used = set()
-    for op in all_ops(effects):
-        assert op["op"] in VOCABULARY | declared, op
-        used.add(op["op"])
-        if op["op"] == "plugin":
-            assert op["id"] in plugin_ids and op["id"].startswith("baba:"), op
-    assert used >= {"redirect_damage", "rule", "persistent_scheme", "look_hand", "choose_n", "optional"}
-    assert "plugin" not in used and effects["plugins"] == []      # remove_painful_memory cabe en primitivas
-    assert declared - VOCABULARY <= used                           # no se declara lo que no se usa
+def test_fateful_bargains_is_an_optional_redirect_passive_and_bound_in_blood_the_mandatory_op(effects):
+    passive, = effects["ability"]["passives"]
+    assert (passive["id"], passive["kind"], passive["damage"], passive["optional"]) == ("fateful_bargains", "redirect_damage", "effect", True)
+    assert passive["from"] == "hero" and passive["to"] == {"side": "own", "name": "Koschei"}
+    assert effects["ability"]["triggers"] == []
+    bound = next(c for c in effects["cards"] if c["title"] == "Bound In Blood")
+    op, = bound["effects"]["during"]
+    assert (op["op"], op["damage"], op.get("optional", False)) == ("redirect_damage", "combat", False)
+
+
+def test_out_of_time_boosts_by_data_not_by_text(effects):
+    card = next(c for c in effects["cards"] if c["title"] == "Out Of Time")
+    assert "BOOST this card" in card["text"] and "boost this attack" not in card["text"].lower()
+    assert card["may_boost"] is True and card["effects"]["after"] == [{"op": "end_turn"}]
+
+
+def test_remove_a_painful_memory_looks_then_chooses_and_the_rival_decides(effects):
+    after = next(c for c in effects["cards"] if c["title"] == "Remove A Painful Memory")["effects"]["after"]
+    assert after[0] == {"op": "look_hand", "player": "opponent"}
+    choose, optional = after[1]["then"]
+    assert choose["op"] == "choose" and choose["as"] == "memory" and choose["cards"]["chooser"] == "owner"
+    assert optional["chooser"] == "opponent"
+    assert optional["ops"] == [{"op": "discard", "cards": "$memory"}]
+    assert optional["else"] == [{"op": "damage", "target": "opposing", "amount": 2}]
+    assert effects["plugins"] == []      # remove_painful_memory cabe en primitivas
+    used = {op["op"] for op in all_ops(effects)}
+    assert used >= {"redirect_damage", "look_hand", "choose", "optional", "search_deck", "revive", "place", "end_turn", "for_each"}
     assert {h["card"].split(",")[0] for h in effects["hidden_info"]} >= {"Remove A Painful Memory", "Read The Bones", "Pact Of Secrecy"}
     assert effects["open_questions"]

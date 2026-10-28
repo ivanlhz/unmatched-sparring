@@ -1,18 +1,14 @@
 """Datos de Abe Sapien (F07/F08, solo datos): overlay con hoja 194 verificada contra la imagen del save, HeroDef
-generado, y la especificacion de efectos data/heroes/effects/abe-sapien.json con el vocabulario comun del DSL."""
+generado, y la especificacion de efectos data/heroes/effects/abe-sapien.json en el DSL v1 (docs/effects-dsl.md)."""
 import json
-from pathlib import Path
 
 import pytest
 
 from sparring.heroes import HEROES_DIR, load_hero
+from tools.validate_effects import validate_file
 
 OVERLAY = HEROES_DIR / "overlay" / "abe-sapien.json"
 EFFECTS = HEROES_DIR / "effects" / "abe-sapien.json"
-
-VOCABULARY = {"damage", "heal", "draw", "discard", "discard_random", "move", "place", "push", "swap", "revive",
-              "cancel_effects", "modify_value", "status", "counter", "persistent_scheme", "look_hand", "reveal",
-              "choose_n", "optional", "if", "for_each", "gain_action", "search_deck", "return_to_deck", "plugin"}
 MOMENTS = ("immediately", "during", "after", "scheme", "boost")
 
 # (titulo, copias, tipo, valor, boost, restriccion) leidos de la hoja 194 del save el 2026-10-28
@@ -45,11 +41,13 @@ def effects():
 
 
 def walk_ops(ops):
-    """Todas las ops, incluidas las anidadas en then/else/ops de if, for_each, optional y persistent_scheme."""
+    """Todas las ops, incluidas las anidadas en then/else/ops/cost y en las opciones de choose_effect."""
     for op in ops:
         yield op
-        for key in ("then", "else", "ops"):
+        for key in ("then", "else", "ops", "cost"):
             yield from walk_ops(op.get(key, ()))
+        for opt in op.get("options", ()):
+            yield from walk_ops(opt["ops"])
 
 
 def test_overlay_sheet_is_the_tts_sheet_194_with_the_right_copies_and_restrictions(overlay):
@@ -89,45 +87,45 @@ def test_generated_herodef_deals_the_deck_with_real_cardids_values_and_fighters(
     assert h.card_base + 0 == deck[0].card_id and deck[0].title == "Faster. Stronger."
 
 
-def test_every_deck_card_has_an_effects_entry_and_nothing_else(effects):
-    assert effects["hero"] == "abe-sapien"
+def test_effects_validate_and_cover_every_deck_card(effects):
+    assert validate_file(EFFECTS) == []
+    assert effects["schema"] == 1 and effects["hero"] == "abe-sapien"
     titles = [c["title"] for c in effects["cards"]]
-    assert sorted(titles) == sorted(t for t, *_ in SHEET)
-    assert len(titles) == len(set(titles))
+    assert sorted(titles) == sorted(t for t, *_ in SHEET) and len(titles) == len(set(titles))
     for card in effects["cards"]:
         assert set(card["effects"]) == set(MOMENTS), card["title"]
         assert card["text"].strip() and card["notes"].strip(), card["title"]
+    used = {op["op"] for c in effects["cards"] for m in MOMENTS for op in walk_ops(c["effects"][m])}
+    assert {"look_hand", "revive", "return_to_deck", "put_in_hand", "status", "set_value", "plugin"} <= used
 
 
-def test_effects_use_only_the_common_vocabulary_or_declared_primitives_and_plugins(effects):
-    declared = {p["op"] for p in effects["primitives_needed"]}
-    plugin_ids = {p["id"] for p in effects["plugins"]}
-    allowed = VOCABULARY | declared
-    all_ops = list(walk_ops(effects["ability"]["ops"]))
-    for trig in effects["ability"]["triggers"]:
-        all_ops += list(walk_ops(trig["ops"]))
-    for card in effects["cards"]:
-        for moment in MOMENTS:
-            all_ops += list(walk_ops(card["effects"][moment]))
-    assert all_ops, "sin ops"
-    for op in all_ops:
-        assert op["op"] in allowed, op
-        if op["op"] == "plugin":
-            assert op["id"] in plugin_ids and op["id"].startswith("abe:"), op
-    used = {op["op"] for op in all_ops}
-    assert {"look_hand", "revive", "persistent_scheme", "return_to_deck"} <= used
-    for p in effects["primitives_needed"]:
-        assert p["spec"].strip(), p["op"]
+def test_uncanny_intuition_is_a_counter_with_two_triggers_in_the_dsl(effects):
+    ab = effects["ability"]
+    assert ab["counters"] == {"intuition": {"min": 0, "max": 2, "start": 0}}
+    activate, spend = ab["triggers"]
+    assert activate["when"] == {"event": "combat_damage_dealt", "by": "hero"}
+    assert activate["condition"]["fighters"]["role"] == "$to"     # el luchador golpeado, ligado por el evento
+    assert activate["ops"] == [{"op": "counter", "name": "intuition", "delta": 1}]
+    assert spend["when"] == {"event": "attacked", "target": "hero"}
+    assert spend["condition"] == {"test": "counter", "name": "intuition", "min": 1}
+    assert [op["op"] for op in spend["ops"]] == ["counter", "draw", "reveal"]
+    assert spend["ops"][2] == {"op": "reveal", "cards": "attack_card", "to": "owner"}
+    assert ab["passives"] == []
 
 
-def test_perfect_shot_is_the_only_plugin_and_uncanny_intuition_fits_in_primitives(effects):
+def test_perfect_shot_is_the_only_plugin(effects):
     assert [p["id"] for p in effects["plugins"]] == ["abe:perfect_shot"]
     cards_with_plugin = {c["title"] for c in effects["cards"]
                          if any(op["op"] == "plugin" for m in MOMENTS for op in walk_ops(c["effects"][m]))}
     assert cards_with_plugin == {"Perfect Shot"}
-    spend = next(t for t in effects["ability"]["triggers"] if t["id"] == "intuition_spend")
-    assert [op["op"] for op in spend["ops"]] == ["counter", "draw", "reveal"]
-    assert effects["ability"]["tokens"]["intuition"]["total"] == 2
+    shot = next(c for c in effects["cards"] if c["title"] == "Perfect Shot")
+    assert shot["effects"]["during"][0]["condition"] == {"test": "plugin", "id": "abe:perfect_shot", "key": "predicted_correctly"}
+
+
+def test_concussion_device_binds_the_fighter_it_hits_and_moves_the_same_one(effects):
+    hit, push = next(c for c in effects["cards"] if c["title"] == "Concussion Device")["effects"]["after"]
+    assert hit["op"] == "damage" and hit["as"] == "hit" and hit["target"]["side"] == "enemy"
+    assert push == {"op": "move", "target": "$hit", "amount": 3, "up_to": True, "chooser": "owner"}
 
 
 def test_hidden_information_effects_are_all_listed_with_a_bot_rule(effects):
@@ -141,9 +139,12 @@ def test_hidden_information_effects_are_all_listed_with_a_bot_rule(effects):
     assert effects["open_questions"] and effects["discrepancies"]
 
 
-def test_counterhex_shield_keeps_the_real_ongoing_text_in_effects_and_in_the_dealt_deck(effects):
+def test_counterhex_shield_keeps_the_real_ongoing_text_and_is_an_ongoing_scheme(effects):
     card = next(c for c in effects["cards"] if c["title"] == "Counterhex Shield")
     assert "Ongoing" in card["text"] and "Discard this at the start of your next turn" in card["text"]
-    assert any(op["op"] == "persistent_scheme" for op in card["effects"]["scheme"])
+    assert card["ongoing"]["until"] == {"event": "start_of_turn", "player": "owner"}
+    assert {m["name"] for m in card["ongoing"]["modifiers"]} == {
+        "immune_to_enemy_effect_damage", "immune_to_enemy_effect_moves", "immune_to_enemy_forced_discards"}
+    assert all(m["kind"] == "status" and m["player"] == "owner" for m in card["ongoing"]["modifiers"])
     dealt = [c for c in load_hero("abe-sapien").deck() if c.title == "Counterhex Shield"]
     assert len(dealt) == 2 and all(c.text == card["text"] for c in dealt)   # el overlay manda sobre unmatched-memory

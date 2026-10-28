@@ -1,0 +1,149 @@
+{
+ "schema": 1,
+ "hero": "medusa",
+ "notes": [
+  "Efectos de Medusa en el DSL v1 (docs/effects-dsl.md), escritos el 2026-10-28 a partir de lo que hoy hace el motor (sparring/combat.py: _medusa_after, resolve_scheme, check_scheme; sparring/state.py: medusa_ability). El motor sigue cableado por titulo hasta que el interprete lo sustituya; este fichero es la referencia para el test diferencial (plan, paso 5).",
+  "Todo damage es de efecto: asi lo hace el motor (game.damage por defecto es 'effect'), incluidos los 8 de Gaze of Stone y los 2 de A Momentary Glance; Planned Recklessness los para.",
+  "Los movimientos son 'hasta N' con 0 incluido (el controlador puede devolver None en choose_move)."
+ ],
+ "ability": {
+  "text": "At the start of your turn, you may deal 1 damage to an opposing fighter in Medusa's zone.",
+  "triggers": [
+   {"id": "medusa_gaze", "when": {"event": "start_of_turn", "player": "owner"}, "optional": true, "chooser": "owner",
+    "ops": [{"op": "damage", "target": {"side": "enemy", "where": {"zone_of": "hero"}}, "amount": 1, "chooser": "owner"}]}
+  ],
+  "passives": [],
+  "notes": "Hoy la ejecuta Game.medusa_ability(target) con el objetivo elegido por el controlador (MedusaAI o el humano); Medusa debe estar viva y el rival compartir zona con ella."
+ },
+ "cards": [
+  {
+   "title": "Second Shot",
+   "copies": 3,
+   "text": "DURING COMBAT: You may BOOST this attack.",
+   "may_boost": true,
+   "effects": {"immediately": [], "during": [], "after": [], "scheme": [], "boost": []},
+   "notes": "Ataque 3 / boost 3, solo Medusa. El motor lo resuelve por titulo (combat.py SECOND_SHOT): el controlador elige la carta de impulso en el DURING (choose_combat_boost). Si el IMMEDIATELY rival la cancela no hay impulso."
+  },
+  {
+   "title": "Gaze of Stone",
+   "copies": 3,
+   "text": "AFTER COMBAT: If you won the combat, deal 8 damage to the opposing fighter.",
+   "effects": {
+    "immediately": [], "during": [], "scheme": [], "boost": [],
+    "after": [
+     {"op": "if", "condition": {"test": "combat_result", "result": "won"}, "then": [
+      {"op": "damage", "target": "opposing", "amount": 8}
+     ]}
+    ]
+   },
+   "notes": "Ataque 2 / boost 4, solo Medusa. Dano de efecto (GAZE_DAMAGE): el escudo de Planned Recklessness lo para."
+  },
+  {
+   "title": "Regroup",
+   "copies": 3,
+   "text": "AFTER COMBAT: Draw 1 card. If you won the combat, draw 2 cards instead.",
+   "effects": {
+    "immediately": [], "during": [], "scheme": [], "boost": [],
+    "after": [
+     {"op": "if", "condition": {"test": "combat_result", "result": "won"},
+      "then": [{"op": "draw", "player": "owner", "amount": 2}],
+      "else": [{"op": "draw", "player": "owner", "amount": 1}]}
+    ]
+   },
+   "notes": "Versatil 1 / boost 2, cualquiera."
+  },
+  {
+   "title": "Dash",
+   "copies": 3,
+   "text": "AFTER COMBAT: Move your fighter up to 3 spaces.",
+   "effects": {
+    "immediately": [], "during": [], "scheme": [], "boost": [],
+    "after": [{"op": "move", "target": "this", "amount": 3, "up_to": true}]
+   },
+   "notes": "Versatil 3 / boost 1, cualquiera. Si el luchador murio en el combate no se mueve (selector alive por defecto)."
+  },
+  {
+   "title": "Snipe",
+   "copies": 3,
+   "text": "AFTER COMBAT: Draw 1 card.",
+   "effects": {
+    "immediately": [], "during": [], "scheme": [], "boost": [],
+    "after": [{"op": "draw", "player": "owner", "amount": 1}]
+   },
+   "notes": "Versatil 3 / boost 1, cualquiera."
+  },
+  {
+   "title": "Feint",
+   "copies": 3,
+   "text": "IMMEDIATELY: Cancel all effects on your opponent's card.",
+   "effects": {
+    "during": [], "after": [], "scheme": [], "boost": [],
+    "immediately": [{"op": "cancel_effects", "card": "opponent_card"}]
+   },
+   "notes": "Versatil 2 / boost 2, cualquiera. No cancela cartas uncancelable (Incinerate de Liz)."
+  },
+  {
+   "title": "The Hounds of Mighty Zeus",
+   "copies": 2,
+   "text": "AFTER COMBAT: Move each Harpy up to 3 spaces.",
+   "effects": {
+    "immediately": [], "during": [], "scheme": [], "boost": [],
+    "after": [{"op": "move", "target": {"side": "own", "name": "Harpy", "pick": "all"}, "amount": 3, "up_to": true}]
+   },
+   "notes": "Versatil 4 / boost 3, solo Harpy. El motor mueve las Harpias vivas una tras otra (HOUNDS_STEPS)."
+  },
+  {
+   "title": "Clutching Claws",
+   "copies": 3,
+   "text": "AFTER COMBAT: Your opponent discards 1 card.",
+   "effects": {
+    "immediately": [], "during": [], "scheme": [], "boost": [],
+    "after": [{"op": "discard", "cards": {"zone": "hand", "player": "opponent", "amount": 1, "chooser": "opponent"}}]
+   },
+   "notes": "Versatil 3 / boost 2, solo Harpy. El rival elige (Game.force_discard); en vivo queda como descarte pendiente hasta 'Fin de accion'."
+  },
+  {
+   "title": "Hiss and Slither",
+   "copies": 3,
+   "text": "AFTER COMBAT: Your opponent discards 1 card.",
+   "effects": {
+    "immediately": [], "during": [], "scheme": [], "boost": [],
+    "after": [{"op": "discard", "cards": {"zone": "hand", "player": "opponent", "amount": 1, "chooser": "opponent"}}]
+   },
+   "notes": "Defensa 4 / boost 3, solo Medusa. Igual que Clutching Claws."
+  },
+  {
+   "title": "A Momentary Glance",
+   "copies": 2,
+   "text": "Deal 2 damage to any one fighter in Medusa's zone.",
+   "effects": {
+    "immediately": [], "during": [], "after": [], "boost": [],
+    "scheme": [{"op": "damage", "target": {"side": "any", "where": {"zone_of": "hero"}}, "amount": 2, "chooser": "owner"}]
+   },
+   "notes": "Plan, boost 4, solo Medusa. 'Any one fighter' incluye los propios: el motor (check_scheme) acepta cualquier luchador vivo que comparta zona con Medusa, ella incluida. Dano de efecto (GLANCE_DAMAGE)."
+  },
+  {
+   "title": "Winged Frenzy",
+   "copies": 2,
+   "text": "Move each of your fighters up to 3 spaces. You may move them through spaces containing opposing fighters. Then, return a defeated Harpy (if any) to any space in Medusa's zone.",
+   "effects": {
+    "immediately": [], "during": [], "after": [], "boost": [],
+    "scheme": [
+     {"op": "move", "target": {"side": "own", "pick": "all"}, "amount": 3, "up_to": true, "through_enemies": true},
+     {"op": "revive", "target": {"side": "own", "name": "Harpy", "state": "defeated"}, "where": {"zone_of": "hero", "empty": true}, "hp": 1, "chooser": "owner"}
+    ]
+   },
+   "notes": "Plan, boost 2, cualquiera. El motor mueve en orden de fid y revive la primera Harpia abatida con 1 de vida en un espacio libre de la zona de Medusa; deja al controlador no colocarla (choose_placement -> None), el texto la hace obligatoria si hay espacio: el DSL sigue el texto."
+  }
+ ],
+ "plugins": [],
+ "hidden_info": [
+  {"card": "Clutching Claws, Hiss and Slither", "what": "El rival descarta una carta a su eleccion.", "bot": "El bot no mira la mano: solo ve la carta que cae en el descarte (publica) y la descuenta de KnownHand si la tenia vista."},
+  {"card": "Second Shot", "what": "La carta de impulso se descarta boca arriba.", "bot": "Publica para los dos."},
+  {"card": "Regroup, Snipe", "what": "Robos.", "bot": "Solo cambia la cuenta de la mano rival; nada se infiere del contenido."}
+ ],
+ "open_questions": [
+  "A Momentary Glance sobre un luchador propio (Harpia o la propia Medusa): el motor lo permite; confirmar que se quiere mantener.",
+  "Winged Frenzy: si hay varias Harpias abatidas el motor revive la primera por fid; el texto dice 'a defeated Harpy', deberia elegir el dueno."
+ ]
+}

@@ -1,17 +1,14 @@
 """Datos de Liz Sherman (F07 paso 13, solo datos): el overlay carga, la hoja 199 cuadra con las copias de la carta
-real, las 15 ardientes son las que dice la hoja, cada carta del mazo tiene efectos estructurados y los efectos solo
-usan el vocabulario comun o lo que declaran. Sin FakeTTS ni sockets."""
+real, las 15 ardientes son las que dice la hoja, y data/heroes/effects/liz-sherman.json cubre cada carta en el DSL v1
+(docs/effects-dsl.md). Sin FakeTTS ni sockets."""
 import json
 from collections import Counter
 
 from sparring.heroes import HEROES_DIR, load_hero
+from tools.validate_effects import validate_file
 
 OVERLAY = HEROES_DIR / "overlay" / "liz-sherman.json"
 EFFECTS = HEROES_DIR / "effects" / "liz-sherman.json"
-
-VOCABULARY = {"damage", "heal", "draw", "discard", "discard_random", "move", "place", "push", "swap", "revive",
-              "cancel_effects", "modify_value", "status", "counter", "persistent_scheme", "look_hand", "reveal",
-              "choose_n", "optional", "if", "for_each", "gain_action", "search_deck", "return_to_deck", "plugin"}
 
 # (copias, valor, impulso, tipo, ardiente) leidos de la hoja 199 del save del torneo
 SHEET = {
@@ -45,17 +42,6 @@ def ops_in(node):
             yield from ops_in(v)
 
 
-def plugin_ids_in(node):
-    if isinstance(node, dict):
-        if node.get("op") == "plugin":
-            yield node["id"]
-        for v in node.values():
-            yield from plugin_ids_in(v)
-    elif isinstance(node, list):
-        for v in node:
-            yield from plugin_ids_in(v)
-
-
 def test_overlay_is_the_sheet_199_with_liz_on_every_card_and_no_sidekicks():
     ov = load(OVERLAY)
     assert ov["fid"] == "liz" and ov["sidekicks"] == [] and ov["forms"] is None and ov["counters"] == {}
@@ -84,35 +70,45 @@ def test_generated_herodef_deals_30_cards_with_the_real_values_and_the_ongoing_o
     assert {t["id"] for t in h.triggers} == {"wildfire_start"} and {p["id"] for p in h.passives} == {"wildfire_return"}
 
 
-def test_every_deck_card_has_structured_effects_and_only_known_or_declared_ops():
+def test_effects_validate_and_cover_every_deck_card_without_plugins():
+    assert validate_file(EFFECTS) == []
     eff = load(EFFECTS)
-    assert eff["hero"] == "liz-sherman"
+    assert eff["schema"] == 1 and eff["hero"] == "liz-sherman"
     titles = {c.title for c in load_hero("liz-sherman").deck()}
     by_title = {c["title"]: c for c in eff["cards"]}
     assert set(by_title) == titles
-    moments = ("immediately", "during", "after", "scheme", "boost")
-    for title, card in by_title.items():
-        assert tuple(card["effects"]) == moments, title
-        assert all(isinstance(card["effects"][m], list) for m in moments), title
-    assert eff["ability"]["when"] == "start_of_turn" and eff["ability"]["ops"]
-    declared = {p["op"] for p in eff["primitives_needed"] if not p["op"].startswith("card_flag:")}
-    used = set(ops_in(eff["ability"])) | set(ops_in(eff["cards"]))
-    assert used, "sin ops"
-    assert used <= VOCABULARY | declared, used - (VOCABULARY | declared)
-    assert declared <= VOCABULARY | {"plugin"}   # las extensiones declaradas son sobre ops del vocabulario
-    plugins = {p["id"] for p in eff["plugins"]}
-    assert set(plugin_ids_in(eff["ability"])) | set(plugin_ids_in(eff["cards"])) == plugins == {"liz:wildfire"}
-    assert all(p["id"].startswith("liz:") for p in eff["plugins"])
+    assert all(c["effects"][m] is not None for c in eff["cards"] for m in ("immediately", "during", "after", "scheme", "boost"))
+    assert eff["plugins"] == [] and "plugin" not in set(ops_in(eff["cards"])) | set(ops_in(eff["ability"]))
+    with_ops = [c["title"] for c in eff["cards"] if any(c["effects"].values()) or c.get("ongoing")]
+    assert len(with_ops) == 12
+    assert by_title["Incinerate"]["uncancelable"] is True
     assert eff["hidden_info"] and eff["open_questions"]
 
 
-def test_cards_with_ops_versus_plugin_coverage():
-    eff = load(EFFECTS)
-    with_ops = [c["title"] for c in eff["cards"] if any(c["effects"].values())]
-    with_plugin = [c["title"] for c in eff["cards"] if "plugin" in set(ops_in(c))]
-    assert len(with_ops) == 12 and with_plugin == []
-    assert by_title_flag(eff, "Incinerate", "uncancelable") is True
+def test_wildfire_is_two_triggers_the_bottom_discard_and_the_burning_return():
+    ab = load(EFFECTS)["ability"]
+    start, back = ab["triggers"]
+    assert start["id"] == "wildfire_start" and start["when"] == {"event": "start_of_turn", "player": "owner"}
+    assert start["condition"] == {"test": "exists", "cards": {"zone": "deck", "player": "owner"}}   # mazo vacio: nada
+    burn, branch = start["ops"]
+    assert burn == {"op": "discard", "cards": {"zone": "deck", "player": "owner", "pick": "bottom", "amount": 1}, "as": "burnt"}
+    assert branch["condition"] == {"test": "card", "card": "$burnt", "filter": {"tag": "burning"}}
+    assert branch["then"][0]["op"] == "damage" and branch["else"][0] == {"op": "move", "target": "hero", "amount": 2, "up_to": True}
+    assert back["id"] == "wildfire_return"
+    assert back["when"] == {"event": "card_discarded", "player": "owner", "from": ["hand", "deck"], "filter": {"tag": "burning"}}
+    assert back["ops"] == [{"op": "put_in_hand", "cards": "$card"}]
+    assert ab["passives"] == []
 
 
-def by_title_flag(eff, title, flag):
-    return next(c for c in eff["cards"] if c["title"] == title).get(flag)
+def test_incinerate_flame_lash_and_fight_or_flight_in_the_dsl():
+    by_title = {c["title"]: c for c in load(EFFECTS)["cards"]}
+    optional, = by_title["Incinerate"]["effects"]["during"]
+    assert optional["chooser"] == "opponent" and optional["cost"][0]["cards"]["amount"] == 2
+    assert optional["ops"] == [{"op": "set_value", "card": "this", "amount": 0}]
+    lash = by_title["Flame Lash"]["effects"]["during"]
+    assert lash[0]["as"] == "burnt" and lash[1] == {"op": "modify_value", "card": "this", "amount": {"attr": "boost", "of": "$burnt"}}
+    fof = by_title["Fight Or Flight"]
+    assert fof["effects"]["scheme"][1] == {"op": "move", "target": "hero", "amount": 5, "up_to": True, "through_enemies": True}
+    assert fof["ongoing"] == {"modifiers": [{"kind": "modify_value", "cards": {"player": "owner"}, "amount": 1}],
+                              "triggers": [], "until": {"event": "start_of_turn", "player": "owner"}}
+    assert by_title["Fleeting Moments"]["effects"]["after"][1]["cards"]["pick"] == "random"
