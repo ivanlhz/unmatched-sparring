@@ -5,6 +5,7 @@ import json
 import re
 import socket
 import threading
+import time
 
 
 class FakeTTS:
@@ -54,8 +55,18 @@ class FakeTTS:
         return sum(1 for m in self.received if m.get("messageID") == 3)
 
     def push(self, payload: dict, port: int | None = None):
-        with socket.create_connection(("127.0.0.1", port or self.reply_port), timeout=2) as s:
-            s.sendall(json.dumps(payload).encode("utf-8"))
+        """Una bateria completa abre miles de conexiones cortas: en Windows el pool de puertos efimeros se agota
+        (WinError 10048) mientras los anteriores siguen en TIME_WAIT; se reintenta un rato en vez de fallar."""
+        data = json.dumps(payload).encode("utf-8")
+        for attempt in range(20):
+            try:
+                with socket.create_connection(("127.0.0.1", port or self.reply_port), timeout=2) as s:
+                    s.sendall(data)
+                return
+            except OSError as e:
+                if getattr(e, "winerror", None) != 10048 or attempt == 19:
+                    raise
+                time.sleep(0.25)
 
     def close(self):
         self._stop.set()

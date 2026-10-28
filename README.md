@@ -7,8 +7,9 @@ Bot de sparring para Unmatched en Tabletop Simulator. Fase 1: el bot juega **Med
 | Modulo | Que hace |
 |---|---|
 | `sparring/board.py` | Carga `data/maps/*.json` en un grafo (adyacencia simetrica, zonas), movimiento legal y alcance melee/rango |
-| `sparring/cards.py` | Mazos de Medusa y Hellboy (CardID 17600+idx / 19700+idx) |
-| `sparring/state.py` | `Game`: luchadores, mazos/manos/descartes, acciones, agotamiento, fin de turno, formas de Hellboy |
+| `sparring/cards.py` | `Card` (valor, impulso, tipo, restriccion, texto, etiquetas) |
+| `sparring/heroes.py` | `HeroDef`: lo propio de cada heroe leido de `data/heroes/<slug>.json` (vida, movimiento, alcance, ayudantes, formas, contadores, disparadores, pasivas, hoja de CardID). Lo genera `tools/import_hero.py` desde unmatched-memory + `data/heroes/overlay/<slug>.json` |
+| `sparring/state.py` | `Game`: se construye desde HeroDef (`Game.new(..., heroes=("medusa", "hellboy"))`); luchadores, mazos/manos/descartes, acciones, agotamiento, fin de turno, formas y contadores desde datos, mano rival conocida (`KnownHand`) |
 | `sparring/combat.py` | Combate (IMMEDIATELY, DURING, AFTER; el defensor resuelve primero) y planes. Efectos de Medusa implementados; los de Hellboy los resuelve el humano |
 | `sparring/ai_medusa.py` | IA heuristica; la funcion de valoracion esta documentada en la cabecera del modulo |
 | `sparring/search/` | IA por busqueda ISMCTS sin trampas (F09): `protocol.py` (lo que la busqueda pide a un motor), `ismcts.py` (busqueda), `adapter.py` (motor actual), `controller.py` (`IsmctsMedusa`, sustituto de `MedusaAI` tras el flag `ai`) |
@@ -126,6 +127,13 @@ Cada mensaje a TTS cuesta ~0.5 s fijos y encadenarlos no ayuda (medido en vivo e
 
 Las reglas de forma salen de la carta de personaje, transcrita en `../unmatched-hellboy-cartas/2026-10-23_2239/unmatched-hellboy-4-personajes.html` (seccion "AHH CRAP!"):
 OCCULT DETECTIVE con 5 o menos destinos en el descarte (al empezar el turno, en una casilla de salida rival, puede robar 2); ANUNG UN RAMA con 6 o mas (al empezar el turno descarta 1 carta obligatoriamente y puede mover a Hellboy hasta el BOOST de esa carta; sus ataques suman +2). La forma no es permanente: si bajan a 5 destinos (p. ej. Pancakes!) vuelve a DETECTIVE, por eso se recalcula siempre desde el descarte (`Game.form`).
+
+## Heroes desde datos (F07, pasos 0-3 del plan)
+
+- `data/heroes/<slug>.json` es el HeroDef que lee el motor; lo genera `tools/import_hero.py` (`--all`, `--check`) desde `../unmatched-memory` (solo lectura) mas el overlay a mano `data/heroes/overlay/<slug>.json` (hoja de CardID con restricciones y etiquetas, fid, formas, contadores, disparadores, pasivas). Medusa y Hellboy completos; Abe Sapien, Baba Yaga y Liz Sherman solo con datos basicos (sin hoja de CardID no se puede jugar con ellos).
+- `Game.new(board, seed, controllers, bot_player, starts, heroes=(slug_bot, slug_humano))`; `config/partida.json` lleva `bot_hero` y `human_hero` (por defecto medusa y hellboy). Las formas (`Game.form`), los contadores (`Game.counter`, `Game.counters`), la pasiva de ataque (`Game.attack_bonus`) y los disparadores de inicio de turno activos (`Game.triggers`) salen del HeroDef.
+- Mano rival conocida (`KnownHand`, para F07 y F09): `Game.observe_hand(viewer, cards)` guarda lo visto por un efecto de «mira la mano del rival»; `Game.card_left_hand(owner, card)` es el unico punto de descuento (lo llaman `take_from_hand` y `discard_card`: combate, descartes, impulsos, planes); `Game.hidden_hand(viewer)` devuelve (conocidas, candidatas, cuantas faltan) para muestrear sin trampas. Se guarda en `sesion.json` solo si hay algo visto.
+- Tests dorados: `tests/test_golden.py` fija simulador, transcripcion FakeTTS y guardado de Medusa vs Hellboy; se regeneran a proposito con `GOLDEN_UPDATE=1`.
 
 ## Bridge: allowlist
 

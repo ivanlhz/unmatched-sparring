@@ -132,13 +132,13 @@ class Model:
         return res
 
     def attack_dist(self, f: Fighter):
-        bonus = 2 if f.name == "Hellboy" and self.game.form(self.opp) == ANUNG else 0
+        bonus = self.game.attack_bonus(f)
         return self.best_dist(("atk", f.name, bonus),
                               lambda c: c.value + bonus if c.can_attack and c.usable_by(f.name) else None)
 
     def committed_attack_dist(self, f: Fighter):
         """Valor del ataque dado que el rival ya ha jugado una carta: sin masa de "no tiene carta", renormalizada."""
-        bonus = 2 if f.name == "Hellboy" and self.game.form(self.opp) == ANUNG else 0
+        bonus = self.game.attack_bonus(f)
         fn = lambda c: c.value + bonus if c.can_attack and c.usable_by(f.name) else None
         dist = [(p, v) for p, v in self.best_dist(("commit", f.name, bonus), fn, max(self.h, 1)) if v is not None]
         total = sum(p for p, _ in dist)

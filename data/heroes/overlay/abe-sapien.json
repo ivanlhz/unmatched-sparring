@@ -1,0 +1,15 @@
+{
+ "_notes": [
+  "Solo datos basicos (F07 paso 1): sin hoja de CardID ni restricciones de luchador, el motor no puede jugar con Abe todavia (F08).",
+  "Agentes: unmatched-memory trae tres (Carla, Kate, Victor) con las mismas cifras; aqui un solo ayudante con count 3. Pregunta 1 del plan: cuantos empiezan en el tablero y cuantos en reserva.",
+  "UNCANNY INTUITION (fichas de intuicion) ira a un plugin (plan: abe:uncanny_intuition)."
+ ],
+ "fid": "abe",
+ "sidekicks": [
+  {"fid": "agent", "name": "B.P.R.D. Agent", "count": 3, "hp": 1, "move": 2, "attack": "range"}
+ ],
+ "forms": null,
+ "counters": {},
+ "triggers": [],
+ "passives": []
+}

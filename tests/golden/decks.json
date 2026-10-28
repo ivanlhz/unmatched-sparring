@@ -1,0 +1,606 @@
+{
+ "hellboy": [
+  {
+   "boost": 3,
+   "card_id": 19700,
+   "destiny": true,
+   "fighter": "Hellboy",
+   "text": "",
+   "title": "Excalibur",
+   "type": "attack",
+   "value": 6
+  },
+  {
+   "boost": 1,
+   "card_id": 19701,
+   "destiny": true,
+   "fighter": "Hellboy",
+   "text": "AFTER COMBAT: Move an adjacent fighter up to 1 space. If Hellboy is OCCULT DETECTIVE, move Hellboy up to 1 space.",
+   "title": "Right Hand Of Doom",
+   "type": "attack",
+   "value": 4
+  },
+  {
+   "boost": 1,
+   "card_id": 19702,
+   "destiny": true,
+   "fighter": "Hellboy",
+   "text": "AFTER COMBAT: Move an adjacent fighter up to 1 space. If Hellboy is OCCULT DETECTIVE, move Hellboy up to 1 space.",
+   "title": "Right Hand Of Doom",
+   "type": "attack",
+   "value": 4
+  },
+  {
+   "boost": 1,
+   "card_id": 19703,
+   "destiny": true,
+   "fighter": "Hellboy",
+   "text": "AFTER COMBAT: Move an adjacent fighter up to 1 space. If Hellboy is OCCULT DETECTIVE, move Hellboy up to 1 space.",
+   "title": "Right Hand Of Doom",
+   "type": "attack",
+   "value": 4
+  },
+  {
+   "boost": 1,
+   "card_id": 19704,
+   "destiny": true,
+   "fighter": "Hellboy",
+   "text": "AFTER COMBAT: Move an adjacent fighter up to 1 space. If Hellboy is OCCULT DETECTIVE, move Hellboy up to 1 space.",
+   "title": "Right Hand Of Doom",
+   "type": "attack",
+   "value": 4
+  },
+  {
+   "boost": 2,
+   "card_id": 19705,
+   "destiny": false,
+   "fighter": "any",
+   "text": "",
+   "title": "Service Pistol",
+   "type": "attack",
+   "value": 5
+  },
+  {
+   "boost": 1,
+   "card_id": 19706,
+   "destiny": false,
+   "fighter": "any",
+   "text": "AFTER COMBAT: Deal 1 damage to each other fighter in your fighter's zone.",
+   "title": "Horseshoes And Hand Grenades",
+   "type": "attack",
+   "value": 2
+  },
+  {
+   "boost": 1,
+   "card_id": 19707,
+   "destiny": false,
+   "fighter": "any",
+   "text": "AFTER COMBAT: Deal 1 damage to each other fighter in your fighter's zone.",
+   "title": "Horseshoes And Hand Grenades",
+   "type": "attack",
+   "value": 2
+  },
+  {
+   "boost": 1,
+   "card_id": 19708,
+   "destiny": false,
+   "fighter": "any",
+   "text": "AFTER COMBAT: Deal 1 damage to each other fighter in your fighter's zone.",
+   "title": "Horseshoes And Hand Grenades",
+   "type": "attack",
+   "value": 2
+  },
+  {
+   "boost": 2,
+   "card_id": 19709,
+   "destiny": false,
+   "fighter": "Lobster Johnson",
+   "text": "DURING COMBAT: You may BOOST this attack.",
+   "title": "Second Shot",
+   "type": "attack",
+   "value": 2
+  },
+  {
+   "boost": 2,
+   "card_id": 19710,
+   "destiny": false,
+   "fighter": "Lobster Johnson",
+   "text": "DURING COMBAT: You may BOOST this attack.",
+   "title": "Second Shot",
+   "type": "attack",
+   "value": 2
+  },
+  {
+   "boost": 1,
+   "card_id": 19711,
+   "destiny": true,
+   "fighter": "Hellboy",
+   "text": "AFTER COMBAT: Draw 1 card. Then, if you lost the combat, look at your opponent's hand and choose 1 card for them to discard.",
+   "title": "Confront Any Demon or God",
+   "type": "versatile",
+   "value": 3
+  },
+  {
+   "boost": 1,
+   "card_id": 19712,
+   "destiny": true,
+   "fighter": "Hellboy",
+   "text": "AFTER COMBAT: Draw 1 card. Then, if you lost the combat, look at your opponent's hand and choose 1 card for them to discard.",
+   "title": "Confront Any Demon or God",
+   "type": "versatile",
+   "value": 3
+  },
+  {
+   "boost": 3,
+   "card_id": 19713,
+   "destiny": false,
+   "fighter": "any",
+   "text": "AFTER COMBAT: Draw 2 cards, then shuffle a card from your hand into your deck.",
+   "title": "Glimpse Of Hell",
+   "type": "versatile",
+   "value": 2
+  },
+  {
+   "boost": 3,
+   "card_id": 19714,
+   "destiny": false,
+   "fighter": "any",
+   "text": "AFTER COMBAT: Draw 2 cards, then shuffle a card from your hand into your deck.",
+   "title": "Glimpse Of Hell",
+   "type": "versatile",
+   "value": 2
+  },
+  {
+   "boost": 3,
+   "card_id": 19715,
+   "destiny": false,
+   "fighter": "any",
+   "text": "AFTER COMBAT: Draw 2 cards, then shuffle a card from your hand into your deck.",
+   "title": "Glimpse Of Hell",
+   "type": "versatile",
+   "value": 2
+  },
+  {
+   "boost": 2,
+   "card_id": 19716,
+   "destiny": false,
+   "fighter": "any",
+   "text": "AFTER COMBAT: Draw 1 card. Move each friendly fighter up to 2 spaces.",
+   "title": "B.P.R.D. Training",
+   "type": "versatile",
+   "value": 3
+  },
+  {
+   "boost": 2,
+   "card_id": 19717,
+   "destiny": false,
+   "fighter": "any",
+   "text": "AFTER COMBAT: Draw 1 card. Move each friendly fighter up to 2 spaces.",
+   "title": "B.P.R.D. Training",
+   "type": "versatile",
+   "value": 3
+  },
+  {
+   "boost": 2,
+   "card_id": 19718,
+   "destiny": false,
+   "fighter": "any",
+   "text": "AFTER COMBAT: Draw 1 card. Move each friendly fighter up to 2 spaces.",
+   "title": "B.P.R.D. Training",
+   "type": "versatile",
+   "value": 3
+  },
+  {
+   "boost": 3,
+   "card_id": 19719,
+   "destiny": false,
+   "fighter": "any",
+   "text": "IMMEDIATELY: Your fighters can't take damage from effects this turn. If Hellboy is OCCULT DETECTIVE, cancel all effects on your opponent's card.",
+   "title": "Planned Recklessness",
+   "type": "versatile",
+   "value": 3
+  },
+  {
+   "boost": 3,
+   "card_id": 19720,
+   "destiny": false,
+   "fighter": "any",
+   "text": "IMMEDIATELY: Your fighters can't take damage from effects this turn. If Hellboy is OCCULT DETECTIVE, cancel all effects on your opponent's card.",
+   "title": "Planned Recklessness",
+   "type": "versatile",
+   "value": 3
+  },
+  {
+   "boost": 3,
+   "card_id": 19721,
+   "destiny": false,
+   "fighter": "Lobster Johnson",
+   "text": "AFTER COMBAT: Choose one:\n- each friendly fighter recovers 1 health\n- deal 1 damage to any fighter\n- move any fighter up to 3 spaces",
+   "title": "Posthumous Power",
+   "type": "versatile",
+   "value": 2
+  },
+  {
+   "boost": 3,
+   "card_id": 19722,
+   "destiny": false,
+   "fighter": "Lobster Johnson",
+   "text": "AFTER COMBAT: Choose one:\n- each friendly fighter recovers 1 health\n- deal 1 damage to any fighter\n- move any fighter up to 3 spaces",
+   "title": "Posthumous Power",
+   "type": "versatile",
+   "value": 2
+  },
+  {
+   "boost": 3,
+   "card_id": 19723,
+   "destiny": false,
+   "fighter": "Lobster Johnson",
+   "text": "AFTER COMBAT: Choose one:\n- each friendly fighter recovers 1 health\n- deal 1 damage to any fighter\n- move any fighter up to 3 spaces",
+   "title": "Posthumous Power",
+   "type": "versatile",
+   "value": 2
+  },
+  {
+   "boost": 2,
+   "card_id": 19724,
+   "destiny": true,
+   "fighter": "Hellboy",
+   "text": "DURING COMBAT: This card's value becomes the number of destiny cards in your discard pile. AFTER COMBAT: If you lost the combat, Hellboy recovers 2 health.",
+   "title": "On Earth As It Is In Hell",
+   "type": "defense",
+   "value": 0
+  },
+  {
+   "boost": 2,
+   "card_id": 19725,
+   "destiny": true,
+   "fighter": "Hellboy",
+   "text": "DURING COMBAT: This card's value becomes the number of destiny cards in your discard pile. AFTER COMBAT: If you lost the combat, Hellboy recovers 2 health.",
+   "title": "On Earth As It Is In Hell",
+   "type": "defense",
+   "value": 0
+  },
+  {
+   "boost": 4,
+   "card_id": 19726,
+   "destiny": true,
+   "fighter": "Hellboy",
+   "text": "Discard your hand. Draw 2 cards. Gain 2 actions.",
+   "title": "And Upon His Brow Is Set A Crown Of Flame",
+   "type": "scheme",
+   "value": null
+  },
+  {
+   "boost": 4,
+   "card_id": 19727,
+   "destiny": true,
+   "fighter": "Hellboy",
+   "text": "Discard your hand. Draw 2 cards. Gain 2 actions.",
+   "title": "And Upon His Brow Is Set A Crown Of Flame",
+   "type": "scheme",
+   "value": null
+  },
+  {
+   "boost": 2,
+   "card_id": 19728,
+   "destiny": false,
+   "fighter": "Hellboy",
+   "text": "Chose two different effects:\n- Hellboy recovers 2 health\n- put up to 2 non-scheme cards in your discard pile on the bottom of your deck\n- draw 2 cards",
+   "title": "Pancakes!",
+   "type": "scheme",
+   "value": null
+  },
+  {
+   "boost": 2,
+   "card_id": 19729,
+   "destiny": false,
+   "fighter": "Hellboy",
+   "text": "Chose two different effects:\n- Hellboy recovers 2 health\n- put up to 2 non-scheme cards in your discard pile on the bottom of your deck\n- draw 2 cards",
+   "title": "Pancakes!",
+   "type": "scheme",
+   "value": null
+  }
+ ],
+ "medusa": [
+  {
+   "boost": 3,
+   "card_id": 17600,
+   "destiny": false,
+   "fighter": "Medusa",
+   "text": "DURING COMBAT: You may BOOST this attack.",
+   "title": "Second Shot",
+   "type": "attack",
+   "value": 3
+  },
+  {
+   "boost": 3,
+   "card_id": 17601,
+   "destiny": false,
+   "fighter": "Medusa",
+   "text": "DURING COMBAT: You may BOOST this attack.",
+   "title": "Second Shot",
+   "type": "attack",
+   "value": 3
+  },
+  {
+   "boost": 3,
+   "card_id": 17602,
+   "destiny": false,
+   "fighter": "Medusa",
+   "text": "DURING COMBAT: You may BOOST this attack.",
+   "title": "Second Shot",
+   "type": "attack",
+   "value": 3
+  },
+  {
+   "boost": 4,
+   "card_id": 17603,
+   "destiny": false,
+   "fighter": "Medusa",
+   "text": "AFTER COMBAT: If you won the combat, deal 8 damage to the opposing fighter.",
+   "title": "Gaze of Stone",
+   "type": "attack",
+   "value": 2
+  },
+  {
+   "boost": 4,
+   "card_id": 17604,
+   "destiny": false,
+   "fighter": "Medusa",
+   "text": "AFTER COMBAT: If you won the combat, deal 8 damage to the opposing fighter.",
+   "title": "Gaze of Stone",
+   "type": "attack",
+   "value": 2
+  },
+  {
+   "boost": 4,
+   "card_id": 17605,
+   "destiny": false,
+   "fighter": "Medusa",
+   "text": "AFTER COMBAT: If you won the combat, deal 8 damage to the opposing fighter.",
+   "title": "Gaze of Stone",
+   "type": "attack",
+   "value": 2
+  },
+  {
+   "boost": 2,
+   "card_id": 17606,
+   "destiny": false,
+   "fighter": "any",
+   "text": "AFTER COMBAT: Draw 1 card. If you won the combat, draw 2 cards instead.",
+   "title": "Regroup",
+   "type": "versatile",
+   "value": 1
+  },
+  {
+   "boost": 2,
+   "card_id": 17607,
+   "destiny": false,
+   "fighter": "any",
+   "text": "AFTER COMBAT: Draw 1 card. If you won the combat, draw 2 cards instead.",
+   "title": "Regroup",
+   "type": "versatile",
+   "value": 1
+  },
+  {
+   "boost": 2,
+   "card_id": 17608,
+   "destiny": false,
+   "fighter": "any",
+   "text": "AFTER COMBAT: Draw 1 card. If you won the combat, draw 2 cards instead.",
+   "title": "Regroup",
+   "type": "versatile",
+   "value": 1
+  },
+  {
+   "boost": 1,
+   "card_id": 17609,
+   "destiny": false,
+   "fighter": "any",
+   "text": "AFTER COMBAT: Move your fighter up to 3 spaces.",
+   "title": "Dash",
+   "type": "versatile",
+   "value": 3
+  },
+  {
+   "boost": 1,
+   "card_id": 17610,
+   "destiny": false,
+   "fighter": "any",
+   "text": "AFTER COMBAT: Move your fighter up to 3 spaces.",
+   "title": "Dash",
+   "type": "versatile",
+   "value": 3
+  },
+  {
+   "boost": 1,
+   "card_id": 17611,
+   "destiny": false,
+   "fighter": "any",
+   "text": "AFTER COMBAT: Move your fighter up to 3 spaces.",
+   "title": "Dash",
+   "type": "versatile",
+   "value": 3
+  },
+  {
+   "boost": 1,
+   "card_id": 17612,
+   "destiny": false,
+   "fighter": "any",
+   "text": "AFTER COMBAT: Draw 1 card.",
+   "title": "Snipe",
+   "type": "versatile",
+   "value": 3
+  },
+  {
+   "boost": 1,
+   "card_id": 17613,
+   "destiny": false,
+   "fighter": "any",
+   "text": "AFTER COMBAT: Draw 1 card.",
+   "title": "Snipe",
+   "type": "versatile",
+   "value": 3
+  },
+  {
+   "boost": 1,
+   "card_id": 17614,
+   "destiny": false,
+   "fighter": "any",
+   "text": "AFTER COMBAT: Draw 1 card.",
+   "title": "Snipe",
+   "type": "versatile",
+   "value": 3
+  },
+  {
+   "boost": 2,
+   "card_id": 17615,
+   "destiny": false,
+   "fighter": "any",
+   "text": "IMMEDIATELY: Cancel all effects on your opponent's card.",
+   "title": "Feint",
+   "type": "versatile",
+   "value": 2
+  },
+  {
+   "boost": 2,
+   "card_id": 17616,
+   "destiny": false,
+   "fighter": "any",
+   "text": "IMMEDIATELY: Cancel all effects on your opponent's card.",
+   "title": "Feint",
+   "type": "versatile",
+   "value": 2
+  },
+  {
+   "boost": 2,
+   "card_id": 17617,
+   "destiny": false,
+   "fighter": "any",
+   "text": "IMMEDIATELY: Cancel all effects on your opponent's card.",
+   "title": "Feint",
+   "type": "versatile",
+   "value": 2
+  },
+  {
+   "boost": 3,
+   "card_id": 17618,
+   "destiny": false,
+   "fighter": "Harpy",
+   "text": "AFTER COMBAT: Move each Harpy up to 3 spaces.",
+   "title": "The Hounds of Mighty Zeus",
+   "type": "versatile",
+   "value": 4
+  },
+  {
+   "boost": 3,
+   "card_id": 17619,
+   "destiny": false,
+   "fighter": "Harpy",
+   "text": "AFTER COMBAT: Move each Harpy up to 3 spaces.",
+   "title": "The Hounds of Mighty Zeus",
+   "type": "versatile",
+   "value": 4
+  },
+  {
+   "boost": 2,
+   "card_id": 17620,
+   "destiny": false,
+   "fighter": "Harpy",
+   "text": "AFTER COMBAT: Your opponent discards 1 card.",
+   "title": "Clutching Claws",
+   "type": "versatile",
+   "value": 3
+  },
+  {
+   "boost": 2,
+   "card_id": 17621,
+   "destiny": false,
+   "fighter": "Harpy",
+   "text": "AFTER COMBAT: Your opponent discards 1 card.",
+   "title": "Clutching Claws",
+   "type": "versatile",
+   "value": 3
+  },
+  {
+   "boost": 2,
+   "card_id": 17622,
+   "destiny": false,
+   "fighter": "Harpy",
+   "text": "AFTER COMBAT: Your opponent discards 1 card.",
+   "title": "Clutching Claws",
+   "type": "versatile",
+   "value": 3
+  },
+  {
+   "boost": 3,
+   "card_id": 17623,
+   "destiny": false,
+   "fighter": "Medusa",
+   "text": "AFTER COMBAT: Your opponent discards 1 card.",
+   "title": "Hiss and Slither",
+   "type": "defense",
+   "value": 4
+  },
+  {
+   "boost": 3,
+   "card_id": 17624,
+   "destiny": false,
+   "fighter": "Medusa",
+   "text": "AFTER COMBAT: Your opponent discards 1 card.",
+   "title": "Hiss and Slither",
+   "type": "defense",
+   "value": 4
+  },
+  {
+   "boost": 3,
+   "card_id": 17625,
+   "destiny": false,
+   "fighter": "Medusa",
+   "text": "AFTER COMBAT: Your opponent discards 1 card.",
+   "title": "Hiss and Slither",
+   "type": "defense",
+   "value": 4
+  },
+  {
+   "boost": 4,
+   "card_id": 17626,
+   "destiny": false,
+   "fighter": "Medusa",
+   "text": "Deal 2 damage to any one fighter in Medusa's zone.",
+   "title": "A Momentary Glance",
+   "type": "scheme",
+   "value": null
+  },
+  {
+   "boost": 4,
+   "card_id": 17627,
+   "destiny": false,
+   "fighter": "Medusa",
+   "text": "Deal 2 damage to any one fighter in Medusa's zone.",
+   "title": "A Momentary Glance",
+   "type": "scheme",
+   "value": null
+  },
+  {
+   "boost": 2,
+   "card_id": 17628,
+   "destiny": false,
+   "fighter": "any",
+   "text": "Move each of your fighters up to 3 spaces. You may move them through spaces containing opposing fighters. Then, return a defeated Harpy (if any) to any space in Medusa's zone.",
+   "title": "Winged Frenzy",
+   "type": "scheme",
+   "value": null
+  },
+  {
+   "boost": 2,
+   "card_id": 17629,
+   "destiny": false,
+   "fighter": "any",
+   "text": "Move each of your fighters up to 3 spaces. You may move them through spaces containing opposing fighters. Then, return a defeated Harpy (if any) to any space in Medusa's zone.",
+   "title": "Winged Frenzy",
+   "type": "scheme",
+   "value": null
+  }
+ ]
+}

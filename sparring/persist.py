@@ -23,7 +23,10 @@ def game_to_dict(g: Game) -> dict:
         "effect_shield": {str(k): v for k, v in g.effect_shield.items()}, "drawn": list(g.drawn),
         "fighters": {fid: {"hp": f.hp, "pos": f.pos, "alive": f.alive, "died_at": f.died_at} for fid, f in g.fighters.items()},
         "players": [{"deck": [c.card_id for c in p.deck], "hand": [c.card_id for c in p.hand],
-                     "discard": [c.card_id for c in p.discard]} for p in g.players],
+                     "discard": [c.card_id for c in p.discard],
+                     # mano rival conocida (efecto «mira la mano»): solo se escribe si hay algo que recordar
+                     **({"known": {"seen": list(p.known.seen), "turn_no": p.known.turn_no}} if p.known.seen else {})}
+                    for p in g.players],
         "rng": list(g.rng.getstate()[:2]) + [g.rng.getstate()[2]],
     }
 
@@ -42,6 +45,9 @@ def apply_game(g: Game, d: dict) -> None:
             p.deck[:] = [by_id[i] for i in saved["deck"]]
             p.hand[:] = [by_id[i] for i in saved["hand"]]
             p.discard[:] = [by_id[i] for i in saved["discard"]]
+            known = saved.get("known") or {}
+            p.known.seen = [int(i) for i in known.get("seen", [])]
+            p.known.turn_no = known.get("turn_no")
         version, internal, gauss = d["rng"]
         g.rng.setstate((version, tuple(internal), gauss))
     except (KeyError, TypeError, ValueError, IndexError) as e:

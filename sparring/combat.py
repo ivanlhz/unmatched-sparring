@@ -8,7 +8,6 @@ from dataclasses import dataclass, field
 from .cards import MEDUSA_BASE, Card
 from .state import ANUNG, Fighter, Game, RuleError
 
-ANUNG_ATTACK_BONUS = 2
 GAZE_DAMAGE = 8
 GLANCE_DAMAGE = 2
 FRENZY_STEPS = 3
@@ -72,21 +71,20 @@ def resolve_combat(game: Game, att: Fighter, tgt: Fighter, atk_card: Card, def_c
         if def_card not in game.players[tgt.owner].hand:
             raise RuleError(f"{def_card.title} no esta en la mano de {tgt.fid}")
     pa, pd = att.owner, tgt.owner
-    game.players[pa].hand.remove(atk_card)
+    game.take_from_hand(pa, atk_card)
     if def_card is not None:
-        game.players[pd].hand.remove(def_card)
+        game.take_from_hand(pd, def_card)
     played = [(pa, atk_card)] + ([(pd, def_card)] if def_card else [])
 
-    atk_value = (atk_card.value or 0) + values[0]
-    if att.name == "Hellboy" and game.form(pa) == ANUNG:
-        atk_value += ANUNG_ATTACK_BONUS
+    bonus_parts = game.attack_bonus_parts(att)   # pasivas del heroe (Hellboy en ANUNG UN RAMA: +2)
+    bonus = sum(n for n, _ in bonus_parts)
+    atk_value = (atk_card.value or 0) + values[0] + bonus
     def_value = (def_card.value or 0) if def_card else 0
     def_value += values[1]
     ctx = CombatCtx(att, tgt, atk_card, def_card, atk_value, def_value, set())
     result = CombatResult(att.fid, tgt.fid, atk_card, def_card, atk_value, def_value, 0, False)
     result.atk_parts = [f"{atk_card.title} ({atk_card.value or 0})"]
-    if att.name == "Hellboy" and game.form(pa) == ANUNG:
-        result.atk_parts.append(f"ANUNG UN RAMA (+{ANUNG_ATTACK_BONUS})")
+    result.atk_parts += [f"{label} (+{n})" for n, label in bonus_parts if n]
     if values[0]:
         result.atk_parts.append(f"valor extra ({values[0]:+d})")
 

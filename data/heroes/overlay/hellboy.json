@@ -1,0 +1,245 @@
+{
+ "_notes": [
+  "Hoja 197 del savegame (8x4), leida a ojo el 2026-10-26. CardID = 19700 + idx; 19600 = carta de personaje.",
+  "Restricciones de luchador y etiqueta destiny de la hoja de TTS (unmatched-memory no las tiene).",
+  "Formas (carta de personaje, seccion AHH CRAP!): OCCULT DETECTIVE con 5 o menos destinos en el descarte, ANUNG UN RAMA con 6 o mas; no es permanente, se recalcula siempre desde el descarte.",
+  "Disparadores: hasta el paso 8 del plan los ejecutan Game.hellboy_detective_draw y Game.hellboy_anung_start; la pasiva attack_bonus si la lee ya el combate."
+ ],
+ "fid": "hellboy",
+ "sidekicks": [
+  {
+   "fid": "lobster",
+   "name": "Lobster Johnson"
+  }
+ ],
+ "forms": {
+  "counter": "destiny",
+  "threshold": 6,
+  "below": "OCCULT DETECTIVE",
+  "at_or_above": "ANUNG UN RAMA"
+ },
+ "counters": {
+  "destiny": {
+   "pile": "discard",
+   "tag": "destiny"
+  }
+ },
+ "triggers": [
+  {
+   "id": "detective_draw",
+   "when": "start_of_turn",
+   "form": "OCCULT DETECTIVE",
+   "condition": "hero_on_rival_start",
+   "optional": true,
+   "effect": "draw",
+   "n": 2
+  },
+  {
+   "id": "anung_discard_move",
+   "when": "start_of_turn",
+   "form": "ANUNG UN RAMA",
+   "optional": false,
+   "effect": "discard_then_move_boost",
+   "n": 1,
+   "fighter": "hero"
+  }
+ ],
+ "passives": [
+  {
+   "id": "anung_attack",
+   "form": "ANUNG UN RAMA",
+   "effect": "attack_bonus",
+   "n": 2,
+   "fighter": "hero"
+  }
+ ],
+ "deck": {
+  "card_base": 19700,
+  "sheet_id": 197,
+  "sheet": [
+   {
+    "idx": 0,
+    "title": "Excalibur",
+    "fighter": "Hellboy",
+    "tags": [
+     "destiny"
+    ]
+   },
+   {
+    "idx": 1,
+    "title": "Right Hand Of Doom",
+    "fighter": "Hellboy",
+    "tags": [
+     "destiny"
+    ]
+   },
+   {
+    "idx": 2,
+    "title": "Right Hand Of Doom",
+    "fighter": "Hellboy",
+    "tags": [
+     "destiny"
+    ]
+   },
+   {
+    "idx": 3,
+    "title": "Right Hand Of Doom",
+    "fighter": "Hellboy",
+    "tags": [
+     "destiny"
+    ]
+   },
+   {
+    "idx": 4,
+    "title": "Right Hand Of Doom",
+    "fighter": "Hellboy",
+    "tags": [
+     "destiny"
+    ]
+   },
+   {
+    "idx": 5,
+    "title": "Service Pistol",
+    "fighter": "any"
+   },
+   {
+    "idx": 6,
+    "title": "Horseshoes And Hand Grenades",
+    "fighter": "any"
+   },
+   {
+    "idx": 7,
+    "title": "Horseshoes And Hand Grenades",
+    "fighter": "any"
+   },
+   {
+    "idx": 8,
+    "title": "Horseshoes And Hand Grenades",
+    "fighter": "any"
+   },
+   {
+    "idx": 9,
+    "title": "Second Shot",
+    "fighter": "Lobster Johnson"
+   },
+   {
+    "idx": 10,
+    "title": "Second Shot",
+    "fighter": "Lobster Johnson"
+   },
+   {
+    "idx": 11,
+    "title": "Confront Any Demon or God",
+    "fighter": "Hellboy",
+    "tags": [
+     "destiny"
+    ]
+   },
+   {
+    "idx": 12,
+    "title": "Confront Any Demon or God",
+    "fighter": "Hellboy",
+    "tags": [
+     "destiny"
+    ]
+   },
+   {
+    "idx": 13,
+    "title": "Glimpse Of Hell",
+    "fighter": "any"
+   },
+   {
+    "idx": 14,
+    "title": "Glimpse Of Hell",
+    "fighter": "any"
+   },
+   {
+    "idx": 15,
+    "title": "Glimpse Of Hell",
+    "fighter": "any"
+   },
+   {
+    "idx": 16,
+    "title": "B.P.R.D. Training",
+    "fighter": "any"
+   },
+   {
+    "idx": 17,
+    "title": "B.P.R.D. Training",
+    "fighter": "any"
+   },
+   {
+    "idx": 18,
+    "title": "B.P.R.D. Training",
+    "fighter": "any"
+   },
+   {
+    "idx": 19,
+    "title": "Planned Recklessness",
+    "fighter": "any"
+   },
+   {
+    "idx": 20,
+    "title": "Planned Recklessness",
+    "fighter": "any"
+   },
+   {
+    "idx": 21,
+    "title": "Posthumous Power",
+    "fighter": "Lobster Johnson"
+   },
+   {
+    "idx": 22,
+    "title": "Posthumous Power",
+    "fighter": "Lobster Johnson"
+   },
+   {
+    "idx": 23,
+    "title": "Posthumous Power",
+    "fighter": "Lobster Johnson"
+   },
+   {
+    "idx": 24,
+    "title": "On Earth As It Is In Hell",
+    "fighter": "Hellboy",
+    "tags": [
+     "destiny"
+    ]
+   },
+   {
+    "idx": 25,
+    "title": "On Earth As It Is In Hell",
+    "fighter": "Hellboy",
+    "tags": [
+     "destiny"
+    ]
+   },
+   {
+    "idx": 26,
+    "title": "And Upon His Brow Is Set A Crown Of Flame",
+    "fighter": "Hellboy",
+    "tags": [
+     "destiny"
+    ]
+   },
+   {
+    "idx": 27,
+    "title": "And Upon His Brow Is Set A Crown Of Flame",
+    "fighter": "Hellboy",
+    "tags": [
+     "destiny"
+    ]
+   },
+   {
+    "idx": 28,
+    "title": "Pancakes!",
+    "fighter": "Hellboy"
+   },
+   {
+    "idx": 29,
+    "title": "Pancakes!",
+    "fighter": "Hellboy"
+   }
+  ]
+ }
+}

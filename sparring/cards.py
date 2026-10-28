@@ -1,13 +1,38 @@
 from __future__ import annotations
 
-import json
+import os
 from dataclasses import dataclass
+from pathlib import Path
 
 from .board import DATA_DIR
 
 MEDUSA_BASE = 17600
 HELLBOY_BASE = 19700
-HELLBOY_SOURCE = DATA_DIR.parent.parent / "unmatched-memory" / "data" / "heroes" / "hellboy.json"
+
+
+def repo_toplevel(root: Path | None = None) -> Path:
+    """Raiz del repo PRINCIPAL. Desde un worktree, `.git` es un fichero `gitdir: <principal>/.git/worktrees/<n>`
+    (lo mismo que `git rev-parse --git-common-dir`); desde el repo principal, `.git` es la carpeta."""
+    root = root or DATA_DIR.parent
+    dotgit = root / ".git"
+    if dotgit.is_file():
+        text = dotgit.read_text(encoding="utf-8").strip()
+        if text.startswith("gitdir:"):
+            gitdir = Path(text[len("gitdir:"):].strip())
+            if not gitdir.is_absolute():
+                gitdir = (root / gitdir).resolve()
+            if gitdir.parent.name == "worktrees" and gitdir.parent.parent.name == ".git":
+                return gitdir.parent.parent.parent
+    return root
+
+
+def memory_dir() -> Path:
+    """Carpeta `unmatched-memory` hermana del repo principal (nunca de un worktree ni de otra carpeta intermedia);
+    `UNMATCHED_MEMORY` la fuerza. Solo la usa el importador de heroes (tools/import_hero.py), nunca la partida."""
+    forced = os.environ.get("UNMATCHED_MEMORY")
+    if forced:
+        return Path(forced)
+    return repo_toplevel().parent / "unmatched-memory"
 
 
 @dataclass(frozen=True)
@@ -19,7 +44,11 @@ class Card:
     value: int | None
     boost: int
     text: str = ""
-    destiny: bool = False
+    tags: frozenset[str] = frozenset()     # etiquetas que cuentan los contadores del heroe (Hellboy: "destiny")
+
+    @property
+    def destiny(self) -> bool:
+        return "destiny" in self.tags
 
     def usable_by(self, fighter_name: str) -> bool:
         return self.fighter == "any" or self.fighter == fighter_name
@@ -38,28 +67,10 @@ class Card:
 
 
 def load_medusa_deck() -> list[Card]:
-    raw = json.loads((DATA_DIR / "medusa_cards.json").read_text(encoding="utf-8"))
-    return [
-        Card(MEDUSA_BASE + c["idx"], c["title"], c["fighter"], c["type"], c["value"], c["boost"], c["text"])
-        for c in raw["cards"]
-    ]
+    from .heroes import load_hero
+    return load_hero("medusa").deck()
 
 
-def _hellboy_text(src: dict) -> str:
-    parts = []
-    for key, label in (("effect", ""), ("effectImmediately", "IMMEDIATELY: "), ("effectDuring", "DURING COMBAT: "), ("effectAfter", "AFTER COMBAT: ")):
-        if src.get(key):
-            parts.append(label + src[key].strip())
-    return " ".join(parts)
-
-
-def load_hellboy_deck(source=HELLBOY_SOURCE) -> list[Card]:
-    """Valores, boost y texto desde hellboy.json (por título); restricción y destino desde hellboy_cards.json."""
-    src = {c["title"]: c for c in json.loads(open(source, encoding="utf-8").read())["cards"]}
-    raw = json.loads((DATA_DIR / "hellboy_cards.json").read_text(encoding="utf-8"))
-    deck = []
-    for c in raw["cards"]:
-        s = src[c["title"]]
-        deck.append(Card(HELLBOY_BASE + c["idx"], c["title"], c["fighter"], s["type"], s["value"], s["boostValue"],
-                         _hellboy_text(s), c["destiny"]))
-    return deck
+def load_hellboy_deck() -> list[Card]:
+    from .heroes import load_hero
+    return load_hero("hellboy").deck()
