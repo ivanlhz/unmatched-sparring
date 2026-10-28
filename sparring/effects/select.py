@@ -245,7 +245,8 @@ def select_cards(game, run, sel: dict, purpose: str = "choose") -> list[Picked]:
     chooser = player_of(game, run, sel.get("chooser", "owner"))
     lo = 0 if sel.get("up_to") else n
     by_id = {c.card.card_id: c for c in cands}
-    got = run.ask(game, "cards", chooser, list(by_id), lo, n, f"{purpose} cards", zone=sel["zone"], purpose=purpose)
+    got = run.ask(game, "cards", chooser, list(by_id), lo, n, f"{purpose} cards", zone=sel["zone"], purpose=purpose,
+                  of=cands[0].player)
     return [by_id[i] for i in got]
 
 

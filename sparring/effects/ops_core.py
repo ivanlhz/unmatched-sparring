@@ -23,8 +23,6 @@ PLUGIN_TESTS: dict[str, Callable] = {}
 PENDING_PHASES = {
     "cancel_effects": "C2", "modify_value": "C2", "set_value": "C2", "boost": "C2", "status": "C2",
     "redirect_damage": "C2",
-    "look_hand": "C4", "reveal": "C4", "look_deck": "C4", "search_deck": "C4", "return_to_deck": "C4",
-    "put_in_hand": "C4",
 }
 
 
@@ -156,6 +154,7 @@ def _discard(run, game, spec):
             game.discard_card(player, card)
         elif zone == "deck":
             game.players[player].deck.remove(card)
+            game.players[1 - player].known.drop_top(card.card_id)
             game.players[player].discard.append(card)
             game.fx.emit("card_discarded", player, card)
         elif zone == "in_play":
@@ -337,3 +336,6 @@ def _plugin(run, game, spec):
     except KeyError:
         raise NotImplementedError(f"plugin {spec['id']}: not registered") from None
     return handler(run, game, spec)
+
+
+from . import ops_info  # noqa: E402,F401  (registers look_hand, reveal, look_deck, search_deck, return_to_deck, put_in_hand)
