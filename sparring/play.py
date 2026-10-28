@@ -18,17 +18,18 @@ import secrets
 import sys
 import threading
 import traceback
-from dataclasses import dataclass
+from dataclasses import dataclass, field
 from pathlib import Path
 from typing import Callable
 
 from .search.controller import make_bot_ai
 from .board import Board
-from .heroes import load_hero
+from .heroes import HeroDataError, load_hero
 from . import persist
 from .session import DEFAULT_BOT_PAUSE, TABLE_ERRORS, Msg, Session, SessionConfig, SessionError, piece_guids
 from .state import DEFAULT_HEROES, Game
 from .tts import lua, ui
+from .tts.hero_table import HeroTableError, load_hero_table, table_defaults
 from .tts.client import LISTEN_PORT, SEND_PORT, TTSClient, TTSLuaError
 from .tts.ui import parse_event
 
@@ -60,12 +61,18 @@ class PlayConfig:
     raw: dict
     board: Board
     todos: list[str]
+    warnings: list[str] = field(default_factory=list)      # avisos de la configuracion (se imprimen al arrancar)
 
     @property
     def heroes(self) -> tuple[str, str]:
         """(heroe del bot, heroe del humano): `bot_hero` / `human_hero` de la configuracion, por defecto Medusa vs
         Hellboy. Cada uno debe tener su data/heroes/<slug>.json."""
         return (str(self.raw.get("bot_hero") or DEFAULT_HEROES[0]), str(self.raw.get("human_hero") or DEFAULT_HEROES[1]))
+
+    @property
+    def hero_names(self) -> tuple[str, str]:
+        """Nombre en mayusculas de cada bando para las etiquetas del suelo (el de su heroe)."""
+        return tuple(load_hero(slug).name.upper() for slug in self.heroes)  # type: ignore[return-value]
 
     @property
     def fighter_ids(self) -> list[str]:
@@ -88,6 +95,11 @@ class PlayConfig:
     def panel_scale(self) -> tuple[float, float, float]:
         return tuple(float(v) for v in self.raw.get("panel_scale", ui.PANEL_SCALE))  # type: ignore[return-value]
 
+    @property
+    def attacker_ids(self) -> tuple[str, ...]:
+        """Luchadores del humano: un boton "Ataca X" por cada uno (los nombres salen de los datos del heroe)."""
+        return tuple(f.fid for f in load_hero(self.heroes[1]).fighters())
+
     def session_config(self) -> SessionConfig:
         """Configuracion de la sesion; solo existe si no queda ningun TODO y todo valida."""
         if self.todos:
@@ -102,6 +114,11 @@ class PlayConfig:
                 bot_deck_spot=tuple(r["bot_deck_spot"]), pieces=dict(r["pieces"]),
                 reveal_radius=float(r.get("reveal_radius", 2.0)), rot_y=float(r.get("rot_y", 0.0)),
                 dials=dict(r.get("dials", {})), destiny_dial=r.get("destiny_dial"),
+                bot_card_ids=tuple(r.get("bot_card_ids", lua.BOT_CARD_IDS)),
+                human_card_ids=tuple(r.get("human_card_ids", lua.HUMAN_CARD_IDS)),
+                deck_identity={side: tuple(tuple(p) for p in r[f"{side}_identity"])
+                               for side in ("bot", "human") if r.get(f"{side}_identity")},
+                bot_label=self.hero_names[0], human_label=self.hero_names[1],
                 setup=bool(r.get("setup", True)), mulligan_bot=bool(r.get("mulligan_bot", True)),
                 mulligan_human=bool(r.get("mulligan_human", True)),
                 dead_spot=tuple(float(v) for v in r["dead_spot"]) if r.get("dead_spot") else None, off_board_dist=float(r.get("off_board_dist", 4.0)),
@@ -111,7 +128,7 @@ class PlayConfig:
                 bot_discard_rot_y=float(r.get("bot_discard_rot_y", 90.0)),
                 human_deck_guid=r.get("human_deck_guid"),
                 human_deck_spot=tuple(r["human_deck_spot"]) if r.get("human_deck_spot") else None,
-                start_spaces={str(k): int(v) for k, v in (r.get("start_spaces") or {}).items()},
+                start_spaces=self._start_spaces(),
                 bot_discard_bounds=tuple(float(v) for v in r["bot_discard_bounds"])
                 if r.get("bot_discard_bounds") else None,
                 human_dead_spot=tuple(float(v) for v in r["human_dead_spot"]) if r.get("human_dead_spot") else None,
@@ -131,6 +148,21 @@ class PlayConfig:
                 raise ConfigError(f"faltan {key} de: {', '.join(missing)}")
         return cfg
 
+    def _start_spaces(self) -> dict[str, int]:
+        """Casillas de salida reales. Las claves son ids de luchador de un heroe (como siempre) o "bot" / "human"
+        (el heroe de ese bando: sirve para cualquier par de heroes); el resultado va siempre por id de luchador."""
+        hero_fid = {"bot": load_hero(self.heroes[0]).fid, "human": load_hero(self.heroes[1]).fid}
+        valid = set(self.fighter_ids)
+        out = {}
+        for k, v in (self.raw.get("start_spaces") or {}).items():
+            fid = hero_fid.get(str(k), str(k))
+            if fid in valid:
+                out[fid] = int(v)
+            else:                             # una clave de otro heroe (de una config anterior) no cuenta, pero se dice
+                self.warnings.append(f"start_spaces: la clave {k!r} no es de ningun luchador de {self.heroes[0]} / "
+                                     f"{self.heroes[1]} ni bot / human: se ignora.")
+        return out
+
     def _dry_build(self, cfg: SessionConfig) -> None:
         """Construye una vez cada script con la configuracion: un valor mal escrito falla aqui, no en mitad de la partida."""
         lua.read_hand(cfg.bot_seat), lua.read_hand(cfg.human_seat), lua.count_hand(cfg.human_seat)
@@ -142,12 +174,12 @@ class PlayConfig:
         scope = lua.Scope((cfg.bot_seat, cfg.human_seat), (cfg.bot_discard_zone, cfg.human_discard_zone), tuple(spots))
         lua.deal_cards(cfg.bot_deck_guid, 1, cfg.bot_seat, spot=cfg.bot_deck_spot, identity=ident)
         lua.discard_cards([0], [cfg.bot_discard_spot], cfg.bot_discard_rot_y, identity=ident, scope=scope)
-        lua.reset_deck(cfg.bot_deck_guid, cfg.bot_deck_spot, lua.BOT_CARD_IDS, identity=ident, scope=scope)
-        lua.deck_identities([(cfg.bot_deck_guid, tuple(cfg.bot_deck_spot), lua.BOT_CARD_IDS)])
+        lua.reset_deck(cfg.bot_deck_guid, cfg.bot_deck_spot, cfg.bot_card_ids, identity=ident, scope=scope)
+        lua.deck_identities([(cfg.bot_deck_guid, tuple(cfg.bot_deck_spot), cfg.bot_card_ids)])
         lua.play_card_face_down(0, cfg.bot_seat, *cfg.bot_card_spot, cfg.rot_y, identity=ident)
         lua.flip_card(cfg.bot_deck_guid, cfg.rot_y, identity=ident)
-        lua.reset_plan([(cfg.bot_deck_guid, cfg.bot_deck_spot, lua.BOT_CARD_IDS, ident)], scope=scope)
-        lua.hand_identities(cfg.bot_seat, lua.BOT_CARD_IDS)
+        lua.reset_plan([(cfg.bot_deck_guid, cfg.bot_deck_spot, cfg.bot_card_ids, ident)], scope=scope)
+        lua.hand_identities(cfg.bot_seat, cfg.bot_card_ids)
         lua.read_face_down_cards(*cfg.human_card_spot, cfg.reveal_radius)
         for name in cfg.nicknames.values():
             lua.lua_str(name)
@@ -165,6 +197,31 @@ class PlayConfig:
         lua.zone_overlaps([cfg.bot_discard_zone, cfg.human_discard_zone])
 
 
+HERO_KEYS = ("nicknames", "pieces", "dials")       # por id de luchador: la configuracion afina lo que los datos dan
+HERO_SCALARS = ("bot_deck_guid", "human_deck_guid", "destiny_dial", "bot_card_ids", "human_card_ids",
+                "bot_identity", "human_identity")
+
+
+def with_hero_data(raw: dict) -> dict:
+    """Completa la configuracion de la mesa con lo propio de cada heroe (`data/tts/<slug>.json`): piezas, diales,
+    nombres, GUID de mazos, rangos de CardID e identidad. Lo que la configuracion diga a mano manda (una
+    `partida.json` antigua con todo escrito sigue valiendo); de los luchadores solo cuentan los de los dos heroes."""
+    bot, human = (str(raw.get("bot_hero") or DEFAULT_HEROES[0]), str(raw.get("human_hero") or DEFAULT_HEROES[1]))
+    try:
+        derived = table_defaults(bot, human)
+        fids = {f.fid for slug in (bot, human) for f in load_hero(slug).fighters()}
+    except (HeroTableError, HeroDataError) as e:
+        raise ConfigError(str(e)) from None
+    out = dict(raw)
+    for key in HERO_KEYS:
+        given = raw.get(key) if isinstance(raw.get(key), dict) else {}
+        out[key] = {**derived[key], **{k: v for k, v in given.items() if k in fids}}
+    for key in HERO_SCALARS:
+        if key in derived and is_todo(raw.get(key)):
+            out[key] = derived[key]
+    return out
+
+
 def load_config(path: str | Path) -> PlayConfig:
     try:
         raw = json.loads(Path(path).read_text(encoding="utf-8"))
@@ -176,6 +233,7 @@ def load_config(path: str | Path) -> PlayConfig:
     if raw.get("board_guid") not in (None, lua.BOARD_GUIDS[board_key]):
         raise ConfigError(f"board_guid {raw['board_guid']!r} no es el del tablero {board_key} "
                           f"({lua.BOARD_GUIDS[board_key]})")
+    raw = with_hero_data(raw)
     todos = [k for k in REQUIRED if is_todo(raw.get(k))]
     return PlayConfig(raw, Board.load(board_key), todos)
 
@@ -351,8 +409,8 @@ Recovery = Callable[[], tuple[str, list[str]]]      # -> ("ok" | "retry" | "stop
 def mark_floor(client, scfg: SessionConfig) -> None:
     """Dibuja en el suelo las zonas de descarte y los puntos de combate (idempotente; solo en modo juego)."""
     client.call_lua(lua.draw_markings(
-        [("DESCARTE HELLBOY", scfg.human_discard_zone), ("DESCARTE MEDUSA", scfg.bot_discard_zone)],
-        [("HELLBOY", *scfg.human_card_spot), ("MEDUSA", scfg.bot_card_spot[0], scfg.bot_card_spot[2])],
+        [(f"DESCARTE {scfg.human_label}", scfg.human_discard_zone), (f"DESCARTE {scfg.bot_label}", scfg.bot_discard_zone)],
+        [(scfg.human_label, *scfg.human_card_spot), (scfg.bot_label, scfg.bot_card_spot[0], scfg.bot_card_spot[2])],
         label_font=scfg.label_font))
 
 
@@ -374,10 +432,11 @@ def floor_layout(cfg: PlayConfig) -> list[tuple[str, tuple[float, float, float, 
         x, z, ex, ez = lua.label_position(cx, cz, w, d, rot, text, font)
         out.append((f"etiqueta {text}", (x - ex / 2, x + ex / 2, z - ez / 2, z + ez / 2)))
     w, d = lua.CARD_SIZE
-    for name, spot in (("MEDUSA", (r["bot_card_spot"][0], r["bot_card_spot"][2])), ("HELLBOY", r["human_card_spot"])):
+    bot_name, human_name = cfg.hero_names
+    for name, spot in ((bot_name, (r["bot_card_spot"][0], r["bot_card_spot"][2])), (human_name, r["human_card_spot"])):
         out.append((f"caja de combate {name}", (spot[0] - w / 2, spot[0] + w / 2, spot[1] - d / 2, spot[1] + d / 2)))
         label(name, spot[0], spot[1], w, d, 0.0)
-    for name, key in (("DESCARTE MEDUSA", "bot_discard_bounds"), ("DESCARTE HELLBOY", "human_discard_bounds")):
+    for name, key in ((f"DESCARTE {bot_name}", "bot_discard_bounds"), (f"DESCARTE {human_name}", "human_discard_bounds")):
         if r.get(key):
             out.append((f"zona {name}", _zone_rect(r[key])))
             cx, cz, bw, bd, rot = (float(v) for v in r[key])
@@ -387,7 +446,7 @@ def floor_layout(cfg: PlayConfig) -> list[tuple[str, tuple[float, float, float, 
 
 def floor_layout_warnings(cfg: PlayConfig) -> list[str]:
     """Avisos de arranque: ninguna etiqueta ni rectangulo del suelo puede quedar bajo el panel (el 27/10 las etiquetas
-    MEDUSA y HELLBOY se pintaban encima de sus botones)."""
+    las etiquetas del suelo se pintaban encima de sus botones)."""
     pos, scale = cfg.panel_position, cfg.panel_scale
     x0, x1, z0, z1 = lua.panel_footprint(pos, scale, ui.PANEL_WIDTH, ui.panel_height(len(cfg.fighter_ids)))
     warnings = []
@@ -400,7 +459,8 @@ def floor_layout_warnings(cfg: PlayConfig) -> list[str]:
 
 def recover_after_reload(session: Session, client: TTSClient, targets: list[str],
                          position: tuple[float, float, float], rotation=ui.PANEL_ROTATION,
-                         scale=ui.PANEL_SCALE, names: dict[str, str] | None = None) -> tuple[str, list[str]]:
+                         scale=ui.PANEL_SCALE, names: dict[str, str] | None = None,
+                         attackers: tuple[str, ...] | None = None) -> tuple[str, list[str]]:
     """TTS recargo la partida (messageID 1): se comprueban los GUID de la configuracion y se recrea el panel.
 
     "stop" si falta alguno (la partida cargada no es esta: seguir seria escribir en una mesa ajena); "retry" si
@@ -413,14 +473,59 @@ def recover_after_reload(session: Session, client: TTSClient, targets: list[str]
         if missing:
             return "stop", [f"TTS recargo la partida y faltan objetos de la configuracion: {', '.join(missing)}. "
                             "Paro sin tocar la mesa; carga la partida correcta y reanuda con --resume."]
+        if attackers is None:
+            attackers = tuple(f.fid for f in session.game.own(session.human, alive_only=False))
         client.call_lua(lua.create_panel(targets, position, rotation, scale, names,
-                                         snapshot=session.snapshot_spec() if session.cfg.batch else None))
+                                         snapshot=session.snapshot_spec() if session.cfg.batch else None,
+                                         attacker_ids=attackers))
         mark_floor(client, session.cfg)
     except TABLE_ERRORS as e:
         return "retry", [f"TTS recargo la partida y aun no responde ({e}); reintento."]
     session.dirty = True
     return "ok", ["TTS recargo la partida: GUIDs comprobados y panel recreado. Pulsa Fin de accion para que "
                   "el bot relea la mesa."]
+
+
+UNPACK_SPOTS = {"bot": (22.0, 2.5, -10.0), "human": (-22.0, 2.5, -10.0)}   # fuera de las manos (|x| >= 25) y de los descartes
+UNPACK_STEP = (0.0, 0.0, 3.0)
+
+
+def unpack_plan(cfg: PlayConfig) -> list[tuple]:
+    """(clase, GUID de cada estado, bolsa interior, sitio, rango de CardID o None) de todo lo de los dos heroes. El mazo va
+    a su sitio de mazo; lo demas, en fila desde `bot_unpack_spot` / `human_unpack_spot` cada `unpack_step`."""
+    r, step = cfg.raw, [float(v) for v in cfg.raw.get("unpack_step", UNPACK_STEP)]
+    out = []
+    for slug, side in zip(cfg.heroes, ("bot", "human")):
+        origin = r.get(f"{side}_unpack_spot") or UNPACK_SPOTS[side]
+        deck_xz = r.get(f"{side}_deck_spot")
+        table, n = load_hero_table(slug), 0
+        for kind, guids in table.unpack_items():
+            if kind == "deck" and deck_xz:
+                out.append((kind, guids, table.inner_bag, (float(deck_xz[0]), float(origin[1]), float(deck_xz[1])),
+                            table.card_ids))
+                continue
+            out.append((kind, guids, table.inner_bag, tuple(float(o) + n * d for o, d in zip(origin, step)), None))
+            n += 1
+    return out
+
+
+def prepare_heroes(client, cfg: PlayConfig, echo: Callable[[str], None] = print) -> None:
+    """Solo con --unpack (o "unpack": true) y nunca al reanudar: saca de la bolsa interior de cada heroe lo que falte en
+    la mesa. Falta = no responde NINGUN GUID del objeto (todos sus estados) y, en un mazo, no hay ninguna pila suya en su
+    sitio. Se saca unicamente de la bolsa con el GUID de bolsa del heroe; si no esta en la mesa no se hace nada y se avisa
+    (el bot nunca saca nada de una bolsa infinita). Un solo mensaje a TTS."""
+    plan = unpack_plan(cfg)
+    res = client.call_lua(lua.unpack_from_bags(plan)) or {}
+    taken, missing = list(res.get("taken") or []), list(res.get("missing") or [])
+    if taken:
+        echo(f"[bot] He sacado de su bolsa {len(taken)} objeto(s) de los heroes: {', '.join(taken)}.")
+    for slug in cfg.heroes:
+        table = load_hero_table(slug)
+        lost = [g for _, guids in table.unpack_items() for g in guids[:1] if g in missing]
+        if lost:
+            echo(f"[aviso] Faltan en la mesa {', '.join(lost)} de {load_hero(slug).name} y su bolsa interior "
+                 f"{table.inner_bag} no esta en la mesa (o no los contiene): colocalos a mano; el bot no saca nada de una "
+                 "bolsa infinita.")
 
 
 def run_loop(session: Session, client: TTSClient, stop: threading.Event, announce: Callable[[list[str]], None],
@@ -482,12 +587,14 @@ def build_game(cfg: PlayConfig, first: str, seed: int) -> Game:
 def play(cfg: PlayConfig, client: TTSClient, first: str, seed: int, stop: threading.Event,
          echo: Callable[[str], None] = print, poll: float = 0.1, state_path: Path | None = None,
          resume: bool = False, timing: bool = False, ai: str | None = None,
-         ai_time: float | None = None, bot_pause: float | None = None) -> None:
+         ai_time: float | None = None, bot_pause: float | None = None, unpack: bool = False) -> None:
     scfg = cfg.session_config()
     if bot_pause is not None:
         if not (math.isfinite(bot_pause) and 0 <= bot_pause <= 30):
             raise SessionError("--bot-pause: segundos entre 0 (sin pausa) y 30")
         scfg.bot_pause = bot_pause
+    if (unpack or cfg.raw.get("unpack")) and not resume:
+        prepare_heroes(client, cfg, echo)
     game = build_game(cfg, first, seed)
     session = Session(game, client, make_bot_ai(ai_config(cfg, ai, ai_time), BOT), scfg, bot=BOT)
     session.state_path = state_path
@@ -504,7 +611,8 @@ def play(cfg: PlayConfig, client: TTSClient, first: str, seed: int, stop: thread
         echo(f"[aviso] {warning}")
     client.call_lua(lua.clear_markings(remove_panel=True))     # restos de una ejecucion anterior que murio sin limpiar
     client.call_lua(lua.create_panel(targets, cfg.panel_position, cfg.panel_rotation, cfg.panel_scale,
-                                     cfg.nicknames, snapshot=session.snapshot_spec() if scfg.batch else None))
+                                     cfg.nicknames, snapshot=session.snapshot_spec() if scfg.batch else None,
+                                     attacker_ids=cfg.attacker_ids))
     echo("Panel creado en la mesa. Esperando botones (Ctrl+C para salir).")
     try:
         mark_floor(client, scfg)
@@ -515,7 +623,8 @@ def play(cfg: PlayConfig, client: TTSClient, first: str, seed: int, stop: thread
         announce(session.resume() if resume else session.start())
         run_loop(session, client, stop, announce, poll,
                  recover=lambda: recover_after_reload(session, client, targets, cfg.panel_position,
-                                              cfg.panel_rotation, cfg.panel_scale, cfg.nicknames))
+                                              cfg.panel_rotation, cfg.panel_scale, cfg.nicknames,
+                                              attackers=cfg.attacker_ids))
     finally:
         try:
             client.call_lua(lua.clear_markings(remove_panel=True))
@@ -541,6 +650,9 @@ def parse_args(argv: list[str] | None) -> argparse.Namespace:
     ap.add_argument("--bot-pause", type=float, default=None, metavar="SEGUNDOS",
                     help="pausa entre las acciones del turno del bot y antes de tu turno (manda sobre bot_pause de "
                          f"la configuracion; por defecto {DEFAULT_BOT_PAUSE:g}; 0 la desactiva)")
+    ap.add_argument("--unpack", action="store_true",
+                    help="antes de jugar, saca de la bolsa interior de cada heroe lo que falte en la mesa (tambien "
+                         '"unpack": true en la configuracion); nunca al reanudar con --resume')
     ap.add_argument("--timing", action="store_true",
                     help="escribe, por boton y por accion del bot, los mensajes a TTS y el tiempo (y cada llamada)")
     return ap.parse_args(argv)
@@ -555,6 +667,8 @@ def main(argv: list[str] | None = None, stop: threading.Event | None = None) -> 
     except ConfigError as e:
         print(f"Configuracion: {e}", file=sys.stderr)
         return 2
+    for warning in cfg.warnings:
+        print(f"Aviso: {warning}", file=sys.stderr)
     client = TTSClient(send_port=args.send_port, listen_port=args.listen_port)
     stop = stop or threading.Event()
     try:
@@ -568,7 +682,8 @@ def main(argv: list[str] | None = None, stop: threading.Event | None = None) -> 
             print(f"Aviso: {state} se sobrescribira con la partida nueva (usa --resume para reanudarla).")
         state.parent.mkdir(parents=True, exist_ok=True)
         play(cfg, client, args.first, seed, stop, poll=args.poll, state_path=state, resume=args.resume,
-             timing=args.timing, ai=args.ai, ai_time=args.ai_time, bot_pause=args.bot_pause)
+             timing=args.timing, ai=args.ai, ai_time=args.ai_time, bot_pause=args.bot_pause,
+             unpack=args.unpack)
         return 0
     except (SessionError, persist.StateError) as e:
         print(f"No puedo empezar: {e}", file=sys.stderr)

@@ -4,7 +4,7 @@ import random
 
 import pytest
 
-from sparring.search.adapter import EngineState, Knowledge
+from sparring.search.adapter import PLACEMENT_KEEP, PLACEMENT_STRIKE_KEEP, SIDEKICK_POLICIES, EngineState, Knowledge
 from sparring.state import ANUNG
 from conftest import give, place
 
@@ -170,17 +170,19 @@ def test_action_phase_moves_cover_attacks_schemes_and_maneuvers(game):
                      ("attack_card", "medusa", "Regroup")], "titulos unicos, las copias no se repiten"
 
 
-def test_maneuver_is_three_chained_decisions(game):
+def test_maneuver_is_two_chained_decisions(game):
     place(game, medusa=4, hellboy=27, lobster=28, harpy1=20, harpy2=21, harpy3=22)
     medusa_hand(game, "Regroup", "Dash")
     st = EngineState(game, observer=0)
     st.apply(("maneuver", "Regroup"))
-    hero_moves = st.legal_moves()
-    assert st.decision_pending() and all(m[0] == "hero_to" for m in hero_moves) and ("hero_to", 4) in hero_moves
-    assert len(hero_moves) > len(game.board.reachable(4, 3, set(), set())), "con boost 2 llega mas lejos"
-    st.apply(("hero_to", 4))
-    assert [m[0] for m in st.legal_moves()] == ["sidekicks"] * 3
-    st.apply(("sidekicks", "advance"))
+    placements = st.legal_moves()
+    assert st.decision_pending() and all(m[0] == "place" for m in placements) and ("place", 4, "stay") in placements
+    options = st._hero_options(st.game.fighters["medusa"])
+    assert len(options) > len(game.board.reachable(4, 3, set(), set())), "con boost 2 llega mas lejos"
+    # en el arbol entran solo las mejores colocaciones (poda por evaluacion estatica), todas alcanzables
+    assert {m[1] for m in placements} <= options and {m[2] for m in placements} <= set(SIDEKICK_POLICIES)
+    assert len(placements) <= PLACEMENT_KEEP + PLACEMENT_STRIKE_KEEP + 1
+    st.apply(("place", 4, "advance"))
     assert not st.decision_pending() and st.game.actions_left == 1
     assert st.game.fighters["medusa"].pos == 4
     assert "Regroup" in [c.title for c in st.game.players[0].discard]
@@ -199,8 +201,9 @@ def test_single_option_subphases_resolve_themselves(game):
     assert st.pending is not None and st.pending[2].title == "Second Shot" and st.player_to_move() == 1
     st2 = EngineState(game, observer=0)
     st2.apply(("maneuver", None))
-    assert st2.phase == "maneuver_hero"
-    st2.apply(("hero_to", 4))
+    assert st2.phase == "maneuver_place"
+    assert all(m[2] == "stay" for m in st2.legal_moves()), "sin ayudantes vivos, la unica politica es quedarse"
+    st2.apply(("place", 4, "stay"))
     assert not st2.decision_pending() and st2.game.actions_left == 1
 
 
@@ -229,8 +232,7 @@ def test_turn_ends_and_rival_start_of_turn_is_automatic(game):
     st.determinize(0, random.Random(0))
     for _ in range(2):
         st.apply(("maneuver", None))
-        st.apply(("hero_to", 4))
-        st.apply(("sidekicks", "stay"))
+        st.apply(("place", 4, "stay"))
     assert st.player_to_move() == 1 and st.game.actions_left == 2 and st.game.turn == 1
 
 
@@ -273,5 +275,8 @@ def test_rollout_move_is_legal(game):
         if st.is_terminal():
             break
         m = st.rollout_move(rng)
-        assert m in st.legal_moves(), m
+        if m[0] == "place":         # el rollout mueve al heroe por todo su alcance, sin la poda del arbol
+            assert m[1] in st._hero_options(st.game.hero(st.game.turn)) and m[2] in SIDEKICK_POLICIES, m
+        else:
+            assert m in st.legal_moves(), m
         st.apply(m)

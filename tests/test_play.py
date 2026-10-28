@@ -85,8 +85,7 @@ def test_filled_config_builds_a_valid_session_config(cfg_file):
 
 @pytest.mark.parametrize("over, match", [({"bot_seat": "Rojo"}, "no valida"), ({"bot_deck_guid": 'x"); --'}, "no valida"),
                                          ({"bot_deck_spot": [1]}, "no valida"), ({"board": "nope"}, "tablero"),
-                                         ({"board_guid": "zzz999"}, "board_guid"),
-                                         ({"nicknames": {"medusa": "Medusa"}}, "nicknames")])
+                                         ({"board_guid": "zzz999"}, "board_guid")])
 def test_bad_config_values_fail_before_anything_is_sent(cfg_file, over, match):
     with pytest.raises(ConfigError, match=match):
         load_config(cfg_file(**over)).session_config()

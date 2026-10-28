@@ -202,7 +202,7 @@ def test_reload_check_needs_one_guid_of_each_multi_state_piece(two_guid_rig):
 
 
 def test_real_config_lists_both_hellboy_states_and_builds():
-    raw = json.loads(REAL_CONFIG.read_text(encoding="utf-8"))
+    raw = play.load_config(REAL_CONFIG).raw          # las piezas de cada heroe salen de data/tts/<slug>.json
     assert raw["pieces"]["hellboy"] == ["f9789a", "e6f06e"]
     assert play.load_config(REAL_CONFIG).session_config().pieces["hellboy"] == ["f9789a", "e6f06e"]
 

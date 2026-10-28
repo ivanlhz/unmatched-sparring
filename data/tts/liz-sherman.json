@@ -1,0 +1,35 @@
+{
+ "slug": "liz-sherman",
+ "_notes": [
+  "Leido de saves/Unmatched Official Tournament Table October 2026 (Hellboy).json (solo lectura): bolsa infinita e61609 > bolsa 77449a. Todos los GUID salen de esa bolsa interior y se conservan al sacar sus objetos.",
+  "fighters: por id de luchador del HeroDef (piece = GUID de la miniatura o ficha; lista si cambia de GUID al cambiar de estado; dial = dial de vida; dial_max = MAX_VALUE de su script). Sin dial = pieza de 1 PV.",
+  "deck.card_ids = rango de CardID de las 30 cartas; character_card_id va dentro del mismo mazo fisico (31 cartas) pero fuera del rango. deck.identity = (FaceURL, BackURL) de la hoja: lo que identifica el mazo (el CardID no basta)."
+ ],
+ "bag": {
+  "guid": "e61609",
+  "inner": "77449a"
+ },
+ "deck": {
+  "guid": "b603cb",
+  "card_ids": [
+   19900,
+   19929
+  ],
+  "character_card_id": 19800,
+  "identity": [
+   {
+    "face": "https://steamusercontent-a.akamaihd.net/ugc/10919391027830700490/17E317F38AB35117F0795F4DD8851E59F465F445/",
+    "back": "https://steamusercontent-a.akamaihd.net/ugc/11334841496374287903/D8BCEB9CE5A90023AD097103A80613085ADB9D24/"
+   }
+  ]
+ },
+ "fighters": {
+  "liz": {
+   "piece": "874d20",
+   "dial": "9f9268",
+   "dial_max": 16
+  }
+ },
+ "tokens": {},
+ "counter_dials": {}
+}

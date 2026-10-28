@@ -569,6 +569,85 @@ return JSON.encode(out)
 """
 
 
+MAX_UNPACK = 40
+
+
+@_registered
+def unpack_from_bags(items: list[tuple[str, tuple[str, ...], str, tuple[float, float, float], tuple[int, int] | None]]) -> str:
+    """Saca de la bolsa INTERIOR de un heroe lo que no esta en la mesa. `items` = (clase, GUID de cada estado, GUID de la
+    bolsa interior, sitio (x, y, z), rango de CardID si es un mazo).
+
+    Un objeto cuenta como presente (y no se toca) si responde CUALQUIERA de sus GUID; un mazo, ademas, si hay un Deck o
+    una Card cuyas cartas caen en su rango a menos de 2 del sitio del mazo (TTS convierte el mazo en Card y le cambia el
+    GUID). Si falta, solo se saca de la bolsa con ese GUID de bolsa, que ha de existir, ser type Bag y contener el GUID:
+    nunca de otra bolsa de la mesa (los GUID se repiten entre bolsas del mod) ni de una infinita (clonaria). Lo que no se
+    puede sacar vuelve en `missing`. Devuelve `{present, taken, missing}`. No toca el Global ni la UI."""
+    if not isinstance(items, (list, tuple)) or not 1 <= len(items) <= MAX_UNPACK:
+        raise ValueError(f"entre 1 y {MAX_UNPACK} objetos esperados")
+    rows = []
+    for kind, guids, bag, pos, rng in items:
+        if kind not in ("deck", "piece", "dial", "token"):
+            raise ValueError(f"clase de objeto desconocida {kind!r}")
+        if not isinstance(pos, (tuple, list)) or len(pos) != 3:
+            raise TypeError("sitio (x, y, z) esperado")
+        if not isinstance(guids, (tuple, list)) or not guids:
+            raise TypeError("lista de GUID esperada")
+        lo, hi = _range(rng) if rng is not None else ("0", "0")
+        rows.append(f'{{{lua_str(kind)}, {_guid_list(guids)}, {_guid(bag)}, {_f(pos[0])}, {_f(pos[1])}, {_f(pos[2])}, '
+                    f'{lo}, {hi}, {"true" if rng is not None else "false"}}}')
+    return f"""-- sparring:unpack_from_bags
+local ITEMS = {{{", ".join(rows)}}}
+local function cardsOf(o)
+  if o.type == "Card" then return {{o.getData()}} end
+  return o.getData().ContainedObjects or {{}}
+end
+local function deckAt(x, z, lo, hi)
+  for _, o in ipairs(getObjects()) do
+    if o.type == "Deck" or o.type == "Card" then
+      local p = o.getPosition()
+      if (p.x - x) ^ 2 + (p.z - z) ^ 2 <= 4 then
+        local cards, ok = cardsOf(o), true
+        if #cards == 0 then ok = false end
+        for _, c in ipairs(cards) do
+          if type(c.CardID) ~= "number" or c.CardID < lo or c.CardID > hi then ok = false end
+        end
+        if ok then return true end
+      end
+    end
+  end
+  return false
+end
+local out = {{present = {{}}, taken = {{}}, missing = {{}}}}
+for _, it in ipairs(ITEMS) do
+  local kind, guids = it[1], it[2]
+  local here = false
+  for _, g in ipairs(guids) do
+    if getObjectFromGUID(g) ~= nil then here = true end
+  end
+  if not here and it[9] then here = deckAt(it[4], it[6], it[7], it[8]) end
+  if here then
+    table.insert(out.present, guids[1])
+  else
+    local bag = getObjectFromGUID(it[3])
+    local listed = false
+    if bag ~= nil and bag.type == "Bag" then
+      for _, e in ipairs(bag.getObjects()) do
+        if e.guid == guids[1] then listed = true end
+      end
+    end
+    if not listed then
+      table.insert(out.missing, guids[1])
+    else
+      bag.takeObject({{guid = guids[1], position = Vector(it[4], it[5], it[6]), smooth = false,
+                       callback_function = function(o) if kind == "deck" then o.shuffle() end end}})
+      table.insert(out.taken, guids[1])
+    end
+  end
+end
+return JSON.encode(out)
+"""
+
+
 @_registered
 def place_piece(guid: str, x: float, y: float, z: float) -> str:
     """Lleva la pieza con ese GUID a unas coordenadas del mundo (p. ej. fuera del tablero, a la zona de bajas);
@@ -982,15 +1061,16 @@ return JSON.encode({{removed = removed}})
 @_registered
 def create_panel(target_ids: list[str], position: tuple[float, float, float] = PANEL_POSITION,
                  rotation=ui.PANEL_ROTATION, scale=ui.PANEL_SCALE, names: dict[str, str] | None = None,
-                 snapshot: "SnapSpec | None" = None) -> str:
+                 snapshot: "SnapSpec | None" = None,
+                 attacker_ids: tuple[str, ...] = ui.DEFAULT_ATTACKERS) -> str:
     """Crea (o reutiliza) un objeto propio y le pone el panel de botones con obj.UI.setXml (nunca el Global).
 
     Solo se reutiliza un panel con nuestro nombre Y nuestras notas de GM; la posicion por defecto queda encima de
     los tapetes (que estan a y 1.0 y los objetos reposan a ~1.57)."""
     x, y, z = (_f(v) for v in position)
-    xml = ui.panel_xml(target_ids, rotation=rotation, scale=scale, names=names)
+    xml = ui.panel_xml(target_ids, attacker_ids, rotation=rotation, scale=scale, names=names)
     handler_script = ui.handler_script(snapshot_lua(snapshot, "wseq") if snapshot is not None else None,
-                                       ui.element_ids(target_ids))
+                                       ui.element_ids(target_ids, attacker_ids))
     return f"""-- sparring:create_panel
 local panel
 for _, o in ipairs(getObjects()) do

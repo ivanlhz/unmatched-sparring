@@ -660,6 +660,7 @@ def test_read_only_allowlist_is_exactly_the_pure_read_builders(bprd):
         "set_health_dials": lambda: lua.set_health_dials({"abc": 3}),
         "name_pieces": lambda: lua.name_pieces({"abc": "Harpy 1"}),
         "place_piece": lambda: lua.place_piece("abc", 1.0, 2.0, 3.0),
+        "unpack_from_bags": lambda: lua.unpack_from_bags([("piece", ("abc",), "def", (0.0, 0.0, 0.0), None)]),
         "return_hand_to_deck": lambda: t_return_hand_to_deck("Blue", "abc"),
         "shuffle_deck": lambda: t_shuffle_deck("abc", (0.0, 3.0)),
         "snapshot": lambda: lua.snapshot(_spec(bprd)),

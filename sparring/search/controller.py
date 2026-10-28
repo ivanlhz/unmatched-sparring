@@ -19,7 +19,7 @@ from ..ai_medusa import Act, MedusaAI
 from ..cards import Card
 from ..controller import Controller
 from ..state import Fighter, Game
-from .adapter import EngineState, Knowledge, by_title, plan_frenzy, sidekick_plan
+from .adapter import EngineState, EvalWeights, Knowledge, by_title, plan_frenzy, sidekick_plan
 from .ismcts import ISMCTS, SearchConfig, SearchReport
 
 DEFAULT_TIME_BUDGET = 1.5
@@ -27,9 +27,10 @@ log = logging.getLogger(__name__)
 
 
 class IsmctsMedusa(Controller):
-    def __init__(self, me: int = 0, config: SearchConfig | None = None):
+    def __init__(self, me: int = 0, config: SearchConfig | None = None, weights: EvalWeights | None = None):
         self.me = me
         self.config = config or SearchConfig(time_budget=DEFAULT_TIME_BUDGET)
+        self.weights = weights or EvalWeights()
         self.heuristic = MedusaAI(me)
         self.last_report: SearchReport | None = None
         self.fallbacks = 0                                       # decisiones que cayeron a la heuristica por un fallo
@@ -109,7 +110,7 @@ class IsmctsMedusa(Controller):
         return Knowledge({rival: tuple(game.players[self.me].known.cards(game.players[rival]))})
 
     def _plan(self, game: Game) -> Act:
-        root = EngineState(game, observer=self.me, knowledge=self.knowledge(game))
+        root = EngineState(game, observer=self.me, knowledge=self.knowledge(game), weights=self.weights)
         return self.to_act(game, self._decide(root))
 
     def choose_defense(self, game: Game, attacker: Fighter, target: Fighter) -> Card | None:
@@ -123,7 +124,7 @@ class IsmctsMedusa(Controller):
 
     def _choose_defense(self, game: Game, attacker: Fighter, target: Fighter) -> Card | None:
         root = EngineState(game, observer=self.me, knowledge=self.knowledge(game),
-                           pending=(attacker.fid, target.fid, None))
+                           pending=(attacker.fid, target.fid, None), weights=self.weights)
         move = self._decide(root)[0]
         return by_title(game.players[self.me].hand, move[1]) if move[1] is not None else None
 
@@ -142,8 +143,7 @@ class IsmctsMedusa(Controller):
             return Act("attack", fid=first[1], target=first[2], card=by_title(hand, card))
         if kind == "maneuver":
             boost = by_title(hand, first[1]) if first[1] is not None else None
-            dest = sub["hero_to"][1] if "hero_to" in sub else hero.pos
-            policy = sub["sidekicks"][1] if "sidekicks" in sub else "stay"
+            _, dest, policy = sub.get("place", ("place", hero.pos, "stay"))
             plan = sidekick_plan(game, self.me, boost.boost if boost else 0, policy, hero_dest=dest)
             return Act("maneuver", fid=hero.fid, moves=dict(((hero.fid, dest),) + plan), boost=boost)
         if kind == "scheme" and first[2] is not None:
@@ -166,7 +166,8 @@ class IsmctsMedusa(Controller):
 
 def make_bot_ai(cfg: dict, bot: int = 0):
     """Flag de configuracion, apagado por defecto: `"ai": "ismcts"` activa la busqueda; `ai_time_budget` (s),
-    `ai_iterations` (tope por decision, para pruebas) y `ai_seed` la ajustan."""
+    `ai_iterations` (tope por decision, para pruebas) y `ai_seed` la ajustan; `ai_eval` (objeto con campos de
+    `EvalWeights`) cambia los pesos de la evaluacion."""
     kind = cfg.get("ai", "heuristic")
     if kind == "heuristic":
         return MedusaAI(bot)
@@ -174,5 +175,6 @@ def make_bot_ai(cfg: dict, bot: int = 0):
         iters = cfg.get("ai_iterations")
         return IsmctsMedusa(bot, SearchConfig(time_budget=float(cfg.get("ai_time_budget", DEFAULT_TIME_BUDGET)),
                                               iterations=None if iters is None else int(iters),
-                                              seed=int(cfg.get("ai_seed", 0))))
+                                              seed=int(cfg.get("ai_seed", 0))),
+                            EvalWeights(**cfg.get("ai_eval", {})))
     raise ValueError(f"ai desconocida en la configuracion: {kind!r} (heuristic | ismcts)")

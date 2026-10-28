@@ -5,6 +5,7 @@ import re
 
 from sparring.board import DATA_DIR
 from sparring.heroes import HEROES_DIR, load_hero
+from sparring.play import load_config
 from tools.validate_effects import validate_file
 
 OVERLAY = HEROES_DIR / "overlay" / "hellboy.json"
@@ -119,9 +120,9 @@ def test_hidden_info_covers_confront_and_table_objects_match_the_config():
     assert any(h["card"] == "Confront Any Demon or God" and "look_hand" in h["what"] for h in ef["hidden_info"])
     table = ef["table"]
     minis = {v["guid"] for v in table["hero_miniatures"].values() if isinstance(v, dict)}
-    cfg = json.loads(CONFIG.read_text(encoding="utf-8"))
-    assert minis == set(cfg["pieces"]["hellboy"]) == {"f9789a", "e6f06e"}
-    assert table["sidekick_miniature"]["guid"] == cfg["pieces"]["lobster"]
+    pieces = load_config(CONFIG).raw["pieces"]      # las piezas salen de data/tts/<slug>.json
+    assert minis == set(pieces["hellboy"]) == {"f9789a", "e6f06e"}
+    assert table["sidekick_miniature"]["guid"] == pieces["lobster"]
     assert re.fullmatch(r"[0-9a-f]{6}", table["ability_token"]["guid"])
     assert set(table["ability_token"]["faces"]) == {"1644a3", "30d50e"}
     assert ef["open_questions"] and all(isinstance(q, str) and q for q in ef["open_questions"])
