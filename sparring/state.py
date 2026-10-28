@@ -6,6 +6,7 @@ from dataclasses import dataclass, field, replace
 from .board import Board
 from .cards import Card, can_be_boost
 from .controller import Controller
+from .effects import ongoing
 from .effects.state import EffectState
 from .heroes import HeroDef, load_hero
 
@@ -117,12 +118,11 @@ class Game:
         self.winner: int | None = None
         self.bot_player: int | None = None     # quien lleva el bot: sus efectos aun no codificados no los resuelve el humano
         self.effect_shield: dict[int, int] = {}
-        # ONGOING de planes (Fight Or Flight): (bono, etiqueta) vivos de cada jugador, a TODAS sus cartas de combate
-        self.combat_bonus: list[list[tuple[int, str]]] = [[], []]
         self.drawn = [0, 0]
         self.phantom_draws = 0   # robos esperados por la IA al simular (cartas desconocidas), nunca en partida real
         self.log: list[str] = []
         self.fx = EffectState()    # DSL interpreter state and hooks (docs/effects-dsl.md); inert unless fx.dsl_heroes
+        self.fx.attach(self)
 
     @classmethod
     def new(cls, board: Board, seed: int, controllers: dict[int, Controller] | None = None,
@@ -169,11 +169,11 @@ class Game:
         g.turn, g.turn_no, g.actions_left, g.winner = self.turn, self.turn_no, self.actions_left, self.winner
         g.bot_player = self.bot_player
         g.effect_shield = dict(self.effect_shield)
-        g.combat_bonus = [list(b) for b in self.combat_bonus]
         g.drawn = [0, 0]
         g.phantom_draws = self.phantom_draws
         g.log = []
         g.fx = self.fx.copy()
+        g.fx.attach(g)
         return g
 
     # consultas
@@ -228,19 +228,26 @@ class Game:
         return (self.players[fighter.owner].hero.attack_bonuses(self.form(fighter.owner), fighter.hero)
                 + self.combat_bonus_parts(fighter.owner))
 
+    @property
+    def combat_bonus(self) -> list[list[tuple[int, str]]]:
+        """(bonus, label) of each player's live ONGOING, to ALL their combat cards: a view over `fx.ongoing`."""
+        return [self.combat_bonus_parts(0), self.combat_bonus_parts(1)]
+
+    @combat_bonus.setter
+    def combat_bonus(self, sides) -> None:
+        ongoing.set_legacy_all(self, sides)
+
     def add_combat_bonus(self, player: int, n: int, label: str) -> str | None:
         """A scheme with ONGOING "add n to the value of your combat cards" enters play. Ivan's ruling (28/10): only one
         active ONGOING per player, the new one replaces the old. Returns the label of the replaced one (or None)."""
-        old = self.combat_bonus[player][-1][1] if self.combat_bonus[player] else None
-        self.combat_bonus[player] = [(n, label)]
-        return old
+        return ongoing.set_legacy(self, player, n, label)
 
     def combat_bonus_parts(self, player: int) -> list[tuple[int, str]]:
         """(bonus, label) of `player`'s live ONGOING (at most one)."""
-        return list(self.combat_bonus[player])
+        return ongoing.bonus_parts(self, player)
 
     def combat_bonus_total(self, player: int) -> int:
-        return sum(n for n, _ in self.combat_bonus[player])
+        return sum(n for n, _ in self.combat_bonus_parts(player))
 
     def attack_bonus(self, fighter: Fighter) -> int:
         """Bono del PROXIMO ataque de `fighter` (lo usa la IA para medir amenazas). El ONGOING de un plan caduca al
@@ -286,7 +293,7 @@ class Game:
             raise RuleError(f"{fighter.fid}: movimiento ilegal a {dest} (max {steps})")
         fighter.pos = dest
 
-    def damage(self, fighter: Fighter, n: float, source: str = "effect") -> float:
+    def damage(self, fighter: Fighter, n: float, source: str = "effect", by: Fighter | None = None) -> float:
         if not fighter.alive or n <= 0:
             return 0
         if source == "effect" and self.effect_shield.get(fighter.owner) == self.turn_no:
@@ -297,6 +304,7 @@ class Game:
             return 0
         fighter.hp -= n
         self.log.append(f"{fighter.fid} -{n} ({fighter.hp:g} pv)")
+        self.fx.on_damage(fighter, n, source, by)
         if fighter.hp <= 0:
             fighter.died_at = fighter.pos if fighter.pos is not None else fighter.died_at
             fighter.alive, fighter.pos = False, None
@@ -331,10 +339,12 @@ class Game:
         self.players[player].hand.remove(card)
         self.card_left_hand(player, card)
 
-    def discard_card(self, player: int, card: Card) -> None:
+    def discard_card(self, player: int, card: Card, played: bool = False) -> None:
+        """`played`: the card is being used (a scheme), not discarded by an effect: no `card_discarded` event."""
         self.take_from_hand(player, card)
         self.players[player].discard.append(card)
-        self.fx.emit("card_discarded", player, card)
+        if not played:
+            self.fx.emit("card_discarded", player, card, "hand")
 
     def force_discard(self, player: int, n: int, reason: str) -> list[Card]:
         hand = self.players[player].hand
@@ -358,7 +368,8 @@ class Game:
     def begin_turn(self) -> list[tuple[int, str]]:
         """Empieza el turno de `self.turn`: 2 acciones y caducan sus planes ONGOING. Devuelve lo que caduco."""
         self.actions_left = 2
-        expired, self.combat_bonus[self.turn] = self.combat_bonus_parts(self.turn), []
+        expired = ongoing.expiring_parts(self, self.turn)
+        ongoing.expire_legacy(self, self.turn)
         self.fx.emit("start_of_turn", self.turn)
         return expired
 
@@ -366,12 +377,14 @@ class Game:
         if self.actions_left <= 0:
             raise RuleError("sin acciones")
         self.actions_left -= 1
+        self.fx.count_action()
 
     def end_turn(self) -> None:
         self.fx.emit("end_of_turn", self.turn)
         hand = self.players[self.turn].hand
-        if len(hand) > HAND_LIMIT:
-            self.force_discard(self.turn, len(hand) - HAND_LIMIT, "limite de mano")
+        limit = self.fx.hand_limit(self.turn, HAND_LIMIT)
+        if len(hand) > limit:
+            self.force_discard(self.turn, len(hand) - limit, "limite de mano")
         self.turn = 1 - self.turn
         self.turn_no += 1
 
@@ -402,7 +415,7 @@ class Game:
             raise RuleError(f"{card.title} no se puede jugar con {fighter.fid}")
         check_scheme(self, fighter, card, **opts)
         self.use_action()
-        self.discard_card(player, card)
+        self.discard_card(player, card, played=True)
         resolve_scheme(self, player, fighter, card, **opts)
 
     @staticmethod

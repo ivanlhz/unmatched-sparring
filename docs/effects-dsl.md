@@ -484,4 +484,34 @@ Decisiones dudosas de la migracion (ver tambien `notes` de cada fichero):
   away; `gain_action` for a player whose turn it is not does nothing; `end_turn` ends the CURRENT turn whoever owns the
   card (zeroes `game.turn`'s actions, sets `run.flags["end_turn"] = game.turn`); `choose_effect` resolves the chosen
   options in printed order, not choice order; `defeated` = died on the board (`died_at` set), reserve fighters
-  are not defeated; `actions_taken_this_turn` is a stub (`NotImplementedError`, C3); `moved_this_turn` reads `fx.turn_start_pos` (filled by C3).
+  are not defeated; `moved_this_turn` reads `fx.turn_start_pos`.
+
+## 12. Events, triggers and the ONGOING slot (C3, `effects/events.py`, `effects/ongoing.py`)
+
+- Only for heroes in `fx.dsl_heroes`. `EffectState.emit(name, *args)` and `EffectState.on_damage(...)` call
+  `events.dispatch`: bookkeeping (`fx.attacked`, `fx.turn_start_pos`, `fx.taken` = actions spent, all reset at
+  `start_of_turn`), then `until` expiry of the ongoing cards in play, then triggers (the player whose turn it is
+  first; ability triggers before the ongoing card's). Expiry first means Fight Or Flight lapses before the
+  Wildfire discard of the same start of turn.
+- Trigger decisions go to `fx.choosers` (default: the bots' controllers); a run a chooser pauses is parked in
+  `fx.parked` (not persisted until E1).
+- Damage events come from `Game.damage(fighter, n, source, by=None)`: `damage_taken` always, and for
+  `source == "combat"` also `combat_damage_dealt` by `by` (default: the last fighter in `fx.attacked`). The events are
+  raised right after the hp drop, before the fighter is marked defeated. "Baba takes 2+ combat damage" is one
+  `Game.damage` call, i.e. one combat; damage redirected to Koschei hits Koschei, not her.
+- `card_discarded` carries the zone (`hand`, `deck`). `Game.discard_card(..., played=True)` (a scheme being played)
+  raises no event: playing a card is not discarding it (so Wildfire does not bounce Searing Clarity back).
+- Triggers `detective_draw`, `anung_discard_move`, `medusa_gaze` are skipped by the dispatcher (the session and
+  controllers still pick cards and moves through `Game.hellboy_*` / `medusa_ability`); `events.run_trigger` runs them
+  on request and `tests/test_effects_events.py` pins that both paths give the same state.
+- ONGOING slot: `fx.ongoing[player]` = `{"card_id"}` (DSL card) or `{"card_id": None, "bonus", "label"}` (the bonus
+  `Game.add_combat_bonus` has always stored; saved in the old `combat_bonus` key). `Game.combat_bonus*` are views
+  over it. `ongoing.resolve_scheme` plays a DSL scheme: the player's active ONGOING is replaced BEFORE the new
+  card's ops run (so the new rules are not yet in force), the card leaves hand/discard while it resolves, then stays in
+  play (ONGOING) or goes to the discard pile. Rules and statuses of a card in play are read from the card
+  (`ongoing.active_modifiers`, `rules`, `rule_total`), never copied.
+- Wired rules: `max_hand_size` (`Game.end_turn` via `fx.hand_limit`), `no_gain_actions` and the `cannot_gain_actions`
+  status (`fx.can_gain_actions`). `effect_damage_bonus` and `no_attack_as_first_action` are exposed by
+  `ongoing.rule_total` / `ongoing.rules` for the damage and attack code (C2 / the AI).
+- `put_in_hand` (discard or deck to hand) is implemented minimally in `ops_core` for Wildfire's return; a card taken
+  from the discard pile is public, so the rival's `KnownHand` gets it.

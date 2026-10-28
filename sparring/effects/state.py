@@ -5,20 +5,32 @@ are no-ops; later phases fill them in without touching state.py again. They run 
 so they must stay cheap."""
 from __future__ import annotations
 
+import weakref
+
 
 class EffectState:
-    __slots__ = ("statuses", "ongoing", "counters", "modifiers", "dsl_heroes", "turn_start_pos", "attacked")
+    __slots__ = ("statuses", "ongoing", "counters", "modifiers", "dsl_heroes", "turn_start_pos", "attacked", "taken",
+                 "parked", "choosers", "_game_ref")
 
     def __init__(self) -> None:
         self.statuses: list[dict] = []                   # active status effects (name, target, until, amount)
         self.ongoing: list[dict | None] = [None, None]   # the ONE permanent scheme in play per player: {"card_id": int}
+        #   (a pre-DSL scheme such as Fight Or Flight is {"card_id": None, "bonus": n, "label": str}; see ongoing.py)
         self.counters: list[dict[str, int]] = [{}, {}]   # ability counters per player (intuition tokens, rage...)
         self.modifiers: list[dict] = []                  # active rule modifiers (max hand size, damage bonus...)
         self.dsl_heroes: set[str] = set()                # hero slugs whose cards the interpreter resolves
         self.turn_start_pos: dict[str, int] = {}         # fid -> space at the start of the turn (moved_this_turn)
-        self.attacked: list[str] = []                    # fids that attacked this turn
+        self.attacked: list[str] = []                    # fids that attacked this turn (one entry per attack; last = current)
+        self.taken = 0                                   # actions the current player has spent this turn
+        self.parked: list = []                           # EffectRuns of triggers a chooser paused (not persisted yet, E1)
+        self.choosers = None                             # who answers trigger decisions; None = the bots' controllers
+        self._game_ref = None
 
-    # hooks (no-ops until C2-C4)
+    def attach(self, game) -> None:
+        """Tells the hooks which Game they belong to. Game calls it for every EffectState it takes (new, clone, load)."""
+        self._game_ref = weakref.ref(game)
+
+    # hooks
     def adjust_damage(self, fighter, n, source):
         return n
 
@@ -26,19 +38,52 @@ class EffectState:
         return True
 
     def can_gain_actions(self, player: int) -> bool:
-        return True
+        if not self.dsl_heroes:
+            return True
+        from . import ongoing
+        return ongoing.can_gain_actions(self.game(), player)
+
+    def hand_limit(self, player: int, default: int) -> int:
+        """Largest hand `player` may keep at the end of the turn (Pact Of Secrecy lowers it to 3)."""
+        if not self.dsl_heroes:
+            return default
+        from . import ongoing
+        return ongoing.hand_limit(self.game(), player, default)
+
+    def count_action(self) -> None:
+        if self.dsl_heroes:
+            self.taken += 1
+
+    def on_damage(self, fighter, n, source: str, by) -> None:
+        """`fighter` has just lost `n` hp (alive or not yet resolved) from `source` ("effect", "combat",
+        "exhaustion", "set_hp"); `by` is the fighter that dealt it, when known."""
+        if self.dsl_heroes:
+            from . import events
+            events.damage_dealt(self.game(), fighter, n, source, by)
 
     def can_force_discard(self, player: int, source_player: int) -> bool:
         """False vetoes a discard that `source_player` forces on `player` (Counterhex Shield)."""
         return True
 
     def emit(self, name: str, *args) -> None:
-        pass
+        if self.dsl_heroes:
+            from . import events
+            events.dispatch(self.game(), name, args)
+
+    def game(self):
+        game = None if self._game_ref is None else self._game_ref()
+        if game is None:
+            raise RuntimeError("EffectState is not attached to a Game (Game.fx must be set through Game.attach_fx)")
+        return game
 
     # ongoing slot
     def ongoing_card_id(self, player: int) -> int | None:
         slot = self.ongoing[player]
         return None if slot is None else slot["card_id"]
+
+    def card_slots(self) -> list[dict | None]:
+        """The ongoing slots that hold a real card; the pre-DSL bonus slots are saved apart (`combat_bonus`)."""
+        return [s if s is not None and s["card_id"] is not None else None for s in self.ongoing]
 
     def set_ongoing(self, player: int, card_id: int) -> int | None:
         """Puts a scheme in play. Ivan's ruling (28/10): one per player, the new one replaces the old.
@@ -62,7 +107,7 @@ class EffectState:
     # clone / persist
     def is_empty(self) -> bool:
         return not (self.statuses or any(self.ongoing) or any(self.counters) or self.modifiers or self.dsl_heroes
-                    or self.turn_start_pos or self.attacked)
+                    or self.turn_start_pos or self.attacked or self.taken)
 
     def copy(self) -> "EffectState":
         c = EffectState()
@@ -75,6 +120,8 @@ class EffectState:
         c.dsl_heroes = set(self.dsl_heroes)
         c.turn_start_pos = dict(self.turn_start_pos)
         c.attacked = list(self.attacked)
+        c.taken = self.taken
+        c.choosers = self.choosers
         return c
 
     def to_dict(self) -> dict:
@@ -82,8 +129,9 @@ class EffectState:
         out: dict = {}
         if self.statuses:
             out["statuses"] = [dict(s) for s in self.statuses]
-        if any(self.ongoing):
-            out["ongoing"] = [None if s is None else dict(s) for s in self.ongoing]
+        slots = self.card_slots()
+        if any(slots):
+            out["ongoing"] = [None if s is None else dict(s) for s in slots]
         if any(self.counters):
             out["counters"] = [dict(x) for x in self.counters]
         if self.modifiers:
@@ -94,6 +142,8 @@ class EffectState:
             out["turn_start_pos"] = dict(self.turn_start_pos)
         if self.attacked:
             out["attacked"] = list(self.attacked)
+        if self.taken:
+            out["taken"] = self.taken
         return out
 
     @classmethod
@@ -107,4 +157,5 @@ class EffectState:
         fx.dsl_heroes = set(raw.get("dsl_heroes", []))
         fx.turn_start_pos = {str(k): int(v) for k, v in raw.get("turn_start_pos", {}).items()}
         fx.attacked = list(raw.get("attacked", []))
+        fx.taken = int(raw.get("taken", 0))
         return fx
