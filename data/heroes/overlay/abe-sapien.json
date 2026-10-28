@@ -1,15 +1,78 @@
 {
  "_notes": [
-  "Solo datos basicos (F07 paso 1): sin hoja de CardID ni restricciones de luchador, el motor no puede jugar con Abe todavia (F08).",
-  "Agentes: unmatched-memory trae tres (Carla, Kate, Victor) con las mismas cifras; aqui un solo ayudante con count 3. Pregunta 1 del plan: cuantos empiezan en el tablero y cuantos en reserva.",
-  "UNCANNY INTUITION (fichas de intuicion) ira a un plugin (plan: abe:uncanny_intuition)."
+  "Hoja 194 del savegame del torneo (8x4), leida carta a carta de la imagen el 2026-10-28. CardID = 19400 + idx; 19500 = carta de personaje.",
+  "Restricciones de luchador de la hoja de TTS: ABE SAPIEN en 11 cartas, B.P.R.D. AGENT solo en Secure The Scene (3), ANY en las 16 restantes.",
+  "Agentes: la carta de heroe dice 'B.P.R.D. AGENTS', vida 1 (tres puntos) x3, misma notacion que las Harpias de Medusa; el save trae tres fichas (Victor, Carla, Kate) sin reserva. Se asume que las 3 empiezan en el tablero (start_on_board 3, reserve 0) y que 'Summon a B.P.R.D. Agent' devuelve un agente caido (revive). Pendiente de que Ivan lo confirme con el reglamento: docs/heroes/abe-sapien.md.",
+  "Fichas de intuicion: 2 (Custom_Token_Stack 'Intuition Token', Number 2, cara oscura = inactiva, cara verde con rayas amarillas = activa). No son un contador de pila, asi que no van en `counters`; su especificacion esta en data/heroes/effects/abe-sapien.json.",
+  "Disparadores de UNCANNY INTUITION como datos: `intuition_activate` (Abe hace dano de combate a un luchador adyacente -> activa una ficha) e `intuition_spend` (atacan a Abe con ficha activa -> la desactiva, roba 1 y el ataque se juega boca arriba). Ningun codigo del motor los ejecuta todavia.",
+  "Discrepancia con unmatched-memory: Counterhex Shield lleva en la carta real un texto ONGOING ('Other players' effects can't damage your fighters, move your fighters, or force you to discard cards. Discard this at the start of your next turn.') que la fuente no tiene. Manda la carta real: las dos entradas de la hoja llevan `text` y el importador lo prefiere al de unmatched-memory."
  ],
  "fid": "abe",
  "sidekicks": [
-  {"fid": "agent", "name": "B.P.R.D. Agent", "count": 3, "hp": 1, "move": 2, "attack": "range"}
+  {"fid": "agent", "name": "B.P.R.D. Agent", "count": 3, "hp": 1, "move": 2, "attack": "range",
+   "start_on_board": 3, "reserve": 0, "tts_tokens": ["Victor", "Carla", "Kate"]}
  ],
  "forms": null,
  "counters": {},
- "triggers": [],
- "passives": []
+ "triggers": [
+  {
+   "id": "intuition_activate",
+   "when": "combat_damage_dealt",
+   "fighter": "hero",
+   "condition": "target_adjacent",
+   "optional": false,
+   "effect": "token_activate",
+   "token": "intuition",
+   "n": 1
+  },
+  {
+   "id": "intuition_spend",
+   "when": "attacked",
+   "fighter": "hero",
+   "condition": "token_active",
+   "token": "intuition",
+   "optional": false,
+   "effect": "token_spend_draw_reveal_attack",
+   "n": 1
+  }
+ ],
+ "passives": [],
+ "deck": {
+  "card_base": 19400,
+  "sheet_id": 194,
+  "sheet": [
+   {"idx": 0, "title": "Faster. Stronger.", "fighter": "Abe Sapien"},
+   {"idx": 1, "title": "Faster. Stronger.", "fighter": "Abe Sapien"},
+   {"idx": 2, "title": "Advanced Psychometry", "fighter": "Abe Sapien"},
+   {"idx": 3, "title": "Advanced Psychometry", "fighter": "Abe Sapien"},
+   {"idx": 4, "title": "Advanced Psychometry", "fighter": "Abe Sapien"},
+   {"idx": 5, "title": "Perfect Shot", "fighter": "Abe Sapien"},
+   {"idx": 6, "title": "Perfect Shot", "fighter": "Abe Sapien"},
+   {"idx": 7, "title": "Secure The Scene", "fighter": "B.P.R.D. Agent"},
+   {"idx": 8, "title": "Secure The Scene", "fighter": "B.P.R.D. Agent"},
+   {"idx": 9, "title": "Secure The Scene", "fighter": "B.P.R.D. Agent"},
+   {"idx": 10, "title": "Leap Away", "fighter": "any"},
+   {"idx": 11, "title": "Leap Away", "fighter": "any"},
+   {"idx": 12, "title": "Concussion Device", "fighter": "any"},
+   {"idx": 13, "title": "Concussion Device", "fighter": "any"},
+   {"idx": 14, "title": "Arcane Dampener", "fighter": "any"},
+   {"idx": 15, "title": "Arcane Dampener", "fighter": "any"},
+   {"idx": 16, "title": "B.P.R.D. Training", "fighter": "any"},
+   {"idx": 17, "title": "B.P.R.D. Training", "fighter": "any"},
+   {"idx": 18, "title": "Shock And Awe", "fighter": "any"},
+   {"idx": 19, "title": "Shock And Awe", "fighter": "any"},
+   {"idx": 20, "title": "Cold Iron And Holy Water", "fighter": "any"},
+   {"idx": 21, "title": "Cold Iron And Holy Water", "fighter": "any"},
+   {"idx": 22, "title": "Ward And Prepare", "fighter": "any"},
+   {"idx": 23, "title": "Ward And Prepare", "fighter": "any"},
+   {"idx": 24, "title": "Every Possible Angle", "fighter": "Abe Sapien"},
+   {"idx": 25, "title": "Every Possible Angle", "fighter": "Abe Sapien"},
+   {"idx": 26, "title": "Counterhex Shield", "fighter": "Abe Sapien",
+    "text": "Draw 1 card. Gain 1 action. Ongoing: Other players' effects can't damage your fighters, move your fighters, or force you to discard cards. Discard this at the start of your next turn."},
+   {"idx": 27, "title": "Counterhex Shield", "fighter": "Abe Sapien",
+    "text": "Draw 1 card. Gain 1 action. Ongoing: Other players' effects can't damage your fighters, move your fighters, or force you to discard cards. Discard this at the start of your next turn."},
+   {"idx": 28, "title": "B.P.R.D. Utility Belt", "fighter": "Abe Sapien"},
+   {"idx": 29, "title": "B.P.R.D. Utility Belt", "fighter": "Abe Sapien"}
+  ]
+ }
 }
