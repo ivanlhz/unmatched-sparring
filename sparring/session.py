@@ -252,7 +252,7 @@ class Session:
         self._deck_qty = -1                                 # cartas del mazo de robo del humano en la ultima lectura
         self._deal_check: tuple[int, int] | None = None     # (mano, descarte) del humano al repartirle la carta de Maniobra
         self._epoch = 0                                     # numero de boton atendido (para confirmar bajas del descarte)
-        self._wild_credit: tuple[int, int] = (-1, 0)        # Wildfire: (turno, cartas de mas en tu mano sin explicar)
+        self._wild_credit: tuple[int, int, int] = (-1, -1, 0)  # Wildfire: (turno, boton, cartas de mas en tu mano sin explicar)
         self._gone: dict[int, int] = {}                     # CardID que falta en el descarte de la mesa -> boton en que se vio
         self._depth = 0                                     # >0 mientras se atiende un boton, el inicio o una reanudacion
         self._restart_at: float | None = None               # instante del primer toque de Reiniciar partida
@@ -3224,8 +3224,13 @@ class Session:
         # Wildfire: solo vuelve a la mano una ardiente que sale del descarte si tu mano de la mesa crecio sin
         # explicacion (la recogiste) y no la explica el mazo (Rekindle, Searing Clarity: la barajan en el mazo)
         wildfire, back = self._human_wildfire(), []
-        turn, credit = self._wild_credit
-        credit = (credit if turn == self.game.turn_no else 0) + max(0, real - len(st.hand))
+        # El credito caduca en el boton siguiente al que lo genero y solo lo gasta una ardiente que empezo a faltar
+        # en esa misma lectura o despues: la ardiente del fondo del mazo que vuelve a tu mano al empezar el turno no
+        # puede mandar a la mano otra que Rekindle baraja en el mazo mas tarde.
+        turn, at, credit = self._wild_credit
+        credit = credit if turn == self.game.turn_no and self._epoch - at <= 1 else 0
+        if real > len(st.hand):
+            at, credit = self._epoch, credit + real - len(st.hand)
         for c in list(st.discard):
             if c.card_id in ids:
                 self._gone.pop(c.card_id, None)
@@ -3234,12 +3239,13 @@ class Session:
             # pierde no puede bajar el contador de destinos), o si el mazo de robo crecio justo por ella.
             if self._gone.setdefault(c.card_id, self._epoch) == self._epoch and not (grew and c in fresh):
                 continue
-            del self._gone[c.card_id]
+            missing_since = self._gone.pop(c.card_id)
             st.discard.remove(c)
             st.deck.append(c)
-            if wildfire and "burning" in c.tags and not (grew and c in fresh) and len(back) < credit:
+            if (wildfire and "burning" in c.tags and not (grew and c in fresh) and len(back) < credit
+                    and missing_since >= at):
                 back.append(c)                          # vuelve a la mano, y a la vista
-        self._wild_credit = (self.game.turn_no, credit - len(back)) if wildfire else (-1, 0)
+        self._wild_credit = (self.game.turn_no, at, credit - len(back)) if wildfire else (-1, -1, 0)
         for c in back:
             self._make_known(c, keep=tuple(back))
             self.game.players[self.bot].known.add(c, self.game.turn_no)

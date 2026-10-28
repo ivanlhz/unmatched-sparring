@@ -412,3 +412,29 @@ def test_choosing_the_attacker_rereads_positions_moved_outside_an_action(rig):
     table.positions.update({"Hellboy": 18})
     session.handle(Event.ATTACKER, {"attacker": "att_hellboy"})
     assert game.fighters["hellboy"].pos == 18
+
+
+def test_wildfire_leftover_credit_does_not_send_a_later_shuffled_burning_card_to_hand(rig, monkeypatch):
+    """La ardiente del fondo vuelve a tu mano al empezar el turno (la mano crece) y, botones despues, Rekindle baraja
+    otra ardiente del descarte en el mazo: esa no va a la mano ni el bot la conoce."""
+    session, table, game = rig
+    claws_attack(session, table, game, monkeypatch)
+    liz_human(game)
+    session.handle(Event.REVEAL)
+    burning = card(game, 1, "Glimpse Of Hell", 1)
+    object.__setattr__(burning, "tags", frozenset({"burning"}))
+    table.human_discard = [burning.card_id]
+    table.human_count = 1
+    maneuver_plan(session, monkeypatch)
+    session.handle(Event.END_ACTION)
+    assert burning in game.players[1].discard
+    table.human_count = 2                             # la del fondo vuelve a la mano: credito
+    session.sync_human()
+    for _ in range(3):                                # botones despues, Rekindle: sale del descarte, la mano igual
+        session._epoch += 1
+        session.sync_human()
+    table.human_discard = []
+    for _ in range(3):
+        session._epoch += 1
+        session.sync_human()
+    assert burning not in game.players[1].discard and burning.card_id not in game.players[0].known.seen
