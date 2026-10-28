@@ -403,3 +403,12 @@ def test_wildfire_burning_card_shuffled_into_deck_is_not_taken_as_returned_to_ha
         session.sync_human()
         session._epoch += 1
     assert burning not in game.players[1].discard and burning.card_id not in game.players[0].known.seen
+
+
+def test_choosing_the_attacker_rereads_positions_moved_outside_an_action(rig):
+    """Liz se mueve 2 con Wildfire al empezar su turno: al elegir atacante el panel ya debe verla donde esta."""
+    session, table, game = rig
+    place(game, hellboy=14)
+    table.positions.update({"Hellboy": 18})
+    session.handle(Event.ATTACKER, {"attacker": "att_hellboy"})
+    assert game.fighters["hellboy"].pos == 18

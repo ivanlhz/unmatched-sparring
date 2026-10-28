@@ -1218,6 +1218,8 @@ class Session:
         if f is None or f.owner != self.human:
             self.say(f"Atacante no valido: {payload.get('attacker')!r}.", ChatKind.WARNING)
             return
+        self._try_flush_table()
+        self.sync_positions()                     # lo movido fuera de una accion (Wildfire al empezar el turno) cuenta ya
         self.chosen_attacker = fid
         self.say(f"Ataca {fid}: elige el objetivo.", ChatKind.YOUR_TURN)
 
