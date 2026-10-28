@@ -284,15 +284,17 @@ def test_n7_card_already_placed_counts_as_an_attack_card(rig):
     assert session.pending is not None
 
 
-def test_n7_without_any_legal_card_it_is_still_refused(rig):
+def test_n7_without_any_legal_card_it_is_refused_at_reveal(rig):
     session, table, game = rig
     place(game, hellboy=40 if 40 in game.board.spaces else 31, lobster=1, medusa=0)
     table.positions.update({"Hellboy": game.fighters["hellboy"].pos, "Lobster Johnson": 1})
     table.human_hand = ids(game, 1, "Pancakes!")
     human_plays(table, game, "On Earth As It Is In Hell")
     session.handle(Event.ATTACKER, {"attacker": "lobster"})
-    session.handle(Event.ATTACK, {"target": "medusa"})
-    assert session.pending is None
+    session.handle(Event.ATTACK, {"target": "medusa"})      # Atacar ya no lee la mano: la legalidad se ve al Revelar
+    msgs = session.handle(Event.REVEAL)
+    assert any("Carta ilegal" in m for m in msgs)
+    assert session.pending is not None and not session.pending.defended, "el bot no ha puesto defensa"
 
 
 # ---------- N8 ----------

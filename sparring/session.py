@@ -63,6 +63,9 @@ class Msg(str):
 ACTION_KIND = {"maneuver": ChatKind.MOVE, "glance": ChatKind.SCHEME, "frenzy": ChatKind.SCHEME}
 
 
+DEFAULT_BOT_PAUSE = 1.0     # segundos entre acciones del bot en la partida real (los tests usan 0)
+
+
 @dataclass
 class SessionConfig:
     bot_seat: str
@@ -101,6 +104,7 @@ class SessionConfig:
     batch: bool = False            # modo rapido: lecturas desde la instantanea y escrituras en un solo script por paso
     human_dead_spot: tuple[float, float, float] | None = None   # donde el bot aparta las miniaturas CAIDAS del humano
     label_font: float = lua.LABEL_FONT   # tamano del texto de las etiquetas del suelo
+    bot_pause: float = 0.0         # segundos de pausa tras cada accion del bot (0 = sin pausa; `play` usa 1.0)
     live_ui: bool = False          # linea de estado, botones segun el estado y anuncios por pantalla en el mismo script
 
 
@@ -1172,11 +1176,6 @@ class Session:
         if not self.game.can_attack(attacker, target):
             self.chosen_attacker = None
             raise RuleError(f"{attacker.fid} no alcanza a {target.fid}")
-        if not self._human_has_attack_card(attacker):
-            self.chosen_attacker = None
-            self.say(f"{attacker.fid} no tiene ninguna carta de ataque legal en tu mano: no se abre el combate. "
-                     "Elige otro atacante u otra accion.", ChatKind.WARNING)
-            return
         self.pending = Pending("human_attacks", attacker, target, None, None, defended=False)
         self.chosen_attacker = None
         self.say(f"{attacker.fid} ataca a {target.fid}: pon tu carta de ataque boca abajo en tu zona de combate "
@@ -1189,16 +1188,6 @@ class Session:
         card = self.ai.choose_defense(self.game, p.attacker, p.target)
         guid = self._place_bot_card(card, "human_attacks", p.attacker, p.target)
         p.bot_card, p.bot_card_guid, p.defended = card, guid, True
-
-    def _human_has_attack_card(self, attacker: Fighter) -> bool:
-        """Solo valida (no alimenta al motor): mira la mano real del humano en la mesa. Si no se puede leer
-        (conteo > 0 pero lectura vacia) se confia en el humano."""
-        ids = {r["id"] for r in self.client.call_lua(lua.read_hand(self.cfg.human_seat)) or []}
-        ids |= {r["id"] for r in self._rd_face("human")}
-        if not ids:
-            return self._rd_human_count(1) > 0
-        by_id = {c.card_id: c for c in self.game.players[self.human].full_set}
-        return any(c.can_attack and c.usable_by(attacker.name) for c in (by_id[i] for i in ids if i in by_id))
 
     def _cancel(self, _: dict) -> None:
         """Salida de emergencia de cualquier estado pendiente del humano.
@@ -1974,6 +1963,7 @@ class Session:
                 if not dials_ok:
                     self._pause_for_dials()
                     return
+                self._bot_breath()
             self._persist()
         while g.actions_left > 0 and g.winner is None:
             with self._timed("accion del bot"):
@@ -2006,6 +1996,8 @@ class Session:
                 if not dials_ok:
                     self._pause_for_dials()
                     return
+            if g.winner is None:
+                self._bot_breath()                # entre acciones y tambien antes del "Tu turno"
         if g.winner is not None:
             self.say(f"Fin de partida: gana el jugador {g.winner}.")
             return
@@ -2021,6 +2013,14 @@ class Session:
             self._flush_table()
         except TABLE_ERRORS as e:
             self.say(f"Tu turno ya ha empezado, pero la mesa del bot no coincide aun ({e}); se reintentara con tu proximo boton.", ChatKind.WARNING)
+
+    def _bot_breath(self) -> None:
+        """Pausa tras una accion del bot para que la mesa se vea moverse paso a paso y no todo de golpe. Es un sleep
+        de Python, no un mensaje: un `Wait.time` dentro del compuesto no separaria acciones distintas (cada una es su
+        propio mensaje) y un mensaje extra costaria ~0.5 s, mas que la propia pausa. Va fuera de la medicion
+        `_timed` de la accion para que `--timing` siga dando lo que cuestan los mensajes."""
+        if self.cfg.bot_pause > 0:
+            time.sleep(self.cfg.bot_pause)
 
     def _announce_human_start(self) -> None:
         g = self.game

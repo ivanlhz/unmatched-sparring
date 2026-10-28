@@ -1,5 +1,6 @@
 {
   "_notes": [
+    "bot_pause: segundos de pausa tras cada accion del bot (y antes de tu turno) para que la mesa no se mueva toda de golpe; 0 la desactiva; --bot-pause la sobreescribe. Es un sleep de Python: no cuesta mensajes a TTS.",
     "Valores leidos de la mesa real (TS_AutoSave 27/10 09:29) y de autosave_222437 para las piezas. Los TODO restantes se leen en vivo con --read-only.",
     "board_guid ec6f27 (Custom_Board 'B.P.R.D. HQ'). human_seat White (HandTrigger dd569b en -30.1,-9.0); bot_seat Green (HandTrigger f8d527 en 30.0,-9.0). Los ScriptingTriggers 742715 y 6ec8d9 estan sobre esas zonas de mano: NO son zonas de descarte (D1).",
     "Zonas de descarte creadas por el usuario: human_discard_zone b7a0b8 (centro -12.5,0.7, ~x -18..-7) y bot_discard_zone 906a7a (centro 15.0,0.7, ~x 10.75..19.25). Son grandes a proposito: el descarte se deja EN ORDEN y repartido en una rejilla para que el rival vea lo jugado (bot_discard_spot = origen, bot_discard_step = (dx de columna, dz de fila), bot_discard_rows huecos por columna; se saltan los huecos a menos de 3 del mazo de robo).",
@@ -123,6 +124,7 @@
     2.5,
     -20.0
   ],
+  "bot_pause": 1.0,
   "setup": true,
   "mulligan_bot": true,
   "mulligan_human": true
