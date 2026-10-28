@@ -318,3 +318,65 @@ def test_n8_harpy_defends_with_a_harpy_legal_card_and_the_reveal_resolves(rig):
     table.human_count = 4
     msgs = session.handle(Event.REVEAL)
     assert any("Combate" in m for m in msgs) and session.pending is None
+
+
+# ---------- Liz (Wildfire): las ardientes descartadas vuelven a la mano ----------
+def liz_human(game):
+    from sparring.heroes import load_hero
+    game.players[1].hero = load_hero("liz-sherman")
+
+
+def test_wildfire_forced_discard_is_accepted_when_burning_card_returned_to_hand(rig, monkeypatch):
+    session, table, game = rig
+    claws_attack(session, table, game, monkeypatch)
+    liz_human(game)
+    msgs = session.handle(Event.REVEAL)
+    assert session.pending_discard is not None and any("Wildfire" in m for m in msgs)
+    maneuver_plan(session, monkeypatch)
+    msgs = session.handle(Event.END_ACTION)       # descarto una ardiente: volvio a la mano, el descarte no crece
+    assert session.pending_discard is None and not any("Aun falta" in m for m in msgs)
+    assert game.turn == 1
+
+
+def test_wildfire_hand_limit_is_accepted_and_the_turn_ends(rig, monkeypatch):
+    session, table, game = rig
+    liz_human(game)
+    table.human_count = 9
+    maneuver_plan(session, monkeypatch)
+    game.actions_left = 0
+    msgs = session.handle(Event.END_ACTION)
+    assert session.pending_discard["kind"] == "limit" and any("Wildfire" in m for m in msgs)
+    msgs = session.handle(Event.END_ACTION)       # no la dejo en el descarte: se le cree y el turno acaba
+    assert session.pending_discard is None and any("Fin de tu turno" in m for m in msgs)
+
+
+def test_without_wildfire_the_forced_discard_still_waits(rig, monkeypatch):
+    session, table, game = rig
+    claws_attack(session, table, game, monkeypatch)
+    session.handle(Event.REVEAL)
+    maneuver_plan(session, monkeypatch)
+    msgs = session.handle(Event.END_ACTION)
+    assert session.pending_discard is not None and any("Aun falta" in m for m in msgs)
+
+
+def test_wildfire_burning_card_taken_back_from_discard_goes_to_hand_and_is_known(rig, monkeypatch):
+    session, table, game = rig
+    claws_attack(session, table, game, monkeypatch)
+    liz_human(game)
+    session.handle(Event.REVEAL)
+    burning = card(game, 1, "Glimpse Of Hell", 1)    # el rig es de Hellboy: se marca como ardiente
+    object.__setattr__(burning, "tags", frozenset({"burning"}))
+    table.human_discard = [burning.card_id]           # la ensena en el descarte
+    table.human_count = 1
+    maneuver_plan(session, monkeypatch)
+    session.handle(Event.END_ACTION)
+    assert burning in game.players[1].discard and session.pending_discard is None
+    in_deck = game.players[1].deck.count(burning)     # el rig deja copias en el mazo: solo cuenta que no crezca
+    table.human_discard = []                          # y la vuelve a coger
+    table.human_count = 2
+    for _ in range(3):                                # la baja necesita dos botones distintos
+        session.sync_human()
+        session._epoch += 1
+    st = game.players[1]
+    assert burning in st.hand and burning not in st.discard and st.deck.count(burning) == in_deck
+    assert burning.card_id in game.players[0].known.seen

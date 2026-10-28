@@ -1850,7 +1850,17 @@ class Session:
         d = self.pending_discard or {"n": 0, "baseline": len(self.game.players[self.human].discard), "kind": "cards"}
         d["n"] += n
         self.pending_discard = d
-        self.say(f"Descarta {n} carta(s) ({reason}) y pulsa Fin de accion.", ChatKind.YOUR_TURN)
+        self.say(f"Descarta {n} carta(s) ({reason}) y pulsa Fin de accion.{self._wildfire_hint()}", ChatKind.YOUR_TURN)
+
+    def _human_wildfire(self) -> bool:
+        """Liz (Wildfire): toda ardiente que el humano descarta de la mano vuelve a ella, asi que un descarte
+        obligado puede no cambiar ni su descarte ni su mano en la mesa."""
+        return any(p.get("effect") == "liz_wildfire_return_to_hand" for p in self.game.hero_def(self.human).passives)
+
+    def _wildfire_hint(self) -> str:
+        return (" Wildfire: deja la ardiente en tu descarte, pulsa Fin de accion y luego vuelve a cogerla (asi se"
+                " cuenta y el bot sabe cual vuelve a tu mano)."
+                if self._human_wildfire() else "")
 
     def _discard_done(self) -> bool:
         d, st = self.pending_discard, self.game.players[self.human]
@@ -1860,6 +1870,12 @@ class Session:
             if d["baseline"] is None:
                 d["baseline"] = len(st.discard)
             done = len(st.discard) >= d["baseline"] + d["n"]
+        if not done and self._human_wildfire():   # las ardientes volvieron a la mano: se le cree
+            if d["kind"] == "limit":
+                while len(st.hand) > HAND_LIMIT:
+                    st.deck.append(st.hand.pop())
+            self.say("Wildfire: doy el descarte por hecho (las ardientes vuelven a tu mano).")
+            return True
         if not done:
             self.say(f"Aun falta descartar {d['n']} carta(s); lleva tambien al descarte las cartas ya jugadas.", ChatKind.WARNING)
         return done
@@ -1880,7 +1896,7 @@ class Session:
         elif excess > 0:
             self.pending_discard = {"n": excess, "baseline": None, "kind": "limit"}
             self.say(f"Descarta {excess} carta(s) hasta tener {HAND_LIMIT} y pulsa Fin de accion "
-                     "(Cancelar ataque anula el descarte).", ChatKind.YOUR_TURN)
+                     f"(Cancelar ataque anula el descarte).{self._wildfire_hint()}", ChatKind.YOUR_TURN)
             return
         self.limit_waived = False
         self.chosen_attacker = None
@@ -3193,6 +3209,7 @@ class Session:
         hand_drop = max(0, len(st.hand) - real)
         grew = (isinstance(deck_qty, int) and deck_qty >= 0 and self._deck_qty >= 0 and bool(fresh)
                 and deck_qty - self._deck_qty - hand_drop >= len(fresh))
+        wildfire, back = self._human_wildfire(), []
         for c in list(st.discard):
             if c.card_id in ids:
                 self._gone.pop(c.card_id, None)
@@ -3204,6 +3221,11 @@ class Session:
             del self._gone[c.card_id]
             st.discard.remove(c)
             st.deck.append(c)
+            if wildfire and "burning" in c.tags:     # Wildfire: la ardiente vuelve a la mano, y a la vista
+                back.append(c)
+        for c in back:
+            self._make_known(c, keep=tuple(back))
+            self.game.players[self.bot].known.add(c, self.game.turn_no)
         if isinstance(deck_qty, int) and deck_qty >= 0:
             self._deck_qty = deck_qty
         for i in sorted(ids & by_id.keys()):

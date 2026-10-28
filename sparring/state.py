@@ -52,6 +52,12 @@ class KnownHand:
         self.seen = [c.card_id for c in cards]
         self.turn_no = turn_no if self.seen else None
 
+    def add(self, card: Card, turn_no: int) -> None:
+        """Una carta concreta ha entrado a la vista en la mano rival (Wildfire: la ardiente descartada vuelve)."""
+        self.seen.append(card.card_id)
+        if self.turn_no is None:
+            self.turn_no = turn_no
+
     def forget(self, card: Card) -> bool:
         """Descuenta UNA copia de esa carta (dos Second Shot vistas, una jugada: queda una). True si se sabia."""
         try:
