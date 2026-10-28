@@ -966,7 +966,9 @@
    "said": [
     "Ataca hellboy: elige el objetivo."
    ],
-   "sent": [],
+   "sent": [
+    "piece_spaces_by_guid"
+   ],
    "status": null,
    "step": "ataca hellboy"
   },
