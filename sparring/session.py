@@ -817,6 +817,7 @@ class Session:
         self.__dict__.update(blank.__dict__)
         self.__dict__.update(saved)
         self.game.controllers[self.human] = HumanProxy(self._owe_discard)
+        getattr(self.ai, "reset", lambda: None)()          # la IA con memoria olvida la partida anterior
 
     # ---------- guardado ----------
     def to_dict(self) -> dict:

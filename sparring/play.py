@@ -22,7 +22,7 @@ from dataclasses import dataclass
 from pathlib import Path
 from typing import Callable
 
-from .ai_medusa import MedusaAI
+from .search.controller import make_bot_ai
 from .board import Board
 from .heroes import load_hero
 from . import persist
@@ -458,6 +458,16 @@ def run_loop(session: Session, client: TTSClient, stop: threading.Event, announc
             stop.wait(poll)
 
 
+def ai_config(cfg: PlayConfig, ai: str | None, ai_time: float | None) -> dict:
+    """Config de la IA: la linea de comandos manda sobre las claves `ai` / `ai_time_budget` del JSON."""
+    raw = dict(cfg.raw)
+    if ai is not None:
+        raw["ai"] = ai
+    if ai_time is not None:
+        raw["ai_time_budget"] = ai_time
+    return raw
+
+
 def build_game(cfg: PlayConfig, first: str, seed: int) -> Game:
     game = Game.new(cfg.board, seed, controllers={}, bot_player=BOT, heroes=cfg.heroes)
     if first in ("human", "bot"):
@@ -468,10 +478,11 @@ def build_game(cfg: PlayConfig, first: str, seed: int) -> Game:
 
 def play(cfg: PlayConfig, client: TTSClient, first: str, seed: int, stop: threading.Event,
          echo: Callable[[str], None] = print, poll: float = 0.1, state_path: Path | None = None,
-         resume: bool = False, timing: bool = False) -> None:
+         resume: bool = False, timing: bool = False, ai: str | None = None,
+         ai_time: float | None = None) -> None:
     scfg = cfg.session_config()
     game = build_game(cfg, first, seed)
-    session = Session(game, client, MedusaAI(BOT), scfg, bot=BOT)
+    session = Session(game, client, make_bot_ai(ai_config(cfg, ai, ai_time), BOT), scfg, bot=BOT)
     session.state_path = state_path
     session.first_mode = first
     session.new_game = lambda: build_game(cfg, first, secrets.randbelow(2 ** 31))
@@ -516,6 +527,9 @@ def parse_args(argv: list[str] | None) -> argparse.Namespace:
     ap.add_argument("--listen-port", type=int, default=LISTEN_PORT, help="puerto donde escucha el bot (39998)")
     ap.add_argument("--poll", type=float, default=0.1)
     ap.add_argument("--state", default=str(DEFAULT_STATE), help="guardado de la partida (se escribe tras cada boton)")
+    ap.add_argument("--ai", choices=("heuristic", "ismcts"), default=None,
+                    help="IA del bot (manda sobre la clave ai de la configuracion; por defecto heuristic)")
+    ap.add_argument("--ai-time", type=float, default=None, help="segundos de busqueda por decision con --ai ismcts (1.5)")
     ap.add_argument("--resume", action="store_true", help="reanuda la partida del guardado --state")
     ap.add_argument("--timing", action="store_true",
                     help="escribe, por boton y por accion del bot, los mensajes a TTS y el tiempo (y cada llamada)")
@@ -544,7 +558,7 @@ def main(argv: list[str] | None = None, stop: threading.Event | None = None) -> 
             print(f"Aviso: {state} se sobrescribira con la partida nueva (usa --resume para reanudarla).")
         state.parent.mkdir(parents=True, exist_ok=True)
         play(cfg, client, args.first, seed, stop, poll=args.poll, state_path=state, resume=args.resume,
-             timing=args.timing)
+             timing=args.timing, ai=args.ai, ai_time=args.ai_time)
         return 0
     except (SessionError, persist.StateError) as e:
         print(f"No puedo empezar: {e}", file=sys.stderr)

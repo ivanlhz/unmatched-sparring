@@ -12,7 +12,7 @@ Bot de sparring para Unmatched en Tabletop Simulator. Fase 1: el bot juega **Med
 | `sparring/state.py` | `Game`: se construye desde HeroDef (`Game.new(..., heroes=("medusa", "hellboy"))`); luchadores, mazos/manos/descartes, acciones, agotamiento, fin de turno, formas y contadores desde datos, mano rival conocida (`KnownHand`) |
 | `sparring/combat.py` | Combate (IMMEDIATELY, DURING, AFTER; el defensor resuelve primero) y planes. Efectos de Medusa implementados; los de Hellboy los resuelve el humano |
 | `sparring/ai_medusa.py` | IA heuristica; la funcion de valoracion esta documentada en la cabecera del modulo |
-| `sparring/search/` | IA por busqueda ISMCTS sin trampas (F09): `protocol.py` (lo que la busqueda pide a un motor), `ismcts.py` (busqueda), `adapter.py` (motor actual), `controller.py` (`IsmctsMedusa`, sustituto de `MedusaAI` tras el flag `ai`) |
+| `sparring/search/` | IA por busqueda ISMCTS sin trampas (F09): `protocol.py` (lo que la busqueda pide a un motor), `ismcts.py` (busqueda), `adapter.py` (motor actual), `controller.py` (`IsmctsMedusa`, sustituto de `MedusaAI` con `--ai ismcts`) |
 | `sparring/hellboy_script.py` | Hellboy guionizado, solo para la simulacion |
 | `sparring/tts/` | Puente: `client.py` (API de editor externo), `lua.py` (snippets, instantanea y script compuesto), `ui.py` (panel de botones) |
 | `sparring/persist.py` | Guardado atomico y recarga del estado de `Game` y `Session` (`--resume`) |
@@ -121,7 +121,7 @@ Cada mensaje a TTS cuesta ~0.5 s fijos y encadenarlos no ayuda (medido en vivo e
 
 - `protocol.py` es lo que la busqueda pide a un motor (`SearchState`: clonar, quien mueve, jugadas legales, aplicar, terminal, evaluar, observar, rollout, determinizar). El motor multiheroe (F07) implementa ese Protocol y la busqueda le sirve sin cambios.
 - `adapter.py` lo implementa para el motor actual. Las acciones se descomponen en subdecisiones encadenadas (`attack(fid, objetivo)` -> `attack_card`; `maneuver(boost)` -> `hero_to` -> `sidekicks`) para que la raiz tenga ~10 hijos en vez de ~150. Lo que el motor delega a mitad de resolucion (boost de Second Shot, Dash, Hounds, descarte forzado) va con heuristicas fijas, no en el arbol.
-- Activar: `"ai": "ismcts"` en la configuracion (`ai_time_budget` en segundos, 1.5 por defecto; `ai_seed`), via `search.controller.make_bot_ai(cfg)`. `play.py` sigue construyendo `MedusaAI`; el enganche es sustituir esa linea. Medido en esta maquina: ~1.900 iteraciones/s; una decision con el presupuesto por defecto tarda ~1.6 s.
+- Activar: `uv run python -m sparring.play --config config\partida.json --first human --ai ismcts` (`--ai heuristic|ismcts` manda sobre la clave `"ai"` de `config/partida.json`; por defecto `heuristic`). `--ai-time 2.0` fija los segundos de busqueda por decision (1.5 por defecto; en la configuracion, `ai_time_budget`, `ai_seed`). `play.py` construye la IA con `search.controller.make_bot_ai`. Funciona en todos los caminos de la sesion (inicio, mulligan, colocacion, turno del bot, defensa al Revelar, `--resume`, Reiniciar partida, que borra lo que la IA recordaba). Si la busqueda falla, la decision cae a `MedusaAI` con un WARNING en la consola. No hay aviso "El bot piensa..." en el chat: los mensajes de chat de la sesion salen todos al final del boton, junto con el resultado, y adelantarlo costaria un mensaje extra a TTS. Medido en esta maquina: ~1.900 iteraciones/s; una decision con el presupuesto por defecto tarda ~1.6 s.
 
 ## Formas de Hellboy (fuente)
 
