@@ -556,3 +556,25 @@ def test_second_shot_still_requires_the_boost_from_the_hand(brig):  # noqa: F811
     table.human_count = 4
     click(session, table, Event.REVEAL)
     assert not session.pending.boost_wait["deck"]
+    table.human_discard = [card(game, 1, "Service Pistol").card_id]
+    msgs = click(session, table, Event.BOOST)                # la mano no bajo: no vale
+    assert session.pending is not None and any("tiene que salir de tu mano" in m for m in msgs)
+    table.human_count = 3
+    click(session, table, Event.BOOST)
+    assert session.pending is None
+
+
+@pytest.mark.parametrize("old_save", [False, True])
+def test_flame_lash_boost_wait_survives_resume(brig, old_save):  # noqa: F811
+    session, table, game, flame = flame_rig(brig)
+    table.human_count = 4
+    click(session, table, Event.REVEAL)
+    saved = json.loads(json.dumps(session.to_dict()))
+    if old_save:                                             # guardado de antes de Flame Lash: sin la clave
+        del saved["pending"]["boost_wait"]["deck"]
+    session.pending = None
+    session.load_dict(saved)
+    assert session.pending.boost_wait["deck"] is True
+    table.human_discard = [card(game, 1, "Service Pistol").card_id]
+    msgs = click(session, table, Event.BOOST)
+    assert session.pending is None, msgs

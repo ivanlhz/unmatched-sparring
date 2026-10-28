@@ -924,7 +924,8 @@ class Session:
             self.pending = None if p is None else Pending(
                 p["kind"], self.game.fighters[p["attacker"]], self.game.fighters[p["target"]],
                 by_id[p["bot_card"]] if p["bot_card"] is not None else None, p["bot_card_guid"], p["cancel_failures"],
-                bool(p.get("defended", True)), self._load_boost_wait(p.get("boost_wait")))
+                bool(p.get("defended", True)),
+                self._load_boost_wait(p.get("boost_wait"), {c.card_id: c for c in self.game.players[self.human].full_set}))
             self.pending_discard, self.pending_value = d["pending_discard"], d["pending_value"]
             self.look = self._load_look(d.get("look"))
             self.chosen_attacker, self.moving = d["chosen_attacker"], d["moving"]
@@ -965,7 +966,7 @@ class Session:
         return {"ids": list(raw["ids"]), "guids": list(raw["guids"]), "spots": [list(sp) for sp in raw["spots"]]}
 
     @staticmethod
-    def _load_boost_wait(raw) -> dict | None:
+    def _load_boost_wait(raw, human_cards: dict | None = None) -> dict | None:
         if raw is None:
             return None
         hand = raw.get("hand") if isinstance(raw, dict) else None
@@ -974,8 +975,10 @@ class Session:
                 or not (raw.get("guid") is None or isinstance(raw["guid"], str)) \
                 or not (hand is None or (isinstance(hand, int) and not isinstance(hand, bool))):
             raise KeyError("boost_wait")
+        card = (human_cards or {}).get(raw["card"])
+        # Flame Lash (boost del fondo del mazo): se recalcula de la carta, asi un guardado sin la clave tambien vale
         return {"card": raw["card"], "guid": raw.get("guid"), "baseline": list(raw["baseline"]), "hand": hand,
-                "stuck": raw.get("stuck") is True}
+                "stuck": raw.get("stuck") is True, "deck": raw.get("deck") is True or (card is not None and deck_boost(card))}
 
     @staticmethod
     def _load_saved_identities(raw) -> dict[str, tuple]:
