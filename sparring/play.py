@@ -26,7 +26,7 @@ from .search.controller import make_bot_ai
 from .board import Board
 from .heroes import load_hero
 from . import persist
-from .session import TABLE_ERRORS, Msg, Session, SessionConfig, SessionError, piece_guids
+from .session import DEFAULT_BOT_PAUSE, TABLE_ERRORS, Msg, Session, SessionConfig, SessionError, piece_guids
 from .state import DEFAULT_HEROES, Game
 from .tts import lua, ui
 from .tts.client import LISTEN_PORT, SEND_PORT, TTSClient, TTSLuaError
@@ -116,7 +116,10 @@ class PlayConfig:
                 if r.get("bot_discard_bounds") else None,
                 human_dead_spot=tuple(float(v) for v in r["human_dead_spot"]) if r.get("human_dead_spot") else None,
                 label_font=float(r.get("label_font", lua.LABEL_FONT)),
-                batch=bool(r.get("batch", True)), live_ui=bool(r.get("live_ui", True)))
+                batch=bool(r.get("batch", True)), live_ui=bool(r.get("live_ui", True)),
+                bot_pause=float(r.get("bot_pause", DEFAULT_BOT_PAUSE)))
+            if not (math.isfinite(cfg.bot_pause) and 0 <= cfg.bot_pause <= 30):
+                raise ValueError("bot_pause: segundos entre 0 (sin pausa) y 30")
             if cfg.bot_discard_bounds is not None and len(cfg.bot_discard_bounds) != 5:
                 raise ValueError("bot_discard_bounds: (centro x, centro z, tamano x, tamano z, rotY)")
             self._dry_build(cfg)
@@ -479,8 +482,12 @@ def build_game(cfg: PlayConfig, first: str, seed: int) -> Game:
 def play(cfg: PlayConfig, client: TTSClient, first: str, seed: int, stop: threading.Event,
          echo: Callable[[str], None] = print, poll: float = 0.1, state_path: Path | None = None,
          resume: bool = False, timing: bool = False, ai: str | None = None,
-         ai_time: float | None = None) -> None:
+         ai_time: float | None = None, bot_pause: float | None = None) -> None:
     scfg = cfg.session_config()
+    if bot_pause is not None:
+        if not (math.isfinite(bot_pause) and 0 <= bot_pause <= 30):
+            raise SessionError("--bot-pause: segundos entre 0 (sin pausa) y 30")
+        scfg.bot_pause = bot_pause
     game = build_game(cfg, first, seed)
     session = Session(game, client, make_bot_ai(ai_config(cfg, ai, ai_time), BOT), scfg, bot=BOT)
     session.state_path = state_path
@@ -531,6 +538,9 @@ def parse_args(argv: list[str] | None) -> argparse.Namespace:
                     help="IA del bot (manda sobre la clave ai de la configuracion; por defecto heuristic)")
     ap.add_argument("--ai-time", type=float, default=None, help="segundos de busqueda por decision con --ai ismcts (1.5)")
     ap.add_argument("--resume", action="store_true", help="reanuda la partida del guardado --state")
+    ap.add_argument("--bot-pause", type=float, default=None, metavar="SEGUNDOS",
+                    help="pausa entre las acciones del turno del bot y antes de tu turno (manda sobre bot_pause de "
+                         f"la configuracion; por defecto {DEFAULT_BOT_PAUSE:g}; 0 la desactiva)")
     ap.add_argument("--timing", action="store_true",
                     help="escribe, por boton y por accion del bot, los mensajes a TTS y el tiempo (y cada llamada)")
     return ap.parse_args(argv)
@@ -558,7 +568,7 @@ def main(argv: list[str] | None = None, stop: threading.Event | None = None) -> 
             print(f"Aviso: {state} se sobrescribira con la partida nueva (usa --resume para reanudarla).")
         state.parent.mkdir(parents=True, exist_ok=True)
         play(cfg, client, args.first, seed, stop, poll=args.poll, state_path=state, resume=args.resume,
-             timing=args.timing, ai=args.ai, ai_time=args.ai_time)
+             timing=args.timing, ai=args.ai, ai_time=args.ai_time, bot_pause=args.bot_pause)
         return 0
     except (SessionError, persist.StateError) as e:
         print(f"No puedo empezar: {e}", file=sys.stderr)

@@ -1008,9 +1008,7 @@
    "sent": [
     "piece_spaces_by_guid",
     "read_discard",
-    "count_hand",
-    "read_hand",
-    "read_face_down_cards"
+    "count_hand"
    ],
    "status": null,
    "step": "atacar a medusa"

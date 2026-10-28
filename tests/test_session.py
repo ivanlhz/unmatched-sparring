@@ -788,20 +788,19 @@ def lobster_rig(table, game):
     table.human_hand = ids(game, 1, "On Earth As It Is In Hell", "Pancakes!")
 
 
-def test_attack_is_refused_when_attacker_has_no_legal_attack_card_in_the_table_hand(rig):
+def test_an_attacker_without_a_legal_card_is_refused_at_reveal_not_at_attack(rig):
     session, table, game = rig
     lobster_rig(table, game)
     placed = table.count("play_card_face_down")
     session.handle(Event.ATTACKER, {"attacker": "lobster"})
-    msgs = session.handle(Event.ATTACK, {"target": "medusa"})
-    assert session.pending is None and table.count("play_card_face_down") == placed
-    assert any("ninguna carta" in m for m in msgs)
-    assert session.chosen_attacker is None
-    # la sesion no queda congelada: con una carta legal en mano si puede
-    table.human_hand += ids(game, 1, "Service Pistol")
-    session.handle(Event.ATTACKER, {"attacker": "lobster"})
-    session.handle(Event.ATTACK, {"target": "medusa"})
-    assert session.pending is not None
+    session.handle(Event.ATTACK, {"target": "medusa"})      # Atacar ya no lee la mano del humano
+    assert session.pending is not None and table.count("play_card_face_down") == placed
+    human_plays(table, game, "Pancakes!")                   # un plan: no ataca
+    msgs = session.handle(Event.REVEAL)
+    assert any("Carta ilegal" in m for m in msgs)
+    assert session.pending is not None and table.count("play_card_face_down") == placed, "sin defensa del bot"
+    session.handle(Event.CANCEL)                            # salida limpia
+    assert session.pending is None and session.chosen_attacker is None
 
 
 def test_unreadable_human_hand_does_not_block_the_attack(rig):

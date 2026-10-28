@@ -137,7 +137,7 @@ def test_the_search_ai_costs_no_more_messages_than_the_heuristic(brig):  # noqa:
     run("turno del bot", lambda: click(session, table, Event.END_ACTION))
     assert ai.fallbacks == 0
     assert {k: v for k, v in spent.items() if k != "turno del bot"} == {
-        "maniobra": 1, "fin de accion": 1, "atacar": 2, "revelar": 3}, spent
+        "maniobra": 1, "fin de accion": 1, "atacar": 1, "revelar": 3}, spent
     assert acts and all(a.kind != "maneuver" or c == 1 for a, c in
                         zip(acts, [c for label, c, _ in session.cost_log if label == "accion del bot"]))
 
