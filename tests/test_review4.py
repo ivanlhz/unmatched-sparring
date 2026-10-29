@@ -673,6 +673,18 @@ def test_read_only_allowlist_is_exactly_the_pure_read_builders(bprd):
         "show_hand_row": lambda: lua.show_hand_row([1], [(0.0, 0.0, 0.0)], 90.0, "Blue", identity=TEST_IDENT),
         "resolve_hand_row": lambda: lua.resolve_hand_row(["abc"], "Blue", identity=TEST_IDENT),
         "set_look_row": lambda: lua.set_look_row([("abc", 0.0, 0.0)]),
+        "set_state": lambda: lua.set_state("abc", 2), "set_token_face": lambda: lua.set_token_face("abc", 0),
+        "flip_token": lambda: lua.flip_token("abc"),
+        "ping_objects": lambda: lua.ping_objects(["Blue"], [["abc"]]),
+        "ping_points": lambda: lua.ping_points(["Blue"], [(0.0, 0.0, 0.0)]),
+        "card_to_deck_top": lambda: lua.card_to_deck_top("abc", "def", identity=TEST_IDENT),
+        "card_to_deck_bottom": lambda: lua.card_to_deck_bottom("abc", "def", identity=TEST_IDENT),
+        "shuffle_into_deck": lambda: lua.shuffle_into_deck("abc", ["def"]),
+        "deal_row": lambda: lua.deal_row("abc", [(0.0, 0.0, 0.0)], identity=TEST_IDENT),
+        "take_token_copy": lambda: lua.take_token_copy("abc", (0.0, 0.0, 0.0)),
+        "remove_token": lambda: lua.remove_token("abc"),
+        "place_from_bag": lambda: lua.place_from_bag("abc", "Rat", (0.0, 0.0, 0.0)),
+        "inspect_objects": lambda: lua.inspect_objects(["abc"]),
     }
     registered = {n for n, f in inspect.getmembers(lua, inspect.isfunction) if hasattr(f, "__wrapped__")}
     assert registered == set(builders), registered ^ set(builders)
