@@ -148,13 +148,14 @@ def fighter_candidates(game, run, sel) -> tuple[list, bool]:
     return out, sel.get("pick", "one") == "all"
 
 
-def pick_fighters(game, run, sel, chooser: int, prompt: str = "") -> list:
+def pick_fighters(game, run, sel, chooser: int, prompt: str = "", **extra) -> list:
     """The fighters a selector designates. `pick: one` with several candidates asks `chooser`; with none it is
-    empty (the op does nothing); `pick: all` returns every candidate (zero is fine)."""
+    empty (the op does nothing); `pick: all` returns every candidate (zero is fine). `extra` (the op name, its
+    amount...) travels in the request so a bot can score the candidates for what is about to happen to them."""
     cands, pick_all = fighter_candidates(game, run, sel)
     if pick_all or len(cands) <= 1:
         return cands
-    got = run.ask(game, "fighter", chooser, [f.fid for f in cands], 1, 1, prompt or "choose a fighter")
+    got = run.ask(game, "fighter", chooser, [f.fid for f in cands], 1, 1, prompt or "choose a fighter", **extra)
     return [game.fighters[got[0]]]
 
 

@@ -1,13 +1,17 @@
 """EffectAI: how the bot answers the decisions an effect asks (`ChoiceRequest`, docs/effects-dsl.md §11).
 
 Each kind has its own rule, all built on the evaluation the heuristic bot already uses (`ai_medusa`):
-  fighter    enemy: the blow that pays most (kills first, then the hero, then sidekicks by value); own: who needs it most.
+  fighter    scored for what the op does to it (`extra["op"]`/`extra["amount"]`, set by `pick_fighters`): damage
+             to the enemy that pays most (kills first), or to the own piece that loses least; heals to the own piece
+             that needs it most; a move/place/swap to the piece whose relocation gains most `position_value`.
+             An op the rule does not know is left to the controller's default path.
   space      kiting and reach through `position_value` (own sidekicks through `harpy_score`, as the legacy moves do);
              a rival piece goes where it hurts the bot least.
   cards      own hand: give up the lowest `keep_value`; own piles and the rival's public piles: take the best.
              Never looks at the rival hand: only what `KnownHand` has seen.
   effect     simulate every option on a determinized clone and keep the best evaluation.
-  optional   same, yes against no; a price paid in cards is compared with what the effect is worth in the combat.
+  optional   same, yes against no; a price paid in cards is judged by `worth_paying` on the combat context the
+             interpreter sends (`cost_cards`, `at_stake`, `hp`), the one policy every bot shares.
   order      best first for the bot's own cards, worst first for the rival's.
   amount     the largest useful one.
 
@@ -20,32 +24,24 @@ from __future__ import annotations
 
 import copy
 import random
-from dataclasses import dataclass
 
 from .ai_medusa import (DECK_SCARCITY, HARPY_VALUE, KILL_SIDEKICK, LETHAL, W_HERO, W_MEDUSA_HP,
                         W_SIDEKICK, MedusaAI, Model, keep_value)
 from .controller import Controller
-from .effects.choose import ChoiceRequest, default_answer
-from .effects.model import load_effects
+from .effects.choose import ChoiceRequest, ControllerChooser, default_answer, worth_paying
+from .effects.model import EffectError, load_effects
 from .effects.run import Ctx, EffectRun
 from .search.adapter import card_worth
-from .state import Game, PlayerState
+from .state import Game, PlayerState, RuleError
 
 GIVE_UP_PURPOSES = ("discard", "return", "reveal")      # cards the chooser parts with: the least useful go
 SIM_WIN = 200.0                                         # a finished game dominates any material
 PAY_MARGIN = 0.1                                        # an optional price is paid only when it clearly returns more
 CARD_FLAT = 1.2                                         # an unseen rival card, in the units of keep_value
-DEFAULT_BLOW = 1                                        # damage assumed when a fighter pick does not say how much
-
-
-@dataclass
-class CombatView:
-    """What the bot knows of the combat an effect runs in. The interpreter's combat driver sets `EffectAI.combat`
-    (or passes the same keys as `req.extra["combat"]`); without it the card's printed value stands in for the
-    attack and the defense counts as zero."""
-    target_fid: str | None = None
-    atk_value: int | None = None
-    def_value: int = 0
+DEFAULT_BLOW = 1                                        # damage or heal assumed when a pick does not say how much
+DEFAULT_REACH = 2                                       # steps a place/swap candidate is assumed to relocate by
+HP_OPS = ("damage", "heal", "set_hp")
+RELOCATE_OPS = ("move", "place", "swap")
 
 
 def blind_clone(game: Game, me: int, rng: random.Random) -> Game:
@@ -110,7 +106,6 @@ class EffectAI:
     def __init__(self, me: int = 0, medusa: MedusaAI | None = None, seed: int = 0):
         self.me, self.seed = me, seed
         self._medusas: dict[int, MedusaAI] = {me: medusa} if medusa is not None else {}
-        self.combat: CombatView | None = None
 
     def medusa(self, player: int) -> MedusaAI:
         if player not in self._medusas:
@@ -134,24 +129,62 @@ class EffectAI:
             return None
 
     # ------------------------------------------------------------------ fighters
-    def _fighter(self, game: Game, req: ChoiceRequest, nested: bool) -> list:
-        me = req.player
-        cands = [game.fighters[i] for i in req.options]
-        foes = [f for f in cands if f.owner != me]
-        blow = req.extra.get("amount") or DEFAULT_BLOW
-        if foes:
-            key = lambda f: (-self.blow_value(f, blow), f.fid)
-            return [min(foes, key=key).fid]
-        need = lambda f: (W_MEDUSA_HP if f.hero else HARPY_VALUE) * (f.max_hp - f.hp)
-        return [min(cands, key=lambda f: (-need(f), not f.hero, f.fid)).fid]
+    def _fighter(self, game: Game, req: ChoiceRequest, nested: bool) -> list | None:
+        me, op = req.player, req.extra.get("op")
+        cands = [game.fighters[i] for i in req.options if i in game.fighters]
+        if not cands:
+            return None
+        if op in HP_OPS:
+            score = self._hp_scorer(op, req.extra.get("amount"), me)
+        elif op in RELOCATE_OPS:
+            score = self._relocation_scorer(game, op, req.extra, me)
+        else:
+            return None
+        if score is None:
+            return None
+        return [min(cands, key=lambda f: (-score(f), f.fid)).fid]
+
+    @staticmethod
+    def _hp_scorer(op: str, n, me: int):
+        """Value to `me` of `op` landing on a fighter; None when a `set_hp` does not say the hit points."""
+        if op == "set_hp":
+            if not isinstance(n, (int, float)):
+                return None
+            return lambda f: EffectAI.hp_change(f, n, me)
+        n = n if isinstance(n, (int, float)) else DEFAULT_BLOW
+        if op == "damage":
+            return lambda f: EffectAI.hp_change(f, f.hp - n, me)
+        return lambda f: EffectAI.hp_change(f, f.hp + n, me)
+
+    def _relocation_scorer(self, game: Game, op: str, extra: dict, me: int):
+        """The best `position_value` gain a fighter's relocation can bring `me`: an own piece goes where it is
+        best placed, a rival piece where it hurts the bot least (the same chooser picks the space next)."""
+        ai, model = self.medusa(me), Model(game, me)
+        steps = int(extra.get("amount") or DEFAULT_REACH) if op == "move" else DEFAULT_REACH
+        through = bool(extra.get("through", False))
+
+        def gain(f) -> float:
+            if not f.alive or f.pos is None:
+                return 0.0
+            stay = ai.position_value(game, model, {f.fid: f.pos})
+            dests = game.legal_moves(f, steps, through)
+            return max((ai.position_value(game, model, {f.fid: s}) for s in dests), default=stay) - stay
+        return gain
+
+    @staticmethod
+    def hp_change(f, new_hp: float, me: int) -> float:
+        """What `f` going from its hit points to `new_hp` is worth to `me`: hit points by the weights the
+        evaluation uses, and a kill on top (a loss when the piece is `me`'s hero, a prize when it is a rival's)."""
+        new = max(0, min(f.max_hp, new_hp))
+        delta, dead = new - f.hp, new <= 0 < f.hp
+        if f.owner == me:
+            return (W_MEDUSA_HP if f.hero else HARPY_VALUE) * delta - (LETHAL if dead and f.hero else 0.0)
+        return -(W_HERO if f.hero else W_SIDEKICK) * delta + ((LETHAL if f.hero else KILL_SIDEKICK) if dead else 0.0)
 
     @staticmethod
     def blow_value(f, dmg: float) -> float:
-        """What hitting `f` for `dmg` is worth to its rival: damage by weight, and a kill on top."""
-        hit = min(dmg, f.hp)
-        if f.hero:
-            return W_HERO * hit + (LETHAL if dmg >= f.hp else 0.0)
-        return W_SIDEKICK * hit + (KILL_SIDEKICK if dmg >= f.hp else 0.0)
+        """What hitting `f` for `dmg` is worth to its rival."""
+        return EffectAI.hp_change(f, f.hp - dmg, 1 - f.owner)
 
     # ------------------------------------------------------------------ spaces
     def _space(self, game: Game, req: ChoiceRequest, nested: bool) -> list | None:
@@ -195,8 +228,8 @@ class EffectAI:
         zone, purpose = req.extra.get("zone"), req.extra.get("purpose")
         of = req.extra.get("of", me)
         n_min, n_max = req.min, min(req.max, len(req.options))
-        if zone == "hand" and of != me:
-            return self._rival_hand(game, req, of)
+        if zone == "hand" and of != me:                    # C4: what a look showed, the rest by position
+            return ControllerChooser._from_rival_hand(game, req, of)
         if zone == "hand":
             by_id = {c.card_id: c for c in game.players[me].hand}
             hand = game.players[me].hand
@@ -213,13 +246,6 @@ class EffectAI:
         ranked = sorted(req.options, key=lambda i: (-worth(i), i))
         take = n_max if n_min < n_max and worth(ranked[0]) > 0 else n_min
         return ranked[:take]
-
-    def _rival_hand(self, game: Game, req: ChoiceRequest, of: int) -> list:
-        """Only the cards a look already showed; the rest by position, never by identity."""
-        seen = {c.card_id: c for c in game.players[req.player].known.cards(game.players[of])}
-        ranked = sorted((i for i in req.options if i in seen), key=lambda i: (-card_worth(seen[i]), i))
-        blind = [i for i in req.options if i not in ranked]
-        return (ranked + blind)[:max(req.min, min(req.max, len(req.options)))]
 
     # ------------------------------------------------------------------ order, amount
     def _order(self, game: Game, req: ChoiceRequest, nested: bool) -> list:
@@ -257,6 +283,8 @@ class EffectAI:
         return [max(scored)[2]]
 
     def _optional(self, game: Game, req: ChoiceRequest, nested: bool) -> list | None:
+        if "cost_cards" in req.extra:       # a price in cards: the interpreter sends the combat context, one policy
+            return [worth_paying(req)]
         found = self._locate(game, req)
         if nested or found is None:
             return None
@@ -264,9 +292,6 @@ class EffectAI:
         cost, ops, other = op.get("cost") or [], op.get("ops") or [], op.get("else") or []
         base = self._base(game, req)
         me = req.player
-        worth = self._combat_worth(game, req, ops, card, owner)
-        if worth is not None:               # the effect changes the value of a combat card: price it in damage
-            return [self._price(base, cost, worth, card, owner, label, me) > PAY_MARGIN]
         yes = self._simulate(base, list(cost) + list(ops), card, owner, label, me)
         no = self._simulate(base, other, card, owner, label, me) if other else self.evaluate(base, me)
         if yes is None and no is not None and other and not cost:
@@ -275,60 +300,14 @@ class EffectAI:
             return [not cost]
         return [yes >= no - 1e-9] if not cost else [yes > no + PAY_MARGIN]
 
-    def _price(self, base: Game, cost: list, worth: float, card, owner: int, label: str, me: int) -> float:
-        """Worth of the effect minus what the price takes from the bot's evaluation (a discard cost loses the cards
-        that `keep_value` rates lowest)."""
-        paid = self._simulate(base, cost, card, owner, label, me)
-        spent = 0.0 if paid is None else self.evaluate(base, me) - paid
-        return worth - spent
-
-    def _combat_worth(self, game: Game, req: ChoiceRequest, ops: list, card, owner: int) -> float | None:
-        """What an effect that sets or shifts the value of the combat card is worth to the bot, in the evaluation's
-        units; None when the effect does not touch that value."""
-        change = None
-        for o in ops:
-            if o.get("op") in ("set_value", "modify_value") and o.get("card") == "this":
-                change = o
-        if change is None or card is None:
-            return None
-        view = self._combat_view(req)
-        printed = card.value or 0
-        atk = view.atk_value if view and view.atk_value is not None else printed
-        new = change["amount"] if change["op"] == "set_value" else atk + change["amount"]
-        if not isinstance(new, (int, float)):
-            return None
-        me = req.player
-        victim_is_me = owner != me
-        if view and view.target_fid in game.fighters:
-            target = game.fighters[view.target_fid]
-        else:
-            target = game.hero(me if victim_is_me else 1 - me)
-        defense = view.def_value if view else 0
-        before, after = max(0, atk - defense), max(0, new - defense)
-        if victim_is_me:
-            return self._harm(target, before, True) - self._harm(target, after, True)
-        return self._harm(target, after, False) - self._harm(target, before, False)
-
-    @staticmethod
-    def _harm(f, dmg: float, mine: bool) -> float:
-        hit = min(dmg, f.hp)
-        if mine:
-            return HARPY_VALUE * hit if not f.hero else W_MEDUSA_HP * hit + (LETHAL if dmg >= f.hp else 0.0)
-        return EffectAI.blow_value(f, dmg) if dmg > 0 else 0.0
-
-    def _combat_view(self, req: ChoiceRequest) -> CombatView | None:
-        raw = req.extra.get("combat")
-        if isinstance(raw, dict):
-            return CombatView(raw.get("target_fid"), raw.get("atk_value"), raw.get("def_value", 0))
-        return self.combat
-
     # ------------------------------------------------------------------ clones and evaluation
     def _base(self, game: Game, req: ChoiceRequest) -> Game:
         rng = random.Random(f"{self.seed}:{game.turn_no}:{req.player}:{req.card_id}:{req.key}")
         return blind_clone(game, req.player, rng)
 
     def _simulate(self, base: Game, ops: list, card, owner: int, label: str, me: int) -> float | None:
-        """Evaluation after `ops` on a copy of `base`; None when the ops cannot be run out of their context."""
+        """Evaluation after `ops` on a copy of `base`; None when the ops cannot be run out of their context (a
+        combat op outside a combat, a rule the clone breaks, a pending phase). Anything else is a bug and surfaces."""
         if not ops:
             return self.evaluate(base, me)
         g = base.clone()
@@ -338,9 +317,7 @@ class EffectAI:
             ctx = Ctx(owner=owner, this_fid=g.hero(owner).fid, card_id=card.card_id if card else None, moment=label)
             run = EffectRun(copy.deepcopy(ops), ctx, label="sim")
             run.run(g, _SimChooser(self))
-        except AssertionError:
-            raise
-        except Exception:
+        except (RuleError, EffectError, NotImplementedError):
             return None
         return self.evaluate(g, me)
 

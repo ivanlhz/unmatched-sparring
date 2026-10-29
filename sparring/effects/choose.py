@@ -27,7 +27,7 @@ class ChoiceRequest:
     card_id: int | None = None      # the card whose effect asks
     key: str = ""                   # op path + ask index: where the answer is stored
     prompt: str = ""
-    extra: dict = field(default_factory=dict)     # context for bots (fighter, op, steps, through, reason)
+    extra: dict = field(default_factory=dict)   # bots: fighter, op, amount, steps, through, cost_cards, at_stake, hp
 
     def to_dict(self) -> dict:
         return {"kind": self.kind, "player": self.player, "options": list(self.options), "min": self.min,

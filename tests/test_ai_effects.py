@@ -7,7 +7,9 @@ import pytest
 from sparring import ai_effects
 from sparring.ai_effects import EffectAI, blind_clone
 from sparring.ai_medusa import MedusaAI
-from sparring.effects.choose import ChoiceRequest, ControllerChooser
+from sparring.effects.choose import ChoiceRequest, ControllerChooser, ScriptedChooser, default_answer, worth_paying
+from sparring.effects.model import EffectError
+from sparring.effects.run import Ctx, EffectRun
 from sparring.search.controller import IsmctsMedusa
 from sparring.search.ismcts import SearchConfig
 from sparring.state import Game
@@ -39,28 +41,100 @@ def ai():
 
 # ---------------------------------------------------------------- fighter
 
+def test_the_interpreter_tells_the_pick_what_the_op_does(bprd):
+    """`pick_fighters` puts the op and its amount in the request: the bot scores the candidates for what is coming."""
+    g = mk(bprd)
+    place(g, medusa=4, hellboy=2, lobster=3, harpy1=20, harpy2=21, harpy3=22)
+    hb, lob = g.fighters["hellboy"], g.fighters["lobster"]
+    sel = {"side": "enemy", "where": {"adjacent_to": "this"}}
+    for ops, expect in [([{"op": "damage", "target": sel, "amount": 2}], {"op": "damage", "amount": 2}),
+                        ([{"op": "heal", "target": sel, "amount": 1}], {"op": "heal", "amount": 1}),
+                        ([{"op": "move", "target": sel, "amount": 2, "up_to": True}],
+                         {"op": "move", "amount": 2, "through": False})]:
+        chooser = ScriptedChooser([[hb.fid], []])
+        assert g.board.distance(g.fighters["medusa"].pos, hb.pos) == 1 == g.board.distance(4, lob.pos)
+        EffectRun(ops, Ctx(owner=0, this_fid="medusa")).run(g, chooser)
+        first = chooser.requests[0]
+        assert first.kind == "fighter" and sorted(first.options) == ["hellboy", "lobster"]
+        assert {k: first.extra[k] for k in expect} == expect
+    hb.hp = lob.hp = hb.max_hp
+
+
 def test_a_killing_blow_on_a_sidekick_beats_a_scratch_on_the_hero(bprd, ai):
     g = mk(bprd)
     g.fighters["lobster"].hp = 1
-    assert ai.choose_effect(g, req("fighter", ["hellboy", "lobster"])) == ["lobster"]
+    assert ai.choose_effect(g, req("fighter", ["hellboy", "lobster"], op="damage", amount=1)) == ["lobster"]
 
 
 def test_a_lethal_blow_on_the_hero_beats_everything(bprd, ai):
     g = mk(bprd)
     g.fighters["hellboy"].hp = 2
     g.fighters["lobster"].hp = 1
-    assert ai.choose_effect(g, req("fighter", ["hellboy", "lobster"], amount=3)) == ["hellboy"]
+    assert ai.choose_effect(g, req("fighter", ["hellboy", "lobster"], op="damage", amount=3)) == ["hellboy"]
 
 
 def test_without_a_kill_the_rival_hero_is_the_target(bprd, ai):
     g = mk(bprd)
-    assert ai.choose_effect(g, req("fighter", ["lobster", "hellboy"])) == ["hellboy"]
+    assert ai.choose_effect(g, req("fighter", ["lobster", "hellboy"], op="damage")) == ["hellboy"]
 
 
-def test_among_own_fighters_the_most_hurt_is_picked(bprd, ai):
+def test_among_own_fighters_the_most_hurt_is_healed(bprd, ai):
     g = mk(bprd)
     g.fighters["medusa"].hp = g.fighters["medusa"].max_hp - 3
-    assert ai.choose_effect(g, req("fighter", ["medusa", "harpy1", "harpy2"])) == ["medusa"]
+    assert ai.choose_effect(g, req("fighter", ["medusa", "harpy1", "harpy2"], op="heal", amount=3)) == ["medusa"]
+
+
+def test_a_heal_among_mixed_candidates_never_goes_to_the_rival(bprd, ai):
+    g = mk(bprd)
+    g.fighters["hellboy"].hp = 1                  # the most hurt piece on the table is the rival hero
+    g.fighters["harpy1"].hp = 1
+    r = req("fighter", ["hellboy", "harpy1", "medusa"], op="heal", amount=2)
+    assert ai.choose_effect(g, r) == ["harpy1"]
+    g.fighters["harpy1"].hp = g.fighters["harpy1"].max_hp
+    assert ai.choose_effect(g, r) in (["harpy1"], ["medusa"])     # nothing to heal: still an own piece
+
+
+def test_damage_among_mixed_candidates_takes_the_lethal_enemy(bprd, ai):
+    g = mk(bprd)
+    g.fighters["medusa"].hp = 1                   # the bot's own hero is the weakest piece in the list
+    g.fighters["lobster"].hp = 2
+    assert ai.choose_effect(g, req("fighter", ["medusa", "lobster", "hellboy"], op="damage", amount=2)) == ["lobster"]
+
+
+def test_damage_among_own_fighters_spares_the_hero(bprd, ai):
+    g = mk(bprd)
+    g.fighters["medusa"].hp = 2                   # the rival makes the bot choose who takes the hit
+    assert ai.choose_effect(g, req("fighter", ["medusa", "harpy1"], op="damage", amount=2)) == ["harpy1"]
+
+
+def test_set_hp_is_a_blow_or_a_heal_by_the_number(bprd, ai):
+    g = mk(bprd)
+    g.fighters["medusa"].hp = g.fighters["hellboy"].hp = 3
+    assert ai.choose_effect(g, req("fighter", ["medusa", "hellboy"], op="set_hp", amount=1)) == ["hellboy"]
+    assert ai.choose_effect(g, req("fighter", ["medusa", "hellboy"], op="set_hp", amount=10)) == ["medusa"]
+    assert ai.choose_effect(g, req("fighter", ["medusa", "hellboy"], op="set_hp")) is None
+
+
+def test_a_move_pick_goes_to_the_piece_whose_relocation_gains_most(bprd, ai):
+    g = mk(bprd)
+    place(g, medusa=4, hellboy=2, lobster=3, harpy1=20, harpy2=21, harpy3=22)
+    r = req("fighter", ["hellboy", "lobster", "medusa"], op="move", amount=2, through=False)
+    got = ai.choose_effect(g, r)
+    model = ai_effects.Model(g, 0)
+    value = lambda fid, s: ai.medusa(0).position_value(g, model, {fid: s})
+
+    def gain(fid):
+        f = g.fighters[fid]
+        return max((value(fid, s) for s in g.legal_moves(f, 2, False)), default=value(fid, f.pos)) - value(fid, f.pos)
+    assert got[0] in r.options and gain(got[0]) == max(map(gain, r.options))
+
+
+def test_a_fighter_pick_for_an_unknown_op_is_left_to_the_controller_default(bprd, ai):
+    g = mk(bprd)
+    assert ai.choose_effect(g, req("fighter", ["hellboy", "lobster"])) is None
+    r = req("fighter", ["hellboy", "lobster"], op="status", amount=1)
+    assert ai.choose_effect(g, r) is None
+    assert ControllerChooser().choose(g, r) == default_answer(r)
 
 
 # ---------------------------------------------------------------- space
@@ -147,6 +221,17 @@ def test_the_rival_hand_is_ranked_only_by_what_a_look_showed(bprd, ai):
     assert got[0] in (hand[1].card_id, hand[2].card_id)
 
 
+def test_a_blind_rival_hand_pick_is_the_chooser_position_pick(bprd, ai):
+    """Nothing seen: the pick is C4's (`ControllerChooser._from_rival_hand`), a position drawn from the game rng."""
+    g = mk(bprd)
+    ids = [c.card_id for c in g.players[1].hand]
+    state = g.rng.getstate()
+    got = ai.choose_effect(g, req("cards", ids, zone="hand", purpose="discard", of=1))
+    g.rng.setstate(state)
+    assert got == ControllerChooser._from_rival_hand(g, req("cards", ids, zone="hand", purpose="discard", of=1), 1)
+    assert len(got) == 1 and got[0] in ids
+
+
 # ---------------------------------------------------------------- order and amount
 
 def test_own_cards_are_ordered_best_first_and_the_rivals_worst_first(bprd, ai):
@@ -201,24 +286,27 @@ def test_a_chance_to_finish_the_rival_hero_deals_the_damage(bprd):
     assert EffectAI(0).choose_effect(g, r) == [1]
 
 
-def incinerate(bprd, hp, value=None, hand=("Faster. Stronger.", "Secure The Scene", "Leap Away", "Concussion Device"),
-               **combat):
+def incinerate(bprd, hp, at_stake=7, hand=("Faster. Stronger.", "Secure The Scene", "Leap Away", "Concussion Device"),
+               **extra):
+    """Liz's Incinerate (printed 7) asks Abe's bot to discard 2 cards to ignore it; the request carries what the
+    interpreter's `_cost_context` sends: `cost_cards`, `at_stake` (attack minus defense) and `hp`."""
     g = mk(bprd, "abe-sapien", "liz-sherman")
     set_hand(g, 0, *hand)
     card = by_title(g, 1, "Incinerate")
     g.fighters["abe"].hp = hp
-    r = req("optional", [True, False], card_id=card.card_id, key="during/0:0", combat={"def_value": 0, **combat})
+    context = {"cost_cards": 2, "at_stake": at_stake, "hp": hp} if at_stake is not None else {}
+    r = req("optional", [True, False], card_id=card.card_id, key="during/0:0", **context, **extra)
     return g, r
 
 
 def test_a_lethal_incinerate_is_worth_two_cards(bprd):
     g, r = incinerate(bprd, hp=2)
-    assert EffectAI(0).choose_effect(g, r) == [True]
+    assert EffectAI(0).choose_effect(g, r) == [True] == [worth_paying(r)]
 
 
 def test_a_harmless_incinerate_is_not_worth_two_cards(bprd):
-    g, r = incinerate(bprd, hp=12, def_value=99)
-    assert EffectAI(0).choose_effect(g, r) == [False]
+    g, r = incinerate(bprd, hp=12, at_stake=0)
+    assert EffectAI(0).choose_effect(g, r) == [False] == [worth_paying(r)]
 
 
 def test_incinerate_is_paid_only_while_the_combat_outcome_changes(bprd):
@@ -226,16 +314,52 @@ def test_incinerate_is_paid_only_while_the_combat_outcome_changes(bprd):
     g, r = incinerate(bprd, hp=12)
     assert by_title(g, 1, "Incinerate").value == printed
     assert EffectAI(0).choose_effect(g, r) == [True]            # seven damage avoided is worth two cards
-    g, r = incinerate(bprd, hp=12, def_value=printed - 1)       # the defense already leaves a single point
+    g, r = incinerate(bprd, hp=12, at_stake=1)                  # the defense already leaves a single point
     assert EffectAI(0).choose_effect(g, r) == [False]
-    g, r = incinerate(bprd, hp=1, def_value=printed - 1)        # ... unless that point is the last hit point
+    g, r = incinerate(bprd, hp=1, at_stake=1)                   # ... unless that point is the last hit point
     assert EffectAI(0).choose_effect(g, r) == [True]
+
+
+@pytest.mark.parametrize("hp,at_stake,cost", [(12, 6, 2), (12, 5, 2), (12, 3, 1), (12, 2, 1), (3, 3, 2), (4, 3, 2),
+                                             (12, 0, 1), (1, 1, 3)])
+def test_a_priced_optional_is_the_one_chooser_policy_wherever_it_is_asked(bprd, hp, at_stake, cost):
+    g, r = incinerate(bprd, hp=hp, at_stake=at_stake)
+    r.extra["cost_cards"] = cost
+    assert EffectAI(0).choose_effect(g, r) == [worth_paying(r)]
+    g.controllers[0] = MedusaAI(0)
+    assert ControllerChooser().choose(g, r) == [worth_paying(r)]
+
+
+def test_incinerate_without_a_combat_context_never_raises(bprd):
+    """Incinerate's op is `set_value ... ignore: true` (no `amount`): a decision helper must never raise into the
+    live combat; without the interpreter's context the price is not paid."""
+    g, r = incinerate(bprd, hp=2, at_stake=None)
+    answer = EffectAI(0).choose_effect(g, r)
+    assert answer is None or r.validate(answer) == answer
+    g, r = incinerate(bprd, hp=2, at_stake=None, cost_cards=2)
+    assert EffectAI(0).choose_effect(g, r) == [False]
 
 
 def test_a_price_the_bot_cannot_pay_still_gets_a_legal_answer(bprd):
     g, r = incinerate(bprd, hp=2, hand=("Leap Away",))
     answer = EffectAI(0).choose_effect(g, r)
     assert answer in ([False], [True])      # the interpreter never asks it (_can_pay is false)
+
+
+def test_a_simulation_swallows_only_the_interpreter_errors(bprd, monkeypatch):
+    g, r = posthumous(bprd)
+
+    def bug(self, game, choosers):
+        raise RuntimeError("a bug in an op")
+    monkeypatch.setattr(EffectRun, "run", bug)
+    with pytest.raises(RuntimeError, match="a bug in an op"):
+        EffectAI(0).choose_effect(g, r)
+
+    def refuse(self, game, choosers):
+        raise EffectError("only inside a combat")
+    monkeypatch.setattr(EffectRun, "run", refuse)
+    answer = EffectAI(0).choose_effect(g, r)
+    assert answer is None or r.validate(answer) == answer
 
 
 # ---------------------------------------------------------------- the anti-cheat rule
@@ -254,7 +378,8 @@ def all_requests(g):
                                                            for c in g.players[0].full_set) else None
     deck = [c.card_id for c in g.players[0].deck[:4]]
     mine, theirs = g.hero(0).fid, g.hero(1).fid
-    out = [req("fighter", [f.fid for f in g.fighters.values() if f.alive]),
+    out = [req("fighter", [f.fid for f in g.fighters.values() if f.alive], op="damage", amount=2),
+           req("fighter", [f.fid for f in g.fighters.values() if f.alive], op="move", amount=2, through=True),
            req("space", sorted(g.legal_moves(g.fighters[theirs], 2, True)), fighter=theirs, op="place"),
            req("space", sorted(g.legal_moves(g.fighters[mine], 2, False)), fighter=mine, op="move",
                steps=2, through=False),
