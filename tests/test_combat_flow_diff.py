@@ -16,6 +16,7 @@ import legacy_combat
 from conftest import Scripted, give, place
 from sparring import combat, persist, sim
 from sparring.board import Board
+from sparring.heroes import load_hero
 from sparring.state import Game, RuleError
 
 SLUGS = ["medusa", "hellboy", "abe-sapien", "baba-yaga", "liz-sherman"]
@@ -28,12 +29,17 @@ def card_id(card):
     return None if card is None else card.card_id
 
 
+MEDUSA_TITLES = {c.title for c in load_hero("medusa").deck()}
+
+
 def result_record(res):
+    """`applied` without the narrator's lines for Medusa's cards (D3: the bot narrates them; the legacy oracle never did)."""
+    applied = [a for a in res.applied if a.split(": ", 1)[0] not in MEDUSA_TITLES]
     return {"attacker": res.attacker, "target": res.target, "atk_card": card_id(res.atk_card),
             "def_card": card_id(res.def_card), "atk_value": res.atk_value, "def_value": res.def_value,
             "damage": res.damage, "attacker_won": res.attacker_won, "cancelled": sorted(res.cancelled),
             "boost_card": card_id(res.boost_card), "human_effects": res.human_effects, "atk_parts": res.atk_parts,
-            "def_parts": res.def_parts, "applied": res.applied, "bot_notes": res.bot_notes}
+            "def_parts": res.def_parts, "applied": applied, "bot_notes": res.bot_notes}
 
 
 def recording(resolve, records):
