@@ -99,3 +99,10 @@ From reviews (28/10):
 - (Ivan 29/10) ONGOING zone: only face-up ONGOING cards count there; a non-ONGOING scheme left on the spot is ignored and the human is told to move it to the discard. read_cards_at / the batch snapshot read face-up cards only (a face-down card is never read).
 - (Ivan 29/10) Start-of-turn gate: HP (+1/-1) and Retirar stay visible during the wait (Wildfire damage). Start-of-turn abilities (Wildfire bottom card, Hellboy draw/ANUNG): the human does them when he plays the hero; when the bot plays the hero they run automatically (already the case since D2/D3). No read_bottom_card builder.
 - (Ivan 29/10) Random discard from the HUMAN's hand (Fleeting Moments...): the engine draws the position(s) with the game rng from the hand size only and the chat says 'al azar: la carta K de tu mano contando desde la izquierda'; memoized in run.flags so a resume names the same positions.
+
+## First live game (Ivan, 29/10): bot Hellboy vs human Liz, human won on turn 19
+AI feedback (Ivan): played reasonably and made a couple of good plays, but
+- the sidekick (Lobster Johnson) was barely used;
+- Hellboy exposed himself too much (maybe the hand);
+- endgame with both heroes low on hp, in ANUNG UN RAMA form (+2 attack): should play much more aggressively and attack everything it can to cash the bonus. Tune: form-aware aggression (value of the +2 per attack, urgency when both heroes are low) in the heuristic and the ISMCTS eval; sidekick usage (move/attack with Lobster when it adds damage or screens Hellboy); exposure penalty for the hero.
+- Ops: no game log is written to disk (only the terminal): write a per-game log file (chat + bot decisions) so games can be reviewed afterwards.
