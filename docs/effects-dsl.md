@@ -698,3 +698,58 @@ Decisiones dudosas de la migracion (ver tambien `notes` de cada fichero):
   search clones and `blind_clone` decide with their own controllers.
 - Search: `adapter._advance` leaves Hellboy's start of turn to the dispatcher when he is interpreted (the bot's
   Hellboy): no `anung` moves are enumerated for a discard the engine already made.
+
+## 17. Schemes and abilities of any interpreted hero in the bots (D2)
+
+- Schemes of a box hero are decided INSIDE the card, by a chooser, while it runs: `Game.play_scheme(..., choosers=)`
+  (`driven.preset_choosers(game, owner, by_kind, base)`) hands the run the choosers of the caller; nothing is
+  preset. Medusa keeps C5's presets (the planned target of A Momentary Glance, the frenzy policy through
+  `SearchController.choose_move`), so her controller-call order and rng are byte-identical
+  (tests/test_medusa_dsl_diff.py, goldens unchanged).
+- Heuristic (`MedusaAI.scheme_acts` -> `scheme_act`): one act per scheme title of the bot's hand, valued by playing
+  the card on a blind clone with EffectAI deciding inside (`EffectAI.scheme_outcome`, the same rules the real play
+  uses): `material_delta` (hit points by weight, kills, the ONGOING that enters or leaves both slots) + CARD_VALUE per
+  card drawn - keep_value per card given up - CARD_VALUE for the card itself + ACTION_VALUE per action it grants.
+  `Act.sim` is the expected state (`apply_expected` returns a clone of it) and a simulated win scores +DEATH
+  (`MedusaAI.outcome`; the old code took any finished game as the bot's death, Medusa's expected sims never finish
+  a game). The act's kind is `"scheme"`; the session says "El bot juega <title>" like a glance or a frenzy.
+- Search (`adapter._scheme_moves`): `("scheme", title, None, variant)` per title of an interpreted hero's hand,
+  with `variant` in `SCHEME_VARIANTS = ("greedy", "safe")` when the card's ops ask something (`scheme_variants`:
+  a move/place/swap/revive/summon, an optional, a choose_effect, a choose, a search_deck or any selector with a
+  `chooser`) and a single `None` line otherwise (Crown Of Flame, Counterhex Shield). At most `SCHEME_MOVES_KEEP = 6`
+  scheme moves per node, the safe lines dropped first. `apply` plays the card with `SyntheticChooser(variant)` for
+  the mover and `SyntheticChooser("greedy")` for the rival; `IsmctsMedusa.to_act` turns the move into
+  `Act("scheme", variant=...)` and `MedusaAI.execute` plays it on the real game with that same chooser for the bot
+  (`scheme_choosers`: what the search evaluated) and the rival's usual chooser (its controller, or the panel in a
+  session). A hero outside `fx.dsl_heroes` (the human's box hero until E2) still plays no scheme in the search.
+- `SyntheticChooser` policies `greedy` / `safe`, each from the answering player's point of view: greedy brings an
+  own piece to a strike spot (else nearest to the foes), a rival piece within the own hero's reach, pays costs and
+  takes the first options; safe moves an own piece away, a rival piece out of reach, declines costs and takes the
+  last options. Both hit the enemy that pays most (kill, hero, weakest), heal who needs it most, give up the
+  cheapest cards (`card_worth`) and take the best, and never draw into exhaustion. A rival-hand pick goes through
+  `ControllerChooser._from_rival_hand` (only what a look showed), so the live bot never ranks unseen cards; in the
+  search the game is determinized, so a chooser there only ever sees the sampled hand (test with `HandSpy`).
+- The ONGOING slot is valued once, `ongoing.worth(game, player)` in hit points: +1 per point of value on the
+  owner's combat cards (Fight Or Flight), +0.5 per immunity status (Counterhex Shield: 1.5), +0.5 per point of
+  effect damage bonus (Pact Of Mortality); rules that bind both players (Pact Of Freedom / Secrecy / Time, Peace's
+  trigger) count 0. `EffectAI.evaluate` / `material` add `W_MEDUSA_HP * worth(me) - W_HERO * worth(rival)`;
+  the search's `_side_value` adds `EvalWeights.ongoing * worth / hero.max_hp`. Replacing one ONGOING with another
+  (`ongoing.enter_play`, one per player) is therefore scored as the trade.
+- Abilities: the start-of-turn triggers of the box heroes (Hellboy's detective draw / ANUNG discard and move, Liz's
+  Wildfire bottom discard) fire through `events.dispatch` at `Game.begin_turn`, in the simulator's loop, the
+  session and inside `adapter._advance` (no hand-coded step; the bot's Hellboy enumerates no `anung` moves). Abe's
+  tokens and Baba's pacts are event triggers (`combat_damage_dealt`, `attacked`, `end_of_turn`, `damage_taken`):
+  the search now emits `attacked` when an attack card is committed (`apply("attack_card")`, as
+  `Game._declare_attack` does), so `attacked_this_turn` (Pact Of Peace) and UNCANNY INTUITION's spend fire inside
+  the tree. Decisions of those triggers go to the controllers (`SearchController` in the search, EffectAI live).
+- A search clone gets its own rng at `determinize` (a shuffle inside a simulated effect, Pact Of Secrecy, never
+  moves the live game's rng).
+- Liz (Ivan, 29/10): the bot leaves a burning card at the bottom of its deck when a card lets it (Pyrotechnics:
+  `EffectAI._cards` prefers a card of the returning tag for a bottom return, `_order` puts it last, the request
+  carries `position`); the optional is accepted because `evaluate` counts a returning card at the bottom as kept
+  (`keep_value + BOUNCE_BONUS`). `returning_tag(slug)` reads it from the hero's triggers (a `card_discarded` from
+  the deck with a tag filter), nothing is hard-coded. `blind_clone` never leaves a returning card at the bottom of
+  the shuffled own deck: the bot does not know its bottom card unless it put it there, so only what a simulated
+  effect puts there counts.
+- Open: a bot scheme that asks the human something (Pact Of Secrecy's "keep 2" of the human) returns the Await from
+  `MedusaAI.execute`; the session does not drive it yet (E2's `Session.play_effect` for the bot side).

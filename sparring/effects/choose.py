@@ -168,20 +168,125 @@ class TableChooser:
         raise NotImplementedError(f"{req.prompt or req.kind}: a forced choice of the human needs the panel (E1)")
 
 
+SCHEME_VARIANTS = ("greedy", "safe")    # the two lines the search tries for a scheme that asks something (D2)
+HIT_OPS = ("damage", "set_hp")
+RELOCATE_OPS = ("move", "place", "swap", "revive", "summon")
+GIVE_UP = ("discard", "return", "reveal")
+
+
 class SyntheticChooser:
     """Search and rollouts: no controller, no table. `policy="first"` is deterministic; `"random"` draws from its
-    own `rng` (never the game's, so the search does not disturb the real shuffle)."""
+    own `rng` (never the game's, so the search does not disturb the real shuffle). `"greedy"` and `"safe"` (D2) are
+    the two lines the search enumerates for a scheme, cheap and deterministic, each from the point of view of the
+    player who answers: greedy brings pieces closer to combat (own piece towards a strike, a rival piece within
+    reach), pays costs and takes the first options; safe moves apart (own piece away, a rival piece out of reach),
+    declines costs and takes the last options. Both hit the enemy that pays most, heal who needs it most, give up
+    the cheapest cards and take the best. It sees only what the game it is given holds: in the search that game is
+    determinized, so a rival hand it ranks is the sampled one, never the real one."""
 
     def __init__(self, rng: random.Random | None = None, policy: str = "first"):
-        if policy not in ("first", "random"):
+        if policy not in ("first", "random", *SCHEME_VARIANTS):
             raise ValueError(f"unknown policy {policy!r}")
         self.rng, self.policy = rng or random.Random(0), policy
 
     def choose(self, game, req: ChoiceRequest) -> list:
-        if self.policy == "first" or req.kind in ("optional", "amount"):
+        if self.policy == "first":
             return default_answer(req)
-        n = self.rng.randint(req.min, min(req.max, len(req.options)))
-        return self.rng.sample(list(req.options), n)
+        if self.policy == "random":
+            if req.kind in ("optional", "amount"):
+                return default_answer(req)
+            n = self.rng.randint(req.min, min(req.max, len(req.options)))
+            return self.rng.sample(list(req.options), n)
+        answer = getattr(self, f"_{req.kind}")(game, req)
+        return default_answer(req) if answer is None else answer
+
+    @property
+    def greedy(self) -> bool:
+        return self.policy == "greedy"
+
+    def _optional(self, game, req: ChoiceRequest) -> list:
+        return [self.greedy or "cost_cards" not in req.extra]
+
+    def _amount(self, game, req: ChoiceRequest) -> list:
+        top = max(req.options)
+        if req.extra.get("zone") in (None, "deck"):            # a draw: never into exhaustion
+            top = max(min(req.options), min(top, len(game.players[req.player].deck)))
+        return [top]
+
+    def _effect(self, game, req: ChoiceRequest) -> list:
+        n = min(req.max, len(req.options))
+        return list(req.options[:n]) if self.greedy else list(req.options[-n:])
+
+    def _fighter(self, game, req: ChoiceRequest) -> list | None:
+        me, op = req.player, req.extra.get("op")
+        cands = [game.fighters[i] for i in req.options if i in game.fighters]
+        if not cands:
+            return None
+        foes, mine = [f for f in cands if f.owner != me], [f for f in cands if f.owner == me]
+        if op in HIT_OPS:
+            n = req.extra.get("amount")
+            dmg = n if op == "damage" and isinstance(n, (int, float)) else 1
+            if foes:            # a kill first, then the hero, then the weakest
+                return [min(foes, key=lambda f: (f.hp > dmg, not f.hero, f.hp, f.fid)).fid]
+            if req.min == 0:
+                return []
+            return [max(mine, key=lambda f: (not f.hero, f.hp, f.fid)).fid]      # the own piece that loses least
+        if op == "heal":
+            pool = mine or cands
+            return [max(pool, key=lambda f: (f.max_hp - f.hp, f.hero, f.fid)).fid]
+        if op in RELOCATE_OPS:
+            pool = (mine or foes) if self.greedy else (foes or mine)
+            return [min(pool, key=lambda f: (not f.hero, f.fid)).fid]
+        return None
+
+    def _space(self, game, req: ChoiceRequest) -> list | None:
+        f = game.fighters.get(req.extra.get("fighter"))
+        if f is None:
+            return None
+        me, board = req.player, game.board
+        options = list(req.options)
+        foes = [e for e in game.own(1 - me) if e is not f]
+        hero = game.hero(me)
+        if not foes:
+            return None
+        if f.owner == me:
+            near = lambda s: min(board.distance(s, e.pos) for e in foes)
+            strikes_from = lambda s: any(board.can_reach_target(s, e.pos, f.ranged) for e in foes)
+            may_stay = req.min == 0 and f.pos is not None
+            if self.greedy:
+                strikes = [s for s in options if strikes_from(s)]
+                if strikes:
+                    return [] if may_stay and strikes_from(f.pos) else [min(strikes, key=lambda s: (near(s), s))]
+                best = min(options, key=lambda s: (near(s), s))
+                return [] if may_stay and near(f.pos) <= near(best) else [best]
+            best = max(options, key=lambda s: (near(s), -s))
+            return [] if may_stay and near(f.pos) >= near(best) else [best]
+        ref = hero.pos if hero.alive and hero.pos is not None else None
+        if ref is None:
+            return None
+        if self.greedy:         # a rival piece where the own hero strikes it
+            within = [s for s in options if board.can_reach_target(ref, s, hero.ranged)]
+            return [min(within or options, key=lambda s: (board.distance(ref, s), s))]
+        return [max(options, key=lambda s: (board.distance(ref, s), -s))]
+
+    def _cards(self, game, req: ChoiceRequest) -> list:
+        from ..search.adapter import card_worth
+        of = req.extra.get("of", req.player)
+        if req.extra.get("zone") == "hand" and of != req.player:     # only what a look showed (C4), as every bot
+            return ControllerChooser._from_rival_hand(game, req, of)
+        cards = {c.card_id: c for p in game.players for c in p.full_set}
+        worth = lambda i: card_worth(cards[i]) if i in cards else 0.0
+        if req.extra.get("purpose") in GIVE_UP:
+            return sorted(req.options, key=lambda i: (worth(i), i))[:req.min]
+        n = min(req.max, len(req.options))
+        return sorted(req.options, key=lambda i: (-worth(i), i))[:n]
+
+    def _order(self, game, req: ChoiceRequest) -> list:
+        from ..search.adapter import card_worth
+        cards = {c.card_id: c for p in game.players for c in p.full_set}
+        if set(req.options) <= set(cards):
+            return sorted(req.options, key=lambda i: (-card_worth(cards[i]), i))
+        return list(req.options)
 
 
 class PresetChooser:

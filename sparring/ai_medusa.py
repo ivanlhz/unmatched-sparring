@@ -12,6 +12,9 @@ Valor de una accion
                transformacion de Hellboy con Clutching Claws / Hiss and Slither)
   * maniobra = robar (+CARD_VALUE) - coste de la carta de boost
   * plan     = dano esperado (A Momentary Glance) o reposicionamiento (Winged Frenzy) - coste de carta
+  * plan de cualquier otro heroe interpretado (D2) = lo que deja simularlo en un clon ciego con EffectAI
+               decidiendo dentro (material, ONGOING que entra o sale, cartas que gana o pierde, acciones que da)
+               - coste de carta; la ejecucion real decide con las mismas reglas.
   El rival se modela con la hipergeometrica: su mano son `h` cartas al azar de las que NO estan en su
   descarte; juega su mejor carta elegible. Asi salen P(ganar), dano esperado y P(matar).
 
@@ -70,6 +73,7 @@ DESPERATE_FEAR_DROP = 0.8   # con desesperacion total la huida pesa un 20 %
 WIN_PRIZE = 60.0            # ganar vale lo que perder cuesta: progreso esperado x premio
 PROGRESS_DISCOUNT = 0.8     # el rival puede apartarse antes de mi proximo turno
 CLOCK_HORIZON = 8           # con 8 o mas robos por pagar el reloj del mazo no aprieta
+ACTION_VALUE = 1.0          # una accion que regala un plan: al menos el robo de una maniobra, a menudo un ataque
 
 AFTER_BONUS = {
     "Regroup": (CARD_VALUE, CARD_VALUE),       # (siempre, extra si gana)
@@ -93,7 +97,7 @@ def keep_value(card, hand) -> float:
 
 @dataclass
 class Act:
-    kind: str                       # attack | maneuver | glance | frenzy
+    kind: str                       # attack | maneuver | glance | frenzy | scheme (any other interpreted hero's)
     value: float = 0.0
     fid: str = ""
     target: str = ""
@@ -104,6 +108,8 @@ class Act:
     total: float = 0.0
     exp_damage: float = 0.0
     p_win: float = 0.0
+    variant: str | None = None      # scheme: the SyntheticChooser policy the search evaluated it with (D2)
+    sim: object = None              # scheme: the game the heuristic's simulation left (its expected state)
 
 
 class Model:
@@ -244,7 +250,7 @@ class MedusaAI(Controller):
         best, best_v = None, None
         for a1 in firsts:
             g1 = self.apply_expected(game, a1)
-            second = -DEATH if g1.winner is not None else self.candidates(g1, model)[0].total
+            second = self.outcome(g1) if g1.winner is not None else self.candidates(g1, model)[0].total
             total = a1.value + second
             if best_v is None or total > best_v + 1e-9:
                 best, best_v = a1, total
@@ -256,14 +262,18 @@ class MedusaAI(Controller):
         for a in acts:
             g = self.apply_expected(game, a)
             if g.winner is not None:
-                a.total = a.value - DEATH
+                a.total = a.value + self.outcome(g)
                 continue
             a.total = a.value + self.position_value(g, model)
             if g.actions_left == 0:
                 a.total += self.terminal_value(g)
         unique = {(a.kind, a.fid, a.target, a.card and a.card.card_id, a.boost and a.boost.card_id,
-                   tuple(sorted(a.moves.items())), a.spot): a for a in reversed(acts)}   # la 1.a de cada una
+                   tuple(sorted(a.moves.items())), a.spot, a.variant): a for a in reversed(acts)}   # la 1.a de cada una
         return sorted(unique.values(), key=lambda a: -a.total)
+
+    def outcome(self, g: Game) -> float:
+        """Una partida acabada en el estado esperado: perderla (agotamiento) o ganarla (un plan que remata)."""
+        return DEATH if g.winner == self.me else -DEATH
 
     # ----- ataques -----
     def attack_acts(self, game: Game, model: Model) -> list[Act]:
@@ -331,13 +341,15 @@ class MedusaAI(Controller):
 
     # ----- planes -----
     def scheme_acts(self, game: Game, model: Model) -> list[Act]:
+        """Medusa's two schemes keep their planned targets (C5 presets); any other interpreted hero's scheme is
+        valued by simulating it (`scheme_act`), one act per title."""
         medusa = game.hero(self.me)
-        out = []
+        interpreted = game.players[self.me].hero.slug in game.fx.dsl_heroes
+        out, seen = [], set()
         for c in game.players[self.me].hand:
-            if not c.is_scheme or not c.usable_by(medusa.name):
+            if not c.is_scheme or not c.usable_by(medusa.name) or c.title in seen:
                 continue
-            if any(a.card is c for a in out):
-                continue
+            seen.add(c.title)
             if c.title == "A Momentary Glance":
                 for t in game.foes(self.me):
                     if game.board.share_zone(medusa.pos, t.pos):
@@ -346,7 +358,25 @@ class MedusaAI(Controller):
                         out.append(Act("glance", v, medusa.fid, t.fid, c))
             elif c.title == "Winged Frenzy":
                 out.append(self.frenzy_act(game, model, c))
+            elif interpreted:
+                out.append(self.scheme_act(game, c))
         return [a for a in out if a is not None]
+
+    def scheme_act(self, game: Game, card) -> Act | None:
+        """A scheme played on a blind clone with EffectAI deciding inside (`EffectAI.scheme_outcome`): its value is
+        the material it swings (kills, the ONGOING it brings in or replaces), the cards it draws (unknown: CARD_VALUE
+        each) minus those it gives up (their keep_value) and the card itself, plus the actions it grants."""
+        me = self.me
+        after = self.effect_ai().scheme_outcome(game, card, me)
+        if after is None:
+            return None
+        hand, hand_after = game.players[me].hand, after.players[me].hand
+        lost = [c for c in hand if c is not card and c not in hand_after]
+        gained = sum(1 for c in hand_after if c not in hand)
+        value = self.effect_ai().material_delta(game, after, me) - CARD_VALUE
+        value += CARD_VALUE * gained - sum(keep_value(c, hand) for c in lost)
+        value += ACTION_VALUE * (after.actions_left - (game.actions_left - 1))
+        return Act("scheme", value, game.hero(me).fid, "", card, sim=after)
 
     def frenzy_act(self, game: Game, model: Model, card) -> Act | None:
         g = game.clone()
@@ -449,6 +479,8 @@ class MedusaAI(Controller):
             hand.remove(a.card)
             for fid, d in a.moves.items():
                 g.fighters[fid].pos = d
+        elif a.kind == "scheme":        # the simulation already spent the action and granted what the card gives
+            return a.sim.clone()
         g.actions_left -= 1
         return g
 
@@ -579,6 +611,20 @@ class MedusaAI(Controller):
                 game.play_scheme(me, game.hero(me), a.card)
             finally:
                 self._plan_moves, self._plan_spot = {}, None
+        elif a.kind == "scheme":
+            return game.play_scheme(me, game.hero(me), a.card, choosers=self.scheme_choosers(game, a.variant))
+
+    def scheme_choosers(self, game: Game, variant: str | None) -> dict | None:
+        """Who decides inside a scheme the bot plays: with a search `variant`, the SyntheticChooser of that policy
+        (what the search evaluated); without one, the usual choosers (this controller's EffectAI). The rival's
+        decisions always go to the rival's usual chooser (its controller, or the panel in a session)."""
+        if variant is None:
+            return None
+        from .effects.choose import SyntheticChooser
+        from .effects.events import default_choosers
+        choosers = dict(default_choosers(game))
+        choosers[self.me] = SyntheticChooser(policy=variant)
+        return choosers
 
     # ---------- decisiones que el motor delega ----------
     def choose_move(self, game: Game, fighter: Fighter, steps: int, through_enemies: bool = False) -> int | None:
@@ -595,12 +641,17 @@ class MedusaAI(Controller):
         hand = game.players[player].hand
         return sorted(hand, key=lambda c: (keep_value(c, hand), c.card_id))[:n]
 
-    def choose_effect(self, game: Game, req):
-        """DSL decisions (sparring/effects/choose.py): sparring/ai_effects.py, built on this class's evaluation."""
+    def effect_ai(self):
+        """The EffectAI (sparring/ai_effects.py) built on this class's evaluation: it answers the DSL decisions and
+        simulates whole schemes for `scheme_act`."""
         if self._effect_ai is None:
             from .ai_effects import EffectAI
             self._effect_ai = EffectAI(self.me, self)
-        return self._effect_ai.choose_effect(game, req)
+        return self._effect_ai
+
+    def choose_effect(self, game: Game, req):
+        """DSL decisions (sparring/effects/choose.py): sparring/ai_effects.py, built on this class's evaluation."""
+        return self.effect_ai().choose_effect(game, req)
 
     def choose_combat_boost(self, game: Game, ctx):
         """The card to BOOST with, or None. Attacking: the damage the boost adds, by the target's weight. Defending

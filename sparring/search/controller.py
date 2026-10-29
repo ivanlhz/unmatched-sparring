@@ -17,6 +17,7 @@ from dataclasses import replace
 
 from ..ai_medusa import GAZE, Act, MedusaAI
 from ..cards import Card
+from ..combat import is_medusa_card
 from ..controller import Controller
 from ..state import Fighter, Game
 from .adapter import EngineState, EvalWeights, Knowledge, by_title, plan_frenzy, sidekick_plan
@@ -150,9 +151,11 @@ class IsmctsMedusa(Controller):
             return Act("maneuver", fid=hero.fid, moves=dict(((hero.fid, dest),) + plan), boost=boost)
         if kind == "scheme" and first[2] is not None:
             return Act("glance", fid=hero.fid, target=first[2], card=by_title(hand, first[1]))
-        if kind == "scheme":
+        if kind == "scheme" and is_medusa_card(by_title(hand, first[1])):
             moves, spot = plan_frenzy(game, self.me, first[3])
             return Act("frenzy", fid=hero.fid, card=by_title(hand, first[1]), moves=moves, spot=spot)
+        if kind == "scheme":        # D2: executed with the SyntheticChooser the search evaluated it with
+            return Act("scheme", fid=hero.fid, card=by_title(hand, first[1]), variant=first[3])
         raise ValueError(f"jugada sin accion equivalente: {chosen!r}")
 
     def execute(self, game: Game, act: Act) -> None:

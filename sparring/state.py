@@ -520,15 +520,18 @@ class Game:
             self.move_fighter(f, dest, f.move + extra)
         self.fx.emit("after_maneuver", player)
 
-    def play_scheme(self, player: int, fighter: Fighter, card: Card, target: Fighter | None = None):
+    def play_scheme(self, player: int, fighter: Fighter, card: Card, target: Fighter | None = None,
+                    choosers: dict | None = None):
         """`target`: the fighter the scheme hits when its effect picks one (A Momentary Glance: the AI plans it).
-        A hero of `fx.dsl_heroes` resolves the card through the interpreter (and returns the Await of a chooser that
-        paused it); any other keeps the legacy path (the human resolves the text, the engine the ONGOING bonus)."""
+        `choosers` (player -> effects Chooser): who answers the card's other decisions; None = the controllers (and
+        the panel, in a session). A hero of `fx.dsl_heroes` resolves the card through the interpreter (and returns
+        the Await of a chooser that paused it); any other keeps the legacy path (the human resolves the text, the
+        engine the ONGOING bonus)."""
         if not card.is_scheme or not card.usable_by(fighter.name) or card not in self.players[player].hand:
             raise RuleError(f"{card.title} no se puede jugar con {fighter.fid}")
         if self.players[player].hero.slug in self.fx.dsl_heroes:
             from .effects.driven import play_scheme
-            return play_scheme(self, player, fighter, card, target)
+            return play_scheme(self, player, fighter, card, target, choosers)
         from .combat import resolve_scheme
         self.use_action()
         self.discard_card(player, card, played=True)

@@ -7,7 +7,10 @@ subdecisiones encadenadas que comparten estadisticas en el arbol (la raiz tiene 
   ("anung", titulo) -> ("anung_to", d | None)   descarte obligatorio + movimiento de ANUNG UN RAMA
   ("attack", fid, objetivo) -> ("attack_card", fid, titulo)   el rival ve ("attack_card", fid, None)
   ("defend", titulo | None)                     resuelve el combate pendiente
-  ("scheme", titulo, objetivo | None, variante) planes con efecto codificado (solo los de Medusa hoy)
+  ("scheme", titulo, objetivo | None, variante) planes: los de Medusa con su objetivo / politica (C5); los de
+                                                cualquier otro heroe interpretado con un SyntheticChooser
+                                                decidiendo dentro (variante greedy | safe, D2; None si la
+                                                carta no pregunta nada), como mucho SCHEME_MOVES_KEEP por nodo
   ("maneuver", boost | None) -> ("place", d, politica)   destino del heroe y politica de los ayudantes
 Las subfases con una sola opcion se resuelven solas. `decision_pending()` dice si la accion esta a medias, para
 que el controlador complete la jugada siguiendo la variacion principal.
@@ -32,16 +35,22 @@ from __future__ import annotations
 
 import random
 from dataclasses import dataclass, field
+from functools import lru_cache
 from math import sqrt
 
 from ..ai_medusa import GAZE
 from ..cards import Card, can_be_boost
 from ..combat import is_medusa_card, resolve_combat
 from ..controller import Controller
+from ..effects import ongoing
+from ..effects.choose import SCHEME_VARIANTS, SyntheticChooser
+from ..effects.model import load_effects, walk_ops
 from ..state import ANUNG, Fighter, Game, PlayerState
 
 SIDEKICK_POLICIES = ("stay", "advance", "retreat")
 FRENZY_VARIANTS = ("advance", "retreat")
+SCHEME_MOVES_KEEP = 6         # scheme moves per node: every title's greedy line first, the safe ones while they fit
+ASKING_OPS = ("move", "place", "swap", "revive", "summon", "optional", "choose_effect", "choose", "search_deck")
 ROLLOUT_ATTACK_PROB = 0.7     # en el rollout, quien puede atacar ataca casi siempre (hace visibles las amenazas)
 ROLLOUT_BOOST_PROB = 0.3
 ROLLOUT_APPROACH_PROB = 0.5   # en el rollout, el heroe que maniobra busca una casilla desde la que golpear
@@ -63,6 +72,7 @@ class EvalWeights:
     victim_moves_first: float = 0.1 # descuento si el amenazado mueve antes: puede apartarse o golpear primero
     boost_reach: float = 0.4        # el atacante que necesita un boost para llegar: le cuesta una carta y es incierto
     defend_card_hp: float = 0.75    # cada ataque recibido cuesta ademas una carta de defensa (en PV equivalentes)
+    ongoing: float = 1.0            # el ONGOING en juego, en PV del heroe (`effects.ongoing.worth`)
     slope: float = 1.5              # escala de `squash` sobre la diferencia entre bandos
 
 
@@ -241,6 +251,17 @@ def placement_choice(game: Game, player: int, options: list[int]) -> int | None:
     return max(options, key=lambda s: (nearest(game.board, s, foes), -s)) if options else None
 
 
+@lru_cache(maxsize=None)
+def scheme_variants(slug: str, title: str) -> tuple:
+    """The chooser policies worth a move of their own for this scheme: both when its ops ask something (a
+    destination, an option, a price, a card to give up), a single line (None) when nothing is decided inside."""
+    ops = load_effects(slug).moment_ops(title, "scheme")
+    for o in walk_ops(ops):
+        if o["op"] in ASKING_OPS or any(isinstance(v, dict) and "chooser" in v for v in o.values()):
+            return SCHEME_VARIANTS
+    return (None,)
+
+
 class SearchController(Controller):
     """Decisiones delegadas por el motor dentro de la simulacion: heuristicas fijas y baratas."""
 
@@ -389,6 +410,7 @@ class EngineState:
             self.phase, self.partial = "action", ()
             g.use_action()
             self.pending = (att, tgt, by_title(hand, move[2]))
+            g.fx.emit("attacked", g.fighters[att], g.fighters[tgt], self.pending[2])   # as Game._declare_attack does
         elif kind == "maneuver":
             self.phase, self.partial = "maneuver_place", (move[1],)
         elif kind == "place":
@@ -402,12 +424,15 @@ class EngineState:
             card = by_title(hand, move[1])
             if move[2] is not None:
                 g.play_scheme(p, g.hero(p), card, target=g.fighters[move[2]])
-            else:
+            elif is_medusa_card(card):      # C5: the frenzy policy reaches choose_move through the controller
                 self.variant = move[3]
                 try:
                     g.play_scheme(p, g.hero(p), card)
                 finally:
                     self.variant = None
+            else:                           # D2: the chooser of the variant decides inside; the rival answers greedy
+                mine = SyntheticChooser(policy=move[3] or "greedy")
+                g.play_scheme(p, g.hero(p), card, choosers={p: mine, 1 - p: SyntheticChooser(policy="greedy")})
         elif kind == "ability":
             if move[1] is not None:
                 g.use_ability(p, GAZE, g.fighters[move[1]])
@@ -464,6 +489,7 @@ class EngineState:
     def determinize(self, observer: int, rng: random.Random) -> None:
         g = self.game
         self._eval = None
+        g.rng = random.Random(rng.random())     # a shuffle inside a simulated effect never moves the live game's rng
         for p, st in enumerate(g.players):
             if p == observer:
                 st.deck.sort(key=lambda c: c.card_id)   # el orden del propio mazo tambien es oculto: desde el canonico
@@ -577,17 +603,26 @@ class EngineState:
         return out
 
     def _scheme_moves(self, p: int) -> list:
+        """Medusa's schemes with their planned target / policy (C5); any other interpreted hero's with the chooser
+        variants of `scheme_variants`, capped at SCHEME_MOVES_KEEP (the safe lines are the ones dropped). A hero
+        outside `fx.dsl_heroes` (the human's box hero until E2) plays no scheme in the search, as before."""
         g = self.game
         hero = g.hero(p)
+        slug = g.players[p].hero.slug
+        interpreted = slug in g.fx.dsl_heroes
         out, seen = [], set()
         for c in g.players[p].hand:
-            if not c.is_scheme or not is_medusa_card(c) or not c.usable_by(hero.name) or c.title in seen:
+            if not c.is_scheme or not c.usable_by(hero.name) or c.title in seen:
                 continue
             seen.add(c.title)
             if c.title == "A Momentary Glance":
                 out += [("scheme", c.title, t.fid, None) for t in g.foes(p) if g.board.share_zone(hero.pos, t.pos)]
             elif c.title == "Winged Frenzy":
                 out += [("scheme", c.title, None, v) for v in FRENZY_VARIANTS]
+            elif interpreted and not is_medusa_card(c):
+                out += [("scheme", c.title, None, v) for v in scheme_variants(slug, c.title)]
+        if len(out) > SCHEME_MOVES_KEEP:
+            out = sorted(out, key=lambda m: m[3] == "safe")[:SCHEME_MOVES_KEEP]
         return out
 
     def _boost_variants(self, p: int) -> list[Card | None]:
@@ -666,7 +701,7 @@ class EngineState:
         deck = min(len(g.players[p].deck), 10) / 10
         # raiz cuadrada: los primeros PV valen mas que los ultimos; seguir vivo a 3 PV no es casi lo mismo que morir
         return (sqrt(max(hero.hp, 0) / hero.max_hp) + w.sidekicks * side_hp + w.alive * alive + w.hand * hand
-                + w.deck * deck - self._exposure(p, urgent))
+                + w.deck * deck + w.ongoing * ongoing.worth(g, p) / hero.max_hp - self._exposure(p, urgent))
 
     def _exposure(self, p: int, urgent: bool) -> float:
         """Lo que la amenaza sobre el heroe de `p` resta a su bando (`threat` ponderada)."""
