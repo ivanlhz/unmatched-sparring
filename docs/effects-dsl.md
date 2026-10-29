@@ -483,8 +483,11 @@ Decisiones dudosas de la migracion (ver tambien `notes` de cada fichero):
 - Decisions taken for the gaps in the spec: `summon` takes a never-placed fighter (`died_at is None`); `move` with `up_to: false` prefers spaces exactly N
   away; `gain_action` for a player whose turn it is not does nothing; `end_turn` ends the CURRENT turn whoever owns the
   card (zeroes `game.turn`'s actions, sets `run.flags["end_turn"] = game.turn`); `choose_effect` resolves the chosen
-  options in printed order, not choice order; `defeated` = died on the board (`died_at` set), reserve fighters
-  are not defeated; `moved_this_turn` reads `fx.turn_start_pos`.
+  options in printed order, not choice order; `defeated` = dead on the board: `died_at` set, or a fighter the
+  HeroDef starts on the board (it was never in reserve; a Harpy dead in a save older than `died_at`), reserve fighters
+  are not defeated (`select.defeated`); `moved_this_turn` reads `fx.turn_start_pos`; several fighters whose
+  destinations are asked one by one (`move` with `pick: all`, placements) go in fighter id order, sidekicks before
+  the hero, each seeing where the previous ones ended (the order Winged Frenzy has always used).
 
 ### C4 hidden information (`effects/ops_info.py`, `KnownHand` in `state.py`)
 
@@ -515,8 +518,12 @@ Decisiones dudosas de la migracion (ver tambien `notes` de cada fichero):
 - Hellboy has two modes. Flag off: the wrappers `Game.hellboy_detective_draw` / `hellboy_anung_start` drive him (session,
   adapter, script) and the dispatcher does nothing. `'hellboy'` in `dsl_heroes` (D1): the dispatcher runs his triggers
   `detective_draw` / `anung_discard_move` at `begin_turn`, and the wrappers become no-ops (`False` / return), so nothing
-  fires twice. `medusa_gaze` is still engine-driven (`medusa_ability`) until C5. `events.run_trigger` runs a trigger on
+  fires twice. `medusa_gaze` stays in `DRIVEN_BY_THE_ENGINE`: the AI, the session and the search decide when it
+  fires and on whom and run it through `Game.use_ability` (section 15). `events.run_trigger` runs a trigger on
   request; tests pin that both modes give the same state.
+- Turn bookkeeping (`fx.attacked`, `fx.turn_start_pos`, `fx.taken`) is recorded only when an interpreted hero's
+  effects file reads it (`events.tracked`: `attacked_this_turn` / `combat_damage_dealt`, `moved_this_turn`,
+  `actions_taken_this_turn` / `no_attack_as_first_action`), so a game of heroes that never ask saves like before.
 - `card_discarded` carries `cause`; `Game.end_turn`'s hand-limit discard uses `cause="hand_limit"` and Wildfire's
   `cause_not: hand_limit` leaves such a burning card in the discard pile (Ivan, 28/10).
 - `no_attack_as_first_action` (Pact Of Freedom) is enforced in `Game.can_attack` / `Game.attack` through `fx.may_attack`
@@ -568,8 +575,11 @@ Decisiones dudosas de la migracion (ver tambien `notes` de cada fichero):
   for `adjust_damage` that is an effect of the legacy engine path (Medusa's gaze...), treated as the enemy's; for
   `can_move` it is the player's own maneuver, which is never an enemy effect (legacy-path effects that move enemy
   fighters do not exist). A discard that is the cost of an `optional` is voluntary and never vetoed.
-- Known gap: FATEFUL BARGAINS (and any redirect passive) only acts on DSL `damage` ops; effect damage from the legacy
-  path onto Baba is not redirected until C5/D1 put the other heroes through the interpreter.
+- Known gap: FATEFUL BARGAINS (and any redirect passive) only acts on DSL `damage` ops; Medusa's damage is one since
+  C5, effect damage from the legacy path of the other heroes onto Baba is not redirected until D1.
+- `cancel_effects` on a CardRef that names a side of the combat (`opponent_card`, `attack_card`, `defense_card`,
+  `this`) marks that side cancelled even when no card was played there (a Feint against no defense), the record the
+  engine has always kept; a `$var` that resolves to nothing does nothing.
 - `redirect_damage`: the op registers the redirection for the combat and it is applied in the DAMAGE phase (a
   non-optional one; an optional combat redirect raises NotImplementedError, it needs a pause inside DAMAGE). Passives
   and ONGOING `redirect_damage` act on effect damage inside the `damage` op, asking the optional ones through the
@@ -622,3 +632,29 @@ Decisiones dudosas de la migracion (ver tambien `notes` de cada fichero):
   while it lasts.
 - `lua.set_panel(..., labels={id: text})` sets button texts through `panel.UI.setValue(id, text)`; to be verified
   live (relies on `UI.setValue` working on a Button).
+
+## 15. Medusa on the interpreter (C5)
+
+- `effects/state.py`: `INTERPRETED_HEROES = {"medusa"}`. `Game.__init__` derives `fx.dsl_heroes` from the heroes in
+  play; persist omits the set when it equals that default and fills it on load (an old save of Medusa vs Hellboy
+  loads with Medusa interpreted; an explicit choice away from the default, e.g. `set()`, is written as it is). The
+  goldens of f4c26ca are byte-identical.
+- Decisions stay where they were, the interpreter does the work (`effects/driven.py`). The AI planner, the session
+  and the search decide when the gaze fires and on whom (`pick_ability_target`, the search move `("ability", fid)`)
+  and which fighter A Momentary Glance hits (`Act.target`); `Game.use_ability(player, "medusa_gaze", target)` and
+  `Game.play_scheme(..., target=)` hand those answers to the run as presets (`PresetChooser`: the preset answers
+  requests of its kind, the rest go to the normal chooser). A preset that the effect could not pick is a RuleError
+  raised before the action is spent (`driven.fighter_options`). D2 replaces the presets by the chooser deciding
+  inside the search.
+- Winged Frenzy's moves and placement go through the normal choosers: `EffectAI._space` defers an own-piece `move`
+  to `MedusaAI.choose_move` (the planned destination, else the kiting/harpy rules) and a dead own piece's placement
+  to `choose_placement` (the planned spot), so the controller is called exactly as often and in the same order as
+  the legacy engine (the rng is only touched through those calls). The one ruled divergence (Ivan, 28/10): the
+  return of a defeated Harpy is mandatory; a `choose_placement` that answers None gets the first free space of
+  Medusa's zone. The AIs never answer None, so no golden changed.
+- The human's forced discards keep the table route: a `discard` op where the human picks from their own hand goes
+  through `Game.force_discard` (HumanProxy owes it, settled at "Fin de accion"), never through a chooser that would
+  list the human's cards; a bot's own-hand discard goes through `choose_discard` with the card's title as the reason.
+- Deleted: `_medusa_after`, `_optional_move`, `check_scheme`, the Medusa branch of `resolve_scheme`, the flow rules
+  `feint` / `second_shot` / `medusa_after`, `Game.medusa_ability`. Verbatim copies live in tests/legacy_medusa.py
+  as the oracle of tests/test_medusa_dsl_diff.py (`legacy(monkeypatch)` rebuilds the pre-C5 engine).

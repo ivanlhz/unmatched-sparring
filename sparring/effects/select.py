@@ -105,6 +105,16 @@ def _role_fighters(game, run, role) -> list:
     raise EffectError(f"bad fighter role {role!r}")
 
 
+def defeated(game, f) -> bool:
+    """Dead on the board, as opposed to waiting in the reserve: it fell somewhere (`died_at`) or it is a fighter that
+    starts on the board and so was never in reserve (a Harpy dead in a save from before `died_at` existed)."""
+    if f.alive:
+        return False
+    if f.died_at is not None:
+        return True
+    return any(spec.on_board for spec in game.players[f.owner].hero.fighters() if spec.fid == f.fid)
+
+
 def fighter_candidates(game, run, sel) -> tuple[list, bool]:
     """FighterSel -> (candidates in engine order, pick_all)."""
     if isinstance(sel, str):
@@ -115,7 +125,7 @@ def fighter_candidates(game, run, sel) -> tuple[list, bool]:
     if side not in SIDES:
         raise EffectError(f"bad side {side!r}")
     kind, name = sel.get("kind", "any"), sel.get("name")
-    want_alive = sel.get("state", "alive") == "alive"      # "defeated" = died on the board; reserve is neither
+    want_alive = sel.get("state", "alive") == "alive"      # "defeated" = dead on the board; reserve is neither
     out = []
     for f in pool:
         if side == "own" and f.owner != owner or side == "enemy" and f.owner == owner:
@@ -124,7 +134,7 @@ def fighter_candidates(game, run, sel) -> tuple[list, bool]:
             continue
         if name is not None and f.name != name:
             continue
-        if f.alive != want_alive or (not want_alive and f.died_at is None):
+        if want_alive != f.alive or (not want_alive and not defeated(game, f)):
             continue
         out.append(f)
     if "where" in sel:
@@ -227,9 +237,9 @@ def card_candidates(game, run, sel: dict) -> list[Picked]:
     return [Picked(player, zone, c) for c in pile if c not in skip and _matches(c, flt)]
 
 
-def select_cards(game, run, sel: dict, purpose: str = "choose") -> list[Picked]:
+def select_cards(game, run, sel: dict, purpose: str = "choose", prompt: str | None = None) -> list[Picked]:
     """The cards a CardSel designates, deciding `chosen` through the chooser and `random` through the run's
-    memoized rng."""
+    memoized rng. `prompt` names the request (a bot's `choose_discard` gets it as the reason: the card's title)."""
     cands = card_candidates(game, run, sel)
     pick = sel.get("pick", "chosen")
     if pick == "all":
@@ -246,8 +256,8 @@ def select_cards(game, run, sel: dict, purpose: str = "choose") -> list[Picked]:
     chooser = player_of(game, run, sel.get("chooser", "owner"))
     lo = 0 if sel.get("up_to") else n
     by_id = {c.card.card_id: c for c in cands}
-    got = run.ask(game, "cards", chooser, list(by_id), lo, n, f"{purpose} cards", zone=sel["zone"], purpose=purpose,
-                  of=cands[0].player)
+    got = run.ask(game, "cards", chooser, list(by_id), lo, n, prompt or f"{purpose} cards", zone=sel["zone"],
+                  purpose=purpose, of=cands[0].player)
     return [by_id[i] for i in got]
 
 

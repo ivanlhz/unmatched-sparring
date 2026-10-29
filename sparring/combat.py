@@ -1,6 +1,6 @@
-"""Combate y esquemas. Efectos de Medusa implementados; los de Hellboy los resuelve el humano
-(se devuelven en `human_effects`), salvo Planned Recklessness y el valor de On Earth As It Is In Hell,
-que alteran el calculo del combate."""
+"""Combate y esquemas de la ruta sin interprete. Los heroes de `game.fx.dsl_heroes` (Medusa) resuelven sus cartas con
+sparring/effects; de los demas, el humano resuelve el texto (se devuelve en `human_effects`), salvo Planned
+Recklessness y el valor de On Earth As It Is In Hell, que alteran el calculo del combate."""
 from __future__ import annotations
 
 import re
@@ -9,11 +9,8 @@ from dataclasses import dataclass, field
 from .cards import MEDUSA_BASE, Card, can_be_boost
 from .state import Fighter, Game, RuleError
 
-GAZE_DAMAGE = 8
+GAZE_DAMAGE = 8          # Gaze of Stone and A Momentary Glance: the AI weighs them; the effects data applies them
 GLANCE_DAMAGE = 2
-FRENZY_STEPS = 3
-DASH_STEPS = 3
-HOUNDS_STEPS = 3
 
 SECOND_SHOT = "Second Shot"
 FEINT = "Feint"
@@ -172,55 +169,10 @@ def _hellboy_after(game: Game, me: Fighter, card: Card, i_won: bool, result: Com
     return False
 
 
-def _medusa_after(game: Game, me: Fighter, foe: Fighter, card: Card, i_won: bool) -> None:
-    ctrl = game.controllers[me.owner]
-    t = card.title
-    if t == "Gaze of Stone" and i_won:
-        game.damage(foe, GAZE_DAMAGE)
-    elif t == "Regroup":
-        game.draw(me.owner, 2 if i_won else 1)
-    elif t == "Dash" and me.alive:
-        _optional_move(game, ctrl, me, DASH_STEPS)
-    elif t == "Snipe":
-        game.draw(me.owner, 1)
-    elif t == "The Hounds of Mighty Zeus":
-        for h in game.own(me.owner):
-            if h.name == "Harpy":
-                _optional_move(game, ctrl, h, HOUNDS_STEPS)
-    elif t in ("Clutching Claws", "Hiss and Slither"):
-        game.force_discard(foe.owner, 1, t, me.owner)
-
-
-def _optional_move(game: Game, ctrl, fighter: Fighter, steps: int, through: bool = False) -> None:
-    dest = ctrl.choose_move(game, fighter, steps, through)
-    if dest is not None:
-        game.move_fighter(fighter, dest, steps, through)
-
-
-def check_scheme(game: Game, fighter: Fighter, card: Card, target: Fighter | None = None) -> None:
-    if is_medusa_card(card) and card.title == "A Momentary Glance":
-        if target is None or not target.alive or not game.board.share_zone(fighter.pos, target.pos):
-            raise RuleError("A Momentary Glance necesita un luchador en la zona de Medusa")
-
-
-def resolve_scheme(game: Game, player: int, fighter: Fighter, card: Card, target: Fighter | None = None) -> list[str]:
-    if not is_medusa_card(card):
-        if card.title == FIGHT_OR_FLIGHT:
-            game.add_combat_bonus(player, FIGHT_OR_FLIGHT_BONUS, FIGHT_OR_FLIGHT)
-        game.grant_actions(scheme_gain_actions(card))     # el resto del texto lo resuelve el humano
-        return [f"{card.title}: {card.text}"]
-    ctrl = game.controllers[player]
-    if card.title == "A Momentary Glance":
-        game.damage(target, GLANCE_DAMAGE)
-    elif card.title == "Winged Frenzy":
-        for f in sorted(game.own(player), key=lambda x: x.fid):
-            _optional_move(game, ctrl, f, FRENZY_STEPS, through=True)
-        dead = [f for f in game.own(player, alive_only=False) if f.name == "Harpy" and not f.alive]
-        medusa = game.hero(player)
-        if dead:
-            taken = {f.pos for f in game.fighters.values() if f.alive}
-            options = sorted(s for s in game.board.spaces if s not in taken and game.board.share_zone(medusa.pos, s))
-            spot = ctrl.choose_placement(game, dead[0], options)
-            if spot is not None:
-                dead[0].alive, dead[0].hp, dead[0].pos = True, 1, spot
-    return []
+def resolve_scheme(game: Game, player: int, fighter: Fighter, card: Card) -> list[str]:
+    """A scheme of a hero outside `fx.dsl_heroes`: the engine applies the ONGOING bonus and the actions it grants;
+    the human resolves the rest of the text (returned)."""
+    if card.title == FIGHT_OR_FLIGHT:
+        game.add_combat_bonus(player, FIGHT_OR_FLIGHT_BONUS, FIGHT_OR_FLIGHT)
+    game.grant_actions(scheme_gain_actions(card))
+    return [f"{card.title}: {card.text}"]

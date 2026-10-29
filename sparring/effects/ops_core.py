@@ -13,8 +13,8 @@ from contextlib import contextmanager
 from typing import Callable
 
 from .model import EffectError, load_effects
-from .select import (Picked, amount, condition, fighter_candidates, locate, pick_fighters, player_of, players_of,
-                     card_candidates, card_ref, select_cards, space_options)
+from .select import (Picked, amount, condition, fighter_candidates, find_card, locate, pick_fighters, player_of,
+                     players_of, card_candidates, card_ref, select_cards, space_options)
 
 OPS: dict[str, Callable] = {}
 PLUGINS: dict[str, Callable] = {}
@@ -132,7 +132,7 @@ def _draw(run, game, spec):
         run.bind("cards", spec["as"], drawn)
 
 
-def _cards_of(game, run, cards, purpose: str) -> list[Picked]:
+def _cards_of(game, run, cards, purpose: str, prompt: str | None = None) -> list[Picked]:
     if isinstance(cards, str):
         found = []
         for c in card_ref(game, run, cards):
@@ -140,12 +140,38 @@ def _cards_of(game, run, cards, purpose: str) -> list[Picked]:
             if where is not None:
                 found.append(Picked(where[0], where[1], c))
         return found
-    return select_cards(game, run, cards, purpose)
+    return select_cards(game, run, cards, purpose, prompt)
+
+
+def _table_settles(game, run, sel) -> bool:
+    """The human discards from their own hand at their own choice: the engine never picks those cards for them,
+    the table does (`Game.force_discard` -> the human's controller owes the discard, settled at "Fin de accion")."""
+    if not isinstance(sel, dict) or sel["zone"] != "hand" or sel.get("pick", "chosen") != "chosen":
+        return False
+    player = player_of(game, run, sel["player"])
+    if player_of(game, run, sel.get("chooser", "owner")) != player:
+        return False
+    return getattr(game.controllers.get(player), "human", False)
+
+
+def _card_title(game, run) -> str:
+    card = find_card(game, run.ctx.card_id) if run.ctx.card_id is not None else None
+    return card.title if card else "efecto"
 
 
 @op("discard")
 def _discard(run, game, spec):
-    items = _cards_of(game, run, spec["cards"], "discard")
+    sel = spec["cards"]
+    if _table_settles(game, run, sel):
+        player = player_of(game, run, sel["player"])
+        frame = run.frames[-1]
+        voluntary = bool(frame.path) and frame.path[-1] == "cost"      # a price the human chose to pay
+        chosen = game.force_discard(player, int(amount(game, run, sel.get("amount", 1))), _card_title(game, run),
+                                    player if voluntary else run.ctx.owner)
+        if "as" in spec:
+            run.bind("cards", spec["as"], [c.card_id for c in chosen])
+        return
+    items = _cards_of(game, run, sel, "discard", _card_title(game, run))     # the reason a bot's choose_discard sees
     for player, zone, card in items:
         if zone == "hand":
             game.discard_card(player, card)
@@ -186,6 +212,12 @@ def _choose_effect(run, game, spec):
 
 # ---------------------------------------------------------------- board
 
+def _one_after_another(fighters) -> list:
+    """Several fighters whose destinations are asked one by one go in fighter id order (sidekicks before the hero:
+    the order Winged Frenzy and the maneuver have always used), each seeing where the previous ones ended."""
+    return sorted(fighters, key=lambda f: f.fid)
+
+
 @op("move")
 def _move(run, game, spec):
     chooser = _chooser(game, run, spec)
@@ -193,7 +225,7 @@ def _move(run, game, spec):
     targets = pick_fighters(game, run, spec["target"], chooser, op="move", amount=steps, through=through)
     plan = []
     with _trial() as set_attrs:
-        for f in targets:
+        for f in _one_after_another(targets):
             if not f.alive or f.pos is None or not game.fx.can_move(f):
                 continue
             dests = sorted(game.legal_moves(f, steps, through))
@@ -212,7 +244,7 @@ def _move(run, game, spec):
 def _plan_spots(game, run, fighters, where: dict, chooser: int, op_name: str, **becomes) -> list[tuple]:
     plan = []
     with _trial() as set_attrs:
-        for f in fighters:
+        for f in _one_after_another(fighters):
             options = space_options(game, run, where, mover=f)
             got = run.ask(game, "space", chooser, options, 1, 1, f"{op_name} to", fighter=f.fid, op=op_name)
             if got:

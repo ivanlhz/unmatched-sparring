@@ -643,15 +643,26 @@ def test_the_human_is_never_paid_for_or_picked_from_by_the_synchronous_engine(bp
     assert res.atk_value == 7 and g.players[1].hand == before and owed == []       # the option is declined, nothing paid
 
 
-def test_a_forced_pick_from_the_humans_hand_is_refused_not_guessed(bprd):
+def test_a_forced_discard_from_the_humans_hand_is_owed_to_the_table_not_guessed(bprd):
+    """C5: the human discards from their own hand at the table (`Game.force_discard` -> the controller owes it, as
+    the legacy Clutching Claws did); the engine never picks the card for them."""
     from sparring.session import HumanProxy
+    owed = []
     g = mk(bprd, ("abe-sapien", "liz-sherman"), ["abe-sapien"])
-    g.controllers[1] = HumanProxy(lambda n, reason: None)
+    g.controllers[1] = HumanProxy(lambda n, reason: owed.append((n, reason)))
     abe, liz = pair(g, "abe", "liz")
     hand_filler(g, 1, 3)
     g.fx.turn_start_pos["abe"] = 99
+    before = list(g.players[1].hand)
+    g.attack(abe, liz, give(g, 0, "Shock And Awe"), None)
+    assert owed == [(1, "Shock And Awe")] and g.players[1].hand == before
+
+
+def test_a_forced_pick_that_is_not_a_hand_discard_is_still_refused_for_the_human(bprd):
+    from sparring.effects.choose import ChoiceRequest, TableChooser
+    g = mk(bprd, ("abe-sapien", "liz-sherman"), ["abe-sapien"])
     with pytest.raises(NotImplementedError, match="needs the panel"):
-        g.attack(abe, liz, give(g, 0, "Shock And Awe"), None)
+        TableChooser().choose(g, ChoiceRequest("fighter", 1, ["abe", "liz"], 1, 1))
 
 
 @pytest.mark.parametrize("defense,pays", [(None, True), ("Hiss and Slither", False)])

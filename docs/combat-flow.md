@@ -62,14 +62,15 @@ Rules, in order:
 
 | Phase | Rule | Side | Behaviour |
 |---|---|---|---|
-| IMMEDIATELY | feint | any | Medusa + FEINT: cancels the other side |
-| IMMEDIATELY | planned_recklessness | any | not Medusa + PLANNED: effect_shield, cancels the other side unless form is ANUNG |
+| IMMEDIATELY | planned_recklessness | any | PLANNED: effect_shield, cancels the other side unless form is ANUNG |
 | DURING | on_earth_value | def | `when_cancelled`; both branches (cancelled or not) |
-| DURING | second_shot | atk | Medusa: Await(boost); on answer `_check_boost`, discard, add value, part text |
 | DURING | boost_this_attack | atk | `can_boost(card)`: Await(boost, deck=deck_boost(card)); on answer skip `_check_boost` if deck |
-| AFTER | medusa_after | any | `_medusa_after` |
 | AFTER | bot_card_after | any | owner is `game.bot_player`: `_hellboy_after`, `_liz_after`, `_announce_bot_card` |
 | AFTER | human_card_after | any | the or-chain plus fallback of the old function |
+| IMMEDIATELY / DURING / AFTER | dsl_* | any | a card of a hero in `fx.dsl_heroes` (Medusa since C5): the effects interpreter |
+
+C5 removed Medusa's own rules (`feint`, `second_shot`, `medusa_after`): her cards go through `dsl_*`. The verbatim
+copies live in tests/legacy_medusa.py, the oracle of tests/test_medusa_dsl_diff.py.
 
 `CODED_MOMENTS` and `_announce_bot_card` stay in `combat.py`. `choose_move` and `force_discard` are still called
 directly inside AFTER rules (they become Awaits in the human-choices phase).

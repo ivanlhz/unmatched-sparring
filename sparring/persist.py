@@ -9,7 +9,7 @@ import os
 from pathlib import Path
 
 from .effects import ongoing
-from .effects.state import EffectState
+from .effects.state import EffectState, interpreted
 from .state import Game, KnownHand
 
 VERSION = 1
@@ -19,9 +19,17 @@ class StateError(Exception):
     """El fichero de guardado no sirve para reanudar (version, formato o partida distinta)."""
 
 
+def _default_dsl(g: Game) -> set[str]:
+    return interpreted(p.hero.slug for p in g.players)
+
+
 def game_to_dict(g: Game) -> dict:
     legacy = [ongoing.legacy_parts(g, p) for p in (0, 1)]       # pre-DSL ONGOING bonuses keep their old key
     fx = g.fx.to_dict()
+    if g.fx.dsl_heroes == _default_dsl(g):            # the default follows the heroes in play: nothing to remember
+        fx.pop("dsl_heroes", None)
+    else:
+        fx["dsl_heroes"] = sorted(g.fx.dsl_heroes)
     return {
         "turn": g.turn, "turn_no": g.turn_no, "actions_left": g.actions_left, "winner": g.winner,
         "effect_shield": {str(k): v for k, v in g.effect_shield.items()}, "drawn": list(g.drawn),
@@ -42,7 +50,10 @@ def apply_game(g: Game, d: dict) -> None:
         g.turn, g.turn_no, g.actions_left, g.winner = d["turn"], d["turn_no"], d["actions_left"], d["winner"]
         g.effect_shield = {int(k): v for k, v in d["effect_shield"].items()}
         g.drawn = list(d["drawn"])
-        g.fx = EffectState.from_dict(d.get("fx"))
+        fx = d.get("fx") or {}
+        g.fx = EffectState.from_dict(fx)
+        if "dsl_heroes" not in fx:
+            g.fx.dsl_heroes = _default_dsl(g)
         g.fx.attach(g)
         for player, side in enumerate(d.get("combat_bonus") or [[], []]):
             if side:                                  # one ONGOING per player: keep the last
