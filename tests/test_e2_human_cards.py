@@ -756,7 +756,7 @@ def test_confront_lost_asks_the_bots_card_once_at_the_panel_and_grants_no_look_b
     pick = req.options[0]
     msgs = press(session, table, pick)
     assert session.pending is None and pick in [c.card_id for c in game.players[0].discard]
-    assert len(game.players[0].discard) == 2 and len(table.bot_discard) == 2       # the defense and the one you named
+    assert len(game.players[0].discard) == 2                    # the defense and the one you named (the row, E3)
     assert not session.look_granted and session.panel_view()[1]["btn_look"] == (False, False)
     assert any(m.startswith("Tu carta: Confront Any Demon or God: robas 1; el bot descarta") or
                m.startswith("Tu carta: Confront Any Demon or God: robas 1; descarta") for m in msgs), msgs
@@ -884,7 +884,96 @@ def test_hellboy_in_detective_away_from_the_rival_start_has_no_ability_to_wait_f
     assert game.turn == 1 and session.ability_wait is None and session.panel_view()[1]["btn_maneuver"] == (True, True)
 
 
-# ---------------------------------------------------------------- the engine
+# ---------------------------------------------------------------- after the merge with E3
+
+ABE_HUMAN_HAND = ("Service Pistol", "Right Hand Of Doom", "Excalibur", "Second Shot", "Pancakes!")
+
+
+@pytest.fixture
+def e3rig(tmp_path):
+    from test_e3_hidden_info import E3Table
+    session, table, game, fake, cfg, client = build(tmp_path, "hellboy", "abe-sapien", ABE_HUMAN_HAND, table_cls=E3Table)
+    yield session, table, game, fake, cfg
+    client.close()
+    fake.close()
+
+
+def test_every_possible_angle_as_a_recognized_scheme_moves_the_bots_card_once(e3rig):
+    """E3's row puts the picked card on top of the bot's deck; the projection of the scheme's step must not move
+    it again (no `hand_to_deck`)."""
+    session, table, game, fake, cfg = e3rig
+    human_hand(table, game, "Every Possible Angle", "Faster. Stronger.")
+    msgs = human_scheme(session, table, game, "Every Possible Angle")
+    assert session.look is not None and session.look["mode"] == "pick" and said(msgs, "El bot pone su mano boca arriba")
+    chosen = session.look["ids"][1]
+    msgs = click(session, table, Event.LOOK_PING, {"guid": f"g{chosen}"})
+    assert table.bot_deck[0] == chosen and chosen not in table.bot_hand and session.look is None
+    assert session.effect_run is None and said(msgs, "en la mesa: mueve a abe hasta 3 casillas")   # Abe's move: yours
+    assert "hand_to_deck" not in [op for step in table.msglog for op in step]
+    assert sorted(c.card_id for c in game.players[0].hand) == sorted(table.bot_hand)
+    assert not said(msgs, "El bot pone 1 carta de su mano")
+
+
+@pytest.fixture
+def abe_bot_rig(tmp_path):
+    from test_e3_hidden_info import E3Table
+    session, table, game, fake, cfg, client = build(tmp_path, "abe-sapien", "hellboy",
+                                                   ("Arcane Dampener", "Leap Away", "Concussion Device", "B.P.R.D. Training"),
+                                                   table_cls=E3Table)
+    yield session, table, game, fake, cfg
+    client.close()
+    fake.close()
+
+
+def test_a_cancelled_attack_on_bot_abe_does_not_spend_intuition_twice_when_repeated(abe_bot_rig, monkeypatch):
+    """Ivan (29/10): a refused Revelar then Cancelar keeps the token spent and the card drawn; the same attack again
+    carries the declaration (face up, nothing fires twice); another target declares normally."""
+    session, table, game, fake, cfg = abe_bot_rig
+    put_adjacent(game, table, cfg, "hellboy", "abe")
+    put_adjacent(game, table, cfg, "lobster", "agent1")
+    game.fx.set_counter(0, "intuition", 1)
+    seen = []
+    monkeypatch.setattr(session.ai, "choose_defense", lambda g, a, t, attack_card=None: seen.append(attack_card))
+    human_hand(table, game, "Service Pistol", "Excalibur", "Right Hand Of Doom")
+    human_attack(session, table, game, "hellboy", "abe", "Service Pistol")
+    real = game.begin_attack
+    calls = []
+
+    def refuse_once(*a, **kw):
+        if not calls:
+            calls.append(1)
+            raise RuleError("rechazo simulado")
+        return real(*a, **kw)
+    monkeypatch.setattr(game, "begin_attack", refuse_once)
+    hand_before = len(table.bot_hand)
+    msgs = click(session, table, Event.REVEAL)
+    assert said(msgs, "rechazo simulado") and session.pending is not None and session.pending.declared is not None
+    assert game.fx.counter_value(0, "intuition") == 0 and len(table.bot_hand) == hand_before + 1   # spent, drew
+    msgs = click(session, table, Event.CANCEL)
+    assert session.pending is None and said(msgs, "UNCANNY INTUITION ya se aplico a este ataque")
+    assert session.declared_carry["attacker"] == "hellboy" and "declared_carry" in session.to_dict()
+    table.face_down = []
+    human_attack(session, table, game, "hellboy", "abe", "Service Pistol")   # the same attack again
+    assert session.pending.declared is not None and session.declared_carry is None
+    assert said(session.messages, "UNCANNY INTUITION ya aplicada a este ataque")
+    msgs = click(session, table, Event.REVEAL)
+    assert session.pending is None and game.fx.counter_value(0, "intuition") == 0 and len(table.bot_hand) == hand_before + 1
+    assert [c.title for c in seen] == ["Service Pistol"] * 2, "the defense (chosen at each Revelar) sees the face-up attack"
+    assert said(msgs, "UNCANNY INTUITION: tu ataque se juega boca arriba: Service Pistol")
+    # a different target after a cancel: the earlier spend stands, the new attack declares normally
+    game.fx.set_counter(0, "intuition", 1)
+    click(session, table, Event.END_ACTION)
+    human_hand(table, game, "Excalibur", "Right Hand Of Doom")
+    human_attack(session, table, game, "hellboy", "abe", "Excalibur")
+    calls.clear()
+    click(session, table, Event.REVEAL)                         # refused again: declared, token spent
+    assert game.fx.counter_value(0, "intuition") == 0
+    click(session, table, Event.CANCEL)
+    table.face_down = []
+    human_attack(session, table, game, "lobster", "agent1", "Right Hand Of Doom")
+    assert session.pending.declared is None and session.declared_carry is None
+    assert game.fx.counter_value(0, "intuition") == 0, "the earlier spend stands"
+
 
 def test_game_maneuver_checks_before_spending(bprd):
     from conftest import Scripted, give

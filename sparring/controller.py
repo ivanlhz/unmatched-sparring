@@ -15,7 +15,9 @@ class Controller:
     def take_turn(self, game: "Game") -> None:
         raise NotImplementedError
 
-    def choose_defense(self, game: "Game", attacker: "Fighter", target: "Fighter") -> "Card | None":
+    def choose_defense(self, game: "Game", attacker: "Fighter", target: "Fighter",
+                       attack_card: "Card | None" = None) -> "Card | None":
+        """`attack_card`: the attack when it is played face up (UNCANNY INTUITION, Perfect Shot), else None."""
         return None
 
     def choose_combat_boost(self, game: "Game", ctx) -> "Card | None":

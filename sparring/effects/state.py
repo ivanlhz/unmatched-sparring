@@ -46,6 +46,10 @@ class EffectState:
         """Tells the hooks which Game they belong to. Game calls it for every EffectState it takes (new, clone, load)."""
         self._game_ref = weakref.ref(game)
 
+    def interprets(self, player: int) -> bool:
+        """`player`'s hero runs on the effects interpreter (its cards and triggers resolve in the engine)."""
+        return bool(self.dsl_heroes) and self.game().players[player].hero.slug in self.dsl_heroes
+
     # hooks: the bodies live in effects/modifiers.py and effects/ongoing.py; the guards keep the flag-off path free
     def _has_modifiers(self) -> bool:
         """Statuses, loose modifiers or an ONGOING card in play (whose modifiers modifiers.py reads from the card)."""

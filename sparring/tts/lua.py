@@ -515,20 +515,43 @@ end
 @_registered
 def resolve_hand_row(guids: list[str], seat_color: str, *, identity, id_range: tuple[int, int] = BOT_CARD_IDS,
                      discard: str | None = None, face_down: bool = False,
-                     spot: tuple[float, float, float] = (0.0, 0.0, 0.0), rot_y: float = 0) -> str:
+                     spot: tuple[float, float, float] = (0.0, 0.0, 0.0), rot_y: float = 0,
+                     deck_guid: str | None = None) -> str:
     """Cierra la fila de `show_hand_row`: devuelve a la mano del asiento todas las cartas de la fila (por GUID) menos la
     que se descarta, que va al `spot` del descarte. La descartada es la de GUID `discard` o, con `face_down`, LA UNICA carta
     de la fila que este boca abajo (si hay 0 o varias no mueve nada y devuelve `down`). Sin `discard` ni `face_down` es
-    Cancelar: todo vuelve a la mano. INSTANTANEO. Solo cuentan cartas del bando (`id_range`, imagen de `identity`). Vacia
-    la fila anotada en el panel. Devuelve `{discarded: CardID|false, returned: [CardID], found, down}`."""
+    Cancelar: todo vuelve a la mano. Con `deck_guid` la carta elegida no va al descarte: se pone ENCIMA de ese mazo
+    (`putObject`; Every Possible Angle), que ha de ser del bando. INSTANTANEO. Solo cuentan cartas del bando (`id_range`,
+    imagen de `identity`). Vacia la fila anotada en el panel. Devuelve `{discarded: CardID|false, returned: [CardID],
+    found, down}` (`discarded` es tambien la carta puesta en el mazo)."""
     if not isinstance(guids, (list, tuple)) or not 1 <= len(guids) <= MAX_LOOK_CARDS:
         raise TypeError(f"entre 1 y {MAX_LOOK_CARDS} GUID esperados")
     if not isinstance(face_down, bool) or (face_down and discard is not None):
         raise TypeError("face_down es un booleano y no se combina con discard")
     if not isinstance(spot, (tuple, list)) or len(spot) != 3:
         raise TypeError("(x, y, z) esperado")
+    if deck_guid is not None and discard is None:
+        raise TypeError("deck_guid necesita la carta elegida (discard)")
     own = _ours_lua(identity, id_range)
     pick = _guid(discard) if discard is not None else "nil"
+    deck_check = ""
+    if deck_guid is not None:                 # the deck is checked before anything moves: a failure moves nothing
+        deck_check = f"""local deck = getObjectFromGUID({_guid(deck_guid)})
+if deck == nil or not ours(deck) then return JSON.encode({{discarded = false, returned = {{}}, found = #objs, down = down, deck = false}}) end
+"""
+        # a one-card deck is a Card in TTS and has no putObject: the chosen card is dropped on it, same facing
+        chosen_goes = """if deck.type == "Deck" then
+      deck.putObject(o)
+    else
+      local dp, dr = deck.getPosition(), deck.getRotation()
+      o.setRotation(Vector(dr.x, dr.y, dr.z))
+      o.setPosition(Vector(dp.x, dp.y + 0.5, dp.z))
+    end
+    discarded = id"""
+    else:
+        chosen_goes = f"""o.setRotation(Vector(0, {_f(rot_y)}, 0))
+    o.setPosition(Vector({_f(spot[0])}, {_f(spot[1])}, {_f(spot[2])}))
+    discarded = id"""
     return f"""-- sparring:resolve_hand_row
 {own}local objs = {{}}
 for _, g in ipairs({_guid_list(guids)}) do
@@ -551,14 +574,12 @@ elseif pick ~= nil then
   end
   if chosen == nil then return JSON.encode({{discarded = false, returned = {{}}, found = #objs, down = down}}) end
 end
-local t = Player[{_color(seat_color)}].getHandTransform(1)
+{deck_check}local t = Player[{_color(seat_color)}].getHandTransform(1)
 local discarded, returned = false, {{}}
 for _, o in ipairs(objs) do
   local id = o.getData().CardID
   if o == chosen then
-    o.setRotation(Vector(0, {_f(rot_y)}, 0))
-    o.setPosition(Vector({_f(spot[0])}, {_f(spot[1])}, {_f(spot[2])}))
-    discarded = id
+    {chosen_goes}
   else
     o.setRotation(Vector(0, t.rotation.y, 0))
     o.setPosition(t.position)

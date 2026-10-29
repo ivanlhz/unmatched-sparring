@@ -10,7 +10,10 @@ Each kind has its own rule, all built on the evaluation the heuristic bot alread
              the rest through `position_value` / `harpy_score`; a rival piece goes where it hurts the bot least.
   cards      own hand: give up the lowest `keep_value`; own piles and the rival's public piles: take the best.
              Never looks at the rival hand: only what `KnownHand` has seen.
-  effect     simulate every option on a determinized clone and keep the best evaluation.
+  effect     simulate every option on a determinized clone and keep the best evaluation. A Perfect Shot
+             prediction (`op: predict`) is `predict_value`: the most common printed value among the rival's
+             defense cards the bot has legitimately seen, else among the rival's whole deck minus its public
+             discard pile.
   optional   same, yes against no; a price paid in cards is judged by `worth_paying` on the combat context the
              interpreter sends (`cost_cards`, `at_stake`, `hp`), the one policy every bot shares.
   order      best first for the bot's own cards, worst first for the rival's.
@@ -33,11 +36,27 @@ from .controller import Controller
 from .effects import ongoing
 from .effects.choose import ChoiceRequest, ControllerChooser, default_answer, worth_paying
 from .effects.model import EffectError, load_effects
+from .effects.ops_combat import PREDICT_OP
 from .effects.run import Ctx, EffectRun
 from .search.adapter import card_worth
 from .state import Game, PlayerState, RuleError
 
 GIVE_UP_PURPOSES = ("discard", "return", "reveal")      # cards the chooser parts with: the least useful go
+
+
+def predict_value(game: Game, me: int) -> int:
+    """Perfect Shot: the printed value the rival's defense most likely has. Only legitimate information: the rival's
+    cards a look showed (`KnownHand`) if any can defend, else the composition of their deck (public) minus their
+    discard pile (public). Ties go to the higher value. The rival's hand and deck are never read."""
+    rival = game.players[1 - me]
+    seen = [c for c in game.players[me].known.cards(rival) if c.can_defend]
+    pool = seen or [c for c in rival.full_set if c.can_defend and c not in rival.discard]
+    if not pool:
+        return 0
+    counts: dict[int, int] = {}
+    for c in pool:
+        counts[c.value or 0] = counts.get(c.value or 0, 0) + 1
+    return max(counts, key=lambda v: (counts[v], v))
 SIM_WIN = 200.0                                         # a finished game dominates any material
 PAY_MARGIN = 0.1                                        # an optional price is paid only when it clearly returns more
 CARD_FLAT = 1.2                                         # an unseen rival card, in the units of keep_value
@@ -293,6 +312,8 @@ class EffectAI:
 
     # ------------------------------------------------------------------ simulated choices
     def _effect(self, game: Game, req: ChoiceRequest, nested: bool) -> list | None:
+        if req.extra.get("op") == PREDICT_OP:
+            return [predict_value(game, req.player)]
         found = self._locate(game, req)
         if nested or found is None:
             return None

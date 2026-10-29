@@ -82,10 +82,10 @@ def project(session, before: dict | None, played: frozenset = frozenset(), cause
     for what the human has to do (the bot's, or their own card's in E2)."""
     if before is None:
         return lambda: None
-    session.fx_in_flight = set()
+    moved = set(session.fx_in_flight)             # what this button already moved (a look row's pick, E3)
     looked, session.fx_looked = session.fx_looked, False
     checks = _human_pieces(session, before) + _form(session, before) + _tokens(session, before)
-    checks += _bot_cards(session, before) + _bot_ongoing(session, before)
+    checks += _bot_cards(session, before, moved) + _bot_ongoing(session, before)
     _human_cards(session, before, played, looked, cause)
 
     def fin() -> None:
@@ -238,14 +238,15 @@ def _is_tail(deck: list[int], ids: list[int]) -> bool:
     return bool(ids) and deck[-len(ids):] == ids
 
 
-def _bot_cards(session, before: dict) -> list[Callable[[], None]]:
+def _bot_cards(session, before: dict, moved: set = frozenset()) -> list[Callable[[], None]]:
+    """`moved`: cards another write of this button already took to their place (never moved twice)."""
     g, bot, cfg = session.game, session.bot, session.cfg
     st = g.players[bot]
     b0, b1 = before["bot"], zones(st)
     by_id = {c.card_id: c for c in st.full_set}
-    hand_to_deck = [i for i in b0["hand"] if i in b1["deck"]]
-    disc_to_deck = [i for i in b0["discard"] if i in b1["deck"]]
-    disc_to_hand = [i for i in b0["discard"] if i in b1["hand"]]
+    hand_to_deck = [i for i in b0["hand"] if i in b1["deck"] and i not in moved]
+    disc_to_deck = [i for i in b0["discard"] if i in b1["deck"] and i not in moved]
+    disc_to_hand = [i for i in b0["discard"] if i in b1["hand"] and i not in moved]
     taken = len([i for i in b0["deck"] if i in b1["hand"]]) - (g.drawn[bot] - before["drawn"])
     checks: list[Callable[[], None]] = []
     session.fx_in_flight.update(hand_to_deck + disc_to_deck + disc_to_hand)

@@ -69,7 +69,8 @@ class ScriptedHellboy(Controller):
         best = min(options, key=score)
         return best if score(best)[0] < min(game.board.distance(f.pos, e.pos) for e in foes) else None
 
-    def choose_defense(self, game: Game, attacker: Fighter, target: Fighter):
+    def choose_defense(self, game: Game, attacker: Fighter, target: Fighter, attack_card=None):
+        """`attack_card` (the attack played face up, E3) is ignored: this script defends at random."""
         hand = game.players[self.me].hand
         cards = [c for c in hand if c.can_defend and c.usable_by(target.name)]
         if cards and self.rng.random() < DEFEND_PROB:

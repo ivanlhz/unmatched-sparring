@@ -58,6 +58,8 @@ Las otras 15 (Fleeting Moments x3, B.P.R.D. Training x2, Rekindle x2, Feint x3, 
 - el dano de Wildfire al inicio del turno es obligatorio si hay objetivo, y solo a UN luchador.
 - un efecto que ignore el VALOR IMPRESO no quita el +1 de Fight Or Flight; uno que ignore el VALOR, si.
 - con el bot llevando a Liz, el bot gira el fondo del mazo al inicio de su turno.
+- E3 (29/10): Fleeting Moments jugada por el humano: la carta del bot la elige el rng del motor (nadie mira ninguna mano) y el descarte del humano es suyo (pendiente de Fin de accion).
+- Ivan (29/10): si el humano hace descartar a Liz bot una ardiente (Confront), Wildfire la devuelve y el chat lo dice: "El bot se queda X (Wildfire la devuelve)".
 - Incinerate: el rival puede descartar 2 cartas de la mano, ADEMAS de la carta con la que defiende, para ignorar el valor de Incinerate (queda a 0); si no defendio con carta, descartar 2 tambien vale. Con menos de 2 cartas en mano no puede pagar.
 - Burning Barrier: cannot_leave_space bloquea todo movimiento del luchador rival (propio o por efectos); a Liz si la puede mover un efecto. El dano posterior es a cada rival en la zona de Liz.
 - una carta sin valor de impulso no se puede usar para impulsar: las ardientes (BOOST 0) nunca se descartan como impulso.

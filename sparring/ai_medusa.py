@@ -344,7 +344,7 @@ class MedusaAI(Controller):
         """Medusa's two schemes keep their planned targets (C5 presets); any other interpreted hero's scheme is
         valued by simulating it (`scheme_act`), one act per title."""
         medusa = game.hero(self.me)
-        interpreted = game.players[self.me].hero.slug in game.fx.dsl_heroes
+        interpreted = game.fx.interprets(self.me)
         out, seen = [], set()
         for c in game.players[self.me].hand:
             if not c.is_scheme or not c.usable_by(medusa.name) or c.title in seen:
@@ -674,10 +674,15 @@ class MedusaAI(Controller):
                 best, best_gain = c, gain
         return best
 
-    def choose_defense(self, game: Game, attacker: Fighter, target: Fighter):
+    def choose_defense(self, game: Game, attacker: Fighter, target: Fighter, attack_card: Card | None = None):
+        """`attack_card`: the attack played face up (UNCANNY INTUITION, Perfect Shot): the one card the defense may
+        know; otherwise the value is the distribution of what the rival may have committed."""
         model = Model(game, self.me)
         hand = game.players[self.me].hand
-        dist = model.committed_attack_dist(attacker)
+        if attack_card is not None:
+            dist = [(1.0, (attack_card.value or 0) + game.attack_bonus(attacker))]
+        else:
+            dist = model.committed_attack_dist(attacker)
         best, best_v = None, None
         options = [None] + [c for c in hand if c.can_defend and c.usable_by(target.name)]
         seen = set()

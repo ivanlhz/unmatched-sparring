@@ -567,15 +567,19 @@ class Game:
         return resolve_combat(self, attacker, target, card, def_card, values, boost)
 
     def begin_attack(self, attacker: Fighter, target: Fighter, card: Card, def_card="ask",
-                     values: tuple[int, int] = (0, 0)) -> "CombatFlow":
+                     values: tuple[int, int] = (0, 0), attacked: bool = True) -> "CombatFlow":
         """Like `attack`, but returns the combat as a flow the caller drives step by step (the session stops it at the
-        panel when a card effect asks the human something). The action is already spent when it returns."""
+        panel when a card effect asks the human something). The action is already spent when it returns.
+        `attacked=False`: the caller already raised the `attacked` event (the live session does, before the bot's
+        defense is placed on the table)."""
         from .combat_flow import CombatFlow
-        def_card = self._declare_attack(attacker, target, card, def_card)
+        def_card = self._declare_attack(attacker, target, card, def_card, attacked)
         return CombatFlow(self, attacker, target, card, def_card, values)
 
-    def _declare_attack(self, attacker: Fighter, target: Fighter, card: Card, def_card) -> Card | None:
-        """Everything before the cards resolve: checks, the action, the `attacked` event and the defense choice."""
+    def _declare_attack(self, attacker: Fighter, target: Fighter, card: Card, def_card, attacked: bool = True) -> Card | None:
+        """Everything before the cards resolve: checks, the action, the `attacked` event and the defense choice. The
+        event comes first (UNCANNY INTUITION spends a token and draws before the defense, so the drawn card may be
+        it) and a defense asked after an attack a rule turns face up is the one choice that may know the card."""
         if not self.fx.may_attack(attacker.owner):
             raise RuleError(f"{attacker.fid} no puede atacar como primera accion del turno")
         if not self.can_attack(attacker, target):
@@ -588,9 +592,14 @@ class Game:
             if def_card not in self.players[target.owner].hand:
                 raise RuleError(f"{def_card.title} no esta en la mano de {target.fid}")
         self.use_action()
-        self.fx.emit("attacked", attacker, target, card)
+        from .effects.events import attack_revealed
+        revealed = attacked and attack_revealed(self, target)      # judged before the trigger spends the token
+        if attacked:
+            self.fx.emit("attacked", attacker, target, card)
         if def_card == "ask":
-            def_card = self.controllers[target.owner].choose_defense(self, attacker, target)
+            ctrl = self.controllers[target.owner]
+            def_card = ctrl.choose_defense(self, attacker, target, attack_card=card) if revealed \
+                else ctrl.choose_defense(self, attacker, target)
         return def_card
 
     # habilidades de inicio de turno

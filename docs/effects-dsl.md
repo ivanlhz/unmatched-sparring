@@ -855,3 +855,56 @@ Decisiones dudosas de la migracion (ver tambien `notes` de cada fichero):
 - E3's hook: `session_effects.human_chooser(session)` is the chooser of the human's decisions (the panel); the
   hidden-information cards wrap it. `look_hand` by the human runs in the engine (the human's `KnownHand` of the
   bot); the legacy look button (`_grant_look_for`) is for a hero outside the interpreter.
+
+## 20. Hidden-information cards at the live table, both sides (E3, `sparring/session_hidden.py`)
+
+- The human looks at the bot's hand exactly when the interpreter runs the `look_hand` op of their card (the
+  human's hero in `fx.dsl_heroes`, what E2 switches on; E1's grant-a-button route stays for a hero outside it,
+  `_grant_look_for` steps aside otherwise). `Game.hand_reader` is the one hook: asked for the bot's hand it marks
+  the step (`note_look`) and, when the button ends (`after_step`, before the composite goes out), the bot's hand
+  goes face up in the row at `look_spot` and is pinged (`ping_points`), in the same script. The card's conditions
+  (Confront only when lost, Advanced Psychometry only when adjacent, Remove A Painful Memory's choose only with an
+  ONGOING in play) are therefore the engine's, which closes the E1 backlog note.
+- Two row modes, saved in `look["mode"]`: `pick` when the run paused on a `cards` request of the human over the
+  bot's hand (`bot_hand_request`: Confront's discard, Every Possible Angle's return, Remove A Painful Memory's
+  choose), `reveal` otherwise (Advanced Psychometry, Remove A Painful Memory without a Pact). A pick is answered by
+  a ping on the card (`LOOK_PING`, allowed during the pause) or by its panel button (the bot's cards are named:
+  `option_label` reads the `of` player's deck); `close_row` then follows the engine: the chosen card to the
+  discard slot (`bot_discarded` grows at once so the same script's reconciliation never moves it twice), to the top
+  of the bot's deck (`resolve_hand_row(deck_guid=)`, `putObject`) or back to the hand when the bot kept it, the rest
+  back to the hand, one post-check (`_row_closed`: a failure marks the table dirty and asks by hand). A reveal
+  closes with Fin de accion or Cancelar (everything back); a ping on it is refused. `--resume` re-arms the panel
+  row and repeats the prompt of the mode.
+- Remove A Painful Memory by the human: the bot's "discard it or take 2" is its own `optional` (EffectAI decides);
+  the row says which. By the bot: the human's `optional` carries `discards` (the named card) and `else_damage`
+  (`ops_core._choice_context`), so the buttons read "Descartar <carta>" / "Coger 2" and the prompt names the trade.
+- Perfect Shot: the plugin `abe:perfect_shot` ASKS its owner (an `effect` request with `op: predict`, options 0..7
+  and `FACE_DOWN` = 8) and keeps the answer in `flags["prediction"]` (None: face down, no +2). The live session
+  answers it through `PredictionChooser` with what was decided when the card was played: the human at Revelar,
+  before the bot chooses its defense (`Pending.predict` holds the request, `_paused` reports `"predict"`, the
+  answer continues `_reveal`; buttons "Valor 0".."Valor 7" and "Boca abajo", saved and resumable); the bot when
+  it places the card (`bot_attack_placed`: `ai_effects.predict_value`, the card turned face up and the prediction
+  announced, `Pending.prediction` saved). `predict_value` uses only the rival's defense cards a look showed
+  (`KnownHand`) or the public composition of their deck minus their discard pile, never a hand. A Perfect Shot the
+  human plays face up is public: the bot's defense knows it (Ivan, 29/10).
+- UNCANNY INTUITION: `effects.events.attack_revealed(game, target)` reads the hero's `attacked` trigger that
+  `reveal`s `attack_card` and evaluates its condition (an active token) on the engine; no card or hero name. Bot
+  attacking the human's Abe: the card is placed face down (the face-down reader identifies it) and flipped face up
+  in the same script, named in the chat. Human attacking the bot's Abe: the chat says it at Ataque; at Revelar
+  `session_hidden.declare_attack` keeps the engine's order (Ivan, 29/10): the `attacked` event first (the token is
+  spent, the card drawn and dealt to the table, so it may be the defense; `Pending.declared` keeps it to once and
+  `begin_attack(attacked=False)` does not raise it again), then the identified attack card is the ONE card
+  `choose_defense(..., attack_card=)` may know (`MedusaAI`: a single-value distribution; `SearchController`: the
+  known card in the search's `pending`). Headless, `Game._declare_attack` does the same: event, then a defense that
+  gets `attack_card` when the ability revealed it. `EffectState.interprets(player)` is the one "hero on the
+  interpreter" helper (combat flow, AI, session).
+- The row survives a partial table failure: `_look_shown` rebuilds only `ids`/`guids`/`spots`, so `mode` and
+  `purpose` stay and a ping still answers the engine's request; a card the table left in the hand is picked by its
+  button and reaches the pile through the reconciliation ("seguia en su mano"); no card out at all drops the row
+  and leaves the buttons. `purpose == "discard"` plus `ai_effects.bounces_back` names Wildfire when the bot keeps a
+  burning card the human made it discard.
+- Bot Shock And Awe and the human's Fleeting Moments / Confront are covered by the existing routes: the human's own
+  pick goes through `pending_discard` (`_table_settles`), the bot's random discard is the run's memoized rng and
+  reaches the table through the reconciliation.
+- Costs: the row, its pings and its closing ride the step's script (a Revelar that opens the row stays within the
+  D3 budget, the ping that closes a combat is at most 2 messages, the human's prediction click is 1).

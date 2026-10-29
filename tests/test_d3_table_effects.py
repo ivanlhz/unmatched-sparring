@@ -131,11 +131,11 @@ class FxTable(Table):
         return super().do_return_card_to_hand(s)
 
 
-def build(tmp_path, bot, human, hand, **over):
+def build(tmp_path, bot, human, hand, table_cls=FxTable, **over):
     """A batch session with `bot` vs `human` (seats Blue / Red), the bot holding the cards titled in `hand`."""
     cfg = config_for(tmp_path, bot, human, **over)
     scfg = cfg.session_config()
-    table = FxTable(cfg.nicknames, dict(scfg.pieces), bot_cards=scfg.bot_card_ids[0])
+    table = table_cls(cfg.nicknames, dict(scfg.pieces), bot_cards=scfg.bot_card_ids[0])
     table.guid_name = {g: cfg.nicknames[fid] for fid, v in scfg.pieces.items() for g in play.piece_guids(v)}
     fake = FakeTTS(return_value=table)
     client = TTSClient(send_port=fake.port, listen_port=0)
@@ -446,7 +446,9 @@ def test_abe_intuition_token_copies_are_taken_when_activated_and_removed_when_sp
     human_attack(session, table, game, "hellboy", "abe", "Service Pistol")
     n = fake.lua_messages
     msgs = click(session, table, Event.REVEAL)                  # attacked with an active token: spent
-    assert fake.lua_messages - n <= 3 and game.fx.counter_value(0, "intuition") == 0
+    # one more message than a plain reveal: the card the trigger draws is dealt BEFORE the bot chooses its
+    # defense, so it can be that defense (Ivan, 29/10; E3)
+    assert fake.lua_messages - n <= 4 and game.fx.counter_value(0, "intuition") == 0
     assert table.tokens == [] and session.token_copies == {"intuition": []}
     assert said(msgs, "Abe Sapien (bot) gasta 1 ficha de intuition: 0 activa(s)")
 

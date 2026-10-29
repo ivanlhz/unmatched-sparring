@@ -78,6 +78,7 @@ Vida, movimiento, tipo de ataque, valores, impulsos y copias coinciden con las c
 
 - 'takes 2 or more combat damage' es en un mismo combate; si Bound In Blood desvia el dano a Koschei, Baba Yaga no lo toma y el Pacto sigue.
 - solo puede haber un ONGOING activo por jugador: al jugar uno nuevo, reemplaza al que estaba activo (va al descarte). The Time For Deals Is Done descarta ese.
+- E3 (29/10): Remove A Painful Memory jugada por el humano: el bot pone su mano boca arriba (fila + ping); con un Pacto activo del humano, este elige con ping o boton y el bot decide solo entre descartar esa carta o recibir 2 (el chat dice cual); sin Pacto, solo se mira. Jugada por el bot: el bot nombra la carta vista y el humano responde con los botones 'Descartar <carta>' / 'Coger 2'.
 - Pact Of Secrecy 'draw up to 2': cada jugador elige cuantas (0-2).
 - Pact Of Mortality 'Return a defeated fighter' vale para cualquier luchador abatido, tambien del rival.
 - Iron Teeth y The Time For Deals Is Done tambien hacen dano a Koschei, como dice el texto.

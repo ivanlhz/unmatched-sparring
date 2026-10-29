@@ -51,6 +51,7 @@ Todo dentro de la bolsa `3efeee` "Hellboy" > bolsa `c592d8`:
 - Pancakes!: las opciones elegidas se resuelven en el orden impreso.
 - cambio de forma con el bot: cambia miniatura y ficha y hace ping sobre las dos.
 - elecciones del humano (Confront, Posthumous Power, Pancakes!) por botones del panel que SOLO aparecen cuando se juega la carta; mientras tanto no se muestran (ni en gris).
+- Confront jugado por el humano y perdido (confirmado, E3): el bot pone su mano boca arriba en la fila de look_spot y hace ping; el humano elige con ping (Tab) sobre la carta o con su boton del panel (los botones llevan los titulos de las cartas del bot). Solo si perdio: la condicion la evalua el motor al resolver la carta.
 - (29/10, E2) Habilidad de inicio de turno del humano (robo de OCCULT DETECTIVE en la salida rival, descarte y movimiento de ANUNG UN RAMA): la hace el humano en la mesa; el panel la anuncia y BLOQUEA el resto de botones (solo Fin de accion y los de PV) hasta que pulsa Fin de accion; se reanuda desde un guardado.
 - (29/10, E2) Zona ONGOING propia debajo de la zona de combate (`human_ongoing_spot` / `bot_ongoing_spot`): el humano deja ahi su plan ONGOING y la sesion lo reconoce ahi; cuando caduca el chat pide pasarlo al descarte. El bot pone el suyo boca arriba ahi y lo manda a su descarte al caducar. Sin esos valores en la configuracion se reconoce en el descarte (aviso).
 - (29/10, E2) And Upon His Brow Is Set A Crown Of Flame: Fin de accion espera a que los descartes de la mano esten en la pila (confirmado).
@@ -58,7 +59,6 @@ Todo dentro de la bolsa `3efeee` "Hellboy" > bolsa `c592d8`:
 ## Preguntas abiertas
 
 - Ficha de habilidad 1644a3: la lectura 'rotZ 180 = OCCULT DETECTIVE arriba' sale de que el hijo 30d50e (cara azul) esta pegado girado 180 grados; confirmar en vivo con --read-only antes de que el bot la gire solo.
-- Confront jugado por el humano y perdido: el bot revela su mano boca arriba con ping, por analogia con la respuesta 4 de Ivan (Every Possible Angle); el humano elige la carta con botones. Confirmar.
 
 ## Evidencia
 ```
