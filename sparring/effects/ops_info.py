@@ -39,9 +39,13 @@ def _remember_in_hand(game, holder: int, card) -> None:
 
 @op("look_hand")
 def _look_hand(run, game, spec):
+    """The live session installs `Game.hand_reader` (D3): the real table hand is read exactly here, never elsewhere;
+    a clone or a simulation has no reader and looks at its own (determinized) hand."""
     owner, target = run.ctx.owner, player_of(game, run, spec["player"])
     if target != owner:
-        game.observe_hand(owner, list(game.players[target].hand))
+        reader = game.hand_reader
+        cards = list(game.players[target].hand) if reader is None else reader(target)
+        game.observe_hand(owner, cards)
 
 
 @op("reveal")

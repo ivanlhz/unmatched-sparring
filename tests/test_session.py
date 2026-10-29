@@ -318,6 +318,10 @@ class Table:
                 in_deck = i in self.bot_discard and len(self.bot_discard) >= 2
                 if loose or (in_deck and sees_decks):
                     moved.append(i)
+                elif sees_decks and i in self.bot_deck and len(self.bot_deck) >= 2:   # takeObject out of the draw deck
+                    self.bot_deck.remove(i)
+                    self._later(lambda i=i: self.bot_discard.append(i))
+                    moved.append(i)
         return {"moved": moved}
 
     def do_play_card_face_down(self, s):

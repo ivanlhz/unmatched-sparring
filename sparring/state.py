@@ -2,6 +2,7 @@ from __future__ import annotations
 
 import random
 from dataclasses import dataclass, field, replace
+from typing import Callable
 
 from .board import Board
 from .cards import Card, can_be_boost
@@ -223,6 +224,9 @@ class Game:
         self.effect_shield: dict[int, int] = {}
         self.drawn = [0, 0]
         self.phantom_draws = 0   # robos esperados por la IA al simular (cartas desconocidas), nunca en partida real
+        # the live session's reader of a hand `look_hand` wants (the real table hand, D3); None = the engine's hand.
+        # Never copied into clones: a simulation determinizes and must not read the table.
+        self.hand_reader: Callable[[int], list[Card]] | None = None
         self.log: list[str] = []
         self.fx = EffectState()    # DSL interpreter state and hooks (docs/effects-dsl.md); inert unless fx.dsl_heroes
         self.fx.dsl_heroes = default_dsl_heroes(self)   # the bot is not known yet: Game.new recomputes it
@@ -276,6 +280,7 @@ class Game:
         g.effect_shield = dict(self.effect_shield)
         g.drawn = [0, 0]
         g.phantom_draws = self.phantom_draws
+        g.hand_reader = None                   # a clone never reads the table: it looks at its determinized hand
         g.log = []
         g.fx = self.fx.copy()
         g.fx.attach(g)

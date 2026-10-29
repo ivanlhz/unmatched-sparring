@@ -753,3 +753,42 @@ Decisiones dudosas de la migracion (ver tambien `notes` de cada fichero):
   effect puts there counts.
 - Open: a bot scheme that asks the human something (Pact Of Secrecy's "keep 2" of the human) returns the Await from
   `MedusaAI.execute`; the session does not drive it yet (E2's `Session.play_effect` for the bot side).
+
+## 18. The bot's effects on the real table (D3, `sparring/session_bot_effects.py`)
+
+- Projection by diff: `snapshot(session)` (JSON-safe) is taken before each bot step (a combat, from
+  `_resolve_combat`; an action of its turn, in `_bot_continue`; the turn change, in `_turn_change_debt`) and
+  `project(session, before)` queues F1 builders for what changed, in the step's one combined script (queue domain
+  `fx`, so no read of the session flushes them early), then says it. A combat paused at the panel keeps the snapshot
+  in `Pending.combat["fx"]` (saved), so a `--resume` still projects; the turn change keeps it in `fx_unprojected`.
+- What is projected: the human's miniatures a bot effect moved or returned (`move_piece` by GUID, one attempt, else
+  "muevela tu"); the bot's Hellboy form (`set_state` of the miniature state the table shows, `flip_token` of the
+  `ability` token, `ping_objects` of token and miniature; Ivan: ping on both); ability counters that have a token
+  in `data/tts` (`take_token_copy` of the source per point gained, `remove_token` of the last copy per point spent,
+  GUIDs kept in `Session.token_copies`, saved; `token_spot` in the configuration, else beside the bot's deck); the
+  bot's own cards: hand -> deck (`hand_to_deck`, the one builder that takes cards out of the bot's hand zone, at the
+  bottom when the engine put them at the tail, else shuffled), discard -> deck (`card_to_deck_bottom` per card at
+  the tail, else `shuffle_into_deck` by GUID), discard -> hand (`return_card_to_hand`), and cards the engine took
+  from its deck outside a draw (Read The Bones) become draws (`drawn`): the real order of the deck is unknown.
+  `fx_in_flight` keeps the reconciliation from re-adopting a card the same script is moving off the pile or hand.
+- The human's cards are the human's. A card the engine discarded from their hand by name (Confront lost, Remove A
+  Painful Memory) is owed through `pending_discard["cards"]`: "Pon X en tu descarte", `sync_human` keeps it in the
+  engine discard until the table shows it, `_discard_done` waits for it. A random discard from their hand is
+  theirs to pick (`ops_core._table_settles`: `force_discard`, the usual owe): the virtual hand never names a
+  placeholder. Hand -> deck is said only for cards the bot knew (seen, or the known top: Every Possible Angle,
+  "Pon X en la parte superior de tu mazo"), the rest is counted; `sync_human` never pads the virtual hand with a
+  card known to be on top of the deck unless the deck shrank.
+- `look_hand` reads the real hand exactly when the op runs: `Game.hand_reader` is installed by the session
+  (`read_human_hand`: one `read_hand` message of the human seat, the virtual hand becomes those cards) and only
+  `ops_info._look_hand` calls it; `Game.clone` never carries it. Tripwires: no read of the human seat across a bot
+  turn and a combat without a look card; a look is exactly one read.
+- A bot scheme that asks the human (Pact Of Secrecy) is parked by `ongoing.resolve_scheme` with
+  `run.flags["scheme"]`; `_bot_continue` shows the choice and waits, the answer finishes the card
+  (`_finish_bot_scheme`: `finish_scheme`, then the bot's turn goes on). `_bot_cards_in_play` keeps that card, the
+  ONGOING in play and the flow's played cards out of the hand the table shows. Placing the bot's ONGOING card on the
+  table is still open (D2).
+- Narration: every interpreted card of the bot is narrated, Medusa's too (Ivan, 29/10); the C5 oracles compare the
+  chat and `applied` without those lines. `narrate.record` writes one line per card: "sin efecto" never repeats
+  and never hides a moment that did something.
+- Costs: a look adds one message; bot Liz's Wildfire (a discard and a move at the start of her turn) adds one
+  before her first action; everything else rides in the step's script.

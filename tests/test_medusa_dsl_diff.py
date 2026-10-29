@@ -8,6 +8,9 @@ it games are built with Medusa out of `fx.dsl_heroes`, her legacy combat rules a
     interpreter does), FakeTTS transcripts and saves included;
   * per-card twins: the same scenario on two games, legacy and DSL, same final save, log, combat result and the
     same controller calls in the same order (the rng is only touched through those).
+Since D3 (Ivan, 29/10) the bot also narrates Medusa's cards in the chat (`effects/narrate.py`: "Dash: medusa se mueve a
+3"); the legacy engine never did, so the oracles compare `applied` and the chat with those lines removed
+(`without_narration`), and nothing else.
 The one ruled divergence (Ivan, 28/10): Winged Frenzy's return of a defeated Harpy is mandatory. The legacy engine
 let `choose_placement` answer None and left the Harpy dead; the interpreter returns it anyway. `test_frenzy_return_is_mandatory_the_only_divergence`
 pins exactly that, nothing else differs."""
@@ -26,6 +29,7 @@ from sparring.effects.model import EFFECTS_DIR, walk_ops
 from sparring.effects.ops_core import OPS, PENDING_PHASES
 from sparring.effects.state import INTERPRETED_HEROES
 from sparring.hellboy_script import ScriptedHellboy
+from sparring.heroes import load_hero
 from sparring.search.controller import IsmctsMedusa
 from sparring.search.ismcts import SearchConfig
 from sparring.state import Game
@@ -35,6 +39,24 @@ from test_golden import GOLDEN, SIM_GAMES, jsonable, midgame, transcript
 from test_session import human_plays, rig, set_bot_hand  # noqa: F401
 
 BOARDS = {key: Board.load(key) for key in ("bprd-hq", "azuchi-castle")}
+MEDUSA_TITLES = {c.title for c in load_hero("medusa").deck()}
+
+
+def is_narration(line: str) -> bool:
+    """A chat / `applied` line of the narrator for a Medusa card ("Dash: ..." or "Aplicado: Dash: ...")."""
+    return line.removeprefix("Aplicado: ").split(": ", 1)[0] in MEDUSA_TITLES
+
+
+def without_narration(out: dict) -> dict:
+    """The same transcript or twin record with the narrator's lines (and only those) removed from the chat and
+    from `applied`, so the legacy engine, which never narrated, can be compared with it."""
+    out = jsonable(out)
+    for step in out.get("steps", []):
+        step["said"] = [m for m in step["said"] if not is_narration(m)]
+    result = out.get("result")
+    if isinstance(result, dict):
+        result["applied"] = [a for a in result["applied"] if not is_narration(a)]
+    return out
 
 
 # ---------------------------------------------------------------- whole games
@@ -106,7 +128,7 @@ def test_legacy_engine_reproduces_the_batch_session_golden(monkeypatch, request)
         session, table, game, _ = request.getfixturevalue("brig")
         assert game.fx.dsl_heroes == set()
         out = transcript(session, table, game, lambda e, p: click(session, table, e, p))
-    assert jsonable(out) == golden("session_batch.json")
+    assert without_narration(out) == without_narration(golden("session_batch.json"))
 
 
 def test_legacy_engine_reproduces_the_classic_session_golden(monkeypatch, request):
@@ -118,7 +140,7 @@ def test_legacy_engine_reproduces_the_classic_session_golden(monkeypatch, reques
         set_bot_hand(table, game, "Snipe", "Dash")
         session.read_bot_hand()
         out = transcript(session, table, game, lambda e, p: session.handle(e, p))
-    assert jsonable(out) == golden("session_classic.json")
+    assert without_narration(out) == without_narration(golden("session_classic.json"))
 
 
 # ---------------------------------------------------------------- per-card twins
@@ -338,7 +360,7 @@ def run_twin(build):
     res = build(g, ctl)
     out = {"game": persist.game_to_dict(g), "log": list(g.log), "calls": calls,
            "result": None if res is None else result_record(res)}
-    return jsonable(out)
+    return without_narration(out)
 
 
 @pytest.mark.parametrize("build", SCENARIOS, ids=lambda f: f.__name__)

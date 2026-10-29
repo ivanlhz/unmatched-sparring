@@ -1881,6 +1881,47 @@ def card_to_deck_bottom(card: str | int, deck_guid: str, id_range: tuple[int, in
 
 
 @_registered
+def hand_to_deck(seat_color: str, card_ids: list[int], deck_guid: str, id_range: tuple[int, int] = BOT_CARD_IDS, *,
+                 identity, bottom: bool = False, shuffle: bool = False) -> str:
+    """Puts cards of the bot's HAND (by CardID, in that order, the first match of each) into the bot's deck: on top,
+    at the bottom (`bottom`: the deck is turned over for the puts, like `card_to_deck_bottom`, so the last id ends
+    up as the very bottom card) or anywhere (`shuffle`: shuffled after). The loose-card builders refuse hand zones on
+    purpose; this one takes only from `seat_color`'s hand, only cards that are `ours`, and needs a deck that is
+    `ours`. Returns `{placed: [ids], deck, quantity}` (`deck = false` when the deck is not there)."""
+    if not isinstance(card_ids, (list, tuple)) or not 1 <= len(card_ids) <= MAX_DECK_CARDS:
+        raise ValueError(f"1 to {MAX_DECK_CARDS} cards expected")
+    if not isinstance(bottom, bool) or not isinstance(shuffle, bool):
+        raise TypeError("bottom and shuffle are booleans")
+    order = "{" + ", ".join(_i(c) for c in card_ids) + "}"
+    flip_in = "deck.setRotation(Vector(r.x, r.y, (r.z + 180) % 360))\n" if bottom else ""
+    flip_out = "deck.setRotation(Vector(r.x, r.y, r.z))\n" if bottom else ""
+    return f"""-- sparring:hand_to_deck
+{_ours_lua(identity, id_range)}local deck = getObjectFromGUID({_guid(deck_guid)})
+if deck == nil or not ours(deck) then return JSON.encode({{placed = {{}}, deck = false}}) end
+local order = {order}
+local byId = {{}}
+for _, o in ipairs(Player[{_color(seat_color)}].getHandObjects(1)) do
+  if o.type == "Card" and ours(o) then
+    local id = o.getData().CardID
+    if byId[id] == nil then byId[id] = o end
+  end
+end
+local r = deck.getRotation()
+{flip_in}local placed = {{}}
+for _, id in ipairs(order) do
+  local c = byId[id]
+  if c ~= nil then
+    deck = deck.putObject(c) or deck
+    byId[id] = nil
+    table.insert(placed, id)
+  end
+end
+{flip_out}{"deck.shuffle()" if shuffle else ""}
+return JSON.encode({{placed = placed, deck = deck.getGUID(), quantity = deck.getQuantity()}})
+"""
+
+
+@_registered
 def shuffle_into_deck(deck_guid: str, cards: list[str]) -> str:
     """Puts the loose cards (by GUID) into a deck and shuffles it. Returns `{added, quantity}`."""
     if not isinstance(cards, (list, tuple)) or not 1 <= len(cards) <= MAX_DECK_CARDS:

@@ -211,4 +211,7 @@ def resolve_scheme(game, player: int, fighter, card, choosers=None):
     pending = run.run(game, choosers or default_choosers(game))
     if pending is None:
         finish_scheme(game, player, card)
+    else:                                        # parked like a trigger: the live session shows the choice and finishes
+        run.flags["scheme"] = {"player": player, "card_id": card.card_id}
+        game.fx.parked.append(run)
     return run, pending

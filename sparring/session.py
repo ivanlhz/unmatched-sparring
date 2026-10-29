@@ -31,6 +31,7 @@ from .controller import Controller
 from .combat_flow import CombatFlow, PendingChoice, legacy_chooser
 from .effects.choose import ControllerChooser, PanelChooser
 from .effects.run import EffectRun
+from . import session_bot_effects as bot_effects
 from . import session_choices as choices
 from .combat import FEINT, FIGHT_OR_FLIGHT, FIGHT_OR_FLIGHT_BONUS, GLANCE_DAMAGE, can_boost, deck_boost, is_medusa_card, scheme_gain_actions
 from .state import ANUNG, DETECTIVE, EXHAUST_DAMAGE, HAND_LIMIT, START_HAND, Fighter, Game, RuleError
@@ -119,6 +120,7 @@ class SessionConfig:
     look_spot: tuple[float, float, float] = (-23.0, 2.5, 0.0)   # centro de la fila de la mano del bot a la vista (estimacion: calibrar en vivo)
     look_step: tuple[float, float] = (0.0, 2.6)                 # (dx, dz) entre cartas de la fila
     look_rot_y: float | None = None                              # giro de las cartas de la fila (por defecto, el del descarte del bot)
+    token_spot: tuple[float, float, float] | None = None         # where the bot lays its active ability tokens (Abe); default: beside its deck
 
 
 def human_dead_spot(cfg: "SessionConfig") -> tuple[float, float, float] | None:
@@ -251,6 +253,10 @@ class Session:
         self.look_fails = 0                      # cierres de la fila que la mesa no hizo (el segundo Cancelar fuerza la salida)
         self.look: dict | None = None            # mano del bot a la vista: {"ids", "guids", "spots"} de la fila de la mesa
         self.pending_value = 0
+        self.token_copies: dict[str, list[str]] = {}   # ability token -> GUIDs of the active copies on the table (D3)
+        self.fx_unprojected: dict | None = None       # bot_effects snapshot taken before the turn change, projected at the bot's first write
+        self.fx_in_flight: set[int] = set()           # CardIDs a bot effect is moving off its pile or hand in this step
+        self.fx_looked = False                        # a look_hand re-identified the human's virtual hand in this step
         self._attach_choosers()
         self.chosen_attacker: str | None = None
         self.moving = False
@@ -732,6 +738,7 @@ class Session:
         self._commit()
         self._persist()
         self.snap = None                          # la mesa cambia entre botones: el siguiente trae la suya
+        self.fx_in_flight = set()
         return self.messages
 
     def _table_failure(self, e: Exception) -> None:
@@ -792,8 +799,35 @@ class Session:
         return {self.bot: ControllerChooser(), self.human: PanelChooser()}
 
     def _attach_choosers(self) -> None:
-        """Trigger decisions: the bot's controller answers its own; the human's stop the run (parked) for the panel."""
+        """Trigger decisions: the bot's controller answers its own; the human's stop the run (parked) for the panel.
+        The `look_hand` op reads the human's real hand through `hand_reader` (D3), nothing else ever does."""
         self.game.fx.choosers = self._choosers()
+        self.game.hand_reader = self._read_human_hand
+
+    def _read_human_hand(self, player: int) -> list[Card]:
+        return bot_effects.read_human_hand(self, player)
+
+    def _project_effects(self, before: dict | None, played: frozenset = frozenset()) -> Callable[[], None]:
+        """Queues what a bot step changed on the table beyond its own pieces and discards (`session_bot_effects`);
+        a table failure is said once, the table wins at the next read."""
+        try:
+            fin = bot_effects.project(self, before, played)
+        except TABLE_ERRORS as e:
+            self.say(f"Aviso: no he podido reflejar en la mesa un efecto del bot ({e}).", ChatKind.WARNING)
+            return lambda: None
+
+        def run() -> None:
+            try:
+                fin()
+            except TABLE_ERRORS as e:
+                self.say(f"Aviso: no he podido comprobar en la mesa un efecto del bot ({e}).", ChatKind.WARNING)
+        return run
+
+    def _human_played(self, p: Pending) -> frozenset:
+        """The human's cards this combat took out of their hand by their own hand (the played card, the boost)."""
+        played = {c.card_id for owner, c in p.flow.played if owner == self.human}
+        boost = (p.combat or {}).get("boost")
+        return frozenset(played | ({boost} if boost is not None else set()))
 
     def _paused(self) -> tuple[str, object, EffectRun] | None:
         """(kind, holder, run) of the decision the panel shows: ("flow", CombatFlow, run), ("effect", run, run) or
@@ -888,6 +922,22 @@ class Session:
             else:
                 self.game.fx.parked.remove(run)
             self._effect_finished()
+            self._finish_bot_scheme(run)
+
+    def _finish_bot_scheme(self, run: EffectRun) -> None:
+        """A scheme of the bot that stopped at a decision of the human (parked by `ongoing.resolve_scheme`) is now
+        done: the card ends where a scheme ends and the bot's turn goes on (its action was spent when it was played)."""
+        scheme = run.flags.get("scheme")
+        if not scheme:
+            return
+        from .effects import ongoing
+        player = scheme["player"]
+        card = next(c for c in self.game.players[player].full_set if c.card_id == scheme["card_id"])
+        ongoing.finish_scheme(self.game, player, card)
+        if player == self.bot:
+            self._mark_dirty()                    # the card reaches the discard pile
+            if self.game.turn == self.bot and self.pending is None:
+                self._bot_continue()
 
     def _answer_flow(self, flow: CombatFlow, value: list) -> None:
         flow.resume(value)
@@ -1078,6 +1128,7 @@ class Session:
         self.__dict__.update(blank.__dict__)
         self.__dict__.update(saved)
         self.game.controllers[self.human] = HumanProxy(self._owe_discard)
+        self._attach_choosers()                   # the hand reader is a bound method: it has to be this session's
         getattr(self.ai, "reset", lambda: None)()          # la IA con memoria olvida la partida anterior
 
     # ---------- guardado ----------
@@ -1087,6 +1138,10 @@ class Session:
             saved["effect"] = self.free_effect.to_dict()
         if self.look_granted:
             saved["look_granted"] = True
+        if self.token_copies:
+            saved["token_copies"] = {k: list(v) for k, v in self.token_copies.items()}
+        if self.fx_unprojected is not None:
+            saved["fx_unprojected"] = self.fx_unprojected
         return saved
 
     def _to_dict(self, p: Pending | None) -> dict:
@@ -1147,6 +1202,8 @@ class Session:
                 *self._load_flow(p))
             self.free_effect = None if d.get("effect") is None else EffectRun.from_dict(d["effect"])
             self.look_granted = d.get("look_granted") is True
+            self.token_copies = {str(k): [str(g) for g in v] for k, v in (d.get("token_copies") or {}).items()}
+            self.fx_unprojected = d.get("fx_unprojected")
             self.pending_discard, self.pending_value = d["pending_discard"], d["pending_value"]
             self.look = self._load_look(d.get("look"))
             self.chosen_attacker, self.moving = d["chosen_attacker"], d["moving"]
@@ -1730,6 +1787,7 @@ class Session:
                 self._transit[human_card.card_id] = 0
             if boost is not None:
                 self._make_known(boost, keep=(human_card,))
+            p.combat["fx"] = bot_effects.snapshot(self)   # after the human's cards are known: the diff is the effects'
             if p.kind == "human_attacks":
                 p.flow = g.begin_attack(p.attacker, p.target, human_card, p.bot_card, values=(value, 0))
             else:
@@ -1756,8 +1814,10 @@ class Session:
             self._after_combat(p, p.flow.result)
             return
         self._mark_dirty(_bot_snapshot(p.combat["before"]))
+        fin_fx = self._project_effects(p.combat.get("fx"), self._human_played(p))
         self._try_flush_table()
-        p.combat["before"] = self._snapshot_bot()
+        fin_fx()
+        p.combat["before"], p.combat["fx"] = self._snapshot_bot(), bot_effects.snapshot(self)
 
     def _undo_combat(self, saved: dict, human_card: Card | None, flipped: list) -> None:
         self._restore(saved)
@@ -1799,10 +1859,12 @@ class Session:
                 self._announce_fall(f)
         self._grant_look_for(res.atk_card if p.kind == "human_attacks" else res.def_card)
         self._track_destiny()
+        fin_fx = self._project_effects(c.get("fx"), self._human_played(p))
         fin_dials = self._write_dials(defer=True)
         fin_table = self._try_flush_stage()
         fin_dials()
         fin_table()
+        fin_fx()
         if g.winner is not None:
             self.say(f"Fin de partida: gana el jugador {g.winner}.")
             return
@@ -2180,7 +2242,16 @@ class Session:
         else:
             if d["baseline"] is None:
                 d["baseline"] = len(st.discard)
-            done = len(st.discard) >= d["baseline"] + d["n"]
+            # cards a bot effect discarded by name (D3) count once they are on the table pile
+            named = d.get("cards") or []
+            on_pile = {r["id"] for r in self._rd_human_discard()} if named else set()
+            missing = [i for i in named if i not in on_pile]
+            done = not missing and len(st.discard) - len(missing) >= d["baseline"] + d["n"]
+            if missing:
+                by_id = {c.card_id: c for c in st.full_set}
+                self.say("Aun no veo en tu descarte " + ", ".join(by_id[i].title for i in missing if i in by_id)
+                         + ": ponla y pulsa Fin de accion.", ChatKind.WARNING)
+                return False
         # Ivan's ruling (28/10): a burning card discarded for the end-of-turn hand limit stays in the discard (the one
         # exception to Wildfire), so the "it returned to my hand" leniency only applies to other forced discards
         wildfire = self._human_wildfire() and d["kind"] != "limit"
@@ -2220,18 +2291,32 @@ class Session:
             return
         self.limit_waived = False
         self.chosen_attacker = None
+        before, fx_before = self._snapshot_bot(), bot_effects.snapshot(self)
         g.end_turn()
         g.begin_turn()                            # el cambio de turno es atomico; lo que sigue es solo E/S
+        self._turn_change_debt(before, fx_before)
         self.bot_stage = "start"
         self._persist()                           # punto de control: el turno del bot empieza aqui, una sola vez
         self.say("Fin de tu turno. Turno del bot.")
         self._bot_continue()
 
     def start_bot_turn(self) -> None:
+        before, fx_before = self._snapshot_bot(), bot_effects.snapshot(self)
         self.game.begin_turn()
+        self._turn_change_debt(before, fx_before)
         self.bot_stage = "start"
         self._persist()
         self._bot_continue()
+
+    def _turn_change_debt(self, before: dict, fx_before: dict) -> None:
+        """The bot's start-of-turn triggers (Wildfire's discard and move, Hellboy's ANUNG discard and move, a draw)
+        leave the same table debt as any of its actions, settled by `_bot_continue`'s first write; a turn change
+        that moved nothing leaves none."""
+        self.fx_unprojected = fx_before
+        g = self.game
+        if (before != self._snapshot_bot() or fx_before["bot"] != bot_effects.zones(g.players[self.bot])
+                or g.drawn[self.bot]):
+            self._mark_dirty(before)
 
     def _mark_dirty(self, before: dict | None = None) -> None:
         """El motor ya cambio al bot; hasta que la mesa lo refleje queda una deuda que cualquier boton reintenta."""
@@ -2358,7 +2443,9 @@ class Session:
         de modo que un corte o Ctrl+C reanudado no repite nada de lo ya hecho."""
         g = self.game
         self._revoke_look_after_button()
+        fin_fx, self.fx_unprojected = self._project_effects(self.fx_unprojected), None
         self._flush_table()
+        fin_fx()
         if self.pending is not None:
             self.say("La carta del bot ya esta en la mesa: pulsa Revelar.", ChatKind.WARNING)
             return
@@ -2401,12 +2488,22 @@ class Session:
                 hp0 = {fid: f.hp for fid, f in g.fighters.items()}
                 alive0 = self._alive_map()
                 exhausting = act.kind == "maneuver" and not g.players[self.bot].deck
+                fx_before = bot_effects.snapshot(self)
                 self.ai.execute(g, act)
                 self._mark_dirty(before)
                 self._persist()
+                fin_fx = self._project_effects(fx_before)
                 fin_table = self._flush_table_stage()
-                dials_ok = self._write_dials(defer=True)()    # un solo mensaje para cartas, piezas y diales
+                dials_ok = self._write_dials(defer=True)()    # un solo mensaje para cartas, piezas, efectos y diales
                 fin_table()
+                fin_fx()
+                if self._paused() is not None:    # the scheme asks you something: the panel shows it, the turn waits
+                    self.fx_unprojected = bot_effects.snapshot(self)
+                    self._persist()
+                    self.say(f"El bot juega {act.card.title}" + self._played_text(seen, {}, "efecto", skip=act.card) + ".",
+                             ChatKind.SCHEME)
+                    self._show_choice(self.effect_run.awaiting)
+                    return
                 self._persist()
                 if exhausting:
                     self.say(f"Mazo vacio: el bot roba y cada luchador suyo pierde {EXHAUST_DAMAGE} PV.", ChatKind.COMBAT)
@@ -2421,6 +2518,7 @@ class Session:
             self.say(f"Fin de partida: gana el jugador {g.winner}.")
             return
         seen = len(g.players[self.bot].discard)
+        fx_before = bot_effects.snapshot(self)
         g.end_turn()                              # puede descartar por limite de mano: eso tambien es deuda de mesa
         expired = g.begin_turn()
         if len(g.players[self.bot].discard) > seen:
@@ -2431,7 +2529,9 @@ class Session:
             self.say(f"{label}: caduca el +{n} a tus cartas de combate. Descarta el plan.", ChatKind.SCHEME)
         self._announce_human_start()
         try:
+            fin_fx = self._project_effects(fx_before)     # a hand-limit discard may change the bot's form
             self._flush_table()
+            fin_fx()
         except TABLE_ERRORS as e:
             self.say(f"Tu turno ya ha empezado, pero la mesa del bot no coincide aun ({e}); se reintentara con tu proximo boton.", ChatKind.WARNING)
 
@@ -3072,6 +3172,17 @@ class Session:
         return True
 
     # ---------- mesa del bot ----------
+    def _bot_cards_in_play(self) -> list[Card]:
+        """The bot's cards in no zone of the engine: the ones a combat stopped at the panel holds until the flow
+        discards them, its ONGOING scheme and a scheme stopped at a decision of the human (parked). They may still
+        sit in the table hand: never counted as hand cards, never dealt again."""
+        p, st = self.pending, self.game.players[self.bot]
+        cards = [c for owner, c in p.flow.played if owner == self.bot] if p is not None and p.flow is not None else []
+        ids = {self.game.fx.ongoing_card_id(self.bot)}
+        ids |= {r.flags["scheme"]["card_id"] for r in self.game.fx.parked
+                if r.flags.get("scheme", {}).get("player") == self.bot}
+        return cards + [c for c in st.full_set if c.card_id in ids]
+
     def read_bot_hand(self) -> None:
         """La mano sale de la mesa. Los robos que el motor ya conto pero el mazo aun no repartio (`drawn`) se
         mantienen en la mano del motor y fuera de su mazo: un fallo de reparto nunca reinfla el mazo."""
@@ -3082,6 +3193,8 @@ class Session:
             cards = [by_id[r["id"]] for r in res]
         except KeyError as e:
             raise SessionError(f"carta desconocida en la mano del bot: {e}") from None
+        in_play = self._bot_cards_in_play()
+        cards = [c for c in cards if c not in in_play]   # a scheme stopped at the panel still sits in the table hand
         p = self.pending
         held = p.bot_card if p is not None and p.flow is None else None
         if held is not None and held not in cards and held not in st.discard:
@@ -3090,8 +3203,6 @@ class Session:
             c = by_id.get(card_id)                # la mano a la vista esta en la fila de la mesa, no en su mano
             if c is not None and c not in cards and c not in st.discard:
                 cards.append(c)
-        # a combat stopped at the panel holds its played cards: in no zone until the flow discards them
-        in_play = [c for owner, c in p.flow.played if owner == self.bot] if p is not None and p.flow is not None else []
         unseen = [c for c in st.full_set if c not in cards and c not in st.discard and c not in in_play]
         owed = min(self.game.drawn[self.bot], len(unseen))
         st.hand = cards + unseen[:owed]
@@ -3193,7 +3304,7 @@ class Session:
         st = self.game.players[self.bot]
         held = self.pending.bot_card.card_id if self.pending and self.pending.bot_card else None
         for c in st.full_set:
-            if c.card_id in on_pile and c not in st.discard and c.card_id != held:
+            if c.card_id in on_pile and c not in st.discard and c.card_id != held and c.card_id not in self.fx_in_flight:
                 for zone in (st.hand, st.deck):
                     if c in zone:
                         zone.remove(c)
@@ -3252,6 +3363,7 @@ class Session:
         lecturas se hacen antes de escribir: el descarte y el robo salen en el mismo mensaje."""
         g, st = self.game, self.game.players[self.bot]
         held = {self.pending.bot_card.card_id} if self.pending and self.pending.bot_card else set()
+        held |= {c.card_id for c in self._bot_cards_in_play()}
         on_pile = self._table_discard()
         self._adopt_extra_discards(on_pile)
         new = [c.card_id for c in st.discard if c.card_id not in self.bot_discarded]
@@ -3278,7 +3390,7 @@ class Session:
         if n:
             # un reparto cuya respuesta llego tarde ya esta en la mano de la mesa: se acredita, no se repite.
             # Las cartas ya descartadas por el motor (aunque sigan volando hacia la pila) no cuentan como mano.
-            gone = {c.card_id for c in st.discard} | held
+            gone = {c.card_id for c in st.discard} | held | self.fx_in_flight   # a bot effect is taking those out of the hand
             present = len({i for i in hand_now if i not in gone})
             n = max(0, min(n, len([c for c in st.hand if c.card_id not in held]) - present))
             g.drawn[self.bot] = n
@@ -3542,6 +3654,8 @@ class Session:
             else:
                 self._transit[i] += 1
                 ids = ids | ({i} & known)
+        for i in (self.pending_discard or {}).get("cards") or []:   # a bot effect discarded it: the human still has to move it
+            ids = ids | ({i} & known)
         by_id = {c.card_id: c for c in st.full_set}
         deck_qty = (self.snap or {}).get("human_deck_qty", -1) if self.cfg.batch else -1
         fresh = [c for c in st.discard if c.card_id not in ids and c.card_id not in self._gone]
@@ -3552,6 +3666,7 @@ class Session:
         hand_drop = max(0, len(st.hand) - real)
         grew = (isinstance(deck_qty, int) and deck_qty >= 0 and self._deck_qty >= 0 and bool(fresh)
                 and deck_qty - self._deck_qty - hand_drop >= len(fresh))
+        drew = isinstance(deck_qty, int) and deck_qty >= 0 and self._deck_qty >= 0 and deck_qty < self._deck_qty
         # Wildfire: solo vuelve a la mano una ardiente que sale del descarte si tu mano de la mesa crecio sin
         # explicacion (la recogiste) y no la explica el mazo (Rekindle, Searing Clarity: la barajan en el mazo)
         wildfire, back = self._human_wildfire(), []
@@ -3594,8 +3709,14 @@ class Session:
             self.game.card_left_hand(self.human, c)     # si el bot la habia visto en tu mano, deja de contar con ella
         self._verify_maneuver_deal(real, len(ids))
         self._trim_virtual_hand(real)
-        while len(st.hand) < real and st.deck:
-            st.hand.append(st.deck.pop(0))
+        # a card the bot knows is on top of your deck (Every Possible Angle) is not in your hand unless the deck shrank
+        top = set() if drew else set(self.game.players[self.bot].known.top_of_deck)
+        while len(st.hand) < real:
+            spare = next((c for c in st.deck if c.card_id not in top), None)
+            if spare is None:
+                break
+            st.deck.remove(spare)
+            st.hand.append(spare)
         if self._track_destiny() and not self._destiny_tried:
             self._destiny_tried = True                # un solo intento por boton: un dial roto no frena cada lectura
             self._write_dials(only_destiny=True, post=True)   # los PV solo se escriben tras un cambio real

@@ -304,7 +304,7 @@ def test_advanced_psychometry_looks_only_when_the_rival_is_adjacent(bprd):
 def test_perfect_shot_is_played_face_down_until_e3_and_a_recorded_prediction_adds_two(bprd):
     g, abe, hb = abe_game(bprd)
     res = fight(g, "abe", "hellboy", "Perfect Shot", "Confront Any Demon or God")
-    assert res.atk_value == 3 and res.applied == ["Perfect Shot: sin efecto", "Perfect Shot: sin efecto"]
+    assert res.atk_value == 3 and res.applied == ["Perfect Shot: sin efecto"]
     g, abe, hb = abe_game(bprd)
     shot, confront = give(g, 0, "Perfect Shot"), give(g, 1, "Confront Any Demon or God")
     flow = CombatFlow(g, abe, hb, shot, confront)
@@ -390,7 +390,7 @@ def test_shock_and_awe_becomes_four_after_moving_and_the_rival_discards(bprd):
     g, abe, hb = abe_game(bprd)
     g.fx.turn_start_pos["abe"] = abe.pos
     res = fight(g, "abe", "hellboy", "Shock And Awe")                 # no move, and nothing to discard
-    assert res.atk_value == 2 and res.applied == ["Shock And Awe: sin efecto", "Shock And Awe: sin efecto"]
+    assert res.atk_value == 2 and res.applied == ["Shock And Awe: sin efecto"]
 
 
 def test_cold_iron_blocks_the_rivals_draws_and_actions(bprd):
@@ -652,7 +652,7 @@ def test_flame_lash_with_an_empty_deck_says_nothing_happened(bprd):
     g, liz, hb = liz_game(bprd)
     g.players[0].deck.clear()
     res = fight(g, "liz", "hellboy", "Flame Lash")
-    assert res.atk_value == 1 and res.applied == ["Flame Lash: sin efecto", "Flame Lash: gana 1 accion"]
+    assert res.atk_value == 1 and res.applied == ["Flame Lash: gana 1 accion"]
 
 
 def test_fleeting_moments_makes_both_discard_at_random_and_draw(bprd):
