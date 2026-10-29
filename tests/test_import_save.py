@@ -88,7 +88,7 @@ def test_a_missing_hero_is_reported_not_raised(mini, tmp_path):
 def test_hellboy_pieces_states_dials_token_and_counter_dial(mini):
     report = Report("hellboy")
     raw = json.loads(hero_path("hellboy").read_text(encoding="utf-8"))
-    assert expected_token_keys(raw, None) == {"ability"}          # Hellboy has forms: the ability token flips
+    assert expected_token_keys(raw) == {"ability"}          # Hellboy has forms: the ability token flips
     data = extract_hero(mini, load_hero("hellboy"), raw, report, {"ability"})
     assert data["bag"] == {"guid": "ob0001", "inner": "in0001"}
     assert data["deck"] == {"guid": "dk0001", "card_ids": [19700, 19729], "character_card_id": 19600,
@@ -141,7 +141,7 @@ def test_sidekicks_with_named_tokens_get_their_nickname(mini):
                                   for g, n in (("a1", "Victor"), ("a2", "Carla"), ("a3", "Kate"))]
     inner["ContainedObjects"].append({"Name": "Custom_Token_Stack", "GUID": "it01", "Nickname": "Intuition Token"})
     raw = json.loads(hero_path("abe-sapien").read_text(encoding="utf-8"))
-    assert expected_token_keys(raw, None) == {"intuition"}         # named by Abe's triggers
+    assert expected_token_keys(raw) == {"intuition"}         # named by Abe's triggers
     report = Report("abe-sapien")
     data = extract_hero(save, load_hero("abe-sapien"), raw, report, {"intuition"})
     assert {f: v.get("nickname") for f, v in data["fighters"].items()} == {
@@ -298,9 +298,11 @@ def test_a_token_the_hero_uses_but_the_bag_lacks_is_a_problem(mini, tmp_path):
     assert "token 'ability': Hellboy uses it and the inner bag has no such token" in report.problems
 
 
-def test_the_existing_files_token_keys_count_as_expected():
-    existing = {"tokens": {"intuition": "x"}, "token_sources": {"intuition": {}}, "token_faces": {"glow": {}}}
-    assert expected_token_keys({"triggers": [], "forms": None}, existing) == {"intuition", "glow"}
+def test_only_the_herodef_says_which_tokens_are_expected():
+    """An old file's token keys never count: they would let a stray token of a new save through."""
+    assert expected_token_keys({"triggers": [{"token": "intuition"}], "forms": None}) == {"intuition"}
+    assert expected_token_keys({"triggers": [], "forms": [{}]}) == {"ability"}
+    assert expected_token_keys({"triggers": [], "forms": None}) == set()
 
 
 def test_the_output_folder_can_never_hold_the_save(tmp_path):

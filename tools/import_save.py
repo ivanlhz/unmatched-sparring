@@ -278,16 +278,15 @@ def _token_key(nickname: str) -> str:
     return "_".join(words) or "ability"
 
 
-def expected_token_keys(raw_hero: dict, existing: dict | None) -> set[str]:
-    """Token names the hero's data actually uses: `token` of its triggers and passives (Abe: intuition), the
-    special ability token when the hero has forms (Hellboy flips it), and whatever the existing file already names.
-    The bridge looks tokens up by these keys (`effects_bridge.token_source`), so a stray token must not invent one."""
+def expected_token_keys(raw_hero: dict) -> set[str]:
+    """Token names the hero's data actually uses: `token` of its triggers and passives (Abe: intuition) and the
+    special ability token when the hero has forms (Hellboy flips it). Only the HeroDef counts, never the existing
+    file: an old key would let a stray token of a new save through. The bridge looks tokens up by these keys
+    (`effects_bridge.token_source`), so a stray token must not invent one."""
     keys = {t["token"] for t in [*(raw_hero.get("triggers") or ()), *(raw_hero.get("passives") or ())]
             if t.get("token")}
     if raw_hero.get("forms"):
         keys.add("ability")
-    for block in ("tokens", "token_faces", "token_sources"):
-        keys |= set((existing or {}).get(block) or {})
     return keys
 
 
@@ -334,7 +333,7 @@ def import_hero(objects: list[dict], slug: str, out_dir: Path) -> tuple[dict | N
     path = out_dir / f"{slug}.json"
     existing = json.loads(path.read_text(encoding="utf-8")) if path.exists() else None
     try:
-        derived = extract_hero(objects, hero, raw_hero, report, expected_token_keys(raw_hero, existing))
+        derived = extract_hero(objects, hero, raw_hero, report, expected_token_keys(raw_hero))
     except SaveImportError as e:
         report.problems.append(f"hero not found in the save: {e}")
         return None, report
