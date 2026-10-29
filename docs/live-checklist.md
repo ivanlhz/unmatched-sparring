@@ -1,20 +1,20 @@
 # Checklist de la primera prueba en vivo (TTS)
 
 > Nota: este documento esta en espanol a proposito (es para Ivan, en la mesa; el README y los docs de uso ya estan en espanol; la regla "todo en ingles" es para el codigo). Marca `- [ ]` segun avanzas. Los puntos marcados **(E2)** dependen de la fase E2 (zona ONGOING, puerta de habilidad, botones de esquema), que no esta en master al escribir esto: si no esta mergeada, saltalos.
-> Todo esta verificado solo contra FakeTTS. Esto es lo que NUNCA se ha visto en una mesa real.
+> Marcado *(OK 29/10)*: comprobado en la primera partida real (bot Hellboy vs Liz humana). El resto esta verificado solo contra FakeTTS. Esto es lo que NUNCA se ha visto en una mesa real.
 
 ## 1. Antes de empezar
 
-- [ ] **Backup del guardado**: en TTS, Guardar como "pre-sparring" (y copia el `.json` de `saves\`). Si algo se rompe, recargas ese.
-- [ ] Mesa abierta con la partida cargada (B.P.R.D. HQ, Green = bot, White = tu). Terminal en la carpeta del proyecto.
-- [ ] Comandos (PowerShell):
+- [x] **Backup del guardado**: en TTS, Guardar como "pre-sparring" (y copia el `.json` de `saves\`). Si algo se rompe, recargas ese. *(OK 29/10)*
+- [x] Mesa abierta con la partida cargada (B.P.R.D. HQ, Green = bot, White = tu). Terminal en la carpeta del proyecto. *(OK 29/10)*
+- [x] Comandos (PowerShell): *(OK 29/10)*
   - Solo leer / calibrar / detectar heroes (no cambia nada): `uv run python -m sparring.play --config config\partida.json --read-only`
   - Jugar: `uv run python -m sparring.play --config config\partida.json --first human` (`--first bot|random`, `--seed N`)
   - Reanudar tras cierre o recarga de TTS: `uv run python -m sparring.play --config config\partida.json --resume`
   - Sacar de la bolsa interior lo que falte en la mesa (nunca con `--resume`): `--unpack`
   - Forzar heroes: `--bot-hero <slug> --human-hero <slug>` (medusa, hellboy, abe-sapien, baba-yaga, liz-sherman; no el mismo en los dos lados)
   - Medir mensajes y tiempos por boton: `--timing`. IA por busqueda: `--ai ismcts`. Pausa del bot: `--bot-pause N`.
-- [ ] Ctrl+C sale limpio (los rectangulos y etiquetas del suelo se borran al salir).
+- [x] Ctrl+C sale limpio (los rectangulos y etiquetas del suelo se borran al salir). *(OK 29/10)*
 
 ### Calibracion de posiciones (`config\partida.json`)
 Con `--read-only` mira el informe y ajusta lo que este mal. Prueba con una carta en cada sitio.
@@ -23,21 +23,21 @@ Con `--read-only` mira el informe y ajusta lo que este mal. Prueba con una carta
 - [ ] `dead_spot` / `human_dead_spot` (donde se apartan miniaturas caidas, 1.5 en x entre piezas; son estimaciones).
 - [ ] `look_spot` / `look_step` (fila de la mano del bot a la vista: delante de tu asiento, sin pisar panel, manos, descartes ni cajas de combate; el arranque avisa si pisa algo).
 - [ ] `token_spot` (donde el bot deja las fichas de Intuicion de Abe; sin clave, junto a su mazo).
-- [ ] **(E2)** `human_ongoing_spot` / `bot_ongoing_spot`: zona ONGOING debajo de la zona de combate, de ambos bandos.
+- [x] **(E2)** `human_ongoing_spot` / `bot_ongoing_spot`: zona ONGOING debajo de la zona de combate, de ambos bandos. *(OK 29/10)*
 - [ ] `panel_position` / `panel_scale`: el panel se ve y se pulsa bien desde tu asiento; los rectangulos DESCARTE/COMBATE del suelo no quedan bajo el panel.
 - [ ] `bot_unpack_spot` / `human_unpack_spot` solo si usas `--unpack`.
 
 ### Deteccion de heroes (`--read-only`)
-- [ ] Con `bot_hero`/`human_hero` en `"auto"`: el informe da el heroe correcto de cada bando (un Deck o Card SUELTO con CardID de su rango, el mas cercano al `*_deck_spot`). Si es dudoso, se niega a empezar y lo dice.
+- [x] Con `bot_hero`/`human_hero` en `"auto"`: el informe da el heroe correcto de cada bando (un Deck o Card SUELTO con CardID de su rango, el mas cercano al `*_deck_spot`). Si es dudoso, se niega a empezar y lo dice. *(OK 29/10)*
 - [ ] Repite con cada pareja de heroes que vayas a probar (cambiando lo que hay en mesa).
 - [ ] El informe no da "no encontrado" para miniaturas, dials, mazo, descarte ni fichas (1644a3 Hellboy, 5a17e9 Abe).
 - [ ] Informe de objetos puente (tipo/rotacion/estados): anota el **tipo** de 5a17e9 (bolsa / bolsa infinita / pila / ficha suelta) y de 1644a3, y la rotZ actual de 1644a3.
 
 ## 2. Arranque
 
-- [ ] Sin `--read-only`: dibuja los rectangulos DESCARTE y COMBATE de ambos y crea el panel (`SparringPanel`). Sin errores en la terminal.
+- [x] Sin `--read-only`: dibuja los rectangulos DESCARTE y COMBATE de ambos y crea el panel (`SparringPanel`). Sin errores en la terminal. *(OK 29/10)*
 - [ ] Preparacion (`setup`): el bot reparte 5, mulligan (una vez); si empieza el bot, coloca sus piezas; tu colocas las tuyas y pulsas **Listo**. **Mulligan** / **Listo** aparecen solo cuando toca.
-- [ ] El panel responde al primer clic ("Procesando..." y se reactiva).
+- [x] El panel responde al primer clic ("Procesando..." y se reactiva). *(OK 29/10)*
 - [ ] (`--timing`) anota mensajes y tiempo de un boton normal (esperado ~1 mensaje, ~0.5 s por mensaje).
 
 ## 3. Por heroe
@@ -62,8 +62,8 @@ Repite el bloque para cada heroe, **con Ivan jugandolo** (H) y **con el bot juga
 - [ ] Piezas caidas (Harpias) van al `dead_spot`.
 
 ### Hellboy
-- [ ] Setup: ficha **1644a3** en **OCCULT DETECTIVE** (azul, rotZ 180). *El giro es incondicional: debe empezar asi.*
-- [ ] B (forma): cambio a **ANUNG UN RAMA**: `set_state` entre las miniaturas f9789a <-> e6f06e (cambia la miniatura), la ficha 1644a3 gira (rotZ 180 = OCCULT DETECTIVE, rotZ 0 = ANUNG UN RAMA; inferido de la geometria, confirmalo) y **ping** sobre ficha y miniatura. Comprueba cara correcta, pieza correcta, sin miniaturas duplicadas.
+- [x] Setup: ficha **1644a3** en **OCCULT DETECTIVE** (azul, rotZ 180). *El giro es incondicional: debe empezar asi.* *(OK 29/10)*
+- [x] B (forma): cambio a **ANUNG UN RAMA**: `set_state` entre las miniaturas f9789a <-> e6f06e (cambia la miniatura), la ficha 1644a3 gira (rotZ 180 = OCCULT DETECTIVE, rotZ 0 = ANUNG UN RAMA; inferido de la geometria, confirmalo) y **ping** sobre ficha y miniatura. Comprueba cara correcta, pieza correcta, sin miniaturas duplicadas. *(OK 29/10)*
 - [ ] B: vuelta a OCCULT DETECTIVE (menos de 6 destinos) gira de vuelta y hace ping.
 - [ ] B: inicio de su turno: roba 2 (DETECTIVE) o descarta y mueve (ANUNG), anunciado.
 - [ ] H **(E2)**: puerta de habilidad de inicio de turno (robo / ANUNG) bloquea hasta **Fin de accion**.
@@ -91,7 +91,7 @@ Repite el bloque para cada heroe, **con Ivan jugandolo** (H) y **con el bot juga
 - [ ] Cartas **burning** (BOOST 0): el bot no las usa de boost; descartadas por Wildfire vuelven a la mano.
 - [ ] **Wildfire** (inicio de turno del bot): descarta la carta de abajo y se proyecta en mesa; cuesta 1 mensaje extra antes de su primera accion (anota si molesta).
 - [ ] **Excepcion**: una burning descartada por limite de mano (7) al fin de turno **NO** vuelve a la mano; se queda en el descarte.
-- [ ] H **(E2)**: puerta de habilidad de inicio de turno (Wildfire) y Fight Or Flight.
+- [x] H **(E2)**: puerta de habilidad de inicio de turno (Wildfire) y Fight Or Flight. *(OK 29/10)*
 - [ ] **Flame Lash**: DURING real con la carta de **abajo del mazo** como boost **(E2 para H)**.
 - [ ] **Incinerate**: B -> respondes Si/No en el panel antes del dano; H contra el bot **(E2)**.
 - [ ] H/B: Pyrotechnics (deja una burning abajo del mazo), Rekindle, Searing Clarity, Feint, Fireball, Burning Barrier, Evade, B.P.R.D. Training.
@@ -112,7 +112,7 @@ Repite el bloque para cada heroe, **con Ivan jugandolo** (H) y **con el bot juga
 ## 4. Panel y botones
 
 - [ ] Los botones de eleccion de una carta **solo aparecen cuando se juega** (ocultos, **nunca en gris**).
-- [ ] Las etiquetas cambian (`UI.setValue` sobre un Button): "Valor 3", "Descartar X", "Coger 2". Si no se actualizan, apuntalo (punto **verify live**).
+- [x] Las etiquetas cambian (`UI.setValue` sobre un Button): "Valor 3", "Descartar X", "Coger 2". Si no se actualizan, apuntalo (punto **verify live**). *(OK 29/10)*
 - [ ] **Cancelar** durante una pausa de combate: funciona; si todas las opciones se rechazan y no puedes salir, apunta cual (la salida es Reiniciar).
 - [ ] Restricciones **bloqueadas** (no solo avisadas): Pact Of Freedom, Cold Iron (si robas fisicamente igual, el bot lo acepta al sincronizar y lo dice).
 - [ ] Maniobra con BOOST 0 (burning de Liz): deberia avisar en el chat (item pendiente; si no avisa, apuntalo).
@@ -143,7 +143,7 @@ Anota OK / fallo y que paso. Un fallo de proyeccion se dice **una vez** ("hazlo 
 - [ ] `read_hand` de tu asiento: un mensaje por look; el bot nunca lee tu mano fuera de un look.
 - [ ] Carta boca arriba justo tras colocarla (`play_card_face_down` + giro en el mismo script): se ve como esperas.
 - [ ] Mensajes y latencia (`--timing`): boton normal ~1 mensaje; turno de Liz con Wildfire +1; un look +1. Anota cualquier boton que tarde mas de unos segundos.
-- [ ] Searing Clarity del humano (Liz): elige con el panel una carta de tu descarte; el bot la mete en TU mazo y lo baraja (chat "Meto X en tu mazo y lo barajo"), tu mano no se toca y el titulo del panel dice "Elige una carta" sin parentesis. Si la mueves tu antes, el bot dice que ya esta hecho.
+- [x] Searing Clarity del humano (Liz): elige con el panel una carta de tu descarte; el bot la mete en TU mazo y lo baraja (chat "Meto X en tu mazo y lo barajo"), tu mano no se toca y el titulo del panel dice "Elige una carta" sin parentesis. Si la mueves tu antes, el bot dice que ya esta hecho. *(OK 29/10)*
 
 ## 7. Que apuntar si algo falla
 
