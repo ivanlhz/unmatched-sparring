@@ -67,7 +67,7 @@ class Msg(str):
 ACTION_KIND = {"maneuver": ChatKind.MOVE, "glance": ChatKind.SCHEME, "frenzy": ChatKind.SCHEME}
 
 
-CODED_ABILITY_HERO = "medusa"     # el heroe cuya habilidad de inicio de turno ejecuta el motor (`medusa_ability`)
+CODED_ABILITY_HERO = "medusa"     # the hero whose start-of-turn ability the engine runs (`Game.use_ability(..., "medusa_gaze")`)
 DEFAULT_BOT_PAUSE = 1.0     # segundos entre acciones del bot en la partida real (los tests usan 0)
 
 
@@ -362,8 +362,8 @@ class Session:
                  else f"Empieza {who} (elegido con --first {self.first_mode}).")
 
     def _bot_ability_coded(self) -> bool:
-        """Solo la habilidad de inicio de turno de Medusa esta codificada en el motor (`Game.medusa_ability`); las de
-        los demas heroes llegan con los efectos estructurados (F07, pasos 4 a 6)."""
+        """Only Medusa's start-of-turn ability is driven by the engine (`Game.use_ability`, effects/driven.py); the other
+        heroes' abilities come with D2."""
         return self.game.hero_def(self.bot).slug == CODED_ABILITY_HERO
 
     def _announce_bot_hero(self) -> None:

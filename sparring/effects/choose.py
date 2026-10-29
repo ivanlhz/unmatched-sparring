@@ -15,7 +15,7 @@ from typing import Protocol
 from ..combat_flow import Await, PendingChoice
 from ..state import RuleError
 
-KINDS =("fighter", "space", "cards", "effect", "optional", "order", "amount")
+KINDS = ("fighter", "space", "cards", "effect", "optional", "order", "amount")
 
 
 @dataclass
