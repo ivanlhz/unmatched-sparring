@@ -6,6 +6,7 @@ from dataclasses import dataclass, field, replace
 from .board import Board
 from .cards import Card, can_be_boost
 from .controller import Controller
+from .effects import ongoing
 from .effects.state import EffectState
 from .heroes import HeroDef, load_hero
 
@@ -220,12 +221,11 @@ class Game:
         self.winner: int | None = None
         self.bot_player: int | None = None     # quien lleva el bot: sus efectos aun no codificados no los resuelve el humano
         self.effect_shield: dict[int, int] = {}
-        # ONGOING de planes (Fight Or Flight): (bono, etiqueta) vivos de cada jugador, a TODAS sus cartas de combate
-        self.combat_bonus: list[list[tuple[int, str]]] = [[], []]
         self.drawn = [0, 0]
         self.phantom_draws = 0   # robos esperados por la IA al simular (cartas desconocidas), nunca en partida real
         self.log: list[str] = []
         self.fx = EffectState()    # DSL interpreter state and hooks (docs/effects-dsl.md); inert unless fx.dsl_heroes
+        self.fx.attach(self)
 
     @classmethod
     def new(cls, board: Board, seed: int, controllers: dict[int, Controller] | None = None,
@@ -272,11 +272,11 @@ class Game:
         g.turn, g.turn_no, g.actions_left, g.winner = self.turn, self.turn_no, self.actions_left, self.winner
         g.bot_player = self.bot_player
         g.effect_shield = dict(self.effect_shield)
-        g.combat_bonus = [list(b) for b in self.combat_bonus]
         g.drawn = [0, 0]
         g.phantom_draws = self.phantom_draws
         g.log = []
         g.fx = self.fx.copy()
+        g.fx.attach(g)
         return g
 
     # consultas
@@ -331,19 +331,26 @@ class Game:
         return (self.players[fighter.owner].hero.attack_bonuses(self.form(fighter.owner), fighter.hero)
                 + self.combat_bonus_parts(fighter.owner))
 
+    @property
+    def combat_bonus(self) -> list[list[tuple[int, str]]]:
+        """(bonus, label) of each player's live ONGOING, to ALL their combat cards: a view over `fx.ongoing`."""
+        return [self.combat_bonus_parts(0), self.combat_bonus_parts(1)]
+
+    @combat_bonus.setter
+    def combat_bonus(self, sides) -> None:
+        ongoing.set_legacy_all(self, sides)
+
     def add_combat_bonus(self, player: int, n: int, label: str) -> str | None:
         """A scheme with ONGOING "add n to the value of your combat cards" enters play. Ivan's ruling (28/10): only one
         active ONGOING per player, the new one replaces the old. Returns the label of the replaced one (or None)."""
-        old = self.combat_bonus[player][-1][1] if self.combat_bonus[player] else None
-        self.combat_bonus[player] = [(n, label)]
-        return old
+        return ongoing.set_legacy(self, player, n, label)
 
     def combat_bonus_parts(self, player: int) -> list[tuple[int, str]]:
         """(bonus, label) of `player`'s live ONGOING (at most one)."""
-        return list(self.combat_bonus[player])
+        return ongoing.bonus_parts(self, player)
 
     def combat_bonus_total(self, player: int) -> int:
-        return sum(n for n, _ in self.combat_bonus[player])
+        return sum(n for n, _ in self.combat_bonus_parts(player))
 
     def attack_bonus(self, fighter: Fighter) -> int:
         """Bono del PROXIMO ataque de `fighter` (lo usa la IA para medir amenazas). El ONGOING de un plan caduca al
@@ -352,11 +359,14 @@ class Game:
         return passives + (self.combat_bonus_total(fighter.owner) if self.turn == fighter.owner else 0)
 
     def legal_moves(self, fighter: Fighter, steps: int, through_enemies: bool = False) -> set[int]:
+        if not self.fx.can_move(fighter):
+            return {fighter.pos}
         return self.board.reachable(fighter.pos, steps, self.occupied(fighter.owner) - {fighter.pos},
                                     self.occupied(1 - fighter.owner), through_enemies)
 
     def can_attack(self, attacker: Fighter, target: Fighter) -> bool:
         return (attacker.alive and target.alive and attacker.owner != target.owner
+                and self.fx.may_attack(attacker.owner)
                 and self.board.can_reach_target(attacker.pos, target.pos, attacker.ranged))
 
     # mano conocida del rival (efecto «mira la mano»): ver KnownHand
@@ -389,7 +399,7 @@ class Game:
             raise RuleError(f"{fighter.fid}: movimiento ilegal a {dest} (max {steps})")
         fighter.pos = dest
 
-    def damage(self, fighter: Fighter, n: float, source: str = "effect") -> float:
+    def damage(self, fighter: Fighter, n: float, source: str = "effect", by: Fighter | None = None) -> float:
         if not fighter.alive or n <= 0:
             return 0
         if source == "effect" and self.effect_shield.get(fighter.owner) == self.turn_no:
@@ -400,6 +410,7 @@ class Game:
             return 0
         fighter.hp -= n
         self.log.append(f"{fighter.fid} -{n} ({fighter.hp:g} pv)")
+        self.fx.on_damage(fighter, n, source, by)
         if fighter.hp <= 0:
             fighter.died_at = fighter.pos if fighter.pos is not None else fighter.died_at
             fighter.alive, fighter.pos = False, None
@@ -435,12 +446,16 @@ class Game:
         self.players[player].hand.remove(card)
         self.card_left_hand(player, card)
 
-    def discard_card(self, player: int, card: Card) -> None:
+    def discard_card(self, player: int, card: Card, played: bool = False, cause: str | None = None) -> None:
+        """`played`: the card is being used (a scheme), not discarded by an effect: no `card_discarded` event.
+        `cause`: why it was discarded when that matters to a trigger ("hand_limit": Wildfire does not return it)."""
         self.take_from_hand(player, card)
         self.players[player].discard.append(card)
-        self.fx.emit("card_discarded", player, card)
+        if not played:
+            self.fx.emit("card_discarded", player, card, "hand", cause)
 
-    def force_discard(self, player: int, n: int, reason: str, source: int | None = None) -> list[Card]:
+    def force_discard(self, player: int, n: int, reason: str, source: int | None = None,
+                      cause: str | None = None) -> list[Card]:
         hand = self.players[player].hand
         n = min(n, len(hand))
         if not n:
@@ -450,7 +465,7 @@ class Game:
         self.fx.emit("force_discard", player, n)
         chosen = self.controllers[player].choose_discard(self, player, n, reason)[:n]
         for c in chosen:
-            self.discard_card(player, c)
+            self.discard_card(player, c, cause=cause)
         return chosen
 
     def grant_actions(self, n: int) -> None:
@@ -462,7 +477,8 @@ class Game:
     def begin_turn(self) -> list[tuple[int, str]]:
         """Empieza el turno de `self.turn`: 2 acciones y caducan sus planes ONGOING. Devuelve lo que caduco."""
         self.actions_left = 2
-        expired, self.combat_bonus[self.turn] = self.combat_bonus_parts(self.turn), []
+        expired = ongoing.expiring_parts(self, self.turn)
+        ongoing.expire_legacy(self, self.turn)
         self.fx.emit("start_of_turn", self.turn)
         return expired
 
@@ -470,12 +486,14 @@ class Game:
         if self.actions_left <= 0:
             raise RuleError("sin acciones")
         self.actions_left -= 1
+        self.fx.count_action()
 
     def end_turn(self) -> None:
         self.fx.emit("end_of_turn", self.turn)
         hand = self.players[self.turn].hand
-        if len(hand) > HAND_LIMIT:
-            self.force_discard(self.turn, len(hand) - HAND_LIMIT, "limite de mano")
+        limit = self.fx.hand_limit(self.turn, HAND_LIMIT)
+        if len(hand) > limit:
+            self.force_discard(self.turn, len(hand) - limit, "limite de mano", cause="hand_limit")
         self.turn = 1 - self.turn
         self.turn_no += 1
 
@@ -506,7 +524,7 @@ class Game:
             raise RuleError(f"{card.title} no se puede jugar con {fighter.fid}")
         check_scheme(self, fighter, card, **opts)
         self.use_action()
-        self.discard_card(player, card)
+        self.discard_card(player, card, played=True)
         resolve_scheme(self, player, fighter, card, **opts)
 
     @staticmethod
@@ -527,6 +545,8 @@ class Game:
                values: tuple[int, int] = (0, 0), boost: Card | None = None):
         """Transaccional: valida alcance y las dos cartas antes de gastar la accion."""
         from .combat import resolve_combat
+        if not self.fx.may_attack(attacker.owner):
+            raise RuleError(f"{attacker.fid} no puede atacar como primera accion del turno")
         if not self.can_attack(attacker, target):
             raise RuleError(f"{attacker.fid} no alcanza a {target.fid}")
         self.check_attack_card(attacker, card)
@@ -550,6 +570,8 @@ class Game:
         self.damage(target, 1)
 
     def hellboy_anung_start(self, player: int, card: Card, dest: int | None) -> None:
+        if "hellboy" in self.fx.dsl_heroes:      # the DSL trigger anung_discard_move already ran at begin_turn
+            return
         self.discard_card(player, card)
         if dest is not None:
             self.move_fighter(self.hero_named("Hellboy"), dest, card.boost)
@@ -557,6 +579,8 @@ class Game:
     def hellboy_detective_draw(self, player: int) -> bool:
         """Robo de inicio de turno en la salida rival: el disparador `draw` activo en la forma actual (Hellboy en
         OCCULT DETECTIVE: 2 cartas) con la condicion `hero_on_rival_start`; cuantas, lo dicen los datos."""
+        if "hellboy" in self.fx.dsl_heroes:      # the DSL trigger detective_draw already ran at begin_turn
+            return False
         hero = self.hero(player)
         for t in self.triggers(player, "start_of_turn"):
             if t.get("effect") != "draw" or t.get("condition") != "hero_on_rival_start":

@@ -12,6 +12,12 @@ from .combat import (FEINT, ON_EARTH, PLANNED, SECOND_SHOT, CombatCtx, CombatRes
 from .state import ANUNG, Fighter, Game, RuleError
 
 
+def _dsl(flow: "CombatFlow", side: "Side") -> bool:
+    """The card's owner plays a hero the effects interpreter resolves (`game.fx.dsl_heroes`): legacy rules step aside."""
+    heroes = flow.game.fx.dsl_heroes
+    return bool(heroes) and flow.game.players[side.fighter.owner].hero.slug in heroes
+
+
 class Phase(str, Enum):
     DECLARED = "declared"
     CARDS_SET = "cards_set"
@@ -29,7 +35,7 @@ _RESERVED = {"kind", "player", "card", "deck"}
 @dataclass
 class PendingChoice:
     """A decision the flow is waiting for. The flat dict form is the save format of `Pending.boost_wait`."""
-    kind: str                    # only "boost" in this delivery
+    kind: str                    # "boost" (a card to put on the table) | "effect" (a DSL decision: extra has key+request)
     player: int                  # who decides
     card_id: int                 # card whose effect asks
     deck: bool = False           # Flame Lash: the boost is the bottom card of the deck
@@ -41,10 +47,15 @@ class PendingChoice:
     @classmethod
     def from_dict(cls, raw, *, default_player: int, deck_of: Callable[[int], bool]) -> "PendingChoice":
         """Also reads the old format (no "kind"/"player"): a boost of `default_player`, `deck` recomputed from the
-        card. KeyError if the structure is invalid."""
+        card. An "effect" pause keeps its key and request. KeyError if the structure is invalid."""
         if not isinstance(raw, dict):
             raise KeyError("pending choice")
         kind, player, card = raw.get("kind", "boost"), raw.get("player", default_player), raw.get("card")
+        if kind == "effect":
+            if not _is_int(player) or not (card is None or _is_int(card)) or not isinstance(raw.get("key"), str) \
+                    or not isinstance(raw.get("request"), dict):
+                raise KeyError("pending choice")
+            return cls(kind, player, card, False, {k: v for k, v in raw.items() if k not in _RESERVED})
         if kind != "boost" or not _is_int(player) or not _is_int(card):
             raise KeyError("pending choice")
         deck = raw.get("deck") is True or deck_of(card)
@@ -110,6 +121,12 @@ class CombatFlow:
         self.after_open: bool | None = None          # decided once, on entering AFTER
         self.def_bonus_parts: list[tuple[int, str]] = []
         self.sides: list[Side] = []                  # resolution order: defender first
+        # state of the effects interpreter (all empty unless a hero is in game.fx.dsl_heroes)
+        self.runs: dict[str, object] = {}            # "moment:side" -> EffectRun, finished ones too
+        self.printed_set: dict[str, int] = {}        # side -> printed value after a "value becomes N" effect
+        self.mods: dict[str, list[list]] = {"atk": [], "def": []}     # [delta, label] applied by value ops
+        self.redirects: list[dict] = []              # combat damage redirections registered this combat
+        self.choosers: dict | None = None            # player -> effects Chooser; None = the controllers decide
 
     @property
     def done(self) -> bool:
@@ -167,8 +184,12 @@ class CombatFlow:
                 self.game.players[owner].discard.append(card)
 
     # ---------- decisions ----------
-    def resume(self, choice: Card | None) -> None:
-        self.answers[self.await_key] = None if choice is None else choice.card_id
+    def resume(self, choice: "Card | list | None") -> None:
+        """Answers the current pause: a card (or None) for a boost, the chosen option list for an effect decision."""
+        if self.pending is not None and self.pending.kind == "effect":
+            self.runs[self.await_key.rsplit(":", 1)[0]].resume(choice)
+        else:
+            self.answers[self.await_key] = None if choice is None else choice.card_id
         self.pending = None
 
     def answer(self, rule_name: str) -> tuple[bool, Card | None]:
@@ -202,6 +223,9 @@ class CombatFlow:
     def _reveal(self) -> None:
         game, att, tgt, atk_card, def_card, values = self.game, self.att, self.tgt, self.atk_card, self.def_card, self.values
         bonus_parts = game.attack_bonus_parts(att)   # hero passives (Hellboy in ANUNG UN RAMA: +2)
+        if game.fx.statuses:
+            from .effects.modifiers import take_next_attack_bonus
+            bonus_parts = bonus_parts + take_next_attack_bonus(game.fx, att.owner)
         atk_value = (atk_card.value or 0) + values[0] + sum(n for n, _ in bonus_parts)
         def_value = (def_card.value or 0) if def_card else 0
         def_value += values[1]
@@ -223,20 +247,35 @@ class CombatFlow:
     def _damage(self) -> None:
         ctx, result, values = self.ctx, self.result, self.values
         if self.def_card is not None:
-            result.def_parts = [f"{self.def_card.title} ({ctx.def_value - values[1] - self.def_bonus})"]
+            printed = ctx.def_value - values[1] - self.def_bonus - sum(n for n, _ in self.mods["def"])
+            result.def_parts = [f"{self.def_card.title} ({printed})"]
             if "def" in ctx.cancelled:
                 result.def_parts[0] += " cancelada"
             result.def_parts += [f"{label} (+{n})" for n, label in self.def_bonus_parts if n]
+            result.def_parts += [f"{label} ({n:+d})" for n, label in self.mods["def"]]
         if values[1]:
             result.def_parts.append(f"valor extra ({values[1]:+d})")
         damage = max(0, ctx.atk_value - ctx.def_value)
-        self.game.damage(self.tgt, damage, "combat")
+        victim = self.tgt
+        if self.redirects:
+            from .effects.modifiers import combat_redirect_target
+            victim = combat_redirect_target(self)
+            if victim is not self.tgt and damage:
+                result.applied.append(f"{victim.fid} recibe el dano de combate en lugar de {self.tgt.fid}")
+        self.game.damage(victim, damage, "combat")
         result.atk_value, result.def_value, result.damage, result.attacker_won = ctx.atk_value, ctx.def_value, damage, damage >= 1
         result.cancelled = set(ctx.cancelled)
 
     # ---------- serialization ----------
     def to_dict(self) -> dict:
-        ctx, res = self.ctx, self.result
+        out = self._base_dict(self.ctx, self.result)
+        if self.runs or self.printed_set or self.mods["atk"] or self.mods["def"] or self.redirects:
+            out["dsl"] = {"runs": {k: r.to_dict() for k, r in self.runs.items()}, "printed_set": dict(self.printed_set),
+                          "mods": {k: [list(m) for m in v] for k, v in self.mods.items()},
+                          "redirects": [dict(r) for r in self.redirects]}
+        return out
+
+    def _base_dict(self, ctx, res) -> dict:
         return {
             "phase": self.phase.value, "side_idx": self.side_idx, "after_open": self.after_open,
             "values": list(self.values), "fids": [self.att.fid, self.tgt.fid],
@@ -271,6 +310,17 @@ class CombatFlow:
             raw["pending"], default_player=att.owner, deck_of=lambda _: False)
         flow.ctx = flow.result = None
         flow.sides = []
+        flow.runs, flow.printed_set, flow.redirects, flow.choosers = {}, {}, [], None
+        flow.mods = {"atk": [], "def": []}
+        if "dsl" in raw:
+            from .effects.run import EffectRun
+            d = raw["dsl"]
+            for key, saved in d["runs"].items():
+                flow.runs[key] = run = EffectRun.from_dict(saved)
+                run.flow = flow
+            flow.printed_set = dict(d["printed_set"])
+            flow.mods = {k: [list(m) for m in v] for k, v in d["mods"].items()}
+            flow.redirects = [dict(r) for r in d["redirects"]]
         if raw["ctx"] is not None:
             c, r = raw["ctx"], raw["result"]
             flow.ctx = CombatCtx(att, tgt, flow.atk_card, flow.def_card, c["atk_value"], c["def_value"],
@@ -291,23 +341,33 @@ def _is(card: Card, title: str, medusa: bool) -> bool:
     return card.title == title and is_medusa_card(card) == medusa
 
 
-@rule(Phase.IMMEDIATELY, match=lambda flow, side: _is(side.card, FEINT, medusa=True))
+@rule(Phase.IMMEDIATELY, match=lambda flow, side: _is(side.card, FEINT, medusa=True) and not _dsl(flow, side))
 def feint(flow: CombatFlow, side: Side) -> None:
-    flow.ctx.cancelled.add(_other(side))
+    _cancel_rival(flow, side)
 
 
-@rule(Phase.IMMEDIATELY, match=lambda flow, side: _is(side.card, PLANNED, medusa=False))
+@rule(Phase.IMMEDIATELY, match=lambda flow, side: _is(side.card, PLANNED, medusa=False) and not _dsl(flow, side))
 def planned_recklessness(flow: CombatFlow, side: Side) -> None:
     flow.game.effect_shield[side.fighter.owner] = flow.game.turn_no
     if flow.game.form(side.fighter.owner) != ANUNG:
-        flow.ctx.cancelled.add(_other(side))
+        _cancel_rival(flow, side)
+
+
+def _cancel_rival(flow: CombatFlow, side: Side) -> None:
+    """Cancels the other card's effects unless that card says they cannot be canceled (Incinerate)."""
+    from .effects.modifiers import is_uncancelable
+    target = _other(side)
+    card = flow.atk_card if target == "atk" else flow.def_card
+    if card is None or not is_uncancelable(card):
+        flow.ctx.cancelled.add(target)
 
 
 def _other(side: Side) -> str:
     return "atk" if side.name == "def" else "def"
 
 
-@rule(Phase.DURING, side="def", when_cancelled=True, match=lambda flow, side: _is(side.card, ON_EARTH, medusa=False))
+@rule(Phase.DURING, side="def", when_cancelled=True,
+      match=lambda flow, side: _is(side.card, ON_EARTH, medusa=False) and not _dsl(flow, side))
 def on_earth_value(flow: CombatFlow, side: Side) -> None:
     base = flow.values[1] + flow.def_bonus
     flow.ctx.def_value = base if "def" in flow.ctx.cancelled else flow.game.destiny_count(side.fighter.owner) + base
@@ -320,7 +380,7 @@ def _add_boost(flow: CombatFlow, side: Side, boost: Card) -> None:
     flow.result.atk_parts.append(f"potencia con {boost.title} (+{boost.boost})")
 
 
-@rule(Phase.DURING, side="atk", match=lambda flow, side: _is(side.card, SECOND_SHOT, medusa=True))
+@rule(Phase.DURING, side="atk", match=lambda flow, side: _is(side.card, SECOND_SHOT, medusa=True) and not _dsl(flow, side))
 def second_shot(flow: CombatFlow, side: Side) -> Await | None:
     answered, boost = flow.answer("second_shot")
     if not answered:
@@ -330,7 +390,7 @@ def second_shot(flow: CombatFlow, side: Side) -> Await | None:
         _add_boost(flow, side, boost)
 
 
-@rule(Phase.DURING, side="atk", match=lambda flow, side: can_boost(side.card))
+@rule(Phase.DURING, side="atk", match=lambda flow, side: can_boost(side.card) and not _dsl(flow, side))
 def boost_this_attack(flow: CombatFlow, side: Side) -> Await | None:
     answered, boost = flow.answer("boost_this_attack")
     if not answered:
@@ -341,12 +401,12 @@ def boost_this_attack(flow: CombatFlow, side: Side) -> Await | None:
         _add_boost(flow, side, boost)
 
 
-@rule(Phase.AFTER, match=lambda flow, side: is_medusa_card(side.card))
+@rule(Phase.AFTER, match=lambda flow, side: is_medusa_card(side.card) and not _dsl(flow, side))
 def medusa_after(flow: CombatFlow, side: Side) -> None:
     _medusa_after(flow.game, side.fighter, side.rival, side.card, _i_won(flow, side))
 
 
-@rule(Phase.AFTER, match=lambda flow, side: side.fighter.owner == flow.game.bot_player)
+@rule(Phase.AFTER, match=lambda flow, side: side.fighter.owner == flow.game.bot_player and not _dsl(flow, side))
 def bot_card_after(flow: CombatFlow, side: Side) -> None:
     """Never ask the human to resolve an effect of the bot's card."""
     _hellboy_after(flow.game, side.fighter, side.card, _i_won(flow, side), flow.result)
@@ -354,7 +414,7 @@ def bot_card_after(flow: CombatFlow, side: Side) -> None:
     _announce_bot_card(side.card, flow.result)
 
 
-@rule(Phase.AFTER, match=lambda flow, side: True)
+@rule(Phase.AFTER, match=lambda flow, side: not _dsl(flow, side))
 def human_card_after(flow: CombatFlow, side: Side) -> None:
     card, result = side.card, flow.result
     if _hellboy_after(flow.game, side.fighter, card, _i_won(flow, side), result) or _liz_after(flow.game, card, result):
@@ -369,6 +429,44 @@ def human_card_after(flow: CombatFlow, side: Side) -> None:
     # a card without text (Excalibur, Service Pistol) has no effect to resolve
 
 
+# ---------------------------------------------------------------- DSL cards (docs/effects-dsl.md section 4)
+def _run_moment(flow: CombatFlow, side: Side, moment: str) -> Await | None:
+    from .effects.ops_combat import default_choosers, run_moment
+    if flow.choosers is None:
+        flow.choosers = default_choosers(flow.game)
+    return run_moment(flow, side, moment)
+
+
+@rule(Phase.IMMEDIATELY, match=_dsl)
+def dsl_immediately(flow: CombatFlow, side: Side) -> Await | None:
+    return _run_moment(flow, side, "immediately")
+
+
+@rule(Phase.DURING, match=_dsl)
+def dsl_during(flow: CombatFlow, side: Side) -> Await | None:
+    """The card's DURING ops, then its free BOOST if the data says `may_boost` (either side: Out Of Time defends)."""
+    from .effects.modifiers import add_value, may_boost
+    if (wait := _run_moment(flow, side, "during")) is not None:
+        return wait
+    if not may_boost(side.card):
+        return None
+    owner = side.fighter.owner
+    answered, boost = flow.answer("dsl_during")
+    if not answered:
+        return Await(PendingChoice("boost", owner, side.card.card_id))
+    if boost is not None:
+        _check_boost(boost)
+        flow.game.discard_card(owner, boost)
+        add_value(flow, side.name, boost.boost, f"potencia con {boost.title}")
+        if side.name == "atk":
+            flow.result.boost_card = boost
+
+
+@rule(Phase.AFTER, match=_dsl)
+def dsl_after(flow: CombatFlow, side: Side) -> Await | None:
+    return _run_moment(flow, side, "after")
+
+
 def _i_won(flow: CombatFlow, side: Side) -> bool:
     return flow.result.attacker_won == (side.name == "atk")
 
@@ -377,8 +475,12 @@ def _i_won(flow: CombatFlow, side: Side) -> bool:
 def legacy_chooser(game: Game, flow: CombatFlow, boost: Card | None) -> Callable[[PendingChoice], Card | None]:
     """Answers boost choices the way the pre-flow resolve_combat did: a Medusa card asks its owner's controller (with
     the live CombatCtx); any other card uses the boost the caller already put on the table."""
-    def choose(choice: PendingChoice) -> Card | None:
-        if is_medusa_card(flow.card_by_id(choice.card_id)):
+    def choose(choice: PendingChoice):
+        if choice.kind == "effect":         # a panel chooser paused an effect inside a synchronous combat
+            from .effects.choose import ChoiceRequest
+            from .effects.ops_combat import default_choosers
+            return default_choosers(game)[choice.player].choose(game, ChoiceRequest.from_dict(choice.extra["request"]))
+        if is_medusa_card(flow.card_by_id(choice.card_id)) or choice.player != flow.att.owner:
             return game.controllers[choice.player].choose_combat_boost(game, flow.ctx)
         return boost
     return choose

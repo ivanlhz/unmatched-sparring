@@ -108,9 +108,10 @@ def _announce_bot_card(card: Card, result: CombatResult) -> None:
 
 
 def can_boost(card: Card) -> bool:
-    """Una carta del humano con un BOOST de su propio ataque en el DURING COMBAT: de la mano (Second Shot) o del
-    fondo del mazo (Flame Lash)."""
-    return not is_medusa_card(card) and ("boost this attack" in card.text.lower() or deck_boost(card))
+    """The card lets its owner BOOST it for free in DURING COMBAT: from the hand (`may_boost` in the effects data:
+    Second Shot, Out Of Time) or the bottom of the deck (Flame Lash)."""
+    from .effects.modifiers import may_boost
+    return not is_medusa_card(card) and (may_boost(card) or deck_boost(card))
 
 
 def _check_boost(boost: Card) -> None:
@@ -119,9 +120,9 @@ def _check_boost(boost: Card) -> None:
 
 
 def deck_boost(card: Card) -> bool:
-    """Flame Lash: el BOOST es la carta del fondo del mazo, no una de la mano."""
-    text = card.text.lower()
-    return "bottom card of your deck" in text and "boost value to this card" in text
+    """Flame Lash: the BOOST is the card at the bottom of the deck, not one from the hand."""
+    from .effects.modifiers import draws_bottom_for_boost
+    return draws_bottom_for_boost(card)
 
 
 _GAIN_ACTIONS = re.compile(r"\bGain (\d+|an?|one|two) actions?\b", re.IGNORECASE)

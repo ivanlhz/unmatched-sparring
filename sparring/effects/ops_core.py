@@ -20,10 +20,7 @@ OPS: dict[str, Callable] = {}
 PLUGINS: dict[str, Callable] = {}
 PLUGIN_TESTS: dict[str, Callable] = {}
 
-PENDING_PHASES = {
-    "cancel_effects": "C2", "modify_value": "C2", "set_value": "C2", "boost": "C2", "status": "C2",
-    "redirect_damage": "C2",
-}
+PENDING_PHASES: dict[str, str] = {}
 
 
 def op(name: str):
@@ -156,7 +153,7 @@ def _discard(run, game, spec):
             game.players[player].deck.remove(card)
             game.players[1 - player].known.drop_top(card.card_id)
             game.players[player].discard.append(card)
-            game.fx.emit("card_discarded", player, card)
+            game.fx.emit("card_discarded", player, card, "deck")
         elif zone == "in_play":
             game.fx.take_ongoing(player)
             if card not in game.players[player].discard:
@@ -197,7 +194,7 @@ def _move(run, game, spec):
     plan = []
     with _trial() as set_attrs:
         for f in targets:
-            if not f.alive or f.pos is None:
+            if not f.alive or f.pos is None or not game.fx.can_move(f):
                 continue
             dests = sorted(game.legal_moves(f, steps, through))
             if not up_to:       # exactly N: the farthest spaces when some are exactly N away
@@ -227,7 +224,7 @@ def _plan_spots(game, run, fighters, where: dict, chooser: int, op_name: str, **
 @op("place")
 def _place(run, game, spec):
     chooser = _chooser(game, run, spec)
-    targets = [f for f in pick_fighters(game, run, spec["target"], chooser) if f.alive]
+    targets = [f for f in pick_fighters(game, run, spec["target"], chooser) if f.alive and game.fx.can_move(f)]
     for f, spot in _plan_spots(game, run, targets, spec["where"], chooser, "place"):
         f.pos = spot
 
@@ -237,7 +234,7 @@ def _swap(run, game, spec):
     chooser = _chooser(game, run, spec)
     a = pick_fighters(game, run, spec["target"], chooser)
     b = pick_fighters(game, run, spec["with"], chooser)
-    if a and b and a[0] is not b[0] and a[0].alive and b[0].alive:
+    if a and b and a[0] is not b[0] and a[0].alive and b[0].alive and game.fx.can_move(a[0]) and game.fx.can_move(b[0]):
         a[0].pos, b[0].pos = b[0].pos, a[0].pos
 
 
@@ -306,11 +303,27 @@ def _can_pay(game, run, cost: list[dict]) -> bool:
     return True
 
 
+def _cost_context(game, run, cost: list[dict], chooser: int) -> dict:
+    """What a bot needs to judge an optional cost: how many cards it discards and, inside a combat, how much damage
+    the chooser's fighter would take as things stand (and how many hit points it has left)."""
+    ctx = {}
+    cards = sum(int(c["cards"].get("amount", 1)) for c in cost
+                if c["op"] == "discard" and isinstance(c["cards"], dict) and isinstance(c["cards"].get("amount", 1), int))
+    if cards:
+        ctx["cost_cards"] = cards
+    flow = getattr(run, "flow", None)
+    if flow is not None and flow.ctx is not None and flow.tgt.owner == chooser:
+        ctx["at_stake"] = max(0, flow.ctx.atk_value - flow.ctx.def_value)
+        ctx["hp"] = flow.tgt.hp
+    return ctx
+
+
 @op("optional")
 def _optional(run, game, spec):
     cost = spec.get("cost") or []
+    chooser = _chooser(game, run, spec)
     yes = _can_pay(game, run, cost) and run.ask(
-        game, "optional", _chooser(game, run, spec), [True, False], 1, 1, "do it?")[0]
+        game, "optional", chooser, [True, False], 1, 1, "do it?", **_cost_context(game, run, cost, chooser))[0]
     if yes:
         return ([(("cost",), None)] if cost else []) + [(("ops",), None)]
     return [(("else",), None)] if spec.get("else") else []
@@ -338,4 +351,5 @@ def _plugin(run, game, spec):
     return handler(run, game, spec)
 
 
+from . import ops_combat  # noqa: E402,F401  (registers the combat ops over the registry above)
 from . import ops_info  # noqa: E402,F401  (registers look_hand, reveal, look_deck, search_deck, return_to_deck, put_in_hand)
