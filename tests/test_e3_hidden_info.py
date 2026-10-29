@@ -509,7 +509,7 @@ def test_fleeting_moments_by_the_human_the_rng_picks_the_bot_card_and_nobody_rea
     assert len(gone) == 1, "one random card of the bot's hand"
     assert gone[0] in table.bot_discard and gone[0] not in table.bot_hand
     assert session.pending_discard["n"] == 1 and "cards" not in session.pending_discard
-    assert said(msgs, "Descarta 1 carta(s) (Fleeting Moments)")
+    assert said(msgs, "Descarta 1 carta(s) (Fleeting Moments, al azar: la carta ")
     assert human_reads(table) == [] and session.look is None
 
 

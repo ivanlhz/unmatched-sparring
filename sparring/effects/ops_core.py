@@ -149,6 +149,22 @@ def _card_title(game, run) -> str:
     return card.title if card else "efecto"
 
 
+def _random_positions_text(game, run, player: int, n: int, title: str) -> str:
+    """A random discard from the table player's hand: the engine draws the POSITIONS with the game rng (it only knows
+    how many cards they hold, never which) and the human discards those, counted from the left (Ivan, 29/10). The
+    draw is memoized in the run so a rerun after a pause names the same positions."""
+    size = len(game.players[player].hand)
+    key = f"random_positions:{run.frames[-1].path}:{run.frames[-1].idx}"
+    picked = run.flags.get(key)
+    if picked is None:
+        picked = sorted(game.rng.sample(range(1, size + 1), min(n, size))) if size else []
+        run.flags[key] = picked
+    if not picked:
+        return title
+    which = ("la carta " if len(picked) == 1 else "las cartas ") + " y ".join(str(p) for p in picked)
+    return f"{title}, al azar: {which} de tu mano contando desde la izquierda"
+
+
 @op("discard")
 def _discard(run, game, spec):
     sel = spec["cards"]
@@ -160,7 +176,10 @@ def _discard(run, game, spec):
         frame = run.frames[-1]
         voluntary = bool(frame.path) and frame.path[-1] == "cost"      # a price the human chose to pay
         n = len(card_candidates(game, run, sel)) if sel.get("pick") == "all" else int(amount(game, run, sel.get("amount", 1)))
-        chosen = game.force_discard(player, n, _card_title(game, run), player if voluntary else run.ctx.owner)
+        reason = _card_title(game, run)
+        if sel.get("pick") == "random":
+            reason = _random_positions_text(game, run, player, n, reason)
+        chosen = game.force_discard(player, n, reason, player if voluntary else run.ctx.owner)
         if "as" in spec:
             run.bind("cards", spec["as"], [c.card_id for c in chosen])
         return

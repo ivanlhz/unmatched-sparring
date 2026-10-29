@@ -509,7 +509,8 @@ def test_ward_and_prepare_recovers_a_scheme_from_the_discard_to_the_bot_hand(rig
 
 
 @liz_rig
-def test_fleeting_moments_lets_you_discard_at_random_yourself(rig):
+def test_fleeting_moments_names_a_random_position_of_your_hand_without_reading_it(rig):
+    """Ivan 29/10: the engine draws the position (it knows only how many cards you hold), you discard that card."""
     session, table, game, fake, cfg = rig
     human_hand(table, game, "Service Pistol", "Excalibur", "Glimpse Of Hell")
     fleeting = next(c for c in game.players[0].hand if c.title == "Fleeting Moments")
@@ -518,7 +519,9 @@ def test_fleeting_moments_lets_you_discard_at_random_yourself(rig):
     before = list(game.players[1].discard)
     msgs = click(session, table, Event.REVEAL)
     assert session.pending_discard["n"] == 1 and "cards" not in session.pending_discard
-    assert said(msgs, "Descarta 1 carta(s) (Fleeting Moments)")
+    line = next(m for m in msgs if "Descarta 1 carta(s) (Fleeting Moments, al azar: la carta " in m)
+    pos = int(line.split("la carta ")[1].split(" ")[0])
+    assert 1 <= pos <= len(game.players[1].hand) and "de tu mano contando desde la izquierda" in line
     assert game.players[1].discard == before, "the engine never names a placeholder card of your hand"
     assert human_reads(table) == []
 
