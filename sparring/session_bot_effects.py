@@ -305,7 +305,6 @@ def _human_cards(session, before: dict, played: frozenset, looked: bool) -> None
     st, known = g.players[human], g.players[bot].known
     h0, h1 = before["human"], zones(st)
     by_id = {c.card_id: c for c in st.full_set}
-    nameable = set(before["seen"]) | set(known.seen) | set(known.top_of_deck)   # identities the bot may say
     to_discard = [i for i in h1["discard"] if i not in h0["discard"] and i not in played]
     if to_discard:
         d = session.pending_discard or {"n": 0, "baseline": len(st.discard), "kind": "cards"}
