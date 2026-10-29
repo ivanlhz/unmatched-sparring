@@ -120,7 +120,9 @@ def reach_from(board, pos: int, steps: int, own: frozenset[int], enemy: frozense
 
 
 def reach(game: Game, f: Fighter, steps: int, through: bool = False) -> frozenset[int]:
-    """`Game.legal_moves` con cache."""
+    """`Game.legal_moves` con cache (un luchador inmovilizado por un efecto, Burning Barrier, se queda donde esta)."""
+    if not game.fx.can_move(f):
+        return frozenset({f.pos})
     own = frozenset(game.occupied(f.owner) - {f.pos})
     enemy = frozenset(game.occupied(1 - f.owner))
     return reach_from(game.board, f.pos, steps, own, enemy, through)
@@ -204,6 +206,9 @@ def sidekick_plan(game: Game, player: int, extra: int, policy: str,
     out = []
     for h in sorted((x for x in game.own(player) if not x.hero), key=lambda x: x.fid):
         others = frozenset(v for k, v in own.items() if k != h.fid)
+        if not game.fx.can_move(h):
+            out.append((h.fid, h.pos))
+            continue
         dest = policy_dest_from(board, own[h.fid], reach_from(board, own[h.fid], h.move + extra, others, enemy),
                                 foes, policy)
         own[h.fid] = dest
@@ -340,7 +345,8 @@ class EngineState:
         return (g.board.key, g.turn, self.phase, self.partial, self.pending[:2] if self.pending else None,
                 g.form(1 - g.turn) if self.phase == "start" else None,
                 tuple((f.fid, f.pos, f.hp) for f in g.fighters.values() if f.alive),
-                tuple(sorted(c.card_id for c in g.players[mover].hand)))
+                tuple(sorted(c.card_id for c in g.players[mover].hand)),
+                tuple(f.fid for f in g.fighters.values() if f.alive and not g.fx.can_move(f)))    # pinned by an effect
 
     def _generate_moves(self) -> list:
         g = self.game

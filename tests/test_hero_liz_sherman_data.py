@@ -95,7 +95,7 @@ def test_wildfire_is_two_triggers_the_bottom_discard_and_the_burning_return():
     assert branch["condition"] == {"test": "card", "card": "$burnt", "filter": {"tag": "burning"}}
     assert branch["then"][0]["op"] == "damage" and branch["else"][0] == {"op": "move", "target": "hero", "amount": 2, "up_to": True}
     assert back["id"] == "wildfire_return"
-    assert back["when"] == {"event": "card_discarded", "player": "owner", "from": ["hand", "deck"], "filter": {"tag": "burning"}}
+    assert back["when"] == {"event": "card_discarded", "player": "owner", "from": ["hand", "deck"], "cause_not": "hand_limit", "filter": {"tag": "burning"}}
     assert back["ops"] == [{"op": "put_in_hand", "cards": "$card"}]
     assert ab["passives"] == []
 
@@ -104,7 +104,7 @@ def test_incinerate_flame_lash_and_fight_or_flight_in_the_dsl():
     by_title = {c["title"]: c for c in load(EFFECTS)["cards"]}
     optional, = by_title["Incinerate"]["effects"]["during"]
     assert optional["chooser"] == "opponent" and optional["cost"][0]["cards"]["amount"] == 2
-    assert optional["ops"] == [{"op": "set_value", "card": "this", "amount": 0}]
+    assert optional["ops"] == [{"op": "set_value", "card": "this", "ignore": True}]
     lash = by_title["Flame Lash"]["effects"]["during"]
     assert lash[0]["as"] == "burnt" and lash[1] == {"op": "modify_value", "card": "this", "amount": {"attr": "boost", "of": "$burnt"}}
     fof = by_title["Fight Or Flight"]

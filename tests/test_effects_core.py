@@ -171,8 +171,8 @@ def test_stat_amounts(g):
     go(g, [{"op": "heal", "target": "hero", "amount": {"stat": "max_hp", "fighter": "hero"}}])
     assert g.fighters["abe"].hp == 13
     g.fighters["abe"].hp = 1
-    with pytest.raises(NotImplementedError, match="^actions_taken_this_turn: C3$"):
-        go(g, [{"op": "heal", "target": "hero", "amount": {"stat": "actions_taken_this_turn"}}])
+    go(g, [{"op": "heal", "target": "hero", "amount": {"stat": "actions_taken_this_turn"}}])
+    assert g.fighters["abe"].hp == 1          # nothing spent yet (counted from C3 on, see test_effects_events)
     g.fighters["abe"].hp = 2
     go(g, [{"op": "heal", "target": "hero", "amount": {"stat": "damage_dealt_this_combat"}}], damage_dealt=3)
     assert g.fighters["abe"].hp == 5
@@ -666,7 +666,7 @@ def test_every_op_in_the_data_is_known_to_the_registry():
     for path in all_effect_files():
         names |= {o["op"] for o in walk_ops(json.loads(path.read_text(encoding="utf-8")))}
     assert names and names <= set(OPS), sorted(names - set(OPS))
-    assert names & set(PENDING_PHASES)
+    assert not names & set(PENDING_PHASES), sorted(names & set(PENDING_PHASES))   # every op of the data has a handler
 
 
 def test_every_card_moment_and_trigger_of_the_box_parses():

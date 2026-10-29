@@ -3,7 +3,7 @@
  "hero": "liz-sherman",
  "notes": [
   "Efectos estructurados de Liz Sherman (F07 paso 13, solo datos: el interprete no los lee todavia). Textos leidos de la hoja 199 del save del torneo el 2026-10-28. Migrado al DSL v1 (docs/effects-dsl.md) el 2026-10-28 sin cambiar la semantica.",
-  "Las cartas ardientes (tag burning) no tienen impulso (BOOST 0). WILDFIRE las devuelve a la mano cuando se descartan desde la mano o el mazo: antes era el plugin liz:wildfire; ahora es el disparador wildfire_return (evento card_discarded), que dice exactamente lo mismo. Si el interprete prefiere un reemplazo del destino del descarte, vuelve a plugin sin tocar las cartas.",
+  "Las cartas ardientes (tag burning) no tienen impulso (BOOST 0). WILDFIRE las devuelve a la mano cuando se descartan desde la mano o el mazo: antes era el plugin liz:wildfire; ahora es el disparador wildfire_return (evento card_discarded), que dice exactamente lo mismo. Decision de Ivan (28/10): la unica excepcion es el descarte por el limite de mano al final del turno (cause hand_limit): esa ardiente se queda en el descarte. Si el interprete prefiere un reemplazo del destino del descarte, vuelve a plugin sin tocar las cartas.",
   "Decision de Ivan (28/10): 'bottom card of your deck' es la carta de mas abajo del mazo (la ultima), no la de arriba que se roba. Es la que usan Wildfire al inicio del turno y Flame Lash.",
   "Decision de Ivan (28/10): mazo vacio al inicio del turno o con Flame Lash: no pasa nada (ni dano ni movimiento; Flame Lash suma 0).",
   "Decision de Ivan (28/10): el dano de Wildfire al inicio del turno es obligatorio si hay objetivo, y solo a UN luchador.",
@@ -23,7 +23,7 @@
       "then": [{"op": "damage", "target": {"side": "any", "where": {"zone_of": "hero"}, "other": true}, "amount": 1, "chooser": "owner"}],
       "else": [{"op": "move", "target": "hero", "amount": 2, "up_to": true}]}
     ]},
-   {"id": "wildfire_return", "when": {"event": "card_discarded", "player": "owner", "from": ["hand", "deck"], "filter": {"tag": "burning"}},
+   {"id": "wildfire_return", "when": {"event": "card_discarded", "player": "owner", "from": ["hand", "deck"], "cause_not": "hand_limit", "filter": {"tag": "burning"}},
     "ops": [{"op": "put_in_hand", "cards": "$card"}]}
   ],
   "passives": [],
@@ -40,7 +40,7 @@
     "during": [
      {"op": "optional", "chooser": "opponent",
       "cost": [{"op": "discard", "cards": {"zone": "hand", "player": "opponent", "amount": 2, "chooser": "opponent"}}],
-      "ops": [{"op": "set_value", "card": "this", "amount": 0}]}
+      "ops": [{"op": "set_value", "card": "this", "ignore": true}]}
     ],
     "after": [],
     "scheme": [],

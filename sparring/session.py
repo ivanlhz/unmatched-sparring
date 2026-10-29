@@ -144,6 +144,8 @@ IDENTITY_KEYS = ("destiny_dial", "bot_seat", "human_seat", "bot_deck_guid", "bot
 class HumanProxy(Controller):
     """El humano decide en la mesa: cuando el motor le obliga a descartar, el bot lo anuncia y espera."""
 
+    human = True
+
     def __init__(self, owe):
         self.owe = owe
 

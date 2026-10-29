@@ -134,7 +134,7 @@
      {"op": "end_turn"}
     ]
    },
-   "notes": "Termina el turno de quien lo tenga, gane o pierda el combate: en defensa corta el turno del rival. El impulso revela la carta superior del mazo (publica). La carta dice 'BOOST this card' (no 'this attack'): por eso el motor no debe detectarlo por texto sino por may_boost."
+   "notes": "Termina el turno de quien lo tenga, gane o pierda el combate: en defensa corta el turno del rival. Decision de Ivan (28/10): el impulso sale de la MANO, como cualquier impulso (la carta usada va al descarte, publica; sin valor de impulso no se puede usar). La carta dice 'BOOST this card' (no 'this attack'): por eso el motor no debe detectarlo por texto sino por may_boost."
   },
   {
    "title": "Deathless",
@@ -288,7 +288,7 @@
   {"card": "Pact Of Freedom", "info": "Las 2 cartas robadas por el dueno.",
    "bot": "Si la juega el humano, su conteo de mano sube 2 y esas 2 son desconocidas; si la juega el bot, nada oculto para el."},
   {"card": "Exploit", "info": "La carta robada.", "bot": "Solo el conteo de mano del rival sube 1."},
-  {"card": "Out Of Time", "info": "Ninguna: impulsar revela la carta superior del mazo, que va al descarte a la vista de todos.", "bot": "Al impulsar el humano, el bot descuenta esa carta de su modelo del mazo rival."},
+  {"card": "Out Of Time", "info": "La carta de impulso sale de la mano de Baba Yaga y va al descarte a la vista de todos (decision de Ivan, 28/10).", "bot": "Al impulsar el humano, el bot descuenta esa carta de KnownHand si la tenia vista."},
   {"card": "Deathless, Death's Release, Foul Journey, Iron Teeth, Hasten Towards Death, Bound In Blood, The Time For Deals Is Done, Pact Of Mortality, Pact Of Peace", "info": "Ninguna.", "bot": "Todo lo que tocan (vida, posiciones, acciones, esquemas en juego) es publico."}
  ],
  "open_questions": []
