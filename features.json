@@ -124,7 +124,8 @@
         "Datos de cada heroe verificados contra las cartas reales del save del torneo (CustomDeck FaceURL), no solo contra unmatched-memory",
         "Plugins de las cartas que no caben en primitivas (previstos: abe perfect_shot y uncanny_intuition, baba remove_painful_memory, liz incinerate y wildfire)",
         "Una partida en vivo supervisada por Ivan por cada heroe de la caja antes de darla por hecha",
-        "Cambio de forma de Hellboy llevado por el bot: el bot cambia la miniatura y gira la ficha de habilidad al lado rojo, y hace ping sobre las dos"
+        "Cambio de forma de Hellboy llevado por el bot: el bot cambia la miniatura y gira la ficha de habilidad al lado rojo, y hace ping sobre las dos",
+        "D3 (sesion en vivo): los efectos del bot actuan en la mesa real en el mismo script del paso: mueve las miniaturas del humano que su carta dice, fichas de intuicion de Abe (copias de 5a17e9), su propio mazo (mano al fondo, descarte barajado, carta recuperada a la mano); el bot lee la mano del humano solo en look_hand (read_hand una vez, nunca fuera); los descartes con nombre del humano se deben por pending_discard; un plan del bot que pregunta al humano se pausa en el panel y se reanuda; el bot narra tambien las cartas de Medusa (tests/test_d3_table_effects.py)"
       ],
       "note": "28/10: datos de los 4 heroes en master (3090642), hojas verificadas contra el save por el reviewer. Antes del interprete: unificar el esquema de data/heroes/effects/*.json (ligaduras bind/as/$, 'hasta N', self/self_player, carta en curso, cuerpo de for_each/optional, marca de dano de efecto, selectores de zona, persistent_scheme, choose_n de efectos vs de cartas, disparadores); can_boost debe dejar de detectar por texto (Out Of Time dice 'BOOST this card'); start_on_board/reserve/tts_tokens aun sin lector. Preguntas de reglas abiertas en docs/heroes/*.md."
     },

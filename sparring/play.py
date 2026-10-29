@@ -169,10 +169,13 @@ class PlayConfig:
                 look_spot=tuple(float(v) for v in r.get("look_spot", SessionConfig.look_spot)),
                 look_step=tuple(float(v) for v in r.get("look_step", SessionConfig.look_step)),
                 look_rot_y=float(r["look_rot_y"]) if r.get("look_rot_y") is not None else None,
+                token_spot=tuple(float(v) for v in r["token_spot"]) if r.get("token_spot") else None,
                 batch=bool(r.get("batch", True)), live_ui=bool(r.get("live_ui", True)),
                 bot_pause=float(r.get("bot_pause", DEFAULT_BOT_PAUSE)))
             if not (math.isfinite(cfg.bot_pause) and 0 <= cfg.bot_pause <= 30):
                 raise ValueError("bot_pause: segundos entre 0 (sin pausa) y 30")
+            if cfg.token_spot is not None and len(cfg.token_spot) != 3:
+                raise ValueError("token_spot: (x, y, z)")
             if len(cfg.look_spot) != 3 or len(cfg.look_step) != 2:
                 raise ValueError("look_spot: (x, y, z); look_step: (dx, dz)")
             if cfg.bot_discard_bounds is not None and len(cfg.bot_discard_bounds) != 5:

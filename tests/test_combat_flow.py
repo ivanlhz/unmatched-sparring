@@ -103,7 +103,8 @@ def test_cancelled_side_skips_except_when_cancelled(game):
     cancelled.run()
     assert cancelled.result.cancelled == {"def"} and cancelled.result.def_value == 0
     assert cancelled.result.def_parts[0].endswith("cancelada")
-    assert cancelled.result.applied == []                    # a cancelled On Earth heals nobody in AFTER
+    # a cancelled On Earth heals nobody in AFTER; the only line is the bot's Feint narration (D3: Medusa narrated too)
+    assert cancelled.result.applied == ["Feint: cancela los efectos de On Earth As It Is In Hell"]
 
 
 # ---------- await / resume ----------

@@ -243,7 +243,7 @@ def run_moment(flow, side, moment: str):
             run.flags["before"] = narrate.snapshot(game, flow)
     wait = run.run(game, flow.choosers)
     if wait is None and "before" in run.flags:
-        flow.result.applied.append(narrate.describe(game, run.flags.pop("before"), run, flow))
+        narrate.record(flow.result.applied, narrate.describe(game, run.flags.pop("before"), run, flow))
     return wait
 
 

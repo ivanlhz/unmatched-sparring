@@ -144,12 +144,17 @@ def _cards_of(game, run, cards, purpose: str, prompt: str | None = None) -> list
 
 
 def _table_settles(game, run, sel) -> bool:
-    """The human discards from their own hand at their own choice: the engine never picks those cards for them,
-    the table does (`Game.force_discard` -> the human's controller owes the discard, settled at "Fin de accion")."""
-    if not isinstance(sel, dict) or sel["zone"] != "hand" or sel.get("pick", "chosen") != "chosen":
+    """The human discards from their own hand at their own choice, or at random: the engine never picks those cards
+    for them, the table does (`Game.force_discard` -> the human's controller owes the discard, settled at "Fin de
+    accion"). A random pick is the human's too: the engine's copy of their hand is virtual (D3), so a card it drew
+    at random would be a placeholder, not the one that really leaves the hand."""
+    if not isinstance(sel, dict) or sel["zone"] != "hand":
         return False
+    pick = sel.get("pick", "chosen")
     player = player_of(game, run, sel["player"])
-    if player_of(game, run, sel.get("chooser", "owner")) != player:
+    if pick == "chosen" and player_of(game, run, sel.get("chooser", "owner")) != player:
+        return False
+    if pick not in ("chosen", "random"):
         return False
     return getattr(game.controllers.get(player), "human", False)
 

@@ -9,10 +9,9 @@ its deck and cards put back face down are counted, never named; only what is pub
 that returns from them) is named."""
 from __future__ import annotations
 
-from .state import BOT_INTERPRETED_HEROES
-
 # the chat speaks to the human: the bot in the third person, the human in the second
 VERBS = {"bot": ("roba", "descarta", "devuelve", "su"), "human": ("robas", "descartas", "devuelves", "tu")}
+NOTHING = "sin efecto"
 PLAYER_STATUS = {"cannot_gain_actions": "no {gana} acciones este turno", "cannot_draw": "no {roba} cartas este turno",
                  "immune_to_effect_damage": "{sus} luchadores no reciben dano de efectos este turno",
                  "next_attack_bonus": "+{n} a {su} proximo ataque"}
@@ -21,8 +20,22 @@ FIGHTER_STATUS = {"cannot_leave_space": "{fid} no puede dejar su espacio este tu
 
 
 def applies(game, owner: int) -> bool:
-    """The cards of the bot's box hero are narrated; Medusa's stay silent, as C5 left them (byte-identical goldens)."""
-    return owner == game.bot_player and game.players[owner].hero.slug in BOT_INTERPRETED_HEROES
+    """Every interpreted card of the bot is narrated, Medusa's included (Ivan, 29/10)."""
+    return owner == game.bot_player and game.players[owner].hero.slug in game.fx.dsl_heroes
+
+
+def record(applied: list[str], line: str) -> None:
+    """Adds a card's line once per card: a second moment that did nothing never repeats "sin efecto", and a moment
+    that did something replaces an earlier "sin efecto" of the same card (D1 review)."""
+    title = line.split(": ", 1)[0]
+    idle = f"{title}: {NOTHING}"
+    if line == idle:
+        if not any(a.startswith(title + ": ") for a in applied):
+            applied.append(line)
+        return
+    if idle in applied:
+        applied.remove(idle)
+    applied.append(line)
 
 
 def snapshot(game, flow=None) -> dict:
@@ -47,7 +60,7 @@ def describe(game, before: dict, run, flow=None) -> str:
     if before["seen"][run.ctx.owner] != _seen(game.players[run.ctx.owner]):
         parts.append("mira tu mano")
     title = _title(game, run.ctx.card_id)
-    return f"{title}: " + ("; ".join(parts) if parts else "sin efecto")
+    return f"{title}: " + ("; ".join(parts) if parts else NOTHING)
 
 
 def _seen(player_state) -> list:

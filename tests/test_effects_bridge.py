@@ -427,3 +427,56 @@ def test_bridge_objects_report_lists_hellboy_and_abe_objects():
     assert len(seen) == 1 and seen[0].startswith("-- sparring:inspect_objects")
     assert any("1644a3" in ln and "Custom_Token" in ln and "rot (0, 0, 180)" in ln and "30d50e" in ln for ln in lines)
     assert any("f9789a" in ln and "not found" in ln for ln in lines)
+
+
+# ---------- hand_to_deck (D3): the bot's hand cards into its deck, the one route out of a hand zone ----------
+hand_to_deck = functools.partial(lua.hand_to_deck, id_range=X_IDS, identity=X_IDENT)
+
+
+def hand_table(rt):
+    deck(rt, n=2)
+    rt.execute("""mkobj({guid = 'h1', type = 'Card', cid = 201, owner = 'x', hand = 'Blue'})
+mkobj({guid = 'h2', type = 'Card', cid = 202, owner = 'x', hand = 'Blue'})
+mkobj({guid = 'h3', type = 'Card', cid = 203, owner = 'x', hand = 'Blue'})
+mkobj({guid = 'alien', type = 'Card', cid = 204, owner = 'h', hand = 'Blue'})
+mkobj({guid = 'theirs', type = 'Card', cid = 205, owner = 'x', hand = 'Red'})""")
+
+
+def test_hand_to_deck_puts_the_listed_hand_cards_on_top_in_order_and_nothing_else(rt):
+    hand_table(rt)
+    out = run(rt, hand_to_deck("Blue", [202, 201, 555, 205, 204], "deck01"))
+    assert out == {"placed": [202, 201], "deck": "deck01", "quantity": 4}
+    assert [p["card"] for p in table_py(rt, "PUT_LOG")] == ["h2", "h1"]
+    assert all(p["rot_z"] == 180 for p in table_py(rt, "PUT_LOG"))      # the deck was not turned over
+    assert rt.eval('getObjectFromGUID("h3").hand') == "Blue" and rt.eval('getObjectFromGUID("loose1")') is not None
+    assert rt.eval('getObjectFromGUID("alien").hand') == "Blue" and rt.eval('getObjectFromGUID("theirs").hand') == "Red"
+    assert rt.eval('getObjectFromGUID("deck01").shuffled') is None
+
+
+def test_hand_to_deck_bottom_turns_the_deck_over_for_the_puts_and_back(rt):
+    hand_table(rt)
+    out = run(rt, hand_to_deck("Blue", [201, 203], "deck01", bottom=True))
+    assert out["placed"] == [201, 203] and out["quantity"] == 4
+    assert [p["rot_z"] for p in table_py(rt, "PUT_LOG")] == [0, 0]       # 180 + 180 while the cards went in
+    assert rt.eval('getObjectFromGUID("deck01").rot.z') == 180
+
+
+def test_hand_to_deck_shuffle_shuffles_after_the_puts(rt):
+    hand_table(rt)
+    out = run(rt, hand_to_deck("Blue", [201], "deck01", shuffle=True))
+    assert out["placed"] == [201] and rt.eval('getObjectFromGUID("deck01").shuffled') is True
+
+
+def test_hand_to_deck_refuses_a_deck_that_is_not_the_bots_and_bad_arguments(rt):
+    hand_table(rt)
+    rt.execute("mkobj({guid = 'hdeck', type = 'Deck', cards = {{cid = 301, guid = 'x1', owner = 'h'}}})")
+    assert run(rt, hand_to_deck("Blue", [201], "hdeck")) == {"placed": [], "deck": False}
+    assert run(rt, hand_to_deck("Blue", [201], "nodeck")) == {"placed": [], "deck": False}
+    assert rt.eval('getObjectFromGUID("h1").hand') == "Blue"
+    for bad in (lambda: hand_to_deck("Blue", [], "deck01"), lambda: hand_to_deck("Mauve", [201], "deck01"),
+                lambda: hand_to_deck("Blue", [201], "deck01", bottom="yes")):
+        with pytest.raises((ValueError, TypeError)):
+            bad()
+    with pytest.raises(TypeError):
+        lua.hand_to_deck("Blue", [201], "deck01")                        # identity is mandatory
+    assert lua.is_sendable(hand_to_deck("Blue", [201], "deck01"))

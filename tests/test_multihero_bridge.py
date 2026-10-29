@@ -191,7 +191,10 @@ def test_a_game_with_any_pair_starts_and_the_buttons_cost_what_they_cost_before(
     monkeypatch.setattr(session.ai, "plan", lambda g: Act("maneuver", moves={bot_hero.fid: 0}))
     monkeypatch.setattr(session.ai, "pick_ability_target", lambda g: None)
     run("turno del bot", lambda: click(session, table, Event.END_ACTION))
-    budget = {"maniobra": 1, "fin de accion": 1, "atacar": 1, "revelar": 3, "turno del bot": 3}   # test_message_counts
+    # test_message_counts; bot Liz's Wildfire acts at the start of her turn (a discard and a move reach the table
+    # before her first action, D3): one message more
+    budget = {"maniobra": 1, "fin de accion": 1, "atacar": 1, "revelar": 3,
+              "turno del bot": 4 if cfg.heroes[0] == "liz-sherman" else 3}
     assert spent.keys() == budget.keys() and all(0 < spent[k] <= budget[k] for k in budget), spent
 
 
