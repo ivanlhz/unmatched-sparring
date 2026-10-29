@@ -166,7 +166,7 @@ def test_scheme_moves_are_one_per_title_and_variant_only_when_the_card_asks(bprd
     assert scheme_variants("hellboy", "Pancakes!") == SCHEME_VARIANTS == ("greedy", "safe")
 
 
-def test_scheme_moves_are_capped_and_the_safe_lines_go_first(bprd):
+def test_scheme_moves_are_capped_dropping_the_safe_lines_first(bprd):
     g = bot_game(bprd, "baba-yaga", "abe-sapien")
     for t in ("Pact Of Freedom", "Pact Of Mortality", "Pact Of Secrecy", "Pact Of Time", "Pact Of Peace"):
         give(g, 0, t)

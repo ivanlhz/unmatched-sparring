@@ -272,7 +272,7 @@ class MedusaAI(Controller):
         return sorted(unique.values(), key=lambda a: -a.total)
 
     def outcome(self, g: Game) -> float:
-        """Una partida acabada en el estado esperado: perderla (agotamiento) o ganarla (un plan que remata)."""
+        """A game finished in the expected state: lost (exhaustion) or won (a scheme that finishes the rival)."""
         return DEATH if g.winner == self.me else -DEATH
 
     # ----- ataques -----
