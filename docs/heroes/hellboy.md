@@ -51,11 +51,11 @@ Todo dentro de la bolsa `3efeee` "Hellboy" > bolsa `c592d8`:
 - Pancakes!: las opciones elegidas se resuelven en el orden impreso.
 - cambio de forma con el bot: cambia miniatura y ficha y hace ping sobre las dos.
 - elecciones del humano (Confront, Posthumous Power, Pancakes!) por botones del panel que SOLO aparecen cuando se juega la carta; mientras tanto no se muestran (ni en gris).
+- Confront jugado por el humano y perdido (confirmado, E3): el bot pone su mano boca arriba en la fila de look_spot y hace ping; el humano elige con ping (Tab) sobre la carta o con su boton del panel (los botones llevan los titulos de las cartas del bot). Solo si perdio: la condicion la evalua el motor al resolver la carta.
 
 ## Preguntas abiertas
 
 - Ficha de habilidad 1644a3: la lectura 'rotZ 180 = OCCULT DETECTIVE arriba' sale de que el hijo 30d50e (cara azul) esta pegado girado 180 grados; confirmar en vivo con --read-only antes de que el bot la gire solo.
-- Confront jugado por el humano y perdido: el bot revela su mano boca arriba con ping, por analogia con la respuesta 4 de Ivan (Every Possible Angle); el humano elige la carta con botones. Confirmar.
 
 ## Evidencia
 ```

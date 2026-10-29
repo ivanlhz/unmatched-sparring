@@ -131,11 +131,11 @@ class FxTable(Table):
         return super().do_return_card_to_hand(s)
 
 
-def build(tmp_path, bot, human, hand):
+def build(tmp_path, bot, human, hand, table_cls=FxTable):
     """A batch session with `bot` vs `human` (seats Blue / Red), the bot holding the cards titled in `hand`."""
     cfg = config_for(tmp_path, bot, human)
     scfg = cfg.session_config()
-    table = FxTable(cfg.nicknames, dict(scfg.pieces), bot_cards=scfg.bot_card_ids[0])
+    table = table_cls(cfg.nicknames, dict(scfg.pieces), bot_cards=scfg.bot_card_ids[0])
     table.guid_name = {g: cfg.nicknames[fid] for fid, v in scfg.pieces.items() for g in play.piece_guids(v)}
     fake = FakeTTS(return_value=table)
     client = TTSClient(send_port=fake.port, listen_port=0)

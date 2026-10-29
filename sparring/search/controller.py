@@ -116,18 +116,18 @@ class IsmctsMedusa(Controller):
         root = EngineState(game, observer=self.me, knowledge=self.knowledge(game), weights=self.weights)
         return self.to_act(game, self._decide(root))
 
-    def choose_defense(self, game: Game, attacker: Fighter, target: Fighter) -> Card | None:
+    def choose_defense(self, game: Game, attacker: Fighter, target: Fighter, attack_card: Card | None = None) -> Card | None:
         try:
-            return self._choose_defense(game, attacker, target)
+            return self._choose_defense(game, attacker, target, attack_card)
         except AssertionError:
             raise
         except Exception:
             self._fell_back("defensa")
-            return self.heuristic.choose_defense(game, attacker, target)
+            return self.heuristic.choose_defense(game, attacker, target, attack_card)
 
-    def _choose_defense(self, game: Game, attacker: Fighter, target: Fighter) -> Card | None:
+    def _choose_defense(self, game: Game, attacker: Fighter, target: Fighter, attack_card: Card | None) -> Card | None:
         root = EngineState(game, observer=self.me, knowledge=self.knowledge(game),
-                           pending=(attacker.fid, target.fid, None), weights=self.weights)
+                           pending=(attacker.fid, target.fid, attack_card), weights=self.weights)
         move = self._decide(root)[0]
         return by_title(game.players[self.me].hand, move[1]) if move[1] is not None else None
 

@@ -35,16 +35,16 @@ From reviews (28/10):
 - Spanish comments added by E1 in ui.py:31,45,185 and lua.py:1187-1188: translate (translation phase).
 - No test resumes a save taken at a pause after the bot already moved/boosted mid-combat (projection-then-resume path). Add in F2.
 - CANCEL is refused during a pause: if every option is refused, the combat can only be left with Restart.
-- Look grant ignores card conditions (Confront only when lost, Psychometry only if adjacent): button appears whenever the card is played.
+- DONE in E3: with the human's hero interpreted the look happens inside the card's run (conditions are the engine's) and the bot shows its hand then; the grant-a-button route stays only for a hero outside the interpreter.
 - DONE in D1: `_cost_context` gives the attacker a stake (the damage the defense blocks); no box card asks it today (Incinerate is attack-only).
 - set_panel labels via UI.setValue on a Button: verify live.
 
 ## From D1 (29/10)
-- Perfect Shot: the bot plays it face down (no prediction, no +2) until E3 wires the prediction at play time (`flags["prediction"]` of the IMMEDIATELY run; the bot announces, the human gets buttons).
+- DONE in E3: Perfect Shot's plugin asks its owner; the bot predicts (`predict_value`) and announces when it places the card, the human gets the buttons at Revelar before the bot defends.
 - Narration of Medusa's cards: D1 narrates only the box heroes (the C5 oracle compares `applied` byte for byte). Ask Ivan whether the bot should also say what Medusa's cards did ("Aplicado: Regroup: roba 2"); if so, the C5 session/twin oracles must ignore those lines and the session goldens change.
 - DONE in D2 (Ivan 29/10, required): bot Liz leaves a burning card at the bottom with Pyrotechnics (pick, order and the optional); Glimpse Of Hell / Read The Bones keep the generic rules (they shuffle or draw, nothing of theirs stays at the bottom).
 - Bot Liz's Fleeting Moments / Confront make the human discard a specific card the engine chose: the chat names it; the physical move is D3's.
-- Remove A Painful Memory by the bot: the human's "discard it or take 2" is a Si/No at the panel; the card named is the one the bot chose among what it saw (chat says which).
+- DONE in E3: Remove A Painful Memory by the bot: the buttons read "Descartar <carta>" / "Coger 2" and the prompt names the trade.
 
 ## From D2 (29/10)
 - A bot scheme that asks the human (Pact Of Secrecy: the human keeps 2) returns an Await from `MedusaAI.execute`; the session ignores it today (the card would stay unfinished). E2 must drive it like `Session.play_effect`.
@@ -55,7 +55,7 @@ From reviews (28/10):
 - DONE in D3 (Ivan, 29/10): the bot narrates Medusa's cards too; the C5 oracles ignore the narration lines only.
 - Bot Pyrotechnics / Glimpse Of Hell / Read The Bones use the generic card rules of EffectAI (lowest keep_value goes back, best card_worth is taken): no Liz-specific play (a burning card at the bottom for Wildfire). D2 if it matters.
 - DONE in D3: a specific human card the bot discards is owed by name (`pending_discard["cards"]`); Fleeting Moments' random pick is the human's (force_discard route).
-- Remove A Painful Memory by the bot: the human's "discard it or take 2" is a Si/No at the panel; the card named is the one the bot chose among what it saw (chat says which).
+- DONE in E3 (see above).
 
 ## From D3 (29/10)
 - verify_live: bot Hellboy's form change (`set_state` f9789a <-> e6f06e, `flip_token` 1644a3: the flip is unconditional, so the token must start on OCCULT DETECTIVE; `ping_objects` on both); Abe's Intuition copies taken from 5a17e9 (`take_token_copy`: takeObject or clone by object type) and `remove_token` of a copy; `hand_to_deck` (putObject straight from the bot's hand zone, bottom = deck turned over) and `card_to_deck_bottom`; `return_card_to_hand` of a discard-pile card; `move_piece` of the human's miniature by the bot; the `read_hand` of the human seat at a look (one message); `token_spot` (default beside the bot's deck: calibrate).
@@ -66,3 +66,14 @@ From reviews (28/10):
 - Bot Liz's Wildfire start-of-turn effects now reach the table (they did not before D3): one message before her first action (test_multihero_bridge budget).
 - A failed projection (piece move, state swap, token, deck move) is said once ("hazlo tu"); the table wins at the next read, no retry queue.
 - (D3 review) Bot Liz pays one extra script at turn start (Wildfire discard projected at the turn change), a deviation from "one combined script per step"; fold it into the first action's composite if latency matters live.
+
+## From E3 (29/10)
+- verify_live: `ping_points` over the row spots (the bot pings its own face-up hand); `resolve_hand_row(deck_guid=)` (`putObject` of a loose row card onto the bot's deck: Every Possible Angle by the human); the bot's attack card flipped face up right after `play_card_face_down` in the same script (Perfect Shot, UNCANNY INTUITION on the human's Abe); the prediction buttons' second page ("Mas" then "Boca abajo").
+- The human's hero must be in `fx.dsl_heroes` for E3's human side (E2 switches it on); until then Confront / Psychometry / Every Possible Angle / Remove A Painful Memory by the human keep E1's button and the chat text.
+- The human's Perfect Shot face up: the bot's defense ignores the known card (it only exploits `attack_card` under UNCANNY INTUITION). Give `revealed_attack` the Perfect Shot case if Ivan wants the bot to use it.
+- UNCANNY INTUITION of the bot's Abe: the defense is chosen before the trigger's draw (the engine draws at `begin_attack`), so the card drawn can never be that defense. Also, the human still puts the attack face down (the face-down reader identifies it) and it is turned at Revelar; a face-up reader in the combat zone would let them play it face up directly.
+- Every Possible Angle by the human then asks the move of Abe at the panel (a `space` request); E2's table mode should make that announce-only (the human moves the miniature).
+- The engine's order of the bot's deck is rebuilt from the table at every `read_bot_hand`: a card put on top (Every Possible Angle by the human) is on top of the REAL deck only; the human's `KnownHand.top_of_deck` records it.
+- Remove A Painful Memory by the human: the bot's answer is said as where the card ended ("descarta X" / "se queda X"); the 2 damage shows in the dials and the combat text, not in a dedicated line. The same "se queda X" is said when bot Liz's Wildfire returns a burning card the human's Confront made her discard (the engine applies the rule; the chat does not name Wildfire).
+- A bot defense that draws before the human's look (Evade, Exploit, B.P.R.D. Training): the pick request is built with a placeholder for the card the table has not dealt yet; `show_row` refreshes the request's options from the re-identified hand (tests/test_e3_hidden_info.py, the Evade case). The dealt card is in the row.
+- After E2 lands: `session_bot_effects._bot_cards` would also see the hand -> deck move of Every Possible Angle if a scheme of the human were projected; `close_row` already moved it (use `fx_in_flight`, which `project` resets, or skip ids the row moved).

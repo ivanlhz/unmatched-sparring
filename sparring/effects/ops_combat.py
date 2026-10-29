@@ -188,12 +188,25 @@ _with_acting("discard", _forced_discard_blocked)
 
 # ---------------------------------------------------------------- Perfect Shot (Abe)
 
-@plugin("abe:perfect_shot")
+PERFECT_SHOT = "abe:perfect_shot"
+PREDICT_OP = "predict"            # `extra["op"]` of the plugin's request: a prediction, answered at play time
+PREDICT_VALUES = range(0, 8)      # any printed value can be predicted (Ivan, 28/10)
+FACE_DOWN = 8                     # the option that plays the card face down: no prediction, no +2
+
+
+@plugin(PERFECT_SHOT)
 def _perfect_shot(run, game, spec):
     """`predict`: the prediction belongs to the moment the card is played, before the defense is chosen, which the
-    DSL has no moment for. E3 wires it (the bot announces its prediction, the human gets buttons) by leaving the
-    printed value in this run's `flags["prediction"]`; until then the card is played face down: no +2."""
-    run.flags.setdefault("prediction", None)
+    DSL has no moment for. The plugin asks its owner once (an `effect` request with `op: predict`) and keeps the
+    printed value in this run's `flags["prediction"]` (None: face down). The live session answers for the human
+    with the buttons it showed at Revelar and for the bot with what it announced when it placed the card
+    (`session_hidden.PredictionChooser`); a bot without that preset decides through `EffectAI`."""
+    if "prediction" in run.flags:
+        return
+    answer = run.ask(game, "effect", run.ctx.owner, [*PREDICT_VALUES, FACE_DOWN], 1, 1,
+                     "predict the printed value of the opponent's card, or play face down",
+                     op=PREDICT_OP, face_down=FACE_DOWN)[0]
+    run.flags["prediction"] = None if answer == FACE_DOWN else answer
 
 
 @plugin_condition("abe:perfect_shot")

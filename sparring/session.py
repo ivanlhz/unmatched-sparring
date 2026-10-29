@@ -33,6 +33,7 @@ from .effects.choose import ControllerChooser, PanelChooser
 from .effects.run import EffectRun
 from . import session_bot_effects as bot_effects
 from . import session_choices as choices
+from . import session_hidden as hidden
 from .combat import FEINT, FIGHT_OR_FLIGHT, FIGHT_OR_FLIGHT_BONUS, GLANCE_DAMAGE, can_boost, deck_boost, is_medusa_card, scheme_gain_actions
 from .state import ANUNG, DETECTIVE, EXHAUST_DAMAGE, HAND_LIMIT, START_HAND, Fighter, Game, RuleError
 from .tts import lua, ui
@@ -205,8 +206,9 @@ class _Timed:
 
 
 # con la mano del bot a la vista solo se atiende lo que la resuelve (o no la toca: PV, retirar, valor)
-CHOICE_EVENTS = (Event.CHOICE, Event.HP, Event.REMOVE, Event.VALUE, Event.RESTART)
-LOOK_EVENTS = (Event.LOOK_PING, Event.CANCEL, Event.END_ACTION, Event.HP, Event.REMOVE, Event.VALUE, Event.RESTART)
+CHOICE_EVENTS = (Event.CHOICE, Event.LOOK_PING, Event.HP, Event.REMOVE, Event.VALUE, Event.RESTART)
+LOOK_EVENTS = (Event.LOOK_PING, Event.CHOICE, Event.CANCEL, Event.END_ACTION, Event.HP, Event.REMOVE, Event.VALUE,
+               Event.RESTART)
 CARD_TYPE_NAME = {"attack": "ataque", "defense": "defensa", "versatile": "versatil", "scheme": "esquema"}
 
 SNAP_KEYS = ("bot_hand", "human_count", "bot_discard", "human_discard", "face_bot", "face_human", "pieces", "dials")
@@ -230,6 +232,8 @@ class Pending:
     wait: PendingChoice | None = None   # cartas ya reveladas, sin resolver: espera el BOOST del humano (extra: guid, baseline, hand, stuck)
     flow: CombatFlow | None = None      # the combat itself, stopped at a decision of the human's card effect (E1)
     combat: dict | None = None          # what finishing that combat still needs (flip, human_guid, bot_seen, alive_before, before, boost)
+    prediction: dict | None = None      # Perfect Shot: {"value": int | None} once the attacker decided (None value: face down)
+    predict: dict | None = None         # Perfect Shot: the human's prediction request, while the panel asks it (E3)
 
     @property
     def boost_wait(self) -> dict | None:
@@ -257,6 +261,7 @@ class Session:
         self.fx_unprojected: dict | None = None       # bot_effects snapshot taken before the turn change, projected at the bot's first write
         self.fx_in_flight: set[int] = set()           # CardIDs a bot effect is moving off its pile or hand in this step
         self.fx_looked = False                        # a look_hand re-identified the human's virtual hand in this step
+        self.reveal_bot_hand = False                  # a card of the human looked at the bot's hand in this step (E3)
         self._attach_choosers()
         self.chosen_attacker: str | None = None
         self.moving = False
@@ -403,8 +408,7 @@ class Session:
             self.say(f"Fin de partida: gana el jugador {self.game.winner}. (Deshacer fin de partida si es un error.)")
         elif self.look is not None:
             self._w(lua.set_look_row(self._look_entries()), "misc")     # la variable del panel no sobrevive a una recarga
-            self.say("La mano del bot sigue a la vista: haz ping (Tab) sobre la carta a descartar o pulsa Cancelar.",
-                     ChatKind.YOUR_TURN)
+            self.say(hidden.resume_prompt(self), ChatKind.YOUR_TURN)
         elif self.effect_run is not None:
             self.choice_ui = choices.ChoiceUI()
             self.say("Hay una eleccion de efecto pendiente: " + choices.prompt_text(self.game, self.effect_run.awaiting)
@@ -734,6 +738,7 @@ class Session:
             self.say(f"Aviso: no pude poner nombre a las miniaturas ({e}).", ChatKind.WARNING)
 
     def _done(self) -> list[str]:
+        hidden.after_step(self)                   # a look of the human at the bot's hand: the row rides this script
         self._tell_blocks()
         self._commit()
         self._persist()
@@ -805,6 +810,7 @@ class Session:
         self.game.hand_reader = self._read_human_hand
 
     def _read_human_hand(self, player: int) -> list[Card]:
+        hidden.note_look(self, player)
         return bot_effects.read_human_hand(self, player)
 
     def _project_effects(self, before: dict | None, played: frozenset = frozenset()) -> Callable[[], None]:
@@ -835,6 +841,8 @@ class Session:
         p = self.pending
         if p is not None and p.flow is not None and p.flow.awaiting_run is not None:
             return "flow", p.flow, p.flow.awaiting_run
+        if (wait := hidden.prediction_wait(p)) is not None:      # Perfect Shot: the human predicts at Revelar
+            return "predict", p, wait
         if self.free_effect is not None and self.free_effect.awaiting is not None:
             return "effect", self.free_effect, self.free_effect
         for run in self.game.fx.parked:
@@ -895,6 +903,7 @@ class Session:
     def _restore(self, saved: dict) -> None:
         self.load_dict(saved)
         self.choice_ui = choices.ChoiceUI()
+        self.reveal_bot_hand = False              # the look belonged to the step that was undone
 
     def _choice(self, payload: dict) -> None:
         paused = self._paused()
@@ -913,10 +922,23 @@ class Session:
         except ValueError as e:
             self.say(f"Respuesta no valida: {e}", ChatKind.WARNING)
             return
+        self._answer_choice(paused, value)
+
+    def _answer_choice(self, paused: tuple, value: list) -> None:
+        """Delivers a validated answer (a button, or a ping on the bot's hand row) to the decision that waits."""
+        kind, holder, run = paused
+        if kind == "predict":
+            hidden.answer_prediction(self, holder, value)
+            return
         if kind == "flow":
-            if self._guarded(lambda: self._answer_flow(holder, value)):
+            ok = self._guarded(lambda: self._answer_flow(holder, value))
+            hidden.close_row(self, value, ok)     # a pick among the bot's hand cards: the row follows the engine
+            if ok:
                 self._combat_step_done(self.pending)
-        elif self._guarded(lambda: self._answer_run(run, value)) and run.done:
+            return
+        ok = self._guarded(lambda: self._answer_run(run, value))
+        hidden.close_row(self, value, ok)
+        if ok and run.done:
             if kind == "effect":
                 self.free_effect = None
             else:
@@ -954,7 +976,7 @@ class Session:
         p = self.pending
         mine = {c.card_id: c for c in self.game.players[self.human].full_set}
         boost = None if p.combat["boost"] is None else mine[p.combat["boost"]]
-        flow.choosers = self._choosers()
+        flow.choosers = hidden.flow_choosers(self, p)      # the Perfect Shot prediction decided at play time
         choose = legacy_chooser(self.game, flow, boost)
         while (wait := flow.run()) is not None:
             if wait.choice.kind == "effect" and wait.choice.player == self.human:
@@ -984,6 +1006,10 @@ class Session:
             self.revoke_look()
 
     def _grant_look_for(self, card: Card | None) -> None:
+        """Legacy route (the human's hero outside the interpreter): a card that looks grants the button. An
+        interpreted hero looks inside the card's run and the bot shows its hand then (`session_hidden`)."""
+        if hidden.interpreted(self.game, self.human):
+            return
         if card is not None and choices.grants_look(self.game, self.human, card):
             self.grant_look()
             self.say(f"{card.title} te deja mirar la mano del bot: pulsa Mirar mano del bot.", ChatKind.YOUR_TURN)
@@ -1152,7 +1178,9 @@ class Session:
                 "kind": p.kind, "attacker": p.attacker.fid, "target": p.target.fid,
                 "bot_card": p.bot_card.card_id if p.bot_card else None, "bot_card_guid": p.bot_card_guid,
                 "cancel_failures": p.cancel_failures, "defended": p.defended, "boost_wait": None if p.wait is None else p.wait.to_dict(),
-                **({"flow": p.flow.to_dict(), "combat": p.combat} if p.flow is not None else {})},
+                **({"flow": p.flow.to_dict(), "combat": p.combat} if p.flow is not None else {}),
+                **({"prediction": p.prediction} if p.prediction is not None else {}),
+                **({"predict": p.predict} if p.predict is not None else {})},
             "pending_discard": self.pending_discard, "pending_value": self.pending_value, "look": self.look,
             "chosen_attacker": self.chosen_attacker, "moving": self.moving,
             "bot_discarded": sorted(self.bot_discarded), "dirty": self.dirty,
@@ -1199,7 +1227,7 @@ class Session:
                 by_id[p["bot_card"]] if p["bot_card"] is not None else None, p["bot_card_guid"], p["cancel_failures"],
                 bool(p.get("defended", True)),
                 self._load_boost_wait(p.get("boost_wait"), self.human, {c.card_id: c for c in self.game.players[self.human].full_set}),
-                *self._load_flow(p))
+                *self._load_flow(p), p.get("prediction"), p.get("predict"))
             self.free_effect = None if d.get("effect") is None else EffectRun.from_dict(d["effect"])
             self.look_granted = d.get("look_granted") is True
             self.token_copies = {str(k): [str(g) for g in v] for k, v in (d.get("token_copies") or {}).items()}
@@ -1250,7 +1278,10 @@ class Session:
                       for sp in raw["spots"]))
         if not ok:
             raise KeyError("look")
-        return {"ids": list(raw["ids"]), "guids": list(raw["guids"]), "spots": [list(sp) for sp in raw["spots"]]}
+        look = {"ids": list(raw["ids"]), "guids": list(raw["guids"]), "spots": [list(sp) for sp in raw["spots"]]}
+        if raw.get("mode") in (hidden.MODE_PICK, hidden.MODE_REVEAL):     # E3: the row a card of the human opened
+            look["mode"] = raw["mode"]
+        return look
 
     @staticmethod
     def _load_boost_wait(raw, human: int, human_cards: dict | None = None) -> PendingChoice | None:
@@ -1572,12 +1603,17 @@ class Session:
         self.chosen_attacker = None
         self.say(f"{attacker.fid} ataca a {target.fid}: pon tu carta de ataque boca abajo en tu zona de combate "
                  "y pulsa Revelar.", ChatKind.YOUR_TURN)
+        hidden.intuition_notice(self, target)
 
-    def _bot_defends(self, p: Pending) -> None:
+    def _bot_defends(self, p: Pending, attack_card: Card | None = None) -> None:
         """El bot decide y coloca su defensa DESPUES de que el humano se haya comprometido. La decision usa solo lo
-        que la IA ya sabia (estado del motor y mano del bot): jamas el CardID de la carta boca abajo del humano."""
+        que la IA ya sabia (estado del motor y mano del bot): jamas el CardID de la carta boca abajo del humano, salvo
+        `attack_card`, el ataque que una regla juega boca arriba (UNCANNY INTUITION) y que es lo unico que ve."""
         self.read_bot_hand()
-        card = self.ai.choose_defense(self.game, p.attacker, p.target)
+        if attack_card is not None:
+            card = self.ai.choose_defense(self.game, p.attacker, p.target, attack_card=attack_card)
+        else:
+            card = self.ai.choose_defense(self.game, p.attacker, p.target)
         guid = self._place_bot_card(card, "human_attacks", p.attacker, p.target)
         p.bot_card, p.bot_card_guid, p.defended = card, guid, True
 
@@ -1669,8 +1705,14 @@ class Session:
                 if human_card is None:
                     raise RuleError("no hay ninguna carta tuya boca abajo en la zona de combate")
                 g.check_attack_card(p.attacker, human_card)
+                if not p.defended and hidden.ask_prediction(self, p, human_card):
+                    return                        # Perfect Shot: the human predicts before the bot defends
                 if not p.defended:
-                    self._bot_defends(p)
+                    revealed = hidden.revealed_attack(self, p, human_card)
+                    if revealed is not None:
+                        self.say(f"UNCANNY INTUITION: tu ataque se juega boca arriba: {revealed.title} (valor "
+                                 f"{revealed.value}); el bot elige su defensa viendolo.", ChatKind.ATTACK)
+                    self._bot_defends(p, revealed)
                 if p.bot_card:
                     g.check_defense_card(p.target, p.bot_card)
             else:
@@ -2056,8 +2098,8 @@ class Session:
                 self.say("No pude volver a ocultar una carta: giala boca abajo a mano.", ChatKind.WARNING)
 
     def _end_action(self, _: dict) -> None:
-        if self.look is not None:
-            self._look_close(face_down=True)
+        if self.look is not None:                 # E3's reveal row has nothing to discard: everything goes back
+            self._look_close(face_down=self.look.get("mode") != hidden.MODE_REVEAL)
             return
         if self.pending is not None and not self._drop_pending_if_gone():
             self.say("Termina primero el boost: pulsa Continuar o Sin boost." if self.pending.wait is not None
@@ -2479,6 +2521,7 @@ class Session:
                     attacker, target = g.fighters[act.fid], g.fighters[act.target]
                     guid = self._place_bot_card(act.card, "bot_attacks", attacker, target)
                     self.pending = Pending("bot_attacks", attacker, target, act.card, guid)
+                    hidden.bot_attack_placed(self, self.pending)     # Perfect Shot / UNCANNY INTUITION: face up
                     self._persist()
                     self.say(f"El bot ataca con {attacker.fid} a {target.fid}: deja tu defensa boca abajo "
                              "(o nada) y pulsa Revelar.", ChatKind.ATTACK)
@@ -2941,7 +2984,7 @@ class Session:
         if g.winner is not None:
             return f"Fin de partida · gana {self._name(g.hero(g.winner))}"
         if self.look is not None:
-            return "Mano del bot a la vista: Tab sobre la carta a descartar o Cancelar"
+            return hidden.look_status(self)
         if self.effect_run is not None:
             return choices.safe_label(choices.prompt_text(g, self.effect_run.awaiting), "Elige una opcion", 80)
         if g.turn != self.human:
@@ -3069,6 +3112,8 @@ class Session:
             return
         if guid not in self.look["guids"]:
             self.say("Ese ping no era sobre una carta de la fila del bot.", ChatKind.WARNING)
+            return
+        if hidden.ping(self, guid):               # E3: the card's own choice, or a reveal that picks nothing
             return
         self._look_close(discard=guid)
 

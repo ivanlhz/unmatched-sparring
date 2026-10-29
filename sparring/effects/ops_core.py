@@ -362,12 +362,26 @@ def _cost_context(game, run, cost: list[dict], chooser: int) -> dict:
     return ctx
 
 
+def _choice_context(game, run, spec: dict) -> dict:
+    """What the two answers mean, for a panel that names them: `discards` (the cards the yes branch discards, when
+    that is all it does: Remove A Painful Memory's "discard it") and `else_damage` (a plain damage in the else branch:
+    "or take 2")."""
+    ctx = {}
+    ops, other = spec.get("ops") or [], spec.get("else") or []
+    if len(ops) == 1 and ops[0]["op"] == "discard" and isinstance(ops[0]["cards"], str):
+        ctx["discards"] = [c.card_id for c in card_ref(game, run, ops[0]["cards"])]
+    if len(other) == 1 and other[0]["op"] == "damage" and isinstance(other[0].get("amount"), int):
+        ctx["else_damage"] = other[0]["amount"]
+    return ctx
+
+
 @op("optional")
 def _optional(run, game, spec):
     cost = spec.get("cost") or []
     chooser = _chooser(game, run, spec)
     yes = _can_pay(game, run, cost) and run.ask(
-        game, "optional", chooser, [True, False], 1, 1, "do it?", **_cost_context(game, run, cost, chooser))[0]
+        game, "optional", chooser, [True, False], 1, 1, "do it?", **_cost_context(game, run, cost, chooser),
+        **_choice_context(game, run, spec))[0]
     if yes:
         return ([(("cost",), None)] if cost else []) + [(("ops",), None)]
     return [(("else",), None)] if spec.get("else") else []

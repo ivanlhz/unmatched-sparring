@@ -64,12 +64,26 @@ class ChoiceUI:
             self.key, self.page, self.selected = req.key, 0, []
 
 
+def card_titles(game, ids) -> str:
+    titles = []
+    for i in ids:
+        titles.append(next((c.title for p in game.players for c in p.full_set if c.card_id == i), f"Carta {i}"))
+    return ", ".join(titles)
+
+
 def option_label(game, req: ChoiceRequest, option) -> str:
     kind = req.kind
     if kind == "effect":
+        if req.extra.get("op") == "predict":                 # Perfect Shot: a printed value, or face down
+            return "Boca abajo" if option == req.extra.get("face_down") else f"Valor {option}"
         labels = req.extra.get("labels") or []
         return safe_label(labels[option] if isinstance(option, int) and 0 <= option < len(labels) else option)
     if kind == "optional":
+        # what each answer means, when the op said so (Remove A Painful Memory: discard it, or take 2)
+        if option is True and req.extra.get("discards"):
+            return safe_label("Descartar " + card_titles(game, req.extra["discards"]))
+        if option is False and "else_damage" in req.extra:
+            return safe_label(f"Coger {req.extra['else_damage']}")
         return "Si" if option is True else "No"
     if kind == "amount":
         return str(option)
@@ -89,6 +103,12 @@ def option_label(game, req: ChoiceRequest, option) -> str:
 def prompt_text(game, req: ChoiceRequest) -> str:
     """Spanish chat line for the request: what is asked and, for the card that asks, its title."""
     base = PROMPTS.get(req.kind, "Elige")
+    if req.kind == "effect" and req.extra.get("op") == "predict":
+        base = "Predice el valor impreso de la carta rival, o juega boca abajo"
+    elif req.kind == "optional" and req.extra.get("discards"):
+        base = f"Descartas {card_titles(game, req.extra['discards'])}"
+        if "else_damage" in req.extra:
+            base += f" o coges {req.extra['else_damage']} de dano"
     title = None
     for p in game.players:
         for c in p.full_set:
