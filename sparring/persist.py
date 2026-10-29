@@ -9,7 +9,7 @@ import os
 from pathlib import Path
 
 from .effects import ongoing
-from .effects.state import EffectState, interpreted
+from .effects.state import EffectState, default_dsl_heroes
 from .state import Game, KnownHand
 
 VERSION = 1
@@ -19,14 +19,10 @@ class StateError(Exception):
     """El fichero de guardado no sirve para reanudar (version, formato o partida distinta)."""
 
 
-def _default_dsl(g: Game) -> set[str]:
-    return interpreted(p.hero.slug for p in g.players)
-
-
 def game_to_dict(g: Game) -> dict:
     legacy = [ongoing.legacy_parts(g, p) for p in (0, 1)]       # pre-DSL ONGOING bonuses keep their old key
     fx = g.fx.to_dict()
-    if g.fx.dsl_heroes == _default_dsl(g):            # the default follows the heroes in play: nothing to remember
+    if g.fx.dsl_heroes == default_dsl_heroes(g):      # the default follows the heroes in play: nothing to remember
         fx.pop("dsl_heroes", None)
     else:
         fx["dsl_heroes"] = sorted(g.fx.dsl_heroes)
@@ -53,7 +49,7 @@ def apply_game(g: Game, d: dict) -> None:
         fx = d.get("fx") or {}
         g.fx = EffectState.from_dict(fx)
         if "dsl_heroes" not in fx:
-            g.fx.dsl_heroes = _default_dsl(g)
+            g.fx.dsl_heroes = default_dsl_heroes(g)
         g.fx.attach(g)
         for player, side in enumerate(d.get("combat_bonus") or [[], []]):
             if side:                                  # one ONGOING per player: keep the last

@@ -175,12 +175,14 @@ class EffectAI:
     @staticmethod
     def hp_change(f, new_hp: float, me: int) -> float:
         """What `f` going from its hit points to `new_hp` is worth to `me`: hit points by the weights the
-        evaluation uses, and a kill on top (a loss when the piece is `me`'s hero, a prize when it is a rival's)."""
+        evaluation uses, and a kill on top (a loss when the piece is `me`'s, the game when it is the hero; a prize
+        when it is a rival's)."""
         new = max(0, min(f.max_hp, new_hp))
         delta, dead = new - f.hp, new <= 0 < f.hp
+        kill = (LETHAL if f.hero else KILL_SIDEKICK) if dead else 0.0
         if f.owner == me:
-            return (W_MEDUSA_HP if f.hero else HARPY_VALUE) * delta - (LETHAL if dead and f.hero else 0.0)
-        return -(W_HERO if f.hero else W_SIDEKICK) * delta + ((LETHAL if f.hero else KILL_SIDEKICK) if dead else 0.0)
+            return (W_MEDUSA_HP if f.hero else HARPY_VALUE) * delta - kill
+        return -(W_HERO if f.hero else W_SIDEKICK) * delta + kill
 
     @staticmethod
     def blow_value(f, dmg: float) -> float:
@@ -278,6 +280,12 @@ class EffectAI:
     def _optional(self, game: Game, req: ChoiceRequest, nested: bool) -> list | None:
         if "cost_cards" in req.extra:       # a price in cards: the interpreter sends the combat context, one policy
             return [worth_paying(req)]
+        if "to" in req.extra:               # a redirect passive (FATEFUL BARGAINS): whoever loses the bot less takes it
+            hit, to = game.fighters.get(req.extra.get("fighter")), game.fighters.get(req.extra["to"])
+            if hit is None or to is None:
+                return None
+            n = req.extra.get("amount", DEFAULT_BLOW)
+            return [self.hp_change(to, to.hp - n, req.player) >= self.hp_change(hit, hit.hp - n, req.player)]
         found = self._locate(game, req)
         if nested or found is None:
             return None

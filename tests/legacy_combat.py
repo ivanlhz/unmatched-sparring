@@ -1,15 +1,54 @@
 """Copy of resolve_combat as of ff6fa3c (plus the uncancelable rule of the C2 review), kept as the oracle of the differential tests
 (tests/test_combat_flow_diff.py). Helpers are imported from sparring.combat; the Medusa ones C5 deleted come from
-tests/legacy_medusa.py (verbatim copies)."""
+tests/legacy_medusa.py (verbatim copies); the bot's announcement path D1 deleted (`_announce_bot_card`, `text_parts`,
+`CODED_MOMENTS`, as of 71e43bb) lives below."""
 from __future__ import annotations
+
+import re
 
 from legacy_medusa import _medusa_after
 from sparring.cards import Card
-from sparring.combat import (FEINT, ON_EARTH, PLANNED, SECOND_SHOT, CombatCtx, CombatResult, _announce_bot_card,
+from sparring.combat import (FEINT, ON_EARTH, PLANNED, SECOND_SHOT, CombatCtx, CombatResult,
                              _check_boost, _hellboy_after, _liz_after, _side_cards, after_text,
                              can_boost, deck_boost, is_medusa_card)
 from sparring.effects.modifiers import is_uncancelable
 from sparring.state import ANUNG, Fighter, Game, RuleError
+
+
+# ---------------------------------------------------------------- sparring/combat.py @ 71e43bb (deleted by D1)
+
+_MOMENT = re.compile(r"(IMMEDIATELY|DURING COMBAT|AFTER COMBAT):")
+_RIVAL_OPTION = re.compile(r"(your|the) opponent may", re.IGNORECASE)
+# momentos de las cartas no-Medusa que el motor ya resuelve solo, por titulo (lo demas del texto no esta codificado)
+CODED_MOMENTS = {"Horseshoes And Hand Grenades": {"AFTER COMBAT"}, ON_EARTH: {"DURING COMBAT", "AFTER COMBAT"},
+                 "Flame Lash": {"AFTER COMBAT"}, PLANNED: {"IMMEDIATELY"}}
+
+
+def text_parts(card: Card) -> list[tuple[str, str]]:
+    """(momento, texto) de cada parte del texto de la carta; el texto suelto antes del primer momento va con ''."""
+    pieces = _MOMENT.split(card.text)
+    out = [("", pieces[0].strip())] if pieces[0].strip() else []
+    out += [(pieces[i], pieces[i + 1].strip()) for i in range(1, len(pieces) - 1, 2)]
+    return out
+
+
+def _announce_bot_card(card: Card, result: CombatResult) -> None:
+    """Toda parte del texto de una carta del bot que el motor no resuelve se anuncia con su momento: como efecto que
+    el bot ignora, o como opcion del humano si el texto se la da al rival (Incinerate)."""
+    coded = CODED_MOMENTS.get(card.title, set())
+    if coded and card.title == PLANNED:
+        result.applied.append(f"{card.title}: aplicado ({card.text})")
+    for moment, text in text_parts(card):
+        if moment in coded or not text:
+            continue
+        label = f" ({moment})" if moment else ""
+        if _RIVAL_OPTION.search(text):
+            result.bot_notes.append(f"{card.title}: tu opcion{label}: {text} Resuelvela a mano.")
+        else:
+            result.bot_notes.append(f"{card.title}: el bot ignora este efecto{label}: {text}")
+
+
+# ---------------------------------------------------------------- sparring/combat.py @ ff6fa3c
 
 
 def resolve_combat(game: Game, att: Fighter, tgt: Fighter, atk_card: Card, def_card: Card | None,

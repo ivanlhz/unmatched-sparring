@@ -249,13 +249,15 @@ class SearchController(Controller):
         self.state = state
 
     def choose_combat_boost(self, game: Game, ctx):
+        """Attacking: the damage the boost adds; defending (Out Of Time): the damage it spares, same price."""
         hand = game.players[self.me].hand
         t = ctx.target
+        sign = -1 if t.owner == self.me else 1
         now = min(max(0, ctx.atk_value - ctx.def_value), t.hp)
         best, best_gain = None, 0.0
         for c in filter(can_be_boost, hand):
-            net = min(max(0, ctx.atk_value + c.boost - ctx.def_value), t.hp)
-            gain = net - now - 0.3 * card_worth(c)
+            net = min(max(0, ctx.atk_value + sign * c.boost - ctx.def_value), t.hp)
+            gain = sign * (net - now) - 0.3 * card_worth(c)
             if gain > best_gain:
                 best, best_gain = c, gain
         return best
@@ -517,7 +519,7 @@ class EngineState:
                         return
                     self.phase = "action"
                     continue
-                if hero.name == "Hellboy":
+                if hero.name == "Hellboy" and "hellboy" not in g.fx.dsl_heroes:   # interpreted: begin_turn did it
                     if g.form(p) == ANUNG and g.players[p].hand:
                         return
                     g.hellboy_detective_draw(p)

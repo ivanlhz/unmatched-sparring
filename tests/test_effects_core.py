@@ -935,6 +935,8 @@ def test_answers_are_dropped_once_the_op_completes_and_keys_include_loop_positio
 # ---------------------------------------------------------------- state, hooks, persistence
 
 def test_fx_is_empty_by_default_and_cloned_independently(g):
+    g.fx.dsl_heroes.clear()                   # D1 interprets the bot's Abe by default; the clone test wants a bare fx
+    g.fx.turn_start_pos.clear()
     assert g.fx.is_empty() and g.fx.dsl_heroes == set()
     g.fx.dsl_heroes.add("medusa")
     g.fx.set_ongoing(0, 5)
@@ -954,8 +956,8 @@ def test_fx_is_empty_by_default_and_cloned_independently(g):
 
 def test_fx_persistence_omits_the_key_when_empty_and_roundtrips(bprd):
     g = mk(bprd)
-    assert "fx" not in persist.game_to_dict(g)
-    g.fx.dsl_heroes.add("abe-sapien")
+    g.fx.turn_start_pos.clear()               # D1 interprets the bot's Abe by default (and Abe reads moved_this_turn)
+    assert "fx" not in persist.game_to_dict(g) and g.fx.dsl_heroes == {"abe-sapien"}
     g.fx.set_ongoing(1, 9)
     g.fx.set_counter(0, "intuition", 2)
     g.fx.statuses.append({"name": "cannot_draw", "player": 0})
@@ -969,7 +971,7 @@ def test_fx_persistence_omits_the_key_when_empty_and_roundtrips(bprd):
     old = dict(saved)
     del old["fx"]
     persist.apply_game(other, old)
-    assert other.fx.is_empty()
+    assert other.fx.to_dict() == {"dsl_heroes": ["abe-sapien"]}        # a save without fx: only the D1 default
 
 
 class SpyFx(EffectState):

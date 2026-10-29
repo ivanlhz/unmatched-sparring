@@ -6,15 +6,23 @@ from enum import Enum
 from typing import Callable
 
 from .cards import Card
-from .combat import (ON_EARTH, PLANNED, CombatCtx, CombatResult, _announce_bot_card, _check_boost, _hellboy_after,
-                     _liz_after, _side_cards, after_text, can_boost, deck_boost, is_medusa_card)
+from .combat import (ON_EARTH, PLANNED, CombatCtx, CombatResult, _check_boost, _hellboy_after, _liz_after,
+                     _side_cards, after_text, can_boost, deck_boost, is_medusa_card)
 from .state import ANUNG, Fighter, Game, RuleError
 
 
 def _dsl(flow: "CombatFlow", side: "Side") -> bool:
     """The card's owner plays a hero the effects interpreter resolves (`game.fx.dsl_heroes`): legacy rules step aside."""
-    heroes = flow.game.fx.dsl_heroes
-    return bool(heroes) and flow.game.players[side.fighter.owner].hero.slug in heroes
+    return _interpreted(flow.game, side.fighter.owner)
+
+
+def _interpreted(game: Game, player: int) -> bool:
+    heroes = game.fx.dsl_heroes
+    return bool(heroes) and game.players[player].hero.slug in heroes
+
+
+def _is_bot(game: Game, player: int) -> bool:
+    return player == game.bot_player
 
 
 class Phase(str, Enum):
@@ -401,16 +409,19 @@ def boost_this_attack(flow: CombatFlow, side: Side) -> Await | None:
         _add_boost(flow, side, boost)
 
 
-@rule(Phase.AFTER, match=lambda flow, side: side.fighter.owner == flow.game.bot_player and not _dsl(flow, side))
-def bot_card_after(flow: CombatFlow, side: Side) -> None:
-    """Never ask the human to resolve an effect of the bot's card."""
-    _hellboy_after(flow.game, side.fighter, side.card, _i_won(flow, side), flow.result)
-    _liz_after(flow.game, side.card, flow.result)
-    _announce_bot_card(side.card, flow.result)
+@rule(Phase.AFTER, match=lambda flow, side: _is_bot(flow.game, side.fighter.owner) and not _dsl(flow, side))
+def bot_card_outside_the_interpreter(flow: CombatFlow, side: Side) -> None:
+    """The bot's hero is interpreted by default (D1); only a save that switched it off gets here. The text is not
+    resolved and the human is never asked to resolve a card of the bot: it is said so."""
+    if side.card.text.strip():
+        flow.result.bot_notes.append(f"{side.card.title}: el bot no resuelve este efecto (interprete apagado): "
+                                     f"{side.card.text}")
 
 
 @rule(Phase.AFTER, match=lambda flow, side: not _dsl(flow, side))
 def human_card_after(flow: CombatFlow, side: Side) -> None:
+    """The human's card of a hero outside the interpreter (the box until E2): the engine applies what needs no
+    decision of theirs, the rest of the text is returned for them to resolve on the table."""
     card, result = side.card, flow.result
     if _hellboy_after(flow.game, side.fighter, card, _i_won(flow, side), result) or _liz_after(flow.game, card, result):
         return
@@ -468,14 +479,17 @@ def _i_won(flow: CombatFlow, side: Side) -> bool:
 
 # ---------- synchronous driver ----------
 def legacy_chooser(game: Game, flow: CombatFlow, boost: Card | None) -> Callable[[PendingChoice], Card | None]:
-    """Answers boost choices the way the pre-flow resolve_combat did: a Medusa card asks its owner's controller (with
-    the live CombatCtx); any other card uses the boost the caller already put on the table."""
+    """Answers boost choices the way the pre-flow resolve_combat did: a Medusa card, a defender's card or a card of
+    the bot's interpreted hero asks its owner's controller (with the live CombatCtx); the human attacker's card uses
+    the boost the caller already read from the table."""
     def choose(choice: PendingChoice):
         if choice.kind == "effect":         # a panel chooser paused an effect inside a synchronous combat
             from .effects.choose import ChoiceRequest
             from .effects.ops_combat import default_choosers
             return default_choosers(game)[choice.player].choose(game, ChoiceRequest.from_dict(choice.extra["request"]))
-        if is_medusa_card(flow.card_by_id(choice.card_id, choice.player)) or choice.player != flow.att.owner:
-            return game.controllers[choice.player].choose_combat_boost(game, flow.ctx)
+        player = choice.player
+        bot_dsl = _is_bot(game, player) and _interpreted(game, player)
+        if bot_dsl or player != flow.att.owner or is_medusa_card(flow.card_by_id(choice.card_id, player)):
+            return game.controllers[player].choose_combat_boost(game, flow.ctx)
         return boost
     return choose

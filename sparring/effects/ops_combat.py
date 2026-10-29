@@ -9,10 +9,10 @@ to tell the hooks whose effect is running (`fx.acting`) and to honour redirectio
 card moment, so a pause inside an effect survives `CombatFlow.to_dict`."""
 from __future__ import annotations
 
-from . import modifiers
+from . import modifiers, narrate
 from .choose import ControllerChooser, TableChooser
 from .model import EffectError, load_effects
-from .ops_core import OPS, op
+from .ops_core import OPS, op, plugin, plugin_condition
 from .select import amount, card_ref, find_card, pick_fighters, player_of, players_of, fighter_candidates
 
 
@@ -120,15 +120,16 @@ def _redirect_damage(run, game, spec):
                            "owner": run.ctx.owner})
 
 
-def _damage_victim(run, game, fighter):
-    """`fighter`, or whoever takes its effect damage instead (FATEFUL BARGAINS); an optional redirection asks its owner."""
+def _damage_victim(run, game, fighter, n):
+    """`fighter`, or whoever takes its `n` effect damage instead (FATEFUL BARGAINS); an optional redirection asks
+    its owner, telling it the blow."""
     target, src = modifiers.redirect_target(game, fighter, "effect")
     if target is None:
         return fighter
     if src.get("optional"):
         chooser = {"owner": src["owner"], "opponent": 1 - src["owner"]}[src.get("chooser", "owner")]
         if not run.ask(game, "optional", chooser, [True, False], 1, 1, f"{target.fid} takes the damage instead?",
-                       fighter=fighter.fid, to=target.fid)[0]:
+                       fighter=fighter.fid, to=target.fid, amount=n)[0]:
             return fighter
     return target
 
@@ -144,7 +145,7 @@ def _damage(run, game, spec):
     n = amount(game, run, spec["amount"])
     targets = pick_fighters(game, run, spec["target"], player_of(game, run, spec.get("chooser", "owner")),
                             op="damage", amount=n)
-    victims = [_damage_victim(run, game, f) for f in targets] if n > 0 else []
+    victims = [_damage_victim(run, game, f, n) for f in targets] if n > 0 else []
     previous = _acting(game, run.ctx.owner)
     try:
         hit = [f.fid for f in victims if game.damage(f, n, "effect") > 0]
@@ -185,11 +186,38 @@ for _name in ("move", "place", "swap"):
 _with_acting("discard", _forced_discard_blocked)
 
 
+# ---------------------------------------------------------------- Perfect Shot (Abe)
+
+@plugin("abe:perfect_shot")
+def _perfect_shot(run, game, spec):
+    """`predict`: the prediction belongs to the moment the card is played, before the defense is chosen, which the
+    DSL has no moment for. E3 wires it (the bot announces its prediction, the human gets buttons) by leaving the
+    printed value in this run's `flags["prediction"]`; until then the card is played face down: no +2."""
+    run.flags.setdefault("prediction", None)
+
+
+@plugin_condition("abe:perfect_shot")
+def _perfect_shot_hit(game, run, key: str) -> bool:
+    """`predicted_correctly`: the prediction recorded at IMMEDIATELY equals the printed value of the rival's card;
+    no card played against it is never a hit (Ivan, 28/10)."""
+    if key != "predicted_correctly":
+        raise EffectError(f"abe:perfect_shot: unknown key {key!r}")
+    flow = getattr(run, "flow", None)
+    if flow is None:
+        return False
+    side = "atk" if run.ctx.played_as == "attack" else "def"
+    first = flow.runs.get(f"immediately:{side}")
+    rival = flow.def_card if side == "atk" else flow.atk_card
+    prediction = None if first is None else first.flags.get("prediction")
+    return prediction is not None and rival is not None and (rival.value or 0) == prediction
+
+
 # ---------------------------------------------------------------- driver for CombatFlow
 
 def run_moment(flow, side, moment: str):
     """Runs (or continues) one card moment of one side. Returns the Await of a paused effect, else None.
-    `flow.runs` keeps every run, finished ones included, so a rerun after a pause never starts it again."""
+    `flow.runs` keeps every run, finished ones included, so a rerun after a pause never starts it again. A run of
+    the bot's box hero says what it did in `result.applied` when it ends (`narrate`), once."""
     from .run import Ctx, EffectRun
     game, key = flow.game, f"{moment}:{side.name}"
     run = flow.runs.get(key)
@@ -211,7 +239,11 @@ def run_moment(flow, side, moment: str):
             ctx.damage_dealt, ctx.damage_taken = (dealt, 0) if won else (0, flow.result.damage)
         run = flow.runs[key] = EffectRun(ops, ctx, label=moment)
         run.flow = flow
+        if narrate.applies(game, owner):
+            run.flags["before"] = narrate.snapshot(game, flow)
     wait = run.run(game, flow.choosers)
+    if wait is None and "before" in run.flags:
+        flow.result.applied.append(narrate.describe(game, run.flags.pop("before"), run, flow))
     return wait
 
 

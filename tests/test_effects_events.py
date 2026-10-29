@@ -122,8 +122,8 @@ def test_combat_bonus_is_a_view_over_the_slot_and_saves_like_before(liz_baba):
     assert g.fx.ongoing[0] == {"card_id": None, "bonus": 1, "label": "Fight Or Flight"}
     d = persist.game_to_dict(g)
     assert d["combat_bonus"] == [[[1, "Fight Or Flight"]], []] and "ongoing" not in d.get("fx", {})
-    g.fx.dsl_heroes.clear()
-    assert "fx" not in persist.game_to_dict(g)         # a game without effects saves byte-identical to before
+    g.fx.dsl_heroes.clear()                             # D1: the bot's Liz is interpreted by default, so switching
+    assert persist.game_to_dict(g)["fx"] == {"dsl_heroes": []}    # it off is an explicit choice the save keeps
 
 
 def test_a_dsl_ongoing_saves_in_fx_and_reloads_with_its_bonus(liz_baba):
@@ -463,7 +463,10 @@ def test_moved_this_turn_is_filled_at_the_start_of_the_turn(abe_baba):
 
 
 def test_a_game_with_no_dsl_hero_keeps_every_hook_inert(bprd):
-    g = mk(bprd, (ABE, BABA), set())
+    g = Game.new(bprd, 1, controllers={0: Scripted(), 1: Scripted()}, heroes=(ABE, BABA))
+    g.fx.dsl_heroes.clear()                   # D1 interprets the bot's Abe by default: switch it off before the turn
+    g.turn, g.turn_no = 0, 2
+    g.begin_turn()
     assert g.fx.is_empty() and g.fx.hand_limit(0, 7) == 7 and g.fx.can_gain_actions(0)
     g.maneuver(0, {})
     g.damage(g.fighters["baba"], 3, "combat", by=g.fighters["abe"])

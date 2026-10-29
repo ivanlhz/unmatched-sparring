@@ -658,3 +658,43 @@ Decisiones dudosas de la migracion (ver tambien `notes` de cada fichero):
 - Deleted: `_medusa_after`, `_optional_move`, `check_scheme`, the Medusa branch of `resolve_scheme`, the flow rules
   `feint` / `second_shot` / `medusa_after`, `Game.medusa_ability`. Verbatim copies live in tests/legacy_medusa.py
   as the oracle of tests/test_medusa_dsl_diff.py (`legacy(monkeypatch)` rebuilds the pre-C5 engine).
+
+## 16. The bot's box hero on the interpreter (D1)
+
+- `effects/state.py`: `BOT_INTERPRETED_HEROES = {hellboy, abe-sapien, baba-yaga, liz-sherman}` are interpreted only
+  for the player the bot controls (`default_dsl_heroes(game)` reads `game.bot_player`; `Game.new` sets it after the
+  bot is known, persist derives the same default on load). Medusa stays in `INTERPRETED_HEROES` for either side.
+  The human's box hero keeps the legacy table path (text in `human_effects`, Horseshoes / On Earth / Flame Lash's
+  action applied by `_hellboy_after` / `_liz_after`) until E2, so the goldens of 71e43bb are byte-identical and the
+  human's panel path is exactly as E1 left it. An old save of a box bot loads interpreted; an explicit
+  `dsl_heroes: []` in a save stays off and the bot's cards are then only announced as unresolved
+  (`bot_card_outside_the_interpreter`, the one AFTER rule left for the bot).
+- Deleted: `bot_card_after`, `_announce_bot_card`, `text_parts`, `CODED_MOMENTS` (verbatim copies in
+  tests/legacy_combat.py). The flow differential of tests/test_combat_flow_diff.py now plays the box heroes on the
+  HUMAN side only; the bot's side is pinned by tests/test_d1_bot_cards.py (every combat card of the four heroes,
+  state and chat line), not by a byte-identical oracle: where the legacy path was incomplete the behaviour changed
+  (bot Flame Lash's bottom-card boost now applied, Out Of Time boosted from the bot's hand on either side,
+  Incinerate asked to the rival as a real choice instead of a "tu opcion" note after the damage, every other
+  moment applied by the engine instead of "el bot ignora este efecto").
+- Boosts: `legacy_chooser` asks the controller of a bot's interpreted card (`choose_combat_boost`) like it did for
+  Medusa; `MedusaAI.choose_combat_boost` and the search's `SearchController.choose_combat_boost` value a DEFENSE boost
+  by the damage it spares (Out Of Time).
+- Narration (`effects/narrate.py`): a run of the bot's box-hero card snapshots the public state when it starts
+  (`run.flags["before"]`, JSON-safe, so a pause of the human survives a save) and, when it ends, `run_moment` adds
+  one Spanish line to `result.applied` (`<card>: <changes>` or `<card>: sin efecto`): hit points, deaths, returns
+  to the board, moves, draws (counted, never named), discards (named: public), public returns to the bot's hand
+  (Wildfire, Ward And Prepare), cards put to the deck face down (counted), actions gained, the turn ended, statuses,
+  cancellations, value changes, redirections and a look at the human's hand. Medusa's cards stay silent, as C5 left
+  them (the C5 oracle compares `applied`).
+- `EffectAI`: an optional redirect (FATEFUL BARGAINS) is decided by `hp_change` of both candidates (the blow's
+  `amount` travels in the request); losing an own sidekick now costs `KILL_SIDEKICK`, so a lethal blow stays with
+  Baba. `ops_core._cost_context` gives the ATTACKER a stake too (the damage the defense blocks, and what the target
+  would still have left), so `worth_paying` is the one policy for both sides.
+- Perfect Shot: the plugin `abe:perfect_shot` is registered; the prediction belongs to the moment the card is
+  played (E3: the bot announces it, the human gets buttons) and is read from `flags["prediction"]` of the
+  IMMEDIATELY run; until E3 the bot plays it face down (no +2).
+- `PresetChooser` answers the first request of its kind and then steps aside (B.P.R.D. Utility Belt picks twice);
+  `driven.fighter_options` skips player-scoped statuses. `EffectState.copy()` never carries `choosers` or `parked`:
+  search clones and `blind_clone` decide with their own controllers.
+- Search: `adapter._advance` leaves Hellboy's start of turn to the dispatcher when he is interpreted (the bot's
+  Hellboy): no `anung` moves are enumerated for a discard the engine already made.

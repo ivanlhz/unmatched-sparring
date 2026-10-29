@@ -1,6 +1,10 @@
 """Differential harness: the production resolve_combat must behave exactly like the frozen pre-refactor copy
 (tests/legacy_combat.py), both over whole simulated games and over hand-built scenarios.
 
+Since D1 the bot's box hero resolves its cards through the interpreter (not byte-identical to the legacy path, by
+design: tests/test_d1_bot_cards.py pins the new behaviour), so the simulated games here have the bot play Medusa
+and the HUMAN play each box hero: the human's legacy path is what this oracle still covers.
+
 DIFF_SEEDS=10 widens the simulated games (default 3 seeds per hero pair)."""
 import itertools
 import json
@@ -15,7 +19,7 @@ from sparring.board import Board
 from sparring.state import Game, RuleError
 
 SLUGS = ["medusa", "hellboy", "abe-sapien", "baba-yaga", "liz-sherman"]
-PAIRS = list(itertools.permutations(SLUGS, 2))
+PAIRS = [("medusa", human) for human in SLUGS[1:]]
 SEEDS = range(int(os.environ.get("DIFF_SEEDS", 3)))
 REAL_RESOLVE = combat.resolve_combat
 
@@ -175,24 +179,6 @@ def sc_death_mid_after_does_not_stop_the_attacker(g):
     return "hellboy", "medusa", give(g, 1, "Horseshoes And Hand Grenades"), give(g, 0, "Dash"), (0, 0), None
 
 
-def sc_horseshoes_with_bot_hellboy(g):
-    g.bot_player = 1
-    place(g, harpy1=1)
-    g.turn = 1
-    return "hellboy", "medusa", give(g, 1, "Horseshoes And Hand Grenades"), give(g, 0, "Snipe"), (0, 0), None
-
-
-def sc_bot_hellboy_announces_ignored_effects(g):
-    g.bot_player = 1
-    g.turn = 1
-    return "hellboy", "medusa", give(g, 1, "Right Hand Of Doom"), give(g, 0, "Regroup"), (0, 0), None
-
-
-def sc_bot_hellboy_planned_and_on_earth(g):
-    g.bot_player = 1
-    return "medusa", "hellboy", give(g, 0, "Snipe"), give(g, 1, "On Earth As It Is In Hell"), (0, 0), None
-
-
 def sc_fight_or_flight_on_the_defender(g):
     g.add_combat_bonus(1, 1, combat.FIGHT_OR_FLIGHT)
     return "medusa", "hellboy", give(g, 0, "Snipe"), give(g, 1, "Glimpse Of Hell"), (0, 0), None
@@ -244,5 +230,3 @@ def test_the_scenarios_actually_exercise_the_branches():
     assert out["sc_planned_defends_in_anung"]["result"]["cancelled"] == []
     assert out["sc_planned_defends_outside_anung"]["result"]["cancelled"] == ["atk"]
     assert out["sc_damage_kills_so_after_is_skipped"]["game"]["winner"] is not None
-    assert out["sc_horseshoes_with_bot_hellboy"]["result"]["applied"]
-    assert out["sc_bot_hellboy_announces_ignored_effects"]["result"]["bot_notes"]

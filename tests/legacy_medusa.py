@@ -128,7 +128,7 @@ LEGACY_RULES = [
     (Rule("second_shot", Phase.DURING, "atk", lambda flow, side: _is(side.card, SECOND_SHOT, medusa=True) and not _dsl(flow, side),
           second_shot), "boost_this_attack"),
     (Rule("medusa_after", Phase.AFTER, "any", lambda flow, side: is_medusa_card(side.card) and not _dsl(flow, side),
-          medusa_after), "bot_card_after"),
+          medusa_after), "bot_card_outside_the_interpreter"),      # D1 replaced bot_card_after at the same spot
 ]
 
 

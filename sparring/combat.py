@@ -1,6 +1,8 @@
-"""Combate y esquemas de la ruta sin interprete. Los heroes de `game.fx.dsl_heroes` (Medusa) resuelven sus cartas con
-sparring/effects; de los demas, el humano resuelve el texto (se devuelve en `human_effects`), salvo Planned
-Recklessness y el valor de On Earth As It Is In Hell, que alteran el calculo del combate."""
+"""Combat and schemes of the path without the interpreter. The heroes in `game.fx.dsl_heroes` (Medusa for either
+player; the Hellboy box when the bot plays it, D1) resolve their cards with sparring/effects. For the rest (the
+human's box hero until E2) the human resolves the text (returned in `human_effects`), except Planned Recklessness,
+the value of On Earth As It Is In Hell, Horseshoes, On Earth's heal and Flame Lash's action, which the engine
+applies itself."""
 from __future__ import annotations
 
 import re
@@ -73,37 +75,6 @@ def resolve_combat(game: Game, att: Fighter, tgt: Fighter, atk_card: Card, def_c
     return flow.result
 
 
-_MOMENT = re.compile(r"(IMMEDIATELY|DURING COMBAT|AFTER COMBAT):")
-_RIVAL_OPTION = re.compile(r"(your|the) opponent may", re.IGNORECASE)
-# momentos de las cartas no-Medusa que el motor ya resuelve solo, por titulo (lo demas del texto no esta codificado)
-CODED_MOMENTS = {"Horseshoes And Hand Grenades": {"AFTER COMBAT"}, ON_EARTH: {"DURING COMBAT", "AFTER COMBAT"},
-                 "Flame Lash": {"AFTER COMBAT"}, PLANNED: {"IMMEDIATELY"}}
-
-
-def text_parts(card: Card) -> list[tuple[str, str]]:
-    """(momento, texto) de cada parte del texto de la carta; el texto suelto antes del primer momento va con ''."""
-    pieces = _MOMENT.split(card.text)
-    out = [("", pieces[0].strip())] if pieces[0].strip() else []
-    out += [(pieces[i], pieces[i + 1].strip()) for i in range(1, len(pieces) - 1, 2)]
-    return out
-
-
-def _announce_bot_card(card: Card, result: CombatResult) -> None:
-    """Toda parte del texto de una carta del bot que el motor no resuelve se anuncia con su momento: como efecto que
-    el bot ignora, o como opcion del humano si el texto se la da al rival (Incinerate)."""
-    coded = CODED_MOMENTS.get(card.title, set())
-    if coded and card.title == PLANNED:
-        result.applied.append(f"{card.title}: aplicado ({card.text})")
-    for moment, text in text_parts(card):
-        if moment in coded or not text:
-            continue
-        label = f" ({moment})" if moment else ""
-        if _RIVAL_OPTION.search(text):
-            result.bot_notes.append(f"{card.title}: tu opcion{label}: {text} Resuelvela a mano.")
-        else:
-            result.bot_notes.append(f"{card.title}: el bot ignora este efecto{label}: {text}")
-
-
 def can_boost(card: Card) -> bool:
     """The card lets its owner BOOST it for free in DURING COMBAT: from the hand (`may_boost` in the effects data:
     Second Shot, Out Of Time) or the bottom of the deck (Flame Lash)."""
@@ -139,7 +110,7 @@ def after_text(card: Card) -> str:
 
 
 def _liz_after(game: Game, card: Card, result: CombatResult) -> bool:
-    """Flame Lash: AFTER COMBAT gana 1 accion (siempre es la carta del atacante, en su turno)."""
+    """The human's Flame Lash (legacy path until E2): AFTER COMBAT gains 1 action (always the attacker's card)."""
     if card.title == "Flame Lash":
         game.grant_actions(1)
         result.applied.append(f"{card.title}: ganas 1 accion")
@@ -148,8 +119,8 @@ def _liz_after(game: Game, card: Card, result: CombatResult) -> bool:
 
 
 def _hellboy_after(game: Game, me: Fighter, card: Card, i_won: bool, result: CombatResult) -> bool:
-    """Efectos de despues del combate de Hellboy que no necesitan ninguna decision ni informacion oculta del
-    humano: se aplican aqui. Los demas (robar, mover, elegir) siguen siendo del humano. True si se aplico."""
+    """The human's Hellboy after-combat effects that need no decision nor hidden information (legacy path until E2):
+    applied here. The rest (draws, moves, choices) stay with the human. True if something was applied."""
     if card.title == "Horseshoes And Hand Grenades" and me.alive:
         hit = [f for f in game.zone_mates(me)]
         for f in hit:

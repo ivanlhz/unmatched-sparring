@@ -65,15 +65,15 @@ Rules, in order:
 | IMMEDIATELY | planned_recklessness | any | PLANNED: effect_shield, cancels the other side unless form is ANUNG |
 | DURING | on_earth_value | def | `when_cancelled`; both branches (cancelled or not) |
 | DURING | boost_this_attack | atk | `can_boost(card)`: Await(boost, deck=deck_boost(card)); on answer skip `_check_boost` if deck |
-| AFTER | bot_card_after | any | owner is `game.bot_player`: `_hellboy_after`, `_liz_after`, `_announce_bot_card` |
-| AFTER | human_card_after | any | the or-chain plus fallback of the old function |
-| IMMEDIATELY / DURING / AFTER | dsl_* | any | a card of a hero in `fx.dsl_heroes` (Medusa since C5): the effects interpreter |
+| AFTER | bot_card_outside_the_interpreter | any | owner is `game.bot_player` and its hero is NOT interpreted (only a save that switched it off): the text is noted as unresolved |
+| AFTER | human_card_after | any | the human's card of a hero outside the interpreter: `_hellboy_after` / `_liz_after`, else the text goes to `human_effects` |
+| IMMEDIATELY / DURING / AFTER | dsl_* | any | a card of a hero in `fx.dsl_heroes` (Medusa since C5; the bot's box hero since D1): the effects interpreter |
 
 C5 removed Medusa's own rules (`feint`, `second_shot`, `medusa_after`): her cards go through `dsl_*`. The verbatim
-copies live in tests/legacy_medusa.py, the oracle of tests/test_medusa_dsl_diff.py.
-
-`CODED_MOMENTS` and `_announce_bot_card` stay in `combat.py`. `choose_move` and `force_discard` are still called
-directly inside AFTER rules (they become Awaits in the human-choices phase).
+copies live in tests/legacy_medusa.py, the oracle of tests/test_medusa_dsl_diff.py. D1 removed `bot_card_after`
+(`_announce_bot_card`, `CODED_MOMENTS`, verbatim in tests/legacy_combat.py): the bot's box hero goes through `dsl_*`
+and `effects/narrate.py` writes what each run did into `result.applied`. `legacy_chooser` asks the bot's controller
+for the boost of any of its interpreted cards (docs/effects-dsl.md section 16).
 
 ## Synchronous facade
 

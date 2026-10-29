@@ -420,7 +420,7 @@ def test_medusa_is_interpreted_by_default_and_the_save_does_not_change(bprd, tmp
     assert g.fx.dsl_heroes == {"medusa"} and g.clone().fx.dsl_heroes == {"medusa"}
     assert "fx" not in persist.game_to_dict(g)                        # the default is derived, never written
     other = Game.new(bprd, seed=3, controllers={}, heroes=("abe-sapien", "hellboy"))
-    assert other.fx.dsl_heroes == set() and "fx" not in persist.game_to_dict(other)
+    assert other.fx.dsl_heroes == {"abe-sapien"} and "fx" not in persist.game_to_dict(other)    # D1: the bot's box hero
     loaded = Game.new(bprd, seed=0, controllers={})
     persist.apply_game(loaded, json.loads((GOLDEN / "game_save.json").read_text(encoding="utf-8")))
     assert loaded.fx.dsl_heroes == {"medusa"}                         # an old save: Medusa is interpreted on load

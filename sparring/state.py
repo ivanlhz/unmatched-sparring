@@ -7,7 +7,7 @@ from .board import Board
 from .cards import Card, can_be_boost
 from .controller import Controller
 from .effects import ongoing
-from .effects.state import EffectState, interpreted
+from .effects.state import EffectState, default_dsl_heroes
 from .heroes import HeroDef, load_hero
 
 HAND_LIMIT = 7
@@ -225,7 +225,7 @@ class Game:
         self.phantom_draws = 0   # robos esperados por la IA al simular (cartas desconocidas), nunca en partida real
         self.log: list[str] = []
         self.fx = EffectState()    # DSL interpreter state and hooks (docs/effects-dsl.md); inert unless fx.dsl_heroes
-        self.fx.dsl_heroes = interpreted(p.hero.slug for p in players)
+        self.fx.dsl_heroes = default_dsl_heroes(self)   # the bot is not known yet: Game.new recomputes it
         self.fx.attach(self)
 
     @classmethod
@@ -259,6 +259,7 @@ class Game:
             rng.shuffle(p.deck)
         game = cls(board, fighters, players, rng, controllers, first=rng.randrange(2), start_spaces=start_spaces)
         game.bot_player = bot_player
+        game.fx.dsl_heroes = default_dsl_heroes(game)
         for pl in (0, 1):
             game.draw(pl, START_HAND, log=False)
         game.drawn = [0, 0]

@@ -603,13 +603,22 @@ class MedusaAI(Controller):
         return self._effect_ai.choose_effect(game, req)
 
     def choose_combat_boost(self, game: Game, ctx):
+        """The card to BOOST with, or None. Attacking: the damage the boost adds, by the target's weight. Defending
+        (Out Of Time, D1): the damage it spares the bot's own fighter, and its life when the hit would kill it."""
         hand = game.players[self.me].hand
         t = ctx.target
         now = max(0, ctx.atk_value - ctx.def_value)
+        defending = t.owner == self.me
         best, best_gain = None, 0.0
         for c in filter(can_be_boost, hand):
-            net = max(0, ctx.atk_value + c.boost - ctx.def_value)
-            gain = weight(t) * (min(net, t.hp) - min(now, t.hp)) - keep_value(c, hand)
+            if defending:
+                net = max(0, ctx.atk_value - ctx.def_value - c.boost)
+                gain = (W_MEDUSA_HP if t.hero else HARPY_VALUE) * (min(now, t.hp) - min(net, t.hp))
+                gain += LETHAL if t.hero and now >= t.hp > net else 0.0
+            else:
+                net = max(0, ctx.atk_value + c.boost - ctx.def_value)
+                gain = weight(t) * (min(net, t.hp) - min(now, t.hp))
+            gain -= keep_value(c, hand)
             if gain > best_gain:
                 best, best_gain = c, gain
         return best

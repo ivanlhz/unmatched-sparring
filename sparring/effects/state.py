@@ -8,13 +8,23 @@ from __future__ import annotations
 import weakref
 from typing import Iterable
 
-# Heroes whose cards and ability the interpreter resolves by default (C5: Medusa). `Game` derives `fx.dsl_heroes`
-# from the heroes in play and persist omits the set when it is this default, so old saves load unchanged.
+# Heroes whose cards and ability the interpreter resolves by default (C5: Medusa, whoever plays her). `Game` derives
+# `fx.dsl_heroes` from the heroes in play and persist omits the set when it is this default, so old saves load
+# unchanged.
 INTERPRETED_HEROES = frozenset({"medusa"})
+# The Hellboy box (D1): interpreted only for the player the bot controls. The human's side keeps the legacy table
+# path (the text is left to the human, Horseshoes / On Earth / Flame Lash applied by the engine) until E2.
+BOT_INTERPRETED_HEROES = frozenset({"hellboy", "abe-sapien", "baba-yaga", "liz-sherman"})
 
 
-def interpreted(slugs: Iterable[str]) -> set[str]:
-    return {s for s in slugs if s in INTERPRETED_HEROES}
+def interpreted(slugs: Iterable[str], bot_slug: str | None = None) -> set[str]:
+    """The heroes among `slugs` the interpreter resolves; `bot_slug` is the hero the bot plays (None: unknown)."""
+    return {s for s in slugs if s in INTERPRETED_HEROES or (s == bot_slug and s in BOT_INTERPRETED_HEROES)}
+
+
+def default_dsl_heroes(game) -> set[str]:
+    bot = game.bot_player
+    return interpreted((p.hero.slug for p in game.players), None if bot is None else game.players[bot].hero.slug)
 
 
 class EffectState:
@@ -153,6 +163,8 @@ class EffectState:
                     or self.turn_start_pos or self.attacked or self.taken)
 
     def copy(self) -> "EffectState":
+        """The state a clone (search, simulation) starts from. `choosers` and `parked` stay with the live game: a
+        clone decides with its own controllers (the bots' policy), never with the panel of the human."""
         c = EffectState()
         if self.is_empty():
             return c
@@ -164,7 +176,6 @@ class EffectState:
         c.turn_start_pos = dict(self.turn_start_pos)
         c.attacked = list(self.attacked)
         c.taken = self.taken
-        c.choosers = self.choosers
         return c
 
     def to_dict(self) -> dict:

@@ -61,7 +61,8 @@ def test_rule_order_matches_legacy_chains():
     # C5: Medusa's own rules (feint, second_shot, medusa_after) are gone, her cards go through the dsl_* rules
     assert by_phase[Phase.IMMEDIATELY] == ["planned_recklessness", "dsl_immediately"]
     assert by_phase[Phase.DURING] == ["on_earth_value", "boost_this_attack", "dsl_during"]
-    assert by_phase[Phase.AFTER] == ["bot_card_after", "human_card_after", "dsl_after"]
+    # D1: the bot's box hero is interpreted; `bot_card_outside_the_interpreter` only guards a save that switched it off
+    assert by_phase[Phase.AFTER] == ["bot_card_outside_the_interpreter", "human_card_after", "dsl_after"]
     assert [r.name for r in RULES if r.when_cancelled] == ["on_earth_value"]
 
 

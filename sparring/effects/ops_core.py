@@ -337,17 +337,23 @@ def _can_pay(game, run, cost: list[dict]) -> bool:
 
 
 def _cost_context(game, run, cost: list[dict], chooser: int) -> dict:
-    """What a bot needs to judge an optional cost: how many cards it discards and, inside a combat, how much damage
-    the chooser's fighter would take as things stand (and how many hit points it has left)."""
+    """What a bot needs to judge an optional cost (`choose.worth_paying`): how many cards it discards and, inside a
+    combat, the damage the decision swings (`at_stake`) and the hit points that damage must reach to kill (`hp`).
+    For the defender that is the damage it takes as things stand and its own hit points; for the attacker, the
+    damage the defense is blocking and what the target would still have left."""
     ctx = {}
     cards = sum(int(c["cards"].get("amount", 1)) for c in cost
                 if c["op"] == "discard" and isinstance(c["cards"], dict) and isinstance(c["cards"].get("amount", 1), int))
     if cards:
         ctx["cost_cards"] = cards
     flow = getattr(run, "flow", None)
-    if flow is not None and flow.ctx is not None and flow.tgt.owner == chooser:
-        ctx["at_stake"] = max(0, flow.ctx.atk_value - flow.ctx.def_value)
-        ctx["hp"] = flow.tgt.hp
+    if flow is None or flow.ctx is None:
+        return ctx
+    atk, dfn, dealt = flow.ctx.atk_value, flow.ctx.def_value, max(0, flow.ctx.atk_value - flow.ctx.def_value)
+    if flow.tgt.owner == chooser:
+        ctx["at_stake"], ctx["hp"] = dealt, flow.tgt.hp
+    elif flow.att.owner == chooser:
+        ctx["at_stake"], ctx["hp"] = min(atk, dfn), max(0, flow.tgt.hp - dealt)
     return ctx
 
 

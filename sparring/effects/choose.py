@@ -86,8 +86,9 @@ def default_answer(req: ChoiceRequest) -> list:
 
 
 def worth_paying(req: ChoiceRequest) -> bool:
-    """A bot's default for an optional that costs cards: pay only when it saves at least 3 damage per card, or when
-    the damage would kill the hero. Without a combat in sight (no `at_stake`) it does not pay."""
+    """A bot's default for an optional that costs cards: pay only when the damage the decision swings (`at_stake`:
+    avoided by the defender, unblocked by the attacker; `ops_core._cost_context`) is at least 3 per card, or when it
+    decides a kill (`hp`). Without a combat in sight (no `at_stake`) it does not pay."""
     stake = req.extra.get("at_stake", 0)
     return stake >= 3 * req.extra["cost_cards"] or (stake > 0 and stake >= req.extra.get("hp", float("inf")))
 
@@ -185,8 +186,10 @@ class SyntheticChooser:
 
 class PresetChooser:
     """Answers the engine's caller decided up front (the AI's planned target, the search's enumerated move):
-    `by_kind` maps a request kind to its answer, anything else goes to `inner`. A preset that is not among the
-    options is a RuleError: the caller asked for something the effect does not allow."""
+    `by_kind` maps a request kind to the answer of the FIRST request of that kind; it is used once, so a card that
+    picks twice (B.P.R.D. Utility Belt: heal one, move one) asks `inner` for the second pick instead of repeating
+    the preset. Anything else goes to `inner`. A preset that is not among the options is a RuleError: the caller
+    asked for something the effect does not allow."""
 
     def __init__(self, inner: Chooser, by_kind: dict[str, list]):
         self.inner, self.by_kind = inner, dict(by_kind)
@@ -194,7 +197,7 @@ class PresetChooser:
     def choose(self, game, req: ChoiceRequest) -> list | Await:
         if req.kind not in self.by_kind:
             return self.inner.choose(game, req)
-        answer = list(self.by_kind[req.kind])
+        answer = list(self.by_kind.pop(req.kind))
         if not all(a in req.options for a in answer):
             raise RuleError(f"{req.prompt or req.kind}: {answer!r} no es una opcion ({req.options!r})")
         return answer
