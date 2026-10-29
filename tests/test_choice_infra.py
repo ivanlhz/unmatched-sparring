@@ -260,3 +260,14 @@ def test_a_plain_yes_no_names_the_card_lists_the_buttons_and_quotes_the_card_tex
 def test_button_captions_are_set_through_the_text_attribute():
     script = lua.set_panel("Tu turno", {}, labels={"btn_choice_1": "Si"})
     assert 'panel.UI.setAttribute("btn_choice_1", "text", "Si")' in script
+
+
+def test_a_button_index_sent_as_a_float_by_tts_is_accepted(bprd):
+    """Live 29/10: TTS delivers the Lua number as 1.0 and the click was refused."""
+    from sparring.effects.choose import ChoiceRequest
+    from sparring.session_choices import ChoiceUI, press
+    g = Game.new(bprd, seed=3, controllers={}, heroes=("hellboy", "liz-sherman"))
+    req = ChoiceRequest("optional", 1, [True, False])
+    assert press(g, req, ChoiceUI(), 1.0) == ("answer", [True])
+    assert press(g, req, ChoiceUI(), 2.0) == ("answer", [False])
+    assert press(g, req, ChoiceUI(), 1.5)[0] == "error"

@@ -187,6 +187,8 @@ def panel_choice_view(game, req: ChoiceRequest | None, ui: ChoiceUI) -> tuple[di
 
 def press(game, req: ChoiceRequest, ui: ChoiceUI, index) -> tuple[str, object]:
     """What a click on `btn_choice_<index>` does: ("answer", values) | ("update", None) | ("error", message)."""
+    if isinstance(index, float) and index.is_integer():      # TTS sends Lua numbers as JSON floats: 1.0 (live 29/10)
+        index = int(index)
     if isinstance(index, bool) or not isinstance(index, int) or not 1 <= index <= MAX_CHOICE_BUTTONS:
         return "error", f"Boton de eleccion no valido: {index!r}."
     slots = layout(game, req, ui)
