@@ -28,3 +28,13 @@ From reviews (28/10):
 - C4 residual: seen cards stay certain when unseen ones can be trimmed (combat facedown vs Glimpse/Pyro drop indistinct). E2.
 - Bot Liz hand-limit discard via force_discard -> card_discarded: Wildfire exception must apply there too (C3 fix covers engine end_turn; verify).
 - Out Of Time: human attacking now gets boost prompt (flag off) per ruling.
+
+## From the E1 / D1-prep reviews (29/10)
+- EffectState.copy() returns a bare state when is_empty() (ignores parked/choosers): search clones inherit fx.choosers only sometimes. When human DSL heroes get triggers, give the search its own choosers (D1/D2).
+- Cold Iron with human_deck_guid set: the draw block is only a chat line; a physical draw is accepted by sync_human. Probably unavoidable in TTS; decide in E2.
+- Spanish comments added by E1 in ui.py:31,45,185 and lua.py:1187-1188: translate (translation phase).
+- No test resumes a save taken at a pause after the bot already moved/boosted mid-combat (projection-then-resume path). Add in F2.
+- CANCEL is refused during a pause: if every option is refused, the combat can only be left with Restart.
+- Look grant ignores card conditions (Confront only when lost, Psychometry only if adjacent): button appears whenever the card is played.
+- Priced optionals on the attacker's side never pay (worth_paying sees at_stake 0); revisit in D1.
+- set_panel labels via UI.setValue on a Button: verify live.
