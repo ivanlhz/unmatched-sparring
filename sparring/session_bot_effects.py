@@ -13,8 +13,11 @@ through `Session._w`, so everything travels in the step's one combined script, a
     the real order of the deck is unknown to the engine, so they are dealt from the top).
 
 The human's cards are the human's (`setPositionSmooth` never takes a card out of a hand zone and the bot never
-touches their deck): the chat names what to move and `Session.sync_human` / `pending_discard` wait for it. A failed
-write is said once and the table wins at the next read, like every other projection of the session.
+reads or reorders their deck): the chat names what to move and `Session.sync_human` / `pending_discard` wait for it.
+One exception, Ivan's ruling of 29/10 (live test, Searing Clarity): a card the human picked at the panel out of
+their own PUBLIC discard pile for an effect that moves it into their deck is moved by the bot, by GUID, and the bot
+shuffles their deck when the card says so (`_human_disc_to_deck`). A failed write is said once and the table wins
+at the next read, like every other projection of the session.
 
 Ivan's rule on hidden information: `read_human_hand` is the only reader of the human's hand; it is installed as
 `Game.hand_reader` and called by the `look_hand` op alone, at resolution. Clones never carry the reader."""
@@ -86,7 +89,7 @@ def project(session, before: dict | None, played: frozenset = frozenset(), cause
     looked, session.fx_looked = session.fx_looked, False
     checks = _human_pieces(session, before) + _form(session, before) + _tokens(session, before)
     checks += _bot_cards(session, before, moved) + _bot_ongoing(session, before)
-    _human_cards(session, before, played, looked, cause)
+    checks += _human_cards(session, before, played, looked, cause)
 
     def fin() -> None:
         for check in checks:
@@ -272,7 +275,8 @@ def _bot_cards(session, before: dict, moved: set = frozenset()) -> list[Callable
                                          "del descarte del bot al fondo de su mazo"))
         else:
             known = [i for i in disc_to_deck if i in guids]
-            op = session._w(lua.shuffle_into_deck(cfg.bot_deck_guid, [guids[i] for i in known]), DOMAIN) if known else None
+            op = session._w(lua.shuffle_into_deck(cfg.bot_deck_guid, [guids[i] for i in known], cfg.bot_card_ids,
+                                                  identity=session._identity()), DOMAIN) if known else None
             session.say(f"El bot baraja {titles} de su descarte en su mazo.", ChatKind.SCHEME)
             checks.append(lambda: _short(session, set(disc_to_deck) - (set(known) if op is not None and
                                                                          _result(op).get("added") == len(known) else set()),
@@ -347,7 +351,7 @@ def left_play(session, card_id: int, cause: str) -> None:
 
 # ---------------------------------------------------------------- the human's cards: the chat, the human's hands
 
-def _human_cards(session, before: dict, played: frozenset, looked: bool, cause: str) -> None:
+def _human_cards(session, before: dict, played: frozenset, looked: bool, cause: str) -> list[Callable[[], None]]:
     g, human, bot = session.game, session.human, session.bot
     st, known = g.players[human], g.players[bot].known
     h0, h1 = before["human"], zones(st)
@@ -382,10 +386,72 @@ def _human_cards(session, before: dict, played: frozenset, looked: bool, cause: 
         session.say(f"Devuelve {_plural(unknown)} de tu mano a tu mazo y baraja ({cause}; las eliges tu).",
                     ChatKind.YOUR_TURN)
     disc_to_deck = [i for i in h0["discard"] if i in h1["deck"]]
-    if disc_to_deck:
-        session.say(f"Baraja {_join(by_id[i].title for i in disc_to_deck)} de tu descarte en tu mazo ({cause}).",
-                    ChatKind.YOUR_TURN)
+    checks = _human_disc_to_deck(session, disc_to_deck, h0["deck"], h1["deck"], by_id, cause) if disc_to_deck else []
     disc_to_hand = [i for i in h0["discard"] if i in h1["hand"]]
     if disc_to_hand:
         session.say(f"Recoge {_join(by_id[i].title for i in disc_to_hand)} de tu descarte a tu mano ({cause}).",
                     ChatKind.YOUR_TURN)
+    return checks
+
+
+# ---------------------------------------------------------------- the human's discard pile card into their deck
+
+WHERE_YOU = {"shuffle": "en tu mazo y baraja", "bottom": "en el fondo de tu mazo", "top": "encima de tu mazo"}
+WHERE_BOT = {"shuffle": "en tu mazo y lo barajo", "bottom": "en el fondo de tu mazo", "top": "encima de tu mazo"}
+
+
+def deck_position(d0: list[int], d1: list[int], ids: list[int]) -> tuple[str, list[int]]:
+    """Where a step put `ids` (cards that were not in the deck) into a deck that went from `d0` to `d1`: a put on the
+    bottom or on top keeps the rest of the deck in its order, a shuffle (the engine permutes the whole deck) does
+    not. With fewer than 2 other cards the three are indistinguishable: shuffling is the harmless reading. Returns
+    (position, the ids in the order the deck shows them)."""
+    n = len(ids)
+    rest = [i for i in d1 if i not in ids]
+    kept = rest == [i for i in d0 if i in rest]
+    if kept and len(rest) >= 2 and set(d1[-n:]) == set(ids):
+        return "bottom", d1[-n:]
+    if kept and len(rest) >= 2 and set(d1[:n]) == set(ids):
+        return "top", d1[:n]
+    return "shuffle", list(ids)
+
+
+def _human_disc_to_deck(session, ids: list[int], d0: list[int], d1: list[int], by_id: dict, cause: str) -> list[Callable[[], None]]:
+    """Ivan's rule (29/10): the cards the human picked out of their own discard pile for an effect that moves them into
+    their deck are moved by the bot, by GUID off the pile (`_rd_human_discard`), with the HUMAN's deck GUID and
+    identity; the bot shuffles their deck when the card says so. Their hand is never touched (the builders refuse
+    hand zones) and their deck is never read. A card already gone from the pile was moved by the human: said, not
+    failed."""
+    cfg = session.cfg
+    position, ordered = deck_position(d0, d1, ids)
+    if not cfg.human_deck_guid:
+        session.say(f"Pon {_join(by_id[i].title for i in ids)} de tu descarte {WHERE_YOU[position]} ({cause}).",
+                    ChatKind.YOUR_TURN)
+        return []
+    guids = {r["id"]: r["guid"] for r in session._rd_human_discard() if isinstance(r, dict) and "guid" in r}
+    gone = [i for i in ordered if i not in guids]
+    if gone:
+        session.say(f"{_join(by_id[i].title for i in gone)} ya no esta en tu descarte: doy por hecho que ya esta "
+                    f"{WHERE_YOU[position].replace(' y baraja', '')} ({cause}).", ChatKind.SCHEME)
+    todo = [i for i in ordered if i in guids]
+    if not todo:
+        return []
+    from .session import SessionError             # the session imports this module: resolved at call time
+    try:
+        identity = session._identity("human")
+    except _ERRORS + (SessionError,) as e:        # no identity, no write: the human does it
+        session.say(f"No puedo tocar tu mazo ({e}): pon {_join(by_id[i].title for i in todo)} de tu descarte "
+                    f"{WHERE_YOU[position]} tu.", ChatKind.WARNING)
+        return []
+    session.fx_in_flight.update(todo)
+    titles = _join(by_id[i].title for i in todo)
+    session.say(f"Meto {titles} {WHERE_BOT[position]} ({cause}).", ChatKind.SCHEME)
+    what = f"de tu descarte {WHERE_YOU[position]}"
+    if position == "shuffle":
+        op = session._w(lua.shuffle_into_deck(cfg.human_deck_guid, [guids[i] for i in todo], cfg.human_card_ids,
+                                              identity=identity), DOMAIN)
+        return [lambda: _short(session, set(todo) if _result(op).get("added") != len(todo) else set(), by_id, what)]
+    build = lua.card_to_deck_bottom if position == "bottom" else lua.card_to_deck_top
+    order = todo if position == "bottom" else list(reversed(todo))      # putObject adds on top: the first id ends up last
+    ops = [(i, session._w(build(guids[i], cfg.human_deck_guid, cfg.human_card_ids, identity=identity), DOMAIN))
+           for i in order]
+    return [lambda: _short(session, {i for i, op in ops if not _result(op).get("placed")}, by_id, what)]

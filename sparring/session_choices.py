@@ -32,7 +32,7 @@ _UNSAFE = re.compile(r"[^A-Za-z0-9 _.\-!:',]")
 
 NO_DRAW_REASON = "un efecto en juego te impide robar cartas, asi que no robas"
 
-PROMPTS = {"fighter": "Elige un luchador", "space": "Elige una casilla", "cards": "Elige carta(s)",
+PROMPTS = {"fighter": "Elige un luchador", "space": "Elige una casilla", "cards": "Elige cartas",
            "effect": "Elige un efecto", "optional": "Quieres hacerlo?", "order": "Elige el orden",
            "amount": "Elige una cantidad"}
 
@@ -120,7 +120,9 @@ def card_text_hint(game, req: ChoiceRequest) -> str:
 def prompt_text(game, req: ChoiceRequest) -> str:
     """Spanish chat line for the request: what is asked and, for the card that asks, its title."""
     base = PROMPTS.get(req.kind, "Elige")
-    if req.kind == "effect" and req.extra.get("op") == "predict":
+    if req.kind == "cards" and req.max == 1:         # no "carta(s)": the panel status drops the parentheses (live 29/10)
+        base = "Elige una carta"
+    elif req.kind == "effect" and req.extra.get("op") == "predict":
         base = "Predice el valor impreso de la carta rival, o juega boca abajo"
     elif req.kind == "optional" and req.extra.get("discards"):
         base = f"Descartas {card_titles(game, req.extra['discards'])}"

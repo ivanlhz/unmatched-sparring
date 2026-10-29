@@ -58,6 +58,7 @@ Las otras 15 (Fleeting Moments x3, B.P.R.D. Training x2, Rekindle x2, Feint x3, 
 - el dano de Wildfire al inicio del turno es obligatorio si hay objetivo, y solo a UN luchador.
 - un efecto que ignore el VALOR IMPRESO no quita el +1 de Fight Or Flight; uno que ignore el VALOR, si.
 - con el bot llevando a Liz, el bot gira el fondo del mazo al inicio de su turno.
+- (29/10, regla general para todos los heroes) Searing Clarity / Rekindle: si el HUMANO elige con los botones del panel una carta de su propio DESCARTE (publico) para que un efecto la meta en su mazo (barajar / encima / debajo), la mueve el BOT (por GUID, con el GUID del mazo del humano) y baraja el mazo del humano si el efecto lo dice. El bot sigue sin tocar su mano ni leer/reordenar su mazo mas alla de eso. Chat: "Meto X en tu mazo y lo barajo". Si la carta ya no esta en el descarte (lo hizo el humano), se dice que ya esta hecho, sin error.
 - E3 (29/10): Fleeting Moments jugada por el humano: la carta del bot la elige el rng del motor (nadie mira ninguna mano) y el descarte del humano es suyo (pendiente de Fin de accion).
 - Ivan (29/10): si el humano hace descartar a Liz bot una ardiente (Confront), Wildfire la devuelve y el chat lo dice: "El bot se queda X (Wildfire la devuelve)".
 - Incinerate: el rival puede descartar 2 cartas de la mano, ADEMAS de la carta con la que defiende, para ignorar el valor de Incinerate (queda a 0); si no defendio con carta, descartar 2 tambien vale. Con menos de 2 cartas en mano no puede pagar.

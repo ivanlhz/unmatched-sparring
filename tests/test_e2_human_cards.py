@@ -481,7 +481,8 @@ def test_pact_of_time_shuffles_what_each_player_picks_from_their_discard(rig):
     assert said(msgs, "El bot baraja Feint y Flame Lash de su descarte en su mazo"), msgs
     st = game.players[1]
     assert teeth in [c.card_id for c in st.deck] and exploit in [c.card_id for c in st.discard]
-    assert said(msgs, "Baraja Iron Teeth de tu descarte en tu mazo (efecto de Pact Of Time)")
+    assert said(msgs, "Meto Iron Teeth en tu mazo y lo barajo (efecto de Pact Of Time)")
+    assert table.human_deck == [teeth] and teeth not in table.human_discard      # the bot moved it (Ivan 29/10)
     assert not game.fx.can_gain_actions(0) and not game.fx.can_gain_actions(1)
 
 
@@ -683,7 +684,8 @@ def test_rekindle_picks_from_your_public_pile_and_you_shuffle_them_in(rig, monke
     msgs = press(session, table, "Confirmar")
     st = game.players[1]
     assert {fireball, evade} <= {c.card_id for c in st.deck} and session.pending is None
-    assert said(msgs, "Baraja Fireball y Evade de tu descarte en tu mazo (efectos del combate)")
+    assert said(msgs, "Meto Fireball y Evade en tu mazo y lo barajo (efectos del combate)")
+    assert sorted(table.human_deck) == sorted([fireball, evade]) and table.human_discard == []
 
 
 @with_rig(*LIZ_VS_HELLBOY, human_ongoing_spot=None, bot_ongoing_spot=None)       # no ONGOING zone: the pile route
@@ -1001,3 +1003,53 @@ def test_game_maneuver_checks_before_spending(bprd):
     with pytest.raises(RuleError):
         g.maneuver(1, {"hellboy": 3})
     assert (g.actions_left, len(g.players[1].hand), len(g.players[1].deck)) == before
+
+
+def searing_clarity_pick(session, table, game, incinerate):
+    human_hand(table, game, "Searing Clarity", "Evade")
+    human_scheme(session, table, game, "Searing Clarity")
+    assert session.effect_run.awaiting.kind == "cards"
+    return press(session, table, incinerate)                   # max 1: the pick resolves it
+
+
+@with_rig(*LIZ_VS_HELLBOY)
+def test_searing_clarity_pick_is_moved_by_the_bot_into_the_human_deck_and_shuffled(rig):
+    session, table, game, fake, cfg = rig
+    incinerate, fireball = card_ids(game, 1, "Incinerate", "Fireball")
+    table.human_discard = [incinerate, fireball]
+    msgs = searing_clarity_pick(session, table, game, incinerate)
+    assert said(msgs, "Meto Incinerate en tu mazo y lo barajo"), msgs
+    assert not any("Baraja Incinerate" in m or "hazlo tu" in m for m in msgs), msgs
+    assert table.deck_moves[-1] == ("shuffle", [incinerate])
+    assert table.human_deck == [incinerate] and fireball in table.human_discard and incinerate not in table.human_discard
+    assert incinerate in {c.card_id for c in game.players[1].deck}
+    click(session, table, Event.END_ACTION)                     # the sync does not fight the move
+    assert incinerate in {c.card_id for c in game.players[1].deck}
+
+
+@with_rig(*LIZ_VS_HELLBOY)
+def test_searing_clarity_pick_already_moved_by_the_human_is_not_an_error(rig):
+    session, table, game, fake, cfg = rig
+    incinerate, fireball = card_ids(game, 1, "Incinerate", "Fireball")
+    table.human_discard = [incinerate, fireball]
+    human_hand(table, game, "Searing Clarity", "Evade")
+    human_scheme(session, table, game, "Searing Clarity")
+    table.human_discard.remove(incinerate)                       # the human put it in their deck first
+    msgs = press(session, table, incinerate)
+    assert said(msgs, "Incinerate ya no esta en tu descarte"), msgs
+    assert table.deck_moves == [] and not any(m.startswith("No puedo") for m in msgs)
+    assert incinerate in {c.card_id for c in game.players[1].deck}
+
+
+@with_rig(*LIZ_VS_HELLBOY)
+def test_panel_title_of_a_card_pick_has_no_parentheses(rig):
+    session, table, game, fake, cfg = rig
+    incinerate, fireball = card_ids(game, 1, "Incinerate", "Fireball")
+    table.human_discard = [incinerate, fireball]
+    human_hand(table, game, "Searing Clarity", "Evade")
+    human_scheme(session, table, game, "Searing Clarity")
+    from sparring.session_choices import PROMPTS, prompt_text
+    req = session.effect_run.awaiting
+    assert "(" not in PROMPTS["cards"] and prompt_text(game, req).startswith("Elige una carta")
+    status = session._status_text()
+    assert status.startswith("Elige una carta") and "(" not in status and ")" not in status

@@ -237,6 +237,19 @@ def test_shuffle_into_deck_adds_and_shuffles(rt):
         lua.shuffle_into_deck("deck01", [])
 
 
+def test_shuffle_into_deck_with_identity_never_takes_a_hand_card_nor_a_foreign_one(rt):
+    # The human's own discard pile card shuffled into the human's deck (Ivan 29/10): same guards as the top/bottom puts.
+    deck(rt)
+    rt.execute("""mkobj({guid = 'inhand', type = 'Card', cid = 557, owner = 'x', hand = 'Blue'})
+mkobj({guid = 'foreign', type = 'Card', cid = 558, owner = 'h'})
+mkobj({guid = 'hdeck', type = 'Deck', cards = {{cid = 201, guid = 'h1', owner = 'h'}}})""")
+    shuffle = functools.partial(lua.shuffle_into_deck, id_range=X_IDS, identity=X_IDENT)
+    out = run(rt, shuffle("deck01", ["loose1", "inhand", "foreign"]))
+    assert out["added"] == 1 and out["deck"] == "deck01"
+    assert rt.eval('getObjectFromGUID("inhand").hand') == "Blue"
+    assert run(rt, shuffle("hdeck", ["loose1"])) == {"added": 0, "deck": False}     # a deck that is not ours
+
+
 def test_deal_row_puts_the_top_cards_face_up_on_the_spots(rt):
     deck(rt, n=3)
     out = run(rt, deal_row("deck01", [(1, 2, 3), (4, 2, 3)], rot_y=90))

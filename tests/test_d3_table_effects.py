@@ -46,6 +46,7 @@ class FxTable(Table):
         self.tokens: list[str] = []
         self.hand_moves: list[tuple[str, list[int]]] = []
         self.deck_moves: list[tuple[str, list[int]]] = []
+        self.human_deck: list[int] = []
 
     def snapshot_state(self):
         snap = super().snapshot_state()
@@ -97,15 +98,22 @@ class FxTable(Table):
         self.hand_moves.append((kind, placed))
         return {"placed": placed, "deck": "DECK1", "quantity": len(self.bot_deck)}
 
+    human_deck_guid = None                        # set by `build` from the session config
+
+    def _human_side(self, s):
+        """True when the script targets the HUMAN's deck: those cards move from the human pile to `human_deck`."""
+        return self.human_deck_guid is not None and f'getObjectFromGUID("{self.human_deck_guid}")' in s
+
     def _deck_insert(self, s, kind):
         m = re.search(r"CardID == (\d+)", s)
-        i = int(m.group(1)) if m else int(re.search(r'getObjectFromGUID\("g(\d+)"\)', s).group(1))
-        if i not in self.bot_discard:
+        i = int(m.group(1)) if m else int(re.search(r'local card = \(?.*?getObjectFromGUID\("g(\d+)"\)', s, re.S).group(1))
+        pile, deck = ((self.human_discard, self.human_deck) if self._human_side(s) else (self.bot_discard, self.bot_deck))
+        if i not in pile:
             return {"placed": False}
-        self.bot_discard.remove(i)
-        self.bot_deck.append(i)
+        pile.remove(i)
+        deck.append(i)
         self.deck_moves.append((kind, [i]))
-        return {"placed": True, "deck": "DECK1", "quantity": len(self.bot_deck)}
+        return {"placed": True, "deck": "DECK1", "quantity": len(deck)}
 
     def do_card_to_deck_bottom(self, s):
         return self._deck_insert(s, "bottom")
@@ -114,13 +122,14 @@ class FxTable(Table):
         return self._deck_insert(s, "top")
 
     def do_shuffle_into_deck(self, s):
-        guids = re.findall(r'"g(\d+)"', re.search(r"ipairs\(\{(.*?)\}\)", s).group(1))
-        added = [int(g) for g in guids if int(g) in self.bot_discard]
+        guids = re.findall(r'"g(\d+)"', re.search(r"local wanted = \{(.*?)\}", s).group(1))
+        pile, deck = ((self.human_discard, self.human_deck) if self._human_side(s) else (self.bot_discard, self.bot_deck))
+        added = [int(g) for g in guids if int(g) in pile]
         for i in added:
-            self.bot_discard.remove(i)
-            self.bot_deck.append(i)
+            pile.remove(i)
+            deck.append(i)
         self.deck_moves.append(("shuffle", added))
-        return {"added": len(added), "deck": "DECK1", "quantity": len(self.bot_deck)}
+        return {"added": len(added), "deck": "DECK1", "quantity": len(deck)}
 
     def do_return_card_to_hand(self, s):
         i = int(re.search(r'getObjectFromGUID\("g(\d+)"\)', s).group(1))
@@ -140,6 +149,7 @@ def build(tmp_path, bot, human, hand, table_cls=FxTable, **over):
     fake = FakeTTS(return_value=table)
     client = TTSClient(send_port=fake.port, listen_port=0)
     fake.reply_port = client.start_listening().port
+    table.human_deck_guid = scfg.human_deck_guid
     scfg.settle_wait, scfg.settle_tries = 0.0, 4
     game = Game.new(cfg.board, seed=3, controllers={}, bot_player=0, heroes=cfg.heroes)
     session = Session(game, client, MedusaAI(0), scfg)

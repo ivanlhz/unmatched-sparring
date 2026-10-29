@@ -3779,7 +3779,9 @@ class Session:
         st = self.game.players[self.human]
         own = {x.card_id for x in st.full_set}
         def read() -> set[int]:                   # solo cartas del humano: lo ajeno en la zona no cuenta ni retrasa
-            return {r["id"] for r in self._rd_human_discard()} & own
+            # una carta que un efecto de este paso esta sacando de tu descarte hacia tu mazo (Searing Clarity, el
+            # bot la mueve) no se vuelve a leer como descartada aunque la instantanea vaya con retraso
+            return ({r["id"] for r in self._rd_human_discard()} & own) - self.fx_in_flight
         ids = read()
         known = {x.card_id for x in st.discard}
         # un cambio solo vale si lo ven dos lecturas (carta en transito, borde); la instantanea del clic ya es la

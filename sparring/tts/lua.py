@@ -1906,8 +1906,8 @@ end
 
 
 def _card_ref_lua(card) -> str:
-    """Lua expression finding a loose card of the bot: by GUID (str) or by CardID (int, the first one with that id). A
-    card in ANY hand zone (the human's in a mirror match, the bot's own) or not `ours` is never taken, so a shared
+    """Lua expression finding a loose card of one side: by GUID (str) or by CardID (int, the first one with that id).
+    A card in ANY hand zone (the human's in a mirror match, the bot's own) or not `ours` is never taken, so a shared
     CardID in the other hand does not match. Requires `_ours_lua` and `_LOOSE_LUA` before."""
     if isinstance(card, str):
         return f"""(function()
@@ -1936,9 +1936,10 @@ if card == nil then return JSON.encode({{placed = false}}) end
 
 @_registered
 def card_to_deck_top(card: str | int, deck_guid: str, id_range: tuple[int, int] = BOT_CARD_IDS, *, identity) -> str:
-    """Puts a loose card of the bot (by GUID or CardID) on top of the bot's deck. `putObject` adds on top. If the deck is
-    a single card it becomes a deck with another GUID: the new one comes back as `deck`. Only a card that is `ours`
-    (`id_range` and the image of `identity`) and in no hand zone counts; the deck must be `ours` too, else
+    """Puts a loose card (by GUID or CardID) on top of a deck of the same side. `putObject` adds on top. If the deck
+    is a single card it becomes a deck with another GUID: the new one comes back as `deck`. Only a card that is
+    `ours` (`id_range` and the image of `identity`: the bot's by default, the human's when the session projects their
+    own discard pile card into their deck, Ivan 29/10) and in no hand zone counts; the deck must be `ours` too, else
     `{placed = false, deck = false}`."""
     return _deck_insert(card, deck_guid, "card_to_deck_top", False, identity, id_range)
 
@@ -1946,7 +1947,7 @@ def card_to_deck_top(card: str | int, deck_guid: str, id_range: tuple[int, int] 
 @_registered
 def card_to_deck_bottom(card: str | int, deck_guid: str, id_range: tuple[int, int] = BOT_CARD_IDS, *,
                         identity) -> str:
-    """Puts a loose card of the bot at the bottom of the bot's deck: the deck is turned over (instant) so its bottom is
+    """Puts a loose card at the bottom of a deck of the same side: the deck is turned over (instant) so its bottom is
     the top, the card is put in and the deck turned back. Same guards as `card_to_deck_top`. Verify live."""
     return _deck_insert(card, deck_guid, "card_to_deck_bottom", True, identity, id_range)
 
@@ -1992,18 +1993,27 @@ return JSON.encode({{placed = placed, deck = deck.getGUID(), quantity = deck.get
 """
 
 
+_ANY_OURS_LUA = "local function ours(o) return not o.held_by_color end\n"
+
+
 @_registered
-def shuffle_into_deck(deck_guid: str, cards: list[str]) -> str:
-    """Puts the loose cards (by GUID) into a deck and shuffles it. Returns `{added, quantity}`."""
+def shuffle_into_deck(deck_guid: str, cards: list[str], id_range: tuple[int, int] = BOT_CARD_IDS, *,
+                      identity=None) -> str:
+    """Puts the loose cards (by GUID) into a deck and shuffles it. A card in ANY hand zone is never taken. With
+    `identity` the deck and every card must be `ours` (`id_range` and the image: the human's when the session shuffles
+    their own discard pile card into their deck, Ivan 29/10), else `{added = 0, deck = false}`. Returns `{added,
+    deck, quantity}`."""
     if not isinstance(cards, (list, tuple)) or not 1 <= len(cards) <= MAX_DECK_CARDS:
         raise ValueError(f"1 to {MAX_DECK_CARDS} cards expected")
+    own = _ours_lua(identity, id_range) if identity is not None else _ANY_OURS_LUA
     return f"""-- sparring:shuffle_into_deck
-local deck = getObjectFromGUID({_guid(deck_guid)})
-if deck == nil then return JSON.encode({{added = 0}}) end
+{own}{_LOOSE_LUA}local deck = getObjectFromGUID({_guid(deck_guid)})
+if deck == nil or not ours(deck) then return JSON.encode({{added = 0, deck = false}}) end
+local wanted = {_guid_list(cards)}
 local added = 0
-for _, g in ipairs({_guid_list(cards)}) do
+for _, g in ipairs(wanted) do
   local c = getObjectFromGUID(g)
-  if c ~= nil then deck = deck.putObject(c) or deck; added = added + 1 end
+  if c ~= nil and looseOurs(c) then deck = deck.putObject(c) or deck; added = added + 1 end
 end
 deck.shuffle()
 return JSON.encode({{added = added, deck = deck.getGUID(), quantity = deck.getQuantity()}})

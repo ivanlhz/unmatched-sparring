@@ -143,6 +143,7 @@ Anota OK / fallo y que paso. Un fallo de proyeccion se dice **una vez** ("hazlo 
 - [ ] `read_hand` de tu asiento: un mensaje por look; el bot nunca lee tu mano fuera de un look.
 - [ ] Carta boca arriba justo tras colocarla (`play_card_face_down` + giro en el mismo script): se ve como esperas.
 - [ ] Mensajes y latencia (`--timing`): boton normal ~1 mensaje; turno de Liz con Wildfire +1; un look +1. Anota cualquier boton que tarde mas de unos segundos.
+- [ ] Searing Clarity del humano (Liz): elige con el panel una carta de tu descarte; el bot la mete en TU mazo y lo baraja (chat "Meto X en tu mazo y lo barajo"), tu mano no se toca y el titulo del panel dice "Elige una carta" sin parentesis. Si la mueves tu antes, el bot dice que ya esta hecho.
 
 ## 7. Que apuntar si algo falla
 
