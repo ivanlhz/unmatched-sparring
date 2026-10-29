@@ -9,18 +9,48 @@ A trigger's decisions go to `fx.choosers` (default: both players' Controllers, i
 pauses is parked in `fx.parked`."""
 from __future__ import annotations
 
+from functools import lru_cache
+
 from .choose import ControllerChooser
 from .model import load_effects
 from .ongoing import leave_play, spec_of
 from .run import Ctx, EffectRun
 from .select import _matches, condition, fighter_candidates
 
-# Ability triggers the engine still drives through its controllers/session (the player decides when, with the cards
-# already chosen): `Game.hellboy_detective_draw`, `Game.hellboy_anung_start`, `Game.medusa_ability`. They are skipped
-# here so nothing fires twice; `run_trigger` runs them on request and a test pins that both paths agree.
+# Ability triggers the dispatcher leaves to the engine's callers, who decide when and on whom with the cards already
+# chosen (Medusa's gaze: `Game.use_ability` from the AI, the session and the search). Skipped here so nothing fires
+# twice; `run_trigger` runs them on request.
 DRIVEN_BY_THE_ENGINE = frozenset({"medusa_gaze"})
 
 _BOTS = ControllerChooser()
+
+# Turn bookkeeping and the words of an effects file that read it: a hero whose data never names them does not get
+# it recorded, so a game of such heroes saves exactly as it did before the interpreter.
+TRACKS = {"attacked": ("attacked_this_turn", "combat_damage_dealt"),
+          "turn_start_pos": ("moved_this_turn",),
+          "taken": ("actions_taken_this_turn", "no_attack_as_first_action")}
+
+
+def _strings(node):
+    if isinstance(node, dict):
+        for k, v in node.items():
+            yield k
+            yield from _strings(v)
+    elif isinstance(node, (list, tuple)):
+        for v in node:
+            yield from _strings(v)
+    elif isinstance(node, str):
+        yield node
+
+
+@lru_cache(maxsize=None)
+def tracked(slugs: frozenset) -> frozenset:
+    """Which of `TRACKS` the heroes in `slugs` need, read from their effects files."""
+    words = set()
+    for slug in slugs:
+        fx = load_effects(slug)
+        words |= set(_strings([fx.triggers, fx.passives, [(c.moments, c.ongoing) for c in fx.cards.values()]]))
+    return frozenset(name for name, needles in TRACKS.items() if words & set(needles))
 
 
 def default_choosers(game) -> dict:
@@ -73,11 +103,13 @@ def _normalize(game, name: str, args: tuple) -> dict | None:
 
 def _bookkeeping(game, ev: dict) -> None:
     fx = game.fx
+    keep = tracked(frozenset(fx.dsl_heroes))
     if ev["name"] == "start_of_turn":
         fx.attacked.clear()
         fx.taken = 0
-        fx.turn_start_pos = {fid: f.pos for fid, f in game.fighters.items() if f.alive}
-    elif ev["name"] == "attacked":
+        fx.turn_start_pos = ({fid: f.pos for fid, f in game.fighters.items() if f.alive}
+                             if "turn_start_pos" in keep else {})
+    elif ev["name"] == "attacked" and "attacked" in keep:
         fx.attacked.append(ev["attacker"].fid)
 
 

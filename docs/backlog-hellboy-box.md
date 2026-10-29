@@ -20,7 +20,7 @@ From reviews (28/10):
 - Abe Intuition tokens: data/tts/abe-sapien.json has one token GUID (5a17e9); Iván: "from the same token you can take another" (it's a source/stack you can draw copies from). Bot shows 0/1/2 active by taking copies from it. Verify live with --read-only. D3/F1.
 - Koschei starts on the board (confirmed). Check baba-yaga.json start_on_board.
 - Out Of Time "BOOST this card": boost from HAND (as usual). C2.
-- Winged Frenzy: returning a defeated Harpy is MANDATORY (text). Engine currently lets choose_placement return None -> change in C5; golden change expected -> regenerate with GOLDEN_UPDATE=1 only for that diff.
+- Winged Frenzy: returning a defeated Harpy is MANDATORY (text). DONE in C5: the interpreter returns it even when choose_placement answers None (first free space of Medusa's zone); no golden changed because the AIs never decline (tests/test_medusa_dsl_diff.py pins the divergence).
 - Restrictions on the human (Pact Of Freedom no attack as first action, Cold Iron no draws...): the PANEL BLOCKS them (not just warn). E1/E2.
 - "Mirar mano del bot" button: HIDE it unless a card allows it. E1.
 - Unanswered (keep assumption): Liz start of turn: Fight Or Flight expires before the Wildfire bottom discard.

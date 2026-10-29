@@ -5,8 +5,9 @@ Each kind has its own rule, all built on the evaluation the heuristic bot alread
              to the enemy that pays most (kills first), or to the own piece that loses least; heals to the own piece
              that needs it most; a move/place/swap to the piece whose relocation gains most `position_value`.
              An op the rule does not know is left to the controller's default path.
-  space      kiting and reach through `position_value` (own sidekicks through `harpy_score`, as the legacy moves do);
-             a rival piece goes where it hurts the bot least.
+  space      an own piece's move is `MedusaAI.choose_move` (the planned destination of a scheme, else the kiting /
+             harpy rules) and a dead own piece's placement `choose_placement`, exactly as the legacy engine asked;
+             the rest through `position_value` / `harpy_score`; a rival piece goes where it hurts the bot least.
   cards      own hand: give up the lowest `keep_value`; own piles and the rival's public piles: take the best.
              Never looks at the rival hand: only what `KnownHand` has seen.
   effect     simulate every option on a determinized clone and keep the best evaluation.
@@ -194,18 +195,18 @@ class EffectAI:
             return None
         ai = self.medusa(me)
         options = list(req.options)
+        if f.owner == me and req.extra.get("op") == "move":     # the legacy move rule, plan included; staying = []
+            dest = ai.choose_move(game, f, req.extra["steps"], req.extra.get("through", False))
+            return [dest] if dest in options else ([] if req.min == 0 else None)
+        if f.owner == me and (f.pos is None or not f.alive):     # a placement (a Harpy returning): plan included
+            dest = ai.choose_placement(game, f, options)
+            return [dest] if dest in options else None
         if f.owner == me and not f.hero:
-            if f.pos is None or not f.alive:
-                return [max(options, key=lambda s: (self._harpy_spot(game, ai, f, s), -s))]
             scored = {s: ai.harpy_score(game, f, s) for s in options}
             stay = ai.harpy_score(game, f, f.pos)
         else:
             if not f.alive or f.pos is None:
                 return None
-            if f.owner == me and req.extra.get("op") == "move":     # the legacy move rule, plan included
-                dest = ai.choose_move(game, f, req.extra["steps"], req.extra.get("through", False))
-                if dest in options:
-                    return [dest]
             model = Model(game, me)
             scored = {s: ai.position_value(game, model, {f.fid: s}) for s in options}
             stay = ai.position_value(game, model, {f.fid: f.pos})
@@ -213,14 +214,6 @@ class EffectAI:
         if req.min == 0 and stay >= scored[best]:
             return []
         return [best]
-
-    @staticmethod
-    def _harpy_spot(game: Game, ai: MedusaAI, f, spot: int) -> float:
-        foes = game.foes(f.owner)
-        if not foes:
-            return 0.0
-        near = min(game.board.distance(spot, e.pos) for e in foes)
-        return -0.25 * near + (0.6 if near == 1 else 0.0)
 
     # ------------------------------------------------------------------ cards
     def _cards(self, game: Game, req: ChoiceRequest, nested: bool) -> list | None:

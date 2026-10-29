@@ -2,7 +2,7 @@
  "schema": 1,
  "hero": "medusa",
  "notes": [
-  "Efectos de Medusa en el DSL v1 (docs/effects-dsl.md), escritos el 2026-10-28 a partir de lo que hoy hace el motor (sparring/combat.py: _medusa_after, resolve_scheme, check_scheme; sparring/state.py: medusa_ability). El motor sigue cableado por titulo hasta que el interprete lo sustituya; este fichero es la referencia para el test diferencial (plan, paso 5).",
+  "Efectos de Medusa en el DSL v1 (docs/effects-dsl.md), escritos el 2026-10-28 a partir de lo que hacia el motor cableado por titulo. Desde C5 (2026-10-29) el interprete es quien resuelve estas cartas y la habilidad (docs/effects-dsl.md, seccion 15); el codigo antiguo vive copiado en tests/legacy_medusa.py como oraculo de tests/test_medusa_dsl_diff.py.",
   "Todo damage es de efecto: asi lo hace el motor (game.damage por defecto es 'effect'), incluidos los 8 de Gaze of Stone y los 2 de A Momentary Glance; Planned Recklessness los para.",
   "Los movimientos son 'hasta N' con 0 incluido (el controlador puede devolver None en choose_move).",
   "Decision de Ivan (28/10): A Momentary Glance puede apuntar a un luchador propio.",
@@ -137,7 +137,7 @@
      {"op": "revive", "target": {"side": "own", "name": "Harpy", "state": "defeated"}, "where": {"zone_of": "hero", "empty": true}, "hp": 1, "chooser": "owner"}
     ]
    },
-   "notes": "Plan, boost 2, cualquiera. El motor mueve en orden de fid y revive la primera Harpia abatida con 1 de vida en un espacio libre de la zona de Medusa; deja al controlador no colocarla (choose_placement -> None), el texto la hace obligatoria si hay espacio: el DSL sigue el texto."
+   "notes": "Plan, boost 2, cualquiera. Los movimientos van en orden de fid (Harpias y luego Medusa, cada una viendo donde quedaron las anteriores); vuelve la primera Harpia abatida con 1 de vida a un espacio libre de la zona de Medusa. Decision de Ivan (28/10): la vuelta es obligatoria si hay espacio; un choose_placement que conteste None la deja en el primer espacio libre (el motor antiguo la dejaba abatida)."
   }
  ],
  "plugins": [],

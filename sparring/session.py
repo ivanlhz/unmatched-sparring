@@ -25,7 +25,7 @@ from pathlib import Path
 from typing import Callable
 
 from . import persist
-from .ai_medusa import MedusaAI
+from .ai_medusa import GAZE, MedusaAI
 from .cards import Card, can_be_boost
 from .controller import Controller
 from .combat_flow import CombatFlow, PendingChoice, legacy_chooser
@@ -2374,7 +2374,7 @@ class Session:
             self.bot_stage = None
             if target:
                 hp0, alive0 = target.hp, self._alive_map()
-                g.medusa_ability(target)
+                g.use_ability(self.bot, GAZE, target)
                 dials_ok = self._write_dials()        # primero el dial y su verificacion, luego el anuncio
                 self.say(f"Habilidad de Medusa: 1 de dano a {self._name(target)} (PV de {hp0:g} a {max(target.hp, 0):g}).", ChatKind.ABILITY)
                 self._announce_human_falls(alive0)

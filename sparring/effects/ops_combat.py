@@ -36,12 +36,22 @@ def _label(run, game) -> str:
 
 # ---------------------------------------------------------------- card values
 
+def _named_side(run, ref) -> str | None:
+    """The combat side a CardRef names by role, card or no card: a Feint against a defense that was never played
+    still marks the defending side cancelled (the record the engine has always kept)."""
+    own = "atk" if run.ctx.played_as == "attack" else "def"
+    other = "def" if own == "atk" else "atk"
+    return {"this": own, "opponent_card": other, "attack_card": "atk", "defense_card": "def"}.get(ref)
+
+
 @op("cancel_effects")
 def _cancel_effects(run, game, spec):
     flow = _flow(run, "cancel_effects")
     side = _side(run, game, spec["card"])
+    if side is None:
+        side = _named_side(run, spec["card"])
     card = None if side is None else (flow.atk_card if side == "atk" else flow.def_card)
-    if card is not None and not modifiers.is_uncancelable(card):
+    if side is not None and (card is None or not modifiers.is_uncancelable(card)):
         flow.ctx.cancelled.add(side)
 
 

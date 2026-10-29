@@ -34,6 +34,7 @@ import random
 from dataclasses import dataclass, field
 from math import sqrt
 
+from ..ai_medusa import GAZE
 from ..cards import Card, can_be_boost
 from ..combat import is_medusa_card, resolve_combat
 from ..controller import Controller
@@ -407,7 +408,7 @@ class EngineState:
                     self.variant = None
         elif kind == "ability":
             if move[1] is not None:
-                g.medusa_ability(g.fighters[move[1]])
+                g.use_ability(p, GAZE, g.fighters[move[1]])
             self.phase = "action"
         elif kind == "anung":
             self.phase, self.partial = "anung_to", (move[1],)

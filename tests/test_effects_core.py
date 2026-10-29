@@ -118,12 +118,19 @@ def test_state_defeated_and_name_filters(g):
                      "amount": 9, "as": "x"},
                     {"op": "revive", "target": sel, "where": {"any": True}, "hp": 1}], ScriptedChooser())
     assert len(run.bound("x", "fighters")) == 3 and all(g.fighters[f].alive for f in ("agent1", "agent2", "agent3"))
-    # reserve fighters (never placed) are not defeated: Pact Of Mortality must not pull them
+    # reserve fighters (never placed, by the hero's data) are not defeated: Pact Of Mortality must not pull them;
+    # a fighter that starts on the board is defeated whenever it is dead, `died_at` or not (saves older than it)
+    from dataclasses import replace
     for fid in ("agent1", "agent2"):
         g.fighters[fid].alive, g.fighters[fid].pos = False, None
     g.fighters["agent1"].died_at, g.fighters["agent2"].died_at = 4, None
+    hero = g.players[0].hero
+    g.players[0].hero = replace(hero, sidekicks=tuple(replace(s, start_on_board=1) for s in hero.sidekicks))
     go(g, [{"op": "revive", "target": sel, "where": {"any": True}, "hp": 1}], ScriptedChooser())
     assert g.fighters["agent1"].alive and not g.fighters["agent2"].alive
+    g.players[0].hero = hero
+    go(g, [{"op": "revive", "target": sel, "where": {"any": True}, "hp": 1}], ScriptedChooser())
+    assert g.fighters["agent2"].alive
 
 
 def test_bad_selectors_raise_effect_error(g):
@@ -1055,6 +1062,8 @@ def test_hiss_and_slither_in_defense_reports_medusas_owner_as_the_source(game):
             calls.append((player, source_player))
             return True
     game.fx = Spy()
+    game.fx.dsl_heroes = {"medusa"}      # C5: Medusa's cards are interpreted; the spy replaced the game's default
+    game.fx.attach(game)
     place(game, medusa=3, hellboy=4)
     game.turn = 1
     game.begin_turn()

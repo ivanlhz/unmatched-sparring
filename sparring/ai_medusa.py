@@ -45,6 +45,8 @@ from .combat import GAZE_DAMAGE, GLANCE_DAMAGE, ON_EARTH, SECOND_SHOT
 from .controller import Controller
 from .state import ANUNG, EXHAUST_DAMAGE, HAND_LIMIT, Fighter, Game
 
+GAZE = "medusa_gaze"      # Medusa's start-of-turn ability trigger (data/heroes/effects/medusa.json)
+
 CARD_VALUE = 0.4
 W_HERO = 1.0
 W_SIDEKICK = 0.8
@@ -229,7 +231,7 @@ class MedusaAI(Controller):
     def take_turn(self, game: Game) -> None:
         target = self.pick_ability_target(game)
         if target:
-            game.medusa_ability(target)
+            game.use_ability(self.me, GAZE, target)
         while game.actions_left > 0 and game.winner is None and game.hero(self.me).alive:
             self.execute(game, self.plan(game))
 

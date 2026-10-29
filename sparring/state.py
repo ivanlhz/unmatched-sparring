@@ -7,7 +7,7 @@ from .board import Board
 from .cards import Card, can_be_boost
 from .controller import Controller
 from .effects import ongoing
-from .effects.state import EffectState
+from .effects.state import EffectState, interpreted
 from .heroes import HeroDef, load_hero
 
 HAND_LIMIT = 7
@@ -225,6 +225,7 @@ class Game:
         self.phantom_draws = 0   # robos esperados por la IA al simular (cartas desconocidas), nunca en partida real
         self.log: list[str] = []
         self.fx = EffectState()    # DSL interpreter state and hooks (docs/effects-dsl.md); inert unless fx.dsl_heroes
+        self.fx.dsl_heroes = interpreted(p.hero.slug for p in players)
         self.fx.attach(self)
 
     @classmethod
@@ -518,14 +519,20 @@ class Game:
             self.move_fighter(f, dest, f.move + extra)
         self.fx.emit("after_maneuver", player)
 
-    def play_scheme(self, player: int, fighter: Fighter, card: Card, **opts) -> None:
-        from .combat import check_scheme, resolve_scheme
+    def play_scheme(self, player: int, fighter: Fighter, card: Card, target: Fighter | None = None):
+        """`target`: the fighter the scheme hits when its effect picks one (A Momentary Glance: the AI plans it).
+        A hero of `fx.dsl_heroes` resolves the card through the interpreter (and returns the Await of a chooser that
+        paused it); any other keeps the legacy path (the human resolves the text, the engine the ONGOING bonus)."""
         if not card.is_scheme or not card.usable_by(fighter.name) or card not in self.players[player].hand:
             raise RuleError(f"{card.title} no se puede jugar con {fighter.fid}")
-        check_scheme(self, fighter, card, **opts)
+        if self.players[player].hero.slug in self.fx.dsl_heroes:
+            from .effects.driven import play_scheme
+            return play_scheme(self, player, fighter, card, target)
+        from .combat import resolve_scheme
         self.use_action()
         self.discard_card(player, card, played=True)
-        resolve_scheme(self, player, fighter, card, **opts)
+        resolve_scheme(self, player, fighter, card)
+        return None
 
     @staticmethod
     def check_attack_card(fighter: Fighter, card: Card) -> None:
@@ -575,12 +582,13 @@ class Game:
             def_card = self.controllers[target.owner].choose_defense(self, attacker, target)
         return def_card
 
-    # habilidades de inicio de turno (hasta el paso 8 del plan siguen cableadas por heroe)
-    def medusa_ability(self, target: Fighter) -> None:
-        medusa = self.hero_named("Medusa")
-        if target.owner == medusa.owner or not target.alive or not self.board.share_zone(medusa.pos, target.pos):
-            raise RuleError("objetivo invalido para la habilidad")
-        self.damage(target, 1)
+    # habilidades de inicio de turno
+    def use_ability(self, player: int, trigger_id: str, target: Fighter | None = None):
+        """Runs one ability trigger of `player`'s hero through the interpreter now, aimed at `target` (Medusa's gaze:
+        the AI or the session decides when and on whom; the dispatcher leaves it to them). RuleError if `target` is
+        not one the trigger may pick."""
+        from .effects.driven import use_ability
+        return use_ability(self, player, trigger_id, target)
 
     def hellboy_anung_start(self, player: int, card: Card, dest: int | None) -> None:
         if "hellboy" in self.fx.dsl_heroes:      # the DSL trigger anung_discard_move already ran at begin_turn

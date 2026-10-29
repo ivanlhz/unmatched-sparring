@@ -6,9 +6,8 @@ from enum import Enum
 from typing import Callable
 
 from .cards import Card
-from .combat import (FEINT, ON_EARTH, PLANNED, SECOND_SHOT, CombatCtx, CombatResult, _announce_bot_card,
-                     _check_boost, _hellboy_after, _liz_after, _medusa_after, _side_cards, after_text, can_boost,
-                     deck_boost, is_medusa_card)
+from .combat import (ON_EARTH, PLANNED, CombatCtx, CombatResult, _announce_bot_card, _check_boost, _hellboy_after,
+                     _liz_after, _side_cards, after_text, can_boost, deck_boost, is_medusa_card)
 from .state import ANUNG, Fighter, Game, RuleError
 
 
@@ -356,17 +355,8 @@ def _boost_owner(flow: CombatFlow, saved_result: dict) -> int | None:
 _HOOKS = {Phase.DECLARED: CombatFlow._declare, Phase.CARDS_SET: CombatFlow._reveal, Phase.DAMAGE: CombatFlow._damage}
 
 
-# ---------- rules, in the order of the old if/elif chains ----------
-def _is(card: Card, title: str, medusa: bool) -> bool:
-    return card.title == title and is_medusa_card(card) == medusa
-
-
-@rule(Phase.IMMEDIATELY, match=lambda flow, side: _is(side.card, FEINT, medusa=True) and not _dsl(flow, side))
-def feint(flow: CombatFlow, side: Side) -> None:
-    _cancel_rival(flow, side)
-
-
-@rule(Phase.IMMEDIATELY, match=lambda flow, side: _is(side.card, PLANNED, medusa=False) and not _dsl(flow, side))
+# ---------- rules, in the order of the old if/elif chains (Medusa's own rules left with C5: her cards are DSL) ----------
+@rule(Phase.IMMEDIATELY, match=lambda flow, side: side.card.title == PLANNED and not _dsl(flow, side))
 def planned_recklessness(flow: CombatFlow, side: Side) -> None:
     flow.game.effect_shield[side.fighter.owner] = flow.game.turn_no
     if flow.game.form(side.fighter.owner) != ANUNG:
@@ -387,7 +377,7 @@ def _other(side: Side) -> str:
 
 
 @rule(Phase.DURING, side="def", when_cancelled=True,
-      match=lambda flow, side: _is(side.card, ON_EARTH, medusa=False) and not _dsl(flow, side))
+      match=lambda flow, side: side.card.title == ON_EARTH and not _dsl(flow, side))
 def on_earth_value(flow: CombatFlow, side: Side) -> None:
     base = flow.values[1] + flow.def_bonus
     flow.ctx.def_value = base if "def" in flow.ctx.cancelled else flow.game.destiny_count(side.fighter.owner) + base
@@ -400,16 +390,6 @@ def _add_boost(flow: CombatFlow, side: Side, boost: Card) -> None:
     flow.result.atk_parts.append(f"potencia con {boost.title} (+{boost.boost})")
 
 
-@rule(Phase.DURING, side="atk", match=lambda flow, side: _is(side.card, SECOND_SHOT, medusa=True) and not _dsl(flow, side))
-def second_shot(flow: CombatFlow, side: Side) -> Await | None:
-    answered, boost = flow.answer("second_shot")
-    if not answered:
-        return Await(PendingChoice("boost", side.fighter.owner, side.card.card_id))
-    if boost is not None:
-        _check_boost(boost)
-        _add_boost(flow, side, boost)
-
-
 @rule(Phase.DURING, side="atk", match=lambda flow, side: can_boost(side.card) and not _dsl(flow, side))
 def boost_this_attack(flow: CombatFlow, side: Side) -> Await | None:
     answered, boost = flow.answer("boost_this_attack")
@@ -419,11 +399,6 @@ def boost_this_attack(flow: CombatFlow, side: Side) -> Await | None:
         if not deck_boost(side.card):          # Flame Lash: the bottom deck card adds whatever it is worth, even 0
             _check_boost(boost)
         _add_boost(flow, side, boost)
-
-
-@rule(Phase.AFTER, match=lambda flow, side: is_medusa_card(side.card) and not _dsl(flow, side))
-def medusa_after(flow: CombatFlow, side: Side) -> None:
-    _medusa_after(flow.game, side.fighter, side.rival, side.card, _i_won(flow, side))
 
 
 @rule(Phase.AFTER, match=lambda flow, side: side.fighter.owner == flow.game.bot_player and not _dsl(flow, side))

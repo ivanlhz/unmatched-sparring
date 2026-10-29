@@ -13,8 +13,9 @@ from dataclasses import dataclass, field
 from typing import Protocol
 
 from ..combat_flow import Await, PendingChoice
+from ..state import RuleError
 
-KINDS = ("fighter", "space", "cards", "effect", "optional", "order", "amount")
+KINDS =("fighter", "space", "cards", "effect", "optional", "order", "amount")
 
 
 @dataclass
@@ -180,6 +181,23 @@ class SyntheticChooser:
             return default_answer(req)
         n = self.rng.randint(req.min, min(req.max, len(req.options)))
         return self.rng.sample(list(req.options), n)
+
+
+class PresetChooser:
+    """Answers the engine's caller decided up front (the AI's planned target, the search's enumerated move):
+    `by_kind` maps a request kind to its answer, anything else goes to `inner`. A preset that is not among the
+    options is a RuleError: the caller asked for something the effect does not allow."""
+
+    def __init__(self, inner: Chooser, by_kind: dict[str, list]):
+        self.inner, self.by_kind = inner, dict(by_kind)
+
+    def choose(self, game, req: ChoiceRequest) -> list | Await:
+        if req.kind not in self.by_kind:
+            return self.inner.choose(game, req)
+        answer = list(self.by_kind[req.kind])
+        if not all(a in req.options for a in answer):
+            raise RuleError(f"{req.prompt or req.kind}: {answer!r} no es una opcion ({req.options!r})")
+        return answer
 
 
 class PanelChooser:

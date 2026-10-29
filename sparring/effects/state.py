@@ -6,6 +6,15 @@ so they must stay cheap."""
 from __future__ import annotations
 
 import weakref
+from typing import Iterable
+
+# Heroes whose cards and ability the interpreter resolves by default (C5: Medusa). `Game` derives `fx.dsl_heroes`
+# from the heroes in play and persist omits the set when it is this default, so old saves load unchanged.
+INTERPRETED_HEROES = frozenset({"medusa"})
+
+
+def interpreted(slugs: Iterable[str]) -> set[str]:
+    return {s for s in slugs if s in INTERPRETED_HEROES}
 
 
 class EffectState:
@@ -70,7 +79,9 @@ class EffectState:
 
     def count_action(self) -> None:
         if self.dsl_heroes:
-            self.taken += 1
+            from .events import tracked
+            if "taken" in tracked(frozenset(self.dsl_heroes)):
+                self.taken += 1
 
     def on_damage(self, fighter, n, source: str, by) -> None:
         """`fighter` has just lost `n` hp (alive or not yet resolved) from `source` ("effect", "combat",
