@@ -33,9 +33,12 @@ def _check_target(game, owner: int, ops: list, this_fid: str, card_id: int | Non
         raise RuleError(f"{what}: {target.fid} no es un objetivo valido")
 
 
-def preset_choosers(game, owner: int, by_kind: dict) -> dict:
-    choosers = dict(events.default_choosers(game))
-    choosers[owner] = PresetChooser(choosers[owner], by_kind)
+def preset_choosers(game, owner: int, by_kind: dict, base: dict | None = None) -> dict:
+    """`base` (D2: the search's SyntheticChoosers, the bot executing what the search chose) replaces the default
+    choosers; the presets, when any, still answer first."""
+    choosers = dict(base or events.default_choosers(game))
+    if by_kind:
+        choosers[owner] = PresetChooser(choosers[owner], by_kind)
     return choosers
 
 
@@ -51,12 +54,13 @@ def use_ability(game, owner: int, trigger_id: str, target: Fighter | None = None
     return events.run_trigger(game, owner, trigger_id, preset_choosers(game, owner, presets))
 
 
-def play_scheme(game, player: int, fighter: Fighter, card, target: Fighter | None = None):
-    """Plays a DSL scheme: the action, then its ops with `target` answering the fighter it hits. Returns the Await
-    of a paused chooser (the card is then left to the caller to finish), None when done."""
+def play_scheme(game, player: int, fighter: Fighter, card, target: Fighter | None = None, choosers: dict | None = None):
+    """Plays a DSL scheme: the action, then its ops with `target` answering the fighter it hits and `choosers`
+    (player -> Chooser; default: the controllers / the panel) deciding the rest. Returns the Await of a paused
+    chooser (the card is then left to the caller to finish), None when done."""
     ops = load_effects(game.players[player].hero.slug).moment_ops(card.title, "scheme")
     _check_target(game, player, ops, fighter.fid, card.card_id, target, card.title)
     presets = {"fighter": [target.fid]} if target is not None else {}
     game.use_action()
-    _, pending = ongoing.resolve_scheme(game, player, fighter, card, preset_choosers(game, player, presets))
+    _, pending = ongoing.resolve_scheme(game, player, fighter, card, preset_choosers(game, player, presets, choosers))
     return pending

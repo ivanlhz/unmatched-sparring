@@ -65,7 +65,7 @@ class Msg(str):
 
 
 # categoria de cada accion del bot en `_action_text`; el ataque no pasa por ahi (lo dice `_bot_continue`)
-ACTION_KIND = {"maneuver": ChatKind.MOVE, "glance": ChatKind.SCHEME, "frenzy": ChatKind.SCHEME}
+ACTION_KIND = {"maneuver": ChatKind.MOVE, "glance": ChatKind.SCHEME, "frenzy": ChatKind.SCHEME, "scheme": ChatKind.SCHEME}
 
 
 CODED_ABILITY_HERO = "medusa"     # the hero whose start-of-turn ability the engine runs (`Game.use_ability(..., "medusa_gaze")`)
@@ -2402,7 +2402,7 @@ class Session:
         moved = [f"{self._name(g.fighters[fid])} a la casilla {g.fighters[fid].pos}"
                  for fid, (pos, was_alive) in before.items()
                  if was_alive and g.fighters[fid].alive and g.fighters[fid].pos != pos]
-        if act.kind in ("glance", "frenzy"):
+        if act.kind in ("glance", "frenzy", "scheme"):
             title = act.card.title
             text = f"El bot juega {title}" + self._played_text(seen, {}, "efecto", skip=act.card)
             if act.kind == "glance":

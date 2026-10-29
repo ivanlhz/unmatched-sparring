@@ -150,6 +150,33 @@ def hand_limit(game, player: int, default: int) -> int:
     return min([default] + [m["amount"] for m in rules(game, "max_hand_size")])
 
 
+# ------------------------------------------------------------------ what a slot is worth to its owner (D2)
+
+VALUE_POINT_HP = 1.0        # +1 to the owner's combat cards: about one hit point over the card's life (a combat)
+IMMUNITY_HP = 0.5           # a status that shields the owner's side (Counterhex Shield: three of them)
+EFFECT_BONUS_HP = 0.5       # +1 to the owner's effect damage (Pact Of Mortality)
+
+
+def worth(game, player: int) -> float:
+    """Hit points the ONGOING of `player` is worth to them, so the bots score keeping it, replacing it or losing it.
+    Rules that bind both players alike (no first-action attacks, hand size, no gained actions, Pact Of Peace's
+    trigger) count 0: their value depends on the matchup and the search sees their effect in the simulation."""
+    slot = game.fx.ongoing[player]
+    if slot is None:
+        return 0.0
+    if slot["card_id"] is None:
+        return VALUE_POINT_HP * slot["bonus"]
+    total = 0.0
+    for m in (spec_of(game, player) or {}).get("modifiers", ()):
+        if m["kind"] == "modify_value" and set(m["cards"]) <= COMBAT_CARDS and m["cards"].get("player", "owner") == "owner":
+            total += VALUE_POINT_HP * m["amount"]
+        elif m["kind"] == "status":
+            total += IMMUNITY_HP
+        elif m["kind"] == "rule" and m["rule"] == "effect_damage_bonus":
+            total += EFFECT_BONUS_HP * m.get("amount", 0)
+    return total
+
+
 # ------------------------------------------------------------------ playing a scheme
 
 def begin_scheme(game, player: int, card) -> None:

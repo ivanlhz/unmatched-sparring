@@ -25,10 +25,12 @@ from __future__ import annotations
 
 import copy
 import random
+from functools import lru_cache
 
 from .ai_medusa import (DECK_SCARCITY, HARPY_VALUE, KILL_SIDEKICK, LETHAL, W_HERO, W_MEDUSA_HP,
                         W_SIDEKICK, MedusaAI, Model, keep_value)
 from .controller import Controller
+from .effects import ongoing
 from .effects.choose import ChoiceRequest, ControllerChooser, default_answer, worth_paying
 from .effects.model import EffectError, load_effects
 from .effects.run import Ctx, EffectRun
@@ -43,6 +45,23 @@ DEFAULT_BLOW = 1                                        # damage or heal assumed
 DEFAULT_REACH = 2                                       # steps a place/swap candidate is assumed to relocate by
 HP_OPS = ("damage", "heal", "set_hp")
 RELOCATE_OPS = ("move", "place", "swap")
+BOUNCE_BONUS = 0.5                                      # a returning card at the bottom also burns 1 when it comes back
+
+
+@lru_cache(maxsize=None)
+def returning_tag(slug: str) -> str | None:
+    """The card tag that comes back to its owner's hand when discarded from the deck (Liz's WILDFIRE returns a
+    burning card; her start of turn discards the bottom one): a card so tagged put at the bottom is not lost."""
+    for trig in load_effects(slug).triggers:
+        when = trig["when"]
+        if when["event"] == "card_discarded" and "deck" in when.get("from", ()) and (when.get("filter") or {}).get("tag"):
+            return when["filter"]["tag"]
+    return None
+
+
+def bounces_back(game, player: int, card) -> bool:
+    tag = returning_tag(game.players[player].hero.slug)
+    return tag is not None and tag in card.tags
 
 
 def blind_clone(game: Game, me: int, rng: random.Random) -> Game:
@@ -89,6 +108,11 @@ def blind_clone(game: Game, me: int, rng: random.Random) -> Game:
     mine = g.players[me]
     mine.deck.sort(key=lambda c: c.card_id)
     rng.shuffle(mine.deck)
+    if mine.deck and bounces_back(g, me, mine.deck[-1]):      # the bottom is unknown too: only what a simulated
+        plain = next((i for i in range(len(mine.deck) - 1, -1, -1)     # effect puts there counts as coming back
+                      if not bounces_back(g, me, mine.deck[i])), None)
+        if plain is not None:
+            mine.deck.append(mine.deck.pop(plain))
     return g
 
 
@@ -229,6 +253,10 @@ class EffectAI:
             by_id = {c.card_id: c for c in game.players[me].hand}
             hand = game.players[me].hand
             ranked = sorted((i for i in req.options if i in by_id), key=lambda i: (keep_value(by_id[i], hand), i))
+            if purpose == "return" and req.extra.get("position") == "bottom":     # Wildfire: a burning card comes back
+                back = [i for i in ranked if bounces_back(game, me, by_id[i])]
+                ranked = back + [i for i in ranked if i not in back]
+                return ranked[:max(n_min, min(n_max, len(back)))]
             if purpose in GIVE_UP_PURPOSES:
                 junk = [i for i in ranked[n_min:n_max] if keep_value(by_id[i], hand) < 0.9]
                 return ranked[:n_min] + junk if purpose == "discard" else ranked[:n_min]
@@ -249,6 +277,9 @@ class EffectAI:
         if req.extra.get("zone") == "deck" or set(req.options) <= set(cards):
             mine = {c.card_id for c in game.players[me].full_set}
             sign = {True: -1, False: 1}
+            if req.extra.get("position") == "bottom":       # the very bottom is the last: the card that comes back
+                return sorted(req.options, key=lambda i: (i in mine and bounces_back(game, me, cards[i]),
+                                                          sign[i in mine] * card_worth(cards[i]), i))
             return sorted(req.options, key=lambda i: (sign[i in mine] * card_worth(cards[i]), i))
         fighters = game.fighters
         return sorted(req.options, key=lambda i: (-self.blow_value(fighters[i], DEFAULT_BLOW), i))
@@ -323,19 +354,15 @@ class EffectAI:
         return self.evaluate(g, me)
 
     def evaluate(self, g: Game, me: int) -> float:
-        """The bot's view of `g`: material (hit points by weight), cards in hand, deck clock and position."""
+        """The bot's view of `g`: material (hit points by weight, the ONGOING in play), cards in hand, deck clock
+        and position."""
         if g.winner is not None:
             return SIM_WIN if g.winner == me else -SIM_WIN
-        score = 0.0
-        for f in g.fighters.values():
-            if not f.alive:
-                continue
-            if f.owner == me:
-                score += (W_MEDUSA_HP if f.hero else HARPY_VALUE) * f.hp
-            else:
-                score -= (W_HERO if f.hero else W_SIDEKICK) * f.hp
+        score = self.material(g, me)
         mine = g.players[me]
         score += sum(keep_value(c, mine.hand) for c in mine.hand)
+        if mine.deck and bounces_back(g, me, mine.deck[-1]):      # it returns at the start of the turn (Wildfire)
+            score += keep_value(mine.deck[-1], mine.hand) + BOUNCE_BONUS
         score -= CARD_FLAT * len(g.players[1 - me].hand)
         score -= DECK_SCARCITY.get(len(mine.deck), 0.0)
         ai = self.medusa(me)
@@ -344,6 +371,49 @@ class EffectAI:
         except (KeyError, StopIteration):       # a hero down or off the board: material already says it
             pass
         return score
+
+    @staticmethod
+    def material(g: Game, me: int) -> float:
+        """Hit points on the board by the evaluation's weights, plus what each side's ONGOING is worth."""
+        score = 0.0
+        for f in g.fighters.values():
+            if not f.alive:
+                continue
+            if f.owner == me:
+                score += (W_MEDUSA_HP if f.hero else HARPY_VALUE) * f.hp
+            else:
+                score -= (W_HERO if f.hero else W_SIDEKICK) * f.hp
+        return score + W_MEDUSA_HP * ongoing.worth(g, me) - W_HERO * ongoing.worth(g, 1 - me)
+
+    @staticmethod
+    def material_delta(before: Game, after: Game, me: int) -> float:
+        """What `me` gained from `before` to `after` in hit points, kills included (`hp_change`), and in the ONGOING
+        slots. A hero's death is not counted here: the caller reads `after.winner`."""
+        delta = 0.0
+        for fid, f in before.fighters.items():
+            now = after.fighters[fid]
+            if f.alive and (now.alive or not now.hero):
+                delta += EffectAI.hp_change(f, now.hp if now.alive else 0, me)
+            elif not f.alive and now.alive:
+                delta += (HARPY_VALUE if now.owner == me else -W_SIDEKICK) * now.hp + (KILL_SIDEKICK if now.owner == me else -KILL_SIDEKICK)
+        delta += W_MEDUSA_HP * (ongoing.worth(after, me) - ongoing.worth(before, me))
+        delta -= W_HERO * (ongoing.worth(after, 1 - me) - ongoing.worth(before, 1 - me))
+        return delta
+
+    # ------------------------------------------------------------------ a whole scheme, simulated
+    def scheme_outcome(self, game: Game, card, me: int) -> Game | None:
+        """The game after `me` plays `card` (a scheme) on a blind clone, deciding inside with these same rules: what
+        the heuristic values a scheme by. None when the card cannot be played there."""
+        rng = random.Random(f"{self.seed}:{game.turn_no}:{me}:{card.card_id}:scheme")
+        g = blind_clone(game, me, rng)
+        card = next(c for c in g.players[me].hand if c.card_id == card.card_id)
+        chooser = _SimChooser(self)
+        try:
+            if g.play_scheme(me, g.hero(me), card, choosers={0: chooser, 1: chooser}) is not None:
+                return None
+        except (RuleError, EffectError, NotImplementedError):
+            return None
+        return g
 
     # ------------------------------------------------------------------ the op behind a request
     @staticmethod

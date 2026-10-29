@@ -237,9 +237,10 @@ def card_candidates(game, run, sel: dict) -> list[Picked]:
     return [Picked(player, zone, c) for c in pile if c not in skip and _matches(c, flt)]
 
 
-def select_cards(game, run, sel: dict, purpose: str = "choose", prompt: str | None = None) -> list[Picked]:
+def select_cards(game, run, sel: dict, purpose: str = "choose", prompt: str | None = None, **extra) -> list[Picked]:
     """The cards a CardSel designates, deciding `chosen` through the chooser and `random` through the run's
-    memoized rng. `prompt` names the request (a bot's `choose_discard` gets it as the reason: the card's title)."""
+    memoized rng. `prompt` names the request (a bot's `choose_discard` gets it as the reason: the card's title);
+    `extra` travels in the request (where a returned card goes, so a bot can prefer one that comes back)."""
     cands = card_candidates(game, run, sel)
     pick = sel.get("pick", "chosen")
     if pick == "all":
@@ -257,7 +258,7 @@ def select_cards(game, run, sel: dict, purpose: str = "choose", prompt: str | No
     lo = 0 if sel.get("up_to") else n
     by_id = {c.card.card_id: c for c in cands}
     got = run.ask(game, "cards", chooser, list(by_id), lo, n, prompt or f"{purpose} cards", zone=sel["zone"],
-                  purpose=purpose, of=cands[0].player)
+                  purpose=purpose, of=cands[0].player, **extra)
     return [by_id[i] for i in got]
 
 

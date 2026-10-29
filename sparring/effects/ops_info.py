@@ -84,9 +84,9 @@ def _look_deck(run, game, spec):
 
 # ---------------------------------------------------------------- deck changes
 
-def _ask_order(game, run, player: int, cards: list) -> list:
+def _ask_order(game, run, player: int, cards: list, **extra) -> list:
     ids = run.ask(game, "order", player, [c.card_id for c in cards], len(cards), len(cards), "order",
-                  ordered=True, zone="deck", purpose="order")
+                  ordered=True, zone="deck", purpose="order", **extra)
     by_id = {c.card_id: c for c in cards}
     return [by_id[i] for i in ids]
 
@@ -111,7 +111,7 @@ def _search_deck(run, game, spec):
     rest = [c for c in looked if c not in taken]
     mode = spec.get("rest", "bottom_random")
     if mode in ("bottom_ordered", "top_ordered"):
-        rest = _ask_order(game, run, chooser, rest)
+        rest = _ask_order(game, run, chooser, rest, position=mode.split("_")[0])
     elif mode == "bottom_random":
         rest = run.random_sample(rest, len(rest))
     perm = _permutation(run, len(deck) - len(taken)) if mode == "shuffle" else None
@@ -144,7 +144,7 @@ def _search_deck(run, game, spec):
 @op("return_to_deck")
 def _return_to_deck(run, game, spec):
     sel, position = spec["cards"], spec["position"]
-    items = _cards_of(game, run, sel, "return")
+    items = _cards_of(game, run, sel, "return", position=position)
     chooser = None
     if isinstance(sel, dict) and sel.get("pick", "chosen") == "chosen":
         chooser = player_of(game, run, sel.get("chooser", "owner"))
@@ -159,7 +159,7 @@ def _return_to_deck(run, game, spec):
             from_deck = sum(1 for c in moved[holder] if zones[c.card_id] == "deck")
             perms[holder] = _permutation(run, len(game.players[holder].deck) + len(moved[holder]) - from_deck)
         elif len(moved[holder]) > 1 and "order" in spec:
-            moved[holder] = _ask_order(game, run, player_of(game, run, spec["order"]), moved[holder])
+            moved[holder] = _ask_order(game, run, player_of(game, run, spec["order"]), moved[holder], position=position)
 
     for holder in sorted(moved):
         st, cards, rival = game.players[holder], moved[holder], 1 - holder

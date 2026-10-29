@@ -132,7 +132,7 @@ def _draw(run, game, spec):
         run.bind("cards", spec["as"], drawn)
 
 
-def _cards_of(game, run, cards, purpose: str, prompt: str | None = None) -> list[Picked]:
+def _cards_of(game, run, cards, purpose: str, prompt: str | None = None, **extra) -> list[Picked]:
     if isinstance(cards, str):
         found = []
         for c in card_ref(game, run, cards):
@@ -140,7 +140,7 @@ def _cards_of(game, run, cards, purpose: str, prompt: str | None = None) -> list
             if where is not None:
                 found.append(Picked(where[0], where[1], c))
         return found
-    return select_cards(game, run, cards, purpose, prompt)
+    return select_cards(game, run, cards, purpose, prompt, **extra)
 
 
 def _table_settles(game, run, sel) -> bool:
