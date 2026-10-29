@@ -1525,6 +1525,8 @@ def set_panel(status: str, states: dict[str, tuple[bool, bool]], release_busy: b
         if not isinstance(ident, str) or not PANEL_ID.fullmatch(ident) or not isinstance(text, str) \
                 or not text or not _STATUS.fullmatch(text):
             raise ValueError(f"texto de boton no valido: {ident!r}")
+        # a Button's caption is its "text" attribute: setValue alone left "Opcion" on the live table (29/10)
+        texts.append(f'panel.UI.setAttribute("{ident}", "text", "{text}")')
         texts.append(f'panel.UI.setValue("{ident}", "{text}")')
     texts = "\n".join(texts) + "\n" if texts else ""
     return f"""-- sparring:set_panel

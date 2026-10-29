@@ -897,7 +897,9 @@ class Session:
 
     def _show_choice(self, req) -> None:
         self.choice_ui.sync(req)
-        self.say(choices.prompt_text(self.game, req) + ": pulsa una de las opciones del panel.", ChatKind.YOUR_TURN)
+        self.say(choices.prompt_text(self.game, req) + ": pulsa una de las opciones del panel ("
+                 + choices.options_text(self.game, req) + ")." + choices.card_text_hint(self.game, req),
+                 ChatKind.YOUR_TURN)
 
     def _effect_finished(self) -> None:
         self.choice_ui = choices.ChoiceUI()

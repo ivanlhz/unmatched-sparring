@@ -243,3 +243,20 @@ def test_many_options_page_and_multi_pick_confirms(brig):
     assert press(game, multi, ui2, 1) == ("update", None) and press(game, multi, ui2, 2) == ("update", None)
     assert layout(game, multi, ui2)[0].label == "1. Carta 10" and press(game, multi, ui2, 4) == ("answer", [10, 11])
     assert press(game, multi, ui2, 9)[0] == "error"
+
+
+def test_a_plain_yes_no_names_the_card_lists_the_buttons_and_quotes_the_card_text(bprd):
+    """Live 29/10: the panel said "Quieres hacerlo?" with two "Opcion" buttons after Pyrotechnics."""
+    from sparring.effects.choose import ChoiceRequest
+    from sparring.session_choices import card_text_hint, options_text, prompt_text
+    g = Game.new(bprd, seed=3, controllers={}, heroes=("hellboy", "liz-sherman"))
+    pyro = next(c for c in g.players[1].full_set if c.title == "Pyrotechnics")
+    req = ChoiceRequest("optional", 1, [True, False], card_id=pyro.card_id)
+    assert prompt_text(g, req) == "Usas el efecto de Pyrotechnics?"
+    assert options_text(g, req) == "1: Si, 2: No"
+    assert card_text_hint(g, req) == " Carta: " + pyro.text
+
+
+def test_button_captions_are_set_through_the_text_attribute():
+    script = lua.set_panel("Tu turno", {}, labels={"btn_choice_1": "Si"})
+    assert 'panel.UI.setAttribute("btn_choice_1", "text", "Si")' in script

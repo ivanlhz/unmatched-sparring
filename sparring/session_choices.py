@@ -100,6 +100,23 @@ def option_label(game, req: ChoiceRequest, option) -> str:
     return safe_label(fighter.name if fighter is not None else option)
 
 
+def options_text(game, req: ChoiceRequest, limit: int = 6) -> str:
+    """'1: Si, 2: No': the options in button order for the chat, so the human knows each button even if its caption
+    did not change on the table."""
+    opts = list(req.options)
+    shown = [f"{i}: {option_label(game, req, o)}" for i, o in enumerate(opts[:limit], 1)]
+    return ", ".join(shown) + (", ..." if len(opts) > limit else "")
+
+
+def card_text_hint(game, req: ChoiceRequest) -> str:
+    """' Carta: <printed text>' for a plain yes/no (Pyrotechnics: the question alone did not say what the card does), else ''."""
+    if req.kind != "optional" or req.extra.get("discards") or "to" in req.extra:
+        return ""
+    card = next((c for p in game.players for c in p.full_set if c.card_id == req.card_id), None)
+    text = getattr(card, "text", "") if card is not None else ""
+    return f" Carta: {text}" if text else ""
+
+
 def prompt_text(game, req: ChoiceRequest) -> str:
     """Spanish chat line for the request: what is asked and, for the card that asks, its title."""
     base = PROMPTS.get(req.kind, "Elige")
@@ -118,6 +135,8 @@ def prompt_text(game, req: ChoiceRequest) -> str:
         for c in p.full_set:
             if c.card_id == req.card_id:
                 title = c.title
+    if req.kind == "optional" and base == PROMPTS["optional"] and title:
+        return f"Usas el efecto de {title}?"              # the question names the card: "Quieres hacerlo?" did not
     if req.max > 1 or req.min != 1:
         lo, hi = req.min, req.max
         base += f" ({lo} a {hi})" if lo != hi else f" ({hi})"
