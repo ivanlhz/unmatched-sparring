@@ -1,0 +1,607 @@
+{
+ "SaveName": "mini",
+ "VersionNumber": "v13.0",
+ "ObjectStates": [
+  {
+   "Name": "Custom_Model",
+   "GUID": "dc0001",
+   "Nickname": "Hellboy",
+   "Description": "decoy: not a bag"
+  },
+  {
+   "Name": "Bag",
+   "GUID": "bg0001",
+   "Nickname": "Heroes",
+   "ContainedObjects": [
+    {
+     "Name": "Custom_Model_Infinite_Bag",
+     "GUID": "ob0001",
+     "Nickname": "Hellboy",
+     "Description": "S4: Hellboy",
+     "ContainedObjects": [
+      {
+       "Name": "Custom_Model_Bag",
+       "GUID": "in0001",
+       "Nickname": "",
+       "ChildObjects": [
+        {
+         "Name": "CardCustom",
+         "GUID": "ch0001",
+         "Nickname": ""
+        }
+       ],
+       "ContainedObjects": [
+        {
+         "Name": "Custom_Token",
+         "GUID": "tk0001",
+         "Nickname": "",
+         "Description": "",
+         "ChildObjects": [
+          {
+           "Name": "Custom_Token",
+           "GUID": "tk0002",
+           "Nickname": ""
+          }
+         ]
+        },
+        {
+         "Name": "Custom_Token",
+         "GUID": "pc0002",
+         "Nickname": "Lobster Johnson",
+         "Description": ""
+        },
+        {
+         "Name": "Custom_Model",
+         "GUID": "pc0001",
+         "Nickname": "Hellboy",
+         "Description": "",
+         "States": {
+          "2": {
+           "Name": "Custom_Model",
+           "GUID": "pc0001b",
+           "Nickname": "Anung Un Rama"
+          }
+         }
+        },
+        {
+         "Name": "Custom_Model",
+         "GUID": "dl0003",
+         "Nickname": "Destiny Dial",
+         "Description": "Hero Health",
+         "LuaScript": "-- health dial\nMAX_VALUE = 11\nMIN_VALUE = 0\nfunction onLoad() end"
+        },
+        {
+         "Name": "Custom_Model",
+         "GUID": "dl0002",
+         "Nickname": "Lobster Johnson",
+         "Description": "Sidekick Health",
+         "LuaScript": "-- health dial\nMAX_VALUE = 6\nMIN_VALUE = 0\nfunction onLoad() end"
+        },
+        {
+         "Name": "Custom_Model",
+         "GUID": "dl0001",
+         "Nickname": "Hellboy",
+         "Description": "Hero Health",
+         "LuaScript": "-- health dial\nMAX_VALUE = 18\nMIN_VALUE = 0\nfunction onLoad() end"
+        },
+        {
+         "Name": "Deck",
+         "GUID": "dk0001",
+         "Nickname": "",
+         "DeckIDs": [
+          19700,
+          19701,
+          19702,
+          19703,
+          19704,
+          19705,
+          19706,
+          19707,
+          19708,
+          19709,
+          19710,
+          19711,
+          19712,
+          19713,
+          19714,
+          19715,
+          19716,
+          19717,
+          19718,
+          19719,
+          19720,
+          19721,
+          19722,
+          19723,
+          19724,
+          19725,
+          19726,
+          19727,
+          19728,
+          19729,
+          19600
+         ],
+         "CustomDeck": {
+          "197": {
+           "FaceURL": "https://example.test/hellboy-face/",
+           "BackURL": "https://example.test/hellboy-back/",
+           "NumWidth": 10,
+           "NumHeight": 3
+          },
+          "196": {
+           "FaceURL": "https://example.test/hellboy-face/char",
+           "BackURL": "https://example.test/hellboy-back/char",
+           "NumWidth": 1,
+           "NumHeight": 1
+          }
+         },
+         "ContainedObjects": [
+          {
+           "Name": "Card",
+           "GUID": "c19700",
+           "Nickname": "",
+           "CardID": 19700
+          },
+          {
+           "Name": "Card",
+           "GUID": "c19701",
+           "Nickname": "",
+           "CardID": 19701
+          },
+          {
+           "Name": "Card",
+           "GUID": "c19702",
+           "Nickname": "",
+           "CardID": 19702
+          },
+          {
+           "Name": "Card",
+           "GUID": "c19703",
+           "Nickname": "",
+           "CardID": 19703
+          },
+          {
+           "Name": "Card",
+           "GUID": "c19704",
+           "Nickname": "",
+           "CardID": 19704
+          },
+          {
+           "Name": "Card",
+           "GUID": "c19705",
+           "Nickname": "",
+           "CardID": 19705
+          },
+          {
+           "Name": "Card",
+           "GUID": "c19706",
+           "Nickname": "",
+           "CardID": 19706
+          },
+          {
+           "Name": "Card",
+           "GUID": "c19707",
+           "Nickname": "",
+           "CardID": 19707
+          },
+          {
+           "Name": "Card",
+           "GUID": "c19708",
+           "Nickname": "",
+           "CardID": 19708
+          },
+          {
+           "Name": "Card",
+           "GUID": "c19709",
+           "Nickname": "",
+           "CardID": 19709
+          },
+          {
+           "Name": "Card",
+           "GUID": "c19710",
+           "Nickname": "",
+           "CardID": 19710
+          },
+          {
+           "Name": "Card",
+           "GUID": "c19711",
+           "Nickname": "",
+           "CardID": 19711
+          },
+          {
+           "Name": "Card",
+           "GUID": "c19712",
+           "Nickname": "",
+           "CardID": 19712
+          },
+          {
+           "Name": "Card",
+           "GUID": "c19713",
+           "Nickname": "",
+           "CardID": 19713
+          },
+          {
+           "Name": "Card",
+           "GUID": "c19714",
+           "Nickname": "",
+           "CardID": 19714
+          },
+          {
+           "Name": "Card",
+           "GUID": "c19715",
+           "Nickname": "",
+           "CardID": 19715
+          },
+          {
+           "Name": "Card",
+           "GUID": "c19716",
+           "Nickname": "",
+           "CardID": 19716
+          },
+          {
+           "Name": "Card",
+           "GUID": "c19717",
+           "Nickname": "",
+           "CardID": 19717
+          },
+          {
+           "Name": "Card",
+           "GUID": "c19718",
+           "Nickname": "",
+           "CardID": 19718
+          },
+          {
+           "Name": "Card",
+           "GUID": "c19719",
+           "Nickname": "",
+           "CardID": 19719
+          },
+          {
+           "Name": "Card",
+           "GUID": "c19720",
+           "Nickname": "",
+           "CardID": 19720
+          },
+          {
+           "Name": "Card",
+           "GUID": "c19721",
+           "Nickname": "",
+           "CardID": 19721
+          },
+          {
+           "Name": "Card",
+           "GUID": "c19722",
+           "Nickname": "",
+           "CardID": 19722
+          },
+          {
+           "Name": "Card",
+           "GUID": "c19723",
+           "Nickname": "",
+           "CardID": 19723
+          },
+          {
+           "Name": "Card",
+           "GUID": "c19724",
+           "Nickname": "",
+           "CardID": 19724
+          },
+          {
+           "Name": "Card",
+           "GUID": "c19725",
+           "Nickname": "",
+           "CardID": 19725
+          },
+          {
+           "Name": "Card",
+           "GUID": "c19726",
+           "Nickname": "",
+           "CardID": 19726
+          },
+          {
+           "Name": "Card",
+           "GUID": "c19727",
+           "Nickname": "",
+           "CardID": 19727
+          },
+          {
+           "Name": "Card",
+           "GUID": "c19728",
+           "Nickname": "",
+           "CardID": 19728
+          },
+          {
+           "Name": "Card",
+           "GUID": "c19729",
+           "Nickname": "",
+           "CardID": 19729
+          },
+          {
+           "Name": "CardCustom",
+           "GUID": "c19600",
+           "Nickname": "",
+           "CardID": 19600
+          }
+         ]
+        }
+       ]
+      }
+     ]
+    },
+    {
+     "Name": "Custom_Model_Infinite_Bag",
+     "GUID": "ob0002",
+     "Nickname": "",
+     "Description": "",
+     "ContainedObjects": [
+      {
+       "Name": "Custom_Model_Bag",
+       "GUID": "in0002",
+       "Nickname": "",
+       "ContainedObjects": [
+        {
+         "Name": "Custom_Assetbundle",
+         "GUID": "pc0003",
+         "Nickname": "Liz Sherman",
+         "Description": ""
+        },
+        {
+         "Name": "Custom_Model",
+         "GUID": "dl0004",
+         "Nickname": "Liz Sherman",
+         "Description": "Hero Health",
+         "LuaScript": "-- health dial\nMAX_VALUE = 16\nMIN_VALUE = 0\nfunction onLoad() end"
+        },
+        {
+         "Name": "Deck",
+         "GUID": "dk0002",
+         "Nickname": "",
+         "DeckIDs": [
+          19900,
+          19901,
+          19902,
+          19903,
+          19904,
+          19905,
+          19906,
+          19907,
+          19908,
+          19909,
+          19910,
+          19911,
+          19912,
+          19913,
+          19914,
+          19915,
+          19916,
+          19917,
+          19918,
+          19919,
+          19920,
+          19921,
+          19922,
+          19923,
+          19924,
+          19925,
+          19926,
+          19927,
+          19928,
+          19929,
+          19800
+         ],
+         "CustomDeck": {
+          "199": {
+           "FaceURL": "https://example.test/liz-face/",
+           "BackURL": "https://example.test/liz-back/",
+           "NumWidth": 10,
+           "NumHeight": 3
+          },
+          "198": {
+           "FaceURL": "https://example.test/liz-face/char",
+           "BackURL": "https://example.test/liz-back/char",
+           "NumWidth": 1,
+           "NumHeight": 1
+          }
+         },
+         "ContainedObjects": [
+          {
+           "Name": "Card",
+           "GUID": "c19900",
+           "Nickname": "",
+           "CardID": 19900
+          },
+          {
+           "Name": "Card",
+           "GUID": "c19901",
+           "Nickname": "",
+           "CardID": 19901
+          },
+          {
+           "Name": "Card",
+           "GUID": "c19902",
+           "Nickname": "",
+           "CardID": 19902
+          },
+          {
+           "Name": "Card",
+           "GUID": "c19903",
+           "Nickname": "",
+           "CardID": 19903
+          },
+          {
+           "Name": "Card",
+           "GUID": "c19904",
+           "Nickname": "",
+           "CardID": 19904
+          },
+          {
+           "Name": "Card",
+           "GUID": "c19905",
+           "Nickname": "",
+           "CardID": 19905
+          },
+          {
+           "Name": "Card",
+           "GUID": "c19906",
+           "Nickname": "",
+           "CardID": 19906
+          },
+          {
+           "Name": "Card",
+           "GUID": "c19907",
+           "Nickname": "",
+           "CardID": 19907
+          },
+          {
+           "Name": "Card",
+           "GUID": "c19908",
+           "Nickname": "",
+           "CardID": 19908
+          },
+          {
+           "Name": "Card",
+           "GUID": "c19909",
+           "Nickname": "",
+           "CardID": 19909
+          },
+          {
+           "Name": "Card",
+           "GUID": "c19910",
+           "Nickname": "",
+           "CardID": 19910
+          },
+          {
+           "Name": "Card",
+           "GUID": "c19911",
+           "Nickname": "",
+           "CardID": 19911
+          },
+          {
+           "Name": "Card",
+           "GUID": "c19912",
+           "Nickname": "",
+           "CardID": 19912
+          },
+          {
+           "Name": "Card",
+           "GUID": "c19913",
+           "Nickname": "",
+           "CardID": 19913
+          },
+          {
+           "Name": "Card",
+           "GUID": "c19914",
+           "Nickname": "",
+           "CardID": 19914
+          },
+          {
+           "Name": "Card",
+           "GUID": "c19915",
+           "Nickname": "",
+           "CardID": 19915
+          },
+          {
+           "Name": "Card",
+           "GUID": "c19916",
+           "Nickname": "",
+           "CardID": 19916
+          },
+          {
+           "Name": "Card",
+           "GUID": "c19917",
+           "Nickname": "",
+           "CardID": 19917
+          },
+          {
+           "Name": "Card",
+           "GUID": "c19918",
+           "Nickname": "",
+           "CardID": 19918
+          },
+          {
+           "Name": "Card",
+           "GUID": "c19919",
+           "Nickname": "",
+           "CardID": 19919
+          },
+          {
+           "Name": "Card",
+           "GUID": "c19920",
+           "Nickname": "",
+           "CardID": 19920
+          },
+          {
+           "Name": "Card",
+           "GUID": "c19921",
+           "Nickname": "",
+           "CardID": 19921
+          },
+          {
+           "Name": "Card",
+           "GUID": "c19922",
+           "Nickname": "",
+           "CardID": 19922
+          },
+          {
+           "Name": "Card",
+           "GUID": "c19923",
+           "Nickname": "",
+           "CardID": 19923
+          },
+          {
+           "Name": "Card",
+           "GUID": "c19924",
+           "Nickname": "",
+           "CardID": 19924
+          },
+          {
+           "Name": "Card",
+           "GUID": "c19925",
+           "Nickname": "",
+           "CardID": 19925
+          },
+          {
+           "Name": "Card",
+           "GUID": "c19926",
+           "Nickname": "",
+           "CardID": 19926
+          },
+          {
+           "Name": "Card",
+           "GUID": "c19927",
+           "Nickname": "",
+           "CardID": 19927
+          },
+          {
+           "Name": "Card",
+           "GUID": "c19928",
+           "Nickname": "",
+           "CardID": 19928
+          },
+          {
+           "Name": "Card",
+           "GUID": "c19929",
+           "Nickname": "",
+           "CardID": 19929
+          },
+          {
+           "Name": "CardCustom",
+           "GUID": "c19800",
+           "Nickname": "",
+           "CardID": 19800
+          }
+         ]
+        }
+       ]
+      }
+     ]
+    }
+   ]
+  },
+  {
+   "Name": "Custom_Board",
+   "GUID": "bd0001",
+   "Nickname": "Board"
+  }
+ ]
+}
