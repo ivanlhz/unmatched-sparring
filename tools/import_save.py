@@ -11,7 +11,9 @@ one piece per fighter (several GUIDs when the miniature changes GUID with its st
 MAX_VALUE, special tokens and counter dials.
 
 What the save cannot tell is kept from the existing file: `_notes`, `token_faces` (rotations, verify-live notes) and
-`token_sources`. Anything that could not be derived, or that differs from the versioned file, is reported."""
+`token_sources`. Anything that could not be derived, or that differs from the versioned file, is reported; a hero
+with any PROBLEM line is not written (exit 1) unless `--force` says so explicitly, and a derived field that failed is
+left out rather than copied from the old file."""
 from __future__ import annotations
 
 import argparse
@@ -32,7 +34,7 @@ MAX_VALUE_RE = re.compile(r"MAX_VALUE\s*=\s*(\d+)")
 KEPT_FIELDS = ("_notes", "token_faces", "token_sources")
 
 
-class ImportError_(Exception):
+class SaveImportError(Exception):
     """A hero could not be extracted from the save; the message says why."""
 
 
@@ -132,27 +134,29 @@ def find_hero_bag(objects: list[dict], hero: HeroDef) -> tuple[dict, dict]:
     CardID sheet."""
     named = [o for o in walk_all(objects) if is_bag(o) and _same(_nick(o), hero.name)]
     if len(named) > 1:
-        raise ImportError_(f"{len(named)} bags named {hero.name!r}: " + ", ".join(o["GUID"] for o in named))
+        raise SaveImportError(f"{len(named)} bags named {hero.name!r}: " + ", ".join(o["GUID"] for o in named))
     if named:
         outer = named[0]
         inner_bags = [c for c in outer.get("ContainedObjects") or () if is_bag(c)]
         if len(inner_bags) != 1:
-            raise ImportError_(f"bag {outer['GUID']} ({_nick(outer)!r}) holds {len(inner_bags)} bags, expected "
+            raise SaveImportError(f"bag {outer['GUID']} ({_nick(outer)!r}) holds {len(inner_bags)} bags, expected "
                                f"exactly one inner bag")
         return outer, inner_bags[0]
     if hero.card_base is None:
-        raise ImportError_(f"no bag named {hero.name!r} (and the HeroDef has no CardID sheet to search by)")
+        raise SaveImportError(f"no bag named {hero.name!r} (and the HeroDef has no CardID sheet to search by)")
     wanted = (hero.card_base, hero.card_base + DECK_SIZE - 1)
+    decks = [d for d in walk_all(objects) if is_deck(d) and (deck_sheet(d) or (None,))[0] == wanted]
+    if not decks:
+        raise SaveImportError(f"no bag named {hero.name!r} and no deck of CardIDs {wanted[0]}..{wanted[1]}")
+    if len(decks) > 1:
+        raise SaveImportError(f"no bag named {hero.name!r} and {len(decks)} decks of CardIDs {wanted[0]}.."
+                              f"{wanted[1]}: " + ", ".join(d["GUID"] for d in decks))
     up = parents(objects)
-    for deck in walk_all(objects):
-        if not is_deck(deck) or (deck_sheet(deck) or (None,))[0] != wanted:
-            continue
-        inner = up.get(id(deck))
-        outer = up.get(id(inner)) if inner is not None else None
-        if inner is None or outer is None or not is_bag(inner) or not is_bag(outer):
-            raise ImportError_(f"deck {deck['GUID']} has the hero's CardIDs but is not inside two nested bags")
-        return outer, inner
-    raise ImportError_(f"no bag named {hero.name!r} and no deck of CardIDs {wanted[0]}..{wanted[1]}")
+    inner = up.get(id(decks[0]))
+    outer = up.get(id(inner)) if inner is not None else None
+    if inner is None or outer is None or not is_bag(inner) or not is_bag(outer):
+        raise SaveImportError(f"deck {decks[0]['GUID']} has the hero's CardIDs but is not inside two nested bags")
+    return outer, inner
 
 
 # --- extracting one hero ----------------------------------------------------------------------------------------
@@ -172,7 +176,8 @@ def _dial_matches(nick: str, name: str) -> bool:
     return bool(a) and (a == b or a.startswith(b) or b.startswith(a))
 
 
-def extract_hero(objects: list[dict], hero: HeroDef, raw_hero: dict, report: Report) -> dict:
+def extract_hero(objects: list[dict], hero: HeroDef, raw_hero: dict, report: Report,
+                 expected_tokens: set[str] = frozenset()) -> dict:
     outer, inner = find_hero_bag(objects, hero)
     out: dict = {"slug": hero.slug, "bag": {"guid": outer["GUID"], "inner": inner["GUID"]}}
     report.derived.append("bag")
@@ -245,6 +250,10 @@ def extract_hero(objects: list[dict], hero: HeroDef, raw_hero: dict, report: Rep
         if o["GUID"] in claimed or not o.get("Name", "").startswith("Custom_Token"):
             continue
         key = _token_key(_nick(o))
+        if key not in expected_tokens:
+            report.problems.append(f"token {key!r} ({o['GUID']}, nickname {_nick(o)!r}): {hero.name} uses no such "
+                                   f"token (expected: {', '.join(sorted(expected_tokens)) or 'none'})")
+            continue
         if key in tokens:
             report.problems.append(f"token {key!r}: more than one object ({tokens[key]}, {o['GUID']})")
             continue
@@ -253,6 +262,8 @@ def extract_hero(objects: list[dict], hero: HeroDef, raw_hero: dict, report: Rep
         children = o.get("ChildObjects") or ()
         if len(children) == 1:
             token_children[key] = children[0]["GUID"]
+    for key in sorted(expected_tokens - set(tokens)):
+        report.problems.append(f"token {key!r}: {hero.name} uses it and the inner bag has no such token")
     out["tokens"] = tokens
     out["counter_dials"] = counter_dials
     report.derived += ["tokens", "counter_dials"]
@@ -267,10 +278,25 @@ def _token_key(nickname: str) -> str:
     return "_".join(words) or "ability"
 
 
+def expected_token_keys(raw_hero: dict, existing: dict | None) -> set[str]:
+    """Token names the hero's data actually uses: `token` of its triggers and passives (Abe: intuition), the
+    special ability token when the hero has forms (Hellboy flips it), and whatever the existing file already names.
+    The bridge looks tokens up by these keys (`effects_bridge.token_source`), so a stray token must not invent one."""
+    keys = {t["token"] for t in [*(raw_hero.get("triggers") or ()), *(raw_hero.get("passives") or ())]
+            if t.get("token")}
+    if raw_hero.get("forms"):
+        keys.add("ability")
+    for block in ("tokens", "token_faces", "token_sources"):
+        keys |= set((existing or {}).get(block) or {})
+    return keys
+
+
 # --- merging with the versioned file ------------------------------------------------------------------------------
 
 def merge(derived: dict, existing: dict | None, report: Report) -> dict:
-    """The derived fields in the order of today's files, plus the hand-written blocks of the existing file."""
+    """The derived fields in the order of today's files, plus the hand-written blocks of the existing file.
+    A derived field that could not be read from the save is left out, never copied from the existing file: old
+    GUIDs next to new ones would be a silent lie."""
     token_children = derived.pop("_token_children", {})
     existing = existing or {}
     out: dict = {"slug": derived["slug"]}
@@ -279,9 +305,6 @@ def merge(derived: dict, existing: dict | None, report: Report) -> dict:
     for key in ("bag", "deck", "fighters", "tokens"):
         if key in derived:
             out[key] = derived[key]
-        elif key in existing:
-            out[key] = existing[key]
-            report.kept.append(f"{key} (not derived)")
     for key in ("token_faces", "token_sources"):
         if key in existing:
             out[key] = json.loads(json.dumps(existing[key]))
@@ -303,15 +326,16 @@ def render(data: dict) -> str:
 
 
 def import_hero(objects: list[dict], slug: str, out_dir: Path) -> tuple[dict | None, Report]:
-    """The merged file content for a hero (None when its bag is missing) and the report of how it was built."""
+    """The merged file content for a hero (None when its bag is missing) and the report of how it was built.
+    A report with problems means the content must not be written without an explicit override."""
     report = Report(slug)
     hero = load_hero(slug)
     raw_hero = json.loads(hero_path(slug).read_text(encoding="utf-8"))
     path = out_dir / f"{slug}.json"
     existing = json.loads(path.read_text(encoding="utf-8")) if path.exists() else None
     try:
-        derived = extract_hero(objects, hero, raw_hero, report)
-    except ImportError_ as e:
+        derived = extract_hero(objects, hero, raw_hero, report, expected_token_keys(raw_hero, existing))
+    except SaveImportError as e:
         report.problems.append(f"hero not found in the save: {e}")
         return None, report
     data = merge(derived, existing, report)
@@ -329,18 +353,27 @@ def main(argv: list[str] | None = None) -> int:
                     help="only this hero (repeatable); default: every slug in data/heroes")
     ap.add_argument("--out", type=Path, default=TTS_DIR, help="where data/tts/<slug>.json go")
     ap.add_argument("--check", action="store_true", help="write nothing: fail and show a diff if a file would change")
+    ap.add_argument("--force", action="store_true",
+                    help="write a hero's file even if its report has PROBLEM lines (never with --check)")
     args = ap.parse_args(argv)
-    if not args.save.exists():
-        ap.error(f"{args.save} does not exist")
+    if not args.save.is_file():
+        ap.error(f"{args.save} is not a file")
+    save, out = args.save.resolve(), args.out.resolve()
+    if out == save or out == save.parent or out in save.parents:
+        ap.error(f"--out {args.out} would write next to or over the save {args.save}; the save is read-only")
+    if args.check and args.force:
+        ap.error("--check writes nothing: --force makes no sense with it")
     objects = load_save(args.save)
     slugs = args.hero or available_heroes()
-    failed, stale = [], []
+    failed, forced, stale = [], [], []
     for slug in slugs:
         data, report = import_hero(objects, slug, args.out)
         print("\n".join(report.lines()))
-        if data is None or any(p.startswith("the generated file") for p in report.problems):
+        if data is None or (report.problems and not args.force):
             failed.append(slug)
             continue
+        if report.problems:
+            forced.append(slug)
         path = args.out / f"{slug}.json"
         text = render(data)
         if args.check:
@@ -354,7 +387,9 @@ def main(argv: list[str] | None = None) -> int:
         path.write_text(text, encoding="utf-8")
         print(f"  written {path}")
     if failed:
-        print("not imported: " + ", ".join(failed), file=sys.stderr)
+        print("not imported (PROBLEM lines above; --force overrides): " + ", ".join(failed), file=sys.stderr)
+    if forced:
+        print("written despite PROBLEM lines (--force): " + ", ".join(forced), file=sys.stderr)
     if stale:
         print("files that would change (regenerate with tools/import_save.py): " + ", ".join(stale), file=sys.stderr)
     return 1 if failed or stale else 0
