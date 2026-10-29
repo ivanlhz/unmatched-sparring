@@ -110,9 +110,12 @@ def test_a_fresh_look_replaces_the_old_one_and_unknown_cards_are_ignored(game):
     g = game
     a = give(g, 1, "Pancakes!")
     g.observe_hand(0, [a])
-    g.players[1].hand.remove(a)                                  # salio por una via que el motor no vio
-    assert g.hidden_hand(0)[0] == []                             # ya no esta ni en su mano ni en su mazo: no cuenta
-    assert g.players[0].known.forget(a) is True and g.players[0].known.forget(a) is False
+    g.players[1].hand.remove(a)
+    # KnownHand never reads the rival hand to check (Ivan's rule): every route that takes a card out of a hand tells it
+    assert g.hidden_hand(0)[0] == [a]
+    g.card_left_hand(1, a)
+    assert g.hidden_hand(0)[0] == []
+    assert g.players[0].known.forget(a) is False
     b = give(g, 1, "Excalibur")
     g.observe_hand(0, [b])
     assert g.players[0].known.seen == [b.card_id]

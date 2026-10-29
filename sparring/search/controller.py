@@ -105,9 +105,8 @@ class IsmctsMedusa(Controller):
         log.warning("La busqueda ISMCTS fallo en %s; decide la heuristica de MedusaAI.", what, exc_info=True)
 
     def knowledge(self, game: Game) -> Knowledge:
-        """Lo visto por un efecto de mirar la mano rival, tal como lo lleva el motor (ya descontado de lo salido)."""
-        rival = 1 - self.me
-        return Knowledge({rival: tuple(game.players[self.me].known.cards(game.players[rival]))})
+        """What look-at-the-hand effects showed, as the engine's KnownHand keeps it (already discounted)."""
+        return Knowledge.from_game(game, self.me)
 
     def _plan(self, game: Game) -> Act:
         root = EngineState(game, observer=self.me, knowledge=self.knowledge(game), weights=self.weights)

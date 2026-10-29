@@ -208,7 +208,7 @@ Nunca hay condiciones en cadenas.
 | `attacked` | `target: FighterSel` | `$attacker`, `$target`, `attack_card` |
 | `combat_damage_dealt` | `by: FighterSel` | `$by`, `$to`, `$amount` |
 | `damage_taken` | `target: FighterSel`, `damage: effect | combat | any`, `min` | `$target`, `$amount` |
-| `card_discarded` | `player`, `from: [hand, deck]`, `filter: CardFilter` | `$card` |
+| `card_discarded` | `player`, `from: [hand, deck]`, `cause_not: hand_limit`?, `filter: CardFilter` | `$card` |
 | `card_played` | `player`, `filter` | `$card` |
 | `fighter_defeated` | `fighter: FighterSel` | `$fighter` |
 
@@ -484,9 +484,57 @@ Decisiones dudosas de la migracion (ver tambien `notes` de cada fichero):
   away; `gain_action` for a player whose turn it is not does nothing; `end_turn` ends the CURRENT turn whoever owns the
   card (zeroes `game.turn`'s actions, sets `run.flags["end_turn"] = game.turn`); `choose_effect` resolves the chosen
   options in printed order, not choice order; `defeated` = died on the board (`died_at` set), reserve fighters
-  are not defeated; `actions_taken_this_turn` is a stub (`NotImplementedError`, C3); `moved_this_turn` reads `fx.turn_start_pos` (filled by C3).
+  are not defeated; `moved_this_turn` reads `fx.turn_start_pos`.
 
-## 12. Combat ops and modifiers (C2: `effects/ops_combat.py`, `effects/modifiers.py`, `combat_flow.py`)
+### C4 hidden information (`effects/ops_info.py`, `KnownHand` in `state.py`)
+
+- `look_hand` is the only caller of `Game.observe_hand` (a test scans the source). `KnownHand` of player P is what P knows about P's RIVAL: `seen` (certain), `possible` with `possible_lo`..`possible_hi` (seen once, maybe gone face down) and `top_of_deck` (known prefix of the rival deck, top first). `KnownHand.cards` never reads the rival hand or deck: every route that takes a card out of a hand must call `Game.card_left_hand` (the old hand/deck membership check was a read of the human hand and was dropped).
+- A card leaving a hand in plain sight (played, discarded, picked by the rival) is forgotten exactly. A card returned face down by its owner (Glimpse Of Hell, Pyrotechnics, Pact Of Secrecy) degrades the rival's `seen` to `possible`: `lo = certain - removed`, `hi = min(seen, hand size after)`. Pact Of Secrecy over a fully seen hand of 5 leaves exactly 2 possible of 5.
+- Deck top: a rival pick put on top (Every Possible Angle), a public discard pile card put on top, or a `look_deck` of the rival deck sets `top_of_deck`; a shuffle or a hidden card on top clears it; `Game.draw` moves the known top card into `seen` and clears the prefix if an unknown card came out first.
+- `return_to_deck`: `order` lists are top first (`top`: first goes on top; `bottom`: last is the very bottom); `shuffle` uses a permutation memoized in the run, so a rerun never reshuffles. `search_deck` takes from the top `look` cards, `rest` goes bottom (random: memoized permutation; ordered: asked) or top (ordered) or the whole deck is shuffled.
+- `reveal` of a card in a hand adds it to the viewer's `seen`; of the deck top sets `top_of_deck`; of a card played face down in combat (attack_card) records it in `run.flags["revealed"][viewer]`.
+- Choosing among the RIVAL's hand cards (`ChoiceRequest.extra["of"]` is the hand owner): `ControllerChooser` never shows the options to the controller; it picks the most valuable card of those in its `KnownHand` and, if short, fills by position with the game rng, never by identity. Own-hand discards and returns keep going through `choose_discard`; own deck/discard picks (search, recover) rank by card worth.
+- Search: `Knowledge.from_game(game, observer)` is a frozen snapshot of the observer's `KnownHand` (single source of truth). `determinize` keeps the seen cards in the hand, puts the known top at the top of the deck and draws between `lo` and `hi` of the possible cards into the hand.
+- Live session routes (`Session._trim_virtual_hand`): when the real human hand has fewer cards than the virtual one (Glimpse Of Hell or Pyrotechnics on the table, a waived hand limit) the model drops unseen cards first; only if a seen card must go does `KnownHand.degrade` run. A blind draw raises `possible_hi` by one without looking at the card. Ivan's ruling: a burning card discarded for the end-of-turn hand limit stays in the discard (no Wildfire return, no leniency in `_discard_done`).
+
+## 12. Events, triggers and the ONGOING slot (C3, `effects/events.py`, `effects/ongoing.py`)
+
+- Only for heroes in `fx.dsl_heroes`. `EffectState.emit(name, *args)` and `EffectState.on_damage(...)` call
+  `events.dispatch`: bookkeeping (`fx.attacked`, `fx.turn_start_pos`, `fx.taken` = actions spent, all reset at
+  `start_of_turn`), then `until` expiry of the ongoing cards in play, then triggers (the player whose turn it is
+  first; ability triggers before the ongoing card's). Expiry first means Fight Or Flight lapses before the
+  Wildfire discard of the same start of turn.
+- Trigger decisions go to `fx.choosers` (default: the bots' controllers); a run a chooser pauses is parked in
+  `fx.parked` (not persisted until E1).
+- Damage events come from `Game.damage(fighter, n, source, by=None)`: `damage_taken` always, and for
+  `source == "combat"` also `combat_damage_dealt` by `by` (default: the last fighter in `fx.attacked`). The events are
+  raised right after the hp drop, before the fighter is marked defeated. "Baba takes 2+ combat damage" is one
+  `Game.damage` call, i.e. one combat; damage redirected to Koschei hits Koschei, not her.
+- `card_discarded` carries the zone (`hand`, `deck`). `Game.discard_card(..., played=True)` (a scheme being played)
+  raises no event: playing a card is not discarding it (so Wildfire does not bounce Searing Clarity back).
+- Hellboy has two modes. Flag off: the wrappers `Game.hellboy_detective_draw` / `hellboy_anung_start` drive him (session,
+  adapter, script) and the dispatcher does nothing. `'hellboy'` in `dsl_heroes` (D1): the dispatcher runs his triggers
+  `detective_draw` / `anung_discard_move` at `begin_turn`, and the wrappers become no-ops (`False` / return), so nothing
+  fires twice. `medusa_gaze` is still engine-driven (`medusa_ability`) until C5. `events.run_trigger` runs a trigger on
+  request; tests pin that both modes give the same state.
+- `card_discarded` carries `cause`; `Game.end_turn`'s hand-limit discard uses `cause="hand_limit"` and Wildfire's
+  `cause_not: hand_limit` leaves such a burning card in the discard pile (Ivan, 28/10).
+- `no_attack_as_first_action` (Pact Of Freedom) is enforced in `Game.can_attack` / `Game.attack` through `fx.may_attack`
+  (`game.turn == player and fx.taken == 0`); the human side is blocked by the panel in E1.
+- `fx.parked` persistence and resuming a parked run are E1's job.
+- ONGOING slot: `fx.ongoing[player]` = `{"card_id"}` (DSL card) or `{"card_id": None, "bonus", "label"}` (the bonus
+  `Game.add_combat_bonus` has always stored; saved in the old `combat_bonus` key). `Game.combat_bonus*` are views
+  over it. `ongoing.resolve_scheme` plays a DSL scheme: the player's active ONGOING is replaced BEFORE the new
+  card's ops run (so the new rules are not yet in force), the card leaves hand/discard while it resolves, then stays in
+  play (ONGOING) or goes to the discard pile. Rules and statuses of a card in play are read from the card
+  (`ongoing.active_modifiers`, `rules`, `rule_total`), never copied.
+- Wired rules: `no_attack_as_first_action`, `max_hand_size` (`Game.end_turn` via `fx.hand_limit`), `no_gain_actions` and the `cannot_gain_actions`
+  status (`fx.can_gain_actions`). `effect_damage_bonus` is exposed by
+  `ongoing.rule_total` for the damage code (C2).
+- `put_in_hand` is C4's (`effects/ops_info.py`); Wildfire's return uses it.
+
+
+## 13. Combat ops and modifiers (C2: `effects/ops_combat.py`, `effects/modifiers.py`, `combat_flow.py`)
 
 - Rules `dsl_immediately` / `dsl_during` / `dsl_after` come after the legacy rules; the legacy rules (feint, planned
   recklessness, On Earth, boosts, `*_after`) step aside for a card whose owner's hero is in `fx.dsl_heroes`. Each run
@@ -509,10 +557,10 @@ Decisiones dudosas de la migracion (ver tambien `notes` de cada fichero):
   `uncancelable`. `may_boost` cards ask a hand BOOST at the end of their DURING, either side; a card without a BOOST
   value is refused. `combat.can_boost/deck_boost` read the data (index by CardID, `modifiers.card_effects`).
 - Statuses (`fx.statuses`, op `status`) expire through `fx.emit("start_of_turn" | "end_of_turn" | "after_maneuver",
-  player)` (`modifiers.expire_on_event`; C3 keeps calling it when it replaces `emit`). ONGOING modifiers go in
-  `fx.modifiers` with `modifiers.add_modifier(fx, owner, card_id, spec)` / `remove_modifiers(fx, card_id)` (C3 calls
-  them when the plan enters/leaves play); modifiers of kind `status`, `rule` (`effect_damage_bonus`, `no_gain_actions`)
-  and `redirect_damage` are read from there. `modify_value` modifiers are NOT read here: the ONGOING bonus reaches
+  player)` (`modifiers.expire_on_event`, before `events.dispatch`). Modifiers of kind `status`, `rule`
+  (`effect_damage_bonus`, `no_gain_actions`) and `redirect_damage` are read from `fx.modifiers` (loose ones,
+  `modifiers.add_modifier` / `remove_modifiers`) AND from the ONGOING card in play (`modifiers._modifier_entries` over
+  `ongoing.active_modifiers`; C3 never copies them), so a Counterhex Shield or a Pact played as a scheme is enforced. `modify_value` modifiers are NOT read here: the ONGOING bonus reaches
   combat through `Game.combat_bonus_parts` (C3 makes it a view of the ONGOING slot).
 - Hooks (bodies in modifiers.py): `adjust_damage` (effect damage only: immune statuses, then +N), `can_draw`,
   `can_gain_actions`, `can_force_discard`, `can_move` (also consulted by `Game.legal_moves`). `fx.acting` is the
@@ -527,5 +575,5 @@ Decisiones dudosas de la migracion (ver tambien `notes` de cada fichero):
   and ONGOING `redirect_damage` act on effect damage inside the `damage` op, asking the optional ones through the
   chooser of the passive's owner.
 - `next_attack_bonus` is consumed by the first attack of that player (`CombatFlow._reveal`).
-- Not covered: the `scheme` moment (C3), the `boost` moment of a card used as a boost, the `max_hand_size` and
-  `no_attack_as_first_action` rules (C3, Pacts), `until` events other than the turn events.
+- Not covered: the `scheme` moment (C3), the `boost` moment of a card used as a boost, `until` events other than
+  the turn events for `status` statuses (the ONGOING `until`s are C3's).

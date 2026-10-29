@@ -20,10 +20,7 @@ OPS: dict[str, Callable] = {}
 PLUGINS: dict[str, Callable] = {}
 PLUGIN_TESTS: dict[str, Callable] = {}
 
-PENDING_PHASES = {
-    "look_hand": "C4", "reveal": "C4", "look_deck": "C4", "search_deck": "C4", "return_to_deck": "C4",
-    "put_in_hand": "C4",
-}
+PENDING_PHASES: dict[str, str] = {}
 
 
 def op(name: str):
@@ -154,8 +151,9 @@ def _discard(run, game, spec):
             game.discard_card(player, card)
         elif zone == "deck":
             game.players[player].deck.remove(card)
+            game.players[1 - player].known.drop_top(card.card_id)
             game.players[player].discard.append(card)
-            game.fx.emit("card_discarded", player, card)
+            game.fx.emit("card_discarded", player, card, "deck")
         elif zone == "in_play":
             game.fx.take_ongoing(player)
             if card not in game.players[player].discard:
@@ -354,3 +352,4 @@ def _plugin(run, game, spec):
 
 
 from . import ops_combat  # noqa: E402,F401  (registers the combat ops over the registry above)
+from . import ops_info  # noqa: E402,F401  (registers look_hand, reveal, look_deck, search_deck, return_to_deck, put_in_hand)

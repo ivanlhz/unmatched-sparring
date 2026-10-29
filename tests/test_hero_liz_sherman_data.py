@@ -95,7 +95,7 @@ def test_wildfire_is_two_triggers_the_bottom_discard_and_the_burning_return():
     assert branch["condition"] == {"test": "card", "card": "$burnt", "filter": {"tag": "burning"}}
     assert branch["then"][0]["op"] == "damage" and branch["else"][0] == {"op": "move", "target": "hero", "amount": 2, "up_to": True}
     assert back["id"] == "wildfire_return"
-    assert back["when"] == {"event": "card_discarded", "player": "owner", "from": ["hand", "deck"], "filter": {"tag": "burning"}}
+    assert back["when"] == {"event": "card_discarded", "player": "owner", "from": ["hand", "deck"], "cause_not": "hand_limit", "filter": {"tag": "burning"}}
     assert back["ops"] == [{"op": "put_in_hand", "cards": "$card"}]
     assert ab["passives"] == []
 

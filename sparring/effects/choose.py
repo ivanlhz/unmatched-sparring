@@ -98,6 +98,8 @@ class ControllerChooser:
         ctrl = game.controllers.get(req.player)
         if ctrl is None:
             return default_answer(req)
+        if req.kind == "cards" and req.extra.get("zone") == "hand" and req.extra.get("of", req.player) != req.player:
+            return self._from_rival_hand(game, req, req.extra["of"])    # the controller never sees these options
         answer = ctrl.choose_effect(game, req)
         if answer is not None:
             return answer
@@ -114,13 +116,41 @@ class ControllerChooser:
                     return [dest]
                 if req.min == 0:
                     return []
-        elif req.kind == "cards" and req.extra.get("zone") == "hand" and req.extra.get("purpose") == "discard":
+        elif req.kind == "cards":
+            picked = self._choose_cards(game, ctrl, req)
+            if picked is not None:
+                return picked
+        return default_answer(req)
+
+    def _choose_cards(self, game, ctrl, req: ChoiceRequest) -> list | None:
+        zone, purpose = req.extra.get("zone"), req.extra.get("purpose")
+        of = req.extra.get("of", req.player)
+        if zone == "hand" and purpose in ("discard", "return"):       # the cards to give up are the least useful ones
             n = min(req.max, len(req.options))
             picked = [c.card_id for c in ctrl.choose_discard(game, req.player, n, req.prompt)
                       if c.card_id in req.options][:req.max]
-            if len(picked) >= req.min:
-                return picked
-        return default_answer(req)
+            return picked if len(picked) >= req.min else None
+        if of == req.player and zone in ("deck", "discard") and purpose in ("search", "return", "recover"):  # own piles
+            from ..search.adapter import card_worth
+            by_id = {c.card_id: c for c in game.players[of].full_set}
+            ranked = sorted(req.options, key=lambda i: (-card_worth(by_id[i]), i))
+            return ranked[:max(req.min, min(req.max, len(ranked)))]
+        return None
+
+    @staticmethod
+    def _from_rival_hand(game, req: ChoiceRequest, of: int) -> list:
+        """A choice among the RIVAL's hand cards. The bot only knows the ones its own `look_hand` showed it
+        (`KnownHand`): it takes the most valuable of those, since that is what hurts the rival most. Anything it
+        needs beyond what it has seen is picked by position, never by looking at identities."""
+        from ..search.adapter import card_worth
+        seen = {c.card_id: c for c in game.players[req.player].known.cards(game.players[of])}
+        ranked = sorted((i for i in req.options if i in seen), key=lambda i: (-card_worth(seen[i]), i))
+        picked = ranked[:max(req.min, min(req.max, len(ranked)))]
+        blind = [i for i in req.options if i not in picked]
+        short = req.min - len(picked)
+        if short > 0:
+            picked += [blind[k] for k in sorted(game.rng.sample(range(len(blind)), short))]
+        return picked
 
 
 class TableChooser:

@@ -3,8 +3,8 @@
 Two stores live in `Game.fx`:
 - `fx.statuses`: what the `status` op creates, each with an `until` event. Entry: {name, fid | player, amount,
   until, owner, label}.
-- `fx.modifiers`: continuous effects of a card in play, written by `add_modifier` when an ONGOING scheme enters play
-  (C3) and removed with `remove_modifiers`. Entry: {kind, owner, card_id, ...spec}; a modifier of kind "status" is
+- `fx.modifiers`: loose continuous effects, written by `add_modifier` and removed with `remove_modifiers`. The
+  modifiers of an ONGOING card in play are not copied here: `_modifier_entries` reads them from the card (C3). Entry: {kind, owner, card_id, ...spec}; a modifier of kind "status" is
   read exactly like a status.
 
 The `EffectState` hooks call the functions below with the EffectState (no game), so they only look at fighter ids,
@@ -92,11 +92,26 @@ def remove_modifiers(fx, card_id: int) -> None:
     fx.modifiers[:] = [m for m in fx.modifiers if m.get("card_id") != card_id]
 
 
+def _modifier_entries(fx):
+    """`fx.modifiers` plus the modifiers of the ONGOING cards in play (C3 reads those from the card, it does not copy
+    them into `fx.modifiers`), in the same shape `add_modifier` writes."""
+    yield from fx.modifiers
+    if fx._game_ref is None or not any(fx.card_slots()):
+        return
+    from .ongoing import active_modifiers
+    game = fx.game()
+    for owner, spec in active_modifiers(game):
+        entry = {**spec, "owner": owner, "card_id": fx.ongoing_card_id(owner)}
+        if spec["kind"] == "status":
+            entry["player"] = {"owner": owner, "opponent": 1 - owner}[spec.get("player", "owner")]
+        yield entry
+
+
 def _status_entries(fx, name: str):
     for st in fx.statuses:
         if st["name"] == name:
             yield st
-    for m in fx.modifiers:
+    for m in _modifier_entries(fx):
         if m["kind"] == "status" and m["name"] == name:
             yield m
 
@@ -110,7 +125,7 @@ def _player_has(fx, name: str, player: int) -> bool:
 
 
 def _rule_amounts(fx, rule: str) -> list[int]:
-    return [m.get("amount", 0) for m in fx.modifiers if m["kind"] == "rule" and m["rule"] == rule]
+    return [m.get("amount", 0) for m in _modifier_entries(fx) if m["kind"] == "rule" and m["rule"] == rule]
 
 
 def _is_enemy_source(fx, owner_of_target: int) -> bool:

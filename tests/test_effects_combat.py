@@ -292,13 +292,15 @@ def test_bot_flame_lash_discards_the_bottom_card_and_adds_its_boost(bprd):
         left = len(deck) - 1
         actions = g.actions_left
         res = g.attack(liz, hb, lash, None)
-        assert bottom in g.players[0].discard and len(g.players[0].deck) == left
+        assert len(g.players[0].deck) == left
         assert g.actions_left == actions                                    # spent one, AFTER COMBAT gains one
-        return res, bottom, lash
-    res, bottom, lash = play(False)
+        return g, res, bottom, lash
+    g, res, bottom, lash = play(False)
+    assert bottom in g.players[0].discard
     assert res.atk_value == lash.value + bottom.boost and bottom.boost >= 2
-    res, bottom, lash = play(True)
+    g, res, bottom, lash = play(True)
     assert bottom.boost == 0 and res.atk_value == lash.value               # a burning card adds nothing
+    assert bottom in g.players[0].hand and bottom not in g.players[0].discard   # WILDFIRE brings it back (C3)
 
 
 def test_flame_lash_with_an_empty_deck_adds_nothing(bprd):
@@ -475,6 +477,44 @@ def test_bound_in_blood_does_nothing_without_koschei_in_the_zone(bprd):
     g, liz, baba = baba_game(bprd, same_zone=False)
     res = g.attack(liz, baba, give(g, 0, "Incinerate"), give(g, 1, "Bound In Blood"))
     assert baba.hp == baba.max_hp - res.damage and res.damage > 0
+
+
+def in_play(g, player, title):
+    """Puts a real card of `player` in their ONGOING slot the way C3 does (no copy into fx.modifiers)."""
+    pile = g.players[player]
+    c = next(c for c in pile.full_set if c.title == title)
+    for zone in (pile.hand, pile.deck, pile.discard):
+        if c in zone:
+            zone.remove(c)
+    g.fx.set_ongoing(player, c.card_id)
+    return c
+
+
+def test_counterhex_in_play_as_ongoing_is_enforced_without_add_modifier(bprd):
+    g = mk(bprd, ("liz-sherman", "abe-sapien"), ["liz-sherman", "abe-sapien"])
+    liz, abe = pair(g, "liz", "abe")
+    in_play(g, 1, "Counterhex Shield")
+    assert not g.fx.modifiers
+    run_ops(g, [{"op": "damage", "target": {"side": "enemy", "kind": "hero"}, "amount": 3}], 0, "liz")
+    assert abe.hp == abe.max_hp
+    start = abe.pos
+    run_ops(g, [{"op": "move", "target": {"side": "enemy", "kind": "hero"}, "amount": 3, "up_to": True}], 0, "liz")
+    assert abe.pos == start
+    assert not g.fx.can_force_discard(1, 0) and g.fx.can_force_discard(0, 1)
+    g.fx.take_ongoing(1)
+    assert g.fx.can_force_discard(1, 0)
+
+
+def test_pacts_in_play_as_ongoing_add_effect_damage_and_block_actions(bprd):
+    g = mk(bprd, ("liz-sherman", "baba-yaga"), ["liz-sherman", "baba-yaga"])
+    liz, baba = pair(g, "liz", "baba")
+    in_play(g, 1, "Pact Of Mortality")
+    assert g.damage(liz, 2, "effect") == 3 and g.damage(liz, 2, "combat") == 2
+    in_play(g, 1, "Pact Of Time")
+    actions = g.actions_left
+    g.grant_actions(1)
+    assert g.actions_left == actions
+    assert g.damage(liz, 1, "effect") == 1                                      # Mortality was replaced
 
 
 def test_pact_of_mortality_style_damage_bonus_skips_exhaustion_and_combat(bprd):

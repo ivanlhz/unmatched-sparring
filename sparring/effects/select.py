@@ -245,7 +245,8 @@ def select_cards(game, run, sel: dict, purpose: str = "choose") -> list[Picked]:
     chooser = player_of(game, run, sel.get("chooser", "owner"))
     lo = 0 if sel.get("up_to") else n
     by_id = {c.card.card_id: c for c in cands}
-    got = run.ask(game, "cards", chooser, list(by_id), lo, n, f"{purpose} cards", zone=sel["zone"], purpose=purpose)
+    got = run.ask(game, "cards", chooser, list(by_id), lo, n, f"{purpose} cards", zone=sel["zone"], purpose=purpose,
+                  of=cands[0].player)
     return [by_id[i] for i in got]
 
 
@@ -296,7 +297,7 @@ def _stat(game, run, a):
     if stat == "hand_size":
         return len(game.players[player].hand)
     if stat == "actions_taken_this_turn":
-        raise NotImplementedError("actions_taken_this_turn: C3")
+        return game.fx.taken if player == game.turn else 0
     if stat == "damage_dealt_this_combat":
         return run.ctx.damage_dealt
     if stat == "damage_taken_this_combat":

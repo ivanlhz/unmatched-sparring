@@ -1921,17 +1921,14 @@ class Session:
             if d["baseline"] is None:
                 d["baseline"] = len(st.discard)
             done = len(st.discard) >= d["baseline"] + d["n"]
-        if not done and self._human_wildfire() and d.get("wildfire_asked"):
-            # segunda vez: las ardientes volvieron a la mano sin pasar por el descarte de la mesa; se le cree
-            if d["kind"] == "limit":
-                known = self.game.players[self.bot].known.seen
-                while len(st.hand) > HAND_LIMIT:        # al mazo primero las que el bot NO ha visto
-                    spare = next((c for c in reversed(st.hand) if c.card_id not in known), st.hand[-1])
-                    st.hand.remove(spare)
-                    st.deck.append(spare)
+        # Ivan's ruling (28/10): a burning card discarded for the end-of-turn hand limit stays in the discard (the one
+        # exception to Wildfire), so the "it returned to my hand" leniency only applies to other forced discards
+        wildfire = self._human_wildfire() and d["kind"] != "limit"
+        if not done and wildfire and d.get("wildfire_asked"):
+            # second time: the burning cards came back to the hand without passing through the table discard; believed
             self.say("Wildfire: doy el descarte por hecho (las ardientes vuelven a tu mano).")
             return True
-        if not done and self._human_wildfire():
+        if not done and wildfire:
             d["wildfire_asked"] = True
             self.say("Aun no veo el descarte en la mesa. Si descartaste ardientes que han vuelto a tu mano, pulsa "
                      "Fin de accion otra vez y lo doy por hecho.", ChatKind.WARNING)
@@ -1951,12 +1948,11 @@ class Session:
         hand = g.players[self.human].hand
         excess = len(hand) - HAND_LIMIT
         if excess > 0 and self.limit_waived:      # el humano anulo el descarte: el motor no se lo vuelve a exigir
-            while len(hand) > HAND_LIMIT:
-                g.players[self.human].deck.append(hand.pop())
+            self._trim_virtual_hand(HAND_LIMIT)
         elif excess > 0:
             self.pending_discard = {"n": excess, "baseline": None, "kind": "limit"}
             self.say(f"Descarta {excess} carta(s) hasta tener {HAND_LIMIT} y pulsa Fin de accion "
-                     f"(Cancelar ataque anula el descarte).{self._wildfire_hint()}", ChatKind.YOUR_TURN)
+                     "(Cancelar ataque anula el descarte).", ChatKind.YOUR_TURN)
             return
         self.limit_waived = False
         self.chosen_attacker = None
@@ -3312,16 +3308,29 @@ class Session:
             st.discard.append(c)
             self.game.card_left_hand(self.human, c)     # si el bot la habia visto en tu mano, deja de contar con ella
         self._verify_maneuver_deal(real, len(ids))
-        known = self.game.players[self.bot].known.seen
-        while len(st.hand) > real:                      # la mano virtual se recorta por las cartas NO vistas
-            spare = next((c for c in reversed(st.hand) if c.card_id not in known), st.hand[-1])
-            st.hand.remove(spare)
-            st.deck.append(spare)
+        self._trim_virtual_hand(real)
         while len(st.hand) < real and st.deck:
             st.hand.append(st.deck.pop(0))
         if self._track_destiny() and not self._destiny_tried:
             self._destiny_tried = True                # un solo intento por boton: un dial roto no frena cada lectura
             self._write_dials(only_destiny=True, post=True)   # los PV solo se escriben tras un cambio real
+
+    def _trim_virtual_hand(self, target: int) -> None:
+        """The virtual human hand loses cards because the real one has fewer (shuffled or put away face down): which
+        real cards left is unknown. The model drops the cards the bot was not told about first; only when that is
+        not enough does a seen card have to go, and then what the bot saw degrades to "possible" instead of staying
+        certain."""
+        st = self.game.players[self.human]
+        known = self.game.players[self.bot].known
+        told = set(known.seen) | set(known.possible)
+        dropped = len(st.hand) - target
+        if dropped > sum(1 for c in st.hand if c.card_id not in told):
+            known.degrade(dropped, target)
+            told = set(known.seen) | set(known.possible)
+        while len(st.hand) > target:
+            spare = next((c for c in reversed(st.hand) if c.card_id not in told), st.hand[-1])
+            st.hand.remove(spare)
+            st.deck.append(spare)
 
     def _make_known(self, card: Card, keep: tuple = ()) -> None:
         """La mano del humano es virtual: al verse una carta se intercambia con una de la mano virtual (nunca con las
