@@ -1,6 +1,7 @@
 """F1 bridge pieces: set_state, token faces, pings, deck moves, token copies, bag placement and the read-only probe.
 
 The Lua runs on the minimal table of `lua_stub.lua` (needs lupa); the batching is checked against FakeTTS."""
+import functools
 import json
 import os
 
@@ -20,6 +21,12 @@ from lupa import lua54  # noqa: E402
 HERE = os.path.dirname(os.path.abspath(__file__))
 STUB = open(os.path.join(HERE, "lua_stub.lua"), encoding="utf-8").read()
 MINI_STATES = {1: "f9789a", 2: "e6f06e"}
+# The stub derives a card's images from its `owner`: owner 'x' is the bot's deck, anything else is foreign.
+X_IDENT = (("https://img.test/x/face", "https://img.test/x/back"),)
+X_IDS = (100, 600)
+to_top = functools.partial(lua.card_to_deck_top, id_range=X_IDS, identity=X_IDENT)
+to_bottom = functools.partial(lua.card_to_deck_bottom, id_range=X_IDS, identity=X_IDENT)
+deal_row = functools.partial(lua.deal_row, id_range=X_IDS, identity=X_IDENT)
 
 
 def conv(x):
@@ -57,11 +64,11 @@ def mini(rt, state=1):
 # ---------- set_state ----------
 def test_set_state_swaps_hellboy_and_returns_the_new_guid(rt):
     mini(rt)
-    assert run(rt, lua.set_state("f9789a", 2)) == {"guid": "e6f06e", "state": 2}
+    assert run(rt, lua.set_state("f9789a", 2)) == {"guid": "e6f06e", "state": 2, "moved": "e6f06e"}
     assert rt.eval('getObjectFromGUID("f9789a")') is None
     new = rt.eval('getObjectFromGUID("e6f06e")')
     assert (new.pos.x, new.pos.z) == (3, 4)
-    assert run(rt, lua.set_state("e6f06e", 1)) == {"guid": "f9789a", "state": 1}
+    assert run(rt, lua.set_state("e6f06e", 1)) == {"guid": "f9789a", "state": 1, "moved": "f9789a"}
 
 
 def test_set_state_to_the_state_it_is_in_does_nothing(rt):
@@ -74,6 +81,26 @@ def test_set_state_unknown_guid_and_bad_index(rt):
     for bad in (0, 21, True, "2"):
         with pytest.raises(ValueError):
             lua.set_state("f9789a", bad)
+
+
+def test_set_state_returning_nil_is_reported_as_not_changed(rt):
+    mini(rt)
+    rt.execute('getObjectFromGUID("f9789a").setState = function() return nil end')
+    assert run(rt, lua.set_state("f9789a", 2)) == {"changed": False}
+    assert rt.eval('getObjectFromGUID("f9789a")') is not None
+
+
+def test_set_state_moved_makes_the_composite_wait_for_the_new_object(rt):
+    mini(rt)
+    script = lua.composite([lua.set_state("f9789a", 2)])
+    assert 'type(r.moved) == "string"' in script          # the slow path keys off `moved`
+    sent = []
+    rt.globals().JSON = rt.table_from({"encode": lambda v: sent.append(json.dumps(conv(v))) or ""})
+    rt.execute("DEFER = true")
+    rt.execute(script)
+    assert sent == [] and rt.eval("#PENDING") == 1          # waits on the condition instead of finishing at once
+    rt.execute("PENDING[1].f()")
+    assert json.loads(sent[0])["ops"][0]["moved"] == "e6f06e"
 
 
 # ---------- token faces ----------
@@ -154,22 +181,50 @@ mkobj({{guid = 'loose1', type = 'Card', cid = 555, owner = 'x'}})""")
 
 def test_card_to_deck_top_does_not_turn_the_deck(rt):
     deck(rt)
-    assert run(rt, lua.card_to_deck_top("loose1", "deck01")) == {"placed": True, "deck": "deck01", "quantity": 4}
+    assert run(rt, to_top("loose1", "deck01")) == {"placed": True, "deck": "deck01", "quantity": 4}
     assert table_py(rt, "PUT_LOG") == [{"deck": "deck01", "card": "loose1", "rot_z": 180}]
 
 
 def test_card_to_deck_bottom_turns_the_deck_over_for_the_put_and_back(rt):
     deck(rt)
-    assert run(rt, lua.card_to_deck_bottom("loose1", "deck01"))["quantity"] == 4
+    assert run(rt, to_bottom("loose1", "deck01"))["quantity"] == 4
     assert table_py(rt, "PUT_LOG")[0]["rot_z"] == 0      # 180 + 180 while the card went in
     assert rt.eval('getObjectFromGUID("deck01").rot.z') == 180
 
 
 def test_card_to_deck_by_card_id_and_missing_pieces(rt):
     deck(rt)
-    assert run(rt, lua.card_to_deck_top(555, "deck01"))["placed"] is True
-    assert run(rt, lua.card_to_deck_top(9999, "deck01")) == {"placed": False}
-    assert run(rt, lua.card_to_deck_bottom("loose1", "nodeck")) == {"placed": False}
+    assert run(rt, to_top(555, "deck01"))["placed"] is True
+    assert run(rt, to_top(9999, "deck01")) == {"placed": False}
+    assert run(rt, to_bottom("loose1", "nodeck")) == {"placed": False, "deck": False}
+    with pytest.raises(TypeError):
+        lua.card_to_deck_top("loose1", "deck01")           # identity is mandatory
+
+
+def test_card_to_deck_never_takes_a_card_from_a_hand_zone(rt):
+    # Mirror match: the human's hand (Blue) holds the same CardID, listed BEFORE the loose card on the table.
+    rt.execute("mkobj({guid = 'inhand', type = 'Card', cid = 555, owner = 'x', hand = 'Blue'})")
+    deck(rt)
+    assert run(rt, to_top(555, "deck01"))["placed"] is True
+    assert table_py(rt, "PUT_LOG") == [{"deck": "deck01", "card": "loose1", "rot_z": 180}]
+    assert rt.eval('getObjectFromGUID("inhand").hand') == "Blue"
+    # Only the hand has it: nothing is taken, by CardID or by GUID.
+    assert run(rt, to_top(555, "deck01")) == {"placed": False}
+    assert run(rt, to_bottom("inhand", "deck01")) == {"placed": False}
+    assert len(table_py(rt, "PUT_LOG")) == 1
+
+
+def test_card_to_deck_refuses_a_deck_or_a_card_that_is_not_the_bots(rt):
+    deck(rt)
+    rt.execute("""mkobj({guid = 'hdeck', type = 'Deck', cards = {{cid = 201, guid = 'h1', owner = 'h'}}})
+mkobj({guid = 'hcard', type = 'Card', cid = 202, owner = 'h'})""")
+    assert run(rt, to_top("loose1", "hdeck")) == {"placed": False, "deck": False}
+    assert run(rt, to_bottom(555, "hdeck")) == {"placed": False, "deck": False}
+    assert run(rt, to_top("hcard", "deck01")) == {"placed": False}
+    assert run(rt, to_top(202, "deck01")) == {"placed": False}
+    # Right image, CardID outside the bot's range: not ours either.
+    assert run(rt, lua.card_to_deck_top("loose1", "deck01", id_range=(100, 200), identity=X_IDENT)) == {"placed": False}
+    assert rt.eval("PUT_LOG") is None
 
 
 def test_shuffle_into_deck_adds_and_shuffles(rt):
@@ -184,12 +239,44 @@ def test_shuffle_into_deck_adds_and_shuffles(rt):
 
 def test_deal_row_puts_the_top_cards_face_up_on_the_spots(rt):
     deck(rt, n=3)
-    out = run(rt, lua.deal_row("deck01", [(1, 2, 3), (4, 2, 3)], rot_y=90))
+    out = run(rt, deal_row("deck01", [(1, 2, 3), (4, 2, 3)], rot_y=90))
     assert out["dealt"] == ["c1", "c2"]
     assert rt.eval('getObjectFromGUID("c2").pos.x') == 4
     assert rt.eval('getObjectFromGUID("deck01").getQuantity()') == 1
     with pytest.raises(ValueError):
-        lua.deal_row("deck01", [])
+        deal_row("deck01", [])
+
+
+def dissolving_deck(rt, n):
+    """A deck that, like TTS, turns into a loose Card (same spot) when one card is left after a takeObject."""
+    deck(rt, n=n)
+    rt.execute("""getObjectFromGUID('loose1').destruct()
+local d = getObjectFromGUID('deck01')
+local take = d.takeObject
+d.takeObject = function(t)
+  local c = take(t)
+  if d.getQuantity() == 1 then
+    local last = d.cards[1]
+    d.destruct()
+    mkobj({guid = last.guid, type = 'Card', cid = last.cid, owner = last.owner, pos = d.getPosition()})
+  end
+  return c
+end""")
+
+
+def test_deal_row_last_card_is_found_loose_near_the_deck_and_a_foreign_card_there_is_ignored(rt):
+    rt.execute("mkobj({guid = 'hcard', type = 'Card', cid = 202, owner = 'h', pos = Vector(0.5, 1, 0.5)})")
+    dissolving_deck(rt, n=2)
+    out = run(rt, deal_row("deck01", [(1, 2, 3), (4, 2, 3), (7, 2, 3)]))
+    assert out["dealt"] == ["c1", "c2"]                        # the third spot stays empty: nothing of ours is left
+    assert rt.eval('getObjectFromGUID("c2").pos.x') == 4
+    assert rt.eval('getObjectFromGUID("hcard").pos.x') == 0.5
+
+
+def test_deal_row_refuses_a_deck_that_is_not_the_bots(rt):
+    rt.execute("mkobj({guid = 'hdeck', type = 'Deck', cards = {{cid = 201, guid = 'h1', owner = 'h'}}})")
+    assert run(rt, deal_row("hdeck", [(1, 2, 3)])) == {"dealt": [], "deck": False}
+    assert rt.eval('getObjectFromGUID("hdeck").getQuantity()') == 1
 
 
 # ---------- token copies, removal, bags ----------
@@ -218,6 +305,20 @@ def test_remove_token(rt):
     assert run(rt, lua.remove_token("1644a3")) == {"removed": True}
     assert rt.eval('getObjectFromGUID("1644a3")') is None
     assert run(rt, lua.remove_token("1644a3")) == {"removed": False}
+
+
+def test_remove_token_refuses_anything_that_is_not_a_token(rt):
+    deck(rt)
+    rt.execute(f"""mkobj({{guid = 'panel1', type = 'Custom_Tile', name = '{lua.PANEL_NAME}', gm = '{lua.MARKER}'}})
+mkobj({{guid = 'bag001', type = 'Bag', items = {{}}}})
+mkobj({{guid = 'scripted', type = 'Custom_Token', getLuaScript = function() return 'function onLoad() end' end}})""")
+    assert run(rt, lua.remove_token("deck01")) == {"removed": False, "type": "Deck"}
+    assert run(rt, lua.remove_token("loose1")) == {"removed": False, "type": "Card"}
+    assert run(rt, lua.remove_token("panel1")) == {"removed": False, "type": "Custom_Tile"}
+    assert run(rt, lua.remove_token("bag001")) == {"removed": False, "type": "Bag"}
+    assert run(rt, lua.remove_token("scripted")) == {"removed": False, "type": "Custom_Token"}
+    for g in ("deck01", "loose1", "panel1", "bag001", "scripted"):
+        assert rt.eval(f'getObjectFromGUID("{g}")') is not None
 
 
 def test_place_from_bag_by_name_and_by_guid(rt):
@@ -249,7 +350,7 @@ def test_form_change_is_three_ops_in_one_composite_that_runs(rt):
     rt.globals().JSON = rt.table_from({"encode": lambda v: sent.append(json.dumps(conv(v))) or ""})
     rt.execute(lua.composite(ops))
     out = json.loads(sent[0])
-    assert out["ops"][0] == {"guid": "e6f06e", "state": 2}
+    assert out["ops"][0] == {"guid": "e6f06e", "state": 2, "moved": "e6f06e"}
     assert out["ops"][1] == {"rot_z": 0, "flipped": True}
     rt.execute("for _, f in ipairs(TIMERS) do f() end")
     assert len(table_py(rt, "PINGS")) == 2        # the token, then the new miniature

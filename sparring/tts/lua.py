@@ -1695,8 +1695,10 @@ def _xyz(pos) -> str:
 @_registered
 def set_state(guid: str, state_index: int) -> str:
     """Switches a multi-state object (Hellboy's miniature) to state `state_index` in place. The swap replaces the object
-    with another one of a different GUID: returns `{guid = <new>, state = n}`, or `{changed = false}` if the GUID does not
-    exist. If the object already is in that state nothing is done (`{guid, state, same = true}`)."""
+    with another one of a different GUID: returns `{guid = <new>, state = n, moved = <new>}` (`moved` makes a composite
+    wait for the spawned object to settle before its snapshot), or `{changed = false}` if the GUID does not exist or
+    the state does not (setState returns nil). If the object already is in that state nothing is done (`{guid, state,
+    same = true}`)."""
     if isinstance(state_index, bool) or not isinstance(state_index, int) or not 1 <= state_index <= 20:
         raise ValueError(f"state index out of range {state_index!r}")
     return f"""-- sparring:set_state
@@ -1706,7 +1708,8 @@ if obj.getStateId() == {_i(state_index)} then
   return JSON.encode({{guid = obj.getGUID(), state = {_i(state_index)}, same = true}})
 end
 local new = obj.setState({_i(state_index)})
-return JSON.encode({{guid = new.getGUID(), state = {_i(state_index)}}})
+if new == nil then return JSON.encode({{changed = false}}) end
+return JSON.encode({{guid = new.getGUID(), state = {_i(state_index)}, moved = new.getGUID()}})
 """
 
 
@@ -1797,41 +1800,75 @@ return JSON.encode({{queued = #points}})
 """
 
 
+_SEAT_LIST_LUA = "{" + ", ".join(f'"{c}"' for c in sorted(SEATS)) + "}"
+
+_LOOSE_LUA = f"""local function inHand(o)
+  local okz, zones = pcall(function() return o.getZones() end)
+  if okz and type(zones) == "table" then
+    for _, z in ipairs(zones) do
+      if z.type == "Hand" then return true end
+    end
+  end
+  for _, c in ipairs({_SEAT_LIST_LUA}) do
+    local okh, objs = pcall(function() return Player[c].getHandObjects(1) end)
+    if okh and type(objs) == "table" then
+      for _, h in ipairs(objs) do
+        if h == o then return true end
+      end
+    end
+  end
+  return false
+end
+local function looseOurs(o)
+  return o.type == "Card" and ours(o) and not inHand(o)
+end
+"""
+
+
 def _card_ref_lua(card) -> str:
-    """Lua expression finding the loose card: by GUID (str) or by CardID (int, first loose card with that id)."""
+    """Lua expression finding a loose card of the bot: by GUID (str) or by CardID (int, the first one with that id). A
+    card in ANY hand zone (the human's in a mirror match, the bot's own) or not `ours` is never taken, so a shared
+    CardID in the other hand does not match. Requires `_ours_lua` and `_LOOSE_LUA` before."""
     if isinstance(card, str):
-        return f"getObjectFromGUID({_guid(card)})"
+        return f"""(function()
+  local o = getObjectFromGUID({_guid(card)})
+  if o ~= nil and looseOurs(o) then return o end
+end)()"""
     return f"""(function()
   for _, o in ipairs(getObjects()) do
-    if o.type == "Card" and o.getData().CardID == {_i(card)} then return o end
+    if o.type == "Card" and o.getData().CardID == {_i(card)} and looseOurs(o) then return o end
   end
 end)()"""
 
 
-def _deck_insert(card, deck_guid: str, tag: str, bottom: bool) -> str:
+def _deck_insert(card, deck_guid: str, tag: str, bottom: bool, identity, id_range) -> str:
     flip_in = "local r = deck.getRotation()\ndeck.setRotation(Vector(r.x, r.y, (r.z + 180) % 360))\n" if bottom else ""
     flip_out = "deck.setRotation(Vector(r.x, r.y, r.z))\n" if bottom else ""
     return f"""-- sparring:{tag}
+{_ours_lua(identity, id_range)}{_LOOSE_LUA}local deck = getObjectFromGUID({_guid(deck_guid)})
+if deck == nil or not ours(deck) then return JSON.encode({{placed = false, deck = false}}) end
 local card = {_card_ref_lua(card)}
-local deck = getObjectFromGUID({_guid(deck_guid)})
-if card == nil or deck == nil then return JSON.encode({{placed = false}}) end
+if card == nil then return JSON.encode({{placed = false}}) end
 {flip_in}deck = deck.putObject(card) or deck
 {flip_out}return JSON.encode({{placed = true, deck = deck.getGUID(), quantity = deck.getQuantity()}})
 """
 
 
 @_registered
-def card_to_deck_top(card: str | int, deck_guid: str) -> str:
-    """Puts a loose card (by GUID or CardID) on top of a deck. `putObject` adds on top. If the deck is a single card it
-    becomes a deck with another GUID: the new one comes back as `deck`."""
-    return _deck_insert(card, deck_guid, "card_to_deck_top", bottom=False)
+def card_to_deck_top(card: str | int, deck_guid: str, id_range: tuple[int, int] = BOT_CARD_IDS, *, identity) -> str:
+    """Puts a loose card of the bot (by GUID or CardID) on top of the bot's deck. `putObject` adds on top. If the deck is
+    a single card it becomes a deck with another GUID: the new one comes back as `deck`. Only a card that is `ours`
+    (`id_range` and the image of `identity`) and in no hand zone counts; the deck must be `ours` too, else
+    `{placed = false, deck = false}`."""
+    return _deck_insert(card, deck_guid, "card_to_deck_top", False, identity, id_range)
 
 
 @_registered
-def card_to_deck_bottom(card: str | int, deck_guid: str) -> str:
-    """Puts a loose card at the bottom of a deck: the deck is turned over (instant) so its bottom is the top, the card is
-    put in and the deck turned back. Verify live."""
-    return _deck_insert(card, deck_guid, "card_to_deck_bottom", bottom=True)
+def card_to_deck_bottom(card: str | int, deck_guid: str, id_range: tuple[int, int] = BOT_CARD_IDS, *,
+                        identity) -> str:
+    """Puts a loose card of the bot at the bottom of the bot's deck: the deck is turned over (instant) so its bottom is
+    the top, the card is put in and the deck turned back. Same guards as `card_to_deck_top`. Verify live."""
+    return _deck_insert(card, deck_guid, "card_to_deck_bottom", True, identity, id_range)
 
 
 @_registered
@@ -1853,22 +1890,25 @@ return JSON.encode({{added = added, deck = deck.getGUID(), quantity = deck.getQu
 
 
 @_registered
-def deal_row(deck_guid: str, spots: list[tuple[float, float, float]], rot_y: float = 0, face_up: bool = True) -> str:
-    """Deals the top cards of a deck onto `spots` (one card per spot), face up by default. Instant. The last card of a
-    deck is a loose card, not a deck: it is found near where the deck was. Returns `{dealt: [guid...]}`."""
+def deal_row(deck_guid: str, spots: list[tuple[float, float, float]], rot_y: float = 0, face_up: bool = True,
+             id_range: tuple[int, int] = BOT_CARD_IDS, *, identity) -> str:
+    """Deals the top cards of the bot's deck onto `spots` (one card per spot), face up by default. Instant. The last
+    card of a deck is a loose card, not a deck: it is found near where the deck was, and only if it is `ours`
+    (`id_range` and the image of `identity`) and in no hand zone. A deck that is not `ours` deals nothing
+    (`{dealt = {}, deck = false}`). Returns `{dealt: [guid...]}`."""
     if not isinstance(spots, (list, tuple)) or not 1 <= len(spots) <= MAX_ROW_CARDS:
         raise ValueError(f"1 to {MAX_ROW_CARDS} spots expected")
     rows = "{" + ", ".join(_xyz(s) for s in spots) + "}"
     rot_z = "0" if face_up else "180"
     return f"""-- sparring:deal_row
-local spots = {rows}
+{_ours_lua(identity, id_range)}{_LOOSE_LUA}local spots = {rows}
 local deck = getObjectFromGUID({_guid(deck_guid)})
-if deck == nil then return JSON.encode({{dealt = {{}}}}) end
+if deck == nil or not ours(deck) then return JSON.encode({{dealt = {{}}, deck = false}}) end
 local home = deck.getPosition()
 local dealt = {{}}
 local function loose()
   for _, o in ipairs(getObjects()) do
-    if o.type == "Card" then
+    if looseOurs(o) then
       local p = o.getPosition()
       if math.abs(p.x - home.x) < 1.5 and math.abs(p.z - home.z) < 1.5 then return o end
     end
@@ -1914,12 +1954,24 @@ return JSON.encode({{taken = new.getGUID(), moved = new.getGUID(), via = via}})
 """
 
 
+TOKEN_TYPES = frozenset({"Custom_Token", "Custom_Tile", "Figurine", "Custom_Model", "Chip"})
+
+
 @_registered
 def remove_token(guid: str) -> str:
-    """Removes a token from the table (`destruct`). Returns `{removed}`."""
+    """Removes a token from the table (`destruct`), only if it is one of `TOKEN_TYPES`: never a Deck, a Card, a bag, the
+    bot's panel (name + GM notes) or any object carrying a Lua script. Returns `{removed}`, with `type` when refused."""
+    kinds = "{" + ", ".join(f'["{t}"] = true' for t in sorted(TOKEN_TYPES)) + "}"
     return f"""-- sparring:remove_token
 local obj = getObjectFromGUID({_guid(guid)})
 if obj == nil then return JSON.encode({{removed = false}}) end
+local kinds = {kinds}
+local script = ""
+pcall(function() script = obj.getLuaScript() or "" end)
+if kinds[obj.type] ~= true or obj.getName() == {lua_str(PANEL_NAME)} or obj.getGMNotes() == {lua_str(MARKER)}
+   or script ~= "" then
+  return JSON.encode({{removed = false, type = obj.type}})
+end
 obj.destruct()
 return JSON.encode({{removed = true}})
 """
