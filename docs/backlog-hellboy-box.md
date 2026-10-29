@@ -1,8 +1,8 @@
 # Backlog for the remaining phases (Hellboy box, both sides)
 
 From reviews (28/10):
-- Human maneuver boost with BOOST 0 (Liz burning card) is accepted silently; add chat warning (docs/heroes/liz-sherman.md:71 claims it warns).
-- Game.maneuver not atomic: BOOST 0 RuleError after use_action() + draw(); validate before. Same for attack _check_boost after IMMEDIATELY.
+- DONE in E2: Human maneuver boost with BOOST 0 (Liz burning card) is warned at Fin de accion (`maneuver_baseline`).
+- DONE in E2: Game.maneuver validates the boost card and the movers before use_action() + draw(). The attack's _check_boost after IMMEDIATELY is covered by the session (the boost is checked at Continuar and a RuleError restores the snapshot).
 - Tests for BOOST 0 use patched cards; add tests with real Liz burning cards.
 - DONE in D1: Bot Flame Lash's DURING (bottom-of-deck boost) is applied by the interpreter.
 - "One ONGOING per player" only covers combat_bonus; Baba Yaga pacts not modeled yet. Effects phase.
@@ -31,10 +31,10 @@ From reviews (28/10):
 
 ## From the E1 / D1-prep reviews (29/10)
 - DONE in D1: EffectState.copy() never carries choosers or parked; clones decide with their own controllers.
-- Cold Iron with human_deck_guid set: the draw block is only a chat line; a physical draw is accepted by sync_human. Probably unavoidable in TTS; decide in E2.
+- DONE in E2 (decision): a physical draw under Cold Iron cannot be blocked in TTS; sync_human warns once ("Tu mano ha crecido...") and counts the card (the table wins).
 - Spanish comments added by E1 in ui.py:31,45,185 and lua.py:1187-1188: translate (translation phase).
 - No test resumes a save taken at a pause after the bot already moved/boosted mid-combat (projection-then-resume path). Add in F2.
-- CANCEL is refused during a pause: if every option is refused, the combat can only be left with Restart.
+- DONE in E2: Cancelar during a pause answers the request with nothing ("No" / none picked) when the card allows it; a forced pick says so (the card is played).
 - Look grant ignores card conditions (Confront only when lost, Psychometry only if adjacent): button appears whenever the card is played.
 - DONE in D1: `_cost_context` gives the attacker a stake (the damage the defense blocks); no box card asks it today (Incinerate is attack-only).
 - set_panel labels via UI.setValue on a Button: verify live.
@@ -62,7 +62,16 @@ From reviews (28/10):
 - Every Possible Angle by the bot: the human puts the named card on top of their own deck by hand; the session only skips that card when padding the virtual hand. Pact Of Secrecy / Pact Of Time on the human: chat only, the sync follows the counts.
 - Read The Bones (bot): the engine's deck order is not the real one; the card it took becomes a draw from the top (`drawn`). A real "look at 5, pick 1" on the table (`deal_row`) is not wired.
 - A bot scheme card that pauses for the human stays physically in the bot's hand until the answer; an ONGOING scheme of the bot is never placed on the table (D2).
-- The human's choice among their own virtual hand (Pact Of Secrecy: which 2 to keep) shows placeholder titles at the panel (E2: the human's own cards).
+- DONE in E2: a pick out of the human's own hand is never shown at the panel: the op leaves a table note ("quedate con 2 cartas de tu mano, pon el resto en tu mazo y baraja") and the sync follows the counts.
 - Bot Liz's Wildfire start-of-turn effects now reach the table (they did not before D3): one message before her first action (test_multihero_bridge budget).
 - A failed projection (piece move, state swap, token, deck move) is said once ("hazlo tu"); the table wins at the next read, no retry queue.
 - (D3 review) Bot Liz pays one extra script at turn start (Wildfire discard projected at the turn change), a deviation from "one combined script per step"; fold it into the first action's composite if latency matters live.
+
+## From E2 (29/10)
+- Wildfire's start-of-turn (the human's Liz) and Hellboy's start-of-turn ability stay physical (the engine does not know the real deck order / the discarded card): the chat says what to do; the human applies the damage with -1 and moves by hand. If a `read_bottom_card` builder is wanted, it is F1's.
+- The human's Confront / Every Possible Angle / Remove A Painful Memory pick among the bot's hand at the panel by title until E3's row and ping land (E3 wraps `session_effects.human_chooser`).
+- An ONGOING scheme of the human sits on their discard pile while in play (recognized there); `sync_human` skips the card in play. The alternative (the card in front of the player) would need a read of that spot.
+- The narration of a human card that discards a burning card from the deck (Flame Lash) says "descartas X" and the Wildfire return is a separate "Tu habilidad" line at the end of the button; a combined wording is cosmetic.
+- A card the human returns from the discard to the hand (Ward And Prepare) is moved by the engine and asked for on the table; if the human has not moved it by the next read, the sync re-adopts it into the discard (the table wins) and the bot forgets it is in the hand.
+- The search now enumerates the human's schemes too (`adapter._scheme_moves` for any interpreted hero): watch `test_play_ismcts` budgets.
+- verify_live (E2): the choice buttons of a human scheme (Pancakes!, Posthumous Power) and a resume mid-scheme; Pact Of Secrecy's "0/1/2" amount buttons; the FATEFUL BARGAINS prompt; the "Ninguna" button of an optional move; Flame Lash with the real bottom card (burning and not); a Counterhex Shield / Fight Or Flight left on the discard pile while in play.

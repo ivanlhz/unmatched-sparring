@@ -85,6 +85,7 @@ def _boost(run, game, spec):
         return
     top = player.deck.pop(0)
     player.discard.append(top)
+    run.flags.setdefault("deck_discards", []).append(top.card_id)
     game.fx.emit("card_discarded", owner, top)
     modifiers.add_value(flow, side, top.boost, f"impulso {top.title}")
 
@@ -216,8 +217,8 @@ def _perfect_shot_hit(game, run, key: str) -> bool:
 
 def run_moment(flow, side, moment: str):
     """Runs (or continues) one card moment of one side. Returns the Await of a paused effect, else None.
-    `flow.runs` keeps every run, finished ones included, so a rerun after a pause never starts it again. A run of
-    the bot's box hero says what it did in `result.applied` when it ends (`narrate`), once."""
+    `flow.runs` keeps every run, finished ones included, so a rerun after a pause never starts it again. A run says
+    what it did when it ends (`narrate`), once: the bot's in `result.applied`, the rival's in `result.human_effects`."""
     from .run import Ctx, EffectRun
     game, key = flow.game, f"{moment}:{side.name}"
     run = flow.runs.get(key)
@@ -239,11 +240,13 @@ def run_moment(flow, side, moment: str):
             ctx.damage_dealt, ctx.damage_taken = (dealt, 0) if won else (0, flow.result.damage)
         run = flow.runs[key] = EffectRun(ops, ctx, label=moment)
         run.flow = flow
-        if narrate.applies(game, owner):
-            run.flags["before"] = narrate.snapshot(game, flow)
+        run.flags["before"] = narrate.snapshot(game, flow)
     wait = run.run(game, flow.choosers)
     if wait is None and "before" in run.flags:
-        narrate.record(flow.result.applied, narrate.describe(game, run.flags.pop("before"), run, flow))
+        # the bot's card in `applied` ("Aplicado: ..."); the other player's in `human_effects` (E2: with what they
+        # do on the table themselves)
+        lines = flow.result.applied if narrate.applies(game, run.ctx.owner) else flow.result.human_effects
+        narrate.record(lines, narrate.describe(game, run.flags.pop("before"), run, flow))
     return wait
 
 

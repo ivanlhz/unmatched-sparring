@@ -506,6 +506,13 @@ class Game:
 
     # acciones
     def maneuver(self, player: int, moves: dict[str, int], boost_card: Card | None = None) -> None:
+        """Checked before anything is spent: the boost card and the movers (a RuleError leaves the game as it was)."""
+        if boost_card is not None and not can_be_boost(boost_card):
+            raise RuleError(f"{boost_card.title} no tiene valor de impulso")
+        for fid in moves:
+            f = self.fighters.get(fid)
+            if f is None or f.owner != player or not f.alive:
+                raise RuleError(f"{fid} no puede moverse")
         self.use_action()
         alive0 = {fid for fid, f in self.fighters.items() if f.alive}
         self.draw(player)    # el agotamiento puede matar luchadores (y acabar la partida) antes de moverlos
@@ -514,15 +521,10 @@ class Game:
         moves = {fid: d for fid, d in moves.items() if fid not in alive0 or self.fighters[fid].alive}
         extra = 0
         if boost_card is not None:
-            if not can_be_boost(boost_card):
-                raise RuleError(f"{boost_card.title} no tiene valor de impulso")
             extra = boost_card.boost
             self.discard_card(player, boost_card)
         for fid, dest in moves.items():
-            f = self.fighters[fid]
-            if f.owner != player or not f.alive:
-                raise RuleError(f"{fid} no puede moverse")
-            self.move_fighter(f, dest, f.move + extra)
+            self.move_fighter(self.fighters[fid], dest, self.fighters[fid].move + extra)
         self.fx.emit("after_maneuver", player)
 
     def play_scheme(self, player: int, fighter: Fighter, card: Card, target: Fighter | None = None,

@@ -237,6 +237,7 @@ def test_turn_ends_and_rival_start_of_turn_is_automatic(game):
 
 
 def test_anung_start_is_a_decision_of_hellboy(game):
+    game.fx.dsl_heroes.discard("hellboy")        # interpreted (E2), the dispatcher does it at begin_turn: no anung moves
     place(game, medusa=4, hellboy=27, lobster=28, harpy1=20, harpy2=21, harpy3=22)
     set_destiny(game, 6)
     fill_hand(game, 1, 3)

@@ -124,6 +124,7 @@ def test_form_returns_to_detective_when_destinies_leave_discard(game):
 
 
 def test_detective_draws_two_only_on_opponent_start(game):
+    game.fx.dsl_heroes.discard("hellboy")        # the wrapper of the legacy path (interpreted: the trigger, test_effects_events)
     hb = game.fighters["hellboy"]
     hb.pos = game.start_spaces[0]
     assert game.hellboy_detective_draw(1) is True and len(game.players[1].hand) == 2

@@ -8,28 +8,24 @@ from __future__ import annotations
 import weakref
 from typing import Iterable
 
-# Heroes whose cards and ability the interpreter resolves by default (C5: Medusa, whoever plays her). `Game` derives
-# `fx.dsl_heroes` from the heroes in play and persist omits the set when it is this default, so old saves load
-# unchanged.
-INTERPRETED_HEROES = frozenset({"medusa"})
-# The Hellboy box (D1): interpreted only for the player the bot controls. The human's side keeps the legacy table
-# path (the text is left to the human, Horseshoes / On Earth / Flame Lash applied by the engine) until E2.
-BOT_INTERPRETED_HEROES = frozenset({"hellboy", "abe-sapien", "baba-yaga", "liz-sherman"})
+# Heroes whose cards and ability the interpreter resolves by default, whoever plays them (C5: Medusa; D1 the Hellboy
+# box for the bot, E2 for the human too, in table mode: effects/table.py). `Game` derives `fx.dsl_heroes` from the
+# heroes in play and persist omits the set when it is this default, so old saves load unchanged.
+INTERPRETED_HEROES = frozenset({"medusa", "hellboy", "abe-sapien", "baba-yaga", "liz-sherman"})
 
 
-def interpreted(slugs: Iterable[str], bot_slug: str | None = None) -> set[str]:
-    """The heroes among `slugs` the interpreter resolves; `bot_slug` is the hero the bot plays (None: unknown)."""
-    return {s for s in slugs if s in INTERPRETED_HEROES or (s == bot_slug and s in BOT_INTERPRETED_HEROES)}
+def interpreted(slugs: Iterable[str]) -> set[str]:
+    """The heroes among `slugs` the interpreter resolves."""
+    return {s for s in slugs if s in INTERPRETED_HEROES}
 
 
 def default_dsl_heroes(game) -> set[str]:
-    bot = game.bot_player
-    return interpreted((p.hero.slug for p in game.players), None if bot is None else game.players[bot].hero.slug)
+    return interpreted(p.hero.slug for p in game.players)
 
 
 class EffectState:
     __slots__ = ("statuses", "ongoing", "counters", "modifiers", "dsl_heroes", "turn_start_pos", "attacked", "taken",
-                 "acting", "parked", "choosers", "_game_ref")
+                 "acting", "parked", "choosers", "said", "_game_ref")
 
     def __init__(self) -> None:
         self.statuses: list[dict] = []                   # active status effects (name, target, until, amount)
@@ -43,6 +39,7 @@ class EffectState:
         self.acting: int | None = None                   # player whose effect op is running right now (transient)
         self.parked: list = []                           # EffectRuns of triggers a chooser paused, in firing order (saved)
         self.choosers = None                             # who answers trigger decisions; None = the bots' controllers
+        self.said: list[tuple[str, str]] = []            # (kind, line) narrated for the table player's triggers (E2, transient)
         self._game_ref = None
 
     def attach(self, game) -> None:

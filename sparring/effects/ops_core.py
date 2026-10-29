@@ -12,6 +12,7 @@ from __future__ import annotations
 from contextlib import contextmanager
 from typing import Callable
 
+from . import table
 from .model import EffectError, load_effects
 from .select import (Picked, amount, condition, fighter_candidates, find_card, locate, pick_fighters, player_of,
                      players_of, card_candidates, card_ref, select_cards, space_options)
@@ -143,22 +144,6 @@ def _cards_of(game, run, cards, purpose: str, prompt: str | None = None, **extra
     return select_cards(game, run, cards, purpose, prompt, **extra)
 
 
-def _table_settles(game, run, sel) -> bool:
-    """The human discards from their own hand at their own choice, or at random: the engine never picks those cards
-    for them, the table does (`Game.force_discard` -> the human's controller owes the discard, settled at "Fin de
-    accion"). A random pick is the human's too: the engine's copy of their hand is virtual (D3), so a card it drew
-    at random would be a placeholder, not the one that really leaves the hand."""
-    if not isinstance(sel, dict) or sel["zone"] != "hand":
-        return False
-    pick = sel.get("pick", "chosen")
-    player = player_of(game, run, sel["player"])
-    if pick == "chosen" and player_of(game, run, sel.get("chooser", "owner")) != player:
-        return False
-    if pick not in ("chosen", "random"):
-        return False
-    return getattr(game.controllers.get(player), "human", False)
-
-
 def _card_title(game, run) -> str:
     card = find_card(game, run.ctx.card_id) if run.ctx.card_id is not None else None
     return card.title if card else "efecto"
@@ -167,12 +152,15 @@ def _card_title(game, run) -> str:
 @op("discard")
 def _discard(run, game, spec):
     sel = spec["cards"]
-    if _table_settles(game, run, sel):
+    if table.hand_pick_is_physical(game, run, sel):
+        # the human discards from their own hand at their own choice, at random or all of it: the engine never picks
+        # those cards for them (its copy of the hand is placeholders), the table does (`Game.force_discard` -> the
+        # human's controller owes the discard, settled at "Fin de accion")
         player = player_of(game, run, sel["player"])
         frame = run.frames[-1]
         voluntary = bool(frame.path) and frame.path[-1] == "cost"      # a price the human chose to pay
-        chosen = game.force_discard(player, int(amount(game, run, sel.get("amount", 1))), _card_title(game, run),
-                                    player if voluntary else run.ctx.owner)
+        n = len(card_candidates(game, run, sel)) if sel.get("pick") == "all" else int(amount(game, run, sel.get("amount", 1)))
+        chosen = game.force_discard(player, n, _card_title(game, run), player if voluntary else run.ctx.owner)
         if "as" in spec:
             run.bind("cards", spec["as"], [c.card_id for c in chosen])
         return
@@ -184,6 +172,7 @@ def _discard(run, game, spec):
             game.players[player].deck.remove(card)
             game.players[1 - player].known.drop_top(card.card_id)
             game.players[player].discard.append(card)
+            run.flags.setdefault("deck_discards", []).append(card.card_id)     # the narration: not a hand discard
             game.fx.emit("card_discarded", player, card, "deck")
         elif zone == "in_play":
             game.fx.take_ongoing(player)
@@ -195,7 +184,12 @@ def _discard(run, game, spec):
 
 @op("choose")
 def _choose(run, game, spec):
-    items = select_cards(game, run, spec["cards"], "choose")
+    sel = spec["cards"]
+    if table.hand_pick_is_physical(game, run, sel):      # the human keeps the cards in their hand: nothing is named
+        run.bind("cards", spec["as"], [])
+        table.note(run, op="choose", amount=int(amount(game, run, sel.get("amount", 1))))
+        return
+    items = select_cards(game, run, sel, "choose")
     run.bind("cards", spec["as"], [c.card_id for _, _, c in items])
 
 
@@ -228,10 +222,13 @@ def _move(run, game, spec):
     chooser = _chooser(game, run, spec)
     steps, through, up_to = int(amount(game, run, spec["amount"])), spec.get("through_enemies", False), spec["up_to"]
     targets = pick_fighters(game, run, spec["target"], chooser, op="move", amount=steps, through=through)
-    plan = []
+    plan, by_hand = [], []
     with _trial() as set_attrs:
         for f in _one_after_another(targets):
             if not f.alive or f.pos is None or not game.fx.can_move(f):
+                continue
+            if table.piece_is_physical(game, chooser, f):     # the human moves their own miniature by hand
+                by_hand.append(f)
                 continue
             dests = sorted(game.legal_moves(f, steps, through))
             if not up_to:       # exactly N: the farthest spaces when some are exactly N away
@@ -244,18 +241,32 @@ def _move(run, game, spec):
                 set_attrs(f, pos=got[0])
     for f, dest in plan:
         game.move_fighter(f, dest, steps, through)
+    for f in by_hand:
+        table.note(run, op="move", fid=f.fid, amount=steps, up_to=up_to, through=through)
 
 
 def _plan_spots(game, run, fighters, where: dict, chooser: int, op_name: str, **becomes) -> list[tuple]:
+    """(fighter, spot, by_hand): `by_hand` marks the table player's own piece, which they place themselves; its spot
+    is provisional (the first legal one) until the table sync reads where they put it."""
     plan = []
     with _trial() as set_attrs:
         for f in _one_after_another(fighters):
             options = space_options(game, run, where, mover=f)
-            got = run.ask(game, "space", chooser, options, 1, 1, f"{op_name} to", fighter=f.fid, op=op_name)
+            by_hand = table.piece_is_physical(game, chooser, f)
+            got = options[:1] if by_hand else run.ask(game, "space", chooser, options, 1, 1, f"{op_name} to",
+                                                      fighter=f.fid, op=op_name)
             if got:
-                plan.append((f, got[0]))
+                plan.append((f, got[0], by_hand))
                 set_attrs(f, pos=got[0], **becomes)
     return plan
+
+
+def _return_to_board(run, game, spec, op_name: str, targets, hp) -> None:
+    chooser = _chooser(game, run, spec)
+    for f, spot, by_hand in _plan_spots(game, run, targets, spec["where"], chooser, op_name, alive=True):
+        f.alive, f.pos, f.hp = True, spot, min(hp, f.max_hp)
+        if by_hand:
+            table.note(run, op=op_name, fid=f.fid, where=spec["where"], hp=f.hp)
 
 
 @op("place")
@@ -263,8 +274,11 @@ def _place(run, game, spec):
     chooser = _chooser(game, run, spec)
     targets = [f for f in pick_fighters(game, run, spec["target"], chooser, op="place")
                if f.alive and game.fx.can_move(f)]
-    for f, spot in _plan_spots(game, run, targets, spec["where"], chooser, "place"):
-        f.pos = spot
+    for f, spot, by_hand in _plan_spots(game, run, targets, spec["where"], chooser, "place"):
+        if by_hand:
+            table.note(run, op="place", fid=f.fid, where=spec["where"])
+        else:
+            f.pos = spot
 
 
 @op("swap")
@@ -279,22 +293,18 @@ def _swap(run, game, spec):
 @op("revive")
 def _revive(run, game, spec):
     chooser = _chooser(game, run, spec)
-    hp = amount(game, run, spec["hp"])
     targets = [f for f in pick_fighters(game, run, spec["target"], chooser) if not f.alive]
-    for f, spot in _plan_spots(game, run, targets, spec["where"], chooser, "revive", alive=True):
-        f.alive, f.pos, f.hp = True, spot, min(hp, f.max_hp)
+    _return_to_board(run, game, spec, "revive", targets, amount(game, run, spec["hp"]))
 
 
 @op("summon")
 def _summon(run, game, spec):
-    chooser = _chooser(game, run, spec)
     reserve = sorted((f for f in game.own(run.ctx.owner, alive_only=False)
                       if f.name == spec["name"] and not f.alive and f.died_at is None), key=lambda f: f.fid)
     if not reserve:
         return
     hp = amount(game, run, spec["hp"]) if "hp" in spec else reserve[0].max_hp
-    for f, spot in _plan_spots(game, run, reserve[:1], spec["where"], chooser, "summon", alive=True):
-        f.alive, f.pos, f.hp = True, spot, min(hp, f.max_hp)
+    _return_to_board(run, game, spec, "summon", reserve[:1], hp)
 
 
 # ---------------------------------------------------------------- counters and turn

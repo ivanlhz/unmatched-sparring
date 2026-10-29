@@ -89,6 +89,10 @@ def option_label(game, req: ChoiceRequest, option) -> str:
 def prompt_text(game, req: ChoiceRequest) -> str:
     """Spanish chat line for the request: what is asked and, for the card that asks, its title."""
     base = PROMPTS.get(req.kind, "Elige")
+    if req.kind == "optional" and "to" in req.extra and "fighter" in req.extra:     # a damage redirection (FATEFUL BARGAINS)
+        names = {fid: f.name for fid, f in game.fighters.items()}
+        base = (f"{names.get(req.extra['to'], req.extra['to'])} recibe el dano ({req.extra.get('amount', '?')}) en lugar de "
+                f"{names.get(req.extra['fighter'], req.extra['fighter'])}?")
     title = None
     for p in game.players:
         for c in p.full_set:
@@ -157,7 +161,7 @@ def press(game, req: ChoiceRequest, ui: ChoiceUI, index) -> tuple[str, object]:
         if not slot.enabled:
             return "error", f"Elige entre {req.min} y {req.max} opciones y confirma."
         return "answer", list(ui.selected)
-    if req.min == 1 and req.max == 1:
+    if req.max == 1:                             # one pick answers at once; "Ninguna" (the confirm slot) picks none
         return "answer", [slot.value]
     if slot.value in ui.selected:
         ui.selected.remove(slot.value)

@@ -17,6 +17,7 @@ Order convention for `order` / `rest` lists: top of the deck first. Atomic like 
 orders, random permutations) are obtained before the first mutation."""
 from __future__ import annotations
 
+from . import table
 from .ops_core import _cards_of, op
 from .select import _matches, amount, card_ref, locate, player_of, players_of, select_cards
 
@@ -99,6 +100,13 @@ def _permutation(run, n: int) -> list[int]:
 def _search_deck(run, game, spec):
     owner, target = run.ctx.owner, player_of(game, run, spec["player"])
     chooser = player_of(game, run, spec.get("chooser", "owner"))
+    if table.physical(game, target) and chooser == target:     # the engine does not know the order of their deck
+        take = spec["take"]
+        table.note(run, op="search_deck", look=spec["look"], take=int(amount(game, run, take.get("amount", 1))),
+                   rest=spec.get("rest", "bottom_random"))
+        if "as" in spec:
+            run.bind("cards", spec["as"], [])
+        return
     deck, hand = game.players[target].deck, game.players[target].hand
     looked = deck[:len(deck) if spec["look"] == "all" else int(spec["look"])]
     take = spec["take"]
@@ -144,6 +152,11 @@ def _search_deck(run, game, spec):
 @op("return_to_deck")
 def _return_to_deck(run, game, spec):
     sel, position = spec["cards"], spec["position"]
+    if table.hand_pick_is_physical(game, run, sel):      # the human picks the real cards out of their hand
+        table.note(run, op="return_to_deck", position=position, amount=int(amount(game, run, sel.get("amount", 1))),
+                   up_to=bool(sel.get("up_to")), all=sel.get("pick") == "all" and "except" not in sel,
+                   rest=sel.get("pick") == "all" and "except" in sel, ordered="order" in spec)
+        return
     items = _cards_of(game, run, sel, "return", position=position)
     chooser = None
     if isinstance(sel, dict) and sel.get("pick", "chosen") == "chosen":

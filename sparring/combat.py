@@ -1,8 +1,7 @@
-"""Combat and schemes of the path without the interpreter. The heroes in `game.fx.dsl_heroes` (Medusa for either
-player; the Hellboy box when the bot plays it, D1) resolve their cards with sparring/effects. For the rest (the
-human's box hero until E2) the human resolves the text (returned in `human_effects`), except Planned Recklessness,
-the value of On Earth As It Is In Hell, Horseshoes, On Earth's heal and Flame Lash's action, which the engine
-applies itself."""
+"""Combat facade and the schemes of the path without the interpreter. Every hero of the box and Medusa is in
+`game.fx.dsl_heroes` by default (E2), whoever plays it: their cards resolve with sparring/effects. Only a save that
+switched the interpreter off keeps the legacy path: Planned Recklessness and the value of On Earth As It Is In Hell
+applied by the flow's legacy rules, the ONGOING bonus and the actions of a scheme by `resolve_scheme`."""
 from __future__ import annotations
 
 import re
@@ -101,43 +100,6 @@ def scheme_gain_actions(card: Card) -> int:
     """Acciones que da un plan al jugarlo: los «Gain N action(s)» fuera de un AFTER COMBAT (ese es de la carta de combate)."""
     text = card.text.split("AFTER COMBAT:")[0]
     return sum(int(w) if w.isdigit() else _WORDS[w.lower()] for w in _GAIN_ACTIONS.findall(text))
-
-
-def after_text(card: Card) -> str:
-    """Solo la parte AFTER COMBAT del texto de la carta (lo de IMMEDIATELY y DURING ya lo resuelve el calculo)."""
-    head, sep, tail = card.text.partition("AFTER COMBAT:")
-    return tail.strip() if sep else ""
-
-
-def _liz_after(game: Game, card: Card, result: CombatResult) -> bool:
-    """The human's Flame Lash (legacy path until E2): AFTER COMBAT gains 1 action (always the attacker's card)."""
-    if card.title == "Flame Lash":
-        game.grant_actions(1)
-        result.applied.append(f"{card.title}: ganas 1 accion")
-        return True
-    return False
-
-
-def _hellboy_after(game: Game, me: Fighter, card: Card, i_won: bool, result: CombatResult) -> bool:
-    """The human's Hellboy after-combat effects that need no decision nor hidden information (legacy path until E2):
-    applied here. The rest (draws, moves, choices) stay with the human. True if something was applied."""
-    if card.title == "Horseshoes And Hand Grenades" and me.alive:
-        hit = [f for f in game.zone_mates(me)]
-        for f in hit:
-            game.damage(f, 1)
-        names = ", ".join(f.fid for f in hit) or "nadie"
-        result.applied.append(f"{card.title}: 1 de dano a cada otro luchador de la zona ({names})")
-        return True
-    if card.title == ON_EARTH:
-        if not i_won:
-            hb = game.hero_named("Hellboy")
-            before = hb.hp
-            game.heal(hb, 2)
-            result.applied.append(f"{card.title}: Hellboy recupera {hb.hp - before:g} PV (perdio el combate)")
-        else:
-            result.applied.append(f"{card.title}: no recupera (no perdio el combate)")
-        return True
-    return False
 
 
 def resolve_scheme(game: Game, player: int, fighter: Fighter, card: Card) -> list[str]:

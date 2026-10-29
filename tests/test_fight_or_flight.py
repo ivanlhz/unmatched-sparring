@@ -156,6 +156,7 @@ def test_the_bot_attack_evaluation_drops_when_the_rival_defends_with_the_bonus(g
 
 # ---------- sesion ----------
 def play_plan(session, table, game):
+    game.fx.dsl_heroes.discard("hellboy")        # the legacy scheme path of a retitled Hellboy card (the real card: tests/test_e2_human_cards.py)
     plan = card(game, HB, "Pancakes!")
     object.__setattr__(plan, "title", FIGHT_OR_FLIGHT)
     object.__setattr__(plan, "text", "ONGOING: Add +1 to the value of your combat cards.")
@@ -226,6 +227,7 @@ SEARING = "Shuffle a non-scheme card from your discard pile into your deck. Gain
 
 
 def play_plan_as(session, table, game, title, text):
+    game.fx.dsl_heroes.discard("hellboy")        # the legacy scheme path of a retitled Hellboy card (the real card: tests/test_e2_human_cards.py)
     plan = card(game, HB, "Pancakes!")
     object.__setattr__(plan, "title", title)
     object.__setattr__(plan, "text", text)

@@ -957,7 +957,7 @@ def test_fx_is_empty_by_default_and_cloned_independently(g):
 def test_fx_persistence_omits_the_key_when_empty_and_roundtrips(bprd):
     g = mk(bprd)
     g.fx.turn_start_pos.clear()               # D1 interprets the bot's Abe by default (and Abe reads moved_this_turn)
-    assert "fx" not in persist.game_to_dict(g) and g.fx.dsl_heroes == {"abe-sapien"}
+    assert "fx" not in persist.game_to_dict(g) and g.fx.dsl_heroes == {"abe-sapien", "baba-yaga"}
     g.fx.set_ongoing(1, 9)
     g.fx.set_counter(0, "intuition", 2)
     g.fx.statuses.append({"name": "cannot_draw", "player": 0})
@@ -971,7 +971,7 @@ def test_fx_persistence_omits_the_key_when_empty_and_roundtrips(bprd):
     old = dict(saved)
     del old["fx"]
     persist.apply_game(other, old)
-    assert other.fx.to_dict() == {"dsl_heroes": ["abe-sapien"]}        # a save without fx: only the D1 default
+    assert other.fx.to_dict() == {"dsl_heroes": ["abe-sapien", "baba-yaga"]}        # a save without fx: only the D1 default
 
 
 class SpyFx(EffectState):

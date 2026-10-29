@@ -9,6 +9,8 @@ its deck and cards put back face down are counted, never named; only what is pub
 that returns from them) is named."""
 from __future__ import annotations
 
+from . import table
+
 # the chat speaks to the human: the bot in the third person, the human in the second
 VERBS = {"bot": ("roba", "descarta", "devuelve", "su"), "human": ("robas", "descartas", "devuelves", "tu")}
 NOTHING = "sin efecto"
@@ -53,13 +55,18 @@ def snapshot(game, flow=None) -> dict:
             "printed": {} if flow is None else dict(flow.printed_set)}
 
 
-def describe(game, before: dict, run, flow=None) -> str:
-    """One line: `<card>: <what changed>; ...` or `<card>: sin efecto`."""
-    parts = _fighters(game, before) + _cards(game, before, run.ctx.owner) + _turn(game, before, run)
+def describe(game, before: dict, run, flow=None, title: str | None = None) -> str:
+    """One line: `<card>: <what changed>; ...` or `<card>: sin efecto`. A run of the human's card (E2, table mode)
+    ends with what they do on the table themselves (`en la mesa: ...`). `title`: for a run without a card (an
+    ability trigger)."""
+    parts = _fighters(game, before) + _cards(game, before, run) + _turn(game, before, run)
     parts += _statuses(game, before) + _combat(before, flow)
     if before["seen"][run.ctx.owner] != _seen(game.players[run.ctx.owner]):
-        parts.append("mira tu mano")
-    title = _title(game, run.ctx.card_id)
+        parts.append("mira tu mano" if run.ctx.owner == game.bot_player else "miras la mano del bot")
+    by_hand = table.lines(run)
+    if by_hand:
+        parts.append("en la mesa: " + ", ".join(by_hand))
+    title = title or _title(game, run.ctx.card_id)
     return f"{title}: " + ("; ".join(parts) if parts else NOTHING)
 
 
@@ -91,8 +98,9 @@ def _fighters(game, before: dict) -> list[str]:
     return out
 
 
-def _cards(game, before: dict, owner: int) -> list[str]:
-    out = []
+def _cards(game, before: dict, run) -> list[str]:
+    out, owner = [], run.ctx.owner
+    from_deck = set(run.flags.get("deck_discards") or ())      # what the run discarded from a deck, not a hand
     for p in (owner, 1 - owner):
         st, was = game.players[p], before["players"][p]
         roba, descarta, devuelve, su = VERBS["bot" if p == game.bot_player else "human"]
@@ -101,20 +109,22 @@ def _cards(game, before: dict, owner: int) -> list[str]:
             out.append(f"{roba} {draws}")
         discard_now = [c.card_id for c in st.discard]
         by_id = {c.card_id: c for c in st.full_set}
+        ids = {c.card_id for c in st.hand}
         added = [i for i in discard_now if i not in was["discard"]]
         if added:
             out.append(f"{descarta} " + _join(by_id[i].title for i in added))
         out += [f"{by_id[i].title} vuelve al mazo" for i in was["discard"] if i not in discard_now and by_id[i] in st.deck]
+        # a card that entered the hand in plain sight: from the discard pile (Wildfire's return, a scheme recovered
+        # by Ward And Prepare) or, for the bot, anything the rival now knows is there; the rest came hidden
+        public = [i for i in was["discard"] if i not in discard_now and i in ids]
         if p == game.bot_player:
-            ids = {c.card_id for c in st.hand}
             was_ids = set(before["hand_ids"][p])
-            # a card that entered the bot's hand in plain sight (Wildfire's return, a scheme recovered from the
-            # discard pile) is what the rival now knows is there; the rest came hidden (draws, Read The Bones)
-            public = [i for i in _seen(game.players[1 - p])[:-1] if i not in before["seen"][1 - p] and i in ids - was_ids]
-            out += [f"{by_id[i].title} vuelve a su mano" for i in public]
+            public += [i for i in _seen(game.players[1 - p])[:-1]
+                       if i not in before["seen"][1 - p] and i in ids - was_ids and i not in public]
             from_hand = len([i for i in added if i in was_ids])
-        else:
-            public, from_hand = [], len(added)      # a bot card only makes the human discard from the hand
+        else:                                       # the human's hand is never read: a discard the run did not
+            from_hand = len([i for i in added if i not in from_deck])                   # take from a deck is theirs
+        out += [f"{by_id[i].title} vuelve a {su} mano" for i in public]
         # what the size of the hand does not explain by draws, public returns and discards went to the deck face
         # down (or, if the hand grew, came from the deck hidden: Read The Bones); no card does both
         net = len(st.hand) - was["hand"] + from_hand - draws - len(public)

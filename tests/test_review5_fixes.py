@@ -899,8 +899,8 @@ def test_horseshoes_damage_is_applied_by_the_bot_not_left_to_the_human(game):
     place(game, medusa=0, hellboy=1, harpy1=2, lobster=27)
     hb, med, harpy = game.fighters["hellboy"], game.fighters["medusa"], game.fighters["harpy1"]
     r = game.attack(hb, med, give(game, 1, "Horseshoes And Hand Grenades"), def_card=None)
-    assert not harpy.alive and any("Horseshoes" in a for a in r.applied)
-    assert not any("Horseshoes" in e for e in r.human_effects)
+    assert not harpy.alive and any("Horseshoes" in e for e in r.human_effects)      # E2: narrated to the human
+    assert not any("Horseshoes" in a for a in r.applied)
     assert med.hp == 16 - 2 - 1                       # combate (2) y efecto (1) al otro luchador de la zona
 
 
@@ -910,15 +910,16 @@ def test_on_earth_heals_hellboy_when_he_loses_and_the_bot_applies_it(game):
     hb.hp = 10
     r = game.attack(game.fighters["medusa"], hb, give(game, 0, "Snipe"),
                     def_card=give(game, 1, "On Earth As It Is In Hell"))
-    assert hb.hp == 10 - 3 + 2 and any("recupera 2" in a for a in r.applied)
-    assert not any("On Earth" in e for e in r.human_effects)
+    assert hb.hp == 10 - 3 + 2 and any("recupera 2" in e for e in r.human_effects)
+    assert not any("On Earth" in a for a in r.applied)
 
 
-def test_effects_that_need_the_human_are_still_left_to_the_human(game):
+def test_effects_that_need_a_decision_of_the_human_are_resolved_by_the_interpreter_and_narrated(game):
+    """E2: the human's card is interpreted (here the Scripted controller answers; at the table, the panel)."""
     place(game, medusa=0, hellboy=1)
     r = game.attack(game.fighters["hellboy"], game.fighters["medusa"], give(game, 1, "Right Hand Of Doom"),
                     def_card=None)
-    assert any("Right Hand Of Doom" in e for e in r.human_effects) and r.applied == []
+    assert any(e.startswith("Right Hand Of Doom: ") for e in r.human_effects) and r.applied == []
 
 
 # ---------- nombres de miniaturas y botones ----------
@@ -1172,7 +1173,7 @@ def test_horseshoes_hurts_every_other_fighter_in_the_zone_allies_included(game):
     hb, lob, med = game.fighters["hellboy"], game.fighters["lobster"], game.fighters["medusa"]
     r = game.attack(hb, med, give(game, 1, "Horseshoes And Hand Grenades"), def_card=None)
     assert lob.hp == 5 and hb.hp == 18 and game.fighters["harpy1"].hp == 1     # Lobster (aliado) si; fuera de zona, no
-    assert any("lobster" in a for a in r.applied)
+    assert any("lobster" in e for e in r.human_effects)                        # E2: the human's card, narrated to them
 
 
 # ---------- planes (schemes) del humano y del bot ----------
@@ -1190,7 +1191,8 @@ def test_a_scheme_played_after_pressing_plan_is_recognised_at_fin_de_accion(rig)
     assert game.actions_left == 1 and any("deja tu carta de plan" in m for m in out)
     table.human_discard = [card_id(game, 1, CROWN)]
     out = session.handle(Event.END_ACTION)
-    assert any(f"Detecto {CROWN}: aplicado, ganas 2 acciones, te quedan 3" in m for m in out)
+    assert any(f"Aplico {CROWN}: robas 2; ganas 2 acciones." in m for m in out)        # E2: the interpreter
+    assert any(f"Descarta 5 carta(s) ({CROWN})" in m for m in out)                     # your hand: you discard it
     assert game.actions_left == 3 and session.scheme_baseline is None
     assert table.dials["dD"]["value"] == 1, "la corona es un destino: el dial lo cuenta"
     assert any("Destinos de Hellboy: 1" in m for m in out)
@@ -1209,7 +1211,7 @@ def test_the_bot_waits_for_the_scheme_card_to_appear_while_pressing_plan(rig, mo
         real()
     monkeypatch.setattr(session, "sync_human", late_card)
     out = session.handle(Event.SCHEME)
-    assert any("Detecto" in m for m in out) and game.actions_left == 3
+    assert any("Aplico" in m for m in out) and game.actions_left == 3
     assert session.scheme_baseline is None
 
 
@@ -1218,7 +1220,8 @@ def test_a_scheme_that_needs_a_choice_is_left_to_the_human_through_the_panel(rig
     session.handle(Event.SCHEME)
     table.human_discard = [card_id(game, 1, "Pancakes!")]
     out = session.handle(Event.END_ACTION)
-    assert any("Detecto Pancakes!" in m and "+1 dos veces" in m for m in out)
+    assert any("Detecto Pancakes!: la carta te pide una eleccion." in m for m in out)      # E2: the panel asks
+    assert session.effect_run is not None and session.effect_run.awaiting.kind == "effect"
     assert game.actions_left == 1
 
 
@@ -1372,7 +1375,7 @@ def test_every_hellboy_and_lobster_card_has_its_text_from_the_source_except_the_
 
 def test_after_combat_text_is_split_from_the_rest():
     from sparring.cards import load_hellboy_deck
-    from sparring.combat import after_text
+    from legacy_medusa import after_text            # the oracle's copy (E2 deleted the production helper)
     by = {c.title: c for c in load_hellboy_deck()}
     assert after_text(by["Right Hand Of Doom"]).startswith("Move an adjacent fighter")
     assert after_text(by["Planned Recklessness"]) == "" and after_text(by["Excalibur"]) == ""

@@ -1,9 +1,10 @@
 """Differential harness: the production resolve_combat must behave exactly like the frozen pre-refactor copy
 (tests/legacy_combat.py), both over whole simulated games and over hand-built scenarios.
 
-Since D1 the bot's box hero resolves its cards through the interpreter (not byte-identical to the legacy path, by
-design: tests/test_d1_bot_cards.py pins the new behaviour), so the simulated games here have the bot play Medusa
-and the HUMAN play each box hero: the human's legacy path is what this oracle still covers.
+Since D1 (the bot) and E2 (the human) every box hero resolves its cards through the interpreter (not
+byte-identical to the legacy path, by design: tests/test_d1_bot_cards.py and tests/test_e2_human_cards.py pin the
+new behaviour), so this oracle runs on the legacy rig of tests/legacy_medusa.py (nothing interpreted, the legacy
+rules in force): it guards the CombatFlow machinery itself (phases, boosts, cancellations, the record kept).
 
 DIFF_SEEDS=10 widens the simulated games (default 3 seeds per hero pair)."""
 import itertools
@@ -14,6 +15,7 @@ import pytest
 
 import legacy_combat
 from conftest import Scripted, give, place
+from legacy_medusa import legacy
 from sparring import combat, persist, sim
 from sparring.board import Board
 from sparring.heroes import load_hero
@@ -65,8 +67,9 @@ def play_with(monkeypatch, resolve, seed, bot, human):
 @pytest.mark.parametrize("seed", SEEDS)
 @pytest.mark.parametrize("bot,human", PAIRS)
 def test_flow_matches_legacy_on_all_hero_pairs(monkeypatch, bot, human, seed):
-    now = play_with(monkeypatch, REAL_RESOLVE, seed, bot, human)
-    old = play_with(monkeypatch, legacy_combat.resolve_combat, seed, bot, human)
+    with legacy(monkeypatch):
+        now = play_with(monkeypatch, REAL_RESOLVE, seed, bot, human)
+        old = play_with(monkeypatch, legacy_combat.resolve_combat, seed, bot, human)
     assert now[0] == old[0]
     assert now[1] == old[1]
     assert len(now[2]) == len(old[2])
@@ -221,13 +224,15 @@ def run_scenario(build, resolve):
 
 
 @pytest.mark.parametrize("build", SCENARIOS, ids=lambda f: f.__name__)
-def test_scenario_matches_legacy(build):
-    assert run_scenario(build, REAL_RESOLVE) == run_scenario(build, legacy_combat.resolve_combat)
+def test_scenario_matches_legacy(monkeypatch, build):
+    with legacy(monkeypatch):
+        assert run_scenario(build, REAL_RESOLVE) == run_scenario(build, legacy_combat.resolve_combat)
 
 
-def test_the_scenarios_actually_exercise_the_branches():
+def test_the_scenarios_actually_exercise_the_branches(monkeypatch):
     """Guards the harness against vacuous scenarios: the interesting outcomes really happen."""
-    out = {f.__name__: run_scenario(f, legacy_combat.resolve_combat) for f in SCENARIOS}
+    with legacy(monkeypatch):
+        out = {f.__name__: run_scenario(f, legacy_combat.resolve_combat) for f in SCENARIOS}
     assert "error" in out["sc_boost_without_boost_value_is_a_rule_error"]
     assert out["sc_planned_cancels_medusa_second_shot"]["result"]["cancelled"] == ["atk"]
     assert out["sc_planned_cancels_medusa_second_shot"]["result"]["boost_card"] is None

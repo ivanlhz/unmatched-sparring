@@ -69,6 +69,7 @@ def test_a_passive_without_a_form_is_labelled_by_its_id_in_the_breakdown(game):
 
 
 def test_start_of_turn_triggers_are_filtered_by_form_and_their_numbers_come_from_data(game):
+    game.fx.dsl_heroes.discard("hellboy")        # the wrappers drive the legacy path (interpreted: test_effects_events)
     swap_hero(game, 1, blazing_hero(draw_n=3))
     assert [t["id"] for t in game.triggers(1, "start_of_turn")] == ["cold_draw"]
     place(game, hellboy=game.start_spaces[0])
@@ -81,6 +82,7 @@ def test_start_of_turn_triggers_are_filtered_by_form_and_their_numbers_come_from
 
 
 def test_hellboy_data_still_gives_two_cards_in_detective_and_the_anung_start(game):
+    game.fx.dsl_heroes.discard("hellboy")        # the wrappers drive the legacy path (interpreted: test_effects_events)
     assert [t["id"] for t in game.triggers(1, "start_of_turn")] == ["detective_draw"]
     place(game, hellboy=game.start_spaces[0])
     game.players[1].hand = []

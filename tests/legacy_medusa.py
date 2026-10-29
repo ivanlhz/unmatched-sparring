@@ -3,15 +3,17 @@ tests/test_medusa_dsl_diff.py: `_medusa_after` and `_optional_move` (sparring/co
 `resolve_scheme` with `check_scheme`, `Game.medusa_ability` and `Game.play_scheme` (sparring/state.py) and the three
 combat-flow rules `feint`, `second_shot`, `medusa_after` (sparring/combat_flow.py).
 
-`legacy(monkeypatch)` turns a test into the pre-C5 engine: Medusa out of `fx.dsl_heroes` by default and the legacy
-rules and methods installed; everything else is the production code."""
+`legacy(monkeypatch)` turns a test into the pre-C5 engine: nobody in `fx.dsl_heroes` by default (E2 put the box heroes
+of both sides there) and the legacy rules and methods installed, the human's after-combat path of 32e0221 included
+(`human_card_after`, `_hellboy_after`, `_liz_after`, `after_text`); everything else is the production code."""
 from __future__ import annotations
 
 from contextlib import contextmanager
 
 from sparring import combat, combat_flow
 from sparring.cards import Card
-from sparring.combat import GAZE_DAMAGE, GLANCE_DAMAGE, SECOND_SHOT, FEINT, _check_boost, is_medusa_card
+from sparring.combat import (GAZE_DAMAGE, GLANCE_DAMAGE, ON_EARTH, PLANNED, SECOND_SHOT, FEINT, CombatResult, _check_boost,
+                             can_boost, is_medusa_card)
 from sparring.combat_flow import Await, CombatFlow, PendingChoice, Phase, Rule, Side, _add_boost, _cancel_rival, _dsl, _i_won
 from sparring.effects import state as fx_state
 from sparring.state import Fighter, Game, RuleError
@@ -19,6 +21,7 @@ from sparring.state import Fighter, Game, RuleError
 FRENZY_STEPS = 3
 DASH_STEPS = 3
 HOUNDS_STEPS = 3
+_production_play_scheme = Game.play_scheme
 
 
 # ---------------------------------------------------------------- sparring/combat.py @ f4c26ca
@@ -77,6 +80,8 @@ def resolve_scheme(game: Game, player: int, fighter: Fighter, card: Card, target
 # ---------------------------------------------------------------- sparring/state.py @ f4c26ca
 
 def play_scheme(self: Game, player: int, fighter: Fighter, card: Card, **opts) -> None:
+    if not is_medusa_card(card) and self.players[player].hero.slug in self.fx.dsl_heroes:
+        return _production_play_scheme(self, player, fighter, card, **opts)    # E2: a box hero kept interpreted (`keep`)
     if not card.is_scheme or not card.usable_by(fighter.name) or card not in self.players[player].hand:
         raise RuleError(f"{card.title} no se puede jugar con {fighter.fid}")
     check_scheme(self, fighter, card, **opts)
@@ -96,6 +101,63 @@ def use_ability(self: Game, player: int, trigger_id: str, target: Fighter | None
     """The C5 entry point, answered the old way (the ability was only ever Medusa's gaze on a chosen target)."""
     assert trigger_id == "medusa_gaze" and target is not None
     medusa_ability(self, target)
+
+
+# ---------------------------------------------------------------- sparring/combat.py @ 32e0221 (deleted by E2)
+
+def after_text(card: Card) -> str:
+    """Solo la parte AFTER COMBAT del texto de la carta (lo de IMMEDIATELY y DURING ya lo resuelve el calculo)."""
+    head, sep, tail = card.text.partition("AFTER COMBAT:")
+    return tail.strip() if sep else ""
+
+
+def _liz_after(game: Game, card: Card, result: CombatResult) -> bool:
+    """The human's Flame Lash (legacy path until E2): AFTER COMBAT gains 1 action (always the attacker's card)."""
+    if card.title == "Flame Lash":
+        game.grant_actions(1)
+        result.applied.append(f"{card.title}: ganas 1 accion")
+        return True
+    return False
+
+
+def _hellboy_after(game: Game, me: Fighter, card: Card, i_won: bool, result: CombatResult) -> bool:
+    """The human's Hellboy after-combat effects that need no decision nor hidden information (legacy path until E2):
+    applied here. The rest (draws, moves, choices) stay with the human. True if something was applied."""
+    if card.title == "Horseshoes And Hand Grenades" and me.alive:
+        hit = [f for f in game.zone_mates(me)]
+        for f in hit:
+            game.damage(f, 1)
+        names = ", ".join(f.fid for f in hit) or "nadie"
+        result.applied.append(f"{card.title}: 1 de dano a cada otro luchador de la zona ({names})")
+        return True
+    if card.title == ON_EARTH:
+        if not i_won:
+            hb = game.hero_named("Hellboy")
+            before = hb.hp
+            game.heal(hb, 2)
+            result.applied.append(f"{card.title}: Hellboy recupera {hb.hp - before:g} PV (perdio el combate)")
+        else:
+            result.applied.append(f"{card.title}: no recupera (no perdio el combate)")
+        return True
+    return False
+
+
+# ---------------------------------------------------------------- sparring/combat_flow.py @ 32e0221 (deleted by E2)
+
+def human_card_after(flow: CombatFlow, side: Side) -> None:
+    """The human's card of a hero outside the interpreter (the box until E2): the engine applies what needs no
+    decision of theirs, the rest of the text is returned for them to resolve on the table."""
+    card, result = side.card, flow.result
+    if _hellboy_after(flow.game, side.fighter, card, _i_won(flow, side), result) or _liz_after(flow.game, card, result):
+        return
+    after = after_text(card)
+    if after:
+        result.human_effects.append(f"{card.title}: {after}")
+    elif card.title == PLANNED:
+        result.applied.append(f"{card.title}: aplicado ({card.text})")
+    elif card.text.strip() and not can_boost(card):   # the BOOST of Second Shot was already resolved in DURING
+        result.human_effects.append(f"{card.title}: {card.text}")
+    # a card without text (Excalibur, Service Pistol) has no effect to resolve
 
 
 # ---------------------------------------------------------------- sparring/combat_flow.py @ f4c26ca
@@ -129,17 +191,21 @@ LEGACY_RULES = [
           second_shot), "boost_this_attack"),
     (Rule("medusa_after", Phase.AFTER, "any", lambda flow, side: is_medusa_card(side.card) and not _dsl(flow, side),
           medusa_after), "bot_card_outside_the_interpreter"),      # D1 replaced bot_card_after at the same spot
+    (Rule("human_card_after", Phase.AFTER, "any", lambda flow, side: not _dsl(flow, side), human_card_after),
+     "human_card_outside_the_interpreter"),                          # E2 reduced it to the text-only rule
 ]
 
 
 @contextmanager
-def legacy(monkeypatch):
-    """Inside: games are built with Medusa OUT of `fx.dsl_heroes` and her legacy rules and methods are in force."""
+def legacy(monkeypatch, keep=()):
+    """Inside: games are built with Medusa OUT of `fx.dsl_heroes` (and every other hero but `keep`) and her legacy
+    rules and methods are in force."""
     with monkeypatch.context() as m:
-        m.setattr(fx_state, "INTERPRETED_HEROES", frozenset())
+        m.setattr(fx_state, "INTERPRETED_HEROES", frozenset(keep))
         rules = list(combat_flow.RULES)
         for rule, before in LEGACY_RULES:
             rules.insert(next(i for i, r in enumerate(rules) if r.name == before), rule)
+        rules = [r for r in rules if r.name != "human_card_outside_the_interpreter"]
         m.setattr(combat_flow, "RULES", rules)
         m.setattr(Game, "play_scheme", play_scheme)
         m.setattr(Game, "use_ability", use_ability)

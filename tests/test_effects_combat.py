@@ -253,6 +253,7 @@ def test_shock_and_awe_becomes_four_after_moving_and_keeps_bonuses(bprd):
         g = mk(bprd, ("liz-sherman", "abe-sapien"), ["abe-sapien"])
         g.turn = 1
         abe, liz = pair(g, "abe", "liz")
+        g.fx.turn_start_pos.clear()               # E2 records the start spaces for both sides: `pair` moved Abe
         if moved:
             g.fx.turn_start_pos["abe"] = 99
         if bonus:
@@ -266,7 +267,9 @@ def test_shock_and_awe_becomes_four_after_moving_and_keeps_bonuses(bprd):
     assert play(True, bonus=1)[1].atk_value == 5                             # "becomes 4" is the printed value only
 
 
-def test_on_earth_with_fight_or_flight_matches_the_legacy_engine(bprd):
+def test_on_earth_with_fight_or_flight_matches_the_legacy_engine(bprd, monkeypatch):
+    from legacy_medusa import legacy
+
     def play(dsl, cancelled):
         g = mk(bprd, ("liz-sherman", "hellboy"), dsl)
         g.players[1].discard += [c for c in g.players[1].full_set if c.destiny][:3]
@@ -275,7 +278,9 @@ def test_on_earth_with_fight_or_flight_matches_the_legacy_engine(bprd):
         res = g.attack(liz, hb, give(g, 0, "Feint" if cancelled else "Fireball"), give(g, 1, "On Earth As It Is In Hell"))
         return res.def_value, res.def_parts, res.damage, res.cancelled, g.fighters["hellboy"].hp
     for cancelled in (False, True):
-        both, legacy_hb = play(["liz-sherman", "hellboy"], cancelled), play(["liz-sherman"], cancelled)
+        both = play(["liz-sherman", "hellboy"], cancelled)
+        with legacy(monkeypatch):                 # the human's legacy after-combat path (E2 moved it to the oracle)
+            legacy_hb = play(["liz-sherman"], cancelled)
         assert both == legacy_hb
     assert play(["liz-sherman", "hellboy"], False)[0] == 3 + 1
     assert play(["liz-sherman", "hellboy"], True)[0] == 0 + 1

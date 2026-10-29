@@ -294,7 +294,7 @@ def test_confront_lost_reads_the_human_hand_once_and_the_named_discard_is_owed_u
     assert len(gone) == 1 and sorted(known.seen) == sorted(i for i in real if i != gone[0])
     title = next(c.title for c in game.players[1].full_set if c.card_id == gone[0])
     assert said(msgs, f"Aplicado: Confront Any Demon or God: roba 1; descartas {title}; mira tu mano")
-    assert said(msgs, f"Pon {title} de tu mano en tu descarte (efecto del bot)")
+    assert said(msgs, f"Pon {title} de tu mano en tu descarte (efectos del combate)")    # E2: your card ran too
     assert session.pending_discard["cards"] == [gone[0]] and session.pending_discard["n"] == 0
     st = game.players[1]
     for _ in range(2):                                          # the table does not show it yet: owed, never demoted
@@ -304,7 +304,7 @@ def test_confront_lost_reads_the_human_hand_once_and_the_named_discard_is_owed_u
     table.human_discard += [card_ids(game, 1, "Faster. Stronger.")[0], gone[0]]
     table.human_count = len(real) - 1
     msgs = click(session, table, Event.END_ACTION)
-    assert session.pending_discard is None and said(msgs, "Te quedan 1 accion")
+    assert session.pending_discard is None and said(msgs, "Te quedan 2 accion")
     assert len(human_reads(table)) == 1, "no other read of the human hand, ever"
 
 

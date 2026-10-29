@@ -39,6 +39,7 @@ from test_golden import GOLDEN, SIM_GAMES, jsonable, midgame, transcript
 from test_session import human_plays, rig, set_bot_hand  # noqa: F401
 
 BOARDS = {key: Board.load(key) for key in ("bprd-hq", "azuchi-castle")}
+BOX = INTERPRETED_HEROES - {"medusa"}
 MEDUSA_TITLES = {c.title for c in load_hero("medusa").deck()}
 
 
@@ -78,7 +79,7 @@ def play_turns(seed, board_key, bot=None, max_turns=200):
 
 @pytest.mark.parametrize("board_key,seed", SIM_GAMES + [("bprd-hq", s) for s in range(6, 12)])
 def test_heuristic_games_are_identical_turn_by_turn(monkeypatch, board_key, seed):
-    with legacy(monkeypatch):
+    with legacy(monkeypatch, keep=BOX):           # only Medusa leaves the interpreter: Hellboy stays in (E2)
         old = play_turns(seed, board_key)
     new = play_turns(seed, board_key)
     assert new[1] == old[1] and len(new[0]) == len(old[0])
@@ -92,7 +93,7 @@ def ismcts_bot():
 
 @pytest.mark.parametrize("seed", [0, 1])
 def test_ismcts_games_are_identical_turn_by_turn(monkeypatch, seed):
-    with legacy(monkeypatch):
+    with legacy(monkeypatch, keep=BOX):
         old = play_turns(seed, "bprd-hq", ismcts_bot(), max_turns=14)
     new = play_turns(seed, "bprd-hq", ismcts_bot(), max_turns=14)
     assert new[1] == old[1] and len(new[0]) == len(old[0])
@@ -101,9 +102,11 @@ def test_ismcts_games_are_identical_turn_by_turn(monkeypatch, seed):
 
 
 # ---------------------------------------------------------------- the goldens under the legacy engine
+# The live goldens moved with E2 (the human's Hellboy is interpreted); the pre-E2 ones the legacy engine reproduces
+# are frozen under tests/golden/legacy/ (byte-identical copies of 32e0221).
 
 def golden(name):
-    return json.loads((GOLDEN / name).read_text(encoding="utf-8"))
+    return json.loads((GOLDEN / "legacy" / name).read_text(encoding="utf-8"))
 
 
 def test_legacy_engine_reproduces_the_simulator_golden(monkeypatch):
@@ -365,13 +368,13 @@ def run_twin(build):
 
 @pytest.mark.parametrize("build", SCENARIOS, ids=lambda f: f.__name__)
 def test_each_card_twin_matches_legacy(monkeypatch, build):
-    with legacy(monkeypatch):
+    with legacy(monkeypatch, keep=BOX):
         old = run_twin(build)
     assert run_twin(build) == old
 
 
 def test_the_twins_actually_exercise_the_branches(monkeypatch):
-    with legacy(monkeypatch):
+    with legacy(monkeypatch, keep=BOX):
         out = {f.__name__: run_twin(f) for f in SCENARIOS}
     fighters = lambda name: out[name]["game"]["fighters"]
     assert out["sc_second_shot_boosted"]["result"]["boost_card"] is not None
@@ -418,7 +421,7 @@ def frenzy_declining_the_return(g, ctl):
 
 
 def test_frenzy_return_is_mandatory_the_only_divergence(monkeypatch):
-    with legacy(monkeypatch):
+    with legacy(monkeypatch, keep=BOX):
         old = run_twin(frenzy_declining_the_return)
     new = run_twin(frenzy_declining_the_return)
     assert old["game"]["fighters"]["harpy3"] == {"hp": 0, "pos": None, "alive": False, "died_at": 22}
@@ -437,15 +440,15 @@ def test_every_medusa_op_has_a_real_handler():
 
 
 def test_medusa_is_interpreted_by_default_and_the_save_does_not_change(bprd, tmp_path):
-    assert INTERPRETED_HEROES == {"medusa"}
+    assert "medusa" in INTERPRETED_HEROES
     g = Game.new(bprd, seed=3, controllers={})
-    assert g.fx.dsl_heroes == {"medusa"} and g.clone().fx.dsl_heroes == {"medusa"}
+    assert g.fx.dsl_heroes == {"medusa", "hellboy"} and g.clone().fx.dsl_heroes == {"medusa", "hellboy"}
     assert "fx" not in persist.game_to_dict(g)                        # the default is derived, never written
     other = Game.new(bprd, seed=3, controllers={}, heroes=("abe-sapien", "hellboy"))
-    assert other.fx.dsl_heroes == {"abe-sapien"} and "fx" not in persist.game_to_dict(other)    # D1: the bot's box hero
+    assert other.fx.dsl_heroes == {"abe-sapien", "hellboy"} and "fx" not in persist.game_to_dict(other)    # D1 / E2
     loaded = Game.new(bprd, seed=0, controllers={})
-    persist.apply_game(loaded, json.loads((GOLDEN / "game_save.json").read_text(encoding="utf-8")))
-    assert loaded.fx.dsl_heroes == {"medusa"}                         # an old save: Medusa is interpreted on load
+    persist.apply_game(loaded, json.loads((GOLDEN / "legacy" / "game_save.json").read_text(encoding="utf-8")))
+    assert loaded.fx.dsl_heroes == {"medusa", "hellboy"}              # an old save: interpreted on load
     g.fx.dsl_heroes = set()                                           # an explicit choice away from the default is kept
     assert persist.game_to_dict(g)["fx"] == {"dsl_heroes": []}
     again = Game.new(bprd, seed=0, controllers={})

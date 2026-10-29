@@ -558,7 +558,9 @@ def test_the_first_action_rule_is_per_player_and_needs_the_pact(abe_baba, bprd):
 # ---------------------------------------------------------------- Hellboy: DSL triggers agree with the engine wrappers
 
 def hellboy_game(bprd, dsl=True):
-    g = mk(bprd, ("medusa", "hellboy"), {"hellboy"} if dsl else set())
+    g = mk(bprd, ("medusa", "hellboy"), set())
+    if not dsl:                                   # E2 interprets him by default: the wrapper twin switches him off
+        g.fx.dsl_heroes.discard("hellboy")
     g.turn = 1
     return g
 

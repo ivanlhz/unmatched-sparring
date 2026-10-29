@@ -29,10 +29,11 @@ from .ai_medusa import GAZE, MedusaAI
 from .cards import Card, can_be_boost
 from .controller import Controller
 from .combat_flow import CombatFlow, PendingChoice, legacy_chooser
-from .effects.choose import ControllerChooser, PanelChooser
+from .effects.choose import ControllerChooser
 from .effects.run import EffectRun
 from . import session_bot_effects as bot_effects
 from . import session_choices as choices
+from . import session_effects as human_effects
 from .combat import FEINT, FIGHT_OR_FLIGHT, FIGHT_OR_FLIGHT_BONUS, GLANCE_DAMAGE, can_boost, deck_boost, is_medusa_card, scheme_gain_actions
 from .state import ANUNG, DETECTIVE, EXHAUST_DAMAGE, HAND_LIMIT, START_HAND, Fighter, Game, RuleError
 from .tts import lua, ui
@@ -205,7 +206,7 @@ class _Timed:
 
 
 # con la mano del bot a la vista solo se atiende lo que la resuelve (o no la toca: PV, retirar, valor)
-CHOICE_EVENTS = (Event.CHOICE, Event.HP, Event.REMOVE, Event.VALUE, Event.RESTART)
+CHOICE_EVENTS = (Event.CHOICE, Event.CANCEL, Event.HP, Event.REMOVE, Event.VALUE, Event.RESTART)
 LOOK_EVENTS = (Event.LOOK_PING, Event.CANCEL, Event.END_ACTION, Event.HP, Event.REMOVE, Event.VALUE, Event.RESTART)
 CARD_TYPE_NAME = {"attack": "ataque", "defense": "defensa", "versatile": "versatil", "scheme": "esquema"}
 
@@ -275,6 +276,7 @@ class Session:
         self.first_mode: str | None = None                  # "random" | "human" | "bot": como se eligio quien empieza
         self.dial_debt = False                              # un dial no se pudo escribir en el turno del bot
         self.scheme_baseline: list[int] | None = None      # descarte del humano al pulsar Plan: espera su carta
+        self.maneuver_baseline: list[int] | None = None    # their discard at Maniobra: a BOOST 0 card put there is warned
         self.destiny_seen: tuple[int, str] | None = None   # (destinos, forma) ya escritos y verificados en el dial
         self._transit: dict[int, int] = {}                 # CardID jugado por el humano -> lecturas que lleva sin llegar al descarte
         self._destiny_said: tuple[int, str] | None = None  # lo ya anunciado (no se repite mientras se reintenta)
@@ -734,6 +736,9 @@ class Session:
             self.say(f"Aviso: no pude poner nombre a las miniaturas ({e}).", ChatKind.WARNING)
 
     def _done(self) -> list[str]:
+        for kind, line in self.game.fx.said:      # your triggers (Wildfire's return, your Pact at the end of a turn)
+            self.say(("Tu carta: " if kind == "card" else "Tu habilidad: ") + line, ChatKind.ABILITY)
+        self.game.fx.said.clear()
         self._tell_blocks()
         self._commit()
         self._persist()
@@ -796,7 +801,7 @@ class Session:
     # (`Pending.flow`, a C2 PanelChooser pause), an effect outside combat (`free_effect`: schemes, E2) and the
     # ability triggers a chooser parked (`game.fx.parked`, C3), oldest first.
     def _choosers(self) -> dict:
-        return {self.bot: ControllerChooser(), self.human: PanelChooser()}
+        return {self.bot: ControllerChooser(), self.human: human_effects.human_chooser(self)}
 
     def _attach_choosers(self) -> None:
         """Trigger decisions: the bot's controller answers its own; the human's stop the run (parked) for the panel.
@@ -807,11 +812,12 @@ class Session:
     def _read_human_hand(self, player: int) -> list[Card]:
         return bot_effects.read_human_hand(self, player)
 
-    def _project_effects(self, before: dict | None, played: frozenset = frozenset()) -> Callable[[], None]:
-        """Queues what a bot step changed on the table beyond its own pieces and discards (`session_bot_effects`);
-        a table failure is said once, the table wins at the next read."""
+    def _project_effects(self, before: dict | None, played: frozenset = frozenset(),
+                         cause: str = bot_effects.BOT_CAUSE) -> Callable[[], None]:
+        """Queues what a step changed on the table beyond the bot's own pieces and discards (`session_bot_effects`);
+        a table failure is said once, the table wins at the next read. `cause`: whose effect the chat blames."""
         try:
-            fin = bot_effects.project(self, before, played)
+            fin = bot_effects.project(self, before, played, cause)
         except TABLE_ERRORS as e:
             self.say(f"Aviso: no he podido reflejar en la mesa un efecto del bot ({e}).", ChatKind.WARNING)
             return lambda: None
@@ -913,6 +919,10 @@ class Session:
         except ValueError as e:
             self.say(f"Respuesta no valida: {e}", ChatKind.WARNING)
             return
+        self._answer_choice(paused, value)
+
+    def _answer_choice(self, paused: tuple, value: list) -> None:
+        kind, holder, run = paused
         if kind == "flow":
             if self._guarded(lambda: self._answer_flow(holder, value)):
                 self._combat_step_done(self.pending)
@@ -922,22 +932,24 @@ class Session:
             else:
                 self.game.fx.parked.remove(run)
             self._effect_finished()
-            self._finish_bot_scheme(run)
+            self._effect_done(run)
 
-    def _finish_bot_scheme(self, run: EffectRun) -> None:
-        """A scheme of the bot that stopped at a decision of the human (parked by `ongoing.resolve_scheme`) is now
-        done: the card ends where a scheme ends and the bot's turn goes on (its action was spent when it was played)."""
+    def _effect_done(self, run: EffectRun) -> None:
+        """A run that stopped at a decision of the human is now done. A scheme (parked by `ongoing.resolve_scheme`)
+        ends where a scheme ends: the bot's reaches its discard pile, the human's step closes (`session_effects`);
+        then the bot's turn goes on if it was its turn (its action was spent when the card was played)."""
         scheme = run.flags.get("scheme")
-        if not scheme:
-            return
-        from .effects import ongoing
-        player = scheme["player"]
-        card = next(c for c in self.game.players[player].full_set if c.card_id == scheme["card_id"])
-        ongoing.finish_scheme(self.game, player, card)
-        if player == self.bot:
-            self._mark_dirty()                    # the card reaches the discard pile
-            if self.game.turn == self.bot and self.pending is None:
-                self._bot_continue()
+        if scheme:
+            from .effects import ongoing
+            player = scheme["player"]
+            card = next(c for c in self.game.players[player].full_set if c.card_id == scheme["card_id"])
+            ongoing.finish_scheme(self.game, player, card)
+            if player == self.bot:
+                self._mark_dirty()                # the card reaches the discard pile
+            else:
+                human_effects.finish(self, run)
+        if self.game.turn == self.bot and self.pending is None and self.game.winner is None:
+            self._bot_continue()
 
     def _answer_flow(self, flow: CombatFlow, value: list) -> None:
         flow.resume(value)
@@ -1161,6 +1173,7 @@ class Session:
             "placing": self.placing, "fingerprint": self.fingerprint(),
             "destiny_seen": None if self.destiny_seen is None else list(self.destiny_seen),
             "scheme_baseline": self.scheme_baseline, "dial_debt": self.dial_debt, "setup": self.setup,
+            **({"maneuver_baseline": self.maneuver_baseline} if self.maneuver_baseline is not None else {}),
             "dials_written": self.dials_written, "dials_attempted": self.dials_attempted,
             "start_spaces": {str(k): v for k, v in self.game.start_spaces.items()},
             "deck_ident": {side: [list(pair) for pair in pairs]
@@ -1214,6 +1227,7 @@ class Session:
             self.flush_failures = d["flush_failures"]
             self.placing = d.get("placing")
             self.scheme_baseline = d.get("scheme_baseline")
+            self.maneuver_baseline = d.get("maneuver_baseline")
             self.dial_debt = bool(d.get("dial_debt", False))
             self.dials_written = {str(k): int(v) for k, v in (d.get("dials_written") or {}).items()}
             self.dials_attempted = {str(k): int(v) for k, v in (d.get("dials_attempted") or {}).items()}
@@ -1359,6 +1373,7 @@ class Session:
         hp0, alive0 = {fid: f.hp for fid, f in self.game.fighters.items()}, self._alive_map()
         self.moving = True
         st = self.game.players[self.human]
+        self.maneuver_baseline = [c.card_id for c in st.discard]
         if not self.game.fx.can_draw(self.human):
             self.say(f"Maniobra: {choices.NO_DRAW_REASON}. Mueve tus miniaturas y pulsa Fin de accion.", ChatKind.YOUR_TURN)
             return
@@ -1431,6 +1446,16 @@ class Session:
         if real + played < before + 1:
             self.say("La carta de la Maniobra no ha llegado a tu mano. Roba tu carta a mano.", ChatKind.WARNING)
 
+    def _check_maneuver_boost(self) -> None:
+        """A card without BOOST value (Liz's burning cards) put in the discard during the Maniobra boosts nothing
+        (docs/heroes/liz-sherman.md): said once, the table is not corrected."""
+        base, self.maneuver_baseline = self.maneuver_baseline, None
+        if base is None:
+            return
+        for c in self.game.players[self.human].discard:
+            if c.card_id not in base and not can_be_boost(c):
+                self.say(f"{c.title} no tiene valor de impulso: no cuenta como potenciacion de la Maniobra.", ChatKind.WARNING)
+
     def _announce_exhaustion(self, hp0: dict[str, float], alive0: dict[str, bool]) -> None:
         """Robar con el mazo vacio hace dano a todos: se anuncia y se escribe igual que cualquier otro dano."""
         g = self.game
@@ -1455,7 +1480,8 @@ class Session:
         self.moving = True
         self.scheme_baseline = [c.card_id for c in self.game.players[self.human].discard]
         if self._resolve_human_scheme(wait=not self.cfg.batch):
-            self.say("Pulsa Fin de accion cuando termines.", ChatKind.YOUR_TURN)
+            if self._paused() is None:
+                self.say("Pulsa Fin de accion cuando termines.", ChatKind.YOUR_TURN)
         else:
             self.say("Plan: deja tu carta de plan boca arriba en tu descarte; la reconozco sola y aplico lo que no "
                      "necesite eleccion tuya. Pulsa Fin de accion cuando termines.", ChatKind.YOUR_TURN)
@@ -1484,7 +1510,9 @@ class Session:
 
     def _apply_human_scheme(self, c: Card) -> None:
         g = self.game
-        if c.title == CROWN:
+        if g.players[self.human].hero.slug in g.fx.dsl_heroes:      # E2: the interpreter, in table mode
+            human_effects.play_scheme(self, c)
+        elif c.title == CROWN:
             self.say(f"Detecto {c.title}: aplicado, {self._gain_actions(2)}. Descartar tu mano "
                      "y robar 2 cartas lo haces tu: son tus cartas.", ChatKind.SCHEME)
         elif c.title == FIGHT_OR_FLIGHT:
@@ -1591,6 +1619,9 @@ class Session:
         (`placing`) se resuelve primero: si aterrizo pasa a ser el ataque pendiente y se devuelve como cualquier otra."""
         if self.look is not None:
             self._look_close()
+            return
+        if (paused := self._paused()) is not None:     # a card asks: "Cancelar" is the answer that does nothing
+            human_effects.decline(self, paused)
             return
         if self.placing is not None:
             self._recover_placing()
@@ -1785,7 +1816,9 @@ class Session:
             if human_card is not None:
                 self._make_known(human_card)
                 self._transit[human_card.card_id] = 0
-            if boost is not None:
+            if boost is not None and deck_boost(human_card) and g.players[self.human].hero.slug in g.fx.dsl_heroes:
+                human_effects.stage_bottom_card(self, boost)      # Flame Lash's own DURING op discards it
+            elif boost is not None:
                 self._make_known(boost, keep=(human_card,))
             p.combat["fx"] = bot_effects.snapshot(self)   # after the human's cards are known: the diff is the effects'
             if p.kind == "human_attacks":
@@ -1851,15 +1884,16 @@ class Session:
             self.say(f"Aplicado: {e}", ChatKind.WARNING)
         for e in res.bot_notes:
             self.say(e, ChatKind.WARNING)
-        for e in res.human_effects:
-            self.say(f"Resuelve a mano: {e}", ChatKind.WARNING)
+        for e in res.human_effects:               # your card: what the engine applied and what you do on the table
+            self.say(f"Tu carta: {e}", ChatKind.YOUR_TURN)
         for fid, was in c["alive_before"].items():
             f = g.fighters[fid]
             if was and not f.alive and f.owner == self.human:    # las del bot las retira _project
                 self._announce_fall(f)
         self._grant_look_for(res.atk_card if p.kind == "human_attacks" else res.def_card)
         self._track_destiny()
-        fin_fx = self._project_effects(c.get("fx"), self._human_played(p))
+        cause = "efectos del combate" if human_effects.human_ran(p.flow) else bot_effects.BOT_CAUSE
+        fin_fx = self._project_effects(c.get("fx"), self._human_played(p), cause)
         fin_dials = self._write_dials(defer=True)
         fin_table = self._try_flush_stage()
         fin_dials()
@@ -2075,6 +2109,7 @@ class Session:
         if self.scheme_baseline is not None and not self._resolve_human_scheme(wait=False):
             self.say("No he visto ninguna carta de plan nueva en tu descarte: resuelve el plan a mano.", ChatKind.WARNING)
         self.scheme_baseline = None
+        self._check_maneuver_boost()
         self._check_dials()
         self.moving = False
         if self.pending_discard is not None and not self._discard_done():
@@ -2453,6 +2488,11 @@ class Session:
             self.dial_debt = False
             if not self._write_dials():
                 self.say("Los diales siguen sin coincidir con el motor; sigo con el turno, revisalos.", ChatKind.WARNING)
+        if self._paused() is not None:            # a start-of-turn trigger asked you something (FATEFUL BARGAINS)
+            self.fx_unprojected = bot_effects.snapshot(self)
+            self._persist()
+            self._show_choice(self.effect_run.awaiting)
+            return
         if self.bot_stage == "start":
             self.sync_positions()
             self.sync_human()
@@ -2519,6 +2559,7 @@ class Session:
             return
         seen = len(g.players[self.bot].discard)
         fx_before = bot_effects.snapshot(self)
+        in_play = g.fx.ongoing_card_id(self.human)
         g.end_turn()                              # puede descartar por limite de mano: eso tambien es deuda de mesa
         expired = g.begin_turn()
         if len(g.players[self.bot].discard) > seen:
@@ -2527,6 +2568,9 @@ class Session:
         self._persist()
         for n, label in expired:
             self.say(f"{label}: caduca el +{n} a tus cartas de combate. Descarta el plan.", ChatKind.SCHEME)
+        if in_play is not None and g.fx.ongoing_card_id(self.human) != in_play:
+            gone = next(c for c in g.players[self.human].full_set if c.card_id == in_play)
+            self.say(f"{gone.title} caduca: ya no esta en juego (queda en tu descarte).", ChatKind.SCHEME)
         self._announce_human_start()
         try:
             fin_fx = self._project_effects(fx_before)     # a hand-limit discard may change the bot's form
@@ -2547,8 +2591,12 @@ class Session:
         g = self.game
         hb = g.hero(self.human)
         form = g.form(self.human)
+        self._warned.discard((hb.fid, "draw"))
         if g.hero_def(self.human).forms is None:
             self.say("Tu turno.", ChatKind.YOUR_TURN)           # sin formas no hay robo ni descarte de inicio de turno
+            ability = human_effects.start_of_turn_text(self)      # the start-of-turn ability is yours on the table
+            if ability:
+                self.say(ability, ChatKind.YOUR_TURN)
             return
         self.say(f"Tu turno (forma: {form}).", ChatKind.YOUR_TURN)
         if form == DETECTIVE and hb.pos == g.start_spaces[self.bot]:
@@ -3697,9 +3745,10 @@ class Session:
             self.game.players[self.bot].known.add(c, self.game.turn_no)
         if isinstance(deck_qty, int) and deck_qty >= 0:
             self._deck_qty = deck_qty
+        in_play = self.game.fx.ongoing_card_id(self.human)     # your ONGOING scheme sits on the pile while in play
         for i in sorted(ids & by_id.keys()):
             c = by_id[i]
-            if c in st.discard:
+            if c in st.discard or i == in_play:
                 continue
             if c in st.hand:
                 st.hand.remove(c)
@@ -3709,6 +3758,12 @@ class Session:
             self.game.card_left_hand(self.human, c)     # si el bot la habia visto en tu mano, deja de contar con ella
         self._verify_maneuver_deal(real, len(ids))
         self._trim_virtual_hand(real)
+        hero = self.game.hero(self.human)
+        if real > len(st.hand) and not self.game.fx.can_draw(self.human):      # a physical draw under Cold Iron
+            self._warn(hero.fid, "draw", f"Tu mano ha crecido y un efecto en juego te impide robar ({choices.NO_DRAW_REASON}): "
+                                         "devuelve la carta a tu mazo. Mientras tanto cuento con ella.")
+        elif self.game.fx.can_draw(self.human):
+            self._warned.discard((hero.fid, "draw"))
         # a card the bot knows is on top of your deck (Every Possible Angle) is not in your hand unless the deck shrank
         top = set() if drew else set(self.game.players[self.bot].known.top_of_deck)
         while len(st.hand) < real:

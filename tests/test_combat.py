@@ -129,8 +129,8 @@ def test_defender_resolves_first_in_same_window(game):
     r = game.attack(med, hb, feint, def_card=pr)
     # el defensor resuelve primero: Planned Recklessness (detective) cancela Feint y este ya no cancela nada
     assert r.cancelled == {"atk"}
-    assert r.applied and "Planned Recklessness" in r.applied[0] and r.human_effects == []
-    assert game.effect_shield[1] == game.turn_no
+    assert any("Planned Recklessness" in e for e in r.human_effects)      # E2: the human's card, narrated to them
+    assert any(s["name"] == "immune_to_effect_damage" and s["fid"] == "hellboy" for s in game.fx.statuses)
 
 
 def test_planned_recklessness_blocks_effect_damage(game):

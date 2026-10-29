@@ -6,8 +6,8 @@ from enum import Enum
 from typing import Callable
 
 from .cards import Card
-from .combat import (ON_EARTH, PLANNED, CombatCtx, CombatResult, _check_boost, _hellboy_after, _liz_after,
-                     _side_cards, after_text, can_boost, deck_boost, is_medusa_card)
+from .combat import (ON_EARTH, PLANNED, CombatCtx, CombatResult, _check_boost, _side_cards, can_boost, deck_boost,
+                     is_medusa_card)
 from .state import ANUNG, Fighter, Game, RuleError
 
 
@@ -419,20 +419,14 @@ def bot_card_outside_the_interpreter(flow: CombatFlow, side: Side) -> None:
 
 
 @rule(Phase.AFTER, match=lambda flow, side: not _dsl(flow, side))
-def human_card_after(flow: CombatFlow, side: Side) -> None:
-    """The human's card of a hero outside the interpreter (the box until E2): the engine applies what needs no
-    decision of theirs, the rest of the text is returned for them to resolve on the table."""
+def human_card_outside_the_interpreter(flow: CombatFlow, side: Side) -> None:
+    """The human's hero is interpreted by default (E2, table mode); only a save that switched it off gets here and
+    the text of the card is left to them, as the legacy path always did."""
     card, result = side.card, flow.result
-    if _hellboy_after(flow.game, side.fighter, card, _i_won(flow, side), result) or _liz_after(flow.game, card, result):
-        return
-    after = after_text(card)
-    if after:
-        result.human_effects.append(f"{card.title}: {after}")
-    elif card.title == PLANNED:
+    if card.title == PLANNED:
         result.applied.append(f"{card.title}: aplicado ({card.text})")
     elif card.text.strip() and not can_boost(card):   # the BOOST of Second Shot was already resolved in DURING
         result.human_effects.append(f"{card.title}: {card.text}")
-    # a card without text (Excalibur, Service Pistol) has no effect to resolve
 
 
 # ---------------------------------------------------------------- DSL cards (docs/effects-dsl.md section 4)

@@ -194,6 +194,7 @@ def test_a_pinned_fighter_keeps_the_engine_space_when_the_table_moves_it(brig):
 
 
 def hellboy_attacks_with_confront(session, table, game):
+    game.fx.dsl_heroes.discard("hellboy")        # the E1 button is the legacy route; interpreted, the card itself looks (E3)
     click(session, table, Event.ATTACKER, {"attacker": "att_hellboy"})
     click(session, table, Event.ATTACK, {"target": "medusa"})
     human_plays(table, game, "Confront Any Demon or God")

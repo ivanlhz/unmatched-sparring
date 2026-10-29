@@ -605,7 +605,7 @@ class EngineState:
     def _scheme_moves(self, p: int) -> list:
         """Medusa's schemes with their planned target / policy (C5); any other interpreted hero's with the chooser
         variants of `scheme_variants`, capped at SCHEME_MOVES_KEEP (the safe lines are the ones dropped). A hero
-        outside `fx.dsl_heroes` (the human's box hero until E2) plays no scheme in the search, as before."""
+        outside `fx.dsl_heroes` (a save that switched the interpreter off) plays no scheme in the search."""
         g = self.game
         hero = g.hero(p)
         slug = g.players[p].hero.slug

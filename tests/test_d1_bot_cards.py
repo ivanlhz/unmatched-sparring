@@ -1,7 +1,7 @@
 """D1: the bot plays Hellboy, Abe Sapien, Baba Yaga and Liz Sherman's combat cards through the effects interpreter.
 
-The bot's box hero is interpreted by default (`BOT_INTERPRETED_HEROES`, only for the player the bot controls: the
-human's side keeps the legacy table path until E2). Every combat card of the four heroes is played here by the bot
+The bot's box hero is interpreted by default (`INTERPRETED_HEROES`; since E2 the human's too, in table mode:
+tests/test_e2_human_cards.py). Every combat card of the four heroes is played here by the bot
 (player 0) and checked on the game state and on the chat line the bot says (`result.applied`, Spanish). Also:
 Ivan's rulings on the bot's side, the anti-cheat tripwire (no evaluation clone ever touches the human's hand), the
 save format and the review notes of C5 / E1 / D1-prep (presets used once, attacker's stake, clones without the
@@ -22,7 +22,7 @@ from sparring.effects import ongoing
 from sparring.effects.choose import ChoiceRequest, worth_paying
 from sparring.effects.ops_core import _cost_context
 from sparring.effects.run import Ctx, EffectRun
-from sparring.effects.state import BOT_INTERPRETED_HEROES, INTERPRETED_HEROES, default_dsl_heroes
+from sparring.effects.state import INTERPRETED_HEROES, default_dsl_heroes
 from sparring.search.adapter import card_worth
 from sparring.state import Game
 from test_effects_combat import Asking, hand_filler, hp, pair
@@ -89,10 +89,10 @@ def to_discard(g, player, *titles):
 
 # ---------------------------------------------------------------- the switch
 
-def test_the_box_hero_is_interpreted_only_for_the_bot_and_medusa_for_both(bprd):
-    assert BOT_INTERPRETED_HEROES == {"hellboy", "abe-sapien", "baba-yaga", "liz-sherman"} and INTERPRETED_HEROES == {"medusa"}
+def test_the_box_heroes_and_medusa_are_interpreted_for_both_sides(bprd):
+    assert INTERPRETED_HEROES == {"medusa", "hellboy", "abe-sapien", "baba-yaga", "liz-sherman"}
     g = mk(bprd, "liz-sherman", "hellboy")
-    assert g.fx.dsl_heroes == {"liz-sherman"} and g.clone().fx.dsl_heroes == {"liz-sherman"}
+    assert g.fx.dsl_heroes == {"liz-sherman", "hellboy"} and g.clone().fx.dsl_heroes == {"liz-sherman", "hellboy"}
     g = Game.new(bprd, 3, controllers={}, heroes=("hellboy", "medusa"), bot_player=1)      # bot in seat 1
     assert g.fx.dsl_heroes == {"hellboy", "medusa"} and default_dsl_heroes(g) == g.fx.dsl_heroes
 
@@ -103,7 +103,7 @@ def test_an_old_save_of_a_box_bot_loads_interpreted_and_an_explicit_off_stays_of
     assert "fx" not in saved or "dsl_heroes" not in saved["fx"]           # the default is never written
     loaded = Game.new(bprd, 0, controllers={}, heroes=("liz-sherman", "hellboy"))
     persist.apply_game(loaded, saved)
-    assert loaded.fx.dsl_heroes == {"liz-sherman"}
+    assert loaded.fx.dsl_heroes == {"liz-sherman", "hellboy"}
     g.fx.dsl_heroes = set()
     assert persist.game_to_dict(g)["fx"]["dsl_heroes"] == []
     persist.apply_game(loaded, persist.game_to_dict(g))
@@ -177,11 +177,12 @@ def test_second_shot_boost_is_asked_to_the_bots_controller(bprd):
 def test_confront_lost_draws_looks_at_the_hand_and_discards_the_best_card(bprd):
     g = mk(bprd, "hellboy", "liz-sherman")
     pair(g, "hellboy", "liz")
-    theirs = [give(g, 1, "Fireball"), give(g, 1, "Rekindle")]
+    theirs = [give(g, 1, "Pyrotechnics"), give(g, 1, "Rekindle")]       # no burning card: Wildfire would take it back
     res = fight(g, "hellboy", "liz", "Confront Any Demon or God", "Evade")        # 3 vs 3: lost
     assert not res.attacker_won and len(g.players[0].hand) == 1
-    gone = max(theirs, key=card_worth)
-    assert gone in g.players[1].discard and [c for c in theirs if c is not gone] == g.players[1].hand
+    gone = next(c for c in g.players[1].discard if c.title != "Evade")
+    seen = {c for c in theirs + g.players[1].hand + [gone] if c.title != "Evade"}    # what the look showed: Evade's
+    assert card_worth(gone) == max(map(card_worth, seen)) and len(g.players[1].hand) == 2   # draw (E2) included
     assert [c.card_id for c in g.players[0].known.cards(g.players[1])] == [c.card_id for c in g.players[1].hand]
     assert res.applied == [f"Confront Any Demon or God: roba 1; descartas {gone.title}; mira tu mano"]
 
@@ -416,7 +417,7 @@ def test_counterhex_in_play_stops_the_humans_legacy_effect_damage(bprd):
     zone_mate(g, "abe", "hellboy", adjacent=True)
     g.turn = 1
     res = fight(g, "hellboy", "abe", "Horseshoes And Hand Grenades")
-    assert abe.hp == 13 - 2 and any("Horseshoes" in line for line in res.applied)      # combat damage only
+    assert abe.hp == 13 - 2 and any("Horseshoes" in line for line in res.human_effects)      # combat damage only
 
 
 def test_a_preset_answers_the_first_pick_only(bprd):
@@ -470,7 +471,7 @@ def test_iron_teeth_bites_an_adjacent_fighter_and_heals_with_a_pact(bprd):
 def test_remove_a_painful_memory_lets_the_rival_discard_or_take_two(bprd, pays):
     g, baba, liz = baba_game(bprd, koschei_in_zone=False)
     with_pact(g)
-    theirs = [give(g, 1, "Fireball"), give(g, 1, "Rekindle")]
+    theirs = [give(g, 1, "Pyrotechnics"), give(g, 1, "Rekindle")]       # no burning card: Wildfire would take it back
     g.controllers[1].queue = [[pays]]
     res = fight(g, "baba", "liz", "Remove A Painful Memory")
     best = max(theirs, key=card_worth)
@@ -730,7 +731,7 @@ def test_bot_arcane_dampener_before_the_humans_flame_lash_boost_clamps_at_zero_t
     bottom = give(g, 1, max(g.players[1].deck, key=lambda c: c.boost).title)   # the table hands it to the engine
     assert bottom.boost == 3
     res = fight(g, "liz", "abe", "Flame Lash", "Arcane Dampener", boost=bottom)
-    assert res.atk_value == 3 and res.atk_parts == ["Flame Lash (1)", "Arcane Dampener (-1)", "potencia con " + bottom.title + " (+3)"]
+    assert res.atk_value == 3 and res.atk_parts == ["Flame Lash (1)", "Arcane Dampener (-1)", "Flame Lash (+3)"]
 
 
 def test_the_attacker_gets_a_stake_for_a_priced_optional(bprd):
@@ -805,13 +806,14 @@ def test_clone_evaluation_never_touches_the_human_hand(bprd, monkeypatch):
     g.controllers[0] = MedusaAI(0)
     lob, liz = pair(g, "lobster", "liz")
     g.fighters["hellboy"].pos = free_adjacent(g, liz.pos, avoid=(lob.pos,))
-    set_hand(g, 1, "Fireball", "Rekindle", "Evade")
+    set_hand(g, 1, "Fireball", "Rekindle")
     spy, decisions = spy_on(g, monkeypatch)
     res = fight(g, "lobster", "liz", "Posthumous Power")
-    assert res.applied and len(g.players[1].hand) == 3 and "effect" in decisions
+    assert res.applied and len(g.players[1].hand) == 2 and "effect" in decisions
     g.fighters["hellboy"].pos = free_adjacent(g, liz.pos, avoid=(lob.pos,))     # the option taken may have moved Liz
-    res = fight(g, "hellboy", "liz", "Confront Any Demon or God", "Evade")
-    assert not res.attacker_won and len(g.players[1].hand) == 2 and "mira tu mano" in res.applied[0]
+    res = fight(g, "hellboy", "liz", "Confront Any Demon or God", "Evade")       # Evade (E2: interpreted) draws 1
+    gone = [c for c in g.players[1].discard if c.title != "Evade"]              # a burning card comes back (Wildfire)
+    assert not res.attacker_won and len(g.players[1].hand) == 3 - len(gone) and "mira tu mano" in res.applied[0]
     assert not spy.armed
 
 

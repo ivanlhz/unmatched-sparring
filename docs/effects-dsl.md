@@ -792,3 +792,58 @@ Decisiones dudosas de la migracion (ver tambien `notes` de cada fichero):
   and never hides a moment that did something.
 - Costs: a look adds one message; bot Liz's Wildfire (a discard and a move at the start of her turn) adds one
   before her first action; everything else rides in the step's script.
+
+## 19. The human's box hero on the interpreter, in table mode (E2, `effects/table.py`, `sparring/session_effects.py`)
+
+- `effects/state.py`: `INTERPRETED_HEROES` holds Medusa and the four box heroes for both sides (`BOT_INTERPRETED_HEROES`
+  is gone). Old saves load interpreted (the default is derived, never written); an explicit `dsl_heroes` in a save
+  is kept. The legacy human path (`human_card_after`, `_hellboy_after`, `_liz_after`, `after_text`) left production:
+  verbatim copies live in tests/legacy_medusa.py and the legacy rig (`legacy(monkeypatch, keep=...)`) installs them;
+  `keep` leaves the box heroes interpreted so the Medusa twins compare only Medusa. The goldens of E2
+  (tests/golden/sim.json, game_save.json) moved because the simulated Hellboy's cards now resolve (Glimpse's draw
+  and shuffle, Confront's discard, Right Hand Of Doom's move...); the pre-E2 goldens the legacy engine reproduces are
+  frozen under tests/golden/legacy/. The session goldens are byte-identical.
+- Table mode is what the engine already knew: the player whose controller decides at the table
+  (`Controller.human`, `table.table_player`). A simulation or a search clone has none, so there every card is fully
+  resolved by the controllers. In table mode an op that needs what only the human holds leaves a JSON-safe note in
+  `run.flags["table"]` instead of acting, and the session says it (`table.lines`, "en la mesa: ..."): a pick out of
+  their own hand (`discard` of all / at random / their choice goes through `Game.force_discard` and the owed
+  discard; `choose`, `return_to_deck` from the hand are notes), the order of their deck (`search_deck`: Read The
+  Bones), the destination of their own miniature when they decide it (`move`, `place`; `revive` / `summon` set the
+  fighter alive with a provisional space and note where it goes; the table sync reads the real one). Everything
+  else runs in the engine: damage and heals (the dials follow), statuses and rules on the bot, values and cancels,
+  draws (counted placeholders, "Robas N: hazlo en la mesa"), the bot's discards the bot chooses, the bot's hand and
+  deck moves (projected by `session_bot_effects` as the bot's own are), the bot's pieces the human relocates (space
+  buttons; projected like any bot move; a rival's effect that moves the human's piece still runs in the engine, D3).
+- The table player's start-of-turn ability triggers (Hellboy's draw / ANUNG discard and move, Wildfire's bottom
+  card) are not run by the engine (`table.start_of_turn_is_physical`): they read the real deck or an unknown
+  discard, so the session says them and the table sync reconciles (`_announce_human_start`). Their other triggers
+  run (Wildfire's return, Abe's tokens, the Pacts' end-of-turn damage) and are narrated to the human through
+  `fx.said` ("Tu habilidad: WILDFIRE RETURN: Fireball vuelve a tu mano"), drained at the end of the button.
+- Flame Lash: the real bottom card the human puts in the discard (the E1 boost wait) is staged at the bottom of the
+  virtual deck (`session_effects.stage_bottom_card`), so the card's own `discard` op takes exactly it (and Wildfire
+  returns it when it burns). The narration counts a run's deck discards (`run.flags["deck_discards"]`) apart from
+  hand discards without ever reading the human's hand.
+- Schemes: `Session._apply_human_scheme` runs the recognized card through `ongoing.resolve_scheme` with the panel
+  as the human's chooser (`session_effects.play_scheme`); a pause parks the run (saved: `fx.parked`, with the step's
+  snapshots in `flags["step"]`, so `--resume` continues it) and `Session._effect_done` closes the step
+  (`session_effects.finish`: narration "Aplico <card>: ...", the ONGOING that entered play, the bot's discards, the
+  projection of the bot's side, the dials, the deaths). An ONGOING of the human stays physically on their discard
+  pile while in play: `sync_human` never re-adopts the card in play, and the chat says when it leaves play (the
+  bot's turn change, or a combat: `session_bot_effects` reports it instead of asking for a discard).
+- Narration: every interpreted run is narrated now, the bot's into `result.applied` ("Aplicado: ..."), the other
+  player's into `result.human_effects` ("Tu carta: ..."), with the table notes at the end; a card that returns from
+  the discard pile to a hand is "vuelve a tu/su mano" for either player. `project(..., cause)` labels what the human
+  must do on the table by whose effect it is ("efecto del bot", "efectos del combate", "efecto de <card>").
+- Panel: an optional single pick (`min 0, max 1`: "move up to N") answers on the click, "Ninguna" picks none.
+  "Cancelar" while a card asks is the answer that does nothing ("No" to an optional, nothing picked when none is
+  required); a forced pick cannot be cancelled (the card is played). The FATEFUL BARGAINS prompt names the blow
+  ("Koschei recibe el dano (N) en lugar de Baba Yaga?"); it is asked only when the bot's effect damage reaches Baba
+  with Koschei in her zone (the passive's condition), also at the bot's turn start (a parked trigger stops
+  `_bot_continue` until answered).
+- Restrictions: a physical draw under Cold Iron (the hand grew while `fx.can_draw` is false) is warned once and
+  counted (the table wins; TTS cannot block a draw). A BOOST 0 card put in the discard during the Maniobra is
+  warned (`maneuver_baseline`, saved). `Game.maneuver` checks the boost card and the movers before spending.
+- E3's hook: `session_effects.human_chooser(session)` is the chooser of the human's decisions (the panel); the
+  hidden-information cards wrap it. `look_hand` by the human runs in the engine (the human's `KnownHand` of the
+  bot); the legacy look button (`_grant_look_for`) is for a hero outside the interpreter.

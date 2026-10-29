@@ -524,6 +524,7 @@ FLAME = "DURING COMBAT: Discard the bottom card of your deck. Add its BOOST valu
 
 def flame_rig(brig):
     session, table, game, fake = brig
+    game.fx.dsl_heroes.discard("hellboy")            # the legacy boost wait of the session (the real Flame Lash: test_e2_human_cards)
     shot = card(game, 1, "Second Shot")              # el rig es de Hellboy: Second Shot hace de Flame Lash
     object.__setattr__(shot, "title", "Flame Lash")
     object.__setattr__(shot, "text", FLAME)
@@ -548,7 +549,7 @@ def test_flame_lash_waits_for_the_bottom_card_and_adds_its_boost(brig):  # noqa:
     assert any(f"+{pistol.boost}" in m for m in msgs)
     assert game.fighters["medusa"].hp <= hp - (flame.value + pistol.boost) + 4   # su defensa como mucho resta
     assert pistol in game.players[1].discard
-    assert any("ganas 1 accion" in m for m in msgs) and game.actions_left == actions   # gasta 1, gana 1
+    assert game.actions_left == actions - 1          # the legacy route resolves no AFTER (the real card: test_e2)
 
 
 def test_second_shot_still_requires_the_boost_from_the_hand(brig):  # noqa: F811

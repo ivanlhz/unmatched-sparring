@@ -11,6 +11,7 @@ from __future__ import annotations
 
 from functools import lru_cache
 
+from . import narrate, table
 from .choose import ControllerChooser
 from .model import load_effects
 from .ongoing import leave_play, spec_of
@@ -128,7 +129,7 @@ def _handle(game, ev: dict) -> None:
         if slug not in game.fx.dsl_heroes:
             continue
         for trig in load_effects(slug).triggers:
-            if trig["id"] not in DRIVEN_BY_THE_ENGINE:
+            if trig["id"] not in DRIVEN_BY_THE_ENGINE and not table.start_of_turn_is_physical(game, player, trig):
                 todo.append((player, trig, None))
         spec = spec_of(game, player)
         if spec is not None:
@@ -194,9 +195,14 @@ def _fire(game, owner: int, trig: dict, ev: dict, label: str, card_id: int | Non
     _bind_event(run, ev)
     if "condition" in trig and not condition(game, run, trig["condition"]):
         return None
+    before = narrate.snapshot(game) if table.physical(game, owner) else None     # the human is told what it did
     pending = run.run(game, choosers or default_choosers(game))
     if pending is not None:
         game.fx.parked.append(run)
+    elif before is not None:
+        line = narrate.describe(game, before, run, title=None if card_id is not None else label.replace("_", " ").upper())
+        if not line.endswith(": " + narrate.NOTHING):
+            game.fx.said.append(("card" if card_id is not None else "ability", line))
     return pending
 
 
