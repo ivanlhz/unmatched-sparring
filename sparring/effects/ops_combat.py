@@ -87,7 +87,7 @@ def _status(run, game, spec):
     label = _label(run, game)
     if "target" in spec:
         chooser = player_of(game, run, spec.get("chooser", "owner"))
-        for f in pick_fighters(game, run, spec["target"], chooser):
+        for f in pick_fighters(game, run, spec["target"], chooser, op="status", amount=n):
             modifiers.add_status(game.fx, spec["name"], owner=run.ctx.owner, until=spec["until"], fid=f.fid,
                                  amount=n, label=label)
     else:
@@ -131,8 +131,9 @@ def _acting(game, owner: int):
 
 @op("damage")
 def _damage(run, game, spec):
-    targets = pick_fighters(game, run, spec["target"], player_of(game, run, spec.get("chooser", "owner")))
     n = amount(game, run, spec["amount"])
+    targets = pick_fighters(game, run, spec["target"], player_of(game, run, spec.get("chooser", "owner")),
+                            op="damage", amount=n)
     victims = [_damage_victim(run, game, f) for f in targets] if n > 0 else []
     previous = _acting(game, run.ctx.owner)
     try:

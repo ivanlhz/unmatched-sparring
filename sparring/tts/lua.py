@@ -1685,3 +1685,358 @@ for _, o in ipairs(Player[{_color(seat_color)}].getHandObjects(1)) do
 end
 return JSON.encode({{pairs = found}})
 """
+
+
+# ---------- effect bridge pieces (form change, token copies, deck moves, bag placement) ----------
+MAX_PING_GROUPS = 6
+MAX_DECK_CARDS = 40
+MAX_ROW_CARDS = 12
+PING_GAP = 1.0           # seconds between two pings: two pings in a row overwrite each other
+PING_LEAD = 0.4          # seconds before the first ping: a state swap needs a moment to spawn the new object
+
+
+def _xyz(pos) -> str:
+    if not isinstance(pos, (tuple, list)) or len(pos) != 3:
+        raise TypeError(f"(x, y, z) expected, got {pos!r}")
+    return f"Vector({_f(pos[0])}, {_f(pos[1])}, {_f(pos[2])})"
+
+
+@_registered
+def set_state(guid: str, state_index: int) -> str:
+    """Switches a multi-state object (Hellboy's miniature) to state `state_index` in place. The swap replaces the object
+    with another one of a different GUID: returns `{guid = <new>, state = n, moved = <new>}` (`moved` makes a composite
+    wait for the spawned object to settle before its snapshot), or `{changed = false}` if the GUID does not exist or
+    the state does not (setState returns nil). If the object already is in that state nothing is done (`{guid, state,
+    same = true}`)."""
+    if isinstance(state_index, bool) or not isinstance(state_index, int) or not 1 <= state_index <= 20:
+        raise ValueError(f"state index out of range {state_index!r}")
+    return f"""-- sparring:set_state
+local obj = getObjectFromGUID({_guid(guid)})
+if obj == nil then return JSON.encode({{changed = false}}) end
+if obj.getStateId() == {_i(state_index)} then
+  return JSON.encode({{guid = obj.getGUID(), state = {_i(state_index)}, same = true}})
+end
+local new = obj.setState({_i(state_index)})
+if new == nil then return JSON.encode({{changed = false}}) end
+return JSON.encode({{guid = new.getGUID(), state = {_i(state_index)}, moved = new.getGUID()}})
+"""
+
+
+@_registered
+def set_token_face(guid: str, rot_z: float) -> str:
+    """Turns a two-faced token (ability token with its glued child) so its Z rotation is `rot_z`, only if it is not
+    already there (flipping twice would undo the change). Instant. Returns `{rot_z, flipped}`."""
+    return f"""-- sparring:set_token_face
+local obj = getObjectFromGUID({_guid(guid)})
+if obj == nil then return JSON.encode({{flipped = false, found = false}}) end
+local r = obj.getRotation()
+local want = {_f(rot_z)} % 360
+local diff = math.abs((r.z - want) % 360)
+if diff < 1 or diff > 359 then return JSON.encode({{rot_z = want, flipped = false}}) end
+obj.setRotation(Vector(r.x, r.y, want))
+return JSON.encode({{rot_z = want, flipped = true}})
+"""
+
+
+@_registered
+def flip_token(guid: str) -> str:
+    """Flips a two-faced token 180 degrees around Z. Instant. Returns `{rot_z, flipped = true}`."""
+    return f"""-- sparring:flip_token
+local obj = getObjectFromGUID({_guid(guid)})
+if obj == nil then return JSON.encode({{flipped = false, found = false}}) end
+local r = obj.getRotation()
+local z = (r.z + 180) % 360
+obj.setRotation(Vector(r.x, r.y, z))
+return JSON.encode({{rot_z = z, flipped = true}})
+"""
+
+
+_PINGER_LUA = """local function pinger()
+  for _, c in ipairs(seats) do
+    local p = Player[c]
+    if p ~= nil and p.seated then return p end
+  end
+  local players = Player.getPlayers()
+  return players and players[1]
+end
+"""
+
+
+def _seats_lua(seat_colors) -> str:
+    if not isinstance(seat_colors, (list, tuple)) or not seat_colors:
+        raise ValueError("at least one seat is needed to ping")
+    return "{" + ", ".join(_color(c) for c in seat_colors) + "}"
+
+
+@_registered
+def ping_objects(seat_colors: list[str], groups: list[list[str]], first_delay: float = PING_LEAD) -> str:
+    """Pings several objects one after another, `PING_GAP` seconds apart (the first after `first_delay`). Each group is the
+    list of GUIDs one object may have (a miniature changes GUID between forms): the first one that exists is pinged.
+    Pings the first seated seat of `seat_colors`, else the first player. Everything under pcall."""
+    if not isinstance(groups, (list, tuple)) or not 1 <= len(groups) <= MAX_PING_GROUPS or not all(
+            isinstance(g, (list, tuple)) and g for g in groups):
+        raise ValueError(f"1 to {MAX_PING_GROUPS} non-empty GUID groups expected")
+    rows = "{" + ", ".join(_guid_list(g) for g in groups) + "}"
+    return f"""-- sparring:ping_objects
+local seats = {_seats_lua(seat_colors)}
+{_PINGER_LUA}local groups = {rows}
+local function pingAt(guids)
+  for _, g in ipairs(guids) do
+    local o = getObjectFromGUID(g)
+    if o ~= nil then pinger().pingTable(o.getPosition()) return end
+  end
+end
+for i, guids in ipairs(groups) do
+  Wait.time(function() pcall(pingAt, guids) end, {_f(first_delay)} + (i - 1) * {_f(PING_GAP)})
+end
+return JSON.encode({{queued = #groups}})
+"""
+
+
+@_registered
+def ping_points(seat_colors: list[str], points: list[tuple[float, float, float]], first_delay: float = 0.0) -> str:
+    """Like `ping_objects` but over world points (e.g. the spots of a revealed hand row)."""
+    if not isinstance(points, (list, tuple)) or not 1 <= len(points) <= MAX_PING_GROUPS:
+        raise ValueError(f"1 to {MAX_PING_GROUPS} points expected")
+    rows = "{" + ", ".join(_xyz(p) for p in points) + "}"
+    return f"""-- sparring:ping_points
+local seats = {_seats_lua(seat_colors)}
+{_PINGER_LUA}local points = {rows}
+for i, at in ipairs(points) do
+  Wait.time(function() pcall(function() pinger().pingTable(at) end) end, {_f(first_delay)} + (i - 1) * {_f(PING_GAP)})
+end
+return JSON.encode({{queued = #points}})
+"""
+
+
+_SEAT_LIST_LUA = "{" + ", ".join(f'"{c}"' for c in sorted(SEATS)) + "}"
+
+_LOOSE_LUA = f"""local function inHand(o)
+  local okz, zones = pcall(function() return o.getZones() end)
+  if okz and type(zones) == "table" then
+    for _, z in ipairs(zones) do
+      if z.type == "Hand" then return true end
+    end
+  end
+  for _, c in ipairs({_SEAT_LIST_LUA}) do
+    local okh, objs = pcall(function() return Player[c].getHandObjects(1) end)
+    if okh and type(objs) == "table" then
+      for _, h in ipairs(objs) do
+        if h == o then return true end
+      end
+    end
+  end
+  return false
+end
+local function looseOurs(o)
+  return o.type == "Card" and ours(o) and not inHand(o)
+end
+"""
+
+
+def _card_ref_lua(card) -> str:
+    """Lua expression finding a loose card of the bot: by GUID (str) or by CardID (int, the first one with that id). A
+    card in ANY hand zone (the human's in a mirror match, the bot's own) or not `ours` is never taken, so a shared
+    CardID in the other hand does not match. Requires `_ours_lua` and `_LOOSE_LUA` before."""
+    if isinstance(card, str):
+        return f"""(function()
+  local o = getObjectFromGUID({_guid(card)})
+  if o ~= nil and looseOurs(o) then return o end
+end)()"""
+    return f"""(function()
+  for _, o in ipairs(getObjects()) do
+    if o.type == "Card" and o.getData().CardID == {_i(card)} and looseOurs(o) then return o end
+  end
+end)()"""
+
+
+def _deck_insert(card, deck_guid: str, tag: str, bottom: bool, identity, id_range) -> str:
+    flip_in = "local r = deck.getRotation()\ndeck.setRotation(Vector(r.x, r.y, (r.z + 180) % 360))\n" if bottom else ""
+    flip_out = "deck.setRotation(Vector(r.x, r.y, r.z))\n" if bottom else ""
+    return f"""-- sparring:{tag}
+{_ours_lua(identity, id_range)}{_LOOSE_LUA}local deck = getObjectFromGUID({_guid(deck_guid)})
+if deck == nil or not ours(deck) then return JSON.encode({{placed = false, deck = false}}) end
+local card = {_card_ref_lua(card)}
+if card == nil then return JSON.encode({{placed = false}}) end
+{flip_in}deck = deck.putObject(card) or deck
+{flip_out}return JSON.encode({{placed = true, deck = deck.getGUID(), quantity = deck.getQuantity()}})
+"""
+
+
+@_registered
+def card_to_deck_top(card: str | int, deck_guid: str, id_range: tuple[int, int] = BOT_CARD_IDS, *, identity) -> str:
+    """Puts a loose card of the bot (by GUID or CardID) on top of the bot's deck. `putObject` adds on top. If the deck is
+    a single card it becomes a deck with another GUID: the new one comes back as `deck`. Only a card that is `ours`
+    (`id_range` and the image of `identity`) and in no hand zone counts; the deck must be `ours` too, else
+    `{placed = false, deck = false}`."""
+    return _deck_insert(card, deck_guid, "card_to_deck_top", False, identity, id_range)
+
+
+@_registered
+def card_to_deck_bottom(card: str | int, deck_guid: str, id_range: tuple[int, int] = BOT_CARD_IDS, *,
+                        identity) -> str:
+    """Puts a loose card of the bot at the bottom of the bot's deck: the deck is turned over (instant) so its bottom is
+    the top, the card is put in and the deck turned back. Same guards as `card_to_deck_top`. Verify live."""
+    return _deck_insert(card, deck_guid, "card_to_deck_bottom", True, identity, id_range)
+
+
+@_registered
+def shuffle_into_deck(deck_guid: str, cards: list[str]) -> str:
+    """Puts the loose cards (by GUID) into a deck and shuffles it. Returns `{added, quantity}`."""
+    if not isinstance(cards, (list, tuple)) or not 1 <= len(cards) <= MAX_DECK_CARDS:
+        raise ValueError(f"1 to {MAX_DECK_CARDS} cards expected")
+    return f"""-- sparring:shuffle_into_deck
+local deck = getObjectFromGUID({_guid(deck_guid)})
+if deck == nil then return JSON.encode({{added = 0}}) end
+local added = 0
+for _, g in ipairs({_guid_list(cards)}) do
+  local c = getObjectFromGUID(g)
+  if c ~= nil then deck = deck.putObject(c) or deck; added = added + 1 end
+end
+deck.shuffle()
+return JSON.encode({{added = added, deck = deck.getGUID(), quantity = deck.getQuantity()}})
+"""
+
+
+@_registered
+def deal_row(deck_guid: str, spots: list[tuple[float, float, float]], rot_y: float = 0, face_up: bool = True,
+             id_range: tuple[int, int] = BOT_CARD_IDS, *, identity) -> str:
+    """Deals the top cards of the bot's deck onto `spots` (one card per spot), face up by default. Instant. The last
+    card of a deck is a loose card, not a deck: it is found near where the deck was, and only if it is `ours`
+    (`id_range` and the image of `identity`) and in no hand zone. A deck that is not `ours` deals nothing
+    (`{dealt = {}, deck = false}`). Returns `{dealt: [guid...]}`."""
+    if not isinstance(spots, (list, tuple)) or not 1 <= len(spots) <= MAX_ROW_CARDS:
+        raise ValueError(f"1 to {MAX_ROW_CARDS} spots expected")
+    rows = "{" + ", ".join(_xyz(s) for s in spots) + "}"
+    rot_z = "0" if face_up else "180"
+    return f"""-- sparring:deal_row
+{_ours_lua(identity, id_range)}{_LOOSE_LUA}local spots = {rows}
+local deck = getObjectFromGUID({_guid(deck_guid)})
+if deck == nil or not ours(deck) then return JSON.encode({{dealt = {{}}, deck = false}}) end
+local home = deck.getPosition()
+local dealt = {{}}
+local function loose()
+  for _, o in ipairs(getObjects()) do
+    if looseOurs(o) then
+      local p = o.getPosition()
+      if math.abs(p.x - home.x) < 1.5 and math.abs(p.z - home.z) < 1.5 then return o end
+    end
+  end
+end
+for i, at in ipairs(spots) do
+  local cur = getObjectFromGUID({_guid(deck_guid)})
+  if cur ~= nil and cur.type == "Deck" then
+    local c = cur.takeObject({{position = at, rotation = Vector(0, {_f(rot_y)}, {rot_z}), smooth = false}})
+    if c ~= nil then table.insert(dealt, c.getGUID()) end
+  else
+    local c = cur or loose()
+    if c == nil then break end
+    c.setRotation(Vector(0, {_f(rot_y)}, {rot_z}))
+    c.setPosition(at)
+    table.insert(dealt, c.getGUID())
+  end
+end
+return JSON.encode({{dealt = dealt}})
+"""
+
+
+@_registered
+def take_token_copy(source_guid: str, position: tuple[float, float, float]) -> str:
+    """Gets one more token from a source object (Abe's Uncanny Intuition): a bag or infinite bag and a stack give one with
+    `takeObject`; a single token is `clone`d. Returns `{taken: guid, via}` (`moved` too, so a composite waits for it)."""
+    return f"""-- sparring:take_token_copy
+local src = getObjectFromGUID({_guid(source_guid)})
+if src == nil then return JSON.encode({{taken = false}}) end
+local pos = {_xyz(position)}
+local qty = 0
+pcall(function() qty = src.getQuantity() or 0 end)
+local new, via
+if src.type == "Bag" or src.type == "Infinite" or src.type == "Deck" or qty > 1 then
+  new = src.takeObject({{position = pos, smooth = false}})
+  via = "takeObject"
+else
+  new = src.clone({{position = pos}})
+  via = "clone"
+end
+if new == nil then return JSON.encode({{taken = false, via = via}}) end
+return JSON.encode({{taken = new.getGUID(), moved = new.getGUID(), via = via}})
+"""
+
+
+TOKEN_TYPES = frozenset({"Custom_Token", "Custom_Tile", "Figurine", "Custom_Model", "Chip"})
+
+
+@_registered
+def remove_token(guid: str) -> str:
+    """Removes a token from the table (`destruct`), only if it is one of `TOKEN_TYPES`: never a Deck, a Card, a bag, the
+    bot's panel (name + GM notes) or any object carrying a Lua script. Returns `{removed}`, with `type` when refused."""
+    kinds = "{" + ", ".join(f'["{t}"] = true' for t in sorted(TOKEN_TYPES)) + "}"
+    return f"""-- sparring:remove_token
+local obj = getObjectFromGUID({_guid(guid)})
+if obj == nil then return JSON.encode({{removed = false}}) end
+local kinds = {kinds}
+local script = ""
+pcall(function() script = obj.getLuaScript() or "" end)
+if kinds[obj.type] ~= true or obj.getName() == {lua_str(PANEL_NAME)} or obj.getGMNotes() == {lua_str(MARKER)}
+   or script ~= "" then
+  return JSON.encode({{removed = false, type = obj.type}})
+end
+obj.destruct()
+return JSON.encode({{removed = true}})
+"""
+
+
+@_registered
+def place_from_bag(bag_guid: str, name_or_guid: str, position: tuple[float, float, float]) -> str:
+    """Takes one object out of a bag by GUID or by name and puts it at `position` (reserve / summon). `{taken: false}` if
+    the bag or the object is not there. Returns `{taken: guid, moved: guid}`."""
+    return f"""-- sparring:place_from_bag
+local bag = getObjectFromGUID({_guid(bag_guid)})
+if bag == nil then return JSON.encode({{taken = false}}) end
+local want = {lua_str(name_or_guid)}
+local pick
+for _, e in ipairs(bag.getObjects()) do
+  if e.guid == want then pick = e.guid break end
+  if pick == nil and e.name == want then pick = e.guid end
+end
+if pick == nil then return JSON.encode({{taken = false}}) end
+local new = bag.takeObject({{guid = pick, position = {_xyz(position)}, smooth = false}})
+if new == nil then return JSON.encode({{taken = false}}) end
+return JSON.encode({{taken = new.getGUID(), moved = new.getGUID()}})
+"""
+
+
+@_registered
+def inspect_objects(guids: list[str]) -> str:
+    """Read only: type, rotation, state ids, quantity and glued children of each object (checks how a multi-state mini or a
+    two-faced token is set up in the real save)."""
+    if not isinstance(guids, (list, tuple)) or len(guids) > MAX_HERO_GUIDS:
+        raise TypeError("GUID list expected")
+    return f"""-- sparring:inspect_objects
+local out = {{}}
+for _, g in ipairs({_guid_list(guids)}) do
+  local o = getObjectFromGUID(g)
+  if o == nil then
+    out[g] = {{found = false}}
+  else
+    local r = o.getRotation()
+    local info = {{found = true, type = o.type, name = o.getName(), rot_x = r.x, rot_y = r.y, rot_z = r.z}}
+    pcall(function() info.state_id = o.getStateId() end)
+    pcall(function()
+      local ids = {{}}
+      for _, s in ipairs(o.getStates()) do table.insert(ids, s.id) end
+      info.state_ids = ids
+    end)
+    pcall(function() info.quantity = o.getQuantity() end)
+    pcall(function()
+      local kids = {{}}
+      for _, a in ipairs(o.getAttachments()) do
+        table.insert(kids, {{guid = a.guid, name = a.name}})
+      end
+      info.attached = kids
+    end)
+    out[g] = info
+  end
+end
+return JSON.encode(out)
+"""

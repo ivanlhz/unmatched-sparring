@@ -178,6 +178,7 @@ class MedusaAI(Controller):
         self._plan_moves: dict[str, int] = {}
         self._plan_spot: int | None = None
         self._strike_cache: dict = {}
+        self._effect_ai = None
 
     # ---------- preparacion de la partida ----------
     def should_mulligan(self, game: Game, hand) -> bool:
@@ -591,6 +592,13 @@ class MedusaAI(Controller):
     def choose_discard(self, game: Game, player: int, n: int, reason: str):
         hand = game.players[player].hand
         return sorted(hand, key=lambda c: (keep_value(c, hand), c.card_id))[:n]
+
+    def choose_effect(self, game: Game, req):
+        """DSL decisions (sparring/effects/choose.py): sparring/ai_effects.py, built on this class's evaluation."""
+        if self._effect_ai is None:
+            from .ai_effects import EffectAI
+            self._effect_ai = EffectAI(self.me, self)
+        return self._effect_ai.choose_effect(game, req)
 
     def choose_combat_boost(self, game: Game, ctx):
         hand = game.players[self.me].hand

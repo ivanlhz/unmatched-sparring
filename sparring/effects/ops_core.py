@@ -89,8 +89,8 @@ def _trial():
 
 @op("damage")
 def _damage(run, game, spec):
-    targets = pick_fighters(game, run, spec["target"], _chooser(game, run, spec))
     n = amount(game, run, spec["amount"])
+    targets = pick_fighters(game, run, spec["target"], _chooser(game, run, spec), op="damage", amount=n)
     hit = [f.fid for f in targets if game.damage(f, n, "effect") > 0]
     if "as" in spec:
         run.bind("fighters", spec["as"], hit)
@@ -98,16 +98,16 @@ def _damage(run, game, spec):
 
 @op("heal")
 def _heal(run, game, spec):
-    targets = pick_fighters(game, run, spec["target"], _chooser(game, run, spec))
     n = amount(game, run, spec["amount"])
+    targets = pick_fighters(game, run, spec["target"], _chooser(game, run, spec), op="heal", amount=n)
     for f in targets:
         game.heal(f, n)
 
 
 @op("set_hp")
 def _set_hp(run, game, spec):
-    targets = pick_fighters(game, run, spec["target"], _chooser(game, run, spec))
     n = amount(game, run, spec["amount"])
+    targets = pick_fighters(game, run, spec["target"], _chooser(game, run, spec), op="set_hp", amount=n)
     for f in targets:
         if n >= f.hp:
             f.hp = min(f.max_hp, n)
@@ -189,8 +189,8 @@ def _choose_effect(run, game, spec):
 @op("move")
 def _move(run, game, spec):
     chooser = _chooser(game, run, spec)
-    targets = pick_fighters(game, run, spec["target"], chooser)
     steps, through, up_to = int(amount(game, run, spec["amount"])), spec.get("through_enemies", False), spec["up_to"]
+    targets = pick_fighters(game, run, spec["target"], chooser, op="move", amount=steps, through=through)
     plan = []
     with _trial() as set_attrs:
         for f in targets:
@@ -224,7 +224,8 @@ def _plan_spots(game, run, fighters, where: dict, chooser: int, op_name: str, **
 @op("place")
 def _place(run, game, spec):
     chooser = _chooser(game, run, spec)
-    targets = [f for f in pick_fighters(game, run, spec["target"], chooser) if f.alive and game.fx.can_move(f)]
+    targets = [f for f in pick_fighters(game, run, spec["target"], chooser, op="place")
+               if f.alive and game.fx.can_move(f)]
     for f, spot in _plan_spots(game, run, targets, spec["where"], chooser, "place"):
         f.pos = spot
 
@@ -232,8 +233,8 @@ def _place(run, game, spec):
 @op("swap")
 def _swap(run, game, spec):
     chooser = _chooser(game, run, spec)
-    a = pick_fighters(game, run, spec["target"], chooser)
-    b = pick_fighters(game, run, spec["with"], chooser)
+    a = pick_fighters(game, run, spec["target"], chooser, op="swap")
+    b = pick_fighters(game, run, spec["with"], chooser, op="swap")
     if a and b and a[0] is not b[0] and a[0].alive and b[0].alive and game.fx.can_move(a[0]) and game.fx.can_move(b[0]):
         a[0].pos, b[0].pos = b[0].pos, a[0].pos
 
