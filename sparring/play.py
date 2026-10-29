@@ -555,12 +555,20 @@ def make_announcer(client, echo: Callable[[str], None] = print, to_table: bool =
 Recovery = Callable[[], tuple[str, list[str]]]      # -> ("ok" | "retry" | "stop", mensajes)
 
 
+ONGOING_LABELS = ("ONGOING BOT", "ONGOING TUYO")   # floor labels of the bot's / the human's ONGOING zone (unique texts)
+
+
 def mark_floor(client, scfg: SessionConfig) -> None:
-    """Dibuja en el suelo las zonas de descarte y los puntos de combate (idempotente; solo en modo juego)."""
+    """Dibuja en el suelo las zonas de descarte, los puntos de combate y las zonas ONGOING configuradas (idempotente;
+    solo en modo juego)."""
+    cards = [(scfg.human_label, *scfg.human_card_spot), (scfg.bot_label, scfg.bot_card_spot[0], scfg.bot_card_spot[2])]
+    if scfg.human_ongoing_spot is not None:
+        cards.append((ONGOING_LABELS[1], *scfg.human_ongoing_spot))
+    if scfg.bot_ongoing_spot is not None:
+        cards.append((ONGOING_LABELS[0], scfg.bot_ongoing_spot[0], scfg.bot_ongoing_spot[2]))
     client.call_lua(lua.draw_markings(
         [(f"DESCARTE {scfg.human_label}", scfg.human_discard_zone), (f"DESCARTE {scfg.bot_label}", scfg.bot_discard_zone)],
-        [(scfg.human_label, *scfg.human_card_spot), (scfg.bot_label, scfg.bot_card_spot[0], scfg.bot_card_spot[2])],
-        label_font=scfg.label_font))
+        cards, label_font=scfg.label_font))
 
 
 def _zone_rect(bounds) -> tuple[float, float, float, float]:
@@ -572,8 +580,8 @@ def _zone_rect(bounds) -> tuple[float, float, float, float]:
 
 
 def floor_layout(cfg: PlayConfig) -> list[tuple[str, tuple[float, float, float, float]]]:
-    """Rectangulos (x min, x max, z min, z max) de todo lo que se dibuja en el suelo: las cajas de descarte y de combate
-    y sus etiquetas. Las zonas de descarte solo se conocen si la configuracion trae sus limites."""
+    """Rectangulos (x min, x max, z min, z max) de todo lo que se dibuja en el suelo: las cajas de descarte, de combate y
+    ONGOING y sus etiquetas. Las zonas de descarte solo se conocen si la configuracion trae sus limites."""
     r, font = cfg.raw, float(cfg.raw.get("label_font", lua.LABEL_FONT))
     out: list[tuple[str, tuple[float, float, float, float]]] = []
 
@@ -585,6 +593,11 @@ def floor_layout(cfg: PlayConfig) -> list[tuple[str, tuple[float, float, float, 
     for name, spot in ((bot_name, (r["bot_card_spot"][0], r["bot_card_spot"][2])), (human_name, r["human_card_spot"])):
         out.append((f"caja de combate {name}", (spot[0] - w / 2, spot[0] + w / 2, spot[1] - d / 2, spot[1] + d / 2)))
         label(name, spot[0], spot[1], w, d, 0.0)
+    for name, key in ((ONGOING_LABELS[0], "bot_ongoing_spot"), (ONGOING_LABELS[1], "human_ongoing_spot")):
+        if r.get(key):
+            spot = (r[key][0], r[key][-1])
+            out.append((f"caja {name}", (spot[0] - w / 2, spot[0] + w / 2, spot[1] - d / 2, spot[1] + d / 2)))
+            label(name, spot[0], spot[1], w, d, 0.0)
     for name, key in ((f"DESCARTE {bot_name}", "bot_discard_bounds"), (f"DESCARTE {human_name}", "human_discard_bounds")):
         if r.get(key):
             out.append((f"zona {name}", _zone_rect(r[key])))
