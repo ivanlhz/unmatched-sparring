@@ -1190,7 +1190,7 @@ def test_a_scheme_played_after_pressing_plan_is_recognised_at_fin_de_accion(rig)
     assert game.actions_left == 1 and any("deja tu carta de plan" in m for m in out)
     table.human_discard = [card_id(game, 1, CROWN)]
     out = session.handle(Event.END_ACTION)
-    assert any(f"Detecto {CROWN}: aplicado, ganas 2 acciones (te quedan 3)" in m for m in out)
+    assert any(f"Detecto {CROWN}: aplicado, ganas 2 acciones, te quedan 3" in m for m in out)
     assert game.actions_left == 3 and session.scheme_baseline is None
     assert table.dials["dD"]["value"] == 1, "la corona es un destino: el dial lo cuenta"
     assert any("Destinos de Hellboy: 1" in m for m in out)
