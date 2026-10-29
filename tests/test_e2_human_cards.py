@@ -808,6 +808,20 @@ def test_your_ongoing_scheme_is_recognized_on_your_ongoing_spot_and_owed_to_the_
     assert session.pending_discard is None and fof in [c.card_id for c in game.players[1].discard]
 
 
+@with_rig(*LIZ_VS_HELLBOY, **ONGOING_SPOTS)
+def test_a_scheme_that_is_not_ongoing_on_your_ongoing_spot_is_ignored_and_you_are_told(rig):
+    """Ivan, 29/10: only ONGOING cards count on the ONGOING zone."""
+    session, table, game, fake, cfg = rig
+    human_hand(table, game, "Searing Clarity", "Evade", "Fireball")
+    clarity = card_ids(game, 1, "Searing Clarity")[0]
+    click(session, table, Event.SCHEME)
+    table.human_ongoing.append(clarity)                            # left on the ONGOING zone by mistake
+    table.human_count -= 1
+    msgs = click(session, table, Event.END_ACTION)
+    assert said(msgs, "Searing Clarity no es un ONGOING: no la cuento en tu zona ONGOING")
+    assert game.fx.ongoing_card_id(1) is None and clarity not in [c.card_id for c in game.players[1].discard]
+
+
 @with_rig("liz-sherman", "hellboy", "Fight Or Flight", "Evade", "Fireball", "Rekindle", "Pyrotechnics", **ONGOING_SPOTS)
 def test_the_bots_ongoing_scheme_goes_face_up_on_its_spot_and_to_its_discard_when_it_leaves_play(rig):
     session, table, game, fake, cfg = rig

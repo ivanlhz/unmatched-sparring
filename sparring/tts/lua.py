@@ -1030,12 +1030,12 @@ return JSON.encode({{placed = false}})
 
 @_registered
 def read_cards_at(x: float, z: float, radius: float = 2.0) -> str:
-    """Reads (without turning) the cards, face up or down, within `radius` of (x, z): CardID and GUID. The ONGOING
-    spots of E2 (a scheme left face up there)."""
+    """Reads the FACE-UP cards within `radius` of (x, z): CardID and GUID. The ONGOING spots of E2 (a scheme left
+    face up there); a face-down card is never read (it would reveal a hidden card)."""
     return f"""-- sparring:read_cards_at
 local out = {{}}
 for _, o in ipairs(getObjects()) do
-  if o.type == "Card" then
+  if o.type == "Card" and not o.is_face_down then
     local p = o.getPosition()
     if (p.x - {_f(x)}) ^ 2 + (p.z - {_f(z)}) ^ 2 <= {_f(radius)} ^ 2 then
       table.insert(out, {{id = o.getData().CardID, guid = o.getGUID()}})
@@ -1301,8 +1301,8 @@ def _pairs(spots) -> str:
 
 
 def _ongoing_lua(spot, radius: float) -> str:
-    """The cards on an ONGOING spot (any face), or an empty list when the spot is not configured."""
-    return "{}" if spot is None else f"cardsAt({_f(spot[0])}, {_f(spot[1])}, {_f(radius)}, true)"
+    """The face-up cards on an ONGOING spot, or an empty list when the spot is not configured."""
+    return "{}" if spot is None else f"cardsAt({_f(spot[0])}, {_f(spot[1])}, {_f(radius)}, \"up\")"
 
 
 def _guid_list(guids) -> str:
@@ -1335,10 +1335,11 @@ def snapshot_lua(spec: SnapSpec, seq_expr: str | None = None) -> str:
   end
   return cardIds(objs)
 end
-local function cardsAt(x, z, r, anyFace)
+local function cardsAt(x, z, r, face)
   local out = {{}}
   for _, o in ipairs(getObjects()) do
-    if o.type == "Card" and (anyFace or o.is_face_down) then
+    local want = (face == "up" and not o.is_face_down) or (face ~= "up" and o.is_face_down)
+    if o.type == "Card" and want then
       local p = o.getPosition()
       if (p.x - x) ^ 2 + (p.z - z) ^ 2 <= r ^ 2 then table.insert(out, {{id = o.getData().CardID, guid = o.getGUID()}}) end
     end

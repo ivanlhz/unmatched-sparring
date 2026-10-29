@@ -45,7 +45,7 @@ def is_ongoing(game, player: int, card: Card) -> bool:
 
 def recognize_scheme(session, base: set) -> list[Card]:
     """The scheme(s) the human just played: an ONGOING one lies face up on their ONGOING spot (Ivan, 29/10), any
-    other face up on their discard pile. Without `human_ongoing_spot` in the configuration the pile is read for
+    other face up on their discard pile; a non-ONGOING scheme left on the spot is ignored and the human is told. Without `human_ongoing_spot` in the configuration the pile is read for
     both (said once)."""
     g, human = session.game, session.human
     st = g.players[human]
@@ -57,8 +57,14 @@ def recognize_scheme(session, base: set) -> list[Card]:
         return found
     by_id = {c.card_id: c for c in st.full_set}
     in_play = g.fx.ongoing_card_id(human)
-    spot = [by_id[r["id"]] for r in session._rd_ongoing("human")
-            if isinstance(r, dict) and r.get("id") in by_id and r["id"] != in_play and by_id[r["id"]].is_scheme]
+    on_spot = [by_id[r["id"]] for r in session._rd_ongoing("human")
+               if isinstance(r, dict) and r.get("id") in by_id and r["id"] != in_play and by_id[r["id"]].is_scheme]
+    spot = [c for c in on_spot if is_ongoing(g, human, c)]        # only ONGOING cards count there (Ivan, 29/10)
+    for c in on_spot:
+        if c not in spot:
+            session._warn("ongoing", f"not-ongoing-{c.card_id}",
+                          f"{c.title} no es un ONGOING: no la cuento en tu zona ONGOING. Pasala a tu descarte y "
+                          "pulsa Fin de accion.")
     for c in spot:                                # it left your hand for the spot: the engine's copy follows
         for zone in (st.deck, st.discard):
             if c in zone:
