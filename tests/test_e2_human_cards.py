@@ -22,17 +22,20 @@ from test_choice_infra import visible_choices
 from test_d3_table_effects import build, card_ids, human_attack, human_hand, said, to_bot_discard
 
 
+ONGOING_SPOTS = {"bot_ongoing_spot": [6.0, 1.7, -22.0], "human_ongoing_spot": [-2.0, -22.0]}
+
+
 @pytest.fixture
 def rig(request, tmp_path):
-    bot, human, hand = request.param
-    session, table, game, fake, cfg, client = build(tmp_path, bot, human, hand)
+    bot, human, hand, over = request.param
+    session, table, game, fake, cfg, client = build(tmp_path, bot, human, hand, **over)
     yield session, table, game, fake, cfg
     client.close()
     fake.close()
 
 
-def with_rig(bot, human, *hand):
-    return pytest.mark.parametrize("rig", [(bot, human, hand)], indirect=True)
+def with_rig(bot, human, *hand, **over):
+    return pytest.mark.parametrize("rig", [(bot, human, hand, over)], indirect=True)
 
 
 def bot_defends_with(session, game, title, monkeypatch):
@@ -330,7 +333,7 @@ def test_shock_and_awe_makes_the_bot_discard_a_card_it_chooses_and_the_pile_foll
     assert any(m.startswith("Tu carta: Shock And Awe: ") and f"descarta {gone.title}" in m for m in msgs)
 
 
-@with_rig(*ABE_VS_HELLBOY)
+@with_rig(*ABE_VS_HELLBOY, human_ongoing_spot=None, bot_ongoing_spot=None)       # no ONGOING zone: the pile route
 def test_counterhex_shield_stays_in_play_on_your_pile_and_stops_the_bots_effect_damage(rig, monkeypatch):
     session, table, game, fake, cfg = rig
     human_hand(table, game, "Counterhex Shield", "Faster. Stronger.")
@@ -622,7 +625,8 @@ def test_flame_lash_with_a_burning_bottom_card_adds_nothing_and_wildfire_returns
     assert "Flame Lash (1): total 1" in combat
     st = game.players[1]
     assert fireball in [c.card_id for c in st.hand] and fireball in game.players[0].known.seen
-    assert said(msgs, "Tu habilidad: WILDFIRE RETURN: Fireball vuelve a tu mano"), msgs
+    assert said(msgs, "Tu carta: Flame Lash: descartas Fireball (Wildfire la devuelve a tu mano)"), msgs   # one line (Ivan)
+    assert not said(msgs, "Tu habilidad")
 
 
 @with_rig(*LIZ_VS_HELLBOY)
@@ -682,7 +686,7 @@ def test_rekindle_picks_from_your_public_pile_and_you_shuffle_them_in(rig, monke
     assert said(msgs, "Baraja Fireball y Evade de tu descarte en tu mazo (efectos del combate)")
 
 
-@with_rig(*LIZ_VS_HELLBOY)
+@with_rig(*LIZ_VS_HELLBOY, human_ongoing_spot=None, bot_ongoing_spot=None)       # no ONGOING zone: the pile route
 def test_fight_or_flight_enters_play_on_your_pile_adds_to_your_cards_and_expires_at_your_next_turn(rig, monkeypatch):
     session, table, game, fake, cfg = rig
     human_hand(table, game, "Fight Or Flight", "Evade", "Fireball")
@@ -690,6 +694,7 @@ def test_fight_or_flight_enters_play_on_your_pile_adds_to_your_cards_and_expires
     fof = card_ids(game, 1, "Fight Or Flight")[0]
     assert game.fx.ongoing_card_id(1) == fof and game.combat_bonus_total(1) == 1
     assert said(msgs, "Fight Or Flight queda en juego: dejala a la vista en tu descarte")
+    assert said(msgs, "No hay human_ongoing_spot en la configuracion: reconozco tu ONGOING en tu descarte")
     assert any("Aplico Fight Or Flight: robas 1; en la mesa: mueve a liz hasta 5 casillas (puede atravesar rivales)" in m
                for m in msgs), msgs
     put_adjacent(game, table, cfg, "liz", "hellboy")
@@ -702,8 +707,9 @@ def test_fight_or_flight_enters_play_on_your_pile_adds_to_your_cards_and_expires
     session.ai.pick_ability_target = lambda g: None
     msgs = click(session, table, Event.END_ACTION)              # no actions left: the bot's turn, then yours
     assert game.turn == 1 and game.fx.ongoing_card_id(1) is None
-    assert said(msgs, "Fight Or Flight caduca: ya no esta en juego (queda en tu descarte)")
-    assert said(msgs, "WILDFIRE: descarta la carta del fondo de tu mazo")
+    assert said(msgs, "Fight Or Flight deja de estar en juego (caduca): queda en tu descarte")
+    assert not said(msgs, "Descarta el plan") and session.pending_discard is None
+    assert said(msgs, "WILDFIRE: descarta la carta del fondo de tu mazo") and session.ability_wait is not None
 
 
 @with_rig(*LIZ_VS_HELLBOY)
@@ -732,6 +738,150 @@ def test_a_physical_draw_under_cold_iron_is_warned_once_and_counted(rig, monkeyp
     table.positions[cfg.nicknames["liz"]] = game.fighters["liz"].pos
     msgs = click(session, table, Event.END_ACTION)
     assert not said(msgs, "Tu mano ha crecido")
+
+
+# ---------------------------------------------------------------- Confront by the human: one discard, no look button (review of E2)
+
+@with_rig(*HELLBOY_VS_ABE)
+def test_confront_lost_asks_the_bots_card_once_at_the_panel_and_grants_no_look_button(rig, monkeypatch):
+    session, table, game, fake, cfg = rig
+    put_adjacent(game, table, cfg, "hellboy", "abe")
+    bot_defends_with(session, game, "Arcane Dampener", monkeypatch)
+    human_hand(table, game, "Confront Any Demon or God", "Excalibur")
+    human_attack(session, table, game, "hellboy", "abe", "Confront Any Demon or God", value=-3)   # 0 vs 2: lost
+    click(session, table, Event.REVEAL)
+    req = session.effect_run.awaiting
+    assert req.kind == "cards" and req.extra["of"] == 0 and set(req.options) <= {c.card_id for c in game.players[0].hand}
+    assert not session.look_granted and session.panel_view()[1]["btn_look"] == (False, False)
+    pick = req.options[0]
+    msgs = press(session, table, pick)
+    assert session.pending is None and pick in [c.card_id for c in game.players[0].discard]
+    assert len(game.players[0].discard) == 2 and len(table.bot_discard) == 2       # the defense and the one you named
+    assert not session.look_granted and session.panel_view()[1]["btn_look"] == (False, False)
+    assert any(m.startswith("Tu carta: Confront Any Demon or God: robas 1; el bot descarta") or
+               m.startswith("Tu carta: Confront Any Demon or God: robas 1; descarta") for m in msgs), msgs
+
+
+@with_rig(*HELLBOY_VS_ABE)
+def test_confront_won_only_draws_and_grants_no_look(rig, monkeypatch):
+    session, table, game, fake, cfg = rig
+    put_adjacent(game, table, cfg, "hellboy", "abe")
+    bot_defends_with_nothing(session, monkeypatch)
+    human_hand(table, game, "Confront Any Demon or God", "Excalibur")
+    human_attack(session, table, game, "hellboy", "abe", "Confront Any Demon or God")
+    msgs = click(session, table, Event.REVEAL)
+    assert session.pending is None and visible_choices(session) == [] and not session.look_granted
+    assert session.panel_view()[1]["btn_look"] == (False, False) and len(game.players[0].discard) == 0
+    assert said(msgs, "Tu carta: Confront Any Demon or God: robas 1")
+
+
+# ---------------------------------------------------------------- the ONGOING zone (Ivan, 29/10)
+
+@with_rig(*LIZ_VS_HELLBOY, **ONGOING_SPOTS)
+def test_your_ongoing_scheme_is_recognized_on_your_ongoing_spot_and_owed_to_the_pile_when_it_leaves_play(rig):
+    session, table, game, fake, cfg = rig
+    assert cfg.session_config().human_ongoing_spot == (-2.0, -22.0)
+    human_hand(table, game, "Fight Or Flight", "Evade", "Fireball")
+    fof = card_ids(game, 1, "Fight Or Flight")[0]
+    click(session, table, Event.SCHEME)
+    table.human_ongoing.append(fof)                             # face up on your ONGOING zone, not on the pile
+    table.human_count -= 1
+    msgs = click(session, table, Event.END_ACTION)
+    assert game.fx.ongoing_card_id(1) == fof and game.combat_bonus_total(1) == 1
+    assert said(msgs, "Fight Or Flight queda en juego: dejala en tu zona ONGOING") and not said(msgs, "No hay human_ongoing_spot")
+    assert fof not in [c.card_id for c in game.players[1].hand] and len(game.players[1].hand) == 3    # 3 - 1 + the draw
+    table.human_count += 1
+    click(session, table, Event.MANEUVER)
+    table.positions[cfg.nicknames["liz"]] = game.fighters["liz"].pos
+    session.ai.plan = lambda g: Act("maneuver", moves={})
+    session.ai.pick_ability_target = lambda g: None
+    msgs = click(session, table, Event.END_ACTION)              # the bot's turn, then yours: the card expires
+    assert game.turn == 1 and game.fx.ongoing_card_id(1) is None
+    assert said(msgs, "Fight Or Flight deja de estar en juego (caduca): pasala de tu zona ONGOING a tu descarte y pulsa Fin de accion")
+    assert session.pending_discard["cards"] == [fof] and session.ability_wait is not None
+    msgs = click(session, table, Event.END_ACTION)              # the ability is done, the card is still on the spot
+    assert session.ability_wait is None and said(msgs, "Aun no veo en tu descarte Fight Or Flight")
+    assert fof in [c.card_id for c in game.players[1].discard]
+    table.human_ongoing.remove(fof)
+    table.human_discard.append(fof)
+    msgs = click(session, table, Event.END_ACTION)
+    assert session.pending_discard is None and fof in [c.card_id for c in game.players[1].discard]
+
+
+@with_rig("liz-sherman", "hellboy", "Fight Or Flight", "Evade", "Fireball", "Rekindle", "Pyrotechnics", **ONGOING_SPOTS)
+def test_the_bots_ongoing_scheme_goes_face_up_on_its_spot_and_to_its_discard_when_it_leaves_play(rig):
+    session, table, game, fake, cfg = rig
+    human_hand(table, game, "Excalibur", "Service Pistol")      # a small hand: the maneuvers' draws stay under the limit
+    fof = next(c for c in game.players[0].hand if c.title == "Fight Or Flight")
+    from test_d3_table_effects import bot_turn
+    msgs = bot_turn(session, table, [Act("frenzy", card=fof)])
+    assert game.fx.ongoing_card_id(0) == fof.card_id and table.bot_ongoing == [fof.card_id]
+    assert fof.card_id not in table.bot_hand and "place_card_face_up" in [op for step in table.msglog for op in step]
+    assert said(msgs, "El bot deja Fight Or Flight en juego: la pone boca arriba en su zona ONGOING")
+    assert game.turn == 1 and session.ability_wait is None    # Hellboy in OCCULT DETECTIVE away from the rival start
+    click(session, table, Event.MANEUVER)
+    table.positions[cfg.nicknames["liz"]] = game.fighters["liz"].pos
+    click(session, table, Event.END_ACTION)
+    click(session, table, Event.MANEUVER)
+    table.positions[cfg.nicknames["liz"]] = game.fighters["liz"].pos
+    click(session, table, Event.END_ACTION)                     # the bot's next turn: the card expires at its start
+    assert game.fx.ongoing_card_id(0) is None and fof.card_id in table.bot_discard and table.bot_ongoing == []
+
+
+# ---------------------------------------------------------------- the start-of-turn ability gate (Ivan, 29/10)
+
+@with_rig(*LIZ_VS_HELLBOY)
+def test_your_start_of_turn_ability_blocks_every_button_but_fin_de_accion_until_done_and_survives_a_resume(rig):
+    session, table, game, fake, cfg = rig
+    from test_d3_table_effects import bot_turn
+    msgs = bot_turn(session, table, [])
+    assert game.turn == 1 and session.ability_wait is not None and said(msgs, "WILDFIRE: descarta la carta del fondo de tu mazo")
+    assert said(msgs, "Hazlo en la mesa y pulsa Fin de accion: hasta entonces el resto de botones espera")
+    states = session.panel_view()[1]
+    assert states["btn_end"] == (True, True) and states["btn_maneuver"] == (False, False) and states["att_liz"] == (False, False)
+    assert states["hpm_hellboy"][1] is True and "habilidad de inicio de turno" in session.panel_view()[0]
+    msgs = click(session, table, Event.MANEUVER)
+    assert said(msgs, "Primero tu habilidad de inicio de turno") and game.actions_left == 2
+    saved = json.loads(json.dumps(session.to_dict()))
+    assert saved["ability_wait"] == session.ability_wait
+    other = Session(Game.new(game.board, seed=3, controllers={}, heroes=cfg.heroes), session.client, MedusaAI(0), session.cfg)
+    other.game_id = session.game_id
+    other.load_dict(saved)
+    other.snap = None
+    msgs = other.resume()
+    assert other.ability_wait is not None and said(msgs, "Tu habilidad de inicio de turno sigue pendiente")
+    click(session, table, Event.HP, {"fighter": "hellboy", "delta": -1})       # the burning card's damage, by hand
+    msgs = click(session, table, Event.END_ACTION)
+    assert session.ability_wait is None and said(msgs, "Habilidad de inicio de turno hecha") and said(msgs, "Te quedan 2 accion")
+    assert session.panel_view()[1]["btn_maneuver"] == (True, True) and "ability_wait" not in session.to_dict()
+
+
+@with_rig(*HELLBOY_VS_ABE)
+def test_hellboy_anung_start_waits_for_the_discard_and_the_move(rig):
+    session, table, game, fake, cfg = rig
+    destiny = [c.card_id for c in game.players[1].full_set if "destiny" in c.tags][:6]
+    table.human_discard = list(destiny)
+    human_hand(table, game, "Excalibur", "Service Pistol")
+    from test_d3_table_effects import bot_turn
+    msgs = bot_turn(session, table, [])
+    assert game.turn == 1 and said(msgs, "Tu turno (forma: ANUNG UN RAMA)")
+    assert session.ability_wait is not None and said(msgs, "ANUNG UN RAMA: descarta 1 carta (obligatorio) y mueve a Hellboy")
+    table.human_discard.append(card_ids(game, 1, "Service Pistol")[0])
+    table.human_count -= 1
+    table.positions["Hellboy"] = next(s for s in sorted(game.board.adj[game.fighters["hellboy"].pos])
+                                      if all(f.pos != s for f in game.fighters.values()))
+    msgs = click(session, table, Event.END_ACTION)
+    assert session.ability_wait is None and game.fighters["hellboy"].pos == table.positions["Hellboy"]
+    assert len(game.players[1].hand) == table.human_count and said(msgs, "Habilidad de inicio de turno hecha")
+    assert said(msgs, "Te quedan 2 accion") and game.actions_left == 2
+
+
+@with_rig(*HELLBOY_VS_ABE)
+def test_hellboy_in_detective_away_from_the_rival_start_has_no_ability_to_wait_for(rig):
+    session, table, game, fake, cfg = rig
+    from test_d3_table_effects import bot_turn
+    bot_turn(session, table, [])
+    assert game.turn == 1 and session.ability_wait is None and session.panel_view()[1]["btn_maneuver"] == (True, True)
 
 
 # ---------------------------------------------------------------- the engine

@@ -9,6 +9,8 @@ its deck and cards put back face down are counted, never named; only what is pub
 that returns from them) is named."""
 from __future__ import annotations
 
+import re
+
 from . import table
 
 # the chat speaks to the human: the bot in the third person, the human in the second
@@ -46,7 +48,7 @@ def snapshot(game, flow=None) -> dict:
                         for p in game.players],
             "hand_ids": [[c.card_id for c in game.players[p].hand] if p == game.bot_player else []
                          for p in (0, 1)],
-            "drawn": list(game.drawn), "actions": game.actions_left, "turn": game.turn,
+            "drawn": list(game.drawn), "actions": game.actions_left, "turn": game.turn, "said": len(game.fx.said),
             "statuses": len(game.fx.statuses),
             "seen": [_seen(p) for p in game.players],
             "cancelled": [] if flow is None or flow.ctx is None else sorted(flow.ctx.cancelled),
@@ -63,11 +65,36 @@ def describe(game, before: dict, run, flow=None, title: str | None = None) -> st
     parts += _statuses(game, before) + _combat(before, flow)
     if before["seen"][run.ctx.owner] != _seen(game.players[run.ctx.owner]):
         parts.append("mira tu mano" if run.ctx.owner == game.bot_player else "miras la mano del bot")
+    parts = _fold_triggers(game, before, parts)
     by_hand = table.lines(run)
     if by_hand:
         parts.append("en la mesa: " + ", ".join(by_hand))
     title = title or _title(game, run.ctx.card_id)
     return f"{title}: " + ("; ".join(parts) if parts else NOTHING)
+
+
+_RETURN = re.compile(r"^(?P<label>[^:]+): (?P<title>.+) vuelve a tu mano$")
+
+
+def _fold_triggers(game, before: dict, parts: list[str]) -> list[str]:
+    """The lines of the human's triggers that fired inside this run (`fx.said`, E2) become part of the card's own
+    line (Ivan, 29/10): "descartas Fireball (Wildfire la devuelve a tu mano)"; anything else in parentheses."""
+    at = before.get("said", 0)
+    folded = game.fx.said[at:]
+    del game.fx.said[at:]
+    for _, line in folded:
+        m = _RETURN.match(line)
+        if m is None:
+            parts.append(f"({line})")
+            continue
+        title, word = m.group("title"), m.group("label").split()[0].capitalize()
+        parts = [p for p in parts if p != f"{title} vuelve a tu mano"]
+        mention = next((i for i, p in enumerate(parts) if p.startswith("descartas ") and title in p), None)
+        if mention is None:
+            parts.append(f"{title} vuelve a tu mano ({word})")
+        else:
+            parts[mention] = parts[mention].replace(title, f"{title} ({word} la devuelve a tu mano)", 1)
+    return parts
 
 
 def _seen(player_state) -> list:
@@ -111,12 +138,16 @@ def _cards(game, before: dict, run) -> list[str]:
         by_id = {c.card_id: c for c in st.full_set}
         ids = {c.card_id for c in st.hand}
         added = [i for i in discard_now if i not in was["discard"]]
+        if p != game.bot_player:                    # the human's deck discard a trigger took straight back (Wildfire)
+            added += [i for i in from_deck if i not in discard_now and i not in added and i in ids]
         if added:
             out.append(f"{descarta} " + _join(by_id[i].title for i in added))
         out += [f"{by_id[i].title} vuelve al mazo" for i in was["discard"] if i not in discard_now and by_id[i] in st.deck]
         # a card that entered the hand in plain sight: from the discard pile (Wildfire's return, a scheme recovered
         # by Ward And Prepare) or, for the bot, anything the rival now knows is there; the rest came hidden
         public = [i for i in was["discard"] if i not in discard_now and i in ids]
+        if p != game.bot_player:
+            public += [i for i in from_deck if i in ids and i not in public]
         if p == game.bot_player:
             was_ids = set(before["hand_ids"][p])
             public += [i for i in _seen(game.players[1 - p])[:-1]

@@ -38,7 +38,7 @@ DEFAULT_CONFIG = Path(__file__).resolve().parent.parent / "config" / "partida.js
 DEFAULT_STATE = Path(__file__).resolve().parent.parent / "estado" / "sesion.json"
 BOT, HUMAN = 0, 1
 READ_ONLY_TAGS = frozenset({"snapshot", "piece_spaces_by_guid", "read_hand", "count_hand", "read_discard",
-                            "read_face_down_cards", "inspect_guids", "read_health_dials", "zone_overlaps", "deck_identities",
+                            "read_face_down_cards", "read_cards_at", "inspect_guids", "read_health_dials", "zone_overlaps", "deck_identities",
                             "hand_identities", "reset_plan", "table_heroes", "inspect_objects"})
 
 REQUIRED = ("bot_seat", "human_seat", "nicknames", "bot_card_spot", "human_card_spot", "bot_discard_spot",
@@ -170,12 +170,18 @@ class PlayConfig:
                 look_step=tuple(float(v) for v in r.get("look_step", SessionConfig.look_step)),
                 look_rot_y=float(r["look_rot_y"]) if r.get("look_rot_y") is not None else None,
                 token_spot=tuple(float(v) for v in r["token_spot"]) if r.get("token_spot") else None,
+                bot_ongoing_spot=tuple(float(v) for v in r["bot_ongoing_spot"]) if r.get("bot_ongoing_spot") else None,
+                human_ongoing_spot=tuple(float(v) for v in r["human_ongoing_spot"]) if r.get("human_ongoing_spot") else None,
                 batch=bool(r.get("batch", True)), live_ui=bool(r.get("live_ui", True)),
                 bot_pause=float(r.get("bot_pause", DEFAULT_BOT_PAUSE)))
             if not (math.isfinite(cfg.bot_pause) and 0 <= cfg.bot_pause <= 30):
                 raise ValueError("bot_pause: segundos entre 0 (sin pausa) y 30")
             if cfg.token_spot is not None and len(cfg.token_spot) != 3:
                 raise ValueError("token_spot: (x, y, z)")
+            if cfg.bot_ongoing_spot is not None and len(cfg.bot_ongoing_spot) != 3:
+                raise ValueError("bot_ongoing_spot: (x, y, z)")
+            if cfg.human_ongoing_spot is not None and len(cfg.human_ongoing_spot) != 2:
+                raise ValueError("human_ongoing_spot: (x, z)")
             if len(cfg.look_spot) != 3 or len(cfg.look_step) != 2:
                 raise ValueError("look_spot: (x, y, z); look_step: (dx, dz)")
             if cfg.bot_discard_bounds is not None and len(cfg.bot_discard_bounds) != 5:

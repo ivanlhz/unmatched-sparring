@@ -122,6 +122,8 @@ class SessionConfig:
     look_step: tuple[float, float] = (0.0, 2.6)                 # (dx, dz) entre cartas de la fila
     look_rot_y: float | None = None                              # giro de las cartas de la fila (por defecto, el del descarte del bot)
     token_spot: tuple[float, float, float] | None = None         # where the bot lays its active ability tokens (Abe); default: beside its deck
+    bot_ongoing_spot: tuple[float, float, float] | None = None   # ONGOING zone below each combat zone (E2, Ivan): the bot lays its
+    human_ongoing_spot: tuple[float, float] | None = None        # ONGOING scheme there; the human leaves theirs (recognized there)
 
 
 def human_dead_spot(cfg: "SessionConfig") -> tuple[float, float, float] | None:
@@ -207,6 +209,7 @@ class _Timed:
 
 # con la mano del bot a la vista solo se atiende lo que la resuelve (o no la toca: PV, retirar, valor)
 CHOICE_EVENTS = (Event.CHOICE, Event.CANCEL, Event.HP, Event.REMOVE, Event.VALUE, Event.RESTART)
+ABILITY_EVENTS = (Event.END_ACTION, Event.HP, Event.REMOVE, Event.RESTART)   # while your start-of-turn ability waits
 LOOK_EVENTS = (Event.LOOK_PING, Event.CANCEL, Event.END_ACTION, Event.HP, Event.REMOVE, Event.VALUE, Event.RESTART)
 CARD_TYPE_NAME = {"attack": "ataque", "defense": "defensa", "versatile": "versatil", "scheme": "esquema"}
 
@@ -277,6 +280,7 @@ class Session:
         self.dial_debt = False                              # un dial no se pudo escribir en el turno del bot
         self.scheme_baseline: list[int] | None = None      # descarte del humano al pulsar Plan: espera su carta
         self.maneuver_baseline: list[int] | None = None    # their discard at Maniobra: a BOOST 0 card put there is warned
+        self.ability_wait: str | None = None               # the human's start-of-turn ability to do on the table before anything else (E2)
         self.destiny_seen: tuple[int, str] | None = None   # (destinos, forma) ya escritos y verificados en el dial
         self._transit: dict[int, int] = {}                 # CardID jugado por el humano -> lecturas que lleva sin llegar al descarte
         self._destiny_said: tuple[int, str] | None = None  # lo ya anunciado (no se repite mientras se reintenta)
@@ -417,6 +421,9 @@ class Session:
             self.say("Hay un combate pendiente: pulsa Revelar o Cancelar ataque.", ChatKind.YOUR_TURN)
         elif self.pending_discard is not None:
             self.say("Hay un descarte pendiente: terminalo y pulsa Fin de accion.", ChatKind.YOUR_TURN)
+        elif self.ability_wait is not None:
+            self.say(f"Tu habilidad de inicio de turno sigue pendiente: {self.ability_wait} Hazlo en la mesa y pulsa "
+                     "Fin de accion.", ChatKind.YOUR_TURN)
         elif self.game.turn == self.human:
             self.say(f"Es tu turno y te quedan {self.game.actions_left} accion(es).", ChatKind.YOUR_TURN)
         return self._done()
@@ -783,6 +790,10 @@ class Session:
         if self._paused() is not None and event not in CHOICE_EVENTS:
             self.say("Hay una eleccion de efecto pendiente: responde con uno de los botones de opcion.", ChatKind.WARNING)
             return self._done()
+        if self.ability_wait is not None and event not in ABILITY_EVENTS:
+            self.say(f"Primero tu habilidad de inicio de turno, en la mesa: {self.ability_wait} Luego pulsa Fin de accion.",
+                     ChatKind.WARNING)
+            return self._done()
         if event is not Event.RESTART:
             self._restart_at = None               # cualquier otro boton desarma la confirmacion
         try:
@@ -996,6 +1007,10 @@ class Session:
             self.revoke_look()
 
     def _grant_look_for(self, card: Card | None) -> None:
+        """Legacy route (the human's hero outside the interpreter): a card that looks grants the button. An
+        interpreted hero looks inside the card's run (E2; the bot's hand row is E3's)."""
+        if self.game.players[self.human].hero.slug in self.game.fx.dsl_heroes:
+            return
         if card is not None and choices.grants_look(self.game, self.human, card):
             self.grant_look()
             self.say(f"{card.title} te deja mirar la mano del bot: pulsa Mirar mano del bot.", ChatKind.YOUR_TURN)
@@ -1174,6 +1189,7 @@ class Session:
             "destiny_seen": None if self.destiny_seen is None else list(self.destiny_seen),
             "scheme_baseline": self.scheme_baseline, "dial_debt": self.dial_debt, "setup": self.setup,
             **({"maneuver_baseline": self.maneuver_baseline} if self.maneuver_baseline is not None else {}),
+            **({"ability_wait": self.ability_wait} if self.ability_wait is not None else {}),
             "dials_written": self.dials_written, "dials_attempted": self.dials_attempted,
             "start_spaces": {str(k): v for k, v in self.game.start_spaces.items()},
             "deck_ident": {side: [list(pair) for pair in pairs]
@@ -1228,6 +1244,7 @@ class Session:
             self.placing = d.get("placing")
             self.scheme_baseline = d.get("scheme_baseline")
             self.maneuver_baseline = d.get("maneuver_baseline")
+            self.ability_wait = d.get("ability_wait")
             self.dial_debt = bool(d.get("dial_debt", False))
             self.dials_written = {str(k): int(v) for k, v in (d.get("dials_written") or {}).items()}
             self.dials_attempted = {str(k): int(v) for k, v in (d.get("dials_attempted") or {}).items()}
@@ -1494,7 +1511,7 @@ class Session:
 
         def seen() -> bool:
             self.sync_human()
-            found[:] = [c for c in self.game.players[self.human].discard if c.card_id not in base and c.is_scheme]
+            found[:] = human_effects.recognize_scheme(self, base)
             return bool(found)
         if not (self._settle(seen) if wait else seen()):
             return False
@@ -1847,7 +1864,8 @@ class Session:
             self._after_combat(p, p.flow.result)
             return
         self._mark_dirty(_bot_snapshot(p.combat["before"]))
-        fin_fx = self._project_effects(p.combat.get("fx"), self._human_played(p))
+        cause = "efectos del combate" if human_effects.human_ran(p.flow) else bot_effects.BOT_CAUSE
+        fin_fx = self._project_effects(p.combat.get("fx"), self._human_played(p), cause)
         self._try_flush_table()
         fin_fx()
         p.combat["before"], p.combat["fx"] = self._snapshot_bot(), bot_effects.snapshot(self)
@@ -2110,6 +2128,9 @@ class Session:
             self.say("No he visto ninguna carta de plan nueva en tu descarte: resuelve el plan a mano.", ChatKind.WARNING)
         self.scheme_baseline = None
         self._check_maneuver_boost()
+        if self.ability_wait is not None:         # the table was read: your start-of-turn ability is done
+            self.ability_wait = None
+            self.say("Habilidad de inicio de turno hecha.", ChatKind.ABILITY)
         self._check_dials()
         self.moving = False
         if self.pending_discard is not None and not self._discard_done():
@@ -2566,14 +2587,11 @@ class Session:
             self.say("El bot descarta " + self._discard_list(seen, {}, "limite de mano") + ".")
         self._mark_dirty()
         self._persist()
-        for n, label in expired:
+        for n, label in (expired if in_play is None else []):      # a DSL card in play is said by `left_play`
             self.say(f"{label}: caduca el +{n} a tus cartas de combate. Descarta el plan.", ChatKind.SCHEME)
-        if in_play is not None and g.fx.ongoing_card_id(self.human) != in_play:
-            gone = next(c for c in g.players[self.human].full_set if c.card_id == in_play)
-            self.say(f"{gone.title} caduca: ya no esta en juego (queda en tu descarte).", ChatKind.SCHEME)
         self._announce_human_start()
         try:
-            fin_fx = self._project_effects(fx_before)     # a hand-limit discard may change the bot's form
+            fin_fx = self._project_effects(fx_before, cause="caduca")   # the bot's form, your ONGOING that expired
             self._flush_table()
             fin_fx()
         except TABLE_ERRORS as e:
@@ -2588,21 +2606,17 @@ class Session:
             time.sleep(self.cfg.bot_pause)
 
     def _announce_human_start(self) -> None:
+        """Your turn. A start-of-turn ability the engine leaves to the table (Hellboy's draw / ANUNG discard and
+        move, Wildfire's bottom card) is said and waited for: only Fin de accion (and the hit-point buttons) work
+        until you have done it (Ivan, 29/10)."""
         g = self.game
-        hb = g.hero(self.human)
+        self._warned.discard((g.hero(self.human).fid, "draw"))
         form = g.form(self.human)
-        self._warned.discard((hb.fid, "draw"))
-        if g.hero_def(self.human).forms is None:
-            self.say("Tu turno.", ChatKind.YOUR_TURN)           # sin formas no hay robo ni descarte de inicio de turno
-            ability = human_effects.start_of_turn_text(self)      # the start-of-turn ability is yours on the table
-            if ability:
-                self.say(ability, ChatKind.YOUR_TURN)
-            return
-        self.say(f"Tu turno (forma: {form}).", ChatKind.YOUR_TURN)
-        if form == DETECTIVE and hb.pos == g.start_spaces[self.bot]:
-            self.say("Estas en la salida rival: puedes robar 2 cartas (hazlo en la mesa).", ChatKind.YOUR_TURN)
-        elif form != DETECTIVE:
-            self.say(f"ANUNG UN RAMA: descarta 1 carta (obligatorio) y mueve a {hb.name} hasta su BOOST, en la mesa.", ChatKind.YOUR_TURN)
+        self.say("Tu turno." if g.hero_def(self.human).forms is None else f"Tu turno (forma: {form}).", ChatKind.YOUR_TURN)
+        self.ability_wait = human_effects.start_of_turn_ability(self)
+        if self.ability_wait is not None:
+            self.say(f"{self.ability_wait} Hazlo en la mesa y pulsa Fin de accion: hasta entonces el resto de "
+                     "botones espera.", ChatKind.YOUR_TURN)
 
     # ---------- E/S con la mesa: instantanea, cola de escrituras y script compuesto ----------
     # Cada mensaje a TTS cuesta ~0.5 s fijos, asi que el modo rapido (`cfg.batch`) minimiza mensajes:
@@ -2678,6 +2692,8 @@ class Session:
         spots = [(c.bot_card_spot[0], c.bot_card_spot[2]), tuple(c.human_card_spot), tuple(c.bot_deck_spot)]
         if c.human_deck_spot:
             spots.append(tuple(c.human_deck_spot))
+        if c.bot_ongoing_spot:                    # the bot's ONGOING scheme is discarded from there when it leaves play
+            spots.append((c.bot_ongoing_spot[0], c.bot_ongoing_spot[2]))
         return lua.Scope((c.bot_seat, c.human_seat), (c.bot_discard_zone, c.human_discard_zone), tuple(spots),
                          max(2.0, c.reveal_radius))
 
@@ -2692,7 +2708,9 @@ class Session:
                 (c.human_deck_guid,) if c.human_deck_guid else (),
                 (tuple(c.human_deck_spot),) if c.human_deck_spot else (), c.deck_exclude_radius,
                 (c.bot_card_spot[0], c.bot_card_spot[2]), tuple(c.human_card_spot), c.reveal_radius,
-                tuple(pieces), tuple(dials), human_deck=c.human_deck_guid)
+                tuple(pieces), tuple(dials), human_deck=c.human_deck_guid,
+                bot_ongoing_spot=(c.bot_ongoing_spot[0], c.bot_ongoing_spot[2]) if c.bot_ongoing_spot else None,
+                human_ongoing_spot=tuple(c.human_ongoing_spot) if c.human_ongoing_spot else None)
         return self._snap_spec
 
     @staticmethod
@@ -2706,7 +2724,8 @@ class Session:
             return len(rows) <= 300 and all(isinstance(r, dict) and num(r.get("id"), 0, 10 ** 6)
                                             and float(r["id"]).is_integer() and isinstance(r.get("guid"), str)
                                             and len(r["guid"]) <= 40 for r in rows)
-        if not all(cards(snap[k]) for k in ("bot_hand", "bot_discard", "human_discard", "face_bot", "face_human")):
+        if not all(cards(snap[k]) for k in ("bot_hand", "bot_discard", "human_discard", "face_bot", "face_human",
+                                              "ongoing_bot", "ongoing_human")):
             return False
         if not num(snap["human_count"], 0, 300) or not num(snap.get("human_deck_qty", -1), -1, 300):
             return False
@@ -2740,8 +2759,8 @@ class Session:
         for k in ("pieces", "dials"):             # un objeto vacio de Lua llega como lista vacia
             if not isinstance(snap[k], dict):
                 snap[k] = {}
-        for k in ("bot_hand", "bot_discard", "human_discard", "face_bot", "face_human"):
-            if not isinstance(snap[k], list):
+        for k in ("bot_hand", "bot_discard", "human_discard", "face_bot", "face_human", "ongoing_bot", "ongoing_human"):
+            if not isinstance(snap.get(k), list):
                 snap[k] = []
         return snap if Session._valid_snap(snap, spaces) else None
 
@@ -2911,6 +2930,17 @@ class Session:
                                                                  c.reveal_radius)) or []
         return self.client.call_lua(lua.read_face_down_cards(*c.human_card_spot, c.reveal_radius)) or []
 
+    def _rd_ongoing(self, side: str) -> list[dict]:
+        """The cards on the ONGOING spot of `bot` / `human` (E2); empty when the spot is not configured."""
+        c = self.cfg
+        spot = c.bot_ongoing_spot if side == "bot" else c.human_ongoing_spot
+        if spot is None:
+            return []
+        if c.batch:
+            return self._view("cards")["ongoing_" + side]
+        x, z = (spot[0], spot[2]) if side == "bot" else spot
+        return self.client.call_lua(lua.read_cards_at(x, z, c.reveal_radius)) or []
+
     def _rd_dials(self, guids: list[str]) -> dict:
         if self.cfg.batch:
             dials = self._view("dials")["dials"]
@@ -2967,6 +2997,11 @@ class Session:
         states.update(choices.panel_choice_view(g, req, self.choice_ui)[0])
         for ident in self._blocked_buttons():
             states[ident] = (False, False)
+        if self.ability_wait is not None:         # your start-of-turn ability first: only Fin de accion (and the hit points)
+            for ident in states:
+                if ident != "btn_end" and not ident.startswith(("hpm_", "rm_")):
+                    states[ident] = (False, False)
+            states["btn_end"] = (True, True)
         states["btn_undo"] = (g.winner is not None, g.winner is not None)
         waiting = in_setup and self.setup["stage"] in ("wait_human_first", "wait_human")
         states["btn_ready"] = (in_setup, in_setup)
@@ -2997,6 +3032,8 @@ class Session:
             return "Turno del bot" + (" · en pausa, pulsa Fin de accion" if paused else "")
         n = g.actions_left
         head = f"Tu turno · {n} accion{'es' if n != 1 else ''}"
+        if self.ability_wait is not None:
+            return f"{head} · habilidad de inicio de turno en la mesa, luego Fin de accion"
         if self.pending is not None and self.pending.wait is not None:
             title = next((c.title for c in g.players[self.human].full_set
                           if c.card_id == self.pending.wait.card_id), "Boost")

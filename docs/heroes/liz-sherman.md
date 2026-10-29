@@ -63,6 +63,9 @@ Las otras 15 (Fleeting Moments x3, B.P.R.D. Training x2, Rekindle x2, Feint x3, 
 - una carta sin valor de impulso no se puede usar para impulsar: las ardientes (BOOST 0) nunca se descartan como impulso.
 - un solo ONGOING activo POR JUGADOR; jugar otro reemplaza al propio activo (dos Fight Or Flight = +1). Pendiente de codigo: Game.combat_bonus aun acumula.
 - el valor de una carta nunca baja de 0 en CADA paso, y los efectos se resuelven en orden de momento (IMMEDIATELY antes de DURING; mismo momento, primero el defensor): Flame Lash (1) contra Arcane Dampener (IMMEDIATELY -3) queda en 0, y luego el impulso de Flame Lash en DURING (+3) la deja en 3.
+- (29/10, E2) WILDFIRE al inicio del turno del humano (carta del fondo del mazo): la hace el humano en la mesa (dano con -1, movimiento a mano); el panel lo anuncia y BLOQUEA el resto de botones (solo Fin de accion y los de PV) hasta que pulsa Fin de accion; se reanuda desde un guardado.
+- (29/10, E2) La vuelta a la mano por Wildfire se narra en la misma linea de la carta: "descartas Fireball (Wildfire la devuelve a tu mano)", no en una linea aparte.
+- (29/10, E2) Fight Or Flight del humano se deja en su zona ONGOING (`human_ongoing_spot`, debajo de la zona de combate), no en el descarte; al caducar el chat pide pasarlo al descarte. El del bot va boca arriba a `bot_ongoing_spot` y a su descarte al caducar.
 
 ## Preguntas abiertas
 

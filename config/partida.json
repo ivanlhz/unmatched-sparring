@@ -100,5 +100,14 @@
   "bot_pause": 1.0,
   "setup": true,
   "mulligan_bot": true,
-  "mulligan_human": true
+  "mulligan_human": true,
+  "bot_ongoing_spot": [
+    6.0,
+    1.7,
+    -22.0
+  ],
+  "human_ongoing_spot": [
+    -2.0,
+    -22.0
+  ]
 }

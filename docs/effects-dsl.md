@@ -844,6 +844,14 @@ Decisiones dudosas de la migracion (ver tambien `notes` de cada fichero):
 - Restrictions: a physical draw under Cold Iron (the hand grew while `fx.can_draw` is false) is warned once and
   counted (the table wins; TTS cannot block a draw). A BOOST 0 card put in the discard during the Maniobra is
   warned (`maneuver_baseline`, saved). `Game.maneuver` checks the boost card and the movers before spending.
+- Ivan's answers (29/10): the ONGOING zone (`human_ongoing_spot` / `bot_ongoing_spot`, below the combat zones): the
+  human's ONGOING scheme is recognized on their spot (`recognize_scheme`; snapshot `ongoing_human` / `ongoing_bot`,
+  builder `read_cards_at`) and owed to the discard pile when it leaves play (`session_bot_effects.left_play`); the
+  bot's goes face up on its spot (`place_card_face_up`, projected by diff) and to its discard pile when it leaves
+  play (the spot is in the discard scope). Without the spots the discard-pile route stays, with one warning. The
+  human's start-of-turn ability (`start_of_turn_ability`) gates the panel: `Session.ability_wait` (saved) hides
+  every button but Fin de accion and the hit points and refuses the rest until Fin de accion. Wildfire's return is
+  folded into the card's line (`narrate._fold_triggers`: "descartas Fireball (Wildfire la devuelve a tu mano)").
 - E3's hook: `session_effects.human_chooser(session)` is the chooser of the human's decisions (the panel); the
   hidden-information cards wrap it. `look_hand` by the human runs in the engine (the human's `KnownHand` of the
   bot); the legacy look button (`_grant_look_for`) is for a hero outside the interpreter.

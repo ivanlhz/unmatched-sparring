@@ -72,6 +72,9 @@ class Table:
         self.returns = 0
         self.dial_ignores_writes = False
         self.stray_bot: list[dict] = []             # cartas del bot boca abajo en su punto de carta o de mazo
+        self.bot_ongoing: list[int] = []            # CardIDs on each ONGOING spot (E2)
+        self.human_ongoing: list[int] = []
+        self.ongoing_spots: dict[str, tuple[float, float]] = {}   # "bot"/"human" -> (x, z) the classic reads match
         self.sent: list[str] = []                   # una entrada por MENSAJE a TTS: la etiqueta del script
         self.panels: list[tuple[str, dict]] = []    # (estado, {id: (pulsable, visible)}) de cada set_panel
         self.wseq = 0                               # ultima escritura que el compuesto anoto en el panel (wseq)
@@ -116,6 +119,8 @@ class Table:
                 "human_discard": [{"id": i, "guid": f"g{i}"} for i in self.human_discard],
                 "face_bot": self.stray_bot + [{"id": i, "guid": f"g{i}"} for i in self.bot_play],
                 "face_human": self.face_down, "pieces": pieces, "human_deck_qty": getattr(self, "human_deck_qty", -1),
+                "ongoing_bot": [{"id": i, "guid": f"g{i}"} for i in self.bot_ongoing],
+                "ongoing_human": [{"id": i, "guid": f"g{i}"} for i in self.human_ongoing],
                 "dials": {g: v for g, v in self.dials.items()}, "seq": self.wseq}
 
     def do_snapshot(self, s):
@@ -306,7 +311,7 @@ class Table:
         sees_decks = 'o.type == "Deck"' in s
         moved = []
         for i in ids:
-            for zone in (self.bot_hand, self.bot_play):
+            for zone in (self.bot_hand, self.bot_play, self.bot_ongoing):
                 if i in zone:
                     zone.remove(i)
                     self._flying.add(i)
@@ -323,6 +328,23 @@ class Table:
                     self._later(lambda i=i: self.bot_discard.append(i))
                     moved.append(i)
         return {"moved": moved}
+
+    def do_place_card_face_up(self, s):
+        i = int(re.search(r"CardID == (\d+)", s).group(1))
+        if i not in self.bot_hand:
+            return {"placed": False}
+        self.bot_hand.remove(i)
+        self.bot_ongoing.append(i)
+        return {"placed": f"g{i}"}
+
+    def do_read_cards_at(self, s):
+        x = float(re.search(r"p\.x - (-?[\d.]+)\)", s).group(1))
+        z = float(re.search(r"p\.z - (-?[\d.]+)\)", s).group(1))
+        for side, (sx, sz) in self.ongoing_spots.items():
+            if abs(sx - x) < 0.01 and abs(sz - z) < 0.01:
+                ids = self.bot_ongoing if side == "bot" else self.human_ongoing
+                return [{"id": i, "guid": f"g{i}"} for i in ids]
+        return []
 
     def do_play_card_face_down(self, s):
         i = int(re.search(r"CardID == (\d+)", s).group(1))

@@ -51,6 +51,9 @@ Todo dentro de la bolsa `3efeee` "Hellboy" > bolsa `c592d8`:
 - Pancakes!: las opciones elegidas se resuelven en el orden impreso.
 - cambio de forma con el bot: cambia miniatura y ficha y hace ping sobre las dos.
 - elecciones del humano (Confront, Posthumous Power, Pancakes!) por botones del panel que SOLO aparecen cuando se juega la carta; mientras tanto no se muestran (ni en gris).
+- (29/10, E2) Habilidad de inicio de turno del humano (robo de OCCULT DETECTIVE en la salida rival, descarte y movimiento de ANUNG UN RAMA): la hace el humano en la mesa; el panel la anuncia y BLOQUEA el resto de botones (solo Fin de accion y los de PV) hasta que pulsa Fin de accion; se reanuda desde un guardado.
+- (29/10, E2) Zona ONGOING propia debajo de la zona de combate (`human_ongoing_spot` / `bot_ongoing_spot`): el humano deja ahi su plan ONGOING y la sesion lo reconoce ahi; cuando caduca el chat pide pasarlo al descarte. El bot pone el suyo boca arriba ahi y lo manda a su descarte al caducar. Sin esos valores en la configuracion se reconoce en el descarte (aviso).
+- (29/10, E2) And Upon His Brow Is Set A Crown Of Flame: Fin de accion espera a que los descartes de la mano esten en la pila (confirmado).
 
 ## Preguntas abiertas
 

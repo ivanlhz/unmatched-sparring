@@ -988,6 +988,44 @@ return JSON.encode({{played = false}})
 
 
 @_registered
+def place_card_face_up(card_id: int, seat_color: str, x: float, y: float, z: float, rot_y: float = 0,
+                       id_range: tuple[int, int] = BOT_CARD_IDS, *, identity) -> str:
+    """The bot's ONGOING scheme (E2): takes the card with that CardID out of the seat's hand and lays it face up on
+    the ONGOING spot; placed=false if it is not in the hand. Instant move (a smooth one never leaves a hand zone),
+    the result is checked by reading the table. Only a card of the side (`id_range` and `identity`)."""
+    own = _ours_lua(identity, id_range)
+    return f"""-- sparring:place_card_face_up
+{own}for _, o in ipairs(Player[{_color(seat_color)}].getHandObjects(1)) do
+  local data = o.getData()
+  if o.type == "Card" and data.CardID == {_i(card_id)} and cardOurs(data, data.CustomDeck) then
+    o.setRotation(Vector(0, {_f(rot_y)}, 0))
+    o.setPosition(Vector({_f(x)}, {_f(y)}, {_f(z)}))
+    return JSON.encode({{placed = o.getGUID()}})
+  end
+end
+return JSON.encode({{placed = false}})
+"""
+
+
+@_registered
+def read_cards_at(x: float, z: float, radius: float = 2.0) -> str:
+    """Reads (without turning) the cards, face up or down, within `radius` of (x, z): CardID and GUID. The ONGOING
+    spots of E2 (a scheme left face up there)."""
+    return f"""-- sparring:read_cards_at
+local out = {{}}
+for _, o in ipairs(getObjects()) do
+  if o.type == "Card" then
+    local p = o.getPosition()
+    if (p.x - {_f(x)}) ^ 2 + (p.z - {_f(z)}) ^ 2 <= {_f(radius)} ^ 2 then
+      table.insert(out, {{id = o.getData().CardID, guid = o.getGUID()}})
+    end
+  end
+end
+return JSON.encode(out)
+"""
+
+
+@_registered
 def read_face_down_cards(x: float, z: float, radius: float = 2.0) -> str:
     """Lee (sin girar) las cartas boca abajo a menos de `radius` del punto (x, z): CardID y GUID."""
     return f"""-- sparring:read_face_down_cards
@@ -1233,10 +1271,17 @@ class SnapSpec:
     dials: tuple[str, ...]
     board_guid: str | None = None
     human_deck: str | None = None          # mazo de robo del humano: solo se mira cuantas cartas tiene
+    bot_ongoing_spot: tuple[float, float] | None = None      # (x, z) where each side's ONGOING scheme lies (E2)
+    human_ongoing_spot: tuple[float, float] | None = None
 
 
 def _pairs(spots) -> str:
     return "{" + ", ".join("{" + ", ".join(_spot(sp, 1.0)[:2]) + "}" for sp in spots) + "}"
+
+
+def _ongoing_lua(spot, radius: float) -> str:
+    """The cards on an ONGOING spot (any face), or an empty list when the spot is not configured."""
+    return "{}" if spot is None else f"cardsAt({_f(spot[0])}, {_f(spot[1])}, {_f(radius)}, true)"
 
 
 def _guid_list(guids) -> str:
@@ -1269,10 +1314,10 @@ def snapshot_lua(spec: SnapSpec, seq_expr: str | None = None) -> str:
   end
   return cardIds(objs)
 end
-local function faceDown(x, z, r)
+local function cardsAt(x, z, r, anyFace)
   local out = {{}}
   for _, o in ipairs(getObjects()) do
-    if o.type == "Card" and o.is_face_down then
+    if o.type == "Card" and (anyFace or o.is_face_down) then
       local p = o.getPosition()
       if (p.x - x) ^ 2 + (p.z - z) ^ 2 <= r ^ 2 then table.insert(out, {{id = o.getData().CardID, guid = o.getGUID()}}) end
     end
@@ -1290,8 +1335,10 @@ snap.human_count = #Player[{_color(spec.human_seat)}].getHandObjects(1)
 local r2 = {_f(spec.exclude_radius)} ^ 2
 snap.bot_discard = zoneCards({_guid(spec.bot_zone)}, skipSet({_guid_list(spec.bot_skip)}), {_pairs(spec.bot_spots)}, r2)
 snap.human_discard = zoneCards({_guid(spec.human_zone)}, skipSet({_guid_list(spec.human_skip)}), {_pairs(spec.human_spots)}, r2)
-snap.face_bot = faceDown({_f(spec.bot_card_spot[0])}, {_f(spec.bot_card_spot[1])}, {_f(spec.reveal_radius)})
-snap.face_human = faceDown({_f(spec.human_card_spot[0])}, {_f(spec.human_card_spot[1])}, {_f(spec.reveal_radius)})
+snap.face_bot = cardsAt({_f(spec.bot_card_spot[0])}, {_f(spec.bot_card_spot[1])}, {_f(spec.reveal_radius)}, false)
+snap.face_human = cardsAt({_f(spec.human_card_spot[0])}, {_f(spec.human_card_spot[1])}, {_f(spec.reveal_radius)}, false)
+snap.ongoing_bot = {_ongoing_lua(spec.bot_ongoing_spot, spec.reveal_radius)}
+snap.ongoing_human = {_ongoing_lua(spec.human_ongoing_spot, spec.reveal_radius)}
 local world = {{}}
 for id, _ in pairs(snaps) do world[id] = spaceWorld(id) end
 snap.pieces = {{}}

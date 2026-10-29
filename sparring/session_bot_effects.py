@@ -71,7 +71,7 @@ def snapshot(session) -> dict:
     return {"human_pieces": {f.fid: [f.pos, f.alive] for f in g.own(human, alive_only=False)},
             "form": g.form(bot), "counters": dict(g.fx.counters[bot]),
             "bot": zones(g.players[bot]), "human": zones(g.players[human]),
-            "in_play": g.fx.ongoing_card_id(human),
+            "in_play": g.fx.ongoing_card_id(human), "bot_in_play": g.fx.ongoing_card_id(bot),
             "drawn": g.drawn[bot], "seen": list(g.players[bot].known.seen)}
 
 
@@ -85,7 +85,7 @@ def project(session, before: dict | None, played: frozenset = frozenset(), cause
     session.fx_in_flight = set()
     looked, session.fx_looked = session.fx_looked, False
     checks = _human_pieces(session, before) + _form(session, before) + _tokens(session, before)
-    checks += _bot_cards(session, before)
+    checks += _bot_cards(session, before) + _bot_ongoing(session, before)
     _human_cards(session, before, played, looked, cause)
 
     def fin() -> None:
@@ -301,6 +301,49 @@ def _short(session, missing: set[int], by_id: dict, what: str) -> None:
                     ChatKind.WARNING)
 
 
+# ---------------------------------------------------------------- the ONGOING zone (E2, Ivan 29/10)
+
+def _bot_ongoing(session, before: dict) -> list[Callable[[], None]]:
+    """The bot's ONGOING scheme that just entered play goes face up on its ONGOING spot (its own card, out of its
+    hand); when it leaves play the reconciliation discards it from there (the spot is in the scope)."""
+    g, bot, cfg = session.game, session.bot, session.cfg
+    now = g.fx.ongoing_card_id(bot)
+    if now is None or now == before.get("bot_in_play"):
+        return []
+    card = next(c for c in g.players[bot].full_set if c.card_id == now)
+    if cfg.bot_ongoing_spot is None:
+        session.say(f"El bot deja {card.title} en juego (ONGOING); sin bot_ongoing_spot en la configuracion la carta "
+                    "sigue en su mano en la mesa.", ChatKind.WARNING)
+        return []
+    x, y, z = cfg.bot_ongoing_spot
+    op = session._w(lua.place_card_face_up(now, cfg.bot_seat, x, y, z, cfg.rot_y, cfg.bot_card_ids,
+                                           identity=session._identity()), DOMAIN)
+    session.fx_in_flight.add(now)
+    session.say(f"El bot deja {card.title} en juego: la pone boca arriba en su zona ONGOING.", ChatKind.SCHEME)
+
+    def check() -> None:
+        if not _result(op).get("placed"):
+            session.say(f"No he podido poner {card.title} en la zona ONGOING del bot: ponla tu.", ChatKind.WARNING)
+    return [check]
+
+
+def left_play(session, card_id: int, cause: str) -> None:
+    """Your ONGOING left play. With an ONGOING spot it is owed to your discard pile (the sync protects it until it
+    is there); without one it already sits on the pile."""
+    st = session.game.players[session.human]
+    title = next(c.title for c in st.full_set if c.card_id == card_id)
+    if session.cfg.human_ongoing_spot is None:
+        session.say(f"{title} deja de estar en juego ({cause}): queda en tu descarte.", ChatKind.SCHEME)
+        return
+    d = session.pending_discard or {"n": 0, "baseline": len(st.discard), "kind": "cards"}
+    if card_id in (d.get("cards") or []):
+        return
+    d["cards"] = list(d.get("cards") or []) + [card_id]
+    session.pending_discard = d
+    session.say(f"{title} deja de estar en juego ({cause}): pasala de tu zona ONGOING a tu descarte y pulsa Fin de "
+                "accion.", ChatKind.YOUR_TURN)
+
+
 # ---------------------------------------------------------------- the human's cards: the chat, the human's hands
 
 def _human_cards(session, before: dict, played: frozenset, looked: bool, cause: str) -> None:
@@ -308,9 +351,9 @@ def _human_cards(session, before: dict, played: frozenset, looked: bool, cause: 
     st, known = g.players[human], g.players[bot].known
     h0, h1 = before["human"], zones(st)
     by_id = {c.card_id: c for c in st.full_set}
-    in_play = before.get("in_play")               # your ONGOING that left play is already on the pile
+    in_play = before.get("in_play")               # your ONGOING that left play
     if in_play is not None and in_play in h1["discard"] and in_play not in h0["discard"]:
-        session.say(f"{by_id[in_play].title} deja de estar en juego ({cause}): queda en tu descarte.", ChatKind.SCHEME)
+        left_play(session, in_play, cause)
     to_discard = [i for i in h1["discard"] if i not in h0["discard"] and i not in played and i != in_play]
     if to_discard:
         d = session.pending_discard or {"n": 0, "baseline": len(st.discard), "kind": "cards"}

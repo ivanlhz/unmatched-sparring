@@ -18,10 +18,11 @@ the human makes over the bot's revealed hand."""
 from __future__ import annotations
 
 from .cards import Card
-from .effects import narrate, ongoing
+from .effects import narrate, ongoing, table
 from .effects.choose import PanelChooser
-from .effects.model import walk_ops
-from .effects.run import EffectRun
+from .effects.model import EffectError, load_effects, walk_ops
+from .effects.run import Ctx, EffectRun
+from .effects.select import condition
 from .tts.lua import ChatKind
 from . import session_bot_effects as bot_effects
 
@@ -34,6 +35,38 @@ def human_chooser(session) -> PanelChooser:
 
 
 # ---------------------------------------------------------------- schemes
+
+def is_ongoing(game, player: int, card: Card) -> bool:
+    try:
+        return load_effects(game.players[player].hero.slug).card(card.title).ongoing is not None
+    except EffectError:
+        return False
+
+
+def recognize_scheme(session, base: set) -> list[Card]:
+    """The scheme(s) the human just played: an ONGOING one lies face up on their ONGOING spot (Ivan, 29/10), any
+    other face up on their discard pile. Without `human_ongoing_spot` in the configuration the pile is read for
+    both (said once)."""
+    g, human = session.game, session.human
+    st = g.players[human]
+    found = [c for c in st.discard if c.card_id not in base and c.is_scheme]
+    if session.cfg.human_ongoing_spot is None:
+        if any(is_ongoing(g, human, c) for c in found):
+            session._warn("ongoing", "spot", "No hay human_ongoing_spot en la configuracion: reconozco tu ONGOING en "
+                                             "tu descarte. Configura las zonas ONGOING y calibralas con --read-only.")
+        return found
+    by_id = {c.card_id: c for c in st.full_set}
+    in_play = g.fx.ongoing_card_id(human)
+    spot = [by_id[r["id"]] for r in session._rd_ongoing("human")
+            if isinstance(r, dict) and r.get("id") in by_id and r["id"] != in_play and by_id[r["id"]].is_scheme]
+    for c in spot:                                # it left your hand for the spot: the engine's copy follows
+        for zone in (st.deck, st.discard):
+            if c in zone:
+                zone.remove(c)
+        if c not in st.hand:
+            st.hand.append(c)
+    return spot + [c for c in found if c not in spot]
+
 
 def play_scheme(session, card: Card) -> None:
     """The scheme the human put face up in their discard: its ops run now (the action was spent at the button). A
@@ -68,8 +101,9 @@ def finish(session, run: EffectRun) -> None:
         was = step["in_play"]
         by_id = {c.card_id: c for c in g.players[human].full_set}
         replaced = f" y reemplaza a {by_id[was].title} (un solo ONGOING por jugador)" if was is not None and was in by_id else ""
-        session.say(f"{by_id[now].title} queda en juego{replaced}: dejala a la vista en tu descarte, la tengo en "
-                    "cuenta hasta que caduque.", ChatKind.SCHEME)
+        where = "en tu zona ONGOING" if session.cfg.human_ongoing_spot is not None else "a la vista en tu descarte"
+        session.say(f"{by_id[now].title} queda en juego{replaced}: dejala {where}, la tengo en cuenta hasta que "
+                    "caduque.", ChatKind.SCHEME)
     listed = session._discard_list(step["seen"], {}, "efecto")
     if listed:
         session.say(f"El bot descarta {listed}.")
@@ -134,11 +168,30 @@ def decline(session, paused) -> bool:
     return True
 
 
-def start_of_turn_text(session) -> str | None:
-    """The human's start-of-turn ability the engine leaves to the table (effects/table.py): Wildfire's bottom card."""
-    g = session.game
-    if g.hero_def(session.human).slug != "liz-sherman":
+ABILITY_TEXT = {
+    "detective_draw": "OCCULT DETECTIVE: estas en la salida rival: puedes robar 2 cartas (o ninguna).",
+    "anung_discard_move": "ANUNG UN RAMA: descarta 1 carta (obligatorio) y mueve a {hero} hasta el BOOST de esa carta.",
+    "wildfire_start": "WILDFIRE: descarta la carta del fondo de tu mazo. Si es ardiente, 1 de dano a otro luchador de "
+                      "la zona de {hero} (usa -1 sobre el; la ardiente vuelve a tu mano); si no, mueve a {hero} hasta "
+                      "2 casillas.",
+}
+
+
+def start_of_turn_ability(session) -> str | None:
+    """What the human's start-of-turn ability asks of them right now, or None: the triggers the engine leaves to the
+    table (`table.start_of_turn_is_physical`) whose condition holds (Ivan, 29/10: the panel waits for it)."""
+    g, human = session.game, session.human
+    hero = g.hero(human)
+    try:
+        triggers = load_effects(g.players[human].hero.slug).triggers
+    except EffectError:
         return None
-    liz = session._name(g.hero(session.human))
-    return (f"WILDFIRE: descarta la carta del fondo de tu mazo. Si es ardiente, 1 de dano a otro luchador de la zona "
-            f"de {liz} (usa -1 sobre el; la ardiente vuelve a tu mano); si no, mueve a {liz} hasta 2 casillas. Hazlo en la mesa.")
+    texts = []
+    for trig in triggers:
+        if not table.start_of_turn_is_physical(g, human, trig):
+            continue
+        run = EffectRun(trig["ops"], Ctx(owner=human, this_fid=hero.fid), label=trig["id"])
+        if "condition" in trig and not condition(g, run, trig["condition"]):
+            continue
+        texts.append(ABILITY_TEXT.get(trig["id"], trig["id"]).format(hero=session._name(hero)))
+    return " ".join(texts) if texts else None
