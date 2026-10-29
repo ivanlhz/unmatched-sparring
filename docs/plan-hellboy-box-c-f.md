@@ -38,7 +38,7 @@ Parallel: E1 -> (E2 || E3 only if E2 lives in new sparring/session_effects.py). 
 ## Phase F: live readiness
 F1 bridge pieces (lua.py): set_state, flip_token, card_to_deck_top, shuffle_into_deck, place_from_bag (reserve/summon), ping; each tested against the Lua stub.
 F2 8 FakeTTS transcripts tests/golden/session_<hero>_<side>.json; each scripted session hits every card of the hero at least once + ability + a resume mid-choice; deterministic.
-F3 docs/live-checklist.md for Iván: --read-only detection, token 1644a3 orientation, per hero: setup, one card per moment, an ONGOING replacement, a look-hand, a resume.
+F3 docs/live-checklist.md (written: [live-checklist.md](live-checklist.md)) for Iván: --read-only detection, token 1644a3 orientation, per hero: setup, one card per moment, an ONGOING replacement, a look-hand, a resume.
 
 ## Card map (C = ops; D = bot owns; E = human owns). All Medusa cards -> C5.
 Hellboy: Excalibur, Service Pistol none; Second Shot C2; Horseshoes, Right Hand Of Doom, B.P.R.D. Training, On Earth C1/C2 E2; Planned Recklessness C2 E2; Posthumous Power, Pancakes! C1 E2 buttons; Crown C1 E2; Glimpse Of Hell C4 E2; Confront C4 E3; ability C3 + D3 form change.
