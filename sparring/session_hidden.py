@@ -15,19 +15,21 @@ returns it. E1's grant-a-button route stays for a hero outside the interpreter.
 Perfect Shot. The prediction belongs to the moment the card is played, before the defense. The human is asked at
 Revelar, before the bot chooses its defense (`PredictionWait`, saved in `Pending.predict`); the bot decides with
 `ai_effects.predict_value` when it places the card, plays it face up and announces it. Either way the value
-reaches the IMMEDIATELY run through `PredictionChooser`, which answers the plugin's request.
+reaches the IMMEDIATELY run through `PredictionChooser`, which answers the plugin's request. A Perfect Shot the
+human plays face up is public: the bot's defense knows it (Ivan, 29/10).
 
 UNCANNY INTUITION. An attack against an Abe with an active token is played face up; the ability is read from its
-trigger (`attacked` + `reveal attack_card` + its condition), never from a card name. Bot attacking the human's
-Abe: the card is flipped when placed and named. Human attacking the bot's Abe: the attack card is the one thing
-the bot's defense may know (`attack_card`); the human puts it face down as always and it is turned at Revelar."""
+trigger (`effects.events.attack_revealed`: `attacked` + `reveal attack_card` + its condition), never from a card
+name. Bot attacking the human's Abe: the card is flipped when placed and named. Human attacking the bot's Abe:
+`declare_attack` keeps the engine's order at Revelar (the event first, so the token is spent and the drawn card is
+dealt before the defense is chosen, and the drawn card may be it), and the attack card is the one thing the bot's
+defense may know (`attack_card`); the human puts it face down as always and it is turned at Revelar."""
 from __future__ import annotations
 
 from .effects.choose import ChoiceRequest
+from .effects.events import attack_revealed
 from .effects.model import EffectError, load_effects, walk_ops
 from .effects.ops_combat import FACE_DOWN, PERFECT_SHOT, PREDICT_OP, PREDICT_VALUES
-from .effects.run import Ctx, EffectRun
-from .effects.select import condition
 from .tts import lua
 from .tts.client import TTSLuaError
 from .tts.lua import ChatKind
@@ -37,12 +39,6 @@ MODE_REVEAL = "reveal"      # the row is only to be looked at
 DOMAIN = "fx"               # queue domain of the row writes: no read of the session flushes them early
 PREDICT_KEY = "predict"     # key of the human's prediction request (outside any run)
 _ERRORS = (TTSLuaError, OSError)
-
-
-def interpreted(game, player: int) -> bool:
-    """`player`'s hero runs on the effects interpreter (its cards resolve in the engine, the panel asks)."""
-    heroes = game.fx.dsl_heroes
-    return bool(heroes) and game.players[player].hero.slug in heroes
 
 
 # ---------------------------------------------------------------- the human looks at the bot's hand
@@ -102,6 +98,8 @@ def show_row(session, req: ChoiceRequest | None) -> None:
     session._w(lua.ping_points([cfg.bot_seat, cfg.human_seat], spots[:lua.MAX_PING_GROUPS]), "misc")
     session.look = {"ids": ids, "guids": [r["guid"] for r in rows], "spots": [[sp[0], sp[2]] for sp in spots],
                     "mode": MODE_PICK if req is not None else MODE_REVEAL}
+    if req is not None and isinstance(req.extra.get("purpose"), str):
+        session.look["purpose"] = req.extra["purpose"]      # "discard": the pick is discarded (Wildfire may bounce it)
     session.look_fails = 0
     session.revoke_look()                        # the card itself showed the hand: no button to press
     session._post.append(lambda: session._look_shown(op))
@@ -113,6 +111,16 @@ def show_row(session, req: ChoiceRequest | None) -> None:
                     "accion o Cancelar y la recoge.", ChatKind.YOUR_TURN)
     for n, r in enumerate(rows, 1):
         session.say(session._card_line(n, by_id[r["id"]]), ChatKind.SCHEME)
+
+
+def row_failed_text(look: dict) -> str:
+    """The table took no card out of the bot's hand: what the human does instead."""
+    mode = look.get("mode")
+    if mode == MODE_PICK:
+        return "No he podido poner la mano del bot en la mesa: sus cartas estan en el chat, elige con los botones del panel."
+    if mode == MODE_REVEAL:
+        return "No he podido poner la mano del bot en la mesa: sus cartas estan en el chat."
+    return "No he podido sacar las cartas de la mano del bot; repite Mirar mano del bot."
 
 
 def look_status(session) -> str:
@@ -158,30 +166,37 @@ def close_row(session, value: list, ok: bool) -> None:
     look = session.look
     if look is None or look.get("mode") != MODE_PICK or not ok:
         return
+    from .ai_effects import bounces_back
     g, cfg, st = session.game, session.cfg, session.game.players[session.bot]
     by_id = {c.card_id: c for c in st.full_set}
     card = by_id.get(value[0]) if value else None
-    dest, guid, spot = "hand", None, (0.0, 0.0, 0.0)
+    dest, spot = "hand", (0.0, 0.0, 0.0)
     if card is not None and card in st.discard:
         dest, spot = "discard", session._discard_slot([c.card_id for c in st.discard].index(card.card_id))
     elif card is not None and st.deck[:1] == [card]:
         dest = "deck"
-    if dest != "hand":
-        guid = look["guids"][look["ids"].index(card.card_id)]
+    # a card the table could not take out of the hand (a partial row) is picked by its button and still sits in
+    # the bot's hand: the row returns what it holds and the discard reaches the pile through the reconciliation
+    in_row = card is not None and card.card_id in look["ids"]
+    guid = look["guids"][look["ids"].index(card.card_id)] if in_row and dest != "hand" else None
     session.look = None
     if cfg.batch:
         session._expect_hand = (cfg.bot_seat, len(look["ids"]) - (1 if guid else 0))
     op = session._w(lua.resolve_hand_row(look["guids"], cfg.bot_seat, identity=session._identity(),
                                          id_range=cfg.bot_card_ids, discard=guid, spot=spot,
                                          rot_y=cfg.bot_discard_rot_y,
-                                         deck_guid=cfg.bot_deck_guid if dest == "deck" else None), DOMAIN)
-    if dest == "discard":
+                                         deck_guid=cfg.bot_deck_guid if guid and dest == "deck" else None), DOMAIN)
+    if guid and dest == "discard":
         session.bot_discarded.add(card.card_id)   # the reconciliation of this same script must not move it again
-    session._post.append(lambda: _row_closed(session, op, card, dest, look))
+    session._post.append(lambda: _row_closed(session, op, card, dest if guid else "hand", look))
     if dest == "discard":
-        session.say(f"El bot descarta {card.title} y devuelve el resto de su mano.", ChatKind.SCHEME)
+        session.say(f"El bot descarta {card.title}" + (" y devuelve el resto de su mano." if in_row else
+                    " (seguia en su mano) y recoge su mano."), ChatKind.SCHEME)
     elif dest == "deck":
-        session.say(f"{card.title} va a la parte superior del mazo del bot; el resto vuelve a su mano.", ChatKind.SCHEME)
+        session.say(f"{card.title} va a la parte superior del mazo del bot" + ("; el resto vuelve a su mano." if in_row
+                    else ": seguia en su mano, ponla tu encima de su mazo; el bot recoge su mano."), ChatKind.SCHEME)
+    elif card is not None and look.get("purpose") == "discard" and bounces_back(g, session.bot, card):
+        session.say(f"El bot se queda {card.title} (Wildfire la devuelve) y recoge su mano.", ChatKind.SCHEME)
     elif card is not None:
         session.say(f"El bot se queda {card.title} y recoge su mano.", ChatKind.SCHEME)
     else:
@@ -224,7 +239,7 @@ def _has_plugin(game, player: int, card, plugin_id: str, moment: str = "immediat
 
 def prediction_request(game, player: int, card) -> ChoiceRequest | None:
     """The human's prediction buttons for a Perfect Shot: the same options the plugin asks for."""
-    if not interpreted(game, player) or not _has_plugin(game, player, card, PERFECT_SHOT):
+    if not game.fx.interprets(player) or not _has_plugin(game, player, card, PERFECT_SHOT):
         return None
     return ChoiceRequest("effect", player, [*PREDICT_VALUES, FACE_DOWN], 1, 1, card.card_id, PREDICT_KEY,
                          "predict the printed value of the opponent's card, or play face down",
@@ -287,30 +302,7 @@ def flow_choosers(session, p) -> dict:
     return choosers
 
 
-# ---------------------------------------------------------------- UNCANNY INTUITION: the attack played face up
-
-def attack_revealed(game, target) -> bool:
-    """`target`'s hero has an ability that, attacked now, turns the attack card face up (an `attacked` trigger with
-    a `reveal` of `attack_card` whose condition holds: an active Intuition token)."""
-    owner = target.owner
-    if not interpreted(game, owner) or target is not game.hero(owner):
-        return False
-    try:
-        triggers = load_effects(game.players[owner].hero.slug).triggers
-    except EffectError:
-        return False
-    run = EffectRun([], Ctx(owner=owner, this_fid=target.fid))
-    for t in triggers:
-        when = t.get("when") or {}
-        if when.get("event") != "attacked" or when.get("target", "hero") != "hero":
-            continue
-        if not any(o["op"] == "reveal" and o.get("cards") == "attack_card" for o in walk_ops(t.get("ops") or [])):
-            continue
-        cond = t.get("condition")
-        if cond is None or condition(game, run, cond):
-            return True
-    return False
-
+# ---------------------------------------------------------------- the human's attack the bot's defense may know
 
 def intuition_notice(session, target) -> None:
     """The human attacks the bot's Abe with an active token: the attack will be played face up."""
@@ -320,9 +312,29 @@ def intuition_notice(session, target) -> None:
                     "el bot elige su defensa viendola.", ChatKind.ATTACK)
 
 
-def revealed_attack(session, p, card):
-    """The human's attack card the bot's defense may know, or None."""
-    return card if p.kind == "human_attacks" and attack_revealed(session.game, p.target) else None
+def declare_attack(session, p, card):
+    """The engine's order at Revelar, before the bot chooses its defense: the `attacked` event once (UNCANNY
+    INTUITION spends the token and draws; the draw is dealt now so the drawn card may be the defense), then the
+    attack card is returned when the bot's defense may know it: the ability turned it face up, or the human played
+    Perfect Shot face up (Ivan, 29/10: public information)."""
+    g = session.game
+    if card is None:                                     # no attack identified yet: nothing to declare
+        return None
+    by_ability = attack_revealed(g, p.target)            # judged before the trigger spends the token
+    if p.declared is None:
+        drawn = g.drawn[session.bot]
+        p.declared = {"counters": dict(g.fx.counters[session.bot])}   # the token projection diffs from here
+        g.fx.emit("attacked", p.attacker, p.target, card)
+        if g.drawn[session.bot] > drawn:                  # the trigger drew: the real card goes to the hand now
+            session._mark_dirty()
+            session._flush_table()
+    if by_ability:
+        session.say(f"UNCANNY INTUITION: tu ataque se juega boca arriba: {card.title} (valor {card.value}); el bot "
+                    "elige su defensa viendolo.", ChatKind.ATTACK)
+        return card
+    if p.prediction is not None and p.prediction["value"] is not None:
+        return card
+    return None
 
 
 # ---------------------------------------------------------------- the bot's attack played face up

@@ -20,7 +20,7 @@ class Scripted(Controller):
     def take_turn(self, game):
         pass
 
-    def choose_defense(self, game, attacker, target):
+    def choose_defense(self, game, attacker, target, attack_card=None):
         return self.defense
 
     def choose_combat_boost(self, game, ctx):

@@ -372,7 +372,7 @@ def test_uncanny_intuition_fires_before_the_defense_is_chosen(abe_baba_abe_only,
     atk = next(c for c in g.players[1].full_set if c.can_attack and c.usable_by(baba.name))
     g.players[1].hand.append(atk)
     seen = []
-    g.controllers[0].choose_defense = lambda game, a, t: seen.append(
+    g.controllers[0].choose_defense = lambda game, a, t, attack_card=None: seen.append(
         (game.fx.counter_value(0, "intuition"), len(game.players[0].hand), list(revealed))) or None
     hand = len(g.players[0].hand)
     g.attack(baba, abe, atk)

@@ -18,6 +18,9 @@ LISTEN_PORT = 39998
 MSG_CUSTOM = 2
 MSG_EXECUTE = 3
 ALLOWED_OUT = frozenset({MSG_CUSTOM, MSG_EXECUTE})
+WSAEADDRINUSE = 10048     # Windows: no ephemeral port free (the previous connections are still in TIME_WAIT)
+PORT_RETRIES = 20
+PORT_RETRY_WAIT = 0.25
 
 IN_NEW_GAME, IN_PRINT, IN_ERROR, IN_CUSTOM, IN_RETURN, IN_SAVED = 1, 2, 3, 4, 5, 6
 
@@ -103,8 +106,18 @@ class TTSClient:
             raise UnsafeMessage(f"messageID {payload.get('messageID')!r} no permitido (solo 2 y 3)")
         if payload["messageID"] == MSG_EXECUTE and not is_sendable(payload.get("script", "")):
             raise UnsafeMessage("solo se envia Lua generado por los constructores de sparring.tts.lua")
-        with socket.create_connection((self.host, self.send_port), timeout=self.timeout) as s:
-            s.sendall(json.dumps(payload).encode("utf-8"))
+        data = json.dumps(payload).encode("utf-8")
+        # cada mensaje abre una conexion corta: en Windows el pool de puertos efimeros se agota (WinError 10048)
+        # mientras los anteriores siguen en TIME_WAIT; se reintenta un rato en vez de fallar (como FakeTTS.push)
+        for attempt in range(PORT_RETRIES):
+            try:
+                with socket.create_connection((self.host, self.send_port), timeout=self.timeout) as s:
+                    s.sendall(data)
+                return
+            except OSError as e:
+                if getattr(e, "winerror", None) != WSAEADDRINUSE or attempt == PORT_RETRIES - 1:
+                    raise
+                time.sleep(PORT_RETRY_WAIT)
 
     def send_custom(self, data) -> None:
         self.send({"messageID": MSG_CUSTOM, "customMessage": data})

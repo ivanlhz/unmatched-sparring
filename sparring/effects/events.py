@@ -12,7 +12,7 @@ from __future__ import annotations
 from functools import lru_cache
 
 from .choose import ControllerChooser
-from .model import load_effects
+from .model import EffectError, load_effects, walk_ops
 from .ongoing import leave_play, spec_of
 from .run import Ctx, EffectRun
 from .select import _matches, condition, fighter_candidates
@@ -136,6 +136,30 @@ def _handle(game, ev: dict) -> None:
     for player, trig, card_id in todo:
         if matches(game, player, trig["when"], ev):
             _fire(game, player, trig, ev, trig["id"], card_id)
+
+
+def attack_revealed(game, target) -> bool:
+    """`target`'s hero has an ability that, attacked now, turns the attack card face up: an `attacked` trigger on
+    the hero with a `reveal` of `attack_card` whose condition holds (UNCANNY INTUITION with an active token).
+    Read from the trigger, never from a name; False for a hero outside the interpreter (no engine trigger)."""
+    owner = target.owner
+    if not game.fx.interprets(owner) or target is not game.hero(owner):
+        return False
+    try:
+        triggers = load_effects(game.players[owner].hero.slug).triggers
+    except EffectError:
+        return False
+    run = EffectRun([], Ctx(owner=owner, this_fid=target.fid))
+    for t in triggers:
+        when = t.get("when") or {}
+        if when.get("event") != "attacked" or when.get("target", "hero") != "hero":
+            continue
+        if not any(o["op"] == "reveal" and o.get("cards") == "attack_card" for o in walk_ops(t.get("ops") or [])):
+            continue
+        cond = t.get("condition")
+        if cond is None or condition(game, run, cond):
+            return True
+    return False
 
 
 def _fighter_ok(game, owner: int, sel, fighter, defeated: bool = False) -> bool:

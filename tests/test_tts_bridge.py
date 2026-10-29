@@ -381,3 +381,49 @@ def test_buttons_pressed_while_waiting_for_lua_are_not_lost():
     finally:
         c.close()
         fake.close()
+
+
+def test_send_retries_while_windows_has_no_ephemeral_port_and_fails_on_anything_else(monkeypatch):
+    """WinError 10048 (ports in TIME_WAIT) is retried with a short wait, as FakeTTS.push does; any other error is
+    raised at once and the retries are bounded."""
+    from sparring.tts import client as mod
+    sent, attempts, slept = [], [], []
+
+    class Conn:
+        def __enter__(self):
+            return self
+
+        def __exit__(self, *exc):
+            return False
+
+        def sendall(self, data):
+            sent.append(data)
+
+    def connect(addr, timeout):
+        attempts.append(addr)
+        if len(attempts) <= 2:
+            raise OSError(10048, "address in use", None, 10048)
+        return Conn()
+    monkeypatch.setattr(mod.socket, "create_connection", connect)
+    monkeypatch.setattr(mod.time, "sleep", slept.append)
+    c = TTSClient(send_port=12345, listen_port=0)
+    c.send({"messageID": 2, "customMessage": {"x": 1}})
+    assert len(attempts) == 3 and len(sent) == 1 and slept == [mod.PORT_RETRY_WAIT] * 2
+
+    def refused(addr, timeout):
+        attempts.append(addr)
+        raise OSError(10061, "refused", None, 10061)
+    monkeypatch.setattr(mod.socket, "create_connection", refused)
+    attempts.clear()
+    with pytest.raises(OSError):
+        c.send({"messageID": 2, "customMessage": {"x": 1}})
+    assert len(attempts) == 1
+
+    def always_busy(addr, timeout):
+        attempts.append(addr)
+        raise OSError(10048, "address in use", None, 10048)
+    monkeypatch.setattr(mod.socket, "create_connection", always_busy)
+    attempts.clear()
+    with pytest.raises(OSError):
+        c.send({"messageID": 2, "customMessage": {"x": 1}})
+    assert len(attempts) == mod.PORT_RETRIES

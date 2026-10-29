@@ -822,15 +822,24 @@ Decisiones dudosas de la migracion (ver tambien `notes` de cada fichero):
   answer continues `_reveal`; buttons "Valor 0".."Valor 7" and "Boca abajo", saved and resumable); the bot when
   it places the card (`bot_attack_placed`: `ai_effects.predict_value`, the card turned face up and the prediction
   announced, `Pending.prediction` saved). `predict_value` uses only the rival's defense cards a look showed
-  (`KnownHand`) or the public composition of their deck minus their discard pile, never a hand. The bot's defense
-  does not exploit a face-up Perfect Shot of the human yet (it would need `attack_card`, below).
-- UNCANNY INTUITION: `attack_revealed(game, target)` reads the hero's `attacked` trigger that `reveal`s
-  `attack_card` and evaluates its condition (an active token) on the engine; no card or hero name. Bot attacking
-  the human's Abe: the card is placed face down (the face-down reader identifies it) and flipped face up in the
-  same script, named in the chat. Human attacking the bot's Abe: the chat says it at Ataque; at Revelar the
-  identified attack card is the ONE card `choose_defense(..., attack_card=)` may know (`MedusaAI`: a single-value
-  distribution; `SearchController`: the known card in the search's `pending`). Known deviation: the bot's defense
-  is chosen before the trigger's draw (the engine draws at `begin_attack`), so the drawn card cannot be that defense.
+  (`KnownHand`) or the public composition of their deck minus their discard pile, never a hand. A Perfect Shot the
+  human plays face up is public: the bot's defense knows it (Ivan, 29/10).
+- UNCANNY INTUITION: `effects.events.attack_revealed(game, target)` reads the hero's `attacked` trigger that
+  `reveal`s `attack_card` and evaluates its condition (an active token) on the engine; no card or hero name. Bot
+  attacking the human's Abe: the card is placed face down (the face-down reader identifies it) and flipped face up
+  in the same script, named in the chat. Human attacking the bot's Abe: the chat says it at Ataque; at Revelar
+  `session_hidden.declare_attack` keeps the engine's order (Ivan, 29/10): the `attacked` event first (the token is
+  spent, the card drawn and dealt to the table, so it may be the defense; `Pending.declared` keeps it to once and
+  `begin_attack(attacked=False)` does not raise it again), then the identified attack card is the ONE card
+  `choose_defense(..., attack_card=)` may know (`MedusaAI`: a single-value distribution; `SearchController`: the
+  known card in the search's `pending`). Headless, `Game._declare_attack` does the same: event, then a defense that
+  gets `attack_card` when the ability revealed it. `EffectState.interprets(player)` is the one "hero on the
+  interpreter" helper (combat flow, AI, session).
+- The row survives a partial table failure: `_look_shown` rebuilds only `ids`/`guids`/`spots`, so `mode` and
+  `purpose` stay and a ping still answers the engine's request; a card the table left in the hand is picked by its
+  button and reaches the pile through the reconciliation ("seguia en su mano"); no card out at all drops the row
+  and leaves the buttons. `purpose == "discard"` plus `ai_effects.bounces_back` names Wildfire when the bot keeps a
+  burning card the human made it discard.
 - Bot Shock And Awe and the human's Fleeting Moments / Confront are covered by the existing routes: the human's own
   pick goes through `pending_discard` (`_table_settles`), the bot's random discard is the run's memoized rng and
   reaches the table through the reconciliation.

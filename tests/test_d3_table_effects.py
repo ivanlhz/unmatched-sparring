@@ -446,7 +446,9 @@ def test_abe_intuition_token_copies_are_taken_when_activated_and_removed_when_sp
     human_attack(session, table, game, "hellboy", "abe", "Service Pistol")
     n = fake.lua_messages
     msgs = click(session, table, Event.REVEAL)                  # attacked with an active token: spent
-    assert fake.lua_messages - n <= 3 and game.fx.counter_value(0, "intuition") == 0
+    # one more message than a plain reveal: the card the trigger draws is dealt BEFORE the bot chooses its
+    # defense, so it can be that defense (Ivan, 29/10; E3)
+    assert fake.lua_messages - n <= 4 and game.fx.counter_value(0, "intuition") == 0
     assert table.tokens == [] and session.token_copies == {"intuition": []}
     assert said(msgs, "Abe Sapien (bot) gasta 1 ficha de intuition: 0 activa(s)")
 

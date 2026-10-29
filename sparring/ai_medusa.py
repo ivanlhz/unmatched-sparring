@@ -344,7 +344,7 @@ class MedusaAI(Controller):
         """Medusa's two schemes keep their planned targets (C5 presets); any other interpreted hero's scheme is
         valued by simulating it (`scheme_act`), one act per title."""
         medusa = game.hero(self.me)
-        interpreted = game.players[self.me].hero.slug in game.fx.dsl_heroes
+        interpreted = game.fx.interprets(self.me)
         out, seen = [], set()
         for c in game.players[self.me].hand:
             if not c.is_scheme or not c.usable_by(medusa.name) or c.title in seen:

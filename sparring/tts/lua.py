@@ -539,7 +539,15 @@ def resolve_hand_row(guids: list[str], seat_color: str, *, identity, id_range: t
         deck_check = f"""local deck = getObjectFromGUID({_guid(deck_guid)})
 if deck == nil or not ours(deck) then return JSON.encode({{discarded = false, returned = {{}}, found = #objs, down = down, deck = false}}) end
 """
-        chosen_goes = "deck.putObject(o)\n    discarded = id"
+        # a one-card deck is a Card in TTS and has no putObject: the chosen card is dropped on it, same facing
+        chosen_goes = """if deck.type == "Deck" then
+      deck.putObject(o)
+    else
+      local dp, dr = deck.getPosition(), deck.getRotation()
+      o.setRotation(Vector(dr.x, dr.y, dr.z))
+      o.setPosition(Vector(dp.x, dp.y + 0.5, dp.z))
+    end
+    discarded = id"""
     else:
         chosen_goes = f"""o.setRotation(Vector(0, {_f(rot_y)}, 0))
     o.setPosition(Vector({_f(spot[0])}, {_f(spot[1])}, {_f(spot[2])}))

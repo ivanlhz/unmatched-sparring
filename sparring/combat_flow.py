@@ -13,12 +13,7 @@ from .state import ANUNG, Fighter, Game, RuleError
 
 def _dsl(flow: "CombatFlow", side: "Side") -> bool:
     """The card's owner plays a hero the effects interpreter resolves (`game.fx.dsl_heroes`): legacy rules step aside."""
-    return _interpreted(flow.game, side.fighter.owner)
-
-
-def _interpreted(game: Game, player: int) -> bool:
-    heroes = game.fx.dsl_heroes
-    return bool(heroes) and game.players[player].hero.slug in heroes
+    return flow.game.fx.interprets(side.fighter.owner)
 
 
 def _is_bot(game: Game, player: int) -> bool:
@@ -488,7 +483,7 @@ def legacy_chooser(game: Game, flow: CombatFlow, boost: Card | None) -> Callable
             from .effects.ops_combat import default_choosers
             return default_choosers(game)[choice.player].choose(game, ChoiceRequest.from_dict(choice.extra["request"]))
         player = choice.player
-        bot_dsl = _is_bot(game, player) and _interpreted(game, player)
+        bot_dsl = _is_bot(game, player) and game.fx.interprets(player)
         if bot_dsl or player != flow.att.owner or is_medusa_card(flow.card_by_id(choice.card_id, player)):
             return game.controllers[player].choose_combat_boost(game, flow.ctx)
         return boost

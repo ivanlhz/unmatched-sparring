@@ -234,6 +234,8 @@ class Pending:
     combat: dict | None = None          # what finishing that combat still needs (flip, human_guid, bot_seen, alive_before, before, boost)
     prediction: dict | None = None      # Perfect Shot: {"value": int | None} once the attacker decided (None value: face down)
     predict: dict | None = None         # Perfect Shot: the human's prediction request, while the panel asks it (E3)
+    declared: dict | None = None        # the `attacked` event of the human's attack was raised before the bot's defense (E3):
+                                        # {"counters": the bot's ability counters before it}, so the token projection sees the spend
 
     @property
     def boost_wait(self) -> dict | None:
@@ -777,8 +779,7 @@ class Session:
             self.say("La partida aun se esta preparando: termina la colocacion y pulsa Listo.", ChatKind.WARNING)
             return self._done()
         if self.look is not None and event not in LOOK_EVENTS:
-            self.say("La mano del bot esta a la vista: haz ping (Tab) sobre la carta a descartar, o gira una boca abajo "
-                     "y pulsa Fin de accion, o Cancelar para devolverlas sin descartar.", ChatKind.WARNING)
+            self.say(hidden.resume_prompt(self), ChatKind.WARNING)
             return self._done()
         if self._paused() is not None and event not in CHOICE_EVENTS:
             self.say("Hay una eleccion de efecto pendiente: responde con uno de los botones de opcion.", ChatKind.WARNING)
@@ -1008,7 +1009,7 @@ class Session:
     def _grant_look_for(self, card: Card | None) -> None:
         """Legacy route (the human's hero outside the interpreter): a card that looks grants the button. An
         interpreted hero looks inside the card's run and the bot shows its hand then (`session_hidden`)."""
-        if hidden.interpreted(self.game, self.human):
+        if self.game.fx.interprets(self.human):
             return
         if card is not None and choices.grants_look(self.game, self.human, card):
             self.grant_look()
@@ -1180,7 +1181,8 @@ class Session:
                 "cancel_failures": p.cancel_failures, "defended": p.defended, "boost_wait": None if p.wait is None else p.wait.to_dict(),
                 **({"flow": p.flow.to_dict(), "combat": p.combat} if p.flow is not None else {}),
                 **({"prediction": p.prediction} if p.prediction is not None else {}),
-                **({"predict": p.predict} if p.predict is not None else {})},
+                **({"predict": p.predict} if p.predict is not None else {}),
+                **({"declared": p.declared} if p.declared is not None else {})},
             "pending_discard": self.pending_discard, "pending_value": self.pending_value, "look": self.look,
             "chosen_attacker": self.chosen_attacker, "moving": self.moving,
             "bot_discarded": sorted(self.bot_discarded), "dirty": self.dirty,
@@ -1227,7 +1229,8 @@ class Session:
                 by_id[p["bot_card"]] if p["bot_card"] is not None else None, p["bot_card_guid"], p["cancel_failures"],
                 bool(p.get("defended", True)),
                 self._load_boost_wait(p.get("boost_wait"), self.human, {c.card_id: c for c in self.game.players[self.human].full_set}),
-                *self._load_flow(p), p.get("prediction"), p.get("predict"))
+                *self._load_flow(p), p.get("prediction"), p.get("predict"),
+                p["declared"] if isinstance(p.get("declared"), dict) else None)
             self.free_effect = None if d.get("effect") is None else EffectRun.from_dict(d["effect"])
             self.look_granted = d.get("look_granted") is True
             self.token_copies = {str(k): [str(g) for g in v] for k, v in (d.get("token_copies") or {}).items()}
@@ -1281,6 +1284,8 @@ class Session:
         look = {"ids": list(raw["ids"]), "guids": list(raw["guids"]), "spots": [list(sp) for sp in raw["spots"]]}
         if raw.get("mode") in (hidden.MODE_PICK, hidden.MODE_REVEAL):     # E3: the row a card of the human opened
             look["mode"] = raw["mode"]
+            if isinstance(raw.get("purpose"), str):
+                look["purpose"] = raw["purpose"]
         return look
 
     @staticmethod
@@ -1606,12 +1611,15 @@ class Session:
         hidden.intuition_notice(self, target)
 
     def _bot_defends(self, p: Pending, attack_card: Card | None = None) -> None:
-        """El bot decide y coloca su defensa DESPUES de que el humano se haya comprometido. La decision usa solo lo
-        que la IA ya sabia (estado del motor y mano del bot): jamas el CardID de la carta boca abajo del humano, salvo
-        `attack_card`, el ataque que una regla juega boca arriba (UNCANNY INTUITION) y que es lo unico que ve."""
+        """El bot decide y coloca su defensa DESPUES de que el humano se haya comprometido, en el orden del motor:
+        primero el evento `attacked` (UNCANNY INTUITION gasta la ficha y roba; la carta robada se reparte ya, asi que
+        puede ser la defensa), luego la defensa. La decision usa solo lo que la IA ya sabia (estado del motor y mano
+        del bot): jamas el CardID de la carta boca abajo del humano, salvo el ataque que una regla juega boca arriba
+        (UNCANNY INTUITION, Perfect Shot), que es lo unico que ve."""
+        revealed = hidden.declare_attack(self, p, attack_card)
         self.read_bot_hand()
-        if attack_card is not None:
-            card = self.ai.choose_defense(self.game, p.attacker, p.target, attack_card=attack_card)
+        if revealed is not None:
+            card = self.ai.choose_defense(self.game, p.attacker, p.target, attack_card=revealed)
         else:
             card = self.ai.choose_defense(self.game, p.attacker, p.target)
         guid = self._place_bot_card(card, "human_attacks", p.attacker, p.target)
@@ -1708,11 +1716,7 @@ class Session:
                 if not p.defended and hidden.ask_prediction(self, p, human_card):
                     return                        # Perfect Shot: the human predicts before the bot defends
                 if not p.defended:
-                    revealed = hidden.revealed_attack(self, p, human_card)
-                    if revealed is not None:
-                        self.say(f"UNCANNY INTUITION: tu ataque se juega boca arriba: {revealed.title} (valor "
-                                 f"{revealed.value}); el bot elige su defensa viendolo.", ChatKind.ATTACK)
-                    self._bot_defends(p, revealed)
+                    self._bot_defends(p, human_card)
                 if p.bot_card:
                     g.check_defense_card(p.target, p.bot_card)
             else:
@@ -1830,8 +1834,11 @@ class Session:
             if boost is not None:
                 self._make_known(boost, keep=(human_card,))
             p.combat["fx"] = bot_effects.snapshot(self)   # after the human's cards are known: the diff is the effects'
-            if p.kind == "human_attacks":
-                p.flow = g.begin_attack(p.attacker, p.target, human_card, p.bot_card, values=(value, 0))
+            if p.declared is not None:           # the `attacked` event already spent a token: project from before it
+                p.combat["fx"]["counters"] = dict(p.declared["counters"])
+            if p.kind == "human_attacks":        # `attacked` was raised when the bot chose its defense (`_bot_defends`)
+                p.flow = g.begin_attack(p.attacker, p.target, human_card, p.bot_card, values=(value, 0),
+                                        attacked=p.declared is None)
             else:
                 p.flow = g.begin_attack(p.attacker, p.target, p.bot_card, human_card, values=(0, value))
             p.wait = None                         # the boost (if any) is now an answer inside the flow
@@ -3097,10 +3104,10 @@ class Session:
         if not keep:
             self.look = None
             self.read_bot_hand()
-            self.say("No he podido sacar las cartas de la mano del bot; repite Mirar mano del bot.", ChatKind.WARNING)
+            self.say(hidden.row_failed_text(look), ChatKind.WARNING)
             return False
         if len(keep) < len(look["ids"]):
-            self.look = {k: [v[i] for i in keep] for k, v in look.items()}
+            self.look = {**look, **{k: [look[k][i] for i in keep] for k in ("ids", "guids", "spots")}}
             self.say(f"Solo he podido sacar {len(keep)} de {len(look['ids'])} cartas; el resto sigue en su mano.",
                      ChatKind.WARNING)
         return True
