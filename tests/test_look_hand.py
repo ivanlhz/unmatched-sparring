@@ -234,6 +234,7 @@ def test_the_failure_counter_survives_neither_a_new_row_nor_a_restart(rig, monke
     session.setup = None
     set_bot_hand(table, game, *HAND)
     session.read_bot_hand()
+    session.grant_look()                              # the first look used up the grant; the restart cleared it too
     press(session, table, Event.LOOK)
     assert session.look is not None and session.look_fails == 0
     press(session, table, Event.CANCEL)

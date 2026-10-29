@@ -42,6 +42,7 @@ Datos verificados el 28/10/2026 contra el save del torneo (`saves\Unmatched Offi
 - Perfect Shot: se puede predecir cualquier valor de 0 a 7; si el rival no defiende con carta, no acierta.
 - Every Possible Angle contra el bot: el bot pone su mano boca arriba (fila de look_spot, como F16) y hace ping sobre las cartas.
 - Counterhex Shield: el texto real (con ONGOING) se corrige tambien en unmatched-memory.
+- el valor de una carta nunca baja de 0 en CADA paso, y los efectos se resuelven en orden de momento (IMMEDIATELY antes de DURING; mismo momento, primero el defensor): Flame Lash (1) contra Arcane Dampener (IMMEDIATELY -3) queda en 0, y luego el impulso de Flame Lash en DURING (+3) la deja en 3.
 
 ## Preguntas abiertas
 

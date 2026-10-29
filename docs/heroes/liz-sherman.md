@@ -48,6 +48,7 @@ Las otras 15 (Fleeting Moments x3, B.P.R.D. Training x2, Rekindle x2, Feint x3, 
 - Fleeting Moments: el descarte al azar del rival lo saca el humano o un índice uniforme; la carta descartada es pública y se descuenta de KnownHand. Su robo es una carta no vista.
 - Incinerate: el rival elige qué 2 descarta; públicas al descartarse.
 - Wildfire: la ardiente que vuelve a la mano es pública: pasa a la mano conocida del rival.
+- Wildfire, única excepción (Iván, 28/10): una ardiente descartada por el límite de mano al final del turno NO vuelve a la mano; se queda en el descarte (evento `card_discarded` con `cause: hand_limit`, filtrado con `cause_not` en `wildfire_return`).
 - Pyrotechnics: cartas boca abajo al fondo; el bot no lee cuáles fueron cuando el humano lleva a Liz (solo cuentas).
 
 ## Decisiones de Ivan (28/10)
@@ -61,6 +62,7 @@ Las otras 15 (Fleeting Moments x3, B.P.R.D. Training x2, Rekindle x2, Feint x3, 
 - Burning Barrier: cannot_leave_space bloquea todo movimiento del luchador rival (propio o por efectos); a Liz si la puede mover un efecto. El dano posterior es a cada rival en la zona de Liz.
 - una carta sin valor de impulso no se puede usar para impulsar: las ardientes (BOOST 0) nunca se descartan como impulso.
 - un solo ONGOING activo POR JUGADOR; jugar otro reemplaza al propio activo (dos Fight Or Flight = +1). Pendiente de codigo: Game.combat_bonus aun acumula.
+- el valor de una carta nunca baja de 0 en CADA paso, y los efectos se resuelven en orden de momento (IMMEDIATELY antes de DURING; mismo momento, primero el defensor): Flame Lash (1) contra Arcane Dampener (IMMEDIATELY -3) queda en 0, y luego el impulso de Flame Lash en DURING (+3) la deja en 3.
 
 ## Preguntas abiertas
 

@@ -101,6 +101,10 @@ Only `Pending.boost_wait` moves to a `PendingChoice` now.
   the card); same validations, still `KeyError("boost_wait")`.
 - Left for the human-choices phase: `pending_discard`, `moving`, `placing`, `bot_stage`, `setup.stage`, `dial_debt`,
   `_wild_credit`, and the bot's `choose_move`/`force_discard` in AFTER.
+- E1: the session no longer calls `Game.attack`; `Game.begin_attack` returns the flow and `Session._drive_flow` runs
+  it. A `PendingChoice("effect")` of the human stops it: the flow is saved as `pending.flow` (with `pending.combat`,
+  what `_after_combat` needs) and answered through `flow.resume(list)` from the choice buttons. A `RuleError`
+  anywhere in that drive restores the save snapshot taken before it. See docs/effects-dsl.md section 14.
 
 ## Flow serialization
 
@@ -130,3 +134,7 @@ are outside the hand mid-combat; the flow holds them and DONE discards them).
 - RuleError half-way: same exception at the same point; the session restores state as before.
 - Circular imports: `combat_flow` imports from `combat`; `combat` imports `combat_flow` inside the function.
 - ISMCTS cost: rules are a module-level list, no copies; measured with `tests/test_search_*.py`.
+
+## DSL rules (C2)
+
+After the legacy rules, `dsl_immediately`, `dsl_during` and `dsl_after` match a side whose owner's hero is in `game.fx.dsl_heroes`; the legacy rules do not match those cards. `dsl_during` also asks the free BOOST of `may_boost` cards, for either side. `PendingChoice` has a second kind, `"effect"` (key + request of the paused EffectRun), and `flow.to_dict()` gains a `"dsl"` key only when an interpreter run, value change or redirection exists. See docs/effects-dsl.md section 12.

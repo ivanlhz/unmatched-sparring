@@ -297,7 +297,7 @@ def _stat(game, run, a):
     if stat == "hand_size":
         return len(game.players[player].hand)
     if stat == "actions_taken_this_turn":
-        raise NotImplementedError("actions_taken_this_turn: C3")
+        return game.fx.taken if player == game.turn else 0
     if stat == "damage_dealt_this_combat":
         return run.ctx.damage_dealt
     if stat == "damage_taken_this_combat":

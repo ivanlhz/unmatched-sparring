@@ -130,9 +130,9 @@ def test_resume_mid_effect(brig, bprd):
     assert jsonable(persist.game_to_dict(other.game)) == jsonable(twin_after(bprd, before, [[0], [2]]))
 
 
-def test_a_free_effect_is_saved_at_top_level_and_a_pending_one_under_pending(brig):
+def test_a_free_effect_is_saved_at_top_level_only_while_it_waits(brig):
     session, table, game, _ = brig
-    assert "effect" not in session.to_dict() and "effect" not in (session.to_dict()["pending"] or {})
+    assert "effect" not in session.to_dict()
     start(session, table)
     assert session.to_dict()["effect"]["label"] == "scheme"
 
@@ -196,8 +196,9 @@ def test_blocked_reason_is_announced_once(brig, monkeypatch):
 
 
 def test_query_missing_means_allowed(brig):
+    from sparring.session_choices import fx_query
     session, table, game, _ = brig
-    assert not hasattr(game.fx, "may_attack")
+    assert not hasattr(game.fx, "no_such_query") and fx_query("no_such_query")(game, 1) is True
     assert session.panel_view()[1]["att_hellboy"] == (True, True)
 
 

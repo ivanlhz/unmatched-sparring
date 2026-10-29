@@ -931,7 +931,7 @@ def test_failed_game_attack_unflips_cards_and_restores_the_human_hand_guess(rig,
 
     def boom(*a, **k):
         raise RuleError("fallo simulado")
-    monkeypatch.setattr(game, "attack", boom)
+    monkeypatch.setattr(game, "begin_attack", boom)
     msgs = session.handle(Event.REVEAL)
     assert any("fallo simulado" in m for m in msgs)
     assert session.pending is not None and len(table.flips) >= 1

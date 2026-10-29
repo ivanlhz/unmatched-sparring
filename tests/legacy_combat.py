@@ -1,4 +1,4 @@
-"""Verbatim copy of resolve_combat as of ff6fa3c, kept as the oracle of the differential tests
+"""Copy of resolve_combat as of ff6fa3c (plus the uncancelable rule of the C2 review), kept as the oracle of the differential tests
 (tests/test_combat_flow_diff.py). Helpers are imported from sparring.combat."""
 from __future__ import annotations
 
@@ -6,6 +6,7 @@ from sparring.cards import Card
 from sparring.combat import (FEINT, ON_EARTH, PLANNED, SECOND_SHOT, CombatCtx, CombatResult, _announce_bot_card,
                              _check_boost, _hellboy_after, _liz_after, _medusa_after, _side_cards, after_text,
                              can_boost, deck_boost, is_medusa_card)
+from sparring.effects.modifiers import is_uncancelable
 from sparring.state import ANUNG, Fighter, Game, RuleError
 
 
@@ -44,11 +45,14 @@ def resolve_combat(game: Game, att: Fighter, tgt: Fighter, atk_card: Card, def_c
         if side in ctx.cancelled:
             continue
         other = "atk" if side == "def" else "def"
+        other_card = atk_card if other == "atk" else def_card
+        uncancelable = other_card is not None and is_uncancelable(other_card)      # review of C2: Incinerate
         if is_medusa_card(card) and card.title == FEINT:
-            ctx.cancelled.add(other)
+            if not uncancelable:
+                ctx.cancelled.add(other)
         elif not is_medusa_card(card) and card.title == PLANNED:
             game.effect_shield[fighter.owner] = game.turn_no
-            if game.form(fighter.owner) != ANUNG:
+            if game.form(fighter.owner) != ANUNG and not uncancelable:
                 ctx.cancelled.add(other)
 
     # DURING

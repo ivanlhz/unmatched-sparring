@@ -6,9 +6,14 @@ ChoiceRequest into the six slots (options, a "More" page button when there are t
 multi-pick answers) and `ChoiceUI` keeps the page and the picks made so far. Labels and prompts are Spanish (they are
 shown to the human); card texts keep the card data's own wording.
 
-Restrictions: rules that forbid a human action (Pact Of Freedom, Cold Iron) are asked to the engine each time the panel
-is drawn (`game.fx.<query>(player)`, read with `getattr` and a permissive default so a missing query allows the
-action). A forbidden button is hidden and the chat says why once; the session also refuses the action if it arrives.
+Restrictions: rules that forbid a human action (Pact Of Freedom, Cold Iron And Holy Water, a pinned fighter) are asked
+to the engine each time the panel is drawn (`fx_query`: `game.fx.<name>(player)`, read with `getattr` and a permissive
+default so a missing query allows the action). A forbidden button is hidden, the chat says why once, and the session
+refuses the action if it arrives anyway (an attack), skips its blocked part (the Maneuver draw, a scheme's actions) or
+keeps the engine's position (a fighter that cannot leave its space).
+
+The look at the bot's hand (`btn_look`) is granted by a card, never by default: `grants_look` reads the card's DSL
+effects and says whether any moment has a `look_hand` op on the opponent.
 """
 from __future__ import annotations
 
@@ -18,6 +23,7 @@ from dataclasses import dataclass, field
 from typing import Callable
 
 from .effects.choose import ChoiceRequest
+from .effects.model import EffectError, load_effects, walk_ops
 
 MAX_CHOICE_BUTTONS = 6
 CHOICE_IDS = tuple(f"btn_choice_{i}" for i in range(1, MAX_CHOICE_BUTTONS + 1))
@@ -169,25 +175,43 @@ def press(game, req: ChoiceRequest, ui: ChoiceUI, index) -> tuple[str, object]:
 @dataclass(frozen=True)
 class Restriction:
     name: str
-    query: str                                   # method of game.fx(player) -> bool; missing means allowed
+    allowed: Callable[[object, int], bool]       # (game, player) -> False while the rule forbids it
     reason: str                                  # Spanish chat line
-    buttons: Callable[["object"], list[str]]     # session -> ids of the buttons it forbids
+    buttons: Callable[[object], list[str]] = lambda session: []     # session -> ids of the buttons it hides
+
+
+def fx_query(name: str) -> Callable[[object, int], bool]:
+    """`game.fx.<name>(player)`; an engine without that query allows the action."""
+    def check(game, player: int) -> bool:
+        fn = getattr(game.fx, name, None)
+        return True if fn is None else bool(fn(player))
+    return check
 
 
 def _attack_buttons(session) -> list[str]:
     return [f"att_{f.fid}" for f in session.game.own(session.human, alive_only=False)]
 
 
+def pinned(game, player: int) -> list:
+    """The fighters of `player` an effect keeps on their space (their own maneuver cannot move them)."""
+    return [f for f in game.own(player) if not game.fx.can_move(f)]
+
+
 RESTRICTIONS = (
-    Restriction("attack", "may_attack",
+    Restriction("attack", fx_query("may_attack"),
                 "Un efecto en juego te impide atacar ahora (por ejemplo, un ataque como primera accion del turno): "
                 "los botones de ataque estan ocultos.", _attack_buttons),
+    Restriction("draw", fx_query("can_draw"),
+                f"Un efecto en juego te impide robar cartas (Cold Iron And Holy Water): la Maniobra solo mueve, {NO_DRAW_REASON}."),
+    Restriction("gain_actions", fx_query("can_gain_actions"),
+                "Un efecto en juego te impide ganar acciones: los planes que dan acciones no te las dan este turno."),
+    Restriction("move", lambda game, player: not pinned(game, player),
+                "Un efecto en juego impide que alguna de tus miniaturas deje su casilla: si la mueves, la devuelvo."),
 )
 
 
 def allowed(game, query: str, player: int) -> bool:
-    fn = getattr(game.fx, query, None)
-    return True if fn is None else bool(fn(player))
+    return fx_query(query)(game, player)
 
 
 def active_restrictions(session) -> list[Restriction]:
@@ -195,4 +219,17 @@ def active_restrictions(session) -> list[Restriction]:
     g = session.game
     if g.turn != session.human or g.winner is not None:
         return []
-    return [r for r in RESTRICTIONS if not allowed(g, r.query, session.human)]
+    return [r for r in RESTRICTIONS if not r.allowed(g, session.human)]
+
+
+# ---------------------------------------------------------------- the look at the bot's hand
+
+def grants_look(game, player: int, card) -> bool:
+    """True when `card` (of `player`'s hero) has, in any moment, a `look_hand` op on the opponent's hand: playing it
+    is what lets the human see the bot's hand (Confront Any Demon or God, Every Possible Angle...). Conditions
+    around the op are not evaluated: the human knows whether they held."""
+    try:
+        effects = load_effects(game.players[player].hero.slug).card(card.title)
+    except EffectError:                          # a hero without effects file (Medusa) or a card it does not list
+        return False
+    return any(o["op"] == "look_hand" and o.get("player") == "opponent" for o in walk_ops(effects.moments))
