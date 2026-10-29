@@ -44,3 +44,29 @@ Liz: Fireball, Burning Barrier, B.P.R.D. Training, Evade C1/C2 E2; Flame Lash C2
 
 ## Risks
 Mid-combat pause with game mutated (E1): RuleError rollback assumes nothing changed before "Continuar". Anti-cheat in clone simulation (D1/D2): determinize before look_hand on clones. ISMCTS cost: cap scheme variants. session.py (3325 lines) conflicts: new code in new modules. Medusa differential: rng order of controller calls must match legacy.
+
+## Phase G: other savegames (Iván, 29/10)
+Today everything table-specific is tied to `saves/Unmatched Official Tournament Table October 2026 (Hellboy).json`.
+Goal: point the bot at another savegame and get a working setup without hand-editing GUIDs.
+
+What is savegame-specific now:
+- `data/tts/<hero>.json` (extracted by hand from the save): bag GUIDs (outer infinite bag + inner bag), deck GUID, CardID
+  range + character card id, deck identity (FaceURL, BackURL), fighter pieces (GUID per state), HP dials (+ MAX_VALUE),
+  tokens (Hellboy 1644a3, Abe 5a17e9). In another save the GUIDs and CardIDs change; FaceURL/BackURL may or may not.
+- `config/partida.json`: board_guid, seats (Green/White), hand triggers, ScriptingTriggers to ignore, probe_guids, and
+  every spot (card/discard/deck/dead/look/unpack positions) calibrated to this table's layout.
+- `data/maps/<board>.json` fitted to this board's snap points (`tools/fit_map.py`).
+- Card identification: CardID ranges + FaceURL/BackURL identity (the save has 12 decks sharing DeckID 176).
+
+Plan:
+G1 `tools/import_save.py <save.json>`: read-only; walks the save, finds each hero bag (by name / character card / deck
+   identity), writes `data/tts/<hero>.json` (GUIDs, CardID range, identity, pieces per state, dials, tokens) and reports
+   what it could not match. Golden test: regenerating from the current save reproduces today's data/tts files byte for byte.
+G2 Identity by image, not by GUID or CardID: match decks/cards by (FaceURL, BackURL) + position in the sheet, so a save
+   whose CardIDs differ still maps to the same card titles; GUIDs found at runtime through hero detection (aa7b1aa).
+G3 Table layout: derive board, seats and hand zones from the save/live table; spots relative to the board and hand zones
+   instead of absolute coordinates; `--read-only` calibration report proposes values for config. Per-save config file
+   (`config/<save-name>.json`) selected by flag, current one kept as default.
+G4 Board maps: `fit_map.py` run on the new board; error if the board has no map.
+G5 Docs: README section "Using another savegame" + checklist; F3 live checklist gains a run on a second save.
+Order: after F (live readiness), before or together with the translation phase. Needs a second savegame from Iván to test.
