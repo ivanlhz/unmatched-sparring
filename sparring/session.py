@@ -425,6 +425,8 @@ class Session:
         elif self.look is not None:
             self._w(lua.set_look_row(self._look_entries()), "misc")     # la variable del panel no sobrevive a una recarga
             self.say(hidden.resume_prompt(self), ChatKind.YOUR_TURN)
+        elif hidden.manual_request(self) is not None:
+            hidden.manual_start(self, hidden.manual_request(self))
         elif self.effect_run is not None:
             self.choice_ui = choices.ChoiceUI()
             self.say("Hay una eleccion de efecto pendiente: " + choices.prompt_text(self.game, self.effect_run.awaiting)
@@ -904,6 +906,9 @@ class Session:
 
     def _show_choice(self, req) -> None:
         self.choice_ui.sync(req)
+        if (req.kind == "cards" and req.player == self.human and req.extra.get("zone") == "hand"
+                and req.extra.get("of") == self.bot and req.extra.get("purpose") == "discard"):
+            return                                # look-and-discard: `hidden.manual_start` explains it, no option list
         self.say(choices.prompt_text(self.game, req) + ": pulsa una de las opciones del panel ("
                  + choices.options_text(self.game, req) + ")." + choices.card_text_hint(self.game, req),
                  ChatKind.YOUR_TURN)
@@ -939,6 +944,9 @@ class Session:
             self.say("No hay ninguna eleccion pendiente.", ChatKind.WARNING)
             return
         kind, holder, run = paused
+        if hidden.manual_request(self) is not None:      # look-and-discard: the human acts on the table, this is Hecho
+            hidden.manual_done(self, paused)
+            return
         verdict, value = choices.press(self.game, run.awaiting, self.choice_ui, payload.get("i"))
         if verdict == "error":
             self.say(value, ChatKind.WARNING)
@@ -1018,6 +1026,8 @@ class Session:
         """Texts of the visible choice buttons (empty without a pending choice)."""
         run = self.effect_run
         req = None if run is None else run.awaiting
+        if hidden.manual_request(self) is not None:
+            return hidden.manual_view(self)[1]
         return choices.panel_choice_view(self.game, req, self.choice_ui)[1]
 
     # ---------- the look at the bot's hand: only when a card allows it ----------
@@ -1925,6 +1935,11 @@ class Session:
         if p.flow.done:
             self._after_combat(p, p.flow.result)
             return
+        if self.cfg.batch and p.combat["flip"] and not p.combat.get("flipped"):
+            # the combat stops at a choice of the human: both cards are turned now, in this same message (Ivan, 30/10),
+            # not at the end of the combat, so he sees what is being resolved
+            self._flip_queued([(p.bot_card_guid, "bot"), (p.combat["human_guid"], "human")])
+            p.combat["flipped"] = True
         self._mark_dirty(_bot_snapshot(p.combat["before"]))
         cause = "efectos del combate" if human_effects.human_ran(p.flow) else bot_effects.BOT_CAUSE
         fin_fx = self._project_effects(p.combat.get("fx"), self._human_played(p), cause)
@@ -1944,7 +1959,7 @@ class Session:
         c = p.combat
         flip_cards = [(p.bot_card_guid, "bot"), (c["human_guid"], "human")]
         discarded_now = p.bot_card is not None and p.bot_card in g.players[self.bot].discard
-        if c["flip"]:
+        if c["flip"] and not c.get("flipped"):
             self._flip_queued([(None if discarded_now and side == "bot" else guid, side) for guid, side in flip_cards])
         self.pending, self.pending_value, self.chosen_attacker = None, 0, None
         if self.pending_discard is not None:      # antes de cualquier E/S: un fallo de mesa no puede dejarlo sin base
@@ -3155,7 +3170,8 @@ class Session:
             for i in ("btn_reveal", "btn_cancel", "btn_end", "btn_boost", "btn_noboost"):
                 states[i] = (False, states[i][1])
         req = paused[2].awaiting if choosing else None
-        states.update(choices.panel_choice_view(g, req, self.choice_ui)[0])
+        manual = hidden.manual_request(self) is not None
+        states.update((hidden.manual_view(self) if manual else choices.panel_choice_view(g, req, self.choice_ui))[0])
         for ident in self._blocked_buttons():
             states[ident] = (False, False)
         if self.ability_wait is not None:         # your start-of-turn ability first: only Fin de accion (and the hit points)
@@ -3186,6 +3202,8 @@ class Session:
             return f"Fin de partida · gana {self._name(g.hero(g.winner))}"
         if self.look is not None:
             return hidden.look_status(self)
+        if hidden.manual_request(self) is not None:
+            return hidden.manual_status(self)
         if self.effect_run is not None:
             return choices.safe_label(choices.prompt_text(g, self.effect_run.awaiting), "Elige una opcion", 80)
         if g.turn != self.human:
@@ -3364,10 +3382,21 @@ class Session:
         self.say(f"El bot descarta {card.title} y devuelve el resto de su mano." if card is not None
                  else "Mano del bot devuelta sin descartar nada.", ChatKind.SCHEME if card is not None else ChatKind.NEUTRAL)
 
+    def restore_row_hands(self, guids: list[str]) -> None:
+        """Best effort: the shown cards get `use_hands` back so the human can put them in the hand zone by hand."""
+        if not guids:
+            return
+        try:
+            self._w(lua.restore_use_hands(list(guids)), "cards")
+        except TABLE_ERRORS:
+            pass
+
     def _look_force_exit(self, why: str) -> None:
         """Salida de la mirada cuando la mesa no deja cerrarla: la mesa manda. El motor suelta la fila, relee la mano y
         deja la deuda de mesa para el proximo Fin de accion; las cartas del bot que no esten en su mano se recogen a mano."""
+        row = self.look["guids"] if self.look else []
         self.look, self.look_fails = None, 0
+        self.restore_row_hands(row)
         self.read_bot_hand()
         self._mark_dirty()
         self.say(f"Mirada cerrada a la fuerza ({why}): la mesa manda. Las cartas del bot que no esten en su mano "

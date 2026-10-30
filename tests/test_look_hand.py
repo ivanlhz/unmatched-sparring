@@ -595,3 +595,62 @@ def test_default_unpack_columns_do_not_cross_the_look_row():
         for n in range(8):
             zz = z + n * play.UNPACK_STEP[2]
             assert not (x0 - 1 < x < x1 + 1 and z0 - 1 < zz < z1 + 1), (side, n)
+
+
+def test_a_hand_zone_under_the_row_cannot_swallow_the_shown_cards_back(rt):
+    """Live (30/10) the bot's cards stayed in a hand zone instead of lying face up: a Card with `use_hands` is pulled
+    back into any hand zone it is moved over. The row turns `use_hands` off and re-places stragglers after a moment."""
+    hand_table(rt)
+    rt.execute("HAND_ZONES = {{color = 'Green', cx = -23, cz = 0, hw = 4, hd = 12}}")
+    res = show(rt)
+    assert len(res["shown"]) == 4
+    assert all(card(rt, g).hand is None and card(rt, g).use_hands is False for g in ("c0", "c1", "c2", "c3"))
+    card(rt, "c1").hand = "Green"                      # TTS reports one of them in the hand anyway
+    card(rt, "c1").pos.x = 30.0
+    for timer in list(rt.globals().TIMERS.values()):
+        timer()
+    assert card(rt, "c1").pos.x == -23.0 and card(rt, "c1").hand is None
+
+
+def test_closing_the_row_gives_use_hands_back_and_the_cards_return_to_the_hand(rt):
+    hand_table(rt)
+    rt.execute("HAND_ZONES = {{color = 'Green', cx = 0, cz = 0, hw = 4, hd = 4}}")
+    show(rt)
+    run(rt, lua.resolve_hand_row(["c0", "c1", "c2", "c3"], "Green", identity=BOT_ID, discard="c1",
+                                 spot=(15.0, 2.0, -14.0), rot_y=90.0))
+    assert card(rt, "c0").use_hands is True and card(rt, "c0").hand == "Green"
+    assert card(rt, "c1").hand is None
+
+
+def test_force_exit_gives_use_hands_back_to_the_row_cards(rig, monkeypatch):
+    session, table, game = rig
+    start(session, table, game)
+    press(session, table, Event.LOOK)
+    monkeypatch.setattr(table, "do_resolve_hand_row", lambda s: {"__error__": "TTS roto"})
+    press(session, table, Event.CANCEL)
+    press(session, table, Event.CANCEL)
+    assert session.look is None
+    assert getattr(table, "use_hands_restored", 0) == 1
+
+
+def test_resolve_restores_use_hands_on_its_early_returns_and_a_late_timer_does_not_throw_a_returned_card_back(rt):
+    hand_table(rt)
+    rt.execute("HAND_ZONES = {{color = 'Green', cx = 0, cz = 0, hw = 4, hd = 4}}")
+    show(rt)
+    row = ["c0", "c1", "c2", "c3"]
+    miss = run(rt, lua.resolve_hand_row(row, "Green", identity=BOT_ID, discard="nope99"))
+    assert miss["discarded"] is False and all(card(rt, g).use_hands is True for g in row)
+    none = run(rt, lua.resolve_hand_row(row, "Green", identity=BOT_ID, face_down=True))
+    assert none["down"] == 0 and all(card(rt, g).use_hands is True for g in row)
+    run(rt, lua.resolve_hand_row(row, "Green", identity=BOT_ID))
+    for timer in list(rt.globals().TIMERS.values()):
+        timer()
+    assert all(card(rt, g).pos.x == 0 and card(rt, g).hand == "Green" for g in row)
+
+
+def test_restore_use_hands_script_gives_it_back(rt):
+    hand_table(rt)
+    show(rt)
+    assert card(rt, "c0").use_hands is False
+    assert run(rt, lua.restore_use_hands(["c0", "c1", "gone"]))["restored"] == 2
+    assert card(rt, "c0").use_hands is True and card(rt, "c2").use_hands is False

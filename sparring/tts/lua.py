@@ -483,7 +483,8 @@ def show_hand_row(card_ids: list[int], spots: list[tuple[float, float, float]], 
     """Saca de la mano del asiento las cartas con esos CardID y las pone boca arriba, cada una en su sitio (`spots[i]`
     para `card_ids[i]`): la mano del bot a la vista de su rival (efectos de mirar la mano). INSTANTANEO (setRotation y
     setPosition: un movimiento suave no saca una carta de una zona de mano). Solo cuenta una carta del bando (`id_range`
-    e imagen de `identity`). Anota en el panel la fila mostrada (`lookRow`) para el ping. Devuelve `{shown: [{id, guid}]}`."""
+    e imagen de `identity`). Each card gets `use_hands = false` so a hand zone under the row cannot swallow it back, and a
+    check 0.6 s later re-places any card still reported in the hand (`resolve_hand_row` gives `use_hands` back). Anota en el panel la fila mostrada (`lookRow`) para el ping. Devuelve `{shown: [{id, guid}]}`."""
     if not isinstance(card_ids, (list, tuple)) or not isinstance(spots, (list, tuple)) or len(card_ids) != len(spots)             or not 1 <= len(card_ids) <= MAX_LOOK_CARDS:
         raise TypeError(f"entre 1 y {MAX_LOOK_CARDS} CardID y otros tantos sitios esperados")
     rows = []
@@ -494,20 +495,34 @@ def show_hand_row(card_ids: list[int], spots: list[tuple[float, float, float]], 
     own = _ours_lua(identity, id_range)
     return f"""-- sparring:show_hand_row
 {own}local wanted = {{{", ".join(rows)}}}
-local shown, entries = {{}}, {{}}
+local shown, entries, moved = {{}}, {{}}, {{}}
 for _, o in ipairs(Player[{_color(seat_color)}].getHandObjects(1)) do
   if o.type == "Card" and not o.held_by_color then
     local data = o.getData()
     local at = wanted[data.CardID]
     if at ~= nil and cardOurs(data, data.CustomDeck) then
+      o.use_hands = false
       o.setRotation(Vector(0, {_f(rot_y)}, 0))
       o.setPosition(Vector(at[1], at[2], at[3]))
+      table.insert(moved, {{o = o, at = at}})
       table.insert(shown, {{id = data.CardID, guid = o.getGUID()}})
       table.insert(entries, o.getGUID() .. "|" .. tostring(at[1]) .. "|" .. tostring(at[3]))
       wanted[data.CardID] = nil
     end
   end
 end
+Wait.time(function()
+  pcall(function()
+    local inHand = {{}}
+    for _, h in ipairs(Player[{_color(seat_color)}].getHandObjects(1)) do inHand[h.getGUID()] = true end
+    for _, m in ipairs(moved) do
+      if m.o.use_hands == false and inHand[m.o.getGUID()] then
+        m.o.setRotation(Vector(0, {_f(rot_y)}, 0))
+        m.o.setPosition(Vector(m.at[1], m.at[2], m.at[3]))
+      end
+    end
+  end)
+end, 0.6)
 {_panel_var_lua('table.concat(entries, ",")')}return JSON.encode({{shown = shown}})
 """
 
@@ -558,6 +573,7 @@ for _, g in ipairs({_guid_list(guids)}) do
   local o = getObjectFromGUID(g)
   if o ~= nil and o.type == "Card" and ours(o) then table.insert(objs, o) end
 end
+for _, o in ipairs(objs) do o.use_hands = true end
 local pick = {pick}
 local chosen, down = nil, 0
 for _, o in ipairs(objs) do
@@ -587,6 +603,25 @@ for _, o in ipairs(objs) do
   end
 end
 {_panel_var_lua('""')}return JSON.encode({{discarded = discarded, returned = returned, found = #objs, down = down}})
+"""
+
+
+@_registered
+def restore_use_hands(guids: list[str]) -> str:
+    """Gives `use_hands` back to the cards of a shown row (`show_hand_row` turned it off), for the exits that do not go
+    through `resolve_hand_row`; without it TTS would not take the cards back into the hand zone."""
+    if not isinstance(guids, (list, tuple)) or not 1 <= len(guids) <= MAX_LOOK_CARDS:
+        raise TypeError(f"between 1 and {MAX_LOOK_CARDS} GUIDs expected")
+    return f"""-- sparring:restore_use_hands
+local restored = 0
+for _, g in ipairs({_guid_list(guids)}) do
+  local o = getObjectFromGUID(g)
+  if o ~= nil and o.type == "Card" and not o.held_by_color then
+    o.use_hands = true
+    restored = restored + 1
+  end
+end
+return JSON.encode({{restored = restored}})
 """
 
 
