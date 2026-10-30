@@ -67,6 +67,8 @@ MAX_ENEMY_STEPS = 9
 TOP_FIRST = 6
 TOP_FIRST_DESPERATE = 14   # cuando cada accion cuenta se mira mas ancho antes de comprometerse
 TOP_SECOND = 4
+APPROACH_PULL = 0.1        # position value lost per space between a non-Medusa hero and the nearest rival
+APPROACH_TOP = 3           # extra first actions that walk into reach of a rival (non-Medusa heroes)
 DEATH = 120.0           # perder la partida (mas que LETHAL, que se pondera por probabilidad)
 DECK_SCARCITY = {0: 3.0, 1: 1.8, 2: 1.0, 3: 0.5, 4: 0.25}   # coste de quedarse con pocos robos que pagar
 DESPERATE_FEAR_DROP = 0.8   # con desesperacion total la huida pesa un 20 %
@@ -244,7 +246,9 @@ class MedusaAI(Controller):
     # ---------- planificacion ----------
     def plan(self, game: Game) -> Act:
         model = Model(game, self.me)
-        firsts = self.candidates(game, model)[:TOP_FIRST_DESPERATE if self.desperation(game) >= 0.3 else TOP_FIRST]
+        ranked = self.candidates(game, model)
+        width = TOP_FIRST_DESPERATE if self.desperation(game) >= 0.3 else TOP_FIRST
+        firsts = ranked[:width] + self.approach_acts(game, ranked[width:])
         if game.actions_left < 2:
             return firsts[0]
         best, best_v = None, None
@@ -255,6 +259,19 @@ class MedusaAI(Controller):
             if best_v is None or total > best_v + 1e-9:
                 best, best_v = a1, total
         return best
+
+    def approach_acts(self, game: Game, rest: list[Act]) -> list[Act]:
+        """Maneuvers outside the top acts that end in reach of a rival when none is in reach now and the hand has an
+        attack: their worth is the attack the second action makes of them, which the one-step ranking cannot see
+        (a hero with fear of the rival's hits would otherwise stand still and draw until the hand overflows)."""
+        hero = game.hero(self.me)
+        if hero.name == "Medusa" or any(game.can_attack(hero, e) for e in game.foes(self.me)):
+            return []
+        if not any(c.can_attack and c.usable_by(hero.name) for c in game.players[self.me].hand):
+            return []
+        board, foes = game.board, game.foes(self.me)
+        return [a for a in rest if a.kind == "maneuver" and hero.fid in a.moves
+                and any(board.can_reach_target(a.moves[hero.fid], e.pos, hero.ranged) for e in foes)][:APPROACH_TOP]
 
     def candidates(self, game: Game, model: Model) -> list[Act]:
         """Acciones legales ordenadas por valor propio + valor de la posicion que dejan. Pasar no existe: una maniobra sin mover roba igual."""
@@ -577,6 +594,8 @@ class MedusaAI(Controller):
                 score += PRESSURE
             if despair > 0 and e.hero and board.can_reach_target(pos[medusa.fid], pos[e.fid], medusa.ranged):
                 score += despair * WIN_PRIZE * PROGRESS_DISCOUNT * self.win_progress(game, model, medusa, e)
+        if medusa.name != "Medusa" and foes:     # a fighter that fears the rival's blows still has to close in to hit back
+            score -= APPROACH_PULL * min(board.distance(pos[medusa.fid], pos[e.fid]) for e in foes)
         for h in mine:
             if not h.hero and foes:
                 score -= 0.05 * min(board.distance(pos[h.fid], pos[e.fid]) for e in foes)

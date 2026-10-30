@@ -237,6 +237,10 @@ class Table:
         return {g: {"found": True, "type": "Custom_Token", "name": "", "rot_x": 0.0, "rot_y": 0.0, "rot_z": 180.0}
                 for g in guids}
 
+    def do_hold(self, s):
+        self.holds = getattr(self, "holds", []) + [float(re.search(r"math.max\(holdFor or 0, ([\d.]+)\)", s).group(1))]
+        return {"held": self.holds[-1]}
+
     def do_broadcast(self, s):
         self.broadcasts.append(re.search(r'broadcastToAll\("(.*?)"', s).group(1))
         self.broadcast_colors.append(tuple(float(v) for v in re.search(r"\{([\d.]+), ([\d.]+), ([\d.]+)\}\)", s).groups()))
@@ -380,6 +384,11 @@ class Table:
                 self.bot_play.remove(i)
                 self._flying.add(i)
                 self._later(lambda: (self._flying.discard(i), self.bot_hand.append(i)))
+            self.returned.append(guid)
+            return {"returned": guid}
+        if i in self.bot_discard:                   # a card lying face up on the discard (Wildfire's burning card)
+            self.bot_discard.remove(i)
+            self._later(lambda: self.bot_hand.append(i))
             self.returned.append(guid)
             return {"returned": guid}
         return {"returned": False}
