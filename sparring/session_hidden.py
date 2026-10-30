@@ -68,7 +68,105 @@ def after_step(session) -> None:
     session.reveal_bot_hand = False
     if session.look is not None or session.game.winner is not None:
         return
+    if (req := manual_request(session)) is not None:
+        manual_start(session, req)
+        return
     show_row(session, bot_hand_request(session))
+
+
+# ---------------------------------------------------------------- look at the bot's hand and make it discard (manual)
+# Confront Any Demon or God and every card shaped "look at the opponent's hand and choose N cards for them to
+# discard". The human does it on the table himself (Ivan, 30/10); the bot only validates the result at "Hecho".
+
+HECHO = "Hecho"
+
+
+def manual_request(session) -> ChoiceRequest | None:
+    """The pending pick when it is a discard from the bot's hand (a look-and-discard card)."""
+    req = bot_hand_request(session)
+    return req if req is not None and req.extra.get("purpose") == "discard" else None
+
+
+def manual_start(session, req: ChoiceRequest) -> None:
+    n = req.max
+    session.say("Has perdido el combate con una carta que te deja mirar la mano del bot y elegir "
+                f"{n} carta{'s' if n != 1 else ''} para que la descarte. Sacala tu de la zona de mano verde "
+                "(Green) para verla; pon la carta elegida boca arriba en el descarte del bot, devuelve el resto a su "
+                "mano y pulsa Hecho.", ChatKind.YOUR_TURN)
+
+
+def manual_status(session) -> str:
+    return "Descarta 1 carta del bot a mano, devuelve el resto y pulsa Hecho"
+
+
+def manual_view(session) -> tuple[dict, dict]:
+    """The choice slots while the human acts on the table: a single Hecho button."""
+    from .session_choices import CHOICE_IDS
+    states = {ident: (False, False) for ident in CHOICE_IDS}
+    states[CHOICE_IDS[0]] = (True, True)
+    return states, {CHOICE_IDS[0]: HECHO}
+
+
+def _titles(session, ids) -> str:
+    from .session_choices import card_titles
+    return card_titles(session.game, sorted(ids))
+
+
+def manual_verdict(session) -> tuple[int | None, str | None]:
+    """(CardID, None) when the table shows exactly the one allowed discard, else (None, what is wrong). Reads the
+    snapshot only: the engine's hand and pile are the baseline (the bot's own writes of this step are already there)."""
+    from collections import Counter
+    st = session.game.players[session.bot]
+    own = {c.card_id for c in st.full_set}
+    expected_hand = Counter(c.card_id for c in st.hand)
+    expected_pile = Counter(c.card_id for c in st.discard)
+    table_hand = Counter(session._table_hand_ids())
+    table_pile = Counter(r["id"] for r in session._rd_bot_discard())
+    new_pile = table_pile - expected_pile
+    out_of_hand = expected_hand - table_hand
+    foreign = [i for i in new_pile if i not in own]
+    if foreign:
+        return None, ("Esa carta no es de la mano del bot: hay en su descarte una carta que no es suya "
+                      f"({_titles(session, foreign)}). Quitala y pulsa Hecho.")
+    extra_in_hand = table_hand - expected_hand
+    if extra_in_hand:
+        return None, ("Hay en la mano del bot cartas que no le tocan: " + _titles(session, extra_in_hand.elements())
+                      + ". Quitalas y pulsa Hecho.")
+    n = sum(new_pile.values())
+    if n > 1:
+        return None, (f"Has descartado {n} cartas; solo puedes 1 ({_titles(session, new_pile.elements())}). "
+                      "Devuelve las que sobran y pulsa Hecho.")
+    missing = out_of_hand - new_pile
+    if missing:
+        return None, ("Faltan cartas en la mano del bot: devuelve " + _titles(session, missing.elements())
+                      + " a su mano (zona Green) y pulsa Hecho.")
+    if n == 0:
+        return None, "Todavia no has descartado ninguna carta: pon la elegida boca arriba en el descarte del bot y pulsa Hecho."
+    unseen = new_pile - out_of_hand
+    if unseen:
+        return None, (f"{_titles(session, unseen.elements())} esta en el descarte pero no estaba en la mano del bot: "
+                      "quitala y pulsa Hecho.")
+    return next(iter(new_pile)), None
+
+
+def manual_done(session, paused) -> None:
+    """Hecho: validate; only a valid table reaches the engine. A wrong one changes nothing and says why."""
+    cid, why = manual_verdict(session)
+    if cid is None:
+        session.say(why, ChatKind.WARNING)
+        return
+    st = session.game.players[session.bot]
+    card = next(c for c in st.full_set if c.card_id == cid)
+    guid = next((r.get("guid") for r in session._rd_bot_discard() if r["id"] == cid), None)
+    session.bot_discarded.add(cid)               # the card is already on the pile: the reconciliation must not move it
+    session.fx_in_flight.add(cid)
+    session.say(f"El bot descarta {card.title} (la que has elegido).", ChatKind.SCHEME)
+    session._answer_choice(paused, [cid])
+    if manual_request(session) is None and card not in st.discard:   # answered, and the engine kept it (Wildfire returns a burning card): back to the hand
+        session.bot_discarded.discard(cid)
+        if guid:
+            session._w(lua.return_card_to_hand(guid, session.cfg.bot_seat), "cards")
+        session.say(f"El bot se queda {card.title} (Wildfire la devuelve a su mano).", ChatKind.SCHEME)
 
 
 def show_row(session, req: ChoiceRequest | None) -> None:

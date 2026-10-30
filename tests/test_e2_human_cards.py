@@ -756,9 +756,12 @@ def test_confront_lost_asks_the_bots_card_once_at_the_panel_and_grants_no_look_b
     assert req.kind == "cards" and req.extra["of"] == 0 and set(req.options) <= {c.card_id for c in game.players[0].hand}
     assert not session.look_granted and session.panel_view()[1]["btn_look"] == (False, False)
     pick = req.options[0]
-    msgs = press(session, table, pick)
+    assert session.panel_labels() == {"btn_choice_1": "Hecho"}  # look-and-discard: you act on the table, then Hecho
+    table.bot_hand.remove(pick)
+    table.bot_discard.append(pick)
+    msgs = click(session, table, Event.CHOICE, {"i": 1})
     assert session.pending is None and pick in [c.card_id for c in game.players[0].discard]
-    assert len(game.players[0].discard) == 2                    # the defense and the one you named (the row, E3)
+    assert len(game.players[0].discard) == 2                    # the defense and the one you put on the pile
     assert not session.look_granted and session.panel_view()[1]["btn_look"] == (False, False)
     assert any(m.startswith("Tu carta: Confront Any Demon or God: robas 1; el bot descarta") or
                m.startswith("Tu carta: Confront Any Demon or God: robas 1; descarta") for m in msgs), msgs

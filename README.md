@@ -165,6 +165,19 @@ Para cartas como Confront Any Demon or God (mira la mano del rival y descarta un
 
 El bot NO aprende nada de la mano del humano (la que se revela es la suya; no se lee ni se cuenta la tuya). La fila se guarda en `sesion.json` (`look`) y con `--resume` el bot vuelve a anotarla en el panel. El arranque avisa si la fila pisa el panel, una caja de combate o una zona de descarte. Si el ping no responde en tu mesa, calibra `look_spot`/`look_step`.
 
+### Look at the bot's hand and make it discard: you do it on the table (30/10; FakeTTS and lupa only)
+
+Applies to Hellboy's Confront Any Demon or God (lost combat) and any card whose `look_hand` is followed by a `discard` chosen by the human from the bot's hand (`purpose: discard`). The bot no longer lays its hand out in a row for these: Advanced Psychometry (reveal) and Every Possible Angle (card to the deck) still use the row above.
+
+1. Chat (Spanish) explains the effect; the panel shows a single **Hecho** button. You take the cards out of Green's hand zone yourself, put the chosen one face up on the bot's discard, return the rest to Green's hand and press Hecho.
+2. On Hecho the bot validates the snapshot against the engine (hand and pile as the baseline): exactly one bot card moved, from its hand to its discard; no foreign card in either place; nothing else missing or lying around. Valid: the engine discards that card (known-hand bookkeeping included) and the chat says which; Liz's Wildfire returns a burning card to her hand (`return_card_to_hand`). Not valid: no state change, a chat line says what is wrong ("Has descartado 2 cartas; solo puedes 1", "Faltan cartas en la mano del bot: devuelve X", "Esa carta no es de la mano del bot") and it waits for another Hecho. The bot never moves your choice or your cards.
+3. Limit: the bot's pile is read by CardID, so "identity" of a card is the CardID in the bot's deck range, not the image.
+4. The row scripts now turn `use_hands` off on the shown cards and re-place any card still in a hand zone 0.6 s later (a hand zone under the row could swallow them back); `resolve_hand_row` gives `use_hands` back.
+
+### Revelar turns both combat cards (30/10)
+
+When the combat stops at a decision of the human's card effect, the two combat cards are now flipped in that same message (batch mode); before, they were only flipped when the combat finished.
+
 ## Bridge: allowlist
 
 `TTSClient` solo envia Lua generado por los constructores de `tts/lua.py` (cada uno registra el hash de su script); cualquier otra cadena se rechaza. Solo salen los messageID 2 y 3.

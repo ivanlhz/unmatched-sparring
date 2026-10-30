@@ -23,7 +23,7 @@ function mkobj(o)
   o.getGMNotes = function() return o.gm end
   o.setGMNotes = function(n) o.gm = n end
   o.getPosition = function() return vec(o.pos.x, o.pos.y, o.pos.z) end
-  o.setPosition = function(p) o.pos = Vector(p); MOVES = (MOVES or 0) + 1; o.moved_count = (o.moved_count or 0) + 1 end
+  o.setPosition = function(p) o.pos = Vector(p); if HAND_ZONES then o.hand = nil; if o.use_hands ~= false then for _, z in ipairs(HAND_ZONES) do if math.abs(o.pos.x - z.cx) <= z.hw and math.abs(o.pos.z - z.cz) <= z.hd then o.hand = z.color end end end end; MOVES = (MOVES or 0) + 1; o.moved_count = (o.moved_count or 0) + 1 end
   o.setPositionSmooth = function(p) o.pos = Vector(p); o.moved_count = (o.moved_count or 0) + 1; if o.never_rests then o.resting = false end end
   o.setRotation = function(r) o.rot = r end
   o.setRotationSmooth = function(r) o.rot = r end

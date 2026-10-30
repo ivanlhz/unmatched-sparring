@@ -124,46 +124,6 @@ def scripts_of(table, tag):
 
 # ---------------------------------------------------------------- Confront Any Demon or God by the human
 
-@with_rig("baba-yaga", "hellboy", BABA_HAND)
-def test_confront_lost_shows_the_bot_hand_pinged_and_a_ping_discards_that_card(rig, monkeypatch):
-    session, table, game, fake, cfg = rig
-    defend_with(session, game, monkeypatch, "Exploit")                      # 3 vs 4: the human loses
-    human_hand(table, game, "Service Pistol", "Excalibur", "Glimpse Of Hell", "Confront Any Demon or God")
-    attack(session, table, game, "hellboy", "baba", "Confront Any Demon or God")
-    n, shown = fake.lua_messages, len(scripts_of(table, "show_hand_row"))
-    msgs = click(session, table, Event.REVEAL)
-    assert fake.lua_messages - n <= 3, "the row rides the reveal's script"
-    bot_hand = sorted(c.card_id for c in game.players[0].hand)
-    assert session.look is not None and session.look["mode"] == "pick" and sorted(row_ids(session)) == bot_hand
-    assert sorted(table.look_row) == bot_hand and table.bot_hand == [] and table.point_pings == [len(bot_hand)]
-    assert len(scripts_of(table, "show_hand_row")) == shown + 1
-    req = hidden.bot_hand_request(session)
-    assert req is not None and sorted(req.options) == bot_hand
-    assert said(msgs, "El bot pone su mano boca arriba (5 cartas) y hace ping: elige una con ping (Tab)")
-    assert said(msgs, "1) ") and "Exploit" not in "\n".join(m for m in msgs if m.startswith(("1)", "2)", "3)", "4)", "5)")))
-    labels = session.panel_labels()
-    titles = {c.title for c in game.players[0].hand}
-    assert set(labels.values()) <= titles and len(labels) == 5
-    assert human_reads(table) == [] and not session.look_granted
-    assert "btn_look" in session.panel_view()[1] and session.panel_view()[1]["btn_look"][1] is False
-    # the ping: the card goes to the bot's discard, the rest back to its hand, the combat closes
-    chosen = row_ids(session)[2]
-    title = next(c.title for c in game.players[0].full_set if c.card_id == chosen)
-    n = fake.lua_messages
-    msgs = click(session, table, Event.LOOK_PING, {"guid": f"g{chosen}"})
-    assert fake.lua_messages - n <= 2
-    assert session.look is None and session.pending is None and session._paused() is None
-    st = game.players[0]
-    assert chosen in [c.card_id for c in st.discard] and chosen not in [c.card_id for c in st.hand]
-    assert chosen in table.bot_discard and sorted(table.bot_hand) == sorted(i for i in bot_hand if i != chosen)
-    assert chosen in session.bot_discarded
-    assert said(msgs, f"El bot descarta {title} y devuelve el resto de su mano")
-    moved = [s for s in scripts_of(table, "discard_cards") if f"[{chosen}]" in s]
-    assert moved == [], "the row closer moved it: the reconciliation never moves it twice"
-    assert human_reads(table) == []
-    click(session, table, Event.END_ACTION)
-    assert not said(session.messages, "no coincide") and not said(session.messages, "La mesa manda")
-
 
 @with_rig("baba-yaga", "hellboy", BABA_HAND)
 def test_confront_won_shows_nothing_the_condition_is_the_engines(rig, monkeypatch):
@@ -176,156 +136,154 @@ def test_confront_won_shows_nothing_the_condition_is_the_engines(rig, monkeypatc
     assert not said(msgs, "boca arriba") and not session.look_granted and human_reads(table) == []
 
 
-@with_rig("baba-yaga", "hellboy", BABA_HAND)
-def test_the_card_button_picks_like_a_ping(rig, monkeypatch):
-    session, table, game, fake, cfg = rig
-    defend_with(session, game, monkeypatch, "Exploit")
-    human_hand(table, game, "Service Pistol", "Confront Any Demon or God")
-    attack(session, table, game, "hellboy", "baba", "Confront Any Demon or God")
-    click(session, table, Event.REVEAL)
-    slots = layout(game, hidden.bot_hand_request(session), session.choice_ui)
-    chosen = slots[1].value
-    msgs = click(session, table, Event.CHOICE, {"i": 2})
-    assert session.look is None and chosen in table.bot_discard and chosen in [c.card_id for c in game.players[0].discard]
-    assert said(msgs, "El bot descarta")
-
-
-@with_rig("baba-yaga", "hellboy", BABA_HAND)
-def test_other_buttons_are_refused_while_the_row_waits_and_the_row_survives(rig, monkeypatch):
-    session, table, game, fake, cfg = rig
-    defend_with(session, game, monkeypatch, "Exploit")
-    human_hand(table, game, "Service Pistol", "Confront Any Demon or God")
-    attack(session, table, game, "hellboy", "baba", "Confront Any Demon or God")
-    click(session, table, Event.REVEAL)
-    for event in (Event.END_ACTION, Event.CANCEL, Event.MANEUVER):
-        msgs = click(session, table, event)
-        assert session.look is not None and session._paused() is not None, event
-    assert "Tab sobre la carta que eliges" in session.panel_view()[0]
-
-
-@with_rig("baba-yaga", "hellboy", BABA_HAND)
-def test_a_partial_row_keeps_its_mode_a_ping_still_answers_and_a_hand_card_is_picked_by_button(rig, monkeypatch):
-    """The table took out all but one card (`shown` is partial): the row stays an E3 pick (never E1's discard-by-
-    ping), the ping on a shown card closes it through the engine, and the card left in the hand can still be
-    picked by its button, reaching the pile through the reconciliation."""
-    session, table, game, fake, cfg = rig
-    defend_with(session, game, monkeypatch, "Exploit")
-    human_hand(table, game, "Service Pistol", "Confront Any Demon or God")
-    attack(session, table, game, "hellboy", "baba", "Confront Any Demon or God")
-    refused = card_ids(game, 0, "Iron Teeth")[0]
-    table.look_refuse = {refused}
-    msgs = click(session, table, Event.REVEAL)
-    assert session.look is not None and session.look["mode"] == "pick" and session.look.get("purpose") == "discard"
-    assert refused not in row_ids(session) and len(row_ids(session)) == 4 and refused in table.bot_hand
-    assert said(msgs, "Solo he podido sacar 4 de 5 cartas")
-    assert refused in hidden.bot_hand_request(session).options, "the button of the card left in the hand still works"
-    saved = json.loads(json.dumps(session.to_dict()))
-    assert saved["look"]["mode"] == "pick" and saved["look"]["purpose"] == "discard"
-    # the ping on a shown card: E3's close, not E1's discard (the engine's request is the one that discards)
-    discards0 = len(game.players[0].discard)
-    chosen = row_ids(session)[0]
-    msgs = click(session, table, Event.LOOK_PING, {"guid": f"g{chosen}"})
-    assert len(game.players[0].discard) == discards0 + 2, "Exploit (the defense) and the chosen card, once each"
-    assert chosen in table.bot_discard and session.look is None and session.pending is None
-    assert said(msgs, "El bot descarta")
-
-
-@with_rig("baba-yaga", "hellboy", BABA_HAND)
-def test_a_card_left_in_the_hand_by_a_partial_row_is_discarded_by_its_button_through_the_reconciliation(rig, monkeypatch):
-    session, table, game, fake, cfg = rig
-    defend_with(session, game, monkeypatch, "Exploit")
-    human_hand(table, game, "Service Pistol", "Confront Any Demon or God")
-    attack(session, table, game, "hellboy", "baba", "Confront Any Demon or God")
-    refused = card_ids(game, 0, "Iron Teeth")[0]
-    table.look_refuse = {refused}
-    click(session, table, Event.REVEAL)
-    slots = layout(game, hidden.bot_hand_request(session), session.choice_ui)
-    i = next(k for k, s in enumerate(slots, 1) if s.value == refused)
-    msgs = click(session, table, Event.CHOICE, {"i": i})
-    assert said(msgs, "El bot descarta Iron Teeth (seguia en su mano) y recoge su mano")
-    assert session.look is None and refused in [c.card_id for c in game.players[0].discard]
-    assert refused in table.bot_discard and refused not in table.bot_hand, "moved from the hand by the reconciliation"
-    assert sorted(table.bot_hand) == sorted(c.card_id for c in game.players[0].hand)
-    assert not said(msgs, "no coincide") and not said(msgs, "La mesa manda")
-
-
-@with_rig("baba-yaga", "hellboy", BABA_HAND)
-def test_when_no_card_comes_out_the_row_is_dropped_and_the_buttons_remain(rig, monkeypatch):
-    session, table, game, fake, cfg = rig
-    defend_with(session, game, monkeypatch, "Exploit")
-    human_hand(table, game, "Service Pistol", "Confront Any Demon or God")
-    attack(session, table, game, "hellboy", "baba", "Confront Any Demon or God")
-    table.look_refuse = set(c.card_id for c in game.players[0].full_set)
-    msgs = click(session, table, Event.REVEAL)
-    assert session.look is None and session._paused() is not None
-    assert said(msgs, "No he podido poner la mano del bot en la mesa: sus cartas estan en el chat, elige con los botones del panel")
-    assert not said(msgs, "Mirar mano del bot") and visible_choices(session)
-    msgs = click(session, table, Event.CHOICE, {"i": 1})
-    assert session.pending is None and said(msgs, "El bot descarta") and not said(msgs, "no coincide")
-
-
 @with_rig("liz-sherman", "hellboy", ("Evade", "Fireball", "Feint", "Rekindle", "Pyrotechnics"))
-def test_a_burning_card_the_human_makes_liz_discard_comes_back_and_the_chat_names_wildfire(rig, monkeypatch):
+def test_confront_against_liz_lost_lays_the_hand_out_and_won_only_draws(rig, monkeypatch):
+    """The live case (30/10): Hellboy's Confront against bot Liz. Lost: the hand is laid out face up, nothing is in
+    the discard until the pick; won: no row, no discard."""
     session, table, game, fake, cfg = rig
-    defend_with(session, game, monkeypatch, "Evade")
-    fireball = card_ids(game, 0, "Fireball", "Fireball")[1]
-    table.bot_deck.remove(fireball)
-    table.bot_deck.insert(0, fireball)
+    defend_with(session, game, monkeypatch, "Feint")
     human_hand(table, game, "Service Pistol", "Confront Any Demon or God")
-    attack(session, table, game, "hellboy", "liz", "Confront Any Demon or God")
-    click(session, table, Event.REVEAL)
-    assert fireball in row_ids(session)
-    msgs = click(session, table, Event.LOOK_PING, {"guid": f"g{fireball}"})
-    assert said(msgs, "El bot se queda Fireball (Wildfire la devuelve) y recoge su mano")
-    assert fireball in [c.card_id for c in game.players[0].hand] and fireball in table.bot_hand
-    assert fireball not in table.bot_discard and session.look is None
+    attack(session, table, game, "hellboy", "liz", "Confront Any Demon or God", value=6)     # a big value: won
+    msgs = click(session, table, Event.REVEAL)
+    assert session.look is None and not getattr(table, "look_row", []) and not said(msgs, "boca arriba")
 
 
-@with_rig("liz-sherman", "hellboy", ("Evade", "Fireball", "Feint", "Rekindle", "Pyrotechnics"))
-def test_a_card_the_bot_drew_in_the_same_combat_is_in_the_row_and_can_be_picked(rig, monkeypatch):
-    """Evade (defense 3) draws 1 before Confront's AFTER runs: the request was built on a placeholder, the table
-    dealt the real card in the same step; the row shows the real hand and the pick works on it."""
-    session, table, game, fake, cfg = rig
-    defend_with(session, game, monkeypatch, "Evade")                        # 3 vs 3: the human loses
-    feint = card_ids(game, 0, "Feint", "Feint")[1]                          # the card Evade will draw: not burning,
-    table.bot_deck.remove(feint)                                            # so Wildfire does not take it back
-    table.bot_deck.insert(0, feint)
-    human_hand(table, game, "Service Pistol", "Confront Any Demon or God")
-    attack(session, table, game, "hellboy", "liz", "Confront Any Demon or God")
-    old = {c.card_id for c in game.players[0].hand}
-    click(session, table, Event.REVEAL)
-    assert session.look is not None and session.look["mode"] == "pick"
-    req = hidden.bot_hand_request(session)
-    ids = row_ids(session)
-    assert len(ids) == 5 and sorted(req.options) == sorted(ids) == sorted(c.card_id for c in game.players[0].hand)
-    new = [i for i in ids if i not in old]
-    assert new == [feint], "the card Evade drew is on the table and in the options"
-    msgs = click(session, table, Event.LOOK_PING, {"guid": f"g{new[0]}"})
-    assert session.look is None and new[0] in table.bot_discard and new[0] in [c.card_id for c in game.players[0].discard]
-    assert said(msgs, "El bot descarta") and not said(msgs, "no coincide")
+
+# Confront Any Demon or God lost: the human acts on the table himself (Ivan, 30/10) and presses Hecho; the bot
+# validates the table and only then lets the engine discard the card.
+
+LIZ_HAND = ("Evade", "Fireball", "Feint", "Rekindle", "Pyrotechnics")
 
 
-# ---------------------------------------------------------------- a save with the row open
+def lost_confront(session, table, game, fake, monkeypatch, defense="Exploit", bot_hand=None):
+    """The human plays Confront against the bot and loses; returns the messages of Revelar."""
+    defend_with(session, game, monkeypatch, defense)
+    human_hand(table, game, "Service Pistol", "Excalibur", "Glimpse Of Hell", "Confront Any Demon or God")
+    attack(session, table, game, "hellboy", "baba" if "baba" in session.game.hero_def(0).slug else "liz",
+           "Confront Any Demon or God")
+    return click(session, table, Event.REVEAL)
+
+
+def pending_pick(session):
+    return hidden.manual_request(session)
+
+
+def hecho(session, table):
+    return click(session, table, Event.CHOICE, {"i": 1})
+
+
+def human_discards(table, *ids):
+    """What the human does on the table: takes the cards out of Green's hand and lays them on the bot's discard."""
+    for i in ids:
+        table.bot_hand.remove(i)
+        table.bot_discard.append(i)
+
 
 @with_rig("baba-yaga", "hellboy", BABA_HAND)
-def test_a_save_taken_with_the_row_open_resumes_and_the_ping_finishes_the_card(rig, monkeypatch):
+def test_confront_lost_does_not_move_the_bots_hand_and_waits_for_hecho(rig, monkeypatch):
     session, table, game, fake, cfg = rig
-    defend_with(session, game, monkeypatch, "Exploit")
-    human_hand(table, game, "Service Pistol", "Confront Any Demon or God")
-    attack(session, table, game, "hellboy", "baba", "Confront Any Demon or God")
-    click(session, table, Event.REVEAL)
+    hand_before = sorted(table.bot_hand)
+    msgs = lost_confront(session, table, game, fake, monkeypatch)
+    assert pending_pick(session) is not None and session.look is None
+    assert not scripts_of(table, "show_hand_row"), "the bot lays nothing out: the human looks at the hand himself"
+    assert sorted(table.bot_hand) == sorted(c.card_id for c in game.players[0].hand) and len(hand_before) == 5
+    assert said(msgs, "Has perdido el combate") and said(msgs, "pulsa Hecho")
+    assert session.panel_labels() == {"btn_choice_1": "Hecho"}
+    states = session.panel_view()[1]
+    assert states["btn_choice_1"] == (True, True) and all(not states[f"btn_choice_{i}"][1] for i in range(2, 7))
+    assert "Hecho" in session.panel_view()[0]
+    assert human_reads(table) == []
+
+
+@with_rig("baba-yaga", "hellboy", BABA_HAND)
+def test_a_valid_table_discards_exactly_that_card_and_closes_the_combat(rig, monkeypatch):
+    session, table, game, fake, cfg = rig
+    lost_confront(session, table, game, fake, monkeypatch)
+    hand = sorted(c.card_id for c in game.players[0].hand)
+    chosen = hand[2]
+    title = next(c.title for c in game.players[0].full_set if c.card_id == chosen)
+    human_discards(table, chosen)
+    n = fake.lua_messages
+    msgs = hecho(session, table)
+    assert fake.lua_messages - n <= 2
+    st = game.players[0]
+    assert pending_pick(session) is None and session.pending is None and session._paused() is None
+    assert chosen in [c.card_id for c in st.discard] and chosen not in [c.card_id for c in st.hand]
+    assert sorted(table.bot_hand) == sorted(i for i in hand if i != chosen) or len(table.bot_hand) == 3
+    assert said(msgs, f"El bot descarta {title}")
+    assert [s for s in scripts_of(table, "discard_cards") if f"[{chosen}]" in s] == [], "the table already had it"
+    assert chosen in session.bot_discarded and table.bot_discard.count(chosen) == 1
+    assert human_reads(table) == []
+    click(session, table, Event.END_ACTION)
+    assert not said(session.messages, "no coincide") and not said(session.messages, "La mesa manda")
+
+
+@with_rig("baba-yaga", "hellboy", BABA_HAND)
+@pytest.mark.parametrize("action, wrong", [
+    ("two", "Has descartado 2 cartas; solo puedes 1"),
+    ("none", "Todavia no has descartado ninguna carta"),
+    ("lost", "Faltan cartas en la mano del bot: devuelve"),
+    ("foreign", "Esa carta no es de la mano del bot"),
+    ("stranger_in_hand", "Hay en la mano del bot cartas que no le tocan"),
+])
+def test_a_wrong_table_changes_nothing_says_what_is_wrong_and_waits_for_a_fix(rig, monkeypatch, action, wrong):
+    session, table, game, fake, cfg = rig
+    lost_confront(session, table, game, fake, monkeypatch)
+    hand = sorted(c.card_id for c in game.players[0].hand)
+    engine_before = ([c.card_id for c in game.players[0].hand], [c.card_id for c in game.players[0].discard])
+    if action == "two":
+        human_discards(table, hand[0], hand[1])
+    elif action == "lost":
+        table.bot_hand.remove(hand[0])                                  # lying somewhere, not on the pile
+    elif action == "foreign":
+        human_discards(table, hand[0])
+        table.bot_discard.append(game.players[1].full_set[0].card_id)
+    elif action == "stranger_in_hand":
+        table.bot_hand.append(game.players[1].full_set[0].card_id)
+    msgs = hecho(session, table)
+    assert said(msgs, wrong), msgs
+    assert pending_pick(session) is not None and session.pending is not None
+    assert ([c.card_id for c in game.players[0].hand], [c.card_id for c in game.players[0].discard]) == engine_before
+    assert not [s for s in scripts_of(table, "return_card_to_hand")], "the bot never moves the human's choice for him"
+    # the human fixes the table and presses Hecho again
+    if action == "two":
+        table.bot_discard.remove(hand[1]); table.bot_hand.append(hand[1])
+    elif action == "lost":
+        table.bot_hand.append(hand[0]); human_discards(table, hand[1])
+    elif action == "foreign":
+        table.bot_discard.pop()
+    elif action == "stranger_in_hand":
+        table.bot_hand.pop(); human_discards(table, hand[1])
+    else:
+        human_discards(table, hand[1])
+    hecho(session, table)
+    assert pending_pick(session) is None and session.pending is None
+
+
+@with_rig("liz-sherman", "hellboy", LIZ_HAND)
+def test_a_burning_card_the_human_discards_goes_back_to_lizs_hand_by_wildfire(rig, monkeypatch):
+    session, table, game, fake, cfg = rig
+    lost_confront(session, table, game, fake, monkeypatch, defense="Evade")
+    hand = [c.card_id for c in game.players[0].hand]
+    fire = next(c for c in game.players[0].hand if c.title == "Fireball")
+    human_discards(table, fire.card_id)
+    msgs = hecho(session, table)
+    assert said(msgs, "El bot se queda Fireball (Wildfire la devuelve")
+    assert fire in game.players[0].hand and fire not in game.players[0].discard
+    assert [s for s in scripts_of(table, "return_card_to_hand") if f"g{fire.card_id}" in s]
+    assert fire.card_id in hand and pending_pick(session) is None
+
+
+@with_rig("baba-yaga", "hellboy", BABA_HAND)
+def test_a_save_taken_while_the_bot_waits_for_hecho_resumes_with_the_same_prompt(rig, monkeypatch):
+    session, table, game, fake, cfg = rig
+    lost_confront(session, table, game, fake, monkeypatch)
     saved = json.loads(json.dumps(session.to_dict()))
-    assert saved["look"]["mode"] == "pick"
     twin = twin_session(session, cfg, saved)
-    assert twin.look == session.look and twin._paused() is not None and hidden.bot_hand_request(twin) is not None
     twin.snap = None
     msgs = twin.resume()
-    assert said(msgs, "La mano del bot sigue a la vista: elige una carta con ping (Tab) o con su boton")
-    chosen = row_ids(twin)[0]
-    msgs = click(twin, table, Event.LOOK_PING, {"guid": f"g{chosen}"})
-    assert twin.look is None and twin.pending is None and chosen in table.bot_discard
-    assert chosen in [c.card_id for c in twin.game.players[0].discard] and said(msgs, "El bot descarta")
-    assert human_reads(table) == []
+    assert pending_pick(twin) is not None and said(msgs, "pulsa Hecho")
+
 
 
 # ---------------------------------------------------------------- Advanced Psychometry: a reveal, if adjacent
@@ -750,3 +708,14 @@ def test_a_hero_outside_the_interpreter_keeps_the_grant_a_button_route(tmp_path)
     finally:
         client.close()
         fake.close()
+
+
+@with_rig("baba-yaga", "hellboy", BABA_HAND)
+def test_revelar_turns_both_combat_cards_face_up_even_when_the_combat_stops_at_a_choice(rig, monkeypatch):
+    """Live (30/10): with the combat paused at the human card effect, a card stayed face down until the end."""
+    session, table, game, fake, cfg = rig
+    n = fake.lua_messages
+    lost_confront(session, table, game, fake, monkeypatch)
+    assert pending_pick(session) is not None and session.pending is not None
+    assert len(table.flips) == 2 and len(set(table.flips)) == 2, table.flips
+    assert not table.unflips and fake.lua_messages - n <= 6
