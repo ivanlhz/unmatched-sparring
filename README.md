@@ -178,6 +178,16 @@ El bot NO aprende nada de la mano del humano (la que se revela es la suya; no se
 - La habilidad de Medusa y "su zona": cualquier luchador que comparta alguna zona con ella.
 - Las Harpias empiezan en las casillas libres mas cercanas a la salida de Medusa (y Lobster a la de Hellboy).
 
+## Bot Liz Sherman: closes in instead of hoarding (30/10; verified in simulation only)
+
+Reported live: bot-Liz spent two turns on manoeuvres at her start space (Hellboy and the Lobster four spaces away), then discarded down to 7. Cause: the heuristic (`ai_medusa`) scores a position by how hard the rival can hit it and only rewards sharing a zone with 0.3, and the planner only looked deeper at the six best one-step acts, so "walk into range, then attack" never made the list; standing still and drawing always won. What changed, for every hero except Medusa (her behaviour is untouched):
+
+- `MedusaAI.approach_acts`: when no rival is in reach and the hand has an attack, up to 3 manoeuvres that end in reach of a rival are added to the first actions the planner evaluates two steps deep (the second action is then the attack).
+- `position_value` gets a small pull (`APPROACH_PULL`, 0.1 per space) towards the nearest rival, so a far-away hero advances instead of idling. It also drives the Wildfire "move up to 2" choice.
+- `tools/bot_play_metrics.py` measures bot play (attacks, idle turns, end-of-turn discards, win rate); `--hold` makes the scripted Hellboy never approach, like a player who keeps his distance.
+
+Liz vs scripted Hellboy, 100 games (60 with `--hold`), before -> after: win rate 95% -> 93% (rival chases), 18% -> 93% (rival holds); attacks per game 2.3 -> 6.6 (holding); idle turns per game 8.9 -> 3.3 (holding); cards discarded at end of turn per game 6.55 -> 1.32 (holding), 0.47 -> 0.18 (chasing). Regression test: `tests/test_liz_bot_play.py` (the reported position).
+
 ## Revision 9 y partida 5
 
 - **Identidad de los mazos**: el CardID no identifica un mazo (en el guardado real 12 juegos comparten el DeckID 176). Al empezar, `lua.deck_identities` lee del objeto del mazo el FaceURL/BackURL de su CustomDeck (`Session.load_identities`, un mensaje) y `deal_cards`, `discard_cards`, `reset_deck`, `shuffle_deck` y `return_hand_to_deck` solo tocan cartas con CardID en rango Y esas imagenes; de un Deck se exige que lo sean TODAS sus cartas (salvo `discard_cards`, que saca solo la carta propia). `discard_cards` y `reset_deck` buscan solo en un `lua.Scope` (las dos manos, las dos zonas de descarte y el entorno de los puntos de combate y del mazo), nunca en la mesa entera.
