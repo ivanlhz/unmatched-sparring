@@ -103,7 +103,7 @@ def test_an_unwritable_log_never_breaks_the_game(brig, tmp_path, capsys):
     session.say("y sigue")
     session._done()
     assert "sigue la partida" in session.messages
-    assert capsys.readouterr().err.count("[aviso]") == 1             # one warning, not one per line
+    assert capsys.readouterr().err.count("[warning]") == 1             # one warning, not one per line
 
 
 def test_no_state_file_means_no_log(brig, tmp_path, monkeypatch):
@@ -112,3 +112,18 @@ def test_no_state_file_means_no_log(brig, tmp_path, monkeypatch):
     session.say("hola")
     session._done()
     assert not list(tmp_path.glob("**/*.log"))
+
+
+def test_observe_survives_odd_state_with_and_without_a_path(tmp_path, capsys):
+    game_log.GameLog(None).observe(object(), str)
+    log = game_log.GameLog(tmp_path / "partida.log")
+    log.observe(object(), str)
+    log.observe(object(), str)
+    assert capsys.readouterr().err.count("[warning]") == 1
+    assert not (tmp_path / "partida.log").exists()
+
+
+def test_a_lone_surrogate_in_the_chat_is_harmless(tmp_path):
+    log = game_log.GameLog(tmp_path / "partida.log")
+    log.chat("bad\ud800 text")
+    assert "text" in (tmp_path / "partida.log").read_text(encoding="utf-8")

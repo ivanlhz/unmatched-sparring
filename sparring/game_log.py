@@ -24,26 +24,35 @@ class GameLog:
         self._warned = False
         self._prev: dict | None = None
 
+    def _warn(self, what: str, error: Exception) -> None:
+        if not self._warned:
+            self._warned = True
+            print(f"[warning] game log disabled for this problem ({what}): {error!r}", file=sys.stderr)
+
     def _write(self, text: str) -> None:
         if self.path is None:
             return
         try:
-            with open(self.path, "a", encoding="utf-8") as f:
+            with open(self.path, "a", encoding="utf-8", errors="replace") as f:
                 f.write(text + "\n")
-        except OSError as e:
-            if not self._warned:
-                self._warned = True
-                print(f"[aviso] no pude escribir el registro de la partida {self.path}: {e}", file=sys.stderr)
+        except Exception as e:                       # the log must never break the game
+            self._warn(f"cannot write {self.path}", e)
 
     def line(self, text: str) -> None:
-        stamp = time.strftime("%H:%M:%S", time.localtime(self.clock()))
-        self._write(f"{stamp} {text}")
+        try:
+            stamp = time.strftime("%H:%M:%S", time.localtime(self.clock()))
+            self._write(f"{stamp} {text}")
+        except Exception as e:
+            self._warn("line", e)
 
     def new_game(self, heroes: tuple[str, str]) -> None:
         """Separator header of a fresh game (also after Reiniciar partida)."""
-        when = time.strftime("%Y-%m-%d %H:%M:%S", time.localtime(self.clock()))
         self._prev = None
-        self._write(f"\n==== New game {when} | bot: {heroes[0]} vs human: {heroes[1]} ====")
+        try:
+            when = time.strftime("%Y-%m-%d %H:%M:%S", time.localtime(self.clock()))
+            self._write(f"\n==== New game {when} | bot: {heroes[0]} vs human: {heroes[1]} ====")
+        except Exception as e:
+            self._warn("header", e)
 
     def resumed(self) -> None:
         self._prev = None
@@ -54,15 +63,16 @@ class GameLog:
 
     def observe(self, game, name: Callable) -> None:
         """Logs what changed in `game` since the previous call (the first call only takes the baseline)."""
-        now = snapshot(game)
-        prev, self._prev = self._prev, now
-        if self.path is None or prev is None:
+        if self.path is None:
             return
         try:
-            for text in changes(prev, now, game, name):
-                self.line(text)
-        except Exception as e:                       # a logging bug must not reach the game
-            self._write(f"(log error: {e!r})")
+            now = snapshot(game)
+            prev, self._prev = self._prev, now
+            if prev is not None:
+                for text in changes(prev, now, game, name):
+                    self.line(text)
+        except Exception as e:
+            self._warn("state changes", e)
 
 
 def snapshot(game) -> dict:
