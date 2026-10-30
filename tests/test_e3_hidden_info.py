@@ -376,7 +376,7 @@ def test_remove_a_painful_memory_by_the_human_the_bot_answers_discard_or_take_2(
         assert said(msgs, f"El bot descarta {title} y devuelve el resto de su mano")
     else:
         assert chosen in [c.card_id for c in st.hand] and chosen in table.bot_hand and hb.hp == hp - 2
-        assert said(msgs, f"El bot se queda {title} y recoge su mano")
+        assert said(msgs, f"El bot se queda {title} y Hellboy recibe 2 de dano y recoge su mano")
     assert human_reads(table) == []
 
 

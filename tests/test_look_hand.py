@@ -654,3 +654,15 @@ def test_restore_use_hands_script_gives_it_back(rt):
     assert card(rt, "c0").use_hands is False
     assert run(rt, lua.restore_use_hands(["c0", "c1", "gone"]))["restored"] == 2
     assert card(rt, "c0").use_hands is True and card(rt, "c2").use_hands is False
+
+
+def test_the_card_row_key_reaches_the_session_config_and_a_clash_is_warned_about():
+    cfg = play.load_config(os.path.join(os.path.dirname(os.path.abspath(__file__)), "..", "config", "partida.json"))
+    scfg = cfg.session_config()
+    assert scfg.bot_row_spot == tuple(cfg.raw["bot_row_spot"]) and scfg.bot_row_step == (0.0, 2.6)
+    assert SessionConfig.bot_row_spot == (11.5, 2.5, -29.0)
+    cfg.raw["bot_row_spot"] = [6.0, 2.5, -23.0]
+    assert any("bot_row_spot" in w and "pisa caja ONGOING BOT" in w for w in play.floor_layout_warnings(cfg))
+    cfg.raw["bot_row_spot"] = [1, 2]
+    with pytest.raises(play.ConfigError):
+        cfg.session_config()

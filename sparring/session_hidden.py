@@ -2,7 +2,7 @@
 
 The human's side. When a card of the human lets them look at the bot's hand (the `look_hand` op on the opponent
 inside Confront Any Demon or God, Advanced Psychometry, Every Possible Angle, Remove A Painful Memory), the bot
-puts its hand face up in a row at `look_spot` and pings it (Ivan, 28/10). The look happens exactly when the
+puts its hand face up in a row at `bot_row_spot` (free table beside its combat and ongoing zones) and pings it (Ivan, 28/10). The look happens exactly when the
 interpreter runs the op, so its conditions (Confront only when lost, Psychometry only when adjacent) are the
 engine's, not the panel's: `Game.hand_reader` is the one hook (`note_look`), and the row goes out at the end of
 the same button (`after_step`). If the card then asks the human to pick one of those cards (the PanelChooser
@@ -197,14 +197,15 @@ def show_row(session, req: ChoiceRequest | None) -> None:
                     "Miras la mano del bot, pero no veo sus cartas en la mesa: pidele que las muestre.", ChatKind.WARNING)
         return
     ids = [r["id"] for r in rows]
-    spots = session._look_spots(len(rows))
+    spots = session._look_spots(len(rows), card_row=True)
     if cfg.batch:
         session._expect_hand = (cfg.bot_seat, len(table_hand) - len(rows))
     op = session._w(lua.show_hand_row(ids, spots, session._look_rot(), cfg.bot_seat, identity=session._identity(),
                                       id_range=cfg.bot_card_ids), DOMAIN)
     session._w(lua.ping_points([cfg.bot_seat, cfg.human_seat], spots[:lua.MAX_PING_GROUPS]), "misc")
     session.look = {"ids": ids, "guids": [r["guid"] for r in rows], "spots": [[sp[0], sp[2]] for sp in spots],
-                    "mode": MODE_PICK if req is not None else MODE_REVEAL}
+                    "mode": MODE_PICK if req is not None else MODE_REVEAL,
+                    "hp": {f.fid: f.hp for f in g.own(session.bot, alive_only=False)}}      # what the pick may cost
     if req is not None and isinstance(req.extra.get("purpose"), str):
         session.look["purpose"] = req.extra["purpose"]      # "discard": the pick is discarded (Wildfire may bounce it)
     session.look_fails = 0
@@ -306,10 +307,22 @@ def close_row(session, value: list, ok: bool) -> None:
                     else ": seguia en su mano, ponla tu encima de su mazo; el bot recoge su mano."), ChatKind.SCHEME)
     elif card is not None and look.get("purpose") == "discard" and bounces_back(g, session.bot, card):
         session.say(f"El bot se queda {card.title} (Wildfire la devuelve) y recoge su mano.", ChatKind.SCHEME)
+    elif card is not None and (hits := _hits_taken(g, session.bot, look)):
+        session.say(f"El bot se queda {card.title} y {hits} y recoge su mano.", ChatKind.SCHEME)
+    elif card is not None and bounces_back(g, session.bot, card):
+        session.say(f"El bot descarta {card.title} (Wildfire la devuelve a su mano) y recoge su mano.", ChatKind.SCHEME)
     elif card is not None:
         session.say(f"El bot se queda {card.title} y recoge su mano.", ChatKind.SCHEME)
     else:
         session.say("El bot recoge su mano.", ChatKind.NEUTRAL)
+
+
+def _hits_taken(game, player: int, look: dict) -> str:
+    """'Liz Sherman recibe 2 de dano' for the hit points the bot's fighters lost since the row opened (the pick's
+    price when the bot kept the card), else ''."""
+    lost = [(f.name, before - max(0, f.hp if f.alive else 0)) for f in game.own(player, alive_only=False)
+            if (before := look.get("hp", {}).get(f.fid)) is not None]
+    return " y ".join(f"{name} recibe {n} de dano" for name, n in lost if n > 0)
 
 
 def _row_closed(session, op, card, dest: str, look: dict) -> bool:

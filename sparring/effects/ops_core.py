@@ -415,6 +415,9 @@ def _choice_context(game, run, spec: dict) -> dict:
         ctx["discards"] = [c.card_id for c in card_ref(game, run, ops[0]["cards"])]
     if len(other) == 1 and other[0]["op"] == "damage" and isinstance(other[0].get("amount"), int):
         ctx["else_damage"] = other[0]["amount"]
+        cands, _ = fighter_candidates(game, run, other[0]["target"])
+        if len(cands) == 1:
+            ctx["else_fighter"] = cands[0].fid       # who takes it: the answer's price in hit points
     return ctx
 
 

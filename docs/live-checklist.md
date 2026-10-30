@@ -21,6 +21,7 @@ Con `--read-only` mira el informe y ajusta lo que este mal. Prueba con una carta
 - [ ] `bot_card_spot` / `human_card_spot` (zona de combate, boca abajo) y `off_board_dist` (4.0 es estimacion; compara con las distancias del informe).
 - [ ] `bot_discard_spot` / `bot_discard_bounds` / `bot_discard_step` / `bot_discard_rows`: el descarte del bot queda en rejilla ordenada dentro de la zona 906a7a.
 - [ ] `dead_spot` / `human_dead_spot` (donde se apartan miniaturas caidas, 1.5 en x entre piezas; son estimaciones).
+- [ ] `bot_row_spot` / `bot_row_step` (fila de la mano del bot cuando juegas Remove A Painful Memory, Advanced Psychometry o Every Possible Angle: junto a las zonas de combate y ONGOING del bot, por defecto [11.5, 2.5, -29]; el arranque avisa si pisa algo). Remove A Painful Memory: el bot decide descartar o quedarse la carta y recibir 2 (lo dice en el chat), el dial de Liz baja, y el resto vuelve a su mano.
 - [ ] `look_spot` / `look_step` (fila de la mano del bot a la vista: delante de tu asiento, sin pisar panel, manos, descartes ni cajas de combate; el arranque avisa si pisa algo).
 - [ ] `token_spot` (donde el bot deja las fichas de Intuicion de Abe; sin clave, junto a su mazo).
 - [x] **(E2)** `human_ongoing_spot` / `bot_ongoing_spot`: zona ONGOING debajo de la zona de combate, de ambos bandos. *(OK 29/10)*
@@ -99,7 +100,7 @@ Repite el bloque para cada heroe, **con Ivan jugandolo** (H) y **con el bot juga
 - [ ] Wildfire devuelve una carta que tu Confront le hizo descartar: el chat dice "El bot se queda X (Wildfire la devuelve)".
 
 ### Informacion oculta (cartas que miran la mano del bot, y las del bot sobre ti)
-- [ ] **Fila de la mano del bot**: al jugar Confront Any Demon or God (solo si pierdes), Advanced Psychometry (adyacente), Remove A Painful Memory (con un ONGOING) o Every Possible Angle, el bot pone su mano **boca arriba en fila** en `look_spot` y hace **ping** sobre cada carta (`ping_points`).
+- [ ] **Fila de la mano del bot**: al jugar Confront Any Demon or God (solo si pierdes), Advanced Psychometry (adyacente), Remove A Painful Memory (con un ONGOING) o Every Possible Angle, el bot pone su mano **boca arriba en fila** en `bot_row_spot` (Mirar mano del panel, en `look_spot`) y hace **ping** sobre cada carta (`ping_points`).
 - [ ] La lectura de tu mano ocurre **una sola vez por look** (un mensaje `read_hand`), solo cuando una carta del bot te mira; fuera de eso, no.
 - [ ] **Elegir por ping** (Tab sobre la carta, `onPlayerPing`) **o por boton** del panel (los botones nombran la carta). Esperado: Confront -> a su descarte; el resto vuelve a su mano. Plan B: una carta boca abajo + Fin de accion.
 - [ ] **Every Possible Angle**: la carta elegida va **encima del mazo** del bot (`putObject` sobre el mazo, mismo giro); prueba tambien con el mazo en 1 carta.

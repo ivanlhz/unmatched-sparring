@@ -129,6 +129,8 @@ class SessionConfig:
     human_label: str = "HELLBOY"
     look_spot: tuple[float, float, float] = (-23.0, 2.5, 0.0)   # centro de la fila de la mano del bot a la vista (estimacion: calibrar en vivo)
     look_step: tuple[float, float] = (0.0, 2.6)                 # (dx, dz) entre cartas de la fila
+    bot_row_spot: tuple[float, float, float] = (11.5, 2.5, -29.0)   # centro de la fila de la mano del bot que miran las cartas del humano (junto a sus zonas de combate y ONGOING)
+    bot_row_step: tuple[float, float] = (0.0, 2.6)              # (dx, dz) entre cartas de esa fila
     look_rot_y: float | None = None                              # giro de las cartas de la fila (por defecto, el del descarte del bot)
     token_spot: tuple[float, float, float] | None = None         # where the bot lays its active ability tokens (Abe); default: beside its deck
     bot_ongoing_spot: tuple[float, float, float] | None = None   # ONGOING zone below each combat zone (E2, Ivan): the bot lays its
@@ -3451,8 +3453,10 @@ class Session:
             return "El bot no tiene cartas en la mano."
         return None
 
-    def _look_spots(self, n: int) -> list[tuple[float, float, float]]:
-        (x, y, z), (dx, dz) = self.cfg.look_spot, self.cfg.look_step
+    def _look_spots(self, n: int, card_row: bool = False) -> list[tuple[float, float, float]]:
+        """Row spots: Mirar mano's (`look_spot`), or with `card_row` the one a card of the human opens (`bot_row_spot`)."""
+        cfg = self.cfg
+        (x, y, z), (dx, dz) = (cfg.bot_row_spot, cfg.bot_row_step) if card_row else (cfg.look_spot, cfg.look_step)
         return [(x + (i - (n - 1) / 2) * dx, y, z + (i - (n - 1) / 2) * dz) for i in range(n)]
 
     def _look_rot(self) -> float:

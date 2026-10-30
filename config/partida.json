@@ -11,6 +11,7 @@
     "start_spaces: casillas de salida REALES de la mesa (Medusa en la 30, Hellboy en la 3); no son las del mapa por defecto. bot_discard_bounds: (centro x, centro z, tamano x, tamano z, rotY) de la zona 906a7a leida del guardado (live.json 27/10): la rejilla del descarte solo usa huecos cuyo centro cae dentro y, llena, apila encima desde el primero. panel_position: encima de los tapetes (y 1.0) y de los objetos (~1.57).",
     "dead_spot: donde el bot aparta sus miniaturas caidas (una por pieza, separadas 1.5 en x); es una estimacion, calibrala en vivo. human_dead_spot lo mismo para las del humano.",
     "Preparacion (setup): el bot reparte su mano, decide un mulligan (una vez: las 5 cartas al mazo, se baraja y se reparten 5; regla de la casa o sin confirmar, ver README) y coloca a Medusa y las Harpias segun quien empieza; el humano coloca a Hellboy y Lobster y pulsa Listo. Las casillas de salida salen del reglamento (el primer jugador ocupa la salida 1 del mapa, el segundo la 2) salvo que se fije start_spaces a mano. mulligan_bot=false lo desactiva para el bot; mulligan_human=false desactiva el boton Mulligan del humano.",
+    "Fila de las cartas del humano que miran la mano del bot (Remove A Painful Memory, Advanced Psychometry, Every Possible Angle): bot_row_spot es el CENTRO de la fila donde el bot pone sus cartas boca arriba y bot_row_step el (dx, dz) entre cartas (2.6 en z, cartas giradas 90 grados; look_rot_y tambien la gira). Por defecto [11.5, 2.5, -29.0]: una columna en z -20..-38 con 7 cartas, a la derecha de las cajas de combate (x 4.9..7.1) y ONGOING del bot, pasado el borde -z de su zona de descarte 906a7a (x 10.7..19.3, z -17..18) y antes de las bolsas de heroes (z -40) y del dado (2.1, -30); libre en el guardado del 26/10. El arranque avisa si pisa el panel, una caja de combate/ONGOING o un descarte. Mirar mano (boton del panel) sigue en look_spot.",
     "Mirar la mano del bot (F16, boton del panel): look_spot es el CENTRO de la fila donde el bot pone sus cartas boca arriba (estimacion, calibrala en vivo: delante del asiento del humano, fuera de las manos, los descartes y las zonas de combate; el arranque avisa si pisa el panel o una caja de combate) y look_step el (dx, dz) entre cartas (2.6 en z para cartas giradas 90 grados; hasta 12 cartas). look_rot_y (opcional) gira las cartas; por defecto bot_discard_rot_y.",
     "unpack (opcional, apagado): con --unpack o \"unpack\": true (solo el booleano true) el bot, ANTES de jugar y nunca con --resume, saca de la bolsa interior de cada heroe lo que no este en la mesa (ningun GUID de sus estados; un mazo, ademas, sin ningun Deck o Card de su rango de CardID en toda la mesa) y lo deja en fila desde bot_unpack_spot / human_unpack_spot (por defecto [22,2.5,-10] y [-22,2.5,10.5], fuera de las zonas de mano; cada unpack_step [0,0,3]); el mazo va a su sitio de mazo y se baraja. Si la bolsa interior no esta en la mesa no hace nada y avisa; nunca saca de una bolsa infinita. start_spaces acepta ids de luchador o las claves bot / human."
   ],
@@ -93,6 +94,15 @@
     -23.0,
     2.5,
     0.0
+  ],
+  "bot_row_spot": [
+    11.5,
+    2.5,
+    -29.0
+  ],
+  "bot_row_step": [
+    0.0,
+    2.6
   ],
   "look_step": [
     0.0,

@@ -862,7 +862,7 @@ Decisiones dudosas de la migracion (ver tambien `notes` de cada fichero):
   human's hero in `fx.dsl_heroes`, what E2 switches on; E1's grant-a-button route stays for a hero outside it,
   `_grant_look_for` steps aside otherwise). `Game.hand_reader` is the one hook: asked for the bot's hand it marks
   the step (`note_look`) and, when the button ends (`after_step`, before the composite goes out), the bot's hand
-  goes face up in the row at `look_spot` and is pinged (`ping_points`), in the same script. The card's conditions
+  goes face up in the row at `bot_row_spot` (config; Mirar mano keeps `look_spot`) and is pinged (`ping_points`), in the same script. The card's conditions
   (Confront only when lost, Advanced Psychometry only when adjacent, Remove A Painful Memory's choose only with an
   ONGOING in play) are therefore the engine's, which closes the E1 backlog note.
 - Two row modes, saved in `look["mode"]`: `pick` when the run paused on a `cards` request of the human over the

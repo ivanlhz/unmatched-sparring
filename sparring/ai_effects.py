@@ -338,6 +338,8 @@ class EffectAI:
                 return None
             n = req.extra.get("amount", DEFAULT_BLOW)
             return [self.hp_change(to, to.hp - n, req.player) >= self.hp_change(hit, hit.hp - n, req.player)]
+        if req.extra.get("discards") and req.extra.get("else_fighter") in game.fighters:
+            return [self._discard_or_take(game, req)]
         found = self._locate(game, req)
         if nested or found is None:
             return None
@@ -352,6 +354,17 @@ class EffectAI:
         if yes is None or no is None:
             return [not cost]
         return [yes >= no - 1e-9] if not cost else [yes > no + PAY_MARGIN]
+
+    def _discard_or_take(self, game: Game, req: ChoiceRequest) -> bool:
+        """Remove A Painful Memory's "discard it or take N": the named cards are the bot's own and known, so the
+        price of each answer is exact (the simulation cannot run the damage, which names the combat's opposing
+        fighter). True (discard) when the hit points the damage costs outweigh what the cards are worth in hand;
+        a card that Wildfire returns costs nothing to discard."""
+        me, hand = req.player, game.players[req.player].hand
+        named = [c for c in hand if c.card_id in req.extra["discards"]]
+        price = sum(0.0 if bounces_back(game, me, c) else keep_value(c, hand) for c in named)
+        f = game.fighters[req.extra["else_fighter"]]
+        return -self.hp_change(f, f.hp - req.extra["else_damage"], me) > price
 
     # ------------------------------------------------------------------ clones and evaluation
     def _base(self, game: Game, req: ChoiceRequest) -> Game:
