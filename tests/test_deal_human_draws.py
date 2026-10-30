@@ -292,3 +292,18 @@ def test_the_deal_rides_in_the_composite_of_the_button_it_adds_no_message(tmp_pa
     without, none = final_press_cost(tmp_path / "b", False)
     assert deals == [2] and none == []
     assert with_deal == without
+
+
+# ---------------------------------------------------------------- Fight Or Flight
+
+@with_rig("abe-sapien", "liz-sherman", "Faster. Stronger.", "Arcane Dampener", "Cold Iron And Holy Water",
+          "Shock And Awe", "Leap Away")
+def test_fight_or_flight_deals_its_card_once(rig):
+    session, table, game, fake, cfg = rig
+    human_hand(table, game, "Fight Or Flight", "Evade", "Fireball")
+    msgs = human_scheme(session, table, game, "Fight Or Flight")
+    assert table.human_deals == [1] and said(msgs, "Te he dado 1 carta (efecto de Fight Or Flight)")
+    assert game.drawn[1] == session.human_dealt == 1
+    click(session, table, Event.END_ACTION)
+    assert table.human_deals == [1] and game.drawn[1] == session.human_dealt
+

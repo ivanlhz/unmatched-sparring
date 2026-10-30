@@ -984,11 +984,11 @@ class Session:
             self._effect_done(run)
 
     def _effect_done(self, run: EffectRun) -> None:
-        if not run.flags.get("scheme"):
-            self._deal_owed_draws(human_effects.ABILITY_NAME.get(run.label, run.label.replace("_", " ").upper()))
         """A run that stopped at a decision of the human is now done. A scheme (parked by `ongoing.resolve_scheme`)
         ends where a scheme ends: the bot's reaches its discard pile, the human's step closes (`session_effects`);
         then the bot's turn goes on if it was its turn (its action was spent when the card was played)."""
+        if not run.flags.get("scheme"):               # a parked ability (OCCULT DETECTIVE): a scheme's draws go with its step
+            self._deal_owed_draws(human_effects.ABILITY_NAME.get(run.label, run.label.replace("_", " ").upper()))
         scheme = run.flags.get("scheme")
         if scheme:
             from .effects import ongoing
@@ -1536,6 +1536,8 @@ class Session:
                                     id_range=c.human_card_ids, identity=self._identity("human"))
             op = self._w(script, "cards")
         except TABLE_ERRORS as e:
+            # Nothing was written, so the engine's count is the only record: it stays (the next reading of the hand
+            # settles it when he draws by hand) and the cards are not owed again (`human_dealt` already caught up).
             self.say(f"No he podido darte {plural}{why} ({e}). Roba {plural} a mano y pulsa Fin de accion.", ChatKind.WARNING)
             return
         self.say(f"Te he dado {plural}{why}." + (" Lo que te toca descartar es lo que tenias antes, no estas."
@@ -1550,6 +1552,8 @@ class Session:
                 self._deal_check = None
                 return False
             if dealt != n:
+                # TTS did write, and dealt fewer cards than the engine counted: the missing ones go back to the engine
+                # (hand -> deck, `drawn` and `human_dealt` down) so it matches what the table really holds.
                 short = n - (dealt if isinstance(dealt, int) else 0)
                 self._undraw_human(short)
                 self.say(f"No he podido darte {short} de las {plural}{why}. Roba {short} a mano y pulsa Fin de accion.",
