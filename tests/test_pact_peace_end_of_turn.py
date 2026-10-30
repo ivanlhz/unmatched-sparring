@@ -47,6 +47,12 @@ def test_the_bot_hero_that_attacked_loses_1_at_the_end_of_its_turn_and_its_dial_
     assert said(msgs, "Pact Of Peace") and said(msgs, "liz -1 PV (15)")
 
 
+def wildfire_acted(game, before):
+    """Liz's start-of-turn WILDFIRE did something (moved her, discarded a card or hurt a fighter)."""
+    liz = game.fighters["liz"]
+    return (liz.pos, len(game.players[0].discard)) != before[:2] or liz.hp != before[2]
+
+
 def baba_attacks_and_ends_her_turn(session, table, game, cfg):
     """Baba hits Liz with Iron Teeth (she picks Liz), Koschei stands in her zone, and the turn ends on its own."""
     put_adjacent(game, table, cfg, "liz", "baba")
@@ -70,14 +76,16 @@ def test_fateful_bargains_at_the_end_of_your_turn_still_applies_the_pact_damage(
     session, table, game, fake, cfg = rig
     pact_in_play(game)
     baba, koschei = game.fighters["baba"], game.fighters["koschei"]
+    liz_before = (game.fighters["liz"].pos, len(game.players[0].discard), game.fighters["liz"].hp)
     msgs = baba_attacks_and_ends_her_turn(session, table, game, cfg)
     assert said(msgs, "Koschei recibe el dano (1) en lugar de Baba Yaga? - Pact Of Peace")
     assert baba.hp == 13 and koschei.hp == 3
     msgs = click(session, table, Event.CHOICE, {"i": 1 if pass_to_koschei else 2})
     assert (baba.hp, koschei.hp) == ((13, 2) if pass_to_koschei else (12, 3))
     assert dial(session, table, "baba") == baba.hp and dial(session, table, "koschei") == koschei.hp
-    assert game.turn == 0 or said(msgs, "Tu turno")
-    assert said(msgs, "Pact Of Peace")
+    line = [m for m in msgs if "Pact Of Peace" in m]
+    assert line == ["Tu carta: Pact Of Peace: " + ("koschei -1 PV (2)" if pass_to_koschei else "baba -1 PV (12)")],         "only what the Pact did, not the Wildfire that began the bot's turn while the question waited"
+    assert wildfire_acted(game, liz_before)
 
 
 @with_rig("liz-sherman", "baba-yaga", *LIZ_HAND)

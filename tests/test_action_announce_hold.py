@@ -117,3 +117,26 @@ def test_the_hold_is_2_seconds_in_the_real_config_0_in_the_session_default_and_v
     for bad in (-1, 1000, "x"):
         with pytest.raises(ConfigError):
             load_config(cfg_file(action_announce_hold=bad)).session_config()
+
+
+@with_rig("liz-sherman", "baba-yaga", *LIZ_HAND, **HOLD)
+def test_a_failed_placement_retried_does_not_announce_the_attack_twice(rig):
+    session, table, game, fake, cfg = rig
+    put_adjacent(game, table, cfg, "koschei", "liz")
+    human_hand(table, game, "Exploit", "Iron Teeth")
+    training = next(c for c in game.players[0].hand if c.title == "B.P.R.D. Training")
+    session.ai.plan = lambda g: Act("attack", fid="liz", target="koschei", card=training)
+    session.ai.pick_ability_target = lambda g: None
+    mark = len(table.scripts)
+    table.fail_play = True                                        # the table refuses to put the card down
+    click(session, table, Event.MANEUVER)
+    click(session, table, Event.END_ACTION)
+    click(session, table, Event.MANEUVER)
+    msgs = click(session, table, Event.END_ACTION)
+    assert session.pending is None and any("Error de mesa" in m for m in msgs)
+    table.fail_play = False
+    msgs = click(session, table, Event.END_ACTION)                # the retry
+    assert session.pending is not None
+    sent = [s for s in table.scripts[mark:] if tag_of(s) == "broadcast" and "El bot ataca con liz a koschei" in s]
+    assert len(sent) == 1, "the line went out once, before the first try"
+    assert "Deja tu defensa boca abajo (o nada) y pulsa Revelar." in msgs

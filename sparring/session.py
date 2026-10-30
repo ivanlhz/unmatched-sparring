@@ -30,7 +30,7 @@ from .ai_medusa import GAZE, MedusaAI, play_signature
 from .cards import Card, can_be_boost
 from .controller import Controller
 from .combat_flow import CombatFlow, PendingChoice, legacy_chooser
-from .effects import events
+from .effects import events, narrate
 from .effects.choose import ControllerChooser
 from .effects.run import EffectRun
 from .game_log import GameLog
@@ -310,6 +310,7 @@ class Session:
         self.scheme_baseline: list[int] | None = None      # descarte del humano al pulsar Plan: espera su carta
         self.maneuver_baseline: list[int] | None = None    # their discard at Maniobra: a BOOST 0 card put there is warned
         self.ability_wait: str | None = None               # the human's start-of-turn ability to do on the table before anything else (E2)
+        self._attack_announced: tuple | None = None     # the bot attack already said before its card went down (a retry stays quiet)
         self.declared_carry: dict | None = None            # a cancelled attack already declared (UNCANNY INTUITION spent): the same attack again does not re-spend
         self.destiny_seen: tuple[int, str] | None = None   # (destinos, forma) ya escritos y verificados en el dial
         self._transit: dict[int, int] = {}                 # CardID jugado por el humano -> lecturas que lleva sin llegar al descarte
@@ -1071,6 +1072,8 @@ class Session:
         self._drive_flow(flow)
 
     def _answer_run(self, run: EffectRun, value: list) -> None:
+        if "said_before" in run.flags:            # the run changes nothing until now: its line must not include what other triggers did meanwhile
+            run.flags["said_before"] = narrate.snapshot(self.game)
         run.resume(value)
         self._continue_effect(run)
 
@@ -2949,11 +2952,14 @@ class Session:
                 if act.kind == "attack":
                     attacker, target = g.fighters[act.fid], g.fighters[act.target]
                     announced = self.cfg.action_announce_hold > 0
-                    if announced:                 # the attack is said, the card goes down a pause later
+                    attack = (attacker.fid, target.fid, act.card.card_id if act.card else None)
+                    if announced and self._attack_announced != attack:    # said, the card goes down a pause later
                         said_first = len(self.messages)
                         self.say(f"El bot ataca con {attacker.fid} a {target.fid}.", ChatKind.ATTACK)
                         self._announce_before(said_first)
+                        self._attack_announced = attack       # a failed placement retried by Fin de accion does not say it again
                     guid = self._place_bot_card(act.card, "bot_attacks", attacker, target)
+                    self._attack_announced = None
                     self.pending = Pending("bot_attacks", attacker, target, act.card, guid)
                     hidden.bot_attack_placed(self, self.pending)     # Perfect Shot / UNCANNY INTUITION: face up
                     self._persist()
