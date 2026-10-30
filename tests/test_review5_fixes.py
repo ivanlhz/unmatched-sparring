@@ -58,9 +58,10 @@ def test_detective_draw_is_announced_on_the_real_rival_start_space(rig):
     s = fresh(session, cfg)
     s.game.turn = 1
     s.game.fighters["hellboy"].pos = 30
+    s.game.begin_turn()                                       # the engine asks on the panel; the session announces it
     s.messages = []
     s._announce_human_start()
-    assert any("salida rival" in m for m in s.messages)
+    assert any("salida rival" in m for m in s.messages) and s.effect_run is not None
 
 
 def test_revive_suggests_the_configured_start_space_of_the_side(rig):
@@ -1182,6 +1183,20 @@ def card_id(game, player, title):
 
 
 CROWN = "And Upon His Brow Is Set A Crown Of Flame"
+
+
+@pytest.mark.parametrize("title,n", [(CROWN, 2), ("Fight Or Flight", 1)])
+def test_a_scheme_of_a_hero_outside_the_interpreter_draws_and_the_bot_deals_it(rig, monkeypatch, title, n):
+    session, table, game = rig
+    monkeypatch.setattr(type(game.fx), "interprets", lambda self, player: False)         # the legacy branches of _apply_human_scheme
+    card = dataclasses.replace(next(c for c in game.players[1].full_set if c.title == CROWN), title=title)
+    out_before = len(session.messages)
+    session._apply_human_scheme(card)
+    assert game.drawn[1] == n and not any("robar" in m.lower() and "tu:" in m.lower() for m in session.messages[out_before:])
+    session.cfg = dataclasses.replace(session.cfg, human_deck_guid="HDECK", human_deck_spot=(-4.6, 13.67))
+    session._deal_owed_draws(title)
+    session._commit()
+    assert table.human_deals == [n] and session.human_dealt == game.drawn[1] == n
 
 
 def test_a_scheme_played_after_pressing_plan_is_recognised_at_fin_de_accion(rig):

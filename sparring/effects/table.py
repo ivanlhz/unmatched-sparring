@@ -5,7 +5,8 @@ engine: a pick out of their hand (the engine's copy of it is virtual), a card th
 Bones), the destination of their own miniature (they move it by hand). Those ops leave a JSON-safe note in
 `run.flags["table"]` (`note`) and the session says it in Spanish (`lines`); the table sync reconciles the engine
 afterwards (hand counts, the discard pile, the miniatures' spaces). Everything else runs in the engine: damage and
-heals (the dials), the bot's cards and pieces, statuses, values, draws (counted, the human draws the real cards).
+heals (the dials), the bot's cards and pieces, statuses, values, draws (counted; the session deals the real cards to
+the human's hand, `Session._deal_owed_draws`).
 
 Who is "the table player" is what the engine already knew: the player whose controller decides at the table
 (`Controller.human`); a simulation or a search clone has none, so there every card is fully resolved."""
@@ -45,9 +46,12 @@ def piece_is_physical(game, chooser: int, fighter) -> bool:
 
 
 def start_of_turn_is_physical(game, player: int, trig: dict) -> bool:
-    """The table player's start-of-turn ability (Hellboy's draw or ANUNG discard and move, Wildfire's bottom card)
-    reads their real deck or an unknown discard: it is theirs on the table, announced by the session."""
-    return physical(game, player) and trig["when"]["event"] == "start_of_turn"
+    """The table player's start-of-turn ability (Hellboy's ANUNG discard and move, Wildfire's bottom card) reads their
+    real hand or an unknown discard: it is theirs on the table, announced by the session. A trigger that only draws
+    (OCCULT DETECTIVE's optional draw) is not: the engine asks on the panel and the session deals the cards."""
+    from .model import walk_ops
+    only_draws = all(o["op"] in ("optional", "draw") for o in walk_ops(trig["ops"]))
+    return physical(game, player) and trig["when"]["event"] == "start_of_turn" and not only_draws
 
 
 def note(run, **fields) -> None:

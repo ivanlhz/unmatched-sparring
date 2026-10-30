@@ -175,7 +175,7 @@ def test_glimpse_of_hell_draws_in_the_engine_and_the_shuffle_back_is_yours(rig, 
     msgs = click(session, table, Event.REVEAL)
     assert len(game.players[1].hand) == 3 - 1 + 2, "the engine draws (counted placeholders), it never picks the return"
     assert any("Tu carta: Glimpse Of Hell: robas 2; en la mesa: pon 1 carta de tu mano en tu mazo y baraja" in m for m in msgs)
-    assert said(msgs, "Robas 2 cartas (efectos del combate): hazlo en la mesa")
+    assert said(msgs, "Te he dado 2 cartas (efectos del combate)") and table.human_deals == [2]
     assert not any("Carta " in lab for lab in labels(session))             # no placeholder of your hand is ever named
 
 
@@ -207,7 +207,8 @@ def test_crown_of_flame_owes_your_hand_to_the_pile_draws_and_grants_the_actions(
     assert game.actions_left == 3
     assert said(msgs, "Aplico And Upon His Brow Is Set A Crown Of Flame: robas 2; ganas 2 acciones")
     assert said(msgs, "Descarta 2 carta(s) (And Upon His Brow Is Set A Crown Of Flame)") and session.pending_discard["n"] == 2
-    assert said(msgs, "Robas 2 cartas (efecto de And Upon His Brow Is Set A Crown Of Flame): hazlo en la mesa")
+    assert said(msgs, "Te he dado 2 cartas (efecto de And Upon His Brow Is Set A Crown Of Flame). Lo que te toca descartar")
+    assert table.human_deals == [2]
     table.human_discard += card_ids(game, 1, "Excalibur", "Service Pistol")
     table.human_count = 2
     msgs = click(session, table, Event.END_ACTION)

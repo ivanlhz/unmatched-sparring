@@ -303,7 +303,8 @@ class Session:
         self.dials_attempted: dict[str, int] = {}  # GUID -> ultimo valor que se intento escribir (verificado o no)
         self._warned: set[tuple[str, str]] = set()
         self._deck_qty = -1                                 # cartas del mazo de robo del humano en la ultima lectura
-        self._deal_check: tuple[int, int] | None = None     # (mano, descarte) del humano al repartirle la carta de Maniobra
+        self._deal_check: tuple[int, int, int] | None = None  # (mano, cartas, descarte) del humano al repartirle cartas
+        self.human_dealt = 0                                # robos del humano (`Game.drawn`) ya repartidos o dados por hechos (se guarda)
         self._epoch = 0                                     # numero de boton atendido (para confirmar bajas del descarte)
         self._wild_credit: tuple[int, int, int] = (-1, -1, 0)  # Wildfire: (turno, boton, cartas de mas en tu mano sin explicar)
         self._gone: dict[int, int] = {}                     # CardID que falta en el descarte de la mesa -> boton en que se vio
@@ -986,6 +987,8 @@ class Session:
         """A run that stopped at a decision of the human is now done. A scheme (parked by `ongoing.resolve_scheme`)
         ends where a scheme ends: the bot's reaches its discard pile, the human's step closes (`session_effects`);
         then the bot's turn goes on if it was its turn (its action was spent when the card was played)."""
+        if not run.flags.get("scheme"):               # a parked ability (OCCULT DETECTIVE): a scheme's draws go with its step
+            self._deal_owed_draws(human_effects.ABILITY_NAME.get(run.label, run.label.replace("_", " ").upper()))
         scheme = run.flags.get("scheme")
         if scheme:
             from .effects import ongoing
@@ -1232,6 +1235,7 @@ class Session:
             "scheme_baseline": self.scheme_baseline, "dial_debt": self.dial_debt, "setup": self.setup,
             **({"maneuver_baseline": self.maneuver_baseline} if self.maneuver_baseline is not None else {}),
             **({"ability_wait": self.ability_wait} if self.ability_wait is not None else {}),
+            **({"human_dealt": self.human_dealt} if self.human_dealt != self.game.drawn[self.human] else {}),
             **({"declared_carry": self.declared_carry} if self.declared_carry is not None else {}),
             "dials_written": self.dials_written, "dials_attempted": self.dials_attempted,
             "start_spaces": {str(k): v for k, v in self.game.start_spaces.items()},
@@ -1289,6 +1293,7 @@ class Session:
             self.scheme_baseline = d.get("scheme_baseline")
             self.maneuver_baseline = d.get("maneuver_baseline")
             self.ability_wait = d.get("ability_wait")
+            self.human_dealt = int(d.get("human_dealt", self.game.drawn[self.human]))     # absent: everything counted was dealt
             self.declared_carry = d.get("declared_carry") if isinstance(d.get("declared_carry"), dict) else None
             self.dial_debt = bool(d.get("dial_debt", False))
             self.dials_written = {str(k): int(v) for k, v in (d.get("dials_written") or {}).items()}
@@ -1445,12 +1450,12 @@ class Session:
             self.say(f"Maniobra: {choices.NO_DRAW_REASON}. Mueve tus miniaturas y pulsa Fin de accion.", ChatKind.YOUR_TURN)
             return
         if not self.cfg.human_deck_guid:
-            self.game.draw(self.human)
+            self._draw_human_by_button(1)
             self._announce_exhaustion(hp0, alive0)
             self.say("Maniobra: robas 1. Mueve tus miniaturas y pulsa Fin de accion.", ChatKind.YOUR_TURN)
             return
         if not st.deck:                           # mazo vacio: agotamiento por el mismo camino que el del bot
-            self.game.draw(self.human)
+            self._draw_human_by_button(1)
             self._announce_exhaustion(hp0, alive0)
             self.say("Maniobra: tu mazo esta vacio, no robas. Mueve tus miniaturas (puedes potenciar descartando "
                      "una carta) y pulsa Fin de accion.", ChatKind.YOUR_TURN)
@@ -1475,7 +1480,7 @@ class Session:
             self.say(f"No he podido confirmar el reparto de tu carta ({e}): mira tu mano; si no tienes la carta nueva, "
                      "roba a mano y pulsa Fin de accion.", ChatKind.WARNING)
             return
-        drawn = self.game.draw(self.human)
+        drawn = self._draw_human_by_button(1)
         self.say("Maniobra: te he dado 1 carta. Mueve tus miniaturas (puedes potenciar descartando una carta) y "
                  "pulsa Fin de accion", ChatKind.YOUR_TURN)
 
@@ -1493,25 +1498,99 @@ class Session:
                         st.hand.remove(card)
                         st.deck.insert(0, card)
                         self.game.drawn[self.human] = max(0, self.game.drawn[self.human] - 1)
+                        self.human_dealt = max(0, self.human_dealt - 1)
                 self.say("No he podido darte la carta. Roba tu carta a mano y pulsa Fin de accion.", ChatKind.WARNING)
                 self._deal_check = None
                 return False
-            self._deal_check = (before, discarded)
+            self._deal_check = (before, 1, discarded)
             return True
         self._post.append(check)
 
+    def _draw_human_by_button(self, n: int) -> list[Card]:
+        """The engine draws for the human in a step that deals (or announces) the cards itself: they are not owed."""
+        drawn = self.game.draw(self.human, n)
+        self.human_dealt += len(drawn)
+        return drawn
+
+    def _deal_owed_draws(self, cause: str | None = None) -> None:
+        """Every draw the engine counted for the human from an effect (their cards, their hero, a rival's) is dealt
+        from their physical deck to their hand, like the Maniobra's: counted only, their hand is never read. Called
+        where an effect's step is projected and at the close of every button (`_commit`); `human_dealt` is saved, so
+        a resume never deals twice. A deal that fails is said once and the human draws by hand (the engine already
+        counts the cards: the next reading of their hand settles it)."""
+        g, c, st = self.game, self.cfg, self.game.players[self.human]
+        drawn = g.drawn[self.human]
+        self.human_dealt = min(self.human_dealt, drawn)
+        n = drawn - self.human_dealt
+        if n <= 0:
+            return
+        self.human_dealt = drawn
+        why = f" ({cause})" if cause else ""
+        plural = f"{n} carta{'s' if n != 1 else ''}"
+        if not c.human_deck_guid:
+            self.say(f"Robas {plural}{why}: hazlo en la mesa.", ChatKind.YOUR_TURN)
+            return
+        before, discarded = len(st.hand) - n, len(st.discard)
+        try:
+            script = lua.deal_cards(c.human_deck_guid, n, c.human_seat, spot=c.human_deck_spot,
+                                    id_range=c.human_card_ids, identity=self._identity("human"))
+            op = self._w(script, "cards")
+        except TABLE_ERRORS as e:
+            # Nothing was written, so the engine's count is the only record: it stays (the next reading of the hand
+            # settles it when he draws by hand) and the cards are not owed again (`human_dealt` already caught up).
+            self.say(f"No he podido darte {plural}{why} ({e}). Roba {plural} a mano y pulsa Fin de accion.", ChatKind.WARNING)
+            return
+        self.say(f"Te he dado {plural}{why}." + (" Lo que te toca descartar es lo que tenias antes, no estas."
+                                                   if self.pending_discard else ""), ChatKind.SCHEME)
+
+        def check() -> bool:
+            try:
+                dealt = (op.result or {}).get("dealt")
+            except TABLE_ERRORS:
+                self.say(f"No he podido confirmar el reparto de {plural}{why}: mira tu mano; si te faltan, roba a mano "
+                         "y pulsa Fin de accion.", ChatKind.WARNING)
+                self._deal_check = None
+                return False
+            if dealt != n:
+                # TTS did write, and dealt fewer cards than the engine counted: the missing ones go back to the engine
+                # (hand -> deck, `drawn` and `human_dealt` down) so it matches what the table really holds.
+                short = n - (dealt if isinstance(dealt, int) else 0)
+                self._undraw_human(short)
+                self.say(f"No he podido darte {short} de las {plural}{why}. Roba {short} a mano y pulsa Fin de accion.",
+                         ChatKind.WARNING)
+                self._deal_check = None
+                return False
+            self._deal_check = (before, n, discarded)
+            return True
+        self._post.append(check)
+
+    def _undraw_human(self, k: int) -> None:
+        """The table could not deal `k` cards the engine counted: they go back to the top of the virtual deck (the
+        cards the bot was not told about first) and are no longer owed."""
+        st, known = self.game.players[self.human], self.game.players[self.bot].known
+        told = set(known.seen) | set(known.possible)
+        for _ in range(min(k, len(st.hand))):
+            card = next((c for c in reversed(st.hand) if c.card_id not in told), st.hand[-1])
+            st.hand.remove(card)
+            st.deck.insert(0, card)
+        self.game.drawn[self.human] = max(0, self.game.drawn[self.human] - k)
+        self.human_dealt = max(0, self.human_dealt - k)
+
     def _verify_maneuver_deal(self, real: int, discard_now: int) -> None:
-        """En la siguiente instantanea la mano del humano ha de haber subido 1 (descontando lo que haya jugado o
-        descartado desde entonces); si no, se avisa una vez y no se reparte otra vez."""
+        """En la siguiente instantanea la mano del humano ha de haber subido lo repartido (descontando lo que haya
+        jugado o descartado desde entonces); si no, se avisa una vez y no se reparte otra vez."""
         chk, self._deal_check = self._deal_check, None
         if chk is None:
             return
-        before, discarded = chk
-        if real >= before + 1:
+        before, n, discarded = chk
+        if real >= before + n:
             return
         played = max(0, discard_now - discarded) + len(self._rd_face("human"))
-        if real + played < before + 1:
-            self.say("La carta de la Maniobra no ha llegado a tu mano. Roba tu carta a mano.", ChatKind.WARNING)
+        if real + played < before + n:
+            if n == 1:
+                self.say("La carta que te di no ha llegado a tu mano. Roba tu carta a mano.", ChatKind.WARNING)
+            else:
+                self.say(f"Las {n} cartas que te di no han llegado a tu mano. Roba a mano.", ChatKind.WARNING)
 
     def _check_maneuver_boost(self) -> None:
         """A card without BOOST value (Liz's burning cards) put in the discard during the Maniobra boosts nothing
@@ -1580,19 +1659,21 @@ class Session:
         if g.fx.interprets(self.human):               # E2: the interpreter, in table mode
             human_effects.play_scheme(self, c)
         elif c.title == CROWN:
+            g.draw(self.human, 2)
             self.say(f"Detecto {c.title}: aplicado, {self._gain_actions(2)}. Descartar tu mano "
-                     "y robar 2 cartas lo haces tu: son tus cartas.", ChatKind.SCHEME)
+                     "lo haces tu: son tus cartas.", ChatKind.SCHEME)
         elif c.title == FIGHT_OR_FLIGHT:
             old = g.add_combat_bonus(self.human, FIGHT_OR_FLIGHT_BONUS, FIGHT_OR_FLIGHT)
             if old is not None:
                 self.say(f"{c.title} reemplaza a {old}: solo hay un ONGOING activo por jugador.", ChatKind.SCHEME)
             total = g.combat_bonus_total(self.human)
+            g.draw(self.human, 1)
             self.say(f"Detecto {c.title}: +{FIGHT_OR_FLIGHT_BONUS} a tus cartas de combate hasta el inicio de tu siguiente "
-                     f"turno (ahora +{total}). Robar 1 y mover hasta 5 lo haces tu en la mesa; descarta el plan al "
+                     f"turno (ahora +{total}). Mover hasta 5 lo haces tu en la mesa; descarta el plan al "
                      "empezar tu siguiente turno.", ChatKind.SCHEME)
         elif c.title == "Pancakes!":
             self.say(f"Detecto {c.title}: tienes que elegir dos efectos. Para curar a {g.hero(self.human).name} 2 pulsa su +1 dos veces; "
-                     "el mazo y el robo los haces tu en la mesa.", ChatKind.SCHEME)
+                     "el mazo lo haces tu en la mesa.", ChatKind.SCHEME)
         elif scheme_gain_actions(c):
             self.say(f"Detecto {c.title}: {self._gain_actions(scheme_gain_actions(c))}; "
                      f"lo demas lo resuelves tu: {c.text} Usa +1 / -1 para los PV.", ChatKind.SCHEME)
@@ -2788,6 +2869,10 @@ class Session:
         if self.ability_wait is not None:
             self.say(f"{self.ability_wait} Hazlo en la mesa y pulsa Fin de accion: hasta entonces el resto de "
                      "botones espera.", ChatKind.YOUR_TURN)
+        paused = self._paused()
+        if paused is not None and paused[0] == "parked":
+            self.say(human_effects.ABILITY_TEXT.get(paused[2].label, paused[2].label), ChatKind.YOUR_TURN)
+            self._show_choice(paused[2].awaiting)
 
     # ---------- E/S con la mesa: instantanea, cola de escrituras y script compuesto ----------
     # Cada mensaje a TTS cuesta ~0.5 s fijos, asi que el modo rapido (`cfg.batch`) minimiza mensajes:
@@ -3030,6 +3115,7 @@ class Session:
     def _commit(self) -> None:
         """Cierre de cada boton: lo que queda en cola, la linea de estado y los botones del panel y los anuncios,
         todo en el mismo mensaje."""
+        self._deal_owed_draws()
         posts, self._post = self._post, []
         said = len(self.messages)
         if self.cfg.live_ui:
