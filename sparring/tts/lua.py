@@ -2126,6 +2126,33 @@ return JSON.encode({{moved = moved, count = #moved, zone = true}})
 """
 
 
+@_registered
+def card_to_discard(card_guid: str, zone_guid: str, id_range: tuple[int, int] = BOT_CARD_IDS, *, identity) -> str:
+    """Moves one loose card (by GUID) onto the discard pile of the scripting zone `zone_guid`, face up: a human
+    ONGOING scheme that left play goes from its ONGOING spot to the pile. It is the one-card sibling of
+    `hand_to_discard` (same pile search, same instant move so the next reading already sees it), but the card must be
+    on the table: one in any hand is never taken. Only a card that is `ours` (`id_range` and the image of `identity`)
+    moves. Returns `{moved: [CardID...], count, zone}` (`zone = false` when the zone is not there)."""
+    return f"""-- sparring:card_to_discard
+{_ours_lua(identity, id_range)}local zone = getObjectFromGUID({_guid(zone_guid)})
+if zone == nil then return JSON.encode({{moved = {{}}, count = 0, zone = false}}) end
+local card = getObjectFromGUID({_guid(card_guid)})
+if card == nil or card.type ~= "Card" or card.held_by_color or not ours(card) then
+  return JSON.encode({{moved = {{}}, count = 0, zone = true}})
+end
+local at, turn = zone.getPosition(), 0
+for _, o in ipairs(zone.getObjects()) do
+  if o ~= card and (o.type == "Deck" or o.type == "Card") and ours(o) then
+    at, turn = o.getPosition(), o.getRotation().y
+    break
+  end
+end
+card.setRotation(Vector(0, turn, 0))
+card.setPosition(Vector(at.x, at.y + 1, at.z))
+return JSON.encode({{moved = {{card.getData().CardID}}, count = 1, zone = true}})
+"""
+
+
 _ANY_OURS_LUA = "local function ours(o) return not o.held_by_color end\n"
 
 

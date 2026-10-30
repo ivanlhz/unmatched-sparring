@@ -795,6 +795,7 @@ def test_your_ongoing_scheme_is_recognized_on_your_ongoing_spot_and_owed_to_the_
     assert cfg.session_config().human_ongoing_spot == (-2.0, -22.0)
     human_hand(table, game, "Fight Or Flight", "Evade", "Fireball")
     fof = card_ids(game, 1, "Fight Or Flight")[0]
+    table.card_to_discard_fails = True                          # the bot cannot move it itself: the manual flow (the bot's own move: test_tts_translators)
     click(session, table, Event.SCHEME)
     table.human_ongoing.append(fof)                             # face up on your ONGOING zone, not on the pile
     table.human_count -= 1

@@ -197,6 +197,7 @@ def _discard(run, game, spec):
             game.fx.take_ongoing(player)
             if card not in game.players[player].discard:
                 game.players[player].discard.append(card)
+            table.intent(game, op="discard", zone="in_play", player=player, card=card.card_id)
     if "as" in spec:
         run.bind("cards", spec["as"], [c.card_id for _, _, c in items])
 
@@ -259,7 +260,10 @@ def _move(run, game, spec):
                 plan.append((f, got[0]))
                 set_attrs(f, pos=got[0])
     for f, dest in plan:
+        origin = f.pos
         game.move_fighter(f, dest, steps, through)
+        if f.pos != origin:
+            table.intent(game, op="move", fid=f.fid, owner=f.owner)
     for f in by_hand:
         table.note(run, op="move", fid=f.fid, amount=steps, up_to=up_to, through=through)
 

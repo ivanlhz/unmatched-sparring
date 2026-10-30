@@ -908,3 +908,46 @@ Decisiones dudosas de la migracion (ver tambien `notes` de cada fichero):
   reaches the table through the reconciliation.
 - Costs: the row, its pings and its closing ride the step's script (a Revelar that opens the row stays within the
   D3 budget, the ping that closes a combat is at most 2 messages, the human's prediction click is 1).
+
+## 21. TTS translators (`sparring/session_translators.py`, phase 1)
+
+Applying a card effect to the real table used to be inferred from the before/after diff of `session_bot_effects`
+(`project()` / `snapshot()`) plus per-title patches in `session.py` (Crown Of Flame, Fight Or Flight, "Pancakes!").
+The ops are data (`OPS`, `effects/ops_core.py`); the table side now gets the same shape: a registry of translators,
+one function per op type, each with two variants.
+
+- Registry: `TRANSLATORS[op] = Translator(mode, bot, human)`, filled with `@register(op, mode=..., human=...)` on the
+  bot variant. `translate(session, intent, Ctx(cause, before))` looks the op up, asks `mode(session, intent)` which
+  variant applies (`"bot"`, `"human"` or None when the intent is not about the human's table) and returns the checks
+  to run after the step's composite went out, or None when the op has no translator (the caller keeps its diff path).
+- Variants. `bot`: the bot moves the objects itself (a Lua write through `Session._w`, said in the chat); its check
+  falls back to the human variant when the table refuses, so a failed write never stalls the game. `human`: the
+  human acts by hand; the variant says what to move and relies on the flows that wait for it (`pending_discard`
+  settled at "Fin de accion", the table sync, the manual draw). Phase 1 only reuses those flows; it does not add a
+  "Hecho" press to ops that never had one.
+- Intents: an op that touches the table reports `{"op", ...}` through `effects.table.intent(game, ...)` into
+  `fx.intents` (transient, None in a clone, enabled by `Session._attach_choosers`). `project()` drains them and hands
+  each to its translator; the diff still decides *what changed*, and a change no op reported (`place`, `swap`, a
+  push, a resume that lost the log) is translated through the same registry with an intent inferred from the diff.
+  Reported today: `move` (fid, owner) and the human's ONGOING leaving play (`discard` with zone `in_play`, from
+  `ongoing.leave_play` and the `discard` op).
+
+| op | bot variant | human variant | chosen by |
+|----|-------------|---------------|-----------|
+| `draw` (the human's owed draws, `_deal_owed_draws`) | `Session._deal_human_cards`: `deal_cards` from their deck to their seat | "Robas N cartas: hazlo en la mesa" | `human_deck_guid` set |
+| `discard`, zone `hand` (`_owe_discard`) | Crown Of Flame: `_discard_human_hand`, then the human variant for what the table could not move | `pending_discard` + "Descarta N carta(s)" | reason is Crown (per-title, phase 3) |
+| `discard`, zone `hand`, named cards (diff) | none | `pending_discard["cards"]` + "Pon X de tu mano en tu descarte" | always human |
+| `discard`, zone `in_play` (the human's ONGOING left play) | ping on the card, chat why, `ongoing_hold` seconds, `card_to_discard` to their pile | "pasala de tu zona ONGOING a tu descarte" (or "queda en tu descarte" without a spot) | `human_ongoing_spot` set |
+| `move` (a human miniature a bot effect moved) | `move_piece` by GUID, "lo he movido yo" | "no he podido mover su miniatura, muevela tu" | always bot (their own pieces are moved by hand: `session_moves`) |
+
+- The ONGOING leaving play is new behavior (Pact Of Freedom when Baba Yaga takes 2+ combat damage, any expiry): the
+  card is read on `human_ongoing_spot` (it must be there exactly once), pinged with `ping_objects`, the reason is
+  said (flagged `shown`, sent before the pause), `ongoing_hold` seconds pass (`lua.hold` inside the TTS script in a
+  batch, a sleep otherwise; 0 = no pause, `config/partida.json` uses 1.5) and `lua.card_to_discard` lays it face up
+  on the pile. A zone that cannot be read, a card not found or found twice, no identity, a refused write: the old
+  manual announcement.
+- The bot's own cards, its form, tokens and the ops without a translator stay on the diff untouched.
+- Plan. Phase 1 (this): `draw`, `discard`, `move`. Phase 2: the remaining ops (`place`, `swap`, `revive`, `summon`,
+  `counter`, the hidden-zone ops of `ops_info`...). Phase 3: drop the per-title patches (CROWN, FIGHT_OR_FLIGHT,
+  "Pancakes!") once their effects are expressed as ops with a translator, and shrink the diff to a pure consistency
+  check.

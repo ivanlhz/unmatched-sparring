@@ -54,6 +54,14 @@ def start_of_turn_is_physical(game, player: int, trig: dict) -> bool:
     return physical(game, player) and trig["when"]["event"] == "start_of_turn" and not only_draws
 
 
+def intent(game, **fields) -> None:
+    """What an op just did to the table, for the session's translators (`session_translators`): {"op", ...}. Only a
+    game a session listens to keeps them (`fx.intents` is None in a clone); the session drains them at each
+    projection and checks them against the before/after diff."""
+    if game.fx.intents is not None:
+        game.fx.intents.append(fields)
+
+
 def note(run, **fields) -> None:
     run.flags.setdefault("table", []).append(fields)
 
