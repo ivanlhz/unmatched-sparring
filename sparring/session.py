@@ -30,6 +30,7 @@ from .ai_medusa import GAZE, MedusaAI, play_signature
 from .cards import Card, can_be_boost
 from .controller import Controller
 from .combat_flow import CombatFlow, PendingChoice, legacy_chooser
+from .effects import events
 from .effects.choose import ControllerChooser
 from .effects.run import EffectRun
 from .game_log import GameLog
@@ -778,10 +779,13 @@ class Session:
         except (ValueError, *TABLE_ERRORS) as e:
             self.say(f"Aviso: no pude poner nombre a las miniaturas ({e}).", ChatKind.WARNING)
 
-    def _done(self) -> list[str]:
+    def _say_triggers(self) -> None:
         for kind, line in self.game.fx.said:      # your triggers (Wildfire's return, your Pact at the end of a turn)
             self.say(("Tu carta: " if kind == "card" else "Tu habilidad: ") + line, ChatKind.ABILITY)
         self.game.fx.said.clear()
+
+    def _done(self) -> list[str]:
+        self._say_triggers()
         hidden.after_step(self)                   # a look of the human at the bot's hand: the row rides this script
         self._tell_blocks()
         self._commit()
@@ -1017,6 +1021,9 @@ class Session:
         """A run that stopped at a decision of the human is now done. A scheme (parked by `ongoing.resolve_scheme`)
         ends where a scheme ends: the bot's reaches its discard pile, the human's step closes (`session_effects`);
         then the bot's turn goes on if it was its turn (its action was spent when the card was played)."""
+        if events.say_parked(self.game, run):     # a trigger of yours that hurt someone once you answered (the Pact)
+            self._say_triggers()
+            self._write_dials()
         if not run.flags.get("scheme"):               # a parked ability (OCCULT DETECTIVE): a scheme's draws go with its step
             self._deal_owed_draws(human_effects.ABILITY_NAME.get(run.label, run.label.replace("_", " ").upper()))
         scheme = run.flags.get("scheme")
@@ -2596,6 +2603,7 @@ class Session:
         self.limit_waived = False
         self.chosen_attacker = None
         before, fx_before = self._snapshot_bot(), bot_effects.snapshot(self)
+        hp0 = {fid: f.hp for fid, f in g.fighters.items()}
         g.end_turn()
         probe = self._wildfire_probe()
         g.begin_turn()                            # el cambio de turno es atomico; lo que sigue es solo E/S
@@ -2604,6 +2612,9 @@ class Session:
         self.bot_stage = "start"
         self._persist()                           # punto de control: el turno del bot empieza aqui, una sola vez
         self.say("Fin de tu turno. Turno del bot.")
+        self._say_triggers()                      # your Pact at the end of your turn, before the bot starts
+        if any(f.hp != hp0[fid] for fid, f in g.fighters.items()):
+            self._write_dials()
         self._bot_continue()
 
     def start_bot_turn(self) -> None:
@@ -2955,7 +2966,9 @@ class Session:
         seen = len(g.players[self.bot].discard)
         fx_before = bot_effects.snapshot(self)
         in_play = g.fx.ongoing_card_id(self.human)
+        hp0 = {fid: f.hp for fid, f in g.fighters.items()}
         g.end_turn()                              # puede descartar por limite de mano: eso tambien es deuda de mesa
+        hurt_at_end = any(f.hp != hp0[fid] for fid, f in g.fighters.items())      # Pact Of Peace hurts who attacked
         expired = g.begin_turn()
         if len(g.players[self.bot].discard) > seen:
             self.say("El bot descarta " + self._discard_list(seen, {}, "limite de mano") + ".")
@@ -2963,11 +2976,14 @@ class Session:
         self._persist()
         for n, label in (expired if in_play is None else []):      # a DSL card in play is said by `left_play`
             self.say(f"{label}: caduca el +{n} a tus cartas de combate. Descarta el plan.", ChatKind.SCHEME)
+        self._say_triggers()                      # your Pact at the end of the bot's turn, before "Tu turno"
         self._announce_human_start()
         try:
             fin_fx = self._project_effects(fx_before, cause="caduca")   # the bot's form, your ONGOING that expired
             self._flush_table()
             fin_fx()
+            if hurt_at_end:
+                self._write_dials()
         except TABLE_ERRORS as e:
             self.say(f"Tu turno ya ha empezado, pero la mesa del bot no coincide aun ({e}); se reintentara con tu proximo boton.", ChatKind.WARNING)
 

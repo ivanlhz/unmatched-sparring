@@ -217,17 +217,34 @@ def _fire(game, owner: int, trig: dict, ev: dict, label: str, card_id: int | Non
     ctx = Ctx(owner=owner, this_fid=game.hero(owner).fid, card_id=card_id, moment=trig["when"]["event"])
     run = EffectRun(trig["ops"], ctx, label=label)
     _bind_event(run, ev)
+    if ev["name"] == "end_of_turn":
+        run.flags["attacked"] = list(game.fx.attacked)       # the next turn begins while a choice of this run waits (FATEFUL BARGAINS)
     if "condition" in trig and not condition(game, run, trig["condition"]):
         return None
     before = narrate.snapshot(game) if table.physical(game, owner) else None     # the human is told what it did
     pending = run.run(game, choosers or default_choosers(game))
     if pending is not None:
+        if before is not None:
+            run.flags["said_before"] = before                # the line is written when the human's choice is answered
         game.fx.parked.append(run)
     elif before is not None:
-        line = narrate.describe(game, before, run, title=None if card_id is not None else label.replace("_", " ").upper())
-        if not line.endswith(": " + narrate.NOTHING):
-            game.fx.said.append(("card" if card_id is not None else "ability", line))
+        _say(game, run, before)
     return pending
+
+
+def _say(game, run: EffectRun, before: dict) -> None:
+    card_id = run.ctx.card_id
+    line = narrate.describe(game, before, run, title=None if card_id is not None else run.label.replace("_", " ").upper())
+    if not line.endswith(": " + narrate.NOTHING):
+        game.fx.said.append(("card" if card_id is not None else "ability", line))
+
+
+def say_parked(game, run: EffectRun) -> bool:
+    """A trigger the human's choice had parked is done: the line `_fire` owed for it. True if it owed one."""
+    before = run.flags.pop("said_before", None)
+    if before is not None:
+        _say(game, run, before)
+    return before is not None
 
 
 def _bind_event(run: EffectRun, ev: dict) -> None:

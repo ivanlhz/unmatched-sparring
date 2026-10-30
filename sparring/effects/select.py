@@ -154,7 +154,8 @@ def fighter_candidates(game, run, sel) -> tuple[list, bool]:
         out = [f for f in out if f.fid != run.ctx.this_fid]
     flt = sel.get("filter") or {}
     if "attacked_this_turn" in flt:
-        out = [f for f in out if (f.fid in game.fx.attacked) == bool(flt["attacked_this_turn"])]
+        attacked = run.flags.get("attacked", game.fx.attacked)       # an end-of-turn run keeps the turn it belongs to
+        out = [f for f in out if (f.fid in attacked) == bool(flt["attacked_this_turn"])]
     return out, sel.get("pick", "one") == "all"
 
 
