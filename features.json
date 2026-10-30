@@ -230,6 +230,33 @@
         "Prueba en vivo por Ivan comparando ismcts contra hibrida"
       ],
       "note": "Idea de Ivan (28/10). Primer modelo: Jev; Claude Haiku como alternativa si Jev no encaja. Va con F10 (playbooks). No empezar hasta que Ivan lo pida."
+    },
+    {
+      "id": "F17",
+      "title": "Playable by a non-programmer at home, without Iván",
+      "status": "backlog",
+      "criteria": [
+        "The bot ships as a Windows executable (PyInstaller or similar): no Python, uv or terminal needed on the player's PC",
+        "Double-click launcher that starts the bot with heroes on \"auto\"; the player never edits config/partida.json",
+        "The sparring table is available from the Steam Workshop (or a single savegame file) with the positions the config expects",
+        "Clear errors in plain Spanish when TTS is not open, the table is not loaded or the heroes are not detected (no tracebacks)",
+        "A one-page player guide in Spanish: subscribe/load the table, double-click the launcher, press Empezar, how to quit and resume",
+        "Verified by Iván with a real non-programmer on a PC that never had the repo"
+      ],
+      "note": "Asked by Iván on 30/10 (option 2 of 'how would a non-programmer try it'). Local, intermediate step before F13 (Workshop mod + brain as a web service). Do after the Hellboy box and the English translation (F18)."
+    },
+    {
+      "id": "F18",
+      "title": "Translate the project to English",
+      "status": "backlog",
+      "criteria": [
+        "All code, identifiers, comments, tests, file and directory names, commits, docs and features.json in English",
+        "Only TTS panel buttons and in-game chat stay in Spanish",
+        "Full README in English: how it works, usage, configuration, what works and what doesn't, roadmap",
+        "Old saves (estado/sesion.json) still load; command paths updated everywhere",
+        "Done on its own branch, full suite green before merging"
+      ],
+      "note": "Decided by Iván on 28/10. Final phase, after the live tests. Not started: no branch exists yet as of 30/10."
     }
   ]
 }
