@@ -18,7 +18,6 @@ change) is translated through this same registry. Phase 1: `draw`, `discard`, `m
 the diff path untouched (docs/effects-dsl.md, section 21)."""
 from __future__ import annotations
 
-import time
 from dataclasses import dataclass
 from typing import Callable
 
@@ -213,13 +212,7 @@ def _show_and_wait(session, guid: str, text: str) -> None:
     session.say(text, ChatKind.SCHEME, shown=True)
     for chunk in lua.ascii_text(text):
         session._w(lua.broadcast(chunk, ChatKind.SCHEME), "misc")
-    if cfg.ongoing_hold <= 0:
-        return
-    if cfg.batch:
-        session._w(lua.hold(cfg.ongoing_hold), "misc")
-    session._flush()
-    if not cfg.batch:
-        time.sleep(cfg.ongoing_hold)
+    session._hold(cfg.ongoing_hold)
 
 
 # ---------------------------------------------------------------- move (the human's miniatures the bot's effects move)

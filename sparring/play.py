@@ -27,7 +27,7 @@ from .board import Board
 from .hero_detect import HeroDetectionError, detect_heroes, read_table
 from .heroes import HeroDataError, load_hero
 from . import game_log, persist
-from .session import DEFAULT_BOT_PAUSE, DEFAULT_ONGOING_HOLD, DEFAULT_WILDFIRE_HOLD, TABLE_ERRORS, Msg, Session, SessionConfig, SessionError, piece_guids
+from .session import DEFAULT_ACTION_ANNOUNCE_HOLD, DEFAULT_BOT_PAUSE, DEFAULT_ONGOING_HOLD, DEFAULT_WILDFIRE_HOLD, TABLE_ERRORS, Msg, Session, SessionConfig, SessionError, piece_guids
 from .state import DEFAULT_HEROES, Game
 from .tts import lua, ui
 from .tts.hero_table import HeroTableError, load_hero_table, table_defaults
@@ -177,11 +177,14 @@ class PlayConfig:
                 batch=bool(r.get("batch", True)), live_ui=bool(r.get("live_ui", True)),
                 bot_pause=float(r.get("bot_pause", DEFAULT_BOT_PAUSE)),
                 wildfire_hold=float(r.get("wildfire_hold", DEFAULT_WILDFIRE_HOLD)),
-                ongoing_hold=float(r.get("ongoing_hold", DEFAULT_ONGOING_HOLD)))
+                ongoing_hold=float(r.get("ongoing_hold", DEFAULT_ONGOING_HOLD)),
+                action_announce_hold=float(r.get("action_announce_hold", DEFAULT_ACTION_ANNOUNCE_HOLD)))
             if not (math.isfinite(cfg.bot_pause) and 0 <= cfg.bot_pause <= 30):
                 raise ValueError("bot_pause: segundos entre 0 (sin pausa) y 30")
             if not (math.isfinite(cfg.wildfire_hold) and 0 <= cfg.wildfire_hold <= lua.MAX_HOLD):
                 raise ValueError(f"wildfire_hold: segundos entre 0 (sin escena) y {lua.MAX_HOLD:g}")
+            if not (math.isfinite(cfg.action_announce_hold) and 0 <= cfg.action_announce_hold <= lua.MAX_HOLD):
+                raise ValueError(f"action_announce_hold: segundos entre 0 (sin pausa) y {lua.MAX_HOLD:g}")
             if not (math.isfinite(cfg.ongoing_hold) and 0 <= cfg.ongoing_hold <= lua.MAX_HOLD):
                 raise ValueError(f"ongoing_hold: segundos entre 0 (sin pausa) y {lua.MAX_HOLD:g}")
             if cfg.token_spot is not None and len(cfg.token_spot) != 3:

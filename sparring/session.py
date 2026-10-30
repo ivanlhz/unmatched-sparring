@@ -82,6 +82,7 @@ CODED_ABILITY_HERO = "medusa"     # the hero whose start-of-turn ability the eng
 HOLD_MARGIN = 2.0           # seconds on top of a composite's hold for the reply to arrive
 DEFAULT_ONGOING_HOLD = 1.5    # seconds of the bot's ping on a human ONGOING scheme that left play, before it moves it (tests use 0)
 DEFAULT_WILDFIRE_HOLD = 3.0   # seconds the bot leaves its Wildfire card face up on the discard before applying it (tests use 0)
+DEFAULT_ACTION_ANNOUNCE_HOLD = 2.0    # seconds between the chat line that says what the bot is about to do and the table writes (tests use 0)
 DEFAULT_BOT_PAUSE = 1.0     # segundos entre acciones del bot en la partida real (los tests usan 0)
 
 
@@ -125,6 +126,7 @@ class SessionConfig:
     label_font: float = lua.LABEL_FONT   # tamano del texto de las etiquetas del suelo
     bot_pause: float = 0.0         # segundos de pausa tras cada accion del bot (0 = sin pausa; `play` usa 1.0)
     wildfire_hold: float = 0.0     # seconds the Wildfire card stays face up on the bot's discard before its effect (0 = no scene; `play` uses 3.0)
+    action_announce_hold: float = 0.0   # seconds between announcing a bot action in the chat and writing it on the table (0 = say it after, as before; `play` uses 2.0)
     ongoing_hold: float = 0.0      # seconds the bot's ping on a human ONGOING scheme that left play lasts before it moves it (0 = no pause; `play` uses 1.5)
     live_ui: bool = False          # linea de estado, botones segun el estado y anuncios por pantalla en el mismo script
     bot_card_ids: tuple[int, int] = lua.BOT_CARD_IDS         # rango de CardID del mazo del bot (de su heroe: data/tts)
@@ -849,6 +851,31 @@ class Session:
     def say(self, msg: str, kind: ChatKind = ChatKind.NEUTRAL, shown: bool = False) -> None:
         self.messages.append(Msg(msg, kind, shown))
         self.game_log.chat(msg)
+
+    def _hold(self, seconds: float) -> None:
+        """The one pause of the bot's table scenes: what is already queued goes out and stays on show `seconds`. In a
+        batch the wait is inside the TTS script (`lua.hold`: no extra message, no snapshot of a half-done table),
+        otherwise it is a sleep after the writes."""
+        if seconds <= 0:
+            return
+        if self.cfg.batch:
+            self._w(lua.hold(seconds), "misc")
+        self._flush()
+        if not self.cfg.batch:
+            time.sleep(seconds)
+
+    def _announce_before(self, first: int) -> None:
+        """Ivan, 30/10: the bot says what it is about to do, waits `action_announce_hold` seconds and only then writes
+        it. The lines said since `messages[first]` reach the table now (marked `shown`, so the closing broadcast does
+        not repeat them) and the pause follows; the caller's table writes come after. 0 = nothing here: the line goes
+        out with the button's closing announcement, after the writes, as it always did."""
+        if self.cfg.action_announce_hold <= 0:
+            return
+        for m in self.messages[first:]:
+            for chunk in lua.ascii_text(m):
+                self._w(lua.broadcast(chunk, m.kind), "misc")
+            m.shown = True
+        self._hold(self.cfg.action_announce_hold)
 
     # ---------- the human's effect choices (E1; the button logic lives in session_choices) ----------
     # One pause at a time reaches the panel. In priority order: the pending combat stopped inside a card effect
@@ -2088,6 +2115,7 @@ class Session:
         if c["flip"] and not c.get("flipped"):
             self._flip_queued([(None if discarded_now and side == "bot" else guid, side) for guid, side in flip_cards])
         self.pending, self.pending_value, self.chosen_attacker = None, 0, None
+        said_first = len(self.messages)
         if self.pending_discard is not None:      # antes de cualquier E/S: un fallo de mesa no puede dejarlo sin base
             self.pending_discard["baseline"] = len(g.players[self.human].discard)
         self._mark_dirty(_bot_snapshot(c["before"]))
@@ -2113,6 +2141,8 @@ class Session:
                 self._announce_fall(f)
         self._grant_look_for(res.atk_card if p.kind == "human_attacks" else res.def_card)
         self._track_destiny()
+        if p.kind == "bot_attacks":               # its attack resolved: the result is said and held before the discards and dials move
+            self._announce_before(said_first)
         cause = "efectos del combate" if human_effects.human_ran(p.flow) else bot_effects.BOT_CAUSE
         fin_fx = self._project_effects(c.get("fx"), self._human_played(p), cause)
         fin_dials = self._write_dials(defer=True)
@@ -2672,11 +2702,7 @@ class Session:
                                               scope=self._scope(), id_range=cfg.bot_card_ids), "cards")
             for chunk in lua.ascii_text(first):
                 self._w(lua.broadcast(chunk, ChatKind.ABILITY), "misc")
-            if cfg.batch:
-                self._w(lua.hold(cfg.wildfire_hold), "misc")
-            self._flush()
-            if not cfg.batch:
-                time.sleep(cfg.wildfire_hold)
+            self._hold(cfg.wildfire_hold)
             if card.card_id not in ((moved.result or {}).get("moved") or []):
                 self.say(f"No encuentro {card.title} en el mazo del bot para ponerla a la vista: sigo sin escena.",
                          ChatKind.WARNING)
@@ -2901,8 +2927,14 @@ class Session:
             if target:
                 hp0, alive0 = target.hp, self._alive_map()
                 g.use_ability(self.bot, GAZE, target)
+                gaze = f"Habilidad de Medusa: 1 de dano a {self._name(target)} (PV de {hp0:g} a {max(target.hp, 0):g})."
+                if self.cfg.action_announce_hold > 0:      # said, held, and only then the dial moves
+                    said_first = len(self.messages)
+                    self.say(gaze, ChatKind.ABILITY)
+                    self._announce_before(said_first)
                 dials_ok = self._write_dials()        # primero el dial y su verificacion, luego el anuncio
-                self.say(f"Habilidad de Medusa: 1 de dano a {self._name(target)} (PV de {hp0:g} a {max(target.hp, 0):g}).", ChatKind.ABILITY)
+                if self.cfg.action_announce_hold <= 0:
+                    self.say(gaze, ChatKind.ABILITY)
                 self._announce_human_falls(alive0)
                 self._persist()
                 if not dials_ok:
@@ -2916,12 +2948,17 @@ class Session:
                 act = self.ai.plan(g)
                 if act.kind == "attack":
                     attacker, target = g.fighters[act.fid], g.fighters[act.target]
+                    announced = self.cfg.action_announce_hold > 0
+                    if announced:                 # the attack is said, the card goes down a pause later
+                        said_first = len(self.messages)
+                        self.say(f"El bot ataca con {attacker.fid} a {target.fid}.", ChatKind.ATTACK)
+                        self._announce_before(said_first)
                     guid = self._place_bot_card(act.card, "bot_attacks", attacker, target)
                     self.pending = Pending("bot_attacks", attacker, target, act.card, guid)
                     hidden.bot_attack_placed(self, self.pending)     # Perfect Shot / UNCANNY INTUITION: face up
                     self._persist()
-                    self.say(f"El bot ataca con {attacker.fid} a {target.fid}: deja tu defensa boca abajo "
-                             "(o nada) y pulsa Revelar.", ChatKind.ATTACK)
+                    self.say(("Deja" if announced else f"El bot ataca con {attacker.fid} a {target.fid}: deja")
+                             + " tu defensa boca abajo (o nada) y pulsa Revelar.", ChatKind.ATTACK)
                     return
                 before = self._snapshot_bot()
                 seen = len(g.players[self.bot].discard)
@@ -2936,9 +2973,11 @@ class Session:
                 self._persist()
                 paused = self._paused() is not None
                 said = False
-                if act.kind == "scheme":      # the play comes first, then what the table does for its effect (a shuffle, a returned card)
+                if act.kind == "scheme" or self.cfg.action_announce_hold > 0:   # the play comes first, then what the table does for it
                     said = True
+                    said_first = len(self.messages)
                     self._say_bot_action(act, seen, before, hp0, sig_before, actions0, exhausting, paused)
+                    self._announce_before(said_first)
                 fin_fx = self._project_effects(fx_before)
                 fin_table = self._flush_table_stage()
                 dials_ok = self._write_dials(defer=True)()    # un solo mensaje para cartas, piezas, efectos y diales
