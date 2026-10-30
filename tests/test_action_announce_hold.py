@@ -4,11 +4,15 @@ Batch mode: the line and the pause (`lua.hold`) ride one TTS script that goes ou
 table writes. Nothing here sleeps (the hold is a marker op inside the script) and nothing touches the real ports."""
 from __future__ import annotations
 
-import re
+import pytest
 
 from sparring.ai_medusa import Act
 from sparring.tts.ui import Event
 from test_batch import click
+from sparring.play import ConfigError, load_config
+from sparring.session import DEFAULT_ACTION_ANNOUNCE_HOLD, SessionConfig
+from test_multihero_bridge import REAL_CONFIG
+from test_pausa_y_ataque import cfg_file  # noqa: F401
 from test_d3_table_effects import bot_turn, human_hand
 from test_e2_human_cards import put_adjacent, rig, with_rig  # noqa: F401
 
@@ -103,3 +107,13 @@ def test_without_batch_the_pause_is_a_sleep_between_the_announcement_and_the_wri
     assert len(sleeps) == 2
     assert events[sleeps[0] - 1][1] == "-- sparring:broadcast"
     assert any(e == ("w", "-- sparring:deal_cards") for e in events[sleeps[0] + 1:sleeps[1]])
+
+
+def test_the_hold_is_2_seconds_in_the_real_config_0_in_the_session_default_and_validated(cfg_file):
+    assert DEFAULT_ACTION_ANNOUNCE_HOLD == 2.0 and SessionConfig.__dataclass_fields__["action_announce_hold"].default == 0.0
+    assert load_config(REAL_CONFIG).session_config().action_announce_hold == 2.0
+    assert load_config(cfg_file(action_announce_hold=0)).session_config().action_announce_hold == 0
+    assert load_config(cfg_file(action_announce_hold=1.5)).session_config().action_announce_hold == 1.5
+    for bad in (-1, 1000, "x"):
+        with pytest.raises(ConfigError):
+            load_config(cfg_file(action_announce_hold=bad)).session_config()
