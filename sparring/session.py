@@ -3894,6 +3894,9 @@ class Session:
                 check_discard()
             if short:
                 raise SessionError(f"el mazo del bot repartio {n - short} de {n} cartas")
+            if any(o.domain == "fx" for o in self._queue):
+                self._flush()                     # a bot effect that moves its cards (Pyrotechnics) is no `cards` write:
+                                                  # no read sends it, and the check would see the table without it
             if not self._settle(lambda: len([i for i in self._table_hand_ids() if i not in held]) == want_hand
                                 and self._table_discard() == want_discard):
                 raise SessionError("la mesa del bot no coincide con el motor (mano o descarte); reintenta Fin de accion")
