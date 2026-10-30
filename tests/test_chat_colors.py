@@ -81,7 +81,7 @@ def test_a_warning_and_the_bot_actions_have_their_colors(brig, monkeypatch):
     game.turn, game.actions_left, session.bot_stage = 0, 1, None
     session.messages = []
     session._bot_continue()
-    moves = [m for m in session.messages if m.startswith("El bot hace maneuver")]
+    moves = [m for m in session.messages if m.startswith("El bot maniobra")]
     assert [m.kind for m in moves] == [ChatKind.MOVE]
     assert session.messages[-1].kind is ChatKind.YOUR_TURN and session.messages[-1].startswith("Tu turno")
 

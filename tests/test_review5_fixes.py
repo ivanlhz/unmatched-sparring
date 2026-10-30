@@ -891,7 +891,7 @@ def test_the_bot_announces_the_cards_it_discards(rig, monkeypatch):
     monkeypatch.setattr(session.ai, "pick_ability_target", lambda g: None)
     game.actions_left = 0
     out = session.handle(Event.END_ACTION)
-    assert any(m.startswith("El bot hace maneuver (descarta Dash por boost de maniobra)") for m in out)
+    assert any(m.startswith("El bot maniobra (descarta Dash por boost de maniobra)") for m in out)
 
 
 # ---------- D: efectos de despues del combate que el bot aplica solo ----------
@@ -1424,7 +1424,7 @@ def test_the_maneuver_boost_and_the_hand_limit_are_announced_and_slots_keep_coun
     monkeypatch.setattr(session.ai, "pick_ability_target", lambda g: None)
     game.actions_left = 0
     out = session.handle(Event.END_ACTION)
-    assert any(m.startswith(f"El bot hace maneuver (descarta {boost.title} por boost de maniobra)") for m in out)
+    assert any(m.startswith(f"El bot maniobra (descarta {boost.title} por boost de maniobra)") for m in out)
     limit = next(m for m in out if m.startswith("El bot descarta ") and "por limite de mano" in m)
     assert limit.count("por limite de mano") == len(st.discard) - 1
     order = [c.card_id for c in st.discard]
@@ -1535,7 +1535,7 @@ def test_bot_first_the_bot_places_then_asks_the_human_and_waits_for_listo(rig, m
     table.human_count = 5
     out = session.handle(Event.READY)
     assert session.setup is None and any("Preparacion terminada" in m for m in out)
-    assert any(m.startswith("El bot hace maneuver") for m in out) and game.turn == 1
+    assert any(m.startswith("El bot maniobra") for m in out) and game.turn == 1
 
 
 def test_human_first_the_bot_waits_reads_the_human_pieces_and_then_places(rig, monkeypatch):

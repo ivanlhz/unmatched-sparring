@@ -285,6 +285,7 @@ class Session:
         self.unprojected: dict | None = None     # posiciones previas de las piezas aun sin proyectar
         self.bot_stage: str | None = None        # "start": turno del bot empezado en el motor, E/S pendiente
         self.wildfire_scene: dict | None = None  # what the bot's Wildfire did at the turn change, shown at its first write
+        self.said_returns: set[int] = set()      # cards whose return to the bot's hand the Wildfire scene already announced
         self.limit_waived = False
         self.flush_failures = 0                  # fallos de mesa (SessionError) seguidos al saldar la deuda
         self.state_path: Path | None = None      # si esta puesto, se guarda tras cada start/resume/handle
@@ -2503,6 +2504,7 @@ class Session:
             zones = self.fx_unprojected["bot"]
             zones["deck"] = [i for i in zones["deck"] if i != card.card_id]
             zones["discard"] = zones["discard"] + [card.card_id]
+            self.said_returns.add(card.card_id)
         for text, kind in self._wildfire_lines(scene, liz):
             self.say(text, kind, shown=True)
             if cfg.batch:
@@ -2608,7 +2610,28 @@ class Session:
         listed = self._discard_list(seen, reasons, default, skip)
         return f" (descarta {listed})" if listed else ""
 
-    def _action_text(self, act, seen: int, before: dict, hp0: dict[str, float]) -> str:
+    def _say_bot_action(self, act, seen: int, before: dict, hp0: dict[str, float], fx_before: dict, actions0: int,
+                        exhausting: bool, paused: bool) -> None:
+        if exhausting:
+            self.say(f"Mazo vacio: el bot roba y cada luchador suyo pierde {EXHAUST_DAMAGE} PV.", ChatKind.COMBAT)
+        if paused:        # the scheme asks you something: the panel shows it, the turn waits
+            self.say(f"El bot juega {act.card.title}" + self._played_text(seen, {}, "efecto", skip=act.card) + ".",
+                     ChatKind.SCHEME)
+        else:
+            self.say(self._action_text(act, seen, before, hp0, fx_before, actions0), ACTION_KIND.get(act.kind, ChatKind.MOVE))
+
+    def _scheme_idle(self, act, fx_before: dict | None) -> bool:
+        """The scheme left the bot's other cards, its draws and its ONGOING as they were."""
+        g = self.game
+        if fx_before is None or g.fx.ongoing_card_id(self.bot) != fx_before["bot_in_play"]:
+            return False
+        now = bot_effects.zones(g.players[self.bot])
+        now["discard"] = [i for i in now["discard"] if i != act.card.card_id]
+        was = dict(fx_before["bot"], hand=[i for i in fx_before["bot"]["hand"] if i != act.card.card_id])
+        return now == was and g.drawn[self.bot] == fx_before["drawn"]
+
+    def _action_text(self, act, seen: int, before: dict, hp0: dict[str, float], fx_before: dict | None = None,
+                     actions0: int | None = None) -> str:
         """Que ha hecho el bot, con el nombre de la carta jugada, el dano que hizo y a donde movio cada pieza."""
         g = self.game
         moved = [f"{self._name(g.fighters[fid])} a la casilla {g.fighters[fid].pos}"
@@ -2617,6 +2640,9 @@ class Session:
         if act.kind in ("glance", "frenzy", "scheme"):
             title = act.card.title
             text = f"El bot juega {title}" + self._played_text(seen, {}, "efecto", skip=act.card)
+            if act.kind == "scheme" and not moved and self._scheme_idle(act, fx_before) and not self._hp_text(hp0):
+                gained = g.actions_left - (actions0 - 1)
+                text += ": sin efecto" + (", solo recupera la accion" if gained == 1 else "")
             if act.kind == "glance":
                 t = g.fighters[act.target]
                 dealt = hp0[t.fid] - t.hp
@@ -2624,8 +2650,10 @@ class Session:
                          if dealt else f": sin efecto sobre {self._name(t)} (dano de efectos evitado)")
         else:
             boost = {act.boost.card_id: "boost de maniobra"} if act.boost is not None else {}
-            text = f"El bot hace {act.kind}" + self._played_text(seen, boost, "efecto")
+            text = "El bot maniobra" + self._played_text(seen, boost, "efecto")
         others = self._hp_text(hp0, skip=act.target if act.kind == "glance" else None)
+        if act.kind == "maneuver" and not moved:
+            text += " y roba, sin mover a nadie"
         return (text + (f". Mueve {', '.join(moved)}" if moved else "") + (f". {others}" if others else "") + ".")
 
     def _recover_placing(self) -> None:
@@ -2672,6 +2700,7 @@ class Session:
             fin_fx()
             if fin_dials is not None:
                 fin_dials()
+            self.said_returns.clear()
         if self.pending is not None:
             self.say("La carta del bot ya esta en la mesa: pulsa Revelar.", ChatKind.WARNING)
             return
@@ -2721,25 +2750,30 @@ class Session:
                 alive0 = self._alive_map()
                 exhausting = act.kind == "maneuver" and not g.players[self.bot].deck
                 fx_before = bot_effects.snapshot(self)
+                actions0 = g.actions_left
                 self.ai.execute(g, act)
                 self._mark_dirty(before)
                 self._persist()
+                paused = self._paused() is not None
+                said = False
+                if act.kind == "scheme":      # the play comes first, then what the table does for its effect (a shuffle, a returned card)
+                    said = True
+                    self._say_bot_action(act, seen, before, hp0, fx_before, actions0, exhausting, paused)
                 fin_fx = self._project_effects(fx_before)
                 fin_table = self._flush_table_stage()
                 dials_ok = self._write_dials(defer=True)()    # un solo mensaje para cartas, piezas, efectos y diales
                 fin_table()
                 fin_fx()
-                if self._paused() is not None:    # the scheme asks you something: the panel shows it, the turn waits
+                if paused:
+                    if not said:
+                        self._say_bot_action(act, seen, before, hp0, fx_before, actions0, exhausting, paused)
                     self.fx_unprojected = bot_effects.snapshot(self)
                     self._persist()
-                    self.say(f"El bot juega {act.card.title}" + self._played_text(seen, {}, "efecto", skip=act.card) + ".",
-                             ChatKind.SCHEME)
                     self._show_choice(self.effect_run.awaiting)
                     return
                 self._persist()
-                if exhausting:
-                    self.say(f"Mazo vacio: el bot roba y cada luchador suyo pierde {EXHAUST_DAMAGE} PV.", ChatKind.COMBAT)
-                self.say(self._action_text(act, seen, before, hp0), ACTION_KIND.get(act.kind, ChatKind.MOVE))
+                if not said:                      # the dials are written and checked before the announcement
+                    self._say_bot_action(act, seen, before, hp0, fx_before, actions0, exhausting, paused)
                 self._announce_human_falls(alive0)
                 if not dials_ok:
                     self._pause_for_dials()

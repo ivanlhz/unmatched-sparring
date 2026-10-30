@@ -392,8 +392,24 @@ class MedusaAI(Controller):
         gained = sum(1 for c in hand_after if c not in hand)
         value = self.effect_ai().material_delta(game, after, me) - CARD_VALUE
         value += CARD_VALUE * gained - sum(keep_value(c, hand) for c in lost)
-        value += ACTION_VALUE * (after.actions_left - (game.actions_left - 1))
+        gained = after.actions_left - (game.actions_left - 1)
+        if not self.scheme_changed_nothing(game, after, card):
+            value += ACTION_VALUE * gained       # an action handed back is only worth something when the card did more
         return Act("scheme", value, game.hero(me).fid, "", card, sim=after)
+
+    def scheme_changed_nothing(self, game: Game, after: Game, card) -> bool:
+        """The scheme left every card (the played one aside), piece and ONGOING where they were: Searing Clarity with
+        no non-scheme card in the discard pile shuffles nothing and only returns its own action."""
+        me = self.me
+        before_p, after_p = game.players[me], after.players[me]
+        ids = lambda cards: [c.card_id for c in cards]
+        if (ids(c for c in before_p.hand if c is not card) != ids(after_p.hand) or sorted(ids(before_p.deck)) != sorted(ids(after_p.deck))
+                or ids(before_p.discard) != ids(c for c in after_p.discard if c.card_id != card.card_id)
+                or after.drawn[me]         # a simulation starts its own count of draws at zero
+                or game.fx.ongoing_card_id(me) != after.fx.ongoing_card_id(me)):
+            return False
+        return all((f.hp, f.pos, f.alive) == (after.fighters[fid].hp, after.fighters[fid].pos, after.fighters[fid].alive)
+                   for fid, f in game.fighters.items())
 
     def frenzy_act(self, game: Game, model: Model, card) -> Act | None:
         g = game.clone()
@@ -609,9 +625,20 @@ class MedusaAI(Controller):
         near = min(b.distance(dest, e.pos) for e in foes)
         return -0.25 * near + (0.6 if near == 1 else 0.0)
 
+    def reach_dests(self, game: Game, f: Fighter, options: set[int]) -> set[int]:
+        """The destinations from which a non-Medusa hero holding an attack card can hit a rival, when an action is left
+        to do it (Fight Or Flight's move, Wildfire's): the move is for getting into position, not for staying clear of
+        the rival's hits. Empty when the rule does not apply or no destination reaches."""
+        if (not f.hero or f.name == "Medusa" or game.actions_left < 1
+                or not any(c.can_attack and c.usable_by(f.name) for c in game.players[self.me].hand)):
+            return set()
+        foes = game.foes(self.me)
+        return {d for d in options if any(game.board.can_reach_target(d, e.pos, f.ranged) for e in foes)}
+
     def best_dest(self, game: Game, model: Model, f: Fighter, steps: int, through: bool) -> int:
         options = game.legal_moves(f, steps, through) | {f.pos}
         if f.hero:
+            options = self.reach_dests(game, f, options) or options
             return max(options, key=lambda d: (self.position_value(game, model, {f.fid: d}), -d))
         return max(options, key=lambda d: (self.harpy_score(game, f, d), -d))
 

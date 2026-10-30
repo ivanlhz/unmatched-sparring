@@ -362,7 +362,20 @@ def test_ascii_text_chunks_are_all_accepted_by_broadcast():
     assert len(chunks) > 1 and all(len(c) <= 64 for c in chunks)
     for c in chunks:
         assert is_sendable(lua.broadcast(c))
-    assert lua.ascii_text("áéíñ ¿?") == ["aein"]
+    assert lua.ascii_text("áéíñ ¿?") == ["aein ?"]
+
+
+def test_chat_punctuation_survives_the_broadcast():
+    """Parentheses, commas and friends are inert in a Lua string: the chat shows them (Ivan, 30/10: "(fuego)" arrived as
+    "fuego" and "(s)" as " s"), while quotes, backslashes, brackets and newlines still never get through."""
+    for text in ("Descarta 1 carta(s) hasta tener 7.", "Searing Clarity (fuego), vuelve; a+b/c=d?"):
+        assert lua.ascii_text(text) == [text]
+        assert is_sendable(lua.broadcast(text))
+    forbidden = '"\\[]\n'
+    for bad in ('say "hi"', "back\\slash", "[ff0000]red", "two\nlines"):
+        with pytest.raises(ValueError):
+            lua.broadcast(bad)
+        assert all(c not in forbidden for chunk in lua.ascii_text(bad) for c in chunk)
 
 
 def test_buttons_pressed_while_waiting_for_lua_are_not_lost():

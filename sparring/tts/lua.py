@@ -36,6 +36,10 @@ SEATS = frozenset({"White", "Brown", "Red", "Orange", "Yellow", "Green", "Teal",
                    "Grey", "Black"})
 
 _SAFE = re.compile(r"[A-Za-z0-9 _.\-!:']{0,64}")
+# Chat lines keep their punctuation: parentheses, commas, semicolons, question marks, plus and slash are inert inside a
+# Lua double-quoted string (no quote, backslash, bracket or newline gets in), so "(fuego)" reaches the table intact.
+_CHAT_CHARS = r"A-Za-z0-9 _.\-!:',;()?+/="
+_CHAT_SAFE = re.compile(rf"[{_CHAT_CHARS}]{{0,64}}")
 _GUID = re.compile(r"[A-Za-z0-9]{1,16}")
 _SENDABLE: set[str] = set()
 BOT_CARD_IDS = (MEDUSA_BASE, MEDUSA_BASE + 29)      # rango de CardID del mazo de Medusa (30 cartas)
@@ -922,7 +926,7 @@ def ascii_text(text: str, limit: int = 64) -> list[str]:
     """Texto libre -> trozos que `lua_str` admite (ASCII sin acentos, caracteres de la lista blanca, <= limit)."""
     import unicodedata
     plain = unicodedata.normalize("NFKD", str(text)).encode("ascii", "ignore").decode("ascii")
-    plain = re.sub(r"[^A-Za-z0-9 _.\-!:']", " ", plain)
+    plain = re.sub(rf"[^{_CHAT_CHARS}]", " ", plain)
     words, chunks, cur = plain.split(), [], ""
     for w in words:
         w = w[:limit]
@@ -966,8 +970,10 @@ def broadcast(text: str, kind: ChatKind = ChatKind.NEUTRAL) -> str:
     """Muestra un mensaje en pantalla a todos (no toca la mesa), con el color de su categoria.
     Solo caracteres de la lista blanca, <= 64."""
     r, g, b = CHAT_COLORS[ChatKind(kind)]        # ChatKind() rechaza cualquier categoria que no este en la tabla
+    if not isinstance(text, str) or not _CHAT_SAFE.fullmatch(text):
+        raise ValueError(f"cadena no admitida en Lua: {text!r}")
     return f"""-- sparring:broadcast
-broadcastToAll({lua_str(text)}, {{{r}, {g}, {b}}})
+broadcastToAll("{text}", {{{r}, {g}, {b}}})
 return JSON.encode({{shown = true}})
 """
 
