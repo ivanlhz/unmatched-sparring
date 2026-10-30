@@ -363,7 +363,9 @@ def _human_cards(session, before: dict, played: frozenset, looked: bool, cause: 
     in_play = before.get("in_play")               # your ONGOING that left play
     if in_play is not None and in_play in h1["discard"] and in_play not in h0["discard"]:
         left_play(session, in_play, cause)
-    to_discard = [i for i in h1["discard"] if i not in h0["discard"] and i not in played and i != in_play]
+    to_discard = [i for i in h1["discard"] if i not in h0["discard"] and i not in played and i != in_play
+                  and i not in session.hand_discarded]
+    by_bot = len([i for i in h1["discard"] if i not in h0["discard"] and i in session.hand_discarded])    # already moved
     if to_discard:
         d = session.pending_discard or {"n": 0, "baseline": len(st.discard), "kind": "cards"}
         d["cards"] = list(d.get("cards") or []) + to_discard
@@ -384,7 +386,7 @@ def _human_cards(session, before: dict, played: frozenset, looked: bool, cause: 
     drawn = 0 if looked else len([i for i in h1["hand"] if i in h0["deck"]])    # a look moves placeholders, not cards
     session._deal_owed_draws(cause)               # the draws of the effect are dealt to the hand (or said, without a deck)
     from_hand = len([i for i in h0["hand"] if i in played])
-    unknown = len(h0["hand"]) + drawn - len(h1["hand"]) - from_hand - len(to_discard) - len(hand_to_deck)
+    unknown = len(h0["hand"]) + drawn - len(h1["hand"]) - from_hand - len(to_discard) - by_bot - len(hand_to_deck)
     if unknown > 0:
         session.say(f"Devuelve {_plural(unknown)} de tu mano a tu mazo y baraja ({cause}; las eliges tu).",
                     ChatKind.YOUR_TURN)

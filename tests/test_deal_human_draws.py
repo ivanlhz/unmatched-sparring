@@ -99,10 +99,12 @@ def test_glimpse_of_hell_deals_two_and_the_shuffle_back_stays_yours(rig, monkeyp
 
 
 @with_rig(*HELLBOY_VS_ABE)
-def test_crown_of_flame_deals_two_and_the_discard_of_the_old_hand_stays_manual(rig):
+def test_crown_of_flame_deals_two_and_the_discard_of_the_old_hand_is_manual_when_the_table_cannot(rig):
     session, table, game, fake, cfg = rig
+    table.hand_discard_fails = True
     human_hand(table, game, CROWN, "Excalibur", "Service Pistol")
     msgs = human_scheme(session, table, game, CROWN)
+    assert said(msgs, "No he podido descartar tu mano")
     assert table.human_deals == [2] and said(msgs, "Te he dado 2 cartas")
     assert said(msgs, "Lo que te toca descartar es lo que tenias antes, no estas")
     assert session.pending_discard["n"] == 2 and not said(msgs, "Robas 2")

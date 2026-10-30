@@ -207,17 +207,16 @@ def test_on_earth_takes_the_destiny_count_and_heals_when_lost(rig, monkeypatch):
 
 
 @with_rig(*HELLBOY_VS_ABE)
-def test_crown_of_flame_owes_your_hand_to_the_pile_draws_and_grants_the_actions(rig):
+def test_crown_of_flame_discards_your_hand_for_you_draws_and_grants_the_actions(rig):
     session, table, game, fake, cfg = rig
     human_hand(table, game, "And Upon His Brow Is Set A Crown Of Flame", "Excalibur", "Service Pistol")
     msgs = human_scheme(session, table, game, "And Upon His Brow Is Set A Crown Of Flame")
     assert game.actions_left == 3
-    assert said(msgs, "Aplico And Upon His Brow Is Set A Crown Of Flame: robas 2; ganas 2 acciones")
-    assert said(msgs, "Descarta 2 carta(s) (And Upon His Brow Is Set A Crown Of Flame)") and session.pending_discard["n"] == 2
-    assert said(msgs, "Te he dado 2 cartas (efecto de And Upon His Brow Is Set A Crown Of Flame). Lo que te toca descartar")
-    assert table.human_deals == [2]
-    table.human_discard += card_ids(game, 1, "Excalibur", "Service Pistol")
-    table.human_count = 2
+    assert said(msgs, "Aplico And Upon His Brow Is Set A Crown Of Flame: robas 2; descartas Excalibur y Service Pistol; ganas 2 acciones")
+    assert said(msgs, "Descarto tu mano (2 cartas) por And Upon His Brow Is Set A Crown Of Flame")
+    assert session.pending_discard is None and not said(msgs, "Descarta 2 carta(s)")
+    assert said(msgs, "Te he dado 2 cartas (efecto de And Upon His Brow Is Set A Crown Of Flame).")
+    assert table.hand_discards == [2] and table.human_deals == [2]
     msgs = click(session, table, Event.END_ACTION)
     assert session.pending_discard is None and len(game.players[1].hand) == 2
 

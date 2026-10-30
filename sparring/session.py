@@ -274,6 +274,7 @@ class Session:
         self.token_copies: dict[str, list[str]] = {}   # ability token -> GUIDs of the active copies on the table (D3)
         self.fx_unprojected: dict | None = None       # bot_effects snapshot taken before the turn change, projected at the bot's first write
         self.fx_in_flight: set[int] = set()           # CardIDs a bot effect is moving off its pile or hand in this step
+        self.hand_discarded: set[int] = set()         # CardIDs the bot moved from the human's hand to their pile in this step (Crown Of Flame): nothing left to ask
         self.hand_moved: dict[str, int] = {}          # fid -> space the human put a miniature on by hand (session_moves): not projected again
         self.fx_looked = False                        # a look_hand re-identified the human's virtual hand in this step
         self.reveal_bot_hand = False                  # a card of the human looked at the bot's hand in this step (E3)
@@ -776,6 +777,7 @@ class Session:
         self._persist()
         self.snap = None                          # la mesa cambia entre botones: el siguiente trae la suya
         self.fx_in_flight = set()
+        self.hand_discarded = set()
         return self.messages
 
     def _table_failure(self, e: Exception) -> None:
@@ -2449,10 +2451,66 @@ class Session:
 
     # ---------- descartes del humano ----------
     def _owe_discard(self, n: int, reason: str) -> None:
-        d = self.pending_discard or {"n": 0, "baseline": len(self.game.players[self.human].discard), "kind": "cards"}
-        d["n"] += n
-        self.pending_discard = d
-        self.say(f"Descarta {n} carta(s) ({reason}) y pulsa Fin de accion.{self._wildfire_hint()}", ChatKind.YOUR_TURN)
+        st = self.game.players[self.human]
+        baseline = len(st.discard)
+        if reason == CROWN:
+            n = self._discard_human_hand(n, reason)
+            baseline = len(st.discard) + (0 if any(c.title == CROWN for c in st.discard) else 1)   # the plan lands in the pile after
+        if n > 0:
+            d = self.pending_discard or {"n": 0, "baseline": baseline, "kind": "cards"}
+            d["n"] += n
+            self.pending_discard = d
+            self.say(f"Descarta {n} carta(s) ({reason}) y pulsa Fin de accion.{self._wildfire_hint()}", ChatKind.YOUR_TURN)
+
+    def _discard_human_hand(self, n: int, reason: str) -> int:
+        """Crown Of Flame (Ivan, 30/10): the bot moves the human's whole hand to their discard pile, face up, and the
+        engine follows with the cards the table reports (they become public). Returns how many cards are still left
+        for the human to discard by hand: 0 when the table did it, else what it could not move (it is said, and the
+        manual flow asks for them, so the game never stalls)."""
+        c = self.cfg
+        expected = self._rd_human_count(n)
+        moved: list[int] = []
+        count, failure = 0, None
+        if expected > 0:
+            try:
+                res = self._w(lua.hand_to_discard(c.human_seat, c.human_discard_zone, c.human_card_ids,
+                                                  identity=self._identity("human")), "cards").result
+                res = res if isinstance(res, dict) else {}
+                moved = [i for i in res.get("moved") or [] if isinstance(i, int)]
+                count = res.get("count") if res.get("zone") is True and isinstance(res.get("count"), int) else 0
+                if count != expected:
+                    failure = f"he movido {count} de {expected}"
+            except TABLE_ERRORS as e:
+                failure = str(e)
+        self._land_in_discard(set(moved))
+        for i in moved:
+            self._transit[i] = 0
+        self.hand_discarded.update(moved)
+        if moved:
+            self._track_destiny()                # the discarded hand may hold destinies (and a change of form)
+        if failure is not None:
+            self.say(f"No he podido descartar tu mano ({failure}): descartala tu a mano.", ChatKind.WARNING)
+            return max(0, n - count)
+        self._trim_virtual_hand(0)
+        if count:
+            self.say(f"Descarto tu mano ({count} carta{'s' if count != 1 else ''}) por {reason}.", ChatKind.SCHEME)
+        return 0
+
+    def _land_in_discard(self, ids: set[int]) -> None:
+        """Cards the table shows in the human's discard pile: out of the engine's hand (or deck, its hand is virtual)
+        and onto its pile; the bot stops counting on the ones it had seen in the hand."""
+        st = self.game.players[self.human]
+        by_id = {c.card_id: c for c in st.full_set}
+        for i in sorted(ids & by_id.keys()):
+            c = by_id[i]
+            if c in st.discard:
+                continue
+            if c in st.hand:
+                st.hand.remove(c)
+            elif c in st.deck:
+                st.deck.remove(c)
+            st.discard.append(c)
+            self.game.card_left_hand(self.human, c)     # si el bot la habia visto en tu mano, deja de contar con ella
 
     def _human_wildfire(self) -> bool:
         """Liz (Wildfire): toda ardiente que el humano descarta de la mano vuelve a ella, asi que un descarte
@@ -4076,7 +4134,6 @@ class Session:
                 ids = ids | ({i} & known)
         for i in (self.pending_discard or {}).get("cards") or []:   # a bot effect discarded it: the human still has to move it
             ids = ids | ({i} & known)
-        by_id = {c.card_id: c for c in st.full_set}
         deck_qty = (self.snap or {}).get("human_deck_qty", -1) if self.cfg.batch else -1
         fresh = [c for c in st.discard if c.card_id not in ids and c.card_id not in self._gone]
         real = self._rd_human_count(len(st.hand))
@@ -4118,16 +4175,7 @@ class Session:
         if isinstance(deck_qty, int) and deck_qty >= 0:
             self._deck_qty = deck_qty
         in_play = self.game.fx.ongoing_card_id(self.human)     # your ONGOING scheme sits on the pile while in play
-        for i in sorted(ids & by_id.keys()):
-            c = by_id[i]
-            if c in st.discard or i == in_play:
-                continue
-            if c in st.hand:
-                st.hand.remove(c)
-            elif c in st.deck:
-                st.deck.remove(c)
-            st.discard.append(c)
-            self.game.card_left_hand(self.human, c)     # si el bot la habia visto en tu mano, deja de contar con ella
+        self._land_in_discard(ids - {in_play})
         self._verify_maneuver_deal(real, len(ids))
         self._trim_virtual_hand(real)
         hero = self.game.hero(self.human)

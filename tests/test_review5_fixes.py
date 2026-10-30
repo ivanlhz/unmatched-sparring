@@ -1206,12 +1206,14 @@ def test_a_scheme_played_after_pressing_plan_is_recognised_at_fin_de_accion(rig)
     out = session.handle(Event.SCHEME)
     assert game.actions_left == 1 and any("deja tu carta de plan" in m for m in out)
     table.human_discard = [card_id(game, 1, CROWN)]
+    table.human_hand = [c.card_id for c in game.players[1].hand]                       # the five cards the bot moves
     out = session.handle(Event.END_ACTION)
-    assert any(f"Aplico {CROWN}: robas 2; ganas 2 acciones." in m for m in out)        # E2: the interpreter
-    assert any(f"Descarta 5 carta(s) ({CROWN})" in m for m in out)                     # your hand: you discard it
+    assert any(f"Aplico {CROWN}: robas 2; descartas " in m and "; ganas 2 acciones." in m for m in out)   # E2: the interpreter
+    assert any(f"Descarto tu mano (5 cartas) por {CROWN}" in m for m in out)           # your hand: the bot discards it
     assert game.actions_left == 3 and session.scheme_baseline is None
-    assert table.dials["dD"]["value"] == 1, "la corona es un destino: el dial lo cuenta"
-    assert any("Destinos de Hellboy: 1" in m for m in out)
+    destinies = 1 + sum(c.destiny for c in game.players[1].discard if c.title != CROWN)   # the Crown and the moved hand
+    assert table.dials["dD"]["value"] == destinies >= 1, "la corona y las cartas de destino que se descartan: el dial las cuenta"
+    assert any(f"Destinos de Hellboy: {destinies - 1} (en su descarte)" in m for m in out)   # the moved hand, before the Crown lands
 
 
 @pytest.mark.skipif(bool(__import__("os").environ.get("SPARRING_BATCH")), reason="en modo rapido Plan no espera: la carta la reconoce Fin de accion")

@@ -2095,6 +2095,37 @@ return JSON.encode({{placed = placed, deck = deck.getGUID(), quantity = deck.get
 """
 
 
+@_registered
+def hand_to_discard(seat_color: str, zone_guid: str, id_range: tuple[int, int] = BOT_CARD_IDS, *, identity) -> str:
+    """Moves every card of `seat_color`'s hand onto the discard pile of the scripting zone `zone_guid`, face up (the
+    human's whole hand, Crown Of Flame, Ivan 30/10). Only cards that are `ours` (`id_range` and the image of
+    `identity`) are taken; anything else in the hand stays. The pile is found as the first Deck or Card of the zone
+    that is `ours`: the cards go above it with its turn, so they land on top; with no pile they go to the zone's
+    centre. Instant (`setRotation`/`setPosition`: a smooth move does not take a card out of a hand), so the next
+    reading already sees them. Returns `{moved: [CardID...], count, zone}` (`zone = false` when the zone is not
+    there, and then nothing moves)."""
+    return f"""-- sparring:hand_to_discard
+{_ours_lua(identity, id_range)}local zone = getObjectFromGUID({_guid(zone_guid)})
+if zone == nil then return JSON.encode({{moved = {{}}, count = 0, zone = false}}) end
+local at, turn = zone.getPosition(), 0
+for _, o in ipairs(zone.getObjects()) do
+  if (o.type == "Deck" or o.type == "Card") and ours(o) then
+    at, turn = o.getPosition(), o.getRotation().y
+    break
+  end
+end
+local moved = {{}}
+for _, o in ipairs(Player[{_color(seat_color)}].getHandObjects(1)) do
+  if o.type == "Card" and ours(o) then
+    o.setRotation(Vector(0, turn, 0))
+    o.setPosition(Vector(at.x, at.y + 1 + 0.25 * #moved, at.z))
+    table.insert(moved, o.getData().CardID)
+  end
+end
+return JSON.encode({{moved = moved, count = #moved, zone = true}})
+"""
+
+
 _ANY_OURS_LUA = "local function ours(o) return not o.held_by_color end\n"
 
 

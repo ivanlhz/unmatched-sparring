@@ -51,6 +51,8 @@ class Table:
         self.deal_calls: list[int] = []
         self.human_deals: list[int] = []            # n de cada reparto al mazo del humano
         self.human_deal_fails = False
+        self.hand_discards: list[int] = []          # hand size at each "discard the human's whole hand" by the bot
+        self.hand_discard_fails = False
         self.human_deck_cards = 20
         self.discard_calls: list[list[int]] = []
         self.broadcasts: list[str] = []
@@ -332,6 +334,18 @@ class Table:
                     self._later(lambda i=i: self.bot_discard.append(i))
                     moved.append(i)
         return {"moved": moved}
+
+    def do_hand_to_discard(self, s):
+        """The human's whole hand onto their discard pile. A hand whose CardIDs are not set up (`human_hand` empty)
+        is counted only."""
+        self.hand_discards.append(self.human_count)
+        if self.hand_discard_fails:
+            return {"moved": [], "count": 0, "zone": False}
+        moved = [i for i in self.human_hand if i not in self.human_discard]
+        count = len(moved) or self.human_count
+        self.human_discard += moved
+        self.human_hand, self.human_count = [], 0
+        return {"moved": moved, "count": count, "zone": True}
 
     def do_place_card_face_up(self, s):
         i = int(re.search(r"CardID == (\d+)", s).group(1))
