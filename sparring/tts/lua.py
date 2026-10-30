@@ -1688,34 +1688,57 @@ MAX_HERO_GUIDS = 80
 
 
 @_registered
-def table_heroes(ranges: list[tuple[int, int]], guids: list[str]) -> str:
+def table_heroes(ranges: list[tuple[int, int]], guids: list[str], identities: list | None = None,
+                 min_unknown: int = 5) -> str:
     """Solo lectura, al arrancar: que heroes estan en la mesa. Para cada Deck o Card suelto en la mesa (los de dentro de
-    una bolsa no cuentan) devuelve su sitio y cuantas de sus cartas caen en cada rango de CardID de `ranges` (`counts`,
-    indexado como la lista); y, de `guids` (miniaturas), el sitio de las que estan sueltas en la mesa."""
+    una bolsa no cuentan) devuelve su sitio y cuantas de sus cartas son de cada heroe (`counts`, indexado como `ranges`);
+    y, de `guids` (miniaturas), el sitio de las que estan sueltas en la mesa. Con `identities` (uno por rango: los pares
+    (FaceURL, BackURL) del heroe) una carta solo cuenta si ademas su imagen es la del heroe: en el guardado real casi
+    todos los mazos comparten el DeckID 176 con Medusa. Un Deck de al menos `min_unknown` cartas que no es de ningun
+    heroe tambien vuelve, con `counts` a cero y su nombre, para poder decir que mazo no se reconoce."""
     if not isinstance(ranges, (list, tuple)) or not 1 <= len(ranges) <= MAX_HERO_RANGES:
         raise TypeError(f"lista de 1 a {MAX_HERO_RANGES} rangos de CardID esperada")
     if not isinstance(guids, (list, tuple)) or len(guids) > MAX_HERO_GUIDS:
         raise TypeError(f"lista de hasta {MAX_HERO_GUIDS} GUID esperada")
+    if identities is not None and (not isinstance(identities, (list, tuple)) or len(identities) != len(ranges)):
+        raise TypeError("una identidad de mazo por rango esperada")
     rows = ", ".join("{" + ", ".join(_range(r)) + "}" for r in ranges)
+    idents = "{" + ", ".join(_identity(i) for i in identities) + "}" if identities is not None else "nil"
     return f"""-- sparring:table_heroes
-local ranges = {{{rows}}}
+{_IMAGE_LUA}local ranges = {{{rows}}}
+local idents = {idents}
+local function isHero(i, c, fallback)
+  if idents == nil then return true end
+  local images = imagesOf(c, fallback)
+  if #images == 0 then return false end
+  for _, info in ipairs(images) do
+    if idents[i][tostring(info.FaceURL) .. "|" .. tostring(info.BackURL)] ~= true then return false end
+  end
+  return true
+end
 local piles = {{}}
 for _, o in ipairs(getObjects()) do
   if o.type == "Deck" or o.type == "Card" then
     local data = o.getData()
     local cards = (o.type == "Card") and {{data}} or (data.ContainedObjects or {{}})
+    local fallback = data.CustomDeck
     local counts, any = {{}}, false
     for i = 1, #ranges do counts[i] = 0 end
     for _, c in ipairs(cards) do
       if type(c.CardID) == "number" then
         for i, r in ipairs(ranges) do
-          if c.CardID >= r[1] and c.CardID <= r[2] then counts[i] = counts[i] + 1; any = true end
+          if c.CardID >= r[1] and c.CardID <= r[2] and isHero(i, c, fallback) then
+            counts[i] = counts[i] + 1; any = true
+          end
         end
       end
     end
-    if any then
+    if any or (o.type == "Deck" and #cards >= {_i(min_unknown)}) then
       local p = o.getPosition()
-      table.insert(piles, {{type = o.type, guid = o.getGUID(), x = p.x, z = p.z, counts = counts}})
+      local name = ""
+      if o.getName ~= nil then name = tostring(o.getName() or "") end
+      table.insert(piles, {{type = o.type, guid = o.getGUID(), x = p.x, z = p.z, counts = counts, name = name,
+                           size = #cards}})
     end
   end
 end

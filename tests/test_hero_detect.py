@@ -12,6 +12,7 @@ from sparring.play import ConfigError, load_config, main, resolve_heroes
 from sparring.tts import lua
 from sparring.tts.hero_table import load_hero_table
 from test_play import free_port
+from test_review10 import rt  # noqa: F401
 from test_session import rig  # noqa: F401
 
 REAL_CONFIG = Path(__file__).resolve().parent.parent / "config" / "partida.json"
@@ -310,3 +311,53 @@ def test_every_pair_of_heroes_is_detected_in_either_seat(bot, human):
         pytest.skip("el mismo heroe en los dos bandos es un error")
     stray = pile("liz-sherman" if "liz-sherman" not in (bot, human) else "hellboy", 6.5, 13.0, n=1, kind="Card")
     assert detect(reading(at_bot(bot), at_human(human), stray)) == (bot, human)
+
+
+# ---------- mazos que comparten el DeckID de Medusa (30/10: Raphael salia como Medusa) ----------
+def test_the_lua_counts_a_card_only_when_its_image_is_the_heros(rt):
+    """En el guardado del torneo Raphael, Alice, Ciri... usan los CardID 17600-17629 de Medusa: lo que los distingue
+    es la imagen del CustomDeck."""
+    from test_review10 import H, M, conv
+    rt.execute("""
+local rc = {}
+for i = 0, 29 do table.insert(rc, {cid = 17600 + i, guid = 'r' .. i}) end
+realshape(mkobj({guid = 'raph', type = 'Deck', name = 'Raphael', cards = rc, pos = {x = -4.6, y = 1, z = 14.5},
+                 deckcd = {["176"] = {FaceURL = FF, BackURL = FB}}}))
+realshape(mkobj({guid = 'rc1', type = 'Card', cid = 17605, cd = {["176"] = {FaceURL = FF, BackURL = FB}},
+                 pos = {x = -4, y = 1, z = 12}}))
+""")
+    script = lua.table_heroes([(17600, 17629), (19700, 19729)], [], [[M], [H]], 5)
+    rt.execute(lua.request(script, 1))
+    res = json.loads(conv(rt.globals().SENT[1])["value"])
+    by_guid = {p["guid"]: p for p in res["piles"]}
+    assert by_guid["d42056"]["counts"] == [30, 0] and by_guid["00dc9a"]["counts"] == [0, 30]
+    assert by_guid["raph"]["counts"] == [0, 0] and by_guid["raph"]["name"] == "Raphael" and by_guid["raph"]["size"] == 30
+    assert "rc1" not in by_guid      # una carta suelta que no es de nadie no se informa
+
+
+def test_read_table_sends_every_heros_deck_image():
+    seen = []
+
+    class Client:
+        def call_lua(self, script, *a, **k):
+            seen.append(script)
+            return {"piles": [], "pieces": {}}
+
+    from sparring.hero_detect import read_table
+    read_table(Client())
+    for slug in SLUGS:
+        for face, back in load_hero_table(slug).identity:
+            assert f'["{face}|{back}"]=true' in seen[0]
+
+
+def test_an_unknown_deck_is_named_instead_of_guessing_a_hero():
+    raph = {"type": "Deck", "guid": "raph", "x": -5.0, "z": 13.5, "counts": [0] * len(SLUGS), "name": "Raphael",
+            "size": 30}
+    with pytest.raises(HeroDetectionError, match=r"El mazo del humano «Raphael» \(30 cartas\) no es de ningun heroe"):
+        detect(reading(at_bot("baba-yaga"), raph))
+    assert detect(reading(at_bot("baba-yaga"), at_human("hellboy"), raph)) == ("baba-yaga", "hellboy")
+
+
+def test_the_lua_table_heroes_validates_identities():
+    with pytest.raises(TypeError):
+        lua.table_heroes([(1, 2)], [], [])
