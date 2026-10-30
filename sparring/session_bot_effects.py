@@ -283,7 +283,10 @@ def _bot_cards(session, before: dict, moved: set = frozenset()) -> list[Callable
                                          by_id, "del descarte del bot a su mazo (barajada)"))
     for i in disc_to_hand:
         title = by_id[i].title
-        session.say(f"El bot recupera {title} de su descarte a su mano.", ChatKind.SCHEME)
+        if i in session.said_returns:             # the Wildfire scene already said it came back
+            session.said_returns.discard(i)
+        else:
+            session.say(f"El bot recupera {title} de su descarte a su mano.", ChatKind.SCHEME)
         if i not in guids:
             session.say(f"No encuentro {title} suelta en el descarte del bot: ponla tu en su mano.", ChatKind.WARNING)
             continue

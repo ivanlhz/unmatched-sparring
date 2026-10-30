@@ -31,7 +31,7 @@ import random
 from functools import lru_cache
 
 from .ai_medusa import (DECK_SCARCITY, HARPY_VALUE, KILL_SIDEKICK, LETHAL, W_HERO, W_MEDUSA_HP,
-                        W_SIDEKICK, MedusaAI, Model, keep_value)
+                        W_SIDEKICK, MedusaAI, Model, keep_value, play_signature)
 from .controller import Controller
 from .effects import ongoing
 from .effects.choose import ChoiceRequest, ControllerChooser, default_answer, worth_paying
@@ -429,6 +429,7 @@ class EffectAI:
         g = blind_clone(game, me, rng)
         card = next(c for c in g.players[me].hand if c.card_id == card.card_id)
         chooser = _SimChooser(self)
+        g.pre_play_signature = play_signature(g, me, card)       # `MedusaAI.scheme_changed_nothing` compares to it
         try:
             if g.play_scheme(me, g.hero(me), card, choosers={0: chooser, 1: chooser}) is not None:
                 return None

@@ -176,6 +176,19 @@ class Model:
         return sum(1 for c in self.pool if c.destiny)
 
 
+def play_signature(g: Game, me: int, card) -> tuple:
+    """What a scheme may change, as comparable data, with the played card ignored (it moves from the hand to the
+    discard pile): both players' cards (decks sorted: a shuffle that moved nothing is no change, but a rival deck top
+    that was reordered does show up through the rival's unsorted deck), the pieces, the ONGOINGs, the statuses,
+    modifiers and counters, and the draws."""
+    ids = lambda cards: [c.card_id for c in cards if c.card_id != card.card_id]
+    mine, rival = g.players[me], g.players[1 - me]
+    return (ids(mine.hand), sorted(ids(mine.deck)), ids(mine.discard), g.drawn[me],
+            ids(rival.hand), ids(rival.deck), ids(rival.discard),
+            [(fid, f.hp, f.pos, f.alive) for fid, f in sorted(g.fighters.items())],
+            [g.fx.ongoing_card_id(p) for p in (0, 1)], repr(g.fx.statuses), repr(g.fx.modifiers), repr(g.fx.counters))
+
+
 def weight(t: Fighter) -> float:
     return W_HERO if t.hero else W_SIDEKICK
 
@@ -392,8 +405,17 @@ class MedusaAI(Controller):
         gained = sum(1 for c in hand_after if c not in hand)
         value = self.effect_ai().material_delta(game, after, me) - CARD_VALUE
         value += CARD_VALUE * gained - sum(keep_value(c, hand) for c in lost)
-        value += ACTION_VALUE * (after.actions_left - (game.actions_left - 1))
+        gained = after.actions_left - (game.actions_left - 1)
+        if not self.scheme_changed_nothing(game, after, card):
+            value += ACTION_VALUE * gained       # an action handed back is only worth something when the card did more
         return Act("scheme", value, game.hero(me).fid, "", card, sim=after)
+
+    def scheme_changed_nothing(self, game: Game, after: Game, card) -> bool:
+        """The scheme left everything but its own action where it was (`play_signature`): Searing Clarity with no
+        non-scheme card in the discard pile shuffles nothing and only returns its own action. `after` carries the
+        signature of the (blind) game it was played on, taken just before the play."""
+        before = getattr(after, "pre_play_signature", None) or play_signature(game, self.me, card)
+        return before == play_signature(after, self.me, card)
 
     def frenzy_act(self, game: Game, model: Model, card) -> Act | None:
         g = game.clone()
@@ -609,9 +631,20 @@ class MedusaAI(Controller):
         near = min(b.distance(dest, e.pos) for e in foes)
         return -0.25 * near + (0.6 if near == 1 else 0.0)
 
+    def reach_dests(self, game: Game, f: Fighter, options: set[int]) -> set[int]:
+        """The destinations from which a non-Medusa hero holding an attack card can hit a rival, when an action is left
+        to do it (Fight Or Flight's move, Wildfire's): the move is for getting into position, not for staying clear of
+        the rival's hits. Empty when the rule does not apply or no destination reaches."""
+        if (not f.hero or f.name == "Medusa" or game.actions_left < 1
+                or not any(c.can_attack and c.usable_by(f.name) for c in game.players[self.me].hand)):
+            return set()
+        foes = game.foes(self.me)
+        return {d for d in options if any(game.board.can_reach_target(d, e.pos, f.ranged) for e in foes)}
+
     def best_dest(self, game: Game, model: Model, f: Fighter, steps: int, through: bool) -> int:
         options = game.legal_moves(f, steps, through) | {f.pos}
         if f.hero:
+            options = self.reach_dests(game, f, options) or options
             return max(options, key=lambda d: (self.position_value(game, model, {f.fid: d}), -d))
         return max(options, key=lambda d: (self.harpy_score(game, f, d), -d))
 
