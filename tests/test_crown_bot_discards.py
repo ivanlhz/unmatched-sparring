@@ -117,6 +117,35 @@ def test_a_table_error_falls_back_to_the_manual_discard(rig):
     assert session.pending_discard is None and len(game.players[1].hand) == table.human_count == 2
 
 
+@with_rig(*HELLBOY_VS_ABE)
+def test_a_failed_hand_count_read_falls_back_to_the_manual_discard_and_the_scheme_is_not_lost(rig):
+    session, table, game, fake, cfg = rig
+    human_hand(table, game, CROWN, "Excalibur", "Service Pistol")
+    real, calls = session._rd_human_count, {"n": 0}
+
+    def flaky(default):
+        # the reads of the sync work; the one the Crown's discard makes times out once
+        if getattr(session, "_crown_probe", False) and calls["n"] == 0:
+            calls["n"] += 1
+            raise TimeoutError("TTS no respondio")
+        return real(default)
+    session._rd_human_count = flaky
+    original = session._discard_human_hand
+
+    def probe(n, reason):
+        session._crown_probe = True
+        try:
+            return original(n, reason)
+        finally:
+            session._crown_probe = False
+    session._discard_human_hand = probe
+    msgs = human_scheme(session, table, game, CROWN)
+    assert calls["n"] == 1 and table.hand_discards == []
+    assert said(msgs, "No he podido descartar tu mano") and said(msgs, "Descarta 2 carta(s) (" + CROWN + ")")
+    assert session.pending_discard["n"] == 2 and game.actions_left == 3
+    assert table.human_deals == [2] and said(msgs, "Te he dado 2 cartas")
+
+
 def test_the_script_takes_only_the_seat_hand_and_lays_the_cards_face_up_on_the_pile():
     script = lua.hand_to_discard("Red", "906a7a", (1000, 1029), identity=TEST_IDENT)
     assert script.startswith("-- sparring:hand_to_discard") and lua.is_sendable(script)

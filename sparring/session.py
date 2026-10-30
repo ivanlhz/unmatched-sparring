@@ -2468,12 +2468,16 @@ class Session:
         for the human to discard by hand: 0 when the table did it, else what it could not move (it is said, and the
         manual flow asks for them, so the game never stalls)."""
         c = self.cfg
-        expected = self._rd_human_count(n)
+        expected = n
         moved: list[int] = []
         count, failure = 0, None
-        if expected > 0:
+        try:
+            expected = self._rd_human_count(n)
+        except TABLE_ERRORS as e:
+            failure = str(e)
+        if failure is None and expected > 0:
             try:
-                res = self._w(lua.hand_to_discard(c.human_seat, c.human_discard_zone, c.human_card_ids,
+                res =self._w(lua.hand_to_discard(c.human_seat, c.human_discard_zone, c.human_card_ids,
                                                   identity=self._identity("human")), "cards").result
                 res = res if isinstance(res, dict) else {}
                 moved = [i for i in res.get("moved") or [] if isinstance(i, int)]
