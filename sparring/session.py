@@ -26,7 +26,7 @@ from pathlib import Path
 from typing import Callable
 
 from . import persist
-from .ai_medusa import GAZE, MedusaAI
+from .ai_medusa import GAZE, MedusaAI, play_signature
 from .cards import Card, can_be_boost
 from .controller import Controller
 from .combat_flow import CombatFlow, PendingChoice, legacy_chooser
@@ -2478,6 +2478,7 @@ class Session:
         stays on show `wildfire_hold` seconds (the wait is inside the same TTS script: no extra message and no
         snapshot of a half-done table); the rest (the card back to the hand, the damage and its dial, Liz's move) is
         written by the usual projection right after, each step announced as it lands."""
+        self.said_returns.clear()
         g, cfg = self.game, self.cfg
         st = g.players[self.bot]
         card, burning = scene["card"], scene["burning"]
@@ -2610,7 +2611,7 @@ class Session:
         listed = self._discard_list(seen, reasons, default, skip)
         return f" (descarta {listed})" if listed else ""
 
-    def _say_bot_action(self, act, seen: int, before: dict, hp0: dict[str, float], fx_before: dict, actions0: int,
+    def _say_bot_action(self, act, seen: int, before: dict, hp0: dict[str, float], sig_before: tuple | None, actions0: int,
                         exhausting: bool, paused: bool) -> None:
         if exhausting:
             self.say(f"Mazo vacio: el bot roba y cada luchador suyo pierde {EXHAUST_DAMAGE} PV.", ChatKind.COMBAT)
@@ -2618,19 +2619,14 @@ class Session:
             self.say(f"El bot juega {act.card.title}" + self._played_text(seen, {}, "efecto", skip=act.card) + ".",
                      ChatKind.SCHEME)
         else:
-            self.say(self._action_text(act, seen, before, hp0, fx_before, actions0), ACTION_KIND.get(act.kind, ChatKind.MOVE))
+            self.say(self._action_text(act, seen, before, hp0, sig_before, actions0), ACTION_KIND.get(act.kind, ChatKind.MOVE))
 
-    def _scheme_idle(self, act, fx_before: dict | None) -> bool:
-        """The scheme left the bot's other cards, its draws and its ONGOING as they were."""
-        g = self.game
-        if fx_before is None or g.fx.ongoing_card_id(self.bot) != fx_before["bot_in_play"]:
-            return False
-        now = bot_effects.zones(g.players[self.bot])
-        now["discard"] = [i for i in now["discard"] if i != act.card.card_id]
-        was = dict(fx_before["bot"], hand=[i for i in fx_before["bot"]["hand"] if i != act.card.card_id])
-        return now == was and g.drawn[self.bot] == fx_before["drawn"]
+    def _scheme_idle(self, act, sig_before: tuple | None) -> bool:
+        """The scheme changed nothing but its own action (`play_signature`): cards of both players, pieces, ONGOINGs,
+        statuses, modifiers, counters and draws."""
+        return sig_before is not None and sig_before == play_signature(self.game, self.bot, act.card)
 
-    def _action_text(self, act, seen: int, before: dict, hp0: dict[str, float], fx_before: dict | None = None,
+    def _action_text(self, act, seen: int, before: dict, hp0: dict[str, float], sig_before: tuple | None = None,
                      actions0: int | None = None) -> str:
         """Que ha hecho el bot, con el nombre de la carta jugada, el dano que hizo y a donde movio cada pieza."""
         g = self.game
@@ -2640,7 +2636,7 @@ class Session:
         if act.kind in ("glance", "frenzy", "scheme"):
             title = act.card.title
             text = f"El bot juega {title}" + self._played_text(seen, {}, "efecto", skip=act.card)
-            if act.kind == "scheme" and not moved and self._scheme_idle(act, fx_before) and not self._hp_text(hp0):
+            if act.kind == "scheme" and not moved and self._scheme_idle(act, sig_before) and not self._hp_text(hp0):
                 gained = g.actions_left - (actions0 - 1)
                 text += ": sin efecto" + (", solo recupera la accion" if gained == 1 else "")
             if act.kind == "glance":
@@ -2693,14 +2689,16 @@ class Session:
             self._flush_table()
             fin_fx()
         else:       # one message for the card back in the hand, the damage and its dial, and Liz's move
-            fin_dials = self._write_dials(defer=True) if scene["hits"] else None
-            fin_table = self._flush_table_stage()
-            self._flush()
-            fin_table()
-            fin_fx()
-            if fin_dials is not None:
-                fin_dials()
-            self.said_returns.clear()
+            try:
+                fin_dials = self._write_dials(defer=True) if scene["hits"] else None
+                fin_table = self._flush_table_stage()
+                self._flush()
+                fin_table()
+                fin_fx()
+                if fin_dials is not None:
+                    fin_dials()
+            finally:                  # a failed flush must not leave a flag that silences a later real "recupera" line
+                self.said_returns.clear()
         if self.pending is not None:
             self.say("La carta del bot ya esta en la mesa: pulsa Revelar.", ChatKind.WARNING)
             return
@@ -2751,6 +2749,7 @@ class Session:
                 exhausting = act.kind == "maneuver" and not g.players[self.bot].deck
                 fx_before = bot_effects.snapshot(self)
                 actions0 = g.actions_left
+                sig_before = play_signature(g, self.bot, act.card) if act.kind == "scheme" else None
                 self.ai.execute(g, act)
                 self._mark_dirty(before)
                 self._persist()
@@ -2758,7 +2757,7 @@ class Session:
                 said = False
                 if act.kind == "scheme":      # the play comes first, then what the table does for its effect (a shuffle, a returned card)
                     said = True
-                    self._say_bot_action(act, seen, before, hp0, fx_before, actions0, exhausting, paused)
+                    self._say_bot_action(act, seen, before, hp0, sig_before, actions0, exhausting, paused)
                 fin_fx = self._project_effects(fx_before)
                 fin_table = self._flush_table_stage()
                 dials_ok = self._write_dials(defer=True)()    # un solo mensaje para cartas, piezas, efectos y diales
@@ -2766,14 +2765,14 @@ class Session:
                 fin_fx()
                 if paused:
                     if not said:
-                        self._say_bot_action(act, seen, before, hp0, fx_before, actions0, exhausting, paused)
+                        self._say_bot_action(act, seen, before, hp0, sig_before, actions0, exhausting, paused)
                     self.fx_unprojected = bot_effects.snapshot(self)
                     self._persist()
                     self._show_choice(self.effect_run.awaiting)
                     return
                 self._persist()
                 if not said:                      # the dials are written and checked before the announcement
-                    self._say_bot_action(act, seen, before, hp0, fx_before, actions0, exhausting, paused)
+                    self._say_bot_action(act, seen, before, hp0, sig_before, actions0, exhausting, paused)
                 self._announce_human_falls(alive0)
                 if not dials_ok:
                     self._pause_for_dials()

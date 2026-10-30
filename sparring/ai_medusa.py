@@ -176,6 +176,19 @@ class Model:
         return sum(1 for c in self.pool if c.destiny)
 
 
+def play_signature(g: Game, me: int, card) -> tuple:
+    """What a scheme may change, as comparable data, with the played card ignored (it moves from the hand to the
+    discard pile): both players' cards (decks sorted: a shuffle that moved nothing is no change, but a rival deck top
+    that was reordered does show up through the rival's unsorted deck), the pieces, the ONGOINGs, the statuses,
+    modifiers and counters, and the draws."""
+    ids = lambda cards: [c.card_id for c in cards if c.card_id != card.card_id]
+    mine, rival = g.players[me], g.players[1 - me]
+    return (ids(mine.hand), sorted(ids(mine.deck)), ids(mine.discard), g.drawn[me],
+            ids(rival.hand), ids(rival.deck), ids(rival.discard),
+            [(fid, f.hp, f.pos, f.alive) for fid, f in sorted(g.fighters.items())],
+            [g.fx.ongoing_card_id(p) for p in (0, 1)], repr(g.fx.statuses), repr(g.fx.modifiers), repr(g.fx.counters))
+
+
 def weight(t: Fighter) -> float:
     return W_HERO if t.hero else W_SIDEKICK
 
@@ -398,18 +411,11 @@ class MedusaAI(Controller):
         return Act("scheme", value, game.hero(me).fid, "", card, sim=after)
 
     def scheme_changed_nothing(self, game: Game, after: Game, card) -> bool:
-        """The scheme left every card (the played one aside), piece and ONGOING where they were: Searing Clarity with
-        no non-scheme card in the discard pile shuffles nothing and only returns its own action."""
-        me = self.me
-        before_p, after_p = game.players[me], after.players[me]
-        ids = lambda cards: [c.card_id for c in cards]
-        if (ids(c for c in before_p.hand if c is not card) != ids(after_p.hand) or sorted(ids(before_p.deck)) != sorted(ids(after_p.deck))
-                or ids(before_p.discard) != ids(c for c in after_p.discard if c.card_id != card.card_id)
-                or after.drawn[me]         # a simulation starts its own count of draws at zero
-                or game.fx.ongoing_card_id(me) != after.fx.ongoing_card_id(me)):
-            return False
-        return all((f.hp, f.pos, f.alive) == (after.fighters[fid].hp, after.fighters[fid].pos, after.fighters[fid].alive)
-                   for fid, f in game.fighters.items())
+        """The scheme left everything but its own action where it was (`play_signature`): Searing Clarity with no
+        non-scheme card in the discard pile shuffles nothing and only returns its own action. `after` carries the
+        signature of the (blind) game it was played on, taken just before the play."""
+        before = getattr(after, "pre_play_signature", None) or play_signature(game, self.me, card)
+        return before == play_signature(after, self.me, card)
 
     def frenzy_act(self, game: Game, model: Model, card) -> Act | None:
         g = game.clone()
