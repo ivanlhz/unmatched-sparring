@@ -32,6 +32,7 @@ from .controller import Controller
 from .combat_flow import CombatFlow, PendingChoice, legacy_chooser
 from .effects.choose import ControllerChooser
 from .effects.run import EffectRun
+from .game_log import GameLog
 from . import session_bot_effects as bot_effects
 from . import session_choices as choices
 from . import session_effects as human_effects
@@ -285,6 +286,7 @@ class Session:
         self.moving = False
         self.bot_discarded: set[int] = set()
         self.messages: list[Msg] = []
+        self.game_log = GameLog()                # no file until play() points it next to the state file
         self._destiny_tried = False
         self.dials_written: dict[str, int] = {}  # GUID del dial -> ultimo valor que el motor escribio y verifico
         self.dirty = False                       # el motor movio al bot y la mesa aun no lo refleja
@@ -374,6 +376,8 @@ class Session:
             self._deck_ident.setdefault(side, pairs)
 
     def _begin_game(self) -> None:
+        self.game_log.new_game((self.game.hero_def(self.bot).name, self.game.hero_def(self.human).name))
+        self.game_log.observe(self.game, self._name)
         self._check_config()
         self._preload_identities()
         self._announce_first()
@@ -420,6 +424,8 @@ class Session:
         self._destiny_tried = False
         self._check_config()
         self._preload_identities()
+        self.game_log.resumed()
+        self.game_log.observe(self.game, self._name)
         self.say("Partida reanudada desde el guardado.")
         if self.setup is not None:
             self.say(f"La preparacion de la partida estaba en la etapa '{self.setup['stage']}'.")
@@ -780,6 +786,7 @@ class Session:
         self.snap = None                          # la mesa cambia entre botones: el siguiente trae la suya
         self.fx_in_flight = set()
         self.hand_discarded = set()
+        self.game_log.observe(self.game, self._name)
         return self.messages
 
     def _table_failure(self, e: Exception) -> None:
@@ -834,6 +841,7 @@ class Session:
 
     def say(self, msg: str, kind: ChatKind = ChatKind.NEUTRAL, shown: bool = False) -> None:
         self.messages.append(Msg(msg, kind, shown))
+        self.game_log.chat(msg)
 
     # ---------- the human's effect choices (E1; the button logic lives in session_choices) ----------
     # One pause at a time reaches the panel. In priority order: the pending combat stopped inside a card effect
@@ -1209,7 +1217,7 @@ class Session:
         """La sesion pasa a la partida nueva, conservando el cliente, la configuracion y los ajustes de ejecucion."""
         keep = ("client", "ai", "cfg", "bot", "human", "timing", "state_path", "first_mode", "new_game", "clock",
                 "cost_log", "broadcast", "snap", "_trusted", "_queue", "_post", "_expect_hand", "_snap_spec", "_depth",
-                "_epoch", "messages", "_write_seq", "_deck_ident")
+                "_epoch", "messages", "_write_seq", "_deck_ident", "game_log")
         saved = {k: self.__dict__[k] for k in keep}
         blank = Session(fresh, self.client, self.ai, self.cfg, self.bot)
         self.__dict__.clear()

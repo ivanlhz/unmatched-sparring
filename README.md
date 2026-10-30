@@ -16,6 +16,7 @@ Bot de sparring para Unmatched en Tabletop Simulator. Fase 1: el bot juega **Med
 | `sparring/hellboy_script.py` | Hellboy guionizado, solo para la simulacion |
 | `sparring/tts/` | Puente: `client.py` (API de editor externo), `lua.py` (snippets, instantanea y script compuesto), `ui.py` (panel de botones), `hero_table.py` (lo de cada heroe en la mesa, de `data/tts/<slug>.json`) |
 | `sparring/persist.py` | Guardado atomico y recarga del estado de `Game` y `Session` (`--resume`) |
+| `sparring/game_log.py` | Plain-text game log `partida.log` next to the state file |
 | `sparring/session.py` | Pegamento en vivo: eventos del panel -> llamadas a `Game`, y proyeccion del bot en la mesa |
 | `sparring/sim.py` | `python -m sparring.sim --games 100 --seed 0` |
 
@@ -221,6 +222,10 @@ Reported live: Searing Clarity played with only schemes in the discard pile, Fig
 - **Chat**: the raw engine id "maneuver" is now "El bot maniobra" ("... y roba, sin mover a nadie" when no piece moves); a scheme is announced before the table lines its effect causes (the shuffle) and an empty one says "sin efecto, solo recupera la accion"; the Wildfire return is said once (the scene's line; the generic "El bot recupera ..." is skipped for that card); the broadcast filter keeps `( ) , ; ? + / =` (they are inert inside a Lua string), so "(fuego)" and "carta(s)" reach the table intact. Quotes, backslashes, brackets and newlines are still refused.
 - `tools/bot_play_metrics.py` also counts schemes, wasted Searing Clarity and Fight Or Flight turns that ended out of reach. Liz vs Baba Yaga (scripted rival), 40 games, before -> after (chasing / holding): win rate 92% -> 95% / 45% -> 50%; wasted Searing Clarity per game 0.25 -> 0.05 / 0.45 -> 0.07; Fight Or Flight turns (played with an action left) ending out of reach per game 0.72 -> 0.20 / 1.02 -> 0.25. Regression tests: `tests/test_liz_schemes.py`.
 - Not changed: attack valuation. With a weak hand (Feint 2, Pyrotechnics 3) against a rival with cards the heuristic values an attack below zero and does not attack; that is the evaluation, not a scheme bug.
+
+### Game log
+
+The bot appends a plain-text log to `partida.log`, in the same directory as the state file (`estado\partida.log` by default), so a game can be reviewed afterwards. A new game starts with a `==== New game <date time> | bot: ... vs human: ... ====` header (Reiniciar partida writes another one); `--resume` appends a "resumed" line instead. Every line carries a local `HH:MM:SS` stamp and holds either a chat message the bot sent (combats and their results included) or a state change the chat does not say: turn starts, damage and healing with the resulting HP, moves (the bot's and those you made by hand), cards drawn and discarded, and game over. A failure writing the log never interrupts the game (one warning on stderr).
 
 ## Revision 9 y partida 5
 

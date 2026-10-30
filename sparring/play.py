@@ -26,7 +26,7 @@ from .search.controller import make_bot_ai
 from .board import Board
 from .hero_detect import HeroDetectionError, detect_heroes, read_table
 from .heroes import HeroDataError, load_hero
-from . import persist
+from . import game_log, persist
 from .session import DEFAULT_BOT_PAUSE, DEFAULT_WILDFIRE_HOLD, TABLE_ERRORS, Msg, Session, SessionConfig, SessionError, piece_guids
 from .state import DEFAULT_HEROES, Game
 from .tts import lua, ui
@@ -810,6 +810,7 @@ def play(cfg: PlayConfig, client: TTSClient, first: str, seed: int, stop: thread
     game = build_game(cfg, first, seed)
     session = Session(game, client, make_bot_ai(ai_config(cfg, ai, ai_time), BOT), scfg, bot=BOT)
     session.state_path = state_path
+    session.game_log.path = game_log.log_path(state_path)
     session.first_mode = first
     session.new_game = lambda: build_game(cfg, first, secrets.randbelow(2 ** 31))
     if timing:
