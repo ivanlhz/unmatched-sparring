@@ -23,6 +23,7 @@ from sparring import play
 from sparring.ai_medusa import Act, MedusaAI
 from sparring.effects import narrate
 from sparring.session import Session
+from sparring.spaces import describe
 from sparring.state import ANUNG, DETECTIVE, Game
 from sparring.tts.client import TTSClient
 from sparring.tts.ui import Event
@@ -398,7 +399,7 @@ def test_right_hand_of_doom_moves_your_fighter_in_the_combat_script(rig, monkeyp
     assert fake.lua_messages - n <= 3 and abe.pos == dest
     nick = cfg.nicknames["abe"]
     assert (nick, dest) in table.moves and table.positions[nick] == dest
-    assert said(msgs, f"{nick} se mueve a la casilla {dest}: lo he movido yo (efecto del bot)")
+    assert said(msgs, f"{nick} se mueve a {describe(game, dest, ('abe',), session._name)}: lo he movido yo (efecto del bot)")
     assert "move_piece" in [op for step in table.msglog[-3:] for op in step]
 
 
@@ -414,7 +415,7 @@ def test_foul_journey_places_your_hero_anywhere_and_the_table_follows(rig, monke
     human_attack(session, table, game, "hellboy", "baba", "Service Pistol")
     msgs = click(session, table, Event.REVEAL)
     assert hb.pos == far and ("Hellboy", far) in table.moves and table.positions["Hellboy"] == far
-    assert said(msgs, f"Hellboy se mueve a la casilla {far}: lo he movido yo (efecto del bot)")
+    assert said(msgs, f"Hellboy se mueve a {describe(game, far, ('hellboy',), session._name)}: lo he movido yo (efecto del bot)")
     click(session, table, Event.END_ACTION)                     # the sync agrees with what the bot moved
     assert hb.pos == far
 
@@ -431,7 +432,7 @@ def test_a_failed_piece_move_asks_you_to_move_it(rig, monkeypatch):
     bot_turn(session, table, [Act("attack", fid="hellboy", target="abe", card=rhod)])
     table.face_down = []
     msgs = click(session, table, Event.REVEAL)
-    assert said(msgs, f"se mueve a la casilla {dest} por un efecto del bot: no he podido mover su miniatura, muevela tu")
+    assert said(msgs, f"se mueve a {describe(game, dest, ('abe',), session._name)} por un efecto del bot: no he podido mover su miniatura, muevela tu")
 
 
 # ---------------------------------------------------------------- Abe's Intuition tokens
@@ -652,7 +653,7 @@ def test_the_bot_narrates_medusa_cards_too(bprd):
     g.fighters["medusa"].pos, g.fighters["hellboy"].pos = 0, 1
     ctl[0].moves["medusa"] = 3
     res = g.attack(g.fighters["medusa"], g.fighters["hellboy"], give(g, 0, "Dash"), None)
-    assert res.applied == ["Dash: medusa se mueve a 3"]
+    assert res.applied == [f"Dash: medusa se mueve a {describe(g, 3, ('medusa',))}"]
 
 
 # ---------------------------------------------------------------- configuration

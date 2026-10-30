@@ -72,6 +72,12 @@ def press(session, table, option):
     return click(session, table, Event.CHOICE, {"i": i})
 
 
+def by_hand(session, table, cfg, fid, space):
+    """The human puts the miniature of `fid` on `space` by hand and presses Hecho (button 1)."""
+    table.positions[cfg.nicknames[fid]] = space
+    return click(session, table, Event.CHOICE, {"i": 1})
+
+
 def adjacent_free(game, fid, avoid=()):
     pos = game.fighters[fid].pos
     taken = {f.pos for f in game.fighters.values() if f.alive} | set(avoid)
@@ -121,11 +127,12 @@ def test_right_hand_of_doom_asks_the_fighter_moves_the_bots_piece_and_leaves_you
     press(session, table, "abe")                                # the bot's piece: where it goes is asked
     req = session.effect_run.awaiting
     assert req.kind == "space" and req.extra["fighter"] == "abe"
+    assert session.panel_labels() == {"btn_choice_1": "Hecho", "btn_choice_2": "No mover"}     # no space buttons
     dest = req.options[0]
-    msgs = press(session, table, dest)
+    msgs = by_hand(session, table, cfg, "abe", dest)
     assert session.pending is None and game.fighters["abe"].pos == dest
     nick = cfg.nicknames["abe"]
-    assert (nick, dest) in table.moves, "the bot's miniature travels in the combat script"
+    assert not any(m[0] == nick for m in table.moves), "the human moved it: the bot does not touch the miniature"
     assert any("Tu carta: Right Hand Of Doom: abe se mueve a" in m and "en la mesa: mueve a hellboy hasta 1 casilla" in m
                for m in msgs), msgs
 
@@ -367,8 +374,8 @@ def test_concussion_device_hurts_and_moves_the_bots_piece_where_you_say(rig, mon
     hb = game.fighters["hellboy"]
     assert hb.hp == 18 - 2 - 2 and session.effect_run.awaiting.kind == "space"
     dest = session.effect_run.awaiting.options[1]
-    msgs = press(session, table, dest)
-    assert hb.pos == dest and ("Hellboy", dest) in table.moves
+    msgs = by_hand(session, table, cfg, "hellboy", dest)
+    assert hb.pos == dest and not any(m[0] == "Hellboy" for m in table.moves)
     assert any("Tu carta: Concussion Device: hellboy -2 PV (14); hellboy se mueve a" in m for m in msgs)
 
 
@@ -495,8 +502,8 @@ def test_pact_of_freedom_places_a_hero_the_bots_through_the_table_and_blocks_the
     press(session, table, "liz")
     assert session.effect_run.awaiting.kind == "space"
     far = session.effect_run.awaiting.options[1]
-    msgs = press(session, table, far)
-    assert game.fighters["liz"].pos == far and (cfg.nicknames["liz"], far) in table.moves
+    msgs = by_hand(session, table, cfg, "liz", far)
+    assert game.fighters["liz"].pos == far and not any(m[0] == cfg.nicknames["liz"] for m in table.moves)
     assert said(msgs, "robas 2") and session.effect_run is None
     game.fx.taken = 0                                           # as the first action of a turn: nobody may attack
     assert not game.fx.may_attack(1) and not game.fx.may_attack(0 if game.turn == 0 else 1)

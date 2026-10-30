@@ -174,6 +174,12 @@ Applies to Hellboy's Confront Any Demon or God (lost combat) and any card whose 
 3. Limit: the bot's pile is read by CardID, so "identity" of a card is the CardID in the bot's deck range, not the image.
 4. The row scripts now turn `use_hands` off on the shown cards and re-place any card still in a hand zone 0.6 s later (a hand zone under the row could swallow them back); `resolve_hand_row` gives `use_hands` back.
 
+### Effects that move a fighter: you move it, the bot validates (30/10; FakeTTS only)
+
+When a card or hero effect of yours moves, places or revives a fighter (yours or the bot's), the panel no longer lists spaces ("Casilla 7" meant nothing on an unnumbered board). The chat says what to move and the limit ("Mueve a Abe Sapien hasta 1 casilla ... y pulsa Hecho"); the panel shows **Hecho** (and **No mover** when "up to N" allows 0). Move the miniature and press Hecho: the bot reads the snapshot and checks it against the engine's own options (right fighter, distance and path, free space, nothing else moved; a piece farther than `off_board_dist` from any space is rejected). Valid: applied, the bot does not move the miniature. Invalid: nothing changes, the chat says why and it waits for Hecho again (a resume re-prompts). Code: `sparring/session_moves.py`.
+
+Spaces in chat lines are now zone colours plus the nearest fighter ("zona de color azul, a 2 casillas de Hellboy", `sparring/spaces.py`). Limits: two equidistant spaces cannot be told apart from the snapshot; your own Maneuver and your own miniatures' moves are still read without validation.
+
 ### Revelar turns both combat cards (30/10)
 
 When the combat stops at a decision of the human's card effect, the two combat cards are now flipped in that same message (batch mode); before, they were only flipped when the combat finished.

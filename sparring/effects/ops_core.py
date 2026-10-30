@@ -14,7 +14,7 @@ from typing import Callable
 
 from . import table
 from .model import EffectError, load_effects
-from .select import (Picked, amount, condition, fighter_candidates, find_card, locate, pick_fighters, player_of,
+from .select import (_ref_fighter, Picked, amount, condition, fighter_candidates, find_card, locate, pick_fighters, player_of,
                      players_of, card_candidates, card_ref, select_cards, space_options)
 
 OPS: dict[str, Callable] = {}
@@ -254,7 +254,7 @@ def _move(run, game, spec):
                 exact = [d for d in dests if game.board.distance(f.pos, d) == steps]
                 dests = exact or dests
             got = run.ask(game, "space", chooser, dests, 0 if up_to else 1, 1, "move to",
-                          fighter=f.fid, op="move", steps=steps, through=through)
+                          fighter=f.fid, op="move", steps=steps, through=through, up_to=up_to)
             if got:
                 plan.append((f, got[0]))
                 set_attrs(f, pos=got[0])
@@ -262,6 +262,20 @@ def _move(run, game, spec):
         game.move_fighter(f, dest, steps, through)
     for f in by_hand:
         table.note(run, op="move", fid=f.fid, amount=steps, up_to=up_to, through=through)
+
+
+def _where_refs(game, run, where: dict) -> dict:
+    """A SpaceSel with its fighter references resolved to fighter ids (JSON-safe): what the human is told when they
+    place a piece by hand."""
+    out = {}
+    if where.get("any"):
+        out["any"] = True
+    for key in ("zone_of", "adjacent_to", "nearest_to"):
+        if key in where:
+            ref = _ref_fighter(game, run, where[key])
+            if ref is not None:
+                out[key] = ref.fid
+    return out
 
 
 def _plan_spots(game, run, fighters, where: dict, chooser: int, op_name: str, **becomes) -> list[tuple]:
@@ -273,7 +287,7 @@ def _plan_spots(game, run, fighters, where: dict, chooser: int, op_name: str, **
             options = space_options(game, run, where, mover=f)
             by_hand = table.piece_is_physical(game, chooser, f)
             got = options[:1] if by_hand else run.ask(game, "space", chooser, options, 1, 1, f"{op_name} to",
-                                                      fighter=f.fid, op=op_name)
+                                                      fighter=f.fid, op=op_name, where=_where_refs(game, run, where))
             if got:
                 plan.append((f, got[0], by_hand))
                 set_attrs(f, pos=got[0], **becomes)
