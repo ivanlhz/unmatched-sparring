@@ -38,6 +38,7 @@ from . import session_choices as choices
 from . import session_effects as human_effects
 from . import session_hidden as hidden
 from . import session_moves as moves
+from . import session_translators as translators
 from .spaces import describe, zone_text
 from .combat import FEINT, FIGHT_OR_FLIGHT, FIGHT_OR_FLIGHT_BONUS, GLANCE_DAMAGE, can_boost, deck_boost, is_medusa_card, scheme_gain_actions
 from .state import ANUNG, EXHAUST_DAMAGE, HAND_LIMIT, START_HAND, Fighter, Game, RuleError
@@ -78,6 +79,7 @@ ACTION_KIND = {"maneuver": ChatKind.MOVE, "glance": ChatKind.SCHEME, "frenzy": C
 
 CODED_ABILITY_HERO = "medusa"     # the hero whose start-of-turn ability the engine runs (`Game.use_ability(..., "medusa_gaze")`)
 HOLD_MARGIN = 2.0           # seconds on top of a composite's hold for the reply to arrive
+DEFAULT_ONGOING_HOLD = 1.5    # seconds of the bot's ping on a human ONGOING scheme that left play, before it moves it (tests use 0)
 DEFAULT_WILDFIRE_HOLD = 3.0   # seconds the bot leaves its Wildfire card face up on the discard before applying it (tests use 0)
 DEFAULT_BOT_PAUSE = 1.0     # segundos entre acciones del bot en la partida real (los tests usan 0)
 
@@ -122,6 +124,7 @@ class SessionConfig:
     label_font: float = lua.LABEL_FONT   # tamano del texto de las etiquetas del suelo
     bot_pause: float = 0.0         # segundos de pausa tras cada accion del bot (0 = sin pausa; `play` usa 1.0)
     wildfire_hold: float = 0.0     # seconds the Wildfire card stays face up on the bot's discard before its effect (0 = no scene; `play` uses 3.0)
+    ongoing_hold: float = 0.0      # seconds the bot's ping on a human ONGOING scheme that left play lasts before it moves it (0 = no pause; `play` uses 1.5)
     live_ui: bool = False          # linea de estado, botones segun el estado y anuncios por pantalla en el mismo script
     bot_card_ids: tuple[int, int] = lua.BOT_CARD_IDS         # rango de CardID del mazo del bot (de su heroe: data/tts)
     human_card_ids: tuple[int, int] = lua.HUMAN_CARD_IDS     # y del mazo del humano
@@ -854,6 +857,8 @@ class Session:
         """Trigger decisions: the bot's controller answers its own; the human's stop the run (parked) for the panel.
         The `look_hand` op reads the human's real hand through `hand_reader` (D3), nothing else ever does."""
         self.game.fx.choosers = self._choosers()
+        if self.game.fx.intents is None:
+            self.game.fx.intents = []             # the ops report what they do to the table: the translators take it
         self.game.hand_reader = self._read_human_hand
 
     def _read_human_hand(self, player: int) -> list[Card]:
@@ -1549,18 +1554,20 @@ class Session:
         where an effect's step is projected and at the close of every button (`_commit`); `human_dealt` is saved, so
         a resume never deals twice. A deal that fails is said once and the human draws by hand (the engine already
         counts the cards: the next reading of their hand settles it)."""
-        g, c, st = self.game, self.cfg, self.game.players[self.human]
-        drawn = g.drawn[self.human]
+        drawn = self.game.drawn[self.human]
         self.human_dealt = min(self.human_dealt, drawn)
         n = drawn - self.human_dealt
         if n <= 0:
             return
         self.human_dealt = drawn
+        translators.translate(self, {"op": "draw", "player": self.human, "n": n, "cause": cause},
+                              translators.Ctx(cause or ""))
+
+    def _deal_human_cards(self, n: int, cause: str | None) -> None:
+        """The bot variant of the `draw` translator: `n` cards from the human's physical deck to their hand."""
+        c, st = self.cfg, self.game.players[self.human]
         why = f" ({cause})" if cause else ""
-        plural = f"{n} carta{'s' if n != 1 else ''}"
-        if not c.human_deck_guid:
-            self.say(f"Robas {plural}{why}: hazlo en la mesa.", ChatKind.YOUR_TURN)
-            return
+        plural = translators.plural(n)
         before, discarded = len(st.hand) - n, len(st.discard)
         try:
             script = lua.deal_cards(c.human_deck_guid, n, c.human_seat, spot=c.human_deck_spot,
@@ -2465,16 +2472,8 @@ class Session:
 
     # ---------- descartes del humano ----------
     def _owe_discard(self, n: int, reason: str) -> None:
-        st = self.game.players[self.human]
-        baseline = len(st.discard)
-        if reason == CROWN:
-            n = self._discard_human_hand(n, reason)
-            baseline = len(st.discard) + (0 if any(c.title == CROWN for c in st.discard) else 1)   # the plan lands in the pile after
-        if n > 0:
-            d = self.pending_discard or {"n": 0, "baseline": baseline, "kind": "cards"}
-            d["n"] += n
-            self.pending_discard = d
-            self.say(f"Descarta {n} carta(s) ({reason}) y pulsa Fin de accion.{self._wildfire_hint()}", ChatKind.YOUR_TURN)
+        translators.translate(self, {"op": "discard", "player": self.human, "zone": "hand", "n": n, "reason": reason},
+                              translators.Ctx())
 
     def _discard_human_hand(self, n: int, reason: str) -> int:
         """Crown Of Flame (Ivan, 30/10): the bot moves the human's whole hand to their discard pile, face up, and the

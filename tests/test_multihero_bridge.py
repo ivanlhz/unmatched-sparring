@@ -29,7 +29,7 @@ REAL_CONFIG = Path(__file__).resolve().parent.parent / "config" / "partida.json"
 TABLE_OVERRIDES = {"bot_seat": "Blue", "human_seat": "Red", "bot_card_spot": [0.0, 1.0, 5.0],
                    "human_card_spot": [0.0, -5.0], "bot_discard_spot": [5.0, 1.0, 5.0], "bot_discard_zone": "BOTZ",
                    "human_discard_zone": "HUMZ", "bot_deck_spot": [0.0, 3.0], "bot_discard_bounds": None,
-                   "setup": False, "bot_pause": 0.0, "wildfire_hold": 0.0}
+                   "setup": False, "bot_pause": 0.0, "wildfire_hold": 0.0, "ongoing_hold": 0.0}
 PAIRS = [("medusa", "hellboy"), ("medusa", "liz-sherman"), ("hellboy", "abe-sapien"), ("baba-yaga", "medusa"),
          ("abe-sapien", "baba-yaga"), ("liz-sherman", "hellboy")]
 OLD_NICKNAMES = {"medusa": "Medusa", "harpy1": "Harpy 1", "harpy2": "Harpy 2", "harpy3": "Harpy 3", "hellboy": "Hellboy",

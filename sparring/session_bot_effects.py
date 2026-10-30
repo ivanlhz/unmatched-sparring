@@ -26,17 +26,15 @@ from __future__ import annotations
 from typing import Callable
 
 from .cards import Card
-from .spaces import describe
-from .tts import effects_bridge, lua
-from .tts.client import TTSLuaError
+from .session_translators import DOMAIN, ERRORS as _ERRORS, Ctx, join_titles as _join, plural as _plural
+from .session_translators import result_of as _result, translate
+from .tts import lua
 from .tts.hero_table import HeroTable, HeroTableError, load_hero_table
 from .tts.lua import ChatKind
 
 ABILITY_TOKEN = "ability"      # the two-faced token of a hero with forms (Hellboy's)
 TOKEN_STEP = 1.5               # distance between the copies of an ability token on the table
-DOMAIN = "fx"                  # queue domain of these writes: no read of the session forces them out early
 BOT_CAUSE = "efecto del bot"   # whose effect the chat blames for what the human must do on the table
-_ERRORS = (TTSLuaError, OSError)
 
 
 # ---------------------------------------------------------------- the hand the bot may look at
@@ -88,9 +86,11 @@ def project(session, before: dict | None, played: frozenset = frozenset(), cause
         return lambda: None
     moved = set(session.fx_in_flight)             # what this button already moved (a look row's pick, E3)
     looked, session.fx_looked = session.fx_looked, False
-    checks = _human_pieces(session, before) + _form(session, before) + _tokens(session, before)
+    intents = _drain_intents(session)
+    ctx = Ctx(cause, before)
+    checks = _human_pieces(session, before, intents, ctx) + _form(session, before) + _tokens(session, before)
     checks += _bot_cards(session, before, moved) + _bot_ongoing(session, before)
-    checks += _human_cards(session, before, played, looked, cause)
+    checks += _human_cards(session, before, played, looked, ctx, intents)
 
     def fin() -> None:
         for check in checks:
@@ -105,46 +105,26 @@ def _hero_table(session) -> HeroTable | None:
         return None
 
 
-def _result(op) -> dict:
-    try:
-        return op.result or {}
-    except _ERRORS:
-        return {}
-
-
-def _join(titles) -> str:
-    titles = list(titles)
-    return titles[0] if len(titles) == 1 else ", ".join(titles[:-1]) + " y " + titles[-1]
-
-
-def _plural(n: int, word: str = "carta") -> str:
-    return f"{n} {word}{'s' if n != 1 else ''}"
+def _drain_intents(session) -> list[dict]:
+    """What the ops reported since the last projection (`effects.table.intent`). The diff below finds what changed;
+    an intent says which op did it, and the translator of that op handles it."""
+    intents = session.game.fx.intents
+    if not intents:
+        return []
+    taken, intents[:] = list(intents), []
+    return taken
 
 
 # ---------------------------------------------------------------- the human's miniatures
 
-def _human_pieces(session, before: dict) -> list[Callable[[], None]]:
-    g, checks = session.game, []
-    for fid, (pos0, alive0) in before["human_pieces"].items():
-        f = g.fighters[fid]
-        if not f.alive or f.pos is None or (alive0 and f.pos == pos0):
-            continue                              # a fall is announced by the combat / hp code
-        guids = session._guids(fid)
-        guid = guids[0]
-        if len(guids) > 1:                        # a miniature with states: the GUID the table shows now
-            info = session._table_pieces().get(fid) or {}
-            guid = info["guid"] if info.get("found") else guid
-        op = session._w(effects_bridge.move_human_piece(g.board, guid, f.pos), DOMAIN)
-        name, space, back = session._name(f), describe(g, f.pos, (fid,), session._name), not alive0
-
-        def check(op=op, name=name, space=space, back=back) -> None:
-            what = "vuelve al tablero" if back else "se mueve"
-            if _result(op).get("moved"):
-                session.say(f"{name} {what} a {space}: lo he movido yo (efecto del bot).", ChatKind.MOVE)
-            else:
-                session.say(f"{name} {what} a {space} por un efecto del bot: no he podido mover su "
-                            "miniatura, muevela tu.", ChatKind.YOUR_TURN)
-        checks.append(check)
+def _human_pieces(session, before: dict, intents: list[dict], ctx: Ctx) -> list[Callable[[], None]]:
+    """The `move` translator takes every human miniature the diff shows elsewhere; the intent of the `move` op that
+    did it is used when there is one, else (`place`, `swap`, a push...) the move is inferred from the diff."""
+    reported = {i["fid"]: i for i in intents if i["op"] == "move"}
+    checks = []
+    for fid in before["human_pieces"]:
+        intent = reported.get(fid) or {"op": "move", "fid": fid, "owner": session.human}
+        checks += translate(session, intent, ctx) or []
     return checks
 
 
@@ -336,42 +316,26 @@ def _bot_ongoing(session, before: dict) -> list[Callable[[], None]]:
     return [check]
 
 
-def left_play(session, card_id: int, cause: str) -> None:
-    """Your ONGOING left play. With an ONGOING spot it is owed to your discard pile (the sync protects it until it
-    is there); without one it already sits on the pile."""
-    st = session.game.players[session.human]
-    title = next(c.title for c in st.full_set if c.card_id == card_id)
-    if session.cfg.human_ongoing_spot is None:
-        session.say(f"{title} deja de estar en juego ({cause}): queda en tu descarte.", ChatKind.SCHEME)
-        return
-    d = session.pending_discard or {"n": 0, "baseline": len(st.discard), "kind": "cards"}
-    if card_id in (d.get("cards") or []):
-        return
-    d["cards"] = list(d.get("cards") or []) + [card_id]
-    session.pending_discard = d
-    session.say(f"{title} deja de estar en juego ({cause}): pasala de tu zona ONGOING a tu descarte y pulsa Fin de "
-                "accion.", ChatKind.YOUR_TURN)
-
-
 # ---------------------------------------------------------------- the human's cards: the chat, the human's hands
 
-def _human_cards(session, before: dict, played: frozenset, looked: bool, cause: str) -> list[Callable[[], None]]:
+def _human_cards(session, before: dict, played: frozenset, looked: bool, ctx: Ctx,
+                 intents: list[dict]) -> list[Callable[[], None]]:
+    cause = ctx.cause
     g, human, bot = session.game, session.human, session.bot
     st, known = g.players[human], g.players[bot].known
     h0, h1 = before["human"], zones(st)
     by_id = {c.card_id: c for c in st.full_set}
     in_play = before.get("in_play")               # your ONGOING that left play
+    checks: list[Callable[[], None]] = []
     if in_play is not None and in_play in h1["discard"] and in_play not in h0["discard"]:
-        left_play(session, in_play, cause)
+        left = next((i for i in intents if i["op"] == "discard" and i["zone"] == "in_play" and i["card"] == in_play
+                     and i["player"] == human), {"op": "discard", "zone": "in_play", "player": human, "card": in_play})
+        checks += translate(session, left, ctx) or []
     to_discard = [i for i in h1["discard"] if i not in h0["discard"] and i not in played and i != in_play
                   and i not in session.hand_discarded]
     by_bot = len([i for i in h1["discard"] if i not in h0["discard"] and i in session.hand_discarded])    # already moved
     if to_discard:
-        d = session.pending_discard or {"n": 0, "baseline": len(st.discard), "kind": "cards"}
-        d["cards"] = list(d.get("cards") or []) + to_discard
-        session.pending_discard = d
-        session.say(f"Pon {_join(by_id[i].title for i in to_discard)} de tu mano en tu descarte ({cause}) y "
-                    "pulsa Fin de accion.", ChatKind.YOUR_TURN)
+        checks += translate(session, {"op": "discard", "zone": "hand", "player": human, "cards": to_discard}, ctx) or []
     # the virtual hand holds placeholders: only a card the bot knew in your hand (seen before the step, or now known
     # on top of your deck) can be said to have gone to the deck; the rest is counted by the size the hand lost
     # beyond what the discards and the played cards explain (a look re-identifies the hand, which moves
@@ -384,14 +348,15 @@ def _human_cards(session, before: dict, played: frozenset, looked: bool, cause: 
         session.say(f"Pon {_join(by_id[i].title for i in hand_to_deck)} de tu mano {where} ({cause}).",
                     ChatKind.YOUR_TURN)
     drawn = 0 if looked else len([i for i in h1["hand"] if i in h0["deck"]])    # a look moves placeholders, not cards
-    session._deal_owed_draws(cause)               # the draws of the effect are dealt to the hand (or said, without a deck)
+    session._deal_owed_draws(cause)               # the draws of the effect are dealt to the hand (the `draw` translator)
     from_hand = len([i for i in h0["hand"] if i in played])
     unknown = len(h0["hand"]) + drawn - len(h1["hand"]) - from_hand - len(to_discard) - by_bot - len(hand_to_deck)
     if unknown > 0:
         session.say(f"Devuelve {_plural(unknown)} de tu mano a tu mazo y baraja ({cause}; las eliges tu).",
                     ChatKind.YOUR_TURN)
     disc_to_deck = [i for i in h0["discard"] if i in h1["deck"]]
-    checks = _human_disc_to_deck(session, disc_to_deck, h0["deck"], h1["deck"], by_id, cause) if disc_to_deck else []
+    if disc_to_deck:
+        checks += _human_disc_to_deck(session, disc_to_deck, h0["deck"], h1["deck"], by_id, cause)
     disc_to_hand = [i for i in h0["discard"] if i in h1["hand"]]
     if disc_to_hand:
         session.say(f"Recoge {_join(by_id[i].title for i in disc_to_hand)} de tu descarte a tu mano ({cause}).",

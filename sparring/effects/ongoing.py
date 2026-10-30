@@ -14,6 +14,7 @@ from __future__ import annotations
 
 from typing import Iterator
 
+from . import table
 from .model import load_effects
 from .select import find_card
 
@@ -41,6 +42,8 @@ def leave_play(game, player: int):
     game.fx.take_ongoing(player)
     if card is not None and card not in game.players[player].discard:
         game.players[player].discard.append(card)
+    if card is not None:
+        table.intent(game, op="discard", zone="in_play", player=player, card=card.card_id)
     return card
 
 

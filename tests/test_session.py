@@ -347,6 +347,18 @@ class Table:
         self.human_hand, self.human_count = [], 0
         return {"moved": moved, "count": count, "zone": True}
 
+    def do_card_to_discard(self, s):
+        """One loose card (by GUID `g<CardID>`) from the human's ONGOING zone onto their discard pile. `card_moves`
+        counts the writes; `card_to_discard_fails` leaves the card where it is, like a table that refuses."""
+        guid = re.search(r'getObjectFromGUID\("(g\d+)"\)\nif card', s).group(1)
+        i = int(guid[1:])
+        self.card_moves = getattr(self, "card_moves", []) + [i]
+        if getattr(self, "card_to_discard_fails", False) or i not in self.human_ongoing:
+            return {"moved": [], "count": 0, "zone": True}
+        self.human_ongoing.remove(i)
+        self.human_discard.append(i)
+        return {"moved": [i], "count": 1, "zone": True}
+
     def do_place_card_face_up(self, s):
         i = int(re.search(r"CardID == (\d+)", s).group(1))
         if i not in self.bot_hand:
