@@ -116,6 +116,20 @@ def test_medusa_never_gets_a_scene(tmp_path, monkeypatch):
     client.close()
 
 
+def test_the_client_timeout_covers_the_hold(tmp_path, monkeypatch):
+    session, table, game, fake, cfg, card, client = liz_session(tmp_path, monkeypatch, burning=True)
+    calls = []
+    real = client.call_lua
+    client.call_lua = lambda script, *a, **k: (calls.append((script.split("\n", 1)[0], k.get("timeout"))),
+                                               real(script, *a, **k))[1]
+    start_bot_turn(session, game)
+    composites = [t for head, t in calls if head == "-- sparring:composite"]
+    held = [t for t in composites if t is not None]
+    assert len(held) == 1 and held[0] >= client.timeout + 3.0, "the default wait would give up before the hold ends"
+    assert len(composites) > 1 and composites.count(None) == len(composites) - 1, "only the held message is stretched"
+    client.close()
+
+
 # ---------- the Lua of the hold (lupa, on the minimal table of lua_stub) ----------
 @pytest.fixture
 def rt():

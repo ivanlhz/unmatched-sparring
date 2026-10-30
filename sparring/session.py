@@ -17,6 +17,7 @@ from __future__ import annotations
 import hashlib
 import json
 import math
+import re
 import secrets
 import time
 import uuid
@@ -73,6 +74,7 @@ ACTION_KIND = {"maneuver": ChatKind.MOVE, "glance": ChatKind.SCHEME, "frenzy": C
 
 
 CODED_ABILITY_HERO = "medusa"     # the hero whose start-of-turn ability the engine runs (`Game.use_ability(..., "medusa_gaze")`)
+HOLD_MARGIN = 2.0           # seconds on top of a composite's hold for the reply to arrive
 DEFAULT_WILDFIRE_HOLD = 3.0   # seconds the bot leaves its Wildfire card face up on the discard before applying it (tests use 0)
 DEFAULT_BOT_PAUSE = 1.0     # segundos entre acciones del bot en la partida real (los tests usan 0)
 
@@ -2976,9 +2978,14 @@ class Session:
             if wants_state:
                 self._write_seq += 1
             try:
-                res = self.client.call_lua(lua.composite([o.script for o in ops],
-                                                         self.snapshot_spec() if wants_state else None, expect,
-                                                         seq=self._write_seq))
+                script = lua.composite([o.script for o in ops], self.snapshot_spec() if wants_state else None, expect,
+                                       seq=self._write_seq)
+                held = sum(float(m.group(1)) for o in ops for m in [re.search(r"math\.max\(holdFor or 0, ([\d.]+)\)", o.script)]
+                           if o.script.startswith("-- sparring:hold\n") and m)
+                if held:         # TTS replies only after the hold: the default wait would give up before it
+                    res = self.client.call_lua(script, timeout=getattr(self.client, "timeout", 5.0) + held + HOLD_MARGIN)
+                else:
+                    res = self.client.call_lua(script)
             except Exception as e:                        # noqa: BLE001 - se propaga a quien pidio el resultado
                 self.snap = None
                 for o in ops:

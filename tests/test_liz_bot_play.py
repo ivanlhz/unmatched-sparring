@@ -1,6 +1,8 @@
 """Bot-Liz must close in and attack instead of manoeuvring in place (reported live 30/10: two turns of manoeuvres at her
 start space 3 with Hellboy at 13 and the Lobster at 12, then a hand over the limit). Position and hand come from that
 save; no TTS and no sockets."""
+import pytest
+
 from sparring.ai_medusa import MedusaAI, Model
 from sparring.board import Board
 from sparring.hellboy_script import ScriptedHellboy
@@ -56,3 +58,27 @@ def test_medusa_keeps_her_own_rules():
     game = Game.new(Board.load("bprd-hq"), 7, {BOT: MedusaAI(BOT), HUMAN: ScriptedHellboy(HUMAN, 7)}, bot_player=BOT)
     ai = game.controllers[BOT]
     assert ai.approach_acts(game, ai.candidates(game, Model(game, BOT))) == []
+
+
+@pytest.mark.parametrize("bot_hero, rival_hero", [("hellboy", "baba-yaga"), ("abe-sapien", "baba-yaga"),
+                                                  ("baba-yaga", "abe-sapien"), ("liz-sherman", "hellboy")])
+def test_every_non_medusa_hero_with_an_attack_walks_into_reach_of_a_far_rival(bot_hero, rival_hero):
+    """The approach rules apply to every bot hero but Medusa: with the rival hero four spaces away and the rest of the
+    pieces out of the way, the bot ends its turn having attacked, or in reach of a rival."""
+    ai = MedusaAI(BOT)
+    game = Game.new(Board.load("bprd-hq"), 5, {BOT: ai, HUMAN: ScriptedHellboy(HUMAN, 0)}, bot_player=BOT,
+                    heroes=(bot_hero, rival_hero))
+    spaces = sorted(game.board.spaces, reverse=True)
+    others = [f for f in game.fighters.values() if not f.hero]
+    for f, space in zip(others, spaces):
+        f.pos = space
+    game.hero(BOT).pos, game.hero(HUMAN).pos = 3, 13
+    hero = game.hero(BOT)
+    assert any(c.can_attack and c.usable_by(hero.name) for c in game.players[BOT].hand)
+    attacks = []
+    real_attack = game.attack
+    game.attack = lambda *a, **k: (attacks.append(a), real_attack(*a, **k))[1]
+    game.turn, game.actions_left = BOT, 2
+    ai.take_turn(game)
+    assert hero.pos != 3
+    assert attacks or any(game.board.can_reach_target(hero.pos, e.pos, hero.ranged) for e in game.foes(BOT))
