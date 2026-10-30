@@ -1055,7 +1055,7 @@ class Session:
         mine = {c.card_id: c for c in self.game.players[self.human].full_set}
         boost = None if p.combat["boost"] is None else mine[p.combat["boost"]]
         flow.choosers = hidden.flow_choosers(self, p)      # the Perfect Shot prediction decided at play time
-        choose = legacy_chooser(self.game, flow, boost)
+        choose = legacy_chooser(self.game, flow, boost, self.human)
         while (wait := flow.run()) is not None:
             if wait.choice.kind == "effect" and wait.choice.player == self.human:
                 self._show_choice(flow.awaiting_run.awaiting)
@@ -1924,7 +1924,7 @@ class Session:
             self.say(f"Carta ilegal: {e}. Cambiala o dale la vuelta y pulsa Revelar otra vez.", ChatKind.WARNING)
             return
         human_guid = theirs[0]["guid"] if theirs else None
-        if p.kind == "human_attacks" and human_card is not None and can_boost(human_card):
+        if human_card is not None and can_boost(human_card):      # your attack (Second Shot) or your defense (Out Of Time)
             if p.bot_card is not None and is_medusa_card(p.bot_card) and p.bot_card.title == FEINT:
                 self.say(f"{p.bot_card.title} cancela los efectos de {human_card.title}: no hay boost que jugar.", ChatKind.COMBAT)
             else:

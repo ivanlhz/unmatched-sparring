@@ -467,10 +467,11 @@ def _i_won(flow: CombatFlow, side: Side) -> bool:
 
 
 # ---------- synchronous driver ----------
-def legacy_chooser(game: Game, flow: CombatFlow, boost: Card | None) -> Callable[[PendingChoice], Card | None]:
+def legacy_chooser(game: Game, flow: CombatFlow, boost: Card | None, human: int | None = None) -> Callable[[PendingChoice], Card | None]:
     """Answers boost choices the way the pre-flow resolve_combat did: a Medusa card, a defender's card or a card of
-    the bot's interpreted hero asks its owner's controller (with the live CombatCtx); the human attacker's card uses
-    the boost the caller already read from the table."""
+    the bot's interpreted hero asks its owner's controller (with the live CombatCtx); the human's card (`human`: the
+    live session's seat; the attacker's, or the defender's when it may boost, Out Of Time) uses the boost the caller
+    already read from the table."""
     def choose(choice: PendingChoice):
         if choice.kind == "effect":         # a panel chooser paused an effect inside a synchronous combat
             from .effects.choose import ChoiceRequest
@@ -478,6 +479,8 @@ def legacy_chooser(game: Game, flow: CombatFlow, boost: Card | None) -> Callable
             return default_choosers(game)[choice.player].choose(game, ChoiceRequest.from_dict(choice.extra["request"]))
         player = choice.player
         bot_dsl = _is_bot(game, player) and game.fx.interprets(player)
+        if player == human and not is_medusa_card(flow.card_by_id(choice.card_id, player)):
+            return boost
         if bot_dsl or player != flow.att.owner or is_medusa_card(flow.card_by_id(choice.card_id, player)):
             return game.controllers[player].choose_combat_boost(game, flow.ctx)
         return boost
