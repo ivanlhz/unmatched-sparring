@@ -627,6 +627,10 @@ def floor_layout_warnings(cfg: PlayConfig) -> list[str]:
     return warnings
 
 
+# Unmatched hands start at 5 and only a few cards draw past 7; `lua.MAX_LOOK_CARDS` (12) is a safety cap of the Lua
+# row, not a hand a game reaches, and a 12-card column would run into the discard zone and the hero bags.
+ROW_WARN_CARDS = 7
+
 LOOK_ROWS = {   # spot key -> (step key, default spot, default step, name in the warning)
     "look_spot": ("look_step", SessionConfig.look_spot, SessionConfig.look_step, "La fila de la mano del bot a la vista"),
     "bot_row_spot": ("bot_row_step", SessionConfig.bot_row_spot, SessionConfig.bot_row_step,
@@ -634,7 +638,7 @@ LOOK_ROWS = {   # spot key -> (step key, default spot, default step, name in the
 }
 
 
-def look_row_rect(cfg: PlayConfig, n: int = 7, spot_key: str = "look_spot") -> tuple[float, float, float, float]:
+def look_row_rect(cfg: PlayConfig, n: int = ROW_WARN_CARDS, spot_key: str = "look_spot") -> tuple[float, float, float, float]:
     """Rectangulo (x min, x max, z min, z max) que ocupa una fila de la mano del bot (`look_spot` o `bot_row_spot`)
     con `n` cartas."""
     r = cfg.raw
@@ -650,14 +654,14 @@ def look_row_rect(cfg: PlayConfig, n: int = 7, spot_key: str = "look_spot") -> t
 
 
 def look_row_warnings(cfg: PlayConfig, floor: list[tuple[str, tuple[float, float, float, float]]]) -> list[str]:
-    """Aviso de arranque: las filas de la mano del bot (hasta 7 cartas) no pueden pisar el panel, las cajas de combate
+    """Aviso de arranque: las filas de la mano del bot (hasta `ROW_WARN_CARDS` cartas) no pueden pisar el panel, las cajas de combate
     y ONGOING ni las zonas de descarte."""
     pos, scale = cfg.panel_position, cfg.panel_scale
     others = [("el panel", lua.panel_footprint(pos, scale, ui.PANEL_WIDTH, ui.panel_height(len(cfg.fighter_ids)))),
               *((name, rect) for name, rect in floor if name.startswith(("caja", "zona")))]
     out = []
     for spot_key, (*_, what) in LOOK_ROWS.items():
-        a0, a1, b0, b1 = look_row_rect(cfg, 7, spot_key)
+        a0, a1, b0, b1 = look_row_rect(cfg, ROW_WARN_CARDS, spot_key)
         out += [f"{what} ({spot_key}, x {a0:.1f}..{a1:.1f}, z {b0:.1f}..{b1:.1f}) pisa {name}: "
                 f"mueve {spot_key} en la configuracion." for name, (x0, x1, z0, z1) in others
                 if a0 < x1 and a1 > x0 and b0 < z1 and b1 > z0]

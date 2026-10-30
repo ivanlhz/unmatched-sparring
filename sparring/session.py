@@ -1355,6 +1355,10 @@ class Session:
             look["mode"] = raw["mode"]
             if isinstance(raw.get("purpose"), str):
                 look["purpose"] = raw["purpose"]
+            hp = raw.get("hp")
+            if isinstance(hp, dict) and all(isinstance(k, str) and isinstance(v, (int, float)) and not isinstance(v, bool)
+                                            and math.isfinite(v) for k, v in hp.items()):
+                look["hp"] = dict(hp)       # the pick's price is announced from it
         return look
 
     @staticmethod

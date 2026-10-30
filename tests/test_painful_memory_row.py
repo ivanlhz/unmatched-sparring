@@ -117,3 +117,16 @@ def test_nothing_else_happens_on_the_bots_side_while_the_pick_is_pending(liz, mo
     discard, hand = list(table.bot_discard), sorted(table.look_row)
     assert session.pending is not None and session.look["mode"] == "pick" and game.turn == 1
     assert list(table.bot_discard) == discard and sorted(table.look_row) == hand
+
+
+def test_a_resume_mid_pick_still_announces_the_damage_the_bot_took(liz, monkeypatch):
+    import json
+    from test_e3_hidden_info import twin_session
+    session, table, game, fake, cfg = liz
+    open_pick(session, table, game, monkeypatch, "Pyrotechnics")
+    twin = twin_session(session, cfg, json.loads(json.dumps(session.to_dict())))
+    assert twin.look["hp"] == session.look["hp"]
+    monkeypatch.setattr(twin.ai.effect_ai(), "_discard_or_take", lambda g, req: False)
+    card = next(c for c in twin.game.players[0].hand if c.title == "Evade")
+    msgs = click(twin, table, Event.LOOK_PING, {"guid": f"g{card.card_id}"})
+    assert said(msgs, f"El bot se queda Evade y Liz Sherman recibe 2 de dano")
