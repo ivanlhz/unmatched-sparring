@@ -1420,6 +1420,21 @@ def _check_op(op) -> str:
     return op
 
 
+MAX_HOLD = 10.0     # longest pause (seconds) a composite may hold its reply for
+
+
+@_registered
+def hold(seconds: float) -> str:
+    """Marker op for `composite`: whatever the ops before it put on the table stays on show for `seconds` before the
+    composite reads the table and replies (the waiting happens inside TTS, it costs no extra message)."""
+    if not isinstance(seconds, (int, float)) or isinstance(seconds, bool) or not 0 < seconds <= MAX_HOLD:
+        raise ValueError(f"pausa entre 0 y {MAX_HOLD:g} segundos")
+    return f"""-- sparring:hold
+holdFor = math.max(holdFor or 0, {_f(seconds)})
+return JSON.encode({{held = {_f(seconds)}}})
+"""
+
+
 @_registered
 def composite(ops: list[str], spec: SnapSpec | None = None, expect_hand: tuple[str, int] | None = None,
               seq: int = 0) -> str:
@@ -1446,10 +1461,16 @@ def composite(ops: list[str], spec: SnapSpec | None = None, expect_hand: tuple[s
     snap = snapshot_lua(spec, "SEQ") if spec is not None else ""
     read = "local ok, st = pcall(sparringSnapshot)" if spec is not None else "local ok, st = true, nil"
     release = "true" if any(o.startswith("-- sparring:set_panel\n") for o in checked) else "false"
+    held = any(o.startswith("-- sparring:hold\n") for o in checked)    # only then the script carries the hold lines
+    hold_decl = "local holdFor, holdDone = 0, false\n" if held else ""
+    hold_ready = "  if holdFor > 0 and not holdDone then return false end\n" if held else ""
+    hold_slow = "if holdFor > 0 then slow = true end\n" if held else ""
+    hold_timer = "  if holdFor > 0 then Wait.time(function() holdDone = true end, holdFor) end\n" if held else ""
+    wait_for = "2.5 + holdFor" if held else "2.5"
     out = ("-- sparring:composite\nlocal __J = JSON\nlocal JSON = {encode = function(v) return v end}\n"
            f"local SEQ = {_i(seq)}\nlocal results = {{}}\n"
            "local function run(f) local ok, r = pcall(f); if ok then return r end return {__err = tostring(r)} end\n"
-           + "".join(body) + snap + expect + f"""local function stampPanel()
+           + hold_decl + "".join(body) + snap + expect + f"""local function stampPanel()
   for _, o in ipairs(getObjects()) do
     if o.getName() == {lua_str(PANEL_NAME)} and o.getGMNotes() == {lua_str(MARKER)} then
       if {release} then o.setVar("busy", false) end
@@ -1470,7 +1491,7 @@ local function settled(o)
   return true
 end
 local function ready()
-  if expectSeat ~= nil and #Player[expectSeat].getHandObjects(1) ~= expectN then return false end
+{hold_ready}  if expectSeat ~= nil and #Player[expectSeat].getHandObjects(1) ~= expectN then return false end
   for _, r in ipairs(results) do
     if type(r.moved) == "string" then
       local o = getObjectFromGUID(r.moved)
@@ -1483,9 +1504,9 @@ local slow = expectSeat ~= nil
 for _, r in ipairs(results) do
   if type(r.moved) == "string" or r.dealt ~= nil then slow = true end
 end
-if slow then
-  Wait.frames(function()
-    Wait.condition(function() pcall(finish) end, ready, 2.5, function() pcall(finish) end)
+{hold_slow}if slow then
+{hold_timer}  Wait.frames(function()
+    Wait.condition(function() pcall(finish) end, ready, {wait_for}, function() pcall(finish) end)
   end, 3)
 else
   finish()

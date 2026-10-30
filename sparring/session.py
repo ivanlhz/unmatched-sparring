@@ -59,10 +59,12 @@ TRANSIT_READS = 4   # lecturas del descarte que se espera a una carta humana rec
 class Msg(str):
     """Mensaje del bot: un `str` que ademas lleva su categoria, para colorearlo en el chat sin tocar a quien lo trata como texto."""
     kind: ChatKind
+    shown: bool
 
-    def __new__(cls, text: str, kind: ChatKind = ChatKind.NEUTRAL) -> "Msg":
+    def __new__(cls, text: str, kind: ChatKind = ChatKind.NEUTRAL, shown: bool = False) -> "Msg":
         obj = super().__new__(cls, text)
         obj.kind = ChatKind(kind)
+        obj.shown = shown          # already on the table's chat (a scene sent it in its own script): not broadcast again
         return obj
 
 
@@ -71,6 +73,7 @@ ACTION_KIND = {"maneuver": ChatKind.MOVE, "glance": ChatKind.SCHEME, "frenzy": C
 
 
 CODED_ABILITY_HERO = "medusa"     # the hero whose start-of-turn ability the engine runs (`Game.use_ability(..., "medusa_gaze")`)
+DEFAULT_WILDFIRE_HOLD = 3.0   # seconds the bot leaves its Wildfire card face up on the discard before applying it (tests use 0)
 DEFAULT_BOT_PAUSE = 1.0     # segundos entre acciones del bot en la partida real (los tests usan 0)
 
 
@@ -113,6 +116,7 @@ class SessionConfig:
     human_dead_spot: tuple[float, float, float] | None = None   # donde el bot aparta las miniaturas CAIDAS del humano
     label_font: float = lua.LABEL_FONT   # tamano del texto de las etiquetas del suelo
     bot_pause: float = 0.0         # segundos de pausa tras cada accion del bot (0 = sin pausa; `play` usa 1.0)
+    wildfire_hold: float = 0.0     # seconds the Wildfire card stays face up on the bot's discard before its effect (0 = no scene; `play` uses 3.0)
     live_ui: bool = False          # linea de estado, botones segun el estado y anuncios por pantalla en el mismo script
     bot_card_ids: tuple[int, int] = lua.BOT_CARD_IDS         # rango de CardID del mazo del bot (de su heroe: data/tts)
     human_card_ids: tuple[int, int] = lua.HUMAN_CARD_IDS     # y del mazo del humano
@@ -278,6 +282,7 @@ class Session:
         self.dirty = False                       # el motor movio al bot y la mesa aun no lo refleja
         self.unprojected: dict | None = None     # posiciones previas de las piezas aun sin proyectar
         self.bot_stage: str | None = None        # "start": turno del bot empezado en el motor, E/S pendiente
+        self.wildfire_scene: dict | None = None  # what the bot's Wildfire did at the turn change, shown at its first write
         self.limit_waived = False
         self.flush_failures = 0                  # fallos de mesa (SessionError) seguidos al saldar la deuda
         self.state_path: Path | None = None      # si esta puesto, se guarda tras cada start/resume/handle
@@ -811,8 +816,8 @@ class Session:
             self._table_failure(e)
         return self._done()
 
-    def say(self, msg: str, kind: ChatKind = ChatKind.NEUTRAL) -> None:
-        self.messages.append(Msg(msg, kind))
+    def say(self, msg: str, kind: ChatKind = ChatKind.NEUTRAL, shown: bool = False) -> None:
+        self.messages.append(Msg(msg, kind, shown))
 
     # ---------- the human's effect choices (E1; the button logic lives in session_choices) ----------
     # One pause at a time reaches the panel. In priority order: the pending combat stopped inside a card effect
@@ -2404,8 +2409,10 @@ class Session:
         self.chosen_attacker = None
         before, fx_before = self._snapshot_bot(), bot_effects.snapshot(self)
         g.end_turn()
+        probe = self._wildfire_probe()
         g.begin_turn()                            # el cambio de turno es atomico; lo que sigue es solo E/S
         self._turn_change_debt(before, fx_before)
+        self.wildfire_scene = self._wildfire_outcome(probe)
         self.bot_stage = "start"
         self._persist()                           # punto de control: el turno del bot empieza aqui, una sola vez
         self.say("Fin de tu turno. Turno del bot.")
@@ -2413,11 +2420,88 @@ class Session:
 
     def start_bot_turn(self) -> None:
         before, fx_before = self._snapshot_bot(), bot_effects.snapshot(self)
+        probe = self._wildfire_probe()
         self.game.begin_turn()
         self._turn_change_debt(before, fx_before)
+        self.wildfire_scene = self._wildfire_outcome(probe)
         self.bot_stage = "start"
         self._persist()
         self._bot_continue()
+
+    def _wildfire_probe(self) -> dict | None:
+        """Called just before the bot's turn starts in the engine: Liz's WILDFIRE discards the bottom card of the deck
+        and the result (damage or a move) is decided there. What it will be taken from, to show it on the table."""
+        g, cfg = self.game, self.cfg
+        hero = g.hero_def(self.bot)
+        if cfg.wildfire_hold <= 0 or not any(t.get("id") == "wildfire_start" for t in hero.triggers):
+            return None
+        st = g.players[self.bot]
+        if not st.deck:
+            return None
+        liz = g.hero(self.bot)
+        return {"card": st.deck[-1].card_id, "pos": liz.pos, "hp": {f.fid: f.hp for f in g.fighters.values()}}
+
+    def _wildfire_outcome(self, probe: dict | None) -> dict | None:
+        """What the engine did for that Wildfire: the card (burning ones went back to the hand), the damage it dealt
+        and where Liz moved."""
+        if probe is None:
+            return None
+        g = self.game
+        st = g.players[self.bot]
+        card = next(c for c in st.full_set if c.card_id == probe["card"])
+        liz = g.hero(self.bot)
+        hits = [(f, probe["hp"][f.fid] - f.hp) for f in g.own(self.human, alive_only=False)
+                if probe["hp"][f.fid] - f.hp > 0]
+        return {"card": card, "burning": card in st.hand, "hits": hits,
+                "from": probe["pos"], "to": liz.pos if liz.alive else probe["pos"]}
+
+    def _wildfire_reveal(self, scene: dict) -> None:
+        """Wildfire, step by step on the table (Ivan, 30/10): the bottom card goes face up onto the bot's discard and
+        stays on show `wildfire_hold` seconds (the wait is inside the same TTS script: no extra message and no
+        snapshot of a half-done table); the rest (the card back to the hand, the damage and its dial, Liz's move) is
+        written by the usual projection right after, each step announced as it lands."""
+        g, cfg = self.game, self.cfg
+        st = g.players[self.bot]
+        card, burning = scene["card"], scene["burning"]
+        liz = self._name(g.hero(self.bot))
+        slot = self._discard_slot(len(st.discard) if burning else [c.card_id for c in st.discard].index(card.card_id))
+        first = f"Wildfire: {liz} descarta la carta del fondo: {card.title}" + (" (fuego)" if burning else "")
+        self.say(first, ChatKind.ABILITY, shown=True)
+        try:
+            moved = self._w(lua.discard_cards([card.card_id], [slot], cfg.bot_discard_rot_y, identity=self._identity(),
+                                              scope=self._scope(), id_range=cfg.bot_card_ids), "cards")
+            for chunk in lua.ascii_text(first):
+                self._w(lua.broadcast(chunk, ChatKind.ABILITY), "misc")
+            if cfg.batch:
+                self._w(lua.hold(cfg.wildfire_hold), "misc")
+            self._flush()
+            if not cfg.batch:
+                time.sleep(cfg.wildfire_hold)
+            if card.card_id not in ((moved.result or {}).get("moved") or []):
+                self.say(f"No encuentro {card.title} en el mazo del bot para ponerla a la vista: sigo sin escena.",
+                         ChatKind.WARNING)
+        except TABLE_ERRORS as e:
+            self.say(f"No pude mostrar la carta de Wildfire ({e}); sigo con el turno.", ChatKind.WARNING)
+        if burning and self.fx_unprojected is not None:     # for the projection it is now a discard going back to the hand
+            zones = self.fx_unprojected["bot"]
+            zones["deck"] = [i for i in zones["deck"] if i != card.card_id]
+            zones["discard"] = zones["discard"] + [card.card_id]
+        for text, kind in self._wildfire_lines(scene, liz):
+            self.say(text, kind, shown=True)
+            if cfg.batch:
+                for chunk in lua.ascii_text(text):
+                    self._w(lua.broadcast(chunk, kind), "misc")
+
+    def _wildfire_lines(self, scene: dict, liz: str) -> list[tuple[str, ChatKind]]:
+        if scene["burning"]:
+            lines = [(f"Es de fuego: vuelve a la mano de {liz}", ChatKind.ABILITY)]
+            lines += [(f"{liz} hace {amount:g} de dano a {self._name(f)}", ChatKind.COMBAT)
+                      for f, amount in scene["hits"]]
+            return lines
+        steps = self.game.board.distance(scene["from"], scene["to"])
+        if steps:
+            return [(f"No es de fuego: {liz} se mueve {steps} casilla{'s' if steps != 1 else ''}", ChatKind.MOVE)]
+        return [(f"No es de fuego: {liz} se queda donde esta", ChatKind.MOVE)]
 
     def _turn_change_debt(self, before: dict, fx_before: dict) -> None:
         """The bot's start-of-turn triggers (Wildfire's discard and move, Hellboy's ANUNG discard and move, a draw)
@@ -2554,9 +2638,23 @@ class Session:
         de modo que un corte o Ctrl+C reanudado no repite nada de lo ya hecho."""
         g = self.game
         self._revoke_look_after_button()
+        scene, self.wildfire_scene = self.wildfire_scene, None
+        if scene is not None and self.bot_stage != "start":
+            scene = None
+        if scene is not None:
+            self._wildfire_reveal(scene)
         fin_fx, self.fx_unprojected = self._project_effects(self.fx_unprojected), None
-        self._flush_table()
-        fin_fx()
+        if scene is None:
+            self._flush_table()
+            fin_fx()
+        else:       # one message for the card back in the hand, the damage and its dial, and Liz's move
+            fin_dials = self._write_dials(defer=True) if scene["hits"] else None
+            fin_table = self._flush_table_stage()
+            self._flush()
+            fin_table()
+            fin_fx()
+            if fin_dials is not None:
+                fin_dials()
         if self.pending is not None:
             self.say("La carta del bot ya esta en la mesa: pulsa Revelar.", ChatKind.WARNING)
             return
@@ -2919,7 +3017,7 @@ class Session:
                 self._w(lua.set_panel(status, states, release_busy=not self.cfg.batch, labels=self.panel_labels()), "misc")
                 if self.broadcast:
                     for m in self.messages:
-                        for chunk in lua.ascii_text(m):
+                        for chunk in [] if getattr(m, "shown", False) else lua.ascii_text(m):
                             self._w(lua.broadcast(chunk, m.kind), "misc")
             except (ValueError, TypeError) as e:
                 self.say(f"No pude preparar el estado del panel ({e}).", ChatKind.WARNING)
@@ -2935,7 +3033,7 @@ class Session:
         if len(self.messages) > said and posts:       # una comprobacion fallo: se avisa tambien en pantalla
             if self.broadcast:
                 for m in self.messages[said:]:
-                    for chunk in lua.ascii_text(m):
+                    for chunk in [] if getattr(m, "shown", False) else lua.ascii_text(m):
                         self._w(lua.broadcast(chunk, m.kind), "misc")
             try:
                 self._flush()
