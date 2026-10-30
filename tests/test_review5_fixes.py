@@ -58,9 +58,10 @@ def test_detective_draw_is_announced_on_the_real_rival_start_space(rig):
     s = fresh(session, cfg)
     s.game.turn = 1
     s.game.fighters["hellboy"].pos = 30
+    s.game.begin_turn()                                       # the engine asks on the panel; the session announces it
     s.messages = []
     s._announce_human_start()
-    assert any("salida rival" in m for m in s.messages)
+    assert any("salida rival" in m for m in s.messages) and s.effect_run is not None
 
 
 def test_revive_suggests_the_configured_start_space_of_the_side(rig):

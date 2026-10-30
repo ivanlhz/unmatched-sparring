@@ -378,8 +378,7 @@ def _human_cards(session, before: dict, played: frozenset, looked: bool, cause: 
         session.say(f"Pon {_join(by_id[i].title for i in hand_to_deck)} de tu mano {where} ({cause}).",
                     ChatKind.YOUR_TURN)
     drawn = 0 if looked else len([i for i in h1["hand"] if i in h0["deck"]])    # a look moves placeholders, not cards
-    if drawn:
-        session.say(f"Robas {_plural(drawn)} ({cause}): hazlo en la mesa.", ChatKind.YOUR_TURN)
+    session._deal_owed_draws(cause)               # the draws of the effect are dealt to the hand (or said, without a deck)
     from_hand = len([i for i in h0["hand"] if i in played])
     unknown = len(h0["hand"]) + drawn - len(h1["hand"]) - from_hand - len(to_discard) - len(hand_to_deck)
     if unknown > 0:

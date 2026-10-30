@@ -7,6 +7,7 @@ the session already drives (E1) and their schemes run here (`play_scheme`), with
     (Cold Iron, Counterhex, Burning Barrier, the Pacts), values and cancellations, the bot's discards the bot
     chooses, the bot's hand and deck moves (projected through `session_bot_effects`), the bot's pieces the human
     relocates (chosen on the panel buttons, projected like any bot move);
+  * the bot deals the human's draws from their deck to their hand (`Session._deal_owed_draws`);
   * the human does by hand what only they hold: picks out of their own hand, the order of their deck, where their
     own miniatures go (`effects/table.py` leaves a note per op; the chat says it); the table sync reconciles.
 
@@ -174,8 +175,9 @@ def decline(session, paused) -> bool:
     return True
 
 
+ABILITY_NAME = {"detective_draw": "OCCULT DETECTIVE"}      # trigger id -> the ability as the chat names it
 ABILITY_TEXT = {
-    "detective_draw": "OCCULT DETECTIVE: estas en la salida rival: puedes robar 2 cartas (o ninguna).",
+    "detective_draw": "OCCULT DETECTIVE: estas en la salida rival: puedes robar 2 cartas (o ninguna); elige en el panel y te las doy.",
     "anung_discard_move": "ANUNG UN RAMA: descarta 1 carta (obligatorio) y mueve a {hero} hasta el BOOST de esa carta.",
     "wildfire_start": "WILDFIRE: descarta la carta del fondo de tu mazo. Si es ardiente, 1 de dano a otro luchador de "
                       "la zona de {hero} (usa -1 sobre el; la ardiente vuelve a tu mano); si no, mueve a {hero} hasta "

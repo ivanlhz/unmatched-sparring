@@ -604,7 +604,7 @@ def test_the_bot_attack_on_your_abe_with_an_active_token_is_turned_face_up_and_n
     msgs = click(session, table, Event.END_ACTION)
     p = session.pending
     assert p is not None and table.flips[-1] == p.bot_card_guid and p.prediction is None
-    assert said(msgs, "UNCANNY INTUITION: Abe Sapien tiene una ficha activa: gastas una, robas 1 carta (hazlo en la mesa) "
+    assert said(msgs, "UNCANNY INTUITION: Abe Sapien tiene una ficha activa: gastas una, robas 1 carta (te la doy yo) "
                       "y el ataque del bot se juega boca arriba: Service Pistol (valor 5)")
     table.face_down = []
     click(session, table, Event.REVEAL)

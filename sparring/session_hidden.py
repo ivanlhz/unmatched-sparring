@@ -463,7 +463,7 @@ def bot_attack_placed(session, p) -> None:
         lines.append(f"El bot juega {card.title} boca arriba y predice que el valor impreso de tu carta es {n}.")
     if attack_revealed(g, p.target):
         lines.append(f"UNCANNY INTUITION: {session._name(p.target)} tiene una ficha activa: gastas una, robas 1 carta "
-                     f"(hazlo en la mesa) y el ataque del bot se juega boca arriba: {card.title} (valor {card.value}).")
+                     f"(te la doy yo) y el ataque del bot se juega boca arriba: {card.title} (valor {card.value}).")
     if not lines:
         return
     if p.bot_card_guid:
