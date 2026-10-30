@@ -36,6 +36,8 @@ from . import session_bot_effects as bot_effects
 from . import session_choices as choices
 from . import session_effects as human_effects
 from . import session_hidden as hidden
+from . import session_moves as moves
+from .spaces import describe, zone_text
 from .combat import FEINT, FIGHT_OR_FLIGHT, FIGHT_OR_FLIGHT_BONUS, GLANCE_DAMAGE, can_boost, deck_boost, is_medusa_card, scheme_gain_actions
 from .state import ANUNG, EXHAUST_DAMAGE, HAND_LIMIT, START_HAND, Fighter, Game, RuleError
 from .tts import lua, ui
@@ -272,6 +274,7 @@ class Session:
         self.token_copies: dict[str, list[str]] = {}   # ability token -> GUIDs of the active copies on the table (D3)
         self.fx_unprojected: dict | None = None       # bot_effects snapshot taken before the turn change, projected at the bot's first write
         self.fx_in_flight: set[int] = set()           # CardIDs a bot effect is moving off its pile or hand in this step
+        self.hand_moved: dict[str, int] = {}          # fid -> space the human put a miniature on by hand (session_moves): not projected again
         self.fx_looked = False                        # a look_hand re-identified the human's virtual hand in this step
         self.reveal_bot_hand = False                  # a card of the human looked at the bot's hand in this step (E3)
         self._attach_choosers()
@@ -429,6 +432,9 @@ class Session:
             self.say(hidden.resume_prompt(self), ChatKind.YOUR_TURN)
         elif hidden.manual_request(self) is not None:
             hidden.manual_start(self, hidden.manual_request(self))
+        elif moves.manual_request(self) is not None:
+            self.choice_ui = choices.ChoiceUI()
+            self.say(moves.reprompt(self, moves.manual_request(self)), ChatKind.YOUR_TURN)
         elif self.effect_run is not None:
             self.choice_ui = choices.ChoiceUI()
             self.say("Hay una eleccion de efecto pendiente: " + choices.prompt_text(self.game, self.effect_run.awaiting)
@@ -518,7 +524,7 @@ class Session:
                     if self.setup["stage"] == "wait_human_first":
                         self._setup_place_hero()
                         names, many = self._sidekick_names(), len(self._sidekicks()) > 1
-                        place = (f", coloca a {names} en la zona de la casilla {self.game.start_spaces[self.human]}"
+                        place = (f", coloca a {names} en tu casilla de salida ({zone_text(self.game, self.game.start_spaces[self.human])})"
                                  if names else "")
                         where = ("donde " + ("los pusiste" if many else "lo pusiste")) if names else "donde esta tu heroe"
                         self.say(f"Empiezas tu. Roba tus 5 cartas{place} y pulsa Listo. El bot colocara despues, "
@@ -530,7 +536,7 @@ class Session:
                         self._setup_place_hero()
                         self.setup["stage"] = "wait_human"
                         names = self._sidekick_names()
-                        place = (f"coloca a {names} en la zona de la casilla {self.game.start_spaces[self.human]}, "
+                        place = (f"coloca a {names} en tu casilla de salida ({zone_text(self.game, self.game.start_spaces[self.human])}), "
                                  if names else "")
                         self.say(f"Ahora {place}roba tus 5 cartas y pulsa Listo.", ChatKind.YOUR_TURN)
                     else:
@@ -657,7 +663,7 @@ class Session:
                        for fid, sp in plan.items())
         if not self._settle(placed):
             raise SessionError("las piezas del bot no estan donde debian; reintenta con Listo")
-        self.say("El bot coloca: " + "; ".join(f"{self._name(g.fighters[fid])} en la casilla {sp}"
+        self.say("El bot coloca: " + "; ".join(f"{self._name(g.fighters[fid])} en {zone_text(g, sp)}"
                                                 for fid, sp in plan.items()) + ".")
 
     def _setup_place_hero(self) -> None:
@@ -678,7 +684,7 @@ class Session:
         if not self._settle(placed):
             raise SessionError(f"{self._name(hero)} no esta en su casilla de salida; reintenta con Listo")
         s["hero_placed"] = True
-        self.say(f"El bot coloca a {self._name(hero)} (tu heroe) en su casilla de salida {space}.")
+        self.say(f"El bot coloca a {self._name(hero)} (tu heroe) en su casilla de salida ({zone_text(self.game, space)}).")
 
     def _setup_begin(self) -> None:
         g = self.game
@@ -737,7 +743,7 @@ class Session:
                 continue
             info = self._table_pieces().get(fid) or {}
             if not self._on_board(info) or not g.board.share_zone(start, info["space"]):
-                self.say(f"Falta colocar a {self._name(f)} en la zona de la casilla {start}.", ChatKind.WARNING)
+                self.say(f"Falta colocar a {self._name(f)} en tu casilla de salida ({zone_text(self.game, start)}).", ChatKind.WARNING)
                 return False
         count = self._rd_human_count(0)
         if count == 0:
@@ -911,6 +917,9 @@ class Session:
         if (req.kind == "cards" and req.player == self.human and req.extra.get("zone") == "hand"
                 and req.extra.get("of") == self.bot and req.extra.get("purpose") == "discard"):
             return                                # look-and-discard: `hidden.manual_start` explains it, no option list
+        if moves.manual_request(self) is not None:
+            moves.start(self, req)                # a fighter the human moves by hand: no space buttons
+            return
         self.say(choices.prompt_text(self.game, req) + ": pulsa una de las opciones del panel ("
                  + choices.options_text(self.game, req) + ")." + choices.card_text_hint(self.game, req),
                  ChatKind.YOUR_TURN)
@@ -948,6 +957,9 @@ class Session:
         kind, holder, run = paused
         if hidden.manual_request(self) is not None:      # look-and-discard: the human acts on the table, this is Hecho
             hidden.manual_done(self, paused)
+            return
+        if moves.manual_request(self) is not None:        # a fighter to move by hand: 1 is Hecho, 2 is No mover
+            moves.press(self, paused, payload.get("i"))
             return
         verdict, value = choices.press(self.game, run.awaiting, self.choice_ui, payload.get("i"))
         if verdict == "error":
@@ -1032,6 +1044,8 @@ class Session:
         req = None if run is None else run.awaiting
         if hidden.manual_request(self) is not None:
             return hidden.manual_view(self)[1]
+        if moves.manual_request(self) is not None:
+            return moves.view(self, req)[1]
         return choices.panel_choice_view(self.game, req, self.choice_ui)[1]
 
     # ---------- the look at the bot's hand: only when a card allows it ----------
@@ -2386,7 +2400,7 @@ class Session:
             pos = info["space"]
         elif force:
             pos = self.game.start_spaces[f.owner]
-            self.say(f"Coloca a {self._name(f)} en la casilla {pos} (no esta en el tablero).", ChatKind.YOUR_TURN)
+            self.say(f"Coloca a {self._name(f)} en {describe(self.game, pos, (f.fid,), self._name)} (no esta en el tablero).", ChatKind.YOUR_TURN)
         else:
             self.say(f"No puedo reponer a {self._name(f)}: su miniatura no esta en el tablero. Colocala y repite.", ChatKind.WARNING)
             return False
@@ -2711,7 +2725,7 @@ class Session:
                      actions0: int | None = None) -> str:
         """Que ha hecho el bot, con el nombre de la carta jugada, el dano que hizo y a donde movio cada pieza."""
         g = self.game
-        moved = [f"{self._name(g.fighters[fid])} a la casilla {g.fighters[fid].pos}"
+        moved = [f"{self._name(g.fighters[fid])} a {describe(g, g.fighters[fid].pos, (fid,), self._name)}"
                  for fid, (pos, was_alive) in before.items()
                  if was_alive and g.fighters[fid].alive and g.fighters[fid].pos != pos]
         if act.kind in ("glance", "frenzy", "scheme"):
@@ -2731,7 +2745,7 @@ class Session:
         others = self._hp_text(hp0, skip=act.target if act.kind == "glance" else None)
         if act.kind == "maneuver" and not moved:
             text += " y roba, sin mover a nadie"
-        return (text + (f". Mueve {', '.join(moved)}" if moved else "") + (f". {others}" if others else "") + ".")
+        return (text + (f". Mueve {'; '.join(moved)}" if moved else "") + (f". {others}" if others else "") + ".")
 
     def _recover_placing(self) -> None:
         """Una carta que el bot puso boca abajo y cuya respuesta no llego (timeout tras ejecutarse): si esta en su
@@ -3290,7 +3304,9 @@ class Session:
                 states[i] = (False, states[i][1])
         req = paused[2].awaiting if choosing else None
         manual = hidden.manual_request(self) is not None
-        states.update((hidden.manual_view(self) if manual else choices.panel_choice_view(g, req, self.choice_ui))[0])
+        by_hand = moves.manual_request(self)
+        states.update((hidden.manual_view(self) if manual else moves.view(self, by_hand) if by_hand is not None
+                       else choices.panel_choice_view(g, req, self.choice_ui))[0])
         for ident in self._blocked_buttons():
             states[ident] = (False, False)
         if self.ability_wait is not None:         # your start-of-turn ability first: only Fin de accion (and the hit points)
@@ -3323,6 +3339,8 @@ class Session:
             return hidden.look_status(self)
         if hidden.manual_request(self) is not None:
             return hidden.manual_status(self)
+        if moves.manual_request(self) is not None:
+            return choices.safe_label(moves.status(self, moves.manual_request(self)), "Hecho", 80)
         if self.effect_run is not None:
             return choices.safe_label(choices.prompt_text(g, self.effect_run.awaiting), "Elige una opcion", 80)
         if g.turn != self.human:
@@ -3849,7 +3867,9 @@ class Session:
         checks: list[Callable[[], None]] = []
         for fid, (pos, was_alive) in before.items():
             f, name = self.game.fighters[fid], self._name(self.game.fighters[fid])
-            if not was_alive and f.alive:
+            if f.alive and self.hand_moved.get(fid) == f.pos:
+                check = None                      # the human already put this miniature there by hand
+            elif not was_alive and f.alive:
                 check = self._place_revived(f, name, defer, pieces)
             elif not f.alive:
                 check = self._bury(fid, name, defer, pieces) if was_alive else None
@@ -3862,6 +3882,8 @@ class Session:
                     checks.append(check)
                 else:
                     check()
+
+        self.hand_moved.clear()
 
         def fin() -> None:
             for c in checks:
@@ -3952,9 +3974,9 @@ class Session:
 
         def check() -> None:
             if moved() and self._settle(there):
-                self.say(f"{name} vuelve al juego: la he colocado yo en la casilla {f.pos}.")
+                self.say(f"{name} vuelve al juego: la he colocado yo en {describe(self.game, f.pos, (f.fid,), self._name)}.")
             else:
-                self.say(f"Coloca a {name} en la casilla {f.pos} (no la he podido mover yo); luego pulsa Fin de accion.", ChatKind.YOUR_TURN)
+                self.say(f"Coloca a {name} en {describe(self.game, f.pos, (f.fid,), self._name)} (no la he podido mover yo); luego pulsa Fin de accion.", ChatKind.YOUR_TURN)
         if defer:
             return check
         check()
@@ -4017,11 +4039,11 @@ class Session:
                 self._warn(fid, "missing", f"No encuentro la pieza de {name} ({guid}) en la mesa; "
                                            "mantengo su ultima casilla.")
             elif not self._on_board(info):
-                self._warn(fid, "off", f"{name} esta fuera del tablero (a {info['dist']:.1f} de la casilla "
-                                       f"{info['space']}): si ha muerto, pulsa Retirar; si no, devuelvela al tablero.")
+                self._warn(fid, "off", f"{name} esta fuera del tablero (a {info['dist']:.1f} de la casilla mas cercana, "
+                                       f"{zone_text(self.game, info['space'])}): si ha muerto, pulsa Retirar; si no, devuelvela al tablero.")
             elif info["space"] != f.pos and not self.game.fx.can_move(f):
-                self._warn(fid, "pinned", f"{name} no puede dejar su casilla {f.pos} (efecto en juego): devuelvela, "
-                                          f"la mantengo en {f.pos}.")
+                self._warn(fid, "pinned", f"{name} no puede dejar su sitio ({describe(self.game, f.pos, (fid,), self._name)}; efecto en juego): "
+                                          "devuelvela, la mantengo ahi.")
             else:
                 f.pos = info["space"]
                 for kind in ("missing", "off", "pinned"):

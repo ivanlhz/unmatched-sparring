@@ -24,9 +24,14 @@ from sparring.effects.ops_core import _cost_context
 from sparring.effects.run import Ctx, EffectRun
 from sparring.effects.state import INTERPRETED_HEROES, default_dsl_heroes
 from sparring.search.adapter import card_worth
+from sparring.spaces import describe
 from sparring.state import Game
 from test_effects_combat import Asking, hand_filler, hp, pair
 from test_effects_info import HandSpy, set_hand
+
+
+def at(g, space, fid):
+    return describe(g, space, (fid,))
 
 
 def mk(bprd, bot, human, seed=3):
@@ -138,7 +143,7 @@ def test_right_hand_of_doom_moves_an_adjacent_fighter_and_hellboy_as_detective(b
     g.controllers[0].moves = {"liz": dest, "hellboy": liz_home}     # Hellboy takes the space Liz leaves
     res = fight(g, "hellboy", "liz", "Right Hand Of Doom")
     assert liz.pos == dest and hb.pos == liz_home
-    assert res.applied == [f"Right Hand Of Doom: hellboy se mueve a {liz_home}; liz se mueve a {dest}"]
+    assert res.applied == [f"Right Hand Of Doom: hellboy se mueve a {at(g, liz_home, 'hellboy')}; liz se mueve a {at(g, dest, 'liz')}"]
 
 
 def test_right_hand_of_doom_as_anung_un_rama_moves_only_the_adjacent_fighter(bprd):
@@ -151,7 +156,7 @@ def test_right_hand_of_doom_as_anung_un_rama_moves_only_the_adjacent_fighter(bpr
     g.controllers[0].moves = {"liz": dest, "hellboy": liz.pos}
     res = fight(g, "hellboy", "liz", "Right Hand Of Doom")
     assert liz.pos == dest and hb.pos == home
-    assert res.applied == [f"Right Hand Of Doom: liz se mueve a {dest}"]
+    assert res.applied == [f"Right Hand Of Doom: liz se mueve a {at(g, dest, 'liz')}"]
 
 
 def test_horseshoes_hits_every_other_fighter_in_the_zone_own_included(bprd):
@@ -216,7 +221,7 @@ def test_bprd_training_draws_and_moves_each_friendly_fighter(bprd):
     g.controllers[0].moves = {"hellboy": x, "lobster": y}
     res = fight(g, "hellboy", "liz", "B.P.R.D. Training")
     assert (hb.pos, lob.pos) == (x, y) and len(g.players[0].hand) == 1
-    assert res.applied == [f"B.P.R.D. Training: hellboy se mueve a {x}; lobster se mueve a {y}; roba 1"]
+    assert res.applied == [f"B.P.R.D. Training: hellboy se mueve a {at(g, x, 'hellboy')}; lobster se mueve a {at(g, y, 'lobster')}; roba 1"]
 
 
 @pytest.mark.parametrize("anung", [False, True])
@@ -287,7 +292,7 @@ def test_faster_stronger_moves_abe_at_once_and_gains_an_action_after(bprd):
     g.controllers[0].moves = {"abe": x}
     res = fight(g, "abe", "hellboy", "Faster. Stronger.")
     assert abe.pos == x and g.actions_left == 2 and res.damage == 5
-    assert res.applied == [f"Faster. Stronger.: abe se mueve a {x}", "Faster. Stronger.: gana 1 accion"]
+    assert res.applied == [f"Faster. Stronger.: abe se mueve a {at(g, x, 'abe')}", "Faster. Stronger.: gana 1 accion"]
 
 
 def test_advanced_psychometry_looks_only_when_the_rival_is_adjacent(bprd):
@@ -327,7 +332,7 @@ def test_secure_the_scene_revives_a_defeated_agent_in_abes_zone_then_moves_a_fri
     res = fight(g, "agent1", "hellboy", "Secure The Scene")
     a3 = g.fighters["agent3"]
     assert a3.alive and a3.hp == 1 and a3.pos == spot and abe.pos == x
-    assert res.applied == [f"Secure The Scene: abe se mueve a {x}; agent3 vuelve al tablero en {spot} con 1 PV"]
+    assert res.applied == [f"Secure The Scene: abe se mueve a {at(g, x, 'abe')}; agent3 vuelve al tablero en {at(g, spot, 'agent3')} con 1 PV"]
 
 
 def test_secure_the_scene_without_a_defeated_agent_places_a_living_one(bprd):
@@ -337,7 +342,7 @@ def test_secure_the_scene_without_a_defeated_agent_places_a_living_one(bprd):
     spot = zone_spots(g, "abe")[0]
     g.controllers[0].queue = [["agent2"], [spot], ["abe"]]            # place agent2 there, then move Abe (stays)
     res = fight(g, "agent1", "hellboy", "Secure The Scene")
-    assert a2.pos == spot and res.applied == [f"Secure The Scene: agent2 se mueve a {spot}"]
+    assert a2.pos == spot and res.applied == [f"Secure The Scene: agent2 se mueve a {at(g, spot, 'agent2')}"]
 
 
 def test_leap_away_moves_a_combatant_only_when_won(bprd):
@@ -347,7 +352,7 @@ def test_leap_away_moves_a_combatant_only_when_won(bprd):
     g.controllers[0].moves = {"hellboy": dest}
     res = fight(g, "abe", "hellboy", "Leap Away")
     assert res.attacker_won and hb.pos == dest and g.board.distance(dest, abe.pos) > 1
-    assert res.applied == [f"Leap Away: hellboy se mueve a {dest}"]
+    assert res.applied == [f"Leap Away: hellboy se mueve a {at(g, dest, 'hellboy')}"]
     g, abe, hb = abe_game(bprd)
     home = hb.pos
     g.controllers[0].queue = [["hellboy"]]
@@ -361,7 +366,7 @@ def test_concussion_device_hits_an_adjacent_enemy_and_pushes_it(bprd):
     g.controllers[0].moves = {"hellboy": far}
     res = fight(g, "abe", "hellboy", "Concussion Device")
     assert hb.hp == 18 - 2 - 2 and hb.pos == far
-    assert res.applied == [f"Concussion Device: hellboy -2 PV (14); hellboy se mueve a {far}"]
+    assert res.applied == [f"Concussion Device: hellboy -2 PV (14); hellboy se mueve a {at(g, far, 'hellboy')}"]
 
 
 def test_arcane_dampener_in_defense_subtracts_three_from_the_adjacent_attacker(bprd):
@@ -378,7 +383,7 @@ def test_abes_bprd_training_moves_the_agents_that_want_to_move(bprd):
     g.controllers[0].moves = {"abe": x}
     res = fight(g, "abe", "hellboy", "B.P.R.D. Training")
     assert abe.pos == x and len(g.players[0].hand) == 1
-    assert res.applied == [f"B.P.R.D. Training: abe se mueve a {x}; roba 1"]
+    assert res.applied == [f"B.P.R.D. Training: abe se mueve a {at(g, x, 'abe')}; roba 1"]
 
 
 def test_shock_and_awe_becomes_four_after_moving_and_the_rival_discards(bprd):
@@ -492,7 +497,7 @@ def test_deaths_release_heals_koschei_and_places_him_anywhere(bprd):
     g.controllers[0].placement = far
     res = fight(g, "koschei", "liz", "Death's Release")
     assert kos.hp == 3 and kos.pos == far
-    assert res.applied == [f"Death's Release: koschei recupera 2 PV (3); koschei se mueve a {far}"]
+    assert res.applied == [f"Death's Release: koschei recupera 2 PV (3); koschei se mueve a {at(g, far, 'koschei')}"]
 
 
 def test_read_the_bones_takes_the_best_of_the_top_five_and_hides_the_rest_at_the_bottom(bprd):
@@ -515,7 +520,7 @@ def test_foul_journey_places_a_combatant_anywhere_and_heals_with_a_pact(bprd):
     g.controllers[0].placement = far
     res = fight(g, "baba", "liz", "Foul Journey")
     assert liz.pos == far and baba.hp == 11
-    assert res.applied == [f"Foul Journey: baba recupera 1 PV (11); liz se mueve a {far}"]
+    assert res.applied == [f"Foul Journey: baba recupera 1 PV (11); liz se mueve a {at(g, far, 'liz')}"]
 
 
 def test_hasten_towards_death_as_attack_hurts_the_attacker_and_fateful_bargains_passes_it_to_koschei(bprd):
@@ -568,8 +573,8 @@ def test_deathless_brings_koschei_next_to_baba_with_three_health(bprd, dead):
         kos.hp = 1
     res = fight(g, "baba", "liz", "Deathless")
     assert kos.alive and kos.hp == 3 and g.board.distance(baba.pos, kos.pos) == 1
-    said = (f"koschei vuelve al tablero en {kos.pos} con 3 PV" if dead
-            else f"koschei recupera 2 PV (3); koschei se mueve a {kos.pos}")
+    said = (f"koschei vuelve al tablero en {at(g, kos.pos, 'koschei')} con 3 PV" if dead
+            else f"koschei recupera 2 PV (3); koschei se mueve a {at(g, kos.pos, 'koschei')}")
     assert res.applied == [f"Deathless: {said}"]
 
 

@@ -26,6 +26,7 @@ from __future__ import annotations
 from typing import Callable
 
 from .cards import Card
+from .spaces import describe
 from .tts import effects_bridge, lua
 from .tts.client import TTSLuaError
 from .tts.hero_table import HeroTable, HeroTableError, load_hero_table
@@ -134,14 +135,14 @@ def _human_pieces(session, before: dict) -> list[Callable[[], None]]:
             info = session._table_pieces().get(fid) or {}
             guid = info["guid"] if info.get("found") else guid
         op = session._w(effects_bridge.move_human_piece(g.board, guid, f.pos), DOMAIN)
-        name, space, back = session._name(f), f.pos, not alive0
+        name, space, back = session._name(f), describe(g, f.pos, (fid,), session._name), not alive0
 
         def check(op=op, name=name, space=space, back=back) -> None:
             what = "vuelve al tablero" if back else "se mueve"
             if _result(op).get("moved"):
-                session.say(f"{name} {what} a la casilla {space}: lo he movido yo (efecto del bot).", ChatKind.MOVE)
+                session.say(f"{name} {what} a {space}: lo he movido yo (efecto del bot).", ChatKind.MOVE)
             else:
-                session.say(f"{name} {what} a la casilla {space} por un efecto del bot: no he podido mover su "
+                session.say(f"{name} {what} a {space} por un efecto del bot: no he podido mover su "
                             "miniatura, muevela tu.", ChatKind.YOUR_TURN)
         checks.append(check)
     return checks

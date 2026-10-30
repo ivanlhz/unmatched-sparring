@@ -14,6 +14,7 @@ from conftest import assert_dir_untouched, snapshot_dir, place
 from sparring import persist, play
 from sparring.ai_medusa import Act, MedusaAI
 from sparring.session import Session, SessionError
+from sparring.spaces import describe, zone_text
 from sparring.state import ANUNG, DETECTIVE, Game
 from sparring.tts import lua
 from sparring.tts.client import TTSClient
@@ -73,7 +74,7 @@ def test_revive_suggests_the_configured_start_space_of_the_side(rig):
     table.positions.pop("Hellboy")
     s.messages = []
     s._revive(s.game.fighters["hellboy"], force=True)
-    assert any("casilla 3 " in m for m in s.messages)
+    assert any(zone_text(s.game, 3) in m for m in s.messages)
 
 
 def test_real_config_leaves_the_start_spaces_to_the_first_player_rule():
@@ -1291,7 +1292,7 @@ def test_a_revived_harpy_is_moved_by_the_bot_and_the_card_is_named(rig, monkeypa
     out = session.handle(Event.END_ACTION)
     assert any(m.startswith("El bot juega Winged Frenzy") for m in out)
     assert ("Harpy 3", 2) in table.moves and h3.alive
-    assert "Harpy 3 vuelve al juego: la he colocado yo en la casilla 2." in out
+    assert f"Harpy 3 vuelve al juego: la he colocado yo en {describe(game, 2, ('harpy3',), session._name)}." in out
 
 
 # ---------- efectos del bot: dial, anuncio, y solo entonces seguir ----------
@@ -1537,14 +1538,14 @@ def test_bot_first_the_bot_places_then_asks_the_human_and_waits_for_listo(rig, m
     assert table.positions["Medusa"] == 3
     zone = {0, 1, 2, 3, 4}
     assert {table.positions[f"Harpy {i}"] for i in (1, 2, 3)} <= zone - {3}
-    assert any(m.startswith("El bot coloca: Medusa en la casilla 3") for m in out)
-    assert any("coloca a Lobster Johnson en la zona de la casilla 30" in m for m in out)
+    assert any(m.startswith(f"El bot coloca: Medusa en {zone_text(game, 3)}") for m in out)
+    assert any(f"coloca a Lobster Johnson en tu casilla de salida ({zone_text(game, 30)})" in m for m in out)
     assert table.positions["Hellboy"] == 30 and table.positions["Lobster Johnson"] == 15, "el bot solo coloca al heroe del humano"
     assert game.turn == 0 and game.actions_left == 2
     blocked = session.handle(Event.MANEUVER)
     assert any("se esta preparando" in m for m in blocked) and game.actions_left == 2
     out = session.handle(Event.READY)
-    assert any("Falta colocar a Lobster Johnson en la zona de la casilla 30" in m for m in out) and session.setup is not None
+    assert any(f"Falta colocar a Lobster Johnson en tu casilla de salida ({zone_text(game, 30)})" in m for m in out) and session.setup is not None
     place_human(table, hellboy=30, lobster=29, count=0)
     assert any("Roba tus 5 cartas antes de pulsar Listo" in m for m in session.handle(Event.READY))
     table.human_count = 5
@@ -1568,7 +1569,7 @@ def test_human_first_the_bot_waits_reads_the_human_pieces_and_then_places(rig, m
     out = session.start()
     assert session.setup["stage"] == "wait_human_first"
     assert table.moves == [("Hellboy", 3)] and table.positions["Medusa"] == 10, "solo el heroe del humano; sus piezas esperan"
-    assert any("Empiezas tu" in m and "casilla 3" in m for m in out)
+    assert any("Empiezas tu" in m and zone_text(game, 3) in m for m in out)
     place_human(table, hellboy=3, lobster=4)
     out = session.handle(Event.READY)
     assert seen["lobster"] == 4 and seen["hellboy"] == 3, "la eleccion de las Harpias usa las casillas reales"
@@ -1797,7 +1798,7 @@ def test_bot_first_the_bot_also_places_the_human_hero_on_his_start_space(rig, mo
     assert session.setup["stage"] == "wait_human"
     assert ("Hellboy", 30) in table.moves and table.positions["Hellboy"] == 30
     assert game.fighters["hellboy"].pos == 30 and session.setup["hero_placed"]
-    assert any("coloca a Hellboy (tu heroe) en su casilla de salida 30" in m for m in out)
+    assert any(f"coloca a Hellboy (tu heroe) en su casilla de salida ({zone_text(game, 30)})" in m for m in out)
     assert not any(m == ("Lobster Johnson", 30) for m in table.moves)
 
 
@@ -1807,7 +1808,7 @@ def test_human_first_the_bot_places_the_hero_as_soon_as_the_human_setup_begins(r
     out = session.start()
     assert session.setup["stage"] == "wait_human_first"
     assert ("Hellboy", 3) in table.moves and table.positions["Hellboy"] == 3
-    assert any("coloca a Hellboy (tu heroe) en su casilla de salida 3" in m for m in out)
+    assert any(f"coloca a Hellboy (tu heroe) en su casilla de salida ({zone_text(game, 3)})" in m for m in out)
     assert not any(n == "Medusa" for n, _ in table.moves), "el bot sigue sin colocar sus piezas"
     moves = len(table.moves)
     session.handle(Event.MULLIGAN)

@@ -1069,7 +1069,7 @@
    "said": [
     "Combate: Hellboy ataca con Service Pistol (5): total 5. Medusa defiende con Dash (3): total 3. Dano 2.",
     "El bot descarta Dash por defensa.",
-    "Aplicado: Dash: medusa se mueve a 3",
+    "Aplicado: Dash: medusa se mueve a zona de color azul, a 2 casillas de Hellboy",
     "Resuelve los efectos de despues del combate (mover piezas, descartar) y pulsa Fin de accion."
    ],
    "sent": [
@@ -1123,8 +1123,8 @@
    "said": [
     "Fin de tu turno. Turno del bot.",
     "Habilidad de Medusa: 1 de dano a Hellboy (PV de 18 a 17).",
-    "El bot maniobra. Mueve Medusa a la casilla 4, Harpy 1 a la casilla 15, Harpy 3 a la casilla 28.",
-    "El bot maniobra. Mueve Medusa a la casilla 7.",
+    "El bot maniobra. Mueve Medusa a zonas de color azul/gris/ladrillo, a 2 casillas de Hellboy; Harpy 1 a zona de color oliva, pegada a Hellboy; Harpy 3 a zona de color beige, pegada a Harpy 2.",
+    "El bot maniobra. Mueve Medusa a zonas de color gris/ladrillo/rojo/rosa, a 3 casillas de Harpy 1.",
     "Tu turno (forma: OCCULT DETECTIVE)."
    ],
    "sent": [

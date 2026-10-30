@@ -189,7 +189,7 @@ def test_a_pinned_fighter_keeps_the_engine_space_when_the_table_moves_it(brig):
     table.positions["Hellboy"] = 5
     click(session, table, Event.END_ACTION)
     assert game.fighters["hellboy"].pos == 1
-    assert any("no puede dejar su casilla" in m for m in session.messages)
+    assert any("no puede dejar su sitio" in m for m in session.messages)
     assert any("deje su casilla" in m for m in session.messages)        # the restriction, told once
 
 

@@ -12,6 +12,7 @@ from __future__ import annotations
 import re
 
 from . import table
+from ..spaces import describe as describe_space
 
 # the chat speaks to the human: the bot in the third person, the human in the second
 VERBS = {"bot": ("roba", "descarta", "devuelve", "su"), "human": ("robas", "descartas", "devuelves", "tu")}
@@ -114,14 +115,14 @@ def _fighters(game, before: dict) -> list[str]:
         if alive0 and not f.alive:
             out.append(f"{fid} abatido")
         elif not alive0 and f.alive:
-            out.append(f"{fid} vuelve al tablero en {f.pos} con {f.hp:g} PV")
+            out.append(f"{fid} vuelve al tablero en {describe_space(game, f.pos, (fid,))} con {f.hp:g} PV")
         elif f.alive:
             if f.hp < hp0:
                 out.append(f"{fid} -{hp0 - f.hp:g} PV ({f.hp:g})")
             elif f.hp > hp0:
                 out.append(f"{fid} recupera {f.hp - hp0:g} PV ({f.hp:g})")
             if f.pos != pos0:
-                out.append(f"{fid} se mueve a {f.pos}")
+                out.append(f"{fid} se mueve a {describe_space(game, f.pos, (fid,))}")
     return out
 
 
