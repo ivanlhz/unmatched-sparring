@@ -672,6 +672,7 @@ def test_read_only_allowlist_is_exactly_the_pure_read_builders(bprd):
         "set_panel": lambda: lua.set_panel("Tu turno", {"btn_end": (True, True)}),
         "show_hand_row": lambda: lua.show_hand_row([1], [(0.0, 0.0, 0.0)], 90.0, "Blue", identity=TEST_IDENT),
         "resolve_hand_row": lambda: lua.resolve_hand_row(["abc"], "Blue", identity=TEST_IDENT),
+        "restore_use_hands": lambda: lua.restore_use_hands(["abc"]),
         "set_look_row": lambda: lua.set_look_row([("abc", 0.0, 0.0)]),
         "set_state": lambda: lua.set_state("abc", 2), "set_token_face": lambda: lua.set_token_face("abc", 0),
         "flip_token": lambda: lua.flip_token("abc"),

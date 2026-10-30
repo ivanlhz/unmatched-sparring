@@ -516,8 +516,7 @@ Wait.time(function()
     local inHand = {{}}
     for _, h in ipairs(Player[{_color(seat_color)}].getHandObjects(1)) do inHand[h.getGUID()] = true end
     for _, m in ipairs(moved) do
-      if inHand[m.o.getGUID()] then
-        m.o.use_hands = false
+      if m.o.use_hands == false and inHand[m.o.getGUID()] then
         m.o.setRotation(Vector(0, {_f(rot_y)}, 0))
         m.o.setPosition(Vector(m.at[1], m.at[2], m.at[3]))
       end
@@ -574,6 +573,7 @@ for _, g in ipairs({_guid_list(guids)}) do
   local o = getObjectFromGUID(g)
   if o ~= nil and o.type == "Card" and ours(o) then table.insert(objs, o) end
 end
+for _, o in ipairs(objs) do o.use_hands = true end
 local pick = {pick}
 local chosen, down = nil, 0
 for _, o in ipairs(objs) do
@@ -594,7 +594,6 @@ end
 local discarded, returned = false, {{}}
 for _, o in ipairs(objs) do
   local id = o.getData().CardID
-  o.use_hands = true
   if o == chosen then
     {chosen_goes}
   else
@@ -604,6 +603,25 @@ for _, o in ipairs(objs) do
   end
 end
 {_panel_var_lua('""')}return JSON.encode({{discarded = discarded, returned = returned, found = #objs, down = down}})
+"""
+
+
+@_registered
+def restore_use_hands(guids: list[str]) -> str:
+    """Gives `use_hands` back to the cards of a shown row (`show_hand_row` turned it off), for the exits that do not go
+    through `resolve_hand_row`; without it TTS would not take the cards back into the hand zone."""
+    if not isinstance(guids, (list, tuple)) or not 1 <= len(guids) <= MAX_LOOK_CARDS:
+        raise TypeError(f"between 1 and {MAX_LOOK_CARDS} GUIDs expected")
+    return f"""-- sparring:restore_use_hands
+local restored = 0
+for _, g in ipairs({_guid_list(guids)}) do
+  local o = getObjectFromGUID(g)
+  if o ~= nil and o.type == "Card" and not o.held_by_color then
+    o.use_hands = true
+    restored = restored + 1
+  end
+end
+return JSON.encode({{restored = restored}})
 """
 
 

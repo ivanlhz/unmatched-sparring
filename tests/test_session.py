@@ -431,6 +431,10 @@ class Table:
         return {"discarded": chosen if chosen is not None else False, "returned": returned, "found": len(row),
                 "down": len(down)}
 
+    def do_restore_use_hands(self, s):
+        self.use_hands_restored = getattr(self, "use_hands_restored", 0) + 1
+        return {"restored": 1}
+
     def do_set_look_row(self, s):
         self.look_vars = getattr(self, "look_vars", [])
         self.look_vars.append(re.search(r'setVar\("lookRow", "(.*?)"\)', s).group(1))

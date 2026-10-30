@@ -158,10 +158,19 @@ def manual_done(session, paused) -> None:
     st = session.game.players[session.bot]
     card = next(c for c in st.full_set if c.card_id == cid)
     guid = next((r.get("guid") for r in session._rd_bot_discard() if r["id"] == cid), None)
-    session.bot_discarded.add(cid)               # the card is already on the pile: the reconciliation must not move it
+    # the card is already on the pile: the reconciliation must not move it. Set before the answer (the combat closes
+    # inside it), taken back and not announced if the engine refuses the answer.
+    had_discarded, had_flight = cid in session.bot_discarded, cid in session.fx_in_flight
+    session.bot_discarded.add(cid)
     session.fx_in_flight.add(cid)
-    session.say(f"El bot descarta {card.title} (la que has elegido).", ChatKind.SCHEME)
     session._answer_choice(paused, [cid])
+    if manual_request(session) is not None:      # refused (rolled back): still waiting, nothing was discarded
+        if not had_discarded:
+            session.bot_discarded.discard(cid)
+        if not had_flight:
+            session.fx_in_flight.discard(cid)
+        return
+    session.say(f"El bot descarta {card.title} (la que has elegido).", ChatKind.SCHEME)
     if manual_request(session) is None and card not in st.discard:   # answered, and the engine kept it (Wildfire returns a burning card): back to the hand
         session.bot_discarded.discard(cid)
         if guid:
@@ -315,6 +324,7 @@ def _row_closed(session, op, card, dest: str, look: dict) -> bool:
     if fail is None and dest == "discard" and not session._settle(lambda: card.card_id in session._table_discard()):
         fail = f"{card.title} aun no se ve en el descarte del bot"
     if fail is not None:
+        session.restore_row_hands(look["guids"])
         if dest == "discard":
             session.bot_discarded.discard(card.card_id)
         session._mark_dirty()

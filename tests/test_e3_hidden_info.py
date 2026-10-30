@@ -719,3 +719,18 @@ def test_revelar_turns_both_combat_cards_face_up_even_when_the_combat_stops_at_a
     assert pending_pick(session) is not None and session.pending is not None
     assert len(table.flips) == 2 and len(set(table.flips)) == 2, table.flips
     assert not table.unflips and fake.lua_messages - n <= 6
+
+
+@with_rig("baba-yaga", "hellboy", BABA_HAND)
+def test_a_refused_answer_leaves_no_trace_of_the_discard_and_announces_nothing(rig, monkeypatch):
+    from sparring.state import RuleError
+    session, table, game, fake, cfg = rig
+    lost_confront(session, table, game, fake, monkeypatch)
+    chosen = sorted(c.card_id for c in game.players[0].hand)[1]
+    human_discards(table, chosen)
+    monkeypatch.setattr(session, "_answer_flow", lambda flow, value: (_ for _ in ()).throw(RuleError("no")))
+    msgs = hecho(session, table)
+    assert pending_pick(session) is not None and session.pending is not None
+    assert chosen not in session.bot_discarded and chosen not in session.fx_in_flight
+    assert not said(msgs, "El bot descarta") and said(msgs, "Accion ilegal")
+    assert chosen not in [c.card_id for c in game.players[0].discard]

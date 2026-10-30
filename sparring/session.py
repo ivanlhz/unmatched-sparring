@@ -3382,10 +3382,21 @@ class Session:
         self.say(f"El bot descarta {card.title} y devuelve el resto de su mano." if card is not None
                  else "Mano del bot devuelta sin descartar nada.", ChatKind.SCHEME if card is not None else ChatKind.NEUTRAL)
 
+    def restore_row_hands(self, guids: list[str]) -> None:
+        """Best effort: the shown cards get `use_hands` back so the human can put them in the hand zone by hand."""
+        if not guids:
+            return
+        try:
+            self._w(lua.restore_use_hands(list(guids)), "cards")
+        except TABLE_ERRORS:
+            pass
+
     def _look_force_exit(self, why: str) -> None:
         """Salida de la mirada cuando la mesa no deja cerrarla: la mesa manda. El motor suelta la fila, relee la mano y
         deja la deuda de mesa para el proximo Fin de accion; las cartas del bot que no esten en su mano se recogen a mano."""
+        row = self.look["guids"] if self.look else []
         self.look, self.look_fails = None, 0
+        self.restore_row_hands(row)
         self.read_bot_hand()
         self._mark_dirty()
         self.say(f"Mirada cerrada a la fuerza ({why}): la mesa manda. Las cartas del bot que no esten en su mano "
