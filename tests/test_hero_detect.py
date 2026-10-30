@@ -7,11 +7,13 @@ import pytest
 
 from fake_tts import FakeTTS
 from sparring import persist, play
-from sparring.hero_detect import HeroDetectionError, TableReading, detect_heroes, hero_slugs
+from sparring.hero_catalog import load_catalog
+from sparring.hero_detect import HeroDetectionError, TableReading, detect_heroes, hero_slugs, read_table
 from sparring.play import ConfigError, load_config, main, resolve_heroes
 from sparring.tts import lua
 from sparring.tts.hero_table import load_hero_table
 from test_play import free_port
+from test_review10 import rt  # noqa: F401
 from test_session import rig  # noqa: F401
 
 REAL_CONFIG = Path(__file__).resolve().parent.parent / "config" / "partida.json"
@@ -310,3 +312,134 @@ def test_every_pair_of_heroes_is_detected_in_either_seat(bot, human):
         pytest.skip("el mismo heroe en los dos bandos es un error")
     stray = pile("liz-sherman" if "liz-sherman" not in (bot, human) else "hellboy", 6.5, 13.0, n=1, kind="Card")
     assert detect(reading(at_bot(bot), at_human(human), stray)) == (bot, human)
+
+
+# ---------- mazos que comparten el DeckID de Medusa (30/10: Raphael salia como Medusa) ----------
+def test_the_lua_counts_a_card_only_when_its_image_is_the_heros(rt):
+    """En el guardado del torneo Raphael, Alice, Ciri... usan los CardID 17600-17629 de Medusa: lo que los distingue
+    es la imagen del CustomDeck."""
+    from test_review10 import H, M, conv
+    rt.execute("""
+local rc = {}
+for i = 0, 29 do table.insert(rc, {cid = 17600 + i, guid = 'r' .. i}) end
+realshape(mkobj({guid = 'raph', type = 'Deck', name = 'Raphael', cards = rc, pos = {x = -4.6, y = 1, z = 14.5},
+                 deckcd = {["176"] = {FaceURL = FF, BackURL = FB}}}))
+realshape(mkobj({guid = 'rc1', type = 'Card', cid = 17605, cd = {["176"] = {FaceURL = FF, BackURL = FB}},
+                 pos = {x = -4, y = 1, z = 12}}))
+""")
+    script = lua.table_heroes([(17600, 17629), (19700, 19729)], [], [[M], [H]], 5)
+    rt.execute(lua.request(script, 1))
+    res = json.loads(conv(rt.globals().SENT[1])["value"])
+    by_guid = {p["guid"]: p for p in res["piles"]}
+    assert by_guid["d42056"]["counts"] == [30, 0] and by_guid["00dc9a"]["counts"] == [0, 30]
+    assert by_guid["raph"]["counts"] == [0, 0] and by_guid["raph"]["name"] == "Raphael" and by_guid["raph"]["size"] == 30
+    assert "rc1" not in by_guid      # una carta suelta que no es de nadie no se informa
+
+
+def test_read_table_sends_every_heros_deck_image():
+    seen = []
+
+    class Client:
+        def call_lua(self, script, *a, **k):
+            seen.append(script)
+            return {"piles": [], "pieces": {}}
+
+    from sparring.hero_detect import read_table
+    read_table(Client())
+    for slug in SLUGS:
+        for face, back in load_hero_table(slug).identity:
+            assert f'["{face}|{back}"]=true' in seen[0]
+
+
+def test_an_unknown_deck_is_named_instead_of_guessing_a_hero():
+    raph = {"type": "Deck", "guid": "raph", "x": -5.0, "z": 13.5, "counts": [0] * len(SLUGS), "name": "Raphael",
+            "size": 30}
+    with pytest.raises(HeroDetectionError, match=r"El mazo del humano «Raphael» \(30 cartas\) no es de ningun heroe"):
+        detect(reading(at_bot("baba-yaga"), raph))
+    assert detect(reading(at_bot("baba-yaga"), at_human("hellboy"), raph)) == ("baba-yaga", "hellboy")
+
+
+def test_the_lua_table_heroes_validates_identities():
+    with pytest.raises(TypeError):
+        lua.table_heroes([(1, 2)], [], [])
+
+
+# ---------- heroes in the catalog that the bot cannot play yet ----------
+def catalog_images(slug):
+    hero = next(h for h in load_catalog().heroes if h.slug == slug)
+    return sorted(hero.identity)
+
+
+class CatalogClient:
+    def __init__(self, *piles):
+        self.piles = piles
+
+    def call_lua(self, script, *a, **k):
+        return {"piles": list(self.piles), "pieces": {}}
+
+
+def unplayable(slug, x, z, size=30, images=None):
+    return {"type": "Deck", "guid": f"u{slug}", "x": x, "z": z, "counts": [0] * len(SLUGS), "name": "",
+            "size": size, "pairs": catalog_images(slug) if images is None else images}
+
+
+def test_a_catalog_hero_that_is_not_playable_is_named_and_refused():
+    r = read_table(CatalogClient(at_bot("medusa"), unplayable("raphael", -5.0, 13.5)))
+    assert [p.get("catalog") for p in r.piles] == [None, "raphael"]
+    with pytest.raises(HeroDetectionError) as e:
+        detect(r)
+    text = str(e.value)
+    assert "El humano juega Raphael, que el bot todavia no sabe jugar" in text
+    assert "Heroes jugables: Abe Sapien, Baba Yaga, Hellboy, Liz Sherman, Medusa." in text
+    assert "Raphael (raphael) [no jugable todavia]: 0 cartas en el lado del bot, 30 en el del humano" in text
+
+
+def test_the_bot_side_is_refused_too_and_a_fixed_side_skips_the_refusal():
+    r = read_table(CatalogClient(unplayable("alice", 7.0, 14.0), at_human("hellboy")))
+    with pytest.raises(HeroDetectionError, match="El bot juega Alice"):
+        detect(r)
+    assert detect(r, ("medusa", None)) == ("medusa", "hellboy")
+
+
+def test_a_deck_that_is_in_no_catalog_hero_is_still_an_unknown_deck():
+    foreign = {**unplayable("raphael", -5.0, 13.5, images=["https://x.test/a/|https://x.test/b/"]), "name": "Mystery"}
+    r = read_table(CatalogClient(at_bot("medusa"), foreign))
+    assert r.piles[1].get("catalog") is None
+    with pytest.raises(HeroDetectionError, match=r"«Mystery» \(30 cartas\) no es de ningun heroe"):
+        detect(r)
+
+
+def test_a_few_unplayable_cards_do_not_outvote_a_playable_deck_but_a_majority_does():
+    stray = unplayable("raphael", -5.0, 13.0, size=5)
+    assert detect(read_table(CatalogClient(at_bot("medusa"), at_human("hellboy"), stray))) == ("medusa", "hellboy")
+    big = unplayable("raphael", -5.0, 13.0, size=30)
+    with pytest.raises(HeroDetectionError, match="El humano juega Raphael"):     # 30 against 14 is 2x or more
+        detect(read_table(CatalogClient(at_bot("medusa"), at_human("hellboy", n=14), big)))
+
+
+def test_an_absent_catalog_is_an_empty_one(tmp_path):
+    assert load_catalog(tmp_path / "missing.json").heroes == ()
+
+
+def test_the_lua_reports_the_images_of_a_deck_that_is_nobodys_hero(rt):
+    from test_review10 import F, M, conv
+    rt.execute("""
+local rc = {}
+for i = 0, 29 do table.insert(rc, {cid = 17600 + i, guid = 'r' .. i}) end
+realshape(mkobj({guid = 'raph', type = 'Deck', name = 'Raphael', cards = rc, pos = {x = -4.6, y = 1, z = 14.5},
+                 deckcd = {["176"] = {FaceURL = FF, BackURL = FB}}}))
+""")
+    rt.execute(lua.request(lua.table_heroes([(17600, 17629)], [], [[M]], 5), 1))
+    res = json.loads(conv(rt.globals().SENT[1])["value"])
+    by_guid = {p["guid"]: p for p in res["piles"]}
+    assert by_guid["raph"]["pairs"] == [f"{F[0]}|{F[1]}"]
+    assert not by_guid["d42056"]["pairs"]       # Medusa's own deck needs no lookup
+
+
+def test_main_refuses_a_catalog_hero_with_exit_2_and_a_clear_message(wire, capsys):
+    state, fake, ports = wire
+    state["piles"] = [at_bot("medusa"), unplayable("raphael", -5.0, 13.5)]
+    assert main(["--config", str(REAL_CONFIG), "--read-only", *ports]) == 2
+    err = capsys.readouterr().err
+    assert "El humano juega Raphael, que el bot todavia no sabe jugar" in err and "--human-hero" in err
+    assert state["scripts"] == ["-- sparring:table_heroes"]
