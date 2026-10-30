@@ -1685,6 +1685,7 @@ return JSON.encode(out)
 
 MAX_HERO_RANGES = 12
 MAX_HERO_GUIDS = 80
+MAX_PILE_PAIRS = 12      # distinct "face|back" images reported for a deck that is nobody's (to look it up in the catalog)
 
 
 @_registered
@@ -1695,7 +1696,8 @@ def table_heroes(ranges: list[tuple[int, int]], guids: list[str], identities: li
     y, de `guids` (miniaturas), el sitio de las que estan sueltas en la mesa. Con `identities` (uno por rango: los pares
     (FaceURL, BackURL) del heroe) una carta solo cuenta si ademas su imagen es la del heroe: en el guardado real casi
     todos los mazos comparten el DeckID 176 con Medusa. Un Deck de al menos `min_unknown` cartas que no es de ningun
-    heroe tambien vuelve, con `counts` a cero y su nombre, para poder decir que mazo no se reconoce."""
+    heroe tambien vuelve, con `counts` a cero, su nombre y `pairs` (las imagenes "face|back" distintas de sus cartas) para
+    buscarlo en el catalogo de heroes (`data/catalog/heroes.json`) y decir que mazo es o que no se reconoce."""
     if not isinstance(ranges, (list, tuple)) or not 1 <= len(ranges) <= MAX_HERO_RANGES:
         raise TypeError(f"lista de 1 a {MAX_HERO_RANGES} rangos de CardID esperada")
     if not isinstance(guids, (list, tuple)) or len(guids) > MAX_HERO_GUIDS:
@@ -1737,8 +1739,23 @@ for _, o in ipairs(getObjects()) do
       local p = o.getPosition()
       local name = ""
       if o.getName ~= nil then name = tostring(o.getName() or "") end
+      local pairsOf = {{}}
+      if not any then
+        local seen = {{}}
+        for _, c in ipairs(cards) do
+          if type(c.CardID) == "number" then
+            for _, info in ipairs(imagesOf(c, fallback)) do
+              local key = tostring(info.FaceURL) .. "|" .. tostring(info.BackURL)
+              if not seen[key] and #pairsOf < {MAX_PILE_PAIRS} then
+                seen[key] = true
+                table.insert(pairsOf, key)
+              end
+            end
+          end
+        end
+      end
       table.insert(piles, {{type = o.type, guid = o.getGUID(), x = p.x, z = p.z, counts = counts, name = name,
-                           size = #cards}})
+                           size = #cards, pairs = pairsOf}})
     end
   end
 end
