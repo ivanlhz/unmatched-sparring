@@ -126,3 +126,40 @@ def test_an_idle_maneuver_loses_to_a_modest_attack_that_the_old_draw_bonus_beat(
     idle = [a for a in ranked if a.kind == "maneuver" and a.boost is None
             and all(g.fighters[f].pos == d for f, d in a.moves.items())]
     assert all(a.value < 0.4 for a in idle), "a draw that moves nobody is worth less than a plain draw"
+
+
+# ---- the deck is worth what the strategy says: a draw is cheap in a race the bot wins before the deck runs out,
+# ---- and pays for the exhaustion to come when the game will outlast the deck
+def idle_draw_total(bprd, deck_left, baba_hp=None, hand=("B.P.R.D. Training",)):
+    g = hellboy_vs_baba(bprd, list(hand), deck_left=deck_left)
+    g.actions_left = 1
+    if baba_hp is not None:
+        g.fighters["baba"].hp = baba_hp
+    ranked = MedusaAI(0).candidates(g, Model(g, 0))
+    return max(a.total for a in ranked if a.kind == "maneuver" and a.boost is None
+               and all(g.fighters[f].pos == d for f, d in a.moves.items())), ranked
+
+
+def test_a_low_deck_in_a_long_race_makes_the_idle_draw_pay_for_the_exhaustion_to_come(bprd):
+    full, _ = idle_draw_total(bprd, deck_left=14)
+    low, ranked = idle_draw_total(bprd, deck_left=3)
+    assert low < full - 5, "the game outlasts three cards: every draw brings exhaustion damage closer"
+    attack = max(a.total for a in ranked if a.kind == "attack")
+    assert attack > low + 3, "so even a weak attack beats the draw that moves nobody"
+
+
+def test_a_race_won_before_the_deck_runs_out_still_draws_freely(bprd):
+    full, _ = idle_draw_total(bprd, deck_left=14, baba_hp=3)
+    low, _ = idle_draw_total(bprd, deck_left=3, baba_hp=3)
+    assert low > full - 1, "Baba dies in a turn or two: three cards are enough, drawing costs next to nothing"
+
+
+def test_the_race_estimate_separates_winning_from_losing(bprd):
+    ai = MedusaAI(0)
+    even = hellboy_vs_baba(bprd, ["Service Pistol"])
+    t_kill, t_die = ai.race(even, Model(even, 0))
+    assert t_kill < 12 and t_die > 0
+    weak = hellboy_vs_baba(bprd, ["Service Pistol"])
+    weak.fighters["hellboy"].hp = 4
+    assert ai.race(weak, Model(weak, 0))[1] < t_die, "fewer hit points: the rival kills the bot sooner"
+    assert ai.deck_cost(weak, Model(weak, 0)) >= ai.deck_cost(even, Model(even, 0)), "losing the race: exhaustion costs more"
