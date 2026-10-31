@@ -1064,3 +1064,20 @@ def test_panel_title_of_a_card_pick_has_no_parentheses(rig):
     assert "(" not in PROMPTS["cards"] and prompt_text(game, req).startswith("Elige una carta")
     status = session._status_text()
     assert status.startswith("Elige una carta") and "(" not in status and ")" not in status
+
+
+@with_rig(*LIZ_VS_HELLBOY, **ONGOING_SPOTS)
+@pytest.mark.parametrize("bot_moves_it", [False, True])
+def test_an_ongoing_scheme_on_your_spot_never_reads_as_a_card_returned_to_the_deck(rig, bot_moves_it):
+    """Live 31/10: Fight Or Flight left on the ONGOING zone drew 1 and was narrated as a card sent back to the deck."""
+    session, table, game, fake, cfg = rig
+    human_hand(table, game, "Fight Or Flight", "Evade", "Fireball")
+    fof = card_ids(game, 1, "Fight Or Flight")[0]
+    table.card_to_discard_fails = not bot_moves_it
+    click(session, table, Event.SCHEME)
+    table.human_ongoing.append(fof)
+    table.human_count -= 1
+    msgs = click(session, table, Event.END_ACTION)
+    assert any("robas 1" in m and "mueve a liz hasta 5 casillas" in m for m in msgs), msgs
+    assert not said(msgs, "devuelves") and not said(msgs, "al mazo") and not said(msgs, "a tu mazo"), msgs
+    assert not said(msgs, "Devuelve")

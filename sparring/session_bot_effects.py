@@ -350,6 +350,8 @@ def _human_cards(session, before: dict, played: frozenset, looked: bool, ctx: Ct
     drawn = 0 if looked else len([i for i in h1["hand"] if i in h0["deck"]])    # a look moves placeholders, not cards
     session._deal_owed_draws(cause)               # the draws of the effect are dealt to the hand (the `draw` translator)
     from_hand = len([i for i in h0["hand"] if i in played])
+    entered = g.fx.ongoing_card_id(human)         # an ONGOING that entered play left the hand without a discard
+    from_hand += int(entered is not None and entered != in_play and entered in h0["hand"] and entered not in played)
     unknown = len(h0["hand"]) + drawn - len(h1["hand"]) - from_hand - len(to_discard) - by_bot - len(hand_to_deck)
     if unknown > 0:
         session.say(f"Devuelve {_plural(unknown)} de tu mano a tu mazo y baraja ({cause}; las eliges tu).",
