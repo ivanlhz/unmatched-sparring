@@ -1064,3 +1064,30 @@ def test_panel_title_of_a_card_pick_has_no_parentheses(rig):
     assert "(" not in PROMPTS["cards"] and prompt_text(game, req).startswith("Elige una carta")
     status = session._status_text()
     assert status.startswith("Elige una carta") and "(" not in status and ")" not in status
+
+
+@with_rig(*LIZ_VS_HELLBOY)
+def test_incinerate_the_bot_pays_two_cards_and_the_chat_names_them(rig, monkeypatch):
+    session, table, game, fake, cfg = rig
+    put_adjacent(game, table, cfg, "liz", "hellboy")
+    bot_defends_with(session, game, "Glimpse Of Hell", monkeypatch)
+    game.fighters["hellboy"].hp = 5                              # lethal: the bot is offered the price and pays
+    human_hand(table, game, "Incinerate", "Evade")
+    human_attack(session, table, game, "liz", "hellboy", "Incinerate")
+    msgs = click(session, table, Event.REVEAL)
+    line = next(m for m in msgs if m.startswith("Tu carta: Incinerate"))
+    assert "el bot descarta Pancakes! y Second Shot para ignorar el valor de Incinerate (queda a 0; el dano seria letal)" in line, line
+    assert "sin efecto" not in line and len(table.bot_discard) == 3
+
+
+@with_rig(*LIZ_VS_HELLBOY)
+def test_incinerate_the_bot_declines_when_it_is_not_worth_it_and_says_so(rig, monkeypatch):
+    session, table, game, fake, cfg = rig
+    put_adjacent(game, table, cfg, "liz", "hellboy")
+    bot_defends_with(session, game, "Glimpse Of Hell", monkeypatch)
+    human_hand(table, game, "Incinerate", "Evade")
+    human_attack(session, table, game, "liz", "hellboy", "Incinerate")
+    msgs = click(session, table, Event.REVEAL)
+    line = next(m for m in msgs if m.startswith("Tu carta: Incinerate"))
+    assert line == "Tu carta: Incinerate: el bot no paga (descartar 2): prefiere recibir 5 de dano a perder 2 cartas", line
+    assert game.fighters["hellboy"].hp == 13 and len(table.bot_discard) == 1

@@ -67,11 +67,30 @@ def describe(game, before: dict, run, flow=None, title: str | None = None) -> st
     if before["seen"][run.ctx.owner] != _seen(game.players[run.ctx.owner]):
         parts.append("mira tu mano" if run.ctx.owner == game.bot_player else "miras la mano del bot")
     parts = _fold_triggers(game, before, parts)
+    priced = run.flags.get("bot_priced")
+    if priced:
+        parts = _say_bot_price(game, run, parts, priced)
     by_hand = table.lines(run)
     if by_hand:
         parts.append("en la mesa: " + ", ".join(by_hand))
     title = title or _title(game, run.ctx.card_id)
     return f"{title}: " + ("; ".join(parts) if parts else NOTHING)
+
+
+def _say_bot_price(game, run, parts: list[str], priced: dict) -> list[str]:
+    """The bot's answer to a price the human's card offered it (Incinerate): said plainly, never "sin efecto". Paid:
+    "el bot descarta A y B para ignorar el valor de X (queda a 0)"; declined: it takes the value."""
+    title = _title(game, run.ctx.card_id)
+    stake, lethal = priced["stake"], priced["hp"] is not None and 0 < priced["hp"] <= priced["stake"]
+    if not priced["paid"]:
+        why = f"prefiere recibir {stake:g} de dano a perder {priced['cards']} cartas" if stake else "no cambia el combate"
+        return parts + [f"el bot no paga (descartar {priced['cards']}): {why}"]
+    discarded = next((p for p in parts if p.startswith("descarta ")), None)
+    if discarded is None:
+        return parts
+    rest = [p for p in parts if p != discarded and not p.startswith(f"el valor de {title} pasa a")]
+    why = "el dano seria letal" if lethal else f"evita {stake:g} de dano"
+    return [f"el bot {discarded} para ignorar el valor de {title} (queda a 0; {why})"] + rest
 
 
 _RETURN = re.compile(r"^(?P<label>[^:]+): (?P<title>.+) vuelve a tu mano$")

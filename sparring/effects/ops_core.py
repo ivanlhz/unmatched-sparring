@@ -432,6 +432,10 @@ def _optional(run, game, spec):
     yes = _can_pay(game, run, cost) and run.ask(
         game, "optional", chooser, [True, False], 1, 1, "do it?", **_cost_context(game, run, cost, chooser),
         **_choice_context(game, run, spec))[0]
+    if cost and chooser != run.ctx.owner and chooser == game.bot_player:
+        ctx = _cost_context(game, run, cost, chooser)
+        run.flags["bot_priced"] = {"paid": bool(yes), "cards": ctx.get("cost_cards", 0),
+                                   "stake": ctx.get("at_stake", 0), "hp": ctx.get("hp")}
     if yes:
         return ([(("cost",), None)] if cost else []) + [(("ops",), None)]
     return [(("else",), None)] if spec.get("else") else []
