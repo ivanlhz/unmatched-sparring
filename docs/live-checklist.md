@@ -71,6 +71,7 @@ Repite el bloque para cada heroe, **con Ivan jugandolo** (H) y **con el bot juga
 - [x] H **(E2)**: puerta de habilidad de inicio de turno (robo / ANUNG) bloquea hasta **Fin de accion**. *(OK 30/10)*
 - [x] H/B: Crown Of Flame (**(E2)** espera tu descarte), Planned Recklessness, Second Shot, Horseshoes, Right Hand Of Doom, B.P.R.D. Training, On Earth. *(OK 30/10)*
 - [x] H **(E2)**: esquemas con boton **Pancakes!** y **Posthumous Power**; reanudar a mitad de esquema. *(OK 30/10)*
+- [x] B: **Pancakes!** del bot: elige dos efectos que hacen algo y el chat nombra los dos ("recupera 2 (11 -> 13) y roba 2"). *(OK 31/10)*
 - [ ] H/B: Glimpse Of Hell, Confront (ver Informacion oculta).
 
 ### Abe Sapien
