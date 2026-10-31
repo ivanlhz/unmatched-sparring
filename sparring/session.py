@@ -2308,11 +2308,12 @@ class Session:
         self._persist()
         self.say("Turno del bot en pausa: pon a mano los diales indicados arriba y pulsa Fin de accion para que siga.", ChatKind.WARNING)
 
-    def _hp_text(self, before: dict[str, float], skip: str | None = None) -> str:
+    def _hp_text(self, before: dict[str, float], skip: str | tuple | list | None = None) -> str:
         """Cambios de PV desde `before`: 'Lobster Johnson de 6 a 3'. (ASCII: los mensajes tambien salen por broadcast.)"""
         g = self.game
+        skipped = (skip,) if isinstance(skip, str) else (skip or ())
         parts = [f"{self._name(f)} de {before[fid]:g} a {max(f.hp, 0):g}" for fid, f in g.fighters.items()
-                 if fid != skip and fid in before and f.hp != before[fid]]
+                 if fid not in skipped and fid in before and f.hp != before[fid]]
         return "PV: " + ", ".join(parts) if parts else ""
 
     def _flip_script(self, guid: str, side: str, face_up: bool = True) -> str:
@@ -2829,14 +2830,14 @@ class Session:
         return f" (descarta {listed})" if listed else ""
 
     def _say_bot_action(self, act, seen: int, before: dict, hp0: dict[str, float], sig_before: tuple | None, actions0: int,
-                        exhausting: bool, paused: bool) -> None:
+                        exhausting: bool, paused: bool, fx_before: dict | None = None) -> None:
         if exhausting:
             self.say(f"Mazo vacio: el bot roba y cada luchador suyo pierde {EXHAUST_DAMAGE} PV.", ChatKind.COMBAT)
         if paused:        # the scheme asks you something: the panel shows it, the turn waits
             self.say(f"El bot juega {act.card.title}" + self._played_text(seen, {}, "efecto", skip=act.card) + ".",
                      ChatKind.SCHEME)
         else:
-            self.say(self._action_text(act, seen, before, hp0, sig_before, actions0), ACTION_KIND.get(act.kind, ChatKind.MOVE))
+            self.say(self._action_text(act, seen, before, hp0, sig_before, actions0, fx_before), ACTION_KIND.get(act.kind, ChatKind.MOVE))
 
     def _scheme_idle(self, act, sig_before: tuple | None) -> bool:
         """The scheme changed nothing but its own action (`play_signature`): cards of both players, pieces, ONGOINGs,
@@ -2844,7 +2845,7 @@ class Session:
         return sig_before is not None and sig_before == play_signature(self.game, self.bot, act.card)
 
     def _action_text(self, act, seen: int, before: dict, hp0: dict[str, float], sig_before: tuple | None = None,
-                     actions0: int | None = None) -> str:
+                     actions0: int | None = None, fx_before: dict | None = None) -> str:
         """Que ha hecho el bot, con el nombre de la carta jugada, el dano que hizo y a donde movio cada pieza."""
         g = self.game
         moved = [f"{self._name(g.fighters[fid])} a {describe(g, g.fighters[fid].pos, (fid,), self._name)}"
@@ -2853,9 +2854,16 @@ class Session:
         if act.kind in ("glance", "frenzy", "scheme"):
             title = act.card.title
             text = f"El bot juega {title}" + self._played_text(seen, {}, "efecto", skip=act.card)
+            healed = ()
             if act.kind == "scheme" and not moved and self._scheme_idle(act, sig_before) and not self._hp_text(hp0):
                 gained = g.actions_left - (actions0 - 1)
                 text += ": sin efecto" + (", solo recupera la accion" if gained == 1 else "")
+            elif act.kind == "scheme":
+                healed = tuple(f.fid for f in g.own(self.bot) if f.hp > hp0[f.fid])
+                done = [f"{self._name(g.fighters[fid])} recupera {g.fighters[fid].hp - hp0[fid]:g} "
+                        f"({hp0[fid]:g} -> {g.fighters[fid].hp:g})" for fid in healed]
+                done += bot_effects.scheme_cards(self, fx_before)
+                text += ": " + " y ".join(done) if done else ""
             if act.kind == "glance":
                 t = g.fighters[act.target]
                 dealt = hp0[t.fid] - t.hp
@@ -2864,7 +2872,7 @@ class Session:
         else:
             boost = {act.boost.card_id: "boost de maniobra"} if act.boost is not None else {}
             text = "El bot maniobra" + self._played_text(seen, boost, "efecto")
-        others = self._hp_text(hp0, skip=act.target if act.kind == "glance" else None)
+        others = self._hp_text(hp0, skip=act.target if act.kind == "glance" else healed if act.kind == "scheme" else None)
         if act.kind == "maneuver" and not moved:
             text += " y roba, sin mover a nadie"
         return (text + (f". Mueve {'; '.join(moved)}" if moved else "") + (f". {others}" if others else "") + ".")
@@ -2989,7 +2997,7 @@ class Session:
                 if act.kind == "scheme" or self.cfg.action_announce_hold > 0:   # the play comes first, then what the table does for it
                     said = True
                     said_first = len(self.messages)
-                    self._say_bot_action(act, seen, before, hp0, sig_before, actions0, exhausting, paused)
+                    self._say_bot_action(act, seen, before, hp0, sig_before, actions0, exhausting, paused, fx_before)
                     self._announce_before(said_first)
                 fin_fx = self._project_effects(fx_before)
                 fin_table = self._flush_table_stage()
@@ -2998,14 +3006,14 @@ class Session:
                 fin_fx()
                 if paused:
                     if not said:
-                        self._say_bot_action(act, seen, before, hp0, sig_before, actions0, exhausting, paused)
+                        self._say_bot_action(act, seen, before, hp0, sig_before, actions0, exhausting, paused, fx_before)
                     self.fx_unprojected = bot_effects.snapshot(self)
                     self._persist()
                     self._show_choice(self.effect_run.awaiting)
                     return
                 self._persist()
                 if not said:                      # the dials are written and checked before the announcement
-                    self._say_bot_action(act, seen, before, hp0, sig_before, actions0, exhausting, paused)
+                    self._say_bot_action(act, seen, before, hp0, sig_before, actions0, exhausting, paused, fx_before)
                 self._announce_human_falls(alive0)
                 if not dials_ok:
                     self._pause_for_dials()

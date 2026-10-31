@@ -279,6 +279,25 @@ def _bot_cards(session, before: dict, moved: set = frozenset()) -> list[Callable
     return checks
 
 
+def scheme_cards(session, before: dict | None) -> list[str]:
+    """What a scheme did to the bot's own cards since `before`, for the chat line that announces it: 'roba 2' and
+    'pone 2 cartas del descarte al fondo de su mazo' / 'baraja ...'."""
+    if before is None:
+        return []
+    g, bot = session.game, session.bot
+    st = g.players[bot]
+    b0, deck = before["bot"], [c.card_id for c in st.deck]
+    out = []
+    drawn = g.drawn[bot] - before["drawn"]
+    if drawn > 0:
+        out.append(f"roba {drawn}")
+    back = [i for i in b0["discard"] if i in deck]
+    if back:
+        out.append(f"pone {_plural(len(back))} del descarte al fondo de su mazo" if _is_tail(deck, back)
+                   else f"baraja {_plural(len(back))} del descarte en su mazo")      # the next line names them
+    return out
+
+
 def _returned(session, op, title: str) -> None:
     if not _result(op).get("returned"):
         session.say(f"No he podido devolver {title} a la mano del bot: ponla tu.", ChatKind.WARNING)
