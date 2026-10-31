@@ -231,7 +231,7 @@ def test_shuffle_into_deck_adds_and_shuffles(rt):
     deck(rt)
     rt.execute("mkobj({guid = 'loose2', type = 'Card', cid = 556, owner = 'x'})")
     out = run(rt, lua.shuffle_into_deck("deck01", ["loose1", "loose2", "ghost"]))
-    assert out == {"added": 2, "deck": "deck01", "quantity": 5}
+    assert out == {"added": 2, "moved": ["loose1", "loose2"], "deck": "deck01", "quantity": 5}
     assert rt.eval('getObjectFromGUID("deck01").shuffled') is True
     with pytest.raises(ValueError):
         lua.shuffle_into_deck("deck01", [])
@@ -247,7 +247,7 @@ mkobj({guid = 'hdeck', type = 'Deck', cards = {{cid = 201, guid = 'h1', owner = 
     out = run(rt, shuffle("deck01", ["loose1", "inhand", "foreign"]))
     assert out["added"] == 1 and out["deck"] == "deck01"
     assert rt.eval('getObjectFromGUID("inhand").hand') == "Blue"
-    assert run(rt, shuffle("hdeck", ["loose1"])) == {"added": 0, "deck": False}     # a deck that is not ours
+    assert run(rt, shuffle("hdeck", ["loose1"])) == {"added": 0, "deck": False, "moved": []}     # a deck that is not ours
 
 
 def test_deal_row_puts_the_top_cards_face_up_on_the_spots(rt):
@@ -493,3 +493,55 @@ def test_hand_to_deck_refuses_a_deck_that_is_not_the_bots_and_bad_arguments(rt):
     with pytest.raises(TypeError):
         lua.hand_to_deck("Blue", [201], "deck01")                        # identity is mandatory
     assert lua.is_sendable(hand_to_deck("Blue", [201], "deck01"))
+
+
+
+# ---------- cards inside a stacked pile (Rekindle, Ivan 31/10) ----------
+def pile(rt, n=4, owner="x"):
+    """A discard pile stacked as a Deck: its cards are not loose objects, `getObjectFromGUID` only finds the Deck."""
+    rt.execute(f"""local cs = {{}}
+for i = 1, {n} do cs[i] = {{cid = 300 + i, guid = 'p' .. i, owner = '{owner}'}} end
+mkobj({{guid = 'pile01', type = 'Deck', cards = cs, pos = Vector(9, 1, 9)}})""")
+
+
+def test_shuffle_into_deck_takes_the_cards_out_of_a_stacked_pile(rt):
+    deck(rt)
+    pile(rt, n=4)
+    out = run(rt, lua.shuffle_into_deck("deck01", ["p1", "p3", "p4"], id_range=X_IDS, identity=X_IDENT))
+    assert out["added"] == 3 and out["moved"] == ["p1", "p3", "p4"] and out["deck"] == "deck01"
+    assert out["quantity"] == 6 and rt.eval('getObjectFromGUID("deck01").shuffled') is True
+    assert rt.eval('getObjectFromGUID("pile01").getQuantity()') == 1
+
+
+def test_shuffle_into_deck_reports_only_the_cards_that_moved(rt):
+    deck(rt)
+    pile(rt, n=3)
+    rt.execute("mkobj({guid = 'foreign', type = 'Card', cid = 558, owner = 'h'})")
+    out = run(rt, lua.shuffle_into_deck("deck01", ["p2", "ghost", "foreign"], id_range=X_IDS, identity=X_IDENT))
+    assert out["added"] == 1 and out["moved"] == ["p2"]
+
+
+def test_shuffle_into_deck_keeps_going_when_the_pile_dissolves_into_a_card(rt):
+    deck(rt)
+    pile(rt, n=2)
+    rt.execute("""local d = getObjectFromGUID('pile01')
+local take = d.takeObject
+d.takeObject = function(t)
+  local c = take(t)
+  if d.getQuantity() == 1 then
+    local last = d.cards[1]
+    d.destruct()
+    mkobj({guid = last.guid, type = 'Card', cid = last.cid, owner = last.owner, pos = d.getPosition()})
+  end
+  return c
+end""")
+    out = run(rt, lua.shuffle_into_deck("deck01", ["p1", "p2"], id_range=X_IDS, identity=X_IDENT))
+    assert out["moved"] == ["p1", "p2"]
+
+
+def test_a_card_inside_a_foreign_pile_is_not_taken(rt):
+    deck(rt)
+    pile(rt, n=2, owner="h")
+    out = run(rt, lua.shuffle_into_deck("deck01", ["p1"], id_range=X_IDS, identity=X_IDENT))
+    assert out["moved"] == [] and out["added"] == 0
+    assert rt.eval('getObjectFromGUID("pile01").getQuantity()') == 2

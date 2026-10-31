@@ -259,8 +259,8 @@ def _bot_cards(session, before: dict, moved: set = frozenset()) -> list[Callable
             op = session._w(lua.shuffle_into_deck(cfg.bot_deck_guid, [guids[i] for i in known], cfg.bot_card_ids,
                                                   identity=session._identity()), DOMAIN) if known else None
             session.say(f"El bot baraja {titles} de su descarte en su mazo.", ChatKind.SCHEME)
-            checks.append(lambda: _short(session, set(disc_to_deck) - (set(known) if op is not None and
-                                                                         _result(op).get("added") == len(known) else set()),
+            checks.append(lambda: _short(session, set(disc_to_deck) - (set(known) - _unmoved(op, known, guids)
+                                                                         if op is not None else set()),
                                          by_id, "del descarte del bot a su mazo (barajada)"))
     for i in disc_to_hand:
         title = by_id[i].title
@@ -282,6 +282,15 @@ def _bot_cards(session, before: dict, moved: set = frozenset()) -> list[Callable
 def _returned(session, op, title: str) -> None:
     if not _result(op).get("returned"):
         session.say(f"No he podido devolver {title} a la mano del bot: ponla tu.", ChatKind.WARNING)
+
+
+def _unmoved(op, ids: list[int], guids: dict[int, str]) -> set[int]:
+    """The ids of a shuffle-into-deck op that did not reach the deck. The script names the GUIDs it moved; a reply
+    that does not (an older script) only counts them, and then a short count blames every card."""
+    res = _result(op)
+    if isinstance(res.get("moved"), list):
+        return {i for i in ids if guids[i] not in res["moved"]}
+    return set(ids) if res.get("added") != len(ids) else set()
 
 
 def _short(session, missing: set[int], by_id: dict, what: str) -> None:
@@ -419,7 +428,7 @@ def _human_disc_to_deck(session, ids: list[int], d0: list[int], d1: list[int], b
     if position == "shuffle":
         op = session._w(lua.shuffle_into_deck(cfg.human_deck_guid, [guids[i] for i in todo], cfg.human_card_ids,
                                               identity=identity), DOMAIN)
-        return [lambda: _short(session, set(todo) if _result(op).get("added") != len(todo) else set(), by_id, what)]
+        return [lambda: _short(session, _unmoved(op, todo, guids), by_id, what)]
     build = lua.card_to_deck_bottom if position == "bottom" else lua.card_to_deck_top
     order = todo if position == "bottom" else list(reversed(todo))      # putObject adds on top: the first id ends up last
     ops = [(i, session._w(build(guids[i], cfg.human_deck_guid, cfg.human_card_ids, identity=identity), DOMAIN))

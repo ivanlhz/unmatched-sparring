@@ -29,7 +29,7 @@ from . import persist
 from .ai_medusa import GAZE, MedusaAI, play_signature
 from .cards import Card, can_be_boost
 from .controller import Controller
-from .combat_flow import CombatFlow, PendingChoice, legacy_chooser
+from .combat_flow import CombatFlow, PendingChoice, Phase, legacy_chooser
 from .effects import events, narrate
 from .effects.choose import ControllerChooser
 from .effects.run import EffectRun
@@ -1088,8 +1088,7 @@ class Session:
         choose = legacy_chooser(self.game, flow, boost, self.human)
         while (wait := flow.run()) is not None:
             if wait.choice.kind == "effect" and wait.choice.player == self.human:
-                self._show_choice(flow.awaiting_run.awaiting)
-                return
+                return                            # `_combat_step_done` shows the choice, after what the combat already did
             flow.resume(choose(wait.choice))
 
     def panel_labels(self) -> dict[str, str]:
@@ -2097,11 +2096,50 @@ class Session:
             self._flip_queued([(p.bot_card_guid, "bot"), (p.combat["human_guid"], "human")])
             p.combat["flipped"] = True
         self._mark_dirty(_bot_snapshot(p.combat["before"]))
+        fin_dials = self._tell_damage_dealt(p)
         cause = "efectos del combate" if human_effects.human_ran(p.flow) else bot_effects.BOT_CAUSE
         fin_fx = self._project_effects(p.combat.get("fx"), self._human_played(p), cause)
         self._try_flush_table()
+        fin_dials()
         fin_fx()
         p.combat["before"], p.combat["fx"] = self._snapshot_bot(), bot_effects.snapshot(self)
+        if (wait := p.flow.pending) is not None and wait.kind == "effect" and wait.player == self.human:
+            self._show_choice(p.flow.awaiting_run.awaiting)
+
+    def _tell_damage_dealt(self, p: Pending) -> Callable[[], bool]:
+        """Ivan, 31/10 (Rekindle): the damage is dealt at the reveal and the combat then waits at a choice of the human
+        in AFTER; the result must not wait with it. The first time the flow stops in AFTER, the summary, the bot's card
+        lines and the health dials come out now (`p.combat["told"]` remembers what, so the end of the combat and a
+        resume from a save say only the rest). A stop before AFTER (DURING) holds the damage back: nothing is told.
+        Returns the function that verifies the dials."""
+        c, g = p.combat, self.game
+        if p.flow.phase is not Phase.AFTER or "told" in c:
+            return lambda: True
+        res, bot = p.flow.result, g.players[self.bot]
+        first = len(self.messages)
+        self.say(self._combat_text(p, res), ChatKind.COMBAT)
+        pending = [(card, why) for card, why in ((res.atk_card, "ataque"), (res.def_card, "defensa"))
+                   if card is not None and card in bot.full_set and card not in bot.discard]    # leave at the end of the flow
+        reasons = {card.card_id: why for card, why in pending}
+        if res.boost_card is not None and res.boost_card in bot.full_set:
+            reasons[res.boost_card.card_id] = "boost de combate"
+        listed = [self._discard_list(c["bot_seen"], reasons, "efecto")] + [f"{card.title} por {why}" for card, why in pending]
+        if line := ", ".join(x for x in listed if x):
+            self.say(f"El bot descarta {line}.")
+        for e in res.applied:
+            self.say(f"Aplicado: {e}", ChatKind.WARNING)
+        for e in res.bot_notes:
+            self.say(e, ChatKind.WARNING)
+        for fid, was in c["alive_before"].items():
+            f = g.fighters[fid]
+            if was and not f.alive and f.owner == self.human:
+                self._announce_fall(f)
+            c["alive_before"][fid] = f.alive
+        c["told"] = {"ids": [card.card_id for card in bot.discard[c["bot_seen"]:]] + [card.card_id for card, _ in pending],
+                     "applied": len(res.applied), "notes": len(res.bot_notes)}
+        if p.kind == "bot_attacks":
+            self._announce_before(first)
+        return self._write_dials(defer=True)
 
     def _undo_combat(self, saved: dict, human_card: Card | None, flipped: list) -> None:
         self._restore(saved)
@@ -2122,19 +2160,21 @@ class Session:
         if self.pending_discard is not None:      # antes de cualquier E/S: un fallo de mesa no puede dejarlo sin base
             self.pending_discard["baseline"] = len(g.players[self.human].discard)
         self._mark_dirty(_bot_snapshot(c["before"]))
-        self.say(self._combat_text(p, res), ChatKind.COMBAT)
+        told = c.get("told")                      # the result already went out when the flow stopped at a choice in AFTER
+        if told is None:
+            self.say(self._combat_text(p, res), ChatKind.COMBAT)
         reasons = {}
         for card, why in ((res.atk_card, "ataque"), (res.def_card, "defensa")):
             if card is not None and card in g.players[self.bot].full_set:
                 reasons[card.card_id] = why
         if res.boost_card is not None and res.boost_card in g.players[self.bot].full_set:
             reasons[res.boost_card.card_id] = "boost de combate"
-        listed = self._discard_list(c["bot_seen"], reasons, "efecto")
+        listed = self._discard_list(c["bot_seen"], reasons, "efecto", told=set(told["ids"]) if told else ())
         if listed:
             self.say(f"El bot descarta {listed}.")
-        for e in res.applied:
+        for e in res.applied[told["applied"] if told else 0:]:
             self.say(f"Aplicado: {e}", ChatKind.WARNING)
-        for e in res.bot_notes:
+        for e in res.bot_notes[told["notes"] if told else 0:]:
             self.say(e, ChatKind.WARNING)
         for e in res.human_effects:               # your card: what the engine applied and what you do on the table
             self.say(f"Tu carta: {e}", ChatKind.YOUR_TURN)
@@ -2144,7 +2184,7 @@ class Session:
                 self._announce_fall(f)
         self._grant_look_for(res.atk_card if p.kind == "human_attacks" else res.def_card)
         self._track_destiny()
-        if p.kind == "bot_attacks":               # its attack resolved: the result is said and held before the discards and dials move
+        if p.kind == "bot_attacks" and told is None:    # its attack resolved: the result is said and held before the discards and dials move
             self._announce_before(said_first)
         cause = "efectos del combate" if human_effects.human_ran(p.flow) else bot_effects.BOT_CAUSE
         fin_fx = self._project_effects(c.get("fx"), self._human_played(p), cause)
@@ -2811,11 +2851,12 @@ class Session:
                 return r["guid"]
         return None
 
-    def _discard_list(self, seen: int, reasons: dict[int, str], default: str, skip: Card | None = None) -> str:
+    def _discard_list(self, seen: int, reasons: dict[int, str], default: str, skip: Card | None = None,
+                      told: set | tuple = ()) -> str:
         """'Snipe por ataque, Dash por boost de combate': las cartas que el bot ha mandado al descarte desde que
-        habia `seen` en la pila, en el orden en que quedan en la rejilla, cada una con su motivo."""
+        habia `seen` en la pila, en el orden en que quedan en la rejilla, cada una con su motivo. `told`: ids ya dichos."""
         return ", ".join(f"{c.title} por {reasons.get(c.card_id, default)}"
-                         for c in self.game.players[self.bot].discard[seen:] if c is not skip)
+                         for c in self.game.players[self.bot].discard[seen:] if c is not skip and c.card_id not in told)
 
     def _played_text(self, seen: int, reasons: dict[int, str], default: str, skip: Card | None = None) -> str:
         listed = self._discard_list(seen, reasons, default, skip)

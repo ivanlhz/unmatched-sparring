@@ -695,6 +695,27 @@ def test_rekindle_picks_from_your_public_pile_and_you_shuffle_them_in(rig, monke
     assert sorted(table.human_deck) == sorted([fireball, evade]) and table.human_discard == []
 
 
+@with_rig(*LIZ_VS_HELLBOY)
+def test_rekindle_names_only_the_cards_the_table_could_not_move(rig, monkeypatch):
+    session, table, game, fake, cfg = rig
+    put_adjacent(game, table, cfg, "liz", "hellboy")
+    bot_defends_with_nothing(session, monkeypatch)
+    fireball, evade, feint = card_ids(game, 1, "Fireball", "Evade", "Feint")
+    table.human_discard = [fireball, evade, feint]
+    table.stuck_in_pile = {evade}
+    human_hand(table, game, "Rekindle", "Pyrotechnics")
+    click(session, table, Event.MANEUVER)
+    table.positions[cfg.nicknames["liz"]] = game.fighters["liz"].pos
+    click(session, table, Event.END_ACTION)
+    human_attack(session, table, game, "liz", "hellboy", "Rekindle")
+    click(session, table, Event.REVEAL)
+    for card in (fireball, evade, feint):
+        press(session, table, card)
+    msgs = press(session, table, "Confirmar")
+    assert said(msgs, "No he podido mover Evade de tu descarte en tu mazo y baraja: hazlo tu")
+    assert not said(msgs, "mover Fireball") and not said(msgs, "Feint de tu descarte")
+
+
 @with_rig(*LIZ_VS_HELLBOY, human_ongoing_spot=None, bot_ongoing_spot=None)       # no ONGOING zone: the pile route
 def test_fight_or_flight_enters_play_on_your_pile_adds_to_your_cards_and_expires_at_your_next_turn(rig, monkeypatch):
     session, table, game, fake, cfg = rig

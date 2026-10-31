@@ -68,6 +68,7 @@ def test_a_combat_pauses_at_the_human_effect_choice_with_the_buttons_and_everyth
 def test_resume_mid_effect_inside_a_combat(brig):
     session, table, game, fake = brig
     lobster_attacks_with_posthumous_power(session, table, game)
+    assert any("Combate:" in m for m in session.messages), "the result is said at the pause (AFTER), not after the choice"
     saved = session.to_dict()
     assert saved["pending"]["flow"]["pending"]["kind"] == "effect" and set(saved["pending"]["combat"]) >= {"flip", "boost"}
     buttons = (session.panel_view(), session.panel_labels())
@@ -79,7 +80,7 @@ def test_resume_mid_effect_inside_a_combat(brig):
     target = session.effect_run.awaiting.options.index("medusa") + 1
     click(session, table, Event.CHOICE, {"i": target})
     assert session.pending is None and session.moving and session.effect_run is None
-    assert game.fighters["medusa"].hp == 15 and any("Combate:" in m for m in session.messages)
+    assert game.fighters["medusa"].hp == 15 and not any("Combate:" in m for m in session.messages)
     bot = game.players[0]
     assert not set(bot.hand) & set(bot.discard) and not set(bot.deck) & set(bot.discard)    # the held card went to one pile
     final = jsonable(persist.game_to_dict(game))
