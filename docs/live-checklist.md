@@ -94,6 +94,8 @@ Repite el bloque para cada heroe, **con Ivan jugandolo** (H) y **con el bot juga
 - [ ] **Wildfire** (inicio de turno del bot): descarta la carta de abajo y se proyecta en mesa; cuesta 1 mensaje extra antes de su primera accion (anota si molesta).
 - [ ] **Excepcion**: una burning descartada por limite de mano (7) al fin de turno **NO** vuelve a la mano; se queda en el descarte.
 - [x] H **(E2)**: puerta de habilidad de inicio de turno (Wildfire) y Fight Or Flight. *(OK 29/10)*
+- [x] H: **Fight Or Flight** como ONGOING: el +1 dura hasta el inicio de tu siguiente turno y ahi se va. *(OK 31/10)* El robo de 1 pedia ademas devolver una carta al mazo (fallo, arreglo en curso).
+- [ ] H: tu ONGOING que caduca o sale de juego: el bot hace ping, dice el motivo, espera `ongoing_hold` y la pone **encima de tu descarte** (`card_to_discard`, nunca visto en mesa).
 - [ ] **Flame Lash**: DURING real con la carta de **abajo del mazo** como boost **(E2 para H)**.
 - [ ] **Incinerate**: B -> respondes Si/No en el panel antes del dano; H contra el bot **(E2)**.
 - [ ] H/B: Pyrotechnics (deja una burning abajo del mazo), Rekindle, Searing Clarity, Feint, Fireball, Burning Barrier, Evade, B.P.R.D. Training.
