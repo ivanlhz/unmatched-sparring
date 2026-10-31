@@ -95,10 +95,10 @@ Repite el bloque para cada heroe, **con Ivan jugandolo** (H) y **con el bot juga
 - [ ] **Excepcion**: una burning descartada por limite de mano (7) al fin de turno **NO** vuelve a la mano; se queda en el descarte.
 - [x] H **(E2)**: puerta de habilidad de inicio de turno (Wildfire) y Fight Or Flight. *(OK 29/10)*
 - [x] H: **Fight Or Flight** como ONGOING: el +1 dura hasta el inicio de tu siguiente turno y ahi se va. *(OK 31/10)* El robo de 1 pedia ademas devolver una carta al mazo (fallo, arreglo en curso).
-- [ ] H: tu ONGOING que caduca o sale de juego: el bot hace ping, dice el motivo, espera `ongoing_hold` y la pone **encima de tu descarte** (`card_to_discard`, nunca visto en mesa).
+- [x] H: tu ONGOING que caduca o sale de juego: el bot hace ping, dice el motivo, espera `ongoing_hold` y la pone **encima de tu descarte** (`card_to_discard`). *(OK 31/10: Fight Or Flight caducada)*
 - [ ] **Flame Lash**: DURING real con la carta de **abajo del mazo** como boost **(E2 para H)**.
 - [ ] **Incinerate**: B -> respondes Si/No en el panel antes del dano; H contra el bot **(E2)**.
-- [ ] H/B: Pyrotechnics (deja una burning abajo del mazo), Rekindle, Searing Clarity, Fireball, Burning Barrier, Evade, B.P.R.D. Training.
+- [ ] H/B: Pyrotechnics (deja una burning abajo del mazo), Rekindle, Searing Clarity, Fireball, Burning Barrier, Evade, B.P.R.D. Training. *(31/10: Evade H OK, robas 1)*
 - [x] H: **Feint**. *(OK 31/10)*
 - [ ] Fleeting Moments / Confront del bot: el chat **nombra la carta** que debes descartar; la descartas tu.
 - [ ] Wildfire devuelve una carta que tu Confront le hizo descartar: el chat dice "El bot se queda X (Wildfire la devuelve)".
@@ -134,6 +134,7 @@ Para cada caso: Ctrl+C (y recarga TTS si quieres), luego `--resume`. Esperado: n
 - [ ] A mitad de Perfect Shot (botones de prediccion) y de FATEFUL BARGAINS **(E2)**.
 - [ ] Tras un cambio de turno con Wildfire pendiente.
 - [ ] Guardado ajeno/antiguo/de otra mesa: `--resume` lo rechaza con mensaje claro.
+- [x] Guardado de antes de configurar el Destiny Dial del bot: `--resume` lo acepta. *(OK 31/10)*
 
 ## 6. Puente TTS (primitivas nunca vistas en real)
 
