@@ -37,6 +37,13 @@ Agotamiento, limite de mano y desesperacion
     reloj del agotamiento. Con ella sube el premio por quedar a tiro del heroe rival (progreso esperado hacia ganar
     x LETHAL, el mismo patron que el castigo por morir) y baja el peso de la huida: huir solo compensa si el
     tiempo juega a favor.
+  * El mazo depende de la estrategia (`race`, `deck_cost`): un robo no vale lo mismo con la partida ganada en
+    pocos turnos que con una partida larga. Se estiman los turnos que el bot tarda en matar al heroe rival
+    (PV rival / dano medio por turno), los que tarda el rival en matarlo y los turnos de mazo que quedan. Si la
+    carrera se gana antes de que el mazo se acabe, robar es casi libre (la escasez baja a DECK_SCARCITY_FLOOR);
+    si la partida durara mas que el mazo, cada robo adelanta robos con agotamiento y paga EXHAUST_BILL (suave,
+    creciente con el faltante, hasta x2 si ademas el bot pierde la carrera): se prefieren ataques, planes y
+    maniobras con impulso a robar sin mover a nadie.
 """
 from __future__ import annotations
 
@@ -76,6 +83,13 @@ WIN_PRIZE = 60.0            # ganar vale lo que perder cuesta: progreso esperado
 PROGRESS_DISCOUNT = 0.8     # el rival puede apartarse antes de mi proximo turno
 CLOCK_HORIZON = 8           # con 8 o mas robos por pagar el reloj del mazo no aprieta
 IDLE_MANEUVER = 0.5         # (not Medusa, whose kiting is standing clear) a maneuver that moves nobody and spends no boost is only a draw: it gives way to a decent attack
+ATTACKS_PER_TURN = 1.0      # measured in simulation: about one attack and one draw per own turn
+DRAWS_PER_TURN = 1.0
+LONG_GAME = 12              # turns: a race longer than this is "the game will not end soon" (also caps the estimate)
+EXHAUST_BILL = 3.5          # ~ a round of exhaustion (EXHAUST_DAMAGE to the hero and to each sidekick), in position points
+BILL_SPAN = 4.0             # draws of shortfall (game longer than deck) at which one more draw pays the whole EXHAUST_BILL
+DECK_SCARCITY_FLOOR = 0.25  # share of DECK_SCARCITY still charged when the race is won well before the deck runs out
+MIN_NET = 0.25              # floor of the expected net damage per attack, so no estimate divides by zero
 ACTION_VALUE = 1.0          # una accion que regala un plan: al menos el robo de una maniobra, a menudo un ataque
 
 AFTER_BONUS = {
@@ -297,7 +311,7 @@ class MedusaAI(Controller):
                 continue
             a.total = a.value + self.position_value(g, model)
             if g.actions_left == 0:
-                a.total += self.terminal_value(g)
+                a.total += self.terminal_value(g, model)
         unique = {(a.kind, a.fid, a.target, a.card and a.card.card_id, a.boost and a.boost.card_id,
                    tuple(sorted(a.moves.items())), a.spot, a.variant): a for a in reversed(acts)}   # la 1.a de cada una
         return sorted(unique.values(), key=lambda a: -a.total)
@@ -540,7 +554,7 @@ class MedusaAI(Controller):
                 unseen.remove(c)
         return sum(keep_value(c, [c]) for c in unseen) / len(unseen) if unseen else KEEP_BASE["attack"]
 
-    def terminal_value(self, game: Game) -> float:
+    def terminal_value(self, game: Game, model: Model | None = None) -> float:
         """Coste de cerrar el turno asi: descartar lo que pase del limite de mano y gastar robos escasos."""
         p = game.players[self.me]
         over = len(p.hand) + game.phantom_draws - HAND_LIMIT
@@ -548,7 +562,36 @@ class MedusaAI(Controller):
         if over > 0:
             pool = sorted([keep_value(c, p.hand) for c in p.hand] + [self.avg_unseen_keep(game)] * game.phantom_draws)
             cost = sum(pool[:over])
-        return -cost - DECK_SCARCITY.get(self.draw_budget(game), 0.0)
+        return -cost - self.deck_cost(game, model or Model(game, self.me))
+
+    def race(self, game: Game, model: Model) -> tuple[float, float]:
+        """(turns until the bot kills the rival hero, turns until the rival hero kills the bot's), from the average
+        card of each deck against the other's likely best answer. Sidekicks are left out: they decide fights, not games."""
+        me, rival = game.hero(self.me), game.hero(1 - self.me)
+        mine = game.players[self.me].full_set
+        atk = [c.value + game.attack_bonus(me) for c in mine if c.can_attack and c.usable_by(me.name)]
+        dfn = [c.value for c in mine if c.can_defend and c.usable_by(me.name)]
+        avg_atk, avg_def = (sum(atk) / len(atk) if atk else 0.0), (sum(dfn) / len(dfn) if dfn else 0.0)
+        out = sum(p * max(0.0, avg_atk - (dv or 0)) for p, dv in model.defense_dist(rival))
+        inc = sum(p * max(0.0, v - avg_def) for p, v in model.attack_dist(rival) if v is not None)
+        return (rival.hp / (ATTACKS_PER_TURN * max(out, MIN_NET)), me.hp / (ATTACKS_PER_TURN * max(inc, MIN_NET)))
+
+    def deck_cost(self, game: Game, model: Model) -> float:
+        """What the deck left costs at the end of the turn, by strategy (see the module docstring): the scarcity
+        table scaled down when the race is won before the deck runs out, plus the exhaustion that a game longer
+        than the deck will bring, growing smoothly with the shortfall."""
+        me, rival = game.hero(self.me), game.hero(1 - self.me)
+        if not me.alive or not rival.alive:
+            return 0.0
+        t_kill, t_die = self.race(game, model)
+        length = min(t_kill, LONG_GAME)
+        deck = len(game.players[self.me].deck)
+        scale = min(1.0, max(DECK_SCARCITY_FLOOR, length / (deck / DRAWS_PER_TURN + 1)))
+        shortfall = max(0.0, length * DRAWS_PER_TURN - deck)
+        # quadratic up to BILL_SPAN draws of shortfall (marginal draw cost 0 -> EXHAUST_BILL), linear after
+        owed = shortfall * shortfall / (2 * BILL_SPAN) if shortfall < BILL_SPAN else shortfall - BILL_SPAN / 2
+        losing = 1 + max(0.0, 1 - t_die / max(t_kill, MIN_NET))     # up to x2: exhaustion on top of a lost race
+        return DECK_SCARCITY.get(self.draw_budget(game), 0.0) * scale + EXHAUST_BILL * losing * owed
 
     def desperation(self, game: Game) -> float:
         """0 (sin problema) a 1 (perdiendo claramente): PV propios frente a los del heroe rival, Harpias caidas y
@@ -580,7 +623,7 @@ class MedusaAI(Controller):
         if override:
             pos.update(override)
         mine = [f for f in game.own(self.me) if f.fid in pos]
-        foes = game.foes(self.me)
+        foes = [e for e in game.foes(self.me) if e.fid in pos]   # a foe killed in the projection has no square
         board = game.board
         occupied = set(pos.values())
         hand = game.players[self.me].hand
