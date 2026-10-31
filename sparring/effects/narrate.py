@@ -142,12 +142,17 @@ def _cards(game, before: dict, run) -> list[str]:
         added = [i for i in discard_now if i not in was["discard"]]
         if p != game.bot_player:                    # the human's deck discard a trigger took straight back (Wildfire)
             added += [i for i in from_deck if i not in discard_now and i not in added and i in ids]
-        if added:
-            out.append(f"{descarta} " + _join(by_id[i].title for i in added))
-        # an ONGOING that entered play came out of the hand without touching the discard pile
+        # an ONGOING that entered play came out of the hand without touching the discard pile; the one it replaced
+        # left play (it was never in the hand: not a discard from it)
         entered = game.fx.ongoing_card_id(p)
         if entered == before["in_play"][p] or entered in was["discard"]:
             entered = None
+        left = before["in_play"][p] if p != game.bot_player and before["in_play"][p] in added else None
+        added = [i for i in added if i != left]
+        if added:
+            out.append(f"{descarta} " + _join(by_id[i].title for i in added))
+        if left is not None:
+            out.append(f"{by_id[left].title} deja de estar en juego")
         out += [f"{by_id[i].title} vuelve al mazo" for i in was["discard"] if i not in discard_now and by_id[i] in st.deck]
         # a card that entered the hand in plain sight: from the discard pile (Wildfire's return, a scheme recovered
         # by Ward And Prepare) or, for the bot, anything the rival now knows is there; the rest came hidden

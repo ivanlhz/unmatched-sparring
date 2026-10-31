@@ -1080,4 +1080,21 @@ def test_an_ongoing_scheme_on_your_spot_never_reads_as_a_card_returned_to_the_de
     msgs = click(session, table, Event.END_ACTION)
     assert any("robas 1" in m and "mueve a liz hasta 5 casillas" in m for m in msgs), msgs
     assert not said(msgs, "devuelves") and not said(msgs, "al mazo") and not said(msgs, "a tu mazo"), msgs
-    assert not said(msgs, "Devuelve")
+    assert not said(msgs, "Devuelve") and not said(msgs, "del mazo a tu mano"), msgs
+
+
+@with_rig(*LIZ_VS_HELLBOY, **ONGOING_SPOTS)
+def test_an_ongoing_scheme_replacing_another_says_the_old_one_left_play_and_moves_no_card_through_the_deck(rig):
+    session, table, game, fake, cfg = rig
+    human_hand(table, game, "Fight Or Flight", "Evade", "Fireball")
+    fof = card_ids(game, 1, "Fight Or Flight")[0]
+    rekindle = card_ids(game, 1, "Rekindle")[0]
+    game.fx.set_ongoing(1, rekindle)
+    table.card_to_discard_fails = True
+    click(session, table, Event.SCHEME)
+    table.human_ongoing.append(fof)
+    table.human_count -= 1
+    msgs = click(session, table, Event.END_ACTION)
+    assert any("robas 1" in m and "Rekindle deja de estar en juego" in m and "descartas Rekindle" not in m
+               for m in msgs), msgs
+    assert not said(msgs, "al mazo") and not said(msgs, "a tu mazo") and not said(msgs, "del mazo a tu mano"), msgs
