@@ -135,6 +135,8 @@ def _discard_human(session, intent: dict, ctx: Ctx) -> list[Check]:
         session.say(f"Pon {join_titles(by_id[i].title for i in intent['cards'])} de tu mano en tu descarte "
                     f"({ctx.cause}) y pulsa Fin de accion.", ChatKind.YOUR_TURN)
     elif intent["n"] > 0:                         # a count: the human chooses which ones
+        if not d.get("hand"):
+            session._deal_owed_draws()            # the draws that resolved BEFORE this discard are in the hand he discards from
         d["n"] += intent["n"]
         d["hand"] = True                          # the draws the effect owes come after this discard
         session.pending_discard = d
