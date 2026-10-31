@@ -74,9 +74,9 @@ def test_the_abe_agents_carry_the_names_of_their_tokens_and_medusas_harpies_are_
         "agent1": "Victor", "agent2": "Carla", "agent3": "Kate"}
 
 
-def test_only_hellboy_needs_a_destiny_dial_and_only_when_he_is_the_human():
+def test_only_hellboy_needs_a_destiny_dial_on_whichever_side_he_plays():
     assert table_defaults("medusa", "hellboy")["destiny_dial"] == "e17c66"
-    assert "destiny_dial" not in table_defaults("hellboy", "liz-sherman")      # el dial de destinos lo escribe el humano
+    assert table_defaults("hellboy", "liz-sherman")["destiny_dial"] == "e17c66"      # bot Hellboy: the dial counts for the bot
     assert "destiny_dial" not in table_defaults("medusa", "baba-yaga")
 
 
