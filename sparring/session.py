@@ -2174,17 +2174,22 @@ class Session:
         """Cuenta los destinos de Hellboy en su descarte (el motor los iguala al descarte de la mesa en sync_human),
         anuncia cuando cambian y cuando cambia la forma. True si el dial aun no refleja la cuenta: `destiny_seen`
         solo avanza tras una escritura verificada (`_write_dials`), asi un fallo se reintenta en la siguiente lectura."""
-        g = self.game
-        if "destiny" not in g.hero_def(self.human).counters:
+        g, owner = self.game, self._destiny_owner()
+        if owner is None:
             return False                          # solo el heroe con contador de destinos (Hellboy) los lleva
-        now = (g.destiny_count(self.human), g.form(self.human))
+        now = (g.destiny_count(owner), g.form(owner))
         said = self._destiny_said if self._destiny_said is not None else self.destiny_seen
         prev, self._destiny_said = said, now
         if not self.cfg.destiny_dial:
             self.destiny_seen = now               # sin dial no hay nada que verificar
-        if prev != now:
+        if prev != now and owner == self.human:   # the bot's discards and its form change are announced where they happen
             self._announce_destiny(prev, now)
         return now != self.destiny_seen
+
+    def _destiny_owner(self) -> int | None:
+        """The side whose hero keeps the destiny count (Hellboy, bot or human): the one dial counts for him."""
+        g = self.game
+        return next((p for p in (self.human, self.bot) if "destiny" in g.hero_def(p).counters), None)
 
     def _announce_destiny(self, prev: tuple[int, str] | None, now: tuple[int, str]) -> None:
         if prev is not None and prev[0] != now[0]:
@@ -2239,7 +2244,8 @@ class Session:
                 for fid, guid in dials.items()}
         label = {guid: self._name(g.fighters[fid]) for fid, guid in dials.items()}
         if self.cfg.destiny_dial:
-            want[self.cfg.destiny_dial] = g.destiny_count(self.human)
+            owner = self._destiny_owner()
+            want[self.cfg.destiny_dial] = 0 if owner is None else g.destiny_count(owner)
             label[self.cfg.destiny_dial] = "el dial de destinos"
         try:
             now = self._rd_dials(sorted(want))
@@ -2283,7 +2289,7 @@ class Session:
                 return False
             self.dials_written.update(want)
             if self.cfg.destiny_dial in want:
-                self.destiny_seen = (want[self.cfg.destiny_dial], g.form(self.human))
+                self.destiny_seen = (want[self.cfg.destiny_dial], g.form(self._destiny_owner()))
             return not touched
         return verify
 

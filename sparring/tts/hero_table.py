@@ -170,6 +170,7 @@ def table_defaults(bot_slug: str, human_slug: str) -> dict:
            "bot_deck_guid": tb.deck_guid, "human_deck_guid": th.deck_guid,
            "bot_card_ids": list(tb.card_ids), "human_card_ids": list(th.card_ids),
            "bot_identity": [list(p) for p in tb.identity], "human_identity": [list(p) for p in th.identity]}
-    if human.forms is not None and human.forms.counter in th.counter_dials:
-        out["destiny_dial"] = th.counter_dials[human.forms.counter]
+    for hero, table in ((human, th), (bot, tb)):     # one Hellboy per game, on either side
+        if hero.forms is not None and hero.forms.counter in table.counter_dials:
+            out["destiny_dial"] = table.counter_dials[hero.forms.counter]
     return out

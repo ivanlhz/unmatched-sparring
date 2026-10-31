@@ -381,6 +381,42 @@ def test_bot_hellboy_form_change_swaps_the_miniature_flips_the_token_and_pings_b
     assert not said(session.messages, "No encuentro la pieza") and game.fighters["hellboy"].alive
 
 
+@hellboy_rig
+def test_bot_hellboy_destiny_dial_follows_the_bot_discard_up_and_down(rig, monkeypatch):
+    session, table, game, fake, cfg = rig
+    dial = cfg.session_config().destiny_dial
+    assert dial == "e17c66" and table.dials[dial]["value"] == 0
+    destiny = [c for c in game.players[0].full_set if "destiny" in c.tags and c.title != "Confront Any Demon or God"]
+    to_bot_discard(session, table, game, ids=[c.card_id for c in destiny[:5]])
+    fuel = destiny[5]
+    set_hand(session, table, game, "Service Pistol")
+    table.bot_hand.append(fuel.card_id)
+    table.bot_deck.remove(fuel.card_id)
+    session.read_bot_hand()
+    session.snap = None
+    monkeypatch.setattr(session.ai, "choose_defense", lambda g, a, t: fuel)
+    human_hand(table, game, "Faster. Stronger.", "Leap Away", "Concussion Device")
+    human_attack(session, table, game, "abe", "hellboy", "Faster. Stronger.")
+    msgs = click(session, table, Event.REVEAL)
+    assert game.destiny_count(0) == 6 and table.dials[dial]["value"] == 6
+    assert session.destiny_seen == (6, ANUNG)
+    assert not said(msgs, "dale la vuelta") and not said(msgs, "Destinos de Hellboy")
+    st = game.players[0]
+    st.discard.remove(next(c for c in st.discard if c.card_id == destiny[0].card_id))     # a card leaves the pile
+    assert session._write_dials()
+    assert table.dials[dial]["value"] == 5
+
+
+@hellboy_rig
+def test_bot_hellboy_does_not_give_the_human_miniature_instructions(rig):
+    session, table, game, fake, cfg = rig
+    destiny = [c for c in game.players[0].full_set if "destiny" in c.tags]
+    to_bot_discard(session, table, game, ids=[c.card_id for c in destiny[:6]])
+    session.say = lambda *a, **k: pytest.fail(f"unexpected chat line {a}")
+    session._track_destiny()
+    assert session.destiny_seen is None or session.destiny_seen[0] == 6
+
+
 # ---------------------------------------------------------------- the human's miniatures
 
 @hellboy_rig
