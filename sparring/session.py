@@ -1669,7 +1669,7 @@ class Session:
             try:
                 dealt = (op.result or {}).get("dealt")
             except TABLE_ERRORS:
-                self.say(f"No he podido confirmar el reparto de {plural}{why}: mira tu mano; si te faltan, roba a mano "
+                self.say(f"No he podido confirmar el reparto de {plural}{why} ({e}): mira tu mano; si te faltan, roba a mano "
                          "y pulsa Fin de accion.", ChatKind.WARNING)
                 self._deal_check = None
                 return False

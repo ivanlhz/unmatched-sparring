@@ -38,9 +38,9 @@ def vanishing_discard(table):
 
 
 # ---------- D2: respuestas emparejadas con su peticion ----------
-def make_client(reply, timeout=0.3):
+def make_client(reply, timeout=0.3, late_grace=0.0):
     fake = FakeTTS(return_value=reply)
-    client = TTSClient(send_port=fake.port, listen_port=0, timeout=timeout)
+    client = TTSClient(send_port=fake.port, listen_port=0, timeout=timeout, late_grace=late_grace)
     fake.reply_port = client.start_listening().port
     return fake, client
 
@@ -62,6 +62,29 @@ def test_d2_late_reply_after_a_timeout_does_not_shift_later_answers():
                client.call_lua(lua.broadcast("x"))["tag"]]
         assert got == ["-- sparring:count_hand", "-- sparring:read_discard", "-- sparring:broadcast"]
         assert client.stale_replies >= 1
+    finally:
+        client.close()
+        fake.close()
+
+
+def test_a_busy_tts_that_answers_within_the_grace_is_not_a_timeout():
+    def reply(msg):
+        time.sleep(0.5)                          # past the 0.3 s timeout, inside the grace
+        return json.dumps({"ok": 1})
+    fake, client = make_client(reply, late_grace=2.0)
+    try:
+        assert client.call_lua(lua.read_hand("Blue")) == {"ok": 1}
+        assert client.graces == 1
+    finally:
+        client.close()
+        fake.close()
+
+
+def test_a_tts_silent_past_the_grace_times_out_with_what_to_check():
+    fake, client = make_client(lambda msg: time.sleep(1.5) or "{}", late_grace=0.3)
+    try:
+        with pytest.raises(TimeoutError, match="revisa la ventana de TTS"):
+            client.call_lua(lua.read_hand("Blue"))
     finally:
         client.close()
         fake.close()

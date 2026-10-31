@@ -86,6 +86,25 @@ def test_damage_healing_moves_draws_and_discards_are_logged_once(logged):
     assert "HEALING:" in lines(path)[-1]
 
 
+def test_two_draws_are_logged_as_two_when_the_table_deal_resets_the_counter_in_between(logged):
+    # 31/10 12:00: the maneuver draw was dealt (drawn[bot] back to 0) after its line, then Pancakes! drew 2 and
+    # returned 2 cards to the deck bottom: the log said "draws 1" (2 - the stale baseline of 1)
+    session, game, path = logged
+    bot = session.bot
+    session.game_log.observe(game, session._name)                    # baseline
+    game.draw(bot, 1)
+    session._done()
+    game.drawn[bot] = 0                                                # the table deal of the maneuver card settled
+    game.draw(bot, 2)
+    back = game.players[bot].hand[-2:]
+    for card in back:
+        game.players[bot].hand.remove(card)
+        game.players[bot].deck.append(card)                            # discard -> bottom of the deck, deck size moves
+    session._done()
+    draws = [l[9:] for l in lines(path) if "DRAW:" in l]
+    assert draws == [f"DRAW: P{bot} draws 1", f"DRAW: P{bot} draws 2"]
+
+
 def test_turn_start_and_game_over_are_logged(logged):
     session, game, path = logged
     session.game_log.observe(game, session._name)
