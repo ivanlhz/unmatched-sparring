@@ -464,8 +464,9 @@ def test_pact_of_secrecy_moves_the_bots_hand_through_the_bridge_and_leaves_yours
     assert len(bot.hand) == 2 and len(table.bot_hand) == 2 and table.hand_moves[-1][0] == "shuffle"
     assert said(msgs, "El bot pone 5 cartas de su mano en su mazo y lo baraja"), msgs
     assert session.effect_run is None and game.fx.ongoing_card_id(1) == card_ids(game, 1, "Pact Of Secrecy")[0]
-    assert any("Aplico Pact Of Secrecy: " in m and "robas 2" in m and "en la mesa: quedate con 2 cartas de tu mano, "
-               "pon el resto de tu mano en tu mazo y baraja" in m for m in msgs), msgs
+    assert any("Aplico Pact Of Secrecy: robas 2; el bot roba 2; el bot devuelve 5 cartas de su mano a su mazo; "
+               "en la mesa: quedate con 2 cartas de tu mano, pon el resto de tu mano en tu mazo y baraja." in m
+               for m in msgs), msgs                                # nothing says you look at the bot's hand
     assert not any(lab.startswith("Carta ") for lab in labels(session))
     table.human_count = 2
     click(session, table, Event.END_ACTION)                     # the sync follows the count you kept

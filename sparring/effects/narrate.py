@@ -65,7 +65,7 @@ def describe(game, before: dict, run, flow=None, title: str | None = None) -> st
     ability trigger)."""
     parts = _fighters(game, before) + _cards(game, before, run) + _turn(game, before, run)
     parts += _statuses(game, before) + _combat(before, flow)
-    if before["seen"][run.ctx.owner] != _seen(game.players[run.ctx.owner]):
+    if run.flags.get("looked_hand") and before["seen"][run.ctx.owner] != _seen(game.players[run.ctx.owner]):
         parts.append("mira tu mano" if run.ctx.owner == game.bot_player else "miras la mano del bot")
     parts = _fold_triggers(game, before, parts)
     priced = run.flags.get("bot_priced")
@@ -90,8 +90,8 @@ def _say_bot_price(game, run, parts: list[str], priced: dict) -> list[str]:
         why = f"prefiere recibir {stake:g} de dano a perder {cards} cartas" if stake else "no cambia el combate"
         return parts + [f"el bot no paga (descartar {cards}): {why}"]
     why = "el dano seria letal" if lethal else f"evita {stake:g} de dano"
-    discarded = next((p for p in parts if p.startswith("descarta ")), None)
-    rest = [p for p in parts if p != discarded and not p.startswith(f"el valor de {title} pasa a")]
+    discarded = next((p.removeprefix("el bot ") for p in parts if p.startswith(("descarta ", "el bot descarta "))), None)
+    rest = [p for p in parts if p.removeprefix("el bot ") != discarded and not p.startswith(f"el valor de {title} pasa a")]
     paid = discarded or f"paga {cards} cartas"          # `_cards` words the discard; without it the price still shows
     return [f"el bot {paid} para ignorar el valor de {title} (queda a 0; {why})"] + rest
 
@@ -154,6 +154,8 @@ def _cards(game, before: dict, run) -> list[str]:
     for p in (owner, 1 - owner):
         st, was = game.players[p], before["players"][p]
         roba, descarta, devuelve, su = VERBS["bot" if p == game.bot_player else "human"]
+        if p == game.bot_player and owner != p:     # the human's card made the bot act: name it as the subject
+            roba, descarta, devuelve = (f"el bot {v}" for v in (roba, descarta, devuelve))
         # the owed-draws counter also falls when the table settles it (a look row put the hand back): not a draw
         draws = max(0, game.drawn[p] - before["drawn"][p])
         if draws:
@@ -197,8 +199,10 @@ def _cards(game, before: dict, run) -> list[str]:
         taken, to_deck = max(net, 0), max(-net, 0)
         if taken > 0:
             out.append(f"{taken} carta{'s' if taken > 1 else ''} del mazo a {su} mano")
-        if to_deck > 0:
-            out.append(f"{devuelve} {to_deck} carta{'s' if to_deck > 1 else ''} de la mano al mazo")
+        # the human's own return to the deck is done on the table: `en la mesa` already says it
+        if to_deck > 0 and not (p != game.bot_player and table.lines(run)):
+            where = f"de {su} mano a {su} mazo" if p == game.bot_player and owner != p else "de la mano al mazo"
+            out.append(f"{devuelve} {to_deck} carta{'s' if to_deck > 1 else ''} {where}")
     return out
 
 
