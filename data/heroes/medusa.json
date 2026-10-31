@@ -341,6 +341,77 @@
    }
   ]
  },
+ "ai_profile": {
+  "medusa": {
+   "name": "Medusa",
+   "hero": true,
+   "count": 1,
+   "max_hp": 16,
+   "move": 3,
+   "ranged": true,
+   "role": "hero",
+   "attack": {
+    "cards": 18,
+    "mean": 2.33,
+    "max": 3
+   },
+   "exclusive": [
+    {
+     "title": "Second Shot",
+     "type": "attack",
+     "copies": 3,
+     "impact": 0.75
+    },
+    {
+     "title": "Gaze of Stone",
+     "type": "attack",
+     "copies": 3,
+     "impact": 3.62
+    },
+    {
+     "title": "Hiss and Slither",
+     "type": "defense",
+     "copies": 3,
+     "impact": 1.2
+    },
+    {
+     "title": "A Momentary Glance",
+     "type": "scheme",
+     "copies": 2,
+     "impact": 2.1
+    }
+   ]
+  },
+  "harpy": {
+   "name": "Harpy",
+   "hero": false,
+   "count": 3,
+   "max_hp": 1,
+   "move": 3,
+   "ranged": false,
+   "role": "keep_away",
+   "attack": {
+    "cards": 17,
+    "mean": 2.59,
+    "max": 4
+   },
+   "exclusive": [
+    {
+     "title": "The Hounds of Mighty Zeus",
+     "type": "versatile",
+     "copies": 2,
+     "impact": 1.08
+    },
+    {
+     "title": "Clutching Claws",
+     "type": "versatile",
+     "copies": 3,
+     "impact": 1.05
+    }
+   ],
+   "requires_alive": []
+  }
+ },
  "_notes": [
   "Hoja 176 del savegame (8x4), leida de la imagen el 2026-10-26. CardID = 17600 + idx; 302 = carta de personaje.",
   "Harpy: unmatched-memory las llama Harpies y repite la entrada por miniatura; aqui una sola con count 3.",

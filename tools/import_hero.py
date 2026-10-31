@@ -10,6 +10,8 @@ El overlay `data/heroes/overlay/<slug>.json` aporta lo que unmatched-memory no t
 los ayudantes corregidos (nombre del sparring, fid, cantidad), la hoja de CardID (`deck.card_base` + `deck.sheet`:
 idx, titulo, restriccion de luchador, etiquetas y, si la carta real dice otra cosa, `text`), y formas, contadores,
 disparadores y pasivas.
+Con los efectos DSL (`data/heroes/effects/<slug>.json`) y las cartas calcula `ai_profile`: el perfil estatico de cada
+luchador para la IA (sparring/ai_profile.py); el overlay puede fijar `ai_role: {fid: striker|keep_away}`.
 Sin hoja, el HeroDef lleva las cartas de unmatched-memory sin CardID ni restriccion y el motor no puede jugar con el."""
 from __future__ import annotations
 
@@ -21,10 +23,12 @@ from pathlib import Path
 ROOT = Path(__file__).resolve().parent.parent
 sys.path.insert(0, str(ROOT))
 
+from sparring.ai_profile import compute_ai_profile  # noqa: E402
 from sparring.cards import memory_dir  # noqa: E402
 from sparring.heroes import HEROES_DIR, parse_hero  # noqa: E402
 
 OVERLAY_DIR = HEROES_DIR / "overlay"
+EFFECTS_DIR = HEROES_DIR / "effects"
 TEXT_PARTS = (("effect", ""), ("effectImmediately", "IMMEDIATELY: "), ("effectDuring", "DURING COMBAT: "),
               ("effectAfter", "AFTER COMBAT: "))
 
@@ -50,7 +54,7 @@ def sidekick_groups(um: dict) -> list[dict]:
     return groups
 
 
-def build(slug: str, memory: Path, overlay_dir: Path = OVERLAY_DIR) -> dict:
+def build(slug: str, memory: Path, overlay_dir: Path = OVERLAY_DIR, effects_dir: Path = EFFECTS_DIR) -> dict:
     um = json.loads((memory / "data" / "heroes" / f"{slug}.json").read_text(encoding="utf-8"))
     ov = json.loads((overlay_dir / f"{slug}.json").read_text(encoding="utf-8"))
     groups = sidekick_groups(um)
@@ -92,6 +96,9 @@ def build(slug: str, memory: Path, overlay_dir: Path = OVERLAY_DIR) -> dict:
         "sidekicks": sidekicks, "forms": ov.get("forms"), "counters": ov.get("counters") or {},
         "triggers": ov.get("triggers") or [], "passives": ov.get("passives") or [], "deck": deck,
     }
+    effects_path = effects_dir / f"{slug}.json"
+    effects = json.loads(effects_path.read_text(encoding="utf-8")) if effects_path.exists() else None
+    out["ai_profile"] = compute_ai_profile(out, effects, ov.get("ai_role"))
     if ov.get("_notes"):
         out["_notes"] = ov["_notes"]
     parse_hero(out, f"{slug} (generado)")       # lo que no valida no se escribe

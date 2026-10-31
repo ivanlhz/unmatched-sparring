@@ -48,6 +48,7 @@ Agotamiento, limite de mano y desesperacion
 from __future__ import annotations
 
 from dataclasses import dataclass, field
+from collections import Counter
 from math import ceil, comb
 
 from .cards import can_be_boost
@@ -60,10 +61,18 @@ GAZE = "medusa_gaze"      # Medusa's start-of-turn ability trigger (data/heroes/
 CARD_VALUE = 0.4
 W_HERO = 1.0
 W_SIDEKICK = 0.8
-KILL_SIDEKICK = 3.0
+KILL_SIDEKICK = 3.0      # a sidekick without an AI profile (and the scale of protect_factor)
+KILL_BASE = 2.0          # killing any sidekick: the body, before what its death costs the rival
+STAKE_WEIGHT = 0.6       # share of the rival's still-to-come exclusive / dependent effects (the AI profile) a kill counts
+THREAT_WEIGHT = 0.15     # per point of the sidekick's mean attack value (x RANGED_THREAT when it shoots)
+RANGED_THREAT = 1.5
+KILL_CAP = 6.0           # a sidekick never outweighs the hero: killing or protecting the hero comes first
+STRIKE_PER_POINT = 0.2   # position reward per point of the best attack its owner holds, for a striker in strike range
+STRIKE_MIN = 0.6         # least a striker gains from standing in strike range (what adjacency always gave a sidekick)
 W_MEDUSA_HP = 1.2
 HARPY_VALUE = 0.9
 LETHAL = 60.0
+HERO_KILL = 8.0          # the hero's kill bonus before the game itself (LETHAL): no sidekick kill (<= KILL_CAP + its hit points) outranks it
 PRESSURE = 0.3
 BOOST_DISCOUNT = 0.65   # reaching with a boost costs him a card and both actions
 DOUBLE_ATTACK = 1.5     # already in reach: he can attack twice without moving
@@ -206,6 +215,53 @@ def play_signature(g: Game, me: int, card) -> tuple:
 
 def weight(t: Fighter) -> float:
     return W_HERO if t.hero else W_SIDEKICK
+
+
+def unseen_copies(game: Game, owner: int) -> Counter:
+    """Copies per title of `owner`'s cards that are not in their public discard: still in hand or deck, still to
+    come for them (for the rival: what the Model also treats as possible)."""
+    st = game.players[owner]
+    left = Counter(c.title for c in st.full_set)
+    left.subtract(c.title for c in st.discard)
+    return left
+
+
+def fighter_profile(game: Game, f: Fighter) -> dict | None:
+    return None if f.hero else game.players[f.owner].hero.fighter_profile(f.name)
+
+
+def stake(game: Game, f: Fighter, prof: dict) -> float:
+    """What the owner of sidekick `f` still stands to lose with it (AI profile, sparring/ai_profile.py): the
+    exclusive cards it alone can play and the effects that need it alive, counted by the copies not yet in the
+    owner's discard. The living pieces of a group (3 Harpies) share it: each carries 1/n^2 of it, so killing the
+    first barely matters and the last one alive carries all (the cards die with it). Their attack threat is not
+    shared (`kill_value`): each piece killed is one attacker less."""
+    left = unseen_copies(game, f.owner)
+    total = sum(e["impact"] * max(0, min(e["copies"], left[e["title"]])) for e in prof["exclusive"] if e["impact"] > 0)
+    total += sum(r["impact"] * (1 if r["kind"] == "ability" else max(0, min(r["copies"], left[r["source"]])))
+                 for r in prof["requires_alive"])
+    alive = sum(1 for x in game.own(f.owner) if x.name == f.name)
+    return total / (alive * alive)
+
+
+def kill_value(game: Game, f: Fighter) -> float:
+    """What killing sidekick `f` is worth to its rival (and costs its owner): the body, a share of its stake and
+    its attack threat; at most KILL_CAP. Finishing the rival hero is worth HERO_KILL + LETHAL in `attack_eval`, so
+    no sidekick kill outranks it; a big hit on the hero that does not finish it may lose to a valuable kill."""
+    prof = fighter_profile(game, f)
+    if prof is None:
+        return KILL_SIDEKICK
+    threat = THREAT_WEIGHT * prof["attack"]["mean"] * (RANGED_THREAT if prof["ranged"] else 1.0)
+    return min(KILL_CAP, KILL_BASE + STAKE_WEIGHT * stake(game, f, prof) + threat)
+
+
+def protect_factor(game: Game, f: Fighter) -> float:
+    return max(1.0, kill_value(game, f) / KILL_SIDEKICK)
+
+
+def is_striker(game: Game, f: Fighter) -> bool:
+    prof = fighter_profile(game, f)
+    return prof is not None and prof["role"] == "striker"
 
 
 class MedusaAI(Controller):
@@ -365,7 +421,9 @@ class MedusaAI(Controller):
             gaze_dmg += p * extra
             p_kill += p * (net + extra >= t.hp)
         w = weight(t)
-        value = w * (e_net + gaze_dmg) + (KILL_SIDEKICK if not t.hero else 8.0) * p_kill - cost
+        value = w * (e_net + gaze_dmg) - cost
+        if p_kill > 0:      # the kill prize is only looked up when the blow can kill (it scans both decks)
+            value += (HERO_KILL + LETHAL if t.hero else kill_value(game, t)) * p_kill   # finishing the hero wins the game
         if t.hero and f.owner == self.me:
             # el dano ya hecho vale mas que el que solo se podria hacer luego (`win_progress` lo descuenta)
             value += self.desperation(game) * WIN_PRIZE * (e_net + gaze_dmg) / max(t.hp, 1)
@@ -399,7 +457,7 @@ class MedusaAI(Controller):
                 for t in game.foes(self.me):
                     if game.board.share_zone(medusa.pos, t.pos):
                         dmg = min(GLANCE_DAMAGE, t.hp)
-                        v = weight(t) * dmg + (KILL_SIDEKICK if not t.hero and t.hp <= GLANCE_DAMAGE else 0) - CARD_VALUE
+                        v = weight(t) * dmg + (kill_value(game, t) if not t.hero and t.hp <= GLANCE_DAMAGE else 0) - CARD_VALUE
                         out.append(Act("glance", v, medusa.fid, t.fid, c))
             elif c.title == "Winged Frenzy":
                 out.append(self.frenzy_act(game, model, c))
@@ -651,7 +709,9 @@ class MedusaAI(Controller):
                     p_dead += p * (dmg >= t.hp)
                 if not t.hero:
                     p_hit = sum(p for p, v in model.attack_dist(e) if v is not None and v > my_def)
-                    danger = HARPY_VALUE * t.max_hp * p_hit
+                    danger = HARPY_VALUE * t.max_hp * p_hit      # positional fear is not scaled for a single prized piece (Lobster, Koschei): it must still go and shoot (scaling it cost 2-9 wins of 30 in the simulator); the last piece of a group (Agents, Harpies) is shielded more because the cards that need any of them die with it. Defense and boost decisions scale for all
+                    if sum(1 for x in mine if x.name == t.name) == 1 and (fighter_profile(game, t) or {}).get("count", 1) > 1:
+                        danger *= protect_factor(game, t)
                 else:
                     danger = W_MEDUSA_HP * exp + LETHAL * p_dead
                 best = max(best, p_reach * danger)
@@ -667,7 +727,18 @@ class MedusaAI(Controller):
         for h in mine:
             if not h.hero and foes:
                 score -= 0.05 * min(board.distance(pos[h.fid], pos[e.fid]) for e in foes)
+                if is_striker(game, h) and any(board.can_reach_target(pos[h.fid], pos[e.fid], h.ranged) for e in foes):
+                    score += self.strike_reward(game, h)
         return score
+
+    def strike_reward(self, game: Game, f: Fighter) -> float:
+        """Position value of an own striker ending in strike range of a rival: STRIKE_PER_POINT for each point of the
+        best attack in its owner's hand that it can play (at least STRIKE_MIN: it will draw one)."""
+        if not f.ranged:
+            return STRIKE_MIN
+        hand = game.players[f.owner].hand
+        best = max((c.value for c in hand if c.can_attack and c.usable_by(f.name)), default=0)
+        return max(STRIKE_MIN, STRIKE_PER_POINT * (best + game.attack_bonus(f)))
 
     def harpy_score(self, game: Game, h: Fighter, dest: int) -> float:
         foes = game.foes(self.me)
@@ -675,6 +746,9 @@ class MedusaAI(Controller):
             return 0.0
         b = game.board
         near = min(b.distance(dest, e.pos) for e in foes)
+        if is_striker(game, h):
+            reach = any(b.can_reach_target(dest, e.pos, h.ranged) for e in foes)
+            return -0.25 * near + (self.strike_reward(game, h) if reach else 0.0)
         return -0.25 * near + (0.6 if near == 1 else 0.0)
 
     def reach_dests(self, game: Game, f: Fighter, options: set[int]) -> set[int]:
@@ -764,6 +838,8 @@ class MedusaAI(Controller):
                 net = max(0, ctx.atk_value - ctx.def_value - c.boost)
                 gain = (W_MEDUSA_HP if t.hero else HARPY_VALUE) * (min(now, t.hp) - min(net, t.hp))
                 gain += LETHAL if t.hero and now >= t.hp > net else 0.0
+                if not t.hero:
+                    gain *= protect_factor(game, t)
             else:
                 net = max(0, ctx.atk_value + c.boost - ctx.def_value)
                 gain = weight(t) * (min(net, t.hp) - min(now, t.hp))
@@ -804,7 +880,7 @@ class MedusaAI(Controller):
             p_hit += p * (net >= 1)
             p_block += p * (net == 0)
         if not target.hero:
-            v = -HARPY_VALUE * target.max_hp * p_hit
+            v = -HARPY_VALUE * target.max_hp * p_hit * protect_factor(game, target)   # a dead card engine is worth a defense card
         else:
             v = -W_MEDUSA_HP * exp - LETHAL * p_dead
         if c is None:
