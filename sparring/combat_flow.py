@@ -38,6 +38,7 @@ _RESERVED = {"kind", "player", "card", "deck"}
 class PendingChoice:
     """A decision the flow is waiting for. The flat dict form is the save format of `Pending.boost_wait`."""
     kind: str                    # "boost" (a card to put on the table) | "effect" (a DSL decision: extra has key+request)
+                                 # | "table" (AFTER gate: the human does a step on their hand before the next side's effect)
     player: int                  # who decides
     card_id: int                 # card whose effect asks
     deck: bool = False           # Flame Lash: the boost is the bottom card of the deck
@@ -56,6 +57,10 @@ class PendingChoice:
         if kind == "effect":
             if not _is_int(player) or not (card is None or _is_int(card)) or not isinstance(raw.get("key"), str) \
                     or not isinstance(raw.get("request"), dict):
+                raise KeyError("pending choice")
+            return cls(kind, player, card, False, {k: v for k, v in raw.items() if k not in _RESERVED})
+        if kind == "table":
+            if not _is_int(player) or not _is_int(card):
                 raise KeyError("pending choice")
             return cls(kind, player, card, False, {k: v for k, v in raw.items() if k not in _RESERVED})
         if kind != "boost" or not _is_int(player) or not _is_int(card):
@@ -160,6 +165,9 @@ class CombatFlow:
             self._enter(_NEXT[self.phase])
             return None
         side = self.sides[self.side_idx]
+        if self.phase is Phase.AFTER and (gate := self._table_gate(side)) is not None:
+            self.pending = gate
+            return Await(gate)
         handler = self._handler(side)
         if handler is not None:
             self.await_key = f"{self.phase.value}:{side.name}:{handler.name}"
@@ -168,6 +176,25 @@ class CombatFlow:
                 return wait
         self.side_idx += 1
         return None
+
+    def _table_gate(self, side: Side) -> PendingChoice | None:
+        """Ivan, 31/10 (Glimpse Of Hell, then Fleeting Moments): AFTER effects go one after the other, the defender's
+        first. When the previous side's effect left the human a step on their own hand (a card to put back in the
+        deck, a discard they owe), the next side's effect waits for it: it may read that hand (a random discard) and
+        the cards the first one drew. The gate is answered once the table has been read again (`resume(None)`)."""
+        if self.side_idx == 0 or self.runs.get(f"after:{self.sides[self.side_idx - 1].name}") is None:
+            return None
+        prev = self.sides[self.side_idx - 1]
+        key = f"after_gate:{prev.name}"
+        if key in self.answers or side.name in self.ctx.cancelled:
+            return None
+        from .effects import table
+        from .effects.model import load_effects
+        owner = side.fighter.owner
+        if not _dsl(self, side) or not table.hand_step_pending(self.runs[f"after:{prev.name}"])                 or not load_effects(self.game.players[owner].hero.slug).moment_ops(side.card.title, "after"):
+            return None
+        self.await_key = key
+        return PendingChoice("table", prev.fighter.owner, prev.card.card_id)
 
     def _handler(self, side: Side) -> Rule | None:
         cancelled = side.name in self.ctx.cancelled
@@ -473,6 +500,8 @@ def legacy_chooser(game: Game, flow: CombatFlow, boost: Card | None, human: int 
     live session's seat; the attacker's, or the defender's when it may boost, Out Of Time) uses the boost the caller
     already read from the table."""
     def choose(choice: PendingChoice):
+        if choice.kind == "table":          # a human table step between AFTER sides: nothing to wait for here
+            return None
         if choice.kind == "effect":         # a panel chooser paused an effect inside a synchronous combat
             from .effects.choose import ChoiceRequest
             from .effects.ops_combat import default_choosers
