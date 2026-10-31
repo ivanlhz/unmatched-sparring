@@ -481,15 +481,16 @@ def test_pact_of_time_shuffles_what_each_player_picks_from_their_discard(rig):
     table.human_discard = [teeth, exploit]
     human_hand(table, game, "Pact Of Time", "Deathless")
     msgs = human_scheme(session, table, game, "Pact Of Time")
-    assert session.effect_run.awaiting.kind == "cards" and sorted(labels(session))[:2] == ["Exploit", "Iron Teeth"]
-    press(session, table, teeth)
-    msgs = press(session, table, "Confirmar")
+    assert session.effect_run.awaiting.kind == "cards"
+    assert said(msgs, "Pact Of Time: saca de tu descarte hasta 2 cartas") and labels(session) == ["Hecho"], msgs
+    table.human_discard.remove(teeth)                            # Ivan 31/10: you shuffle it yourself, the bot detects it
+    msgs = click(session, table, Event.CHOICE, {"i": 1})
     assert len(table.bot_discard) == 0 and set(bot_ids) <= set(table.bot_deck)
     assert said(msgs, "El bot baraja Feint y Flame Lash de su descarte en su mazo"), msgs
     st = game.players[1]
     assert teeth in [c.card_id for c in st.deck] and exploit in [c.card_id for c in st.discard]
-    assert said(msgs, "Meto Iron Teeth en tu mazo y lo barajo (efecto de Pact Of Time)")
-    assert table.human_deck == [teeth] and teeth not in table.human_discard      # the bot moved it (Ivan 29/10)
+    assert said(msgs, "Anoto Iron Teeth en tu mazo (efecto de Pact Of Time)")
+    assert table.human_deck == [] and teeth not in table.human_discard         # the human moved it, the bot did not
     assert not game.fx.can_gain_actions(0) and not game.fx.can_gain_actions(1)
 
 
@@ -686,34 +687,12 @@ def test_rekindle_picks_from_your_public_pile_and_you_shuffle_them_in(rig, monke
     human_attack(session, table, game, "liz", "hellboy", "Rekindle")
     click(session, table, Event.REVEAL)
     assert session.effect_run.awaiting.kind == "cards" and session.effect_run.awaiting.max == 2
-    press(session, table, fireball)
-    press(session, table, evade)
-    msgs = press(session, table, "Confirmar")
+    table.human_discard.clear()                        # Ivan 31/10: the human shuffles both into their deck; Hecho detects them
+    msgs = click(session, table, Event.CHOICE, {"i": 1})
     st = game.players[1]
     assert {fireball, evade} <= {c.card_id for c in st.deck} and session.pending is None
-    assert said(msgs, "Meto Fireball y Evade en tu mazo y lo barajo (efectos del combate)")
-    assert sorted(table.human_deck) == sorted([fireball, evade]) and table.human_discard == []
-
-
-@with_rig(*LIZ_VS_HELLBOY)
-def test_rekindle_names_only_the_cards_the_table_could_not_move(rig, monkeypatch):
-    session, table, game, fake, cfg = rig
-    put_adjacent(game, table, cfg, "liz", "hellboy")
-    bot_defends_with_nothing(session, monkeypatch)
-    fireball, evade, feint = card_ids(game, 1, "Fireball", "Evade", "Feint")
-    table.human_discard = [fireball, evade, feint]
-    table.stuck_in_pile = {evade}
-    human_hand(table, game, "Rekindle", "Pyrotechnics")
-    click(session, table, Event.MANEUVER)
-    table.positions[cfg.nicknames["liz"]] = game.fighters["liz"].pos
-    click(session, table, Event.END_ACTION)
-    human_attack(session, table, game, "liz", "hellboy", "Rekindle")
-    click(session, table, Event.REVEAL)
-    for card in (fireball, evade, feint):
-        press(session, table, card)
-    msgs = press(session, table, "Confirmar")
-    assert said(msgs, "No he podido mover Evade de tu descarte en tu mazo y baraja: hazlo tu")
-    assert not said(msgs, "mover Fireball") and not said(msgs, "Feint de tu descarte")
+    assert said(msgs, "Anoto Fireball y Evade en tu mazo (efectos del combate)"), msgs
+    assert table.human_deck == [] and table.deck_moves == []
 
 
 @with_rig(*LIZ_VS_HELLBOY, human_ongoing_spot=None, bot_ongoing_spot=None)       # no ONGOING zone: the pile route
@@ -1037,54 +1016,102 @@ def test_game_maneuver_checks_before_spending(bprd):
     assert (g.actions_left, len(g.players[1].hand), len(g.players[1].deck)) == before
 
 
-def searing_clarity_pick(session, table, game, incinerate):
+def searing_clarity_played(session, table, game):
     human_hand(table, game, "Searing Clarity", "Evade")
-    human_scheme(session, table, game, "Searing Clarity")
-    assert session.effect_run.awaiting.kind == "cards"
-    return press(session, table, incinerate)                   # max 1: the pick resolves it
+    return human_scheme(session, table, game, "Searing Clarity")
 
 
 @with_rig(*LIZ_VS_HELLBOY)
-def test_searing_clarity_pick_is_moved_by_the_bot_into_the_human_deck_and_shuffled(rig):
+def test_searing_clarity_has_no_options_the_human_moves_the_card_and_hecho_detects_it(rig):
+    """Ivan 31/10: the human takes the card out of the discard pile themselves; the bot detects it at Hecho."""
     session, table, game, fake, cfg = rig
     incinerate, fireball = card_ids(game, 1, "Incinerate", "Fireball")
     table.human_discard = [incinerate, fireball]
-    msgs = searing_clarity_pick(session, table, game, incinerate)
-    assert said(msgs, "Meto Incinerate en tu mazo y lo barajo"), msgs
-    assert not any("Baraja Incinerate" in m or "hazlo tu" in m for m in msgs), msgs
-    assert table.deck_moves[-1] == ("shuffle", [incinerate])
-    assert table.human_deck == [incinerate] and fireball in table.human_discard and incinerate not in table.human_discard
-    assert incinerate in {c.card_id for c in game.players[1].deck}
-    click(session, table, Event.END_ACTION)                     # the sync does not fight the move
-    assert incinerate in {c.card_id for c in game.players[1].deck}
-
-
-@with_rig(*LIZ_VS_HELLBOY)
-def test_searing_clarity_pick_already_moved_by_the_human_is_not_an_error(rig):
-    session, table, game, fake, cfg = rig
-    incinerate, fireball = card_ids(game, 1, "Incinerate", "Fireball")
-    table.human_discard = [incinerate, fireball]
-    human_hand(table, game, "Searing Clarity", "Evade")
-    human_scheme(session, table, game, "Searing Clarity")
-    table.human_discard.remove(incinerate)                       # the human put it in their deck first
-    msgs = press(session, table, incinerate)
-    assert said(msgs, "Incinerate ya no esta en tu descarte"), msgs
-    assert table.deck_moves == [] and not any(m.startswith("No puedo") for m in msgs)
+    msgs = searing_clarity_played(session, table, game)
+    assert said(msgs, "Searing Clarity: saca de tu descarte una carta, ponla en tu mazo y barajalo y pulsa Hecho"), msgs
+    assert labels(session) == ["Hecho"] and not said(msgs, "pulsa una de las opciones")
+    table.human_discard.remove(incinerate)                       # the human shuffles it into their deck
+    msgs = click(session, table, Event.CHOICE, {"i": 1})
+    assert said(msgs, "Anoto Incinerate en tu mazo"), msgs
+    assert table.deck_moves == [] and not any(m.startswith("No puedo") or "ya no esta" in m for m in msgs), msgs
+    assert incinerate in {c.card_id for c in game.players[1].deck} and session.effect_run is None
+    click(session, table, Event.END_ACTION)                     # the sync does not fight it
     assert incinerate in {c.card_id for c in game.players[1].deck}
 
 
 @with_rig(*LIZ_VS_HELLBOY)
-def test_panel_title_of_a_card_pick_has_no_parentheses(rig):
+def test_searing_clarity_hecho_refuses_nothing_moved_a_scheme_or_too_many(rig):
+    session, table, game, fake, cfg = rig
+    incinerate, fireball, feint = card_ids(game, 1, "Incinerate", "Fireball", "Feint")
+    pact = card_ids(game, 1, "Fight Or Flight")[0]                # another scheme, already on the pile
+    table.human_discard = [incinerate, fireball, feint, pact]
+    msgs = searing_clarity_played(session, table, game)
+    assert said(msgs, "una carta que no sea un plan"), msgs
+    msgs = click(session, table, Event.CHOICE, {"i": 1})
+    assert said(msgs, "No veo que hayas sacado ninguna carta"), msgs
+    assert session.effect_run is not None
+    table.human_discard.remove(pact)
+    msgs = click(session, table, Event.CHOICE, {"i": 1})
+    assert said(msgs, "no se puede elegir con Searing Clarity"), msgs
+    table.human_discard.append(pact)
+    table.human_discard.remove(incinerate)
+    table.human_discard.remove(fireball)
+    msgs = click(session, table, Event.CHOICE, {"i": 1})
+    assert said(msgs, "Has sacado 2 cartas") and session.effect_run is not None, msgs
+    table.human_discard.append(fireball)
+    msgs = click(session, table, Event.CHOICE, {"i": 1})
+    assert session.effect_run is None and said(msgs, "Efecto resuelto"), msgs
+
+
+@with_rig(*LIZ_VS_HELLBOY)
+def test_hecho_with_no_reply_from_the_table_never_reads_the_last_card_as_moved(rig, monkeypatch):
     session, table, game, fake, cfg = rig
     incinerate, fireball = card_ids(game, 1, "Incinerate", "Fireball")
     table.human_discard = [incinerate, fireball]
-    human_hand(table, game, "Searing Clarity", "Evade")
-    human_scheme(session, table, game, "Searing Clarity")
-    from sparring.session_choices import PROMPTS, prompt_text
-    req = session.effect_run.awaiting
-    assert "(" not in PROMPTS["cards"] and prompt_text(game, req).startswith("Elige una carta")
-    status = session._status_text()
-    assert status.startswith("Elige una carta") and "(" not in status and ")" not in status
+    searing_clarity_played(session, table, game)
+    monkeypatch.setattr(session, "_rd_human_discard_raw", lambda: None)
+    msgs = click(session, table, Event.CHOICE, {"i": 1})
+    assert said(msgs, "No he podido leer tu descarte: pulsa Hecho otra vez") and session.effect_run is not None, msgs
+    monkeypatch.undo()
+    table.human_discard.remove(incinerate)
+    msgs = click(session, table, Event.CHOICE, {"i": 1})
+    assert session.effect_run is None and said(msgs, "Anoto Incinerate"), msgs
+
+
+@with_rig(*LIZ_VS_HELLBOY)
+def test_searing_clarity_choice_pending_blocks_the_end_of_the_turn_and_the_action_is_gained(rig):
+    """Live 31/10: with 1 action left Fin de accion recognised the plan, its choice was pending and the turn still
+    passed to the bot before 'gain 1 action'. The turn stays the human's; after the answer the +1 action is there."""
+    session, table, game, fake, cfg = rig
+    incinerate, fireball = card_ids(game, 1, "Incinerate", "Fireball")
+    table.human_discard = [incinerate, fireball]
+    game.actions_left = 1
+    msgs = searing_clarity_played(session, table, game)
+    assert game.turn == 1 and game.actions_left == 0 and session.effect_run is not None
+    assert not said(msgs, "Fin de tu turno") and not said(msgs, "Turno del bot"), msgs
+    blocked = click(session, table, Event.END_ACTION)             # refused while the choice waits
+    assert said(blocked, "eleccion de efecto pendiente") and game.turn == 1
+    table.human_discard.remove(incinerate)
+    msgs = click(session, table, Event.CHOICE, {"i": 1})
+    assert game.turn == 1 and game.actions_left == 1 and not said(msgs, "Turno del bot"), msgs
+    assert said(msgs, "Pulsa Fin de accion cuando termines") and sum("Pulsa Fin de accion" in m for m in msgs) == 1
+    msgs = click(session, table, Event.END_ACTION)
+    assert game.turn == 1 and game.actions_left == 1 and said(msgs, "Te quedan 1 accion"), msgs
+
+
+@with_rig(*LIZ_VS_HELLBOY)
+def test_searing_clarity_narration_is_only_its_own_effect(rig):
+    session, table, game, fake, cfg = rig
+    incinerate, fireball = card_ids(game, 1, "Incinerate", "Fireball")
+    table.human_discard = [incinerate, fireball]
+    game.actions_left = 1
+    searing_clarity_played(session, table, game)
+    table.human_discard.remove(incinerate)
+    msgs = click(session, table, Event.CHOICE, {"i": 1})
+    text = " | ".join(msgs)
+    assert said(msgs, "Aplico Searing Clarity") and "ganas 1 accion" in text.replace("gana 1", "ganas 1"), msgs
+    assert not said(msgs, "efecto del bot") and not said(msgs, "El bot") and not said(msgs, "Turno del bot"), msgs
+    assert sum("Incinerate" in m for m in msgs) <= 2, msgs
 
 
 @with_rig(*LIZ_VS_HELLBOY, **ONGOING_SPOTS)
