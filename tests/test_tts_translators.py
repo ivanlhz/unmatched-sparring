@@ -111,7 +111,7 @@ def test_discard_human_variant_owes_a_count_the_human_chooses(rig):
     intent = {"op": "discard", "player": session.human, "zone": "hand", "n": 2, "reason": "Algo"}
     assert translators._discard_mode(session, intent) == HUMAN
     translate(session, intent, Ctx())
-    assert session.pending_discard == {"n": 2, "baseline": base, "kind": "cards"}
+    assert session.pending_discard == {"n": 2, "baseline": base, "kind": "cards", "hand": True}
     assert said(session.messages, "Descarta 2 carta(s) (Algo) y pulsa Fin de accion") and tags(table) == []
 
 

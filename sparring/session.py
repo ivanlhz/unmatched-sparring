@@ -1627,9 +1627,25 @@ class Session:
         n = drawn - self.human_dealt
         if n <= 0:
             return
+        d = self.pending_discard
+        if d is not None and d.get("hand"):
+            # the effect discards from the human's hand first and draws after (Fleeting Moments, Crown Of Flame):
+            # the cards are dealt when the discard is settled, so the discard is of the hand they hold now
+            if cause and not d.get("draw_cause"):
+                d["draw_cause"] = cause
+            if not d.get("draws_told"):
+                d["draws_told"] = True
+                self.say(f"Cuando hayas descartado y pulses Fin de accion te doy {translators.plural(n)}.",
+                         ChatKind.YOUR_TURN)
+            return
         self.human_dealt = drawn
         translators.translate(self, {"op": "draw", "player": self.human, "n": n, "cause": cause},
                               translators.Ctx(cause or ""))
+
+    def _undealt_draws(self) -> int:
+        """Draws the engine counted that wait for the human's discard to be settled (`_deal_owed_draws`)."""
+        d = self.pending_discard
+        return max(0, self.game.drawn[self.human] - self.human_dealt) if d is not None and d.get("hand") else 0
 
     def _deal_human_cards(self, n: int, cause: str | None) -> None:
         """The bot variant of the `draw` translator: `n` cards from the human's physical deck to their hand."""
@@ -2486,7 +2502,9 @@ class Session:
         self.moving = False
         if self.pending_discard is not None and not self._discard_done():
             return
+        owed_cause = (self.pending_discard or {}).get("draw_cause")
         self.pending_discard = None
+        self._deal_owed_draws(owed_cause)         # the draws that came after the discard are dealt now
         if self.game.turn == self.bot:
             self._bot_continue()
         else:
@@ -4431,7 +4449,8 @@ class Session:
         in_play = self.game.fx.ongoing_card_id(self.human)     # your ONGOING scheme sits on the pile while in play
         self._land_in_discard(ids - {in_play})
         self._verify_maneuver_deal(real, len(ids))
-        self._trim_virtual_hand(real)
+        held = real + self._undealt_draws()       # the cards owed after a pending discard are not on the table yet
+        self._trim_virtual_hand(held)
         hero = self.game.hero(self.human)
         if real > len(st.hand) and not self.game.fx.can_draw(self.human):      # a physical draw under Cold Iron
             self._warn(hero.fid, "draw", f"Tu mano ha crecido y un efecto en juego te impide robar ({choices.NO_DRAW_REASON}): "
@@ -4440,7 +4459,7 @@ class Session:
             self._warned.discard((hero.fid, "draw"))
         # a card the bot knows is on top of your deck (Every Possible Angle) is not in your hand unless the deck shrank
         top = set() if drew else set(self.game.players[self.bot].known.top_of_deck)
-        while len(st.hand) < real:
+        while len(st.hand) < held:
             spare = next((c for c in st.deck if c.card_id not in top), None)
             if spare is None:
                 break

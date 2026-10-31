@@ -136,6 +136,7 @@ def _discard_human(session, intent: dict, ctx: Ctx) -> list[Check]:
                     f"({ctx.cause}) y pulsa Fin de accion.", ChatKind.YOUR_TURN)
     elif intent["n"] > 0:                         # a count: the human chooses which ones
         d["n"] += intent["n"]
+        d["hand"] = True                          # the draws the effect owes come after this discard
         session.pending_discard = d
         session.say(f"Descarta {intent['n']} carta(s) ({intent['reason']}) y pulsa Fin de accion."
                     f"{session._wildfire_hint()}", ChatKind.YOUR_TURN)
