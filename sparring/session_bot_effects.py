@@ -16,7 +16,9 @@ The human's cards are the human's (`setPositionSmooth` never takes a card out of
 reads or reorders their deck): the chat names what to move and `Session.sync_human` / `pending_discard` wait for it.
 One exception, Ivan's ruling of 29/10 (live test, Searing Clarity): a card the human picked at the panel out of
 their own PUBLIC discard pile for an effect that moves it into their deck is moved by the bot, by GUID, and the bot
-shuffles their deck when the card says so (`_human_disc_to_deck`). A failed write is said once and the table wins
+shuffles their deck when the card says so (`_human_disc_to_deck`). Since Ivan's ruling of 31/10 the human's own
+discard -> deck picks are made by hand instead (`session_pile`: the human moves them, the bot detects them at Hecho
+and `_human_disc_to_deck` only notes them); the bot's write stays for a request that did not go through the table. A failed write is said once and the table wins
 at the next read, like every other projection of the session.
 
 Ivan's rule on hidden information: `read_human_hand` is the only reader of the human's hand; it is installed as
@@ -423,6 +425,13 @@ def _human_disc_to_deck(session, ids: list[int], d0: list[int], d1: list[int], b
     failed."""
     cfg = session.cfg
     position, ordered = deck_position(d0, d1, ids)
+    by_hand = [i for i in ordered if i in session.hand_deck]
+    if by_hand:                                   # session_pile: the human moved them and the bot detected it
+        session.say(f"Anoto {_join(by_id[i].title for i in by_hand)} en tu mazo ({cause}).", ChatKind.SCHEME)
+        ordered = [i for i in ordered if i not in by_hand]
+        ids = ordered
+        if not ordered:
+            return []
     if not cfg.human_deck_guid:
         session.say(f"Pon {_join(by_id[i].title for i in ids)} de tu descarte {WHERE_YOU[position]} ({cause}).",
                     ChatKind.YOUR_TURN)

@@ -39,6 +39,7 @@ from . import session_choices as choices
 from . import session_effects as human_effects
 from . import session_hidden as hidden
 from . import session_moves as moves
+from . import session_pile as pile
 from . import session_translators as translators
 from .spaces import describe, zone_text
 from .combat import FEINT, FIGHT_OR_FLIGHT, FIGHT_OR_FLIGHT_BONUS, GLANCE_DAMAGE, can_boost, deck_boost, is_medusa_card, scheme_gain_actions
@@ -284,6 +285,7 @@ class Session:
         self.fx_unprojected: dict | None = None       # bot_effects snapshot taken before the turn change, projected at the bot's first write
         self.fx_in_flight: set[int] = set()           # CardIDs a bot effect is moving off its pile or hand in this step
         self.hand_discarded: set[int] = set()         # CardIDs the bot moved from the human's hand to their pile in this step (Crown Of Flame): nothing left to ask
+        self.hand_deck: set[int] = set()              # CardIDs the human put from their discard into their deck by hand (session_pile): not moved again
         self.hand_moved: dict[str, int] = {}          # fid -> space the human put a miniature on by hand (session_moves): not projected again
         self.fx_looked = False                        # a look_hand re-identified the human's virtual hand in this step
         self.reveal_bot_hand = False                  # a card of the human looked at the bot's hand in this step (E3)
@@ -452,6 +454,9 @@ class Session:
         elif moves.manual_request(self) is not None:
             self.choice_ui = choices.ChoiceUI()
             self.say(moves.reprompt(self, moves.manual_request(self)), ChatKind.YOUR_TURN)
+        elif pile.manual_request(self) is not None:
+            self.choice_ui = choices.ChoiceUI()
+            self.say(pile.reprompt(self, pile.manual_request(self)), ChatKind.YOUR_TURN)
         elif self.effect_run is not None:
             self.choice_ui = choices.ChoiceUI()
             self.say("Hay una eleccion de efecto pendiente: " + choices.prompt_text(self.game, self.effect_run.awaiting)
@@ -796,6 +801,7 @@ class Session:
         self._persist()
         self.snap = None                          # la mesa cambia entre botones: el siguiente trae la suya
         self.fx_in_flight = set()
+        self.hand_deck = set()
         self.hand_discarded = set()
         self.game_log.observe(self.game, self._name)
         return self.messages
@@ -971,6 +977,9 @@ class Session:
         if moves.manual_request(self) is not None:
             moves.start(self, req)                # a fighter the human moves by hand: no space buttons
             return
+        if pile.manual_request(self) is not None:
+            pile.start(self, req)                 # cards the human moves from their discard to their deck: no options
+            return
         self.say(choices.prompt_text(self.game, req) + ": pulsa una de las opciones del panel ("
                  + choices.options_text(self.game, req) + ")." + choices.card_text_hint(self.game, req),
                  ChatKind.YOUR_TURN)
@@ -1011,6 +1020,9 @@ class Session:
             return
         if moves.manual_request(self) is not None:        # a fighter to move by hand: 1 is Hecho, 2 is No mover
             moves.press(self, paused, payload.get("i"))
+            return
+        if pile.manual_request(self) is not None:         # cards from your discard to your deck: 1 is Hecho
+            pile.press(self, paused, payload.get("i"))
             return
         verdict, value = choices.press(self.game, run.awaiting, self.choice_ui, payload.get("i"))
         if verdict == "error":
@@ -1101,6 +1113,8 @@ class Session:
             return hidden.manual_view(self)[1]
         if moves.manual_request(self) is not None:
             return moves.view(self, req)[1]
+        if pile.manual_request(self) is not None:
+            return pile.view(self, req)[1]
         return choices.panel_choice_view(self.game, req, self.choice_ui)[1]
 
     # ---------- the look at the bot's hand: only when a card allows it ----------
@@ -2419,6 +2433,8 @@ class Session:
         if self.scheme_baseline is not None and not self._resolve_human_scheme(wait=False):
             self.say("No he visto ninguna carta de plan nueva en tu descarte: resuelve el plan a mano.", ChatKind.WARNING)
         self.scheme_baseline = None
+        if self._paused() is not None:            # the plan asks you something: the turn cannot end (nor its actions be counted) before the answer
+            return
         self._check_maneuver_boost()
         if self.ability_wait is not None:         # the table was read: your start-of-turn ability is done
             self.ability_wait = None
@@ -3526,7 +3542,9 @@ class Session:
         req = paused[2].awaiting if choosing else None
         manual = hidden.manual_request(self) is not None
         by_hand = moves.manual_request(self)
+        by_pile = pile.manual_request(self)
         states.update((hidden.manual_view(self) if manual else moves.view(self, by_hand) if by_hand is not None
+                       else pile.view(self, by_pile) if by_pile is not None
                        else choices.panel_choice_view(g, req, self.choice_ui))[0])
         for ident in self._blocked_buttons():
             states[ident] = (False, False)
@@ -3562,6 +3580,8 @@ class Session:
             return hidden.manual_status(self)
         if moves.manual_request(self) is not None:
             return choices.safe_label(moves.status(self, moves.manual_request(self)), "Hecho", 80)
+        if pile.manual_request(self) is not None:
+            return choices.safe_label(pile.status(self, pile.manual_request(self)), "Hecho", 80)
         if self.effect_run is not None:
             return choices.safe_label(choices.prompt_text(g, self.effect_run.awaiting), "Elige una opcion", 80)
         if g.turn != self.human:

@@ -43,7 +43,7 @@ def test_the_summary_and_the_dial_come_before_the_after_choice(rig):
     assert table.dials[dial]["value"] == hp - 2, "the dial moved at the reveal, not after the choice"
     assert not said(msgs, "Tu carta: Rekindle")
     summary = next(i for i, m in enumerate(msgs) if m.startswith("Combate:"))
-    ask = next(i for i, m in enumerate(msgs) if "Elige cartas" in m)
+    ask = next(i for i, m in enumerate(msgs) if "Rekindle: saca de tu descarte" in m)
     assert summary < ask
 
 
@@ -51,9 +51,9 @@ def test_the_summary_and_the_dial_come_before_the_after_choice(rig):
 def test_after_the_choice_the_card_is_narrated_and_the_summary_is_not_repeated(rig):
     session, table, game, fake, cfg = rig
     msgs, (fireball, evade) = hellboy_hits_rekindle(session, table, game, cfg)
-    press(session, table, fireball)
-    press(session, table, evade)
-    msgs = press(session, table, "Confirmar")
+    table.human_discard.remove(fireball)          # Ivan 31/10: the human shuffles them into the deck, the bot detects it
+    table.human_discard.remove(evade)
+    msgs = click(session, table, Event.CHOICE, {"i": 1})
     assert said(msgs, "Tu carta: Rekindle: ")
     assert not said(msgs, "Combate:") and not said(msgs, "El bot descarta Right Hand Of Doom")
     assert session.pending is None and game.fighters["liz"].hp == 14
@@ -68,8 +68,19 @@ def test_a_resume_at_the_after_choice_repeats_nothing(rig):
     twin = twin_session(session, cfg, saved)
     assert twin.effect_run.awaiting.kind == "cards" and twin.game.fighters["liz"].hp == hp - 2
     msgs = []
-    for option in (fireball, evade, "Confirmar"):
-        msgs = press(twin, table, option)
+    table.human_discard.remove(fireball)
+    table.human_discard.remove(evade)
+    msgs = click(twin, table, Event.CHOICE, {"i": 1})
     assert twin.pending is None and twin.game.fighters["liz"].hp == hp - 2
     assert said(msgs, "Tu carta: Rekindle: ") and not said(msgs, "Combate:")
     assert table.dials[cfg.session_config().dials["liz"]]["value"] == hp - 2
+
+
+@with_rig(*REKINDLE_RIG)
+def test_rekindle_asks_for_up_to_n_by_hand_and_accepts_fewer(rig):
+    session, table, game, fake, cfg = rig
+    msgs, (fireball, evade) = hellboy_hits_rekindle(session, table, game, cfg)
+    assert said(msgs, "Rekindle: saca de tu descarte hasta 2 cartas") and session.panel_labels()
+    table.human_discard.remove(fireball)
+    msgs = click(session, table, Event.CHOICE, {"i": 1})           # up to 3: one is valid
+    assert said(msgs, "Anoto") and session.effect_run is None and not any("pulsa una de las opciones" in m for m in msgs)
