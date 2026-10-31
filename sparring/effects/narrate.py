@@ -200,7 +200,7 @@ def _cards(game, before: dict, run) -> list[str]:
         if taken > 0:
             out.append(f"{taken} carta{'s' if taken > 1 else ''} del mazo a {su} mano")
         # the human's own return to the deck is done on the table: `en la mesa` already says it
-        if to_deck > 0 and not (p != game.bot_player and table.lines(run)):
+        if to_deck > 0 and not (p != game.bot_player and any(n.get("op") == "return_to_deck" for n in table.notes(run))):
             where = f"de {su} mano a {su} mazo" if p == game.bot_player and owner != p else "de la mano al mazo"
             out.append(f"{devuelve} {to_deck} carta{'s' if to_deck > 1 else ''} {where}")
     return out
