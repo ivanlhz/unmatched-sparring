@@ -85,7 +85,7 @@ Repite el bloque para cada heroe, **con Ivan jugandolo** (H) y **con el bot juga
 - [x] Setup: **Koschei ya esta en el tablero** al empezar (confirmado por Ivan; si no esta, revisa `start_on_board` en `data/heroes/baba-yaga.json`). *(OK 30/10)*
 - [ ] FATEFUL BARGAINS (Koschei en la misma zona, dano de efecto): H **(E2)** pregunta con boton; B decide y lo dice.
 - [ ] Pactos: ONGOING, solo uno a la vez; **Pact Of Freedom** (no atacar como primera accion) y **Cold Iron** bloquean en el panel (seccion 4).
-- [ ] **Pact Of Secrecy**: H **(E2)** botones **0 / 1 / 2**; B: el bot te pregunta cual conservas (los titulos pueden salir como marcadores). Pact Of Secrecy / Time del bot sobre ti: solo chat; la mesa se sincroniza por conteo.
+- [ ] **Pact Of Secrecy**: H **(E2)** botones **0 / 1 / 2**; B: el bot te pregunta cual conservas (los titulos pueden salir como marcadores). Pact Of Secrecy / Time del bot sobre ti: solo chat; la mesa se sincroniza por conteo. *(31/10: H OK, botones 0/1/2 y limite de mano 3 para todos; falta B)*
 - [ ] H/B: Iron Teeth, Death's Release, Foul Journey, Hasten Towards Death, Deathless, Exploit, The Time For Deals Is Done, Bound In Blood, Out Of Time.
 - [ ] B: Read The Bones: lo que toma sale como robo de arriba (el orden real del mazo no se conoce).
 - [ ] Koschei cae/vuelve: miniatura al `dead_spot`; "Summon" lo pone lo mas cerca de Baba Yaga con vida 3.
