@@ -2162,21 +2162,50 @@ def shuffle_into_deck(deck_guid: str, cards: list[str], id_range: tuple[int, int
     """Puts the loose cards (by GUID) into a deck and shuffles it. A card in ANY hand zone is never taken. With
     `identity` the deck and every card must be `ours` (`id_range` and the image: the human's when the session shuffles
     their own discard pile card into their deck, Ivan 29/10), else `{added = 0, deck = false}`. Returns `{added,
-    deck, quantity}`."""
+    deck, quantity, moved}` (`moved`: the GUIDs that reached the deck, in order)."""
     if not isinstance(cards, (list, tuple)) or not 1 <= len(cards) <= MAX_DECK_CARDS:
         raise ValueError(f"1 to {MAX_DECK_CARDS} cards expected")
-    own = _ours_lua(identity, id_range) if identity is not None else _ANY_OURS_LUA
+    own = _ours_lua(identity, id_range) if identity is not None else _ANY_OURS_LUA + "local function cardOurs() return true end\n"
     return f"""-- sparring:shuffle_into_deck
 {own}{_LOOSE_LUA}local deck = getObjectFromGUID({_guid(deck_guid)})
-if deck == nil or not ours(deck) then return JSON.encode({{added = 0, deck = false}}) end
+if deck == nil or not ours(deck) then return JSON.encode({{added = 0, deck = false, moved = {{}}}}) end
 local wanted = {_guid_list(cards)}
-local added = 0
-for _, g in ipairs(wanted) do
+local moved = {{}}
+-- A card of a stacked pile (a Deck) is no object of its own: `getObjectFromGUID` does not find it and it has to be
+-- taken out of the pile that holds it (checking the entry is ours first), one card at a time (the pile may become a card).
+local function fetch(g)
   local c = getObjectFromGUID(g)
-  if c ~= nil and looseOurs(c) then deck = deck.putObject(c) or deck; added = added + 1 end
+  if c ~= nil then
+    if looseOurs(c) then return c end
+    return nil
+  end
+  for _, pile in ipairs(getObjects()) do
+    if pile.type == "Deck" and pile ~= deck and not pile.held_by_color and not inHand(pile) then
+      local data = pile.getData()
+      for _, entry in ipairs(data.ContainedObjects or {{}}) do
+        if entry.GUID == g and cardOurs(entry, data.CustomDeck) then
+          local at = pile.getPosition()
+          local ok, taken = pcall(function()
+            return pile.takeObject({{guid = g, position = Vector(at.x, at.y + 2, at.z), smooth = false}})
+          end)
+          if ok and taken ~= nil then return taken end
+          return nil
+        end
+      end
+    end
+  end
+end
+for _, g in ipairs(wanted) do
+  local ok, done = pcall(function()
+    local c = fetch(g)
+    if c == nil then return false end
+    deck = deck.putObject(c) or deck
+    return true
+  end)
+  if ok and done then table.insert(moved, g) end
 end
 deck.shuffle()
-return JSON.encode({{added = added, deck = deck.getGUID(), quantity = deck.getQuantity()}})
+return JSON.encode({{added = #moved, moved = moved, deck = deck.getGUID(), quantity = deck.getQuantity()}})
 """
 
 

@@ -100,6 +100,7 @@ class FxTable(Table):
         return {"placed": placed, "deck": "DECK1", "quantity": len(self.bot_deck)}
 
     human_deck_guid = None                        # set by `build` from the session config
+    stuck_in_pile: set = frozenset()              # CardIDs the table cannot take out of the pile (a shuffle moves the rest)
 
     def _human_side(self, s):
         """True when the script targets the HUMAN's deck: those cards move from the human pile to `human_deck`."""
@@ -125,12 +126,12 @@ class FxTable(Table):
     def do_shuffle_into_deck(self, s):
         guids = re.findall(r'"g(\d+)"', re.search(r"local wanted = \{(.*?)\}", s).group(1))
         pile, deck = ((self.human_discard, self.human_deck) if self._human_side(s) else (self.bot_discard, self.bot_deck))
-        added = [int(g) for g in guids if int(g) in pile]
+        added = [int(g) for g in guids if int(g) in pile and int(g) not in self.stuck_in_pile]
         for i in added:
             pile.remove(i)
             deck.append(i)
         self.deck_moves.append(("shuffle", added))
-        return {"added": len(added), "deck": "DECK1", "quantity": len(deck)}
+        return {"added": len(added), "moved": [f"g{i}" for i in added], "deck": "DECK1", "quantity": len(deck)}
 
     def do_return_card_to_hand(self, s):
         i = int(re.search(r'getObjectFromGUID\("g(\d+)"\)', s).group(1))
