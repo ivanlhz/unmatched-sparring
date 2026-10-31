@@ -14,7 +14,7 @@ from sparring.session import DEFAULT_ACTION_ANNOUNCE_HOLD, SessionConfig
 from test_multihero_bridge import REAL_CONFIG
 from test_pausa_y_ataque import cfg_file  # noqa: F401
 from test_d3_table_effects import bot_turn, human_hand
-from test_e2_human_cards import put_adjacent, rig, with_rig  # noqa: F401
+from test_e2_human_cards import LIZ_VS_HELLBOY, put_adjacent, rig, with_rig  # noqa: F401
 
 LIZ_HAND = ("B.P.R.D. Training", "Evade", "Pyrotechnics", "Rekindle", "Searing Clarity")
 HOLD = {"action_announce_hold": 2.0}
@@ -140,3 +140,39 @@ def test_a_failed_placement_retried_does_not_announce_the_attack_twice(rig):
     sent = [s for s in table.scripts[mark:] if tag_of(s) == "broadcast" and "El bot ataca con liz a koschei" in s]
     assert len(sent) == 1, "the line went out once, before the first try"
     assert "Deja tu defensa boca abajo (o nada) y pulsa Revelar." in msgs
+
+
+def _incinerate_reveal(rig, monkeypatch, lethal):
+    from test_e2_human_cards import bot_defends_with, human_attack
+    session, table, game, fake, cfg = rig
+    put_adjacent(game, table, cfg, "liz", "hellboy")
+    bot_defends_with(session, game, "Glimpse Of Hell", monkeypatch)
+    if lethal:
+        game.fighters["hellboy"].hp = 5
+    human_hand(table, game, "Incinerate", "Evade")
+    human_attack(session, table, game, "liz", "hellboy", "Incinerate")
+    mark = len(table.scripts)
+    return click(session, table, Event.REVEAL), table.scripts[mark:]
+
+
+@with_rig(*LIZ_VS_HELLBOY, **HOLD)
+def test_the_bot_paying_incinerate_is_said_and_held_before_its_cards_and_dials_move(rig, monkeypatch):
+    msgs, scripts = _incinerate_reveal(rig, monkeypatch, lethal=True)
+    said_at = announced_at(scripts, "Tu carta: Incinerate")
+    tags = [tag_of(s) for s in scripts]
+    assert "set_health_dials" in tags[said_at + 1:] and "set_health_dials" not in tags[:said_at]
+    assert sum("para ignorar el valor de Incinerate" in m for m in msgs) == 1
+    assert all(m.shown for m in msgs if "para ignorar el valor de Incinerate" in m)
+
+
+@with_rig(*LIZ_VS_HELLBOY, **HOLD)
+def test_the_bot_declining_incinerate_moves_nothing_of_its_own_so_there_is_no_extra_hold(rig, monkeypatch):
+    msgs, scripts = _incinerate_reveal(rig, monkeypatch, lethal=False)
+    assert not any(tag_of(s) == "hold" for s in scripts), [tag_of(s) for s in scripts]
+    assert any("prefiere recibir 5 de dano a perder 2 cartas" in m for m in msgs)
+
+
+@with_rig(*LIZ_VS_HELLBOY)
+def test_without_a_hold_the_bot_paying_incinerate_is_not_paused(rig, monkeypatch):
+    msgs, scripts = _incinerate_reveal(rig, monkeypatch, lethal=True)
+    assert not any(tag_of(s) == "hold" for s in scripts)

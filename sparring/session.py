@@ -2215,9 +2215,19 @@ class Session:
             c["alive_before"][fid] = f.alive
         c["told"] = {"ids": [card.card_id for card in bot.discard[c["bot_seen"]:]] + [card.card_id for card, _ in pending],
                      "applied": len(res.applied), "notes": len(res.bot_notes)}
-        if p.kind == "bot_attacks":
+        if p.kind == "bot_attacks" or self._bot_answer_moves(c, reasons):
             self._announce_before(first)
         return self._write_dials(defer=True)
+
+    def _bot_answer_moves(self, c: dict, reasons: dict[int, str]) -> bool:
+        """The bot answered the human's attack with something that writes its own side of the table beyond the cards
+        it played: a card it discarded for an effect (Incinerate's price, a cost) or a piece an effect moved. Its
+        defense, the damage it takes and the human's own pieces need no pause."""
+        g = self.game
+        if any(card.card_id not in reasons for card in g.players[self.bot].discard[c["bot_seen"]:]):
+            return True
+        return any(was and g.fighters[fid].alive and g.fighters[fid].pos != pos
+                   for fid, (pos, was) in _bot_snapshot(c["before"]).items())
 
     def _undo_combat(self, saved: dict, human_card: Card | None, flipped: list) -> None:
         self._restore(saved)
@@ -2262,8 +2272,8 @@ class Session:
                 self._announce_fall(f)
         self._grant_look_for(res.atk_card if p.kind == "human_attacks" else res.def_card)
         self._track_destiny()
-        if p.kind == "bot_attacks" and told is None:    # its attack resolved: the result is said and held before the discards and dials move
-            self._announce_before(said_first)
+        if told is None and (p.kind == "bot_attacks" or self._bot_answer_moves(c, reasons)):
+            self._announce_before(said_first)       # its attack resolved (or its answer to yours moved cards or pieces): said and held before the table moves
         cause = "efectos del combate" if human_effects.human_ran(p.flow) else bot_effects.BOT_CAUSE
         fin_fx = self._project_effects(c.get("fx"), self._human_played(p), cause)
         fin_dials = self._write_dials(defer=True)
