@@ -42,7 +42,7 @@ from . import session_moves as moves
 from . import session_translators as translators
 from .spaces import describe, zone_text
 from .combat import FEINT, FIGHT_OR_FLIGHT, FIGHT_OR_FLIGHT_BONUS, GLANCE_DAMAGE, can_boost, deck_boost, is_medusa_card, scheme_gain_actions
-from .state import ANUNG, EXHAUST_DAMAGE, HAND_LIMIT, START_HAND, Fighter, Game, RuleError
+from .state import ANUNG, DETECTIVE, EXHAUST_DAMAGE, HAND_LIMIT, START_HAND, Fighter, Game, RuleError
 from .tts import lua, ui
 from .tts.lua import ChatKind
 from .tts.client import TTSClient, TTSLuaError
@@ -298,7 +298,7 @@ class Session:
         self.dirty = False                       # el motor movio al bot y la mesa aun no lo refleja
         self.unprojected: dict | None = None     # posiciones previas de las piezas aun sin proyectar
         self.bot_stage: str | None = None        # "start": turno del bot empezado en el motor, E/S pendiente
-        self.anung_start: str | None = None      # what Hellboy's ANUNG start-of-turn trigger did, said before the first write
+        self.start_line: str | None = None      # what the bot Hellboy start-of-turn trigger (ANUNG or DETECTIVE) did, said before the first write
         self.wildfire_scene: dict | None = None  # what the bot's Wildfire did at the turn change, shown at its first write
         self.said_returns: set[int] = set()      # cards whose return to the bot's hand the Wildfire scene already announced
         self.limit_waived = False
@@ -2795,7 +2795,8 @@ class Session:
         that moved nothing leaves none."""
         self.fx_unprojected = fx_before
         g = self.game
-        self.anung_start = self._anung_start_text(before, fx_before["bot"]["discard"])
+        self.start_line = (self._anung_start_text(before, fx_before["bot"]["discard"])
+                            or self._detective_start_text(fx_before["drawn"]))
         self.game_log.observe(g, self._name)      # the turn start and its triggers, not folded into the bot's actions
         if (before != self._snapshot_bot() or fx_before["bot"] != bot_effects.zones(g.players[self.bot])
                 or g.drawn[self.bot]):
@@ -2815,6 +2816,16 @@ class Session:
         if hero.alive and hero.pos != before[hero.fid][0]:
             return text + f" y mueve {self._name(hero)} hasta {fuel[-1].boost}: {describe(g, hero.pos, (hero.fid,), self._name)}."
         return text + f" y no mueve a {self._name(hero)}."
+
+    def _detective_start_text(self, drawn_before: int) -> str | None:
+        """What the bot's OCCULT DETECTIVE start-of-turn trigger just did in the engine (draw 2 when Hellboy starts the
+        turn in the rival's starting zone), for the chat; None when it did not draw. The bot's choice to draw is the
+        optional's default (accept), so a decline simply leaves no line."""
+        g = self.game
+        drew = g.drawn[self.bot] - drawn_before
+        if drew <= 0 or g.form(self.bot) != DETECTIVE or not any(t.get("id") == "detective_draw" for t in g.hero_def(self.bot).triggers):
+            return None
+        return f"OCCULT DETECTIVE: Hellboy empieza el turno en tu zona de salida; el bot roba {drew}."
 
     def _mark_dirty(self, before: dict | None = None) -> None:
         """El motor ya cambio al bot; hasta que la mesa lo refleje queda una deuda que cualquier boton reintenta."""
@@ -2970,8 +2981,8 @@ class Session:
         de modo que un corte o Ctrl+C reanudado no repite nada de lo ya hecho."""
         g = self.game
         self._revoke_look_after_button()
-        if self.anung_start is not None:          # said, held, and only then the discard and the move reach the table
-            said_first, line, self.anung_start = len(self.messages), self.anung_start, None
+        if self.start_line is not None:          # said, held, and only then the start-of-turn discard, move or draw reach the table
+            said_first, line, self.start_line = len(self.messages), self.start_line, None
             self.say(line, ChatKind.ABILITY)
             self._announce_before(said_first)
         scene, self.wildfire_scene = self.wildfire_scene, None

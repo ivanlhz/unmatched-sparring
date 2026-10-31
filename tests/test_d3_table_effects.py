@@ -786,3 +786,27 @@ def test_bot_hellboy_anung_start_move_reaches_the_table_and_the_chat_names_the_p
     assert hellboy.pos != start
     assert any(m.startswith("ANUNG UN RAMA: el bot descarta Service Pistol (BOOST 2) y mueve Hellboy hasta 2: ") for m in msgs)
     assert table.positions[table.nick["hellboy"]] == hellboy.pos
+
+
+@hellboy_rig
+def test_bot_hellboy_detective_draw_is_said_and_the_two_cards_reach_the_table_hand(rig, tmp_path):
+    session, table, game, fake, cfg = rig
+    session.game_log.path = tmp_path / "partida.log"
+    session.game_log.observe(game, session._name)
+    assert game.form(0) == DETECTIVE
+    game.fighters["hellboy"].pos = game.start_spaces[1]          # the rival's starting zone
+    table.positions[table.nick["hellboy"]] = game.start_spaces[1]
+    msgs = bot_turn(session, table, [])
+    lines = [m for m in msgs if m.startswith("OCCULT DETECTIVE:")]
+    assert len(lines) == 1 and "roba 2" in lines[0], msgs
+    assert sorted(table.bot_hand) == sorted(c.card_id for c in game.players[0].hand)
+    log = (tmp_path / "partida.log").read_text(encoding="utf-8")
+    assert log.count("DRAW: P0 draws 2") == 1
+
+
+@hellboy_rig
+def test_bot_hellboy_detective_outside_the_rival_start_zone_says_nothing(rig):
+    session, table, game, fake, cfg = rig
+    assert game.fighters["hellboy"].pos != game.start_spaces[1]
+    msgs = bot_turn(session, table, [])
+    assert not any(m.startswith("OCCULT DETECTIVE:") for m in msgs)
