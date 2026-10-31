@@ -57,7 +57,16 @@ def test_the_random_position_is_drawn_over_the_hand_after_glimpse(rig, monkeypat
     line = next(m for m in msgs if "Descarta 1 carta(s) (Fleeting Moments, al azar: la carta " in m)
     assert 1 <= int(line.split("la carta ")[1].split(" ")[0]) <= held
     assert session.pending_discard["n"] == 1 and said(msgs, "Aplicado: Fleeting Moments")
-    assert table.human_deals[-1] == 1 and said(msgs, "Lo que te toca descartar es lo que tenias antes, no estas")
+    assert table.human_deals[-1] == 2 and len(table.human_deals) == 3, "Fleeting's draw is not dealt with the request"
+    assert said(msgs, "Cuando hayas descartado y pulses Fin de accion te doy 1 carta")
+    assert not said(msgs, "no estas") and not said(msgs, "Te he dado 1 carta")
+    # the random discard is done on the table, then Fin de accion deals the card
+    table.human_discard += [table.human_hand[0]] if table.human_hand else []
+    table.human_count -= 1
+    msgs = click(session, table, Event.END_ACTION)
+    assert session.pending_discard is None and table.human_deals[-1] == 1 and len(table.human_deals) == 4
+    assert said(msgs, "Te he dado 1 carta (") and not said(msgs, "no estas")
+    assert len(game.players[1].hand) == table.human_count
 
 
 @with_rig(*LIZ_VS_HELLBOY)
@@ -94,3 +103,24 @@ def test_a_bot_defender_runs_both_effects_at_once(rig, monkeypatch):
     msgs = click(session, table, Event.REVEAL)
     assert session.pending is None and not session._table_gate(session.pending)
     assert said(msgs, "Descarta 1 carta(s) (Fleeting Moments, al azar")
+
+
+@with_rig(*LIZ_VS_HELLBOY)
+def test_a_plain_fleeting_moments_deals_its_card_after_the_discard(rig):
+    session, table, game, fake, cfg = rig
+    put_adjacent(game, table, cfg, "liz", "hellboy")
+    human_hand(table, game, "Excalibur", "Service Pistol", "Second Shot")
+    fleeting = next(c for c in game.players[0].hand if c.title == "Fleeting Moments")
+    bot_turn(session, table, [Act("attack", fid="liz", target="hellboy", card=fleeting)])
+    table.face_down = []
+    deals = len(table.human_deals)
+    msgs = click(session, table, Event.REVEAL)
+    assert len(table.human_deals) == deals and session.pending_discard["n"] == 1
+    assert said(msgs, "Descarta 1 carta(s) (Fleeting Moments, al azar") and not said(msgs, "no estas")
+    saved = json.loads(json.dumps(session.to_dict()))     # a save mid-discard keeps the owed card
+    twin = twin_session(session, cfg, saved)
+    table.human_discard.append(table.human_hand[0] if table.human_hand else 0)
+    table.human_count -= 1
+    msgs = click(twin, table, Event.END_ACTION)
+    assert twin.pending_discard is None and len(table.human_deals) == deals + 1 and table.human_deals[-1] == 1
+    assert said(msgs, "Te he dado 1 carta (")

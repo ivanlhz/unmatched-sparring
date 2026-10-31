@@ -100,7 +100,11 @@ def test_a_table_that_moves_fewer_cards_falls_back_to_asking_for_the_rest(rig):
     assert said(msgs, "No he podido descartar tu mano (he movido 1 de 2)")
     assert session.pending_discard is not None and session.pending_discard["n"] == 1
     assert said(msgs, "Descarta 1 carta(s) (" + CROWN + ")") and not said(msgs, "Descarto tu mano")
-    assert table.human_deals == [2], "the game goes on: the two cards are dealt anyway"
+    assert table.human_deals == [], "the two cards are dealt once the rest of the hand is discarded"
+    table.human_discard += card_ids(game, 1, "Service Pistol")
+    table.human_hand, table.human_count = [], 0
+    msgs = click(session, table, Event.END_ACTION)
+    assert table.human_deals == [2] and said(msgs, "Te he dado 2 cartas")
 
 
 @with_rig(*HELLBOY_VS_ABE)
@@ -110,10 +114,11 @@ def test_a_table_error_falls_back_to_the_manual_discard(rig):
     table.hand_discard_fails = True
     msgs = human_scheme(session, table, game, CROWN)
     assert said(msgs, "No he podido descartar tu mano") and said(msgs, "Descarta 2 carta(s) (" + CROWN + ")")
-    assert session.pending_discard["n"] == 2 and table.human_deals == [2]
+    assert session.pending_discard["n"] == 2 and table.human_deals == []
     table.human_discard += card_ids(game, 1, "Excalibur", "Service Pistol")
     table.human_count -= 2
     click(session, table, Event.END_ACTION)
+    assert table.human_deals == [2]
     assert session.pending_discard is None and len(game.players[1].hand) == table.human_count == 2
 
 
@@ -143,6 +148,10 @@ def test_a_failed_hand_count_read_falls_back_to_the_manual_discard_and_the_schem
     assert calls["n"] == 1 and table.hand_discards == []
     assert said(msgs, "No he podido descartar tu mano") and said(msgs, "Descarta 2 carta(s) (" + CROWN + ")")
     assert session.pending_discard["n"] == 2 and game.actions_left == 3
+    assert table.human_deals == [] and not said(msgs, "Te he dado")
+    table.human_discard += card_ids(game, 1, "Excalibur", "Service Pistol")
+    table.human_count -= 2
+    msgs = click(session, table, Event.END_ACTION)
     assert table.human_deals == [2] and said(msgs, "Te he dado 2 cartas")
 
 

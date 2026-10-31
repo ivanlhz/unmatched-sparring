@@ -105,13 +105,15 @@ def test_crown_of_flame_deals_two_and_the_discard_of_the_old_hand_is_manual_when
     human_hand(table, game, CROWN, "Excalibur", "Service Pistol")
     msgs = human_scheme(session, table, game, CROWN)
     assert said(msgs, "No he podido descartar tu mano")
-    assert table.human_deals == [2] and said(msgs, "Te he dado 2 cartas")
-    assert said(msgs, "Lo que te toca descartar es lo que tenias antes, no estas")
+    # Crown of Flame prints "Discard your hand. Draw 2 cards.": the draw is dealt once the discard is done
+    assert table.human_deals == [] and not said(msgs, "Te he dado") and not said(msgs, "no estas")
+    assert said(msgs, "Cuando hayas descartado y pulses Fin de accion te doy 2 cartas")
     assert session.pending_discard["n"] == 2 and not said(msgs, "Robas 2")
     table.human_discard += card_ids(game, 1, "Excalibur", "Service Pistol")
     table.human_count -= 2
-    click(session, table, Event.END_ACTION)
-    assert session.pending_discard is None and len(game.players[1].hand) == table.human_count == 2
+    msgs = click(session, table, Event.END_ACTION)
+    assert session.pending_discard is None and said(msgs, "Te he dado 2 cartas")
+    assert table.human_deals == [2] and len(game.players[1].hand) == table.human_count == 2
 
 
 @with_rig("liz-sherman", "hellboy", "Pyrotechnics", "Rekindle", "Fleeting Moments", "Evade", "Fireball")
@@ -122,6 +124,10 @@ def test_the_human_side_of_fleeting_moments_deals_one_card(rig):
     bot_turn(session, table, [Act("attack", fid="liz", target="hellboy", card=fleeting)])
     table.face_down = []
     msgs = click(session, table, Event.REVEAL)
+    assert table.human_deals == MANEUVERS and session.pending_discard["n"] == 1     # dealt once the random discard is done
+    table.human_discard += card_ids(game, 1, "Service Pistol")
+    table.human_count -= 1
+    msgs = click(session, table, Event.END_ACTION)
     assert table.human_deals == MANEUVERS + [1] and said(msgs, "Te he dado 1 carta")
 
 
