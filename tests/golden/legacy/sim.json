@@ -84,19 +84,25 @@
   "winner": "Medusa"
  },
  "bprd-hq/2": {
-  "hellboy_hp": -1,
-  "medusa_hp": 15,
+  "hellboy_hp": 0,
+  "medusa_hp": 7,
   "trace": [
    "T1 P1: P1 roba 1; P1 roba 1",
    "T2 P0: P0 roba 1; P0 roba 1",
    "T3 P1: ",
    "T4 P0: P0 roba 1; P0 roba 1",
    "T5 P1: medusa -1 (15 pv); P0 roba 1",
-   "T6 P0: hellboy -1 (17 pv); hellboy -5 (12 pv); hellboy -2 (10 pv); hellboy -8 (2 pv)",
-   "T7 P1: P1 roba 1",
-   "T8 P0: hellboy -1 (1 pv); hellboy -2 (-1 pv)"
+   "T6 P0: hellboy -1 (17 pv); lobster -2 (4 pv); lobster -8 (-4 pv)",
+   "T7 P1: P1 roba 1; medusa -1 (14 pv)",
+   "T8 P0: hellboy -1 (16 pv); hellboy -5 (11 pv); hellboy -2 (9 pv)",
+   "T9 P1: P1 roba 1; medusa -4 (10 pv)",
+   "T10 P0: hellboy -1 (8 pv); P0 roba 1; hellboy -3 (5 pv)",
+   "T11 P1: P1 roba 1; medusa -3 (7 pv)",
+   "T12 P0: hellboy -1 (4 pv); P0 roba 1; P0 roba 1",
+   "T13 P1: P1 roba 1; P1 roba 1",
+   "T14 P0: hellboy -1 (3 pv); hellboy -3 (0 pv)"
   ],
-  "turns": 8,
+  "turns": 14,
   "winner": "Medusa"
  },
  "bprd-hq/3": {

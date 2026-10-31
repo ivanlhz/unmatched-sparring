@@ -393,6 +393,89 @@
    }
   ]
  },
+ "ai_profile": {
+  "hellboy": {
+   "name": "Hellboy",
+   "hero": true,
+   "count": 1,
+   "max_hp": 18,
+   "move": 2,
+   "ranged": false,
+   "role": "hero",
+   "attack": {
+    "cards": 19,
+    "mean": 3.16,
+    "max": 6
+   },
+   "exclusive": [
+    {
+     "title": "Excalibur",
+     "type": "attack",
+     "copies": 1,
+     "impact": 0.3
+    },
+    {
+     "title": "Right Hand Of Doom",
+     "type": "attack",
+     "copies": 4,
+     "impact": 0.61
+    },
+    {
+     "title": "Confront Any Demon or God",
+     "type": "versatile",
+     "copies": 2,
+     "impact": 0.88
+    },
+    {
+     "title": "On Earth As It Is In Hell",
+     "type": "defense",
+     "copies": 2,
+     "impact": 1.36
+    },
+    {
+     "title": "And Upon His Brow Is Set A Crown Of Flame",
+     "type": "scheme",
+     "copies": 2,
+     "impact": 2.8
+    },
+    {
+     "title": "Pancakes!",
+     "type": "scheme",
+     "copies": 2,
+     "impact": 2.1
+    }
+   ]
+  },
+  "lobster": {
+   "name": "Lobster Johnson",
+   "hero": false,
+   "count": 1,
+   "max_hp": 6,
+   "move": 2,
+   "ranged": true,
+   "role": "striker",
+   "attack": {
+    "cards": 17,
+    "mean": 2.47,
+    "max": 5
+   },
+   "exclusive": [
+    {
+     "title": "Second Shot",
+     "type": "attack",
+     "copies": 2,
+     "impact": 0.3
+    },
+    {
+     "title": "Posthumous Power",
+     "type": "versatile",
+     "copies": 3,
+     "impact": 1.11
+    }
+   ],
+   "requires_alive": []
+  }
+ },
  "_notes": [
   "Hoja 197 del savegame (8x4), leida a ojo el 2026-10-26. CardID = 19700 + idx; 19600 = carta de personaje.",
   "Restricciones de luchador y etiqueta destiny de la hoja de TTS (unmatched-memory no las tiene).",

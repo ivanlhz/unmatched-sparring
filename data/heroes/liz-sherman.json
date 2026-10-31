@@ -381,6 +381,96 @@
    }
   ]
  },
+ "ai_profile": {
+  "liz": {
+   "name": "Liz Sherman",
+   "hero": true,
+   "count": 1,
+   "max_hp": 16,
+   "move": 3,
+   "ranged": true,
+   "role": "hero",
+   "attack": {
+    "cards": 22,
+    "mean": 2.86,
+    "max": 7
+   },
+   "exclusive": [
+    {
+     "title": "Incinerate",
+     "type": "attack",
+     "copies": 1,
+     "impact": 0.54
+    },
+    {
+     "title": "Fireball",
+     "type": "attack",
+     "copies": 2,
+     "impact": 1.02
+    },
+    {
+     "title": "Flame Lash",
+     "type": "attack",
+     "copies": 3,
+     "impact": 0.9
+    },
+    {
+     "title": "Fleeting Moments",
+     "type": "attack",
+     "copies": 3,
+     "impact": 0.42
+    },
+    {
+     "title": "Burning Barrier",
+     "type": "versatile",
+     "copies": 3,
+     "impact": 1.5
+    },
+    {
+     "title": "Pyrotechnics",
+     "type": "versatile",
+     "copies": 3,
+     "impact": 0.54
+    },
+    {
+     "title": "B.P.R.D. Training",
+     "type": "versatile",
+     "copies": 2,
+     "impact": 0.72
+    },
+    {
+     "title": "Rekindle",
+     "type": "versatile",
+     "copies": 2,
+     "impact": 0.6
+    },
+    {
+     "title": "Feint",
+     "type": "versatile",
+     "copies": 3,
+     "impact": 0.9
+    },
+    {
+     "title": "Evade",
+     "type": "defense",
+     "copies": 2,
+     "impact": 0.54
+    },
+    {
+     "title": "Searing Clarity",
+     "type": "scheme",
+     "copies": 3,
+     "impact": 1.8
+    },
+    {
+     "title": "Fight Or Flight",
+     "type": "scheme",
+     "copies": 3,
+     "impact": 1.0
+    }
+   ]
+  }
+ },
  "_notes": [
   "Hoja 199 del savegame del torneo (8x4), leida carta a carta de la imagen el 2026-10-28. CardID = 19900 + idx; 19800 = carta de personaje (hoja 198, 1x1). Las cartas sueltas del save usan la clave 188 con las mismas imagenes.",
   "La carta de personaje dice RANGED, 16 de vida y MOVE 3: coincide con unmatched-memory (attackType range). El 'melee' de la memoria del proyecto venia del ayudante vacio.",

@@ -351,6 +351,120 @@
    }
   ]
  },
+ "ai_profile": {
+  "baba": {
+   "name": "Baba Yaga",
+   "hero": true,
+   "count": 1,
+   "max_hp": 13,
+   "move": 2,
+   "ranged": true,
+   "role": "hero",
+   "attack": {
+    "cards": 21,
+    "mean": 3.33,
+    "max": 5
+   },
+   "exclusive": [
+    {
+     "title": "The Time For Deals Is Done",
+     "type": "attack",
+     "copies": 2,
+     "impact": 1.43
+    },
+    {
+     "title": "Iron Teeth",
+     "type": "attack",
+     "copies": 2,
+     "impact": 1.6
+    },
+    {
+     "title": "Read The Bones",
+     "type": "versatile",
+     "copies": 3,
+     "impact": 0.66
+    },
+    {
+     "title": "Foul Journey",
+     "type": "versatile",
+     "copies": 3,
+     "impact": 0.92
+    },
+    {
+     "title": "Bound In Blood",
+     "type": "defense",
+     "copies": 2,
+     "impact": 0.9
+    },
+    {
+     "title": "Pact Of Freedom",
+     "type": "scheme",
+     "copies": 1,
+     "impact": 1.5
+    },
+    {
+     "title": "Pact Of Mortality",
+     "type": "scheme",
+     "copies": 1,
+     "impact": 1.8
+    },
+    {
+     "title": "Pact Of Peace",
+     "type": "scheme",
+     "copies": 1,
+     "impact": 2.65
+    },
+    {
+     "title": "Pact Of Secrecy",
+     "type": "scheme",
+     "copies": 1,
+     "impact": -0.15
+    },
+    {
+     "title": "Pact Of Time",
+     "type": "scheme",
+     "copies": 1,
+     "impact": 1.05
+    }
+   ]
+  },
+  "koschei": {
+   "name": "Koschei",
+   "hero": false,
+   "count": 1,
+   "max_hp": 3,
+   "move": 2,
+   "ranged": false,
+   "role": "striker",
+   "attack": {
+    "cards": 13,
+    "mean": 3.62,
+    "max": 5
+   },
+   "exclusive": [
+    {
+     "title": "Death's Release",
+     "type": "attack",
+     "copies": 2,
+     "impact": 1.62
+    }
+   ],
+   "requires_alive": [
+    {
+     "source": "ability:fateful_bargains",
+     "kind": "ability",
+     "copies": 1,
+     "impact": 2.0
+    },
+    {
+     "source": "Bound In Blood",
+     "kind": "card",
+     "copies": 2,
+     "impact": 0.6
+    }
+   ]
+  }
+ },
  "_notes": [
   "Hoja 331 del savegame del torneo (8x4), leida carta a carta de la imagen el 2026-10-28. CardID = 33100 + idx; 33200 = carta de personaje (hoja 332). Las cartas sueltas del mazo llevan las claves 187/188 del mod original con las mismas imagenes: la identidad es la FaceURL, el numero sale de los DeckIDs del mazo (mismo criterio que Hellboy, 19700).",
   "Restricciones de luchador y copias de la hoja de TTS (unmatched-memory no las tiene): Baba Yaga 16, Koschei 2 (Death's Release), ANY 12.",

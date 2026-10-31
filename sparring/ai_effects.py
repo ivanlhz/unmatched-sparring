@@ -31,7 +31,7 @@ import random
 from functools import lru_cache
 
 from .ai_medusa import (DECK_SCARCITY, HARPY_VALUE, KILL_SIDEKICK, LETHAL, W_HERO, W_MEDUSA_HP,
-                        W_SIDEKICK, MedusaAI, Model, keep_value, play_signature)
+                        W_SIDEKICK, MedusaAI, Model, keep_value, kill_value, play_signature)
 from .controller import Controller
 from .effects import ongoing
 from .effects.choose import ChoiceRequest, ControllerChooser, SyntheticChooser, default_answer, worth_paying
@@ -179,7 +179,7 @@ class EffectAI:
         if not cands:
             return None
         if op in HP_OPS:
-            score = self._hp_scorer(op, req.extra.get("amount"), me)
+            score = self._hp_scorer(op, req.extra.get("amount"), me, game)
         elif op in RELOCATE_OPS:
             score = self._relocation_scorer(game, op, req.extra, me)
         else:
@@ -189,16 +189,16 @@ class EffectAI:
         return [min(cands, key=lambda f: (-score(f), f.fid)).fid]
 
     @staticmethod
-    def _hp_scorer(op: str, n, me: int):
+    def _hp_scorer(op: str, n, me: int, game: Game | None = None):
         """Value to `me` of `op` landing on a fighter; None when a `set_hp` does not say the hit points."""
         if op == "set_hp":
             if not isinstance(n, (int, float)):
                 return None
-            return lambda f: EffectAI.hp_change(f, n, me)
+            return lambda f: EffectAI.hp_change(f, n, me, game)
         n = n if isinstance(n, (int, float)) else DEFAULT_BLOW
         if op == "damage":
-            return lambda f: EffectAI.hp_change(f, f.hp - n, me)
-        return lambda f: EffectAI.hp_change(f, f.hp + n, me)
+            return lambda f: EffectAI.hp_change(f, f.hp - n, me, game)
+        return lambda f: EffectAI.hp_change(f, f.hp + n, me, game)
 
     def _relocation_scorer(self, game: Game, op: str, extra: dict, me: int):
         """The best `position_value` gain a fighter's relocation can bring `me`: an own piece goes where it is
@@ -216,21 +216,21 @@ class EffectAI:
         return gain
 
     @staticmethod
-    def hp_change(f, new_hp: float, me: int) -> float:
+    def hp_change(f, new_hp: float, me: int, game: Game | None = None) -> float:
         """What `f` going from its hit points to `new_hp` is worth to `me`: hit points by the weights the
         evaluation uses, and a kill on top (a loss when the piece is `me`'s, the game when it is the hero; a prize
-        when it is a rival's)."""
+        when it is a rival's). With the `game`, a sidekick's kill is worth what its AI profile says (`kill_value`)."""
         new = max(0, min(f.max_hp, new_hp))
         delta, dead = new - f.hp, new <= 0 < f.hp
-        kill = (LETHAL if f.hero else KILL_SIDEKICK) if dead else 0.0
+        kill = (LETHAL if f.hero else kill_value(game, f) if game else KILL_SIDEKICK) if dead else 0.0
         if f.owner == me:
             return (W_MEDUSA_HP if f.hero else HARPY_VALUE) * delta - kill
         return -(W_HERO if f.hero else W_SIDEKICK) * delta + kill
 
     @staticmethod
-    def blow_value(f, dmg: float) -> float:
+    def blow_value(f, dmg: float, game: Game | None = None) -> float:
         """What hitting `f` for `dmg` is worth to its rival."""
-        return EffectAI.hp_change(f, f.hp - dmg, 1 - f.owner)
+        return EffectAI.hp_change(f, f.hp - dmg, 1 - f.owner, game)
 
     # ------------------------------------------------------------------ spaces
     def _space(self, game: Game, req: ChoiceRequest, nested: bool) -> list | None:
@@ -304,7 +304,7 @@ class EffectAI:
                                                           sign[i in mine] * card_worth(cards[i]), i))
             return sorted(req.options, key=lambda i: (sign[i in mine] * card_worth(cards[i]), i))
         fighters = game.fighters
-        return sorted(req.options, key=lambda i: (-self.blow_value(fighters[i], DEFAULT_BLOW), i))
+        return sorted(req.options, key=lambda i: (-self.blow_value(fighters[i], DEFAULT_BLOW, game), i))
 
     def _amount(self, game: Game, req: ChoiceRequest, nested: bool) -> list:
         top = max(req.options)
@@ -341,7 +341,7 @@ class EffectAI:
             if hit is None or to is None:
                 return None
             n = req.extra.get("amount", DEFAULT_BLOW)
-            return [self.hp_change(to, to.hp - n, req.player) >= self.hp_change(hit, hit.hp - n, req.player)]
+            return [self.hp_change(to, to.hp - n, req.player, game) >= self.hp_change(hit, hit.hp - n, req.player, game)]
         if req.extra.get("discards") and req.extra.get("else_fighter") in game.fighters:
             return [self._discard_or_take(game, req)]
         found = self._locate(game, req)
@@ -368,7 +368,7 @@ class EffectAI:
         named = [c for c in hand if c.card_id in req.extra["discards"]]
         price = sum(0.0 if bounces_back(game, me, c) else keep_value(c, hand) for c in named)
         f = game.fighters[req.extra["else_fighter"]]
-        return -self.hp_change(f, f.hp - req.extra["else_damage"], me) > price
+        return -self.hp_change(f, f.hp - req.extra["else_damage"], me, game) > price
 
     # ------------------------------------------------------------------ clones and evaluation
     def _base(self, game: Game, req: ChoiceRequest) -> Game:
@@ -431,9 +431,9 @@ class EffectAI:
         for fid, f in before.fighters.items():
             now = after.fighters[fid]
             if f.alive and (now.alive or not now.hero):
-                delta += EffectAI.hp_change(f, now.hp if now.alive else 0, me)
+                delta += EffectAI.hp_change(f, now.hp if now.alive else 0, me, before)
             elif not f.alive and now.alive:
-                delta += (HARPY_VALUE if now.owner == me else -W_SIDEKICK) * now.hp + (KILL_SIDEKICK if now.owner == me else -KILL_SIDEKICK)
+                delta += (HARPY_VALUE if now.owner == me else -W_SIDEKICK) * now.hp + (1 if now.owner == me else -1) * kill_value(after, now)
         delta += W_MEDUSA_HP * (ongoing.worth(after, me) - ongoing.worth(before, me))
         delta -= W_HERO * (ongoing.worth(after, 1 - me) - ongoing.worth(before, 1 - me))
         return delta

@@ -12,7 +12,7 @@ plan solo la pasiva `attack_bonus` esta conectada."""
 from __future__ import annotations
 
 import json
-from dataclasses import dataclass
+from dataclasses import dataclass, field
 from functools import lru_cache
 from pathlib import Path
 
@@ -84,6 +84,14 @@ class HeroDef:
     passives: tuple[dict, ...]
     card_base: int | None
     cards: tuple[dict, ...]
+    ai_profile: dict = field(default_factory=dict)    # per fighter group, computed at import (sparring/ai_profile.py)
+
+    def fighter_profile(self, name: str) -> dict | None:
+        """The AI profile of the fighter called `name` (hero or sidekick group), None when the HeroDef has none."""
+        for p in self.ai_profile.values():
+            if p["name"] == name:
+                return p
+        return None
 
     @property
     def fighter_names(self) -> set[str]:
@@ -145,7 +153,7 @@ def parse_hero(raw: dict, where: str = "hero") -> HeroDef:
         hero = HeroDef(slug, name, raw["fid"], int(raw["hp"]), int(raw["move"]), _ranged(raw["attack"], where),
                        raw.get("ability") or "", sidekicks, forms, counters,
                        tuple(raw.get("triggers") or ()), tuple(raw.get("passives") or ()),
-                       deck.get("card_base"), tuple(deck.get("cards") or ()))
+                       deck.get("card_base"), tuple(deck.get("cards") or ()), raw.get("ai_profile") or {})
     except (KeyError, TypeError, ValueError) as e:
         raise HeroDataError(f"{where}: HeroDef no valido ({e!r})") from None
     _validate(hero, where)

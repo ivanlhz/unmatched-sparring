@@ -360,6 +360,83 @@
    }
   ]
  },
+ "ai_profile": {
+  "abe": {
+   "name": "Abe Sapien",
+   "hero": true,
+   "count": 1,
+   "max_hp": 13,
+   "move": 2,
+   "ranged": true,
+   "role": "hero",
+   "attack": {
+    "cards": 19,
+    "mean": 3.16,
+    "max": 5
+   },
+   "exclusive": [
+    {
+     "title": "Faster. Stronger.",
+     "type": "attack",
+     "copies": 2,
+     "impact": 1.08
+    },
+    {
+     "title": "Advanced Psychometry",
+     "type": "attack",
+     "copies": 3,
+     "impact": 0.43
+    },
+    {
+     "title": "Perfect Shot",
+     "type": "attack",
+     "copies": 2,
+     "impact": 0.85
+    },
+    {
+     "title": "Every Possible Angle",
+     "type": "scheme",
+     "copies": 2,
+     "impact": 1.4
+    },
+    {
+     "title": "Counterhex Shield",
+     "type": "scheme",
+     "copies": 2,
+     "impact": 1.7
+    },
+    {
+     "title": "B.P.R.D. Utility Belt",
+     "type": "scheme",
+     "copies": 2,
+     "impact": 2.8
+    }
+   ]
+  },
+  "agent": {
+   "name": "B.P.R.D. Agent",
+   "hero": false,
+   "count": 3,
+   "max_hp": 1,
+   "move": 2,
+   "ranged": true,
+   "role": "striker",
+   "attack": {
+    "cards": 15,
+    "mean": 2.73,
+    "max": 4
+   },
+   "exclusive": [
+    {
+     "title": "Secure The Scene",
+     "type": "attack",
+     "copies": 3,
+     "impact": 1.11
+    }
+   ],
+   "requires_alive": []
+  }
+ },
  "_notes": [
   "Hoja 194 del savegame del torneo (8x4), leida carta a carta de la imagen el 2026-10-28. CardID = 19400 + idx; 19500 = carta de personaje.",
   "Restricciones de luchador de la hoja de TTS: ABE SAPIEN en 11 cartas, B.P.R.D. AGENT solo en Secure The Scene (3), ANY en las 16 restantes.",
