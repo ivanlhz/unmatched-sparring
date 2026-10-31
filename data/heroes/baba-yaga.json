@@ -370,31 +370,31 @@
      "title": "The Time For Deals Is Done",
      "type": "attack",
      "copies": 2,
-     "impact": 1.43
+     "impact": 2.18
     },
     {
      "title": "Iron Teeth",
      "type": "attack",
      "copies": 2,
-     "impact": 1.6
+     "impact": 2.2
     },
     {
      "title": "Read The Bones",
      "type": "versatile",
      "copies": 3,
-     "impact": 0.66
+     "impact": 1.11
     },
     {
      "title": "Foul Journey",
      "type": "versatile",
      "copies": 3,
-     "impact": 0.92
+     "impact": 1.22
     },
     {
      "title": "Bound In Blood",
      "type": "defense",
      "copies": 2,
-     "impact": 0.9
+     "impact": 1.35
     },
     {
      "title": "Pact Of Freedom",
@@ -418,7 +418,7 @@
      "title": "Pact Of Secrecy",
      "type": "scheme",
      "copies": 1,
-     "impact": -0.15
+     "impact": 0.0
     },
     {
      "title": "Pact Of Time",
@@ -446,7 +446,7 @@
      "title": "Death's Release",
      "type": "attack",
      "copies": 2,
-     "impact": 1.62
+     "impact": 2.37
     }
    ],
    "requires_alive": [

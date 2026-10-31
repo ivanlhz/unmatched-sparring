@@ -70,23 +70,27 @@
  },
  "bprd-hq/1": {
   "hellboy_hp": 0,
-  "medusa_hp": 15,
+  "medusa_hp": 10,
   "trace": [
    "T1 P0: P0 roba 1; P0 roba 1",
    "T2 P1: medusa -1 (15 pv); hellboy -1 (17 pv); P1 roba 1",
    "T3 P0: lobster -1 (5 pv); lobster -5 (0 pv); hellboy -3 (14 pv)",
    "T4 P1: harpy2 -1 (0 pv); harpy3 -3 (-2 pv); P1 roba 1",
-   "T5 P0: P0 roba 1",
+   "T5 P0: P0 roba 1; P0 roba 1",
    "T6 P1: P1 roba 1; P1 roba 1",
-   "T7 P0: P0 roba 1; P0 roba 1",
+   "T7 P0: P0 roba 1",
    "T8 P1: P1 roba 1; harpy1 -4 (-3 pv)",
-   "T9 P0: hellboy -1 (13 pv); P0 roba 2",
+   "T9 P0: P0 roba 1",
    "T10 P1: P1 roba 1; harpy2 -2 (-1 pv)",
-   "T11 P0: P0 roba 1; hellboy -2 (11 pv); hellboy -8 (3 pv)",
+   "T11 P0: hellboy -1 (13 pv); hellboy -3 (10 pv); hellboy -1 (9 pv); P0 roba 2",
    "T12 P1: P1 roba 1; P1 roba 1",
-   "T13 P0: hellboy -1 (2 pv); hellboy -2 (0 pv)"
+   "T13 P0: hellboy -1 (8 pv); P0 roba 1",
+   "T14 P1: P1 roba 1; harpy1 -6 (-5 pv)",
+   "T15 P0: hellboy -1 (7 pv); hellboy -3 (4 pv); P0 roba 1; hellboy -3 (1 pv)",
+   "T16 P1: P1 roba 1; medusa -5 (10 pv)",
+   "T17 P0: hellboy -1 (0 pv)"
   ],
-  "turns": 13,
+  "turns": 17,
   "winner": "Medusa"
  },
  "bprd-hq/2": {
@@ -155,27 +159,15 @@
   "winner": "Medusa"
  },
  "bprd-hq/5": {
-  "hellboy_hp": -4,
-  "medusa_hp": 15,
+  "hellboy_hp": 0,
+  "medusa_hp": 16,
   "trace": [
    "T1 P1: P1 roba 1; P1 roba 1",
    "T2 P0: P0 roba 1; P0 roba 1",
    "T3 P1: P1 roba 1; harpy3 -1 (0 pv)",
-   "T4 P0: hellboy -1 (17 pv); hellboy -7 (10 pv); P0 roba 1",
-   "T5 P1: P0 roba 1; P1 roba 1; P0 roba 1; P1 roba 1",
-   "T6 P0: hellboy -1 (9 pv); P0 roba 1",
-   "T7 P1: harpy1 -3 (-2 pv); P1 roba 1; harpy3 -4 (-3 pv)",
-   "T8 P0: hellboy -1 (8 pv); P0 roba 1",
-   "T9 P1: harpy1 -2 (-1 pv); harpy2 -1 (0 pv); P1 roba 1",
-   "T10 P0: P0 roba 1; P0 roba 1",
-   "T11 P1: P1 roba 1; P1 roba 1",
-   "T12 P0: hellboy -1 (7 pv); P0 roba 1; P0 roba 1",
-   "T13 P1: P1 roba 1; medusa -1 (15 pv)",
-   "T14 P0: lobster -1 (5 pv); P0 roba 1; P0 roba 1",
-   "T15 P1: P1 roba 1",
-   "T16 P0: hellboy -1 (6 pv); hellboy -2 (4 pv); hellboy -8 (-4 pv)"
+   "T4 P0: hellboy -1 (17 pv); hellboy -7 (10 pv); hellboy -2 (8 pv); hellboy -8 (0 pv)"
   ],
-  "turns": 16,
+  "turns": 4,
   "winner": "Medusa"
  }
 }

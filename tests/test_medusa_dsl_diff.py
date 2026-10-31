@@ -103,7 +103,8 @@ def test_ismcts_games_are_identical_turn_by_turn(monkeypatch, seed):
 
 # ---------------------------------------------------------------- the goldens under the legacy engine
 # The live goldens moved with E2 (the human's Hellboy is interpreted); the pre-E2 ones the legacy engine reproduces
-# are frozen under tests/golden/legacy/ (byte-identical copies of 32e0221).
+# are frozen under tests/golden/legacy/: they freeze the old engine under the current AI (the shared AI moved
+# bprd-hq/2 when sidekick kills started to be valued by their AI profile).
 
 def golden(name):
     return json.loads((GOLDEN / "legacy" / name).read_text(encoding="utf-8"))

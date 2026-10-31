@@ -5,7 +5,7 @@ import json
 
 import pytest
 
-from conftest import Scripted
+from conftest import Scripted, give
 from sparring.ai_medusa import MedusaAI, Model, fighter_profile, kill_value, protect_factor, stake
 from sparring.ai_profile import compute_ai_profile
 from sparring.heroes import HEROES_DIR, load_hero, parse_hero
@@ -121,3 +121,50 @@ def test_generated_profiles_are_part_of_the_versioned_herodef():
         raw = json.loads((HEROES_DIR / f"{slug}.json").read_text(encoding="utf-8"))
         assert set(raw["ai_profile"]) == {f.fid.rstrip("123") for f in load_hero(slug).fighters()}
         parse_hero(raw)
+
+
+def test_a_punishing_rival_hand_keeps_lobster_back(bprd):
+    g = hellboy_vs_baba(bprd, ["Service Pistol", "B.P.R.D. Training"], hellboy=5, lobster=6)
+    g.players[1].hand.clear()
+    for i in range(2):
+        give(g, 1, "The Time For Deals Is Done", i)
+        give(g, 1, "Iron Teeth", i)
+    act = MedusaAI(0).plan(g)
+    where = act.moves.get("lobster", g.fighters["lobster"].pos) if act.kind == "maneuver" else g.fighters["lobster"].pos
+    assert not bprd.can_reach_target(where, BABA, True), "stepping in front of Baba's hits is not worth a shot"
+
+
+def test_the_strike_reward_not_the_old_adjacency_bonus_moves_lobster(bprd):
+    g = hellboy_vs_baba(bprd, ["Service Pistol", "B.P.R.D. Training"], hellboy=5, lobster=6)
+    ai, lobster = MedusaAI(0), g.fighters["lobster"]
+    far_shot = [d for d in sorted(bprd.spaces) if bprd.distance(d, BABA) >= 2 and bprd.can_reach_target(d, BABA, True)]
+    assert far_shot, "a ranged fighter can strike from a distance"
+    d = far_shot[0]
+    near = min(bprd.distance(d, e.pos) for e in g.foes(0))
+    assert near >= 2      # the old rule gave nothing here: only adjacency (near == 1) paid
+    assert ai.harpy_score(g, lobster, d) == pytest.approx(-0.25 * near + 1.0)    # 0.2 per point of the Service Pistol's 5
+    g.players[0].hand.clear()
+    assert ai.harpy_score(g, lobster, d) == pytest.approx(-0.25 * near + 0.6)    # no attack in hand: the floor
+    koschei_reward = MedusaAI(1).strike_reward(hellboy_vs_baba(bprd, ["Service Pistol"]), hellboy_vs_baba(bprd, []).fighters["koschei"])
+    assert koschei_reward == 0.6                                              # melee strikers keep the adjacency bonus
+
+
+def test_finishing_the_hero_outranks_any_sidekick_kill(bprd):
+    for hp in (1, 2):
+        g = hellboy_vs_baba(bprd, ["Service Pistol"])
+        g.players[1].hand.clear()
+        koschei = g.fighters["koschei"]
+        koschei.alive, koschei.pos, koschei.hp = True, 21, hp
+        g.fighters["baba"].hp = hp
+        ai, hb, card = MedusaAI(0), g.fighters["hellboy"], g.players[0].hand[0]
+        hero = ai.attack_eval(g, Model(g, 0), hb, g.fighters["baba"], card)[0]
+        side = ai.attack_eval(g, Model(g, 0), hb, koschei, card)[0]
+        assert hero > side + 30, f"at {hp} hp the same card ends the game"
+
+
+def test_exclusive_attack_cards_count_their_own_value_and_never_go_negative():
+    hero, effects = bigfoot_like()
+    hero["deck"]["cards"][27 - 1] = {**hero["deck"]["cards"][26], "title": "Pounce", "fighter": "Jackalope", "value": 5}
+    prof = compute_ai_profile(hero, effects)["jackalope"]
+    assert {e["title"]: e["impact"] for e in prof["exclusive"]}["Pounce"] == pytest.approx(0.3 + 0.75)
+    assert all(e["impact"] >= 0 for p in load_hero("baba-yaga").ai_profile.values() for e in p["exclusive"])

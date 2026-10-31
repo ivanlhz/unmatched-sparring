@@ -400,61 +400,61 @@
      "title": "Incinerate",
      "type": "attack",
      "copies": 1,
-     "impact": 0.54
+     "impact": 1.59
     },
     {
      "title": "Fireball",
      "type": "attack",
      "copies": 2,
-     "impact": 1.02
+     "impact": 1.77
     },
     {
      "title": "Flame Lash",
      "type": "attack",
      "copies": 3,
-     "impact": 0.9
+     "impact": 1.05
     },
     {
      "title": "Fleeting Moments",
      "type": "attack",
      "copies": 3,
-     "impact": 0.42
+     "impact": 1.02
     },
     {
      "title": "Burning Barrier",
      "type": "versatile",
      "copies": 3,
-     "impact": 1.5
+     "impact": 1.8
     },
     {
      "title": "Pyrotechnics",
      "type": "versatile",
      "copies": 3,
-     "impact": 0.54
+     "impact": 0.99
     },
     {
      "title": "B.P.R.D. Training",
      "type": "versatile",
      "copies": 2,
-     "impact": 0.72
+     "impact": 1.17
     },
     {
      "title": "Rekindle",
      "type": "versatile",
      "copies": 2,
-     "impact": 0.6
+     "impact": 0.9
     },
     {
      "title": "Feint",
      "type": "versatile",
      "copies": 3,
-     "impact": 0.9
+     "impact": 1.2
     },
     {
      "title": "Evade",
      "type": "defense",
      "copies": 2,
-     "impact": 0.54
+     "impact": 0.99
     },
     {
      "title": "Searing Clarity",

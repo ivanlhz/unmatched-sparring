@@ -360,19 +360,19 @@
      "title": "Second Shot",
      "type": "attack",
      "copies": 3,
-     "impact": 0.3
+     "impact": 0.75
     },
     {
      "title": "Gaze of Stone",
      "type": "attack",
      "copies": 3,
-     "impact": 3.32
+     "impact": 3.62
     },
     {
      "title": "Hiss and Slither",
      "type": "defense",
      "copies": 3,
-     "impact": 0.6
+     "impact": 1.2
     },
     {
      "title": "A Momentary Glance",
@@ -400,13 +400,13 @@
      "title": "The Hounds of Mighty Zeus",
      "type": "versatile",
      "copies": 2,
-     "impact": 0.48
+     "impact": 1.08
     },
     {
      "title": "Clutching Claws",
      "type": "versatile",
      "copies": 3,
-     "impact": 0.6
+     "impact": 1.05
     }
    ],
    "requires_alive": []

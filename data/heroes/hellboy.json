@@ -412,19 +412,19 @@
      "title": "Excalibur",
      "type": "attack",
      "copies": 1,
-     "impact": 0.3
+     "impact": 1.2
     },
     {
      "title": "Right Hand Of Doom",
      "type": "attack",
      "copies": 4,
-     "impact": 0.61
+     "impact": 1.21
     },
     {
      "title": "Confront Any Demon or God",
      "type": "versatile",
      "copies": 2,
-     "impact": 0.88
+     "impact": 1.33
     },
     {
      "title": "On Earth As It Is In Hell",
@@ -464,13 +464,13 @@
      "title": "Second Shot",
      "type": "attack",
      "copies": 2,
-     "impact": 0.3
+     "impact": 0.6
     },
     {
      "title": "Posthumous Power",
      "type": "versatile",
      "copies": 3,
-     "impact": 1.11
+     "impact": 1.41
     }
    ],
    "requires_alive": []

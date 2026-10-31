@@ -35,7 +35,8 @@ Op -> points (per resolution; amounts that are not a plain integer count as DEFA
     if          0.7 x the better branch; optional 0.8 x its ops; for_each 1.5 x its ops;
                 choose_effect: the best option
     moments     scheme 1.0, immediately/during/after 0.6 (the combat must be won / go that way), boost 0.3
-    a card only the fighter can play is a dead card in the rival's hand without it: DEAD_CARD 0.3 per copy
+    a card only the fighter can play is a dead card in the rival's hand without it: DEAD_CARD 0.3 per copy, plus its
+                own combat value COMBAT_PER_POINT 0.15 per printed point (attack, defense, versatile); a card's impact is >= 0
 
 `requires_alive`: sources outside the fighter's own cards whose effects need it on the board: ops that target it
 (heal, place, redirect to it) or sit under an `if` / passive condition that tests it exists. A passive of the hero
@@ -44,6 +45,7 @@ from __future__ import annotations
 
 DEFAULT_AMOUNT = 2
 DEAD_CARD = 0.3
+COMBAT_PER_POINT = 0.15     # a card's own combat value: per printed point above zero (Second Shot 2 -> 0.3 on top of the dead card)
 PASSIVE_VALUE = 2.0
 IF_FACTOR, OPTIONAL_FACTOR, EACH_FACTOR = 0.7, 0.8, 1.5
 MOMENT_FACTOR = {"scheme": 1.0, "immediately": 0.6, "during": 0.6, "after": 0.6, "boost": 0.3}
@@ -252,7 +254,7 @@ def compute_ai_profile(hero: dict, effects: dict | None = None, roles: dict | No
             copies = sum(1 for x in cards if x["title"] == c["title"])
             fx = (by_title.get(c["title"]) or {}).get("effects") or {}
             exclusive.append({"title": c["title"], "type": c["type"], "copies": copies,
-                              "impact": _round(DEAD_CARD + moment_points(fx))})
+                              "impact": _round(max(0.0, DEAD_CARD + COMBAT_PER_POINT * (c["value"] or 0) + moment_points(fx)))})
         entry = {"name": name, "hero": is_hero, "count": count, "max_hp": hp, "move": move, "ranged": ranged,
                  "role": role, "attack": attack_summary(cards, name), "exclusive": exclusive}
         if not is_hero:
