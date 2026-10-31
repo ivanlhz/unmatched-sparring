@@ -47,6 +47,7 @@ def _look_hand(run, game, spec):
         reader = game.hand_reader
         cards = list(game.players[target].hand) if reader is None else reader(target)
         game.observe_hand(owner, cards)
+        run.flags["looked_hand"] = True      # the narration says "mira" only for a look, not for a changed `seen`
 
 
 @op("reveal")
@@ -67,6 +68,7 @@ def _reveal(run, game, spec):
                 continue
             if zone == "hand":
                 _remember_in_hand(game, holder, card)
+                run.flags["looked_hand"] = True
             elif zone == "deck" and game.players[holder].deck[:1] == [card]:
                 _watcher(game, holder).set_top([card.card_id])
 
