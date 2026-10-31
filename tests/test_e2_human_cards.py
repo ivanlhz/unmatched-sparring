@@ -19,7 +19,7 @@ from sparring.tts.ui import Event
 from sparring.ai_medusa import MedusaAI
 from test_batch import click
 from test_choice_infra import visible_choices
-from test_d3_table_effects import build, card_ids, human_attack, human_hand, said, to_bot_discard
+from test_d3_table_effects import build, card_ids, human_attack, human_hand, said, set_hand, to_bot_discard
 
 
 ONGOING_SPOTS = {"bot_ongoing_spot": [6.0, 1.7, -22.0], "human_ongoing_spot": [-2.0, -22.0]}
@@ -1119,3 +1119,53 @@ def test_an_ongoing_scheme_replacing_another_says_the_old_one_left_play_and_move
     assert any("robas 1" in m and "Rekindle deja de estar en juego" in m and "descartas Rekindle" not in m
                for m in msgs), msgs
     assert not said(msgs, "al mazo") and not said(msgs, "a tu mazo") and not said(msgs, "del mazo a tu mano"), msgs
+
+
+@with_rig(*LIZ_VS_HELLBOY)
+def test_incinerate_the_bot_pays_two_cards_and_the_chat_names_them(rig, monkeypatch):
+    session, table, game, fake, cfg = rig
+    put_adjacent(game, table, cfg, "liz", "hellboy")
+    bot_defends_with(session, game, "Glimpse Of Hell", monkeypatch)
+    game.fighters["hellboy"].hp = 5                              # lethal: the bot is offered the price and pays
+    human_hand(table, game, "Incinerate", "Evade")
+    human_attack(session, table, game, "liz", "hellboy", "Incinerate")
+    msgs = click(session, table, Event.REVEAL)
+    line = next(m for m in msgs if m.startswith("Tu carta: Incinerate"))
+    assert "el bot descarta Pancakes! y Second Shot para ignorar el valor de Incinerate (queda a 0; el dano seria letal)" in line, line
+    assert "sin efecto" not in line and len(table.bot_discard) == 3
+
+
+@with_rig(*LIZ_VS_HELLBOY)
+def test_incinerate_the_bot_declines_when_it_is_not_worth_it_and_says_so(rig, monkeypatch):
+    session, table, game, fake, cfg = rig
+    put_adjacent(game, table, cfg, "liz", "hellboy")
+    bot_defends_with(session, game, "Glimpse Of Hell", monkeypatch)
+    human_hand(table, game, "Incinerate", "Evade")
+    human_attack(session, table, game, "liz", "hellboy", "Incinerate")
+    msgs = click(session, table, Event.REVEAL)
+    line = next(m for m in msgs if m.startswith("Tu carta: Incinerate"))
+    assert line == "Tu carta: Incinerate: el bot no paga (descartar 2): prefiere recibir 5 de dano a perder 2 cartas", line
+    assert game.fighters["hellboy"].hp == 13 and len(table.bot_discard) == 1
+
+
+@with_rig(*LIZ_VS_HELLBOY)
+def test_incinerate_the_bot_with_one_card_left_cannot_pay_and_the_chat_says_so(rig, monkeypatch):
+    session, table, game, fake, cfg = rig
+    put_adjacent(game, table, cfg, "liz", "hellboy")
+    set_hand(session, table, game, "Glimpse Of Hell", "Pancakes!")   # the defense leaves a single card: no price
+    bot_defends_with(session, game, "Glimpse Of Hell", monkeypatch)
+    game.fighters["hellboy"].hp = 5
+    human_hand(table, game, "Incinerate", "Evade")
+    human_attack(session, table, game, "liz", "hellboy", "Incinerate")
+    msgs = click(session, table, Event.REVEAL)
+    line = next(m for m in msgs if m.startswith("Tu carta: Incinerate"))
+    assert line == "Tu carta: Incinerate: el bot no puede pagar (le faltan cartas para descartar 2): recibe 5 de dano", line
+
+
+def test_a_paid_price_is_said_even_when_the_discard_has_other_wording():
+    from types import SimpleNamespace
+    from sparring.effects import narrate
+    run = SimpleNamespace(ctx=SimpleNamespace(card_id=None))
+    priced = {"paid": True, "can_pay": True, "cards": 2, "stake": 4, "hp": 16}
+    out = narrate._say_bot_price(None, run, ["otra cosa"], priced)
+    assert out == ["el bot paga 2 cartas para ignorar el valor de efecto (queda a 0; evita 4 de dano)", "otra cosa"]

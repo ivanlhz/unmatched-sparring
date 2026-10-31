@@ -68,11 +68,32 @@ def describe(game, before: dict, run, flow=None, title: str | None = None) -> st
     if before["seen"][run.ctx.owner] != _seen(game.players[run.ctx.owner]):
         parts.append("mira tu mano" if run.ctx.owner == game.bot_player else "miras la mano del bot")
     parts = _fold_triggers(game, before, parts)
+    priced = run.flags.get("bot_priced")
+    if priced:
+        parts = _say_bot_price(game, run, parts, priced)
     by_hand = table.lines(run)
     if by_hand:
         parts.append("en la mesa: " + ", ".join(by_hand))
     title = title or _title(game, run.ctx.card_id)
     return f"{title}: " + ("; ".join(parts) if parts else NOTHING)
+
+
+def _say_bot_price(game, run, parts: list[str], priced: dict) -> list[str]:
+    """The bot's answer to a price the human's card offered it, said plainly and never as "sin efecto". The wording is
+    Incinerate's (a discard price that ignores the card's value); another priced optional needs its own."""
+    title = _title(game, run.ctx.card_id)
+    stake, cards = priced["stake"], priced["cards"]
+    lethal = priced["hp"] is not None and 0 < priced["hp"] <= stake
+    if not priced["can_pay"]:
+        return parts + [f"el bot no puede pagar (le faltan cartas para descartar {cards}): recibe {stake:g} de dano"]
+    if not priced["paid"]:
+        why = f"prefiere recibir {stake:g} de dano a perder {cards} cartas" if stake else "no cambia el combate"
+        return parts + [f"el bot no paga (descartar {cards}): {why}"]
+    why = "el dano seria letal" if lethal else f"evita {stake:g} de dano"
+    discarded = next((p for p in parts if p.startswith("descarta ")), None)
+    rest = [p for p in parts if p != discarded and not p.startswith(f"el valor de {title} pasa a")]
+    paid = discarded or f"paga {cards} cartas"          # `_cards` words the discard; without it the price still shows
+    return [f"el bot {paid} para ignorar el valor de {title} (queda a 0; {why})"] + rest
 
 
 _RETURN = re.compile(r"^(?P<label>[^:]+): (?P<title>.+) vuelve a tu mano$")
