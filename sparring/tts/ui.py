@@ -144,10 +144,12 @@ function onChoice(player, btn, id)
   if n then send({{event = "choice", i = n}}) end
 end
 lookRow = ""
+botPingUntil = 0
 local HUMAN_SEAT = {seat}
 local PING_RADIUS = 1.6
 function onPlayerPing(player, position, object)
   if lookRow == "" or HUMAN_SEAT == nil or player == nil or player.color ~= HUMAN_SEAT then return end
+  if Time ~= nil and Time.time < botPingUntil then return end     -- the bot pings as the human's seat: not a pick
   local hit, best = nil, PING_RADIUS
   local pinged = nil
   if object ~= nil then pcall(function() pinged = object.getGUID() end) end

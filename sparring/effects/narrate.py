@@ -154,7 +154,8 @@ def _cards(game, before: dict, run) -> list[str]:
     for p in (owner, 1 - owner):
         st, was = game.players[p], before["players"][p]
         roba, descarta, devuelve, su = VERBS["bot" if p == game.bot_player else "human"]
-        draws = game.drawn[p] - before["drawn"][p]
+        # the owed-draws counter also falls when the table settles it (a look row put the hand back): not a draw
+        draws = max(0, game.drawn[p] - before["drawn"][p])
         if draws:
             out.append(f"{roba} {draws}")
         discard_now = [c.card_id for c in st.discard]

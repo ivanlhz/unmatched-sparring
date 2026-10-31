@@ -470,6 +470,10 @@ LOOK_VAR = "lookRow"     # variable del script del panel con la fila mostrada: "
 MAX_LOOK_CARDS = 12
 
 
+BOT_PING_VAR = "botPingUntil"   # panel variable: until this Time.time the pings seen are the bot's own
+BOT_PING_WINDOW = 0.75          # seconds a bot ping may take to reach `onPlayerPing`
+
+
 def _panel_var_lua(value_expr: str) -> str:
     """Pone la variable `lookRow` en el script del panel PROPIO (nombre y notas de GM nuestros), bajo pcall: el panel
     sabe asi que cartas de la fila puede reconocer `onPlayerPing`. Nunca toca el Global."""
@@ -479,6 +483,10 @@ def _panel_var_lua(value_expr: str) -> str:
   end
 end)
 """
+
+
+_BOT_PING_MARK = ("local function markBotPing() " + _panel_var_lua(f"Time.time + {BOT_PING_WINDOW}").replace(
+    f'"{LOOK_VAR}"', f'"{BOT_PING_VAR}"').replace(chr(10), " ").strip() + " end")
 
 
 @_registered
@@ -1000,7 +1008,9 @@ def _ping_lua(seat_colors: list[str], attacker_guids: list[str], target_guids: l
             raise ValueError("el ping necesita al menos un asiento y un GUID de atacante y de objetivo")
     seats = "{" + ", ".join(_color(c) for c in seat_colors) + "}"
     return f"""pcall(function()
+  {_BOT_PING_MARK}
   local function pinger()
+    markBotPing()
     for _, c in ipairs({seats}) do
       local p = Player[c]
       if p ~= nil and p.seated then return p end
@@ -1924,7 +1934,9 @@ return JSON.encode({{rot_z = z, flipped = true}})
 """
 
 
-_PINGER_LUA = """local function pinger()
+_PINGER_LUA = _BOT_PING_MARK + """
+local function pinger()
+  markBotPing()
   for _, c in ipairs(seats) do
     local p = Player[c]
     if p ~= nil and p.seated then return p end
