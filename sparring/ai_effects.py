@@ -34,7 +34,7 @@ from .ai_medusa import (DECK_SCARCITY, HARPY_VALUE, KILL_SIDEKICK, LETHAL, W_HER
                         W_SIDEKICK, MedusaAI, Model, keep_value, play_signature)
 from .controller import Controller
 from .effects import ongoing
-from .effects.choose import ChoiceRequest, ControllerChooser, default_answer, worth_paying
+from .effects.choose import ChoiceRequest, ControllerChooser, SyntheticChooser, default_answer, worth_paying
 from .effects.model import EffectError, load_effects
 from .effects.ops_combat import PREDICT_OP
 from .effects.run import Ctx, EffectRun
@@ -285,6 +285,9 @@ class EffectAI:
         worth = lambda i: card_worth(cards[i]) if i in cards else 0.0
         if of == me and purpose == "discard":                       # parting with own deck or discard cards
             return sorted(req.options, key=lambda i: (worth(i), i))[:n_min]
+        if of == me and zone == "discard" and purpose == "return":   # own discard back into the deck (Pancakes!): all it
+            ranked = sorted(req.options, key=lambda i: (i in cards and cards[i].destiny, -worth(i), i))
+            return ranked[:n_max]                                    # may, destiny cards last (they keep ANUNG UN RAMA)
         ranked = sorted(req.options, key=lambda i: (-worth(i), i))
         take = n_max if n_min < n_max and worth(ranked[0]) > 0 else n_min
         return ranked[:take]
@@ -326,8 +329,9 @@ class EffectAI:
             if not 0 <= k < len(options):
                 return None
             value = self._simulate(base, options[k].get("ops", []), card, owner, label, req.player)
-            scored.append((value - before if value is not None else 0.0, -k, k))
-        return [max(scored)[2]]
+            gain = round(value - before, 6) if value is not None else 0.0
+            scored.append((gain, SyntheticChooser._option_worth(game, req.player, options[k]), -k, k))   # a tie: the one that does something
+        return [max(scored)[3]]
 
     def _optional(self, game: Game, req: ChoiceRequest, nested: bool) -> list | None:
         if "cost_cards" in req.extra:       # a price in cards: the interpreter sends the combat context, one policy

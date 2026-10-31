@@ -214,8 +214,33 @@ class SyntheticChooser:
         return [top]
 
     def _effect(self, game, req: ChoiceRequest) -> list:
+        """The options that do something first (`_option_worth`); among equals greedy takes the first printed, safe the
+        last. Taking the first two options blindly played Pancakes! as heal + a return of nothing."""
+        from ..ai_effects import EffectAI
         n = min(req.max, len(req.options))
-        return list(req.options[:n]) if self.greedy else list(req.options[-n:])
+        found = EffectAI._locate(game, req)
+        options = found[0].get("options") or [] if found else []
+        worth = {k: self._option_worth(game, req.player, options[k]) if k < len(options) else 1 for k in req.options}
+        sign = 1 if self.greedy else -1
+        return sorted(req.options, key=lambda k: (-worth[k], sign * k))[:n]
+
+    @staticmethod
+    def _option_worth(game, me: int, option: dict) -> int:
+        """0 when the option would change nothing now (a heal at full health, a draw from an empty deck, a return with
+        nothing to return), 3 for a draw, 2 for a heal, 1 for anything else."""
+        mine = game.players[me]
+        for o in option.get("ops", []):
+            kind = o["op"]
+            if kind == "draw":
+                return 3 if mine.deck else 0
+            if kind == "heal":
+                return 2 if any(f.hp < f.max_hp for f in game.own(me)) else 0
+            if kind == "return_to_deck":
+                sel = o["cards"]
+                pile = mine.discard if sel.get("zone") == "discard" else mine.hand
+                banned = sel.get("filter", {}).get("type_not")
+                return 1 if any(c.type != banned for c in pile) else 0
+        return 1
 
     def _fighter(self, game, req: ChoiceRequest) -> list | None:
         me, op = req.player, req.extra.get("op")
@@ -276,9 +301,13 @@ class SyntheticChooser:
             return ControllerChooser._from_rival_hand(game, req, of)
         cards = {c.card_id: c for p in game.players for c in p.full_set}
         worth = lambda i: card_worth(cards[i]) if i in cards else 0.0
+        n = min(req.max, len(req.options))
+        if req.extra.get("purpose") == "return" and req.extra.get("zone") == "discard" and of == req.player:
+            # own discard cards back into the deck: a gain, at least one when it may be more (Pancakes!); destiny
+            # cards last, they are what keeps Hellboy ANUNG UN RAMA
+            return sorted(req.options, key=lambda i: (i in cards and cards[i].destiny, -worth(i), i))[:n]
         if req.extra.get("purpose") in GIVE_UP:
             return sorted(req.options, key=lambda i: (worth(i), i))[:req.min]
-        n = min(req.max, len(req.options))
         return sorted(req.options, key=lambda i: (-worth(i), i))[:n]
 
     def _order(self, game, req: ChoiceRequest) -> list:
