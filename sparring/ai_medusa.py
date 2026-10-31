@@ -75,6 +75,7 @@ DESPERATE_FEAR_DROP = 0.8   # con desesperacion total la huida pesa un 20 %
 WIN_PRIZE = 60.0            # ganar vale lo que perder cuesta: progreso esperado x premio
 PROGRESS_DISCOUNT = 0.8     # el rival puede apartarse antes de mi proximo turno
 CLOCK_HORIZON = 8           # con 8 o mas robos por pagar el reloj del mazo no aprieta
+IDLE_MANEUVER = 0.5         # (not Medusa, whose kiting is standing clear) a maneuver that moves nobody and spends no boost is only a draw: it gives way to a decent attack
 ACTION_VALUE = 1.0          # una accion que regala un plan: al menos el robo de una maniobra, a menudo un ataque
 
 AFTER_BONUS = {
@@ -326,7 +327,7 @@ class MedusaAI(Controller):
         return self.attack_eval(game, model, f, t, c)[0]
 
     def p_win_of(self, game: Game, model: Model, f: Fighter, t: Fighter, c) -> float:
-        atk = float(c.value)
+        atk = float(c.value) + game.attack_bonus(f)
         if c.title == SECOND_SHOT:
             spare = [x for x in game.players[self.me].hand if x is not c]
             atk += BOOST_RELIANCE * max((x.boost for x in spare), default=0)
@@ -334,7 +335,7 @@ class MedusaAI(Controller):
 
     def attack_eval(self, game: Game, model: Model, f: Fighter, t: Fighter, c) -> tuple[float, float]:
         hand = game.players[self.me].hand
-        atk, cost = float(c.value), CARD_VALUE + 0.05 * c.boost
+        atk, cost = float(c.value) + game.attack_bonus(f), CARD_VALUE + 0.05 * c.boost    # ANUNG UN RAMA's +2, a live ONGOING
         if c.title == SECOND_SHOT:
             spare = [x for x in hand if x is not c]
             if spare:
@@ -471,7 +472,9 @@ class MedusaAI(Controller):
                             opts = g.legal_moves(h, h.move + extra) | {h.pos}
                             h.pos = max(opts, key=lambda s: (self.harpy_score(g, h, s), -s))
                         moves[h.fid] = h.pos
-                    out.append(Act("maneuver", CARD_VALUE - cost, medusa.fid, "", None, moves=moves, boost=boost))
+                    idle = medusa.name != "Medusa" and boost is None and all(game.fighters[fid].pos == dest for fid, dest in moves.items())
+                    out.append(Act("maneuver", CARD_VALUE - cost - (IDLE_MANEUVER if idle else 0.0), medusa.fid, "", None,
+                                   moves=moves, boost=boost))
         return out
 
     # ---------- estado esperado ----------
