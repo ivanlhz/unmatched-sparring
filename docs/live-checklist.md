@@ -29,16 +29,16 @@ Con `--read-only` mira el informe y ajusta lo que este mal. Prueba con una carta
 
 ### Deteccion de heroes (`--read-only`)
 - [x] Con `bot_hero`/`human_hero` en `"auto"`: el informe da el heroe correcto de cada bando (un Deck o Card SUELTO con CardID de su rango, el mas cercano al `*_deck_spot`). Si es dudoso, se niega a empezar y lo dice. *(OK 29/10)*
-- [ ] Repite con cada pareja de heroes que vayas a probar (cambiando lo que hay en mesa).
-- [ ] El informe no da "no encontrado" para miniaturas, dials, mazo, descarte ni fichas (1644a3 Hellboy, 5a17e9 Abe).
-- [ ] Informe de objetos puente (tipo/rotacion/estados): anota el **tipo** de 5a17e9 (bolsa / bolsa infinita / pila / ficha suelta) y de 1644a3, y la rotZ actual de 1644a3.
+- [x] Repite con cada pareja de heroes que vayas a probar (cambiando lo que hay en mesa). *(OK 30/10)*
+- [x] El informe no da "no encontrado" para miniaturas, dials, mazo, descarte ni fichas (1644a3 Hellboy, 5a17e9 Abe). *(OK 30/10)*
+- [x] Informe de objetos puente (tipo/rotacion/estados): anota el **tipo** de 5a17e9 (bolsa / bolsa infinita / pila / ficha suelta) y de 1644a3, y la rotZ actual de 1644a3. *(OK 30/10)*
 
 ## 2. Arranque
 
 - [x] Sin `--read-only`: dibuja los rectangulos DESCARTE y COMBATE de ambos y crea el panel (`SparringPanel`). Sin errores en la terminal. *(OK 29/10)*
-- [ ] Preparacion (`setup`): el bot reparte 5, mulligan (una vez); si empieza el bot, coloca sus piezas; tu colocas las tuyas y pulsas **Listo**. **Mulligan** / **Listo** aparecen solo cuando toca.
+- [x] Preparacion (`setup`): el bot reparte 5, mulligan (una vez); si empieza el bot, coloca sus piezas; tu colocas las tuyas y pulsas **Listo**. **Mulligan** / **Listo** aparecen solo cuando toca. *(OK 30/10)*
 - [x] El panel responde al primer clic ("Procesando..." y se reactiva). *(OK 29/10)*
-- [ ] (`--timing`) anota mensajes y tiempo de un boton normal (esperado ~1 mensaje, ~0.5 s por mensaje).
+- [x] (`--timing`) anota mensajes y tiempo de un boton normal (esperado ~1 mensaje, ~0.5 s por mensaje). *(OK 30/10)*
 
 ## 3. Por heroe
 
@@ -53,7 +53,7 @@ Repite el bloque para cada heroe, **con Ivan jugandolo** (H) y **con el bot juga
 - [ ] H/B: un **ONGOING** y luego otro que lo **reemplaza** (solo uno por jugador; el primero va al descarte). **(E2)** la carta queda fisicamente en la zona ONGOING de su lado y la sustituta ocupa su sitio.
 - [ ] H/B: la **habilidad** del heroe.
 - [ ] B: el chat dice lo que hizo cada carta y nombra lo que te toca descartar.
-- [ ] H **(E2)**: puerta de habilidad de inicio de turno en el panel: bloquea las acciones hasta **Fin de accion**.
+- [x] H **(E2)**: puerta de habilidad de inicio de turno en el panel: bloquea las acciones hasta **Fin de accion**. *(OK 30/10: lineas 69 y 94)*
 - [ ] H **(E2)**: movimientos opcionales ofrecen **Ninguna**.
 
 ### Medusa
@@ -66,9 +66,9 @@ Repite el bloque para cada heroe, **con Ivan jugandolo** (H) y **con el bot juga
 - [x] B (forma): cambio a **ANUNG UN RAMA**: `set_state` entre las miniaturas f9789a <-> e6f06e (cambia la miniatura), la ficha 1644a3 gira (rotZ 180 = OCCULT DETECTIVE, rotZ 0 = ANUNG UN RAMA; inferido de la geometria, confirmalo) y **ping** sobre ficha y miniatura. Comprueba cara correcta, pieza correcta, sin miniaturas duplicadas. *(OK 29/10)*
 - [ ] B: vuelta a OCCULT DETECTIVE (menos de 6 destinos) gira de vuelta y hace ping.
 - [ ] B: inicio de su turno: roba 2 (DETECTIVE) o descarta y mueve (ANUNG), anunciado.
-- [ ] H **(E2)**: puerta de habilidad de inicio de turno (robo / ANUNG) bloquea hasta **Fin de accion**.
-- [ ] H/B: Crown Of Flame (**(E2)** espera tu descarte), Planned Recklessness, Second Shot, Horseshoes, Right Hand Of Doom, B.P.R.D. Training, On Earth.
-- [ ] H **(E2)**: esquemas con boton **Pancakes!** y **Posthumous Power**; reanudar a mitad de esquema.
+- [x] H **(E2)**: puerta de habilidad de inicio de turno (robo / ANUNG) bloquea hasta **Fin de accion**. *(OK 30/10)*
+- [x] H/B: Crown Of Flame (**(E2)** espera tu descarte), Planned Recklessness, Second Shot, Horseshoes, Right Hand Of Doom, B.P.R.D. Training, On Earth. *(OK 30/10)*
+- [x] H **(E2)**: esquemas con boton **Pancakes!** y **Posthumous Power**; reanudar a mitad de esquema. *(OK 30/10)*
 - [ ] H/B: Glimpse Of Hell, Confront (ver Informacion oculta).
 
 ### Abe Sapien
@@ -79,7 +79,7 @@ Repite el bloque para cada heroe, **con Ivan jugandolo** (H) y **con el bot juga
 - [ ] UNCANNY INTUITION y Perfect Shot: ver Informacion oculta.
 
 ### Baba Yaga
-- [ ] Setup: **Koschei ya esta en el tablero** al empezar (confirmado por Ivan; si no esta, revisa `start_on_board` en `data/heroes/baba-yaga.json`).
+- [x] Setup: **Koschei ya esta en el tablero** al empezar (confirmado por Ivan; si no esta, revisa `start_on_board` en `data/heroes/baba-yaga.json`). *(OK 30/10)*
 - [ ] FATEFUL BARGAINS (Koschei en la misma zona, dano de efecto): H **(E2)** pregunta con boton; B decide y lo dice.
 - [ ] Pactos: ONGOING, solo uno a la vez; **Pact Of Freedom** (no atacar como primera accion) y **Cold Iron** bloquean en el panel (seccion 4).
 - [ ] **Pact Of Secrecy**: H **(E2)** botones **0 / 1 / 2**; B: el bot te pregunta cual conservas (los titulos pueden salir como marcadores). Pact Of Secrecy / Time del bot sobre ti: solo chat; la mesa se sincroniza por conteo.
@@ -111,7 +111,7 @@ Repite el bloque para cada heroe, **con Ivan jugandolo** (H) y **con el bot juga
 
 ## 4. Panel y botones
 
-- [ ] Los botones de eleccion de una carta **solo aparecen cuando se juega** (ocultos, **nunca en gris**).
+- [x] Los botones de eleccion de una carta **solo aparecen cuando se juega** (ocultos, **nunca en gris**). *(OK 30/10)*
 - [x] Las etiquetas cambian (`UI.setValue` sobre un Button): "Valor 3", "Descartar X", "Coger 2". Si no se actualizan, apuntalo (punto **verify live**). *(OK 29/10)*
 - [ ] **Cancelar** durante una pausa de combate: funciona; si todas las opciones se rechazan y no puedes salir, apunta cual (la salida es Reiniciar).
 - [ ] Restricciones **bloqueadas** (no solo avisadas): Pact Of Freedom, Cold Iron (si robas fisicamente igual, el bot lo acepta al sincronizar y lo dice).
@@ -124,7 +124,7 @@ Repite el bloque para cada heroe, **con Ivan jugandolo** (H) y **con el bot juga
 Para cada caso: Ctrl+C (y recarga TTS si quieres), luego `--resume`. Esperado: nada se repite ni se reanuncia; el panel vuelve al mismo punto.
 - [ ] A mitad de una **pausa de combate** (esperando Revelar o un boton de efecto).
 - [ ] Pausa tras haber movido/hecho boost el bot a mitad de combate (camino proyeccion -> reanudar; **sin test**).
-- [ ] A mitad de un **esquema** que espera tu respuesta (Pact Of Secrecy, Pancakes!, Posthumous Power) **(E2)**.
+- [x] A mitad de un **esquema** que espera tu respuesta (Pact Of Secrecy, Pancakes!, Posthumous Power) **(E2)**. *(OK 30/10: reanudar a mitad de esquema, linea 71)*
 - [ ] A mitad de una **fila de informacion oculta** (`look_spot`): vuelve la fila y se repite el aviso del modo (`pick` / `reveal`).
 - [ ] A mitad de Perfect Shot (botones de prediccion) y de FATEFUL BARGAINS **(E2)**.
 - [ ] Tras un cambio de turno con Wildfire pendiente.
