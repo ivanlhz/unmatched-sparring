@@ -298,6 +298,7 @@ class Session:
         self.dirty = False                       # el motor movio al bot y la mesa aun no lo refleja
         self.unprojected: dict | None = None     # posiciones previas de las piezas aun sin proyectar
         self.bot_stage: str | None = None        # "start": turno del bot empezado en el motor, E/S pendiente
+        self.anung_start: str | None = None      # what Hellboy's ANUNG start-of-turn trigger did, said before the first write
         self.wildfire_scene: dict | None = None  # what the bot's Wildfire did at the turn change, shown at its first write
         self.said_returns: set[int] = set()      # cards whose return to the bot's hand the Wildfire scene already announced
         self.limit_waived = False
@@ -851,6 +852,7 @@ class Session:
 
     def say(self, msg: str, kind: ChatKind = ChatKind.NEUTRAL, shown: bool = False) -> None:
         self.messages.append(Msg(msg, kind, shown))
+        self.game_log.observe(self.game, self._name)      # the engine events up to this line, before the line itself
         self.game_log.chat(msg)
 
     def _hold(self, seconds: float) -> None:
@@ -2793,9 +2795,26 @@ class Session:
         that moved nothing leaves none."""
         self.fx_unprojected = fx_before
         g = self.game
+        self.anung_start = self._anung_start_text(before, fx_before["bot"]["discard"])
+        self.game_log.observe(g, self._name)      # the turn start and its triggers, not folded into the bot's actions
         if (before != self._snapshot_bot() or fx_before["bot"] != bot_effects.zones(g.players[self.bot])
                 or g.drawn[self.bot]):
             self._mark_dirty(before)
+
+    def _anung_start_text(self, before: dict, discard_before: list[int]) -> str | None:
+        """What the bot's ANUNG UN RAMA start-of-turn trigger just did in the engine (discard 1, move Hellboy up to that
+        card's BOOST), for the chat; None when it did not run (other form, other hero, empty hand)."""
+        g = self.game
+        if g.form(self.bot) != ANUNG or not any(t.get("id") == "anung_discard_move" for t in g.hero_def(self.bot).triggers):
+            return None
+        fuel = [c for c in g.players[self.bot].discard if c.card_id not in discard_before]
+        if not fuel:
+            return None
+        hero = g.hero(self.bot)
+        text = f"ANUNG UN RAMA: el bot descarta {fuel[-1].title} (BOOST {fuel[-1].boost})"
+        if hero.alive and hero.pos != before[hero.fid][0]:
+            return text + f" y mueve {self._name(hero)} hasta {fuel[-1].boost}: {describe(g, hero.pos, (hero.fid,), self._name)}."
+        return text + f" y no mueve a {self._name(hero)}."
 
     def _mark_dirty(self, before: dict | None = None) -> None:
         """El motor ya cambio al bot; hasta que la mesa lo refleje queda una deuda que cualquier boton reintenta."""
@@ -2951,6 +2970,10 @@ class Session:
         de modo que un corte o Ctrl+C reanudado no repite nada de lo ya hecho."""
         g = self.game
         self._revoke_look_after_button()
+        if self.anung_start is not None:          # said, held, and only then the discard and the move reach the table
+            said_first, line, self.anung_start = len(self.messages), self.anung_start, None
+            self.say(line, ChatKind.ABILITY)
+            self._announce_before(said_first)
         scene, self.wildfire_scene = self.wildfire_scene, None
         if scene is not None and self.bot_stage != "start":
             scene = None
