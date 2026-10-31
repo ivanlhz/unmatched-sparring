@@ -2288,8 +2288,9 @@ class Session:
                 self.say(f"No pude actualizar los diales de vida ({e}); corrigelos a mano.", ChatKind.WARNING)
                 return False
             self.dials_written.update(want)
-            if self.cfg.destiny_dial in want:
-                self.destiny_seen = (want[self.cfg.destiny_dial], g.form(self._destiny_owner()))
+            owner = self._destiny_owner()
+            if self.cfg.destiny_dial in want and owner is not None:
+                self.destiny_seen = (want[self.cfg.destiny_dial], g.form(owner))
             return not touched
         return verify
 
@@ -3033,7 +3034,7 @@ class Session:
             fin_fx = self._project_effects(fx_before, cause="caduca")   # the bot's form, your ONGOING that expired
             self._flush_table()
             fin_fx()
-            if hurt_at_end:
+            if self._track_destiny() or hurt_at_end:      # a hand-limit discard may hold a destiny card
                 self._write_dials()
         except TABLE_ERRORS as e:
             self.say(f"Tu turno ya ha empezado, pero la mesa del bot no coincide aun ({e}); se reintentara con tu proximo boton.", ChatKind.WARNING)

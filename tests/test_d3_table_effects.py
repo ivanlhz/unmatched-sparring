@@ -408,6 +408,43 @@ def test_bot_hellboy_destiny_dial_follows_the_bot_discard_up_and_down(rig, monke
 
 
 @hellboy_rig
+def test_bot_hellboy_hand_limit_discard_of_a_destiny_card_moves_the_dial(rig):
+    session, table, game, fake, cfg = rig
+    dial = cfg.session_config().destiny_dial
+    st = game.players[0]
+    destiny = [c for c in st.full_set if "destiny" in c.tags][:9]
+    assert len(destiny) >= 9
+    table.bot_hand = [c.card_id for c in destiny]
+    table.bot_deck = [c.card_id for c in st.full_set if c.card_id not in table.bot_hand]
+    session.read_bot_hand()
+    session.snap = None
+    assert table.dials[dial]["value"] == 0
+    bot_turn(session, table, [])
+    assert game.destiny_count(0) >= 1
+    assert table.dials[dial]["value"] == game.destiny_count(0)
+    assert session.destiny_seen[0] == game.destiny_count(0)
+
+
+@hellboy_rig
+def test_bot_hellboy_destiny_cards_leaving_the_discard_lower_the_dial(rig):
+    session, table, game, fake, cfg = rig
+    dial = cfg.session_config().destiny_dial
+    destiny = [c for c in game.players[0].full_set if "destiny" in c.tags]
+    to_bot_discard(session, table, game, ids=[c.card_id for c in destiny[:3]])
+    session._write_dials()
+    assert table.dials[dial]["value"] == 3
+    st = game.players[0]
+    gone = next(c for c in st.discard if c.card_id == destiny[0].card_id)
+    st.discard.remove(gone)                                     # back to the hand, on the table and in the engine
+    st.hand.append(gone)
+    table.bot_discard.remove(gone.card_id)
+    table.bot_hand.append(gone.card_id)
+    session.bot_discarded.discard(gone.card_id)
+    bot_turn(session, table, [])
+    assert table.dials[dial]["value"] == game.destiny_count(0) == 2
+
+
+@hellboy_rig
 def test_bot_hellboy_does_not_give_the_human_miniature_instructions(rig):
     session, table, game, fake, cfg = rig
     destiny = [c for c in game.players[0].full_set if "destiny" in c.tags]
