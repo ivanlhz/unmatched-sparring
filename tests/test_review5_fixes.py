@@ -1132,6 +1132,21 @@ def test_destiny_dial_belongs_to_the_save_fingerprint_and_the_reload_check(rig, 
             persist.load(session.state_path))
 
 
+def test_a_save_from_before_the_destiny_dial_was_configured_still_resumes(rig, tmp_path):
+    """Saves made while bot Hellboy had no dial (before bf91f02) resume once the dial is configured; another dial
+    GUID is still a different table."""
+    session, table, game = rig
+    session.cfg = dataclasses.replace(session.cfg, destiny_dial=None)
+    session.state_path = tmp_path / "s.json"
+    session.handle(Event.VALUE, {"value": 1})
+    saved = persist.load(session.state_path)
+    fresh(session, dataclasses.replace(session.cfg, destiny_dial="dD")).load_dict(saved)
+    other = fresh(session, dataclasses.replace(session.cfg, destiny_dial="dD"))
+    other.cfg = dataclasses.replace(other.cfg, bot_deck_guid="otro")
+    with pytest.raises(persist.StateError):
+        other.load_dict(saved)
+
+
 # ---------- caidos y alcance del dano automatico ----------
 def test_place_piece_builder_is_by_guid_and_validated():
     s = lua.place_piece("328e52", 24.0, 2.5, -20.0)

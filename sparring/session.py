@@ -1313,19 +1313,25 @@ class Session:
 
     def fingerprint(self) -> dict:
         """Huella del guardado: a que mesa (GUID y ajustes de identidad) y a que partida pertenece."""
+        return {"game_id": self.game_id, "config_hash": self._config_hash(), "guids": self.guids_in_use()}
+
+    def _config_hash(self, **override) -> str:
         c = self.cfg
         identity = {k: getattr(c, k) for k in IDENTITY_KEYS}
+        identity.update(override)
         identity["pieces"] = {fid: piece_guids(v) for fid, v in sorted(c.pieces.items())}
         identity["board"] = self.game.board.key
-        digest = hashlib.sha256(json.dumps(identity, sort_keys=True).encode("utf-8")).hexdigest()
-        return {"game_id": self.game_id, "config_hash": digest, "guids": self.guids_in_use()}
+        return hashlib.sha256(json.dumps(identity, sort_keys=True).encode("utf-8")).hexdigest()
 
     def _check_fingerprint(self, saved) -> None:
         if not isinstance(saved, dict) or not isinstance(saved.get("game_id"), str):
             raise persist.StateError("el guardado no tiene huella de partida (es de una version antigua o ajeno): "
                                      "no se reanuda; empieza una partida nueva")
         mine = self.fingerprint()
-        if saved.get("config_hash") != mine["config_hash"]:
+        # a save from before the destiny dial followed a bot-side Hellboy (bf91f02) has no dial in its identity:
+        # same table, the dial is simply written on the next read
+        legacy = self.cfg.destiny_dial is not None and saved.get("config_hash") == self._config_hash(destiny_dial=None)
+        if saved.get("config_hash") != mine["config_hash"] and not legacy:
             differ = sorted(set(saved.get("guids") or []) ^ set(mine["guids"]))
             detail = f"GUID distintos: {', '.join(differ)}" if differ else "cambian asientos, zonas o casillas de salida"
             raise persist.StateError(f"el guardado es de otra configuracion u otra mesa ({detail}); no se reanuda. "
