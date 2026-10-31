@@ -623,7 +623,7 @@ class MedusaAI(Controller):
         if override:
             pos.update(override)
         mine = [f for f in game.own(self.me) if f.fid in pos]
-        foes = game.foes(self.me)
+        foes = [e for e in game.foes(self.me) if e.fid in pos]   # a foe killed in the projection has no square
         board = game.board
         occupied = set(pos.values())
         hand = game.players[self.me].hand
