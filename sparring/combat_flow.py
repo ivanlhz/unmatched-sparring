@@ -500,6 +500,8 @@ def legacy_chooser(game: Game, flow: CombatFlow, boost: Card | None, human: int 
     live session's seat; the attacker's, or the defender's when it may boost, Out Of Time) uses the boost the caller
     already read from the table."""
     def choose(choice: PendingChoice):
+        if choice.kind == "table":          # a human table step between AFTER sides: nothing to wait for here
+            return None
         if choice.kind == "effect":         # a panel chooser paused an effect inside a synchronous combat
             from .effects.choose import ChoiceRequest
             from .effects.ops_combat import default_choosers
