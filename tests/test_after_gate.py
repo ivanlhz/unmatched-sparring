@@ -66,6 +66,7 @@ def test_the_random_position_is_drawn_over_the_hand_after_glimpse(rig, monkeypat
     msgs = click(session, table, Event.END_ACTION)
     assert session.pending_discard is None and table.human_deals[-1] == 1 and len(table.human_deals) == 4
     assert said(msgs, "Te he dado 1 carta (") and not said(msgs, "no estas")
+    assert len(game.players[1].hand) == table.human_count
 
 
 @with_rig(*LIZ_VS_HELLBOY)
