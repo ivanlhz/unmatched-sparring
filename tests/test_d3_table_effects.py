@@ -739,3 +739,49 @@ def test_token_spot_reaches_the_session_config_and_is_validated(tmp_path):
     cfg.raw["token_spot"] = [1, 2]
     with pytest.raises(play.ConfigError):
         cfg.session_config()
+
+
+@hellboy_rig
+def test_bot_hellboy_anung_start_of_turn_says_the_discard_and_the_move_and_projects_them(rig, tmp_path):
+    session, table, game, fake, cfg = rig
+    session.game_log.path = tmp_path / "partida.log"
+    session.game_log.observe(game, session._name)
+    destiny = [c for c in game.players[0].full_set if "destiny" in c.tags and c.title != "Confront Any Demon or God"]
+    to_bot_discard(session, table, game, ids=[c.card_id for c in destiny[:6]])
+    set_hand(session, table, game, "Service Pistol")             # the only card: the one ANUNG must discard
+    assert game.form(0) == ANUNG
+    start = game.fighters["hellboy"].pos
+    msgs = bot_turn(session, table, [])
+    line = next(m for m in msgs if m.startswith("ANUNG UN RAMA: el bot descarta Service Pistol"))
+    pistol = next(c for c in game.players[0].discard if c.title == "Service Pistol")
+    moved = game.fighters["hellboy"].pos != start
+    assert f"(BOOST {pistol.boost})" in line and ("y mueve Hellboy hasta" in line) == moved
+    assert pistol.card_id in table.bot_discard
+    log = (tmp_path / "partida.log").read_text(encoding="utf-8")
+    assert "(P0) starts" in log and "DISCARD: P0 Service Pistol" in log and log.count("DISCARD: P0 Service Pistol") == 1
+    assert (log.count("MOVE: Hellboy") >= 1) == moved
+
+
+@hellboy_rig
+def test_the_game_log_keeps_the_turn_start_of_the_bot_and_the_events_of_each_step(rig, tmp_path):
+    session, table, game, fake, cfg = rig
+    session.game_log.path = tmp_path / "partida.log"
+    session.game_log.observe(game, session._name)
+    bot_turn(session, table, [])
+    text = (tmp_path / "partida.log").read_text(encoding="utf-8")
+    assert "(P0) starts" in text and "(P1) starts" in text
+
+
+@hellboy_rig
+def test_bot_hellboy_anung_start_move_reaches_the_table_and_the_chat_names_the_place(rig, monkeypatch):
+    session, table, game, fake, cfg = rig
+    destiny = [c for c in game.players[0].full_set if "destiny" in c.tags and c.title != "Confront Any Demon or God"]
+    to_bot_discard(session, table, game, ids=[c.card_id for c in destiny[:6]])
+    set_hand(session, table, game, "Service Pistol")
+    start = game.fighters["hellboy"].pos
+    monkeypatch.setattr(session.ai, "choose_move", lambda g, f, steps, through=False: max(g.legal_moves(f, steps, through)))
+    msgs = bot_turn(session, table, [])
+    hellboy = game.fighters["hellboy"]
+    assert hellboy.pos != start
+    assert any(m.startswith("ANUNG UN RAMA: el bot descarta Service Pistol (BOOST 2) y mueve Hellboy hasta 2: ") for m in msgs)
+    assert table.positions[table.nick["hellboy"]] == hellboy.pos
