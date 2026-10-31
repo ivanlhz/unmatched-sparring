@@ -52,6 +52,7 @@ def snapshot(game, flow=None) -> dict:
             "drawn": list(game.drawn), "actions": game.actions_left, "turn": game.turn, "said": len(game.fx.said),
             "statuses": len(game.fx.statuses),
             "seen": [_seen(p) for p in game.players],
+            "in_play": [game.fx.ongoing_card_id(p) for p in (0, 1)],
             "cancelled": [] if flow is None or flow.ctx is None else sorted(flow.ctx.cancelled),
             "redirects": 0 if flow is None else len(flow.redirects),
             "mods": {} if flow is None else {side: len(mods) for side, mods in flow.mods.items()},
@@ -141,8 +142,17 @@ def _cards(game, before: dict, run) -> list[str]:
         added = [i for i in discard_now if i not in was["discard"]]
         if p != game.bot_player:                    # the human's deck discard a trigger took straight back (Wildfire)
             added += [i for i in from_deck if i not in discard_now and i not in added and i in ids]
+        # an ONGOING that entered play came out of the hand without touching the discard pile; the one it replaced
+        # left play (it was never in the hand: not a discard from it)
+        entered = game.fx.ongoing_card_id(p)
+        if entered == before["in_play"][p] or entered in was["discard"]:
+            entered = None
+        left = before["in_play"][p] if p != game.bot_player and before["in_play"][p] in added else None
+        added = [i for i in added if i != left]
         if added:
             out.append(f"{descarta} " + _join(by_id[i].title for i in added))
+        if left is not None:
+            out.append(f"{by_id[left].title} deja de estar en juego")
         out += [f"{by_id[i].title} vuelve al mazo" for i in was["discard"] if i not in discard_now and by_id[i] in st.deck]
         # a card that entered the hand in plain sight: from the discard pile (Wildfire's return, a scheme recovered
         # by Ward And Prepare) or, for the bot, anything the rival now knows is there; the rest came hidden
@@ -154,8 +164,10 @@ def _cards(game, before: dict, run) -> list[str]:
             public += [i for i in _seen(game.players[1 - p])[:-1]
                        if i not in before["seen"][1 - p] and i in ids - was_ids and i not in public]
             from_hand = len([i for i in added if i in was_ids])
+            from_hand += int(entered is not None and entered in was_ids)
         else:                                       # the human's hand is never read: a discard the run did not
             from_hand = len([i for i in added if i not in from_deck])                   # take from a deck is theirs
+            from_hand += int(entered is not None)
         out += [f"{by_id[i].title} vuelve a {su} mano" for i in public]
         # what the size of the hand does not explain by draws, public returns and discards went to the deck face
         # down (or, if the hand grew, came from the deck hidden: Read The Bones); no card does both
