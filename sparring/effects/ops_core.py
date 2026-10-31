@@ -180,6 +180,7 @@ def _discard(run, game, spec):
         if sel.get("pick") == "random":
             reason = _random_positions_text(game, run, player, n, reason)
         chosen = game.force_discard(player, n, reason, player if voluntary else run.ctx.owner)
+        run.flags["physical_discard"] = True
         if "as" in spec:
             run.bind("cards", spec["as"], [c.card_id for c in chosen])
         return

@@ -785,6 +785,8 @@ def test_d11_n1_human_combat_card_in_the_discard_does_not_count_as_the_forced_di
     played = human_plays(table, game, "Glimpse Of Hell", 0)
     table.human_count = 1
     session.handle(Event.REVEAL)
+    assert session._table_gate(session.pending), "Glimpse's step on your hand comes before Clutching Claws' discard"
+    session.handle(Event.END_ACTION)
     d = session.pending_discard
     assert d is not None and d["kind"] == "cards"
     table.human_discard = [played.card_id]                    # su carta de combate ya esta en el descarte...

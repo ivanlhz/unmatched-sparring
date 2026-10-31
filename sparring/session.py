@@ -229,6 +229,7 @@ class _Timed:
 # con la mano del bot a la vista solo se atiende lo que la resuelve (o no la toca: PV, retirar, valor)
 CHOICE_EVENTS = (Event.CHOICE, Event.CANCEL, Event.LOOK_PING, Event.HP, Event.REMOVE, Event.VALUE, Event.RESTART)
 ABILITY_EVENTS = (Event.END_ACTION, Event.HP, Event.REMOVE, Event.RESTART)   # while your start-of-turn ability waits
+GATE_EVENTS = (Event.END_ACTION, Event.HP, Event.REMOVE, Event.RESTART)    # while the combat waits for a step of your hand
 LOOK_EVENTS = (Event.LOOK_PING, Event.CHOICE, Event.CANCEL, Event.END_ACTION, Event.HP, Event.REMOVE, Event.VALUE,
                Event.RESTART)
 CARD_TYPE_NAME = {"attack": "ataque", "defense": "defensa", "versatile": "versatil", "scheme": "esquema"}
@@ -461,6 +462,9 @@ class Session:
             self.choice_ui = choices.ChoiceUI()
             self.say("Hay una eleccion de efecto pendiente: " + choices.prompt_text(self.game, self.effect_run.awaiting)
                      + ". Pulsa una de las opciones del panel.", ChatKind.YOUR_TURN)
+        elif self._table_gate(self.pending):
+            self.say("Haz en la mesa lo de tu carta y pulsa Fin de accion: despues sigue el efecto de la otra carta.",
+                     ChatKind.YOUR_TURN)
         elif self.pending is not None and self.pending.wait is not None:
             self.say(self._boost_prompt(self.pending), ChatKind.YOUR_TURN)
         elif self.pending is not None:
@@ -842,6 +846,10 @@ class Session:
         if self._paused() is not None and event not in CHOICE_EVENTS:
             self.say("Hay una eleccion de efecto pendiente: responde con uno de los botones de opcion.", ChatKind.WARNING)
             return self._done()
+        if self._table_gate(self.pending) and event not in GATE_EVENTS:
+            self.say("Haz primero en la mesa lo de tu carta y pulsa Fin de accion: el combate sigue despues.",
+                     ChatKind.WARNING)
+            return self._done()
         if self.ability_wait is not None and event not in ABILITY_EVENTS:
             self.say(f"Primero tu habilidad de inicio de turno, en la mesa: {self.ability_wait} Luego pulsa Fin de accion.",
                      ChatKind.WARNING)
@@ -1103,7 +1111,7 @@ class Session:
         flow.choosers = hidden.flow_choosers(self, p)      # the Perfect Shot prediction decided at play time
         choose = legacy_chooser(self.game, flow, boost, self.human)
         while (wait := flow.run()) is not None:
-            if wait.choice.kind == "effect" and wait.choice.player == self.human:
+            if wait.choice.kind == "table" or (wait.choice.kind == "effect" and wait.choice.player == self.human):
                 return                            # `_combat_step_done` shows the choice, after what the combat already did
             flow.resume(choose(wait.choice))
 
@@ -2121,6 +2129,8 @@ class Session:
             p.combat["flipped"] = True
         self._mark_dirty(_bot_snapshot(p.combat["before"]))
         fin_dials = self._tell_damage_dealt(p)
+        if self._table_gate(p):
+            self._tell_human_effects(p)
         cause = "efectos del combate" if human_effects.human_ran(p.flow) else bot_effects.BOT_CAUSE
         fin_fx = self._project_effects(p.combat.get("fx"), self._human_played(p), cause)
         self._try_flush_table()
@@ -2129,6 +2139,34 @@ class Session:
         p.combat["before"], p.combat["fx"] = self._snapshot_bot(), bot_effects.snapshot(self)
         if (wait := p.flow.pending) is not None and wait.kind == "effect" and wait.player == self.human:
             self._show_choice(p.flow.awaiting_run.awaiting)
+        elif self._table_gate(p):
+            self.moving = True
+            nxt = p.flow.sides[p.flow.side_idx].card.title
+            self.say(f"Haz en la mesa lo de tu carta y pulsa Fin de accion: despues se resuelve {nxt}.", ChatKind.YOUR_TURN)
+
+    @staticmethod
+    def _table_gate(p: Pending | None) -> bool:
+        """The combat waits at an AFTER gate: the human's step on their hand comes before the next effect."""
+        return p is not None and p.flow is not None and p.flow.pending is not None and p.flow.pending.kind == "table"
+
+    def _tell_human_effects(self, p: Pending) -> None:
+        """"Tu carta: ..." of the effects the human's card has already resolved (`p.combat["told"]["human_fx"]` counts
+        what was said, so the end of the combat and a resume say only the rest)."""
+        told = p.combat["told"]
+        for e in p.flow.result.human_effects[told.get("human_fx", 0):]:
+            self.say(f"Tu carta: {e}", ChatKind.YOUR_TURN)
+        told["human_fx"] = len(p.flow.result.human_effects)
+
+    def _release_table_gate(self) -> None:
+        """Fin de accion at an AFTER gate: the table is read (the engine's hand follows what the human did), then the
+        next effect runs on that hand."""
+        p = self.pending
+        self._flush_table()
+        self.sync_positions()
+        self.sync_human()
+        self.moving = False
+        if self._guarded(lambda: (p.flow.resume(None), self._drive_flow(p.flow))):
+            self._combat_step_done(p)
 
     def _tell_damage_dealt(self, p: Pending) -> Callable[[], bool]:
         """Ivan, 31/10 (Rekindle): the damage is dealt at the reveal and the combat then waits at a choice of the human
@@ -2200,7 +2238,7 @@ class Session:
             self.say(f"Aplicado: {e}", ChatKind.WARNING)
         for e in res.bot_notes[told["notes"] if told else 0:]:
             self.say(e, ChatKind.WARNING)
-        for e in res.human_effects:               # your card: what the engine applied and what you do on the table
+        for e in res.human_effects[(told or {}).get("human_fx", 0):]:   # your card: what the engine applied and what you do on the table
             self.say(f"Tu carta: {e}", ChatKind.YOUR_TURN)
         for fid, was in c["alive_before"].items():
             f = g.fighters[fid]
@@ -2418,6 +2456,9 @@ class Session:
     def _end_action(self, _: dict) -> None:
         if self.look is not None:                 # E3's reveal row has nothing to discard: everything goes back
             self._look_close(face_down=self.look.get("mode") != hidden.MODE_REVEAL)
+            return
+        if self._table_gate(self.pending):
+            self._release_table_gate()
             return
         if self.pending is not None and not self._drop_pending_if_gone():
             self.say("Termina primero el boost: pulsa Continuar o Sin boost." if self.pending.wait is not None
@@ -3549,15 +3590,19 @@ class Session:
                        or bool(self.flush_failures))
         boosting = self.pending is not None and self.pending.wait is not None
         stuck = boosting and bool(self.pending.wait.extra["stuck"])
-        states["btn_reveal"] = (self.pending is not None and not boosting, not boosting)
+        gate = self._table_gate(self.pending)
+        states["btn_reveal"] = (self.pending is not None and not boosting and not gate, not boosting)
         states["btn_cancel"] = (cancellable and (not boosting or stuck), not boosting or stuck)
         states["btn_boost"] = (boosting, boosting)
         states["btn_noboost"] = (boosting, boosting)
-        states["btn_end"] = (not in_setup and g.winner is None and (self.pending is None or self.look is not None), True)
+        states["btn_end"] = (not in_setup and g.winner is None
+                             and (self.pending is None or self.look is not None or gate), True)
         states["btn_look"] = (self._look_blocked() is None and not choosing, self.look_granted)
         if choosing:
             for i in ("btn_reveal", "btn_cancel", "btn_end", "btn_boost", "btn_noboost"):
                 states[i] = (False, states[i][1])
+        if gate:
+            states["btn_cancel"] = (False, states["btn_cancel"][1])
         req = paused[2].awaiting if choosing else None
         manual = hidden.manual_request(self) is not None
         by_hand = moves.manual_request(self)
@@ -3616,7 +3661,9 @@ class Session:
             if self.pending.wait.extra["stuck"]:
                 return f"{title} sin resolver: corrige la mesa y pulsa Continuar o Sin boost, o Cancelar"
             return f"{title} revelado: pon una carta en tu descarte y pulsa Continuar o Sin boost"
-        if self.pending is not None:
+        if self._table_gate(self.pending):
+            wait = "lo de tu carta en la mesa y Fin de accion"
+        elif self.pending is not None:
             wait = "tu defensa y Revelar" if self.pending.kind == "bot_attacks" else "Revelar"
         elif self.pending_discard is not None:
             wait = "descartar y Fin de accion"

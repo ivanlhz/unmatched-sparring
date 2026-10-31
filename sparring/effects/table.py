@@ -70,6 +70,15 @@ def notes(run) -> list[dict]:
     return list(run.flags.get("table") or [])
 
 
+HAND_OPS = ("choose", "return_to_deck", "search_deck")
+
+
+def hand_step_pending(run) -> bool:
+    """The run left the human a step on their own hand or deck (a card to put back, a pile to look through, a discard
+    they owe): what a later effect reads of that hand has to wait until they have done it."""
+    return bool(run.flags.get("physical_discard")) or any(n["op"] in HAND_OPS for n in notes(run))
+
+
 # ---------------------------------------------------------------- what the chat says (Spanish)
 
 def _n(n: int, word: str = "carta") -> str:
