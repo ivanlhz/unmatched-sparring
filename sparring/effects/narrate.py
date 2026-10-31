@@ -78,19 +78,21 @@ def describe(game, before: dict, run, flow=None, title: str | None = None) -> st
 
 
 def _say_bot_price(game, run, parts: list[str], priced: dict) -> list[str]:
-    """The bot's answer to a price the human's card offered it (Incinerate): said plainly, never "sin efecto". Paid:
-    "el bot descarta A y B para ignorar el valor de X (queda a 0)"; declined: it takes the value."""
+    """The bot's answer to a price the human's card offered it, said plainly and never as "sin efecto". The wording is
+    Incinerate's (a discard price that ignores the card's value); another priced optional needs its own."""
     title = _title(game, run.ctx.card_id)
-    stake, lethal = priced["stake"], priced["hp"] is not None and 0 < priced["hp"] <= priced["stake"]
+    stake, cards = priced["stake"], priced["cards"]
+    lethal = priced["hp"] is not None and 0 < priced["hp"] <= stake
+    if not priced["can_pay"]:
+        return parts + [f"el bot no puede pagar (le faltan cartas para descartar {cards}): recibe {stake:g} de dano"]
     if not priced["paid"]:
-        why = f"prefiere recibir {stake:g} de dano a perder {priced['cards']} cartas" if stake else "no cambia el combate"
-        return parts + [f"el bot no paga (descartar {priced['cards']}): {why}"]
-    discarded = next((p for p in parts if p.startswith("descarta ")), None)
-    if discarded is None:
-        return parts
-    rest = [p for p in parts if p != discarded and not p.startswith(f"el valor de {title} pasa a")]
+        why = f"prefiere recibir {stake:g} de dano a perder {cards} cartas" if stake else "no cambia el combate"
+        return parts + [f"el bot no paga (descartar {cards}): {why}"]
     why = "el dano seria letal" if lethal else f"evita {stake:g} de dano"
-    return [f"el bot {discarded} para ignorar el valor de {title} (queda a 0; {why})"] + rest
+    discarded = next((p for p in parts if p.startswith("descarta ")), None)
+    rest = [p for p in parts if p != discarded and not p.startswith(f"el valor de {title} pasa a")]
+    paid = discarded or f"paga {cards} cartas"          # `_cards` words the discard; without it the price still shows
+    return [f"el bot {paid} para ignorar el valor de {title} (queda a 0; {why})"] + rest
 
 
 _RETURN = re.compile(r"^(?P<label>[^:]+): (?P<title>.+) vuelve a tu mano$")
