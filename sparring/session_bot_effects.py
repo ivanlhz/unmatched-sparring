@@ -233,7 +233,7 @@ def _bot_cards(session, before: dict, moved: set = frozenset()) -> list[Callable
     hand_to_deck = [i for i in b0["hand"] if i in b1["deck"] and i not in moved]
     disc_to_deck = [i for i in b0["discard"] if i in b1["deck"] and i not in moved]
     disc_to_hand = [i for i in b0["discard"] if i in b1["hand"] and i not in moved]
-    taken = len([i for i in b0["deck"] if i in b1["hand"]]) - (g.drawn[bot] - before["drawn"])
+    taken = len([i for i in b0["deck"] if i in b1["hand"]]) - max(0, g.drawn[bot] - before["drawn"])
     checks: list[Callable[[], None]] = []
     session.fx_in_flight.update(hand_to_deck + disc_to_deck + disc_to_hand)
     for i in disc_to_deck + disc_to_hand:
