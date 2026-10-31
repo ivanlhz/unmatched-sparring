@@ -2825,7 +2825,9 @@ class Session:
         drew = g.drawn[self.bot] - drawn_before
         if drew <= 0 or g.form(self.bot) != DETECTIVE or not any(t.get("id") == "detective_draw" for t in g.hero_def(self.bot).triggers):
             return None
-        return f"OCCULT DETECTIVE: Hellboy empieza el turno en tu zona de salida; el bot roba {drew}."
+        if g.hero(self.bot).pos != g.start_spaces.get(self.human):
+            return None                           # the trigger's own condition: a draw from anything else is not it
+        return f"OCCULT DETECTIVE: Hellboy empieza el turno en tu casilla de salida; el bot roba {drew}."
 
     def _mark_dirty(self, before: dict | None = None) -> None:
         """El motor ya cambio al bot; hasta que la mesa lo refleje queda una deuda que cualquier boton reintenta."""
