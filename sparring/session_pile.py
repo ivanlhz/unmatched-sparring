@@ -78,7 +78,10 @@ def verdict(session, req: ChoiceRequest) -> tuple[list[int] | None, str | None]:
     g = session.game
     st = g.players[session.human]
     own = {c.card_id for c in st.full_set}
-    on_table = {r["id"] for r in session._rd_human_discard() if isinstance(r, dict)} & own
+    rows = session._rd_human_discard_raw()
+    if rows is None and st.discard:                  # no reply is not an empty pile: nothing may be read as moved
+        return None, "No he podido leer tu descarte: pulsa Hecho otra vez."
+    on_table = {r["id"] for r in rows or [] if isinstance(r, dict)} & own
     left = sorted({c.card_id for c in st.discard} - on_table - {g.fx.ongoing_card_id(session.human)})
     wrong = [i for i in left if i not in req.options]
     if wrong:

@@ -1078,6 +1078,8 @@ class Session:
                 self._mark_dirty()                # the card reaches the discard pile
             else:
                 human_effects.finish(self, run)
+                if self.moving and self.game.turn == self.human:
+                    self.say("Pulsa Fin de accion cuando termines.", ChatKind.YOUR_TURN)
         if self.game.turn == self.bot and self.pending is None and self.game.winner is None:
             self._bot_continue()
 
@@ -3453,12 +3455,16 @@ class Session:
                                                      c.deck_exclude_radius)) or []
 
     def _rd_human_discard(self) -> list[dict]:
+        return self._rd_human_discard_raw() or []
+
+    def _rd_human_discard_raw(self) -> list[dict] | None:
+        """The human's pile as the table answered it: None when there was no reply (an empty pile answers [])."""
         c = self.cfg
         if c.batch:
             return self._view("cards")["human_discard"]
         skip = [c.human_deck_guid] if c.human_deck_guid else []
         spots = [c.human_deck_spot] if c.human_deck_spot else []
-        return self.client.call_lua(lua.read_discard(c.human_discard_zone, skip, spots, c.deck_exclude_radius)) or []
+        return self.client.call_lua(lua.read_discard(c.human_discard_zone, skip, spots, c.deck_exclude_radius))
 
     def _rd_human_count(self, default: int) -> int:
         if self.cfg.batch:

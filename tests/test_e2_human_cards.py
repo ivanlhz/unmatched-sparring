@@ -1064,6 +1064,21 @@ def test_searing_clarity_hecho_refuses_nothing_moved_a_scheme_or_too_many(rig):
 
 
 @with_rig(*LIZ_VS_HELLBOY)
+def test_hecho_with_no_reply_from_the_table_never_reads_the_last_card_as_moved(rig, monkeypatch):
+    session, table, game, fake, cfg = rig
+    incinerate, fireball = card_ids(game, 1, "Incinerate", "Fireball")
+    table.human_discard = [incinerate, fireball]
+    searing_clarity_played(session, table, game)
+    monkeypatch.setattr(session, "_rd_human_discard_raw", lambda: None)
+    msgs = click(session, table, Event.CHOICE, {"i": 1})
+    assert said(msgs, "No he podido leer tu descarte: pulsa Hecho otra vez") and session.effect_run is not None, msgs
+    monkeypatch.undo()
+    table.human_discard.remove(incinerate)
+    msgs = click(session, table, Event.CHOICE, {"i": 1})
+    assert session.effect_run is None and said(msgs, "Anoto Incinerate"), msgs
+
+
+@with_rig(*LIZ_VS_HELLBOY)
 def test_searing_clarity_choice_pending_blocks_the_end_of_the_turn_and_the_action_is_gained(rig):
     """Live 31/10: with 1 action left Fin de accion recognised the plan, its choice was pending and the turn still
     passed to the bot before 'gain 1 action'. The turn stays the human's; after the answer the +1 action is there."""
@@ -1079,6 +1094,7 @@ def test_searing_clarity_choice_pending_blocks_the_end_of_the_turn_and_the_actio
     table.human_discard.remove(incinerate)
     msgs = click(session, table, Event.CHOICE, {"i": 1})
     assert game.turn == 1 and game.actions_left == 1 and not said(msgs, "Turno del bot"), msgs
+    assert said(msgs, "Pulsa Fin de accion cuando termines") and sum("Pulsa Fin de accion" in m for m in msgs) == 1
     msgs = click(session, table, Event.END_ACTION)
     assert game.turn == 1 and game.actions_left == 1 and said(msgs, "Te quedan 1 accion"), msgs
 
