@@ -98,7 +98,8 @@ Repite el bloque para cada heroe, **con Ivan jugandolo** (H) y **con el bot juga
 - [ ] H: tu ONGOING que caduca o sale de juego: el bot hace ping, dice el motivo, espera `ongoing_hold` y la pone **encima de tu descarte** (`card_to_discard`, nunca visto en mesa).
 - [ ] **Flame Lash**: DURING real con la carta de **abajo del mazo** como boost **(E2 para H)**.
 - [ ] **Incinerate**: B -> respondes Si/No en el panel antes del dano; H contra el bot **(E2)**.
-- [ ] H/B: Pyrotechnics (deja una burning abajo del mazo), Rekindle, Searing Clarity, Feint, Fireball, Burning Barrier, Evade, B.P.R.D. Training.
+- [ ] H/B: Pyrotechnics (deja una burning abajo del mazo), Rekindle, Searing Clarity, Fireball, Burning Barrier, Evade, B.P.R.D. Training.
+- [x] H: **Feint**. *(OK 31/10)*
 - [ ] Fleeting Moments / Confront del bot: el chat **nombra la carta** que debes descartar; la descartas tu.
 - [ ] Wildfire devuelve una carta que tu Confront le hizo descartar: el chat dice "El bot se queda X (Wildfire la devuelve)".
 
