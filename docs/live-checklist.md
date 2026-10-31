@@ -66,7 +66,7 @@ Repite el bloque para cada heroe, **con Ivan jugandolo** (H) y **con el bot juga
 - [x] Setup: ficha **1644a3** en **OCCULT DETECTIVE** (azul, rotZ 180). *El giro es incondicional: debe empezar asi.* *(OK 29/10)*
 - [x] B (forma): cambio a **ANUNG UN RAMA**: `set_state` entre las miniaturas f9789a <-> e6f06e (cambia la miniatura), la ficha 1644a3 gira (rotZ 180 = OCCULT DETECTIVE, rotZ 0 = ANUNG UN RAMA; inferido de la geometria, confirmalo) y **ping** sobre ficha y miniatura. Comprueba cara correcta, pieza correcta, sin miniaturas duplicadas. *(OK 29/10)*
 - [x] B: vuelta a OCCULT DETECTIVE (menos de 6 destinos) gira de vuelta y hace ping. *(OK 31/10: la ficha gira y hace ping)*
-- [ ] B: el **Destiny Dial** (e17c66) sigue los destinos del descarte del bot (sube y baja). *(31/10: con Hellboy del bot NO se movia; solo se configuraba para Hellboy humano. Arreglo en curso)*
+- [x] B: el **Destiny Dial** (e17c66) sigue los destinos del descarte del bot (sube y baja). *(OK 31/10, tras el arreglo bf91f02)*
 - [ ] B: inicio de su turno: roba 2 (DETECTIVE) o descarta y mueve (ANUNG), anunciado.
 - [x] H **(E2)**: puerta de habilidad de inicio de turno (robo / ANUNG) bloquea hasta **Fin de accion**. *(OK 30/10)*
 - [x] H/B: Crown Of Flame (**(E2)** espera tu descarte), Planned Recklessness, Second Shot, Horseshoes, Right Hand Of Doom, B.P.R.D. Training, On Earth. *(OK 30/10)*
