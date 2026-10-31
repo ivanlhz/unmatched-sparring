@@ -39,6 +39,7 @@ Con `--read-only` mira el informe y ajusta lo que este mal. Prueba con una carta
 - [x] Preparacion (`setup`): el bot reparte 5, mulligan (una vez); si empieza el bot, coloca sus piezas; tu colocas las tuyas y pulsas **Listo**. **Mulligan** / **Listo** aparecen solo cuando toca. *(OK 30/10)*
 - [x] El panel responde al primer clic ("Procesando..." y se reactiva). *(OK 29/10)*
 - [x] (`--timing`) anota mensajes y tiempo de un boton normal (esperado ~1 mensaje, ~0.5 s por mensaje). *(OK 30/10)*
+- [ ] Pausa de anuncio del bot (`action_announce_hold`, 2 s): cada accion del bot se anuncia en el chat, espera y luego se escribe en la mesa; las tuyas no esperan. *(31/10: parece mejor, sigue en prueba)*
 
 ## 3. Por heroe
 
@@ -64,7 +65,8 @@ Repite el bloque para cada heroe, **con Ivan jugandolo** (H) y **con el bot juga
 ### Hellboy
 - [x] Setup: ficha **1644a3** en **OCCULT DETECTIVE** (azul, rotZ 180). *El giro es incondicional: debe empezar asi.* *(OK 29/10)*
 - [x] B (forma): cambio a **ANUNG UN RAMA**: `set_state` entre las miniaturas f9789a <-> e6f06e (cambia la miniatura), la ficha 1644a3 gira (rotZ 180 = OCCULT DETECTIVE, rotZ 0 = ANUNG UN RAMA; inferido de la geometria, confirmalo) y **ping** sobre ficha y miniatura. Comprueba cara correcta, pieza correcta, sin miniaturas duplicadas. *(OK 29/10)*
-- [ ] B: vuelta a OCCULT DETECTIVE (menos de 6 destinos) gira de vuelta y hace ping.
+- [x] B: vuelta a OCCULT DETECTIVE (menos de 6 destinos) gira de vuelta y hace ping. *(OK 31/10: la ficha gira y hace ping)*
+- [ ] B: el **Destiny Dial** (e17c66) sigue los destinos del descarte del bot (sube y baja). *(31/10: con Hellboy del bot NO se movia; solo se configuraba para Hellboy humano. Arreglo en curso)*
 - [ ] B: inicio de su turno: roba 2 (DETECTIVE) o descarta y mueve (ANUNG), anunciado.
 - [x] H **(E2)**: puerta de habilidad de inicio de turno (robo / ANUNG) bloquea hasta **Fin de accion**. *(OK 30/10)*
 - [x] H/B: Crown Of Flame (**(E2)** espera tu descarte), Planned Recklessness, Second Shot, Horseshoes, Right Hand Of Doom, B.P.R.D. Training, On Earth. *(OK 30/10)*
