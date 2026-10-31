@@ -223,6 +223,7 @@ class Game:
         self.bot_player: int | None = None     # quien lleva el bot: sus efectos aun no codificados no los resuelve el humano
         self.effect_shield: dict[int, int] = {}
         self.drawn = [0, 0]
+        self.draw_events = [0, 0]      # cards drawn since the start, never reset (`drawn` is: the deal settles it); for the game log
         self.phantom_draws = 0   # robos esperados por la IA al simular (cartas desconocidas), nunca en partida real
         # the live session's reader of a hand `look_hand` wants (the real table hand, D3); None = the engine's hand.
         # Never copied into clones: a simulation determinizes and must not read the table.
@@ -279,6 +280,7 @@ class Game:
         g.bot_player = self.bot_player
         g.effect_shield = dict(self.effect_shield)
         g.drawn = [0, 0]
+        g.draw_events = [0, 0]
         g.phantom_draws = self.phantom_draws
         g.hand_reader = None                   # a clone never reads the table: it looks at its determinized hand
         g.log = []
@@ -443,6 +445,7 @@ class Game:
             p.hand.append(card)
             drawn.append(card)
             self.drawn[player] += 1
+            self.draw_events[player] += 1
             self.players[1 - player].known.drawn(card, self.turn_no)
         if log and drawn:
             self.log.append(f"P{player} roba {len(drawn)}")

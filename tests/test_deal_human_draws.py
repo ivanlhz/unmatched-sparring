@@ -315,3 +315,23 @@ def test_fight_or_flight_deals_its_card_once(rig):
     click(session, table, Event.END_ACTION)
     assert table.human_deals == [1] and game.drawn[1] == session.human_dealt
 
+
+
+@with_rig(*HELLBOY_VS_ABE)
+def test_a_deal_whose_reply_never_comes_warns_with_the_reason_and_does_not_crash(rig, monkeypatch):
+    """The confirmation of a deal re-raises the table's error (a TTS timeout): the check warns with it, never a NameError."""
+    session, table, game, fake, cfg = rig
+
+    class Silent:
+        @property
+        def result(self):
+            raise TimeoutError("TTS no devolvio valor")
+
+    monkeypatch.setattr(session, "_w", lambda script, domain: Silent())
+    session._post.clear()
+    seen = []
+    monkeypatch.setattr(session, "say", lambda text, kind=None: seen.append(text))
+    session._deal_human_cards(1, None)
+    assert session._post and session._post[-1]() is False
+    assert any("No he podido confirmar el reparto de 1 carta (TTS no devolvio valor)" in t for t in seen)
+    assert session._deal_check is None

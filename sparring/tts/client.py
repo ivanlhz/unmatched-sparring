@@ -77,14 +77,18 @@ class Listener:
 
 class TTSClient:
     def __init__(self, host: str = "127.0.0.1", send_port: int = SEND_PORT, listen_port: int = LISTEN_PORT,
-                 timeout: float = 5.0):
+                 timeout: float = 5.0, late_grace: float = 8.0):
         self.host, self.send_port, self.listen_port, self.timeout = host, send_port, listen_port, timeout
+        # a busy TTS (31/10: 5 s timeouts in pairs, the second call queued behind the first) still answers: after the
+        # timeout the same request gets this long to reply before it is given up (a later call would find it busy too)
+        self.late_grace = late_grace
         self.listener: Listener | None = None
         self._events: list[dict] = []        # botones pulsados mientras esperabamos una respuesta de Lua
         self._salt = int.from_bytes(os.urandom(3), "big") * 100000   # ids de esta ejecucion distintos de los de otras
         self._seq = itertools.count(1)   # rid = salt + n (< 1e15, exacto como float)
         self.reloads = 0                     # messageID 1 recibidos (TTS recargo la partida)
         self.foreign_errors: deque[str] = deque(maxlen=50)   # errores de Lua que no son de nuestra peticion
+        self.graces = 0                      # llamadas que pasaron del plazo y siguieron esperando su respuesta
         self.stale_replies = 0               # respuestas descartadas por no corresponder a la peticion en curso
         self._calling = False                # dentro de call_lua: un clic que llega ahora trae una mesa anterior a su respuesta
         self.calls = 0                       # mensajes de Lua enviados (cada uno cuesta ~0.5 s en TTS real)
@@ -182,11 +186,16 @@ class TTSClient:
         rid = self._salt + next(self._seq)
         self.execute_lua(lua.request(script, rid), guid)
         deadline = time.monotonic() + (timeout or self.timeout)
+        graced = self.late_grace <= 0
         while True:
             try:
                 msg = listener.messages.get(timeout=max(0.0, deadline - time.monotonic()))
             except queue.Empty:
-                raise TimeoutError("TTS no devolvio valor") from None
+                if not graced:
+                    graced, deadline = True, time.monotonic() + self.late_grace
+                    self.graces += 1
+                    continue
+                raise TimeoutError("TTS no devolvio valor (esta ocupado, en pausa o recargando: revisa la ventana de TTS)") from None
             if self._absorb(msg):
                 continue
             data = msg["customMessage"]

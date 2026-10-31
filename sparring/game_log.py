@@ -77,7 +77,7 @@ class GameLog:
 
 def snapshot(game) -> dict:
     return {
-        "turn": (game.turn_no, game.turn), "winner": game.winner, "drawn": tuple(game.drawn),
+        "turn": (game.turn_no, game.turn), "winner": game.winner, "draws": tuple(game.draw_events),
         "fighters": {fid: (f.pos, f.hp, f.alive) for fid, f in game.fighters.items()},
         "discard": [{c.card_id for c in p.discard} for p in game.players],
     }
@@ -99,7 +99,8 @@ def changes(prev: dict, now: dict, game, name: Callable) -> list[str]:
         if pos != o_pos and pos is not None:
             out.append(f"MOVE: {label} {'off board' if o_pos is None else o_pos} -> {pos}")
     for p in (0, 1):
-        draws = now["drawn"][p] - prev["drawn"][p]
+        # the engine's own draw events, not `Game.drawn`: the table deal resets that counter between two observations
+        draws = now["draws"][p] - prev["draws"][p]
         if draws > 0:
             out.append(f"DRAW: P{p} draws {draws}")
         for card in game.players[p].discard:

@@ -277,6 +277,7 @@ def _bot_cards(session, before: dict, moved: set = frozenset()) -> list[Callable
         checks.append(lambda op=op, title=title: _returned(session, op, title))
     if taken > 0:
         g.drawn[bot] += taken                     # the real deck order is unknown: it is a top card on the table
+        g.draw_events[bot] += taken
         session.say(f"El bot toma {_plural(taken)} de su mazo.", ChatKind.SCHEME)
     return checks
 
