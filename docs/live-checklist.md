@@ -57,9 +57,9 @@ Repite el bloque para cada heroe, **con Ivan jugandolo** (H) y **con el bot juga
 - [ ] H **(E2)**: movimientos opcionales ofrecen **Ninguna**.
 
 ### Medusa
-- [ ] B: mueve Harpias; Winged Frenzy devuelve una Harpia caida **siempre** (obligatorio, primera casilla libre de su zona).
+- [x] B: mueve Harpias; Winged Frenzy devuelve una Harpia caida **siempre** (obligatorio, primera casilla libre de su zona). *(OK, confirmado por Ivan 31/10)*
 - [ ] H: Out Of Time ("BOOST this card" = boost desde la mano, como siempre).
-- [ ] Piezas caidas (Harpias) van al `dead_spot`.
+- [x] Piezas caidas (Harpias) van al `dead_spot`. *(OK, confirmado por Ivan 31/10)*
 
 ### Hellboy
 - [x] Setup: ficha **1644a3** en **OCCULT DETECTIVE** (azul, rotZ 180). *El giro es incondicional: debe empezar asi.* *(OK 29/10)*
