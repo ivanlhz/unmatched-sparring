@@ -124,3 +124,38 @@ def test_a_plain_fleeting_moments_deals_its_card_after_the_discard(rig):
     msgs = click(twin, table, Event.END_ACTION)
     assert twin.pending_discard is None and len(table.human_deals) == deals + 1 and table.human_deals[-1] == 1
     assert said(msgs, "Te he dado 1 carta (")
+
+
+MEDUSA_VS_LIZ = ("medusa", "liz-sherman", "Clutching Claws", "Gaze of Stone", "Dash", "Second Shot", "Dash")
+
+
+def evade_against_clutching(session, table, game, cfg):
+    """Bot Medusa's harpy attacks with Clutching Claws; the human Liz defends with Evade (draw 1) and holds three more cards."""
+    put_adjacent(game, table, cfg, "harpy1", "liz")
+    human_hand(table, game, "Evade", "Fireball", "Pyrotechnics", "Rekindle")
+    claws = next(c for c in game.players[0].hand if c.title == "Clutching Claws")
+    bot_turn(session, table, [Act("attack", fid="harpy1", target="liz", card=claws)])
+    evade = card_ids(game, 1, "Evade")[0]
+    table.face_down = [{"id": evade, "guid": f"h{evade}"}]
+    table.human_hand.remove(evade)
+    table.human_count -= 1
+    table.deals_before = len(table.human_deals)
+    return click(session, table, Event.REVEAL)
+
+
+@with_rig(*MEDUSA_VS_LIZ)
+def test_a_draw_before_the_discard_is_dealt_with_the_request_and_nothing_waits_after_it(rig):
+    """Evade (defender, first) draws, then Clutching Claws makes him discard: he may discard the new card."""
+    session, table, game, fake, cfg = rig
+    msgs = evade_against_clutching(session, table, game, cfg)
+    deals = table.deals_before
+    assert len(table.human_deals) == deals + 1 and table.human_deals[-1] == 1
+    dealt = next(i for i, m in enumerate(msgs) if "Te he dado 1 carta" in m)
+    ask = next(i for i, m in enumerate(msgs) if "Descarta 1 carta(s) (Clutching Claws" in m)
+    assert dealt < ask and not said(msgs, "no estas") and not said(msgs, "Cuando hayas descartado")
+    assert session.pending_discard["n"] == 1 and session._undealt_draws() == 0
+    twin = twin_session(session, cfg, json.loads(json.dumps(session.to_dict())))
+    table.human_discard.append(table.human_hand[0])
+    table.human_count -= 1
+    click(twin, table, Event.END_ACTION)
+    assert twin.pending_discard is None and len(table.human_deals) == deals + 1, "nothing was owed after the discard"
