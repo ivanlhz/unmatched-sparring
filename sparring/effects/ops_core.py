@@ -134,19 +134,24 @@ def _draw(run, game, spec):
         run.bind("cards", spec["as"], drawn)
 
 
-def _cards_of(game, run, cards, purpose: str, prompt: str | None = None, **extra) -> list[Picked]:
+def _cards_of(game, run, cards, purpose: str, prompt: str | None = None, in_combat: bool = False,
+              **extra) -> list[Picked]:
+    """`in_combat`: a card ref may also name a card being played in this combat (zone "combat", held by the flow)."""
     if isinstance(cards, str):
         found = []
+        flow = getattr(run, "flow", None) if in_combat else None
         for c in card_ref(game, run, cards):
             where = locate(game, c)
             if where is not None:
                 found.append(Picked(where[0], where[1], c))
+            elif flow is not None and any(card is c for _, card in flow.played):
+                found.append(Picked(next(o for o, card in flow.played if card is c), "combat", c))
         return found
     return select_cards(game, run, cards, purpose, prompt, **extra)
 
 
 def _card_title(game, run) -> str:
-    card = find_card(game, run.ctx.card_id) if run.ctx.card_id is not None else None
+    card = find_card(game, run.ctx.card_id, run.ctx.owner) if run.ctx.card_id is not None else None
     return card.title if card else t("fx.cause_default")
 
 
@@ -208,6 +213,21 @@ def _discard(run, game, spec):
         run.bind("cards", spec["as"], [c.card_id for _, _, c in items])
 
 
+@op("remove_from_game")
+def _remove_from_game(run, game, spec):
+    """Cards of a discard pile leave the game for good (`PlayerState.removed`): public, and no effect brings them back."""
+    sel = spec["cards"]
+    if sel["zone"] != "discard":
+        raise EffectError("remove_from_game: only cards of a discard pile can be removed")
+    items = _cards_of(game, run, sel, "remove", _card_title(game, run))
+    for player, _, card in items:
+        game.remove_from_game(player, card)
+    for player in sorted({p for p, _, _ in items}):
+        table.intent(game, op="remove", player=player, cards=[c.card_id for p, _, c in items if p == player])
+    if "as" in spec:
+        run.bind("cards", spec["as"], [c.card_id for _, _, c in items])
+
+
 @op("choose")
 def _choose(run, game, spec):
     sel = spec["cards"]
@@ -265,13 +285,28 @@ def _move(run, game, spec):
             if got:
                 plan.append((f, got[0]))
                 set_attrs(f, pos=got[0])
+    passed = run.flags.setdefault("passed", {})
     for f, dest in plan:
         origin = f.pos
+        passed[f.fid] = _passed_through(game, f, origin, dest, steps) if through else []
         game.move_fighter(f, dest, steps, through)
         if f.pos != origin:
             table.intent(game, op="move", fid=f.fid, owner=f.owner)
     for f in by_hand:
+        passed[f.fid] = None                      # the human walks their own miniature: the engine never sees the path
         table.note(run, op="move", fid=f.fid, amount=steps, up_to=up_to, through=through)
+    if "as" in spec:
+        run.bind("fighters", spec["as"], [f.fid for f, _ in plan] + [f.fid for f in by_hand])
+
+
+def _passed_through(game, mover, origin: int, dest: int, steps: int) -> list[str]:
+    """Opposing fighters `mover` may have moved through on its way from `origin` to `dest`: those on some path of at
+    most `steps` spaces (the board has no fixed path, the mover's owner chooses it)."""
+    if origin == dest:
+        return []
+    dist = game.board.distance
+    return [e.fid for e in game.own(1 - mover.owner)
+            if e.pos not in (origin, dest) and dist(origin, e.pos) + dist(e.pos, dest) <= steps]
 
 
 def _where_refs(game, run, where: dict) -> dict:
@@ -280,6 +315,8 @@ def _where_refs(game, run, where: dict) -> dict:
     out = {}
     if where.get("any"):
         out["any"] = True
+    if where.get("other"):
+        out["other"] = True
     for key in ("zone_of", "adjacent_to", "nearest_to"):
         if key in where:
             ref = _ref_fighter(game, run, where[key])
@@ -332,10 +369,18 @@ def _swap(run, game, spec):
     chooser = _chooser(game, run, spec)
     a = pick_fighters(game, run, spec["target"], chooser, op="swap")
     b = pick_fighters(game, run, spec["with"], chooser, op="swap")
+    swapped = []
     if a and b and a[0] is not b[0] and a[0].alive and b[0].alive and game.fx.can_move(a[0]) and game.fx.can_move(b[0]):
-        a[0].pos, b[0].pos = b[0].pos, a[0].pos
-        for f in (a[0], b[0]):
-            table.intent(game, op="swap", fid=f.fid, owner=f.owner)
+        first, second = a[0], b[0]
+        swapped = [first.fid, second.fid]
+        if table.piece_is_physical(game, chooser, first) and table.piece_is_physical(game, chooser, second):
+            table.note(run, op="swap", fid=first.fid, other=second.fid)      # the table player swaps their miniatures by hand
+        else:
+            first.pos, second.pos = second.pos, first.pos
+            for f in (first, second):
+                table.intent(game, op="swap", fid=f.fid, owner=f.owner)
+    if "as" in spec:
+        run.bind("fighters", spec["as"], swapped)
 
 
 @op("revive")
@@ -392,9 +437,9 @@ def _if(run, game, spec):
 
 
 def _can_pay(game, run, cost: list[dict]) -> bool:
-    """Conservative: a discard cost needs enough cards; any other cost is assumed payable."""
+    """Conservative: a discard (or a card put back in the deck) cost needs enough cards; any other cost is assumed payable."""
     for c in cost:
-        if c["op"] == "discard" and isinstance(c["cards"], dict):
+        if c["op"] in ("discard", "return_to_deck") and isinstance(c["cards"], dict):
             sel = c["cards"]
             need = 0 if sel.get("up_to") else min(int(amount(game, run, sel.get("amount", 1))), 1 << 30)
             if len(card_candidates(game, run, sel)) < need:
@@ -426,9 +471,20 @@ def _cost_context(game, run, cost: list[dict], chooser: int) -> dict:
 def _choice_context(game, run, spec: dict) -> dict:
     """What the two answers mean, for a panel that names them: `discards` (the cards the yes branch discards, when
     that is all it does: Remove A Painful Memory's "discard it") and `else_damage` (a plain damage in the else branch:
-    "or take 2")."""
+    "or take 2"). For a bot, what a card paid from the hand buys: `gains_action` (Hi-Yaaaaah!!) or `cancels` (Guaranteed
+    Delivery: how many moments of the rival's card have effects to cancel)."""
     ctx = {}
     ops, other = spec.get("ops") or [], spec.get("else") or []
+    if len(ops) == 1 and ops[0]["op"] == "return_to_deck" and isinstance(ops[0]["cards"], dict) \
+            and ops[0]["cards"]["zone"] == "deck" and ops[0]["cards"].get("pick") == "top":
+        owner = player_of(game, run, ops[0]["cards"]["player"])      # putting the top card at the bottom (The future of Ninjutsu)
+        if not table.physical(game, owner):                          # the human's deck is virtual: nothing true to name
+            ctx["bury"] = [c.card_id for c in game.players[owner].deck[:int(amount(game, run, ops[0]["cards"].get("amount", 1)))]]
+    if any(o["op"] == "return_to_deck" for o in spec.get("cost") or []):
+        if any(o["op"] == "gain_action" for o in ops):
+            ctx["gains_action"] = True
+        if any(o["op"] == "cancel_effects" for o in ops):
+            ctx["cancels"] = _cancellable_moments(game, run)
     if len(ops) == 1 and ops[0]["op"] == "discard" and isinstance(ops[0]["cards"], str):
         ctx["discards"] = [c.card_id for c in card_ref(game, run, ops[0]["cards"])]
     if len(other) == 1 and other[0]["op"] == "damage" and isinstance(other[0].get("amount"), int):
@@ -437,6 +493,16 @@ def _choice_context(game, run, spec: dict) -> dict:
         if len(cands) == 1:
             ctx["else_fighter"] = cands[0].fid       # who takes it: the answer's price in hit points
     return ctx
+
+
+def _cancellable_moments(game, run) -> int:
+    """Moments (immediately, during, after) of the rival's card that have effects a `cancel_effects` would erase."""
+    from .modifiers import card_effects, is_uncancelable
+    cards = card_ref(game, run, "opponent_card")
+    fx = card_effects(cards[0]) if cards else None
+    if fx is None or is_uncancelable(cards[0]):
+        return 0
+    return sum(1 for m in ("immediately", "during", "after") if fx.moments.get(m))
 
 
 @op("optional")
@@ -479,3 +545,4 @@ def _plugin(run, game, spec):
 
 from . import ops_combat  # noqa: E402,F401  (registers the combat ops over the registry above)
 from . import ops_info  # noqa: E402,F401  (registers look_hand, reveal, look_deck, search_deck, return_to_deck, put_in_hand)
+from . import plugins_raphael  # noqa: E402,F401  (registers raphael:unbridled_rage)

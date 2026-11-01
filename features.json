@@ -130,6 +130,19 @@
       "note": "28/10: data of the 4 heroes on master (3090642), sheets verified against the save by the reviewer. Before the interpreter: unify the schema of data/heroes/effects/*.json (bind/as/$ bindings, 'up to N', self/self_player, the card in progress, body of for_each/optional, effect damage mark, zone selectors, persistent_scheme, choose_n of effects vs of cards, triggers); can_boost must stop detecting by text (Out Of Time says 'BOOST this card'); start_on_board/reserve/tts_tokens still without a reader. Open rules questions in docs/heroes/*.md."
     },
     {
+      "id": "TMNT-LEONARDO",
+      "title": "Adventures: Teenage Mutant Ninja Turtles box, Leonardo first",
+      "status": "in-progress",
+      "criteria": [
+        "Leonardo (and Splinter) playable by the bot and by the human against each hero of the Hellboy box and Medusa, with every card effect and TEAM TACTICS (human: the panel waits for End action; bot: it moves a fighter at the start of its turn)",
+        "Card data verified against the real cards of the tournament save (Leonardo deck, DeckID 176, character card 363), not only against unmatched-memory",
+        "TMNT decks share Medusa's CardID range: hero detection by deck images and card lookups by owner keep Leonardo and Medusa apart",
+        "Full FakeTTS games of Leonardo against the five other heroes in both seats reach game over (tests/test_leonardo_full_games.py)",
+        "A live game supervised by Ivan before calling it done (docs/live-checklist.md, Leonardo)"
+      ],
+      "note": "1v1 readings of the co-op cards and open questions in docs/heroes/leonardo.md. Raphael, Donatello and Michelangelo are separate branches."
+    },
+    {
       "id": "F09",
       "title": "AI with ISMCTS search over the generic engine",
       "status": "in-progress",
@@ -272,6 +285,61 @@
         "Verified live by Iván with at least two non-box heroes (e.g. Raphael, Alice)"
       ],
       "note": "Asked by Iván on 30/10 after the catalog branch (feat/hero-catalog). Builds on that branch. Making a new hero playable BY THE BOT (effects + AI) stays a per-hero job like the Hellboy box."
+    },
+    {
+      "id": "TMNT-DONATELLO",
+      "title": "Donatello (TMNT Adventures) on both sides",
+      "status": "in-progress",
+      "criteria": [
+        "Donatello and Metalhead: HeroDef, DSL effects, TTS data and detection (the deck shares Medusa's CardIDs 17600-17629: only its image tells it apart); the 30 cards verified against the real sheet 176 of the tournament save",
+        "All 14 card effects, played by the bot and by the human (table mode): Party wagon!, Short circuit (cancels only AFTER COMBAT), Untested enhancements, The future of Ninjutsu, Donatello does machines, Thinking ahead, Shift focus, Quick strike, Bo staff, Turtle power!, Heroes in a half shell and the three inventions",
+        "INVENTIVE (a): after a maneuver the owner may draw one more card and put a hand card at the bottom of the deck (the bot always does; the human is asked on the panel); (b): an invention that has been played is tucked under the hero card instead of going to the discard pile and its bonus holds for the rest of the game, saved and resumable",
+        "Cards removed from the game are public and gone for good; the bot sets them aside on bot_removed_spot, the human is told; tucked and removed cards are never read back into a pile by the table sync",
+        "The bot keeps inventions in hand, plays them early and removes its cheapest cards; heuristic and ISMCTS",
+        "Whole FakeTTS games against each of the five other heroes, on either side, reach game over (tests/test_donatello_games.py)",
+        "A live game supervised by Iván (docs/live-checklist.md, Donatello) before calling it done"
+      ],
+      "note": "1/11: engine and FakeTTS done on feat/hero-donatello; the live table (tuck and removed spots, INVENTIVE panel flow, Party wagon! path by hand) is untested. Open rules questions in docs/heroes/donatello.md."
+    },
+    {
+      "id": "TMNT-MICHELANGELO",
+      "title": "Michelangelo (TMNT) playable by the bot and by the human",
+      "status": "in-progress",
+      "criteria": [
+        "Hero sheet, 30 cards and table data verified against the card images of the tournament savegame (sheet 176, character card 366); April O'Neil as the ranged sidekick",
+        "Every card effect in the DSL, including Shell Insertion (two different effects out of four), Nunchaku (a +1 status on every attack of the hero this turn) and Cowabunga!! (cards played this turn)",
+        "PIZZA PARTY: draw 1 after an attack or a scheme; opening and maximum hand size 3, per hero and additive (default 5 and 7)",
+        "Bot AI aware of the 3-card hand (hand cap in the evaluation, pays a card for an action or a cancel by rule); heuristic and ISMCTS",
+        "Whole FakeTTS games against Hellboy, Abe Sapien, Baba Yaga and Liz Sherman on both sides; Medusa and Michelangelo share a table (same CardIDs, told apart by the deck images: docs/card-identity.md)"
+      ],
+      "note": "Live test pending: see docs/live-checklist.md, Michelangelo."
+    },
+    {
+      "id": "TMNT-RAPHAEL",
+      "title": "Raphael (Teenage Mutant Ninja Turtles) playable by the bot and by the human",
+      "status": "in-progress",
+      "criteria": [
+        "data/heroes/overlay/raphael.json, data/heroes/raphael.json, data/heroes/effects/raphael.json and data/tts/raphael.json generated and validated (import_hero --check --all, validate_effects, import_save --check)",
+        "All 12 titles (30 cards, sheet 176, character card 368) verified against the card images: values, boosts, copies, restrictions and texts; Casey Jones as the one sidekick",
+        "ANGER ISSUES (first lost combat of each own turn gives an action) and every card effect run on the interpreter for the bot and for the human at the panel",
+        "The bot plays Raphael with the heuristic and the ISMCTS (schemes, Casey from range, attacks)",
+        "Full games against the five other heroes on either side reach game over on FakeTTS",
+        "Hero detection recognises Raphael from data/tts/raphael.json even though his deck is sheet 176 like Medusa's",
+        "Verified live by Iván (docs/live-checklist.md, section Raphael)"
+      ],
+      "note": "Engine additions are additive (docs/effects-dsl.md, section Raphael). Open rules questions: docs/heroes/raphael.md."
+    },
+    {
+      "id": "TMNT-IDENTITY",
+      "title": "Medusa and the four turtles share CardIDs 17600-17629: one card-identity rule",
+      "status": "in-progress",
+      "criteria": [
+        "Every card lookup of the engine, the session and the bot is per owner (Game.card_of, Game.cards_by_id, ChoiceRequest.card_owner) or by deck image in Lua; never by a bare CardID (docs/card-identity.md)",
+        "is_medusa_card compares the card by value with Medusa's deck",
+        "Any ordered pair of the nine heroes plays to game over on FakeTTS in both seats, Medusa against each turtle and turtle against turtle included (tests/test_tmnt_matrix.py), and in the simulator with the heuristic and the ISMCTS with no fallbacks",
+        "Human-side table tests for the TMNT cards that only the bot had played (tests/test_tmnt_human_cards.py)"
+      ],
+      "note": "Live test pending: two turtle decks and Medusa on the same real table (docs/live-checklist.md)."
     }
   ]
 }

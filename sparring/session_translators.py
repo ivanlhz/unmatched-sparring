@@ -663,3 +663,57 @@ def _ongoing_bot(session, intent: dict, ctx: Ctx) -> list[Check]:
         if not result_of(op).get("placed"):
             _ongoing_human(session, intent, ctx)
     return [check]
+
+
+# ---------------------------------------------------------------- tucked inventions and cards removed from the game (Donatello)
+
+ASIDE_STEP = 1.6               # distance between the cards laid side by side at a set-aside spot
+
+
+def _aside_spot(session, intent: dict):
+    return session.cfg.bot_tuck_spot if intent["op"] == "tuck" else session.cfg.bot_removed_spot
+
+
+def _aside_mode(session, intent: dict) -> str:
+    if intent["player"] != session.bot:
+        return HUMAN                              # theirs: they tuck and set aside by hand
+    return BOT if _aside_spot(session, intent) is not None else HUMAN
+
+
+def _aside_ids(intent: dict) -> list[int]:
+    return list(intent["cards"]) if intent["op"] == "remove" else [intent["card"]]
+
+
+def _aside_human(session, intent: dict, ctx: Ctx) -> list[Check]:
+    by_id = _by_id(session, intent["player"])
+    titles = join_titles(by_id[i].title for i in _aside_ids(intent))
+    mine = intent["player"] == session.human
+    kind = "tuck" if intent["op"] == "tuck" else "remove"
+    session.say(t(f"tr.{kind}_{'human' if mine else 'bot'}", titles=titles), ChatKind.SCHEME if kind == "tuck" else ChatKind.YOUR_TURN)
+    return []
+
+
+def _lay_aside(session, intent: dict, ctx: Ctx) -> list[Check]:
+    """The bot's invention goes under (beside) its hero card, a card it removes from the game away from its discard
+    pile: one `discard_cards` write to the configured spot, the cards side by side in the order they left play."""
+    cfg, st = session.cfg, session.game.players[session.bot]
+    ids = _aside_ids(intent)
+    pile = [c.card_id for c in (st.tucked if intent["op"] == "tuck" else st.removed)]
+    x, y, z = _aside_spot(session, intent)
+    spots = [(x + pile.index(i) * ASIDE_STEP, y, z) for i in ids]
+    op = session._w(lua.discard_cards(ids, spots, cfg.rot_y, identity=session._identity(), scope=session._scope(),
+                                      id_range=cfg.bot_card_ids), DOMAIN)
+    session.fx_in_flight.update(ids)
+    session.bot_discarded.difference_update(ids)
+    by_id = _by_id(session, session.bot)
+    session.say(t(f"tr.{intent['op']}_placed", titles=join_titles(by_id[i].title for i in ids)), ChatKind.SCHEME)
+
+    def check() -> None:
+        if set(ids) - set(result_of(op).get("moved") or []):
+            session.say(t(f"tr.{intent['op']}_fail"), ChatKind.WARNING)
+            _aside_human(session, intent, ctx)
+    return [check]
+
+
+register("tuck", mode=_aside_mode, human=_aside_human)(_lay_aside)
+register("remove", mode=_aside_mode, human=_aside_human)(_lay_aside)

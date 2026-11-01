@@ -16,7 +16,7 @@ from functools import lru_cache
 
 from .model import EFFECTS_DIR, CardEffects, EffectError, load_effects, walk_ops
 
-FIGHTER_STATUSES = ("immune_to_effect_damage", "cannot_leave_space")
+FIGHTER_STATUSES = ("immune_to_effect_damage", "cannot_leave_space", "attack_bonus")
 PLAYER_STATUSES = ("immune_to_enemy_effect_damage", "immune_to_enemy_effect_moves",
                    "immune_to_enemy_forced_discards", "cannot_gain_actions", "cannot_draw", "next_attack_bonus")
 _DEFAULT_PLAYER = {"end_of_turn": "any", "start_of_turn": "owner", "after_maneuver": "any"}
@@ -172,6 +172,13 @@ def take_next_attack_bonus(fx, player: int) -> list[tuple[int, str]]:
     return [(st["amount"], st["label"]) for st in got if st["amount"]]
 
 
+def fighter_attack_bonus(fx, fid: str) -> list[tuple[int, str]]:
+    """(+n, label) of each `attack_bonus` status on the fighter: every attack it makes while the status lasts
+    (Nunchaku), unlike `next_attack_bonus`, which the first attack consumes."""
+    return [(st["amount"], st["label"]) for st in fx.statuses
+            if st["name"] == "attack_bonus" and st.get("fid") == fid and st["amount"]]
+
+
 def expire_on_event(fx, name: str, *args) -> None:
     """Drops the statuses whose `until` is this event. Other events (damage_taken for the Pacts...) belong to C3."""
     player = args[0] if args and isinstance(args[0], int) else None
@@ -189,11 +196,41 @@ def expire_on_event(fx, name: str, *args) -> None:
 # ---------------------------------------------------------------- combat values
 
 def side_of(flow, card) -> str | None:
-    if card.card_id == flow.atk_card.card_id:
+    if card == flow.atk_card:           # by value: two decks can share a CardID, never a whole card
         return "atk"
-    if flow.def_card is not None and card.card_id == flow.def_card.card_id:
+    if flow.def_card is not None and card == flow.def_card:
         return "def"
     return None
+
+
+COMBAT_MOMENTS = ("immediately", "during", "after")
+
+
+def has_effects(game, flow, side: str, moments=None) -> bool:
+    """The card on `side` has effects in `moments` (default: the three combat ones) that a cancellation would remove:
+    ops in those moments or the free BOOST of a `may_boost` card (a DURING effect). A hero outside the interpreter
+    has only the card's text to say."""
+    card = flow.atk_card if side == "atk" else flow.def_card
+    if card is None:
+        return False
+    owner = flow.att.owner if side == "atk" else flow.tgt.owner
+    slug = game.players[owner].hero.slug
+    if slug not in game.fx.dsl_heroes:
+        return bool(card.text.strip())
+    fx = load_effects(slug).cards.get(card.title)
+    names = tuple(moments or COMBAT_MOMENTS)
+    return fx is not None and (any(fx.moments.get(m) for m in names) or ("during" in names and fx.may_boost))
+
+
+def effects_canceled(game, run, ref) -> bool:
+    """`effects_canceled` test: a cancellation of this combat really took an effect off the card `ref` names."""
+    from .select import card_ref
+    flow = getattr(run, "flow", None)
+    if flow is None:
+        return False
+    cards = card_ref(game, run, ref)
+    side = side_of(flow, cards[0]) if cards else None
+    return side is not None and side in flow.cancel_hits
 
 
 def printed_value(flow, side: str) -> int:

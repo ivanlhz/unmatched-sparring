@@ -103,7 +103,8 @@ def project(session, before: dict | None, played: frozenset = frozenset(), cause
     moved = set(session.fx_in_flight)             # what this button already moved (a look row's pick, E3)
     looked, session.fx_looked = session.fx_looked, False
     ctx = Ctx(cause or bot_cause(), before)
-    checks = _human_pieces(session, before, intents, ctx) + _form(session, before, ctx) + _tokens(session, before, intents, ctx)
+    checks = [c for i in intents if i["op"] in ("tuck", "remove") for c in translate(session, i, ctx) or []]
+    checks += _human_pieces(session, before, intents, ctx) + _form(session, before, ctx) + _tokens(session, before, intents, ctx)
     checks += _bot_cards(session, before, moved, intents, ctx) + _bot_ongoing(session, before, intents, ctx)
     checks += _human_cards(session, before, played, looked, ctx, intents)
 
@@ -272,7 +273,12 @@ def _human_cards(session, before: dict, played: frozenset, looked: bool, ctx: Ct
     from_hand = len([i for i in h0["hand"] if i in played])
     entered = g.fx.ongoing_card_id(human)         # an ONGOING that entered play left the hand without a discard
     from_hand += int(entered is not None and entered != in_play and entered in h0["hand"] and entered not in played)
-    unknown = len(h0["hand"]) + drawn - len(h1["hand"]) - from_hand - len(to_discard) - by_bot - len(hand_to_deck)
+    played_back = [i for it in intents if it["op"] == "return_to_deck" and it["player"] == human and it["zone"] == "discard"
+                   for i in it["cards"] if i in h1["deck"] and i not in h0["discard"] and i not in h0["deck"]]    # Relentless
+    if played_back:
+        titles = ", ".join(c.title for c in st.full_set if c.card_id in played_back)
+        session.say(t("raphael.combat_to_deck", cards=titles, cause=cause), ChatKind.YOUR_TURN)
+    unknown = len(h0["hand"]) + drawn - len(h1["hand"]) - from_hand - len(to_discard) - by_bot - len(hand_to_deck) - len(played_back)
     if unknown > 0:
         session.say(t("bot.return_hand", cards=plural(unknown, "noun.card"), cause=cause), ChatKind.YOUR_TURN)
     disc_to_deck = [i for i in h0["discard"] if i in h1["deck"]]

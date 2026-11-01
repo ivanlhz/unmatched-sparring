@@ -102,9 +102,9 @@ def manual_view(session) -> tuple[dict, dict]:
     return states, {CHOICE_IDS[0]: panel_text(t("btn.done"), 40)}
 
 
-def _titles(session, ids) -> str:
+def _titles(session, ids, owner: int | None = None) -> str:
     from .session_choices import card_titles
-    return card_titles(session.game, sorted(ids))
+    return card_titles(session.game, sorted(ids), session.bot if owner is None else owner)
 
 
 def manual_verdict(session) -> tuple[int | None, str | None]:
@@ -121,7 +121,7 @@ def manual_verdict(session) -> tuple[int | None, str | None]:
     out_of_hand = expected_hand - table_hand
     foreign = [i for i in new_pile if i not in own]
     if foreign:
-        return None, t("hidden.foreign", titles=_titles(session, foreign))
+        return None, t("hidden.foreign", titles=_titles(session, foreign, session.human))
     extra_in_hand = table_hand - expected_hand
     if extra_in_hand:
         return None, t("hidden.extra_in_hand", titles=_titles(session, extra_in_hand.elements()))
@@ -350,7 +350,7 @@ def prediction_request(game, player: int, card) -> ChoiceRequest | None:
         return None
     return ChoiceRequest("effect", player, [*PREDICT_VALUES, FACE_DOWN], 1, 1, card.card_id, PREDICT_KEY,
                          "predict the printed value of the opponent's card, or play face down",
-                         {"op": PREDICT_OP, "face_down": FACE_DOWN})
+                         {"op": PREDICT_OP, "face_down": FACE_DOWN}, player)
 
 
 class PredictionWait:

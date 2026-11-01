@@ -1,0 +1,428 @@
+{
+ "_source": {
+  "memory": "unmatched-memory/data/heroes/leonardo.json",
+  "overlay": "data/heroes/overlay/leonardo.json",
+  "generator": "tools/import_hero.py"
+ },
+ "slug": "leonardo",
+ "name": "Leonardo",
+ "fid": "leonardo",
+ "hp": 16,
+ "move": 2,
+ "attack": "melee",
+ "set": "adventures-teenage-mutant-ninja-turtles",
+ "ability": "TEAM TACTICS\nAt the start of your turn, you may move any fighter 1 space.",
+ "sidekicks": [
+  {
+   "name": "Splinter",
+   "hp": 9,
+   "move": 2,
+   "attack": "melee",
+   "count": 1,
+   "fid": "splinter"
+  }
+ ],
+ "forms": null,
+ "counters": {},
+ "triggers": [
+  {
+   "id": "team_tactics",
+   "when": "start_of_turn",
+   "optional": true,
+   "effect": "move",
+   "n": 1,
+   "target": "any_fighter"
+  }
+ ],
+ "passives": [],
+ "deck": {
+  "card_base": 17600,
+  "sheet": 176,
+  "cards": [
+   {
+    "idx": 0,
+    "title": "Katana",
+    "fighter": "Leonardo",
+    "type": "attack",
+    "value": 6,
+    "boost": 2,
+    "text": "",
+    "tags": []
+   },
+   {
+    "idx": 1,
+    "title": "Katana",
+    "fighter": "Leonardo",
+    "type": "attack",
+    "value": 6,
+    "boost": 2,
+    "text": "",
+    "tags": []
+   },
+   {
+    "idx": 2,
+    "title": "Turtle power!",
+    "fighter": "Leonardo",
+    "type": "attack",
+    "value": 3,
+    "boost": 2,
+    "text": "DURING COMBAT: You may BOOST this card.",
+    "tags": []
+   },
+   {
+    "idx": 3,
+    "title": "Turtle power!",
+    "fighter": "Leonardo",
+    "type": "attack",
+    "value": 3,
+    "boost": 2,
+    "text": "DURING COMBAT: You may BOOST this card.",
+    "tags": []
+   },
+   {
+    "idx": 4,
+    "title": "For Sensei",
+    "fighter": "any",
+    "type": "attack",
+    "value": 4,
+    "boost": 1,
+    "text": "AFTER COMBAT: Move both fighters in the combat up to 1 space each. You may discard 1 card to gain 1 action.",
+    "tags": []
+   },
+   {
+    "idx": 5,
+    "title": "For Sensei",
+    "fighter": "any",
+    "type": "attack",
+    "value": 4,
+    "boost": 1,
+    "text": "AFTER COMBAT: Move both fighters in the combat up to 1 space each. You may discard 1 card to gain 1 action.",
+    "tags": []
+   },
+   {
+    "idx": 6,
+    "title": "Fearless leader",
+    "fighter": "any",
+    "type": "attack",
+    "value": 3,
+    "boost": 2,
+    "text": "DURING COMBAT: Add +2 to this card's value for each other friendly fighter adjacent to the opposing fighter.",
+    "tags": []
+   },
+   {
+    "idx": 7,
+    "title": "Fearless leader",
+    "fighter": "any",
+    "type": "attack",
+    "value": 3,
+    "boost": 2,
+    "text": "DURING COMBAT: Add +2 to this card's value for each other friendly fighter adjacent to the opposing fighter.",
+    "tags": []
+   },
+   {
+    "idx": 8,
+    "title": "Fearless leader",
+    "fighter": "any",
+    "type": "attack",
+    "value": 3,
+    "boost": 2,
+    "text": "DURING COMBAT: Add +2 to this card's value for each other friendly fighter adjacent to the opposing fighter.",
+    "tags": []
+   },
+   {
+    "idx": 9,
+    "title": "Wise beyond his years",
+    "fighter": "Leonardo",
+    "type": "versatile",
+    "value": 2,
+    "boost": 2,
+    "text": "AFTER COMBAT: If the opposing fighter is in fewer zones than Leonardo, deal 2 damage to the opposing fighter.",
+    "tags": []
+   },
+   {
+    "idx": 10,
+    "title": "Wise beyond his years",
+    "fighter": "Leonardo",
+    "type": "versatile",
+    "value": 2,
+    "boost": 2,
+    "text": "AFTER COMBAT: If the opposing fighter is in fewer zones than Leonardo, deal 2 damage to the opposing fighter.",
+    "tags": []
+   },
+   {
+    "idx": 11,
+    "title": "Wise beyond his years",
+    "fighter": "Leonardo",
+    "type": "versatile",
+    "value": 2,
+    "boost": 2,
+    "text": "AFTER COMBAT: If the opposing fighter is in fewer zones than Leonardo, deal 2 damage to the opposing fighter.",
+    "tags": []
+   },
+   {
+    "idx": 12,
+    "title": "Quick strike",
+    "fighter": "any",
+    "type": "versatile",
+    "value": 3,
+    "boost": 3,
+    "text": "AFTER COMBAT: Draw 1 card.",
+    "tags": []
+   },
+   {
+    "idx": 13,
+    "title": "Quick strike",
+    "fighter": "any",
+    "type": "versatile",
+    "value": 3,
+    "boost": 3,
+    "text": "AFTER COMBAT: Draw 1 card.",
+    "tags": []
+   },
+   {
+    "idx": 14,
+    "title": "Quick strike",
+    "fighter": "any",
+    "type": "versatile",
+    "value": 3,
+    "boost": 3,
+    "text": "AFTER COMBAT: Draw 1 card.",
+    "tags": []
+   },
+   {
+    "idx": 15,
+    "title": "Eat, sleep, and breathe ninjutsu",
+    "fighter": "any",
+    "type": "versatile",
+    "value": 3,
+    "boost": 1,
+    "text": "AFTER COMBAT: Place each fighter adjacent to your fighter in another space in their zone.",
+    "tags": []
+   },
+   {
+    "idx": 16,
+    "title": "Eat, sleep, and breathe ninjutsu",
+    "fighter": "any",
+    "type": "versatile",
+    "value": 3,
+    "boost": 1,
+    "text": "AFTER COMBAT: Place each fighter adjacent to your fighter in another space in their zone.",
+    "tags": []
+   },
+   {
+    "idx": 17,
+    "title": "Eat, sleep, and breathe ninjutsu",
+    "fighter": "any",
+    "type": "versatile",
+    "value": 3,
+    "boost": 1,
+    "text": "AFTER COMBAT: Place each fighter adjacent to your fighter in another space in their zone.",
+    "tags": []
+   },
+   {
+    "idx": 18,
+    "title": "I have a plan",
+    "fighter": "any",
+    "type": "versatile",
+    "value": 2,
+    "boost": 1,
+    "text": "IMMEDIATELY: You may discard 1 card. If you do, cancel all effects on your opponent's card and ignore its value.",
+    "tags": []
+   },
+   {
+    "idx": 19,
+    "title": "I have a plan",
+    "fighter": "any",
+    "type": "versatile",
+    "value": 2,
+    "boost": 1,
+    "text": "IMMEDIATELY: You may discard 1 card. If you do, cancel all effects on your opponent's card and ignore its value.",
+    "tags": []
+   },
+   {
+    "idx": 20,
+    "title": "I have a plan",
+    "fighter": "any",
+    "type": "versatile",
+    "value": 2,
+    "boost": 1,
+    "text": "IMMEDIATELY: You may discard 1 card. If you do, cancel all effects on your opponent's card and ignore its value.",
+    "tags": []
+   },
+   {
+    "idx": 21,
+    "title": "Spatial awareness",
+    "fighter": "Splinter",
+    "type": "versatile",
+    "value": 3,
+    "boost": 3,
+    "text": "AFTER COMBAT: If the opposing fighter is in fewer zones than Splinter, deal 1 damage to the opposing fighter and draw 1 card.",
+    "tags": []
+   },
+   {
+    "idx": 22,
+    "title": "Spatial awareness",
+    "fighter": "Splinter",
+    "type": "versatile",
+    "value": 3,
+    "boost": 3,
+    "text": "AFTER COMBAT: If the opposing fighter is in fewer zones than Splinter, deal 1 damage to the opposing fighter and draw 1 card.",
+    "tags": []
+   },
+   {
+    "idx": 23,
+    "title": "Spatial awareness",
+    "fighter": "Splinter",
+    "type": "versatile",
+    "value": 3,
+    "boost": 3,
+    "text": "AFTER COMBAT: If the opposing fighter is in fewer zones than Splinter, deal 1 damage to the opposing fighter and draw 1 card.",
+    "tags": []
+   },
+   {
+    "idx": 24,
+    "title": "Heroes in a half shell",
+    "fighter": "Leonardo",
+    "type": "defense",
+    "value": 5,
+    "boost": 3,
+    "text": "",
+    "tags": []
+   },
+   {
+    "idx": 25,
+    "title": "Heroes in a half shell",
+    "fighter": "Leonardo",
+    "type": "defense",
+    "value": 5,
+    "boost": 3,
+    "text": "",
+    "tags": []
+   },
+   {
+    "idx": 26,
+    "title": "Leonardo leads",
+    "fighter": "Leonardo",
+    "type": "scheme",
+    "value": null,
+    "boost": 4,
+    "text": "Move each friendly fighter up to 3 spaces.\nDraw 1 card.",
+    "tags": []
+   },
+   {
+    "idx": 27,
+    "title": "Leonardo leads",
+    "fighter": "Leonardo",
+    "type": "scheme",
+    "value": null,
+    "boost": 4,
+    "text": "Move each friendly fighter up to 3 spaces.\nDraw 1 card.",
+    "tags": []
+   },
+   {
+    "idx": 28,
+    "title": "Protective father",
+    "fighter": "Splinter",
+    "type": "scheme",
+    "value": null,
+    "boost": 2,
+    "text": "Splinter may swap spaces with another friendly fighter. If he does, they both recover 2 health.\nGain 1 action.",
+    "tags": []
+   },
+   {
+    "idx": 29,
+    "title": "Protective father",
+    "fighter": "Splinter",
+    "type": "scheme",
+    "value": null,
+    "boost": 2,
+    "text": "Splinter may swap spaces with another friendly fighter. If he does, they both recover 2 health.\nGain 1 action.",
+    "tags": []
+   }
+  ]
+ },
+ "ai_profile": {
+  "leonardo": {
+   "name": "Leonardo",
+   "hero": true,
+   "count": 1,
+   "max_hp": 16,
+   "move": 2,
+   "ranged": false,
+   "role": "hero",
+   "attack": {
+    "cards": 21,
+    "mean": 3.1,
+    "max": 6
+   },
+   "exclusive": [
+    {
+     "title": "Katana",
+     "type": "attack",
+     "copies": 2,
+     "impact": 1.2
+    },
+    {
+     "title": "Turtle power!",
+     "type": "attack",
+     "copies": 2,
+     "impact": 0.75
+    },
+    {
+     "title": "Wise beyond his years",
+     "type": "versatile",
+     "copies": 3,
+     "impact": 1.36
+    },
+    {
+     "title": "Heroes in a half shell",
+     "type": "defense",
+     "copies": 2,
+     "impact": 1.05
+    },
+    {
+     "title": "Leonardo leads",
+     "type": "scheme",
+     "copies": 2,
+     "impact": 1.0
+    }
+   ]
+  },
+  "splinter": {
+   "name": "Splinter",
+   "hero": false,
+   "count": 1,
+   "max_hp": 9,
+   "move": 2,
+   "ranged": false,
+   "role": "striker",
+   "attack": {
+    "cards": 17,
+    "mean": 2.94,
+    "max": 4
+   },
+   "exclusive": [
+    {
+     "title": "Spatial awareness",
+     "type": "versatile",
+     "copies": 3,
+     "impact": 1.3
+    },
+    {
+     "title": "Protective father",
+     "type": "scheme",
+     "copies": 2,
+     "impact": 2.98
+    }
+   ],
+   "requires_alive": []
+  }
+ },
+ "_notes": [
+  "Sheet 176 of the tournament savegame (8x4, the Leonardo deck: its own FaceURL, the same DeckID 176 as Medusa's), read card by card from the image on 2026-11-01. CardID = 17600 + idx; 363 = character card (sheet 3, 10x7, position 63).",
+  "Hero card (read from the image): LEONARDO, MELEE, START HEALTH 16, MOVE 2; sidekick SPLINTER, MELEE, START HEALTH 9. TEAM TACTICS reads 'At the start of your turn, you may move any fighter 1 space.' (unmatched-memory omits the 'you may').",
+  "Fighter restrictions from the card bands: LEONARDO on Katana, Turtle power!, Wise beyond his years, Heroes in a half shell and Leonardo leads (11 cards); SPLINTER on Spatial awareness and Protective father (5 cards); ANY on the other 14.",
+  "Discrepancies with unmatched-memory: the real title is 'Eat, sleep, and breathe ninjutsu' (memory: 'breath', kept in memory_title so the importer finds the card); 'I have a plan' reads 'If you do' (memory: 'Of you do') and Fearless leader reads \"this card's value\" (memory: 'this card value'): the sheet's text wins.",
+  "TEAM TACTICS stays as data here; the interpreter runs the `team_tactics` trigger of data/heroes/effects/leonardo.json."
+ ]
+}

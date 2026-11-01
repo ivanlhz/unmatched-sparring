@@ -11,7 +11,7 @@ from __future__ import annotations
 
 from functools import lru_cache
 
-from . import narrate, table
+from . import inventions, narrate, table
 from .choose import ControllerChooser
 from .model import EffectError, load_effects, walk_ops
 from .ongoing import leave_play, spec_of
@@ -29,7 +29,9 @@ _BOTS = ControllerChooser()
 # it recorded, so a game of such heroes saves exactly as it did before the interpreter.
 TRACKS = {"attacked": ("attacked_this_turn", "combat_damage_dealt"),
           "turn_start_pos": ("moved_this_turn",),
-          "taken": ("actions_taken_this_turn", "no_attack_as_first_action")}
+          "taken": ("actions_taken_this_turn", "no_attack_as_first_action"),
+          "played": ("other_cards_played_this_turn",),
+          "lost": ("combat_lost", "combats_lost_this_turn")}
 
 
 def _strings(node):
@@ -92,6 +94,8 @@ def _normalize(game, name: str, args: tuple) -> dict | None:
         return {"name": name, "attacker": args[0], "target": args[1], "card": args[2]}
     if name == "after_attack":
         return {"name": name, "attacker": args[0], "target": args[1]}
+    if name == "after_scheme":
+        return {"name": name, "player": args[0], "card": args[1]}
     if name == "card_discarded":
         return {"name": name, "player": args[0], "card": args[1], "zone": args[2] if len(args) > 2 else "hand",
                 "cause": args[3] if len(args) > 3 else None}
@@ -99,6 +103,8 @@ def _normalize(game, name: str, args: tuple) -> dict | None:
         return {"name": name, "player": args[0], "card": args[1]}
     if name == "fighter_defeated":
         return {"name": name, "fighter": args[0]}
+    if name == "combat_lost":
+        return {"name": name, "player": args[0], "fighter": args[1]}
     return None          # force_discard and the like: hooks for other phases, not DSL events
 
 
@@ -108,10 +114,14 @@ def _bookkeeping(game, ev: dict) -> None:
     if ev["name"] == "start_of_turn":
         fx.attacked.clear()
         fx.taken = 0
+        fx.played = [0, 0]
+        fx.lost = [0, 0]
         fx.turn_start_pos = ({fid: f.pos for fid, f in game.fighters.items() if f.alive}
                              if "turn_start_pos" in keep else {})
     elif ev["name"] == "attacked" and "attacked" in keep:
         fx.attacked.append(ev["attacker"].fid)
+    elif ev["name"] == "combat_lost" and "lost" in keep:
+        fx.lost[ev["player"]] += 1
 
 
 # ------------------------------------------------------------------ matching
@@ -131,6 +141,7 @@ def _handle(game, ev: dict) -> None:
         for trig in load_effects(slug).triggers:
             if trig["id"] not in DRIVEN_BY_THE_ENGINE and not table.start_of_turn_is_physical(game, player, trig):
                 todo.append((player, trig, None))
+        todo += [(player, trig, card_id) for trig, card_id in inventions.triggers(game, player)]
         spec = spec_of(game, player)
         if spec is not None:
             todo += [(player, trig, game.fx.ongoing_card_id(player)) for trig in spec.get("triggers", ())]
@@ -182,10 +193,12 @@ def matches(game, owner: int, when: dict, ev: dict) -> bool:
     if when["event"] != ev["name"]:
         return False
     name = ev["name"]
-    if name in ("start_of_turn", "after_maneuver"):
+    if name in ("start_of_turn", "after_maneuver", "after_scheme"):
         return _player_ok(when.get("player", "owner"), ev["player"], owner)
     if name == "end_of_turn":
         return _player_ok(when.get("player", "any"), ev["player"], owner)
+    if name == "combat_lost":
+        return _player_ok(when.get("player", "owner"), ev["player"], owner)
     if name == "attacked":
         return _fighter_ok(game, owner, when.get("target"), ev["target"])
     if name == "after_attack":

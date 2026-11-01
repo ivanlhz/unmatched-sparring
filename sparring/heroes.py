@@ -22,6 +22,8 @@ from .cards import Card
 HEROES_DIR = DATA_DIR / "heroes"
 CARD_TYPES = ("attack", "defense", "versatile", "scheme")
 DECK_SIZE = 30
+DEFAULT_START_HAND = 5      # opening hand and end-of-turn hand limit of a hero whose card says nothing else
+DEFAULT_HAND_LIMIT = 7
 
 
 class HeroDataError(Exception):
@@ -85,6 +87,8 @@ class HeroDef:
     card_base: int | None
     cards: tuple[dict, ...]
     ai_profile: dict = field(default_factory=dict)    # per fighter group, computed at import (sparring/ai_profile.py)
+    hand_start: int = DEFAULT_START_HAND              # opening hand (Michelangelo: 3)
+    hand_max: int = DEFAULT_HAND_LIMIT                # most cards kept at the end of the turn (Michelangelo: 3)
 
     def fighter_profile(self, name: str) -> dict | None:
         """The AI profile of the fighter called `name` (hero or sidekick group), None when the HeroDef has none."""
@@ -153,7 +157,9 @@ def parse_hero(raw: dict, where: str = "hero") -> HeroDef:
         hero = HeroDef(slug, name, raw["fid"], int(raw["hp"]), int(raw["move"]), _ranged(raw["attack"], where),
                        raw.get("ability") or "", sidekicks, forms, counters,
                        tuple(raw.get("triggers") or ()), tuple(raw.get("passives") or ()),
-                       deck.get("card_base"), tuple(deck.get("cards") or ()), raw.get("ai_profile") or {})
+                       deck.get("card_base"), tuple(deck.get("cards") or ()), raw.get("ai_profile") or {},
+                       int((raw.get("hand") or {}).get("start", DEFAULT_START_HAND)),
+                       int((raw.get("hand") or {}).get("max", DEFAULT_HAND_LIMIT)))
     except (KeyError, TypeError, ValueError) as e:
         raise HeroDataError(f"{where}: invalid HeroDef ({e!r})") from None
     _validate(hero, where)
@@ -163,6 +169,8 @@ def parse_hero(raw: dict, where: str = "hero") -> HeroDef:
 def _validate(h: HeroDef, where: str) -> None:
     if h.hp <= 0 or h.move < 0:
         raise HeroDataError(f"{where}: invalid life or movement")
+    if h.hand_start <= 0 or h.hand_max <= 0:
+        raise HeroDataError(f"{where}: invalid hand size")
     if any(s.count <= 0 or s.hp <= 0 for s in h.sidekicks):
         raise HeroDataError(f"{where}: sidekick with an invalid count or life")
     fids = [f.fid for f in h.fighters()]

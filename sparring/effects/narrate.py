@@ -17,7 +17,7 @@ from ..spaces import describe as describe_space
 
 # the chat speaks to the human: the bot in the third person, the human in the second (tags `narr.v.*.<side>`)
 STATUS_NAMES = ("cannot_gain_actions", "cannot_draw", "immune_to_effect_damage", "next_attack_bonus")
-FIGHTER_STATUS_NAMES = ("cannot_leave_space", "immune_to_effect_damage")
+FIGHTER_STATUS_NAMES = ("cannot_leave_space", "immune_to_effect_damage", "attack_bonus")
 
 
 def __getattr__(name: str):
@@ -61,7 +61,8 @@ def snapshot(game, flow=None) -> dict:
             "statuses": len(game.fx.statuses),
             "seen": [_seen(p) for p in game.players],
             "in_play": [game.fx.ongoing_card_id(p) for p in (0, 1)],
-            "cancelled": [] if flow is None or flow.ctx is None else sorted(flow.ctx.cancelled),
+            "cancelled": [] if flow is None or flow.ctx is None else sorted(flow.ctx.cancelled | flow.late_cancelled),
+            "cancelled_after": [] if flow is None or flow.ctx is None else sorted(flow.ctx.cancelled_after),
             "redirects": 0 if flow is None else len(flow.redirects),
             "mods": {} if flow is None else {side: len(mods) for side, mods in flow.mods.items()},
             "printed": {} if flow is None else dict(flow.printed_set)}
@@ -82,14 +83,14 @@ def describe(game, before: dict, run, flow=None, title: str | None = None) -> st
     by_hand = table.lines(run)
     if by_hand:
         parts.append(t("narr.on_table", lines=", ".join(by_hand)))
-    title = title or _title(game, run.ctx.card_id)
+    title = title or _title(game, run.ctx.card_id, getattr(run.ctx, "owner", None))
     return f"{title}: " + ("; ".join(parts) if parts else t("narr.nothing"))
 
 
 def _say_bot_price(game, run, parts: list[str], priced: dict) -> list[str]:
     """The bot's answer to a price the human's card offered it, said plainly and never as "no effect". The wording is
     Incinerate's (a discard price that ignores the card's value); another priced optional needs its own."""
-    title = _title(game, run.ctx.card_id)
+    title = _title(game, run.ctx.card_id, getattr(run.ctx, "owner", None))
     stake, cards = priced["stake"], priced["cards"]
     lethal = priced["hp"] is not None and 0 < priced["hp"] <= stake
     if not priced["can_pay"]:
@@ -140,9 +141,9 @@ def _seen(player_state) -> list:
     return list(player_state.known.seen) + [player_state.known.turn_no]
 
 
-def _title(game, card_id) -> str:
+def _title(game, card_id, owner=None) -> str:
     from .select import find_card
-    card = None if card_id is None else find_card(game, card_id)
+    card = None if card_id is None else find_card(game, card_id, owner)
     return card.title if card else t("fx.cause_default")
 
 
@@ -239,7 +240,7 @@ def _statuses(game, before: dict) -> list[str]:
     for st in game.fx.statuses[before["statuses"]:]:
         if "fid" in st:
             tag = f"narr.fstatus.{st['name']}"
-            out.append(t(tag, fid=st["fid"]) if st["name"] in FIGHTER_STATUS_NAMES else st["name"])
+            out.append(t(tag, fid=st["fid"], n=st.get("amount", 0)) if st["name"] in FIGHTER_STATUS_NAMES else st["name"])
             continue
         side = "bot" if st["player"] == game.bot_player else "human"
         tag = f"narr.status.{st['name']}.{side}"
@@ -251,10 +252,14 @@ def _combat(before: dict, flow) -> list[str]:
     if flow is None or flow.ctx is None:
         return []
     out = []
-    for side in sorted(flow.ctx.cancelled):
+    for side in sorted(flow.ctx.cancelled | flow.late_cancelled):
         if side not in before["cancelled"]:
             card = flow.atk_card if side == "atk" else flow.def_card
             out.append(t("narr.cancels", title=card.title) if card is not None else t("narr.cancels_rival"))
+    for side in sorted(flow.ctx.cancelled_after - flow.ctx.cancelled):
+        if side not in before["cancelled_after"] and side not in before["cancelled"]:
+            card = flow.atk_card if side == "atk" else flow.def_card
+            out.append(t("narr.cancels_after", title=card.title) if card is not None else t("narr.cancels_after_rival"))
     for side in ("def", "atk"):
         card = flow.atk_card if side == "atk" else flow.def_card
         if card is None:

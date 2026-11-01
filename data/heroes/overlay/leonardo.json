@@ -1,0 +1,62 @@
+{
+ "_notes": [
+  "Sheet 176 of the tournament savegame (8x4, the Leonardo deck: its own FaceURL, the same DeckID 176 as Medusa's), read card by card from the image on 2026-11-01. CardID = 17600 + idx; 363 = character card (sheet 3, 10x7, position 63).",
+  "Hero card (read from the image): LEONARDO, MELEE, START HEALTH 16, MOVE 2; sidekick SPLINTER, MELEE, START HEALTH 9. TEAM TACTICS reads 'At the start of your turn, you may move any fighter 1 space.' (unmatched-memory omits the 'you may').",
+  "Fighter restrictions from the card bands: LEONARDO on Katana, Turtle power!, Wise beyond his years, Heroes in a half shell and Leonardo leads (11 cards); SPLINTER on Spatial awareness and Protective father (5 cards); ANY on the other 14.",
+  "Discrepancies with unmatched-memory: the real title is 'Eat, sleep, and breathe ninjutsu' (memory: 'breath', kept in memory_title so the importer finds the card); 'I have a plan' reads 'If you do' (memory: 'Of you do') and Fearless leader reads \"this card's value\" (memory: 'this card value'): the sheet's text wins.",
+  "TEAM TACTICS stays as data here; the interpreter runs the `team_tactics` trigger of data/heroes/effects/leonardo.json."
+ ],
+ "fid": "leonardo",
+ "ability": "TEAM TACTICS\nAt the start of your turn, you may move any fighter 1 space.",
+ "sidekicks": [
+  {"fid": "splinter", "name": "Splinter"}
+ ],
+ "forms": null,
+ "counters": {},
+ "triggers": [
+  {"id": "team_tactics", "when": "start_of_turn", "optional": true, "effect": "move", "n": 1, "target": "any_fighter"}
+ ],
+ "passives": [],
+ "deck": {
+  "card_base": 17600,
+  "sheet_id": 176,
+  "sheet": [
+   {"idx": 0, "title": "Katana", "fighter": "Leonardo"},
+   {"idx": 1, "title": "Katana", "fighter": "Leonardo"},
+   {"idx": 2, "title": "Turtle power!", "fighter": "Leonardo"},
+   {"idx": 3, "title": "Turtle power!", "fighter": "Leonardo"},
+   {"idx": 4, "title": "For Sensei", "fighter": "any"},
+   {"idx": 5, "title": "For Sensei", "fighter": "any"},
+   {"idx": 6, "title": "Fearless leader", "fighter": "any",
+    "text": "DURING COMBAT: Add +2 to this card's value for each other friendly fighter adjacent to the opposing fighter."},
+   {"idx": 7, "title": "Fearless leader", "fighter": "any",
+    "text": "DURING COMBAT: Add +2 to this card's value for each other friendly fighter adjacent to the opposing fighter."},
+   {"idx": 8, "title": "Fearless leader", "fighter": "any",
+    "text": "DURING COMBAT: Add +2 to this card's value for each other friendly fighter adjacent to the opposing fighter."},
+   {"idx": 9, "title": "Wise beyond his years", "fighter": "Leonardo"},
+   {"idx": 10, "title": "Wise beyond his years", "fighter": "Leonardo"},
+   {"idx": 11, "title": "Wise beyond his years", "fighter": "Leonardo"},
+   {"idx": 12, "title": "Quick strike", "fighter": "any"},
+   {"idx": 13, "title": "Quick strike", "fighter": "any"},
+   {"idx": 14, "title": "Quick strike", "fighter": "any"},
+   {"idx": 15, "title": "Eat, sleep, and breathe ninjutsu", "memory_title": "Eat, sleep, and breath ninjutsu", "fighter": "any"},
+   {"idx": 16, "title": "Eat, sleep, and breathe ninjutsu", "memory_title": "Eat, sleep, and breath ninjutsu", "fighter": "any"},
+   {"idx": 17, "title": "Eat, sleep, and breathe ninjutsu", "memory_title": "Eat, sleep, and breath ninjutsu", "fighter": "any"},
+   {"idx": 18, "title": "I have a plan", "fighter": "any",
+    "text": "IMMEDIATELY: You may discard 1 card. If you do, cancel all effects on your opponent's card and ignore its value."},
+   {"idx": 19, "title": "I have a plan", "fighter": "any",
+    "text": "IMMEDIATELY: You may discard 1 card. If you do, cancel all effects on your opponent's card and ignore its value."},
+   {"idx": 20, "title": "I have a plan", "fighter": "any",
+    "text": "IMMEDIATELY: You may discard 1 card. If you do, cancel all effects on your opponent's card and ignore its value."},
+   {"idx": 21, "title": "Spatial awareness", "fighter": "Splinter"},
+   {"idx": 22, "title": "Spatial awareness", "fighter": "Splinter"},
+   {"idx": 23, "title": "Spatial awareness", "fighter": "Splinter"},
+   {"idx": 24, "title": "Heroes in a half shell", "fighter": "Leonardo"},
+   {"idx": 25, "title": "Heroes in a half shell", "fighter": "Leonardo"},
+   {"idx": 26, "title": "Leonardo leads", "fighter": "Leonardo"},
+   {"idx": 27, "title": "Leonardo leads", "fighter": "Leonardo"},
+   {"idx": 28, "title": "Protective father", "fighter": "Splinter"},
+   {"idx": 29, "title": "Protective father", "fighter": "Splinter"}
+  ]
+ }
+}

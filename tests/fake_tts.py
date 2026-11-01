@@ -37,7 +37,10 @@ class FakeTTS:
             msg = json.loads(data.decode("utf-8"))
             self.received.append(msg)
             if self.reply_port and msg.get("messageID") == 3:
-                value = self.return_value(msg) if callable(self.return_value) else self.return_value
+                try:
+                    value = self.return_value(msg) if callable(self.return_value) else self.return_value
+                except Exception as exc:      # a gap in a fake table fails the call, never kills the server thread
+                    value = {"__error__": f"FakeTTS: {type(exc).__name__}: {exc}"}
                 rid = re.search(r"local __rid = (\d+)", msg.get("script", ""))
                 if rid:     # like the real TTS: no messageID 5; the reply comes back through sendExternalMessage (4)
                     reply = {"sparring_reply": float(rid.group(1))}

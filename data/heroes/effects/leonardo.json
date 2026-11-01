@@ -1,0 +1,195 @@
+{
+ "schema": 1,
+ "hero": "leonardo",
+ "notes": [
+  "Structured effects of Leonardo (Adventures: Teenage Mutant Ninja Turtles) in DSL v1 (docs/effects-dsl.md). Text read from the real cards (sheet 176 of the Leonardo deck in the tournament save) on 2026-11-01; where unmatched-memory differs the card wins (docs/heroes/leonardo.md).",
+  "These are co-op 'Adventures' cards. 'Other friendly fighter' is read in 1v1 as 'another fighter of mine': Splinter for Leonardo and Leonardo for Splinter. There is no 'other friendly player'.",
+  "Three engine additions serve this file (docs/effects-dsl.md, section 'Leonardo'): the Amount stat `zones`, the SpaceSel flag `other` (a space other than the mover's own) and `as` on `swap` (binds the two fighters that swapped).",
+  "Every damage is effect damage; the zone tests read the fighters' spaces at the moment the AFTER resolves."
+ ],
+ "ability": {
+  "text": "TEAM TACTICS\nAt the start of your turn, you may move any fighter 1 space.",
+  "triggers": [
+   {"id": "team_tactics", "when": {"event": "start_of_turn", "player": "owner"},
+    "ops": [
+     {"op": "optional", "chooser": "owner", "ops": [
+      {"op": "move", "target": {"side": "any"}, "amount": 1, "up_to": true, "chooser": "owner"}
+     ]}
+    ]}
+  ],
+  "passives": [],
+  "notes": "'Any fighter' is any living fighter on the board: Leonardo, Splinter, and the rival's fighters (they are moved by the owner of the ability, the destination is the owner's choice). 'Move 1 space' is read as up to 1 (staying put is allowed, as in every 'move' of the game). Optional ('you may', as printed on the card; unmatched-memory drops it). When the human plays Leonardo the engine leaves it to the table (effects/table.py start_of_turn_is_physical): the panel says it and waits for End action."
+ },
+ "cards": [
+  {
+   "title": "Katana",
+   "copies": 2,
+   "text": "",
+   "effects": {"immediately": [], "during": [], "after": [], "scheme": [], "boost": []},
+   "notes": "Attack 6 / boost 2, Leonardo only. No text."
+  },
+  {
+   "title": "Turtle power!",
+   "copies": 2,
+   "text": "DURING COMBAT: You may BOOST this card.",
+   "may_boost": true,
+   "effects": {"immediately": [], "during": [], "after": [], "scheme": [], "boost": []},
+   "notes": "Attack 3 / boost 2, Leonardo only. The free boost of the card itself (may_boost): the top card of the deck is discarded and its BOOST value is added."
+  },
+  {
+   "title": "For Sensei",
+   "copies": 2,
+   "text": "AFTER COMBAT: Move both fighters in the combat up to 1 space each. You may discard 1 card to gain 1 action.",
+   "effects": {
+    "immediately": [], "during": [], "scheme": [], "boost": [],
+    "after": [
+     {"op": "move", "target": {"role": "combatant", "pick": "all"}, "amount": 1, "up_to": true, "chooser": "owner"},
+     {"op": "optional", "chooser": "owner",
+      "cost": [{"op": "discard", "cards": {"zone": "hand", "player": "owner", "amount": 1, "chooser": "owner"}}],
+      "ops": [{"op": "gain_action", "amount": 1}]}
+    ]
+   },
+   "notes": "Attack 4 / boost 1, any fighter of Leonardo. The owner moves BOTH fighters (the rival's too; a fighter defeated in the combat is not moved). Discarding the card is the price of the extra action: with an empty hand it cannot be paid."
+  },
+  {
+   "title": "Fearless leader",
+   "copies": 3,
+   "text": "DURING COMBAT: Add +2 to this card's value for each other friendly fighter adjacent to the opposing fighter.",
+   "effects": {
+    "immediately": [], "after": [], "scheme": [], "boost": [],
+    "during": [
+     {"op": "modify_value", "card": "this", "amount": {"count": {"side": "own", "other": true, "where": {"adjacent_to": "opposing"}, "pick": "all"}, "times": 2}}
+    ]
+   },
+   "notes": "Attack 3 / boost 2, any fighter of Leonardo. In 1v1 'other friendly fighter' is the partner of the attacker (Splinter when Leonardo attacks, Leonardo when Splinter does): +2 when it is adjacent to the defender, so at most 5. Cancelled by an IMMEDIATELY cancel like any DURING."
+  },
+  {
+   "title": "Wise beyond his years",
+   "copies": 3,
+   "text": "AFTER COMBAT: If the opposing fighter is in fewer zones than Leonardo, deal 2 damage to the opposing fighter.",
+   "effects": {
+    "immediately": [], "during": [], "scheme": [], "boost": [],
+    "after": [
+     {"op": "if", "condition": {"test": "compare", "left": {"stat": "zones", "fighter": "opposing"}, "op": "<", "right": {"stat": "zones", "fighter": "this"}},
+      "then": [{"op": "damage", "target": "opposing", "amount": 2}]}
+    ]
+   },
+   "notes": "Versatile 2 / boost 2, Leonardo only. 'Zones' = how many zones the fighter's space belongs to (a space can be in several: see the map data). Both are compared when the AFTER resolves. A defeated opposing fighter has no space and takes nothing; a defeated Leonardo counts 0 zones, so the test fails."
+  },
+  {
+   "title": "Quick strike",
+   "copies": 3,
+   "text": "AFTER COMBAT: Draw 1 card.",
+   "effects": {
+    "immediately": [], "during": [], "scheme": [], "boost": [],
+    "after": [{"op": "draw", "player": "owner", "amount": 1}]
+   },
+   "notes": "Versatile 3 / boost 3, any fighter of Leonardo."
+  },
+  {
+   "title": "Eat, sleep, and breathe ninjutsu",
+   "copies": 3,
+   "text": "AFTER COMBAT: Place each fighter adjacent to your fighter in another space in their zone.",
+   "effects": {
+    "immediately": [], "during": [], "scheme": [], "boost": [],
+    "after": [
+     {"op": "for_each", "over": {"fighters": {"side": "any", "where": {"adjacent_to": "this"}, "pick": "all"}}, "as": "adjacent", "ops": [
+      {"op": "place", "target": "$adjacent", "where": {"zone_of": "$adjacent", "other": true}, "chooser": "owner"}
+     ]}
+    ]
+   },
+   "notes": "Versatile 3 / boost 1, any fighter of Leonardo. Every fighter next to the card's fighter when the AFTER starts (the rival, and the partner if it is next to it) is placed by the owner on an empty space of its own zone, not the one it stands on (a space of any zone it is in). The group is fixed at the start; they go one after another. A fighter with no free space in its zone stays. Each side's own miniatures are moved by hand at the table."
+  },
+  {
+   "title": "I have a plan",
+   "copies": 3,
+   "text": "IMMEDIATELY: You may discard 1 card. If you do, cancel all effects on your opponent's card and ignore its value.",
+   "effects": {
+    "during": [], "after": [], "scheme": [], "boost": [],
+    "immediately": [
+     {"op": "optional", "chooser": "owner",
+      "cost": [{"op": "discard", "cards": {"zone": "hand", "player": "owner", "amount": 1, "chooser": "owner"}}],
+      "ops": [
+       {"op": "cancel_effects", "card": "opponent_card"},
+       {"op": "set_value", "card": "opponent_card", "ignore": true}
+      ]}
+    ]
+   },
+   "notes": "Versatile 2 / boost 1, any fighter of Leonardo. The extra card is discarded from the hand on top of the card played. Against an uncancelable card (Incinerate) only the value is ignored. Used in attack or in defense. unmatched-memory says 'Of you do'."
+  },
+  {
+   "title": "Spatial awareness",
+   "copies": 3,
+   "text": "AFTER COMBAT: If the opposing fighter is in fewer zones than Splinter, deal 1 damage to the opposing fighter and draw 1 card.",
+   "effects": {
+    "immediately": [], "during": [], "scheme": [], "boost": [],
+    "after": [
+     {"op": "if", "condition": {"all": [
+       {"test": "exists", "fighters": "opposing"},
+       {"test": "compare", "left": {"stat": "zones", "fighter": "opposing"}, "op": "<", "right": {"stat": "zones", "fighter": "this"}}]},
+      "then": [
+       {"op": "damage", "target": "opposing", "amount": 1},
+       {"op": "draw", "player": "owner", "amount": 1}
+      ]}
+    ]
+   },
+   "notes": "Versatile 3 / boost 3, Splinter only. The card is drawn even if the damage is stopped (immunity); with the opposing fighter defeated in the combat it has no space and nothing happens (Ivan to confirm: see open_questions)."
+  },
+  {
+   "title": "Heroes in a half shell",
+   "copies": 2,
+   "text": "",
+   "effects": {"immediately": [], "during": [], "after": [], "scheme": [], "boost": []},
+   "notes": "Defense 5 / boost 3, Leonardo only. No text."
+  },
+  {
+   "title": "Leonardo leads",
+   "copies": 2,
+   "text": "Move each friendly fighter up to 3 spaces.\nDraw 1 card.",
+   "effects": {
+    "immediately": [], "during": [], "after": [], "boost": [],
+    "scheme": [
+     {"op": "move", "target": {"side": "own", "pick": "all"}, "amount": 3, "up_to": true, "chooser": "owner"},
+     {"op": "draw", "player": "owner", "amount": 1}
+    ]
+   },
+   "notes": "Scheme, boost 4, Leonardo only. Both of the owner's fighters (Leonardo and Splinter) move up to 3, one after another, each seeing where the previous ended. Playing a scheme costs the action: no extra action."
+  },
+  {
+   "title": "Protective father",
+   "copies": 2,
+   "text": "Splinter may swap spaces with another friendly fighter. If he does, they both recover 2 health.\nGain 1 action.",
+   "effects": {
+    "immediately": [], "during": [], "after": [], "boost": [],
+    "scheme": [
+     {"op": "if", "condition": {"test": "exists", "fighters": {"side": "own", "other": true}}, "then": [
+      {"op": "optional", "chooser": "owner", "ops": [
+       {"op": "swap", "target": "this", "with": {"side": "own", "other": true}, "as": "swapped"},
+       {"op": "heal", "target": {"role": "$swapped", "pick": "all"}, "amount": 2}
+      ]}
+     ]},
+     {"op": "gain_action", "amount": 1}
+    ]
+   },
+   "notes": "Scheme, boost 2, Splinter only. The only 'another friendly fighter' in 1v1 is Leonardo, so the swap is Splinter and Leonardo exchanging spaces; both heal 2 (up to their maximum) only if the swap happened. The action is gained whatever the choice."
+  }
+ ],
+ "plugins": [],
+ "hidden_info": [
+  {"card": "Quick strike", "what": "draws 1 card", "bot_rule": "Nothing to look at: the draw is blind. The human's draw is dealt by the session."},
+  {"card": "For Sensei", "what": "the price of the extra action is a card of the hand", "bot_rule": "The human picks the card on the table; the bot discards its own through its usual choice (a public discard)."},
+  {"card": "I have a plan", "what": "a card of the hand is discarded to cancel the rival's card", "bot_rule": "Same as For Sensei: the discard is public once made."}
+ ],
+ "open_questions": [
+  "Spatial awareness: when the opposing fighter is defeated in the combat, the draw is NOT made (a defeated fighter is not in any zone). The other reading ('fewer than Splinter: 0 zones') would draw.",
+  "TEAM TACTICS: 'move any fighter 1 space' is read as up to 1 space and optional, and it can move the rival's fighters (the owner of the ability picks where).",
+  "Fearless leader / Eat, sleep, and breathe ninjutsu: the 'friendly fighter' wording of the co-op box is read as the owner's other fighter.",
+  "Protective father: the swap is optional, the action is not."
+ ],
+ "discrepancies": [
+  {"card": "Eat, sleep, and breathe ninjutsu", "memory": "title 'Eat, sleep, and breath ninjutsu'", "real": "BREATHE", "resolution": "the real title; overlay memory_title keeps the lookup"},
+  {"card": "I have a plan", "memory": "'Of you do'", "real": "'If you do'", "resolution": "the real card's text in the overlay"},
+  {"card": "Fearless leader", "memory": "'this card value'", "real": "'this card's value'", "resolution": "the real card's text in the overlay"},
+  {"card": "TEAM TACTICS", "memory": "'move any fighter up to 1 space'", "real": "'you may move any fighter 1 space'", "resolution": "the real text (overlay ability); read as an optional, up to 1"}
+ ]
+}

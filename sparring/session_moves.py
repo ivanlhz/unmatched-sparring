@@ -16,7 +16,7 @@ from __future__ import annotations
 
 from .effects.choose import ChoiceRequest
 from .i18n import t, tn
-from .session_choices import panel_text
+from .session_choices import panel_text, request_card
 from .spaces import describe
 from .tts.lua import ChatKind
 
@@ -60,7 +60,7 @@ def where_text(session, req: ChoiceRequest) -> str:
 
 
 def _title(session, req: ChoiceRequest) -> str:
-    card = next((c for p in session.game.players for c in p.full_set if c.card_id == req.card_id), None)
+    card = request_card(session.game, req)
     return f"{card.title}: " if card is not None else ""
 
 

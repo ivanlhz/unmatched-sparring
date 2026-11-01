@@ -83,11 +83,17 @@ class ChoiceUI:
             self.key, self.page, self.selected = req.key, 0, []
 
 
-def card_titles(game, ids) -> str:
-    titles = []
-    for i in ids:
-        titles.append(next((c.title for p in game.players for c in p.full_set if c.card_id == i), t("choice.card_n", n=i)))
-    return ", ".join(titles)
+def request_card(game, req: ChoiceRequest):
+    """The card whose effect asks (its owner's deck)."""
+    if req.card_id is None or req.card_owner is None:
+        return None
+    return game.card_of(req.card_id, req.card_owner)
+
+
+def card_titles(game, ids, owner: int) -> str:
+    """Titles of the cards `ids` of `owner`'s deck."""
+    cards = game.cards_by_id(owner)
+    return ", ".join(cards[i].title if i in cards else t("choice.card_n", n=i) for i in ids)
 
 
 def option_label(game, req: ChoiceRequest, option) -> str:
@@ -100,7 +106,7 @@ def option_label(game, req: ChoiceRequest, option) -> str:
     if kind == "optional":
         # what each answer means, when the op said so (Remove A Painful Memory: discard it, or take 2)
         if option is True and req.extra.get("discards"):
-            return safe_label(t("choice.discard", titles=card_titles(game, req.extra["discards"])))
+            return safe_label(t("choice.discard", titles=card_titles(game, req.extra["discards"], req.card_owner if req.card_owner is not None else req.player)))
         if option is False and "else_damage" in req.extra:
             return safe_label(t("choice.take", n=req.extra["else_damage"]))
         return t("choice.yes") if option is True else t("choice.no")
@@ -109,12 +115,8 @@ def option_label(game, req: ChoiceRequest, option) -> str:
     if kind == "space":
         return t("choice.space", n=option)
     if kind in ("cards", "order"):
-        owner = req.extra.get("of", req.player)
-        for p in ([game.players[owner]] if isinstance(owner, int) else []) + list(game.players):
-            for c in p.full_set:
-                if c.card_id == option:
-                    return safe_label(c.title)
-        return safe_label(t("choice.card_n", n=option))
+        card = game.cards_by_id(req.extra.get("of", req.player)).get(option)
+        return safe_label(card.title if card is not None else t("choice.card_n", n=option))
     fighter = game.fighters.get(option) if isinstance(option, str) else None
     return safe_label(fighter.name if fighter is not None else option)
 
@@ -131,7 +133,7 @@ def card_text_hint(game, req: ChoiceRequest) -> str:
     """' Card: <printed text>' for a plain yes/no (Pyrotechnics: the question alone did not say what the card does), else ''."""
     if req.kind != "optional" or req.extra.get("discards") or "to" in req.extra:
         return ""
-    card = next((c for p in game.players for c in p.full_set if c.card_id == req.card_id), None)
+    card = request_card(game, req)
     text = getattr(card, "text", "") if card is not None else ""
     return t("choice.card_hint", text=text) if text else ""
 
@@ -139,23 +141,23 @@ def card_text_hint(game, req: ChoiceRequest) -> str:
 def prompt_text(game, req: ChoiceRequest) -> str:
     """Chat line for the request: what is asked and, for the card that asks, its title."""
     base = _prompt(req.kind) if has_prompt(req.kind) else _prompt("default")
-    if req.kind == "cards" and req.max == 1:         # no "card(s)": the panel status drops the parentheses (live 29/10)
+    ability = f"choice.prompt.ability.{req.key.split('/')[0]}"       # the question of a hero's own trigger (INVENTIVE)
+    if req.kind == "optional" and req.card_id is None and has(ability):
+        return t(ability)
+    if req.kind == "cards" and req.max == 1:        # no "card(s)": the panel status drops the parentheses (live 29/10)
         base = _prompt("one_card")
     elif req.kind == "effect" and req.extra.get("op") == "predict":
         base = _prompt("predict")
     elif req.kind == "optional" and req.extra.get("discards"):
-        base = t("choice.prompt.discards", titles=card_titles(game, req.extra["discards"]))
+        base = t("choice.prompt.discards", titles=card_titles(game, req.extra["discards"], req.card_owner if req.card_owner is not None else req.player))
         if "else_damage" in req.extra:
             base += t("choice.prompt.else_damage", n=req.extra["else_damage"])
     elif req.kind == "optional" and "to" in req.extra and "fighter" in req.extra:     # a damage redirection (FATEFUL BARGAINS)
         names = {fid: f.name for fid, f in game.fighters.items()}
         base = t("choice.prompt.redirect", to=names.get(req.extra["to"], req.extra["to"]), amount=req.extra.get("amount", "?"),
                  fighter=names.get(req.extra["fighter"], req.extra["fighter"]))
-    title = None
-    for p in game.players:
-        for c in p.full_set:
-            if c.card_id == req.card_id:
-                title = c.title
+    card = request_card(game, req)
+    title = card.title if card is not None else None
     if req.kind == "optional" and base == _prompt("optional") and title:
         return t("choice.prompt.use_effect", title=title)  # the question names the card: "Do you want to do it?" did not
     if req.max > 1 or req.min != 1:

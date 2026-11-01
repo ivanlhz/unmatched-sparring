@@ -14,7 +14,7 @@ from __future__ import annotations
 
 from typing import Iterator
 
-from . import table
+from . import inventions, table
 from .model import EffectError, load_effects, walk_ops
 from .select import find_card
 
@@ -25,7 +25,7 @@ COMBAT_CARDS = {"player", "type", "fighter"}
 
 def card_in_play(game, player: int):
     cid = game.fx.ongoing_card_id(player)
-    return None if cid is None else find_card(game, cid)
+    return None if cid is None else find_card(game, cid, player)
 
 
 def spec_of(game, player: int) -> dict | None:
@@ -186,7 +186,12 @@ EFFECT_BONUS_HP = 0.5       # +1 to the owner's effect damage (Pact Of Mortality
 def worth(game, player: int) -> float:
     """Hit points the ONGOING of `player` is worth to them, so the bots score keeping it, replacing it or losing it.
     Rules that bind both players alike (no first-action attacks, hand size, no gained actions, Pact Of Peace's
-    trigger) count 0: their value depends on the matchup and the search sees their effect in the simulation."""
+    trigger) count 0: their value depends on the matchup and the search sees their effect in the simulation. The
+    inventions tucked under the hero card count too: they last the whole game."""
+    return _slot_worth(game, player) + inventions.worth(game, player)
+
+
+def _slot_worth(game, player: int) -> float:
     slot = game.fx.ongoing[player]
     if slot is None:
         return 0.0
@@ -213,8 +218,10 @@ def begin_scheme(game, player: int, card) -> None:
         game.take_from_hand(player, card)
     elif card in pile.discard:
         pile.discard.remove(card)
+    game.fx.count_played(player)
     if load_effects(pile.hero.slug).card(card.title).ongoing is not None:
         leave_play(game, player)
+    game.fx.emit("card_played", player, card)
 
 
 def finish_scheme(game, player: int, card) -> None:
@@ -224,7 +231,9 @@ def finish_scheme(game, player: int, card) -> None:
         game.fx.set_ongoing(player, card.card_id)
         table.intent(game, op="ongoing", player=player, card=card.card_id)
     else:
-        pile.discard.append(card)
+        inventions.settle_played(game, player, card)
+    if game.winner is None:
+        game.fx.emit("after_scheme", player, card)
 
 
 def resolve_scheme(game, player: int, fighter, card, choosers=None):

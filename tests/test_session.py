@@ -28,6 +28,9 @@ class Table:
         self.guid_name = GUID_NAME if pieces is None else {g: self.nick[f] for f, v in pieces.items()
                                                            for g in ([v] if isinstance(v, str) else v)}
         self.bot_cards = bot_cards                        # first CardID of the bot's deck
+        self.session = None                               # when set, snapshots carry the pieces the session's spec asks for
+        self.found_type = "Custom_Token"                  # type find_pieces_by_name reports
+        self.name_prefix = ""                             # TTS colour tag in front of the pieces' names ("[6f2176]")
         self.positions: dict[str, int] = {}
         self.bot_hand: list[int] = []
         self.bot_deck: list[int] = []
@@ -114,8 +117,10 @@ class Table:
     def snapshot_state(self):
         self._tick()
         pieces = {}
-        for name, g in ((self.nick[f], self.pieces[f] if isinstance(self.pieces[f], str) else self.pieces[f][0]) for f in self.nick):
-            pieces[g] = (self.do_piece_spaces_by_guid(f'local wanted = {{"{g}"}}')[g])
+        for g in (g for f in self.nick for g in ([self.pieces[f]] if isinstance(self.pieces[f], str) else self.pieces[f])):
+            pieces[g] = (self.do_piece_spaces_by_guid(f'local wanted = {{"{g}"}}')[g])      # every state, as the real snapshot
+        for g in (self.session.snapshot_spec().pieces if self.session is not None else ()):
+            pieces[g] = self.do_piece_spaces_by_guid(f'local wanted = {{"{g}"}}')[g]
         return {"bot_hand": [{"id": i, "guid": f"g{i}"} for i in self.bot_hand], "human_count": self.human_count,
                 "bot_discard": [{"id": i, "guid": f"g{i}"} for i in self.bot_discard],
                 "human_discard": [{"id": i, "guid": f"g{i}"} for i in self.human_discard],
@@ -144,7 +149,15 @@ class Table:
                 out[g] = {"found": False}
             else:
                 out[g] = {"found": True, "space": self.positions[name], "dist": self.piece_dist.get(name, 0.1),
-                          "type": "Custom_Token", "name": name}
+                          "type": "Custom_Token", "name": self.name_prefix + name}
+        return out
+
+    def do_find_pieces_by_name(self, s):
+        wanted = set(re.findall(r'\["([^"]*)"\]=true', s))
+        out = {}
+        for g, name in self.guid_name.items():
+            if name.lower() in wanted and name in self.positions and g not in self.missing_pieces:
+                out.setdefault(name.lower(), []).append({"guid": g, "type": self.found_type})
         return out
 
     def do_move_piece(self, s):

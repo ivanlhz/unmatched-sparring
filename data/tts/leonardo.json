@@ -1,0 +1,41 @@
+{
+ "slug": "leonardo",
+ "_notes": [
+  "Read from saves/Unmatched Official Tournament Table October 2026 (Hellboy).json (read only): infinite bag 80f94d > bag 69b878. Every GUID comes from that inner bag and is kept when its objects are taken out.",
+  "fighters: by HeroDef fighter id (piece = GUID of the miniature or token; a list if the GUID changes when the state changes; dial = life dial; dial_max = MAX_VALUE of its script). Without a dial = 1 HP piece.",
+  "deck.card_ids = CardID range of the 30 cards; character_card_id goes inside the same physical deck (31 cards) but outside the range. deck.identity = (FaceURL, BackURL) of the sheet: what identifies the deck (the CardID is not enough).",
+  "The Leonardo miniature is nicknamed '[016099]Leonardo' (a TTS colour tag): the importer ignores colour tags when matching names. Leonardo's deck uses the same DeckID 176 as Medusa's, with its own FaceURL: hero detection tells them apart by deck.identity (images), not by the CardID."
+ ],
+ "bag": {
+  "guid": "80f94d",
+  "inner": "69b878"
+ },
+ "deck": {
+  "guid": "fc5573",
+  "card_ids": [
+   17600,
+   17629
+  ],
+  "character_card_id": 363,
+  "identity": [
+   {
+    "face": "https://steamusercontent-a.akamaihd.net/ugc/13430627831683752457/F61B292B894152ADA2FB363520EA6C8737FDADF6/",
+    "back": "https://steamusercontent-a.akamaihd.net/ugc/9471992841872021782/C1AF2A4827071AC8C28638FC1314209C33CAA29A/"
+   }
+  ]
+ },
+ "fighters": {
+  "leonardo": {
+   "piece": "729fb1",
+   "dial": "88f451",
+   "dial_max": 16
+  },
+  "splinter": {
+   "piece": "663c11",
+   "dial": "8e70c6",
+   "dial_max": 9
+  }
+ },
+ "tokens": {},
+ "counter_dials": {}
+}

@@ -75,6 +75,8 @@ def space_options(game, run, sel, default_empty: bool = True, mover=None) -> lis
     if sel.get("empty", default_empty):
         taken = {f.pos for f in game.fighters.values() if f.alive and f is not mover}
         out -= taken
+    if sel.get("other") and mover is not None:
+        out.discard(mover.pos)
     if "nearest_to" in sel and out:
         ref = _ref_fighter(game, run, sel["nearest_to"])
         best = min(board.distance(ref.pos, s) for s in out)
@@ -156,7 +158,36 @@ def fighter_candidates(game, run, sel) -> tuple[list, bool]:
     if "attacked_this_turn" in flt:
         attacked = run.flags.get("attacked", game.fx.attacked)       # an end-of-turn run keeps the turn it belongs to
         out = [f for f in out if (f.fid in attacked) == bool(flt["attacked_this_turn"])]
+    if "passed_by" in flt:
+        out = _passed_by(game, run, out, flt["passed_by"])
+    if "adjacent_to_any" in flt:       # next to at least one other living fighter the selector designates
+        others = fighter_candidates(game, run, flt["adjacent_to_any"])[0]
+        adj = game.board.adj
+        out = [f for f in out if f.pos is not None and any(o is not f and o.pos is not None and o.pos in adj[f.pos]
+                                                           for o in others)]
     return out, sel.get("pick", "one") == "all"
+
+
+def _path_unknown(game, run, sel) -> bool:
+    """True if `sel` filters by `passed_by` and a mover's path is one the engine did not see (moved by hand)."""
+    ref = (sel.get("filter") or {}).get("passed_by") if isinstance(sel, dict) else None
+    if ref is None:
+        return False
+    passed = run.flags.get("passed") or {}
+    return any(passed.get(mover.fid, []) is None for mover in _role_fighters(game, run, ref))
+
+
+def _passed_by(game, run, fighters: list, ref) -> list:
+    """The fighters a moved fighter passed through (`move` records them in `run.flags["passed"]`). `None` is a move
+    the engine did not see (the human moved their miniature by hand): every candidate stays, the human answers."""
+    passed = run.flags.get("passed") or {}
+    keep: set[str] | None = set()
+    for mover in _role_fighters(game, run, ref):
+        seen = passed.get(mover.fid, [])
+        if seen is None:
+            return fighters
+        keep |= set(seen)
+    return [f for f in fighters if f.fid in keep]
 
 
 def pick_fighters(game, run, sel, chooser: int, prompt: str = "", **extra) -> list:
@@ -164,15 +195,22 @@ def pick_fighters(game, run, sel, chooser: int, prompt: str = "", **extra) -> li
     empty (the op does nothing); `pick: all` returns every candidate (zero is fine). `extra` (the op name, its
     amount...) travels in the request so a bot can score the candidates for what is about to happen to them."""
     cands, pick_all = fighter_candidates(game, run, sel)
-    if pick_all or len(cands) <= 1:
+    unknown = _path_unknown(game, run, sel)          # moved by hand: the human may also answer "nobody was passed"
+    if pick_all or not cands or (len(cands) == 1 and not unknown):
         return cands
-    got = run.ask(game, "fighter", chooser, [f.fid for f in cands], 1, 1, prompt or "choose a fighter", **extra)
+    got = run.ask(game, "fighter", chooser, [f.fid for f in cands], 0 if unknown else 1, 1, prompt or "choose a fighter", **extra)
+    if not got:
+        return []
     return [game.fighters[got[0]]]
 
 
 # ---------------------------------------------------------------- cards
 
-def find_card(game, card_id: int):
+def find_card(game, card_id: int, owner: int | None = None):
+    """The card with that id. Decks can share CardIDs (the TMNT heroes and Medusa are all DeckID 176): `owner`'s own
+    card wins, the rival's is the fallback."""
+    if owner is not None:
+        return game.card_of(card_id, owner)
     for p in game.players:
         for c in p.full_set:
             if c.card_id == card_id:
@@ -195,10 +233,13 @@ def card_ref(game, run, ref) -> list:
     ids = {"this": ctx.card_id, "opponent_card": ctx.opp_card_id, "attack_card": ctx.attack_card_id,
            "defense_card": ctx.defense_card_id}
     if ref in ids:
-        card = find_card(game, ids[ref]) if ids[ref] is not None else None
+        owners = {"this": ctx.owner, "opponent_card": 1 - ctx.owner,
+                  "attack_card": game.fighters[ctx.attacker_fid].owner if ctx.attacker_fid else None,
+                  "defense_card": game.fighters[ctx.defender_fid].owner if ctx.defender_fid else None}
+        card = find_card(game, ids[ref], owners[ref]) if ids[ref] is not None else None
         return [] if card is None else [card]
     if isinstance(ref, str) and ref.startswith("$"):
-        return [c for c in (find_card(game, i) for i in run.bound(ref[1:], "cards")) if c is not None]
+        return [c for c in (find_card(game, i, ctx.owner) for i in run.bound(ref[1:], "cards")) if c is not None]
     raise EffectError(f"bad card reference {ref!r}")
 
 
@@ -206,6 +247,8 @@ def _matches(card, flt: dict) -> bool:
     if "type" in flt and card.type != flt["type"]:
         return False
     if "type_not" in flt and card.type == flt["type_not"]:
+        return False
+    if "type_in" in flt and card.type not in flt["type_in"]:
         return False
     if "tag" in flt and flt["tag"] not in card.tags:
         return False
@@ -230,7 +273,7 @@ def card_candidates(game, run, sel: dict) -> list[Picked]:
         pile = p.deck
     elif zone == "in_play":
         cid = game.fx.ongoing_card_id(player)
-        pile = [] if cid is None else [c for c in [find_card(game, cid)] if c is not None]
+        pile = [] if cid is None else [c for c in [find_card(game, cid, player)] if c is not None]
     else:
         raise EffectError(f"bad card zone {zone!r}")
     skip = set(card_ref(game, run, sel["except"])) if "except" in sel else set()
@@ -282,6 +325,8 @@ def amount(game, run, a):
         value = len(fighter_candidates(game, run, a["count"])[0])
     elif "count_cards" in a:
         value = len(card_candidates(game, run, a["count_cards"]))
+    elif "count_of" in a:
+        value = len(card_ref(game, run, a["count_of"]))
     elif "counter" in a:
         player = player_of(game, run, a.get("player", "owner"))
         value = counter_value(game, player, a["counter"])
@@ -306,11 +351,18 @@ def _stat(game, run, a):
     if stat in ("hp", "max_hp"):
         f = (fighter_candidates(game, run, a["fighter"])[0] or [None])[0] if "fighter" in a else game.hero(run.ctx.owner)
         return 0 if f is None else getattr(f, stat)
+    if stat == "zones":      # how many zones the fighter's space belongs to; 0 off the board
+        f = (fighter_candidates(game, run, a["fighter"])[0] or [None])[0]
+        return 0 if f is None or f.pos is None else len(game.board.zones(f.pos))
     player = player_of(game, run, a.get("player", "owner"))
     if stat == "hand_size":
         return len(game.players[player].hand)
     if stat == "actions_taken_this_turn":
         return game.fx.taken if player == game.turn else 0
+    if stat == "other_cards_played_this_turn":
+        return max(0, game.fx.played[player] - 1)         # the card being resolved is counted already
+    if stat == "combats_lost_this_turn":
+        return game.fx.lost[player]
     if stat == "damage_dealt_this_combat":
         return run.ctx.damage_dealt
     if stat == "damage_taken_this_combat":
@@ -349,6 +401,9 @@ def condition(game, run, c: dict) -> bool:
     if test == "combat_result":
         won = run.ctx.combat_result == "won"
         return won if c["result"] == "won" else not won
+    if test == "effects_canceled":
+        from .modifiers import effects_canceled
+        return effects_canceled(game, run, c["card"])
     if test == "counter":
         v = counter_value(game, player_of(game, run, c.get("player", "owner")), c["name"])
         return v >= c.get("min", v) and v <= c.get("max", v)

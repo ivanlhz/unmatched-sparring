@@ -1,0 +1,239 @@
+{
+ "schema": 1,
+ "hero": "donatello",
+ "notes": [
+  "Donatello (TMNT Adventures set). Texts read from sheet 176 of the tournament save on 2026-11-01. The set is co-op ('each other friendly player'): in 1v1 that phrase matches nobody, so the card only does what concerns its owner (docs/heroes/donatello.md).",
+  "INVENTIVE (a): 'draw 2 instead of 1, then put a card of your hand on the bottom of your deck' is modelled as the maneuver's draw followed by one extra draw and a hand card to the bottom (trigger `inventive` on after_maneuver). The final hand and deck are the same; the only difference is that the extra card cannot be used as the maneuver's boost card.",
+  "INVENTIVE (b): a card with an `invention` block is tucked under the hero card instead of going to the discard pile once it has been played (combat card: after its combat; scheme: after its ops). The tucked card is out of every pile; its `invention` modifiers and triggers hold for the rest of the game. In an invention's modifiers `type: attack | defense` means 'played as an attack / as a defense' (a versatile card counts as whichever it plays as). The tucked card does not help in the combat or scheme that tucks it (assumption: 'after you play').",
+  "'Remove from the game' is the `remove_from_game` op: the card goes from the discard pile to `PlayerState.removed`, public and gone for good (no effect can recover it, it is not counted as discarded).",
+  "Short circuit cancels only the AFTER COMBAT effects of the opposing card (`cancel_effects` with `moments: [\"after\"]`), the invention bonus of a tucked card is not an effect of a card and is never cancelled."
+ ],
+ "ability": {
+  "text": "INVENTIVE\nWhen you maneuver, you may draw 2 cards instead of 1. If you do, put a card in your hand on the bottom of your deck.\nAfter you play an invention, tuck it under this card.",
+  "triggers": [
+   {"id": "inventive", "when": {"event": "after_maneuver", "player": "owner"},
+    "condition": {"test": "exists", "cards": {"zone": "deck", "player": "owner"}},
+    "ops": [
+     {"op": "optional", "chooser": "owner", "ops": [
+      {"op": "draw", "player": "owner", "amount": 1},
+      {"op": "return_to_deck", "cards": {"zone": "hand", "player": "owner", "amount": 1, "chooser": "owner"}, "position": "bottom"}
+     ]}
+    ]}
+  ],
+  "passives": [],
+  "notes": "Without a card left in the deck the extra draw would exhaust the owner, so the option is not offered (the same as every other optional draw: Hellboy's OCCULT DETECTIVE). The bot always takes it (it filters its hand for free); the human is asked on the panel."
+ },
+ "cards": [
+  {
+   "title": "Turtle power!",
+   "copies": 2,
+   "text": "DURING COMBAT: You may BOOST this card.",
+   "may_boost": true,
+   "effects": {"immediately": [], "during": [], "after": [], "scheme": [], "boost": []},
+   "notes": "Attack only. Boost value 3."
+  },
+  {
+   "title": "Thinking ahead",
+   "copies": 3,
+   "text": "AFTER COMBAT: If you won the combat, you may put a card in your discard pile on the bottom of your deck.",
+   "effects": {
+    "immediately": [], "during": [],
+    "after": [
+     {"op": "if", "condition": {"test": "combat_result", "result": "won"}, "then": [
+      {"op": "optional", "chooser": "owner", "ops": [
+       {"op": "return_to_deck", "cards": {"zone": "discard", "player": "owner", "amount": 1, "chooser": "owner"}, "position": "bottom"}
+      ]}
+     ]}
+    ],
+    "scheme": [], "boost": []
+   },
+   "notes": "The card just played is not in the discard pile yet (it lands there when the combat ends), so it cannot be the card it puts back."
+  },
+  {
+   "title": "Shift focus",
+   "copies": 3,
+   "text": "AFTER COMBAT: Move another fighter in Donatello's zone up to 3 spaces. They may move through other fighters.",
+   "effects": {
+    "immediately": [], "during": [],
+    "after": [
+     {"op": "move", "target": {"side": "any", "where": {"zone_of": "this"}, "other": true}, "amount": 3, "up_to": true, "through_enemies": true}
+    ],
+    "scheme": [], "boost": []
+   },
+   "notes": "Any other fighter in the zone, friendly or not, and the owner decides where it ends (the existing rule of `move`). Donatello-only card: `this` is Donatello."
+  },
+  {
+   "title": "Short circuit",
+   "copies": 3,
+   "text": "IMMEDIATELY: Cancel all AFTER COMBAT effects on your opponent's card.",
+   "effects": {
+    "immediately": [
+     {"op": "cancel_effects", "card": "opponent_card", "moments": ["after"]}
+    ],
+    "during": [], "after": [], "scheme": [], "boost": []
+   },
+   "notes": "Only the AFTER COMBAT moment: the opposing IMMEDIATELY and DURING effects still happen (unlike Feint). It does not cancel an uncancelable card (Incinerate)."
+  },
+  {
+   "title": "Quick strike",
+   "copies": 3,
+   "text": "AFTER COMBAT: Draw 1 card.",
+   "effects": {
+    "immediately": [], "during": [],
+    "after": [{"op": "draw", "player": "owner", "amount": 1}],
+    "scheme": [], "boost": []
+   },
+   "notes": null
+  },
+  {
+   "title": "Untested enhancements",
+   "copies": 3,
+   "text": "DURING COMBAT: Discard the bottom card of your deck. Add its BOOST value to this card's value.",
+   "effects": {
+    "immediately": [],
+    "during": [
+     {"op": "discard", "cards": {"zone": "deck", "player": "owner", "pick": "bottom", "amount": 1}, "as": "fuel"},
+     {"op": "modify_value", "card": "this", "amount": {"attr": "boost", "of": "$fuel"}}
+    ],
+    "after": [], "scheme": [], "boost": []
+   },
+   "notes": "The same shape as Flame Lash: the human puts the real bottom card in the discard pile before the combat goes on (the engine reads `draws_bottom_for_boost`). With an empty deck nothing happens and the card adds 0."
+  },
+  {
+   "title": "Heroes in a half shell",
+   "copies": 2,
+   "text": "",
+   "effects": {"immediately": [], "during": [], "after": [], "scheme": [], "boost": []},
+   "notes": "No effect: the best plain defense of the deck (5)."
+  },
+  {
+   "title": "Bo staff",
+   "copies": 2,
+   "text": "AFTER COMBAT: Deal 1 damage to an opposing fighter adjacent to Donatello. Draw 1 card.",
+   "effects": {
+    "immediately": [], "during": [],
+    "after": [
+     {"op": "damage", "target": {"side": "enemy", "where": {"adjacent_to": "this"}}, "amount": 1},
+     {"op": "draw", "player": "owner", "amount": 1}
+    ],
+    "scheme": [], "boost": []
+   },
+   "notes": "The damage hits one fighter, chosen by the owner; with nobody adjacent only the draw happens. Both happen whether Donatello won or not (defense card)."
+  },
+  {
+   "title": "Donatello does machines",
+   "copies": 2,
+   "text": "You and each other friendly player may return an attack, versatile, or defense card in their discard pile to their hand. Draw 1 card.",
+   "effects": {
+    "immediately": [], "during": [], "after": [],
+    "scheme": [
+     {"op": "optional", "chooser": "owner", "ops": [
+      {"op": "put_in_hand", "cards": {"zone": "discard", "player": "owner", "filter": {"type_not": "scheme"}, "amount": 1, "chooser": "owner"}}
+     ]},
+     {"op": "draw", "player": "owner", "amount": 1}
+    ],
+    "boost": []
+   },
+   "notes": "1v1: there is no other friendly player, only the owner returns a card. The draw is not optional. Cards removed from the game are not in the discard pile and cannot come back."
+  },
+  {
+   "title": "Party wagon!",
+   "copies": 2,
+   "text": "Move a friendly fighter up to 5 spaces. They may move through opposing fighters. Then, deal 2 damage to an opposing fighter they moved through.",
+   "effects": {
+    "immediately": [], "during": [], "after": [],
+    "scheme": [
+     {"op": "move", "target": {"side": "own"}, "amount": 5, "up_to": true, "through_enemies": true, "as": "mover"},
+     {"op": "damage", "target": {"side": "enemy", "filter": {"passed_by": "$mover"}}, "amount": 2, "chooser": "owner"}
+    ],
+    "boost": []
+   },
+   "notes": "'Moved through' = an opposing fighter on some path of at most 5 spaces from where the fighter started to where it ended (the board has no fixed path: the owner chooses it). The damage is mandatory: with the bot's move the engine knows who was passed and the owner only picks WHICH rival when there are several. When the human moves their own miniature by hand the engine does not know the path: every opposing fighter is offered with a 'none' answer (nobody was passed), taken from the table."
+  },
+  {
+   "title": "The future of Ninjutsu",
+   "copies": 2,
+   "text": "Look at the top card of any deck. You may put it on the bottom. Draw 1 card. Gain 1 action.",
+   "effects": {
+    "immediately": [], "during": [], "after": [],
+    "scheme": [
+     {"op": "look_deck", "player": "owner", "amount": 1, "as": "top"},
+     {"op": "optional", "chooser": "owner", "ops": [
+      {"op": "return_to_deck", "cards": {"zone": "deck", "player": "owner", "pick": "top", "amount": 1}, "position": "bottom"}
+     ]},
+     {"op": "draw", "player": "owner", "amount": 1},
+     {"op": "gain_action", "amount": 1}
+    ],
+    "boost": []
+   },
+   "notes": "'Any deck' is read as the owner's own deck: the other deck is face down on the table and the bot's order is virtual (nothing true to look at), so looking at it is not modelled (docs/heroes/donatello.md, open questions)."
+  },
+  {
+   "title": "Electro grenade",
+   "copies": 1,
+   "text": "DURING COMBAT: Remove up to 4 attack or versatile cards in your discard pile from the game. Add +1 to this card's value for each card removed. INVENTION BONUS: Add +1 to the value of your attacks.",
+   "effects": {
+    "immediately": [],
+    "during": [
+     {"op": "remove_from_game", "cards": {"zone": "discard", "player": "owner", "filter": {"type_in": ["attack", "versatile"]}, "amount": 4, "up_to": true, "chooser": "owner"}, "as": "gone"},
+     {"op": "modify_value", "card": "this", "amount": {"count_of": "$gone"}}
+    ],
+    "after": [], "scheme": [], "boost": []
+   },
+   "invention": {
+    "modifiers": [{"kind": "modify_value", "cards": {"player": "owner", "type": "attack"}, "amount": 1}],
+    "triggers": []
+   },
+   "notes": "Attack only. Tucked after the combat; from then on every attack of the owner (any card played as an attack) gets +1."
+  },
+  {
+   "title": "Self defense grid",
+   "copies": 1,
+   "text": "AFTER COMBAT: Remove up to 4 defense or versatile cards in your discard pile from the game. Donatello recovers that much health. INVENTION BONUS: Add +1 to the value of your defenses.",
+   "effects": {
+    "immediately": [], "during": [],
+    "after": [
+     {"op": "remove_from_game", "cards": {"zone": "discard", "player": "owner", "filter": {"type_in": ["defense", "versatile"]}, "amount": 4, "up_to": true, "chooser": "owner"}, "as": "gone"},
+     {"op": "heal", "target": "hero", "amount": {"count_of": "$gone"}}
+    ],
+    "scheme": [], "boost": []
+   },
+   "invention": {
+    "modifiers": [{"kind": "modify_value", "cards": {"player": "owner", "type": "defense"}, "amount": 1}],
+    "triggers": []
+   },
+   "notes": "Defense only. The heal cannot exceed Donatello's maximum life (the cards are removed anyway)."
+  },
+  {
+   "title": "Smoke bomb",
+   "copies": 1,
+   "text": "Remove up to 4 scheme cards in your discard pile from the game. Gain that many actions. INVENTION BONUS: When you play a scheme, gain 1 action.",
+   "effects": {
+    "immediately": [], "during": [], "after": [],
+    "scheme": [
+     {"op": "remove_from_game", "cards": {"zone": "discard", "player": "owner", "filter": {"type": "scheme"}, "amount": 4, "up_to": true, "chooser": "owner"}, "as": "gone"},
+     {"op": "gain_action", "amount": {"count_of": "$gone"}}
+    ],
+    "boost": []
+   },
+   "invention": {
+    "modifiers": [],
+    "triggers": [
+     {"id": "smoke_bomb_action", "when": {"event": "card_played", "player": "owner", "filter": {"type": "scheme"}},
+      "ops": [{"op": "gain_action", "amount": 1}]}
+    ]
+   },
+   "notes": "Playing it costs one action like any scheme. Once tucked, every scheme the owner plays gives back 1 action (including the next Smoke bomb, there is only one)."
+  }
+ ],
+ "plugins": [],
+ "hidden_info": [
+  {"where": "INVENTIVE / Thinking ahead / Donatello does machines", "rule": "Cards put on the bottom of the deck from the hand go face down: the rival does not see them (a look at the hand degrades to 'possible'). From the discard pile they are public."},
+  {"where": "The future of Ninjutsu (the top card of the own deck)", "rule": "The bot decides on its own top card (its deck order is its own information); the human looks at theirs on the table and the engine never names their virtual top card."},
+  {"where": "Removed from the game and tucked cards", "rule": "Public: they are face up and the rival's pool of possible hidden cards excludes them."}
+ ],
+ "open_questions": [
+  "The tucked invention does not help in the combat or scheme that tucks it ('after you play').",
+  "'Any deck' of The future of Ninjutsu is read as the owner's own deck."
+ ]
+}

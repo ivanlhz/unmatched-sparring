@@ -26,8 +26,10 @@ def mk(bprd, bot="medusa", human="hellboy", seed=3):
     return g
 
 
-def req(kind, options, player=0, lo=1, hi=1, card_id=None, key="", **extra):
-    return ChoiceRequest(kind, player, list(options), lo, min(hi, len(options)), card_id, key, "", extra)
+def req(kind, options, player=0, lo=1, hi=1, card_id=None, key="", card_owner=None, **extra):
+    """A request as `EffectRun.ask` builds it: the card that asks belongs to `card_owner` (the asking player by default)."""
+    owner = player if card_owner is None and card_id is not None else card_owner
+    return ChoiceRequest(kind, player, list(options), lo, min(hi, len(options)), card_id, key, "", extra, owner)
 
 
 def by_title(g, player, title):
@@ -243,7 +245,7 @@ def test_own_cards_are_ordered_best_first_and_the_rivals_worst_first(bprd, ai):
     assert worth == sorted(worth, reverse=True)
     theirs = [c.card_id for c in g.players[1].full_set[:4]]
     rc = {c.card_id: c for c in g.players[1].full_set}
-    got = ai.choose_effect(g, req("order", theirs, lo=4, hi=4, zone="deck", purpose="order"))
+    got = ai.choose_effect(g, req("order", theirs, lo=4, hi=4, zone="deck", purpose="order", of=1))
     worth = [ai_effects.card_worth(rc[i]) for i in got]
     assert worth == sorted(worth)
 

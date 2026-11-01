@@ -30,16 +30,17 @@ class ChoiceRequest:
     key: str = ""                   # op path + ask index: where the answer is stored
     prompt: str = ""
     extra: dict = field(default_factory=dict)   # bots: fighter, op, amount, steps, through, cost_cards, at_stake, hp
+    card_owner: int | None = None   # whose deck `card_id` is from (a CardID alone is ambiguous: docs/card-identity.md)
 
     def to_dict(self) -> dict:
         return {"kind": self.kind, "player": self.player, "options": list(self.options), "min": self.min,
                 "max": self.max, "card_id": self.card_id, "key": self.key, "prompt": self.prompt,
-                "extra": dict(self.extra)}
+                "extra": dict(self.extra), **({} if self.card_owner is None else {"card_owner": self.card_owner})}
 
     @classmethod
     def from_dict(cls, raw: dict) -> "ChoiceRequest":
         return cls(raw["kind"], raw["player"], list(raw["options"]), raw["min"], raw["max"], raw.get("card_id"),
-                   raw.get("key", ""), raw.get("prompt", ""), dict(raw.get("extra") or {}))
+                   raw.get("key", ""), raw.get("prompt", ""), dict(raw.get("extra") or {}), raw.get("card_owner"))
 
     def to_await(self) -> Await:
         return Await(PendingChoice("effect", self.player, self.card_id, False,
@@ -81,6 +82,8 @@ def default_answer(req: ChoiceRequest) -> list:
         return [req.max]
     if req.kind == "space":
         return list(req.options[:req.min])
+    if req.extra.get("purpose") == "bonus":      # a free-count discard that adds value (Unbridled rage): none by default
+        return []
     if req.min == req.max:
         return list(req.options[:req.min])
     return list(req.options[:req.max])
@@ -128,6 +131,8 @@ class ControllerChooser:
     def _choose_cards(self, game, ctrl, req: ChoiceRequest) -> list | None:
         zone, purpose = req.extra.get("zone"), req.extra.get("purpose")
         of = req.extra.get("of", req.player)
+        if purpose == "bonus":
+            return []
         if zone == "hand" and purpose in ("discard", "return"):       # the cards to give up are the least useful ones
             n = min(req.max, len(req.options))
             picked = [c.card_id for c in ctrl.choose_discard(game, req.player, n, req.prompt)
@@ -300,20 +305,24 @@ class SyntheticChooser:
         of = req.extra.get("of", req.player)
         if req.extra.get("zone") == "hand" and of != req.player:     # only what a look showed (C4), as every bot
             return ControllerChooser._from_rival_hand(game, req, of)
-        cards = {c.card_id: c for p in game.players for c in p.full_set}
+        if req.extra.get("purpose") == "bonus":
+            return []
+        cards = game.cards_by_id(of)
         worth = lambda i: card_worth(cards[i]) if i in cards else 0.0
         n = min(req.max, len(req.options))
         if req.extra.get("purpose") == "return" and req.extra.get("zone") == "discard" and of == req.player:
             # own discard cards back into the deck: a gain, at least one when it may be more (Pancakes!); destiny
             # cards last, they are what keeps Hellboy ANUNG UN RAMA
             return sorted(req.options, key=lambda i: (i in cards and cards[i].destiny, -worth(i), i))[:n]
+        if req.extra.get("purpose") == "remove":                      # out of the own discard pile: as many as allowed, the cheapest
+            return sorted(req.options, key=lambda i: (worth(i), i))[:n]
         if req.extra.get("purpose") in GIVE_UP:
             return sorted(req.options, key=lambda i: (worth(i), i))[:req.min]
         return sorted(req.options, key=lambda i: (-worth(i), i))[:n]
 
     def _order(self, game, req: ChoiceRequest) -> list:
         from ..search.adapter import card_worth
-        cards = {c.card_id: c for p in game.players for c in p.full_set}
+        cards = game.cards_by_id(req.extra.get("of", req.player))
         if set(req.options) <= set(cards):
             return sorted(req.options, key=lambda i: (-card_worth(cards[i]), i))
         return list(req.options)

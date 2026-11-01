@@ -1,0 +1,432 @@
+{
+ "_source": {
+  "memory": "unmatched-memory/data/heroes/raphael.json",
+  "overlay": "data/heroes/overlay/raphael.json",
+  "generator": "tools/import_hero.py"
+ },
+ "slug": "raphael",
+ "name": "Raphael",
+ "fid": "raphael",
+ "hp": 17,
+ "move": 2,
+ "attack": "melee",
+ "set": "adventures-teenage-mutant-ninja-turtles",
+ "ability": "ANGER ISSUES\nOn each of your turns, the first time you lose combat, gain 1 action.",
+ "sidekicks": [
+  {
+   "name": "Casey Jones",
+   "hp": 8,
+   "move": 2,
+   "attack": "range",
+   "count": 1,
+   "fid": "casey"
+  }
+ ],
+ "forms": null,
+ "counters": {},
+ "triggers": [],
+ "passives": [],
+ "deck": {
+  "card_base": 17600,
+  "sheet": 176,
+  "cards": [
+   {
+    "idx": 0,
+    "title": "Unbridled rage",
+    "fighter": "Raphael",
+    "type": "attack",
+    "value": 3,
+    "boost": 4,
+    "text": "DURING COMBAT: Discard any number of defense or versatile cards. Add +2 to this card's value for each card discarded this way.",
+    "tags": []
+   },
+   {
+    "idx": 1,
+    "title": "Unbridled rage",
+    "fighter": "Raphael",
+    "type": "attack",
+    "value": 3,
+    "boost": 4,
+    "text": "DURING COMBAT: Discard any number of defense or versatile cards. Add +2 to this card's value for each card discarded this way.",
+    "tags": []
+   },
+   {
+    "idx": 2,
+    "title": "Let's do this!",
+    "fighter": "Raphael",
+    "type": "attack",
+    "value": 1,
+    "boost": 3,
+    "text": "AFTER COMBAT: Draw 1 card. If you won the combat, draw 2 cards instead.",
+    "tags": []
+   },
+   {
+    "idx": 3,
+    "title": "Let's do this!",
+    "fighter": "Raphael",
+    "type": "attack",
+    "value": 1,
+    "boost": 3,
+    "text": "AFTER COMBAT: Draw 1 card. If you won the combat, draw 2 cards instead.",
+    "tags": []
+   },
+   {
+    "idx": 4,
+    "title": "Let's do this!",
+    "fighter": "Raphael",
+    "type": "attack",
+    "value": 1,
+    "boost": 3,
+    "text": "AFTER COMBAT: Draw 1 card. If you won the combat, draw 2 cards instead.",
+    "tags": []
+   },
+   {
+    "idx": 5,
+    "title": "Turtle power!",
+    "fighter": "Raphael",
+    "type": "attack",
+    "value": 3,
+    "boost": 3,
+    "text": "DURING COMBAT: You may BOOST this attack.",
+    "tags": []
+   },
+   {
+    "idx": 6,
+    "title": "Turtle power!",
+    "fighter": "Raphael",
+    "type": "attack",
+    "value": 3,
+    "boost": 3,
+    "text": "DURING COMBAT: You may BOOST this attack.",
+    "tags": []
+   },
+   {
+    "idx": 7,
+    "title": "Crowd control",
+    "fighter": "any",
+    "type": "attack",
+    "value": 2,
+    "boost": 1,
+    "text": "AFTER COMBAT: Draw 1 card for each adjacent opposing fighter. Deal 1 damage to each of those fighters.",
+    "tags": []
+   },
+   {
+    "idx": 8,
+    "title": "Crowd control",
+    "fighter": "any",
+    "type": "attack",
+    "value": 2,
+    "boost": 1,
+    "text": "AFTER COMBAT: Draw 1 card for each adjacent opposing fighter. Deal 1 damage to each of those fighters.",
+    "tags": []
+   },
+   {
+    "idx": 9,
+    "title": "Crowd control",
+    "fighter": "any",
+    "type": "attack",
+    "value": 2,
+    "boost": 1,
+    "text": "AFTER COMBAT: Draw 1 card for each adjacent opposing fighter. Deal 1 damage to each of those fighters.",
+    "tags": []
+   },
+   {
+    "idx": 10,
+    "title": "Batter up!",
+    "fighter": "Casey Jones",
+    "type": "attack",
+    "value": 3,
+    "boost": 2,
+    "text": "AFTER COMBAT: If you won the combat, move the opposing fighter up to 3 spaces.",
+    "tags": []
+   },
+   {
+    "idx": 11,
+    "title": "Batter up!",
+    "fighter": "Casey Jones",
+    "type": "attack",
+    "value": 3,
+    "boost": 2,
+    "text": "AFTER COMBAT: If you won the combat, move the opposing fighter up to 3 spaces.",
+    "tags": []
+   },
+   {
+    "idx": 12,
+    "title": "Batter up!",
+    "fighter": "Casey Jones",
+    "type": "attack",
+    "value": 3,
+    "boost": 2,
+    "text": "AFTER COMBAT: If you won the combat, move the opposing fighter up to 3 spaces.",
+    "tags": []
+   },
+   {
+    "idx": 13,
+    "title": "Sai",
+    "fighter": "Raphael",
+    "type": "versatile",
+    "value": 4,
+    "boost": 2,
+    "text": "",
+    "tags": []
+   },
+   {
+    "idx": 14,
+    "title": "Sai",
+    "fighter": "Raphael",
+    "type": "versatile",
+    "value": 4,
+    "boost": 2,
+    "text": "",
+    "tags": []
+   },
+   {
+    "idx": 15,
+    "title": "Break something",
+    "fighter": "Raphael",
+    "type": "versatile",
+    "value": 2,
+    "boost": 1,
+    "text": "IMMEDIATELY: Cancel all DURING COMBAT and AFTER COMBAT effects on your opponent's card. AFTER COMBAT: If no effects were canceled this way, deal 2 damage to an adjacent opposing fighter.",
+    "tags": []
+   },
+   {
+    "idx": 16,
+    "title": "Break something",
+    "fighter": "Raphael",
+    "type": "versatile",
+    "value": 2,
+    "boost": 1,
+    "text": "IMMEDIATELY: Cancel all DURING COMBAT and AFTER COMBAT effects on your opponent's card. AFTER COMBAT: If no effects were canceled this way, deal 2 damage to an adjacent opposing fighter.",
+    "tags": []
+   },
+   {
+    "idx": 17,
+    "title": "Break something",
+    "fighter": "Raphael",
+    "type": "versatile",
+    "value": 2,
+    "boost": 1,
+    "text": "IMMEDIATELY: Cancel all DURING COMBAT and AFTER COMBAT effects on your opponent's card. AFTER COMBAT: If no effects were canceled this way, deal 2 damage to an adjacent opposing fighter.",
+    "tags": []
+   },
+   {
+    "idx": 18,
+    "title": "Payback time!",
+    "fighter": "any",
+    "type": "versatile",
+    "value": 2,
+    "boost": 1,
+    "text": "DURING COMBAT: If you lost a combat this turn, this card's value is 5 instead.",
+    "tags": []
+   },
+   {
+    "idx": 19,
+    "title": "Payback time!",
+    "fighter": "any",
+    "type": "versatile",
+    "value": 2,
+    "boost": 1,
+    "text": "DURING COMBAT: If you lost a combat this turn, this card's value is 5 instead.",
+    "tags": []
+   },
+   {
+    "idx": 20,
+    "title": "Payback time!",
+    "fighter": "any",
+    "type": "versatile",
+    "value": 2,
+    "boost": 1,
+    "text": "DURING COMBAT: If you lost a combat this turn, this card's value is 5 instead.",
+    "tags": []
+   },
+   {
+    "idx": 21,
+    "title": "Relentless",
+    "fighter": "any",
+    "type": "versatile",
+    "value": 3,
+    "boost": 1,
+    "text": "AFTER COMBAT: Shuffle this card into your deck. Then, draw 1 card.",
+    "tags": []
+   },
+   {
+    "idx": 22,
+    "title": "Relentless",
+    "fighter": "any",
+    "type": "versatile",
+    "value": 3,
+    "boost": 1,
+    "text": "AFTER COMBAT: Shuffle this card into your deck. Then, draw 1 card.",
+    "tags": []
+   },
+   {
+    "idx": 23,
+    "title": "Slapshot",
+    "fighter": "Casey Jones",
+    "type": "versatile",
+    "value": 2,
+    "boost": 2,
+    "text": "DURING COMBAT: If Casey is adjacent to the opposing fighter, this card's value is 6 instead.",
+    "tags": []
+   },
+   {
+    "idx": 24,
+    "title": "Slapshot",
+    "fighter": "Casey Jones",
+    "type": "versatile",
+    "value": 2,
+    "boost": 2,
+    "text": "DURING COMBAT: If Casey is adjacent to the opposing fighter, this card's value is 6 instead.",
+    "tags": []
+   },
+   {
+    "idx": 25,
+    "title": "Slapshot",
+    "fighter": "Casey Jones",
+    "type": "versatile",
+    "value": 2,
+    "boost": 2,
+    "text": "DURING COMBAT: If Casey is adjacent to the opposing fighter, this card's value is 6 instead.",
+    "tags": []
+   },
+   {
+    "idx": 26,
+    "title": "Heroes in a half shell",
+    "fighter": "Raphael",
+    "type": "defense",
+    "value": 5,
+    "boost": 2,
+    "text": "",
+    "tags": []
+   },
+   {
+    "idx": 27,
+    "title": "Heroes in a half shell",
+    "fighter": "Raphael",
+    "type": "defense",
+    "value": 5,
+    "boost": 2,
+    "text": "",
+    "tags": []
+   },
+   {
+    "idx": 28,
+    "title": "Raphael is cool but rude",
+    "fighter": "Raphael",
+    "type": "scheme",
+    "value": null,
+    "boost": 2,
+    "text": "Deal 1 damage to each opposing fighter adjacent to at least one friendly fighter. Draw 1 card.",
+    "tags": []
+   },
+   {
+    "idx": 29,
+    "title": "Raphael is cool but rude",
+    "fighter": "Raphael",
+    "type": "scheme",
+    "value": null,
+    "boost": 2,
+    "text": "Deal 1 damage to each opposing fighter adjacent to at least one friendly fighter. Draw 1 card.",
+    "tags": []
+   }
+  ]
+ },
+ "ai_profile": {
+  "raphael": {
+   "name": "Raphael",
+   "hero": true,
+   "count": 1,
+   "max_hp": 17,
+   "move": 2,
+   "ranged": false,
+   "role": "hero",
+   "attack": {
+    "cards": 20,
+    "mean": 2.35,
+    "max": 4
+   },
+   "exclusive": [
+    {
+     "title": "Unbridled rage",
+     "type": "attack",
+     "copies": 2,
+     "impact": 1.05
+    },
+    {
+     "title": "Let's do this!",
+     "type": "attack",
+     "copies": 3,
+     "impact": 0.79
+    },
+    {
+     "title": "Turtle power!",
+     "type": "attack",
+     "copies": 2,
+     "impact": 0.75
+    },
+    {
+     "title": "Sai",
+     "type": "versatile",
+     "copies": 2,
+     "impact": 0.9
+    },
+    {
+     "title": "Break something",
+     "type": "versatile",
+     "copies": 3,
+     "impact": 1.87
+    },
+    {
+     "title": "Heroes in a half shell",
+     "type": "defense",
+     "copies": 2,
+     "impact": 1.05
+    },
+    {
+     "title": "Raphael is cool but rude",
+     "type": "scheme",
+     "copies": 2,
+     "impact": 1.9
+    }
+   ]
+  },
+  "casey": {
+   "name": "Casey Jones",
+   "hero": false,
+   "count": 1,
+   "max_hp": 8,
+   "move": 2,
+   "ranged": true,
+   "role": "striker",
+   "attack": {
+    "cards": 14,
+    "mean": 2.36,
+    "max": 3
+   },
+   "exclusive": [
+    {
+     "title": "Batter up!",
+     "type": "attack",
+     "copies": 3,
+     "impact": 0.88
+    },
+    {
+     "title": "Slapshot",
+     "type": "versatile",
+     "copies": 3,
+     "impact": 0.81
+    }
+   ],
+   "requires_alive": []
+  }
+ },
+ "_notes": [
+  "Sheet 176 of the tournament savegame (8x4), read card by card from the image on 2026-11-01. CardID = 17600 + idx; 368 = character card (sheet 3, 10x7, index 68). The deck object of the save holds 31 cards: the 30 of the deck plus the character card, which is why the catalog says card_count 31.",
+  "Restriction band (RAPHAEL, CASEY or ANY) and copies (xN printed on each card) read from the images; value, boost and type match unmatched-memory for all 12 titles. Attack cards carry the burst icon, versatile ones the burst-and-shield icon, Heroes In A Half Shell the shield, the scheme the lightning bolt.",
+  "Discrepancies with unmatched-memory (the real card wins; entries with `text` overwrite the importer's text): Break Something says 'AFTER COMBAT' (unmatched-memory has the typo 'AFTER COMBAR'); the scheme's second paragraph is 'Draw 1 card.' with the full stop; Relentless says 'into your deck' (unmatched-memory: 'in your deck'). Sai has no text at all: it is a vanilla versatile card, not a missing effect. Heroes In A Half Shell is a vanilla defense.",
+  "Titles keep unmatched-memory's capitalisation ('Break something', 'Unbridled rage'): the CardID, not the title, identifies a card on the table.",
+  "Casey Jones: one sidekick, ranged, 8 life, move 2 (hero card image). The save bag holds a standee (Custom_Token) and a miniature for him and two miniatures for Raphael (see data/tts/raphael.json).",
+  "ANGER ISSUES is a trigger on the `combat_lost` event (docs/effects-dsl.md, section 'Raphael'); no counters, forms or passives."
+ ]
+}

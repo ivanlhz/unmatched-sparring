@@ -140,6 +140,66 @@ Each hero has two blocks: **H** (you play it) and **B** (the bot plays it). What
 - [x] Searing Clarity with panel buttons. *(OK 29/10; since bb95930 there are no buttons, see the next line)*
 - [ ] Searing Clarity and Rekindle **without buttons**: you move the card from the discard to the deck yourself and press **Done**; the bot recognizes it; then "Press End action when you finish"; also try with the discard stacked (bb95930).
 
+### Leonardo
+
+Pending on a real table (TMNT box; nothing of Leonardo has been seen live):
+
+- Hero detection: Leonardo's deck has Medusa's CardIDs 17600-17629; with Medusa on the other side check that "auto" reads both by image and that each hand reads from its own seat.
+- The `[016099]Leonardo` miniature (colour tag in the nickname) is found by GUID `729fb1`; check it moves and the dial `88f451` follows.
+- TEAM TACTICS (human): the panel waits for End action; moving the bot's miniature by hand is read at End action. Bot: it moves one fighter at the start of its turn, said in the chat; check the miniature move on the table.
+- For Sensei, Eat, sleep, and breathe ninjutsu: the bot's piece the human relocates ("put it there and press Done"); Protective father swap by hand (both miniatures) and the heal on both dials.
+- I have a plan / For Sensei price: the extra discard from your hand is noted and settled at End action.
+- Spatial awareness / Wise beyond his years: zone counts on the real board (spaces with several zones).
+- Same CardIDs, other decks (docs/card-identity.md): play Medusa vs a turtle and a turtle vs another turtle in both seats; hands, discards, the combat spots and the deck shuffles must only touch each side's own cards.
+
+### Donatello
+Everything here is new (1/11) and has only run against FakeTTS. The deck shares Medusa's CardIDs: check detection (`--read-only`) names Donatello on the right side, also when the other side plays Medusa.
+
+**H and B**
+- [ ] Detection with `bot_hero` / `human_hero` on `auto`: "Donatello" is recognised from his deck image (sheet 176, the Donatello face), not mistaken for Medusa or another TMNT deck.
+- [ ] Metalhead (token) and both life dials (14 and 7) are found and written.
+- [ ] Party wagon!: move a friendly fighter up to 5 through rivals, then 2 damage to one it passed through. Bot: the chat says which; human: you move by hand, the panel asks which rival you passed through (or none), and the 2 damage is mandatory once you name one.
+- [ ] Short circuit cancels only the AFTER COMBAT of the rival card (its IMMEDIATELY and DURING still happen).
+- [ ] Untested enhancements: you put the real bottom card of your deck in the discard (boost wait), as Flame Lash does.
+- [ ] The future of Ninjutsu / Thinking ahead / Donatello does machines: the card goes to or from the right pile.
+
+**B (bot)**
+- [ ] INVENTIVE: after its maneuver it draws one more card and puts one card from its hand at the bottom of its deck (the same script as Pyrotechnics, `hand_to_deck`); it never puts an invention there.
+- [ ] Invention played: Electro grenade / Self defense grid / Smoke bomb end at `bot_tuck_spot` face up (not in its discard pile) and the bonus applies from the next combat or scheme; the discard zone still reads the same cards as the engine.
+- [ ] Cards it removes from the game go to `bot_removed_spot`. Calibrate both spots (estimates in `config\table.json`): outside its discard zone and its combat zone.
+- [ ] Without the spots (delete the keys) it only says what to move; the table mismatch warning that follows is expected.
+
+**H (you)**
+- [ ] INVENTIVE: after Maneuver the panel asks Yes/No; Yes deals you one more card and the chat says "put 1 card from the top of your deck..." for the card you put at the bottom (by hand).
+- [ ] An invention you play: the chat says to tuck it under your hero card; leave it anywhere outside your discard pile (or leave it there: the bot does not take it back into your discard) and keep going.
+- [ ] Electro grenade / Self defense grid / Smoke bomb: the panel lists the cards of your discard pile you may remove (up to 4, types by card); you move them aside by hand.
+- [ ] Resume (`--resume`) after tucking: the tucked and removed cards are still out of the discard pile and the bonus still applies.
+### Michelangelo
+**H and B**
+- [ ] The **table data** (`data/tts/michelangelo.json`): miniature `[E77204]Michelangelo`, April's standee and both dials found by `--read-only`; `auto` detects the deck (CardIDs 17600..17629 plus character card 366). Medusa and the turtles share the CardIDs and are told apart by the deck image: also try Medusa vs Michelangelo and a turtle vs a turtle (docs/card-identity.md).
+- [ ] **Opening hand 3** and the mulligan (return 3, deal 3); the bot says "3" in the set-up lines.
+- [ ] **PIZZA PARTY**: after an attack or a scheme of Michelangelo the extra card is dealt (the human's) or taken (the bot's); nothing is dealt after a defense.
+- [ ] **Hand limit 3** at the end of the turn: the chat says "down to 3"; the bot discards to 3.
+- [ ] Hi-Yaaaaah!!, Guaranteed Delivery, Shell Insertion: the card put on the **bottom of the deck** from the hand (yours by hand, the bot's by script).
+- [ ] **Shell Insertion**: the four buttons (two picks, labels short), the rival's discard, the 2 random discards shuffled back (by GUID).
+- [ ] **Nunchaku**: +1 to every attack of Michelangelo that turn (the chat line lists it), not April's.
+- [ ] **Cowabunga!!** counts the cards played this turn (including the defenses on the rival's turn).
+
+### Raphael (Teenage Mutant Ninja Turtles)
+
+Nothing of Raphael has been seen on a real table. His deck is sheet 176 like Medusa's: the first thing to check is that the table is read correctly.
+- [ ] **Detection (auto)**: with Raphael's deck at one spot and any other hero's at the other, the start-up line names Raphael (not "unknown deck"); with Medusa on the other side both decks are told apart by their images (the CardID range is the same, 17600-17629).
+- [ ] Pieces: Raphael's miniature and dial (17), Casey Jones' token and dial (8) are found by GUID; the dials follow the engine.
+- [ ] **ANGER ISSUES (H)**: you attack and lose (value lower or equal): the chat says "Your ability: ANGER ISSUES" and the panel shows one more action; the second lost combat of the same turn gives nothing; losing as defender on the bot's turn gives nothing.
+- [ ] **ANGER ISSUES (B)**: the bot attacks as Raphael and loses: it gets one more action in the same turn.
+- [ ] **Relentless (H)**: after the combat the chat says "Put Relentless from your combat zone into your deck and shuffle it"; do it and press End action: no mismatch warning (the card is not in the discard pile). **(B)**: the card leaves the bot's combat spot for its deck (translator `return_to_deck`, intent zone "discard"; the card is still in the combat zone when it runs).
+- [ ] **Unbridled rage (H)**: the panel asks "how many" (0 to the hand size, paging if more than 5), then "Discard N card(s)": discard that many defense or versatile cards and End action. **(B)**: the bot discards defense/versatile cards from its hand; the discards reach its discard grid.
+- [ ] **Break something**: the rival's DURING/AFTER effects do not apply but its IMMEDIATELY does (check with the bot attacking with Burning Barrier or Fireball while you defend with it); with a vanilla rival card, 2 damage to an adjacent rival that YOU choose (H) or the bot chooses (B).
+- [ ] **Batter up! (H)**: Casey wins: the panel asks where the bot's fighter goes (up to 3 spaces) or you move the bot's miniature; **(B)**: the bot moves YOUR miniature (`move_piece` by GUID, else "move it yourself").
+- [ ] **Raphael is cool but rude (H)**: damage to the bot's fighters adjacent to Raphael or Casey; the dials follow; you draw 1.
+- [ ] Payback time! (5 after a lost combat this turn) and Slapshot (6 with Casey adjacent): the combat line shows the new value.
+- [ ] Turtle power!: you may boost the attack (the engine reads the boost card you put on the table).
+
 ### Hidden information (cards that look at the bot's hand, and the bot's on you)
 - [ ] **The bot's hand row**: when playing Confront Any Demon or God (only if you lose), Advanced Psychometry (adjacent), Remove A Painful Memory (with an ONGOING) or Every Possible Angle, the bot lays its hand **face up in a row** at `bot_row_spot` and **pings** each card (`ping_points`). The **Look at bot's hand** button uses another row, at `look_spot`.
 - [ ] **The bot's own pings do not choose for you** (9335eab): with the row open, the bot does not "choose" a card by itself. *(31/10 failure with Remove A Painful Memory: it chose Posthumous Power within 1 s; fixed, still to be seen. If it happens again, widen `BOT_PING_WINDOW`.)*
@@ -193,6 +253,8 @@ Note OK / failure and what happened. A projection failure is said **once** ("do 
 - [ ] Messages and latency (`--timing`): normal button ~1 message; Liz's turn with Wildfire +1; a look +1. Note any button that takes more than a few seconds.
 - [ ] Slow-TTS warnings: if "TTS returned no value (it is busy, paused or reloading...)" shows up, note the time and what you were doing (568c6bf: it now waits 8 s more before warning).
 - [ ] verify_live: a whole game with `language: "en"` (or `--language en`): setup and mulligan, a turn of yours (Maneuver, Scheme, attack with Reveal, Continue / No boost, End action, +1 / -1, Look at bot's hand) and a bot turn (attack, defense, Wildfire / ANUNG if Liz or Hellboy plays). Panel: buttons and status line in English and not cut off (90 characters at most). Chat: no sentence in Spanish (TTS warnings that arrive with their own technical error text do not count); card titles and hero names stay as printed. Note any phrase that sounds odd or comes out in Spanish. The console of `play.py` (stderr, `--help`, the `hero_detect` report, start-up configuration / save errors) now follows the language too.
+
+- [ ] **Piece identity, Abe Sapien vs Donatello (1/11)**: both miniatures share GUID `4fdf31` in the data. Play Abe vs Donatello (and the reverse): take both heroes out of their bags and start. The console/chat says ONE `piece.resolved` line naming the hero whose miniature got a new GUID, plus the `piece.shared` warning; each miniature moves on its own, attacks reach, nobody sits on the other's space. Ctrl+C, `--resume`: no new resolution line and the same pieces are followed. If one miniature is still in its bag, you read `piece.unresolved` once and no more.
 
 ## 7. What to note if something fails
 

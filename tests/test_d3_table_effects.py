@@ -44,6 +44,7 @@ class FxTable(Table):
         self.states: list[tuple[str, int]] = []
         self.flipped: list[str] = []
         self.pings: list[list[list[str]]] = []
+        self.point_pings: list[int] = []
         self.tokens: list[str] = []
         self.hand_moves: list[tuple[str, list[int]]] = []
         self.deck_moves: list[tuple[str, list[int]]] = []
@@ -76,6 +77,11 @@ class FxTable(Table):
         groups = re.search(r"local groups = \{(.*)\}\nlocal function", s, re.S).group(1)
         self.pings.append([re.findall(r'"(\w+)"', g) for g in re.findall(r"\{([^{}]*)\}", groups)])
         return {"queued": len(self.pings[-1])}
+
+    def do_ping_points(self, s):
+        n = len(re.findall(r"Vector\(", re.search(r"local points = \{(.*)\}\nfor i", s, re.S).group(1)))
+        self.point_pings.append(n)
+        return {"queued": n}
 
     def do_take_token_copy(self, s):
         guid = f"tok{len(self.tokens) + 1}"
@@ -142,12 +148,24 @@ class FxTable(Table):
         return super().do_return_card_to_hand(s)
 
 
+def reassigned_guid(table, guid: str) -> str:
+    """What TTS does with two objects that share a GUID (the tournament save gives 4fdf31 to Abe Sapien's and Donatello's
+    miniatures): the first one out keeps it, the next gets a new random one. `table.guid_name` is filled in config order,
+    so a GUID already there belongs to the first."""
+    return guid if guid not in table.guid_name else guid + "x"
+
+
 def build(tmp_path, bot, human, hand, table_cls=FxTable, **over):
     """A batch session with `bot` vs `human` (seats Blue / Red), the bot holding the cards titled in `hand`."""
     cfg = config_for(tmp_path, bot, human, **over)
     scfg = cfg.session_config()
     table = table_cls(cfg.nicknames, dict(scfg.pieces), bot_cards=scfg.bot_card_ids[0])
-    table.guid_name = {g: cfg.nicknames[fid] for fid, v in scfg.pieces.items() for g in play.piece_guids(v)}
+    table.guid_name = {}
+    for fid, v in scfg.pieces.items():
+        table.pieces[fid] = [reassigned_guid(table, g) for g in play.piece_guids(v)]
+        table.pieces[fid] = table.pieces[fid][0] if isinstance(v, str) else table.pieces[fid]
+        for g in play.piece_guids(table.pieces[fid]):
+            table.guid_name[g] = cfg.nicknames[fid]
     fake = FakeTTS(return_value=table)
     client = TTSClient(send_port=fake.port, listen_port=0)
     fake.reply_port = client.start_listening().port
@@ -155,6 +173,7 @@ def build(tmp_path, bot, human, hand, table_cls=FxTable, **over):
     scfg.settle_wait, scfg.settle_tries = 0.0, 4
     game = Game.new(cfg.board, seed=3, controllers={}, bot_player=0, heroes=cfg.heroes)
     session = Session(game, client, MedusaAI(0), scfg)
+    table.session = session
     game.turn, game.turn_no = 1, 2
     game.begin_turn()
     bot_fids, human_fids = [f.fid for f in game.own(0)], [f.fid for f in game.own(1)]

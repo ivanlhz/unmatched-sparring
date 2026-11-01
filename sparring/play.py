@@ -33,6 +33,7 @@ from . import game_log, i18n, persist
 from .i18n import t
 from .session import DEFAULT_ACTION_ANNOUNCE_HOLD, DEFAULT_BOT_PAUSE, DEFAULT_ONGOING_HOLD, DEFAULT_WILDFIRE_HOLD, TABLE_ERRORS, Msg, Session, SessionConfig, SessionError, piece_guids
 from .state import DEFAULT_HEROES, Game
+from .session_translators import ASIDE_STEP
 from .tts import lua, ui
 from .tts.hero_table import HeroTableError, load_hero_table, table_defaults
 from .tts.client import LISTEN_PORT, SEND_PORT, TTSClient, TTSLuaError
@@ -68,7 +69,7 @@ def migrate_legacy_files(state: Path) -> list[str]:
 BOT, HUMAN = 0, 1
 READ_ONLY_TAGS = frozenset({"snapshot", "piece_spaces_by_guid", "read_hand", "count_hand", "read_discard",
                             "read_face_down_cards", "read_cards_at", "inspect_guids", "read_health_dials", "zone_overlaps", "deck_identities",
-                            "hand_identities", "reset_plan", "table_heroes", "inspect_objects"})
+                            "hand_identities", "reset_plan", "table_heroes", "inspect_objects", "find_pieces_by_name"})
 
 REQUIRED = ("bot_seat", "human_seat", "nicknames", "bot_card_spot", "human_card_spot", "bot_discard_spot",
             "bot_discard_zone", "bot_deck_guid", "human_discard_zone", "bot_deck_spot", "pieces")
@@ -208,6 +209,8 @@ class PlayConfig:
                 token_spot=tuple(float(v) for v in r["token_spot"]) if r.get("token_spot") else None,
                 bot_ongoing_spot=tuple(float(v) for v in r["bot_ongoing_spot"]) if r.get("bot_ongoing_spot") else None,
                 human_ongoing_spot=tuple(float(v) for v in r["human_ongoing_spot"]) if r.get("human_ongoing_spot") else None,
+                bot_tuck_spot=tuple(float(v) for v in r["bot_tuck_spot"]) if r.get("bot_tuck_spot") else None,
+                bot_removed_spot=tuple(float(v) for v in r["bot_removed_spot"]) if r.get("bot_removed_spot") else None,
                 batch=bool(r.get("batch", True)), live_ui=bool(r.get("live_ui", True)),
                 bot_pause=float(r.get("bot_pause", DEFAULT_BOT_PAUSE)),
                 wildfire_hold=float(r.get("wildfire_hold", DEFAULT_WILDFIRE_HOLD)),
@@ -227,6 +230,9 @@ class PlayConfig:
                 raise ValueError("bot_ongoing_spot: (x, y, z)")
             if cfg.human_ongoing_spot is not None and len(cfg.human_ongoing_spot) != 2:
                 raise ValueError("human_ongoing_spot: (x, z)")
+            for key in ("bot_tuck_spot", "bot_removed_spot"):
+                if getattr(cfg, key) is not None and len(getattr(cfg, key)) != 3:
+                    raise ValueError(f"{key}: (x, y, z)")
             if len(cfg.look_spot) != 3 or len(cfg.look_step) != 2:
                 raise ValueError("look_spot: (x, y, z); look_step: (dx, dz)")
             if len(cfg.bot_row_spot) != 3 or len(cfg.bot_row_step) != 2:
@@ -718,6 +724,17 @@ def look_row_rect(cfg: PlayConfig, n: int = ROW_WARN_CARDS, spot_key: str = "loo
     return (x - half * abs(dx) - hx, x + half * abs(dx) + hx, z - half * abs(dz) - hz, z + half * abs(dz) + hz)
 
 
+ASIDE_SPOTS = ("bot_tuck_spot", "bot_removed_spot")
+ASIDE_WARN_CARDS = 6      # cards the bot lays side by side at a set-aside spot before the row gets absurd
+
+
+def aside_row_rect(cfg: PlayConfig, key: str, n: int = ASIDE_WARN_CARDS) -> tuple[float, float, float, float]:
+    """Rectangle (x min, x max, z min, z max) of the cards laid from `bot_tuck_spot` / `bot_removed_spot` in +x."""
+    x, _, z = (float(v) for v in cfg.raw[key])
+    w, d = lua.CARD_SIZE
+    return x - w / 2, x + (n - 1) * ASIDE_STEP + w / 2, z - d / 2, z + d / 2
+
+
 def look_row_warnings(cfg: PlayConfig) -> list[str]:
     """Start-up warning: the rows of the bot's hand (up to `ROW_WARN_CARDS` cards) may not overlap the panel, the
     combat and ONGOING boxes or the discard zones."""
@@ -733,6 +750,12 @@ def _look_row_warnings(cfg: PlayConfig, items: list[tuple[str, str, tuple[float,
         a0, a1, b0, b1 = look_row_rect(cfg, ROW_WARN_CARDS, spot_key)
         out += [t("layout.row_overlap", what=t(what), key=spot_key, x0=a0, x1=a1, z0=b0, z1=b1, name=name)
                 for name, (x0, x1, z0, z1) in others if a0 < x1 and a1 > x0 and b0 < z1 and b1 > z0]
+    look_rows = [(t(what), look_row_rect(cfg, ROW_WARN_CARDS, key)) for key, (*_, what) in LOOK_ROWS.items()]
+    asides = {key: aside_row_rect(cfg, key) for key in ASIDE_SPOTS if cfg.raw.get(key)}
+    for key, (a0, a1, b0, b1) in asides.items():
+        crowd = [*others, *look_rows, *((k, r) for k, r in asides.items() if k != key)]
+        out += [t("layout.row_overlap", what=t("layout.aside_row"), key=key, x0=a0, x1=a1, z0=b0, z1=b1, name=name)
+                for name, (x0, x1, z0, z1) in crowd if a0 < x1 and a1 > x0 and b0 < z1 and b1 > z0]
     return out
 
 
@@ -886,6 +909,10 @@ def play(cfg: PlayConfig, client: TTSClient, first: str, seed: int, stop: thread
             raise persist.StateError(t("save.needs_file"))
         session.load_dict(persist.load(state_path))
     targets = [f.fid for f in game.own(BOT)]
+    try:
+        session.resolve_pieces()                 # before the panel is built: its snapshot carries the GUIDs found by name
+    except TABLE_ERRORS:
+        pass                                     # the start-up check tries again and says why
     for warning in floor_layout_warnings(cfg):
         echo(t("console.warn_line", text=warning))
     client.call_lua(lua.clear_markings(remove_panel=True))     # leftovers of a previous run that died without cleaning up

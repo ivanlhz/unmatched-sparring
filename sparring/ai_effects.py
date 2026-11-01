@@ -50,7 +50,7 @@ def predict_value(game: Game, me: int) -> int:
     discard pile (public). Ties go to the higher value. The rival's hand and deck are never read."""
     rival = game.players[1 - me]
     seen = [c for c in game.players[me].known.cards(rival) if c.can_defend]
-    pool = seen or [c for c in rival.full_set if c.can_defend and c not in rival.discard]
+    pool = seen or [c for c in rival.full_set if c.can_defend and c not in rival.gone]
     if not pool:
         return 0
     counts: dict[int, int] = {}
@@ -64,6 +64,8 @@ DEFAULT_BLOW = 1                                        # damage or heal assumed
 DEFAULT_REACH = 2                                       # steps a place/swap candidate is assumed to relocate by
 HP_OPS = ("damage", "heal", "set_hp")
 RELOCATE_OPS = ("move", "place", "swap")
+CANCEL_MAX_KEEP = 1.6                                   # the card given up to cancel the rival's effects is worth this or less
+BONUS_MARGIN = 0.2                                      # a card is given up for a bonus only when it clearly pays
 BOUNCE_BONUS = 0.5                                      # a returning card at the bottom also burns 1 when it comes back
 
 
@@ -90,7 +92,8 @@ def blind_clone(game: Game, me: int, rng: random.Random) -> Game:
     rival = 1 - me
     real = game.players[rival]
     n_hand, n_deck = len(real.hand), len(real.deck)
-    shell = PlayerState(real.hero, [], real.full_set, [], list(real.discard), real.known.copy())
+    shell = PlayerState(real.hero, [], real.full_set, [], list(real.discard), real.known.copy(),
+                        list(real.tucked), list(real.removed))
     shadow = copy.copy(game)
     shadow.players = list(game.players)
     shadow.players[rival] = shell
@@ -101,7 +104,7 @@ def blind_clone(game: Game, me: int, rng: random.Random) -> Game:
     known = g.players[me].known
     sure = [c for c in known.cards(shell)]
     top = [c for c in known.top(shell) if c not in sure]
-    pool = [c for c in sorted(shell.full_set, key=lambda c: c.card_id) if c not in shell.discard]
+    pool = [c for c in sorted(shell.full_set, key=lambda c: c.card_id) if c not in shell.gone]
     for c in sure:
         if c in pool:
             pool.remove(c)
@@ -266,6 +269,8 @@ class EffectAI:
         zone, purpose = req.extra.get("zone"), req.extra.get("purpose")
         of = req.extra.get("of", me)
         n_min, n_max = req.min, min(req.max, len(req.options))
+        if purpose == "bonus":
+            return self._bonus_discards(game, req)
         if zone == "hand" and of != me:                    # C4: what a look showed, the rest by position
             return ControllerChooser._from_rival_hand(game, req, of)
         if zone == "hand":
@@ -281,10 +286,12 @@ class EffectAI:
                 return ranked[:n_min] + junk if purpose == "discard" else ranked[:n_min]
             best = ranked[::-1]
             return best[:n_max] if n_min < n_max else best[:n_min]
-        cards = {c.card_id: c for p in game.players for c in p.full_set}
+        cards = game.cards_by_id(of)
         worth = lambda i: card_worth(cards[i]) if i in cards else 0.0
         if of == me and purpose == "discard":                       # parting with own deck or discard cards
             return sorted(req.options, key=lambda i: (worth(i), i))[:n_min]
+        if of == me and purpose == "remove":                        # removing own discard cards from the game: as many as allowed, the cheapest
+            return sorted(req.options, key=lambda i: (worth(i), i))[:n_max]
         if of == me and zone == "discard" and purpose == "return":   # own discard back into the deck (Pancakes!): all it
             ranked = sorted(req.options, key=lambda i: (i in cards and cards[i].destiny, -worth(i), i))
             return ranked[:n_max]                                    # may, destiny cards last (they keep ANUNG UN RAMA)
@@ -292,17 +299,38 @@ class EffectAI:
         take = n_max if n_min < n_max and worth(ranked[0]) > 0 else n_min
         return ranked[:take]
 
+    def _bonus_discards(self, game: Game, req: ChoiceRequest) -> list:
+        """Unbridled rage: each card given up adds `per_card` to the value of the card. Cards go from the least to the
+        most valuable to keep while the damage the next bonus adds to the blow is worth more than the card. Only an
+        attack counts (the damage the bot adds); a defense adds nothing it can price."""
+        me, hand = req.player, game.players[req.player].hand
+        foe = game.fighters.get(req.extra.get("foe"))
+        if foe is None or not req.extra.get("attacking"):
+            return []
+        by_id = {c.card_id: c for c in hand}
+        per, margin = req.extra["per_card"], req.extra["margin"]
+        ranked = sorted(req.options, key=lambda i: (keep_value(by_id[i], hand), i))
+        base = self.blow_value(foe, max(0, margin), game)
+        best, best_net, spent = 0, 0.0, 0.0
+        for k, i in enumerate(ranked, 1):
+            spent += keep_value(by_id[i], hand)
+            net = self.blow_value(foe, max(0, margin + per * k), game) - base - spent - BONUS_MARGIN
+            if net > best_net:
+                best, best_net = k, net
+        return ranked[:best]
+
     # ------------------------------------------------------------------ order, amount
     def _order(self, game: Game, req: ChoiceRequest, nested: bool) -> list:
         me = req.player
-        cards = {c.card_id: c for p in game.players for c in p.full_set}
+        of = req.extra.get("of", me)                        # whose cards the options are: ids mean cards only per owner
+        cards = game.cards_by_id(of)
         if req.extra.get("zone") == "deck" or set(req.options) <= set(cards):
-            mine = {c.card_id for c in game.players[me].full_set}
-            sign = {True: -1, False: 1}
+            mine = of == me
+            sign = -1 if mine else 1
             if req.extra.get("position") == "bottom":       # the very bottom is the last: the card that comes back
-                return sorted(req.options, key=lambda i: (i in mine and bounces_back(game, me, cards[i]),
-                                                          sign[i in mine] * card_worth(cards[i]), i))
-            return sorted(req.options, key=lambda i: (sign[i in mine] * card_worth(cards[i]), i))
+                return sorted(req.options, key=lambda i: (mine and bounces_back(game, me, cards[i]),
+                                                          sign * card_worth(cards[i]), i))
+            return sorted(req.options, key=lambda i: (sign * card_worth(cards[i]), i))
         fighters = game.fighters
         return sorted(req.options, key=lambda i: (-self.blow_value(fighters[i], DEFAULT_BLOW, game), i))
 
@@ -334,7 +362,12 @@ class EffectAI:
         return [max(scored)[3]]
 
     def _optional(self, game: Game, req: ChoiceRequest, nested: bool) -> list | None:
-        if "cost_cards" in req.extra:       # a price in cards: the interpreter sends the combat context, one policy
+        if "bury" in req.extra:             # The future of Ninjutsu: the top card goes to the bottom if it is worse than the average card to come
+            top = {c.card_id: c for c in game.players[req.player].full_set}[req.extra["bury"][0]] if req.extra["bury"] else None
+            return None if top is None else [keep_value(top, [top]) < self.medusa(req.player).avg_unseen_keep(game)]
+        if "gains_action" in req.extra or "cancels" in req.extra:
+            return [self._card_from_hand_pays(game, req)]
+        if "cost_cards" in req.extra:      # a price in cards: the interpreter sends the combat context, one policy
             return [worth_paying(req)]
         if "to" in req.extra:               # a redirect passive (FATEFUL BARGAINS): whoever loses the bot less takes it
             hit, to = game.fighters.get(req.extra.get("fighter")), game.fighters.get(req.extra["to"])
@@ -358,6 +391,20 @@ class EffectAI:
         if yes is None or no is None:
             return [not cost]
         return [yes >= no - 1e-9] if not cost else [yes > no + PAY_MARGIN]
+
+    def _card_from_hand_pays(self, game: Game, req: ChoiceRequest) -> bool:
+        """A card put on the bottom of the deck (it comes back when the deck cycles) for an extra action (Hi-Yaaaaah!!)
+        or for cancelling the rival's card effects (Guaranteed Delivery). The least useful card is the one given up;
+        the action is worth it while a card that can use it stays in the hand, the cancel while the card given up is
+        below the average (`CANCEL_MAX_KEEP`) and the rival's card has effects to cancel."""
+        hand = game.players[req.player].hand
+        if not hand:
+            return False
+        junk = min(hand, key=lambda c: (keep_value(c, hand), c.card_id))
+        rest = [c for c in hand if c is not junk]
+        if "gains_action" in req.extra:
+            return any(c.can_attack or c.is_scheme for c in rest)
+        return req.extra["cancels"] > 0 and keep_value(junk, hand) <= CANCEL_MAX_KEEP
 
     def _discard_or_take(self, game: Game, req: ChoiceRequest) -> bool:
         """Remove A Painful Memory's "discard it or take N": the named cards are the bot's own and known, so the
@@ -461,20 +508,18 @@ class EffectAI:
         `moment/path:ask`; None for anything that is not a card moment (ability triggers, unknown cards)."""
         if req.card_id is None or "/" not in req.key:
             return None
-        owner = card = None
-        for p, st in enumerate(game.players):
-            for c in st.full_set:
-                if c.card_id == req.card_id:
-                    owner, card = p, c
-        if card is None:
-            return None
+        card = None if req.card_owner is None else game.card_of(req.card_id, req.card_owner)
+        found = [] if card is None else [(req.card_owner, card)]       # decks share CardIDs: the request names the owner
         label, _, rest = req.key.partition("/")
         segs = rest.rsplit(":", 1)[0].split("/")
-        try:
-            node = load_effects(game.players[owner].hero.slug).moment_ops(card.title, label)
-            for seg in segs:
-                seg = seg.split("@")[0]
-                node = node[int(seg)] if isinstance(node, list) else node[seg]
-        except Exception:
-            return None
-        return (node, card, owner, label) if isinstance(node, dict) else None
+        for owner, card in found:
+            try:
+                node = load_effects(game.players[owner].hero.slug).moment_ops(card.title, label)
+                for seg in segs:
+                    seg = seg.split("@")[0]
+                    node = node[int(seg)] if isinstance(node, list) else node[seg]
+            except Exception:
+                continue
+            if isinstance(node, dict):
+                return node, card, owner, label
+        return None

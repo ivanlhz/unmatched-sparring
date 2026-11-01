@@ -30,7 +30,7 @@ Exhaustion, hand limit and desperation
   * Drawing with an empty deck does EXHAUST_DAMAGE to each own fighter: `apply_expected` simulates it (a maneuver
     or a Snipe/Regroup that kills Medusa is worth -DEATH) and draws with a deck are counted as unknown cards
     (`Game.phantom_draws`).
-  * At the end of the turn (`terminal_value`): cards beyond HAND_LIMIT are discarded (those of lowest
+  * At the end of the turn (`terminal_value`): cards beyond the hero's hand cap (`Game.hand_cap`) are discarded (those of lowest
     `keep_value`, and the unknown draw is worth its average) and each draw that eats the deck costs `DECK_SCARCITY`
     according to the draws Medusa can still afford (`draw_budget`). A maneuver without moving with a full hand only loses.
   * `desperation` (0..1) measures how badly the bot is losing: own HP against the rival hero's, fallen Harpies and
@@ -52,9 +52,9 @@ from collections import Counter
 from math import ceil, comb
 
 from .cards import can_be_boost
-from .combat import GAZE_DAMAGE, GLANCE_DAMAGE, ON_EARTH, SECOND_SHOT
+from .combat import GAZE_DAMAGE, GLANCE_DAMAGE, ON_EARTH
 from .controller import Controller
-from .state import ANUNG, EXHAUST_DAMAGE, HAND_LIMIT, Fighter, Game
+from .state import ANUNG, EXHAUST_DAMAGE, Fighter, Game
 
 GAZE = "medusa_gaze"      # Medusa's start-of-turn ability trigger (data/heroes/effects/medusa.json)
 
@@ -101,23 +101,43 @@ DECK_SCARCITY_FLOOR = 0.25  # share of DECK_SCARCITY still charged when the race
 MIN_NET = 0.25              # floor of the expected net damage per attack, so no estimate divides by zero
 ACTION_VALUE = 1.0          # an action that gives away a scheme: at least the draw of a maneuver, often an attack
 
+FREE_BOOST = ("Second Shot", "Turtle power!")      # cards that may BOOST themselves from the hand for free
+ELECTRO_GRENADE = "Electro grenade"
+UNTESTED = "Untested enhancements"
+INVENTION_PLAY = 1.2      # what playing an invention early is worth: its bonus (tucked) lasts the rest of the game
+
 AFTER_BONUS = {
+    "Quick strike": (CARD_VALUE, 0.0),                       # Donatello: draws one
+    "Bo staff": (CARD_VALUE + 0.5, 0.0),                     # draws one and hits an adjacent rival for 1
+    "Thinking ahead": (0.0, 0.2),
+    "Shift focus": (0.1, 0.0),
+    "Short circuit": (0.2, 0.0),
+    "Self defense grid": (0.5, 0.0),                         # heals what it removes
     "Regroup": (CARD_VALUE, CARD_VALUE),       # (always, extra if it wins)
     "Snipe": (CARD_VALUE, 0.0),
     "Dash": (0.5, 0.0),
     "The Hounds of Mighty Zeus": (0.4, 0.0),
     "Clutching Claws": (0.7, 0.0),
     "Hiss and Slither": (0.7, 0.0),
+    "Let's do this!": (CARD_VALUE, CARD_VALUE),     # Raphael: draws 1, 2 if it wins
+    "Crowd control": (0.5, 0.0),                    # draws and hurts every adjacent rival
+    "Batter up!": (0.0, 0.3),                       # pushes the loser away
+    "Relentless": (0.6, 0.0),                       # the card comes back to the deck and 1 is drawn
+    "Break something": (0.5, 0.0),                  # cancels the rival card's effects
+    "Unbridled rage": (0.8, 0.0),                   # expected bonus of the cards it can give up
 }
 DISCARD_EFFECTS = ("Clutching Claws", "Hiss and Slither")
 
 KEEP_BASE = {"attack": 1.0, "defense": 0.8, "versatile": 1.1, "scheme": 0.9}
+INVENTION_KEEP = 1.5
 KEEP_SPECIAL = {"Gaze of Stone": 3.0, "Feint": 1.4, "A Momentary Glance": 1.6, "Hiss and Slither": 1.8,
                 "Winged Frenzy": 1.0}
 
 
 def keep_value(card, hand) -> float:
     v = KEEP_SPECIAL.get(card.title, KEEP_BASE[card.type] + 0.25 * (card.value or 0)) + 0.1 * card.boost
+    if "invention" in card.tags:       # worth playing early, never worth discarding (Donatello): its bonus lasts the game
+        v += INVENTION_KEEP
     return v - 0.4 * (sum(1 for c in hand if c.title == card.title) - 1)
 
 
@@ -144,7 +164,7 @@ class Model:
     def __init__(self, game: Game, me: int):
         self.game, self.me, self.opp = game, me, 1 - me
         st = game.players[self.opp]
-        self.pool = [c for c in st.full_set if c not in st.discard]
+        self.pool = [c for c in st.full_set if c not in st.gone]
         self.n, self.h = len(self.pool), len(st.hand)
         self._cache: dict = {}
 
@@ -183,7 +203,7 @@ class Model:
 
     def defense_dist(self, t: Fighter):
         destiny = self.game.destiny_count(self.opp)
-        bonus = self.game.combat_bonus_total(t.owner)     # the rival's public ONGOING (Fight Or Flight)
+        bonus = self.game.defense_bonus_total(t.owner)    # the rival's public ONGOING (Fight Or Flight) and tucked inventions
         return self.best_dist(("def", t.name, destiny, bonus),
                               lambda c: (destiny if c.title == ON_EARTH else c.value) + bonus
                               if c.can_defend and c.usable_by(t.name) else None)
@@ -222,7 +242,7 @@ def unseen_copies(game: Game, owner: int) -> Counter:
     come for them (for the rival: what the Model also treats as possible)."""
     st = game.players[owner]
     left = Counter(c.title for c in st.full_set)
-    left.subtract(c.title for c in st.discard)
+    left.subtract(c.title for c in st.gone)
     return left
 
 
@@ -396,21 +416,47 @@ class MedusaAI(Controller):
     def eval_attack(self, game: Game, model: Model, f: Fighter, t: Fighter, c) -> float:
         return self.attack_eval(game, model, f, t, c)[0]
 
+    def card_value(self, game: Game, f: Fighter, t: Fighter, c) -> float:
+        """The value an attack card will have against `t`: the printed one, or the one its DURING sets when that is
+        known now (Raphael's Slapshot with Casey next to the target, Payback time! after a lost combat)."""
+        if c.title == "Slapshot" and any(o.name == "Casey Jones" and o.pos in game.board.adj[t.pos]
+                                         for o in game.own(f.owner) if o.pos is not None):
+            return 6.0
+        if c.title == "Payback time!" and game.fx.lost[f.owner]:
+            return 5.0
+        return float(c.value)
+
     def p_win_of(self, game: Game, model: Model, f: Fighter, t: Fighter, c) -> float:
-        atk = float(c.value) + game.attack_bonus(f)
-        if c.title == SECOND_SHOT:
+        atk = self.card_value(game, f, t, c) + game.attack_bonus(f)
+        if c.title in FREE_BOOST:
             spare = [x for x in game.players[self.me].hand if x is not c]
             atk += BOOST_RELIANCE * max((x.boost for x in spare), default=0)
+        atk += self.during_gain(game, c)
         return sum(p for p, dv in model.defense_dist(t) if atk - (dv or 0) >= 1)
+
+    def during_gain(self, game: Game, c) -> float:
+        """What the DURING of a Donatello attack is expected to add to its value: Electro grenade removes up to 4
+        attack or versatile cards of the own discard pile (+1 each), Untested enhancements adds the boost of the
+        bottom card of the deck (the average of the cards still to come, discounted: it is unknown)."""
+        mine = game.players[self.me]
+        if c.title == ELECTRO_GRENADE:
+            return min(4, sum(1 for x in mine.discard if x.can_attack))
+        if c.title == UNTESTED:
+            unseen = [x for x in mine.full_set if x not in mine.hand and x not in mine.gone]
+            return BOOST_RELIANCE * sum(x.boost for x in unseen) / len(unseen) if unseen else 0.0
+        return 0.0
 
     def attack_eval(self, game: Game, model: Model, f: Fighter, t: Fighter, c) -> tuple[float, float]:
         hand = game.players[self.me].hand
-        atk, cost = float(c.value) + game.attack_bonus(f), CARD_VALUE + 0.05 * c.boost    # ANUNG UN RAMA's +2, a live ONGOING
-        if c.title == SECOND_SHOT:
+        atk, cost = self.card_value(game, f, t, c) + game.attack_bonus(f), CARD_VALUE + 0.05 * c.boost    # ANUNG UN RAMA's +2, a live ONGOING
+        if c.title in FREE_BOOST:
             spare = [x for x in hand if x is not c]
             if spare:
                 atk += BOOST_RELIANCE * max(x.boost for x in spare)
                 cost += CARD_VALUE
+        atk += self.during_gain(game, c)
+        if "invention" in c.tags:
+            cost -= INVENTION_PLAY
         e_net = p_win = p_kill = gaze_dmg = 0.0
         for p, dv in model.defense_dist(t):
             net = max(0.0, atk - (dv or 0))
@@ -607,7 +653,7 @@ class MedusaAI(Controller):
     def avg_unseen_keep(self, game: Game) -> float:
         p = game.players[self.me]
         unseen = list(p.full_set)
-        for c in p.hand + p.discard:
+        for c in p.hand + p.gone:
             if c in unseen:
                 unseen.remove(c)
         return sum(keep_value(c, [c]) for c in unseen) / len(unseen) if unseen else KEEP_BASE["attack"]
@@ -615,7 +661,7 @@ class MedusaAI(Controller):
     def terminal_value(self, game: Game, model: Model | None = None) -> float:
         """Cost of closing the turn like this: discarding what exceeds the hand limit and spending scarce draws."""
         p = game.players[self.me]
-        over = len(p.hand) + game.phantom_draws - HAND_LIMIT
+        over = len(p.hand) + game.phantom_draws - game.hand_cap(self.me)
         cost = 0.0
         if over > 0:
             pool = sorted([keep_value(c, p.hand) for c in p.hand] + [self.avg_unseen_keep(game)] * game.phantom_draws)
@@ -886,6 +932,8 @@ class MedusaAI(Controller):
         if c is None:
             return v
         v -= CARD_VALUE + 0.05 * c.boost
+        if "invention" in c.tags:
+            v += INVENTION_PLAY
         always, on_win = AFTER_BONUS.get(c.title, (0.0, 0.0))
         v += always + on_win * p_block
         if c.title == "Feint":

@@ -8,6 +8,7 @@ from typing import Callable
 from .cards import Card
 from .combat import (ON_EARTH, PLANNED, CombatCtx, CombatResult, _check_boost, _side_cards, can_boost, deck_boost,
                      is_medusa_card)
+from .effects import inventions
 from .i18n import t
 from .state import ANUNG, Fighter, Game, RuleError
 
@@ -134,6 +135,8 @@ class CombatFlow:
         self.printed_set: dict[str, int] = {}        # side -> printed value after a "value becomes N" effect
         self.mods: dict[str, list[list]] = {"atk": [], "def": []}     # [delta, label] applied by value ops
         self.redirects: list[dict] = []              # combat damage redirections registered this combat
+        self.late_cancelled: set[str] = set()        # sides whose DURING and AFTER effects (not IMMEDIATELY) are cancelled
+        self.cancel_hits: set[str] = set()           # sides whose card really lost an effect to a cancellation
         self.choosers: dict | None = None            # player -> effects Chooser; None = the controllers decide
 
     @property
@@ -187,7 +190,7 @@ class CombatFlow:
             return None
         prev = self.sides[self.side_idx - 1]
         key = f"after_gate:{prev.name}"
-        if key in self.answers or side.name in self.ctx.cancelled:
+        if key in self.answers or self.is_cancelled(side.name):
             return None
         from .effects import table
         from .effects.model import load_effects
@@ -197,8 +200,12 @@ class CombatFlow:
         self.await_key = key
         return PendingChoice("table", prev.fighter.owner, prev.card.card_id)
 
+    def is_cancelled(self, side_name: str) -> bool:
+        """The side's effects are cancelled in the current phase: wholly, or from DURING on (Break something)."""
+        return side_name in self.ctx.cancelled or (side_name in self.late_cancelled and self.phase is not Phase.IMMEDIATELY)
+
     def _handler(self, side: Side) -> Rule | None:
-        cancelled = side.name in self.ctx.cancelled
+        cancelled = self.is_cancelled(side.name)
         for r in RULES:
             if r.phase is self.phase and r.side in ("any", side.name) and (r.when_cancelled or not cancelled) \
                     and r.match(self, side):
@@ -211,7 +218,9 @@ class CombatFlow:
             self.after_open = self.game.winner is None
         elif phase is Phase.DONE:
             for owner, card in self.played:
-                self.game.players[owner].discard.append(card)
+                inventions.settle_played(self.game, owner, card)
+            if self.game.winner is None:
+                self.game.fx.emit("after_attack", self.att, self.tgt)
 
     # ---------- decisions ----------
     def resume(self, choice: "Card | list | None") -> None:
@@ -259,18 +268,20 @@ class CombatFlow:
         if def_card is not None:
             game.take_from_hand(pd, def_card)
         self.played = [(pa, self.atk_card)] + ([(pd, def_card)] if def_card else [])
+        for owner, _ in self.played:
+            game.fx.count_played(owner)
 
     def _reveal(self) -> None:
         game, att, tgt, atk_card, def_card, values = self.game, self.att, self.tgt, self.atk_card, self.def_card, self.values
         bonus_parts = game.attack_bonus_parts(att)   # hero passives (Hellboy in ANUNG UN RAMA: +2)
         if game.fx.statuses:
-            from .effects.modifiers import take_next_attack_bonus
-            bonus_parts = bonus_parts + take_next_attack_bonus(game.fx, att.owner)
+            from .effects.modifiers import fighter_attack_bonus, take_next_attack_bonus
+            bonus_parts = bonus_parts + take_next_attack_bonus(game.fx, att.owner) + fighter_attack_bonus(game.fx, att.fid)
         atk_value = (atk_card.value or 0) + values[0] + sum(n for n, _ in bonus_parts)
         def_value = (def_card.value or 0) if def_card else 0
         def_value += values[1]
         # the defender's ONGOING adds to its card value (even at 0 or cancelled); no card, no value to add to
-        self.def_bonus_parts = game.combat_bonus_parts(tgt.owner) if def_card is not None else []
+        self.def_bonus_parts = game.defense_bonus_parts(tgt.owner) if def_card is not None else []
         def_value += self.def_bonus
         self.ctx = CombatCtx(att, tgt, atk_card, def_card, atk_value, def_value, set())
         self.result = CombatResult(att.fid, tgt.fid, atk_card, def_card, atk_value, def_value, 0, False)
@@ -305,14 +316,22 @@ class CombatFlow:
         self.game.damage(victim, damage, "combat")
         result.atk_value, result.def_value, result.damage, result.attacker_won = ctx.atk_value, ctx.def_value, damage, damage >= 1
         result.cancelled = set(ctx.cancelled)
+        result.cancelled_after = set(ctx.cancelled_after)
+        loser = self.tgt if damage >= 1 else self.att       # a tie is lost by the attacker (the engine's "won")
+        self.game.fx.emit("combat_lost", loser.owner, loser)
 
     # ---------- serialization ----------
     def to_dict(self) -> dict:
         out = self._base_dict(self.ctx, self.result)
-        if self.runs or self.printed_set or self.mods["atk"] or self.mods["def"] or self.redirects:
+        if (self.runs or self.printed_set or self.mods["atk"] or self.mods["def"] or self.redirects
+                or self.late_cancelled or self.cancel_hits):
             out["dsl"] = {"runs": {k: r.to_dict() for k, r in self.runs.items()}, "printed_set": dict(self.printed_set),
                           "mods": {k: [list(m) for m in v] for k, v in self.mods.items()},
                           "redirects": [dict(r) for r in self.redirects]}
+            if self.late_cancelled:
+                out["dsl"]["late_cancelled"] = sorted(self.late_cancelled)
+            if self.cancel_hits:
+                out["dsl"]["cancel_hits"] = sorted(self.cancel_hits)
         return out
 
     def _base_dict(self, ctx, res) -> dict:
@@ -325,10 +344,12 @@ class CombatFlow:
             "answers": dict(self.answers), "await_key": self.await_key,
             "pending": None if self.pending is None else self.pending.to_dict(),
             "ctx": None if ctx is None else {"atk_value": ctx.atk_value, "def_value": ctx.def_value,
-                                             "cancelled": sorted(ctx.cancelled)},
+                                             "cancelled": sorted(ctx.cancelled),
+                                             **({"cancelled_after": sorted(ctx.cancelled_after)} if ctx.cancelled_after else {})},
             "result": None if res is None else {
                 "atk_value": res.atk_value, "def_value": res.def_value, "damage": res.damage,
                 "attacker_won": res.attacker_won, "cancelled": sorted(res.cancelled),
+                **({"cancelled_after": sorted(res.cancelled_after)} if res.cancelled_after else {}),
                 "boost_card": None if res.boost_card is None else res.boost_card.card_id,
                 "boost_owner": None if res.boost_card is None else self._owner_of(res.boost_card),
                 "atk_parts": list(res.atk_parts), "def_parts": list(res.def_parts), "applied": list(res.applied),
@@ -352,6 +373,7 @@ class CombatFlow:
         flow.ctx = flow.result = None
         flow.sides = []
         flow.runs, flow.printed_set, flow.redirects, flow.choosers = {}, {}, [], None
+        flow.late_cancelled, flow.cancel_hits = set(), set()
         flow.mods = {"atk": [], "def": []}
         if "dsl" in raw:
             from .effects.run import EffectRun
@@ -362,14 +384,15 @@ class CombatFlow:
             flow.printed_set = dict(d["printed_set"])
             flow.mods = {k: [list(m) for m in v] for k, v in d["mods"].items()}
             flow.redirects = [dict(r) for r in d["redirects"]]
+            flow.late_cancelled, flow.cancel_hits = set(d.get("late_cancelled", ())), set(d.get("cancel_hits", ()))
         if raw["ctx"] is not None:
             c, r = raw["ctx"], raw["result"]
             flow.ctx = CombatCtx(att, tgt, flow.atk_card, flow.def_card, c["atk_value"], c["def_value"],
-                                 set(c["cancelled"]))
+                                 set(c["cancelled"]), set(c.get("cancelled_after", ())))
             flow.result = CombatResult(att.fid, tgt.fid, flow.atk_card, flow.def_card, r["atk_value"], r["def_value"],
                                        r["damage"], r["attacker_won"], set(r["cancelled"]), card(r["boost_card"], _boost_owner(flow, r)),
                                        list(r["human_effects"]), list(r["atk_parts"]), list(r["def_parts"]),
-                                       list(r["applied"]), list(r["bot_notes"]))
+                                       list(r["applied"]), list(r["bot_notes"]), set(r.get("cancelled_after", ())))
             flow.sides = [Side(*s) for s in _side_cards(flow.ctx)]
         return flow
 
@@ -486,6 +509,8 @@ def dsl_during(flow: CombatFlow, side: Side) -> Await | None:
 
 @rule(Phase.AFTER, match=_dsl)
 def dsl_after(flow: CombatFlow, side: Side) -> Await | None:
+    if side.name in flow.ctx.cancelled_after:
+        return None
     return _run_moment(flow, side, "after")
 
 

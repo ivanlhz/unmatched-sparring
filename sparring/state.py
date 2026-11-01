@@ -7,13 +7,13 @@ from typing import Callable
 from .board import Board
 from .cards import Card, can_be_boost
 from .controller import Controller
-from .effects import ongoing
+from .effects import inventions, ongoing
 from .effects.state import EffectState, default_dsl_heroes
-from .heroes import HeroDef, load_hero
+from .heroes import DEFAULT_HAND_LIMIT, DEFAULT_START_HAND, HeroDef, load_hero
 from .i18n import t
 
-HAND_LIMIT = 7
-START_HAND = 5
+HAND_LIMIT = DEFAULT_HAND_LIMIT       # the defaults; a hero's own sizes are `Game.start_hand` / `Game.hand_cap`
+START_HAND = DEFAULT_START_HAND
 EXHAUST_DAMAGE = 2
 DETECTIVE = "OCCULT DETECTIVE"      # names of Hellboy's forms exactly as in data/heroes/hellboy.json
 ANUNG = "ANUNG UN RAMA"             # (the session's announcements use them; the rule lives in the data)
@@ -162,7 +162,7 @@ class KnownHand:
     @staticmethod
     def _resolve(ids: list[int], rival: "PlayerState") -> list[Card]:
         by_id = {c.card_id: c for c in rival.full_set}
-        public = {c.card_id for c in rival.discard}
+        public = {c.card_id for c in rival.gone}
         return [by_id[i] for i in ids if i in by_id and i not in public]
 
     def copy(self) -> "KnownHand":
@@ -201,10 +201,20 @@ class PlayerState:
     hand: list[Card] = field(default_factory=list)
     discard: list[Card] = field(default_factory=list)
     known: KnownHand = field(default_factory=KnownHand)   # what THIS player knows of the rival's hand
+    tucked: list[Card] = field(default_factory=list)      # inventions tucked under the hero card (Donatello): public, in force
+    removed: list[Card] = field(default_factory=list)     # removed from the game: public and gone for good
 
     @property
     def hero_name(self) -> str:
         return self.hero.name
+
+    @property
+    def gone(self) -> list[Card]:
+        """Every card of the set that is public and in no hidden pile: the discard pile, the tucked inventions and the
+        cards removed from the game. What the rival's unseen pool and the deck count leave out."""
+        if not (self.tucked or self.removed):
+            return self.discard
+        return self.discard + self.tucked + self.removed
 
 
 class Game:
@@ -267,7 +277,7 @@ class Game:
         game.bot_player = bot_player
         game.fx.dsl_heroes = default_dsl_heroes(game)
         for pl in (0, 1):
-            game.draw(pl, START_HAND, log=False)
+            game.draw(pl, game.start_hand(pl), log=False)
         game.drawn = [0, 0]
         return game
 
@@ -275,7 +285,8 @@ class Game:
         g = Game.__new__(Game)
         g.board, g.rng, g.controllers, g.start_spaces = self.board, self.rng, self.controllers, self.start_spaces
         g.fighters = {k: replace(f) for k, f in self.fighters.items()}
-        g.players = [PlayerState(p.hero, list(p.deck), p.full_set, list(p.hand), list(p.discard), p.known.copy())
+        g.players = [PlayerState(p.hero, list(p.deck), p.full_set, list(p.hand), list(p.discard), p.known.copy(),
+                                 list(p.tucked), list(p.removed))
                      for p in self.players]
         g.turn, g.turn_no, g.actions_left, g.winner = self.turn, self.turn_no, self.actions_left, self.winner
         g.bot_player = self.bot_player
@@ -304,6 +315,30 @@ class Game:
 
     def hero_def(self, player: int) -> HeroDef:
         return self.players[player].hero
+
+    def card_of(self, card_id: int, owner: int) -> Card | None:
+        """The card `card_id` of `owner`'s deck. Never look a card up by its bare CardID: Medusa and the TMNT heroes share
+        17600-17629, so an id means a card only together with the player it belongs to (docs/card-identity.md). The
+        rival's deck is the fallback, for a card that changed hands (a card taken from the rival's discard pile)."""
+        for p in (self.players[owner], self.players[1 - owner]):
+            for c in p.full_set:
+                if c.card_id == card_id:
+                    return c
+        return None
+
+    def cards_by_id(self, owner: int) -> dict[int, Card]:
+        """CardID -> card for a request about `owner`'s cards: both decks, `owner`'s own winning where ids collide."""
+        out = {c.card_id: c for c in self.players[1 - owner].full_set}
+        out.update((c.card_id, c) for c in self.players[owner].full_set)
+        return out
+
+    def start_hand(self, player: int) -> int:
+        """Cards of the opening hand (and of a mulligan): 5, or what the hero's card says (Michelangelo: 3)."""
+        return self.players[player].hero.hand_start
+
+    def hand_cap(self, player: int) -> int:
+        """Most cards `player` keeps at the end of the turn: 7, or what the hero's card says (Michelangelo: 3)."""
+        return self.players[player].hero.hand_max
 
     def occupied(self, player: int) -> set[int]:
         return {f.pos for f in self.own(player)}
@@ -339,7 +374,14 @@ class Game:
     def attack_bonus_parts(self, fighter: Fighter) -> list[tuple[int, str]]:
         """(bonus, tag) of each active attack passive of the hero (Hellboy in ANUNG UN RAMA: (2, 'ANUNG UN RAMA'))."""
         return (self.players[fighter.owner].hero.attack_bonuses(self.form(fighter.owner), fighter.hero)
-                + self.combat_bonus_parts(fighter.owner))
+                + self.combat_bonus_parts(fighter.owner) + inventions.bonus_parts(self, fighter.owner, "attack"))
+
+    def defense_bonus_parts(self, player: int) -> list[tuple[int, str]]:
+        """(bonus, label) added to the card `player` defends with: the live ONGOING and the tucked inventions."""
+        return self.combat_bonus_parts(player) + inventions.bonus_parts(self, player, "defense")
+
+    def defense_bonus_total(self, player: int) -> int:
+        return sum(n for n, _ in self.defense_bonus_parts(player))
 
     @property
     def combat_bonus(self) -> list[list[tuple[int, str]]]:
@@ -366,7 +408,8 @@ class Game:
         """Bonus of `fighter`'s NEXT attack (used by the AI to measure threats). A scheme's ONGOING expires when its
         owner's turn begins: if it is not their turn now, that bonus no longer reaches their next attack."""
         passives = self.players[fighter.owner].hero.attack_bonus(self.form(fighter.owner), fighter.hero)
-        return passives + (self.combat_bonus_total(fighter.owner) if self.turn == fighter.owner else 0)
+        tucked = sum(n for n, _ in inventions.bonus_parts(self, fighter.owner, "attack"))
+        return passives + tucked + (self.combat_bonus_total(fighter.owner) if self.turn == fighter.owner else 0)
 
     def legal_moves(self, fighter: Fighter, steps: int, through_enemies: bool = False) -> set[int]:
         if not self.fx.can_move(fighter):
@@ -396,7 +439,7 @@ class Game:
         known = self.players[viewer].known.cards(rival)
         size = len(rival.hand) if hand_size is None else hand_size
         pool = list(rival.full_set)
-        for c in (*rival.discard, *known):
+        for c in (*rival.gone, *known):
             if c in pool:
                 pool.remove(c)
         return list(known), pool, max(0, size - len(known))
@@ -428,6 +471,11 @@ class Game:
                 self.winner = 1 - fighter.owner
             self.fx.emit("fighter_defeated", fighter)
         return n
+
+    def remove_from_game(self, player: int, card: Card) -> None:
+        """A card of the discard pile leaves the game for good (Donatello's inventions): public, nothing brings it back."""
+        self.players[player].discard.remove(card)
+        self.players[player].removed.append(card)
 
     def heal(self, fighter: Fighter, n: int) -> None:
         if fighter.alive:
@@ -502,7 +550,7 @@ class Game:
     def end_turn(self) -> None:
         self.fx.emit("end_of_turn", self.turn)
         hand = self.players[self.turn].hand
-        limit = self.fx.hand_limit(self.turn, HAND_LIMIT)
+        limit = self.fx.hand_limit(self.turn, self.hand_cap(self.turn))
         if len(hand) > limit:
             self.force_discard(self.turn, len(hand) - limit, t("cause.hand_limit"), cause="hand_limit")
         self.turn = 1 - self.turn

@@ -534,7 +534,7 @@ def test_resume_writes_and_verifies_every_dial_in_the_resume_messages(brig):  # 
     session.resume()
     assert table.dials["DM"]["value"] == 13 and table.dial_writes, "the dial now shows the engine's life"
     assert session.dials_written["DM"] == 13
-    assert fake.lua_messages - n <= 3
+    assert fake.lua_messages - n <= 3, "the piece-identity check rides the resume's own table read"
 
 
 # ---------- game 5: the human's BOOST (Second Shot) ----------

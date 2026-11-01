@@ -1,0 +1,192 @@
+{
+ "schema": 1,
+ "hero": "raphael",
+ "notes": [
+  "Texts read from sheet 176 of the tournament save on 2026-11-01 (the images, not unmatched-memory: Break Something's 'COMBAR' typo is corrected).",
+  "Adventures (co-op) cards: nothing in this set says 'each other friendly player' in a way that matters 1v1; every effect below is the 1v1 reading (the opponent is the only rival, friendly fighters are Raphael and Casey Jones).",
+  "'Win'/'lose' the combat follow the engine: the attacker wins when its final value is higher (combat damage >= 1); a tie or a lower value is a loss for the attacker and a win for the defender. So 'lost a combat' means: attacker with no damage dealt, or defender who took combat damage.",
+  "ANGER ISSUES and Payback Time! read a per-turn record of lost combats (docs/effects-dsl.md, Raphael section): the `combat_lost` event and the stat `combats_lost_this_turn` (both players' combats of the CURRENT turn, whoever's turn it is).",
+  "New engine pieces, all additive (docs/effects-dsl.md, Raphael section): the `combat_lost` event, the stat `combats_lost_this_turn`, `cancel_effects.moments`, the test `effects_canceled`, the fighter filter `adjacent_to_any`, `return_to_deck` of `this` inside a combat, and the plugin `raphael:unbridled_rage`."
+ ],
+ "ability": {
+  "text": "ANGER ISSUES\nOn each of your turns, the first time you lose combat, gain 1 action.",
+  "triggers": [
+   {
+    "id": "anger_issues",
+    "when": {"event": "combat_lost", "player": "owner"},
+    "condition": {"test": "compare", "left": {"stat": "combats_lost_this_turn", "player": "owner"}, "op": "==", "right": 1},
+    "ops": [{"op": "gain_action", "amount": 1}],
+    "notes": "The trigger fires right after the combat damage is settled (before the AFTER COMBAT effects), once per lost combat; the per-turn count of the loser has just gone up, so '== 1' is 'the first time this turn'. It is recorded on both players' turns but `gain_action` only works for the player whose turn it is, so losing as the DEFENDER on the opponent's turn gives nothing (the ability says 'on each of your turns'). A lost combat of the defender who is Raphael's rival, or of the rival's attack, never matches `player: owner`."
+   }
+  ],
+  "passives": [],
+  "notes": "Gaining the action is subject to the usual blocks (`fx.can_gain_actions`: Pact Of Time, Cold Iron And Holy Water)."
+ },
+ "cards": [
+  {
+   "title": "Unbridled rage",
+   "copies": 2,
+   "text": "DURING COMBAT: Discard any number of defense or versatile cards. Add +2 to this card's value for each card discarded this way.",
+   "effects": {
+    "immediately": [],
+    "during": [
+     {"op": "plugin", "id": "raphael:unbridled_rage", "args": {"types": ["defense", "versatile"], "per_card": 2}}
+    ],
+    "after": [], "scheme": [], "boost": []
+   },
+   "notes": "The owner decides how many (0 included) and which; the plugin discards them from the hand and adds +2 each. Bot: a request of kind cards with `per_card` and the combat context (EffectAI weighs each card's keep value against the damage 2 more points would add). Human: the panel asks how many, then the table owes that many discards from their hand ('Discard N defense or versatile cards'); the engine does not see the human's hand. The card is attack only (value 3, boost 4)."
+  },
+  {
+   "title": "Let's do this!",
+   "copies": 3,
+   "text": "AFTER COMBAT: Draw 1 card. If you won the combat, draw 2 cards instead.",
+   "effects": {
+    "immediately": [], "during": [],
+    "after": [
+     {"op": "if", "condition": {"test": "combat_result", "result": "won"},
+      "then": [{"op": "draw", "player": "owner", "amount": 2}],
+      "else": [{"op": "draw", "player": "owner", "amount": 1}]}
+    ],
+    "scheme": [], "boost": []
+   },
+   "notes": "Attack only (value 1, boost 3), so it is the attacker who 'won' when it dealt damage."
+  },
+  {
+   "title": "Turtle power!",
+   "copies": 2,
+   "text": "DURING COMBAT: You may BOOST this attack.",
+   "may_boost": true,
+   "effects": {"immediately": [], "during": [], "after": [], "scheme": [], "boost": []},
+   "notes": "The free BOOST of the engine (`may_boost`). Attack only (value 3, boost 3)."
+  },
+  {
+   "title": "Crowd control",
+   "copies": 3,
+   "text": "AFTER COMBAT: Draw 1 card for each adjacent opposing fighter. Deal 1 damage to each of those fighters.",
+   "effects": {
+    "immediately": [], "during": [],
+    "after": [
+     {"op": "draw", "player": "owner", "amount": {"count": {"side": "enemy", "where": {"adjacent_to": "this"}, "pick": "all"}}},
+     {"op": "damage", "target": {"side": "enemy", "where": {"adjacent_to": "this"}, "pick": "all"}, "amount": 1}
+    ],
+    "scheme": [], "boost": []
+   },
+   "notes": "Adjacent to the fighter that plays the card (Raphael or Casey: it is an ANY card). The draw is counted first, then the damage (a fighter that dies from it still counted for the draw). The defender counts if it is adjacent and still alive after the combat. Attack only (value 2, boost 1)."
+  },
+  {
+   "title": "Batter up!",
+   "copies": 3,
+   "text": "AFTER COMBAT: If you won the combat, move the opposing fighter up to 3 spaces.",
+   "effects": {
+    "immediately": [], "during": [],
+    "after": [
+     {"op": "if", "condition": {"test": "combat_result", "result": "won"},
+      "then": [{"op": "move", "target": "opposing", "amount": 3, "up_to": true, "chooser": "owner"}]}
+    ],
+    "scheme": [], "boost": []
+   },
+   "notes": "Casey only. The winner decides where the rival goes (up to 3, not through other fighters). A defeated defender does not move. Attack only (value 3, boost 2)."
+  },
+  {
+   "title": "Sai",
+   "copies": 2,
+   "text": "",
+   "effects": {"immediately": [], "during": [], "after": [], "scheme": [], "boost": []},
+   "notes": "Vanilla versatile card (value 4, boost 2): the real card has no text."
+  },
+  {
+   "title": "Break something",
+   "copies": 3,
+   "text": "IMMEDIATELY: Cancel all DURING COMBAT and AFTER COMBAT effects on your opponent's card. AFTER COMBAT: If no effects were canceled this way, deal 2 damage to an adjacent opposing fighter.",
+   "effects": {
+    "immediately": [
+     {"op": "cancel_effects", "card": "opponent_card", "moments": ["during", "after"]}
+    ],
+    "during": [],
+    "after": [
+     {"op": "if", "condition": {"not": {"test": "effects_canceled", "card": "opponent_card"}},
+      "then": [{"op": "damage", "target": {"side": "enemy", "where": {"adjacent_to": "this"}}, "amount": 2}]}
+    ],
+    "scheme": [], "boost": []
+   },
+   "notes": "Partial cancellation: only the DURING and AFTER effects of the rival card are cancelled, its IMMEDIATELY effects stay (so when Raphael DEFENDS, the attacker's IMMEDIATELY still resolves after his). 'No effects were canceled this way' = the rival card had no DURING or AFTER effects to cancel (a vanilla card, no card at all, or an uncancelable one such as Incinerate): then the 2 damage goes to an adjacent opposing fighter of the owner's choice. The rival's free BOOST (`may_boost`) is a DURING effect and is cancelled. Versatile (value 2, boost 1)."
+  },
+  {
+   "title": "Payback time!",
+   "copies": 3,
+   "text": "DURING COMBAT: If you lost a combat this turn, this card's value is 5 instead.",
+   "effects": {
+    "immediately": [],
+    "during": [
+     {"op": "if", "condition": {"test": "compare", "left": {"stat": "combats_lost_this_turn", "player": "owner"}, "op": ">=", "right": 1},
+      "then": [{"op": "set_value", "card": "this", "amount": 5}]}
+    ],
+    "after": [], "scheme": [], "boost": []
+   },
+   "notes": "'This turn' is the current turn, whoever's: an attack of Raphael after an earlier lost combat of his turn, or a defense after he lost an earlier combat as the defender in the same opponent turn. The combat being resolved is not yet lost at DURING. The printed value becomes 5 (bonuses stay). Versatile (value 2, boost 1)."
+  },
+  {
+   "title": "Relentless",
+   "copies": 2,
+   "text": "AFTER COMBAT: Shuffle this card into your deck. Then, draw 1 card.",
+   "effects": {
+    "immediately": [], "during": [],
+    "after": [
+     {"op": "return_to_deck", "cards": "this", "position": "shuffle"},
+     {"op": "draw", "player": "owner", "amount": 1}
+    ],
+    "scheme": [], "boost": []
+   },
+   "notes": "The card is still in the combat when its AFTER runs: the engine takes it out of the cards that go to the discard and shuffles it into the deck (the draw may bring it right back). If the card's effects are cancelled it goes to the discard as usual. Versatile (value 3, boost 1)."
+  },
+  {
+   "title": "Slapshot",
+   "copies": 3,
+   "text": "DURING COMBAT: If Casey is adjacent to the opposing fighter, this card's value is 6 instead.",
+   "effects": {
+    "immediately": [],
+    "during": [
+     {"op": "if", "condition": {"test": "exists", "fighters": {"side": "own", "name": "Casey Jones", "where": {"adjacent_to": "opposing"}}},
+      "then": [{"op": "set_value", "card": "this", "amount": 6}]}
+    ],
+    "after": [], "scheme": [], "boost": []
+   },
+   "notes": "Casey only, so the card is played by Casey himself: the condition is true when he is next to the rival of the combat (as attacker or defender). The printed value becomes 6 (bonuses stay). Versatile (value 2, boost 2)."
+  },
+  {
+   "title": "Heroes in a half shell",
+   "copies": 2,
+   "text": "",
+   "effects": {"immediately": [], "during": [], "after": [], "scheme": [], "boost": []},
+   "notes": "Vanilla defense (value 5, boost 2)."
+  },
+  {
+   "title": "Raphael is cool but rude",
+   "copies": 2,
+   "text": "Deal 1 damage to each opposing fighter adjacent to at least one friendly fighter. Draw 1 card.",
+   "effects": {
+    "immediately": [], "during": [], "after": [],
+    "scheme": [
+     {"op": "damage", "target": {"side": "enemy", "filter": {"adjacent_to_any": {"side": "own"}}, "pick": "all"}, "amount": 1},
+     {"op": "draw", "player": "owner", "amount": 1}
+    ],
+    "boost": []
+   },
+   "notes": "'Friendly fighter' = any living fighter of the owner (Raphael or Casey) adjacent to the target. Scheme (boost 2): the damage is effect damage, mandatory for every fighter that qualifies."
+  }
+ ],
+ "plugins": [
+  {"id": "raphael:unbridled_rage", "why": "A DURING cost-and-bonus with a free number of discarded cards whose count then feeds a value: the DSL has no op that reads how many cards a previous discard took (docs/effects-dsl.md, section 9, gap 12) and no way for the human to decide a count that the engine cannot see in their hand."}
+ ],
+ "hidden_info": [
+  {"card": "Unbridled rage", "rule": "The bot discards from its own hand and its discards are public. When the human plays it, the engine never looks at their hand: the panel asks how many cards they discard and the table owes those discards (the bot learns them from the discard pile)."},
+  {"card": "Relentless", "rule": "The card is shuffled into the owner's deck face down; the rival saw it played, then loses track of it. The bot forgets a known deck top when it shuffles."},
+  {"card": "Raphael is cool but rude", "rule": "The draw is blind for both sides."}
+ ],
+ "open_questions": [
+  "Tie in combat: the engine gives it to the defender (the attacker must deal at least 1 damage to win). If the official ruling is that nobody wins a tie, Let's do this! and Batter up! (attacker) are unchanged but ANGER ISSUES would not trigger on a tie, and a defender's 'if you won' would be false.",
+  "Break something: 'no effects were canceled this way' is read as 'the rival card had no DURING or AFTER effect to cancel'. A rival card whose effect later does nothing (a condition that fails) still counts as having been cancelled.",
+  "Unbridled rage: 'any number' includes zero and cards cannot be scheme or attack cards (defense and versatile only); the +2 is added after any set value (the printed value 3 stays, the bonus is a modifier).",
+  "Relentless: the shuffle happens before the draw; if the card is the only one in the deck it is drawn back immediately."
+ ]
+}

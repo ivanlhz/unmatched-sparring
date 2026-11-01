@@ -6,9 +6,11 @@ from __future__ import annotations
 
 import re
 from dataclasses import dataclass, field
+from functools import lru_cache
 
-from .cards import MEDUSA_BASE, Card, can_be_boost
+from .cards import Card, can_be_boost
 from .effects import ongoing
+from .heroes import load_hero
 from .i18n import t
 from .state import Fighter, Game, RuleError
 
@@ -22,8 +24,15 @@ ON_EARTH = "On Earth As It Is In Hell"
 FIGHT_OR_FLIGHT = "Fight Or Flight"          # only a label for the tests: the engine reads the bonus from the card data
 
 
+@lru_cache(maxsize=None)
+def _medusa_cards() -> frozenset[Card]:
+    return frozenset(load_hero("medusa").deck())
+
+
 def is_medusa_card(card: Card) -> bool:
-    return MEDUSA_BASE <= card.card_id < MEDUSA_BASE + 100
+    """One of Medusa's cards. A CardID range cannot say so: the TMNT decks share Medusa's 17600-17629 (docs/card-identity.md),
+    so the card is compared by value with her deck (a Card is frozen: id, title, fighter, numbers, text, tags)."""
+    return card in _medusa_cards()
 
 
 @dataclass
@@ -43,6 +52,7 @@ class CombatResult:
     def_parts: list[str] = field(default_factory=list)
     applied: list[str] = field(default_factory=list)        # after-combat effects the engine already applied
     bot_notes: list[str] = field(default_factory=list)      # what the bot does not resolve of its cards (announced)
+    cancelled_after: set[str] = field(default_factory=set)  # sides whose AFTER COMBAT alone is cancelled (Short circuit); not in `cancelled`
 
 
 @dataclass
@@ -54,6 +64,7 @@ class CombatCtx:
     atk_value: int
     def_value: int
     cancelled: set[str]
+    cancelled_after: set[str] = field(default_factory=set)    # sides whose AFTER COMBAT alone is cancelled (Short circuit)
 
 
 def _side_cards(ctx: CombatCtx):

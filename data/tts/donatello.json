@@ -1,0 +1,40 @@
+{
+ "slug": "donatello",
+ "_notes": [
+  "Read from saves/Unmatched Official Tournament Table October 2026 (Hellboy).json (read only): infinite bag 716005 > bag f908de. Every GUID comes from that inner bag and is kept when its objects are taken out.",
+  "fighters: by HeroDef fighter id (piece = GUID of the miniature or token; dial = life dial; dial_max = MAX_VALUE of its script). Donatello's miniature is nicknamed '[6f2176]Donatello' (TTS colour markup, ignored by the importer); Metalhead is a Custom_Token.",
+  "deck.card_ids = CardID range of the 30 cards, the SAME 17600-17629 as Medusa and the other TMNT decks: only deck.identity (FaceURL, BackURL) tells them apart. character_card_id 364 (sheet 3) goes inside the same physical deck (31 cards)."
+ ],
+ "bag": {
+  "guid": "716005",
+  "inner": "f908de"
+ },
+ "deck": {
+  "guid": "bac919",
+  "card_ids": [
+   17600,
+   17629
+  ],
+  "character_card_id": 364,
+  "identity": [
+   {
+    "face": "https://steamusercontent-a.akamaihd.net/ugc/14756652703744896038/CE4C0F2C19C2EE7133B4757C38596BCFB029EF3F/",
+    "back": "https://steamusercontent-a.akamaihd.net/ugc/15800518283061855507/AA9151F4DB1BB5A5E6A517EC2398912C8232FF94/"
+   }
+  ]
+ },
+ "fighters": {
+  "donatello": {
+   "piece": "4fdf31",
+   "dial": "ca8e35",
+   "dial_max": 14
+  },
+  "metalhead": {
+   "piece": "428d15",
+   "dial": "edd0a5",
+   "dial_max": 7
+  }
+ },
+ "tokens": {},
+ "counter_dials": {}
+}

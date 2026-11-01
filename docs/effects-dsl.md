@@ -145,7 +145,7 @@ An integer, a numeric event binding (`"$amount"`, see 2.10), or one of these obj
 - `{"count": FighterSel}` or `{"count_cards": CardSel}`: how many meet the selector.
 - `{"counter": "<name>", "player": PlayerSel}`: counter of the HeroDef or of `ability.counters` (default `owner`).
 - `{"stat": ..., "player"|"fighter": ...}` with stat in `hand_size`, `hp`, `max_hp`, `actions_taken_this_turn`,
-  `damage_dealt_this_combat`, `damage_taken_this_combat`.
+  `damage_dealt_this_combat`, `damage_taken_this_combat`, `combats_lost_this_turn`.
 
 ### 2.6 Who chooses (chooser)
 
@@ -191,6 +191,7 @@ An object with `test` or a combinator `{"all": [...]}`, `{"any": [...]}`, `{"not
 | `moved_this_turn` | `fighter: FighterRef` | started the turn on another space |
 | `played_as` | `side: attack | defense` | how `this` was played |
 | `compare` | `left: Amount`, `op: < <= == >= > !=`, `right: Amount` | |
+| `effects_canceled` | `card: CardRef` | a cancellation of this combat took effects off that card |
 | `plugin` | `id`, `key` | computed by the plugin |
 
 There are never conditions in strings.
@@ -205,12 +206,14 @@ There are never conditions in strings.
 | `end_of_turn` | `player` (default `any`) | |
 | `after_maneuver` | `player` | |
 | `after_attack` | `fighter: FighterSel` | `$attacker`, `$target` |
+| `after_scheme` | `player` | |
 | `attacked` | `target: FighterSel` | `$attacker`, `$target`, `attack_card` |
 | `combat_damage_dealt` | `by: FighterSel` | `$by`, `$to`, `$amount` |
 | `damage_taken` | `target: FighterSel`, `damage: effect | combat | any`, `min` | `$target`, `$amount` |
 | `card_discarded` | `player`, `from: [hand, deck]`, `cause_not: hand_limit`?, `filter: CardFilter` | `$card` |
 | `card_played` | `player`, `filter` | `$card` |
 | `fighter_defeated` | `fighter: FighterSel` | `$fighter` |
+| `combat_lost` | `player` (default `owner`; `any`) | `$fighter` |
 
 As expiry (`until`): `{"event": "end_of_turn"}` = the current turn, whoever's it is;
 `{"event": "start_of_turn", "player": "owner"}` = the owner's next turn;
@@ -232,6 +235,7 @@ Every op is `{"op": "<name>", ...args}`. Arguments not listed are an error.
 | `set_hp` | `target`, `amount` | `chooser` | sets the life |
 | `draw` | `player`, `amount` | `up_to`, `chooser`, `as` | |
 | `discard` | `cards: CardSel | CardRef` | `as` | from the hand, the deck (top/bottom) or `in_play` to the discard. With a CardRef it discards exactly those |
+| `remove_from_game` | `cards: CardSel` (zone `discard`) | `as` | the cards leave the game for good (`PlayerState.removed`, public); see "Donatello" below |
 | `choose` | `cards: CardSel`, `as` | | only binds, moves nothing |
 | `choose_effect` | `options: [{label, ops}]`, `amount` | `distinct`, `chooser` | choose EFFECTS; `distinct` forbids repeating |
 | `move` | `target`, `amount`, `up_to` | `through_enemies`, `chooser` | `chooser` decides the destination (default `owner`, also for rival fighters: replaces the old `push`) |
@@ -239,7 +243,7 @@ Every op is `{"op": "<name>", ...args}`. Arguments not listed are an error.
 | `swap` | `target`, `with: FighterSel` | `chooser` | |
 | `revive` | `target` (with `state: defeated`), `where`, `hp` | `chooser` | brings back a defeated fighter |
 | `summon` | `name`, `where` | `hp`, `chooser` | takes a sidekick out of the reserve (`reserve` of the HeroDef); without a reserve it does nothing |
-| `cancel_effects` | `card: CardRef` | | respects `uncancelable` |
+| `cancel_effects` | `card: CardRef` | `moments` (`immediately`/`during`/`after`) | respects `uncancelable`; with `moments` only those |
 | `modify_value` | `card: CardRef`, `amount` | | adds (negative subtracts); never drops below 0 |
 | `set_value` | `card` and `amount` or `ignore: true` | | `amount`: the printed value becomes N (bonuses stay); `ignore: true`: "ignore its value", the total value becomes 0 (Incinerate) |
 | `boost` | `card: CardRef` | `chooser` | boosts that card now (discards the top card of its owner's deck). For the card's own free "may BOOST", `may_boost` is used |
@@ -271,6 +275,7 @@ Every op is `{"op": "<name>", ...args}`. Arguments not listed are an error.
 | `cannot_draw` | player | |
 | `cannot_leave_space` | fighter | by no means |
 | `next_attack_bonus` | player (`amount`) | consumed by the first own attack |
+| `attack_bonus` | fighter (`amount`) | +amount to every attack of that fighter while it lasts (Nunchaku) |
 
 ### Modifiers (`ongoing.modifiers` and `ability.passives`)
 
@@ -970,3 +975,59 @@ function per op type, each with two variants.
   discards the whole hand, how many effects it makes you choose and what one heals) instead of comparing titles, so
   the three cards (and any other with the same shape) keep the chat lines and the engine effects they had. For a hero
   the interpreter runs there was never a patch: the ops and the translators above are the whole path.
+
+
+## 22. Leonardo (TMNT box, `data/heroes/effects/leonardo.json`)
+
+Three additions to the DSL, all additive; every card of the box fits the existing ops otherwise.
+
+- Amount `{"stat": "zones", "fighter": FighterRef}`: how many zones the fighter's space belongs to (`Board.zones`), 0 for a
+  fighter off the board or fallen. "If the opposing fighter is in fewer zones than Splinter" is a `compare` of two of them
+  (Wise beyond his years, Spatial awareness; the latter also tests `exists` on the opposing fighter so a fallen one draws nothing).
+- SpaceSel flag `other: true`: a space other than the one the mover stands on ("in another space in their zone": `place` with
+  `{"zone_of": "$adjacent", "other": true}` inside a `for_each` over the adjacent fighters).
+- `as` on `swap`: binds the two fighters that swapped (an empty list when nothing swapped), so "if he does, they both recover
+  2 health" is `heal` on `{"role": "$swapped", "pick": "all"}`. A `swap` of two miniatures of the table player leaves the swap to
+  them (table note `tbl.swap`, like `move`); the engine positions follow the table sync.
+- TEAM TACTICS is an ordinary start-of-turn trigger (an `optional` around a `move` of `{"side": "any"}`). For the bot it runs through
+  `events.dispatch`; for the human `table.start_of_turn_is_physical` leaves it to the table and `fx.ability.team_tactics` is the
+  text the panel waits on.
+- Decks that share a CardID (the TMNT heroes and Medusa are all DeckID 176): see docs/card-identity.md; `select.find_card(game, id, owner)`
+  and `card_ref` work per owner, a bound (`$var`) card is looked up from the effect owner first.
+## 23. Donatello (TMNT): inventions, removal from the game and a few additive capabilities
+
+All additive; nothing of the other heroes changes (the goldens are byte-identical).
+
+- **Card `invention`** (`effects/inventions.py`): `{"modifiers": [Modifier], "triggers": [Trigger]}`, same grammar as `ongoing` without `until`. When a card that has one is played (a combat card when the combat ends, `CombatFlow._enter(DONE)`; a scheme when its ops end, `ongoing.finish_scheme`) it is tucked, not discarded: `PlayerState.tucked`, saved under `players[i].tucked` only when non-empty. Its `modify_value` modifiers add to the owner's attacks / defenses (`type: attack | defense` = played as an attack / as a defense; no `type` = both), through `Game.attack_bonus_parts`, `Game.defense_bonus_parts` and `Game.attack_bonus`; its triggers are dispatched by `events._handle` with the card as `card_id`. `ongoing.worth` adds `inventions.worth` so the AI and the search value them. The card is tucked after it resolves, so its own bonus does not apply to it.
+- **`card_played` event**, normalized since C3 but never emitted before, is now emitted by `ongoing.begin_scheme` for every scheme played by an interpreted hero (before its ops and before the card is tucked).
+- **`remove_from_game`** (`cards: CardSel` in the discard pile, optional `as`): `Game.remove_from_game` moves the cards to `PlayerState.removed` (saved when non-empty). `PlayerState.gone` = discard + tucked + removed is what the unseen pool of the rival, `Model`, `KnownHand`, `unseen_copies` and the search's `determinize` leave out. Table intent `{"op": "remove", "player", "cards"}`.
+- **`CardFilter.type_in`** (list of types), **Amount `{"count_of": CardRef}`** (how many cards a binding holds), **`gain_action.amount`** accepts any Amount.
+- **`cancel_effects.moments`**: see section 25 (one mechanism for Donatello's Short circuit and Raphael's Break something): `["after"]` alone cancels only the AFTER COMBAT (`CombatCtx.cancelled_after`, saved in the flow's `ctx` when non-empty); other lists go to `late_cancelled` / `cancelled` as described there. Respects `uncancelable`.
+- **`move.as`** binds the fighters it moved and records, per mover, the opposing fighters it may have passed through (`run.flags["passed"]`); the FighterSel filter **`passed_by: $mover`** selects them. A move the engine did not see (the human walks their miniature) leaves every candidate in place so the human answers.
+- **`look_deck` / `return_to_deck` bottom of the human's own deck** in table mode leave notes (`look_deck`, `deck_to_bottom`): their deck is virtual, the human does it by hand and the engine never names their top card. `optional` whose only op puts the top card of the owner's deck at the bottom sends `bury` (the card id) to a bot's request, so `EffectAI` can compare it with the average card still to come.
+- **Table translators**: `tuck` and `remove` (`session_translators`). Bot: one `discard_cards` write to `bot_tuck_spot` / `bot_removed_spot` (config; cards laid side by side), falling back to the human variant if the spot is missing or the table refuses. Human: the chat says to tuck / set aside by hand. `Session.sync_human`, `_adopt_extra_discards`, `adopt_table` and `_bot_cards_in_play` leave tucked and removed cards alone, so a card physically still on a discard pile is never taken back.
+- **INVENTIVE (a)** is a hero trigger (`inventive`, event `after_maneuver`): the bot's `Game.maneuver` already emits the event, and `Session._maneuver` emits it for the human so the panel can ask. `session_choices.prompt_text` shows `choice.prompt.ability.<trigger id>` for an optional of a trigger that has such a tag.
+- **Other shared-code changes**: `combat.is_medusa_card` and the CardID lookups follow docs/card-identity.md; `tools/import_save` ignores TTS colour markup in nicknames (`[6f2176]Donatello`); `EffectAI` and `SyntheticChooser` remove the cheapest cards for the purpose `remove`; `ai_medusa` card hints (`INVENTION_KEEP`, `INVENTION_PLAY`, `FREE_BOOST`, Donatello's `AFTER_BONUS` entries).
+
+## 24. Michelangelo (additive extensions)
+
+- Events: `after_scheme` (`player`) fires when a DSL scheme is finished (`ongoing.finish_scheme`); `after_attack` is now emitted by the engine when a combat reaches DONE (the played cards are already in the discard).
+- Amount `{"stat": "other_cards_played_this_turn", "player"?}`: cards the player played this turn (attack, defense, scheme) without counting the card being resolved. Recorded only when a loaded hero's data names the stat (`events.TRACKS`, `fx.played`, saved only when non-zero).
+- Status `attack_bonus` (fighter scope, needs `amount`): every attack the fighter makes while it lasts gets +amount (`next_attack_bonus` is consumed by the first attack).
+- `optional` with a `return_to_deck` cost from the hand is only offered when the hand can pay it; the bot's request carries `gains_action` or `cancels` so the AI can price it.
+- HeroDef `hand` ({start, max}): per-hero opening hand and end-of-turn hand limit (defaults 5 and 7).
+
+## 25. Raphael (TMNT): per-turn combat results, partial cancellation, returning a card played
+
+Everything here is additive: no existing file reads these words, so the five earlier heroes behave as before. They close gaps 16, 19, 22 and part of 12 of section 9.
+
+- **Event `combat_lost`** (`{"event": "combat_lost", "player": "owner"|"opponent"|"any"}`; binds `$fighter`, the fighter that lost): raised by `CombatFlow._damage` right after the combat damage, before the AFTER COMBAT effects. The loser is the defender when the attacker dealt at least 1 damage, else the attacker (a tie is lost by the attacker: the engine's `won` is "dealt damage").
+- **Stat `combats_lost_this_turn`** (`{"stat": "combats_lost_this_turn", "player": ...}`): combats that player lost in the CURRENT turn, whoever's turn it is (reset at `start_of_turn`). `fx.lost` (`[n0, n1]`) is recorded only when a hero's effects name the event or the stat (`events.TRACKS["lost"]`) and saved only when non-zero. "First time this turn" is `compare ... == 1` inside a `combat_lost` trigger: the count has already gone up when the trigger runs. `gain_action` for a player whose turn it is not does nothing, which is how ANGER ISSUES ("on each of your turns") ignores a defense lost on the rival's turn.
+- **`cancel_effects.moments`** (optional list of `immediately`, `during`, `after`): cancels only those moments of the card. Without `immediately`, if that side's IMMEDIATELY has not resolved yet (a defender cancelling the attacker's card: the defender resolves first) the side goes to `CombatFlow.late_cancelled` and keeps its IMMEDIATELY; otherwise it is a plain cancellation. `uncancelable` cards are untouched. Saved in `flow.to_dict()["dsl"]` as `late_cancelled` and `cancel_hits`. `moments == ["after"]` is the one exception: it goes to `CombatCtx.cancelled_after`, so the card's IMMEDIATELY and DURING still run (Donatello's Short circuit).
+- **Test `effects_canceled`** (`{"test": "effects_canceled", "card": "opponent_card"}`): a cancellation of this combat really took effects off that card (`flow.cancel_hits`: the card had ops in the cancelled moments or a `may_boost`, and was not uncancelable). A vanilla card, no card, or Incinerate gives false.
+- **Fighter filter `adjacent_to_any`** (`"filter": {"adjacent_to_any": FighterSel}`): the fighter is next to at least one other living fighter the selector designates (relative to the owner): "each opposing fighter adjacent to at least one friendly fighter" is `{"side": "enemy", "filter": {"adjacent_to_any": {"side": "own"}}, "pick": "all"}`.
+- **`return_to_deck` of `this` inside a combat**: a CardRef naming a card played in this combat resolves to the zone `combat`; the card leaves `flow.played` (so it does not go to the discard pile at the end) and goes to the deck. The table intent is reported with zone `discard` so the existing translators move it by GUID; for the human the chat says "Put X from your combat zone into your deck and shuffle it" (`raphael.combat_to_deck`).
+- **Plugin `raphael:unbridled_rage`** (`args: {"types": [...], "per_card": 2}`): "Discard any number of defense or versatile cards. Add +2 to this card's value for each." The bot asks its controller a `cards` request with `min 0` and `purpose: "bonus"` (the default answer, for any chooser that has no opinion, is none); `EffectAI._bonus_discards` picks the number of cheapest-to-keep cards that maximises the blow's value minus the cards' keep value. The human is asked an `amount` (0 to the hand size) and the table owes that many discards (`Game.force_discard`); the engine never sees their hand.
+- **1v1 meaning of Adventures wording**: "friendly" is Raphael and Casey Jones; the only rival is the opponent.
+- **Same CardID range as Medusa**: Raphael's deck is sheet 176 like Medusa's; see docs/card-identity.md.
+

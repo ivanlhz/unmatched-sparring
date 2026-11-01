@@ -39,12 +39,13 @@ from . import session_choices as choices
 from . import session_effects as human_effects
 from . import session_hidden as hidden
 from . import session_moves as moves
+from . import session_pieces as piece_id
 from . import session_pile as pile
 from . import session_translators as translators
 from .session_choices import panel_text
 from .spaces import describe, zone_text
 from .combat import FEINT, GLANCE_DAMAGE, can_boost, deck_boost, is_medusa_card, scheme_gain_actions
-from .state import ANUNG, DETECTIVE, EXHAUST_DAMAGE, HAND_LIMIT, START_HAND, Fighter, Game, RuleError
+from .state import ANUNG, DETECTIVE, EXHAUST_DAMAGE, Fighter, Game, RuleError
 from .tts import lua, ui
 from .tts.lua import ChatKind
 from .tts.client import TTSClient, TTSLuaError
@@ -146,6 +147,8 @@ class SessionConfig:
     token_spot: tuple[float, float, float] | None = None         # where the bot lays its active ability tokens (Abe); default: beside its deck
     bot_ongoing_spot: tuple[float, float, float] | None = None   # ONGOING zone below each combat zone (E2, Ivan): the bot lays its
     human_ongoing_spot: tuple[float, float] | None = None        # ONGOING scheme there; the human leaves theirs (recognized there)
+    bot_tuck_spot: tuple[float, float, float] | None = None      # where the bot tucks its inventions (Donatello); outside its discard zone
+    bot_removed_spot: tuple[float, float, float] | None = None   # where the bot sets aside the cards it removes from the game
 
 
 def human_dead_spot(cfg: "SessionConfig") -> tuple[float, float, float] | None:
@@ -341,6 +344,12 @@ class Session:
         self._dials_pending: set[str] = set()               # dials with a write still to be checked
         self._post: list[Callable[[], bool]] = []           # checks that wait for the button's closing
         self._snap_spec: lua.SnapSpec | None = None
+        self.configured_pieces = {fid: piece_guids(v) for fid, v in cfg.pieces.items()}   # as the data gives them (identity of the table)
+        self.resolved_pieces: dict[str, list[str]] = {}     # fid -> GUIDs found by name when the configured one held another piece (saved)
+        self._piece_notes: list[str] = []                   # what the resolution has to tell the player
+        self._piece_gave_up: set[str] = set()               # fids whose piece was looked for by name once, in vain
+        self._resolving = False
+        self._piece_full_check = False                      # the next table read also looks for a piece missing at its GUID
         self._write_seq = 0                                 # last table write sent (the composite seals it)
         self._deck_ident: dict[str, tuple] = {}             # "bot"/"human" -> (FaceURL, BackURL) pairs of its deck
         self._saved_ident: dict[str, tuple] = {}            # the same, read from session.json (if the table does not answer)
@@ -392,6 +401,7 @@ class Session:
         self.game_log.new_game((self.game.hero_def(self.bot).name, self.game.hero_def(self.human).name))
         self.game_log.observe(self.game, self._name)
         self._check_config()
+        self._check_pieces()
         self._preload_identities()
         self._announce_first()
         self._announce_bot_hero()
@@ -434,6 +444,7 @@ class Session:
         self.messages = []
         self._destiny_tried = False
         self._check_config()
+        self._check_pieces()
         self._preload_identities()
         self.game_log.resumed()
         self.game_log.observe(self.game, self._name)
@@ -502,11 +513,11 @@ class Session:
                 if self._on_board(info):
                     self.game.start_spaces[player] = info["space"]
         if not self._table_hand_ids():
-            self.game.drawn[self.bot] = START_HAND
+            self.game.drawn[self.bot] = self.game.start_hand(self.bot)
             self.dirty = True
-            self.say(t("sess.bot_deals", n=START_HAND))
+            self.say(t("sess.bot_deals", n=self.game.start_hand(self.bot)))
         if self._rd_human_count(1) == 0:
-            self.say(t("sess.deal_yours", n=START_HAND), ChatKind.YOUR_TURN)
+            self.say(t("sess.deal_yours", n=self.game.start_hand(self.human)), ChatKind.YOUR_TURN)
 
     # ---------- game setup: persisted state machine ----------
     # Stages (self.setup["stage"]): those the bot runs alone, and those waiting for the human (Ready button).
@@ -572,9 +583,9 @@ class Session:
     def _setup_hand(self) -> None:
         self._name_pieces()
         if not self._table_hand_ids():
-            self.game.drawn[self.bot] = START_HAND
+            self.game.drawn[self.bot] = self.game.start_hand(self.bot)
             self.dirty = True
-            self.say(t("sess.bot_deals", n=START_HAND))
+            self.say(t("sess.bot_deals", n=self.game.start_hand(self.bot)))
         self.read_bot_hand()
         if self.dirty:
             self._flush_table()
@@ -610,7 +621,7 @@ class Session:
         s["mull_decision"], s["mull_step"] = False, "start"
         self.read_bot_hand()
         if not self._table_hand_ids():
-            g.drawn[self.bot] = START_HAND
+            g.drawn[self.bot] = self.game.start_hand(self.bot)
             self.read_bot_hand()
             self.dirty = True
         if self.dirty:
@@ -643,7 +654,7 @@ class Session:
             st.hand, st.deck = [], [x for x in st.full_set if x not in st.discard]
             g.rng.shuffle(st.deck)
             g.drawn[self.bot] = 0
-            g.draw(self.bot, START_HAND, log=False)
+            g.draw(self.bot, self.game.start_hand(self.bot), log=False)
             self.dirty = True
             step = s["mull_step"] = "shuffled"
             self._persist()
@@ -746,11 +757,11 @@ class Session:
         elif s["stage"] not in ("wait_human_first", "wait_human"):
             self.say(t("setup.mull.wait_bot"), ChatKind.WARNING)
         elif s.get("human_mull"):
-            self.say(t("setup.mull.done", n=START_HAND), ChatKind.WARNING)
+            self.say(t("setup.mull.done", n=self.game.start_hand(self.human)), ChatKind.WARNING)
         else:
             s["human_mull"] = True
-            self.say(t("setup.mull.go.sidekick", n=START_HAND, names=self._sidekick_names()) if self._sidekicks()
-                     else t("setup.mull.go.plain", n=START_HAND), ChatKind.YOUR_TURN)
+            self.say(t("setup.mull.go.sidekick", n=self.game.start_hand(self.human), names=self._sidekick_names()) if self._sidekicks()
+                     else t("setup.mull.go.plain", n=self.game.start_hand(self.human)), ChatKind.YOUR_TURN)
 
     def _human_setup_ok(self) -> bool:
         g = self.game
@@ -765,18 +776,24 @@ class Session:
                 return False
         count = self._rd_human_count(0)
         if count == 0:
-            self.say(t("setup.draw_first", n=START_HAND), ChatKind.WARNING)
+            self.say(t("setup.draw_first", n=self.game.start_hand(self.human)), ChatKind.WARNING)
             return False
-        if (self.setup or {}).get("human_mull") and count != START_HAND:
-            self.say(t("setup.mull_count", n=START_HAND, count=count), ChatKind.WARNING)
+        if (self.setup or {}).get("human_mull") and count != self.game.start_hand(self.human):
+            self.say(t("setup.mull_count", n=self.game.start_hand(self.human), count=count), ChatKind.WARNING)
             return False
         return True
 
     def _name_pieces(self) -> None:
         """Gives each miniature the name of its configuration key (Harpy 1/2/3...) to tell them apart with the
         mouse. By GUID; a failure does not matter to the game."""
+        owners: dict[str, int] = {}
+        for fid in self.cfg.pieces:
+            for g in self._guids(fid):
+                owners[g] = owners.get(g, 0) + 1
+        # a GUID two fighters share is never renamed: it would rename one hero's miniature with the other's name
+        # (session_pieces tells them apart by exactly that name)
         names = {g: self.cfg.nicknames[fid] for fid in self.cfg.pieces if fid in self.cfg.nicknames
-                 for g in self._guids(fid)}
+                 for g in self._guids(fid) if owners[g] == 1}
         if not names:
             return
         try:
@@ -1317,17 +1334,18 @@ class Session:
             "start_spaces": {str(k): v for k, v in self.game.start_spaces.items()},
             "deck_ident": {side: [list(pair) for pair in pairs]
                            for side, pairs in {**self._saved_ident, **self._deck_ident}.items()},
+            **({"resolved_pieces": self.resolved_pieces} if self.resolved_pieces else {}),
         }
 
     def fingerprint(self) -> dict:
         """Fingerprint of the save: which table (GUIDs and identity settings) and which game it belongs to."""
-        return {"game_id": self.game_id, "config_hash": self._config_hash(), "guids": self.guids_in_use()}
+        return {"game_id": self.game_id, "config_hash": self._config_hash(), "guids": self.guids_in_use(configured=True)}
 
     def _config_hash(self, **override) -> str:
         c = self.cfg
         identity = {k: getattr(c, k) for k in IDENTITY_KEYS}
         identity.update(override)
-        identity["pieces"] = {fid: piece_guids(v) for fid, v in sorted(c.pieces.items())}
+        identity["pieces"] = {fid: v for fid, v in sorted(self.configured_pieces.items())}
         identity["board"] = self.game.board.key
         return hashlib.sha256(json.dumps(identity, sort_keys=True).encode("utf-8")).hexdigest()
 
@@ -1385,6 +1403,7 @@ class Session:
             self.destiny_seen = None if seen is None else (int(seen[0]), str(seen[1]))
             self.game_id = d["fingerprint"]["game_id"]
             self._saved_ident = self._load_saved_identities(d.get("deck_ident"))
+            piece_id.restore(self, d.get("resolved_pieces"))
         except (KeyError, TypeError, IndexError, ValueError) as e:
             raise persist.StateError(t("save.invalid", error=repr(e))) from None
 
@@ -1467,11 +1486,13 @@ class Session:
         except OSError as e:
             self.say(t("sess.save_fail", path=self.state_path, err=e), ChatKind.WARNING)
 
-    def guids_in_use(self) -> list[str]:
-        """All the configuration's GUIDs that must still exist after reloading the game."""
+    def guids_in_use(self, configured: bool = False) -> list[str]:
+        """All the configuration's GUIDs that must still exist after reloading the game (`configured`: the pieces' GUIDs
+        as the data gives them, not as resolved by name)."""
         c = self.cfg
+        pcs = self.configured_pieces if configured else {fid: piece_guids(v) for fid, v in c.pieces.items()}
         guids = [lua.BOARD_GUIDS[self.game.board.key], c.bot_deck_guid, c.bot_discard_zone, c.human_discard_zone,
-                 *(g for v in c.pieces.values() for g in piece_guids(v)), *c.dials.values(),
+                 *(g for v in pcs.values() for g in v), *c.dials.values(),
                  *([c.destiny_dial] if c.destiny_dial else [])]
         return sorted(set(guids))
 
@@ -1537,6 +1558,7 @@ class Session:
             self._draw_human_by_button(1)
             self._announce_exhaustion(hp0, alive0)
             self.say(t("maneuver.drew"), ChatKind.YOUR_TURN)
+            self.game.fx.emit("after_maneuver", self.human)
             return
         if not st.deck:                           # empty deck: exhaustion through the same path as the bot's
             self._draw_human_by_button(1)
@@ -1544,6 +1566,7 @@ class Session:
             self.say(t("maneuver.empty"), ChatKind.YOUR_TURN)
             return
         self._deal_maneuver_card(st)
+        self.game.fx.emit("after_maneuver", self.human)       # INVENTIVE asks on the panel (a trigger of the hero)
 
     def _deal_maneuver_card(self, st) -> None:
         """Deals the Maneuver card from the human's deck to their hand, in the same composite as the button. It only
@@ -2678,7 +2701,7 @@ class Session:
     def _discard_done(self) -> bool:
         d, st = self.pending_discard, self.game.players[self.human]
         if d["kind"] == "limit":
-            done = len(st.hand) <= HAND_LIMIT
+            done = len(st.hand) <= self.game.hand_cap(self.human)
         else:
             if d["baseline"] is None:
                 d["baseline"] = len(st.discard)
@@ -2718,12 +2741,12 @@ class Session:
             self.say(t("turn.look_first"), ChatKind.YOUR_TURN)
             return
         hand = g.players[self.human].hand
-        excess = len(hand) - HAND_LIMIT
+        excess = len(hand) - self.game.hand_cap(self.human)
         if excess > 0 and self.limit_waived:      # the human annulled the discard: the engine does not demand it again
-            self._trim_virtual_hand(HAND_LIMIT)
+            self._trim_virtual_hand(self.game.hand_cap(self.human))
         elif excess > 0:
             self.pending_discard = {"n": excess, "baseline": None, "kind": "limit"}
-            self.say(t("discard.limit", n=excess, limit=HAND_LIMIT), ChatKind.YOUR_TURN)
+            self.say(t("discard.limit", n=excess, limit=self.game.hand_cap(self.human)), ChatKind.YOUR_TURN)
             return
         self.limit_waived = False
         self.chosen_attacker = None
@@ -3867,7 +3890,7 @@ class Session:
         sit in the table hand: never counted as hand cards, never dealt again."""
         p, st = self.pending, self.game.players[self.bot]
         cards = [c for owner, c in p.flow.played if owner == self.bot] if p is not None and p.flow is not None else []
-        ids = {self.game.fx.ongoing_card_id(self.bot)}
+        ids = {self.game.fx.ongoing_card_id(self.bot), *(c.card_id for c in st.tucked), *(c.card_id for c in st.removed)}
         ids |= {r.flags["scheme"]["card_id"] for r in self.game.fx.parked
                 if r.flags.get("scheme", {}).get("player") == self.bot}
         return cards + [c for c in st.full_set if c.card_id in ids]
@@ -3992,7 +4015,8 @@ class Session:
         st = self.game.players[self.bot]
         held = self.pending.bot_card.card_id if self.pending and self.pending.bot_card else None
         for c in st.full_set:
-            if c.card_id in on_pile and c not in st.discard and c.card_id != held and c.card_id not in self.fx_in_flight:
+            if c.card_id in on_pile and c not in st.discard and c.card_id != held and c.card_id not in self.fx_in_flight \
+                    and c not in st.tucked and c not in st.removed:
                 for zone in (st.hand, st.deck):
                     if c in zone:
                         zone.remove(c)
@@ -4004,13 +4028,14 @@ class Session:
         """The table wins: the engine's hand, discard and positions become what is seen. Closes any debt."""
         st = self.game.players[self.bot]
         by_id = {c.card_id: c for c in st.full_set}
-        on_pile = self._table_discard()
+        on_pile = self._table_discard() - {c.card_id for c in (*st.tucked, *st.removed)}
         st.discard[:] = [c for c in st.discard if c.card_id in on_pile] \
             + [by_id[i] for i in sorted(on_pile) if by_id[i] not in st.discard]
         self.bot_discarded = set(on_pile)
         self.game.drawn[self.bot] = 0
         self.dirty, self.unprojected, self.flush_failures = False, None, 0
         self.read_bot_hand()
+        self._check_pieces()
         self.sync_positions()
         self.say(t("adopt.table"), ChatKind.WARNING)
 
@@ -4264,15 +4289,54 @@ class Session:
         guids = sorted({g for fid in self.cfg.pieces for g in self._guids(fid)})
         if self.cfg.batch:
             found = self._view("pieces")["pieces"]
+            if not set(guids) <= set(found):          # the panel's snapshot predates a GUID resolved by name
+                self.snap = None
+                found = self._view("pieces")["pieces"]
         else:
             found = self.client.call_lua(lua.piece_spaces_by_guid(self.game.board, guids))
         found = found if isinstance(found, dict) else {}
+        if not self._resolving:
+            # A GUID that holds another hero's piece is always looked into; a GUID with nothing at it only on the first read
+            # after start / resume / adopt (and not while the game is being set up: the pieces are still in their bags).
+            full, self._piece_full_check = self._piece_full_check and self.setup is None, False
+            wanted = {fid for fid, owner in piece_id.problems(self, found).items()
+                      if fid not in self._piece_gave_up and (owner is not None or full)}
+            if wanted:                                # look for the right piece by name
+                before = {fid: self.cfg.pieces[fid] for fid in wanted}
+                self.resolve_pieces(found)
+                self._tell_piece_notes()
+                if any(self.cfg.pieces[fid] != before[fid] for fid in wanted):
+                    return self._table_pieces()
         out = {}
         for fid in self.cfg.pieces:
             hit = next(((g, found[g]) for g in self._guids(fid)
                         if isinstance(found.get(g), dict) and found[g].get("found")), None)
             out[fid] = {**hit[1], "guid": hit[0]} if hit else {"found": False}
         return out
+
+    def resolve_pieces(self, found: dict | None = None) -> bool:
+        """Checks every piece by name and re-points those whose GUID holds another piece (session_pieces). The lines for
+        the player wait in `_piece_notes` until `_tell_piece_notes`."""
+        self._resolving = True
+        try:
+            changed, notes = piece_id.resolve(self, found)
+        finally:
+            self._resolving = False
+        self._piece_notes += notes
+        return changed
+
+    def _tell_piece_notes(self) -> None:
+        notes, self._piece_notes = self._piece_notes, []
+        for line in notes:
+            self.say(line, ChatKind.WARNING)
+
+    def _check_pieces(self) -> None:
+        """At start, resume and adopt: GUIDs two heroes share in the data are said and the next table read verifies every
+        piece by name (it is the read the step makes anyway: no extra message)."""
+        self._piece_gave_up, self._piece_full_check = set(), True
+        for line in piece_id.shared_guids(self):
+            self.say(line, ChatKind.WARNING)
+        self._tell_piece_notes()
 
     def _move_stage(self, fid: str, space: int, pieces: dict[str, dict] | None = None) -> Callable[[], bool]:
         """Queues the miniature's move (with the GUID the table shows; otherwise the first) and returns the
@@ -4325,7 +4389,8 @@ class Session:
         def read() -> set[int]:                   # only the human's cards: foreign things in the zone neither count nor delay
             # a card that an effect of this step is taking out of your discard toward your deck (Searing Clarity, the
             # bot moves it) is not read again as discarded even if the snapshot lags
-            return ({r["id"] for r in self._rd_human_discard()} & own) - self.fx_in_flight
+            aside = {x.card_id for x in (*st.tucked, *st.removed)}     # tucked or removed: still on their pile until they move them
+            return ({r["id"] for r in self._rd_human_discard()} & own) - self.fx_in_flight - aside
         ids = read()
         known = {x.card_id for x in st.discard}
         # a change only counts if two reads see it (card in transit, edge); the click's snapshot is already the

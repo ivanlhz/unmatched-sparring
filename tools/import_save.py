@@ -91,12 +91,22 @@ def dial_max(obj: dict) -> int | None:
     return int(m.group(1)) if m else None
 
 
+COLOR_TAG_RE = re.compile(r"\[(?:[0-9A-Fa-f]{6}|-)\]")       # TTS markup in a nickname: "[E77204]Michelangelo", closed by "[-]"
+NAME_NOISE_RE = re.compile(r"[^a-z0-9]")
+
+
 def _nick(obj: dict) -> str:
-    return (obj.get("Nickname") or "").strip()
+    return COLOR_TAG_RE.sub("", obj.get("Nickname") or "").strip()
+
+
+def _plain(name: str) -> str:
+    """A name as the save spells it or not: case, spaces and punctuation aside ("April O' Neil" is "April O'Neil")."""
+    return NAME_NOISE_RE.sub("", name.casefold())
 
 
 def _same(a: str, b: str) -> bool:
-    return a.casefold() == b.casefold()
+    """Same name ignoring case, punctuation and the TTS colour tags a nickname may carry ('[016099]Leonardo')."""
+    return _plain(COLOR_TAG_RE.sub("", a)) == _plain(COLOR_TAG_RE.sub("", b))
 
 
 def deck_sheet(deck: dict) -> tuple[tuple[int, int], int] | None:
@@ -172,7 +182,7 @@ def _tts_tokens(raw_hero: dict) -> dict[str, str]:
 
 
 def _dial_matches(nick: str, name: str) -> bool:
-    a, b = nick.casefold(), name.casefold()
+    a, b = _plain(nick), _plain(name)
     return bool(a) and (a == b or a.startswith(b) or b.startswith(a))
 
 
