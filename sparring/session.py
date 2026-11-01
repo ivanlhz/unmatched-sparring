@@ -30,7 +30,7 @@ from .ai_medusa import GAZE, MedusaAI, play_signature
 from .cards import Card, can_be_boost
 from .controller import Controller
 from .combat_flow import CombatFlow, PendingChoice, Phase, legacy_chooser
-from .effects import events, narrate
+from .effects import events, narrate, ongoing
 from .effects.choose import ControllerChooser
 from .effects.run import EffectRun
 from .game_log import GameLog
@@ -42,7 +42,7 @@ from . import session_moves as moves
 from . import session_pile as pile
 from . import session_translators as translators
 from .spaces import describe, zone_text
-from .combat import FEINT, FIGHT_OR_FLIGHT, FIGHT_OR_FLIGHT_BONUS, GLANCE_DAMAGE, can_boost, deck_boost, is_medusa_card, scheme_gain_actions
+from .combat import FEINT, GLANCE_DAMAGE, can_boost, deck_boost, is_medusa_card, scheme_gain_actions
 from .state import ANUNG, DETECTIVE, EXHAUST_DAMAGE, HAND_LIMIT, START_HAND, Fighter, Game, RuleError
 from .tts import lua, ui
 from .tts.lua import ChatKind
@@ -50,7 +50,7 @@ from .tts.client import TTSClient, TTSLuaError
 from .tts.ui import Event
 
 
-CROWN = "And Upon His Brow Is Set A Crown Of Flame"
+NUMBER_WORDS = {2: "dos", 3: "tres"}      # how many effects a scheme makes you pick, in the chat
 
 
 class SessionError(Exception):
@@ -1078,7 +1078,6 @@ class Session:
             self._deal_owed_draws(human_effects.ABILITY_NAME.get(run.label, run.label.replace("_", " ").upper()))
         scheme = run.flags.get("scheme")
         if scheme:
-            from .effects import ongoing
             player = scheme["player"]
             card = next(c for c in self.game.players[player].full_set if c.card_id == scheme["card_id"])
             ongoing.finish_scheme(self.game, player, card)
@@ -1767,9 +1766,9 @@ class Session:
         if not (self._settle(seen) if wait else seen()):
             return False
         self.scheme_baseline = None
-        crown = [c for c in found if c.title == CROWN]
-        if crown:                                 # Crown descarta la mano: lo demas que aparece no es un plan jugado
-            found[:] = crown[:1]
+        discarding = [c for c in found if self._scheme_traits(c).get("discards_hand")]
+        if discarding:                            # a card that discards the hand: the rest that appears is not a played scheme
+            found[:] = discarding[:1]
         for c in found:
             self._apply_human_scheme(c)
             self._grant_look_for(c)
@@ -1780,27 +1779,34 @@ class Session:
         g = self.game
         if g.fx.interprets(self.human):               # E2: the interpreter, in table mode
             human_effects.play_scheme(self, c)
-        elif c.title == CROWN:
-            g.draw(self.human, 2)
-            self.say(f"Detecto {c.title}: aplicado, {self._gain_actions(2)}. Descartar tu mano "
+        elif (traits := self._scheme_traits(c)).get("discards_hand"):
+            g.draw(self.human, traits["draw"])
+            self.say(f"Detecto {c.title}: aplicado, {self._gain_actions(scheme_gain_actions(c))}. Descartar tu mano "
                      "lo haces tu: son tus cartas.", ChatKind.SCHEME)
-        elif c.title == FIGHT_OR_FLIGHT:
-            old = g.add_combat_bonus(self.human, FIGHT_OR_FLIGHT_BONUS, FIGHT_OR_FLIGHT)
+        elif traits.get("bonus"):
+            old = g.add_combat_bonus(self.human, traits["bonus"], c.title)
             if old is not None:
                 self.say(f"{c.title} reemplaza a {old}: solo hay un ONGOING activo por jugador.", ChatKind.SCHEME)
             total = g.combat_bonus_total(self.human)
-            g.draw(self.human, 1)
-            self.say(f"Detecto {c.title}: +{FIGHT_OR_FLIGHT_BONUS} a tus cartas de combate hasta el inicio de tu siguiente "
+            g.draw(self.human, traits["draw"])
+            self.say(f"Detecto {c.title}: +{traits['bonus']} a tus cartas de combate hasta el inicio de tu siguiente "
                      f"turno (ahora +{total}). Mover hasta 5 lo haces tu en la mesa; descarta el plan al "
                      "empezar tu siguiente turno.", ChatKind.SCHEME)
-        elif c.title == "Pancakes!":
-            self.say(f"Detecto {c.title}: tienes que elegir dos efectos. Para curar a {g.hero(self.human).name} 2 pulsa su +1 dos veces; "
+        elif traits.get("choose"):
+            times = {1: "una vez", 2: "dos veces"}.get(traits["heal"], f"{traits['heal']:g} veces")
+            self.say(f"Detecto {c.title}: tienes que elegir {NUMBER_WORDS.get(traits['choose'], traits['choose'])} efectos. "
+                     f"Para curar a {g.hero(self.human).name} {traits['heal']:g} pulsa su +1 {times}; "
                      "el mazo lo haces tu en la mesa.", ChatKind.SCHEME)
         elif scheme_gain_actions(c):
             self.say(f"Detecto {c.title}: {self._gain_actions(scheme_gain_actions(c))}; "
                      f"lo demas lo resuelves tu: {c.text} Usa +1 / -1 para los PV.", ChatKind.SCHEME)
         else:
             self.say(f"Detecto {c.title}: {c.text} Resuelvelo a mano; usa +1 / -1 para los PV.", ChatKind.SCHEME)
+
+    def _scheme_traits(self, card: Card) -> dict:
+        """What the data of a human's scheme says about it (`ongoing.scheme_traits`), for the heroes the interpreter
+        does not run: the legacy path reads it from the card's DSL, never from its title."""
+        return ongoing.scheme_traits(self.game.players[self.human].hero.slug, card.title)
 
     def _gain_actions(self, n: int) -> str:
         """Grants the actions a scheme gives (the engine refuses them under Cold Iron And Holy Water) and says so."""
@@ -2655,8 +2661,8 @@ class Session:
 
     # ---------- descartes del humano ----------
     def _owe_discard(self, n: int, reason: str) -> None:
-        translators.translate(self, {"op": "discard", "player": self.human, "zone": "hand", "n": n, "reason": reason},
-                              translators.Ctx())
+        translators.translate(self, {"op": "discard", "player": self.human, "zone": "hand", "n": n, "reason": reason,
+                                     "all": self.game.fx.whole_hand}, translators.Ctx())
 
     def _discard_human_hand(self, n: int, reason: str) -> int:
         """Crown Of Flame (Ivan, 30/10): the bot moves the human's whole hand to their discard pile, face up, and the
@@ -2780,6 +2786,7 @@ class Session:
         self.chosen_attacker = None
         before, fx_before = self._snapshot_bot(), bot_effects.snapshot(self)
         hp0 = {fid: f.hp for fid, f in g.fighters.items()}
+        self._attack_announced = None             # a new turn: an identical attack is announced again
         g.end_turn()
         probe = self._wildfire_probe()
         g.begin_turn()                            # el cambio de turno es atomico; lo que sigue es solo E/S
@@ -3197,6 +3204,7 @@ class Session:
         fx_before = bot_effects.snapshot(self)
         in_play = g.fx.ongoing_card_id(self.human)
         hp0 = {fid: f.hp for fid, f in g.fighters.items()}
+        self._attack_announced = None
         g.end_turn()                              # puede descartar por limite de mano: eso tambien es deuda de mesa
         hurt_at_end = any(f.hp != hp0[fid] for fid, f in g.fighters.items())      # Pact Of Peace hurts who attacked
         expired = g.begin_turn()

@@ -32,8 +32,9 @@ def settle(session) -> None:
 # ---------------------------------------------------------------- the registry
 
 @with_rig(*HELLBOY_VS_ABE)
-def test_the_registry_holds_the_phase_one_ops_with_both_variants(rig):
-    assert set(TRANSLATORS) == {"draw", "discard", "move"}
+def test_the_registry_holds_the_translated_ops_with_both_variants(rig):
+    assert set(TRANSLATORS) == {"draw", "discard", "move", "place", "swap", "revive", "summon", "return_to_deck",
+                                "put_in_hand", "search_deck", "counter", "form", "ongoing"}
     for t in TRANSLATORS.values():
         assert callable(t.bot) and callable(t.human) and t.bot is not t.human and callable(t.mode)
 
@@ -122,13 +123,13 @@ def test_the_forced_discard_of_the_engine_reaches_the_translator(rig, monkeypatc
     monkeypatch.setitem(TRANSLATORS, "discard", Translator(mode=lambda s, i: HUMAN, bot=lambda s, i, c: [],
                                                            human=lambda s, i, c: seen.append(i) or []))
     session._owe_discard(1, "Algo")
-    assert seen == [{"op": "discard", "player": session.human, "zone": "hand", "n": 1, "reason": "Algo"}]
+    assert seen == [{"op": "discard", "player": session.human, "zone": "hand", "n": 1, "reason": "Algo", "all": False}]
 
 
 @with_rig(*HELLBOY_VS_ABE)
 def test_discard_bot_variant_for_crown_moves_the_hand_and_asks_only_for_what_is_left(rig, monkeypatch):
     session, table, game, fake, cfg = rig
-    intent = {"op": "discard", "player": session.human, "zone": "hand", "n": 3, "reason": CROWN}
+    intent = {"op": "discard", "player": session.human, "zone": "hand", "n": 3, "reason": CROWN, "all": True}
     assert translators._discard_mode(session, intent) == BOT
     calls = []
     monkeypatch.setattr(session, "_discard_human_hand", lambda n, reason: calls.append((n, reason)) or 1)
@@ -254,7 +255,8 @@ def test_without_an_ongoing_spot_the_card_already_sits_on_the_pile(rig):
 def test_the_ops_report_the_ongoing_that_left_play_and_a_clone_listens_to_nothing(rig):
     session, table, game, fake, cfg = rig
     fof = put_in_play(game)
-    assert game.fx.intents == [] and game.clone().fx.intents is None
+    assert game.clone().fx.intents is None
+    game.fx.intents.clear()
     ongoing.leave_play(game, 1)
     assert game.fx.intents == [{"op": "discard", "zone": "in_play", "player": 1, "card": fof}]
     assert bot_effects._drain_intents(session) == [{"op": "discard", "zone": "in_play", "player": 1, "card": fof}]

@@ -179,7 +179,11 @@ def _discard(run, game, spec):
         reason = _card_title(game, run)
         if sel.get("pick") == "random":
             reason = _random_positions_text(game, run, player, n, reason)
-        chosen = game.force_discard(player, n, reason, player if voluntary else run.ctx.owner)
+        game.fx.whole_hand = sel.get("pick") == "all"      # the table translator may move a whole hand itself
+        try:
+            chosen = game.force_discard(player, n, reason, player if voluntary else run.ctx.owner)
+        finally:
+            game.fx.whole_hand = False
         run.flags["physical_discard"] = True
         if "as" in spec:
             run.bind("cards", spec["as"], [c.card_id for c in chosen])
@@ -305,6 +309,8 @@ def _return_to_board(run, game, spec, op_name: str, targets, hp) -> None:
         f.alive, f.pos, f.hp = True, spot, min(hp, f.max_hp)
         if by_hand:
             table.note(run, op=op_name, fid=f.fid, where=spec["where"], hp=f.hp)
+        else:
+            table.intent(game, op=op_name, fid=f.fid, owner=f.owner)
 
 
 @op("place")
@@ -315,8 +321,9 @@ def _place(run, game, spec):
     for f, spot, by_hand in _plan_spots(game, run, targets, spec["where"], chooser, "place"):
         if by_hand:
             table.note(run, op="place", fid=f.fid, where=spec["where"])
-        else:
+        elif spot != f.pos:
             f.pos = spot
+            table.intent(game, op="place", fid=f.fid, owner=f.owner)
 
 
 @op("swap")
@@ -326,6 +333,8 @@ def _swap(run, game, spec):
     b = pick_fighters(game, run, spec["with"], chooser, op="swap")
     if a and b and a[0] is not b[0] and a[0].alive and b[0].alive and game.fx.can_move(a[0]) and game.fx.can_move(b[0]):
         a[0].pos, b[0].pos = b[0].pos, a[0].pos
+        for f in (a[0], b[0]):
+            table.intent(game, op="swap", fid=f.fid, owner=f.owner)
 
 
 @op("revive")
@@ -353,7 +362,10 @@ def _counter(run, game, spec):
         rng = load_effects(game.players[player].hero.slug).counter_range(spec["name"])
         now = game.fx.counter_value(player, spec["name"], rng.start)
         value = spec["set"] if "set" in spec else now + spec["delta"]
-        game.fx.set_counter(player, spec["name"], max(rng.min, min(rng.max, value)))
+        value = max(rng.min, min(rng.max, value))
+        game.fx.set_counter(player, spec["name"], value)
+        if value != now:
+            table.intent(game, op="counter", player=player, name=spec["name"])
 
 
 @op("gain_action")

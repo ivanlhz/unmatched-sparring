@@ -182,6 +182,8 @@ Anota OK / fallo y que paso. Un fallo de proyeccion se dice **una vez** ("hazlo 
 - [ ] `hand_to_deck`: carta de la mano del bot al mazo (`putObject` directo desde la zona de mano; "abajo" = mazo girado).
 - [ ] `return_card_to_hand`: carta del descarte (o del combate, al cancelar) vuelve a la mano del bot.
 - [ ] `move_piece`: el bot mueve una **miniatura tuya** por efecto (por GUID); si falla dice "muevela tu".
+- [ ] **Traductores de fase 2 (1/11)**: lo que el bot ya hacia por efecto sale ahora de un registro de traductores (`session_translators`) y las cartas dicen como (`return_to_deck` con posicion, `put_in_hand`, `search_deck`, `counter`, `form`, `ongoing`, y `place` / `swap` / `revive` / `summon` de **tus** miniaturas con el mismo `move_piece`). Debe verse **igual que antes**; apunta cualquier carta cuyo efecto en la mesa cambie: Glimpse Of Hell / Pyrotechnics (mano del bot -> fondo del mazo), Rekindle / Pancakes! del bot (descarte -> mazo), Ward And Prepare, Pact Of Freedom (`place` de tu miniatura), un intercambio de casillas, Abe (fichas) y Hellboy (forma).
+- [ ] **Crown Of Flame sin comprobar el titulo (1/11)**: el bot sigue descartando **toda tu mano** el solo (el descarte de mano completa lo marca el propio efecto, `pick: all`); si la mesa lo rechaza, dice "No he podido descartar tu mano" y te pide el descarte a mano.
 - [ ] `set_state` + `flip_token` + `ping_objects` (Hellboy) y `take_token_copy` / `remove_token` (Abe): ver seccion 3.
 - [ ] `onPlayerPing` llega al script del panel con tu asiento y el objeto esperado (si TTS no da objeto, se usa la carta de la fila a menos de 1.6).
 - [ ] `read_hand` de tu asiento: un mensaje por look; el bot nunca lee tu mano fuera de un look.

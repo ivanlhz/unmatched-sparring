@@ -147,6 +147,8 @@ def _search_deck(run, game, spec):
         watcher.set_top([c.card_id for c in rest])
     else:
         watcher.clear_top()
+    if taken:
+        table.intent(game, op="search_deck", player=target, cards=[c.card_id for c in taken])
     if "as" in spec:
         run.bind("cards", spec["as"], [c.card_id for c in taken])
 
@@ -202,6 +204,10 @@ def _return_to_deck(run, game, spec):
             st.deck.extend(cards)
         if position == "shuffle":
             st.deck[:] = [st.deck[i] for i in perms[holder]]
+        for zone in ("hand", "discard"):          # the table sees these two leave; `cards` in the order the deck holds them
+            moved_here = [c.card_id for c in cards if zones[c.card_id] == zone]
+            if moved_here:
+                table.intent(game, op="return_to_deck", player=holder, zone=zone, cards=moved_here, position=position)
         watcher, ids = _watcher(game, holder), [c.card_id for c in cards]
         for i in ids:
             if zones[i] == "deck":
@@ -225,6 +231,7 @@ def _put_in_hand(run, game, spec):
         else:
             continue
         st.hand.append(card)
+        table.intent(game, op="put_in_hand", player=holder, zone=zone, cards=[card.card_id])
         watcher = _watcher(game, holder)
         was_known_top = card.card_id in watcher.top_of_deck
         watcher.drop_top(card.card_id)

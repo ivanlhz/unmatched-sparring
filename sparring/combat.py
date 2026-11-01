@@ -8,6 +8,7 @@ import re
 from dataclasses import dataclass, field
 
 from .cards import MEDUSA_BASE, Card, can_be_boost
+from .effects import ongoing
 from .state import Fighter, Game, RuleError
 
 GAZE_DAMAGE = 8          # Gaze of Stone and A Momentary Glance: the AI weighs them; the effects data applies them
@@ -17,8 +18,7 @@ SECOND_SHOT = "Second Shot"
 FEINT = "Feint"
 PLANNED = "Planned Recklessness"
 ON_EARTH = "On Earth As It Is In Hell"
-FIGHT_OR_FLIGHT = "Fight Or Flight"
-FIGHT_OR_FLIGHT_BONUS = 1
+FIGHT_OR_FLIGHT = "Fight Or Flight"          # only a label for the tests: the engine reads the bonus from the card data
 
 
 def is_medusa_card(card: Card) -> bool:
@@ -105,7 +105,8 @@ def scheme_gain_actions(card: Card) -> int:
 def resolve_scheme(game: Game, player: int, fighter: Fighter, card: Card) -> list[str]:
     """A scheme of a hero outside `fx.dsl_heroes`: the engine applies the ONGOING bonus and the actions it grants;
     the human resolves the rest of the text (returned)."""
-    if card.title == FIGHT_OR_FLIGHT:
-        game.add_combat_bonus(player, FIGHT_OR_FLIGHT_BONUS, FIGHT_OR_FLIGHT)
+    bonus = ongoing.scheme_traits(game.players[player].hero.slug, card.title).get("bonus")
+    if bonus:
+        game.add_combat_bonus(player, bonus, card.title)
     game.grant_actions(scheme_gain_actions(card))
     return [f"{card.title}: {card.text}"]

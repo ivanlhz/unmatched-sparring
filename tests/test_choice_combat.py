@@ -15,7 +15,7 @@ from sparring.effects import modifiers
 from sparring.effects.choose import ControllerChooser, PanelChooser
 from sparring.effects.ops_core import OPS
 from sparring.effects.run import Ctx, EffectRun
-from sparring.session import CROWN, Session
+from sparring.session import Session
 from sparring.state import Game, RuleError
 from sparring.tts import ui
 from sparring.tts.ui import Event
@@ -24,6 +24,7 @@ from test_choice_infra import pancakes, visible_choices
 from test_golden import jsonable
 from test_session import human_plays
 
+CROWN = "And Upon His Brow Is Set A Crown Of Flame"
 CHOICE = ui.CHOICE_BUTTONS
 UNTIL = {"event": "end_of_turn"}
 

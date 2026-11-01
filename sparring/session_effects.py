@@ -26,6 +26,7 @@ from .effects.run import Ctx, EffectRun
 from .effects.select import condition
 from .tts.lua import ChatKind
 from . import session_bot_effects as bot_effects
+from . import session_translators as translators
 
 STEP = "step"       # run.flags key: what a human scheme's step needs at its end (JSON-safe, survives a pause)
 
@@ -105,12 +106,8 @@ def finish(session, run: EffectRun) -> None:
                     f"{g.actions_left}.", ChatKind.WARNING)
     now = g.fx.ongoing_card_id(human)
     if now == run.ctx.card_id:
-        was = step["in_play"]
-        by_id = {c.card_id: c for c in g.players[human].full_set}
-        replaced = f" y reemplaza a {by_id[was].title} (un solo ONGOING por jugador)" if was is not None and was in by_id else ""
-        where = "en tu zona ONGOING" if session.cfg.human_ongoing_spot is not None else "a la vista en tu descarte"
-        session.say(f"{by_id[now].title} queda en juego{replaced}: dejala {where}, la tengo en cuenta hasta que "
-                    "caduque.", ChatKind.SCHEME)
+        translators.translate(session, {"op": "ongoing", "player": human, "card": now, "replaces": step["in_play"]},
+                              translators.Ctx())
     listed = session._discard_list(step["seen"], {}, "efecto")
     if listed:
         session.say(f"El bot descarta {listed}.")
