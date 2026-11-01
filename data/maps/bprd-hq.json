@@ -18,8 +18,8 @@
     -6.345
    ],
    "zones": [
-    "azul",
-    "gris"
+    "blue",
+    "gray"
    ],
    "adj": [
     1,
@@ -34,7 +34,7 @@
     -5.77
    ],
    "zones": [
-    "azul"
+    "blue"
    ],
    "adj": [
     0,
@@ -49,8 +49,8 @@
     -3.659
    ],
    "zones": [
-    "gris",
-    "azul"
+    "gray",
+    "blue"
    ],
    "adj": [
     0,
@@ -65,7 +65,7 @@
     -4.067
    ],
    "zones": [
-    "azul"
+    "blue"
    ],
    "adj": [
     0,
@@ -79,9 +79,9 @@
     -0.742
    ],
    "zones": [
-    "azul",
-    "gris",
-    "ladrillo"
+    "blue",
+    "gray",
+    "brick"
    ],
    "adj": [
     2,
@@ -96,8 +96,8 @@
     -0.454
    ],
    "zones": [
-    "ladrillo",
-    "rojo"
+    "brick",
+    "red"
    ],
    "adj": [
     4,
@@ -112,7 +112,7 @@
     2.845
    ],
    "zones": [
-    "rojo"
+    "red"
    ],
    "adj": [
     5,
@@ -128,10 +128,10 @@
     2.065
    ],
    "zones": [
-    "gris",
-    "ladrillo",
-    "rojo",
-    "rosa"
+    "gray",
+    "brick",
+    "red",
+    "pink"
    ],
    "adj": [
     6,
@@ -146,8 +146,8 @@
     2.659
    ],
    "zones": [
-    "ladrillo",
-    "rojo"
+    "brick",
+    "red"
    ],
    "adj": [
     7,
@@ -161,7 +161,7 @@
     5.94
    ],
    "zones": [
-    "rojo"
+    "red"
    ],
    "adj": [
     8,
@@ -175,8 +175,8 @@
     5.899
    ],
    "zones": [
-    "rojo",
-    "rosa"
+    "red",
+    "pink"
    ],
    "adj": [
     7,
@@ -191,7 +191,7 @@
     5.764
    ],
    "zones": [
-    "rojo"
+    "red"
    ],
    "adj": [
     6,
@@ -206,7 +206,7 @@
     6.876
    ],
    "zones": [
-    "rosa"
+    "pink"
    ],
    "adj": [
     11,
@@ -221,7 +221,7 @@
     3.148
    ],
    "zones": [
-    "rosa"
+    "pink"
    ],
    "adj": [
     12,
@@ -236,9 +236,9 @@
     -0.221
    ],
    "zones": [
-    "ladrillo",
-    "rojo",
-    "rosa"
+    "brick",
+    "red",
+    "pink"
    ],
    "adj": [
     5,
@@ -256,7 +256,7 @@
     -4.336
    ],
    "zones": [
-    "oliva"
+    "olive"
    ],
    "adj": [
     1,
@@ -271,7 +271,7 @@
     -4.311
    ],
    "zones": [
-    "oliva"
+    "olive"
    ],
    "adj": [
     14,
@@ -286,9 +286,9 @@
     0.125
    ],
    "zones": [
-    "ladrillo",
-    "rosa",
-    "naranja"
+    "brick",
+    "pink",
+    "orange"
    ],
    "adj": [
     13,
@@ -304,7 +304,7 @@
     3.234
    ],
    "zones": [
-    "naranja",
+    "orange",
     "beige"
    ],
    "adj": [
@@ -321,7 +321,7 @@
     6.423
    ],
    "zones": [
-    "naranja",
+    "orange",
     "beige"
    ],
    "adj": [
@@ -337,8 +337,8 @@
     0.218
    ],
    "zones": [
-    "ladrillo",
-    "naranja"
+    "brick",
+    "orange"
    ],
    "adj": [
     17,
@@ -353,8 +353,8 @@
     0.233
    ],
    "zones": [
-    "turquesa",
-    "ladrillo"
+    "turquoise",
+    "brick"
    ],
    "adj": [
     20,
@@ -371,7 +371,7 @@
     -3.291
    ],
    "zones": [
-    "turquesa"
+    "turquoise"
    ],
    "adj": [
     21,
@@ -387,7 +387,7 @@
     -3.208
    ],
    "zones": [
-    "turquesa"
+    "turquoise"
    ],
    "adj": [
     21,
@@ -403,7 +403,7 @@
     -5.61
    ],
    "zones": [
-    "turquesa"
+    "turquoise"
    ],
    "adj": [
     22,
@@ -419,7 +419,7 @@
     -5.582
    ],
    "zones": [
-    "turquesa"
+    "turquoise"
    ],
    "adj": [
     22,
@@ -433,7 +433,7 @@
     -5.627
    ],
    "zones": [
-    "turquesa"
+    "turquoise"
    ],
    "adj": [
     16,
@@ -448,7 +448,7 @@
     0.143
    ],
    "zones": [
-    "ladrillo"
+    "brick"
    ],
    "adj": [
     21,

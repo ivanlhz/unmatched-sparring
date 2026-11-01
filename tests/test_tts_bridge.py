@@ -334,7 +334,7 @@ BAD_R3 = [
     lambda b: lua.inspect_guids("abc123"),
     lambda b: lua.broadcast('hola"); os.exit() --'),
     lambda b: lua.broadcast("x" * 65),
-    lambda b: lua.broadcast("acentos: piña"),
+    lambda b: lua.broadcast("accents: piña"),
     lambda b: lua.broadcast("linea\nnueva"),
     lambda b: lua.broadcast(None),
 ]
@@ -357,7 +357,7 @@ def test_inspect_broadcast_and_piece_count_snippets(bprd):
 
 
 def test_ascii_text_chunks_are_all_accepted_by_broadcast():
-    text = "Combate: 7 contra 3, dano 4. Resuelve los efectos de despues del combate (mover piezas) y pulsa Fin de accion. ¿Listo?"
+    text = "Combat: 7 against 3, damage 4. Resolve the after-combat effects (move pieces) and press End action. ¿Listo, señor?"
     chunks = lua.ascii_text(text)
     assert len(chunks) > 1 and all(len(c) <= 64 for c in chunks)
     for c in chunks:

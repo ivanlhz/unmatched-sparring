@@ -161,7 +161,7 @@
     ],
     "during": [], "after": [], "scheme": [], "boost": []
    },
-   "notes": "No cancela Incinerate (uncancelable)."
+   "notes": "It does not cancel Incinerate (uncancelable)."
   },
   {
    "title": "Evade",

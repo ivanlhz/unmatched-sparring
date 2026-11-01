@@ -18,7 +18,7 @@ def test_maps_load_symmetric_with_zones(key, n):
 
 
 def test_multi_zone_space(bprd):
-    assert bprd.zones(4) == {"azul", "gris", "ladrillo"}
+    assert bprd.zones(4) == {"blue", "gray", "brick"}
 
 
 def test_movement_rules(bprd):

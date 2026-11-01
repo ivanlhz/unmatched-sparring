@@ -853,5 +853,20 @@
  "timing.resume": "resume",
  "timing.effect": "effect",
  "timing.bot_action": "bot action",
- "timing.button": "button {name}"
+ "timing.button": "button {name}",
+ "spaces.color.blue": "blue",
+ "spaces.color.beige": "beige",
+ "spaces.color.gray": "gray",
+ "spaces.color.brick": "brick",
+ "spaces.color.orange": "orange",
+ "spaces.color.olive": "olive",
+ "spaces.color.red": "red",
+ "spaces.color.pink": "pink",
+ "spaces.color.turquoise": "turquoise",
+ "spaces.color.yellow": "yellow",
+ "spaces.color.cream": "cream",
+ "spaces.color.lilac": "lilac",
+ "spaces.color.brown": "brown",
+ "spaces.color.green": "green",
+ "cli.description": "Entry point of the live game."
 }

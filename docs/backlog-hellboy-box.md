@@ -65,7 +65,7 @@ From reviews (28/10):
 - A bot scheme card that pauses for the human stays physically in the bot's hand until the answer; an ONGOING scheme of the bot is never placed on the table (D2).
 - DONE in E2: a pick out of the human's own hand is never shown at the panel: the op leaves a table note ("keep 2 cards from your hand, put the rest in your deck and shuffle") and the sync follows the counts.
 - Bot Liz's Wildfire start-of-turn effects now reach the table (they did not before D3): one message before her first action (test_multihero_bridge budget).
-- A failed projection (piece move, state swap, token, deck move) is said once ("hazlo tu"); the table wins at the next read, no retry queue.
+- A failed projection (piece move, state swap, token, deck move) is said once ("do it yourself"); the table wins at the next read, no retry queue.
 - (D3 review) Bot Liz pays one extra script at turn start (Wildfire discard projected at the turn change), a deviation from "one combined script per step"; fold it into the first action's composite if latency matters live.
 
 ## From E2 (29/10)
@@ -85,7 +85,7 @@ From reviews (28/10):
 - verify_live (E2): the choice buttons of a human scheme (Pancakes!, Posthumous Power) and a resume mid-scheme; Pact Of Secrecy's "0/1/2" amount buttons; the FATEFUL BARGAINS prompt; the "None" button of an optional move; Flame Lash with the real bottom card (burning and not); a Counterhex Shield / Fight Or Flight left on the discard pile while in play.
 
 ## From E3 (29/10)
-- verify_live: `ping_points` over the row spots (the bot pings its own face-up hand); `resolve_hand_row(deck_guid=)` (`putObject` of a loose row card onto the bot's deck: Every Possible Angle by the human); the bot's attack card flipped face up right after `play_card_face_down` in the same script (Perfect Shot, UNCANNY INTUITION on the human's Abe); the prediction buttons' second page ("Mas" then "Boca abajo").
+- verify_live: `ping_points` over the row spots (the bot pings its own face-up hand); `resolve_hand_row(deck_guid=)` (`putObject` of a loose row card onto the bot's deck: Every Possible Angle by the human); the bot's attack card flipped face up right after `play_card_face_down` in the same script (Perfect Shot, UNCANNY INTUITION on the human's Abe); the prediction buttons' second page ("More" then "Face down").
 - The human's hero must be in `fx.dsl_heroes` for E3's human side (E2 switches it on); until then Confront / Psychometry / Every Possible Angle / Remove A Painful Memory by the human keep E1's button and the chat text.
 - DONE (Ivan, 29/10): the human's Perfect Shot face up is public, the bot's defense knows it (`session_hidden.declare_attack`).
 - DONE (Ivan, 29/10): UNCANNY INTUITION of the bot's Abe keeps the engine's order: the `attacked` event (token spent, card drawn and dealt) before the defense is chosen, so the drawn card may be the defense; `Game._declare_attack` does the same headless and passes `attack_card` to the defense when the ability reveals it. Still open: the human puts the attack face down (the face-down reader identifies it) and it is turned at Reveal; a face-up reader in the combat zone would let them play it face up directly. The event is raised outside `_resolve_combat`'s rollback (a combat refused after it keeps the spent token).

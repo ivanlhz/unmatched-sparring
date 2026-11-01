@@ -219,8 +219,8 @@
    "guid": "1644a3",
    "type": "Custom_Token (scale 0.5) with a child 30d50e glued face to face: turning 1644a3 changes the visible face",
    "faces": {
-    "1644a3": {"side": "ANUNG UN RAMA", "color": "rojo", "image": "https://steamusercontent-a.akamaihd.net/ugc/14774411447348729399/9CE059C107EFBC0853003666B31E166F15C81B73/"},
-    "30d50e": {"side": "OCCULT DETECTIVE", "color": "azul", "image": "https://steamusercontent-a.akamaihd.net/ugc/16466239634508822837/AE7D838DE3F0CBEB4E93FE93127EE50CC02301A6/"}
+    "1644a3": {"side": "ANUNG UN RAMA", "color": "red", "image": "https://steamusercontent-a.akamaihd.net/ugc/14774411447348729399/9CE059C107EFBC0853003666B31E166F15C81B73/"},
+    "30d50e": {"side": "OCCULT DETECTIVE", "color": "blue", "image": "https://steamusercontent-a.akamaihd.net/ugc/16466239634508822837/AE7D838DE3F0CBEB4E93FE93127EE50CC02301A6/"}
    },
    "orientation": "In the save 1644a3 has rotZ 180 (face of child 30d50e up = OCCULT DETECTIVE, the starting side). rotZ 0 = ANUNG UN RAMA (red) up. Confirm live with --read-only before the bot turns it (open_questions)."
   },
@@ -279,7 +279,7 @@
   {
    "card": "Second Shot",
    "what": "The boost card is discarded face up.",
-   "bot_sees": "Publica: se descuenta de la KnownHand si era vista."
+   "bot_sees": "Public: it is discounted from the KnownHand if it had been seen."
   }
  ],
  "open_questions": [

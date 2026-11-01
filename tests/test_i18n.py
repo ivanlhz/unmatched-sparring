@@ -34,6 +34,8 @@ DYNAMIC = {
     "fx.ability.": ("detective_draw", "anung_discard_move", "wildfire_start"),
     "herosel.src.": ("default", "option", "config", "save", "table"),
     "ro.role.": ("bot", "human"),
+    "spaces.color.": ("blue", "beige", "gray", "brick", "orange", "olive", "red", "pink", "turquoise", "yellow", "cream", "lilac",
+                      "brown", "green"),
 }
 
 

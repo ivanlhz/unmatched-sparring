@@ -914,7 +914,7 @@ def early_language(argv: list[str] | None) -> str:
 
 def parse_args(argv: list[str] | None) -> argparse.Namespace:
     i18n.set_language(early_language(argv))
-    ap = argparse.ArgumentParser(prog="python -m sparring.play", description=__doc__.split("\n")[0])
+    ap = argparse.ArgumentParser(prog="python -m sparring.play", description=t("cli.description"))
     ap.add_argument("--config", default=str(default_config_path()), help=t("cli.config"))
     ap.add_argument("--read-only", action="store_true", help=t("cli.read_only"))
     ap.add_argument("--first", choices=("human", "bot", "random"), default="random", help=t("cli.first"))

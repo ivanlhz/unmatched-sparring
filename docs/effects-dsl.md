@@ -674,7 +674,7 @@ Doubtful migration decisions (see also the `notes` of each file):
   HUMAN side only; the bot's side is pinned by tests/test_d1_bot_cards.py (every combat card of the four heroes,
   state and chat line), not by a byte-identical oracle: where the legacy path was incomplete the behaviour changed
   (bot Flame Lash's bottom-card boost now applied, Out Of Time boosted from the bot's hand on either side,
-  Incinerate asked to the rival as a real choice instead of a "tu opcion" note after the damage, every other
+  Incinerate asked to the rival as a real choice instead of an "your option" note after the damage, every other
   moment applied by the engine instead of "the bot ignores this effect").
 - Boosts: `legacy_chooser` asks the controller of a bot's interpreted card (`choose_combat_boost`) like it did for
   Medusa; `MedusaAI.choose_combat_boost` and the search's `SearchController.choose_combat_boost` value a DEFENSE boost
@@ -762,7 +762,7 @@ Doubtful migration decisions (see also the `notes` of each file):
   `fx`, so no read of the session flushes them early), then says it. A combat paused at the panel keeps the snapshot
   in `Pending.combat["fx"]` (saved), so a `--resume` still projects; the turn change keeps it in `fx_unprojected`.
 - What is projected: the human's miniatures a bot effect moved or returned (`move_piece` by GUID, one attempt, else
-  "muevela tu"); the bot's Hellboy form (`set_state` of the miniature state the table shows, `flip_token` of the
+  "move it yourself"); the bot's Hellboy form (`set_state` of the miniature state the table shows, `flip_token` of the
   `ability` token, `ping_objects` of token and miniature; Ivan: ping on both); ability counters that have a token
   in `data/tts` (`take_token_copy` of the source per point gained, `remove_token` of the last copy per point spent,
   GUIDs kept in `Session.token_copies`, saved; `token_spot` in the configuration, else beside the bot's deck); the
@@ -939,7 +939,7 @@ function per op type, each with two variants.
 | `discard`, zone `hand` (`_owe_discard`) | `n`, `reason`, `all` | the whole-hand discard (Crown Of Flame): `_discard_human_hand`, then the human variant for what the table could not move | `pending_discard` + "Discard N card(s)" | `all`: the op is `pick: "all"` on the human's hand (`fx.whole_hand`, no card title) |
 | `discard`, zone `hand`, named cards (diff) | `cards` | none | `pending_discard["cards"]` + "Put X from your hand in your discard pile" | always human |
 | `discard`, zone `in_play` (the human's ONGOING left play) | `card` | ping on the card, chat why, `ongoing_hold` seconds, `card_to_discard` to their pile | "move it from your ONGOING zone to your discard pile" (or "stays in your discard pile" without a spot) | `human_ongoing_spot` set |
-| `move`, `place`, `swap`, `revive`, `summon` (a human miniature a bot effect put elsewhere) | `fid`, `owner` | `move_piece` by GUID, "lo he movido yo" | "I could not move its miniature, move it yourself" | always bot (their own pieces are moved by hand: `session_moves`, table notes) |
+| `move`, `place`, `swap`, `revive`, `summon` (a human miniature a bot effect put elsewhere) | `fid`, `owner` | `move_piece` by GUID, "I moved it myself" | "I could not move its miniature, move it yourself" | always bot (their own pieces are moved by hand: `session_moves`, table notes) |
 | `return_to_deck`, the bot's hand or discard | `player`, `zone`, `cards` (deck order), `position` | `hand_to_deck` / `card_to_deck_bottom` per card / `shuffle_into_deck` by GUID | "I could not move X ...: do it yourself" | always bot |
 | `return_to_deck`, the human's discard | same | by GUID with their deck GUID and identity (Ivan 29/10); `session_pile` has them moved by hand first (31/10) and only notes them | "Put X from your discard pile at the bottom / on top of / into your deck" | `human_deck_guid` set |
 | `return_to_deck`, the human's hand (a card the bot picked) | same | none | "Put X from your hand on top of / at the bottom of / into your deck and shuffle" | always human (their hand is theirs) |

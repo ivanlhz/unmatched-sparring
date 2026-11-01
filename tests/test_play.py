@@ -203,7 +203,7 @@ def test_loop_survives_an_internal_error_and_unknown_events(rig, monkeypatch):
 def test_announcer_echoes_and_broadcasts_ascii_chunks(rig):
     session, table, game = rig
     shown = []
-    play.make_announcer(session.client, echo=shown.append)(["Tu turno (forma: OCCULT DETECTIVE). ¿Listo? " * 3])
+    play.make_announcer(session.client, echo=shown.append)(["Your turn (form: OCCULT DETECTIVE). Ready, señor? " * 3])
     assert shown and table.broadcasts and all(len(b) <= 64 for b in table.broadcasts)
     assert all(ord(ch) < 128 for b in table.broadcasts for ch in b)
 

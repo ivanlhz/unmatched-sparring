@@ -3,5 +3,6 @@ __pycache__/
 *.pyc
 .pytest_cache/
 estado/
+state/
 saves/
 .claude

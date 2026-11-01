@@ -853,5 +853,20 @@
  "timing.resume": "reanudar",
  "timing.effect": "efecto",
  "timing.bot_action": "accion del bot",
- "timing.button": "boton {name}"
+ "timing.button": "boton {name}",
+ "spaces.color.blue": "azul",
+ "spaces.color.beige": "beige",
+ "spaces.color.gray": "gris",
+ "spaces.color.brick": "ladrillo",
+ "spaces.color.orange": "naranja",
+ "spaces.color.olive": "oliva",
+ "spaces.color.red": "rojo",
+ "spaces.color.pink": "rosa",
+ "spaces.color.turquoise": "turquesa",
+ "spaces.color.yellow": "amarillo",
+ "spaces.color.cream": "crema",
+ "spaces.color.lilac": "lila",
+ "spaces.color.brown": "marron",
+ "spaces.color.green": "verde",
+ "cli.description": "Punto de entrada de la partida en vivo."
 }
