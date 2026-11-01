@@ -9,6 +9,7 @@ to tell the hooks whose effect is running (`fx.acting`) and to honour redirectio
 card moment, so a pause inside an effect survives `CombatFlow.to_dict`."""
 from __future__ import annotations
 
+from ..i18n import t
 from . import modifiers, narrate
 from .choose import ControllerChooser, TableChooser
 from .model import EffectError, load_effects
@@ -31,7 +32,7 @@ def _side(run, game, ref) -> str | None:
 
 def _label(run, game) -> str:
     card = find_card(game, run.ctx.card_id) if run.ctx.card_id is not None else None
-    return card.title if card else "efecto"
+    return card.title if card else t("cause.effect")
 
 
 # ---------------------------------------------------------------- card values
@@ -87,7 +88,7 @@ def _boost(run, game, spec):
     player.discard.append(top)
     run.flags.setdefault("deck_discards", []).append(top.card_id)
     game.fx.emit("card_discarded", owner, top)
-    modifiers.add_value(flow, side, top.boost, f"impulso {top.title}")
+    modifiers.add_value(flow, side, top.boost, t("cf.boost_impulse", title=top.title))
 
 
 # ---------------------------------------------------------------- statuses

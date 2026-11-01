@@ -13,6 +13,7 @@ from dataclasses import dataclass, field
 from typing import Protocol
 
 from ..combat_flow import Await, PendingChoice
+from ..i18n import t
 from ..state import RuleError
 
 KINDS = ("fighter", "space", "cards", "effect", "optional", "order", "amount")
@@ -333,7 +334,7 @@ class PresetChooser:
             return self.inner.choose(game, req)
         answer = list(self.by_kind.pop(req.kind))
         if not all(a in req.options for a in answer):
-            raise RuleError(f"{req.prompt or req.kind}: {answer!r} no es una opcion ({req.options!r})")
+            raise RuleError(t("err.not_option", prompt=req.prompt or req.kind, answer=repr(answer), options=repr(req.options)))
         return answer
 
 

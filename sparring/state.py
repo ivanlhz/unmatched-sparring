@@ -10,6 +10,7 @@ from .controller import Controller
 from .effects import ongoing
 from .effects.state import EffectState, default_dsl_heroes
 from .heroes import HeroDef, load_hero
+from .i18n import t
 
 HAND_LIMIT = 7
 START_HAND = 5
@@ -405,7 +406,7 @@ class Game:
         if dest == fighter.pos:
             return
         if dest not in self.legal_moves(fighter, steps, through_enemies):
-            raise RuleError(f"{fighter.fid}: movimiento ilegal a {dest} (max {steps})")
+            raise RuleError(t("err.illegal_move", fid=fighter.fid, dest=dest, steps=steps))
         fighter.pos = dest
 
     def damage(self, fighter: Fighter, n: float, source: str = "effect", by: Fighter | None = None) -> float:
@@ -494,7 +495,7 @@ class Game:
 
     def use_action(self) -> None:
         if self.actions_left <= 0:
-            raise RuleError("sin acciones")
+            raise RuleError(t("err.no_actions"))
         self.actions_left -= 1
         self.fx.count_action()
 
@@ -503,7 +504,7 @@ class Game:
         hand = self.players[self.turn].hand
         limit = self.fx.hand_limit(self.turn, HAND_LIMIT)
         if len(hand) > limit:
-            self.force_discard(self.turn, len(hand) - limit, "limite de mano", cause="hand_limit")
+            self.force_discard(self.turn, len(hand) - limit, t("cause.hand_limit"), cause="hand_limit")
         self.turn = 1 - self.turn
         self.turn_no += 1
 
@@ -511,11 +512,11 @@ class Game:
     def maneuver(self, player: int, moves: dict[str, int], boost_card: Card | None = None) -> None:
         """Checked before anything is spent: the boost card and the movers (a RuleError leaves the game as it was)."""
         if boost_card is not None and not can_be_boost(boost_card):
-            raise RuleError(f"{boost_card.title} no tiene valor de impulso")
+            raise RuleError(t("err.no_boost_value", title=boost_card.title))
         for fid in moves:
             f = self.fighters.get(fid)
             if f is None or f.owner != player or not f.alive:
-                raise RuleError(f"{fid} no puede moverse")
+                raise RuleError(t("err.cannot_move", fid=fid))
         self.use_action()
         alive0 = {fid for fid, f in self.fighters.items() if f.alive}
         self.draw(player)    # el agotamiento puede matar luchadores (y acabar la partida) antes de moverlos
@@ -538,7 +539,7 @@ class Game:
         the Await of a chooser that paused it); any other keeps the legacy path (the human resolves the text, the
         engine the ONGOING bonus)."""
         if not card.is_scheme or not card.usable_by(fighter.name) or card not in self.players[player].hand:
-            raise RuleError(f"{card.title} no se puede jugar con {fighter.fid}")
+            raise RuleError(t("err.cannot_play", title=card.title, fid=fighter.fid))
         if self.players[player].hero.slug in self.fx.dsl_heroes:
             from .effects.driven import play_scheme
             return play_scheme(self, player, fighter, card, target, choosers)
@@ -551,16 +552,16 @@ class Game:
     @staticmethod
     def check_attack_card(fighter: Fighter, card: Card) -> None:
         if not card.can_attack:
-            raise RuleError(f"{card.title} es de tipo {card.type}: no sirve para atacar")
+            raise RuleError(t("err.not_attack_type", title=card.title, type=card.type))
         if not card.usable_by(fighter.name):
-            raise RuleError(f"{card.title} es de {card.fighter}: {fighter.name} no la puede jugar")
+            raise RuleError(t("err.wrong_fighter", title=card.title, fighter=card.fighter, name=fighter.name))
 
     @staticmethod
     def check_defense_card(fighter: Fighter, card: Card) -> None:
         if not card.can_defend:
-            raise RuleError(f"{card.title} es de tipo {card.type}: no sirve para defender")
+            raise RuleError(t("err.not_defense_type", title=card.title, type=card.type))
         if not card.usable_by(fighter.name):
-            raise RuleError(f"{card.title} es de {card.fighter}: {fighter.name} no la puede jugar")
+            raise RuleError(t("err.wrong_fighter", title=card.title, fighter=card.fighter, name=fighter.name))
 
     def attack(self, attacker: Fighter, target: Fighter, card: Card, def_card="ask",
                values: tuple[int, int] = (0, 0), boost: Card | None = None):
@@ -584,16 +585,16 @@ class Game:
         event comes first (UNCANNY INTUITION spends a token and draws before the defense, so the drawn card may be
         it) and a defense asked after an attack a rule turns face up is the one choice that may know the card."""
         if not self.fx.may_attack(attacker.owner):
-            raise RuleError(f"{attacker.fid} no puede atacar como primera accion del turno")
+            raise RuleError(t("err.cannot_attack_first", fid=attacker.fid))
         if not self.can_attack(attacker, target):
-            raise RuleError(f"{attacker.fid} no alcanza a {target.fid}")
+            raise RuleError(t("err.out_of_reach", attacker=attacker.fid, target=target.fid))
         self.check_attack_card(attacker, card)
         if card not in self.players[attacker.owner].hand:
-            raise RuleError(f"{card.title} no esta en la mano de {attacker.fid}")
+            raise RuleError(t("err.not_in_hand", title=card.title, fid=attacker.fid))
         if def_card not in ("ask", None):
             self.check_defense_card(target, def_card)
             if def_card not in self.players[target.owner].hand:
-                raise RuleError(f"{def_card.title} no esta en la mano de {target.fid}")
+                raise RuleError(t("err.not_in_hand", title=def_card.title, fid=target.fid))
         self.use_action()
         from .effects.events import attack_revealed
         revealed = attacked and attack_revealed(self, target)      # judged before the trigger spends the token

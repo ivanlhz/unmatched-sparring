@@ -8,6 +8,7 @@ from typing import Callable
 from .cards import Card
 from .combat import (ON_EARTH, PLANNED, CombatCtx, CombatResult, _check_boost, _side_cards, can_boost, deck_boost,
                      is_medusa_card)
+from .i18n import t
 from .state import ANUNG, Fighter, Game, RuleError
 
 
@@ -252,7 +253,7 @@ class CombatFlow:
         if def_card is not None:
             game.check_defense_card(tgt, def_card)
             if def_card not in game.players[tgt.owner].hand:
-                raise RuleError(f"{def_card.title} no esta en la mano de {tgt.fid}")
+                raise RuleError(t("err.not_in_hand", title=def_card.title, fid=tgt.fid))
         pa, pd = self.att.owner, tgt.owner
         game.take_from_hand(pa, self.atk_card)
         if def_card is not None:
@@ -276,7 +277,7 @@ class CombatFlow:
         self.result.atk_parts = [f"{atk_card.title} ({atk_card.value or 0})"]
         self.result.atk_parts += [f"{label} (+{n})" for n, label in bonus_parts if n]
         if values[0]:
-            self.result.atk_parts.append(f"valor extra ({values[0]:+d})")
+            self.result.atk_parts.append(t("cf.extra", n=values[0]))
         self.sides = [Side(*s) for s in _side_cards(self.ctx)]
 
     @property
@@ -289,18 +290,18 @@ class CombatFlow:
             printed = ctx.def_value - values[1] - self.def_bonus - sum(n for n, _ in self.mods["def"])
             result.def_parts = [f"{self.def_card.title} ({printed})"]
             if "def" in ctx.cancelled:
-                result.def_parts[0] += " cancelada"
+                result.def_parts[0] += t("cf.cancelled")
             result.def_parts += [f"{label} (+{n})" for n, label in self.def_bonus_parts if n]
             result.def_parts += [f"{label} ({n:+d})" for n, label in self.mods["def"]]
         if values[1]:
-            result.def_parts.append(f"valor extra ({values[1]:+d})")
+            result.def_parts.append(t("cf.extra", n=values[1]))
         damage = max(0, ctx.atk_value - ctx.def_value)
         victim = self.tgt
         if self.redirects:
             from .effects.modifiers import combat_redirect_target
             victim = combat_redirect_target(self)
             if victim is not self.tgt and damage:
-                result.applied.append(f"{victim.fid} recibe el dano de combate en lugar de {self.tgt.fid}")
+                result.applied.append(t("cf.redirect", victim=victim.fid, target=self.tgt.fid))
         self.game.damage(victim, damage, "combat")
         result.atk_value, result.def_value, result.damage, result.attacker_won = ctx.atk_value, ctx.def_value, damage, damage >= 1
         result.cancelled = set(ctx.cancelled)
@@ -417,7 +418,7 @@ def _add_boost(flow: CombatFlow, side: Side, boost: Card) -> None:
     flow.game.discard_card(side.fighter.owner, boost)
     flow.ctx.atk_value += boost.boost
     flow.result.boost_card = boost
-    flow.result.atk_parts.append(f"potencia con {boost.title} (+{boost.boost})")
+    flow.result.atk_parts.append(t("cf.boost_with", title=boost.title, boost=boost.boost))
 
 
 @rule(Phase.DURING, side="atk", match=lambda flow, side: can_boost(side.card) and not _dsl(flow, side))
@@ -436,8 +437,7 @@ def bot_card_outside_the_interpreter(flow: CombatFlow, side: Side) -> None:
     """The bot's hero is interpreted by default (D1); only a save that switched it off gets here. The text is not
     resolved and the human is never asked to resolve a card of the bot: it is said so."""
     if side.card.text.strip():
-        flow.result.bot_notes.append(f"{side.card.title}: el bot no resuelve este efecto (interprete apagado): "
-                                     f"{side.card.text}")
+        flow.result.bot_notes.append(t("cf.bot_no_resolve", title=side.card.title, text=side.card.text))
 
 
 @rule(Phase.AFTER, match=lambda flow, side: not _dsl(flow, side))
@@ -446,7 +446,7 @@ def human_card_outside_the_interpreter(flow: CombatFlow, side: Side) -> None:
     the text of the card is left to them, as the legacy path always did."""
     card, result = side.card, flow.result
     if card.title == PLANNED:
-        result.applied.append(f"{card.title}: aplicado ({card.text})")
+        result.applied.append(t("cf.planned", title=card.title, text=card.text))
     elif card.text.strip() and not can_boost(card):   # the BOOST of Second Shot was already resolved in DURING
         result.human_effects.append(f"{card.title}: {card.text}")
 
@@ -479,7 +479,7 @@ def dsl_during(flow: CombatFlow, side: Side) -> Await | None:
     if boost is not None:
         _check_boost(boost)
         flow.game.discard_card(owner, boost)
-        add_value(flow, side.name, boost.boost, f"potencia con {boost.title}")
+        add_value(flow, side.name, boost.boost, t("cf.boost_with_plain", title=boost.title))
         if side.name == "atk":
             flow.result.boost_card = boost
 

@@ -9,6 +9,7 @@ from dataclasses import dataclass, field
 
 from .cards import MEDUSA_BASE, Card, can_be_boost
 from .effects import ongoing
+from .i18n import t
 from .state import Fighter, Game, RuleError
 
 GAZE_DAMAGE = 8          # Gaze of Stone and A Momentary Glance: the AI weighs them; the effects data applies them
@@ -83,7 +84,7 @@ def can_boost(card: Card) -> bool:
 
 def _check_boost(boost: Card) -> None:
     if not can_be_boost(boost):
-        raise RuleError(f"{boost.title} no tiene valor de impulso: no se puede impulsar con ella")
+        raise RuleError(t("err.boost_impossible", title=boost.title))
 
 
 def deck_boost(card: Card) -> bool:

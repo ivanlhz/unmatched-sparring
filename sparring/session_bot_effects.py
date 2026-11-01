@@ -36,11 +36,16 @@ from dataclasses import replace
 from typing import Callable
 
 from .cards import Card
-from .session_translators import Ctx, is_tail, plural as _plural, translate
+from .i18n import plural, t
+from .session_translators import Ctx, is_tail, translate
 from .tts import lua
 from .tts.lua import ChatKind
 
-BOT_CAUSE = "efecto del bot"   # whose effect the chat blames for what the human must do on the table
+
+
+def bot_cause() -> str:
+    """Whose effect the chat blames for what the human must do on the table."""
+    return t("cause.bot_effect")
 
 
 # ---------------------------------------------------------------- the hand the bot may look at
@@ -83,7 +88,7 @@ def snapshot(session) -> dict:
             "drawn": g.drawn[bot], "seen": list(g.players[bot].known.seen)}
 
 
-def project(session, before: dict | None, played: frozenset = frozenset(), cause: str = BOT_CAUSE) -> Callable[[], None]:
+def project(session, before: dict | None, played: frozenset = frozenset(), cause: str | None = None) -> Callable[[], None]:
     """Queues the writes for everything that changed since `before` and says it. Returns the function that checks
     the results: call it after the step's composite went out (as `_project_stage`'s is called). `played`: cards
     the human played in this combat, which left their hand by their own hand. `cause`: whose effect the chat blames
@@ -97,7 +102,7 @@ def project(session, before: dict | None, played: frozenset = frozenset(), cause
         return lambda: None
     moved = set(session.fx_in_flight)             # what this button already moved (a look row's pick, E3)
     looked, session.fx_looked = session.fx_looked, False
-    ctx = Ctx(cause, before)
+    ctx = Ctx(cause or bot_cause(), before)
     checks = _human_pieces(session, before, intents, ctx) + _form(session, before, ctx) + _tokens(session, before, intents, ctx)
     checks += _bot_cards(session, before, moved, intents, ctx) + _bot_ongoing(session, before, intents, ctx)
     checks += _human_cards(session, before, played, looked, ctx, intents)
@@ -214,11 +219,10 @@ def scheme_cards(session, before: dict | None) -> list[str]:
     out = []
     drawn = g.drawn[bot] - before["drawn"]
     if drawn > 0:
-        out.append(f"roba {drawn}")
+        out.append(t("bot.scheme_draws", n=drawn))
     back = [i for i in b0["discard"] if i in deck]
     if back:
-        out.append(f"pone {_plural(len(back))} del descarte al fondo de su mazo" if is_tail(deck, back)
-                   else f"baraja {_plural(len(back))} del descarte en su mazo")      # the next line names them
+        out.append(t("bot.scheme_tail" if is_tail(deck, back) else "bot.scheme_shuffle", cards=plural(len(back), "noun.card")))      # the next line names them
     return out
 
 
@@ -270,8 +274,7 @@ def _human_cards(session, before: dict, played: frozenset, looked: bool, ctx: Ct
     from_hand += int(entered is not None and entered != in_play and entered in h0["hand"] and entered not in played)
     unknown = len(h0["hand"]) + drawn - len(h1["hand"]) - from_hand - len(to_discard) - by_bot - len(hand_to_deck)
     if unknown > 0:
-        session.say(f"Devuelve {_plural(unknown)} de tu mano a tu mazo y baraja ({cause}; las eliges tu).",
-                    ChatKind.YOUR_TURN)
+        session.say(t("bot.return_hand", cards=plural(unknown, "noun.card"), cause=cause), ChatKind.YOUR_TURN)
     disc_to_deck = [i for i in h0["discard"] if i in h1["deck"]]
     for intent in _groups(intents, "return_to_deck", human, "discard", disc_to_deck, keep_order=True):
         checks += translate(session, intent, ctx) or []
