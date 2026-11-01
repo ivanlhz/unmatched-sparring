@@ -201,7 +201,7 @@ def _perfect_shot(run, game, spec):
     """`predict`: the prediction belongs to the moment the card is played, before the defense is chosen, which the
     DSL has no moment for. The plugin asks its owner once (an `effect` request with `op: predict`) and keeps the
     printed value in this run's `flags["prediction"]` (None: face down). The live session answers for the human
-    with the buttons it showed at Revelar and for the bot with what it announced when it placed the card
+    with the buttons it showed at Reveal and for the bot with what it announced when it placed the card
     (`session_hidden.PredictionChooser`); a bot without that preset decides through `EffectAI`."""
     if "prediction" in run.flags:
         return

@@ -8,7 +8,7 @@ from sparring.state import Game
 
 
 class Scripted(Controller):
-    """Controlador para tests: respuestas preparadas."""
+    """Controller for tests: prepared answers."""
 
     def __init__(self):
         self.defense = None
@@ -55,7 +55,7 @@ def ctl():
 
 @pytest.fixture
 def game(bprd, ctl):
-    """Medusa = jugador 0, Hellboy = 1, empieza Medusa, manos vacias para colocar cartas a mano."""
+    """Medusa = player 0, Hellboy = 1, Medusa starts, empty hands to place cards by hand."""
     g = Game.new(bprd, seed=3, controllers=ctl)
     g.turn, g.turn_no = 0, 2
     g.begin_turn()
@@ -99,7 +99,7 @@ def _guarded_connect(self, address):
 
 @pytest.fixture(autouse=True)
 def _never_touch_real_tts(monkeypatch):
-    """Ningun test puede conectar con los puertos reales de TTS (el usuario tiene una partida abierta)."""
+    """No test may connect to the real TTS ports (the user has a game open)."""
     monkeypatch.setattr(_socket.socket, "connect", _guarded_connect)
 
 
@@ -113,15 +113,16 @@ def _guarded_bind(self, address):
 
 @pytest.fixture(autouse=True)
 def _never_bind_real_ports(monkeypatch):
-    """Tampoco se puede escuchar en los puertos reales: un test ahi pisaria el listener del TTS vivo."""
+    """Nor may a test listen on the real ports: it would step on the live TTS listener."""
     monkeypatch.setattr(_socket.socket, "bind", _guarded_bind)
 
 
-ESTADO = Path(__file__).resolve().parent.parent / "estado"
+ROOT_DIR = Path(__file__).resolve().parent.parent
+STATE_DIRS = (ROOT_DIR / "state", ROOT_DIR / "estado")   # current and legacy locations of the real save
 
 
 def snapshot_dir(path) -> dict[str, tuple[int, int]]:
-    """Ruta relativa -> (tamano, mtime_ns) de todo fichero bajo `path` (vacio si no existe)."""
+    """Relative path -> (size, mtime_ns) of every file under `path` (empty if it does not exist)."""
     root = Path(path)
     if not root.exists():
         return {}
@@ -132,22 +133,24 @@ def snapshot_dir(path) -> dict[str, tuple[int, int]]:
 def assert_dir_untouched(path, before: dict) -> None:
     after = snapshot_dir(path)
     changed = sorted(k for k in before.keys() | after.keys() if before.get(k) != after.get(k))
-    assert not changed, f"el test escribio en {path} (guardado real de la partida): {', '.join(changed)}"
+    assert not changed, f"the test wrote to {path} (the real game save): {', '.join(changed)}"
 
 
 @pytest.fixture(autouse=True)
 def _never_touch_the_real_resume_file():
-    """Ningun test puede escribir bajo estado\ del proyecto: ahi vive el guardado de la partida real."""
-    before = snapshot_dir(ESTADO)
+    """No test may write under the project's state\ (or the legacy estado\) folder: the real game save lives there."""
+    before = [snapshot_dir(d) for d in STATE_DIRS]
     yield
-    assert_dir_untouched(ESTADO, before)
+    for d, snap in zip(STATE_DIRS, before):
+        assert_dir_untouched(d, snap)
 
 
 @pytest.fixture(autouse=True)
 def _default_state_goes_to_tmp(tmp_path, monkeypatch):
-    """Un test que olvide --state escribe en su tmp_path, no en estado\."""
+    """A test that forgets --state writes to its tmp_path, not to state\."""
     from sparring import play
-    monkeypatch.setattr(play, "DEFAULT_STATE", tmp_path / "default-state" / "sesion.json")
+    monkeypatch.setattr(play, "DEFAULT_STATE", tmp_path / "default-state" / "session.json")
+    monkeypatch.setattr(play, "LEGACY_STATE", tmp_path / "legacy-state" / "sesion.json")
 
 
 TEST_IDENT = (("https://img.test/face", "https://img.test/back"),)
@@ -155,8 +158,8 @@ TEST_IDENT = (("https://img.test/face", "https://img.test/back"),)
 
 @pytest.fixture(autouse=True)
 def _decks_have_a_known_identity(monkeypatch):
-    """Las sesiones de prueba arrancan con la identidad de los mazos ya leida (como tras `start`); los tests de la
-    lectura la vacian a proposito."""
+    """Test sessions start with the deck identities already read (as after `start`); the reading tests empty it
+    on purpose."""
     from sparring.session import Session
     real = Session.__init__
 

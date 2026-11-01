@@ -477,11 +477,11 @@
   }
  },
  "_notes": [
-  "Hoja 197 del savegame (8x4), leida a ojo el 2026-10-26. CardID = 19700 + idx; 19600 = carta de personaje.",
-  "Restricciones de luchador y etiqueta destiny de la hoja de TTS (unmatched-memory no las tiene).",
-  "Formas (carta de personaje, seccion AHH CRAP!): OCCULT DETECTIVE con 5 o menos destinos en el descarte, ANUNG UN RAMA con 6 o mas; no es permanente, se recalcula siempre desde el descarte.",
-  "Disparadores: hasta el paso 8 del plan los ejecutan Game.hellboy_detective_draw y Game.hellboy_anung_start; la pasiva attack_bonus si la lee ya el combate.",
-  "Verificada carta a carta el 2026-10-28 contra la FaceURL de la hoja (CustomDeck 197 del mazo 00dc9a; las cartas sueltas usan la clave 187 con las mismas imagenes) del save 'Unmatched Official Tournament Table October 2026 (Hellboy)': titulos, copias (x1/x2/x3/x4 impresos), valor, boost, tipo, luchador y corona de destino coinciden. Los efectos estructurados estan en data/heroes/effects/hellboy.json y el resumen en docs/heroes/hellboy.md.",
-  "Lobster Johnson: 1 miniatura, empieza en el tablero (start_on_board 1, reserve 0); vida 6, movimiento 2 y alcance de unmatched-memory, confirmados en la carta de personaje (CardID 19600)."
+  "Sheet 197 of the savegame (8x4), read by eye on 2026-10-26. CardID = 19700 + idx; 19600 = character card.",
+  "Fighter restrictions and the destiny tag from the TTS sheet (unmatched-memory does not have them).",
+  "Forms (character card, section AHH CRAP!): OCCULT DETECTIVE with 5 or fewer destinies in the discard, ANUNG UN RAMA with 6 or more; it is not permanent, it is always recomputed from the discard.",
+  "Triggers: until step 8 of the plan Game.hellboy_detective_draw and Game.hellboy_anung_start run them; the attack_bonus passive is already read by the combat.",
+  "Verified card by card on 2026-10-28 against the sheet's FaceURL (CustomDeck 197 of deck 00dc9a; the loose cards use key 187 with the same images) of the save 'Unmatched Official Tournament Table October 2026 (Hellboy)': titles, copies (x1/x2/x3/x4 printed), value, boost, type, fighter and destiny crown match. The structured effects are in data/heroes/effects/hellboy.json and the summary in docs/heroes/hellboy.md.",
+  "Lobster Johnson: 1 miniature, starts on the board (start_on_board 1, reserve 0); life 6, movement 2 and reach from unmatched-memory, confirmed on the character card (CardID 19600)."
  ]
 }

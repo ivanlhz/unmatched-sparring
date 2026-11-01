@@ -15,19 +15,19 @@ from conftest import place
 NICK = {"medusa": "Medusa", "harpy1": "Harpy 1", "harpy2": "Harpy 2", "harpy3": "Harpy 3",
         "hellboy": "Hellboy", "lobster": "Lobster Johnson"}
 PIECES = {fid: "pc" + fid for fid in NICK}
-BATCH = bool(os.environ.get("SPARRING_BATCH"))     # SPARRING_BATCH=1 pasa toda la bateria por el modo rapido
-GUID_NAME = {PIECES[fid]: NICK[fid] for fid in NICK}   # solo para Medusa vs Hellboy; la mesa lleva el suyo
+BATCH = bool(os.environ.get("SPARRING_BATCH"))     # SPARRING_BATCH=1 runs the whole suite through fast mode
+GUID_NAME = {PIECES[fid]: NICK[fid] for fid in NICK}   # only for Medusa vs Hellboy; the table carries its own
 
 
 class Table:
-    """Mesa de TTS falsa con estado: manos, mazo, descartes, cartas boca abajo y miniaturas."""
+    """Fake TTS table with state: hands, deck, discards, face-down cards and miniatures."""
 
     def __init__(self, nick: dict[str, str] | None = None, pieces: dict[str, str] | None = None, bot_cards: int = 17600):
-        self.nick = nick or NICK                          # fid -> nombre (por defecto Medusa vs Hellboy)
-        self.pieces = pieces or PIECES                    # fid -> GUID de pieza
+        self.nick = nick or NICK                          # fid -> name (Medusa vs Hellboy by default)
+        self.pieces = pieces or PIECES                    # fid -> piece GUID
         self.guid_name = GUID_NAME if pieces is None else {g: self.nick[f] for f, v in pieces.items()
                                                            for g in ([v] if isinstance(v, str) else v)}
-        self.bot_cards = bot_cards                        # primer CardID del mazo del bot
+        self.bot_cards = bot_cards                        # first CardID of the bot's deck
         self.positions: dict[str, int] = {}
         self.bot_hand: list[int] = []
         self.bot_deck: list[int] = []
@@ -41,15 +41,15 @@ class Table:
         self.flips: list[str] = []
         self.fail_play = False
         self.fail_flip = False
-        self.human_hand: list[int] = []     # solo lo lee la sesion para validar; vacio = no legible
+        self.human_hand: list[int] = []     # only the session reads it, to validate; empty = not readable
         self.unflips: list[str] = []
         self.returned: list[str] = []
-        self.lag = 0                         # lecturas de la mesa que tardan en ver los movimientos de cartas
+        self.lag = 0                         # table reads that are slow to see card moves
         self._queued: list = []
         self._flying: set[int] = set()
         self._reads = 0
         self.deal_calls: list[int] = []
-        self.human_deals: list[int] = []            # n de cada reparto al mazo del humano
+        self.human_deals: list[int] = []            # n of each deal to the human's deck
         self.human_deal_fails = False
         self.hand_discards: list[int] = []          # hand size at each "discard the human's whole hand" by the bot
         self.hand_discard_fails = False
@@ -59,13 +59,13 @@ class Table:
         self.broadcast_colors: list[tuple[float, float, float]] = []
         self.dupes: set[str] = set()
         self.missing_guids: set[str] = set()
-        self.piece_dist: dict[str, float] = {}      # nickname -> distancia a su casilla (lejos = fuera del tablero)
-        self.missing_pieces: set[str] = set()       # GUID de pieza que no existe
-        self.move_fails: set[str] = set()           # GUID de pieza que no se deja mover
-        self.dials: dict[str, dict] = {}            # GUID de dial -> respuesta de read_health_dials
-        self.hand_zones: dict[str, list[str]] = {}  # GUID de zona -> zonas de mano solapadas
-        self.stray_near_deck: list[dict] = []       # objetos Card sueltos cerca del mazo (CardID, guid)
-        self.discard_spots: dict[int, tuple[float, float, float]] = {}   # CardID -> sitio pedido al descartar
+        self.piece_dist: dict[str, float] = {}      # nickname -> distance to its space (far = off the board)
+        self.missing_pieces: set[str] = set()       # piece GUID that does not exist
+        self.move_fails: set[str] = set()           # piece GUID that cannot be moved
+        self.dials: dict[str, dict] = {}            # dial GUID -> read_health_dials answer
+        self.hand_zones: dict[str, list[str]] = {}  # zone GUID -> overlapping hand zones
+        self.stray_near_deck: list[dict] = []       # loose Card objects near the deck (CardID, guid)
+        self.discard_spots: dict[int, tuple[float, float, float]] = {}   # CardID -> spot asked for when discarding
         self.markings: list[str] = []
         self.dial_writes: list[tuple[str, int]] = []
         self.piece_names: dict[str, str] = {}
@@ -73,14 +73,14 @@ class Table:
         self.shuffles = 0
         self.returns = 0
         self.dial_ignores_writes = False
-        self.stray_bot: list[dict] = []             # cartas del bot boca abajo en su punto de carta o de mazo
+        self.stray_bot: list[dict] = []             # bot cards face down at its card spot or deck spot
         self.bot_ongoing: list[int] = []            # CardIDs on each ONGOING spot (E2)
         self.human_ongoing: list[int] = []
         self.ongoing_spots: dict[str, tuple[float, float]] = {}   # "bot"/"human" -> (x, z) the classic reads match
-        self.sent: list[str] = []                   # una entrada por MENSAJE a TTS: la etiqueta del script
-        self.panels: list[tuple[str, dict]] = []    # (estado, {id: (pulsable, visible)}) de cada set_panel
-        self.wseq = 0                               # ultima escritura que el compuesto anoto en el panel (wseq)
-        self.composite_waits = True                 # el compuesto espera dentro de TTS a que todo se asiente
+        self.sent: list[str] = []                   # one entry per MESSAGE to TTS: the script's label
+        self.panels: list[tuple[str, dict]] = []    # (status, {id: (pressable, visible)}) of each set_panel
+        self.wseq = 0                               # last write the composite noted on the panel (wseq)
+        self.composite_waits = True                 # the composite waits inside TTS for everything to settle
 
     def __call__(self, msg):
         s = msg["script"]
@@ -93,7 +93,7 @@ class Table:
         return out if isinstance(out, dict) and "__error__" in out else json.dumps(out)
 
     def do_composite(self, s):
-        """Ejecuta cada operacion con su do_<etiqueta> (que se anota en `scripts`) y devuelve la mesa resultante."""
+        """Runs each operation with its do_<label> (noted in `scripts`) and returns the resulting table."""
         results = []
         self.msglog = getattr(self, "msglog", [])
         self.msglog.append(re.findall(r"^-- sparring:(\w+)$", s, re.M)[1:])
@@ -173,7 +173,7 @@ class Table:
         return {"shuffled": True, "quantity": len(self.bot_deck)}
 
     def do_reset_deck(self, s):
-        """Todas las cartas de un bando vuelven a su mazo (mano, descarte, boca abajo y sueltas)."""
+        """All the cards of a side return to their deck (hand, discard, face down and loose)."""
         self.resets = getattr(self, "resets", [])
         if int(re.search(r"id < (\d+) or id > \d+", s).group(1)) == self.bot_cards:
             self.bot_deck.extend(self.bot_hand + self.bot_play + self.bot_discard + [r["id"] for r in self.stray_bot])
@@ -185,7 +185,7 @@ class Table:
         return {"deck": True, "quantity": 30}
 
     def do_reset_plan(self, s):
-        """Lo que reset_deck juntaria, sin mover nada: una entrada por bando, en el orden del script."""
+        """What reset_deck would gather, without moving anything: one entry per side, in script order."""
         out = []
         for lo in re.findall(r"id < (\d+) or id > \d+", s):
             if int(lo) == self.bot_cards:
@@ -209,7 +209,7 @@ class Table:
         if guid in self.move_fails or guid in self.missing_pieces:
             return {"moved": False}
         self.placed.append((self.guid_name[guid], x, y, z))
-        self.piece_dist[self.guid_name[guid]] = 99.0          # apartada: lejos de cualquier casilla
+        self.piece_dist[self.guid_name[guid]] = 99.0          # set aside: far from any space
         return {"moved": guid}
 
     def do_name_pieces(self, s):
@@ -286,10 +286,10 @@ class Table:
         return [{"id": i, "guid": f"g{i}"} for i in ids]
 
     def do_deal_cards(self, s):
-        """Mazo realista: con 2 o mas cartas es un Deck (su GUID existe); con 1 queda una Card suelta que
-        solo se halla por posicion (rama `if d == nil`); vacio no reparte nada."""
+        """Realistic deck: with 2 or more cards it is a Deck (its GUID exists); with 1 a loose Card is left that
+        is only found by position (branch `if d == nil`); empty deals nothing."""
         n = int(re.search(r"math\.min\((\d+)", s).group(1))
-        if "d.deal(k, Red)" in s or 'd.deal(k, "Red")' in s:    # el mazo del humano: solo cuenta cartas
+        if "d.deal(k, Red)" in s or 'd.deal(k, "Red")' in s:    # the human's deck: it only counts cards
             self.human_deals.append(n)
             k = 0 if self.human_deal_fails else min(n, self.human_deck_cards)
             self.human_deck_cards -= k
@@ -308,8 +308,8 @@ class Table:
         return {"dealt": k}
 
     def do_discard_cards(self, s):
-        """Descarte realista: con 2 o mas cartas el descarte es un Deck; una Card suelta solo se halla si
-        es la unica. Si el script sabe mirar dentro de los Deck (`o.type == "Deck"`), las halla ahi."""
+        """Realistic discard: with 2 or more cards the discard is a Deck; a loose Card is only found if
+        it is the only one. If the script knows how to look inside Decks (`o.type == "Deck"`), it finds them there."""
         ids = [int(x) for x in re.findall(r"\[(\d+)\]=\{", s)]
         for i, xyz in re.findall(r"\[(\d+)\]=\{([^}]*)\}", s):
             self.discard_spots[int(i)] = tuple(float(v) for v in xyz.split(","))
@@ -386,7 +386,7 @@ class Table:
 
     def do_read_face_down_cards(self, s):
         z = float(re.search(r"p\.z - (-?[\d.]+)\)", s).group(1))
-        if z > 0:                                   # punto de carta del bot (z 5.0) o del mazo (z 3.0)
+        if z > 0:                                   # bot card spot (z 5.0) or deck spot (z 3.0)
             return self.stray_bot + [{"id": i, "guid": f"g{i}"} for i in self.bot_play]
         return self.face_down
 
@@ -420,7 +420,7 @@ class Table:
         return {"returned": False}
 
     def do_show_hand_row(self, s):
-        """La mano del bot pasa a una fila boca arriba en la mesa (fuera de su mano)."""
+        """The bot's hand moves to a face-up row on the table (out of its hand)."""
         self.look_row = getattr(self, "look_row", [])
         self.look_spots = {int(i): tuple(float(v) for v in xyz.split(","))
                            for i, xyz in re.findall(r"\[(\d+)\]=\{([^}]*)\}", s)}
@@ -433,7 +433,7 @@ class Table:
         return {"shown": shown}
 
     def do_resolve_hand_row(self, s):
-        """Cierra la fila: la elegida (por GUID, o la unica boca abajo) al descarte y el resto a la mano."""
+        """Closes the row: the chosen one (by GUID, or the only one face down) to the discard and the rest to the hand."""
         guids = re.findall(r'"(\w+)"', re.search(r"for _, g in ipairs\(\{(.*?)\}\) do", s).group(1))
         row = [int(g[1:]) for g in guids if int(g[1:]) in self.look_row]
         down = [i for i in row if i in getattr(self, "look_down", set())]
@@ -515,7 +515,7 @@ def human_plays(table, game, title, nth=0):
     return c
 
 
-# ---------- flujo basico ----------
+# ---------- basic flow ----------
 def test_maneuver_spends_action_draws_and_end_action_syncs_positions(rig):
     session, table, game = rig
     session.handle(Event.MANEUVER)
@@ -534,7 +534,7 @@ def test_scheme_spends_action(rig):
 def test_value_event_stores_number(rig):
     session, _, game = rig
     session.handle(Event.VALUE, {"value": 3})
-    assert session.pending_value == 0, "sin combate pendiente el valor no se registra (no se arrastra al siguiente)"
+    assert session.pending_value == 0, "with no pending combat the value is not recorded (it does not carry over to the next one)"
     session.pending = Pending("human_attacks", game.fighters["hellboy"], game.fighters["medusa"], None)
     session.handle(Event.VALUE, {"value": 3})
     assert session.pending_value == 3
@@ -542,7 +542,7 @@ def test_value_event_stores_number(rig):
     assert session.pending_value == 0
 
 
-# ---------- S1: el humano elige atacante; nits de objetivo ----------
+# ---------- S1: the human chooses an attacker; target nits ----------
 def test_attack_needs_attacker_first_and_unknown_target_is_a_message(rig):
     session, _, game = rig
     msgs = session.handle(Event.ATTACK, {"target": "medusa"})
@@ -567,13 +567,13 @@ def test_wrong_fighter_restriction_keeps_pending_and_explains(rig):
     session, table, game = rig
     session.handle(Event.ATTACKER, {"attacker": "hellboy"})
     session.handle(Event.ATTACK, {"target": "medusa"})
-    human_plays(table, game, "Second Shot")  # carta solo de Lobster Johnson
+    human_plays(table, game, "Second Shot")  # a card only Lobster Johnson can play
     msgs = session.handle(Event.REVEAL)
     assert any("Lobster Johnson" in m and "ilegal" in m for m in msgs)
     assert session.pending is not None and game.actions_left == 2 and table.flips == []
 
 
-# ---------- B1: reveal valido o nada ----------
+# ---------- B1: valid reveal or nothing ----------
 def start_human_attack(session, table, game, title="Service Pistol"):
     session.handle(Event.ATTACKER, {"attacker": "hellboy"})
     session.handle(Event.ATTACK, {"target": "medusa"})
@@ -594,7 +594,7 @@ def test_human_attack_reveal_resolves_with_value_and_waits_for_end_action(rig):
     assert session.pending is None and session.pending_value == 0
     assert game.fighters["medusa"].hp == 16 - max(0, 7 - (bot_card.value if bot_card else 0))
     assert pistol in game.players[1].discard
-    # S3: no avanza solo; el humano resuelve efectos y pulsa Fin de accion
+    # S3: it does not advance by itself; the human resolves effects and presses End action
     assert game.turn == 1 and game.actions_left == 1
     assert any("Fin de accion" in m for m in msgs)
     msgs = session.handle(Event.END_ACTION)
@@ -627,7 +627,7 @@ def test_human_attack_reveal_failures_keep_a_working_state(rig, branch):
     assert game.actions_left == 2 and len(table.flips) == flips_before
     assert game.fighters["medusa"].hp == 16
     table.fail_flip = False
-    # siempre queda un boton que funciona: cambiar la carta y revelar de nuevo
+    # there is always a button that works: change the card and reveal again
     human_plays(table, game, "Service Pistol")
     session.handle(Event.REVEAL)
     assert session.pending is None and game.actions_left == 1
@@ -641,12 +641,12 @@ def test_bot_attacks_human_reveals_illegal_defense_session_not_frozen(rig):
     session.handle(Event.END_ACTION)
     assert session.pending is not None and session.pending.kind == "bot_attacks"
     bot_actions = game.actions_left
-    human_plays(table, game, "Excalibur")  # ataque, no defensa
+    human_plays(table, game, "Excalibur")  # an attack, not a defense
     msgs = session.handle(Event.REVEAL)
     assert any("Carta ilegal" in m and "Excalibur" in m for m in msgs)
     assert session.pending is not None and game.actions_left == bot_actions
     assert table.flips == [] and 17600 + 3 not in table.bot_discard
-    table.face_down = []  # el humano retira la carta: sin defensa
+    table.face_down = []  # the human takes the card back: no defense
     session.handle(Event.REVEAL)
     assert session.pending is None and game.actions_left == bot_actions - 1
 
@@ -676,7 +676,7 @@ def test_game_attack_is_transactional(rig):
     assert game.actions_left == 2 and gaze in game.players[0].hand and bad_def in game.players[1].hand
 
 
-# ---------- B2: la mesa manda ----------
+# ---------- B2: the table rules ----------
 def test_bot_hand_comes_from_table_and_deck_is_the_unseen_pile(rig):
     session, table, game = rig
     st = game.players[0]
@@ -690,7 +690,7 @@ def test_bot_maneuver_draws_physically_and_hand_matches_table(rig, monkeypatch):
     game.actions_left = 0
     n = len(table.bot_hand)
     session.handle(Event.END_ACTION)
-    assert table.count("deal_cards") == 2  # una maniobra por accion
+    assert table.count("deal_cards") == 2  # one maneuver per action
     assert len(table.bot_hand) == n + 2
     assert sorted(c.card_id for c in game.players[0].hand) == sorted(table.bot_hand)
 
@@ -722,7 +722,7 @@ def test_failed_play_aborts_the_action_without_resolving(rig, monkeypatch):
     assert game.actions_left == 2 and not game.players[0].discard
     table.fail_play = False
     session.handle(Event.REVEAL)
-    assert session.pending is None, "tras el error el boton vuelve a funcionar"
+    assert session.pending is None, "after the error the button works again"
 
 
 def test_bot_play_failure_in_its_own_attack_aborts(rig, monkeypatch):
@@ -735,11 +735,11 @@ def test_bot_play_failure_in_its_own_attack_aborts(rig, monkeypatch):
     game.actions_left = 0
     msgs = session.handle(Event.END_ACTION)
     assert any("Error de mesa" in m for m in msgs)
-    assert session.pending is None and game.fighters["hellboy"].hp == 17  # solo la habilidad de inicio de turno
+    assert session.pending is None and game.fighters["hellboy"].hp == 17  # only the start-of-turn ability
     assert not game.players[0].discard
 
 
-# ---------- S2: movimientos del motor proyectados ----------
+# ---------- S2: engine moves projected ----------
 def bot_positions(game):
     return {NICK[f.fid]: f.pos for f in game.own(0)}
 
@@ -769,7 +769,7 @@ def test_dash_move_while_defending_is_projected(rig, monkeypatch):
     session.handle(Event.REVEAL)
     after = bot_positions(game)
     diff = {n: p for n, p in after.items() if before[n] != p}
-    assert diff, "Dash debia mover a Medusa"
+    assert diff, "Dash had to move Medusa"
     assert dict(table.moves) == diff and len(table.moves) == len(diff)
 
 
@@ -789,12 +789,12 @@ def test_hounds_moves_every_harpy_and_all_are_projected(rig, monkeypatch):
     diff = {n: p for n, p in after.items() if before[n] != p}
     living = {NICK[f.fid] for f in game.own(0) if f.name == "Harpy"}
     assert living == {"Harpy 1", "Harpy 2", "Harpy 3"}
-    assert living <= set(diff), "Hounds mueve a cada Harpia viva y todas se proyectan"
+    assert living <= set(diff), "Hounds moves every living Harpy and all are projected"
     assert dict(table.moves) == diff and len(table.moves) == len(diff)
     assert all(table.positions[NICK[f.fid]] == f.pos for f in game.own(0))
 
 
-# ---------- S3: la resolucion del humano manda ----------
+# ---------- S3: the human's resolution rules ----------
 def test_bot_combat_waits_for_end_action_before_continuing(rig, monkeypatch):
     session, table, game = rig
     run_bot_attack_with(session, table, game, monkeypatch, ["Gaze of Stone", "Snipe"], "medusa", "hellboy",
@@ -805,7 +805,7 @@ def test_bot_combat_waits_for_end_action_before_continuing(rig, monkeypatch):
     reads = table.count("piece_spaces")
     monkeypatch.setattr(session.ai, "plan", lambda g: Act("maneuver", moves={"medusa": 0}))
     session.handle(Event.END_ACTION)
-    assert (BATCH or table.count("piece_spaces") > reads), "start/continue siempre sincroniza antes"
+    assert (BATCH or table.count("piece_spaces") > reads), "start/continue always syncs first"
     assert game.turn == 1
 
 
@@ -818,7 +818,7 @@ def test_start_bot_turn_syncs_human_first(rig, monkeypatch):
     assert game.fighters["hellboy"].pos == 2
 
 
-# ---------- S4: descartes del humano ----------
+# ---------- S4: the human's discards ----------
 def test_forced_discard_is_announced_and_learned_from_table(rig, monkeypatch):
     session, table, game = rig
     claws = card(game, 0, "Clutching Claws")
@@ -833,11 +833,11 @@ def test_forced_discard_is_announced_and_learned_from_table(rig, monkeypatch):
     table.face_down = []
     msgs = session.handle(Event.REVEAL)
     assert any("Descarta 1 carta" in m for m in msgs)
-    assert len(game.players[1].hand) == 2, "el motor no inventa que carta se descarta"
+    assert len(game.players[1].hand) == 2, "the engine does not invent which card is discarded"
     assert game.players[1].discard == []
-    msgs = session.handle(Event.END_ACTION)  # aun no ha descartado
+    msgs = session.handle(Event.END_ACTION)  # has not discarded yet
     assert any("Aun falta" in m for m in msgs) and session.pending_discard is not None
-    assert session.handle(Event.MANEUVER)  # bloqueado mientras debe descartar
+    assert session.handle(Event.MANEUVER)  # blocked while they must discard
     chosen = card(game, 1, "Glimpse Of Hell", 1)
     table.human_discard = [chosen.card_id]
     table.human_count = 1
@@ -853,10 +853,10 @@ def test_sync_makes_engine_discard_equal_to_table_including_removals(rig):
     table.human_discard = [c.card_id for c in destiny]
     session.sync_human()
     assert game.form(1) == "ANUNG UN RAMA" and {c.card_id for c in game.players[1].discard} == set(table.human_discard)
-    table.human_discard = table.human_discard[:5]  # Pancakes! devuelve una al mazo
+    table.human_discard = table.human_discard[:5]  # Pancakes! returns one to the deck
     session.sync_human()
-    assert game.form(1) == "ANUNG UN RAMA", "una lectura sin la carta no baja el contador"
-    session._epoch += 1                             # otro boton: sigue faltando, ahora si se cuenta
+    assert game.form(1) == "ANUNG UN RAMA", "a read without the card does not lower the counter"
+    session._epoch += 1                             # another button: it is still missing, now it does count
     session.sync_human()
     assert game.form(1) == "OCCULT DETECTIVE" and len(game.players[1].discard) == 5
     assert destiny[5] in game.players[1].deck
@@ -871,7 +871,7 @@ def test_hand_limit_makes_the_human_discard_before_bot_turn(rig, monkeypatch):
     assert any("Descarta 2 carta" in m for m in msgs) and game.turn == 1
     table.human_count = 7
     session.handle(Event.END_ACTION)
-    assert game.turn == 1 and game.actions_left == 2 and session.pending is None  # el bot ya jugo y paso
+    assert game.turn == 1 and game.actions_left == 2 and session.pending is None  # the bot already played and passed
 
 
 def test_human_discard_zone_and_deck_spot_are_required():
@@ -881,7 +881,7 @@ def test_human_discard_zone_and_deck_spot_are_required():
         SessionConfig("Blue", "Red", NICK, (0, 1, 5), (0, -5), (5, 1, 5), "BOTZ", "DECK1")
 
 
-# ---------- nits: inicio de turno sin inventar la mano ----------
+# ---------- nits: start of turn without inventing the hand ----------
 def test_human_start_of_turn_effects_are_announced_not_applied(rig, monkeypatch):
     session, table, game = rig
     game.players[1].discard = [c for c in game.players[1].full_set if c.destiny][:6]
@@ -898,9 +898,9 @@ def test_human_start_of_turn_effects_are_announced_not_applied(rig, monkeypatch)
     assert len(game.players[1].hand) == len(hand_before)
 
 
-# ---------- revision 3: atasco por ataque pendiente imposible ----------
+# ---------- review 3: jam over an impossible pending attack ----------
 def lobster_rig(table, game):
-    """Lobster al lado de Medusa y el humano solo con cartas que Lobster no puede jugar para atacar."""
+    """Lobster next to Medusa and the human with only cards Lobster cannot play to attack."""
     place(game, hellboy=40 if 40 in game.board.spaces else 31, lobster=1, medusa=0)
     table.positions.update({"Hellboy": game.fighters["hellboy"].pos, "Lobster Johnson": 1})
     table.human_hand = ids(game, 1, "On Earth As It Is In Hell", "Pancakes!")
@@ -911,19 +911,19 @@ def test_an_attacker_without_a_legal_card_is_refused_at_reveal_not_at_attack(rig
     lobster_rig(table, game)
     placed = table.count("play_card_face_down")
     session.handle(Event.ATTACKER, {"attacker": "lobster"})
-    session.handle(Event.ATTACK, {"target": "medusa"})      # Atacar ya no lee la mano del humano
+    session.handle(Event.ATTACK, {"target": "medusa"})      # Attack no longer reads the human's hand
     assert session.pending is not None and table.count("play_card_face_down") == placed
-    human_plays(table, game, "Pancakes!")                   # un plan: no ataca
+    human_plays(table, game, "Pancakes!")                   # a scheme: it does not attack
     msgs = session.handle(Event.REVEAL)
     assert any("Carta ilegal" in m for m in msgs)
-    assert session.pending is not None and table.count("play_card_face_down") == placed, "sin defensa del bot"
-    session.handle(Event.CANCEL)                            # salida limpia
+    assert session.pending is not None and table.count("play_card_face_down") == placed, "no bot defense"
+    session.handle(Event.CANCEL)                            # clean exit
     assert session.pending is None and session.chosen_attacker is None
 
 
 def test_unreadable_human_hand_does_not_block_the_attack(rig):
     session, table, game = rig
-    table.human_hand = []  # la mano no se lee (conteo 5): se confia en el humano
+    table.human_hand = []  # the hand is not read (count 5): the human is trusted
     session.handle(Event.ATTACKER, {"attacker": "hellboy"})
     session.handle(Event.ATTACK, {"target": "medusa"})
     assert session.pending is not None
@@ -936,9 +936,9 @@ def test_cancel_returns_the_bot_defense_card_and_unfreezes_the_game(rig, monkeyp
     session.handle(Event.ATTACKER, {"attacker": "hellboy"})
     session.handle(Event.ATTACK, {"target": "medusa"})
     assert session.pending is not None and table.bot_play == []
-    session._bot_defends(session.pending)    # la defensa ya puesta (p. ej. respuesta tardia recuperada)
+    session._bot_defends(session.pending)    # the defense is already placed (e.g. a late reply recovered)
     assert dash.card_id in table.bot_play
-    human_plays(table, game, "Second Shot")  # ilegal para Hellboy: Revelar falla siempre
+    human_plays(table, game, "Second Shot")  # illegal for Hellboy: Reveal always fails
     session.handle(Event.REVEAL)
     assert session.pending is not None
     assert any("Revela primero" in m for m in session.handle(Event.END_ACTION))
@@ -948,7 +948,7 @@ def test_cancel_returns_the_bot_defense_card_and_unfreezes_the_game(rig, monkeyp
     assert dash.card_id in table.bot_hand and table.bot_play == [] and table.returned == [f"g{dash.card_id}"]
     assert dash in game.players[0].hand and game.actions_left == 2 and not game.players[0].discard
     assert game.fighters["medusa"].hp == 16 and any("cancel" in m.lower() for m in msgs)
-    session.handle(Event.MANEUVER)  # los demas botones vuelven a funcionar
+    session.handle(Event.MANEUVER)  # the other buttons work again
     assert game.actions_left == 1
 
 
@@ -959,7 +959,7 @@ def test_cancel_without_bot_card_and_without_pending(rig, monkeypatch):
     session.handle(Event.ATTACK, {"target": "medusa"})
     session.handle(Event.CANCEL)
     assert session.pending is None and table.returned == [] and game.actions_left == 2
-    session.handle(Event.ATTACKER, {"attacker": "hellboy"})  # solo hay atacante elegido
+    session.handle(Event.ATTACKER, {"attacker": "hellboy"})  # there is only a chosen attacker
     session.handle(Event.CANCEL)
     assert session.chosen_attacker is None
 
@@ -982,7 +982,7 @@ def test_cancel_return_failure_keeps_pending_for_retry(rig, monkeypatch):
     session.handle(Event.ATTACKER, {"attacker": "hellboy"})
     session.handle(Event.ATTACK, {"target": "medusa"})
     session._bot_defends(session.pending)
-    table.lag = 99  # la carta no llega a la mano
+    table.lag = 99  # the card does not reach the hand
     msgs = session.handle(Event.CANCEL)
     assert any("Error de mesa" in m for m in msgs) and session.pending is not None
     table.lag = 0
@@ -990,8 +990,8 @@ def test_cancel_return_failure_keeps_pending_for_retry(rig, monkeypatch):
     assert session.pending is None and dash.card_id in table.bot_hand
 
 
-# ---------- 5 y 6: transaccionalidad del Revelar y atacante elegido ----------
-@pytest.mark.skipif(BATCH, reason="en modo rapido las cartas se giran ya aceptado el combate (ver test_batch.py)")
+# ---------- 5 and 6: transactional Reveal and chosen attacker ----------
+@pytest.mark.skipif(BATCH, reason="in fast mode the cards are turned once the combat is accepted (see test_batch.py)")
 def test_failed_game_attack_unflips_cards_and_restores_the_human_hand_guess(rig, monkeypatch):
     from sparring.state import RuleError
     session, table, game = rig
@@ -1009,7 +1009,7 @@ def test_failed_game_attack_unflips_cards_and_restores_the_human_hand_guess(rig,
     assert st.hand == hand and st.deck == deck
 
 
-@pytest.mark.skipif(BATCH, reason="en modo rapido las cartas se giran ya aceptado el combate (ver test_batch.py)")
+@pytest.mark.skipif(BATCH, reason="in fast mode the cards are turned once the combat is accepted (see test_batch.py)")
 def test_flip_failure_midway_unflips_the_cards_already_turned(rig):
     session, table, game = rig
     start_human_attack(session, table, game)
@@ -1039,7 +1039,7 @@ def test_chosen_attacker_is_cleared_after_a_failed_attack_and_at_end_of_turn(rig
     assert session.chosen_attacker is None
 
 
-# ---------- 3: la mesa tarda en reflejar los movimientos de cartas ----------
+# ---------- 3: the table is slow to reflect card moves ----------
 def _frenzy_less_boost_plan(session, game, monkeypatch):
     boost = card(game, 0, "Dash")
     acts = iter([Act("maneuver", moves={"medusa": 0}, boost=boost)])
@@ -1066,9 +1066,9 @@ def test_reconcile_gives_up_after_bounded_retries_without_marking_the_discard_do
     game.actions_left = 0
     msgs = session.handle(Event.END_ACTION)
     assert any("Error de mesa" in m for m in msgs)
-    assert boost.card_id not in session.bot_discarded, "no se da por descartada una carta sin confirmar"
+    assert boost.card_id not in session.bot_discarded, "a card without confirmation is not taken as discarded"
     table.lag, table._reads = 0, 99
-    session._reconcile_bot()  # al reintentar, con la mesa al dia, queda confirmado
+    session._reconcile_bot()  # on retry, with the table up to date, it is confirmed
     assert boost.card_id in session.bot_discarded and boost.card_id in table.bot_discard
 
 
@@ -1082,7 +1082,7 @@ def test_short_deal_keeps_the_undealt_count(rig):
     assert game.drawn[0] == 2
 
 
-# ---------- 2: arpia resucitada por Winged Frenzy ----------
+# ---------- 2: Harpy resurrected by Winged Frenzy ----------
 def test_revived_harpy_is_placed_on_the_table_and_verified(rig):
     session, table, game = rig
     frenzy = card(game, 0, "Winged Frenzy")
@@ -1133,7 +1133,7 @@ def test_bot_dying_of_exhaustion_is_announced_and_turn_stops(rig, monkeypatch):
     msgs = session.handle(Event.END_ACTION)
     text = "\n".join(msgs)
     assert game.winner == 1 and not game.fighters["medusa"].alive
-    assert len(calls) == 1, "tras morir no hay segunda accion"
+    assert len(calls) == 1, "after dying there is no second action"
     assert "Accion ilegal" not in text
     assert "Medusa cae" in text
     assert "Fin de partida: gana el jugador 1" in text

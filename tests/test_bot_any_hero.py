@@ -1,4 +1,4 @@
-"""F08 fase F-B: el bot juega cualquier heroe de la caja Hellboy (y Medusa) sin romperse, con heuristica e ISMCTS."""
+"""F08 phase F-B: the bot plays any hero of the Hellboy box (and Medusa) without breaking, with heuristic and ISMCTS."""
 from __future__ import annotations
 
 import itertools
@@ -24,7 +24,7 @@ def test_ismcts_bot_matrix(bot, human):
     for seed in SEEDS:
         ai = sim.make_bot("ismcts", iterations=6, seed=seed)
         out = sim.play(seed, bot_hero=bot, human_hero=human, medusa=ai, max_turns=30)
-        assert out.turns >= 1 and ai.fallbacks == 0      # la busqueda no cayo a la heuristica por un fallo
+        assert out.turns >= 1 and ai.fallbacks == 0      # the search did not fall back to the heuristic because of a failure
 
 
 def test_a_sidekick_that_starts_in_reserve_is_off_the_board_and_not_placed_by_the_bot(monkeypatch):
@@ -83,7 +83,7 @@ def test_the_humans_own_after_combat_still_goes_to_the_human(bprd):
     assert [e.split(":")[0] for e in res.human_effects] == ["Right Hand Of Doom"] and res.bot_notes == []
 
 
-def test_a_box_bot_card_with_a_moment_the_interpreter_cannot_apply_now_says_sin_efecto_not_ignored(bprd):
+def test_a_box_bot_card_with_a_moment_the_interpreter_cannot_apply_now_says_no_effect_not_ignored(bprd):
     """D1: nothing of a bot card is ever "ignored" or left to the human; a moment with nothing to do says so."""
     from conftest import Scripted
     from sparring.combat import resolve_combat

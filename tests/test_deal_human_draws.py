@@ -1,5 +1,5 @@
 """Every draw an effect gives the HUMAN is dealt by the bot from their physical deck to their hand (30/10), through the
-same path as the Maniobra's: the engine counts the draw, the session deals exactly that many cards at the close of
+same path as the Maneuver's: the engine counts the draw, the session deals exactly that many cards at the close of
 the button (`Session._deal_owed_draws`), never reads the hand, and the next reading of the table settles the count.
 
 The human keeps doing what is theirs: which discard cards go to the bottom of the deck, the discard of their own
@@ -325,7 +325,7 @@ def test_a_deal_whose_reply_never_comes_warns_with_the_reason_and_does_not_crash
     class Silent:
         @property
         def result(self):
-            raise TimeoutError("TTS no devolvio valor")
+            raise TimeoutError("TTS returned no value")
 
     monkeypatch.setattr(session, "_w", lambda script, domain: Silent())
     session._post.clear()
@@ -333,5 +333,5 @@ def test_a_deal_whose_reply_never_comes_warns_with_the_reason_and_does_not_crash
     monkeypatch.setattr(session, "say", lambda text, kind=None: seen.append(text))
     session._deal_human_cards(1, None)
     assert session._post and session._post[-1]() is False
-    assert any("No he podido confirmar el reparto de 1 carta (TTS no devolvio valor)" in t for t in seen)
+    assert any("No he podido confirmar el reparto de 1 carta (TTS returned no value)" in t for t in seen)
     assert session._deal_check is None

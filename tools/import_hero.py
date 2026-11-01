@@ -1,18 +1,18 @@
-"""Genera `data/heroes/<slug>.json` (HeroDef) desde unmatched-memory + el overlay a mano.
+"""Generates `data/heroes/<slug>.json` (HeroDef) from unmatched-memory + the hand-written overlay.
 
     .venv\\Scripts\\python tools\\import_hero.py medusa hellboy
-    .venv\\Scripts\\python tools\\import_hero.py --all          # todos los overlays de data/heroes/overlay
-    .venv\\Scripts\\python tools\\import_hero.py --check --all  # falla si algun HeroDef generado difiere del versionado
+    .venv\\Scripts\\python tools\\import_hero.py --all          # every overlay in data/heroes/overlay
+    .venv\\Scripts\\python tools\\import_hero.py --check --all  # fails if any generated HeroDef differs from the versioned one
 
-unmatched-memory (`../unmatched-memory/data/heroes/<slug>.json`, o UNMATCHED_MEMORY) es solo lectura y aporta
-vida, movimiento, alcance, ayudantes, habilidad y las cartas (titulo, tipo, valor, impulso, copias, textos).
-El overlay `data/heroes/overlay/<slug>.json` aporta lo que unmatched-memory no tiene: el id de luchador (`fid`),
-los ayudantes corregidos (nombre del sparring, fid, cantidad), la hoja de CardID (`deck.card_base` + `deck.sheet`:
-idx, titulo, restriccion de luchador, etiquetas y, si la carta real dice otra cosa, `text`), y formas, contadores,
-disparadores y pasivas.
-Con los efectos DSL (`data/heroes/effects/<slug>.json`) y las cartas calcula `ai_profile`: el perfil estatico de cada
-luchador para la IA (sparring/ai_profile.py); el overlay puede fijar `ai_role: {fid: striker|keep_away}`.
-Sin hoja, el HeroDef lleva las cartas de unmatched-memory sin CardID ni restriccion y el motor no puede jugar con el."""
+unmatched-memory (`../unmatched-memory/data/heroes/<slug>.json`, or UNMATCHED_MEMORY) is read only and provides
+life, movement, reach, sidekicks, ability and the cards (title, type, value, boost, copies, texts).
+The overlay `data/heroes/overlay/<slug>.json` provides what unmatched-memory lacks: the fighter id (`fid`),
+the corrected sidekicks (sparring name, fid, count), the CardID sheet (`deck.card_base` + `deck.sheet`:
+idx, title, fighter restriction, tags and, if the real card says something else, `text`), and forms, counters,
+triggers and passives.
+With the DSL effects (`data/heroes/effects/<slug>.json`) and the cards it computes `ai_profile`: the static profile of each
+fighter for the AI (sparring/ai_profile.py); the overlay can fix `ai_role: {fid: striker|keep_away}`.
+Without a sheet, the HeroDef carries the unmatched-memory cards with no CardID or restriction and the engine cannot play with it."""
 from __future__ import annotations
 
 import argparse
@@ -34,16 +34,16 @@ TEXT_PARTS = (("effect", ""), ("effectImmediately", "IMMEDIATELY: "), ("effectDu
 
 
 def card_text(src: dict) -> str:
-    """Texto de una carta tal y como lo anuncia el bot: cada momento con su etiqueta, en una linea."""
+    """Text of a card as the bot announces it: each moment with its label, on one line."""
     return " ".join(label + src[key].strip() for key, label in TEXT_PARTS if src.get(key))
 
 
 def sidekick_groups(um: dict) -> list[dict]:
-    """unmatched-memory repite un ayudante por miniatura: se agrupan los iguales (nombre y cifras) con su cantidad."""
+    """unmatched-memory repeats a sidekick per miniature: identical ones (name and figures) are grouped with their count."""
     groups: list[dict] = []
     for s in um.get("sidekicks") or ():
         if not s.get("name"):
-            continue                        # entrada vacia (Liz Sherman no tiene ayudantes)
+            continue                        # empty entry (Liz Sherman has no sidekicks)
         key = {"name": s["name"], "hp": int(s["startHealth"]), "move": int(s["move"]), "attack": s["attack"]}
         for g in groups:
             if all(g[k] == v for k, v in key.items()):
@@ -64,7 +64,7 @@ def build(slug: str, memory: Path, overlay_dir: Path = OVERLAY_DIR, effects_dir:
         sidekicks = groups
     for s in sidekicks:
         if "fid" not in s:
-            raise SystemExit(f"{slug}: el ayudante {s.get('name')!r} necesita un fid en el overlay")
+            raise SystemExit(f"{slug}: sidekick {s.get('name')!r} needs a fid in the overlay")
     by_title = {c["title"]: c for c in um["cards"]}
     deck_ov = ov.get("deck") or {}
     if "sheet" in deck_ov:
@@ -72,16 +72,16 @@ def build(slug: str, memory: Path, overlay_dir: Path = OVERLAY_DIR, effects_dir:
         for entry in deck_ov["sheet"]:
             src = by_title.get(entry["title"])
             if src is None:
-                raise SystemExit(f"{slug}: la hoja del overlay cita {entry['title']!r} (idx {entry.get('idx')}), que no "
-                                 f"existe en unmatched-memory; titulos conocidos: {', '.join(sorted(by_title))}")
+                raise SystemExit(f"{slug}: the overlay sheet cites {entry['title']!r} (idx {entry.get('idx')}), which does not "
+                                 f"exist in unmatched-memory; known titles: {', '.join(sorted(by_title))}")
             cards.append({"idx": entry["idx"], "title": entry["title"], "fighter": entry["fighter"], "type": src["type"],
                           "value": src["value"], "boost": src["boostValue"],
-                          "text": entry.get("text") or card_text(src),     # la carta real manda sobre unmatched-memory
+                          "text": entry.get("text") or card_text(src),     # the real card wins over unmatched-memory
                           "tags": list(entry.get("tags", ()))})
         for title, src in by_title.items():
             n = sum(1 for c in cards if c["title"] == title)
             if n != src["copies"]:
-                raise SystemExit(f"{slug}: {title!r} aparece {n} veces en la hoja y unmatched-memory dice {src['copies']}")
+                raise SystemExit(f"{slug}: {title!r} appears {n} times in the sheet and unmatched-memory says {src['copies']}")
         deck = {"card_base": deck_ov["card_base"], "sheet": deck_ov.get("sheet_id"), "cards": cards}
     else:
         deck = {"card_base": None, "sheet": None,
@@ -101,7 +101,7 @@ def build(slug: str, memory: Path, overlay_dir: Path = OVERLAY_DIR, effects_dir:
     out["ai_profile"] = compute_ai_profile(out, effects, ov.get("ai_role"))
     if ov.get("_notes"):
         out["_notes"] = ov["_notes"]
-    parse_hero(out, f"{slug} (generado)")       # lo que no valida no se escribe
+    parse_hero(out, f"{slug} (generated)")       # what does not validate is not written
     return out
 
 
@@ -112,13 +112,13 @@ def render(data: dict) -> str:
 def main(argv: list[str] | None = None) -> int:
     ap = argparse.ArgumentParser(prog="python tools/import_hero.py")
     ap.add_argument("slugs", nargs="*")
-    ap.add_argument("--all", action="store_true", help="todos los overlays de data/heroes/overlay")
-    ap.add_argument("--check", action="store_true", help="no escribe: falla si el HeroDef versionado difiere")
-    ap.add_argument("--memory", type=Path, default=None, help="carpeta unmatched-memory (por defecto se busca)")
+    ap.add_argument("--all", action="store_true", help="every overlay in data/heroes/overlay")
+    ap.add_argument("--check", action="store_true", help="does not write: fails if the versioned HeroDef differs")
+    ap.add_argument("--memory", type=Path, default=None, help="unmatched-memory folder (searched for by default)")
     args = ap.parse_args(argv)
     slugs = sorted(p.stem for p in OVERLAY_DIR.glob("*.json")) if args.all else args.slugs
     if not slugs:
-        ap.error("di algun slug o --all")
+        ap.error("give some slug or --all")
     memory = args.memory or memory_dir()
     stale = []
     for slug in slugs:
@@ -129,9 +129,9 @@ def main(argv: list[str] | None = None) -> int:
                 stale.append(slug)
             continue
         path.write_text(text, encoding="utf-8")
-        print(f"{path}: escrito")
+        print(f"{path}: written")
     if stale:
-        print("HeroDef desactualizados (regenera con tools/import_hero.py): " + ", ".join(stale), file=sys.stderr)
+        print("Outdated HeroDefs (regenerate with tools/import_hero.py): " + ", ".join(stale), file=sys.stderr)
         return 1
     return 0
 

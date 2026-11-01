@@ -1,5 +1,5 @@
-"""Datos de Abe Sapien (F07/F08, solo datos): overlay con hoja 194 verificada contra la imagen del save, HeroDef
-generado, y la especificacion de efectos data/heroes/effects/abe-sapien.json en el DSL v1 (docs/effects-dsl.md)."""
+"""Abe Sapien's data (F07/F08, data only): overlay with sheet 194 verified against the save's image, generated HeroDef,
+and the effects specification data/heroes/effects/abe-sapien.json in DSL v1 (docs/effects-dsl.md)."""
 import json
 
 import pytest
@@ -11,7 +11,7 @@ OVERLAY = HEROES_DIR / "overlay" / "abe-sapien.json"
 EFFECTS = HEROES_DIR / "effects" / "abe-sapien.json"
 MOMENTS = ("immediately", "during", "after", "scheme", "boost")
 
-# (titulo, copias, tipo, valor, boost, restriccion) leidos de la hoja 194 del save el 2026-10-28
+# (title, copies, type, value, boost, restriction) read from sheet 194 of the save on 2026-10-28
 SHEET = [
     ("Faster. Stronger.", 2, "attack", 5, 2, "Abe Sapien"),
     ("Advanced Psychometry", 3, "attack", 4, 3, "Abe Sapien"),
@@ -41,7 +41,7 @@ def effects():
 
 
 def walk_ops(ops):
-    """Todas las ops, incluidas las anidadas en then/else/ops/cost y en las opciones de choose_effect."""
+    """All the ops, including those nested in then/else/ops/cost and in the options of choose_effect."""
     for op in ops:
         yield op
         for key in ("then", "else", "ops", "cost"):
@@ -104,7 +104,7 @@ def test_uncanny_intuition_is_a_counter_with_two_triggers_in_the_dsl(effects):
     assert ab["counters"] == {"intuition": {"min": 0, "max": 2, "start": 0}}
     activate, spend = ab["triggers"]
     assert activate["when"] == {"event": "combat_damage_dealt", "by": "hero"}
-    assert activate["condition"]["fighters"]["role"] == "$to"     # el luchador golpeado, ligado por el evento
+    assert activate["condition"]["fighters"]["role"] == "$to"     # the fighter that was hit, bound by the event
     assert activate["ops"] == [{"op": "counter", "name": "intuition", "delta": 1}]
     assert spend["when"] == {"event": "attacked", "target": "hero"}
     assert spend["condition"] == {"test": "counter", "name": "intuition", "min": 1}
@@ -147,4 +147,4 @@ def test_counterhex_shield_keeps_the_real_ongoing_text_and_is_an_ongoing_scheme(
         "immune_to_enemy_effect_damage", "immune_to_enemy_effect_moves", "immune_to_enemy_forced_discards"}
     assert all(m["kind"] == "status" and m["player"] == "owner" for m in card["ongoing"]["modifiers"])
     dealt = [c for c in load_hero("abe-sapien").deck() if c.title == "Counterhex Shield"]
-    assert len(dealt) == 2 and all(c.text == card["text"] for c in dealt)   # el overlay manda sobre unmatched-memory
+    assert len(dealt) == 2 and all(c.text == card["text"] for c in dealt)   # the overlay wins over unmatched-memory

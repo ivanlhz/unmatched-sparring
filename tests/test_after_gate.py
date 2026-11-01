@@ -35,10 +35,10 @@ def test_the_defenders_effect_comes_first_and_the_attackers_waits_for_the_step_o
     assert table.human_deals[-1] == 2 and len(table.human_deals) == 3, "Glimpse drew 2; Fleeting has not drawn yet"
     assert not said(msgs, "Descarta 1 carta(s)") and not said(msgs, "Fleeting Moments:")
     assert session.pending_discard is None and not said(msgs, "no estas")
-    tu_carta = next(i for i, m in enumerate(msgs) if "Tu carta: Glimpse Of Hell: robas 2; en la mesa: pon 1 carta de tu "
+    your_card = next(i for i, m in enumerate(msgs) if "Tu carta: Glimpse Of Hell: robas 2; en la mesa: pon 1 carta de tu "
                                                       "mano en tu mazo y baraja" in m)
     ask = next(i for i, m in enumerate(msgs) if "pulsa Fin de accion: despues se resuelve Fleeting Moments" in m)
-    assert tu_carta < ask and msgs[-1] == msgs[ask]
+    assert your_card < ask and msgs[-1] == msgs[ask]
 
 
 @with_rig(*LIZ_VS_HELLBOY)
@@ -60,7 +60,7 @@ def test_the_random_position_is_drawn_over_the_hand_after_glimpse(rig, monkeypat
     assert table.human_deals[-1] == 2 and len(table.human_deals) == 3, "Fleeting's draw is not dealt with the request"
     assert said(msgs, "Cuando hayas descartado y pulses Fin de accion te doy 1 carta")
     assert not said(msgs, "no estas") and not said(msgs, "Te he dado 1 carta")
-    # the random discard is done on the table, then Fin de accion deals the card
+    # the random discard is done on the table, then End action deals the card
     table.human_discard += [table.human_hand[0]] if table.human_hand else []
     table.human_count -= 1
     msgs = click(session, table, Event.END_ACTION)

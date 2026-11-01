@@ -1,4 +1,4 @@
-"""Deteccion de los heroes en la mesa (solo lectura) y opciones --bot-hero / --human-hero."""
+"""Detection of the heroes on the table (read only) and the --bot-hero / --human-hero options."""
 import json
 import os
 from pathlib import Path
@@ -16,7 +16,7 @@ from test_play import free_port
 from test_review10 import rt  # noqa: F401
 from test_session import rig  # noqa: F401
 
-REAL_CONFIG = Path(__file__).resolve().parent.parent / "config" / "partida.json"
+REAL_CONFIG = Path(__file__).resolve().parent.parent / "config" / "table.json"
 SLUGS = hero_slugs()
 BOT_SPOT, HUMAN_SPOT = (7.28, 13.93), (-4.6, 13.67)
 
@@ -59,8 +59,8 @@ def test_a_fixed_side_is_used_as_is_and_the_other_is_still_detected():
     r = reading(at_bot("medusa"), at_human("abe-sapien"), pile("hellboy", -5.0, 13.0))
     with pytest.raises(HeroDetectionError):
         detect(r)
-    assert detect(r, (None, "hellboy")) == ("medusa", "hellboy")           # el fijado no cuenta como candidato del otro
-    assert detect(reading(at_bot("medusa")), (None, "liz-sherman")) == ("medusa", "liz-sherman")   # el fijado no esta en la mesa
+    assert detect(r, (None, "hellboy")) == ("medusa", "hellboy")           # the fixed one does not count as a candidate for the other
+    assert detect(reading(at_bot("medusa")), (None, "liz-sherman")) == ("medusa", "liz-sherman")   # the fixed one is not on the table
     assert detect(reading(at_bot("medusa"), at_human("abe-sapien")), ("baba-yaga", None)) == ("baba-yaga", "abe-sapien")
 
 
@@ -87,7 +87,7 @@ def test_same_hero_fixed_on_both_sides_is_an_error():
         detect(reading(at_bot("medusa"), at_human("liz-sherman")), ("medusa", "medusa"))
 
 
-# ---------- el script de Lua ----------
+# ---------- the Lua script ----------
 def test_the_lua_counts_cards_per_hero_range_and_ignores_what_is_inside_bags():
     lupa = pytest.importorskip("lupa")
     from lupa import lua54
@@ -123,9 +123,9 @@ def test_the_lua_script_is_read_only_and_validates_its_input():
         lua.table_heroes([(1, 2)], ['x"'])
 
 
-# ---------- prioridades al cargar y al resolver ----------
+# ---------- priorities when loading and resolving ----------
 class Reader:
-    """Cliente falso: responde a `table_heroes` con una mesa fija y apunta cada script."""
+    """Fake client: answers `table_heroes` with a fixed table and records each script."""
 
     def __init__(self, *piles, fail=False):
         self.piles, self.fail, self.seen = piles, fail, []
@@ -168,7 +168,7 @@ def test_startup_option_beats_detection_and_config_and_a_config_value_beats_dete
     assert cfg.heroes == ("abe-sapien", "hellboy") and "bot: opcion de arranque; humano: mazos en la mesa" in lines[0]
     cfg = resolve_heroes(reader, load_config(cfg_with(tmp_path, bot_hero="baba-yaga", human_hero="liz-sherman")),
                          echo=lines.append)
-    assert cfg.heroes == ("baba-yaga", "liz-sherman") and reader.seen == ["-- sparring:table_heroes"]   # no leyo la 2a vez
+    assert cfg.heroes == ("baba-yaga", "liz-sherman") and reader.seen == ["-- sparring:table_heroes"]   # it did not read the 2nd time
     assert "(por configuracion)" in lines[1]
 
 
@@ -205,7 +205,7 @@ def test_the_real_config_asks_for_detection_and_the_unknown_slug_is_a_config_err
         resolve_heroes(Reader(), load_config(REAL_CONFIG, "nadie", "hellboy"), echo=lambda _: None)
 
 
-# ---------- de punta a punta con FakeTTS ----------
+# ---------- end to end with FakeTTS ----------
 @pytest.fixture
 def wire():
     state = {"piles": list(MEDUSA_LIZ), "scripts": []}
@@ -270,7 +270,7 @@ def test_the_save_records_the_heroes_of_the_game(rig):
     assert session.to_dict()["heroes"] == ["medusa", "hellboy"]
 
 
-# ---------- robustez: cartas sueltas, mayorias y empates ----------
+# ---------- robustness: loose cards, majorities and ties ----------
 def test_a_single_stray_card_of_a_third_hero_near_the_bot_spot_does_not_confuse():
     r = reading(at_bot("medusa"), pile("hellboy", 6.5, 13.0, n=1, kind="Card"), at_human("liz-sherman"))
     assert detect(r) == ("medusa", "liz-sherman")
@@ -289,9 +289,9 @@ def test_a_four_card_pile_alone_is_not_a_candidate():
 
 def test_several_candidates_pick_the_clear_majority_only():
     assert detect(reading(at_bot("medusa"), pile("hellboy", 6.0, 12.0, n=6), at_human("liz-sherman"))) == ("medusa", "liz-sherman")
-    with pytest.raises(HeroDetectionError, match="2 heroes candidatos"):   # 30 contra 20 no es claro
+    with pytest.raises(HeroDetectionError, match="2 heroes candidatos"):   # 30 against 20 is not clear
         detect(reading(at_bot("medusa"), pile("hellboy", 6.0, 12.0, n=20), at_human("liz-sherman")))
-    with pytest.raises(HeroDetectionError, match="2 heroes candidatos"):   # 5 contra 5
+    with pytest.raises(HeroDetectionError, match="2 heroes candidatos"):   # 5 against 5
         detect(reading(pile("medusa", 7.0, 14.0, n=5), pile("hellboy", 6.0, 12.0, n=5), at_human("liz-sherman")))
 
 
@@ -300,8 +300,8 @@ def test_a_tie_between_sides_is_ambiguous_not_given_to_the_human():
     with pytest.raises(HeroDetectionError):
         detect(r)
     r = reading(pile("medusa", 7.0, 14.0, n=3), pile("medusa", -5.0, 13.5, n=3), at_bot("hellboy"))
-    assert detect(r, (None, "liz-sherman")) == ("hellboy", "liz-sherman")   # 3 y 3 no cuentan
-    with pytest.raises(HeroDetectionError, match="humano"):                  # antes se regalaba al humano
+    assert detect(r, (None, "liz-sherman")) == ("hellboy", "liz-sherman")   # 3 and 3 do not count
+    with pytest.raises(HeroDetectionError, match="humano"):                  # before it was given away to the human
         detect(r)
 
 
@@ -309,15 +309,15 @@ def test_a_tie_between_sides_is_ambiguous_not_given_to_the_human():
 @pytest.mark.parametrize("human", ["medusa", "hellboy", "abe-sapien", "baba-yaga", "liz-sherman"])
 def test_every_pair_of_heroes_is_detected_in_either_seat(bot, human):
     if bot == human:
-        pytest.skip("el mismo heroe en los dos bandos es un error")
+        pytest.skip("the same hero on both sides is an error")
     stray = pile("liz-sherman" if "liz-sherman" not in (bot, human) else "hellboy", 6.5, 13.0, n=1, kind="Card")
     assert detect(reading(at_bot(bot), at_human(human), stray)) == (bot, human)
 
 
-# ---------- mazos que comparten el DeckID de Medusa (30/10: Raphael salia como Medusa) ----------
+# ---------- decks that share Medusa's DeckID (30/10: Raphael came out as Medusa) ----------
 def test_the_lua_counts_a_card_only_when_its_image_is_the_heros(rt):
-    """En el guardado del torneo Raphael, Alice, Ciri... usan los CardID 17600-17629 de Medusa: lo que los distingue
-    es la imagen del CustomDeck."""
+    """In the tournament save Raphael, Alice, Ciri... use Medusa's CardIDs 17600-17629: what tells them apart
+    is the CustomDeck image."""
     from test_review10 import H, M, conv
     rt.execute("""
 local rc = {}
@@ -333,7 +333,7 @@ realshape(mkobj({guid = 'rc1', type = 'Card', cid = 17605, cd = {["176"] = {Face
     by_guid = {p["guid"]: p for p in res["piles"]}
     assert by_guid["d42056"]["counts"] == [30, 0] and by_guid["00dc9a"]["counts"] == [0, 30]
     assert by_guid["raph"]["counts"] == [0, 0] and by_guid["raph"]["name"] == "Raphael" and by_guid["raph"]["size"] == 30
-    assert "rc1" not in by_guid      # una carta suelta que no es de nadie no se informa
+    assert "rc1" not in by_guid      # a loose card that belongs to nobody is not reported
 
 
 def test_read_table_sends_every_heros_deck_image():

@@ -1,9 +1,9 @@
 """Fighters the human's effects move, moved by the human's own hand (Ivan, 30/10).
 
-The spaces of the board are not numbered, so "Casilla 17" on a panel button told the human nothing. When a card or
+The spaces of the board are not numbered, so "Space 17" on a panel button told the human nothing. When a card or
 hero effect of the human relocates a fighter (his own or the bot's: move, place, revive, summon), the request is
-not answered with a button per space: the chat says what to move and the limits, the panel shows Hecho (and "No
-mover" when the move is optional), and the human moves the miniature on the table. At Hecho the bot reads the
+not answered with a button per space: the chat says what to move and the limits, the panel shows Done (and "Don't
+move" when the move is optional), and the human moves the miniature on the table. At Done the bot reads the
 snapshot and validates it against the engine's own options for that request (the right fighter, within the limit
 along a legal path, onto a free space, nothing else moved). A valid move is applied to the engine as the answer; a
 wrong one changes nothing, the chat says what is wrong and the panel keeps waiting. The bot never moves a piece for
@@ -95,7 +95,7 @@ def status(session, req: ChoiceRequest) -> str:
 
 
 def view(session, req: ChoiceRequest) -> tuple[dict, dict]:
-    """The choice slots while the human moves by hand: Hecho, and No mover when the move may be skipped."""
+    """The choice slots while the human moves by hand: Done, and Don't move when the move may be skipped."""
     from .session_choices import CHOICE_IDS
     states = {ident: (False, False) for ident in CHOICE_IDS}
     labels = {CHOICE_IDS[0]: panel_text(t("btn.done"), 40)}
@@ -152,7 +152,7 @@ def verdict(session, req: ChoiceRequest) -> tuple[int | None, str | None]:
 
 
 def press(session, paused, index) -> None:
-    """A click on the choice buttons while the human moves by hand: 1 is Hecho, 2 is No mover."""
+    """A click on the choice buttons while the human moves by hand: 1 is Done, 2 is Don't move."""
     req = manual_request(session)
     if isinstance(index, float) and index.is_integer():
         index = int(index)
@@ -167,7 +167,7 @@ def press(session, paused, index) -> None:
 
 
 def done(session, paused, req: ChoiceRequest) -> None:
-    """Hecho: validate; only a valid table reaches the engine. A wrong one changes nothing and says why."""
+    """Done: validate; only a valid table reaches the engine. A wrong one changes nothing and says why."""
     dest, why = verdict(session, req)
     if dest is None:
         session.say(why, ChatKind.WARNING)

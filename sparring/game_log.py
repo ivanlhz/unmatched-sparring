@@ -9,9 +9,7 @@ import time
 from pathlib import Path
 from typing import Callable
 
-LOG_NAME = "partida.log"
-
-
+LOG_NAME = "session.log"
 def log_path(state_path: Path | None) -> Path | None:
     """The log lives in the same directory as the state file."""
     return None if state_path is None else Path(state_path).with_name(LOG_NAME)
@@ -46,7 +44,7 @@ class GameLog:
             self._warn("line", e)
 
     def new_game(self, heroes: tuple[str, str]) -> None:
-        """Separator header of a fresh game (also after Reiniciar partida)."""
+        """Separator header of a fresh game (also after Restart game)."""
         self._prev = None
         try:
             when = time.strftime("%Y-%m-%d %H:%M:%S", time.localtime(self.clock()))

@@ -2,14 +2,14 @@
  "schema": 1,
  "hero": "baba-yaga",
  "notes": [
-  "Textos copiados de las cartas reales (hoja 331 del save del torneo, 2026-10-28); donde unmatched-memory difiere, manda este fichero. Migrado al DSL v1 (docs/effects-dsl.md) el 2026-10-28 sin cambiar la semantica.",
-  "Todo damage es de efecto: es lo que FATEFUL BARGAINS puede desviar y Pact Of Mortality sube en 1; el dano de combate lo calcula el motor.",
-  "Las cartas con restriccion Baba Yaga las juega ella (this = hero); las ANY tambien Koschei, por eso 'adjacent to Baba Yaga' usa hero y 'your fighter' usa this.",
-  "Decision de Ivan (28/10): 'takes 2 or more combat damage' es en un mismo combate; si Bound In Blood desvia el dano a Koschei, Baba Yaga no lo toma y el Pacto sigue.",
-  "Decision de Ivan (28/10): solo puede haber un ONGOING activo por jugador: al jugar uno nuevo, reemplaza al que estaba activo (va al descarte). The Time For Deals Is Done descarta ese.",
-  "Decision de Ivan (28/10): Pact Of Secrecy 'draw up to 2': cada jugador elige cuantas (0-2).",
-  "Decision de Ivan (28/10): Pact Of Mortality 'Return a defeated fighter' vale para cualquier luchador abatido, tambien del rival.",
-  "Decision de Ivan (28/10): Iron Teeth y The Time For Deals Is Done tambien hacen dano a Koschei, como dice el texto."
+  "Texts copied from the real cards (sheet 331 of the tournament save, 2026-10-28); where unmatched-memory differs, this file wins. Migrated to DSL v1 (docs/effects-dsl.md) on 2026-10-28 without changing the semantics.",
+  "Every damage is effect damage: it is what FATEFUL BARGAINS can divert and Pact Of Mortality raises by 1; combat damage is computed by the engine.",
+  "Cards with a Baba Yaga restriction are played by her (this = hero); ANY ones also by Koschei, which is why 'adjacent to Baba Yaga' uses hero and 'your fighter' uses this.",
+  "Ivan's decision (28/10): 'takes 2 or more combat damage' is within a single combat; if Bound In Blood diverts the damage to Koschei, Baba Yaga does not take it and the Pact continues.",
+  "Ivan's decision (28/10): only one ONGOING can be active per player: playing a new one replaces the active one (it goes to the discard). The Time For Deals Is Done discards that one.",
+  "Ivan's decision (28/10): Pact Of Secrecy 'draw up to 2': each player chooses how many (0-2).",
+  "Ivan's decision (28/10): Pact Of Mortality 'Return a defeated fighter' applies to any defeated fighter, the rival's too.",
+  "Ivan's decision (28/10): Iron Teeth and The Time For Deals Is Done also damage Koschei, as the text says."
  ],
  "ability": {
   "text": "FATEFUL BARGAINS\nIf Baba Yaga and Koschei share a zone and Baba Yaga would take effect damage, you may have Koschei take that damage instead.",
@@ -19,7 +19,7 @@
     "condition": {"test": "exists", "fighters": {"side": "own", "name": "Koschei", "where": {"zone_of": "hero"}}},
     "optional": true, "chooser": "owner"}
   ],
-  "notes": "Pasiva opcional: mientras se resuelve dano de efecto sobre Baba Yaga, si Koschei comparte zona y esta vivo, el dueno puede pasarselo entero (no se parte). En el HeroDef figura como passives[fateful_bargains] effect redirect_effect_damage: mismo significado, un solo nombre aqui."
+  "notes": "Optional passive: while effect damage on Baba Yaga is being resolved, if Koschei shares a zone and is alive, the owner may pass it all to him (it is not split). In the HeroDef it appears as passives[fateful_bargains] effect redirect_effect_damage: same meaning, a single name here."
  },
  "cards": [
   {
@@ -35,7 +35,7 @@
      ]}
     ]
    },
-   "notes": "El dano alcanza tambien a Koschei si comparte zona (es 'each other fighter'). Solo hay un ONGOING activo por jugador (regla de Ivan, 28/10): descarta ese."
+   "notes": "The damage also reaches Koschei if he shares a zone (it is 'each other fighter'). There is only one active ONGOING per player (Ivan's rule, 28/10): it discards that one."
   },
   {
    "title": "Iron Teeth",
@@ -50,7 +50,7 @@
      ]}
     ]
    },
-   "notes": "Adyacente a Baba Yaga (la carta es suya). Si no hay luchador adyacente, el dano no se aplica y la curacion sigue."
+   "notes": "Adjacent to Baba Yaga (the card is hers). If there is no adjacent fighter, the damage is not applied and the healing continues."
   },
   {
    "title": "Remove A Painful Memory",
@@ -68,7 +68,7 @@
      ]}
     ]
    },
-   "notes": "Restriccion ANY: Koschei tambien puede atacar con ella. Cabe en primitivas (optional con rama else decidida por el rival); el plugin baba:remove_painful_memory del plan no hace falta. Si la mano rival esta vacia, el ver mano no da nada y el resto no se aplica (choose sin candidatas: la ligadura queda vacia y no hay nada que descartar ni decision)."
+   "notes": "ANY restriction: Koschei can also attack with it. It fits in primitives (optional with an else branch decided by the rival); the plan's baba:remove_painful_memory plugin is not needed. If the rival's hand is empty, looking at the hand yields nothing and the rest is not applied (choose with no candidates: the binding stays empty and there is nothing to discard or decide)."
   },
   {
    "title": "Death's Release",
@@ -81,7 +81,7 @@
      {"op": "place", "target": {"side": "own", "name": "Koschei"}, "where": {"any": true}, "chooser": "owner"}
     ]
    },
-   "notes": "Solo Koschei la juega (ataque 5): Koschei es el atacante y esta vivo al resolverla. La curacion no pasa de 3."
+   "notes": "Only Koschei plays it (attack 5): Koschei is the attacker and is alive when resolving it. Healing does not exceed 3."
   },
   {
    "title": "Read The Bones",
@@ -93,7 +93,7 @@
      {"op": "search_deck", "player": "owner", "look": 5, "take": {"amount": 1}, "to": "hand", "rest": "bottom_random", "chooser": "owner"}
     ]
    },
-   "notes": "Con menos de 5 cartas en el mazo se miran las que haya."
+   "notes": "With fewer than 5 cards in the deck, those there are get looked at."
   },
   {
    "title": "Foul Journey",
@@ -108,7 +108,7 @@
      ]}
     ]
    },
-   "notes": "El dueno elige a cual de los dos luchadores del combate coloca (incluido el rival) y donde."
+   "notes": "The owner chooses which of the two fighters of the combat to place (the rival included) and where."
   },
   {
    "title": "Hasten Towards Death",
@@ -121,7 +121,7 @@
      {"op": "gain_action", "player": "attacking_player", "amount": 1}
     ]
    },
-   "notes": "Versatil ANY: jugada como ataque, el dano lo recibe el propio atacante (si es Baba Yaga, FATEFUL BARGAINS puede pasarselo a Koschei) y la accion la gana su jugador; jugada en defensa, ambos van al rival. Con Pact Of Time activo nadie gana la accion."
+   "notes": "Versatile ANY: played as an attack, the attacker itself takes the damage (if it is Baba Yaga, FATEFUL BARGAINS can pass it to Koschei) and its player gains the action; played in defense, both go to the rival. With Pact Of Time active nobody gains the action."
   },
   {
    "title": "Out Of Time",
@@ -134,7 +134,7 @@
      {"op": "end_turn"}
     ]
    },
-   "notes": "Termina el turno de quien lo tenga, gane o pierda el combate: en defensa corta el turno del rival. Decision de Ivan (28/10): el impulso sale de la MANO, como cualquier impulso (la carta usada va al descarte, publica; sin valor de impulso no se puede usar). La carta dice 'BOOST this card' (no 'this attack'): por eso el motor no debe detectarlo por texto sino por may_boost."
+   "notes": "It ends the turn of whoever has it, win or lose the combat: in defense it cuts the rival's turn. Ivan's decision (28/10): the boost comes out of the HAND, like any boost (the used card goes to the discard, public; without a boost value it cannot be used). The card says 'BOOST this card' (not 'this attack'): that is why the engine must not detect it by text but by may_boost."
   },
   {
    "title": "Deathless",
@@ -151,7 +151,7 @@
      ]}
     ]
    },
-   "notes": "Decision de Ivan (28/10): si Koschei esta abatido vuelve lo mas cerca posible de Baba Yaga con 3 de vida; si esta vivo, se mueve lo mas cerca posible de ella y su vida pasa a 3 (lo dice la carta)."
+   "notes": "Ivan's decision (28/10): if Koschei is defeated he returns as close as possible to Baba Yaga with 3 life; if alive, he moves as close as possible to her and his life becomes 3 (the card says so)."
   },
   {
    "title": "Exploit",
@@ -176,7 +176,7 @@
       "condition": {"test": "exists", "fighters": {"side": "own", "name": "Koschei", "where": {"zone_of": "hero"}}}}
     ]
    },
-   "notes": "Defensa solo de Baba Yaga: ella es la defensora. No es opcional (a diferencia de la habilidad). Koschei recibe todo el dano de combate aunque lo mate."
+   "notes": "Defense by Baba Yaga only: she is the defender. It is not optional (unlike the ability). Koschei takes all the combat damage even if it kills him."
   },
   {
    "title": "Pact Of Freedom",
@@ -194,7 +194,7 @@
     "triggers": [],
     "until": {"event": "damage_taken", "target": "hero", "damage": "combat", "min": 2}
    },
-   "notes": "Decision de Ivan (28/10): 'hero' es siempre el personaje principal; 'fighter' es heroe o ayudante. Se coloca cualquier heroe, propio o rival, nunca un ayudante."
+   "notes": "Ivan's decision (28/10): 'hero' is always the main character; 'fighter' is hero or sidekick. Any hero, own or rival's, is placed, never a sidekick."
   },
   {
    "title": "Pact Of Mortality",
@@ -211,7 +211,7 @@
     "triggers": [],
     "until": {"event": "damage_taken", "target": "hero", "damage": "combat", "min": 2}
    },
-   "notes": "El +1 afecta a todo dano de efecto de ambos jugadores (Iron Teeth, Hasten Towards Death, Pact Of Peace, Remove A Painful Memory, The Time For Deals Is Done y los efectos del rival), no al de combate ni al de agotamiento. Si no hay luchador derrotado, la parte inmediata no hace nada."
+   "notes": "The +1 affects all effect damage of both players (Iron Teeth, Hasten Towards Death, Pact Of Peace, Remove A Painful Memory, The Time For Deals Is Done and the rival's effects), not combat or exhaustion damage. If there is no defeated fighter, the immediate part does nothing."
   },
   {
    "title": "Pact Of Peace",
@@ -232,7 +232,7 @@
     ],
     "until": {"event": "damage_taken", "target": "hero", "damage": "combat", "min": 2}
    },
-   "notes": "El dano inmediato alcanza a Koschei si esta en la zona. El dano de fin de turno es de efecto: lo sube Pact Of Mortality y, si lo recibe Baba Yaga, FATEFUL BARGAINS puede pasarselo a Koschei. Solo heroes, no ayudantes que atacaron."
+   "notes": "The immediate damage reaches Koschei if he is in the zone. The end-of-turn damage is effect damage: Pact Of Mortality raises it and, if Baba Yaga takes it, FATEFUL BARGAINS can pass it to Koschei. Only heroes, not sidekicks that attacked."
   },
   {
    "title": "Pact Of Secrecy",
@@ -253,7 +253,7 @@
     "triggers": [],
     "until": {"event": "damage_taken", "target": "hero", "damage": "combat", "min": 2}
    },
-   "notes": "'Up to 2' lo decide cada jugador (0, 1 o 2). Con 2 o menos cartas en mano la eleccion se recorta a lo que hay y no se devuelve nada. El tope de mano 3 se aplica al robar (la maniobra no pasa de 3) y al final del turno segun la regla general de exceso de mano."
+   "notes": "'Up to 2' is decided by each player (0, 1 or 2). With 2 or fewer cards in hand the choice is cut down to what there is and nothing is returned. The hand cap of 3 applies when drawing (the maneuver does not go past 3) and at the end of the turn according to the general excess-hand rule."
   },
   {
    "title": "Pact Of Time",
@@ -272,24 +272,24 @@
     "triggers": [],
     "until": {"event": "damage_taken", "target": "hero", "damage": "combat", "min": 2}
    },
-   "notes": "Bloquea 'gains 1 action' de Hasten Towards Death, el de Pact Of Peace y cualquier ganancia de accion del rival (p. ej. Hellboy no tiene, Medusa tampoco). Las dos acciones normales del turno no son 'ganadas'."
+   "notes": "It blocks 'gains 1 action' of Hasten Towards Death, that of Pact Of Peace and any action gain of the rival (e.g. Hellboy has none, Medusa neither). The two normal actions of the turn are not 'gained'."
   }
  ],
  "plugins": [],
  "hidden_info": [
-  {"card": "Remove A Painful Memory", "info": "La mano del rival.",
-   "bot": "El bot solo lee la mano del humano en ese instante (tras el combate, con la carta ya revelada) y la guarda entera en KnownHand; desde ahi descuenta cada carta que el humano juega o descarta y, cuando juega boca abajo, sabe que es una del conjunto conocido hasta que se revela. Las cartas que robe despues son desconocidas. Si no hay Pacto activo, solo mira y recuerda. Cuando es el humano quien la juega contra el bot, el bot ensena su mano (el puente TTS la muestra o la anuncia en el chat) y decide el solo entre descartar la carta elegida o recibir el dano."},
-  {"card": "Read The Bones", "info": "Las 5 cartas superiores del propio mazo.",
-   "bot": "Mazo propio: el bot mira las 5 (legitimo, lo dice la carta), se queda una y pasa a saber que las otras 4 estan al fondo como conjunto, sin orden (van al azar). Lo puede usar al planificar. Cuando la juega el humano, el bot solo sabe que su mano tiene 1 carta mas, desconocida."},
-  {"card": "Pact Of Secrecy", "info": "Lo que roba cada jugador y que 2 cartas se queda.",
-   "bot": "Para la mano del humano: tras el efecto tiene exactamente 2 cartas; si el bot conocia parte de su mano, KnownHand pasa a 'subconjunto de 2 entre lo conocido mas lo robado'; lo practico es vaciar KnownHand y quedarse solo con el conteo (2) salvo que la mano previa entera fuera conocida y no robase. Las cartas devueltas al mazo no se ven. Para si mismo, el bot elige cuantas roba y cuales conserva."},
-  {"card": "Pact Of Time", "info": "Ninguna oculta: el descarte es publico.",
-   "bot": "Las cartas que cada jugador devuelve al mazo se eligen del descarte boca arriba, asi que el bot ve cuales vuelven al mazo del humano y actualiza su modelo del mazo rival (y de su propio mazo). El orden tras barajar es desconocido."},
-  {"card": "Pact Of Freedom", "info": "Las 2 cartas robadas por el dueno.",
-   "bot": "Si la juega el humano, su conteo de mano sube 2 y esas 2 son desconocidas; si la juega el bot, nada oculto para el."},
-  {"card": "Exploit", "info": "La carta robada.", "bot": "Solo el conteo de mano del rival sube 1."},
-  {"card": "Out Of Time", "info": "La carta de impulso sale de la mano de Baba Yaga y va al descarte a la vista de todos (decision de Ivan, 28/10).", "bot": "Al impulsar el humano, el bot descuenta esa carta de KnownHand si la tenia vista."},
-  {"card": "Deathless, Death's Release, Foul Journey, Iron Teeth, Hasten Towards Death, Bound In Blood, The Time For Deals Is Done, Pact Of Mortality, Pact Of Peace", "info": "Ninguna.", "bot": "Todo lo que tocan (vida, posiciones, acciones, esquemas en juego) es publico."}
+  {"card": "Remove A Painful Memory", "info": "The rival's hand.",
+   "bot": "The bot only reads the human's hand at that instant (after the combat, with the card already revealed) and keeps all of it in KnownHand; from there it discounts each card the human plays or discards and, when they play face down, knows it is one of the known set until revealed. Cards they draw afterwards are unknown. If there is no active Pact, it only looks and remembers. When the human plays it against the bot, the bot shows its hand (the TTS bridge shows it or announces it in the chat) and decides alone between discarding the chosen card or taking the damage."},
+  {"card": "Read The Bones", "info": "The top 5 cards of the own deck.",
+   "bot": "Own deck: the bot looks at the 5 (legitimate, the card says so), keeps one and comes to know that the other 4 are at the bottom as a set, without order (they go at random). It can use that when planning. When the human plays it, the bot only knows that their hand has 1 more card, unknown."},
+  {"card": "Pact Of Secrecy", "info": "What each player draws and which 2 cards they keep.",
+   "bot": "For the human's hand: after the effect it has exactly 2 cards; if the bot knew part of their hand, KnownHand becomes 'subset of 2 among the known plus the drawn'; the practical thing is to empty KnownHand and keep only the count (2) unless the whole previous hand was known and they drew nothing. The cards returned to the deck are not seen. For itself, the bot chooses how many it draws and which it keeps."},
+  {"card": "Pact Of Time", "info": "None hidden: the discard is public.",
+   "bot": "The cards each player returns to the deck are chosen from the discard face up, so the bot sees which ones return to the human's deck and updates its model of the rival's deck (and of its own deck). The order after shuffling is unknown."},
+  {"card": "Pact Of Freedom", "info": "The 2 cards drawn by the owner.",
+   "bot": "If the human plays it, their hand count goes up 2 and those 2 are unknown; if the bot plays it, nothing is hidden for it."},
+  {"card": "Exploit", "info": "The card drawn.", "bot": "Only the rival's hand count goes up 1."},
+  {"card": "Out Of Time", "info": "The boost card leaves Baba Yaga's hand and goes to the discard in plain sight (Ivan's decision, 28/10).", "bot": "When the human boosts, the bot discounts that card from KnownHand if it had seen it."},
+  {"card": "Deathless, Death's Release, Foul Journey, Iron Teeth, Hasten Towards Death, Bound In Blood, The Time For Deals Is Done, Pact Of Mortality, Pact Of Peace", "info": "None.", "bot": "Everything they touch (life, positions, actions, schemes in play) is public."}
  ],
  "open_questions": []
 }

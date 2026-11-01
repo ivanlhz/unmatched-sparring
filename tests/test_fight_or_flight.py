@@ -1,6 +1,6 @@
-"""ONGOING de Fight Or Flight (Liz): +1 al valor de las cartas de combate de su dueno hasta el inicio de su siguiente
-turno, en ataque y en defensa, un solo ONGOING por jugador (el nuevo reemplaza), persistente y visible para la IA. El rig es de Hellboy: la carta de plan
-Pancakes! hace de Fight Or Flight (mismo recurso que los tests de Flame Lash)."""
+"""Fight Or Flight ONGOING (Liz): +1 to the value of its owner's combat cards until the start of their next
+turn, in attack and defense, a single ONGOING per player (the new one replaces), persistent and visible to the AI. The rig is Hellboy's: the scheme card
+Pancakes! stands in for Fight Or Flight (the same resource as the Flame Lash tests)."""
 import json
 
 import pytest
@@ -24,7 +24,7 @@ def adjacent(game):
     return game.fighters["medusa"], game.fighters["hellboy"]
 
 
-# ---------- motor ----------
+# ---------- engine ----------
 def test_attack_with_the_bonus_adds_one_and_shows_it_in_the_breakdown(game):
     med, hb = adjacent(game)
     game.add_combat_bonus(HB, 1, FIGHT_OR_FLIGHT)
@@ -44,7 +44,7 @@ def test_defense_with_the_bonus_adds_one_even_to_a_zero_value_card_and_not_witho
     res = game.attack(med, hb, snipe, zero, values=(0, 1))
     assert res.def_value == 0 + 1 + 1 and res.def_parts[-2:] == ["Fight Or Flight (+1)", "valor extra (+1)"]
     res = game.attack(med, hb, give(game, MED, "Snipe"), None)
-    assert res.def_value == 0, "sin carta de defensa no hay valor al que sumar"
+    assert res.def_value == 0, "without a defense card there is no value to add to"
 
 
 def test_second_copy_replaces_and_it_expires_only_at_the_owners_turn_start(game):
@@ -53,7 +53,7 @@ def test_second_copy_replaces_and_it_expires_only_at_the_owners_turn_start(game)
     assert game.combat_bonus_parts(HB) == [(1, FIGHT_OR_FLIGHT)]
     game.turn = HB
     game.end_turn()
-    assert game.begin_turn() == [] and game.turn == MED, "el turno del rival no lo caduca"
+    assert game.begin_turn() == [] and game.turn == MED, "the rival's turn does not expire it"
     assert game.combat_bonus_total(HB) == 1
     game.end_turn()
     assert game.begin_turn() == [(1, FIGHT_OR_FLIGHT)] and game.combat_bonus_total(HB) == 0
@@ -80,7 +80,7 @@ def test_other_hero_passives_still_add_up_with_it(game):
     assert game.attack_bonus_parts(hb) == [(2, "ANUNG UN RAMA"), (1, FIGHT_OR_FLIGHT)]
 
 
-# ---------- guardado ----------
+# ---------- saving ----------
 def test_resume_keeps_the_bonus_and_an_old_save_loads_zero(game):
     game.add_combat_bonus(HB, 1, FIGHT_OR_FLIGHT)
     data = json.loads(json.dumps(persist.game_to_dict(game)))
@@ -88,7 +88,7 @@ def test_resume_keeps_the_bonus_and_an_old_save_loads_zero(game):
     fresh.combat_bonus = [[], []]
     persist.apply_game(fresh, data)
     assert fresh.combat_bonus_parts(HB) == [(1, FIGHT_OR_FLIGHT)] and fresh.combat_bonus_total(MED) == 0
-    del data["combat_bonus"]                      # guardado de antes de esta carta: sin la clave
+    del data["combat_bonus"]                      # a save from before this card: without the key
     persist.apply_game(fresh, data)
     assert fresh.combat_bonus == [[], []]
     assert "combat_bonus" not in persist.game_to_dict(fresh)
@@ -101,9 +101,9 @@ def test_the_model_sees_the_rivals_defense_and_attack_bonus(game):
     attack = lambda: [v for _, v in Model(game, MED).attack_dist(hb) if v is not None]
     d0, a0 = defense(), attack()
     game.add_combat_bonus(HB, 1, FIGHT_OR_FLIGHT)
-    assert defense() == {p: v + 1 for p, v in d0.items()}, "su defensa en mi turno lleva el +1"
-    assert sorted(attack()) == sorted(a0), "en mi turno su ataque siguiente ya no lo tiene: caduca antes"
-    game.turn = HB                                # en su propio turno el bonus esta vivo
+    assert defense() == {p: v + 1 for p, v in d0.items()}, "its defense on my turn carries the +1"
+    assert sorted(attack()) == sorted(a0), "on my turn its next attack no longer has it: it expires before"
+    game.turn = HB                                # on its own turn the bonus is alive
     assert sorted(attack()) == sorted(v + 1 for v in a0 if v is not None)
 
 
@@ -142,8 +142,8 @@ def test_search_threat_follows_the_same_rule(game):
             if bonus:
                 g.add_combat_bonus(HB, 1, FIGHT_OR_FLIGHT)
             results[turn, bonus] = EngineState(g, MED).threat(MED)
-    assert results[MED, False] == results[MED, True], "turno del bot: el bonus caduca antes de su ataque"
-    assert results[HB, True] != results[HB, False], "turno del humano: cuenta"
+    assert results[MED, False] == results[MED, True], "bot's turn: the bonus expires before its attack"
+    assert results[HB, True] != results[HB, False], "human's turn: it counts"
     assert bot_hand
 
 
@@ -158,14 +158,14 @@ def test_the_bot_attack_evaluation_drops_when_the_rival_defends_with_the_bonus(g
     assert ai.attack_eval(game, Model(game, MED), med, hb, snipe)[0] < base
 
 
-# ---------- sesion ----------
+# ---------- session ----------
 def play_plan(session, table, game):
     game.fx.dsl_heroes.discard("hellboy")        # the legacy scheme path of a retitled Hellboy card (the real card: tests/test_e2_human_cards.py)
     plan = card(game, HB, "Pancakes!")
     object.__setattr__(plan, "title", FIGHT_OR_FLIGHT)
     object.__setattr__(plan, "text", "ONGOING: Add +1 to the value of your combat cards.")
     click(session, table, Event.SCHEME)
-    table.human_discard = [plan.card_id]              # el humano deja el plan en la mesa despues de pulsar Plan
+    table.human_discard = [plan.card_id]              # the human leaves the scheme on the table after pressing Scheme
     return plan, click(session, table, Event.END_ACTION)
 
 
@@ -194,7 +194,7 @@ def test_the_bonus_lasts_through_the_bot_turn_and_expires_with_a_notice(brig, mo
     game.actions_left = 0
     msgs = click(session, table, Event.END_ACTION)
     assert game.turn == HB and game.combat_bonus_total(HB) == 0
-    assert during and during[-1] == 1, "seguia viva al terminar el turno del bot"
+    assert during and during[-1] == 1, "it was still alive at the end of the bot's turn"
     assert any("caduca el +1" in m for m in session.messages + msgs)
 
 
@@ -212,21 +212,21 @@ def test_session_resume_keeps_the_live_bonus(brig):  # noqa: F811
 
 def test_second_shot_boost_and_on_earth_still_work_with_the_bonus(game, ctl):
     med, hb = adjacent(game)
-    game.add_combat_bonus(MED, 1, FIGHT_OR_FLIGHT)           # el bonus del atacante suma al valor base
+    game.add_combat_bonus(MED, 1, FIGHT_OR_FLIGHT)           # the attacker's bonus adds to the base value
     ss, gaze = give(game, MED, "Second Shot"), give(game, MED, "Gaze of Stone")
     ctl[MED].boost = gaze
-    glimpse = give(game, HB, "Glimpse Of Hell")              # versatil de valor 2
+    glimpse = give(game, HB, "Glimpse Of Hell")              # versatile of value 2
     res = game.attack(med, hb, ss, def_card=glimpse)
     assert res.atk_value == 7 + 1 and res.boost_card is gaze and res.damage == 6
     ctl[MED].boost = None
-    game.add_combat_bonus(HB, 1, FIGHT_OR_FLIGHT)            # y el defensor tambien suma sobre el valor de On Earth
+    game.add_combat_bonus(HB, 1, FIGHT_OR_FLIGHT)            # and the defender also adds on top of the On Earth value
     game.players[HB].discard = [c for c in game.players[HB].full_set if c.destiny][:4]
     oe = give(game, HB, "On Earth As It Is In Hell")
     res = game.attack(med, hb, give(game, MED, "Second Shot", 1), def_card=oe)
     assert res.def_value == 4 + 1
 
 
-# ---------- planes que dan acciones (Searing Clarity y compania) ----------
+# ---------- schemes that give actions (Searing Clarity and company) ----------
 SEARING = "Shuffle a non-scheme card from your discard pile into your deck. Gain 1 action."
 
 
@@ -243,7 +243,7 @@ def play_plan_as(session, table, game, title, text):
 def test_searing_clarity_gives_its_action_and_the_turn_does_not_end_early(brig):  # noqa: F811
     session, table, game, fake = brig
     msgs = play_plan_as(session, table, game, "Searing Clarity", SEARING)
-    assert game.actions_left == 2, "gasta 1 y gana 1"
+    assert game.actions_left == 2, "spends 1 and gains 1"
     assert any("Detecto Searing Clarity: ganas 1 accion, te quedan 2" in m and "lo demas lo resuelves tu" in m
                for m in msgs), msgs
     assert game.turn == HB
@@ -257,7 +257,7 @@ def test_crown_still_gives_two_not_four(brig):  # noqa: F811
     click(session, table, Event.SCHEME)
     table.human_discard = [plan.card_id]
     click(session, table, Event.END_ACTION)
-    assert game.actions_left == 3, "gasta 1 y gana 2"
+    assert game.actions_left == 3, "spends 1 and gains 2"
 
 
 def test_a_plan_without_gain_leaves_the_actions_alone(brig):  # noqa: F811

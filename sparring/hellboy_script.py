@@ -1,5 +1,5 @@
-"""Hellboy guionizado para la simulacion: persigue, ataca con su mejor carta, defiende al azar.
-No juega planes ni resuelve efectos de texto (eso lo hace el humano en vivo)."""
+"""Scripted Hellboy for the simulation: chases, attacks with his best card, defends at random.
+He plays no schemes and resolves no text effects (the human does that live)."""
 from __future__ import annotations
 
 import random

@@ -1,4 +1,4 @@
-"""Alinea los snap points de un Custom_Board de TTS con los círculos de la imagen del mapa."""
+"""Aligns the snap points of a TTS Custom_Board with the circles of the map image."""
 import json, sys
 import cv2, numpy as np
 from scipy.optimize import linear_sum_assignment
@@ -20,13 +20,13 @@ def outline_dark(x, y, r):
     v = [min(g[int(np.clip(y + rr * np.sin(a), 0, H - 1)), int(np.clip(x + rr * np.cos(a), 0, W - 1))]
              for rr in (r - 4, r, r + 4)) for a in ang]
     return np.mean(np.array(v) < 70)
-# casillas reales: radio uniforme y contorno negro; fuera logos, fichas y decorado
+# real spaces: uniform radius and black outline; logos, tokens and decoration are left out
 keep = [(x, y) for x, y, r in circ[0] if r <= r0 * 1.065 and outline_dark(x, y, r) > 0.6]
 centers = np.array(keep)
-print("círculos detectados:", len(centers), "snaps:", len(pts))
+print("circles detected:", len(centers), "snaps:", len(pts))
 
-# Prueba las 8 orientaciones (signos e intercambio de ejes), normaliza media y escala,
-# y afina con ICP + asignación húngara. Se queda con la de menor error.
+# Tries the 8 orientations (signs and axis swap), normalizes mean and scale,
+# and refines with ICP + Hungarian assignment. Keeps the one with the smallest error.
 def icp(P0):
     P = P0
     for _ in range(40):
@@ -50,7 +50,7 @@ for swap in (False, True):
                 best = res
 P, tgt, M, _ = best
 err = np.linalg.norm(P - tgt, axis=1)
-print("error medio px:", err.mean().round(1), "máx:", err.max().round(1))
+print("mean error px:", err.mean().round(1), "max:", err.max().round(1))
 
 vis = img.copy()
 for (cx, cy) in centers:

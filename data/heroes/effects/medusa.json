@@ -2,11 +2,11 @@
  "schema": 1,
  "hero": "medusa",
  "notes": [
-  "Efectos de Medusa en el DSL v1 (docs/effects-dsl.md), escritos el 2026-10-28 a partir de lo que hacia el motor cableado por titulo. Desde C5 (2026-10-29) el interprete es quien resuelve estas cartas y la habilidad (docs/effects-dsl.md, seccion 15); el codigo antiguo vive copiado en tests/legacy_medusa.py como oraculo de tests/test_medusa_dsl_diff.py.",
-  "Todo damage es de efecto: asi lo hace el motor (game.damage por defecto es 'effect'), incluidos los 8 de Gaze of Stone y los 2 de A Momentary Glance; Planned Recklessness los para.",
-  "Los movimientos son 'hasta N' con 0 incluido (el controlador puede devolver None en choose_move).",
-  "Decision de Ivan (28/10): A Momentary Glance puede apuntar a un luchador propio.",
-  "Decision de Ivan (28/10): Winged Frenzy: con varias Harpias abatidas, el dueno (el bot) elige cual vuelve."
+  "Medusa's effects in DSL v1 (docs/effects-dsl.md), written on 2026-10-28 from what the engine did wired by title. Since C5 (2026-10-29) the interpreter is what resolves these cards and the ability (docs/effects-dsl.md, section 15); the old code lives copied in tests/legacy_medusa.py as the oracle of tests/test_medusa_dsl_diff.py.",
+  "Every damage is effect damage: that is how the engine does it (game.damage defaults to 'effect'), including the 8 of Gaze of Stone and the 2 of A Momentary Glance; Planned Recklessness stops them.",
+  "Movements are 'up to N' with 0 included (the controller may return None in choose_move).",
+  "Ivan's decision (28/10): A Momentary Glance may target an own fighter.",
+  "Ivan's decision (28/10): Winged Frenzy: with several defeated Harpies, the owner (the bot) chooses which one returns."
  ],
  "ability": {
   "text": "At the start of your turn, you may deal 1 damage to an opposing fighter in Medusa's zone.",
@@ -17,7 +17,7 @@
     ]}]}
   ],
   "passives": [],
-  "notes": "Hoy la ejecuta Game.medusa_ability(target) con el objetivo elegido por el controlador (MedusaAI o el humano); Medusa debe estar viva y el rival compartir zona con ella."
+  "notes": "Today it is run by Game.medusa_ability(target) with the target chosen by the controller (MedusaAI or the human); Medusa must be alive and the rival must share a zone with her."
  },
  "cards": [
   {
@@ -26,7 +26,7 @@
    "text": "DURING COMBAT: You may BOOST this attack.",
    "may_boost": true,
    "effects": {"immediately": [], "during": [], "after": [], "scheme": [], "boost": []},
-   "notes": "Ataque 3 / boost 3, solo Medusa. El motor lo resuelve por titulo (combat.py SECOND_SHOT): el controlador elige la carta de impulso en el DURING (choose_combat_boost). Si el IMMEDIATELY rival la cancela no hay impulso."
+   "notes": "Attack 3 / boost 3, Medusa only. The engine resolves it by title (combat.py SECOND_SHOT): the controller chooses the boost card in the DURING (choose_combat_boost). If the rival's IMMEDIATELY cancels it there is no boost."
   },
   {
    "title": "Gaze of Stone",
@@ -40,7 +40,7 @@
      ]}
     ]
    },
-   "notes": "Ataque 2 / boost 4, solo Medusa. Dano de efecto (GAZE_DAMAGE): el escudo de Planned Recklessness lo para."
+   "notes": "Attack 2 / boost 4, Medusa only. Effect damage (GAZE_DAMAGE): Planned Recklessness' shield stops it."
   },
   {
    "title": "Regroup",
@@ -64,7 +64,7 @@
     "immediately": [], "during": [], "scheme": [], "boost": [],
     "after": [{"op": "move", "target": "this", "amount": 3, "up_to": true}]
    },
-   "notes": "Versatil 3 / boost 1, cualquiera. Si el luchador murio en el combate no se mueve (selector alive por defecto)."
+   "notes": "Versatile 3 / boost 1, anyone. If the fighter died in the combat it does not move (alive selector by default)."
   },
   {
    "title": "Snipe",
@@ -84,7 +84,7 @@
     "during": [], "after": [], "scheme": [], "boost": [],
     "immediately": [{"op": "cancel_effects", "card": "opponent_card"}]
    },
-   "notes": "Versatil 2 / boost 2, cualquiera. No cancela cartas uncancelable (Incinerate de Liz)."
+   "notes": "Versatile 2 / boost 2, anyone. It does not cancel uncancelable cards (Liz's Incinerate)."
   },
   {
    "title": "The Hounds of Mighty Zeus",
@@ -94,7 +94,7 @@
     "immediately": [], "during": [], "scheme": [], "boost": [],
     "after": [{"op": "move", "target": {"side": "own", "name": "Harpy", "pick": "all"}, "amount": 3, "up_to": true}]
    },
-   "notes": "Versatil 4 / boost 3, solo Harpy. El motor mueve las Harpias vivas una tras otra (HOUNDS_STEPS)."
+   "notes": "Versatile 4 / boost 3, Harpy only. The engine moves the living Harpies one after another (HOUNDS_STEPS)."
   },
   {
    "title": "Clutching Claws",
@@ -104,7 +104,7 @@
     "immediately": [], "during": [], "scheme": [], "boost": [],
     "after": [{"op": "discard", "cards": {"zone": "hand", "player": "opponent", "amount": 1, "chooser": "opponent"}}]
    },
-   "notes": "Versatil 3 / boost 2, solo Harpy. El rival elige (Game.force_discard); en vivo queda como descarte pendiente hasta 'Fin de accion'."
+   "notes": "Versatile 3 / boost 2, Harpy only. The rival chooses (Game.force_discard); live it stays as a pending discard until 'End action'."
   },
   {
    "title": "Hiss and Slither",
@@ -114,7 +114,7 @@
     "immediately": [], "during": [], "scheme": [], "boost": [],
     "after": [{"op": "discard", "cards": {"zone": "hand", "player": "opponent", "amount": 1, "chooser": "opponent"}}]
    },
-   "notes": "Defensa 4 / boost 3, solo Medusa. Igual que Clutching Claws."
+   "notes": "Defense 4 / boost 3, Medusa only. Same as Clutching Claws."
   },
   {
    "title": "A Momentary Glance",
@@ -124,7 +124,7 @@
     "immediately": [], "during": [], "after": [], "boost": [],
     "scheme": [{"op": "damage", "target": {"side": "any", "where": {"zone_of": "hero"}}, "amount": 2, "chooser": "owner"}]
    },
-   "notes": "Plan, boost 4, solo Medusa. 'Any one fighter' incluye los propios: el motor (check_scheme) acepta cualquier luchador vivo que comparta zona con Medusa, ella incluida. Dano de efecto (GLANCE_DAMAGE)."
+   "notes": "Scheme, boost 4, Medusa only. 'Any one fighter' includes your own: the engine (check_scheme) accepts any living fighter that shares a zone with Medusa, herself included. Effect damage (GLANCE_DAMAGE)."
   },
   {
    "title": "Winged Frenzy",
@@ -137,14 +137,14 @@
      {"op": "revive", "target": {"side": "own", "name": "Harpy", "state": "defeated"}, "where": {"zone_of": "hero", "empty": true}, "hp": 1, "chooser": "owner"}
     ]
    },
-   "notes": "Plan, boost 2, cualquiera. Los movimientos van en orden de fid (Harpias y luego Medusa, cada una viendo donde quedaron las anteriores); vuelve la primera Harpia abatida con 1 de vida a un espacio libre de la zona de Medusa. Decision de Ivan (28/10): la vuelta es obligatoria si hay espacio; un choose_placement que conteste None la deja en el primer espacio libre (el motor antiguo la dejaba abatida)."
+   "notes": "Scheme, boost 2, anyone. Movements go in fid order (Harpies and then Medusa, each seeing where the previous ones ended up); the first defeated Harpy returns with 1 life to a free space of Medusa's zone. Ivan's decision (28/10): the return is mandatory if there is room; a choose_placement that answers None leaves it on the first free space (the old engine left it defeated)."
   }
  ],
  "plugins": [],
  "hidden_info": [
-  {"card": "Clutching Claws, Hiss and Slither", "what": "El rival descarta una carta a su eleccion.", "bot": "El bot no mira la mano: solo ve la carta que cae en el descarte (publica) y la descuenta de KnownHand si la tenia vista."},
-  {"card": "Second Shot", "what": "La carta de impulso se descarta boca arriba.", "bot": "Publica para los dos."},
-  {"card": "Regroup, Snipe", "what": "Robos.", "bot": "Solo cambia la cuenta de la mano rival; nada se infiere del contenido."}
+  {"card": "Clutching Claws, Hiss and Slither", "what": "The rival discards a card of their choice.", "bot": "The bot does not look at the hand: it only sees the card that falls into the discard (public) and discounts it from KnownHand if it had seen it."},
+  {"card": "Second Shot", "what": "The boost card is discarded face up.", "bot": "Public for both."},
+  {"card": "Regroup, Snipe", "what": "Draws.", "bot": "It only changes the count of the rival's hand; nothing is inferred from the content."}
  ],
  "open_questions": []
 }

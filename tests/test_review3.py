@@ -1,7 +1,7 @@
-"""Tercera revision: ningun estado pendiente sin salida y todo fallo de mesa se puede reintentar.
+"""Third review: no pending state without an exit and every table failure can be retried.
 
-Los escenarios P1-P5 salen de los scripts de reproduccion del revisor. La mesa falsa (`Table`) modela TTS de
-verdad: un descarte de 2 o mas cartas es un Deck y el mazo de 1 carta es una Card suelta."""
+Scenarios P1-P5 come from the reviewer's reproduction scripts. The fake table (`Table`) models real TTS:
+a discard of 2 or more cards is a Deck and a 1-card deck is a loose Card."""
 from conftest import t_discard_cards
 import pytest
 
@@ -20,7 +20,7 @@ def maneuver_plan(session, monkeypatch, boost=None):
 
 
 def claws_attack(session, table, game, monkeypatch):
-    """Harpy 1 ataca a Hellboy con Clutching Claws (el humano debera descartar) y queda pendiente."""
+    """Harpy 1 attacks Hellboy with Clutching Claws (the human will have to discard) and it stays pending."""
     place(game, harpy1=2, hellboy=1)
     table.positions.update({"Harpy 1": 2, "Hellboy": 1})
     set_bot_hand(table, game, "Clutching Claws", "Snipe")
@@ -36,7 +36,7 @@ def claws_attack(session, table, game, monkeypatch):
     return claws
 
 
-# ---------- N1: el descarte pendiente nunca se congela ----------
+# ---------- N1: the pending discard never freezes ----------
 def test_n1_reconcile_failure_in_reveal_keeps_the_discard_baseline_and_the_game_finishes(rig, monkeypatch):
     session, table, game = rig
     claws_attack(session, table, game, monkeypatch)
@@ -59,7 +59,7 @@ def test_n1_every_pending_state_has_an_exit(rig, monkeypatch):
     claws_attack(session, table, game, monkeypatch)
     session.handle(Event.REVEAL)
     assert session.pending_discard is not None
-    msgs = session.handle(Event.CANCEL)          # el humano no puede o no quiere descartar: salida
+    msgs = session.handle(Event.CANCEL)          # the human cannot or does not want to discard: exit
     assert session.pending_discard is None and any("descarte" in m.lower() for m in msgs)
     maneuver_plan(session, monkeypatch)
     session.handle(Event.END_ACTION)
@@ -86,14 +86,14 @@ def test_n1_cancel_gives_up_after_two_failed_returns(rig, monkeypatch):
     session.handle(Event.ATTACKER, {"attacker": "hellboy"})
     session.handle(Event.ATTACK, {"target": "medusa"})
     session._bot_defends(session.pending)
-    table.bot_play.clear()                        # la carta ya no esta donde el bot la dejo
+    table.bot_play.clear()                        # the card is no longer where the bot left it
     first = session.handle(Event.CANCEL)
     assert session.pending is not None and any("Error de mesa" in m for m in first)
     session.handle(Event.CANCEL)
     assert session.pending is None and game.actions_left == 2
 
 
-# ---------- N2: reintentos tras un fallo de asentamiento ----------
+# ---------- N2: retries after a settling failure ----------
 def test_n2_retry_after_settle_timeout_with_a_discard_pile_deck(rig, monkeypatch):
     session, table, game = rig
     snipe = card(game, 0, "Snipe")
@@ -110,7 +110,7 @@ def test_n2_retry_after_settle_timeout_with_a_discard_pile_deck(rig, monkeypatch
     assert any("Error de mesa" in m for m in msgs)
     table.lag, table._reads = 0, 99
     for _ in range(3):
-        session._reconcile_bot()                   # reintentos: el descarte ya es un Deck de 2 cartas
+        session._reconcile_bot()                   # retries: the discard is already a 2-card Deck
     assert boost.card_id in table.bot_discard and boost.card_id in session.bot_discarded
     assert not any("Error de mesa" in m for m in session.handle(Event.END_ACTION))
 
@@ -153,7 +153,7 @@ def test_n2_discard_and_read_scripts_look_inside_decks():
     assert 'o.type == "Deck"' in lua.read_discard("abc")
 
 
-# ---------- N3: el final del turno del bot es reintentable ----------
+# ---------- N3: the end of the bot's turn is retryable ----------
 def test_n3_failed_reconcile_at_end_of_bot_turn_does_not_skip_or_double_end_the_human_turn(rig, monkeypatch):
     session, table, game = rig
     maneuver_plan(session, monkeypatch)
@@ -167,13 +167,13 @@ def test_n3_failed_reconcile_at_end_of_bot_turn_does_not_skip_or_double_end_the_
     session.dirty = False
     turn_no = game.turn_no
     game.actions_left = 0
-    msgs = session.handle(Event.END_ACTION)       # humano termina; el bot juega 2 maniobras y pasa
+    msgs = session.handle(Event.END_ACTION)       # the human finishes; the bot plays 2 maneuvers and passes
     assert game.turn == 1 and game.turn_no == turn_no + 2
-    assert game.actions_left == 2, "el turno del humano debe haber empezado igualmente"
+    assert game.actions_left == 2, "the human's turn must have started anyway"
     assert any("mesa lenta" in m for m in msgs)
-    session.handle(Event.MANEUVER)                # el humano puede jugar
+    session.handle(Event.MANEUVER)                # the human can play
     assert game.actions_left == 1 and game.turn_no == turn_no + 2
-    assert session.dirty is False, "la deuda de mesa se salda sola en la siguiente accion"
+    assert session.dirty is False, "the table debt is settled by itself on the next action"
 
 
 def test_n3_retry_button_reruns_the_failed_reconcile_before_the_bot_acts_again(rig, monkeypatch):
@@ -204,7 +204,7 @@ def test_n3_failure_at_start_of_the_bot_turn_is_resumable_and_does_not_skip_it(r
     def flaky():
         if state["fail"] and game.turn == 0:
             state["fail"] = False
-            raise TimeoutError("TTS no devolvio valor")
+            raise TimeoutError("TTS returned no value")
         real()
     monkeypatch.setattr(session, "sync_positions", flaky)
     game.actions_left = 0
@@ -212,10 +212,10 @@ def test_n3_failure_at_start_of_the_bot_turn_is_resumable_and_does_not_skip_it(r
     assert any("TTS no respondio" in m for m in msgs) and game.turn == 0
     session.handle(Event.END_ACTION)
     assert game.turn == 1 and game.actions_left == 2
-    assert table.count("deal_cards") == 2, "el bot jugo sus dos acciones"
+    assert table.count("deal_cards") == 2, "the bot played both its actions"
 
 
-# ---------- N4: mazo del bot ----------
+# ---------- N4: the bot's deck ----------
 def test_n4_deck_spot_is_required(rig):
     session, table, game = rig
     session.cfg.bot_deck_spot = None
@@ -227,7 +227,7 @@ def test_n4_deck_spot_is_required(rig):
 def test_n4_deck_to_single_card_to_empty_then_exhaustion_end_to_end(rig, monkeypatch):
     session, table, game = rig
     st = game.players[0]
-    keep = table.bot_deck[:2]                       # un Deck de 2 cartas; el resto, en el descarte
+    keep = table.bot_deck[:2]                       # a 2-card Deck; the rest, in the discard
     rest = [c for c in st.full_set if c.card_id not in table.bot_hand and c.card_id not in keep]
     table.bot_deck = list(keep)
     table.bot_discard = [c.card_id for c in rest]
@@ -238,11 +238,11 @@ def test_n4_deck_to_single_card_to_empty_then_exhaustion_end_to_end(rig, monkeyp
     maneuver_plan(session, monkeypatch)
     hp = {f.fid: f.hp for f in game.own(0)}
     game.actions_left = 0
-    session.handle(Event.END_ACTION)                # 2 maniobras: Deck -> Card suelta -> vacio
+    session.handle(Event.END_ACTION)                # 2 maneuvers: Deck -> loose Card -> empty
     assert table.bot_deck == [] and len(st.deck) == 0 and game.drawn[0] == 0
-    assert {f.fid: f.hp for f in game.own(0)} == hp, "sin dano mientras habia cartas"
+    assert {f.fid: f.hp for f in game.own(0)} == hp, "no damage while there were cards"
     assert sorted(c.card_id for c in st.hand) == sorted(table.bot_hand)
-    # siguiente turno del bot: mazo vacio -> agotamiento (2 por luchador y accion) y nada que repartir
+    # bot's next turn: empty deck -> exhaustion (2 per fighter and action) and nothing to deal
     deals = len(table.deal_calls)
     game.actions_left = 0
     session.handle(Event.END_ACTION)
@@ -259,20 +259,20 @@ def test_n4_short_deal_does_not_reinflate_the_engine_deck(rig):
     st.discard = [c for c in st.full_set if c.card_id in table.bot_discard]
     session.bot_discarded |= set(table.bot_discard)
     session.read_bot_hand()
-    st.deck = [card(game, 0, "Gaze of Stone")]       # el motor cree que aun queda una (desfase)
+    st.deck = [card(game, 0, "Gaze of Stone")]       # the engine thinks one is still left (drift)
     st.discard.remove(card(game, 0, "Gaze of Stone"))
-    table.bot_discard.remove(card(game, 0, "Gaze of Stone").card_id)     # y la mesa no la tiene en ningun sitio
+    table.bot_discard.remove(card(game, 0, "Gaze of Stone").card_id)     # and the table does not have it anywhere
     game.draw(0)
     assert game.drawn[0] == 1
     with pytest.raises(SessionError):
         session._reconcile_bot()
     session.read_bot_hand()
     assert game.drawn[0] == 1
-    assert len(st.hand) == len(table.bot_hand) + 1, "la carta debida sigue contada en la mano del motor"
+    assert len(st.hand) == len(table.bot_hand) + 1, "the owed card is still counted in the engine's hand"
     assert st.deck == [] or len(st.deck) == 0
 
 
-# ---------- N7: carta ya colocada antes de pulsar Atacar ----------
+# ---------- N7: card already placed before pressing Attack ----------
 def test_n7_card_already_placed_counts_as_an_attack_card(rig):
     session, table, game = rig
     place(game, hellboy=40 if 40 in game.board.spaces else 31, lobster=1, medusa=0)
@@ -291,10 +291,10 @@ def test_n7_without_any_legal_card_it_is_refused_at_reveal(rig):
     table.human_hand = ids(game, 1, "Pancakes!")
     human_plays(table, game, "On Earth As It Is In Hell")
     session.handle(Event.ATTACKER, {"attacker": "lobster"})
-    session.handle(Event.ATTACK, {"target": "medusa"})      # Atacar ya no lee la mano: la legalidad se ve al Revelar
+    session.handle(Event.ATTACK, {"target": "medusa"})      # Attack no longer reads the hand: legality shows at Reveal
     msgs = session.handle(Event.REVEAL)
     assert any("Carta ilegal" in m for m in msgs)
-    assert session.pending is not None and not session.pending.defended, "el bot no ha puesto defensa"
+    assert session.pending is not None and not session.pending.defended, "the bot has not placed a defense"
 
 
 # ---------- N8 ----------
@@ -320,7 +320,7 @@ def test_n8_harpy_defends_with_a_harpy_legal_card_and_the_reveal_resolves(rig):
     assert any("Combate" in m for m in msgs) and session.pending is None
 
 
-# ---------- Liz (Wildfire): las ardientes descartadas vuelven a la mano ----------
+# ---------- Liz (Wildfire): discarded burning cards return to the hand ----------
 def liz_human(game):
     from sparring.heroes import load_hero
     game.players[1].hero = load_hero("liz-sherman")
@@ -333,8 +333,8 @@ def test_wildfire_forced_discard_is_accepted_when_burning_card_returned_to_hand(
     msgs = session.handle(Event.REVEAL)
     assert session.pending_discard is not None and any("Wildfire" in m for m in msgs)
     maneuver_plan(session, monkeypatch)
-    msgs = session.handle(Event.END_ACTION)       # descarto una ardiente: volvio a la mano, el descarte no crece
-    assert session.pending_discard is not None and any("otra vez" in m for m in msgs)   # primero insiste
+    msgs = session.handle(Event.END_ACTION)       # I discard a burning card: it returned to the hand, the discard does not grow
+    assert session.pending_discard is not None and any("otra vez" in m for m in msgs)   # it insists first
     msgs = session.handle(Event.END_ACTION)
     assert session.pending_discard is None and not any("Aun falta" in m for m in msgs)
     assert game.turn == 1
@@ -370,17 +370,17 @@ def test_wildfire_burning_card_taken_back_from_discard_goes_to_hand_and_is_known
     claws_attack(session, table, game, monkeypatch)
     liz_human(game)
     session.handle(Event.REVEAL)
-    burning = card(game, 1, "Glimpse Of Hell", 1)    # el rig es de Hellboy: se marca como ardiente
+    burning = card(game, 1, "Glimpse Of Hell", 1)    # the rig is Hellboy's: it is marked as burning
     object.__setattr__(burning, "tags", frozenset({"burning"}))
-    table.human_discard = [burning.card_id]           # la ensena en el descarte
+    table.human_discard = [burning.card_id]           # shows it in the discard
     table.human_count = 1
     maneuver_plan(session, monkeypatch)
     session.handle(Event.END_ACTION)
     assert burning in game.players[1].discard and session.pending_discard is None
-    in_deck = game.players[1].deck.count(burning)     # el rig deja copias en el mazo: solo cuenta que no crezca
-    table.human_discard = []                          # y la vuelve a coger
+    in_deck = game.players[1].deck.count(burning)     # the rig leaves copies in the deck: only that it does not grow counts
+    table.human_discard = []                          # and picks it up again
     table.human_count = 2
-    for _ in range(3):                                # la baja necesita dos botones distintos
+    for _ in range(3):                                # the casualty needs two distinct buttons
         session.sync_human()
         session._epoch += 1
     st = game.players[1]
@@ -389,7 +389,7 @@ def test_wildfire_burning_card_taken_back_from_discard_goes_to_hand_and_is_known
 
 
 def test_wildfire_burning_card_shuffled_into_deck_is_not_taken_as_returned_to_hand(rig, monkeypatch):
-    """Rekindle / Searing Clarity: la ardiente sale del descarte hacia el mazo y tu mano no crece."""
+    """Rekindle / Searing Clarity: the burning card leaves the discard toward the deck and your hand does not grow."""
     session, table, game = rig
     claws_attack(session, table, game, monkeypatch)
     liz_human(game)
@@ -401,7 +401,7 @@ def test_wildfire_burning_card_shuffled_into_deck_is_not_taken_as_returned_to_ha
     maneuver_plan(session, monkeypatch)
     session.handle(Event.END_ACTION)
     assert burning in game.players[1].discard
-    table.human_discard = []                          # se baraja en el mazo: la mano sigue con 1
+    table.human_discard = []                          # it is shuffled into the deck: the hand stays at 1
     for _ in range(3):
         session.sync_human()
         session._epoch += 1
@@ -409,7 +409,7 @@ def test_wildfire_burning_card_shuffled_into_deck_is_not_taken_as_returned_to_ha
 
 
 def test_choosing_the_attacker_rereads_positions_moved_outside_an_action(rig):
-    """Liz se mueve 2 con Wildfire al empezar su turno: al elegir atacante el panel ya debe verla donde esta."""
+    """Liz moves 2 with Wildfire at the start of her turn: when choosing an attacker the panel must already see her where she is."""
     session, table, game = rig
     place(game, hellboy=14)
     table.positions.update({"Hellboy": 18})
@@ -418,8 +418,8 @@ def test_choosing_the_attacker_rereads_positions_moved_outside_an_action(rig):
 
 
 def test_wildfire_leftover_credit_does_not_send_a_later_shuffled_burning_card_to_hand(rig, monkeypatch):
-    """La ardiente del fondo vuelve a tu mano al empezar el turno (la mano crece) y, botones despues, Rekindle baraja
-    otra ardiente del descarte en el mazo: esa no va a la mano ni el bot la conoce."""
+    """The burning card from the bottom returns to your hand at turn start (the hand grows) and, buttons later, Rekindle shuffles
+    another burning card from the discard into the deck: that one neither goes to the hand nor does the bot know it."""
     session, table, game = rig
     claws_attack(session, table, game, monkeypatch)
     liz_human(game)
@@ -431,9 +431,9 @@ def test_wildfire_leftover_credit_does_not_send_a_later_shuffled_burning_card_to
     maneuver_plan(session, monkeypatch)
     session.handle(Event.END_ACTION)
     assert burning in game.players[1].discard
-    table.human_count = 2                             # la del fondo vuelve a la mano: credito
+    table.human_count = 2                             # the bottom one returns to the hand: credit
     session.sync_human()
-    for _ in range(3):                                # botones despues, Rekindle: sale del descarte, la mano igual
+    for _ in range(3):                                # buttons later, Rekindle: it leaves the discard, the hand the same
         session._epoch += 1
         session.sync_human()
     table.human_discard = []

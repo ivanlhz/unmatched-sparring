@@ -18,29 +18,29 @@ def test_maps_load_symmetric_with_zones(key, n):
 
 
 def test_multi_zone_space(bprd):
-    assert bprd.zones(4) == {"azul", "gris", "ladrillo"}
+    assert bprd.zones(4) == {"blue", "gray", "brick"}
 
 
 def test_movement_rules(bprd):
     b = bprd
-    # 0 - 2 - 4 en cadena (0-2 y 2-4 adyacentes); 0-4 no son adyacentes
+    # 0 - 2 - 4 in a chain (0-2 and 2-4 adjacent); 0-4 are not adjacent
     assert 4 not in b.adj[0]
     r = b.reachable(0, 1, own=set(), enemy=set())
     assert r == b.adj[0]
-    # no termina en casilla ocupada por propio, pero lo atraviesa
+    # does not end on a space occupied by its own, but passes through it
     r = b.reachable(0, 2, own={2}, enemy=set())
     assert 2 not in r and 4 in r
-    # no atraviesa rival
+    # does not pass through a rival
     assert 4 not in b.reachable(0, 2, own=set(), enemy={2, 3})
-    assert 4 in b.reachable(0, 2, own=set(), enemy={2})  # rodeando por 3
-    # con efecto (Winged Frenzy) lo atraviesa, pero no termina encima
+    assert 4 in b.reachable(0, 2, own=set(), enemy={2})  # going around via 3
+    # with an effect (Winged Frenzy) it passes through, but does not end on top of it
     r = b.reachable(0, 2, own=set(), enemy={2}, through_enemies=True)
     assert 4 in r and 2 not in r
 
 
 def test_enemy_blocks_only_chokepoint(bprd):
     b = bprd
-    # 3 solo se conecta con 0 y 4: con rival en 0 hay que ir por 4 y no se pasa por 0
+    # 3 only connects with 0 and 4: with a rival on 0 you have to go through 4 and not pass through 0
     r = b.reachable(3, 1, own=set(), enemy={0})
     assert r == {4}
 
@@ -88,7 +88,7 @@ def test_exhaustion_damages_each_own_fighter(game):
     assert drawn == []
     assert game.hero(0).hp == 14
     assert all(h.hp <= 0 and not h.alive for h in game.own(0, alive_only=False) if h.name == "Harpy")
-    assert game.players[1].deck  # el rival no se ve afectado
+    assert game.players[1].deck  # the rival is not affected
     assert game.fighters["hellboy"].hp == 18
 
 
@@ -120,7 +120,7 @@ def test_maneuver_draws_then_moves_with_boost(game):
     assert game.board.distance(0, far) > 3
     game.maneuver(0, {"medusa": far}, boost_card=boost)
     assert game.fighters["medusa"].pos == far
-    assert len(game.players[0].hand) == hand_before  # +1 robo, -1 boost
+    assert len(game.players[0].hand) == hand_before  # +1 draw, -1 boost
     assert boost in game.players[0].discard and game.actions_left == 1
 
 
@@ -138,4 +138,4 @@ def test_nearest_free_prefers_same_zone(bprd):
     other = min((s for s in bprd.spaces if s != start and not bprd.share_zone(start, s)),
                 key=lambda s: bprd.distance(start, s))
     taken = {s for s in bprd.spaces if bprd.share_zone(start, s)}
-    assert bprd.nearest_free(start, taken, zone_of=start) == other  # sin hueco en la zona, cae a la mas cercana
+    assert bprd.nearest_free(start, taken, zone_of=start) == other  # with no free slot in the zone, falls to the nearest one

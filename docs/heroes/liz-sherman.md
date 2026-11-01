@@ -1,83 +1,83 @@
-# Liz Sherman (caja Hellboy)
+# Liz Sherman (Hellboy box)
 
-Datos y especificación de efectos (F07, paso 13). Nada de motor: el intérprete no lee todavía `effects/`.
+Data and effect specification (F07, step 13). No engine: the interpreter did not read `effects/` yet at the time.
 
-## Resumen
-- Héroe a distancia (RANGED en la carta), 16 de vida, mueve 3. Sin ayudantes ni fichas: la bolsa de Liz en el save del torneo solo trae la miniatura, el dial de vida (0..16) y el mazo. El "melee" que recordaba la memoria del proyecto era el ayudante vacío de unmatched-memory (`name ""`, `hasSidekicks false`), que se ignora.
-- Mazo: hoja 199 del save (8x4), `CardID = 19900 + idx`; carta de personaje 19800. Las 30 cartas llevan la banda LIZ SHERMAN (ninguna ANY). Las cartas sueltas del save usan la clave 188 con las mismas imágenes.
-- Habilidad WILDFIRE: (a) toda carta ardiente que se descarte desde la mano o el mazo vuelve a la mano; (b) al inicio del turno descarta el fondo del mazo: si es ardiente, 1 de daño a otro luchador en la zona de Liz; si no, Liz mueve hasta 2.
+## Summary
+- Ranged hero (RANGED on the card), 16 life, moves 3. No sidekicks or tokens: Liz's bag in the tournament save only holds the miniature, the life dial (0..16) and the deck. The "melee" the project's memory recalled was unmatched-memory's empty sidekick (`name ""`, `hasSidekicks false`), which is ignored.
+- Deck: sheet 199 of the save (8x4), `CardID = 19900 + idx`; character card 19800. All 30 cards carry the LIZ SHERMAN band (none ANY). The loose cards of the save use key 188 with the same images.
+- Ability WILDFIRE: (a) every burning card discarded from the hand or the deck returns to the hand; (b) at the start of the turn she discards the bottom of the deck: if it is burning, 1 damage to another fighter in Liz's zone; if not, Liz moves up to 2.
 
-## Cartas ardientes (las 15 del plan)
-Son una propiedad impresa: icono de llama junto al título y sin círculo de impulso (BOOST 0). No hay contador ni ficha.
+## Burning cards (the 15 of the plan)
+It is a printed property: a flame icon next to the title and no boost circle (BOOST 0). There is no counter or token.
 
-| Carta | Copias | Tipo | Valor | Impulso |
+| Card | Copies | Type | Value | Boost |
 |---|---|---|---|---|
-| Incinerate | 1 | ataque | 7 | 0 |
-| Fireball | 2 | ataque | 5 | 0 |
-| Flame Lash | 3 | ataque | 1 | 0 |
-| Burning Barrier | 3 | versátil | 2 | 0 |
-| Pyrotechnics | 3 | versátil | 3 | 0 |
-| Searing Clarity | 3 | plan | - | 0 |
+| Incinerate | 1 | attack | 7 | 0 |
+| Fireball | 2 | attack | 5 | 0 |
+| Flame Lash | 3 | attack | 1 | 0 |
+| Burning Barrier | 3 | versatile | 2 | 0 |
+| Pyrotechnics | 3 | versatile | 3 | 0 |
+| Searing Clarity | 3 | scheme | - | 0 |
 
-Las otras 15 (Fleeting Moments x3, B.P.R.D. Training x2, Rekindle x2, Feint x3, Evade x2, Fight Or Flight x3) no son ardientes y sí tienen impulso.
+The other 15 (Fleeting Moments x3, B.P.R.D. Training x2, Rekindle x2, Feint x3, Evade x2, Fight Or Flight x3) are not burning and do have a boost.
 
-## Ficheros
-- `data/heroes/overlay/liz-sherman.json`: hoja de CardID, restricción, etiqueta `burning`, disparador `wildfire_start` y pasiva `wildfire_return` como datos.
-- `data/heroes/liz-sherman.json`: generado con `tools/import_hero.py liz-sherman`; `--check --all` pasa.
-- `data/heroes/effects/liz-sherman.json`: ops por carta, selectores, extensiones de primitivas, plugins, información oculta y preguntas.
-- `tests/test_hero_liz_sherman_data.py`: 4 tests de datos (sin TTS).
+## Files
+- `data/heroes/overlay/liz-sherman.json`: CardID sheet, restriction, `burning` tag, `wildfire_start` trigger and `wildfire_return` passive as data.
+- `data/heroes/liz-sherman.json`: generated with `tools/import_hero.py liz-sherman`; `--check --all` passes.
+- `data/heroes/effects/liz-sherman.json`: ops per card, selectors, primitive extensions, plugins, hidden information and questions.
+- `tests/test_hero_liz_sherman_data.py`: 4 data tests (no TTS).
 
-## Decisiones
-1. **Wildfire (sustituido: ya no es plugin, es el disparador `wildfire_return` del evento `card_discarded`)**: cambia el destino de cualquier descarte de ardiente desde mano o mazo, lo dispare quien lo dispare (habilidad, Flame Lash, Fleeting Moments, efectos del rival). Nunca por impulsar: una ardiente no tiene valor de impulso y no se puede usar para impulsar (Ivan, 28/10). No es una op de carta: es un gancho sobre la primitiva `discard`. El disparador de inicio de turno sí va en ops (`discard from deck_bottom` + `if card_has_tag burning`).
-2. **`liz:incinerate` no hace falta**: cabe con `optional` (quien elige y paga es el rival) + `modify_value set 0` + atributo de carta `uncancelable` que `cancel_effects` debe respetar. Si el intérprete no admite esas tres extensiones, vuelve a plugin.
-3. **La carta real manda**: Fight Or Flight tiene un ONGOING que unmatched-memory no trae. El overlay admite `text` por entrada de la hoja y `tools/import_hero.py` lo prefiere al texto de unmatched-memory (una línea). Es el único cambio fuera de datos y tests.
-4. Sin contador: `burning` es etiqueta de carta, no se cuenta en ninguna pila (a diferencia de los destinos de Hellboy).
-5. La fila de Liz sale de `test_rest_of_the_hellboy_box_loads_basic_data_but_cannot_deal_a_deck` (ya reparte mazo); lo cubre el test nuevo.
+## Decisions
+1. **Wildfire (superseded: it is no longer a plugin, it is the `wildfire_return` trigger of the `card_discarded` event)**: it changes the destination of any burning discard from the hand or the deck, whoever triggers it (ability, Flame Lash, Fleeting Moments, rival effects). Never by boosting: a burning card has no boost value and cannot be used to boost (Ivan, 28/10). It is not a card op: it is a hook on the `discard` primitive. The start-of-turn trigger does go in ops (`discard from deck_bottom` + `if card_has_tag burning`).
+2. **`liz:incinerate` is not needed**: it fits with `optional` (the rival chooses and pays) + `modify_value set 0` + a card attribute `uncancelable` that `cancel_effects` must respect. If the interpreter does not admit those three extensions, it goes back to being a plugin.
+3. **The real card wins**: Fight Or Flight has an ONGOING that unmatched-memory does not carry. The overlay admits `text` per sheet entry and `tools/import_hero.py` prefers it to unmatched-memory's text (one line). It is the only change outside data and tests.
+4. No counter: `burning` is a card tag, not counted in any pile (unlike Hellboy's destinies).
+5. Liz's row comes from `test_rest_of_the_hellboy_box_loads_basic_data_but_cannot_deal_a_deck` (it already deals a deck); the new test covers it.
 
-## Discrepancias con unmatched-memory
-- Fight Or Flight: falta todo el ONGOING ("Add +1 to the value of your combat cards. Discard this at the start of your next turn."). Corregido vía overlay.
-- Incinerate: la carta dice "effects" (plural) donde unmatched-memory dice "effect"; sin consecuencias.
-- Evade: `effectAfter` con un espacio inicial en unmatched-memory; sin consecuencias.
-- Ayudante vacío con `attack: melee`: ignorado.
+## Discrepancies with unmatched-memory
+- Fight Or Flight: the whole ONGOING is missing ("Add +1 to the value of your combat cards. Discard this at the start of your next turn."). Corrected via overlay.
+- Incinerate: the card says "effects" (plural) where unmatched-memory says "effect"; no consequences.
+- Evade: `effectAfter` with a leading space in unmatched-memory; no consequences.
+- Empty sidekick with `attack: melee`: ignored.
 
-## Cobertura de efectos
-12 títulos, 12 con ops (100 %), 0 con `plugin` en carta. Un plugin global (`liz:wildfire`). Extensiones de argumentos declaradas sobre ops del vocabulario: `discard from deck_bottom`, `modify_value set / ref`, `status cannot_leave_space`, `if card_has_tag`, `choose_n from/filter/min/max`, `return_to_deck bottom|shuffle`, `optional cost`, `move up_to/through_enemies`, `persistent_scheme until/then`, y el atributo de carta `uncancelable`.
+## Effect coverage
+12 titles, 12 with ops (100 %), 0 with a `plugin` on the card. One global plugin (`liz:wildfire`). Argument extensions declared on vocabulary ops: `discard from deck_bottom`, `modify_value set / ref`, `status cannot_leave_space`, `if card_has_tag`, `choose_n from/filter/min/max`, `return_to_deck bottom|shuffle`, `optional cost`, `move up_to/through_enemies`, `persistent_scheme until/then`, and the card attribute `uncancelable`.
 
-## Información oculta (regla de Iván: solo se mira cuando una carta lo dice)
-- Fondo del mazo (habilidad, Flame Lash): nadie lo conoce hasta que se descarta; el bot valora Flame Lash con el mazo restante, salvo lo que él mismo puso con Pyrotechnics (lo recuerda con orden). Barajar (Rekindle, Searing Clarity) borra ese recuerdo.
-- Fleeting Moments: el descarte al azar del rival lo saca el humano o un índice uniforme; la carta descartada es pública y se descuenta de KnownHand. Su robo es una carta no vista.
-- Incinerate: el rival elige qué 2 descarta; públicas al descartarse.
-- Wildfire: la ardiente que vuelve a la mano es pública: pasa a la mano conocida del rival.
-- Wildfire, única excepción (Iván, 28/10): una ardiente descartada por el límite de mano al final del turno NO vuelve a la mano; se queda en el descarte (evento `card_discarded` con `cause: hand_limit`, filtrado con `cause_not` en `wildfire_return`).
-- Pyrotechnics: cartas boca abajo al fondo; el bot no lee cuáles fueron cuando el humano lleva a Liz (solo cuentas).
+## Hidden information (Iván's rule: it is only looked at when a card says so)
+- Bottom of the deck (ability, Flame Lash): nobody knows it until it is discarded; the bot values Flame Lash with the remaining deck, except for what it put there itself with Pyrotechnics (it remembers it in order). Shuffling (Rekindle, Searing Clarity) erases that memory.
+- Fleeting Moments: the rival's random discard is drawn by the human or by a uniform index; the discarded card is public and is discounted from KnownHand. Its draw is an unseen card.
+- Incinerate: the rival chooses which 2 to discard; public when discarded.
+- Wildfire: the burning card that returns to the hand is public: it becomes part of the rival's known hand.
+- Wildfire, the only exception (Iván, 28/10): a burning card discarded for the hand limit at the end of the turn does NOT return to the hand; it stays in the discard (`card_discarded` event with `cause: hand_limit`, filtered with `cause_not` in `wildfire_return`).
+- Pyrotechnics: cards face down to the bottom; the bot does not read which ones they were when the human plays Liz (counts only).
 
-## Decisiones de Ivan (28/10)
+## Ivan's decisions (28/10)
 
-- 'bottom card of your deck' es la carta de mas abajo del mazo (la ultima), no la de arriba que se roba. Es la que usan Wildfire al inicio del turno y Flame Lash.
-- mazo vacio al inicio del turno o con Flame Lash: no pasa nada (ni dano ni movimiento; Flame Lash suma 0).
-- el dano de Wildfire al inicio del turno es obligatorio si hay objetivo, y solo a UN luchador.
-- un efecto que ignore el VALOR IMPRESO no quita el +1 de Fight Or Flight; uno que ignore el VALOR, si.
-- con el bot llevando a Liz, el bot gira el fondo del mazo al inicio de su turno.
-- (29/10, regla general para todos los heroes) Searing Clarity / Rekindle: si el HUMANO elige con los botones del panel una carta de su propio DESCARTE (publico) para que un efecto la meta en su mazo (barajar / encima / debajo), la mueve el BOT (por GUID, con el GUID del mazo del humano) y baraja el mazo del humano si el efecto lo dice. El bot sigue sin tocar su mano ni leer/reordenar su mazo mas alla de eso. Chat: "Meto X en tu mazo y lo barajo". Si la carta ya no esta en el descarte (lo hizo el humano), se dice que ya esta hecho, sin error.
-- E3 (29/10): Fleeting Moments jugada por el humano: la carta del bot la elige el rng del motor (nadie mira ninguna mano) y el descarte del humano es suyo (pendiente de Fin de accion).
-- Ivan (29/10): si el humano hace descartar a Liz bot una ardiente (Confront), Wildfire la devuelve y el chat lo dice: "El bot se queda X (Wildfire la devuelve)".
-- Incinerate: el rival puede descartar 2 cartas de la mano, ADEMAS de la carta con la que defiende, para ignorar el valor de Incinerate (queda a 0); si no defendio con carta, descartar 2 tambien vale. Con menos de 2 cartas en mano no puede pagar.
-- Burning Barrier: cannot_leave_space bloquea todo movimiento del luchador rival (propio o por efectos); a Liz si la puede mover un efecto. El dano posterior es a cada rival en la zona de Liz.
-- una carta sin valor de impulso no se puede usar para impulsar: las ardientes (BOOST 0) nunca se descartan como impulso.
-- un solo ONGOING activo POR JUGADOR; jugar otro reemplaza al propio activo (dos Fight Or Flight = +1). Pendiente de codigo: Game.combat_bonus aun acumula.
-- el valor de una carta nunca baja de 0 en CADA paso, y los efectos se resuelven en orden de momento (IMMEDIATELY antes de DURING; mismo momento, primero el defensor): Flame Lash (1) contra Arcane Dampener (IMMEDIATELY -3) queda en 0, y luego el impulso de Flame Lash en DURING (+3) la deja en 3.
-- (29/10, E2) WILDFIRE al inicio del turno del humano (carta del fondo del mazo): la hace el humano en la mesa (dano con -1, movimiento a mano); el panel lo anuncia y BLOQUEA el resto de botones (solo Fin de accion y los de PV) hasta que pulsa Fin de accion; se reanuda desde un guardado.
-- (29/10, E2) La vuelta a la mano por Wildfire se narra en la misma linea de la carta: "descartas Fireball (Wildfire la devuelve a tu mano)", no en una linea aparte.
-- (29/10, E2) Fight Or Flight del humano se deja en su zona ONGOING (`human_ongoing_spot`, debajo de la zona de combate), no en el descarte; al caducar el chat pide pasarlo al descarte. El del bot va boca arriba a `bot_ongoing_spot` y a su descarte al caducar.
+- 'bottom card of your deck' is the lowest card of the deck (the last), not the top one that is drawn. It is the one Wildfire uses at turn start and Flame Lash.
+- empty deck at turn start or with Flame Lash: nothing happens (no damage or movement; Flame Lash adds 0).
+- Wildfire's damage at turn start is mandatory if there is a target, and only to ONE fighter.
+- an effect that ignores the PRINTED VALUE does not remove Fight Or Flight's +1; one that ignores the VALUE does.
+- with the bot playing Liz, the bot turns the bottom of the deck at the start of its turn.
+- (29/10, general rule for all heroes) Searing Clarity / Rekindle: if the HUMAN chooses with the panel buttons a card of their own DISCARD (public) for an effect to put into their deck (shuffle / top / bottom), the BOT moves it (by GUID, with the human's deck GUID) and shuffles the human's deck if the effect says so. The bot still does not touch their hand nor read/reorder their deck beyond that. Chat: "I put X into your deck and shuffle it". If the card is no longer in the discard (the human did it), it says it is already done, with no error.
+- E3 (29/10): Fleeting Moments played by the human: the bot's card is chosen by the engine's rng (nobody looks at any hand) and the human's discard is theirs (pending End action).
+- Ivan (29/10): if the human makes the bot's Liz discard a burning card (Confront), Wildfire returns it and the chat says so: "The bot keeps X (Wildfire returns it)".
+- Incinerate: the rival may discard 2 cards from the hand, IN ADDITION to the card it defends with, to ignore Incinerate's value (it stays at 0); if it did not defend with a card, discarding 2 also works. With fewer than 2 cards in hand it cannot pay.
+- Burning Barrier: cannot_leave_space blocks all movement of the rival fighter (own or by effects); an effect can move Liz. The later damage is to each rival in Liz's zone.
+- a card with no boost value cannot be used to boost: burning cards (BOOST 0) are never discarded as a boost.
+- a single active ONGOING PER PLAYER; playing another replaces the player's own active one (two Fight Or Flight = +1). Code pending: Game.combat_bonus still accumulates.
+- a card's value never drops below 0 at EACH step, and effects resolve in moment order (IMMEDIATELY before DURING; same moment, the defender first): Flame Lash (1) against Arcane Dampener (IMMEDIATELY -3) ends at 0, and then Flame Lash's boost in DURING (+3) leaves it at 3.
+- (29/10, E2) WILDFIRE at the start of the human's turn (card from the bottom of the deck): the human does it on the table (damage with -1, movement by hand); the panel announces it and BLOCKS the other buttons (only End action and the HP ones) until they press End action; it resumes from a save.
+- (29/10, E2) The return to the hand by Wildfire is narrated in the same line as the card: "you discard Fireball (Wildfire returns it to your hand)", not in a separate line.
+- (29/10, E2) The human's Fight Or Flight is left in their ONGOING zone (`human_ongoing_spot`, below the combat zone), not in the discard; when it expires the chat asks to move it to the discard. The bot's goes face up to `bot_ongoing_spot` and to its discard when it expires.
 
-## Preguntas abiertas
+## Open questions
 
-- Orden al inicio del turno de Liz: primero se descarta Fight Or Flight y luego el fondo de Wildfire. Supuesto; no interactuan.
+- Order at the start of Liz's turn: first Fight Or Flight is discarded and then Wildfire's bottom card. An assumption; they do not interact.
 
-## Fight Or Flight en el motor (ONGOING)
-- `Game.combat_bonus[jugador]` guarda (bono, etiqueta) vivos. La sesión lo añade al detectar el plan en el descarte del humano; `resolve_scheme` lo añade si lo juega el bot. Regla de Ivan del 28/10 (un solo ONGOING activo por jugador): `add_combat_bonus` reemplaza al activo y devuelve su etiqueta (la sesión avisa «X reemplaza a Y»); dos Fight Or Flight dan +1. Un guardado viejo con varios bonos carga solo el último. El ONGOING del rival no se toca.
-- Impulso (28/10): `cards.can_be_boost(card)` (BOOST > 0) es la regla única. El motor lanza `RuleError` si se impulsa un ataque o una maniobra con una carta sin valor de impulso; la IA y la ISMCTS solo generan impulsos legales; si el humano descarta una de BOOST 0 como impulso, la sesión avisa «X no tiene valor de impulso: no cuenta» y sigue esperando. Excepción: la carta del fondo del mazo de Flame Lash suma lo que valga (0 incluido).
-- Suma al valor de toda carta de combate del dueño: ataque en su turno (vía `attack_bonus_parts`, junto a las pasivas del héroe) y defensa en el del rival, también si la carta vale 0, se cancela o es On Earth (se suma tras fijar el valor). Sin carta de defensa no hay valor al que sumar. El «valor extra» del panel es aparte y se suma.
-- Caduca en `begin_turn()` del dueño (lo devuelve para avisar). Se guarda en `combat_bonus` del `game` del guardado, solo si hay algo; un guardado viejo sin la clave carga a 0.
-- IA: `Model.defense_dist` y `attack_dist` lo leen (es público); la ISMCTS lo ve por `resolve_combat` y `attack_bonus` en la clonación. Si lo juega el bot, el motor lo aplica; la IA de Medusa no lo evalúa para sí misma (no es su carta).
-- El descarte físico del plan al caducar lo hace el humano (el chat lo recuerda).
+## Fight Or Flight in the engine (ONGOING)
+- `Game.combat_bonus[player]` keeps the live (bonus, tag) pairs. The session adds it when it detects the scheme in the human's discard; `resolve_scheme` adds it if the bot plays it. Iván's rule of 28/10 (a single active ONGOING per player): `add_combat_bonus` replaces the active one and returns its tag (the session warns "X replaces Y"); two Fight Or Flight give +1. An old save with several bonuses loads only the last. The rival's ONGOING is not touched.
+- Boost (28/10): `cards.can_be_boost(card)` (BOOST > 0) is the single rule. The engine raises `RuleError` if an attack or a maneuver is boosted with a card with no boost value; the AI and the ISMCTS only generate legal boosts; if the human discards a BOOST 0 card as a boost, the session warns "X has no boost value: it does not count" and keeps waiting. Exception: Flame Lash's card from the bottom of the deck adds whatever it is worth (0 included).
+- It adds to the value of every combat card of the owner: attack on their turn (via `attack_bonus_parts`, next to the hero's passives) and defense on the rival's, also if the card is worth 0, is cancelled or is On Earth (it is added after fixing the value). Without a defense card there is no value to add to. The panel's "extra value" is separate and adds up.
+- It expires in the owner's `begin_turn()` (which returns it so as to warn). It is saved in the save's `game` `combat_bonus`, only if there is something; an old save without the key loads as 0.
+- AI: `Model.defense_dist` and `attack_dist` read it (it is public); the ISMCTS sees it through `resolve_combat` and `attack_bonus` in the clone. If the bot plays it, the engine applies it; Medusa's AI does not evaluate it for itself (it is not her card).
+- The physical discard of the scheme when it expires is done by the human (the chat reminds them).

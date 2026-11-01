@@ -1,6 +1,6 @@
-"""Revision 10: identidad con la forma REAL del guardado, reinicio atomico, BOOST sin atascos y detalles.
+"""Review 10: identity with the REAL shape of the save, atomic restart, BOOST without jams and details.
 
-Los tests de Lua ejecutan los scripts generados con lupa (se saltan sin ella); los de sesion usan la mesa falsa."""
+The Lua tests run the generated scripts with lupa (skipped without it); the session ones use the fake table."""
 import json
 import os
 
@@ -38,8 +38,8 @@ def conv(x):
 
 @pytest.fixture
 def rt():
-    """Una mesa con la forma del guardado real (TS_AutoSave_2.json, 27/10): el mazo de Medusa trae el CustomDeck solo
-    en el mazo; el de Hellboy, 20 cartas con un CustomDeck de clave "187" aunque su CardID es 197xx y 10 con "197"."""
+    """A table with the shape of the real save (TS_AutoSave_2.json, 27/10): Medusa's deck carries the CustomDeck only
+    on the deck; Hellboy's, 20 cards with a CustomDeck of key "187" although their CardID is 197xx and 10 with "197"."""
     runtime = lua54.LuaRuntime()
     runtime.execute(STUB)
     runtime.globals().JSON = runtime.table_from({"encode": lambda v: json.dumps(conv(v))})
@@ -75,7 +75,7 @@ def run(runtime, script, rid=1):
     n = len(runtime.globals().SENT)
     runtime.execute(lua.request(script, rid))
     sent = runtime.globals().SENT
-    assert len(sent) == n + 1, "una respuesta por script"
+    assert len(sent) == n + 1, "one reply per script"
     reply = conv(sent[n + 1])
     assert "err" not in reply, reply
     return json.loads(reply["value"])
@@ -92,7 +92,7 @@ BDECK = ("d42056", (7.28, 13.93), lua.BOT_CARD_IDS)
 
 
 def spill_hellboy(runtime, n=3, start=0):
-    """Saca n cartas del mazo de Hellboy al descarte: sueltas conservan su CustomDeck de la clave "187"."""
+    """Takes n cards from Hellboy's deck to the discard: loose ones keep their CustomDeck of key "187"."""
     runtime.execute(f"""
 local d = getObjectFromGUID('00dc9a')
 for k = 1, {n} do
@@ -103,7 +103,7 @@ end
 
 
 def foreign(runtime):
-    """Cartas ajenas con CardID de Hellboy: con su propia clave 197 y con la clave 187 de otra imagen; y un Deck mixto."""
+    """Foreign cards with a Hellboy CardID: with their own key 197 and with key 187 of another image; and a mixed Deck."""
     runtime.execute("""
 realshape(mkobj({guid = 'fx1', type = 'Card', cid = 19705, owner = 'x', cd = {["197"] = {FaceURL = FF, BackURL = FB}},
                  pos = {x = -12, y = 1, z = 6}}))
@@ -116,7 +116,7 @@ realshape(mkobj({guid = 'fxd', type = 'Deck', pos = {x = -12, y = 1, z = 9}, dec
 """)
 
 
-# ---------- 1. la forma real del guardado ----------
+# ---------- 1. the real shape of the save ----------
 def test_the_identity_of_the_real_hellboy_deck_is_read_from_all_its_cards(rt):
     res = run(rt, lua.deck_identities([BDECK, HDECK]))
     assert [r["found"] for r in res] == [True, True]
@@ -124,7 +124,7 @@ def test_the_identity_of_the_real_hellboy_deck_is_read_from_all_its_cards(rt):
 
 
 def test_reset_gathers_all_30_hellboy_cards_even_when_20_carry_a_187_custom_deck(rt):
-    spill_hellboy(rt, 3)                                  # 3 con "187" fuera del mazo, ya sueltas
+    spill_hellboy(rt, 3)                                  # 3 with "187" out of the deck, already loose
     res = run(rt, lua.reset_deck(HDECK[0], HDECK[1], lua.HUMAN_CARD_IDS, identity=HUMAN, scope=SCOPE))
     assert res == {"deck": True, "quantity": 30}
     assert len(rt.globals().getObjectFromGUID("00dc9a").cards) == 30
@@ -149,7 +149,7 @@ def test_foreign_cards_with_the_same_card_ids_are_still_rejected_in_every_shape(
     g = rt.globals()
     for guid in ("fx1", "fx2", "fx3", "fxd"):
         o = g.getObjectFromGUID(guid)
-        assert o is not None and o.moved_count is None, f"{guid} es ajena (o mezcla una ajena) y no se toca"
+        assert o is not None and o.moved_count is None, f"{guid} is foreign (or mixes a foreign one) and is not touched"
     assert res == {"deck": True, "quantity": 30}
 
 
@@ -158,9 +158,9 @@ def test_reset_plan_counts_without_moving_anything_and_sees_a_missing_card(rt):
     plan = run(rt, lua.reset_plan([(*HDECK[:3], HUMAN), (*BDECK, BOT)], scope=SCOPE))
     assert plan == [{"deck": True, "loose": 3, "total": 30}, {"deck": True, "loose": 0, "total": 30}]
     g = rt.globals()
-    assert all(g.getObjectFromGUID(f"hb{i}").moved_count is None for i in range(3)), "el plan no mueve"
+    assert all(g.getObjectFromGUID(f"hb{i}").moved_count is None for i in range(3)), "the plan moves nothing"
     assert len(g.getObjectFromGUID("00dc9a").cards) == 27
-    rt.execute("getObjectFromGUID('hb1').destruct()")      # una carta fuera del ambito o perdida
+    rt.execute("getObjectFromGUID('hb1').destruct()")      # a card out of scope or lost
     assert run(rt, lua.reset_plan([(*HDECK[:3], HUMAN)], scope=SCOPE))[0]["total"] == 29
 
 
@@ -178,8 +178,8 @@ realshape(mkobj({guid = 'okd1', type = 'Deck', pos = {x = 40, y = 1, z = 40}, de
 """)
     res = run(rt, lua.deck_identities([("gone01", (30.0, 30.0), lua.HUMAN_CARD_IDS),
                                        ("okd1", (40.0, 40.0), lua.HUMAN_CARD_IDS)]))
-    assert res[0]["found"] is False, "un mazo con una carta fuera del rango no se acepta por posicion"
-    assert res[1]["found"] and res[1]["pairs"] == [{"face": H[0], "back": H[1]}], "la imagen de fuera de rango no entra"
+    assert res[0]["found"] is False, "a deck with a card outside the range is not accepted by position"
+    assert res[1]["found"] and res[1]["pairs"] == [{"face": H[0], "back": H[1]}], "the out-of-range image does not enter"
 
 
 def test_hand_identities_reads_only_our_range_from_the_hand(rt):
@@ -222,9 +222,9 @@ realshape(mkobj({guid = 'oc', type = 'Card', cid = 19705, owner = 'hellboy', cd 
     assert run(rt, lua.flip_card("oc", 0, True, lua.HUMAN_CARD_IDS, identity=HUMAN), 9) == {"flipped": "oc"}
 
 
-# ---------- BAD: argumentos de los constructores cambiados ----------
+# ---------- BAD: changed builder arguments ----------
 @pytest.mark.parametrize("build", [
-    lambda: lua.play_card_face_down(17600, "Blue", 0, 0, 0),                                   # sin identidad
+    lambda: lua.play_card_face_down(17600, "Blue", 0, 0, 0),                                   # without identity
     lambda: lua.play_card_face_down(17600, "Blue", 0, 0, 0, identity=()),
     lambda: lua.play_card_face_down(17600, "Blue", 0, 0, 0, identity=(("http://x", "y"),)),
     lambda: lua.play_card_face_down(17600, "Blue", 0, 0, 0, id_range=(1,), identity=TEST_IDENT),
@@ -267,7 +267,7 @@ def test_the_new_scripts_have_no_global_ui_lines_or_decals():
         assert not [w for w in ("UI.", "Global", "setVectorLines", "Decal", "decal") if w in s], s[:40]
 
 
-# ---------- sesion: BOOST ----------
+# ---------- session: BOOST ----------
 def rig(brig, defense=None):
     session, table, game, fake = brig
     if defense:
@@ -290,7 +290,7 @@ def test_no_boost_wait_when_the_bot_card_cancels_the_attackers_effects(brig):  #
     assert session.pending is None, msgs
     assert second in game.players[1].discard and not game.players[1].hand.count(second)
     assert any("cancela los efectos" in m for m in msgs) and any(m.startswith("Combate") for m in msgs)
-    assert table.flips == [f"h{second.card_id}"], "se gira la carta tuya; la del bot se descarta"
+    assert table.flips == [f"h{second.card_id}"], "your card is turned; the bot's is discarded"
 
 
 def test_a_rule_error_after_resume_leaves_cancelar_as_the_way_out(brig):  # noqa: F811
@@ -298,24 +298,24 @@ def test_a_rule_error_after_resume_leaves_cancelar_as_the_way_out(brig):  # noqa
     click(session, table, Event.REVEAL)
     assert session.pending.boost_wait
     saved = json.loads(json.dumps(session.to_dict()))
-    table.positions["Lobster Johnson"] = 27             # mientras estaba caido, la miniatura se movio
+    table.positions["Lobster Johnson"] = 27             # while he was down, the miniature was moved
     session.pending = None
     session.load_dict(saved)
     session.resume()
     msgs = click(session, table, Event.NO_BOOST)
     assert session.pending is not None and session.pending.boost_wait["stuck"] is True
     assert any("No se puede resolver el combate" in m and "Cancelar" in m for m in msgs)
-    assert not any("Revelar otra vez" in m for m in msgs), "en la espera de boost no se vuelve a Revelar"
+    assert not any("Revelar otra vez" in m for m in msgs), "while waiting for a boost, Reveal is not asked again"
     status, states = table.panels[-1]
     assert states["btn_cancel"] == (True, True) and "Cancelar" in status
-    # el estado atascado sobrevive a un guardado
+    # the stuck state survives a save
     again = json.loads(json.dumps(session.to_dict()))
     assert again["pending"]["boost_wait"]["stuck"] is True
     unflips = len(table.unflips)
     actions = game.actions_left
     msgs = click(session, table, Event.CANCEL)
     assert session.pending is None and game.actions_left == actions
-    assert len(table.unflips) == unflips + 2, "las dos cartas vuelven a quedar boca abajo"
+    assert len(table.unflips) == unflips + 2, "both cards are left face down again"
     assert second not in game.players[1].discard
     assert any("Combate cancelado" in m for m in msgs)
 
@@ -343,7 +343,7 @@ def test_the_boost_card_has_to_come_from_the_hand(brig):  # noqa: F811
     table.human_count = 4
     click(session, table, Event.REVEAL)
     assert session.pending.boost_wait["hand"] == 4
-    table.human_discard = [card(game, 1, "Service Pistol").card_id]     # la mano NO ha bajado: vino de otro sitio
+    table.human_discard = [card(game, 1, "Service Pistol").card_id]     # the hand has NOT gone down: it came from elsewhere
     msgs = click(session, table, Event.BOOST)
     assert session.pending is not None and any("tiene que salir de tu mano" in m for m in msgs)
     table.human_count = 3
@@ -376,7 +376,7 @@ def test_resume_in_boost_wait_shows_the_boost_prompt_not_the_reveal_one(brig):  
 def test_reveal_in_boost_wait_answers_even_though_no_card_is_face_down(brig):  # noqa: F811
     session, table, game, fake, second = rig(brig)
     click(session, table, Event.REVEAL)
-    table.face_down = []                                  # la mesa real ya la tiene boca arriba
+    table.face_down = []                                  # the real table already has it face up
     msgs = click(session, table, Event.REVEAL)
     assert session.pending is not None and any("Continuar" in m for m in msgs)
     assert not any("ninguna carta tuya boca abajo" in m for m in msgs)
@@ -410,7 +410,7 @@ def test_flips_use_the_identity_of_each_side(brig):  # noqa: F811
     assert "hum-face" in flips[1] and f"id < {lua.HUMAN_CARD_IDS[0]}" in flips[1]
 
 
-# ---------- sesion: identidad ----------
+# ---------- session: identity ----------
 def test_identities_are_saved_and_used_when_the_table_cannot_be_read(brig):  # noqa: F811
     session, table, game, fake = brig
     saved = json.loads(json.dumps(session.to_dict()))
@@ -480,7 +480,7 @@ def test_unreadable_identity_writes_no_card_at_all(brig):  # noqa: F811
                                                     "shuffle_deck", "play_card_face_down", "flip_card")}
 
 
-# ---------- reinicio atomico ----------
+# ---------- atomic restart ----------
 def _restart_rig(brig, tmp_path):
     from test_panel_restart import prepared, with_cfg
     session, table, game, clock = prepared(brig, tmp_path)
@@ -496,7 +496,7 @@ def test_a_restart_that_cannot_gather_the_human_deck_touches_nothing(brig, tmp_p
     assert session.game is game
     assert any("no puedo reunir las 30 cartas del mazo tuyo" in m and "no he movido nada" in m for m in msgs), msgs
     assert not any(s.startswith(("-- sparring:reset_deck", "-- sparring:place_piece", "-- sparring:set_health_dials"))
-                   for s in table.scripts), "ningun bando se reinicio a medias"
+                   for s in table.scripts), "no side restarted half-way"
     assert table.resets == [] if hasattr(table, "resets") and isinstance(table.resets, list) else True
 
 
@@ -518,14 +518,14 @@ def test_a_complete_plan_lets_the_restart_go_ahead(brig, tmp_path):  # noqa: F81
     assert sent.index("-- sparring:reset_plan") < sent.index("-- sparring:reset_deck")
 
 
-# ---------- Flame Lash (Liz): el BOOST es la carta del fondo del mazo ----------
+# ---------- Flame Lash (Liz): the BOOST is the card at the bottom of the deck ----------
 FLAME = "DURING COMBAT: Discard the bottom card of your deck. Add its BOOST value to this card's value. AFTER COMBAT: Gain 1 action."
 
 
 def flame_rig(brig):
     session, table, game, fake = brig
     game.fx.dsl_heroes.discard("hellboy")            # the legacy boost wait of the session (the real Flame Lash: test_e2_human_cards)
-    shot = card(game, 1, "Second Shot")              # el rig es de Hellboy: Second Shot hace de Flame Lash
+    shot = card(game, 1, "Second Shot")              # the rig is Hellboy's: Second Shot stands in for Flame Lash
     object.__setattr__(shot, "title", "Flame Lash")
     object.__setattr__(shot, "text", FLAME)
     game.fighters["lobster"].pos = 2
@@ -542,12 +542,12 @@ def test_flame_lash_waits_for_the_bottom_card_and_adds_its_boost(brig):  # noqa:
     msgs = click(session, table, Event.REVEAL)
     assert session.pending.boost_wait["deck"] and any("FONDO de tu mazo" in m for m in msgs)
     pistol = card(game, 1, "Service Pistol")
-    table.human_discard = [pistol.card_id]           # sale del mazo: la mano sigue con 4
+    table.human_discard = [pistol.card_id]           # it comes out of the deck: the hand stays at 4
     hp, actions = game.fighters["medusa"].hp, game.actions_left
     msgs = click(session, table, Event.BOOST)
     assert session.pending is None, msgs
     assert any(f"+{pistol.boost}" in m for m in msgs)
-    assert game.fighters["medusa"].hp <= hp - (flame.value + pistol.boost) + 4   # su defensa como mucho resta
+    assert game.fighters["medusa"].hp <= hp - (flame.value + pistol.boost) + 4   # her defense at most subtracts
     assert pistol in game.players[1].discard
     assert game.actions_left == actions - 1          # the legacy route resolves no AFTER (the real card: test_e2)
 
@@ -558,7 +558,7 @@ def test_second_shot_still_requires_the_boost_from_the_hand(brig):  # noqa: F811
     click(session, table, Event.REVEAL)
     assert not session.pending.boost_wait["deck"]
     table.human_discard = [card(game, 1, "Service Pistol").card_id]
-    msgs = click(session, table, Event.BOOST)                # la mano no bajo: no vale
+    msgs = click(session, table, Event.BOOST)                # the hand did not go down: not valid
     assert session.pending is not None and any("tiene que salir de tu mano" in m for m in msgs)
     table.human_count = 3
     click(session, table, Event.BOOST)
@@ -571,7 +571,7 @@ def test_flame_lash_boost_wait_survives_resume(brig, old_save):  # noqa: F811
     table.human_count = 4
     click(session, table, Event.REVEAL)
     saved = json.loads(json.dumps(session.to_dict()))
-    if old_save:                                             # guardado de antes de Flame Lash: sin la clave
+    if old_save:                                             # save from before Flame Lash: without the key
         del saved["pending"]["boost_wait"]["deck"]
     session.pending = None
     session.load_dict(saved)

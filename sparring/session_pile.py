@@ -2,7 +2,7 @@
 
 Searing Clarity, Rekindle and the human's half of Pact Of Time pick cards out of the human's public discard pile
 and shuffle them into the human's deck. The panel does not list options for it: the chat says what to take, the
-human moves the cards on the table and presses Hecho, and the bot DETECTS which cards left the pile (the deck is
+human moves the cards on the table and presses Done, and the bot DETECTS which cards left the pile (the deck is
 hidden, so "left the discard pile" is the whole evidence), validates them against the request (only the eligible
 cards, within its limits) and answers the request with them. A wrong table changes nothing: the chat says what is
 wrong and the panel keeps waiting. The bot never moves these cards: `Session.hand_deck` tells the projection of the
@@ -65,7 +65,7 @@ def status(session, req: ChoiceRequest) -> str:
 
 
 def view(session, req: ChoiceRequest) -> tuple[dict, dict]:
-    """The choice slots while the human acts on the table: a single Hecho button."""
+    """The choice slots while the human acts on the table: a single Done button."""
     from .session_choices import CHOICE_IDS
     states = {ident: (False, False) for ident in CHOICE_IDS}
     states[CHOICE_IDS[0]] = (True, True)
@@ -96,7 +96,7 @@ def verdict(session, req: ChoiceRequest) -> tuple[list[int] | None, str | None]:
 
 
 def press(session, paused, index) -> None:
-    """A click on the choice buttons while the human moves the cards by hand: 1 is Hecho."""
+    """A click on the choice buttons while the human moves the cards by hand: 1 is Done."""
     req = manual_request(session)
     if isinstance(index, float) and index.is_integer():
         index = int(index)

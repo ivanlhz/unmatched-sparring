@@ -22,12 +22,12 @@ Iván notices lag both when he presses his own action and during the bot's turn.
 1. **The click brings the snapshot:** the panel object's `onClick` (Lua inside TTS) gathers the table state (hands by count, discards, face-down cards, pieces, dials) and sends it in the same `sendExternalMessage({event=..., snapshot=...})`. Python never asks before deciding.
 2. **One message out per button:** Python computes everything and sends ONE composite script that applies every change (cards, pieces, dials, status line, panel enables), verifies inside the same script, and returns the resulting state for the next step.
 3. **Bot turn:** at most 1-2 messages per bot action, with all the moves and announcements of that action in a single script.
-4. **Instant local feedback:** the panel script shows "Procesando..." and greys out the buttons as soon as it is clicked, with no round trip.
+4. **Instant local feedback:** the panel script shows "Processing..." and greys out the buttons as soon as it is clicked, with no round trip.
 5. Target: ~0.5-1 s per human button; ~1 s per bot action.
 
 ## 2. Setup buttons and restarting
-- "Mulligan" and "Listo" are only visible during setup.
-- During the game, a "Reiniciar partida" button replaces them; a double press confirms it, within 3 s.
+- "Mulligan" and "Ready" are only visible during setup.
+- During the game, a "Restart game" button replaces them; a double press confirms it, within 3 s.
 - Restarting:
   - returns hands, discards and face-down cards to their decks and shuffles them (both sides);
   - full HP on every dial; destiny back to 0;
@@ -36,21 +36,21 @@ Iván notices lag both when he presses his own action and during the bot's turn.
 
 ## 3. New panel (layout approved by Iván)
 ```
-┌─ TURNO ─────────────────────────┐
-│ Tu turno · 2 acciones · Revelar │  ← status line: what the bot expects now
-│ [ Maniobra ]      [ Plan ]      │
-│ [Ataca Hellboy] [Ataca Lobster] │
-│ Objetivo: [Medusa][H1][H2][H3]  │
-│ [ Revelar ]      [ Cancelar ]   │
-│ [        Fin de acción        ] │
+┌─ TURN ──────────────────────────┐
+│ Your turn · 2 actions · Reveal  │  ← status line: what the bot expects now
+│ [ Maneuver ]      [ Scheme ]    │
+│ [Attack Hellboy] [Attack Lobster]│
+│ Target: [Medusa][H1][H2][H3]    │
+│ [ Reveal ]        [ Cancel ]    │
+│ [          End action         ] │
 └─────────────────────────────────┘
-┌─ VIDA ──────────┐  ┌─ PARTIDA ───────────┐
-│ Medusa  [-][+][x]│  │ [Mulligan] [Listo]  │ ← setup only
-│ Harpy 1 [-][+][x]│  │ [Reiniciar partida] │ ← during the game
+┌─ LIFE ──────────┐  ┌─ GAME ──────────────┐
+│ Medusa  [-][+][x]│  │ [Mulligan] [Ready]  │ ← setup only
+│ Harpy 1 [-][+][x]│  │ [Restart game]      │ ← during the game
 │ ...              │  └─────────────────────┘
 └─────────────────┘
 ```
-- Wider, taller buttons in a grid; a TURNO / VIDA / PARTIDA section on each.
+- Wider, taller buttons in a grid; a TURN / LIFE / GAME section on each.
 - A status line that updates live (`UI.setAttribute`/`setValue` on the bot's own object, never Global).
-- Buttons that cannot be used are greyed out (`interactable=false`): Revelar with no combat, targets out of range, setup buttons during the game, and so on.
+- Buttons that cannot be used are greyed out (`interactable=false`): Reveal with no combat, targets out of range, setup buttons during the game, and so on.
 - Keep the orientation (rotation 0 0 270) and white text; the scale may change.

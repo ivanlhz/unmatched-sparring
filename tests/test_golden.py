@@ -1,13 +1,13 @@
-"""Tests dorados (F07, paso 0): fijan el comportamiento de Medusa vs Hellboy antes del motor multiheroe.
+"""Golden tests (F07, step 0): they pin down the behaviour of Medusa vs Hellboy before the multi-hero engine.
 
-Tres fotos del comportamiento actual, guardadas en tests/golden/:
-  * sim.json: resultado y registro por turno del simulador con semillas fijas (dos mapas);
-  * session_batch.json y session_classic.json: transcripcion de una sesion con FakeTTS (mensajes del bot, scripts
-    enviados, estado del panel y mesa tras cada boton) y el guardado final;
-  * game_save.json: el guardado de una partida a medias y su ida y vuelta por persist.
+Three snapshots of the current behaviour, saved in tests/golden/:
+  * sim.json: result and per-turn log of the simulator with fixed seeds (two maps);
+  * session_batch.json and session_classic.json: transcript of a session with FakeTTS (bot messages, scripts
+    sent, panel state and table after each button) and the final save; the chat lines are the Spanish catalog's;
+  * game_save.json: the save of a half-played game and its round trip through persist.
 
-Si el comportamiento cambia A PROPOSITO se regeneran con `GOLDEN_UPDATE=1 pytest tests/test_golden.py`; el diff del
-fixture es la prueba de lo que cambio."""
+If the behaviour changes ON PURPOSE they are regenerated with `GOLDEN_UPDATE=1 pytest tests/test_golden.py`; the diff of the
+fixture is the proof of what changed."""
 from __future__ import annotations
 
 import dataclasses
@@ -29,7 +29,7 @@ SIM_GAMES = [("bprd-hq", s) for s in range(6)] + [("azuchi-castle", 0), ("azuchi
 
 
 def jsonable(value):
-    """Lo que se guarda en JSON (tuplas como listas): asi se compara lo mismo que se escribe."""
+    """What is saved as JSON (tuples as lists): this way what is compared is what is written."""
     return json.loads(json.dumps(value))
 
 
@@ -42,11 +42,11 @@ def check(name: str, actual) -> None:
         path.write_text(text, encoding="utf-8")
         return
     expected = json.loads(path.read_text(encoding="utf-8"))
-    assert actual == expected, (f"{name}: el comportamiento de Medusa vs Hellboy cambio; si es a proposito, "
-                                "regenera con GOLDEN_UPDATE=1 y revisa el diff del fixture")
+    assert actual == expected, (f"{name}: the behaviour of Medusa vs Hellboy changed; if on purpose, "
+                                "regenerate with GOLDEN_UPDATE=1 and review the fixture diff")
 
 
-# ---------- simulador ----------
+# ---------- simulator ----------
 def test_golden_simulator_outcomes_and_turn_logs():
     out = {}
     for board, seed in SIM_GAMES:
@@ -57,18 +57,18 @@ def test_golden_simulator_outcomes_and_turn_logs():
     check("sim.json", out)
 
 
-# ---------- sesion con FakeTTS ----------
+# ---------- session with FakeTTS ----------
 STEPS = [
-    ("maniobra", Event.MANEUVER, None, None),
-    ("fin de accion", Event.END_ACTION, None, None),
-    ("ataca hellboy", Event.ATTACKER, {"attacker": "att_hellboy"}, None),
-    ("atacar a medusa", Event.ATTACK, {"target": "medusa"}, "Service Pistol"),
-    ("revelar", Event.REVEAL, None, None),
-    ("fin de accion: turno del bot", Event.END_ACTION, None, None),
-    ("maniobra", Event.MANEUVER, None, None),
-    ("fin de accion", Event.END_ACTION, None, None),
+    ("maneuver", Event.MANEUVER, None, None),
+    ("end action", Event.END_ACTION, None, None),
+    ("hellboy attacks", Event.ATTACKER, {"attacker": "att_hellboy"}, None),
+    ("attack medusa", Event.ATTACK, {"target": "medusa"}, "Service Pistol"),
+    ("reveal", Event.REVEAL, None, None),
+    ("end action: bot's turn", Event.END_ACTION, None, None),
+    ("maneuver", Event.MANEUVER, None, None),
+    ("end action", Event.END_ACTION, None, None),
     ("plan", Event.SCHEME, None, None),
-    ("fin de accion: turno del bot", Event.END_ACTION, None, None),
+    ("end action: bot's turn", Event.END_ACTION, None, None),
 ]
 
 
@@ -99,14 +99,14 @@ def test_golden_session_transcript_batch(brig):
 
 def test_golden_session_transcript_classic(rig):
     session, table, game = rig
-    session.cfg = dataclasses.replace(session.cfg, batch=False, live_ui=False)    # tambien con SPARRING_BATCH=1
+    session.cfg = dataclasses.replace(session.cfg, batch=False, live_ui=False)    # also with SPARRING_BATCH=1
     session.broadcast = False
     set_bot_hand(table, game, "Snipe", "Dash")
     session.read_bot_hand()
     check("session_classic.json", transcript(session, table, game, lambda e, p: session.handle(e, p)))
 
 
-# ---------- guardado ----------
+# ---------- saving ----------
 def midgame(board) -> Game:
     controllers = {0: MedusaAI(0), 1: ScriptedHellboy(1, 3)}
     game = Game.new(board, seed=3, controllers=controllers)
@@ -129,7 +129,7 @@ def test_golden_game_save_and_round_trip(bprd, tmp_path):
     assert jsonable(persist.game_to_dict(fresh)) == jsonable(saved)
     fixture = json.loads((GOLDEN / "game_save.json").read_text(encoding="utf-8"))
     again = Game.new(bprd, seed=0, controllers={})
-    persist.apply_game(again, fixture)         # un guardado anterior a cualquier cambio sigue cargando
+    persist.apply_game(again, fixture)         # a save from before any change still loads
     assert jsonable(persist.game_to_dict(again)) == fixture
 
 

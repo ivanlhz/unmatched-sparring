@@ -1,5 +1,5 @@
-"""The human's effects that move a fighter (his own or the bot's) are done by hand and validated at Hecho
-(`sparring/session_moves.py`, Ivan 30/10: "the spaces are not numbered, 'casilla 0', 'casilla 1' tell me nothing").
+"""The human's effects that move a fighter (his own or the bot's) are done by hand and validated at Done
+(`sparring/session_moves.py`, Ivan 30/10: "the spaces are not numbered, 'space 0', 'space 1' tell me nothing").
 
 Effects of the human that ask a space on the panel before this change (the ops `move`, `place`, `revive` and `summon`
 of the DSL with the human as chooser on a piece that is not his, because his own miniatures were always by hand):
@@ -8,7 +8,7 @@ of the DSL with the human as chooser on a piece that is not his, because his own
   * place anywhere    Pact Of Freedom, Foul Journey (Baba);
   * revive in a zone  Pact Of Mortality (Baba reviving a defeated fighter of either side).
 Each type is covered below with FakeTTS sessions; the invalid cases (too far, occupied, another piece moved, not
-moved, off the board) change nothing and say why; "No mover" answers an optional move with zero steps."""
+moved, off the board) change nothing and say why; "Don't move" answers an optional move with zero steps."""
 from __future__ import annotations
 
 import json
@@ -16,6 +16,7 @@ import json
 import pytest
 
 from sparring.effects.choose import ChoiceRequest
+from sparring import i18n
 from sparring.spaces import describe
 from sparring.tts.ui import Event
 from test_batch import click
@@ -28,7 +29,7 @@ BABA_VS_ABE = ("abe-sapien", "baba-yaga", "Faster. Stronger.", "Arcane Dampener"
                "Leap Away", "Shock And Awe")
 
 
-def hecho(session, table, i=1):
+def done(session, table, i=1):
     return click(session, table, Event.CHOICE, {"i": i})
 
 
@@ -84,25 +85,25 @@ def test_a_valid_move_is_applied_announced_and_the_bot_does_not_touch_the_piece(
     req = rhod_asks_for_abe(session, table, game, cfg, monkeypatch)
     dest = req.options[0]
     drop(table, cfg, "abe", dest)
-    msgs = hecho(session, table)
+    msgs = done(session, table)
     assert game.fighters["abe"].pos == dest and session.effect_run is None
     assert said(msgs, f"{cfg.nicknames['abe']} queda en ") and not any(m[0] == cfg.nicknames["abe"] for m in table.moves)
     assert not any("casilla " + str(dest) in m for m in msgs)
 
 
 @with_rig(*HELLBOY_VS_ABE)
-def test_too_far_changes_nothing_says_the_maximum_and_waits_for_hecho_again(rig, monkeypatch):
+def test_too_far_changes_nothing_says_the_maximum_and_waits_for_done_again(rig, monkeypatch):
     session, table, game, fake, cfg = rig
     req = rhod_asks_for_abe(session, table, game, cfg, monkeypatch)
     abe = game.fighters["abe"]
     before, far = abe.pos, far_from(game, "abe", 3)
     d = game.board.distance(before, far)
     drop(table, cfg, "abe", far)
-    msgs = hecho(session, table)
+    msgs = done(session, table)
     assert said(msgs, f"{cfg.nicknames['abe']} se ha movido {d} casillas; el maximo es 1")
     assert abe.pos == before and session.effect_run.awaiting.key == req.key
     drop(table, cfg, "abe", req.options[0])
-    hecho(session, table)
+    done(session, table)
     assert abe.pos == req.options[0] and session.effect_run is None
 
 
@@ -113,7 +114,7 @@ def test_an_occupied_space_is_refused(rig, monkeypatch):
     abe, hb = game.fighters["abe"], game.fighters["hellboy"]
     before = abe.pos
     drop(table, cfg, "abe", hb.pos)
-    msgs = hecho(session, table)
+    msgs = done(session, table)
     assert said(msgs, "Esa casilla esta ocupada por ") and abe.pos == before and session.effect_run is not None
 
 
@@ -125,29 +126,29 @@ def test_another_piece_that_moved_is_named_and_must_go_back(rig, monkeypatch):
     home = hb.pos
     drop(table, cfg, "abe", req.options[0])
     drop(table, cfg, "hellboy", far_from(game, "hellboy", 4))
-    msgs = hecho(session, table)
+    msgs = done(session, table)
     assert said(msgs, f"Se ha movido tambien {cfg.nicknames['hellboy']}: devuelvelo a su sitio")
     assert game.fighters["abe"].pos != req.options[0] and hb.pos == home
     drop(table, cfg, "hellboy", home)
-    hecho(session, table)
+    done(session, table)
     assert game.fighters["abe"].pos == req.options[0]
 
 
 @with_rig(*HELLBOY_VS_ABE)
-def test_hecho_without_moving_asks_to_move_or_press_no_mover(rig, monkeypatch):
+def test_done_without_moving_asks_to_move_or_press_dont_move(rig, monkeypatch):
     session, table, game, fake, cfg = rig
     rhod_asks_for_abe(session, table, game, cfg, monkeypatch)
-    msgs = hecho(session, table)
+    msgs = done(session, table)
     assert said(msgs, f"{cfg.nicknames['abe']} no se ha movido: muevela o pulsa No mover") and session.effect_run is not None
 
 
 @with_rig(*HELLBOY_VS_ABE)
-def test_optional_move_with_zero_steps_is_the_no_mover_button(rig, monkeypatch):
+def test_optional_move_with_zero_steps_is_the_dont_move_button(rig, monkeypatch):
     session, table, game, fake, cfg = rig
     rhod_asks_for_abe(session, table, game, cfg, monkeypatch)
     abe = game.fighters["abe"]
     before = abe.pos
-    msgs = hecho(session, table, 2)
+    msgs = done(session, table, 2)
     assert said(msgs, f"{cfg.nicknames['abe']} se queda donde esta") and abe.pos == before and session.effect_run is None
     assert not any(m[0] == cfg.nicknames["abe"] for m in table.moves)
 
@@ -157,12 +158,12 @@ def test_a_piece_dropped_off_the_board_is_rejected(rig, monkeypatch):
     session, table, game, fake, cfg = rig
     rhod_asks_for_abe(session, table, game, cfg, monkeypatch)
     table.piece_dist[cfg.nicknames["abe"]] = 9.0
-    msgs = hecho(session, table)
+    msgs = done(session, table)
     assert said(msgs, f"{cfg.nicknames['abe']} esta fuera del tablero") and session.effect_run is not None
 
 
 @with_rig(*HELLBOY_VS_ABE)
-def test_a_save_taken_while_waiting_for_hecho_reprompts_on_resume(rig, monkeypatch):
+def test_a_save_taken_while_waiting_for_done_reprompts_on_resume(rig, monkeypatch):
     session, table, game, fake, cfg = rig
     req = rhod_asks_for_abe(session, table, game, cfg, monkeypatch)
     twin = twin_session(session, cfg, json.loads(json.dumps(session.to_dict())))
@@ -171,17 +172,17 @@ def test_a_save_taken_while_waiting_for_hecho_reprompts_on_resume(rig, monkeypat
     assert said(msgs, f"Sigue pendiente: Right Hand Of Doom: Mueve a {cfg.nicknames['abe']} hasta 1 casilla")
     assert twin.panel_labels() == {"btn_choice_1": "Hecho", "btn_choice_2": "No mover"}
     drop(table, cfg, "abe", req.options[0])
-    hecho(twin, table)
+    done(twin, table)
     assert twin.game.fighters["abe"].pos == req.options[0]
 
 
 @with_rig(*HELLBOY_VS_ABE)
-def test_hecho_costs_no_more_messages_than_a_button(rig, monkeypatch):
+def test_done_costs_no_more_messages_than_a_button(rig, monkeypatch):
     session, table, game, fake, cfg = rig
     req = rhod_asks_for_abe(session, table, game, cfg, monkeypatch)
     drop(table, cfg, "abe", req.options[0])
     n = fake.lua_messages
-    hecho(session, table)
+    done(session, table)
     assert fake.lua_messages - n <= 3, "the bot writes dials and cards at most; it never moves the miniature"
 
 
@@ -200,11 +201,11 @@ def test_concussion_device_pushes_the_bots_piece_by_hand_up_to_three(rig, monkey
     assert req.kind == "space" and req.extra["steps"] == 3 and session.panel_labels()["btn_choice_1"] == "Hecho"
     before, far = hb.pos, far_from(game, "hellboy", 5)
     drop(table, cfg, "hellboy", far)
-    msgs = hecho(session, table)
+    msgs = done(session, table)
     assert said(msgs, f"{cfg.nicknames['hellboy']} se ha movido {game.board.distance(before, far)} casillas; el maximo es 3")
     dest = req.options[-1]
     drop(table, cfg, "hellboy", dest)
-    msgs = hecho(session, table)
+    msgs = done(session, table)
     assert hb.pos == dest and not any(m[0] == "Hellboy" for m in table.moves)
 
 
@@ -219,13 +220,13 @@ def test_pact_of_freedom_place_is_by_hand_and_a_legal_space_is_free_and_anywhere
     req = session.effect_run.awaiting
     liz, baba = game.fighters["liz"], game.fighters["baba"]
     assert req.kind == "space" and req.extra["where"] == {"any": True}
-    assert session.panel_labels() == {"btn_choice_1": "Hecho"}          # a placement is not optional: no No mover
+    assert session.panel_labels() == {"btn_choice_1": "Hecho"}          # a placement is not optional: no Don't move
     assert f"Coloca a {cfg.nicknames['liz']} en cualquier casilla libre" in moves.instruction(session, req)
     drop(table, cfg, "liz", baba.pos)
-    assert said(hecho(session, table), "Esa casilla esta ocupada por ")
+    assert said(done(session, table), "Esa casilla esta ocupada por ")
     dest = req.options[1]
     drop(table, cfg, "liz", dest)
-    hecho(session, table)
+    done(session, table)
     assert liz.pos == dest and session.effect_run is None and not any(m[0] == cfg.nicknames["liz"] for m in table.moves)
 
 
@@ -247,11 +248,11 @@ def test_pact_of_mortality_revives_the_bots_defeated_fighter_where_the_human_put
     outside = next(s for s in sorted(game.board.spaces) if s not in req.options and s not in
                    {f.pos for f in game.fighters.values() if f.alive})
     drop(table, cfg, "agent1", outside)
-    msgs = hecho(session, table)
+    msgs = done(session, table)
     assert said(msgs, f"{cfg.nicknames['agent1']} tiene que quedar en la zona de {cfg.nicknames['baba']}") and not agent.alive
     dest = req.options[0]
     drop(table, cfg, "agent1", dest)
-    hecho(session, table)
+    done(session, table)
     assert agent.alive and agent.pos == dest and agent.hp == agent.max_hp
     assert not any(m[0] == cfg.nicknames["agent1"] for m in table.moves), "revived by hand: the bot does not place it"
 
@@ -279,4 +280,4 @@ def test_a_space_is_described_by_zone_colours_and_the_nearest_fighter(bprd):
     near = next(iter(sorted(g.board.adj[hb.pos])))
     assert describe(g, near, ()).startswith("zona") and "pegada a" in describe(g, near, ())
     assert "casilla " + str(near) not in describe(g, near, ())
-    assert all(z in describe(g, near, ()) for z in g.board.zones(near))
+    assert all(i18n.t(f"spaces.color.{z}") in describe(g, near, ()) for z in g.board.zones(near))

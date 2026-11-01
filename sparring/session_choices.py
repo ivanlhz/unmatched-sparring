@@ -128,7 +128,7 @@ def options_text(game, req: ChoiceRequest, limit: int = 6) -> str:
 
 
 def card_text_hint(game, req: ChoiceRequest) -> str:
-    """' Carta: <printed text>' for a plain yes/no (Pyrotechnics: the question alone did not say what the card does), else ''."""
+    """' Card: <printed text>' for a plain yes/no (Pyrotechnics: the question alone did not say what the card does), else ''."""
     if req.kind != "optional" or req.extra.get("discards") or "to" in req.extra:
         return ""
     card = next((c for p in game.players for c in p.full_set if c.card_id == req.card_id), None)
@@ -139,7 +139,7 @@ def card_text_hint(game, req: ChoiceRequest) -> str:
 def prompt_text(game, req: ChoiceRequest) -> str:
     """Chat line for the request: what is asked and, for the card that asks, its title."""
     base = _prompt(req.kind) if has_prompt(req.kind) else _prompt("default")
-    if req.kind == "cards" and req.max == 1:         # no "carta(s)": the panel status drops the parentheses (live 29/10)
+    if req.kind == "cards" and req.max == 1:         # no "card(s)": the panel status drops the parentheses (live 29/10)
         base = _prompt("one_card")
     elif req.kind == "effect" and req.extra.get("op") == "predict":
         base = _prompt("predict")
@@ -157,7 +157,7 @@ def prompt_text(game, req: ChoiceRequest) -> str:
             if c.card_id == req.card_id:
                 title = c.title
     if req.kind == "optional" and base == _prompt("optional") and title:
-        return t("choice.prompt.use_effect", title=title)  # the question names the card: "Quieres hacerlo?" did not
+        return t("choice.prompt.use_effect", title=title)  # the question names the card: "Do you want to do it?" did not
     if req.max > 1 or req.min != 1:
         lo, hi = req.min, req.max
         base += t("choice.range", lo=lo, hi=hi) if lo != hi else t("choice.range_one", hi=hi)
@@ -223,7 +223,7 @@ def press(game, req: ChoiceRequest, ui: ChoiceUI, index) -> tuple[str, object]:
         if not slot.enabled:
             return "error", t("choice.pick_between", min=req.min, max=req.max)
         return "answer", list(ui.selected)
-    if req.max == 1:                             # one pick answers at once; "Ninguna" (the confirm slot) picks none
+    if req.max == 1:                             # one pick answers at once; "None" (the confirm slot) picks none
         return "answer", [slot.value]
     if slot.value in ui.selected:
         ui.selected.remove(slot.value)

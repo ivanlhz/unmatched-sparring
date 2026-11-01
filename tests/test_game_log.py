@@ -14,7 +14,7 @@ STAMP = re.compile(r"^\d\d:\d\d:\d\d ")
 @pytest.fixture
 def logged(brig, tmp_path):
     session, table, game, fake = brig
-    session.state_path = tmp_path / "estado" / "sesion.json"
+    session.state_path = tmp_path / "state" / "session.json"
     session.state_path.parent.mkdir()
     session.game_log.path = game_log.log_path(session.state_path)
     return session, game, session.game_log.path
@@ -25,7 +25,7 @@ def lines(path):
 
 
 def test_the_log_sits_next_to_the_state_file(tmp_path):
-    assert game_log.log_path(tmp_path / "estado" / "sesion.json") == tmp_path / "estado" / "partida.log"
+    assert game_log.log_path(tmp_path / "state" / "session.json") == tmp_path / "state" / "session.log"
     assert game_log.log_path(None) is None
 
 
@@ -117,7 +117,7 @@ def test_turn_start_and_game_over_are_logged(logged):
 
 def test_an_unwritable_log_never_breaks_the_game(brig, tmp_path, capsys):
     session, table, game, fake = brig
-    session.game_log.path = tmp_path / "missing-dir" / "partida.log"
+    session.game_log.path = tmp_path / "missing-dir" / "session.log"
     session.say("sigue la partida")
     session.say("y sigue")
     session._done()
@@ -135,14 +135,14 @@ def test_no_state_file_means_no_log(brig, tmp_path, monkeypatch):
 
 def test_observe_survives_odd_state_with_and_without_a_path(tmp_path, capsys):
     game_log.GameLog(None).observe(object(), str)
-    log = game_log.GameLog(tmp_path / "partida.log")
+    log = game_log.GameLog(tmp_path / "session.log")
     log.observe(object(), str)
     log.observe(object(), str)
     assert capsys.readouterr().err.count("[warning]") == 1
-    assert not (tmp_path / "partida.log").exists()
+    assert not (tmp_path / "session.log").exists()
 
 
 def test_a_lone_surrogate_in_the_chat_is_harmless(tmp_path):
-    log = game_log.GameLog(tmp_path / "partida.log")
+    log = game_log.GameLog(tmp_path / "session.log")
     log.chat("bad\ud800 text")
-    assert "text" in (tmp_path / "partida.log").read_text(encoding="utf-8")
+    assert "text" in (tmp_path / "session.log").read_text(encoding="utf-8")

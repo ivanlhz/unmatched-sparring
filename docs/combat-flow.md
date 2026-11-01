@@ -11,10 +11,10 @@ each, default 3) and over hand-built scenarios.
   choice is stored under the same key; null stays null.
 - `tests/test_review9.py` and `tests/test_review10.py` read `pending.boost_wait["stuck"|"hand"|"deck"|"card"]` and
   `saved["pending"]["boost_wait"][...]`. The new format stays flat, with a read-only compatibility property.
-- The session must not start the flow at "Revelar": the action is spent and the cards leave the hand only at
-  "Continuar" (`g.attack` -> `use_action`, reach check after `sync_positions`). RuleError rollback and
+- The session must not start the flow at "Reveal": the action is spent and the cards leave the hand only at
+  "Continue" (`g.attack` -> `use_action`, reach check after `sync_positions`). RuleError rollback and
   `_cancel_stuck_boost` depend on that. In this delivery the session keeps the wait as a `PendingChoice` and at
-  "Continuar" runs the flow from DECLARED with the answer supplied up front. Real pauses with the game already mutated
+  "Continue" runs the flow from DECLARED with the answer supplied up front. Real pauses with the game already mutated
   belong to the human-choices phase.
 
 ## API

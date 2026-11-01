@@ -1,5 +1,5 @@
-"""Escenario real: Medusa (2 PV, sin Harpias, 1 carta en el mazo, mano de 7) contra Hellboy (14 PV, ANUNG UN RAMA) en
-la casilla 30. El bot hacia "maniobra, maniobra" sin moverse, robaba pasando el limite y descartaba cartas buenas."""
+"""Real scenario: Medusa (2 HP, no Harpies, 1 card in the deck, hand of 7) against Hellboy (14 HP, ANUNG UN RAMA) on
+space 30. The bot did "maneuver, maneuver" without moving, drew past the limit and discarded good cards."""
 import pytest
 
 from sparring import sim
@@ -19,7 +19,7 @@ def ai(game):
 
 
 def endgame(game, deck_left=1, medusa_pos=0, hellboy_pos=30, hand=HAND, lobster=False):
-    """Estado exacto de la partida en vivo (la mano rival es de 5 cartas desconocidas)."""
+    """Exact state of the live game (the rival's hand is 5 unknown cards)."""
     seen = {}
     for t in hand:
         seen[t] = seen.get(t, -1) + 1
@@ -46,19 +46,19 @@ def endgame(game, deck_left=1, medusa_pos=0, hellboy_pos=30, hand=HAND, lobster=
 
 
 def play_turn(game, ai):
-    """Un turno entero del bot sin la habilidad (no hay nadie en su zona al inicio) ni fin de turno."""
+    """A whole bot turn without the ability (there is nobody in her zone at the start) nor end of turn."""
     ai.take_turn(game)
 
 
 def test_live_state_no_pointless_double_maneuver(game, ai):
     endgame(game)
     first = ai.plan(game)
-    assert first.kind != "maneuver" or first.moves["medusa"] != 0, "la maniobra no mueve"
+    assert first.kind != "maneuver" or first.moves["medusa"] != 0, "the maneuver does not move"
     play_turn(game, ai)
     medusa = game.fighters["medusa"]
     assert medusa.alive
     assert game.winner is None
-    assert len(game.players[0].deck) == 0 or game.players[0].deck, "no puede haber robado mas del mazo"
+    assert len(game.players[0].deck) == 0 or game.players[0].deck, "it cannot have drawn more than the deck"
 
 
 def test_live_state_moves_into_hellboys_zone_and_attacks(game, ai):
@@ -67,9 +67,9 @@ def test_live_state_moves_into_hellboys_zone_and_attacks(game, ai):
     play_turn(game, ai)
     hb = game.fighters["hellboy"]
     medusa = game.fighters["medusa"]
-    assert game.board.share_zone(medusa.pos, hb.pos), "Medusa debia entrar en la zona de Hellboy"
-    assert hb.hp < 14, "debia atacar a Hellboy con la mejor carta"
-    assert medusa.hp == 2, "no se puede agotar el mazo"
+    assert game.board.share_zone(medusa.pos, hb.pos), "Medusa had to enter Hellboy's zone"
+    assert hb.hp < 14, "it had to attack Hellboy with the best card"
+    assert medusa.hp == 2, "the deck cannot be exhausted"
     assert len(game.players[0].deck) == 0 and game.drawn[0] <= 1
 
 
@@ -77,7 +77,7 @@ def test_live_state_plan_is_maneuver_then_attack(game, ai):
     endgame(game)
     a1 = ai.plan(game)
     assert a1.kind == "maneuver"
-    assert a1.boost is not None, "para llegar a la zona beige (5 casillas) necesita boost"
+    assert a1.boost is not None, "to reach the beige zone (5 spaces) it needs a boost"
     assert game.board.share_zone(a1.moves["medusa"], 30)
     g1 = ai.apply_expected(game, a1)
     a2 = ai.candidates(g1, Model(g1, 0))[0]
@@ -85,7 +85,7 @@ def test_live_state_plan_is_maneuver_then_attack(game, ai):
 
 
 def test_never_picks_exhaustion_suicide_when_alternative_exists(game, ai):
-    endgame(game, deck_left=0, medusa_pos=29, hellboy_pos=30)  # ya esta en su zona: puede atacar
+    endgame(game, deck_left=0, medusa_pos=29, hellboy_pos=30)  # already in his zone: she can attack
     act = ai.plan(game)
     assert act.kind != "maneuver"
     g = ai.apply_expected(game, ai.maneuver_acts(game, Model(game, 0))[0])
@@ -133,7 +133,7 @@ def test_desperation_rises_when_losing_only(game, ai):
 
 def test_aggression_beats_kiting_when_time_is_against_us(game, ai):
     endgame(game, deck_left=1, medusa_pos=29, hellboy_pos=30)
-    play_turn(game, ai)   # ataca desde donde no la alcance (maniobra + disparo) o dispara ya: nunca huye sin atacar
+    play_turn(game, ai)   # attacks from where he cannot reach her (maneuver + shot) or shoots now: never flees without attacking
     assert game.fighters["medusa"].alive and game.winner is None
     assert game.fighters["hellboy"].hp < 14
 

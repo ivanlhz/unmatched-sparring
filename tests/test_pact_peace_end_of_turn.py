@@ -1,4 +1,4 @@
-"""Pact Of Peace in a live session (Ivan, 30/10: "no esta aplicando el dano correctamente cuando termina el turno").
+"""Pact Of Peace in a live session (Ivan, 30/10: "it is not applying the damage correctly when the turn ends").
 
 Baba Yaga is the human with the Pact in play, Liz Sherman the bot. At the end of each turn every HERO that attacked
 that turn loses 1 hp (effect damage); the dial of that hero must follow and the chat must say it, whichever end of
@@ -71,7 +71,7 @@ def baba_attacks_and_ends_her_turn(session, table, game, cfg):
 @with_rig("liz-sherman", "baba-yaga", *LIZ_HAND)
 @pytest.mark.parametrize("pass_to_koschei", [True, False])
 def test_fateful_bargains_at_the_end_of_your_turn_still_applies_the_pact_damage(rig, pass_to_koschei):
-    """Ivan, 30/10: 'Koschei recibe el dano (1) en lugar de Baba Yaga?' then 'Efecto resuelto' and nobody lost a hit
+    """Ivan, 30/10: 'Koschei takes the damage (1) instead of Baba Yaga?' then 'Effect resolved' and nobody lost a hit
     point: the next turn began while the question waited and cleared who attacked."""
     session, table, game, fake, cfg = rig
     pact_in_play(game)

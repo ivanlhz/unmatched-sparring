@@ -1,49 +1,49 @@
-"""IA heuristica de Medusa.
+"""Medusa's heuristic AI.
 
-Funcion de valoracion (puntos de "ventaja" desde el punto de vista de Medusa)
------------------------------------------------------------------------------
-Un plan son hasta 2 acciones (maniobra, ataque, plan, pasar). Se puntua
-    valor(plan) = sum(valor de cada accion) + valor_posicion(estado final esperado)
-y se ejecuta solo la primera accion; luego se replanifica con el resultado real.
+Evaluation function (points of "advantage" from Medusa's point of view)
+-----------------------------------------------------------------------
+A plan is up to 2 actions (maneuver, attack, scheme, pass). It is scored
+    value(plan) = sum(value of each action) + position_value(expected final state)
+and only the first action is executed; then it replans with the real result.
 
-Valor de una accion
-  * ataque   = peso(objetivo) * dano esperado + bonus de efectos "AFTER COMBAT" ponderados por
-               la probabilidad de ganar - coste de carta (+ penalizacion si acelera la
-               transformacion de Hellboy con Clutching Claws / Hiss and Slither)
-  * maniobra = robar (+CARD_VALUE) - coste de la carta de boost
-  * plan     = dano esperado (A Momentary Glance) o reposicionamiento (Winged Frenzy) - coste de carta
-  * plan de cualquier otro heroe interpretado (D2) = lo que deja simularlo en un clon ciego con EffectAI
-               decidiendo dentro (material, ONGOING que entra o sale, cartas que gana o pierde, acciones que da)
-               - coste de carta; la ejecucion real decide con las mismas reglas.
-  El rival se modela con la hipergeometrica: su mano son `h` cartas al azar de las que NO estan en su
-  descarte; juega su mejor carta elegible. Asi salen P(ganar), dano esperado y P(matar).
+Value of an action
+  * attack   = weight(target) * expected damage + bonus of "AFTER COMBAT" effects weighted by
+               the probability of winning - card cost (+ penalty if it speeds up
+               Hellboy's transformation with Clutching Claws / Hiss and Slither)
+  * maneuver = draw (+CARD_VALUE) - cost of the boost card
+  * scheme   = expected damage (A Momentary Glance) or repositioning (Winged Frenzy) - card cost
+  * scheme of any other interpreted hero (D2) = what simulating it on a blind clone with EffectAI
+               deciding inside allows (material, ONGOING entering or leaving, cards gained or lost, actions granted)
+               - card cost; the real execution decides with the same rules.
+  The rival is modelled with the hypergeometric: its hand is `h` random cards from those NOT in its
+  discard pile; it plays its best eligible card. That yields P(win), expected damage and P(kill).
 
-Valor de posicion (kiting)
-  -amenaza de Hellboy y Lobster para el turno siguiente, tomando por atacante el mejor objetivo:
-     pasos hasta una casilla desde la que pueden golpear  vs  movimiento + boost posible
-     (P(tener carta con el boost necesario), ANUNG UN RAMA suma ANUNG_FREE_MOVE por su movimiento libre
-     y +2 al valor de ataque), dano esperado descontando mi mejor defensa en mano, y riesgo letal.
-  +PRESSURE por cada rival en la zona de Medusa (habilidad + disparo sin moverse).
-  Simplificacion: los cuerpos no bloquean el camino del rival (solo ocupan casillas de ataque).
+Position value (kiting)
+  -threat of Hellboy and Lobster for the next turn, taking the best target as the attacker:
+     steps to a space from which they can strike  vs  movement + possible boost
+     (P(having a card with the needed boost), ANUNG UN RAMA adds ANUNG_FREE_MOVE for its free movement
+     and +2 to the attack value), expected damage discounting my best defense in hand, and lethal risk.
+  +PRESSURE for each rival in Medusa's zone (ability + shot without moving).
+  Simplification: bodies do not block the rival's path (they only occupy attack spaces).
 
-Agotamiento, limite de mano y desesperacion
-  * Robar con el mazo vacio hace EXHAUST_DAMAGE a cada luchador propio: `apply_expected` lo simula (una maniobra
-    o un Snipe/Regroup que mata a Medusa vale -DEATH) y los robos con mazo se cuentan como cartas desconocidas
+Exhaustion, hand limit and desperation
+  * Drawing with an empty deck does EXHAUST_DAMAGE to each own fighter: `apply_expected` simulates it (a maneuver
+    or a Snipe/Regroup that kills Medusa is worth -DEATH) and draws with a deck are counted as unknown cards
     (`Game.phantom_draws`).
-  * Al acabar el turno (`terminal_value`): se descartan las cartas que pasen de HAND_LIMIT (las de menor
-    `keep_value`, y el robo desconocido vale su media) y cada robo que se come el mazo cuesta `DECK_SCARCITY`
-    segun los robos que Medusa aun puede pagar (`draw_budget`). Una maniobra sin mover con la mano llena solo pierde.
-  * `desperation` (0..1) mide cuanto va perdiendo el bot: PV propios frente a los del heroe rival, Harpias caidas y
-    reloj del agotamiento. Con ella sube el premio por quedar a tiro del heroe rival (progreso esperado hacia ganar
-    x LETHAL, el mismo patron que el castigo por morir) y baja el peso de la huida: huir solo compensa si el
-    tiempo juega a favor.
-  * El mazo depende de la estrategia (`race`, `deck_cost`): un robo no vale lo mismo con la partida ganada en
-    pocos turnos que con una partida larga. Se estiman los turnos que el bot tarda en matar al heroe rival
-    (PV rival / dano medio por turno), los que tarda el rival en matarlo y los turnos de mazo que quedan. Si la
-    carrera se gana antes de que el mazo se acabe, robar es casi libre (la escasez baja a DECK_SCARCITY_FLOOR);
-    si la partida durara mas que el mazo, cada robo adelanta robos con agotamiento y paga EXHAUST_BILL (suave,
-    creciente con el faltante, hasta x2 si ademas el bot pierde la carrera): se prefieren ataques, planes y
-    maniobras con impulso a robar sin mover a nadie.
+  * At the end of the turn (`terminal_value`): cards beyond HAND_LIMIT are discarded (those of lowest
+    `keep_value`, and the unknown draw is worth its average) and each draw that eats the deck costs `DECK_SCARCITY`
+    according to the draws Medusa can still afford (`draw_budget`). A maneuver without moving with a full hand only loses.
+  * `desperation` (0..1) measures how badly the bot is losing: own HP against the rival hero's, fallen Harpies and
+    the exhaustion clock. With it the prize for being in range of the rival hero goes up (expected progress toward winning
+    x LETHAL, the same pattern as the penalty for dying) and the weight of fleeing goes down: fleeing only pays off if
+    time plays in our favor.
+  * The deck depends on the strategy (`race`, `deck_cost`): a draw is not worth the same with the game won in
+    few turns as with a long game. The turns the bot takes to kill the rival hero are estimated
+    (rival HP / average damage per turn), those the rival takes to kill it and the deck turns that remain. If the
+    race is won before the deck runs out, drawing is almost free (scarcity drops to DECK_SCARCITY_FLOOR);
+    if the game would last longer than the deck, each draw brings forward exhaustion draws and pays EXHAUST_BILL (soft,
+    growing with the shortfall, up to x2 if the bot is also losing the race): attacks, schemes and
+    maneuvers with a boost are preferred over drawing without moving anyone.
 """
 from __future__ import annotations
 
@@ -81,16 +81,16 @@ BOOST_RELIANCE = 0.6
 TRANSFORM_PENALTY = {1: 3.0, 2: 1.8, 3: 0.8}
 MAX_ENEMY_STEPS = 9
 TOP_FIRST = 6
-TOP_FIRST_DESPERATE = 14   # cuando cada accion cuenta se mira mas ancho antes de comprometerse
+TOP_FIRST_DESPERATE = 14   # when every action counts, a wider look is taken before committing
 TOP_SECOND = 4
 APPROACH_PULL = 0.1        # position value lost per space between a non-Medusa hero and the nearest rival
 APPROACH_TOP = 3           # extra first actions that walk into reach of a rival (non-Medusa heroes)
-DEATH = 120.0           # perder la partida (mas que LETHAL, que se pondera por probabilidad)
-DECK_SCARCITY = {0: 3.0, 1: 1.8, 2: 1.0, 3: 0.5, 4: 0.25}   # coste de quedarse con pocos robos que pagar
-DESPERATE_FEAR_DROP = 0.8   # con desesperacion total la huida pesa un 20 %
-WIN_PRIZE = 60.0            # ganar vale lo que perder cuesta: progreso esperado x premio
-PROGRESS_DISCOUNT = 0.8     # el rival puede apartarse antes de mi proximo turno
-CLOCK_HORIZON = 8           # con 8 o mas robos por pagar el reloj del mazo no aprieta
+DEATH = 120.0           # losing the game (more than LETHAL, which is weighted by probability)
+DECK_SCARCITY = {0: 3.0, 1: 1.8, 2: 1.0, 3: 0.5, 4: 0.25}   # cost of being left with few draws to pay
+DESPERATE_FEAR_DROP = 0.8   # with total desperation fleeing weighs 20 % less
+WIN_PRIZE = 60.0            # winning is worth what losing costs: expected progress x prize
+PROGRESS_DISCOUNT = 0.8     # the rival can step aside before my next turn
+CLOCK_HORIZON = 8           # with 8 or more draws to pay the deck clock does not press
 IDLE_MANEUVER = 0.5         # (not Medusa, whose kiting is standing clear) a maneuver that moves nobody and spends no boost is only a draw: it gives way to a decent attack
 ATTACKS_PER_TURN = 1.0      # measured in simulation: about one attack and one draw per own turn
 DRAWS_PER_TURN = 1.0
@@ -99,10 +99,10 @@ EXHAUST_BILL = 3.5          # ~ a round of exhaustion (EXHAUST_DAMAGE to the her
 BILL_SPAN = 4.0             # draws of shortfall (game longer than deck) at which one more draw pays the whole EXHAUST_BILL
 DECK_SCARCITY_FLOOR = 0.25  # share of DECK_SCARCITY still charged when the race is won well before the deck runs out
 MIN_NET = 0.25              # floor of the expected net damage per attack, so no estimate divides by zero
-ACTION_VALUE = 1.0          # una accion que regala un plan: al menos el robo de una maniobra, a menudo un ataque
+ACTION_VALUE = 1.0          # an action that gives away a scheme: at least the draw of a maneuver, often an attack
 
 AFTER_BONUS = {
-    "Regroup": (CARD_VALUE, CARD_VALUE),       # (siempre, extra si gana)
+    "Regroup": (CARD_VALUE, CARD_VALUE),       # (always, extra if it wins)
     "Snipe": (CARD_VALUE, 0.0),
     "Dash": (0.5, 0.0),
     "The Hounds of Mighty Zeus": (0.4, 0.0),
@@ -139,7 +139,7 @@ class Act:
 
 
 class Model:
-    """Lo que Medusa sabe del rival: composicion de su mazo menos lo que ya esta en el descarte."""
+    """What Medusa knows of the rival: composition of its deck minus what is already in the discard pile."""
 
     def __init__(self, game: Game, me: int):
         self.game, self.me, self.opp = game, me, 1 - me
@@ -172,7 +172,7 @@ class Model:
                               lambda c: c.value + bonus if c.can_attack and c.usable_by(f.name) else None)
 
     def committed_attack_dist(self, f: Fighter):
-        """Valor del ataque dado que el rival ya ha jugado una carta: sin masa de "no tiene carta", renormalizada."""
+        """Value of the attack given that the rival has already played a card: without the "has no card" mass, renormalized."""
         bonus = self.game.attack_bonus(f)
         fn = lambda c: c.value + bonus if c.can_attack and c.usable_by(f.name) else None
         dist = [(p, v) for p, v in self.best_dist(("commit", f.name, bonus), fn, max(self.h, 1)) if v is not None]
@@ -183,7 +183,7 @@ class Model:
 
     def defense_dist(self, t: Fighter):
         destiny = self.game.destiny_count(self.opp)
-        bonus = self.game.combat_bonus_total(t.owner)     # ONGOING publico del rival (Fight Or Flight)
+        bonus = self.game.combat_bonus_total(t.owner)     # the rival's public ONGOING (Fight Or Flight)
         return self.best_dist(("def", t.name, destiny, bonus),
                               lambda c: (destiny if c.title == ON_EARTH else c.value) + bonus
                               if c.can_defend and c.usable_by(t.name) else None)
@@ -265,7 +265,7 @@ def is_striker(game: Game, f: Fighter) -> bool:
 
 
 class MedusaAI(Controller):
-    """Sin azar propio: los empates se rompen por id, asi que dada la partida (semilla) es determinista."""
+    """No randomness of its own: ties are broken by id, so given the game (seed) it is deterministic."""
 
     def __init__(self, me: int = 0):
         self.me = me
@@ -274,17 +274,17 @@ class MedusaAI(Controller):
         self._strike_cache: dict = {}
         self._effect_ai = None
 
-    # ---------- preparacion de la partida ----------
+    # ---------- game setup ----------
     def should_mulligan(self, game: Game, hand) -> bool:
-        """Mano inicial mala: ninguna carta con la que atacar, o tres o mas que no sirven para atacar (planes y
-        defensas puras). El mulligan es de una sola vez (lo aplica la sesion)."""
+        """Bad opening hand: no card to attack with, or three or more that are no use for attacking (schemes and
+        pure defenses). The mulligan is once only (the session applies it)."""
         attackers = sum(1 for c in hand if c.can_attack)
         return attackers == 0 or len(hand) - attackers >= 3
 
     def choose_setup(self, game: Game, hand) -> dict[str, int]:
-        """Casillas iniciales: Medusa en su salida y las Harpias en su zona de salida. Con Clutching Claws o The
-        Hounds of Mighty Zeus en la mano se adelantan (la mejor `harpy_score` frente a las piezas rivales ya
-        colocadas); sin ellas se quedan atras, lo mas lejos posible de Hellboy y cerca de Medusa."""
+        """Starting spaces: Medusa on her start space and the Harpies in their start zone. With Clutching Claws or The
+        Hounds of Mighty Zeus in hand they move forward (the best `harpy_score` against the rival pieces already
+        placed); without them they stay back, as far as possible from Hellboy and close to Medusa."""
         me, b = self.me, game.board
         start = game.start_spaces[me]
         taken = {f.pos for f in game.foes(me)} | {start}
@@ -302,9 +302,9 @@ class MedusaAI(Controller):
             zone = [s for s in zone if s != best]
         return plan
 
-    # ---------- inicio de turno ----------
+    # ---------- start of turn ----------
     def pick_ability_target(self, game: Game) -> Fighter | None:
-        """Objetivo de la habilidad de inicio de turno de Medusa; con cualquier otro heroe no hay (aun) habilidad."""
+        """Target of Medusa's start-of-turn ability; with any other hero there is (as yet) no ability."""
         medusa = game.hero(self.me)
         if medusa.name != "Medusa":
             return None
@@ -327,7 +327,7 @@ class MedusaAI(Controller):
         while game.actions_left > 0 and game.winner is None and game.hero(self.me).alive:
             self.execute(game, self.plan(game))
 
-    # ---------- planificacion ----------
+    # ---------- planning ----------
     def plan(self, game: Game) -> Act:
         model = Model(game, self.me)
         ranked = self.candidates(game, model)
@@ -358,7 +358,7 @@ class MedusaAI(Controller):
                 and any(board.can_reach_target(a.moves[hero.fid], e.pos, hero.ranged) for e in foes)][:APPROACH_TOP]
 
     def candidates(self, game: Game, model: Model) -> list[Act]:
-        """Acciones legales ordenadas por valor propio + valor de la posicion que dejan. Pasar no existe: una maniobra sin mover roba igual."""
+        """Legal actions ordered by own value + value of the position they leave. Passing does not exist: a maneuver without moving still draws."""
         acts = self.attack_acts(game, model) + self.scheme_acts(game, model) + self.maneuver_acts(game, model)
         for a in acts:
             g = self.apply_expected(game, a)
@@ -369,14 +369,14 @@ class MedusaAI(Controller):
             if g.actions_left == 0:
                 a.total += self.terminal_value(g, model)
         unique = {(a.kind, a.fid, a.target, a.card and a.card.card_id, a.boost and a.boost.card_id,
-                   tuple(sorted(a.moves.items())), a.spot, a.variant): a for a in reversed(acts)}   # la 1.a de cada una
+                   tuple(sorted(a.moves.items())), a.spot, a.variant): a for a in reversed(acts)}   # the 1st of each one
         return sorted(unique.values(), key=lambda a: -a.total)
 
     def outcome(self, g: Game) -> float:
         """A game finished in the expected state: lost (exhaustion) or won (a scheme that finishes the rival)."""
         return DEATH if g.winner == self.me else -DEATH
 
-    # ----- ataques -----
+    # ----- attacks -----
     def attack_acts(self, game: Game, model: Model) -> list[Act]:
         hand = game.players[self.me].hand
         out = []
@@ -425,7 +425,7 @@ class MedusaAI(Controller):
         if p_kill > 0:      # the kill prize is only looked up when the blow can kill (it scans both decks)
             value += (HERO_KILL + LETHAL if t.hero else kill_value(game, t)) * p_kill   # finishing the hero wins the game
         if t.hero and f.owner == self.me:
-            # el dano ya hecho vale mas que el que solo se podria hacer luego (`win_progress` lo descuenta)
+            # damage already done is worth more than what could only be done later (`win_progress` discounts it)
             value += self.desperation(game) * WIN_PRIZE * (e_net + gaze_dmg) / max(t.hp, 1)
         always, on_win = AFTER_BONUS.get(c.title, (0.0, 0.0))
         value += always + on_win * p_win
@@ -508,25 +508,25 @@ class MedusaAI(Controller):
                 value += HARPY_VALUE
         return Act("frenzy", value, "medusa", "", card, moves=moves, spot=spot)
 
-    # ----- maniobra -----
+    # ----- maneuver -----
     def maneuver_acts(self, game: Game, model: Model) -> list[Act]:
         hand = game.players[self.me].hand
         medusa = game.hero(self.me)
         variants: list = [(None, 0.0)]
         seen = set()
         for c in sorted(hand, key=lambda c: (keep_value(c, hand), -c.boost, c.card_id)):
-            if can_be_boost(c) and c.boost not in seen:    # por cada alcance, la carta que menos duele gastar
+            if can_be_boost(c) and c.boost not in seen:    # for each reach, the card that hurts least to spend
                 seen.add(c.boost)
                 variants.append((c, keep_value(c, hand) * 0.5))
         out = []
-        by_extra: dict[int, list[int]] = {}    # los mejores destinos solo dependen del alcance, no de la carta
+        by_extra: dict[int, list[int]] = {}    # the best destinations depend only on the reach, not on the card
         for boost, cost in variants:
             extra = boost.boost if boost else 0
             if extra not in by_extra:
                 options = game.legal_moves(medusa, medusa.move + extra) | {medusa.pos}
                 ranked = sorted(((-self.position_value(game, model, {medusa.fid: d}), d) for d in options))
-                # ademas de los mejores por posicion, los que dejan a Medusa a tiro de un rival: moverse y atacar
-                # en la misma accion doble (la posicion sola nunca los elegiria si el rival es peligroso)
+                # besides the best by position, those that leave Medusa within range of a rival: moving and attacking
+                # in the same double action (position alone would never choose them if the rival is dangerous)
                 striking = [x for x in ranked if any(game.board.can_reach_target(x[1], e.pos, medusa.ranged)
                                                      for e in game.foes(self.me))]
                 by_extra[extra] = list(dict.fromkeys(d for _, d in ranked[:3] + striking[:2]))
@@ -539,7 +539,7 @@ class MedusaAI(Controller):
                     exhausting = not g.players[self.me].deck
                     for h in sorted((x for x in g.own(self.me) if not x.hero), key=lambda x: x.fid):
                         if exhausting and h.hp <= EXHAUST_DAMAGE:
-                            continue    # el robo con el mazo vacio la mata antes de moverse
+                            continue    # drawing with an empty deck kills her before she moves
                         if harpies_advance:
                             opts = g.legal_moves(h, h.move + extra) | {h.pos}
                             h.pos = max(opts, key=lambda s: (self.harpy_score(g, h, s), -s))
@@ -549,9 +549,9 @@ class MedusaAI(Controller):
                                    moves=moves, boost=boost))
         return out
 
-    # ---------- estado esperado ----------
+    # ---------- expected state ----------
     def expected_draw(self, g: Game, n: int = 1) -> None:
-        """Robo simulado: con mazo, una carta desconocida (`phantom_draws`); sin mazo, el agotamiento del motor."""
+        """Simulated draw: with a deck, an unknown card (`phantom_draws`); without a deck, the engine's exhaustion."""
         p = g.players[self.me]
         for _ in range(n):
             if g.winner is not None:
@@ -576,7 +576,7 @@ class MedusaAI(Controller):
             if a.card.title == "Snipe":
                 self.expected_draw(g, 1)
             elif a.card.title == "Regroup":
-                self.expected_draw(g, 2 if a.p_win > 0 else 1)   # pesimista: el agotamiento no se juega a cara o cruz
+                self.expected_draw(g, 2 if a.p_win > 0 else 1)   # pessimistic: exhaustion is not played on a coin flip
         elif a.kind == "maneuver":
             self.expected_draw(g, 1)
             if a.boost is not None:
@@ -598,9 +598,9 @@ class MedusaAI(Controller):
         g.actions_left -= 1
         return g
 
-    # ---------- tiempo: mazo, mano y desesperacion ----------
+    # ---------- time: deck, hand and desperation ----------
     def draw_budget(self, game: Game) -> int:
-        """Robos que Medusa aun puede pagar sin morir: el mazo y los agotamientos que sus PV aguantan."""
+        """Draws Medusa can still afford without dying: the deck and the exhaustions her HP can bear."""
         medusa = game.hero(self.me)
         return max(0, len(game.players[self.me].deck) + ceil(medusa.hp / EXHAUST_DAMAGE) - 1)
 
@@ -613,7 +613,7 @@ class MedusaAI(Controller):
         return sum(keep_value(c, [c]) for c in unseen) / len(unseen) if unseen else KEEP_BASE["attack"]
 
     def terminal_value(self, game: Game, model: Model | None = None) -> float:
-        """Coste de cerrar el turno asi: descartar lo que pase del limite de mano y gastar robos escasos."""
+        """Cost of closing the turn like this: discarding what exceeds the hand limit and spending scarce draws."""
         p = game.players[self.me]
         over = len(p.hand) + game.phantom_draws - HAND_LIMIT
         cost = 0.0
@@ -652,8 +652,8 @@ class MedusaAI(Controller):
         return DECK_SCARCITY.get(self.draw_budget(game), 0.0) * scale + EXHAUST_BILL * losing * owed
 
     def desperation(self, game: Game) -> float:
-        """0 (sin problema) a 1 (perdiendo claramente): PV propios frente a los del heroe rival, Harpias caidas y
-        reloj del agotamiento."""
+        """0 (no problem) to 1 (clearly losing): own HP against the rival hero's, fallen Harpies and
+        the exhaustion clock."""
         me, rival = game.hero(self.me), game.hero(1 - self.me)
         if not me.alive or not rival.alive:
             return 0.0
@@ -664,7 +664,7 @@ class MedusaAI(Controller):
         return min(1.0, max(0.0, ((hp_c + side_c + clock_c) / 3 - 0.25) / 0.75))
 
     def win_progress(self, game: Game, model: Model, medusa: Fighter, rival: Fighter) -> float:
-        """Fraccion de los PV del heroe rival que mis dos mejores ataques de la mano le quitarian."""
+        """Fraction of the rival hero's HP that my two best attacks in hand would take away."""
         hand = game.players[self.me].hand
         dmgs = sorted((self.attack_eval(game, model, medusa, rival, c)[1] for c in hand
                        if c.can_attack and c.usable_by(medusa.name)), reverse=True)
@@ -768,7 +768,7 @@ class MedusaAI(Controller):
             return max(options, key=lambda d: (self.position_value(game, model, {f.fid: d}), -d))
         return max(options, key=lambda d: (self.harpy_score(game, f, d), -d))
 
-    # ---------- ejecucion ----------
+    # ---------- execution ----------
     def execute(self, game: Game, a: Act) -> None:
         me = self.me
         if a.kind == "attack":
@@ -798,7 +798,7 @@ class MedusaAI(Controller):
         choosers[self.me] = SyntheticChooser(policy=variant)
         return choosers
 
-    # ---------- decisiones que el motor delega ----------
+    # ---------- decisions the engine delegates ----------
     def choose_move(self, game: Game, fighter: Fighter, steps: int, through_enemies: bool = False) -> int | None:
         if fighter.fid in self._plan_moves:
             return self._plan_moves[fighter.fid]

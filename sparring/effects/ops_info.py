@@ -47,7 +47,7 @@ def _look_hand(run, game, spec):
         reader = game.hand_reader
         cards = list(game.players[target].hand) if reader is None else reader(target)
         game.observe_hand(owner, cards)
-        run.flags["looked_hand"] = True      # the narration says "mira" only for a look, not for a changed `seen`
+        run.flags["looked_hand"] = True      # the narration says "looks at" only for a look, not for a changed `seen`
 
 
 @op("reveal")

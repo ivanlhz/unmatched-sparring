@@ -1,18 +1,18 @@
-"""Valida los ficheros de efectos `data/heroes/effects/<slug>.json` contra el DSL v1 (docs/effects-dsl.md).
+"""Validates the effects files `data/heroes/effects/<slug>.json` against DSL v1 (docs/effects-dsl.md).
 
-Dos capas:
-1. `schema.json` (JSON Schema): estructura, ops cerradas y tipos de argumento. Se aplica con el validador de
-   subconjunto de este modulo (no hay `jsonschema` en el entorno y no hace falta mas que esto).
-2. Reglas semanticas que un esquema no expresa: ligaduras resueltas y con el tipo que toca (jugador, luchador,
-   carta, numero), zonas ocultas (elegir de la mano o del mazo de otro exige haberlos mirado antes en el mismo
-   efecto), plugins declarados y usados, ambito de cada estado, combinaciones prohibidas de CardSel, `may_boost`
-   sin `boost` duplicado ni en planes, `move` con amount 0, y el cruce con el HeroDef (`data/heroes/<slug>.json`):
-   titulos, copias, texto, tipos de carta, nombres de luchador, formas y contadores.
+Two layers:
+1. `schema.json` (JSON Schema): structure, closed ops and argument types. It is applied with the subset validator
+   of this module (there is no `jsonschema` in the environment and nothing more is needed).
+2. Semantic rules a schema cannot express: bindings resolved and of the right type (player, fighter,
+   card, number), hidden zones (choosing from another player's hand or deck requires having looked at them earlier in the same
+   effect), plugins declared and used, scope of each status, forbidden CardSel combinations, `may_boost`
+   without a duplicated `boost` nor in schemes, `move` with amount 0, and the cross-check with the HeroDef (`data/heroes/<slug>.json`):
+   titles, copies, text, card types, fighter names, forms and counters.
 
-Uso:
-    python tools/validate_effects.py                 # todos los ficheros de data/heroes/effects
+Usage:
+    python tools/validate_effects.py                 # every file in data/heroes/effects
     python tools/validate_effects.py data/heroes/effects/medusa.json
-Salida: una linea por error `<fichero>: <ruta>: <mensaje>`; codigo 1 si hay alguno.
+Output: one line per error `<file>: <path>: <message>`; exit code 1 if there is any.
 """
 from __future__ import annotations
 
@@ -28,7 +28,7 @@ SCHEMA_PATH = EFFECTS_DIR / "schema.json"
 
 RESERVED_NAMES = frozenset({"this", "hero", "opposing", "attacker", "defender", "combatant",
                             "opponent_card", "attack_card", "defense_card"})
-# que liga cada evento y de que tipo (ver docs/effects-dsl.md 2.10)
+# what each event binds and of which type (see docs/effects-dsl.md 2.10)
 EVENT_BINDINGS = {
     "after_attack": {"attacker": "fighter", "target": "fighter"},
     "attacked": {"attacker": "fighter", "target": "fighter"},
@@ -38,10 +38,10 @@ EVENT_BINDINGS = {
     "card_played": {"card": "card"},
     "fighter_defeated": {"fighter": "fighter"},
 }
-# tipo de la ligadura que crea cada op con `as`
+# type of the binding each op creates with `as`
 OP_BINDINGS = {"draw": "card", "discard": "card", "choose": "card", "look_deck": "card", "search_deck": "card",
                "damage": "fighter"}
-# tipo que espera cada campo cuando lleva una referencia $var
+# type each field expects when it carries a $var reference
 PLAYER_KEYS = frozenset({"player", "chooser", "order", "start_space_of"})
 FIGHTER_KEYS = frozenset({"role", "zone_of", "adjacent_to", "space_of", "nearest_to", "fighter", "target",
                           "with", "by", "from", "fighters", "count"})
@@ -61,7 +61,7 @@ TYPE_NAMES = {"object": dict, "array": list, "string": str, "integer": int, "num
 FIGHTER_SEL_KEYS = frozenset({"role", "side", "kind", "name", "where", "other", "state", "filter", "pick"})
 
 
-# ---------------------------------------------------------------- capa 1: subconjunto de JSON Schema
+# ---------------------------------------------------------------- layer 1: JSON Schema subset
 
 class _Schema:
     def __init__(self, root: dict):
@@ -81,28 +81,28 @@ class _Schema:
         schema = self.resolve(schema)
         out: list[str] = []
         if "const" in schema and inst != schema["const"]:
-            return [f"{path}: debe ser {schema['const']!r}, es {_short(inst)}"]
+            return [f"{path}: must be {schema['const']!r}, is {_short(inst)}"]
         if "enum" in schema and inst not in schema["enum"]:
-            return [f"{path}: {_short(inst)} no esta entre {schema['enum']}"]
+            return [f"{path}: {_short(inst)} is not among {schema['enum']}"]
         if "type" in schema and not _is_type(inst, schema["type"]):
-            return [f"{path}: debe ser de tipo {schema['type']}, es {_short(inst)}"]
+            return [f"{path}: must be of type {schema['type']}, is {_short(inst)}"]
         if "oneOf" in schema:
             out += self._one_of(inst, schema["oneOf"], path)
         if "anyOf" in schema:
             out += self._any_of(inst, schema["anyOf"], path)
         if isinstance(inst, str):
             if "pattern" in schema and not re.search(schema["pattern"], inst):
-                out.append(f"{path}: {inst!r} no cumple el patron {schema['pattern']}")
+                out.append(f"{path}: {inst!r} does not match the pattern {schema['pattern']}")
             if "minLength" in schema and len(inst) < schema["minLength"]:
-                out.append(f"{path}: cadena vacia")
+                out.append(f"{path}: empty string")
         if isinstance(inst, (int, float)) and not isinstance(inst, bool):
             if "minimum" in schema and inst < schema["minimum"]:
-                out.append(f"{path}: {inst} es menor que {schema['minimum']}")
+                out.append(f"{path}: {inst} is less than {schema['minimum']}")
             if "maximum" in schema and inst > schema["maximum"]:
-                out.append(f"{path}: {inst} es mayor que {schema['maximum']}")
+                out.append(f"{path}: {inst} is greater than {schema['maximum']}")
         if isinstance(inst, list):
             if "minItems" in schema and len(inst) < schema["minItems"]:
-                out.append(f"{path}: hacen falta al menos {schema['minItems']} elementos")
+                out.append(f"{path}: at least {schema['minItems']} items are needed")
             if "items" in schema:
                 for i, v in enumerate(inst):
                     out += self.errors(v, schema["items"], f"{path}[{i}]")
@@ -110,18 +110,18 @@ class _Schema:
             props = schema.get("properties", {})
             for key in schema.get("required", ()):
                 if key not in inst:
-                    out.append(f"{path}: falta el campo obligatorio {key!r}")
+                    out.append(f"{path}: missing required field {key!r}")
             for key, v in inst.items():
                 if key in props:
                     out += self.errors(v, props[key], f"{path}.{key}")
                 elif schema.get("additionalProperties", True) is False:
-                    out.append(f"{path}: campo desconocido {key!r} (validos: {', '.join(props)})")
+                    out.append(f"{path}: unknown field {key!r} (valid: {', '.join(props)})")
                 elif isinstance(schema.get("additionalProperties"), dict):
                     out += self.errors(v, schema["additionalProperties"], f"{path}.{key}")
         return out
 
     def _discriminator(self, branches: list[dict]) -> str | None:
-        """Clave cuyo `const` distingue cada alternativa (op, test, event, kind), si todas la tienen."""
+        """Key whose `const` tells each alternative apart (op, test, event, kind), if all have it."""
         keys = None
         for b in branches:
             b = self.resolve(b)
@@ -133,19 +133,19 @@ class _Schema:
         key = self._discriminator(branches)
         if key is not None:
             if not isinstance(inst, dict):
-                return [f"{path}: debe ser un objeto con {key!r}, es {_short(inst)}"]
+                return [f"{path}: must be an object with {key!r}, is {_short(inst)}"]
             if key not in inst:
-                return [f"{path}: falta {key!r}"]
+                return [f"{path}: missing {key!r}"]
             for b in branches:
                 b = self.resolve(b)
                 if self.resolve(b["properties"][key])["const"] == inst[key]:
                     return self.errors(inst, b, path)
             valid = [self.resolve(self.resolve(b)["properties"][key])["const"] for b in branches]
-            return [f"{path}: {key} {inst[key]!r} desconocida (validas: {', '.join(map(str, valid))})"]
+            return [f"{path}: unknown {key} {inst[key]!r} (valid: {', '.join(map(str, valid))})"]
         return self._any_of(inst, branches, path)
 
     def _applicable(self, inst, schema: dict) -> bool:
-        """La alternativa puede valer para este valor por su tipo, const o enum (sin mirar el contenido)."""
+        """The alternative may fit this value by its type, const or enum (without looking at the content)."""
         schema = self.resolve(schema)
         if "const" in schema:
             return inst == schema["const"]
@@ -159,8 +159,8 @@ class _Schema:
         return True
 
     def _any_of(self, inst, branches: list[dict], path: str) -> list[str]:
-        """Elige la rama por tipo (null frente a objeto, cadena frente a objeto) y, entre varias del mismo tipo,
-        por las claves obligatorias presentes; asi el error que sale es el de la rama que el autor queria."""
+        """Chooses the branch by type (null versus object, string versus object) and, among several of the same type,
+        by the required keys present; this way the error that comes out is the one of the branch the author meant."""
         fits = [b for b in branches if self._applicable(inst, b)]
         if len(fits) > 1 and isinstance(inst, dict):
             by_required = [b for b in fits if all(k in inst for k in self.resolve(b).get("required", ()))]
@@ -174,9 +174,9 @@ class _Schema:
         resolved = [self.resolve(b) for b in branches]
         if all(set(b) == {"required"} for b in resolved):
             keys = " o ".join("/".join(b["required"]) for b in resolved)
-            return [f"{path}: hace falta al menos uno de los campos {keys}"]
+            return [f"{path}: at least one of the fields is needed {keys}"]
         best = min(attempts, key=len)
-        return [f"{path}: {_short(inst)} no encaja con ninguna alternativa; la mas cercana falla por: "
+        return [f"{path}: {_short(inst)} fits no alternative; the closest one fails with: "
                 + "; ".join(e.split(": ", 1)[-1] for e in best[:3])]
 
 
@@ -200,11 +200,11 @@ def load_schema(path: Path = SCHEMA_PATH) -> dict:
     return json.loads(path.read_text(encoding="utf-8"))
 
 
-# ---------------------------------------------------------------- capa 2: reglas semanticas
+# ---------------------------------------------------------------- layer 2: semantic rules
 
 class _Ctx:
-    """Lo que el validador arrastra por un arbol de ops: ligaduras en ambito (nombre -> tipo) y, por jugador,
-    que zonas ocultas (mano, mazo) ya se han mirado en este efecto."""
+    """What the validator carries down a tree of ops: bindings in scope (name -> type) and, per player,
+    which hidden zones (hand, deck) have already been looked at in this effect."""
 
     def __init__(self, scope: dict[str, str], seen: set[tuple[str, str]]):
         self.scope, self.seen = scope, seen
@@ -234,27 +234,27 @@ class Semantics:
             self.trigger(t, f"ability.triggers[{i}]")
         for i, p in enumerate(ab["passives"]):
             if "id" not in p:
-                self.errors.append(f"ability.passives[{i}]: una pasiva necesita 'id'")
+                self.errors.append(f"ability.passives[{i}]: a passive needs 'id'")
             self.modifier(p, f"ability.passives[{i}]", _Ctx({}, set()))
         titles = [c["title"] for c in self.doc["cards"]]
         for t in sorted({t for t in titles if titles.count(t) > 1}):
-            self.errors.append(f"cards: titulo repetido {t!r}")
+            self.errors.append(f"cards: repeated title {t!r}")
         for i, card in enumerate(self.doc["cards"]):
             self.card(card, f"cards[{i}] ({card['title']})")
         declared = {p["id"] for p in self.doc["plugins"]}
         for pid in sorted(self.plugins_used - declared):
-            self.errors.append(f"plugins: {pid!r} se usa pero no esta declarado")
+            self.errors.append(f"plugins: {pid!r} is used but not declared")
         for pid in sorted(declared - self.plugins_used):
-            self.errors.append(f"plugins: {pid!r} esta declarado pero ninguna op ni pasiva lo usa")
+            self.errors.append(f"plugins: {pid!r} is declared but no op or passive uses it")
         prefix = (self.hero or {}).get("fid") or self.doc["hero"]
         for pid in declared:
             if not pid.startswith(prefix + ":"):
-                self.errors.append(f"plugins: {pid!r} debe empezar por '{prefix}:' (el fid del HeroDef)")
+                self.errors.append(f"plugins: {pid!r} must start with '{prefix}:' (the HeroDef fid)")
         if self.hero:
             self.cross_check()
         return self.errors
 
-    # --- cartas
+    # --- cards
 
     def card(self, card: dict, path: str) -> None:
         for moment in MOMENTS:
@@ -269,22 +269,22 @@ class Semantics:
         if card.get("may_boost"):
             for op in _walk(card["effects"]["during"]):
                 if op["op"] == "boost" and op["card"] == "this":
-                    self.errors.append(f"{path}: may_boost ya expresa el BOOST gratuito; sobra la op boost sobre this")
+                    self.errors.append(f"{path}: may_boost already expresses the free BOOST; the boost op on this is redundant")
         if self.hero:
             kind = self.hero_cards.get(card["title"], {}).get("type")
             if kind == "scheme":
                 for moment in ("immediately", "during", "after"):
                     if card["effects"][moment]:
-                        self.errors.append(f"{path}: un plan no tiene momento {moment}")
+                        self.errors.append(f"{path}: a scheme has no moment {moment}")
                 if card.get("may_boost"):
-                    self.errors.append(f"{path}: un plan no se juega en combate, no puede llevar may_boost")
+                    self.errors.append(f"{path}: a scheme is not played in combat, it cannot carry may_boost")
             elif kind is not None:
                 if card["effects"]["scheme"]:
-                    self.errors.append(f"{path}: solo los planes llevan ops en 'scheme'")
+                    self.errors.append(f"{path}: only schemes carry ops in 'scheme'")
                 if ongoing:
-                    self.errors.append(f"{path}: solo los planes llevan 'ongoing'")
+                    self.errors.append(f"{path}: only schemes carry 'ongoing'")
 
-    # --- disparadores y modificadores
+    # --- triggers and modifiers
 
     def trigger(self, trig: dict, path: str) -> None:
         bound = EVENT_BINDINGS.get(trig["when"]["event"], {})
@@ -304,7 +304,7 @@ class Semantics:
     # --- ops
 
     def ops(self, ops: list[dict], path: str, ctx: _Ctx) -> None:
-        """Recorre una lista en orden: cada op ve las ligaduras y las zonas vistas por las anteriores."""
+        """Walks a list in order: each op sees the bindings and the zones seen by the previous ones."""
         for i, op in enumerate(ops):
             self.op(op, f"{path}[{i}] ({op['op']})", ctx)
 
@@ -315,17 +315,17 @@ class Semantics:
         if name == "status":
             self.status_scope(op, path)
         if name == "counter" and ("delta" in op) == ("set" in op):
-            self.errors.append(f"{path}: counter lleva 'delta' o 'set', uno de los dos")
+            self.errors.append(f"{path}: counter carries 'delta' or 'set', one of the two")
         if name == "counter" and self.counters is not None and op["name"] not in self.counters:
-            self.errors.append(f"{path}: contador {op['name']!r} no declarado (ability.counters o HeroDef)")
+            self.errors.append(f"{path}: counter {op['name']!r} not declared (ability.counters or HeroDef)")
         if name == "revive":
             tgt = op["target"]
             if not (isinstance(tgt, dict) and tgt.get("state") == "defeated"):
-                self.errors.append(f"{path}: revive necesita un selector con state 'defeated'")
+                self.errors.append(f"{path}: revive needs a selector with state 'defeated'")
         if name == "move" and op["amount"] == 0:
-            self.errors.append(f"{path}: move con amount 0 no mueve nada; sobra la op")
+            self.errors.append(f"{path}: move with amount 0 moves nothing; the op is redundant")
         self.refs({k: v for k, v in op.items() if k not in OP_LIST_KEYS and k != "options"}, path, ctx)
-        # listas anidadas: ambito hijo (lo ligado dentro no sale fuera)
+        # nested lists: child scope (what is bound inside does not leak out)
         if name == "for_each":
             inner = ctx.child()
             self.bind(op["as"], "player" if "players" in op["over"] else "fighter", path, inner)
@@ -344,7 +344,7 @@ class Semantics:
         elif name == "choose_effect":
             for i, opt in enumerate(op["options"]):
                 self.ops(opt["ops"], f"{path}.options[{i}].ops", ctx.child())
-        # efectos sobre el ambito para las ops siguientes de la misma lista
+        # effects on the scope for the following ops of the same list
         if name == "look_hand":
             ctx.seen.add((op["player"], "hand"))
         if name in ("look_deck", "search_deck"):
@@ -354,23 +354,23 @@ class Semantics:
 
     def bind(self, name: str, kind: str, path: str, ctx: _Ctx) -> None:
         if name in RESERVED_NAMES:
-            self.errors.append(f"{path}: {name!r} es un nombre reservado, no se puede ligar")
+            self.errors.append(f"{path}: {name!r} is a reserved name, it cannot be bound")
         ctx.scope[f"${name}"] = kind
 
     def status_scope(self, node: dict, path: str) -> None:
         want = STATUS_SCOPE[node["name"]]
         other = "player" if want == "target" else "target"
         if want not in node or other in node:
-            self.errors.append(f"{path}: el estado {node['name']!r} va sobre '{want}', no sobre '{other}'")
+            self.errors.append(f"{path}: the status {node['name']!r} goes on '{want}', not on '{other}'")
         if (node["name"] == "next_attack_bonus") != ("amount" in node):
-            self.errors.append(f"{path}: 'amount' solo (y siempre) con next_attack_bonus")
+            self.errors.append(f"{path}: 'amount' only (and always) with next_attack_bonus")
 
-    # --- referencias dentro de los argumentos de una op, condicion, evento o modificador
+    # --- references inside the arguments of an op, condition, event or modifier
 
     def refs(self, node, path: str, ctx: _Ctx, key: str | None = None, parent: dict | None = None,
              counting: bool = False) -> None:
-        """`key`/`parent`: donde esta el nodo (para saber que tipo de ligadura se espera y si un CardSel elige).
-        `counting`: el nodo esta bajo un test `exists` o un `count_cards`, que cuentan sin elegir ni mirar."""
+        """`key`/`parent`: where the node is (to know what type of binding is expected and whether a CardSel chooses).
+        `counting`: the node is under an `exists` test or a `count_cards`, which count without choosing or looking."""
         if isinstance(node, str):
             if node.startswith("$"):
                 self.var_ref(node, path, ctx, key, parent)
@@ -384,15 +384,15 @@ class Semantics:
         if "zone" in node and "player" in node:
             self.card_sel(node, path, ctx, counting)
         if node.get("test") == "form_is" and self.forms is not None and node["form"] not in self.forms:
-            self.errors.append(f"{path}: forma {node['form']!r} no existe en el HeroDef ({sorted(self.forms)})")
+            self.errors.append(f"{path}: form {node['form']!r} does not exist in the HeroDef ({sorted(self.forms)})")
         if node.get("test") == "counter" and self.counters is not None and node["name"] not in self.counters:
-            self.errors.append(f"{path}: contador {node['name']!r} no declarado")
+            self.errors.append(f"{path}: counter {node['name']!r} not declared")
         if "counter" in node and isinstance(node["counter"], str) and self.counters is not None \
                 and node["counter"] not in self.counters and "test" not in node:
-            self.errors.append(f"{path}: contador {node['counter']!r} no declarado")
+            self.errors.append(f"{path}: counter {node['counter']!r} not declared")
         if self.fighter_names is not None and _is_fighter_sel(node) and "name" in node \
                 and node["name"] not in self.fighter_names:
-            self.errors.append(f"{path}: luchador {node['name']!r} no existe ({sorted(self.fighter_names)})")
+            self.errors.append(f"{path}: fighter {node['name']!r} does not exist ({sorted(self.fighter_names)})")
         below_counts = counting or node.get("test") == "exists" or "count_cards" in node
         for k, v in node.items():
             if k == "as":
@@ -401,7 +401,7 @@ class Semantics:
 
     def var_ref(self, var: str, path: str, ctx: _Ctx, key: str | None, parent: dict | None) -> None:
         if var not in ctx.scope:
-            self.errors.append(f"{path}: {var!r} no esta ligado en este punto (ligaduras: {sorted(ctx.scope) or 'ninguna'})")
+            self.errors.append(f"{path}: {var!r} is not bound at this point (bindings: {sorted(ctx.scope) or 'none'})")
             return
         want = None
         if key in PLAYER_KEYS or (key == "to" and parent is not None and parent.get("op") == "reveal"):
@@ -414,30 +414,30 @@ class Semantics:
             want = "number"
         have = ctx.scope[var]
         if want is not None and have != want:
-            self.errors.append(f"{path}: {var!r} liga un {have}, pero aqui ({key}) hace falta un {want}")
+            self.errors.append(f"{path}: {var!r} binds a {have}, but here ({key}) a {want} is needed")
 
     def card_sel(self, sel: dict, path: str, ctx: _Ctx, counting: bool) -> None:
         pick = sel.get("pick", "chosen")
         if pick == "all" and "amount" in sel:
-            self.errors.append(f"{path}: 'amount' no tiene sentido con pick 'all'")
+            self.errors.append(f"{path}: 'amount' makes no sense with pick 'all'")
         if pick != "chosen":
             for k in ("chooser", "up_to"):
                 if k in sel:
-                    self.errors.append(f"{path}: {k!r} solo va con pick 'chosen' (aqui pick {pick!r})")
+                    self.errors.append(f"{path}: {k!r} only goes with pick 'chosen' (here pick {pick!r})")
         if sel["zone"] == "hand" and pick in ("top", "bottom"):
-            self.errors.append(f"{path}: la mano no tiene orden; pick {pick!r} solo vale en el mazo")
+            self.errors.append(f"{path}: the hand has no order; pick {pick!r} is only valid on the deck")
         if counting or sel["zone"] not in HIDDEN_ZONES or pick != "chosen":
             return
         chooser = sel.get("chooser", "owner")
         if chooser == sel["player"]:
             return
         if (sel["player"], sel["zone"]) not in ctx.seen:
-            how = "look_hand" if sel["zone"] == "hand" else "look_deck o search_deck"
-            zone = "la mano" if sel["zone"] == "hand" else "el mazo"
-            self.errors.append(f"{path}: {chooser} elige de {zone} de {sel['player']} sin un {how} previo "
-                               f"en este efecto (regla de informacion oculta)")
+            how = "look_hand" if sel["zone"] == "hand" else "look_deck or search_deck"
+            zone = "the hand" if sel["zone"] == "hand" else "the deck"
+            self.errors.append(f"{path}: {chooser} chooses from {zone} of {sel['player']} without a prior {how} "
+                               f"in this effect (hidden-information rule)")
 
-    # --- cruce con el HeroDef
+    # --- cross-check with the HeroDef
 
     @property
     def hero_cards(self) -> dict[str, dict]:
@@ -453,18 +453,18 @@ class Semantics:
         deck = self.hero_cards
         mine = {c["title"]: c for c in self.doc["cards"]}
         for t in sorted(set(deck) - set(mine)):
-            self.errors.append(f"cards: falta la carta {t!r} del mazo")
+            self.errors.append(f"cards: card {t!r} of the deck is missing")
         for t in sorted(set(mine) - set(deck)):
-            self.errors.append(f"cards: {t!r} no esta en el mazo del HeroDef")
+            self.errors.append(f"cards: {t!r} is not in the HeroDef's deck")
         for t in sorted(set(mine) & set(deck)):
             if mine[t]["copies"] != deck[t]["copies"]:
-                self.errors.append(f"cards ({t}): copies {mine[t]['copies']} pero el mazo tiene {deck[t]['copies']}")
+                self.errors.append(f"cards ({t}): copies {mine[t]['copies']} but the deck has {deck[t]['copies']}")
             if mine[t]["text"].strip() != deck[t]["text"].strip():
-                self.errors.append(f"cards ({t}): el texto no es el del HeroDef")
+                self.errors.append(f"cards ({t}): the text is not the HeroDef's")
 
 
 def _is_fighter_sel(node: dict) -> bool:
-    """Un objeto con solo claves de FighterSel (una op, un test o un modificador llevan op/test/event/kind propio)."""
+    """An object with only FighterSel keys (an op, a test or a modifier carries its own op/test/event/kind)."""
     return bool(node) and set(node) <= FIGHTER_SEL_KEYS and node.get("kind") in (None, "hero", "sidekick", "any")
 
 
@@ -478,7 +478,7 @@ def _walk(ops):
             yield from _walk(opt["ops"])
 
 
-# ---------------------------------------------------------------- entrada
+# ---------------------------------------------------------------- entry point
 
 def validate(doc: dict, schema: dict, hero: dict | None) -> list[str]:
     errors = _Schema(schema).errors(doc, schema, "$")
@@ -492,7 +492,7 @@ def validate_file(path: Path, schema: dict | None = None, heroes_dir: Path = HER
     try:
         doc = json.loads(path.read_text(encoding="utf-8"))
     except ValueError as e:
-        return [f"JSON no valido: {e}"]
+        return [f"invalid JSON: {e}"]
     hero = None
     if isinstance(doc, dict) and isinstance(doc.get("hero"), str):
         hero_path = heroes_dir / f"{doc['hero']}.json"

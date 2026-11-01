@@ -1,8 +1,8 @@
-"""F07 paso 10: la conexion con TTS ya no esta atada a Medusa (bot) y Hellboy (humano).
+"""F07 step 10: the connection with TTS is no longer tied to Medusa (bot) and Hellboy (human).
 
-Cualquier par de heroes de la caja Hellboy mas Medusa, en cualquiera de los dos lados, monta su configuracion desde
-`data/tts/<slug>.json`: piezas, diales, mazos, rangos de CardID, botones de atacante y panel con la vida de todos los
-luchadores. Medusa vs Hellboy sigue dando EXACTAMENTE los mismos valores y scripts que antes (ademas de los dorados)."""
+Any pair of heroes from the Hellboy box plus Medusa, on either side, builds its configuration from
+`data/tts/<slug>.json`: pieces, dials, decks, CardID ranges, attacker buttons and a panel with the life of all the
+fighters. Medusa vs Hellboy still gives EXACTLY the same values and scripts as before (besides the goldens)."""
 import json
 import re
 from pathlib import Path
@@ -25,7 +25,7 @@ from test_batch import click
 from test_play import cfg_file, live  # noqa: F401
 from test_session import Table, human_plays
 
-REAL_CONFIG = Path(__file__).resolve().parent.parent / "config" / "partida.json"
+REAL_CONFIG = Path(__file__).resolve().parent.parent / "config" / "table.json"
 TABLE_OVERRIDES = {"bot_seat": "Blue", "human_seat": "Red", "bot_card_spot": [0.0, 1.0, 5.0],
                    "human_card_spot": [0.0, -5.0], "bot_discard_spot": [5.0, 1.0, 5.0], "bot_discard_zone": "BOTZ",
                    "human_discard_zone": "HUMZ", "bot_deck_spot": [0.0, 3.0], "bot_discard_bounds": None,
@@ -53,7 +53,7 @@ def config_for(tmp_path, bot_hero=None, human_hero=None, **over) -> play.PlayCon
     return load_config(path)
 
 
-# ---------- Medusa vs Hellboy no cambia ----------
+# ---------- Medusa vs Hellboy does not change ----------
 def test_the_real_config_yields_exactly_the_old_medusa_vs_hellboy_values():
     cfg = load_config(REAL_CONFIG)
     raw = json.loads(REAL_CONFIG.read_text(encoding="utf-8"))
@@ -89,9 +89,9 @@ def test_the_config_by_hand_wins_over_the_hero_data_but_only_for_this_pair(tmp_p
 
 
 def test_a_hero_without_tts_data_or_the_same_hero_twice_is_a_clear_config_error(tmp_path):
-    with pytest.raises(ConfigError, match="no hay datos de TTS|HeroDef"):
+    with pytest.raises(ConfigError, match="no TTS data|HeroDef"):
         config_for(tmp_path, "medusa", "nadie")
-    with pytest.raises(ConfigError, match="los dos bandos"):
+    with pytest.raises(ConfigError, match="both sides play"):
         config_for(tmp_path, "medusa", "medusa")
 
 
@@ -101,7 +101,7 @@ def test_every_hero_of_the_box_has_its_tts_data():
     assert all((TTS_DIR / f"{slug}.json").exists() for slug in boxed)
 
 
-# ---------- el panel sale de los luchadores de cada bando ----------
+# ---------- the panel comes from the fighters of each side ----------
 @pytest.mark.parametrize("bot, human", PAIRS)
 def test_the_panel_attacker_buttons_come_from_the_humans_fighters(tmp_path, bot, human):
     cfg = config_for(tmp_path, bot, human)
@@ -115,18 +115,18 @@ def test_the_panel_attacker_buttons_come_from_the_humans_fighters(tmp_path, bot,
         assert f'id="att_{f.fid}"' in script and f"Ataca {cfg.nicknames[f.fid]}</Button>" in script
     for f in bot_fighters:
         assert f'id="{f.fid}"' in script and f"Atacar a {cfg.nicknames[f.fid]}</Button>" in script
-    for f in [*human_fighters, *bot_fighters]:       # la vida de TODOS los luchadores, los dos bandos
+    for f in [*human_fighters, *bot_fighters]:       # the life of ALL the fighters, both sides
         assert all(f'id="{p}_{f.fid}"' in script for p in ("hpm", "hpp", "rm"))
     others = [a for a in ("hellboy", "lobster") if a not in cfg.attacker_ids]
     assert all(f'id="att_{a}"' not in script for a in others)
 
 
-# ---------- una sesion con cualquier par ----------
+# ---------- a session with any pair ----------
 def build(tmp_path, bot, human):
     cfg = config_for(tmp_path, bot, human)
     scfg = cfg.session_config()
     table = Table(cfg.nicknames, {fid: g for fid, g in scfg.pieces.items()}, bot_cards=scfg.bot_card_ids[0])
-    # una pieza que cambia de GUID responde por cualquiera de los dos
+    # a piece that changes GUID answers for either one
     table.guid_name = {g: cfg.nicknames[fid] for fid, v in scfg.pieces.items() for g in play.piece_guids(v)}
     fake = FakeTTS(return_value=table)
     client = TTSClient(send_port=fake.port, listen_port=0)
@@ -183,19 +183,19 @@ def test_a_game_with_any_pair_starts_and_the_buttons_cost_what_they_cost_before(
         n = fake.lua_messages
         fn()
         spent[label] = fake.lua_messages - n
-    run("maniobra", lambda: click(session, table, Event.MANEUVER))
-    run("fin de accion", lambda: click(session, table, Event.END_ACTION))
+    run("maneuver", lambda: click(session, table, Event.MANEUVER))
+    run("end action", lambda: click(session, table, Event.END_ACTION))
     click(session, table, Event.ATTACKER, {"attacker": f"att_{human_hero.fid}"})
-    run("atacar", lambda: click(session, table, Event.ATTACK, {"target": bot_hero.fid}))
+    run("attack", lambda: click(session, table, Event.ATTACK, {"target": bot_hero.fid}))
     table.face_down = [{"id": human_attack_card(game).card_id, "guid": "hcard"}]
-    run("revelar", lambda: click(session, table, Event.REVEAL))
+    run("reveal", lambda: click(session, table, Event.REVEAL))
     monkeypatch.setattr(session.ai, "plan", lambda g: Act("maneuver", moves={bot_hero.fid: 0}))
     monkeypatch.setattr(session.ai, "pick_ability_target", lambda g: None)
-    run("turno del bot", lambda: click(session, table, Event.END_ACTION))
+    run("bot turn", lambda: click(session, table, Event.END_ACTION))
     # test_message_counts; bot Liz's Wildfire acts at the start of her turn (a discard and a move reach the table
     # before her first action, D3): one message more
-    budget = {"maniobra": 1, "fin de accion": 1, "atacar": 1, "revelar": 3,
-              "turno del bot": 4 if cfg.heroes[0] == "liz-sherman" else 3}
+    budget = {"maneuver": 1, "end action": 1, "attack": 1, "reveal": 3,
+              "bot turn": 4 if cfg.heroes[0] == "liz-sherman" else 3}
     assert spent.keys() == budget.keys() and all(0 < spent[k] <= budget[k] for k in budget), spent
 
 
@@ -215,13 +215,13 @@ def test_a_full_bot_turn_with_the_real_ai_does_not_break_with_any_hero(pair):
     click(session, table, Event.MANEUVER)
     click(session, table, Event.END_ACTION)
     click(session, table, Event.MANEUVER)
-    msgs = click(session, table, Event.END_ACTION)             # pasa al bot, que juega con la IA de siempre
+    msgs = click(session, table, Event.END_ACTION)             # passes to the bot, which plays with the usual AI
     lo, hi = session.cfg.bot_card_ids
     assert game.winner is None and not any("Accion ilegal" in m for m in msgs)
-    if session.pending is not None:                       # ataca con una carta de SU mazo...
+    if session.pending is not None:                       # attacks with a card from ITS deck...
         assert session.pending.kind == "bot_attacks" and lo <= session.pending.bot_card.card_id <= hi
         assert session.pending.bot_card_guid in {f"g{i}" for i in table.bot_play}
-    else:                                                 # ...o maniobra y pasa el turno
+    else:                                                 # ...or maneuvers and passes the turn
         assert game.turn == 1 and table.moves
 
 
@@ -257,7 +257,7 @@ def test_the_setup_texts_name_the_humans_own_pieces(tmp_path):
             fake.close()
 
 
-# ---------- el mazo y las piezas cuando el heroe esta aun en su bolsa ----------
+# ---------- the deck and pieces when the hero is still in its bag ----------
 def test_the_deck_identity_falls_back_to_the_hero_data_when_the_deck_is_not_on_the_table(tmp_path):
     session, table, game, fake, cfg, client = build(tmp_path, "medusa", "liz-sherman")
     try:
@@ -271,7 +271,7 @@ def test_the_deck_identity_falls_back_to_the_hero_data_when_the_deck_is_not_on_t
         client.close()
         fake.close()
 
-# ---------- desempaquetar: nunca duplica nada (se ejecuta el Lua real con lupa sobre una mesa minima) ----------
+# ---------- unpack: never duplicates anything (the real Lua runs with lupa on a minimal table) ----------
 WORLD = r"""
 WORLD = {}
 local function vec(x, y, z) return {x = x, y = y, z = z} end
@@ -348,14 +348,14 @@ def hero_plan(tmp_path, bot="medusa", human="hellboy"):
 
 
 def everything_on_the_table(w, plan, skip=()):
-    """El primer GUID de cada objeto del plan en la mesa, menos los de `skip`."""
+    """The first GUID of each object of the plan on the table, except those of `skip`."""
     for _, guids, *_ in plan:
         if guids[0] not in skip:
             w.add(guids[0])
 
 
 def test_a_piece_in_its_other_state_is_not_missing_and_nothing_is_duplicated(world, tmp_path):
-    """(a) Hellboy en ANUNG UN RAMA: f9789a ya es e6f06e. La bolsa interior aun guarda f9789a."""
+    """(a) Hellboy in ANUNG UN RAMA: f9789a is already e6f06e. The inner bag still holds f9789a."""
     plan = hero_plan(tmp_path)
     everything_on_the_table(world, plan, skip={"f9789a"})
     world.add("e6f06e")
@@ -366,7 +366,7 @@ def test_a_piece_in_its_other_state_is_not_missing_and_nothing_is_duplicated(wor
 
 
 def test_a_deck_that_became_a_card_is_found_by_site_and_range_and_not_taken_again(world, tmp_path):
-    """(b) el mazo del humano perdio su GUID (queda una Card en su sitio): no se saca otro de la bolsa."""
+    """(b) the human's deck lost its GUID (a Card is left on its spot): another is not taken out of the bag."""
     cfg = config_for(tmp_path)
     x, z = cfg.raw["human_deck_spot"]
     plan = play.unpack_plan(cfg)
@@ -378,8 +378,8 @@ def test_a_deck_that_became_a_card_is_found_by_site_and_range_and_not_taken_agai
 
 
 def test_a_deck_far_from_its_site_with_a_changed_guid_is_found_anywhere_and_no_second_deck_is_taken(world, tmp_path):
-    """En la mesa real los mazos estan a 3-26 unidades de su sitio: el mazo cuyo GUID cambio se halla por rango en toda la
-    mesa, aunque la bolsa interior suelta aun lo liste."""
+    """On the real table the decks are 3-26 units from their spot: the deck whose GUID changed is found by range over the whole
+    table, even if the loose inner bag still lists it."""
     cfg = config_for(tmp_path)
     x, z = cfg.raw["human_deck_spot"]
     plan = play.unpack_plan(cfg)
@@ -401,7 +401,7 @@ def test_a_card_of_another_game_at_the_deck_site_does_not_count_as_the_deck(worl
 
 
 def test_with_the_inner_bag_loose_on_the_table_pieces_already_out_are_not_taken_twice(world, tmp_path):
-    """(c) la bolsa interior suelta en la mesa aun lista piezas que ya estan fuera."""
+    """(c) the loose inner bag on the table still lists pieces that are already out."""
     plan = hero_plan(tmp_path)
     everything_on_the_table(world, plan)
     world.add("c592d8", "Bag", contents=["046660", "18c384", "e33604", "1644a3", "e17c66"])
@@ -412,14 +412,14 @@ def test_with_the_inner_bag_loose_on_the_table_pieces_already_out_are_not_taken_
 
 
 def test_a_guid_repeated_in_another_bag_of_the_mod_is_never_taken(world, tmp_path):
-    """(e) 18c384 es el dial de Lobster y tambien "The Jackalope" de Bigfoot; bcd809 un objeto de Loki."""
+    """(e) 18c384 is Lobster's dial and also "The Jackalope" of Bigfoot; bcd809 an object of Loki."""
     plan = hero_plan(tmp_path)
     everything_on_the_table(world, plan, skip={"18c384", "bcd809", "4fdf31"})
-    world.add("aaaaaa", "Bag", contents=["18c384", "bcd809", "4fdf31"])         # bolsa de otro personaje
+    world.add("aaaaaa", "Bag", contents=["18c384", "bcd809", "4fdf31"])         # another character's bag
     res = world.run(plan)
     assert res["taken"] == [] and set(res["missing"]) == {"18c384", "bcd809"}
     assert world.count("18c384") == world.count("bcd809") == 0
-    world.add("c592d8", "Infinite", contents=["18c384"])                        # una infinita con ese GUID tampoco
+    world.add("c592d8", "Infinite", contents=["18c384"])                        # an infinite one with that GUID neither
     assert world.run(plan)["taken"] == []
 
 
@@ -459,13 +459,13 @@ def test_unpack_is_opt_in_and_never_runs_when_resuming(live, cfg_file, monkeypat
     monkeypatch.setattr(play, "run_loop", interrupted)
     state = ["--state", str(tmp_path / "s.json")]
     play.main(["--config", str(cfg_file()), *ports, *state])
-    assert seen == []                                              # por defecto no
+    assert seen == []                                              # not by default
     play.main(["--config", str(cfg_file()), *ports, *state, "--unpack"])
     assert seen == [1]
     play.main(["--config", str(cfg_file(unpack=True)), *ports, *state])
     assert seen == [1, 1]
     play.main(["--config", str(cfg_file(unpack=True)), *ports, *state, "--unpack", "--resume"])
-    assert seen == [1, 1]                                          # nunca con --resume
+    assert seen == [1, 1]                                          # never with --resume
 
 
 @pytest.mark.parametrize("value", ["false", "no", 1, "true", [1], {"a": 1}])
@@ -504,7 +504,7 @@ def test_unpack_script_takes_only_from_the_given_bag_by_exact_guid():
             lua.unpack_from_bags(bad)
 
 
-# ---------- F08 fase F-B: la preparacion del bot coloca TODAS sus piezas, sea cual sea su heroe ----------
+# ---------- F08 phase F-B: the bot's setup places ALL its pieces, whatever its hero ----------
 BOT_HEROES = ["medusa", "hellboy", "abe-sapien", "baba-yaga", "liz-sherman"]
 
 
@@ -518,7 +518,7 @@ def test_the_bot_setup_places_every_piece_of_its_hero_on_the_table(tmp_path, bot
         session._setup_place()
         moved = dict(table.moves)
         assert set(moved) == {cfg.nicknames[f.fid] for f in mine}, (bot, table.moves)
-        assert all(moved[cfg.nicknames[f.fid]] == f.pos for f in mine)         # la mesa coincide con el motor
+        assert all(moved[cfg.nicknames[f.fid]] == f.pos for f in mine)         # the table matches the engine
         start = game.start_spaces[0]
         assert all(game.board.share_zone(start, f.pos) for f in mine) and len({f.pos for f in mine}) == len(mine)
     finally:

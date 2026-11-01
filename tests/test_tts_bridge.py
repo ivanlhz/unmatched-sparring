@@ -66,7 +66,7 @@ def test_other_message_ids_are_refused_and_nothing_is_sent(client, fake, bad):
     'Global.call("anything")',
     'UI . setXml("x")',
     'Global.setLuaScript("x")',
-    "panel.UI.setXml('<Panel/>')",   # ni siquiera lo "seguro" pasa si no lo genero un constructor
+    "panel.UI.setXml('<Panel/>')",   # not even the "safe" one passes if a builder did not generate it
     "return 1",
     "",
 ])
@@ -133,7 +133,7 @@ def test_suite_guard_refuses_real_ports_without_connecting():
     with pytest.raises(AssertionError):
         conftest.refuse_real_ports(("127.0.0.1", LISTEN_PORT))
     conftest.refuse_real_ports(("127.0.0.1", 50123))
-    assert socket.socket.connect is not conftest.REAL_CONNECT  # el guardia esta instalado en todo el suite
+    assert socket.socket.connect is not conftest.REAL_CONNECT  # the guard is installed in the whole suite
 
 
 # ---- snippets Lua ----
@@ -207,7 +207,7 @@ def test_new_physical_snippets(bprd):
         assert is_sendable(s) and s.startswith("-- sparring:")
 
 
-# ---- S5: inyeccion por argumentos de los constructores ----
+# ---- S5: injection through the builders' arguments ----
 PAYLOAD = "0) UI.hide('roster') --"
 BAD = [
     lambda b: t_play_card_face_down(17600, "Blue", PAYLOAD, 0, 0),
@@ -310,7 +310,7 @@ def test_injection_attempts_in_new_builders_are_rejected(bprd, build):
         build(bprd)
 
 
-# ---- revision 3: constructores nuevos o cambiados ----
+# ---- review 3: new or changed builders ----
 BAD_R3 = [
     lambda b: t_discard_cards([17600], [(PAYLOAD, 0, 0)]),
     lambda b: t_discard_cards([17600], [(0, PAYLOAD, 0)]),
@@ -334,7 +334,7 @@ BAD_R3 = [
     lambda b: lua.inspect_guids("abc123"),
     lambda b: lua.broadcast('hola"); os.exit() --'),
     lambda b: lua.broadcast("x" * 65),
-    lambda b: lua.broadcast("acentos: piña"),
+    lambda b: lua.broadcast("accents: piña"),
     lambda b: lua.broadcast("linea\nnueva"),
     lambda b: lua.broadcast(None),
 ]
@@ -357,7 +357,7 @@ def test_inspect_broadcast_and_piece_count_snippets(bprd):
 
 
 def test_ascii_text_chunks_are_all_accepted_by_broadcast():
-    text = "Combate: 7 contra 3, dano 4. Resuelve los efectos de despues del combate (mover piezas) y pulsa Fin de accion. ¿Listo?"
+    text = "Combat: 7 against 3, damage 4. Resolve the after-combat effects (move pieces) and press End action. ¿Listo, señor?"
     chunks = lua.ascii_text(text)
     assert len(chunks) > 1 and all(len(c) <= 64 for c in chunks)
     for c in chunks:
@@ -366,9 +366,9 @@ def test_ascii_text_chunks_are_all_accepted_by_broadcast():
 
 
 def test_chat_punctuation_survives_the_broadcast():
-    """Parentheses, commas and friends are inert in a Lua string: the chat shows them (Ivan, 30/10: "(fuego)" arrived as
-    "fuego" and "(s)" as " s"), while quotes, backslashes, brackets and newlines still never get through."""
-    for text in ("Descarta 1 carta(s) hasta tener 7.", "Searing Clarity (fuego), vuelve; a+b/c=d?"):
+    """Parentheses, commas and friends are inert in a Lua string: the chat shows them (Ivan, 30/10: "(fire)" arrived as
+    "fire" and "(s)" as " s"), while quotes, backslashes, brackets and newlines still never get through."""
+    for text in ("Discard 1 card(s) until you have 7.", "Searing Clarity (fire), returns; a+b/c=d?"):
         assert lua.ascii_text(text) == [text]
         assert is_sendable(lua.broadcast(text))
     forbidden = '"\\[]\n'

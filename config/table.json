@@ -1,0 +1,131 @@
+{
+  "_notes": [
+    "language: language of the panel and the chat, \"es\" (default) or \"en\" (one data/i18n/<code>.json file per language; a missing tag falls back to Spanish); --language overrides it. Card and hero names stay as printed. With --resume the language the game was saved in is used again, unless --language is given explicitly (then lines already saved, such as ability_wait or the applied lines of a combat, may stay in the old language).",
+    "ongoing_hold: seconds the bot pings your ONGOING scheme on its zone, after saying why it left play, before moving it to your discard pile itself; 0 skips the pause. If the table cannot do it you are asked to move it by hand.",
+    "wildfire_hold: seconds the bot (playing Liz) leaves the bottom card that Wildfire discards in view, face up on its discard pile, before applying its effect; 0 turns it off and applies it at once. The wait happens inside TTS, in the same message.",
+    "action_announce_hold: seconds between the chat notice of what the bot is about to do (maneuver, attack, scheme, ability, resolution of its combat) and the writes on the table; 0 turns it off and the notice comes afterwards, as before. In fast mode the wait goes inside the same TTS script (lua.hold). wildfire_hold and ongoing_hold are the same pause for those two scenes, with their own duration.",
+    "bot_pause: seconds of pause after each bot action (and before your turn) so the table does not move all at once; 0 turns it off; --bot-pause overrides it. It is a Python sleep: it costs no TTS messages.",
+    "bot_hero / human_hero: slug of data/heroes/<slug>.json of each side (medusa, hellboy, abe-sapien, baba-yaga or liz-sherman; not the same on both sides: their GUIDs would be the same). \"auto\" (or the key missing) = the bot detects it at start-up by reading the table: a hero is present if there is a loose Deck or Card with a CardID of its range (data/tts/<slug>.json, deck.card_ids; what is inside bags does not count) and it belongs to the side whose bot_deck_spot / human_deck_spot is closest; if it is unclear, it refuses to start and says so. Priority: --bot-hero / --human-hero > value written here > detection (with --resume, the saved game wins over detection). If the table cannot be read, it falls back to medusa / hellboy with a warning. What this key leaves out, the configuration can override by hand (pieces, dials, nicknames, bot_deck_guid, human_deck_guid, destiny_dial), but with another pair of heroes it is normally better not to write it.",
+    "TABLE values read from the real table (TS_AutoSave 27/10 09:29). The remaining TODOs are read live with --read-only. What belongs to each HERO (miniature GUIDs, dials, deck, tokens, CardID range, deck identity, names) is no longer written here: it comes from data/tts/<slug>.json.",
+    "board_guid ec6f27 (Custom_Board 'B.P.R.D. HQ'). human_seat White (HandTrigger dd569b at -30.1,-9.0); bot_seat Green (HandTrigger f8d527 at 30.0,-9.0). The ScriptingTriggers 742715 and 6ec8d9 sit over those hand zones: they are NOT discard zones (D1).",
+    "Discard zones created by the user: human_discard_zone b7a0b8 (center -12.5,0.7, ~x -18..-7) and bot_discard_zone 906a7a (center 15.0,0.7, ~x 10.75..19.25). They are big on purpose: the discard is left IN ORDER and spread over a grid so the rival can see what was played (bot_discard_spot = origin, bot_discard_step = (column dx, row dz), bot_discard_rows slots per column; slots less than 3 from the draw deck are skipped).",
+    "The draw decks are inside or at the edge of those zones: bot_deck_guid d42056 at (11.5, 12.0) (inside 906a7a) and human_deck_guid 00dc9a at (-7.7, 12.5) (edge of b7a0b8). read_discard excludes them by GUID and by position (1.5).",
+    "Combat zone (face-down card), according to the user: to the RIGHT of the board from the White seat, -z side, away from the dials and decks (z 12..17). human_card_spot (-2.0, -18.0) and bot_card_spot (6.0, 1.7, -18.0): between the two discard zones in x (-18..-7 and 10.75..19.25) and past the edge of the board (the anchor points reach z -13). Configurable. off_board_dist 4.0 is an estimate: calibrate it with the distances from --read-only.",
+    "start_spaces: REAL starting spaces of the table (Medusa on 30, Hellboy on 3); they are not those of the default map. bot_discard_bounds: (center x, center z, size x, size z, rotY) of zone 906a7a read from the save (live.json 27/10): the discard grid only uses slots whose center falls inside and, when full, stacks on top starting from the first. panel_position: above the playmats (y 1.0) and the objects (~1.57).",
+    "dead_spot: where the bot sets aside its fallen miniatures (one per piece, 1.5 apart in x); it is an estimate, calibrate it live. human_dead_spot is the same for the human's.",
+    "Setup: the bot deals its hand, decides on a mulligan (once: the 5 cards back to the deck, shuffled and 5 dealt; house rule or unconfirmed, see the README) and places Medusa and the Harpies according to who goes first; the human places Hellboy and Lobster and presses Ready. The starting spaces come from the rulebook (the first player takes space 1 of the map, the second space 2) unless start_spaces is fixed by hand. mulligan_bot=false turns it off for the bot; mulligan_human=false turns off the human's Mulligan button.",
+    "Row of the human's cards that look at the bot's hand (Remove A Painful Memory, Advanced Psychometry, Every Possible Angle): bot_row_spot is the CENTER of the row where the bot lays its cards face up and bot_row_step the (dx, dz) between cards (2.6 in z, cards turned 90 degrees; look_rot_y turns them too). Default [11.5, 2.5, -29.0]: a column in z -20..-38 with 7 cards, to the right of the bot's combat (x 4.9..7.1) and ONGOING boxes, past the -z edge of its discard zone 906a7a (x 10.7..19.3, z -17..18) and before the hero bags (z -40) and the die (2.1, -30); free in the 26/10 save. Start-up warns if it overlaps the panel, a combat/ONGOING box or a discard. The Look at bot's hand panel button still uses look_spot.",
+    "Looking at the bot's hand (F16, panel button): look_spot is the CENTER of the row where the bot lays its cards face up (an estimate, calibrate it live: in front of the human's seat, outside the hands, discards and combat zones; start-up warns if it overlaps the panel or a combat box) and look_step the (dx, dz) between cards (2.6 in z for cards turned 90 degrees; up to 12 cards). look_rot_y (optional) turns the cards; default bot_discard_rot_y.",
+    "unpack (optional, off): with --unpack or \"unpack\": true (only the boolean true) the bot, BEFORE playing and never with --resume, takes out of each hero's inner bag whatever is not on the table (no GUID of its states; a deck, in addition, with no Deck or Card of its CardID range anywhere on the table) and lays it in a row from bot_unpack_spot / human_unpack_spot (default [22,2.5,-10] and [-22,2.5,10.5], outside the hand zones; each unpack_step [0,0,3]); the deck goes to its deck spot and is shuffled. If the inner bag is not on the table it does nothing and warns; it never takes from an infinite bag. start_spaces accepts fighter ids or the keys bot / human."
+  ],
+  "language": "es",
+  "bot_hero": "auto",
+  "human_hero": "auto",
+  "board": "bprd-hq",
+  "board_guid": "ec6f27",
+  "bot_seat": "Green",
+  "human_seat": "White",
+  "off_board_dist": 4.0,
+  "bot_card_spot": [
+    6.0,
+    1.7,
+    -18.0
+  ],
+  "human_card_spot": [
+    -2.0,
+    -18.0
+  ],
+  "bot_discard_spot": [
+    15.0,
+    2.0,
+    -14.0
+  ],
+  "bot_discard_zone": "906a7a",
+  "human_discard_zone": "b7a0b8",
+  "bot_deck_spot": [
+    7.28,
+    13.93
+  ],
+  "reveal_radius": 2.0,
+  "rot_y": 0.0,
+  "panel_position": [
+    -12.5,
+    1.8,
+    -24.5
+  ],
+  "panel_scale": [
+    4.5,
+    4.5,
+    4.5
+  ],
+  "human_dead_spot": [
+    -24,
+    2.5,
+    22
+  ],
+  "probe_guids": [
+    "dd569b",
+    "f8d527",
+    "742715",
+    "6ec8d9",
+    "b7a0b8",
+    "906a7a",
+    "00dc9a"
+  ],
+  "bot_discard_step": [
+    -3.6,
+    2.2
+  ],
+  "bot_discard_rows": 15,
+  "bot_discard_rot_y": 90.0,
+  "human_deck_spot": [
+    -4.6,
+    13.67
+  ],
+  "bot_discard_bounds": [
+    14.97,
+    0.74,
+    35.43,
+    8.55,
+    269.1
+  ],
+  "dead_spot": [
+    24.0,
+    2.5,
+    -20.0
+  ],
+  "look_spot": [
+    -23.0,
+    2.5,
+    0.0
+  ],
+  "bot_row_spot": [
+    11.5,
+    2.5,
+    -29.0
+  ],
+  "bot_row_step": [
+    0.0,
+    2.6
+  ],
+  "look_step": [
+    0.0,
+    2.6
+  ],
+  "bot_pause": 1.0,
+  "action_announce_hold": 2.0,
+  "wildfire_hold": 3.0,
+  "ongoing_hold": 1.5,
+  "setup": true,
+  "mulligan_bot": true,
+  "mulligan_human": true,
+  "bot_ongoing_spot": [
+    6.0,
+    1.7,
+    -23.0
+  ],
+  "human_ongoing_spot": [
+    -2.0,
+    -23.0
+  ]
+}

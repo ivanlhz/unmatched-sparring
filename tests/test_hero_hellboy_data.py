@@ -1,5 +1,5 @@
-"""Datos de Hellboy (F07, caja Hellboy): el overlay y el HeroDef generado describen el mazo real de la hoja 197, y
-data/heroes/effects/hellboy.json cubre cada carta en el DSL v1 (docs/effects-dsl.md). Sin FakeTTS."""
+"""Hellboy's data (F07, Hellboy box): the overlay and the generated HeroDef describe the real deck of sheet 197, and
+data/heroes/effects/hellboy.json covers every card in DSL v1 (docs/effects-dsl.md). No FakeTTS."""
 import json
 import re
 
@@ -10,9 +10,9 @@ from tools.validate_effects import validate_file
 
 OVERLAY = HEROES_DIR / "overlay" / "hellboy.json"
 EFFECTS = HEROES_DIR / "effects" / "hellboy.json"
-CONFIG = DATA_DIR.parent / "config" / "partida.json"
+CONFIG = DATA_DIR.parent / "config" / "table.json"
 
-# Leido de las imagenes de la hoja 197 el 2026-10-28 (copias impresas en cada carta): (copias, destiny, luchador)
+# Read from the images of sheet 197 on 2026-10-28 (copies printed on each card): (copies, destiny, fighter)
 EXPECTED = {
     "Excalibur": (1, True, "Hellboy"),
     "Right Hand Of Doom": (4, True, "Hellboy"),
@@ -39,7 +39,7 @@ def effects() -> dict:
 
 
 def ops_in(node):
-    """Todos los dicts con clave 'op' de una estructura anidada (then, ops, options...), en orden."""
+    """All the dicts with an 'op' key in a nested structure (then, ops, options...), in order."""
     if isinstance(node, dict):
         if "op" in node:
             yield node
@@ -107,7 +107,7 @@ def test_cards_with_text_have_ops_or_may_boost_and_blank_cards_have_none():
         has_semantics = any(True for _ in ops_in(card["effects"])) or card.get("may_boost", False)
         assert has_semantics == bool(deck[card["title"]].text.strip()), card["title"]
     assert ef["cards"][4]["title"] == "Second Shot" and ef["cards"][4]["may_boost"] is True
-    assert ef["plugins"] == []   # la coreografia del cambio de forma esta en table, no es un efecto
+    assert ef["plugins"] == []   # the form-change choreography is in table, it is not an effect
     used = {op["op"] for c in ef["cards"] for op in ops_in(c["effects"])}
     assert {"look_hand", "choose_effect", "cancel_effects", "gain_action", "return_to_deck", "set_value", "status"} <= used
     pancakes = next(c for c in ef["cards"] if c["title"] == "Pancakes!")
@@ -120,7 +120,7 @@ def test_hidden_info_covers_confront_and_table_objects_match_the_config():
     assert any(h["card"] == "Confront Any Demon or God" and "look_hand" in h["what"] for h in ef["hidden_info"])
     table = ef["table"]
     minis = {v["guid"] for v in table["hero_miniatures"].values() if isinstance(v, dict)}
-    pieces = load_config(CONFIG).raw["pieces"]      # las piezas salen de data/tts/<slug>.json
+    pieces = load_config(CONFIG).raw["pieces"]      # the pieces come from data/tts/<slug>.json
     assert minis == set(pieces["hellboy"]) == {"f9789a", "e6f06e"}
     assert table["sidekick_miniature"]["guid"] == pieces["lobster"]
     assert re.fullmatch(r"[0-9a-f]{6}", table["ability_token"]["guid"])

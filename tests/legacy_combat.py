@@ -19,13 +19,13 @@ from sparring.state import ANUNG, Fighter, Game, RuleError
 
 _MOMENT = re.compile(r"(IMMEDIATELY|DURING COMBAT|AFTER COMBAT):")
 _RIVAL_OPTION = re.compile(r"(your|the) opponent may", re.IGNORECASE)
-# momentos de las cartas no-Medusa que el motor ya resuelve solo, por titulo (lo demas del texto no esta codificado)
+# moments of the non-Medusa cards the engine already resolves by itself, by title (the rest of the text is not coded)
 CODED_MOMENTS = {"Horseshoes And Hand Grenades": {"AFTER COMBAT"}, ON_EARTH: {"DURING COMBAT", "AFTER COMBAT"},
                  "Flame Lash": {"AFTER COMBAT"}, PLANNED: {"IMMEDIATELY"}}
 
 
 def text_parts(card: Card) -> list[tuple[str, str]]:
-    """(momento, texto) de cada parte del texto de la carta; el texto suelto antes del primer momento va con ''."""
+    """(moment, text) of each part of the card text; loose text before the first moment goes with ''."""
     pieces = _MOMENT.split(card.text)
     out = [("", pieces[0].strip())] if pieces[0].strip() else []
     out += [(pieces[i], pieces[i + 1].strip()) for i in range(1, len(pieces) - 1, 2)]
@@ -33,8 +33,8 @@ def text_parts(card: Card) -> list[tuple[str, str]]:
 
 
 def _announce_bot_card(card: Card, result: CombatResult) -> None:
-    """Toda parte del texto de una carta del bot que el motor no resuelve se anuncia con su momento: como efecto que
-    el bot ignora, o como opcion del humano si el texto se la da al rival (Incinerate)."""
+    """Every part of a bot card's text that the engine does not resolve is announced with its moment: as an effect
+    the bot ignores, or as a human option if the text gives it to the rival (Incinerate)."""
     coded = CODED_MOMENTS.get(card.title, set())
     if coded and card.title == PLANNED:
         result.applied.append(f"{card.title}: aplicado ({card.text})")
@@ -53,24 +53,24 @@ def _announce_bot_card(card: Card, result: CombatResult) -> None:
 
 def resolve_combat(game: Game, att: Fighter, tgt: Fighter, atk_card: Card, def_card: Card | None,
                    values: tuple[int, int] = (0, 0), boost: Card | None = None) -> CombatResult:
-    """`boost`: carta de impulso que el humano ha puesto en su descarte para el BOOST de su ataque (Second Shot); el
-    bot la lee de la mesa en el paso "Continuar" y entra aqui, tras el DURING del defensor."""
+    """`boost`: boost card the human put in their discard for their attack's BOOST (Second Shot); the
+    bot reads it from the table at the "Continue" step and it enters here, after the defender's DURING."""
     if def_card is not None:
         game.check_defense_card(tgt, def_card)
         if def_card not in game.players[tgt.owner].hand:
-            raise RuleError(f"{def_card.title} no esta en la mano de {tgt.fid}")
+            raise RuleError(f"{def_card.title} is not in the hand of {tgt.fid}")
     pa, pd = att.owner, tgt.owner
     game.take_from_hand(pa, atk_card)
     if def_card is not None:
         game.take_from_hand(pd, def_card)
     played = [(pa, atk_card)] + ([(pd, def_card)] if def_card else [])
 
-    bonus_parts = game.attack_bonus_parts(att)   # pasivas del heroe (Hellboy en ANUNG UN RAMA: +2)
+    bonus_parts = game.attack_bonus_parts(att)   # hero passives (Hellboy in ANUNG UN RAMA: +2)
     bonus = sum(n for n, _ in bonus_parts)
     atk_value = (atk_card.value or 0) + values[0] + bonus
     def_value = (def_card.value or 0) if def_card else 0
     def_value += values[1]
-    # ONGOING del defensor: suma al valor de su carta (tambien si vale 0 o se cancela); sin carta no hay valor al que sumar
+    # defender's ONGOING: adds to the value of its card (also if it is 0 or cancelled); without a card there is no value to add to
     def_bonus_parts = game.combat_bonus_parts(pd) if def_card is not None else []
     def_bonus = sum(n for n, _ in def_bonus_parts)
     def_value += def_bonus
@@ -81,7 +81,7 @@ def resolve_combat(game: Game, att: Fighter, tgt: Fighter, atk_card: Card, def_c
     if values[0]:
         result.atk_parts.append(f"valor extra ({values[0]:+d})")
 
-    # IMMEDIATELY: primero el defensor; lo cancelado no llega a resolver
+    # IMMEDIATELY: the defender first; what is cancelled does not get to resolve
     for side, fighter, card, _ in _side_cards(ctx):
         if side in ctx.cancelled:
             continue
@@ -131,7 +131,7 @@ def resolve_combat(game: Game, att: Fighter, tgt: Fighter, atk_card: Card, def_c
     result.atk_value, result.def_value, result.damage, result.attacker_won = ctx.atk_value, ctx.def_value, damage, won
     result.cancelled = set(ctx.cancelled)
 
-    # AFTER COMBAT: primero el defensor
+    # AFTER COMBAT: the defender first
     if game.winner is None:
         for side, fighter, card, rival in _side_cards(ctx):
             if side in ctx.cancelled:
@@ -139,7 +139,7 @@ def resolve_combat(game: Game, att: Fighter, tgt: Fighter, atk_card: Card, def_c
             i_won = won == (side == "atk")
             if is_medusa_card(card):
                 _medusa_after(game, fighter, rival, card, i_won)
-            elif fighter.owner == game.bot_player:    # nunca se le pide al humano resolver un efecto del bot
+            elif fighter.owner == game.bot_player:    # the human is never asked to resolve a bot effect
                 _hellboy_after(game, fighter, card, i_won, result)
                 _liz_after(game, card, result)
                 _announce_bot_card(card, result)
@@ -149,9 +149,9 @@ def resolve_combat(game: Game, att: Fighter, tgt: Fighter, atk_card: Card, def_c
                     result.human_effects.append(f"{card.title}: {after}")
                 elif card.title == PLANNED:
                     result.applied.append(f"{card.title}: aplicado ({card.text})")
-                elif card.text.strip() and not can_boost(card):   # el BOOST de Second Shot ya se resolvio en el DURING
+                elif card.text.strip() and not can_boost(card):   # Second Shot's BOOST was already resolved in the DURING
                     result.human_effects.append(f"{card.title}: {card.text}")
-                # una carta sin texto (Excalibur, Service Pistol) no tiene efecto que resolver
+                # a card without text (Excalibur, Service Pistol) has no effect to resolve
     for owner, card in played:
         game.players[owner].discard.append(card)
     return result

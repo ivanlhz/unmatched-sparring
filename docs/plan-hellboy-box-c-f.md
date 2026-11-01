@@ -33,7 +33,7 @@ E1 choice infra: ui.py hidden buttons btn_choice_1..6 + Event.CHOICE {i}; lua.se
 E2 human cards affecting bot/engine (table mode). Automatic: damage to bot fighters with dial writes; statuses/rules on the bot (Cold Iron, Counterhex, Burning Barrier, Pacts, Planned Recklessness); value mods and cancels; bot discards it chooses (Shock And Awe, Clutching Claws, Hiss and Slither); bot hand-size and deck moves (Pact of Secrecy, Pact of Time) via bridge; revives/summons the human places physically accepted by sync. Buttons: Posthumous Power, Pancakes! (choose_effect); FATEFUL BARGAINS/Koschei redirect only when effect damage hits Baba while Koschei shares her zone; bot plays Incinerate -> "discard 2"/"keep". Tests per human-played card: engine state matches; chat says what is physical.
   DONE (docs/effects-dsl.md section 19): `INTERPRETED_HEROES` for both sides, table mode = the player whose controller is human (`effects/table.py` notes what the human does by hand), schemes through `session_effects.play_scheme`, the legacy human path moved to the oracles, sim/game_save goldens regenerated (pre-E2 copies under tests/golden/legacy/), tests/test_e2_human_cards.py.
 E3 hidden info: Confront, Every Possible Angle, Remove A Painful Memory by the human -> bot hand face up + ping, human chooses by pinging that row, bot answers its own "discard or take 2"; Every Possible Angle puts the card on top of the bot's deck. Advanced Psychometry reveal only. Fleeting Moments: engine rng picks bot card. Uncanny Intuition: human Abe -> bot attack card flipped face up; bot Abe -> panel asks human to flip, bot reads only that card. Perfect Shot: prediction buttons for human; bot announces its prediction. Bot Shock And Awe: discard at human's choice through existing pending_discard. Bot Remove A Painful Memory: bot names the card, human answers "discard"/"take 2".
-  DONE (docs/effects-dsl.md section 19): `sparring/session_hidden.py`; the look is the interpreter's `look_hand` (conditions are the engine's), the row answers a pending pick by ping or button and closes where the engine put the card; Perfect Shot's plugin asks and the session pre-answers (human at Revelar, bot at placement); UNCANNY INTUITION read from the trigger; tests/test_e3_hidden_info.py.
+  DONE (docs/effects-dsl.md section 19): `sparring/session_hidden.py`; the look is the interpreter's `look_hand` (conditions are the engine's), the row answers a pending pick by ping or button and closes where the engine put the card; Perfect Shot's plugin asks and the session pre-answers (human at Reveal, bot at placement); UNCANNY INTUITION read from the trigger; tests/test_e3_hidden_info.py.
 Parallel: E1 -> (E2 || E3 only if E2 lives in new sparring/session_effects.py). E1 conflicts with D3 (session.py): serialize.
 
 ## Phase F: live readiness
@@ -48,7 +48,7 @@ Baba: Iron Teeth, Death's Release, Foul Journey, Hasten Towards Death, Deathless
 Liz: Fireball, Burning Barrier, B.P.R.D. Training, Evade C1/C2 E2; Flame Lash C2 E2; Incinerate C2 E2 buttons; Feint C2 E2; Fleeting Moments C4 E3; Pyrotechnics, Rekindle, Searing Clarity C4 E2; Fight Or Flight C3 E2; WILDFIRE C3 E2.
 
 ## Risks
-Mid-combat pause with game mutated (E1): RuleError rollback assumes nothing changed before "Continuar". Anti-cheat in clone simulation (D1/D2): determinize before look_hand on clones. ISMCTS cost: cap scheme variants. session.py (3325 lines) conflicts: new code in new modules. Medusa differential: rng order of controller calls must match legacy.
+Mid-combat pause with game mutated (E1): RuleError rollback assumes nothing changed before "Continue". Anti-cheat in clone simulation (D1/D2): determinize before look_hand on clones. ISMCTS cost: cap scheme variants. session.py (3325 lines) conflicts: new code in new modules. Medusa differential: rng order of controller calls must match legacy.
 
 ## Phase G: other savegames (Iván, 29/10)
 Today everything table-specific is tied to `saves/Unmatched Official Tournament Table October 2026 (Hellboy).json`.
@@ -58,7 +58,7 @@ What is savegame-specific now:
 - `data/tts/<hero>.json` (extracted by hand from the save): bag GUIDs (outer infinite bag + inner bag), deck GUID, CardID
   range + character card id, deck identity (FaceURL, BackURL), fighter pieces (GUID per state), HP dials (+ MAX_VALUE),
   tokens (Hellboy 1644a3, Abe 5a17e9). In another save the GUIDs and CardIDs change; FaceURL/BackURL may or may not.
-- `config/partida.json`: board_guid, seats (Green/White), hand triggers, ScriptingTriggers to ignore, probe_guids, and
+- `config/table.json`: board_guid, seats (Green/White), hand triggers, ScriptingTriggers to ignore, probe_guids, and
   every spot (card/discard/deck/dead/look/unpack positions) calibrated to this table's layout.
 - `data/maps/<board>.json` fitted to this board's snap points (`tools/fit_map.py`).
 - Card identification: CardID ranges + FaceURL/BackURL identity (the save has 12 decks sharing DeckID 176).

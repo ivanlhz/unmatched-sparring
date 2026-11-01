@@ -805,6 +805,7 @@
    "medusa",
    "hellboy"
   ],
+  "language": "es",
   "limit_waived": false,
   "look": null,
   "moving": false,
@@ -876,7 +877,7 @@
     "count_hand"
    ],
    "status": null,
-   "step": "maniobra"
+   "step": "maneuver"
   },
   {
    "bot_discard": [],
@@ -924,7 +925,7 @@
     "count_hand"
    ],
    "status": null,
-   "step": "fin de accion"
+   "step": "end action"
   },
   {
    "bot_discard": [],
@@ -970,7 +971,7 @@
     "piece_spaces_by_guid"
    ],
    "status": null,
-   "step": "ataca hellboy"
+   "step": "hellboy attacks"
   },
   {
    "bot_discard": [],
@@ -1018,7 +1019,7 @@
     "count_hand"
    ],
    "status": null,
-   "step": "atacar a medusa"
+   "step": "attack medusa"
   },
   {
    "bot_discard": [
@@ -1080,7 +1081,7 @@
     "read_hand"
    ],
    "status": null,
-   "step": "revelar"
+   "step": "reveal"
   },
   {
    "bot_discard": [
@@ -1163,7 +1164,7 @@
     "read_hand"
    ],
    "status": null,
-   "step": "fin de accion: turno del bot"
+   "step": "end action: bot's turn"
   },
   {
    "bot_discard": [
@@ -1215,7 +1216,7 @@
     "count_hand"
    ],
    "status": null,
-   "step": "maniobra"
+   "step": "maneuver"
   },
   {
    "bot_discard": [
@@ -1267,7 +1268,7 @@
     "count_hand"
    ],
    "status": null,
-   "step": "fin de accion"
+   "step": "end action"
   },
   {
    "bot_discard": [
@@ -1395,7 +1396,7 @@
     "read_face_down_cards"
    ],
    "status": null,
-   "step": "fin de accion: turno del bot"
+   "step": "end action: bot's turn"
   }
  ]
 }

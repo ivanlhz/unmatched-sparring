@@ -152,7 +152,7 @@ def human_ran(flow) -> bool:
 # ---------------------------------------------------------------- the panel
 
 def decline(session, paused) -> bool:
-    """"Cancelar" while a card asks: the answer that does nothing when the request allows one ("No" to an optional,
+    """"Cancel" while a card asks: the answer that does nothing when the request allows one ("No" to an optional,
     nothing picked when none is required). A forced pick cannot be cancelled: the card is played."""
     kind, holder, run = paused
     req = run.awaiting

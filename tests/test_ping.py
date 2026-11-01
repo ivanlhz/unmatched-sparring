@@ -1,4 +1,4 @@
-"""F12: ping de atacante y objetivo dentro del script del ataque del bot."""
+"""F12: ping of the attacker and target inside the bot's attack script."""
 import json
 import re
 
@@ -30,7 +30,7 @@ def assert_pings(script, attacker_guid, target_guid, seat="Blue"):
     assert 'ipairs({"Blue", "Red"})' in script and "p.seated" in script and "Player.getPlayers()" in script
     assert f'pingAt({{"{attacker_guid}"}})' in script
     assert f'local targets = {{"{target_guid}"}}' in script
-    assert script.index("pingAt({") < script.index("o.setPosition")     # el ping sale antes de mover la carta
+    assert script.index("pingAt({") < script.index("o.setPosition")     # the ping goes out before the card is moved
 
 
 def test_bot_attack_script_pings_attacker_and_target(rig):
@@ -45,7 +45,7 @@ def test_bot_attack_script_pings_attacker_and_target(rig):
 def test_ping_adds_no_extra_message(rig):
     session, table, game = rig
     bot_attack(session, table, game)
-    assert not any("ping" in tag for tag in table.sent)      # el ping viaja dentro del script de la carta
+    assert not any("ping" in tag for tag in table.sent)      # the ping travels inside the card's script
 
 
 def test_batch_ping_travels_inside_the_composite(brig, monkeypatch):
@@ -55,7 +55,7 @@ def test_batch_ping_travels_inside_the_composite(brig, monkeypatch):
     assert len(scripts) == 1
     assert_pings(scripts[0], PIECES[p.attacker.fid], PIECES[p.target.fid])
     assert not any("ping" in t for t in table.sent)
-    assert sum(m.count("play_card_face_down") for m in table.msglog) == 1   # un solo script de carta, con el ping dentro
+    assert sum(m.count("play_card_face_down") for m in table.msglog) == 1   # a single card script, with the ping inside
 
 
 def test_human_attack_card_has_no_ping(rig):
@@ -92,7 +92,7 @@ mkobj({guid = 'c1', type = 'Card', cid = 17605, owner = 'medusa', hand = 'Green'
     rt.execute("SEATED = {Green = true, White = true}")
     res = run(rt, script)
     assert res == {"played": "c1"}
-    # el segundo ping espera un temporizador (Wait.time); el primero ya ha salido
+    # the second ping waits for a timer (Wait.time); the first one has already gone out
     pings = conv(rt.eval("PINGS"))
     assert pings == [{"color": "Green", "x": 3, "y": 1, "z": 4}]
     rt.execute("for _, f in ipairs(TIMERS) do f() end")
@@ -116,7 +116,7 @@ end})
     script = lua.play_card_face_down(17605, "Green", 6.0, 1.6, -18.0, 0.0, identity=BOT_ID,
                                      ping=(["aaa111"], ["bbb222"], ["Green", "White"]))
     assert run(rt, script) == {"played": "c1"}
-    rt.execute("for _, f in ipairs(TIMERS) do f() end")      # el temporizador tampoco lanza
+    rt.execute("for _, f in ipairs(TIMERS) do f() end")      # the timer does not throw either
 
 
 

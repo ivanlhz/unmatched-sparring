@@ -1,8 +1,8 @@
-"""Cuarta revision: emparejado de respuestas, adopcion de la mesa, PV por efectos, recarga de TTS, reanudacion,
-piezas por GUID, zonas de descarte, cartas sueltas y los dos mutantes que sobrevivieron.
+"""Fourth review: reply pairing, adoption of the table, HP from effects, TTS reload, resume,
+pieces by GUID, discard zones, loose cards and the two mutants that survived.
 
-Las respuestas de TTS se modelan como las del TTS real: NO hay messageID 5; lo que devuelve un script llega como
-messageID 4 con `sparring_reply` (ver FakeTTS)."""
+TTS replies are modelled like the real TTS: there is NO messageID 5; what a script returns arrives as
+messageID 4 with `sparring_reply` (see FakeTTS)."""
 from conftest import (TEST_IDENT, t_deal_cards, t_discard_cards, t_flip_card, t_play_card_face_down, t_reset_deck,
                       t_reset_plan, t_return_hand_to_deck, t_shuffle_deck)
 import json
@@ -27,7 +27,7 @@ from test_session import NICK, PIECES, Table, card, human_plays, ids, rig, set_b
 
 
 def vanishing_discard(table):
-    """Un descarte que TTS dice haber hecho pero cuya carta no aparece en la pila (desfase permanente)."""
+    """A discard TTS says it did but whose card does not show in the pile (permanent drift)."""
     def fn(s):
         gone = [int(x) for x in re.findall(r"\[(\d+)\]=\{", s)]
         for i in gone:
@@ -37,7 +37,7 @@ def vanishing_discard(table):
     table.do_discard_cards = fn
 
 
-# ---------- D2: respuestas emparejadas con su peticion ----------
+# ---------- D2: replies paired with their request ----------
 def make_client(reply, timeout=0.3, late_grace=0.0):
     fake = FakeTTS(return_value=reply)
     client = TTSClient(send_port=fake.port, listen_port=0, timeout=timeout, late_grace=late_grace)
@@ -51,7 +51,7 @@ def test_d2_late_reply_after_a_timeout_does_not_shift_later_answers():
     def reply(msg):
         calls["n"] += 1
         if calls["n"] == 1:
-            time.sleep(0.6)                      # TTS ocupado: contesta cuando el cliente ya se rindio
+            time.sleep(0.6)                      # TTS busy: it answers when the client has already given up
         return json.dumps({"tag": msg["script"].split("\n")[0]})
     fake, client = make_client(reply)
     try:
@@ -153,7 +153,7 @@ def test_d2_request_wrapper_carries_an_integer_id_and_errors_come_back_attribute
     with pytest.raises(ValueError):
         lua.request("return 1", 1)
     with pytest.raises(ValueError):
-        lua.request(s, 2)                                   # no se envuelve dos veces
+        lua.request(s, 2)                                   # not wrapped twice
 
 
 def test_d2_error_of_our_own_script_is_attributed_through_its_id():
@@ -166,7 +166,7 @@ def test_d2_error_of_our_own_script_is_attributed_through_its_id():
         fake.close()
 
 
-# ---------- D5: recarga de TTS (messageID 1) ----------
+# ---------- D5: TTS reload (messageID 1) ----------
 def test_d5_reload_message_is_recorded_once():
     fake, client = make_client(lambda msg: "{}")
     try:
@@ -235,7 +235,7 @@ def test_d5_reload_while_tts_is_still_loading_retries_and_keeps_the_buttons(rig)
     assert state["n"] == 3 and any("Plan" in m for m in said) and game.actions_left == 1
 
 
-# ---------- D3: la mesa manda ----------
+# ---------- D3: the table rules ----------
 def test_d3_human_moves_a_bot_hand_card_to_the_bot_discard_and_the_game_goes_on(rig, monkeypatch):
     session, table, game = rig
     monkeypatch.setattr(session.ai, "plan", lambda g: Act("maneuver", moves={"medusa": 0}))
@@ -264,7 +264,7 @@ def test_d3_after_n_failed_flushes_the_table_state_is_adopted(rig, monkeypatch):
     msgs = session.handle(Event.END_ACTION)
     assert any("Adopto" in m for m in msgs) and game.turn == 1 and not session.dirty
     dash = card(game, 0, "Dash")
-    assert dash not in game.players[0].discard, "la mesa no la tiene en el descarte"
+    assert dash not in game.players[0].discard, "the table does not have it in the discard"
 
 
 def test_d3_cancel_exits_a_dirty_table(rig, monkeypatch):
@@ -280,7 +280,7 @@ def test_d3_cancel_exits_a_dirty_table(rig, monkeypatch):
     assert game.turn == 1
 
 
-# ---------- D4: PV y bajas por efectos ----------
+# ---------- D4: HP and casualties from effects ----------
 def hp(session, fid, delta):
     return session.handle(Event.HP, {"fighter": fid, "delta": delta})
 
@@ -293,10 +293,10 @@ def test_d4_hp_buttons_hurt_and_heal_any_fighter_of_either_side(rig):
     assert (hb.hp, med.hp) == (17, 15)
     hp(session, "hellboy", 1)
     hp(session, "hellboy", 1)
-    assert hb.hp == hb.max_hp, "curar no pasa del maximo"
+    assert hb.hp == hb.max_hp, "healing does not go past the maximum"
     game.effect_shield[0] = game.turn_no
     hp(session, "medusa", -1)
-    assert med.hp == 14, "el ajuste manual ya viene resuelto: no lo frena el escudo de efectos"
+    assert med.hp == 14, "the manual adjustment arrives already resolved: the effect shield does not stop it"
 
 
 def test_d4_remove_kills_a_harpy_and_a_dead_hero_ends_the_game_with_a_way_back(rig):
@@ -377,7 +377,7 @@ def test_d4_health_dial_reader_is_a_pure_read():
                                     "editButton"))
 
 
-# ---------- D6: guardado, reanudacion y arranque ----------
+# ---------- D6: saving, resume and start-up ----------
 def fresh_session(session):
     g = Game.new(session.game.board, seed=99, controllers={})
     return Session(g, session.client, MedusaAI(0), session.cfg)
@@ -385,7 +385,7 @@ def fresh_session(session):
 
 def test_d6_state_is_saved_atomically_after_every_handle_and_round_trips(rig, tmp_path):
     session, table, game = rig
-    session.state_path = tmp_path / "sesion.json"
+    session.state_path = tmp_path / "session.json"
     session.handle(Event.MANEUVER)
     hp(session, "hellboy", -1)
     from sparring.session import Pending
@@ -438,7 +438,7 @@ def test_d6_resume_finishes_a_bot_turn_that_was_left_half_done(rig, monkeypatch,
     def flaky():
         if state["fail"] and game.turn == 0:
             state["fail"] = False
-            raise TimeoutError("TTS no devolvio valor")
+            raise TimeoutError("TTS returned no value")
         real()
     monkeypatch.setattr(session, "sync_positions", flaky)
     game.actions_left = 0
@@ -469,7 +469,7 @@ def test_d6_first_bot_start_with_a_table_failure_is_resumable_not_fatal(rig, mon
     def flaky():
         if state["fail"]:
             state["fail"] = False
-            raise TimeoutError("TTS no devolvio valor")
+            raise TimeoutError("TTS returned no value")
         real()
     monkeypatch.setattr(session, "read_bot_hand", flaky)
     maneuver_plan(session, monkeypatch)
@@ -487,7 +487,7 @@ def test_d6_tts_closed_is_a_connection_message_not_an_internal_error(rig, monkey
     monkeypatch.setattr(session.client, "call_lua", refused)
     msgs = session.handle(Event.MANEUVER)
     assert any("conexion" in m and "mesa" in m for m in msgs) and not any("interno" in m.lower() for m in msgs)
-    assert game.actions_left == 2, "no se gasto la accion"
+    assert game.actions_left == 2, "the action was not spent"
     said, stop = [], threading.Event()
     queue = [{"event": "scheme"}]
     monkeypatch.setattr(session.client, "poll_events", lambda: [queue.pop()] if queue else [])
@@ -546,8 +546,8 @@ def test_d6_main_resume_reads_the_save_and_continues(live, cfg_file, tmp_path):
     assert any("reanudada" in b for b in table.broadcasts) and any("1 accion" in b for b in table.broadcasts)
 
 
-# ---------- D7: piezas por GUID ----------
-@pytest.mark.skipif(bool(__import__("os").environ.get("SPARRING_BATCH")), reason="inspecciona scripts sueltos: en modo rapido salen dentro de un compuesto (ver test_batch.py)")
+# ---------- D7: pieces by GUID ----------
+@pytest.mark.skipif(bool(__import__("os").environ.get("SPARRING_BATCH")), reason="inspects loose scripts: in fast mode they go inside a composite (see test_batch.py)")
 def test_d7_positions_are_read_by_guid_never_by_name(rig):
     session, table, game = rig
     table.positions["Hellboy"] = 5
@@ -619,7 +619,7 @@ def test_d7_move_and_piece_builders_validate_the_guid_and_square(bprd):
             bad()
 
 
-# ---------- D1 y lectura pura ----------
+# ---------- D1 and pure reading ----------
 def test_d1_read_only_flags_a_discard_zone_that_overlaps_a_hand_zone_or_shares_cards(live, cfg_file, capsys):
     table, fake, ports = live
     base = Game.new(play.Board.load("bprd-hq"), 0)
@@ -739,11 +739,11 @@ def test_read_only_allowlist_is_exactly_the_pure_read_builders(bprd):
         assert not [m for m in mutators if m in body], (n, [m for m in mutators if m in body])
 
 
-# ---------- D8 y D9: cartas sueltas ----------
+# ---------- D8 and D9: loose cards ----------
 def test_d8_an_untracked_bot_card_lying_on_the_table_is_adopted_instead_of_looping(rig):
     session, table, game = rig
     gaze = card(game, 0, "Gaze of Stone")
-    table.bot_deck = []                                       # el mazo fisico no tiene nada que repartir
+    table.bot_deck = []                                       # the physical deck has nothing to deal
     game.draw(0)
     assert game.drawn[0] == 1
     table.stray_bot = [{"id": gaze.card_id, "guid": f"s{gaze.card_id}"}]
@@ -769,11 +769,11 @@ def test_d9_deal_fallback_only_takes_objects_whose_card_id_is_in_the_bot_deck_ra
     assert s.index("ours(o)") < s.index("d = o") and "and ours(o) and (best == nil" in s and "o.is_face_down" in s
     custom = t_deal_cards("d42056", 1, "Green", spot=(1.0, 2.0), id_range=(100, 129))
     assert "id < 100 or id > 129" in custom
-    assert "and ours(o) and (best == nil" not in t_deal_cards("d42056", 1, "Green"), "sin punto no hay busqueda"
-    assert "if d ~= nil and not ours(d) then d = nil end" in s, "tambien el mazo hallado por GUID debe ser el nuestro"
+    assert "and ours(o) and (best == nil" not in t_deal_cards("d42056", 1, "Green"), "without a point there is no search"
+    assert "if d ~= nil and not ours(d) then d = nil end" in s, "the deck found by GUID must also be ours"
 
 
-# ---------- descarte ordenado en la zona ----------
+# ---------- ordered discard in the zone ----------
 def test_discard_slots_follow_the_grid_in_play_order_and_avoid_the_draw_deck(rig):
     session, table, game = rig
     c = session.cfg
@@ -784,7 +784,7 @@ def test_discard_slots_follow_the_grid_in_play_order_and_avoid_the_draw_deck(rig
     assert session._discard_slot(500)[::2] in {session._discard_slot(k)[::2] for k in range(100)}, "da la vuelta"
 
 
-@pytest.mark.skipif(bool(__import__("os").environ.get("SPARRING_BATCH")), reason="inspecciona scripts sueltos: en modo rapido salen dentro de un compuesto (ver test_batch.py)")
+@pytest.mark.skipif(bool(__import__("os").environ.get("SPARRING_BATCH")), reason="inspects loose scripts: in fast mode they go inside a composite (see test_batch.py)")
 def test_bot_discards_are_spread_in_order_and_the_draw_deck_is_never_read_as_discard(rig, monkeypatch):
     session, table, game = rig
     session.cfg.human_deck_guid, session.cfg.human_deck_spot = "HDECK", (-7.7, 12.5)
@@ -801,7 +801,7 @@ def test_bot_discards_are_spread_in_order_and_the_draw_deck_is_never_read_as_dis
     assert human_reads and all('["HDECK"]=true' in s and "{-7.7, 12.5}" in s for s in human_reads)
 
 
-# ---------- D11: los dos mutantes que sobrevivian ----------
+# ---------- D11: the two mutants that survived ----------
 def test_d11_n1_human_combat_card_in_the_discard_does_not_count_as_the_forced_discard(rig, monkeypatch):
     session, table, game = rig
     claws_attack(session, table, game, monkeypatch)
@@ -812,11 +812,11 @@ def test_d11_n1_human_combat_card_in_the_discard_does_not_count_as_the_forced_di
     session.handle(Event.END_ACTION)
     d = session.pending_discard
     assert d is not None and d["kind"] == "cards"
-    table.human_discard = [played.card_id]                    # su carta de combate ya esta en el descarte...
+    table.human_discard = [played.card_id]                    # its combat card is already in the discard...
     table.face_down = []
     maneuver_plan(session, monkeypatch)
     msgs = session.handle(Event.END_ACTION)
-    assert session.pending_discard is not None, "...pero eso no es el descarte obligatorio de Clutching Claws"
+    assert session.pending_discard is not None, "...but that is not Clutching Claws' mandatory discard"
     assert any("Aun falta descartar" in m for m in msgs)
     table.human_discard = [played.card_id, card(game, 1, "Glimpse Of Hell", 1).card_id]
     table.human_count = 0
@@ -834,7 +834,7 @@ def test_d11_n3_medusa_ability_still_fires_after_the_start_of_turn_retry(rig, mo
     def flaky():
         if state["fail"] and game.turn == 0:
             state["fail"] = False
-            raise TimeoutError("TTS no devolvio valor")
+            raise TimeoutError("TTS returned no value")
         real()
     monkeypatch.setattr(session, "sync_positions", flaky)
     hp_before = game.fighters["hellboy"].hp
@@ -845,7 +845,7 @@ def test_d11_n3_medusa_ability_still_fires_after_the_start_of_turn_retry(rig, mo
     assert any("Habilidad de Medusa" in m for m in msgs) and game.fighters["hellboy"].hp == hp_before - 1
 
 
-# ---------- marcas en el suelo ----------
+# ---------- floor markings ----------
 ZONES = [("DESCARTE HELLBOY", "b7a0b8"), ("DESCARTE MEDUSA", "906a7a")]
 CARDS = [("COMBATE HELLBOY", -2.0, -18.0), ("COMBATE MEDUSA", 6.0, -18.0)]
 
@@ -860,8 +860,8 @@ def test_markings_draw_on_the_bots_own_panel_only_and_never_touch_the_global():
     assert s.count("setVectorLines") == 1 and "\n  setVectorLines" not in s and " setVectorLines(" not in s
     assert '{"DESCARTE HELLBOY", "b7a0b8"}' in s and "getObjectFromGUID(z[2])" in s and "getRotation()" in s and "getScale()" in s
     assert '"DESCARTE HELLBOY"' in s and '"COMBATE MEDUSA"' in s
-    assert "{1.0, 0.45, 0.0}" in s and "{1.0, 1.0, 1.0}" in s, "un color por tipo"
-    assert "{-1, -1}, {1, -1}, {1, 1}, {-1, 1}, {-1, -1}" in s, "contorno cerrado de 5 puntos"
+    assert "{1.0, 0.45, 0.0}" in s and "{1.0, 1.0, 1.0}" in s, "one color per type"
+    assert "{-1, -1}, {1, -1}, {1, 1}, {-1, 1}, {-1, -1}" in s, "closed outline of 5 points"
 
 
 def test_markings_are_idempotent_labels_are_reused_by_name_and_clear_removes_them():
@@ -912,7 +912,7 @@ def test_play_draws_the_markings_once_at_startup_and_clears_them_on_exit(live, c
         time.sleep(0.02)
     stop.set()
     t.join(5)
-    assert len(table.markings) == 1 and table.count("clear_markings") == 2     # restos al empezar + todo al salir
+    assert len(table.markings) == 1 and table.count("clear_markings") == 2     # leftovers at start + everything on exit
     m = table.markings[0]
     assert '"DESCARTE HELLBOY", "HUMZ"' in m and '"DESCARTE MEDUSA", "BOTZ"' in m
     assert '"HELLBOY", 0.0, -5.0' in m and '"MEDUSA", 0.0, 5.0' in m

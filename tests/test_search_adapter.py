@@ -1,5 +1,5 @@
-"""Adaptador del motor actual (Medusa vs Hellboy) al Protocol de busqueda. Lo central: la determinizacion no lee la
-mano real del rival."""
+"""Adapter of the current engine (Medusa vs Hellboy) to the search Protocol. The key point: determinization does not read the
+rival's real hand."""
 import random
 
 import pytest
@@ -26,7 +26,7 @@ def medusa_hand(game, *titles):
         give(game, 0, t, seen[t])
 
 
-# ---------- determinizacion ----------
+# ---------- determinization ----------
 
 def test_determinize_samples_rival_hand_from_public_info_only(game):
     place(game, medusa=4, hellboy=2, lobster=3, harpy1=20, harpy2=21, harpy3=22)
@@ -37,20 +37,20 @@ def test_determinize_samples_rival_hand_from_public_info_only(game):
     st.determinize(0, random.Random(1))
     opp = st.game.players[1]
     assert len(opp.hand) == 5
-    assert not (set(opp.hand) & set(opp.discard)), "lo descartado no puede estar en la mano"
+    assert not (set(opp.hand) & set(opp.discard)), "what was discarded cannot be in the hand"
     assert len(set(opp.hand)) == 5 and len(set(opp.deck) & set(opp.hand)) == 0
     assert sorted(c.card_id for c in opp.hand + opp.deck + opp.discard) == sorted(c.card_id for c in opp.full_set)
-    assert real_hand != opp.hand or True   # puede coincidir por azar; lo que importa es el test de abajo
-    assert game.players[1].hand == real_hand, "el juego original no se toca"
+    assert real_hand != opp.hand or True   # may coincide by chance; what matters is the test below
+    assert game.players[1].hand == real_hand, "the original game is not touched"
 
 
 def test_determinize_is_blind_to_the_rival_real_hand(game):
-    """Dos partidas identicas salvo la mano oculta del rival: la misma semilla produce la misma muestra."""
+    """Two identical games except for the rival's hidden hand: the same seed produces the same sample."""
     place(game, medusa=4, hellboy=2, lobster=3, harpy1=20, harpy2=21, harpy3=22)
     fill_hand(game, 1, 5)
     other = game.clone()
     p = other.players[1]
-    p.hand, p.deck = p.deck[:5], p.hand + p.deck[5:]      # otra mano, mismo conteo, mismo descarte
+    p.hand, p.deck = p.deck[:5], p.hand + p.deck[5:]      # another hand, same count, same discard
     assert game.players[1].hand != other.players[1].hand
     a, b = EngineState(game, observer=0), EngineState(other, observer=0)
     a.determinize(0, random.Random(9))
@@ -73,11 +73,11 @@ def test_determinize_keeps_known_cards_in_hand_and_shuffles_own_deck(game):
         own = [c.card_id for c in st.game.players[0].deck]
         assert sorted(own) == sorted(own_before)
         orders.add(tuple(own))
-    assert len(orders) > 1, "el orden del mazo propio tambien es informacion oculta"
+    assert len(orders) > 1, "the order of the own deck is also hidden information"
 
 
 def test_known_card_already_out_is_not_forced_into_the_hand(game):
-    """Si la carta vista ya esta en el descarte, el motor la ha descontado; el adaptador tampoco la mete."""
+    """If the seen card is already in the discard, the engine has discounted it; the adapter does not put it in either."""
     place(game, medusa=4, hellboy=2, lobster=3, harpy1=20, harpy2=21, harpy3=22)
     fill_hand(game, 1, 3)
     exc = next(c for c in game.players[1].full_set if c.title == "Excalibur")
@@ -88,7 +88,7 @@ def test_known_card_already_out_is_not_forced_into_the_hand(game):
 
 
 def test_pending_attack_card_is_sampled_among_legal_attacks(game):
-    """El bot defiende: la carta boca abajo del humano es oculta y se muestrea entre los ataques legales del atacante."""
+    """The bot defends: the human's face-down card is hidden and is sampled among the attacker's legal attacks."""
     place(game, medusa=4, hellboy=3, lobster=27, harpy1=20, harpy2=21, harpy3=22)
     fill_hand(game, 1, 5)
     medusa_hand(game, "Hiss and Slither", "Feint")
@@ -97,9 +97,9 @@ def test_pending_attack_card_is_sampled_among_legal_attacks(game):
     hb, medusa = game.fighters["hellboy"], game.fighters["medusa"]
     st = EngineState(game, observer=0, pending=(hb.fid, medusa.fid, None))
     assert st.player_to_move() == 0
-    assert st.pending_card() is None, "en la raiz la carta del humano es oculta"
+    assert st.pending_card() is None, "at the root the human's card is hidden"
     for seed in range(10):
-        sample = st.clone()                 # como la busqueda: cada iteracion determiniza un clon de la raiz
+        sample = st.clone()                 # like the search: each iteration determinizes a clone of the root
         sample.determinize(0, random.Random(seed))
         card = sample.pending_card()
         assert card.can_attack and card.usable_by("Hellboy") and card in sample.game.players[1].hand
@@ -109,8 +109,8 @@ def test_pending_attack_card_is_sampled_among_legal_attacks(game):
 
 
 def test_pending_attack_without_legal_attack_in_public_pool_falls_back(game):
-    """Descarte desincronizado: todo ataque usable por Hellboy ya esta en su descarte. No revienta y la defensa
-    se decide contra una carta cualquiera del pool."""
+    """Out-of-sync discard: every attack Hellboy can use is already in his discard. It does not blow up and the defense
+    is decided against any card of the pool."""
     place(game, medusa=4, hellboy=3, lobster=27, harpy1=20, harpy2=21, harpy3=22)
     st1 = game.players[1]
     st1.discard = [c for c in st1.full_set if c.can_attack and c.usable_by("Hellboy")]
@@ -146,10 +146,10 @@ def test_own_hand_and_deck_order_do_not_change_the_sample(game):
     assert [c.card_id for c in a.game.players[0].deck] == [c.card_id for c in b.game.players[0].deck]
     assert [c.card_id for c in a.game.players[0].hand] == [c.card_id for c in b.game.players[0].hand]
     assert a.legal_moves() == b.legal_moves()
-    assert game.players[0].deck != other.players[0].deck, "los originales no se tocan"
+    assert game.players[0].deck != other.players[0].deck, "the originals are not touched"
 
 
-# ---------- jugadas ----------
+# ---------- moves ----------
 
 def test_action_phase_moves_cover_attacks_schemes_and_maneuvers(game):
     place(game, medusa=4, hellboy=2, lobster=3, harpy1=20, harpy2=21, harpy3=22)
@@ -162,12 +162,12 @@ def test_action_phase_moves_cover_attacks_schemes_and_maneuvers(game):
     assert ("scheme", "A Momentary Glance", "hellboy", None) in moves
     boosts = {m[1] for m in moves if m[0] == "maneuver"}
     assert None in boosts and len(boosts) >= 2
-    assert len(moves) < 20, "la raiz es estrecha: la accion se descompone en subjugadas"
+    assert len(moves) < 20, "the root is narrow: the action is decomposed into sub-moves"
     st.apply(("attack", "medusa", "hellboy"))
     cards = st.legal_moves()
     assert st.decision_pending() and st.player_to_move() == 0
     assert cards == [("attack_card", "medusa", "Second Shot"), ("attack_card", "medusa", "Gaze of Stone"),
-                     ("attack_card", "medusa", "Regroup")], "titulos unicos, las copias no se repiten"
+                     ("attack_card", "medusa", "Regroup")], "unique titles, copies are not repeated"
 
 
 def test_maneuver_is_two_chained_decisions(game):
@@ -178,8 +178,8 @@ def test_maneuver_is_two_chained_decisions(game):
     placements = st.legal_moves()
     assert st.decision_pending() and all(m[0] == "place" for m in placements) and ("place", 4, "stay") in placements
     options = st._hero_options(st.game.fighters["medusa"])
-    assert len(options) > len(game.board.reachable(4, 3, set(), set())), "con boost 2 llega mas lejos"
-    # en el arbol entran solo las mejores colocaciones (poda por evaluacion estatica), todas alcanzables
+    assert len(options) > len(game.board.reachable(4, 3, set(), set())), "with boost 2 it reaches farther"
+    # only the best placements enter the tree (pruning by static evaluation), all reachable
     assert {m[1] for m in placements} <= options and {m[2] for m in placements} <= set(SIDEKICK_POLICIES)
     assert len(placements) <= PLACEMENT_KEEP + PLACEMENT_STRIKE_KEEP + 1
     st.apply(("place", 4, "advance"))
@@ -190,7 +190,7 @@ def test_maneuver_is_two_chained_decisions(game):
 
 
 def test_single_option_subphases_resolve_themselves(game):
-    """Un solo titulo de ataque y sin ayudantes vivos: la carta y los ayudantes no abren decisiones."""
+    """A single attack title and no living sidekicks: the card and the sidekicks open no decisions."""
     place(game, medusa=4, hellboy=2, lobster=3)
     for fid in ("harpy1", "harpy2", "harpy3"):
         game.fighters[fid].alive, game.fighters[fid].pos = False, None
@@ -202,7 +202,7 @@ def test_single_option_subphases_resolve_themselves(game):
     st2 = EngineState(game, observer=0)
     st2.apply(("maneuver", None))
     assert st2.phase == "maneuver_place"
-    assert all(m[2] == "stay" for m in st2.legal_moves()), "sin ayudantes vivos, la unica politica es quedarse"
+    assert all(m[2] == "stay" for m in st2.legal_moves()), "without living sidekicks, the only policy is to stay"
     st2.apply(("place", 4, "stay"))
     assert not st2.decision_pending() and st2.game.actions_left == 1
 
@@ -247,7 +247,7 @@ def test_anung_start_is_a_decision_of_hellboy(game):
     moves = st.legal_moves()
     assert moves and all(m[0] == "anung" for m in moves)
     hand = st.game.players[1].hand
-    st.apply(max(moves, key=lambda m: next(c.boost for c in hand if c.title == m[1])))   # con boost 1 no hay destino
+    st.apply(max(moves, key=lambda m: next(c.boost for c in hand if c.title == m[1])))   # with boost 1 there is no destination
     dests = st.legal_moves()
     assert all(m[0] == "anung_to" for m in dests) and ("anung_to", None) in dests
     st.apply(("anung_to", None))
@@ -276,7 +276,7 @@ def test_rollout_move_is_legal(game):
         if st.is_terminal():
             break
         m = st.rollout_move(rng)
-        if m[0] == "place":         # el rollout mueve al heroe por todo su alcance, sin la poda del arbol
+        if m[0] == "place":         # the rollout moves the hero over its whole reach, without the tree's pruning
             assert m[1] in st._hero_options(st.game.hero(st.game.turn)) and m[2] in SIDEKICK_POLICIES, m
         else:
             assert m in st.legal_moves(), m

@@ -1,7 +1,7 @@
-"""Guardado y recuperacion de la partida: el estado del motor (`Game`) y de la sesion (`Session`) en JSON.
+"""Saving and restoring the game: the engine state (`Game`) and the session state (`Session`) as JSON.
 
-El guardado es atomico (fichero temporal + os.replace): un corte a mitad de escritura deja el guardado anterior
-intacto. Las cartas se guardan por CardID y se resuelven contra el `full_set` de cada jugador al cargar."""
+Saving is atomic (temporary file + os.replace): a cut in mid-write leaves the previous save intact. Cards are
+saved by CardID and resolved against each player's `full_set` on load."""
 from __future__ import annotations
 
 import json
@@ -10,13 +10,14 @@ from pathlib import Path
 
 from .effects import ongoing
 from .effects.state import EffectState, default_dsl_heroes
+from .i18n import t
 from .state import Game, KnownHand
 
 VERSION = 1
 
 
 class StateError(Exception):
-    """El fichero de guardado no sirve para reanudar (version, formato o partida distinta)."""
+    """The save file cannot be resumed (version, format or a different game)."""
 
 
 def game_to_dict(g: Game) -> dict:
@@ -34,7 +35,7 @@ def game_to_dict(g: Game) -> dict:
         "fighters": {fid: {"hp": f.hp, "pos": f.pos, "alive": f.alive, "died_at": f.died_at} for fid, f in g.fighters.items()},
         "players": [{"deck": [c.card_id for c in p.deck], "hand": [c.card_id for c in p.hand],
                      "discard": [c.card_id for c in p.discard],
-                     # mano rival conocida (efecto «mira la mano»): solo se escribe si hay algo que recordar
+                     # known rival hand (effect "look at the hand"): only written if there is something to remember
                      **({"known": p.known.to_dict()} if not p.known.is_empty() else {})}
                     for p in g.players],
         "rng": list(g.rng.getstate()[:2]) + [g.rng.getstate()[2]],
@@ -67,7 +68,7 @@ def apply_game(g: Game, d: dict) -> None:
         version, internal, gauss = d["rng"]
         g.rng.setstate((version, tuple(internal), gauss))
     except (KeyError, TypeError, ValueError, IndexError) as e:
-        raise StateError(f"guardado no valido: {e!r}") from None
+        raise StateError(t("save.invalid", error=repr(e))) from None
 
 
 def save_atomic(path: str | Path, data: dict) -> None:
@@ -81,7 +82,7 @@ def load(path: str | Path) -> dict:
     try:
         data = json.loads(Path(path).read_text(encoding="utf-8"))
     except (OSError, ValueError) as e:
-        raise StateError(f"no puedo leer el guardado {path}: {e}") from None
+        raise StateError(t("save.unreadable", path=path, error=e)) from None
     if not isinstance(data, dict) or data.get("version") != VERSION:
-        raise StateError(f"guardado de version desconocida en {path}")
+        raise StateError(t("save.version", path=path))
     return data

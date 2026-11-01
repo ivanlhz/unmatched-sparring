@@ -8,7 +8,7 @@ it games are built with Medusa out of `fx.dsl_heroes`, her legacy combat rules a
     interpreter does), FakeTTS transcripts and saves included;
   * per-card twins: the same scenario on two games, legacy and DSL, same final save, log, combat result and the
     same controller calls in the same order (the rng is only touched through those).
-Since D3 (Ivan, 29/10) the bot also narrates Medusa's cards in the chat (`effects/narrate.py`: "Dash: medusa se mueve a
+Since D3 (Ivan, 29/10) the bot also narrates Medusa's cards in the chat (`effects/narrate.py`: "Dash: medusa moves to
 3"); the legacy engine never did, so the oracles compare `applied` and the chat with those lines removed
 (`without_narration`), and nothing else.
 The one ruled divergence (Ivan, 28/10): Winged Frenzy's return of a defeated Harpy is mandatory. The legacy engine

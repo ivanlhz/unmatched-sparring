@@ -1,11 +1,11 @@
-"""La mano conocida del bot en la sesion en vivo: las vias de session.py que mueven cartas del humano sin pasar
-por Game.discard_card (reconciliacion con la mesa, rollback de un Revelar fallido) no dejan cartas fantasma."""
+"""The bot's known hand in the live session: the paths of session.py that move the human's cards without going
+through Game.discard_card (reconciliation with the table, rollback of a failed Reveal) leave no phantom cards."""
 from sparring.tts.ui import Event
 from test_session import card, human_plays, rig  # noqa: F401
 
 
 def test_a_seen_card_discarded_physically_leaves_the_known_hand_on_reconcile(rig):
-    """Escenario del reviewer: el bot vio Excalibur; el humano la descarta en la mesa; Fin de accion la reconcilia."""
+    """Reviewer's scenario: the bot saw Excalibur; the human discards it on the table; End action reconciles it."""
     session, table, game = rig
     excalibur = card(game, 1, "Excalibur")
     game.observe_hand(0, [excalibur])
@@ -27,7 +27,7 @@ def test_the_engine_defends_itself_even_if_a_card_is_moved_behind_its_back(rig):
         st.hand.remove(excalibur)
     elif excalibur in st.deck:
         st.deck.remove(excalibur)
-    st.discard.append(excalibur)                               # sin card_left_hand
+    st.discard.append(excalibur)                               # without card_left_hand
     known, pool, missing = game.hidden_hand(0)
     assert known == [] and excalibur not in pool and missing == len(st.hand)
 
@@ -38,7 +38,7 @@ def test_a_failed_reveal_does_not_forget_seen_cards(rig):
     game.observe_hand(0, [seen])
     session.handle(Event.ATTACKER, {"attacker": "hellboy"})
     session.handle(Event.ATTACK, {"target": "medusa"})
-    human_plays(table, game, "Second Shot")                    # solo de Lobster Johnson: Revelar falla
+    human_plays(table, game, "Second Shot")                    # only Lobster Johnson's: Reveal fails
     msgs = session.handle(Event.REVEAL)
     assert any("ilegal" in m for m in msgs) and session.pending is not None
     assert game.players[0].known.seen == [seen.card_id]
@@ -53,6 +53,6 @@ def test_the_virtual_hand_keeps_seen_cards_when_it_is_trimmed(rig):
     if seen not in st.hand:
         (st.deck if seen in st.deck else st.discard).remove(seen)
         st.hand.append(seen)
-    table.human_count = 1                                      # la mano real baja: se recortan las NO vistas
+    table.human_count = 1                                      # the real hand goes down: the NOT seen ones are trimmed
     session.handle(Event.END_ACTION)
     assert st.hand == [seen] and [c.title for c in game.hidden_hand(0)[0]] == ["Pancakes!"]

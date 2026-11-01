@@ -1,8 +1,8 @@
-"""F16: mirar la mano del bot (Confront Any Demon or God y similares).
+"""F16: looking at the bot's hand (Confront Any Demon or God and similar).
 
-El bot pone su mano boca arriba en fila delante del humano y la lee en el chat; el humano hace ping (Tab) sobre la carta que
-descarta (`onPlayerPing` en el script del panel) o gira una boca abajo y pulsa Fin de accion; Cancelar las devuelve.
-Sesion contra FakeTTS (normal y SPARRING_BATCH=1) y Lua real con lupa para el handler de ping y los scripts de mesa."""
+The bot lays its hand face up in a row in front of the human and reads it in the chat; the human pings (Tab) the card to
+discard (`onPlayerPing` in the panel script) or turns one face down and presses End action; Cancel returns them.
+Session against FakeTTS (normal and SPARRING_BATCH=1) and real Lua with lupa for the ping handler and the table scripts."""
 import json
 import os
 
@@ -24,7 +24,7 @@ HAND = ("Snipe", "Dash", "Gaze of Stone", "Regroup", "A Momentary Glance")
 
 
 def press(session, table, event, payload=None):
-    """Un clic del panel: en modo rapido lleva la instantanea de la mesa."""
+    """A panel click: in fast mode it carries the table snapshot."""
     return click(session, table, event, payload) if session.cfg.batch else session.handle(event, payload)
 
 
@@ -40,7 +40,7 @@ def say(session):
     return [str(m) for m in session.messages]
 
 
-# ---------- sesion ----------
+# ---------- session ----------
 def test_look_shows_the_whole_hand_in_a_row_and_reads_every_card(rig):
     session, table, game = rig
     ids = start(session, table, game)
@@ -55,7 +55,7 @@ def test_look_shows_the_whole_hand_in_a_row_and_reads_every_card(rig):
     assert "valor None" not in text
     kinds = {m.kind for m in session.messages}
     assert lua.ChatKind.SCHEME in kinds and lua.ChatKind.YOUR_TURN in kinds
-    assert game.actions_left == 2, "mirar no gasta accion"
+    assert game.actions_left == 2, "looking spends no action"
 
 
 def test_the_row_is_centred_on_the_configured_spot_and_does_not_leave_the_discard_rotation(rig):
@@ -116,7 +116,7 @@ def test_flip_one_card_face_down_and_end_action_discards_it(rig):
     actions = game.actions_left
     press(session, table, Event.END_ACTION)
     assert session.look is None and table.bot_discard == [ids[3]] and len(table.bot_hand) == 4
-    assert game.turn == 1 and game.actions_left == actions, "resolver la mirada no termina la accion"
+    assert game.turn == 1 and game.actions_left == actions, "resolving the look does not end the action"
 
 
 @pytest.mark.parametrize("down", [set(), "two"])
@@ -144,7 +144,7 @@ def test_ping_on_a_card_the_table_no_longer_has_rolls_the_discard_back(rig):
     session, table, game = rig
     ids = start(session, table, game)
     press(session, table, Event.LOOK)
-    table.look_row.remove(ids[1])                    # el humano se la llevo de la fila
+    table.look_row.remove(ids[1])                    # the human took it from the row
     press(session, table, Event.LOOK_PING, {"guid": f"g{ids[1]}"})
     assert session.look is not None and session.look["ids"] == ids and table.bot_discard == []
     assert len(game.players[0].hand) == 5 and game.players[0].discard == []
@@ -175,12 +175,12 @@ def test_cancel_with_the_whole_row_gone_adopts_the_table_instead_of_trapping_the
     session, table, game = rig
     ids = start(session, table, game)
     press(session, table, Event.LOOK)
-    table.look_row.clear()                           # apiladas en un Deck, borradas...
+    table.look_row.clear()                           # stacked in a Deck, erased...
     press(session, table, Event.CANCEL)
     assert session.look is None and session.dirty
     assert any("a mano" in m for m in say(session))
     press(session, table, Event.MANEUVER)
-    assert game.actions_left == 1, "los botones vuelven a funcionar"
+    assert game.actions_left == 1, "the buttons work again"
     assert len(game.players[0].hand) + len(game.players[0].deck) + len(game.players[0].discard) == 30
 
 
@@ -230,7 +230,7 @@ def test_the_failure_counter_survives_neither_a_new_row_nor_a_restart(rig, monke
     press(session, table, Event.RESTART)
     press(session, table, Event.RESTART)
     assert session.look is None and session.look_fails == 0
-    session.look_fails = 1                            # un resto anterior no pasa a la fila nueva
+    session.look_fails = 1                            # an earlier leftover does not pass to the new row
     session.setup = None
     set_bot_hand(table, game, *HAND)
     session.read_bot_hand()
@@ -304,7 +304,7 @@ def test_it_can_be_used_during_a_combat_the_human_effect_allows(rig):
     press(session, table, Event.LOOK)
     assert session.look["ids"] == [i for i in ids if i != held.card_id] and held in game.players[0].hand
     press(session, table, Event.CANCEL)
-    assert session.look is None and session.pending is not None, "Cancelar solo cierra la mirada, no el combate"
+    assert session.look is None and session.pending is not None, "Cancel only closes the look, not the combat"
     assert held in game.players[0].hand
 
 
@@ -321,7 +321,7 @@ def test_pending_look_survives_the_save_and_resume_restores_the_panel_row(rig):
     session.resume()
     assert table.look_vars and all(g in table.look_vars[-1] for g in row["guids"])
     assert any("sigue a la vista" in m for m in say(session))
-    assert len(game.players[0].hand) == 5, "la mano del motor incluye las cartas de la fila"
+    assert len(game.players[0].hand) == 5, "the engine's hand includes the cards of the row"
 
 
 @pytest.mark.parametrize("bad", [{"ids": [1], "guids": ["a1"], "spots": [[0, 0, 0]]}, {"ids": [1, 2], "guids": ["a"], "spots": []},
@@ -342,7 +342,7 @@ def test_without_a_look_the_save_just_says_none(rig):
     assert session.look is None
 
 
-# ---------- mensajes a TTS ----------
+# ---------- messages to TTS ----------
 def test_show_and_ping_cost_one_message_each_in_batch_mode(brig):  # noqa: F811
     session, table, game, fake = brig
     ids = start(session, table, game)
@@ -374,7 +374,7 @@ def test_batch_row_and_the_announcements_travel_in_the_same_composite(brig):  # 
     assert ops[0] == "show_hand_row" and "set_panel" in ops and ops.count("broadcast") >= 6
 
 
-# ---------- el panel ----------
+# ---------- the panel ----------
 def test_the_panel_has_the_look_button_and_the_ping_handler():
     xml = ui.panel_xml(["medusa"])
     assert 'id="btn_look" onClick="onLook">Mirar mano del bot<' in xml
@@ -394,7 +394,7 @@ def test_create_panel_takes_the_human_seat_from_the_snapshot_spec_or_the_argumen
     assert "HUMAN_SEAT = nil" in lua.create_panel(["medusa"])
 
 
-# ---------- Lua real con lupa: el ping ----------
+# ---------- real Lua with lupa: the ping ----------
 ROW = "g1|-23.0|-2.6,g2|-23.0|0.0,g3|-23.0|2.6"
 
 
@@ -428,16 +428,16 @@ def test_without_the_object_the_nearest_row_card_to_the_position_is_used():
 
 def test_pings_that_are_not_for_a_row_card_do_nothing():
     rt = ping_runtime()
-    assert ping(rt, color="Blue", obj="g2") == [], "otro asiento"
-    assert ping(rt, pos=(5.0, 1.0, 5.0), obj="far") == [], "una pieza lejos de la fila"
-    assert ping(rt, pos=(-23.0, 1.0, 8.0)) == [], "a mas de 1.6 de cualquier carta"
+    assert ping(rt, color="Blue", obj="g2") == [], "another seat"
+    assert ping(rt, pos=(5.0, 1.0, 5.0), obj="far") == [], "a piece far from the row"
+    assert ping(rt, pos=(-23.0, 1.0, 8.0)) == [], "more than 1.6 from any card"
     rt.globals().lookRow = ""
-    assert ping(rt, obj="g2") == [], "sin fila a la vista"
+    assert ping(rt, obj="g2") == [], "no row in view"
     nobody = make_panel_runtime()
     nobody.execute(ui.handler_script(None, ["btn_end"]))
     nobody.globals().lookRow = ROW
     nobody.execute("mkobj({guid = 'g2', type = 'Card'})")
-    assert ping(nobody, obj="g2") == [], "sin asiento humano configurado no reconoce ninguno"
+    assert ping(nobody, obj="g2") == [], "without a configured human seat it recognizes none"
 
 
 def test_a_ping_while_the_panel_is_busy_is_ignored():
@@ -456,7 +456,7 @@ def test_the_ping_carries_the_snapshot_of_the_click_in_batch_mode(brig):  # noqa
     assert "send({event = \"look_ping\", guid = hit})" in script and "pcall(sparringSnapshot)" in script
 
 
-# ---------- Lua real con lupa: la mesa ----------
+# ---------- real Lua with lupa: the table ----------
 SEAT_LOOK = lua.Scope(("Green", "White"), ("906a7a", "b7a0b8"), ((6.0, -18.0), (-2.0, -18.0), (11.5, 12.0)))
 
 
@@ -485,7 +485,7 @@ def show(rt, ids=(17600, 17601, 17602, 17603, 17604)):
 def test_show_moves_only_our_cards_from_the_hand_face_up_and_notes_the_row_in_the_panel(rt):
     hand_table(rt)
     res = show(rt)
-    assert [e["id"] for e in res["shown"]] == [17600, 17601, 17602, 17603]       # la ajena (alice) no se toca
+    assert [e["id"] for e in res["shown"]] == [17600, 17601, 17602, 17603]       # the foreign one (alice) is not touched
     assert card(rt, "alien").moved_count is None and card(rt, "other").moved_count is None
     assert card(rt, "c2").pos.x == -23.0 and card(rt, "c2").pos.z == pytest.approx(0.0)
     assert card(rt, "c0").rot.z == 0 and card(rt, "c0").rot.y == 90.0
@@ -500,8 +500,8 @@ def test_discard_by_guid_puts_that_card_on_the_pile_and_hands_back_the_rest_and_
                                        spot=(15.0, 2.0, -14.0), rot_y=90.0))
     assert res["discarded"] == 17601 and sorted(res["returned"]) == [17600, 17602, 17603] and res["found"] == 4
     assert (card(rt, "c1").pos.x, card(rt, "c1").pos.z) == (15.0, -14.0)
-    assert card(rt, "c0").pos.x == 0 and card(rt, "c3").pos.x == 0, "el resto vuelve a la posicion de su mano"
-    assert card(rt, "alien").moved_count is None, "una carta ajena en la lista no se mueve"
+    assert card(rt, "c0").pos.x == 0 and card(rt, "c3").pos.x == 0, "the rest return to their hand position"
+    assert card(rt, "alien").moved_count is None, "a foreign card in the list is not moved"
     assert panel_row(rt) == ""
 
 
@@ -560,15 +560,15 @@ def test_look_scripts_reject_what_is_not_valid_lua_input():
         assert lua.is_sendable(tag) and "UI." not in tag and "Global" not in tag
 
 
-# ---------- configuracion ----------
+# ---------- configuration ----------
 def test_the_real_config_row_does_not_overlap_the_panel_or_the_floor_boxes():
-    cfg = play.load_config(os.path.join(os.path.dirname(os.path.abspath(__file__)), "..", "config", "partida.json"))
-    assert play.look_row_warnings(cfg, play.floor_layout(cfg)) == []
+    cfg = play.load_config(os.path.join(os.path.dirname(os.path.abspath(__file__)), "..", "config", "table.json"))
+    assert play.look_row_warnings(cfg) == []
     assert play.floor_layout_warnings(cfg) == []
 
 
 def test_a_row_that_would_cover_the_combat_boxes_or_the_panel_is_warned_about():
-    cfg = play.load_config(os.path.join(os.path.dirname(os.path.abspath(__file__)), "..", "config", "partida.json"))
+    cfg = play.load_config(os.path.join(os.path.dirname(os.path.abspath(__file__)), "..", "config", "table.json"))
     cfg.raw["look_spot"] = [6.0, 2.5, -18.0]
     assert any("pisa caja de combate" in w for w in play.floor_layout_warnings(cfg))
     cfg.raw["look_spot"] = [cfg.panel_position[0], 2.5, cfg.panel_position[2]]
@@ -576,7 +576,7 @@ def test_a_row_that_would_cover_the_combat_boxes_or_the_panel_is_warned_about():
 
 
 def test_look_keys_reach_the_session_config():
-    cfg = play.load_config(os.path.join(os.path.dirname(os.path.abspath(__file__)), "..", "config", "partida.json"))
+    cfg = play.load_config(os.path.join(os.path.dirname(os.path.abspath(__file__)), "..", "config", "table.json"))
     scfg = cfg.session_config()
     assert scfg.look_spot == (-23.0, 2.5, 0.0) and scfg.look_step == (0.0, 2.6) and scfg.look_rot_y is None
     cfg.raw.update({"look_spot": [1, 2, 3], "look_step": [0.5, 0.0], "look_rot_y": 180})
@@ -589,7 +589,7 @@ def test_look_keys_reach_the_session_config():
 
 
 def test_default_unpack_columns_do_not_cross_the_look_row():
-    cfg = play.load_config(os.path.join(os.path.dirname(os.path.abspath(__file__)), "..", "config", "partida.json"))
+    cfg = play.load_config(os.path.join(os.path.dirname(os.path.abspath(__file__)), "..", "config", "table.json"))
     x0, x1, z0, z1 = play.look_row_rect(cfg, 7)
     for side, (x, _, z) in play.UNPACK_SPOTS.items():
         for n in range(8):
@@ -657,7 +657,7 @@ def test_restore_use_hands_script_gives_it_back(rt):
 
 
 def test_the_card_row_key_reaches_the_session_config_and_a_clash_is_warned_about():
-    cfg = play.load_config(os.path.join(os.path.dirname(os.path.abspath(__file__)), "..", "config", "partida.json"))
+    cfg = play.load_config(os.path.join(os.path.dirname(os.path.abspath(__file__)), "..", "config", "table.json"))
     scfg = cfg.session_config()
     assert scfg.bot_row_spot == tuple(cfg.raw["bot_row_spot"]) and scfg.bot_row_step == (0.0, 2.6)
     assert SessionConfig.bot_row_spot == (11.5, 2.5, -29.0)

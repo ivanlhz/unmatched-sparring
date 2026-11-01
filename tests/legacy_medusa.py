@@ -54,7 +54,7 @@ def _optional_move(game: Game, ctrl, fighter: Fighter, steps: int, through: bool
 def check_scheme(game: Game, fighter: Fighter, card: Card, target: Fighter | None = None) -> None:
     if is_medusa_card(card) and card.title == "A Momentary Glance":
         if target is None or not target.alive or not game.board.share_zone(fighter.pos, target.pos):
-            raise RuleError("A Momentary Glance necesita un luchador en la zona de Medusa")
+            raise RuleError("A Momentary Glance needs a fighter in Medusa's zone")
 
 
 def resolve_scheme(game: Game, player: int, fighter: Fighter, card: Card, target: Fighter | None = None) -> list[str]:
@@ -83,7 +83,7 @@ def play_scheme(self: Game, player: int, fighter: Fighter, card: Card, **opts) -
     if not is_medusa_card(card) and self.players[player].hero.slug in self.fx.dsl_heroes:
         return _production_play_scheme(self, player, fighter, card, **opts)    # E2: a box hero kept interpreted (`keep`)
     if not card.is_scheme or not card.usable_by(fighter.name) or card not in self.players[player].hand:
-        raise RuleError(f"{card.title} no se puede jugar con {fighter.fid}")
+        raise RuleError(f"{card.title} cannot be played by {fighter.fid}")
     check_scheme(self, fighter, card, **opts)
     self.use_action()
     self.discard_card(player, card, played=True)
@@ -106,7 +106,7 @@ def use_ability(self: Game, player: int, trigger_id: str, target: Fighter | None
 # ---------------------------------------------------------------- sparring/combat.py @ 32e0221 (deleted by E2)
 
 def after_text(card: Card) -> str:
-    """Solo la parte AFTER COMBAT del texto de la carta (lo de IMMEDIATELY y DURING ya lo resuelve el calculo)."""
+    """Only the AFTER COMBAT part of the card text (IMMEDIATELY and DURING are already resolved by the calculation)."""
     head, sep, tail = card.text.partition("AFTER COMBAT:")
     return tail.strip() if sep else ""
 

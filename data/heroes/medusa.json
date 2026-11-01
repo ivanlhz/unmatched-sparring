@@ -413,8 +413,8 @@
   }
  },
  "_notes": [
-  "Hoja 176 del savegame (8x4), leida de la imagen el 2026-10-26. CardID = 17600 + idx; 302 = carta de personaje.",
-  "Harpy: unmatched-memory las llama Harpies y repite la entrada por miniatura; aqui una sola con count 3.",
-  "El disparador de la habilidad (1 de dano a un rival en la zona de Medusa al empezar el turno) lo ejecuta Game.medusa_ability hasta el paso 8 del plan; aqui queda como dato."
+  "Sheet 176 of the savegame (8x4), read from the image on 2026-10-26. CardID = 17600 + idx; 302 = character card.",
+  "Harpy: unmatched-memory calls them Harpies and repeats the entry per miniature; here a single one with count 3.",
+  "The ability trigger (1 damage to a rival in Medusa's zone at the start of the turn) is run by Game.medusa_ability until step 8 of the plan; here it stays as data."
  ]
 }

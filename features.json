@@ -1,18 +1,18 @@
 {
   "project": "unmatched-sparring",
-  "goal": "Bot sparring para Unmatched en Tabletop Simulator. Fase 1: el bot juega Medusa contra un humano con Hellboy en el mapa B.P.R.D. HQ.",
+  "goal": "Sparring bot for Unmatched in Tabletop Simulator. Phase 1: the bot plays Medusa against a human with Hellboy on the B.P.R.D. HQ map.",
   "features": [
     {
       "id": "F01",
-      "title": "Modelo de partida y mapa",
+      "title": "Game model and map",
       "status": "done",
       "criteria": [
-        "Carga data/maps/bprd-hq.json y data/maps/azuchi-castle.json en un grafo con adyacencia simétrica y zonas por casilla",
-        "Movimiento legal: hasta N casillas, atraviesa luchadores propios, no atraviesa rivales salvo efecto que lo permita (Winged Frenzy), termina en casilla vacía",
-        "Alcance de ataque: melee = adyacente; range = adyacente o compartiendo al menos una zona",
-        "Estado: luchadores (héroe y ayudantes) con vida, casilla y dueño; mazo, mano, descarte por jugador; acciones restantes; quién tiene el turno",
-        "Agotamiento: robar con el mazo vacío hace 2 de daño a cada luchador propio",
-        "Fin de turno: descartar hasta 7 cartas en mano"
+        "Loads data/maps/bprd-hq.json and data/maps/azuchi-castle.json into a graph with symmetric adjacency and zones per space",
+        "Legal movement: up to N spaces, passes through own fighters, does not pass through rivals unless an effect allows it (Winged Frenzy), ends on an empty space",
+        "Attack reach: melee = adjacent; range = adjacent or sharing at least one zone",
+        "State: fighters (hero and sidekicks) with life, space and owner; deck, hand, discard per player; remaining actions; whose turn it is",
+        "Exhaustion: drawing with an empty deck deals 2 damage to each own fighter",
+        "End of turn: discard down to 7 cards in hand"
       ]
     },
     {
@@ -20,216 +20,216 @@
       "title": "Combate",
       "status": "done",
       "criteria": [
-        "Restricción de carta por luchador (nombre del luchador o any)",
-        "Ventanas IMMEDIATELY, DURING y AFTER COMBAT; en la misma ventana resuelve primero el defensor",
-        "Feint cancela todos los efectos de la carta rival",
-        "Daño de combate = ataque - defensa (mínimo 0); gana el atacante si hace 1 o más de daño de combate, si no gana el defensor",
-        "BOOST: Second Shot permite boost durante el combate sumando el boost de la carta descartada",
-        "Todas las cartas de Medusa (data/heroes/medusa.json, generado desde unmatched-memory + data/heroes/overlay/medusa.json) tienen su efecto implementado y testeado",
-        "Las cartas de Hellboy (data/heroes/hellboy.json, generado desde ../unmatched-memory/data/heroes/hellboy.json + data/heroes/overlay/hellboy.json) tienen valor, boost, tipo, luchador y etiqueta destino; sus efectos los resuelve el humano, pero el motor registra vida, posición, descarte y forma (DETECTIVE OCULTO con 5 o menos destinos en el descarte, ANUNG UN RAMA con 6 o más)"
+        "Card restriction by fighter (fighter name or any)",
+        "IMMEDIATELY, DURING and AFTER COMBAT windows; in the same window the defender resolves first",
+        "Feint cancels all the effects of the rival card",
+        "Combat damage = attack - defense (minimum 0); the attacker wins if it deals 1 or more combat damage, otherwise the defender wins",
+        "BOOST: Second Shot allows a boost during combat adding the boost of the discarded card",
+        "All of Medusa's cards (data/heroes/medusa.json, generated from unmatched-memory + data/heroes/overlay/medusa.json) have their effect implemented and tested",
+        "Hellboy's cards (data/heroes/hellboy.json, generated from ../unmatched-memory/data/heroes/hellboy.json + data/heroes/overlay/hellboy.json) have value, boost, type, fighter and destiny tag; their effects are resolved by the human, but the engine records life, position, discard and form (OCCULT DETECTIVE with 5 or fewer destinies in the discard, ANUNG UN RAMA with 6 or more)"
       ],
-      "source": "Reglas de forma de Hellboy: ../unmatched-hellboy-cartas/2026-10-23_2239/unmatched-hellboy-4-personajes.html, seccion \"AHH CRAP!\" (la forma se recalcula desde el descarte; no es permanente)"
+      "source": "Hellboy form rules: ../unmatched-hellboy-cartas/2026-10-23_2239/unmatched-hellboy-4-personajes.html, section \"AHH CRAP!\" (the form is recomputed from the discard; it is not permanent)"
     },
     {
       "id": "F03",
-      "title": "IA de Medusa (heurística)",
+      "title": "Medusa AI (heuristic)",
       "status": "done",
       "criteria": [
-        "Al empezar su turno usa su habilidad (1 de daño a un rival en su zona) cuando hay objetivo, priorizando matar a Lobster Johnson si tiene 1 de vida",
-        "Elige 2 acciones entre maniobra, ataque y plan con una función de valoración documentada (amenaza de Hellboy: movimiento 2 + boost posible, ANUNG UN RAMA +2 al ataque y movimiento libre). Siempre gasta sus 2 acciones (no puede pasar; una maniobra sin mover roba igual)",
-        "Hace kiting: prefiere terminar fuera del alcance de ataque de Hellboy en su próximo turno",
-        "Elige defensa (Hiss and Slither, Feint, versátiles o nada) según el valor esperado del ataque rival y la forma de Hellboy",
-        "Evita Clutching Claws y Hiss and Slither cuando a Hellboy le faltan pocos destinos para transformarse (descartar acelera su forma), salvo que gane el combate de forma decisiva",
-        "Es determinista con semilla fija para poder testear",
-        "Simulación en terminal: python -m sparring.sim juega partidas Medusa(IA) contra un Hellboy guionizado simple y termina sin excepciones en 100 partidas con semillas distintas"
+        "At the start of her turn she uses her ability (1 damage to a rival in her zone) when there is a target, prioritizing killing Lobster Johnson if he has 1 life",
+        "Chooses 2 actions among maneuver, attack and scheme with a documented evaluation function (Hellboy's threat: movement 2 + possible boost, ANUNG UN RAMA +2 to the attack and free movement). She always spends her 2 actions (she cannot pass; a maneuver without moving still draws)",
+        "Kites: prefers to end out of Hellboy's attack reach on his next turn",
+        "Chooses a defense (Hiss and Slither, Feint, versatile or nothing) according to the expected value of the rival's attack and Hellboy's form",
+        "Avoids Clutching Claws and Hiss and Slither when Hellboy is a few destinies short of transforming (discarding speeds up his form), unless she wins the combat decisively",
+        "It is deterministic with a fixed seed so it can be tested",
+        "Terminal simulation: python -m sparring.sim plays Medusa(AI) games against a simple scripted Hellboy and finishes without exceptions in 100 games with different seeds"
       ]
     },
     {
       "id": "F04",
-      "title": "Puente con Tabletop Simulator (sin probar en vivo)",
+      "title": "Bridge to Tabletop Simulator (not tried live)",
       "status": "done",
       "criteria": [
-        "Cliente Python de la External Editor API: envía JSON a 127.0.0.1:39999 y escucha a 127.0.0.1:39998",
-        "Solo usa messageID 2 (custom message) y 3 (execute Lua). Nunca messageID 1 (Save & Play), que recarga la partida del usuario",
-        "Snippets Lua para: leer posición de miniaturas por nickname y convertirla a casilla (nearest snap point del Custom_Board con board.positionToWorld), leer cartas de la zona de mano del asiento del bot y del descarte por CardID, mover una miniatura a una casilla, jugar una carta boca abajo en una posición, girarla",
-        "No toca la UI global (UI.setXml del Global sobrescribe la selección de roster del savegame): el panel de botones del humano va en un objeto propio creado por el bot con obj.UI.setXml",
-        "Tests con un servidor TTS falso (mock) que verifican los mensajes enviados; ningún test abre conexión al TTS real"
+        "Python client of the External Editor API: sends JSON to 127.0.0.1:39999 and listens on 127.0.0.1:39998",
+        "Only uses messageID 2 (custom message) and 3 (execute Lua). Never messageID 1 (Save & Play), which reloads the user's game",
+        "Lua snippets to: read the position of miniatures by nickname and turn it into a space (nearest snap point of the Custom_Board with board.positionToWorld), read cards from the bot seat's hand zone and from the discard by CardID, move a miniature to a space, play a card face down at a position, turn it",
+        "Does not touch the global UI (the Global's UI.setXml overwrites the savegame's roster selection): the human's button panel lives on an object of its own created by the bot with obj.UI.setXml",
+        "Tests with a fake TTS server (mock) that verify the messages sent; no test opens a connection to the real TTS"
       ],
-      "note": "Solo verificado contra un servidor TTS falso; los snippets Lua no se han ejecutado en TTS real."
+      "note": "Only verified against a fake TTS server; the Lua snippets have not been run in real TTS."
     },
     {
       "id": "F05",
-      "title": "Sesion en vivo jugable de principio a fin (sin probar en TTS real)",
+      "title": "Live session playable from start to finish (not tried in real TTS)",
       "status": "in-progress",
       "criteria": [
-        "Sin caminos de congelacion: todo estado pendiente (ataque pendiente, pending_discard, descartes debidos, turno del bot a medias) tiene una salida (Revelar, Fin de accion o Cancelar ataque) y el baseline de descarte se fija antes de cualquier E/S de mesa",
-        "Reintentos: un fallo de mesa (timeout de asentamiento, reparto corto, TTS sin respuesta) deja una deuda (dirty/unprojected) que Fin de accion salda primero; el final del turno del bot no se salta ni se termina dos veces el turno del humano; el inicio del turno del bot es reanudable",
-        "La reconciliacion es idempotente con la mesa real: lo que ya esta en el descarte (incluso como Deck) cuenta como movido; discard_cards y read_discard leen dentro de objetos Deck; la mesa falsa modela Deck de 2+ cartas y mazo -> Card suelta -> vacio",
-        "bot_deck_spot es obligatorio (TypeError al construir, SessionError en start()); el agotamiento del mazo del bot hace dano de extremo a extremo y un reparto corto no reinfla el mazo del motor",
-        "Harpias manejadas: la defensa del bot ante un ataque a una Harpia es legal para Harpia y el Revelar se resuelve",
-        "python -m sparring.play crea el panel en un objeto propio (nunca UI.setXml del Global), muestra los mensajes con broadcast y bombea poll_events a Session.handle; sobrevive a eventos raros y errores internos; Ctrl+C sale limpio (codigo 130) cerrando el listener",
-        "--read-only solo envia scripts de lectura (envoltorio ReadOnlyClient + etiquetas permitidas: piece_spaces_by_guid, read_hand, count_hand, read_discard, read_face_down_cards, inspect_guids, read_health_dials, zone_overlaps) e imprime informe de objetos por GUID, miniaturas por GUID con tipo y distancia, diales de vida, manos, descartes y TODOs; avisa si una zona de descarte se solapa con una zona de mano o comparte cartas con la mano",
-        "Todos los constructores nuevos o cambiados (discard_cards, inspect_guids, broadcast) tienen casos BAD de inyeccion; solo messageID 2 y 3; los tests nunca tocan los puertos 39998/39999 (connect y bind bloqueados en conftest)",
-        "Emparejado de respuestas: TTS no envia messageID 5; cada script de constructor se envuelve (lua.request) con un id entero y responde por sendExternalMessage({sparring_reply=id,...}) (messageID 4) dentro de pcall; call_lua vacia respuestas viejas antes de enviar, descarta las de otro id y solo atribuye un error a la llamada si vuelve con su id; los messageID 3 sueltos se registran y se ignoran",
-        "Recarga de TTS (messageID 1): el cliente la registra; run_loop pausa los botones, comprueba con inspect_guids todos los GUID de la configuracion, recrea el panel y avisa; si falta alguno se detiene sin escribir en la mesa",
-        "PV y bajas por efectos: eventos HP (+1/-1 para cada luchador de ambos bandos), Retirar y Deshacer fin de partida alimentan el motor (vida, muerte, victoria) y permiten corregir una victoria falsa; read_health_dials informa de los diales y la sesion avisa de discrepancias",
-        "Adopcion de la mesa: lo que el humano mueve al descarte del bot se adopta; tras adopt_after fallos de mesa seguidos, o con Cancelar, el motor adopta mano, descarte y posiciones de la mesa; una carta del bot suelta en la mesa se devuelve a su mano en vez de repetir 'repartio 0 de 1'; deal_cards solo toma objetos con CardID del mazo del bot",
-        "Descarte ordenado: el bot deja cada carta descartada en el siguiente hueco de una rejilla dentro de su zona (saltando el mazo de robo) y read_discard excluye los mazos de robo por GUID y posicion",
-        "Reanudacion: el estado de Game y Session se guarda en JSON de forma atomica tras cada boton y --resume lo carga; start() con --first bot es reanudable por la deuda de mesa; SessionError y fallos de conexion salen como mensaje claro, no como traceback ni 'Error interno'",
-        "Piezas por GUID: piece_spaces_by_guid y move_piece con validacion y casos BAD; _project comprueba moved; una pieza lejos (off_board_dist) cuenta como fuera del tablero; ningun camino en vivo usa nombres",
-        "Mutantes N1 (linea base del descarte en Revelar) y N3 (bot_stage tras reintento) muertos por tests; etiqueta del boton y mensajes coinciden ('Fin de accion')",
-        "Marcas en el suelo (solo en modo juego): draw_markings/clear_markings dibujan DESCARTE HELLBOY, DESCARTE MEDUSA, COMBATE HELLBOY y COMBATE MEDUSA con setVectorLines en el panel propio y 3DText propios, idempotentes, sin tocar el Global ni decals; --read-only no las dibuja",
-        "Revision 5: start_spaces (config o deducido de la mesa); pieces acepta lista de GUID por miniatura; el guardado lleva huella (id de partida, hash de configuracion, GUID) y --resume rechaza el ajeno; tests/conftest.py impide escribir bajo la carpeta estado; bot_discard_bounds acota la rejilla y la envuelve apilando; reparto/jugada tardios se acreditan leyendo la mesa; guardado en los puntos de control del turno del bot; combates cuyo luchador desaparece se cancelan; manos iniciales; una accion abierta ignora otros botones de accion; poll_events descarta sparring_reply tardios; clear_markings(remove_panel) y marca sparring en las notas de GM; panel en [2, 1.8, -24]"
+        "No freezing paths: every pending state (pending attack, pending_discard, owed discards, half-done bot turn) has an exit (Reveal, End action or Cancel attack) and the discard baseline is fixed before any table I/O",
+        "Retries: a table failure (settling timeout, short deal, TTS without a reply) leaves a debt (dirty/unprojected) that End action settles first; the end of the bot's turn is not skipped nor is the human's turn ended twice; the start of the bot's turn is resumable",
+        "Reconciliation is idempotent with the real table: what is already in the discard (even as a Deck) counts as moved; discard_cards and read_discard read inside Deck objects; the fake table models a Deck of 2+ cards and deck -> loose Card -> empty",
+        "bot_deck_spot is required (TypeError when building, SessionError in start()); the exhaustion of the bot's deck deals damage end to end and a short deal does not re-inflate the engine's deck",
+        "Harpies handled: the bot's defense against an attack on a Harpy is legal for a Harpy and Reveal resolves",
+        "python -m sparring.play creates the panel on an object of its own (never the Global's UI.setXml), shows the messages with broadcast and pumps poll_events into Session.handle; it survives odd events and internal errors; Ctrl+C exits cleanly (code 130) closing the listener",
+        "--read-only only sends read scripts (ReadOnlyClient wrapper + allowed labels: piece_spaces_by_guid, read_hand, count_hand, read_discard, read_face_down_cards, inspect_guids, read_health_dials, zone_overlaps) and prints a report of objects by GUID, miniatures by GUID with type and distance, life dials, hands, discards and TODOs; it warns if a discard zone overlaps a hand zone or shares cards with the hand",
+        "All new or changed builders (discard_cards, inspect_guids, broadcast) have BAD injection cases; only messageID 2 and 3; tests never touch ports 39998/39999 (connect and bind blocked in conftest)",
+        "Reply pairing: TTS does not send messageID 5; each builder script is wrapped (lua.request) with an integer id and answers through sendExternalMessage({sparring_reply=id,...}) (messageID 4) inside pcall; call_lua empties old replies before sending, drops those of another id and only attributes an error to the call if it comes back with its id; stray messageID 3 are logged and ignored",
+        "TTS reload (messageID 1): the client records it; run_loop pauses the buttons, checks all the configuration's GUIDs with inspect_guids, recreates the panel and warns; if any is missing it stops without writing to the table",
+        "HP and casualties from effects: HP events (+1/-1 for each fighter of both sides), Remove and Undo game over feed the engine (life, death, victory) and allow correcting a false victory; read_health_dials reports the dials and the session warns of discrepancies",
+        "Adopting the table: what the human moves to the bot's discard is adopted; after adopt_after consecutive table failures, or with Cancel, the engine adopts the table's hand, discard and positions; a loose bot card on the table is returned to its hand instead of repeating 'dealt 0 of 1'; deal_cards only takes objects with a CardID of the bot's deck",
+        "Ordered discard: the bot leaves each discarded card in the next slot of a grid inside its zone (skipping the draw deck) and read_discard excludes the draw decks by GUID and position",
+        "Resume: the state of Game and Session is saved as JSON atomically after each button and --resume loads it; start() with --first bot is resumable through the table debt; SessionError and connection failures come out as a clear message, not as a traceback or 'Internal error'",
+        "Pieces by GUID: piece_spaces_by_guid and move_piece with validation and BAD cases; _project checks moved; a faraway piece (off_board_dist) counts as off the board; no live path uses names",
+        "Mutants N1 (discard baseline at Reveal) and N3 (bot_stage after a retry) killed by tests; button label and messages match ('End action')",
+        "Floor markings (play mode only): draw_markings/clear_markings draw DISCARD HELLBOY, DISCARD MEDUSA, COMBAT HELLBOY and COMBAT MEDUSA with setVectorLines on the own panel and own 3DTexts, idempotent, without touching the Global or decals; --read-only does not draw them",
+        "Review 5: start_spaces (config or deduced from the table); pieces accepts a list of GUIDs per miniature; the save carries a fingerprint (game id, configuration hash, GUIDs) and --resume rejects a foreign one; tests/conftest.py prevents writing under the state folder; bot_discard_bounds bounds the grid and wraps it by stacking; late deals/plays are credited by reading the table; saving at the checkpoints of the bot's turn; combats whose fighter disappears are cancelled; opening hands; an open action ignores other action buttons; poll_events drops late sparring_reply; clear_markings(remove_panel) and a sparring mark in the GM notes; panel at [2, 1.8, -24]"
       ],
-      "note": "Revision 5 (27/10) corregida con tests: casillas de salida de la mesa real, guardado con huella y guarda de tests, miniatura con varios GUID, rejilla del descarte acotada a la zona, repartos y jugadas con respuesta tardia, puntos de control del turno del bot, salidas de combates cuyo luchador desaparece, manos iniciales, doble clic, limpieza del panel. Solo verificado contra FakeTTS (que ahora imita al TTS real: sin messageID 5, respuestas por messageID 4). Se marca done solo con todo en verde y tras una prueba en vivo con --read-only; pendiente calibrar off_board_dist, la lectura de los diales y las posiciones de carta/rejilla en la mesa real. | 28/10 en vivo: Reiniciar partida y el robo automatico al pulsar Maniobra funcionan."
+      "note": "Review 5 (27/10) fixed with tests: starting spaces of the real table, save with fingerprint and test guard, miniature with several GUIDs, discard grid bounded to the zone, deals and plays with a late reply, checkpoints of the bot's turn, exits from combats whose fighter disappears, opening hands, double click, panel cleanup. Only verified against FakeTTS (which now imitates the real TTS: no messageID 5, replies by messageID 4). Marked done only with everything green and after a live test with --read-only; still to calibrate off_board_dist, the dial reading and the card/grid positions on the real table. | 28/10 live: Restart game and the automatic draw when pressing Maneuver work."
     },
     {
       "id": "F06",
-      "title": "Velocidad (un mensaje por boton) y panel nuevo con reinicio",
+      "title": "Speed (one message per button) and new panel with restart",
       "status": "in-progress",
       "criteria": [
-        "Cada mensaje a TTS cuesta ~0.5 s: --timing muestra por boton y por accion del bot los mensajes (call_lua) y los ms; TTSClient.calls/call_seconds/trace y Session.cost_log; FakeTTS.lua_messages cuenta en los tests",
-        "El clic lleva la instantanea: el script del panel (ui.handler_script + lua.snapshot_lua) pone Procesando..., apaga los botones y envia en el mismo sendExternalMessage la mano del bot (CardID), el conteo de la del humano, ambos descartes (sin los mazos de robo), las cartas boca abajo de los dos puntos de combate, la casilla/distancia de cada pieza por GUID y los diales",
-        "Un script compuesto por paso (lua.composite): solo compone scripts ya registrados por constructores (validados), cada uno en pcall, espera dentro de TTS a que piezas y mano se asienten y devuelve el estado resultante; casos BAD (no registrado, anidado, request, cabecera falsificada, mas de 64, expect_hand)",
-        "Objetivo cumplido en la mesa falsa: Maniobra 1, Fin de accion 1, atacar 3, Revelar 2, turno del bot de 2 acciones 3 (1 mensaje por accion); antes 7, 5, 12, 17 y 43",
-        "Panel TURNO/VIDA/PARTIDA con linea de estado viva, botones apagados por estado (interactable=false) y set_panel sobre el objeto propio; Mulligan y Listo solo en la preparacion, Reiniciar partida (doble pulsacion en 3 s) el resto del tiempo",
-        "Reiniciar partida: reset_deck devuelve cartas de ambos bandos a sus mazos y baraja, diales a vida completa y destinos a 0, miniaturas fuera del tablero (dead_spot / human_dead_spot), borra el guardado y vuelve al reparto",
-        "El bot coloca tambien al heroe del humano (Hellboy) en su casilla de salida en la preparacion, en los dos ordenes; el humano solo coloca a su ayudante",
-        "Descarte del humano: una carta boca arriba junto al mazo nunca se excluye; un contador solo baja si la carta falta en dos botones distintos o, en la primera instantanea, si el mazo de robo crece en tantas cartas como faltan sin que lo explique una carta menos en la mano; sin aviso de fusion con el mazo; un dial tocado a mano solo bloquea ese dial",
-        "El bot aparta tambien las miniaturas caidas del humano (human_dead_spot o la zona del bot reflejada); etiquetas del suelo pequenas, legibles desde White, fuera de su caja y sin solaparse"
+        "Each message to TTS costs ~0.5 s: --timing shows per button and per bot action the messages (call_lua) and the ms; TTSClient.calls/call_seconds/trace and Session.cost_log; FakeTTS.lua_messages counts in tests",
+        "The click brings the snapshot: the panel script (ui.handler_script + lua.snapshot_lua) sets Processing..., turns the buttons off and sends in the same sendExternalMessage the bot's hand (CardID), the count of the human's, both discards (without the draw decks), the face-down cards of the two combat spots, the space/distance of each piece by GUID and the dials",
+        "One composite script per step (lua.composite): it only composes scripts already registered by builders (validated), each in pcall, waits inside TTS for pieces and hand to settle and returns the resulting state; BAD cases (not registered, nested, request, forged header, more than 64, expect_hand)",
+        "Goal met on the fake table: Maneuver 1, End action 1, attack 3, Reveal 2, bot turn of 2 actions 3 (1 message per action); before 7, 5, 12, 17 and 43",
+        "TURN/LIFE/GAME panel with a live status line, buttons turned off by state (interactable=false) and set_panel on the own object; Mulligan and Ready only during setup, Restart game (double press within 3 s) the rest of the time",
+        "Restart game: reset_deck returns the cards of both sides to their decks and shuffles, dials to full life and destinies to 0, miniatures off the board (dead_spot / human_dead_spot), deletes the save and goes back to the deal",
+        "The bot also places the human's hero (Hellboy) on his starting space during setup, in both orders; the human only places their sidekick",
+        "Human discard: a face-up card next to the deck is never excluded; a counter only goes down if the card is missing at two distinct buttons or, in the first snapshot, if the draw deck grows by as many cards as are missing without one card less in the hand explaining it; no merge-with-deck warning; a dial touched by hand only blocks that dial",
+        "The bot also sets aside the human's fallen miniatures (human_dead_spot or the bot's zone mirrored); small floor labels, readable from White, outside their box and not overlapping"
       ],
-      "note": "Solo verificado contra FakeTTS. Pendiente en vivo: la instantanea desde el script del panel, el compuesto con Wait.condition, UI.setAttribute/interactable, reset_deck, las etiquetas y human_dead_spot."
+      "note": "Only verified against FakeTTS. Still to do live: the snapshot from the panel script, the composite with Wait.condition, UI.setAttribute/interactable, reset_deck, the labels and human_dead_spot."
     },
     {
       "id": "F07",
-      "title": "Motor multiheroe (sin cambiar Medusa vs Hellboy)",
+      "title": "Multi-hero engine (without changing Medusa vs Hellboy)",
       "status": "in-progress",
-      "note": "Pasos 0-3 del plan (docs/plan-multiheroe.md) hechos en feat/f07-motor-multiheroe: tests dorados (tests/test_golden.py, fixtures en tests/golden), HeroDef + cargador + importador (sparring/heroes.py, tools/import_hero.py, data/heroes), partida desde HeroDef con bot_hero/human_hero, formas/contadores/pasiva de ataque y disparadores de inicio de turno desde datos, y la interfaz de mano conocida (KnownHand, Game.observe_hand/card_left_hand/hidden_hand). Pendiente: efectos estructurados e interprete (pasos 4-6), elecciones por panel (7), disparadores y contadores genericos en la sesion (8-9), config TTS por heroe y rangos de CardID del puente (10, hecho en feat/f07-puente-tts: data/tts/<slug>.json, sparring/tts/hero_table.py, partida.json solo de mesa, botones de atacante por heroe, bot que saca piezas de su bolsa; solo verificado contra FakeTTS). | 28/10 pasos 0-3 en master (f4d4f52). Pendiente de la revision: (1) recorte de mano virtual con todas las cartas vistas deja una fantasma (session.py ~2924: si spare esta en known, card_left_hand); (2) unificar Knowledge.known_in_hand de sparring/search con KnownHand al conectar 'mira la mano'; (3) borrar el junction .claude/worktrees/unmatched-memory.",
+      "note": "Steps 0-3 of the plan (docs/plan-multihero.md) done in feat/f07-motor-multiheroe: golden tests (tests/test_golden.py, fixtures in tests/golden), HeroDef + loader + importer (sparring/heroes.py, tools/import_hero.py, data/heroes), game from HeroDef with bot_hero/human_hero, forms/counters/attack passive and start-of-turn triggers from data, and the known-hand interface (KnownHand, Game.observe_hand/card_left_hand/hidden_hand). Pending: structured effects and interpreter (steps 4-6), choices by panel (7), generic triggers and counters in the session (8-9), per-hero TTS config and CardID ranges of the bridge (10, done in feat/f07-puente-tts: data/tts/<slug>.json, sparring/tts/hero_table.py, the configuration file for the table only, per-hero attacker buttons, bot that takes pieces out of its bag; only verified against FakeTTS). | 28/10 steps 0-3 on master (f4d4f52). Pending from the review: (1) trimming the virtual hand with all the seen cards leaves a phantom (session.py ~2924: if spare is in known, card_left_hand); (2) unify Knowledge.known_in_hand of sparring/search with KnownHand when connecting 'look at the hand'; (3) delete the junction .claude/worktrees/unmatched-memory.",
       "criteria": [
-        "Tests dorados antes de tocar nada: simulador, transcripcion de sesion FakeTTS y ida y vuelta del guardado de Medusa vs Hellboy; siguen identicos al terminar",
-        "HeroDef por heroe en data/heroes/<slug>.json (vida, movimiento, alcance, ayudantes con cantidad y vida, formas, contadores, disparadores, pasivas) importado de unmatched-memory con un overlay a mano; la partida se construye desde HeroDef",
-        "Efectos de carta estructurados por momento (immediately/during/after/scheme/ongoing) en data/heroes/<slug>.cards.json, ejecutados por un interprete de primitivas en sparring/effects/; lo que no cubre una primitiva va a un plugin Python por heroe",
-        "config/partida.json gana bot_hero y human_hero (por defecto medusa y hellboy) y la config de TTS por heroe (mazos, diales, salidas) sale de data/tts/<slug>.json",
-        "Carta sin efecto codificado: el bot anuncia su texto y la juega solo por valor y boost; nunca rompe la partida",
-        "Elecciones del humano que el bot necesita saber (objetivo, opcion) por botones del panel, con el efecto pendiente guardado y reanudable; los movimientos siguen siendo fisicos",
-        "Efecto «mira la mano del rival»: el bot lee la mano del humano SOLO al resolver esa carta; guarda las cartas vistas y las va quitando de la mano conocida cuando el humano las juega, descarta o pierde; nunca da por jugable una carta vista que ya ha salido"
+        "Golden tests before touching anything: simulator, FakeTTS session transcript and save round trip of Medusa vs Hellboy; they remain identical at the end",
+        "HeroDef per hero in data/heroes/<slug>.json (life, movement, reach, sidekicks with count and life, forms, counters, triggers, passives) imported from unmatched-memory with a hand-written overlay; the game is built from HeroDef",
+        "Structured card effects per moment (immediately/during/after/scheme/ongoing) in data/heroes/<slug>.cards.json, run by a primitive interpreter in sparring/effects/; what a primitive does not cover goes to a per-hero Python plugin",
+        "config/table.json gains bot_hero and human_hero (medusa and hellboy by default) and the per-hero TTS config (decks, dials, starting spaces) comes from data/tts/<slug>.json",
+        "Card with no coded effect: the bot announces its text and plays it only by value and boost; it never breaks the game",
+        "Human choices the bot needs to know (target, option) by panel buttons, with the pending effect saved and resumable; movements stay physical",
+        "Effect \"look at the rival's hand\": the bot reads the human's hand ONLY when resolving that card; it keeps the cards seen and removes them from the known hand when the human plays, discards or loses them; it never takes as playable a seen card that has already left"
       ]
     },
     {
       "id": "F08",
-      "title": "Caja Hellboy completa en los dos lados",
+      "title": "Full Hellboy box on both sides",
       "status": "in-progress",
       "criteria": [
-        "Hellboy, Abe Sapien, Baba Yaga y Liz Sherman jugables por el humano contra el bot y por el bot contra el humano, en cualquier combinacion de la caja",
-        "Datos de cada heroe verificados contra las cartas reales del save del torneo (CustomDeck FaceURL), no solo contra unmatched-memory",
-        "Plugins de las cartas que no caben en primitivas (previstos: abe perfect_shot y uncanny_intuition, baba remove_painful_memory, liz incinerate y wildfire)",
-        "Una partida en vivo supervisada por Ivan por cada heroe de la caja antes de darla por hecha",
-        "Cambio de forma de Hellboy llevado por el bot: el bot cambia la miniatura y gira la ficha de habilidad al lado rojo, y hace ping sobre las dos",
-        "D3 (sesion en vivo): los efectos del bot actuan en la mesa real en el mismo script del paso: mueve las miniaturas del humano que su carta dice, fichas de intuicion de Abe (copias de 5a17e9), su propio mazo (mano al fondo, descarte barajado, carta recuperada a la mano); el bot lee la mano del humano solo en look_hand (read_hand una vez, nunca fuera); los descartes con nombre del humano se deben por pending_discard; un plan del bot que pregunta al humano se pausa en el panel y se reanuda; el bot narra tambien las cartas de Medusa (tests/test_d3_table_effects.py)"
+        "Hellboy, Abe Sapien, Baba Yaga and Liz Sherman playable by the human against the bot and by the bot against the human, in any combination of the box",
+        "Each hero's data verified against the real cards of the tournament save (CustomDeck FaceURL), not only against unmatched-memory",
+        "Plugins for the cards that do not fit primitives (foreseen: abe perfect_shot and uncanny_intuition, baba remove_painful_memory, liz incinerate and wildfire)",
+        "A live game supervised by Ivan for each hero of the box before calling it done",
+        "Hellboy's form change carried out by the bot: the bot changes the miniature and turns the ability token to the red side, and pings both",
+        "D3 (live session): the bot's effects act on the real table in the same script of the step: it moves the human's miniatures as its card says, Abe's intuition tokens (copies of 5a17e9), its own deck (hand to the bottom, discard shuffled in, card recovered to the hand); the bot reads the human's hand only in look_hand (read_hand once, never outside); the human's named discards are owed through pending_discard; a bot scheme that asks the human pauses on the panel and resumes; the bot also narrates Medusa's cards (tests/test_d3_table_effects.py)"
       ],
-      "note": "28/10: datos de los 4 heroes en master (3090642), hojas verificadas contra el save por el reviewer. Antes del interprete: unificar el esquema de data/heroes/effects/*.json (ligaduras bind/as/$, 'hasta N', self/self_player, carta en curso, cuerpo de for_each/optional, marca de dano de efecto, selectores de zona, persistent_scheme, choose_n de efectos vs de cartas, disparadores); can_boost debe dejar de detectar por texto (Out Of Time dice 'BOOST this card'); start_on_board/reserve/tts_tokens aun sin lector. Preguntas de reglas abiertas en docs/heroes/*.md."
+      "note": "28/10: data of the 4 heroes on master (3090642), sheets verified against the save by the reviewer. Before the interpreter: unify the schema of data/heroes/effects/*.json (bind/as/$ bindings, 'up to N', self/self_player, the card in progress, body of for_each/optional, effect damage mark, zone selectors, persistent_scheme, choose_n of effects vs of cards, triggers); can_boost must stop detecting by text (Out Of Time says 'BOOST this card'); start_on_board/reserve/tts_tokens still without a reader. Open rules questions in docs/heroes/*.md."
     },
     {
       "id": "F09",
-      "title": "IA con busqueda ISMCTS sobre el motor generico",
+      "title": "AI with ISMCTS search over the generic engine",
       "status": "in-progress",
-      "note": "28/10: sparring/search/ con Protocol SearchState, MO-ISMCTS, adaptador del motor actual e IsmctsMedusa tras el flag ai=ismcts (apagado). Sin trampas probado (misma decision con otra mano oculta + tripwire). 28/10: cableada en play.py (--ai heuristic|ismcts, --ai-time; cae a MedusaAI con WARNING si la busqueda falla), probada con FakeTTS en todos los caminos; Knowledge sale del motor (Game.players[bot].known), pero la sesion en vivo aun no llama a observe_hand. Los AssertionError de los tripwires no caen al fallback. Pendiente: partida en vivo en TTS y adaptador del motor F07. | 28/10 evaluacion con amenaza y presion tras la partida de Ivan (arpias huian, Medusa expuesta): en 12 partidas contra el guion pasa de 58 % a 44 % de turnos con Medusa a tiro y pega mas. Pendiente menor: la firma de _moves_cache no incluye la mano determinizada del rival ni actions_left (la poda queda fijada por la primera determinizacion).",
+      "note": "28/10: sparring/search/ with the SearchState Protocol, MO-ISMCTS, adapter of the current engine and IsmctsMedusa behind the flag ai=ismcts (off). No cheating proven (same decision with another hidden hand + tripwire). 28/10: wired into play.py (--ai heuristic|ismcts, --ai-time; falls back to MedusaAI with a WARNING if the search fails), tried with FakeTTS on every path; Knowledge comes from the engine (Game.players[bot].known), but the live session does not yet call observe_hand. The tripwires' AssertionError does not fall to the fallback. Pending: a live game in TTS and the F07 engine adapter. | 28/10 evaluation with threat and pressure after Ivan's game (Harpies fled, Medusa exposed): in 12 games against the script it goes from 58 % to 44 % of turns with Medusa in range and hits more. Minor pending: the signature of _moves_cache does not include the rival's determinized hand nor actions_left (the pruning is fixed by the first determinization).",
       "criteria": [
-        "Sin trampas: la busqueda nunca lee la mano oculta del humano; solo usa informacion publica (descartes, conteo de mano y mazo, cartas jugadas) y lo visto legitimamente por un efecto de «mirar la mano», con las cartas ya salidas descontadas",
-        "La IA del bot decide con ISMCTS: muestrea la mano oculta del rival compatible con lo visto (descartes, conteo de mano, mazo) y simula con el motor de F07",
-        "Sirve para cualquier heroe con efectos codificados, sin codigo especifico por heroe en la busqueda",
-        "Presupuesto de tiempo por decision configurable; el boton del humano sigue respondiendo por debajo de 1 s mas el tiempo de busqueda anunciado"
+        "No cheating: the search never reads the human's hidden hand; it only uses public information (discards, hand and deck counts, cards played) and what was legitimately seen through a \"look at the hand\" effect, with the cards that already left discounted",
+        "The bot's AI decides with ISMCTS: it samples the rival's hidden hand compatible with what was seen (discards, hand count, deck) and simulates with the F07 engine",
+        "Works for any hero with coded effects, with no hero-specific code in the search",
+        "Configurable time budget per decision; the human's button keeps answering in under 1 s plus the announced search time"
       ]
     },
     {
       "id": "F10",
-      "title": "Playbooks por emparejamiento",
+      "title": "Playbooks per matchup",
       "status": "todo",
       "criteria": [
-        "Plan por heroe y rival en data/ai/<slug>.json destilado de @NoExhaustionDamage (y otras fuentes que apruebe Ivan); un heroe con un solo estilo tiene un solo plan",
-        "El playbook orienta a la ISMCTS (prioridades, evaluacion de posiciones), no sustituye la busqueda"
+        "Plan per hero and rival in data/ai/<slug>.json distilled from @NoExhaustionDamage (and other sources Ivan approves); a hero with a single style has a single plan",
+        "The playbook guides the ISMCTS (priorities, position evaluation), it does not replace the search"
       ]
     },
     {
       "id": "F11",
-      "title": "Oleadas siguientes del roster",
+      "title": "Next waves of the roster",
       "status": "todo",
       "criteria": [
-        "Orden de Ivan: Stars and Stripes (John Henry, Wyatt Earp, Rosie the Riveter, George Washington; marzo 2026, estan en el save y no en unmatched-memory), TMNT (Leonardo, Donatello, Michelangelo, Raphael), Shredder vs Krang, Muhammad Ali vs Bruce Lee, Battle of Legends Vol. 3 (Blackbeard, Chupacabra, Loki, Pandora), y despues el resto",
-        "Cada oleada: datos verificados contra el save, plugins necesarios y una partida en vivo por heroe",
-        "Los heroes que estan en el save y no en unmatched-memory se extraen del save"
+        "Ivan's order: Stars and Stripes (John Henry, Wyatt Earp, Rosie the Riveter, George Washington; March 2026, they are in the save and not in unmatched-memory), TMNT (Leonardo, Donatello, Michelangelo, Raphael), Shredder vs Krang, Muhammad Ali vs Bruce Lee, Battle of Legends Vol. 3 (Blackbeard, Chupacabra, Loki, Pandora), and then the rest",
+        "Each wave: data verified against the save, necessary plugins and a live game per hero",
+        "Heroes that are in the save and not in unmatched-memory are extracted from the save"
       ]
     },
     {
       "id": "F12",
-      "title": "Ping de atacante y objetivo en los ataques del bot",
+      "title": "Ping of attacker and target on the bot's attacks",
       "status": "done",
-      "note": "Probado en vivo por Ivan el 28/10: los pings se ven (salen con su color, White, y le parece bien). Sin comprobar aun: el ping sobre Hellboy en su forma alternativa.",
+      "note": "Tried live by Ivan on 28/10: the pings are seen (they come out in their color, White, and he finds it fine). Not yet checked: the ping on Hellboy in his alternate form.",
       "criteria": [
-        "Cuando un luchador del bot ataca, el bot hace ping sobre su luchador atacante y sobre el luchador objetivo del humano, para ver quien ataca a quien sin leer el mensaje",
-        "Va en el mismo script del paso de ataque (sin mensajes extra a TTS) y no usa messageID 1 ni el Global UI",
-        "Probado con FakeTTS y en una partida en vivo"
+        "When a bot fighter attacks, the bot pings its attacking fighter and the human's target fighter, to see who attacks whom without reading the message",
+        "It goes in the same script of the attack step (no extra messages to TTS) and uses neither messageID 1 nor the Global UI",
+        "Tried with FakeTTS and in a live game"
       ]
     },
     {
       "id": "F14",
-      "title": "Colores del chat de TTS por tipo de mensaje del bot",
+      "title": "TTS chat colors by type of bot message",
       "status": "in-progress",
-      "description": "Los mensajes del bot salen coloreados segun su categoria para leer la partida de un vistazo.",
+      "description": "The bot's messages come out colored by their category so the game can be read at a glance.",
       "criteria": [
-        "Tabla unica categoria -> color (ChatKind y CHAT_COLORS en sparring/tts/lua.py): ataque del bot rojo, combate y dano naranja, movimiento azul claro, esquemas y efectos morado, habilidad de heroe y formas dorado, te toca / instrucciones verde, avisos y errores amarillo, neutro gris claro",
-        "Session.say recibe la categoria (neutra por defecto); el color viaja en el mismo script broadcastToAll: ningun mensaje extra a TTS, ni en modo normal ni con SPARRING_BATCH=1; nunca messageID 1 ni Global UI",
-        "El color se valida contra la tabla (ChatKind()): ninguna cadena libre llega a Lua",
-        "La salida por terminal no cambia (sin codigos de color)",
-        "Tests: color por categoria en el script, categoria de los mensajes clave, conteo de mensajes intacto y Lua con lupa"
+        "Single category -> color table (ChatKind and CHAT_COLORS in sparring/tts/lua.py): bot attack red, combat and damage orange, movement light blue, schemes and effects purple, hero ability and forms gold, your turn / instructions green, warnings and errors yellow, neutral light grey",
+        "Session.say receives the category (neutral by default); the color travels in the same broadcastToAll script: no extra message to TTS, neither in normal mode nor with SPARRING_BATCH=1; never messageID 1 nor Global UI",
+        "The color is validated against the table (ChatKind()): no free string reaches Lua",
+        "The terminal output does not change (no color codes)",
+        "Tests: color per category in the script, category of the key messages, message count intact and Lua with lupa"
       ],
-      "note": "Pendiente en vivo: ver los colores en el chat real de TTS y ajustar los tonos si alguno se lee mal sobre el fondo."
+      "note": "Still to do live: see the colors in the real TTS chat and adjust the tones if any reads badly on the background."
     },
     {
       "id": "F16",
-      "title": "Mirar la mano del bot y descartarle una carta con un ping",
+      "title": "Look at the bot's hand and make it discard a card with a ping",
       "status": "in-progress",
-      "description": "Cartas como Confront Any Demon or God (mira la mano del rival y descarta una): hoy Ivan saca la mano del bot, la gira, elige y devuelve el resto a mano. Flujo con un boton del panel y un ping.",
+      "description": "Cards like Confront Any Demon or God (look at the rival's hand and discard one): today Ivan takes the bot's hand out, turns it, chooses and puts the rest back in the hand. Flow with a panel button and a ping.",
       "criteria": [
-        "Boton nuevo del panel \"Mirar mano del bot\" (btn_look): encendido solo en el turno del humano o durante un combate, con la mesa del bot al dia y alguna carta en su mano; apagado si no. No gasta accion",
-        "El bot pone sus cartas de la mano boca arriba en fila centrada en un sitio configurable (look_spot, look_step, look_rot_y en config/partida.json; el arranque avisa si la fila pisa el panel o una caja de combate) y escribe en el chat (ChatKind SCHEME) cada carta: numero, titulo, tipo, valor, impulso y el texto del efecto de data/heroes/<slug>.json",
-        "Ping (Tab) del humano sobre una carta de la fila: onPlayerPing definido en el script del objeto panel (nunca el Global), solo del asiento humano y solo si la carta es de la fila mostrada; lo reenvia por sendExternalMessage como evento look_ping",
-        "El bot descarta esa carta en su zona de descarte (siguiente hueco de la rejilla), devuelve el resto a su mano con movimientos instantaneos y lo anuncia; el motor la descuenta de la mano como un descarte forzado y no cambia nada de lo que sabe de la mano del humano",
-        "Plan B: con una carta de la fila boca abajo, Fin de accion descarta esa (0 o varias boca abajo: no mueve nada y avisa); Cancelar devuelve todas a la mano sin descartar",
-        "Mientras la fila esta a la vista solo se atienden ping, Fin de accion, Cancelar, PV, Retirar y Valor; la fila persiste en sesion.json (look) y --resume la vuelve a anotar en el panel",
-        "Mensajes a TTS: mostrar = 1 compuesto (fila, panel y avisos juntos), ping = 1, Cancelar = 1; nunca messageID 1 ni Global UI",
-        "Si la mesa no hace lo que el motor conto (carta que ya no esta, TTS falla) el motor deshace el descarte y la fila sigue a la vista; si solo saca algunas cartas, la fila queda con esas",
-        "Tests: sesion con FakeTTS (normal y SPARRING_BATCH=1), Lua real con lupa (handler de ping con stub de onPlayerPing, show/resolve de la fila) y config; Medusa vs Hellboy y los dorados no cambian salvo `look: null` en el guardado"
+        "New panel button \"Look at bot's hand\" (btn_look): on only on the human's turn or during a combat, with the bot's table up to date and some card in its hand; off otherwise. It spends no action",
+        "The bot lays the cards of its hand face up in a row centered on a configurable spot (look_spot, look_step, look_rot_y in config/table.json; start-up warns if the row overlaps the panel or a combat box) and writes in the chat (ChatKind SCHEME) each card: number, title, type, value, boost and the effect text from data/heroes/<slug>.json",
+        "The human's ping (Tab) on a card of the row: onPlayerPing defined in the panel object's script (never the Global), only from the human seat and only if the card is in the row shown; it forwards it through sendExternalMessage as a look_ping event",
+        "The bot discards that card to its discard zone (next slot of the grid), returns the rest to its hand with instant moves and announces it; the engine discounts it from the hand as a forced discard and changes nothing of what it knows about the human's hand",
+        "Plan B: with a face-down card in the row, End action discards that one (0 or several face down: it moves nothing and warns); Cancel returns all to the hand without discarding",
+        "While the row is in view only ping, End action, Cancel, HP, Remove and Value are attended; the row persists in session.json (look) and --resume notes it on the panel again",
+        "Messages to TTS: show = 1 composite (row, panel and notices together), ping = 1, Cancel = 1; never messageID 1 nor Global UI",
+        "If the table does not do what the engine counted (the card is no longer there, TTS fails) the engine undoes the discard and the row stays in view; if it only takes out some cards, the row keeps those",
+        "Tests: session with FakeTTS (normal and SPARRING_BATCH=1), real Lua with lupa (ping handler with an onPlayerPing stub, show/resolve of the row) and config; Medusa vs Hellboy and the goldens do not change except `look: null` in the save"
       ],
-      "note": "Pendiente en vivo: que onPlayerPing llegue al script del panel con el asiento y el objeto esperados, calibrar look_spot/look_step en la mesa real, y que las cartas puestas boca arriba en la fila no las vuelva a coger la zona de mano."
+      "note": "Still to do live: onPlayerPing reaching the panel script with the expected seat and object, calibrating look_spot/look_step on the real table, and the face-up cards in the row not being picked up again by the hand zone."
     },
     {
       "id": "F13",
-      "title": "Mod del Workshop con el cerebro como servicio web (futuro)",
+      "title": "Workshop mod with the brain as a web service (future)",
       "status": "backlog",
       "criteria": [
-        "Mesa propia del sparring publicada en el Workshop de Steam, separada del save del torneo: heroes y mapas de cada oleada, mazos, descartes, diales y panel colocados de serie (sin config/partida.json por mesa)",
-        "El cerebro sigue en Python y se sirve por HTTP; el mod lo llama con WebRequest de TTS, sin que el jugador instale nada",
-        "La IA no se reescribe en Lua (el Lua de TTS corre en el hilo de la mesa y la congelaria con la ISMCTS)",
-        "Sin trampas tambien en remoto: el mod solo envia al servicio la informacion publica y lo visto por efectos de mirar la mano",
-        "Decidir antes de empezar: donde se aloja el servicio, coste, y limites de uso por partida"
+        "The sparring's own table published on the Steam Workshop, separate from the tournament save: heroes and maps of each wave, decks, discards, dials and panel placed from the start (without config/table.json per table)",
+        "The brain stays in Python and is served over HTTP; the mod calls it with TTS's WebRequest, without the player installing anything",
+        "The AI is not rewritten in Lua (TTS's Lua runs on the table thread and the ISMCTS would freeze it)",
+        "No cheating remotely either: the mod only sends the service public information and what was seen through look-at-the-hand effects",
+        "Decide before starting: where the service is hosted, cost, and usage limits per game"
       ],
-      "note": "Idea de Ivan (28/10) para compartir el bot con la comunidad (Unmatched Canarias). Va despues de F08 como minimo."
+      "note": "Ivan's idea (28/10) to share the bot with the community (Unmatched Canarias). Goes after F08 at the earliest."
     },
     {
       "id": "F15",
-      "title": "IA hibrida: ISMCTS propone, Jev elige con el playbook",
+      "title": "Hybrid AI: ISMCTS proposes, Jev chooses with the playbook",
       "status": "backlog",
       "criteria": [
-        "Modo seleccionable al arrancar: --ai heuristic | ismcts | hibrida; ismcts sigue existiendo tal cual y se puede jugar solo con ella",
-        "En hibrida, la ISMCTS calcula y propone las 4-5 mejores jugadas legales con sus estadisticas; Jev (TypeSafe, via AI Gateway) elige una de esa lista usando el playbook del emparejamiento (F10) y la situacion publica",
-        "Sin trampas: a Jev solo le llega informacion publica y lo visto legitimamente por efectos de mirar la mano; nunca la mano oculta del humano",
-        "Nunca una jugada ilegal: Jev solo puede devolver un indice de la lista; si tarda mas del presupuesto, falla o devuelve algo invalido, se juega la mejor de la ISMCTS y se avisa en la terminal",
-        "Tiempo por decision acotado (busqueda + Jev) y coste por partida medido y mostrado al terminar; precio consultado antes de fijar presupuestos, no de memoria",
-        "Opcional: el bot explica su jugada en el chat en una linea",
-        "Prueba en vivo por Ivan comparando ismcts contra hibrida"
+        "Mode selectable at start-up: --ai heuristic | ismcts | hybrid; ismcts keeps existing as is and can be played with alone",
+        "In hybrid, the ISMCTS computes and proposes the 4-5 best legal moves with their statistics; Jev (TypeSafe, via AI Gateway) chooses one from that list using the matchup playbook (F10) and the public situation",
+        "No cheating: Jev only receives public information and what was legitimately seen through look-at-the-hand effects; never the human's hidden hand",
+        "Never an illegal move: Jev can only return an index of the list; if it takes longer than the budget, fails or returns something invalid, the ISMCTS's best is played and a warning is printed in the terminal",
+        "Time per decision bounded (search + Jev) and cost per game measured and shown at the end; price looked up before fixing budgets, not from memory",
+        "Optional: the bot explains its move in the chat in one line",
+        "Live test by Ivan comparing ismcts against hybrid"
       ],
-      "note": "Idea de Ivan (28/10). Primer modelo: Jev; Claude Haiku como alternativa si Jev no encaja. Va con F10 (playbooks). No empezar hasta que Ivan lo pida."
+      "note": "Ivan's idea (28/10). First model: Jev; Claude Haiku as an alternative if Jev does not fit. Goes with F10 (playbooks). Do not start until Ivan asks."
     },
     {
       "id": "F17",
@@ -237,7 +237,7 @@
       "status": "backlog",
       "criteria": [
         "The bot ships as a Windows executable (PyInstaller or similar): no Python, uv or terminal needed on the player's PC",
-        "Double-click launcher that starts the bot with heroes on \"auto\"; the player never edits config/partida.json",
+        "Double-click launcher that starts the bot with heroes on \"auto\"; the player never edits config/table.json",
         "The sparring table is available from the Steam Workshop (or a single savegame file) with the positions the config expects",
         "Clear errors in plain Spanish when TTS is not open, the table is not loaded or the heroes are not detected (no tracebacks)",
         "A one-page player guide in Spanish: subscribe/load the table, double-click the launcher, press Empezar, how to quit and resume",

@@ -1,12 +1,12 @@
 {
  "_notes": [
-  "Hoja 199 del savegame del torneo (8x4), leida carta a carta de la imagen el 2026-10-28. CardID = 19900 + idx; 19800 = carta de personaje (hoja 198, 1x1). Las cartas sueltas del save usan la clave 188 con las mismas imagenes.",
-  "La carta de personaje dice RANGED, 16 de vida y MOVE 3: coincide con unmatched-memory (attackType range). El 'melee' de la memoria del proyecto venia del ayudante vacio.",
-  "Sin ayudantes ni fichas: la bolsa de Liz en el save solo trae la miniatura, el dial de vida (MAX_VALUE 16) y el mazo. unmatched-memory trae una entrada de ayudante vacia (name '', hasSidekicks false) que se ignora.",
-  "Cartas ardientes (etiqueta burning): las 15 con el icono de llama junto al titulo y SIN circulo de impulso (BOOST 0): Incinerate x1, Fireball x2, Flame Lash x3, Burning Barrier x3, Pyrotechnics x3, Searing Clarity x3. No hay contador ni ficha: es una propiedad impresa en la carta.",
-  "Todas las cartas llevan la banda LIZ SHERMAN (ninguna ANY): la restriccion de luchador no cambia nada mientras Liz no tenga ayudantes.",
-  "Discrepancia: Fight Or Flight tiene en la carta real un ONGOING (+1 al valor de tus cartas de combate; descartala al inicio de tu siguiente turno) que unmatched-memory no trae; el texto de la hoja manda sobre unmatched-memory (campo text por entrada).",
-  "Disparador y pasiva de WILDFIRE quedan como datos (efectos liz_wildfire_*); el motor no los interpreta hasta el paso 8 del plan y el plugin liz:wildfire (data/heroes/effects/liz-sherman.json)."
+  "Sheet 199 of the tournament savegame (8x4), read card by card from the image on 2026-10-28. CardID = 19900 + idx; 19800 = character card (sheet 198, 1x1). The save's loose cards use key 188 with the same images.",
+  "The character card says RANGED, 16 life and MOVE 3: it matches unmatched-memory (attackType range). The 'melee' from the project's memory came from the empty sidekick.",
+  "No sidekicks or tokens: Liz's bag in the save only holds the miniature, the life dial (MAX_VALUE 16) and the deck. unmatched-memory has an empty sidekick entry (name '', hasSidekicks false) that is ignored.",
+  "Burning cards (burning tag): the 15 with the flame icon next to the title and WITHOUT a boost circle (BOOST 0): Incinerate x1, Fireball x2, Flame Lash x3, Burning Barrier x3, Pyrotechnics x3, Searing Clarity x3. There is no counter or token: it is a property printed on the card.",
+  "All the cards carry the LIZ SHERMAN band (none ANY): the fighter restriction changes nothing while Liz has no sidekicks.",
+  "Discrepancy: on the real card Fight Or Flight has an ONGOING (+1 to the value of your combat cards; discard it at the start of your next turn) that unmatched-memory does not carry; the sheet's text wins over unmatched-memory (text field per entry).",
+  "WILDFIRE's trigger and passive stay as data (liz_wildfire_* effects); the engine does not interpret them until step 8 of the plan and the liz:wildfire plugin (data/heroes/effects/liz-sherman.json)."
  ],
  "fid": "liz",
  "sidekicks": [],
