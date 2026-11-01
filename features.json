@@ -130,6 +130,19 @@
       "note": "28/10: data of the 4 heroes on master (3090642), sheets verified against the save by the reviewer. Before the interpreter: unify the schema of data/heroes/effects/*.json (bind/as/$ bindings, 'up to N', self/self_player, the card in progress, body of for_each/optional, effect damage mark, zone selectors, persistent_scheme, choose_n of effects vs of cards, triggers); can_boost must stop detecting by text (Out Of Time says 'BOOST this card'); start_on_board/reserve/tts_tokens still without a reader. Open rules questions in docs/heroes/*.md."
     },
     {
+      "id": "TMNT-LEONARDO",
+      "title": "Adventures: Teenage Mutant Ninja Turtles box, Leonardo first",
+      "status": "in-progress",
+      "criteria": [
+        "Leonardo (and Splinter) playable by the bot and by the human against each hero of the Hellboy box and Medusa, with every card effect and TEAM TACTICS (human: the panel waits for End action; bot: it moves a fighter at the start of its turn)",
+        "Card data verified against the real cards of the tournament save (Leonardo deck, DeckID 176, character card 363), not only against unmatched-memory",
+        "TMNT decks share Medusa's CardID range: hero detection by deck images and card lookups by owner keep Leonardo and Medusa apart",
+        "Full FakeTTS games of Leonardo against the five other heroes in both seats reach game over (tests/test_leonardo_full_games.py)",
+        "A live game supervised by Ivan before calling it done (docs/live-checklist.md, Leonardo)"
+      ],
+      "note": "1v1 readings of the co-op cards and open questions in docs/heroes/leonardo.md. Raphael, Donatello and Michelangelo are separate branches."
+    },
+    {
       "id": "F09",
       "title": "AI with ISMCTS search over the generic engine",
       "status": "in-progress",

@@ -970,3 +970,24 @@ function per op type, each with two variants.
   discards the whole hand, how many effects it makes you choose and what one heals) instead of comparing titles, so
   the three cards (and any other with the same shape) keep the chat lines and the engine effects they had. For a hero
   the interpreter runs there was never a patch: the ops and the translators above are the whole path.
+
+
+## 22. Leonardo (TMNT box, `data/heroes/effects/leonardo.json`)
+
+Three additions to the DSL, all additive; every card of the box fits the existing ops otherwise.
+
+- Amount `{"stat": "zones", "fighter": FighterRef}`: how many zones the fighter's space belongs to (`Board.zones`), 0 for a
+  fighter off the board or fallen. "If the opposing fighter is in fewer zones than Splinter" is a `compare` of two of them
+  (Wise beyond his years, Spatial awareness; the latter also tests `exists` on the opposing fighter so a fallen one draws nothing).
+- SpaceSel flag `other: true`: a space other than the one the mover stands on ("in another space in their zone": `place` with
+  `{"zone_of": "$adjacent", "other": true}` inside a `for_each` over the adjacent fighters).
+- `as` on `swap`: binds the two fighters that swapped (an empty list when nothing swapped), so "if he does, they both recover
+  2 health" is `heal` on `{"role": "$swapped", "pick": "all"}`. A `swap` of two miniatures of the table player leaves the swap to
+  them (table note `tbl.swap`, like `move`); the engine positions follow the table sync.
+- TEAM TACTICS is an ordinary start-of-turn trigger (an `optional` around a `move` of `{"side": "any"}`). For the bot it runs through
+  `events.dispatch`; for the human `table.start_of_turn_is_physical` leaves it to the table and `fx.ability.team_tactics` is the
+  text the panel waits on.
+- Decks that share a CardID (the TMNT heroes and Medusa are all DeckID 176): `select.find_card(game, id, owner)` looks in the owner's
+  deck first, `card_ref` passes the owner of each card role, `modifiers.side_of` compares cards by value, `combat.is_medusa_card`
+  checks the card against Medusa's own, and `EffectAI._locate` prefers the card that is in no pile (the one resolving). A bound
+  (`$var`) card is looked up from the effect owner first.
