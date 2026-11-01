@@ -120,6 +120,7 @@
   "card_zoom_seconds": 6.0,
   "card_zoom_scale": 4.0,
   "card_zoom_spot": [0.0, 12.0, 0.0],
+  "card_zoom_rot": [0.0, 270.0, 0.0],
   "wildfire_hold": 3.0,
   "ongoing_hold": 1.5,
   "setup": true,
