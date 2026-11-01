@@ -338,3 +338,9 @@ Known limitations:
 - Two equidistant spaces cannot be told apart from the table snapshot.
 - The mulligan is a house rule: it is **not confirmed** as an official rule. Turn it off with `mulligan_bot` / `mulligan_human` set to `false` if you do not play with it.
 - Positions in `config\table.json` such as `dead_spot`, `look_spot` and `off_board_dist` are estimates; calibrate them with `--read-only` on your table.
+
+## License
+
+The code is released under the [MIT License](LICENSE).
+
+Unmatched, its heroes, card names, card texts and artwork belong to Restoration Games and their licensors. This is an unofficial fan project, not affiliated with or endorsed by Restoration Games; the card data here exists only so the bot can play, and no card art is included.
