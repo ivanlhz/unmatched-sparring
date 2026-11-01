@@ -48,3 +48,4 @@ Set "Adventures: Teenage Mutant Ninja Turtles". Data, effects, table data and en
 - Hi-Yaaaaah!!: "adjacent opposing fighter" is any rival fighter adjacent to the attacker, not only the one fought.
 - Shell Insertion: the rival chooses which card to discard.
 - Maximum hand size 3 is applied at the end of the turn (like the 7 of every hero); a Maneuver or PIZZA PARTY may take the hand above 3 during the turn.
+- Guaranteed Delivery as the human: the price card goes to the deck bottom by hand and the engine does not learn which card it was, so AFTER COMBAT's "if your hand is empty, draw 2" reads the engine's hand (live-only risk; `tests/test_tmnt_human_cards.py`).
