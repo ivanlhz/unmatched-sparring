@@ -295,9 +295,10 @@ def test_the_real_config_documents_and_validates_the_zoom_keys(tmp_path):
     assert raw["card_zoom"] is True and raw["card_zoom_seconds"] == 6.0 and raw["card_zoom_scale"] == 4.0
     assert any(n.startswith("card_zoom:") for n in raw["_notes"])
     scfg = config_for(tmp_path).session_config()
-    assert (scfg.card_zoom, scfg.card_zoom_spot, scfg.card_zoom_rot) == (True, (0.0, 12.0, 0.0), None)
+    # rotation calibrated live: 270 reads right from the White seat (90, the discard turn, showed it upside down)
+    assert (scfg.card_zoom, scfg.card_zoom_spot, scfg.card_zoom_rot) == (True, (0.0, 12.0, 0.0), (0.0, 270.0, 0.0))
     from sparring.session import zoom_spec
-    assert zoom_spec(scfg).rot == (0.0, scfg.bot_discard_rot_y, 0.0)
+    assert zoom_spec(scfg).rot == (0.0, 270.0, 0.0)
     from sparring.play import ConfigError
     for over in ({"card_zoom_seconds": 0}, {"card_zoom_scale": 50}, {"card_zoom_spot": [1, 2]}):
         with pytest.raises(ConfigError):
