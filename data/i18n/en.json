@@ -311,6 +311,7 @@
  "sess.resume.combat": "There is a pending combat: press [[panel.reveal]] or [[panel.cancel]].",
  "sess.resume.discard": "There is a pending discard: finish it and press [[panel.end_action]].",
  "sess.resume.ability": "Your start-of-turn ability is still pending: {wait} Do it on the table and press [[panel.end_action]].",
+ "sess.resume.after": "There is an action open: resolve it on the table and press [[panel.end_action]].",
  "sess.resume.turn": "It is your turn and you have {n} action(s) left.",
  "sess.bot_retry_hint": "Press [[panel.end_action]] so the bot resumes its turn.",
  "sess.bot_deals": "The bot deals its {n} starting cards.",
