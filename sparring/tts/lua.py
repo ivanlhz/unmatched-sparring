@@ -365,6 +365,66 @@ end
 """
 
 
+ZOOM_NAME = "SparringZoom"           # name + tag of the big copy shown to the human: every table read skips it
+ZOOM_CARD_BASE = 99900               # CardID of the copy (99900 + the sprite's index): outside the range of every deck
+MAX_ZOOM_SECONDS = 30.0
+MAX_ZOOM_SCALE = 10.0
+
+
+@dataclass(frozen=True)
+class ZoomSpec:
+    """A big, temporary copy of a card the human has to read (Alt+hover, triggered by the bot). `spot` is where it floats
+    (x, y, z), `rot` its rotation (x, y, z degrees), `scale` its size factor and `seconds` how long it stays."""
+    spot: tuple[float, float, float]
+    rot: tuple[float, float, float]
+    scale: float
+    seconds: float
+
+
+def _zoom_lua(zoom: ZoomSpec) -> str:
+    """Defines `sparringZoom(src)`: a locked, non-interactable copy of the card `src` (the real card is not touched),
+    big and raised above the table, destroyed by itself. The copy is a Card with another CardID and deck key, a name
+    and tag of its own, so no read by range, image or name takes it for a card of the table; only one at a time."""
+    if not isinstance(zoom, ZoomSpec) or len(zoom.spot) != 3 or len(zoom.rot) != 3:
+        raise TypeError("ZoomSpec with a spot (x, y, z) and a rotation (x, y, z) expected")
+    if not 0 < float(zoom.scale) <= MAX_ZOOM_SCALE or not 0 < float(zoom.seconds) <= MAX_ZOOM_SECONDS:
+        raise ValueError(f"zoom scale between 0 and {MAX_ZOOM_SCALE:g} and seconds between 0 and {MAX_ZOOM_SECONDS:g}")
+    x, y, z = (_f(v) for v in zoom.spot)
+    rx, ry, rz = (_f(v) for v in zoom.rot)
+    k = _f(zoom.scale)
+    return f"""local function sparringZoom(src)
+  pcall(function()
+    local data = src.getData()
+    local id = data.CardID
+    local sheet = nil
+    if type(data.CustomDeck) == "table" then
+      sheet = data.CustomDeck[tostring(math.floor(id / 100))] or data.CustomDeck[math.floor(id / 100)]
+      if sheet == nil then
+        for _, only in pairs(data.CustomDeck) do sheet = only break end
+      end
+    end
+    if type(sheet) ~= "table" then return end
+    for _, old in ipairs(getObjects()) do
+      if old.getName() == {lua_str(ZOOM_NAME)} and old.getGMNotes() == {lua_str(MARKER)} then old.destruct() end
+    end
+    data.GUID = nil
+    data.CardID = {_i(ZOOM_CARD_BASE)} + id % 100
+    data.CustomDeck = {{["{ZOOM_CARD_BASE // 100}"] = sheet}}
+    data.Nickname = {lua_str(ZOOM_NAME)}
+    data.GMNotes = {lua_str(MARKER)}
+    data.Tags = {{{lua_str(ZOOM_NAME)}}}
+    data.Locked = true
+    data.Hands = false
+    local copy = spawnObjectData({{data = data, position = Vector({x}, {y}, {z}), rotation = Vector({rx}, {ry}, {rz})}})
+    copy.setScale(Vector({k}, {k}, {k}))
+    copy.setLock(true)
+    copy.interactable = false
+    Wait.time(function() pcall(function() copy.destruct() end) end, {_f(zoom.seconds)})
+  end)
+end
+"""
+
+
 def _find_deck(spot, radius) -> str:
     """Lua that, if `d` is nil, looks for `d` among the Decks/Cards closer than `radius` to the point (x, z) that `ours` accepts
     (the bot's deck, or its last loose card). It only counts what is face down (a face-up card next to the
@@ -653,7 +713,8 @@ def set_look_row(entries: list[tuple[str, float, float]]) -> str:
 
 @_registered
 def discard_cards(card_ids: list[int], spots: list[tuple[float, float, float]], rot_y: float = 0, *,
-                  identity, scope: Scope, id_range: tuple[int, int] = BOT_CARD_IDS) -> str:
+                  identity, scope: Scope, id_range: tuple[int, int] = BOT_CARD_IDS,
+                  zoom: ZoomSpec | None = None, zoom_id: int | None = None) -> str:
     """Takes to the discard the cards with those CardIDs (from the hand, the table or inside a Deck).
 
     `spots[i]` is the spot (x, y, z) of the card `card_ids[i]`: the discard is spread in order over the zone so
@@ -663,7 +724,9 @@ def discard_cards(card_ids: list[int], spots: list[tuple[float, float, float]], 
     move does not take them out.
 
     Only cards of the side (`id_range` and image of `identity`) that are in the `scope` are touched: the hands, the discard
-    zones and the surroundings of the combat spots and the deck; never the rest of the table."""
+    zones and the surroundings of the combat spots and the deck; never the rest of the table.
+
+    With `zoom` and `zoom_id` the card with that CardID (a scheme the human must read) is also shown as a big copy."""
     if not isinstance(card_ids, (list, tuple)) or not isinstance(spots, (list, tuple)) or len(card_ids) != len(spots):
         raise TypeError("list of CardIDs and list of spots of the same length expected")
     rows = []
@@ -674,8 +737,14 @@ def discard_cards(card_ids: list[int], spots: list[tuple[float, float, float]], 
     wanted = "{" + ", ".join(rows) + "}"
     rot = f"Vector(0, {_f(rot_y)}, 0)"
     own = _ours_lua(identity, id_range)
+    zoom_on = zoom is not None and zoom_id is not None
+    zoom_def = _zoom_lua(zoom) if zoom_on else ""
+    zoom_id_lua = _i(zoom_id) if zoom_on else "nil"
+    zoom_taken = "      if id == zoomId then sparringZoom(o) end" if zoom_on else ""
+    zoom_took = "        if c.CardID == zoomId and taken ~= nil then sparringZoom(taken) end" if zoom_on else ""
     return f"""-- sparring:discard_cards
-{own}{_scope_lua(scope)}local wanted = {wanted}
+{own}{_scope_lua(scope)}{zoom_def}local zoomId = {zoom_id_lua}
+local wanted = {wanted}
 local moved = {{}}
 local done = {{}}
 for _, o in ipairs(scopeObjects()) do
@@ -686,6 +755,7 @@ for _, o in ipairs(scopeObjects()) do
       local at = wanted[id]
       o.setRotation({rot})
       o.setPosition(Vector(at[1], at[2], at[3]))
+{zoom_taken}
       done[id] = true
       table.insert(moved, id)
     end
@@ -694,7 +764,8 @@ for _, o in ipairs(scopeObjects()) do
     for _, c in ipairs(data.ContainedObjects or {{}}) do
       if wanted[c.CardID] and not done[c.CardID] and cardOurs(c, data.CustomDeck) then
         local at = wanted[c.CardID]
-        o.takeObject({{guid = c.GUID, position = Vector(at[1], at[2], at[3]), rotation = {rot}, smooth = false}})
+        local taken = o.takeObject({{guid = c.GUID, position = Vector(at[1], at[2], at[3]), rotation = {rot}, smooth = false}})
+{zoom_took}
         done[c.CardID] = true
         table.insert(moved, c.CardID)
         break
@@ -1013,6 +1084,22 @@ return JSON.encode({{shown = true}})
 """
 
 
+MAX_DIALOG_CHARS = 240
+_DIALOG_SAFE = re.compile(rf"[{_CHAT_CHARS}]{{1,{MAX_DIALOG_CHARS}}}")
+
+
+@_registered
+def info_dialog(seat_color: str, text: str) -> str:
+    """Modal in the middle of that seat's screen (the game-over verdict). It never breaks the step: a TTS without
+    `showInfoDialog`, or an empty seat, fails silently."""
+    if not isinstance(text, str) or not _DIALOG_SAFE.fullmatch(text):
+        raise ValueError(f"string not allowed in Lua: {text!r}")
+    return f"""-- sparring:info_dialog
+local shown = pcall(function() Player[{_color(seat_color)}].showInfoDialog("{text}") end)
+return JSON.encode({{dialog = shown}})
+"""
+
+
 @_registered
 def move_piece(board: Board, guid: str, space: int, board_guid: str | None = None) -> str:
     """Takes the piece with that GUID to a space; `moved = false` if the GUID does not exist."""
@@ -1088,18 +1175,20 @@ return JSON.encode({{played = false}})
 
 @_registered
 def place_card_face_up(card_id: int, seat_color: str, x: float, y: float, z: float, rot_y: float = 0,
-                       id_range: tuple[int, int] = BOT_CARD_IDS, *, identity) -> str:
+                       id_range: tuple[int, int] = BOT_CARD_IDS, *, identity, zoom: ZoomSpec | None = None) -> str:
     """The bot's ONGOING scheme (E2): takes the card with that CardID out of the seat's hand and lays it face up on
     the ONGOING spot; placed=false if it is not in the hand. Instant move (a smooth one never leaves a hand zone),
-    the result is checked by reading the table. Only a card of the side (`id_range` and `identity`)."""
+    the result is checked by reading the table. Only a card of the side (`id_range` and `identity`). With `zoom` a big
+    copy of the card is shown for a few seconds so the human can read it."""
     own = _ours_lua(identity, id_range)
+    zoom_def, zoom_call = (_zoom_lua(zoom), "    sparringZoom(o)\n") if zoom else ("", "")
     return f"""-- sparring:place_card_face_up
-{own}for _, o in ipairs(Player[{_color(seat_color)}].getHandObjects(1)) do
+{own}{zoom_def}for _, o in ipairs(Player[{_color(seat_color)}].getHandObjects(1)) do
   local data = o.getData()
   if o.type == "Card" and data.CardID == {_i(card_id)} and cardOurs(data, data.CustomDeck) then
     o.setRotation(Vector(0, {_f(rot_y)}, 0))
     o.setPosition(Vector({_f(x)}, {_f(y)}, {_f(z)}))
-    return JSON.encode({{placed = o.getGUID()}})
+{zoom_call}    return JSON.encode({{placed = o.getGUID()}})
   end
 end
 return JSON.encode({{placed = false}})
@@ -1113,7 +1202,7 @@ def read_cards_at(x: float, z: float, radius: float = 2.0) -> str:
     return f"""-- sparring:read_cards_at
 local out = {{}}
 for _, o in ipairs(getObjects()) do
-  if o.type == "Card" and not o.is_face_down then
+  if o.type == "Card" and not o.is_face_down and o.getName() ~= "SparringZoom" then
     local p = o.getPosition()
     if (p.x - {_f(x)}) ^ 2 + (p.z - {_f(z)}) ^ 2 <= {_f(radius)} ^ 2 then
       table.insert(out, {{id = o.getData().CardID, guid = o.getGUID()}})
@@ -1130,7 +1219,7 @@ def read_face_down_cards(x: float, z: float, radius: float = 2.0) -> str:
     return f"""-- sparring:read_face_down_cards
 local out = {{}}
 for _, o in ipairs(getObjects()) do
-  if o.type == "Card" and o.is_face_down then
+  if o.type == "Card" and o.is_face_down and o.getName() ~= "SparringZoom" then
     local p = o.getPosition()
     if (p.x - {_f(x)}) ^ 2 + (p.z - {_f(z)}) ^ 2 <= {_f(radius)} ^ 2 then
       table.insert(out, {{id = o.getData().CardID, guid = o.getGUID()}})
@@ -1143,16 +1232,18 @@ return JSON.encode(out)
 
 @_registered
 def flip_card(card_guid: str, rot_y: float = 0, face_up: bool = True, id_range: tuple[int, int] = BOT_CARD_IDS, *,
-              identity) -> str:
+              identity, zoom: ZoomSpec | None = None) -> str:
     """Turns a card already played (reveal or hide again). Only if it is a card of the side (`id_range` and image of
-    `identity`); if it does not exist or is foreign, it fails without touching anything."""
+    `identity`); if it does not exist or is foreign, it fails without touching anything. With `zoom`, revealing it also
+    shows a big copy for a few seconds."""
     z = 0 if face_up else 180
     own = _ours_lua(identity, id_range)
+    zoom_def, zoom_call = (_zoom_lua(zoom), "sparringZoom(c)\n") if zoom and face_up else ("", "")
     return f"""-- sparring:flip_card
-{own}local c = getObjectFromGUID({_guid(card_guid)})
+{own}{zoom_def}local c = getObjectFromGUID({_guid(card_guid)})
 if c == nil or not ours(c) then error("the card does not exist or is not the side's") end
 c.setRotationSmooth(Vector(0, {_f(rot_y)}, {_f(z)}), false, true)
-return JSON.encode({{flipped = c.getGUID()}})
+{zoom_call}return JSON.encode({{flipped = c.getGUID()}})
 """
 
 
@@ -1292,7 +1383,8 @@ def clear_markings(remove_panel: bool = False) -> str:
     With `remove_panel` it also removes the panel itself (on exit, or at start if an earlier run died without
     cleaning up). It only touches objects whose name AND GM notes (`MARKER`) are ours: a user's object
     that merely shares the name is left alone. The panel is renamed before being destroyed so that no
-    later read in the same pass finds it again. It never touches the Global."""
+    later read in the same pass finds it again. With `remove_panel` it also removes a leftover card-zoom copy (a
+    reload within its few seconds). It never touches the Global."""
     if not isinstance(remove_panel, bool):
         raise TypeError("remove_panel must be a boolean")
     drop_panel = ("    o.setName(\"\")\n    o.setGMNotes(\"\")\n    o.destruct()\n    removed = removed + 1\n"
@@ -1304,7 +1396,7 @@ for _, o in ipairs(getObjects()) do
   local ours = o.getGMNotes() == {lua_str(MARKER)}
   if ours and o.getName() == {lua_str(PANEL_NAME)} then
     o.setVectorLines({{}})
-{drop_panel}  elseif ours and string.sub(name, 1, {len(MARK_PREFIX)}) == {lua_str(MARK_PREFIX)} then
+{drop_panel}  elseif ours and (string.sub(name, 1, {len(MARK_PREFIX)}) == {lua_str(MARK_PREFIX)} or (name == {lua_str(ZOOM_NAME)} and {"true" if remove_panel else "false"})) then
     o.destruct()
     removed = removed + 1
   end
@@ -1417,7 +1509,7 @@ local function cardsAt(x, z, r, face)
   local out = {{}}
   for _, o in ipairs(getObjects()) do
     local want = (face == "up" and not o.is_face_down) or (face ~= "up" and o.is_face_down)
-    if o.type == "Card" and want then
+    if o.type == "Card" and want and o.getName() ~= "SparringZoom" then
       local p = o.getPosition()
       if (p.x - x) ^ 2 + (p.z - z) ^ 2 <= r ^ 2 then table.insert(out, {{id = o.getData().CardID, guid = o.getGUID()}}) end
     end

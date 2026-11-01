@@ -716,6 +716,7 @@ def test_read_only_allowlist_is_exactly_the_pure_read_builders(bprd):
         "read_cards_at": lambda: lua.read_cards_at(0, 0),
         "place_card_face_up": lambda: lua.place_card_face_up(1, "Blue", 0, 0, 0, identity=TEST_IDENT),
         "hold": lambda: lua.hold(3),
+        "info_dialog": lambda: lua.info_dialog("White", "You win! Medusa has fallen."),
     }
     registered = {n for n, f in inspect.getmembers(lua, inspect.isfunction) if hasattr(f, "__wrapped__")}
     assert registered == set(builders), registered ^ set(builders)
