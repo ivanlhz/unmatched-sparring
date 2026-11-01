@@ -140,3 +140,16 @@ def test_the_table_script_tells_leonardos_deck_from_medusas_by_its_images(rt):  
     res = json.loads(conv(rt.globals().SENT[1])["value"])
     by_guid = {p["guid"]: p for p in res["piles"]}
     assert by_guid["leodeck"]["counts"] == [30, 0] and by_guid["meddeck"]["counts"] == [0, 30]
+
+
+def test_overlapping_card_ranges_are_accepted_only_when_the_deck_images_differ(monkeypatch):
+    from dataclasses import replace
+
+    from sparring.tts import hero_table
+    from sparring.tts.hero_table import HeroTableError, table_defaults
+    assert table_defaults("leonardo", "medusa") and table_defaults("medusa", "leonardo")
+    real = hero_table.load_hero_table
+    same_images = replace(real("leonardo"), identity=real("medusa").identity)
+    monkeypatch.setattr(hero_table, "load_hero_table", lambda slug: same_images if slug == "leonardo" else real(slug))
+    with pytest.raises(HeroTableError, match="overlap"):
+        table_defaults("leonardo", "medusa")
