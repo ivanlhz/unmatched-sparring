@@ -40,7 +40,7 @@ EVENT_BINDINGS = {
 }
 # type of the binding each op creates with `as`
 OP_BINDINGS = {"draw": "card", "discard": "card", "choose": "card", "look_deck": "card", "search_deck": "card",
-               "damage": "fighter"}
+               "damage": "fighter", "swap": "fighter"}
 # type each field expects when it carries a $var reference
 PLAYER_KEYS = frozenset({"player", "chooser", "order", "start_space_of"})
 FIGHTER_KEYS = frozenset({"role", "zone_of", "adjacent_to", "space_of", "nearest_to", "fighter", "target",

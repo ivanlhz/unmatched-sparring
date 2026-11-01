@@ -189,9 +189,9 @@ def expire_on_event(fx, name: str, *args) -> None:
 # ---------------------------------------------------------------- combat values
 
 def side_of(flow, card) -> str | None:
-    if card.card_id == flow.atk_card.card_id:
+    if card == flow.atk_card:           # by value: two decks can share a CardID, never a whole card
         return "atk"
-    if flow.def_card is not None and card.card_id == flow.def_card.card_id:
+    if flow.def_card is not None and card == flow.def_card:
         return "def"
     return None
 

@@ -146,7 +146,7 @@ def _cards_of(game, run, cards, purpose: str, prompt: str | None = None, **extra
 
 
 def _card_title(game, run) -> str:
-    card = find_card(game, run.ctx.card_id) if run.ctx.card_id is not None else None
+    card = find_card(game, run.ctx.card_id, run.ctx.owner) if run.ctx.card_id is not None else None
     return card.title if card else t("fx.cause_default")
 
 
@@ -280,6 +280,8 @@ def _where_refs(game, run, where: dict) -> dict:
     out = {}
     if where.get("any"):
         out["any"] = True
+    if where.get("other"):
+        out["other"] = True
     for key in ("zone_of", "adjacent_to", "nearest_to"):
         if key in where:
             ref = _ref_fighter(game, run, where[key])
@@ -332,10 +334,18 @@ def _swap(run, game, spec):
     chooser = _chooser(game, run, spec)
     a = pick_fighters(game, run, spec["target"], chooser, op="swap")
     b = pick_fighters(game, run, spec["with"], chooser, op="swap")
+    swapped = []
     if a and b and a[0] is not b[0] and a[0].alive and b[0].alive and game.fx.can_move(a[0]) and game.fx.can_move(b[0]):
-        a[0].pos, b[0].pos = b[0].pos, a[0].pos
-        for f in (a[0], b[0]):
-            table.intent(game, op="swap", fid=f.fid, owner=f.owner)
+        first, second = a[0], b[0]
+        swapped = [first.fid, second.fid]
+        if table.piece_is_physical(game, chooser, first) and table.piece_is_physical(game, chooser, second):
+            table.note(run, op="swap", fid=first.fid, other=second.fid)      # the table player swaps their miniatures by hand
+        else:
+            first.pos, second.pos = second.pos, first.pos
+            for f in (first, second):
+                table.intent(game, op="swap", fid=f.fid, owner=f.owner)
+    if "as" in spec:
+        run.bind("fighters", spec["as"], swapped)
 
 
 @op("revive")

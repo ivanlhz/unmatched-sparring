@@ -8,6 +8,7 @@ import pytest
 from fake_tts import FakeTTS
 from sparring import persist, play
 from sparring.hero_catalog import load_catalog
+from sparring.heroes import load_hero
 from sparring.hero_detect import HeroDetectionError, TableReading, detect_heroes, hero_slugs, read_table
 from sparring.play import ConfigError, load_config, main, resolve_heroes
 from sparring.tts import lua
@@ -390,7 +391,7 @@ def test_a_catalog_hero_that_is_not_playable_is_named_and_refused():
         detect(r)
     text = str(e.value)
     assert "El humano juega Raphael, que el bot todavia no sabe jugar" in text
-    assert "Heroes jugables: Abe Sapien, Baba Yaga, Hellboy, Liz Sherman, Medusa." in text
+    assert "Heroes jugables: " + ", ".join(load_hero(s).name for s in SLUGS) + "." in text
     assert "Raphael (raphael) [no jugable todavia]: 0 cartas en el lado del bot, 30 en el del humano" in text
 
 
