@@ -140,6 +140,29 @@ Each hero has two blocks: **H** (you play it) and **B** (the bot plays it). What
 - [x] Searing Clarity with panel buttons. *(OK 29/10; since bb95930 there are no buttons, see the next line)*
 - [ ] Searing Clarity and Rekindle **without buttons**: you move the card from the discard to the deck yourself and press **Done**; the bot recognizes it; then "Press End action when you finish"; also try with the discard stacked (bb95930).
 
+### Donatello
+Everything here is new (1/11) and has only run against FakeTTS. The deck shares Medusa's CardIDs: check detection (`--read-only`) names Donatello on the right side, also when the other side plays Medusa.
+
+**H and B**
+- [ ] Detection with `bot_hero` / `human_hero` on `auto`: "Donatello" is recognised from his deck image (sheet 176, the Donatello face), not mistaken for Medusa or another TMNT deck.
+- [ ] Metalhead (token) and both life dials (14 and 7) are found and written.
+- [ ] Party wagon!: move a friendly fighter up to 5 through rivals, then 2 damage to one it passed through. Bot: the chat says which; human: you move by hand, the panel asks whether you passed through one (Yes/No) and which.
+- [ ] Short circuit cancels only the AFTER COMBAT of the rival card (its IMMEDIATELY and DURING still happen).
+- [ ] Untested enhancements: you put the real bottom card of your deck in the discard (boost wait), as Flame Lash does.
+- [ ] The future of Ninjutsu / Thinking ahead / Donatello does machines: the card goes to or from the right pile.
+
+**B (bot)**
+- [ ] INVENTIVE: after its maneuver it draws one more card and puts one card from its hand at the bottom of its deck (the same script as Pyrotechnics, `hand_to_deck`); it never puts an invention there.
+- [ ] Invention played: Electro grenade / Self defense grid / Smoke bomb end at `bot_tuck_spot` face up (not in its discard pile) and the bonus applies from the next combat or scheme; the discard zone still reads the same cards as the engine.
+- [ ] Cards it removes from the game go to `bot_removed_spot`. Calibrate both spots (estimates in `config\table.json`): outside its discard zone and its combat zone.
+- [ ] Without the spots (delete the keys) it only says what to move; the table mismatch warning that follows is expected.
+
+**H (you)**
+- [ ] INVENTIVE: after Maneuver the panel asks Yes/No; Yes deals you one more card and the chat says "put 1 card from the top of your deck..." for the card you put at the bottom (by hand).
+- [ ] An invention you play: the chat says to tuck it under your hero card; leave it anywhere outside your discard pile (or leave it there: the bot does not take it back into your discard) and keep going.
+- [ ] Electro grenade / Self defense grid / Smoke bomb: the panel lists the cards of your discard pile you may remove (up to 4, types by card); you move them aside by hand.
+- [ ] Resume (`--resume`) after tucking: the tucked and removed cards are still out of the discard pile and the bonus still applies.
+
 ### Hidden information (cards that look at the bot's hand, and the bot's on you)
 - [ ] **The bot's hand row**: when playing Confront Any Demon or God (only if you lose), Advanced Psychometry (adjacent), Remove A Painful Memory (with an ONGOING) or Every Possible Angle, the bot lays its hand **face up in a row** at `bot_row_spot` and **pings** each card (`ping_points`). The **Look at bot's hand** button uses another row, at `look_spot`.
 - [ ] **The bot's own pings do not choose for you** (9335eab): with the row open, the bot does not "choose" a card by itself. *(31/10 failure with Remove A Painful Memory: it chose Posthumous Power within 1 s; fixed, still to be seen. If it happens again, widen `BOT_PING_WINDOW`.)*

@@ -31,6 +31,7 @@ class CardEffects:
     may_boost: bool = False
     uncancelable: bool = False
     ongoing: dict | None = None
+    invention: dict | None = None        # {"modifiers": [...], "triggers": [...]}: holds once tucked under the hero card
 
 
 @dataclass(frozen=True)
@@ -69,7 +70,8 @@ class HeroEffects:
 def parse_effects(raw: dict) -> HeroEffects:
     try:
         cards = {c["title"]: CardEffects(c["title"], dict(c.get("effects") or {}), bool(c.get("may_boost")),
-                                         bool(c.get("uncancelable")), c.get("ongoing")) for c in raw["cards"]}
+                                         bool(c.get("uncancelable")), c.get("ongoing"), c.get("invention"))
+                 for c in raw["cards"]}
         ability = raw.get("ability") or {}
         counters = {k: CounterRange(int(v["min"]), int(v["max"]), int(v.get("start", v["min"])))
                     for k, v in (ability.get("counters") or {}).items()}

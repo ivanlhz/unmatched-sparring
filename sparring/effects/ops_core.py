@@ -208,6 +208,21 @@ def _discard(run, game, spec):
         run.bind("cards", spec["as"], [c.card_id for _, _, c in items])
 
 
+@op("remove_from_game")
+def _remove_from_game(run, game, spec):
+    """Cards of a discard pile leave the game for good (`PlayerState.removed`): public, and no effect brings them back."""
+    sel = spec["cards"]
+    if sel["zone"] != "discard":
+        raise EffectError("remove_from_game: only cards of a discard pile can be removed")
+    items = _cards_of(game, run, sel, "remove", _card_title(game, run))
+    for player, _, card in items:
+        game.remove_from_game(player, card)
+    for player in sorted({p for p, _, _ in items}):
+        table.intent(game, op="remove", player=player, cards=[c.card_id for p, _, c in items if p == player])
+    if "as" in spec:
+        run.bind("cards", spec["as"], [c.card_id for _, _, c in items])
+
+
 @op("choose")
 def _choose(run, game, spec):
     sel = spec["cards"]
@@ -265,13 +280,28 @@ def _move(run, game, spec):
             if got:
                 plan.append((f, got[0]))
                 set_attrs(f, pos=got[0])
+    passed = run.flags.setdefault("passed", {})
     for f, dest in plan:
         origin = f.pos
+        passed[f.fid] = _passed_through(game, f, origin, dest, steps) if through else []
         game.move_fighter(f, dest, steps, through)
         if f.pos != origin:
             table.intent(game, op="move", fid=f.fid, owner=f.owner)
     for f in by_hand:
+        passed[f.fid] = None                      # the human walks their own miniature: the engine never sees the path
         table.note(run, op="move", fid=f.fid, amount=steps, up_to=up_to, through=through)
+    if "as" in spec:
+        run.bind("fighters", spec["as"], [f.fid for f, _ in plan] + [f.fid for f in by_hand])
+
+
+def _passed_through(game, mover, origin: int, dest: int, steps: int) -> list[str]:
+    """Opposing fighters `mover` may have moved through on its way from `origin` to `dest`: those on some path of at
+    most `steps` spaces (the board has no fixed path, the mover's owner chooses it)."""
+    if origin == dest:
+        return []
+    dist = game.board.distance
+    return [e.fid for e in game.own(1 - mover.owner)
+            if e.pos not in (origin, dest) and dist(origin, e.pos) + dist(e.pos, dest) <= steps]
 
 
 def _where_refs(game, run, where: dict) -> dict:
@@ -439,6 +469,11 @@ def _choice_context(game, run, spec: dict) -> dict:
     "or take 2")."""
     ctx = {}
     ops, other = spec.get("ops") or [], spec.get("else") or []
+    if len(ops) == 1 and ops[0]["op"] == "return_to_deck" and isinstance(ops[0]["cards"], dict) \
+            and ops[0]["cards"]["zone"] == "deck" and ops[0]["cards"].get("pick") == "top":
+        owner = player_of(game, run, ops[0]["cards"]["player"])      # putting the top card at the bottom (The future of Ninjutsu)
+        if not table.physical(game, owner):                          # the human's deck is virtual: nothing true to name
+            ctx["bury"] = [c.card_id for c in game.players[owner].deck[:int(amount(game, run, ops[0]["cards"].get("amount", 1)))]]
     if len(ops) == 1 and ops[0]["op"] == "discard" and isinstance(ops[0]["cards"], str):
         ctx["discards"] = [c.card_id for c in card_ref(game, run, ops[0]["cards"])]
     if len(other) == 1 and other[0]["op"] == "damage" and isinstance(other[0].get("amount"), int):

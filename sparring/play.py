@@ -208,6 +208,8 @@ class PlayConfig:
                 token_spot=tuple(float(v) for v in r["token_spot"]) if r.get("token_spot") else None,
                 bot_ongoing_spot=tuple(float(v) for v in r["bot_ongoing_spot"]) if r.get("bot_ongoing_spot") else None,
                 human_ongoing_spot=tuple(float(v) for v in r["human_ongoing_spot"]) if r.get("human_ongoing_spot") else None,
+                bot_tuck_spot=tuple(float(v) for v in r["bot_tuck_spot"]) if r.get("bot_tuck_spot") else None,
+                bot_removed_spot=tuple(float(v) for v in r["bot_removed_spot"]) if r.get("bot_removed_spot") else None,
                 batch=bool(r.get("batch", True)), live_ui=bool(r.get("live_ui", True)),
                 bot_pause=float(r.get("bot_pause", DEFAULT_BOT_PAUSE)),
                 wildfire_hold=float(r.get("wildfire_hold", DEFAULT_WILDFIRE_HOLD)),
@@ -227,6 +229,9 @@ class PlayConfig:
                 raise ValueError("bot_ongoing_spot: (x, y, z)")
             if cfg.human_ongoing_spot is not None and len(cfg.human_ongoing_spot) != 2:
                 raise ValueError("human_ongoing_spot: (x, z)")
+            for key in ("bot_tuck_spot", "bot_removed_spot"):
+                if getattr(cfg, key) is not None and len(getattr(cfg, key)) != 3:
+                    raise ValueError(f"{key}: (x, y, z)")
             if len(cfg.look_spot) != 3 or len(cfg.look_step) != 2:
                 raise ValueError("look_spot: (x, y, z); look_step: (dx, dz)")
             if len(cfg.bot_row_spot) != 3 or len(cfg.bot_row_step) != 2:

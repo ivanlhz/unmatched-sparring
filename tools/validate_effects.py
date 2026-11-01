@@ -40,12 +40,12 @@ EVENT_BINDINGS = {
 }
 # type of the binding each op creates with `as`
 OP_BINDINGS = {"draw": "card", "discard": "card", "choose": "card", "look_deck": "card", "search_deck": "card",
-               "damage": "fighter", "swap": "fighter"}
+               "damage": "fighter", "swap": "fighter", "move": "fighter", "remove_from_game": "card"}
 # type each field expects when it carries a $var reference
 PLAYER_KEYS = frozenset({"player", "chooser", "order", "start_space_of"})
 FIGHTER_KEYS = frozenset({"role", "zone_of", "adjacent_to", "space_of", "nearest_to", "fighter", "target",
-                          "with", "by", "from", "fighters", "count"})
-CARD_KEYS = frozenset({"card", "cards", "of", "except"})
+                          "with", "by", "from", "fighters", "count", "passed_by"})
+CARD_KEYS = frozenset({"card", "cards", "of", "except", "count_of"})
 NUMBER_KEYS = frozenset({"amount", "hp", "left", "right", "look"})
 STATUS_SCOPE = {
     "immune_to_effect_damage": "target", "cannot_leave_space": "target",
@@ -266,6 +266,12 @@ class Semantics:
             for i, t in enumerate(ongoing["triggers"]):
                 self.trigger(t, f"{path}.ongoing.triggers[{i}]")
             self.refs(ongoing["until"], f"{path}.ongoing.until", _Ctx({}, set()))
+        invention = card.get("invention")
+        if invention:
+            for i, m in enumerate(invention["modifiers"]):
+                self.modifier(m, f"{path}.invention.modifiers[{i}]", _Ctx({}, set()))
+            for i, t in enumerate(invention["triggers"]):
+                self.trigger(t, f"{path}.invention.triggers[{i}]")
         if card.get("may_boost"):
             for op in _walk(card["effects"]["during"]):
                 if op["op"] == "boost" and op["card"] == "this":

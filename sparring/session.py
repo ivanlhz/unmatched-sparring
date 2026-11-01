@@ -146,6 +146,8 @@ class SessionConfig:
     token_spot: tuple[float, float, float] | None = None         # where the bot lays its active ability tokens (Abe); default: beside its deck
     bot_ongoing_spot: tuple[float, float, float] | None = None   # ONGOING zone below each combat zone (E2, Ivan): the bot lays its
     human_ongoing_spot: tuple[float, float] | None = None        # ONGOING scheme there; the human leaves theirs (recognized there)
+    bot_tuck_spot: tuple[float, float, float] | None = None      # where the bot tucks its inventions (Donatello); outside its discard zone
+    bot_removed_spot: tuple[float, float, float] | None = None   # where the bot sets aside the cards it removes from the game
 
 
 def human_dead_spot(cfg: "SessionConfig") -> tuple[float, float, float] | None:
@@ -1537,6 +1539,7 @@ class Session:
             self._draw_human_by_button(1)
             self._announce_exhaustion(hp0, alive0)
             self.say(t("maneuver.drew"), ChatKind.YOUR_TURN)
+            self.game.fx.emit("after_maneuver", self.human)
             return
         if not st.deck:                           # empty deck: exhaustion through the same path as the bot's
             self._draw_human_by_button(1)
@@ -1544,6 +1547,7 @@ class Session:
             self.say(t("maneuver.empty"), ChatKind.YOUR_TURN)
             return
         self._deal_maneuver_card(st)
+        self.game.fx.emit("after_maneuver", self.human)       # INVENTIVE asks on the panel (a trigger of the hero)
 
     def _deal_maneuver_card(self, st) -> None:
         """Deals the Maneuver card from the human's deck to their hand, in the same composite as the button. It only
@@ -3867,7 +3871,7 @@ class Session:
         sit in the table hand: never counted as hand cards, never dealt again."""
         p, st = self.pending, self.game.players[self.bot]
         cards = [c for owner, c in p.flow.played if owner == self.bot] if p is not None and p.flow is not None else []
-        ids = {self.game.fx.ongoing_card_id(self.bot)}
+        ids = {self.game.fx.ongoing_card_id(self.bot), *(c.card_id for c in st.tucked), *(c.card_id for c in st.removed)}
         ids |= {r.flags["scheme"]["card_id"] for r in self.game.fx.parked
                 if r.flags.get("scheme", {}).get("player") == self.bot}
         return cards + [c for c in st.full_set if c.card_id in ids]
@@ -3992,7 +3996,8 @@ class Session:
         st = self.game.players[self.bot]
         held = self.pending.bot_card.card_id if self.pending and self.pending.bot_card else None
         for c in st.full_set:
-            if c.card_id in on_pile and c not in st.discard and c.card_id != held and c.card_id not in self.fx_in_flight:
+            if c.card_id in on_pile and c not in st.discard and c.card_id != held and c.card_id not in self.fx_in_flight \
+                    and c not in st.tucked and c not in st.removed:
                 for zone in (st.hand, st.deck):
                     if c in zone:
                         zone.remove(c)
@@ -4004,7 +4009,7 @@ class Session:
         """The table wins: the engine's hand, discard and positions become what is seen. Closes any debt."""
         st = self.game.players[self.bot]
         by_id = {c.card_id: c for c in st.full_set}
-        on_pile = self._table_discard()
+        on_pile = self._table_discard() - {c.card_id for c in (*st.tucked, *st.removed)}
         st.discard[:] = [c for c in st.discard if c.card_id in on_pile] \
             + [by_id[i] for i in sorted(on_pile) if by_id[i] not in st.discard]
         self.bot_discarded = set(on_pile)
@@ -4325,7 +4330,8 @@ class Session:
         def read() -> set[int]:                   # only the human's cards: foreign things in the zone neither count nor delay
             # a card that an effect of this step is taking out of your discard toward your deck (Searing Clarity, the
             # bot moves it) is not read again as discarded even if the snapshot lags
-            return ({r["id"] for r in self._rd_human_discard()} & own) - self.fx_in_flight
+            aside = {x.card_id for x in (*st.tucked, *st.removed)}     # tucked or removed: still on their pile until they move them
+            return ({r["id"] for r in self._rd_human_discard()} & own) - self.fx_in_flight - aside
         ids = read()
         known = {x.card_id for x in st.discard}
         # a change only counts if two reads see it (card in transit, edge); the click's snapshot is already the

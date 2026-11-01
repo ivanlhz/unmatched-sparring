@@ -51,7 +51,7 @@ def predict_value(game: Game, me: int) -> int:
     discard pile (public). Ties go to the higher value. The rival's hand and deck are never read."""
     rival = game.players[1 - me]
     seen = [c for c in game.players[me].known.cards(rival) if c.can_defend]
-    pool = seen or [c for c in rival.full_set if c.can_defend and c not in rival.discard]
+    pool = seen or [c for c in rival.full_set if c.can_defend and c not in rival.gone]
     if not pool:
         return 0
     counts: dict[int, int] = {}
@@ -91,7 +91,8 @@ def blind_clone(game: Game, me: int, rng: random.Random) -> Game:
     rival = 1 - me
     real = game.players[rival]
     n_hand, n_deck = len(real.hand), len(real.deck)
-    shell = PlayerState(real.hero, [], real.full_set, [], list(real.discard), real.known.copy())
+    shell = PlayerState(real.hero, [], real.full_set, [], list(real.discard), real.known.copy(),
+                        list(real.tucked), list(real.removed))
     shadow = copy.copy(game)
     shadow.players = list(game.players)
     shadow.players[rival] = shell
@@ -102,7 +103,7 @@ def blind_clone(game: Game, me: int, rng: random.Random) -> Game:
     known = g.players[me].known
     sure = [c for c in known.cards(shell)]
     top = [c for c in known.top(shell) if c not in sure]
-    pool = [c for c in sorted(shell.full_set, key=lambda c: c.card_id) if c not in shell.discard]
+    pool = [c for c in sorted(shell.full_set, key=lambda c: c.card_id) if c not in shell.gone]
     for c in sure:
         if c in pool:
             pool.remove(c)
@@ -286,6 +287,8 @@ class EffectAI:
         worth = lambda i: card_worth(cards[i]) if i in cards else 0.0
         if of == me and purpose == "discard":                       # parting with own deck or discard cards
             return sorted(req.options, key=lambda i: (worth(i), i))[:n_min]
+        if of == me and purpose == "remove":                        # removing own discard cards from the game: as many as allowed, the cheapest
+            return sorted(req.options, key=lambda i: (worth(i), i))[:n_max]
         if of == me and zone == "discard" and purpose == "return":   # own discard back into the deck (Pancakes!): all it
             ranked = sorted(req.options, key=lambda i: (i in cards and cards[i].destiny, -worth(i), i))
             return ranked[:n_max]                                    # may, destiny cards last (they keep ANUNG UN RAMA)
@@ -335,7 +338,10 @@ class EffectAI:
         return [max(scored)[3]]
 
     def _optional(self, game: Game, req: ChoiceRequest, nested: bool) -> list | None:
-        if "cost_cards" in req.extra:       # a price in cards: the interpreter sends the combat context, one policy
+        if "bury" in req.extra:             # The future of Ninjutsu: the top card goes to the bottom if it is worse than the average card to come
+            top = {c.card_id: c for c in game.players[req.player].full_set}[req.extra["bury"][0]] if req.extra["bury"] else None
+            return None if top is None else [keep_value(top, [top]) < self.medusa(req.player).avg_unseen_keep(game)]
+        if "cost_cards" in req.extra:      # a price in cards: the interpreter sends the combat context, one policy
             return [worth_paying(req)]
         if "to" in req.extra:               # a redirect passive (FATEFUL BARGAINS): whoever loses the bot less takes it
             hit, to = game.fighters.get(req.extra.get("fighter")), game.fighters.get(req.extra["to"])

@@ -25,13 +25,15 @@ FIGHT_OR_FLIGHT = "Fight Or Flight"          # only a label for the tests: the e
 
 
 @lru_cache(maxsize=None)
-def _medusa_titles() -> dict[int, str]:
-    return {c.card_id: c.title for c in load_hero("medusa").deck()}
+def _medusa_cards() -> frozenset[Card]:
+    from .heroes import load_hero
+    return frozenset(load_hero("medusa").deck())
 
 
 def is_medusa_card(card: Card) -> bool:
-    """Medusa's own card: the TMNT decks share her CardID range (DeckID 176), so the range alone is not enough."""
-    return _medusa_titles().get(card.card_id) == card.title
+    """One of Medusa's cards. The CardID range is not enough: the TMNT decks (Donatello...) use the same 17600-17629, so
+    the card is compared with Medusa's own (a Card is a frozen value: id, title, restriction, numbers and text)."""
+    return MEDUSA_BASE <= card.card_id < MEDUSA_BASE + 100 and card in _medusa_cards()
 
 
 @dataclass
@@ -62,6 +64,7 @@ class CombatCtx:
     atk_value: int
     def_value: int
     cancelled: set[str]
+    cancelled_after: set[str] = field(default_factory=set)    # sides whose AFTER COMBAT alone is cancelled (Short circuit)
 
 
 def _side_cards(ctx: CombatCtx):

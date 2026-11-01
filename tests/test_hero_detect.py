@@ -306,8 +306,8 @@ def test_a_tie_between_sides_is_ambiguous_not_given_to_the_human():
         detect(r)
 
 
-@pytest.mark.parametrize("bot", ["medusa", "hellboy", "abe-sapien", "baba-yaga", "liz-sherman"])
-@pytest.mark.parametrize("human", ["medusa", "hellboy", "abe-sapien", "baba-yaga", "liz-sherman"])
+@pytest.mark.parametrize("bot", ["medusa", "hellboy", "abe-sapien", "baba-yaga", "liz-sherman", "donatello"])
+@pytest.mark.parametrize("human", ["medusa", "hellboy", "abe-sapien", "baba-yaga", "liz-sherman", "donatello"])
 def test_every_pair_of_heroes_is_detected_in_either_seat(bot, human):
     if bot == human:
         pytest.skip("the same hero on both sides is an error")

@@ -103,7 +103,8 @@ def project(session, before: dict | None, played: frozenset = frozenset(), cause
     moved = set(session.fx_in_flight)             # what this button already moved (a look row's pick, E3)
     looked, session.fx_looked = session.fx_looked, False
     ctx = Ctx(cause or bot_cause(), before)
-    checks = _human_pieces(session, before, intents, ctx) + _form(session, before, ctx) + _tokens(session, before, intents, ctx)
+    checks = [c for i in intents if i["op"] in ("tuck", "remove") for c in translate(session, i, ctx) or []]
+    checks += _human_pieces(session, before, intents, ctx) + _form(session, before, ctx) + _tokens(session, before, intents, ctx)
     checks += _bot_cards(session, before, moved, intents, ctx) + _bot_ongoing(session, before, intents, ctx)
     checks += _human_cards(session, before, played, looked, ctx, intents)
 

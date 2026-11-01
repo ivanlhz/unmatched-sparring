@@ -1,0 +1,443 @@
+{
+ "_source": {
+  "memory": "unmatched-memory/data/heroes/donatello.json",
+  "overlay": "data/heroes/overlay/donatello.json",
+  "generator": "tools/import_hero.py"
+ },
+ "slug": "donatello",
+ "name": "Donatello",
+ "fid": "donatello",
+ "hp": 14,
+ "move": 2,
+ "attack": "melee",
+ "set": "adventures-teenage-mutant-ninja-turtles",
+ "ability": "INVENTIVE\nWhen you maneuver, you may draw 2 cards instead of 1. If you do, put a card in your hand on the bottom of your deck.\nAfter you play an invention, tuck it under this card.",
+ "sidekicks": [
+  {
+   "name": "Metalhead",
+   "hp": 7,
+   "move": 2,
+   "attack": "melee",
+   "count": 1,
+   "fid": "metalhead"
+  }
+ ],
+ "forms": null,
+ "counters": {},
+ "triggers": [],
+ "passives": [],
+ "deck": {
+  "card_base": 17600,
+  "sheet": 176,
+  "cards": [
+   {
+    "idx": 0,
+    "title": "Turtle power!",
+    "fighter": "any",
+    "type": "attack",
+    "value": 3,
+    "boost": 3,
+    "text": "DURING COMBAT: You may BOOST this card.",
+    "tags": []
+   },
+   {
+    "idx": 1,
+    "title": "Turtle power!",
+    "fighter": "any",
+    "type": "attack",
+    "value": 3,
+    "boost": 3,
+    "text": "DURING COMBAT: You may BOOST this card.",
+    "tags": []
+   },
+   {
+    "idx": 2,
+    "title": "Thinking ahead",
+    "fighter": "any",
+    "type": "attack",
+    "value": 3,
+    "boost": 2,
+    "text": "AFTER COMBAT: If you won the combat, you may put a card in your discard pile on the bottom of your deck.",
+    "tags": []
+   },
+   {
+    "idx": 3,
+    "title": "Thinking ahead",
+    "fighter": "any",
+    "type": "attack",
+    "value": 3,
+    "boost": 2,
+    "text": "AFTER COMBAT: If you won the combat, you may put a card in your discard pile on the bottom of your deck.",
+    "tags": []
+   },
+   {
+    "idx": 4,
+    "title": "Thinking ahead",
+    "fighter": "any",
+    "type": "attack",
+    "value": 3,
+    "boost": 2,
+    "text": "AFTER COMBAT: If you won the combat, you may put a card in your discard pile on the bottom of your deck.",
+    "tags": []
+   },
+   {
+    "idx": 5,
+    "title": "Shift focus",
+    "fighter": "Donatello",
+    "type": "versatile",
+    "value": 2,
+    "boost": 2,
+    "text": "AFTER COMBAT: Move another fighter in Donatello's zone up to 3 spaces. They may move through other fighters.",
+    "tags": []
+   },
+   {
+    "idx": 6,
+    "title": "Shift focus",
+    "fighter": "Donatello",
+    "type": "versatile",
+    "value": 2,
+    "boost": 2,
+    "text": "AFTER COMBAT: Move another fighter in Donatello's zone up to 3 spaces. They may move through other fighters.",
+    "tags": []
+   },
+   {
+    "idx": 7,
+    "title": "Shift focus",
+    "fighter": "Donatello",
+    "type": "versatile",
+    "value": 2,
+    "boost": 2,
+    "text": "AFTER COMBAT: Move another fighter in Donatello's zone up to 3 spaces. They may move through other fighters.",
+    "tags": []
+   },
+   {
+    "idx": 8,
+    "title": "Short circuit",
+    "fighter": "any",
+    "type": "versatile",
+    "value": 3,
+    "boost": 2,
+    "text": "IMMEDIATELY: Cancel all AFTER COMBAT effects on your opponent's card.",
+    "tags": []
+   },
+   {
+    "idx": 9,
+    "title": "Short circuit",
+    "fighter": "any",
+    "type": "versatile",
+    "value": 3,
+    "boost": 2,
+    "text": "IMMEDIATELY: Cancel all AFTER COMBAT effects on your opponent's card.",
+    "tags": []
+   },
+   {
+    "idx": 10,
+    "title": "Short circuit",
+    "fighter": "any",
+    "type": "versatile",
+    "value": 3,
+    "boost": 2,
+    "text": "IMMEDIATELY: Cancel all AFTER COMBAT effects on your opponent's card.",
+    "tags": []
+   },
+   {
+    "idx": 11,
+    "title": "Quick strike",
+    "fighter": "any",
+    "type": "versatile",
+    "value": 3,
+    "boost": 1,
+    "text": "AFTER COMBAT: Draw 1 card.",
+    "tags": []
+   },
+   {
+    "idx": 12,
+    "title": "Quick strike",
+    "fighter": "any",
+    "type": "versatile",
+    "value": 3,
+    "boost": 1,
+    "text": "AFTER COMBAT: Draw 1 card.",
+    "tags": []
+   },
+   {
+    "idx": 13,
+    "title": "Quick strike",
+    "fighter": "any",
+    "type": "versatile",
+    "value": 3,
+    "boost": 1,
+    "text": "AFTER COMBAT: Draw 1 card.",
+    "tags": []
+   },
+   {
+    "idx": 14,
+    "title": "Untested enhancements",
+    "fighter": "Metalhead",
+    "type": "versatile",
+    "value": 3,
+    "boost": 2,
+    "text": "DURING COMBAT: Discard the bottom card of your deck. Add its BOOST value to this card's value.",
+    "tags": []
+   },
+   {
+    "idx": 15,
+    "title": "Untested enhancements",
+    "fighter": "Metalhead",
+    "type": "versatile",
+    "value": 3,
+    "boost": 2,
+    "text": "DURING COMBAT: Discard the bottom card of your deck. Add its BOOST value to this card's value.",
+    "tags": []
+   },
+   {
+    "idx": 16,
+    "title": "Untested enhancements",
+    "fighter": "Metalhead",
+    "type": "versatile",
+    "value": 3,
+    "boost": 2,
+    "text": "DURING COMBAT: Discard the bottom card of your deck. Add its BOOST value to this card's value.",
+    "tags": []
+   },
+   {
+    "idx": 17,
+    "title": "Heroes in a half shell",
+    "fighter": "Donatello",
+    "type": "defense",
+    "value": 5,
+    "boost": 1,
+    "text": "",
+    "tags": []
+   },
+   {
+    "idx": 18,
+    "title": "Heroes in a half shell",
+    "fighter": "Donatello",
+    "type": "defense",
+    "value": 5,
+    "boost": 1,
+    "text": "",
+    "tags": []
+   },
+   {
+    "idx": 19,
+    "title": "Bo staff",
+    "fighter": "Donatello",
+    "type": "defense",
+    "value": 3,
+    "boost": 2,
+    "text": "AFTER COMBAT: Deal 1 damage to an opposing fighter adjacent to Donatello. Draw 1 card.",
+    "tags": []
+   },
+   {
+    "idx": 20,
+    "title": "Bo staff",
+    "fighter": "Donatello",
+    "type": "defense",
+    "value": 3,
+    "boost": 2,
+    "text": "AFTER COMBAT: Deal 1 damage to an opposing fighter adjacent to Donatello. Draw 1 card.",
+    "tags": []
+   },
+   {
+    "idx": 21,
+    "title": "Donatello does machines",
+    "fighter": "Donatello",
+    "type": "scheme",
+    "value": null,
+    "boost": 3,
+    "text": "You and each other friendly player may return an attack, versatile, or defense card in their discard pile to their hand. Draw 1 card.",
+    "tags": []
+   },
+   {
+    "idx": 22,
+    "title": "Donatello does machines",
+    "fighter": "Donatello",
+    "type": "scheme",
+    "value": null,
+    "boost": 3,
+    "text": "You and each other friendly player may return an attack, versatile, or defense card in their discard pile to their hand. Draw 1 card.",
+    "tags": []
+   },
+   {
+    "idx": 23,
+    "title": "Party wagon!",
+    "fighter": "Donatello",
+    "type": "scheme",
+    "value": null,
+    "boost": 2,
+    "text": "Move a friendly fighter up to 5 spaces. They may move through opposing fighters. Then, deal 2 damage to an opposing fighter they moved through.",
+    "tags": []
+   },
+   {
+    "idx": 24,
+    "title": "Party wagon!",
+    "fighter": "Donatello",
+    "type": "scheme",
+    "value": null,
+    "boost": 2,
+    "text": "Move a friendly fighter up to 5 spaces. They may move through opposing fighters. Then, deal 2 damage to an opposing fighter they moved through.",
+    "tags": []
+   },
+   {
+    "idx": 25,
+    "title": "The future of Ninjutsu",
+    "fighter": "Metalhead",
+    "type": "scheme",
+    "value": null,
+    "boost": 1,
+    "text": "Look at the top card of any deck. You may put it on the bottom. Draw 1 card. Gain 1 action.",
+    "tags": []
+   },
+   {
+    "idx": 26,
+    "title": "The future of Ninjutsu",
+    "fighter": "Metalhead",
+    "type": "scheme",
+    "value": null,
+    "boost": 1,
+    "text": "Look at the top card of any deck. You may put it on the bottom. Draw 1 card. Gain 1 action.",
+    "tags": []
+   },
+   {
+    "idx": 27,
+    "title": "Electro grenade",
+    "fighter": "Donatello",
+    "type": "attack",
+    "value": 2,
+    "boost": 3,
+    "text": "DURING COMBAT: Remove up to 4 attack or versatile cards in your discard pile from the game. Add +1 to this card's value for each card removed. INVENTION BONUS: Add +1 to the value of your attacks.",
+    "tags": [
+     "invention"
+    ]
+   },
+   {
+    "idx": 28,
+    "title": "Self defense grid",
+    "fighter": "Donatello",
+    "type": "defense",
+    "value": 2,
+    "boost": 3,
+    "text": "AFTER COMBAT: Remove up to 4 defense or versatile cards in your discard pile from the game. Donatello recovers that much health. INVENTION BONUS: Add +1 to the value of your defenses.",
+    "tags": [
+     "invention"
+    ]
+   },
+   {
+    "idx": 29,
+    "title": "Smoke bomb",
+    "fighter": "Donatello",
+    "type": "scheme",
+    "value": null,
+    "boost": 3,
+    "text": "Remove up to 4 scheme cards in your discard pile from the game. Gain that many actions. INVENTION BONUS: When you play a scheme, gain 1 action.",
+    "tags": [
+     "invention"
+    ]
+   }
+  ]
+ },
+ "ai_profile": {
+  "donatello": {
+   "name": "Donatello",
+   "hero": true,
+   "count": 1,
+   "max_hp": 14,
+   "move": 2,
+   "ranged": false,
+   "role": "hero",
+   "attack": {
+    "cards": 15,
+    "mean": 2.73,
+    "max": 3
+   },
+   "exclusive": [
+    {
+     "title": "Shift focus",
+     "type": "versatile",
+     "copies": 3,
+     "impact": 0.78
+    },
+    {
+     "title": "Heroes in a half shell",
+     "type": "defense",
+     "copies": 2,
+     "impact": 1.05
+    },
+    {
+     "title": "Bo staff",
+     "type": "defense",
+     "copies": 2,
+     "impact": 1.47
+    },
+    {
+     "title": "Donatello does machines",
+     "type": "scheme",
+     "copies": 2,
+     "impact": 1.1
+    },
+    {
+     "title": "Party wagon!",
+     "type": "scheme",
+     "copies": 2,
+     "impact": 1.88
+    },
+    {
+     "title": "Electro grenade",
+     "type": "attack",
+     "copies": 1,
+     "impact": 0.78
+    },
+    {
+     "title": "Self defense grid",
+     "type": "defense",
+     "copies": 1,
+     "impact": 1.68
+    },
+    {
+     "title": "Smoke bomb",
+     "type": "scheme",
+     "copies": 1,
+     "impact": 1.3
+    }
+   ]
+  },
+  "metalhead": {
+   "name": "Metalhead",
+   "hero": false,
+   "count": 1,
+   "max_hp": 7,
+   "move": 2,
+   "ranged": false,
+   "role": "striker",
+   "attack": {
+    "cards": 14,
+    "mean": 3.0,
+    "max": 3
+   },
+   "exclusive": [
+    {
+     "title": "Untested enhancements",
+     "type": "versatile",
+     "copies": 3,
+     "impact": 0.75
+    },
+    {
+     "title": "The future of Ninjutsu",
+     "type": "scheme",
+     "copies": 2,
+     "impact": 2.3
+    }
+   ],
+   "requires_alive": []
+  }
+ },
+ "_notes": [
+  "Sheet 176 of the tournament savegame (8x4), read card by card from the image on 2026-11-01 (FaceURL in data/tts/donatello.json). CardID = 17600 + idx: the same range as Medusa and the other TMNT decks, so the CardID does not identify the deck, its image does. The character card is 364 (sheet 3, 10x7, idx 64).",
+  "The real card wins over unmatched-memory: Shift focus says 'other fighters' (not 'oothe'); Self defense grid says 'discard pile' (not 'descard'); the three inventions carry a purple INVENTION BONUS band at the bottom of the card (memory renders it as 'PERMANENT.'); the hero card says 'After you play an invention, tuck it under this card.' and nothing else about the bonus.",
+  "Fighter restrictions from the banner of each card (unmatched-memory has none): DONATELLO 14 cards, METALHEAD 5 (Untested enhancements x3, The future of Ninjutsu x2), ANY 11 (Turtle power! x2, Thinking ahead x3, Short circuit x3, Quick strike x3).",
+  "Inventions (tag `invention`): Electro grenade, Self defense grid, Smoke bomb. Their bonus lives in data/heroes/effects/donatello.json (`invention`); the tag only lets tools and the AI find them.",
+  "Metalhead: 1 token (Custom_Token 428d15 in the save), melee, 7 life, MOVE 2. Donatello is a miniature (4fdf31); the life dials are ca8e35 (14) and edd0a5 (7)."
+ ]
+}

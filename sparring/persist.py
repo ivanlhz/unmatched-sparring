@@ -35,6 +35,8 @@ def game_to_dict(g: Game) -> dict:
         "fighters": {fid: {"hp": f.hp, "pos": f.pos, "alive": f.alive, "died_at": f.died_at} for fid, f in g.fighters.items()},
         "players": [{"deck": [c.card_id for c in p.deck], "hand": [c.card_id for c in p.hand],
                      "discard": [c.card_id for c in p.discard],
+                     **({"tucked": [c.card_id for c in p.tucked]} if p.tucked else {}),
+                     **({"removed": [c.card_id for c in p.removed]} if p.removed else {}),
                      # known rival hand (effect "look at the hand"): only written if there is something to remember
                      **({"known": p.known.to_dict()} if not p.known.is_empty() else {})}
                     for p in g.players],
@@ -64,6 +66,8 @@ def apply_game(g: Game, d: dict) -> None:
             p.deck[:] = [by_id[i] for i in saved["deck"]]
             p.hand[:] = [by_id[i] for i in saved["hand"]]
             p.discard[:] = [by_id[i] for i in saved["discard"]]
+            p.tucked[:] = [by_id[i] for i in saved.get("tucked", ())]
+            p.removed[:] = [by_id[i] for i in saved.get("removed", ())]
             p.known = KnownHand.from_dict(saved.get("known"))
         version, internal, gauss = d["rng"]
         g.rng.setstate((version, tuple(internal), gauss))

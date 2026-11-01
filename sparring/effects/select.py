@@ -158,7 +158,22 @@ def fighter_candidates(game, run, sel) -> tuple[list, bool]:
     if "attacked_this_turn" in flt:
         attacked = run.flags.get("attacked", game.fx.attacked)       # an end-of-turn run keeps the turn it belongs to
         out = [f for f in out if (f.fid in attacked) == bool(flt["attacked_this_turn"])]
+    if "passed_by" in flt:
+        out = _passed_by(game, run, out, flt["passed_by"])
     return out, sel.get("pick", "one") == "all"
+
+
+def _passed_by(game, run, fighters: list, ref) -> list:
+    """The fighters a moved fighter passed through (`move` records them in `run.flags["passed"]`). `None` is a move
+    the engine did not see (the human moved their miniature by hand): every candidate stays, the human answers."""
+    passed = run.flags.get("passed") or {}
+    keep: set[str] | None = set()
+    for mover in _role_fighters(game, run, ref):
+        seen = passed.get(mover.fid, [])
+        if seen is None:
+            return fighters
+        keep |= set(seen)
+    return [f for f in fighters if f.fid in keep]
 
 
 def pick_fighters(game, run, sel, chooser: int, prompt: str = "", **extra) -> list:
@@ -214,6 +229,8 @@ def _matches(card, flt: dict) -> bool:
     if "type" in flt and card.type != flt["type"]:
         return False
     if "type_not" in flt and card.type == flt["type_not"]:
+        return False
+    if "type_in" in flt and card.type not in flt["type_in"]:
         return False
     if "tag" in flt and flt["tag"] not in card.tags:
         return False
@@ -290,6 +307,8 @@ def amount(game, run, a):
         value = len(fighter_candidates(game, run, a["count"])[0])
     elif "count_cards" in a:
         value = len(card_candidates(game, run, a["count_cards"]))
+    elif "count_of" in a:
+        value = len(card_ref(game, run, a["count_of"]))
     elif "counter" in a:
         player = player_of(game, run, a.get("player", "owner"))
         value = counter_value(game, player, a["counter"])

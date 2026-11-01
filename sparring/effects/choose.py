@@ -307,6 +307,8 @@ class SyntheticChooser:
             # own discard cards back into the deck: a gain, at least one when it may be more (Pancakes!); destiny
             # cards last, they are what keeps Hellboy ANUNG UN RAMA
             return sorted(req.options, key=lambda i: (i in cards and cards[i].destiny, -worth(i), i))[:n]
+        if req.extra.get("purpose") == "remove":                      # out of the own discard pile: as many as allowed, the cheapest
+            return sorted(req.options, key=lambda i: (worth(i), i))[:n]
         if req.extra.get("purpose") in GIVE_UP:
             return sorted(req.options, key=lambda i: (worth(i), i))[:req.min]
         return sorted(req.options, key=lambda i: (-worth(i), i))[:n]

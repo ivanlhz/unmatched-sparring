@@ -77,6 +77,11 @@ def _reveal(run, game, spec):
 def _look_deck(run, game, spec):
     owner, target = run.ctx.owner, player_of(game, run, spec["player"])
     n, from_top = int(amount(game, run, spec["amount"])), spec.get("from", "top") == "top"
+    if table.physical(game, target) and target == owner:     # the human looks at their real deck: the engine's is virtual
+        table.note(run, op="look_deck", amount=n, top=from_top)
+        if "as" in spec:
+            run.bind("cards", spec["as"], [])
+        return
     deck = game.players[target].deck
     looked = deck[:n] if from_top else deck[::-1][:n]
     if "as" in spec:
@@ -162,6 +167,9 @@ def _return_to_deck(run, game, spec):
                    rest=sel.get("pick") == "all" and "except" in sel, ordered="order" in spec)
         return
     items = _cards_of(game, run, sel, "return", position=position)
+    if items and position == "bottom" and isinstance(sel, dict) and sel["zone"] == "deck" \
+            and table.physical(game, items[0].player):
+        table.note(run, op="deck_to_bottom", amount=len(items))      # their own deck order is theirs: by hand
     chooser = None
     if isinstance(sel, dict) and sel.get("pick", "chosen") == "chosen":
         chooser = player_of(game, run, sel.get("chooser", "owner"))
