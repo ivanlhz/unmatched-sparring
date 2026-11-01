@@ -1,5 +1,5 @@
-"""IsmctsMedusa: sin trampas (misma decision con la mano rival cambiada), posiciones tacticas construidas y tiempo
-por decision. Presupuesto por iteraciones en los tests para que sean deterministas y rapidos."""
+"""IsmctsMedusa: no cheating (same decision with the rival hand changed), built tactical positions and time
+per decision. Budget by iterations in the tests so they are deterministic and fast."""
 import random
 import time
 
@@ -27,7 +27,7 @@ def rival_hand(game, n):
 
 
 def swap_rival_hand(game):
-    """Misma partida con otra mano oculta del rival (mismo conteo, mismo descarte)."""
+    """Same game with another hidden rival hand (same count, same discard)."""
     other = game.clone()
     p = other.players[1]
     n = len(p.hand)
@@ -45,8 +45,8 @@ def strike_steps(board, hb_pos, target_pos):
 
 
 def steps_to_strike(game, attacker, target):
-    """Pasos que necesita `attacker` para poder golpear a `target` sin atravesar rivales (los ayudantes en el
-    camino cuentan como escudo); 99 si no llega en 8."""
+    """Steps `attacker` needs to be able to strike `target` without passing through rivals (sidekicks in the
+    way count as a shield); 99 if it does not arrive in 8."""
     own = game.occupied(attacker.owner) - {attacker.pos}
     enemy = game.occupied(1 - attacker.owner) - {target.pos}
     if game.board.can_reach_target(attacker.pos, target.pos, attacker.ranged):
@@ -68,7 +68,7 @@ def ai():
     return IsmctsMedusa(0, SearchConfig(iterations=ITER, seed=11))
 
 
-# ---------- sin trampas ----------
+# ---------- no cheating ----------
 
 def test_plan_is_identical_with_another_hidden_rival_hand(game, ai):
     place(game, medusa=4, hellboy=2, lobster=3, harpy1=20, harpy2=21, harpy3=22)
@@ -82,7 +82,7 @@ def test_plan_is_identical_with_another_hidden_rival_hand(game, ai):
 
 
 SCENARIOS = [
-    # (posiciones, mano del bot): el escenario del reviewer y dos mas
+    # (positions, bot's hand): the reviewer's scenario and two more
     (dict(medusa=30, hellboy=3, lobster=0, harpy1=28, harpy2=29, harpy3=31),
      ("Second Shot", "Gaze of Stone", "Dash", "Regroup", "A Momentary Glance")),
     (dict(medusa=4, hellboy=2, lobster=3, harpy1=20, harpy2=21, harpy3=22),
@@ -95,8 +95,8 @@ SCENARIOS = [
 @pytest.mark.parametrize("scenario", range(len(SCENARIOS)))
 @pytest.mark.parametrize("seed", [11, 23])
 def test_plan_is_invariant_to_hidden_orders_of_both_decks_and_the_rival_hand(game, scenario, seed):
-    """Lo oculto (orden del mazo del bot, mano y mazo del humano) no cambia la decision con la misma semilla; el
-    orden de la mano propia (conocida) tampoco."""
+    """What is hidden (order of the bot's deck, the human's hand and deck) does not change the decision with the same seed; the
+    order of the own (known) hand neither."""
     where, titles = SCENARIOS[scenario]
     place(game, **where)
     medusa_hand(game, *titles)
@@ -132,7 +132,7 @@ def test_defense_is_identical_with_another_hidden_rival_hand(game, ai):
 
 
 def test_search_never_reads_the_rival_hand_objects(game, ai, monkeypatch):
-    """Tripwire: las cartas de la mano real del rival explotan si alguien las consulta durante la busqueda."""
+    """Tripwire: the cards of the rival's real hand blow up if anyone consults them during the search."""
     place(game, medusa=4, hellboy=2, lobster=3, harpy1=20, harpy2=21, harpy3=22)
     medusa_hand(game, "Second Shot", "Gaze of Stone", "Dash")
     rival_hand(game, 5)
@@ -142,15 +142,15 @@ def test_search_never_reads_the_rival_hand_objects(game, ai, monkeypatch):
         destiny = False
 
         def __getattr__(self, name):
-            raise AssertionError(f"la busqueda leyo la mano real del rival ({name})")
+            raise AssertionError(f"the search read the rival's real hand ({name})")
 
     game.players[1].hand[:] = [Mine() for _ in range(5)]
     ai.plan(game)
-    assert ai.fallbacks == 0, "una busqueda que cae a la heuristica no demuestra nada"
+    assert ai.fallbacks == 0, "a search that falls back to the heuristic proves nothing"
 
 
 def test_the_tripwire_fails_when_determinize_does_nothing(game, ai, monkeypatch):
-    """El tripwire muerde: sin determinizar, la busqueda lee la mano real y el AssertionError sale, no se traga."""
+    """The tripwire bites: without determinizing, the search reads the real hand and the AssertionError comes out, it is not swallowed."""
     from sparring.search.adapter import EngineState
     place(game, medusa=4, hellboy=2, lobster=3, harpy1=20, harpy2=21, harpy3=22)
     medusa_hand(game, "Second Shot", "Gaze of Stone", "Dash")
@@ -160,18 +160,18 @@ def test_the_tripwire_fails_when_determinize_does_nothing(game, ai, monkeypatch)
         destiny = False
 
         def __getattr__(self, name):
-            raise AssertionError(f"la busqueda leyo la mano real del rival ({name})")
+            raise AssertionError(f"the search read the rival's real hand ({name})")
 
     game.players[1].hand[:] = [Mine() for _ in range(5)]
     monkeypatch.setattr(EngineState, "determinize", lambda self, observer, rng: None)
-    with pytest.raises(AssertionError, match="mano real del rival"):
+    with pytest.raises(AssertionError, match="rival's real hand"):
         ai.plan(game)
 
 
-# ---------- tacticas ----------
+# ---------- tactics ----------
 
 def test_finishes_the_hero_when_damage_is_lethal(game, ai):
-    """Hellboy a 3 PV sin cartas (no puede defender): el ataque de 3 gana la partida."""
+    """Hellboy at 3 HP with no cards (cannot defend): the attack of 3 wins the game."""
     place(game, medusa=4, hellboy=2, lobster=27, harpy1=20, harpy2=21, harpy3=22)
     medusa_hand(game, "Second Shot", "Gaze of Stone", "Regroup", "A Momentary Glance", "Winged Frenzy")
     game.fighters["hellboy"].hp = 3
@@ -179,11 +179,11 @@ def test_finishes_the_hero_when_damage_is_lethal(game, ai):
     act = ai.plan(game)
     assert act.kind == "attack" and act.target == "hellboy", act_key(act)
     ai.execute(game, act)
-    assert game.winner == 0, "el ataque elegido tenia que ser letal (Second Shot 3, o Gaze of Stone: gana y suma 8)"
+    assert game.winner == 0, "the chosen attack had to be lethal (Second Shot 3, or Gaze of Stone: wins and adds 8)"
 
 
 def test_takes_the_certain_kill_of_a_sidekick(game, ai):
-    """Lobster a 2 PV en la zona de Medusa: A Momentary Glance lo mata seguro; un ataque podria ser defendido."""
+    """Lobster at 2 HP in Medusa's zone: A Momentary Glance kills him for sure; an attack could be defended."""
     place(game, medusa=4, hellboy=27, lobster=2, harpy1=20, harpy2=21, harpy3=22)
     medusa_hand(game, "A Momentary Glance", "Second Shot", "Regroup")
     rival_hand(game, 5)
@@ -193,7 +193,7 @@ def test_takes_the_certain_kill_of_a_sidekick(game, ai):
 
 
 def test_does_not_walk_into_an_avoidable_lethal(game, ai):
-    """Medusa a 1 PV lejos de Hellboy, con ataques que no matan: no acaba el turno a su alcance sin boost."""
+    """Medusa at 1 HP far from Hellboy, with attacks that do not kill: she does not end the turn within his reach without a boost."""
     b = game.board
     place(game, medusa=30, hellboy=3, lobster=0, harpy1=28, harpy2=29, harpy3=31)
     medusa_hand(game, "Second Shot", "Second Shot", "Dash", "Snipe", "Regroup")
@@ -205,10 +205,10 @@ def test_does_not_walk_into_an_avoidable_lethal(game, ai):
     ai.take_turn(game)
     medusa, hb = game.fighters["medusa"], game.fighters["hellboy"]
     assert medusa.alive
-    assert strike_steps(b, hb.pos, medusa.pos) > 2, f"Medusa termino a tiro de Hellboy sin boost (casilla {medusa.pos})"
+    assert strike_steps(b, hb.pos, medusa.pos) > 2, f"Medusa ended within Hellboy's range without a boost (space {medusa.pos})"
 
 
-ITER_POSITION = 1500    # las decisiones de posicion (maniobra + politica de arpias) necesitan mas arbol que un ataque
+ITER_POSITION = 1500    # position decisions (maneuver + Harpy policy) need more tree than an attack
 
 
 @pytest.fixture
@@ -217,8 +217,8 @@ def position_ai():
 
 
 def test_keeps_the_harpy_blocking_the_corridor_instead_of_exposing_medusa(game, position_ai):
-    """Partida de Ivan: Medusa (9 PV) en la sala turquesa con una Harpia tapando la unica entrada corta (26) y
-    Hellboy pegado a ella. Retirar las Harpias para que no mueran abre el pasillo y deja a Medusa a un paso."""
+    """Ivan's game: Medusa (9 HP) in the turquoise room with a Harpy blocking the only short entrance (26) and
+    Hellboy next to her. Removing the Harpies so they do not die opens the corridor and leaves Medusa one step away."""
     place(game, medusa=24, hellboy=16, lobster=15, harpy1=26, harpy2=23, harpy3=22)
     medusa_hand(game, "Second Shot", "Regroup", "Dash", "Feint", "Winged Frenzy")
     rival_hand(game, 5)
@@ -226,13 +226,13 @@ def test_keeps_the_harpy_blocking_the_corridor_instead_of_exposing_medusa(game, 
     position_ai.take_turn(game)
     medusa, hb = game.fighters["medusa"], game.fighters["hellboy"]
     assert medusa.alive and position_ai.fallbacks == 0
-    assert steps_to_strike(game, hb, medusa) > hb.move, f"Medusa quedo a tiro de Hellboy (casilla {medusa.pos})"
-    assert harpies_adjacent_to(game, "hellboy") >= 1, "las Harpias huyeron en vez de bloquear o presionar"
+    assert steps_to_strike(game, hb, medusa) > hb.move, f"Medusa ended within Hellboy's range (space {medusa.pos})"
+    assert harpies_adjacent_to(game, "hellboy") >= 1, "the Harpies fled instead of blocking or pressing"
 
 
 def test_does_not_expose_medusa_to_save_a_harpy(game, position_ai):
-    """Una Harpia pegada a Hellboy va a morir; Medusa (8 PV) esta a dos pasos de el. Salvar la Harpia no vale
-    dejar a Medusa donde Hellboy la alcanza con una maniobra."""
+    """A Harpy next to Hellboy is going to die; Medusa (8 HP) is two steps from him. Saving the Harpy is not worth
+    leaving Medusa where Hellboy reaches her with a maneuver."""
     place(game, medusa=30, hellboy=20, lobster=13, harpy1=21, harpy2=28, harpy3=29)
     medusa_hand(game, "Second Shot", "Regroup", "Dash", "Feint", "Winged Frenzy")
     rival_hand(game, 5)
@@ -240,12 +240,12 @@ def test_does_not_expose_medusa_to_save_a_harpy(game, position_ai):
     position_ai.take_turn(game)
     medusa, hb = game.fighters["medusa"], game.fighters["hellboy"]
     assert medusa.alive and position_ai.fallbacks == 0
-    assert steps_to_strike(game, hb, medusa) > hb.move, f"Medusa quedo a tiro de Hellboy (casilla {medusa.pos})"
+    assert steps_to_strike(game, hb, medusa) > hb.move, f"Medusa ended within Hellboy's range (space {medusa.pos})"
 
 
 def test_harpies_press_when_the_rival_cannot_punish(game, position_ai):
-    """Hellboy sin cartas en mano y sin Lobster; Medusa fuera de alcance y sin cartas de ataque. Las Harpias a
-    2-3 pasos deben acercarse a presionar (y a bloquear), no quedarse atras para conservarse."""
+    """Hellboy with no cards in hand and no Lobster; Medusa out of reach and with no attack cards. The Harpies
+    2-3 steps away must approach to press (and to block), not stay back to preserve themselves."""
     place(game, medusa=25, hellboy=14, harpy1=23, harpy2=22, harpy3=21)
     game.fighters["lobster"].alive, game.fighters["lobster"].pos, game.fighters["lobster"].hp = False, None, 0
     medusa_hand(game, "Hiss and Slither", "Hiss and Slither", "Winged Frenzy")
@@ -259,7 +259,7 @@ def test_harpies_press_when_the_rival_cannot_punish(game, position_ai):
     medusa, hb = game.fighters["medusa"], game.fighters["hellboy"]
     assert position_ai.fallbacks == 0
     assert harpies_adjacent_to(game, "hellboy") >= 2, [f.pos for f in game.own(0)]
-    assert steps_to_strike(game, hb, medusa) > hb.move, f"Medusa quedo a tiro de Hellboy (casilla {medusa.pos})"
+    assert steps_to_strike(game, hb, medusa) > hb.move, f"Medusa ended within Hellboy's range (space {medusa.pos})"
 
 
 def test_defends_with_the_strongest_card_when_a_hit_would_kill(game, ai):
@@ -272,7 +272,7 @@ def test_defends_with_the_strongest_card_when_a_hit_would_kill(game, ai):
     assert card is not None and card.title == "Hiss and Slither"
 
 
-# ---------- integracion ----------
+# ---------- integration ----------
 
 def test_full_turn_with_the_engine(game, ai):
     place(game, medusa=4, hellboy=2, lobster=3, harpy1=20, harpy2=21, harpy3=22)

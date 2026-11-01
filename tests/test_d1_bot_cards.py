@@ -852,7 +852,7 @@ def test_a_look_inside_a_simulation_runs_on_a_blind_clone(bprd, monkeypatch):
 
 def test_in_the_session_a_bot_card_that_asks_the_human_pauses_at_the_panel_and_is_announced(tmp_path, monkeypatch):
     """Bot Liz attacks with Incinerate: the human gets the Si/No buttons of E1, pays with the table's discard
-    (owed at Fin de accion) and the chat says what the card did."""
+    (owed at End action) and the chat says what the card did."""
     from sparring.ai_medusa import Act
     from sparring.tts.ui import Event
     from test_batch import click

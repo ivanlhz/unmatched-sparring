@@ -1,5 +1,5 @@
-"""HeroDef y su cargador (F07 paso 1): los datos de data/heroes/<slug>.json describen exactamente lo que hoy
-esta cableado en el motor para Medusa y Hellboy, y el resto de la caja Hellboy carga sus datos basicos."""
+"""HeroDef and its loader (F07 step 1): the data in data/heroes/<slug>.json describe exactly what is
+wired in the engine today for Medusa and Hellboy, and the rest of the Hellboy box loads its basic data."""
 import json
 from pathlib import Path
 
@@ -14,8 +14,8 @@ DECK_FIELDS = ("card_id", "title", "fighter", "type", "value", "boost", "text", 
 
 
 def golden_deck(hero: str) -> list[dict]:
-    """Los 30 Card de cada mazo tal y como los daban los cargadores viejos (cards.py + data/*.json del commit
-    3e84597, volcados una sola vez): la referencia independiente del HeroDef."""
+    """The 30 Cards of each deck as the old loaders gave them (cards.py + data/*.json of commit
+    3e84597, dumped once): the HeroDef's independent reference."""
     return json.loads(GOLDEN_DECKS.read_text(encoding="utf-8"))[hero]
 
 
@@ -50,7 +50,7 @@ def test_hellboy_herodef_matches_the_wired_fighters_golden_deck_forms_and_bonus(
     assert h.forms.of(5) == DETECTIVE and h.forms.of(6) == ANUNG
     assert h.counters["destiny"].pile == "discard" and h.counters["destiny"].tag == "destiny"
     assert h.attack_bonus(ANUNG, True) == 2 and h.attack_bonus(DETECTIVE, True) == 0
-    assert h.attack_bonus(ANUNG, False) == 0          # Lobster no suma el +2
+    assert h.attack_bonus(ANUNG, False) == 0          # Lobster does not add the +2
     assert {t["id"] for t in h.triggers} == {"detective_draw", "anung_discard_move"}
 
 
@@ -68,10 +68,10 @@ def test_every_hero_of_the_hellboy_box_deals_a_30_card_deck(slug, name, hp, move
 
 
 def test_loading_an_unknown_hero_or_a_mismatched_slug_is_a_clear_error(tmp_path):
-    with pytest.raises(HeroDataError, match="no hay HeroDef para 'dracula'"):
+    with pytest.raises(HeroDataError, match="no HeroDef for 'dracula'"):
         load_hero("dracula", tmp_path)
     (tmp_path / "x.json").write_text(json.dumps({"slug": "y"}), encoding="utf-8")
-    with pytest.raises(HeroDataError, match="el slug del fichero es 'y', no 'x'"):
+    with pytest.raises(HeroDataError, match="the file's slug is 'y', not 'x'"):
         load_hero("x", tmp_path)
 
 
@@ -84,21 +84,21 @@ def _hero(**over):
 def test_validation_rejects_bad_restrictions_sizes_types_and_counters():
     raw = _hero()
     raw["deck"]["cards"][0]["fighter"] = "Medusa"
-    with pytest.raises(HeroDataError, match="restriccion 'Medusa' no es un luchador"):
+    with pytest.raises(HeroDataError, match="restriction 'Medusa' is not a fighter"):
         parse_hero(raw)
     raw = _hero()
     raw["deck"]["cards"].pop()
-    with pytest.raises(HeroDataError, match="tiene 29 cartas"):
+    with pytest.raises(HeroDataError, match="the deck has 29 cards"):
         parse_hero(raw)
     raw = _hero()
     raw["deck"]["cards"][3]["type"] = "spell"
-    with pytest.raises(HeroDataError, match="tipo 'spell'"):
+    with pytest.raises(HeroDataError, match="type 'spell'"):
         parse_hero(raw)
-    with pytest.raises(HeroDataError, match="contador 'fate', que no existe"):
+    with pytest.raises(HeroDataError, match="counter 'fate', which does not exist"):
         parse_hero(_hero(forms={"counter": "fate", "threshold": 6, "below": "a", "at_or_above": "b"}))
-    with pytest.raises(HeroDataError, match="ataque desconocido 'laser'"):
+    with pytest.raises(HeroDataError, match="unknown attack 'laser'"):
         parse_hero(_hero(attack="laser"))
-    with pytest.raises(HeroDataError, match="ids de luchador repetidos"):
+    with pytest.raises(HeroDataError, match="repeated fighter ids"):
         parse_hero(_hero(sidekicks=[{"fid": "hellboy", "name": "X", "count": 1, "hp": 1, "move": 1, "attack": "melee"}]))
 
 
@@ -108,7 +108,7 @@ def test_memory_dir_hangs_from_the_main_repo_not_from_a_worktree_or_a_closer_fol
     wt = main / ".claude" / "worktrees" / "wt1"
     wt.mkdir(parents=True)
     (wt / ".git").write_text(f"gitdir: {main / '.git' / 'worktrees' / 'wt1'}\n", encoding="utf-8")
-    (main / ".claude" / "worktrees" / "unmatched-memory" / "data" / "heroes").mkdir(parents=True)   # senuelo cercano
+    (main / ".claude" / "worktrees" / "unmatched-memory" / "data" / "heroes").mkdir(parents=True)   # a nearby decoy
     assert repo_toplevel(wt) == main and repo_toplevel(main) == main
     monkeypatch.setattr("sparring.cards.DATA_DIR", wt / "data")
     monkeypatch.delenv("UNMATCHED_MEMORY", raising=False)
@@ -118,10 +118,10 @@ def test_memory_dir_hangs_from_the_main_repo_not_from_a_worktree_or_a_closer_fol
 
 
 def test_generated_herodefs_are_up_to_date_with_memory_and_overlays():
-    """`tools/import_hero.py --all --check`: lo versionado es lo que sale del importador (solo si unmatched-memory
-    esta en esta maquina)."""
+    """`tools/import_hero.py --all --check`: what is versioned is what the importer produces (only if unmatched-memory
+    is on this machine)."""
     if not (memory_dir() / "data" / "heroes" / "hellboy.json").exists():
-        pytest.skip("sin unmatched-memory en esta maquina")
+        pytest.skip("no unmatched-memory on this machine")
     import importlib.util
     spec = importlib.util.spec_from_file_location("import_hero", HEROES_DIR.parent.parent / "tools" / "import_hero.py")
     mod = importlib.util.module_from_spec(spec)

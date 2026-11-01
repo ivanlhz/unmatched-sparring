@@ -1,4 +1,4 @@
-"""A scheme counts as idle ("sin efecto, solo recupera la accion", worth no action credit) only when it changed nothing
+"""A scheme counts as idle ("no effect, it only recovers the action", worth no action credit) only when it changed nothing
 at all: a status, a modifier, a counter or the rival's cards are changes (reviewer finding on bede8f1). Plus the
 Wildfire "already said" flag never outliving a failed flush."""
 import pytest

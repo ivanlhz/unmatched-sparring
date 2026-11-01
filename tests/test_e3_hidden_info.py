@@ -9,7 +9,7 @@ exactly when the `look_hand` op runs:
   * Every Possible Angle: the pinged card goes to the top of the bot's deck, then the move is asked;
   * Remove A Painful Memory by the human: the bot answers its own "discard it or take 2";
   * a save taken with the row open resumes and the ping finishes the card;
-  * Perfect Shot: the human predicts at Revelar before the bot defends (buttons, saved); the bot announces its own
+  * Perfect Shot: the human predicts at Reveal before the bot defends (buttons, saved); the bot announces its own
     prediction when it places the card, face up;
   * UNCANNY INTUITION: the bot's attack on the human's Abe is turned face up; the human's attack on the bot's Abe is
     the one card the bot's defense may know;
@@ -149,14 +149,14 @@ def test_confront_against_liz_lost_lays_the_hand_out_and_won_only_draws(rig, mon
 
 
 
-# Confront Any Demon or God lost: the human acts on the table himself (Ivan, 30/10) and presses Hecho; the bot
+# Confront Any Demon or God lost: the human acts on the table himself (Ivan, 30/10) and presses Done; the bot
 # validates the table and only then lets the engine discard the card.
 
 LIZ_HAND = ("Evade", "Fireball", "Feint", "Rekindle", "Pyrotechnics")
 
 
 def lost_confront(session, table, game, fake, monkeypatch, defense="Exploit", bot_hand=None):
-    """The human plays Confront against the bot and loses; returns the messages of Revelar."""
+    """The human plays Confront against the bot and loses; returns the messages of Reveal."""
     defend_with(session, game, monkeypatch, defense)
     human_hand(table, game, "Service Pistol", "Excalibur", "Glimpse Of Hell", "Confront Any Demon or God")
     attack(session, table, game, "hellboy", "baba" if "baba" in session.game.hero_def(0).slug else "liz",
@@ -168,7 +168,7 @@ def pending_pick(session):
     return hidden.manual_request(session)
 
 
-def hecho(session, table):
+def done(session, table):
     return click(session, table, Event.CHOICE, {"i": 1})
 
 
@@ -180,7 +180,7 @@ def human_discards(table, *ids):
 
 
 @with_rig("baba-yaga", "hellboy", BABA_HAND)
-def test_confront_lost_does_not_move_the_bots_hand_and_waits_for_hecho(rig, monkeypatch):
+def test_confront_lost_does_not_move_the_bots_hand_and_waits_for_done(rig, monkeypatch):
     session, table, game, fake, cfg = rig
     hand_before = sorted(table.bot_hand)
     msgs = lost_confront(session, table, game, fake, monkeypatch)
@@ -204,7 +204,7 @@ def test_a_valid_table_discards_exactly_that_card_and_closes_the_combat(rig, mon
     title = next(c.title for c in game.players[0].full_set if c.card_id == chosen)
     human_discards(table, chosen)
     n = fake.lua_messages
-    msgs = hecho(session, table)
+    msgs = done(session, table)
     assert fake.lua_messages - n <= 2
     st = game.players[0]
     assert pending_pick(session) is None and session.pending is None and session._paused() is None
@@ -240,12 +240,12 @@ def test_a_wrong_table_changes_nothing_says_what_is_wrong_and_waits_for_a_fix(ri
         table.bot_discard.append(game.players[1].full_set[0].card_id)
     elif action == "stranger_in_hand":
         table.bot_hand.append(game.players[1].full_set[0].card_id)
-    msgs = hecho(session, table)
+    msgs = done(session, table)
     assert said(msgs, wrong), msgs
     assert pending_pick(session) is not None and session.pending is not None
     assert ([c.card_id for c in game.players[0].hand], [c.card_id for c in game.players[0].discard]) == engine_before
     assert not [s for s in scripts_of(table, "return_card_to_hand")], "the bot never moves the human's choice for him"
-    # the human fixes the table and presses Hecho again
+    # the human fixes the table and presses Done again
     if action == "two":
         table.bot_discard.remove(hand[1]); table.bot_hand.append(hand[1])
     elif action == "lost":
@@ -256,7 +256,7 @@ def test_a_wrong_table_changes_nothing_says_what_is_wrong_and_waits_for_a_fix(ri
         table.bot_hand.pop(); human_discards(table, hand[1])
     else:
         human_discards(table, hand[1])
-    hecho(session, table)
+    done(session, table)
     assert pending_pick(session) is None and session.pending is None
 
 
@@ -267,7 +267,7 @@ def test_a_burning_card_the_human_discards_goes_back_to_lizs_hand_by_wildfire(ri
     hand = [c.card_id for c in game.players[0].hand]
     fire = next(c for c in game.players[0].hand if c.title == "Fireball")
     human_discards(table, fire.card_id)
-    msgs = hecho(session, table)
+    msgs = done(session, table)
     assert said(msgs, "El bot se queda Fireball (Wildfire la devuelve")
     assert fire in game.players[0].hand and fire not in game.players[0].discard
     assert [s for s in scripts_of(table, "return_card_to_hand") if f"g{fire.card_id}" in s]
@@ -275,7 +275,7 @@ def test_a_burning_card_the_human_discards_goes_back_to_lizs_hand_by_wildfire(ri
 
 
 @with_rig("baba-yaga", "hellboy", BABA_HAND)
-def test_a_save_taken_while_the_bot_waits_for_hecho_resumes_with_the_same_prompt(rig, monkeypatch):
+def test_a_save_taken_while_the_bot_waits_for_done_resumes_with_the_same_prompt(rig, monkeypatch):
     session, table, game, fake, cfg = rig
     lost_confront(session, table, game, fake, monkeypatch)
     saved = json.loads(json.dumps(session.to_dict()))
@@ -290,7 +290,7 @@ def test_a_save_taken_while_the_bot_waits_for_hecho_resumes_with_the_same_prompt
 
 @with_rig("hellboy", "abe-sapien", HELLBOY_HAND)
 @pytest.mark.parametrize("adjacent", [False, True])
-def test_advanced_psychometry_reveals_the_hand_only_when_adjacent_and_fin_de_accion_returns_it(rig, monkeypatch, adjacent):
+def test_advanced_psychometry_reveals_the_hand_only_when_adjacent_and_end_action_returns_it(rig, monkeypatch, adjacent):
     session, table, game, fake, cfg = rig
     defend_with(session, game, monkeypatch, "On Earth As It Is In Hell")
     abe, hb = game.fighters["abe"], game.fighters["hellboy"]
@@ -508,7 +508,7 @@ def test_perfect_shot_by_the_human_asks_the_prediction_at_revelar_before_the_bot
     else:
         msgs = click(twin, table, Event.CHOICE, {"i": 4})                 # "Valor 3": a miss
         assert said(msgs, "Predices que la carta del bot tiene valor impreso 3")
-    # the answer continues Revelar: the bot defends now (knowing a face-up Perfect Shot: public information, Ivan
+    # the answer continues Reveal: the bot defends now (knowing a face-up Perfect Shot: public information, Ivan
     # 29/10; nothing when it is face down) and the combat resolves in the same click
     assert twin.pending is None and twin._paused() is None
     assert [c.title if c else None for c in defended] == [None if pick == FACE_DOWN else "Perfect Shot"]
@@ -729,7 +729,7 @@ def test_a_refused_answer_leaves_no_trace_of_the_discard_and_announces_nothing(r
     chosen = sorted(c.card_id for c in game.players[0].hand)[1]
     human_discards(table, chosen)
     monkeypatch.setattr(session, "_answer_flow", lambda flow, value: (_ for _ in ()).throw(RuleError("no")))
-    msgs = hecho(session, table)
+    msgs = done(session, table)
     assert pending_pick(session) is not None and session.pending is not None
     assert chosen not in session.bot_discarded and chosen not in session.fx_in_flight
     assert not said(msgs, "El bot descarta") and said(msgs, "Accion ilegal")

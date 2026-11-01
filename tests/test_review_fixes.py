@@ -23,7 +23,7 @@ def fill_hand(game, player, n):
         game.players[player].hand.append(deck.pop(0))
 
 
-# 1. nunca se pasa: dos acciones siempre
+# 1. it never passes: always two actions
 def test_medusa_spends_all_actions_every_turn_over_100_games():
     bad = []
 
@@ -55,11 +55,11 @@ def test_maneuver_options_include_staying_put(game, ai):
         return a.moves.get(fid, game.fighters[fid].pos) != game.fighters[fid].pos
 
     assert any(not moved(a, "medusa") and not any(moved(a, h) for h in harpies) for a in acts), "nadie se mueve"
-    assert any(moved(a, "medusa") and not any(moved(a, h) for h in harpies) for a in acts), "solo Medusa"
-    assert any(not moved(a, "medusa") and any(moved(a, h) for h in harpies) for a in acts), "solo Harpias"
+    assert any(moved(a, "medusa") and not any(moved(a, h) for h in harpies) for a in acts), "only Medusa"
+    assert any(not moved(a, "medusa") and any(moved(a, h) for h in harpies) for a in acts), "only Harpies"
 
 
-# 2. la habilidad prefiere matar al heroe
+# 2. the ability prefers to kill the hero
 def test_ability_kills_hero_before_lobster(game, ai):
     place(game, medusa=4, hellboy=2, lobster=3, harpy1=20, harpy2=21, harpy3=22)
     game.fighters["lobster"].hp = 1
@@ -67,7 +67,7 @@ def test_ability_kills_hero_before_lobster(game, ai):
     assert ai.pick_ability_target(game).fid == "hellboy"
 
 
-# 3. la defensa se decide sabiendo que el rival ha jugado una carta
+# 3. the defense is decided knowing the rival has played a card
 def test_committed_attack_dist_has_no_empty_mass(game, ai):
     place(game, medusa=0, hellboy=1, lobster=27, harpy1=20, harpy2=21, harpy3=22)
     game.players[1].hand.clear()
@@ -92,34 +92,34 @@ def test_choose_defense_uses_committed_distribution(game, ai, monkeypatch):
 
 
 def test_hiss_decisive_exemption_needs_real_block_probability(game, ai):
-    """Con 5 destinos descartados, Hiss solo se juega si bloquear es casi seguro dado que hay ataque."""
+    """With 5 destinies discarded, Hiss is only played if blocking is almost certain given that there is an attack."""
     place(game, medusa=0, hellboy=1, lobster=27, harpy1=20, harpy2=21, harpy3=22)
     hiss = give(game, 0, "Hiss and Slither")
     fill_hand(game, 1, 1)
-    game.players[1].discard = [c for c in game.players[1].full_set if c.destiny][:5]  # incluye Excalibur y RHoD
+    game.players[1].discard = [c for c in game.players[1].full_set if c.destiny][:5]  # includes Excalibur and RHoD
     model = Model(game, 0)
     dist = model.committed_attack_dist(game.fighters["hellboy"])
     medusa = game.fighters["medusa"]
     assert dist
-    strong = [(0.5, 3), (0.5, 7)]  # la mitad de las veces no se bloquea: penalizacion plena
+    strong = [(0.5, 3), (0.5, 7)]  # half the time it is not blocked: full penalty
     plain = ai.eval_defense(game, model, strong, medusa, hiss)
     ai_no_pen = ai.eval_defense(game, model, [(1.0, 3)], medusa, hiss)
     assert plain < ai_no_pen - 1.0
 
 
-# 4. todos los turnos tienen 2 acciones
+# 4. every turn has 2 actions
 def test_every_turn_has_two_actions(bprd):
     g = Game.new(bprd, seed=1, controllers={})
     g.begin_turn()
     assert g.turn_no == 1 and g.actions_left == 2
 
 
-# 5. la forma se recalcula desde el descarte (no es permanente)
+# 5. the form is recomputed from the discard (it is not permanent)
 def test_form_returns_to_detective_when_destinies_leave_discard(game):
     destiny = [c for c in game.players[1].full_set if c.destiny]
     game.players[1].discard = destiny[:6]
     assert game.form(1) == ANUNG
-    game.players[1].discard.remove(destiny[0])  # p. ej. Pancakes! los devuelve al mazo
+    game.players[1].discard.remove(destiny[0])  # e.g. Pancakes! returns them to the deck
     assert game.form(1) == DETECTIVE
 
 
@@ -132,17 +132,17 @@ def test_detective_draws_two_only_on_opponent_start(game):
     assert game.hellboy_detective_draw(1) is False
 
 
-# 6. el plan esperado aplica el dano esperado
+# 6. the expected scheme applies the expected damage
 def test_apply_expected_attack_applies_damage_and_removes_dead(game, ai):
     place(game, medusa=0, hellboy=1, lobster=2, harpy1=20, harpy2=21, harpy3=22)
-    game.players[1].hand.clear()  # sin defensa posible
+    game.players[1].hand.clear()  # no possible defense
     ss = give(game, 0, "Second Shot")
     model = Model(game, 0)
     hb, lob = game.fighters["hellboy"], game.fighters["lobster"]
     act = next(a for a in ai.attack_acts(game, model) if a.target == "hellboy" and a.fid == "medusa")
     g2 = ai.apply_expected(game, act)
     assert g2.fighters["hellboy"].hp == hb.hp - 3
-    assert hb.hp == 18, "el estado real no cambia"
+    assert hb.hp == 18, "the real state does not change"
     lob.hp = 2
     act = next(a for a in ai.attack_acts(game, Model(game, 0)) if a.target == "lobster")
     g3 = ai.apply_expected(game, act)

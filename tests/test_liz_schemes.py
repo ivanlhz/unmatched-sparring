@@ -107,7 +107,7 @@ def liz_turn(tmp_path, monkeypatch, plans, hand, discard=()):
     return session, table, game, client
 
 
-def test_the_chat_says_maniobra_and_an_empty_scheme_says_so_before_anything_else(tmp_path, monkeypatch):
+def test_the_chat_says_maneuver_and_an_empty_scheme_says_so_before_anything_else(tmp_path, monkeypatch):
     def plans(game):
         sc = [c for c in game.players[BOT].hand if c.title == "Searing Clarity"]
         pos = game.hero(BOT).pos

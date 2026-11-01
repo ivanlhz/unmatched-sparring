@@ -1,4 +1,4 @@
-"""Servidor TTS falso: recibe los mensajes del cliente en un puerto efimero y puede contestar al listener."""
+"""Fake TTS server: receives the client's messages on an ephemeral port and can answer the listener."""
 from __future__ import annotations
 
 import json
@@ -39,7 +39,7 @@ class FakeTTS:
             if self.reply_port and msg.get("messageID") == 3:
                 value = self.return_value(msg) if callable(self.return_value) else self.return_value
                 rid = re.search(r"local __rid = (\d+)", msg.get("script", ""))
-                if rid:     # como el TTS real: sin messageID 5; la respuesta vuelve por sendExternalMessage (4)
+                if rid:     # like the real TTS: no messageID 5; the reply comes back through sendExternalMessage (4)
                     reply = {"sparring_reply": float(rid.group(1))}
                     if isinstance(value, dict) and "__error__" in value:
                         reply["err"] = value["__error__"]
@@ -51,12 +51,12 @@ class FakeTTS:
 
     @property
     def lua_messages(self) -> int:
-        """Mensajes de Lua (messageID 3) recibidos: lo que costaria en TTS real (~0.5 s cada uno)."""
+        """Lua messages (messageID 3) received: what they would cost in real TTS (~0.5 s each)."""
         return sum(1 for m in self.received if m.get("messageID") == 3)
 
     def push(self, payload: dict, port: int | None = None):
-        """Una bateria completa abre miles de conexiones cortas: en Windows el pool de puertos efimeros se agota
-        (WinError 10048) mientras los anteriores siguen en TIME_WAIT; se reintenta un rato en vez de fallar."""
+        """A full suite opens thousands of short connections: on Windows the pool of ephemeral ports runs out
+        (WinError 10048) while the previous ones are still in TIME_WAIT; it retries for a while instead of failing."""
         data = json.dumps(payload).encode("utf-8")
         for attempt in range(20):
             try:

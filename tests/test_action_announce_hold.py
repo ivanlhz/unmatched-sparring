@@ -12,7 +12,7 @@ from test_batch import click
 from sparring.play import ConfigError, load_config
 from sparring.session import DEFAULT_ACTION_ANNOUNCE_HOLD, SessionConfig
 from test_multihero_bridge import REAL_CONFIG
-from test_pausa_y_ataque import cfg_file  # noqa: F401
+from test_pause_and_attack import cfg_file  # noqa: F401
 from test_d3_table_effects import bot_turn, human_hand
 from test_e2_human_cards import LIZ_VS_HELLBOY, put_adjacent, rig, with_rig  # noqa: F401
 

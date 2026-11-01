@@ -6,7 +6,7 @@ from conftest import give, place
 
 
 def setup(game, med=0, hb=1):
-    """Medusa en `med`, Hellboy en `hb` (adyacentes por defecto), el resto lejos."""
+    """Medusa on `med`, Hellboy on `hb` (adjacent by default), the rest far away."""
     place(game, medusa=med, hellboy=hb, harpy1=20, harpy2=21, harpy3=22, lobster=27)
     return game.fighters["medusa"], game.fighters["hellboy"]
 
@@ -34,11 +34,11 @@ def test_card_restriction(game):
     hounds = give(game, 0, "The Hounds of Mighty Zeus")
     ss = give(game, 0, "Second Shot")
     with pytest.raises(RuleError):
-        game.attack(med, hb, hounds)  # carta de Harpy jugada por Medusa
+        game.attack(med, hb, hounds)  # Harpy card played by Medusa
     place(game, harpy1=2)
     harpy = game.fighters["harpy1"]
     with pytest.raises(RuleError):
-        game.attack(harpy, hb, ss)  # carta de Medusa jugada por una Harpy
+        game.attack(harpy, hb, ss)  # Medusa card played by a Harpy
     place(game, harpy1=0, medusa=2)
     game.attack(harpy, hb, hounds, def_card=None)
 
@@ -48,7 +48,7 @@ def test_defense_restriction(game):
     ss = give(game, 0, "Second Shot")
     lobster_card = give(game, 1, "Second Shot")
     with pytest.raises(RuleError):
-        game.attack(med, hb, ss, def_card=lobster_card)  # no es defensa ni versatil
+        game.attack(med, hb, ss, def_card=lobster_card)  # neither defense nor versatile
 
 
 def test_defender_card_must_match_fighter(game):
@@ -59,7 +59,7 @@ def test_defender_card_must_match_fighter(game):
     game.turn = 1
     game.begin_turn()
     with pytest.raises(RuleError):
-        game.attack(hb, game.fighters["harpy1"], hb_atk, def_card=hiss)  # Hiss es solo de Medusa
+        game.attack(hb, game.fighters["harpy1"], hb_atk, def_card=hiss)  # Hiss is Medusa's only
 
 
 def test_damage_and_winner(game):
@@ -79,7 +79,7 @@ def test_second_shot_boost(game, ctl):
     ss = give(game, 0, "Second Shot")
     gaze = give(game, 0, "Gaze of Stone")
     ctl[0].boost = gaze
-    ons = give(game, 1, "Glimpse Of Hell")  # 2, versatil, sin efecto que cancele
+    ons = give(game, 1, "Glimpse Of Hell")  # 2, versatile, with no effect that cancels
     r = game.attack(med, hb, ss, def_card=ons)
     assert r.atk_value == 7 and r.damage == 5 and gaze in game.players[0].discard and r.boost_card is gaze
 
@@ -89,7 +89,7 @@ def test_second_shot_boost_not_offered_if_cancelled(game, ctl):
     ss = give(game, 0, "Second Shot")
     gaze = give(game, 0, "Gaze of Stone")
     ctl[0].boost = gaze
-    d = give(game, 1, "Planned Recklessness")  # detective: cancela efectos
+    d = give(game, 1, "Planned Recklessness")  # detective: cancels effects
     r = game.attack(med, hb, ss, def_card=d)
     assert "atk" in r.cancelled and r.atk_value == 3 and gaze in game.players[0].hand
 
@@ -101,7 +101,7 @@ def test_gaze_of_stone(game):
     assert hb.hp == 18 - 2 - 8
     game.begin_turn()
     gaze2 = give(game, 0, "Gaze of Stone", 1)
-    d = give(game, 1, "Glimpse Of Hell")  # 2 contra 2: pierde el atacante
+    d = give(game, 1, "Glimpse Of Hell")  # 2 against 2: the attacker loses
     r = game.attack(med, hb, gaze2, def_card=d)
     assert not r.attacker_won and hb.hp == 8
 
@@ -127,7 +127,7 @@ def test_defender_resolves_first_in_same_window(game):
     feint = give(game, 0, "Feint")
     pr = give(game, 1, "Planned Recklessness")
     r = game.attack(med, hb, feint, def_card=pr)
-    # el defensor resuelve primero: Planned Recklessness (detective) cancela Feint y este ya no cancela nada
+    # the defender resolves first: Planned Recklessness (detective) cancels Feint and Feint then cancels nothing
     assert r.cancelled == {"atk"}
     assert any("Planned Recklessness" in e for e in r.human_effects)      # E2: the human's card, narrated to them
     assert any(s["name"] == "immune_to_effect_damage" and s["fid"] == "hellboy" for s in game.fx.statuses)
@@ -138,7 +138,7 @@ def test_planned_recklessness_blocks_effect_damage(game):
     fill_destiny(game, 6)
     assert game.form(1) == ANUNG
     gaze = give(game, 0, "Gaze of Stone")
-    pr = give(game, 1, "Planned Recklessness")  # ANUNG: no cancela, pero protege del dano de efectos
+    pr = give(game, 1, "Planned Recklessness")  # ANUNG: does not cancel, but protects from effect damage
     r = game.attack(med, hb, gaze, def_card=pr)
     assert r.cancelled == set() and r.damage == 0 and hb.hp == 18
 
@@ -147,19 +147,19 @@ def test_regroup_snipe_draws(game):
     med, hb = setup(game)
     reg = give(game, 0, "Regroup")
     n = len(game.players[0].hand)
-    game.attack(med, hb, reg, def_card=None)  # gana: roba 2
+    game.attack(med, hb, reg, def_card=None)  # wins: draws 2
     assert len(game.players[0].hand) == n - 1 + 2
     game.begin_turn()
     sn = give(game, 0, "Snipe")
     d = give(game, 1, "Glimpse Of Hell")
     n = len(game.players[0].hand)
-    game.attack(med, hb, sn, def_card=d)  # Snipe roba 1 siempre
+    game.attack(med, hb, sn, def_card=d)  # Snipe always draws 1
     assert len(game.players[0].hand) == n - 1 + 1
     game.begin_turn()
     reg2 = give(game, 0, "Regroup", 1)
     d3 = give(game, 1, "Glimpse Of Hell", 1)
     n = len(game.players[0].hand)
-    game.attack(med, hb, reg2, def_card=d3)  # pierde: roba 1
+    game.attack(med, hb, reg2, def_card=d3)  # loses: draws 1
     assert len(game.players[0].hand) == n - 1 + 1
 
 
@@ -227,7 +227,7 @@ def test_winged_frenzy(game, ctl):
     wf = give(game, 0, "Winged Frenzy")
     h2 = game.fighters["harpy2"]
     h2.alive, h2.pos, h2.hp = False, None, 0
-    ctl[0].moves = {"medusa": 4}  # 0 -> 2 (Hellboy) -> 4 atravesando al rival
+    ctl[0].moves = {"medusa": 4}  # 0 -> 2 (Hellboy) -> 4 passing through the rival
     ctl[0].placement = 3
     game.play_scheme(0, med, wf)
     assert med.pos == 4

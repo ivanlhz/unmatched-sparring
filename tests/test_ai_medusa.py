@@ -18,7 +18,7 @@ def set_destiny(game, n):
 
 
 def fill_hand(game, player, n):
-    """Mano rival con n cartas del mazo (el tamano de mano importa para el modelo)."""
+    """Rival hand with n cards from the deck (the hand size matters for the model)."""
     deck = game.players[player].deck
     while len(game.players[player].hand) < n:
         game.players[player].hand.append(deck.pop(0))
@@ -49,18 +49,18 @@ def test_take_turn_uses_ability_first(game, ai):
 
 
 def strike_steps(board, hb_pos, target_pos):
-    """Pasos que necesita Hellboy (melee) para quedar adyacente al objetivo."""
+    """Steps Hellboy (melee) needs to end adjacent to the target."""
     return min(board.distance(hb_pos, s) for s in board.adj[target_pos])
 
 
 def test_kiting_retreats_out_of_hellboy_reach(game, ai):
     b = game.board
-    # escenario: Medusa esta al alcance de Hellboy sin boost y puede salir de el con una maniobra
+    # scenario: Medusa is within Hellboy's reach without a boost and can leave it with a maneuver
     m, h = next((m, h) for h in b.spaces for m in b.spaces
                 if 0 < strike_steps(b, h, m) <= 2 and max(strike_steps(b, h, d) for d in b.reachable(m, 3, set(), set())) >= 3)
     place(game, medusa=m, hellboy=h, lobster=27, harpy1=20, harpy2=21, harpy3=22)
     game.players[0].deck[:] = [c for c in game.players[0].full_set if c.title == "Hiss and Slither"]
-    fill_hand(game, 1, 5)  # mano vacia y mazo sin ataques: solo puede reposicionarse, sin defensa que la proteja
+    fill_hand(game, 1, 5)  # empty hand and a deck without attacks: she can only reposition, with no defense to protect her
     game.actions_left = 1
     ai.take_turn(game)
     assert strike_steps(b, h, game.fighters["medusa"].pos) > 2
@@ -80,7 +80,7 @@ def test_position_is_riskier_in_anung(game, ai):
 def test_prefers_attack_when_target_is_exposed(game, ai):
     place(game, medusa=0, hellboy=1, lobster=27, harpy1=20, harpy2=21, harpy3=22)
     give(game, 0, "Gaze of Stone")
-    act = ai.plan(game)  # el rival no tiene cartas en mano: no puede defenderse
+    act = ai.plan(game)  # the rival has no cards in hand: it cannot defend
     assert act.kind == "attack" and act.card.title == "Gaze of Stone"
 
 
@@ -97,7 +97,7 @@ def test_defense_avoids_hiss_when_hellboy_is_close_to_transforming(game, ai):
     give(game, 0, "Hiss and Slither")
     give(game, 0, "Snipe")
     fill_hand(game, 1, 5)
-    set_destiny(game, 5)  # le falta un destino
+    set_destiny(game, 5)  # one destiny short
     choice = ai.choose_defense(game, game.fighters["hellboy"], game.fighters["medusa"])
     assert choice is None or choice.title != "Hiss and Slither"
 
@@ -124,11 +124,11 @@ def test_clutching_claws_penalized_near_transformation_unless_decisive(game, ai)
     model = Model(game, 0)
     near = ai.eval_attack(game, model, harpy, hb, claws) - ai.eval_attack(game, model, harpy, hb, snipe)
     assert far > 0 > near
-    # decisivo: mata al Lobster (1 de vida) y entonces no se penaliza
+    # decisive: kills Lobster (1 life) and then no penalty applies
     lob = game.fighters["lobster"]
     place(game, lobster=2)
     lob.hp = 1
-    game.players[1].hand.clear()  # sin defensa posible, la muerte es segura
+    game.players[1].hand.clear()  # no possible defense, death is certain
     model = Model(game, 0)
     decisive = ai.eval_attack(game, model, harpy, lob, claws) - ai.eval_attack(game, model, harpy, lob, snipe)
     assert decisive > 0
@@ -143,7 +143,7 @@ def test_deterministic_with_fixed_seed():
 def test_cli_hundred_games_no_exceptions(capsys):
     assert sim.main(["--games", "100", "--seed", "1000"]) == 0
     out = capsys.readouterr().out
-    assert "partidas=100 errores=0" in out
+    assert "games=100 errors=0" in out
 
 
 def test_ai_never_acts_illegally_on_both_maps():

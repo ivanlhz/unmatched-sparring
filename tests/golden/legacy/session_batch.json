@@ -819,6 +819,7 @@
    "medusa",
    "hellboy"
   ],
+  "language": "es",
   "limit_waived": false,
   "look": null,
   "moving": false,
@@ -888,7 +889,7 @@
     "composite"
    ],
    "status": "Tu turno · 1 accion · esperando Fin de accion",
-   "step": "maniobra"
+   "step": "maneuver"
   },
   {
    "bot_discard": [],
@@ -934,7 +935,7 @@
     "composite"
    ],
    "status": "Tu turno · 1 accion · esperando tu accion",
-   "step": "fin de accion"
+   "step": "end action"
   },
   {
    "bot_discard": [],
@@ -980,7 +981,7 @@
     "composite"
    ],
    "status": "Tu turno · 1 accion · esperando elegir objetivo",
-   "step": "ataca hellboy"
+   "step": "hellboy attacks"
   },
   {
    "bot_discard": [],
@@ -1026,7 +1027,7 @@
     "composite"
    ],
    "status": "Tu turno · 1 accion · esperando Revelar",
-   "step": "atacar a medusa"
+   "step": "attack medusa"
   },
   {
    "bot_discard": [
@@ -1078,7 +1079,7 @@
     "composite"
    ],
    "status": "Tu turno · 0 acciones · esperando Fin de accion",
-   "step": "revelar"
+   "step": "reveal"
   },
   {
    "bot_discard": [
@@ -1134,7 +1135,7 @@
     "composite"
    ],
    "status": "Tu turno · 2 acciones · esperando tu accion",
-   "step": "fin de accion: turno del bot"
+   "step": "end action: bot's turn"
   },
   {
    "bot_discard": [
@@ -1183,7 +1184,7 @@
     "composite"
    ],
    "status": "Tu turno · 1 accion · esperando Fin de accion",
-   "step": "maniobra"
+   "step": "maneuver"
   },
   {
    "bot_discard": [
@@ -1232,7 +1233,7 @@
     "composite"
    ],
    "status": "Tu turno · 1 accion · esperando tu accion",
-   "step": "fin de accion"
+   "step": "end action"
   },
   {
    "bot_discard": [
@@ -1334,7 +1335,7 @@
     "composite"
    ],
    "status": "Turno del bot",
-   "step": "fin de accion: turno del bot"
+   "step": "end action: bot's turn"
   }
  ]
 }

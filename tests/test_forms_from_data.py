@@ -1,5 +1,5 @@
-"""Formas y contadores desde datos (F07 paso 3): un heroe sintetico con otro contador, otro umbral, otra pasiva y
-otro disparador de inicio de turno cambia el comportamiento del motor sin tocar codigo."""
+"""Forms and counters from data (F07 step 3): a synthetic hero with another counter, another threshold, another passive and
+another start-of-turn trigger changes the engine's behavior without touching code."""
 import json
 
 from sparring.heroes import HEROES_DIR, parse_hero
@@ -8,8 +8,8 @@ from conftest import give, place
 
 
 def blazing_hero(draw_n: int = 1):
-    """Hellboy con otra regla de forma: cuenta cartas 'burning' en el descarte; COLD por debajo de 3, BLAZING desde 3
-    (+3 al ataque del heroe); en COLD roba `draw_n` al empezar en la salida rival."""
+    """Hellboy with another form rule: counts 'burning' cards in the discard; COLD below 3, BLAZING from 3
+    (+3 to the hero's attack); in COLD draws `draw_n` when starting on the rival start space."""
     raw = json.loads((HEROES_DIR / "hellboy.json").read_text(encoding="utf-8"))
     for c in raw["deck"]["cards"]:
         c["tags"] = ["burning"] if c["title"] in ("Service Pistol", "Excalibur", "Second Shot", "Pancakes!") else []
@@ -75,7 +75,7 @@ def test_start_of_turn_triggers_are_filtered_by_form_and_their_numbers_come_from
     place(game, hellboy=game.start_spaces[0])
     game.players[1].hand = []
     assert game.hellboy_detective_draw(1) is True and len(game.players[1].hand) == 3
-    game.players[1].discard = burning(game, 1, 3)                 # BLAZING: el disparador de COLD no esta activo
+    game.players[1].discard = burning(game, 1, 3)                 # BLAZING: the COLD trigger is not active
     assert game.triggers(1, "start_of_turn") == []
     game.players[1].hand = []
     assert game.hellboy_detective_draw(1) is False and game.players[1].hand == []

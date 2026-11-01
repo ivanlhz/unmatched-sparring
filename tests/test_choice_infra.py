@@ -246,7 +246,7 @@ def test_many_options_page_and_multi_pick_confirms(brig):
 
 
 def test_a_plain_yes_no_names_the_card_lists_the_buttons_and_quotes_the_card_text(bprd):
-    """Live 29/10: the panel said "Quieres hacerlo?" with two "Opcion" buttons after Pyrotechnics."""
+    """Live 29/10: the panel said "Do you want to do it?" with two "Opcion" buttons after Pyrotechnics."""
     from sparring.effects.choose import ChoiceRequest
     from sparring.session_choices import card_text_hint, options_text, prompt_text
     g = Game.new(bprd, seed=3, controllers={}, heroes=("hellboy", "liz-sherman"))

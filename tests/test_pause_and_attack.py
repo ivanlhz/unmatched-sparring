@@ -1,4 +1,4 @@
-"""Pausa entre acciones del bot (sin mensajes extra a TTS) y boton Atacar con un solo mensaje."""
+"""Pause between the bot's actions (no extra messages to TTS) and the Attack button with a single message."""
 import pytest
 
 from sparring.ai_medusa import Act
@@ -10,7 +10,7 @@ from test_play import REAL_CONFIG, cfg_file  # noqa: F401
 
 
 def bot_turn(session, game, monkeypatch, fake, table, plan):
-    """Fin de accion con el humano sin acciones: el bot juega su turno entero. Devuelve los mensajes que costo."""
+    """End action with the human out of actions: the bot plays its whole turn. Returns the messages it cost."""
     monkeypatch.setattr(session.ai, "plan", plan)
     monkeypatch.setattr(session.ai, "pick_ability_target", lambda g: None)
     game.actions_left = 0
@@ -30,20 +30,20 @@ def maneuver(g):
     return Act("maneuver", moves={"medusa": 0})
 
 
-# ---------- A: pausa entre acciones ----------
+# ---------- A: pause between actions ----------
 def test_the_bot_pauses_after_each_action_and_before_your_turn(brig, monkeypatch, sleeps):
     session, table, game, fake = brig
     session.cfg.bot_pause = 1.0
     cost = bot_turn(session, game, monkeypatch, fake, table, maneuver)
     assert game.turn == 1 and game.turn_no == 4
-    assert sleeps == [1.0, 1.0], "una pausa tras cada una de las 2 acciones; la ultima separa del 'Tu turno'"
-    assert table.sent[-3:] == ["composite"] * 3 and cost == 4, "una instantanea de arranque y 3 compuestos, pausa o no"
+    assert sleeps == [1.0, 1.0], "one pause after each of the 2 actions; the last one separates from \"Your turn\""
+    assert table.sent[-3:] == ["composite"] * 3 and cost == 4, "a start-up snapshot and 3 composites, with a pause or not"
 
 
 def test_a_zero_pause_never_sleeps_and_costs_the_same(brig, monkeypatch, sleeps):
     session, table, game, fake = brig
     assert session.cfg.bot_pause == 0.0 and SessionConfig.__dataclass_fields__["bot_pause"].default == 0.0
-    assert bot_turn(session, game, monkeypatch, fake, table, maneuver) == 4     # igual que con pausa
+    assert bot_turn(session, game, monkeypatch, fake, table, maneuver) == 4     # same as with a pause
     assert sleeps == []
 
 
@@ -78,7 +78,7 @@ def test_bot_pause_config_default_override_and_validation(cfg_file):
     assert parse_args(["--bot-pause", "0"]).bot_pause == 0 and parse_args([]).bot_pause is None
 
 
-# ---------- B: el boton Atacar ----------
+# ---------- B: the Attack button ----------
 def click_attack(session, table):
     click(session, table, Event.ATTACKER, {"attacker": "att_hellboy"})
     n, k = session.client.calls, len(table.sent)
@@ -98,23 +98,23 @@ def test_attack_never_reads_the_human_hand_and_costs_one_message(brig):
 def test_button_message_counts_attack_vs_maneuver_vs_end_action(brig):
     session, table, game, fake = brig
     costs = {}
-    for label, ev in (("maniobra", Event.MANEUVER), ("fin de accion", Event.END_ACTION)):
+    for label, ev in (("maneuver", Event.MANEUVER), ("end action", Event.END_ACTION)):
         n = fake.lua_messages
         click(session, table, ev)
         costs[label] = fake.lua_messages - n
-    costs["atacar"] = click_attack(session, table)[0]
-    assert costs == {"maniobra": 1, "fin de accion": 1, "atacar": 1}
+    costs["attack"] = click_attack(session, table)[0]
+    assert costs == {"maneuver": 1, "end action": 1, "attack": 1}
 
 
 def test_reveal_refuses_an_illegal_attack_card_before_the_bot_defends(brig):
     session, table, game, fake = brig
     click_attack(session, table)
-    human_plays(table, game, "Pancakes!")                 # un plan, no sirve para atacar
+    human_plays(table, game, "Pancakes!")                 # a scheme, no use for attacking
     click(session, table, Event.REVEAL)
     assert any("Carta ilegal" in m for m in session.messages)
     p = session.pending
-    assert p is not None and not p.defended and p.bot_card is None, "el bot no ha puesto defensa"
-    human_plays(table, game, "Service Pistol")            # cambia la carta y vuelve a revelar
+    assert p is not None and not p.defended and p.bot_card is None, "the bot has not placed a defense"
+    human_plays(table, game, "Service Pistol")            # changes the card and reveals again
     click(session, table, Event.REVEAL)
     assert session.pending is None
 

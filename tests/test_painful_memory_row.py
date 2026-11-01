@@ -1,7 +1,7 @@
 """Remove A Painful Memory played by the human against Liz Sherman (live, 30/10, second pass).
 
 The spec: the bot lays its hand face up in a row on free table next to ITS ongoing and combat zones (`bot_row_spot`,
-not Mirar mano's `look_spot`), the human pings one card (with an ongoing scheme), the BOT decides to discard it or to
+not Look at bot's hand's `look_spot`), the human pings one card (with an ongoing scheme), the BOT decides to discard it or to
 keep it and take 2 (announced in the chat, damage included), and only then the card goes to the discard pile, the rest
 returns to the hand and the dial is updated.
 """

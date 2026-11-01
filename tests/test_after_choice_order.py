@@ -1,6 +1,6 @@
 """The combat result reaches the table BEFORE the human answers an AFTER choice (Ivan, 31/10, Rekindle): the damage is
 dealt at the reveal, so the summary, the bot's card lines and the health dials are out first; the choice follows, and
-once answered "Tu carta: ..." is said. A resume from a save made at the pause repeats none of it."""
+once answered "Your card: ..." is said. A resume from a save made at the pause repeats none of it."""
 from __future__ import annotations
 
 import json
@@ -16,7 +16,7 @@ REKINDLE_RIG = ("hellboy", "liz-sherman", "Glimpse Of Hell", "Right Hand Of Doom
 
 def hellboy_hits_rekindle(session, table, game, cfg):
     """Bot Hellboy attacks with Right Hand Of Doom (4); Liz defends with Rekindle (2) with Fireball and Evade on her
-    pile. Returns the messages of Revelar, which stop at Rekindle's choice."""
+    pile. Returns the messages of Reveal, which stop at Rekindle's choice."""
     put_adjacent(game, table, cfg, "liz", "hellboy")
     fireball, evade = card_ids(game, 1, "Fireball", "Evade")
     table.human_discard = [fireball, evade]

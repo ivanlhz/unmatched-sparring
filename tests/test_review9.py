@@ -1,6 +1,6 @@
-"""Revision 9: identidad de los mazos, instantaneas viejas, "Procesando..." y detalles.
+"""Review 9: deck identity, old snapshots, "Processing..." and details.
 
-Los tests de Lua ejecutan los scripts generados con lupa sobre una mesa minima (`lua_stub.lua`); sin lupa se saltan
+The Lua tests run the generated scripts with lupa on a minimal table (`lua_stub.lua`); without lupa they are skipped
 (`uv run --with pytest --with lupa pytest`)."""
 import json
 import math
@@ -29,7 +29,7 @@ def conv(x):
     if lua54.lua_type(x) == "table":
         keys = list(x.keys())
         if not keys:
-            return []                       # como el JSON.encode de TTS: una tabla vacia es una lista
+            return []                       # like TTS's JSON.encode: an empty table is a list
         if all(isinstance(k, int) for k in keys):
             return [conv(x[k]) for k in sorted(keys)]
         return {str(k): conv(x[k]) for k in keys}
@@ -52,7 +52,7 @@ def run(runtime, script, rid=1):
     n = len(runtime.globals().SENT)
     runtime.execute(lua.request(script, rid))
     sent = runtime.globals().SENT
-    assert len(sent) == n + 1, "una respuesta por script"
+    assert len(sent) == n + 1, "one reply per script"
     reply = conv(sent[n + 1])
     assert "err" not in reply, reply
     return json.loads(reply["value"])
@@ -64,7 +64,7 @@ def owners(runtime, guid):
 
 
 def medusa_table(runtime):
-    """El mazo de Medusa repartido por la mesa y, mezclados con el, cartas ajenas que comparten sus CardID."""
+    """Medusa's deck spread over the table and, mixed with it, foreign cards that share its CardIDs."""
     runtime.execute("""
 local cards = {}
 for i = 0, 19 do table.insert(cards, {cid = 17600 + i, guid = 'm' .. i, owner = 'medusa'}) end
@@ -84,7 +84,7 @@ mkobj({guid = 'mix1', type = 'Deck', pos = {x = 14, y = 1, z = -3},
 """)
 
 
-# ---------- 1. identidad del mazo ----------
+# ---------- 1. deck identity ----------
 def test_reset_deck_gathers_exactly_the_30_cards_of_the_bot_and_moves_no_foreign_card(rt):
     medusa_table(rt)
     res = run(rt, lua.reset_deck("d42056", (11.5, 12.0), lua.BOT_CARD_IDS, identity=BOT_ID, scope=SCOPE))
@@ -93,7 +93,7 @@ def test_reset_deck_gathers_exactly_the_30_cards_of_the_bot_and_moves_no_foreign
     g = rt.globals()
     for guid in ("alice5", "alice6", "rosie1", "rosie2", "mix1"):
         o = g.getObjectFromGUID(guid)
-        assert o is not None and o.moved_count is None, f"{guid} es ajeno y no se toca"
+        assert o is not None and o.moved_count is None, f"{guid} is foreign and is not touched"
     assert len(owners(rt, "rosie1")) == 30 and len(owners(rt, "mix1")) == 2
 
 
@@ -102,7 +102,7 @@ def test_reset_deck_never_looks_outside_the_hands_zones_and_card_spots(rt):
     rt.execute("mkobj({guid = 'far1', type = 'Card', cid = 17603, owner = 'medusa', pos = {x = 60, y = 1, z = 30}})")
     res = run(rt, lua.reset_deck("d42056", (11.5, 12.0), lua.BOT_CARD_IDS, identity=BOT_ID, scope=SCOPE))
     assert res["quantity"] == 30 and rt.globals().getObjectFromGUID("far1") is not None, \
-        "una carta del bando fuera del ambito no se recoge (y el mazo se queda en 30 con las del ambito)"
+        "a card of the side outside the scope is not picked up (and the deck stays at 30 with those in scope)"
 
 
 def test_discard_cards_moves_only_cards_of_the_bot_identity_inside_the_scope(rt):
@@ -110,8 +110,8 @@ def test_discard_cards_moves_only_cards_of_the_bot_identity_inside_the_scope(rt)
     wanted = [17605, 17606, 17620, 17625, 17628, 17629]
     res = run(rt, lua.discard_cards(wanted, [(1.0, 2.0, 3.0 + i) for i in range(6)], 90,
                                     identity=BOT_ID, scope=SCOPE))
-    # 17605/17606 salen del Deck del bot (como mucho una carta por Deck y llamada: la primera); 17620 de la mano,
-    # 17625 suelta en la zona, 17628 en el punto de combate y 17629 en la zona del humano
+    # 17605/17606 come out of the bot's Deck (at most one card per Deck and call: the first); 17620 from the hand,
+    # 17625 loose in the zone, 17628 at the combat spot and 17629 in the human's zone
     assert sorted(res["moved"]) == [17605, 17620, 17625, 17628, 17629]
     g = rt.globals()
     assert g.getObjectFromGUID("alice5").moved_count is None and g.getObjectFromGUID("alice6").moved_count is None
@@ -203,7 +203,7 @@ def test_session_reads_the_identity_at_start_and_uses_it_in_every_card_write(bri
     assert session._deck_ident["bot"] == (("https://img.test/face", "https://img.test/back"),)
 
 
-# ---------- 2. el temporizador de 20 s y las instantaneas viejas ----------
+# ---------- 2. the 20 s timer and old snapshots ----------
 def make_panel_runtime():
     runtime = lua54.LuaRuntime()
     runtime.execute(STUB)
@@ -216,12 +216,12 @@ def make_panel_runtime():
 def test_only_the_timer_of_the_latest_click_can_unlock_the_panel():
     rt = make_panel_runtime()
     g = rt.globals()
-    g.onManeuver()                     # clic A: temporizador A
-    g.busy = False                     # el bot libera el panel
-    g.onEndAction()                    # clic B: temporizador B
-    g.TIMERS[1]()                      # a los 20 s caduca el A mientras se procesa B
-    assert g.busy is True, "el temporizador viejo no desbloquea un clic posterior"
-    g.TIMERS[2]()                      # el de B si puede
+    g.onManeuver()                     # click A: timer A
+    g.busy = False                     # the bot releases the panel
+    g.onEndAction()                    # click B: timer B
+    g.TIMERS[1]()                      # at 20 s A expires while B is processed
+    assert g.busy is True, "the old timer does not unblock a later click"
+    g.TIMERS[2]()                      # B's can
     assert g.busy is False and "Sin respuesta" in g.UIVAL
 
 
@@ -250,7 +250,7 @@ mkobj({guid = 'pnl', type = 'BlockSquare', name = 'SparringPanel', gm = 'sparrin
     assert conv(rt.globals().getObjectFromGUID("pnl").vars) == {"busy": False, "wseq": 7}
 
 
-# ---------- 3 y 4. liberar tras asentarse; isSmoothMoving ----------
+# ---------- 3 and 4. release after settling; isSmoothMoving ----------
 def _spec(rt):
     rt.execute("""
 mkobj({guid = 'ec6f27', type = 'Board'})
@@ -279,7 +279,7 @@ def _composite_with_panel(rt, **piece):
 def test_busy_is_cleared_only_after_the_pieces_settle(rt):
     g = _composite_with_panel(rt, smooth="true")
     pnl = g.getObjectFromGUID("pnl")
-    assert len(g.SENT) == 0 and pnl.vars is None, "mientras se mueve no se libera ni se responde"
+    assert len(g.SENT) == 0 and pnl.vars is None, "while it moves, nothing is released or answered"
     assert g.PENDING[1].cond() is False
     g.getObjectFromGUID("04b2c9").smooth = False
     assert g.PENDING[1].cond() is True
@@ -298,7 +298,7 @@ def test_a_resting_false_piece_also_blocks_and_missing_methods_do_not_break_the_
     rt2.execute("mkobj({guid = 'ec6f27', type = 'Board'})\nmkobj({guid = '04b2c9', type = 'Figurine', no_smooth = true})")
     rt2.execute("getObjectFromGUID('04b2c9').resting = nil\nDEFER = true")
     rt2.execute(lua.request(lua.composite([lua.move_piece(_board(), "04b2c9", 30)], _spec(rt2), None), 6))
-    assert rt2.globals().PENDING[1].cond() is True, "sin isSmoothMoving ni resting no hay nada que esperar"
+    assert rt2.globals().PENDING[1].cond() is True, "without isSmoothMoving or resting there is nothing to wait for"
 
 
 def test_set_panel_releases_busy_itself_unless_a_composite_does_it(rt):
@@ -310,18 +310,18 @@ def test_set_panel_releases_busy_itself_unless_a_composite_does_it(rt):
         lua.set_panel("ok", {}, release_busy="si")
 
 
-# ---------- 2 (Python). una instantanea vieja nunca se adopta ----------
+# ---------- 2 (Python). an old snapshot is never adopted ----------
 def test_a_snapshot_older_than_the_last_table_write_is_dropped_not_adopted(brig, monkeypatch):  # noqa: F811
     from sparring.ai_medusa import Act
     session, table, game, fake = brig
-    game.actions_left = 0                                   # el siguiente Fin de accion ejecuta el turno del bot
-    stale = json.dumps(table.snapshot_state())               # clic tomado antes de las escrituras del bot
+    game.actions_left = 0                                   # the next End action runs the bot's turn
+    stale = json.dumps(table.snapshot_state())               # click taken before the bot's writes
     monkeypatch.setattr(session.ai, "plan", lambda g: Act("maneuver", moves={"medusa": 5}))
     monkeypatch.setattr(session.ai, "pick_ability_target", lambda g: None)
     session.handle(Event.END_ACTION, {"snapshot": stale})
     assert game.fighters["medusa"].pos == 5 and table.positions["Medusa"] == 5
-    session.handle(Event.END_ACTION, {"snapshot": stale})    # duplicado tras el desbloqueo, con la mesa vieja
-    assert game.fighters["medusa"].pos == 5, "la instantanea vieja no rebobina el motor"
+    session.handle(Event.END_ACTION, {"snapshot": stale})    # duplicate after the unblock, with the old table
+    assert game.fighters["medusa"].pos == 5, "the old snapshot does not rewind the engine"
     assert session._snap_stale(json.loads(stale))
 
 
@@ -346,14 +346,14 @@ def test_events_that_arrive_while_the_client_is_inside_call_lua_lose_their_snaps
         client.call_lua(lua.broadcast("hola"))
         client.listener.messages.put({"messageID": 4, "customMessage": {"event": "maneuver", "snapshot": "{}"}})
         events = client.poll_events()
-        assert events[0] == {"event": "end_action"}, "llego dentro de call_lua: su instantanea es anterior a la escritura"
-        assert events[1].get("snapshot") == "{}", "uno que llega con el cliente libre conserva la suya (lo juzga el sello)"
+        assert events[0] == {"event": "end_action"}, "it arrived inside call_lua: its snapshot predates the write"
+        assert events[1].get("snapshot") == "{}", "one that arrives with the client free keeps its own (the seal judges it)"
     finally:
         client.close()
         fake.close()
 
 
-# ---------- 5. Revelar: no se gira lo que se descarta ----------
+# ---------- 5. Reveal: what is discarded is not turned ----------
 def test_reveal_does_not_flip_the_bot_card_that_the_same_composite_discards(brig):  # noqa: F811
     from test_session import human_plays
     session, table, game, fake = brig
@@ -365,13 +365,13 @@ def test_reveal_does_not_flip_the_bot_card_that_the_same_composite_discards(brig
     assert bot_guid not in table.flips and len(table.flips) == 1
 
 
-# ---------- 6. validaciones ----------
+# ---------- 6. validations ----------
 @pytest.mark.parametrize("bad", [float("inf"), float("-inf"), float("nan"), 1e308, "7", True, 101, [1]])
 def test_a_bad_value_is_refused_without_an_uncaught_error_and_the_panel_is_released(brig, bad):  # noqa: F811
     session, table, game, fake = brig
     msgs = click(session, table, Event.VALUE, {"value": bad})
     assert session.pending_value == 0 and any("Valor no valido" in m for m in msgs)
-    assert table.panels, "el cierre del boton libera el panel"
+    assert table.panels, "the button's closing releases the panel"
 
 
 def test_a_good_value_is_registered(brig):  # noqa: F811
@@ -402,13 +402,13 @@ def test_click_snapshot_types_and_ranges_are_validated(brig):  # noqa: F811
         assert session._parse_snap({**good, **patch}, spaces) is None, patch
 
 
-# ---------- 6. tamano del compuesto ----------
+# ---------- 6. size of the composite ----------
 def test_composite_size_is_capped_in_bytes(rt):
     big = lua.broadcast("x" * 60)
     assert len(big) < 300
     many = [lua.name_pieces({f"g{i:03d}": "Harpy 1" for i in range(200)}) for _ in range(30)]
     assert sum(len(m) for m in many) > lua.MAX_COMPOSITE_BYTES
-    with pytest.raises(ValueError, match="demasiado grande"):
+    with pytest.raises(ValueError, match="too large"):
         lua.composite(many)
     assert len(lua.composite(many[:2]).encode()) < lua.MAX_COMPOSITE_BYTES
 
@@ -423,7 +423,7 @@ def test_flush_splits_a_queue_that_would_exceed_the_cap(brig):  # noqa: F811
                                           for m in fake.received if m.get("messageID") == 3)
 
 
-# ---------- 6. la linea de estado se calcula tras los cierres ----------
+# ---------- 6. the status line is computed after the closings ----------
 def test_status_line_is_computed_after_the_closing_checks(brig, monkeypatch):  # noqa: F811
     session, table, game, fake = brig
     real = session._maneuver
@@ -440,14 +440,14 @@ def test_status_line_is_computed_after_the_closing_checks(brig, monkeypatch):  #
 
 def test_the_readme_states_the_real_batch_defaults():
     text = open(os.path.join(HERE, "..", "README.md"), encoding="utf-8").read()
-    assert "(por defecto `true` en `partida.json`)" not in text
-    assert "`false` en el codigo" in text and "`true` si `partida.json` no los menciona" in text
+    assert "(por defecto `true` en `partida.json`)" not in text and "(default `true` in `partida.json`)" not in text
+    assert "`batch`" in text and "`live_ui`" in text
 
 
-# ---------- partida 5: panel, etiquetas, preparacion ----------
+# ---------- game 5: panel, labels, setup ----------
 def _real_cfg():
     from sparring import play
-    return play.load_config(os.path.join(HERE, "..", "config", "partida.json"))
+    return play.load_config(os.path.join(HERE, "..", "config", "table.json"))
 
 
 def test_real_config_puts_the_panel_right_of_the_discard_zone_and_nothing_sits_under_it():
@@ -519,16 +519,16 @@ def test_no_off_board_warning_while_the_game_is_being_set_up(brig):  # noqa: F81
 
 def test_resume_writes_and_verifies_every_dial_in_the_resume_messages(brig):  # noqa: F811
     session, table, game, fake = brig
-    game.fighters["medusa"].hp = 13                       # el motor tiene 13 y el dial del guardado marca 16
+    game.fighters["medusa"].hp = 13                       # the engine has 13 and the save's dial shows 16
     session.dials_written["DM"] = 16
     n = fake.lua_messages
     session.resume()
-    assert table.dials["DM"]["value"] == 13 and table.dial_writes, "el dial ya marca la vida del motor"
+    assert table.dials["DM"]["value"] == 13 and table.dial_writes, "the dial now shows the engine's life"
     assert session.dials_written["DM"] == 13
     assert fake.lua_messages - n <= 3
 
 
-# ---------- partida 5: BOOST del humano (Second Shot) ----------
+# ---------- game 5: the human's BOOST (Second Shot) ----------
 def _boost_rig(brig):
     from test_session import card, human_plays
     session, table, game, fake = brig
@@ -547,8 +547,8 @@ def test_second_shot_reveals_both_cards_and_waits_for_the_boost_without_resolvin
     msgs = click(session, table, Event.REVEAL)
     p = session.pending
     assert p is not None and p.boost_wait is not None and p.boost_wait["card"] == second.card_id
-    assert game.actions_left == actions and game.fighters["medusa"].hp == hp, "aun no se ha resuelto nada"
-    assert len(table.flips) == 2, "las dos cartas giradas"
+    assert game.actions_left == actions and game.fighters["medusa"].hp == hp, "nothing has been resolved yet"
+    assert len(table.flips) == 2, "the two cards turned"
     assert any("Second Shot revelado" in m and "Continuar" in m and "Sin boost" in m for m in msgs)
     status, states = table.panels[-1]
     assert status == "Second Shot revelado: pon una carta en tu descarte y pulsa Continuar o Sin boost"
@@ -556,12 +556,12 @@ def test_second_shot_reveals_both_cards_and_waits_for_the_boost_without_resolvin
     assert states["btn_reveal"] == (False, False) and states["btn_cancel"] == (False, False)
 
 
-def test_continuar_reads_the_new_discard_card_boost_and_announces_the_total(brig):  # noqa: F811
+def test_continue_reads_the_new_discard_card_boost_and_announces_the_total(brig):  # noqa: F811
     session, table, game, fake, second, card = _boost_rig(brig)
     click(session, table, Event.REVEAL)
     booster = card(game, 1, "Service Pistol")
     table.human_discard = [booster.card_id]
-    table.human_count -= 1                                # la carta del boost salio de la mano
+    table.human_count -= 1                                # the boost card left the hand
     msgs = click(session, table, Event.BOOST)
     assert session.pending is None and session.pending_value == 0
     text = next(m for m in msgs if m.startswith("Combate"))
@@ -572,7 +572,7 @@ def test_continuar_reads_the_new_discard_card_boost_and_announces_the_total(brig
     assert table.panels[-1][1]["btn_boost"] == (False, False)
 
 
-def test_continuar_without_a_new_discard_card_waits_and_sin_boost_resolves_with_no_boost(brig):  # noqa: F811
+def test_continue_without_a_new_discard_card_waits_and_no_boost_resolves_with_no_boost(brig):  # noqa: F811
     session, table, game, fake, second, card = _boost_rig(brig)
     click(session, table, Event.REVEAL)
     msgs = click(session, table, Event.BOOST)

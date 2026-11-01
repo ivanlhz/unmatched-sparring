@@ -1,4 +1,4 @@
-"""Panel nuevo (estado, botones apagados segun el estado), reinicio, bajas del humano y etiquetas del suelo."""
+"""New panel (status, buttons turned off by state), restart, the human's casualties and floor labels."""
 from conftest import t_reset_deck
 import dataclasses
 import json
@@ -8,11 +8,11 @@ import pytest
 
 from sparring.tts import lua, ui
 from sparring.tts.ui import Event
-from test_batch import brig, click  # noqa: F401  (brig es una fixture)
+from test_batch import brig, click  # noqa: F401  (brig is a fixture)
 from test_session import card, human_plays, set_bot_hand
 
-PLAY_CONFIG = json.loads(open(__file__.replace("tests\\test_panel_restart.py", "config\\partida.json")
-                              .replace("tests/test_panel_restart.py", "config/partida.json"), encoding="utf-8").read())
+PLAY_CONFIG = json.loads(open(__file__.replace("tests\\test_panel_restart.py", "config\\table.json")
+                              .replace("tests/test_panel_restart.py", "config/table.json"), encoding="utf-8").read())
 
 
 class Clock:
@@ -27,7 +27,7 @@ def with_cfg(session, **kw):
     session.cfg = dataclasses.replace(session.cfg, **kw)
 
 
-# ---------- linea de estado y botones segun el estado ----------
+# ---------- status line and buttons by state ----------
 def test_status_line_says_what_the_bot_expects(brig):
     session, table, game, fake = brig
     status, _ = session.panel_view()
@@ -45,18 +45,18 @@ def test_buttons_that_cannot_be_used_are_greyed_out(brig):
     session, table, game, fake = brig
     _, st = session.panel_view()
     assert st["btn_reveal"] == (False, True) and st["btn_cancel"] == (False, True)
-    assert st["medusa"][0] is False, "sin atacante elegido no hay objetivos"
+    assert st["medusa"][0] is False, "with no chosen attacker there are no targets"
     assert st["btn_maneuver"] == (True, True) and st["att_hellboy"] == (True, True)
     assert st["btn_undo"] == (False, False)
     click(session, table, Event.ATTACKER, {"attacker": "att_hellboy"})
     _, st = session.panel_view()
     game.fighters["hellboy"].pos = max(game.board.spaces)
     _, st = session.panel_view()
-    assert st["medusa"] == (False, True), "Medusa esta lejos de Hellboy: fuera de alcance"
+    assert st["medusa"] == (False, True), "Medusa is far from Hellboy: out of range"
     assert st["btn_cancel"] == (True, True)
     game.fighters["hellboy"].pos = min(game.board.adj[game.fighters["medusa"].pos])
     _, st = session.panel_view()
-    assert st["medusa"] == (True, True), "al alcance"
+    assert st["medusa"] == (True, True), "in range"
     table.positions["Hellboy"] = game.fighters["hellboy"].pos
     click(session, table, Event.ATTACK, {"target": "medusa"})
     assert session.pending is not None
@@ -100,13 +100,13 @@ def test_the_panel_reply_re_enables_the_buttons_and_releases_the_local_lock(brig
     assert 'panel.setVar("busy", false)' in s
 
 
-# ---------- reiniciar partida ----------
+# ---------- restart game ----------
 def prepared(brig, tmp_path):
     session, table, game, fake = brig
     clock = Clock()
     session.clock = clock
     with_cfg(session, dead_spot=(24.0, 2.5, -20.0), setup=False)
-    session.state_path = tmp_path / "sesion.json"
+    session.state_path = tmp_path / "session.json"
     return session, table, game, clock
 
 
@@ -120,7 +120,7 @@ def test_one_press_only_arms_the_restart_and_changes_nothing(brig, tmp_path):
     assert "confirmar" in table.panels[-1][0]
     assert session.game_id == old_id and session.game is game and not table.dial_writes[1:]
     assert not any(t.startswith(("-- sparring:reset_deck", "-- sparring:place_piece")) for t in table.scripts)
-    assert game.turn_no == turn_no and len(table.sent) == n + 1 and (tmp_path / "sesion.json").exists()
+    assert game.turn_no == turn_no and len(table.sent) == n + 1 and (tmp_path / "session.json").exists()
 
 
 def test_a_press_after_three_seconds_arms_again_instead_of_restarting(brig, tmp_path):
@@ -163,8 +163,8 @@ def test_double_press_restarts_everything_in_one_message_and_goes_back_to_the_dr
     assert table.dials["DM"]["value"] == 16 and table.dials["DH"]["value"] == 18 and table.dials["DD"]["value"] == 0
     assert any("Partida reiniciada" in m for m in msgs)
     assert session.setup is not None and session.setup["stage"] in ("wait_human_first", "wait_human", "hand")
-    assert json.loads((tmp_path / "sesion.json").read_text(encoding="utf-8"))["fingerprint"]["game_id"] == session.game_id
-    assert brig[3].lua_messages - n <= 6, "reiniciar no cuesta decenas de mensajes"
+    assert json.loads((tmp_path / "session.json").read_text(encoding="utf-8"))["fingerprint"]["game_id"] == session.game_id
+    assert brig[3].lua_messages - n <= 6, "restarting does not cost dozens of messages"
 
 
 def test_restart_moves_every_piece_off_the_board_to_the_two_dead_spots(brig, tmp_path):
@@ -175,7 +175,7 @@ def test_restart_moves_every_piece_off_the_board_to_the_two_dead_spots(brig, tmp
     assert set(placed) == set(session.cfg.nicknames.values())
     assert all(placed[n][0] > 20 for n in ("Medusa", "Harpy 1", "Harpy 2", "Harpy 3"))
     assert all(placed[n][0] < -20 for n in ("Hellboy", "Lobster Johnson"))
-    assert len({v for v in placed.values()}) == 6, "cada pieza en su hueco"
+    assert len({v for v in placed.values()}) == 6, "each piece in its slot"
 
 
 def test_a_failed_restart_leaves_the_engine_untouched_and_can_be_repeated(brig, tmp_path):
@@ -221,7 +221,7 @@ def test_reset_deck_is_registered_composable_and_only_takes_its_own_side():
     assert lua.is_sendable(lua.composite([s, lua.set_health_dials({"abc": 3})]))
 
 
-# ---------- bajas del humano ----------
+# ---------- the human's casualties ----------
 def test_a_dead_human_fighter_is_moved_off_the_board_and_announced(brig):
     session, table, game, fake = brig
     with_cfg(session, dead_spot=(24.0, 2.5, -20.0))
@@ -261,15 +261,15 @@ def test_a_dead_fighter_cannot_be_chosen_as_attacker_and_the_message_says_why(br
     assert any("no valido" in m for m in msgs)
 
 
-# ---------- etiquetas del suelo ----------
+# ---------- floor labels ----------
 CARD_W, CARD_D = lua.CARD_SIZE
 
 
 def boxes():
-    """(etiqueta, cx, cz, ancho, fondo, rotY) de las cajas de la partida real."""
+    """(label, cx, cz, width, depth, rotY) of the boxes of the real game."""
     b = PLAY_CONFIG["bot_discard_bounds"]
     out = [("DESCARTE MEDUSA", b[0], b[1], b[2], b[3], b[4]),
-           ("DESCARTE HELLBOY", -12.5, 0.7, 8.55, 35.43, 90.0),         # zona b7a0b8 (centro -12.5, 0.7)
+           ("DESCARTE HELLBOY", -12.5, 0.7, 8.55, 35.43, 90.0),         # zone b7a0b8 (center -12.5, 0.7)
            ("HELLBOY", *PLAY_CONFIG["human_card_spot"], CARD_W, CARD_D, 0.0),
            ("MEDUSA", PLAY_CONFIG["bot_card_spot"][0], PLAY_CONFIG["bot_card_spot"][2], CARD_W, CARD_D, 0.0)]
     return [(t, cx, cz, w, d, r) for t, cx, cz, w, d, r in out]
@@ -297,8 +297,8 @@ def test_floor_labels_sit_outside_their_box_facing_white_and_never_overlap():
         x, z, ext_x, ext_z = lua.label_position(cx, cz, w, d, rot, text)
         box = aabb(cx, cz, w, d, rot)
         r = rect(x, z, ext_x, ext_z)
-        assert not overlap(r, box), f"{text} pisa su propia caja"
-        assert r[1] <= box[0], f"{text} no esta en el borde que mira a White (-x)"
+        assert not overlap(r, box), f"{text} overlaps its own box"
+        assert r[1] <= box[0], f"{text} is not on the edge facing White (-x)"
         labels[text] = r
     items = list(labels.items())
     for i, (ta, ra) in enumerate(items):

@@ -1,6 +1,6 @@
-"""Datos de Liz Sherman (F07 paso 13, solo datos): el overlay carga, la hoja 199 cuadra con las copias de la carta
-real, las 15 ardientes son las que dice la hoja, y data/heroes/effects/liz-sherman.json cubre cada carta en el DSL v1
-(docs/effects-dsl.md). Sin FakeTTS ni sockets."""
+"""Liz Sherman's data (F07 step 13, data only): the overlay loads, sheet 199 matches the copies of the real
+card, the 15 burning cards are the ones the sheet says, and data/heroes/effects/liz-sherman.json covers every card in DSL v1
+(docs/effects-dsl.md). No FakeTTS or sockets."""
 import json
 from collections import Counter
 
@@ -10,7 +10,7 @@ from tools.validate_effects import validate_file
 OVERLAY = HEROES_DIR / "overlay" / "liz-sherman.json"
 EFFECTS = HEROES_DIR / "effects" / "liz-sherman.json"
 
-# (copias, valor, impulso, tipo, ardiente) leidos de la hoja 199 del save del torneo
+# (copies, value, boost, type, burning) read from sheet 199 of the tournament save
 SHEET = {
     "Incinerate": (1, 7, 0, "attack", True),
     "Fireball": (2, 5, 0, "attack", True),
@@ -32,7 +32,7 @@ def load(path):
 
 
 def ops_in(node):
-    """Todos los nombres de op que aparecen en un arbol de efectos (listas y dicts anidados)."""
+    """All the op names that appear in an effects tree (nested lists and dicts)."""
     if isinstance(node, dict):
         yield from ([node["op"]] if "op" in node else [])
         for v in node.values():
@@ -64,7 +64,7 @@ def test_generated_herodef_deals_30_cards_with_the_real_values_and_the_ongoing_o
         copies, value, boost, kind, burning = SHEET[c.title]
         assert (c.value, c.boost, c.type, c.fighter) == (value, boost, kind, "Liz Sherman"), c.title
         assert ("burning" in c.tags) == burning, c.title
-    assert all(c.boost == 0 for c in deck if "burning" in c.tags)      # las ardientes no tienen impulso
+    assert all(c.boost == 0 for c in deck if "burning" in c.tags)      # the burning cards have no boost
     fof = next(c for c in deck if c.title == "Fight Or Flight")
     assert "ONGOING: Add +1 to the value of your combat cards" in fof.text
     assert {t["id"] for t in h.triggers} == {"wildfire_start"} and {p["id"] for p in h.passives} == {"wildfire_return"}
@@ -89,7 +89,7 @@ def test_wildfire_is_two_triggers_the_bottom_discard_and_the_burning_return():
     ab = load(EFFECTS)["ability"]
     start, back = ab["triggers"]
     assert start["id"] == "wildfire_start" and start["when"] == {"event": "start_of_turn", "player": "owner"}
-    assert start["condition"] == {"test": "exists", "cards": {"zone": "deck", "player": "owner"}}   # mazo vacio: nada
+    assert start["condition"] == {"test": "exists", "cards": {"zone": "deck", "player": "owner"}}   # empty deck: nothing
     burn, branch = start["ops"]
     assert burn == {"op": "discard", "cards": {"zone": "deck", "player": "owner", "pick": "bottom", "amount": 1}, "as": "burnt"}
     assert branch["condition"] == {"test": "card", "card": "$burnt", "filter": {"tag": "burning"}}

@@ -1,4 +1,4 @@
-"""Revision 11: el bot defiende DESPUES de que el humano se compromete (Atacar no pone ni anuncia nada)."""
+"""Review 11: the bot defends AFTER the human commits (Attack neither places nor announces anything)."""
 import pytest
 
 from sparring.tts.ui import Event
@@ -47,7 +47,7 @@ def test_defense_decision_does_not_depend_on_the_human_card(rig, monkeypatch, ti
     assert title in SEEN
     if len(SEEN) == 2:
         a, b = (SEEN[t] for t in ("Service Pistol", "Glimpse Of Hell"))
-        assert a == b, "la IA recibe lo mismo con cualquier carta del humano"
+        assert a == b, "the AI gets the same whatever the human's card is"
 
 
 def test_reveal_without_a_human_card_does_not_decide_or_place(rig, monkeypatch):

@@ -745,7 +745,7 @@ def test_token_spot_reaches_the_session_config_and_is_validated(tmp_path):
 @hellboy_rig
 def test_bot_hellboy_anung_start_of_turn_says_the_discard_and_the_move_and_projects_them(rig, tmp_path):
     session, table, game, fake, cfg = rig
-    session.game_log.path = tmp_path / "partida.log"
+    session.game_log.path = tmp_path / "session.log"
     session.game_log.observe(game, session._name)
     destiny = [c for c in game.players[0].full_set if "destiny" in c.tags and c.title != "Confront Any Demon or God"]
     to_bot_discard(session, table, game, ids=[c.card_id for c in destiny[:6]])
@@ -758,7 +758,7 @@ def test_bot_hellboy_anung_start_of_turn_says_the_discard_and_the_move_and_proje
     moved = game.fighters["hellboy"].pos != start
     assert f"(BOOST {pistol.boost})" in line and ("y mueve Hellboy hasta" in line) == moved
     assert pistol.card_id in table.bot_discard
-    log = (tmp_path / "partida.log").read_text(encoding="utf-8")
+    log = (tmp_path / "session.log").read_text(encoding="utf-8")
     assert "(P0) starts" in log and "DISCARD: P0 Service Pistol" in log and log.count("DISCARD: P0 Service Pistol") == 1
     assert (log.count("MOVE: Hellboy") >= 1) == moved
 
@@ -766,10 +766,10 @@ def test_bot_hellboy_anung_start_of_turn_says_the_discard_and_the_move_and_proje
 @hellboy_rig
 def test_the_game_log_keeps_the_turn_start_of_the_bot_and_the_events_of_each_step(rig, tmp_path):
     session, table, game, fake, cfg = rig
-    session.game_log.path = tmp_path / "partida.log"
+    session.game_log.path = tmp_path / "session.log"
     session.game_log.observe(game, session._name)
     bot_turn(session, table, [])
-    text = (tmp_path / "partida.log").read_text(encoding="utf-8")
+    text = (tmp_path / "session.log").read_text(encoding="utf-8")
     assert "(P0) starts" in text and "(P1) starts" in text
 
 
@@ -791,7 +791,7 @@ def test_bot_hellboy_anung_start_move_reaches_the_table_and_the_chat_names_the_p
 @hellboy_rig
 def test_bot_hellboy_detective_draw_is_said_and_the_two_cards_reach_the_table_hand(rig, tmp_path):
     session, table, game, fake, cfg = rig
-    session.game_log.path = tmp_path / "partida.log"
+    session.game_log.path = tmp_path / "session.log"
     session.game_log.observe(game, session._name)
     assert game.form(0) == DETECTIVE
     game.fighters["hellboy"].pos = game.start_spaces[1]          # the rival's starting zone
@@ -800,7 +800,7 @@ def test_bot_hellboy_detective_draw_is_said_and_the_two_cards_reach_the_table_ha
     lines = [m for m in msgs if m.startswith("OCCULT DETECTIVE:")]
     assert len(lines) == 1 and "roba 2" in lines[0], msgs
     assert sorted(table.bot_hand) == sorted(c.card_id for c in game.players[0].hand)
-    log = (tmp_path / "partida.log").read_text(encoding="utf-8")
+    log = (tmp_path / "session.log").read_text(encoding="utf-8")
     assert log.count("DRAW: P0 draws 2") == 1
 
 

@@ -106,7 +106,7 @@ def use_ability(self: Game, player: int, trigger_id: str, target: Fighter | None
 # ---------------------------------------------------------------- sparring/combat.py @ 32e0221 (deleted by E2)
 
 def after_text(card: Card) -> str:
-    """Solo la parte AFTER COMBAT del texto de la carta (lo de IMMEDIATELY y DURING ya lo resuelve el calculo)."""
+    """Only the AFTER COMBAT part of the card text (IMMEDIATELY and DURING are already resolved by the calculation)."""
     head, sep, tail = card.text.partition("AFTER COMBAT:")
     return tail.strip() if sep else ""
 

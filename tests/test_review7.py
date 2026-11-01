@@ -12,7 +12,7 @@ from test_review5_fixes import (setup_rig, idle_bot, HIND, GOODH, bot_attack_on,
                                 destiny_ids)
 
 
-# A. un dial cambiado a mano NO bloquea el turno del bot para siempre
+# A. a dial changed by hand does NOT block the bot's turn forever
 def test_a_hand_edited_dial_never_freezes_the_bot_turn(rig, monkeypatch):
     session, table, game = rig
     dial_rig(session, table)
@@ -30,12 +30,12 @@ def test_a_hand_edited_dial_never_freezes_the_bot_turn(rig, monkeypatch):
         presses += 1
         out = session.handle(Event.END_ACTION)
         print(presses, out)
-    assert game.turn == 1, "BUG: el turno del bot no termina con un dial tocado a mano"
+    assert game.turn == 1, "BUG: the bot's turn does not end with a dial touched by hand"
     print("presses", presses, "debt", session.dial_debt)
     assert presses <= 3
 
 
-# B. falso positivo: escritura aplicada pero la verificacion no la vio
+# B. false positive: write applied but the verification did not see it
 def test_b_unverified_but_applied_write_is_flagged_as_hand_edit(rig):
     session, table, game = rig
     dial_rig(session, table)
@@ -57,10 +57,10 @@ def test_b_unverified_but_applied_write_is_flagged_as_hand_edit(rig):
     out = session.handle(Event.HP, {"fighter": "lobster", "delta": -1})
     print("2", out, table.dials["dL"])
     flagged = any("cambiado a mano" in m for m in out)
-    assert not flagged, "LOW: una escritura aplicada pero no verificada se toma por cambio a mano"
+    assert not flagged, "LOW: a write applied but not verified is taken for a manual change"
 
 
-# C. mulligan: corte del proceso tras CADA llamada a la mesa, y resume
+# C. mulligan: process cut after EACH call to the table, and resume
 def _crash_run(rig, monkeypatch, tmp_path, k, titles, first):
     session, table, game = rig
     setup_rig(session, table, game, first=first, titles=titles)
@@ -111,10 +111,10 @@ def test_c_mulligan_survives_a_crash_after_any_table_call(rig, monkeypatch, tmp_
     assert len(table.bot_deck) == 25
     assert sorted(table.bot_hand + table.bot_deck) == sorted(c.card_id for c in s2.game.players[0].full_set)
     assert sorted(c.card_id for c in s2.game.players[0].deck) == sorted(table.bot_deck)
-    assert table.shuffles <= 2   # un return repetido con la mano vacia es inocuo
+    assert table.shuffles <= 2   # a repeated return with an empty hand is harmless
 
 
-# D. empieza el humano, hace mulligan y pulsa Listo
+# D. the human starts, takes a mulligan and presses Ready
 def test_d_human_first_mulligan_then_ready(rig, monkeypatch):
     session, table, game = rig
     setup_rig(session, table, game, first=1)
@@ -129,7 +129,7 @@ def test_d_human_first_mulligan_then_ready(rig, monkeypatch):
     assert session.setup is None and game.turn == 1
 
 
-# E. agotamiento del humano en su Maniobra
+# E. the human's exhaustion on their Maneuver
 def test_e_human_exhaustion_on_maneuver_announces_fall(rig):
     session, table, game = rig
     dial_rig(session, table)
@@ -143,10 +143,10 @@ def test_e_human_exhaustion_on_maneuver_announces_fall(rig):
     out = session.handle(Event.MANEUVER)
     print(out, game.fighters["lobster"].alive, table.dials)
     assert not game.fighters["lobster"].alive
-    assert any("cae" in m and "Lobster" in m for m in out), "LOW: baja por agotamiento del humano sin anunciar"
+    assert any("cae" in m and "Lobster" in m for m in out), "LOW: a casualty from the human's exhaustion without an announcement"
 
 
-# F. resume con mulligan_bot cambiado a false tras un mulligan atascado
+# F. resume with mulligan_bot changed to false after a stuck mulligan
 def test_f_disabling_mulligan_after_a_stuck_physical_mulligan(rig, monkeypatch, tmp_path):
     session, table, game = rig
     setup_rig(session, table, game, first=0, titles=HIND)
@@ -161,10 +161,10 @@ def test_f_disabling_mulligan_after_a_stuck_physical_mulligan(rig, monkeypatch, 
     s2.load_dict(saved)
     out = s2.resume()
     print(out)
-    assert s2.setup["stage"] == "wait_human", "LOW: con mulligan_bot=false y resume sigue intentando el mulligan"
+    assert s2.setup["stage"] == "wait_human", "LOW: with mulligan_bot=false and resume it keeps trying the mulligan"
 
 
-# G. -1 por error a una pieza del bot: ahora se entierra; deshacer la devuelve a su casilla?
+# G. -1 by mistake on a bot piece: it is now buried; does undoing return it to its space?
 def test_g_undo_of_a_mistaken_medusa_death_restores_her_space(rig):
     session, table, game = rig
     destiny_rig(session, table)
@@ -175,7 +175,7 @@ def test_g_undo_of_a_mistaken_medusa_death_restores_her_space(rig):
     print("kill", out, table.placed)
     out = session.handle(Event.UNDO_GAME_OVER)
     print("undo", out, med.pos, med.alive, table.positions.get("Medusa"), table.piece_dist.get("Medusa"))
-    assert med.alive and med.pos == pos0, f"Medusa vuelve a {med.pos}, estaba en {pos0}"
+    assert med.alive and med.pos == pos0, f"Medusa returns to {med.pos}, she was on {pos0}"
 
 
 def test_g2_plus_one_on_a_mistaken_harpy_death(rig):
@@ -187,4 +187,4 @@ def test_g2_plus_one_on_a_mistaken_harpy_death(rig):
     print("kill", out)
     out = session.handle(Event.HP, {"fighter": "harpy1", "delta": 1})
     print("revive", out, h.alive, h.pos)
-    assert h.alive and h.pos == pos0, "Harpia no vuelve sola a su casilla"
+    assert h.alive and h.pos == pos0, "the Harpy does not return to its space by itself"

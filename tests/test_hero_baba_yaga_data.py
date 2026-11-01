@@ -1,6 +1,6 @@
-"""Datos de Baba Yaga (F08): overlay, HeroDef generado y efectos estructurados (DSL v1, docs/effects-dsl.md)
-concuerdan entre si y con las cartas reales de la hoja 331 del save del torneo (leidas de la imagen el 2026-10-28).
-Sin motor, sin TTS, sin sockets."""
+"""Baba Yaga's data (F08): overlay, generated HeroDef and structured effects (DSL v1, docs/effects-dsl.md)
+agree with each other and with the real cards of sheet 331 of the tournament save (read from the image on 2026-10-28).
+No engine, no TTS, no sockets."""
 import json
 
 import pytest
@@ -12,7 +12,7 @@ OVERLAY = HEROES_DIR / "overlay" / "baba-yaga.json"
 EFFECTS = HEROES_DIR / "effects" / "baba-yaga.json"
 MOMENTS = ("immediately", "during", "after", "scheme", "boost")
 
-# (titulo, copias, restriccion, tipo, valor, impulso) tal como estan impresos en las cartas.
+# (title, copies, restriction, type, value, boost) as printed on the cards.
 REAL_CARDS = {
     "The Time For Deals Is Done": (2, "Baba Yaga", "attack", 5, 4),
     "Iron Teeth": (2, "Baba Yaga", "attack", 4, 2),
@@ -93,7 +93,7 @@ def test_generated_herodef_deals_a_real_deck():
     assert sorted(c.title for c in deck if c.type == "scheme") == PACTS
     assert sum(1 for c in deck if c.fighter == "Koschei") == 2
     assert all(c.value is None for c in deck if c.type == "scheme")
-    # el texto real de la carta (overlay `text`) manda sobre unmatched-memory
+    # the real text of the card (overlay `text`) wins over unmatched-memory
     assert all("ONGOING:" in c.text and "Discard this immediately" in c.text for c in deck if c.type == "scheme")
     assert all("Baba Yaga as possible" in c.text for c in deck if c.title == "Deathless")
     assert all("put the rest on the bottom" in c.text for c in deck if c.title == "Read The Bones")
@@ -147,9 +147,9 @@ def test_remove_a_painful_memory_looks_then_chooses_and_the_rival_decides(effect
     assert optional["chooser"] == "opponent"
     assert optional["ops"] == [{"op": "discard", "cards": "$memory"}]
     assert optional["else"] == [{"op": "damage", "target": "opposing", "amount": 2}]
-    assert effects["plugins"] == []      # remove_painful_memory cabe en primitivas
+    assert effects["plugins"] == []      # remove_painful_memory fits in primitives
     used = {op["op"] for op in all_ops(effects)}
     assert used >= {"redirect_damage", "look_hand", "choose", "optional", "search_deck", "revive", "place", "end_turn", "for_each"}
     assert {h["card"].split(",")[0] for h in effects["hidden_info"]} >= {"Remove A Painful Memory", "Read The Bones", "Pact Of Secrecy"}
-    # Ivan resolvio las preguntas el 28/10: quedan como notas "Decision de Ivan"
+    # Ivan settled the questions on 28/10: they remain as "Ivan's decision" notes
     assert any(n.startswith("Decision de Ivan") for n in effects["notes"])

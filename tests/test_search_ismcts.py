@@ -1,4 +1,4 @@
-"""ISMCTS sobre juegos de juguete: el buscador no sabe nada de Unmatched, solo del Protocol."""
+"""ISMCTS on toy games: the searcher knows nothing about Unmatched, only the Protocol."""
 import random
 
 import pytest
@@ -8,7 +8,7 @@ from sparring.search.protocol import SearchState
 
 
 class PickBest:
-    """Un jugador, una jugada: elegir el numero mas alto. Sirve para la mecanica basica."""
+    """One player, one move: choose the highest number. Serves for the basic mechanics."""
 
     def __init__(self, options=(0, 1, 2), chosen=None):
         self.options = tuple(options)
@@ -49,8 +49,8 @@ class PickBest:
 
 
 class HiddenDuel:
-    """Dos jugadores: el 0 ataca con una carta que el 1 no ve (A o B); el 1 defiende alto o bajo.
-    Pagos para el 0: (A,alto)=0 (A,bajo)=1 (B,alto)=1 (B,bajo)=0. Sin informacion el 1 no puede contrarrestar."""
+    """Two players: 0 attacks with a card that 1 does not see (A or B); 1 defends high or low.
+    Payoffs for 0: (A,high)=0 (A,low)=1 (B,high)=1 (B,low)=0. Without information 1 cannot counter."""
 
     PAYOFF = {("A", "alto"): 0.0, ("A", "bajo"): 1.0, ("B", "alto"): 1.0, ("B", "bajo"): 0.0}
 
@@ -135,11 +135,11 @@ def test_multiple_observer_trees_hide_the_attack_card_from_the_defender():
     s = ISMCTS(SearchConfig(iterations=300, seed=3))
     s.search(HiddenDuel(), root_player=0)
     attacker_tree, defender_tree = s.trees[0], s.trees[1]
-    assert set(attacker_tree.edges) == {"A", "B"}, "el atacante distingue sus dos cartas"
-    assert set(defender_tree.edges) == {"?"}, "el defensor solo ve 'una carta boca abajo'"
+    assert set(attacker_tree.edges) == {"A", "B"}, "the attacker tells its two cards apart"
+    assert set(defender_tree.edges) == {"?"}, "the defender only sees 'a face-down card'"
     hidden = defender_tree.edges["?"].node
     assert set(hidden.edges) == {"alto", "bajo"}
-    # las estadisticas del defensor se reparten entre las dos cartas: no puede contrarrestar ninguna
+    # the defender's statistics are split between the two cards: it cannot counter either
     assert all(e.visits > 50 for e in attacker_tree.edges.values())
 
 
@@ -154,7 +154,7 @@ def test_principal_variation_starts_at_the_returned_move():
 
 
 def test_rewards_are_from_the_movers_perspective():
-    """Con el defensor ciego, al atacante le sale ~0.5 en las dos cartas; el valor medio de las aristas lo refleja."""
+    """With the defender blind, the attacker gets ~0.5 on both cards; the average value of the edges reflects it."""
     s = ISMCTS(SearchConfig(iterations=400, seed=5))
     s.search(HiddenDuel(), root_player=0)
     for e in s.trees[0].edges.values():

@@ -1,4 +1,4 @@
-"""Modo rapido: el clic trae la instantanea, las escrituras salen en un script compuesto y el panel se actualiza."""
+"""Fast mode: the click brings the snapshot, writes go out in a composite script and the panel is updated."""
 import dataclasses
 import json
 import re
@@ -45,7 +45,7 @@ def brig(bprd):
 
 
 def click(session, table, event, payload=None):
-    """Un clic del panel: lleva la instantanea de la mesa en el momento de pulsar."""
+    """A panel click: it carries the table snapshot at the moment of pressing."""
     return session.handle(event, {**(payload or {}), "snapshot": json.dumps(table.snapshot_state())})
 
 
@@ -54,7 +54,7 @@ def spec(board):
                         (0.0, -5.0), 2.0, ("pca",), ("DM",))
 
 
-# ---------- mensajes por boton ----------
+# ---------- messages per button ----------
 def test_human_buttons_cost_one_message_each(brig):
     session, table, game, fake = brig
     for event in (Event.MANEUVER, Event.END_ACTION):
@@ -74,12 +74,12 @@ def test_attack_and_reveal_cost_at_most_two_messages(brig):
     n = fake.lua_messages
     click(session, table, Event.ATTACK, {"target": "medusa"})
     assert session.pending is not None and not session.pending.defended
-    assert fake.lua_messages - n <= 2                                   # validar mano + cierre; el bot aun no pone nada
+    assert fake.lua_messages - n <= 2                                   # validate hand + closing; the bot does not place anything yet
     human_plays(table, game, "Service Pistol")
     n = fake.lua_messages
     click(session, table, Event.REVEAL)
-    assert session.pending is None and fake.lua_messages - n <= 3   # defensa del bot + giro/resolucion + cierre
-    assert len(table.flips) == 1, "la carta del bot se descarta en el mismo compuesto: no se gira, solo la del humano"
+    assert session.pending is None and fake.lua_messages - n <= 3   # bot defense + flip/resolution + closing
+    assert len(table.flips) == 1, "the bot's card is discarded in the same composite: it is not turned, only the human's is"
 
 
 def test_each_bot_action_costs_at_most_two_messages(brig, monkeypatch):
@@ -92,7 +92,7 @@ def test_each_bot_action_costs_at_most_two_messages(brig, monkeypatch):
     assert game.turn == 1 and game.turn_no == 4
     actions = [c for label, c, _ in session.cost_log if label == "accion del bot"]
     assert actions and max(actions) <= 2
-    assert fake.lua_messages - n <= 6, "el turno entero del bot: 2 acciones, fin de turno y cierre"
+    assert fake.lua_messages - n <= 6, "the bot's whole turn: 2 actions, end of turn and closing"
 
 
 def test_everything_the_button_did_goes_in_one_composite_with_the_state_and_the_announcements(brig):
@@ -126,7 +126,7 @@ def test_the_click_snapshot_counts_as_a_confirmed_read(brig):
     assert fake.lua_messages - n == 1
 
 
-# ---------- el compuesto ----------
+# ---------- the composite ----------
 def test_composite_is_registered_and_only_wraps_allowlisted_operations(bprd):
     ops = [lua.broadcast("hola"), lua.move_piece(bprd, "abc", sorted(bprd.spaces)[0])]
     s = lua.composite(ops)
@@ -199,7 +199,7 @@ def test_snapshot_only_counts_the_human_hand(bprd):
     assert 'snap.human_count = #Player["Red"].getHandObjects(1)' in s and 'cardIds(Player["Red"]' not in s
 
 
-# ---------- el panel ----------
+# ---------- the panel ----------
 def test_panel_script_locks_buttons_locally_and_sends_the_snapshot(bprd):
     script = ui.handler_script(lua.snapshot_lua(spec(bprd)), ui.element_ids(["medusa"]))
     assert 'UI.setValue("status", "Procesando...")' in script and "setAll(false)" in script
@@ -217,7 +217,7 @@ def test_panel_ids_cover_every_button_of_the_xml():
     assert 'rotation="0 0 270"' in xml
 
 
-# ---------- los dos fallos de la partida 3 ----------
+# ---------- the two failures of game 3 ----------
 def test_a_face_up_card_next_to_the_human_deck_is_never_excluded_from_the_discard(bprd):
     s = lua.read_discard("abc", ["deck1"], [(-7.7, 12.5)], 1.5)
     assert "<= r2 and o.is_face_down" in s and '["deck1"]=true' in s
@@ -230,14 +230,14 @@ def test_a_transient_drop_of_a_discarded_card_never_lowers_the_destiny_counter(b
     table.human_discard = [c.card_id for c in destiny]
     click(session, table, Event.END_ACTION)
     assert game.destiny_count(1) == 2 and table.dials["DD"]["value"] == 2
-    table.human_discard = [destiny[0].card_id]                   # una lectura pierde una carta
+    table.human_discard = [destiny[0].card_id]                   # a read loses a card
     msgs = click(session, table, Event.END_ACTION)
     assert game.destiny_count(1) == 2 and table.dials["DD"]["value"] == 2
     assert not any("Destinos de Hellboy: 1" in m or "cambiado a mano" in m for m in msgs)
-    table.human_discard = [c.card_id for c in destiny]           # vuelve
+    table.human_discard = [c.card_id for c in destiny]           # it comes back
     msgs = click(session, table, Event.END_ACTION)
     assert game.destiny_count(1) == 2 and not any("Destinos de Hellboy" in m for m in msgs)
-    table.human_discard = [destiny[0].card_id]                   # y si sigue faltando en otro boton, ya es real
+    table.human_discard = [destiny[0].card_id]                   # and if it keeps missing at another button, it is real
     click(session, table, Event.END_ACTION)
     click(session, table, Event.END_ACTION)
     assert game.destiny_count(1) == 1
@@ -246,18 +246,18 @@ def test_a_transient_drop_of_a_discarded_card_never_lowers_the_destiny_counter(b
 def test_one_dial_changed_by_hand_does_not_block_the_others(brig):
     session, table, game, fake = brig
     click(session, table, Event.END_ACTION)
-    table.dials["DD"]["value"] = 5                               # el humano toca el de destinos
+    table.dials["DD"]["value"] = 5                               # the human touches the destiny one
     session.dials_written["DD"] = 0
     game.fighters["lobster"].hp = 3
     table.dial_writes.clear()
     click(session, table, Event.HP, {"fighter": "medusa", "delta": -1})
     assert table.dials["DM"]["value"] == 15 and table.dials["DL"]["value"] == 3
-    assert table.dials["DD"]["value"] == 5, "el tocado no se pisa"
+    assert table.dials["DD"]["value"] == 5, "the touched one is not overwritten"
     assert not [w for w in table.dial_writes if w[0] == "DD"]
     assert session.dial_debt
 
 
-# ---------- --timing y el bucle de eventos ----------
+# ---------- --timing and the event loop ----------
 def test_timing_flag_and_per_button_cost_lines(brig):
     from sparring import play
     assert play.parse_args(["--timing"]).timing is True and play.parse_args([]).timing is False

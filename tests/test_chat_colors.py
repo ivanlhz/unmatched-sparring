@@ -1,4 +1,4 @@
-"""F14: los mensajes del bot salen en el chat de TTS con el color de su categoria, sin mensajes extra."""
+"""F14: the bot's messages come out in the TTS chat in the color of their category, with no extra messages."""
 import json
 import os
 
@@ -16,7 +16,7 @@ from test_session import card
 
 try:
     from lupa import lua54
-except ImportError:                                  # sin lupa solo se salta la prueba de Lua
+except ImportError:                                  # without lupa only the Lua test is skipped
     lua54 = None
 
 
@@ -24,12 +24,12 @@ def colors_of(table, text):
     return {c for b, c in zip(table.broadcasts, table.broadcast_colors) if text in b}
 
 
-# ---------- la tabla ----------
+# ---------- the table ----------
 def test_every_category_has_a_distinct_color_in_range():
     assert set(CHAT_COLORS) == set(ChatKind)
     assert len(set(CHAT_COLORS.values())) == len(ChatKind)
     assert all(len(c) == 3 and all(0.0 <= v <= 1.0 for v in c) for c in CHAT_COLORS.values())
-    assert all(max(c) >= 0.8 for c in CHAT_COLORS.values()), "legibles sobre el fondo oscuro del chat"
+    assert all(max(c) >= 0.8 for c in CHAT_COLORS.values()), "readable on the chat's dark background"
 
 
 @pytest.mark.parametrize("kind", list(ChatKind))
@@ -53,7 +53,7 @@ def test_msg_is_a_plain_string_with_a_kind():
     assert "a" + m == "aTu turno" and json.dumps(m) == '"Tu turno"'
 
 
-# ---------- mensajes reales ----------
+# ---------- real messages ----------
 def test_the_key_messages_carry_their_category(brig, monkeypatch):
     session, table, game, fake = brig
     msgs = click(session, table, Event.MANEUVER)

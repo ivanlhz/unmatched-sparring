@@ -1,4 +1,4 @@
-"""Revision 13: crecimiento del mazo no explicado, reparto de la ultima carta y aviso tras respuesta tardia."""
+"""Review 13: unexplained deck growth, dealing the last card and a warning after a late reply."""
 import pytest
 from conftest import *  # noqa: F401,F403
 from test_session import rig  # noqa: F401
@@ -18,13 +18,13 @@ def test_deck_growth_explained_by_a_hand_card_does_not_lower_destiny(brig):  # n
     a, b = _two_destinies(game)
     table.human_discard, table.human_deck_qty = [a, b], 10
     click(session, table, Event.END_ACTION)
-    table.human_count -= 1                          # Vistazo al infierno: una carta de la MANO va al mazo (+1)
-    table.human_discard, table.human_deck_qty = [a], 11   # y b no se lee en esta lectura
+    table.human_count -= 1                          # Glimpse of hell: a card from the HAND goes to the deck (+1)
+    table.human_discard, table.human_deck_qty = [a], 11   # and b is not read in this read
     click(session, table, Event.END_ACTION)
     assert game.destiny_count(1) == 2
     table.human_discard = [a, b]
     click(session, table, Event.END_ACTION)
-    assert game.destiny_count(1) == 2, "el contador no rebota"
+    assert game.destiny_count(1) == 2, "the counter does not bounce"
 
 
 def test_deck_growth_matching_the_missing_card_still_removes_it_at_once(brig):  # noqa: F811
@@ -59,7 +59,7 @@ def test_a_double_maneuver_click_deals_once(brig):  # noqa: F811
 def test_a_late_deal_reply_does_not_order_a_second_card_by_hand(rig, monkeypatch):  # noqa: F811
     session, table, game = rig
     if session.cfg.batch:
-        pytest.skip("solo sin lote")
+        pytest.skip("only without batching")
     with_human_deck(session)
     flaky_after_execution(session, monkeypatch, "deal_cards")
     out = session.handle(Event.MANEUVER)

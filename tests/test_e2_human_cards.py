@@ -1,8 +1,8 @@
 """E2: the human's box hero on the interpreter, in table mode (`sparring/session_effects.py`, `effects/table.py`).
 
 FakeTTS sessions (batch mode) with the HUMAN playing each box hero against a bot. Per card played by the human:
-the engine state matches the card and the chat says what the engine applied ("Tu carta: ..." / "Aplico ...") and
-what the human does on the table themselves ("en la mesa: ..."): picks out of their own hand, the order of their
+the engine state matches the card and the chat says what the engine applied ("Your card: ..." / "I apply ...") and
+what the human does on the table themselves ("on the table: ..."): picks out of their own hand, the order of their
 deck, their own miniatures. The bot's side of a human card (its discards, its hand and deck moves, its pieces the
 human relocates) reaches the table through the step's script, as the bot's own effects do (D3).
 """
@@ -49,7 +49,7 @@ def bot_defends_with_nothing(session, monkeypatch):
 
 
 def human_scheme(session, table, game, title):
-    """Plan, the card appears face up in the human's discard, Fin de accion recognizes it."""
+    """Plan, the card appears face up in the human's discard, End action recognizes it."""
     click(session, table, Event.SCHEME)
     cid = card_ids(game, 1, title)[0]
     table.human_discard.append(cid)
@@ -73,7 +73,7 @@ def press(session, table, option):
 
 
 def by_hand(session, table, cfg, fid, space):
-    """The human puts the miniature of `fid` on `space` by hand and presses Hecho (button 1)."""
+    """The human puts the miniature of `fid` on `space` by hand and presses Done (button 1)."""
     table.positions[cfg.nicknames[fid]] = space
     return click(session, table, Event.CHOICE, {"i": 1})
 
@@ -688,7 +688,7 @@ def test_rekindle_picks_from_your_public_pile_and_you_shuffle_them_in(rig, monke
     human_attack(session, table, game, "liz", "hellboy", "Rekindle")
     click(session, table, Event.REVEAL)
     assert session.effect_run.awaiting.kind == "cards" and session.effect_run.awaiting.max == 2
-    table.human_discard.clear()                        # Ivan 31/10: the human shuffles both into their deck; Hecho detects them
+    table.human_discard.clear()                        # Ivan 31/10: the human shuffles both into their deck; Done detects them
     msgs = click(session, table, Event.CHOICE, {"i": 1})
     st = game.players[1]
     assert {fireball, evade} <= {c.card_id for c in st.deck} and session.pending is None
@@ -764,7 +764,7 @@ def test_confront_lost_asks_the_bots_card_once_at_the_panel_and_grants_no_look_b
     assert req.kind == "cards" and req.extra["of"] == 0 and set(req.options) <= {c.card_id for c in game.players[0].hand}
     assert not session.look_granted and session.panel_view()[1]["btn_look"] == (False, False)
     pick = req.options[0]
-    assert session.panel_labels() == {"btn_choice_1": "Hecho"}  # look-and-discard: you act on the table, then Hecho
+    assert session.panel_labels() == {"btn_choice_1": "Hecho"}  # look-and-discard: you act on the table, then Done
     table.bot_hand.remove(pick)
     table.bot_discard.append(pick)
     msgs = click(session, table, Event.CHOICE, {"i": 1})
@@ -859,7 +859,7 @@ def test_the_bots_ongoing_scheme_goes_face_up_on_its_spot_and_to_its_discard_whe
 # ---------------------------------------------------------------- the start-of-turn ability gate (Ivan, 29/10)
 
 @with_rig(*LIZ_VS_HELLBOY)
-def test_your_start_of_turn_ability_blocks_every_button_but_fin_de_accion_until_done_and_survives_a_resume(rig):
+def test_your_start_of_turn_ability_blocks_every_button_but_end_action_until_done_and_survives_a_resume(rig):
     session, table, game, fake, cfg = rig
     from test_d3_table_effects import bot_turn
     msgs = bot_turn(session, table, [])
@@ -954,7 +954,7 @@ def abe_bot_rig(tmp_path):
 
 
 def test_a_cancelled_attack_on_bot_abe_does_not_spend_intuition_twice_when_repeated(abe_bot_rig, monkeypatch):
-    """Ivan (29/10): a refused Revelar then Cancelar keeps the token spent and the card drawn; the same attack again
+    """Ivan (29/10): a refused Reveal then Cancel keeps the token spent and the card drawn; the same attack again
     carries the declaration (face up, nothing fires twice); another target declares normally."""
     session, table, game, fake, cfg = abe_bot_rig
     put_adjacent(game, table, cfg, "hellboy", "abe")
@@ -1023,8 +1023,8 @@ def searing_clarity_played(session, table, game):
 
 
 @with_rig(*LIZ_VS_HELLBOY)
-def test_searing_clarity_has_no_options_the_human_moves_the_card_and_hecho_detects_it(rig):
-    """Ivan 31/10: the human takes the card out of the discard pile themselves; the bot detects it at Hecho."""
+def test_searing_clarity_has_no_options_the_human_moves_the_card_and_done_detects_it(rig):
+    """Ivan 31/10: the human takes the card out of the discard pile themselves; the bot detects it at Done."""
     session, table, game, fake, cfg = rig
     incinerate, fireball = card_ids(game, 1, "Incinerate", "Fireball")
     table.human_discard = [incinerate, fireball]
@@ -1041,7 +1041,7 @@ def test_searing_clarity_has_no_options_the_human_moves_the_card_and_hecho_detec
 
 
 @with_rig(*LIZ_VS_HELLBOY)
-def test_searing_clarity_hecho_refuses_nothing_moved_a_scheme_or_too_many(rig):
+def test_searing_clarity_done_refuses_nothing_moved_a_scheme_or_too_many(rig):
     session, table, game, fake, cfg = rig
     incinerate, fireball, feint = card_ids(game, 1, "Incinerate", "Fireball", "Feint")
     pact = card_ids(game, 1, "Fight Or Flight")[0]                # another scheme, already on the pile
@@ -1065,7 +1065,7 @@ def test_searing_clarity_hecho_refuses_nothing_moved_a_scheme_or_too_many(rig):
 
 
 @with_rig(*LIZ_VS_HELLBOY)
-def test_hecho_with_no_reply_from_the_table_never_reads_the_last_card_as_moved(rig, monkeypatch):
+def test_done_with_no_reply_from_the_table_never_reads_the_last_card_as_moved(rig, monkeypatch):
     session, table, game, fake, cfg = rig
     incinerate, fireball = card_ids(game, 1, "Incinerate", "Fireball")
     table.human_discard = [incinerate, fireball]
@@ -1081,7 +1081,7 @@ def test_hecho_with_no_reply_from_the_table_never_reads_the_last_card_as_moved(r
 
 @with_rig(*LIZ_VS_HELLBOY)
 def test_searing_clarity_choice_pending_blocks_the_end_of_the_turn_and_the_action_is_gained(rig):
-    """Live 31/10: with 1 action left Fin de accion recognised the plan, its choice was pending and the turn still
+    """Live 31/10: with 1 action left End action recognised the plan, its choice was pending and the turn still
     passed to the bot before 'gain 1 action'. The turn stays the human's; after the answer the +1 action is there."""
     session, table, game, fake, cfg = rig
     incinerate, fireball = card_ids(game, 1, "Incinerate", "Fireball")

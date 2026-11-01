@@ -1,4 +1,4 @@
-"""Punto de entrada `python -m sparring.play`, siempre contra FakeTTS en puertos efimeros."""
+"""Entry point `python -m sparring.play`, always against FakeTTS on ephemeral ports."""
 from conftest import t_deal_cards, t_discard_cards, t_flip_card
 import json
 import socket
@@ -17,9 +17,9 @@ from sparring.tts import lua
 from sparring.tts.ui import Event
 from test_session import NICK, PIECES, Table, card, rig, set_bot_hand  # noqa: F401
 
-REAL_CONFIG = Path(__file__).resolve().parent.parent / "config" / "partida.json"
+REAL_CONFIG = Path(__file__).resolve().parent.parent / "config" / "table.json"
 TODO_ZONES = {"bot_discard_zone": "TODO: crear zona", "human_discard_zone": "TODO: crear zona"}
-HAND_ZONES = {"dd569b", "f8d527", "742715", "6ec8d9", "bf62a8", "d8628b"}      # D1: zonas de mano, nunca de descarte
+HAND_ZONES = {"dd569b", "f8d527", "742715", "6ec8d9", "bf62a8", "d8628b"}      # D1: hand zones, never discard zones
 FILLED = {"bot_seat": "Blue", "human_seat": "Red", "bot_card_spot": [0.0, 1.0, 5.0], "human_card_spot": [0.0, -5.0],
           "bot_discard_spot": [5.0, 1.0, 5.0], "bot_discard_zone": "BOTZ", "bot_deck_guid": "DECK1",
           "human_discard_zone": "HUMZ", "bot_deck_spot": [0.0, 3.0], "pieces": PIECES, "dials": {}, "bot_discard_bounds": None, "setup": False}
@@ -36,7 +36,7 @@ def cfg_file(tmp_path):
     def make(**over):
         raw = json.loads(REAL_CONFIG.read_text(encoding="utf-8"))
         raw.update(FILLED)
-        raw.update(bot_hero="medusa", human_hero="hellboy")     # explicitos: la deteccion en la mesa tiene sus propios tests
+        raw.update(bot_hero="medusa", human_hero="hellboy")     # explicit: detection on the table has its own tests
         raw.update(over)
         p = tmp_path / "cfg.json"
         p.write_text(json.dumps(raw), encoding="utf-8")
@@ -46,7 +46,7 @@ def cfg_file(tmp_path):
 
 @pytest.fixture
 def live():
-    """FakeTTS con una Table; `ports` lleva los puertos efimeros para `main`."""
+    """FakeTTS with a Table; `ports` carries the ephemeral ports for `main`."""
     table = Table()
     fake = FakeTTS(return_value=table)
     listen = free_port()
@@ -59,7 +59,7 @@ def live():
     fake.close()
 
 
-# ---------- configuracion ----------
+# ---------- configuration ----------
 def test_real_config_is_complete_and_its_discard_zones_are_not_hand_zones():
     cfg = load_config(REAL_CONFIG)
     assert cfg.raw["board_guid"] == lua.BOARD_GUIDS["bprd-hq"] == "ec6f27"
@@ -102,7 +102,7 @@ def test_main_missing_config_file_is_exit_2(tmp_path):
     assert main(["--config", str(tmp_path / "no.json")]) == 2
 
 
-# ---------- modo solo lectura ----------
+# ---------- read-only mode ----------
 def test_read_only_reports_and_sends_only_read_scripts(live, cfg_file, capsys):
     table, fake, ports = live
     table.missing_guids = {"f8d527"}
@@ -139,7 +139,7 @@ def test_read_only_client_refuses_anything_that_could_change_the_table(script):
         ReadOnlyClient(Boom()).call_lua(script())
 
 
-# ---------- bucle de eventos y juego ----------
+# ---------- event loop and play ----------
 def test_play_creates_the_panel_announces_and_pumps_button_events(live, cfg_file, capsys, tmp_path):
     table, fake, ports = live
     stop = threading.Event()
@@ -175,7 +175,7 @@ def test_ctrl_c_exits_cleanly_and_frees_the_listener_port(live, cfg_file, monkey
     monkeypatch.setattr(play, "run_loop", interrupted)
     assert main(["--config", str(cfg_file()), *ports, "--state", str(tmp_path / "s.json")]) == 130
     assert "Interrumpido" in capsys.readouterr().out
-    with socket.socket() as s:                       # el listener se cerro: el puerto se puede volver a abrir
+    with socket.socket() as s:                       # the listener closed: the port can be opened again
         s.bind(("127.0.0.1", int(ports[3])))
 
 

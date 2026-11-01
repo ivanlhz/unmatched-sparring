@@ -1,4 +1,4 @@
-"""data/tts/<slug>.json contra el guardado real (solo lectura) y contra el HeroDef de cada heroe."""
+"""data/tts/<slug>.json against the real save (read only) and against each hero's HeroDef."""
 import json
 import re
 
@@ -15,7 +15,7 @@ SAVE = repo_toplevel() / "saves" / "Unmatched Official Tournament Table October 
 @pytest.fixture(scope="module")
 def save_objects():
     if not SAVE.exists():
-        pytest.skip("falta el guardado del torneo (saves/, solo lectura)")
+        pytest.skip("the tournament save is missing (saves/, read only)")
     return {o["GUID"]: o for o in json.loads(SAVE.read_text(encoding="utf-8"))["ObjectStates"]}
 
 
@@ -35,13 +35,13 @@ def test_every_guid_exists_in_the_hero_bag_of_the_real_save(save_objects, slug):
     inner = next(c for c in outer["ContainedObjects"] if c["GUID"] == t.inner_bag)
     found = {o["GUID"]: o for o in walk(inner)}
     for guid in t.all_guids():
-        assert guid in found, f"{slug}: {guid} no esta en la bolsa {t.inner_bag}"
-    # cada luchador con dial: su script llega al maximo de vida del HeroDef
+        assert guid in found, f"{slug}: {guid} is not in the bag {t.inner_bag}"
+    # each fighter with a dial: its script reaches the HeroDef's maximum life
     specs = {f.fid: f for f in load_hero(slug).fighters()}
     for fid, f in t.fighters.items():
         if f.dial:
             assert int(re.search(r"MAX_VALUE = (\d+)", found[f.dial]["LuaScript"]).group(1)) == specs[fid].hp
-    # el mazo fisico lleva las 30 cartas del rango mas la de personaje, con la imagen declarada
+    # the physical deck carries the 30 cards of the range plus the character one, with the declared image
     deck = found[t.deck_guid]
     lo, hi = t.card_ids
     assert sorted(deck["DeckIDs"]) == sorted([*range(lo, hi + 1), t.character_card_id])
@@ -90,13 +90,13 @@ def test_a_table_file_that_disagrees_with_the_herodef_is_rejected():
     hero = load_hero("medusa")
     bad = json.loads(json.dumps(raw))
     bad["fighters"]["medusa"]["dial_max"] = 12
-    with pytest.raises(HeroTableError, match="dial llega a 12"):
+    with pytest.raises(HeroTableError, match="the dial goes up to 12"):
         parse_hero_table(bad, hero)
     bad = json.loads(json.dumps(raw))
     del bad["fighters"]["harpy3"]
-    with pytest.raises(HeroTableError, match="luchadores"):
+    with pytest.raises(HeroTableError, match="fighters"):
         parse_hero_table(bad, hero)
     bad = json.loads(json.dumps(raw))
     bad["deck"]["card_ids"] = [17700, 17729]
-    with pytest.raises(HeroTableError, match="rango de CardID"):
+    with pytest.raises(HeroTableError, match="CardID range"):
         parse_hero_table(bad, hero)
