@@ -1,0 +1,62 @@
+{
+ "_notes": [
+  "Sheet 176 of the tournament savegame (8x4), read card by card from the image on 2026-11-01. CardID = 17600 + idx; 368 = character card (sheet 3, 10x7, index 68). The deck object of the save holds 31 cards: the 30 of the deck plus the character card, which is why the catalog says card_count 31.",
+  "Restriction band (RAPHAEL, CASEY or ANY) and copies (xN printed on each card) read from the images; value, boost and type match unmatched-memory for all 12 titles. Attack cards carry the burst icon, versatile ones the burst-and-shield icon, Heroes In A Half Shell the shield, the scheme the lightning bolt.",
+  "Discrepancies with unmatched-memory (the real card wins; entries with `text` overwrite the importer's text): Break Something says 'AFTER COMBAT' (unmatched-memory has the typo 'AFTER COMBAR'); the scheme's second paragraph is 'Draw 1 card.' with the full stop; Relentless says 'into your deck' (unmatched-memory: 'in your deck'). Sai has no text at all: it is a vanilla versatile card, not a missing effect. Heroes In A Half Shell is a vanilla defense.",
+  "Titles keep unmatched-memory's capitalisation ('Break something', 'Unbridled rage'): the CardID, not the title, identifies a card on the table.",
+  "Casey Jones: one sidekick, ranged, 8 life, move 2 (hero card image). The save bag holds a standee (Custom_Token) and a miniature for him and two miniatures for Raphael (see data/tts/raphael.json).",
+  "ANGER ISSUES is a trigger on the `combat_lost` event (docs/effects-dsl.md, section 'Raphael'); no counters, forms or passives."
+ ],
+ "fid": "raphael",
+ "sidekicks": [
+  {"fid": "casey", "name": "Casey Jones"}
+ ],
+ "forms": null,
+ "counters": {},
+ "triggers": [],
+ "passives": [],
+ "deck": {
+  "card_base": 17600,
+  "sheet_id": 176,
+  "hero_card_id": 368,
+  "sheet": [
+   {"idx": 0, "title": "Unbridled rage", "fighter": "Raphael"},
+   {"idx": 1, "title": "Unbridled rage", "fighter": "Raphael"},
+   {"idx": 2, "title": "Let's do this!", "fighter": "Raphael"},
+   {"idx": 3, "title": "Let's do this!", "fighter": "Raphael"},
+   {"idx": 4, "title": "Let's do this!", "fighter": "Raphael"},
+   {"idx": 5, "title": "Turtle power!", "fighter": "Raphael"},
+   {"idx": 6, "title": "Turtle power!", "fighter": "Raphael"},
+   {"idx": 7, "title": "Crowd control", "fighter": "any"},
+   {"idx": 8, "title": "Crowd control", "fighter": "any"},
+   {"idx": 9, "title": "Crowd control", "fighter": "any"},
+   {"idx": 10, "title": "Batter up!", "fighter": "Casey Jones"},
+   {"idx": 11, "title": "Batter up!", "fighter": "Casey Jones"},
+   {"idx": 12, "title": "Batter up!", "fighter": "Casey Jones"},
+   {"idx": 13, "title": "Sai", "fighter": "Raphael"},
+   {"idx": 14, "title": "Sai", "fighter": "Raphael"},
+   {"idx": 15, "title": "Break something", "fighter": "Raphael",
+    "text": "IMMEDIATELY: Cancel all DURING COMBAT and AFTER COMBAT effects on your opponent's card. AFTER COMBAT: If no effects were canceled this way, deal 2 damage to an adjacent opposing fighter."},
+   {"idx": 16, "title": "Break something", "fighter": "Raphael",
+    "text": "IMMEDIATELY: Cancel all DURING COMBAT and AFTER COMBAT effects on your opponent's card. AFTER COMBAT: If no effects were canceled this way, deal 2 damage to an adjacent opposing fighter."},
+   {"idx": 17, "title": "Break something", "fighter": "Raphael",
+    "text": "IMMEDIATELY: Cancel all DURING COMBAT and AFTER COMBAT effects on your opponent's card. AFTER COMBAT: If no effects were canceled this way, deal 2 damage to an adjacent opposing fighter."},
+   {"idx": 18, "title": "Payback time!", "fighter": "any"},
+   {"idx": 19, "title": "Payback time!", "fighter": "any"},
+   {"idx": 20, "title": "Payback time!", "fighter": "any"},
+   {"idx": 21, "title": "Relentless", "fighter": "any",
+    "text": "AFTER COMBAT: Shuffle this card into your deck. Then, draw 1 card."},
+   {"idx": 22, "title": "Relentless", "fighter": "any",
+    "text": "AFTER COMBAT: Shuffle this card into your deck. Then, draw 1 card."},
+   {"idx": 23, "title": "Slapshot", "fighter": "Casey Jones"},
+   {"idx": 24, "title": "Slapshot", "fighter": "Casey Jones"},
+   {"idx": 25, "title": "Slapshot", "fighter": "Casey Jones"},
+   {"idx": 26, "title": "Heroes in a half shell", "fighter": "Raphael"},
+   {"idx": 27, "title": "Heroes in a half shell", "fighter": "Raphael"},
+   {"idx": 28, "title": "Raphael is cool but rude", "fighter": "Raphael",
+    "text": "Deal 1 damage to each opposing fighter adjacent to at least one friendly fighter. Draw 1 card."},
+   {"idx": 29, "title": "Raphael is cool but rude", "fighter": "Raphael",
+    "text": "Deal 1 damage to each opposing fighter adjacent to at least one friendly fighter. Draw 1 card."}
+  ]
+ }
+}

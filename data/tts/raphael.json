@@ -1,0 +1,39 @@
+{
+ "slug": "raphael",
+ "_notes": [
+  "Raphael's deck is sheet 176 like Medusa's: the CardID range is the same (17600-17629) and the images (deck.identity) tell the two decks apart.",
+  "The miniature 613334 is nicknamed '[A32135]Raphael' (a TTS colour tag); 887823 is his life dial. Casey Jones is a Custom_Token (c67447) with his own dial (a3f578)."
+ ],
+ "bag": {
+  "guid": "183245",
+  "inner": "80f529"
+ },
+ "deck": {
+  "guid": "410ca9",
+  "card_ids": [
+   17600,
+   17629
+  ],
+  "character_card_id": 368,
+  "identity": [
+   {
+    "face": "https://steamusercontent-a.akamaihd.net/ugc/16785133673241133057/96D7D2E33F38E012F18EA87A8622AC13AB716BB6/",
+    "back": "https://steamusercontent-a.akamaihd.net/ugc/12353675648813249021/B4A9C48E468919DA4AAB038E858D92EE753F7924/"
+   }
+  ]
+ },
+ "fighters": {
+  "raphael": {
+   "piece": "613334",
+   "dial": "887823",
+   "dial_max": 17
+  },
+  "casey": {
+   "piece": "c67447",
+   "dial": "a3f578",
+   "dial_max": 8
+  }
+ },
+ "tokens": {},
+ "counter_dials": {}
+}

@@ -155,7 +155,8 @@ def table_defaults(bot_slug: str, human_slug: str) -> dict:
     bot, human = load_hero(bot_slug), load_hero(human_slug)
     tb, th = load_hero_table(bot_slug), load_hero_table(human_slug)
     first, second = sorted((tb.card_ids, th.card_ids))
-    if first[1] >= second[0]:
+    if first[1] >= second[0] and (set(tb.identity) & set(th.identity) or not tb.identity or not th.identity):
+        # equal ranges are tolerated when the decks' sheets (images) tell them apart: Medusa and Raphael are both sheet 176
         raise HeroTableError(f"the CardID ranges of {bot_slug} and {human_slug} overlap")
     pieces, dials, nicknames = {}, {}, {}
     for hero, table in ((bot, tb), (human, th)):

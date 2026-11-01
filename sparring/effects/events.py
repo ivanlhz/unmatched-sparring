@@ -29,7 +29,8 @@ _BOTS = ControllerChooser()
 # it recorded, so a game of such heroes saves exactly as it did before the interpreter.
 TRACKS = {"attacked": ("attacked_this_turn", "combat_damage_dealt"),
           "turn_start_pos": ("moved_this_turn",),
-          "taken": ("actions_taken_this_turn", "no_attack_as_first_action")}
+          "taken": ("actions_taken_this_turn", "no_attack_as_first_action"),
+          "lost": ("combat_lost", "combats_lost_this_turn")}
 
 
 def _strings(node):
@@ -99,6 +100,8 @@ def _normalize(game, name: str, args: tuple) -> dict | None:
         return {"name": name, "player": args[0], "card": args[1]}
     if name == "fighter_defeated":
         return {"name": name, "fighter": args[0]}
+    if name == "combat_lost":
+        return {"name": name, "player": args[0], "fighter": args[1]}
     return None          # force_discard and the like: hooks for other phases, not DSL events
 
 
@@ -108,10 +111,13 @@ def _bookkeeping(game, ev: dict) -> None:
     if ev["name"] == "start_of_turn":
         fx.attacked.clear()
         fx.taken = 0
+        fx.lost = [0, 0]
         fx.turn_start_pos = ({fid: f.pos for fid, f in game.fighters.items() if f.alive}
                              if "turn_start_pos" in keep else {})
     elif ev["name"] == "attacked" and "attacked" in keep:
         fx.attacked.append(ev["attacker"].fid)
+    elif ev["name"] == "combat_lost" and "lost" in keep:
+        fx.lost[ev["player"]] += 1
 
 
 # ------------------------------------------------------------------ matching
@@ -186,6 +192,8 @@ def matches(game, owner: int, when: dict, ev: dict) -> bool:
         return _player_ok(when.get("player", "owner"), ev["player"], owner)
     if name == "end_of_turn":
         return _player_ok(when.get("player", "any"), ev["player"], owner)
+    if name == "combat_lost":
+        return _player_ok(when.get("player", "owner"), ev["player"], owner)
     if name == "attacked":
         return _fighter_ok(game, owner, when.get("target"), ev["target"])
     if name == "after_attack":

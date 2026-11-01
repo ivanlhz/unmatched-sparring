@@ -95,8 +95,11 @@ def _nick(obj: dict) -> str:
     return (obj.get("Nickname") or "").strip()
 
 
+BBCODE_COLOR_RE = re.compile(r"\[(?:[0-9A-Fa-f]{6}|-)\]")      # TTS nickname colour tags: "[A32135]Raphael"
+
+
 def _same(a: str, b: str) -> bool:
-    return a.casefold() == b.casefold()
+    return BBCODE_COLOR_RE.sub("", a).strip().casefold() == BBCODE_COLOR_RE.sub("", b).strip().casefold()
 
 
 def deck_sheet(deck: dict) -> tuple[tuple[int, int], int] | None:

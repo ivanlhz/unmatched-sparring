@@ -78,7 +78,7 @@
      "filter": {
       "type": "object",
       "additionalProperties": false,
-      "properties": {"attacked_this_turn": {"type": "boolean"}}
+      "properties": {"attacked_this_turn": {"type": "boolean"}, "adjacent_to_any": {"$ref": "#/$defs/FighterSel"}}
      },
      "pick": {"enum": ["one", "all"]}
     }
@@ -145,7 +145,7 @@
     "properties": {"counter": {"$ref": "#/$defs/Name"}, "player": {"$ref": "#/$defs/PlayerSel"}, "times": {"type": "integer"}}},
    {"type": "object", "additionalProperties": false, "required": ["stat"],
     "properties": {
-     "stat": {"enum": ["hand_size", "hp", "max_hp", "actions_taken_this_turn", "damage_dealt_this_combat", "damage_taken_this_combat"]},
+     "stat": {"enum": ["hand_size", "hp", "max_hp", "actions_taken_this_turn", "damage_dealt_this_combat", "damage_taken_this_combat", "combats_lost_this_turn"]},
      "player": {"$ref": "#/$defs/PlayerSel"},
      "fighter": {"$ref": "#/$defs/FighterRef"},
      "times": {"type": "integer"}}}
@@ -171,6 +171,8 @@
     "properties": {"test": {"const": "card"}, "card": {"$ref": "#/$defs/CardRef"}, "filter": {"$ref": "#/$defs/CardFilter"}}},
    {"type": "object", "additionalProperties": false, "required": ["test", "result"],
     "properties": {"test": {"const": "combat_result"}, "result": {"enum": ["won", "lost"]}}},
+   {"type": "object", "additionalProperties": false, "required": ["test", "card"],
+    "properties": {"test": {"const": "effects_canceled"}, "card": {"$ref": "#/$defs/CardRef"}}},
    {"type": "object", "additionalProperties": false, "required": ["test", "name"],
     "properties": {"test": {"const": "counter"}, "name": {"$ref": "#/$defs/Name"}, "min": {"type": "integer"}, "max": {"type": "integer"}, "player": {"$ref": "#/$defs/PlayerSel"}}},
    {"type": "object", "additionalProperties": false, "required": ["test", "fighter"],
@@ -202,6 +204,8 @@
     "properties": {"event": {"const": "card_discarded"}, "player": {"$ref": "#/$defs/PlayerOrAny"}, "from": {"type": "array", "minItems": 1, "items": {"enum": ["hand", "deck"]}}, "cause_not": {"enum": ["hand_limit"]}, "filter": {"$ref": "#/$defs/CardFilter"}}},
    {"type": "object", "additionalProperties": false, "required": ["event", "player"],
     "properties": {"event": {"const": "card_played"}, "player": {"$ref": "#/$defs/PlayerOrAny"}, "filter": {"$ref": "#/$defs/CardFilter"}}},
+   {"type": "object", "additionalProperties": false, "required": ["event"],
+    "properties": {"event": {"const": "combat_lost"}, "player": {"$ref": "#/$defs/PlayerOrAny"}}},
    {"type": "object", "additionalProperties": false, "required": ["event", "fighter"],
     "properties": {"event": {"const": "fighter_defeated"}, "fighter": {"$ref": "#/$defs/FighterSel"}}}
   ]},
@@ -344,7 +348,7 @@
    {"type": "object", "additionalProperties": false, "required": ["op", "name", "where"],
     "properties": {"op": {"const": "summon"}, "name": {"type": "string", "minLength": 1}, "where": {"$ref": "#/$defs/SpaceSel"}, "hp": {"$ref": "#/$defs/Amount"}, "chooser": {"$ref": "#/$defs/Chooser"}}},
    {"type": "object", "additionalProperties": false, "required": ["op", "card"],
-    "properties": {"op": {"const": "cancel_effects"}, "card": {"$ref": "#/$defs/CardRef"}}},
+    "properties": {"op": {"const": "cancel_effects"}, "card": {"$ref": "#/$defs/CardRef"}, "moments": {"type": "array", "minItems": 1, "items": {"enum": ["immediately", "during", "after"]}}}},
    {"type": "object", "additionalProperties": false, "required": ["op", "card", "amount"],
     "properties": {"op": {"const": "modify_value"}, "card": {"$ref": "#/$defs/CardRef"}, "amount": {"$ref": "#/$defs/Amount"}}},
    {"type": "object", "additionalProperties": false, "required": ["op", "card"],

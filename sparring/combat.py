@@ -6,6 +6,7 @@ from __future__ import annotations
 
 import re
 from dataclasses import dataclass, field
+from functools import lru_cache
 
 from .cards import MEDUSA_BASE, Card, can_be_boost
 from .effects import ongoing
@@ -22,8 +23,16 @@ ON_EARTH = "On Earth As It Is In Hell"
 FIGHT_OR_FLIGHT = "Fight Or Flight"          # only a label for the tests: the engine reads the bonus from the card data
 
 
+@lru_cache(maxsize=None)
+def _medusa_ids() -> dict[int, str]:
+    from .cards import load_medusa_deck
+    return {c.card_id: c.title for c in load_medusa_deck()}
+
+
 def is_medusa_card(card: Card) -> bool:
-    return MEDUSA_BASE <= card.card_id < MEDUSA_BASE + 100
+    """Medusa's deck is sheet 176 of the savegame; another hero's separate deck object can reuse that CardID range
+    (Raphael), so the title decides inside it."""
+    return MEDUSA_BASE <= card.card_id < MEDUSA_BASE + 100 and _medusa_ids().get(card.card_id) == card.title
 
 
 @dataclass

@@ -81,6 +81,8 @@ def default_answer(req: ChoiceRequest) -> list:
         return [req.max]
     if req.kind == "space":
         return list(req.options[:req.min])
+    if req.extra.get("purpose") == "bonus":      # a free-count discard that adds value (Unbridled rage): none by default
+        return []
     if req.min == req.max:
         return list(req.options[:req.min])
     return list(req.options[:req.max])
@@ -128,6 +130,8 @@ class ControllerChooser:
     def _choose_cards(self, game, ctrl, req: ChoiceRequest) -> list | None:
         zone, purpose = req.extra.get("zone"), req.extra.get("purpose")
         of = req.extra.get("of", req.player)
+        if purpose == "bonus":
+            return []
         if zone == "hand" and purpose in ("discard", "return"):       # the cards to give up are the least useful ones
             n = min(req.max, len(req.options))
             picked = [c.card_id for c in ctrl.choose_discard(game, req.player, n, req.prompt)
@@ -300,6 +304,8 @@ class SyntheticChooser:
         of = req.extra.get("of", req.player)
         if req.extra.get("zone") == "hand" and of != req.player:     # only what a look showed (C4), as every bot
             return ControllerChooser._from_rival_hand(game, req, of)
+        if req.extra.get("purpose") == "bonus":
+            return []
         cards = {c.card_id: c for p in game.players for c in p.full_set}
         worth = lambda i: card_worth(cards[i]) if i in cards else 0.0
         n = min(req.max, len(req.options))

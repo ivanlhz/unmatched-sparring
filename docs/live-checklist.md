@@ -152,6 +152,21 @@ Each hero has two blocks: **H** (you play it) and **B** (the bot plays it). What
 - [ ] **UNCANNY INTUITION**: B attacks -> face-down card that is **turned** face up in the same script, named in the chat. H attacks the bot's Abe -> the chat warns on Attack; at Reveal the bot spends the token and draws **before** choosing a defense (the drawn card may be the defense); put the attack face down (it is turned at Reveal).
 - [ ] Partial failure (one card does not move): the row stays, the bot says so once and you choose by button; the table wins on the next read.
 
+### Raphael (Teenage Mutant Ninja Turtles)
+
+Nothing of Raphael has been seen on a real table. His deck is sheet 176 like Medusa's: the first thing to check is that the table is read correctly.
+- [ ] **Detection (auto)**: with Raphael's deck at one spot and any other hero's at the other, the start-up line names Raphael (not "unknown deck"); with Medusa on the other side both decks are told apart by their images (the CardID range is the same, 17600-17629).
+- [ ] Pieces: Raphael's miniature and dial (17), Casey Jones' token and dial (8) are found by GUID; the dials follow the engine.
+- [ ] **ANGER ISSUES (H)**: you attack and lose (value lower or equal): the chat says "Your ability: ANGER ISSUES" and the panel shows one more action; the second lost combat of the same turn gives nothing; losing as defender on the bot's turn gives nothing.
+- [ ] **ANGER ISSUES (B)**: the bot attacks as Raphael and loses: it gets one more action in the same turn.
+- [ ] **Relentless (H)**: after the combat the chat says "Put Relentless from your combat zone into your deck and shuffle it"; do it and press End action: no mismatch warning (the card is not in the discard pile). **(B)**: the card leaves the bot's combat spot for its deck (translator `return_to_deck`, intent zone "discard"; the card is still in the combat zone when it runs).
+- [ ] **Unbridled rage (H)**: the panel asks "how many" (0 to the hand size, paging if more than 5), then "Discard N card(s)": discard that many defense or versatile cards and End action. **(B)**: the bot discards defense/versatile cards from its hand; the discards reach its discard grid.
+- [ ] **Break something**: the rival's DURING/AFTER effects do not apply but its IMMEDIATELY does (check with the bot attacking with Burning Barrier or Fireball while you defend with it); with a vanilla rival card, 2 damage to an adjacent rival that YOU choose (H) or the bot chooses (B).
+- [ ] **Batter up! (H)**: Casey wins: the panel asks where the bot's fighter goes (up to 3 spaces) or you move the bot's miniature; **(B)**: the bot moves YOUR miniature (`move_piece` by GUID, else "move it yourself").
+- [ ] **Raphael is cool but rude (H)**: damage to the bot's fighters adjacent to Raphael or Casey; the dials follow; you draw 1.
+- [ ] Payback time! (5 after a lost combat this turn) and Slapshot (6 with Casey adjacent): the combat line shows the new value.
+- [ ] Turtle power!: you may boost the attack (the engine reads the boost card you put on the table).
+
 ## 4. Panel and buttons
 
 - [x] The choice buttons of a card **only appear when it is played** (hidden, **never greyed out**). *(OK 30/10)*

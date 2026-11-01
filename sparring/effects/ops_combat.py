@@ -52,8 +52,22 @@ def _cancel_effects(run, game, spec):
     if side is None:
         side = _named_side(run, spec["card"])
     card = None if side is None else (flow.atk_card if side == "atk" else flow.def_card)
-    if side is not None and (card is None or not modifiers.is_uncancelable(card)):
+    if side is None or (card is not None and modifiers.is_uncancelable(card)):
+        return
+    moments = spec.get("moments")
+    if moments is None or "immediately" in moments or not _immediately_pending(flow, side):
         flow.ctx.cancelled.add(side)
+    else:
+        flow.late_cancelled.add(side)       # its IMMEDIATELY has yet to resolve and stays: only DURING and AFTER go
+    if modifiers.has_effects(game, flow, side, moments):
+        flow.cancel_hits.add(side)
+
+
+def _immediately_pending(flow, side: str) -> bool:
+    """`side` has not resolved its IMMEDIATELY yet (the defender resolves first, so a defender's cancellation meets
+    the attacker's IMMEDIATELY still ahead)."""
+    names = [s.name for s in flow.sides]
+    return flow.phase.value == "immediately" and side in names and names.index(side) >= flow.side_idx
 
 
 @op("modify_value")

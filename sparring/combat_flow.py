@@ -134,6 +134,8 @@ class CombatFlow:
         self.printed_set: dict[str, int] = {}        # side -> printed value after a "value becomes N" effect
         self.mods: dict[str, list[list]] = {"atk": [], "def": []}     # [delta, label] applied by value ops
         self.redirects: list[dict] = []              # combat damage redirections registered this combat
+        self.late_cancelled: set[str] = set()        # sides whose DURING and AFTER effects (not IMMEDIATELY) are cancelled
+        self.cancel_hits: set[str] = set()           # sides whose card really lost an effect to a cancellation
         self.choosers: dict | None = None            # player -> effects Chooser; None = the controllers decide
 
     @property
@@ -187,7 +189,7 @@ class CombatFlow:
             return None
         prev = self.sides[self.side_idx - 1]
         key = f"after_gate:{prev.name}"
-        if key in self.answers or side.name in self.ctx.cancelled:
+        if key in self.answers or self.is_cancelled(side.name):
             return None
         from .effects import table
         from .effects.model import load_effects
@@ -197,8 +199,12 @@ class CombatFlow:
         self.await_key = key
         return PendingChoice("table", prev.fighter.owner, prev.card.card_id)
 
+    def is_cancelled(self, side_name: str) -> bool:
+        """The side's effects are cancelled in the current phase: wholly, or from DURING on (Break something)."""
+        return side_name in self.ctx.cancelled or (side_name in self.late_cancelled and self.phase is not Phase.IMMEDIATELY)
+
     def _handler(self, side: Side) -> Rule | None:
-        cancelled = side.name in self.ctx.cancelled
+        cancelled = self.is_cancelled(side.name)
         for r in RULES:
             if r.phase is self.phase and r.side in ("any", side.name) and (r.when_cancelled or not cancelled) \
                     and r.match(self, side):
@@ -305,14 +311,21 @@ class CombatFlow:
         self.game.damage(victim, damage, "combat")
         result.atk_value, result.def_value, result.damage, result.attacker_won = ctx.atk_value, ctx.def_value, damage, damage >= 1
         result.cancelled = set(ctx.cancelled)
+        loser = self.tgt if damage >= 1 else self.att       # a tie is lost by the attacker (the engine's "won")
+        self.game.fx.emit("combat_lost", loser.owner, loser)
 
     # ---------- serialization ----------
     def to_dict(self) -> dict:
         out = self._base_dict(self.ctx, self.result)
-        if self.runs or self.printed_set or self.mods["atk"] or self.mods["def"] or self.redirects:
+        if (self.runs or self.printed_set or self.mods["atk"] or self.mods["def"] or self.redirects
+                or self.late_cancelled or self.cancel_hits):
             out["dsl"] = {"runs": {k: r.to_dict() for k, r in self.runs.items()}, "printed_set": dict(self.printed_set),
                           "mods": {k: [list(m) for m in v] for k, v in self.mods.items()},
                           "redirects": [dict(r) for r in self.redirects]}
+            if self.late_cancelled:
+                out["dsl"]["late_cancelled"] = sorted(self.late_cancelled)
+            if self.cancel_hits:
+                out["dsl"]["cancel_hits"] = sorted(self.cancel_hits)
         return out
 
     def _base_dict(self, ctx, res) -> dict:
@@ -352,6 +365,7 @@ class CombatFlow:
         flow.ctx = flow.result = None
         flow.sides = []
         flow.runs, flow.printed_set, flow.redirects, flow.choosers = {}, {}, [], None
+        flow.late_cancelled, flow.cancel_hits = set(), set()
         flow.mods = {"atk": [], "def": []}
         if "dsl" in raw:
             from .effects.run import EffectRun
@@ -362,6 +376,7 @@ class CombatFlow:
             flow.printed_set = dict(d["printed_set"])
             flow.mods = {k: [list(m) for m in v] for k, v in d["mods"].items()}
             flow.redirects = [dict(r) for r in d["redirects"]]
+            flow.late_cancelled, flow.cancel_hits = set(d.get("late_cancelled", ())), set(d.get("cancel_hits", ()))
         if raw["ctx"] is not None:
             c, r = raw["ctx"], raw["result"]
             flow.ctx = CombatCtx(att, tgt, flow.atk_card, flow.def_card, c["atk_value"], c["def_value"],
