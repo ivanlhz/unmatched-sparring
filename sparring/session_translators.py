@@ -25,6 +25,7 @@ from __future__ import annotations
 from dataclasses import dataclass
 from typing import Callable
 
+from .i18n import t
 from .spaces import describe
 from .tts import effects_bridge, lua
 from .tts.client import TTSLuaError
@@ -655,10 +656,9 @@ def _ongoing_human(session, intent: dict, ctx: Ctx) -> list[Check]:
             session.say(f"No he podido poner {title} en la zona ONGOING del bot: ponla tu.", ChatKind.WARNING)
         return []
     by_id, was = _by_id(session, session.human), intent.get("replaces")
-    replaced = f" y reemplaza a {by_id[was].title} (un solo ONGOING por jugador)" if was is not None and was in by_id else ""
-    where = "en tu zona ONGOING" if session.cfg.human_ongoing_spot is not None else "a la vista en tu descarte"
-    session.say(f"{by_id[intent['card']].title} queda en juego{replaced}: dejala {where}, la tengo en cuenta hasta que "
-                "caduque.", ChatKind.SCHEME)
+    replaced = t("fx.replaces", title=by_id[was].title) if was is not None and was in by_id else ""
+    where = t("fx.where_ongoing" if session.cfg.human_ongoing_spot is not None else "fx.where_discard")
+    session.say(t("fx.in_play", title=by_id[intent["card"]].title, replaced=replaced, where=where), ChatKind.SCHEME)
     return []
 
 

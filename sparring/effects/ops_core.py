@@ -13,6 +13,7 @@ from contextlib import contextmanager
 from typing import Callable
 
 from . import table
+from ..i18n import t
 from .model import EffectError, load_effects
 from .select import (_ref_fighter, Picked, amount, condition, fighter_candidates, find_card, locate, pick_fighters, player_of,
                      players_of, card_candidates, card_ref, select_cards, space_options)
@@ -146,7 +147,7 @@ def _cards_of(game, run, cards, purpose: str, prompt: str | None = None, **extra
 
 def _card_title(game, run) -> str:
     card = find_card(game, run.ctx.card_id) if run.ctx.card_id is not None else None
-    return card.title if card else "efecto"
+    return card.title if card else t("fx.cause_default")
 
 
 def _random_positions_text(game, run, player: int, n: int, title: str) -> str:
@@ -161,8 +162,8 @@ def _random_positions_text(game, run, player: int, n: int, title: str) -> str:
         run.flags[key] = picked
     if not picked:
         return title
-    which = ("la carta " if len(picked) == 1 else "las cartas ") + " y ".join(str(p) for p in picked)
-    return f"{title}, al azar: {which} de tu mano contando desde la izquierda"
+    which = t("ops.random_one" if len(picked) == 1 else "ops.random_many") + t("common.and").join(str(p) for p in picked)
+    return t("ops.random_positions", title=title, which=which)
 
 
 @op("discard")

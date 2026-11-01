@@ -191,3 +191,12 @@ def _shims():
 
 
 globals().update(_shims())
+
+
+@pytest.fixture(autouse=True)
+def _spanish_by_default():
+    """The player-facing language is process-wide: every test starts (and leaves) it in Spanish."""
+    from sparring import i18n
+    i18n.set_language("es")
+    yield
+    i18n.set_language("es")

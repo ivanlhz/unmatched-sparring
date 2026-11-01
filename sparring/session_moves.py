@@ -15,12 +15,10 @@ farther than `off_board_dist` is rejected; two equidistant spaces cannot be told
 from __future__ import annotations
 
 from .effects.choose import ChoiceRequest
+from .i18n import t, tn
+from .session_choices import panel_text
 from .spaces import describe
 from .tts.lua import ChatKind
-
-HECHO = "Hecho"
-SKIP = "No mover"
-THROUGH_TEXT = " (puede atravesar luchadores rivales)"
 
 
 def manual_request(session) -> ChoiceRequest | None:
@@ -33,7 +31,7 @@ def manual_request(session) -> ChoiceRequest | None:
 
 
 def _plural(n: int) -> str:
-    return f"{n} casilla{'s' if n != 1 else ''}"
+    return tn("moves.squares", n)
 
 
 def _spot(session, space, exclude=()) -> str:
@@ -45,19 +43,19 @@ def where_text(session, req: ChoiceRequest) -> str:
     g, where = session.game, req.extra.get("where") or {}
 
     def who(key):
-        return session._name(g.fighters[where[key]]) if where.get(key) in g.fighters else "su heroe"
+        return session._name(g.fighters[where[key]]) if where.get(key) in g.fighters else t("moves.his_hero")
     if where.get("any"):
-        text = "cualquier casilla libre"
+        text = t("moves.where.any")
     elif "zone_of" in where:
-        text = f"la zona de {who('zone_of')}"
+        text = t("moves.where.zone", who=who("zone_of"))
     elif "adjacent_to" in where:
-        text = f"una casilla libre junto a {who('adjacent_to')}"
+        text = t("moves.where.adjacent", who=who("adjacent_to"))
     elif "nearest_to" in where:
-        text = f"la casilla libre mas cercana a {who('nearest_to')}"
+        text = t("moves.where.nearest", who=who("nearest_to"))
     else:
-        text = "donde diga la carta"
+        text = t("moves.where.default")
     if len(req.options) == 1:
-        text += " (" + " o ".join(_spot(session, o, (req.extra["fighter"],)) for o in req.options) + ")"
+        text += " (" + t("common.or").join(_spot(session, o, (req.extra["fighter"],)) for o in req.options) + ")"
     return text
 
 
@@ -71,15 +69,16 @@ def instruction(session, req: ChoiceRequest) -> str:
     f = g.fighters[fid]
     name = session._name(f)
     head = _title(session, req)
-    optional = " (o pulsa No mover si prefieres dejarla donde esta)" if req.min == 0 else ""
+    optional = t("moves.optional") if req.min == 0 else ""
     if req.extra.get("op") == "move":
         steps = req.extra["steps"]
-        how = "hasta" if req.extra.get("up_to", True) else "exactamente"
-        through = THROUGH_TEXT if req.extra.get("through") else ""
-        now = f" Ahora esta en {_spot(session, f.pos, (fid,))}." if f.pos is not None else ""
-        return f"{head}Mueve a {name} {how} {_plural(steps)}{through} y pulsa Hecho{optional}.{now}"
-    verb = "Pon en el tablero" if req.extra.get("op") in ("revive", "summon") else "Coloca"
-    return f"{head}{verb} a {name} en {where_text(session, req)} y pulsa Hecho."
+        how = t("moves.how.up_to" if req.extra.get("up_to", True) else "moves.how.exactly")
+        through = t("moves.through") if req.extra.get("through") else ""
+        now = t("moves.now", spot=_spot(session, f.pos, (fid,))) if f.pos is not None else ""
+        return t("moves.move", head=head, name=name, how=how, squares=_plural(steps), through=through,
+                 optional=optional, now=now)
+    tag = "moves.put" if req.extra.get("op") in ("revive", "summon") else "moves.place"
+    return t(tag, head=head, name=name, where=where_text(session, req))
 
 
 def start(session, req: ChoiceRequest) -> None:
@@ -87,23 +86,22 @@ def start(session, req: ChoiceRequest) -> None:
 
 
 def reprompt(session, req: ChoiceRequest) -> str:
-    return "Sigue pendiente: " + instruction(session, req)
+    return t("common.still_pending", text=instruction(session, req))
 
 
 def status(session, req: ChoiceRequest) -> str:
     name = session._name(session.game.fighters[req.extra["fighter"]])
-    verb = "Mueve" if req.extra.get("op") == "move" else "Coloca"
-    return f"{verb} a {name} en la mesa y pulsa Hecho"
+    return panel_text(t("moves.status.move" if req.extra.get("op") == "move" else "moves.status.place", name=name))
 
 
 def view(session, req: ChoiceRequest) -> tuple[dict, dict]:
     """The choice slots while the human moves by hand: Hecho, and No mover when the move may be skipped."""
     from .session_choices import CHOICE_IDS
     states = {ident: (False, False) for ident in CHOICE_IDS}
-    labels = {CHOICE_IDS[0]: HECHO}
+    labels = {CHOICE_IDS[0]: panel_text(t("btn.done"), 40)}
     states[CHOICE_IDS[0]] = (True, True)
     if req.min == 0:
-        states[CHOICE_IDS[1]], labels[CHOICE_IDS[1]] = (True, True), SKIP
+        states[CHOICE_IDS[1]], labels[CHOICE_IDS[1]] = (True, True), panel_text(t("btn.skip"), 40)
     return states, labels
 
 
@@ -111,19 +109,17 @@ def _why_not_legal(session, req: ChoiceRequest, f, dest: int) -> str:
     g, name = session.game, session._name(f)
     holder = next((o for o in g.fighters.values() if o.alive and o is not f and o.pos == dest), None)
     if holder is not None:
-        return (f"Esa casilla esta ocupada por {session._name(holder)} ({_spot(session, dest, (holder.fid, f.fid))}): "
-                f"mueve a {name} a una libre.")
+        return t("moves.occupied", holder=session._name(holder), spot=_spot(session, dest, (holder.fid, f.fid)), name=name)
     if req.extra.get("op") != "move":
-        return f"{name} tiene que quedar en {where_text(session, req)}; ahora esta en {_spot(session, dest, (f.fid,))}."
+        return t("moves.must_end", name=name, where=where_text(session, req), spot=_spot(session, dest, (f.fid,)))
     steps, d = req.extra["steps"], g.board.distance(f.pos, dest)
     if d > steps:
-        return f"{name} se ha movido {_plural(d)}; el maximo es {steps}."
+        return t("moves.too_far", name=name, squares=_plural(d), steps=steps)
     if not req.extra.get("up_to", True) and d < steps:
-        return f"{name} se ha movido {_plural(d)}; tiene que moverse exactamente {steps}."
+        return t("moves.too_short", name=name, squares=_plural(d), steps=steps)
     if not req.extra.get("through"):
-        return (f"Desde donde estaba, {name} no llega a esa casilla en {_plural(steps)} sin atravesar luchadores "
-                "rivales (esta carta no lo permite): busca otro camino o otra casilla.")
-    return f"{name} no puede acabar en esa casilla."
+        return t("moves.no_path", name=name, squares=_plural(steps))
+    return t("moves.cannot_end", name=name)
 
 
 def verdict(session, req: ChoiceRequest) -> tuple[int | None, str | None]:
@@ -138,22 +134,20 @@ def verdict(session, req: ChoiceRequest) -> tuple[int | None, str | None]:
             continue
         info = pieces.get(fid) or {}
         if session._on_board(info) and info.get("space") != other.pos:
-            return None, (f"Se ha movido tambien {session._name(other)}: devuelvelo a su sitio "
-                          f"({_spot(session, other.pos, (fid,))}) y pulsa Hecho.")
+            return None, t("moves.also_moved", other=session._name(other), spot=_spot(session, other.pos, (fid,)))
     info = pieces.get(f.fid) or {}
     if not info.get("found"):
-        return None, f"No encuentro la miniatura de {name} en la mesa."
+        return None, t("moves.not_found", name=name)
     if not session._on_board(info):
-        return None, (f"{name} esta fuera del tablero (a {info['dist']:.1f} de la casilla mas cercana): "
-                      "ponla sobre una casilla y pulsa Hecho.")
+        return None, t("moves.off_board", name=name, dist=f"{info['dist']:.1f}")
     dest = info["space"]
     if f.alive and dest == f.pos:
         if dest in req.options:
             return dest, None
-        skip = " o pulsa No mover" if req.min == 0 else ""
-        return None, f"{name} no se ha movido: muevela{skip}."
+        skip = t("moves.skip_or") if req.min == 0 else ""
+        return None, t("moves.not_moved", name=name, skip=skip)
     if dest not in req.options:
-        return None, _why_not_legal(session, req, f, dest) + " Corrigelo y pulsa Hecho."
+        return None, _why_not_legal(session, req, f, dest) + t("moves.fix_suffix")
     return dest, None
 
 
@@ -167,9 +161,9 @@ def press(session, paused, index) -> None:
     elif index == 2 and req.min == 0:
         name = session._name(session.game.fighters[req.extra["fighter"]])
         session._answer_choice(paused, [])
-        session.say(f"{name} se queda donde esta.", ChatKind.MOVE)
+        session.say(t("moves.stays", name=name), ChatKind.MOVE)
     else:
-        session.say("Ese boton no corresponde a ninguna opcion.", ChatKind.WARNING)
+        session.say(t("choice.no_such_button"), ChatKind.WARNING)
 
 
 def done(session, paused, req: ChoiceRequest) -> None:
@@ -187,5 +181,5 @@ def done(session, paused, req: ChoiceRequest) -> None:
         session.hand_moved.pop(fid, None)
         return
     f = session.game.fighters[fid]
-    session.say(f"{session._name(f)} queda en {_spot(session, dest, (fid,))}.", ChatKind.MOVE)
+    session.say(t("moves.lands", name=session._name(f), spot=_spot(session, dest, (fid,))), ChatKind.MOVE)
     session.messages.insert(mark, session.messages.pop())

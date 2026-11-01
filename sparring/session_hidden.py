@@ -30,6 +30,8 @@ from .effects.choose import ChoiceRequest
 from .effects.events import attack_revealed
 from .effects.model import EffectError, load_effects, walk_ops
 from .effects.ops_combat import FACE_DOWN, PERFECT_SHOT, PREDICT_OP, PREDICT_VALUES
+from .i18n import plural, t
+from .session_choices import panel_text
 from .tts import lua
 from .tts.client import TTSLuaError
 from .tts.lua import ChatKind
@@ -78,9 +80,6 @@ def after_step(session) -> None:
 # Confront Any Demon or God and every card shaped "look at the opponent's hand and choose N cards for them to
 # discard". The human does it on the table himself (Ivan, 30/10); the bot only validates the result at "Hecho".
 
-HECHO = "Hecho"
-
-
 def manual_request(session) -> ChoiceRequest | None:
     """The pending pick when it is a discard from the bot's hand (a look-and-discard card)."""
     req = bot_hand_request(session)
@@ -88,15 +87,11 @@ def manual_request(session) -> ChoiceRequest | None:
 
 
 def manual_start(session, req: ChoiceRequest) -> None:
-    n = req.max
-    session.say("Has perdido el combate con una carta que te deja mirar la mano del bot y elegir "
-                f"{n} carta{'s' if n != 1 else ''} para que la descarte. Sacala tu de la zona de mano verde "
-                "(Green) para verla; pon la carta elegida boca arriba en el descarte del bot, devuelve el resto a su "
-                "mano y pulsa Hecho.", ChatKind.YOUR_TURN)
+    session.say(t("hidden.start", cards=plural(req.max, "noun.card")), ChatKind.YOUR_TURN)
 
 
 def manual_status(session) -> str:
-    return "Descarta 1 carta del bot a mano, devuelve el resto y pulsa Hecho"
+    return panel_text(t("hidden.status"))
 
 
 def manual_view(session) -> tuple[dict, dict]:
@@ -104,7 +99,7 @@ def manual_view(session) -> tuple[dict, dict]:
     from .session_choices import CHOICE_IDS
     states = {ident: (False, False) for ident in CHOICE_IDS}
     states[CHOICE_IDS[0]] = (True, True)
-    return states, {CHOICE_IDS[0]: HECHO}
+    return states, {CHOICE_IDS[0]: panel_text(t("btn.done"), 40)}
 
 
 def _titles(session, ids) -> str:
@@ -126,26 +121,21 @@ def manual_verdict(session) -> tuple[int | None, str | None]:
     out_of_hand = expected_hand - table_hand
     foreign = [i for i in new_pile if i not in own]
     if foreign:
-        return None, ("Esa carta no es de la mano del bot: hay en su descarte una carta que no es suya "
-                      f"({_titles(session, foreign)}). Quitala y pulsa Hecho.")
+        return None, t("hidden.foreign", titles=_titles(session, foreign))
     extra_in_hand = table_hand - expected_hand
     if extra_in_hand:
-        return None, ("Hay en la mano del bot cartas que no le tocan: " + _titles(session, extra_in_hand.elements())
-                      + ". Quitalas y pulsa Hecho.")
+        return None, t("hidden.extra_in_hand", titles=_titles(session, extra_in_hand.elements()))
     n = sum(new_pile.values())
     if n > 1:
-        return None, (f"Has descartado {n} cartas; solo puedes 1 ({_titles(session, new_pile.elements())}). "
-                      "Devuelve las que sobran y pulsa Hecho.")
+        return None, t("hidden.too_many", n=n, titles=_titles(session, new_pile.elements()))
     missing = out_of_hand - new_pile
     if missing:
-        return None, ("Faltan cartas en la mano del bot: devuelve " + _titles(session, missing.elements())
-                      + " a su mano (zona Green) y pulsa Hecho.")
+        return None, t("hidden.missing", titles=_titles(session, missing.elements()))
     if n == 0:
-        return None, "Todavia no has descartado ninguna carta: pon la elegida boca arriba en el descarte del bot y pulsa Hecho."
+        return None, t("hidden.nothing_yet")
     unseen = new_pile - out_of_hand
     if unseen:
-        return None, (f"{_titles(session, unseen.elements())} esta en el descarte pero no estaba en la mano del bot: "
-                      "quitala y pulsa Hecho.")
+        return None, t("hidden.unseen", titles=_titles(session, unseen.elements()))
     return next(iter(new_pile)), None
 
 
@@ -170,12 +160,12 @@ def manual_done(session, paused) -> None:
         if not had_flight:
             session.fx_in_flight.discard(cid)
         return
-    session.say(f"El bot descarta {card.title} (la que has elegido).", ChatKind.SCHEME)
+    session.say(t("hidden.discards", card=card.title), ChatKind.SCHEME)
     if manual_request(session) is None and card not in st.discard:   # answered, and the engine kept it (Wildfire returns a burning card): back to the hand
         session.bot_discarded.discard(cid)
         if guid:
             session._w(lua.return_card_to_hand(guid, session.cfg.bot_seat), "cards")
-        session.say(f"El bot se queda {card.title} (Wildfire la devuelve a su mano).", ChatKind.SCHEME)
+        session.say(t("hidden.keeps_wildfire", card=card.title), ChatKind.SCHEME)
 
 
 def show_row(session, req: ChoiceRequest | None) -> None:
@@ -193,8 +183,7 @@ def show_row(session, req: ChoiceRequest | None) -> None:
     table_hand = session._table_hand_ids()
     rows = [r for r in session._rd_bot_hand() if r["id"] in wanted and r["id"] in by_id][:lua.MAX_LOOK_CARDS]
     if not rows:
-        session.say("Miras la mano del bot: no tiene cartas en la mano." if not wanted else
-                    "Miras la mano del bot, pero no veo sus cartas en la mesa: pidele que las muestre.", ChatKind.WARNING)
+        session.say(t("hidden.empty_hand" if not wanted else "hidden.not_visible"), ChatKind.WARNING)
         return
     ids = [r["id"] for r in rows]
     spots = session._look_spots(len(rows), card_row=True)
@@ -212,11 +201,9 @@ def show_row(session, req: ChoiceRequest | None) -> None:
     session.revoke_look()                        # the card itself showed the hand: no button to press
     session._post.append(lambda: session._look_shown(op))
     if req is not None:
-        session.say(f"El bot pone su mano boca arriba ({len(rows)} cartas) y hace ping: elige una con ping (Tab) "
-                    "sobre la carta o con su boton del panel.", ChatKind.YOUR_TURN)
+        session.say(t("hidden.row_pick", n=len(rows)), ChatKind.YOUR_TURN)
     else:
-        session.say(f"El bot pone su mano boca arriba ({len(rows)} cartas) y hace ping: solo miras. Pulsa Fin de "
-                    "accion o Cancelar y la recoge.", ChatKind.YOUR_TURN)
+        session.say(t("hidden.row_reveal", n=len(rows)), ChatKind.YOUR_TURN)
     for n, r in enumerate(rows, 1):
         session.say(session._card_line(n, by_id[r["id"]]), ChatKind.SCHEME)
 
@@ -225,28 +212,28 @@ def row_failed_text(look: dict) -> str:
     """The table took no card out of the bot's hand: what the human does instead."""
     mode = look.get("mode")
     if mode == MODE_PICK:
-        return "No he podido poner la mano del bot en la mesa: sus cartas estan en el chat, elige con los botones del panel."
+        return t("hidden.row_failed.pick")
     if mode == MODE_REVEAL:
-        return "No he podido poner la mano del bot en la mesa: sus cartas estan en el chat."
-    return "No he podido sacar las cartas de la mano del bot; repite Mirar mano del bot."
+        return t("hidden.row_failed.reveal")
+    return t("hidden.row_failed.grant")
 
 
 def look_status(session) -> str:
     mode = session.look.get("mode")
     if mode == MODE_PICK:
-        return "Mano del bot a la vista: Tab sobre la carta que eliges, o su boton"
+        return panel_text(t("hidden.look_status.pick"))
     if mode == MODE_REVEAL:
-        return "Mano del bot a la vista: Fin de accion o Cancelar la recoge"
-    return "Mano del bot a la vista: Tab sobre la carta a descartar o Cancelar"
+        return panel_text(t("hidden.look_status.reveal"))
+    return panel_text(t("hidden.look_status.grant"))
 
 
 def resume_prompt(session) -> str:
     mode = session.look.get("mode")
     if mode == MODE_PICK:
-        return "La mano del bot sigue a la vista: elige una carta con ping (Tab) o con su boton del panel."
+        return t("hidden.resume.pick")
     if mode == MODE_REVEAL:
-        return "La mano del bot sigue a la vista (solo mirar): pulsa Fin de accion o Cancelar y la recoge."
-    return "La mano del bot sigue a la vista: haz ping (Tab) sobre la carta a descartar o pulsa Cancelar."
+        return t("hidden.resume.reveal")
+    return t("hidden.resume.grant")
 
 
 def ping(session, guid: str) -> bool:
@@ -255,14 +242,14 @@ def ping(session, guid: str) -> bool:
     look = session.look
     mode = look.get("mode")
     if mode == MODE_REVEAL:
-        session.say("Esta vez solo miras: pulsa Fin de accion o Cancelar y el bot recoge su mano.", ChatKind.WARNING)
+        session.say(t("hidden.ping_reveal"), ChatKind.WARNING)
         return True
     if mode != MODE_PICK:
         return False
     req = bot_hand_request(session)
     card_id = look["ids"][look["guids"].index(guid)]
     if req is None or card_id not in req.options:
-        session.say("Esa carta no se puede elegir ahora.", ChatKind.WARNING)
+        session.say(t("hidden.ping_not_now"), ChatKind.WARNING)
         return True
     session._answer_choice(session._paused(), [card_id])
     return True
@@ -300,21 +287,20 @@ def close_row(session, value: list, ok: bool) -> None:
         session.fx_in_flight.add(card.card_id)    # nor the projection of a human scheme's step (E2): the row moved it
     session._post.append(lambda: _row_closed(session, op, card, dest if guid else "hand", look))
     if dest == "discard":
-        session.say(f"El bot descarta {card.title}" + (" y devuelve el resto de su mano." if in_row else
-                    " (seguia en su mano) y recoge su mano."), ChatKind.SCHEME)
+        session.say(t("hidden.close.discard_row" if in_row else "hidden.close.discard_hand", card=card.title),
+                    ChatKind.SCHEME)
     elif dest == "deck":
-        session.say(f"{card.title} va a la parte superior del mazo del bot" + ("; el resto vuelve a su mano." if in_row
-                    else ": seguia en su mano, ponla tu encima de su mazo; el bot recoge su mano."), ChatKind.SCHEME)
+        session.say(t("hidden.close.deck_row" if in_row else "hidden.close.deck_hand", card=card.title), ChatKind.SCHEME)
     elif card is not None and look.get("purpose") == "discard" and bounces_back(g, session.bot, card):
-        session.say(f"El bot se queda {card.title} (Wildfire la devuelve) y recoge su mano.", ChatKind.SCHEME)
+        session.say(t("hidden.close.wildfire_kept", card=card.title), ChatKind.SCHEME)
     elif card is not None and (hits := _hits_taken(g, session.bot, look)):
-        session.say(f"El bot se queda {card.title} y {hits} y recoge su mano.", ChatKind.SCHEME)
+        session.say(t("hidden.close.kept_hits", card=card.title, hits=hits), ChatKind.SCHEME)
     elif card is not None and bounces_back(g, session.bot, card):
-        session.say(f"El bot descarta {card.title} (Wildfire la devuelve a su mano) y recoge su mano.", ChatKind.SCHEME)
+        session.say(t("hidden.close.discard_bounce", card=card.title), ChatKind.SCHEME)
     elif card is not None:
-        session.say(f"El bot se queda {card.title} y recoge su mano.", ChatKind.SCHEME)
+        session.say(t("hidden.close.kept", card=card.title), ChatKind.SCHEME)
     else:
-        session.say("El bot recoge su mano.", ChatKind.NEUTRAL)
+        session.say(t("hidden.close.collect"), ChatKind.NEUTRAL)
 
 
 def _hits_taken(game, player: int, look: dict) -> str:
@@ -322,7 +308,7 @@ def _hits_taken(game, player: int, look: dict) -> str:
     price when the bot kept the card), else ''."""
     lost = [(f.name, before - max(0, f.hp if f.alive else 0)) for f in game.own(player, alive_only=False)
             if (before := look.get("hp", {}).get(f.fid)) is not None]
-    return " y ".join(f"{name} recibe {n} de dano" for name, n in lost if n > 0)
+    return t("common.and").join(t("hidden.hit", name=name, n=n) for name, n in lost if n > 0)
 
 
 def _row_closed(session, op, card, dest: str, look: dict) -> bool:
@@ -331,20 +317,18 @@ def _row_closed(session, op, card, dest: str, look: dict) -> bool:
     try:
         res = op.result or {}
         done = res.get("discarded") == card.card_id if dest != "hand" else bool(res.get("found"))
-        fail = None if done else "esa carta no estaba en la fila de la mesa"
+        fail = None if done else t("hidden.fail.not_in_row")
     except _ERRORS as e:
-        fail = f"error: {e}"
+        fail = t("hidden.fail.error", error=e)
     if fail is None and dest == "discard" and not session._settle(lambda: card.card_id in session._table_discard()):
-        fail = f"{card.title} aun no se ve en el descarte del bot"
+        fail = t("hidden.fail.not_in_discard", card=card.title)
     if fail is not None:
         session.restore_row_hands(look["guids"])
         if dest == "discard":
             session.bot_discarded.discard(card.card_id)
         session._mark_dirty()
-        where = {"discard": f" y pon {card.title} en su descarte", "deck": f" y pon {card.title} en la parte superior de su mazo",
-                 "hand": ""}[dest]
-        session.say(f"La mesa no cerro la fila del bot ({fail}): recoge sus cartas a su mano{where}; pulsa Fin de "
-                    "accion para sincronizar.", ChatKind.WARNING)
+        where = "" if dest == "hand" else t(f"hidden.fail.where_{dest}", card=card.title)
+        session.say(t("hidden.fail.row", fail=fail, where=where), ChatKind.WARNING)
         return False
     session.read_bot_hand()
     return True
@@ -388,8 +372,7 @@ def ask_prediction(session, p, card) -> bool:
     if req is None:
         return False
     p.predict = req.to_dict()
-    session.say(f"{card.title}: predice el valor impreso de la carta del bot (la juegas boca arriba) o juegala boca "
-                "abajo, con los botones del panel. El bot elige su defensa despues.", ChatKind.YOUR_TURN)
+    session.say(t("hidden.ask_prediction", card=card.title), ChatKind.YOUR_TURN)
     session._show_choice(req)
     return True
 
@@ -398,9 +381,9 @@ def answer_prediction(session, p, value: list) -> None:
     v = value[0]
     p.prediction, p.predict = {"value": None if v == FACE_DOWN else v}, None
     if v == FACE_DOWN:
-        session.say("Juegas la carta boca abajo: sin prediccion.", ChatKind.NEUTRAL)
+        session.say(t("hidden.face_down"), ChatKind.NEUTRAL)
     else:
-        session.say(f"Predices que la carta del bot tiene valor impreso {v}: tu carta se juega boca arriba.", ChatKind.ATTACK)
+        session.say(t("hidden.predicted", value=v), ChatKind.ATTACK)
     session._reveal({})
 
 
@@ -430,9 +413,7 @@ def flow_choosers(session, p) -> dict:
 def intuition_notice(session, target) -> None:
     """The human attacks the bot's Abe with an active token: the attack will be played face up."""
     if attack_revealed(session.game, target):
-        session.say(f"UNCANNY INTUITION: {session._name(target)} tiene una ficha activa: la gasta, roba 1 carta y tu "
-                    "ataque se juega boca arriba. Pon tu carta boca abajo como siempre y pulsa Revelar: la giro y "
-                    "el bot elige su defensa viendola.", ChatKind.ATTACK)
+        session.say(t("hidden.intuition_notice", name=session._name(target)), ChatKind.ATTACK)
 
 
 def declare_attack(session, p, card):
@@ -454,8 +435,7 @@ def declare_attack(session, p, card):
             session._mark_dirty()
             session._flush_table()
     if by_ability:
-        session.say(f"UNCANNY INTUITION: tu ataque se juega boca arriba: {card.title} (valor {card.value}); el bot "
-                    "elige su defensa viendolo.", ChatKind.ATTACK)
+        session.say(t("hidden.intuition_face_up", card=card.title, value=card.value), ChatKind.ATTACK)
         return card
     if p.prediction is not None and p.prediction["value"] is not None:
         return card
@@ -473,10 +453,9 @@ def bot_attack_placed(session, p) -> None:
     if _has_plugin(g, session.bot, card, PERFECT_SHOT):
         n = predict_value(g, session.bot)
         p.prediction = {"value": n}
-        lines.append(f"El bot juega {card.title} boca arriba y predice que el valor impreso de tu carta es {n}.")
+        lines.append(t("hidden.bot_predicts", card=card.title, n=n))
     if attack_revealed(g, p.target):
-        lines.append(f"UNCANNY INTUITION: {session._name(p.target)} tiene una ficha activa: gastas una, robas 1 carta "
-                     f"(te la doy yo) y el ataque del bot se juega boca arriba: {card.title} (valor {card.value}).")
+        lines.append(t("hidden.bot_intuition", name=session._name(p.target), card=card.title, value=card.value))
     if not lines:
         return
     if p.bot_card_guid:
