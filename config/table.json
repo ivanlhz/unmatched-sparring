@@ -16,7 +16,8 @@
     "Setup: the bot deals its hand, decides on a mulligan (once: the 5 cards back to the deck, shuffled and 5 dealt; house rule or unconfirmed, see the README) and places Medusa and the Harpies according to who goes first; the human places Hellboy and Lobster and presses Ready. The starting spaces come from the rulebook (the first player takes space 1 of the map, the second space 2) unless start_spaces is fixed by hand. mulligan_bot=false turns it off for the bot; mulligan_human=false turns off the human's Mulligan button.",
     "Row of the human's cards that look at the bot's hand (Remove A Painful Memory, Advanced Psychometry, Every Possible Angle): bot_row_spot is the CENTER of the row where the bot lays its cards face up and bot_row_step the (dx, dz) between cards (2.6 in z, cards turned 90 degrees; look_rot_y turns them too). Default [11.5, 2.5, -29.0]: a column in z -20..-38 with 7 cards, to the right of the bot's combat (x 4.9..7.1) and ONGOING boxes, past the -z edge of its discard zone 906a7a (x 10.7..19.3, z -17..18) and before the hero bags (z -40) and the die (2.1, -30); free in the 26/10 save. Start-up warns if it overlaps the panel, a combat/ONGOING box or a discard. The Look at bot's hand panel button still uses look_spot.",
     "Looking at the bot's hand (F16, panel button): look_spot is the CENTER of the row where the bot lays its cards face up (an estimate, calibrate it live: in front of the human's seat, outside the hands, discards and combat zones; start-up warns if it overlaps the panel or a combat box) and look_step the (dx, dz) between cards (2.6 in z for cards turned 90 degrees; up to 12 cards). look_rot_y (optional) turns the cards; default bot_discard_rot_y.",
-    "unpack (optional, off): with --unpack or \"unpack\": true (only the boolean true) the bot, BEFORE playing and never with --resume, takes out of each hero's inner bag whatever is not on the table (no GUID of its states; a deck, in addition, with no Deck or Card of its CardID range anywhere on the table) and lays it in a row from bot_unpack_spot / human_unpack_spot (default [22,2.5,-10] and [-22,2.5,10.5], outside the hand zones; each unpack_step [0,0,3]); the deck goes to its deck spot and is shuffled. If the inner bag is not on the table it does nothing and warns; it never takes from an infinite bag. start_spaces accepts fighter ids or the keys bot / human."
+    "unpack (optional, off): with --unpack or \"unpack\": true (only the boolean true) the bot, BEFORE playing and never with --resume, takes out of each hero's inner bag whatever is not on the table (no GUID of its states; a deck, in addition, with no Deck or Card of its CardID range anywhere on the table) and lays it in a row from bot_unpack_spot / human_unpack_spot (default [22,2.5,-10] and [-22,2.5,10.5], outside the hand zones; each unpack_step [0,0,3]); the deck goes to its deck spot and is shuffled. If the inner bag is not on the table it does nothing and warns; it never takes from an infinite bag. start_spaces accepts fighter ids or the keys bot / human.",
+    "bot_tuck_spot / bot_removed_spot (Donatello, estimates: calibrate live): where the bot lays the inventions it tucks under its hero card and the cards it removes from the game, face up. They must be OUTSIDE its discard zone and its combat zone. Without them the bot only says what to move and you move it. The human tucks and sets aside by hand."
   ],
   "language": "es",
   "bot_hero": "auto",
@@ -126,6 +127,16 @@
   ],
   "human_ongoing_spot": [
     -2.0,
+    -23.0
+  ],
+  "bot_tuck_spot": [
+    10.0,
+    1.7,
+    -23.0
+  ],
+  "bot_removed_spot": [
+    14.0,
+    1.7,
     -23.0
   ]
 }

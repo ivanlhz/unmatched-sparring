@@ -272,6 +272,21 @@
         "Verified live by Iván with at least two non-box heroes (e.g. Raphael, Alice)"
       ],
       "note": "Asked by Iván on 30/10 after the catalog branch (feat/hero-catalog). Builds on that branch. Making a new hero playable BY THE BOT (effects + AI) stays a per-hero job like the Hellboy box."
+    },
+    {
+      "id": "F20-donatello",
+      "title": "Donatello (TMNT Adventures) on both sides",
+      "status": "in-progress",
+      "criteria": [
+        "Donatello and Metalhead: HeroDef, DSL effects, TTS data and detection (the deck shares Medusa's CardIDs 17600-17629: only its image tells it apart); the 30 cards verified against the real sheet 176 of the tournament save",
+        "All 14 card effects, played by the bot and by the human (table mode): Party wagon!, Short circuit (cancels only AFTER COMBAT), Untested enhancements, The future of Ninjutsu, Donatello does machines, Thinking ahead, Shift focus, Quick strike, Bo staff, Turtle power!, Heroes in a half shell and the three inventions",
+        "INVENTIVE (a): after a maneuver the owner may draw one more card and put a hand card at the bottom of the deck (the bot always does; the human is asked on the panel); (b): an invention that has been played is tucked under the hero card instead of going to the discard pile and its bonus holds for the rest of the game, saved and resumable",
+        "Cards removed from the game are public and gone for good; the bot sets them aside on bot_removed_spot, the human is told; tucked and removed cards are never read back into a pile by the table sync",
+        "The bot keeps inventions in hand, plays them early and removes its cheapest cards; heuristic and ISMCTS",
+        "Whole FakeTTS games against each of the five other heroes, on either side, reach game over (tests/test_donatello_games.py)",
+        "A live game supervised by Iván (docs/live-checklist.md, Donatello) before calling it done"
+      ],
+      "note": "1/11: engine and FakeTTS done on feat/hero-donatello; the live table (tuck and removed spots, INVENTIVE panel flow, Party wagon! path by hand) is untested. Open rules questions in docs/heroes/donatello.md."
     }
   ]
 }

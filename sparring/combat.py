@@ -6,6 +6,7 @@ from __future__ import annotations
 
 import re
 from dataclasses import dataclass, field
+from functools import lru_cache
 
 from .cards import MEDUSA_BASE, Card, can_be_boost
 from .effects import ongoing
@@ -22,8 +23,16 @@ ON_EARTH = "On Earth As It Is In Hell"
 FIGHT_OR_FLIGHT = "Fight Or Flight"          # only a label for the tests: the engine reads the bonus from the card data
 
 
+@lru_cache(maxsize=None)
+def _medusa_cards() -> frozenset[Card]:
+    from .heroes import load_hero
+    return frozenset(load_hero("medusa").deck())
+
+
 def is_medusa_card(card: Card) -> bool:
-    return MEDUSA_BASE <= card.card_id < MEDUSA_BASE + 100
+    """One of Medusa's cards. The CardID range is not enough: the TMNT decks (Donatello...) use the same 17600-17629, so
+    the card is compared with Medusa's own (a Card is a frozen value: id, title, restriction, numbers and text)."""
+    return MEDUSA_BASE <= card.card_id < MEDUSA_BASE + 100 and card in _medusa_cards()
 
 
 @dataclass
@@ -54,6 +63,7 @@ class CombatCtx:
     atk_value: int
     def_value: int
     cancelled: set[str]
+    cancelled_after: set[str] = field(default_factory=set)    # sides whose AFTER COMBAT alone is cancelled (Short circuit)
 
 
 def _side_cards(ctx: CombatCtx):

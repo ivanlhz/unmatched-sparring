@@ -8,6 +8,7 @@ from typing import Callable
 from .cards import Card
 from .combat import (ON_EARTH, PLANNED, CombatCtx, CombatResult, _check_boost, _side_cards, can_boost, deck_boost,
                      is_medusa_card)
+from .effects import inventions
 from .i18n import t
 from .state import ANUNG, Fighter, Game, RuleError
 
@@ -211,7 +212,7 @@ class CombatFlow:
             self.after_open = self.game.winner is None
         elif phase is Phase.DONE:
             for owner, card in self.played:
-                self.game.players[owner].discard.append(card)
+                inventions.settle_played(self.game, owner, card)
 
     # ---------- decisions ----------
     def resume(self, choice: "Card | list | None") -> None:
@@ -270,7 +271,7 @@ class CombatFlow:
         def_value = (def_card.value or 0) if def_card else 0
         def_value += values[1]
         # the defender's ONGOING adds to its card value (even at 0 or cancelled); no card, no value to add to
-        self.def_bonus_parts = game.combat_bonus_parts(tgt.owner) if def_card is not None else []
+        self.def_bonus_parts = game.defense_bonus_parts(tgt.owner) if def_card is not None else []
         def_value += self.def_bonus
         self.ctx = CombatCtx(att, tgt, atk_card, def_card, atk_value, def_value, set())
         self.result = CombatResult(att.fid, tgt.fid, atk_card, def_card, atk_value, def_value, 0, False)
@@ -325,7 +326,8 @@ class CombatFlow:
             "answers": dict(self.answers), "await_key": self.await_key,
             "pending": None if self.pending is None else self.pending.to_dict(),
             "ctx": None if ctx is None else {"atk_value": ctx.atk_value, "def_value": ctx.def_value,
-                                             "cancelled": sorted(ctx.cancelled)},
+                                             "cancelled": sorted(ctx.cancelled),
+                                             **({"cancelled_after": sorted(ctx.cancelled_after)} if ctx.cancelled_after else {})},
             "result": None if res is None else {
                 "atk_value": res.atk_value, "def_value": res.def_value, "damage": res.damage,
                 "attacker_won": res.attacker_won, "cancelled": sorted(res.cancelled),
@@ -365,7 +367,7 @@ class CombatFlow:
         if raw["ctx"] is not None:
             c, r = raw["ctx"], raw["result"]
             flow.ctx = CombatCtx(att, tgt, flow.atk_card, flow.def_card, c["atk_value"], c["def_value"],
-                                 set(c["cancelled"]))
+                                 set(c["cancelled"]), set(c.get("cancelled_after", ())))
             flow.result = CombatResult(att.fid, tgt.fid, flow.atk_card, flow.def_card, r["atk_value"], r["def_value"],
                                        r["damage"], r["attacker_won"], set(r["cancelled"]), card(r["boost_card"], _boost_owner(flow, r)),
                                        list(r["human_effects"]), list(r["atk_parts"]), list(r["def_parts"]),
@@ -486,6 +488,8 @@ def dsl_during(flow: CombatFlow, side: Side) -> Await | None:
 
 @rule(Phase.AFTER, match=_dsl)
 def dsl_after(flow: CombatFlow, side: Side) -> Await | None:
+    if side.name in flow.ctx.cancelled_after:
+        return None
     return _run_moment(flow, side, "after")
 
 

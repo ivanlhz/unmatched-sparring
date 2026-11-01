@@ -305,8 +305,8 @@ def test_a_tie_between_sides_is_ambiguous_not_given_to_the_human():
         detect(r)
 
 
-@pytest.mark.parametrize("bot", ["medusa", "hellboy", "abe-sapien", "baba-yaga", "liz-sherman"])
-@pytest.mark.parametrize("human", ["medusa", "hellboy", "abe-sapien", "baba-yaga", "liz-sherman"])
+@pytest.mark.parametrize("bot", ["medusa", "hellboy", "abe-sapien", "baba-yaga", "liz-sherman", "donatello"])
+@pytest.mark.parametrize("human", ["medusa", "hellboy", "abe-sapien", "baba-yaga", "liz-sherman", "donatello"])
 def test_every_pair_of_heroes_is_detected_in_either_seat(bot, human):
     if bot == human:
         pytest.skip("the same hero on both sides is an error")
@@ -390,7 +390,7 @@ def test_a_catalog_hero_that_is_not_playable_is_named_and_refused():
         detect(r)
     text = str(e.value)
     assert "El humano juega Raphael, que el bot todavia no sabe jugar" in text
-    assert "Heroes jugables: Abe Sapien, Baba Yaga, Hellboy, Liz Sherman, Medusa." in text
+    assert "Heroes jugables: Abe Sapien, Baba Yaga, Donatello, Hellboy, Liz Sherman, Medusa." in text
     assert "Raphael (raphael) [no jugable todavia]: 0 cartas en el lado del bot, 30 en el del humano" in text
 
 

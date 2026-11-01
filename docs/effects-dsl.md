@@ -232,6 +232,7 @@ Every op is `{"op": "<name>", ...args}`. Arguments not listed are an error.
 | `set_hp` | `target`, `amount` | `chooser` | sets the life |
 | `draw` | `player`, `amount` | `up_to`, `chooser`, `as` | |
 | `discard` | `cards: CardSel | CardRef` | `as` | from the hand, the deck (top/bottom) or `in_play` to the discard. With a CardRef it discards exactly those |
+| `remove_from_game` | `cards: CardSel` (zone `discard`) | `as` | the cards leave the game for good (`PlayerState.removed`, public); see "Donatello" below |
 | `choose` | `cards: CardSel`, `as` | | only binds, moves nothing |
 | `choose_effect` | `options: [{label, ops}]`, `amount` | `distinct`, `chooser` | choose EFFECTS; `distinct` forbids repeating |
 | `move` | `target`, `amount`, `up_to` | `through_enemies`, `chooser` | `chooser` decides the destination (default `owner`, also for rival fighters: replaces the old `push`) |
@@ -970,3 +971,18 @@ function per op type, each with two variants.
   discards the whole hand, how many effects it makes you choose and what one heals) instead of comparing titles, so
   the three cards (and any other with the same shape) keep the chat lines and the engine effects they had. For a hero
   the interpreter runs there was never a patch: the ops and the translators above are the whole path.
+
+## 22. Donatello (TMNT): inventions, removal from the game and a few additive capabilities
+
+All additive; nothing of the other heroes changes (the goldens are byte-identical).
+
+- **Card `invention`** (`effects/inventions.py`): `{"modifiers": [Modifier], "triggers": [Trigger]}`, same grammar as `ongoing` without `until`. When a card that has one is played (a combat card when the combat ends, `CombatFlow._enter(DONE)`; a scheme when its ops end, `ongoing.finish_scheme`) it is tucked, not discarded: `PlayerState.tucked`, saved under `players[i].tucked` only when non-empty. Its `modify_value` modifiers add to the owner's attacks / defenses (`type: attack | defense` = played as an attack / as a defense; no `type` = both), through `Game.attack_bonus_parts`, `Game.defense_bonus_parts` and `Game.attack_bonus`; its triggers are dispatched by `events._handle` with the card as `card_id`. `ongoing.worth` adds `inventions.worth` so the AI and the search value them. The card is tucked after it resolves, so its own bonus does not apply to it.
+- **`card_played` event**, normalized since C3 but never emitted before, is now emitted by `ongoing.begin_scheme` for every scheme played by an interpreted hero (before its ops and before the card is tucked).
+- **`remove_from_game`** (`cards: CardSel` in the discard pile, optional `as`): `Game.remove_from_game` moves the cards to `PlayerState.removed` (saved when non-empty). `PlayerState.gone` = discard + tucked + removed is what the unseen pool of the rival, `Model`, `KnownHand`, `unseen_copies` and the search's `determinize` leave out. Table intent `{"op": "remove", "player", "cards"}`.
+- **`CardFilter.type_in`** (list of types), **Amount `{"count_of": CardRef}`** (how many cards a binding holds), **`gain_action.amount`** accepts any Amount.
+- **`cancel_effects.moments: ["after"]`** cancels only the AFTER COMBAT of the card (`CombatCtx.cancelled_after`, saved in the flow's `ctx` when non-empty); the other moments of that card still run. Respects `uncancelable`.
+- **`move.as`** binds the fighters it moved and records, per mover, the opposing fighters it may have passed through (`run.flags["passed"]`); the FighterSel filter **`passed_by: $mover`** selects them. A move the engine did not see (the human walks their miniature) leaves every candidate in place so the human answers.
+- **`look_deck` / `return_to_deck` bottom of the human's own deck** in table mode leave notes (`look_deck`, `deck_to_bottom`): their deck is virtual, the human does it by hand and the engine never names their top card. `optional` whose only op puts the top card of the owner's deck at the bottom sends `bury` (the card id) to a bot's request, so `EffectAI` can compare it with the average card still to come.
+- **Table translators**: `tuck` and `remove` (`session_translators`). Bot: one `discard_cards` write to `bot_tuck_spot` / `bot_removed_spot` (config; cards laid side by side), falling back to the human variant if the spot is missing or the table refuses. Human: the chat says to tuck / set aside by hand. `Session.sync_human`, `_adopt_extra_discards`, `adopt_table` and `_bot_cards_in_play` leave tucked and removed cards alone, so a card physically still on a discard pile is never taken back.
+- **INVENTIVE (a)** is a hero trigger (`inventive`, event `after_maneuver`): the bot's `Game.maneuver` already emits the event, and `Session._maneuver` emits it for the human so the panel can ask. `session_choices.prompt_text` shows `choice.prompt.ability.<trigger id>` for an optional of a trigger that has such a tag.
+- **Other shared-code changes**: `combat.is_medusa_card` compares with Medusa's own cards (the TMNT decks share her CardIDs); `hero_table.table_defaults` accepts overlapping CardID ranges when the deck images differ; `tools/import_save` ignores TTS colour markup in nicknames (`[6f2176]Donatello`); `EffectAI` and `SyntheticChooser` remove the cheapest cards for the purpose `remove`; `ai_medusa` card hints (`INVENTION_KEEP`, `INVENTION_PLAY`, `FREE_BOOST`, Donatello's `AFTER_BONUS` entries).

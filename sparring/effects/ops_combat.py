@@ -53,7 +53,10 @@ def _cancel_effects(run, game, spec):
         side = _named_side(run, spec["card"])
     card = None if side is None else (flow.atk_card if side == "atk" else flow.def_card)
     if side is not None and (card is None or not modifiers.is_uncancelable(card)):
-        flow.ctx.cancelled.add(side)
+        if spec.get("moments") == ["after"]:         # only the AFTER COMBAT effects (Short circuit)
+            flow.ctx.cancelled_after.add(side)
+        else:
+            flow.ctx.cancelled.add(side)
 
 
 @op("modify_value")

@@ -92,7 +92,8 @@ def dial_max(obj: dict) -> int | None:
 
 
 def _nick(obj: dict) -> str:
-    return (obj.get("Nickname") or "").strip()
+    """The nickname without TTS colour markup ('[6f2176]Donatello[-]' is Donatello)."""
+    return re.sub(r"\[(?:[0-9A-Fa-f]{6}|-)\]", "", obj.get("Nickname") or "").strip()
 
 
 def _same(a: str, b: str) -> bool:

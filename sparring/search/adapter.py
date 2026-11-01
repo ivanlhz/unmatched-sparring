@@ -43,6 +43,7 @@ from ..cards import Card, can_be_boost
 from ..combat import is_medusa_card, resolve_combat
 from ..controller import Controller
 from ..effects import ongoing
+from ..effects.inventions import INVENTION_WORTH
 from ..effects.choose import SCHEME_VARIANTS, SyntheticChooser
 from ..effects.model import load_effects, walk_ops
 from ..state import ANUNG, Fighter, Game, PlayerState
@@ -107,7 +108,7 @@ def squash(x: float) -> float:
 
 
 def card_worth(c: Card) -> float:
-    return (c.value or 0) + 0.5 * c.boost + (2.0 if c.is_scheme else 0.0)
+    return (c.value or 0) + 0.5 * c.boost + (2.0 if c.is_scheme else 0.0) + (INVENTION_WORTH if "invention" in c.tags else 0.0)
 
 
 def by_title(hand: list[Card], title: str) -> Card:
@@ -495,9 +496,10 @@ class EngineState:
                 st.deck.sort(key=lambda c: c.card_id)   # the order of the deck itself is hidden too: from the canonical one
                 rng.shuffle(st.deck)
                 continue
-            known = [c for c in self.knowledge.known_in_hand.get(p, ()) if c not in st.discard]
-            top = [c for c in self.knowledge.top_of_deck.get(p, ()) if c not in st.discard and c not in known]
-            pool = sorted((c for c in st.full_set if c not in st.discard and c not in known and c not in top),
+            gone = st.gone
+            known = [c for c in self.knowledge.known_in_hand.get(p, ()) if c not in gone]
+            top = [c for c in self.knowledge.top_of_deck.get(p, ()) if c not in gone and c not in known]
+            pool = sorted((c for c in st.full_set if c not in gone and c not in known and c not in top),
                           key=lambda c: c.card_id)
             if self.pending is not None and self.pending[2] is None and g.fighters[self.pending[0]].owner == p:
                 attacker = g.fighters[self.pending[0]]

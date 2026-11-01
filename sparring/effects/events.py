@@ -11,7 +11,7 @@ from __future__ import annotations
 
 from functools import lru_cache
 
-from . import narrate, table
+from . import inventions, narrate, table
 from .choose import ControllerChooser
 from .model import EffectError, load_effects, walk_ops
 from .ongoing import leave_play, spec_of
@@ -131,6 +131,7 @@ def _handle(game, ev: dict) -> None:
         for trig in load_effects(slug).triggers:
             if trig["id"] not in DRIVEN_BY_THE_ENGINE and not table.start_of_turn_is_physical(game, player, trig):
                 todo.append((player, trig, None))
+        todo += [(player, trig, card_id) for trig, card_id in inventions.triggers(game, player)]
         spec = spec_of(game, player)
         if spec is not None:
             todo += [(player, trig, game.fx.ongoing_card_id(player)) for trig in spec.get("triggers", ())]

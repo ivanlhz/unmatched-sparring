@@ -121,6 +121,10 @@ def line(n: dict) -> str:
             what = t("tbl.what.amount", upto=t("tbl.up_to") if n.get("up_to") else "", cards=plural(n["amount"], "noun.card"))
         order = t("tbl.ordered") if n.get("ordered") and n.get("amount", 1) != 1 else ""
         return t("tbl.return", what=what, where=where, order=order)
+    if op == "look_deck":
+        return t("tbl.look_deck.top" if n.get("top", True) else "tbl.look_deck.bottom", cards=plural(n["amount"], "noun.card"))
+    if op == "deck_to_bottom":
+        return t("tbl.deck_to_bottom", cards=plural(n["amount"], "noun.card"))
     if op == "search_deck":
         look = t("tbl.look.all") if n["look"] == "all" else t("tbl.look.first", n=n["look"])
         rest = t({"bottom_random": "tbl.rest.bottom_random", "bottom_ordered": "tbl.rest.bottom_ordered",

@@ -139,7 +139,10 @@ def card_text_hint(game, req: ChoiceRequest) -> str:
 def prompt_text(game, req: ChoiceRequest) -> str:
     """Chat line for the request: what is asked and, for the card that asks, its title."""
     base = _prompt(req.kind) if has_prompt(req.kind) else _prompt("default")
-    if req.kind == "cards" and req.max == 1:         # no "card(s)": the panel status drops the parentheses (live 29/10)
+    ability = f"choice.prompt.ability.{req.key.split('/')[0]}"       # the question of a hero's own trigger (INVENTIVE)
+    if req.kind == "optional" and req.card_id is None and has(ability):
+        return t(ability)
+    if req.kind == "cards" and req.max == 1:        # no "card(s)": the panel status drops the parentheses (live 29/10)
         base = _prompt("one_card")
     elif req.kind == "effect" and req.extra.get("op") == "predict":
         base = _prompt("predict")
