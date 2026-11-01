@@ -54,7 +54,7 @@ def _optional_move(game: Game, ctrl, fighter: Fighter, steps: int, through: bool
 def check_scheme(game: Game, fighter: Fighter, card: Card, target: Fighter | None = None) -> None:
     if is_medusa_card(card) and card.title == "A Momentary Glance":
         if target is None or not target.alive or not game.board.share_zone(fighter.pos, target.pos):
-            raise RuleError("A Momentary Glance necesita un luchador en la zona de Medusa")
+            raise RuleError("A Momentary Glance needs a fighter in Medusa's zone")
 
 
 def resolve_scheme(game: Game, player: int, fighter: Fighter, card: Card, target: Fighter | None = None) -> list[str]:
