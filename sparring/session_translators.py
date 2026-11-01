@@ -8,7 +8,7 @@ variants:
             checks to run once the step's composite went out; when the table refuses, the check falls back to the
             human variant, so a failed write never leaves the game stuck;
   * `human` the human acts by hand: the variant says what to move and owes it to the existing flows that wait for it
-            and validate it (`Session.pending_discard` settled at "Fin de accion", the table sync, the draws the
+            and validate it (`Session.pending_discard` settled at "End action", the table sync, the draws the
             human takes themselves).
 
 `mode` picks the variant for an intent, or None when the op has no business with the table (the bot's own draws and
@@ -192,7 +192,7 @@ def _left_play_by_bot(session, intent: dict, ctx: Ctx) -> list[Check]:
         here = [r for r in session._rd_ongoing("human")
                 if isinstance(r, dict) and r.get("id") == card_id and isinstance(r.get("guid"), str)]
         if len(here) != 1:
-            raise TTSLuaError(f"{title} no esta una sola vez en tu zona ONGOING ({len(here)})")
+            raise TTSLuaError(f"{title} is not exactly once in your ONGOING zone ({len(here)})")
         identity = session._identity("human")
         move = lua.card_to_discard(here[0]["guid"], cfg.human_discard_zone, cfg.human_card_ids, identity=identity)
         _show_and_wait(session, here[0]["guid"], t("tr.left_play_ping", title=title, cause=ctx.cause))

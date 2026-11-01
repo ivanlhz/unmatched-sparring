@@ -2,7 +2,7 @@
 
 The board spaces are not numbered on the real map, so a raw id in the chat means nothing to the human. A space is
 described by what the map data supports: the colours of its zones (`zones` in data/maps/*.json) and its distance to
-the nearest fighter on the board ("a 2 casillas de Baba Yaga")."""
+the nearest fighter on the board (spoken as "2 spaces from Baba Yaga")."""
 from __future__ import annotations
 
 from typing import Callable
@@ -20,7 +20,7 @@ def zone_text(game, space: int) -> str:
 
 
 def describe(game, space: int | None, exclude=(), name: Callable = lambda f: f.name) -> str:
-    """'zona de color rojo, a 2 casillas de Baba Yaga': `exclude` are fighter ids left out of the reference (the
+    """'red zone, 2 spaces from Baba Yaga': `exclude` are fighter ids left out of the reference (the
     piece being moved). The reference is the nearest living fighter, the lowest fighter id on a tie."""
     if space is None:
         return t("spaces.off_board")

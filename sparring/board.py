@@ -62,13 +62,13 @@ class Board:
         return bool(self.spaces[a].zones & self.spaces[b].zones)
 
     def can_reach_target(self, a: int, b: int, ranged: bool) -> bool:
-        """Melee: adyacente. Alcance: adyacente o comparte al menos una zona."""
+        """Melee: adjacent. Ranged: adjacent or shares at least one zone."""
         if a == b:
             return False
         return self.adjacent(a, b) or (ranged and self.share_zone(a, b))
 
     def reachable(self, start: int, steps: int, own: set[int], enemy: set[int], through_enemies: bool = False) -> set[int]:
-        """Casillas donde puede terminar: atraviesa propios, no rivales (salvo efecto), termina en vacía."""
+        """Spaces where it can end: passes through own fighters, not rivals (unless an effect says so), ends on an empty one."""
         seen = {start: 0}
         q = deque([start])
         while q:
@@ -83,7 +83,7 @@ class Board:
         return {s for s in seen if s != start and s not in own and s not in enemy}
 
     def nearest_free(self, origin: int, taken: set[int], zone_of: int | None = None) -> int:
-        """Casilla libre mas cercana a `origin`; con `zone_of`, solo casillas que comparten zona con ella."""
+        """Nearest free space to `origin`; with `zone_of`, only spaces that share a zone with it."""
         free = [s for s in self.spaces if s not in taken]
         if zone_of is not None:
             same = [s for s in free if self.share_zone(zone_of, s)]

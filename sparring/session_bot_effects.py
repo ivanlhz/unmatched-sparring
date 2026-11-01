@@ -25,7 +25,7 @@ One exception, Ivan's ruling of 29/10 (live test, Searing Clarity): a card the h
 their own PUBLIC discard pile for an effect that moves it into their deck is moved by the bot, by GUID, and the bot
 shuffles their deck when the card says so (`return_to_deck`, zone discard). Since Ivan's ruling of 31/10 the human's
 own discard -> deck picks are made by hand instead (`session_pile`: the human moves them, the bot detects them at
-Hecho and the translator only notes them); the bot's write stays for a request that did not go through the table. A
+Done and the translator only notes them); the bot's write stays for a request that did not go through the table. A
 failed write is said once and the table wins at the next read, like every other projection of the session.
 
 Ivan's rule on hidden information: `read_human_hand` is the only reader of the human's hand; it is installed as
@@ -209,8 +209,8 @@ def _bot_cards(session, before: dict, moved: set, intents: list[dict], ctx: Ctx)
 
 
 def scheme_cards(session, before: dict | None) -> list[str]:
-    """What a scheme did to the bot's own cards since `before`, for the chat line that announces it: 'roba 2' and
-    'pone 2 cartas del descarte al fondo de su mazo' / 'baraja ...'."""
+    """What a scheme did to the bot's own cards since `before`, for the chat line that announces it: 'draws 2' and
+    'puts 2 cards from the discard pile at the bottom of its deck' / 'shuffles ...'."""
     if before is None:
         return []
     g, bot = session.game, session.bot

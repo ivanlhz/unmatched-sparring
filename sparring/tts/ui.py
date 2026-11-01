@@ -1,8 +1,8 @@
-"""Panel de botones del humano. Vive en un objeto creado por el bot (obj.UI.setXml), no en el Global.
+"""The human's button panel. It lives in an object created by the bot (obj.UI.setXml), not in the Global.
 
-Tres secciones: TURNO (linea de estado y acciones), VIDA (PV por luchador) y PARTIDA (preparacion o reinicio).
-Al pulsar un boton el propio script del panel pone "Procesando...", apaga los botones y envia el evento junto con la
-instantanea de la mesa (ver `lua.snapshot_lua`); el bot lo reactiva con `lua.set_panel`."""
+Three sections: TURN (status line and actions), LIFE (HP per fighter) and GAME (setup or restart).
+When a button is pressed the panel's own script sets "Processing...", turns the buttons off and sends the event together with the
+table snapshot (see `lua.snapshot_lua`); the bot re-enables it with `lua.set_panel`."""
 from __future__ import annotations
 
 import re
@@ -38,25 +38,25 @@ class Event(str, Enum):
     READY = "ready"
     MULLIGAN = "mulligan"
     RESTART = "restart"
-    BOOST = "boost"            # "Continuar": lee la carta de boost que el humano puso en su descarte y resuelve
-    NO_BOOST = "no_boost"      # "Sin boost": resuelve sin potenciar
-    LOOK = "look_hand"         # "Mirar mano del bot": las cartas del bot boca arriba en fila (descartar una, p. ej. Confront)
-    LOOK_PING = "look_ping"    # ping (Tab) del humano sobre una carta de esa fila: la que se descarta
-    CHOICE = "choice"          # btn_choice_<i>: la opcion i (1..6) de la eleccion de efecto pendiente, en {"i": i}
+    BOOST = "boost"            # "Continue": reads the boost card the human put in their discard and resolves
+    NO_BOOST = "no_boost"      # "No boost": resolves without boosting
+    LOOK = "look_hand"         # "Look at bot's hand": the bot's cards face up in a row (discard one, e.g. Confront)
+    LOOK_PING = "look_ping"    # the human's ping (Tab) on a card of that row: the one that is discarded
+    CHOICE = "choice"          # btn_choice_<i>: option i (1..6) of the pending effect choice, in {"i": i}
 
 
-PANEL_ROTATION = (0, 0, 270)     # confirmado en vivo: con 90 se veia boca abajo desde el asiento White
-PANEL_SCALE = (6, 6, 6)          # sin escala el panel se ve diminuto sobre el objeto de 0.4
+PANEL_ROTATION = (0, 0, 270)     # confirmed live: with 90 it looked upside down from the White seat
+PANEL_SCALE = (6, 6, 6)          # without scale the panel looks tiny on the 0.4 object
 PANEL_WIDTH = 760
 STATUS_ID = "status"
 BUTTON_STYLE = 'textColor="#FFFFFF" colors="#2D6A9F|#3C86C8|#1F4C75|#555555" '
 
 ROW_HEIGHT = 48
-DEFAULT_ATTACKERS = ("hellboy", "lobster")      # sin heroes a mano: los de Medusa vs Hellboy
+DEFAULT_ATTACKERS = ("hellboy", "lobster")      # without heroes at hand: those of Medusa vs Hellboy
 
-CHOICE_BUTTONS = tuple(f"btn_choice_{i}" for i in range(1, 7))     # ocultos salvo con una eleccion de efecto pendiente
+CHOICE_BUTTONS = tuple(f"btn_choice_{i}" for i in range(1, 7))     # hidden except with an effect choice pending
 
-# id de cada boton fijo -> (funcion del panel, evento)
+# id of each fixed button -> (panel function, event)
 FIXED_BUTTONS = {"btn_maneuver": "onManeuver", "btn_scheme": "onScheme", "btn_reveal": "onReveal",
                  "btn_cancel": "onCancel", "btn_end": "onEndAction", "btn_undo": "onUndoGameOver",
                  "btn_value": "onValueSend", "btn_mulligan": "onMulligan", "btn_ready": "onReady",
@@ -76,14 +76,14 @@ def __getattr__(name: str):
 def _triple(v, name: str) -> str:
     if not isinstance(v, (tuple, list)) or len(v) != 3 or any(isinstance(x, bool) or not isinstance(x, (int, float))
                                                                 for x in v):
-        raise TypeError(f"{name}: tres numeros esperados, llego {v!r}")
+        raise TypeError(f"{name}: three numbers expected, got {v!r}")
     if not all(abs(float(x)) < 1e6 and float(x) == float(x) for x in v):
-        raise ValueError(f"{name}: numero fuera de rango")
+        raise ValueError(f"{name}: number out of range")
     return " ".join(f"{float(x):g}" for x in v)
 
 
 def element_ids(target_ids, attacker_ids=DEFAULT_ATTACKERS, fighter_ids=None) -> list[str]:
-    """Id de todos los botones del panel (los que se apagan al pulsar y el bot reactiva segun el estado)."""
+    """Id of every button on the panel (those turned off on press and re-enabled by the bot according to the state)."""
     fighters = tuple(dict.fromkeys(fighter_ids if fighter_ids is not None else (*target_ids, *attacker_ids)))
     return [*FIXED_BUTTONS, *(f"att_{a}" for a in attacker_ids), *target_ids,
             *(f"{p}_{f}" for f in fighters for p in ("hpm", "hpp", "rm"))]
@@ -91,25 +91,25 @@ def element_ids(target_ids, attacker_ids=DEFAULT_ATTACKERS, fighter_ids=None) ->
 
 def handler_script(snapshot: str | None = None, ids: tuple[str, ...] | list[str] = (),
                    human_seat: str | None = None) -> str:
-    """Script del objeto panel: cada boton avisa al bot con sendExternalMessage (llega como messageID 4).
+    """Script of the panel object: each button notifies the bot with sendExternalMessage (it arrives as messageID 4).
 
-    Feedback local instantaneo: antes de enviar pone "Procesando..." y apaga los botones (sin ida y vuelta). Con
-    `snapshot` (el fragmento de `lua.snapshot_lua`) el mensaje lleva la instantanea de la mesa tomada en el clic.
-    `busy` es global a proposito: el compuesto (`lua.composite`, tras esperar a las piezas) o `lua.set_panel` lo liberan
-    con setVar; si el bot no contesta en 20 s se reactiva, pero solo el temporizador del ULTIMO clic puede hacerlo
-    (`clickSeq`): uno viejo no desbloquea un clic posterior que aun se esta procesando. `wseq` es la ultima escritura de
-    mesa que el bot anoto en el panel (la sella en la instantanea del clic).
+    Instant local feedback: before sending it sets "Processing..." and turns the buttons off (no round trip). With
+    `snapshot` (the fragment of `lua.snapshot_lua`) the message carries the table snapshot taken at the click.
+    `busy` is global on purpose: the composite (`lua.composite`, after waiting for the pieces) or `lua.set_panel` release it
+    with setVar; if the bot does not answer within 20 s it is re-enabled, but only the timer of the LAST click can do it
+    (`clickSeq`): an old one does not unblock a later click that is still being processed. `wseq` is the last table
+    write the bot noted on the panel (it seals it into the click's snapshot).
 
-    `onPlayerPing` (evento universal de TTS, valido en el script de un objeto) reconoce el ping del asiento `human_seat`
-    sobre una carta de la fila de la mano del bot (`lookRow`, que escribe el bot con `lua.show_hand_row`): por el objeto
-    pinchado si es de la fila y, si TTS no lo da, por la carta de la fila mas cercana a la posicion. Cualquier otro ping
-    (otro asiento, otro objeto, sin fila) se ignora. Sin `human_seat` no reconoce ninguno."""
+    `onPlayerPing` (a universal TTS event, valid in an object's script) recognizes the ping of seat `human_seat`
+    on a card of the row of the bot's hand (`lookRow`, which the bot writes with `lua.show_hand_row`): by the object
+    pinged if it is in the row and, if TTS does not give it, by the row card closest to the position. Any other ping
+    (another seat, another object, no row) is ignored. Without `human_seat` it recognizes none."""
     for i in ids:
         if not re.fullmatch(r"[A-Za-z0-9_]{1,40}", i):
-            raise ValueError(f"id de elemento no valido: {i!r}")
+            raise ValueError(f"invalid element id: {i!r}")
     all_ids = "{" + ", ".join(f'"{i}"' for i in ids) + "}"
     if human_seat is not None and not re.fullmatch(r"[A-Za-z]{3,10}", human_seat):
-        raise ValueError(f"asiento no valido: {human_seat!r}")
+        raise ValueError(f"invalid seat: {human_seat!r}")
     seat = f'"{human_seat}"' if human_seat else "nil"
     take = ("  local ok, snap = pcall(sparringSnapshot)\n  if ok then tbl.snapshot = JSON.encode(snap) end\n"
             if snapshot else "")
@@ -203,7 +203,7 @@ def _row(*cells: str, height: int = ROW_HEIGHT) -> str:
 
 
 def _choice_row(ids) -> str:
-    """Fila de botones de eleccion: nacen ocultos; el bot los muestra (con su texto) solo mientras hay una eleccion."""
+    """Row of choice buttons: they are born hidden; the bot shows them (with their text) only while there is a choice."""
     return _row(*(_button(i, "onChoice", t("panel.option"), 16).replace("<Button ", '<Button active="false" ') for i in ids))
 
 
@@ -212,22 +212,22 @@ def _text(text: str, size: int = 18, extra: str = "") -> str:
 
 
 def panel_height(fighter_count: int) -> int:
-    """Alto del panel en pixeles de UI (con la columna lateral de VIDA de `fighter_count` luchadores)."""
+    """Height of the panel in UI pixels (with the LIFE side column of `fighter_count` fighters)."""
     return 40 + 40 + 7 * (ROW_HEIGHT + 8) + 40 + (60 + 48 * fighter_count) + 40
 
 
 def panel_xml(target_ids: list[str], attacker_ids: tuple[str, ...] = DEFAULT_ATTACKERS,
               fighter_ids: tuple[str, ...] | None = None, rotation=PANEL_ROTATION, scale=PANEL_SCALE,
               names: dict[str, str] | None = None) -> str:
-    """`fighter_ids` son todos los luchadores de ambos bandos (filas de PV y Retirar); por defecto, los dos grupos."""
+    """`fighter_ids` are all the fighters of both sides (HP and Remove rows); by default, the two groups."""
     fighters = tuple(dict.fromkeys(fighter_ids if fighter_ids is not None else (*target_ids, *attacker_ids)))
     for ident in (*target_ids, *attacker_ids, *fighters):
         if not re.fullmatch(r"[A-Za-z0-9_]+", ident):
-            raise ValueError(f"id de objetivo no valido: {ident!r}")
+            raise ValueError(f"invalid target id: {ident!r}")
     rot, sc = _triple(rotation, "panel_rotation"), _triple(scale, "panel_scale")
     names = names or {}
     if not isinstance(names, dict) or not all(isinstance(v, str) and _LABEL.fullmatch(v) for v in names.values()):
-        raise ValueError("nombres de boton no validos (letras, cifras, espacio y . _ - ')")
+        raise ValueError("invalid button names (letters, digits, space and . _ - ')")
 
     def label(ident: str) -> str:
         return names.get(ident, ident)

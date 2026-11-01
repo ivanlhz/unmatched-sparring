@@ -1,4 +1,4 @@
-"""Statuses and rule modifiers of the DSL (docs/effects-dsl.md section 3, "Estados" and "Modificadores").
+"""Statuses and rule modifiers of the DSL (docs/effects-dsl.md section 3, "Statuses" and "Modifiers").
 
 Two stores live in `Game.fx`:
 - `fx.statuses`: what the `status` op creates, each with an `until` event. Entry: {name, fid | player, amount,

@@ -8,7 +8,7 @@ if TYPE_CHECKING:
 
 
 class Controller:
-    """Decisiones que el motor delega en quien lleva a cada jugador (IA, guion o puente con el humano)."""
+    """Decisions the engine delegates to whoever drives each player (AI, script or bridge to the human)."""
 
     human = False      # True: decides at the table, so the engine must never decide for it (effects choosers)
 

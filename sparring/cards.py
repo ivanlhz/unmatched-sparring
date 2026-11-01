@@ -11,8 +11,8 @@ HELLBOY_BASE = 19700
 
 
 def repo_toplevel(root: Path | None = None) -> Path:
-    """Raiz del repo PRINCIPAL. Desde un worktree, `.git` es un fichero `gitdir: <principal>/.git/worktrees/<n>`
-    (lo mismo que `git rev-parse --git-common-dir`); desde el repo principal, `.git` es la carpeta."""
+    """Root of the MAIN repo. From a worktree, `.git` is a file `gitdir: <main>/.git/worktrees/<n>`
+    (the same as `git rev-parse --git-common-dir`); from the main repo, `.git` is the folder."""
     root = root or DATA_DIR.parent
     dotgit = root / ".git"
     if dotgit.is_file():
@@ -27,8 +27,8 @@ def repo_toplevel(root: Path | None = None) -> Path:
 
 
 def memory_dir() -> Path:
-    """Carpeta `unmatched-memory` hermana del repo principal (nunca de un worktree ni de otra carpeta intermedia);
-    `UNMATCHED_MEMORY` la fuerza. Solo la usa el importador de heroes (tools/import_hero.py), nunca la partida."""
+    """The `unmatched-memory` folder next to the main repo (never next to a worktree or another intermediate folder);
+    `UNMATCHED_MEMORY` forces it. Only the hero importer (tools/import_hero.py) uses it, never the game."""
     forced = os.environ.get("UNMATCHED_MEMORY")
     if forced:
         return Path(forced)
@@ -49,7 +49,7 @@ class Card:
     value: int | None
     boost: int
     text: str = ""
-    tags: frozenset[str] = frozenset()     # etiquetas que cuentan los contadores del heroe (Hellboy: "destiny")
+    tags: frozenset[str] = frozenset()     # tags the hero counters count (Hellboy: "destiny")
 
     @property
     def destiny(self) -> bool:

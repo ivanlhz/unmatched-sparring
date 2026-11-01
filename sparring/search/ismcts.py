@@ -1,20 +1,20 @@
-"""ISMCTS de observadores multiples (Cowling, Powley y Whitehouse, 2012).
+"""Multiple-observer ISMCTS (Cowling, Powley and Whitehouse, 2012).
 
-Por que multiples observadores y no uno solo: con un solo arbol (el del bot) los nodos del rival se indexan por
-la jugada completa, asi que el rival simulado "ve" la carta de ataque boca abajo del bot y siempre la
-contrarresta (strategy fusion). En Unmatched eso haria inutil cualquier ataque flojo con efecto fuerte. Aqui hay
-un arbol por jugador y cada uno se indexa por `observe(move, viewer)`: el nodo del defensor es el mismo para
-todas las cartas de ataque posibles, como en la mesa.
+Why multiple observers and not just one: with a single tree (the bot's) the rival's nodes are indexed by
+the whole move, so the simulated rival "sees" the bot's face-down attack card and always
+counters it (strategy fusion). In Unmatched that would make any weak attack with a strong effect useless. Here there is
+one tree per player and each is indexed by `observe(move, viewer)`: the defender's node is the same for
+all the possible attack cards, as at the table.
 
-Cada iteracion: clonar la raiz, determinizar (muestrear lo oculto para el jugador raiz), bajar por los arboles
-eligiendo con UCB1 sobre las jugadas disponibles en ESA determinizacion (con conteo de disponibilidad), expandir
-una jugada nueva, rollout con `rollout_move` hasta que cambie el turno (tope `rollout_depth`) y retropropagar la
-recompensa desde el punto de vista de quien movio en cada arista.
+Each iteration: clone the root, determinize (sample what is hidden for the root player), descend the trees
+choosing with UCB1 over the moves available in THAT determinization (with availability counting), expand
+a new move, rollout with `rollout_move` until the turn changes (cap `rollout_depth`) and backpropagate the
+reward from the point of view of whoever moved on each edge.
 
-Por que el rollout para al cambiar el turno: con un numero fijo de jugadas la hoja caia sistematicamente al
-empezar el turno de quien movio en la raiz, y la evaluacion (que descuenta la amenaza sobre quien va a mover)
-premiaba quedarse pegado al rival. Evaluar al final del turno de quien movia es mirar la posicion como lo haria
-el rival que va a jugarla; su turno lo explora el arbol, no el rollout.
+Why the rollout stops when the turn changes: with a fixed number of moves the leaf systematically landed at the
+start of the turn of whoever moved at the root, and the evaluation (which discounts the threat on whoever is about to move)
+rewarded staying glued to the rival. Evaluating at the end of the mover's turn is looking at the position as the
+rival who is going to play it would; its turn is explored by the tree, not by the rollout.
 """
 from __future__ import annotations
 
@@ -29,11 +29,11 @@ from .protocol import Move, SearchState
 
 @dataclass
 class SearchConfig:
-    iterations: int | None = None     # None: solo manda el tiempo
-    time_budget: float = 1.5          # segundos por decision
+    iterations: int | None = None     # None: only time rules
+    time_budget: float = 1.5          # seconds per decision
     seed: int = 0
-    c_uct: float = 0.7                # recompensas en [0, 1]
-    rollout_depth: int = 10           # tope de jugadas de rollout; normalmente para antes, al cambiar el turno
+    c_uct: float = 0.7                # rewards in [0, 1]
+    rollout_depth: int = 10           # cap on rollout moves; normally it stops earlier, when the turn changes
 
 
 @dataclass
@@ -70,7 +70,7 @@ class ISMCTS:
     def search(self, root: SearchState, root_player: int) -> tuple[Move, SearchReport]:
         moves = root.legal_moves()
         if not moves:
-            raise ValueError("sin jugadas legales en la raiz")
+            raise ValueError("no legal moves at the root")
         if len(moves) == 1:
             return moves[0], SearchReport(moves[0], 0, 0.0, {moves[0]: 0})
         rng = random.Random(self.cfg.seed)
@@ -86,16 +86,16 @@ class ISMCTS:
                 break
         elapsed = time.perf_counter() - t0
         edges = self.trees[root_player].edges
-        # jugada mas visitada; el empate lo rompe el orden de `legal_moves` (estable con la misma semilla)
+        # most visited move; a tie is broken by the order of `legal_moves` (stable with the same seed)
         best = max(moves, key=lambda m: edges[m].visits if m in edges else -1)
         visits = {m: edges[m].visits for m in moves if m in edges}
         values = {m: edges[m].reward / edges[m].visits for m in moves if m in edges and edges[m].visits}
         return best, SearchReport(best, n, elapsed, visits, values)
 
     def principal_variation(self, player: int, start: Hashable | None = None, min_visits: int = 1) -> list[Hashable]:
-        """Claves mas visitadas desde la raiz del arbol de `player`, mientras haya aristas con visitas suficientes.
-        Con `start` (la jugada que devolvio `search`) la primera arista es esa, asi un empate de visitas en la raiz
-        no sigue otra linea. Sirve para completar una accion descompuesta en subjugadas."""
+        """Most visited keys from the root of `player`'s tree, as long as there are edges with enough visits.
+        With `start` (the move `search` returned) the first edge is that one, so a tie of visits at the root
+        does not follow another line. Used to complete an action decomposed into sub-moves."""
         out = []
         node = self.trees.get(player)
         if start is not None and node is not None:
@@ -121,7 +121,7 @@ class ISMCTS:
         while not s.is_terminal():
             mover = s.player_to_move()
             if mover not in cursor:
-                # jugador nuevo: su arbol nace aqui y su cursor repite lo ya jugado tal como el lo ve
+                # new player: its tree is born here and its cursor repeats what was already played as it sees it
                 node = self.trees.setdefault(mover, Node())
                 for m, who in applied:
                     edge = node.edges.setdefault(s.observe(m, mover), Edge())

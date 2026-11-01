@@ -172,7 +172,7 @@ def _discard(run, game, spec):
     if table.hand_pick_is_physical(game, run, sel):
         # the human discards from their own hand at their own choice, at random or all of it: the engine never picks
         # those cards for them (its copy of the hand is placeholders), the table does (`Game.force_discard` -> the
-        # human's controller owes the discard, settled at "Fin de accion")
+        # human's controller owes the discard, settled at "End action")
         player = player_of(game, run, sel["player"])
         frame = run.frames[-1]
         voluntary = bool(frame.path) and frame.path[-1] == "cost"      # a price the human chose to pay

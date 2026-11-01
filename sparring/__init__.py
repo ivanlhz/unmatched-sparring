@@ -1,1 +1,1 @@
-"""Bot de sparring de Unmatched: Medusa (IA) contra Hellboy (humano) en Tabletop Simulator."""
+"""Unmatched sparring bot: a bot hero (AI, Medusa by default) against a human hero (Hellboy by default) in Tabletop Simulator."""

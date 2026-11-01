@@ -1,4 +1,4 @@
-"""Simulacion en terminal: el bot (IA, por defecto Medusa) contra un rival guionizado (por defecto Hellboy).
+"""Terminal simulation: the bot (AI, Medusa by default) against a scripted rival (Hellboy by default).
 
     python -m sparring.sim --games 100 --seed 0
     python -m sparring.sim --games 20 --bot-hero abe-sapien --human-hero baba-yaga --ai ismcts
@@ -33,9 +33,9 @@ class Outcome:
 def play(seed: int, board_key: str = "bprd-hq", verbose: bool = False, max_turns: int = MAX_TURNS,
          medusa: MedusaAI | None = None, trace: list[str] | None = None,
          bot_hero: str = "medusa", human_hero: str = "hellboy") -> Outcome:
-    """`trace`: si se da, recibe una linea por turno con el registro del motor (lo que imprime `-v`).
-    `bot_hero`/`human_hero`: slugs de data/heroes; `medusa` es el controlador del bot (cualquiera, no solo Medusa).
-    En el resultado, `medusa_hp`/`hellboy_hp` son los PV del heroe del bot y del humano (nombres de los dorados)."""
+    """`trace`: if given, it receives one line per turn with the engine log (what `-v` prints).
+    `bot_hero`/`human_hero`: slugs in data/heroes; `medusa` is the bot's controller (any, not only Medusa).
+    In the result, `medusa_hp`/`hellboy_hp` are the HP of the bot's and the human's hero (names kept from the goldens)."""
     controllers = {MEDUSA: medusa or MedusaAI(MEDUSA), HELLBOY: ScriptedHellboy(HELLBOY, seed)}
     game = Game.new(Board.load(board_key), seed, controllers, bot_player=MEDUSA, heroes=(bot_hero, human_hero))
     while game.winner is None and game.turn_no <= max_turns:
@@ -54,7 +54,7 @@ def play(seed: int, board_key: str = "bprd-hq", verbose: bool = False, max_turns
 
 
 def make_bot(kind: str = "heuristic", iterations: int = 30, seed: int = 0) -> MedusaAI | None:
-    """Controlador del bot: None (la heuristica por defecto de `play`) o ISMCTS con un presupuesto pequeno."""
+    """The bot controller: None (the default heuristic of `play`) or ISMCTS with a small budget."""
     if kind == "heuristic":
         return None
     from .search.controller import IsmctsMedusa
@@ -65,12 +65,12 @@ def make_bot(kind: str = "heuristic", iterations: int = 30, seed: int = 0) -> Me
 def main(argv: list[str] | None = None) -> int:
     ap = argparse.ArgumentParser(prog="python -m sparring.sim")
     ap.add_argument("--games", type=int, default=100)
-    ap.add_argument("--seed", type=int, default=0, help="semilla de la primera partida; las demas suman 1")
+    ap.add_argument("--seed", type=int, default=0, help="seed of the first game; the others add 1")
     ap.add_argument("--map", default="bprd-hq")
     ap.add_argument("--bot-hero", default="medusa")
     ap.add_argument("--human-hero", default="hellboy")
     ap.add_argument("--ai", choices=("heuristic", "ismcts"), default="heuristic")
-    ap.add_argument("--iterations", type=int, default=30, help="iteraciones por decision de ISMCTS")
+    ap.add_argument("--iterations", type=int, default=30, help="ISMCTS iterations per decision")
     ap.add_argument("-v", "--verbose", action="store_true")
     args = ap.parse_args(argv)
 
@@ -84,9 +84,9 @@ def main(argv: list[str] | None = None) -> int:
     bot_name, human_name = load_hero(args.bot_hero).name, load_hero(args.human_hero).name
     wins = {k: sum(o.winner == k for o in outcomes) for k in (bot_name, human_name, "draw")}
     avg_turns = sum(o.turns for o in outcomes) / max(1, len(outcomes))
-    print(f"{bot_name}(bot) vs {human_name}: partidas={len(outcomes)} errores={len(errors)} "
+    print(f"{bot_name}(bot) vs {human_name}: games={len(outcomes)} errors={len(errors)} "
           f"{bot_name}={wins[bot_name]} {human_name}={wins[human_name]} "
-          f"sin_final={wins['draw']} turnos_medios={avg_turns:.1f} tiempo={time.time() - t0:.0f}s")
+          f"unfinished={wins['draw']} avg_turns={avg_turns:.1f} time={time.time() - t0:.0f}s")
     for seed, tb in errors[:3]:
         print(f"--- seed {seed}\n{tb}", file=sys.stderr)
     return 1 if errors else 0

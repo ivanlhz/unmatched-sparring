@@ -38,8 +38,8 @@ def applies(game, owner: int) -> bool:
 
 
 def record(applied: list[str], line: str) -> None:
-    """Adds a card's line once per card: a second moment that did nothing never repeats "sin efecto", and a moment
-    that did something replaces an earlier "sin efecto" of the same card (D1 review)."""
+    """Adds a card's line once per card: a second moment that did nothing never repeats "no effect", and a moment
+    that did something replaces an earlier "no effect" of the same card (D1 review)."""
     title = line.split(": ", 1)[0]
     idle = f"{title}: {t('narr.nothing')}"
     if line == idle:
@@ -68,8 +68,8 @@ def snapshot(game, flow=None) -> dict:
 
 
 def describe(game, before: dict, run, flow=None, title: str | None = None) -> str:
-    """One line: `<card>: <what changed>; ...` or `<card>: sin efecto`. A run of the human's card (E2, table mode)
-    ends with what they do on the table themselves (`en la mesa: ...`). `title`: for a run without a card (an
+    """One line: `<card>: <what changed>; ...` or `<card>: no effect`. A run of the human's card (E2, table mode)
+    ends with what they do on the table themselves (`on the table: ...`). `title`: for a run without a card (an
     ability trigger)."""
     parts = _fighters(game, before) + _cards(game, before, run) + _turn(game, before, run)
     parts += _statuses(game, before) + _combat(before, flow)
@@ -87,7 +87,7 @@ def describe(game, before: dict, run, flow=None, title: str | None = None) -> st
 
 
 def _say_bot_price(game, run, parts: list[str], priced: dict) -> list[str]:
-    """The bot's answer to a price the human's card offered it, said plainly and never as "sin efecto". The wording is
+    """The bot's answer to a price the human's card offered it, said plainly and never as "no effect". The wording is
     Incinerate's (a discard price that ignores the card's value); another priced optional needs its own."""
     title = _title(game, run.ctx.card_id)
     stake, cards = priced["stake"], priced["cards"]
@@ -108,14 +108,14 @@ def _say_bot_price(game, run, parts: list[str], priced: dict) -> list[str]:
 
 
 def _return_pattern() -> re.Pattern:
-    """The line a human trigger says when a card returns to the hand: `<label>: <title> vuelve a tu mano`."""
+    """The line a human trigger says when a card returns to the hand: `<label>: <title> returns to your hand`."""
     body = re.escape(t("narr.returns_hand", title="@@T@@")).replace("@@T@@", "(?P<title>.+)")
     return re.compile(rf"^(?P<label>[^:]+): {body}$")
 
 
 def _fold_triggers(game, before: dict, parts: list[str]) -> list[str]:
     """The lines of the human's triggers that fired inside this run (`fx.said`, E2) become part of the card's own
-    line (Ivan, 29/10): "descartas Fireball (Wildfire la devuelve a tu mano)"; anything else in parentheses."""
+    line (Ivan, 29/10): "you discard Fireball (Wildfire returns it to your hand)"; anything else in parentheses."""
     at = before.get("said", 0)
     folded = game.fx.said[at:]
     del game.fx.said[at:]
@@ -169,13 +169,13 @@ def _cards(game, before: dict, run) -> list[str]:
     from_deck = set(run.flags.get("deck_discards") or ())      # what the run discarded from a deck, not a hand
     for p in (owner, 1 - owner):
         st, was = game.players[p], before["players"][p]
-        roba, descarta, devuelve, su = _verbs("bot" if p == game.bot_player else "human")
+        draw_verb, discard_verb, return_verb, own = _verbs("bot" if p == game.bot_player else "human")
         if p == game.bot_player and owner != p:     # the human's card made the bot act: name it as the subject
-            roba, descarta, devuelve = (t("narr.bot_subject", verb=v) for v in (roba, descarta, devuelve))
+            draw_verb, discard_verb, return_verb = (t("narr.bot_subject", verb=v) for v in (draw_verb, discard_verb, return_verb))
         # the owed-draws counter also falls when the table settles it (a look row put the hand back): not a draw
         draws = max(0, game.drawn[p] - before["drawn"][p])
         if draws:
-            out.append(f"{roba} {draws}")
+            out.append(f"{draw_verb} {draws}")
         discard_now = [c.card_id for c in st.discard]
         by_id = {c.card_id: c for c in st.full_set}
         ids = {c.card_id for c in st.hand}
@@ -190,7 +190,7 @@ def _cards(game, before: dict, run) -> list[str]:
         left = before["in_play"][p] if p != game.bot_player and before["in_play"][p] in added else None
         added = [i for i in added if i != left]
         if added:
-            out.append(f"{descarta} " + _join(by_id[i].title for i in added))
+            out.append(f"{discard_verb} " + _join(by_id[i].title for i in added))
         if left is not None:
             out.append(t("narr.leaves_play", title=by_id[left].title))
         out += [t("narr.back_to_deck", title=by_id[i].title)
@@ -209,18 +209,18 @@ def _cards(game, before: dict, run) -> list[str]:
         else:                                       # the human's hand is never read: a discard the run did not
             from_hand = len([i for i in added if i not in from_deck])                   # take from a deck is theirs
             from_hand += int(entered is not None)
-        out += [t("narr.returns_poss_hand", title=by_id[i].title, su=su) for i in public]
+        out += [t("narr.returns_poss_hand", title=by_id[i].title, poss=own) for i in public]
         # what the size of the hand does not explain by draws, public returns and discards went to the deck face
         # down (or, if the hand grew, came from the deck hidden: Read The Bones); no card does both
         net = len(st.hand) - was["hand"] + from_hand - draws - len(public)
         taken, to_deck = max(net, 0), max(-net, 0)
         if taken > 0:
-            out.append(tn("narr.from_deck", taken, su=su))
-        # the human's own return to the deck is done on the table: `en la mesa` already says it
+            out.append(tn("narr.from_deck", taken, poss=own))
+        # the human's own return to the deck is done on the table: `on the table` already says it
         if to_deck > 0 and not (p != game.bot_player and any(n.get("op") == "return_to_deck" for n in table.notes(run))):
-            where = (t("narr.hand_to_deck_poss", su=su) if p == game.bot_player and owner != p
+            where = (t("narr.hand_to_deck_poss", poss=own) if p == game.bot_player and owner != p
                      else t("narr.hand_to_deck"))
-            out.append(tn("narr.return_n", to_deck, verb=devuelve, where=where))
+            out.append(tn("narr.return_n", to_deck, verb=return_verb, where=where))
     return out
 
 

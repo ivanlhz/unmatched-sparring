@@ -9,11 +9,11 @@ the same button (`after_step`). If the card then asks the human to pick one of t
 pause of a `cards` request over the bot's hand), the human answers by pinging the card (Tab) or by pressing its
 button (the bot's cards can be named on the panel); the row closes with the chosen card where the engine put it
 (the discard pile, the top of the bot's deck, or back in the hand when the bot kept it) and the rest back in the
-hand. A look without a pick (Advanced Psychometry) is a reveal: the row shows until Fin de accion or Cancelar
+hand. A look without a pick (Advanced Psychometry) is a reveal: the row shows until End action or Cancel
 returns it. E1's grant-a-button route stays for a hero outside the interpreter.
 
 Perfect Shot. The prediction belongs to the moment the card is played, before the defense. The human is asked at
-Revelar, before the bot chooses its defense (`PredictionWait`, saved in `Pending.predict`); the bot decides with
+Reveal, before the bot chooses its defense (`PredictionWait`, saved in `Pending.predict`); the bot decides with
 `ai_effects.predict_value` when it places the card, plays it face up and announces it. Either way the value
 reaches the IMMEDIATELY run through `PredictionChooser`, which answers the plugin's request. A Perfect Shot the
 human plays face up is public: the bot's defense knows it (Ivan, 29/10).
@@ -21,9 +21,9 @@ human plays face up is public: the bot's defense knows it (Ivan, 29/10).
 UNCANNY INTUITION. An attack against an Abe with an active token is played face up; the ability is read from its
 trigger (`effects.events.attack_revealed`: `attacked` + `reveal attack_card` + its condition), never from a card
 name. Bot attacking the human's Abe: the card is flipped when placed and named. Human attacking the bot's Abe:
-`declare_attack` keeps the engine's order at Revelar (the event first, so the token is spent and the drawn card is
+`declare_attack` keeps the engine's order at Reveal (the event first, so the token is spent and the drawn card is
 dealt before the defense is chosen, and the drawn card may be it), and the attack card is the one thing the bot's
-defense may know (`attack_card`); the human puts it face down as always and it is turned at Revelar."""
+defense may know (`attack_card`); the human puts it face down as always and it is turned at Reveal."""
 from __future__ import annotations
 
 from .effects.choose import ChoiceRequest
@@ -78,7 +78,7 @@ def after_step(session) -> None:
 
 # ---------------------------------------------------------------- look at the bot's hand and make it discard (manual)
 # Confront Any Demon or God and every card shaped "look at the opponent's hand and choose N cards for them to
-# discard". The human does it on the table himself (Ivan, 30/10); the bot only validates the result at "Hecho".
+# discard". The human does it on the table himself (Ivan, 30/10); the bot only validates the result at "Done".
 
 def manual_request(session) -> ChoiceRequest | None:
     """The pending pick when it is a discard from the bot's hand (a look-and-discard card)."""
@@ -95,7 +95,7 @@ def manual_status(session) -> str:
 
 
 def manual_view(session) -> tuple[dict, dict]:
-    """The choice slots while the human acts on the table: a single Hecho button."""
+    """The choice slots while the human acts on the table: a single Done button."""
     from .session_choices import CHOICE_IDS
     states = {ident: (False, False) for ident in CHOICE_IDS}
     states[CHOICE_IDS[0]] = (True, True)
@@ -140,7 +140,7 @@ def manual_verdict(session) -> tuple[int | None, str | None]:
 
 
 def manual_done(session, paused) -> None:
-    """Hecho: validate; only a valid table reaches the engine. A wrong one changes nothing and says why."""
+    """Done: validate; only a valid table reaches the engine. A wrong one changes nothing and says why."""
     cid, why = manual_verdict(session)
     if cid is None:
         session.say(why, ChatKind.WARNING)
@@ -304,7 +304,7 @@ def close_row(session, value: list, ok: bool) -> None:
 
 
 def _hits_taken(game, player: int, look: dict) -> str:
-    """'Liz Sherman recibe 2 de dano' for the hit points the bot's fighters lost since the row opened (the pick's
+    """'Liz Sherman takes 2 damage' for the hit points the bot's fighters lost since the row opened (the pick's
     price when the bot kept the card), else ''."""
     lost = [(f.name, before - max(0, f.hp if f.alive else 0)) for f in game.own(player, alive_only=False)
             if (before := look.get("hp", {}).get(f.fid)) is not None]
@@ -354,7 +354,7 @@ def prediction_request(game, player: int, card) -> ChoiceRequest | None:
 
 
 class PredictionWait:
-    """What `Session._paused` hands the panel while the human predicts at Revelar (no EffectRun behind it)."""
+    """What `Session._paused` hands the panel while the human predicts at Reveal (no EffectRun behind it)."""
 
     def __init__(self, request: ChoiceRequest):
         self.awaiting = request
@@ -365,7 +365,7 @@ def prediction_wait(p) -> PredictionWait | None:
 
 
 def ask_prediction(session, p, card) -> bool:
-    """At Revelar, before the bot's defense: True when the human still has to predict (the buttons are up)."""
+    """At Reveal, before the bot's defense: True when the human still has to predict (the buttons are up)."""
     if p.prediction is not None:
         return False
     req = prediction_request(session.game, session.human, card)
@@ -417,7 +417,7 @@ def intuition_notice(session, target) -> None:
 
 
 def declare_attack(session, p, card):
-    """The engine's order at Revelar, before the bot chooses its defense: the `attacked` event once (UNCANNY
+    """The engine's order at Reveal, before the bot chooses its defense: the `attacked` event once (UNCANNY
     INTUITION spends the token and draws; the draw is dealt now so the drawn card may be the defense), then the
     attack card is returned when the bot's defense may know it: the ability turned it face up, or the human played
     Perfect Shot face up (Ivan, 29/10: public information)."""

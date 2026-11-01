@@ -39,10 +39,10 @@ class CombatResult:
     cancelled: set[str] = field(default_factory=set)
     boost_card: Card | None = None
     human_effects: list[str] = field(default_factory=list)
-    atk_parts: list[str] = field(default_factory=list)      # de donde sale el total del atacante (para anunciarlo)
+    atk_parts: list[str] = field(default_factory=list)      # where the attacker's total comes from (to announce it)
     def_parts: list[str] = field(default_factory=list)
-    applied: list[str] = field(default_factory=list)        # efectos de despues del combate que el motor ya aplico
-    bot_notes: list[str] = field(default_factory=list)      # lo que el bot no resuelve de sus cartas (se anuncia)
+    applied: list[str] = field(default_factory=list)        # after-combat effects the engine already applied
+    bot_notes: list[str] = field(default_factory=list)      # what the bot does not resolve of its cards (announced)
 
 
 @dataclass
@@ -57,7 +57,7 @@ class CombatCtx:
 
 
 def _side_cards(ctx: CombatCtx):
-    """(lado, luchador, carta, rival) en orden de resolucion: primero el defensor."""
+    """(side, fighter, card, rival) in resolution order: the defender first."""
     out = []
     if ctx.def_card is not None:
         out.append(("def", ctx.target, ctx.def_card, ctx.attacker))
@@ -68,7 +68,7 @@ def _side_cards(ctx: CombatCtx):
 def resolve_combat(game: Game, att: Fighter, tgt: Fighter, atk_card: Card, def_card: Card | None,
                    values: tuple[int, int] = (0, 0), boost: Card | None = None) -> CombatResult:
     """Synchronous facade over CombatFlow. `boost`: the card the human put on the table for the BOOST of their attack
-    (Second Shot); the bot reads it at "Continuar" and it arrives here after the defender's DURING."""
+    (Second Shot); the bot reads it at "Continue" and it arrives here after the defender's DURING."""
     from .combat_flow import CombatFlow, legacy_chooser
     flow = CombatFlow(game, att, tgt, atk_card, def_card, values)
     flow.drive(legacy_chooser(game, flow, boost))
@@ -98,7 +98,7 @@ _WORDS = {"a": 1, "an": 1, "one": 1, "two": 2}
 
 
 def scheme_gain_actions(card: Card) -> int:
-    """Acciones que da un plan al jugarlo: los «Gain N action(s)» fuera de un AFTER COMBAT (ese es de la carta de combate)."""
+    """Actions a scheme gives when played: the "Gain N action(s)" outside an AFTER COMBAT (that one belongs to the combat card)."""
     text = card.text.split("AFTER COMBAT:")[0]
     return sum(int(w) if w.isdigit() else _WORDS[w.lower()] for w in _GAIN_ACTIONS.findall(text))
 

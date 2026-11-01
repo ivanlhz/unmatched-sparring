@@ -1,17 +1,17 @@
-"""Lo minimo que la busqueda necesita de un motor de juego.
+"""The minimum the search needs from a game engine.
 
-El buscador (`ismcts.py`) no sabe nada de Unmatched: solo habla con un `SearchState`. El adaptador del motor
-actual vive en `adapter.py`; el motor multiheroe (F07) implementa este mismo Protocol y la busqueda le sirve
-sin cambios.
+The searcher (`ismcts.py`) knows nothing about Unmatched: it only talks to a `SearchState`. The adapter of the current
+engine lives in `adapter.py`; the multi-hero engine (F07) implements this same Protocol and the search serves it
+unchanged.
 
-Jugadas (`Move`): cualquier valor hashable que el adaptador quiera (tuplas). Dos reglas:
-  * `observe(move, viewer)` devuelve `move` tal cual cuando `viewer` es quien la hace; para los demas puede
-    enmascarar lo oculto (p. ej. la carta de un ataque boca abajo). La busqueda indexa el arbol de cada jugador
-    por lo que ese jugador ve, de modo que el rival simulado no "lee" una carta que en la mesa no veria.
-  * `determinize(observer, rng)` sustituye TODA la informacion que `observer` no conoce (manos ajenas, orden de
-    los mazos, cartas boca abajo) por una muestra compatible con lo publico. Nunca debe leer la mano real del
-    rival: la muestra sale del mazo completo menos lo visto, y de las cartas "conocidas en mano" que el motor
-    tenga por un efecto legitimo de mirar la mano.
+Moves (`Move`): any hashable value the adapter wants (tuples). Two rules:
+  * `observe(move, viewer)` returns `move` as is when `viewer` is the one making it; for the others it may
+    mask what is hidden (e.g. the card of a face-down attack). The search indexes each player's tree
+    by what that player sees, so the simulated rival does not "read" a card it would not see at the table.
+  * `determinize(observer, rng)` replaces ALL the information `observer` does not know (other hands, order of
+    the decks, face-down cards) with a sample compatible with what is public. It must never read the rival's
+    real hand: the sample comes from the whole deck minus what has been seen, and from the cards "known in hand" that the engine
+    holds through a legitimate effect of looking at the hand.
 """
 from __future__ import annotations
 
@@ -23,23 +23,23 @@ Move = Hashable
 
 class SearchState(Protocol):
     def clone(self) -> "SearchState":
-        """Copia independiente: aplicar jugadas en ella no toca el original."""
+        """Independent copy: applying moves to it does not touch the original."""
         ...
 
     def player_to_move(self) -> int: ...
 
     def turn_owner(self) -> int:
-        """De quien es el turno (quien mueve puede ser otro a mitad del turno, p. ej. el que defiende). El rollout
-        termina al cambiar: la hoja se evalua como el final de turno de quien movia, frente al turno del rival."""
+        """Whose turn it is (whoever moves may be another in mid-turn, e.g. the defender). The rollout
+        ends when it changes: the leaf is evaluated as the end of the turn of whoever was moving, against the rival's turn."""
         ...
 
     def legal_moves(self) -> list[Move]:
-        """Jugadas de quien mueve, en la informacion actual (tras determinizar, con la mano muestreada)."""
+        """Moves of whoever moves, with the current information (after determinizing, with the sampled hand)."""
         ...
 
     def apply(self, move: Move) -> None:
-        """Aplica la jugada y avanza los pasos automaticos (fin de turno, robos obligatorios...) hasta la siguiente
-        decision o el final."""
+        """Applies the move and advances the automatic steps (end of turn, forced draws...) up to the next
+        decision or the end."""
         ...
 
     def is_terminal(self) -> bool: ...
@@ -47,13 +47,13 @@ class SearchState(Protocol):
     def winner(self) -> int | None: ...
 
     def evaluate(self, player: int) -> float:
-        """Valor de la posicion para `player` en [0, 1] (1 = ganada). En terminal, 1 o 0."""
+        """Value of the position for `player` in [0, 1] (1 = won). In a terminal state, 1 or 0."""
         ...
 
     def observe(self, move: Move, viewer: int) -> Hashable: ...
 
     def rollout_move(self, rng: random.Random) -> Move:
-        """Jugada barata para la fase de rollout; puede ser un subconjunto sesgado de las legales."""
+        """Cheap move for the rollout phase; may be a biased subset of the legal ones."""
         ...
 
     def determinize(self, observer: int, rng: random.Random) -> None: ...

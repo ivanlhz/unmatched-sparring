@@ -1,13 +1,13 @@
-"""IA del bot con busqueda ISMCTS: sustituto de `MedusaAI` con la misma interfaz que usan `Session` y `sim`
+"""Bot AI with ISMCTS search: a substitute for `MedusaAI` with the same interface that `Session` and `sim` use
 (`plan`, `execute`, `choose_defense`, `pick_ability_target`, `should_mulligan`, `choose_setup`, `take_turn`).
 
-La busqueda decide las acciones del turno y la defensa. Lo demas (habilidad de inicio de turno, mulligan,
-colocacion inicial, y las decisiones que el motor delega a mitad de una resolucion: boost, Dash, Hounds, descarte
-forzado, recolocar Harpia) lo sigue decidiendo la heuristica de `MedusaAI` por composicion.
+The search decides the turn's actions and the defense. The rest (start-of-turn ability, mulligan,
+initial placement, and the decisions the engine delegates in mid-resolution: boost, Dash, Hounds, forced
+discard, repositioning a Harpy) is still decided by the `MedusaAI` heuristic through composition.
 
-Enganche: `make_bot_ai(cfg)` lee `cfg["ai"]`; sin la clave (o "heuristic") devuelve `MedusaAI`, con "ismcts"
-devuelve esta clase. `play.py` la usa con `--ai` / `--ai-time`. Si la busqueda falla, la decision cae a `MedusaAI`
-con un WARNING en el log en vez de tumbar el turno.
+Hook: `make_bot_ai(cfg)` reads `cfg["ai"]`; without the key (or "heuristic") it returns `MedusaAI`, with "ismcts"
+it returns this class. `play.py` uses it with `--ai` / `--ai-time`. If the search fails, the decision falls back to `MedusaAI`
+with a WARNING in the log instead of bringing the turn down.
 """
 from __future__ import annotations
 
@@ -34,14 +34,14 @@ class IsmctsMedusa(Controller):
         self.weights = weights or EvalWeights()
         self.heuristic = MedusaAI(me)
         self.last_report: SearchReport | None = None
-        self.fallbacks = 0                                       # decisiones que cayeron a la heuristica por un fallo
+        self.fallbacks = 0                                       # decisions that fell to the heuristic because of a failure
 
     def reset(self) -> None:
-        """Partida nueva (Reiniciar): se olvida el ultimo informe. Lo visto de la mano rival vive en el motor
-        (`Game.players[me].known`) y la partida nueva lo trae vacio."""
+        """New game (Restart): the last report is forgotten. What was seen of the rival's hand lives in the engine
+        (`Game.players[me].known`) and the new game brings it empty."""
         self.last_report = None
 
-    # ---------- lo que la busqueda no decide ----------
+    # ---------- what the search does not decide ----------
     def should_mulligan(self, game: Game, hand) -> bool:
         return self.heuristic.should_mulligan(game, hand)
 
@@ -66,16 +66,16 @@ class IsmctsMedusa(Controller):
     def choose_effect(self, game: Game, req):
         return self.heuristic.choose_effect(game, req)
 
-    # ---------- busqueda ----------
+    # ---------- search ----------
     def _decide(self, root: EngineState) -> list:
-        """Jugada de la raiz y, si la accion esta descompuesta en subjugadas, las siguientes por la variacion
-        principal del arbol del bot; si el arbol no llega, se busca de nuevo desde el estado intermedio."""
+        """Root move and, if the action is decomposed into sub-moves, the following ones along the principal
+        variation of the bot's tree; if the tree does not reach, it searches again from the intermediate state."""
         search = ISMCTS(self.config)
         move, report = search.search(root, self.me)
         self.last_report = report
         chosen = [move]
         state = root.clone()
-        # el recorrido tambien determiniza: nunca se consulta la mano real del rival, ni para ver si defiende
+        # the walk also determinizes: the rival's real hand is never consulted, not even to see whether it defends
         state.determinize(self.me, random.Random(self.config.seed))
         state.apply(move)
         pv = search.principal_variation(self.me, start=move)[1:]
@@ -83,7 +83,7 @@ class IsmctsMedusa(Controller):
             legal = state.legal_moves()
             if pv and pv[0] in legal:
                 nxt = pv.pop(0)
-            else:                       # raro: el arbol no llego; una busqueda corta desde el estado intermedio
+            else:                       # rare: the tree did not reach; a short search from the intermediate state
                 nxt, _ = ISMCTS(self._fallback_config()).search(state, self.me)
                 pv = []
             chosen.append(nxt)
@@ -98,7 +98,7 @@ class IsmctsMedusa(Controller):
     def plan(self, game: Game) -> Act:
         try:
             return self._plan(game)
-        except AssertionError:                 # los tripwires anti-trampas no se disfrazan de fallo de busqueda
+        except AssertionError:                 # the anti-cheating tripwires are not disguised as a search failure
             raise
         except Exception:
             self._fell_back("plan")
@@ -106,7 +106,7 @@ class IsmctsMedusa(Controller):
 
     def _fell_back(self, what: str) -> None:
         self.fallbacks += 1
-        log.warning("La busqueda ISMCTS fallo en %s; decide la heuristica de MedusaAI.", what, exc_info=True)
+        log.warning("The ISMCTS search failed in %s; the MedusaAI heuristic decides.", what, exc_info=True)
 
     def knowledge(self, game: Game) -> Knowledge:
         """What look-at-the-hand effects showed, as the engine's KnownHand keeps it (already discounted)."""
@@ -122,7 +122,7 @@ class IsmctsMedusa(Controller):
         except AssertionError:
             raise
         except Exception:
-            self._fell_back("defensa")
+            self._fell_back("defense")
             return self.heuristic.choose_defense(game, attacker, target, attack_card)
 
     def _choose_defense(self, game: Game, attacker: Fighter, target: Fighter, attack_card: Card | None) -> Card | None:
@@ -134,12 +134,12 @@ class IsmctsMedusa(Controller):
         return by_title(game.players[self.me].hand, move[1]) if move[1] is not None else None
 
     def to_act(self, game: Game, chosen: list) -> Act:
-        """De la cadena de subjugadas a la `Act` que entienden `execute` y la sesion."""
+        """From the chain of sub-moves to the `Act` that `execute` and the session understand."""
         hand = game.players[self.me].hand
         hero = game.hero(self.me)
         first = chosen[0]
         kind = first[0]
-        # una subfase con una sola opcion se resolvio sola y no esta en la cadena: se reconstruye igual que alli
+        # a sub-phase with a single option resolved itself and is not in the chain: it is rebuilt the same way as there
         sub = {m[0]: m for m in chosen[1:]}
         if kind == "attack":
             fighter = game.fighters[first[1]]
@@ -158,7 +158,7 @@ class IsmctsMedusa(Controller):
             return Act("frenzy", fid=hero.fid, card=by_title(hand, first[1]), moves=moves, spot=spot)
         if kind == "scheme":        # D2: executed with the SyntheticChooser the search evaluated it with
             return Act("scheme", fid=hero.fid, card=by_title(hand, first[1]), variant=first[3])
-        raise ValueError(f"jugada sin accion equivalente: {chosen!r}")
+        raise ValueError(f"move without an equivalent action: {chosen!r}")
 
     def execute(self, game: Game, act: Act) -> None:
         self.heuristic.execute(game, act)
@@ -172,9 +172,9 @@ class IsmctsMedusa(Controller):
 
 
 def make_bot_ai(cfg: dict, bot: int = 0):
-    """Flag de configuracion, apagado por defecto: `"ai": "ismcts"` activa la busqueda; `ai_time_budget` (s),
-    `ai_iterations` (tope por decision, para pruebas) y `ai_seed` la ajustan; `ai_eval` (objeto con campos de
-    `EvalWeights`) cambia los pesos de la evaluacion."""
+    """Configuration flag, off by default: `"ai": "ismcts"` enables the search; `ai_time_budget` (s),
+    `ai_iterations` (cap per decision, for tests) and `ai_seed` adjust it; `ai_eval` (an object with fields of
+    `EvalWeights`) changes the evaluation weights."""
     kind = cfg.get("ai", "heuristic")
     if kind == "heuristic":
         return MedusaAI(bot)
@@ -184,4 +184,4 @@ def make_bot_ai(cfg: dict, bot: int = 0):
                                               iterations=None if iters is None else int(iters),
                                               seed=int(cfg.get("ai_seed", 0))),
                             EvalWeights(**cfg.get("ai_eval", {})))
-    raise ValueError(f"ai desconocida en la configuracion: {kind!r} (heuristic | ismcts)")
+    raise ValueError(f"unknown ai in the configuration: {kind!r} (heuristic | ismcts)")
