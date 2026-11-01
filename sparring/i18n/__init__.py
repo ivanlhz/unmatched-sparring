@@ -3,14 +3,17 @@
 Every text the human reads (panel buttons and labels, chat lines) is a tag looked up in the catalog of the language
 the bot was launched with. The code only ever uses tags, never literal player-facing text:
 
-    t("moves.stays", name=name)          # "{name} se queda donde esta." / "{name} stays where it is."
+    t("moves.stays", name=name)          # "{name} stays where it is."
     tn("moves.squares", 3)               # plural: tags "moves.squares.one" / "moves.squares.other", `{n}` filled in
-    plural(3, "noun.card")               # "3 cartas" / "3 cards"
+    plural(3, "noun.card")               # "3 cards"
 
 A catalog is `data/i18n/<lang>.json`, a flat map tag -> `str.format` template. Adding a language is adding one more
 file with the same tags: no code change. A tag missing in the chosen file falls back to `es.json` and, failing that,
 to the tag itself: a text can be wrong, never a crash. Proper nouns (card titles, hero names, game terms printed in
 English) are passed in as arguments and never translated.
+
+A template can quote another tag with `[[tag]]` (resolved before the `{placeholders}`): the chat names a panel button
+with the same tag that captions it ("press [[panel.continue]]"), so the two cannot drift apart.
 
 The language is one process-wide setting (`set_language`, called by `play` from `language` in the configuration or
 `--language`), because the chat helpers are module-level functions with no session to carry it."""
@@ -26,6 +29,9 @@ DEFAULT = "es"
 CATALOG_DIR = Path(__file__).resolve().parents[2] / "data" / "i18n"
 
 _LANG = re.compile(r"[A-Za-z][A-Za-z0-9_-]*")     # a file stem that is safe to open: no separators, no dots
+
+_REF = re.compile(r"\[\[([a-z][a-z0-9_.]*)\]\]")
+_MAX_DEPTH = 3                                    # references nest at most this deep: a cycle ends as the bare tag
 
 _cache: dict[str, dict[str, str]] = {}
 _current = DEFAULT
@@ -74,6 +80,17 @@ def using(lang: str) -> Iterator[str]:
         set_language(before)
 
 
+def _expand(template: str, lang: str, depth: int = 0) -> str:
+    """`template` with every `[[tag]]` replaced by the text of that tag in `lang` (Spanish when `lang` lacks it)."""
+    def quote(match: re.Match) -> str:
+        ref = match.group(1)
+        text = catalog(lang).get(ref, catalog(DEFAULT).get(ref))
+        if text is None or depth >= _MAX_DEPTH:
+            return ref
+        return _expand(text, lang, depth + 1)
+    return _REF.sub(quote, template)
+
+
 def t(tag: str, **kwargs) -> str:
     """The text for `tag` in the current language, `{placeholders}` filled from `kwargs`."""
     for lang in dict.fromkeys((_current, DEFAULT)):
@@ -81,7 +98,7 @@ def t(tag: str, **kwargs) -> str:
         if template is None:
             continue
         try:
-            return template.format(**kwargs)
+            return _expand(template, lang).format(**kwargs)
         except (KeyError, IndexError, ValueError, AttributeError, TypeError):
             continue                       # a template that does not fit its arguments: try Spanish, then give up
     return tag
@@ -93,5 +110,5 @@ def tn(tag: str, n: int, **kwargs) -> str:
 
 
 def plural(n: int, noun: str) -> str:
-    """'3 cartas' / '1 carta': `noun` is the tag of a `.one` / `.other` pair holding just the word."""
+    """'3 cards' / '1 card' (in Spanish '3 cartas' / '1 carta'): `noun` is the tag of a `.one` / `.other` pair holding just the word."""
     return f"{n} {tn(noun, n)}"

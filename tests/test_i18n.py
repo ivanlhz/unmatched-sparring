@@ -17,7 +17,7 @@ from sparring import i18n, play
 from sparring.tts import ui
 from sparring.tts.ui import Event
 from test_d3_table_effects import said
-from test_human_moves_by_hand import HELLBOY_VS_ABE, hecho, rhod_asks_for_abe, rig, with_rig  # noqa: F401
+from test_human_moves_by_hand import HELLBOY_VS_ABE, done, rhod_asks_for_abe, rig, with_rig  # noqa: F401
 from test_play import cfg_file  # noqa: F401
 
 ROOT = Path(__file__).resolve().parents[1]
@@ -32,6 +32,8 @@ DYNAMIC = {
                                                    "next_attack_bonus") for side in ("bot", "human")),
     "narr.v.": tuple(f"{w}.{side}" for w in ("draw", "discard", "return", "poss", "gain") for side in ("bot", "human")),
     "fx.ability.": ("detective_draw", "anung_discard_move", "wildfire_start"),
+    "herosel.src.": ("default", "option", "config", "save", "table"),
+    "ro.role.": ("bot", "human"),
 }
 
 
@@ -98,6 +100,48 @@ def test_no_catalog_tag_is_dead():
             continue
         dead.append(tag)
     assert dead == []
+
+
+def test_references_to_other_tags_resolve_in_every_catalog():
+    for lang in ("es", "en"):
+        cat = load(lang)
+        refs = {ref for text in cat.values() for ref in re.findall(r"\[\[([a-z][a-z0-9_.]*)\]\]", text)}
+        assert refs and sorted(r for r in refs if r not in cat) == [], lang
+        for tag, text in cat.items():
+            assert "[[" not in i18n._expand(text, lang), (lang, tag)
+
+
+def test_chat_names_the_buttons_with_the_tag_that_captions_them():
+    with i18n.using("en"):
+        assert i18n.t("panel.ready") == "Ready (setup)"
+        assert i18n.t("setup.retry") == "Press Ready to retry the setup."
+        assert i18n.t("tr.discard_count", n=2, reason="x", hint="") == "Discard 2 card(s) (x) and press End action."
+    with i18n.using("es"):
+        assert i18n.t("setup.retry") == "Pulsa Listo para reintentar la preparacion."
+        assert i18n.t("panel.ready") == "Listo (preparacion)"
+
+
+def test_every_button_the_english_chat_names_is_a_caption_of_the_panel():
+    """The words in `press X` are quoted from the panel captions, so a rename of a button cannot leave the chat behind."""
+    cat = load("en")
+    words = {re.sub(r" \(.*\)", "", text) for tag, text in cat.items() if tag.startswith(("panel.", "btn.")) and "{" not in text}
+    words |= {"Cancel", "Ready"}                                  # the first words of "Cancel attack" and "Ready (setup)"
+    typed = re.compile(r"(?:[Pp]ress|\bor|\band) (?:%s)\b" % "|".join(sorted(map(re.escape, words), key=len, reverse=True)))
+    loose = {tag: m.group(0) for tag, text in cat.items() if not tag.startswith(("panel.", "btn."))
+             for m in [typed.search(re.sub(r"\[\[[a-z_.]+\]\]", "", text))] if m}
+    assert loose == {}, loose                                     # every button is named through its [[panel.*]] reference
+
+
+def test_the_english_gone_line_reads_naturally():
+    with i18n.using("en"):
+        text = i18n.t("tr.gone", titles="Fireball", where="on top of your deck", cause="Rekindle")
+    assert text == "Fireball is no longer in your discard pile, so I assume it is already on top of your deck (Rekindle)."
+
+
+def test_a_reference_cycle_ends_as_the_bare_tag_instead_of_recursing(monkeypatch):
+    monkeypatch.setitem(i18n.catalog("es"), "x.a", "a [[x.b]]")
+    monkeypatch.setitem(i18n.catalog("es"), "x.b", "b [[x.a]]")
+    assert i18n.t("x.a").count("[[") == 0
 
 
 def test_plural_tags_come_in_pairs():
@@ -206,7 +250,7 @@ def test_language_flag_and_config_key(cfg_file):
 
 
 def test_the_shipped_configuration_names_the_language_and_documents_it():
-    cfg = json.loads((ROOT / "config" / "partida.json").read_text(encoding="utf-8"))
+    cfg = json.loads((ROOT / "config" / "table.json").read_text(encoding="utf-8"))
     assert cfg["language"] == "es"
     assert any(n.startswith("language:") for n in cfg["_notes"])
 
@@ -231,7 +275,7 @@ def test_a_wrong_move_is_refused_in_english_and_nothing_changes(rig, monkeypatch
     i18n.set_language("en")
     rhod_asks_for_abe(session, table, game, cfg, monkeypatch)
     before = session.effect_run.awaiting.key
-    hecho(session, table)
+    done(session, table)
     assert said(session.messages, "has not moved: move it")
     assert session.effect_run.awaiting.key == before
 
@@ -256,10 +300,10 @@ PANEL_TAGS = ("btn.done", "btn.skip", "hidden.status", "hidden.look_status.pick"
 @pytest.mark.parametrize("lang", sorted(p.stem for p in (ROOT / "data" / "i18n").glob("*.json")))
 def test_status_and_button_texts_fit_the_panel_in_every_language(lang):
     from sparring.tts.lua import _STATUS
-    cat = load(lang)
-    for tag in PANEL_TAGS:
-        text = cat[tag].format(name="Abe")
-        assert _STATUS.fullmatch(text), (lang, tag, text)
+    with i18n.using(lang):
+        for tag in PANEL_TAGS:
+            text = i18n.t(tag, name="Abe")
+            assert _STATUS.fullmatch(text), (lang, tag, text)
 
 
 def test_accented_or_long_catalog_text_never_breaks_the_panel_update(monkeypatch):
