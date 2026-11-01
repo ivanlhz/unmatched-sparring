@@ -438,11 +438,11 @@
   }
  },
  "_notes": [
-  "Hoja 194 del savegame del torneo (8x4), leida carta a carta de la imagen el 2026-10-28. CardID = 19400 + idx; 19500 = carta de personaje.",
-  "Restricciones de luchador de la hoja de TTS: ABE SAPIEN en 11 cartas, B.P.R.D. AGENT solo en Secure The Scene (3), ANY en las 16 restantes.",
-  "Agentes: la carta de heroe dice 'B.P.R.D. AGENTS', vida 1 (tres puntos) x3, misma notacion que las Harpias de Medusa; el save trae tres fichas (Victor, Carla, Kate) sin reserva. Se asume que las 3 empiezan en el tablero (start_on_board 3, reserve 0) y que 'Summon a B.P.R.D. Agent' devuelve un agente caido (revive). Pendiente de que Ivan lo confirme con el reglamento: docs/heroes/abe-sapien.md.",
-  "Fichas de intuicion: 2 (Custom_Token_Stack 'Intuition Token', Number 2, cara oscura = inactiva, cara verde con rayas amarillas = activa). No son un contador de pila, asi que no van en `counters`; su especificacion esta en data/heroes/effects/abe-sapien.json.",
-  "Disparadores de UNCANNY INTUITION como datos: `intuition_activate` (Abe hace dano de combate a un luchador adyacente -> activa una ficha) e `intuition_spend` (atacan a Abe con ficha activa -> la desactiva, roba 1 y el ataque se juega boca arriba). Ningun codigo del motor los ejecuta todavia.",
-  "Discrepancia con unmatched-memory: Counterhex Shield lleva en la carta real un texto ONGOING ('Other players' effects can't damage your fighters, move your fighters, or force you to discard cards. Discard this at the start of your next turn.') que la fuente no tiene. Manda la carta real: las dos entradas de la hoja llevan `text` y el importador lo prefiere al de unmatched-memory."
+  "Sheet 194 of the tournament savegame (8x4), read card by card from the image on 2026-10-28. CardID = 19400 + idx; 19500 = character card.",
+  "Fighter restrictions from the TTS sheet: ABE SAPIEN on 11 cards, B.P.R.D. AGENT only on Secure The Scene (3), ANY on the remaining 16.",
+  "Agents: the hero card says 'B.P.R.D. AGENTS', life 1 (three dots) x3, the same notation as Medusa's Harpies; the save has three tokens (Victor, Carla, Kate) with no reserve. It is assumed that all 3 start on the board (start_on_board 3, reserve 0) and that 'Summon a B.P.R.D. Agent' returns a defeated agent (revive). Pending Ivan confirming it with the rulebook: docs/heroes/abe-sapien.md.",
+  "Intuition tokens: 2 (Custom_Token_Stack 'Intuition Token', Number 2, dark face = inactive, green face with yellow stripes = active). They are not a pile counter, so they do not go in `counters`; their specification is in data/heroes/effects/abe-sapien.json.",
+  "UNCANNY INTUITION triggers as data: `intuition_activate` (Abe deals combat damage to an adjacent fighter -> activates a token) and `intuition_spend` (Abe is attacked with an active token -> deactivates it, draws 1 and the attack is played face up). No engine code runs them yet.",
+  "Discrepancy with unmatched-memory: on the real card Counterhex Shield carries an ONGOING text ('Other players' effects can't damage your fighters, move your fighters, or force you to discard cards. Discard this at the start of your next turn.') that the source does not have. The real card wins: the two sheet entries carry `text` and the importer prefers it to unmatched-memory's."
  ]
 }

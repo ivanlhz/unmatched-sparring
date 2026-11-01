@@ -2,13 +2,13 @@
  "schema": 1,
  "hero": "hellboy",
  "notes": [
-  "Efectos estructurados de Hellboy (F07 pasos 4-6) en el DSL v1 (docs/effects-dsl.md). Texto leido de las cartas reales (hoja 197 del save del torneo) el 2026-10-28; donde unmatched-memory difiere manda la carta y se apunta en docs/heroes/hellboy.md. Migrado al esquema canonico el 2026-10-28 sin cambiar la semantica.",
-  "Las formas no son un estado: se recalculan siempre desde el contador destiny del descarte (overlay forms/counters). Por eso ninguna op 'pone' la forma: solo se consulta con la condicion form_is.",
-  "Todo damage es de efecto (Horseshoes, Posthumous Power): lo para el escudo de Planned Recklessness y alcanza tambien a los propios.",
-  "Decision de Ivan (28/10): Right Hand Of Doom: OCCULT DETECTIVE se evalua antes de que la propia carta llegue al descarte.",
-  "Decision de Ivan (28/10): Pancakes!: las opciones elegidas se resuelven en el orden impreso.",
-  "Decision de Ivan (28/10): cambio de forma con el bot: cambia miniatura y ficha y hace ping sobre las dos.",
-  "Decision de Ivan (28/10): elecciones del humano (Confront, Posthumous Power, Pancakes!) por botones del panel que SOLO aparecen cuando se juega la carta; mientras tanto no se muestran (ni en gris)."
+  "Structured effects of Hellboy (F07 steps 4-6) in DSL v1 (docs/effects-dsl.md). Text read from the real cards (sheet 197 of the tournament save) on 2026-10-28; where unmatched-memory differs the card wins and it is noted in docs/heroes/hellboy.md. Migrated to the canonical schema on 2026-10-28 without changing the semantics.",
+  "Forms are not a state: they are always recomputed from the destiny counter of the discard (overlay forms/counters). That is why no op 'sets' the form: it is only queried with the form_is condition.",
+  "Every damage is effect damage (Horseshoes, Posthumous Power): Planned Recklessness' shield stops it and it also reaches your own fighters.",
+  "Ivan's decision (28/10): Right Hand Of Doom: OCCULT DETECTIVE is evaluated before the card itself reaches the discard.",
+  "Ivan's decision (28/10): Pancakes!: the chosen options resolve in printed order.",
+  "Ivan's decision (28/10): form change with the bot: it changes miniature and token and pings both.",
+  "Ivan's decision (28/10): the human's choices (Confront, Posthumous Power, Pancakes!) by panel buttons that ONLY appear when the card is played; meanwhile they are not shown (not even greyed out)."
  ],
  "ability": {
   "text": "AHH CRAP! At the start of the game, place the Hellboy Special Ability Token over this card with the OCCULT DETECTIVE side up. OCCULT DETECTIVE: At the start of your turn, if Hellboy is in an opponent's starting space, you may draw 2 cards. When you have 6 or more destiny cards in your discard pile, switch to ANUNG UN RAMA. ANUNG UN RAMA: At the start of your turn, discard 1 card. Move Hellboy a number of spaces up to its BOOST value. Add +2 to Hellboy's attacks. When you have 5 or fewer destiny cards in your discard pile, switch to OCCULT DETECTIVE.",
@@ -33,7 +33,7 @@
    {"id": "anung_attack", "kind": "modify_value", "cards": {"player": "owner", "type": "attack", "fighter": "hero"}, "amount": 2,
     "while": {"test": "form_is", "form": "ANUNG UN RAMA"}}
   ],
-  "notes": "Formas: OCCULT DETECTIVE con 5 o menos destinos en el descarte, ANUNG UN RAMA con 6 o mas (overlay forms + counters.destiny, 11 destinos de 30). El cambio es inmediato en cuanto cambia el contador (al descartar una carta jugada, al mover cartas del descarte al mazo con Pancakes!, al barajar el descarte cuando se agota el mazo). El motor ya lo recalcula desde datos; en la mesa lo representan la ficha y la miniatura (ver table). Hoy los disparadores los ejecutan Game.hellboy_detective_draw y Game.hellboy_anung_start y la pasiva la lee combat.py como attack_bonus."
+  "notes": "Forms: OCCULT DETECTIVE with 5 or fewer destinies in the discard, ANUNG UN RAMA with 6 or more (overlay forms + counters.destiny, 11 destinies of 30). The change is immediate as soon as the counter changes (when discarding a played card, when moving cards from the discard to the deck with Pancakes!, when shuffling the discard in when the deck runs out). The engine already recomputes it from data; on the table the token and the miniature represent it (see table). Today the triggers are run by Game.hellboy_detective_draw and Game.hellboy_anung_start and combat.py reads the passive as attack_bonus."
  },
  "cards": [
   {
@@ -41,7 +41,7 @@
    "copies": 1,
    "text": "",
    "effects": {"immediately": [], "during": [], "after": [], "scheme": [], "boost": []},
-   "notes": "Ataque 6 / boost 3, solo Hellboy, destiny. Sin texto."
+   "notes": "Attack 6 / boost 3, Hellboy only, destiny. No text."
   },
   {
    "title": "Right Hand Of Doom",
@@ -56,14 +56,14 @@
      ]}
     ]
    },
-   "notes": "Ataque 4 / boost 1, solo Hellboy, destiny. 'Adjacent fighter' es cualquier luchador vivo adyacente a Hellboy, propio o rival (Lobster incluido); mover 0 es legal. La forma se consulta al resolver el AFTER, antes de que la propia carta (destiny) llegue al descarte: ver open_questions."
+   "notes": "Attack 4 / boost 1, Hellboy only, destiny. 'Adjacent fighter' is any living fighter adjacent to Hellboy, own or rival (Lobster included); moving 0 is legal. The form is queried when resolving the AFTER, before the card itself (destiny) reaches the discard: see open_questions."
   },
   {
    "title": "Service Pistol",
    "copies": 1,
    "text": "",
    "effects": {"immediately": [], "during": [], "after": [], "scheme": [], "boost": []},
-   "notes": "Ataque 5 / boost 2, cualquiera. Sin texto."
+   "notes": "Attack 5 / boost 2, anyone. No text."
   },
   {
    "title": "Horseshoes And Hand Grenades",
@@ -75,7 +75,7 @@
      {"op": "damage", "target": {"side": "any", "where": {"zone_of": "this"}, "other": true, "pick": "all"}, "amount": 1}
     ]
    },
-   "notes": "Ataque 2 / boost 1, cualquiera. Dano de efecto (no de combate): lo para el escudo de Planned Recklessness del rival y alcanza tambien a los propios (Lobster en la misma zona). Si el luchador que la jugo murio en el combate no tiene zona y no pasa nada (el motor ya lo hace asi)."
+   "notes": "Attack 2 / boost 1, anyone. Effect damage (not combat): the rival's Planned Recklessness shield stops it and it also reaches your own (Lobster in the same zone). If the fighter that played it died in the combat it has no zone and nothing happens (the engine already does it this way)."
   },
   {
    "title": "Second Shot",
@@ -83,7 +83,7 @@
    "text": "DURING COMBAT: You may BOOST this attack.",
    "may_boost": true,
    "effects": {"immediately": [], "during": [], "after": [], "scheme": [], "boost": []},
-   "notes": "Ataque 2 / boost 2, solo Lobster Johnson. La carta dice 'You may BOOST this attack' (unmatched-memory: igual). Si el IMMEDIATELY rival cancela sus efectos no hay BOOST. La carta de impulso se descarta boca arriba: informacion publica. Hoy combat.can_boost lo detecta por texto; may_boost es el dato que lo sustituye."
+   "notes": "Attack 2 / boost 2, Lobster Johnson only. The card says 'You may BOOST this attack' (unmatched-memory: the same). If the rival's IMMEDIATELY cancels its effects there is no BOOST. The boost card is discarded face up: public information. Today combat.can_boost detects it by text; may_boost is the datum that replaces it."
   },
   {
    "title": "Confront Any Demon or God",
@@ -99,7 +99,7 @@
      ]}
     ]
    },
-   "notes": "Versatil 3 / boost 1, solo Hellboy, destiny. Primero se roba, luego (solo si se perdio) se mira la mano rival y se elige la carta a descartar. Con la mano rival vacia no se descarta nada. Es la unica carta de Hellboy que toca informacion oculta: ver hidden_info."
+   "notes": "Versatile 3 / boost 1, Hellboy only, destiny. First draws, then (only if lost) the rival's hand is looked at and the card to discard is chosen. With the rival's hand empty nothing is discarded. It is the only Hellboy card that touches hidden information: see hidden_info."
   },
   {
    "title": "Glimpse Of Hell",
@@ -112,7 +112,7 @@
      {"op": "return_to_deck", "cards": {"zone": "hand", "player": "owner", "amount": 1, "chooser": "owner"}, "position": "shuffle"}
     ]
    },
-   "notes": "Versatil 2 / boost 3, cualquiera. Roba 2 y despues baraja UNA carta de la mano (cualquiera, no necesariamente una de las robadas) en el mazo, boca abajo. Si el mazo esta vacio al robar se baraja el descarte primero (regla general)."
+   "notes": "Versatile 2 / boost 3, anyone. Draws 2 and then shuffles ONE card from the hand (any, not necessarily one of those drawn) into the deck, face down. If the deck is empty when drawing the discard is shuffled first (general rule)."
   },
   {
    "title": "B.P.R.D. Training",
@@ -125,7 +125,7 @@
      {"op": "move", "target": {"side": "own", "pick": "all"}, "amount": 2, "up_to": true}
     ]
    },
-   "notes": "Versatil 3 / boost 2, cualquiera. Cada luchador propio vivo se mueve hasta 2 (0 incluido), uno tras otro, en el orden que elija el dueno. Movimientos fisicos: el humano los hace en la mesa; el bot mueve sus miniaturas."
+   "notes": "Versatile 3 / boost 2, anyone. Each living own fighter moves up to 2 (0 included), one after another, in the order the owner chooses. Physical movements: the human does them on the table; the bot moves its miniatures."
   },
   {
    "title": "Planned Recklessness",
@@ -140,7 +140,7 @@
      ]}
     ]
    },
-   "notes": "Versatil 3 / boost 3, cualquiera (no es destiny). 'This turn' es el turno en curso, sea de quien sea: si se juega en defensa el escudo dura hasta el fin del turno del atacante. El escudo para el dano de efectos (Horseshoes, Posthumous Power, la mirada de Medusa en su turno...) pero no el de combate. La cancelacion solo en OCCULT DETECTIVE y se decide al resolver el IMMEDIATELY (la carta aun no esta en el descarte). El motor ya hace exactamente esto (combat.py, PLANNED; Game.effect_shield)."
+   "notes": "Versatile 3 / boost 3, anyone (not destiny). 'This turn' is the current turn, whoever's it is: if played in defense the shield lasts until the end of the attacker's turn. The shield stops effect damage (Horseshoes, Posthumous Power, Medusa's gaze on her turn...) but not combat damage. The cancellation only in OCCULT DETECTIVE and it is decided when resolving the IMMEDIATELY (the card is not yet in the discard). The engine already does exactly this (combat.py, PLANNED; Game.effect_shield)."
   },
   {
    "title": "Posthumous Power",
@@ -162,7 +162,7 @@
      ]}
     ]
    },
-   "notes": "Versatil 2 / boost 3, solo Lobster Johnson. 'Any fighter' incluye propios y rivales. Si Lobster murio en ese combate el AFTER se resuelve igual (la carta se jugo). Cuando la juega el humano, el bot necesita saber la opcion: botones del panel o lectura de la mesa (diales y posiciones) como respaldo."
+   "notes": "Versatile 2 / boost 3, Lobster Johnson only. 'Any fighter' includes own and rival ones. If Lobster died in that combat the AFTER resolves anyway (the card was played). When the human plays it, the bot needs to know the option: panel buttons or reading the table (dials and positions) as a fallback."
   },
   {
    "title": "On Earth As It Is In Hell",
@@ -177,7 +177,7 @@
      {"op": "if", "condition": {"test": "combat_result", "result": "lost"}, "then": [{"op": "heal", "target": "hero", "amount": 2}]}
     ]
    },
-   "notes": "Defensa 0 / boost 2, solo Hellboy, destiny. El valor pasa a ser el numero de destinos en el descarte en ese momento (la propia carta aun no cuenta). Si el IMMEDIATELY rival la cancela se queda en 0 y no cura. El motor ya lo hace asi (ON_EARTH en combat.py)."
+   "notes": "Defense 0 / boost 2, Hellboy only, destiny. The value becomes the number of destinies in the discard at that moment (the card itself does not count yet). If the rival's IMMEDIATELY cancels it, it stays at 0 and does not heal. The engine already does it this way (ON_EARTH in combat.py)."
   },
   {
    "title": "And Upon His Brow Is Set A Crown Of Flame",
@@ -191,7 +191,7 @@
      {"op": "gain_action", "amount": 2}
     ]
    },
-   "notes": "Plan, boost 4, solo Hellboy, destiny. Jugarlo cuesta 1 accion y da 2: neto +1. El plan ya ha salido de la mano cuando se descarta el resto. Las cartas descartadas son publicas; las 2 robadas, no."
+   "notes": "Scheme, boost 4, Hellboy only, destiny. Playing it costs 1 action and gives 2: net +1. The scheme has already left the hand when the rest is discarded. The discarded cards are public; the 2 drawn, not."
   },
   {
    "title": "Pancakes!",
@@ -209,81 +209,81 @@
      ]}
     ]
    },
-   "notes": "Plan, boost 2, solo Hellboy (NO es destiny). La carta dice 'Choose two different effects' (impreso: 'Chose'). Devolver destinos del descarte al fondo del mazo baja el contador y puede devolver a Hellboy a OCCULT DETECTIVE: es una palanca de forma, no solo de reciclaje. Las cartas elegidas se ven al moverlas (publicas) y quedan en el fondo del mazo en orden conocido por los dos. Orden de resolucion de las dos opciones: ver open_questions."
+   "notes": "Scheme, boost 2, Hellboy only (NOT destiny). The card says 'Choose two different effects' (printed: 'Chose'). Returning destinies from the discard to the bottom of the deck lowers the counter and can return Hellboy to OCCULT DETECTIVE: it is a form lever, not just recycling. The chosen cards are seen when moved (public) and stay at the bottom of the deck in an order known to both. Resolution order of the two options: see open_questions."
   }
  ],
  "plugins": [],
  "table": {
-  "save": "saves/Unmatched Official Tournament Table October 2026 (Hellboy).json (solo lectura); todo dentro de la bolsa 3efeee 'Hellboy' > bolsa c592d8",
+  "save": "saves/Unmatched Official Tournament Table October 2026 (Hellboy).json (read only); everything inside bag 3efeee 'Hellboy' > bag c592d8",
   "ability_token": {
    "guid": "1644a3",
-   "type": "Custom_Token (escala 0.5) con un hijo pegado 30d50e boca contra boca: girar 1644a3 cambia la cara visible",
+   "type": "Custom_Token (scale 0.5) with a child 30d50e glued face to face: turning 1644a3 changes the visible face",
    "faces": {
     "1644a3": {"side": "ANUNG UN RAMA", "color": "rojo", "image": "https://steamusercontent-a.akamaihd.net/ugc/14774411447348729399/9CE059C107EFBC0853003666B31E166F15C81B73/"},
     "30d50e": {"side": "OCCULT DETECTIVE", "color": "azul", "image": "https://steamusercontent-a.akamaihd.net/ugc/16466239634508822837/AE7D838DE3F0CBEB4E93FE93127EE50CC02301A6/"}
    },
-   "orientation": "En el save 1644a3 tiene rotZ 180 (cara del hijo 30d50e arriba = OCCULT DETECTIVE, el lado de inicio). rotZ 0 = ANUNG UN RAMA (rojo) arriba. Confirmar en vivo con --read-only antes de que el bot la gire (open_questions)."
+   "orientation": "In the save 1644a3 has rotZ 180 (face of child 30d50e up = OCCULT DETECTIVE, the starting side). rotZ 0 = ANUNG UN RAMA (red) up. Confirm live with --read-only before the bot turns it (open_questions)."
   },
   "hero_miniatures": {
    "OCCULT DETECTIVE": {"guid": "f9789a", "nickname": "Hellboy", "mesh": "https://steamusercontent-a.akamaihd.net/ugc/13061063459581739501/DDFAEF299C477B379AEDB68D9C1DDE80BE272114/"},
    "ANUNG UN RAMA": {"guid": "e6f06e", "nickname": "Anung Un Rama", "mesh": "https://steamusercontent-a.akamaihd.net/ugc/12746502570727485996/A3048E7C2B038DFE47137365D1E9E0A610E8FBBC/"},
-   "how": "Son dos estados del mismo objeto: f9789a tiene States {2: e6f06e}. setState(2) sobre f9789a produce e6f06e en la misma posicion y setState(1) sobre e6f06e vuelve a f9789a. Por eso config/partida.json pieces.hellboy lista los dos GUID."
+   "how": "They are two states of the same object: f9789a has States {2: e6f06e}. setState(2) on f9789a produces e6f06e at the same position and setState(1) on e6f06e returns to f9789a. That is why config/table.json pieces.hellboy lists both GUIDs."
   },
   "sidekick_miniature": {"guid": "e33604", "nickname": "Lobster Johnson", "type": "Custom_Token"},
-  "dials": {"hellboy": "046660 (max 18)", "lobster": "18c384 (max 6)", "destiny": "e17c66 'Destiny Dial' (el bot ya lo pone a los destinos del descarte)"},
-  "deck": {"guid": "00dc9a", "custom_deck": "197 en el mazo, 187 en las cartas sueltas (misma FaceURL/BackURL, 8x4)", "card_ids": "19700..19729 = hoja idx 0..29; 19600 = carta de personaje 438fa8 (CustomDeck 196)",
+  "dials": {"hellboy": "046660 (max 18)", "lobster": "18c384 (max 6)", "destiny": "e17c66 'Destiny Dial' (the bot already sets it to the destinies in the discard)"},
+  "deck": {"guid": "00dc9a", "custom_deck": "197 on the deck, 187 on the loose cards (same FaceURL/BackURL, 8x4)", "card_ids": "19700..19729 = sheet idx 0..29; 19600 = character card 438fa8 (CustomDeck 196)",
            "face": "https://steamusercontent-a.akamaihd.net/ugc/16391051862655008952/BFB41BEFB7988B056C03DA80C7AAA7B8CD96F6BF/",
            "back": "https://steamusercontent-a.akamaihd.net/ugc/9292810156568221364/8CE685661ECB73C0BEBEE721065E4DE200606E02/"},
   "choreography": [
-   "Cambio de forma cuando el bot lleva a Hellboy: no es una regla sino coreografia de mesa (antes plugin hellboy:form_change_on_table). Cuando el contador destiny cruza el umbral, el bot cambia el estado de la miniatura, gira la ficha de habilidad y hace ping en las dos (regla de Ivan). Cuando Hellboy es del humano, el bot solo anuncia el cambio.",
-   "1. Anunciar en el chat la forma nueva y el conteo de destinos (ya se hace).",
-   "2. Miniatura: getObjectFromGUID(actual).setState(2 si ANUNG UN RAMA, 1 si OCCULT DETECTIVE); el GUID resultante es el otro de la pareja f9789a/e6f06e (la sesion ya acepta cualquiera de los dos).",
-   "3. Ficha: getObjectFromGUID('1644a3').flip() solo si la cara visible no es ya la de la forma nueva (comprobar rotZ antes: 180 = azul/OCCULT DETECTIVE, 0 = rojo/ANUNG UN RAMA).",
-   "4. Ping sobre la posicion de la ficha y, ~1 s despues, sobre la miniatura (dos pings seguidos se pisan: lua._ping_lua ya espera 1 s). Todo dentro de pcall: un fallo de mesa no cambia el estado del motor.",
-   "5. Destiny Dial e17c66 al conteo nuevo (ya se hace)."
+   "Form change when the bot plays Hellboy: it is not a rule but table choreography (formerly the plugin hellboy:form_change_on_table). When the destiny counter crosses the threshold, the bot changes the state of the miniature, turns the ability token and pings both (Ivan's rule). When Hellboy is the human's, the bot only announces the change.",
+   "1. Announce in the chat the new form and the destiny count (already done).",
+   "2. Miniature: getObjectFromGUID(current).setState(2 if ANUNG UN RAMA, 1 if OCCULT DETECTIVE); the resulting GUID is the other of the pair f9789a/e6f06e (the session already accepts either).",
+   "3. Token: getObjectFromGUID('1644a3').flip() only if the visible face is not already the new form's (check rotZ first: 180 = blue/OCCULT DETECTIVE, 0 = red/ANUNG UN RAMA).",
+   "4. Ping the token's position and, ~1 s later, the miniature (two pings in a row step on each other: lua._ping_lua already waits 1 s). All inside pcall: a table failure does not change the engine's state.",
+   "5. Destiny Dial e17c66 to the new count (already done)."
   ]
  },
  "hidden_info": [
   {
    "card": "Confront Any Demon or God",
-   "what": "look_hand sobre la mano del rival al perder el combate, y discard elegido entre lo visto.",
-   "bot_plays_it": "El bot lee la mano del humano SOLO al resolver este AFTER (nunca antes, nunca en otra carta), elige la carta a descartar y guarda el resto como KnownHand del humano. Desde ese momento descuenta cada carta vista cuando el humano la juega, la descarta, la devuelve al mazo o la pierde; las que el humano robe despues son desconocidas. Nunca da por jugable una carta vista que ya salio.",
-   "human_plays_it": "El humano tiene derecho a ver la mano del bot: el bot la revela (anuncio en el chat o cartas boca arriba) y el humano elige con botones del panel que carta descarta el bot."
+   "what": "look_hand on the rival's hand after losing the combat, and a discard chosen among what was seen.",
+   "bot_plays_it": "The bot reads the human's hand ONLY when resolving this AFTER (never earlier, never in another card), chooses the card to discard and keeps the rest as the human's KnownHand. From then on it discounts each seen card when the human plays it, discards it, returns it to the deck or loses it; those the human draws afterwards are unknown. It never takes as playable a seen card that already left.",
+   "human_plays_it": "The human has the right to see the bot's hand: the bot reveals it (announcement in the chat or face-up cards) and the human chooses with panel buttons which card the bot discards."
   },
   {
    "card": "Glimpse Of Hell",
-   "what": "Devuelve una carta de la mano al mazo boca abajo y barajada.",
-   "bot_sees": "Si la juega el humano, el bot no sabe cual se fue: en la KnownHand del humano ninguna carta vista sigue siendo segura; se degradan a 'posible' (siguen en el modelo con la cuenta de la mano, pero no como certeza). Las 2 robadas son desconocidas.",
-   "bot_plays_it": "El bot baraja fisicamente una carta boca abajo en su mazo; el humano no la ve."
+   "what": "Returns a card from the hand to the deck face down and shuffled.",
+   "bot_sees": "If the human plays it, the bot does not know which one went: in the human's KnownHand no seen card remains certain; they degrade to 'possible' (they stay in the model with the hand count, but not as certainty). The 2 drawn are unknown.",
+   "bot_plays_it": "The bot physically shuffles a card face down into its deck; the human does not see it."
   },
   {
    "card": "And Upon His Brow Is Set A Crown Of Flame",
-   "what": "Descarta toda la mano (publica) y roba 2 (ocultas).",
-   "bot_sees": "Si la juega el humano, la KnownHand del humano se vacia (todo lo descartado se ve en el descarte) y pasa a 2 cartas desconocidas."
+   "what": "Discards the whole hand (public) and draws 2 (hidden).",
+   "bot_sees": "If the human plays it, the human's KnownHand is emptied (everything discarded is seen in the discard) and becomes 2 unknown cards."
   },
   {
    "card": "Pancakes!",
-   "what": "Roba 2 (ocultas); las cartas del descarte que van al fondo del mazo se ven al moverlas.",
-   "bot_sees": "Las devueltas son publicas y los dos saben que estan en el fondo: el bot puede recordar que no saldran hasta agotar el mazo (lo sabe igual el humano, no es trampa). Las 2 robadas son desconocidas."
+   "what": "Draws 2 (hidden); the cards from the discard that go to the bottom of the deck are seen when moved.",
+   "bot_sees": "The returned ones are public and both know they are at the bottom: the bot can remember they will not come out until the deck is exhausted (the human knows it too, it is not cheating). The 2 drawn are unknown."
   },
   {
-   "card": "ANUNG UN RAMA (habilidad)",
-   "what": "Descarta 1 carta al empezar el turno: publica.",
-   "bot_sees": "Si la descarta el humano, se descuenta de su KnownHand si era una vista."
+   "card": "ANUNG UN RAMA (ability)",
+   "what": "Discards 1 card at the start of the turn: public.",
+   "bot_sees": "If the human discards it, it is discounted from their KnownHand if it was a seen one."
   },
   {
-   "card": "OCCULT DETECTIVE (habilidad) y los draw de Confront, Glimpse, B.P.R.D. Training",
-   "what": "Robos: cartas desconocidas para el rival.",
-   "bot_sees": "Solo cambia la cuenta de la mano rival; nada se infiere del contenido."
+   "card": "OCCULT DETECTIVE (ability) and the draws of Confront, Glimpse, B.P.R.D. Training",
+   "what": "Draws: unknown cards for the rival.",
+   "bot_sees": "It only changes the count of the rival's hand; nothing is inferred from the content."
   },
   {
    "card": "Second Shot",
-   "what": "La carta de impulso se descarta boca arriba.",
+   "what": "The boost card is discarded face up.",
    "bot_sees": "Publica: se descuenta de la KnownHand si era vista."
   }
  ],
  "open_questions": [
-  "Ficha de habilidad 1644a3: la lectura 'rotZ 180 = OCCULT DETECTIVE arriba' sale de que el hijo 30d50e (cara azul) esta pegado girado 180 grados; confirmar en vivo con --read-only antes de que el bot la gire solo.",
-  "Confront jugado por el humano y perdido: el bot revela su mano boca arriba con ping, por analogia con la respuesta 4 de Ivan (Every Possible Angle); el humano elige la carta con botones. Confirmar."
+  "Ability token 1644a3: the reading 'rotZ 180 = OCCULT DETECTIVE up' comes from the child 30d50e (blue face) being glued turned 180 degrees; confirm live with --read-only before the bot turns it by itself.",
+  "Confront played by the human and lost: the bot reveals its hand face up with a ping, by analogy with Ivan's answer 4 (Every Possible Angle); the human chooses the card with buttons. Confirm."
  ]
 }

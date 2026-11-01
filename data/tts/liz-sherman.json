@@ -1,9 +1,9 @@
 {
  "slug": "liz-sherman",
  "_notes": [
-  "Leido de saves/Unmatched Official Tournament Table October 2026 (Hellboy).json (solo lectura): bolsa infinita e61609 > bolsa 77449a. Todos los GUID salen de esa bolsa interior y se conservan al sacar sus objetos.",
-  "fighters: por id de luchador del HeroDef (piece = GUID de la miniatura o ficha; lista si cambia de GUID al cambiar de estado; dial = dial de vida; dial_max = MAX_VALUE de su script). Sin dial = pieza de 1 PV.",
-  "deck.card_ids = rango de CardID de las 30 cartas; character_card_id va dentro del mismo mazo fisico (31 cartas) pero fuera del rango. deck.identity = (FaceURL, BackURL) de la hoja: lo que identifica el mazo (el CardID no basta)."
+  "Read from saves/Unmatched Official Tournament Table October 2026 (Hellboy).json (read only): infinite bag e61609 > bag 77449a. Every GUID comes from that inner bag and is kept when its objects are taken out.",
+  "fighters: by HeroDef fighter id (piece = GUID of the miniature or token; a list if the GUID changes when the state changes; dial = life dial; dial_max = MAX_VALUE of its script). Without a dial = 1 HP piece.",
+  "deck.card_ids = CardID range of the 30 cards; character_card_id goes inside the same physical deck (31 cards) but outside the range. deck.identity = (FaceURL, BackURL) of the sheet: what identifies the deck (the CardID is not enough)."
  ],
  "bag": {
   "guid": "e61609",

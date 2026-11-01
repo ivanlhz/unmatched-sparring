@@ -1,7 +1,7 @@
 {
  "$schema": "https://json-schema.org/draft/2020-12/schema",
  "$id": "unmatched-sparring/effects/v1",
- "title": "Efectos de carta de un heroe (DSL v1, docs/effects-dsl.md)",
+ "title": "Card effects of a hero (DSL v1, docs/effects-dsl.md)",
  "type": "object",
  "additionalProperties": false,
  "required": ["schema", "hero", "ability", "cards", "plugins"],

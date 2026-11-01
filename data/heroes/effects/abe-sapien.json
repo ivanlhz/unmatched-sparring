@@ -2,14 +2,14 @@
  "schema": 1,
  "hero": "abe-sapien",
  "notes": [
-  "Especificacion de efectos de Abe Sapien (F07 paso 4, datos solamente) en el DSL v1 (docs/effects-dsl.md): ningun codigo del motor la lee todavia.",
-  "Textos copiados de las cartas reales de la hoja 194 del save del torneo (2026-10-28); donde unmatched-memory difiere, manda la carta y se apunta en `discrepancies`. Migrado al esquema canonico el 2026-10-28 sin cambiar la semantica.",
-  "Un luchador abatido por el `damage` previo ya no se mueve (los selectores son alive por defecto). Mover a un luchador rival lo dirige el dueno del efecto (chooser owner), que es lo que antes se llamaba push.",
-  "Decision de Ivan (28/10): agentes: 3 en tablero; summon = revivir un abatido con 1 de vida en la zona de Abe o, sin abatidos, coger uno vivo y colocarlo en un espacio de la zona de Abe (Secure The Scene).",
-  "Decision de Ivan (28/10): Uncanny Intuition: tambien activa ficha cuando Abe defiende y hace dano de combate a un atacante adyacente.",
-  "Decision de Ivan (28/10): Perfect Shot: se puede predecir cualquier valor de 0 a 7; si el rival no defiende con carta, no acierta.",
-  "Decision de Ivan (28/10): Every Possible Angle contra el bot: el bot pone su mano boca arriba (fila de look_spot, como F16) y hace ping sobre las cartas.",
-  "Decision de Ivan (28/10): Counterhex Shield: el texto real (con ONGOING) se corrige tambien en unmatched-memory."
+  "Effect specification of Abe Sapien (F07 step 4, data only) in DSL v1 (docs/effects-dsl.md): no engine code reads it yet.",
+  "Texts copied from the real cards of sheet 194 of the tournament save (2026-10-28); where unmatched-memory differs, the card wins and it is noted in `discrepancies`. Migrated to the canonical schema on 2026-10-28 without changing the semantics.",
+  "A fighter defeated by the previous `damage` no longer moves (selectors are alive by default). Moving a rival fighter is directed by the effect's owner (chooser owner), which is what used to be called push.",
+  "Ivan's decision (28/10): agents: 3 on the board; summon = revive a defeated one with 1 life in Abe's zone or, with none defeated, take a living one and place it on a space of Abe's zone (Secure The Scene).",
+  "Ivan's decision (28/10): Uncanny Intuition: also activates a token when Abe defends and deals combat damage to an adjacent attacker.",
+  "Ivan's decision (28/10): Perfect Shot: any value from 0 to 7 can be predicted; if the rival does not defend with a card, it does not hit.",
+  "Ivan's decision (28/10): Every Possible Angle against the bot: the bot lays its hand face up (row at look_spot, like F16) and pings the cards.",
+  "Ivan's decision (28/10): Counterhex Shield: the real text (with ONGOING) is also corrected in unmatched-memory."
  ],
  "ability": {
   "text": "UNCANNY INTUITION\nYou have two Intuition tokens.\nWhen Abe deals combat damage to an adjacent fighter, activate a token.\nWhen Abe is attacked, if you have an active token, deactivate it, then draw 1 card, and the attack is played face up.",
@@ -27,7 +27,7 @@
     ]}
   ],
   "passives": [],
-  "notes": "Cabe en primitivas: un contador de fichas (0..2; caras: inactiva oscura, activa verde con rayas amarillas) mas draw y reveal. El plan preveia el plugin abe:uncanny_intuition; no hace falta. 'Combat damage' excluye el dano de efectos (Concussion Device) y solo cuenta el que hace Abe, no los agentes. 'When Abe is attacked' no salta cuando atacan a un agente. El robo ocurre antes de elegir la defensa, asi que la carta robada puede ser la defensa."
+  "notes": "It fits in primitives: a token counter (0..2; faces: inactive dark, active green with yellow stripes) plus draw and reveal. The plan foresaw the abe:uncanny_intuition plugin; it is not needed. 'Combat damage' excludes effect damage (Concussion Device) and only counts what Abe deals, not the agents. 'When Abe is attacked' does not fire when an agent is attacked. The draw happens before choosing the defense, so the drawn card can be the defense."
  },
  "cards": [
   {
@@ -41,7 +41,7 @@
     "scheme": [],
     "boost": []
    },
-   "notes": "Ataque solo de Abe. El movimiento inmediato puede romper la adyacencia antes de resolver (un Arcane Dampener rival ya se habra resuelto a la vez: ambos IMMEDIATELY, el defensor primero)."
+   "notes": "Attack by Abe only. The immediate movement can break adjacency before resolving (a rival Arcane Dampener will already have resolved at the same time: both IMMEDIATELY, the defender first)."
   },
   {
    "title": "Advanced Psychometry",
@@ -57,7 +57,7 @@
     "scheme": [],
     "boost": []
    },
-   "notes": "Informacion oculta: ver hidden_info. Adyacencia medida despues del combate (si el rival murio en el, no hay luchador adyacente: no se mira)."
+   "notes": "Hidden information: see hidden_info. Adjacency measured after the combat (if the rival died in it, there is no adjacent fighter: it is not looked at)."
   },
   {
    "title": "Perfect Shot",
@@ -73,7 +73,7 @@
     "scheme": [],
     "boost": []
    },
-   "notes": "El paso `predict` del plugin NO corre en IMMEDIATELY de verdad: engancha el momento de jugar la carta (antes de que el rival elija), donde el dueno decide si va boca arriba y, si va, anuncia un valor impreso. El DSL no tiene momento 'al jugar' ni 'guardar una prediccion y compararla', y es la unica carta de la caja que lo necesita: por eso plugin. Jugada boca abajo es un ataque 3 normal sin efecto."
+   "notes": "The plugin's `predict` step does NOT really run in IMMEDIATELY: it hooks the moment of playing the card (before the rival chooses), where the owner decides whether it goes face up and, if so, announces a printed value. The DSL has no 'when played' moment nor 'save a prediction and compare it', and it is the only card of the box that needs it: hence the plugin. Played face down it is a normal attack 3 with no effect."
   },
   {
    "title": "Secure The Scene",
@@ -93,7 +93,7 @@
     "scheme": [],
     "boost": []
    },
-   "notes": "Solo la juega un agente. 3 agentes en tablero, 0 en reserva. Decision de Ivan (28/10): 'summon' devuelve un agente abatido con 1 de vida a la zona de Abe; si no hay ninguno abatido, el dueno coge uno vivo y lo coloca en un espacio de la zona de Abe. El agente colocado puede ser el elegido para moverse."
+   "notes": "Only an agent plays it. 3 agents on the board, 0 in reserve. Ivan's decision (28/10): 'summon' returns a defeated agent with 1 life to Abe's zone; if none is defeated, the owner takes a living one and places it on a space of Abe's zone. The placed agent can be the one chosen to move."
   },
   {
    "title": "Leap Away",
@@ -109,7 +109,7 @@
     "scheme": [],
     "boost": []
    },
-   "notes": "Si el elegido es el rival, lo mueve el dueno del efecto. Un luchador abatido en el combate no se puede elegir."
+   "notes": "If the chosen one is the rival, the effect's owner moves it. A fighter defeated in the combat cannot be chosen."
   },
   {
    "title": "Concussion Device",
@@ -125,7 +125,7 @@
     "scheme": [],
     "boost": []
    },
-   "notes": "Adyacente al luchador que jugo la carta. No es dano de combate: no activa una ficha de intuicion. Si el dano lo abate, no se mueve (el selector ligado solo devuelve luchadores vivos)."
+   "notes": "Adjacent to the fighter that played the card. It is not combat damage: it does not activate an intuition token. If the damage defeats it, it does not move (the bound selector only returns living fighters)."
   },
   {
    "title": "Arcane Dampener",
@@ -141,7 +141,7 @@
     "scheme": [],
     "boost": []
    },
-   "notes": "El valor no baja de 0 (regla general)."
+   "notes": "The value does not drop below 0 (general rule)."
   },
   {
    "title": "B.P.R.D. Training",
@@ -157,7 +157,7 @@
     "scheme": [],
     "boost": []
    },
-   "notes": "Hasta 4 movimientos fisicos seguidos; el dueno los hace en el orden que quiera (y puede saltarse alguno)."
+   "notes": "Up to 4 physical movements in a row; the owner does them in the order they want (and may skip some)."
   },
   {
    "title": "Shock And Awe",
@@ -173,7 +173,7 @@
     "scheme": [],
     "boost": []
    },
-   "notes": "'Becomes 4' fija el valor impreso en 4 (no suma): los bonos posteriores (Utility Belt +1) se aplican encima. Necesita recordar la casilla de cada luchador al empezar el turno; jugada en defensa durante el turno rival tambien cuenta (un empujon previo vale). El descarte lo elige el rival: el bot no ve su mano, solo la carta que cae."
+   "notes": "'Becomes 4' fixes the printed value at 4 (it does not add): later bonuses (Utility Belt +1) apply on top. It needs to remember each fighter's space at the start of the turn; played in defense during the rival's turn it also counts (a prior push counts). The discard is chosen by the rival: the bot does not see its hand, only the card that falls."
   },
   {
    "title": "Cold Iron And Holy Water",
@@ -189,7 +189,7 @@
     "scheme": [],
     "boost": []
    },
-   "notes": "Bloquea AFTER COMBAT rivales como 'Gain 1 action' o 'Draw 1 card' en este combate y lo que quede del turno (incluida la maniobra si el turno es del rival). No bloquea el robo de inicio del turno siguiente."
+   "notes": "It blocks rival AFTER COMBAT effects such as 'Gain 1 action' or 'Draw 1 card' in this combat and for the rest of the turn (including the maneuver if the turn is the rival's). It does not block the draw at the start of the next turn."
   },
   {
    "title": "Ward And Prepare",
@@ -202,7 +202,7 @@
     "scheme": [],
     "boost": []
    },
-   "notes": "Defensa pura. Si no hay planes en el descarte, nada."
+   "notes": "Pure defense. If there are no schemes in the discard, nothing."
   },
   {
    "title": "Every Possible Angle",
@@ -219,7 +219,7 @@
     ],
     "boost": []
    },
-   "notes": "Plan solo de Abe. Con la mano rival vacia se salta la eleccion y Abe se mueve igual. Informacion oculta doble: ver hidden_info (la mano y la siguiente carta que robara el rival)."
+   "notes": "Abe-only scheme. With the rival's hand empty the choice is skipped and Abe moves anyway. Double hidden information: see hidden_info (the hand and the next card the rival will draw)."
   },
   {
    "title": "Counterhex Shield",
@@ -244,7 +244,7 @@
     "triggers": [],
     "until": {"event": "start_of_turn", "player": "owner"}
    },
-   "notes": "DISCREPANCIA: unmatched-memory solo trae 'Draw 1 card. Gain 1 action.'; la carta real anade el Ongoing. Bloquea solo EFECTOS rivales (Concussion Device, Hellboy 'Horseshoes...', Medusa gaze...), no el dano de combate. Se descarta al inicio del siguiente turno propio: el plan queda en mesa hasta entonces. Antes era un estado con lista blocks; ahora tres estados separados."
+   "notes": "DISCREPANCY: unmatched-memory only has 'Draw 1 card. Gain 1 action.'; the real card adds the Ongoing. It blocks only rival EFFECTS (Concussion Device, Hellboy 'Horseshoes...', Medusa gaze...), not combat damage. It is discarded at the start of the next own turn: the scheme stays on the table until then. Before it was a status with a blocks list; now three separate statuses."
   },
   {
    "title": "B.P.R.D. Utility Belt",
@@ -262,26 +262,26 @@
     ],
     "boost": []
    },
-   "notes": "Plan solo de Abe. El +1 se consume con el primer ataque propio del turno (de cualquier luchador propio) y caduca al acabar el turno. Curar no supera la vida maxima."
+   "notes": "Abe-only scheme. The +1 is consumed by the first own attack of the turn (of any own fighter) and expires at the end of the turn. Healing does not exceed max life."
   }
  ],
  "plugins": [
-  {"id": "abe:perfect_shot", "why": "Al jugar la carta (antes de que el rival elija) el dueno decide si va boca arriba y, si va, anuncia un valor impreso; durante el combate se compara con el valor impreso de la carta rival y suma +2. Ni 'momento al jugar' ni 'guardar y comparar una prediccion' existen en el DSL y es la unica carta de la caja que los usa. Para el bot, la prediccion es una decision de IA (la mano rival conocida o el modelo de mano del buscador)."}
+  {"id": "abe:perfect_shot", "why": "When playing the card (before the rival chooses) the owner decides whether it goes face up and, if so, announces a printed value; during the combat it is compared with the printed value of the rival card and adds +2. Neither a 'moment when played' nor 'save and compare a prediction' exist in the DSL and it is the only card of the box that uses them. For the bot, the prediction is an AI decision (the known rival hand or the searcher's hand model)."}
  ],
  "hidden_info": [
-  {"card": "Advanced Psychometry", "what": "look_hand del rival tras el combate si sigue adyacente", "bot_rule": "El bot lee la mano del humano solo en ese instante (Game.observe_hand -> KnownHand), la recuerda y la descuenta segun las cartas salen de la mano (card_left_hand). Si Abe es del humano, el bot ensena su mano (las cartas se ponen boca arriba en TTS o se dictan por chat) y la vuelve a ocultar."},
-  {"card": "Every Possible Angle", "what": "look_hand + elegir una carta y ponerla encima del mazo rival", "bot_rule": "Como Advanced Psychometry, y ademas el bot sabe cual es la siguiente carta que robara el rival: KnownHand necesita un 'top_of_deck' conocido que pasa a la mano en el siguiente robo (extension del paso 'mira la mano'). Si Abe es del humano, el humano elige y el bot solo registra que una carta de su mano fue al mazo (ya no la tiene; la robara luego)."},
-  {"card": "Perfect Shot", "what": "ataque jugado boca arriba a voluntad", "bot_rule": "Si el bot la juega boca arriba la anuncia (titulo y valor) y la prediccion antes de que el humano defienda. Si el humano la juega boca arriba, el bot lee esa carta porque la carta lo manda; nada mas de la mano."},
-  {"card": "UNCANNY INTUITION", "what": "el ataque contra Abe se juega boca arriba si gasta una ficha (reveal attack_card)", "bot_rule": "Bot con Abe: pide al humano que ponga el ataque boca arriba y lo lee antes de elegir defensa; roba 1 antes de elegir. Humano con Abe: el bot anuncia su carta de ataque antes de que el humano defienda. El robo del humano es suyo y el bot no lo ve."},
-  {"card": "Shock And Awe", "what": "el rival descarta una carta a su eleccion", "bot_rule": "El bot no mira la mano: solo ve la carta que cae en el descarte (publica) y la descuenta de KnownHand si la tenia vista."},
-  {"card": "Ward And Prepare", "what": "recuperar un plan del descarte propio", "bot_rule": "Informacion publica (el descarte); si lo hace el humano, el bot apunta que esa carta vuelve a la mano rival (entra en KnownHand como vista)."}
+  {"card": "Advanced Psychometry", "what": "look_hand of the rival after the combat if still adjacent", "bot_rule": "The bot reads the human's hand only at that instant (Game.observe_hand -> KnownHand), remembers it and discounts it as cards leave the hand (card_left_hand). If Abe is the human's, the bot shows its hand (the cards are laid face up in TTS or dictated by chat) and hides it again."},
+  {"card": "Every Possible Angle", "what": "look_hand + choose a card and put it on top of the rival's deck", "bot_rule": "Like Advanced Psychometry, and in addition the bot knows which is the next card the rival will draw: KnownHand needs a known 'top_of_deck' that moves to the hand on the next draw (extension of the 'look at the hand' step). If Abe is the human's, the human chooses and the bot only records that a card of its hand went to the deck (it no longer has it; it will draw it later)."},
+  {"card": "Perfect Shot", "what": "attack played face up at will", "bot_rule": "If the bot plays it face up it announces it (title and value) and the prediction before the human defends. If the human plays it face up, the bot reads that card because the card says so; nothing else of the hand."},
+  {"card": "UNCANNY INTUITION", "what": "the attack against Abe is played face up if a token is spent (reveal attack_card)", "bot_rule": "Bot with Abe: asks the human to put the attack face up and reads it before choosing a defense; draws 1 before choosing. Human with Abe: the bot announces its attack card before the human defends. The human's draw is theirs and the bot does not see it."},
+  {"card": "Shock And Awe", "what": "the rival discards a card of their choice", "bot_rule": "The bot does not look at the hand: it only sees the card that falls into the discard (public) and discounts it from KnownHand if it had seen it."},
+  {"card": "Ward And Prepare", "what": "recover a scheme from the own discard", "bot_rule": "Public information (the discard); if the human does it, the bot notes that this card returns to the rival's hand (it enters KnownHand as seen)."}
  ],
  "open_questions": [
-  "6. Fichas de agentes en TTS: se llaman Victor, Carla y Kate; el motor los numera agent1..agent3. Hace falta el mapeo fid -> GUID en la config de la partida (paso 10 del plan), igual que las Harpias.",
-  "Every Possible Angle: como registra el motor la carta del bot que vuelve encima de su mazo (pasa a conocida por el humano: no afecta a la informacion del bot)."
+  "6. Agent tokens in TTS: they are called Victor, Carla and Kate; the engine numbers them agent1..agent3. The fid -> GUID mapping is needed in the game configuration (step 10 of the plan), like the Harpies.",
+  "Every Possible Angle: how the engine records the bot's card that returns on top of its deck (it becomes known to the human: it does not affect the bot's information)."
  ],
  "discrepancies": [
-  {"card": "Counterhex Shield", "memory": "Draw 1 card. Gain 1 action.", "real": "Draw 1 card. Gain 1 action. Ongoing: Other players' effects can't damage your fighters, move your fighters, or force you to discard cards. Discard this at the start of your next turn.", "resolution": "manda la carta: texto real en el campo `text` de las dos entradas de la hoja del overlay (el importador lo prefiere); apuntado en docs/heroes/abe-sapien.md"},
-  {"card": "B.P.R.D. Agent", "memory": "tres entradas (Carla, Kate, Victor) con las mismas cifras", "real": "la carta de heroe los llama B.P.R.D. AGENTS (x3, vida 1, ranged, move 2); la restriccion de carta dice B.P.R.D. AGENT", "resolution": "un ayudante 'B.P.R.D. Agent' con count 3 (fid agent -> agent1..3); los nombres de las fichas quedan en overlay sidekicks[0].tts_tokens"}
+  {"card": "Counterhex Shield", "memory": "Draw 1 card. Gain 1 action.", "real": "Draw 1 card. Gain 1 action. Ongoing: Other players' effects can't damage your fighters, move your fighters, or force you to discard cards. Discard this at the start of your next turn.", "resolution": "the card wins: real text in the `text` field of the two entries of the overlay sheet (the importer prefers it); noted in docs/heroes/abe-sapien.md"},
+  {"card": "B.P.R.D. Agent", "memory": "three entries (Carla, Kate, Victor) with the same figures", "real": "the hero card calls them B.P.R.D. AGENTS (x3, life 1, ranged, move 2); the card restriction says B.P.R.D. AGENT", "resolution": "one 'B.P.R.D. Agent' sidekick with count 3 (fid agent -> agent1..3); the token names stay in overlay sidekicks[0].tts_tokens"}
  ]
 }

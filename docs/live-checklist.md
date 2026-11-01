@@ -1,203 +1,205 @@
-# Checklist de la primera prueba en vivo (TTS)
+# Checklist for the live tests (TTS)
 
-> Nota: este documento esta en espanol a proposito (es para Ivan, en la mesa; el README y los docs de uso ya estan en espanol; la regla "todo en ingles" es para el codigo). Marca `- [ ]` segun avanzas. Los puntos marcados **(E2)** dependen de la fase E2 (zona ONGOING, puerta de habilidad, botones de esquema), que no esta en master al escribir esto: si no esta mergeada, saltalos.
-> Marcado *(OK 29/10)*: comprobado en la primera partida real (bot Hellboy vs Liz humana). El resto esta verificado solo contra FakeTTS. Esto es lo que NUNCA se ha visto en una mesa real.
+> Note: the game texts quoted below are the English ones (`language: "en"`); with the default `es` catalog the same lines come out in Spanish (`data/i18n/es.json`). Tick `- [ ]` as you go. Items marked **(E2)** depend on phase E2 (ONGOING zone, ability gate, scheme buttons); if it is not merged when you read this, skip them.
+> Marked *(OK 29/10)*: checked in the first real game (bot Hellboy vs a human Liz). The rest is verified against FakeTTS only. This is what has NEVER been seen on a real table.
 
-## 1. Antes de empezar
+## 1. Before starting
 
-- [x] **Backup del guardado**: en TTS, Guardar como "pre-sparring" (y copia el `.json` de `saves\`). Si algo se rompe, recargas ese. *(OK 29/10)*
-- [x] Mesa abierta con la partida cargada (B.P.R.D. HQ, Green = bot, White = tu). Terminal en la carpeta del proyecto. *(OK 29/10)*
-- [x] Comandos (PowerShell): *(OK 29/10)*
-  - Solo leer / calibrar / detectar heroes (no cambia nada): `uv run python -m sparring.play --config config\partida.json --read-only`
-  - Jugar: `uv run python -m sparring.play --config config\partida.json --first human` (`--first bot|random`, `--seed N`)
-  - Reanudar tras cierre o recarga de TTS: `uv run python -m sparring.play --config config\partida.json --resume`
-  - Sacar de la bolsa interior lo que falte en la mesa (nunca con `--resume`): `--unpack`
-  - Forzar heroes: `--bot-hero <slug> --human-hero <slug>` (medusa, hellboy, abe-sapien, baba-yaga, liz-sherman; no el mismo en los dos lados)
-  - Medir mensajes y tiempos por boton: `--timing`. IA por busqueda: `--ai ismcts`. Pausa del bot: `--bot-pause N`.
-- [x] Ctrl+C sale limpio (los rectangulos y etiquetas del suelo se borran al salir). *(OK 29/10)*
+- [x] **Backup of the save**: in TTS, Save as "pre-sparring" (and copy the `.json` from `saves\`). If something breaks, reload that one. *(OK 29/10)*
+- [x] Table open with the game loaded (B.P.R.D. HQ, Green = bot, White = you). Terminal in the project folder. *(OK 29/10)*
+- [x] Commands (PowerShell): *(OK 29/10)*
+  - Only read / calibrate / detect heroes (changes nothing): `uv run python -m sparring.play --config config\table.json --read-only`
+  - Play: `uv run python -m sparring.play --config config\table.json --first human` (`--first bot|random`, `--seed N`)
+  - Resume after closing it or after a TTS reload: `uv run python -m sparring.play --config config\table.json --resume` (the game keeps the language it was saved in unless you give `--language`)
+  - Take out of the inner bag whatever is missing on the table (never with `--resume`): `--unpack`
+  - Force heroes: `--bot-hero <slug> --human-hero <slug>` (medusa, hellboy, abe-sapien, baba-yaga, liz-sherman; not the same on both sides)
+  - Measure messages and times per button: `--timing`. Search AI: `--ai ismcts`. Bot pause: `--bot-pause N`.
+  - The old paths still work: `config\partida.json` is found as `config\table.json`, and a save at `estado\sesion.json` keeps being resumed (and written) there until you delete it; new games use `state\session.json`.
+- [x] Ctrl+C exits cleanly (the floor rectangles and labels are erased on exit). *(OK 29/10)*
 
-### Calibracion de posiciones (`config\partida.json`)
-Con `--read-only` mira el informe y ajusta lo que este mal. Prueba con una carta en cada sitio.
-- [ ] `bot_card_spot` / `human_card_spot` (zona de combate, boca abajo) y `off_board_dist` (4.0 es estimacion; compara con las distancias del informe).
-- [ ] `bot_discard_spot` / `bot_discard_bounds` / `bot_discard_step` / `bot_discard_rows`: el descarte del bot queda en rejilla ordenada dentro de la zona 906a7a.
-- [ ] `dead_spot` / `human_dead_spot` (donde se apartan miniaturas caidas, 1.5 en x entre piezas; son estimaciones).
-- [ ] `look_spot` / `look_step` (fila del boton **Mirar mano**: delante de tu asiento, sin pisar panel, manos, descartes ni cajas de combate; el arranque avisa si pisa algo).
-- [ ] `bot_row_spot` / `bot_row_step` (fila que abren tus cartas que miran la mano del bot: Confront, Advanced Psychometry, Remove A Painful Memory, Every Possible Angle; junto a sus zonas de combate y ONGOING).
-- [ ] `token_spot` (donde el bot deja las fichas de Intuicion de Abe; sin clave, junto a su mazo).
-- [x] **(E2)** `human_ongoing_spot` / `bot_ongoing_spot`: zona ONGOING debajo de la zona de combate, de ambos bandos. *(OK 29/10)*
-- [ ] `panel_position` / `panel_scale`: el panel se ve y se pulsa bien desde tu asiento; los rectangulos DESCARTE/COMBATE del suelo no quedan bajo el panel.
-- [ ] `bot_unpack_spot` / `human_unpack_spot` solo si usas `--unpack`.
+### Position calibration (`config\table.json`)
+With `--read-only` look at the report and fix whatever is wrong. Try with a card in each spot.
+- [ ] `bot_card_spot` / `human_card_spot` (combat zone, face down) and `off_board_dist` (4.0 is an estimate; compare with the distances in the report).
+- [ ] `bot_discard_spot` / `bot_discard_bounds` / `bot_discard_step` / `bot_discard_rows`: the bot's discard ends up in an ordered grid inside zone 906a7a.
+- [ ] `dead_spot` / `human_dead_spot` (where fallen miniatures are set aside, 1.5 apart in x between pieces; they are estimates).
+- [ ] `look_spot` / `look_step` (row of the **Look at bot's hand** button: in front of your seat, not over the panel, hands, discards or combat boxes; start-up warns if it overlaps something).
+- [ ] `bot_row_spot` / `bot_row_step` (row opened by your cards that look at the bot's hand: Confront, Advanced Psychometry, Remove A Painful Memory, Every Possible Angle; next to its combat and ONGOING zones).
+- [ ] `token_spot` (where the bot leaves Abe's Intuition tokens; without the key, next to its deck).
+- [x] **(E2)** `human_ongoing_spot` / `bot_ongoing_spot`: ONGOING zone below the combat zone, on both sides. *(OK 29/10)*
+- [ ] `panel_position` / `panel_scale`: the panel is seen and pressed well from your seat; the floor DISCARD/COMBAT rectangles do not end up under the panel.
+- [ ] `bot_unpack_spot` / `human_unpack_spot` only if you use `--unpack`.
 
-### Deteccion de heroes (`--read-only`)
-- [x] Con `bot_hero`/`human_hero` en `"auto"`: el informe da el heroe correcto de cada bando (un Deck o Card SUELTO con CardID de su rango, el mas cercano al `*_deck_spot`). Si es dudoso, se niega a empezar y lo dice. *(OK 29/10)*
-- [x] Repite con cada pareja de heroes que vayas a probar (cambiando lo que hay en mesa). *(OK 30/10)*
-- [x] El informe no da "no encontrado" para miniaturas, dials, mazo, descarte ni fichas (1644a3 Hellboy, 5a17e9 Abe). *(OK 30/10)*
-- [x] Informe de objetos puente (tipo/rotacion/estados): anota el **tipo** de 5a17e9 (bolsa / bolsa infinita / pila / ficha suelta) y de 1644a3, y la rotZ actual de 1644a3. *(OK 30/10)*
+### Hero detection (`--read-only`)
+- [x] With `bot_hero`/`human_hero` on `"auto"`: the report gives the right hero for each side (a LOOSE Deck or Card with a CardID of its range, the closest to `*_deck_spot`). If in doubt, it refuses to start and says so. *(OK 29/10)*
+- [x] Repeat with each pair of heroes you are going to try (changing what is on the table). *(OK 30/10)*
+- [x] The report gives no "not found" for miniatures, dials, deck, discard or tokens (1644a3 Hellboy, 5a17e9 Abe). *(OK 30/10)*
+- [x] Bridge objects report (type/rotation/states): note the **type** of 5a17e9 (bag / infinite bag / pile / loose token) and of 1644a3, and the current rotZ of 1644a3. *(OK 30/10)*
 
-## 2. Arranque
+## 2. Start-up
 
-- [x] Sin `--read-only`: dibuja los rectangulos DESCARTE y COMBATE de ambos y crea el panel (`SparringPanel`). Sin errores en la terminal. *(OK 29/10)*
-- [x] Preparacion (`setup`): el bot reparte 5, mulligan (una vez); si empieza el bot, coloca sus piezas; tu colocas las tuyas y pulsas **Listo**. **Mulligan** / **Listo** aparecen solo cuando toca. *(OK 30/10)*
-- [x] El panel responde al primer clic ("Procesando..." y se reactiva). *(OK 29/10)*
-- [x] (`--timing`) anota mensajes y tiempo de un boton normal (esperado ~1 mensaje, ~0.5 s por mensaje). *(OK 30/10)*
-- [ ] Pausa de anuncio del bot (`action_announce_hold`, 2 s): cada accion del bot se anuncia en el chat, espera y luego se escribe en la mesa; las tuyas no esperan. Desde 682c769 tambien cuando atacas tu y el bot responde moviendo cartas o piezas (Incinerate). *(31/10: parece mejor, sigue en prueba)*
+- [x] Without `--read-only`: it draws the DISCARD and COMBAT rectangles of both sides and creates the panel (`SparringPanel`). No errors in the terminal. *(OK 29/10)*
+- [x] Setup (`setup`): the bot deals 5, mulligan (once); if the bot starts, it places its pieces; you place yours and press **Ready**. **Mulligan** / **Ready** appear only when due. *(OK 30/10)*
+- [x] The panel answers the first click ("Processing..." and it re-enables). *(OK 29/10)*
+- [x] (`--timing`) notes messages and time of a normal button (expected ~1 message, ~0.5 s per message). *(OK 30/10)*
+- [ ] Bot announcement pause (`action_announce_hold`, 2 s): each bot action is announced in the chat, waits and is then written on the table; yours do not wait. Since 682c769 also when you attack and the bot answers by moving cards or pieces (Incinerate). *(31/10: looks better, still under test)*
 
-## 3. Por heroe
+## 3. Per hero
 
-Cada heroe tiene dos bloques: **H** (lo juegas tu) y **B** (lo juega el bot). Lo que vale para los dos lados va en **H y B**.
+Each hero has two blocks: **H** (you play it) and **B** (the bot plays it). What holds for both sides goes under **H and B**.
 
-### Plantilla comun (repitela para cada heroe y cada lado)
-- [ ] Estado inicial correcto (piezas en salida, dials al maximo, mazo de 30, mano de 5).
-- [ ] Una carta **IMMEDIATELY**: se aplica una vez; el chat la narra.
-- [ ] Una carta **DURING**: afecta al dano/valor correcto.
-- [ ] Una carta **AFTER**: se aplica tras resolver; el combate no se queda colgado.
-- [ ] Un **esquema**: efecto + carta al descarte.
-- [ ] Un **ONGOING** y luego otro que lo **reemplaza** (solo uno por jugador; el primero va al descarte). **(E2)** la carta queda fisicamente en la zona ONGOING de su lado y la sustituta ocupa su sitio.
-- [ ] La **habilidad** del heroe.
-- [ ] B: el chat dice lo que hizo cada carta y nombra lo que te toca descartar.
-- [x] H **(E2)**: puerta de habilidad de inicio de turno en el panel: bloquea las acciones hasta **Fin de accion**. *(OK 30/10)*
-- [ ] H **(E2)**: movimientos opcionales ofrecen **Ninguna**.
+### Common template (repeat it for each hero and each side)
+- [ ] Correct initial state (pieces on their starting spaces, dials at maximum, deck of 30, hand of 5).
+- [ ] An **IMMEDIATELY** card: applied once; the chat narrates it.
+- [ ] A **DURING** card: affects the right damage/value.
+- [ ] An **AFTER** card: applied after resolving; the combat does not hang.
+- [ ] A **scheme**: effect + card to the discard.
+- [ ] An **ONGOING** and then another that **replaces** it (only one per player; the first goes to the discard). **(E2)** the card stays physically in its side's ONGOING zone and the replacement takes its place.
+- [ ] The hero's **ability**.
+- [ ] B: the chat says what each card did and names what you have to discard.
+- [x] H **(E2)**: start-of-turn ability gate on the panel: it blocks the actions until **End action**. *(OK 30/10)*
+- [ ] H **(E2)**: optional moves offer **None**.
 
 ### Medusa
 **B (bot)**
-- [x] Mueve Harpias; Winged Frenzy devuelve una Harpia caida **siempre** (obligatorio, primera casilla libre de su zona). *(OK, confirmado por Ivan 31/10)*
-- [x] Piezas caidas (Harpias) van al `dead_spot`. *(OK, confirmado por Ivan 31/10)*
+- [x] Moves Harpies; Winged Frenzy **always** returns a fallen Harpy (mandatory, first free space of its zone). *(OK, confirmed by Ivan 31/10)*
+- [x] Fallen pieces (Harpies) go to the `dead_spot`. *(OK, confirmed by Ivan 31/10)*
 
-**H (tu)**
-- [ ] Out Of Time ("BOOST this card" = boost desde la mano, como siempre).
+**H (you)**
+- [ ] Out Of Time ("BOOST this card" = boost from the hand, as always).
 
 ### Hellboy
-**H y B**
-- [x] Setup: ficha **1644a3** en **OCCULT DETECTIVE** (azul, rotZ 180). *El giro es incondicional: debe empezar asi.* *(OK 29/10)*
-- [x] Crown Of Flame (**(E2)** espera tu descarte), Planned Recklessness, Second Shot, Horseshoes, Right Hand Of Doom, B.P.R.D. Training, On Earth. *(OK 30/10)*
-- [ ] Glimpse Of Hell, Confront (ver Informacion oculta).
+**H and B**
+- [x] Setup: token **1644a3** on **OCCULT DETECTIVE** (blue, rotZ 180). *The turn is unconditional: it must start like this.* *(OK 29/10)*
+- [x] Crown Of Flame (**(E2)** waits for your discard), Planned Recklessness, Second Shot, Horseshoes, Right Hand Of Doom, B.P.R.D. Training, On Earth. *(OK 30/10)*
+- [ ] Glimpse Of Hell, Confront (see Hidden information).
 
 **B (bot)**
-- [x] Cambio a **ANUNG UN RAMA**: `set_state` entre las miniaturas f9789a <-> e6f06e, la ficha 1644a3 gira (rotZ 180 = OCCULT DETECTIVE, rotZ 0 = ANUNG UN RAMA) y **ping** sobre ficha y miniatura; sin miniaturas duplicadas. *(OK 29/10)*
-- [x] Vuelta a OCCULT DETECTIVE (menos de 6 destinos) gira de vuelta y hace ping. *(OK 31/10)*
-- [x] El **Destiny Dial** (e17c66) sigue los destinos del descarte del bot (sube y baja). *(OK 31/10, tras el arreglo bf91f02)*
-- [ ] Inicio de su turno, anunciado antes de mover en la mesa: descarta y mueve (ANUNG) *(OK 31/10)*; roba 2 si empieza en DETECTIVE **en tu casilla de salida** *(falta verlo)*.
-- [x] **Pancakes!**: elige dos efectos que hacen algo y el chat nombra los dos ("recupera 2 (11 -> 13) y roba 2"). *(OK 31/10)*
-- [ ] `card_to_deck_bottom` en Pancakes!: las cartas que devuelve van **abajo** de su mazo.
-- [ ] IA (31/10, 2c92014 y 24cd9c3): en ANUNG ataca mas (cuenta su +2), casi no hace maniobras sin mover a nadie, usa a Lobster cuando tiene a tiro, y no se gasta el mazo si la partida va a durar mas que el.
+- [x] Change to **ANUNG UN RAMA**: `set_state` between the miniatures f9789a <-> e6f06e, token 1644a3 turns (rotZ 180 = OCCULT DETECTIVE, rotZ 0 = ANUNG UN RAMA) and a **ping** on token and miniature; no duplicated miniatures. *(OK 29/10)*
+- [x] Return to OCCULT DETECTIVE (fewer than 6 destinies) turns back and pings. *(OK 31/10)*
+- [x] The **Destiny Dial** (e17c66) follows the destinies in the bot's discard (goes up and down). *(OK 31/10, after fix bf91f02)*
+- [ ] Start of its turn, announced before moving on the table: discards and moves (ANUNG) *(OK 31/10)*; draws 2 if it starts in DETECTIVE **on your starting space** *(still to be seen)*.
+- [x] **Pancakes!**: picks two effects that do something and the chat names both ("recovers 2 (11 -> 13) and draws 2"). *(OK 31/10)*
+- [ ] `card_to_deck_bottom` in Pancakes!: the cards it returns go **to the bottom** of its deck.
+- [ ] AI (31/10, 2c92014 and 24cd9c3): in ANUNG it attacks more (counts its +2), makes almost no maneuvers without moving anyone, uses Lobster when it has a shot, and does not burn the deck if the game will last longer than it.
 
-**H (tu)**
-- [x] **(E2)** puerta de habilidad de inicio de turno (robo / ANUNG) bloquea hasta **Fin de accion**. *(OK 30/10)*
-- [x] **(E2)** esquemas con boton **Pancakes!** y **Posthumous Power**; reanudar a mitad de esquema. *(OK 30/10)*
-- [ ] Glimpse Of Hell defendiendo contra un AFTER del bot que te hace descartar (Fleeting Moments): primero robas 2 y metes 1 en el mazo, Fin de accion; luego el descarte al azar sobre tu mano de ese momento, Fin de accion; y despues la carta que robas (81132f9, 19bbe67).
+**H (you)**
+- [x] **(E2)** start-of-turn ability gate (draw / ANUNG) blocks until **End action**. *(OK 30/10)*
+- [x] **(E2)** schemes with a **Pancakes!** and **Posthumous Power** button; resume mid-scheme. *(OK 30/10)*
+- [ ] Glimpse Of Hell defending against a bot AFTER that makes you discard (Fleeting Moments): first you draw 2 and put 1 into the deck, End action; then the random discard over your hand at that moment, End action; and then the card you draw (81132f9, 19bbe67).
 
 ### Abe Sapien
 **B (bot)**
-- [ ] Muestra 0/1/2 fichas de Intuicion **tomando copias de 5a17e9** (`take_token_copy`: takeObject o clone segun el tipo). Esperado: aparecen en `token_spot`, distintas de la original, sin mover la fuente.
-- [ ] Al gastar una, `remove_token` quita la ultima copia (desaparece la copia, no la original).
+- [ ] Shows 0/1/2 Intuition tokens **taking copies of 5a17e9** (`take_token_copy`: takeObject or clone depending on the type). Expected: they appear at `token_spot`, distinct from the original, without moving the source.
+- [ ] When one is spent, `remove_token` removes the last copy (the copy disappears, not the original).
 
-**H (tu)**
-- [ ] Pones tu las fichas a mano; el contador se sincroniza.
+**H (you)**
+- [ ] You place the tokens by hand; the counter syncs.
 
-**H y B**
-- [ ] Faster. Stronger., Secure The Scene, Leap Away, Concussion Device, B.P.R.D. Training, Utility Belt, Arcane Dampener, Cold Iron (bloqueo), Ward And Prepare, Counterhex Shield, Shock And Awe.
-- [ ] UNCANNY INTUITION y Perfect Shot: ver Informacion oculta.
+**H and B**
+- [ ] Faster. Stronger., Secure The Scene, Leap Away, Concussion Device, B.P.R.D. Training, Utility Belt, Arcane Dampener, Cold Iron (block), Ward And Prepare, Counterhex Shield, Shock And Awe.
+- [ ] UNCANNY INTUITION and Perfect Shot: see Hidden information.
 
 ### Baba Yaga
-**H y B**
-- [x] Setup: **Koschei ya esta en el tablero** al empezar (si no, revisa `start_on_board` en `data/heroes/baba-yaga.json`). *(OK 30/10)*
-- [ ] Pactos: ONGOING, solo uno a la vez; **Pact Of Freedom** (no atacar como primera accion) y **Cold Iron** bloquean en el panel (seccion 4).
+**H and B**
+- [x] Setup: **Koschei is already on the board** at the start (if not, check `start_on_board` in `data/heroes/baba-yaga.json`). *(OK 30/10)*
+- [ ] Pacts: ONGOING, only one at a time; **Pact Of Freedom** (no attacking as the first action) and **Cold Iron** block on the panel (section 4).
 - [ ] Iron Teeth, Death's Release, Foul Journey, Hasten Towards Death, Deathless, Exploit, The Time For Deals Is Done, Bound In Blood, Out Of Time.
-- [ ] Koschei cae/vuelve: miniatura al `dead_spot`; "Summon" lo pone lo mas cerca de Baba Yaga con vida 3.
+- [ ] Koschei falls/returns: miniature to the `dead_spot`; "Summon" puts it as close as possible to Baba Yaga with 3 life.
 
-**H (tu)**
-- [ ] FATEFUL BARGAINS (Koschei en la misma zona, dano de efecto): **(E2)** pregunta con boton.
-- [x] **Pact Of Secrecy**: **(E2)** botones **0 / 1 / 2**; limite de mano 3 para todos. *(OK 31/10)* Resumen del chat sin "miras la mano del bot" y separado por jugador (f527ae5): *falta verlo*.
-- [ ] Pact Of Time: mueves tu la carta del descarte al mazo y pulsas **Hecho** (bb95930).
+**H (you)**
+- [ ] FATEFUL BARGAINS (Koschei in the same zone, effect damage): **(E2)** asks with a button.
+- [x] **Pact Of Secrecy**: **(E2)** buttons **0 / 1 / 2**; hand limit 3 for everyone. *(OK 31/10)* Chat summary without "you look at the bot's hand" and separate per player (f527ae5): *still to be seen*.
+- [ ] Pact Of Time: you move the card from the discard to the deck yourself and press **Done** (bb95930).
 
 **B (bot)**
-- [ ] FATEFUL BARGAINS: decide y lo dice.
-- [ ] Pact Of Secrecy: el bot te pregunta cual conservas (los titulos pueden salir como marcadores). Pact Of Secrecy / Time del bot sobre ti: solo chat; la mesa se sincroniza por conteo.
-- [ ] Read The Bones: lo que toma sale como robo de arriba (el orden real del mazo no se conoce).
+- [ ] FATEFUL BARGAINS: it decides and says so.
+- [ ] Pact Of Secrecy: the bot asks you which one you keep (the titles may come out as placeholders). The bot's Pact Of Secrecy / Time on you: chat only; the table syncs by count.
+- [ ] Read The Bones: what it takes comes out as a draw from the top (the real order of the deck is not known).
 
 ### Liz Sherman
-**H y B**
-- [ ] Pyrotechnics (deja una burning abajo del mazo), Fireball, Burning Barrier, B.P.R.D. Training.
+**H and B**
+- [ ] Pyrotechnics (leaves a burning card at the bottom of the deck), Fireball, Burning Barrier, B.P.R.D. Training.
 
 **B (bot)**
-- [ ] Cartas **burning** (BOOST 0): no las usa de boost; descartadas por Wildfire vuelven a la mano.
-- [ ] **Wildfire** (inicio de su turno): descarta la carta de abajo y se proyecta en mesa; cuesta 1 mensaje extra antes de su primera accion (anota si molesta).
-- [ ] **Excepcion**: una burning descartada por limite de mano (7) al fin de turno **NO** vuelve a la mano; se queda en el descarte.
-- [ ] **Incinerate** del bot: respondes Si/No en el panel antes del dano.
-- [ ] Fleeting Moments / Confront del bot: el chat **nombra la carta** que debes descartar; la descartas tu.
-- [ ] Wildfire devuelve una carta que tu Confront le hizo descartar: el chat dice "El bot se queda X (Wildfire la devuelve)".
+- [ ] **Burning** cards (BOOST 0): it does not use them as a boost; discarded by Wildfire they return to the hand.
+- [ ] **Wildfire** (start of its turn): discards the bottom card and it is projected on the table; costs 1 extra message before its first action (note whether it bothers).
+- [ ] **Exception**: a burning card discarded for the hand limit (7) at the end of the turn does **NOT** return to the hand; it stays in the discard.
+- [ ] The bot's **Incinerate**: you answer Yes/No on the panel before the damage.
+- [ ] The bot's Fleeting Moments / Confront: the chat **names the card** you must discard; you discard it.
+- [ ] Wildfire returns a card your Confront made it discard: the chat says "The bot keeps X (Wildfire returns it)".
 
-**H (tu)**
-- [x] **(E2)** puerta de habilidad de inicio de turno (Wildfire) y Fight Or Flight. *(OK 29/10)*
-- [x] **Fight Or Flight** como ONGOING: el +1 dura hasta el inicio de tu siguiente turno y ahi se va. *(OK 31/10)*
-- [x] Tu ONGOING que caduca o sale de juego: el bot hace ping, dice el motivo, espera `ongoing_hold` y la pone **encima de tu descarte** (`card_to_discard`). *(OK 31/10: Fight Or Flight caducada)*
+**H (you)**
+- [x] **(E2)** start-of-turn ability gate (Wildfire) and Fight Or Flight. *(OK 29/10)*
+- [x] **Fight Or Flight** as an ONGOING: the +1 lasts until the start of your next turn and goes away then. *(OK 31/10)*
+- [x] Your ONGOING that expires or leaves play: the bot pings, says why, waits `ongoing_hold` and puts it **on top of your discard** (`card_to_discard`). *(OK 31/10: expired Fight Or Flight)*
 - [x] **Feint**. *(OK 31/10)*
-- [x] **Evade**: robas 1. *(OK 31/10)*
-- [ ] Evade defendiendo contra un ataque que te hace descartar (Clutching Claws de las Harpias): la carta de Evade te llega **antes** de pedirte el descarte y cuenta para el (1e8709c).
-- [ ] **Flame Lash**: DURING real con la carta de **abajo del mazo** como boost **(E2)**.
-- [ ] **Incinerate** contra el bot **(E2)**: el chat dice si paga, no paga o no puede; si paga, nombra las 2 cartas, espera la pausa de anuncio y despues las mueve (6c14d9c, 682c769).
-- [x] Searing Clarity con botones del panel. *(OK 29/10; desde bb95930 ya no hay botones, ver la linea siguiente)*
-- [ ] Searing Clarity y Rekindle **sin botones**: mueves tu la carta del descarte al mazo y pulsas **Hecho**; el bot la reconoce; luego "Pulsa Fin de accion cuando termines"; prueba tambien con el descarte apilado (bb95930).
+- [x] **Evade**: you draw 1. *(OK 31/10)*
+- [ ] Evade defending against an attack that makes you discard (the Harpies' Clutching Claws): the Evade card reaches you **before** you are asked for the discard and counts for it (1e8709c).
+- [ ] **Flame Lash**: a real DURING with the card from the **bottom of the deck** as the boost **(E2)**.
+- [ ] **Incinerate** against the bot **(E2)**: the chat says whether it pays, does not pay or cannot; if it pays, it names the 2 cards, waits the announcement pause and then moves them (6c14d9c, 682c769).
+- [x] Searing Clarity with panel buttons. *(OK 29/10; since bb95930 there are no buttons, see the next line)*
+- [ ] Searing Clarity and Rekindle **without buttons**: you move the card from the discard to the deck yourself and press **Done**; the bot recognizes it; then "Press End action when you finish"; also try with the discard stacked (bb95930).
 
-### Informacion oculta (cartas que miran la mano del bot, y las del bot sobre ti)
-- [ ] **Fila de la mano del bot**: al jugar Confront Any Demon or God (solo si pierdes), Advanced Psychometry (adyacente), Remove A Painful Memory (con un ONGOING) o Every Possible Angle, el bot pone su mano **boca arriba en fila** en `bot_row_spot` y hace **ping** sobre cada carta (`ping_points`). El boton **Mirar mano** usa otra fila, en `look_spot`.
-- [ ] **Los pings del propio bot no eligen por ti** (9335eab): con la fila abierta, el bot no "elige" una carta solo. *(31/10 fallo con Remove A Painful Memory: eligio Posthumous Power en 1 s; arreglado, falta verlo. Si vuelve a pasar, ampliar `BOT_PING_WINDOW`.)*
-- [ ] La lectura de tu mano ocurre **una sola vez por look** (un mensaje `read_hand`), solo cuando una carta del bot te mira; fuera de eso, no.
-- [ ] **Elegir por ping** (Tab sobre la carta, `onPlayerPing`) **o por boton** del panel (los botones nombran la carta). Esperado: Confront -> a su descarte; el resto vuelve a su mano. Plan B: una carta boca abajo + Fin de accion.
-- [ ] **Every Possible Angle**: la carta elegida va **encima del mazo** del bot (`putObject` sobre el mazo, mismo giro); prueba tambien con el mazo en 1 carta.
-- [ ] **Solo mirar** (Revelar): se cierra con Fin de accion o Cancelar (todo a la mano); un ping se rechaza.
-- [ ] **Remove A Painful Memory**: tuyo -> el bot dice "descarta X" / "se queda X" y el resumen no dice "roba -1"; del bot -> botones "Descartar <carta>" / "Coger 2".
-- [ ] **Perfect Shot**: B coloca, **gira boca arriba** en el mismo script y anuncia la prediccion. H: al **Revelar** salen **Valor 0..7** (+ "Mas" -> **Boca abajo**, segunda pagina) antes de que el bot defienda; boca arriba es publico y el bot lo sabe.
-- [ ] **UNCANNY INTUITION**: B ataca -> carta boca abajo y se **gira** boca arriba en el mismo script, nombrada en el chat. H ataca al Abe del bot -> el chat avisa en Ataque; al Revelar el bot gasta ficha y roba **antes** de elegir defensa (la robada puede ser la defensa); pon el ataque boca abajo (se gira al Revelar).
-- [ ] Fallo parcial (una carta no se mueve): la fila sigue, el bot lo dice una vez y eliges por boton; la mesa gana en la siguiente lectura.
+### Hidden information (cards that look at the bot's hand, and the bot's on you)
+- [ ] **The bot's hand row**: when playing Confront Any Demon or God (only if you lose), Advanced Psychometry (adjacent), Remove A Painful Memory (with an ONGOING) or Every Possible Angle, the bot lays its hand **face up in a row** at `bot_row_spot` and **pings** each card (`ping_points`). The **Look at bot's hand** button uses another row, at `look_spot`.
+- [ ] **The bot's own pings do not choose for you** (9335eab): with the row open, the bot does not "choose" a card by itself. *(31/10 failure with Remove A Painful Memory: it chose Posthumous Power within 1 s; fixed, still to be seen. If it happens again, widen `BOT_PING_WINDOW`.)*
+- [ ] Reading your hand happens **only once per look** (one `read_hand` message), only when a card of the bot looks at you; otherwise, never.
+- [ ] **Choose by ping** (Tab on the card, `onPlayerPing`) **or by panel button** (the buttons name the card). Expected: Confront -> to its discard; the rest return to its hand. Plan B: one face-down card + End action.
+- [ ] **Every Possible Angle**: the chosen card goes **on top of the deck** of the bot (`putObject` on the deck, same turn); also try with the deck at 1 card.
+- [ ] **Look only** (Reveal): closes with End action or Cancel (everything to the hand); a ping is rejected.
+- [ ] **Remove A Painful Memory**: yours -> the bot says "discards X" / "keeps X" and the summary does not say "draws -1"; the bot's -> buttons "Discard <card>" / "Take 2".
+- [ ] **Perfect Shot**: B places, **turns face up** in the same script and announces the prediction. H: at **Reveal** **Value 0..7** appear (+ "More" -> **Face down**, second page) before the bot defends; face up is public and the bot knows it.
+- [ ] **UNCANNY INTUITION**: B attacks -> face-down card that is **turned** face up in the same script, named in the chat. H attacks the bot's Abe -> the chat warns on Attack; at Reveal the bot spends the token and draws **before** choosing a defense (the drawn card may be the defense); put the attack face down (it is turned at Reveal).
+- [ ] Partial failure (one card does not move): the row stays, the bot says so once and you choose by button; the table wins on the next read.
 
-## 4. Panel y botones
+## 4. Panel and buttons
 
-- [x] Los botones de eleccion de una carta **solo aparecen cuando se juega** (ocultos, **nunca en gris**). *(OK 30/10)*
-- [x] Las etiquetas cambian (`UI.setValue` sobre un Button): "Valor 3", "Descartar X", "Coger 2". Si no se actualizan, apuntalo (punto **verify live**). *(OK 29/10)*
-- [ ] **Cancelar** durante una pausa de combate: funciona; si todas las opciones se rechazan y no puedes salir, apunta cual (la salida es Reiniciar).
-- [ ] Restricciones **bloqueadas** (no solo avisadas): Pact Of Freedom, Cold Iron (si robas fisicamente igual, el bot lo acepta al sincronizar y lo dice).
-- [ ] Maniobra con BOOST 0 (burning de Liz): deberia avisar en el chat (item pendiente; si no avisa, apuntalo).
-- [ ] **Mirar mano del bot**: **oculto** salvo que una carta lo permita; no gasta accion.
-- [ ] 0/1/2, "Ninguna", Si/No, Valor 0..7: ningun boton se queda a medias tras un doble clic.
+- [x] The choice buttons of a card **only appear when it is played** (hidden, **never greyed out**). *(OK 30/10)*
+- [x] The labels change (`UI.setValue` on a Button): "Value 3", "Discard X", "Take 2". If they do not update, note it (**verify live** item). *(OK 29/10)*
+- [ ] **Cancel** during a combat pause: it works; if every option is rejected and you cannot get out, note which (the way out is Restart).
+- [ ] **Blocked** restrictions (not just warned): Pact Of Freedom, Cold Iron (if you draw physically anyway, the bot accepts it when syncing and says so).
+- [ ] Maneuver with BOOST 0 (Liz's burning card): it should warn in the chat (pending item; if it does not warn, note it).
+- [ ] **Look at bot's hand**: **hidden** unless a card allows it; it spends no action.
+- [ ] 0/1/2, "None", Yes/No, Value 0..7: no button is left half-done after a double click.
 
-## 5. Guardar y reanudar
+## 5. Saving and resuming
 
-Para cada caso: Ctrl+C (y recarga TTS si quieres), luego `--resume`. Esperado: nada se repite ni se reanuncia; el panel vuelve al mismo punto.
-- [ ] A mitad de una **pausa de combate** (esperando Revelar o un boton de efecto).
-- [ ] Pausa tras haber movido/hecho boost el bot a mitad de combate (camino proyeccion -> reanudar; **sin test**).
-- [x] A mitad de un **esquema** que espera tu respuesta (Pact Of Secrecy, Pancakes!, Posthumous Power) **(E2)**. *(OK 30/10: reanudar a mitad de esquema, linea 71)*
-- [ ] A mitad de una **fila de informacion oculta** (`look_spot`): vuelve la fila y se repite el aviso del modo (`pick` / `reveal`).
-- [ ] A mitad de Perfect Shot (botones de prediccion) y de FATEFUL BARGAINS **(E2)**.
-- [ ] Tras un cambio de turno con Wildfire pendiente.
-- [ ] Guardado ajeno/antiguo/de otra mesa: `--resume` lo rechaza con mensaje claro.
-- [ ] A mitad de la pausa entre dos AFTER (despues de tu Glimpse, antes de Fleeting) y a mitad de un descarte con robo pendiente: no se repite nada y la carta debida llega una vez.
-- [x] Guardado de antes de configurar el Destiny Dial del bot: `--resume` lo acepta. *(OK 31/10)*
+For each case: Ctrl+C (and reload TTS if you like), then `--resume`. Expected: nothing repeats or is announced again; the panel returns to the same point.
+- [ ] In the middle of a **combat pause** (waiting for Reveal or an effect button).
+- [ ] Pause after the bot moved/boosted in the middle of a combat (projection -> resume path; **no test**).
+- [x] In the middle of a **scheme** waiting for your answer (Pact Of Secrecy, Pancakes!, Posthumous Power) **(E2)**. *(OK 30/10: resume mid-scheme, line 71)*
+- [ ] In the middle of a **hidden-information row** (`look_spot`): the row comes back and the mode notice (`pick` / `reveal`) is repeated.
+- [ ] In the middle of Perfect Shot (prediction buttons) and of FATEFUL BARGAINS **(E2)**.
+- [ ] After a turn change with Wildfire pending.
+- [ ] A foreign/old/other-table save: `--resume` rejects it with a clear message.
+- [ ] In the middle of the pause between two AFTERs (after your Glimpse, before Fleeting) and in the middle of a discard with a pending draw: nothing repeats and the owed card arrives once.
+- [x] A save from before the bot's Destiny Dial was configured: `--resume` accepts it. *(OK 31/10)*
+- [ ] **Language kept (1/11)**: start a game with `language: "es"`, Ctrl+C, then `--resume` without `--language`: panel, chat and console stay in Spanish. `--resume --language en` warns (console) that lines already saved may stay in Spanish and then speaks English.
 
-## 6. Puente TTS (primitivas nunca vistas en real)
+## 6. TTS bridge (primitives never seen on a real table)
 
-Anota OK / fallo y que paso. Un fallo de proyeccion se dice **una vez** ("hazlo tu"); no hay reintento.
-- [ ] `card_to_deck_bottom`: carta del descarte del bot va **abajo** del mazo (Pancakes! del bot).
-- [ ] `shuffle_into_deck`: carta(s) del descarte al mazo y baraja.
-- [ ] `hand_to_deck`: carta de la mano del bot al mazo (`putObject` directo desde la zona de mano; "abajo" = mazo girado).
-- [ ] `return_card_to_hand`: carta del descarte (o del combate, al cancelar) vuelve a la mano del bot.
-- [ ] `move_piece`: el bot mueve una **miniatura tuya** por efecto (por GUID); si falla dice "muevela tu".
-- [ ] **Traductores de fase 2 (1/11)**: lo que el bot ya hacia por efecto sale ahora de un registro de traductores (`session_translators`) y las cartas dicen como (`return_to_deck` con posicion, `put_in_hand`, `search_deck`, `counter`, `form`, `ongoing`, y `place` / `swap` / `revive` / `summon` de **tus** miniaturas con el mismo `move_piece`). Debe verse **igual que antes**; apunta cualquier carta cuyo efecto en la mesa cambie: Glimpse Of Hell / Pyrotechnics (mano del bot -> fondo del mazo), Rekindle / Pancakes! del bot (descarte -> mazo), Ward And Prepare, Pact Of Freedom (`place` de tu miniatura), un intercambio de casillas, Abe (fichas) y Hellboy (forma).
-- [ ] **Crown Of Flame sin comprobar el titulo (1/11)**: el bot sigue descartando **toda tu mano** el solo (el descarte de mano completa lo marca el propio efecto, `pick: all`); si la mesa lo rechaza, dice "No he podido descartar tu mano" y te pide el descarte a mano.
-- [ ] `set_state` + `flip_token` + `ping_objects` (Hellboy) y `take_token_copy` / `remove_token` (Abe): ver seccion 3.
-- [ ] `onPlayerPing` llega al script del panel con tu asiento y el objeto esperado (si TTS no da objeto, se usa la carta de la fila a menos de 1.6).
-- [ ] `read_hand` de tu asiento: un mensaje por look; el bot nunca lee tu mano fuera de un look.
-- [ ] Carta boca arriba justo tras colocarla (`play_card_face_down` + giro en el mismo script): se ve como esperas.
-- [ ] Mensajes y latencia (`--timing`): boton normal ~1 mensaje; turno de Liz con Wildfire +1; un look +1. Anota cualquier boton que tarde mas de unos segundos.
-- [ ] Avisos de TTS lento: si sale "TTS no devolvio valor (esta ocupado, en pausa o recargando...)", anota la hora y que hacias (568c6bf: ahora espera 8 s mas antes de avisar).
-- [ ] verify_live: partida entera con `language: "en"` (o `--language en`): preparacion y mulligan, un turno tuyo (Maneuver, Scheme, ataque con Reveal, Continue / No boost, End action, +1 / -1, Look at bot's hand) y un turno del bot (ataque, defensa, Wildfire / ANUNG si juega Liz o Hellboy). Panel: botones y linea de estado en ingles y sin cortarse (maximo 90 caracteres). Chat: ninguna frase en castellano (los avisos de TTS que lleguen con su propio texto de error tecnico no cuentan); el titulo de las cartas y los nombres de heroe quedan como estan impresos. Anota cualquier frase que suene rara o salga en castellano. Lo unico que sigue en castellano a proposito: la consola de `play.py` (stderr, `--help`, informe de `hero_detect`) y los errores de configuracion / guardado de arranque.
+Note OK / failure and what happened. A projection failure is said **once** ("do it yourself"); there is no retry.
+- [ ] `card_to_deck_bottom`: card from the bot's discard goes **to the bottom** of the deck (the bot's Pancakes!).
+- [ ] `shuffle_into_deck`: card(s) from the discard to the deck and shuffle.
+- [ ] `hand_to_deck`: card from the bot's hand to the deck (`putObject` straight from the hand zone; "bottom" = turned deck).
+- [ ] `return_card_to_hand`: card from the discard (or from the combat, when cancelling) returns to the bot's hand.
+- [ ] `move_piece`: the bot moves a **miniature of yours** by effect (by GUID); if it fails it says "move it yourself".
+- [ ] **Phase 2 translators (1/11)**: what the bot already did by effect now comes from a registry of translators (`session_translators`) and the cards say how (`return_to_deck` with position, `put_in_hand`, `search_deck`, `counter`, `form`, `ongoing`, and `place` / `swap` / `revive` / `summon` of **your** miniatures with the same `move_piece`). It must look **the same as before**; note any card whose effect on the table changes: Glimpse Of Hell / Pyrotechnics (bot's hand -> bottom of the deck), the bot's Rekindle / Pancakes! (discard -> deck), Ward And Prepare, Pact Of Freedom (`place` of your miniature), a swap of spaces, Abe (tokens) and Hellboy (form).
+- [ ] **Crown Of Flame without checking the title (1/11)**: the bot still discards **your whole hand** by itself (the whole-hand discard is marked by the effect itself, `pick: all`); if the table rejects it, it says "I could not discard your hand" and asks you to discard it by hand.
+- [ ] `set_state` + `flip_token` + `ping_objects` (Hellboy) and `take_token_copy` / `remove_token` (Abe): see section 3.
+- [ ] `onPlayerPing` reaches the panel script with your seat and the expected object (if TTS gives no object, the row card within 1.6 is used).
+- [ ] `read_hand` of your seat: one message per look; the bot never reads your hand outside a look.
+- [ ] Card face up right after placing it (`play_card_face_down` + turn in the same script): it looks as you expect.
+- [ ] Messages and latency (`--timing`): normal button ~1 message; Liz's turn with Wildfire +1; a look +1. Note any button that takes more than a few seconds.
+- [ ] Slow-TTS warnings: if "TTS returned no value (it is busy, paused or reloading...)" shows up, note the time and what you were doing (568c6bf: it now waits 8 s more before warning).
+- [ ] verify_live: a whole game with `language: "en"` (or `--language en`): setup and mulligan, a turn of yours (Maneuver, Scheme, attack with Reveal, Continue / No boost, End action, +1 / -1, Look at bot's hand) and a bot turn (attack, defense, Wildfire / ANUNG if Liz or Hellboy plays). Panel: buttons and status line in English and not cut off (90 characters at most). Chat: no sentence in Spanish (TTS warnings that arrive with their own technical error text do not count); card titles and hero names stay as printed. Note any phrase that sounds odd or comes out in Spanish. The console of `play.py` (stderr, `--help`, the `hero_detect` report, start-up configuration / save errors) now follows the language too.
 
-## 7. Que apuntar si algo falla
+## 7. What to note if something fails
 
-Por cada fallo:
-- [ ] Que hacias (heroe, lado H/B, carta, momento, boton), que esperabas y que paso.
-- [ ] Las **lineas del chat** del bot y la salida de la terminal (con traceback si hay).
-- [ ] `estado\sesion.json` **justo despues** del fallo (antes de seguir jugando); el guardado de TTS si la mesa quedo rara.
-- [ ] Captura de pantalla de la mesa y del panel.
-- [ ] El informe de `--read-only` (deteccion/calibracion) o la salida de `--timing` (latencia).
-- [ ] Si recargaste: con o sin `--resume`; y recuerda que tienes el guardado "pre-sparring".
+For each failure:
+- [ ] What you were doing (hero, side H/B, card, moment, button), what you expected and what happened.
+- [ ] The bot's **chat lines** and the terminal output (with the traceback if any).
+- [ ] `state\session.json` (or `estado\sesion.json` for an old game) **right after** the failure (before playing on); the TTS save if the table was left odd.
+- [ ] Screenshot of the table and the panel.
+- [ ] The `--read-only` report (detection/calibration) or the `--timing` output (latency).
+- [ ] If you reloaded: with or without `--resume`; and remember you have the "pre-sparring" save.

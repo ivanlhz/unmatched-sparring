@@ -9,7 +9,7 @@
   "3": 9,
   "4": 24
  },
- "notes": "Las franjas finas marrones del borde de las casillas 1 y 2 son fallos de la importación del mapa a TTS (confirmado por Iván el 26/10/2026); no son zona.",
+ "notes": "The thin brown strips on the edge of spaces 1 and 2 are flaws from importing the map into TTS (confirmed by Iván on 26/10/2026); they are not a zone.",
  "spaces": [
   {
    "id": 0,

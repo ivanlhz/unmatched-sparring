@@ -2,15 +2,15 @@
  "schema": 1,
  "hero": "liz-sherman",
  "notes": [
-  "Efectos estructurados de Liz Sherman (F07 paso 13, solo datos: el interprete no los lee todavia). Textos leidos de la hoja 199 del save del torneo el 2026-10-28. Migrado al DSL v1 (docs/effects-dsl.md) el 2026-10-28 sin cambiar la semantica.",
-  "Las cartas ardientes (tag burning) no tienen impulso (BOOST 0). WILDFIRE las devuelve a la mano cuando se descartan desde la mano o el mazo: antes era el plugin liz:wildfire; ahora es el disparador wildfire_return (evento card_discarded), que dice exactamente lo mismo. Decision de Ivan (28/10): la unica excepcion es el descarte por el limite de mano al final del turno (cause hand_limit): esa ardiente se queda en el descarte. Si el interprete prefiere un reemplazo del destino del descarte, vuelve a plugin sin tocar las cartas.",
-  "Decision de Ivan (28/10): 'bottom card of your deck' es la carta de mas abajo del mazo (la ultima), no la de arriba que se roba. Es la que usan Wildfire al inicio del turno y Flame Lash.",
-  "Decision de Ivan (28/10): mazo vacio al inicio del turno o con Flame Lash: no pasa nada (ni dano ni movimiento; Flame Lash suma 0).",
-  "Decision de Ivan (28/10): el dano de Wildfire al inicio del turno es obligatorio si hay objetivo, y solo a UN luchador.",
-  "Decision de Ivan (28/10): un efecto que ignore el VALOR IMPRESO no quita el +1 de Fight Or Flight; uno que ignore el VALOR, si.",
-  "Decision de Ivan (28/10): con el bot llevando a Liz, el bot gira el fondo del mazo al inicio de su turno.",
-  "Decision de Ivan (28/10): una carta sin valor de impulso no se puede usar para impulsar: las ardientes (BOOST 0) nunca se descartan como impulso.",
-  "Decision de Ivan (28/10): un solo ONGOING activo POR JUGADOR; jugar otro reemplaza al propio activo (dos Fight Or Flight = +1). Implementado en Game.add_combat_bonus."
+  "Structured effects of Liz Sherman (F07 step 13, data only: the interpreter does not read them yet). Texts read from sheet 199 of the tournament save on 2026-10-28. Migrated to DSL v1 (docs/effects-dsl.md) on 2026-10-28 without changing the semantics.",
+  "Burning cards (tag burning) have no boost (BOOST 0). WILDFIRE returns them to the hand when they are discarded from the hand or the deck: before it was the liz:wildfire plugin; now it is the wildfire_return trigger (card_discarded event), which says exactly the same. Ivan's decision (28/10): the only exception is the discard for the hand limit at the end of the turn (cause hand_limit): that burning card stays in the discard. If the interpreter prefers a replacement of the discard's destination, it goes back to being a plugin without touching the cards.",
+  "Ivan's decision (28/10): 'bottom card of your deck' is the lowest card of the deck (the last), not the top one that is drawn. It is the one Wildfire uses at turn start and Flame Lash.",
+  "Ivan's decision (28/10): empty deck at turn start or with Flame Lash: nothing happens (no damage or movement; Flame Lash adds 0).",
+  "Ivan's decision (28/10): Wildfire's damage at turn start is mandatory if there is a target, and only to ONE fighter.",
+  "Ivan's decision (28/10): an effect that ignores the PRINTED VALUE does not remove Fight Or Flight's +1; one that ignores the VALUE does.",
+  "Ivan's decision (28/10): with the bot playing Liz, the bot turns the bottom of the deck at the start of its turn.",
+  "Ivan's decision (28/10): a card with no boost value cannot be used to boost: burning cards (BOOST 0) are never discarded as a boost.",
+  "Ivan's decision (28/10): a single active ONGOING PER PLAYER; playing another replaces the player's own active one (two Fight Or Flight = +1). Implemented in Game.add_combat_bonus."
  ],
  "ability": {
   "text": "WILDFIRE\nWhenever you discard a burning card from your hand or deck, put it into your hand.\nAt start of your turn, discard the bottom card of your deck. If it's a burning card, deal 1 damage to another fighter in Liz's zone. Otherwise, move Liz up to 2 spaces.",
@@ -27,7 +27,7 @@
     "ops": [{"op": "put_in_hand", "cards": "$card"}]}
   ],
   "passives": [],
-  "notes": "Con el mazo vacio al inicio del turno no se descarta nada y no pasa nada (ni dano ni movimiento): por eso la condicion exists sobre el mazo (decision de Ivan, 28/10). La devolucion a la mano es una regla sobre todo descarte del jugador de Liz: habilidad, Flame Lash, Fleeting Moments, efectos del rival que hagan descartar a Liz. Jugar una carta no es descartarla: las ardientes jugadas se quedan en el descarte."
+  "notes": "With an empty deck at turn start nothing is discarded and nothing happens (no damage or movement): hence the exists condition on the deck (Ivan's decision, 28/10). The return to the hand is a rule over every discard of Liz's player: ability, Flame Lash, Fleeting Moments, rival effects that make Liz discard. Playing a card is not discarding it: burning cards that are played stay in the discard."
  },
  "cards": [
   {
@@ -46,7 +46,7 @@
     "scheme": [],
     "boost": []
    },
-   "notes": "'This card's effects cannot be canceled': atributo uncancelable que cancel_effects respeta. Decision de Ivan (28/10): el rival puede descartar 2 cartas de la mano, ADEMAS de la carta con la que defiende, para ignorar el valor de Incinerate (queda a 0); si no defendio con carta, descartar 2 tambien vale. Con menos de 2 cartas en mano no puede pagar."
+   "notes": "'This card's effects cannot be canceled': uncancelable attribute that cancel_effects respects. Ivan's decision (28/10): the rival may discard 2 cards from the hand, IN ADDITION to the card it defends with, to ignore Incinerate's value (it stays at 0); if it did not defend with a card, discarding 2 also works. With fewer than 2 cards in hand it cannot pay."
   },
   {
    "title": "Fireball",
@@ -58,7 +58,7 @@
     ],
     "during": [], "after": [], "scheme": [], "boost": []
    },
-   "notes": "Solo ataque: el defensor es siempre rival y no es adyacente a si mismo, asi que no recibe el dano inmediato. Adyacente = espacio conectado al del defensor."
+   "notes": "Attack only: the defender is always a rival and is not adjacent to itself, so it does not take the immediate damage. Adjacent = a space connected to the defender's."
   },
   {
    "title": "Flame Lash",
@@ -75,7 +75,7 @@
     ],
     "scheme": [], "boost": []
    },
-   "notes": "Si la carta del fondo es ardiente, Wildfire la devuelve a la mano y suma 0 (no tiene impulso). Con el mazo vacio no se descarta nada, la ligadura queda vacia y el atributo lee 0. La accion se gana aunque Liz pierda el combate."
+   "notes": "If the bottom card is burning, Wildfire returns it to the hand and it adds 0 (it has no boost). With an empty deck nothing is discarded, the binding stays empty and the attribute reads 0. The action is gained even if Liz loses the combat."
   },
   {
    "title": "Fleeting Moments",
@@ -91,7 +91,7 @@
     ],
     "scheme": [], "boost": []
    },
-   "notes": "Primero descartan los dos, luego roban los dos. Si el descarte al azar de Liz es ardiente, Wildfire lo devuelve a la mano (y aun asi roba)."
+   "notes": "First both discard, then both draw. If Liz's random discard is burning, Wildfire returns it to the hand (and she still draws)."
   },
   {
    "title": "Burning Barrier",
@@ -107,7 +107,7 @@
     ],
     "scheme": [], "boost": []
    },
-   "notes": "Versatil: jugada en defensa, 'this turn' es el turno del atacante. Decision de Ivan (28/10): cannot_leave_space bloquea todo movimiento del luchador rival (propio o por efectos); a Liz si la puede mover un efecto. El dano posterior es a cada rival en la zona de Liz."
+   "notes": "Versatile: played in defense, 'this turn' is the attacker's turn. Ivan's decision (28/10): cannot_leave_space blocks all movement of the rival fighter (own or by effects); an effect can move Liz. The later damage is to each rival in Liz's zone."
   },
   {
    "title": "Pyrotechnics",
@@ -122,7 +122,7 @@
     ],
     "scheme": [], "boost": []
    },
-   "notes": "Prepara la habilidad: una ardiente al fondo vuelve a la mano al inicio del turno y hace 1 de dano; una no ardiente da el movimiento de 2. Las cartas van boca abajo: el rival no las ve."
+   "notes": "It prepares the ability: a burning card at the bottom returns to the hand at turn start and deals 1 damage; a non-burning one gives the 2 movement. The cards go face down: the rival does not see them."
   },
   {
    "title": "B.P.R.D. Training",
@@ -136,7 +136,7 @@
     ],
     "scheme": [], "boost": []
    },
-   "notes": "Liz no tiene ayudantes: en la practica mueve solo a Liz. Misma carta que en Hellboy (ahi mueve tambien a Lobster)."
+   "notes": "Liz has no sidekicks: in practice it only moves Liz. Same card as in Hellboy (there it also moves Lobster)."
   },
   {
    "title": "Rekindle",
@@ -149,7 +149,7 @@
     ],
     "scheme": [], "boost": []
    },
-   "notes": "Tras barajar, cualquier orden conocido del fondo del mazo (Pyrotechnics) se pierde."
+   "notes": "After shuffling, any known order of the bottom of the deck (Pyrotechnics) is lost."
   },
   {
    "title": "Feint",
@@ -186,7 +186,7 @@
     ],
     "boost": []
    },
-   "notes": "Barajar es obligatorio si hay candidata (amount 1 sin up_to; sin candidatas no hace nada); la accion se gana igual: el plan sale gratis. Es ardiente: si se descarta desde la mano o el mazo vuelve; jugada va al descarte sin volver."
+   "notes": "Shuffling is mandatory if there is a candidate (amount 1 without up_to; with no candidates it does nothing); the action is gained anyway: the scheme comes out free. It is burning: if discarded from the hand or the deck it returns; played, it goes to the discard without returning."
   },
   {
    "title": "Fight Or Flight",
@@ -205,20 +205,20 @@
     "triggers": [],
     "until": {"event": "start_of_turn", "player": "owner"}
    },
-   "notes": "El ONGOING no esta en unmatched-memory; sale de la carta real. Con la regla de Ivan (28/10) de un solo ONGOING activo, una segunda copia reemplaza a la primera (+1); el motor aun acumula y hay que cambiarlo. Se descarta al inicio del siguiente turno de Liz, antes del descarte del fondo de Wildfire (orden supuesto; no interactuan porque no es ardiente)."
+   "notes": "The ONGOING is not in unmatched-memory; it comes from the real card. With Ivan's rule (28/10) of a single active ONGOING, a second copy replaces the first (+1); the engine still accumulates and has to be changed. It is discarded at the start of Liz's next turn, before Wildfire's bottom discard (assumed order; they do not interact because it is not burning)."
   }
  ],
  "plugins": [],
  "hidden_info": [
-  {"where": "ability / Flame Lash (fondo del mazo propio)", "rule": "La carta del fondo es desconocida para ambos hasta que se descarta; al descartarse es publica. El bot con Liz no mira el fondo antes de decidir Flame Lash: valora con la composicion restante del mazo (cartas no vistas), salvo lo que puso el mismo con Pyrotechnics, que recuerda con su orden (informacion legitima). Tras Rekindle o Searing Clarity (barajar) olvida ese orden."},
-  {"where": "Fleeting Moments (descarte al azar del rival)", "rule": "El bot nunca elige la carta: la saca el humano (o el puente) al azar; si tiene que elegir el bot por el rival, elige un indice uniforme sin mirar identidades. La carta descartada es publica: se descuenta de KnownHand si estaba vista. El robo posterior del rival es una carta no vista (cuenta +1, KnownHand igual). Su propio descarte al azar lo hace con RNG sobre su mano."},
-  {"where": "Incinerate (el rival descarta 2 a su eleccion)", "rule": "Las 2 cartas descartadas son publicas: el bot con Liz las descuenta de KnownHand y no aprende nada mas. Cuando el bot es el rival, decide solo con su propia mano."},
-  {"where": "Wildfire (ardiente vuelve a la mano)", "rule": "La carta vuelve a la mano a la vista de todos: pasa a KnownHand del rival (cuando el humano lleva a Liz, el bot la apunta como vista y la descuenta cuando se juegue)."},
-  {"where": "Pyrotechnics (cartas de la mano al fondo boca abajo)", "rule": "El rival no las ve. Cuando el humano lleva a Liz, el bot no lee cuales fueron: solo sabe que la mano baja 2 y el mazo sube 2; las cartas vistas de KnownHand no se descuentan (puede haberse ido una vista o no) y el muestreo de manos ocultas respeta solo la cuenta. Cuando el bot lleva a Liz, recuerda su propio orden del fondo."},
-  {"where": "Rekindle / Searing Clarity (del descarte al mazo)", "rule": "Las cartas elegidas son publicas (salen del descarte a la vista); el mazo se baraja: ambos conocen la composicion, nadie el orden."},
-  {"where": "Inicio de turno (descarte del fondo)", "rule": "Publico: la carta se muestra al descartarse; si es ardiente, todos ven que vuelve a la mano de Liz."}
+  {"where": "ability / Flame Lash (bottom of the own deck)", "rule": "The bottom card is unknown to both until it is discarded; when discarded it is public. The bot with Liz does not look at the bottom before deciding on Flame Lash: it values with the remaining composition of the deck (unseen cards), except for what it put there itself with Pyrotechnics, which it remembers with its order (legitimate information). After Rekindle or Searing Clarity (shuffle) it forgets that order."},
+  {"where": "Fleeting Moments (the rival's random discard)", "rule": "The bot never chooses the card: the human (or the bridge) draws it at random; if the bot has to choose for the rival, it chooses a uniform index without looking at identities. The discarded card is public: it is discounted from KnownHand if it had been seen. The rival's later draw is an unseen card (counts +1, KnownHand the same). Its own random discard is done with the RNG over its hand."},
+  {"where": "Incinerate (the rival discards 2 of their choice)", "rule": "The 2 discarded cards are public: the bot with Liz discounts them from KnownHand and learns nothing more. When the bot is the rival, it decides only with its own hand."},
+  {"where": "Wildfire (a burning card returns to the hand)", "rule": "The card returns to the hand in plain sight: it becomes part of the rival's KnownHand (when the human plays Liz, the bot notes it as seen and discounts it when it is played)."},
+  {"where": "Pyrotechnics (cards from the hand to the bottom face down)", "rule": "The rival does not see them. When the human plays Liz, the bot does not read which ones they were: it only knows the hand goes down 2 and the deck up 2; the seen cards of KnownHand are not discounted (a seen one may or may not have gone) and the sampling of hidden hands respects only the count. When the bot plays Liz, it remembers its own order of the bottom."},
+  {"where": "Rekindle / Searing Clarity (from the discard to the deck)", "rule": "The chosen cards are public (they leave the discard in plain sight); the deck is shuffled: both know the composition, nobody the order."},
+  {"where": "Start of turn (bottom discard)", "rule": "Public: the card is shown when discarded; if it is burning, everyone sees that it returns to Liz's hand."}
  ],
  "open_questions": [
-  "Orden al inicio del turno de Liz: primero se descarta Fight Or Flight y luego el fondo de Wildfire. Supuesto; no interactuan."
+  "Order at the start of Liz's turn: first Fight Or Flight is discarded and then Wildfire's bottom card. An assumption; they do not interact."
  ]
 }
