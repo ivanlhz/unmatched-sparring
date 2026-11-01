@@ -6,9 +6,11 @@ from __future__ import annotations
 
 import re
 from dataclasses import dataclass, field
+from functools import lru_cache
 
-from .cards import MEDUSA_BASE, Card, can_be_boost
+from .cards import Card, can_be_boost
 from .effects import ongoing
+from .heroes import load_hero
 from .i18n import t
 from .state import Fighter, Game, RuleError
 
@@ -22,8 +24,14 @@ ON_EARTH = "On Earth As It Is In Hell"
 FIGHT_OR_FLIGHT = "Fight Or Flight"          # only a label for the tests: the engine reads the bonus from the card data
 
 
+@lru_cache(maxsize=None)
+def _medusa_titles() -> dict[int, str]:
+    return {c.card_id: c.title for c in load_hero("medusa").deck()}
+
+
 def is_medusa_card(card: Card) -> bool:
-    return MEDUSA_BASE <= card.card_id < MEDUSA_BASE + 100
+    """Medusa's own card: the TMNT decks share her CardID range (DeckID 176), so the range alone is not enough."""
+    return _medusa_titles().get(card.card_id) == card.title
 
 
 @dataclass

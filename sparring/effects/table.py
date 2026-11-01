@@ -90,6 +90,8 @@ def _where(where) -> str:
         return t("tbl.where.any")
     if "zone_of" in where:
         who = where["zone_of"]
+        if where.get("other"):
+            return t("tbl.where.zone_other", who=who)
         return t("tbl.where.zone_hero") if who in ("hero", "this") else t("tbl.where.zone", who=who)
     if "nearest_to" in where:
         who = where["nearest_to"]
@@ -107,6 +109,8 @@ def line(n: dict) -> str:
         return t("tbl.move", fid=n["fid"], how=how, squares=plural(n["amount"], "noun.space"), through=through)
     if op == "place":
         return t("tbl.place", fid=n["fid"], where=_where(n.get("where")))
+    if op == "swap":
+        return t("tbl.swap", fid=n["fid"], other=n["other"])
     if op in ("revive", "summon"):
         return t("tbl.put", fid=n["fid"], where=_where(n.get("where")), hp=f"{n['hp']:g}")
     if op == "choose":

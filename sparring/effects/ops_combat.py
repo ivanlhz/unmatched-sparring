@@ -31,7 +31,7 @@ def _side(run, game, ref) -> str | None:
 
 
 def _label(run, game) -> str:
-    card = find_card(game, run.ctx.card_id) if run.ctx.card_id is not None else None
+    card = find_card(game, run.ctx.card_id, run.ctx.owner) if run.ctx.card_id is not None else None
     return card.title if card else t("cause.effect")
 
 

@@ -25,7 +25,7 @@ COMBAT_CARDS = {"player", "type", "fighter"}
 
 def card_in_play(game, player: int):
     cid = game.fx.ongoing_card_id(player)
-    return None if cid is None else find_card(game, cid)
+    return None if cid is None else find_card(game, cid, player)
 
 
 def spec_of(game, player: int) -> dict | None:

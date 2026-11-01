@@ -95,8 +95,12 @@ def _nick(obj: dict) -> str:
     return (obj.get("Nickname") or "").strip()
 
 
+COLOR_TAG_RE = re.compile(r"\[(?:[0-9a-fA-F]{6}|-)\]")
+
+
 def _same(a: str, b: str) -> bool:
-    return a.casefold() == b.casefold()
+    """Same name ignoring case and the TTS colour tags a nickname may carry ('[016099]Leonardo')."""
+    return COLOR_TAG_RE.sub("", a).casefold() == COLOR_TAG_RE.sub("", b).casefold()
 
 
 def deck_sheet(deck: dict) -> tuple[tuple[int, int], int] | None:

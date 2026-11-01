@@ -75,6 +75,8 @@ def space_options(game, run, sel, default_empty: bool = True, mover=None) -> lis
     if sel.get("empty", default_empty):
         taken = {f.pos for f in game.fighters.values() if f.alive and f is not mover}
         out -= taken
+    if sel.get("other") and mover is not None:
+        out.discard(mover.pos)
     if "nearest_to" in sel and out:
         ref = _ref_fighter(game, run, sel["nearest_to"])
         best = min(board.distance(ref.pos, s) for s in out)
@@ -172,8 +174,11 @@ def pick_fighters(game, run, sel, chooser: int, prompt: str = "", **extra) -> li
 
 # ---------------------------------------------------------------- cards
 
-def find_card(game, card_id: int):
-    for p in game.players:
+def find_card(game, card_id: int, owner: int | None = None):
+    """The card with that id. Decks can share CardIDs (the TMNT heroes and Medusa are all DeckID 176): `owner`'s own
+    card wins, the rival's is the fallback."""
+    order = game.players if owner is None else [game.players[owner], game.players[1 - owner]]
+    for p in order:
         for c in p.full_set:
             if c.card_id == card_id:
                 return c
@@ -195,10 +200,13 @@ def card_ref(game, run, ref) -> list:
     ids = {"this": ctx.card_id, "opponent_card": ctx.opp_card_id, "attack_card": ctx.attack_card_id,
            "defense_card": ctx.defense_card_id}
     if ref in ids:
-        card = find_card(game, ids[ref]) if ids[ref] is not None else None
+        owners = {"this": ctx.owner, "opponent_card": 1 - ctx.owner,
+                  "attack_card": game.fighters[ctx.attacker_fid].owner if ctx.attacker_fid else None,
+                  "defense_card": game.fighters[ctx.defender_fid].owner if ctx.defender_fid else None}
+        card = find_card(game, ids[ref], owners[ref]) if ids[ref] is not None else None
         return [] if card is None else [card]
     if isinstance(ref, str) and ref.startswith("$"):
-        return [c for c in (find_card(game, i) for i in run.bound(ref[1:], "cards")) if c is not None]
+        return [c for c in (find_card(game, i, ctx.owner) for i in run.bound(ref[1:], "cards")) if c is not None]
     raise EffectError(f"bad card reference {ref!r}")
 
 
@@ -230,7 +238,7 @@ def card_candidates(game, run, sel: dict) -> list[Picked]:
         pile = p.deck
     elif zone == "in_play":
         cid = game.fx.ongoing_card_id(player)
-        pile = [] if cid is None else [c for c in [find_card(game, cid)] if c is not None]
+        pile = [] if cid is None else [c for c in [find_card(game, cid, player)] if c is not None]
     else:
         raise EffectError(f"bad card zone {zone!r}")
     skip = set(card_ref(game, run, sel["except"])) if "except" in sel else set()
@@ -306,6 +314,9 @@ def _stat(game, run, a):
     if stat in ("hp", "max_hp"):
         f = (fighter_candidates(game, run, a["fighter"])[0] or [None])[0] if "fighter" in a else game.hero(run.ctx.owner)
         return 0 if f is None else getattr(f, stat)
+    if stat == "zones":      # how many zones the fighter's space belongs to; 0 off the board
+        f = (fighter_candidates(game, run, a["fighter"])[0] or [None])[0]
+        return 0 if f is None or f.pos is None else len(game.board.zones(f.pos))
     player = player_of(game, run, a.get("player", "owner"))
     if stat == "hand_size":
         return len(game.players[player].hand)

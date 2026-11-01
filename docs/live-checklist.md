@@ -203,3 +203,15 @@ For each failure:
 - [ ] Screenshot of the table and the panel.
 - [ ] The `--read-only` report (detection/calibration) or the `--timing` output (latency).
 - [ ] If you reloaded: with or without `--resume`; and remember you have the "pre-sparring" save.
+
+
+### Leonardo
+
+Pending on a real table (TMNT box; nothing of Leonardo has been seen live):
+
+- Hero detection: Leonardo's deck has Medusa's CardIDs 17600-17629; with Medusa on the other side check that "auto" reads both by image and that each hand reads from its own seat.
+- The `[016099]Leonardo` miniature (colour tag in the nickname) is found by GUID `729fb1`; check it moves and the dial `88f451` follows.
+- TEAM TACTICS (human): the panel waits for End action; moving the bot's miniature by hand is read at End action. Bot: it moves one fighter at the start of its turn, said in the chat; check the miniature move on the table.
+- For Sensei, Eat, sleep, and breathe ninjutsu: the bot's piece the human relocates ("put it there and press Done"); Protective father swap by hand (both miniatures) and the heal on both dials.
+- I have a plan / For Sensei price: the extra discard from your hand is noted and settled at End action.
+- Spatial awareness / Wise beyond his years: zone counts on the real board (spaces with several zones).

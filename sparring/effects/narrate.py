@@ -82,14 +82,14 @@ def describe(game, before: dict, run, flow=None, title: str | None = None) -> st
     by_hand = table.lines(run)
     if by_hand:
         parts.append(t("narr.on_table", lines=", ".join(by_hand)))
-    title = title or _title(game, run.ctx.card_id)
+    title = title or _title(game, run.ctx.card_id, getattr(run.ctx, "owner", None))
     return f"{title}: " + ("; ".join(parts) if parts else t("narr.nothing"))
 
 
 def _say_bot_price(game, run, parts: list[str], priced: dict) -> list[str]:
     """The bot's answer to a price the human's card offered it, said plainly and never as "no effect". The wording is
     Incinerate's (a discard price that ignores the card's value); another priced optional needs its own."""
-    title = _title(game, run.ctx.card_id)
+    title = _title(game, run.ctx.card_id, getattr(run.ctx, "owner", None))
     stake, cards = priced["stake"], priced["cards"]
     lethal = priced["hp"] is not None and 0 < priced["hp"] <= stake
     if not priced["can_pay"]:
@@ -140,9 +140,9 @@ def _seen(player_state) -> list:
     return list(player_state.known.seen) + [player_state.known.turn_no]
 
 
-def _title(game, card_id) -> str:
+def _title(game, card_id, owner=None) -> str:
     from .select import find_card
-    card = None if card_id is None else find_card(game, card_id)
+    card = None if card_id is None else find_card(game, card_id, owner)
     return card.title if card else t("fx.cause_default")
 
 

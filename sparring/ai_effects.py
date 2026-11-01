@@ -38,6 +38,7 @@ from .effects.choose import ChoiceRequest, ControllerChooser, SyntheticChooser, 
 from .effects.model import EffectError, load_effects
 from .effects.ops_combat import PREDICT_OP
 from .effects.run import Ctx, EffectRun
+from .effects.select import locate
 from .search.adapter import card_worth
 from .state import Game, PlayerState, RuleError
 
@@ -461,20 +462,19 @@ class EffectAI:
         `moment/path:ask`; None for anything that is not a card moment (ability triggers, unknown cards)."""
         if req.card_id is None or "/" not in req.key:
             return None
-        owner = card = None
-        for p, st in enumerate(game.players):
-            for c in st.full_set:
-                if c.card_id == req.card_id:
-                    owner, card = p, c
-        if card is None:
-            return None
+        found = [(p, c) for p, st in enumerate(game.players) for c in st.full_set if c.card_id == req.card_id]
+        if len(found) > 1:             # decks sharing a CardID (the TMNT heroes, Medusa): the card resolving is in no pile
+            found = [(p, c) for p, c in found if locate(game, c) is None] or found
         label, _, rest = req.key.partition("/")
         segs = rest.rsplit(":", 1)[0].split("/")
-        try:
-            node = load_effects(game.players[owner].hero.slug).moment_ops(card.title, label)
-            for seg in segs:
-                seg = seg.split("@")[0]
-                node = node[int(seg)] if isinstance(node, list) else node[seg]
-        except Exception:
-            return None
-        return (node, card, owner, label) if isinstance(node, dict) else None
+        for owner, card in found:
+            try:
+                node = load_effects(game.players[owner].hero.slug).moment_ops(card.title, label)
+                for seg in segs:
+                    seg = seg.split("@")[0]
+                    node = node[int(seg)] if isinstance(node, list) else node[seg]
+            except Exception:
+                continue
+            if isinstance(node, dict):
+                return node, card, owner, label
+        return None
