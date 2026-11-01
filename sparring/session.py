@@ -31,9 +31,11 @@ from .cards import Card, can_be_boost
 from .controller import Controller
 from .combat_flow import CombatFlow, PendingChoice, Phase, legacy_chooser
 from .effects import events, narrate, ongoing
+from .effects import table as fx_table
 from .effects.choose import ControllerChooser
 from .effects.run import EffectRun
 from .game_log import GameLog
+from . import session_boost as boost_session
 from . import session_bot_effects as bot_effects
 from . import session_choices as choices
 from . import session_effects as human_effects
@@ -341,6 +343,7 @@ class Session:
         self.declared_carry: dict | None = None            # a cancelled attack already declared (UNCANNY INTUITION spent): the same attack again does not re-spend
         self.destiny_seen: tuple[int, str] | None = None   # (destinies, form) already written and verified on the dial
         self._transit: dict[int, int] = {}                 # CardID played by the human -> reads it has gone without reaching the discard
+        self.combat_guids: dict[int, str] = {}             # CardID of the human's card at the combat spot -> its GUID (Relentless moves it)
         self._destiny_said: tuple[int, str] | None = None  # what was already announced (not repeated while retrying)
         self.placing: dict | None = None         # bot card put on the table whose reply never arrived
         self.dials_attempted: dict[str, int] = {}  # GUID -> last value tried to write (verified or not)
@@ -2036,9 +2039,11 @@ class Session:
         if human_card is not None and can_boost(human_card):      # your attack (Second Shot) or your defense (Out Of Time)
             if p.bot_card is not None and is_medusa_card(p.bot_card) and p.bot_card.title == FEINT:
                 self.say(t("reveal.feint", bot=p.bot_card.title, card=human_card.title), ChatKind.COMBAT)
-            else:
+            elif boost_session.offered(self, p, human_card):
                 self._await_boost(p, human_card, human_guid)
                 return
+            else:                                 # the rival's IMMEDIATELY cancels the card's effect, the boost with it
+                self.say(t("reveal.boost_cancelled", card=human_card.title, bot=p.bot_card.title), ChatKind.COMBAT)
         self._resolve_combat(p, human_card, human_guid, flip=True, boost=None)
 
     def _await_boost(self, p: Pending, card: Card, guid: str | None) -> None:
@@ -2117,6 +2122,7 @@ class Session:
         g = self.game
         flip_cards = [(p.bot_card_guid, "bot"), (human_guid, "human")]
         flipped = self._flip_all(flip_cards) if flip else []
+        self.combat_guids = {human_card.card_id: human_guid} if human_card is not None and human_guid else {}
         value = self.pending_value
         saved = self.to_dict()
         p.combat = {"flip": flip, "human_guid": human_guid, "bot_seen": len(g.players[self.bot].discard),
@@ -2124,12 +2130,12 @@ class Session:
                     "boost": None if boost is None else boost.card_id}
         try:
             if human_card is not None:
-                self._make_known(human_card)
+                self.make_known(human_card)
                 self._transit[human_card.card_id] = 0
             if boost is not None and deck_boost(human_card) and g.fx.interprets(self.human):
                 human_effects.stage_bottom_card(self, boost)      # Flame Lash's own DURING op discards it
             elif boost is not None:
-                self._make_known(boost, keep=(human_card,))
+                self.make_known(boost, keep=(human_card,))
             p.combat["fx"] = bot_effects.snapshot(self)   # after the human's cards are known: the diff is the effects'
             if p.declared is not None:           # the `attacked` event already spent a token: project from before it
                 p.combat["fx"]["counters"] = dict(p.declared["counters"])
@@ -4498,7 +4504,7 @@ class Session:
                 back.append(c)                          # returns to the hand, and into view
         self._wild_credit = (self.game.turn_no, at, credit - len(back)) if wildfire else (-1, -1, 0)
         for c in back:
-            self._make_known(c, keep=tuple(back))
+            self.make_known(c, keep=tuple(back))
             self.game.players[self.bot].known.add(c, self.game.turn_no)
         if isinstance(deck_qty, int) and deck_qty >= 0:
             self._deck_qty = deck_qty
@@ -4541,19 +4547,7 @@ class Session:
             st.hand.remove(spare)
             st.deck.append(spare)
 
-    def _make_known(self, card: Card, keep: tuple = ()) -> None:
-        """The human's hand is virtual: when a card is seen it is swapped with one of the virtual hand (never with those
-        of `keep`, already known in this same step)."""
-        st = self.game.players[self.human]
-        if card in st.hand:
-            return
-        if card in st.discard:                    # the card is face down on the table: the discard read was old
-            st.discard.remove(card)
-        elif card in st.deck:
-            st.deck.remove(card)
-        known = self.game.players[self.bot].known.seen
-        spare = [c for c in st.hand if c not in keep and c.card_id not in known] or [c for c in st.hand if c not in keep]
-        if spare:
-            st.hand.remove(spare[-1])
-            st.deck.append(spare[-1])
-        st.hand.append(card)
+    def make_known(self, card: Card, keep: tuple = (), game=None) -> None:
+        """The human's hand is virtual: when a card is seen it takes the place of one of the virtual hand. `game`: a
+        clone (the dry run of `session_boost`), not the live one."""
+        fx_table.make_known(game or self.game, self.human, card, keep)

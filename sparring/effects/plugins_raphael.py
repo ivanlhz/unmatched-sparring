@@ -5,8 +5,9 @@ discarded this way." The count of cards is free and feeds a value, which no op e
 
 - A bot (or a simulation) asks its controller for the cards (a `cards` request with `purpose: "bonus"`, `min 0`);
   `EffectAI` weighs each card's keep value against the damage the next +2 adds (`extra`: `foe`, `margin`, `per_card`).
-- The human (table mode) never has their hand in the engine: the panel asks HOW MANY (an `amount` request) and the
-  table owes that many discards from their hand, the way every physical discard goes (`Game.force_discard`)."""
+- The human (table mode) never has their hand in the engine: a `cards` request (`purpose: "bonus"`, `table_discard`)
+  waits while they put the cards they give up in their discard pile; the session reads the pile, checks each new card is
+  a defense or versatile card of theirs (`session_rage`) and answers with them, so the engine discards exactly those."""
 from __future__ import annotations
 
 from ..i18n import t
@@ -26,10 +27,16 @@ def _unbridled_rage(run, game, spec):
     side = "atk" if run.ctx.played_as == "attack" else "def"
     hand = game.players[owner].hand
     if table.physical(game, owner):
-        n = run.ask(game, "amount", owner, list(range(len(hand) + 1)), 1, 1, "discard how many", op="bonus_discard")[0]
-        if n:
-            game.force_discard(owner, n, card_title(run, game), owner)
-            run.flags["physical_discard"] = True
+        st = game.players[owner]
+        gone = {c.card_id for c in (*st.discard, *st.removed, *st.tucked)}
+        options = [c.card_id for c in st.full_set if c.type in types and c.card_id not in gone]
+        got = run.ask(game, "cards", owner, options, 0, len(options), "put the cards to give up in your discard pile",
+                      zone="discard", purpose="bonus", of=owner, per_card=per_card, table_discard=True)
+        by_id = {c.card_id: c for c in st.full_set}
+        for card_id in got:
+            table.make_known(game, owner, by_id[card_id], keep=tuple(by_id[i] for i in got))
+            game.discard_card(owner, by_id[card_id])
+        n = len(got)
     else:
         eligible = [c for c in hand if c.type in types]
         foe = flow.tgt if side == "atk" else flow.att
