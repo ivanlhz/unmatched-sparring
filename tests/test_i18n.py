@@ -43,24 +43,23 @@ def placeholders(template: str) -> set[str]:
     return {name for _, name, _, _ in string.Formatter().parse(template) if name}
 
 
-def used_tags() -> tuple[set[str], set[str]]:
-    """(plain tags, plural tags) passed as literals to t() / has() and to tn() / plural() in the package."""
-    plain: set[str] = set()
-    plurals: set[str] = set()
+TAG_SHAPE = re.compile(r"[a-z]+(\.[a-z0-9_]+)+")
+
+
+def tag_constants() -> set[str]:
+    """Every string constant in the package shaped like a catalog tag (first segment one the catalogs use): the
+    literal arguments of t() / tn() / plural() and also the tags that travel in a conditional, a dict or a field
+    (Restriction.tag, WHERE...). Pieces of f-strings are skipped: those tags are the DYNAMIC list."""
+    roots = {tag.split(".")[0] for tag in load("es")}
+    found: set[str] = set()
     for path in SOURCES:
-        if path.parent.name == "i18n":
-            continue
-        for node in ast.walk(ast.parse(path.read_text(encoding="utf-8"))):
-            if not isinstance(node, ast.Call):
-                continue
-            fn = node.func.id if isinstance(node.func, ast.Name) else getattr(node.func, "attr", None)
-            if fn not in ("t", "tn", "plural", "has"):
-                continue
-            at = 1 if fn in ("tn", "plural") else 0
-            arg = node.args[at] if len(node.args) > at else None
-            if isinstance(arg, ast.Constant) and isinstance(arg.value, str) and "." in arg.value:
-                (plurals if fn in ("tn", "plural") else plain).add(arg.value)
-    return plain, plurals
+        tree = ast.parse(path.read_text(encoding="utf-8"))
+        in_fstring = {id(v) for node in ast.walk(tree) if isinstance(node, ast.JoinedStr) for v in node.values}
+        for node in ast.walk(tree):
+            if (isinstance(node, ast.Constant) and isinstance(node.value, str) and id(node) not in in_fstring
+                    and TAG_SHAPE.fullmatch(node.value) and node.value.split(".")[0] in roots):
+                found.add(node.value)
+    return found
 
 
 def test_both_catalogs_have_the_same_tags():
@@ -75,16 +74,18 @@ def test_placeholders_match_between_languages():
 
 
 def test_every_tag_used_in_the_code_exists_in_every_catalog():
-    es, en = load("es"), load("en")
-    plain, plurals = used_tags()
-    needed = set(plain)
-    for tag in plurals:
-        needed.update((tag + ".one", tag + ".other"))
+    constants = tag_constants()
+    needed = set(constants)
     for prefix, suffixes in DYNAMIC.items():
         needed.update(prefix + s for s in suffixes)
-    assert sorted(n for n in needed if n not in es) == []
-    assert sorted(n for n in needed if n not in en) == []
-    assert len(needed) > 100                      # the scan finds the code's tags, not an empty set
+    for lang in ("es", "en"):
+        cat = load(lang)
+        # a plural base ("moves.squares") stands for its .one / .other pair
+        missing = sorted(n for n in needed if n not in cat and not (n + ".one" in cat and n + ".other" in cat))
+        assert missing == [], lang
+    assert len(constants) > 150                    # the scan finds the code's tags, not an empty set
+    assert {"pile.how.single", "hidden.close.kept", "moves.status.move", "fx.where_ongoing", "tbl.deck.top",
+            "choice.restrict.draw"} <= constants   # tags that travel in conditionals, dicts and fields
 
 
 def test_no_catalog_tag_is_dead():
@@ -243,3 +244,57 @@ def test_english_button_captions_reach_the_table_as_text_attributes(rig, monkeyp
     scripts = [m.get("script", "") for m in fake.received]
     assert any('"btn_choice_1", "text", "Done"' in s for s in scripts)
     assert any('"btn_choice_2", "text", "Don\'t move"' in s for s in scripts)
+
+
+# ---------------------------------------------------------------- panel texts must reach the table
+
+PANEL_TAGS = ("btn.done", "btn.skip", "hidden.status", "hidden.look_status.pick", "hidden.look_status.reveal",
+              "hidden.look_status.grant", "pile.status", "moves.status.move", "moves.status.place", "choice.yes",
+              "choice.no", "choice.confirm", "choice.none", "choice.face_down", "panel.option")
+
+
+@pytest.mark.parametrize("lang", sorted(p.stem for p in (ROOT / "data" / "i18n").glob("*.json")))
+def test_status_and_button_texts_fit_the_panel_in_every_language(lang):
+    from sparring.tts.lua import _STATUS
+    cat = load(lang)
+    for tag in PANEL_TAGS:
+        text = cat[tag].format(name="Abe")
+        assert _STATUS.fullmatch(text), (lang, tag, text)
+
+
+def test_accented_or_long_catalog_text_never_breaks_the_panel_update(monkeypatch):
+    from sparring import session_hidden, session_pile
+    from sparring.session_choices import panel_text
+    from sparring.tts import lua
+    en = dict(i18n.catalog("en"))
+    en.update({"btn.done": "Termin\u00e9", "pile.status": "Termin\u00e9 " + "x" * 200, "hidden.status": "\u00bfListo?"})
+    monkeypatch.setitem(i18n._cache, "en", en)
+    with i18n.using("en"):
+        status = session_pile.status(None, None)
+        _, labels = session_pile.view(None, None)
+        lua.set_panel(status, {"btn_choice_1": (True, True)}, labels=labels)
+        lua.set_panel(session_hidden.manual_status(None), {}, labels=session_hidden.manual_view(None)[1])
+        assert labels["btn_choice_1"] == "Termine" and len(status) <= 90
+        assert panel_text("\u00bfListo?") == "Listo"
+
+
+def test_catalog_text_is_escaped_in_the_panel_xml_and_the_lua_script(monkeypatch):
+    en = dict(i18n.catalog("en"))
+    en.update({"panel.maneuver": 'A "b" & <c>', "panel.processing": 'say "hi"\\ now\nnext'})
+    monkeypatch.setitem(i18n._cache, "en", en)
+    with i18n.using("en"):
+        xml = ui.panel_xml(["medusa"], ("hellboy",))
+        script = ui.handler_script()
+    assert ">A &quot;b&quot; &amp; &lt;c&gt;<" in xml
+    assert 'say \\"hi\\"\\\\ now\\nnext' in script
+
+
+def test_language_names_with_dashes_are_selectable(tmp_path, monkeypatch):
+    (tmp_path / "es.json").write_text(json.dumps(load("es")), encoding="utf-8")
+    (tmp_path / "pt-br.json").write_text(json.dumps({"panel.end_action": "Fim da acao"}), encoding="utf-8")
+    (tmp_path / "bad.name.json").write_text("{}", encoding="utf-8")
+    monkeypatch.setattr(i18n, "CATALOG_DIR", tmp_path)
+    monkeypatch.setattr(i18n, "_cache", {})
+    assert i18n.available() == ("es", "pt-br")
+    assert i18n.set_language("pt-br") == "pt-br" and i18n.t("panel.end_action") == "Fim da acao"
+    assert i18n.set_language("..") == "es" and i18n.set_language("bad.name") == "es"

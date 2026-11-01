@@ -16,6 +16,7 @@ from __future__ import annotations
 
 from .effects.choose import ChoiceRequest
 from .i18n import t, tn
+from .session_choices import panel_text
 from .spaces import describe
 from .tts.lua import ChatKind
 
@@ -90,17 +91,17 @@ def reprompt(session, req: ChoiceRequest) -> str:
 
 def status(session, req: ChoiceRequest) -> str:
     name = session._name(session.game.fighters[req.extra["fighter"]])
-    return t("moves.status.move" if req.extra.get("op") == "move" else "moves.status.place", name=name)
+    return panel_text(t("moves.status.move" if req.extra.get("op") == "move" else "moves.status.place", name=name))
 
 
 def view(session, req: ChoiceRequest) -> tuple[dict, dict]:
     """The choice slots while the human moves by hand: Hecho, and No mover when the move may be skipped."""
     from .session_choices import CHOICE_IDS
     states = {ident: (False, False) for ident in CHOICE_IDS}
-    labels = {CHOICE_IDS[0]: t("btn.done")}
+    labels = {CHOICE_IDS[0]: panel_text(t("btn.done"), 40)}
     states[CHOICE_IDS[0]] = (True, True)
     if req.min == 0:
-        states[CHOICE_IDS[1]], labels[CHOICE_IDS[1]] = (True, True), t("btn.skip")
+        states[CHOICE_IDS[1]], labels[CHOICE_IDS[1]] = (True, True), panel_text(t("btn.skip"), 40)
     return states, labels
 
 

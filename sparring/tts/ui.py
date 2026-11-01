@@ -7,8 +7,20 @@ from __future__ import annotations
 
 import re
 from enum import Enum
+from xml.sax.saxutils import escape
 
-from ..i18n import t
+from ..i18n import t as _tag_text
+
+
+def t(tag: str, **kwargs) -> str:
+    """Catalog text, escaped for XML text and double-quoted attributes (& < > and the double quote)."""
+    return escape(_tag_text(tag, **kwargs), {'"': "&quot;"})
+
+
+def lua_text(tag: str) -> str:
+    """Catalog text for a double-quoted Lua string: backslash, quote and line breaks escaped, other controls dropped."""
+    text = _tag_text(tag).replace("\\", "\\\\").replace('"', '\\"').replace("\n", "\\n")
+    return "".join(c for c in text if c >= " ")
 
 
 class Event(str, Enum):
@@ -57,7 +69,7 @@ GAME_ONLY = ("btn_restart",)
 def __getattr__(name: str):
     """`END_ACTION_LABEL`: the caption of the end-of-action button in the current language."""
     if name == "END_ACTION_LABEL":
-        return t("panel.end_action")
+        return _tag_text("panel.end_action")
     raise AttributeError(name)
 
 
@@ -113,14 +125,14 @@ local function send(tbl)
   busy = true
   clickSeq = clickSeq + 1
   local mine = clickSeq
-  UI.setValue("{STATUS_ID}", "{t("panel.processing")}")
+  UI.setValue("{STATUS_ID}", "{lua_text("panel.processing")}")
   setAll(false)
 {take}  sendExternalMessage(tbl)
   Wait.time(function()
     if busy and mine == clickSeq then
       busy = false
       setAll(true)
-      UI.setValue("{STATUS_ID}", "{t("panel.no_reply")}")
+      UI.setValue("{STATUS_ID}", "{lua_text("panel.no_reply")}")
     end
   end, 20)
 end

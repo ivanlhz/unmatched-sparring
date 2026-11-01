@@ -17,6 +17,7 @@ The language is one process-wide setting (`set_language`, called by `play` from 
 from __future__ import annotations
 
 import json
+import re
 from contextlib import contextmanager
 from pathlib import Path
 from typing import Iterator
@@ -24,13 +25,15 @@ from typing import Iterator
 DEFAULT = "es"
 CATALOG_DIR = Path(__file__).resolve().parents[2] / "data" / "i18n"
 
+_LANG = re.compile(r"[A-Za-z][A-Za-z0-9_-]*")     # a file stem that is safe to open: no separators, no dots
+
 _cache: dict[str, dict[str, str]] = {}
 _current = DEFAULT
 
 
 def available() -> tuple[str, ...]:
     """The languages with a catalog file, Spanish first."""
-    found = sorted(p.stem for p in CATALOG_DIR.glob("*.json"))
+    found = sorted(p.stem for p in CATALOG_DIR.glob("*.json") if _LANG.fullmatch(p.stem))
     return tuple(sorted(found, key=lambda lang: lang != DEFAULT))
 
 
@@ -53,7 +56,7 @@ def has(tag: str) -> bool:
 def set_language(lang: str | None) -> str:
     """Select the language; an unknown or empty one selects Spanish. Returns the one in force."""
     global _current
-    _current = lang if isinstance(lang, str) and lang.isalpha() and catalog(lang) else DEFAULT
+    _current = lang if isinstance(lang, str) and _LANG.fullmatch(lang) and catalog(lang) else DEFAULT
     return _current
 
 

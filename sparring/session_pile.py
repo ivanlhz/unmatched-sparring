@@ -11,6 +11,7 @@ from __future__ import annotations
 
 from .effects.choose import ChoiceRequest
 from .i18n import t
+from .session_choices import panel_text
 from .tts.lua import ChatKind
 
 WHERE = {"shuffle": "pile.where.shuffle", "bottom": "pile.where.bottom", "top": "pile.where.top"}     # position -> i18n key
@@ -60,7 +61,7 @@ def reprompt(session, req: ChoiceRequest) -> str:
 
 
 def status(session, req: ChoiceRequest) -> str:
-    return t("pile.status")
+    return panel_text(t("pile.status"))
 
 
 def view(session, req: ChoiceRequest) -> tuple[dict, dict]:
@@ -68,7 +69,7 @@ def view(session, req: ChoiceRequest) -> tuple[dict, dict]:
     from .session_choices import CHOICE_IDS
     states = {ident: (False, False) for ident in CHOICE_IDS}
     states[CHOICE_IDS[0]] = (True, True)
-    return states, {CHOICE_IDS[0]: t("btn.done")}
+    return states, {CHOICE_IDS[0]: panel_text(t("btn.done"), 40)}
 
 
 def verdict(session, req: ChoiceRequest) -> tuple[list[int] | None, str | None]:

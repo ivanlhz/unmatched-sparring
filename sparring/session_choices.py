@@ -46,6 +46,12 @@ def has_prompt(kind: str) -> bool:
     return has(f"choice.prompt.{kind}")
 
 
+def panel_text(text: str, limit: int = 90) -> str:
+    """Catalog text bound for the panel's status line or a button: ASCII the panel accepts, never longer than `limit`
+    (a translation with accents or a long wording must not make `lua.set_panel` refuse the whole update)."""
+    return safe_label(text, limit=limit)
+
+
 def safe_label(text: str, fallback: str | None = None, limit: int = LABEL_MAX) -> str:
     """ASCII text the panel accepts as a button label (accents dropped, odd characters removed, `limit` characters)."""
     plain = unicodedata.normalize("NFKD", str(text)).encode("ascii", "ignore").decode("ascii")
@@ -190,7 +196,7 @@ def panel_choice_view(game, req: ChoiceRequest | None, ui: ChoiceUI) -> tuple[di
     slots = layout(game, req, ui)
     states, labels = {}, {}
     for ident, slot in zip(CHOICE_IDS, slots):
-        states[ident], labels[ident] = (slot.enabled, True), slot.label
+        states[ident], labels[ident] = (slot.enabled, True), safe_label(slot.label)
     for ident in CHOICE_IDS[len(slots):]:
         states[ident] = (False, False)
     return states, labels

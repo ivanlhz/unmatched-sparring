@@ -31,6 +31,7 @@ from .effects.events import attack_revealed
 from .effects.model import EffectError, load_effects, walk_ops
 from .effects.ops_combat import FACE_DOWN, PERFECT_SHOT, PREDICT_OP, PREDICT_VALUES
 from .i18n import plural, t
+from .session_choices import panel_text
 from .tts import lua
 from .tts.client import TTSLuaError
 from .tts.lua import ChatKind
@@ -90,7 +91,7 @@ def manual_start(session, req: ChoiceRequest) -> None:
 
 
 def manual_status(session) -> str:
-    return t("hidden.status")
+    return panel_text(t("hidden.status"))
 
 
 def manual_view(session) -> tuple[dict, dict]:
@@ -98,7 +99,7 @@ def manual_view(session) -> tuple[dict, dict]:
     from .session_choices import CHOICE_IDS
     states = {ident: (False, False) for ident in CHOICE_IDS}
     states[CHOICE_IDS[0]] = (True, True)
-    return states, {CHOICE_IDS[0]: t("btn.done")}
+    return states, {CHOICE_IDS[0]: panel_text(t("btn.done"), 40)}
 
 
 def _titles(session, ids) -> str:
@@ -220,10 +221,10 @@ def row_failed_text(look: dict) -> str:
 def look_status(session) -> str:
     mode = session.look.get("mode")
     if mode == MODE_PICK:
-        return t("hidden.look_status.pick")
+        return panel_text(t("hidden.look_status.pick"))
     if mode == MODE_REVEAL:
-        return t("hidden.look_status.reveal")
-    return t("hidden.look_status.grant")
+        return panel_text(t("hidden.look_status.reveal"))
+    return panel_text(t("hidden.look_status.grant"))
 
 
 def resume_prompt(session) -> str:
