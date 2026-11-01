@@ -792,6 +792,7 @@
  "layout.panel": "the panel",
  "layout.look_row": "The row of the bot's hand in view",
  "layout.bot_row": "The row of the bot's hand cards",
+ "layout.aside_row": "A row of cards set aside by the bot",
  "layout.under_panel": "{name} ends up under the panel (x {x0:.1f}..{x1:.1f}, z {z0:.1f}..{z1:.1f}): move panel_position or reduce panel_scale in the configuration.",
  "layout.row_overlap": "{what} ({key}, x {x0:.1f}..{x1:.1f}, z {z0:.1f}..{z1:.1f}) overlaps {name}: move {key} in the configuration.",
  "ro.header": "== READ-ONLY REPORT (nothing on the table was changed) ==",

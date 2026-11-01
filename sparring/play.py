@@ -33,6 +33,7 @@ from . import game_log, i18n, persist
 from .i18n import t
 from .session import DEFAULT_ACTION_ANNOUNCE_HOLD, DEFAULT_BOT_PAUSE, DEFAULT_ONGOING_HOLD, DEFAULT_WILDFIRE_HOLD, TABLE_ERRORS, Msg, Session, SessionConfig, SessionError, piece_guids
 from .state import DEFAULT_HEROES, Game
+from .session_translators import ASIDE_STEP
 from .tts import lua, ui
 from .tts.hero_table import HeroTableError, load_hero_table, table_defaults
 from .tts.client import LISTEN_PORT, SEND_PORT, TTSClient, TTSLuaError
@@ -723,6 +724,17 @@ def look_row_rect(cfg: PlayConfig, n: int = ROW_WARN_CARDS, spot_key: str = "loo
     return (x - half * abs(dx) - hx, x + half * abs(dx) + hx, z - half * abs(dz) - hz, z + half * abs(dz) + hz)
 
 
+ASIDE_SPOTS = ("bot_tuck_spot", "bot_removed_spot")
+ASIDE_WARN_CARDS = 6      # cards the bot lays side by side at a set-aside spot before the row gets absurd
+
+
+def aside_row_rect(cfg: PlayConfig, key: str, n: int = ASIDE_WARN_CARDS) -> tuple[float, float, float, float]:
+    """Rectangle (x min, x max, z min, z max) of the cards laid from `bot_tuck_spot` / `bot_removed_spot` in +x."""
+    x, _, z = (float(v) for v in cfg.raw[key])
+    w, d = lua.CARD_SIZE
+    return x - w / 2, x + (n - 1) * ASIDE_STEP + w / 2, z - d / 2, z + d / 2
+
+
 def look_row_warnings(cfg: PlayConfig) -> list[str]:
     """Start-up warning: the rows of the bot's hand (up to `ROW_WARN_CARDS` cards) may not overlap the panel, the
     combat and ONGOING boxes or the discard zones."""
@@ -738,6 +750,12 @@ def _look_row_warnings(cfg: PlayConfig, items: list[tuple[str, str, tuple[float,
         a0, a1, b0, b1 = look_row_rect(cfg, ROW_WARN_CARDS, spot_key)
         out += [t("layout.row_overlap", what=t(what), key=spot_key, x0=a0, x1=a1, z0=b0, z1=b1, name=name)
                 for name, (x0, x1, z0, z1) in others if a0 < x1 and a1 > x0 and b0 < z1 and b1 > z0]
+    look_rows = [(t(what), look_row_rect(cfg, ROW_WARN_CARDS, key)) for key, (*_, what) in LOOK_ROWS.items()]
+    asides = {key: aside_row_rect(cfg, key) for key in ASIDE_SPOTS if cfg.raw.get(key)}
+    for key, (a0, a1, b0, b1) in asides.items():
+        crowd = [*others, *look_rows, *((k, r) for k, r in asides.items() if k != key)]
+        out += [t("layout.row_overlap", what=t("layout.aside_row"), key=key, x0=a0, x1=a1, z0=b0, z1=b1, name=name)
+                for name, (x0, x1, z0, z1) in crowd if a0 < x1 and a1 > x0 and b0 < z1 and b1 > z0]
     return out
 
 

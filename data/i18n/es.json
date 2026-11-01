@@ -792,6 +792,7 @@
  "layout.panel": "el panel",
  "layout.look_row": "La fila de la mano del bot a la vista",
  "layout.bot_row": "La fila de la mano del bot de sus cartas",
+ "layout.aside_row": "Una fila de cartas apartadas por el bot",
  "layout.under_panel": "{name} queda bajo el panel (x {x0:.1f}..{x1:.1f}, z {z0:.1f}..{z1:.1f}): mueve panel_position o reduce panel_scale en la configuracion.",
  "layout.row_overlap": "{what} ({key}, x {x0:.1f}..{x1:.1f}, z {z0:.1f}..{z1:.1f}) pisa {name}: mueve {key} en la configuracion.",
  "ro.header": "== INFORME DE SOLO LECTURA (no se ha cambiado nada en la mesa) ==",

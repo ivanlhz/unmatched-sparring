@@ -304,7 +304,7 @@
     {
       "id": "TMNT-MICHELANGELO",
       "title": "Michelangelo (TMNT) playable by the bot and by the human",
-      "status": "done",
+      "status": "in-progress",
       "criteria": [
         "Hero sheet, 30 cards and table data verified against the card images of the tournament savegame (sheet 176, character card 366); April O'Neil as the ranged sidekick",
         "Every card effect in the DSL, including Shell Insertion (two different effects out of four), Nunchaku (a +1 status on every attack of the hero this turn) and Cowabunga!! (cards played this turn)",
@@ -332,7 +332,7 @@
     {
       "id": "TMNT-IDENTITY",
       "title": "Medusa and the four turtles share CardIDs 17600-17629: one card-identity rule",
-      "status": "done",
+      "status": "in-progress",
       "criteria": [
         "Every card lookup of the engine, the session and the bot is per owner (Game.card_of, Game.cards_by_id, ChoiceRequest.card_owner) or by deck image in Lua; never by a bare CardID (docs/card-identity.md)",
         "is_medusa_card compares the card by value with Medusa's deck",
