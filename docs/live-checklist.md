@@ -188,6 +188,7 @@ Anota OK / fallo y que paso. Un fallo de proyeccion se dice **una vez** ("hazlo 
 - [ ] Carta boca arriba justo tras colocarla (`play_card_face_down` + giro en el mismo script): se ve como esperas.
 - [ ] Mensajes y latencia (`--timing`): boton normal ~1 mensaje; turno de Liz con Wildfire +1; un look +1. Anota cualquier boton que tarde mas de unos segundos.
 - [ ] Avisos de TTS lento: si sale "TTS no devolvio valor (esta ocupado, en pausa o recargando...)", anota la hora y que hacias (568c6bf: ahora espera 8 s mas antes de avisar).
+- [ ] verify_live: panel y chat en ingles con `language: "en"` (o `--language en`): botones (End action, Maneuver, Done / Don't move en las elecciones a mano), linea de estado y mensajes del chat de los modulos ya convertidos; el titulo de las cartas y los nombres de heroe quedan como estan impresos. Lo que aun sale en castellano (session.py y compania) es el lote 2 pendiente.
 
 ## 7. Que apuntar si algo falla
 

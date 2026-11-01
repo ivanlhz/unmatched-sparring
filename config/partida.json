@@ -1,5 +1,6 @@
 {
   "_notes": [
+    "language: idioma del panel y del chat, \"es\" (por defecto) o \"en\" (un fichero data/i18n/<codigo>.json por idioma; una etiqueta que falte cae al castellano); --language lo sobreescribe. Los nombres de carta y de heroe se quedan como estan impresos. Con --resume manda el idioma de ahora, no el de la partida guardada.",
     "ongoing_hold: seconds the bot pings your ONGOING scheme on its zone, after saying why it left play, before moving it to your discard pile itself; 0 skips the pause. If the table cannot do it you are asked to move it by hand.",
     "wildfire_hold: segundos que el bot (con Liz) deja a la vista, boca arriba en su descarte, la carta del fondo que descarta Wildfire antes de aplicar su efecto; 0 la apaga y lo aplica de golpe. La espera ocurre dentro de TTS en el mismo mensaje.",
     "action_announce_hold: segundos entre el aviso en el chat de lo que el bot va a hacer (maniobra, ataque, plan, habilidad, resolucion de su combate) y las escrituras en la mesa; 0 lo apaga y el aviso sale despues, como antes. En modo rapido la espera va dentro del mismo script de TTS (lua.hold). wildfire_hold y ongoing_hold son la misma pausa para esas dos escenas, con su propia duracion.",
@@ -17,6 +18,7 @@
     "Mirar la mano del bot (F16, boton del panel): look_spot es el CENTRO de la fila donde el bot pone sus cartas boca arriba (estimacion, calibrala en vivo: delante del asiento del humano, fuera de las manos, los descartes y las zonas de combate; el arranque avisa si pisa el panel o una caja de combate) y look_step el (dx, dz) entre cartas (2.6 en z para cartas giradas 90 grados; hasta 12 cartas). look_rot_y (opcional) gira las cartas; por defecto bot_discard_rot_y.",
     "unpack (opcional, apagado): con --unpack o \"unpack\": true (solo el booleano true) el bot, ANTES de jugar y nunca con --resume, saca de la bolsa interior de cada heroe lo que no este en la mesa (ningun GUID de sus estados; un mazo, ademas, sin ningun Deck o Card de su rango de CardID en toda la mesa) y lo deja en fila desde bot_unpack_spot / human_unpack_spot (por defecto [22,2.5,-10] y [-22,2.5,10.5], fuera de las zonas de mano; cada unpack_step [0,0,3]); el mazo va a su sitio de mazo y se baraja. Si la bolsa interior no esta en la mesa no hace nada y avisa; nunca saca de una bolsa infinita. start_spaces acepta ids de luchador o las claves bot / human."
   ],
+  "language": "es",
   "bot_hero": "auto",
   "human_hero": "auto",
   "board": "bprd-hq",

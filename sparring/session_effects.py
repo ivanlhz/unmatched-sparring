@@ -24,6 +24,7 @@ from .effects.choose import PanelChooser
 from .effects.model import EffectError, load_effects, walk_ops
 from .effects.run import Ctx, EffectRun
 from .effects.select import condition
+from .i18n import has, t
 from .tts.lua import ChatKind
 from . import session_bot_effects as bot_effects
 
@@ -53,8 +54,7 @@ def recognize_scheme(session, base: set) -> list[Card]:
     found = [c for c in st.discard if c.card_id not in base and c.is_scheme]
     if session.cfg.human_ongoing_spot is None:
         if any(is_ongoing(g, human, c) for c in found):
-            session._warn("ongoing", "spot", "No hay human_ongoing_spot en la configuracion: reconozco tu ONGOING en "
-                                             "tu descarte. Configura las zonas ONGOING y calibralas con --read-only.")
+            session._warn("ongoing", "spot", t("fx.no_spot"))
         return found
     by_id = {c.card_id: c for c in st.full_set}
     in_play = g.fx.ongoing_card_id(human)
@@ -63,9 +63,7 @@ def recognize_scheme(session, base: set) -> list[Card]:
     spot = [c for c in on_spot if is_ongoing(g, human, c)]        # only ONGOING cards count there (Ivan, 29/10)
     for c in on_spot:
         if c not in spot:
-            session._warn("ongoing", f"not-ongoing-{c.card_id}",
-                          f"{c.title} no es un ONGOING: no la cuento en tu zona ONGOING. Pasala a tu descarte y "
-                          "pulsa Fin de accion.")
+            session._warn("ongoing", f"not-ongoing-{c.card_id}", t("fx.not_ongoing", title=c.title))
     for c in spot:                                # it left your hand for the spot: the engine's copy follows
         for zone in (st.deck, st.discard):
             if c in zone:
@@ -86,7 +84,7 @@ def play_scheme(session, card: Card) -> None:
     run, pending = ongoing.resolve_scheme(g, session.human, g.hero(session.human), card, session._choosers())
     run.flags[STEP] = step
     if pending is not None:
-        session.say(f"Detecto {card.title}: la carta te pide una eleccion.", ChatKind.SCHEME)
+        session.say(t("fx.detected", title=card.title), ChatKind.SCHEME)
         session._show_choice(run.awaiting)
         return
     finish(session, run)
@@ -99,23 +97,21 @@ def finish(session, run: EffectRun) -> None:
     step = run.flags.pop(STEP, None)
     if step is None:
         return
-    session.say(f"Aplico {narrate.describe(g, step['narrate'], run)}.", ChatKind.SCHEME)
+    session.say(t("fx.applied", line=narrate.describe(g, step['narrate'], run)), ChatKind.SCHEME)
     if not g.fx.can_gain_actions(human) and any(o["op"] == "gain_action" for o in walk_ops(run.ops)):
-        session.say(f"{_card_title(g, run)}: no ganas sus acciones (un efecto en juego lo impide), te quedan "
-                    f"{g.actions_left}.", ChatKind.WARNING)
+        session.say(t("fx.no_actions", title=_card_title(g, run), left=g.actions_left), ChatKind.WARNING)
     now = g.fx.ongoing_card_id(human)
     if now == run.ctx.card_id:
         was = step["in_play"]
         by_id = {c.card_id: c for c in g.players[human].full_set}
-        replaced = f" y reemplaza a {by_id[was].title} (un solo ONGOING por jugador)" if was is not None and was in by_id else ""
-        where = "en tu zona ONGOING" if session.cfg.human_ongoing_spot is not None else "a la vista en tu descarte"
-        session.say(f"{by_id[now].title} queda en juego{replaced}: dejala {where}, la tengo en cuenta hasta que "
-                    "caduque.", ChatKind.SCHEME)
-    listed = session._discard_list(step["seen"], {}, "efecto")
+        replaced = t("fx.replaces", title=by_id[was].title) if was is not None and was in by_id else ""
+        where = t("fx.where_ongoing" if session.cfg.human_ongoing_spot is not None else "fx.where_discard")
+        session.say(t("fx.in_play", title=by_id[now].title, replaced=replaced, where=where), ChatKind.SCHEME)
+    listed = session._discard_list(step["seen"], {}, t("fx.cause_default"))
     if listed:
-        session.say(f"El bot descarta {listed}.")
+        session.say(t("fx.bot_discards", listed=listed))
     session._mark_dirty({fid: (v[0], v[1]) for fid, v in step["bot"].items()})
-    fin_fx = session._project_effects(step["fx"], frozenset(), cause=f"efecto de {_card_title(g, run)}")
+    fin_fx = session._project_effects(step["fx"], frozenset(), cause=t("fx.cause_of", card=_card_title(g, run)))
     session._announce_human_falls(step["alive"])
     fin_table = session._try_flush_stage()
     fin_dials = session._write_dials(defer=True)
@@ -123,12 +119,12 @@ def finish(session, run: EffectRun) -> None:
     fin_fx()
     fin_dials()
     if g.winner is not None:
-        session.say(f"Fin de partida: gana el jugador {g.winner}.")
+        session.say(t("fx.game_over", winner=g.winner))
 
 
 def _card_title(game, run: EffectRun) -> str:
     card = next((c for p in game.players for c in p.full_set if c.card_id == run.ctx.card_id), None)
-    return card.title if card else "la carta"
+    return card.title if card else t("fx.the_card")
 
 
 # ---------------------------------------------------------------- combat
@@ -167,22 +163,26 @@ def decline(session, paused) -> bool:
     elif req.min == 0:
         answer = []
     else:
-        session.say("Esta eleccion es obligatoria (la carta ya esta jugada): elige una de las opciones del panel.",
-                    ChatKind.WARNING)
+        session.say(t("fx.mandatory"), ChatKind.WARNING)
         return False
-    session.say("Eleccion cancelada: se resuelve sin hacer nada.", ChatKind.NEUTRAL)
+    session.say(t("fx.cancelled"), ChatKind.NEUTRAL)
     session._answer_choice(paused, answer)
     return True
 
 
 ABILITY_NAME = {"detective_draw": "OCCULT DETECTIVE"}      # trigger id -> the ability as the chat names it
-ABILITY_TEXT = {
-    "detective_draw": "OCCULT DETECTIVE: estas en la salida rival: puedes robar 2 cartas (o ninguna); elige en el panel y te las doy.",
-    "anung_discard_move": "ANUNG UN RAMA: descarta 1 carta (obligatorio) y mueve a {hero} hasta el BOOST de esa carta.",
-    "wildfire_start": "WILDFIRE: descarta la carta del fondo de tu mazo. Si es ardiente, 1 de dano a otro luchador de "
-                      "la zona de {hero} (usa -1 sobre el; la ardiente vuelve a tu mano); si no, mueve a {hero} hasta "
-                      "2 casillas.",
-}
+
+
+class _AbilityText:
+    """trigger id -> the ability's prompt in the current language, with `{hero}` still to fill (a mapping view over
+    the catalog tags `fx.ability.<id>`, so callers that `.get` a template keep working)."""
+
+    def get(self, trigger_id: str, default=None):
+        tag = f"fx.ability.{trigger_id}"
+        return t(tag, hero="{hero}") if has(tag) else default
+
+
+ABILITY_TEXT = _AbilityText()
 
 
 def start_of_turn_ability(session) -> str | None:

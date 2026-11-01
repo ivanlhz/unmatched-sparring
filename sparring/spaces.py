@@ -7,26 +7,28 @@ from __future__ import annotations
 
 from typing import Callable
 
+from .i18n import t
+
 
 def zone_text(game, space: int) -> str:
     zones = sorted(game.board.zones(space))
     if not zones:
-        return "sin zona"
+        return t("spaces.no_zone")
     if len(zones) == 1:
-        return f"zona de color {zones[0]}"
-    return f"zonas de color {'/'.join(zones)}"
+        return t("spaces.zone_one", color=zones[0])
+    return t("spaces.zone_many", color="/".join(zones))
 
 
 def describe(game, space: int | None, exclude=(), name: Callable = lambda f: f.name) -> str:
     """'zona de color rojo, a 2 casillas de Baba Yaga': `exclude` are fighter ids left out of the reference (the
     piece being moved). The reference is the nearest living fighter, the lowest fighter id on a tie."""
     if space is None:
-        return "fuera del tablero"
+        return t("spaces.off_board")
     text = zone_text(game, space)
     refs = [f for f in game.fighters.values() if f.alive and f.pos is not None and f.fid not in exclude and f.pos != space]
     if not refs:
         return text
     near = min(refs, key=lambda f: (game.board.distance(space, f.pos), f.fid))
     d = game.board.distance(space, near.pos)
-    rel = f"pegada a {name(near)}" if d == 1 else f"a {d} casillas de {name(near)}"
+    rel = t("spaces.next_to", name=name(near)) if d == 1 else t("spaces.distance", d=d, name=name(near))
     return f"{text}, {rel}"

@@ -26,7 +26,8 @@ from .search.controller import make_bot_ai
 from .board import Board
 from .hero_detect import HeroDetectionError, detect_heroes, read_table
 from .heroes import HeroDataError, load_hero
-from . import game_log, persist
+from . import game_log, i18n, persist
+from .i18n import t
 from .session import DEFAULT_ACTION_ANNOUNCE_HOLD, DEFAULT_BOT_PAUSE, DEFAULT_ONGOING_HOLD, DEFAULT_WILDFIRE_HOLD, TABLE_ERRORS, Msg, Session, SessionConfig, SessionError, piece_guids
 from .state import DEFAULT_HEROES, Game
 from .tts import lua, ui
@@ -90,6 +91,12 @@ class PlayConfig:
     warnings: list[str] = field(default_factory=list)      # avisos de la configuracion (se imprimen al arrancar)
     base: dict = field(default_factory=dict)                # la configuracion antes de `with_hero_data`
     sources: tuple[str, str] = (SRC_DEFAULT, SRC_DEFAULT)   # de donde sale el heroe de cada bando
+
+    @property
+    def language(self) -> str:
+        """Idioma del panel y del chat: `language` de la configuracion (o `--language`); uno desconocido es el castellano."""
+        value = self.raw.get("language")
+        return value if value in i18n.available() else i18n.DEFAULT
 
     @property
     def heroes(self) -> tuple[str, str]:
@@ -282,9 +289,11 @@ def with_hero_data(raw: dict) -> dict:
     return out
 
 
-def load_config(path: str | Path, bot_hero: str | None = None, human_hero: str | None = None) -> PlayConfig:
+def load_config(path: str | Path, bot_hero: str | None = None, human_hero: str | None = None,
+                language: str | None = None) -> PlayConfig:
     """`bot_hero` / `human_hero` (opciones de arranque) mandan sobre la configuracion; sin ninguno de los dos valores
-    el heroe queda por detectar (`resolve_heroes`) y, mientras tanto, es el de por defecto."""
+    el heroe queda por detectar (`resolve_heroes`) y, mientras tanto, es el de por defecto. `language` (`--language`)
+    manda sobre la clave `language`."""
     try:
         raw = json.loads(Path(path).read_text(encoding="utf-8"))
     except (OSError, ValueError) as e:
@@ -296,7 +305,12 @@ def load_config(path: str | Path, bot_hero: str | None = None, human_hero: str |
             sources.append(SRC_OPTION)
         else:
             sources.append(SRC_CONFIG if hero_setting(raw, key) else SRC_DEFAULT)
-    return build_config(raw, tuple(sources))     # type: ignore[arg-type]
+    if language:
+        raw["language"] = language
+    cfg = build_config(raw, tuple(sources))     # type: ignore[arg-type]
+    if raw.get("language") not in (None, *i18n.available()):
+        cfg.warnings.append(f"language: {raw['language']!r} no tiene fichero en data/i18n; uso {i18n.DEFAULT}.")
+    return cfg
 
 
 def build_config(raw: dict, sources: tuple[str, str]) -> PlayConfig:
@@ -685,11 +699,10 @@ def recover_after_reload(session: Session, client: TTSClient, targets: list[str]
     try:
         found = client.call_lua(lua.inspect_guids(session.guids_in_use())) or {}
         found = found if isinstance(found, dict) else {}
-        missing = [" o ".join(group) for group in session.guid_groups()
+        missing = [t("common.or").join(group) for group in session.guid_groups()
                    if not any((found.get(g) or {}).get("found") for g in group)]
         if missing:
-            return "stop", [f"TTS recargo la partida y faltan objetos de la configuracion: {', '.join(missing)}. "
-                            "Paro sin tocar la mesa; carga la partida correcta y reanuda con --resume."]
+            return "stop", [t("play.reload_missing", missing=", ".join(missing))]
         if attackers is None:
             attackers = tuple(f.fid for f in session.game.own(session.human, alive_only=False))
         client.call_lua(lua.create_panel(targets, position, rotation, scale, names,
@@ -698,10 +711,9 @@ def recover_after_reload(session: Session, client: TTSClient, targets: list[str]
         mark_floor(client, session.cfg)
         session.restore_look_row()
     except TABLE_ERRORS as e:
-        return "retry", [f"TTS recargo la partida y aun no responde ({e}); reintento."]
+        return "retry", [t("play.reload_retry", error=e)]
     session.dirty = True
-    return "ok", ["TTS recargo la partida: GUIDs comprobados y panel recreado. Pulsa Fin de accion para que "
-                  "el bot relea la mesa."]
+    return "ok", [t("play.reload_ok")]
 
 
 UNPACK_SPOTS = {"bot": (22.0, 2.5, -10.0), "human": (-22.0, 2.5, 10.5)}   # fuera de las manos (|x| >= 25) y de los descartes
@@ -773,13 +785,13 @@ def run_loop(session: Session, client: TTSClient, stop: threading.Event, announc
             try:
                 event, payload = parse_event(raw)
             except (KeyError, ValueError, TypeError, AttributeError):
-                announce([Msg(f"Evento desconocido ignorado: {raw!r}", lua.ChatKind.WARNING)])
+                announce([Msg(t("play.unknown_event", event=repr(raw)), lua.ChatKind.WARNING)])
                 continue
             try:
                 announce(session.handle(event, payload))
             except Exception:                                    # noqa: BLE001 - la partida debe seguir
                 traceback.print_exc()
-                announce([Msg("Error interno del bot; la partida sigue. Repite el boton o usa Cancelar ataque.", lua.ChatKind.WARNING)])
+                announce([Msg(t("play.internal_error"), lua.ChatKind.WARNING)])
         if not events:
             stop.wait(poll)
 
@@ -806,6 +818,7 @@ def play(cfg: PlayConfig, client: TTSClient, first: str, seed: int, stop: thread
          echo: Callable[[str], None] = print, poll: float = 0.1, state_path: Path | None = None,
          resume: bool = False, timing: bool = False, ai: str | None = None,
          ai_time: float | None = None, bot_pause: float | None = None, unpack: bool = False) -> None:
+    i18n.set_language(cfg.language)                  # before the first panel or chat line; --resume takes the current one
     scfg = cfg.session_config()
     if bot_pause is not None:
         if not (math.isfinite(bot_pause) and 0 <= bot_pause <= 30):
@@ -869,6 +882,8 @@ def parse_args(argv: list[str] | None) -> argparse.Namespace:
     ap.add_argument("--bot-pause", type=float, default=None, metavar="SEGUNDOS",
                     help="pausa entre las acciones del turno del bot y antes de tu turno (manda sobre bot_pause de "
                          f"la configuracion; por defecto {DEFAULT_BOT_PAUSE:g}; 0 la desactiva)")
+    ap.add_argument("--language", choices=i18n.available(), default=None,
+                    help="idioma del panel y del chat (manda sobre language de la configuracion; por defecto es)")
     ap.add_argument("--unpack", action="store_true",
                     help="antes de jugar, saca de la bolsa interior de cada heroe lo que falte en la mesa (tambien "
                          '"unpack": true en la configuracion); nunca al reanudar con --resume')
@@ -893,7 +908,7 @@ def saved_heroes(state_path: str | Path) -> tuple[str, str] | None:
 def main(argv: list[str] | None = None, stop: threading.Event | None = None) -> int:
     args = parse_args(argv)
     try:
-        cfg = load_config(args.config, args.bot_hero, args.human_hero)
+        cfg = load_config(args.config, args.bot_hero, args.human_hero, args.language)
         if not args.read_only:
             cfg.session_config()                     # falla antes de abrir puertos si falta algo
     except ConfigError as e:

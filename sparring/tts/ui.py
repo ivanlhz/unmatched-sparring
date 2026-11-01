@@ -8,6 +8,8 @@ from __future__ import annotations
 import re
 from enum import Enum
 
+from ..i18n import t
+
 
 class Event(str, Enum):
     MANEUVER = "maneuver"
@@ -31,12 +33,10 @@ class Event(str, Enum):
     CHOICE = "choice"          # btn_choice_<i>: la opcion i (1..6) de la eleccion de efecto pendiente, en {"i": i}
 
 
-END_ACTION_LABEL = "Fin de accion"
 PANEL_ROTATION = (0, 0, 270)     # confirmado en vivo: con 90 se veia boca abajo desde el asiento White
 PANEL_SCALE = (6, 6, 6)          # sin escala el panel se ve diminuto sobre el objeto de 0.4
 PANEL_WIDTH = 760
 STATUS_ID = "status"
-PROCESSING = "Procesando..."
 BUTTON_STYLE = 'textColor="#FFFFFF" colors="#2D6A9F|#3C86C8|#1F4C75|#555555" '
 
 ROW_HEIGHT = 48
@@ -52,6 +52,13 @@ FIXED_BUTTONS = {"btn_maneuver": "onManeuver", "btn_scheme": "onScheme", "btn_re
                  "btn_look": "onLook", **dict.fromkeys(CHOICE_BUTTONS, "onChoice")}
 SETUP_ONLY = ("btn_mulligan", "btn_ready")
 GAME_ONLY = ("btn_restart",)
+
+
+def __getattr__(name: str):
+    """`END_ACTION_LABEL`: the caption of the end-of-action button in the current language."""
+    if name == "END_ACTION_LABEL":
+        return t("panel.end_action")
+    raise AttributeError(name)
 
 
 def _triple(v, name: str) -> str:
@@ -106,14 +113,14 @@ local function send(tbl)
   busy = true
   clickSeq = clickSeq + 1
   local mine = clickSeq
-  UI.setValue("{STATUS_ID}", "{PROCESSING}")
+  UI.setValue("{STATUS_ID}", "{t("panel.processing")}")
   setAll(false)
 {take}  sendExternalMessage(tbl)
   Wait.time(function()
     if busy and mine == clickSeq then
       busy = false
       setAll(true)
-      UI.setValue("{STATUS_ID}", "Sin respuesta del bot: repite el boton")
+      UI.setValue("{STATUS_ID}", "{t("panel.no_reply")}")
     end
   end, 20)
 end
@@ -185,7 +192,7 @@ def _row(*cells: str, height: int = ROW_HEIGHT) -> str:
 
 def _choice_row(ids) -> str:
     """Fila de botones de eleccion: nacen ocultos; el bot los muestra (con su texto) solo mientras hay una eleccion."""
-    return _row(*(_button(i, "onChoice", "Opcion", 16).replace("<Button ", '<Button active="false" ') for i in ids))
+    return _row(*(_button(i, "onChoice", t("panel.option"), 16).replace("<Button ", '<Button active="false" ') for i in ids))
 
 
 def _text(text: str, size: int = 18, extra: str = "") -> str:
@@ -202,46 +209,46 @@ def panel_xml(target_ids: list[str], attacker_ids: tuple[str, ...] = DEFAULT_ATT
               names: dict[str, str] | None = None) -> str:
     """`fighter_ids` son todos los luchadores de ambos bandos (filas de PV y Retirar); por defecto, los dos grupos."""
     fighters = tuple(dict.fromkeys(fighter_ids if fighter_ids is not None else (*target_ids, *attacker_ids)))
-    for t in (*target_ids, *attacker_ids, *fighters):
-        if not re.fullmatch(r"[A-Za-z0-9_]+", t):
-            raise ValueError(f"id de objetivo no valido: {t!r}")
+    for ident in (*target_ids, *attacker_ids, *fighters):
+        if not re.fullmatch(r"[A-Za-z0-9_]+", ident):
+            raise ValueError(f"id de objetivo no valido: {ident!r}")
     rot, sc = _triple(rotation, "panel_rotation"), _triple(scale, "panel_scale")
     names = names or {}
     if not isinstance(names, dict) or not all(isinstance(v, str) and _LABEL.fullmatch(v) for v in names.values()):
         raise ValueError("nombres de boton no validos (letras, cifras, espacio y . _ - ')")
 
-    def label(t: str) -> str:
-        return names.get(t, t)
+    def label(ident: str) -> str:
+        return names.get(ident, ident)
     section = 'color="#16222FEE" padding="10 10 10 10" spacing="8"'
-    who = _row(*(_button(f"att_{a}", "onAttacker", f"Ataca {label(a)}") for a in attacker_ids))
-    attacks = _row(*(_button(t, "onAttack", f"Atacar a {label(t)}", 16) for t in target_ids))
+    who = _row(*(_button(f"att_{a}", "onAttacker", t("panel.attacker", name=label(a))) for a in attacker_ids))
+    attacks = _row(*(_button(tid, "onAttack", t("panel.attack", name=label(tid)), 16) for tid in target_ids))
     turn = (f'<VerticalLayout {section} preferredHeight="{40 + 7 * (ROW_HEIGHT + 8) + 40}">'
-            + _text("TURNO", 16, 'fontStyle="Bold"')
-            + f'<Text id="{STATUS_ID}" color="#FFFFFF" fontSize="22" fontStyle="Bold" preferredHeight="40">Preparando...</Text>'
-            + _row(_button("btn_maneuver", "onManeuver", "Maniobra"), _button("btn_scheme", "onScheme", "Plan"))
+            + _text(t("panel.turn"), 16, 'fontStyle="Bold"')
+            + f'<Text id="{STATUS_ID}" color="#FFFFFF" fontSize="22" fontStyle="Bold" preferredHeight="40">{t("panel.status_init")}</Text>'
+            + _row(_button("btn_maneuver", "onManeuver", t("panel.maneuver")), _button("btn_scheme", "onScheme", t("panel.scheme")))
             + who + attacks
-            + _row(_button("btn_reveal", "onReveal", "Revelar"), _button("btn_cancel", "onCancel", "Cancelar ataque"),
-                   _button("btn_boost", "onBoost", "Continuar").replace("<Button ", '<Button active="false" '),
-                   _button("btn_noboost", "onNoBoost", "Sin boost").replace("<Button ", '<Button active="false" '))
-            + _row(_button("btn_end", "onEndAction", END_ACTION_LABEL),
-                   _button("btn_look", "onLook", "Mirar mano del bot").replace("<Button ", '<Button active="false" '))
+            + _row(_button("btn_reveal", "onReveal", t("panel.reveal")), _button("btn_cancel", "onCancel", t("panel.cancel")),
+                   _button("btn_boost", "onBoost", t("panel.continue")).replace("<Button ", '<Button active="false" '),
+                   _button("btn_noboost", "onNoBoost", t("panel.no_boost")).replace("<Button ", '<Button active="false" '))
+            + _row(_button("btn_end", "onEndAction", t("panel.end_action")),
+                   _button("btn_look", "onLook", t("panel.look")).replace("<Button ", '<Button active="false" '))
             + _choice_row(CHOICE_BUTTONS[:3]) + _choice_row(CHOICE_BUTTONS[3:])
             + '</VerticalLayout>')
     hp_rows = "".join(
         _row(f'<Text color="#FFFFFF" fontSize="16" preferredWidth="150">{label(f)}</Text>',
              _button(f"hpm_{f}", "onHp", "-1", 16), _button(f"hpp_{f}", "onHp", "+1", 16),
-             _button(f"rm_{f}", "onRemove", "Retirar", 16), height=40) for f in fighters)
+             _button(f"rm_{f}", "onRemove", t("panel.remove"), 16), height=40) for f in fighters)
     side_h = 60 + 48 * len(fighters)
     life = (f'<VerticalLayout {section} preferredWidth="470" preferredHeight="{side_h}">'
-            + _text("VIDA", 16, 'fontStyle="Bold"') + hp_rows + '</VerticalLayout>')
+            + _text(t("panel.life"), 16, 'fontStyle="Bold"') + hp_rows + '</VerticalLayout>')
     game = (f'<VerticalLayout {section} preferredWidth="260" preferredHeight="{side_h}">'
-            + _text("PARTIDA", 16, 'fontStyle="Bold"')
-            + _row(_button("btn_mulligan", "onMulligan", "Mulligan"))
-            + _row(_button("btn_ready", "onReady", "Listo (preparacion)"))
-            + _row(_button("btn_restart", "onRestart", "Reiniciar partida"))
-            + _row(_button("btn_undo", "onUndoGameOver", "Deshacer fin de partida"))
-            + '<InputField placeholder="valor (boost, On Earth...)" onValueChanged="onValueEdit" preferredHeight="40"/>'
-            + _row(_button("btn_value", "onValueSend", "Enviar valor")) + '</VerticalLayout>')
+            + _text(t("panel.game"), 16, 'fontStyle="Bold"')
+            + _row(_button("btn_mulligan", "onMulligan", t("panel.mulligan")))
+            + _row(_button("btn_ready", "onReady", t("panel.ready")))
+            + _row(_button("btn_restart", "onRestart", t("panel.restart")))
+            + _row(_button("btn_undo", "onUndoGameOver", t("panel.undo")))
+            + f'<InputField placeholder="{t("panel.value_placeholder")}" onValueChanged="onValueEdit" preferredHeight="40"/>'
+            + _row(_button("btn_value", "onValueSend", t("panel.send_value"))) + '</VerticalLayout>')
     height = panel_height(len(fighters))
     return (f'<Panel position="0 0 -20" rotation="{rot}" scale="{sc}" width="{PANEL_WIDTH}" height="{height}" '
             f'color="#000000CC">\n  <VerticalLayout spacing="8" padding="8 8 8 8">\n    {turn}\n'

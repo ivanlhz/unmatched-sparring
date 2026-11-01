@@ -10,10 +10,10 @@ step (`session_bot_effects._human_disc_to_deck`) that the table already shows th
 from __future__ import annotations
 
 from .effects.choose import ChoiceRequest
+from .i18n import t
 from .tts.lua import ChatKind
 
-HECHO = "Hecho"
-WHERE = {"shuffle": "en tu mazo y barajalo", "bottom": "en el fondo de tu mazo", "top": "encima de tu mazo"}
+WHERE = {"shuffle": "pile.where.shuffle", "bottom": "pile.where.bottom", "top": "pile.where.top"}     # position -> i18n key
 
 
 def manual_request(session) -> ChoiceRequest | None:
@@ -38,18 +38,17 @@ def _card_name(session, req: ChoiceRequest) -> str:
 
 def _how_many(req: ChoiceRequest) -> str:
     if req.max == 1:
-        return "hasta una carta" if req.min == 0 else "una carta"
-    return f"{'hasta ' if req.min < req.max else ''}{req.max} cartas"
+        return t("pile.how.up_to_one" if req.min == 0 else "pile.how.single")
+    return t("pile.how.up_to_n" if req.min < req.max else "pile.how.n", n=req.max)
 
 
 def instruction(session, req: ChoiceRequest) -> str:
     st = session.game.players[session.human]
     no_scheme = any(c.card_id not in req.options and c.is_scheme for c in st.discard)
-    kind = (" que no sea un plan" if req.max == 1 else " (que no sean planes)") if no_scheme else ""
-    where = WHERE.get(req.extra.get("position"), WHERE["shuffle"])
-    plural = "s" if req.max != 1 else ""
-    return (f"{_card_name(session, req)}: saca de tu descarte {_how_many(req)}{kind}, ponla{plural} {where} y pulsa "
-            "Hecho. Yo detecto cual has movido.")
+    kind = t("pile.kind.single" if req.max == 1 else "pile.kind.multi") if no_scheme else ""
+    where = t(WHERE.get(req.extra.get("position"), WHERE["shuffle"]))
+    return t("pile.instruction" if req.max == 1 else "pile.instruction_many", card=_card_name(session, req),
+             how=_how_many(req), kind=kind, where=where)
 
 
 def start(session, req: ChoiceRequest) -> None:
@@ -57,11 +56,11 @@ def start(session, req: ChoiceRequest) -> None:
 
 
 def reprompt(session, req: ChoiceRequest) -> str:
-    return "Sigue pendiente: " + instruction(session, req)
+    return t("common.still_pending", text=instruction(session, req))
 
 
 def status(session, req: ChoiceRequest) -> str:
-    return "Mueve la carta de tu descarte a tu mazo y pulsa Hecho"
+    return t("pile.status")
 
 
 def view(session, req: ChoiceRequest) -> tuple[dict, dict]:
@@ -69,7 +68,7 @@ def view(session, req: ChoiceRequest) -> tuple[dict, dict]:
     from .session_choices import CHOICE_IDS
     states = {ident: (False, False) for ident in CHOICE_IDS}
     states[CHOICE_IDS[0]] = (True, True)
-    return states, {CHOICE_IDS[0]: HECHO}
+    return states, {CHOICE_IDS[0]: t("btn.done")}
 
 
 def verdict(session, req: ChoiceRequest) -> tuple[list[int] | None, str | None]:
@@ -80,20 +79,18 @@ def verdict(session, req: ChoiceRequest) -> tuple[list[int] | None, str | None]:
     own = {c.card_id for c in st.full_set}
     rows = session._rd_human_discard_raw()
     if rows is None and st.discard:                  # no reply is not an empty pile: nothing may be read as moved
-        return None, "No he podido leer tu descarte: pulsa Hecho otra vez."
+        return None, t("pile.unreadable")
     on_table = {r["id"] for r in rows or [] if isinstance(r, dict)} & own
     left = sorted({c.card_id for c in st.discard} - on_table - {g.fx.ongoing_card_id(session.human)})
     wrong = [i for i in left if i not in req.options]
     if wrong:
-        return None, (f"{_titles(session, wrong)} no se puede elegir con {_card_name(session, req) or 'esta carta'}: "
-                      "devuelvela a tu descarte y pulsa Hecho.")
+        return None, t("pile.wrong", titles=_titles(session, wrong), card=_card_name(session, req) or t("pile.this_card"))
     if len(left) > req.max:
-        return None, (f"Has sacado {len(left)} cartas del descarte ({_titles(session, left)}) y solo puedes "
-                      f"{req.max}. Devuelve las que sobran y pulsa Hecho.")
+        return None, t("pile.too_many", n=len(left), titles=_titles(session, left), max=req.max)
     if len(left) < req.min:
         if not left:
-            return None, "No veo que hayas sacado ninguna carta de tu descarte: sacala, ponla en tu mazo y pulsa Hecho."
-        return None, f"Solo veo {len(left)} carta(s) fuera del descarte y tienes que mover {req.min}."
+            return None, t("pile.none")
+        return None, t("pile.too_few", n=len(left), min=req.min)
     return left, None
 
 
@@ -103,7 +100,7 @@ def press(session, paused, index) -> None:
     if isinstance(index, float) and index.is_integer():
         index = int(index)
     if index != 1:
-        session.say("Ese boton no corresponde a ninguna opcion.", ChatKind.WARNING)
+        session.say(t("choice.no_such_button"), ChatKind.WARNING)
         return
     ids, why = verdict(session, req)
     if ids is None:
