@@ -168,6 +168,15 @@ def fighter_candidates(game, run, sel) -> tuple[list, bool]:
     return out, sel.get("pick", "one") == "all"
 
 
+def _path_unknown(game, run, sel) -> bool:
+    """True if `sel` filters by `passed_by` and a mover's path is one the engine did not see (moved by hand)."""
+    ref = (sel.get("filter") or {}).get("passed_by") if isinstance(sel, dict) else None
+    if ref is None:
+        return False
+    passed = run.flags.get("passed") or {}
+    return any(passed.get(mover.fid, []) is None for mover in _role_fighters(game, run, ref))
+
+
 def _passed_by(game, run, fighters: list, ref) -> list:
     """The fighters a moved fighter passed through (`move` records them in `run.flags["passed"]`). `None` is a move
     the engine did not see (the human moved their miniature by hand): every candidate stays, the human answers."""
@@ -186,9 +195,12 @@ def pick_fighters(game, run, sel, chooser: int, prompt: str = "", **extra) -> li
     empty (the op does nothing); `pick: all` returns every candidate (zero is fine). `extra` (the op name, its
     amount...) travels in the request so a bot can score the candidates for what is about to happen to them."""
     cands, pick_all = fighter_candidates(game, run, sel)
-    if pick_all or len(cands) <= 1:
+    unknown = _path_unknown(game, run, sel)          # moved by hand: the human may also answer "nobody was passed"
+    if pick_all or not cands or (len(cands) == 1 and not unknown):
         return cands
-    got = run.ask(game, "fighter", chooser, [f.fid for f in cands], 1, 1, prompt or "choose a fighter", **extra)
+    got = run.ask(game, "fighter", chooser, [f.fid for f in cands], 0 if unknown else 1, 1, prompt or "choose a fighter", **extra)
+    if not got:
+        return []
     return [game.fighters[got[0]]]
 
 

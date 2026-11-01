@@ -1,4 +1,6 @@
 """Donatello's cards, INVENTIVE and the inventions on the engine (bot side: the controllers decide)."""
+import json
+
 import pytest
 
 from conftest import Scripted, card
@@ -6,6 +8,7 @@ from sparring import persist
 from sparring.ai_medusa import MedusaAI
 from sparring.combat import resolve_combat
 from sparring.effects import ongoing
+from sparring.effects.model import EFFECTS_DIR
 from sparring.effects.choose import ScriptedChooser
 from sparring.state import Game
 
@@ -101,6 +104,14 @@ def test_short_circuit_cancels_only_the_after_combat_of_the_opposing_card(g):
     assert len(g.players[1].hand) == hand0 - 1          # played; its draw was cancelled
 
 
+def test_short_circuit_records_the_cancelled_after_apart_from_the_full_cancel(g):
+    sc = give(g, "Short circuit")
+    after = next(c for c in g.players[1].full_set if c.can_defend and "AFTER COMBAT" in c.text)
+    g.players[1].hand.append(after)
+    res = attack(g, sc, after)
+    assert res.cancelled_after == {"def"} and "def" not in res.cancelled
+
+
 def test_short_circuit_keeps_the_other_moments(g):
     sc = give(g, "Short circuit")
     during = next(c for c in g.players[1].full_set if c.can_defend and "DURING COMBAT" in c.text)
@@ -168,6 +179,29 @@ def test_party_wagon_moves_and_hits_a_fighter_it_passed_through(g):
     hp = hell.hp
     g.play_scheme(0, don, pw)
     assert don.pos == c and hell.hp == hp - 2
+
+
+class Decliner(Scripted):
+    """An owner who says No to every optional: the wagon's damage is not an optional, so it must still land."""
+
+    def choose_effect(self, game, req):
+        return [False] if req.kind == "optional" else None
+
+
+def test_party_wagon_damage_is_mandatory_even_for_an_owner_who_declines_optionals(g):
+    pw = give(g, "Party wagon!")
+    don, hell = g.hero(0), g.hero(1)
+    a, b, c = line_of_three(g.board)
+    don.pos, hell.pos = a, b
+    g.fighters["metalhead"].pos = max(g.board.spaces)
+    g.controllers[0] = Decliner()
+    g.controllers[0].moves = {"donatello": c}
+    hp = hell.hp
+    g.play_scheme(0, don, pw)
+    assert don.pos == c and hell.hp == hp - 2
+    raw = json.loads((EFFECTS_DIR / "donatello.json").read_text(encoding="utf-8"))
+    wagon = next(card for card in raw["cards"] if card["title"] == "Party wagon!")
+    assert [op["op"] for op in wagon["effects"]["scheme"]] == ["move", "damage"]
 
 
 def test_party_wagon_hits_nobody_when_the_mover_passed_through_no_one(g):

@@ -316,6 +316,7 @@ class CombatFlow:
         self.game.damage(victim, damage, "combat")
         result.atk_value, result.def_value, result.damage, result.attacker_won = ctx.atk_value, ctx.def_value, damage, damage >= 1
         result.cancelled = set(ctx.cancelled)
+        result.cancelled_after = set(ctx.cancelled_after)
         loser = self.tgt if damage >= 1 else self.att       # a tie is lost by the attacker (the engine's "won")
         self.game.fx.emit("combat_lost", loser.owner, loser)
 
@@ -348,6 +349,7 @@ class CombatFlow:
             "result": None if res is None else {
                 "atk_value": res.atk_value, "def_value": res.def_value, "damage": res.damage,
                 "attacker_won": res.attacker_won, "cancelled": sorted(res.cancelled),
+                **({"cancelled_after": sorted(res.cancelled_after)} if res.cancelled_after else {}),
                 "boost_card": None if res.boost_card is None else res.boost_card.card_id,
                 "boost_owner": None if res.boost_card is None else self._owner_of(res.boost_card),
                 "atk_parts": list(res.atk_parts), "def_parts": list(res.def_parts), "applied": list(res.applied),
@@ -390,7 +392,7 @@ class CombatFlow:
             flow.result = CombatResult(att.fid, tgt.fid, flow.atk_card, flow.def_card, r["atk_value"], r["def_value"],
                                        r["damage"], r["attacker_won"], set(r["cancelled"]), card(r["boost_card"], _boost_owner(flow, r)),
                                        list(r["human_effects"]), list(r["atk_parts"]), list(r["def_parts"]),
-                                       list(r["applied"]), list(r["bot_notes"]))
+                                       list(r["applied"]), list(r["bot_notes"]), set(r.get("cancelled_after", ())))
             flow.sides = [Side(*s) for s in _side_cards(flow.ctx)]
         return flow
 

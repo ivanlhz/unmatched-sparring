@@ -158,7 +158,7 @@ Everything here is new (1/11) and has only run against FakeTTS. The deck shares 
 **H and B**
 - [ ] Detection with `bot_hero` / `human_hero` on `auto`: "Donatello" is recognised from his deck image (sheet 176, the Donatello face), not mistaken for Medusa or another TMNT deck.
 - [ ] Metalhead (token) and both life dials (14 and 7) are found and written.
-- [ ] Party wagon!: move a friendly fighter up to 5 through rivals, then 2 damage to one it passed through. Bot: the chat says which; human: you move by hand, the panel asks whether you passed through one (Yes/No) and which.
+- [ ] Party wagon!: move a friendly fighter up to 5 through rivals, then 2 damage to one it passed through. Bot: the chat says which; human: you move by hand, the panel asks which rival you passed through (or none), and the 2 damage is mandatory once you name one.
 - [ ] Short circuit cancels only the AFTER COMBAT of the rival card (its IMMEDIATELY and DURING still happen).
 - [ ] Untested enhancements: you put the real bottom card of your deck in the discard (boost wait), as Flame Lash does.
 - [ ] The future of Ninjutsu / Thinking ahead / Donatello does machines: the card goes to or from the right pile.

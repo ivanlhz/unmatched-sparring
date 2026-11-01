@@ -36,8 +36,8 @@ def op_names(schema: dict) -> set[str]:
 
 # ---------------------------------------------------------------- the box files plus Medusa
 
-def test_the_five_effect_files_exist_and_validate():
-    assert set(BOX) <= {p.stem for p in effect_files()}
+def test_the_nine_effect_files_exist_and_validate():
+    assert set(BOX) == {p.stem for p in effect_files()}
     for path in effect_files():
         assert validate_file(path) == [], path.name
 
