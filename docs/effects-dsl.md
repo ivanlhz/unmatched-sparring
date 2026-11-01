@@ -145,7 +145,7 @@ An integer, a numeric event binding (`"$amount"`, see 2.10), or one of these obj
 - `{"count": FighterSel}` or `{"count_cards": CardSel}`: how many meet the selector.
 - `{"counter": "<name>", "player": PlayerSel}`: counter of the HeroDef or of `ability.counters` (default `owner`).
 - `{"stat": ..., "player"|"fighter": ...}` with stat in `hand_size`, `hp`, `max_hp`, `actions_taken_this_turn`,
-  `damage_dealt_this_combat`, `damage_taken_this_combat`.
+  `damage_dealt_this_combat`, `damage_taken_this_combat`, `combats_lost_this_turn`.
 
 ### 2.6 Who chooses (chooser)
 
@@ -191,6 +191,7 @@ An object with `test` or a combinator `{"all": [...]}`, `{"any": [...]}`, `{"not
 | `moved_this_turn` | `fighter: FighterRef` | started the turn on another space |
 | `played_as` | `side: attack | defense` | how `this` was played |
 | `compare` | `left: Amount`, `op: < <= == >= > !=`, `right: Amount` | |
+| `effects_canceled` | `card: CardRef` | a cancellation of this combat took effects off that card |
 | `plugin` | `id`, `key` | computed by the plugin |
 
 There are never conditions in strings.
@@ -211,6 +212,7 @@ There are never conditions in strings.
 | `card_discarded` | `player`, `from: [hand, deck]`, `cause_not: hand_limit`?, `filter: CardFilter` | `$card` |
 | `card_played` | `player`, `filter` | `$card` |
 | `fighter_defeated` | `fighter: FighterSel` | `$fighter` |
+| `combat_lost` | `player` (default `owner`; `any`) | `$fighter` |
 
 As expiry (`until`): `{"event": "end_of_turn"}` = the current turn, whoever's it is;
 `{"event": "start_of_turn", "player": "owner"}` = the owner's next turn;
@@ -239,7 +241,7 @@ Every op is `{"op": "<name>", ...args}`. Arguments not listed are an error.
 | `swap` | `target`, `with: FighterSel` | `chooser` | |
 | `revive` | `target` (with `state: defeated`), `where`, `hp` | `chooser` | brings back a defeated fighter |
 | `summon` | `name`, `where` | `hp`, `chooser` | takes a sidekick out of the reserve (`reserve` of the HeroDef); without a reserve it does nothing |
-| `cancel_effects` | `card: CardRef` | | respects `uncancelable` |
+| `cancel_effects` | `card: CardRef` | `moments` (`immediately`/`during`/`after`) | respects `uncancelable`; with `moments` only those |
 | `modify_value` | `card: CardRef`, `amount` | | adds (negative subtracts); never drops below 0 |
 | `set_value` | `card` and `amount` or `ignore: true` | | `amount`: the printed value becomes N (bonuses stay); `ignore: true`: "ignore its value", the total value becomes 0 (Incinerate) |
 | `boost` | `card: CardRef` | `chooser` | boosts that card now (discards the top card of its owner's deck). For the card's own free "may BOOST", `may_boost` is used |

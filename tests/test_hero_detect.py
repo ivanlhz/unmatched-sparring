@@ -384,14 +384,14 @@ def unplayable(slug, x, z, size=30, images=None):
 
 
 def test_a_catalog_hero_that_is_not_playable_is_named_and_refused():
-    r = read_table(CatalogClient(at_bot("medusa"), unplayable("raphael", -5.0, 13.5)))
-    assert [p.get("catalog") for p in r.piles] == [None, "raphael"]
+    r = read_table(CatalogClient(at_bot("medusa"), unplayable("alice", -5.0, 13.5)))
+    assert [p.get("catalog") for p in r.piles] == [None, "alice"]
     with pytest.raises(HeroDetectionError) as e:
         detect(r)
     text = str(e.value)
-    assert "El humano juega Raphael, que el bot todavia no sabe jugar" in text
-    assert "Heroes jugables: Abe Sapien, Baba Yaga, Hellboy, Liz Sherman, Medusa." in text
-    assert "Raphael (raphael) [no jugable todavia]: 0 cartas en el lado del bot, 30 en el del humano" in text
+    assert "El humano juega Alice, que el bot todavia no sabe jugar" in text
+    assert "Heroes jugables: Abe Sapien, Baba Yaga, Hellboy, Liz Sherman, Medusa, Raphael." in text
+    assert "Alice (alice) [no jugable todavia]: 0 cartas en el lado del bot, 30 en el del humano" in text
 
 
 def test_the_bot_side_is_refused_too_and_a_fixed_side_skips_the_refusal():
@@ -402,7 +402,7 @@ def test_the_bot_side_is_refused_too_and_a_fixed_side_skips_the_refusal():
 
 
 def test_a_deck_that_is_in_no_catalog_hero_is_still_an_unknown_deck():
-    foreign = {**unplayable("raphael", -5.0, 13.5, images=["https://x.test/a/|https://x.test/b/"]), "name": "Mystery"}
+    foreign = {**unplayable("alice", -5.0, 13.5, images=["https://x.test/a/|https://x.test/b/"]), "name": "Mystery"}
     r = read_table(CatalogClient(at_bot("medusa"), foreign))
     assert r.piles[1].get("catalog") is None
     with pytest.raises(HeroDetectionError, match=r"«Mystery» \(30 cartas\) no es de ningun heroe"):
@@ -410,10 +410,10 @@ def test_a_deck_that_is_in_no_catalog_hero_is_still_an_unknown_deck():
 
 
 def test_a_few_unplayable_cards_do_not_outvote_a_playable_deck_but_a_majority_does():
-    stray = unplayable("raphael", -5.0, 13.0, size=5)
+    stray = unplayable("alice", -5.0, 13.0, size=5)
     assert detect(read_table(CatalogClient(at_bot("medusa"), at_human("hellboy"), stray))) == ("medusa", "hellboy")
-    big = unplayable("raphael", -5.0, 13.0, size=30)
-    with pytest.raises(HeroDetectionError, match="El humano juega Raphael"):     # 30 against 14 is 2x or more
+    big = unplayable("alice", -5.0, 13.0, size=30)
+    with pytest.raises(HeroDetectionError, match="El humano juega Alice"):     # 30 against 14 is 2x or more
         detect(read_table(CatalogClient(at_bot("medusa"), at_human("hellboy", n=14), big)))
 
 
@@ -438,8 +438,8 @@ realshape(mkobj({guid = 'raph', type = 'Deck', name = 'Raphael', cards = rc, pos
 
 def test_main_refuses_a_catalog_hero_with_exit_2_and_a_clear_message(wire, capsys):
     state, fake, ports = wire
-    state["piles"] = [at_bot("medusa"), unplayable("raphael", -5.0, 13.5)]
+    state["piles"] = [at_bot("medusa"), unplayable("alice", -5.0, 13.5)]
     assert main(["--config", str(REAL_CONFIG), "--read-only", *ports]) == 2
     err = capsys.readouterr().err
-    assert "El humano juega Raphael, que el bot todavia no sabe jugar" in err and "--human-hero" in err
+    assert "El humano juega Alice, que el bot todavia no sabe jugar" in err and "--human-hero" in err
     assert state["scripts"] == ["-- sparring:table_heroes"]
