@@ -206,3 +206,46 @@ def test_shell_insertion_offers_four_effects_and_two_different_ones_are_applied(
     assert second.kind == "effect" and 0 not in second.options and len(second.options) == 3
     click(session, table, Event.CHOICE, {"i": 3})                # a different one (the card on the bottom + an action)
     assert len(game.players[0].hand) == foe_hand - 1
+
+
+# ---------------------------------------------------------------- the same CardID on both sides
+
+SHARING = [(b, h) for b in ("medusa", "leonardo", "donatello", "michelangelo", "raphael")
+           for h in ("leonardo", "donatello", "michelangelo", "raphael") if b != h]
+
+
+def same_id_cards(game, bot_fighter, human_fighter):
+    """(human attack card, bot defense card) with the SAME CardID: the table reports one number for two different cards."""
+    mine = {c.card_id: c for c in game.players[1].full_set if c.can_attack and c.usable_by(human_fighter.name)}
+    for c in game.players[0].full_set:
+        if c.card_id in mine and c.can_defend and c.usable_by(bot_fighter.name):
+            return mine[c.card_id], c
+    return None
+
+
+@pytest.mark.parametrize("bot,human", SHARING, ids=lambda p: p)
+def test_a_card_id_shared_by_both_decks_means_each_sides_own_card_in_a_combat(tmp_path, bot, human, monkeypatch):
+    from test_d3_table_effects import build
+    session, table, game, fake, cfg, client = build(tmp_path, bot, human, ())
+    try:
+        found = same_id_cards(game, game.hero(0), game.hero(1))
+        if found is None:
+            pytest.skip("no CardID pair attack/defense usable by both heroes")
+        attack, defense = found
+        assert attack.card_id == defense.card_id and attack != defense
+        table.bot_hand = [defense.card_id]                      # exactly these two cards: the same number, two cards
+        table.bot_deck = [c.card_id for c in game.players[0].full_set if c != defense]
+        session.read_bot_hand()
+        session.snap = None
+        table.human_hand, table.human_count = [attack.card_id], 1
+        put_adjacent(game, table, cfg, game.hero(1).fid, game.hero(0).fid)
+        monkeypatch.setattr(session.ai, "choose_defense", lambda g, a, t: next(c for c in g.players[0].hand if c == defense))
+        human_attack(session, table, game, game.hero(1).fid, game.hero(0).fid, attack.title)
+        msgs = click(session, table, Event.REVEAL)
+        if session.pending is not None and session.pending.kind != "human_attacks" or said(msgs, "potenciar"):
+            msgs += click(session, table, Event.NO_BOOST)            # Turtle power! offers its free BOOST
+        assert said(msgs, f"ataca con {attack.title}") and said(msgs, f"defiende con {defense.title}"), msgs
+        assert not said(msgs, "ilegal")
+    finally:
+        client.close()
+        fake.close()

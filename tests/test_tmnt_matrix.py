@@ -95,17 +95,3 @@ def test_headless_games_with_the_heuristic_and_the_search_ai(bot, human):
     out = sim.play(1, bot_hero=bot, human_hero=human, medusa=ai, max_turns=25)
     assert out.turns >= 1 and ai.fallbacks == 0
 
-
-@pytest.mark.parametrize("bot,human", PAIRS, ids=IDS)
-def test_a_game_where_the_human_attacks_every_turn_reaches_game_over(tmp_path, bot, human):
-    """The human walks up to the bot's hero and attacks with a card of their own deck each turn (so the CardIDs the table
-    reports for the combat are resolved against the human's deck, never the bot's) and discards to the hand limit."""
-    from test_michelangelo_games import start_game
-    d, fake, client = start_game(tmp_path, bot, human, attacks=True)
-    try:
-        d.play_out()
-        assert d.game.winner is not None
-        assert not [m for m in d.log if "ilegal" in m.lower()], d.log[-5:]
-    finally:
-        client.close()
-        fake.close()
