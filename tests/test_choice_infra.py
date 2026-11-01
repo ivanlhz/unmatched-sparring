@@ -251,7 +251,7 @@ def test_a_plain_yes_no_names_the_card_lists_the_buttons_and_quotes_the_card_tex
     from sparring.session_choices import card_text_hint, options_text, prompt_text
     g = Game.new(bprd, seed=3, controllers={}, heroes=("hellboy", "liz-sherman"))
     pyro = next(c for c in g.players[1].full_set if c.title == "Pyrotechnics")
-    req = ChoiceRequest("optional", 1, [True, False], card_id=pyro.card_id)
+    req = ChoiceRequest("optional", 1, [True, False], card_id=pyro.card_id, card_owner=1)
     assert prompt_text(g, req) == "Usas el efecto de Pyrotechnics?"
     assert options_text(g, req) == "1: Si, 2: No"
     assert card_text_hint(g, req) == " Carta: " + pyro.text

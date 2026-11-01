@@ -197,8 +197,8 @@ def test_the_bot_michelangelo_is_dealt_3_cards_and_a_mulligan_returns_3(tmp_path
 
 def test_medusa_and_michelangelo_share_a_table_because_their_deck_images_differ(tmp_path):
     for pair in (("medusa", "michelangelo"), ("michelangelo", "medusa")):
-        cfg = config_for(tmp_path, *pair)
-        assert cfg.bot_card_ids == cfg.human_card_ids == (17600, 17629)
+        scfg = config_for(tmp_path, *pair).session_config()
+        assert scfg.bot_card_ids == scfg.human_card_ids == (17600, 17629)
 
 
 def test_auto_detection_recognises_michelangelo_on_either_side():
