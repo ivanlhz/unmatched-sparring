@@ -8,8 +8,9 @@ unmatched-memory (`../unmatched-memory/data/heroes/<slug>.json`, or UNMATCHED_ME
 life, movement, reach, sidekicks, ability and the cards (title, type, value, boost, copies, texts).
 The overlay `data/heroes/overlay/<slug>.json` provides what unmatched-memory lacks: the fighter id (`fid`),
 the corrected sidekicks (sparring name, fid, count), the CardID sheet (`deck.card_base` + `deck.sheet`:
-idx, title, fighter restriction, tags and, if the real card says something else, `text`), and forms, counters,
-triggers and passives.
+idx, title, fighter restriction, tags and, if the real card says something else, `text`; `memory_title` when
+unmatched-memory spells the title differently), and forms, counters, triggers, passives and `hand` (starting and
+maximum hand size when they are not 5 and 7: Michelangelo's PIZZA PARTY).
 With the DSL effects (`data/heroes/effects/<slug>.json`) and the cards it computes `ai_profile`: the static profile of each
 fighter for the AI (sparring/ai_profile.py); the overlay can fix `ai_role: {fid: striker|keep_away}`.
 Without a sheet, the HeroDef carries the unmatched-memory cards with no CardID or restriction and the engine cannot play with it."""
@@ -70,7 +71,7 @@ def build(slug: str, memory: Path, overlay_dir: Path = OVERLAY_DIR, effects_dir:
     if "sheet" in deck_ov:
         cards = []
         for entry in deck_ov["sheet"]:
-            src = by_title.get(entry["title"])
+            src = by_title.get(entry.get("memory_title", entry["title"]))
             if src is None:
                 raise SystemExit(f"{slug}: the overlay sheet cites {entry['title']!r} (idx {entry.get('idx')}), which does not "
                                  f"exist in unmatched-memory; known titles: {', '.join(sorted(by_title))}")
@@ -78,8 +79,9 @@ def build(slug: str, memory: Path, overlay_dir: Path = OVERLAY_DIR, effects_dir:
                           "value": src["value"], "boost": src["boostValue"],
                           "text": entry.get("text") or card_text(src),     # the real card wins over unmatched-memory
                           "tags": list(entry.get("tags", ()))})
+        sheet_titles = [e.get("memory_title", e["title"]) for e in deck_ov["sheet"]]
         for title, src in by_title.items():
-            n = sum(1 for c in cards if c["title"] == title)
+            n = sheet_titles.count(title)
             if n != src["copies"]:
                 raise SystemExit(f"{slug}: {title!r} appears {n} times in the sheet and unmatched-memory says {src['copies']}")
         deck = {"card_base": deck_ov["card_base"], "sheet": deck_ov.get("sheet_id"), "cards": cards}
@@ -98,6 +100,8 @@ def build(slug: str, memory: Path, overlay_dir: Path = OVERLAY_DIR, effects_dir:
     }
     effects_path = effects_dir / f"{slug}.json"
     effects = json.loads(effects_path.read_text(encoding="utf-8")) if effects_path.exists() else None
+    if "hand" in ov:
+        out["hand"] = ov["hand"]
     out["ai_profile"] = compute_ai_profile(out, effects, ov.get("ai_role"))
     if ov.get("_notes"):
         out["_notes"] = ov["_notes"]

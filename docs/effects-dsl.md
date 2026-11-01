@@ -205,6 +205,7 @@ There are never conditions in strings.
 | `end_of_turn` | `player` (default `any`) | |
 | `after_maneuver` | `player` | |
 | `after_attack` | `fighter: FighterSel` | `$attacker`, `$target` |
+| `after_scheme` | `player` | |
 | `attacked` | `target: FighterSel` | `$attacker`, `$target`, `attack_card` |
 | `combat_damage_dealt` | `by: FighterSel` | `$by`, `$to`, `$amount` |
 | `damage_taken` | `target: FighterSel`, `damage: effect | combat | any`, `min` | `$target`, `$amount` |
@@ -271,6 +272,7 @@ Every op is `{"op": "<name>", ...args}`. Arguments not listed are an error.
 | `cannot_draw` | player | |
 | `cannot_leave_space` | fighter | by no means |
 | `next_attack_bonus` | player (`amount`) | consumed by the first own attack |
+| `attack_bonus` | fighter (`amount`) | +amount to every attack of that fighter while it lasts (Nunchaku) |
 
 ### Modifiers (`ongoing.modifiers` and `ability.passives`)
 
@@ -970,3 +972,11 @@ function per op type, each with two variants.
   discards the whole hand, how many effects it makes you choose and what one heals) instead of comparing titles, so
   the three cards (and any other with the same shape) keep the chat lines and the engine effects they had. For a hero
   the interpreter runs there was never a patch: the ops and the translators above are the whole path.
+
+## 22. Michelangelo (additive extensions)
+
+- Events: `after_scheme` (`player`) fires when a DSL scheme is finished (`ongoing.finish_scheme`); `after_attack` is now emitted by the engine when a combat reaches DONE (the played cards are already in the discard).
+- Amount `{"stat": "other_cards_played_this_turn", "player"?}`: cards the player played this turn (attack, defense, scheme) without counting the card being resolved. Recorded only when a loaded hero's data names the stat (`events.TRACKS`, `fx.played`, saved only when non-zero).
+- Status `attack_bonus` (fighter scope, needs `amount`): every attack the fighter makes while it lasts gets +amount (`next_attack_bonus` is consumed by the first attack).
+- `optional` with a `return_to_deck` cost from the hand is only offered when the hand can pay it; the bot's request carries `gains_action` or `cancels` so the AI can price it.
+- HeroDef `hand` ({start, max}): per-hero opening hand and end-of-turn hand limit (defaults 5 and 7).

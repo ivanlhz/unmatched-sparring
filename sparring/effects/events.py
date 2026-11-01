@@ -29,7 +29,8 @@ _BOTS = ControllerChooser()
 # it recorded, so a game of such heroes saves exactly as it did before the interpreter.
 TRACKS = {"attacked": ("attacked_this_turn", "combat_damage_dealt"),
           "turn_start_pos": ("moved_this_turn",),
-          "taken": ("actions_taken_this_turn", "no_attack_as_first_action")}
+          "taken": ("actions_taken_this_turn", "no_attack_as_first_action"),
+          "played": ("other_cards_played_this_turn",)}
 
 
 def _strings(node):
@@ -92,6 +93,8 @@ def _normalize(game, name: str, args: tuple) -> dict | None:
         return {"name": name, "attacker": args[0], "target": args[1], "card": args[2]}
     if name == "after_attack":
         return {"name": name, "attacker": args[0], "target": args[1]}
+    if name == "after_scheme":
+        return {"name": name, "player": args[0], "card": args[1]}
     if name == "card_discarded":
         return {"name": name, "player": args[0], "card": args[1], "zone": args[2] if len(args) > 2 else "hand",
                 "cause": args[3] if len(args) > 3 else None}
@@ -108,6 +111,7 @@ def _bookkeeping(game, ev: dict) -> None:
     if ev["name"] == "start_of_turn":
         fx.attacked.clear()
         fx.taken = 0
+        fx.played = [0, 0]
         fx.turn_start_pos = ({fid: f.pos for fid, f in game.fighters.items() if f.alive}
                              if "turn_start_pos" in keep else {})
     elif ev["name"] == "attacked" and "attacked" in keep:
@@ -182,7 +186,7 @@ def matches(game, owner: int, when: dict, ev: dict) -> bool:
     if when["event"] != ev["name"]:
         return False
     name = ev["name"]
-    if name in ("start_of_turn", "after_maneuver"):
+    if name in ("start_of_turn", "after_maneuver", "after_scheme"):
         return _player_ok(when.get("player", "owner"), ev["player"], owner)
     if name == "end_of_turn":
         return _player_ok(when.get("player", "any"), ev["player"], owner)

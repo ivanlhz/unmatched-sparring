@@ -30,7 +30,7 @@ Exhaustion, hand limit and desperation
   * Drawing with an empty deck does EXHAUST_DAMAGE to each own fighter: `apply_expected` simulates it (a maneuver
     or a Snipe/Regroup that kills Medusa is worth -DEATH) and draws with a deck are counted as unknown cards
     (`Game.phantom_draws`).
-  * At the end of the turn (`terminal_value`): cards beyond HAND_LIMIT are discarded (those of lowest
+  * At the end of the turn (`terminal_value`): cards beyond the hero's hand cap (`Game.hand_cap`) are discarded (those of lowest
     `keep_value`, and the unknown draw is worth its average) and each draw that eats the deck costs `DECK_SCARCITY`
     according to the draws Medusa can still afford (`draw_budget`). A maneuver without moving with a full hand only loses.
   * `desperation` (0..1) measures how badly the bot is losing: own HP against the rival hero's, fallen Harpies and
@@ -54,7 +54,7 @@ from math import ceil, comb
 from .cards import can_be_boost
 from .combat import GAZE_DAMAGE, GLANCE_DAMAGE, ON_EARTH, SECOND_SHOT
 from .controller import Controller
-from .state import ANUNG, EXHAUST_DAMAGE, HAND_LIMIT, Fighter, Game
+from .state import ANUNG, EXHAUST_DAMAGE, Fighter, Game
 
 GAZE = "medusa_gaze"      # Medusa's start-of-turn ability trigger (data/heroes/effects/medusa.json)
 
@@ -615,7 +615,7 @@ class MedusaAI(Controller):
     def terminal_value(self, game: Game, model: Model | None = None) -> float:
         """Cost of closing the turn like this: discarding what exceeds the hand limit and spending scarce draws."""
         p = game.players[self.me]
-        over = len(p.hand) + game.phantom_draws - HAND_LIMIT
+        over = len(p.hand) + game.phantom_draws - game.hand_cap(self.me)
         cost = 0.0
         if over > 0:
             pool = sorted([keep_value(c, p.hand) for c in p.hand] + [self.avg_unseen_keep(game)] * game.phantom_draws)

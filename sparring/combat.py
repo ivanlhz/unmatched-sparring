@@ -6,6 +6,7 @@ from __future__ import annotations
 
 import re
 from dataclasses import dataclass, field
+from functools import lru_cache
 
 from .cards import MEDUSA_BASE, Card, can_be_boost
 from .effects import ongoing
@@ -23,7 +24,15 @@ FIGHT_OR_FLIGHT = "Fight Or Flight"          # only a label for the tests: the e
 
 
 def is_medusa_card(card: Card) -> bool:
-    return MEDUSA_BASE <= card.card_id < MEDUSA_BASE + 100
+    """One of Medusa's own cards. The CardID range alone is not enough: Michelangelo's deck uses the same sheet number
+    (17600..17629), so the title has to match as well."""
+    return MEDUSA_BASE <= card.card_id < MEDUSA_BASE + 100 and card.title in _medusa_titles()
+
+
+@lru_cache(maxsize=None)
+def _medusa_titles() -> frozenset[str]:
+    from .heroes import load_hero
+    return frozenset(c.title for c in load_hero("medusa").deck())
 
 
 @dataclass

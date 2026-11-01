@@ -17,7 +17,7 @@ from ..spaces import describe as describe_space
 
 # the chat speaks to the human: the bot in the third person, the human in the second (tags `narr.v.*.<side>`)
 STATUS_NAMES = ("cannot_gain_actions", "cannot_draw", "immune_to_effect_damage", "next_attack_bonus")
-FIGHTER_STATUS_NAMES = ("cannot_leave_space", "immune_to_effect_damage")
+FIGHTER_STATUS_NAMES = ("cannot_leave_space", "immune_to_effect_damage", "attack_bonus")
 
 
 def __getattr__(name: str):
@@ -239,7 +239,7 @@ def _statuses(game, before: dict) -> list[str]:
     for st in game.fx.statuses[before["statuses"]:]:
         if "fid" in st:
             tag = f"narr.fstatus.{st['name']}"
-            out.append(t(tag, fid=st["fid"]) if st["name"] in FIGHTER_STATUS_NAMES else st["name"])
+            out.append(t(tag, fid=st["fid"], n=st.get("amount", 0)) if st["name"] in FIGHTER_STATUS_NAMES else st["name"])
             continue
         side = "bot" if st["player"] == game.bot_player else "human"
         tag = f"narr.status.{st['name']}.{side}"

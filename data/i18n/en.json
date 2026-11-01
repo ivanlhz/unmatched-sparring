@@ -241,6 +241,7 @@
  "narr.end_turn": "ends the turn",
  "narr.fstatus.cannot_leave_space": "{fid} cannot leave its space this turn",
  "narr.fstatus.immune_to_effect_damage": "{fid} takes no effect damage this turn",
+ "narr.fstatus.attack_bonus": "{fid} gets +{n} to its attacks this turn",
  "narr.status.cannot_gain_actions.bot": "does not gain actions this turn",
  "narr.status.cannot_gain_actions.human": "you do not gain actions this turn",
  "narr.status.cannot_draw.bot": "does not draw cards this turn",

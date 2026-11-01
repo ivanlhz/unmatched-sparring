@@ -392,9 +392,9 @@ def _if(run, game, spec):
 
 
 def _can_pay(game, run, cost: list[dict]) -> bool:
-    """Conservative: a discard cost needs enough cards; any other cost is assumed payable."""
+    """Conservative: a discard (or a card put back in the deck) cost needs enough cards; any other cost is assumed payable."""
     for c in cost:
-        if c["op"] == "discard" and isinstance(c["cards"], dict):
+        if c["op"] in ("discard", "return_to_deck") and isinstance(c["cards"], dict):
             sel = c["cards"]
             need = 0 if sel.get("up_to") else min(int(amount(game, run, sel.get("amount", 1))), 1 << 30)
             if len(card_candidates(game, run, sel)) < need:
@@ -426,9 +426,15 @@ def _cost_context(game, run, cost: list[dict], chooser: int) -> dict:
 def _choice_context(game, run, spec: dict) -> dict:
     """What the two answers mean, for a panel that names them: `discards` (the cards the yes branch discards, when
     that is all it does: Remove A Painful Memory's "discard it") and `else_damage` (a plain damage in the else branch:
-    "or take 2")."""
+    "or take 2"). For a bot, what a card paid from the hand buys: `gains_action` (Hi-Yaaaaah!!) or `cancels` (Guaranteed
+    Delivery: how many moments of the rival's card have effects to cancel)."""
     ctx = {}
     ops, other = spec.get("ops") or [], spec.get("else") or []
+    if any(o["op"] == "return_to_deck" for o in spec.get("cost") or []):
+        if any(o["op"] == "gain_action" for o in ops):
+            ctx["gains_action"] = True
+        if any(o["op"] == "cancel_effects" for o in ops):
+            ctx["cancels"] = _cancellable_moments(game, run)
     if len(ops) == 1 and ops[0]["op"] == "discard" and isinstance(ops[0]["cards"], str):
         ctx["discards"] = [c.card_id for c in card_ref(game, run, ops[0]["cards"])]
     if len(other) == 1 and other[0]["op"] == "damage" and isinstance(other[0].get("amount"), int):
@@ -437,6 +443,16 @@ def _choice_context(game, run, spec: dict) -> dict:
         if len(cands) == 1:
             ctx["else_fighter"] = cands[0].fid       # who takes it: the answer's price in hit points
     return ctx
+
+
+def _cancellable_moments(game, run) -> int:
+    """Moments (immediately, during, after) of the rival's card that have effects a `cancel_effects` would erase."""
+    from .modifiers import card_effects, is_uncancelable
+    cards = card_ref(game, run, "opponent_card")
+    fx = card_effects(cards[0]) if cards else None
+    if fx is None or is_uncancelable(cards[0]):
+        return 0
+    return sum(1 for m in ("immediately", "during", "after") if fx.moments.get(m))
 
 
 @op("optional")

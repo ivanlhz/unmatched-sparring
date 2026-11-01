@@ -390,7 +390,7 @@ def test_a_catalog_hero_that_is_not_playable_is_named_and_refused():
         detect(r)
     text = str(e.value)
     assert "El humano juega Raphael, que el bot todavia no sabe jugar" in text
-    assert "Heroes jugables: Abe Sapien, Baba Yaga, Hellboy, Liz Sherman, Medusa." in text
+    assert "Heroes jugables: Abe Sapien, Baba Yaga, Hellboy, Liz Sherman, Medusa, Michelangelo." in text
     assert "Raphael (raphael) [no jugable todavia]: 0 cartas en el lado del bot, 30 en el del humano" in text
 
 

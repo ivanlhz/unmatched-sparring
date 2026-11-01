@@ -44,7 +44,7 @@ from . import session_translators as translators
 from .session_choices import panel_text
 from .spaces import describe, zone_text
 from .combat import FEINT, GLANCE_DAMAGE, can_boost, deck_boost, is_medusa_card, scheme_gain_actions
-from .state import ANUNG, DETECTIVE, EXHAUST_DAMAGE, HAND_LIMIT, START_HAND, Fighter, Game, RuleError
+from .state import ANUNG, DETECTIVE, EXHAUST_DAMAGE, Fighter, Game, RuleError
 from .tts import lua, ui
 from .tts.lua import ChatKind
 from .tts.client import TTSClient, TTSLuaError
@@ -502,11 +502,11 @@ class Session:
                 if self._on_board(info):
                     self.game.start_spaces[player] = info["space"]
         if not self._table_hand_ids():
-            self.game.drawn[self.bot] = START_HAND
+            self.game.drawn[self.bot] = self.game.start_hand(self.bot)
             self.dirty = True
-            self.say(t("sess.bot_deals", n=START_HAND))
+            self.say(t("sess.bot_deals", n=self.game.start_hand(self.bot)))
         if self._rd_human_count(1) == 0:
-            self.say(t("sess.deal_yours", n=START_HAND), ChatKind.YOUR_TURN)
+            self.say(t("sess.deal_yours", n=self.game.start_hand(self.human)), ChatKind.YOUR_TURN)
 
     # ---------- game setup: persisted state machine ----------
     # Stages (self.setup["stage"]): those the bot runs alone, and those waiting for the human (Ready button).
@@ -572,9 +572,9 @@ class Session:
     def _setup_hand(self) -> None:
         self._name_pieces()
         if not self._table_hand_ids():
-            self.game.drawn[self.bot] = START_HAND
+            self.game.drawn[self.bot] = self.game.start_hand(self.bot)
             self.dirty = True
-            self.say(t("sess.bot_deals", n=START_HAND))
+            self.say(t("sess.bot_deals", n=self.game.start_hand(self.bot)))
         self.read_bot_hand()
         if self.dirty:
             self._flush_table()
@@ -610,7 +610,7 @@ class Session:
         s["mull_decision"], s["mull_step"] = False, "start"
         self.read_bot_hand()
         if not self._table_hand_ids():
-            g.drawn[self.bot] = START_HAND
+            g.drawn[self.bot] = self.game.start_hand(self.bot)
             self.read_bot_hand()
             self.dirty = True
         if self.dirty:
@@ -643,7 +643,7 @@ class Session:
             st.hand, st.deck = [], [x for x in st.full_set if x not in st.discard]
             g.rng.shuffle(st.deck)
             g.drawn[self.bot] = 0
-            g.draw(self.bot, START_HAND, log=False)
+            g.draw(self.bot, self.game.start_hand(self.bot), log=False)
             self.dirty = True
             step = s["mull_step"] = "shuffled"
             self._persist()
@@ -746,11 +746,11 @@ class Session:
         elif s["stage"] not in ("wait_human_first", "wait_human"):
             self.say(t("setup.mull.wait_bot"), ChatKind.WARNING)
         elif s.get("human_mull"):
-            self.say(t("setup.mull.done", n=START_HAND), ChatKind.WARNING)
+            self.say(t("setup.mull.done", n=self.game.start_hand(self.human)), ChatKind.WARNING)
         else:
             s["human_mull"] = True
-            self.say(t("setup.mull.go.sidekick", n=START_HAND, names=self._sidekick_names()) if self._sidekicks()
-                     else t("setup.mull.go.plain", n=START_HAND), ChatKind.YOUR_TURN)
+            self.say(t("setup.mull.go.sidekick", n=self.game.start_hand(self.human), names=self._sidekick_names()) if self._sidekicks()
+                     else t("setup.mull.go.plain", n=self.game.start_hand(self.human)), ChatKind.YOUR_TURN)
 
     def _human_setup_ok(self) -> bool:
         g = self.game
@@ -765,10 +765,10 @@ class Session:
                 return False
         count = self._rd_human_count(0)
         if count == 0:
-            self.say(t("setup.draw_first", n=START_HAND), ChatKind.WARNING)
+            self.say(t("setup.draw_first", n=self.game.start_hand(self.human)), ChatKind.WARNING)
             return False
-        if (self.setup or {}).get("human_mull") and count != START_HAND:
-            self.say(t("setup.mull_count", n=START_HAND, count=count), ChatKind.WARNING)
+        if (self.setup or {}).get("human_mull") and count != self.game.start_hand(self.human):
+            self.say(t("setup.mull_count", n=self.game.start_hand(self.human), count=count), ChatKind.WARNING)
             return False
         return True
 
@@ -2678,7 +2678,7 @@ class Session:
     def _discard_done(self) -> bool:
         d, st = self.pending_discard, self.game.players[self.human]
         if d["kind"] == "limit":
-            done = len(st.hand) <= HAND_LIMIT
+            done = len(st.hand) <= self.game.hand_cap(self.human)
         else:
             if d["baseline"] is None:
                 d["baseline"] = len(st.discard)
@@ -2718,12 +2718,12 @@ class Session:
             self.say(t("turn.look_first"), ChatKind.YOUR_TURN)
             return
         hand = g.players[self.human].hand
-        excess = len(hand) - HAND_LIMIT
+        excess = len(hand) - self.game.hand_cap(self.human)
         if excess > 0 and self.limit_waived:      # the human annulled the discard: the engine does not demand it again
-            self._trim_virtual_hand(HAND_LIMIT)
+            self._trim_virtual_hand(self.game.hand_cap(self.human))
         elif excess > 0:
             self.pending_discard = {"n": excess, "baseline": None, "kind": "limit"}
-            self.say(t("discard.limit", n=excess, limit=HAND_LIMIT), ChatKind.YOUR_TURN)
+            self.say(t("discard.limit", n=excess, limit=self.game.hand_cap(self.human)), ChatKind.YOUR_TURN)
             return
         self.limit_waived = False
         self.chosen_attacker = None
