@@ -328,6 +328,18 @@
         "Verified live by Iván (docs/live-checklist.md, section Raphael)"
       ],
       "note": "Engine additions are additive (docs/effects-dsl.md, section Raphael). Open rules questions: docs/heroes/raphael.md."
+    },
+    {
+      "id": "TMNT-IDENTITY",
+      "title": "Medusa and the four turtles share CardIDs 17600-17629: one card-identity rule",
+      "status": "done",
+      "criteria": [
+        "Every card lookup of the engine, the session and the bot is per owner (Game.card_of, Game.cards_by_id, ChoiceRequest.card_owner) or by deck image in Lua; never by a bare CardID (docs/card-identity.md)",
+        "is_medusa_card compares the card by value with Medusa's deck",
+        "Any ordered pair of the nine heroes plays to game over on FakeTTS in both seats, Medusa against each turtle and turtle against turtle included (tests/test_tmnt_matrix.py), and in the simulator with the heuristic and the ISMCTS with no fallbacks",
+        "Human-side table tests for the TMNT cards that only the bot had played (tests/test_tmnt_human_cards.py)"
+      ],
+      "note": "Live test pending: two turtle decks and Medusa on the same real table (docs/live-checklist.md)."
     }
   ]
 }
