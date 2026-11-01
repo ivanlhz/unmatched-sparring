@@ -6,7 +6,7 @@ human moves the cards on the table and presses Hecho, and the bot DETECTS which 
 hidden, so "left the discard pile" is the whole evidence), validates them against the request (only the eligible
 cards, within its limits) and answers the request with them. A wrong table changes nothing: the chat says what is
 wrong and the panel keeps waiting. The bot never moves these cards: `Session.hand_deck` tells the projection of the
-step (`session_bot_effects._human_disc_to_deck`) that the table already shows them in the deck."""
+step (`session_translators.return_to_deck`) that the table already shows them in the deck."""
 from __future__ import annotations
 
 from .effects.choose import ChoiceRequest

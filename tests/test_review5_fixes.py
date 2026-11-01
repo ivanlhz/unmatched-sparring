@@ -1202,7 +1202,7 @@ CROWN = "And Upon His Brow Is Set A Crown Of Flame"
 
 
 @pytest.mark.parametrize("title,n", [(CROWN, 2), ("Fight Or Flight", 1)])
-def test_a_scheme_of_a_hero_outside_the_interpreter_draws_and_the_bot_deals_it(rig, monkeypatch, title, n):
+def test_a_scheme_of_a_hero_outside_the_interpreter_draws_and_the_bot_deals_it(rig, monkeypatch, retitled_card_data, title, n):
     session, table, game = rig
     monkeypatch.setattr(type(game.fx), "interprets", lambda self, player: False)         # the legacy branches of _apply_human_scheme
     card = dataclasses.replace(next(c for c in game.players[1].full_set if c.title == CROWN), title=title)

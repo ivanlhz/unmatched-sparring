@@ -166,6 +166,16 @@ def _decks_have_a_known_identity(monkeypatch):
     monkeypatch.setattr(Session, "__init__", init)
 
 
+@pytest.fixture
+def retitled_card_data(monkeypatch):
+    """A test that retitles one hero's card to stand for another's (Pancakes! plays Fight Or Flight): the scheme path
+    of a hero outside the interpreter reads the DSL of the title, wherever it is defined."""
+    from sparring.effects import ongoing
+    real = ongoing.scheme_traits
+    monkeypatch.setattr(ongoing, "scheme_traits", lambda slug, title: real(slug, title) or next(
+        (t for s in ("liz-sherman", "hellboy") if (t := real(s, title))), {}))
+
+
 def _shims():
     import functools
     from sparring.tts import lua

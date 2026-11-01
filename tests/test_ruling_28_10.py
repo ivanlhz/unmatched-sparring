@@ -119,7 +119,7 @@ def test_old_save_with_several_bonuses_keeps_the_last(game):
     assert game.combat_bonus_parts(HB) == [(2, "Otro")]
 
 
-def test_session_announces_the_replacement(brig):  # noqa: F811
+def test_session_announces_the_replacement(brig, retitled_card_data):  # noqa: F811
     session, table, game, fake = brig
     play_plan(session, table, game)
     game.actions_left = 3                         # keep the turn from ending between the two schemes

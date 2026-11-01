@@ -15,7 +15,7 @@ from __future__ import annotations
 from typing import Iterator
 
 from . import table
-from .model import load_effects
+from .model import EffectError, load_effects, walk_ops
 from .select import find_card
 
 COMBAT_CARDS = {"player", "type", "fighter"}
@@ -55,6 +55,29 @@ def enter_play(game, player: int, card) -> None:
         if card in where:
             where.remove(card)
     game.fx.set_ongoing(player, card.card_id)
+    table.intent(game, op="ongoing", player=player, card=card.card_id)
+
+
+def scheme_traits(slug: str, title: str) -> dict:
+    """What the data of a scheme says about it, for a hero outside the interpreter (`fx.dsl_heroes`), where the engine
+    cannot run its ops: the table-facing traits the legacy path needs, read from the card's DSL instead of its title.
+
+      bonus          the "+n to the value of your combat cards" its ONGOING adds (0 for none)
+      draw           the cards its top-level `draw` ops give
+      discards_hand  it discards the whole hand (Crown Of Flame): the table moves it, the rest of what shows on the
+                     pile is not another scheme
+      choose         how many different effects it makes you pick (Pancakes!: 2), and `heal` the HP one of them heals"""
+    try:
+        card = load_effects(slug).card(title)
+    except EffectError:
+        return {}
+    ops = card.moments.get("scheme", [])
+    bonus = sum(int(m.get("amount", 0)) for m in (card.ongoing or {}).get("modifiers", []) if m.get("kind") == "modify_value")
+    whole = any(o["op"] == "discard" and o["cards"].get("zone") == "hand" and o["cards"].get("pick") == "all" for o in ops)
+    choices = [o for o in ops if o["op"] == "choose_effect"]
+    heals = [h["amount"] for c in choices for h in walk_ops(c["options"]) if h["op"] == "heal"]
+    return {"bonus": bonus, "draw": sum(int(o["amount"]) for o in ops if o["op"] == "draw"), "discards_hand": whole,
+            "choose": sum(int(c["amount"]) for c in choices), "heal": heals[0] if heals else 0}
 
 
 def set_legacy(game, player: int, n: int, label: str) -> str | None:
@@ -199,6 +222,7 @@ def finish_scheme(game, player: int, card) -> None:
     pile = game.players[player]
     if load_effects(pile.hero.slug).card(card.title).ongoing is not None:
         game.fx.set_ongoing(player, card.card_id)
+        table.intent(game, op="ongoing", player=player, card=card.card_id)
     else:
         pile.discard.append(card)
 

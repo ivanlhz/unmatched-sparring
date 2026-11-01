@@ -909,45 +909,64 @@ Decisiones dudosas de la migracion (ver tambien `notes` de cada fichero):
 - Costs: the row, its pings and its closing ride the step's script (a Revelar that opens the row stays within the
   D3 budget, the ping that closes a combat is at most 2 messages, the human's prediction click is 1).
 
-## 21. TTS translators (`sparring/session_translators.py`, phase 1)
+## 21. TTS translators (`sparring/session_translators.py`, phases 1 to 3)
 
 Applying a card effect to the real table used to be inferred from the before/after diff of `session_bot_effects`
 (`project()` / `snapshot()`) plus per-title patches in `session.py` (Crown Of Flame, Fight Or Flight, "Pancakes!").
-The ops are data (`OPS`, `effects/ops_core.py`); the table side now gets the same shape: a registry of translators,
-one function per op type, each with two variants.
+The ops are data (`OPS`, `effects/ops_core.py`); the table side has the same shape: a registry of translators, one
+function per op type, each with two variants.
 
 - Registry: `TRANSLATORS[op] = Translator(mode, bot, human)`, filled with `@register(op, mode=..., human=...)` on the
-  bot variant. `translate(session, intent, Ctx(cause, before))` looks the op up, asks `mode(session, intent)` which
-  variant applies (`"bot"`, `"human"` or None when the intent is not about the human's table) and returns the checks
-  to run after the step's composite went out, or None when the op has no translator (the caller keeps its diff path).
+  bot variant. `translate(session, intent, Ctx(cause, before, bot_discard))` looks the op up, asks `mode(session,
+  intent)` which variant applies (`"bot"`, `"human"` or None when the intent is not about the human's table, or about
+  nothing a human could move) and returns the checks to run after the step's composite went out, or None when the op
+  has no translator (the caller keeps its path).
 - Variants. `bot`: the bot moves the objects itself (a Lua write through `Session._w`, said in the chat); its check
   falls back to the human variant when the table refuses, so a failed write never stalls the game. `human`: the
   human acts by hand; the variant says what to move and relies on the flows that wait for it (`pending_discard`
-  settled at "Fin de accion", the table sync, the manual draw). Phase 1 only reuses those flows; it does not add a
-  "Hecho" press to ops that never had one.
+  settled at "Fin de accion", the table sync, the manual draw, `Hecho`). A human variant never adds a press to an op
+  that never had one.
 - Intents: an op that touches the table reports `{"op", ...}` through `effects.table.intent(game, ...)` into
-  `fx.intents` (transient, None in a clone, enabled by `Session._attach_choosers`). `project()` drains them and hands
-  each to its translator; the diff still decides *what changed*, and a change no op reported (`place`, `swap`, a
-  push, a resume that lost the log) is translated through the same registry with an intent inferred from the diff.
-  Reported today: `move` (fid, owner) and the human's ONGOING leaving play (`discard` with zone `in_play`, from
-  `ongoing.leave_play` and the `discard` op).
+  `fx.intents` (transient, None in a clone, enabled by `Session._attach_choosers`). `project()` drains them at its
+  first line (also when it has nothing to project: no stale intent reaches the next step) and hands each to its
+  translator. The diff is the final consistency check and nothing else: it decides *what changed*; an intent is
+  honoured only for the cards or pieces the diff confirms (`session_bot_effects._groups`: the ops' own, merged by
+  position, then one inferred intent with no position for what no op reported: a push, a resume that lost the log).
 
-| op | bot variant | human variant | chosen by |
-|----|-------------|---------------|-----------|
-| `draw` (the human's owed draws, `_deal_owed_draws`) | `Session._deal_human_cards`: `deal_cards` from their deck to their seat | "Robas N cartas: hazlo en la mesa" | `human_deck_guid` set |
-| `discard`, zone `hand` (`_owe_discard`) | Crown Of Flame: `_discard_human_hand`, then the human variant for what the table could not move | `pending_discard` + "Descarta N carta(s)" | reason is Crown (per-title, phase 3) |
-| `discard`, zone `hand`, named cards (diff) | none | `pending_discard["cards"]` + "Pon X de tu mano en tu descarte" | always human |
-| `discard`, zone `in_play` (the human's ONGOING left play) | ping on the card, chat why, `ongoing_hold` seconds, `card_to_discard` to their pile | "pasala de tu zona ONGOING a tu descarte" (or "queda en tu descarte" without a spot) | `human_ongoing_spot` set |
-| `move` (a human miniature a bot effect moved) | `move_piece` by GUID, "lo he movido yo" | "no he podido mover su miniatura, muevela tu" | always bot (their own pieces are moved by hand: `session_moves`) |
+| op | intent | bot variant | human variant | chosen by |
+|----|--------|-------------|---------------|-----------|
+| `draw` (the human's owed draws, `_deal_owed_draws`) | built by the session | `Session._deal_human_cards`: `deal_cards` from their deck to their seat | "Robas N cartas: hazlo en la mesa" | `human_deck_guid` set |
+| `discard`, zone `hand` (`_owe_discard`) | `n`, `reason`, `all` | the whole-hand discard (Crown Of Flame): `_discard_human_hand`, then the human variant for what the table could not move | `pending_discard` + "Descarta N carta(s)" | `all`: the op is `pick: "all"` on the human's hand (`fx.whole_hand`, no card title) |
+| `discard`, zone `hand`, named cards (diff) | `cards` | none | `pending_discard["cards"]` + "Pon X de tu mano en tu descarte" | always human |
+| `discard`, zone `in_play` (the human's ONGOING left play) | `card` | ping on the card, chat why, `ongoing_hold` seconds, `card_to_discard` to their pile | "pasala de tu zona ONGOING a tu descarte" (or "queda en tu descarte" without a spot) | `human_ongoing_spot` set |
+| `move`, `place`, `swap`, `revive`, `summon` (a human miniature a bot effect put elsewhere) | `fid`, `owner` | `move_piece` by GUID, "lo he movido yo" | "no he podido mover su miniatura, muevela tu" | always bot (their own pieces are moved by hand: `session_moves`, table notes) |
+| `return_to_deck`, the bot's hand or discard | `player`, `zone`, `cards` (deck order), `position` | `hand_to_deck` / `card_to_deck_bottom` per card / `shuffle_into_deck` by GUID | "No he podido mover X ...: hazlo tu" | always bot |
+| `return_to_deck`, the human's discard | same | by GUID with their deck GUID and identity (Ivan 29/10); `session_pile` has them moved by hand first (31/10) and only notes them | "Pon X de tu descarte en el fondo / encima de / en tu mazo" | `human_deck_guid` set |
+| `return_to_deck`, the human's hand (a card the bot picked) | same | none | "Pon X de tu mano en la parte superior / el fondo de tu mazo / en tu mazo y baraja" | always human (their hand is theirs) |
+| `put_in_hand`, the bot's discard | `player`, `zone`, `cards` | `return_card_to_hand` by GUID | "No he podido devolver X a la mano del bot: ponla tu" | always bot |
+| `put_in_hand`, the human's discard | same | none | "Recoge X de tu descarte a tu mano" | always human |
+| `search_deck` (the bot's own deck) | `player`, `cards`; translated with `n` from the diff | the engine counts them as draws from the top of the real deck; "El bot toma N de su mazo" | the same line (nothing for a human to move) | the bot's deck only |
+| `counter` (the bot's ability tokens, Abe's Intuition) | `player`, `name` | one `take_token_copy` per point gained, `remove_token` per point spent | "No he podido sacar / retirar la ficha...: pon / retirala tu" | the counter has a token in the hero table |
+| `form` (Hellboy's, inferred from the counter) | `player`, `form` | miniature state, flipped token, ping | "cambia tu su miniatura a esa forma" | the bot's hero has forms |
+| `ongoing` (a scheme enters play: `ongoing.finish_scheme`, `enter_play`) | `player`, `card`, `replaces` | the bot's: face up on `bot_ongoing_spot` | the bot's without a spot or when the table refuses; the human's: "queda en juego (reemplaza a X): dejala en tu zona ONGOING" | the bot's: `bot_ongoing_spot` set; the human's: always human |
 
-- The ONGOING leaving play is new behavior (Pact Of Freedom when Baba Yaga takes 2+ combat damage, any expiry): the
-  card is read on `human_ongoing_spot` (it must be there exactly once), pinged with `ping_objects`, the reason is
-  said (flagged `shown`, sent before the pause), `ongoing_hold` seconds pass (`lua.hold` inside the TTS script in a
-  batch, a sleep otherwise; 0 = no pause, `config/partida.json` uses 1.5) and `lua.card_to_discard` lays it face up
-  on the pile. A zone that cannot be read, a card not found or found twice, no identity, a refused write: the old
-  manual announcement.
-- The bot's own cards, its form, tokens and the ops without a translator stay on the diff untouched.
-- Plan. Phase 1 (this): `draw`, `discard`, `move`. Phase 2: the remaining ops (`place`, `swap`, `revive`, `summon`,
-  `counter`, the hidden-zone ops of `ops_info`...). Phase 3: drop the per-title patches (CROWN, FIGHT_OR_FLIGHT,
-  "Pancakes!") once their effects are expressed as ops with a translator, and shrink the diff to a pure consistency
-  check.
+- The ONGOING leaving play (Pact Of Freedom when Baba Yaga takes 2+ combat damage, any expiry): the card is read on
+  `human_ongoing_spot` (it must be there exactly once), pinged with `ping_objects`, the reason is said (flagged
+  `shown`, sent before the pause), `ongoing_hold` seconds pass (`lua.hold` inside the TTS script in a batch, a sleep
+  otherwise; 0 = no pause, `config/partida.json` uses 1.5) and `lua.card_to_discard` lays it face up on the pile. A
+  zone that cannot be read, a card not found or found twice, no identity, a refused write: the old manual announcement.
+- Without a translator, on purpose. `damage`, `heal`, `set_hp`: the dials mirror the engine's HP after every step
+  (`Session._write_dials`, verified, with the dial debt of a failed write); that is a state mirror, not the work of
+  one op, and writing it from the projection would write every dial twice. `look_hand`, `reveal`, `look_deck`: the
+  look rows (`session_hidden`) start from the op itself through `Game.hand_reader`, and their failure has its own
+  fallback (the card is picked by its button). `choose`, `search_deck` and `return_to_deck` of the human's own hand
+  are table notes (`effects.table`): the human acts and the sync validates. `draw`/`discard` of the bot, its pieces,
+  `status`, `modify_value`, `gain_action`... change no object.
+- Phase 3, the per-title patches. `session._owe_discard` no longer asks whether the reason is Crown Of Flame: the
+  `discard` op that takes a whole hand (`pick: "all"`) leaves `fx.whole_hand` set while the human's controller is owed
+  the discard, and the intent carries `all`. The legacy scheme path of a hero outside `fx.dsl_heroes` (an old save with
+  the interpreter off: `combat.resolve_scheme`, `Session._apply_human_scheme`, `_resolve_human_scheme`) reads the
+  card's data (`ongoing.scheme_traits(slug, title)`: the ONGOING `modify_value` bonus, the cards it draws, whether it
+  discards the whole hand, how many effects it makes you choose and what one heals) instead of comparing titles, so
+  the three cards (and any other with the same shape) keep the chat lines and the engine effects they had. For a hero
+  the interpreter runs there was never a patch: the ops and the translators above are the whole path.

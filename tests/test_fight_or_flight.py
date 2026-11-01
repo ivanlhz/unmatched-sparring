@@ -3,6 +3,8 @@ turno, en ataque y en defensa, un solo ONGOING por jugador (el nuevo reemplaza),
 Pancakes! hace de Fight Or Flight (mismo recurso que los tests de Flame Lash)."""
 import json
 
+import pytest
+
 from conftest import give, place
 from sparring import persist
 from sparring.ai_medusa import Act, MedusaAI, Model
@@ -13,6 +15,8 @@ from test_batch import brig, click  # noqa: F401
 from test_session import card, human_plays
 
 HB, MED = 1, 0
+
+pytestmark = pytest.mark.usefixtures("retitled_card_data")
 
 
 def adjacent(game):
