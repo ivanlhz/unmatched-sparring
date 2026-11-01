@@ -712,6 +712,7 @@ def test_read_only_allowlist_is_exactly_the_pure_read_builders(bprd):
         "remove_token": lambda: lua.remove_token("abc"),
         "place_from_bag": lambda: lua.place_from_bag("abc", "Rat", (0.0, 0.0, 0.0)),
         "inspect_objects": lambda: lua.inspect_objects(["abc"]),
+        "find_pieces_by_name": lambda: lua.find_pieces_by_name(["abe sapien"]),
         "read_cards_at": lambda: lua.read_cards_at(0, 0),
         "place_card_face_up": lambda: lua.place_card_face_up(1, "Blue", 0, 0, 0, identity=TEST_IDENT),
         "hold": lambda: lua.hold(3),

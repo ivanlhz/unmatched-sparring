@@ -891,5 +891,9 @@
  "console.legacy_config": "{old} is the old name of the configuration: use {new}",
  "console.moved_state": "the saved game {old} was moved to {new} (once)",
  "console.moved_log": "the log {old} was moved to {new}",
- "raphael.combat_to_deck": "Put {cards} from your combat zone into your deck and shuffle it ({cause})."
+ "raphael.combat_to_deck": "Put {cards} from your combat zone into your deck and shuffle it ({cause}).",
+ "piece.resolved": "{name}: the piece at {old} was {other}'s; I follow the one named {name} instead ({new}).",
+ "piece.unresolved": "{name}: the piece at {guid} is {other}'s and I found {found} candidates by name; I keep the GUID, positions may be wrong.",
+ "piece.shared": "The data gives GUID {guid} to {names}: if both are on the table I tell them apart by name.",
+ "piece.dial_of": "{name}'s life dial"
 }

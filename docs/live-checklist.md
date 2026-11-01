@@ -254,6 +254,8 @@ Note OK / failure and what happened. A projection failure is said **once** ("do 
 - [ ] Slow-TTS warnings: if "TTS returned no value (it is busy, paused or reloading...)" shows up, note the time and what you were doing (568c6bf: it now waits 8 s more before warning).
 - [ ] verify_live: a whole game with `language: "en"` (or `--language en`): setup and mulligan, a turn of yours (Maneuver, Scheme, attack with Reveal, Continue / No boost, End action, +1 / -1, Look at bot's hand) and a bot turn (attack, defense, Wildfire / ANUNG if Liz or Hellboy plays). Panel: buttons and status line in English and not cut off (90 characters at most). Chat: no sentence in Spanish (TTS warnings that arrive with their own technical error text do not count); card titles and hero names stay as printed. Note any phrase that sounds odd or comes out in Spanish. The console of `play.py` (stderr, `--help`, the `hero_detect` report, start-up configuration / save errors) now follows the language too.
 
+- [ ] **Piece identity, Abe Sapien vs Donatello (1/11)**: both miniatures share GUID `4fdf31` in the data. Play Abe vs Donatello (and the reverse): take both heroes out of their bags and start. The console/chat says ONE `piece.resolved` line naming the hero whose miniature got a new GUID, plus the `piece.shared` warning; each miniature moves on its own, attacks reach, nobody sits on the other's space. Ctrl+C, `--resume`: no new resolution line and the same pieces are followed. If one miniature is still in its bag, you read `piece.unresolved` once and no more.
+
 ## 7. What to note if something fails
 
 For each failure:

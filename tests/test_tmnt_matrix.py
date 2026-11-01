@@ -11,7 +11,6 @@ from __future__ import annotations
 
 import pytest
 
-from sparring.play import piece_guids
 from sparring.tts.ui import Event
 from test_batch import click
 from test_d3_table_effects import build, set_hand
@@ -145,22 +144,11 @@ class AttackDriver(Driver):
             self.end_action()
 
 
-def give_the_colliding_miniature_its_own_guid(session, table, cfg) -> None:
-    """Abe Sapien's and Donatello's miniatures carry the same GUID (4fdf31) in the tournament save, each inside its own bag; once
-    both are out on the table the second one comes out with a new GUID. A fake table that moves pieces needs them apart."""
-    pieces = session.cfg.pieces
-    for fid in session.cfg.pieces:
-        if list(pieces.values()).count(pieces[fid]) > 1 and fid in [f.fid for f in session.game.own(session.human)]:
-            pieces[fid] = table.pieces[fid] = pieces[fid] + "b"
-    table.guid_name = {g: cfg.nicknames[fid] for fid, v in pieces.items() for g in piece_guids(v)}
-
-
 @pytest.mark.parametrize("bot,human", PAIRS, ids=IDS)
 def test_a_game_where_the_human_attacks_every_turn_reaches_game_over(tmp_path, bot, human):
     """The human walks up to the bot's hero and attacks with a card of their own deck each turn (so the CardIDs the table
     reports for the combat are resolved against the human's deck, never the bot's) and discards to the hand limit."""
     session, table, game, fake, cfg, client = build(tmp_path, bot, human, (), table_cls=AsideTable, **SPOTS)
-    give_the_colliding_miniature_its_own_guid(session, table, cfg)
     try:
         set_hand(session, table, game, *[c.title for c in game.players[0].deck[:game.start_hand(0)]])
         table.human_count = game.start_hand(1)

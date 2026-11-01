@@ -39,6 +39,7 @@ from . import session_choices as choices
 from . import session_effects as human_effects
 from . import session_hidden as hidden
 from . import session_moves as moves
+from . import session_pieces as piece_id
 from . import session_pile as pile
 from . import session_translators as translators
 from .session_choices import panel_text
@@ -343,6 +344,12 @@ class Session:
         self._dials_pending: set[str] = set()               # dials with a write still to be checked
         self._post: list[Callable[[], bool]] = []           # checks that wait for the button's closing
         self._snap_spec: lua.SnapSpec | None = None
+        self.configured_pieces = {fid: piece_guids(v) for fid, v in cfg.pieces.items()}   # as the data gives them (identity of the table)
+        self.resolved_pieces: dict[str, list[str]] = {}     # fid -> GUIDs found by name when the configured one held another piece (saved)
+        self._piece_notes: list[str] = []                   # what the resolution has to tell the player
+        self._piece_gave_up: set[str] = set()               # fids whose piece was looked for by name once, in vain
+        self._resolving = False
+        self._piece_full_check = False                      # the next table read also looks for a piece missing at its GUID
         self._write_seq = 0                                 # last table write sent (the composite seals it)
         self._deck_ident: dict[str, tuple] = {}             # "bot"/"human" -> (FaceURL, BackURL) pairs of its deck
         self._saved_ident: dict[str, tuple] = {}            # the same, read from session.json (if the table does not answer)
@@ -394,6 +401,7 @@ class Session:
         self.game_log.new_game((self.game.hero_def(self.bot).name, self.game.hero_def(self.human).name))
         self.game_log.observe(self.game, self._name)
         self._check_config()
+        self._check_pieces()
         self._preload_identities()
         self._announce_first()
         self._announce_bot_hero()
@@ -436,6 +444,7 @@ class Session:
         self.messages = []
         self._destiny_tried = False
         self._check_config()
+        self._check_pieces()
         self._preload_identities()
         self.game_log.resumed()
         self.game_log.observe(self.game, self._name)
@@ -1319,17 +1328,18 @@ class Session:
             "start_spaces": {str(k): v for k, v in self.game.start_spaces.items()},
             "deck_ident": {side: [list(pair) for pair in pairs]
                            for side, pairs in {**self._saved_ident, **self._deck_ident}.items()},
+            **({"resolved_pieces": self.resolved_pieces} if self.resolved_pieces else {}),
         }
 
     def fingerprint(self) -> dict:
         """Fingerprint of the save: which table (GUIDs and identity settings) and which game it belongs to."""
-        return {"game_id": self.game_id, "config_hash": self._config_hash(), "guids": self.guids_in_use()}
+        return {"game_id": self.game_id, "config_hash": self._config_hash(), "guids": self.guids_in_use(configured=True)}
 
     def _config_hash(self, **override) -> str:
         c = self.cfg
         identity = {k: getattr(c, k) for k in IDENTITY_KEYS}
         identity.update(override)
-        identity["pieces"] = {fid: piece_guids(v) for fid, v in sorted(c.pieces.items())}
+        identity["pieces"] = {fid: v for fid, v in sorted(self.configured_pieces.items())}
         identity["board"] = self.game.board.key
         return hashlib.sha256(json.dumps(identity, sort_keys=True).encode("utf-8")).hexdigest()
 
@@ -1387,6 +1397,7 @@ class Session:
             self.destiny_seen = None if seen is None else (int(seen[0]), str(seen[1]))
             self.game_id = d["fingerprint"]["game_id"]
             self._saved_ident = self._load_saved_identities(d.get("deck_ident"))
+            piece_id.restore(self, d.get("resolved_pieces"))
         except (KeyError, TypeError, IndexError, ValueError) as e:
             raise persist.StateError(t("save.invalid", error=repr(e))) from None
 
@@ -1469,11 +1480,13 @@ class Session:
         except OSError as e:
             self.say(t("sess.save_fail", path=self.state_path, err=e), ChatKind.WARNING)
 
-    def guids_in_use(self) -> list[str]:
-        """All the configuration's GUIDs that must still exist after reloading the game."""
+    def guids_in_use(self, configured: bool = False) -> list[str]:
+        """All the configuration's GUIDs that must still exist after reloading the game (`configured`: the pieces' GUIDs
+        as the data gives them, not as resolved by name)."""
         c = self.cfg
+        pcs = self.configured_pieces if configured else {fid: piece_guids(v) for fid, v in c.pieces.items()}
         guids = [lua.BOARD_GUIDS[self.game.board.key], c.bot_deck_guid, c.bot_discard_zone, c.human_discard_zone,
-                 *(g for v in c.pieces.values() for g in piece_guids(v)), *c.dials.values(),
+                 *(g for v in pcs.values() for g in v), *c.dials.values(),
                  *([c.destiny_dial] if c.destiny_dial else [])]
         return sorted(set(guids))
 
@@ -4016,6 +4029,7 @@ class Session:
         self.game.drawn[self.bot] = 0
         self.dirty, self.unprojected, self.flush_failures = False, None, 0
         self.read_bot_hand()
+        self._check_pieces()
         self.sync_positions()
         self.say(t("adopt.table"), ChatKind.WARNING)
 
@@ -4269,15 +4283,54 @@ class Session:
         guids = sorted({g for fid in self.cfg.pieces for g in self._guids(fid)})
         if self.cfg.batch:
             found = self._view("pieces")["pieces"]
+            if not set(guids) <= set(found):          # the panel's snapshot predates a GUID resolved by name
+                self.snap = None
+                found = self._view("pieces")["pieces"]
         else:
             found = self.client.call_lua(lua.piece_spaces_by_guid(self.game.board, guids))
         found = found if isinstance(found, dict) else {}
+        if not self._resolving:
+            # A GUID that holds another hero's piece is always looked into; a GUID with nothing at it only on the first read
+            # after start / resume / adopt (and not while the game is being set up: the pieces are still in their bags).
+            full, self._piece_full_check = self._piece_full_check and self.setup is None, False
+            wanted = {fid for fid, owner in piece_id.problems(self, found).items()
+                      if fid not in self._piece_gave_up and (owner is not None or full)}
+            if wanted:                                # look for the right piece by name
+                before = {fid: self.cfg.pieces[fid] for fid in wanted}
+                self.resolve_pieces(found)
+                self._tell_piece_notes()
+                if any(self.cfg.pieces[fid] != before[fid] for fid in wanted):
+                    return self._table_pieces()
         out = {}
         for fid in self.cfg.pieces:
             hit = next(((g, found[g]) for g in self._guids(fid)
                         if isinstance(found.get(g), dict) and found[g].get("found")), None)
             out[fid] = {**hit[1], "guid": hit[0]} if hit else {"found": False}
         return out
+
+    def resolve_pieces(self, found: dict | None = None) -> bool:
+        """Checks every piece by name and re-points those whose GUID holds another piece (session_pieces). The lines for
+        the player wait in `_piece_notes` until `_tell_piece_notes`."""
+        self._resolving = True
+        try:
+            changed, notes = piece_id.resolve(self, found)
+        finally:
+            self._resolving = False
+        self._piece_notes += notes
+        return changed
+
+    def _tell_piece_notes(self) -> None:
+        notes, self._piece_notes = self._piece_notes, []
+        for line in notes:
+            self.say(line, ChatKind.WARNING)
+
+    def _check_pieces(self) -> None:
+        """At start, resume and adopt: GUIDs two heroes share in the data are said and the next table read verifies every
+        piece by name (it is the read the step makes anyway: no extra message)."""
+        self._piece_gave_up, self._piece_full_check = set(), True
+        for line in piece_id.shared_guids(self):
+            self.say(line, ChatKind.WARNING)
+        self._tell_piece_notes()
 
     def _move_stage(self, fid: str, space: int, pieces: dict[str, dict] | None = None) -> Callable[[], bool]:
         """Queues the miniature's move (with the GUID the table shows; otherwise the first) and returns the

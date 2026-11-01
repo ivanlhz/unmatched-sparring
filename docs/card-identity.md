@@ -44,3 +44,32 @@ against a turtle and a turtle against a turtle (`tests/test_tmnt_matrix.py`). Th
 3. A new Lua builder takes `id_range` and `identity` together and filters with `_ours_lua`.
 4. A new ChoiceRequest is created through `EffectRun.ask` (it adds `card_owner`); one created by hand passes the owner.
 5. Add the slug to the matrix (`HEROES` in `tests/test_tmnt_matrix.py`); the matrix is the proof.
+
+## Piece identity (miniatures and tokens)
+
+Cards are told apart by value (above); pieces by GUID **and name**. The tournament save gives Abe Sapien's and Donatello's
+miniatures the same GUID (`4fdf31`, each inside its own bag; the only cross-hero collision in `data/tts/*.json`, pinned by
+`tests/test_piece_identity.py`). TTS keeps GUIDs unique, so when both are on the table the second one out of its bag gets a
+new random GUID and the configured one would make the session follow the other hero's piece.
+
+`sparring/session_pieces.py` handles it for any piece (miniature or token, any hero):
+
+- The object at a configured GUID is read with its name; TTS colour tags are stripped (`[6f2176]Donatello` -> `donatello`)
+  and it is compared with the nicknames of the fighters in play. A piece whose name is ANOTHER fighter's, or a GUID with
+  nothing at it, is "not mine". An object with no name, or a name nobody in play has, is trusted: the GUID wins.
+- Then the loose objects (not decks, cards or bags) are searched for the fighter's own name
+  (`lua.find_pieces_by_name`, read only). Exactly one candidate, not claimed by another fighter, replaces the GUID in
+  `session.cfg.pieces` for the rest of the game; the player reads one `piece.resolved` line. None or several: the GUID
+  stays, one `piece.unresolved` line, no second search for that fighter until the next start / resume / adopt.
+- When: at start, at `--resume` (after the saved resolutions are restored), on adopt (the table wins), and on any table read
+  that finds a foreign name at a GUID (a piece that came out of its bag later). `play.py` also runs it before building the
+  panel, whose snapshot carries the GUID list.
+- Persistence: `resolved_pieces` (fid -> GUIDs) in the session file. The save's fingerprint keeps using the GUIDs of the data
+  (`Session.configured_pieces`), so a resolution never makes a save look like another table.
+- At start-up `shared_guids` warns (`piece.shared`) when two pieces or dials in play have the same GUID in the data.
+- Fake table: `tests/test_d3_table_effects.build` models TTS (`reassigned_guid`): a GUID given twice by the data is given
+  once; the next object gets a new one. The restored human-attacks and passive matrices run Abe vs Donatello in both seats
+  on it with no per-test workaround.
+
+Limits: dials are not resolved by name (a life dial carries no hero name); a shared dial GUID would only be warned about. A
+piece with several states (Hellboy) replaces the state GUID that was found, keeping the others.

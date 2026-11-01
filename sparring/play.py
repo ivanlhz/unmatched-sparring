@@ -69,7 +69,7 @@ def migrate_legacy_files(state: Path) -> list[str]:
 BOT, HUMAN = 0, 1
 READ_ONLY_TAGS = frozenset({"snapshot", "piece_spaces_by_guid", "read_hand", "count_hand", "read_discard",
                             "read_face_down_cards", "read_cards_at", "inspect_guids", "read_health_dials", "zone_overlaps", "deck_identities",
-                            "hand_identities", "reset_plan", "table_heroes", "inspect_objects"})
+                            "hand_identities", "reset_plan", "table_heroes", "inspect_objects", "find_pieces_by_name"})
 
 REQUIRED = ("bot_seat", "human_seat", "nicknames", "bot_card_spot", "human_card_spot", "bot_discard_spot",
             "bot_discard_zone", "bot_deck_guid", "human_discard_zone", "bot_deck_spot", "pieces")
@@ -909,6 +909,10 @@ def play(cfg: PlayConfig, client: TTSClient, first: str, seed: int, stop: thread
             raise persist.StateError(t("save.needs_file"))
         session.load_dict(persist.load(state_path))
     targets = [f.fid for f in game.own(BOT)]
+    try:
+        session.resolve_pieces()                 # before the panel is built: its snapshot carries the GUIDs found by name
+    except TABLE_ERRORS:
+        pass                                     # the start-up check tries again and says why
     for warning in floor_layout_warnings(cfg):
         echo(t("console.warn_line", text=warning))
     client.call_lua(lua.clear_markings(remove_panel=True))     # leftovers of a previous run that died without cleaning up

@@ -891,5 +891,9 @@
  "console.legacy_config": "{old} es el nombre antiguo de la configuracion: usa {new}",
  "console.moved_state": "el guardado de {old} se ha movido a {new} (una sola vez)",
  "console.moved_log": "el registro {old} se ha movido a {new}",
- "raphael.combat_to_deck": "Pon {cards} de tu zona de combate en tu mazo y baraja ({cause})."
+ "raphael.combat_to_deck": "Pon {cards} de tu zona de combate en tu mazo y baraja ({cause}).",
+ "piece.resolved": "{name}: la pieza en {old} era de {other}; sigo la que se llama {name} ({new}).",
+ "piece.unresolved": "{name}: la pieza en {guid} es de {other} y encontre {found} candidatas por nombre; mantengo el GUID, las posiciones pueden fallar.",
+ "piece.shared": "Los datos dan el GUID {guid} a {names}: si estan las dos en la mesa las distingo por el nombre.",
+ "piece.dial_of": "el dial de vida de {name}"
 }
