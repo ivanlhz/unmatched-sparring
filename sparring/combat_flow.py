@@ -213,6 +213,8 @@ class CombatFlow:
         elif phase is Phase.DONE:
             for owner, card in self.played:
                 inventions.settle_played(self.game, owner, card)
+            if self.game.winner is None:
+                self.game.fx.emit("after_attack", self.att, self.tgt)
 
     # ---------- decisions ----------
     def resume(self, choice: "Card | list | None") -> None:
@@ -260,13 +262,15 @@ class CombatFlow:
         if def_card is not None:
             game.take_from_hand(pd, def_card)
         self.played = [(pa, self.atk_card)] + ([(pd, def_card)] if def_card else [])
+        for owner, _ in self.played:
+            game.fx.count_played(owner)
 
     def _reveal(self) -> None:
         game, att, tgt, atk_card, def_card, values = self.game, self.att, self.tgt, self.atk_card, self.def_card, self.values
         bonus_parts = game.attack_bonus_parts(att)   # hero passives (Hellboy in ANUNG UN RAMA: +2)
         if game.fx.statuses:
-            from .effects.modifiers import take_next_attack_bonus
-            bonus_parts = bonus_parts + take_next_attack_bonus(game.fx, att.owner)
+            from .effects.modifiers import fighter_attack_bonus, take_next_attack_bonus
+            bonus_parts = bonus_parts + take_next_attack_bonus(game.fx, att.owner) + fighter_attack_bonus(game.fx, att.fid)
         atk_value = (atk_card.value or 0) + values[0] + sum(n for n, _ in bonus_parts)
         def_value = (def_card.value or 0) if def_card else 0
         def_value += values[1]

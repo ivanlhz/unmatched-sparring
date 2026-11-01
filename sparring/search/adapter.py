@@ -699,7 +699,8 @@ class EngineState:
         side = [f for f in g.own(p, alive_only=False) if not f.hero]
         side_hp = sum(f.hp for f in side if f.alive) / hero.max_hp      # in hero HP: a Harpy is worth less than Lobster
         alive = sum(1 for f in side if f.alive) / len(side) if side else 0.0
-        hand = min(len(g.players[p].hand), 7) / 7
+        cap = g.hand_cap(p)                                  # a 3-card hero (Michelangelo) is full at 3, not at 7
+        hand = min(len(g.players[p].hand), cap) / cap
         deck = min(len(g.players[p].deck), 10) / 10
         # square root: the first HP are worth more than the last; staying alive at 3 HP is not almost the same as dying
         return (sqrt(max(hero.hp, 0) / hero.max_hp) + w.sidekicks * side_hp + w.alive * alive + w.hand * hand

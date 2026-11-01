@@ -9,11 +9,11 @@ from .cards import Card, can_be_boost
 from .controller import Controller
 from .effects import inventions, ongoing
 from .effects.state import EffectState, default_dsl_heroes
-from .heroes import HeroDef, load_hero
+from .heroes import DEFAULT_HAND_LIMIT, DEFAULT_START_HAND, HeroDef, load_hero
 from .i18n import t
 
-HAND_LIMIT = 7
-START_HAND = 5
+HAND_LIMIT = DEFAULT_HAND_LIMIT       # the defaults; a hero's own sizes are `Game.start_hand` / `Game.hand_cap`
+START_HAND = DEFAULT_START_HAND
 EXHAUST_DAMAGE = 2
 DETECTIVE = "OCCULT DETECTIVE"      # names of Hellboy's forms exactly as in data/heroes/hellboy.json
 ANUNG = "ANUNG UN RAMA"             # (the session's announcements use them; the rule lives in the data)
@@ -277,7 +277,7 @@ class Game:
         game.bot_player = bot_player
         game.fx.dsl_heroes = default_dsl_heroes(game)
         for pl in (0, 1):
-            game.draw(pl, START_HAND, log=False)
+            game.draw(pl, game.start_hand(pl), log=False)
         game.drawn = [0, 0]
         return game
 
@@ -315,6 +315,14 @@ class Game:
 
     def hero_def(self, player: int) -> HeroDef:
         return self.players[player].hero
+
+    def start_hand(self, player: int) -> int:
+        """Cards of the opening hand (and of a mulligan): 5, or what the hero's card says (Michelangelo: 3)."""
+        return self.players[player].hero.hand_start
+
+    def hand_cap(self, player: int) -> int:
+        """Most cards `player` keeps at the end of the turn: 7, or what the hero's card says (Michelangelo: 3)."""
+        return self.players[player].hero.hand_max
 
     def occupied(self, player: int) -> set[int]:
         return {f.pos for f in self.own(player)}
@@ -526,7 +534,7 @@ class Game:
     def end_turn(self) -> None:
         self.fx.emit("end_of_turn", self.turn)
         hand = self.players[self.turn].hand
-        limit = self.fx.hand_limit(self.turn, HAND_LIMIT)
+        limit = self.fx.hand_limit(self.turn, self.hand_cap(self.turn))
         if len(hand) > limit:
             self.force_discard(self.turn, len(hand) - limit, t("cause.hand_limit"), cause="hand_limit")
         self.turn = 1 - self.turn

@@ -110,7 +110,7 @@ def _status_points(op: dict) -> float:
         return 1.0
     if name.startswith("cannot_"):
         return 0.8
-    if name == "next_attack_bonus":
+    if name in ("next_attack_bonus", "attack_bonus"):
         return 0.3 * amount(op.get("amount"), 1)
     return 0.5
 

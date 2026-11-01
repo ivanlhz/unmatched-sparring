@@ -205,6 +205,7 @@ There are never conditions in strings.
 | `end_of_turn` | `player` (default `any`) | |
 | `after_maneuver` | `player` | |
 | `after_attack` | `fighter: FighterSel` | `$attacker`, `$target` |
+| `after_scheme` | `player` | |
 | `attacked` | `target: FighterSel` | `$attacker`, `$target`, `attack_card` |
 | `combat_damage_dealt` | `by: FighterSel` | `$by`, `$to`, `$amount` |
 | `damage_taken` | `target: FighterSel`, `damage: effect | combat | any`, `min` | `$target`, `$amount` |
@@ -272,6 +273,7 @@ Every op is `{"op": "<name>", ...args}`. Arguments not listed are an error.
 | `cannot_draw` | player | |
 | `cannot_leave_space` | fighter | by no means |
 | `next_attack_bonus` | player (`amount`) | consumed by the first own attack |
+| `attack_bonus` | fighter (`amount`) | +amount to every attack of that fighter while it lasts (Nunchaku) |
 
 ### Modifiers (`ongoing.modifiers` and `ability.passives`)
 
@@ -1006,3 +1008,11 @@ All additive; nothing of the other heroes changes (the goldens are byte-identica
 - **Table translators**: `tuck` and `remove` (`session_translators`). Bot: one `discard_cards` write to `bot_tuck_spot` / `bot_removed_spot` (config; cards laid side by side), falling back to the human variant if the spot is missing or the table refuses. Human: the chat says to tuck / set aside by hand. `Session.sync_human`, `_adopt_extra_discards`, `adopt_table` and `_bot_cards_in_play` leave tucked and removed cards alone, so a card physically still on a discard pile is never taken back.
 - **INVENTIVE (a)** is a hero trigger (`inventive`, event `after_maneuver`): the bot's `Game.maneuver` already emits the event, and `Session._maneuver` emits it for the human so the panel can ask. `session_choices.prompt_text` shows `choice.prompt.ability.<trigger id>` for an optional of a trigger that has such a tag.
 - **Other shared-code changes**: `combat.is_medusa_card` compares with Medusa's own cards (the TMNT decks share her CardIDs); `hero_table.table_defaults` accepts overlapping CardID ranges when the deck images differ; `tools/import_save` ignores TTS colour markup in nicknames (`[6f2176]Donatello`); `EffectAI` and `SyntheticChooser` remove the cheapest cards for the purpose `remove`; `ai_medusa` card hints (`INVENTION_KEEP`, `INVENTION_PLAY`, `FREE_BOOST`, Donatello's `AFTER_BONUS` entries).
+
+## 24. Michelangelo (additive extensions)
+
+- Events: `after_scheme` (`player`) fires when a DSL scheme is finished (`ongoing.finish_scheme`); `after_attack` is now emitted by the engine when a combat reaches DONE (the played cards are already in the discard).
+- Amount `{"stat": "other_cards_played_this_turn", "player"?}`: cards the player played this turn (attack, defense, scheme) without counting the card being resolved. Recorded only when a loaded hero's data names the stat (`events.TRACKS`, `fx.played`, saved only when non-zero).
+- Status `attack_bonus` (fighter scope, needs `amount`): every attack the fighter makes while it lasts gets +amount (`next_attack_bonus` is consumed by the first attack).
+- `optional` with a `return_to_deck` cost from the hand is only offered when the hand can pay it; the bot's request carries `gains_action` or `cancels` so the AI can price it.
+- HeroDef `hand` ({start, max}): per-hero opening hand and end-of-turn hand limit (defaults 5 and 7).

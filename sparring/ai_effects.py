@@ -65,6 +65,7 @@ DEFAULT_BLOW = 1                                        # damage or heal assumed
 DEFAULT_REACH = 2                                       # steps a place/swap candidate is assumed to relocate by
 HP_OPS = ("damage", "heal", "set_hp")
 RELOCATE_OPS = ("move", "place", "swap")
+CANCEL_MAX_KEEP = 1.6                                   # the card given up to cancel the rival's effects is worth this or less
 BOUNCE_BONUS = 0.5                                      # a returning card at the bottom also burns 1 when it comes back
 
 
@@ -341,6 +342,8 @@ class EffectAI:
         if "bury" in req.extra:             # The future of Ninjutsu: the top card goes to the bottom if it is worse than the average card to come
             top = {c.card_id: c for c in game.players[req.player].full_set}[req.extra["bury"][0]] if req.extra["bury"] else None
             return None if top is None else [keep_value(top, [top]) < self.medusa(req.player).avg_unseen_keep(game)]
+        if "gains_action" in req.extra or "cancels" in req.extra:
+            return [self._card_from_hand_pays(game, req)]
         if "cost_cards" in req.extra:      # a price in cards: the interpreter sends the combat context, one policy
             return [worth_paying(req)]
         if "to" in req.extra:               # a redirect passive (FATEFUL BARGAINS): whoever loses the bot less takes it
@@ -365,6 +368,20 @@ class EffectAI:
         if yes is None or no is None:
             return [not cost]
         return [yes >= no - 1e-9] if not cost else [yes > no + PAY_MARGIN]
+
+    def _card_from_hand_pays(self, game: Game, req: ChoiceRequest) -> bool:
+        """A card put on the bottom of the deck (it comes back when the deck cycles) for an extra action (Hi-Yaaaaah!!)
+        or for cancelling the rival's card effects (Guaranteed Delivery). The least useful card is the one given up;
+        the action is worth it while a card that can use it stays in the hand, the cancel while the card given up is
+        below the average (`CANCEL_MAX_KEEP`) and the rival's card has effects to cancel."""
+        hand = game.players[req.player].hand
+        if not hand:
+            return False
+        junk = min(hand, key=lambda c: (keep_value(c, hand), c.card_id))
+        rest = [c for c in hand if c is not junk]
+        if "gains_action" in req.extra:
+            return any(c.can_attack or c.is_scheme for c in rest)
+        return req.extra["cancels"] > 0 and keep_value(junk, hand) <= CANCEL_MAX_KEEP
 
     def _discard_or_take(self, game: Game, req: ChoiceRequest) -> bool:
         """Remove A Painful Memory's "discard it or take N": the named cards are the bot's own and known, so the

@@ -51,8 +51,9 @@ STATUS_SCOPE = {
     "immune_to_effect_damage": "target", "cannot_leave_space": "target",
     "immune_to_enemy_effect_damage": "player", "immune_to_enemy_effect_moves": "player",
     "immune_to_enemy_forced_discards": "player", "cannot_gain_actions": "player", "cannot_draw": "player",
-    "next_attack_bonus": "player",
+    "next_attack_bonus": "player", "attack_bonus": "target",
 }
+AMOUNT_STATUSES = ("next_attack_bonus", "attack_bonus")      # the statuses that carry a bonus
 HIDDEN_ZONES = ("hand", "deck")
 OP_LIST_KEYS = ("ops", "then", "else", "cost")
 MOMENTS = ("immediately", "during", "after", "scheme", "boost")
@@ -368,8 +369,8 @@ class Semantics:
         other = "player" if want == "target" else "target"
         if want not in node or other in node:
             self.errors.append(f"{path}: the status {node['name']!r} goes on '{want}', not on '{other}'")
-        if (node["name"] == "next_attack_bonus") != ("amount" in node):
-            self.errors.append(f"{path}: 'amount' only (and always) with next_attack_bonus")
+        if (node["name"] in AMOUNT_STATUSES) != ("amount" in node):
+            self.errors.append(f"{path}: 'amount' only (and always) with {' or '.join(AMOUNT_STATUSES)}")
 
     # --- references inside the arguments of an op, condition, event or modifier
 

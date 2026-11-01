@@ -287,7 +287,7 @@
       "note": "Asked by Iván on 30/10 after the catalog branch (feat/hero-catalog). Builds on that branch. Making a new hero playable BY THE BOT (effects + AI) stays a per-hero job like the Hellboy box."
     },
     {
-      "id": "F20-donatello",
+      "id": "TMNT-DONATELLO",
       "title": "Donatello (TMNT Adventures) on both sides",
       "status": "in-progress",
       "criteria": [
@@ -300,6 +300,19 @@
         "A live game supervised by Iván (docs/live-checklist.md, Donatello) before calling it done"
       ],
       "note": "1/11: engine and FakeTTS done on feat/hero-donatello; the live table (tuck and removed spots, INVENTIVE panel flow, Party wagon! path by hand) is untested. Open rules questions in docs/heroes/donatello.md."
+    },
+    {
+      "id": "TMNT-MICHELANGELO",
+      "title": "Michelangelo (TMNT) playable by the bot and by the human",
+      "status": "done",
+      "criteria": [
+        "Hero sheet, 30 cards and table data verified against the card images of the tournament savegame (sheet 176, character card 366); April O'Neil as the ranged sidekick",
+        "Every card effect in the DSL, including Shell Insertion (two different effects out of four), Nunchaku (a +1 status on every attack of the hero this turn) and Cowabunga!! (cards played this turn)",
+        "PIZZA PARTY: draw 1 after an attack or a scheme; opening and maximum hand size 3, per hero and additive (default 5 and 7)",
+        "Bot AI aware of the 3-card hand (hand cap in the evaluation, pays a card for an action or a cancel by rule); heuristic and ISMCTS",
+        "Whole FakeTTS games against Hellboy, Abe Sapien, Baba Yaga and Liz Sherman on both sides; Medusa and Michelangelo are refused at the table (same CardIDs) and play in the simulator"
+      ],
+      "note": "Live test pending: see docs/live-checklist.md, Michelangelo."
     }
   ]
 }

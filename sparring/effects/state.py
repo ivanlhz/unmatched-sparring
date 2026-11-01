@@ -11,7 +11,7 @@ from typing import Iterable
 # Heroes whose cards and ability the interpreter resolves by default, whoever plays them (C5: Medusa; D1 the Hellboy
 # box for the bot, E2 for the human too, in table mode: effects/table.py). `Game` derives `fx.dsl_heroes` from the
 # heroes in play and persist omits the set when it is this default, so old saves load unchanged.
-INTERPRETED_HEROES = frozenset({"medusa", "hellboy", "abe-sapien", "baba-yaga", "liz-sherman", "leonardo", "donatello"})
+INTERPRETED_HEROES = frozenset({"medusa", "hellboy", "abe-sapien", "baba-yaga", "liz-sherman", "leonardo", "donatello", "michelangelo"})
 
 
 def interpreted(slugs: Iterable[str]) -> set[str]:
@@ -25,7 +25,7 @@ def default_dsl_heroes(game) -> set[str]:
 
 class EffectState:
     __slots__ = ("statuses", "ongoing", "counters", "modifiers", "dsl_heroes", "turn_start_pos", "attacked", "taken",
-                 "acting", "parked", "choosers", "said", "intents", "whole_hand", "_game_ref")
+                 "acting", "parked", "choosers", "said", "intents", "whole_hand", "played", "_game_ref")
 
     def __init__(self) -> None:
         self.statuses: list[dict] = []                   # active status effects (name, target, until, amount)
@@ -36,6 +36,7 @@ class EffectState:
         self.turn_start_pos: dict[str, int] = {}         # fid -> space at the start of the turn (moved_this_turn)
         self.attacked: list[str] = []                    # fids that attacked this turn (one entry per attack; last = current)
         self.taken = 0                                   # actions the current player has spent this turn
+        self.played: list[int] = [0, 0]                  # cards each player has played this turn (attack, defense, scheme)
         self.acting: int | None = None                   # player whose effect op is running right now (transient)
         self.parked: list = []                           # EffectRuns of triggers a chooser paused, in firing order (saved)
         self.choosers = None                             # who answers trigger decisions; None = the bots' controllers
@@ -95,6 +96,14 @@ class EffectState:
             from .events import tracked
             if "taken" in tracked(frozenset(self.dsl_heroes)):
                 self.taken += 1
+
+    def count_played(self, player: int) -> None:
+        """`player` plays a card (an attack, a defense or a scheme): what Cowabunga!! counts. Only recorded for games
+        whose data reads it (`events.TRACKS`)."""
+        if self.dsl_heroes:
+            from .events import tracked
+            if "played" in tracked(frozenset(self.dsl_heroes)):
+                self.played[player] += 1
 
     def on_damage(self, fighter, n, source: str, by) -> None:
         """`fighter` has just lost `n` hp (alive or not yet resolved) from `source` ("effect", "combat",
@@ -163,7 +172,7 @@ class EffectState:
     # clone / persist
     def is_empty(self) -> bool:
         return not (self.statuses or any(self.ongoing) or any(self.counters) or self.modifiers or self.dsl_heroes
-                    or self.turn_start_pos or self.attacked or self.taken)
+                    or self.turn_start_pos or self.attacked or self.taken or any(self.played))
 
     def copy(self) -> "EffectState":
         """The state a clone (search, simulation) starts from. `choosers` and `parked` stay with the live game: a
@@ -179,6 +188,7 @@ class EffectState:
         c.turn_start_pos = dict(self.turn_start_pos)
         c.attacked = list(self.attacked)
         c.taken = self.taken
+        c.played = list(self.played)
         return c
 
     def to_dict(self) -> dict:
@@ -201,6 +211,8 @@ class EffectState:
             out["attacked"] = list(self.attacked)
         if self.taken:
             out["taken"] = self.taken
+        if any(self.played):
+            out["played"] = list(self.played)
         if self.parked:
             out["parked"] = [run.to_dict() for run in self.parked]
         return out
@@ -217,6 +229,7 @@ class EffectState:
         fx.turn_start_pos = {str(k): int(v) for k, v in raw.get("turn_start_pos", {}).items()}
         fx.attacked = list(raw.get("attacked", []))
         fx.taken = int(raw.get("taken", 0))
+        fx.played = [int(n) for n in raw.get("played", [0, 0])]
         if raw.get("parked"):
             from .run import EffectRun                  # run.py imports the combat flow, which imports the engine
             fx.parked = [EffectRun.from_dict(r) for r in raw["parked"]]

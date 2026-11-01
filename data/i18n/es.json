@@ -243,6 +243,7 @@
  "narr.end_turn": "termina el turno",
  "narr.fstatus.cannot_leave_space": "{fid} no puede dejar su espacio este turno",
  "narr.fstatus.immune_to_effect_damage": "{fid} no recibe dano de efectos este turno",
+ "narr.fstatus.attack_bonus": "{fid} recibe +{n} a sus ataques este turno",
  "narr.status.cannot_gain_actions.bot": "no gana acciones este turno",
  "narr.status.cannot_gain_actions.human": "no ganas acciones este turno",
  "narr.status.cannot_draw.bot": "no roba cartas este turno",

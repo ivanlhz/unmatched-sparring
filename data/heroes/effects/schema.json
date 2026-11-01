@@ -149,7 +149,8 @@
     "properties": {"counter": {"$ref": "#/$defs/Name"}, "player": {"$ref": "#/$defs/PlayerSel"}, "times": {"type": "integer"}}},
    {"type": "object", "additionalProperties": false, "required": ["stat"],
     "properties": {
-     "stat": {"enum": ["hand_size", "hp", "max_hp", "actions_taken_this_turn", "damage_dealt_this_combat", "damage_taken_this_combat", "zones"]},
+     "stat": {"enum": ["hand_size", "hp", "max_hp", "actions_taken_this_turn", "damage_dealt_this_combat", "damage_taken_this_combat",
+      "other_cards_played_this_turn", "zones"]},
      "player": {"$ref": "#/$defs/PlayerSel"},
      "fighter": {"$ref": "#/$defs/FighterRef"},
      "times": {"type": "integer"}}}
@@ -194,6 +195,8 @@
     "properties": {"event": {"const": "end_of_turn"}, "player": {"$ref": "#/$defs/PlayerOrAny"}}},
    {"type": "object", "additionalProperties": false, "required": ["event", "player"],
     "properties": {"event": {"const": "after_maneuver"}, "player": {"$ref": "#/$defs/PlayerOrAny"}}},
+   {"type": "object", "additionalProperties": false, "required": ["event", "player"],
+    "properties": {"event": {"const": "after_scheme"}, "player": {"$ref": "#/$defs/PlayerOrAny"}}},
    {"type": "object", "additionalProperties": false, "required": ["event", "fighter"],
     "properties": {"event": {"const": "after_attack"}, "fighter": {"$ref": "#/$defs/FighterSel"}}},
    {"type": "object", "additionalProperties": false, "required": ["event", "target"],
@@ -225,7 +228,8 @@
 
   "StatusName": {"enum": [
    "immune_to_effect_damage", "immune_to_enemy_effect_damage", "immune_to_enemy_effect_moves",
-   "immune_to_enemy_forced_discards", "cannot_gain_actions", "cannot_draw", "cannot_leave_space", "next_attack_bonus"
+   "immune_to_enemy_forced_discards", "cannot_gain_actions", "cannot_draw", "cannot_leave_space", "next_attack_bonus",
+   "attack_bonus"
   ]},
 
   "Modifier": {"oneOf": [

@@ -1,0 +1,209 @@
+{
+ "schema": 1,
+ "hero": "michelangelo",
+ "notes": [
+  "Texts read from the real cards (sheet 176 of the tournament save, 2026-11-01); where unmatched-memory differs, this file wins (the Nunchaku text there is Bruce Lee's). Adventures (co-op) wording is played as 1 versus 1: 'each opponent' is the one rival player, 'each friendly fighter' is Michelangelo and April O'Neil.",
+  "Cards restricted to Michelangelo are played by him (this = hero); ANY ones also by April; Hard-Hitting Investigation and Shell Insertion are April's cards (the band says APRIL) and are resolved with this = April. 'Friendly fighter' selectors use the owner's side, never a name, so they work either way.",
+  "Every damage is effect damage; combat damage is computed by the engine.",
+  "Hand-size effects ('put a card from your hand on the bottom of your deck', 'if your hand is empty') read the hand AFTER the played card has left it: the attack or defense card is on the table, not in the hand.",
+  "PIZZA PARTY: the starting and maximum hand size 3 live in the HeroDef (`hand`, read by Game.start_hand / Game.hand_cap); the draw is the trigger below. Ivan's rule of 28/10 on 'maximum hand size' (a Pact lowers the limit at the end of the turn, a Maneuver draws regardless) is the engine's existing one."
+ ],
+ "ability": {
+  "text": "PIZZA PARTY\nAfter you attack or scheme, draw 1 card.\nYour starting and maximum hand size is 3.",
+  "triggers": [
+   {"id": "pizza_party_attack", "when": {"event": "after_attack", "fighter": {"side": "own"}},
+    "ops": [{"op": "draw", "player": "owner", "amount": 1}]},
+   {"id": "pizza_party_scheme", "when": {"event": "after_scheme", "player": "owner"},
+    "ops": [{"op": "draw", "player": "owner", "amount": 1}]}
+  ],
+  "passives": [],
+  "notes": "'After you attack' is any attack of the player (Michelangelo's or April's), once the combat is over (the played cards are in the discard pile, the AFTER COMBAT effects have resolved). It also fires when the attack was defended and when it dealt no damage. It does not fire for the defender. 'After you scheme' fires once the scheme has resolved, including a scheme that stays in play (none of this deck does). The draw is mandatory; with an empty deck it is exhaustion like any draw."
+ },
+ "cards": [
+  {
+   "title": "Hi-Yaaaaah!!",
+   "copies": 3,
+   "text": "AFTER COMBAT: Deal 1 damage to an adjacent opposing fighter. You may put a card from your hand on the bottom of your deck to gain 1 action.",
+   "effects": {
+    "immediately": [], "during": [], "scheme": [], "boost": [],
+    "after": [
+     {"op": "damage", "target": {"side": "enemy", "where": {"adjacent_to": "this"}}, "amount": 1, "chooser": "owner"},
+     {"op": "optional",
+      "cost": [{"op": "return_to_deck", "cards": {"zone": "hand", "player": "owner", "amount": 1, "chooser": "owner"}, "position": "bottom"}],
+      "ops": [{"op": "gain_action", "amount": 1}]}
+    ]
+   },
+   "notes": "Attack 4, boost 3, Michelangelo. 'Opposing fighter' is any rival fighter adjacent to the attacker, not only the one in the combat (it may be the one that was fought or a sidekick). The damage is skipped when none is adjacent, the optional part still runs. The price is a card from the hand to the bottom of the deck: it cannot be paid with an empty hand."
+  },
+  {
+   "title": "Boisterous Beatdown",
+   "copies": 3,
+   "text": "AFTER COMBAT: Gain 1 action. If you won the combat, gain 2 actions instead.",
+   "effects": {
+    "immediately": [], "during": [], "scheme": [], "boost": [],
+    "after": [
+     {"op": "if", "condition": {"test": "combat_result", "result": "won"},
+      "then": [{"op": "gain_action", "amount": 2}],
+      "else": [{"op": "gain_action", "amount": 1}]}
+    ]
+   },
+   "notes": "Attack 2, boost 1, Michelangelo. 'Won' = dealt at least 1 combat damage (the engine's attacker_won)."
+  },
+  {
+   "title": "Turtle Power!!",
+   "copies": 2,
+   "text": "DURING COMBAT: You may BOOST this attack.",
+   "may_boost": true,
+   "effects": {
+    "immediately": [], "during": [], "after": [], "scheme": [], "boost": []
+   },
+   "notes": "Attack 3, boost 3, Michelangelo. The free boost of the engine (`may_boost`), the same as Second Shot."
+  },
+  {
+   "title": "Hard-Hitting Investigation",
+   "copies": 3,
+   "text": "AFTER COMBAT: Deal 1 damage to the opposing fighter. Gain 1 action.",
+   "effects": {
+    "immediately": [], "during": [], "scheme": [], "boost": [],
+    "after": [
+     {"op": "damage", "target": "opposing", "amount": 1},
+     {"op": "gain_action", "amount": 1}
+    ]
+   },
+   "notes": "Attack 0, boost 3, April O'Neil only. The 1 damage is on top of whatever the combat did, to the fighter April fights. With April dead the three copies are dead cards in hand (the AI profile counts them)."
+  },
+  {
+   "title": "Cowabunga!!",
+   "copies": 3,
+   "text": "DURING COMBAT: Add +1 to this card's value for each other card you played this turn.",
+   "effects": {
+    "immediately": [], "after": [], "scheme": [], "boost": [],
+    "during": [
+     {"op": "modify_value", "card": "this", "amount": {"stat": "other_cards_played_this_turn"}}
+    ]
+   },
+   "notes": "Versatile 3, boost 2, Michelangelo. 'Played' = a card placed as an attack, a defense or a scheme by this player since the start of the current turn (whoever's turn it is: defending on the rival's turn counts the defenses already made that turn). Boosts, discards and Maneuvers are not plays, and the card itself is not counted."
+  },
+  {
+   "title": "Let's Go!!",
+   "copies": 3,
+   "text": "AFTER COMBAT: Move a friendly fighter up to 3 spaces.",
+   "effects": {
+    "immediately": [], "during": [], "scheme": [], "boost": [],
+    "after": [
+     {"op": "move", "target": {"side": "own"}, "amount": 3, "up_to": true, "chooser": "owner"}
+    ]
+   },
+   "notes": "Versatile 3, boost 2, ANY. The owner picks the fighter (the hero or April, even one that is not in the combat) and the destination."
+  },
+  {
+   "title": "Guaranteed Delivery",
+   "copies": 3,
+   "text": "IMMEDIATELY: You may put a card from your hand on the bottom of your deck to cancel all effects on your opponent's card. AFTER COMBAT: If your hand is empty, draw 2 cards.",
+   "effects": {
+    "during": [], "scheme": [], "boost": [],
+    "immediately": [
+     {"op": "optional",
+      "cost": [{"op": "return_to_deck", "cards": {"zone": "hand", "player": "owner", "amount": 1, "chooser": "owner"}, "position": "bottom"}],
+      "ops": [{"op": "cancel_effects", "card": "opponent_card"}]}
+    ],
+    "after": [
+     {"op": "if", "condition": {"test": "compare", "left": {"stat": "hand_size"}, "op": "==", "right": 0},
+      "then": [{"op": "draw", "player": "owner", "amount": 2}]}
+    ]
+   },
+   "notes": "Versatile 3, boost 1, ANY. If Guaranteed Delivery is the card being cancelled by the rival, the AFTER does not run. The hand is read when the AFTER runs: the cards drawn by earlier steps are in it, the played card is not."
+  },
+  {
+   "title": "Heroes In A Half Shell",
+   "copies": 2,
+   "text": "",
+   "effects": {
+    "immediately": [], "during": [], "after": [], "scheme": [], "boost": []
+   },
+   "notes": "Defense 5, boost 2, Michelangelo. No effect."
+  },
+  {
+   "title": "Back For Seconds",
+   "copies": 2,
+   "text": "AFTER COMBAT: Shuffle 2 random cards from your discard pile back into your deck.",
+   "effects": {
+    "immediately": [], "during": [], "scheme": [], "boost": [],
+    "after": [
+     {"op": "return_to_deck", "cards": {"zone": "discard", "player": "owner", "pick": "random", "amount": 2}, "position": "shuffle"}
+    ]
+   },
+   "notes": "Defense 2, boost 1, ANY. The discard pile at that moment does not hold the two cards of this combat yet (they go there when the combat ends), so Back For Seconds never shuffles itself back in. With fewer than 2 cards, the ones there are."
+  },
+  {
+   "title": "Nunchaku",
+   "copies": 2,
+   "text": "Add +1 to the value of Michelangelo's attacks this turn. Gain 1 action.",
+   "effects": {
+    "immediately": [], "during": [], "after": [], "boost": [],
+    "scheme": [
+     {"op": "status", "name": "attack_bonus", "target": "hero", "amount": 1, "until": {"event": "end_of_turn"}},
+     {"op": "gain_action", "amount": 1}
+    ]
+   },
+   "notes": "Scheme, boost 2, Michelangelo. Every attack Michelangelo makes until the end of the turn (not April's) is worth +1, also when it comes after the scheme, and two Nunchaku add up. The bonus does not touch his defenses. Playing it costs 1 action and gives 1: net 0 actions."
+  },
+  {
+   "title": "Michelangelo Is A Party Dude!!",
+   "copies": 2,
+   "text": "Each friendly fighter recovers 1 health.",
+   "effects": {
+    "immediately": [], "during": [], "after": [], "boost": [],
+    "scheme": [
+     {"op": "heal", "target": {"side": "own", "pick": "all"}, "amount": 1}
+    ]
+   },
+   "notes": "Scheme, boost 2, Michelangelo. Michelangelo and April O'Neil, if she is alive; a defeated April is not brought back. Healing does not go past the maximum."
+  },
+  {
+   "title": "Shell Insertion",
+   "copies": 2,
+   "text": "Choose two different effects: - each opponent discards 1 card - move a friendly fighter up to 2 spaces - put a card from your hand on the bottom of your deck to gain 1 action - shuffle 2 random cards from your discard pile back into your deck",
+   "effects": {
+    "immediately": [], "during": [], "after": [], "boost": [],
+    "scheme": [
+     {"op": "choose_effect", "amount": 2, "distinct": true, "chooser": "owner", "options": [
+      {"label": "Opponent discards 1 card", "ops": [
+       {"op": "discard", "cards": {"zone": "hand", "player": "opponent", "amount": 1, "chooser": "opponent"}}
+      ]},
+      {"label": "Move a friendly fighter 2", "ops": [
+       {"op": "move", "target": {"side": "own"}, "amount": 2, "up_to": true, "chooser": "owner"}
+      ]},
+      {"label": "Hand card to bottom: +1 action", "ops": [
+       {"op": "if", "condition": {"test": "exists", "cards": {"zone": "hand", "player": "owner"}}, "then": [
+        {"op": "return_to_deck", "cards": {"zone": "hand", "player": "owner", "amount": 1, "chooser": "owner"}, "position": "bottom"},
+        {"op": "gain_action", "amount": 1}
+       ]}
+      ]},
+      {"label": "Shuffle 2 discards into deck", "ops": [
+       {"op": "return_to_deck", "cards": {"zone": "discard", "player": "owner", "pick": "random", "amount": 2}, "position": "shuffle"}
+      ]}
+     ]}
+    ]
+   },
+   "notes": "Scheme, boost 3, April O'Neil only (the band says APRIL). The owner chooses two different effects, which resolve in printed order, not in choice order. 'Each opponent' is the one rival; they choose what they discard. The third effect needs a card in hand (the scheme has already left it) and gives the action only when the card is put back. The scheme goes to the discard pile after its effects, so the fourth effect never shuffles Shell Insertion itself."
+  }
+ ],
+ "plugins": [],
+ "hidden_info": [
+  {"card": "Hi-Yaaaaah!!, Guaranteed Delivery, Shell Insertion", "info": "The card the owner puts from the hand on the bottom of the deck.",
+   "bot": "Own hand: the bot gives up its least useful card (keep_value) and knows it is now the last of its deck. When the human does it, the card goes face down to the bottom of their deck: the bot only sees their hand shrink by one (KnownHand degrades to 'possible'). The card is not shuffled: the bottom of a deck is not read by anybody."},
+  {"card": "Guaranteed Delivery", "info": "The cancel is decided with the rival's card face up (IMMEDIATELY comes after both cards are revealed).",
+   "bot": "The bot pays a card only when the rival's card has effects that matter and it keeps a card it can still play; a human playing it picks with the panel."},
+  {"card": "Shell Insertion", "info": "The rival's discard is chosen by the rival from their own hand; the shuffled cards are chosen by chance from a public pile.",
+   "bot": "Played by the bot: the human discards by hand (the bot says how many); the bot never looks at their hand. Played by the human: the bot discards with its normal rule. The two random cards are drawn by the engine's rng and shown in the chat."},
+  {"card": "Back For Seconds", "info": "Two random cards of the discard pile go to the deck, order unknown.", "bot": "The discard pile is public: the bot sees which cards go back, not where they land."},
+  {"card": "PIZZA PARTY", "info": "The drawn card.", "bot": "When the human draws, only their hand count goes up by one."}
+ ],
+ "open_questions": [
+  "Does 'after you attack' include the attack of a sidekick (April)? Assumed yes: the player attacks, whichever of their fighters does it.",
+  "Does 'cards you played this turn' (Cowabunga!!) include the defense cards played on the rival's turn? Assumed yes, only those of the current turn.",
+  "Shell Insertion: 'each opponent discards 1 card' is the rival's choice (they pick which card).",
+  "Hi-Yaaaaah!!: 'an adjacent opposing fighter' is any rival fighter next to the attacker, not only the one in the combat."
+ ]
+}

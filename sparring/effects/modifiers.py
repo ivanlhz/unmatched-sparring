@@ -16,7 +16,7 @@ from functools import lru_cache
 
 from .model import EFFECTS_DIR, CardEffects, EffectError, load_effects, walk_ops
 
-FIGHTER_STATUSES = ("immune_to_effect_damage", "cannot_leave_space")
+FIGHTER_STATUSES = ("immune_to_effect_damage", "cannot_leave_space", "attack_bonus")
 PLAYER_STATUSES = ("immune_to_enemy_effect_damage", "immune_to_enemy_effect_moves",
                    "immune_to_enemy_forced_discards", "cannot_gain_actions", "cannot_draw", "next_attack_bonus")
 _DEFAULT_PLAYER = {"end_of_turn": "any", "start_of_turn": "owner", "after_maneuver": "any"}
@@ -170,6 +170,13 @@ def take_next_attack_bonus(fx, player: int) -> list[tuple[int, str]]:
     got = [st for st in fx.statuses if st["name"] == "next_attack_bonus" and st.get("player") == player]
     fx.statuses[:] = [st for st in fx.statuses if st not in got]
     return [(st["amount"], st["label"]) for st in got if st["amount"]]
+
+
+def fighter_attack_bonus(fx, fid: str) -> list[tuple[int, str]]:
+    """(+n, label) of each `attack_bonus` status on the fighter: every attack it makes while the status lasts
+    (Nunchaku), unlike `next_attack_bonus`, which the first attack consumes."""
+    return [(st["amount"], st["label"]) for st in fx.statuses
+            if st["name"] == "attack_bonus" and st.get("fid") == fid and st["amount"]]
 
 
 def expire_on_event(fx, name: str, *args) -> None:

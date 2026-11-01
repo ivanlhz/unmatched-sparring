@@ -31,9 +31,15 @@ def _medusa_cards() -> frozenset[Card]:
 
 
 def is_medusa_card(card: Card) -> bool:
-    """One of Medusa's cards. The CardID range is not enough: the TMNT decks (Donatello...) use the same 17600-17629, so
-    the card is compared with Medusa's own (a Card is a frozen value: id, title, restriction, numbers and text)."""
-    return MEDUSA_BASE <= card.card_id < MEDUSA_BASE + 100 and card in _medusa_cards()
+    """One of Medusa's own cards. The CardID range alone is not enough: Michelangelo's deck uses the same sheet number
+    (17600..17629), so the title has to match as well."""
+    return MEDUSA_BASE <= card.card_id < MEDUSA_BASE + 100 and card.title in _medusa_titles()
+
+
+@lru_cache(maxsize=None)
+def _medusa_titles() -> frozenset[str]:
+    from .heroes import load_hero
+    return frozenset(c.title for c in load_hero("medusa").deck())
 
 
 @dataclass

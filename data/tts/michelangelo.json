@@ -1,0 +1,40 @@
+{
+ "slug": "michelangelo",
+ "_notes": [
+  "Read from saves/Unmatched Official Tournament Table October 2026 (Hellboy).json (read only): infinite bag f3d5c7 > bag 17b586. Every GUID comes from that inner bag.",
+  "Michelangelo's miniature is a Custom_Model whose nickname carries a TTS colour tag ('[E77204]Michelangelo'); the importer ignores such tags. April O'Neil is a Custom_Token standee ('April O'neil') with her own 6-life dial ('April O' Neil'); the hero dial is 'Michelangelo' (14).",
+  "deck.card_ids = CardID range of the 30 cards (sheet 176); character_card_id 366 (sheet 3) goes inside the same physical deck (31 cards) but outside the range."
+ ],
+ "bag": {
+  "guid": "f3d5c7",
+  "inner": "17b586"
+ },
+ "deck": {
+  "guid": "1b5094",
+  "card_ids": [
+   17600,
+   17629
+  ],
+  "character_card_id": 366,
+  "identity": [
+   {
+    "face": "https://steamusercontent-a.akamaihd.net/ugc/16199458570071651057/FEF8A54A691912C645D43A62AC47FEF99C68D1B3/",
+    "back": "https://steamusercontent-a.akamaihd.net/ugc/13027536177940325420/41C8356C778C4A39A6E0C98ED14933BBB21ACF00/"
+   }
+  ]
+ },
+ "fighters": {
+  "mikey": {
+   "piece": "016262",
+   "dial": "112e26",
+   "dial_max": 14
+  },
+  "april": {
+   "piece": "1ffc05",
+   "dial": "51e97b",
+   "dial_max": 6
+  }
+ },
+ "tokens": {},
+ "counter_dials": {}
+}

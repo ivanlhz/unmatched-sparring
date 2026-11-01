@@ -341,6 +341,8 @@ def _stat(game, run, a):
         return len(game.players[player].hand)
     if stat == "actions_taken_this_turn":
         return game.fx.taken if player == game.turn else 0
+    if stat == "other_cards_played_this_turn":
+        return max(0, game.fx.played[player] - 1)         # the card being resolved is counted already
     if stat == "damage_dealt_this_combat":
         return run.ctx.damage_dealt
     if stat == "damage_taken_this_combat":

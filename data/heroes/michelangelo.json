@@ -1,0 +1,434 @@
+{
+ "_source": {
+  "memory": "unmatched-memory/data/heroes/michelangelo.json",
+  "overlay": "data/heroes/overlay/michelangelo.json",
+  "generator": "tools/import_hero.py"
+ },
+ "slug": "michelangelo",
+ "name": "Michelangelo",
+ "fid": "mikey",
+ "hp": 14,
+ "move": 3,
+ "attack": "melee",
+ "set": "adventures-teenage-mutant-ninja-turtles",
+ "ability": "PIZZA PARTY\nAfter you attack or scheme, draw 1 card.\nYour starting and maximum hand size is 3.",
+ "sidekicks": [
+  {
+   "name": "April O'Neil",
+   "hp": 6,
+   "move": 3,
+   "attack": "range",
+   "count": 1,
+   "fid": "april"
+  }
+ ],
+ "forms": null,
+ "counters": {},
+ "triggers": [],
+ "passives": [],
+ "deck": {
+  "card_base": 17600,
+  "sheet": 176,
+  "cards": [
+   {
+    "idx": 0,
+    "title": "Hi-Yaaaaah!!",
+    "fighter": "Michelangelo",
+    "type": "attack",
+    "value": 4,
+    "boost": 3,
+    "text": "AFTER COMBAT: Deal 1 damage to an adjacent opposing fighter. You may put a card from your hand on the bottom of your deck to gain 1 action.",
+    "tags": []
+   },
+   {
+    "idx": 1,
+    "title": "Hi-Yaaaaah!!",
+    "fighter": "Michelangelo",
+    "type": "attack",
+    "value": 4,
+    "boost": 3,
+    "text": "AFTER COMBAT: Deal 1 damage to an adjacent opposing fighter. You may put a card from your hand on the bottom of your deck to gain 1 action.",
+    "tags": []
+   },
+   {
+    "idx": 2,
+    "title": "Hi-Yaaaaah!!",
+    "fighter": "Michelangelo",
+    "type": "attack",
+    "value": 4,
+    "boost": 3,
+    "text": "AFTER COMBAT: Deal 1 damage to an adjacent opposing fighter. You may put a card from your hand on the bottom of your deck to gain 1 action.",
+    "tags": []
+   },
+   {
+    "idx": 3,
+    "title": "Boisterous Beatdown",
+    "fighter": "Michelangelo",
+    "type": "attack",
+    "value": 2,
+    "boost": 1,
+    "text": "AFTER COMBAT: Gain 1 action. If you won the combat, gain 2 actions instead.",
+    "tags": []
+   },
+   {
+    "idx": 4,
+    "title": "Boisterous Beatdown",
+    "fighter": "Michelangelo",
+    "type": "attack",
+    "value": 2,
+    "boost": 1,
+    "text": "AFTER COMBAT: Gain 1 action. If you won the combat, gain 2 actions instead.",
+    "tags": []
+   },
+   {
+    "idx": 5,
+    "title": "Boisterous Beatdown",
+    "fighter": "Michelangelo",
+    "type": "attack",
+    "value": 2,
+    "boost": 1,
+    "text": "AFTER COMBAT: Gain 1 action. If you won the combat, gain 2 actions instead.",
+    "tags": []
+   },
+   {
+    "idx": 6,
+    "title": "Turtle Power!!",
+    "fighter": "Michelangelo",
+    "type": "attack",
+    "value": 3,
+    "boost": 3,
+    "text": "DURING COMBAT: You may BOOST this attack.",
+    "tags": []
+   },
+   {
+    "idx": 7,
+    "title": "Turtle Power!!",
+    "fighter": "Michelangelo",
+    "type": "attack",
+    "value": 3,
+    "boost": 3,
+    "text": "DURING COMBAT: You may BOOST this attack.",
+    "tags": []
+   },
+   {
+    "idx": 8,
+    "title": "Hard-Hitting Investigation",
+    "fighter": "April O'Neil",
+    "type": "attack",
+    "value": 0,
+    "boost": 3,
+    "text": "AFTER COMBAT: Deal 1 damage to the opposing fighter. Gain 1 action.",
+    "tags": []
+   },
+   {
+    "idx": 9,
+    "title": "Hard-Hitting Investigation",
+    "fighter": "April O'Neil",
+    "type": "attack",
+    "value": 0,
+    "boost": 3,
+    "text": "AFTER COMBAT: Deal 1 damage to the opposing fighter. Gain 1 action.",
+    "tags": []
+   },
+   {
+    "idx": 10,
+    "title": "Hard-Hitting Investigation",
+    "fighter": "April O'Neil",
+    "type": "attack",
+    "value": 0,
+    "boost": 3,
+    "text": "AFTER COMBAT: Deal 1 damage to the opposing fighter. Gain 1 action.",
+    "tags": []
+   },
+   {
+    "idx": 11,
+    "title": "Cowabunga!!",
+    "fighter": "Michelangelo",
+    "type": "versatile",
+    "value": 3,
+    "boost": 2,
+    "text": "DURING COMBAT: Add +1 to this card's value for each other card you played this turn.",
+    "tags": []
+   },
+   {
+    "idx": 12,
+    "title": "Cowabunga!!",
+    "fighter": "Michelangelo",
+    "type": "versatile",
+    "value": 3,
+    "boost": 2,
+    "text": "DURING COMBAT: Add +1 to this card's value for each other card you played this turn.",
+    "tags": []
+   },
+   {
+    "idx": 13,
+    "title": "Cowabunga!!",
+    "fighter": "Michelangelo",
+    "type": "versatile",
+    "value": 3,
+    "boost": 2,
+    "text": "DURING COMBAT: Add +1 to this card's value for each other card you played this turn.",
+    "tags": []
+   },
+   {
+    "idx": 14,
+    "title": "Let's Go!!",
+    "fighter": "any",
+    "type": "versatile",
+    "value": 3,
+    "boost": 2,
+    "text": "AFTER COMBAT: Move a friendly fighter up to 3 spaces.",
+    "tags": []
+   },
+   {
+    "idx": 15,
+    "title": "Let's Go!!",
+    "fighter": "any",
+    "type": "versatile",
+    "value": 3,
+    "boost": 2,
+    "text": "AFTER COMBAT: Move a friendly fighter up to 3 spaces.",
+    "tags": []
+   },
+   {
+    "idx": 16,
+    "title": "Let's Go!!",
+    "fighter": "any",
+    "type": "versatile",
+    "value": 3,
+    "boost": 2,
+    "text": "AFTER COMBAT: Move a friendly fighter up to 3 spaces.",
+    "tags": []
+   },
+   {
+    "idx": 17,
+    "title": "Guaranteed Delivery",
+    "fighter": "any",
+    "type": "versatile",
+    "value": 3,
+    "boost": 1,
+    "text": "IMMEDIATELY: You may put a card from your hand on the bottom of your deck to cancel all effects on your opponent's card. AFTER COMBAT: If your hand is empty, draw 2 cards.",
+    "tags": []
+   },
+   {
+    "idx": 18,
+    "title": "Guaranteed Delivery",
+    "fighter": "any",
+    "type": "versatile",
+    "value": 3,
+    "boost": 1,
+    "text": "IMMEDIATELY: You may put a card from your hand on the bottom of your deck to cancel all effects on your opponent's card. AFTER COMBAT: If your hand is empty, draw 2 cards.",
+    "tags": []
+   },
+   {
+    "idx": 19,
+    "title": "Guaranteed Delivery",
+    "fighter": "any",
+    "type": "versatile",
+    "value": 3,
+    "boost": 1,
+    "text": "IMMEDIATELY: You may put a card from your hand on the bottom of your deck to cancel all effects on your opponent's card. AFTER COMBAT: If your hand is empty, draw 2 cards.",
+    "tags": []
+   },
+   {
+    "idx": 20,
+    "title": "Heroes In A Half Shell",
+    "fighter": "Michelangelo",
+    "type": "defense",
+    "value": 5,
+    "boost": 2,
+    "text": "",
+    "tags": []
+   },
+   {
+    "idx": 21,
+    "title": "Heroes In A Half Shell",
+    "fighter": "Michelangelo",
+    "type": "defense",
+    "value": 5,
+    "boost": 2,
+    "text": "",
+    "tags": []
+   },
+   {
+    "idx": 22,
+    "title": "Back For Seconds",
+    "fighter": "any",
+    "type": "defense",
+    "value": 2,
+    "boost": 1,
+    "text": "AFTER COMBAT: Shuffle 2 random cards from your discard pile back into your deck.",
+    "tags": []
+   },
+   {
+    "idx": 23,
+    "title": "Back For Seconds",
+    "fighter": "any",
+    "type": "defense",
+    "value": 2,
+    "boost": 1,
+    "text": "AFTER COMBAT: Shuffle 2 random cards from your discard pile back into your deck.",
+    "tags": []
+   },
+   {
+    "idx": 24,
+    "title": "Nunchaku",
+    "fighter": "Michelangelo",
+    "type": "scheme",
+    "value": null,
+    "boost": 2,
+    "text": "Add +1 to the value of Michelangelo's attacks this turn. Gain 1 action.",
+    "tags": []
+   },
+   {
+    "idx": 25,
+    "title": "Nunchaku",
+    "fighter": "Michelangelo",
+    "type": "scheme",
+    "value": null,
+    "boost": 2,
+    "text": "Add +1 to the value of Michelangelo's attacks this turn. Gain 1 action.",
+    "tags": []
+   },
+   {
+    "idx": 26,
+    "title": "Michelangelo Is A Party Dude!!",
+    "fighter": "Michelangelo",
+    "type": "scheme",
+    "value": null,
+    "boost": 2,
+    "text": "Each friendly fighter recovers 1 health.",
+    "tags": []
+   },
+   {
+    "idx": 27,
+    "title": "Michelangelo Is A Party Dude!!",
+    "fighter": "Michelangelo",
+    "type": "scheme",
+    "value": null,
+    "boost": 2,
+    "text": "Each friendly fighter recovers 1 health.",
+    "tags": []
+   },
+   {
+    "idx": 28,
+    "title": "Shell Insertion",
+    "fighter": "April O'Neil",
+    "type": "scheme",
+    "value": null,
+    "boost": 3,
+    "text": "Choose two different effects: - each opponent discards 1 card - move a friendly fighter up to 2 spaces - put a card from your hand on the bottom of your deck to gain 1 action - shuffle 2 random cards from your discard pile back into your deck",
+    "tags": []
+   },
+   {
+    "idx": 29,
+    "title": "Shell Insertion",
+    "fighter": "April O'Neil",
+    "type": "scheme",
+    "value": null,
+    "boost": 3,
+    "text": "Choose two different effects: - each opponent discards 1 card - move a friendly fighter up to 2 spaces - put a card from your hand on the bottom of your deck to gain 1 action - shuffle 2 random cards from your discard pile back into your deck",
+    "tags": []
+   }
+  ]
+ },
+ "hand": {
+  "start": 3,
+  "max": 3
+ },
+ "ai_profile": {
+  "mikey": {
+   "name": "Michelangelo",
+   "hero": true,
+   "count": 1,
+   "max_hp": 14,
+   "move": 3,
+   "ranged": false,
+   "role": "hero",
+   "attack": {
+    "cards": 17,
+    "mean": 3.0,
+    "max": 4
+   },
+   "exclusive": [
+    {
+     "title": "Hi-Yaaaaah!!",
+     "type": "attack",
+     "copies": 3,
+     "impact": 1.86
+    },
+    {
+     "title": "Boisterous Beatdown",
+     "type": "attack",
+     "copies": 3,
+     "impact": 1.44
+    },
+    {
+     "title": "Turtle Power!!",
+     "type": "attack",
+     "copies": 2,
+     "impact": 0.75
+    },
+    {
+     "title": "Cowabunga!!",
+     "type": "versatile",
+     "copies": 3,
+     "impact": 0.93
+    },
+    {
+     "title": "Heroes In A Half Shell",
+     "type": "defense",
+     "copies": 2,
+     "impact": 1.05
+    },
+    {
+     "title": "Nunchaku",
+     "type": "scheme",
+     "copies": 2,
+     "impact": 1.6
+    },
+    {
+     "title": "Michelangelo Is A Party Dude!!",
+     "type": "scheme",
+     "copies": 2,
+     "impact": 1.65
+    }
+   ]
+  },
+  "april": {
+   "name": "April O'Neil",
+   "hero": false,
+   "count": 1,
+   "max_hp": 6,
+   "move": 3,
+   "ranged": true,
+   "role": "striker",
+   "attack": {
+    "cards": 9,
+    "mean": 2.0,
+    "max": 3
+   },
+   "exclusive": [
+    {
+     "title": "Hard-Hitting Investigation",
+     "type": "attack",
+     "copies": 3,
+     "impact": 1.44
+    },
+    {
+     "title": "Shell Insertion",
+     "type": "scheme",
+     "copies": 2,
+     "impact": 1.35
+    }
+   ],
+   "requires_alive": []
+  }
+ },
+ "_notes": [
+  "Sheet 176 of the tournament savegame (8x4), read card by card from the image on 2026-11-01. CardID = 17600 + idx; the character card is CardID 366 (sheet 3, idx 66) and sits inside the same physical deck of 31 cards, outside the 30-card range.",
+  "Michelangelo: melee, 14 life, move 3. Sidekick April O'Neil: ranged, 6 life, one miniature (the hero card shows no movement for her; unmatched-memory says 3). The cards carry the bands MICHELANGELO (16), APRIL (5) and ANY (9): Hard-Hitting Investigation and Shell Insertion are April's cards (the band says APRIL), so the fighter restriction is 'April O'Neil' and Michelangelo cannot attack with them.",
+  "Discrepancies with unmatched-memory (the real card wins; `memory_title` links a card to the unmatched-memory entry whose title is spelled differently, `text` overwrites the importer's text): the titles on the cards are Hi-Yaaaaah!!, Turtle Power!!, Let's Go!!, Heroes In A Half Shell and so on; Nunchaku says 'Bruce Lee' in unmatched-memory (copied from another hero) and the real card says 'Add +1 to the value of Michelangelo's attacks this turn. Gain 1 action.'; Shell Insertion says 'Chose' in unmatched-memory and 'Choose' on the card.",
+  "PIZZA PARTY is data: `hand` (starting and maximum hand size 3, read by the engine through HeroDef.hand_start / hand_max) and the trigger `pizza_party` of effects/michelangelo.json (draw 1 after attacking or scheming)."
+ ]
+}

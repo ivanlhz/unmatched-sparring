@@ -218,6 +218,7 @@ def begin_scheme(game, player: int, card) -> None:
         game.take_from_hand(player, card)
     elif card in pile.discard:
         pile.discard.remove(card)
+    game.fx.count_played(player)
     if load_effects(pile.hero.slug).card(card.title).ongoing is not None:
         leave_play(game, player)
     game.fx.emit("card_played", player, card)
@@ -231,6 +232,8 @@ def finish_scheme(game, player: int, card) -> None:
         table.intent(game, op="ongoing", player=player, card=card.card_id)
     else:
         inventions.settle_played(game, player, card)
+    if game.winner is None:
+        game.fx.emit("after_scheme", player, card)
 
 
 def resolve_scheme(game, player: int, fighter, card, choosers=None):

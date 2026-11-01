@@ -162,6 +162,16 @@ Everything here is new (1/11) and has only run against FakeTTS. The deck shares 
 - [ ] An invention you play: the chat says to tuck it under your hero card; leave it anywhere outside your discard pile (or leave it there: the bot does not take it back into your discard) and keep going.
 - [ ] Electro grenade / Self defense grid / Smoke bomb: the panel lists the cards of your discard pile you may remove (up to 4, types by card); you move them aside by hand.
 - [ ] Resume (`--resume`) after tucking: the tucked and removed cards are still out of the discard pile and the bonus still applies.
+### Michelangelo
+**H and B**
+- [ ] The **table data** (`data/tts/michelangelo.json`): miniature `[E77204]Michelangelo`, April's standee and both dials found by `--read-only`; `auto` detects the deck (CardIDs 17600..17629 plus character card 366). Medusa and Michelangelo share the CardIDs: the bot refuses that pair on purpose.
+- [ ] **Opening hand 3** and the mulligan (return 3, deal 3); the bot says "3" in the set-up lines.
+- [ ] **PIZZA PARTY**: after an attack or a scheme of Michelangelo the extra card is dealt (the human's) or taken (the bot's); nothing is dealt after a defense.
+- [ ] **Hand limit 3** at the end of the turn: the chat says "down to 3"; the bot discards to 3.
+- [ ] Hi-Yaaaaah!!, Guaranteed Delivery, Shell Insertion: the card put on the **bottom of the deck** from the hand (yours by hand, the bot's by script).
+- [ ] **Shell Insertion**: the four buttons (two picks, labels short), the rival's discard, the 2 random discards shuffled back (by GUID).
+- [ ] **Nunchaku**: +1 to every attack of Michelangelo that turn (the chat line lists it), not April's.
+- [ ] **Cowabunga!!** counts the cards played this turn (including the defenses on the rival's turn).
 
 ### Hidden information (cards that look at the bot's hand, and the bot's on you)
 - [ ] **The bot's hand row**: when playing Confront Any Demon or God (only if you lose), Advanced Psychometry (adjacent), Remove A Painful Memory (with an ONGOING) or Every Possible Angle, the bot lays its hand **face up in a row** at `bot_row_spot` and **pings** each card (`ping_points`). The **Look at bot's hand** button uses another row, at `look_spot`.
