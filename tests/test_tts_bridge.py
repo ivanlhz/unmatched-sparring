@@ -98,6 +98,28 @@ def test_call_lua_returns_decoded_value():
         f.close()
 
 
+def test_a_fake_table_that_raises_answers_with_an_error_and_keeps_serving():
+    """A gap in a fake table (an operation it does not know) used to kill the server thread: every later call then waited out
+    its timeouts and a whole-game test looked hung. Now that call fails at once and the next one is answered."""
+    calls = []
+
+    def table(msg):
+        calls.append(msg)
+        if len(calls) == 1:
+            raise AttributeError("no do_read_hand")
+        return {"ok": True}
+    f = FakeTTS(return_value=table)
+    c = TTSClient(send_port=f.port, listen_port=0)
+    try:
+        f.reply_port = c.start_listening().port
+        with pytest.raises(TTSLuaError, match="no do_read_hand"):
+            c.call_lua(lua.read_hand("Blue"), timeout=2)
+        assert c.call_lua(lua.read_hand("Blue"), timeout=2) == {"ok": True}
+    finally:
+        c.close()
+        f.close()
+
+
 def test_lua_error_of_our_own_script_raises():
     f = FakeTTS(return_value=lambda m: {"__error__": "boom"})
     c = TTSClient(send_port=f.port, listen_port=0)

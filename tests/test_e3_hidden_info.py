@@ -46,12 +46,6 @@ class E3Table(FxTable):
 
     def __init__(self, *a, **kw):
         super().__init__(*a, **kw)
-        self.point_pings: list[int] = []
-
-    def do_ping_points(self, s):
-        n = len(re.findall(r"Vector\(", re.search(r"local points = \{(.*)\}\nfor i", s, re.S).group(1)))
-        self.point_pings.append(n)
-        return {"queued": n}
 
     def do_resolve_hand_row(self, s):
         if "deck.putObject(o)" not in s:
