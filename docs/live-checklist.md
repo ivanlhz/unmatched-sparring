@@ -140,6 +140,18 @@ Each hero has two blocks: **H** (you play it) and **B** (the bot plays it). What
 - [x] Searing Clarity with panel buttons. *(OK 29/10; since bb95930 there are no buttons, see the next line)*
 - [ ] Searing Clarity and Rekindle **without buttons**: you move the card from the discard to the deck yourself and press **Done**; the bot recognizes it; then "Press End action when you finish"; also try with the discard stacked (bb95930).
 
+### Leonardo
+
+Pending on a real table (TMNT box; nothing of Leonardo has been seen live):
+
+- Hero detection: Leonardo's deck has Medusa's CardIDs 17600-17629; with Medusa on the other side check that "auto" reads both by image and that each hand reads from its own seat.
+- The `[016099]Leonardo` miniature (colour tag in the nickname) is found by GUID `729fb1`; check it moves and the dial `88f451` follows.
+- TEAM TACTICS (human): the panel waits for End action; moving the bot's miniature by hand is read at End action. Bot: it moves one fighter at the start of its turn, said in the chat; check the miniature move on the table.
+- For Sensei, Eat, sleep, and breathe ninjutsu: the bot's piece the human relocates ("put it there and press Done"); Protective father swap by hand (both miniatures) and the heal on both dials.
+- I have a plan / For Sensei price: the extra discard from your hand is noted and settled at End action.
+- Spatial awareness / Wise beyond his years: zone counts on the real board (spaces with several zones).
+- Same CardIDs, other decks (docs/card-identity.md): play Medusa vs a turtle and a turtle vs another turtle in both seats; hands, discards, the combat spots and the deck shuffles must only touch each side's own cards.
+
 ### Donatello
 Everything here is new (1/11) and has only run against FakeTTS. The deck shares Medusa's CardIDs: check detection (`--read-only`) names Donatello on the right side, also when the other side plays Medusa.
 
@@ -173,18 +185,6 @@ Everything here is new (1/11) and has only run against FakeTTS. The deck shares 
 - [ ] **Nunchaku**: +1 to every attack of Michelangelo that turn (the chat line lists it), not April's.
 - [ ] **Cowabunga!!** counts the cards played this turn (including the defenses on the rival's turn).
 
-### Hidden information (cards that look at the bot's hand, and the bot's on you)
-- [ ] **The bot's hand row**: when playing Confront Any Demon or God (only if you lose), Advanced Psychometry (adjacent), Remove A Painful Memory (with an ONGOING) or Every Possible Angle, the bot lays its hand **face up in a row** at `bot_row_spot` and **pings** each card (`ping_points`). The **Look at bot's hand** button uses another row, at `look_spot`.
-- [ ] **The bot's own pings do not choose for you** (9335eab): with the row open, the bot does not "choose" a card by itself. *(31/10 failure with Remove A Painful Memory: it chose Posthumous Power within 1 s; fixed, still to be seen. If it happens again, widen `BOT_PING_WINDOW`.)*
-- [ ] Reading your hand happens **only once per look** (one `read_hand` message), only when a card of the bot looks at you; otherwise, never.
-- [ ] **Choose by ping** (Tab on the card, `onPlayerPing`) **or by panel button** (the buttons name the card). Expected: Confront -> to its discard; the rest return to its hand. Plan B: one face-down card + End action.
-- [ ] **Every Possible Angle**: the chosen card goes **on top of the deck** of the bot (`putObject` on the deck, same turn); also try with the deck at 1 card.
-- [ ] **Look only** (Reveal): closes with End action or Cancel (everything to the hand); a ping is rejected.
-- [ ] **Remove A Painful Memory**: yours -> the bot says "discards X" / "keeps X" and the summary does not say "draws -1"; the bot's -> buttons "Discard <card>" / "Take 2".
-- [ ] **Perfect Shot**: B places, **turns face up** in the same script and announces the prediction. H: at **Reveal** **Value 0..7** appear (+ "More" -> **Face down**, second page) before the bot defends; face up is public and the bot knows it.
-- [ ] **UNCANNY INTUITION**: B attacks -> face-down card that is **turned** face up in the same script, named in the chat. H attacks the bot's Abe -> the chat warns on Attack; at Reveal the bot spends the token and draws **before** choosing a defense (the drawn card may be the defense); put the attack face down (it is turned at Reveal).
-- [ ] Partial failure (one card does not move): the row stays, the bot says so once and you choose by button; the table wins on the next read.
-
 ### Raphael (Teenage Mutant Ninja Turtles)
 
 Nothing of Raphael has been seen on a real table. His deck is sheet 176 like Medusa's: the first thing to check is that the table is read correctly.
@@ -199,6 +199,18 @@ Nothing of Raphael has been seen on a real table. His deck is sheet 176 like Med
 - [ ] **Raphael is cool but rude (H)**: damage to the bot's fighters adjacent to Raphael or Casey; the dials follow; you draw 1.
 - [ ] Payback time! (5 after a lost combat this turn) and Slapshot (6 with Casey adjacent): the combat line shows the new value.
 - [ ] Turtle power!: you may boost the attack (the engine reads the boost card you put on the table).
+
+### Hidden information (cards that look at the bot's hand, and the bot's on you)
+- [ ] **The bot's hand row**: when playing Confront Any Demon or God (only if you lose), Advanced Psychometry (adjacent), Remove A Painful Memory (with an ONGOING) or Every Possible Angle, the bot lays its hand **face up in a row** at `bot_row_spot` and **pings** each card (`ping_points`). The **Look at bot's hand** button uses another row, at `look_spot`.
+- [ ] **The bot's own pings do not choose for you** (9335eab): with the row open, the bot does not "choose" a card by itself. *(31/10 failure with Remove A Painful Memory: it chose Posthumous Power within 1 s; fixed, still to be seen. If it happens again, widen `BOT_PING_WINDOW`.)*
+- [ ] Reading your hand happens **only once per look** (one `read_hand` message), only when a card of the bot looks at you; otherwise, never.
+- [ ] **Choose by ping** (Tab on the card, `onPlayerPing`) **or by panel button** (the buttons name the card). Expected: Confront -> to its discard; the rest return to its hand. Plan B: one face-down card + End action.
+- [ ] **Every Possible Angle**: the chosen card goes **on top of the deck** of the bot (`putObject` on the deck, same turn); also try with the deck at 1 card.
+- [ ] **Look only** (Reveal): closes with End action or Cancel (everything to the hand); a ping is rejected.
+- [ ] **Remove A Painful Memory**: yours -> the bot says "discards X" / "keeps X" and the summary does not say "draws -1"; the bot's -> buttons "Discard <card>" / "Take 2".
+- [ ] **Perfect Shot**: B places, **turns face up** in the same script and announces the prediction. H: at **Reveal** **Value 0..7** appear (+ "More" -> **Face down**, second page) before the bot defends; face up is public and the bot knows it.
+- [ ] **UNCANNY INTUITION**: B attacks -> face-down card that is **turned** face up in the same script, named in the chat. H attacks the bot's Abe -> the chat warns on Attack; at Reveal the bot spends the token and draws **before** choosing a defense (the drawn card may be the defense); put the attack face down (it is turned at Reveal).
+- [ ] Partial failure (one card does not move): the row stays, the bot says so once and you choose by button; the table wins on the next read.
 
 ## 4. Panel and buttons
 
@@ -251,15 +263,3 @@ For each failure:
 - [ ] Screenshot of the table and the panel.
 - [ ] The `--read-only` report (detection/calibration) or the `--timing` output (latency).
 - [ ] If you reloaded: with or without `--resume`; and remember you have the "pre-sparring" save.
-
-
-### Leonardo
-
-Pending on a real table (TMNT box; nothing of Leonardo has been seen live):
-
-- Hero detection: Leonardo's deck has Medusa's CardIDs 17600-17629; with Medusa on the other side check that "auto" reads both by image and that each hand reads from its own seat.
-- The `[016099]Leonardo` miniature (colour tag in the nickname) is found by GUID `729fb1`; check it moves and the dial `88f451` follows.
-- TEAM TACTICS (human): the panel waits for End action; moving the bot's miniature by hand is read at End action. Bot: it moves one fighter at the start of its turn, said in the chat; check the miniature move on the table.
-- For Sensei, Eat, sleep, and breathe ninjutsu: the bot's piece the human relocates ("put it there and press Done"); Protective father swap by hand (both miniatures) and the heal on both dials.
-- I have a plan / For Sensei price: the extra discard from your hand is noted and settled at End action.
-- Spatial awareness / Wise beyond his years: zone counts on the real board (spaces with several zones).
