@@ -149,6 +149,21 @@ class SessionConfig:
     human_ongoing_spot: tuple[float, float] | None = None        # ONGOING scheme there; the human leaves theirs (recognized there)
     bot_tuck_spot: tuple[float, float, float] | None = None      # where the bot tucks its inventions (Donatello); outside its discard zone
     bot_removed_spot: tuple[float, float, float] | None = None   # where the bot sets aside the cards it removes from the game
+    card_zoom: bool = False                                      # big copy of the cards the human must read (`play` turns it on)
+    card_zoom_seconds: float = 6.0                               # how long the copy stays
+    card_zoom_scale: float = 4.0                                 # size factor of the copy
+    card_zoom_spot: tuple[float, float, float] = (0.0, 12.0, 0.0)   # where it floats: above the board centre, outside every zone
+    card_zoom_rot: tuple[float, float, float] | None = None      # (x, y, z) degrees; default flat, readable from the human's seat
+
+
+def zoom_spec(cfg: "SessionConfig") -> lua.ZoomSpec | None:
+    """The big copy of a card the bot shows the human (None when `card_zoom` is off)."""
+    if not cfg.card_zoom:
+        return None
+    rot = cfg.card_zoom_rot
+    if rot is None:
+        rot = (0.0, cfg.look_rot_y if cfg.look_rot_y is not None else cfg.bot_discard_rot_y, 0.0)
+    return lua.ZoomSpec(cfg.card_zoom_spot, rot, cfg.card_zoom_scale, cfg.card_zoom_seconds)
 
 
 def human_dead_spot(cfg: "SessionConfig") -> tuple[float, float, float] | None:
@@ -317,6 +332,8 @@ class Session:
         self.setup: dict | None = None                      # state machine of the setup (persisted)
         self.first_mode: str | None = None                  # "random" | "human" | "bot": how who goes first was chosen
         self.dial_debt = False                              # a dial could not be written during the bot's turn
+        self.over_shown = False                            # the game-over dialog went out
+        self.zoom_ids: set[int] = set()                    # bot cards the next discard write shows as a big copy
         self.scheme_baseline: list[int] | None = None      # human's discard when pressing Scheme: waits for their card
         self.maneuver_baseline: list[int] | None = None    # their discard at Maneuver: a BOOST 0 card put there is warned
         self.ability_wait: str | None = None               # the human's start-of-turn ability to do on the table before anything else (E2)
@@ -873,6 +890,22 @@ class Session:
         self.messages.append(Msg(msg, kind, shown))
         self.game_log.observe(self.game, self._name)      # the engine events up to this line, before the line itself
         self.game_log.chat(msg)
+
+    def zoom(self) -> lua.ZoomSpec | None:
+        return zoom_spec(self.cfg)
+
+    def _game_over_dialog(self) -> None:
+        """The verdict in the middle of the human's screen, once per game over (the chat line stays as it was)."""
+        g = self.game
+        if g.winner is None or self.over_shown or not self.cfg.live_ui:
+            return
+        self.over_shown = True
+        loser = self._name(g.hero(1 - g.winner))
+        text = t("game.over_dialog_win" if g.winner == self.human else "game.over_dialog_lose", loser=loser)
+        try:
+            self._w(lua.info_dialog(self.cfg.human_seat, " ".join(lua.ascii_text(text, lua.MAX_DIALOG_CHARS))), "misc")
+        except (ValueError, TypeError) as e:
+            self.say(t("sess.panel_prep_fail", err=e), ChatKind.WARNING)
 
     def _hold(self, seconds: float) -> None:
         """The one pause of the bot's table scenes: what is already queued goes out and stays on show `seconds`. In a
@@ -1731,6 +1764,7 @@ class Session:
                 self._announce_fall(f)
         if g.winner is not None:
             self.say(t("game.over_fix", winner=g.winner))
+            self._game_over_dialog()
         self._write_dials(post=True)
         self._drop_pending_if_gone()
 
@@ -2223,6 +2257,8 @@ class Session:
         c = p.combat
         flip_cards = [(p.bot_card_guid, "bot"), (c["human_guid"], "human")]
         discarded_now = p.bot_card is not None and p.bot_card in g.players[self.bot].discard
+        if discarded_now and c["flip"]:
+            self.zoom_ids.add(p.bot_card.card_id)         # not flipped on the table: the discard shows it instead
         if c["flip"] and not c.get("flipped"):
             self._flip_queued([(None if discarded_now and side == "bot" else guid, side) for guid, side in flip_cards])
         self.pending, self.pending_value, self.chosen_attacker = None, 0, None
@@ -2265,6 +2301,7 @@ class Session:
         fin_fx()
         if g.winner is not None:
             self.say(t("game.over", winner=g.winner))
+            self._game_over_dialog()
             return
         self.moving = True
         self.say(t("combat.after"), ChatKind.YOUR_TURN)
@@ -2427,7 +2464,8 @@ class Session:
 
     def _flip_script(self, guid: str, side: str, face_up: bool = True) -> str:
         ids = self.cfg.bot_card_ids if side == "bot" else self.cfg.human_card_ids
-        return lua.flip_card(guid, self.cfg.rot_y, face_up, ids, identity=self._identity(side))
+        zoom = self.zoom() if side == "bot" and face_up else None
+        return lua.flip_card(guid, self.cfg.rot_y, face_up, ids, identity=self._identity(side), zoom=zoom)
 
     def _flip_all(self, cards: list[tuple[str | None, str]]) -> list[tuple[str, str]]:
         """Turns the cards (guid, side); if one fails the ones already turned are hidden again before the error spreads.
@@ -2524,6 +2562,7 @@ class Session:
             self._announce_fall(f)
         if g.winner is not None:
             self.say(t("game.over_fix", winner=g.winner))
+            self._game_over_dialog()
         self._write_dials(post=True)
         self._drop_pending_if_gone()
 
@@ -2592,6 +2631,7 @@ class Session:
         f.alive, f.hp, f.pos = True, 1, pos
         if f.hero and self.game.winner == 1 - f.owner:
             self.game.winner = None
+            self.over_shown = False
         if buried:
             self._place_revived(f, self._name(f))
         return True
@@ -2602,6 +2642,7 @@ class Session:
             self.say(t("undo.none"), ChatKind.WARNING)
             return
         g.winner = None
+        self.over_shown = False
         for f in g.fighters.values():
             if f.hero and not f.alive:
                 self._revive(f, force=True)
@@ -2818,7 +2859,8 @@ class Session:
         self.say(first, ChatKind.ABILITY, shown=True)
         try:
             moved = self._w(lua.discard_cards([card.card_id], [slot], cfg.bot_discard_rot_y, identity=self._identity(),
-                                              scope=self._scope(), id_range=cfg.bot_card_ids), "cards")
+                                              scope=self._scope(), id_range=cfg.bot_card_ids,
+                                              zoom=self.zoom(), zoom_id=card.card_id), "cards")
             for chunk in lua.ascii_text(first):
                 self._w(lua.broadcast(chunk, ChatKind.ABILITY), "misc")
             self._hold(cfg.wildfire_hold)
@@ -3132,6 +3174,8 @@ class Session:
                 fx_before = bot_effects.snapshot(self)
                 actions0 = g.actions_left
                 sig_before = play_signature(g, self.bot, act.card) if act.kind == "scheme" else None
+                if act.kind in ("scheme", "glance", "frenzy"):
+                    self.zoom_ids.add(act.card.card_id)       # the human reads it when it leaves the hand for the discard
                 self.ai.execute(g, act)
                 self._mark_dirty(before)
                 self._persist()
@@ -3165,6 +3209,7 @@ class Session:
                 self._bot_breath()                # between actions and also before the "Your turn"
         if g.winner is not None:
             self.say(t("game.over", winner=g.winner))
+            self._game_over_dialog()
             return
         seen = len(g.players[self.bot].discard)
         fx_before = bot_effects.snapshot(self)
@@ -4086,8 +4131,11 @@ class Session:
             if todo:
                 order = [c.card_id for c in st.discard]
                 spots = [self._discard_slot(order.index(i)) for i in todo]
+                shown = next((i for i in todo if i in self.zoom_ids), None)
                 discard_op = self._w(lua.discard_cards(todo, spots, self.cfg.bot_discard_rot_y, identity=self._identity(),
-                                                  scope=self._scope(), id_range=self.cfg.bot_card_ids), "cards")
+                                                  scope=self._scope(), id_range=self.cfg.bot_card_ids,
+                                                  zoom=self.zoom(), zoom_id=shown), "cards")
+        self.zoom_ids.clear()
 
         def check_discard() -> None:
             if discard_op is None:

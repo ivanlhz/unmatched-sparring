@@ -655,7 +655,7 @@ def _ongoing_bot(session, intent: dict, ctx: Ctx) -> list[Check]:
     title = _by_id(session, session.bot)[card].title
     x, y, z = cfg.bot_ongoing_spot
     op = session._w(lua.place_card_face_up(card, cfg.bot_seat, x, y, z, cfg.rot_y, cfg.bot_card_ids,
-                                           identity=session._identity()), DOMAIN)
+                                           identity=session._identity(), zoom=session.zoom()), DOMAIN)
     session.fx_in_flight.add(card)
     session.say(t("tr.ongoing_placed", title=title), ChatKind.SCHEME)
 

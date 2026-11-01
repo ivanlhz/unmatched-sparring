@@ -215,7 +215,12 @@ class PlayConfig:
                 bot_pause=float(r.get("bot_pause", DEFAULT_BOT_PAUSE)),
                 wildfire_hold=float(r.get("wildfire_hold", DEFAULT_WILDFIRE_HOLD)),
                 ongoing_hold=float(r.get("ongoing_hold", DEFAULT_ONGOING_HOLD)),
-                action_announce_hold=float(r.get("action_announce_hold", DEFAULT_ACTION_ANNOUNCE_HOLD)))
+                action_announce_hold=float(r.get("action_announce_hold", DEFAULT_ACTION_ANNOUNCE_HOLD)),
+                card_zoom=bool(r.get("card_zoom", True)),
+                card_zoom_seconds=float(r.get("card_zoom_seconds", SessionConfig.card_zoom_seconds)),
+                card_zoom_scale=float(r.get("card_zoom_scale", SessionConfig.card_zoom_scale)),
+                card_zoom_spot=tuple(float(v) for v in r.get("card_zoom_spot", SessionConfig.card_zoom_spot)),
+                card_zoom_rot=tuple(float(v) for v in r["card_zoom_rot"]) if r.get("card_zoom_rot") else None)
             if not (math.isfinite(cfg.bot_pause) and 0 <= cfg.bot_pause <= 30):
                 raise ValueError(t("cfg.range.pause", key="bot_pause", max=30))
             if not (math.isfinite(cfg.wildfire_hold) and 0 <= cfg.wildfire_hold <= lua.MAX_HOLD):
@@ -224,6 +229,10 @@ class PlayConfig:
                 raise ValueError(t("cfg.range.pause", key="action_announce_hold", max=lua.MAX_HOLD))
             if not (math.isfinite(cfg.ongoing_hold) and 0 <= cfg.ongoing_hold <= lua.MAX_HOLD):
                 raise ValueError(t("cfg.range.pause", key="ongoing_hold", max=lua.MAX_HOLD))
+            if len(cfg.card_zoom_spot) != 3 or (cfg.card_zoom_rot is not None and len(cfg.card_zoom_rot) != 3):
+                raise ValueError("card_zoom_spot: (x, y, z); card_zoom_rot: (x, y, z)")
+            if not (0 < cfg.card_zoom_seconds <= lua.MAX_ZOOM_SECONDS and 0 < cfg.card_zoom_scale <= lua.MAX_ZOOM_SCALE):
+                raise ValueError(t("cfg.range.zoom", seconds=lua.MAX_ZOOM_SECONDS, scale=lua.MAX_ZOOM_SCALE))
             if cfg.token_spot is not None and len(cfg.token_spot) != 3:
                 raise ValueError("token_spot: (x, y, z)")
             if cfg.bot_ongoing_spot is not None and len(cfg.bot_ongoing_spot) != 3:
@@ -887,13 +896,16 @@ def build_game(cfg: PlayConfig, first: str, seed: int) -> Game:
 def play(cfg: PlayConfig, client: TTSClient, first: str, seed: int, stop: threading.Event,
          echo: Callable[[str], None] = print, poll: float = 0.1, state_path: Path | None = None,
          resume: bool = False, timing: bool = False, ai: str | None = None,
-         ai_time: float | None = None, bot_pause: float | None = None, unpack: bool = False) -> None:
+         ai_time: float | None = None, bot_pause: float | None = None, unpack: bool = False,
+         card_zoom: bool = True) -> None:
     i18n.set_language(cfg.language)                  # before the first panel or chat line; --resume takes the current one
     scfg = cfg.session_config()
     if bot_pause is not None:
         if not (math.isfinite(bot_pause) and 0 <= bot_pause <= 30):
             raise SessionError(t("cli.bot_pause_range"))
         scfg.bot_pause = bot_pause
+    if not card_zoom:
+        scfg.card_zoom = False
     if (unpack or cfg.raw.get("unpack") is True) and not resume:
         prepare_heroes(client, cfg, echo)
     game = build_game(cfg, first, seed)
@@ -971,6 +983,7 @@ def parse_args(argv: list[str] | None) -> argparse.Namespace:
                     help=t("cli.bot_pause", default=DEFAULT_BOT_PAUSE))
     ap.add_argument("--language", choices=i18n.available(), default=None, help=t("cli.language"))
     ap.add_argument("--unpack", action="store_true", help=t("cli.unpack"))
+    ap.add_argument("--no-card-zoom", action="store_true", help=t("cli.no_card_zoom"))
     ap.add_argument("--bot-hero", default=None, metavar="SLUG", help=t("cli.bot_hero"))
     ap.add_argument("--human-hero", default=None, metavar="SLUG", help=t("cli.human_hero"))
     ap.add_argument("--timing", action="store_true", help=t("cli.timing"))
@@ -1038,7 +1051,7 @@ def main(argv: list[str] | None = None, stop: threading.Event | None = None) -> 
         state.parent.mkdir(parents=True, exist_ok=True)
         play(cfg, client, args.first, seed, stop, poll=args.poll, state_path=state, resume=args.resume,
              timing=args.timing, ai=args.ai, ai_time=args.ai_time, bot_pause=args.bot_pause,
-             unpack=args.unpack)
+             unpack=args.unpack, card_zoom=not args.no_card_zoom)
         return 0
     except (SessionError, persist.StateError) as e:
         print(t("console.cannot_start", error=e), file=sys.stderr)

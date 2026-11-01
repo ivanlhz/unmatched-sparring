@@ -47,9 +47,11 @@ function mkobj(o)
     CLONES = (CLONES or 0) + 1
     return c
   end
-  o.setLock = function() end
+  o.setLock = function(v) o.locked = v end
   if not o.no_smooth then o.isSmoothMoving = function() return o.smooth == true end end
+  o.setScale = function(v) o.scale = v end
   o.getData = function()
+    if o.data then return o.data end
     if o.type == "Card" then return {CardID = o.cid, CustomDeck = customDeck(o.owner, o.cid)} end
     local co = {}
     for _, c in ipairs(o.cards or {}) do
@@ -116,6 +118,7 @@ Player = setmetatable({}, {__index = function(_, color)
   return {seated = SEATED ~= nil and SEATED[color] == true, color = color,
           getHandObjects = function() local t = {} for _, o in ipairs(OBJECTS) do if o.hand == color then table.insert(t, o) end end return t end,
           pingTable = function(p) PINGS = PINGS or {}; table.insert(PINGS, {color = color, x = p.x, y = p.y, z = p.z}) end,
+          showInfoDialog = (not NO_DIALOG) and function(text) DIALOGS = DIALOGS or {}; table.insert(DIALOGS, {color = color, text = text}) end or nil,
           getHandTransform = function() return {position = vec(0, 1, 0), rotation = vec(0, 0, 0)} end}
 end})
 function Player.getPlayers()
@@ -132,6 +135,12 @@ function sendExternalMessage(t) table.insert(SENT, t) end
 BROADCASTS = {}
 function broadcastToAll(text, color) table.insert(BROADCASTS, {text = text, r = color[1], g = color[2], b = color[3]}) end
 function spawnObject(t) return mkobj({guid = "spawn1", type = t.type}) end
+function spawnObjectData(t)
+  local d = t.data
+  SPAWNED = (SPAWNED or 0) + 1
+  return mkobj({guid = "spawned" .. SPAWNED, type = "Card", cid = d.CardID, name = d.Nickname, gm = d.GMNotes,
+                tags = d.Tags, locked = d.Locked, data = d, pos = Vector(t.position), rot = Vector(t.rotation)})
+end
 Wait = {
   frames = function(f, n) f() end,
   time = function(f, s) table.insert(TIMERS, f) end,
