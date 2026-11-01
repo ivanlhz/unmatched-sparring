@@ -34,6 +34,15 @@ def check(session) -> None:
     session._table_pieces()
 
 
+def swap_reassignment(session, table) -> str:
+    """The other way round: TTS gave the new GUID to the fighter that is first in the config (the bot's). Returns its fid."""
+    first, second = [f for f in table.pieces if session.cfg.pieces[f] == SHARED]
+    new = table.pieces[second]
+    table.pieces[first], table.pieces[second] = new, SHARED
+    table.guid_name[new], table.guid_name[SHARED] = table.guid_name[SHARED], table.guid_name[new]
+    return first
+
+
 def test_every_guid_in_the_hero_data_belongs_to_one_hero_except_the_known_collision():
     """Pieces, dials, decks, tokens and counter dials of all the heroes."""
     owners = defaultdict(set)
@@ -164,3 +173,45 @@ def test_the_name_search_builder_is_read_only_and_safe():
     assert lua.is_sendable(s) and s.startswith("-- sparring:find_pieces_by_name") and "find_pieces_by_name" in play.READ_ONLY_TAGS
     with pytest.raises(ValueError):
         lua.find_pieces_by_name(['x"]=true} os.exit() --'])
+
+
+@pytest.mark.parametrize("bot,human", PAIR)
+@pytest.mark.parametrize("bot_is_reassigned", [False, True])
+def test_naming_the_pieces_never_renames_a_shared_guid(tmp_path, bot, human, bot_is_reassigned):
+    session, table, game, fake, cfg, client = make(tmp_path, bot, human)
+    try:
+        other = swap_reassignment(session, table) if bot_is_reassigned else reassigned_fid(session, table, cfg)
+        session._name_pieces()
+        session.snap = None
+        session.flush() if hasattr(session, "flush") else session._flush()
+        assert SHARED not in table.piece_names
+        assert table.pieces[other] in table.piece_names or session.cfg.pieces[other] == SHARED
+        check(session)
+        assert session.cfg.pieces[other] == table.pieces[other] != SHARED
+        assert piece_id.problems(session, piece_id.read(session)) == {}
+        session._name_pieces()
+        session._flush()
+        assert table.guid_name[session.cfg.pieces[other]] == cfg.nicknames[other]
+    finally:
+        client.close()
+        fake.close()
+
+
+@pytest.mark.parametrize("kind", ["Custom_Tile", "Bag", "Infinite_Bag", "Tile_Square"])
+def test_only_a_miniature_or_token_type_is_taken_for_a_piece(tmp_path, kind):
+    session, table, game, fake, cfg, client = make(tmp_path, "abe-sapien", "donatello")
+    try:
+        other = reassigned_fid(session, table, cfg)
+        table.found_type = kind
+        check(session)
+        assert session.cfg.pieces[other] == SHARED and session.resolved_pieces == {}
+    finally:
+        client.close()
+        fake.close()
+
+
+def test_the_name_is_normalised_the_same_way_on_both_sides():
+    assert piece_id.plain_name("  [E77204]Abe 	 Sapien[-]  ") == "abe sapien"
+    from sparring.tts import lua
+    s = lua.find_pieces_by_name(["abe sapien"])
+    assert '"%s+", " "' in s and '"%[[%w%-/]*%]"' in s

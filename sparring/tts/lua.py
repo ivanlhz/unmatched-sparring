@@ -721,8 +721,9 @@ for _, o in ipairs(getObjects()) do
   local ty = o.type
   if ty ~= "Deck" and ty ~= "Card" and not string.find(ty, "Bag") then
     local plain = string.lower((string.gsub(o.getName() or "", "%[[%w%-/]*%]", "")))
-    plain = (string.gsub(plain, "^%s+", ""))
-    plain = (string.gsub(plain, "%s+$", ""))
+    plain = (string.gsub(plain, "%s+", " "))
+    plain = (string.gsub(plain, "^ ", ""))
+    plain = (string.gsub(plain, " $", ""))
     if wanted[plain] then
       out[plain] = out[plain] or {{}}
       table.insert(out[plain], {{guid = o.getGUID(), type = ty}})

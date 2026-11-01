@@ -786,8 +786,14 @@ class Session:
     def _name_pieces(self) -> None:
         """Gives each miniature the name of its configuration key (Harpy 1/2/3...) to tell them apart with the
         mouse. By GUID; a failure does not matter to the game."""
+        owners: dict[str, int] = {}
+        for fid in self.cfg.pieces:
+            for g in self._guids(fid):
+                owners[g] = owners.get(g, 0) + 1
+        # a GUID two fighters share is never renamed: it would rename one hero's miniature with the other's name
+        # (session_pieces tells them apart by exactly that name)
         names = {g: self.cfg.nicknames[fid] for fid in self.cfg.pieces if fid in self.cfg.nicknames
-                 for g in self._guids(fid)}
+                 for g in self._guids(fid) if owners[g] == 1}
         if not names:
             return
         try:

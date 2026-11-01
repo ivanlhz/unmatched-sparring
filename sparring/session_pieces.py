@@ -19,7 +19,12 @@ import re
 from . import i18n
 from .tts import lua
 
-_TAGS = re.compile(r"\[[\w\-/]*\]")
+_TAGS = re.compile(r"\[[A-Za-z0-9\-/]*\]")      # the same class as the Lua side (find_pieces_by_name)
+PIECE_TYPES = ("Custom_Model", "Custom_Assetbundle", "Custom_Token", "Figurine")   # what the miniatures and tokens of data/tts are
+
+
+def is_piece_type(kind) -> bool:
+    return isinstance(kind, str) and (kind in PIECE_TYPES or kind.startswith("Figurine"))
 t = i18n.t
 
 
@@ -73,7 +78,8 @@ def resolve(session, found: dict | None = None) -> tuple[bool, list[str]]:
     changed, notes = False, []
     for fid, owner in sorted(bad.items()):
         rows = hits.get(names[fid])
-        cands = sorted({r["guid"] for r in rows if isinstance(r, dict) and isinstance(r.get("guid"), str)}
+        cands = sorted({r["guid"] for r in rows if isinstance(r, dict) and isinstance(r.get("guid"), str)
+                        and is_piece_type(r.get("type"))}
                        - claimed) if isinstance(rows, list) else []
         guids = session._guids(fid)
         if len(cands) == 1:

@@ -29,6 +29,7 @@ class Table:
                                                            for g in ([v] if isinstance(v, str) else v)}
         self.bot_cards = bot_cards                        # first CardID of the bot's deck
         self.session = None                               # when set, snapshots carry the pieces the session's spec asks for
+        self.found_type = "Custom_Token"                  # type find_pieces_by_name reports
         self.name_prefix = ""                             # TTS colour tag in front of the pieces' names ("[6f2176]")
         self.positions: dict[str, int] = {}
         self.bot_hand: list[int] = []
@@ -156,7 +157,7 @@ class Table:
         out = {}
         for g, name in self.guid_name.items():
             if name.lower() in wanted and name in self.positions and g not in self.missing_pieces:
-                out.setdefault(name.lower(), []).append({"guid": g, "type": "Custom_Token"})
+                out.setdefault(name.lower(), []).append({"guid": g, "type": self.found_type})
         return out
 
     def do_move_piece(self, s):
