@@ -1,4 +1,4 @@
--- Mesa minima de TTS para ejecutar los scripts generados con lupa (solo en tests; ver test_review9.py).
+-- Minimal TTS table to run the generated scripts with lupa (tests only; see test_review9.py).
 OBJECTS = {}
 SENT = {}
 TIMERS = {}

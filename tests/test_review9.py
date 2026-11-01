@@ -440,8 +440,17 @@ def test_status_line_is_computed_after_the_closing_checks(brig, monkeypatch):  #
 
 def test_the_readme_states_the_real_batch_defaults():
     text = open(os.path.join(HERE, "..", "README.md"), encoding="utf-8").read()
-    assert "(por defecto `true` en `partida.json`)" not in text and "(default `true` in `partida.json`)" not in text
-    assert "`batch`" in text and "`live_ui`" in text
+    row = next(line for line in text.splitlines() if line.startswith("| `batch`, `live_ui`"))
+    from sparring import play
+    from sparring.session import SessionConfig
+    raw = json.loads(open(os.path.join(HERE, "..", "config", "table.json"), encoding="utf-8").read())
+    for key in ("batch", "live_ui"):
+        raw.pop(key, None)                                        # the file does not mention them
+    built = play.build_config(raw, (play.SRC_CONFIG, play.SRC_CONFIG))
+    session_cfg = built.session_config()
+    assert session_cfg.batch is True and session_cfg.live_ui is True        # what the table file gives when silent
+    assert "Both are `true` when the file does not mention them" in row
+    assert SessionConfig.__dataclass_fields__["batch"].default is False and "`false` only in the bare `SessionConfig`" in row
 
 
 # ---------- game 5: panel, labels, setup ----------

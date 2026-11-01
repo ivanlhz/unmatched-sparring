@@ -868,5 +868,8 @@
  "spaces.color.lilac": "lila",
  "spaces.color.brown": "marron",
  "spaces.color.green": "verde",
- "cli.description": "Punto de entrada de la partida en vivo."
+ "cli.description": "Punto de entrada de la partida en vivo.",
+ "console.legacy_config": "{old} es el nombre antiguo de la configuracion: usa {new}",
+ "console.moved_state": "el guardado de {old} se ha movido a {new} (una sola vez)",
+ "console.moved_log": "el registro {old} se ha movido a {new}"
 }

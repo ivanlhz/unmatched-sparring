@@ -58,7 +58,7 @@ def resolve_combat(game: Game, att: Fighter, tgt: Fighter, atk_card: Card, def_c
     if def_card is not None:
         game.check_defense_card(tgt, def_card)
         if def_card not in game.players[tgt.owner].hand:
-            raise RuleError(f"{def_card.title} no esta en la mano de {tgt.fid}")
+            raise RuleError(f"{def_card.title} is not in the hand of {tgt.fid}")
     pa, pd = att.owner, tgt.owner
     game.take_from_hand(pa, atk_card)
     if def_card is not None:

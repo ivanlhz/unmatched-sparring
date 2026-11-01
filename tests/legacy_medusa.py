@@ -83,7 +83,7 @@ def play_scheme(self: Game, player: int, fighter: Fighter, card: Card, **opts) -
     if not is_medusa_card(card) and self.players[player].hero.slug in self.fx.dsl_heroes:
         return _production_play_scheme(self, player, fighter, card, **opts)    # E2: a box hero kept interpreted (`keep`)
     if not card.is_scheme or not card.usable_by(fighter.name) or card not in self.players[player].hand:
-        raise RuleError(f"{card.title} no se puede jugar con {fighter.fid}")
+        raise RuleError(f"{card.title} cannot be played by {fighter.fid}")
     check_scheme(self, fighter, card, **opts)
     self.use_action()
     self.discard_card(player, card, played=True)

@@ -393,7 +393,7 @@ def test_remove_a_painful_memory_without_an_ongoing_scheme_only_reveals(rig, mon
 # ---------------------------------------------------------------- bot Remove A Painful Memory: the human's buttons
 
 @with_rig("baba-yaga", "hellboy", BABA_HAND)
-def test_bot_remove_a_painful_memory_names_the_card_and_offers_descartar_or_coger_2(rig):
+def test_bot_remove_a_painful_memory_names_the_card_and_offers_discard_or_take_2(rig):
     session, table, game, fake, cfg = rig
     st = game.players[0]
     pact = next(c for c in st.deck if c.title == "Pact Of Peace")
@@ -498,7 +498,7 @@ def test_perfect_shot_by_the_human_asks_the_prediction_at_revelar_before_the_bot
     monkeypatch.setattr(twin.ai, "choose_defense", session.ai.choose_defense)
     hp = twin.game.fighters["hellboy"].hp
     if pick == FACE_DOWN:
-        click(twin, table, Event.CHOICE, {"i": 6})                       # page 2: 5, 6, 7, Boca abajo
+        click(twin, table, Event.CHOICE, {"i": 6})                       # page 2: 5, 6, 7, Face down
         assert twin.panel_labels()["btn_choice_4"] == "Boca abajo"
         msgs = click(twin, table, Event.CHOICE, {"i": 4})
         assert said(msgs, "Juegas la carta boca abajo: sin prediccion")

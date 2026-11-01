@@ -10,17 +10,9 @@ from pathlib import Path
 from typing import Callable
 
 LOG_NAME = "session.log"
-LEGACY_LOG_NAME = "partida.log"
-
-
 def log_path(state_path: Path | None) -> Path | None:
-    """The log lives in the same directory as the state file; a game whose log is still the old `partida.log` keeps
-    appending to it."""
-    if state_path is None:
-        return None
-    legacy = Path(state_path).with_name(LEGACY_LOG_NAME)
-    current = Path(state_path).with_name(LOG_NAME)
-    return legacy if legacy.exists() and not current.exists() else current
+    """The log lives in the same directory as the state file."""
+    return None if state_path is None else Path(state_path).with_name(LOG_NAME)
 
 
 class GameLog:

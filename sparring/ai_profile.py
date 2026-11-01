@@ -245,7 +245,7 @@ def compute_ai_profile(hero: dict, effects: dict | None = None, roles: dict | No
     for fid, name, is_hero, count, hp, move, ranged in groups:
         role = roles.get(fid) or derive_role(is_hero, ranged, hp)
         if role not in ROLES:
-            raise ValueError(f"{hero['slug']}: ai_role {role!r} de {fid} no es uno de {ROLES}")
+            raise ValueError(f"{hero['slug']}: ai_role {role!r} of {fid} is not one of {ROLES}")
         exclusive, seen = [], set()
         for c in cards:
             if c["fighter"] != name or c["title"] in seen:

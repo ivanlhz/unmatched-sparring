@@ -45,15 +45,26 @@ LEGACY_STATE = ROOT / "estado" / "sesion.json"
 DEFAULT_STATE = ROOT / "state" / "session.json"
 
 
-def default_config_path() -> Path:
-    """`config/table.json`; the old `config/partida.json` while only that one exists."""
-    return LEGACY_CONFIG if LEGACY_CONFIG.exists() and not DEFAULT_CONFIG.exists() else DEFAULT_CONFIG
+LEGACY_LOG = "partida.log"
 
 
-def default_state_path() -> Path:
-    """`state/session.json`; a game saved at the old `estado/sesion.json` keeps being resumed (and written) there
-    until that file is deleted."""
-    return LEGACY_STATE if LEGACY_STATE.exists() and not DEFAULT_STATE.exists() else DEFAULT_STATE
+def migrate_legacy_files(state: Path) -> list[str]:
+    """Moves, once, a game saved under the old Spanish names to the new ones, so there is never an old+new pair:
+    `estado/sesion.json` -> `state/session.json` (only when `state` is the default one and the new file does not
+    exist) and the `partida.log` next to the save in use -> `session.log`. Returns the notices to print."""
+    notices = []
+    if state == DEFAULT_STATE and LEGACY_STATE.exists() and not DEFAULT_STATE.exists():
+        DEFAULT_STATE.parent.mkdir(parents=True, exist_ok=True)
+        LEGACY_STATE.replace(DEFAULT_STATE)
+        notices.append(t("console.moved_state", old=LEGACY_STATE, new=DEFAULT_STATE))
+        old_log, new_log = LEGACY_STATE.with_name(LEGACY_LOG), DEFAULT_STATE.with_name(game_log.LOG_NAME)
+    else:
+        old_log, new_log = state.with_name(LEGACY_LOG), state.with_name(game_log.LOG_NAME)
+    if old_log.exists() and not new_log.exists():
+        new_log.parent.mkdir(parents=True, exist_ok=True)
+        old_log.replace(new_log)
+        notices.append(t("console.moved_log", old=old_log, new=new_log))
+    return notices
 BOT, HUMAN = 0, 1
 READ_ONLY_TAGS = frozenset({"snapshot", "piece_spaces_by_guid", "read_hand", "count_hand", "read_discard",
                             "read_face_down_cards", "read_cards_at", "inspect_guids", "read_health_dials", "zone_overlaps", "deck_identities",
@@ -311,7 +322,8 @@ def load_config(path: str | Path, bot_hero: str | None = None, human_hero: str |
     `language` key."""
     i18n.set_language(language)                    # the messages of this function come out in the requested language
     path = Path(path)
-    if not path.exists() and path.name == LEGACY_CONFIG.name and path.with_name(DEFAULT_CONFIG.name).exists():
+    legacy_name = path.name == LEGACY_CONFIG.name
+    if legacy_name and not path.exists() and path.with_name(DEFAULT_CONFIG.name).exists():
         path = path.with_name(DEFAULT_CONFIG.name)   # a command line written for the old file name keeps working
     try:
         raw = json.loads(path.read_text(encoding="utf-8"))
@@ -329,6 +341,8 @@ def load_config(path: str | Path, bot_hero: str | None = None, human_hero: str |
     if language:
         raw["language"] = language
     cfg = build_config(raw, tuple(sources))     # type: ignore[arg-type]
+    if legacy_name:
+        cfg.warnings.append(t("console.legacy_config", old=LEGACY_CONFIG.name, new=DEFAULT_CONFIG.name))
     if raw.get("language") not in (None, *i18n.available()):
         cfg.warnings.append(t("cfg.language_unknown", value=raw["language"], default=i18n.DEFAULT))
     return cfg
@@ -902,7 +916,7 @@ def early_language(argv: list[str] | None) -> str:
     `language` key of the `--config` file, else Spanish."""
     probe = argparse.ArgumentParser(add_help=False)
     probe.add_argument("--language")
-    probe.add_argument("--config", default=str(default_config_path()))
+    probe.add_argument("--config", default=str(DEFAULT_CONFIG))
     known, _ = probe.parse_known_args(argv)
     if known.language:
         return known.language
@@ -915,14 +929,14 @@ def early_language(argv: list[str] | None) -> str:
 def parse_args(argv: list[str] | None) -> argparse.Namespace:
     i18n.set_language(early_language(argv))
     ap = argparse.ArgumentParser(prog="python -m sparring.play", description=t("cli.description"))
-    ap.add_argument("--config", default=str(default_config_path()), help=t("cli.config"))
+    ap.add_argument("--config", default=str(DEFAULT_CONFIG), help=t("cli.config"))
     ap.add_argument("--read-only", action="store_true", help=t("cli.read_only"))
     ap.add_argument("--first", choices=("human", "bot", "random"), default="random", help=t("cli.first"))
     ap.add_argument("--seed", type=int, default=None, help=t("cli.seed"))
     ap.add_argument("--send-port", type=int, default=SEND_PORT, help=t("cli.send_port"))
     ap.add_argument("--listen-port", type=int, default=LISTEN_PORT, help=t("cli.listen_port"))
     ap.add_argument("--poll", type=float, default=0.1)
-    ap.add_argument("--state", default=str(default_state_path()), help=t("cli.state"))
+    ap.add_argument("--state", default=str(DEFAULT_STATE), help=t("cli.state"))
     ap.add_argument("--ai", choices=("heuristic", "ismcts"), default=None, help=t("cli.ai"))
     ap.add_argument("--ai-time", type=float, default=None, help=t("cli.ai_time"))
     ap.add_argument("--resume", action="store_true", help=t("cli.resume"))
@@ -956,6 +970,8 @@ def saved_language(state_path: str | Path) -> str | None:
 
 def main(argv: list[str] | None = None, stop: threading.Event | None = None) -> int:
     args = parse_args(argv)
+    for notice in migrate_legacy_files(Path(args.state)):
+        print(t("console.warning", text=notice), file=sys.stderr)
     # a resumed game keeps the language it was played in unless --language is given explicitly
     saved_lang = saved_language(args.state) if args.resume and not args.read_only else None
     try:

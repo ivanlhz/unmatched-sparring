@@ -14,7 +14,7 @@
   - Take out of the inner bag whatever is missing on the table (never with `--resume`): `--unpack`
   - Force heroes: `--bot-hero <slug> --human-hero <slug>` (medusa, hellboy, abe-sapien, baba-yaga, liz-sherman; not the same on both sides)
   - Measure messages and times per button: `--timing`. Search AI: `--ai ismcts`. Bot pause: `--bot-pause N`.
-  - The old paths still work: `config\partida.json` is found as `config\table.json`, and a save at `estado\sesion.json` keeps being resumed (and written) there until you delete it; new games use `state\session.json`.
+  - Old names: `config\partida.json` is read as `config	able.json` with a deprecation notice; a save at `estado\sesion.json` (and its `partida.log`) is moved once to `state\session.json` / `state\session.log`, with a notice.
 - [x] Ctrl+C exits cleanly (the floor rectangles and labels are erased on exit). *(OK 29/10)*
 
 ### Position calibration (`config\table.json`)

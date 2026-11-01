@@ -868,5 +868,8 @@
  "spaces.color.lilac": "lilac",
  "spaces.color.brown": "brown",
  "spaces.color.green": "green",
- "cli.description": "Entry point of the live game."
+ "cli.description": "Entry point of the live game.",
+ "console.legacy_config": "{old} is the old name of the configuration: use {new}",
+ "console.moved_state": "the saved game {old} was moved to {new} (once)",
+ "console.moved_log": "the log {old} was moved to {new}"
 }

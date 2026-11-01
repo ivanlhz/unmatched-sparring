@@ -107,30 +107,65 @@ def test_resume_of_a_save_without_a_language_follows_the_configuration(live, cfg
 
 # ---------------------------------------------------------------- the old names still work
 
-def test_a_command_line_written_for_partida_json_finds_table_json(tmp_path, cfg_file):
+def test_the_old_config_name_is_found_but_always_announced(tmp_path, cfg_file):
     table = tmp_path / "table.json"
     table.write_text(cfg_file().read_text(encoding="utf-8"), encoding="utf-8")
-    assert play.load_config(tmp_path / "partida.json").raw == play.load_config(table).raw
+    cfg = play.load_config(tmp_path / "partida.json")             # does not exist: table.json beside it is used
+    assert cfg.raw == play.load_config(table).raw
+    assert [w for w in cfg.warnings if "partida.json" in w and "table.json" in w]
+    (tmp_path / "partida.json").write_text(table.read_text(encoding="utf-8"), encoding="utf-8")
+    assert [w for w in play.load_config(tmp_path / "partida.json").warnings if "table.json" in w]     # also when it exists
+    assert not [w for w in play.load_config(table).warnings if "partida" in w]
     with pytest.raises(play.ConfigError):
         play.load_config(tmp_path / "other.json")                 # only the old name is mapped
 
 
-def test_the_default_state_stays_at_the_old_location_while_only_that_file_exists(tmp_path, monkeypatch):
+def test_the_default_config_is_table_json_even_if_the_old_file_exists():
+    assert play.DEFAULT_CONFIG.name == "table.json" and not hasattr(play, "default_config_path")
+
+
+def legacy_layout(tmp_path, monkeypatch):
     new, old = tmp_path / "state" / "session.json", tmp_path / "estado" / "sesion.json"
     monkeypatch.setattr(play, "DEFAULT_STATE", new)
     monkeypatch.setattr(play, "LEGACY_STATE", old)
-    assert play.default_state_path() == new
     old.parent.mkdir()
+    return new, old
+
+
+def test_an_old_save_and_log_are_moved_once_with_a_notice(tmp_path, monkeypatch):
+    new, old = legacy_layout(tmp_path, monkeypatch)
     old.write_text("{}", encoding="utf-8")
-    assert play.default_state_path() == old
+    (old.parent / "partida.log").write_text("log\n", encoding="utf-8")
+    notices = play.migrate_legacy_files(new)
+    assert len(notices) == 2 and "sesion.json" in notices[0] and "session.json" in notices[0]
+    assert new.read_text(encoding="utf-8") == "{}" and (new.parent / "session.log").read_text(encoding="utf-8") == "log\n"
+    assert not old.exists() and not (old.parent / "partida.log").exists()          # never an old+new pair
+    assert play.migrate_legacy_files(new) == []                                       # and only once
+
+
+def test_an_old_save_is_not_moved_over_a_new_one(tmp_path, monkeypatch):
+    new, old = legacy_layout(tmp_path, monkeypatch)
+    old.write_text("old", encoding="utf-8")
     new.parent.mkdir()
-    new.write_text("{}", encoding="utf-8")
-    assert play.default_state_path() == new
+    new.write_text("new", encoding="utf-8")
+    assert play.migrate_legacy_files(new) == []
+    assert new.read_text(encoding="utf-8") == "new" and old.exists()
 
 
-def test_the_game_log_keeps_appending_to_the_old_file_name(tmp_path):
-    state = tmp_path / "estado" / "sesion.json"
-    assert game_log.log_path(state) == tmp_path / "estado" / "session.log"
+def test_a_log_next_to_an_explicit_state_file_is_renamed(tmp_path, monkeypatch):
+    legacy_layout(tmp_path, monkeypatch)
+    state = tmp_path / "mine" / "game.json"
     state.parent.mkdir()
-    (tmp_path / "estado" / "partida.log").write_text("old\n", encoding="utf-8")
-    assert game_log.log_path(state) == tmp_path / "estado" / "partida.log"
+    (state.parent / "partida.log").write_text("log", encoding="utf-8")
+    notices = play.migrate_legacy_files(state)
+    assert len(notices) == 1 and (state.parent / "session.log").read_text(encoding="utf-8") == "log"
+    assert game_log.log_path(state) == state.parent / "session.log"
+
+
+def test_main_prints_the_migration_notice_in_the_console(live, cfg_file, tmp_path, monkeypatch, capsys):
+    table, fake, ports = live
+    new, old = legacy_layout(tmp_path, monkeypatch)
+    old.write_text("{}", encoding="utf-8")
+    play_once(["--config", str(cfg_file()), "--first", "human", *ports, "--language", "en"], monkeypatch)
+    err = capsys.readouterr().err
+    assert "was moved to" in err and new.exists() and not old.exists()
