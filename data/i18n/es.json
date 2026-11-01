@@ -311,6 +311,7 @@
  "sess.resume.combat": "Hay un combate pendiente: pulsa [[panel.reveal]] o [[panel.cancel]].",
  "sess.resume.discard": "Hay un descarte pendiente: terminalo y pulsa [[panel.end_action]].",
  "sess.resume.ability": "Tu habilidad de inicio de turno sigue pendiente: {wait} Hazlo en la mesa y pulsa [[panel.end_action]].",
+ "sess.resume.after": "Hay una accion abierta: resuelvela en la mesa y pulsa [[panel.end_action]].",
  "sess.resume.turn": "Es tu turno y te quedan {n} accion(es).",
  "sess.bot_retry_hint": "Pulsa [[panel.end_action]] para que el bot retome su turno.",
  "sess.bot_deals": "El bot reparte sus {n} cartas iniciales.",

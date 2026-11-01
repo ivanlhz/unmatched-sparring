@@ -501,6 +501,10 @@ class Session:
             self.say(t("sess.resume.ability", wait=self.ability_wait), ChatKind.YOUR_TURN)
         elif self.game.turn == self.human:
             self.say(t("sess.resume.turn", n=self.game.actions_left), ChatKind.YOUR_TURN)
+            if self.moving:                       # their own action is still open: End action closes it
+                self.say(t("sess.resume.after"), ChatKind.YOUR_TURN)
+        elif self.moving:                         # the human's step after the bot's combat: End action closes it, then the bot goes on
+            self.say(t("sess.resume.after"), ChatKind.YOUR_TURN)
         return self._done()
 
     def _open(self, announce_turn: bool) -> None:
@@ -513,7 +517,7 @@ class Session:
                 self._flush_table()                  # deal of the opening hands
             self.sync_positions()
             self.sync_human()
-            if self.game.turn == self.bot and self.pending is None and self.game.winner is None:
+            if self.game.turn == self.bot and self.pending is None and self.game.winner is None and not self.moving:
                 self._bot_continue()
             elif announce_turn and self.game.turn == self.human:
                 self._announce_human_start()
