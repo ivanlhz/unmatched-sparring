@@ -16,6 +16,7 @@ import json
 import pytest
 
 from sparring.effects.choose import ChoiceRequest
+from sparring import i18n
 from sparring.spaces import describe
 from sparring.tts.ui import Event
 from test_batch import click
@@ -279,4 +280,4 @@ def test_a_space_is_described_by_zone_colours_and_the_nearest_fighter(bprd):
     near = next(iter(sorted(g.board.adj[hb.pos])))
     assert describe(g, near, ()).startswith("zona") and "pegada a" in describe(g, near, ())
     assert "casilla " + str(near) not in describe(g, near, ())
-    assert all(z in describe(g, near, ()) for z in g.board.zones(near))
+    assert all(i18n.t(f"spaces.color.{z}") in describe(g, near, ()) for z in g.board.zones(near))

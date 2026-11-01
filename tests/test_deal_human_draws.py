@@ -333,5 +333,5 @@ def test_a_deal_whose_reply_never_comes_warns_with_the_reason_and_does_not_crash
     monkeypatch.setattr(session, "say", lambda text, kind=None: seen.append(text))
     session._deal_human_cards(1, None)
     assert session._post and session._post[-1]() is False
-    assert any("No he podido confirmar el reparto de 1 carta (TTS no devolvio valor)" in t for t in seen)
+    assert any("No he podido confirmar el reparto de 1 carta (TTS returned no value)" in t for t in seen)
     assert session._deal_check is None
