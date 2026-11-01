@@ -254,6 +254,8 @@
  "narr.status.next_attack_bonus.human": "+{n} a tu proximo ataque",
  "narr.cancels": "cancela los efectos de {title}",
  "narr.cancels_rival": "cancela los efectos del rival",
+ "narr.cancels_after": "cancela los efectos de {title} despues del combate",
+ "narr.cancels_after_rival": "cancela los efectos del rival despues del combate",
  "narr.value_delta": "valor de {title} {delta}",
  "narr.redirects_to": "desvia su dano de combate a {to}",
  "narr.redirects": "desvia su dano de combate",

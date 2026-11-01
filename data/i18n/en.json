@@ -254,6 +254,8 @@
  "narr.status.next_attack_bonus.human": "+{n} to your next attack",
  "narr.cancels": "cancels the effects of {title}",
  "narr.cancels_rival": "cancels the rival's effects",
+ "narr.cancels_after": "cancels the effects of {title} after combat",
+ "narr.cancels_after_rival": "cancels the rival's effects after combat",
  "narr.value_delta": "value of {title} {delta}",
  "narr.redirects_to": "redirects its combat damage to {to}",
  "narr.redirects": "redirects its combat damage",

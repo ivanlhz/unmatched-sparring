@@ -62,6 +62,7 @@ def snapshot(game, flow=None) -> dict:
             "seen": [_seen(p) for p in game.players],
             "in_play": [game.fx.ongoing_card_id(p) for p in (0, 1)],
             "cancelled": [] if flow is None or flow.ctx is None else sorted(flow.ctx.cancelled | flow.late_cancelled),
+            "cancelled_after": [] if flow is None or flow.ctx is None else sorted(flow.ctx.cancelled_after),
             "redirects": 0 if flow is None else len(flow.redirects),
             "mods": {} if flow is None else {side: len(mods) for side, mods in flow.mods.items()},
             "printed": {} if flow is None else dict(flow.printed_set)}
@@ -255,6 +256,10 @@ def _combat(before: dict, flow) -> list[str]:
         if side not in before["cancelled"]:
             card = flow.atk_card if side == "atk" else flow.def_card
             out.append(t("narr.cancels", title=card.title) if card is not None else t("narr.cancels_rival"))
+    for side in sorted(flow.ctx.cancelled_after - flow.ctx.cancelled):
+        if side not in before["cancelled_after"] and side not in before["cancelled"]:
+            card = flow.atk_card if side == "atk" else flow.def_card
+            out.append(t("narr.cancels_after", title=card.title) if card is not None else t("narr.cancels_after_rival"))
     for side in ("def", "atk"):
         card = flow.atk_card if side == "atk" else flow.def_card
         if card is None:

@@ -144,13 +144,11 @@
     "immediately": [], "during": [], "after": [],
     "scheme": [
      {"op": "move", "target": {"side": "own"}, "amount": 5, "up_to": true, "through_enemies": true, "as": "mover"},
-     {"op": "optional", "chooser": "owner", "ops": [
-      {"op": "damage", "target": {"side": "enemy", "filter": {"passed_by": "$mover"}}, "amount": 2, "chooser": "owner"}
-     ]}
+     {"op": "damage", "target": {"side": "enemy", "filter": {"passed_by": "$mover"}}, "amount": 2, "chooser": "owner"}
     ],
     "boost": []
    },
-   "notes": "'Moved through' = an opposing fighter on some path of at most 5 spaces from where the fighter started to where it ended (the board has no fixed path: the owner chooses it). When the human moves their own miniature by hand the engine does not know the path: every opposing fighter is offered and the human answers for what happened on the table; the `optional` lets them say that nobody was passed."
+   "notes": "'Moved through' = an opposing fighter on some path of at most 5 spaces from where the fighter started to where it ended (the board has no fixed path: the owner chooses it). The damage is mandatory: with the bot's move the engine knows who was passed and the owner only picks WHICH rival when there are several. When the human moves their own miniature by hand the engine does not know the path: every opposing fighter is offered with a 'none' answer (nobody was passed), taken from the table."
   },
   {
    "title": "The future of Ninjutsu",

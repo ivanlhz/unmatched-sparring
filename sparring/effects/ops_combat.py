@@ -59,6 +59,8 @@ def _cancel_effects(run, game, spec):
         flow.ctx.cancelled.add(side)
     elif moments == ["after"]:                  # only the AFTER COMBAT effects (Short circuit)
         flow.ctx.cancelled_after.add(side)
+        if flow.result is not None:
+            flow.result.cancelled_after.add(side)
     elif _immediately_pending(flow, side):
         flow.late_cancelled.add(side)           # its IMMEDIATELY has yet to resolve and stays: only DURING and AFTER go
     else:

@@ -52,6 +52,7 @@ class CombatResult:
     def_parts: list[str] = field(default_factory=list)
     applied: list[str] = field(default_factory=list)        # after-combat effects the engine already applied
     bot_notes: list[str] = field(default_factory=list)      # what the bot does not resolve of its cards (announced)
+    cancelled_after: set[str] = field(default_factory=set)  # sides whose AFTER COMBAT alone is cancelled (Short circuit); not in `cancelled`
 
 
 @dataclass

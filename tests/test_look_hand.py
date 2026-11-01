@@ -575,6 +575,19 @@ def test_a_row_that_would_cover_the_combat_boxes_or_the_panel_is_warned_about():
     assert any("pisa el panel" in w for w in play.floor_layout_warnings(cfg))
 
 
+def test_the_set_aside_rows_of_donatello_clash_with_nothing_and_a_clash_is_warned_about():
+    cfg = play.load_config(os.path.join(os.path.dirname(os.path.abspath(__file__)), "..", "config", "table.json"))
+    assert cfg.raw["bot_tuck_spot"] and cfg.raw["bot_removed_spot"]
+    assert play.look_row_warnings(cfg) == []
+    cfg.raw["bot_tuck_spot"] = [10.0, 1.7, -23.0]                     # the old estimate: inside the bot_row_spot column
+    assert any("bot_tuck_spot" in w and "fila de la mano del bot de sus cartas" in w for w in play.look_row_warnings(cfg))
+    cfg.raw["bot_tuck_spot"] = [18.0, 1.7, -24.0]
+    cfg.raw["bot_removed_spot"] = [18.0, 1.7, -24.0]                  # both rows on the same spot
+    assert any("bot_removed_spot" in w and "bot_tuck_spot" in w for w in play.look_row_warnings(cfg))
+    cfg.raw["bot_removed_spot"] = [6.0, 1.7, -18.0]                   # over the bot's combat box
+    assert any("bot_removed_spot" in w and "caja de combate" in w for w in play.look_row_warnings(cfg))
+
+
 def test_look_keys_reach_the_session_config():
     cfg = play.load_config(os.path.join(os.path.dirname(os.path.abspath(__file__)), "..", "config", "table.json"))
     scfg = cfg.session_config()
