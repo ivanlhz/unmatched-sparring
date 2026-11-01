@@ -25,7 +25,7 @@ from __future__ import annotations
 from dataclasses import dataclass
 from typing import Callable
 
-from .i18n import t
+from .i18n import plural, t
 from .spaces import describe
 from .tts import effects_bridge, lua
 from .tts.client import TTSLuaError
@@ -93,11 +93,7 @@ def result_of(op) -> dict:
 
 def join_titles(titles) -> str:
     titles = list(titles)
-    return titles[0] if len(titles) == 1 else ", ".join(titles[:-1]) + " y " + titles[-1]
-
-
-def plural(n: int, word: str = "carta") -> str:
-    return f"{n} {word}{'s' if n != 1 else ''}"
+    return titles[0] if len(titles) == 1 else ", ".join(titles[:-1]) + t("common.and") + titles[-1]
 
 
 # ---------------------------------------------------------------- draw (the human's draws)
@@ -110,7 +106,7 @@ def _draw_mode(session, intent: dict) -> str | None:
 
 def _draw_human(session, intent: dict, ctx: Ctx) -> list[Check]:
     why = f" ({intent['cause']})" if intent.get("cause") else ""
-    session.say(f"Robas {plural(intent['n'])}{why}: hazlo en la mesa.", ChatKind.YOUR_TURN)
+    session.say(t("tr.draw_human", cards=plural(intent["n"], "noun.card"), why=why), ChatKind.YOUR_TURN)
     return []
 
 
@@ -141,16 +137,14 @@ def _discard_human(session, intent: dict, ctx: Ctx) -> list[Check]:
         by_id = {c.card_id: c for c in st.full_set}
         d["cards"] = list(d.get("cards") or []) + intent["cards"]
         session.pending_discard = d
-        session.say(f"Pon {join_titles(by_id[i].title for i in intent['cards'])} de tu mano en tu descarte "
-                    f"({ctx.cause}) y pulsa Fin de accion.", ChatKind.YOUR_TURN)
+        session.say(t("tr.discard_named", titles=join_titles(by_id[i].title for i in intent["cards"]), cause=ctx.cause), ChatKind.YOUR_TURN)
     elif intent["n"] > 0:                         # a count: the human chooses which ones
         if not d.get("hand"):
             session._deal_owed_draws()            # the draws that resolved BEFORE this discard are in the hand he discards from
         d["n"] += intent["n"]
         d["hand"] = True                          # the draws the effect owes come after this discard
         session.pending_discard = d
-        session.say(f"Descarta {intent['n']} carta(s) ({intent['reason']}) y pulsa Fin de accion."
-                    f"{session._wildfire_hint()}", ChatKind.YOUR_TURN)
+        session.say(t("tr.discard_count", n=intent["n"], reason=intent["reason"], hint=session._wildfire_hint()), ChatKind.YOUR_TURN)
     return []
 
 
@@ -174,7 +168,7 @@ def _left_play_by_hand(session, intent: dict, ctx: Ctx) -> list[Check]:
     is there); without one it already sits on the pile."""
     card_id, title = intent["card"], _title_of(session, intent["card"])
     if session.cfg.human_ongoing_spot is None:
-        session.say(f"{title} deja de estar en juego ({ctx.cause}): queda en tu descarte.", ChatKind.SCHEME)
+        session.say(t("tr.left_play", title=title, cause=ctx.cause), ChatKind.SCHEME)
         return []
     st = session.game.players[session.human]
     d = session.pending_discard or {"n": 0, "baseline": len(st.discard), "kind": "cards"}
@@ -182,8 +176,7 @@ def _left_play_by_hand(session, intent: dict, ctx: Ctx) -> list[Check]:
         return []
     d["cards"] = list(d.get("cards") or []) + [card_id]
     session.pending_discard = d
-    session.say(f"{title} deja de estar en juego ({ctx.cause}): pasala de tu zona ONGOING a tu descarte y pulsa Fin de "
-                "accion.", ChatKind.YOUR_TURN)
+    session.say(t("tr.left_play_hand", title=title, cause=ctx.cause), ChatKind.YOUR_TURN)
     return []
 
 
@@ -202,8 +195,7 @@ def _left_play_by_bot(session, intent: dict, ctx: Ctx) -> list[Check]:
             raise TTSLuaError(f"{title} no esta una sola vez en tu zona ONGOING ({len(here)})")
         identity = session._identity("human")
         move = lua.card_to_discard(here[0]["guid"], cfg.human_discard_zone, cfg.human_card_ids, identity=identity)
-        _show_and_wait(session, here[0]["guid"],
-                       f"{title} deja de estar en juego ({ctx.cause}): mira el ping, la llevo yo a tu descarte.")
+        _show_and_wait(session, here[0]["guid"], t("tr.left_play_ping", title=title, cause=ctx.cause))
         op = session._w(move, "cards")
     except TABLE_ERRORS:
         return _left_play_by_hand(session, intent, ctx)
@@ -247,12 +239,11 @@ def _move_say(session, intent: dict, ctx: Ctx, moved: bool) -> None:
     g = session.game
     f = g.fighters[intent["fid"]]
     name, space = session._name(f), describe(g, f.pos, (f.fid,), session._name)
-    what = "se mueve" if ctx.before["human_pieces"][f.fid][1] else "vuelve al tablero"
+    walks = ctx.before["human_pieces"][f.fid][1]
     if moved:
-        session.say(f"{name} {what} a {space}: lo he movido yo (efecto del bot).", ChatKind.MOVE)
+        session.say(t("tr.moved.moves.done" if walks else "tr.moved.returns.done", name=name, space=space), ChatKind.MOVE)
     else:
-        session.say(f"{name} {what} a {space} por un efecto del bot: no he podido mover su "
-                    "miniatura, muevela tu.", ChatKind.YOUR_TURN)
+        session.say(t("tr.moved.moves.manual" if walks else "tr.moved.returns.manual", name=name, space=space), ChatKind.YOUR_TURN)
 
 
 def _move_human(session, intent: dict, ctx: Ctx) -> list[Check]:
@@ -286,9 +277,10 @@ for _op in ("place", "swap", "revive", "summon"):             # a bot effect tha
 
 # ---------------------------------------------------------------- cards between a hand/discard pile and a deck
 
-WHERE_YOU = {"shuffle": "en tu mazo y baraja", "bottom": "en el fondo de tu mazo", "top": "encima de tu mazo"}
-WHERE_BOT = {"shuffle": "en tu mazo y lo barajo", "bottom": "en el fondo de tu mazo", "top": "encima de tu mazo"}
-HAND_WHERE = {"top": "en la parte superior de tu mazo", "bottom": "en el fondo de tu mazo", "shuffle": "en tu mazo y baraja"}
+WHERE_YOU = {"shuffle": "tr.where.you.shuffle", "bottom": "tr.where.you.bottom", "top": "tr.where.you.top"}
+WHERE_BOT = {"shuffle": "tr.where.bot.shuffle", "bottom": "tr.where.bot.bottom", "top": "tr.where.bot.top"}
+HAND_WHERE = {"top": "tr.where.hand.top", "bottom": "tr.where.hand.bottom", "shuffle": "tr.where.hand.shuffle"}
+WHERE_DONE = {"shuffle": "tr.where.done.shuffle", "bottom": "tr.where.done.bottom", "top": "tr.where.done.top"}
 
 
 def is_tail(deck: list[int], ids: list[int]) -> bool:
@@ -316,8 +308,7 @@ def _by_id(session, player: int) -> dict:
 
 def _short(session, missing: set[int], by_id: dict, what: str) -> None:
     if missing:
-        session.say(f"No he podido mover {join_titles(by_id[i].title for i in sorted(missing))} {what}: hazlo tu.",
-                    ChatKind.WARNING)
+        session.say(t("tr.short", titles=join_titles(by_id[i].title for i in sorted(missing)), what=what), ChatKind.WARNING)
 
 
 def _unmoved(op, ids: list[int], guids: dict[int, str]) -> set[int]:
@@ -343,8 +334,8 @@ def _bot_position(session, intent: dict) -> str:
 
 def _bot_what(zone: str, position: str) -> str:
     if zone == "hand":
-        return "de la mano del bot a su mazo"
-    return "del descarte del bot al fondo de su mazo" if position == "bottom" else "del descarte del bot a su mazo (barajada)"
+        return t("tr.bot_what.hand")
+    return t("tr.bot_what.bottom" if position == "bottom" else "tr.bot_what.shuffled")
 
 
 def _return_human(session, intent: dict, ctx: Ctx) -> list[Check]:
@@ -359,13 +350,13 @@ def _return_human(session, intent: dict, ctx: Ctx) -> list[Check]:
     by_id = _by_id(session, session.human)
     if zone == "hand":
         position = intent.get("position") or ("top" if [c.card_id for c in st.deck][:len(ids)] == ids else "shuffle")
-        session.say(f"Pon {join_titles(by_id[i].title for i in ids)} de tu mano {HAND_WHERE[position]} ({ctx.cause}).",
+        session.say(t("tr.put_hand", titles=join_titles(by_id[i].title for i in ids), where=t(HAND_WHERE[position]), cause=ctx.cause),
                     ChatKind.YOUR_TURN)
         return []
     position, ordered = _human_deck_position(session, intent, ctx)
     ordered = _noted_by_hand(session, ordered, position, by_id, ctx)
     if ordered:
-        session.say(f"Pon {join_titles(by_id[i].title for i in ordered)} de tu descarte {WHERE_YOU[position]} ({ctx.cause}).",
+        session.say(t("tr.put_discard", titles=join_titles(by_id[i].title for i in ordered), where=t(WHERE_YOU[position]), cause=ctx.cause),
                     ChatKind.YOUR_TURN)
     return []
 
@@ -381,7 +372,7 @@ def _noted_by_hand(session, ordered: list[int], position: str, by_id: dict, ctx:
     """Session_pile: the cards the human already moved and the bot detected are only noted. Returns the rest."""
     by_hand = [i for i in ordered if i in session.hand_deck]
     if by_hand:
-        session.say(f"Anoto {join_titles(by_id[i].title for i in by_hand)} en tu mazo ({ctx.cause}).", ChatKind.SCHEME)
+        session.say(t("tr.note_deck", titles=join_titles(by_id[i].title for i in by_hand), cause=ctx.cause), ChatKind.SCHEME)
     return [i for i in ordered if i not in by_hand]
 
 
@@ -397,21 +388,20 @@ def _return_bot(session, intent: dict, ctx: Ctx) -> list[Check]:
         bottom = position == "bottom"
         op = session._w(lua.hand_to_deck(cfg.bot_seat, ids, cfg.bot_deck_guid, cfg.bot_card_ids,
                                          identity=session._identity(), bottom=bottom, shuffle=not bottom), DOMAIN)
-        where = "en el fondo de su mazo" if bottom else "en su mazo y lo baraja"
-        session.say(f"El bot pone {plural(len(ids))} de su mano {where}.", ChatKind.SCHEME)
+        session.say(t("tr.bot_puts_hand_bottom" if bottom else "tr.bot_puts_hand_shuffle", cards=plural(len(ids), "noun.card")), ChatKind.SCHEME)
         return [lambda: _fall_back(session, intent, ctx, position, set(ids) - set(result_of(op).get("placed") or []))]
     titles = join_titles(by_id[i].title for i in ids)
     if position == "bottom":
         ops = [(i, session._w(lua.card_to_deck_bottom(i, cfg.bot_deck_guid, cfg.bot_card_ids,
                                                        identity=session._identity()), DOMAIN)) for i in ids]
-        session.say(f"El bot pone {titles} de su descarte en el fondo de su mazo.", ChatKind.SCHEME)
+        session.say(t("tr.bot_puts_bottom", titles=titles), ChatKind.SCHEME)
         return [lambda: _fall_back(session, intent, ctx, position,
                                    {i for i, op in ops if not result_of(op).get("placed")})]
     guids = ctx.bot_discard or {}
     known = [i for i in ids if i in guids]
     op = session._w(lua.shuffle_into_deck(cfg.bot_deck_guid, [guids[i] for i in known], cfg.bot_card_ids,
                                           identity=session._identity()), DOMAIN) if known else None
-    session.say(f"El bot baraja {titles} de su descarte en su mazo.", ChatKind.SCHEME)
+    session.say(t("tr.bot_shuffles", titles=titles), ChatKind.SCHEME)
     return [lambda: _fall_back(session, intent, ctx, position,
                                set(ids) - (set(known) - _unmoved(op, known, guids) if op is not None else set()))]
 
@@ -437,8 +427,7 @@ def _human_discard_to_deck(session, intent: dict, ctx: Ctx) -> list[Check]:
     guids = {r["id"]: r["guid"] for r in session._rd_human_discard() if isinstance(r, dict) and "guid" in r}
     gone = [i for i in ordered if i not in guids]
     if gone:
-        session.say(f"{join_titles(by_id[i].title for i in gone)} ya no esta en tu descarte: doy por hecho que ya esta "
-                    f"{WHERE_YOU[position].replace(' y baraja', '')} ({cause}).", ChatKind.SCHEME)
+        session.say(t("tr.gone", titles=join_titles(by_id[i].title for i in gone), where=t(WHERE_DONE[position]), cause=cause), ChatKind.SCHEME)
     todo = [i for i in ordered if i in guids]
     if not todo:
         return []
@@ -446,12 +435,12 @@ def _human_discard_to_deck(session, intent: dict, ctx: Ctx) -> list[Check]:
     try:
         identity = session._identity("human")
     except ERRORS + (SessionError,) as e:         # no identity, no write: the human does it
-        session.say(f"No puedo tocar tu mazo ({e}): pon {join_titles(by_id[i].title for i in todo)} de tu descarte "
-                    f"{WHERE_YOU[position]} tu.", ChatKind.WARNING)
+        session.say(t("tr.cannot_touch_deck", err=e, titles=join_titles(by_id[i].title for i in todo), where=t(WHERE_YOU[position])),
+                    ChatKind.WARNING)
         return []
     session.fx_in_flight.update(todo)
-    session.say(f"Meto {join_titles(by_id[i].title for i in todo)} {WHERE_BOT[position]} ({cause}).", ChatKind.SCHEME)
-    what = f"de tu descarte {WHERE_YOU[position]}"
+    session.say(t("tr.inserts", titles=join_titles(by_id[i].title for i in todo), where=t(WHERE_BOT[position]), cause=cause), ChatKind.SCHEME)
+    what = t("tr.what_you", where=t(WHERE_YOU[position]))
     if position == "shuffle":
         op = session._w(lua.shuffle_into_deck(cfg.human_deck_guid, [guids[i] for i in todo], cfg.human_card_ids,
                                               identity=identity), DOMAIN)
@@ -475,11 +464,9 @@ def _put_human(session, intent: dict, ctx: Ctx) -> list[Check]:
     ids = intent["cards"]
     if intent["player"] == session.bot:           # the table refused (or the card is not loose on the pile)
         for i in ids:
-            session.say(f"No he podido devolver {_by_id(session, session.bot)[i].title} a la mano del bot: ponla tu.",
-                        ChatKind.WARNING)
+            session.say(t("tr.return_bot_fail", title=_by_id(session, session.bot)[i].title), ChatKind.WARNING)
         return []
-    session.say(f"Recoge {join_titles(_by_id(session, session.human)[i].title for i in ids)} de tu descarte a tu mano "
-                f"({ctx.cause}).", ChatKind.YOUR_TURN)
+    session.say(t("tr.pickup", titles=join_titles(_by_id(session, session.human)[i].title for i in ids), cause=ctx.cause), ChatKind.YOUR_TURN)
     return []
 
 
@@ -491,9 +478,9 @@ def _put_bot(session, intent: dict, ctx: Ctx) -> list[Check]:
         if i in session.said_returns:             # the Wildfire scene already said it came back
             session.said_returns.discard(i)
         else:
-            session.say(f"El bot recupera {title} de su descarte a su mano.", ChatKind.SCHEME)
+            session.say(t("tr.bot_recovers", title=title), ChatKind.SCHEME)
         if i not in guids:
-            session.say(f"No encuentro {title} suelta en el descarte del bot: ponla tu en su mano.", ChatKind.WARNING)
+            session.say(t("tr.not_loose", title=title), ChatKind.WARNING)
             continue
         op = session._w(lua.return_card_to_hand(guids[i], cfg.bot_seat), DOMAIN)
         checks.append(lambda op=op, i=i: None if result_of(op).get("returned") else _put_human(
@@ -509,7 +496,7 @@ def _search_mode(session, intent: dict) -> str | None:
 
 def _search_human(session, intent: dict, ctx: Ctx) -> list[Check]:
     """Nothing for a human to move: the bot's deck is the bot's. The line is all there is."""
-    session.say(f"El bot toma {plural(intent['n'])} de su mazo.", ChatKind.SCHEME)
+    session.say(t("tr.bot_takes", cards=plural(intent["n"], "noun.card")), ChatKind.SCHEME)
     return []
 
 
@@ -553,9 +540,9 @@ def _counter_human(session, intent: dict, ctx: Ctx) -> list[Check]:
     g, name, hero = session.game, intent["name"], session._name(session.game.hero(session.bot))
     delta = intent.get("delta") or g.fx.counter_value(session.bot, name, 0) - ctx.before["counters"].get(name, 0)
     if delta > 0:
-        session.say(f"No he podido sacar una ficha de {name} de la mesa: pon tu una activa junto a {hero}.", ChatKind.WARNING)
+        session.say(t("tr.token_fail_add", name=name, hero=hero), ChatKind.WARNING)
     else:
-        session.say(f"No he podido retirar la ficha de {name} de {hero}: retirala tu.", ChatKind.WARNING)
+        session.say(t("tr.token_fail_remove", name=name, hero=hero), ChatKind.WARNING)
     return []
 
 
@@ -573,16 +560,16 @@ def _counter_bot(session, intent: dict, ctx: Ctx) -> list[Check]:
         for k in range(c1 - c0):
             op = session._w(lua.take_token_copy(source, token_spot(session, len(copies) + k)), DOMAIN)
             checks.append(lambda op=op: _token_taken(session, op, intent, ctx))
-        session.say(f"{hero} (bot) activa {plural(c1 - c0, 'ficha')} de {name}: {c1} activa(s).", ChatKind.ABILITY)
+        session.say(t("tr.token_on", hero=hero, tokens=plural(c1 - c0, "noun.token"), name=name, n=c1), ChatKind.ABILITY)
     else:
         for _ in range(c0 - c1):
             if not copies:
-                session.say(f"{hero} (bot) gasta una ficha de {name} que no veo en la mesa: retirala tu.", ChatKind.WARNING)
+                session.say(t("tr.token_missing", hero=hero, name=name), ChatKind.WARNING)
                 break
             op = session._w(lua.remove_token(copies.pop()), DOMAIN)
             checks.append(lambda op=op: None if result_of(op).get("removed") else _counter_human(
                 session, {**intent, "delta": -1}, ctx))
-        session.say(f"{hero} (bot) gasta {plural(c0 - c1, 'ficha')} de {name}: {c1} activa(s).", ChatKind.ABILITY)
+        session.say(t("tr.token_off", hero=hero, tokens=plural(c0 - c1, "noun.token"), name=name, n=c1), ChatKind.ABILITY)
     return checks
 
 
@@ -597,7 +584,7 @@ def _token_taken(session, op, intent: dict, ctx: Ctx) -> None:
 def _form_head(session, now: str) -> str:
     g, bot = session.game, session.bot
     forms = g.hero_def(bot).forms
-    return f"{session._name(g.hero(bot))} (bot) pasa a {now} ({g.counter(bot, forms.counter)} {forms.counter})"
+    return t("tr.form_head", hero=session._name(g.hero(bot)), form=now, n=g.counter(bot, forms.counter), counter=forms.counter)
 
 
 def _form_mode(session, intent: dict) -> str | None:
@@ -605,7 +592,7 @@ def _form_mode(session, intent: dict) -> str | None:
 
 
 def _form_human(session, intent: dict, ctx: Ctx) -> list[Check]:
-    session.say(f"{_form_head(session, intent['form'])}: cambia tu su miniatura a esa forma.", ChatKind.ABILITY)
+    session.say(t("tr.form_human", head=_form_head(session, intent["form"])), ChatKind.ABILITY)
     return []
 
 
@@ -627,14 +614,13 @@ def _form_bot(session, intent: dict, ctx: Ctx) -> list[Check]:
     op_token = session._w(lua.flip_token(token), DOMAIN) if token else None
     groups = ([[token]] if token else []) + [pieces]
     session._w(lua.ping_objects([session.cfg.bot_seat, session.cfg.human_seat], groups), "misc")
-    session.say(f"{head}: cambio su miniatura" + (" y giro su ficha de habilidad" if token else "")
-                + "; ping sobre " + ("las dos" if token else "ella") + ".", ChatKind.ABILITY)
+    session.say(t("tr.form_both" if token else "tr.form_one", head=head), ChatKind.ABILITY)
 
     def check() -> None:
         if not result_of(op_state).get("guid"):
-            session.say(f"No he podido cambiar la miniatura de {name} a {now}: cambiala tu.", ChatKind.WARNING)
+            session.say(t("tr.form_fail_mini", name=name, form=now), ChatKind.WARNING)
         if op_token is not None and not result_of(op_token).get("flipped"):
-            session.say(f"No he podido girar la ficha de habilidad de {name}: girala tu.", ChatKind.WARNING)
+            session.say(t("tr.form_fail_token", name=name), ChatKind.WARNING)
     return [check]
 
 
@@ -650,10 +636,9 @@ def _ongoing_human(session, intent: dict, ctx: Ctx) -> list[Check]:
     if intent["player"] == session.bot:           # no spot configured, or the table refused the card
         title = _by_id(session, session.bot)[intent["card"]].title
         if session.cfg.bot_ongoing_spot is None:
-            session.say(f"El bot deja {title} en juego (ONGOING); sin bot_ongoing_spot en la configuracion la carta "
-                        "sigue en su mano en la mesa.", ChatKind.WARNING)
+            session.say(t("tr.ongoing_nospot", title=title), ChatKind.WARNING)
         else:
-            session.say(f"No he podido poner {title} en la zona ONGOING del bot: ponla tu.", ChatKind.WARNING)
+            session.say(t("tr.ongoing_fail", title=title), ChatKind.WARNING)
         return []
     by_id, was = _by_id(session, session.human), intent.get("replaces")
     replaced = t("fx.replaces", title=by_id[was].title) if was is not None and was in by_id else ""
@@ -672,7 +657,7 @@ def _ongoing_bot(session, intent: dict, ctx: Ctx) -> list[Check]:
     op = session._w(lua.place_card_face_up(card, cfg.bot_seat, x, y, z, cfg.rot_y, cfg.bot_card_ids,
                                            identity=session._identity()), DOMAIN)
     session.fx_in_flight.add(card)
-    session.say(f"El bot deja {title} en juego: la pone boca arriba en su zona ONGOING.", ChatKind.SCHEME)
+    session.say(t("tr.ongoing_placed", title=title), ChatKind.SCHEME)
 
     def check() -> None:
         if not result_of(op).get("placed"):

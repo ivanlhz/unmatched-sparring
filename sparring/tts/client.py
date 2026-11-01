@@ -10,6 +10,7 @@ import time
 from collections import deque
 from typing import Callable
 
+from ..i18n import t
 from . import lua
 from .lua import is_sendable
 
@@ -195,7 +196,7 @@ class TTSClient:
                     graced, deadline = True, time.monotonic() + self.late_grace
                     self.graces += 1
                     continue
-                raise TimeoutError("TTS no devolvio valor (esta ocupado, en pausa o recargando: revisa la ventana de TTS)") from None
+                raise TimeoutError(t("err.tts_no_value")) from None
             if self._absorb(msg):
                 continue
             data = msg["customMessage"]

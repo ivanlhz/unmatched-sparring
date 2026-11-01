@@ -8,6 +8,7 @@ go to the normal chooser. A preset fighter that the effect could not pick is a R
 spent."""
 from __future__ import annotations
 
+from ..i18n import t
 from ..state import Fighter, RuleError
 from . import events, ongoing
 from .choose import PresetChooser
@@ -30,7 +31,7 @@ def fighter_options(game, owner: int, ops: list, this_fid: str, card_id: int | N
 def _check_target(game, owner: int, ops: list, this_fid: str, card_id: int | None, target: Fighter | None,
                   what: str) -> None:
     if target is not None and target not in fighter_options(game, owner, ops, this_fid, card_id):
-        raise RuleError(f"{what}: {target.fid} no es un objetivo valido")
+        raise RuleError(t("err.bad_target", what=what, fid=target.fid))
 
 
 def preset_choosers(game, owner: int, by_kind: dict, base: dict | None = None) -> dict:

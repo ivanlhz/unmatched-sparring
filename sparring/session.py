@@ -41,16 +41,18 @@ from . import session_hidden as hidden
 from . import session_moves as moves
 from . import session_pile as pile
 from . import session_translators as translators
+from .session_choices import panel_text
 from .spaces import describe, zone_text
 from .combat import FEINT, GLANCE_DAMAGE, can_boost, deck_boost, is_medusa_card, scheme_gain_actions
 from .state import ANUNG, DETECTIVE, EXHAUST_DAMAGE, HAND_LIMIT, START_HAND, Fighter, Game, RuleError
 from .tts import lua, ui
 from .tts.lua import ChatKind
 from .tts.client import TTSClient, TTSLuaError
+from .i18n import plural, t, tn
 from .tts.ui import Event
 
 
-NUMBER_WORDS = {2: "dos", 3: "tres"}      # how many effects a scheme makes you pick, in the chat
+NUMBER_TAGS = {2: "scheme.number.two", 3: "scheme.number.three"}      # how many effects a scheme makes you pick, in the chat
 
 
 class SessionError(Exception):
@@ -232,7 +234,7 @@ ABILITY_EVENTS = (Event.END_ACTION, Event.HP, Event.REMOVE, Event.RESTART)   # w
 GATE_EVENTS = (Event.END_ACTION, Event.HP, Event.REMOVE, Event.RESTART)    # while the combat waits for a step of your hand
 LOOK_EVENTS = (Event.LOOK_PING, Event.CHOICE, Event.CANCEL, Event.END_ACTION, Event.HP, Event.REMOVE, Event.VALUE,
                Event.RESTART)
-CARD_TYPE_NAME = {"attack": "ataque", "defense": "defensa", "versatile": "versatil", "scheme": "esquema"}
+CARD_TYPE_TAGS = {"attack": "look.type.attack", "defense": "look.type.defense", "versatile": "look.type.versatile", "scheme": "look.type.scheme"}
 
 SNAP_KEYS = ("bot_hand", "human_count", "bot_discard", "human_discard", "face_bot", "face_human", "pieces", "dials")
 _COMBAT_KEYS = ("flip", "human_guid", "bot_seen", "alive_before", "before", "boost")   # Pending.combat (see _resolve_combat)
@@ -408,8 +410,8 @@ class Session:
         if self.first_mode is None:
             return
         who = self._name(self.game.hero(self.game.turn))
-        self.say(f"Sorteo: empieza {who}." if self.first_mode == "random"
-                 else f"Empieza {who} (elegido con --first {self.first_mode}).")
+        self.say(t("sess.first.random", who=who) if self.first_mode == "random"
+                 else t("sess.first.forced", who=who, mode=self.first_mode))
 
     def _bot_ability_coded(self) -> bool:
         """Only Medusa's start-of-turn ability is driven by the engine (`Game.use_ability`, effects/driven.py); the other
@@ -420,9 +422,7 @@ class Session:
         """Un heroe del bot sin habilidad codificada: se dice su texto y se juega por valor y boost, sin romper nada."""
         hero = self.game.hero_def(self.bot)
         if not self._bot_ability_coded() and hero.ability:
-            self.say(f"El bot juega {hero.name}. Su habilidad ('{hero.ability}') aun no esta codificada en el motor: "
-                     "el bot la ignora y juega por valor y boost; si te afecta, aplicala tu en la mesa.",
-                     ChatKind.ABILITY)
+            self.say(t("sess.hero_uncoded", name=hero.name, ability=hero.ability), ChatKind.ABILITY)
 
     def resume(self) -> list[str]:
         with self._timed("reanudar"):
@@ -437,16 +437,16 @@ class Session:
         self._preload_identities()
         self.game_log.resumed()
         self.game_log.observe(self.game, self._name)
-        self.say("Partida reanudada desde el guardado.")
+        self.say(t("sess.resumed"))
         if self.setup is not None:
-            self.say(f"La preparacion de la partida estaba en la etapa '{self.setup['stage']}'.")
+            self.say(t("sess.resume.setup", stage=self.setup["stage"]))
             self._setup_advance()
             self._write_dials(post=True)
             return self._done()
         self._open(announce_turn=False)
         self._write_dials(post=True)              # la mesa ensena ya la vida del motor, no la de antes del corte
         if self.game.winner is not None:
-            self.say(f"Fin de partida: gana el jugador {self.game.winner}. (Deshacer fin de partida si es un error.)")
+            self.say(t("sess.resume.game_over", winner=self.game.winner))
         elif self.look is not None:
             self._w(lua.set_look_row(self._look_entries()), "misc")     # la variable del panel no sobrevive a una recarga
             self.say(hidden.resume_prompt(self), ChatKind.YOUR_TURN)
@@ -460,22 +460,19 @@ class Session:
             self.say(pile.reprompt(self, pile.manual_request(self)), ChatKind.YOUR_TURN)
         elif self.effect_run is not None:
             self.choice_ui = choices.ChoiceUI()
-            self.say("Hay una eleccion de efecto pendiente: " + choices.prompt_text(self.game, self.effect_run.awaiting)
-                     + ". Pulsa una de las opciones del panel.", ChatKind.YOUR_TURN)
+            self.say(t("sess.resume.effect", prompt=choices.prompt_text(self.game, self.effect_run.awaiting)), ChatKind.YOUR_TURN)
         elif self._table_gate(self.pending):
-            self.say("Haz en la mesa lo de tu carta y pulsa Fin de accion: despues sigue el efecto de la otra carta.",
-                     ChatKind.YOUR_TURN)
+            self.say(t("sess.resume.table_gate"), ChatKind.YOUR_TURN)
         elif self.pending is not None and self.pending.wait is not None:
             self.say(self._boost_prompt(self.pending), ChatKind.YOUR_TURN)
         elif self.pending is not None:
-            self.say("Hay un combate pendiente: pulsa Revelar o Cancelar ataque.", ChatKind.YOUR_TURN)
+            self.say(t("sess.resume.combat"), ChatKind.YOUR_TURN)
         elif self.pending_discard is not None:
-            self.say("Hay un descarte pendiente: terminalo y pulsa Fin de accion.", ChatKind.YOUR_TURN)
+            self.say(t("sess.resume.discard"), ChatKind.YOUR_TURN)
         elif self.ability_wait is not None:
-            self.say(f"Tu habilidad de inicio de turno sigue pendiente: {self.ability_wait} Hazlo en la mesa y pulsa "
-                     "Fin de accion.", ChatKind.YOUR_TURN)
+            self.say(t("sess.resume.ability", wait=self.ability_wait), ChatKind.YOUR_TURN)
         elif self.game.turn == self.human:
-            self.say(f"Es tu turno y te quedan {self.game.actions_left} accion(es).", ChatKind.YOUR_TURN)
+            self.say(t("sess.resume.turn", n=self.game.actions_left), ChatKind.YOUR_TURN)
         return self._done()
 
     def _open(self, announce_turn: bool) -> None:
@@ -495,7 +492,7 @@ class Session:
         except TABLE_ERRORS as e:
             self._table_failure(e)
             if self.game.turn == self.bot:
-                self.say("Pulsa Fin de accion para que el bot retome su turno.", ChatKind.YOUR_TURN)
+                self.say(t("sess.bot_retry_hint"), ChatKind.YOUR_TURN)
 
     def _setup_new_game(self) -> None:
         """Solo al empezar una partida nueva: casillas de salida reales y manos iniciales."""
@@ -507,9 +504,9 @@ class Session:
         if not self._table_hand_ids():
             self.game.drawn[self.bot] = START_HAND
             self.dirty = True
-            self.say(f"El bot reparte sus {START_HAND} cartas iniciales.")
+            self.say(t("sess.bot_deals", n=START_HAND))
         if self._rd_human_count(1) == 0:
-            self.say(f"Roba tus {START_HAND} cartas iniciales (el bot no reparte a tu asiento).", ChatKind.YOUR_TURN)
+            self.say(t("sess.deal_yours", n=START_HAND), ChatKind.YOUR_TURN)
 
     # ---------- preparacion de la partida: maquina de estados persistida ----------
     # Etapas (self.setup["stage"]): las que ejecuta el bot solo, y las que esperan al humano (boton Listo).
@@ -550,11 +547,9 @@ class Session:
                     if self.setup["stage"] == "wait_human_first":
                         self._setup_place_hero()
                         names, many = self._sidekick_names(), len(self._sidekicks()) > 1
-                        place = (f", coloca a {names} en tu casilla de salida ({zone_text(self.game, self.game.start_spaces[self.human])})"
-                                 if names else "")
-                        where = ("donde " + ("los pusiste" if many else "lo pusiste")) if names else "donde esta tu heroe"
-                        self.say(f"Empiezas tu. Roba tus 5 cartas{place} y pulsa Listo. El bot colocara despues, "
-                                 f"viendo {where}.", ChatKind.YOUR_TURN)
+                        tag = ("setup.first.several" if many else "setup.first.single") if names else "setup.first.alone"
+                        self.say(t(tag, names=names, zone=zone_text(self.game, self.game.start_spaces[self.human])),
+                                 ChatKind.YOUR_TURN)
                 elif stage == "place_bot":
                     self._require_bot_hand_matches()
                     self._setup_place()
@@ -562,9 +557,8 @@ class Session:
                         self._setup_place_hero()
                         self.setup["stage"] = "wait_human"
                         names = self._sidekick_names()
-                        place = (f"coloca a {names} en tu casilla de salida ({zone_text(self.game, self.game.start_spaces[self.human])}), "
-                                 if names else "")
-                        self.say(f"Ahora {place}roba tus 5 cartas y pulsa Listo.", ChatKind.YOUR_TURN)
+                        self.say(t("setup.then.names", names=names, zone=zone_text(self.game, self.game.start_spaces[self.human]))
+                                 if names else t("setup.then.alone"), ChatKind.YOUR_TURN)
                     else:
                         self.setup["stage"] = "begin"
                 elif stage == "begin":
@@ -573,14 +567,14 @@ class Session:
                 self._persist()
         except TABLE_ERRORS as e:
             self._table_failure(e)
-            self.say("Pulsa Listo para reintentar la preparacion.", ChatKind.WARNING)
+            self.say(t("setup.retry"), ChatKind.WARNING)
 
     def _setup_hand(self) -> None:
         self._name_pieces()
         if not self._table_hand_ids():
             self.game.drawn[self.bot] = START_HAND
             self.dirty = True
-            self.say(f"El bot reparte sus {START_HAND} cartas iniciales.")
+            self.say(t("sess.bot_deals", n=START_HAND))
         self.read_bot_hand()
         if self.dirty:
             self._flush_table()
@@ -604,9 +598,9 @@ class Session:
             self._persist()
         if s["mull_decision"]:
             self._physical_mulligan()
-            self.say(f"{who} hace mulligan.")
+            self.say(t("setup.mulligan_bot", who=who))
         else:
-            self.say(f"{who} se queda la mano.")
+            self.say(t("setup.keep_bot", who=who))
         s["mull_done"] = True
 
     def _abandon_mulligan(self) -> None:
@@ -632,9 +626,9 @@ class Session:
         if step == "start":
             res = self._w(lua.return_hand_to_deck(c.bot_seat, c.bot_deck_guid, c.bot_card_ids, identity=self._identity()), "cards").result or {}
             if not res.get("deck"):
-                raise SessionError("no encuentro el mazo del bot para el mulligan")
+                raise SessionError(t("err.mull_no_deck"))
             if not self._settle(lambda: not self._table_hand_ids()):
-                raise SessionError("las cartas del bot no han vuelto al mazo; reintenta con Listo")
+                raise SessionError(t("err.mull_not_returned"))
             step = s["mull_step"] = "returned"
             self._persist()
         if step == "returned":
@@ -644,7 +638,7 @@ class Session:
                 r = self._w(lua.shuffle_deck(c.bot_deck_guid, c.bot_deck_spot, id_range=c.bot_card_ids, identity=self._identity()), "cards").result or {}
                 return bool(r.get("shuffled")) and r.get("quantity") == total
             if not self._settle(shuffled):
-                raise SessionError(f"no pude barajar el mazo completo del bot ({total} cartas); reintenta con Listo")
+                raise SessionError(t("err.shuffle", total=total))
             st = g.players[self.bot]
             st.hand, st.deck = [], [x for x in st.full_set if x not in st.discard]
             g.rng.shuffle(st.deck)
@@ -663,8 +657,7 @@ class Session:
         table = sorted(self._table_hand_ids())
         engine = sorted(c.card_id for c in self.game.players[self.bot].hand)
         if table != engine:
-            raise SessionError(f"la mano del bot en la mesa ({len(table)} cartas) no coincide con la del motor "
-                               f"({len(engine)}); reintenta con Listo")
+            raise SessionError(t("err.hand_mismatch", table=len(table), engine=len(engine)))
 
     def _setup_place(self) -> None:
         """Medusa y las Harpias se colocan en la mesa con move_piece y se verifican leyendo la mesa."""
@@ -677,20 +670,20 @@ class Session:
             g.fighters[fid].pos = space
             staged.append((fid, space, self._move_stage(fid, space, pieces)))
             if not self.cfg.batch and not staged[-1][2]():
-                raise SessionError(f"no pude mover la pieza de {self._name(g.fighters[fid])} a la casilla {space}")
+                raise SessionError(t("err.move_piece", name=self._name(g.fighters[fid]), space=space))
         if self.cfg.batch:
             for fid, space, moved in staged:
                 if not moved():
-                    raise SessionError(f"no pude mover la pieza de {self._name(g.fighters[fid])} a la casilla {space}")
+                    raise SessionError(t("err.move_piece", name=self._name(g.fighters[fid]), space=space))
 
         def placed() -> bool:
             pieces = self._table_pieces()
             return all((pieces.get(fid) or {}).get("found") and pieces[fid].get("space") == sp
                        for fid, sp in plan.items())
         if not self._settle(placed):
-            raise SessionError("las piezas del bot no estan donde debian; reintenta con Listo")
-        self.say("El bot coloca: " + "; ".join(f"{self._name(g.fighters[fid])} en {zone_text(g, sp)}"
-                                                for fid, sp in plan.items()) + ".")
+            raise SessionError(t("err.bot_pieces"))
+        self.say(t("setup.bot_places", places="; ".join(t("setup.bot_place_item", name=self._name(g.fighters[fid]), zone=zone_text(g, sp))
+                                                       for fid, sp in plan.items())))
 
     def _setup_place_hero(self) -> None:
         """El heroe del humano sale de su casilla de salida (fija por el reglamento): el bot lo coloca, lo verifica
@@ -702,21 +695,21 @@ class Session:
         space = g.start_spaces[self.human]
         hero.pos = space
         if not self._move_piece(hero.fid, space):
-            raise SessionError(f"no pude mover la pieza de {self._name(hero)} a la casilla {space}")
+            raise SessionError(t("err.move_piece", name=self._name(hero), space=space))
 
         def placed() -> bool:
             info = self._table_pieces().get(hero.fid) or {}
             return bool(info.get("found")) and info.get("space") == space
         if not self._settle(placed):
-            raise SessionError(f"{self._name(hero)} no esta en su casilla de salida; reintenta con Listo")
+            raise SessionError(t("err.hero_not_at_start", name=self._name(hero)))
         s["hero_placed"] = True
-        self.say(f"El bot coloca a {self._name(hero)} (tu heroe) en su casilla de salida ({zone_text(self.game, space)}).")
+        self.say(t("setup.bot_places_hero", name=self._name(hero), zone=zone_text(self.game, space)))
 
     def _setup_begin(self) -> None:
         g = self.game
         self.setup = None
         self.sync_human()
-        self.say("Preparacion terminada: empieza la partida.")
+        self.say(t("setup.done"))
         if g.turn == self.bot:
             self.bot_stage = "start"
             self._persist()
@@ -729,7 +722,7 @@ class Session:
         """Boton Listo: el humano termino de colocar (y robar). Se comprueba en la mesa antes de seguir."""
         s = self.setup
         if s is None:
-            self.say("No hay ninguna preparacion en curso.", ChatKind.WARNING)
+            self.say(t("setup.none"), ChatKind.WARNING)
             return
         if s["stage"] in ("wait_human_first", "wait_human"):
             try:
@@ -747,18 +740,17 @@ class Session:
         dice que devuelva la mano, baraje y robe 5 (el humano roba en su asiento)."""
         s = self.setup
         if s is None:
-            self.say("El mulligan solo se hace durante la preparacion, antes de pulsar Listo.", ChatKind.WARNING)
+            self.say(t("setup.mull.only_setup"), ChatKind.WARNING)
         elif not self.cfg.mulligan_human:
-            self.say("El mulligan del humano esta desactivado en la configuracion (mulligan_human).", ChatKind.WARNING)
+            self.say(t("setup.mull.disabled"), ChatKind.WARNING)
         elif s["stage"] not in ("wait_human_first", "wait_human"):
-            self.say("Espera a que el bot termine de preparar su mano y pulsa Mulligan despues.", ChatKind.WARNING)
+            self.say(t("setup.mull.wait_bot"), ChatKind.WARNING)
         elif s.get("human_mull"):
-            self.say(f"Ya has hecho tu mulligan: solo se puede una vez. Pulsa Listo cuando tengas {START_HAND} cartas.", ChatKind.WARNING)
+            self.say(t("setup.mull.done", n=START_HAND), ChatKind.WARNING)
         else:
             s["human_mull"] = True
-            self.say(f"Mulligan: devuelve tu mano a tu mazo, baraja y vuelve a robar {START_HAND} cartas. "
-                     + (f"Despues coloca a {self._sidekick_names()} y pulsa Listo." if self._sidekicks()
-                        else "Despues pulsa Listo."), ChatKind.YOUR_TURN)
+            self.say(t("setup.mull.go.sidekick", n=START_HAND, names=self._sidekick_names()) if self._sidekicks()
+                     else t("setup.mull.go.plain", n=START_HAND), ChatKind.YOUR_TURN)
 
     def _human_setup_ok(self) -> bool:
         g = self.game
@@ -769,14 +761,14 @@ class Session:
                 continue
             info = self._table_pieces().get(fid) or {}
             if not self._on_board(info) or not g.board.share_zone(start, info["space"]):
-                self.say(f"Falta colocar a {self._name(f)} en tu casilla de salida ({zone_text(self.game, start)}).", ChatKind.WARNING)
+                self.say(t("setup.missing_piece", name=self._name(f), zone=zone_text(self.game, start)), ChatKind.WARNING)
                 return False
         count = self._rd_human_count(0)
         if count == 0:
-            self.say(f"Roba tus {START_HAND} cartas antes de pulsar Listo.", ChatKind.WARNING)
+            self.say(t("setup.draw_first", n=START_HAND), ChatKind.WARNING)
             return False
         if (self.setup or {}).get("human_mull") and count != START_HAND:
-            self.say(f"Tras tu mulligan debes tener {START_HAND} cartas en la mano (tienes {count}).", ChatKind.WARNING)
+            self.say(t("setup.mull_count", n=START_HAND, count=count), ChatKind.WARNING)
             return False
         return True
 
@@ -790,11 +782,11 @@ class Session:
         try:
             self._w(lua.name_pieces(names), "misc")
         except (ValueError, *TABLE_ERRORS) as e:
-            self.say(f"Aviso: no pude poner nombre a las miniaturas ({e}).", ChatKind.WARNING)
+            self.say(t("sess.name_pieces_warn", err=e), ChatKind.WARNING)
 
     def _say_triggers(self) -> None:
         for kind, line in self.game.fx.said:      # your triggers (Wildfire's return, your Pact at the end of a turn)
-            self.say(("Tu carta: " if kind == "card" else "Tu habilidad: ") + line, ChatKind.ABILITY)
+            self.say(t("sess.trigger.card" if kind == "card" else "sess.trigger.ability", line=line), ChatKind.ABILITY)
         self.game.fx.said.clear()
 
     def _done(self) -> list[str]:
@@ -812,13 +804,11 @@ class Session:
 
     def _table_failure(self, e: Exception) -> None:
         if isinstance(e, SessionError):
-            self.say(f"Error de mesa: {e}", ChatKind.WARNING)
+            self.say(t("sess.table_error", err=e), ChatKind.WARNING)
         elif isinstance(e, (TTSLuaError, TimeoutError)):
-            self.say(f"TTS no respondio como se esperaba ({e}); repite el boton "
-                     "(Fin de accion si el bot estaba jugando).", ChatKind.WARNING)
+            self.say(t("sess.tts_odd", err=e), ChatKind.WARNING)
         else:
-            self.say(f"Error de mesa y de conexion: no consigo hablar con TTS ({e}); esta cerrado? "
-                     "Se reintentara con el siguiente boton.", ChatKind.WARNING)
+            self.say(t("sess.tts_down", err=e), ChatKind.WARNING)
 
     def handle(self, event: Event, payload: dict | None = None) -> list[str]:
         payload = dict(payload or {})
@@ -838,28 +828,26 @@ class Session:
                  Event.LOOK: self._look_hand, Event.LOOK_PING: self._look_ping, Event.CHOICE: self._choice}
         if self.setup is not None and event not in (Event.READY, Event.HP, Event.REMOVE, Event.CANCEL, Event.VALUE,
                                                     Event.MULLIGAN, Event.RESTART):
-            self.say("La partida aun se esta preparando: termina la colocacion y pulsa Listo.", ChatKind.WARNING)
+            self.say(t("sess.setting_up"), ChatKind.WARNING)
             return self._done()
         if self.look is not None and event not in LOOK_EVENTS:
             self.say(hidden.resume_prompt(self), ChatKind.WARNING)
             return self._done()
         if self._paused() is not None and event not in CHOICE_EVENTS:
-            self.say("Hay una eleccion de efecto pendiente: responde con uno de los botones de opcion.", ChatKind.WARNING)
+            self.say(t("sess.effect_pending"), ChatKind.WARNING)
             return self._done()
         if self._table_gate(self.pending) and event not in GATE_EVENTS:
-            self.say("Haz primero en la mesa lo de tu carta y pulsa Fin de accion: el combate sigue despues.",
-                     ChatKind.WARNING)
+            self.say(t("sess.table_first"), ChatKind.WARNING)
             return self._done()
         if self.ability_wait is not None and event not in ABILITY_EVENTS:
-            self.say(f"Primero tu habilidad de inicio de turno, en la mesa: {self.ability_wait} Luego pulsa Fin de accion.",
-                     ChatKind.WARNING)
+            self.say(t("sess.ability_first", wait=self.ability_wait), ChatKind.WARNING)
             return self._done()
         if event is not Event.RESTART:
             self._restart_at = None               # cualquier otro boton desarma la confirmacion
         try:
             table[event](payload)
         except RuleError as e:
-            self.say(f"Accion ilegal: {e}", ChatKind.WARNING)
+            self.say(t("sess.illegal", err=e), ChatKind.WARNING)
         except TABLE_ERRORS as e:
             self._table_failure(e)
         return self._done()
@@ -914,20 +902,20 @@ class Session:
         return bot_effects.read_human_hand(self, player)
 
     def _project_effects(self, before: dict | None, played: frozenset = frozenset(),
-                         cause: str = bot_effects.BOT_CAUSE) -> Callable[[], None]:
+                         cause: str | None = None) -> Callable[[], None]:
         """Queues what a step changed on the table beyond the bot's own pieces and discards (`session_bot_effects`);
         a table failure is said once, the table wins at the next read. `cause`: whose effect the chat blames."""
         try:
             fin = bot_effects.project(self, before, played, cause)
         except TABLE_ERRORS as e:
-            self.say(f"Aviso: no he podido reflejar en la mesa un efecto del bot ({e}).", ChatKind.WARNING)
+            self.say(t("sess.warn_project", err=e), ChatKind.WARNING)
             return lambda: None
 
         def run() -> None:
             try:
                 fin()
             except TABLE_ERRORS as e:
-                self.say(f"Aviso: no he podido comprobar en la mesa un efecto del bot ({e}).", ChatKind.WARNING)
+                self.say(t("sess.warn_check", err=e), ChatKind.WARNING)
         return run
 
     def _human_played(self, p: Pending) -> frozenset:
@@ -968,7 +956,7 @@ class Session:
 
     def _begin_effect(self, run: EffectRun) -> None:
         if self._paused() is not None:
-            raise RuleError("ya hay una eleccion de efecto pendiente")
+            raise RuleError(t("err.effect_pending"))
         self.free_effect = run
         self._continue_effect(run)
 
@@ -988,13 +976,12 @@ class Session:
         if pile.manual_request(self) is not None:
             pile.start(self, req)                 # cards the human moves from their discard to their deck: no options
             return
-        self.say(choices.prompt_text(self.game, req) + ": pulsa una de las opciones del panel ("
-                 + choices.options_text(self.game, req) + ")." + choices.card_text_hint(self.game, req),
-                 ChatKind.YOUR_TURN)
+        self.say(t("sess.choice_hint", prompt=choices.prompt_text(self.game, req), options=choices.options_text(self.game, req),
+                   hint=choices.card_text_hint(self.game, req)), ChatKind.YOUR_TURN)
 
     def _effect_finished(self) -> None:
         self.choice_ui = choices.ChoiceUI()
-        self.say("Efecto resuelto.", ChatKind.NEUTRAL)
+        self.say(t("sess.effect_done"), ChatKind.NEUTRAL)
         self._write_dials(post=True)              # heals and damage of the effect: the table dials catch up
 
     def _guarded(self, step: Callable[[], None]) -> bool:
@@ -1005,7 +992,7 @@ class Session:
             step()
         except RuleError as e:
             self._restore(saved)
-            self.say(f"Accion ilegal: {e}", ChatKind.WARNING)
+            self.say(t("sess.illegal", err=e), ChatKind.WARNING)
             return False
         except Exception:
             self._restore(saved)
@@ -1020,7 +1007,7 @@ class Session:
     def _choice(self, payload: dict) -> None:
         paused = self._paused()
         if paused is None:
-            self.say("No hay ninguna eleccion pendiente.", ChatKind.WARNING)
+            self.say(t("sess.no_choice"), ChatKind.WARNING)
             return
         kind, holder, run = paused
         if hidden.manual_request(self) is not None:      # look-and-discard: the human acts on the table, this is Hecho
@@ -1041,7 +1028,7 @@ class Session:
         try:
             run.awaiting.validate(value)
         except ValueError as e:
-            self.say(f"Respuesta no valida: {e}", ChatKind.WARNING)
+            self.say(t("sess.bad_answer", err=e), ChatKind.WARNING)
             return
         self._answer_choice(paused, value)
 
@@ -1086,7 +1073,7 @@ class Session:
             else:
                 human_effects.finish(self, run)
                 if self.moving and self.game.turn == self.human:
-                    self.say("Pulsa Fin de accion cuando termines.", ChatKind.YOUR_TURN)
+                    self.say(t("sess.press_end"), ChatKind.YOUR_TURN)
         if self.game.turn == self.bot and self.pending is None and self.game.winner is None:
             self._bot_continue()
 
@@ -1148,7 +1135,7 @@ class Session:
             return
         if card is not None and choices.grants_look(self.game, self.human, card):
             self.grant_look()
-            self.say(f"{card.title} te deja mirar la mano del bot: pulsa Mirar mano del bot.", ChatKind.YOUR_TURN)
+            self.say(t("look.granted", title=card.title), ChatKind.YOUR_TURN)
 
     # ---------- restrictions on the human ----------
     def _blocked_buttons(self) -> dict[str, str]:
@@ -1183,8 +1170,7 @@ class Session:
         """Doble pulsacion (3 s): la primera arma, la segunda reinicia."""
         if not self.restart_armed():
             self._restart_at = self.clock()
-            self.say("Reiniciar partida: pulsa otra vez en 3 segundos para confirmar. Todas las cartas vuelven a sus "
-                     "mazos, la vida se restaura, las piezas salen del tablero y se borra el guardado.", ChatKind.WARNING)
+            self.say(t("restart.arm"), ChatKind.WARNING)
             return
         self._restart_at = None
         if self.look is not None:
@@ -1196,8 +1182,8 @@ class Session:
             try:
                 self.state_path.unlink(missing_ok=True)
             except OSError as e:
-                self.say(f"No pude borrar el guardado {self.state_path}: {e}", ChatKind.WARNING)
-        self.say("Partida reiniciada: vuelta al reparto, el mulligan y la colocacion.")
+                self.say(t("restart.delete_fail", path=self.state_path, err=e), ChatKind.WARNING)
+        self.say(t("restart.done"))
         self._begin_game()
 
     def _fresh_game(self) -> Game:
@@ -1217,7 +1203,7 @@ class Session:
         c = self.cfg
         bot_spot, human_spot = c.dead_spot, human_dead_spot(c)
         if bot_spot is None or human_spot is None:
-            raise SessionError("falta dead_spot en la configuracion: no hay donde apartar las miniaturas")
+            raise SessionError(t("err.no_dead_spot"))
         scope = self._scope()
         sizes = {"bot": len(fresh.players[self.bot].full_set), "human": len(fresh.players[self.human].full_set)}
         self._flush()
@@ -1228,7 +1214,7 @@ class Session:
             decks["human"] = self._w(lua.reset_deck(c.human_deck_guid, c.human_deck_spot, c.human_card_ids,
                                                     identity=self._identity("human"), scope=scope), "cards")
         else:
-            self.say("Aviso: sin human_deck_guid no puedo devolver tus cartas a tu mazo; hazlo tu.", ChatKind.WARNING)
+            self.say(t("restart.no_human_deck"), ChatKind.WARNING)
         pieces = self._table_pieces()
         for owner, spot, sign in ((self.bot, bot_spot, 1.5), (self.human, human_spot, -1.5)):
             for slot, f in enumerate(sorted(fresh.own(owner, alive_only=False), key=lambda f: f.fid)):
@@ -1245,8 +1231,7 @@ class Session:
         for side, op in decks.items():
             res = op.result or {}
             if not res.get("deck") or res.get("quantity") != sizes[side]:
-                raise SessionError(f"el mazo {'del bot' if side == 'bot' else 'tuyo'} no ha quedado completo "
-                                   f"({res.get('quantity')} de {sizes[side]} cartas); repite Reiniciar partida")
+                raise SessionError(t("err.deck_incomplete", side=t("sess.side.bot" if side == "bot" else "sess.side.human"), got=res.get("quantity"), want=sizes[side]))
         own = {x.card_id for x in fresh.players[self.bot].full_set}
 
         def clean() -> bool:
@@ -1256,8 +1241,7 @@ class Session:
                     and not on_board and ("human" not in decks or self._rd_human_count(0) == 0)
                     and all((dials.get(g) or {}).get("value") == v for g, v in want.items()))
         if not self._settle(clean):
-            raise SessionError("el reinicio no ha dejado la mesa limpia (manos, descartes, piezas o diales); "
-                               "repite Reiniciar partida")
+            raise SessionError(t("err.reset_dirty"))
 
     def _check_reset_plan(self, scope: lua.Scope, sizes: dict[str, int]) -> None:
         """Antes de mover nada: cada bando tiene que poder reunir TODAS sus cartas en su mazo. Si uno no puede, el
@@ -1269,15 +1253,13 @@ class Session:
         plans = self.client.call_lua(lua.reset_plan(
             [(guid, spot, rng, self._identity(side)) for side, guid, spot, rng in sides], scope=scope))
         if not isinstance(plans, list) or len(plans) != len(sides):
-            raise TTSLuaError(f"respuesta no valida del plan de reinicio: {str(plans)[:80]!r}")
+            raise TTSLuaError(t("err.reset_plan", got=repr(str(plans)[:80])))
         for (side, *_), plan in zip(sides, plans):
             plan = plan if isinstance(plan, dict) else {}
             total, gatherable = plan.get("total"), plan.get("deck") or (plan.get("loose") or 0) >= 2
             if total != sizes[side] or not gatherable:
-                raise SessionError(
-                    f"no puedo reunir las {sizes[side]} cartas del mazo {'del bot' if side == 'bot' else 'tuyo'} "
-                    f"(a mi alcance hay {total if isinstance(total, int) else 0}); no he movido nada. Deja todas sus "
-                    "cartas en la mano, el descarte, la zona de combate o el mazo y repite Reiniciar partida")
+                raise SessionError(t("err.reset_gather", n=sizes[side], side=t("sess.side.bot" if side == "bot" else "sess.side.human"),
+                                     found=total if isinstance(total, int) else 0))
 
     def _adopt_fresh(self, fresh: Game) -> None:
         """La sesion pasa a la partida nueva, conservando el cliente, la configuracion y los ajustes de ejecucion."""
@@ -1484,7 +1466,7 @@ class Session:
         try:
             persist.save_atomic(self.state_path, self.to_dict())
         except OSError as e:
-            self.say(f"No pude guardar la partida en {self.state_path}: {e}", ChatKind.WARNING)
+            self.say(t("sess.save_fail", path=self.state_path, err=e), ChatKind.WARNING)
 
     def guids_in_use(self) -> list[str]:
         """Todos los GUID de la configuracion que deben seguir existiendo tras recargar la partida."""
@@ -1504,13 +1486,13 @@ class Session:
 
     def _require_human_turn(self) -> bool:
         if self.game.winner is not None:
-            self.say("La partida ha terminado (Deshacer fin de partida si es un error de PV).", ChatKind.WARNING)
+            self.say(t("game.ended"), ChatKind.WARNING)
             return False
         if self.game.turn != self.human or self.pending is not None or self.pending_discard is not None:
-            self.say("Ahora no es posible: termina la resolucion en curso (Revelar / Fin de accion) o espera tu turno.", ChatKind.WARNING)
+            self.say(t("sess.not_possible"), ChatKind.WARNING)
             return False
         if self.moving:
-            self.say("Ya tienes una accion abierta: resuelvela en la mesa y pulsa Fin de accion antes de empezar otra.", ChatKind.WARNING)
+            self.say(t("sess.action_open"), ChatKind.WARNING)
             return False
         return True
 
@@ -1529,14 +1511,14 @@ class Session:
         try:
             fin = self._flush_table_stage()
         except TABLE_ERRORS as e:
-            self.say(f"Aviso: la mesa del bot aun no coincide con el motor ({e}); se reintentara.", ChatKind.WARNING)
+            self.say(t("sess.warn_table_behind", err=e), ChatKind.WARNING)
             return lambda: None
 
         def run() -> None:
             try:
                 fin()
             except TABLE_ERRORS as e:
-                self.say(f"Aviso: la mesa del bot aun no coincide con el motor ({e}); se reintentara.", ChatKind.WARNING)
+                self.say(t("sess.warn_table_behind", err=e), ChatKind.WARNING)
         return run
 
     # ---------- botones del humano ----------
@@ -1550,18 +1532,17 @@ class Session:
         st = self.game.players[self.human]
         self.maneuver_baseline = [c.card_id for c in st.discard]
         if not self.game.fx.can_draw(self.human):
-            self.say(f"Maniobra: {choices.NO_DRAW_REASON}. Mueve tus miniaturas y pulsa Fin de accion.", ChatKind.YOUR_TURN)
+            self.say(t("maneuver.no_draw", reason=choices.NO_DRAW_REASON), ChatKind.YOUR_TURN)
             return
         if not self.cfg.human_deck_guid:
             self._draw_human_by_button(1)
             self._announce_exhaustion(hp0, alive0)
-            self.say("Maniobra: robas 1. Mueve tus miniaturas y pulsa Fin de accion.", ChatKind.YOUR_TURN)
+            self.say(t("maneuver.drew"), ChatKind.YOUR_TURN)
             return
         if not st.deck:                           # mazo vacio: agotamiento por el mismo camino que el del bot
             self._draw_human_by_button(1)
             self._announce_exhaustion(hp0, alive0)
-            self.say("Maniobra: tu mazo esta vacio, no robas. Mueve tus miniaturas (puedes potenciar descartando "
-                     "una carta) y pulsa Fin de accion.", ChatKind.YOUR_TURN)
+            self.say(t("maneuver.empty"), ChatKind.YOUR_TURN)
             return
         self._deal_maneuver_card(st)
 
@@ -1575,24 +1556,21 @@ class Session:
             script = lua.deal_cards(c.human_deck_guid, 1, c.human_seat, spot=c.human_deck_spot,
                                     id_range=c.human_card_ids, identity=self._identity("human"))
         except TABLE_ERRORS as e:
-            self.say(f"No he podido darte la carta de la Maniobra ({e}). Roba tu carta a mano y pulsa Fin de accion.", ChatKind.WARNING)
+            self.say(t("deal.maneuver_fail", err=e), ChatKind.WARNING)
             return
         try:
             op = self._w(script, "cards")
         except TABLE_ERRORS as e:             # la respuesta puede llegar tarde con la carta ya repartida
-            self.say(f"No he podido confirmar el reparto de tu carta ({e}): mira tu mano; si no tienes la carta nueva, "
-                     "roba a mano y pulsa Fin de accion.", ChatKind.WARNING)
+            self.say(t("deal.confirm_fail", err=e), ChatKind.WARNING)
             return
         drawn = self._draw_human_by_button(1)
-        self.say("Maniobra: te he dado 1 carta. Mueve tus miniaturas (puedes potenciar descartando una carta) y "
-                 "pulsa Fin de accion", ChatKind.YOUR_TURN)
+        self.say(t("maneuver.dealt"), ChatKind.YOUR_TURN)
 
         def check() -> bool:
             try:
                 dealt = (op.result or {}).get("dealt")
             except TABLE_ERRORS:
-                self.say("No he podido confirmar el reparto de tu carta: mira tu mano. Roba tu carta a mano si no "
-                         "tienes la nueva.", ChatKind.WARNING)
+                self.say(t("deal.confirm_fail_short"), ChatKind.WARNING)
                 self._deal_check = None
                 return False
             if dealt != 1:
@@ -1602,7 +1580,7 @@ class Session:
                         st.deck.insert(0, card)
                         self.game.drawn[self.human] = max(0, self.game.drawn[self.human] - 1)
                         self.human_dealt = max(0, self.human_dealt - 1)
-                self.say("No he podido darte la carta. Roba tu carta a mano y pulsa Fin de accion.", ChatKind.WARNING)
+                self.say(t("deal.card_fail"), ChatKind.WARNING)
                 self._deal_check = None
                 return False
             self._deal_check = (before, 1, discarded)
@@ -1634,8 +1612,7 @@ class Session:
                 d["draw_cause"] = cause
             if not d.get("draws_told"):
                 d["draws_told"] = True
-                self.say(f"Cuando hayas descartado y pulses Fin de accion te doy {translators.plural(n)}.",
-                         ChatKind.YOUR_TURN)
+                self.say(t("deal.after_discard", cards=plural(n, "noun.card")), ChatKind.YOUR_TURN)
             return
         self.human_dealt = drawn
         translators.translate(self, {"op": "draw", "player": self.human, "n": n, "cause": cause},
@@ -1650,7 +1627,7 @@ class Session:
         """The bot variant of the `draw` translator: `n` cards from the human's physical deck to their hand."""
         c, st = self.cfg, self.game.players[self.human]
         why = f" ({cause})" if cause else ""
-        plural = translators.plural(n)
+        cards = plural(n, "noun.card")
         before, discarded = len(st.hand) - n, len(st.discard)
         try:
             script = lua.deal_cards(c.human_deck_guid, n, c.human_seat, spot=c.human_deck_spot,
@@ -1659,17 +1636,15 @@ class Session:
         except TABLE_ERRORS as e:
             # Nothing was written, so the engine's count is the only record: it stays (the next reading of the hand
             # settles it when he draws by hand) and the cards are not owed again (`human_dealt` already caught up).
-            self.say(f"No he podido darte {plural}{why} ({e}). Roba {plural} a mano y pulsa Fin de accion.", ChatKind.WARNING)
+            self.say(t("deal.fail", cards=cards, why=why, err=e), ChatKind.WARNING)
             return
-        self.say(f"Te he dado {plural}{why}." + (" Lo que te toca descartar es lo que tenias antes, no estas."
-                                                   if self.pending_discard else ""), ChatKind.SCHEME)
+        self.say(t("deal.given_discard" if self.pending_discard else "deal.given", cards=cards, why=why), ChatKind.SCHEME)
 
         def check() -> bool:
             try:
                 dealt = (op.result or {}).get("dealt")
             except TABLE_ERRORS as err:
-                self.say(f"No he podido confirmar el reparto de {plural}{why} ({err}): mira tu mano; si te faltan, roba a mano "
-                         "y pulsa Fin de accion.", ChatKind.WARNING)
+                self.say(t("deal.confirm_fail_n", cards=cards, why=why, err=err), ChatKind.WARNING)
                 self._deal_check = None
                 return False
             if dealt != n:
@@ -1677,8 +1652,7 @@ class Session:
                 # (hand -> deck, `drawn` and `human_dealt` down) so it matches what the table really holds.
                 short = n - (dealt if isinstance(dealt, int) else 0)
                 self._undraw_human(short)
-                self.say(f"No he podido darte {short} de las {plural}{why}. Roba {short} a mano y pulsa Fin de accion.",
-                         ChatKind.WARNING)
+                self.say(t("deal.short", short=short, cards=cards, why=why), ChatKind.WARNING)
                 self._deal_check = None
                 return False
             self._deal_check = (before, n, discarded)
@@ -1709,9 +1683,9 @@ class Session:
         played = max(0, discard_now - discarded) + len(self._rd_face("human"))
         if real + played < before + n:
             if n == 1:
-                self.say("La carta que te di no ha llegado a tu mano. Roba tu carta a mano.", ChatKind.WARNING)
+                self.say(t("deal.missing_one"), ChatKind.WARNING)
             else:
-                self.say(f"Las {n} cartas que te di no han llegado a tu mano. Roba a mano.", ChatKind.WARNING)
+                self.say(t("deal.missing_n", n=n), ChatKind.WARNING)
 
     def _check_maneuver_boost(self) -> None:
         """A card without BOOST value (Liz's burning cards) put in the discard during the Maniobra boosts nothing
@@ -1721,7 +1695,7 @@ class Session:
             return
         for c in self.game.players[self.human].discard:
             if c.card_id not in base and not can_be_boost(c):
-                self.say(f"{c.title} no tiene valor de impulso: no cuenta como potenciacion de la Maniobra.", ChatKind.WARNING)
+                self.say(t("maneuver.no_boost_value", title=c.title), ChatKind.WARNING)
 
     def _announce_exhaustion(self, hp0: dict[str, float], alive0: dict[str, bool]) -> None:
         """Robar con el mazo vacio hace dano a todos: se anuncia y se escribe igual que cualquier otro dano."""
@@ -1729,13 +1703,12 @@ class Session:
         hurt = [f for fid, f in g.fighters.items() if f.hp != hp0[fid]]
         if not hurt:
             return
-        self.say("Mazo vacio: " + self._hp_text(hp0).removeprefix("PV: ") + ".", ChatKind.COMBAT)
+        self.say(t("exhaust.line", hp=self._hp_changes(hp0)), ChatKind.COMBAT)
         for f in hurt:
             if alive0[f.fid] and not f.alive:
                 self._announce_fall(f)
         if g.winner is not None:
-            self.say(f"Fin de partida: gana el jugador {g.winner}. Si ha sido un error de PV, corrige con +1 "
-                     "o pulsa Deshacer fin de partida.")
+            self.say(t("game.over_fix", winner=g.winner))
         self._write_dials(post=True)
         self._drop_pending_if_gone()
 
@@ -1748,10 +1721,9 @@ class Session:
         self.scheme_baseline = [c.card_id for c in self.game.players[self.human].discard]
         if self._resolve_human_scheme(wait=not self.cfg.batch):
             if self._paused() is None:
-                self.say("Pulsa Fin de accion cuando termines.", ChatKind.YOUR_TURN)
+                self.say(t("sess.press_end"), ChatKind.YOUR_TURN)
         else:
-            self.say("Plan: deja tu carta de plan boca arriba en tu descarte; la reconozco sola y aplico lo que no "
-                     "necesite eleccion tuya. Pulsa Fin de accion cuando termines.", ChatKind.YOUR_TURN)
+            self.say(t("scheme.prompt"), ChatKind.YOUR_TURN)
 
     def _resolve_human_scheme(self, wait: bool) -> bool:
         """Espera (acotado) a que la carta de plan del humano aparezca boca arriba en su descarte, la identifica por
@@ -1781,27 +1753,24 @@ class Session:
             human_effects.play_scheme(self, c)
         elif (traits := self._scheme_traits(c)).get("discards_hand"):
             g.draw(self.human, traits["draw"])
-            self.say(f"Detecto {c.title}: aplicado, {self._gain_actions(scheme_gain_actions(c))}. Descartar tu mano "
-                     "lo haces tu: son tus cartas.", ChatKind.SCHEME)
+            self.say(t("scheme.detect_discard", title=c.title, gain=self._gain_actions(scheme_gain_actions(c))), ChatKind.SCHEME)
         elif traits.get("bonus"):
             old = g.add_combat_bonus(self.human, traits["bonus"], c.title)
             if old is not None:
-                self.say(f"{c.title} reemplaza a {old}: solo hay un ONGOING activo por jugador.", ChatKind.SCHEME)
+                self.say(t("scheme.replaces", title=c.title, old=old), ChatKind.SCHEME)
             total = g.combat_bonus_total(self.human)
             g.draw(self.human, traits["draw"])
-            self.say(f"Detecto {c.title}: +{traits['bonus']} a tus cartas de combate hasta el inicio de tu siguiente "
-                     f"turno (ahora +{total}). Mover hasta 5 lo haces tu en la mesa; descarta el plan al "
-                     "empezar tu siguiente turno.", ChatKind.SCHEME)
+            self.say(t("scheme.detect_bonus", title=c.title, bonus=traits["bonus"], total=total), ChatKind.SCHEME)
         elif traits.get("choose"):
-            times = {1: "una vez", 2: "dos veces"}.get(traits["heal"], f"{traits['heal']:g} veces")
-            self.say(f"Detecto {c.title}: tienes que elegir {NUMBER_WORDS.get(traits['choose'], traits['choose'])} efectos. "
-                     f"Para curar a {g.hero(self.human).name} {traits['heal']:g} pulsa su +1 {times}; "
-                     "el mazo lo haces tu en la mesa.", ChatKind.SCHEME)
+            heal, choose = traits["heal"], traits["choose"]
+            times = t({1: "scheme.times.one", 2: "scheme.times.two"}.get(heal, "scheme.times.other"), n=heal)
+            count = t(NUMBER_TAGS[choose]) if choose in NUMBER_TAGS else choose
+            self.say(t("scheme.detect_choose", title=c.title, count=count, hero=g.hero(self.human).name, heal=heal, times=times),
+                     ChatKind.SCHEME)
         elif scheme_gain_actions(c):
-            self.say(f"Detecto {c.title}: {self._gain_actions(scheme_gain_actions(c))}; "
-                     f"lo demas lo resuelves tu: {c.text} Usa +1 / -1 para los PV.", ChatKind.SCHEME)
+            self.say(t("scheme.detect_gain", title=c.title, gain=self._gain_actions(scheme_gain_actions(c)), text=c.text), ChatKind.SCHEME)
         else:
-            self.say(f"Detecto {c.title}: {c.text} Resuelvelo a mano; usa +1 / -1 para los PV.", ChatKind.SCHEME)
+            self.say(t("scheme.detect_plain", title=c.title, text=c.text), ChatKind.SCHEME)
 
     def _scheme_traits(self, card: Card) -> dict:
         """What the data of a human's scheme says about it (`ongoing.scheme_traits`), for the heroes the interpreter
@@ -1812,25 +1781,25 @@ class Session:
         """Grants the actions a scheme gives (the engine refuses them under Cold Iron And Holy Water) and says so."""
         g = self.game
         if not g.fx.can_gain_actions(self.human):
-            return f"no ganas las {n} acciones (un efecto en juego lo impide), te quedan {g.actions_left}"
+            return t("gain.blocked", n=n, left=g.actions_left)
         g.grant_actions(n)
-        return f"ganas {n} accion{'es' if n != 1 else ''}, te quedan {g.actions_left}"
+        return tn("gain.ok", n, left=g.actions_left)
 
     def _value(self, payload: dict) -> None:
         raw = payload.get("value")
         if raw is None:
             raw = 0
         if isinstance(raw, bool) or not isinstance(raw, (int, float)) or not math.isfinite(raw) or abs(raw) > 100:
-            self.say("Valor no valido: escribe un numero entre -100 y 100.", ChatKind.WARNING)
+            self.say(t("value.invalid"), ChatKind.WARNING)
             return
         if self.pending is None:
-            self.say("No hay combate pendiente: el valor extra solo vale antes de Revelar, en el combate en curso.", ChatKind.WARNING)
+            self.say(t("value.no_combat"), ChatKind.WARNING)
             return
         if self.pending.wait is not None:
-            self.say("El boost se lee de tu descarte al pulsar Continuar: no hace falta escribir un valor.", ChatKind.WARNING)
+            self.say(t("value.boost_read"), ChatKind.WARNING)
             return
         self.pending_value = int(raw)
-        self.say(f"Valor extra registrado: {self.pending_value}")
+        self.say(t("value.registered", value=self.pending_value))
 
     def _choose_attacker(self, payload: dict) -> None:
         if not self._require_human_turn():
@@ -1839,47 +1808,46 @@ class Session:
         fid = str(payload.get("attacker", "")).removeprefix("att_")
         f = self.game.fighters.get(fid)
         if f is not None and f.owner == self.human and not f.alive:
-            self.say(f"{self._name(f)} esta muerto: no puede atacar.", ChatKind.WARNING)
+            self.say(t("attack.dead", name=self._name(f)), ChatKind.WARNING)
             return
         if f is None or f.owner != self.human:
-            self.say(f"Atacante no valido: {payload.get('attacker')!r}.", ChatKind.WARNING)
+            self.say(t("attack.bad_attacker", value=repr(payload.get("attacker"))), ChatKind.WARNING)
             return
         self._try_flush_table()
         self.sync_positions()                     # lo movido fuera de una accion (Wildfire al empezar el turno) cuenta ya
         self.chosen_attacker = fid
-        self.say(f"Ataca {fid}: elige el objetivo.", ChatKind.YOUR_TURN)
+        self.say(t("attack.chosen", fid=fid), ChatKind.YOUR_TURN)
 
     def _attack(self, payload: dict) -> None:
         if not self._require_human_turn():
             return
         self._check_may_attack()
         if self.chosen_attacker is None:
-            who = " / ".join(f"Ataca {self._name(f)}" for f in self.game.own(self.human))
-            self.say(f"Elige primero quien ataca ({who}).", ChatKind.WARNING)
+            who = " / ".join(t("panel.attacker", name=self._name(f)) for f in self.game.own(self.human))
+            self.say(t("attack.pick_first", who=who), ChatKind.WARNING)
             return
         target = self.game.fighters.get(str(payload.get("target", "")))
         if target is None or target.owner != self.bot or not target.alive:
-            self.say(f"Objetivo no valido: {payload.get('target')!r}.", ChatKind.WARNING)
+            self.say(t("attack.bad_target", value=repr(payload.get("target"))), ChatKind.WARNING)
             return
         self._begin_action()
         if self.pending is not None:              # una jugada con respuesta tardia: la carta ya esta en la mesa
             if not self.pending.defended:
-                self.say("Ya hay un ataque abierto: pon tu carta de ataque boca abajo y pulsa Revelar (o Cancelar).", ChatKind.WARNING)
+                self.say(t("attack.open"), ChatKind.WARNING)
             else:
-                self.say("La carta del bot ya esta en la mesa: pulsa Revelar.", ChatKind.WARNING)
+                self.say(t("combat.bot_card_on_table"), ChatKind.WARNING)
             return
         attacker = self.game.fighters[self.chosen_attacker]
         if not self.game.can_attack(attacker, target):
             self.chosen_attacker = None
-            raise RuleError(f"{attacker.fid} no alcanza a {target.fid}")
+            raise RuleError(t("err.out_of_reach", attacker=attacker.fid, target=target.fid))
         self.pending = Pending("human_attacks", attacker, target, None, None, defended=False)
         self.chosen_attacker = None
-        self.say(f"{attacker.fid} ataca a {target.fid}: pon tu carta de ataque boca abajo en tu zona de combate "
-                 "y pulsa Revelar.", ChatKind.YOUR_TURN)
+        self.say(t("attack.declared", attacker=attacker.fid, target=target.fid), ChatKind.YOUR_TURN)
         carry, self.declared_carry = self.declared_carry, None
         if carry is not None and (carry["attacker"], carry["target"]) == (attacker.fid, target.fid):
             self.pending.declared = carry["declared"]     # the same attack again: declared already, nothing fires twice
-            self.say("UNCANNY INTUITION ya aplicada a este ataque (ficha gastada y carta robada antes).", ChatKind.ATTACK)
+            self.say(t("attack.intuition_carry"), ChatKind.ATTACK)
             return
         hidden.intuition_notice(self, target)
 
@@ -1921,34 +1889,32 @@ class Session:
             if p.wait.extra["stuck"]:
                 self._cancel_stuck_boost(p)
                 return
-            self.say("Las cartas ya estan giradas: no se puede cancelar. Pulsa Continuar (con tu carta de boost en el "
-                     "descarte) o Sin boost.", ChatKind.WARNING)
+            self.say(t("cancel.flipped"), ChatKind.WARNING)
             return
         if p is not None and p.kind != "human_attacks":
-            self.say("No se puede cancelar un ataque del bot: revela (sin carta si no tienes defensa).", ChatKind.WARNING)
+            self.say(t("cancel.bot_attack"), ChatKind.WARNING)
             return
         if p is not None:
             self._return_bot_card(p)
             self.pending, self.pending_value, self.chosen_attacker = None, 0, None
-            self.say("Ataque cancelado: la accion no se ha gastado.")
+            self.say(t("cancel.done"))
             if p.declared is not None:            # Ivan (29/10): the token spent and the card drawn stand
                 self.declared_carry = {"attacker": p.attacker.fid, "target": p.target.fid, "declared": p.declared}
-                self.say(f"UNCANNY INTUITION ya se aplico a este ataque: si {self._name(p.attacker)} vuelve a atacar a "
-                         f"{self._name(p.target)} no se gasta otra ficha ni se roba otra vez.", ChatKind.ATTACK)
+                self.say(t("cancel.intuition_again", attacker=self._name(p.attacker), target=self._name(p.target)), ChatKind.ATTACK)
             return
         if self.pending_discard is not None:
             self.limit_waived = self.pending_discard["kind"] == "limit"
             self.pending_discard = None
-            self.say("Descarte pendiente anulado: la mesa manda y se sincroniza en el proximo Fin de accion.")
+            self.say(t("cancel.discard"))
             return
         if self.dirty or self.unprojected is not None or self.flush_failures:
             self.adopt_table()
             return
         if self.chosen_attacker is not None or self.pending_value:
             self.pending_value, self.chosen_attacker = 0, None
-            self.say("Seleccion de atacante y valor extra borrados.")
+            self.say(t("cancel.selection"))
             return
-        self.say("No hay nada que cancelar.", ChatKind.WARNING)
+        self.say(t("cancel.nothing"), ChatKind.WARNING)
 
     def _return_bot_card(self, p: Pending) -> None:
         if not p.bot_card_guid:
@@ -1957,20 +1923,20 @@ class Session:
             res = self._w(lua.return_card_to_hand(p.bot_card_guid, self.cfg.bot_seat), "cards").result or {}
             want = p.bot_card.card_id
             if not res.get("returned"):
-                raise SessionError("no pude devolver la carta del bot a su mano; repite Cancelar ataque")
+                raise SessionError(t("err.return_card"))
             if not self._settle(lambda: want in self._table_hand_ids()):
-                raise SessionError("la carta del bot no ha vuelto a su mano; repite Cancelar ataque")
+                raise SessionError(t("err.card_not_back"))
         except TABLE_ERRORS:
             p.cancel_failures += 1
             if p.cancel_failures < 2:
                 raise
-            self.say(f"No he podido devolver {p.bot_card.title} a la mano del bot: ponla tu en su mano.", ChatKind.WARNING)
+            self.say(t("cancel.put_back", title=p.bot_card.title), ChatKind.WARNING)
         self.read_bot_hand()
 
     def _reveal(self, _: dict) -> None:
         p = self.pending
         if p is None:
-            self.say("No hay combate pendiente.", ChatKind.WARNING)
+            self.say(t("combat.none"), ChatKind.WARNING)
             return
         if self._drop_pending_if_gone():
             return
@@ -1985,13 +1951,13 @@ class Session:
         mine = {c.card_id: c for c in g.players[self.human].full_set}
         theirs = [r for r in seen if r["id"] in mine]  # por propiedad del CardID, nunca por orden
         if len(theirs) > 1:
-            self.say(f"Hay {len(theirs)} cartas tuyas boca abajo en la zona: deja solo una y pulsa Revelar.", ChatKind.WARNING)
+            self.say(t("reveal.many", n=len(theirs)), ChatKind.WARNING)
             return
         human_card = mine[theirs[0]["id"]] if theirs else None
         try:
             if p.kind == "human_attacks":
                 if human_card is None:
-                    raise RuleError("no hay ninguna carta tuya boca abajo en la zona de combate")
+                    raise RuleError(t("err.no_card_down"))
                 g.check_attack_card(p.attacker, human_card)
                 if not p.defended and hidden.ask_prediction(self, p, human_card):
                     return                        # Perfect Shot: the human predicts before the bot defends
@@ -2004,12 +1970,12 @@ class Session:
                 if human_card:
                     g.check_defense_card(p.target, human_card)
         except RuleError as e:
-            self.say(f"Carta ilegal: {e}. Cambiala o dale la vuelta y pulsa Revelar otra vez.", ChatKind.WARNING)
+            self.say(t("reveal.illegal", err=e), ChatKind.WARNING)
             return
         human_guid = theirs[0]["guid"] if theirs else None
         if human_card is not None and can_boost(human_card):      # your attack (Second Shot) or your defense (Out Of Time)
             if p.bot_card is not None and is_medusa_card(p.bot_card) and p.bot_card.title == FEINT:
-                self.say(f"{p.bot_card.title} cancela los efectos de {human_card.title}: no hay boost que jugar.", ChatKind.COMBAT)
+                self.say(t("reveal.feint", bot=p.bot_card.title, card=human_card.title), ChatKind.COMBAT)
             else:
                 self._await_boost(p, human_card, human_guid)
                 return
@@ -2026,12 +1992,9 @@ class Session:
         p.wait = PendingChoice("boost", self.human, card.card_id, deck_boost(card),
                                {"guid": guid, "baseline": baseline, "hand": self._rd_human_count(-1), "stuck": False})
         if p.wait.deck:
-            self.say(f"{card.title} revelado: pon la carta del FONDO de tu mazo en tu descarte y pulsa Continuar (Sin "
-                     "boost si tu mazo esta vacio). Si es ardiente, recogela despues: Wildfire la devuelve a tu mano.",
-                     ChatKind.YOUR_TURN)
+            self.say(t("boost.revealed_deck", title=card.title), ChatKind.YOUR_TURN)
         else:
-            self.say(f"{card.title} revelado: si quieres potenciar, pon una carta de tu mano en tu descarte y pulsa "
-                     "Continuar (o Sin boost).", ChatKind.YOUR_TURN)
+            self.say(t("boost.revealed", title=card.title), ChatKind.YOUR_TURN)
 
     def _boost(self, _: dict) -> None:
         self._finish_boost(True)
@@ -2041,18 +2004,13 @@ class Session:
 
     def _boost_prompt(self, p: Pending) -> str:
         if p.wait.extra["stuck"]:
-            return ("El combate no se pudo resolver con la mesa actual: corrige la posicion o la carta y pulsa "
-                    "Continuar o Sin boost, o pulsa Cancelar para deshacerlo (las cartas vuelven a quedar boca abajo).")
-        if p.wait.deck:
-            return ("Las cartas ya estan reveladas: pon la carta del fondo de tu mazo en el descarte y pulsa "
-                    "Continuar, o pulsa Sin boost.")
-        return ("Las cartas ya estan reveladas: pon tu carta de boost en el descarte y pulsa Continuar, "
-                "o pulsa Sin boost.")
+            return t("boost.stuck")
+        return t("boost.prompt_deck" if p.wait.deck else "boost.prompt")
 
     def _finish_boost(self, use: bool) -> None:
         p = self.pending
         if p is None or p.wait is None:
-            self.say("No hay ningun boost pendiente.", ChatKind.WARNING)
+            self.say(t("boost.none"), ChatKind.WARNING)
             return
         if self._drop_pending_if_gone():
             return
@@ -2062,23 +2020,20 @@ class Session:
             seen = {r["id"] for r in self._rd_human_discard() if r["id"] in mine}
             new = sorted(seen - set(p.wait.extra["baseline"]) - {card.card_id})
             if not new:
-                self.say("No veo ninguna carta nueva en tu descarte: ponla y pulsa Continuar, o pulsa Sin boost.", ChatKind.WARNING)
+                self.say(t("boost.no_new"), ChatKind.WARNING)
                 return
             if len(new) > 1:
-                self.say(f"Hay {len(new)} cartas nuevas en tu descarte ({', '.join(mine[i].title for i in new)}): "
-                         "deja solo la del boost y pulsa Continuar.", ChatKind.WARNING)
+                self.say(t("boost.many_new", n=len(new), titles=", ".join(mine[i].title for i in new)), ChatKind.WARNING)
                 return
             before, now = p.wait.extra["hand"], self._rd_human_count(-1)
             if p.wait.deck:          # Flame Lash: sale del fondo del mazo, la mano no cambia
                 before = -1
             if isinstance(before, int) and before >= 0 and now >= 0 and now != before - 1:
-                self.say(f"El boost tiene que salir de tu mano: tenias {before} cartas y ahora tienes {now} "
-                         f"(deberian ser {max(before - 1, 0)}). Corrigelo y pulsa Continuar, o pulsa Sin boost.", ChatKind.WARNING)
+                self.say(t("boost.from_hand", before=before, now=now, expected=max(before - 1, 0)), ChatKind.WARNING)
                 return
             boost = mine[new[0]]
             if not p.wait.deck and not can_be_boost(boost):
-                self.say(f"{boost.title} no tiene valor de impulso: no cuenta. Quita esa carta del descarte y pon otra "
-                         "con valor de impulso, o pulsa Sin boost.", ChatKind.WARNING)
+                self.say(t("boost.no_value", title=boost.title), ChatKind.WARNING)
                 return
         self.sync_positions()                     # la mesa manda: algo pudo moverse mientras se esperaba
         self._resolve_combat(p, card, p.wait.extra["guid"], flip=False, boost=boost)
@@ -2092,7 +2047,7 @@ class Session:
         self._unflip([(p.bot_card_guid, "bot"), (p.wait.extra["guid"], "human")])
         self._return_bot_card(p)
         self.pending, self.pending_value, self.chosen_attacker = None, 0, None
-        self.say("Combate cancelado: la accion no se ha gastado. Recoge tu carta de la zona de combate.")
+        self.say(t("cancel.stuck"))
 
     def _resolve_combat(self, p: Pending, human_card: Card | None, human_guid: str | None, flip: bool,
                         boost: Card | None) -> None:
@@ -2128,10 +2083,9 @@ class Session:
         except RuleError as e:
             self._undo_combat(saved, human_card, flipped)
             if self.pending.wait is not None:
-                self.say(f"No se puede resolver el combate: {e}. Corrige la mesa y pulsa Continuar o Sin boost "
-                         "otra vez, o pulsa Cancelar para deshacerlo.", ChatKind.WARNING)
+                self.say(t("combat.cant_resolve", err=e), ChatKind.WARNING)
             else:
-                self.say(f"Carta ilegal: {e}. Cambiala y pulsa Revelar otra vez.", ChatKind.WARNING)
+                self.say(t("reveal.illegal_fix", err=e), ChatKind.WARNING)
             return
         except Exception:
             self._undo_combat(saved, human_card, flipped)
@@ -2153,7 +2107,7 @@ class Session:
         fin_dials = self._tell_damage_dealt(p)
         if self._table_gate(p):
             self._tell_human_effects(p)
-        cause = "efectos del combate" if human_effects.human_ran(p.flow) else bot_effects.BOT_CAUSE
+        cause = t("cause.combat_effects") if human_effects.human_ran(p.flow) else None
         fin_fx = self._project_effects(p.combat.get("fx"), self._human_played(p), cause)
         self._try_flush_table()
         fin_dials()
@@ -2164,7 +2118,7 @@ class Session:
         elif self._table_gate(p):
             self.moving = True
             nxt = p.flow.sides[p.flow.side_idx].card.title
-            self.say(f"Haz en la mesa lo de tu carta y pulsa Fin de accion: despues se resuelve {nxt}.", ChatKind.YOUR_TURN)
+            self.say(t("combat.table_gate", next=nxt), ChatKind.YOUR_TURN)
 
     @staticmethod
     def _table_gate(p: Pending | None) -> bool:
@@ -2176,7 +2130,7 @@ class Session:
         what was said, so the end of the combat and a resume say only the rest)."""
         told = p.combat["told"]
         for e in p.flow.result.human_effects[told.get("human_fx", 0):]:
-            self.say(f"Tu carta: {e}", ChatKind.YOUR_TURN)
+            self.say(t("sess.trigger.card", line=e), ChatKind.YOUR_TURN)
         told["human_fx"] = len(p.flow.result.human_effects)
 
     def _release_table_gate(self) -> None:
@@ -2202,16 +2156,16 @@ class Session:
         res, bot = p.flow.result, g.players[self.bot]
         first = len(self.messages)
         self.say(self._combat_text(p, res), ChatKind.COMBAT)
-        pending = [(card, why) for card, why in ((res.atk_card, "ataque"), (res.def_card, "defensa"))
+        pending = [(card, why) for card, why in ((res.atk_card, t("cause.attack")), (res.def_card, t("cause.defense")))
                    if card is not None and card in bot.full_set and card not in bot.discard]    # leave at the end of the flow
         reasons = {card.card_id: why for card, why in pending}
         if res.boost_card is not None and res.boost_card in bot.full_set:
-            reasons[res.boost_card.card_id] = "boost de combate"
-        listed = [self._discard_list(c["bot_seen"], reasons, "efecto")] + [f"{card.title} por {why}" for card, why in pending]
+            reasons[res.boost_card.card_id] = t("cause.combat_boost")
+        listed = [self._discard_list(c["bot_seen"], reasons, t("cause.effect"))] + [t("combat.discard_item", title=card.title, why=why) for card, why in pending]
         if line := ", ".join(x for x in listed if x):
-            self.say(f"El bot descarta {line}.")
+            self.say(t("combat.bot_discards", list=line))
         for e in res.applied:
-            self.say(f"Aplicado: {e}", ChatKind.WARNING)
+            self.say(t("combat.applied", text=e), ChatKind.WARNING)
         for e in res.bot_notes:
             self.say(e, ChatKind.WARNING)
         for fid, was in c["alive_before"].items():
@@ -2258,20 +2212,20 @@ class Session:
         if told is None:
             self.say(self._combat_text(p, res), ChatKind.COMBAT)
         reasons = {}
-        for card, why in ((res.atk_card, "ataque"), (res.def_card, "defensa")):
+        for card, why in ((res.atk_card, t("cause.attack")), (res.def_card, t("cause.defense"))):
             if card is not None and card in g.players[self.bot].full_set:
                 reasons[card.card_id] = why
         if res.boost_card is not None and res.boost_card in g.players[self.bot].full_set:
-            reasons[res.boost_card.card_id] = "boost de combate"
-        listed = self._discard_list(c["bot_seen"], reasons, "efecto", told=set(told["ids"]) if told else ())
+            reasons[res.boost_card.card_id] = t("cause.combat_boost")
+        listed = self._discard_list(c["bot_seen"], reasons, t("cause.effect"), told=set(told["ids"]) if told else ())
         if listed:
-            self.say(f"El bot descarta {listed}.")
+            self.say(t("combat.bot_discards", list=listed))
         for e in res.applied[told["applied"] if told else 0:]:
-            self.say(f"Aplicado: {e}", ChatKind.WARNING)
+            self.say(t("combat.applied", text=e), ChatKind.WARNING)
         for e in res.bot_notes[told["notes"] if told else 0:]:
             self.say(e, ChatKind.WARNING)
         for e in res.human_effects[(told or {}).get("human_fx", 0):]:   # your card: what the engine applied and what you do on the table
-            self.say(f"Tu carta: {e}", ChatKind.YOUR_TURN)
+            self.say(t("sess.trigger.card", line=e), ChatKind.YOUR_TURN)
         for fid, was in c["alive_before"].items():
             f = g.fighters[fid]
             if was and not f.alive and f.owner == self.human:    # las del bot las retira _project
@@ -2280,7 +2234,7 @@ class Session:
         self._track_destiny()
         if told is None and (p.kind == "bot_attacks" or self._bot_answer_moves(c, reasons)):
             self._announce_before(said_first)       # its attack resolved (or its answer to yours moved cards or pieces): said and held before the table moves
-        cause = "efectos del combate" if human_effects.human_ran(p.flow) else bot_effects.BOT_CAUSE
+        cause = t("cause.combat_effects") if human_effects.human_ran(p.flow) else None
         fin_fx = self._project_effects(c.get("fx"), self._human_played(p), cause)
         fin_dials = self._write_dials(defer=True)
         fin_table = self._try_flush_stage()
@@ -2288,21 +2242,21 @@ class Session:
         fin_table()
         fin_fx()
         if g.winner is not None:
-            self.say(f"Fin de partida: gana el jugador {g.winner}.")
+            self.say(t("game.over", winner=g.winner))
             return
         self.moving = True
-        self.say("Resuelve los efectos de despues del combate (mover piezas, descartar) y pulsa Fin de accion.", ChatKind.YOUR_TURN)
+        self.say(t("combat.after"), ChatKind.YOUR_TURN)
 
     def _combat_text(self, p: Pending, res) -> str:
         """Cuenta de donde sale cada total: carta jugada, bonos y carta de impulso, con sus titulos."""
-        a, t = self._name(p.attacker), self._name(p.target)
-        atk = f"{a} ataca con {res.atk_parts[0]}" + "".join(
-            f" y {part}" if i == 0 else f", {part}" for i, part in enumerate(res.atk_parts[1:]))
+        attacker, target = self._name(p.attacker), self._name(p.target)
+        atk = t("combat.atk", who=attacker, parts=res.atk_parts[0]) + "".join(
+            t("combat.join_and" if i == 0 else "combat.join_comma", part=part) for i, part in enumerate(res.atk_parts[1:]))
         if res.def_card is None:
-            dfn = f"{t} no defiende"
+            dfn = t("combat.no_def", who=target)
         else:
-            dfn = f"{t} defiende con {res.def_parts[0]}" + "".join(f", {part}" for part in res.def_parts[1:])
-        return f"Combate: {atk}: total {res.atk_value}. {dfn}: total {res.def_value}. Dano {res.damage}."
+            dfn = t("combat.def", who=target, parts=res.def_parts[0]) + "".join(t("combat.join_comma", part=part) for part in res.def_parts[1:])
+        return t("combat.line", atk=atk, atk_value=res.atk_value, dfn=dfn, def_value=res.def_value, damage=res.damage)
 
     def _track_destiny(self) -> bool:
         """Cuenta los destinos de Hellboy en su descarte (el motor los iguala al descarte de la mesa en sync_human),
@@ -2327,16 +2281,12 @@ class Session:
 
     def _announce_destiny(self, prev: tuple[int, str] | None, now: tuple[int, str]) -> None:
         if prev is not None and prev[0] != now[0]:
-            self.say(f"Destinos de Hellboy: {now[0]} (antes {prev[0]})." if now[0] < prev[0]
-                     else f"Destinos de Hellboy: {now[0]} (en su descarte).", ChatKind.ABILITY)
+            self.say(t("destiny.down", n=now[0], prev=prev[0]) if now[0] < prev[0] else t("destiny.up", n=now[0]), ChatKind.ABILITY)
         if prev is not None and prev[1] != now[1]:
             if now[1] == ANUNG:
-                self.say(f"Hellboy pasa a ANUNG UN RAMA ({now[0]} destinos, 6 o mas): dale la vuelta a su miniatura "
-                         "(cambia de GUID, el bot ya lo reconoce). Sus ataques suman +2 y al empezar tu turno "
-                         "descartas 1 carta y mueves hasta su BOOST.", ChatKind.ABILITY)
+                self.say(t("destiny.anung", n=now[0]), ChatKind.ABILITY)
             else:
-                self.say(f"Hellboy vuelve a OCCULT DETECTIVE ({now[0]} destinos): devuelvele su miniatura a la forma "
-                         "normal.", ChatKind.ABILITY)
+                self.say(t("destiny.detective", n=now[0]), ChatKind.ABILITY)
 
     def _write_dials(self, only_destiny: bool = False, defer: bool = False, post: bool = False):
         """Escribe los diales (ver `_put_dials`). Todo fallo, venga de donde venga, deja la deuda `dial_debt`: el
@@ -2380,16 +2330,14 @@ class Session:
         if self.cfg.destiny_dial:
             owner = self._destiny_owner()
             want[self.cfg.destiny_dial] = 0 if owner is None else g.destiny_count(owner)
-            label[self.cfg.destiny_dial] = "el dial de destinos"
+            label[self.cfg.destiny_dial] = t("cause.destiny_dial")
         try:
             now = self._rd_dials(sorted(want))
             touched = [gd for gd, v in want.items() if self._hand_edited(gd, v, now)]
             if touched:
-                self.say("No toco " + "; ".join(f"{label[gd]} (marca {now[gd]['value']:g}, el motor {want[gd]})"
-                                                for gd in touched)
-                         + ": parece cambiado a mano. "
-                         + " ".join(f"Pon {label[gd]} en {want[gd]} si el motor tiene razon; usa +1/-1 si el dial "
-                                    "tiene razon." for gd in touched), ChatKind.WARNING)
+                self.say(t("dials.touched",
+                           items="; ".join(t("dials.item", label=label[gd], mark=now[gd]["value"], want=want[gd]) for gd in touched),
+                           advice=" ".join(t("dials.advice", label=label[gd], want=want[gd]) for gd in touched)), ChatKind.WARNING)
                 for gd in touched:                # solo ese dial se respeta: los demas se escriben y se comprueban
                     del want[gd]
             if want:
@@ -2398,7 +2346,7 @@ class Session:
                 if self.cfg.batch:
                     self._dials_pending |= set(want)
         except TABLE_ERRORS as e:
-            self.say(f"No pude actualizar los diales de vida ({e}); corrigelos a mano.", ChatKind.WARNING)
+            self.say(t("dials.update_fail", err=e), ChatKind.WARNING)
             return lambda: False
 
         def verify() -> bool:
@@ -2414,12 +2362,12 @@ class Session:
                            and seen[gd]["value"] == v for gd, v in want.items())
             try:
                 if not self._settle(matches):
-                    bad = [f"{label[gd]} deberia marcar {want[gd]}" for gd in want
+                    bad = [t("dials.should", label=label[gd], want=want[gd]) for gd in want
                            if (seen.get(gd) or {}).get("value") != want[gd]]
-                    self.say("No pude comprobar los diales de vida: " + "; ".join(bad) + ". Corrigelos a mano.", ChatKind.WARNING)
+                    self.say(t("dials.check_fail", bad="; ".join(bad)), ChatKind.WARNING)
                     return False
             except TABLE_ERRORS as e:
-                self.say(f"No pude actualizar los diales de vida ({e}); corrigelos a mano.", ChatKind.WARNING)
+                self.say(t("dials.update_fail", err=e), ChatKind.WARNING)
                 return False
             self.dials_written.update(want)
             owner = self._destiny_owner()
@@ -2440,15 +2388,20 @@ class Session:
         humano que lo ponga; Fin de accion retoma el turno. Nunca se sigue en silencio."""
         self.dial_debt = True
         self._persist()
-        self.say("Turno del bot en pausa: pon a mano los diales indicados arriba y pulsa Fin de accion para que siga.", ChatKind.WARNING)
+        self.say(t("dials.paused"), ChatKind.WARNING)
 
-    def _hp_text(self, before: dict[str, float], skip: str | tuple | list | None = None) -> str:
+    def _hp_changes(self, before: dict[str, float], skip: str | tuple | list | None = None) -> str:
         """Cambios de PV desde `before`: 'Lobster Johnson de 6 a 3'. (ASCII: los mensajes tambien salen por broadcast.)"""
         g = self.game
         skipped = (skip,) if isinstance(skip, str) else (skip or ())
-        parts = [f"{self._name(f)} de {before[fid]:g} a {max(f.hp, 0):g}" for fid, f in g.fighters.items()
+        parts = [t("hp.part", name=self._name(f), before=before[fid], after=max(f.hp, 0)) for fid, f in g.fighters.items()
                  if fid not in skipped and fid in before and f.hp != before[fid]]
-        return "PV: " + ", ".join(parts) if parts else ""
+        return ", ".join(parts)
+
+    def _hp_text(self, before: dict[str, float], skip: str | tuple | list | None = None) -> str:
+        """The HP line of a step ('PV: Lobster Johnson de 6 a 3'), empty when nothing changed."""
+        changes = self._hp_changes(before, skip)
+        return t("hp.line", parts=changes) if changes else ""
 
     def _flip_script(self, guid: str, side: str, face_up: bool = True) -> str:
         ids = self.cfg.bot_card_ids if side == "bot" else self.cfg.human_card_ids
@@ -2483,7 +2436,7 @@ class Session:
             try:
                 self._w(self._flip_script(guid, side, face_up=False), "flip").result
             except TABLE_ERRORS:
-                self.say("No pude volver a ocultar una carta: giala boca abajo a mano.", ChatKind.WARNING)
+                self.say(t("unflip.fail"), ChatKind.WARNING)
 
     def _end_action(self, _: dict) -> None:
         if self.look is not None:                 # E3's reveal row has nothing to discard: everything goes back
@@ -2493,27 +2446,26 @@ class Session:
             self._release_table_gate()
             return
         if self.pending is not None and not self._drop_pending_if_gone():
-            self.say("Termina primero el boost: pulsa Continuar o Sin boost." if self.pending.wait is not None
-                     else "Revela primero el combate en curso.", ChatKind.WARNING)
+            self.say(t("end.finish_boost" if self.pending.wait is not None else "end.reveal_first"), ChatKind.WARNING)
             return
         if self.game.winner is not None:
-            self.say("La partida ha terminado (Deshacer fin de partida si es un error de PV).", ChatKind.WARNING)
+            self.say(t("game.ended"), ChatKind.WARNING)
             return
         self._flush_table()                       # si el ultimo intento fallo, se reintenta antes que nada
         if self.pending is not None:              # la carta jugada con respuesta tardia aparecio en la mesa
-            self.say("La carta del bot ya esta en la mesa: pulsa Revelar.", ChatKind.WARNING)
+            self.say(t("combat.bot_card_on_table"), ChatKind.WARNING)
             return
         self.sync_positions()
         self.sync_human()
         if self.scheme_baseline is not None and not self._resolve_human_scheme(wait=False):
-            self.say("No he visto ninguna carta de plan nueva en tu descarte: resuelve el plan a mano.", ChatKind.WARNING)
+            self.say(t("end.no_scheme"), ChatKind.WARNING)
         self.scheme_baseline = None
         if self._paused() is not None:            # the plan asks you something: the turn cannot end (nor its actions be counted) before the answer
             return
         self._check_maneuver_boost()
         if self.ability_wait is not None:         # the table was read: your start-of-turn ability is done
             self.ability_wait = None
-            self.say("Habilidad de inicio de turno hecha.", ChatKind.ABILITY)
+            self.say(t("end.ability_done"), ChatKind.ABILITY)
         self._check_dials()
         self.moving = False
         if self.pending_discard is not None and not self._discard_done():
@@ -2530,7 +2482,7 @@ class Session:
     def _fighter_arg(self, payload: dict) -> Fighter | None:
         f = self.game.fighters.get(str(payload.get("fighter", "")))
         if f is None:
-            self.say(f"Luchador no valido: {payload.get('fighter')!r}.", ChatKind.WARNING)
+            self.say(t("fighter.bad", value=repr(payload.get("fighter"))), ChatKind.WARNING)
         return f
 
     def _name(self, f: Fighter) -> str:
@@ -2542,15 +2494,14 @@ class Session:
 
     def _sidekick_names(self) -> str:
         names = [self._name(f) for f in self._sidekicks()]
-        return names[0] if len(names) == 1 else ", ".join(names[:-1]) + " y " + names[-1] if names else ""
+        return names[0] if len(names) == 1 else ", ".join(names[:-1]) + t("common.and") + names[-1] if names else ""
 
     def _after_hp_change(self, f: Fighter) -> None:
         g = self.game
         if not f.alive:
             self._announce_fall(f)
         if g.winner is not None:
-            self.say(f"Fin de partida: gana el jugador {g.winner}. Si ha sido un error de PV, corrige con +1 "
-                     "o pulsa Deshacer fin de partida.")
+            self.say(t("game.over_fix", winner=g.winner))
         self._write_dials(post=True)
         self._drop_pending_if_gone()
 
@@ -2564,7 +2515,7 @@ class Session:
         gone = p.attacker if not p.attacker.alive else p.target
         self._return_bot_card(p)
         self.pending, self.pending_value, self.chosen_attacker = None, 0, None
-        self.say(f"Combate cancelado: {self._name(gone)} ya no esta en juego. La accion no se ha gastado.", ChatKind.WARNING)
+        self.say(t("combat.gone", name=self._name(gone)), ChatKind.WARNING)
         return True
 
     def _hp(self, payload: dict) -> None:
@@ -2574,19 +2525,19 @@ class Session:
         if f is None:
             return
         if isinstance(delta, bool) or delta not in (1, -1):
-            self.say(f"Ajuste de PV no valido: {delta!r} (solo +1 o -1).", ChatKind.WARNING)
+            self.say(t("hp.bad_delta", delta=repr(delta)), ChatKind.WARNING)
             return
         g = self.game
         if delta < 0:
             if not f.alive:
-                self.say(f"{self._name(f)} ya esta fuera.", ChatKind.WARNING)
+                self.say(t("hp.out", name=self._name(f)), ChatKind.WARNING)
                 return
             g.damage(f, 1, "manual")
         elif f.alive:
             g.heal(f, 1)
         elif not self._revive(f):
             return
-        self.say(f"{self._name(f)}: {f.hp:g} PV.", ChatKind.COMBAT)
+        self.say(t("hp.now", name=self._name(f), hp=f.hp), ChatKind.COMBAT)
         self._after_hp_change(f)
 
     def _remove(self, payload: dict) -> None:
@@ -2595,7 +2546,7 @@ class Session:
         if f is None:
             return
         if not f.alive:
-            self.say(f"{self._name(f)} ya esta fuera.", ChatKind.WARNING)
+            self.say(t("hp.out", name=self._name(f)), ChatKind.WARNING)
             return
         self.game.damage(f, f.hp, "manual")
         self._after_hp_change(f)
@@ -2612,9 +2563,9 @@ class Session:
             pos = info["space"]
         elif force:
             pos = self.game.start_spaces[f.owner]
-            self.say(f"Coloca a {self._name(f)} en {describe(self.game, pos, (f.fid,), self._name)} (no esta en el tablero).", ChatKind.YOUR_TURN)
+            self.say(t("revive.place", name=self._name(f), where=describe(self.game, pos, (f.fid,), self._name)), ChatKind.YOUR_TURN)
         else:
-            self.say(f"No puedo reponer a {self._name(f)}: su miniatura no esta en el tablero. Colocala y repite.", ChatKind.WARNING)
+            self.say(t("revive.cannot", name=self._name(f)), ChatKind.WARNING)
             return False
         f.alive, f.hp, f.pos = True, 1, pos
         if f.hero and self.game.winner == 1 - f.owner:
@@ -2626,13 +2577,13 @@ class Session:
     def _undo_game_over(self, _: dict) -> None:
         g = self.game
         if g.winner is None:
-            self.say("No hay fin de partida que deshacer.", ChatKind.WARNING)
+            self.say(t("undo.none"), ChatKind.WARNING)
             return
         g.winner = None
         for f in g.fighters.values():
             if f.hero and not f.alive:
                 self._revive(f, force=True)
-        self.say("Partida reabierta: los heroes caidos vuelven con 1 PV. Corrige los PV con +1 / -1.")
+        self.say(t("undo.done"))
         self._write_dials(post=True)
         self._drop_pending_if_gone()
 
@@ -2656,8 +2607,7 @@ class Session:
             f, info = self.game.fighters[fid], res.get(guid) or {}
             value = info.get("value")
             if f.alive and isinstance(value, (int, float)) and value != f.hp:
-                self.say(f"Aviso: el dial de {self._name(f)} marca {value:g} y el motor {f.hp:g}: "
-                         "ajusta con +1 / -1 o corrige el dial.", ChatKind.WARNING)
+                self.say(t("dials.warn", name=self._name(f), value=value, hp=f.hp), ChatKind.WARNING)
 
     # ---------- descartes del humano ----------
     def _owe_discard(self, n: int, reason: str) -> None:
@@ -2685,7 +2635,7 @@ class Session:
                 moved = [i for i in res.get("moved") or [] if isinstance(i, int)]
                 count = res.get("count") if res.get("zone") is True and isinstance(res.get("count"), int) else 0
                 if count != expected:
-                    failure = f"he movido {count} de {expected}"
+                    failure = t("discard.moved_n", count=count, expected=expected)
             except TABLE_ERRORS as e:
                 failure = str(e)
         self._land_in_discard(set(moved))
@@ -2695,11 +2645,11 @@ class Session:
         if moved:
             self._track_destiny()                # the discarded hand may hold destinies (and a change of form)
         if failure is not None:
-            self.say(f"No he podido descartar tu mano ({failure}): descartala tu a mano.", ChatKind.WARNING)
+            self.say(t("discard.hand_fail", failure=failure), ChatKind.WARNING)
             return max(0, n - count)
         self._trim_virtual_hand(0)
         if count:
-            self.say(f"Descarto tu mano ({count} carta{'s' if count != 1 else ''}) por {reason}.", ChatKind.SCHEME)
+            self.say(tn("discard.hand_done", count, reason=reason), ChatKind.SCHEME)
         return 0
 
     def _land_in_discard(self, ids: set[int]) -> None:
@@ -2724,9 +2674,7 @@ class Session:
         return any(p.get("effect") == "liz_wildfire_return_to_hand" for p in self.game.hero_def(self.human).passives)
 
     def _wildfire_hint(self) -> str:
-        return (" Wildfire: deja la ardiente en tu descarte, pulsa Fin de accion y luego vuelve a cogerla (asi se"
-                " cuenta y el bot sabe cual vuelve a tu mano)."
-                if self._human_wildfire() else "")
+        return t("wildfire.hint") if self._human_wildfire() else ""
 
     def _discard_done(self) -> bool:
         d, st = self.pending_discard, self.game.players[self.human]
@@ -2742,23 +2690,21 @@ class Session:
             done = not missing and len(st.discard) - len(missing) >= d["baseline"] + d["n"]
             if missing:
                 by_id = {c.card_id: c for c in st.full_set}
-                self.say("Aun no veo en tu descarte " + ", ".join(by_id[i].title for i in missing if i in by_id)
-                         + ": ponla y pulsa Fin de accion.", ChatKind.WARNING)
+                self.say(t("discard.not_seen", titles=", ".join(by_id[i].title for i in missing if i in by_id)), ChatKind.WARNING)
                 return False
         # Ivan's ruling (28/10): a burning card discarded for the end-of-turn hand limit stays in the discard (the one
         # exception to Wildfire), so the "it returned to my hand" leniency only applies to other forced discards
         wildfire = self._human_wildfire() and d["kind"] != "limit"
         if not done and wildfire and d.get("wildfire_asked"):
             # second time: the burning cards came back to the hand without passing through the table discard; believed
-            self.say("Wildfire: doy el descarte por hecho (las ardientes vuelven a tu mano).")
+            self.say(t("wildfire.assumed"))
             return True
         if not done and wildfire:
             d["wildfire_asked"] = True
-            self.say("Aun no veo el descarte en la mesa. Si descartaste ardientes que han vuelto a tu mano, pulsa "
-                     "Fin de accion otra vez y lo doy por hecho.", ChatKind.WARNING)
+            self.say(t("wildfire.ask"), ChatKind.WARNING)
             return False
         if not done:
-            self.say(f"Aun falta descartar {d['n']} carta(s); lleva tambien al descarte las cartas ya jugadas.", ChatKind.WARNING)
+            self.say(t("discard.missing", n=d["n"]), ChatKind.WARNING)
         return done
 
     # ---------- turnos ----------
@@ -2767,11 +2713,10 @@ class Session:
         if g.winner is not None or g.turn != self.human:
             return
         if g.actions_left > 0:
-            self.say(f"Te quedan {g.actions_left} accion(es).", ChatKind.YOUR_TURN)
+            self.say(t("turn.left", n=g.actions_left), ChatKind.YOUR_TURN)
             return
         if self.look_granted and self._look_epoch == self._epoch:    # granted by this very button: the look comes first
-            self.say("Antes de terminar el turno puedes mirar la mano del bot (Mirar mano del bot); pulsa Fin de "
-                     "accion para terminar.", ChatKind.YOUR_TURN)
+            self.say(t("turn.look_first"), ChatKind.YOUR_TURN)
             return
         hand = g.players[self.human].hand
         excess = len(hand) - HAND_LIMIT
@@ -2779,8 +2724,7 @@ class Session:
             self._trim_virtual_hand(HAND_LIMIT)
         elif excess > 0:
             self.pending_discard = {"n": excess, "baseline": None, "kind": "limit"}
-            self.say(f"Descarta {excess} carta(s) hasta tener {HAND_LIMIT} y pulsa Fin de accion "
-                     "(Cancelar ataque anula el descarte).", ChatKind.YOUR_TURN)
+            self.say(t("discard.limit", n=excess, limit=HAND_LIMIT), ChatKind.YOUR_TURN)
             return
         self.limit_waived = False
         self.chosen_attacker = None
@@ -2794,7 +2738,7 @@ class Session:
         self.wildfire_scene = self._wildfire_outcome(probe)
         self.bot_stage = "start"
         self._persist()                           # punto de control: el turno del bot empieza aqui, una sola vez
-        self.say("Fin de tu turno. Turno del bot.")
+        self.say(t("turn.bot"))
         self._say_triggers()                      # your Pact at the end of your turn, before the bot starts
         if any(f.hp != hp0[fid] for fid, f in g.fighters.items()):
             self._write_dials()
@@ -2848,7 +2792,7 @@ class Session:
         card, burning = scene["card"], scene["burning"]
         liz = self._name(g.hero(self.bot))
         slot = self._discard_slot(len(st.discard) if burning else [c.card_id for c in st.discard].index(card.card_id))
-        first = f"Wildfire: {liz} descarta la carta del fondo: {card.title}" + (" (fuego)" if burning else "")
+        first = t("wildfire.discard_burning" if burning else "wildfire.discard", liz=liz, title=card.title)
         self.say(first, ChatKind.ABILITY, shown=True)
         try:
             moved = self._w(lua.discard_cards([card.card_id], [slot], cfg.bot_discard_rot_y, identity=self._identity(),
@@ -2857,10 +2801,9 @@ class Session:
                 self._w(lua.broadcast(chunk, ChatKind.ABILITY), "misc")
             self._hold(cfg.wildfire_hold)
             if card.card_id not in ((moved.result or {}).get("moved") or []):
-                self.say(f"No encuentro {card.title} en el mazo del bot para ponerla a la vista: sigo sin escena.",
-                         ChatKind.WARNING)
+                self.say(t("wildfire.not_found", title=card.title), ChatKind.WARNING)
         except TABLE_ERRORS as e:
-            self.say(f"No pude mostrar la carta de Wildfire ({e}); sigo con el turno.", ChatKind.WARNING)
+            self.say(t("wildfire.show_fail", err=e), ChatKind.WARNING)
         if burning and self.fx_unprojected is not None:     # for the projection it is now a discard going back to the hand
             zones = self.fx_unprojected["bot"]
             zones["deck"] = [i for i in zones["deck"] if i != card.card_id]
@@ -2874,14 +2817,14 @@ class Session:
 
     def _wildfire_lines(self, scene: dict, liz: str) -> list[tuple[str, ChatKind]]:
         if scene["burning"]:
-            lines = [(f"Es de fuego: vuelve a la mano de {liz}", ChatKind.ABILITY)]
-            lines += [(f"{liz} hace {amount:g} de dano a {self._name(f)}", ChatKind.COMBAT)
+            lines = [(t("wildfire.burning", liz=liz), ChatKind.ABILITY)]
+            lines += [(t("wildfire.hit", liz=liz, amount=amount, name=self._name(f)), ChatKind.COMBAT)
                       for f, amount in scene["hits"]]
             return lines
         steps = self.game.board.distance(scene["from"], scene["to"])
         if steps:
-            return [(f"No es de fuego: {liz} se mueve {steps} casilla{'s' if steps != 1 else ''}", ChatKind.MOVE)]
-        return [(f"No es de fuego: {liz} se queda donde esta", ChatKind.MOVE)]
+            return [(tn("wildfire.moves", steps, liz=liz), ChatKind.MOVE)]
+        return [(t("wildfire.stays", liz=liz), ChatKind.MOVE)]
 
     def _turn_change_debt(self, before: dict, fx_before: dict) -> None:
         """The bot's start-of-turn triggers (Wildfire's discard and move, Hellboy's ANUNG discard and move, a draw)
@@ -2906,10 +2849,11 @@ class Session:
         if not fuel:
             return None
         hero = g.hero(self.bot)
-        text = f"ANUNG UN RAMA: el bot descarta {fuel[-1].title} (BOOST {fuel[-1].boost})"
+        card = fuel[-1]
         if hero.alive and hero.pos != before[hero.fid][0]:
-            return text + f" y mueve {self._name(hero)} hasta {fuel[-1].boost}: {describe(g, hero.pos, (hero.fid,), self._name)}."
-        return text + f" y no mueve a {self._name(hero)}."
+            return t("anung.start", title=card.title, boost=card.boost, name=self._name(hero),
+                     where=describe(g, hero.pos, (hero.fid,), self._name))
+        return t("anung.start_still", title=card.title, boost=card.boost, name=self._name(hero))
 
     def _detective_start_text(self, drawn_before: int) -> str | None:
         """What the bot's OCCULT DETECTIVE start-of-turn trigger just did in the engine (draw 2 when Hellboy starts the
@@ -2921,7 +2865,7 @@ class Session:
             return None
         if g.hero(self.bot).pos != g.start_spaces.get(self.human):
             return None                           # the trigger's own condition: a draw from anything else is not it
-        return f"OCCULT DETECTIVE: Hellboy empieza el turno en tu casilla de salida; el bot roba {drew}."
+        return t("detective.start", n=drew)
 
     def _mark_dirty(self, before: dict | None = None) -> None:
         """El motor ya cambio al bot; hasta que la mesa lo refleje queda una deuda que cualquier boton reintenta."""
@@ -2995,19 +2939,19 @@ class Session:
                       told: set | tuple = ()) -> str:
         """'Snipe por ataque, Dash por boost de combate': las cartas que el bot ha mandado al descarte desde que
         habia `seen` en la pila, en el orden en que quedan en la rejilla, cada una con su motivo. `told`: ids ya dichos."""
-        return ", ".join(f"{c.title} por {reasons.get(c.card_id, default)}"
+        return ", ".join(t("combat.discard_item", title=c.title, why=reasons.get(c.card_id, default))
                          for c in self.game.players[self.bot].discard[seen:] if c is not skip and c.card_id not in told)
 
     def _played_text(self, seen: int, reasons: dict[int, str], default: str, skip: Card | None = None) -> str:
         listed = self._discard_list(seen, reasons, default, skip)
-        return f" (descarta {listed})" if listed else ""
+        return t("bot.played_discards", list=listed) if listed else ""
 
     def _say_bot_action(self, act, seen: int, before: dict, hp0: dict[str, float], sig_before: tuple | None, actions0: int,
                         exhausting: bool, paused: bool, fx_before: dict | None = None) -> None:
         if exhausting:
-            self.say(f"Mazo vacio: el bot roba y cada luchador suyo pierde {EXHAUST_DAMAGE} PV.", ChatKind.COMBAT)
+            self.say(t("bot.exhaust", damage=EXHAUST_DAMAGE), ChatKind.COMBAT)
         if paused:        # the scheme asks you something: the panel shows it, the turn waits
-            self.say(f"El bot juega {act.card.title}" + self._played_text(seen, {}, "efecto", skip=act.card) + ".",
+            self.say(t("bot.plays", title=act.card.title) + self._played_text(seen, {}, t("cause.effect"), skip=act.card) + ".",
                      ChatKind.SCHEME)
         else:
             self.say(self._action_text(act, seen, before, hp0, sig_before, actions0, fx_before), ACTION_KIND.get(act.kind, ChatKind.MOVE))
@@ -3021,34 +2965,34 @@ class Session:
                      actions0: int | None = None, fx_before: dict | None = None) -> str:
         """Que ha hecho el bot, con el nombre de la carta jugada, el dano que hizo y a donde movio cada pieza."""
         g = self.game
-        moved = [f"{self._name(g.fighters[fid])} a {describe(g, g.fighters[fid].pos, (fid,), self._name)}"
+        moved = [t("bot.moved_item", name=self._name(g.fighters[fid]), where=describe(g, g.fighters[fid].pos, (fid,), self._name))
                  for fid, (pos, was_alive) in before.items()
                  if was_alive and g.fighters[fid].alive and g.fighters[fid].pos != pos]
         if act.kind in ("glance", "frenzy", "scheme"):
             title = act.card.title
-            text = f"El bot juega {title}" + self._played_text(seen, {}, "efecto", skip=act.card)
+            text = t("bot.plays", title=title) + self._played_text(seen, {}, t("cause.effect"), skip=act.card)
             healed = ()
             if act.kind == "scheme" and not moved and self._scheme_idle(act, sig_before) and not self._hp_text(hp0):
                 gained = g.actions_left - (actions0 - 1)
-                text += ": sin efecto" + (", solo recupera la accion" if gained == 1 else "")
+                text += t("bot.no_effect") + (t("bot.only_action") if gained == 1 else "")
             elif act.kind == "scheme":
                 healed = tuple(f.fid for f in g.own(self.bot) if f.hp > hp0[f.fid])
-                done = [f"{self._name(g.fighters[fid])} recupera {g.fighters[fid].hp - hp0[fid]:g} "
-                        f"({hp0[fid]:g} -> {g.fighters[fid].hp:g})" for fid in healed]
+                done = [t("bot.heals", name=self._name(g.fighters[fid]), gained=g.fighters[fid].hp - hp0[fid], before=hp0[fid],
+                          after=g.fighters[fid].hp) for fid in healed]
                 done += bot_effects.scheme_cards(self, fx_before)
-                text += ": " + " y ".join(done) if done else ""
+                text += ": " + t("common.and").join(done) if done else ""
             if act.kind == "glance":
-                t = g.fighters[act.target]
-                dealt = hp0[t.fid] - t.hp
-                text += (f": {dealt:g} de dano a {self._name(t)} (PV de {hp0[t.fid]:g} a {max(t.hp, 0):g})"
-                         if dealt else f": sin efecto sobre {self._name(t)} (dano de efectos evitado)")
+                target = g.fighters[act.target]
+                dealt = hp0[target.fid] - target.hp
+                text += (t("bot.glance_dealt", dealt=dealt, name=self._name(target), before=hp0[target.fid], after=max(target.hp, 0))
+                         if dealt else t("bot.glance_none", name=self._name(target)))
         else:
-            boost = {act.boost.card_id: "boost de maniobra"} if act.boost is not None else {}
-            text = "El bot maniobra" + self._played_text(seen, boost, "efecto")
+            boost = {act.boost.card_id: t("cause.maneuver_boost")} if act.boost is not None else {}
+            text = t("bot.maneuvers") + self._played_text(seen, boost, t("cause.effect"))
         others = self._hp_text(hp0, skip=act.target if act.kind == "glance" else healed if act.kind == "scheme" else None)
         if act.kind == "maneuver" and not moved:
-            text += " y roba, sin mover a nadie"
-        return (text + (f". Mueve {'; '.join(moved)}" if moved else "") + (f". {others}" if others else "") + ".")
+            text += t("bot.draws_idle")
+        return (text + (t("bot.moves", moved="; ".join(moved)) if moved else "") + (f". {others}" if others else "") + ".")
 
     def _recover_placing(self) -> None:
         """Una carta que el bot puso boca abajo y cuya respuesta no llego (timeout tras ejecutarse): si esta en su
@@ -3068,7 +3012,7 @@ class Session:
             fighters = self.game.fighters
             self.pending = Pending(it["kind"], fighters[it["attacker"]], fighters[it["target"]], card, found["guid"])
             self.read_bot_hand()
-            self.say(f"{card.title} del bot ya estaba boca abajo en la mesa: la cuento como jugada. Pulsa Revelar.", ChatKind.WARNING)
+            self.say(t("bot.card_down", title=card.title), ChatKind.WARNING)
 
     def _bot_continue(self) -> None:
         """Turno del bot reanudable: cada paso de E/S que falla deja el estado listo para repetir Fin de accion.
@@ -3102,12 +3046,12 @@ class Session:
             finally:                  # a failed flush must not leave a flag that silences a later real "recupera" line
                 self.said_returns.clear()
         if self.pending is not None:
-            self.say("La carta del bot ya esta en la mesa: pulsa Revelar.", ChatKind.WARNING)
+            self.say(t("combat.bot_card_on_table"), ChatKind.WARNING)
             return
         if self.dial_debt:                        # se retoma tras una pausa por un dial que no se pudo escribir
             self.dial_debt = False
             if not self._write_dials():
-                self.say("Los diales siguen sin coincidir con el motor; sigo con el turno, revisalos.", ChatKind.WARNING)
+                self.say(t("dials.still_off"), ChatKind.WARNING)
         if self._paused() is not None:            # a start-of-turn trigger asked you something (FATEFUL BARGAINS)
             self.fx_unprojected = bot_effects.snapshot(self)
             self._persist()
@@ -3122,7 +3066,7 @@ class Session:
             if target:
                 hp0, alive0 = target.hp, self._alive_map()
                 g.use_ability(self.bot, GAZE, target)
-                gaze = f"Habilidad de Medusa: 1 de dano a {self._name(target)} (PV de {hp0:g} a {max(target.hp, 0):g})."
+                gaze = t("medusa.gaze", name=self._name(target), before=hp0, after=max(target.hp, 0))
                 if self.cfg.action_announce_hold > 0:      # said, held, and only then the dial moves
                     said_first = len(self.messages)
                     self.say(gaze, ChatKind.ABILITY)
@@ -3147,7 +3091,7 @@ class Session:
                     attack = (attacker.fid, target.fid, act.card.card_id if act.card else None)
                     if announced and self._attack_announced != attack:    # said, the card goes down a pause later
                         said_first = len(self.messages)
-                        self.say(f"El bot ataca con {attacker.fid} a {target.fid}.", ChatKind.ATTACK)
+                        self.say(t("bot.attacks", attacker=attacker.fid, target=target.fid), ChatKind.ATTACK)
                         self._announce_before(said_first)
                         self._attack_announced = attack       # a failed placement retried by Fin de accion does not say it again
                     guid = self._place_bot_card(act.card, "bot_attacks", attacker, target)
@@ -3155,8 +3099,8 @@ class Session:
                     self.pending = Pending("bot_attacks", attacker, target, act.card, guid)
                     hidden.bot_attack_placed(self, self.pending)     # Perfect Shot / UNCANNY INTUITION: face up
                     self._persist()
-                    self.say(("Deja" if announced else f"El bot ataca con {attacker.fid} a {target.fid}: deja")
-                             + " tu defensa boca abajo (o nada) y pulsa Revelar.", ChatKind.ATTACK)
+                    self.say(t("attack.defend_now") if announced else t("attack.bot_defend", attacker=attacker.fid, target=target.fid),
+                             ChatKind.ATTACK)
                     return
                 before = self._snapshot_bot()
                 seen = len(g.players[self.bot].discard)
@@ -3198,7 +3142,7 @@ class Session:
             if g.winner is None:
                 self._bot_breath()                # entre acciones y tambien antes del "Tu turno"
         if g.winner is not None:
-            self.say(f"Fin de partida: gana el jugador {g.winner}.")
+            self.say(t("game.over", winner=g.winner))
             return
         seen = len(g.players[self.bot].discard)
         fx_before = bot_effects.snapshot(self)
@@ -3209,21 +3153,21 @@ class Session:
         hurt_at_end = any(f.hp != hp0[fid] for fid, f in g.fighters.items())      # Pact Of Peace hurts who attacked
         expired = g.begin_turn()
         if len(g.players[self.bot].discard) > seen:
-            self.say("El bot descarta " + self._discard_list(seen, {}, "limite de mano") + ".")
+            self.say(t("combat.bot_discards", list=self._discard_list(seen, {}, t("cause.hand_limit"))))
         self._mark_dirty()
         self._persist()
         for n, label in (expired if in_play is None else []):      # a DSL card in play is said by `left_play`
-            self.say(f"{label}: caduca el +{n} a tus cartas de combate. Descarta el plan.", ChatKind.SCHEME)
+            self.say(t("scheme.expired", label=label, n=n), ChatKind.SCHEME)
         self._say_triggers()                      # your Pact at the end of the bot's turn, before "Tu turno"
         self._announce_human_start()
         try:
-            fin_fx = self._project_effects(fx_before, cause="caduca")   # the bot's form, your ONGOING that expired
+            fin_fx = self._project_effects(fx_before, cause=t("cause.expired"))   # the bot's form, your ONGOING that expired
             self._flush_table()
             fin_fx()
             if self._track_destiny() or hurt_at_end:      # a hand-limit discard may hold a destiny card
                 self._write_dials()
         except TABLE_ERRORS as e:
-            self.say(f"Tu turno ya ha empezado, pero la mesa del bot no coincide aun ({e}); se reintentara con tu proximo boton.", ChatKind.WARNING)
+            self.say(t("turn.late", err=e), ChatKind.WARNING)
 
     def _bot_breath(self) -> None:
         """Pausa tras una accion del bot para que la mesa se vea moverse paso a paso y no todo de golpe. Es un sleep
@@ -3240,11 +3184,10 @@ class Session:
         g = self.game
         self._warned.discard((g.hero(self.human).fid, "draw"))
         form = g.form(self.human)
-        self.say("Tu turno." if g.hero_def(self.human).forms is None else f"Tu turno (forma: {form}).", ChatKind.YOUR_TURN)
+        self.say(t("turn.yours") if g.hero_def(self.human).forms is None else t("turn.yours_form", form=form), ChatKind.YOUR_TURN)
         self.ability_wait = human_effects.start_of_turn_ability(self)
         if self.ability_wait is not None:
-            self.say(f"{self.ability_wait} Hazlo en la mesa y pulsa Fin de accion: hasta entonces el resto de "
-                     "botones espera.", ChatKind.YOUR_TURN)
+            self.say(t("turn.ability_wait", wait=self.ability_wait), ChatKind.YOUR_TURN)
         paused = self._paused()
         if paused is not None and paused[0] == "parked":
             self.say(human_effects.ABILITY_TEXT.get(paused[2].label, paused[2].label), ChatKind.YOUR_TURN)
@@ -3271,7 +3214,7 @@ class Session:
                                     c.human_card_ids)))
         res = self.client.call_lua(lua.deck_identities([d for _, d in decks]))
         if not isinstance(res, list) or len(res) != len(decks) or not all(isinstance(e, dict) for e in res):
-            raise TTSLuaError(f"respuesta no valida de la lectura de identidades: {str(res)[:80]!r}")
+            raise TTSLuaError(t("err.identity_reply", got=repr(str(res)[:80])))
         for (side, _), entry in zip(decks, res):
             pairs = self._parse_pairs(entry.get("pairs"))
             if entry.get("found") and pairs:
@@ -3315,8 +3258,7 @@ class Session:
         if side not in self._deck_ident:
             if failure is not None:
                 raise failure
-            raise SessionError(f"no consigo leer la identidad (imagenes) del mazo {'del bot' if side == 'bot' else 'tuyo'}: "
-                               "sin ella no toco ninguna carta")
+            raise SessionError(t("err.identity", side=t("sess.side.bot" if side == "bot" else "sess.side.human")))
         return self._deck_ident[side]
 
     def _scope(self) -> lua.Scope:
@@ -3423,7 +3365,7 @@ class Session:
             snap = self._parse_snap(self.client.call_lua(lua.snapshot(self.snapshot_spec())),
                                     set(self.game.board.spaces))
             if snap is None:
-                raise SessionError("la instantanea de la mesa no es valida")
+                raise SessionError(t("err.snapshot"))
             snap["seq"] = self._write_seq         # recien leida: refleja todo lo escrito hasta ahora
             if self._depth == 0:
                 return snap
@@ -3486,7 +3428,7 @@ class Session:
             for o in ops:
                 if o.error is not None and not o.seen:
                     tag = o.script.split("\n", 1)[0].removeprefix("-- sparring:")
-                    self.say(f"TTS fallo en {tag} ({o.error}); revisa la mesa a mano.", ChatKind.WARNING)
+                    self.say(t("sess.tts_failed", tag=tag, err=o.error), ChatKind.WARNING)
 
     def _commit(self) -> None:
         """Cierre de cada boton: lo que queda en cola, la linea de estado y los botones del panel y los anuncios,
@@ -3504,12 +3446,12 @@ class Session:
                         for chunk in [] if getattr(m, "shown", False) else lua.ascii_text(m):
                             self._w(lua.broadcast(chunk, m.kind), "misc")
             except (ValueError, TypeError) as e:
-                self.say(f"No pude preparar el estado del panel ({e}).", ChatKind.WARNING)
+                self.say(t("sess.panel_prep_fail", err=e), ChatKind.WARNING)
         if self._queue:
             try:
                 self._flush()
             except TABLE_ERRORS as e:
-                self.say(f"No pude actualizar la mesa al terminar ({e}).", ChatKind.WARNING)
+                self.say(t("sess.table_update_fail", err=e), ChatKind.WARNING)
         for check in posts:
             check()
         if posts and self.cfg.live_ui and self.panel_view() != shown:
@@ -3530,7 +3472,7 @@ class Session:
             self._w(lua.set_panel(status, states, release_busy=not self.cfg.batch, labels=self.panel_labels()), "misc")
             self._flush()
         except (ValueError, TypeError) + TABLE_ERRORS as e:
-            self.say(f"No pude actualizar el panel tras las comprobaciones ({e}).", ChatKind.WARNING)
+            self.say(t("sess.panel_update_fail", err=e), ChatKind.WARNING)
 
     def _rd_bot_hand(self) -> list[dict]:
         if self.cfg.batch:
@@ -3667,69 +3609,66 @@ class Session:
     def _status_text(self) -> str:
         g = self.game
         if self.restart_armed():
-            return "Pulsa Reiniciar partida otra vez para confirmar"
+            return panel_text(t("st.restart_armed"))
         if self.setup is not None:
             if self.setup["stage"] in ("wait_human_first", "wait_human"):
-                return "Preparacion · coloca a tu ayudante, roba 5 y pulsa Listo"
-            return "Preparacion · el bot prepara su mesa"
+                return panel_text(t("st.setup_wait"))
+            return panel_text(t("st.setup_bot"))
         if g.winner is not None:
-            return f"Fin de partida · gana {self._name(g.hero(g.winner))}"
+            return panel_text(t("st.game_over", name=self._name(g.hero(g.winner))))
         if self.look is not None:
             return hidden.look_status(self)
         if hidden.manual_request(self) is not None:
             return hidden.manual_status(self)
         if moves.manual_request(self) is not None:
-            return choices.safe_label(moves.status(self, moves.manual_request(self)), "Hecho", 80)
+            return panel_text(moves.status(self, moves.manual_request(self)), 80, t("btn.done"))
         if pile.manual_request(self) is not None:
-            return choices.safe_label(pile.status(self, pile.manual_request(self)), "Hecho", 80)
+            return panel_text(pile.status(self, pile.manual_request(self)), 80, t("btn.done"))
         if self.effect_run is not None:
-            return choices.safe_label(choices.prompt_text(g, self.effect_run.awaiting), "Elige una opcion", 80)
+            return panel_text(choices.prompt_text(g, self.effect_run.awaiting), 80, t("st.choose"))
         if g.turn != self.human:
             paused = self.dial_debt or self.bot_stage is not None or self.dirty or self.flush_failures
-            return "Turno del bot" + (" · en pausa, pulsa Fin de accion" if paused else "")
-        n = g.actions_left
-        head = f"Tu turno · {n} accion{'es' if n != 1 else ''}"
+            return panel_text(t("st.bot_turn_paused" if paused else "st.bot_turn"))
+        head = tn("st.head", g.actions_left)
         if self.ability_wait is not None:
-            return f"{head} · habilidad de inicio de turno en la mesa, luego Fin de accion"
+            return panel_text(t("st.ability", head=head))
         if self.pending is not None and self.pending.wait is not None:
             title = next((c.title for c in g.players[self.human].full_set
                           if c.card_id == self.pending.wait.card_id), "Boost")
-            if self.pending.wait.extra["stuck"]:
-                return f"{title} sin resolver: corrige la mesa y pulsa Continuar o Sin boost, o Cancelar"
-            return f"{title} revelado: pon una carta en tu descarte y pulsa Continuar o Sin boost"
+            return panel_text(t("st.boost_stuck" if self.pending.wait.extra["stuck"] else "st.boost_wait", title=title))
         if self._table_gate(self.pending):
-            wait = "lo de tu carta en la mesa y Fin de accion"
+            wait = t("st.wait.table")
         elif self.pending is not None:
-            wait = "tu defensa y Revelar" if self.pending.kind == "bot_attacks" else "Revelar"
+            wait = t("st.wait.defense" if self.pending.kind == "bot_attacks" else "st.wait.reveal")
         elif self.pending_discard is not None:
-            wait = "descartar y Fin de accion"
+            wait = t("st.wait.discard")
         elif self.moving:
-            wait = "Fin de accion"
+            wait = t("st.wait.end")
         elif self.chosen_attacker is not None:
-            wait = "elegir objetivo"
+            wait = t("st.wait.target")
         else:
-            wait = "tu accion"
-        return f"{head} · esperando {wait}"
+            wait = t("st.wait.action")
+        return panel_text(t("st.waiting", head=head, wait=wait))
 
     # ---------- mirar la mano del bot (Confront Any Demon or God y similares) ----------
     def _look_blocked(self) -> str | None:
         """Por que ahora no se puede mirar la mano del bot (None si se puede)."""
         g = self.game
         if not self.look_granted:
-            return "Ninguna carta te deja mirar la mano del bot ahora."
+            return t("look.not_granted")
         if self.setup is not None:
-            return "La partida aun se esta preparando: termina la colocacion y pulsa Listo."
+            return t("sess.setting_up")
         if g.winner is not None:
-            return "La partida ha terminado."
+            return t("look.game_over")
         if self.look is not None:
-            return "La mano del bot ya esta a la vista."
+            return t("look.already")
         if g.turn != self.human and self.pending is None and not self.moving:
-            return "Solo puedes mirar la mano del bot en tu turno, durante un combate o justo despues de uno."
+            return t("look.when")
         if self.dirty or self.unprojected is not None or self.flush_failures or self.placing is not None:
-            return "La mesa del bot tiene movimientos sin reflejar: pulsa Fin de accion (o Cancelar) antes de mirar su mano."
+            return t("look.unreflected")
         held = self.pending.bot_card if self.pending is not None else None
         if not [c for c in self.game.players[self.bot].hand if c is not held]:
-            return "El bot no tiene cartas en la mano."
+            return t("look.empty")
         return None
 
     def _look_spots(self, n: int, card_row: bool = False) -> list[tuple[float, float, float]]:
@@ -3750,9 +3689,9 @@ class Session:
             self.client.call_lua(lua.set_look_row(self._look_entries()))
 
     def _card_line(self, n: int, c: Card) -> str:
-        stats = ", ".join(p for p in (CARD_TYPE_NAME.get(c.type, c.type),
-                                      f"valor {c.value}" if c.value is not None else "", f"impulso {c.boost}") if p)
-        return f"{n}) {c.title}, {stats}: {c.text or 'sin efecto'}"
+        stats = ", ".join(p for p in (t(CARD_TYPE_TAGS[c.type]) if c.type in CARD_TYPE_TAGS else c.type,
+                                      t("look.value", n=c.value) if c.value is not None else "", t("look.boost", n=c.boost)) if p)
+        return f"{n}) {c.title}, {stats}: {c.text or t('look.no_effect')}"
 
     def _look_hand(self, _: dict) -> None:
         """Pone las cartas de la mano del bot boca arriba en fila delante del humano y las lee en el chat. No gasta
@@ -3766,7 +3705,7 @@ class Session:
         by_id = {c.card_id: c for c in st.full_set}
         rows = [r for r in self._rd_bot_hand() if r["id"] in by_id][:lua.MAX_LOOK_CARDS]
         if not rows:
-            self.say("No veo cartas en la mano del bot en la mesa.", ChatKind.WARNING)
+            self.say(t("look.no_cards"), ChatKind.WARNING)
             return
         self.look_fails = 0                       # una fila nueva empieza sin fallos
         spots = self._look_spots(len(rows))
@@ -3779,8 +3718,7 @@ class Session:
                      "spots": [[sp[0], sp[2]] for sp in spots]}
         self.revoke_look()                        # the look the card allowed is being taken
         self._post.append(lambda: self._look_shown(op))
-        self.say(f"Mano del bot ({len(rows)}): haz ping (Tab) sobre la carta a descartar. Tambien vale girar una "
-                 "boca abajo y pulsar Fin de accion; Cancelar las devuelve sin descartar.", ChatKind.YOUR_TURN)
+        self.say(t("look.shown", n=len(rows)), ChatKind.YOUR_TURN)
         for n, r in enumerate(rows, 1):
             self.say(self._card_line(n, by_id[r["id"]]), ChatKind.SCHEME)
 
@@ -3793,8 +3731,7 @@ class Session:
         try:
             shown = {e["id"] for e in ((op.result or {}).get("shown") or []) if isinstance(e, dict)}
         except TABLE_ERRORS as e:
-            self.say(f"TTS no confirmo que sacara las cartas ({e}); revisa la mesa y pulsa Cancelar para recogerlas.",
-                     ChatKind.WARNING)
+            self.say(t("look.tts_unconfirmed", err=e), ChatKind.WARNING)
             return False
         keep = [i for i, cid in enumerate(look["ids"]) if cid in shown]
         if not keep:
@@ -3804,17 +3741,16 @@ class Session:
             return False
         if len(keep) < len(look["ids"]):
             self.look = {**look, **{k: [look[k][i] for i in keep] for k in ("ids", "guids", "spots")}}
-            self.say(f"Solo he podido sacar {len(keep)} de {len(look['ids'])} cartas; el resto sigue en su mano.",
-                     ChatKind.WARNING)
+            self.say(t("look.partial", n=len(keep), total=len(look["ids"])), ChatKind.WARNING)
         return True
 
     def _look_ping(self, payload: dict) -> None:
         guid = payload.get("guid")
         if self.look is None:
-            self.say("No hay cartas del bot a la vista: pulsa Mirar mano del bot.", ChatKind.WARNING)
+            self.say(t("look.none_shown"), ChatKind.WARNING)
             return
         if guid not in self.look["guids"]:
-            self.say("Ese ping no era sobre una carta de la fila del bot.", ChatKind.WARNING)
+            self.say(t("look.bad_ping"), ChatKind.WARNING)
             return
         if hidden.ping(self, guid):               # E3: the card's own choice, or a reveal that picks nothing
             return
@@ -3829,7 +3765,7 @@ class Session:
         by_id = {c.card_id: c for c in st.full_set}
         n = len(look["ids"])
         if discard is None and not face_down and self.look_fails:
-            self._look_force_exit("segundo Cancelar")
+            self._look_force_exit(t("look.why_second_cancel"))
             return
         if self.cfg.batch:
             self._expect_hand = (self.cfg.bot_seat, n - 1 if (discard or face_down) else n)
@@ -3845,8 +3781,7 @@ class Session:
         if face_down:
             chosen = (op.result or {}).get("discarded")
             if chosen in (None, False):
-                self.say(f"Hay {(op.result or {}).get('down', 0)} cartas boca abajo en la fila: deja exactamente una (la "
-                         "que descartas) y pulsa Fin de accion, o haz ping (Tab) sobre ella.", ChatKind.WARNING)
+                self.say(t("look.face_down", n=(op.result or {}).get("down", 0)), ChatKind.WARNING)
                 return
             card = by_id.get(chosen)
         else:
@@ -3861,8 +3796,8 @@ class Session:
                 st.discard.append(card)
                 self.game.card_left_hand(self.bot, card)
         self._post.append(lambda: self._look_closed(op, card, look))
-        self.say(f"El bot descarta {card.title} y devuelve el resto de su mano." if card is not None
-                 else "Mano del bot devuelta sin descartar nada.", ChatKind.SCHEME if card is not None else ChatKind.NEUTRAL)
+        self.say(t("look.discarded", title=card.title) if card is not None else t("look.returned"),
+                 ChatKind.SCHEME if card is not None else ChatKind.NEUTRAL)
 
     def restore_row_hands(self, guids: list[str]) -> None:
         """Best effort: the shown cards get `use_hands` back so the human can put them in the hand zone by hand."""
@@ -3881,9 +3816,7 @@ class Session:
         self.restore_row_hands(row)
         self.read_bot_hand()
         self._mark_dirty()
-        self.say(f"Mirada cerrada a la fuerza ({why}): la mesa manda. Las cartas del bot que no esten en su mano "
-                 "(las de la fila) recogelas a mano y devuelvelas a ella; pulsa Fin de accion para sincronizar.",
-                 ChatKind.WARNING)
+        self.say(t("look.forced", why=why), ChatKind.WARNING)
 
     def _look_best_effort_cancel(self) -> None:
         """Antes de reiniciar: intenta devolver la fila a la mano para que el reinicio recoja las cartas; si falla, sigue."""
@@ -3902,21 +3835,20 @@ class Session:
         try:
             res = op.result or {}
             done = res.get("discarded") == card.card_id if card is not None else bool(res.get("found"))
-            fail = None if done else "esa carta no estaba en la fila de la mesa"
+            fail, errored = (None if done else t("look.fail_missing")), False
         except TABLE_ERRORS as e:
-            fail = f"error: {e}"
+            fail, errored = t("look.fail_error", err=e), True
         if fail is not None:
             if card is not None and card in st.discard:
                 st.discard.remove(card)
                 st.hand.append(card)
-            if not fail.startswith("error") and not (op.result or {}).get("found"):
-                self._look_force_exit("ninguna carta de la fila responde")      # apiladas, borradas...
+            if not errored and not (op.result or {}).get("found"):
+                self._look_force_exit(t("look.why_stacked"))      # apiladas, borradas...
                 return
             if card is None:
                 self.look_fails += 1              # solo un Cancelar fallido acerca la salida forzada
             self.look = look
-            self.say(f"La mesa no hizo el cambio ({fail}): la mano del bot sigue a la vista; repite el ping o Cancelar.",
-                     ChatKind.WARNING)
+            self.say(t("look.table_failed", fail=fail), ChatKind.WARNING)
             return False
         self.look_fails = 0
         if card is not None:
@@ -3925,8 +3857,7 @@ class Session:
                 self.bot_discarded.add(card.card_id)
             else:
                 self._mark_dirty()                # el motor ya la descarto: la proxima sincronizacion termina de moverla
-                self.say(f"{card.title} aun no se ve en el descarte del bot; si no llega, pulsa Fin de accion.",
-                         ChatKind.WARNING)
+                self.say(t("look.not_in_discard", title=card.title), ChatKind.WARNING)
         self.read_bot_hand()
         return True
 
@@ -3951,7 +3882,7 @@ class Session:
         try:
             cards = [by_id[r["id"]] for r in res]
         except KeyError as e:
-            raise SessionError(f"carta desconocida en la mano del bot: {e}") from None
+            raise SessionError(t("err.unknown_card", err=e)) from None
         in_play = self._bot_cards_in_play()
         cards = [c for c in cards if c not in in_play]   # a scheme stopped at the panel still sits in the table hand
         p = self.pending
@@ -3992,13 +3923,12 @@ class Session:
         guid = (res or {}).get("played")
         if not guid:
             self.read_bot_hand()
-            raise SessionError(f"{card.title} no esta en la mano del bot en la mesa; accion cancelada")
+            raise SessionError(t("err.card_not_in_hand", title=card.title))
         # no se fia del valor devuelto: la carta tiene que estar de verdad en su punto y fuera de la mano
         if not self._settle(lambda: self._card_on_spot(card.card_id) is not None):
             self.placing = None
             self.read_bot_hand()
-            raise SessionError(f"{card.title} no ha salido de la mano del bot (no esta en su punto de carta); "
-                               "accion cancelada")
+            raise SessionError(t("err.card_not_out", title=card.title))
         return self._card_on_spot(card.card_id) or guid
 
     def _settle(self, ok) -> bool:
@@ -4069,8 +3999,7 @@ class Session:
                         zone.remove(c)
                 st.discard.append(c)
                 self.bot_discarded.add(c.card_id)
-                self.say(f"La mesa manda: {c.title} esta en el descarte del bot (por un efecto del rival); "
-                         "la cuento como descartada.", ChatKind.WARNING)
+                self.say(t("adopt.discard", title=c.title), ChatKind.WARNING)
 
     def adopt_table(self) -> None:
         """La mesa gana: mano, descarte y posiciones del motor pasan a ser lo que se ve. Cierra cualquier deuda."""
@@ -4084,8 +4013,7 @@ class Session:
         self.dirty, self.unprojected, self.flush_failures = False, None, 0
         self.read_bot_hand()
         self.sync_positions()
-        self.say("Adopto lo que muestra la mesa para el bot (mano, descarte y posiciones). "
-                 "Si falta o sobra alguna carta, corrigela en la mesa y pulsa Fin de accion.", ChatKind.WARNING)
+        self.say(t("adopt.table"), ChatKind.WARNING)
 
     def _adopt_strays(self, missing: int) -> int:
         """Cartas del bot que la mesa muestra sueltas y boca abajo (en su punto de carta o en el del mazo) sin
@@ -4106,7 +4034,7 @@ class Session:
                 res = self._w(lua.return_card_to_hand(r["guid"], self.cfg.bot_seat), "cards").result or {}
                 if res.get("returned"):
                     moved += 1
-                    self.say(f"{by_id[r['id']].title} del bot estaba suelta en la mesa: la devuelvo a su mano.", ChatKind.WARNING)
+                    self.say(t("adopt.stray", title=by_id[r["id"]].title), ChatKind.WARNING)
         return moved
 
     def _reconcile_bot(self) -> None:
@@ -4142,7 +4070,7 @@ class Session:
                 return
             missing = set(todo) - set((discard_op.result or {}).get("moved") or [])
             if missing:
-                raise SessionError(f"no encontre en la mesa las cartas del bot {sorted(missing)} para descartarlas")
+                raise SessionError(t("err.discard_missing", ids=sorted(missing)))
         if not self.cfg.batch:
             check_discard()
         n = g.drawn[self.bot]
@@ -4176,13 +4104,13 @@ class Session:
             if self.cfg.batch:
                 check_discard()
             if short:
-                raise SessionError(f"el mazo del bot repartio {n - short} de {n} cartas")
+                raise SessionError(t("err.deck_dealt", dealt=n - short, n=n))
             if any(o.domain == "fx" for o in self._queue):
                 self._flush()                     # a bot effect that moves its cards (Pyrotechnics) is no `cards` write:
                                                   # no read sends it, and the check would see the table without it
             if not self._settle(lambda: len([i for i in self._table_hand_ids() if i not in held]) == want_hand
                                 and self._table_discard() == want_discard):
-                raise SessionError("la mesa del bot no coincide con el motor (mano o descarte); reintenta Fin de accion")
+                raise SessionError(t("err.table_mismatch"))
             self.bot_discarded.update(new)
             self.read_bot_hand()
         if not self.cfg.batch:
@@ -4243,14 +4171,12 @@ class Session:
         if not self.cfg.batch:
             def check() -> None:
                 if not moved():
-                    raise SessionError(f"no pude mover la pieza de {name} ({'/'.join(self._guids(fid))}) a la "
-                                       f"casilla {space}: el GUID no existe en la mesa")
+                    raise SessionError(t("err.move_guid", name=name, guids="/".join(self._guids(fid)), space=space))
             return check
 
         def check() -> None:
             if not moved():
-                raise SessionError(f"no pude mover la pieza de {name} ({'/'.join(self._guids(fid))}) a la "
-                                   f"casilla {space}: el GUID no existe en la mesa")
+                raise SessionError(t("err.move_guid", name=name, guids="/".join(self._guids(fid)), space=space))
         return check
 
     def _announce_fall(self, f: Fighter) -> None:
@@ -4270,9 +4196,8 @@ class Session:
         owner = self.game.fighters[fid].owner
         mine = owner == self.bot
         spot = self.cfg.dead_spot if mine else human_dead_spot(self.cfg)
-        done = f"{name} cae: la he apartado fuera del tablero." if mine else f"{name} cae: lo he apartado."
-        failed = (f"{name} cae: retira su miniatura de la mesa (no he podido apartarla yo)." if mine
-                  else f"{name} (tuyo) cae: retira su miniatura de la mesa.")
+        done = t("bury.done_mine" if mine else "bury.done_human", name=name)
+        failed = t("bury.failed_mine" if mine else "bury.failed_human", name=name)
         if spot is not None:
             slot = sorted(f.fid for f in self.game.own(owner, alive_only=False)).index(fid)
             at = (spot[0] + (1.5 if mine else -1.5) * slot, spot[1], spot[2])
@@ -4322,9 +4247,9 @@ class Session:
 
         def check() -> None:
             if moved() and self._settle(there):
-                self.say(f"{name} vuelve al juego: la he colocado yo en {describe(self.game, f.pos, (f.fid,), self._name)}.")
+                self.say(t("revive.back", name=name, where=describe(self.game, f.pos, (f.fid,), self._name)))
             else:
-                self.say(f"Coloca a {name} en {describe(self.game, f.pos, (f.fid,), self._name)} (no la he podido mover yo); luego pulsa Fin de accion.", ChatKind.YOUR_TURN)
+                self.say(t("revive.place_manual", name=name, where=describe(self.game, f.pos, (f.fid,), self._name)), ChatKind.YOUR_TURN)
         if defer:
             return check
         check()
@@ -4384,14 +4309,11 @@ class Session:
             if quiet and not self._on_board(info):
                 continue
             if not info.get("found"):
-                self._warn(fid, "missing", f"No encuentro la pieza de {name} ({guid}) en la mesa; "
-                                           "mantengo su ultima casilla.")
+                self._warn(fid, "missing", t("warn.missing", name=name, guid=guid))
             elif not self._on_board(info):
-                self._warn(fid, "off", f"{name} esta fuera del tablero (a {info['dist']:.1f} de la casilla mas cercana, "
-                                       f"{zone_text(self.game, info['space'])}): si ha muerto, pulsa Retirar; si no, devuelvela al tablero.")
+                self._warn(fid, "off", t("warn.off", name=name, dist=info["dist"], zone=zone_text(self.game, info["space"])))
             elif info["space"] != f.pos and not self.game.fx.can_move(f):
-                self._warn(fid, "pinned", f"{name} no puede dejar su sitio ({describe(self.game, f.pos, (fid,), self._name)}; efecto en juego): "
-                                          "devuelvela, la mantengo ahi.")
+                self._warn(fid, "pinned", t("warn.pinned", name=name, where=describe(self.game, f.pos, (fid,), self._name)))
             else:
                 f.pos = info["space"]
                 for kind in ("missing", "off", "pinned"):
@@ -4471,8 +4393,7 @@ class Session:
         self._trim_virtual_hand(held)
         hero = self.game.hero(self.human)
         if real > len(st.hand) and not self.game.fx.can_draw(self.human):      # a physical draw under Cold Iron
-            self._warn(hero.fid, "draw", f"Tu mano ha crecido y un efecto en juego te impide robar ({choices.NO_DRAW_REASON}): "
-                                         "devuelve la carta a tu mazo. Mientras tanto cuento con ella.")
+            self._warn(hero.fid, "draw", t("warn.draw", reason=choices.NO_DRAW_REASON))
         elif self.game.fx.can_draw(self.human):
             self._warned.discard((hero.fid, "draw"))
         # a card the bot knows is on top of your deck (Every Possible Angle) is not in your hand unless the deck shrank

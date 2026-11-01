@@ -30,6 +30,7 @@ MAX_CHOICE_BUTTONS = 6
 CHOICE_IDS = tuple(f"btn_choice_{i}" for i in range(1, MAX_CHOICE_BUTTONS + 1))
 LABEL_MAX = 40
 _UNSAFE = re.compile(r"[^A-Za-z0-9 _.\-!:',]")
+_PANEL_UNSAFE = re.compile(r"[^A-Za-z0-9 _.\-!:',\u00b7]")
 
 def __getattr__(name: str):
     """`NO_DRAW_REASON`: why the Maneuver does not draw, in the current language."""
@@ -46,10 +47,13 @@ def has_prompt(kind: str) -> bool:
     return has(f"choice.prompt.{kind}")
 
 
-def panel_text(text: str, limit: int = 90) -> str:
-    """Catalog text bound for the panel's status line or a button: ASCII the panel accepts, never longer than `limit`
-    (a translation with accents or a long wording must not make `lua.set_panel` refuse the whole update)."""
-    return safe_label(text, limit=limit)
+def panel_text(text: str, limit: int = 90, fallback: str | None = None) -> str:
+    """Catalog text bound for the panel's status line or a button: ASCII the panel accepts (the middle dot of the status
+    line too), never longer than `limit` (a translation with accents or a long wording must not make `lua.set_panel`
+    refuse the whole update). `fallback` is shown when nothing usable is left."""
+    plain = "".join(ch for ch in unicodedata.normalize("NFKD", str(text)) if ch.isascii() or ch == "\u00b7")
+    plain = " ".join(_PANEL_UNSAFE.sub(" ", plain).split())
+    return plain[:limit].rstrip() or fallback or t("panel.option")
 
 
 def safe_label(text: str, fallback: str | None = None, limit: int = LABEL_MAX) -> str:
