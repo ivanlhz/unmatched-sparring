@@ -6,3 +6,9 @@ estado/
 state/
 saves/
 .claude
+
+# Scanned card art (copyrighted, kept local only)
+assets/hellboy_sheet.png
+assets/medusa_sheet.img
+assets/row*.jpg
+assets/med_row*.jpg
