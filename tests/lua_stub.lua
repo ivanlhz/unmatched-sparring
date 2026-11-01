@@ -7,9 +7,9 @@ DEFER = false
 local function vec(x, y, z) return {x = x, y = y, z = z} end
 Vector = function(x, y, z) if type(x) == "table" then return vec(x[1] or x.x, x[2] or x.y, x[3] or x.z) end return vec(x, y, z) end
 local serial = 0
-local function customDeck(owner, cid)
+local function customDeck(owner, cid, key)
   local base = "https://img.test/" .. tostring(owner)
-  return {[tostring(math.floor(cid / 100))] = {FaceURL = base .. "/face", BackURL = base .. "/back"}}
+  return {[key or tostring(math.floor(cid / 100))] = {FaceURL = base .. "/face", BackURL = base .. "/back"}}
 end
 function mkobj(o)
   serial = serial + 1
@@ -52,10 +52,10 @@ function mkobj(o)
   o.setScale = function(v) o.scale = v end
   o.getData = function()
     if o.data then return o.data end
-    if o.type == "Card" then return {CardID = o.cid, CustomDeck = customDeck(o.owner, o.cid)} end
+    if o.type == "Card" then return {CardID = o.cid, CustomDeck = customDeck(o.owner, o.cid, o.deck_key)} end
     local co = {}
     for _, c in ipairs(o.cards or {}) do
-      table.insert(co, {CardID = c.cid, GUID = c.guid, CustomDeck = customDeck(c.owner, c.cid)})
+      table.insert(co, {CardID = c.cid, GUID = c.guid, CustomDeck = customDeck(c.owner, c.cid, c.deck_key)})
     end
     return {ContainedObjects = co}
   end
@@ -64,7 +64,7 @@ function mkobj(o)
   o.putObject = function(x)
     PUT_LOG = PUT_LOG or {}
     table.insert(PUT_LOG, {deck = o.guid, card = x.guid, rot_z = (o.rot or vec(0, 0, 0)).z})
-    if x.type == "Card" then table.insert(o.cards, {cid = x.cid, guid = x.guid, owner = x.owner})
+    if x.type == "Card" then table.insert(o.cards, {cid = x.cid, guid = x.guid, owner = x.owner, deck_key = x.deck_key})
     else for _, c in ipairs(x.cards) do table.insert(o.cards, c) end end
     for i, y in ipairs(OBJECTS) do if y == x then table.remove(OBJECTS, i) break end end
     return o
@@ -83,7 +83,7 @@ function mkobj(o)
     for i, c in ipairs(o.cards or {}) do
       if c.guid == t.guid or (t.guid == nil and i == 1) then
         table.remove(o.cards, i)
-        local card = mkobj({guid = c.guid, type = "Card", cid = c.cid, owner = c.owner, pos = Vector(t.position)})
+        local card = mkobj({guid = c.guid, type = "Card", cid = c.cid, owner = c.owner, deck_key = c.deck_key, pos = Vector(t.position)})
         return card
       end
     end

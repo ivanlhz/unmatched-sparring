@@ -165,18 +165,14 @@ def test_zoom_off_by_config_sends_no_zoom_code(brig):
     assert not any("sparringZoom" in s for s in table.scripts)
 
 
-COUNTS = {}
-
-
-@pytest.mark.parametrize("flag", [False, True])
-def test_a_combat_step_costs_the_same_messages_with_and_without_zoom(brig, flag):
+def test_a_combat_step_adds_no_message_for_the_zoom(brig):
     session, table, game, fake = brig
-    session.cfg.card_zoom = flag
-    n = fake.lua_messages
+    session.cfg.card_zoom = True
+    n, sent = fake.lua_messages, len(table.sent)
     attack_and_reveal(session, table, game)
-    COUNTS[flag] = fake.lua_messages - n
-    if len(COUNTS) == 2:
-        assert COUNTS[True] == COUNTS[False]
+    step = table.sent[sent:]
+    assert fake.lua_messages - n == len(step) and set(step) == {"composite"}, "no standalone zoom message"
+    assert zoom_scripts(table), "and the zoom rode in those composites"
 
 
 def bot_scheme_turn(session, table, game, title):
@@ -306,3 +302,103 @@ def test_the_real_config_documents_and_validates_the_zoom_keys(tmp_path):
     for over in ({"card_zoom_seconds": 0}, {"card_zoom_scale": 50}, {"card_zoom_spot": [1, 2]}):
         with pytest.raises(ConfigError):
             config_for(tmp_path, **over).session_config()
+
+
+# ---------- review round: odd deck keys, the Deck path, clean-up, more triggers ----------
+def test_a_card_whose_deck_key_is_not_its_id_div_100_is_still_zoomed(rt):
+    rt.execute('mkobj({guid = "c1", type = "Card", cid = 150, owner = "x", deck_key = "7", pos = Vector(5, 1, 5)})')
+    rt.execute(lua.flip_card("c1", 0, True, X_IDS, identity=X_IDENT, zoom=ZOOM))
+    assert len(zoomed(rt)) == 1
+    assert rt.eval('(function() for _, o in ipairs(getObjects()) do if o.name == "SparringZoom" then '
+                   'local d = o.getData() return d.CardID, (next(d.CustomDeck)) end end end)()') == (99950, "999")
+
+
+def test_a_card_taken_out_of_a_deck_is_zoomed_with_an_odd_key_too(rt):
+    scope = lua.Scope(("Blue",), ("ZN",), ((0.0, 0.0),))
+    rt.execute('mkobj({guid = "ZN", type = "Zone", cx = 0, cz = 0, hw = 5, hd = 5})')
+    rt.execute('mkobj({guid = "D1", type = "Deck", pos = Vector(0, 1, 0), cards = {'
+               '{cid = 150, guid = "k1", owner = "x", deck_key = "7"}, {cid = 151, guid = "k2", owner = "x"}}})')
+    script = lua.discard_cards([150], [(1.0, 2.0, 3.0)], 90, identity=X_IDENT, scope=scope, id_range=X_IDS,
+                               zoom=ZOOM, zoom_id=150)
+    assert json.loads(rt.execute(script))["moved"] == [150]
+    assert len(zoomed(rt)) == 1
+    assert rt.eval('(function() for _, o in ipairs(getObjects()) do if o.name == "SparringZoom" then return o.cid end end end)()') == 99950
+
+
+def test_start_and_exit_clean_remove_a_leftover_copy_but_a_plain_redraw_does_not(rt):
+    card(rt)
+    rt.execute(lua.flip_card("c1", 0, True, X_IDS, identity=X_IDENT, zoom=ZOOM))
+    rt.execute('mkobj({guid = "mine", type = "Card", cid = 160, name = "SparringZoom", gm = "someone else"})')
+    rt.execute(lua.clear_markings())
+    assert len(zoomed(rt)) == 2
+    rt.execute(lua.clear_markings(remove_panel=True))
+    left = zoomed(rt)
+    assert len(left) == 1 and rt.eval('getObjectFromGUID("mine") ~= nil'), "only ours (name + marker) goes"
+
+
+def test_read_face_down_cards_skips_the_copy(rt):
+    card(rt)
+    rt.execute(lua.flip_card("c1", 0, True, X_IDS, identity=X_IDENT,
+                             zoom=lua.ZoomSpec((5.0, 12.0, 5.0), (0.0, 0.0, 0.0), 4.0, 6.0)))
+    rt.execute('for _, o in ipairs(getObjects()) do o.is_face_down = true end')
+    assert [c["guid"] for c in json.loads(rt.execute(lua.read_face_down_cards(5.0, 5.0)))] == ["c1"]
+
+
+def test_a_glance_is_zoomed_when_it_goes_to_the_discard(brig):
+    session, table, game, fake = brig
+    session.cfg.card_zoom = True
+    from test_session import card as card_of, set_bot_hand
+    set_bot_hand(table, game, "A Momentary Glance", "Dash")
+    session.read_bot_hand()
+    glance = card_of(game, 0, "A Momentary Glance")
+    acts = iter([Act("glance", fid="medusa", target="hellboy", card=glance)])
+    session.ai.plan = lambda g: next(acts, None) or Act("maneuver", moves={})
+    session.ai.pick_ability_target = lambda g: None
+    game.actions_left = 0
+    session.handle(Event.END_ACTION)
+    assert any("if id == zoomId then sparringZoom(o) end" in x for x in zoom_scripts(table))
+
+
+def test_a_frenzy_is_zoomed_when_it_goes_to_the_discard(brig):
+    session, table, game, fake = brig
+    session.cfg.card_zoom = True
+    from test_session import card as card_of, set_bot_hand
+    set_bot_hand(table, game, "Winged Frenzy", "Dash")
+    session.read_bot_hand()
+    frenzy = card_of(game, 0, "Winged Frenzy")
+    acts = iter([Act("frenzy", card=frenzy, moves={}, spot=2)])
+    session.ai.plan = lambda g: next(acts, None) or Act("maneuver", moves={})
+    session.ai.pick_ability_target = lambda g: None
+    game.actions_left = 0
+    session.handle(Event.END_ACTION)
+    assert any("if id == zoomId then sparringZoom(o) end" in x for x in zoom_scripts(table))
+
+
+def test_the_humans_cards_and_face_down_cards_are_never_zoomed(brig):
+    session, table, game, fake = brig
+    session.cfg.card_zoom = True
+    attack_and_reveal(session, table, game)
+    flips = [x for x in table.scripts if x.startswith("-- sparring:flip_card")]
+    human_flips = [x for x in flips if 'getObjectFromGUID("hcard")' in x]
+    assert human_flips and not any("sparringZoom" in x for x in human_flips)
+    assert not any("sparringZoom" in x for x in table.scripts if x.startswith("-- sparring:play_card_face_down"))
+    hide = lua.flip_card("g1", 0, False, X_IDS, identity=X_IDENT, zoom=ZOOM)
+    assert "sparringZoom" not in hide
+
+
+def test_a_second_game_over_after_undo_shows_the_dialog_again(brig):
+    session, table, game, fake = brig
+    click(session, table, Event.REMOVE, {"fighter": "medusa"})
+    assert len(dialogs(table)) == 1
+    click(session, table, Event.UNDO_GAME_OVER)
+    assert game.winner is None
+    click(session, table, Event.REMOVE, {"fighter": "medusa"})
+    assert game.winner == 1 and len(dialogs(table)) == 2
+
+
+def test_a_combat_card_already_flipped_is_not_zoomed_again_on_the_discard(brig):
+    session, table, game, fake = brig
+    session.cfg.card_zoom = True
+    attack_and_reveal(session, table, game)
+    shown = [x for x in table.scripts if re.search(r"^sparringZoom\(c\)", x, re.M) or re.search(r"local zoomId = \d+", x)]
+    assert len(shown) <= 1, "one combat card, one zoom: flipped or discarded, never both"

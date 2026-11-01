@@ -2257,7 +2257,7 @@ class Session:
         c = p.combat
         flip_cards = [(p.bot_card_guid, "bot"), (c["human_guid"], "human")]
         discarded_now = p.bot_card is not None and p.bot_card in g.players[self.bot].discard
-        if discarded_now and c["flip"]:
+        if discarded_now and c["flip"] and self.cfg.batch and not c.get("flipped"):
             self.zoom_ids.add(p.bot_card.card_id)         # not flipped on the table: the discard shows it instead
         if c["flip"] and not c.get("flipped"):
             self._flip_queued([(None if discarded_now and side == "bot" else guid, side) for guid, side in flip_cards])

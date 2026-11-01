@@ -396,7 +396,13 @@ def _zoom_lua(zoom: ZoomSpec) -> str:
   pcall(function()
     local data = src.getData()
     local id = data.CardID
-    local sheet = type(data.CustomDeck) == "table" and data.CustomDeck[tostring(math.floor(id / 100))]
+    local sheet = nil
+    if type(data.CustomDeck) == "table" then
+      sheet = data.CustomDeck[tostring(math.floor(id / 100))] or data.CustomDeck[math.floor(id / 100)]
+      if sheet == nil then
+        for _, only in pairs(data.CustomDeck) do sheet = only break end
+      end
+    end
     if type(sheet) ~= "table" then return end
     for _, old in ipairs(getObjects()) do
       if old.getName() == {lua_str(ZOOM_NAME)} and old.getGMNotes() == {lua_str(MARKER)} then old.destruct() end
@@ -1213,7 +1219,7 @@ def read_face_down_cards(x: float, z: float, radius: float = 2.0) -> str:
     return f"""-- sparring:read_face_down_cards
 local out = {{}}
 for _, o in ipairs(getObjects()) do
-  if o.type == "Card" and o.is_face_down then
+  if o.type == "Card" and o.is_face_down and o.getName() ~= "SparringZoom" then
     local p = o.getPosition()
     if (p.x - {_f(x)}) ^ 2 + (p.z - {_f(z)}) ^ 2 <= {_f(radius)} ^ 2 then
       table.insert(out, {{id = o.getData().CardID, guid = o.getGUID()}})
@@ -1377,7 +1383,8 @@ def clear_markings(remove_panel: bool = False) -> str:
     With `remove_panel` it also removes the panel itself (on exit, or at start if an earlier run died without
     cleaning up). It only touches objects whose name AND GM notes (`MARKER`) are ours: a user's object
     that merely shares the name is left alone. The panel is renamed before being destroyed so that no
-    later read in the same pass finds it again. It never touches the Global."""
+    later read in the same pass finds it again. With `remove_panel` it also removes a leftover card-zoom copy (a
+    reload within its few seconds). It never touches the Global."""
     if not isinstance(remove_panel, bool):
         raise TypeError("remove_panel must be a boolean")
     drop_panel = ("    o.setName(\"\")\n    o.setGMNotes(\"\")\n    o.destruct()\n    removed = removed + 1\n"
@@ -1389,7 +1396,7 @@ for _, o in ipairs(getObjects()) do
   local ours = o.getGMNotes() == {lua_str(MARKER)}
   if ours and o.getName() == {lua_str(PANEL_NAME)} then
     o.setVectorLines({{}})
-{drop_panel}  elseif ours and string.sub(name, 1, {len(MARK_PREFIX)}) == {lua_str(MARK_PREFIX)} then
+{drop_panel}  elseif ours and (string.sub(name, 1, {len(MARK_PREFIX)}) == {lua_str(MARK_PREFIX)} or (name == {lua_str(ZOOM_NAME)} and {"true" if remove_panel else "false"})) then
     o.destruct()
     removed = removed + 1
   end
