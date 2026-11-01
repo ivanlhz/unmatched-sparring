@@ -203,6 +203,36 @@ def side_of(flow, card) -> str | None:
     return None
 
 
+COMBAT_MOMENTS = ("immediately", "during", "after")
+
+
+def has_effects(game, flow, side: str, moments=None) -> bool:
+    """The card on `side` has effects in `moments` (default: the three combat ones) that a cancellation would remove:
+    ops in those moments or the free BOOST of a `may_boost` card (a DURING effect). A hero outside the interpreter
+    has only the card's text to say."""
+    card = flow.atk_card if side == "atk" else flow.def_card
+    if card is None:
+        return False
+    owner = flow.att.owner if side == "atk" else flow.tgt.owner
+    slug = game.players[owner].hero.slug
+    if slug not in game.fx.dsl_heroes:
+        return bool(card.text.strip())
+    fx = load_effects(slug).cards.get(card.title)
+    names = tuple(moments or COMBAT_MOMENTS)
+    return fx is not None and (any(fx.moments.get(m) for m in names) or ("during" in names and fx.may_boost))
+
+
+def effects_canceled(game, run, ref) -> bool:
+    """`effects_canceled` test: a cancellation of this combat really took an effect off the card `ref` names."""
+    from .select import card_ref
+    flow = getattr(run, "flow", None)
+    if flow is None:
+        return False
+    cards = card_ref(game, run, ref)
+    side = side_of(flow, cards[0]) if cards else None
+    return side is not None and side in flow.cancel_hits
+
+
 def printed_value(flow, side: str) -> int:
     card = flow.atk_card if side == "atk" else flow.def_card
     return flow.printed_set.get(side, card.value or 0)

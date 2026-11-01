@@ -134,13 +134,18 @@ def _draw(run, game, spec):
         run.bind("cards", spec["as"], drawn)
 
 
-def _cards_of(game, run, cards, purpose: str, prompt: str | None = None, **extra) -> list[Picked]:
+def _cards_of(game, run, cards, purpose: str, prompt: str | None = None, in_combat: bool = False,
+              **extra) -> list[Picked]:
+    """`in_combat`: a card ref may also name a card being played in this combat (zone "combat", held by the flow)."""
     if isinstance(cards, str):
         found = []
+        flow = getattr(run, "flow", None) if in_combat else None
         for c in card_ref(game, run, cards):
             where = locate(game, c)
             if where is not None:
                 found.append(Picked(where[0], where[1], c))
+            elif flow is not None and any(card is c for _, card in flow.played):
+                found.append(Picked(next(o for o, card in flow.played if card is c), "combat", c))
         return found
     return select_cards(game, run, cards, purpose, prompt, **extra)
 
@@ -540,3 +545,4 @@ def _plugin(run, game, spec):
 
 from . import ops_combat  # noqa: E402,F401  (registers the combat ops over the registry above)
 from . import ops_info  # noqa: E402,F401  (registers look_hand, reveal, look_deck, search_deck, return_to_deck, put_in_hand)
+from . import plugins_raphael  # noqa: E402,F401  (registers raphael:unbridled_rage)

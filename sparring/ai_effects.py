@@ -66,6 +66,7 @@ DEFAULT_REACH = 2                                       # steps a place/swap can
 HP_OPS = ("damage", "heal", "set_hp")
 RELOCATE_OPS = ("move", "place", "swap")
 CANCEL_MAX_KEEP = 1.6                                   # the card given up to cancel the rival's effects is worth this or less
+BONUS_MARGIN = 0.2                                      # a card is given up for a bonus only when it clearly pays
 BOUNCE_BONUS = 0.5                                      # a returning card at the bottom also burns 1 when it comes back
 
 
@@ -269,6 +270,8 @@ class EffectAI:
         zone, purpose = req.extra.get("zone"), req.extra.get("purpose")
         of = req.extra.get("of", me)
         n_min, n_max = req.min, min(req.max, len(req.options))
+        if purpose == "bonus":
+            return self._bonus_discards(game, req)
         if zone == "hand" and of != me:                    # C4: what a look showed, the rest by position
             return ControllerChooser._from_rival_hand(game, req, of)
         if zone == "hand":
@@ -296,6 +299,26 @@ class EffectAI:
         ranked = sorted(req.options, key=lambda i: (-worth(i), i))
         take = n_max if n_min < n_max and worth(ranked[0]) > 0 else n_min
         return ranked[:take]
+
+    def _bonus_discards(self, game: Game, req: ChoiceRequest) -> list:
+        """Unbridled rage: each card given up adds `per_card` to the value of the card. Cards go from the least to the
+        most valuable to keep while the damage the next bonus adds to the blow is worth more than the card. Only an
+        attack counts (the damage the bot adds); a defense adds nothing it can price."""
+        me, hand = req.player, game.players[req.player].hand
+        foe = game.fighters.get(req.extra.get("foe"))
+        if foe is None or not req.extra.get("attacking"):
+            return []
+        by_id = {c.card_id: c for c in hand}
+        per, margin = req.extra["per_card"], req.extra["margin"]
+        ranked = sorted(req.options, key=lambda i: (keep_value(by_id[i], hand), i))
+        base = self.blow_value(foe, max(0, margin), game)
+        best, best_net, spent = 0, 0.0, 0.0
+        for k, i in enumerate(ranked, 1):
+            spent += keep_value(by_id[i], hand)
+            net = self.blow_value(foe, max(0, margin + per * k), game) - base - spent - BONUS_MARGIN
+            if net > best_net:
+                best, best_net = k, net
+        return ranked[:best]
 
     # ------------------------------------------------------------------ order, amount
     def _order(self, game: Game, req: ChoiceRequest, nested: bool) -> list:

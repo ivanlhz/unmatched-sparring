@@ -119,6 +119,12 @@ AFTER_BONUS = {
     "The Hounds of Mighty Zeus": (0.4, 0.0),
     "Clutching Claws": (0.7, 0.0),
     "Hiss and Slither": (0.7, 0.0),
+    "Let's do this!": (CARD_VALUE, CARD_VALUE),     # Raphael: draws 1, 2 if it wins
+    "Crowd control": (0.5, 0.0),                    # draws and hurts every adjacent rival
+    "Batter up!": (0.0, 0.3),                       # pushes the loser away
+    "Relentless": (0.6, 0.0),                       # the card comes back to the deck and 1 is drawn
+    "Break something": (0.5, 0.0),                  # cancels the rival card's effects
+    "Unbridled rage": (0.8, 0.0),                   # expected bonus of the cards it can give up
 }
 DISCARD_EFFECTS = ("Clutching Claws", "Hiss and Slither")
 
@@ -410,8 +416,18 @@ class MedusaAI(Controller):
     def eval_attack(self, game: Game, model: Model, f: Fighter, t: Fighter, c) -> float:
         return self.attack_eval(game, model, f, t, c)[0]
 
+    def card_value(self, game: Game, f: Fighter, t: Fighter, c) -> float:
+        """The value an attack card will have against `t`: the printed one, or the one its DURING sets when that is
+        known now (Raphael's Slapshot with Casey next to the target, Payback time! after a lost combat)."""
+        if c.title == "Slapshot" and any(o.name == "Casey Jones" and o.pos in game.board.adj[t.pos]
+                                         for o in game.own(f.owner) if o.pos is not None):
+            return 6.0
+        if c.title == "Payback time!" and game.fx.lost[f.owner]:
+            return 5.0
+        return float(c.value)
+
     def p_win_of(self, game: Game, model: Model, f: Fighter, t: Fighter, c) -> float:
-        atk = float(c.value) + game.attack_bonus(f)
+        atk = self.card_value(game, f, t, c) + game.attack_bonus(f)
         if c.title in FREE_BOOST:
             spare = [x for x in game.players[self.me].hand if x is not c]
             atk += BOOST_RELIANCE * max((x.boost for x in spare), default=0)
@@ -432,7 +448,7 @@ class MedusaAI(Controller):
 
     def attack_eval(self, game: Game, model: Model, f: Fighter, t: Fighter, c) -> tuple[float, float]:
         hand = game.players[self.me].hand
-        atk, cost = float(c.value) + game.attack_bonus(f), CARD_VALUE + 0.05 * c.boost    # ANUNG UN RAMA's +2, a live ONGOING
+        atk, cost = self.card_value(game, f, t, c) + game.attack_bonus(f), CARD_VALUE + 0.05 * c.boost    # ANUNG UN RAMA's +2, a live ONGOING
         if c.title in FREE_BOOST:
             spare = [x for x in hand if x is not c]
             if spare:

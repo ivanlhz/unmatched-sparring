@@ -25,21 +25,15 @@ FIGHT_OR_FLIGHT = "Fight Or Flight"          # only a label for the tests: the e
 
 
 @lru_cache(maxsize=None)
-def _medusa_cards() -> frozenset[Card]:
-    from .heroes import load_hero
-    return frozenset(load_hero("medusa").deck())
+def _medusa_ids() -> dict[int, str]:
+    from .cards import load_medusa_deck
+    return {c.card_id: c.title for c in load_medusa_deck()}
 
 
 def is_medusa_card(card: Card) -> bool:
-    """One of Medusa's own cards. The CardID range alone is not enough: Michelangelo's deck uses the same sheet number
-    (17600..17629), so the title has to match as well."""
-    return MEDUSA_BASE <= card.card_id < MEDUSA_BASE + 100 and card.title in _medusa_titles()
-
-
-@lru_cache(maxsize=None)
-def _medusa_titles() -> frozenset[str]:
-    from .heroes import load_hero
-    return frozenset(c.title for c in load_hero("medusa").deck())
+    """Medusa's deck is sheet 176 of the savegame; another hero's separate deck object can reuse that CardID range
+    (Raphael), so the title decides inside it."""
+    return MEDUSA_BASE <= card.card_id < MEDUSA_BASE + 100 and _medusa_ids().get(card.card_id) == card.title
 
 
 @dataclass

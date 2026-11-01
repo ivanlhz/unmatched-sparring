@@ -166,7 +166,7 @@ def _return_to_deck(run, game, spec):
                    up_to=bool(sel.get("up_to")), all=sel.get("pick") == "all" and "except" not in sel,
                    rest=sel.get("pick") == "all" and "except" in sel, ordered="order" in spec)
         return
-    items = _cards_of(game, run, sel, "return", position=position)
+    items = _cards_of(game, run, sel, "return", in_combat=True, position=position)
     if items and position == "bottom" and isinstance(sel, dict) and sel["zone"] == "deck" \
             and table.physical(game, items[0].player):
         table.note(run, op="deck_to_bottom", amount=len(items))      # their own deck order is theirs: by hand
@@ -202,6 +202,8 @@ def _return_to_deck(run, game, spec):
                 st.discard.remove(c)
             elif zone == "deck":
                 st.deck.remove(c)
+            elif zone == "combat":              # played in this combat: it no longer goes to the discard pile
+                run.flow.played[:] = [(o, card) for o, card in run.flow.played if card is not c]
             else:
                 game.fx.take_ongoing(holder)
         if from_hand and chooser != rival:
@@ -213,7 +215,7 @@ def _return_to_deck(run, game, spec):
         if position == "shuffle":
             st.deck[:] = [st.deck[i] for i in perms[holder]]
         for zone in ("hand", "discard"):          # the table sees these two leave; `cards` in the order the deck holds them
-            moved_here = [c.card_id for c in cards if zones[c.card_id] == zone]
+            moved_here = [c.card_id for c in cards if zones[c.card_id] == zone or (zone == "discard" and zones[c.card_id] == "combat")]
             if moved_here:
                 table.intent(game, op="return_to_deck", player=holder, zone=zone, cards=moved_here, position=position)
         watcher, ids = _watcher(game, holder), [c.card_id for c in cards]

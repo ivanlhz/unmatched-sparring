@@ -39,7 +39,7 @@ from test_golden import GOLDEN, SIM_GAMES, jsonable, midgame, transcript
 from test_session import human_plays, rig, set_bot_hand  # noqa: F401
 
 BOARDS = {key: Board.load(key) for key in ("bprd-hq", "azuchi-castle")}
-BOX = INTERPRETED_HEROES - {"medusa"}
+BOX = {"hellboy", "abe-sapien", "baba-yaga", "liz-sherman"}      # the box heroes the legacy rig keeps on the interpreter
 MEDUSA_TITLES = {c.title for c in load_hero("medusa").deck()}
 
 

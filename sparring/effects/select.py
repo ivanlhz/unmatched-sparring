@@ -160,6 +160,11 @@ def fighter_candidates(game, run, sel) -> tuple[list, bool]:
         out = [f for f in out if (f.fid in attacked) == bool(flt["attacked_this_turn"])]
     if "passed_by" in flt:
         out = _passed_by(game, run, out, flt["passed_by"])
+    if "adjacent_to_any" in flt:       # next to at least one other living fighter the selector designates
+        others = fighter_candidates(game, run, flt["adjacent_to_any"])[0]
+        adj = game.board.adj
+        out = [f for f in out if f.pos is not None and any(o is not f and o.pos is not None and o.pos in adj[f.pos]
+                                                           for o in others)]
     return out, sel.get("pick", "one") == "all"
 
 
@@ -343,6 +348,8 @@ def _stat(game, run, a):
         return game.fx.taken if player == game.turn else 0
     if stat == "other_cards_played_this_turn":
         return max(0, game.fx.played[player] - 1)         # the card being resolved is counted already
+    if stat == "combats_lost_this_turn":
+        return game.fx.lost[player]
     if stat == "damage_dealt_this_combat":
         return run.ctx.damage_dealt
     if stat == "damage_taken_this_combat":
@@ -381,6 +388,9 @@ def condition(game, run, c: dict) -> bool:
     if test == "combat_result":
         won = run.ctx.combat_result == "won"
         return won if c["result"] == "won" else not won
+    if test == "effects_canceled":
+        from .modifiers import effects_canceled
+        return effects_canceled(game, run, c["card"])
     if test == "counter":
         v = counter_value(game, player_of(game, run, c.get("player", "owner")), c["name"])
         return v >= c.get("min", v) and v <= c.get("max", v)

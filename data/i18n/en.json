@@ -887,5 +887,6 @@
  "cli.description": "Entry point of the live game.",
  "console.legacy_config": "{old} is the old name of the configuration: use {new}",
  "console.moved_state": "the saved game {old} was moved to {new} (once)",
- "console.moved_log": "the log {old} was moved to {new}"
+ "console.moved_log": "the log {old} was moved to {new}",
+ "raphael.combat_to_deck": "Put {cards} from your combat zone into your deck and shuffle it ({cause})."
 }
