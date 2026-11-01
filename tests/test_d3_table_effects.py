@@ -44,6 +44,7 @@ class FxTable(Table):
         self.states: list[tuple[str, int]] = []
         self.flipped: list[str] = []
         self.pings: list[list[list[str]]] = []
+        self.point_pings: list[int] = []
         self.tokens: list[str] = []
         self.hand_moves: list[tuple[str, list[int]]] = []
         self.deck_moves: list[tuple[str, list[int]]] = []
@@ -76,6 +77,11 @@ class FxTable(Table):
         groups = re.search(r"local groups = \{(.*)\}\nlocal function", s, re.S).group(1)
         self.pings.append([re.findall(r'"(\w+)"', g) for g in re.findall(r"\{([^{}]*)\}", groups)])
         return {"queued": len(self.pings[-1])}
+
+    def do_ping_points(self, s):
+        n = len(re.findall(r"Vector\(", re.search(r"local points = \{(.*)\}\nfor i", s, re.S).group(1)))
+        self.point_pings.append(n)
+        return {"queued": n}
 
     def do_take_token_copy(self, s):
         guid = f"tok{len(self.tokens) + 1}"
