@@ -7,7 +7,7 @@ Set "Adventures: Teenage Mutant Ninja Turtles". Playable by the bot and by the h
 - Ability **ANGER ISSUES**: on each of your turns, the first time you lose combat, gain 1 action.
 - Deck: 30 cards, `CardID = 17600 + idx`. The deck object in the save holds 31 cards (the 30 plus the character card), hence `card_count 31` in the catalog. Restriction bands: RAPHAEL, CASEY, ANY.
 - Table: Raphael's miniature `613334` and dial `887823` (max 17); Casey's token `c67447` and dial `a3f578` (max 8). The miniature's nickname carries a TTS colour tag (`[A32135]Raphael`); `tools/import_save.py` now ignores such tags when matching names.
-- His deck is sheet 176 **like Medusa's**: the same CardID range, a different image. Detection, the Lua scripts and the config check tell them apart by image; `combat.is_medusa_card` also checks the title.
+- His deck is sheet 176 **like Medusa's**: the same CardID range, a different image. Detection, the Lua scripts and the config check tell them apart by image; `combat.is_medusa_card` compares the card by value with Medusa's deck (docs/card-identity.md).
 
 ## Cards (as implemented)
 

@@ -37,7 +37,7 @@ Set "Adventures: Teenage Mutant Ninja Turtles". Data, effects, table data and en
 4. **Nunchaku** is the fighter status `attack_bonus` until the end of the turn (not an ONGOING: it stays out of the ONGOING slot).
 5. **Shell Insertion** uses `choose_effect` with `distinct`; the human picks with the panel, the bot simulates each option.
 6. The bot pays a card from its hand for an action (Hi-Yaaaaah!!) while another card that can use the action stays in hand, and for Guaranteed Delivery's cancel when the card it gives up is below average and the rival's card has effects (`EffectAI._card_from_hand_pays`).
-7. **CardID collision**: Michelangelo and Medusa both use 17600..17629 in the tournament save. `combat.is_medusa_card` now also checks the title; the bridge refuses a table with both heroes (existing guard).
+7. **CardID collision**: Michelangelo and Medusa both use 17600..17629 in the tournament save; they are told apart by deck image and by owner (docs/card-identity.md). Medusa vs Michelangelo works at the table in both seats.
 
 ## Adventures wording in 1 versus 1
 "Each opponent" is the one rival; "each friendly fighter" is Michelangelo and April.
@@ -48,4 +48,3 @@ Set "Adventures: Teenage Mutant Ninja Turtles". Data, effects, table data and en
 - Hi-Yaaaaah!!: "adjacent opposing fighter" is any rival fighter adjacent to the attacker, not only the one fought.
 - Shell Insertion: the rival chooses which card to discard.
 - Maximum hand size 3 is applied at the end of the turn (like the 7 of every hero); a Maneuver or PIZZA PARTY may take the hand above 3 during the turn.
-- Medusa vs Michelangelo at the table (same CardIDs): refused for now.

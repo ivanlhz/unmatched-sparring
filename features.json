@@ -310,7 +310,7 @@
         "Every card effect in the DSL, including Shell Insertion (two different effects out of four), Nunchaku (a +1 status on every attack of the hero this turn) and Cowabunga!! (cards played this turn)",
         "PIZZA PARTY: draw 1 after an attack or a scheme; opening and maximum hand size 3, per hero and additive (default 5 and 7)",
         "Bot AI aware of the 3-card hand (hand cap in the evaluation, pays a card for an action or a cancel by rule); heuristic and ISMCTS",
-        "Whole FakeTTS games against Hellboy, Abe Sapien, Baba Yaga and Liz Sherman on both sides; Medusa and Michelangelo are refused at the table (same CardIDs) and play in the simulator"
+        "Whole FakeTTS games against Hellboy, Abe Sapien, Baba Yaga and Liz Sherman on both sides; Medusa and Michelangelo share a table (same CardIDs, told apart by the deck images: docs/card-identity.md)"
       ],
       "note": "Live test pending: see docs/live-checklist.md, Michelangelo."
     },

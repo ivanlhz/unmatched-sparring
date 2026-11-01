@@ -5,14 +5,12 @@ maneuvers (the bot attacks, draws with PIZZA PARTY and keeps its hand at 3); and
 against Michelangelo as the human, who walks up to the bot's hero and attacks every turn (PIZZA PARTY deals cards to
 his seat, the hand limit is 3). Every game must reach "game over" without an illegal action.
 
-Medusa and Michelangelo cannot sit at the same table: the tournament save gives both the CardIDs 17600..17629 and the
-bridge refuses ranges that overlap (tests below); they are played against each other in the simulator
-(tests/test_bot_any_hero.py)."""
+Medusa and Michelangelo share the CardIDs 17600..17629 (the tournament save); the table tells them apart by deck image
+(docs/card-identity.md), so that pairing is played here too, and across the whole matrix in tests/test_tmnt_matrix.py."""
 from __future__ import annotations
 
 import pytest
 
-from sparring.play import ConfigError
 from sparring.tts.ui import Event
 from test_batch import click
 from test_d3_table_effects import build, set_hand
@@ -197,10 +195,10 @@ def test_the_bot_michelangelo_is_dealt_3_cards_and_a_mulligan_returns_3(tmp_path
         fake.close()
 
 
-def test_medusa_and_michelangelo_are_refused_at_the_table_with_a_clear_message(tmp_path):
+def test_medusa_and_michelangelo_share_a_table_because_their_deck_images_differ(tmp_path):
     for pair in (("medusa", "michelangelo"), ("michelangelo", "medusa")):
-        with pytest.raises(ConfigError, match="CardID ranges"):
-            config_for(tmp_path, *pair)
+        cfg = config_for(tmp_path, *pair)
+        assert cfg.bot_card_ids == cfg.human_card_ids == (17600, 17629)
 
 
 def test_auto_detection_recognises_michelangelo_on_either_side():

@@ -61,7 +61,7 @@ Files: `data/heroes/overlay/leonardo.json` (CardID sheet), `data/heroes/leonardo
 - Amount `{"stat": "zones", "fighter": ...}`; SpaceSel flag `other`; `as` on `swap`, and `swap` of two of the table player's
   miniatures is left to them (table note).
 - Cards of decks that share a CardID (Leonardo and Medusa, and the other TMNT heroes) resolve by owner: `find_card(owner)`,
-  `side_of` by value, and `is_medusa_card` checks the card, not only the range. The configuration accepts overlapping
+  `side_of` by value, and `is_medusa_card` checks the card, not only the range (all unified in docs/card-identity.md). The configuration accepts overlapping
   CardID ranges when the deck images differ.
 
 ## Ivan's decisions
