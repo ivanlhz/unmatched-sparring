@@ -197,8 +197,9 @@ def pick_fighters(game, run, sel, chooser: int, prompt: str = "", **extra) -> li
 def find_card(game, card_id: int, owner: int | None = None):
     """The card with that id. Decks can share CardIDs (the TMNT heroes and Medusa are all DeckID 176): `owner`'s own
     card wins, the rival's is the fallback."""
-    order = game.players if owner is None else [game.players[owner], game.players[1 - owner]]
-    for p in order:
+    if owner is not None:
+        return game.card_of(card_id, owner)
+    for p in game.players:
         for c in p.full_set:
             if c.card_id == card_id:
                 return c

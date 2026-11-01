@@ -38,7 +38,6 @@ from .effects.choose import ChoiceRequest, ControllerChooser, SyntheticChooser, 
 from .effects.model import EffectError, load_effects
 from .effects.ops_combat import PREDICT_OP
 from .effects.run import Ctx, EffectRun
-from .effects.select import locate
 from .search.adapter import card_worth
 from .state import Game, PlayerState, RuleError
 
@@ -287,7 +286,7 @@ class EffectAI:
                 return ranked[:n_min] + junk if purpose == "discard" else ranked[:n_min]
             best = ranked[::-1]
             return best[:n_max] if n_min < n_max else best[:n_min]
-        cards = {c.card_id: c for p in game.players for c in p.full_set}
+        cards = game.cards_by_id(of)
         worth = lambda i: card_worth(cards[i]) if i in cards else 0.0
         if of == me and purpose == "discard":                       # parting with own deck or discard cards
             return sorted(req.options, key=lambda i: (worth(i), i))[:n_min]
@@ -323,14 +322,15 @@ class EffectAI:
     # ------------------------------------------------------------------ order, amount
     def _order(self, game: Game, req: ChoiceRequest, nested: bool) -> list:
         me = req.player
-        cards = {c.card_id: c for p in game.players for c in p.full_set}
+        of = req.extra.get("of", me)                        # whose cards the options are: ids mean cards only per owner
+        cards = game.cards_by_id(of)
         if req.extra.get("zone") == "deck" or set(req.options) <= set(cards):
-            mine = {c.card_id for c in game.players[me].full_set}
-            sign = {True: -1, False: 1}
+            mine = of == me
+            sign = -1 if mine else 1
             if req.extra.get("position") == "bottom":       # the very bottom is the last: the card that comes back
-                return sorted(req.options, key=lambda i: (i in mine and bounces_back(game, me, cards[i]),
-                                                          sign[i in mine] * card_worth(cards[i]), i))
-            return sorted(req.options, key=lambda i: (sign[i in mine] * card_worth(cards[i]), i))
+                return sorted(req.options, key=lambda i: (mine and bounces_back(game, me, cards[i]),
+                                                          sign * card_worth(cards[i]), i))
+            return sorted(req.options, key=lambda i: (sign * card_worth(cards[i]), i))
         fighters = game.fighters
         return sorted(req.options, key=lambda i: (-self.blow_value(fighters[i], DEFAULT_BLOW, game), i))
 
@@ -508,9 +508,8 @@ class EffectAI:
         `moment/path:ask`; None for anything that is not a card moment (ability triggers, unknown cards)."""
         if req.card_id is None or "/" not in req.key:
             return None
-        found = [(p, c) for p, st in enumerate(game.players) for c in st.full_set if c.card_id == req.card_id]
-        if len(found) > 1:             # decks sharing a CardID (the TMNT heroes, Medusa): the card resolving is in no pile
-            found = [(p, c) for p, c in found if locate(game, c) is None] or found
+        card = None if req.card_owner is None else game.card_of(req.card_id, req.card_owner)
+        found = [] if card is None else [(req.card_owner, card)]       # decks share CardIDs: the request names the owner
         label, _, rest = req.key.partition("/")
         segs = rest.rsplit(":", 1)[0].split("/")
         for owner, card in found:

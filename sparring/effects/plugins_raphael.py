@@ -46,5 +46,5 @@ def _unbridled_rage(run, game, spec):
 
 
 def card_title(run, game) -> str:
-    card = next((c for p in game.players for c in p.full_set if c.card_id == run.ctx.card_id), None)
+    card = None if run.ctx.card_id is None else game.card_of(run.ctx.card_id, run.ctx.owner)
     return card.title if card is not None else t("cause.effect")

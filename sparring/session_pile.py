@@ -11,7 +11,7 @@ from __future__ import annotations
 
 from .effects.choose import ChoiceRequest
 from .i18n import t
-from .session_choices import panel_text
+from .session_choices import panel_text, request_card
 from .tts.lua import ChatKind
 
 WHERE = {"shuffle": "pile.where.shuffle", "bottom": "pile.where.bottom", "top": "pile.where.top"}     # position -> i18n key
@@ -29,11 +29,11 @@ def manual_request(session) -> ChoiceRequest | None:
 
 def _titles(session, ids) -> str:
     from .session_choices import card_titles
-    return card_titles(session.game, sorted(ids))
+    return card_titles(session.game, sorted(ids), session.human)
 
 
 def _card_name(session, req: ChoiceRequest) -> str:
-    card = next((c for p in session.game.players for c in p.full_set if c.card_id == req.card_id), None)
+    card = request_card(session.game, req)
     return card.title if card is not None else ""
 
 

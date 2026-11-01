@@ -95,7 +95,7 @@ class EffectRun:
         self._asks += 1
         if key in self.answers:
             return self.answers[key]
-        req = ChoiceRequest(kind, player, list(options), lo, min(hi, len(options)), self.ctx.card_id, key, prompt, extra)
+        req = ChoiceRequest(kind, player, list(options), lo, min(hi, len(options)), self.ctx.card_id, key, prompt, extra, self.ctx.owner)
         answer = self._chooser(player).choose(game, req)
         if isinstance(answer, Await):
             raise Suspend(req, answer)

@@ -155,8 +155,10 @@ def table_defaults(bot_slug: str, human_slug: str) -> dict:
     bot, human = load_hero(bot_slug), load_hero(human_slug)
     tb, th = load_hero_table(bot_slug), load_hero_table(human_slug)
     first, second = sorted((tb.card_ids, th.card_ids))
-    if first[1] >= second[0] and (set(tb.identity) & set(th.identity) or not tb.identity or not th.identity):
-        # equal ranges are tolerated when the decks' sheets (images) tell them apart: Medusa and Raphael are both sheet 176
+    # Overlapping CardID ranges are fine when the two decks have different images: Medusa and every TMNT turtle share
+    # 17600-17629 (DeckID 176) and the table tells their cards apart by image identity (docs/card-identity.md). Only two
+    # decks that overlap in range AND in image could not be told apart.
+    if first[1] >= second[0] and set(tb.identity) & set(th.identity):
         raise HeroTableError(f"the CardID ranges of {bot_slug} and {human_slug} overlap")
     pieces, dials, nicknames = {}, {}, {}
     for hero, table in ((bot, tb), (human, th)):

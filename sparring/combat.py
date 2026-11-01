@@ -25,15 +25,14 @@ FIGHT_OR_FLIGHT = "Fight Or Flight"          # only a label for the tests: the e
 
 
 @lru_cache(maxsize=None)
-def _medusa_ids() -> dict[int, str]:
-    from .cards import load_medusa_deck
-    return {c.card_id: c.title for c in load_medusa_deck()}
+def _medusa_cards() -> frozenset[Card]:
+    return frozenset(load_hero("medusa").deck())
 
 
 def is_medusa_card(card: Card) -> bool:
-    """Medusa's deck is sheet 176 of the savegame; another hero's separate deck object can reuse that CardID range
-    (Raphael), so the title decides inside it."""
-    return MEDUSA_BASE <= card.card_id < MEDUSA_BASE + 100 and _medusa_ids().get(card.card_id) == card.title
+    """One of Medusa's cards. A CardID range cannot say so: the TMNT decks share Medusa's 17600-17629 (docs/card-identity.md),
+    so the card is compared by value with her deck (a Card is frozen: id, title, fighter, numbers, text, tags)."""
+    return card in _medusa_cards()
 
 
 @dataclass

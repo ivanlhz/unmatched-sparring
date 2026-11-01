@@ -121,7 +121,7 @@ def finish(session, run: EffectRun) -> None:
 
 
 def _card_title(game, run: EffectRun) -> str:
-    card = next((c for p in game.players for c in p.full_set if c.card_id == run.ctx.card_id), None)
+    card = None if run.ctx.card_id is None else game.card_of(run.ctx.card_id, run.ctx.owner)
     return card.title if card else t("fx.the_card")
 
 

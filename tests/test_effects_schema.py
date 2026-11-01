@@ -78,7 +78,7 @@ def test_may_boost_marks_in_data_what_combat_can_boost_detects_by_text():
                 by_text[(slug, card["title"])] = True
     assert flagged == by_text
     assert set(flagged) == {("medusa", "Second Shot"), ("hellboy", "Second Shot"), ("baba-yaga", "Out Of Time"),
-                           ("donatello", "Turtle power!"), ("michelangelo", "Turtle Power!!"), ("raphael", "Turtle power!")}
+                           ("donatello", "Turtle power!"), ("michelangelo", "Turtle Power!!"), ("raphael", "Turtle power!"), ("leonardo", "Turtle power!")}
     for slug, title in flagged:
         card = next(c for c in load_effects(slug)["cards"] if c["title"] == title)
         assert not any(op["op"] == "boost" for op in card["effects"]["during"]), "may_boost is not duplicated as an op"

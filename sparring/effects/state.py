@@ -173,8 +173,7 @@ class EffectState:
     # clone / persist
     def is_empty(self) -> bool:
         return not (self.statuses or any(self.ongoing) or any(self.counters) or self.modifiers or self.dsl_heroes
-                    or self.turn_start_pos or self.attacked or self.taken or any(self.played))
-                    or self.turn_start_pos or self.attacked or self.taken or any(self.lost))
+                    or self.turn_start_pos or self.attacked or self.taken or any(self.played) or any(self.lost))
 
     def copy(self) -> "EffectState":
         """The state a clone (search, simulation) starts from. `choosers` and `parked` stay with the live game: a

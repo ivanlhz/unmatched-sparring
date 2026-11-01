@@ -316,6 +316,22 @@ class Game:
     def hero_def(self, player: int) -> HeroDef:
         return self.players[player].hero
 
+    def card_of(self, card_id: int, owner: int) -> Card | None:
+        """The card `card_id` of `owner`'s deck. Never look a card up by its bare CardID: Medusa and the TMNT heroes share
+        17600-17629, so an id means a card only together with the player it belongs to (docs/card-identity.md). The
+        rival's deck is the fallback, for a card that changed hands (a card taken from the rival's discard pile)."""
+        for p in (self.players[owner], self.players[1 - owner]):
+            for c in p.full_set:
+                if c.card_id == card_id:
+                    return c
+        return None
+
+    def cards_by_id(self, owner: int) -> dict[int, Card]:
+        """CardID -> card for a request about `owner`'s cards: both decks, `owner`'s own winning where ids collide."""
+        out = {c.card_id: c for c in self.players[1 - owner].full_set}
+        out.update((c.card_id, c) for c in self.players[owner].full_set)
+        return out
+
     def start_hand(self, player: int) -> int:
         """Cards of the opening hand (and of a mulligan): 5, or what the hero's card says (Michelangelo: 3)."""
         return self.players[player].hero.hand_start

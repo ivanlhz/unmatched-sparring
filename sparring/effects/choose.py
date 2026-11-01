@@ -30,16 +30,17 @@ class ChoiceRequest:
     key: str = ""                   # op path + ask index: where the answer is stored
     prompt: str = ""
     extra: dict = field(default_factory=dict)   # bots: fighter, op, amount, steps, through, cost_cards, at_stake, hp
+    card_owner: int | None = None   # whose deck `card_id` is from (a CardID alone is ambiguous: docs/card-identity.md)
 
     def to_dict(self) -> dict:
         return {"kind": self.kind, "player": self.player, "options": list(self.options), "min": self.min,
                 "max": self.max, "card_id": self.card_id, "key": self.key, "prompt": self.prompt,
-                "extra": dict(self.extra)}
+                "extra": dict(self.extra), **({} if self.card_owner is None else {"card_owner": self.card_owner})}
 
     @classmethod
     def from_dict(cls, raw: dict) -> "ChoiceRequest":
         return cls(raw["kind"], raw["player"], list(raw["options"]), raw["min"], raw["max"], raw.get("card_id"),
-                   raw.get("key", ""), raw.get("prompt", ""), dict(raw.get("extra") or {}))
+                   raw.get("key", ""), raw.get("prompt", ""), dict(raw.get("extra") or {}), raw.get("card_owner"))
 
     def to_await(self) -> Await:
         return Await(PendingChoice("effect", self.player, self.card_id, False,
@@ -306,7 +307,7 @@ class SyntheticChooser:
             return ControllerChooser._from_rival_hand(game, req, of)
         if req.extra.get("purpose") == "bonus":
             return []
-        cards = {c.card_id: c for p in game.players for c in p.full_set}
+        cards = game.cards_by_id(of)
         worth = lambda i: card_worth(cards[i]) if i in cards else 0.0
         n = min(req.max, len(req.options))
         if req.extra.get("purpose") == "return" and req.extra.get("zone") == "discard" and of == req.player:
@@ -321,7 +322,7 @@ class SyntheticChooser:
 
     def _order(self, game, req: ChoiceRequest) -> list:
         from ..search.adapter import card_worth
-        cards = {c.card_id: c for p in game.players for c in p.full_set}
+        cards = game.cards_by_id(req.extra.get("of", req.player))
         if set(req.options) <= set(cards):
             return sorted(req.options, key=lambda i: (-card_worth(cards[i]), i))
         return list(req.options)
