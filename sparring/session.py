@@ -454,7 +454,7 @@ class Session:
         """A bot hero the effects interpreter does not run: its ability text is said and it is played by value and boost,
         breaking nothing. A hero the interpreter runs has its ability and cards coded, whatever `_bot_ability_coded` says."""
         hero = self.game.hero_def(self.bot)
-        if not self.game.fx.interprets(self.bot) and hero.ability:
+        if not self._bot_ability_coded() and not self.game.fx.interprets(self.bot) and hero.ability:
             self.say(t("sess.hero_uncoded", name=hero.name, ability=hero.ability), ChatKind.ABILITY)
 
     def resume(self) -> list[str]:
