@@ -5,6 +5,9 @@
   ],
   "bot_stage": null,
   "chosen_attacker": null,
+  "combat_guids": {
+   "19705": "h19705"
+  },
   "deck_ident": {
    "bot": [
     [
