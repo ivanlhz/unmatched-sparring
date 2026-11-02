@@ -1,6 +1,10 @@
 {
  "_notes": [
-  "PLACEHOLDER"
+  "Sheet 176 of the tournament savegame (8x4), read card by card from the image on 2026-11-02. CardID = 17600 + idx; 337 = character card (sheet 3, 10x7, index 37). The deck object of the save holds 31 cards: the 30 of the deck plus the character card, which is why the catalog says card_count 31 and card_ids [337, 17629].",
+  "Restriction band (DOCTOR STRANGE, WONG or ANY) and copies (xN printed on each card) read from the images; value, boost and type match unmatched-memory for all 11 titles. Strange's deck is sheet 176 like Medusa's and the four turtles': only deck.identity (data/tts/doctor-strange.json) tells the decks apart (docs/card-identity.md).",
+  "Discrepancies with unmatched-memory (the real card wins; entries with `text` overwrite the importer's text): The Rings of Raggadorr says 'AFTER COMBAT: If you won the combat, your fighter and each friendly fighter adjacent to them recover health equal to the damage dealt.' (unmatched-memory carries a Black Panther text for it: a BOOST up to two times that draws cards). The title \"No, Really, I'm a Doctor\" has commas on the card (`memory_title` maps it to unmatched-memory's spelling).",
+  "Wong: one sidekick, ranged, 6 life, move 2 (hero card image). The save bag holds a token and a miniature for him and two miniatures for Doctor Strange (see data/tts/doctor-strange.json).",
+  "DARK PACT is a trigger on the `after_combat` event (docs/effects-dsl.md, section 26); no counters, forms or passives."
  ],
  "fid": "strange",
  "sidekicks": [
