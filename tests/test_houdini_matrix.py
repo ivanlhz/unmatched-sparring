@@ -1,4 +1,4 @@
-"""Houdini against each of the nine heroes in both seats: full session games to game over on FakeTTS (a passive scripted human
+"""Houdini against each of the other heroes in both seats: full session games to game over on FakeTTS (a passive scripted human
 and a human who attacks every turn) and headless games with the heuristic and the search AI.
 
 The same approach as tests/test_tmnt_matrix.py (docs/card-identity.md): the human is a scripted player at the panel, the bot
@@ -13,7 +13,7 @@ from test_d3_table_effects import build, set_hand
 from test_donatello_session import SPOTS, AsideTable
 from test_tmnt_matrix import HERO_HP, MAX_STEPS, AttackDriver, human_step
 
-OTHERS = ["medusa", "hellboy", "abe-sapien", "baba-yaga", "liz-sherman", "leonardo", "donatello", "michelangelo", "raphael"]
+OTHERS = ["medusa", "hellboy", "abe-sapien", "baba-yaga", "liz-sherman", "leonardo", "donatello", "michelangelo", "raphael", "doctor-strange"]
 PAIRS = [("houdini", h) for h in OTHERS] + [(b, "houdini") for b in OTHERS]
 IDS = [f"{b}-vs-{h}" for b, h in PAIRS]
 
@@ -79,4 +79,4 @@ def test_headless_games_with_the_heuristic_and_the_search_ai(bot, human):
 
 
 def test_the_matrix_has_houdini_in_both_seats_against_every_other_hero():
-    assert len(PAIRS) == 18 and all(("houdini", h) in PAIRS and (h, "houdini") in PAIRS for h in OTHERS)
+    assert len(PAIRS) == 2 * len(OTHERS) and all(("houdini", h) in PAIRS and (h, "houdini") in PAIRS for h in OTHERS)

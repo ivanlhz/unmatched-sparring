@@ -39,9 +39,19 @@ def settle_owed_discard(session, table, game) -> None:
     session.snap = None
 
 
+def place_by_hand(session, table) -> None:
+    """The human moves the miniature a mandatory placement asks for (Strange's "Your opponent places Dr. Strange in a starting
+    space") to the first allowed space, the way a real player does before pressing Done."""
+    from sparring.session_moves import manual_request
+    req = manual_request(session)
+    if req is not None and req.min > 0:
+        table.positions[session.cfg.nicknames[req.extra["fighter"]]] = req.options[0]
+
+
 def human_step(session, table, game) -> list[str]:
     """One click of the scripted human."""
     settle_owed_discard(session, table, game)
+    place_by_hand(session, table)
     if session._paused() is not None:
         return click(session, table, Event.CHOICE, {"i": 1})
     if session.pending is not None:
@@ -109,7 +119,9 @@ class AttackDriver(Driver):
             if event == Event.CHOICE or self.session._paused() is None:
                 break
             req = self.session._paused()[2].awaiting
+            place_by_hand(self.session, self.table)
             super().press(Event.CHOICE, {"i": 2 if req.kind == "space" and req.min == 0 else 1})   # "No mover": no piece by hand
+        place_by_hand(self.session, self.table)
         return super().press(event, payload)
 
     def human_turn(self):
