@@ -455,6 +455,7 @@
  "cancel.put_back": "No he podido devolver {title} a la mano del bot: ponla tu en su mano.",
  "combat.none": "No hay combate pendiente.",
  "reveal.many": "Hay {n} cartas tuyas boca abajo en la zona: deja solo una y pulsa [[panel.reveal]].",
+ "reveal.face_up": "Tu {card} ya estaba boca arriba en la zona de combate: la leo tal como esta.",
  "err.no_card_down": "no hay ninguna carta tuya boca abajo en la zona de combate",
  "reveal.illegal": "Carta ilegal: {err}. Cambiala o dale la vuelta y pulsa [[panel.reveal]] otra vez.",
  "reveal.feint": "{bot} cancela los efectos de {card}: no hay boost que jugar.",

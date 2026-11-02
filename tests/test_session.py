@@ -39,6 +39,7 @@ class Table:
         self.human_discard: list[int] = []
         self.human_count = 5
         self.face_down: list[dict] = []
+        self.face_up: list[dict] = []          # the human's cards lying FACE UP at their combat spot
         self.scripts: list[str] = []
         self.moves: list[tuple[str, int]] = []
         self.flips: list[str] = []
@@ -194,6 +195,7 @@ class Table:
             self.resets.append("bot")
             return {"deck": True, "quantity": len(self.bot_deck)}
         self.human_discard, self.face_down, self.human_hand, self.human_count = [], [], [], 0
+        self.face_up = []
         self.resets.append("human")
         return {"deck": True, "quantity": 30}
 
@@ -391,6 +393,8 @@ class Table:
     def do_read_cards_at(self, s):
         x = float(re.search(r"p\.x - (-?[\d.]+)\)", s).group(1))
         z = float(re.search(r"p\.z - (-?[\d.]+)\)", s).group(1))
+        if (x, z) == (0.0, -5.0):                   # the human's combat spot of the rig
+            return list(self.face_up)
         for side, (sx, sz) in self.ongoing_spots.items():
             if abs(sx - x) < 0.01 and abs(sz - z) < 0.01:
                 ids = self.bot_ongoing if side == "bot" else self.human_ongoing
@@ -1159,3 +1163,71 @@ def test_bot_dying_of_exhaustion_is_announced_and_turn_stops(rig, monkeypatch):
     assert "Medusa cae" in text
     assert "Fin de partida: gana el jugador 1" in text
     assert "Mazo vacio" in text
+
+
+# ---------- a defense / attack card left FACE UP before the Reveal ----------
+def human_up(table, game, title, nth=0):
+    c = card(game, 1, title, nth)
+    table.face_up = [{"id": c.card_id, "guid": f"h{c.card_id}"}]
+    table.face_down = []
+    return c
+
+
+def bot_attacks(session, table, game):
+    set_bot_hand(table, game, "Gaze of Stone")
+    session.read_bot_hand()
+    game.actions_left = 0
+    session.handle(Event.END_ACTION)
+    assert session.pending is not None and session.pending.kind == "bot_attacks"
+
+
+def test_face_up_defense_is_accepted_with_its_value(rig):
+    session, table, game = rig
+    bot_attacks(session, table, game)
+    d = human_up(table, game, "On Earth As It Is In Hell")
+    msgs = session.handle(Event.REVEAL)
+    assert any("ya estaba boca arriba" in m for m in msgs), msgs
+    assert session.pending is None and d in game.players[1].discard
+
+
+def test_face_up_attack_is_accepted(rig):
+    session, table, game = rig
+    start_human_attack(session, table, game)
+    pistol = human_up(table, game, "Service Pistol")
+    msgs = session.handle(Event.REVEAL)
+    assert any("ya estaba boca arriba" in m for m in msgs), msgs
+    assert session.pending is None and pistol in game.players[1].discard
+
+
+def test_face_down_card_wins_over_a_face_up_leftover(rig):
+    session, table, game = rig
+    start_human_attack(session, table, game)
+    table.face_up = [{"id": card(game, 1, "Excalibur").card_id, "guid": "hx"}]
+    msgs = session.handle(Event.REVEAL)
+    assert not any("ya estaba boca arriba" in m for m in msgs), msgs
+    assert session.pending is None
+
+
+def test_no_card_at_all_is_still_no_defense(rig):
+    session, table, game = rig
+    bot_attacks(session, table, game)
+    table.face_down = table.face_up = []
+    msgs = session.handle(Event.REVEAL)
+    assert session.pending is None and not any("ya estaba boca arriba" in m for m in msgs)
+
+
+def test_two_face_up_candidates_keep_the_ambiguity_message(rig):
+    session, table, game = rig
+    bot_attacks(session, table, game)
+    human_up(table, game, "On Earth As It Is In Hell")
+    table.face_up.append({"id": card(game, 1, "Excalibur").card_id, "guid": "hx"})
+    msgs = session.handle(Event.REVEAL)
+    assert session.pending is not None and any("2 cartas" in m for m in msgs), msgs
+
+
+def test_a_face_up_card_of_another_deck_is_not_taken_for_the_humans(rig):
+    session, table, game = rig
+    bot_attacks(session, table, game)
+    table.face_up = [{"id": card(game, 0, "Snipe").card_id, "guid": "gbot"}]
+    msgs = session.handle(Event.REVEAL)
+    assert session.pending is None and not any("ya estaba boca arriba" in m for m in msgs)
