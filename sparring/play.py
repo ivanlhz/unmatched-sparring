@@ -14,8 +14,10 @@ catalogs, like the chat and the panel.
 from __future__ import annotations
 
 import argparse
+import errno
 import json
 import math
+import os
 import re
 import secrets
 import sys
@@ -43,7 +45,21 @@ DEFAULT_CONFIG = Path(__file__).resolve().parent.parent / "config" / "table.json
 ROOT = Path(__file__).resolve().parent.parent
 LEGACY_CONFIG = ROOT / "config" / "partida.json"           # the Spanish names of before the repo went English
 LEGACY_STATE = ROOT / "estado" / "sesion.json"
-DEFAULT_STATE = ROOT / "state" / "session.json"
+FROZEN = bool(getattr(sys, "frozen", False))        # the PyInstaller build of the desktop launcher (launcher/)
+
+
+def state_dir(frozen: bool = FROZEN) -> Path:
+    """Where the save goes by default. From the repo, the `state` folder next to the code; from the frozen executable the code
+    sits in a folder that may not be writable (Program Files), so the save goes under the user's local app data."""
+    if not frozen:
+        return ROOT / "state"
+    base = os.environ.get("LOCALAPPDATA") or str(Path.home() / "AppData" / "Local")
+    return Path(base) / "UnmatchedSparring" / "state"
+
+
+DEFAULT_STATE = state_dir() / "session.json"
+LAUNCHED = False                                   # set by launcher_mode: the console is the launcher window, not a terminal
+STATUS_PREFIX = "[sparring:status]"                 # --launcher: one machine-readable line per change of state
 
 
 LEGACY_LOG = "partida.log"
@@ -897,7 +913,7 @@ def play(cfg: PlayConfig, client: TTSClient, first: str, seed: int, stop: thread
          echo: Callable[[str], None] = print, poll: float = 0.1, state_path: Path | None = None,
          resume: bool = False, timing: bool = False, ai: str | None = None,
          ai_time: float | None = None, bot_pause: float | None = None, unpack: bool = False,
-         card_zoom: bool = True) -> None:
+         card_zoom: bool = True, on_ready: Callable[[], None] = lambda: None) -> None:
     i18n.set_language(cfg.language)                  # before the first panel or chat line; --resume takes the current one
     scfg = cfg.session_config()
     if bot_pause is not None:
@@ -931,7 +947,8 @@ def play(cfg: PlayConfig, client: TTSClient, first: str, seed: int, stop: thread
     client.call_lua(lua.create_panel(targets, cfg.panel_position, cfg.panel_rotation, cfg.panel_scale,
                                      cfg.nicknames, snapshot=session.snapshot_spec() if scfg.batch else None,
                                      attacker_ids=cfg.attacker_ids, human_seat=scfg.human_seat))
-    echo(t("console.panel_ready"))
+    echo(t("console.panel_ready_launcher" if LAUNCHED else "console.panel_ready"))
+    on_ready()
     try:
         mark_floor(client, scfg)
     except TABLE_ERRORS as e:
@@ -967,7 +984,8 @@ def early_language(argv: list[str] | None) -> str:
 
 def parse_args(argv: list[str] | None) -> argparse.Namespace:
     i18n.set_language(early_language(argv))
-    ap = argparse.ArgumentParser(prog="python -m sparring.play", description=t("cli.description"))
+    prog = Path(sys.executable).name if FROZEN else "python -m sparring.play"
+    ap = argparse.ArgumentParser(prog=prog, description=t("cli.description"))
     ap.add_argument("--config", default=str(DEFAULT_CONFIG), help=t("cli.config"))
     ap.add_argument("--read-only", action="store_true", help=t("cli.read_only"))
     ap.add_argument("--first", choices=("human", "bot", "random"), default="random", help=t("cli.first"))
@@ -987,6 +1005,7 @@ def parse_args(argv: list[str] | None) -> argparse.Namespace:
     ap.add_argument("--bot-hero", default=None, metavar="SLUG", help=t("cli.bot_hero"))
     ap.add_argument("--human-hero", default=None, metavar="SLUG", help=t("cli.human_hero"))
     ap.add_argument("--timing", action="store_true", help=t("cli.timing"))
+    ap.add_argument("--launcher", action="store_true", help=t("cli.launcher"))
     return ap.parse_args(argv)
 
 
@@ -1008,8 +1027,52 @@ def saved_language(state_path: str | Path) -> str | None:
     return lang if isinstance(lang, str) and lang in i18n.available() else None
 
 
+def tts_error_kind(error: BaseException) -> str:
+    """The plain-language class of a failure to reach TTS, for the launcher's status line. A listen port held by
+    another program fails the bind with 10048 (WSAEADDRINUSE) or, as the listener sets SO_REUSEADDR, with 10013
+    (WSAEACCES, also what a port reserved by Windows gives)."""
+    if isinstance(error, OSError) and (error.errno == errno.EADDRINUSE or getattr(error, "winerror", None) in (10048, 10013)):
+        return "port_in_use"
+    if isinstance(error, ConnectionRefusedError):
+        return "tts_unreachable"
+    if isinstance(error, TimeoutError):
+        return "tts_timeout"
+    return "tts_error"
+
+
+def launcher_mode(stop: threading.Event) -> Callable[[str], None]:
+    """--launcher: UTF-8 line-buffered output (a pipe would get the ANSI code page and block buffering), a stop
+    channel on stdin (a `quit` line, or the pipe closing because the launcher died, has the effect of Ctrl+C without
+    the interruption: the loop ends and the panel and floor labels are removed) and the status line writer."""
+    global LAUNCHED
+    LAUNCHED = True
+    for stream in (sys.stdout, sys.stderr):
+        stream.reconfigure(encoding="utf-8", errors="replace", line_buffering=True)
+
+    def watch_stdin() -> None:
+        try:                                      # a broken or undecodable stdin must still stop the bot, never strand it
+            for line in sys.stdin:
+                if line.strip() == "quit":
+                    break
+        finally:
+            stop.set()
+    threading.Thread(target=watch_stdin, name="launcher-stdin", daemon=True).start()
+
+    def status(word: str) -> None:
+        print(f"{STATUS_PREFIX} {word}", flush=True)
+    return status
+
+
 def main(argv: list[str] | None = None, stop: threading.Event | None = None) -> int:
     args = parse_args(argv)
+    stop = stop or threading.Event()
+    status = launcher_mode(stop) if args.launcher else (lambda word: None)
+    code = _main(args, stop, status)
+    status(f"exit {code}")
+    return code
+
+
+def _main(args: argparse.Namespace, stop: threading.Event, status: Callable[[str], None]) -> int:
     for notice in migrate_legacy_files(Path(args.state)):
         print(t("console.warning", text=notice), file=sys.stderr)
     # a resumed game keeps the language it was played in unless --language is given explicitly
@@ -1022,13 +1085,14 @@ def main(argv: list[str] | None = None, stop: threading.Event | None = None) -> 
             cfg.session_config()                     # fails before opening ports if something is missing
     except ConfigError as e:
         print(t("console.config_error", error=e), file=sys.stderr)
+        status("error config")
         return 2
     for warning in cfg.warnings:
         print(t("console.warning", text=warning), file=sys.stderr)
     printed = set(cfg.warnings)
     client = TTSClient(send_port=args.send_port, listen_port=args.listen_port)
-    stop = stop or threading.Event()
     try:
+        status("connecting")
         client.start_listening()
         try:
             saved = saved_heroes(args.state) if args.resume and not args.read_only else None
@@ -1037,6 +1101,7 @@ def main(argv: list[str] | None = None, stop: threading.Event | None = None) -> 
                 cfg.session_config()
         except (HeroDetectionError, ConfigError, persist.StateError, SessionError) as e:
             print(t("console.cannot_start", error=e), file=sys.stderr)
+            status("error cannot_start")
             return 2
         for warning in dict.fromkeys(cfg.warnings):
             if warning not in printed:
@@ -1051,16 +1116,18 @@ def main(argv: list[str] | None = None, stop: threading.Event | None = None) -> 
         state.parent.mkdir(parents=True, exist_ok=True)
         play(cfg, client, args.first, seed, stop, poll=args.poll, state_path=state, resume=args.resume,
              timing=args.timing, ai=args.ai, ai_time=args.ai_time, bot_pause=args.bot_pause,
-             unpack=args.unpack, card_zoom=not args.no_card_zoom)
+             unpack=args.unpack, card_zoom=not args.no_card_zoom, on_ready=lambda: status("playing"))
         return 0
     except (SessionError, persist.StateError) as e:
         print(t("console.cannot_start", error=e), file=sys.stderr)
+        status("error cannot_start")
         return 2
     except KeyboardInterrupt:
         print(t("console.interrupted"))
         return 130
     except (TTSLuaError, TimeoutError, OSError, ConfigError) as e:
         print(t("console.tts_error", error=e), file=sys.stderr)
+        status(f"error {tts_error_kind(e)}")
         return 3
     finally:
         client.close()

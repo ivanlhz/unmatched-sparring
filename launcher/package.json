@@ -1,0 +1,44 @@
+{
+  "name": "unmatched-sparring-launcher",
+  "productName": "Unmatched Sparring",
+  "version": "0.1.0",
+  "description": "Desktop launcher for the Unmatched sparring bot in Tabletop Simulator",
+  "license": "MIT",
+  "private": true,
+  "main": "src/main.js",
+  "scripts": {
+    "dev": "electron .",
+    "test": "node --test test/*.test.js",
+    "build:bot": "node scripts/build-bot.js",
+    "dist": "npm run build:bot && electron-builder --win nsis"
+  },
+  "devDependencies": {
+    "electron": "45.2.1",
+    "electron-builder": "26.18.0"
+  },
+  "build": {
+    "appId": "com.ivanlhz.unmatched-sparring",
+    "productName": "Unmatched Sparring",
+    "directories": {
+      "output": "dist"
+    },
+    "files": [
+      "src/**/*",
+      "package.json"
+    ],
+    "extraResources": [
+      {
+        "from": "build/bot-dist/sparring-bot",
+        "to": "bot"
+      }
+    ],
+    "win": {
+      "target": "nsis"
+    },
+    "nsis": {
+      "oneClick": true,
+      "perMachine": false,
+      "artifactName": "UnmatchedSparring-Setup-${version}.${ext}"
+    }
+  }
+}

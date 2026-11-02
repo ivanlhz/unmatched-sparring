@@ -141,6 +141,11 @@ uv run python -m sparring.play --config config\table.json --resume
 | `--timing` | Print, per button and per bot action, how many messages went to TTS and how long they took. |
 | `--state FILE` | Save file (default `state\session.json`). A plain-text game log, `session.log`, is written next to it. A save at the old `estado\sesion.json` (and its `partida.log`) is moved to the new names once, with a notice. |
 | `--send-port`, `--listen-port` | Use other ports than 39999 / 39998. |
+| `--launcher` | Used by the desktop launcher: UTF-8 output, `[sparring:status]` lines, and a `quit` line on stdin (or stdin closing) stops cleanly like Ctrl+C. |
+
+### Desktop launcher (no terminal)
+
+For players who do not program: `launcher\` is a Windows app (Electron) with START / STOP buttons, the options above in a form, a table check button (`--read-only`) and the bot's console in the window, in Spanish or English. Its installer bundles the bot as a standalone executable built with PyInstaller, so the player's PC needs neither Python nor uv. From that executable the save goes to `%LOCALAPPDATA%\UnmatchedSparring\state\session.json`. How to build it (`npm run dist`) and use it: [launcher/README.md](launcher/README.md).
 
 ### The panel
 

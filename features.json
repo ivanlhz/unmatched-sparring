@@ -247,16 +247,20 @@
     {
       "id": "F17",
       "title": "Playable by a non-programmer at home, without Iván",
-      "status": "backlog",
+      "status": "in-progress",
       "criteria": [
         "The bot ships as a Windows executable (PyInstaller or similar): no Python, uv or terminal needed on the player's PC",
         "Double-click launcher that starts the bot with heroes on \"auto\"; the player never edits config/table.json",
+        "Electron desktop launcher in launcher/ (exact versions of electron and electron-builder, no other runtime dependency): big START and STOP, a CHECK THE TABLE button (--read-only, report in the window), the CLI options in a form (who goes first, both heroes from data/heroes never the same, language, AI and think time, bot pause, resume; ports, configuration file and timing under Advanced), the bot's console live and a plain-language status (connecting, playing, stopped, TTS not answering, port in use, cannot start); the window's texts in Spanish (default) and English; the last options remembered in the user's app data",
+        "STOP is the clean shutdown of Ctrl+C: play.py --launcher reads a quit line on stdin (or stdin closing) and removes the panel and floor labels; the launcher kills the process tree only if the bot has not exited 15 s later. --launcher also prints UTF-8 and [sparring:status] lines; without it the CLI is unchanged",
+        "Packaged: npm run build:bot (PyInstaller one-folder exe with data/ and config/table.json; from the exe the save goes to %LOCALAPPDATA%\\UnmatchedSparring\\state) and npm run dist (NSIS per-user installer)",
+        "Tests: tests/test_play_launcher.py (quit line, EOF, statuses, port in use, TTS not open, frozen state folder), launcher unit tests (npm test) and a scripted run of the packaged app against FakeTTS (start, panel created, stop, markings cleared)",
         "The sparring table is available from the Steam Workshop (or a single savegame file) with the positions the config expects",
         "Clear errors in plain Spanish when TTS is not open, the table is not loaded or the heroes are not detected (no tracebacks)",
         "A one-page player guide in Spanish: subscribe/load the table, double-click the launcher, press Empezar, how to quit and resume",
         "Verified by Iván with a real non-programmer on a PC that never had the repo"
       ],
-      "note": "Asked by Iván on 30/10 (option 2 of 'how would a non-programmer try it'). Local, intermediate step before F13 (Workshop mod + brain as a web service). Do after the Hellboy box and the English translation (F18)."
+      "note": "Asked by Iván on 30/10 (option 2 of 'how would a non-programmer try it'). Local, intermediate step before F13 (Workshop mod + brain as a web service). Do after the Hellboy box and the English translation (F18). Launcher done (02/11) and verified against FakeTTS only; still to do: try the installer with the real TTS, the Workshop table or single savegame, the one-page player guide, and the test with a real non-programmer. The installer is not code-signed (SmartScreen warns)."
     },
     {
       "id": "F18",

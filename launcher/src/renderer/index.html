@@ -1,0 +1,121 @@
+<!doctype html>
+<html lang="es">
+<head>
+  <meta charset="utf-8">
+  <meta http-equiv="Content-Security-Policy" content="default-src 'self'; script-src 'self'; style-src 'self'">
+  <title>Unmatched Sparring</title>
+  <link rel="stylesheet" href="styles.css">
+</head>
+<body>
+  <main>
+    <header>
+      <p class="kicker" data-t="app.kicker"></p>
+      <h1 data-t="app.title"></h1>
+      <p class="subtitle" data-t="app.subtitle"></p>
+    </header>
+
+    <section class="control">
+      <div id="status" class="status" data-state="idle">
+        <span class="dot"></span><span id="status-text"></span>
+      </div>
+      <div class="buttons">
+        <button id="start" class="primary" data-t="button.start"></button>
+        <button id="check" class="secondary" data-t="button.check"></button>
+        <button id="stop" class="danger" data-t="button.stop" hidden></button>
+      </div>
+      <p id="form-error" class="form-error" hidden></p>
+    </section>
+
+    <details id="help" class="card">
+      <summary data-t="help.title"></summary>
+      <ol>
+        <li data-t="help.step1"></li>
+        <li data-t="help.step2"></li>
+        <li data-t="help.step3"></li>
+        <li data-t="help.step4"></li>
+      </ol>
+    </details>
+
+    <form id="options" class="card" autocomplete="off">
+      <h2 data-t="section.options"></h2>
+      <div class="grid">
+        <fieldset class="field">
+          <legend data-t="opt.first"></legend>
+          <div class="segmented">
+            <label><input type="radio" name="first" value="human"><span data-t="first.human"></span></label>
+            <label><input type="radio" name="first" value="bot"><span data-t="first.bot"></span></label>
+            <label><input type="radio" name="first" value="random"><span data-t="first.random"></span></label>
+          </div>
+        </fieldset>
+        <fieldset class="field">
+          <legend data-t="opt.language"></legend>
+          <div class="segmented">
+            <label><input type="radio" name="language" value="es"><span>Español</span></label>
+            <label><input type="radio" name="language" value="en"><span>English</span></label>
+          </div>
+        </fieldset>
+        <label class="field">
+          <span class="label" data-t="opt.bot_hero"></span>
+          <select name="botHero"></select>
+        </label>
+        <label class="field">
+          <span class="label" data-t="opt.human_hero"></span>
+          <select name="humanHero"></select>
+        </label>
+        <label class="field">
+          <span class="label" data-t="opt.ai"></span>
+          <select name="ai">
+            <option value="heuristic" data-t="ai.heuristic"></option>
+            <option value="ismcts" data-t="ai.ismcts"></option>
+          </select>
+        </label>
+        <label class="field" id="ai-time-field">
+          <span class="label" data-t="opt.ai_time"></span>
+          <input type="number" name="aiTime" min="0.1" max="60" step="0.5">
+        </label>
+        <label class="field">
+          <span class="label" data-t="opt.bot_pause"></span>
+          <input type="number" name="botPause" min="0" max="30" step="0.5" placeholder="1">
+          <span class="hint" data-t="hint.bot_pause"></span>
+        </label>
+        <label class="field check">
+          <input type="checkbox" name="resume">
+          <span><span class="check-title" data-t="opt.resume"></span><span class="hint" data-t="hint.resume"></span></span>
+        </label>
+      </div>
+
+      <details class="advanced">
+        <summary data-t="section.advanced"></summary>
+        <div class="grid">
+          <label class="field">
+            <span class="label" data-t="opt.send_port"></span>
+            <input type="number" name="sendPort" min="1" max="65535">
+          </label>
+          <label class="field">
+            <span class="label" data-t="opt.listen_port"></span>
+            <input type="number" name="listenPort" min="1" max="65535">
+          </label>
+          <label class="field wide">
+            <span class="label" data-t="opt.config"></span>
+            <input type="text" name="config" spellcheck="false">
+            <span class="hint" data-t="hint.config"></span>
+          </label>
+          <label class="field check wide">
+            <input type="checkbox" name="timing">
+            <span class="check-title" data-t="opt.timing"></span>
+          </label>
+        </div>
+      </details>
+    </form>
+
+    <section class="card log-card">
+      <div class="log-head">
+        <h2 data-t="section.log"></h2>
+        <button id="clear" class="link" data-t="button.clear"></button>
+      </div>
+      <pre id="log" data-empty=""></pre>
+    </section>
+  </main>
+  <script src="app.js"></script>
+</body>
+</html>
