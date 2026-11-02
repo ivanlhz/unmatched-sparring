@@ -12,3 +12,8 @@ assets/hellboy_sheet.png
 assets/medusa_sheet.img
 assets/row*.jpg
 assets/med_row*.jpg
+
+# Desktop launcher (launcher/): dependencies and build outputs
+launcher/node_modules/
+launcher/build/
+launcher/dist/
