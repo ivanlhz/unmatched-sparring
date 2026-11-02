@@ -65,6 +65,7 @@ from .combat import GAZE_DAMAGE, GLANCE_DAMAGE, ON_EARTH
 from .controller import Controller
 from .effects.model import walk_ops
 from .effects.modifiers import boost_limit, card_effects, defers_defeat
+from .ai_profile import STYLE_HIT_AND_RUN, derive_style
 from .state import ANUNG, EXHAUST_DAMAGE, Fighter, Game
 
 GAZE = "medusa_gaze"      # Medusa's start-of-turn ability trigger (data/heroes/effects/medusa.json)
@@ -164,6 +165,10 @@ KEEP_SPECIAL = {"Gaze of Stone": 3.0, "Feint": 1.4, "A Momentary Glance": 1.6, "
 
 CANCEL_KEEP = 1.6         # keep value a card that cancels the rival card's effects gains against a rival whose deck lives on effects
 RELIANCE_LOW, RELIANCE_HIGH = 0.68, 0.80    # share of the rival's combat cards with effects: at or below LOW the cancel is worth nothing, at HIGH full
+RUN_FEAR = 2.2            # hit and run: the fear of standing where the rival reaches next turn weighs this much more (the hero can always blink out again, so standing in reach must pay)
+OPPORTUNITY_FLOOR = 3.0   # hit and run: a blow expected to land less than this (after the chance of a cancel) is not an opportunity: it is not worth standing in reach for
+OPPORTUNITY_PER_POINT = 6.0   # hit and run: bonus per point of expected blow above the floor (the surprise: the rival is least able to answer it)
+STRIKE_FIRSTS = 3         # hit and run: placements next to a rival the planner always looks at, besides the best ranked ones
 CHIP_DISCOUNT = 0.25       # a BOOSTED WITH hit that does not kill is worth this much less (at most) the healthier the target is: early chip damage
 
 
@@ -306,6 +311,15 @@ class Model:
         k = sum(1 for c in self.pool if c.boost >= need)
         return 1 - comb(self.n - k, min(self.h, self.n)) / comb(self.n, min(self.h, self.n))
 
+    def p_holds(self, pred) -> float:
+        """Chance that the rival's hand holds at least one card satisfying `pred`: hypergeometric over the cards it may still
+        have (its set minus its public discard pile), its hand a random draw of them."""
+        k = sum(1 for c in self.pool if pred(c))
+        h = min(self.h, self.n)
+        if k == 0 or h == 0:
+            return 0.0
+        return 1 - comb(self.n - k, h) / comb(self.n, h)
+
     def destinies_unseen(self) -> int:
         return sum(1 for c in self.pool if c.destiny)
 
@@ -435,6 +449,20 @@ class MedusaAI(Controller):
         self._effect_ai = None
 
     # ---------- game setup ----------
+    def style(self, game: Game) -> frozenset:
+        """Play style of the bot's hero, derived from its data (`ai_profile.derive_style`) and cached per hero."""
+        hero = game.hero(self.me)
+        if not hasattr(self, "_styles"):
+            self._styles = {}
+        if hero.name not in self._styles:
+            places = game.fx.hero_rule(self.me, "maneuver_boost_places_hero")
+            most = max((boost_limit(c) for c in game.players[self.me].full_set), default=0)
+            self._styles[hero.name] = derive_style(places, most)
+        return self._styles[hero.name]
+
+    def hit_and_run(self, game: Game) -> bool:
+        return STYLE_HIT_AND_RUN in self.style(game)
+
     def should_mulligan(self, game: Game, hand) -> bool:
         """Bad opening hand: no card to attack with, or three or more that are no use for attacking (schemes and
         pure defenses). The mulligan is once only (the session applies it)."""
@@ -496,7 +524,7 @@ class MedusaAI(Controller):
         if kill is not None and not (ranked[0] is not kill and ranked[0].total >= DEATH / 2):
             return kill
         width = TOP_FIRST_DESPERATE if self.desperation(game) >= 0.3 else TOP_FIRST
-        firsts = ranked[:width] + self.approach_acts(game, ranked[width:])
+        firsts = ranked[:width] + self.approach_acts(game, ranked[width:]) + self.strike_firsts(game, ranked[width:])
         if game.actions_left < 2:
             return firsts[0]
         best, best_v = None, None
@@ -531,13 +559,39 @@ class MedusaAI(Controller):
         attack: their worth is the attack the second action makes of them, which the one-step ranking cannot see
         (a hero with fear of the rival's hits would otherwise stand still and draw until the hand overflows)."""
         hero = game.hero(self.me)
-        if hero.name == "Medusa" or any(game.can_attack(hero, e) for e in game.foes(self.me)):
+        if hero.name == "Medusa" or self.hit_and_run(game) or any(game.can_attack(hero, e) for e in game.foes(self.me)):
             return []
         if not any(c.can_attack and c.usable_by(hero.name) for c in game.players[self.me].hand):
             return []
         board, foes = game.board, game.foes(self.me)
         return [a for a in rest if a.kind == "maneuver" and hero.fid in a.moves
                 and any(board.can_reach_target(a.moves[hero.fid], e.pos, hero.ranged) for e in foes)][:APPROACH_TOP]
+
+    def strike_firsts(self, game: Game, rest: list[Act]) -> list[Act]:
+        """Hit and run: placements (boosted Maneuvers) that end in reach of a rival hero with an attack still to play. The
+        one-step ranking buries them under the fear of standing in reach; their worth is the blow the second action lands
+        (`opportunity_bonus`), which only the two-action plan sees."""
+        hero = game.hero(self.me)
+        if not self.hit_and_run(game) or game.actions_left < 2 or any(game.can_attack(hero, e) for e in game.foes(self.me)):
+            return []
+        board, rivals = game.board, [e for e in game.foes(self.me) if e.hero]
+        return [a for a in rest if a.kind == "maneuver" and a.boost is not None and hero.fid in a.moves
+                and any(board.can_reach_target(a.moves[hero.fid], e.pos, hero.ranged) for e in rivals)][:STRIKE_FIRSTS]
+
+    def opportunity_bonus(self, game: Game, model: Model, a: Act) -> float:
+        """Hit and run: what an attack of the hero on a rival hero is worth beyond its own value when it is the real chance to
+        strike: OPPORTUNITY_PER_POINT for each point of expected blow over OPPORTUNITY_FLOOR. The blow counts the boosts the
+        card takes at their full printed value (they are in the hand: no guess, unlike `attack_outcome`'s discount for
+        unknown cards), against the rival's likely defense, and is shrunk by the chance the rival holds a card that cancels the
+        effects of the attack (the Big Reveal's boosts and its return). A small or doubtful blow gets nothing: the bot would
+        rather stay out of reach than trade it."""
+        if a.kind != "attack" or a.fid != game.hero(self.me).fid or not game.fighters[a.target].hero or not self.hit_and_run(game):
+            return 0.0
+        f, t, c = game.fighters[a.fid], game.fighters[a.target], a.card
+        atk = self.card_value(game, f, t, c) + game.attack_bonus(f) + self.during_gain(game, c)
+        atk += sum(x.boost for x in free_boosts(game, self.me, c, game.players[self.me].hand))
+        blow = sum(p * min(t.hp, max(0.0, atk - (dv or 0))) for p, dv in model.defense_dist(t))
+        return OPPORTUNITY_PER_POINT * max(0.0, blow * (1 - model.p_holds(cancels_effects)) - OPPORTUNITY_FLOOR)
 
     def candidates(self, game: Game, model: Model) -> list[Act]:
         """Legal actions ordered by own value + value of the position they leave. Passing does not exist: a maneuver without moving still draws."""
@@ -547,7 +601,7 @@ class MedusaAI(Controller):
             if g.winner is not None:
                 a.total = a.value + self.outcome(g)
                 continue
-            a.total = a.value + self.position_value(g, model)
+            a.total = a.value + self.position_value(g, model) + self.opportunity_bonus(game, model, a)
             if g.actions_left == 0:
                 a.total += self.terminal_value(g, model)
         unique = {(a.kind, a.fid, a.target, a.card and a.card.card_id, a.boost and a.boost.card_id,
@@ -952,6 +1006,7 @@ class MedusaAI(Controller):
         despair = self.desperation(game)
         score = 0.0
         despair_fear = 1 - DESPERATE_FEAR_DROP * despair
+        run = RUN_FEAR if self.hit_and_run(game) else 1.0
         for e in foes:
             extra = game.form(1 - self.me) == ANUNG and e.hero
             best = 0.0
@@ -984,7 +1039,7 @@ class MedusaAI(Controller):
                     if steps == 0:      # the chance of dying comes from the two blows, not from DOUBLE_ATTACK times one
                         p_dead = self.two_hit_threat(model, e, t, hand)[1]
                         held = self.survival_weight(p_dead) * (1 - despair)     # dying loses the game: desperation eases its fear less
-                    danger = W_MEDUSA_HP * exp * twice * despair_fear + LETHAL * p_dead * (1 - DESPERATE_FEAR_DROP * despair * (1 - held))
+                    danger = (W_MEDUSA_HP * exp * twice * despair_fear + LETHAL * p_dead * (1 - DESPERATE_FEAR_DROP * despair * (1 - held))) * run
                 best = max(best, p_reach * danger)
             score -= best
         medusa = game.hero(self.me)
@@ -993,7 +1048,7 @@ class MedusaAI(Controller):
                 score += PRESSURE
             if despair > 0 and e.hero and board.can_reach_target(pos[medusa.fid], pos[e.fid], medusa.ranged):
                 score += despair * WIN_PRIZE * PROGRESS_DISCOUNT * self.win_progress(game, model, medusa, e)
-        if medusa.name != "Medusa" and foes:     # a fighter that fears the rival's blows still has to close in to hit back
+        if medusa.name != "Medusa" and foes and not self.hit_and_run(game):     # a fighter that fears the rival's blows still has to close in to hit back
             score -= APPROACH_PULL * min(board.distance(pos[medusa.fid], pos[e.fid]) for e in foes)
         for h in mine:
             if not h.hero and foes:

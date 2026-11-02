@@ -7,7 +7,7 @@ import random
 import pytest
 
 from conftest import give
-from sparring.ai_medusa import MedusaAI, boost_effect_value, scheme_fighter
+from sparring.ai_medusa import MedusaAI, Model, boost_effect_value, cancels_effects, free_boosts, scheme_fighter
 from sparring.search.controller import IsmctsMedusa
 from sparring.search.ismcts import SearchConfig
 from sparring.state import Game
@@ -171,3 +171,70 @@ def test_the_search_places_and_boosts_legally_and_never_falls_back(bprd, foe):
         if g.winner is None and g.actions_left > 0:
             ai.execute(g, ai.plan(g))
     assert ai.fallbacks == 0
+
+
+# ---------------------------------------------------------------- hit and run (play style derived from the hero's data)
+
+def rival_hand(g, n, avoid=()):
+    return hand_filler(g, 1, n, avoid=avoid)
+
+
+def discard_all(g, player, title):
+    st = g.players[player]
+    for c in [c for c in st.full_set if c.title == title]:
+        for zone in (st.hand, st.deck):
+            if c in zone:
+                zone.remove(c)
+        st.discard.append(c)
+
+
+def test_the_hit_and_run_style_comes_from_the_hero_data(bprd):
+    assert MedusaAI(0).hit_and_run(mk(bprd))
+    g = Game.new(bprd, 3, controllers={0: MedusaAI(0), 1: MedusaAI(1)}, heroes=("medusa", "hellboy"), bot_player=0)
+    assert not MedusaAI(0).hit_and_run(g)
+
+
+def test_a_healthy_houdini_in_reach_with_no_big_blow_blinks_out_of_reach(bprd):
+    g = mk(bprd)
+    houdini, hellboy = pair(g, "houdini", "hellboy")
+    give(g, 0, "Flourish")
+    give(g, 0, "Sleight of Hand")
+    give(g, 0, "Misdirection")
+    rival_hand(g, 4)
+    act = MedusaAI(0).plan(g)
+    assert act.kind == "maneuver" and act.boost is not None
+    assert g.board.distance(act.moves["houdini"], hellboy.pos) > hellboy.move + 1
+
+
+def far_setup(bprd, discard_cancels):
+    g = mk(bprd, "medusa")
+    medusa = g.fighters["medusa"]
+    medusa.pos = far_from(g, "medusa", ["houdini", "bess"])
+    for title, nth in (("The Big Reveal", 0), ("The Big Reveal", 1), ("Sleight of Hand", 0), ("Sleight of Hand", 1), ("Flourish", 0)):
+        give(g, 0, title, nth)
+    rival_hand(g, 3, avoid=("Feint",))
+    if discard_cancels:
+        discard_all(g, 1, "Feint")
+    g.actions_left = 2
+    return g, medusa
+
+
+def test_with_the_rivals_cancels_gone_houdini_places_next_to_it_and_plays_the_big_reveal_with_two_boosts(bprd):
+    g, medusa = far_setup(bprd, True)
+    ai = MedusaAI(0)
+    assert g.board.distance(g.fighters["houdini"].pos, medusa.pos) > 5
+    first = ai.plan(g)
+    assert first.kind == "maneuver" and first.boost is not None
+    assert g.board.adjacent(first.moves["houdini"], medusa.pos)
+    ai.execute(g, first)
+    second = ai.plan(g)
+    assert second.kind == "attack" and second.card.title == "The Big Reveal"
+    assert len(free_boosts(g, 0, second.card, g.players[0].hand)) == 2
+
+
+def test_with_a_feint_likely_in_the_rivals_hand_houdini_keeps_away(bprd):
+    """The same scene with the three Feints still among the cards the rival may hold (public: not in its discard pile)."""
+    g, medusa = far_setup(bprd, False)
+    assert Model(g, 0).p_holds(cancels_effects) > 0.25
+    first = MedusaAI(0).plan(g)
+    assert not (first.kind == "maneuver" and g.board.adjacent(first.moves["houdini"], medusa.pos))
