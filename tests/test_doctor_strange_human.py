@@ -493,3 +493,33 @@ def test_the_bots_dark_pact_puts_its_played_card_at_the_bottom_of_its_deck_on_th
     assert feint in game.players[0].deck and feint not in game.players[0].discard
     assert table.deck_moves[-1] == ("bottom", [feint.card_id]) and table.bot_deck[-1] == feint.card_id
     assert feint.card_id not in table.bot_discard and feint.card_id not in table.bot_play
+
+
+# ---------------------------------------------------------------- resuming
+
+@with_rig()
+def test_dark_pact_waiting_at_the_panel_survives_a_save_and_a_restore(rig, monkeypatch):
+    session, table, game, fake, cfg = rig
+    no_defense(session, monkeypatch)
+    human_hand(table, game, "Feint", "Bolts of Balthakk")
+    feint = sid(game, "Feint")
+    attack(session, table, game, "Feint")
+    saved = session.to_dict()
+    session._restore(saved)                                   # what --resume does: the game, the parked run and the GUIDs come back
+    game = session.game
+    assert session._paused() is not None and session._paused()[2].label == "dark_pact"
+    assert session.combat_guids == {feint: f"h{feint}"}
+    done(session, table, 1)
+    assert game.fighters["strange"].hp == 13 and table.deck_moves == [("bottom", [feint])] and table.human_deals == [1]
+
+
+@with_rig()
+def test_while_dark_pact_waits_the_other_buttons_are_refused(rig, monkeypatch):
+    session, table, game, fake, cfg = rig
+    no_defense(session, monkeypatch)
+    human_hand(table, game, "Feint", "Bolts of Balthakk")
+    attack(session, table, game, "Feint")
+    turn = game.turn
+    msgs = click(session, table, Event.END_ACTION)
+    assert said(msgs, "Hay una eleccion de efecto pendiente") and game.turn == turn and session._paused() is not None
+    assert len(visible_choices(session)) == 2                                                  # only Yes / No are shown

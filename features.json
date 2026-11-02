@@ -340,6 +340,20 @@
         "Human-side table tests for the TMNT cards that only the bot had played (tests/test_tmnt_human_cards.py)"
       ],
       "note": "Live test pending: two turtle decks and Medusa on the same real table (docs/live-checklist.md)."
+    },
+    {
+      "id": "HERO-DOCTOR-STRANGE",
+      "title": "Doctor Strange (Brains and Brawn) playable by the bot and by the human against every hero",
+      "status": "in-progress",
+      "criteria": [
+        "data/heroes/overlay/doctor-strange.json, data/heroes/doctor-strange.json, data/heroes/effects/doctor-strange.json and data/tts/doctor-strange.json generated and validated (import_hero --check --all, validate_effects, import_save); all 11 titles (30 cards, sheet 176, character card 337) read from the card images, The Rings of Raggadorr with the printed text",
+        "His deck shares CardIDs 17600-17629 with Medusa and the four turtles: told apart by deck image and owner, never by a bare CardID; same-CardID tests in both seats (tests/test_hero_doctor_strange_data.py, tests/test_card_identity.py, tests/test_doctor_strange_matrix.py); no piece GUID shared with another hero",
+        "DARK PACT on the interpreter (event after_combat): the bot pays it when the card is worth the hit point and never when it kills Strange, leaves him below 4 hit points or raises the chance of dying next turn; the human gets Yes / No only after a combat in which Strange played a card, and the bot moves the card from their combat spot to the bottom of their deck by GUID and deals the draw (chat instruction when the table refuses)",
+        "All 11 cards on the interpreter for both seats: BLIND BOOST, The Mists of Munnopor (the rival's card replaced by one of its deck), The Winds of Watoomb (starting spaces, decks shuffled), Eye of Agamotto, No, Really, I'm a Doctor, Cloak, Master, Rings, Steadfast Disciple, Feint",
+        "The bot plays Doctor Strange with the heuristic and the ISMCTS; every ordered pair with the nine other heroes plays to game over on FakeTTS in both seats (passive and attacking human) and in the simulator",
+        "Verified live by Iván (docs/live-checklist.md, section Doctor Strange)"
+      ],
+      "note": "Engine additions are additive (docs/effects-dsl.md, section 26). Rules decisions and open questions for Iván: docs/heroes/doctor-strange.md."
     }
   ]
 }

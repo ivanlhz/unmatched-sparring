@@ -1,9 +1,11 @@
 # Card identity: the shared CardID range
 
-In the tournament savegame Medusa and the four TMNT turtles (Leonardo, Donatello, Michelangelo, Raphael) are all DeckID 176, so
-all five decks have CardIDs 17600-17629. Only the deck image (FaceURL, BackURL of the CustomDeck, `deck.identity` in
-`data/tts/<slug>.json`) tells them apart. Any pairing of the nine heroes works at the table, in both seats, including Medusa
-against a turtle and a turtle against a turtle (`tests/test_tmnt_matrix.py`). The rule is one sentence:
+In the tournament savegame Medusa, the four TMNT turtles (Leonardo, Donatello, Michelangelo, Raphael) and Doctor Strange are
+all DeckID 176, so all six decks have CardIDs 17600-17629. Only the deck image (FaceURL, BackURL of the CustomDeck,
+`deck.identity` in `data/tts/<slug>.json`) tells them apart. Any pairing of the nine heroes works at the table, in both seats,
+including Medusa against a turtle and a turtle against a turtle (`tests/test_tmnt_matrix.py`), and Doctor Strange against each of
+them (`tests/test_doctor_strange_matrix.py`; only the
+30 deck cards overlap, his character card is 337). The rule is one sentence:
 
 > **A CardID means a card only together with its owner (the player's seat) or with the deck image. Never look a card up by a bare CardID.**
 
@@ -36,7 +38,7 @@ against a turtle and a turtle against a turtle (`tests/test_tmnt_matrix.py`). Th
 - `hero_table.table_defaults` accepts equal CardID ranges when the two decks have different images and refuses them when the
   images overlap too. Hero detection (`hero_detect`, `lua.table_heroes`) uses range plus image.
 
-## What a new hero in sheet 176 must follow (Raphael was the last one)
+## What a new hero in sheet 176 must follow (Doctor Strange was the last one)
 
 1. `data/tts/<slug>.json` with its own `deck.identity` (the images of its deck object), not Medusa's or another turtle's.
 2. Never `card.card_id in range(...)`, `card_id == X` or a dict keyed by CardID built from both players. Use `game.card_of`,
