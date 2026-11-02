@@ -38,7 +38,7 @@ from dataclasses import dataclass, field
 from functools import lru_cache
 from math import sqrt
 
-from ..ai_medusa import GAZE, boost_effect_value
+from ..ai_medusa import GAZE, boost_effect_value, scheme_fighter
 from ..cards import Card, can_be_boost
 from ..combat import is_medusa_card, resolve_combat
 from ..controller import Controller
@@ -433,7 +433,7 @@ class EngineState:
                     self.variant = None
             else:                           # D2: the chooser of the variant decides inside; the rival answers greedy
                 mine = SyntheticChooser(policy=move[3] or "greedy")
-                g.play_scheme(p, g.hero(p), card, choosers={p: mine, 1 - p: SyntheticChooser(policy="greedy")})
+                g.play_scheme(p, scheme_fighter(g, p, card), card, choosers={p: mine, 1 - p: SyntheticChooser(policy="greedy")})
         elif kind == "ability":
             if move[1] is not None:
                 g.use_ability(p, GAZE, g.fighters[move[1]])
@@ -619,7 +619,7 @@ class EngineState:
         interpreted = slug in g.fx.dsl_heroes
         out, seen = [], set()
         for c in g.players[p].hand:
-            if not c.is_scheme or not c.usable_by(hero.name) or c.title in seen:
+            if not c.is_scheme or c.title in seen or scheme_fighter(g, p, c) is None:
                 continue
             seen.add(c.title)
             if c.title == "A Momentary Glance":

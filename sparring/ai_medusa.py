@@ -154,7 +154,7 @@ DISCARD_EFFECTS = ("Clutching Claws", "Hiss and Slither")
 KEEP_BASE = {"attack": 1.0, "defense": 0.8, "versatile": 1.1, "scheme": 0.9}
 INVENTION_KEEP = 1.5
 KEEP_SPECIAL = {"Gaze of Stone": 3.0, "Feint": 1.4, "A Momentary Glance": 1.6, "Hiss and Slither": 1.8,
-                "Winged Frenzy": 1.0, "All Part of the Show": 2.0}
+                "Winged Frenzy": 1.0, "All Part of the Show": 2.0, "Set the Stage": 2.0, "A Magician Never Reveals His Secrets": 2.0}
 
 
 def keep_value(card, hand) -> float:
@@ -328,6 +328,12 @@ def kill_value(game: Game, f: Fighter) -> float:
 
 def protect_factor(game: Game, f: Fighter) -> float:
     return max(1.0, kill_value(game, f) / KILL_SIDEKICK)
+
+
+def scheme_fighter(game: Game, me: int, card) -> Fighter | None:
+    """The fighter that plays a scheme: the hero if the card lets him, else the first living fighter it does (Houdini's Set
+    the Stage is Bess's). None when nobody can."""
+    return next((f for f in sorted(game.own(me), key=lambda f: (not f.hero, f.fid)) if card.usable_by(f.name)), None)
 
 
 def boost_effect_value(game: Game, me: int, card) -> float:
@@ -607,7 +613,10 @@ class MedusaAI(Controller):
         interpreted = game.fx.interprets(self.me)
         out, seen = [], set()
         for c in game.players[self.me].hand:
-            if not c.is_scheme or not c.usable_by(medusa.name) or c.title in seen:
+            if not c.is_scheme or c.title in seen:
+                continue
+            fighter = scheme_fighter(game, self.me, c)
+            if fighter is None:
                 continue
             seen.add(c.title)
             if c.title == "A Momentary Glance":
@@ -619,15 +628,16 @@ class MedusaAI(Controller):
             elif c.title == "Winged Frenzy":
                 out.append(self.frenzy_act(game, model, c))
             elif interpreted:
-                out.append(self.scheme_act(game, c))
+                out.append(self.scheme_act(game, c, fighter))
         return [a for a in out if a is not None]
 
-    def scheme_act(self, game: Game, card) -> Act | None:
+    def scheme_act(self, game: Game, card, fighter: Fighter | None = None) -> Act | None:
         """A scheme played on a blind clone with EffectAI deciding inside (`EffectAI.scheme_outcome`): its value is
         the material it swings (kills, the ONGOING it brings in or replaces), the cards it draws (unknown: CARD_VALUE
         each) minus those it gives up (their keep_value) and the card itself, plus the actions it grants."""
         me = self.me
-        after = self.effect_ai().scheme_outcome(game, card, me)
+        fighter = fighter or game.hero(me)
+        after = self.effect_ai().scheme_outcome(game, card, me, fighter.fid)
         if after is None:
             return None
         hand, hand_after = game.players[me].hand, after.players[me].hand
@@ -638,7 +648,7 @@ class MedusaAI(Controller):
         gained = after.actions_left - (game.actions_left - 1)
         if not self.scheme_changed_nothing(game, after, card):
             value += ACTION_VALUE * gained       # an action handed back is only worth something when the card did more
-        return Act("scheme", value, game.hero(me).fid, "", card, sim=after)
+        return Act("scheme", value, fighter.fid, "", card, sim=after)
 
     def scheme_changed_nothing(self, game: Game, after: Game, card) -> bool:
         """The scheme left everything but its own action where it was (`play_signature`): Searing Clarity with no
@@ -1013,7 +1023,7 @@ class MedusaAI(Controller):
             finally:
                 self._plan_moves, self._plan_spot = {}, None
         elif a.kind == "scheme":
-            return game.play_scheme(me, game.hero(me), a.card, choosers=self.scheme_choosers(game, a.variant))
+            return game.play_scheme(me, game.fighters[a.fid], a.card, choosers=self.scheme_choosers(game, a.variant))
 
     def scheme_choosers(self, game: Game, variant: str | None) -> dict | None:
         """Who decides inside a scheme the bot plays: with a search `variant`, the SyntheticChooser of that policy

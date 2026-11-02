@@ -2248,8 +2248,8 @@ class Session:
         pending = [(card, why) for card, why in ((res.atk_card, t("cause.attack")), (res.def_card, t("cause.defense")))
                    if card is not None and card in bot.full_set and card not in bot.discard]    # leave at the end of the flow
         reasons = {card.card_id: why for card, why in pending}
-        if res.boost_card is not None and res.boost_card in bot.full_set:
-            reasons[res.boost_card.card_id] = t("cause.combat_boost")
+        for i in self._bot_boost_ids(p):
+            reasons[i] = t("cause.combat_boost")
         listed = [self._discard_list(c["bot_seen"], reasons, t("cause.effect"))] + [t("combat.discard_item", title=card.title, why=why) for card, why in pending]
         if line := ", ".join(x for x in listed if x):
             self.say(t("combat.bot_discards", list=line))
@@ -2307,8 +2307,8 @@ class Session:
         for card, why in ((res.atk_card, t("cause.attack")), (res.def_card, t("cause.defense"))):
             if card is not None and card in g.players[self.bot].full_set:
                 reasons[card.card_id] = why
-        if res.boost_card is not None and res.boost_card in g.players[self.bot].full_set:
-            reasons[res.boost_card.card_id] = t("cause.combat_boost")
+        for i in self._bot_boost_ids(p):
+            reasons[i] = t("cause.combat_boost")
         listed = self._discard_list(c["bot_seen"], reasons, t("cause.effect"), told=set(told["ids"]) if told else ())
         if listed:
             self.say(t("combat.bot_discards", list=listed))
@@ -2339,6 +2339,13 @@ class Session:
             return
         self.moving = True
         self.say(t("combat.after"), ChatKind.YOUR_TURN)
+
+    def _bot_boost_ids(self, p: Pending) -> set[int]:
+        """The cards the bot spent as a boost in this combat, whichever side it was on (an attack's or a defense's)."""
+        flow = p.flow
+        ids = {i for side, spent in flow.boosted.items() for i in spent if (flow.att if side == "atk" else flow.tgt).owner == self.bot}
+        card = flow.result.boost_card            # the interpreter's own boosts are all in `flow.boosted`; a legacy path's is here
+        return ids | ({card.card_id} if card is not None and card in self.game.players[self.bot].full_set else set())
 
     def _combat_text(self, p: Pending, res) -> str:
         """Breakdown of where each total comes from: card played, bonuses and boost card, with their titles."""

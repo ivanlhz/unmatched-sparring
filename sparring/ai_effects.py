@@ -521,7 +521,7 @@ class EffectAI:
         return delta
 
     # ------------------------------------------------------------------ a whole scheme, simulated
-    def scheme_outcome(self, game: Game, card, me: int) -> Game | None:
+    def scheme_outcome(self, game: Game, card, me: int, fid: str | None = None) -> Game | None:
         """The game after `me` plays `card` (a scheme) on a blind clone, deciding inside with these same rules: what
         the heuristic values a scheme by. None when the card cannot be played there."""
         rng = random.Random(f"{self.seed}:{game.turn_no}:{me}:{card.card_id}:scheme")
@@ -530,7 +530,7 @@ class EffectAI:
         chooser = _SimChooser(self)
         g.pre_play_signature = play_signature(g, me, card)       # `MedusaAI.scheme_changed_nothing` compares to it
         try:
-            if g.play_scheme(me, g.hero(me), card, choosers={0: chooser, 1: chooser}) is not None:
+            if g.play_scheme(me, g.fighters[fid] if fid else g.hero(me), card, choosers={0: chooser, 1: chooser}) is not None:
                 return None
         except (RuleError, EffectError, NotImplementedError):
             return None
