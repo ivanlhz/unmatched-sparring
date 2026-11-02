@@ -4552,6 +4552,7 @@ class Session:
             aside = {x.card_id for x in (*st.tucked, *st.removed)}     # tucked or removed: still on their pile until they move them
             return ({r["id"] for r in self._rd_human_discard()} & own) - self.fx_in_flight - aside
         ids = read()
+        self._swap_owed_copies(ids)
         known = {x.card_id for x in st.discard}
         # a change only counts if two reads see it (card in transit, edge); the click's snapshot is already the
         # second: the human cannot be dragging a card while pressing a button
@@ -4631,6 +4632,31 @@ class Session:
         if self._track_destiny() and not self._destiny_tried:
             self._destiny_tried = True                # one attempt per button: a broken dial does not slow every read
             self._write_dials(only_destiny=True, post=True)   # HP is only written after a real change
+
+    def _swap_owed_copies(self, ids: set[int]) -> None:
+        """A bot look named a card to discard (Set the Stage, Confront Any Demon or God); the engine already put THAT
+        copy on the pile. Copies of one title are interchangeable: if another copy of the title is on the table pile
+        and the named one is not, the engine swaps them (the named one goes back to the hand it was seen in) and the
+        debt is paid by the copy that arrived, instead of counting the arrival as one more discard."""
+        d = self.pending_discard
+        if not d or not d.get("cards"):
+            return
+        st = self.game.players[self.human]
+        by_id = {c.card_id: c for c in st.full_set}
+        owed = list(d["cards"])
+        for n, i in enumerate(owed):
+            card = by_id.get(i)
+            if i in ids or card is None or card not in st.discard:
+                continue
+            copy = next((c for c in st.full_set if c.title == card.title and c.card_id in ids and c not in st.discard
+                         and c.card_id not in owed), None)
+            if copy is None:
+                continue
+            st.discard.remove(card)
+            st.hand.append(card)
+            self.game.players[self.bot].known.add(card, self.game.turn_no)
+            owed[n] = copy.card_id
+        d["cards"] = owed
 
     def _trim_virtual_hand(self, target: int) -> None:
         """The virtual human hand loses cards because the real one has fewer (shuffled or put away face down): which

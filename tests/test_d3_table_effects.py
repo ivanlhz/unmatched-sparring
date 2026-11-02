@@ -347,6 +347,27 @@ def test_confront_lost_reads_the_human_hand_once_and_the_named_discard_is_owed_u
 
 
 @hellboy_rig
+def test_confront_lost_owed_discard_is_met_by_another_copy_of_the_same_title(rig, monkeypatch):
+    session, table, game, fake, cfg = rig
+    confront = next(c for c in game.players[0].hand if c.title == "Confront Any Demon or God")
+    monkeypatch.setattr(session.ai, "choose_defense", lambda g, a, t: confront)
+    human_hand(table, game, "Faster. Stronger.", "Advanced Psychometry", "Advanced Psychometry", "Advanced Psychometry", "Leap Away")
+    human_attack(session, table, game, "abe", "hellboy", "Faster. Stronger.", value=5)
+    real = list(table.human_hand)
+    click(session, table, Event.REVEAL)
+    named = session.pending_discard["cards"][0]
+    st = game.players[1]
+    title = next(c.title for c in st.full_set if c.card_id == named)
+    other = next(c.card_id for c in st.full_set if c.title == title and c.card_id != named and c.card_id in real)
+    table.human_discard += [card_ids(game, 1, "Faster. Stronger.")[0], other]
+    table.human_count = len(real) - 1
+    msgs = click(session, table, Event.END_ACTION)
+    assert session.pending_discard is None and not said(msgs, "Aun no veo en tu descarte"), msgs
+    assert sum(c.title == title for c in st.discard) == 1
+    assert named not in [c.card_id for c in st.discard]
+
+
+@hellboy_rig
 def test_a_bot_turn_and_a_combat_without_a_look_card_never_read_the_human_hand(rig, monkeypatch):
     session, table, game, fake, cfg = rig
     human_hand(table, game, "Faster. Stronger.", "Leap Away", "Concussion Device", "Secure The Scene")

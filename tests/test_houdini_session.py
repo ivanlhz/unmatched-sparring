@@ -95,6 +95,51 @@ def test_the_bots_set_the_stage_boost_reads_your_hand_once_and_makes_you_discard
     assert session.pending_discard is not None and session.pending_discard["kind"] == "cards" and len(session.pending_discard["cards"]) == 1
 
 
+def _stage_look_with_two_right_hands(session, table, game, monkeypatch):
+    """The bot's Set the Stage names a Right Hand Of Doom out of a hand that holds two copies; returns (named, other)."""
+    put_adjacent(game, table, session.cfg, "hellboy", "houdini")
+    human_hand(table, game, "Excalibur", "Right Hand Of Doom", "Right Hand Of Doom")
+    bot_defends_with(session, game, "Grand Escape", monkeypatch)
+    stage = bot_card(game, "Set the Stage")
+    monkeypatch.setattr(session.ai, "choose_combat_boost", lambda g, ctx: stage)
+    human_attacks(session, table, game, "houdini")
+    named = session.pending_discard["cards"][0]
+    copies = card_ids(game, 1, "Right Hand Of Doom", "Right Hand Of Doom")
+    assert named in copies
+    return named, next(i for i in copies if i != named)
+
+
+@with_rig("houdini", "hellboy", "Set the Stage", "Flourish", "Misdirection", "Grand Escape")
+def test_the_owed_discard_of_a_look_is_met_by_the_other_copy_of_the_same_title(rig, monkeypatch):
+    session, table, game, fake, cfg = rig
+    named, other = _stage_look_with_two_right_hands(session, table, game, monkeypatch)
+    table.human_discard.append(other)               # the human put the OTHER Right Hand Of Doom on the pile
+    table.human_hand.remove(other)
+    table.human_count -= 1
+    destinies = game.destiny_count(1)
+    msgs = click(session, table, Event.END_ACTION)
+    assert not said(msgs, "Aun no veo en tu descarte"), msgs
+    assert session.pending_discard is None
+    assert game.destiny_count(1) == destinies, "one discard, counted once"
+    assert [c.card_id for c in game.players[1].discard if c.title == "Right Hand Of Doom"] == [other]
+    assert named in {c.card_id for c in game.players[1].hand}
+    msgs = click(session, table, Event.END_ACTION)
+    assert not said(msgs, "Aun no veo en tu descarte")
+
+
+@with_rig("houdini", "hellboy", "Set the Stage", "Flourish", "Misdirection", "Grand Escape")
+def test_the_owed_discard_met_by_the_named_copy_itself_still_works(rig, monkeypatch):
+    session, table, game, fake, cfg = rig
+    named, other = _stage_look_with_two_right_hands(session, table, game, monkeypatch)
+    table.human_discard.append(named)
+    table.human_hand.remove(named)
+    table.human_count -= 1
+    destinies = game.destiny_count(1)
+    msgs = click(session, table, Event.END_ACTION)
+    assert session.pending_discard is None and not said(msgs, "Aun no veo")
+    assert game.destiny_count(1) == destinies
+
+
 @with_rig("houdini", "hellboy", *BOT_HAND)
 def test_a_combat_without_a_set_the_stage_boost_never_reads_your_hand(rig, monkeypatch):
     session, table, game, fake, cfg = rig
