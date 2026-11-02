@@ -568,3 +568,62 @@ def test_the_boost_a_combat_was_made_with_survives_the_game_save(bprd):
     loaded = Game.new(bprd, 0, controllers={}, heroes=("houdini", "hellboy"))
     persist.apply_game(loaded, saved)
     assert loaded.players[0].hero.slug == "houdini"
+
+
+# ---------------------------------------------------------------- A Magician Never Reveals His Secrets (look_shield)
+
+def confront(g, hand_cards, reveal):
+    """Hellboy attacks Houdini with Confront Any Demon or God (3) and loses to Smoke And Mirrors (3: a tie is lost by the attacker),
+    so he looks at Houdini's hand. Houdini declines the swap and answers `reveal` to the Magician."""
+    houdini, hellboy = pair(g, "houdini", "hellboy")
+    shield = give(g, 0, "A Magician Never Reveals His Secrets")
+    kept = [give(g, 0, t) for t in hand_cards]
+    defense = give(g, 0, "Smoke and Mirrors")
+    g.controllers[0].queue = [[False], [reveal]]
+    res = g.attack(hellboy, houdini, give(g, 1, "Confront Any Demon or God"), defense)
+    return shield, kept, res
+
+
+def test_the_magician_card_revealed_cancels_the_look_and_the_discard_that_followed(bprd):
+    g = mk(bprd, turn=1)
+    shield, kept, res = confront(g, ["Flourish", "Flourish"], True)
+    assert not res.attacker_won and len(g.players[0].hand) == 3 and shield in g.players[0].hand
+    assert g.players[1].known.cards(g.players[0]) == [shield]                 # the rival only learned that card
+    assert any("revela" in line or "reveals" in line for line in res.human_effects)
+
+
+def test_declining_to_reveal_the_magician_lets_the_look_happen(bprd):
+    g = mk(bprd, turn=1)
+    shield, kept, res = confront(g, ["Flourish", "Flourish"], False)
+    assert len(g.players[0].hand) == 2 and len(g.players[1].known.seen) == 2          # one card went, the other two are known
+
+
+def test_without_the_magician_in_hand_nobody_is_asked(bprd):
+    g = mk(bprd, turn=1)
+    houdini, hellboy = pair(g, "houdini", "hellboy")
+    give(g, 0, "Flourish")
+    g.attack(hellboy, houdini, give(g, 1, "Confront Any Demon or God"), give(g, 0, "Misdirection"))
+    assert not [r for r in g.controllers[0].requests if r.kind == "optional"]
+
+
+def test_the_bot_always_reveals_the_magician(bprd):
+    from sparring.ai_effects import EffectAI
+    from sparring.effects.choose import ChoiceRequest
+    g = mk(bprd, turn=1)
+    req = ChoiceRequest("optional", 0, [True, False], 1, 1, 17850, "x", "", {"shield": "A Magician Never Reveals His Secrets"}, 1)
+    assert EffectAI(0).choose_effect(g, req) == [True]
+
+
+# ---------------------------------------------------------------- the AI's choices with the new cards
+
+def test_the_bot_swaps_when_the_other_fighter_soaks_the_blow_better(bprd):
+    from sparring.ai_effects import EffectAI
+    from sparring.effects.choose import ChoiceRequest
+    g = mk(bprd, turn=1)
+    info = {"this": "houdini", "role": "defense"}
+    big = ChoiceRequest("optional", 0, [True, False], 1, 1, 17815, "x", "", {"replaces_combatant": info, "at_stake": 9}, 0)
+    small = ChoiceRequest("optional", 0, [True, False], 1, 1, 17815, "x", "", {"replaces_combatant": info, "at_stake": 0}, 0)
+    assert EffectAI(0).choose_effect(g, big) == [True]            # 9 is a waste on Bess (5 hp) and a lot for Houdini
+    assert EffectAI(0).choose_effect(g, small) == [False]         # no blow, nothing to soak
+    attack = ChoiceRequest("optional", 0, [True, False], 1, 1, 17815, "x", "", {"replaces_combatant": {"this": "houdini", "role": "attack"}, "at_stake": 9}, 0)
+    assert EffectAI(0).choose_effect(g, attack) == [False]

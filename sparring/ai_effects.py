@@ -246,6 +246,8 @@ class EffectAI:
         if f.owner == me and req.extra.get("op") == "move":     # the legacy move rule, plan included; staying = []
             dest = ai.choose_move(game, f, req.extra["steps"], req.extra.get("through", False))
             return [dest] if dest in options else ([] if req.min == 0 else None)
+        if f.owner == me and f.hero and not f.alive:              # the hero coming back (All Part of the Show): where he stands best
+            return self._hero_return(game, req, f, options)
         if f.owner == me and (f.pos is None or not f.alive):     # a placement (a Harpy returning): plan included
             dest = ai.choose_placement(game, f, options)
             return [dest] if dest in options else None
@@ -262,6 +264,20 @@ class EffectAI:
         if req.min == 0 and stay >= scored[best]:
             return []
         return [best]
+
+    def _hero_return(self, game: Game, req: ChoiceRequest, f, options: list) -> list | None:
+        """The hero put back on the board with `hp` (the request says) is judged where he would stand: the evaluation of the
+        position with him there, not the Harpy rule (which looks for the rival)."""
+        me, ai, hp = req.player, self.medusa(req.player), req.extra.get("hp")
+        best, best_v = None, None
+        for s in options:
+            g = game.clone()
+            hero = g.fighters[f.fid]
+            hero.alive, hero.pos, hero.hp = True, s, min(hp or hero.max_hp, hero.max_hp)
+            v = ai.position_value(g, Model(g, me))
+            if best_v is None or v > best_v + 1e-9:
+                best, best_v = s, v
+        return None if best is None else [best]
 
     # ------------------------------------------------------------------ cards
     def _cards(self, game: Game, req: ChoiceRequest, nested: bool) -> list | None:
@@ -362,6 +378,10 @@ class EffectAI:
         return [max(scored)[3]]
 
     def _optional(self, game: Game, req: ChoiceRequest, nested: bool) -> list | None:
+        if "shield" in req.extra:           # A Magician Never Reveals His Secrets: showing one card costs less than a look at the hand
+            return [True]
+        if "replaces_combatant" in req.extra:
+            return [self._swap_combatant(game, req)]
         if "bury" in req.extra:             # The future of Ninjutsu: the top card goes to the bottom if it is worse than the average card to come
             top = {c.card_id: c for c in game.players[req.player].full_set}[req.extra["bury"][0]] if req.extra["bury"] else None
             return None if top is None else [keep_value(top, [top]) < self.medusa(req.player).avg_unseen_keep(game)]
@@ -391,6 +411,21 @@ class EffectAI:
         if yes is None or no is None:
             return [not cost]
         return [yes >= no - 1e-9] if not cost else [yes > no + PAY_MARGIN]
+
+    def _swap_combatant(self, game: Game, req: ChoiceRequest) -> bool:
+        """Smoke And Mirrors: swap Houdini and Bess so the other one fights in this combat. Defending, the one that loses the
+        less to the blow as things stand takes it (a sidekick that the blow would only overkill soaks it for the hero;
+        the hero takes it rather than lose the sidekick for a few points). Attacking, the damage is the same: no swap."""
+        info, me = req.extra["replaces_combatant"], req.player
+        if info["role"] != "defense":
+            return False
+        this = game.fighters[info["this"]]
+        other = next((f for f in game.own(me) if f is not this), None)
+        if other is None:
+            return False
+        blow = req.extra.get("at_stake", 0)
+        lose = lambda f: -self.hp_change(f, f.hp - blow, me, game)
+        return lose(other) < lose(this) - 1e-9
 
     def _card_from_hand_pays(self, game: Game, req: ChoiceRequest) -> bool:
         """A card put on the bottom of the deck (it comes back when the deck cycles) for an extra action (Hi-Yaaaaah!!)

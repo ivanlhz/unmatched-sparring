@@ -287,6 +287,9 @@ def select_cards(game, run, sel: dict, purpose: str = "choose", prompt: str | No
     `extra` travels in the request (where a returned card goes, so a bot can prefer one that comes back)."""
     cands = card_candidates(game, run, sel)
     pick = sel.get("pick", "chosen")
+    if cands and run.flags.get("look_cancelled") and sel["zone"] == "hand" \
+            and player_of(game, run, sel.get("chooser", "owner")) != cands[0].player:
+        return []                                  # the look was cancelled: nothing of that hand was seen to pick from
     if pick == "all":
         return cands
     n = min(int(amount(game, run, sel.get("amount", 1))), len(cands))

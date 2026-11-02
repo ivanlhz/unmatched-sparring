@@ -131,7 +131,7 @@ def options_text(game, req: ChoiceRequest, limit: int = 6) -> str:
 
 def card_text_hint(game, req: ChoiceRequest) -> str:
     """' Card: <printed text>' for a plain yes/no (Pyrotechnics: the question alone did not say what the card does), else ''."""
-    if req.kind != "optional" or req.extra.get("discards") or "to" in req.extra:
+    if req.kind != "optional" or req.extra.get("discards") or "to" in req.extra or "shield" in req.extra:
         return ""
     card = request_card(game, req)
     text = getattr(card, "text", "") if card is not None else ""
@@ -140,6 +140,8 @@ def card_text_hint(game, req: ChoiceRequest) -> str:
 
 def prompt_text(game, req: ChoiceRequest) -> str:
     """Chat line for the request: what is asked and, for the card that asks, its title."""
+    if req.kind == "optional" and "shield" in req.extra:          # a card is about to look at your hand
+        return t("choice.prompt.shield", shield=req.extra["shield"])
     base = _prompt(req.kind) if has_prompt(req.kind) else _prompt("default")
     ability = f"choice.prompt.ability.{req.key.split('/')[0]}"       # the question of a hero's own trigger (INVENTIVE)
     if req.kind == "optional" and req.card_id is None and has(ability):

@@ -91,6 +91,28 @@ def play_scheme(session, card: Card) -> None:
     finish(session, run)
 
 
+def maneuver_boost(session, card: Card) -> None:
+    """The card the human spent as a BOOST in their Maneuver (it lies in their discard pile): its `boost` moment runs now,
+    with the same step as a scheme (what the engine applied, what they do by hand, the bot's side projected, the dials)."""
+    g = session.game
+    ops = load_effects(g.players[session.human].hero.slug).moment_ops(card.title, "boost")
+    step = {"bot": session._snapshot_bot(), "fx": bot_effects.snapshot(session), "alive": session._alive_map(),
+            "narrate": narrate.snapshot(g), "seen": len(g.players[session.bot].discard),
+            "in_play": g.fx.ongoing_card_id(session.human)}
+    run = EffectRun(ops, Ctx(owner=session.human, this_fid=g.hero(session.human).fid, card_id=card.card_id, moment="boost"),
+                    label="boost")
+    run.flags[STEP] = step
+    g.fx.emit("card_boosted", session.human, card)
+    pending = run.run(g, session._choosers())
+    if pending is not None:
+        g.fx.parked.append(run)
+        session.say(t("fx.detected", title=card.title), ChatKind.SCHEME)
+        session._show_choice(run.awaiting)
+        return
+    finish(session, run)
+    session._deal_owed_draws(card.title)
+
+
 def finish(session, run: EffectRun) -> None:
     """The human's scheme is done (now, or after their answer): says what the engine applied and what they do on the
     table, projects the bot's side of it and the dials."""
