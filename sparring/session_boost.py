@@ -4,14 +4,14 @@ The boost of a `may_boost` card is a DURING effect of the card. The human puts t
 engine runs the combat (`Session._await_boost`), so the panel has to know in advance whether the rival's IMMEDIATELY
 (Feint, Planned Recklessness as Occult Detective, Ward And Prepare, Break something...) takes that effect off the card.
 The engine alone decides that, with the same rules it uses when the combat really runs: a dry run on a CLONE of the game
-(`Game.clone`: no table reads, no panel, the bots decide with their own controllers) that stops when the combat enters
+(`Game.clone`: no table reads, no panel, the bots decide with their own controllers; the shared RNG is put back
+afterwards, so the real combat draws exactly what it would have drawn) that stops when the combat enters
 DURING and asks whether the human's side is cancelled there. A cancel of only the AFTER effects (Short circuit) leaves
 the DURING boost where it was; a cancel of DURING and AFTER (Break something) or of everything removes it. The clone
 never touches the session: the real combat runs afterwards from the untouched game."""
 from __future__ import annotations
 
 from .combat_flow import Phase, legacy_chooser
-from .state import RuleError
 
 
 def offered(session, p, human_card) -> bool:
@@ -19,6 +19,7 @@ def offered(session, p, human_card) -> bool:
     the rival's card cancels them. Any failure of the dry run answers True: the real combat then says what is wrong,
     as it always did."""
     g = session.game.clone()
+    rng_state = g.rng.getstate()                   # the clone shares the live RNG: the real combat must draw the same
     session.make_known(human_card, game=g)
     att, tgt = g.fighters[p.attacker.fid], g.fighters[p.target.fid]
     value = session.pending_value
@@ -32,5 +33,7 @@ def offered(session, p, human_card) -> bool:
             if (wait := flow.step()) is not None:
                 flow.resume(decide(wait.choice))
         return flow.done or not flow.is_cancelled("atk" if p.kind == "human_attacks" else "def")
-    except (RuleError, KeyError, ValueError):
+    except Exception:                              # any failure of the dry run: the real combat says what is wrong
         return True
+    finally:
+        g.rng.setstate(rng_state)

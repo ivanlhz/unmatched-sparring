@@ -909,6 +909,7 @@
  "console.moved_log": "el registro {old} se ha movido a {new}",
  "raphael.combat_to_deck": "Pon {cards} de tu zona de combate en tu mazo y baraja ({cause}).",
  "raphael.combat_to_deck_bot": "Meto {cards} de tu zona de combate en tu mazo y lo barajo ({cause}).",
+ "raphael.combat_to_deck_failed": "No he podido meter {cards} en tu mazo: ponla tú de tu zona de combate en tu mazo y baraja ({cause}).",
  "piece.resolved": "{name}: la pieza en {old} era de {other}; sigo la que se llama {name} ({new}).",
  "piece.unresolved": "{name}: la pieza en {guid} es de {other} y encontre {found} candidatas por nombre; mantengo el GUID, las posiciones pueden fallar.",
  "piece.shared": "Los datos dan el GUID {guid} a {names}: si estan las dos en la mesa las distingo por el nombre.",

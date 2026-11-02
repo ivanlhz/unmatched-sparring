@@ -107,7 +107,7 @@ def test_relentless_falls_back_to_the_instruction_when_the_table_refuses(rig, mo
     human_hand(table, game, "Relentless", "Sai")
     table.stuck_in_pile = {relentless_id(game)}
     msgs = attack(session, table, game, "raphael", "Relentless")
-    assert said(msgs, "Pon Relentless de tu zona de combate en tu mazo y baraja")
+    assert said(msgs, "No he podido meter Relentless en tu mazo: ponla tú de tu zona de combate en tu mazo y baraja")
     assert not any(c.title == "Relentless" for c in game.players[1].discard) and said(msgs, "Tu carta: Relentless: robas 1")
 
 

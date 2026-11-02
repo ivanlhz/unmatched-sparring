@@ -1341,6 +1341,8 @@ class Session:
             saved["look_granted"] = True
         if self.token_copies:
             saved["token_copies"] = {k: list(v) for k, v in self.token_copies.items()}
+        if self.combat_guids:
+            saved["combat_guids"] = {str(k): v for k, v in self.combat_guids.items()}
         if self.fx_unprojected is not None:
             saved["fx_unprojected"] = self.fx_unprojected
         return saved
@@ -1418,6 +1420,7 @@ class Session:
             self.free_effect = None if d.get("effect") is None else EffectRun.from_dict(d["effect"])
             self.look_granted = d.get("look_granted") is True
             self.token_copies = {str(k): [str(g) for g in v] for k, v in (d.get("token_copies") or {}).items()}
+            self.combat_guids = {int(k): str(v) for k, v in (d.get("combat_guids") or {}).items()}
             self.fx_unprojected = d.get("fx_unprojected")
             self.pending_discard, self.pending_value = d["pending_discard"], d["pending_value"]
             self.look = self._load_look(d.get("look"))
@@ -2257,6 +2260,7 @@ class Session:
 
     def _undo_combat(self, saved: dict, human_card: Card | None, flipped: list) -> None:
         self._restore(saved)
+        self.combat_guids = {}
         if human_card is not None:
             self._transit.pop(human_card.card_id, None)
         self._unflip(flipped)

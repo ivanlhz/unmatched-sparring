@@ -436,7 +436,8 @@ def combat_card_to_deck(session, ids: list[int], ctx: Ctx) -> list[Check]:
         left = [i for i in ids if not isinstance(moved, list) or guids[i] not in moved]
         if left:
             session.fx_in_flight.difference_update(left)
-            by_hand(left)
+            session.say(t("raphael.combat_to_deck_failed", cards=join_titles(by_id[i].title for i in left), cause=ctx.cause),
+                        ChatKind.YOUR_TURN)
     return [check]
 
 
