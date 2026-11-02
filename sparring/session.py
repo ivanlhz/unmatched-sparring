@@ -1126,6 +1126,8 @@ class Session:
             self._try_flush_stage()()
             for check in checks:
                 check()
+        if run.ctx.moment == "after_combat" and self.game.winner is None:
+            self.say(t("combat.after"), ChatKind.YOUR_TURN)       # the combat's own closing line, held back while DARK PACT asked
         scheme = run.flags.get("scheme")
         if scheme:
             player = scheme["player"]
@@ -2338,6 +2340,9 @@ class Session:
             self._game_over_dialog()
             return
         self.moving = True
+        if (paused := self._paused()) is not None and paused[0] == "parked":
+            self._show_choice(paused[2].awaiting)         # DARK PACT: asked right after the combat; `_effect_done` says the rest
+            return
         self.say(t("combat.after"), ChatKind.YOUR_TURN)
 
     def _combat_text(self, p: Pending, res) -> str:

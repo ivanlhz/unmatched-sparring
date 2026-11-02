@@ -49,10 +49,14 @@ def status(session, req: ChoiceRequest) -> str:
     return panel_text(t({"blind": "blind.status", "reveal": "reveal.status", "play": "mists.status"}.get(mode(req), "rage.status")))
 
 
-def _aside(session) -> set[int]:
+def _aside(session, req: ChoiceRequest) -> set[int]:
+    """Cards on the pile that are not an answer: what the engine already counts there, what the bot has in flight and the
+    scheme being resolved (it lies face up on the pile until its effect ends)."""
     g, st = session.game, session.game.players[session.human]
     aside = {c.card_id for c in (*st.discard, *st.tucked, *st.removed)} | session.fx_in_flight
     aside.add(g.fx.ongoing_card_id(session.human))
+    if req.card_owner in (None, session.human):
+        aside.add(req.card_id)
     return aside
 
 
@@ -67,7 +71,7 @@ def verdict(session, req: ChoiceRequest) -> tuple[list[int] | None, str | None]:
     rows = session._rd_human_discard_raw()
     if rows is None and st.discard:                  # no reply is not an empty pile: nothing may be read as given up
         return None, t("pile.unreadable")
-    arrived = sorted(({r["id"] for r in rows or [] if isinstance(r, dict)} & set(by_id)) - _aside(session))
+    arrived = sorted(({r["id"] for r in rows or [] if isinstance(r, dict)} & set(by_id)) - _aside(session, req))
     m = mode(req)
     if m == "rage":
         wrong = [by_id[i] for i in arrived if i not in req.options]

@@ -177,9 +177,21 @@ def _search_deck(run, game, spec):
 def _return_to_deck(run, game, spec):
     sel, position = spec["cards"], spec["position"]
     if table.hand_pick_is_physical(game, run, sel):      # the human picks the real cards out of their hand
+        whole = sel.get("pick") == "all" and "except" not in sel and position == "shuffle"
         table.note(run, op="return_to_deck", position=position, amount=int(amount(game, run, sel.get("amount", 1))),
                    up_to=bool(sel.get("up_to")), all=sel.get("pick") == "all" and "except" not in sel,
                    rest=sel.get("pick") == "all" and "except" in sel, ordered="order" in spec)
+        if whole:                                          # the whole hand into the deck: the bot does it (no choice to make)
+            owner = player_of(game, run, sel["player"])
+            st = game.players[owner]
+            moved = len(st.hand)
+            game.players[1 - owner].known.degrade(len(st.hand), 0)
+            st.deck.extend(st.hand)
+            st.hand.clear()
+            perm = _permutation(run, len(st.deck))
+            st.deck[:] = [st.deck[i] for i in perm]
+            _watcher(game, owner).clear_top()
+            table.intent(game, op="hand_to_deck_all", player=owner, n=moved)
         return
     items = _cards_of(game, run, sel, "return", in_combat=True, position=position)
     if items and position == "bottom" and isinstance(sel, dict) and sel["zone"] == "deck" \

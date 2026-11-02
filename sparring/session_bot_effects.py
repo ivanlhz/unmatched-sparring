@@ -43,7 +43,7 @@ from .tts.lua import ChatKind
 
 
 
-DIRECT_OPS = ("tuck", "remove", "reveal_deck", "shuffle_deck", "stack_top")     # translated as they were reported, no diff involved
+DIRECT_OPS = ("tuck", "remove", "reveal_deck", "shuffle_deck", "stack_top", "hand_to_deck_all")     # translated as they were reported, no diff involved
 
 
 def bot_cause() -> str:
@@ -282,7 +282,8 @@ def _human_cards(session, before: dict, played: frozenset, looked: bool, ctx: Ct
     from_hand = len([i for i in h0["hand"] if i in played])
     entered = g.fx.ongoing_card_id(human)         # an ONGOING that entered play left the hand without a discard
     from_hand += int(entered is not None and entered != in_play and entered in h0["hand"] and entered not in played)
-    unknown = len(h0["hand"]) + drawn - len(h1["hand"]) - from_hand - len(to_discard) - by_bot - len(hand_to_deck) - len(played_back)
+    whole = sum(i["n"] for i in intents if i["op"] == "hand_to_deck_all" and i["player"] == human)   # Eye of Agamotto: told in its own line
+    unknown = len(h0["hand"]) + drawn - len(h1["hand"]) - from_hand - len(to_discard) - by_bot - len(hand_to_deck) - len(played_back) - whole
     if unknown > 0:
         session.say(t("bot.return_hand", cards=plural(unknown, "noun.card"), cause=cause), ChatKind.YOUR_TURN)
     disc_to_deck = [i for i in h0["discard"] if i in h1["deck"]]

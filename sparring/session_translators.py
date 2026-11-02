@@ -867,3 +867,39 @@ def _shuffle_bot(session, intent: dict, ctx: Ctx) -> list[Check]:
         return []
     session.say(t("strange.shuffle_bot", cause=ctx.cause), ChatKind.SCHEME)
     return []
+
+
+def _hand_all_mode(session, intent: dict) -> str | None:
+    return BOT if session.cfg.human_deck_guid else HUMAN
+
+
+def _hand_all_human(session, intent: dict, ctx: Ctx, late: bool = False) -> list[Check]:
+    """The table did not take the hand: they shuffle it into their deck by hand and draw what the card gives themselves.
+    Before any write the cards the engine counted as drawn are not dealt (they would be dealt before the hand went back);
+    after one (`late`) the deal is already queued behind it and fails with the same table."""
+    g = session.game
+    if not late:
+        session.human_dealt = g.drawn[session.human]
+    session.say(t("strange.hand_to_deck_failed_late" if late else "strange.hand_to_deck_failed", cause=ctx.cause), ChatKind.YOUR_TURN)
+    return []
+
+
+@register("hand_to_deck_all", mode=_hand_all_mode, human=_hand_all_human)
+def _hand_all_bot(session, intent: dict, ctx: Ctx) -> list[Check]:
+    """Eye of Agamotto played by the human: "Shuffle your hand into your deck" has no choice in it, so the bot puts the cards
+    of their seat into their deck and shuffles it (the same two writes as the mulligan); the 5 cards the card draws are dealt
+    after, in this same step. A table that refuses: the human does it and draws by hand (`_hand_all_human`)."""
+    from .session import SessionError
+    cfg = session.cfg
+    try:
+        identity = session._identity("human")
+        back = session._w(lua.return_hand_to_deck(cfg.human_seat, cfg.human_deck_guid, cfg.human_card_ids, identity=identity), DOMAIN)
+        session._w(lua.shuffle_deck(cfg.human_deck_guid, cfg.human_deck_spot, id_range=cfg.human_card_ids, identity=identity), DOMAIN)
+    except ERRORS + (SessionError,):
+        return _hand_all_human(session, intent, ctx)
+    session.say(t("strange.hand_to_deck_bot", cause=ctx.cause), ChatKind.SCHEME)
+
+    def check() -> None:
+        if result_of(back).get("deck") is False:
+            _hand_all_human(session, intent, ctx, late=True)
+    return [check]
