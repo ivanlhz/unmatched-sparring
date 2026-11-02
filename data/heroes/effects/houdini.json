@@ -59,7 +59,9 @@
    "copies": 2,
    "text": "IMMEDIATELY: You may return this card to your hand and choose a different card to play. Resolve all effects on that card as normal. BOOSTED WITH: Draw 1 card.",
    "effects": {
-    "immediately": [],
+    "immediately": [
+     {"op": "plugin", "id": "houdini:sleight_of_hand"}
+    ],
     "during": [],
     "after": [],
     "scheme": [],
@@ -67,7 +69,7 @@
      {"op": "draw", "player": "owner", "amount": 1}
     ]
    },
-   "notes": "Attack only (value 1, boost 3). The IMMEDIATELY (take the card back and play another) is NOT coded: it would replace a card already on the table in the middle of the combat, for the bot on the real table too. The card plays as a plain value-1 attack, and the bot values it as a boost card (boost 3 and a card drawn). See 'Open questions for Ivan'."
+   "notes": "Attack only (value 1, boost 3). The IMMEDIATELY (return it to the hand and play another card) is the plugin houdini:sleight_of_hand, built on CombatFlow.replace_attack_card(back_to_hand=True) like the Mists of Munnopor: the owner decides at their own IMMEDIATELY, with the rival's card already face up. The BOOSTED WITH draws one card."
   },
   {
    "title": "For My Next Trick",
@@ -224,6 +226,7 @@
   }
  ],
  "plugins": [
+  {"id": "houdini:sleight_of_hand", "why": "Sleight Of Hand: the attacker takes its own card back to the hand and plays another one IN the running combat (CombatFlow.replace_attack_card), which no op can do; the new card's IMMEDIATELY runs next."},
   {"id": "houdini:replace_combatant", "why": "Smoke And Mirrors: after the swap, the other fighter takes the place of the one that played the card IN the running combat (attacker or defender), which no op can do."},
   {"id": "houdini:return_boosted", "why": "The Big Reveal: choose one of the cards this combat was boosted with (the flow keeps them) and return it from the discard pile to the hand; the DSL has no selector for 'cards boosted with this combat'."}
  ],
@@ -242,7 +245,6 @@
   }
  ],
  "open_questions": [
-  "Sleight of Hand: the IMMEDIATELY (return it and play a different card) is not coded: see the card's notes.",
   "The Big Reveal: 'boost this card twice' = two cards spent from the hand one after the other, each with its own BOOSTED WITH.",
   "All Part of the Show: a hero defeated by the combat damage of a card other than the defender's own (effect damage) is not saved: only the combat damage of THIS combat is deferred."
  ]

@@ -82,7 +82,7 @@ def default_answer(req: ChoiceRequest) -> list:
         return [req.max]
     if req.kind == "space":
         return list(req.options[:req.min])
-    if req.extra.get("purpose") == "bonus":      # a free-count discard that adds value (Unbridled rage): none by default
+    if req.extra.get("purpose") in ("bonus", "swap_attack"):    # a free-count discard that adds value (Unbridled rage), a card played instead (Sleight Of Hand): none by default
         return []
     if req.min == req.max:
         return list(req.options[:req.min])
@@ -314,7 +314,7 @@ class SyntheticChooser:
         of = req.extra.get("of", req.player)
         if req.extra.get("zone") == "hand" and of != req.player:     # only what a look showed (C4), as every bot
             return ControllerChooser._from_rival_hand(game, req, of)
-        if req.extra.get("purpose") == "bonus":
+        if req.extra.get("purpose") in ("bonus", "swap_attack"):
             return []
         cards = game.cards_by_id(of)
         worth = lambda i: card_worth(cards[i]) if i in cards else 0.0

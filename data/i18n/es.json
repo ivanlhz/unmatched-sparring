@@ -954,5 +954,15 @@
  "piece.resolved": "{name}: la pieza en {old} era de {other}; sigo la que se llama {name} ({new}).",
  "piece.unresolved": "{name}: la pieza en {guid} es de {other} y encontre {found} candidatas por nombre; mantengo el GUID, las posiciones pueden fallar.",
  "piece.shared": "Los datos dan el GUID {guid} a {names}: si estan las dos en la mesa las distingo por el nombre.",
- "piece.dial_of": "el dial de vida de {name}"
+ "piece.dial_of": "el dial de vida de {name}",
+ "narr.swapped.bot": "vuelve a su mano y juega {title} en su lugar",
+ "narr.swapped.human": "vuelve a tu mano y juegas {title} en su lugar",
+ "sleight.instruction": "{card}: recogela en tu mano y pon boca arriba en tu zona de combate la carta que juegas en su lugar; luego pulsa [[btn.done]]. {attacker} tiene que poder jugarla (de ataque o versatil, y no otra {card}). Si te lo has pensado mejor, deja {card} donde esta y pulsa [[btn.done]].",
+ "sleight.status": "Recogela en tu mano, pon la carta nueva en tu zona de combate y pulsa [[btn.done]]",
+ "sleight.same": "{title} es otra {card}: elige una carta distinta. Retirala y pulsa [[btn.done]] otra vez.",
+ "sleight.counted": "{card}: vuelve a tu mano y juegas {title} en su lugar.",
+ "sleight.kept": "{card}: te la quedas y atacas con ella.",
+ "sleight.move_old": "Recoge {title} de tu zona de combate y ponla en tu mano.",
+ "sleight.bot": "{title}: el bot recoge {old} en su mano y pone {new} boca arriba en su zona de combate en su lugar.",
+ "sleight.bot_manual": "No he podido hacerlo en la mesa: recoge {old} de la zona de combate del bot en su mano y pon {new} boca arriba ahi en su lugar."
 }

@@ -142,6 +142,7 @@ class CombatFlow:
         self.boost_valued: set[str] = set()          # sides whose boost values were added (after their BOOSTED WITH effects)
         self.deferred_loss: int | None = None        # the player whose hero fell in this combat and may still be saved by an AFTER effect
         self.choosers: dict | None = None            # player -> effects Chooser; None = the controllers decide
+        self.again = False                           # the attacker's card was swapped during its IMMEDIATELY: the new card's runs next (Sleight Of Hand)
 
     @property
     def done(self) -> bool:
@@ -182,6 +183,9 @@ class CombatFlow:
             if (wait := handler.run(self, side)) is not None:
                 self.pending = wait.choice
                 return wait
+            if self.again:
+                self.again = False
+                return None
         self.side_idx += 1
         return None
 
@@ -330,10 +334,15 @@ class CombatFlow:
         loser = self.tgt if damage >= 1 else self.att       # a tie is lost by the attacker (the engine's "won")
         self.game.fx.emit("combat_lost", loser.owner, loser)
 
-    def replace_attack_card(self, new: Card | None) -> None:
-        """The Mists of Munnopor: the attacker's card is discarded and the card their deck gave takes its place before
-        that side's effects have run. The bonuses of the attack stay; `None` (no playable card in the deck) leaves the
-        discarded card in place, cancelled and worth nothing."""
+    def replace_attack_card(self, new: Card | None, *, back_to_hand: bool = False) -> None:
+        """The attacker's card is replaced inside the running combat, the bonuses of the attack staying.
+
+        The Mists of Munnopor (before the attacker's effects ran): the old card is discarded and the card the rival's deck
+        gave takes its place; `None` (no playable card in the deck) leaves the discarded card in place, cancelled and worth
+        nothing.
+        Sleight Of Hand (`back_to_hand`, while the attacker's own IMMEDIATELY runs): the old card returns to its owner's hand and
+        the card chosen from that hand is played instead; the new card's IMMEDIATELY runs now (`again`), and the rival, who has
+        seen the old card, now knows it is in that hand."""
         old, ctx, res = self.atk_card, self.ctx, self.result
         owner = self.att.owner
         if new is None:
@@ -343,7 +352,14 @@ class CombatFlow:
             return
         ctx.atk_value = max(0, ctx.atk_value + (new.value or 0) - (old.value or 0))
         self.played = [(o, new if c is old else c) for o, c in self.played]
-        self.game.players[owner].discard.append(old)
+        if back_to_hand:
+            self.game.take_from_hand(owner, new)
+            self.game.players[owner].hand.append(old)
+            self.game.players[1 - owner].known.add(old, self.game.turn_no)
+            self.runs.pop("immediately:atk", None)
+            self.again = True
+        else:
+            self.game.players[owner].discard.append(old)
         self.atk_card = ctx.atk_card = res.atk_card = new
         res.atk_parts[0] = f"{new.title} ({new.value or 0})"
         self.sides = [Side(*s) for s in _side_cards(ctx)]
@@ -435,7 +451,7 @@ class CombatFlow:
             raw["pending"], default_player=att.owner, deck_of=lambda _: False)
         flow.ctx = flow.result = None
         flow.sides = []
-        flow.runs, flow.printed_set, flow.redirects, flow.choosers = {}, {}, [], None
+        flow.runs, flow.printed_set, flow.redirects, flow.choosers, flow.again = {}, {}, [], None, False
         flow.late_cancelled, flow.cancel_hits = set(), set()
         flow.boost_granted, flow.boosted, flow.deferred_loss, flow.boost_valued = set(), {}, None, set()
         flow.mods = {"atk": [], "def": []}

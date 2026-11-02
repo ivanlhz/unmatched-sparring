@@ -74,6 +74,9 @@ def describe(game, before: dict, run, flow=None, title: str | None = None) -> st
     ability trigger)."""
     parts = _fighters(game, before) + _cards(game, before, run) + _turn(game, before, run)
     parts += _statuses(game, before) + _combat(before, flow)
+    if (swapped := run.flags.get("swapped")) is not None:         # Sleight Of Hand: the card went back to the hand
+        side = "bot" if run.ctx.owner == game.bot_player else "human"
+        parts.append(t(f"narr.swapped.{side}", title=_title(game, swapped["new"], run.ctx.owner)))
     if run.flags.get("look_cancelled"):
         parts.append(t("narr.look_cancelled"))
     elif run.flags.get("looked_hand") and before["seen"][run.ctx.owner] != _seen(game.players[run.ctx.owner]):
@@ -212,6 +215,9 @@ def _cards(game, before: dict, run) -> list[str]:
         else:                                       # the human's hand is never read: a discard the run did not
             from_hand = len([i for i in added if i not in from_deck])                   # take from a deck is theirs
             from_hand += int(entered is not None)
+        swapped = run.flags.get("swapped")
+        if swapped is not None and p == owner:      # Sleight Of Hand: the card back in the hand is told by the swap line itself
+            public = [i for i in public if i != swapped["old"]]
         out += [t("narr.returns_poss_hand", title=by_id[i].title, poss=own) for i in public]
         # what the size of the hand does not explain by draws, public returns and discards went to the deck face
         # down (or, if the hand grew, came from the deck hidden: Read The Bones); no card does both

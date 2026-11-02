@@ -73,6 +73,8 @@ PACT_COMFORT = 8                                        # below this many hit po
 PACT_URGENCY = 0.15
 PACT_RISK_STEP = 0.1                                    # ... and the hit point does not raise the chance of dying next turn by more than this
 PACT_RECYCLE = 4.0                                      # a card put at the bottom of a deck of n cards comes back with weight PACT_RECYCLE / (n + 1)
+SWAP_MARGIN = 0.4                                       # Sleight Of Hand is swapped only when the other card beats it by this much, after the cards each one costs to keep
+SWAP_KEEP_SHARE = 0.5                                   # share of the difference between keeping Sleight Of Hand and keeping the other card that counts against the swap
 BLIND_COST = 0.1                                        # a blind boost mills one card of the deck: the exhaustion clock ticks
 
 
@@ -143,6 +145,17 @@ def blind_clone(game: Game, me: int, rng: random.Random) -> Game:
         if plain is not None:
             mine.deck.append(mine.deck.pop(plain))
     return g
+
+
+class _KnownDefense(Model):
+    """The rival's defense when it is already face up: one exact total instead of the distribution of what it may hold."""
+
+    def __init__(self, game: Game, me: int, defense: float):
+        super().__init__(game, me)
+        self.defense = defense
+
+    def defense_dist(self, t) -> list[tuple[float, int]]:
+        return [(1.0, max(0, self.defense))]
 
 
 class _SimChooser:
@@ -292,6 +305,8 @@ class EffectAI:
         zone, purpose = req.extra.get("zone"), req.extra.get("purpose")
         of = req.extra.get("of", me)
         n_min, n_max = req.min, min(req.max, len(req.options))
+        if purpose == "swap_attack":
+            return self._swap_attack(game, req)
         if purpose == "bonus":
             return self._bonus_discards(game, req)
         if purpose == "reveal_top":
@@ -323,6 +338,36 @@ class EffectAI:
         ranked = sorted(req.options, key=lambda i: (-worth(i), i))
         take = n_max if n_min < n_max and worth(ranked[0]) > 0 else n_min
         return ranked[:take]
+
+    def _swap_attack(self, game: Game, req: ChoiceRequest) -> list:
+        """Sleight Of Hand: keep the card or return it and play another one from the hand. The rival's card is face up and its total
+        is known (`def_value`), so every card is weighed against that exact defense: the blow it lands, the kill prize and the effects
+        the attack evaluation already prices (`MedusaAI.attack_outcome`), minus what it costs to spend it. Swapping puts Sleight Of Hand
+        back in the hand (it counts there, and as a free boost for the new card) and spends the other card instead of it, so the swap
+        has to beat keeping the card by `SWAP_MARGIN` plus the share of the keep values it gives up: a small gain does not spend a strong
+        card. Only the bot's own hand and public information are read."""
+        info, me = req.extra["sleight"], req.player
+        f, target, old = game.fighters[info["fighter"]], game.fighters[info["target"]], game.card_of(info["old"], me)
+        ai = self.medusa(me)
+        known = _KnownDefense(game, me, info["def_value"] - (info["atk_value"] - (old.value or 0) - game.attack_bonus(f)))
+        keep = ai.attack_outcome(game, known, f, target, old)[0]
+        hand = game.players[me].hand
+        shadow = copy.copy(game)                      # the hand as it would be after the swap: Sleight Of Hand back in it
+        shadow.players = list(game.players)
+        mine = copy.copy(game.players[me])
+        mine.hand = [*hand, old]
+        shadow.players[me] = mine
+        by_id = {c.card_id: c for c in hand}
+        best, best_gain = None, SWAP_MARGIN
+        for i in sorted(req.options):
+            card = by_id.get(i)
+            if card is None:
+                continue
+            swapped = ai.attack_outcome(shadow, known, f, target, card)[0]
+            gain = swapped - keep + SWAP_KEEP_SHARE * (keep_value(old, mine.hand) - keep_value(card, mine.hand))
+            if gain > best_gain + 1e-9:
+                best, best_gain = i, gain
+        return [] if best is None else [best]
 
     def _card_to_reveal(self, game: Game, req: ChoiceRequest) -> list:
         """No, Really, I'm a Doctor: the card shown goes on top of the deck (it is drawn next) and heals its BOOST value to

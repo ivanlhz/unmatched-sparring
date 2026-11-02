@@ -954,5 +954,15 @@
  "piece.resolved": "{name}: the piece at {old} was {other}'s; I follow the one named {name} instead ({new}).",
  "piece.unresolved": "{name}: the piece at {guid} is {other}'s and I found {found} candidates by name; I keep the GUID, positions may be wrong.",
  "piece.shared": "The data gives GUID {guid} to {names}: if both are on the table I tell them apart by name.",
- "piece.dial_of": "{name}'s life dial"
+ "piece.dial_of": "{name}'s life dial",
+ "narr.swapped.bot": "returns to its hand and it plays {title} instead",
+ "narr.swapped.human": "returns to your hand and you play {title} instead",
+ "sleight.instruction": "{card}: take it back to your hand and put the card you play instead face up on your combat spot, then press [[btn.done]]. {attacker} must be able to play it (an attack or versatile card, and not another {card}). If you changed your mind, leave {card} where it is and press [[btn.done]].",
+ "sleight.status": "Take it back to your hand, put the new card on your combat spot and press [[btn.done]]",
+ "sleight.same": "{title} is another {card}: choose a different card. Take it back and press [[btn.done]] again.",
+ "sleight.counted": "{card}: it goes back to your hand and you play {title} instead.",
+ "sleight.kept": "{card}: you keep it and attack with it.",
+ "sleight.move_old": "Take {title} from your combat spot back to your hand.",
+ "sleight.bot": "{title}: the bot takes {old} back to its hand and puts {new} face up on its combat spot instead.",
+ "sleight.bot_manual": "I could not do it on the table: take {old} from the bot's combat spot back to its hand and put {new} face up there instead."
 }
