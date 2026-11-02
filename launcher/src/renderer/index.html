@@ -1,5 +1,5 @@
 <!doctype html>
-<html lang="es">
+<html lang="en">
 <head>
   <meta charset="utf-8">
   <meta http-equiv="Content-Security-Policy" content="default-src 'self'; script-src 'self'; style-src 'self'">
@@ -9,6 +9,13 @@
 <body>
   <main>
     <header>
+      <fieldset class="lang-switch">
+        <legend class="sr-only" data-t="opt.language"></legend>
+        <div class="segmented">
+          <label><input type="radio" name="language" value="en" form="options"><span>English</span></label>
+          <label><input type="radio" name="language" value="es" form="options"><span>Español</span></label>
+        </div>
+      </fieldset>
       <p class="kicker" data-t="app.kicker"></p>
       <h1 data-t="app.title"></h1>
       <p class="subtitle" data-t="app.subtitle"></p>
@@ -45,13 +52,6 @@
             <label><input type="radio" name="first" value="human"><span data-t="first.human"></span></label>
             <label><input type="radio" name="first" value="bot"><span data-t="first.bot"></span></label>
             <label><input type="radio" name="first" value="random"><span data-t="first.random"></span></label>
-          </div>
-        </fieldset>
-        <fieldset class="field">
-          <legend data-t="opt.language"></legend>
-          <div class="segmented">
-            <label><input type="radio" name="language" value="es"><span>Español</span></label>
-            <label><input type="radio" name="language" value="en"><span>English</span></label>
           </div>
         </fieldset>
         <label class="field">

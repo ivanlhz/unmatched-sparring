@@ -5,7 +5,7 @@ const { DEFAULTS, buildArgs, normalize, validate } = require('../src/options');
 
 test('the defaults give the plain command line of the README', () => {
   assert.deepEqual(buildArgs(DEFAULTS), [
-    '--launcher', '--language', 'es', '--send-port', '39999', '--listen-port', '39998',
+    '--launcher', '--language', 'en', '--send-port', '39999', '--listen-port', '39998',
     '--first', 'random', '--ai', 'heuristic',
   ]);
 });
@@ -23,7 +23,7 @@ test('every option maps to its flag', () => {
 test('the table check passes only what reading the table uses', () => {
   const o = { ...DEFAULTS, botHero: 'medusa', resume: true, timing: true, ai: 'ismcts' };
   assert.deepEqual(buildArgs(o, { readOnly: true }), [
-    '--launcher', '--language', 'es', '--bot-hero', 'medusa', '--send-port', '39999', '--listen-port', '39998',
+    '--launcher', '--language', 'en', '--bot-hero', 'medusa', '--send-port', '39999', '--listen-port', '39998',
     '--read-only',
   ]);
 });
@@ -42,10 +42,19 @@ test('saved options: unknown or invalid values fall back one by one', () => {
   const o = normalize({ first: 'bot', language: 'fr', botHero: 'gone', humanHero: 'hellboy', botPause: 2, aiTime: 'x' },
     ['medusa', 'hellboy']);
   assert.equal(o.first, 'bot');
-  assert.equal(o.language, 'es');
+  assert.equal(o.language, 'en');
   assert.equal(o.botHero, 'auto');
   assert.equal(o.humanHero, 'hellboy');
   assert.equal(o.botPause, 2);
   assert.equal(o.aiTime, DEFAULTS.aiTime);
   assert.deepEqual(normalize(null, []), DEFAULTS);
+});
+
+test('language: English on a first run, a saved Spanish choice is kept, and it reaches the bot', () => {
+  assert.equal(normalize(null, []).language, 'en');
+  assert.equal(normalize({}, []).language, 'en');
+  const es = normalize({ language: 'es' }, []);
+  assert.equal(es.language, 'es');
+  assert.deepEqual(buildArgs(es).slice(0, 3), ['--launcher', '--language', 'es']);
+  assert.deepEqual(buildArgs(normalize(null, [])).slice(0, 3), ['--launcher', '--language', 'en']);
 });

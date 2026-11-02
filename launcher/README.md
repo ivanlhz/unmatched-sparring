@@ -9,16 +9,16 @@ Electron app that runs the bot as a child process and shows what it says.
    **Unmatched Sparring** from the Start menu.
 2. Open Tabletop Simulator and load the tournament savegame (Unmatched Official Tournament Table). Sit in the
    **White** seat: the bot plays **Green**.
-3. Pick the options (or leave them as they are) and press **EMPEZAR / START**. The status line says
+3. Pick the options (or leave them as they are) and press **START** (EMPEZAR in Spanish). The status line says
    "Connecting to Tabletop Simulator..." and then "Playing". Play with the bot's panel on the table.
-4. Press **PARAR / STOP** to finish. The bot removes its panel and the floor labels, the same as Ctrl+C on the command
+4. Press **STOP** (PARAR) to finish. The bot removes its panel and the floor labels, the same as Ctrl+C on the command
    line. Closing the window while it plays does the same before the window goes.
 
 **CHECK THE TABLE** runs the read-only check (`--read-only`): it reads the table, changes nothing, and prints the
 report in the console area.
 
 The options are the command line ones (see the main README, section 4): who goes first, both heroes (automatic or a
-hero, never the same on both sides), language (the window follows it too), the AI and its think time, the pause
+hero, never the same on both sides), language (English by default; the selector at the top right of the window changes it, the window follows it too, and the choice is remembered), the AI and its think time, the pause
 between bot actions, resume the saved game. **Advanced** holds the ports, a configuration file and `--timing`.
 
 Where things are kept:

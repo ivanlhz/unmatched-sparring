@@ -145,7 +145,7 @@ uv run python -m sparring.play --config config\table.json --resume
 
 ### Desktop launcher (no terminal)
 
-For players who do not program: `launcher\` is a Windows app (Electron) with START / STOP buttons, the options above in a form, a table check button (`--read-only`) and the bot's console in the window, in Spanish or English. Its installer bundles the bot as a standalone executable built with PyInstaller, so the player's PC needs neither Python nor uv. From that executable the save goes to `%LOCALAPPDATA%\UnmatchedSparring\state\session.json`. How to build it (`npm run dist`) and use it: [launcher/README.md](launcher/README.md).
+For players who do not program: `launcher\` is a Windows app (Electron) with START / STOP buttons, the options above in a form, a table check button (`--read-only`) and the bot's console in the window, in English (default) or Spanish, switchable at the top of the window. Its installer bundles the bot as a standalone executable built with PyInstaller, so the player's PC needs neither Python nor uv. From that executable the save goes to `%LOCALAPPDATA%\UnmatchedSparring\state\session.json`. How to build it (`npm run dist`) and use it: [launcher/README.md](launcher/README.md).
 
 ### The panel
 

@@ -4,7 +4,7 @@ const DEFAULTS = Object.freeze({
   first: 'random',
   botHero: 'auto',
   humanHero: 'auto',
-  language: 'es',
+  language: 'en',   // the launcher starts in English; the bot's own command line default stays Spanish
   ai: 'heuristic',
   aiTime: 1.5,
   botPause: '',

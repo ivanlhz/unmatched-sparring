@@ -12,8 +12,8 @@ let status = { key: 'status.idle', vars: {}, state: 'idle' };
 let run = null;               // { readOnly, failed, stopping } while the bot process lives
 
 function t(key, vars = {}) {
-  const lang = form.elements.language.value || 'es';
-  const text = (catalogs[lang] && catalogs[lang][key]) || catalogs.es[key] || key;
+  const lang = form.elements.language.value || 'en';
+  const text = (catalogs[lang] && catalogs[lang][key]) || catalogs.en[key] || key;
   return text.replace(/\{(\w+)\}/g, (_, name) => String(vars[name] ?? ''));
 }
 
@@ -162,11 +162,13 @@ async function init() {
   translate();
   syncForm();
   window.sparring.onBot(onBot);
-  form.addEventListener('change', () => {
+  const onChange = () => {
     syncForm();
     if (form.elements.language.value !== document.documentElement.lang) translate();
     window.sparring.saveOptions(readOptions());
-  });
+  };
+  form.addEventListener('change', onChange);
+  document.querySelector('.lang-switch').addEventListener('change', onChange);
   form.addEventListener('submit', (event) => event.preventDefault());
   buttons.start.addEventListener('click', () => start(false));
   buttons.check.addEventListener('click', () => start(true));
