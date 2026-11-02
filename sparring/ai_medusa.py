@@ -162,10 +162,44 @@ KEEP_SPECIAL = {"Gaze of Stone": 3.0, "Feint": 1.4, "A Momentary Glance": 1.6, "
                 "Winged Frenzy": 1.0, "All Part of the Show": 2.0, "Set the Stage": 2.0, "A Magician Never Reveals His Secrets": 2.0}
 
 
-def keep_value(card, hand) -> float:
+CANCEL_KEEP = 1.6         # keep value a card that cancels the rival card's effects gains against a rival whose deck lives on effects
+RELIANCE_LOW, RELIANCE_HIGH = 0.68, 0.80    # share of the rival's combat cards with effects: at or below LOW the cancel is worth nothing, at HIGH full
+CHIP_DISCOUNT = 0.25       # a BOOSTED WITH hit that does not kill is worth this much less (at most) the healthier the target is: early chip damage
+
+
+def cancels_effects(card) -> bool:
+    """The card's IMMEDIATELY / DURING cancels the effects of the opponent's card (read from the effects data)."""
+    fx = card_effects(card)
+    return fx is not None and any(op["op"] == "cancel_effects" for m in ("immediately", "during")
+                                  for op in walk_ops(fx.moments.get(m) or []))
+
+
+def effect_reliance(game: Game, me: int) -> float:
+    """0..1: how much the rival's deck relies on card effects, from public data: the share of its attack / defense / versatile
+    cards still to come (its full set minus what is in its discard pile; its whole set when that is empty) with an
+    IMMEDIATELY / DURING / AFTER effect, weighted by the card's printed value (a strong card with an effect hurts more)."""
+    st = game.players[1 - me]
+    pool = [c for c in st.full_set if c not in st.gone and c.type != "scheme"] or [c for c in st.full_set if c.type != "scheme"]
+    weight_of = lambda c: 1.0 + (c.value or 0)
+    total = sum(weight_of(c) for c in pool)
+    if not total:
+        return 0.0
+    withfx = 0.0
+    for c in pool:
+        fx = card_effects(c)
+        if fx is not None and any(fx.moments.get(m) for m in ("immediately", "during", "after")):
+            withfx += weight_of(c)
+    return min(1.0, max(0.0, (withfx / total - RELIANCE_LOW) / (RELIANCE_HIGH - RELIANCE_LOW)))
+
+
+def keep_value(card, hand, reliance: float = 0.0) -> float:
+    """What the card is worth in the hand. `reliance` (effect_reliance of the rival) adds CANCEL_KEEP x reliance to a card
+    that cancels the rival's card effects: it stays in the hand against an effect-heavy deck."""
     v = KEEP_SPECIAL.get(card.title, KEEP_BASE[card.type] + 0.25 * (card.value or 0)) + 0.1 * card.boost
     if "invention" in card.tags:       # worth playing early, never worth discarding (Donatello): its bonus lasts the game
         v += INVENTION_KEEP
+    if reliance and cancels_effects(card):
+        v += CANCEL_KEEP * reliance
     return v - 0.4 * (sum(1 for c in hand if c.title == card.title) - 1)
 
 
@@ -341,6 +375,14 @@ def scheme_fighter(game: Game, me: int, card) -> Fighter | None:
     return next((f for f in sorted(game.own(me), key=lambda f: (not f.hero, f.fid)) if card.usable_by(f.name)), None)
 
 
+def chip_factor(f: Fighter, n: int) -> float:
+    """1 for a blow that kills; otherwise it shrinks with the health the target keeps (a hit on a fighter at full health is
+    worth CHIP_DISCOUNT less than the same hit on one that is nearly dead)."""
+    if f.hp <= n or not f.max_hp:
+        return 1.0
+    return 1.0 - CHIP_DISCOUNT * (f.hp - n) / f.max_hp
+
+
 def boost_effect_value(game: Game, me: int, card) -> float:
     """What the BOOSTED WITH of `card` is worth to `me` if the card is spent as a boost now (0 for a card without one), read
     from the card's `boost` moment: the cards it draws (unknown: CARD_VALUE each), the action it gains (only on the own turn),
@@ -362,7 +404,7 @@ def boost_effect_value(game: Game, me: int, card) -> float:
         elif kind == "heal" and hero.alive:
             total += W_MEDUSA_HP * min(n, hero.max_hp - hero.hp)
         elif kind == "damage":
-            total += max((weight(f) * min(n, f.hp) + ((HERO_KILL + LETHAL if f.hero else kill_value(game, f)) if f.hp <= n else 0.0)
+            total += max((weight(f) * min(n, f.hp) * chip_factor(f, n) + ((HERO_KILL + LETHAL if f.hero else kill_value(game, f)) if f.hp <= n else 0.0)
                           for f in game.foes(me)), default=0.0)
         elif kind == "look_hand" and game.players[1 - me].hand:
             total += LOOK_VALUE + STRIP_VALUE
@@ -710,7 +752,8 @@ class MedusaAI(Controller):
         medusa = game.hero(self.me)
         variants: list = [(None, 0.0)]
         seen = set()
-        net = lambda c: keep_value(c, hand) * 0.5 - boost_effect_value(game, self.me, c)     # its BOOSTED WITH pays part of the price
+        rel = effect_reliance(game, self.me)
+        net = lambda c: keep_value(c, hand, rel) * 0.5 - boost_effect_value(game, self.me, c)     # its BOOSTED WITH pays part of the price
         for c in sorted(hand, key=lambda c: (net(c), -c.boost, c.card_id)):
             if can_be_boost(c) and c.boost not in seen:    # for each reach, the card that hurts least to spend
                 seen.add(c.boost)
@@ -1100,7 +1143,8 @@ class MedusaAI(Controller):
 
     def choose_discard(self, game: Game, player: int, n: int, reason: str):
         hand = game.players[player].hand
-        return sorted(hand, key=lambda c: (keep_value(c, hand), c.card_id))[:n]
+        rel = effect_reliance(game, player)
+        return sorted(hand, key=lambda c: (keep_value(c, hand, rel), c.card_id))[:n]
 
     def effect_ai(self):
         """The EffectAI (sparring/ai_effects.py) built on this class's evaluation: it answers the DSL decisions and
@@ -1120,6 +1164,7 @@ class MedusaAI(Controller):
         hand = game.players[self.me].hand
         t = ctx.target
         now = max(0, ctx.atk_value - ctx.def_value)
+        rel = effect_reliance(game, self.me)
         defending = t.owner == self.me
         best, best_gain = None, 0.0
         for c in filter(can_be_boost, hand):
@@ -1132,7 +1177,7 @@ class MedusaAI(Controller):
             else:
                 net = max(0, ctx.atk_value + c.boost - ctx.def_value)
                 gain = weight(t) * (min(net, t.hp) - min(now, t.hp))
-            gain += boost_effect_value(game, self.me, c) - keep_value(c, hand)
+            gain += boost_effect_value(game, self.me, c) - keep_value(c, hand, rel)
             if gain > best_gain:
                 best, best_gain = c, gain
         return best

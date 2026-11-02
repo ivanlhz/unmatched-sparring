@@ -31,7 +31,7 @@ import random
 from functools import lru_cache
 
 from .ai_medusa import (DECK_SCARCITY, HARPY_VALUE, KILL_SIDEKICK, LETHAL, SURVIVAL_P, W_HERO, W_MEDUSA_HP,
-                        W_SIDEKICK, MedusaAI, Model, keep_value, kill_value, play_signature)
+                        W_SIDEKICK, MedusaAI, Model, effect_reliance, keep_value, kill_value, play_signature)
 from .controller import Controller
 from .effects import ongoing
 from .effects.choose import ChoiceRequest, ControllerChooser, SyntheticChooser, default_answer, worth_paying
@@ -316,13 +316,14 @@ class EffectAI:
         if zone == "hand":
             by_id = {c.card_id: c for c in game.players[me].hand}
             hand = game.players[me].hand
-            ranked = sorted((i for i in req.options if i in by_id), key=lambda i: (keep_value(by_id[i], hand), i))
+            rel = effect_reliance(game, me)
+            ranked = sorted((i for i in req.options if i in by_id), key=lambda i: (keep_value(by_id[i], hand, rel), i))
             if purpose == "return" and req.extra.get("position") == "bottom":     # Wildfire: a burning card comes back
                 back = [i for i in ranked if bounces_back(game, me, by_id[i])]
                 ranked = back + [i for i in ranked if i not in back]
                 return ranked[:max(n_min, min(n_max, len(back)))]
             if purpose in GIVE_UP_PURPOSES:
-                junk = [i for i in ranked[n_min:n_max] if keep_value(by_id[i], hand) < 0.9]
+                junk = [i for i in ranked[n_min:n_max] if keep_value(by_id[i], hand, rel) < 0.9]
                 return ranked[:n_min] + junk if purpose == "discard" else ranked[:n_min]
             best = ranked[::-1]
             return best[:n_max] if n_min < n_max else best[:n_min]
