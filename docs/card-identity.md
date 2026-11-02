@@ -45,6 +45,14 @@ against a turtle and a turtle against a turtle (`tests/test_tmnt_matrix.py`). Th
 4. A new ChoiceRequest is created through `EffectRun.ask` (it adds `card_owner`); one created by hand passes the owner.
 5. Add the slug to the matrix (`HEROES` in `tests/test_tmnt_matrix.py`); the matrix is the proof.
 
+## Houdini needs none of this
+
+Houdini's deck is sheet 178 (CardIDs 17800-17829) with the character card on a sheet of its own (177, CardID 17700); no other hero of
+`data/tts` has a CardID in 177xx-178xx, and `deck.identity` holds only the playing cards' image. The catalog lists both images for the
+bag (`card_ids` 17700..17829), `tests/test_hero_houdini_data.py` pins that his range, images and GUIDs are nobody else's, and
+`tests/test_houdini_matrix.py` plays him against the nine other heroes in both seats. The per-owner lookups above still apply to him like
+to everyone else.
+
 ## Piece identity (miniatures and tokens)
 
 Cards are told apart by value (above); pieces by GUID **and name**. The tournament save gives Abe Sapien's and Donatello's

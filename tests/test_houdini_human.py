@@ -268,6 +268,8 @@ def test_all_part_of_the_show_keeps_a_defeated_houdini_in_the_game(rig, monkeypa
     houdini = game.fighters["houdini"]
     assert houdini.alive and houdini.hp == 4
     assert table.dials[guid]["value"] == 4
+    assert said(msgs, "pon a houdini en el tablero (cualquier casilla) con 4 PV")       # the miniature is yours to place
+    assert not said(msgs, "lo he movido yo")                                           # and the bot did not move it meanwhile
 
 
 @with_rig("hellboy", "houdini", "Horseshoes And Hand Grenades", TRAINING)
@@ -344,3 +346,21 @@ def test_the_magician_in_your_discard_pile_is_not_asked_about(rig):
     click(session, table, Event.REVEAL)
     press(session, table, False)
     assert session.effect_run is None or "shield" not in session.effect_run.awaiting.extra
+
+
+# ---------------------------------------------------------------- An Illusion Of My Own Design, played by the human
+
+@with_rig("hellboy", "houdini", "Glimpse Of Hell", "Excalibur", "Service Pistol")
+def test_your_illusion_lets_the_bot_boost_its_defense_and_the_boost_counts(rig, monkeypatch):
+    session, table, game, fake, cfg = rig
+    put_adjacent(game, table, cfg, "houdini", "hellboy")
+    human_hand(table, game, "An Illusion of My Own Design", "Flourish")
+    bot_defends_with(session, game, "Glimpse Of Hell", monkeypatch)
+    spare = next(c for c in game.players[0].hand if c.title == "Excalibur")
+    monkeypatch.setattr(session.ai, "choose_combat_boost", lambda g, ctx: spare)
+    msgs = attack(session, table, game, "houdini", "An Illusion of My Own Design")
+    assert session.pending is not None and session.pending.wait is not None          # your own free BOOST first
+    msgs = click(session, table, Event.NO_BOOST)
+    combat = combat_line(msgs)
+    assert "Glimpse Of Hell (2), potencia con Excalibur (+3)" in combat and "total 5" in combat, combat
+    assert spare.card_id in table.bot_discard and len(game.players[0].hand) == len(table.bot_hand)

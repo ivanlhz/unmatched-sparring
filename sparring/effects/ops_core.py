@@ -333,7 +333,8 @@ def _plan_spots(game, run, fighters, where: dict, chooser: int, op_name: str, hp
         for f in _one_after_another(fighters):
             options = space_options(game, run, where, mover=f)
             by_hand = table.piece_is_physical(game, chooser, f)
-            got = options[:1] if by_hand else run.ask(game, "space", chooser, options, 1, 1, f"{op_name} to",
+            stays = [f.died_at] if f.hero and f.died_at in options else options[:1]     # a hero put back by hand: where his miniature already stands
+            got = stays if by_hand else run.ask(game, "space", chooser, options, 1, 1, f"{op_name} to",
                                                       fighter=f.fid, op=op_name, where=_where_refs(game, run, where),
                                                       **({} if hp is None else {"hp": hp}))
             if got:

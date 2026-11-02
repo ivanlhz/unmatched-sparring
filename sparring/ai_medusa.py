@@ -1023,7 +1023,8 @@ class MedusaAI(Controller):
             finally:
                 self._plan_moves, self._plan_spot = {}, None
         elif a.kind == "scheme":
-            return game.play_scheme(me, game.fighters[a.fid], a.card, choosers=self.scheme_choosers(game, a.variant))
+            fighter = game.fighters.get(a.fid) or game.hero(me)            # an act without a fighter is the hero's
+            return game.play_scheme(me, fighter, a.card, choosers=self.scheme_choosers(game, a.variant))
 
     def scheme_choosers(self, game: Game, variant: str | None) -> dict | None:
         """Who decides inside a scheme the bot plays: with a search `variant`, the SyntheticChooser of that policy
