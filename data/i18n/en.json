@@ -455,6 +455,7 @@
  "cancel.put_back": "I could not put {title} back in the bot's hand: put it there yourself.",
  "combat.none": "There is no pending combat.",
  "reveal.many": "There are {n} of your cards face down in the zone: leave just one and press [[panel.reveal]].",
+ "reveal.face_up": "Your {card} was already face up in the combat zone: read as it lies.",
  "err.no_card_down": "none of your cards is face down in the combat zone",
  "reveal.illegal": "Illegal card: {err}. Change it or flip it and press [[panel.reveal]] again.",
  "reveal.feint": "{bot} cancels the effects of {card}: there is no boost to play.",

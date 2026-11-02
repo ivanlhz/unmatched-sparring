@@ -2061,6 +2061,13 @@ class Session:
         if len(theirs) > 1:
             self.say(t("reveal.many", n=len(theirs)), ChatKind.WARNING)
             return
+        face_up = False
+        if not theirs:                            # a defense/attack left FACE UP before the Reveal is read as it lies
+            theirs = [r for r in self._rd_combat_spot() if isinstance(r, dict) and r.get("id") in mine and r.get("guid")]
+            if len(theirs) > 1:
+                self.say(t("reveal.many", n=len(theirs)), ChatKind.WARNING)
+                return
+            face_up = bool(theirs)
         human_card = mine[theirs[0]["id"]] if theirs else None
         try:
             if p.kind == "human_attacks":
@@ -2081,6 +2088,8 @@ class Session:
             self.say(t("reveal.illegal", err=e), ChatKind.WARNING)
             return
         human_guid = theirs[0]["guid"] if theirs else None
+        if face_up:
+            self.say(t("reveal.face_up", card=human_card.title), ChatKind.COMBAT)
         granted = p.bot_card is not None and grants_boost(p.bot_card)
         if human_card is not None and (can_boost(human_card) or granted):      # your attack (Second Shot), your defense (Out Of Time), a boost the bot's card allows
             if p.bot_card is not None and is_medusa_card(p.bot_card) and p.bot_card.title == FEINT:
