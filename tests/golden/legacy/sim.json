@@ -100,7 +100,7 @@
   "winner": "Medusa"
  },
  "bprd-hq/3": {
-  "hellboy_hp": 0,
+  "hellboy_hp": -1,
   "medusa_hp": 15,
   "trace": [
    "T1 P1: P1 draws 1; harpy2 -1 (0 hp)",
@@ -114,7 +114,7 @@
    "T9 P1: P1 draws 1; P1 draws 1",
    "T10 P0: lobster -1 (1 hp); lobster -1 (0 hp); P0 draws 2",
    "T11 P1: P0 draws 1; medusa -1 (15 hp); P1 draws 1",
-   "T12 P0: hellboy -1 (4 hp); hellboy -2 (2 hp); hellboy -2 (0 hp)"
+   "T12 P0: hellboy -1 (4 hp); hellboy -2 (2 hp); hellboy -3 (-1 hp)"
   ],
   "turns": 12,
   "winner": "Medusa"
