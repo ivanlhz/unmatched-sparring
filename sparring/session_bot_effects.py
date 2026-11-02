@@ -84,11 +84,13 @@ def snapshot(session) -> dict:
     """JSON-safe: it lives in `Pending.combat["fx"]` while a combat is paused at the panel and in
     `Session.fx_unprojected` between the end of the human's turn and the bot's first write."""
     g, bot, human = session.game, session.bot, session.human
+    flow = session.pending.flow if session.pending is not None else None
     return {"human_pieces": {f.fid: [f.pos, f.alive] for f in g.own(human, alive_only=False)},
             "form": g.form(bot), "counters": dict(g.fx.counters[bot]),
             "bot": zones(g.players[bot]), "human": zones(g.players[human]),
             "in_play": g.fx.ongoing_card_id(human), "bot_in_play": g.fx.ongoing_card_id(bot),
-            "drawn": g.drawn[bot], "seen": list(g.players[bot].known.seen)}
+            "drawn": g.drawn[bot], "seen": list(g.players[bot].known.seen),
+            "bot_played": [c.card_id for owner, c in (flow.played if flow is not None else ()) if owner == bot]}
 
 
 def project(session, before: dict | None, played: frozenset = frozenset(), cause: str | None = None) -> Callable[[], None]:
@@ -192,8 +194,9 @@ def _bot_cards(session, before: dict, moved: set, intents: list[dict], ctx: Ctx)
     g, bot = session.game, session.bot
     st = g.players[bot]
     b0, b1 = before["bot"], zones(st)
+    just_played = set(b0["hand"]) | set(before.get("bot_played") or ())    # a combat stopped at a choice has the card in play, not in hand
     played_back = [i for it in intents if it["op"] == "return_to_deck" and it["player"] == bot and it["zone"] == "discard"
-                   for i in it["cards"] if i in b0["hand"] and i in b1["deck"] and i not in moved]    # DARK PACT: the card it just played
+                   for i in it["cards"] if i in just_played and i in b1["deck"] and i not in moved]    # DARK PACT: the card it just played
     hand_to_deck = [i for i in b0["hand"] if i in b1["deck"] and i not in moved and i not in played_back]
     disc_to_deck = [i for i in b0["discard"] if i in b1["deck"] and i not in moved]
     disc_to_hand = [i for i in b0["discard"] if i in b1["hand"] and i not in moved]

@@ -328,6 +328,9 @@ class Table:
             self.discard_spots[int(i)] = tuple(float(v) for v in xyz.split(","))
         self.discard_calls.append(ids)
         sees_decks = 'o.type == "Deck"' in s
+        # the real script takes ONE card out of a Deck per pass (when one is left TTS destroys the Deck); only the script
+        # that loops over passes (`for _ = 1, total do`) can take several cards of the draw deck in one call
+        deck_takes = len(ids) if "for _ = 1, total do" in s else 1
         moved = []
         for i in ids:
             for zone in (self.bot_hand, self.bot_play, self.bot_ongoing):
@@ -346,7 +349,8 @@ class Table:
                     self.bot_deck.remove(i)
                     self._later(lambda i=i: self.bot_discard.append(i))
                     moved.append(i)
-                elif sees_decks and i in self.bot_deck and len(self.bot_deck) >= 2:   # takeObject out of the draw deck
+                elif sees_decks and i in self.bot_deck and len(self.bot_deck) >= 2 and deck_takes > 0:   # takeObject out of the draw deck
+                    deck_takes -= 1
                     self.bot_deck.remove(i)
                     self._later(lambda i=i: self.bot_discard.append(i))
                     moved.append(i)

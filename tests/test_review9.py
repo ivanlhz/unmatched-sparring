@@ -110,14 +110,14 @@ def test_discard_cards_moves_only_cards_of_the_bot_identity_inside_the_scope(rt)
     wanted = [17605, 17606, 17620, 17625, 17628, 17629]
     res = run(rt, lua.discard_cards(wanted, [(1.0, 2.0, 3.0 + i) for i in range(6)], 90,
                                     identity=BOT_ID, scope=SCOPE))
-    # 17605/17606 come out of the bot's Deck (at most one card per Deck and call: the first); 17620 from the hand,
-    # 17625 loose in the zone, 17628 at the combat spot and 17629 in the human's zone
-    assert sorted(res["moved"]) == [17605, 17620, 17625, 17628, 17629]
+    # 17605/17606 come out of the bot's Deck (one per pass, two passes: live 2/11, two BLIND BOOST cards of the draw deck);
+    # 17620 from the hand, 17625 loose in the zone, 17628 at the combat spot and 17629 in the human's zone
+    assert sorted(res["moved"]) == [17605, 17606, 17620, 17625, 17628, 17629]
     g = rt.globals()
     assert g.getObjectFromGUID("alice5").moved_count is None and g.getObjectFromGUID("alice6").moved_count is None
     assert g.getObjectFromGUID("alice5").pos.x == 14
     assert len(owners(rt, "rosie1")) == 30 and len(owners(rt, "rosie2")) == 30 and len(owners(rt, "mix1")) == 2
-    assert len(owners(rt, "d42056")) == 19
+    assert len(owners(rt, "d42056")) == 18
 
 
 def test_discard_cards_ignores_a_foreign_card_even_when_it_is_the_only_one_with_that_id(rt):

@@ -115,8 +115,10 @@ class FxTable(Table):
     def _deck_insert(self, s, kind):
         m = re.search(r"CardID == (\d+)", s)
         i = int(m.group(1)) if m else int(re.search(r'local card = \(?.*?getObjectFromGUID\("g(\d+)"\)', s, re.S).group(1))
-        pile, deck = ((self.human_discard, self.human_deck) if self._human_side(s) else (self.bot_discard, self.bot_deck))
-        if i not in pile:
+        deck = self.human_deck if self._human_side(s) else self.bot_deck
+        # a loose card is found wherever it lies: the discard pile or, for the bot, its combat spot (DARK PACT at a paused combat)
+        pile = next((p for p in ([self.human_discard] if self._human_side(s) else [self.bot_discard, self.bot_play]) if i in p), None)
+        if pile is None:
             return {"placed": False}
         pile.remove(i)
         deck.append(i)

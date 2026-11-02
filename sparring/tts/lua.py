@@ -747,31 +747,38 @@ def discard_cards(card_ids: list[int], spots: list[tuple[float, float, float]], 
 local wanted = {wanted}
 local moved = {{}}
 local done = {{}}
-for _, o in ipairs(scopeObjects()) do
-  if o.type == "Card" and not o.held_by_color then
-    local data = o.getData()
-    local id = data.CardID
-    if wanted[id] and not done[id] and cardOurs(data, data.CustomDeck) then
-      local at = wanted[id]
-      o.setRotation({rot})
-      o.setPosition(Vector(at[1], at[2], at[3]))
-{zoom_taken}
-      done[id] = true
-      table.insert(moved, id)
-    end
-  elseif o.type == "Deck" and not o.held_by_color then
-    local data = o.getData()
-    for _, c in ipairs(data.ContainedObjects or {{}}) do
-      if wanted[c.CardID] and not done[c.CardID] and cardOurs(c, data.CustomDeck) then
-        local at = wanted[c.CardID]
-        local taken = o.takeObject({{guid = c.GUID, position = Vector(at[1], at[2], at[3]), rotation = {rot}, smooth = false}})
-{zoom_took}
-        done[c.CardID] = true
-        table.insert(moved, c.CardID)
-        break
+local total = {len(rows)}
+-- a Deck gives up one card per pass (when one card is left TTS destroys it), so cards that share a Deck (two BLIND BOOST
+-- cards of the draw deck) take one pass each; every pass reads the objects again
+for _ = 1, total do
+  local before = #moved
+  for _, o in ipairs(scopeObjects()) do
+    if o.type == "Card" and not o.held_by_color then
+      local data = o.getData()
+      local id = data.CardID
+      if wanted[id] and not done[id] and cardOurs(data, data.CustomDeck) then
+        local at = wanted[id]
+        o.setRotation({rot})
+        o.setPosition(Vector(at[1], at[2], at[3]))
+  {zoom_taken}
+        done[id] = true
+        table.insert(moved, id)
+      end
+    elseif o.type == "Deck" and not o.held_by_color then
+      local data = o.getData()
+      for _, c in ipairs(data.ContainedObjects or {{}}) do
+        if wanted[c.CardID] and not done[c.CardID] and cardOurs(c, data.CustomDeck) then
+          local at = wanted[c.CardID]
+          local taken = o.takeObject({{guid = c.GUID, position = Vector(at[1], at[2], at[3]), rotation = {rot}, smooth = false}})
+  {zoom_took}
+          done[c.CardID] = true
+          table.insert(moved, c.CardID)
+          break
+        end
       end
     end
   end
+  if #moved == before or #moved >= total then break end
 end
 return JSON.encode({{moved = moved}})
 """

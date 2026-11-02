@@ -446,14 +446,15 @@ class Session:
                  else t("sess.first.forced", who=who, mode=self.first_mode))
 
     def _bot_ability_coded(self) -> bool:
-        """Only Medusa's start-of-turn ability is driven by the engine (`Game.use_ability`, effects/driven.py); the other
-        heroes' abilities come with D2."""
+        """Only Medusa's start-of-turn ability is DRIVEN by the engine (`Game.use_ability`, effects/driven.py: the bot
+        picks a gaze target). Every other interpreted hero's ability runs as triggers inside the effects interpreter."""
         return self.game.hero_def(self.bot).slug == CODED_ABILITY_HERO
 
     def _announce_bot_hero(self) -> None:
-        """A bot hero without a coded ability: its text is said and it is played by value and boost, breaking nothing."""
+        """A bot hero the effects interpreter does not run: its ability text is said and it is played by value and boost,
+        breaking nothing. A hero the interpreter runs has its ability and cards coded, whatever `_bot_ability_coded` says."""
         hero = self.game.hero_def(self.bot)
-        if not self._bot_ability_coded() and hero.ability:
+        if not self.game.fx.interprets(self.bot) and hero.ability:
             self.say(t("sess.hero_uncoded", name=hero.name, ability=hero.ability), ChatKind.ABILITY)
 
     def resume(self) -> list[str]:

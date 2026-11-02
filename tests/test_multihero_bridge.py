@@ -225,13 +225,27 @@ def test_a_full_bot_turn_with_the_real_ai_does_not_break_with_any_hero(pair):
         assert game.turn == 1 and table.moves
 
 
-def test_a_bot_whose_ability_is_not_coded_announces_its_text_and_still_plays(tmp_path):
+def test_a_bot_hero_the_interpreter_does_not_run_announces_its_text_and_still_plays(tmp_path):
     session, table, game, fake, cfg, client = build(tmp_path, "hellboy", "abe-sapien")
     try:
+        game.fx.dsl_heroes = set()                             # an old save: the legacy rules run, the ability is not coded
         session._announce_bot_hero()
         said = [str(m) for m in session.messages]
         assert any("Hellboy" in m and "no esta codificada" in m for m in said)
         assert session._bot_ability_coded() is False
+    finally:
+        client.close()
+        fake.close()
+
+
+@pytest.mark.parametrize("bot", ["hellboy", "doctor-strange", "houdini", "liz-sherman", "baba-yaga", "donatello"])
+def test_an_interpreted_bot_hero_does_not_claim_its_ability_is_missing(tmp_path, bot):
+    """Live 2/11: 'Doctor Strange ... DARK PACT is not coded in the engine yet' while the interpreter ran it."""
+    session, table, game, fake, cfg, client = build(tmp_path, bot, "abe-sapien")
+    try:
+        assert game.fx.interprets(0)
+        session._announce_bot_hero()
+        assert not any("codificada" in str(m) for m in session.messages), session.messages
     finally:
         client.close()
         fake.close()
