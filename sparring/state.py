@@ -585,7 +585,10 @@ class Game:
             extra = boost_card.boost
             self.discard_card(player, boost_card)
             self.fx.emit("card_boosted", player, boost_card)
-            self.fx.boost_effects(player, boost_card)
+            self.fx.boost_effects(player, boost_card)       # its BOOSTED WITH resolves before anything moves
+            if self.winner is not None:
+                return
+            moves = {fid: d for fid, d in moves.items() if self.fighters[fid].alive}      # Misdirection may have felled a mover
         placing = boost_card is not None and self.fx.hero_rule(player, "maneuver_boost_places_hero")
         for fid, dest in moves.items():
             f = self.fighters[fid]

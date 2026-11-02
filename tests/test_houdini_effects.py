@@ -627,3 +627,37 @@ def test_the_bot_swaps_when_the_other_fighter_soaks_the_blow_better(bprd):
     assert EffectAI(0).choose_effect(g, small) == [False]         # no blow, nothing to soak
     attack = ChoiceRequest("optional", 0, [True, False], 1, 1, 17815, "x", "", {"replaces_combatant": {"this": "houdini", "role": "attack"}, "at_stake": 9}, 0)
     assert EffectAI(0).choose_effect(g, attack) == [False]
+
+
+# ---------------------------------------------------------------- Ivan 2/11: BOOSTED WITH resolves before the boost values
+
+def test_the_boosted_with_effects_run_before_the_boost_values_are_added(bprd, monkeypatch):
+    import sparring.effects.ops_combat as oc
+    from sparring.combat_flow import legacy_chooser
+    g = mk(bprd)
+    pair(g, "houdini", "hellboy")
+    attack = give(g, 0, "The Big Reveal")
+    a, b = give(g, 0, "Flourish"), give(g, 0, "Misdirection")
+    g.controllers[0].boosts = [a, b]
+    g.controllers[0].queue = [["lobster"], [b.card_id]]
+    flow = g.begin_attack(g.fighters["houdini"], g.fighters["hellboy"], attack, None)
+    seen, real = [], oc.run_boost_moment
+
+    def spy(f, side, boost, n):
+        seen.append((boost.title, f.ctx.atk_value, [c.title for c in g.players[0].discard]))
+        return real(f, side, boost, n)
+    monkeypatch.setattr(oc, "run_boost_moment", spy)
+    flow.drive(legacy_chooser(g, flow, None))
+    assert [t for t, _, _ in seen] == ["Flourish", "Misdirection"]
+    assert all(v == 2 for _, v, _ in seen)                           # no boost value yet when the effects run
+    assert all({"Flourish", "Misdirection"} <= set(d) for _, _, d in seen)       # both cards already discarded
+    assert flow.result.atk_value == 2 + 2 + 1
+
+
+def test_a_maneuver_boost_that_fells_a_mover_does_not_crash(bprd):
+    g = mk(bprd)
+    g.fighters["bess"].hp = 2
+    g.controllers[0].queue = [["bess"]]                # Misdirection's 2 damage kills her before she moves
+    far = max(g.board.spaces, key=lambda s: g.board.distance(g.fighters["bess"].pos, s))
+    g.maneuver(0, {"bess": far}, give(g, 0, "Misdirection"))
+    assert not g.fighters["bess"].alive

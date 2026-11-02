@@ -33,7 +33,7 @@ Set "Houdini vs. The Genie". Playable by the bot and by the human, either side, 
 - Nothing else differs (types, values, copies and restrictions of the 13 titles agree with the images).
 
 ## How the boost effects work (the new engine concept)
-- A card spent as a boost runs its `boost` moment as an effect of the player who spent it, **right after the boost value is added** (in a combat: inside the boosting side's DURING; in a Maneuver: right after the card is discarded and before the pieces move). A boost that is not made runs nothing. The event `card_boosted` is raised at the same moment.
+- A card spent as a boost runs its `boost` moment as an effect of the player who spent it, **before the boost value is added** (Iván 2/11). In a combat, inside the boosting side's DURING: all the boost cards are discarded first, then their BOOSTED WITH effects run one after the other as a chain (each fully resolved, choices included, before the next), then the boost values are added and the combat resolves. In a Maneuver: the card's effect, then the movement or placement. A boost that is not made runs nothing. The event `card_boosted` is raised at the same moment.
 - In a combat the card with `may_boost` asks for the boost after its DURING effects (up to `max_boosts` cards: The Big Reveal's second boost is asked only if the first was made). The bot decides with `choose_combat_boost`; the human puts the boost cards in their discard pile at Reveal and presses Continue (two cards for The Big Reveal; more than the card allows is refused by name).
 - The human's own boost effects are resolved by the engine in table mode: draws are dealt by the bot, damage and healing reach the dials, a look at the bot's hand lays the bot's hand out, a card to discard from the bot is chosen on the panel. In a Maneuver the human puts the boost card in their discard pile, places the pieces and presses End action: the bot then reads the pile, recognises the boost card and runs its BOOSTED WITH (one boost card per Maneuver is recognised; a card without boost value is warned about, as before).
 
@@ -51,13 +51,17 @@ Set "Houdini vs. The Genie". Playable by the bot and by the human, either side, 
 11. **Sleight of Hand's IMMEDIATELY is not coded** (it replaces a card already on the table in the middle of the combat, for the bot on the real table too): the card is a plain value-1 attack with its BOOSTED WITH, and the bot values it as a boost card (boost 3 and a card). The human can still change their face-down card BEFORE pressing Reveal, which is what the card approximates.
 12. Ties go to the defender, the bot announces each action in chat before acting, buttons that do not apply are hidden, and the bot never reads the human's hand unless a card says so: all as in the other heroes' docs.
 
+## Decisions confirmed by Iván (2/11)
+- **Order of a boost**: BOOSTED WITH effects resolve before the boost value is applied and before the attack resolves; with two boosts (The Big Reveal) they are a chain, each resolved before the next, then the values are added. Maneuver: effects first, then the movement (if an effect fells a mover or ends the game, nothing else moves).
+- **ESCAPE ARTIST works with any card of boost value 1 or more**, even one whose BOOSTED WITH does nothing.
+- **Misdirection's boost damage is never dealt by the bot to a fighter of its own**: correct (a human may choose their own).
+- All the other rules decisions above are accepted as they are.
+
 ## Open questions for Iván
 - **Sleight of Hand** (IMMEDIATELY): not coded. Do you want it for the bot (it would need the bot to take its card back from the combat spot and put another one down, with its own announcement)? The human can approximate it by changing the card before Reveal.
-- **ESCAPE ARTIST with a boost that is cancelled or fizzles**: any card with boost value >= 1 enables the placement, even if its BOOSTED WITH does nothing (Next Trick, an Illusion...). If you rule that the boost must "do" something, say so.
 - **Boosting a Maneuver when the deck is empty**: the Maneuver's draw hurts first (exhaustion) and the placement still happens if Houdini survives: same order as the engine's Maneuver.
 - **The Big Reveal / "twice"**: two cards, one after the other, each with its own BOOSTED WITH. If it means the same card twice, nothing changes for the cards that have no effect.
 - **All Part of the Show** only saves from the combat damage of THIS combat (the AFTER of the defender's card): effect damage that defeats Houdini at another moment is not deferred.
-- **Misdirection's boost damage** can be dealt to a fighter of your own (the printed text says "any fighter"); the bot never does.
 - **Smoke and Mirrors** when the attacker's target was Houdini and Bess is not adjacent to the attacker: no range check (the substitute stands where the first one did). If you rule that the substitute must be in range, the swap still moves them.
 - **Illusion's boost after a Feint** (Medusa's Feint cancels everything): the rival's boost is not offered because the Illusion is cancelled first (rule 6).
 - **Magician's reveal for the human**: the panel asks whenever the bot is about to look and you have not discarded the card; there is no way to know whether you hold it (we trust you).

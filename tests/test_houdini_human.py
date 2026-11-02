@@ -364,3 +364,26 @@ def test_your_illusion_lets_the_bot_boost_its_defense_and_the_boost_counts(rig, 
     combat = combat_line(msgs)
     assert "Glimpse Of Hell (2), potencia con Excalibur (+3)" in combat and "total 5" in combat, combat
     assert spare.card_id in table.bot_discard and len(game.players[0].hand) == len(table.bot_hand)
+
+
+@with_rig("hellboy", "houdini", TRAINING)
+def test_the_big_reveal_with_one_boost_card_is_a_normal_combat(rig, monkeypatch):
+    session, table, game, fake, cfg = rig
+    bot_defends_with_nothing(session, monkeypatch)
+    put_adjacent(game, table, cfg, "houdini", "hellboy")
+    human_hand(table, game, "The Big Reveal", "Flourish", "Sleight of Hand", "Misdirection")
+    attack(session, table, game, "houdini", "The Big Reveal")
+    spend(table, game, "Flourish")
+    msgs = click(session, table, Event.BOOST)
+    assert "total 4" in combat_line(msgs), combat_line(msgs)         # 2 + Flourish's 2
+
+
+@with_rig("hellboy", "houdini", TRAINING)
+def test_the_big_reveal_with_no_boost_card_is_a_normal_combat(rig, monkeypatch):
+    session, table, game, fake, cfg = rig
+    bot_defends_with_nothing(session, monkeypatch)
+    put_adjacent(game, table, cfg, "houdini", "hellboy")
+    human_hand(table, game, "The Big Reveal", "Flourish")
+    attack(session, table, game, "houdini", "The Big Reveal")
+    msgs = click(session, table, Event.NO_BOOST)
+    assert "total 2" in combat_line(msgs)

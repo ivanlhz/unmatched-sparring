@@ -139,6 +139,7 @@ class CombatFlow:
         self.cancel_hits: set[str] = set()           # sides whose card really lost an effect to a cancellation
         self.boost_granted: set[str] = set()         # sides an effect lets BOOST their card (An Illusion Of My Own Design)
         self.boosted: dict[str, list[int]] = {}      # side -> ids of the cards it was boosted with, in order (The Big Reveal)
+        self.boost_valued: set[str] = set()          # sides whose boost values were added (after their BOOSTED WITH effects)
         self.deferred_loss: int | None = None        # the player whose hero fell in this combat and may still be saved by an AFTER effect
         self.choosers: dict | None = None            # player -> effects Chooser; None = the controllers decide
 
@@ -357,7 +358,7 @@ class CombatFlow:
         out = self._base_dict(self.ctx, self.result)
         if (self.runs or self.printed_set or self.mods["atk"] or self.mods["def"] or self.redirects
                 or self.late_cancelled or self.cancel_hits or self.boost_granted or self.boosted
-                or self.deferred_loss is not None):
+                or self.deferred_loss is not None or self.boost_valued):
             out["dsl"] = {"runs": {k: r.to_dict() for k, r in self.runs.items()}, "printed_set": dict(self.printed_set),
                           "mods": {k: [list(m) for m in v] for k, v in self.mods.items()},
                           "redirects": [dict(r) for r in self.redirects]}
@@ -371,6 +372,8 @@ class CombatFlow:
                 out["dsl"]["boosted"] = {k: list(v) for k, v in self.boosted.items()}
             if self.deferred_loss is not None:
                 out["dsl"]["deferred_loss"] = self.deferred_loss
+            if self.boost_valued:
+                out["dsl"]["boost_valued"] = sorted(self.boost_valued)
         return out
 
     def _base_dict(self, ctx, res) -> dict:
@@ -413,7 +416,7 @@ class CombatFlow:
         flow.sides = []
         flow.runs, flow.printed_set, flow.redirects, flow.choosers = {}, {}, [], None
         flow.late_cancelled, flow.cancel_hits = set(), set()
-        flow.boost_granted, flow.boosted, flow.deferred_loss = set(), {}, None
+        flow.boost_granted, flow.boosted, flow.deferred_loss, flow.boost_valued = set(), {}, None, set()
         flow.mods = {"atk": [], "def": []}
         if "dsl" in raw:
             from .effects.run import EffectRun
@@ -428,6 +431,7 @@ class CombatFlow:
             flow.boost_granted = set(d.get("boost_granted", ()))
             flow.boosted = {k: list(v) for k, v in d.get("boosted", {}).items()}
             flow.deferred_loss = d.get("deferred_loss")
+            flow.boost_valued = set(d.get("boost_valued", ()))
         if raw["ctx"] is not None:
             c, r = raw["ctx"], raw["result"]
             flow.ctx = CombatCtx(att, tgt, flow.atk_card, flow.def_card, c["atk_value"], c["def_value"],
@@ -533,14 +537,18 @@ def dsl_immediately(flow: CombatFlow, side: Side) -> Await | None:
 @rule(Phase.DURING, match=_dsl)
 def dsl_during(flow: CombatFlow, side: Side) -> Await | None:
     """The card's DURING ops, then its free BOOST: `may_boost` in the data (either side: Out Of Time defends), or an
-    effect that granted it (`allow_boost`), as many cards as the card says (`max_boosts`). Each boost card spent runs its
-    own `boost` moment (BOOSTED WITH) right away."""
+    effect that granted it (`allow_boost`), as many cards as the card says (`max_boosts`). Ivan 2/11: every boost card is
+    discarded first, then their BOOSTED WITH effects run one after the other (each fully resolved, choices included, before
+    the next), and only then are the boost values added; the combat resolves after."""
     from .effects.modifiers import add_value, boost_limit
     from .effects.ops_combat import run_boost_moment
     if (wait := _run_moment(flow, side, "during")) is not None:
         return wait
     owner = side.fighter.owner
     limit = max(boost_limit(side.card), 1 if side.name in flow.boost_granted else 0)
+    if not limit:
+        return None
+    done = flow.boosted.setdefault(side.name, [])
     for n in range(limit):
         answered, boost = flow.answer("dsl_during" if n == 0 else f"dsl_during:{n}")
         if not answered:
@@ -548,18 +556,22 @@ def dsl_during(flow: CombatFlow, side: Side) -> Await | None:
             return Await(PendingChoice("boost", owner, side.card.card_id, False, {"n": n} if n else {}))
         if boost is None:
             break
-        done = flow.boosted.setdefault(side.name, [])
-        if len(done) <= n:                    # the first pass spends the card; a rerun after a pause inside its effect does not
+        if len(done) <= n:                    # the first pass spends the card; a rerun after a pause does not
             _check_boost(boost)
             flow.game.discard_card(owner, boost)
             done.append(boost.card_id)
-            add_value(flow, side.name, boost.boost, t("cf.boost_with_plain", title=boost.title))
-            if side.name == "atk":
-                flow.result.boost_card = boost
             flow.game.fx.emit("card_boosted", owner, boost)
+    spent = [flow.card_by_id(i, owner) for i in done]
+    for n, boost in enumerate(spent):
         if (wait := run_boost_moment(flow, side, boost, n)) is not None:
             flow.await_key = f"boost:{side.name}:{n}:dsl_during"       # `awaiting_run` finds the run by this key's head
             return wait
+    if side.name not in flow.boost_valued:
+        flow.boost_valued.add(side.name)
+        for boost in spent:
+            add_value(flow, side.name, boost.boost, t("cf.boost_with_plain", title=boost.title))
+        if spent and side.name == "atk":
+            flow.result.boost_card = spent[-1]
 
 
 @rule(Phase.AFTER, match=_dsl)
@@ -577,9 +589,9 @@ def _i_won(flow: CombatFlow, side: Side) -> bool:
 def _nth(boost: "Card | list | None", choice: PendingChoice) -> "Card | None":
     """The caller's boost for this prompt: a single card, or the cards the human put down for a card with several
     boosts (The Big Reveal), one per prompt in the order they were spent."""
-    if not isinstance(boost, list):
-        return boost
     n = choice.extra.get("n", 0)
+    if not isinstance(boost, list):
+        return boost if n == 0 else None          # one card is one boost, whatever the prompt
     return boost[n] if n < len(boost) else None
 
 

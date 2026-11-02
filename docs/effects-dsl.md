@@ -304,8 +304,8 @@ Every op is `{"op": "<name>", ...args}`. Arguments not listed are an error.
 - `scheme`: when the scheme is played. If the card has `ongoing`, after the ops it stays in play: its `modifiers` hold and
   its `triggers` fire until `until`; then it goes to the discard. Ivan's rule (28/10): there is only one active ONGOING
   at a time (one per player); playing another replaces the active one (it goes to the discard).
-- `boost`: when the card is used as a boost (section 26): the card's own ops, run for the player who spends it, right after its value
-  is added (a combat boost) or right after it is discarded (a Maneuver boost).
+- `boost`: when the card is used as a boost (section 26): the card's own ops, run for the player who spends it, before its value
+  is added (a combat boost, Iván 2/11) or right after it is discarded (a Maneuver boost).
 - `ability.triggers` and `ongoing.triggers`: a single format (Trigger with `when: Event`). An optional trigger is
   decided by `chooser`.
 - `ability.passives`: continuous modifiers with an optional `while`.
@@ -1045,7 +1045,7 @@ Houdini is the first hero whose cards do something when they are spent as a BOOS
 uses these words.
 
 - **The `boost` moment of a card** runs when the card is spent as a boost. In a combat (`combat_flow.dsl_during`, `ops_combat.run_boost_moment`)
-  it runs inside the boosting side's DURING, right after the card's value is added, as an effect of the boosting player (`Ctx.moment ==
+  it runs inside the boosting side's DURING as an effect of the boosting player, BEFORE the boost value is added (Iván 2/11: every boost card is discarded, their effects run as a chain, each resolved in full before the next, then the values are added and the combat resolves; `flow.boost_valued` records that they were) (`Ctx.moment ==
   "boost"`, run label `boost`, key `boost:<side>:<n>` in `flow.runs`, so a pause inside it survives `CombatFlow.to_dict`). In a Maneuver
   (`Game.maneuver` -> `EffectState.boost_effects` -> `events.run_boost`) it runs right after the boost card is discarded and before the
   movers move, like a trigger: a run a chooser pauses is parked, the human's is narrated. A boost that is not made runs nothing; a card with
