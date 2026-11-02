@@ -876,6 +876,7 @@
  "cli.bot_hero": "the bot's hero (slug in data/heroes: medusa, hellboy, abe-sapien, baba-yaga, liz-sherman, leonardo); overrides bot_hero of the configuration and the detection on the table",
  "cli.human_hero": "the human's hero (like --bot-hero)",
  "cli.timing": "write, per button and per bot action, the messages to TTS and the time (and every call)",
+ "cli.launcher": "desktop launcher mode: UTF-8 output, one [sparring:status] line per change of state; a quit line on stdin (or closing it) shuts down cleanly, like Ctrl+C",
  "hero.report.line": "  {name} ({slug}){todo}: {bot} cards on the bot's side, {human} on the human's",
  "hero.report.not_playable": " [not playable yet]",
  "hero.report.pieces_only": "  {name} ({slug}): only {n} loose miniature(s), no deck",
