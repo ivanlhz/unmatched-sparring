@@ -342,6 +342,10 @@ class Table:
                 in_deck = i in self.bot_discard and len(self.bot_discard) >= 2
                 if loose or (in_deck and sees_decks):
                     moved.append(i)
+                elif i in self.bot_deck and len(self.bot_deck) == 1:   # the last card of the draw deck is a loose Card in its spot
+                    self.bot_deck.remove(i)
+                    self._later(lambda i=i: self.bot_discard.append(i))
+                    moved.append(i)
                 elif sees_decks and i in self.bot_deck and len(self.bot_deck) >= 2:   # takeObject out of the draw deck
                     self.bot_deck.remove(i)
                     self._later(lambda i=i: self.bot_discard.append(i))
