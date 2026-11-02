@@ -1,0 +1,35 @@
+{
+ "slug": "doctor-strange",
+ "bag": {
+  "guid": "2020f0",
+  "inner": "f6d99b"
+ },
+ "deck": {
+  "guid": "02dd97",
+  "card_ids": [
+   17600,
+   17629
+  ],
+  "character_card_id": 337,
+  "identity": [
+   {
+    "face": "https://steamusercontent-a.akamaihd.net/ugc/12756403833013182131/DFE8C151B853572C46430528B95C248B1F9F4D35/",
+    "back": "https://steamusercontent-a.akamaihd.net/ugc/15887498445276249689/1EFDF0A093477CC7226BB8DB4AA2436589778018/"
+   }
+  ]
+ },
+ "fighters": {
+  "strange": {
+   "piece": "bb001d",
+   "dial": "d95e8b",
+   "dial_max": 14
+  },
+  "wong": {
+   "piece": "9256f2",
+   "dial": "02474c",
+   "dial_max": 6
+  }
+ },
+ "tokens": {},
+ "counter_dials": {}
+}

@@ -102,6 +102,32 @@ def verdict(session, req: ChoiceRequest) -> tuple[list[int] | None, str | None]:
     return left, None
 
 
+def _settle_play(session, req: ChoiceRequest, ids: list[int]) -> None:
+    """The Mists of Munnopor, the human's attack card: the card that was discarded still lies at their combat spot unless
+    they moved it; the bot moves it to their discard pile by GUID (the engine already discarded it) and remembers the GUID of
+    the card they played instead (a later effect, DARK PACT, may move it)."""
+    from .session import SessionError             # the session imports this module: resolved at call time
+    from .session_translators import DOMAIN, ERRORS, result_of
+    from .tts import lua
+    old = req.extra.get("old")
+    rows = {r["id"]: r.get("guid") for r in session._rd_combat_spot() if isinstance(r, dict) and r.get("guid")}
+    session.combat_guids.pop(old, None)
+    if ids and rows.get(ids[0]):
+        session.combat_guids[ids[0]] = rows[ids[0]]
+    if old not in rows:
+        return
+    by_id = {c.card_id: c for c in session.game.players[session.human].full_set}
+    cfg = session.cfg
+    try:
+        op = session._w(lua.card_to_discard(rows[old], cfg.human_discard_zone, cfg.human_card_ids,
+                                            identity=session._identity("human")), DOMAIN)
+        moved = result_of(op).get("moved")
+    except ERRORS + (SessionError,):              # a table or identity failure: the human does it
+        moved = None
+    if not moved:
+        session.say(t("mists.move_old", title=by_id[old].title), ChatKind.WARNING)
+
+
 def press(session, paused, index) -> None:
     """A click on the choice buttons while the human moves the cards by hand: 1 is Done."""
     req = manual_request(session)
@@ -117,6 +143,8 @@ def press(session, paused, index) -> None:
         return
     if by_rage:                                   # the engine discards them from the virtual hand: nothing to undo here
         session.say(rage.counted(session, req, ids), ChatKind.YOUR_TURN)
+        if rage.mode(req) == "play":
+            _settle_play(session, req, ids)
         session._answer_choice(paused, ids)
         return
     session.hand_deck.update(ids)

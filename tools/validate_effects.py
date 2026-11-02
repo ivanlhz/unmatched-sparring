@@ -38,6 +38,7 @@ EVENT_BINDINGS = {
     "card_played": {"card": "card"},
     "fighter_defeated": {"fighter": "fighter"},
     "combat_lost": {"fighter": "fighter"},
+    "after_combat": {"fighter": "fighter", "card": "card"},
 }
 # type of the binding each op creates with `as`
 OP_BINDINGS = {"draw": "card", "discard": "card", "choose": "card", "look_deck": "card", "search_deck": "card",
@@ -357,6 +358,8 @@ class Semantics:
             ctx.seen.add((op["player"], "hand"))
         if name in ("look_deck", "search_deck"):
             ctx.seen.add((op["player"], "deck"))
+        if name == "plugin" and "as" in (op.get("args") or {}):      # a plugin that binds the cards it chose
+            self.bind(op["args"]["as"], "card", path, ctx)
         if "as" in op and name != "for_each":
             self.bind(op["as"], OP_BINDINGS[name], path, ctx)
 

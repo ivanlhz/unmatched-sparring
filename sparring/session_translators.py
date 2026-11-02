@@ -752,3 +752,154 @@ def _lay_aside(session, intent: dict, ctx: Ctx) -> list[Check]:
 
 register("tuck", mode=_aside_mode, human=_aside_human)(_lay_aside)
 register("remove", mode=_aside_mode, human=_aside_human)(_lay_aside)
+
+
+# ---------------------------------------------------------------- Doctor Strange: DARK PACT, the reveal, the shuffle
+
+def combat_card_to_bottom(session, ids: list[int], ctx: Ctx) -> list[Check]:
+    """DARK PACT paid by the human: the card they played still lies at their combat spot. The bot moves it by GUID (the one
+    it read at the reveal, `Session.combat_guids`) to the BOTTOM of their deck and the draw the pact owes is dealt after it.
+    No deck GUID, no identity, an unknown GUID or a table that refuses: the chat tells them to do it (the card may
+    already be on their pile, which the same instruction covers)."""
+    from .session import SessionError             # the session imports this module: resolved at call time
+    by_id = _by_id(session, session.human)
+    titles = join_titles(by_id[i].title for i in ids)
+    guids = {i: session.combat_guids[i] for i in ids if i in session.combat_guids}
+
+    def by_hand(missing: list[int]) -> None:
+        session.say(t("strange.combat_to_bottom", cards=join_titles(by_id[i].title for i in missing), cause=ctx.cause), ChatKind.YOUR_TURN)
+    if not session.cfg.human_deck_guid or len(guids) != len(ids):
+        by_hand(ids)
+        return []
+    try:
+        identity = session._identity("human")
+    except ERRORS + (SessionError,):
+        by_hand(ids)
+        return []
+    session.fx_in_flight.update(ids)
+    session.say(t("strange.combat_to_bottom_bot", cards=titles, cause=ctx.cause), ChatKind.SCHEME)
+    ops = [(i, session._w(lua.card_to_deck_bottom(guids[i], session.cfg.human_deck_guid, session.cfg.human_card_ids,
+                                                  identity=identity), DOMAIN)) for i in ids]
+
+    def check() -> None:
+        left = [i for i, op in ops if not result_of(op).get("placed")]
+        if left:
+            session.fx_in_flight.difference_update(left)
+            session.say(t("strange.combat_to_bottom_failed", cards=join_titles(by_id[i].title for i in left), cause=ctx.cause),
+                        ChatKind.YOUR_TURN)
+    return [check]
+
+
+def _stack_mode(session, intent: dict) -> str | None:
+    return BOT if session.cfg.human_deck_guid else HUMAN
+
+
+def _stack_human(session, intent: dict, ctx: Ctx) -> list[Check]:
+    title = _by_id(session, session.human)[intent["card"]].title
+    session.say(t("strange.stack_top", title=title, cause=ctx.cause), ChatKind.YOUR_TURN)
+    return []
+
+
+@register("stack_top", mode=_stack_mode, human=_stack_human)
+def _stack_bot(session, intent: dict, ctx: Ctx) -> list[Check]:
+    """No, Really, I'm a Doctor played by the human: the card they laid on their discard pile to show it goes on top of their
+    deck, moved by GUID by the bot (it is public: they showed it)."""
+    from .session import SessionError
+    cfg, card = session.cfg, intent["card"]
+    by_id = _by_id(session, session.human)
+    guid = next((r["guid"] for r in session._rd_human_discard() if isinstance(r, dict) and r.get("id") == card and "guid" in r), None)
+    try:
+        identity = session._identity("human")
+    except ERRORS + (SessionError,):
+        identity = None
+    if guid is None or identity is None:
+        return _stack_human(session, intent, ctx)
+    session.fx_in_flight.add(card)
+    session.say(t("strange.stack_top_bot", title=by_id[card].title, cause=ctx.cause), ChatKind.SCHEME)
+    op = session._w(lua.card_to_deck_top(guid, cfg.human_deck_guid, cfg.human_card_ids, identity=identity), DOMAIN)
+
+    def check() -> None:
+        if not result_of(op).get("placed"):
+            session.fx_in_flight.discard(card)
+            _stack_human(session, intent, ctx)
+    return [check]
+
+
+def _reveal_mode(session, intent: dict) -> str | None:
+    return BOT if intent["player"] == session.bot else None         # the human reveals their own deck by hand
+
+
+def _reveal_human(session, intent: dict, ctx: Ctx) -> list[Check]:
+    return []
+
+
+@register("reveal_deck", mode=_reveal_mode, human=_reveal_human)
+def _reveal_bot(session, intent: dict, ctx: Ctx) -> list[Check]:
+    """The Mists of Munnopor against the bot's attack: its deck was revealed from the top by the engine. The revealed cards are
+    public, so the chat names them (in order) and the one it plays; the rest went to the bottom in random order."""
+    by_id = _by_id(session, session.bot)
+    shown = join_titles(by_id[i].title for i in intent["revealed"])
+    if intent["found"] is None:
+        session.say(t("strange.reveal_none", cards=shown or t("strange.no_cards"), cause=ctx.cause), ChatKind.SCHEME)
+    else:
+        session.say(t("strange.reveal", cards=shown, played=by_id[intent["found"]].title, cause=ctx.cause), ChatKind.SCHEME)
+    return []
+
+
+def _shuffle_mode(session, intent: dict) -> str | None:
+    return BOT if intent["player"] == session.bot else None         # the human's shuffle is a line of their card ("on the table")
+
+
+def _shuffle_human(session, intent: dict, ctx: Ctx) -> list[Check]:
+    session.say(t("strange.shuffle_you", cause=ctx.cause), ChatKind.YOUR_TURN)
+    return []
+
+
+@register("shuffle_deck", mode=_shuffle_mode, human=_shuffle_human)
+def _shuffle_bot(session, intent: dict, ctx: Ctx) -> list[Check]:
+    """The Winds of Watoomb: the bot shuffles its own draw pile on the table (its order is unknown to the engine anyway)."""
+    from .session import SessionError
+    cfg = session.cfg
+    try:
+        session._w(lua.shuffle_deck(cfg.bot_deck_guid, cfg.bot_deck_spot, id_range=cfg.bot_card_ids,
+                                    identity=session._identity()), DOMAIN)
+    except ERRORS + (SessionError,):
+        return []
+    session.say(t("strange.shuffle_bot", cause=ctx.cause), ChatKind.SCHEME)
+    return []
+
+
+def _hand_all_mode(session, intent: dict) -> str | None:
+    return BOT if session.cfg.human_deck_guid else HUMAN
+
+
+def _hand_all_human(session, intent: dict, ctx: Ctx, late: bool = False) -> list[Check]:
+    """The table did not take the hand: they shuffle it into their deck by hand and draw what the card gives themselves.
+    Before any write the cards the engine counted as drawn are not dealt (they would be dealt before the hand went back);
+    after one (`late`) the deal is already queued behind it and fails with the same table."""
+    g = session.game
+    if not late:
+        session.human_dealt = g.drawn[session.human]
+    session.say(t("strange.hand_to_deck_failed_late" if late else "strange.hand_to_deck_failed", cause=ctx.cause), ChatKind.YOUR_TURN)
+    return []
+
+
+@register("hand_to_deck_all", mode=_hand_all_mode, human=_hand_all_human)
+def _hand_all_bot(session, intent: dict, ctx: Ctx) -> list[Check]:
+    """Eye of Agamotto played by the human: "Shuffle your hand into your deck" has no choice in it, so the bot puts the cards
+    of their seat into their deck and shuffles it (the same two writes as the mulligan); the 5 cards the card draws are dealt
+    after, in this same step. A table that refuses: the human does it and draws by hand (`_hand_all_human`)."""
+    from .session import SessionError
+    cfg = session.cfg
+    try:
+        identity = session._identity("human")
+        back = session._w(lua.return_hand_to_deck(cfg.human_seat, cfg.human_deck_guid, cfg.human_card_ids, identity=identity), DOMAIN)
+        session._w(lua.shuffle_deck(cfg.human_deck_guid, cfg.human_deck_spot, id_range=cfg.human_card_ids, identity=identity), DOMAIN)
+    except ERRORS + (SessionError,):
+        return _hand_all_human(session, intent, ctx)
+    session.say(t("strange.hand_to_deck_bot", cause=ctx.cause), ChatKind.SCHEME)
+
+    def check() -> None:
+        if result_of(back).get("deck") is False:
+            _hand_all_human(session, intent, ctx, late=True)
+    return [check]

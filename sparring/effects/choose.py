@@ -77,7 +77,7 @@ def default_answer(req: ChoiceRequest) -> list:
     """The neutral answer: forced picks are taken, optional is accepted, an amount is the maximum, an optional
     move or placement stays put."""
     if req.kind == "optional":
-        return [True]
+        return [not req.extra.get("pact")]      # a price in hit points (DARK PACT) is never paid without an opinion
     if req.kind == "amount":
         return [req.max]
     if req.kind == "space":
@@ -174,6 +174,8 @@ class TableChooser:
         raise NotImplementedError(f"{req.prompt or req.kind}: a forced choice of the human needs the panel (E1)")
 
 
+MAX_BOOST = 3             # the highest BOOST value a deck card carries: a blind boost may add this much
+PACT_SAFE_HP = 8          # a rollout pays DARK PACT only while the hero keeps at least this many hit points
 SCHEME_VARIANTS = ("greedy", "safe")    # the two lines the search tries for a scheme that asks something (D2)
 HIT_OPS = ("damage", "set_hp")
 RELOCATE_OPS = ("move", "place", "swap", "revive", "summon")
@@ -211,6 +213,13 @@ class SyntheticChooser:
         return self.policy == "greedy"
 
     def _optional(self, game, req: ChoiceRequest) -> list:
+        if req.extra.get("blind_boost"):             # free: yes unless a card that ignores a value above its limit may be pushed over it
+            limit = req.extra.get("limit")
+            return [limit is None or req.extra["value"] + MAX_BOOST <= limit]
+        if "pact" in req.extra:                      # DARK PACT in a rollout: while the hero can spare the hit points
+            pact = req.extra["pact"]
+            hero = game.fighters[pact["fighter"]]
+            return [self.greedy and hero.hp - pact["damage"] >= PACT_SAFE_HP]
         return [self.greedy or "cost_cards" not in req.extra]
 
     def _amount(self, game, req: ChoiceRequest) -> list:

@@ -115,6 +115,9 @@ MIN_NET = 0.25              # floor of the expected net damage per attack, so no
 ACTION_VALUE = 1.0          # an action that gives away a scheme: at least the draw of a maneuver, often an attack
 
 FREE_BOOST = ("Second Shot", "Turtle power!")      # cards that may BOOST themselves from the hand for free
+BLIND_BOOST = {"Bolts of Balthakk": (1, None), "Seven Suns of Cinnibus": (2, 7)}   # Doctor Strange: (blind boosts allowed, total above which the value is ignored)
+MASTER, CLOAK, RINGS, MISTS = "Master of Kamar-Taj", "Cloak of Levitation", "The Rings of Raggadorr", "The Mists of Munnopor"
+MISTS_EDGE = 0.4          # the Mists also cancel the effects of the attack that was played and replace it with a card nobody chose
 ELECTRO_GRENADE = "Electro grenade"
 UNTESTED = "Untested enhancements"
 INVENTION_PLAY = 1.2      # what playing an invention early is worth: its bonus (tucked) lasts the rest of the game
@@ -138,6 +141,8 @@ AFTER_BONUS = {
     "Relentless": (0.6, 0.0),                       # the card comes back to the deck and 1 is drawn
     "Break something": (0.5, 0.0),                  # cancels the rival card's effects
     "Unbridled rage": (0.8, 0.0),                   # expected bonus of the cards it can give up
+    "Bolts of Balthakk": (0.0, 0.7),                # Doctor Strange: gains an action when it wins
+    "Steadfast Disciple": (0.5, 0.0),               # Wong: draws and hits 1 when he is beside the target
 }
 DISCARD_EFFECTS = ("Clutching Claws", "Hiss and Slither")
 
@@ -488,7 +493,21 @@ class MedusaAI(Controller):
             return 6.0
         if c.title == "Payback time!" and game.fx.lost[f.owner]:
             return 5.0
+        if c.title == MASTER and self.strange_with_wong(game, f.owner):
+            return 4.0
         return float(c.value)
+
+    @staticmethod
+    def strange_with_wong(game: Game, owner: int) -> bool:
+        """Doctor Strange and Wong stand next to each other (Master of Kamar-Taj is worth 4)."""
+        hero = game.hero(owner)
+        return hero.pos is not None and any(o.name == "Wong" and o.pos in game.board.adj[hero.pos] for o in game.own(owner))
+
+    @staticmethod
+    def cloak_ignores(game: Game, f: Fighter, t: Fighter, c) -> bool:
+        """Cloak of Levitation: Doctor Strange himself is next to the opposing fighter, whose card then counts for nothing."""
+        hero = game.hero(f.owner)
+        return c.title == CLOAK and hero.pos is not None and t.pos is not None and t.pos in game.board.adj[hero.pos]
 
     def p_win_of(self, game: Game, model: Model, f: Fighter, t: Fighter, c) -> float:
         atk = self.card_value(game, f, t, c) + game.attack_bonus(f)
@@ -496,7 +515,8 @@ class MedusaAI(Controller):
             spare = [x for x in game.players[self.me].hand if x is not c]
             atk += BOOST_RELIANCE * max((x.boost for x in spare), default=0)
         atk += self.during_gain(game, c)
-        return sum(p for p, dv in model.defense_dist(t) if atk - (dv or 0) >= 1)
+        ignore = self.cloak_ignores(game, f, t, c)
+        return sum(p for p, dv in model.defense_dist(t) if atk - (0 if ignore else (dv or 0)) >= 1)
 
     def during_gain(self, game: Game, c) -> float:
         """What the DURING of a Donatello attack is expected to add to its value: Electro grenade removes up to 4
@@ -508,6 +528,11 @@ class MedusaAI(Controller):
         if c.title == UNTESTED:
             unseen = [x for x in mine.full_set if x not in mine.hand and x not in mine.gone]
             return BOOST_RELIANCE * sum(x.boost for x in unseen) / len(unseen) if unseen else 0.0
+        if c.title in BLIND_BOOST:      # free boosts from the top of the deck: the bot knows what its deck still holds
+            times, limit = BLIND_BOOST[c.title]
+            unseen = [x for x in mine.full_set if x not in mine.hand and x not in mine.gone]
+            gain = BOOST_RELIANCE * times * sum(x.boost for x in unseen) / len(unseen) if unseen else 0.0
+            return gain if limit is None else min(gain, max(0.0, limit - (c.value or 0)))
         return 0.0
 
     def attack_eval(self, game: Game, model: Model, f: Fighter, t: Fighter, c) -> tuple[float, float]:
@@ -526,8 +551,9 @@ class MedusaAI(Controller):
         if "invention" in c.tags:
             cost -= INVENTION_PLAY
         e_net = p_win = p_kill = gaze_dmg = 0.0
+        ignore = self.cloak_ignores(game, f, t, c)
         for p, dv in model.defense_dist(t):
-            net = max(0.0, atk - (dv or 0))
+            net = max(0.0, atk - (0 if ignore else (dv or 0)))
             won = net >= 1
             e_net += p * min(net, t.hp)
             p_win += p * won
@@ -543,6 +569,9 @@ class MedusaAI(Controller):
             value += self.desperation(game) * WIN_PRIZE * (e_net + gaze_dmg) / max(t.hp, 1)
         always, on_win = AFTER_BONUS.get(c.title, (0.0, 0.0))
         value += always + on_win * p_win
+        if c.title == RINGS:             # the damage dealt heals the fighter and the friendly ones beside it (only what is missing counts)
+            near = [o for o in game.own(f.owner) if o is f or (o.pos is not None and f.pos is not None and o.pos in game.board.adj[f.pos])]
+            value += W_MEDUSA_HP * min(e_net, sum(o.max_hp - o.hp for o in near)) * p_win
         if c.title in DISCARD_EFFECTS:
             decisive = p_kill >= 0.5 or (p_win >= 0.85 and e_net >= 5)
             if not decisive:
@@ -852,6 +881,26 @@ class MedusaAI(Controller):
                     score += self.strike_reward(game, h)
         return score
 
+    def death_risk(self, game: Game, model: Model, t: Fighter, hp: float) -> float:
+        """Chance that my fighter `t`, with `hp` hit points, dies in the rival's next turn: the worst of the rival fighters
+        that can get in reach (they move, one extra space for a boost, then strike), hitting twice, against my best
+        defenses in hand. Counts every rival, not only those already in reach, so a hit point spent now is priced."""
+        if t.pos is None or not t.alive:
+            return 0.0
+        hand = game.players[self.me].hand
+        real, t.hp = t.hp, hp
+        try:
+            risk = 0.0
+            for e in game.foes(self.me):
+                if e.pos is None:
+                    continue
+                strikes = game.legal_moves(e, e.move + 1) | {e.pos}
+                if any(game.board.can_reach_target(s, t.pos, e.ranged) for s in strikes):
+                    risk = max(risk, self.two_hit_threat(model, e, t, hand)[1])
+            return risk
+        finally:
+            t.hp = real
+
     def double_blow_risk(self, game: Game, model: Model, override: dict) -> float:
         """Chance that my hero dies to the two blows of a rival already in reach of it, with `override` positions."""
         pos = {f.fid: f.pos for f in game.fighters.values() if f.alive}
@@ -1014,24 +1063,44 @@ class MedusaAI(Controller):
         know; otherwise the value is the distribution of what the rival may have committed."""
         model = Model(game, self.me)
         hand = game.players[self.me].hand
-        if attack_card is not None:
-            dist = [(1.0, (attack_card.value or 0) + game.attack_bonus(attacker))]
-        else:
-            dist = model.committed_attack_dist(attacker)
-        best, best_v = None, None
-        options = [None] + [c for c in hand if c.can_defend and c.usable_by(target.name)]
-        seen = set()
-        for c in options:
-            if c is not None:
-                if c.title in seen:
-                    continue
-                seen.add(c.title)
-            v = self.eval_defense(game, model, dist, target, c)
-            if best_v is None or v > best_v + 1e-9:
-                best, best_v = c, v
+        self._attacker = attacker
+        try:
+            if attack_card is not None:
+                dist = [(1.0, (attack_card.value or 0) + game.attack_bonus(attacker))]
+            else:
+                dist = model.committed_attack_dist(attacker)
+            best, best_v = None, None
+            options = [None] + [c for c in hand if c.can_defend and c.usable_by(target.name)]
+            seen = set()
+            for c in options:
+                if c is not None:
+                    if c.title in seen:
+                        continue
+                    seen.add(c.title)
+                v = self.eval_defense(game, model, dist, target, c)
+                if best_v is None or v > best_v + 1e-9:
+                    best, best_v = c, v
+        finally:
+            self._attacker = None
         return best
 
+    def mists_dist(self, game: Game, model: Model, attacker: Fighter) -> list[tuple[float, int]]:
+        """What the attack becomes when The Mists of Munnopor replace it: the first playable card of the rival's deck, one nobody
+        chose, so its value is that of a card drawn at random among the attack and versatile cards the attacker may still have
+        (public: the pool is its whole deck minus its discard pile)."""
+        bonus = game.attack_bonus(attacker)
+        values = [c.value + bonus for c in model.pool if c.can_attack and c.usable_by(attacker.name)]
+        if not values:
+            return [(1.0, 0)]
+        return [(1 / len(values), v) for v in values]
+
     def eval_defense(self, game: Game, model: Model, dist, target: Fighter, c) -> float:
+        if c is not None and c.title == MISTS and getattr(self, "_attacker", None) is not None:
+            dist = self.mists_dist(game, model, self._attacker)
+        elif c is not None and c.title == CLOAK and getattr(self, "_attacker", None) is not None:
+            hero = game.hero(target.owner)
+            if hero.pos is not None and self._attacker.pos in game.board.adj[hero.pos]:
+                dist = [(1.0, 0)]                      # Doctor Strange is next to the attacker: its value counts for nothing
         dv = c.value if c else 0
         exp = p_dead = p_hit = p_block = 0.0
         for p, av in dist:
@@ -1053,6 +1122,8 @@ class MedusaAI(Controller):
         v += always + on_win * p_block
         if c.title == "Feint":
             v += 0.3
+        if c.title == MISTS:
+            v += MISTS_EDGE
         if c.title in DISCARD_EFFECTS:
             decisive = p_block >= 0.85 and exp < 0.5
             if not decisive:

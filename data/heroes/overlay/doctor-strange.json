@@ -1,0 +1,182 @@
+{
+ "_notes": [
+  "Sheet 176 of the tournament savegame (8x4), read card by card from the image on 2026-11-02. CardID = 17600 + idx; 337 = character card (sheet 3, 10x7, index 37). The deck object of the save holds 31 cards: the 30 of the deck plus the character card, which is why the catalog says card_count 31 and card_ids [337, 17629].",
+  "Restriction band (DOCTOR STRANGE, WONG or ANY) and copies (xN printed on each card) read from the images; value, boost and type match unmatched-memory for all 11 titles. Strange's deck is sheet 176 like Medusa's and the four turtles': only deck.identity (data/tts/doctor-strange.json) tells the decks apart (docs/card-identity.md).",
+  "Discrepancies with unmatched-memory (the real card wins; entries with `text` overwrite the importer's text): The Rings of Raggadorr says 'AFTER COMBAT: If you won the combat, your fighter and each friendly fighter adjacent to them recover health equal to the damage dealt.' (unmatched-memory carries a Black Panther text for it: a BOOST up to two times that draws cards). The title \"No, Really, I'm a Doctor\" has commas on the card (`memory_title` maps it to unmatched-memory's spelling).",
+  "Wong: one sidekick, ranged, 6 life, move 2 (hero card image). The save bag holds a token and a miniature for him and two miniatures for Doctor Strange (see data/tts/doctor-strange.json).",
+  "DARK PACT is a trigger on the `after_combat` event (docs/effects-dsl.md, section 26); no counters, forms or passives."
+ ],
+ "fid": "strange",
+ "sidekicks": [
+  {
+   "fid": "wong",
+   "name": "Wong"
+  }
+ ],
+ "forms": null,
+ "counters": {},
+ "triggers": [],
+ "passives": [],
+ "deck": {
+  "card_base": 17600,
+  "sheet_id": 176,
+  "hero_card_id": 337,
+  "sheet": [
+   {
+    "idx": 0,
+    "title": "The Winds of Watoomb",
+    "fighter": "Doctor Strange"
+   },
+   {
+    "idx": 1,
+    "title": "The Winds of Watoomb",
+    "fighter": "Doctor Strange"
+   },
+   {
+    "idx": 2,
+    "title": "The Winds of Watoomb",
+    "fighter": "Doctor Strange"
+   },
+   {
+    "idx": 3,
+    "title": "The Rings of Raggadorr",
+    "fighter": "any",
+    "text": "AFTER COMBAT: If you won the combat, your fighter and each friendly fighter adjacent to them recover health equal to the damage dealt."
+   },
+   {
+    "idx": 4,
+    "title": "The Rings of Raggadorr",
+    "fighter": "any",
+    "text": "AFTER COMBAT: If you won the combat, your fighter and each friendly fighter adjacent to them recover health equal to the damage dealt."
+   },
+   {
+    "idx": 5,
+    "title": "The Rings of Raggadorr",
+    "fighter": "any",
+    "text": "AFTER COMBAT: If you won the combat, your fighter and each friendly fighter adjacent to them recover health equal to the damage dealt."
+   },
+   {
+    "idx": 6,
+    "title": "Bolts of Balthakk",
+    "fighter": "any"
+   },
+   {
+    "idx": 7,
+    "title": "Bolts of Balthakk",
+    "fighter": "any"
+   },
+   {
+    "idx": 8,
+    "title": "Bolts of Balthakk",
+    "fighter": "any"
+   },
+   {
+    "idx": 9,
+    "title": "Bolts of Balthakk",
+    "fighter": "any"
+   },
+   {
+    "idx": 10,
+    "title": "Seven Suns of Cinnibus",
+    "fighter": "Doctor Strange"
+   },
+   {
+    "idx": 11,
+    "title": "Seven Suns of Cinnibus",
+    "fighter": "Doctor Strange"
+   },
+   {
+    "idx": 12,
+    "title": "Seven Suns of Cinnibus",
+    "fighter": "Doctor Strange"
+   },
+   {
+    "idx": 13,
+    "title": "Cloak of Levitation",
+    "fighter": "Doctor Strange"
+   },
+   {
+    "idx": 14,
+    "title": "Cloak of Levitation",
+    "fighter": "Doctor Strange"
+   },
+   {
+    "idx": 15,
+    "title": "Feint",
+    "fighter": "any"
+   },
+   {
+    "idx": 16,
+    "title": "Feint",
+    "fighter": "any"
+   },
+   {
+    "idx": 17,
+    "title": "Master of Kamar-Taj",
+    "fighter": "any"
+   },
+   {
+    "idx": 18,
+    "title": "Master of Kamar-Taj",
+    "fighter": "any"
+   },
+   {
+    "idx": 19,
+    "title": "Master of Kamar-Taj",
+    "fighter": "any"
+   },
+   {
+    "idx": 20,
+    "title": "Steadfast Disciple",
+    "fighter": "Wong"
+   },
+   {
+    "idx": 21,
+    "title": "Steadfast Disciple",
+    "fighter": "Wong"
+   },
+   {
+    "idx": 22,
+    "title": "Steadfast Disciple",
+    "fighter": "Wong"
+   },
+   {
+    "idx": 23,
+    "title": "The Mists of Munnopor",
+    "fighter": "Doctor Strange"
+   },
+   {
+    "idx": 24,
+    "title": "The Mists of Munnopor",
+    "fighter": "Doctor Strange"
+   },
+   {
+    "idx": 25,
+    "title": "The Mists of Munnopor",
+    "fighter": "Doctor Strange"
+   },
+   {
+    "idx": 26,
+    "title": "No, Really, I'm a Doctor",
+    "fighter": "Doctor Strange",
+    "memory_title": "No Really, I'm a Doctor"
+   },
+   {
+    "idx": 27,
+    "title": "No, Really, I'm a Doctor",
+    "fighter": "Doctor Strange",
+    "memory_title": "No Really, I'm a Doctor"
+   },
+   {
+    "idx": 28,
+    "title": "Eye of Agamotto",
+    "fighter": "Doctor Strange"
+   },
+   {
+    "idx": 29,
+    "title": "Eye of Agamotto",
+    "fighter": "Doctor Strange"
+   }
+  ]
+ }
+}

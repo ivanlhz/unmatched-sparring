@@ -1,0 +1,426 @@
+{
+ "_source": {
+  "memory": "unmatched-memory/data/heroes/doctor-strange.json",
+  "overlay": "data/heroes/overlay/doctor-strange.json",
+  "generator": "tools/import_hero.py"
+ },
+ "slug": "doctor-strange",
+ "name": "Doctor Strange",
+ "fid": "strange",
+ "hp": 14,
+ "move": 2,
+ "attack": "range",
+ "set": "brains-and-brawn",
+ "ability": "DARK PACT\nAfter each combat, if Doctor Strange played a card, you may deal 1 damage to him. If you do, put that card on the bottom of your deck and draw 1 card.",
+ "sidekicks": [
+  {
+   "name": "Wong",
+   "hp": 6,
+   "move": 2,
+   "attack": "range",
+   "count": 1,
+   "fid": "wong"
+  }
+ ],
+ "forms": null,
+ "counters": {},
+ "triggers": [],
+ "passives": [],
+ "deck": {
+  "card_base": 17600,
+  "sheet": 176,
+  "cards": [
+   {
+    "idx": 0,
+    "title": "The Winds of Watoomb",
+    "fighter": "Doctor Strange",
+    "type": "attack",
+    "value": 4,
+    "boost": 1,
+    "text": "AFTER COMBAT: Your opponent places Dr. Strange in a starting space. Place the opposing fighter in another starting space. All players shuffle their decks.",
+    "tags": []
+   },
+   {
+    "idx": 1,
+    "title": "The Winds of Watoomb",
+    "fighter": "Doctor Strange",
+    "type": "attack",
+    "value": 4,
+    "boost": 1,
+    "text": "AFTER COMBAT: Your opponent places Dr. Strange in a starting space. Place the opposing fighter in another starting space. All players shuffle their decks.",
+    "tags": []
+   },
+   {
+    "idx": 2,
+    "title": "The Winds of Watoomb",
+    "fighter": "Doctor Strange",
+    "type": "attack",
+    "value": 4,
+    "boost": 1,
+    "text": "AFTER COMBAT: Your opponent places Dr. Strange in a starting space. Place the opposing fighter in another starting space. All players shuffle their decks.",
+    "tags": []
+   },
+   {
+    "idx": 3,
+    "title": "The Rings of Raggadorr",
+    "fighter": "any",
+    "type": "attack",
+    "value": 4,
+    "boost": 1,
+    "text": "AFTER COMBAT: If you won the combat, your fighter and each friendly fighter adjacent to them recover health equal to the damage dealt.",
+    "tags": []
+   },
+   {
+    "idx": 4,
+    "title": "The Rings of Raggadorr",
+    "fighter": "any",
+    "type": "attack",
+    "value": 4,
+    "boost": 1,
+    "text": "AFTER COMBAT: If you won the combat, your fighter and each friendly fighter adjacent to them recover health equal to the damage dealt.",
+    "tags": []
+   },
+   {
+    "idx": 5,
+    "title": "The Rings of Raggadorr",
+    "fighter": "any",
+    "type": "attack",
+    "value": 4,
+    "boost": 1,
+    "text": "AFTER COMBAT: If you won the combat, your fighter and each friendly fighter adjacent to them recover health equal to the damage dealt.",
+    "tags": []
+   },
+   {
+    "idx": 6,
+    "title": "Bolts of Balthakk",
+    "fighter": "any",
+    "type": "attack",
+    "value": 2,
+    "boost": 3,
+    "text": "DURING COMBAT: You may BLIND BOOST this card. AFTER COMBAT: If you won the combat, gain 1 action.",
+    "tags": []
+   },
+   {
+    "idx": 7,
+    "title": "Bolts of Balthakk",
+    "fighter": "any",
+    "type": "attack",
+    "value": 2,
+    "boost": 3,
+    "text": "DURING COMBAT: You may BLIND BOOST this card. AFTER COMBAT: If you won the combat, gain 1 action.",
+    "tags": []
+   },
+   {
+    "idx": 8,
+    "title": "Bolts of Balthakk",
+    "fighter": "any",
+    "type": "attack",
+    "value": 2,
+    "boost": 3,
+    "text": "DURING COMBAT: You may BLIND BOOST this card. AFTER COMBAT: If you won the combat, gain 1 action.",
+    "tags": []
+   },
+   {
+    "idx": 9,
+    "title": "Bolts of Balthakk",
+    "fighter": "any",
+    "type": "attack",
+    "value": 2,
+    "boost": 3,
+    "text": "DURING COMBAT: You may BLIND BOOST this card. AFTER COMBAT: If you won the combat, gain 1 action.",
+    "tags": []
+   },
+   {
+    "idx": 10,
+    "title": "Seven Suns of Cinnibus",
+    "fighter": "Doctor Strange",
+    "type": "versatile",
+    "value": 3,
+    "boost": 2,
+    "text": "If the value of this card is above 7, ignore its value. DURING COMBAT: You may BLIND BOOST this card up to two times.",
+    "tags": []
+   },
+   {
+    "idx": 11,
+    "title": "Seven Suns of Cinnibus",
+    "fighter": "Doctor Strange",
+    "type": "versatile",
+    "value": 3,
+    "boost": 2,
+    "text": "If the value of this card is above 7, ignore its value. DURING COMBAT: You may BLIND BOOST this card up to two times.",
+    "tags": []
+   },
+   {
+    "idx": 12,
+    "title": "Seven Suns of Cinnibus",
+    "fighter": "Doctor Strange",
+    "type": "versatile",
+    "value": 3,
+    "boost": 2,
+    "text": "If the value of this card is above 7, ignore its value. DURING COMBAT: You may BLIND BOOST this card up to two times.",
+    "tags": []
+   },
+   {
+    "idx": 13,
+    "title": "Cloak of Levitation",
+    "fighter": "Doctor Strange",
+    "type": "versatile",
+    "value": 2,
+    "boost": 1,
+    "text": "DURING COMBAT: If Dr. Strange is adjacent to the opposing fighter, ignore the value of your opponent's card.",
+    "tags": []
+   },
+   {
+    "idx": 14,
+    "title": "Cloak of Levitation",
+    "fighter": "Doctor Strange",
+    "type": "versatile",
+    "value": 2,
+    "boost": 1,
+    "text": "DURING COMBAT: If Dr. Strange is adjacent to the opposing fighter, ignore the value of your opponent's card.",
+    "tags": []
+   },
+   {
+    "idx": 15,
+    "title": "Feint",
+    "fighter": "any",
+    "type": "versatile",
+    "value": 2,
+    "boost": 1,
+    "text": "IMMEDIATELY: Cancel all effects on your opponent's card.",
+    "tags": []
+   },
+   {
+    "idx": 16,
+    "title": "Feint",
+    "fighter": "any",
+    "type": "versatile",
+    "value": 2,
+    "boost": 1,
+    "text": "IMMEDIATELY: Cancel all effects on your opponent's card.",
+    "tags": []
+   },
+   {
+    "idx": 17,
+    "title": "Master of Kamar-Taj",
+    "fighter": "any",
+    "type": "versatile",
+    "value": 2,
+    "boost": 2,
+    "text": "DURING COMBAT: If Dr. Strange and Wong are adjacent, this card's value is 4 instead.",
+    "tags": []
+   },
+   {
+    "idx": 18,
+    "title": "Master of Kamar-Taj",
+    "fighter": "any",
+    "type": "versatile",
+    "value": 2,
+    "boost": 2,
+    "text": "DURING COMBAT: If Dr. Strange and Wong are adjacent, this card's value is 4 instead.",
+    "tags": []
+   },
+   {
+    "idx": 19,
+    "title": "Master of Kamar-Taj",
+    "fighter": "any",
+    "type": "versatile",
+    "value": 2,
+    "boost": 2,
+    "text": "DURING COMBAT: If Dr. Strange and Wong are adjacent, this card's value is 4 instead.",
+    "tags": []
+   },
+   {
+    "idx": 20,
+    "title": "Steadfast Disciple",
+    "fighter": "Wong",
+    "type": "versatile",
+    "value": 2,
+    "boost": 2,
+    "text": "AFTER COMBAT: If Wong is adjacent to the opposing fighter, deal 1 damage to the opposing fighter and draw 1 card.",
+    "tags": []
+   },
+   {
+    "idx": 21,
+    "title": "Steadfast Disciple",
+    "fighter": "Wong",
+    "type": "versatile",
+    "value": 2,
+    "boost": 2,
+    "text": "AFTER COMBAT: If Wong is adjacent to the opposing fighter, deal 1 damage to the opposing fighter and draw 1 card.",
+    "tags": []
+   },
+   {
+    "idx": 22,
+    "title": "Steadfast Disciple",
+    "fighter": "Wong",
+    "type": "versatile",
+    "value": 2,
+    "boost": 2,
+    "text": "AFTER COMBAT: If Wong is adjacent to the opposing fighter, deal 1 damage to the opposing fighter and draw 1 card.",
+    "tags": []
+   },
+   {
+    "idx": 23,
+    "title": "The Mists of Munnopor",
+    "fighter": "Doctor Strange",
+    "type": "defense",
+    "value": 2,
+    "boost": 2,
+    "text": "IMMEDIATELY: Discard your opponent's card. They reveal cards from their deck until they reveal an attack or versatile card they can play. They play that card and randomly put the rest of the revealed cards on the bottom of their deck.",
+    "tags": []
+   },
+   {
+    "idx": 24,
+    "title": "The Mists of Munnopor",
+    "fighter": "Doctor Strange",
+    "type": "defense",
+    "value": 2,
+    "boost": 2,
+    "text": "IMMEDIATELY: Discard your opponent's card. They reveal cards from their deck until they reveal an attack or versatile card they can play. They play that card and randomly put the rest of the revealed cards on the bottom of their deck.",
+    "tags": []
+   },
+   {
+    "idx": 25,
+    "title": "The Mists of Munnopor",
+    "fighter": "Doctor Strange",
+    "type": "defense",
+    "value": 2,
+    "boost": 2,
+    "text": "IMMEDIATELY: Discard your opponent's card. They reveal cards from their deck until they reveal an attack or versatile card they can play. They play that card and randomly put the rest of the revealed cards on the bottom of their deck.",
+    "tags": []
+   },
+   {
+    "idx": 26,
+    "title": "No, Really, I'm a Doctor",
+    "fighter": "Doctor Strange",
+    "type": "scheme",
+    "value": null,
+    "boost": 3,
+    "text": "Reveal a card from your hand and put it on top of your deck. Dr. Strange or a friendly fighter adjacent to him recovers health equal to that card's boost value.",
+    "tags": []
+   },
+   {
+    "idx": 27,
+    "title": "No, Really, I'm a Doctor",
+    "fighter": "Doctor Strange",
+    "type": "scheme",
+    "value": null,
+    "boost": 3,
+    "text": "Reveal a card from your hand and put it on top of your deck. Dr. Strange or a friendly fighter adjacent to him recovers health equal to that card's boost value.",
+    "tags": []
+   },
+   {
+    "idx": 28,
+    "title": "Eye of Agamotto",
+    "fighter": "Doctor Strange",
+    "type": "scheme",
+    "value": null,
+    "boost": 2,
+    "text": "Shuffle your hand into your deck. Draw 5 cards. Gain 1 action.",
+    "tags": []
+   },
+   {
+    "idx": 29,
+    "title": "Eye of Agamotto",
+    "fighter": "Doctor Strange",
+    "type": "scheme",
+    "value": null,
+    "boost": 2,
+    "text": "Shuffle your hand into your deck. Draw 5 cards. Gain 1 action.",
+    "tags": []
+   }
+  ]
+ },
+ "ai_profile": {
+  "strange": {
+   "name": "Doctor Strange",
+   "hero": true,
+   "count": 1,
+   "max_hp": 14,
+   "move": 2,
+   "ranged": true,
+   "role": "hero",
+   "attack": {
+    "cards": 20,
+    "mean": 2.75,
+    "max": 4
+   },
+   "exclusive": [
+    {
+     "title": "The Winds of Watoomb",
+     "type": "attack",
+     "copies": 3,
+     "impact": 1.38
+    },
+    {
+     "title": "Seven Suns of Cinnibus",
+     "type": "versatile",
+     "copies": 3,
+     "impact": 1.26
+    },
+    {
+     "title": "Cloak of Levitation",
+     "type": "versatile",
+     "copies": 2,
+     "impact": 0.81
+    },
+    {
+     "title": "The Mists of Munnopor",
+     "type": "defense",
+     "copies": 3,
+     "impact": 0.9
+    },
+    {
+     "title": "No, Really, I'm a Doctor",
+     "type": "scheme",
+     "copies": 2,
+     "impact": 2.6
+    },
+    {
+     "title": "Eye of Agamotto",
+     "type": "scheme",
+     "copies": 2,
+     "impact": 3.8
+    }
+   ]
+  },
+  "wong": {
+   "name": "Wong",
+   "hero": false,
+   "count": 1,
+   "max_hp": 6,
+   "move": 2,
+   "ranged": true,
+   "role": "striker",
+   "attack": {
+    "cards": 15,
+    "mean": 2.4,
+    "max": 4
+   },
+   "exclusive": [
+    {
+     "title": "Steadfast Disciple",
+     "type": "versatile",
+     "copies": 3,
+     "impact": 1.15
+    }
+   ],
+   "requires_alive": [
+    {
+     "source": "Master of Kamar-Taj",
+     "kind": "card",
+     "copies": 3,
+     "impact": 0.21
+    }
+   ]
+  }
+ },
+ "_notes": [
+  "Sheet 176 of the tournament savegame (8x4), read card by card from the image on 2026-11-02. CardID = 17600 + idx; 337 = character card (sheet 3, 10x7, index 37). The deck object of the save holds 31 cards: the 30 of the deck plus the character card, which is why the catalog says card_count 31 and card_ids [337, 17629].",
+  "Restriction band (DOCTOR STRANGE, WONG or ANY) and copies (xN printed on each card) read from the images; value, boost and type match unmatched-memory for all 11 titles. Strange's deck is sheet 176 like Medusa's and the four turtles': only deck.identity (data/tts/doctor-strange.json) tells the decks apart (docs/card-identity.md).",
+  "Discrepancies with unmatched-memory (the real card wins; entries with `text` overwrite the importer's text): The Rings of Raggadorr says 'AFTER COMBAT: If you won the combat, your fighter and each friendly fighter adjacent to them recover health equal to the damage dealt.' (unmatched-memory carries a Black Panther text for it: a BOOST up to two times that draws cards). The title \"No, Really, I'm a Doctor\" has commas on the card (`memory_title` maps it to unmatched-memory's spelling).",
+  "Wong: one sidekick, ranged, 6 life, move 2 (hero card image). The save bag holds a token and a miniature for him and two miniatures for Doctor Strange (see data/tts/doctor-strange.json).",
+  "DARK PACT is a trigger on the `after_combat` event (docs/effects-dsl.md, section 26); no counters, forms or passives."
+ ]
+}

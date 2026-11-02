@@ -220,6 +220,9 @@ class CombatFlow:
             for owner, card in self.played:
                 inventions.settle_played(self.game, owner, card)
             if self.game.winner is None:
+                for owner, card in self.played:       # the fighter of each side that played a card (DARK PACT)
+                    self.game.fx.emit("after_combat", owner, self.att if owner == self.att.owner else self.tgt, card)
+            if self.game.winner is None:
                 self.game.fx.emit("after_attack", self.att, self.tgt)
 
     # ---------- decisions ----------
@@ -319,6 +322,24 @@ class CombatFlow:
         result.cancelled_after = set(ctx.cancelled_after)
         loser = self.tgt if damage >= 1 else self.att       # a tie is lost by the attacker (the engine's "won")
         self.game.fx.emit("combat_lost", loser.owner, loser)
+
+    def replace_attack_card(self, new: Card | None) -> None:
+        """The Mists of Munnopor: the attacker's card is discarded and the card their deck gave takes its place before
+        that side's effects have run. The bonuses of the attack stay; `None` (no playable card in the deck) leaves the
+        discarded card in place, cancelled and worth nothing."""
+        old, ctx, res = self.atk_card, self.ctx, self.result
+        owner = self.att.owner
+        if new is None:
+            ctx.atk_value = max(0, ctx.atk_value - (old.value or 0))
+            ctx.cancelled.add("atk")
+            res.atk_parts[0] = f"{old.title} (0)"
+            return
+        ctx.atk_value = max(0, ctx.atk_value + (new.value or 0) - (old.value or 0))
+        self.played = [(o, new if c is old else c) for o, c in self.played]
+        self.game.players[owner].discard.append(old)
+        self.atk_card = ctx.atk_card = res.atk_card = new
+        res.atk_parts[0] = f"{new.title} ({new.value or 0})"
+        self.sides = [Side(*s) for s in _side_cards(ctx)]
 
     # ---------- serialization ----------
     def to_dict(self) -> dict:

@@ -78,7 +78,7 @@
      "filter": {
       "type": "object",
       "additionalProperties": false,
-      "properties": {"attacked_this_turn": {"type": "boolean"}, "passed_by": {"$ref": "#/$defs/FighterRef"}, "adjacent_to_any": {"$ref": "#/$defs/FighterSel"}}
+      "properties": {"attacked_this_turn": {"type": "boolean"}, "passed_by": {"$ref": "#/$defs/FighterRef"}, "adjacent_to_any": {"$ref": "#/$defs/FighterSel"}, "is_or_adjacent_to": {"$ref": "#/$defs/FighterRef"}}
      },
      "pick": {"enum": ["one", "all"]}
     }
@@ -95,6 +95,7 @@
     "space_of": {"$ref": "#/$defs/FighterRef"},
     "nearest_to": {"$ref": "#/$defs/FighterRef"},
     "start_space_of": {"$ref": "#/$defs/PlayerSel"},
+    "start": {"type": "boolean"},
     "empty": {"type": "boolean"},
     "other": {"type": "boolean"}
    }
@@ -141,6 +142,8 @@
     "properties": {"attr": {"enum": ["boost", "value"]}, "of": {"$ref": "#/$defs/CardRef"}, "times": {"type": "integer"}}},
    {"type": "object", "additionalProperties": false, "required": ["count"],
     "properties": {"count": {"$ref": "#/$defs/FighterSel"}, "times": {"type": "integer"}}},
+   {"type": "object", "additionalProperties": false, "required": ["combat_value"],
+    "properties": {"combat_value": {"$ref": "#/$defs/CardRef"}, "times": {"type": "integer"}}},
    {"type": "object", "additionalProperties": false, "required": ["count_cards"],
     "properties": {"count_cards": {"$ref": "#/$defs/CardSel"}, "times": {"type": "integer"}}},
    {"type": "object", "additionalProperties": false, "required": ["count_of"],
@@ -213,6 +216,8 @@
     "properties": {"event": {"const": "card_played"}, "player": {"$ref": "#/$defs/PlayerOrAny"}, "filter": {"$ref": "#/$defs/CardFilter"}}},
    {"type": "object", "additionalProperties": false, "required": ["event"],
     "properties": {"event": {"const": "combat_lost"}, "player": {"$ref": "#/$defs/PlayerOrAny"}}},
+   {"type": "object", "additionalProperties": false, "required": ["event"],
+    "properties": {"event": {"const": "after_combat"}, "player": {"$ref": "#/$defs/PlayerOrAny"}, "fighter": {"$ref": "#/$defs/FighterSel"}}},
    {"type": "object", "additionalProperties": false, "required": ["event", "fighter"],
     "properties": {"event": {"const": "fighter_defeated"}, "fighter": {"$ref": "#/$defs/FighterSel"}}}
   ]},
@@ -377,6 +382,8 @@
     "properties": {"op": {"const": "gain_action"}, "amount": {"$ref": "#/$defs/Amount"},"player": {"$ref": "#/$defs/PlayerSel"}}},
    {"type": "object", "additionalProperties": false, "required": ["op"],
     "properties": {"op": {"const": "end_turn"}}},
+   {"type": "object", "additionalProperties": false, "required": ["op", "player"],
+    "properties": {"op": {"const": "shuffle_deck"}, "player": {"anyOf": [{"$ref": "#/$defs/PlayerSel"}, {"const": "all"}]}}},
    {"type": "object", "additionalProperties": false, "required": ["op", "player"],
     "properties": {"op": {"const": "look_hand"}, "player": {"$ref": "#/$defs/PlayerSel"}}},
    {"type": "object", "additionalProperties": false, "required": ["op", "cards", "to"],

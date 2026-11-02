@@ -107,7 +107,7 @@ A `pick: one` selector with no candidates does nothing (the op is skipped); with
 ### 2.3 Spaces (SpaceSel)
 
 Object with any of: `any: true` | `zone_of: FighterRef` | `adjacent_to: FighterRef` | `space_of: FighterRef`
-| `nearest_to: FighterRef` | `start_space_of: PlayerSel` | `empty: bool` (default true for placing). FighterRef is
+| `nearest_to: FighterRef` | `start_space_of: PlayerSel` | `start: true` (any starting space of the board) | `empty: bool` (default true for placing). FighterRef is
 a `role` string (`this`, `hero`, `opposing`, `attacker`, `defender`, `$var`).
 
 ### 2.4 Cards (CardSel and CardRef)
@@ -214,6 +214,7 @@ There are never conditions in strings.
 | `card_played` | `player`, `filter` | `$card` |
 | `fighter_defeated` | `fighter: FighterSel` | `$fighter` |
 | `combat_lost` | `player` (default `owner`; `any`) | `$fighter` |
+| `after_combat` | `player` (default `owner`; `any`), `fighter: FighterSel` | `$fighter`, `$card` |
 
 As expiry (`until`): `{"event": "end_of_turn"}` = the current turn, whoever's it is;
 `{"event": "start_of_turn", "player": "owner"}` = the owner's next turn;
@@ -256,6 +257,7 @@ Every op is `{"op": "<name>", ...args}`. Arguments not listed are an error.
 | `look_deck` | `player`, `amount`, `as` | `from: top | bottom` | look without moving |
 | `search_deck` | `player`, `look: int | "all"`, `take: {amount, up_to?, filter?}`, `to: hand`, `rest: bottom_random | bottom_ordered | top_ordered | shuffle` | `chooser`, `as` | Read The Bones, Prophecy, Lady of the Lake |
 | `return_to_deck` | `cards`, `position: top | bottom | shuffle` | `order: PlayerSel` | from the hand, the discard or the rival's hand to its owner's deck |
+| `shuffle_deck` | `player` (`all` allowed) | | shuffles those players' decks ("all players shuffle their decks"); see section 26 |
 | `put_in_hand` | `cards` | | from the discard or the deck to its owner's hand |
 | `redirect_damage` | `from: FighterSel`, `to: FighterSel`, `damage: effect | combat | any` | `condition`, `optional`, `chooser` | in `during`: lasts that combat |
 | `optional` | `ops` | `chooser`, `cost: [Op]`, `else: [Op]` | the `chooser` decides; `cost` is paid first (if it cannot, there is no option); `else` if it declines |
@@ -1031,3 +1033,22 @@ Everything here is additive: no existing file reads these words, so the five ear
 - **1v1 meaning of Adventures wording**: "friendly" is Raphael and Casey Jones; the only rival is the opponent.
 - **Same CardID range as Medusa**: Raphael's deck is sheet 176 like Medusa's; see docs/card-identity.md.
 
+
+## 26. Doctor Strange (Brains and Brawn): after each combat, blind boosts, replacing the rival's card
+
+Everything here is additive: no existing file reads these words, so the nine earlier heroes behave as before.
+
+- **Event `after_combat`** (`{"event": "after_combat", "player": "owner"|"opponent"|"any", "fighter": FighterSel}`; binds `$fighter`, the fighter that played, and `$card`, the card it played): raised by `CombatFlow._enter(DONE)` once per card played in the combat, after the played cards reached their discard piles (a card a combat effect sent elsewhere is no longer there) and before `after_attack`; not raised when the game ended. `fighter: hero` limits it to the owner's hero: DARK PACT is "if Doctor Strange played a card", and a card his sidekick played does not count. A defense with no card raises nothing.
+- **Op `shuffle_deck`** (`player`, `all` allowed): the engine's player's deck gets a memoized permutation and the rival forgets what it knew of that top card; the table player's real deck is shuffled by them (a table note, `tbl.shuffle_deck`) and the bot shuffles its own pile on the table (translator `shuffle_deck`).
+- **SpaceSel `start: true`**: any starting space of the board (`Board.starts`), free ones only unless `empty: false`. "In another starting space" is the same selector after the first fighter was placed (it holds its space now).
+- **Amount `{"combat_value": CardRef}`**: the running total value of that card's side in the combat that is running (boosts and bonuses included), 0 outside a combat. Seven Suns' "if the value of this card is above 7" is a `compare` of it, evaluated after its blind boosts.
+- **Fighter filter `is_or_adjacent_to`** (`"filter": {"is_or_adjacent_to": "hero"}`): the fighter itself or one next to the referenced fighter ("Dr. Strange or a friendly fighter adjacent to him").
+- **`CombatFlow.replace_attack_card(card | None)`**: the attacker's card is replaced inside the running combat, before its side's effects ran (the defender resolves first, so a defender's IMMEDIATELY meets the attacker's IMMEDIATELY still ahead). The old card goes to its owner's discard pile, the new one takes its place in `played`, `ctx`, `result` and `sides` (saved in the flow's own fields: `atk_card`, `played`), and the bonuses of the attack stay. `None` leaves the card in place, worth nothing and cancelled.
+- **Plugins** (`sparring/effects/plugins_strange.py`):
+  - `strange:blind_boost` (`args: {"times": N, "ignore_above"?}`): up to N times the owner decides (`optional` request with `blind_boost`, `left`, `margin`, `value`, `limit`, `attacking`, `target` for `EffectAI`), then the top card of the deck is discarded (public, event `card_discarded` from the deck) and its BOOST added to the card's value. The table player gets one `cards` request (`pile_mode: blind`, up to N) and lays the real top cards on their discard pile.
+  - `strange:mists_of_munnopor`: the attacker's deck is revealed from the top until an attack or versatile card the attacking fighter may play; the rest go to the bottom in a memoized random order (`reveal_deck` intent: the bot's chat names them) and the flow replaces the card. The table player gets a `cards` request (`pile_mode: play`) and plays the card they find at their combat spot.
+  - `strange:reveal_to_top` (`args: {"as": name}`): the owner picks a card of the hand (request `purpose: reveal_top`, `missing` = the hit points the owner's fighters lack, for `EffectAI`), it goes on top of the deck, the rival learns it is the top card and the card is bound for the heal. The table player lays it on their discard pile (`pile_mode: reveal`) and the bot moves it on top of their deck (`stack_top` intent).
+- **`optional` context `pact`**: an optional whose ops are a `damage` on the owner's own fighter, a `return_to_deck` of a card reference to the bottom and a `draw` sends `{"fighter", "damage", "card", "draws"}` to its chooser (`ops_core._pact_context`). `default_answer` declines it; `EffectAI._dark_pact` decides (docs/heroes/doctor-strange.md).
+- **Whole hand into the deck for the table player** (`return_to_deck` of `{"zone": "hand", "pick": "all"}` to `shuffle`): the engine moves its virtual hand into its virtual deck and shuffles; the intent `hand_to_deck_all` has the bot put their seat's hand into their deck (`return_hand_to_deck` + `shuffle_deck`) before the draws that follow are dealt.
+- **Table side** (`session_rage`, `session_pile`, `session_translators`): the pile modes `blind`, `reveal` and `play` next to Raphael's `rage`; the translators `stack_top`, `reveal_deck`, `shuffle_deck`, `hand_to_deck_all` and `combat_card_to_bottom` (DARK PACT paid by the human: the card at their combat spot goes to the bottom of their deck by GUID before the draw). A trigger a human's decision parks right after a combat is shown by `Session._after_combat` and the combat's closing line is held back until it is answered.
+- **Same CardID range as Medusa and the turtles**: see docs/card-identity.md.

@@ -30,7 +30,7 @@ import copy
 import random
 from functools import lru_cache
 
-from .ai_medusa import (DECK_SCARCITY, HARPY_VALUE, KILL_SIDEKICK, LETHAL, W_HERO, W_MEDUSA_HP,
+from .ai_medusa import (DECK_SCARCITY, HARPY_VALUE, KILL_SIDEKICK, LETHAL, SURVIVAL_P, W_HERO, W_MEDUSA_HP,
                         W_SIDEKICK, MedusaAI, Model, keep_value, kill_value, play_signature)
 from .controller import Controller
 from .effects import ongoing
@@ -67,6 +67,13 @@ RELOCATE_OPS = ("move", "place", "swap")
 CANCEL_MAX_KEEP = 1.6                                   # the card given up to cancel the rival's effects is worth this or less
 BONUS_MARGIN = 0.2                                      # a card is given up for a bonus only when it clearly pays
 BOUNCE_BONUS = 0.5                                      # a returning card at the bottom also burns 1 when it comes back
+PACT_MARGIN = 0.3                                       # DARK PACT is paid when it returns this much more than the hit point costs
+PACT_FLOOR = 4                                          # DARK PACT never leaves the hero with fewer hit points than this (effect damage, exhaustion)
+PACT_COMFORT = 8                                        # below this many hit points left, each one costs more (PACT_URGENCY per missing point)
+PACT_URGENCY = 0.15
+PACT_RISK_STEP = 0.1                                    # ... and the hit point does not raise the chance of dying next turn by more than this
+PACT_RECYCLE = 4.0                                      # a card put at the bottom of a deck of n cards comes back with weight PACT_RECYCLE / (n + 1)
+BLIND_COST = 0.1                                        # a blind boost mills one card of the deck: the exhaustion clock ticks
 
 
 @lru_cache(maxsize=None)
@@ -271,6 +278,8 @@ class EffectAI:
         n_min, n_max = req.min, min(req.max, len(req.options))
         if purpose == "bonus":
             return self._bonus_discards(game, req)
+        if purpose == "reveal_top":
+            return self._card_to_reveal(game, req)
         if zone == "hand" and of != me:                    # C4: what a look showed, the rest by position
             return ControllerChooser._from_rival_hand(game, req, of)
         if zone == "hand":
@@ -298,6 +307,17 @@ class EffectAI:
         ranked = sorted(req.options, key=lambda i: (-worth(i), i))
         take = n_max if n_min < n_max and worth(ranked[0]) > 0 else n_min
         return ranked[:take]
+
+    def _card_to_reveal(self, game: Game, req: ChoiceRequest) -> list:
+        """No, Really, I'm a Doctor: the card shown goes on top of the deck (it is drawn next) and heals its BOOST value to
+        Doctor Strange or the fighter beside him. The one that heals most (only the hit points missing count) for the least
+        it is worth in hand."""
+        me, hand = req.player, game.players[req.player].hand
+        by_id = {c.card_id: c for c in hand}
+        missing = req.extra.get("missing", 0)
+        best = max((i for i in req.options if i in by_id),
+                   key=lambda i: (W_MEDUSA_HP * min(by_id[i].boost, missing) - 0.5 * keep_value(by_id[i], hand), -i), default=None)
+        return None if best is None else [best]
 
     def _bonus_discards(self, game: Game, req: ChoiceRequest) -> list:
         """Unbridled rage: each card given up adds `per_card` to the value of the card. Cards go from the least to the
@@ -362,6 +382,10 @@ class EffectAI:
         return [max(scored)[3]]
 
     def _optional(self, game: Game, req: ChoiceRequest, nested: bool) -> list | None:
+        if "pact" in req.extra:
+            return [self._dark_pact(game, req)]
+        if req.extra.get("blind_boost"):
+            return [self._blind_boost(game, req)]
         if "bury" in req.extra:             # The future of Ninjutsu: the top card goes to the bottom if it is worse than the average card to come
             top = {c.card_id: c for c in game.players[req.player].full_set}[req.extra["bury"][0]] if req.extra["bury"] else None
             return None if top is None else [keep_value(top, [top]) < self.medusa(req.player).avg_unseen_keep(game)]
@@ -391,6 +415,51 @@ class EffectAI:
         if yes is None or no is None:
             return [not cost]
         return [yes >= no - 1e-9] if not cost else [yes > no + PAY_MARGIN]
+
+    def _dark_pact(self, game: Game, req: ChoiceRequest) -> bool:
+        """DARK PACT: 1 hit point for the card it recycles and a draw. Never when the hit point kills the hero, and never
+        when it raises the chance of dying in the rival's next turn (`MedusaAI.death_risk`) to SURVIVAL_P or by more than
+        PACT_RISK_STEP, nor below PACT_FLOOR hit points. Otherwise it is paid when what it brings (the draw: an average unseen card, the recycled card:
+        its keep value, weighted by how soon the deck brings it back) outweighs the hit point (`W_MEDUSA_HP`)."""
+        pact, me = req.extra["pact"], req.player
+        hero = game.fighters[pact["fighter"]]
+        dmg = pact["damage"]
+        left = hero.hp - dmg
+        if left < PACT_FLOOR:
+            return False
+        ai, model = self.medusa(me), Model(game, me)
+        now, after = ai.death_risk(game, model, hero, hero.hp), ai.death_risk(game, model, hero, hero.hp - dmg)
+        if after >= SURVIVAL_P or after > now + PACT_RISK_STEP:
+            return False
+        mine = game.players[me]
+        card = {c.card_id: c for c in mine.full_set}.get(pact["card"])
+        recycle = 0.0 if card is None else keep_value(card, mine.hand) * min(1.0, PACT_RECYCLE / (len(mine.deck) + 1))
+        # with an empty deck the card itself comes straight back: the draw adds nothing new
+        draw = ai.avg_unseen_keep(game) * pact["draws"] if mine.deck else 0.0
+        cost = W_MEDUSA_HP * dmg * (1 + PACT_URGENCY * max(0, PACT_COMFORT - left)) + LETHAL * (after - now)
+        return draw + recycle - cost > PACT_MARGIN
+
+    def _blind_boost(self, game: Game, req: ChoiceRequest) -> bool:
+        """BLIND BOOST: free (the top card of the deck, no card of the hand), so it is taken while the expected value of
+        the blow improves: the average over the boosts the bot's deck can still hold, a card that ignores a value above
+        its `limit` (Seven Suns) counting 0 for a total over it."""
+        x, me = req.extra, req.player
+        mine = game.players[me]
+        pool = [c for c in mine.full_set if c not in mine.hand and c not in mine.gone]    # its own deck: it knows what is in it
+        target = game.fighters.get(x["target"])
+        if not pool or target is None:
+            return False
+        value, margin, limit = x["value"], x["margin"], x["limit"]
+
+        def score(total: int) -> float:
+            if limit is not None and total > limit:
+                total = 0
+            net = margin + total - value
+            if x["attacking"]:
+                return self.blow_value(target, max(0, net), game)
+            return self.hp_change(target, target.hp - max(0, -net), me, game)
+        gain = sum(score(value + c.boost) for c in pool) / len(pool) - score(value)
+        return gain - BLIND_COST > 0
 
     def _card_from_hand_pays(self, game: Game, req: ChoiceRequest) -> bool:
         """A card put on the bottom of the deck (it comes back when the deck cycles) for an extra action (Hi-Yaaaaah!!)
