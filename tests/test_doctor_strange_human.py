@@ -523,3 +523,33 @@ def test_while_dark_pact_waits_the_other_buttons_are_refused(rig, monkeypatch):
     msgs = click(session, table, Event.END_ACTION)
     assert said(msgs, "Hay una eleccion de efecto pendiente") and game.turn == turn and session._paused() is not None
     assert len(visible_choices(session)) == 2                                                  # only Yes / No are shown
+
+
+@with_rig()
+def test_dark_pact_that_kills_strange_ends_the_game_and_moves_and_deals_nothing(rig, monkeypatch):
+    session, table, game, fake, cfg = rig
+    no_defense(session, monkeypatch)
+    game.fighters["strange"].hp = 1
+    table.dials[cfg.session_config().dials["strange"]]["value"] = session.dials_written[cfg.session_config().dials["strange"]] = 1
+    human_hand(table, game, "Feint", "Bolts of Balthakk")
+    attack(session, table, game, "Feint")
+    assert session._paused()[2].label == "dark_pact"              # still offered at 1 hit point: the rules allow it
+    msgs = done(session, table, 1)
+    assert game.winner == 0 and not game.fighters["strange"].alive
+    assert said(msgs, "Fin de la partida") or said(msgs, "Game over") or any("gan" in m.lower() for m in msgs)
+    assert table.deck_moves == [] and table.human_deals == [] and not said(msgs, "Resuelve los efectos de despues")
+
+
+@with_rig()
+def test_a_trigger_parked_after_a_combat_on_another_event_keeps_the_closing_line(rig, monkeypatch):
+    """The hold-back of "Resolve the effects after the combat" is only for after_combat triggers (michelangelo / raphael parked
+    runs on after_attack or combat_lost say it at once, as before)."""
+    from sparring.effects import events
+    real = events.Ctx
+    monkeypatch.setattr(events, "Ctx", lambda **kw: real(**{**kw, "moment": "after_attack"}))
+    session, table, game, fake, cfg = rig
+    no_defense(session, monkeypatch)
+    human_hand(table, game, "Feint")
+    msgs = attack(session, table, game, "Feint")
+    assert session._paused() is not None and session._paused()[2].ctx.moment == "after_attack"
+    assert said(msgs, "Resuelve los efectos de despues del combate")

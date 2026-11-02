@@ -1064,22 +1064,24 @@ class MedusaAI(Controller):
         model = Model(game, self.me)
         hand = game.players[self.me].hand
         self._attacker = attacker
-        if attack_card is not None:
-            dist = [(1.0, (attack_card.value or 0) + game.attack_bonus(attacker))]
-        else:
-            dist = model.committed_attack_dist(attacker)
-        best, best_v = None, None
-        options = [None] + [c for c in hand if c.can_defend and c.usable_by(target.name)]
-        seen = set()
-        for c in options:
-            if c is not None:
-                if c.title in seen:
-                    continue
-                seen.add(c.title)
-            v = self.eval_defense(game, model, dist, target, c)
-            if best_v is None or v > best_v + 1e-9:
-                best, best_v = c, v
-        self._attacker = None
+        try:
+            if attack_card is not None:
+                dist = [(1.0, (attack_card.value or 0) + game.attack_bonus(attacker))]
+            else:
+                dist = model.committed_attack_dist(attacker)
+            best, best_v = None, None
+            options = [None] + [c for c in hand if c.can_defend and c.usable_by(target.name)]
+            seen = set()
+            for c in options:
+                if c is not None:
+                    if c.title in seen:
+                        continue
+                    seen.add(c.title)
+                v = self.eval_defense(game, model, dist, target, c)
+                if best_v is None or v > best_v + 1e-9:
+                    best, best_v = c, v
+        finally:
+            self._attacker = None
         return best
 
     def mists_dist(self, game: Game, model: Model, attacker: Fighter) -> list[tuple[float, int]]:

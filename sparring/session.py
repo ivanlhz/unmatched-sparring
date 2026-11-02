@@ -1118,6 +1118,14 @@ class Session:
         if events.say_parked(self.game, run):     # a trigger of yours that hurt someone once you answered (the Pact)
             self._say_triggers()
             self._write_dials()
+        if self.game.winner is not None:              # the answer ended the game (DARK PACT at 1 hit point): nothing left to move or deal
+            for f in self.game.own(self.human, alive_only=False):
+                if not f.alive and f.hero:
+                    self._announce_fall(f)
+            self.game.fx.intents and self.game.fx.intents.clear()
+            self.say(t("game.over", winner=self.game.winner))
+            self._game_over_dialog()
+            return
         cause = human_effects.ABILITY_NAME.get(run.label, run.label.replace("_", " ").upper())
         checks = self._pact_to_bottom(cause)
         if not run.flags.get("scheme"):               # a parked ability (OCCULT DETECTIVE): a scheme's draws go with its step
@@ -2340,7 +2348,7 @@ class Session:
             self._game_over_dialog()
             return
         self.moving = True
-        if (paused := self._paused()) is not None and paused[0] == "parked":
+        if (paused := self._paused()) is not None and paused[0] == "parked" and paused[2].ctx.moment == "after_combat":
             self._show_choice(paused[2].awaiting)         # DARK PACT: asked right after the combat; `_effect_done` says the rest
             return
         self.say(t("combat.after"), ChatKind.YOUR_TURN)
@@ -3621,6 +3629,9 @@ class Session:
         return self.client.call_lua(lua.read_face_down_cards(*c.human_card_spot, c.reveal_radius)) or []
 
     def _rd_combat_spot(self) -> list[dict]:
+        # Rows are bare CardIDs, but the caller only keeps ids that exist in the HUMAN's own deck and the spot is the human's
+        # (the bot's combat spot is far away), so a card of the same id from another deck cannot be mistaken for theirs; the
+        # move by GUID (`card_to_discard`) re-checks the deck image in Lua (`ours`).
         """The FACE-UP cards at the human's combat spot: [{id, guid}] (The Mists of Munnopor: the card they played in place
         of the discarded one). Face-down cards are never read here (`_rd_face` does that at the Reveal)."""
         c = self.cfg
