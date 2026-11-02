@@ -105,6 +105,8 @@ def _normalize(game, name: str, args: tuple) -> dict | None:
         return {"name": name, "fighter": args[0]}
     if name == "combat_lost":
         return {"name": name, "player": args[0], "fighter": args[1]}
+    if name == "after_combat":
+        return {"name": name, "player": args[0], "fighter": args[1], "card": args[2]}
     return None          # force_discard and the like: hooks for other phases, not DSL events
 
 
@@ -199,6 +201,9 @@ def matches(game, owner: int, when: dict, ev: dict) -> bool:
         return _player_ok(when.get("player", "any"), ev["player"], owner)
     if name == "combat_lost":
         return _player_ok(when.get("player", "owner"), ev["player"], owner)
+    if name == "after_combat":
+        return _player_ok(when.get("player", "owner"), ev["player"], owner) \
+            and _fighter_ok(game, owner, when.get("fighter"), ev["fighter"])
     if name == "attacked":
         return _fighter_ok(game, owner, when.get("target"), ev["target"])
     if name == "after_attack":

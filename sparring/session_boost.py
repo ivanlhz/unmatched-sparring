@@ -32,6 +32,8 @@ def offered(session, p, human_card) -> bool:
         while flow.phase is not Phase.DURING and not flow.done:
             if (wait := flow.step()) is not None:
                 flow.resume(decide(wait.choice))
+        if p.kind == "human_attacks" and flow.atk_card is not human_card:       # The Mists of Munnopor discarded it
+            return False
         return flow.done or not flow.is_cancelled("atk" if p.kind == "human_attacks" else "def")
     except Exception:                              # any failure of the dry run: the real combat says what is wrong
         return True

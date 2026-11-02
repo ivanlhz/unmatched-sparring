@@ -103,6 +103,21 @@ def _permutation(run, n: int) -> list[int]:
     return run.random_sample(list(range(n)), n)
 
 
+@op("shuffle_deck")
+def _shuffle_deck(run, game, spec):
+    """Shuffles a deck ("All players shuffle their decks"). The engine's player's deck gets a memoized permutation and the
+    rival forgets its top card; the table player's real deck is shuffled by them (a note and an intent for the chat)."""
+    for player in players_of(game, run, spec["player"]):
+        _watcher(game, player).clear_top()
+        if table.physical(game, player):
+            table.note(run, op="shuffle_deck")          # the chat line of the card says it; nothing to translate
+            continue
+        deck = game.players[player].deck
+        perm = _permutation(run, len(deck))
+        deck[:] = [deck[i] for i in perm]
+        table.intent(game, op="shuffle_deck", player=player)
+
+
 @op("search_deck")
 def _search_deck(run, game, spec):
     owner, target = run.ctx.owner, player_of(game, run, spec["player"])

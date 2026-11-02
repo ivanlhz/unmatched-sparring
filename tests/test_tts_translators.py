@@ -34,7 +34,8 @@ def settle(session) -> None:
 @with_rig(*HELLBOY_VS_ABE)
 def test_the_registry_holds_the_translated_ops_with_both_variants(rig):
     assert set(TRANSLATORS) == {"draw", "discard", "move", "place", "swap", "revive", "summon", "return_to_deck",
-                                "put_in_hand", "search_deck", "counter", "form", "ongoing", "tuck", "remove"}
+                                "put_in_hand", "search_deck", "counter", "form", "ongoing", "tuck", "remove", "stack_top", "reveal_deck",
+                                "shuffle_deck"}
     for t in TRANSLATORS.values():
         assert callable(t.bot) and callable(t.human) and t.bot is not t.human and callable(t.mode)
 

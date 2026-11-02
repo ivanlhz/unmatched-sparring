@@ -72,6 +72,8 @@ def space_options(game, run, sel, default_empty: bool = True, mover=None) -> lis
             out &= {ref.pos}
     if "start_space_of" in sel:
         out &= {game.start_spaces[player_of(game, run, sel["start_space_of"])]}
+    if sel.get("start"):                                   # any starting space of the board
+        out &= set(game.board.starts.values())
     if sel.get("empty", default_empty):
         taken = {f.pos for f in game.fighters.values() if f.alive and f is not mover}
         out -= taken
@@ -160,6 +162,11 @@ def fighter_candidates(game, run, sel) -> tuple[list, bool]:
         out = [f for f in out if (f.fid in attacked) == bool(flt["attacked_this_turn"])]
     if "passed_by" in flt:
         out = _passed_by(game, run, out, flt["passed_by"])
+    if "is_or_adjacent_to" in flt:     # the fighter itself or one next to it ("Dr. Strange or a friendly fighter adjacent to him")
+        anchor = _ref_fighter(game, run, flt["is_or_adjacent_to"])
+        adj = game.board.adj
+        out = [f for f in out if anchor is not None and anchor.pos is not None and f.pos is not None
+               and (f is anchor or f.pos in adj[anchor.pos])]
     if "adjacent_to_any" in flt:       # next to at least one other living fighter the selector designates
         others = fighter_candidates(game, run, flt["adjacent_to_any"])[0]
         adj = game.board.adj
@@ -323,6 +330,8 @@ def amount(game, run, a):
         value = 0 if not cards else (cards[0].boost if a["attr"] == "boost" else (cards[0].value or 0))
     elif "count" in a:
         value = len(fighter_candidates(game, run, a["count"])[0])
+    elif "combat_value" in a:       # the running total of the card's side in this combat (boosts and bonuses included)
+        value = combat_value(game, run, a["combat_value"])
     elif "count_cards" in a:
         value = len(card_candidates(game, run, a["count_cards"]))
     elif "count_of" in a:
@@ -335,6 +344,17 @@ def amount(game, run, a):
     else:
         raise EffectError(f"bad amount {a!r}")
     return value * times
+
+
+def combat_value(game, run, ref) -> int:
+    """The total value the card `ref` has so far in the combat that is running (0 outside a combat or without that card)."""
+    flow = getattr(run, "flow", None)
+    cards = card_ref(game, run, ref)
+    if flow is None or flow.ctx is None or not cards:
+        return 0
+    from .modifiers import side_of
+    side = side_of(flow, cards[0])
+    return 0 if side is None else (flow.ctx.atk_value if side == "atk" else flow.ctx.def_value)
 
 
 def counter_value(game, player: int, name: str) -> int:

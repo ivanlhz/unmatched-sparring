@@ -43,6 +43,9 @@ from .tts.lua import ChatKind
 
 
 
+DIRECT_OPS = ("tuck", "remove", "reveal_deck", "shuffle_deck", "stack_top")     # translated as they were reported, no diff involved
+
+
 def bot_cause() -> str:
     """Whose effect the chat blames for what the human must do on the table."""
     return t("cause.bot_effect")
@@ -103,7 +106,7 @@ def project(session, before: dict | None, played: frozenset = frozenset(), cause
     moved = set(session.fx_in_flight)             # what this button already moved (a look row's pick, E3)
     looked, session.fx_looked = session.fx_looked, False
     ctx = Ctx(cause or bot_cause(), before)
-    checks = [c for i in intents if i["op"] in ("tuck", "remove") for c in translate(session, i, ctx) or []]
+    checks = [c for i in intents if i["op"] in DIRECT_OPS for c in translate(session, i, ctx) or []]
     checks += _human_pieces(session, before, intents, ctx) + _form(session, before, ctx) + _tokens(session, before, intents, ctx)
     checks += _bot_cards(session, before, moved, intents, ctx) + _bot_ongoing(session, before, intents, ctx)
     checks += _human_cards(session, before, played, looked, ctx, intents)
@@ -189,17 +192,19 @@ def _bot_cards(session, before: dict, moved: set, intents: list[dict], ctx: Ctx)
     g, bot = session.game, session.bot
     st = g.players[bot]
     b0, b1 = before["bot"], zones(st)
-    hand_to_deck = [i for i in b0["hand"] if i in b1["deck"] and i not in moved]
+    played_back = [i for it in intents if it["op"] == "return_to_deck" and it["player"] == bot and it["zone"] == "discard"
+                   for i in it["cards"] if i in b0["hand"] and i in b1["deck"] and i not in moved]    # DARK PACT: the card it just played
+    hand_to_deck = [i for i in b0["hand"] if i in b1["deck"] and i not in moved and i not in played_back]
     disc_to_deck = [i for i in b0["discard"] if i in b1["deck"] and i not in moved]
     disc_to_hand = [i for i in b0["discard"] if i in b1["hand"] and i not in moved]
     taken = len([i for i in b0["deck"] if i in b1["hand"]]) - max(0, g.drawn[bot] - before["drawn"])
-    session.fx_in_flight.update(hand_to_deck + disc_to_deck + disc_to_hand)
+    session.fx_in_flight.update(hand_to_deck + disc_to_deck + disc_to_hand + played_back)
     for i in disc_to_deck + disc_to_hand:
         session.bot_discarded.discard(i)          # it may be discarded again later: the table has to move it again
     guids = {r["id"]: r["guid"] for r in session._rd_bot_discard()} if disc_to_deck or disc_to_hand else {}
     ctx = replace(ctx, bot_discard=guids)
     checks: list[Callable[[], None]] = []
-    for zone, ids in (("hand", hand_to_deck), ("discard", disc_to_deck)):
+    for zone, ids in (("hand", hand_to_deck), ("discard", played_back + disc_to_deck)):
         for intent in _groups(intents, "return_to_deck", bot, zone, ids, keep_order=True):
             checks += translate(session, intent, ctx) or []
     for intent in _groups(intents, "put_in_hand", bot, "discard", disc_to_hand):

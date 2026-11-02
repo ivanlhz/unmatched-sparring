@@ -1118,8 +1118,14 @@ class Session:
         if events.say_parked(self.game, run):     # a trigger of yours that hurt someone once you answered (the Pact)
             self._say_triggers()
             self._write_dials()
+        cause = human_effects.ABILITY_NAME.get(run.label, run.label.replace("_", " ").upper())
+        checks = self._pact_to_bottom(cause)
         if not run.flags.get("scheme"):               # a parked ability (OCCULT DETECTIVE): a scheme's draws go with its step
-            self._deal_owed_draws(human_effects.ABILITY_NAME.get(run.label, run.label.replace("_", " ").upper()))
+            self._deal_owed_draws(cause)
+        if checks:
+            self._try_flush_stage()()
+            for check in checks:
+                check()
         scheme = run.flags.get("scheme")
         if scheme:
             player = scheme["player"]
@@ -1133,6 +1139,20 @@ class Session:
                     self.say(t("sess.press_end"), ChatKind.YOUR_TURN)
         if self.game.turn == self.bot and self.pending is None and self.game.winner is None:
             self._bot_continue()
+
+    def _pact_to_bottom(self, cause: str) -> list[Callable[[], None]]:
+        """DARK PACT paid by the human: the card they played is still at their combat spot, and the engine sent it to the
+        bottom of their deck. The bot moves it there by GUID before the draw the pact owes is dealt (the reported
+        intent is taken out of the queue: nothing else translates it)."""
+        intents = self.game.fx.intents
+        if not intents:
+            return []
+        mine = [i for i in intents if i["op"] == "return_to_deck" and i["player"] == self.human and i["zone"] == "discard"
+                and i.get("position") == "bottom"]
+        for i in mine:
+            intents.remove(i)
+        ids = [c for i in mine for c in i["cards"]]
+        return translators.combat_card_to_bottom(self, ids, translators.Ctx(cause)) if ids else []
 
     def _answer_flow(self, flow: CombatFlow, value: list) -> None:
         flow.resume(value)
@@ -3594,6 +3614,12 @@ class Session:
             return self.client.call_lua(lua.read_face_down_cards(c.bot_card_spot[0], c.bot_card_spot[2],
                                                                  c.reveal_radius)) or []
         return self.client.call_lua(lua.read_face_down_cards(*c.human_card_spot, c.reveal_radius)) or []
+
+    def _rd_combat_spot(self) -> list[dict]:
+        """The FACE-UP cards at the human's combat spot: [{id, guid}] (The Mists of Munnopor: the card they played in place
+        of the discarded one). Face-down cards are never read here (`_rd_face` does that at the Reveal)."""
+        c = self.cfg
+        return self.client.call_lua(lua.read_cards_at(c.human_card_spot[0], c.human_card_spot[1], c.reveal_radius)) or []
 
     def _rd_ongoing(self, side: str) -> list[dict]:
         """The cards on the ONGOING spot of `bot` / `human` (E2); empty when the spot is not configured."""

@@ -107,7 +107,7 @@ A `pick: one` selector with no candidates does nothing (the op is skipped); with
 ### 2.3 Spaces (SpaceSel)
 
 Object with any of: `any: true` | `zone_of: FighterRef` | `adjacent_to: FighterRef` | `space_of: FighterRef`
-| `nearest_to: FighterRef` | `start_space_of: PlayerSel` | `empty: bool` (default true for placing). FighterRef is
+| `nearest_to: FighterRef` | `start_space_of: PlayerSel` | `start: true` (any starting space of the board) | `empty: bool` (default true for placing). FighterRef is
 a `role` string (`this`, `hero`, `opposing`, `attacker`, `defender`, `$var`).
 
 ### 2.4 Cards (CardSel and CardRef)
@@ -214,6 +214,7 @@ There are never conditions in strings.
 | `card_played` | `player`, `filter` | `$card` |
 | `fighter_defeated` | `fighter: FighterSel` | `$fighter` |
 | `combat_lost` | `player` (default `owner`; `any`) | `$fighter` |
+| `after_combat` | `player` (default `owner`; `any`), `fighter: FighterSel` | `$fighter`, `$card` |
 
 As expiry (`until`): `{"event": "end_of_turn"}` = the current turn, whoever's it is;
 `{"event": "start_of_turn", "player": "owner"}` = the owner's next turn;
@@ -256,6 +257,7 @@ Every op is `{"op": "<name>", ...args}`. Arguments not listed are an error.
 | `look_deck` | `player`, `amount`, `as` | `from: top | bottom` | look without moving |
 | `search_deck` | `player`, `look: int | "all"`, `take: {amount, up_to?, filter?}`, `to: hand`, `rest: bottom_random | bottom_ordered | top_ordered | shuffle` | `chooser`, `as` | Read The Bones, Prophecy, Lady of the Lake |
 | `return_to_deck` | `cards`, `position: top | bottom | shuffle` | `order: PlayerSel` | from the hand, the discard or the rival's hand to its owner's deck |
+| `shuffle_deck` | `player` (`all` allowed) | | shuffles those players' decks ("all players shuffle their decks"); see section 26 |
 | `put_in_hand` | `cards` | | from the discard or the deck to its owner's hand |
 | `redirect_damage` | `from: FighterSel`, `to: FighterSel`, `damage: effect | combat | any` | `condition`, `optional`, `chooser` | in `during`: lasts that combat |
 | `optional` | `ops` | `chooser`, `cost: [Op]`, `else: [Op]` | the `chooser` decides; `cost` is paid first (if it cannot, there is no option); `else` if it declines |

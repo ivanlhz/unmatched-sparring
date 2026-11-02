@@ -1,0 +1,204 @@
+{
+ "schema": 1,
+ "hero": "doctor-strange",
+ "notes": [
+  "Texts read from sheet 176 of the tournament savegame (card images) on 2026-11-02; the character card is 337 on sheet 3 (10x7, index 37). Sheet 176 is Medusa's and the four turtles' DeckID too: the CardIDs repeat and only the deck image tells the decks apart (docs/card-identity.md).",
+  "Discrepancy with unmatched-memory (the card wins, via `text` in the overlay): The Rings of Raggadorr says 'AFTER COMBAT: If you won the combat, your fighter and each friendly fighter adjacent to them recover health equal to the damage dealt.' unmatched-memory carries a Black Panther text for it (a BOOST up to two times that draws cards). 'No, Really, I'm a Doctor' has commas on the card (unmatched-memory: 'No Really, I'm a Doctor'; the overlay uses `memory_title`).",
+  "1v1 reading: 'your opponent' is the only rival, 'friendly fighters' are Doctor Strange and Wong, 'all players' are the two players.",
+  "BLIND BOOST (Brains and Brawn): discard the top card of your deck and add its BOOST value to the card's value (the card is not chosen). Plugin `strange:blind_boost`: the owner decides each time (up to the printed number of times).",
+  "'A starting space' is any starting space of the board (`SpaceSel.start`: the four numbered spaces of the map, free ones only); 'another starting space' is any other free one (the first fighter placed already holds its space).",
+  "DARK PACT is a trigger on the new event `after_combat` (one per card played in the combat, after the played cards reached the discard pile). It fires when Doctor Strange HIMSELF played the card (`fighter: hero`); a card played by Wong does not count."
+ ],
+ "ability": {
+  "text": "DARK PACT\nAfter each combat, if Doctor Strange played a card, you may deal 1 damage to him. If you do, put that card on the bottom of your deck and draw 1 card.",
+  "triggers": [
+   {
+    "id": "dark_pact",
+    "when": {"event": "after_combat", "player": "owner", "fighter": "hero"},
+    "ops": [
+     {"op": "optional", "chooser": "owner", "ops": [
+      {"op": "damage", "target": "hero", "amount": 1},
+      {"op": "return_to_deck", "cards": "$card", "position": "bottom"},
+      {"op": "draw", "player": "owner", "amount": 1}
+     ]}
+    ],
+    "notes": "`$card` is the card Doctor Strange played (it is in the discard pile when the trigger runs). The damage is effect damage on himself, so Pact Of Mortality (+1) and immunities apply as to any effect; if it kills him the game ends. The bot decides with `EffectAI._dark_pact` (never when the damage kills or raises the chance of dying next turn past SURVIVAL_P); the human gets the buttons only after a combat in which Strange played a card."
+   }
+  ],
+  "passives": [],
+  "notes": "A card the combat removed from the discard pile (removed from the game, tucked) is not found: the damage and the draw still happen."
+ },
+ "cards": [
+  {
+   "title": "The Winds of Watoomb",
+   "copies": 3,
+   "text": "AFTER COMBAT: Your opponent places Dr. Strange in a starting space. Place the opposing fighter in another starting space. All players shuffle their decks.",
+   "effects": {
+    "immediately": [], "during": [],
+    "after": [
+     {"op": "place", "target": "this", "where": {"start": true}, "chooser": "opponent"},
+     {"op": "place", "target": "opposing", "where": {"start": true}, "chooser": "owner"},
+     {"op": "shuffle_deck", "player": "all"}
+    ],
+    "scheme": [], "boost": []
+   },
+   "notes": "Doctor Strange attacks (attack only). The rival picks where he goes; the owner then places the opposing fighter in any other free starting space. A defeated defender is not placed. Both decks are shuffled: the engine shuffles them and forgets what the players knew of their tops; the human shuffles their own by hand."
+  },
+  {
+   "title": "The Rings of Raggadorr",
+   "copies": 3,
+   "text": "AFTER COMBAT: If you won the combat, your fighter and each friendly fighter adjacent to them recover health equal to the damage dealt.",
+   "effects": {
+    "immediately": [], "during": [],
+    "after": [
+     {"op": "if", "condition": {"test": "combat_result", "result": "won"},
+      "then": [
+       {"op": "heal", "target": "this", "amount": {"stat": "damage_dealt_this_combat"}},
+       {"op": "heal", "target": {"side": "own", "where": {"adjacent_to": "this"}, "pick": "all"}, "amount": {"stat": "damage_dealt_this_combat"}}
+      ]}
+    ],
+    "scheme": [], "boost": []
+   },
+   "notes": "Attack only (value 4, boost 1). 'Damage dealt' is the combat damage of the won combat. 'Their' fighter adjacent: adjacent to the fighter that played the card (Doctor Strange or Wong: it is an ANY card)."
+  },
+  {
+   "title": "Bolts of Balthakk",
+   "copies": 4,
+   "text": "DURING COMBAT: You may BLIND BOOST this card. AFTER COMBAT: If you won the combat, gain 1 action.",
+   "effects": {
+    "immediately": [],
+    "during": [
+     {"op": "plugin", "id": "strange:blind_boost", "args": {"times": 1}}
+    ],
+    "after": [
+     {"op": "if", "condition": {"test": "combat_result", "result": "won"}, "then": [{"op": "gain_action", "amount": 1}]}
+    ],
+    "scheme": [], "boost": []
+   },
+   "notes": "Attack only (value 2, boost 3)."
+  },
+  {
+   "title": "Seven Suns of Cinnibus",
+   "copies": 3,
+   "text": "If the value of this card is above 7, ignore its value. DURING COMBAT: You may BLIND BOOST this card up to two times.",
+   "effects": {
+    "immediately": [],
+    "during": [
+     {"op": "plugin", "id": "strange:blind_boost", "args": {"times": 2}},
+     {"op": "if", "condition": {"test": "compare", "left": {"combat_value": "this"}, "op": ">", "right": 7},
+      "then": [{"op": "set_value", "card": "this", "ignore": true}]}
+    ],
+    "after": [], "scheme": [], "boost": []
+   },
+   "notes": "Versatile (value 3, boost 2). The first sentence is applied after the blind boosts, as the last DURING step, to the total value of the card (a boost can push it over 7 and then it counts for 0). The opponent's own DURING effects that resolve later can still change the total."
+  },
+  {
+   "title": "Cloak of Levitation",
+   "copies": 2,
+   "text": "DURING COMBAT: If Dr. Strange is adjacent to the opposing fighter, ignore the value of your opponent's card.",
+   "effects": {
+    "immediately": [],
+    "during": [
+     {"op": "if", "condition": {"test": "exists", "fighters": {"role": "opposing", "where": {"adjacent_to": "hero"}}},
+      "then": [{"op": "set_value", "card": "opponent_card", "ignore": true}]}
+    ],
+    "after": [], "scheme": [], "boost": []
+   },
+   "notes": "Versatile (value 2, boost 1). Doctor Strange himself must be next to the opposing fighter (a melee rival, or any rival standing beside him); the rival's total value (bonuses included) becomes 0."
+  },
+  {
+   "title": "Feint",
+   "copies": 2,
+   "text": "IMMEDIATELY: Cancel all effects on your opponent's card.",
+   "effects": {"immediately": [{"op": "cancel_effects", "card": "opponent_card"}], "during": [], "after": [], "scheme": [], "boost": []},
+   "notes": "Versatile (value 2, boost 1)."
+  },
+  {
+   "title": "Master of Kamar-Taj",
+   "copies": 3,
+   "text": "DURING COMBAT: If Dr. Strange and Wong are adjacent, this card's value is 4 instead.",
+   "effects": {
+    "immediately": [],
+    "during": [
+     {"op": "if", "condition": {"test": "exists", "fighters": {"side": "own", "name": "Wong", "where": {"adjacent_to": "hero"}}},
+      "then": [{"op": "set_value", "card": "this", "amount": 4}]}
+    ],
+    "after": [], "scheme": [], "boost": []
+   },
+   "notes": "Versatile (value 2, boost 2, ANY). Both alive and adjacent; the printed value becomes 4, bonuses stay."
+  },
+  {
+   "title": "Steadfast Disciple",
+   "copies": 3,
+   "text": "AFTER COMBAT: If Wong is adjacent to the opposing fighter, deal 1 damage to the opposing fighter and draw 1 card.",
+   "effects": {
+    "immediately": [], "during": [],
+    "after": [
+     {"op": "if", "condition": {"test": "exists", "fighters": {"role": "opposing", "where": {"adjacent_to": "this"}}},
+      "then": [
+       {"op": "damage", "target": "opposing", "amount": 1},
+       {"op": "draw", "player": "owner", "amount": 1}
+      ]}
+    ],
+    "scheme": [], "boost": []
+   },
+   "notes": "Wong's card (versatile, value 2, boost 2): `this` is Wong. The opposing fighter must still be alive and next to him after the combat."
+  },
+  {
+   "title": "The Mists of Munnopor",
+   "copies": 3,
+   "text": "IMMEDIATELY: Discard your opponent's card. They reveal cards from their deck until they reveal an attack or versatile card they can play. They play that card and randomly put the rest of the revealed cards on the bottom of their deck.",
+   "effects": {
+    "immediately": [
+     {"op": "plugin", "id": "strange:mists_of_munnopor"}
+    ],
+    "during": [], "after": [], "scheme": [], "boost": []
+   },
+   "notes": "Defense only (value 2, boost 2). The attacker's card is discarded (without its effects), their deck is revealed from the top until an attack or versatile card the attacking fighter may play shows up; that card becomes their card in this combat (its IMMEDIATELY, DURING and AFTER effects run as usual) and the other revealed cards go to the bottom of their deck in random order. No such card: the attacker has no card (value 0, no effects). See docs/heroes/doctor-strange.md."
+  },
+  {
+   "title": "No, Really, I'm a Doctor",
+   "copies": 2,
+   "text": "Reveal a card from your hand and put it on top of your deck. Dr. Strange or a friendly fighter adjacent to him recovers health equal to that card's boost value.",
+   "effects": {
+    "immediately": [], "during": [], "after": [],
+    "scheme": [
+     {"op": "plugin", "id": "strange:reveal_to_top", "args": {"as": "shown"}},
+     {"op": "heal", "target": {"side": "own", "filter": {"is_or_adjacent_to": "hero"}}, "amount": {"attr": "boost", "of": "$shown"}, "chooser": "owner"}
+    ],
+    "boost": []
+   },
+   "notes": "Scheme (boost 3). The owner picks the card (plugin `strange:reveal_to_top`: reveal and put on top in one step); the rival sees it (it is face up on top of the deck, so it becomes the known top card). The heal goes to Doctor Strange or to Wong when he is adjacent to him, the owner's choice. The human lays the card on their discard pile for the bot to read and the bot moves it to the top of their deck."
+  },
+  {
+   "title": "Eye of Agamotto",
+   "copies": 2,
+   "text": "Shuffle your hand into your deck. Draw 5 cards. Gain 1 action.",
+   "effects": {
+    "immediately": [], "during": [], "after": [],
+    "scheme": [
+     {"op": "return_to_deck", "cards": {"zone": "hand", "player": "owner", "pick": "all"}, "position": "shuffle"},
+     {"op": "draw", "player": "owner", "amount": 5},
+     {"op": "gain_action", "amount": 1}
+    ],
+    "boost": []
+   },
+   "notes": "Scheme (boost 2). The scheme card itself is already played, so it is not part of the hand that goes back."
+  }
+ ],
+ "plugins": [
+  {"id": "strange:blind_boost", "why": "BLIND BOOST up to N times: each time the owner decides, then the TOP card of the deck is discarded and its BOOST value added; for the human the card is the real top one, read from their discard pile (the engine does not know their deck)."},
+  {"id": "strange:mists_of_munnopor", "why": "The rival's card is replaced by one found by revealing their deck until an attack or versatile card the attacker may play shows up; a reveal loop with a replacement of the card in the running combat."},
+  {"id": "strange:reveal_to_top", "why": "A card of the owner's hand is chosen, shown to the rival and put on top of the deck (it becomes the known top card): for the human it is a card only they hold, so they lay it on their discard pile for the bot to read and the bot moves it on top of their deck."}
+ ],
+ "hidden_info": [
+  {"card": "The Mists of Munnopor", "what": "reveals cards from the rival's deck", "bot_rule": "When the bot is the rival (the human plays Mists) the bot reveals from its own deck (the engine's order of it is as unknown to the human as to anyone) and announces each revealed card. When the human is the rival, they reveal their own deck by hand and play the card they find; the bot only reads that card."},
+  {"card": "No, Really, I'm a Doctor", "what": "reveals a card of the owner's hand", "bot_rule": "The bot picks the card from its own hand. The human lays theirs on their discard pile; the bot reads it and puts it on top of their deck. The bot never looks at the human's hand."},
+  {"card": "Eye of Agamotto", "what": "the whole hand is shuffled into the deck and 5 cards are drawn", "bot_rule": "Nothing is read: the human shuffles by hand and the bot deals the 5 cards."}
+ ],
+ "open_questions": [
+  "BLIND BOOST is read as discarding the top card of the deck (no choice, no cost in hand). Check the Brains and Brawn rulebook.",
+  "A starting space is read as any of the four starting spaces of the board.",
+  "DARK PACT is read as applying only when Doctor Strange himself played the card."
+ ]
+}

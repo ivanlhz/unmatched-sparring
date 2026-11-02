@@ -44,6 +44,25 @@ def make_known(game, player: int, card, keep: tuple = ()) -> None:
     st.hand.append(card)
 
 
+def take_from_deck(game, player: int, card) -> None:
+    """A card of the table player's REAL deck went into play or onto a pile (a blind boost, a card a reveal found): the
+    engine's copy of the deck is placeholders, so it gives up that card; if it stands in the virtual hand, a placeholder of
+    the deck takes its place there (the hand did not change). What the rival knew of their top card is stale."""
+    st = game.players[player]
+    known = game.players[1 - player].known
+    if card in st.deck:
+        st.deck.remove(card)
+    elif card in st.hand:
+        st.hand.remove(card)
+        spare = next((c for c in reversed(st.deck) if c.card_id not in known.seen), None) or (st.deck[-1] if st.deck else None)
+        if spare is not None:
+            st.deck.remove(spare)
+            st.hand.append(spare)
+    elif card in st.discard:
+        st.discard.remove(card)
+    known.clear_top()
+
+
 def hand_pick_is_physical(game, run, sel) -> bool:
     """A choice out of the table player's own hand at their own choice, at random or of all of it: the engine never
     names those cards (its copy of the hand is placeholders), the table settles it."""
@@ -147,6 +166,8 @@ def line(n: dict) -> str:
         return t("tbl.look_deck.top" if n.get("top", True) else "tbl.look_deck.bottom", cards=plural(n["amount"], "noun.card"))
     if op == "deck_to_bottom":
         return t("tbl.deck_to_bottom", cards=plural(n["amount"], "noun.card"))
+    if op == "shuffle_deck":
+        return t("tbl.shuffle_deck")
     if op == "search_deck":
         look = t("tbl.look.all") if n["look"] == "all" else t("tbl.look.first", n=n["look"])
         rest = t({"bottom_random": "tbl.rest.bottom_random", "bottom_ordered": "tbl.rest.bottom_ordered",

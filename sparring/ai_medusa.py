@@ -852,6 +852,26 @@ class MedusaAI(Controller):
                     score += self.strike_reward(game, h)
         return score
 
+    def death_risk(self, game: Game, model: Model, t: Fighter, hp: float) -> float:
+        """Chance that my fighter `t`, with `hp` hit points, dies in the rival's next turn: the worst of the rival fighters
+        that can get in reach (they move, one extra space for a boost, then strike), hitting twice, against my best
+        defenses in hand. Counts every rival, not only those already in reach, so a hit point spent now is priced."""
+        if t.pos is None or not t.alive:
+            return 0.0
+        hand = game.players[self.me].hand
+        real, t.hp = t.hp, hp
+        try:
+            risk = 0.0
+            for e in game.foes(self.me):
+                if e.pos is None:
+                    continue
+                strikes = game.legal_moves(e, e.move + 1) | {e.pos}
+                if any(game.board.can_reach_target(s, t.pos, e.ranged) for s in strikes):
+                    risk = max(risk, self.two_hit_threat(model, e, t, hand)[1])
+            return risk
+        finally:
+            t.hp = real
+
     def double_blow_risk(self, game: Game, model: Model, override: dict) -> float:
         """Chance that my hero dies to the two blows of a rival already in reach of it, with `override` positions."""
         pos = {f.fid: f.pos for f in game.fighters.values() if f.alive}

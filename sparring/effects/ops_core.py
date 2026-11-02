@@ -487,12 +487,31 @@ def _choice_context(game, run, spec: dict) -> dict:
             ctx["cancels"] = _cancellable_moments(game, run)
     if len(ops) == 1 and ops[0]["op"] == "discard" and isinstance(ops[0]["cards"], str):
         ctx["discards"] = [c.card_id for c in card_ref(game, run, ops[0]["cards"])]
+    pact = _pact_context(game, run, ops)
+    if pact is not None:
+        ctx["pact"] = pact
     if len(other) == 1 and other[0]["op"] == "damage" and isinstance(other[0].get("amount"), int):
         ctx["else_damage"] = other[0]["amount"]
         cands, _ = fighter_candidates(game, run, other[0]["target"])
         if len(cands) == 1:
             ctx["else_fighter"] = cands[0].fid       # who takes it: the answer's price in hit points
     return ctx
+
+
+def _pact_context(game, run, ops: list[dict]) -> dict | None:
+    """An optional that costs the owner's own fighter hit points and sends a card to the bottom of the deck for a draw
+    (DARK PACT): `fighter`, `damage`, the `card` that goes and the cards it `draws`. A bot weighs these with `EffectAI`."""
+    hurt = next((o for o in ops if o["op"] == "damage" and isinstance(o.get("amount"), int)), None)
+    back = next((o for o in ops if o["op"] == "return_to_deck" and isinstance(o["cards"], str)
+                 and o.get("position") == "bottom"), None)
+    if hurt is None or back is None:
+        return None
+    cands, _ = fighter_candidates(game, run, hurt["target"])
+    if len(cands) != 1 or cands[0].owner != run.ctx.owner:
+        return None
+    cards = card_ref(game, run, back["cards"])
+    draws = sum(int(o["amount"]) for o in ops if o["op"] == "draw" and isinstance(o.get("amount"), int))
+    return {"fighter": cands[0].fid, "damage": hurt["amount"], "card": cards[0].card_id if cards else None, "draws": draws}
 
 
 def _cancellable_moments(game, run) -> int:
@@ -546,3 +565,4 @@ def _plugin(run, game, spec):
 from . import ops_combat  # noqa: E402,F401  (registers the combat ops over the registry above)
 from . import ops_info  # noqa: E402,F401  (registers look_hand, reveal, look_deck, search_deck, return_to_deck, put_in_hand)
 from . import plugins_raphael  # noqa: E402,F401  (registers raphael:unbridled_rage)
+from . import plugins_strange  # noqa: E402,F401  (registers strange:blind_boost, strange:mists_of_munnopor, strange:reveal_to_top)
