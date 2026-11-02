@@ -746,6 +746,7 @@
  "console.overwrite": "{state} will be overwritten by the new game (use --resume to continue it).",
  "console.timing": "[timing] {line}",
  "console.panel_ready": "Panel created on the table. Waiting for buttons (Ctrl+C to quit).",
+ "console.panel_ready_launcher": "Panel created on the table. Waiting for buttons (press STOP in the launcher to finish).",
  "console.floor_failed": "could not mark the zones on the floor: {error}",
  "console.announce_failed": "could not show the message on the table: {error}",
  "console.unpacked": "[bot] I took {n} hero object(s) out of their bag: {items}.",

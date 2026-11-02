@@ -58,6 +58,7 @@ def state_dir(frozen: bool = FROZEN) -> Path:
 
 
 DEFAULT_STATE = state_dir() / "session.json"
+LAUNCHED = False                                   # set by launcher_mode: the console is the launcher window, not a terminal
 STATUS_PREFIX = "[sparring:status]"                 # --launcher: one machine-readable line per change of state
 
 
@@ -946,7 +947,7 @@ def play(cfg: PlayConfig, client: TTSClient, first: str, seed: int, stop: thread
     client.call_lua(lua.create_panel(targets, cfg.panel_position, cfg.panel_rotation, cfg.panel_scale,
                                      cfg.nicknames, snapshot=session.snapshot_spec() if scfg.batch else None,
                                      attacker_ids=cfg.attacker_ids, human_seat=scfg.human_seat))
-    echo(t("console.panel_ready"))
+    echo(t("console.panel_ready_launcher" if LAUNCHED else "console.panel_ready"))
     on_ready()
     try:
         mark_floor(client, scfg)
@@ -1043,14 +1044,18 @@ def launcher_mode(stop: threading.Event) -> Callable[[str], None]:
     """--launcher: UTF-8 line-buffered output (a pipe would get the ANSI code page and block buffering), a stop
     channel on stdin (a `quit` line, or the pipe closing because the launcher died, has the effect of Ctrl+C without
     the interruption: the loop ends and the panel and floor labels are removed) and the status line writer."""
+    global LAUNCHED
+    LAUNCHED = True
     for stream in (sys.stdout, sys.stderr):
         stream.reconfigure(encoding="utf-8", errors="replace", line_buffering=True)
 
     def watch_stdin() -> None:
-        for line in sys.stdin:
-            if line.strip() == "quit":
-                break
-        stop.set()
+        try:                                      # a broken or undecodable stdin must still stop the bot, never strand it
+            for line in sys.stdin:
+                if line.strip() == "quit":
+                    break
+        finally:
+            stop.set()
     threading.Thread(target=watch_stdin, name="launcher-stdin", daemon=True).start()
 
     def status(word: str) -> None:

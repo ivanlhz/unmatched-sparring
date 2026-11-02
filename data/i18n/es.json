@@ -746,6 +746,7 @@
  "console.overwrite": "{state} se sobrescribira con la partida nueva (usa --resume para reanudarla).",
  "console.timing": "[tiempo] {line}",
  "console.panel_ready": "Panel creado en la mesa. Esperando botones (Ctrl+C para salir).",
+ "console.panel_ready_launcher": "Panel creado en la mesa. Esperando botones (pulsa PARAR en el lanzador para terminar).",
  "console.floor_failed": "no pude marcar las zonas en el suelo: {error}",
  "console.announce_failed": "no pude mostrar el mensaje en la mesa: {error}",
  "console.unpacked": "[bot] He sacado de su bolsa {n} objeto(s) de los heroes: {items}.",
