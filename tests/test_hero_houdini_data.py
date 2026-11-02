@@ -89,7 +89,7 @@ def test_the_effects_file_validates_and_has_a_boost_moment_for_exactly_the_boost
 
 def test_every_plugin_is_declared_and_registered(effects):
     from sparring.effects.ops_core import PLUGINS
-    assert {p["id"] for p in effects["plugins"]} == {"houdini:replace_combatant", "houdini:return_boosted"}
+    assert {p["id"] for p in effects["plugins"]} == {"houdini:replace_combatant", "houdini:return_boosted", "houdini:sleight_of_hand"}
     assert all(p["id"] in PLUGINS for p in effects["plugins"])
 
 
