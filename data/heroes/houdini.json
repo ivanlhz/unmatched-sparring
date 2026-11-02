@@ -1,0 +1,420 @@
+{
+ "_source": {
+  "memory": "unmatched-memory/data/heroes/harry-houdini.json",
+  "overlay": "data/heroes/overlay/houdini.json",
+  "generator": "tools/import_hero.py"
+ },
+ "slug": "houdini",
+ "name": "Houdini",
+ "fid": "houdini",
+ "hp": 14,
+ "move": 2,
+ "attack": "melee",
+ "set": "houdini-vs-the-genie",
+ "ability": "ESCAPE ARTIST\nWhen you take the maneuver action and BOOST, you may place Houdini in any space instead of moving. (Bess moves as normal.)",
+ "sidekicks": [
+  {
+   "name": "Bess",
+   "hp": 5,
+   "move": 2,
+   "attack": "melee",
+   "count": 1,
+   "fid": "bess"
+  }
+ ],
+ "forms": null,
+ "counters": {},
+ "triggers": [],
+ "passives": [],
+ "deck": {
+  "card_base": 17800,
+  "sheet": 178,
+  "cards": [
+   {
+    "idx": 0,
+    "title": "The Big Reveal",
+    "fighter": "Houdini",
+    "type": "attack",
+    "value": 2,
+    "boost": 3,
+    "text": "DURING COMBAT: You may BOOST this card twice. AFTER COMBAT: Return one card you boosted with to your hand.",
+    "tags": []
+   },
+   {
+    "idx": 1,
+    "title": "The Big Reveal",
+    "fighter": "Houdini",
+    "type": "attack",
+    "value": 2,
+    "boost": 3,
+    "text": "DURING COMBAT: You may BOOST this card twice. AFTER COMBAT: Return one card you boosted with to your hand.",
+    "tags": []
+   },
+   {
+    "idx": 2,
+    "title": "An Illusion of My Own Design",
+    "fighter": "Houdini",
+    "type": "attack",
+    "value": 4,
+    "boost": 1,
+    "text": "IMMEDIATELY: Your opponent may BOOST their card. DURING COMBAT: You may BOOST this card.",
+    "tags": []
+   },
+   {
+    "idx": 3,
+    "title": "An Illusion of My Own Design",
+    "fighter": "Houdini",
+    "type": "attack",
+    "value": 4,
+    "boost": 1,
+    "text": "IMMEDIATELY: Your opponent may BOOST their card. DURING COMBAT: You may BOOST this card.",
+    "tags": []
+   },
+   {
+    "idx": 4,
+    "title": "Sleight of Hand",
+    "fighter": "any",
+    "type": "attack",
+    "value": 1,
+    "boost": 3,
+    "text": "IMMEDIATELY: You may return this card to your hand and choose a different card to play. Resolve all effects on that card as normal. BOOSTED WITH: Draw 1 card.",
+    "tags": []
+   },
+   {
+    "idx": 5,
+    "title": "Sleight of Hand",
+    "fighter": "any",
+    "type": "attack",
+    "value": 1,
+    "boost": 3,
+    "text": "IMMEDIATELY: You may return this card to your hand and choose a different card to play. Resolve all effects on that card as normal. BOOSTED WITH: Draw 1 card.",
+    "tags": []
+   },
+   {
+    "idx": 6,
+    "title": "For My Next Trick",
+    "fighter": "any",
+    "type": "attack",
+    "value": 2,
+    "boost": 2,
+    "text": "AFTER COMBAT: Move one of your fighters up to 1 space. Draw 1 card. Gain 1 action.",
+    "tags": []
+   },
+   {
+    "idx": 7,
+    "title": "For My Next Trick",
+    "fighter": "any",
+    "type": "attack",
+    "value": 2,
+    "boost": 2,
+    "text": "AFTER COMBAT: Move one of your fighters up to 1 space. Draw 1 card. Gain 1 action.",
+    "tags": []
+   },
+   {
+    "idx": 8,
+    "title": "Flourish",
+    "fighter": "any",
+    "type": "attack",
+    "value": 3,
+    "boost": 2,
+    "text": "DURING COMBAT: You may BOOST this card. BOOSTED WITH: Draw 1 card.",
+    "tags": []
+   },
+   {
+    "idx": 9,
+    "title": "Flourish",
+    "fighter": "any",
+    "type": "attack",
+    "value": 3,
+    "boost": 2,
+    "text": "DURING COMBAT: You may BOOST this card. BOOSTED WITH: Draw 1 card.",
+    "tags": []
+   },
+   {
+    "idx": 10,
+    "title": "Flourish",
+    "fighter": "any",
+    "type": "attack",
+    "value": 3,
+    "boost": 2,
+    "text": "DURING COMBAT: You may BOOST this card. BOOSTED WITH: Draw 1 card.",
+    "tags": []
+   },
+   {
+    "idx": 11,
+    "title": "Flourish",
+    "fighter": "any",
+    "type": "attack",
+    "value": 3,
+    "boost": 2,
+    "text": "DURING COMBAT: You may BOOST this card. BOOSTED WITH: Draw 1 card.",
+    "tags": []
+   },
+   {
+    "idx": 12,
+    "title": "Vanishing Act",
+    "fighter": "Houdini",
+    "type": "versatile",
+    "value": 2,
+    "boost": 2,
+    "text": "AFTER COMBAT: Choose one of the fighters in the combat and move them up to 3 spaces. They may move through their opposing fighters.",
+    "tags": []
+   },
+   {
+    "idx": 13,
+    "title": "Vanishing Act",
+    "fighter": "Houdini",
+    "type": "versatile",
+    "value": 2,
+    "boost": 2,
+    "text": "AFTER COMBAT: Choose one of the fighters in the combat and move them up to 3 spaces. They may move through their opposing fighters.",
+    "tags": []
+   },
+   {
+    "idx": 14,
+    "title": "Vanishing Act",
+    "fighter": "Houdini",
+    "type": "versatile",
+    "value": 2,
+    "boost": 2,
+    "text": "AFTER COMBAT: Choose one of the fighters in the combat and move them up to 3 spaces. They may move through their opposing fighters.",
+    "tags": []
+   },
+   {
+    "idx": 15,
+    "title": "Smoke and Mirrors",
+    "fighter": "any",
+    "type": "versatile",
+    "value": 3,
+    "boost": 1,
+    "text": "IMMEDIATELY: Houdini and Bess may swap spaces. If they do, your other fighter is now in the combat.",
+    "tags": []
+   },
+   {
+    "idx": 16,
+    "title": "Smoke and Mirrors",
+    "fighter": "any",
+    "type": "versatile",
+    "value": 3,
+    "boost": 1,
+    "text": "IMMEDIATELY: Houdini and Bess may swap spaces. If they do, your other fighter is now in the combat.",
+    "tags": []
+   },
+   {
+    "idx": 17,
+    "title": "Misdirection",
+    "fighter": "any",
+    "type": "versatile",
+    "value": 2,
+    "boost": 1,
+    "text": "IMMEDIATELY: Cancel all effects on your opponent's card. BOOSTED WITH: Deal 2 damage to any fighter.",
+    "tags": []
+   },
+   {
+    "idx": 18,
+    "title": "Misdirection",
+    "fighter": "any",
+    "type": "versatile",
+    "value": 2,
+    "boost": 1,
+    "text": "IMMEDIATELY: Cancel all effects on your opponent's card. BOOSTED WITH: Deal 2 damage to any fighter.",
+    "tags": []
+   },
+   {
+    "idx": 19,
+    "title": "Misdirection",
+    "fighter": "any",
+    "type": "versatile",
+    "value": 2,
+    "boost": 1,
+    "text": "IMMEDIATELY: Cancel all effects on your opponent's card. BOOSTED WITH: Deal 2 damage to any fighter.",
+    "tags": []
+   },
+   {
+    "idx": 20,
+    "title": "And the Beautiful Bess!",
+    "fighter": "Bess",
+    "type": "versatile",
+    "value": 3,
+    "boost": 1,
+    "text": "If you discard this card as a result of an opponent's effect, draw 1 card. BOOSTED WITH: If it's your turn, gain 1 action.",
+    "tags": []
+   },
+   {
+    "idx": 21,
+    "title": "And the Beautiful Bess!",
+    "fighter": "Bess",
+    "type": "versatile",
+    "value": 3,
+    "boost": 1,
+    "text": "If you discard this card as a result of an opponent's effect, draw 1 card. BOOSTED WITH: If it's your turn, gain 1 action.",
+    "tags": []
+   },
+   {
+    "idx": 22,
+    "title": "Grand Escape",
+    "fighter": "Houdini",
+    "type": "defense",
+    "value": 2,
+    "boost": 3,
+    "text": "DURING COMBAT: You may BOOST this card. AFTER COMBAT: If you won the combat, place your fighter in any space.",
+    "tags": []
+   },
+   {
+    "idx": 23,
+    "title": "Grand Escape",
+    "fighter": "Houdini",
+    "type": "defense",
+    "value": 2,
+    "boost": 3,
+    "text": "DURING COMBAT: You may BOOST this card. AFTER COMBAT: If you won the combat, place your fighter in any space.",
+    "tags": []
+   },
+   {
+    "idx": 24,
+    "title": "Grand Escape",
+    "fighter": "Houdini",
+    "type": "defense",
+    "value": 2,
+    "boost": 3,
+    "text": "DURING COMBAT: You may BOOST this card. AFTER COMBAT: If you won the combat, place your fighter in any space.",
+    "tags": []
+   },
+   {
+    "idx": 25,
+    "title": "All Part of the Show",
+    "fighter": "any",
+    "type": "defense",
+    "value": 2,
+    "boost": 2,
+    "text": "This card's effect cannot be canceled. AFTER COMBAT: If your fighter was defeated, set their health to 4 instead and place them in any space. (This effect happens even if Houdini was defeated.) BOOSTED WITH: Houdini recovers 2 health.",
+    "tags": []
+   },
+   {
+    "idx": 26,
+    "title": "All Part of the Show",
+    "fighter": "any",
+    "type": "defense",
+    "value": 2,
+    "boost": 2,
+    "text": "This card's effect cannot be canceled. AFTER COMBAT: If your fighter was defeated, set their health to 4 instead and place them in any space. (This effect happens even if Houdini was defeated.) BOOSTED WITH: Houdini recovers 2 health.",
+    "tags": []
+   },
+   {
+    "idx": 27,
+    "title": "Set the Stage",
+    "fighter": "Bess",
+    "type": "scheme",
+    "value": null,
+    "boost": 2,
+    "text": "Draw 3 cards. Then, put a card in your hand on top of your deck. BOOSTED WITH: Look at an opponent's hand and choose a card for them to discard.",
+    "tags": []
+   },
+   {
+    "idx": 28,
+    "title": "Set the Stage",
+    "fighter": "Bess",
+    "type": "scheme",
+    "value": null,
+    "boost": 2,
+    "text": "Draw 3 cards. Then, put a card in your hand on top of your deck. BOOSTED WITH: Look at an opponent's hand and choose a card for them to discard.",
+    "tags": []
+   },
+   {
+    "idx": 29,
+    "title": "A Magician Never Reveals His Secrets",
+    "fighter": "Houdini",
+    "type": "scheme",
+    "value": null,
+    "boost": 4,
+    "text": "Draw 2 cards. Gain 1 action. If an effect would let an opponent look at your hand, you may reveal this card and cancel that effect.",
+    "tags": []
+   }
+  ]
+ },
+ "ai_profile": {
+  "houdini": {
+   "name": "Houdini",
+   "hero": true,
+   "count": 1,
+   "max_hp": 14,
+   "move": 2,
+   "ranged": false,
+   "role": "hero",
+   "attack": {
+    "cards": 20,
+    "mean": 2.4,
+    "max": 4
+   },
+   "exclusive": [
+    {
+     "title": "The Big Reveal",
+     "type": "attack",
+     "copies": 2,
+     "impact": 0.9
+    },
+    {
+     "title": "An Illusion of My Own Design",
+     "type": "attack",
+     "copies": 2,
+     "impact": 0.9
+    },
+    {
+     "title": "Vanishing Act",
+     "type": "versatile",
+     "copies": 3,
+     "impact": 0.78
+    },
+    {
+     "title": "Grand Escape",
+     "type": "defense",
+     "copies": 3,
+     "impact": 0.77
+    },
+    {
+     "title": "A Magician Never Reveals His Secrets",
+     "type": "scheme",
+     "copies": 1,
+     "impact": 2.1
+    }
+   ]
+  },
+  "bess": {
+   "name": "Bess",
+   "hero": false,
+   "count": 1,
+   "max_hp": 5,
+   "move": 2,
+   "ranged": false,
+   "role": "striker",
+   "attack": {
+    "cards": 15,
+    "mean": 2.4,
+    "max": 3
+   },
+   "exclusive": [
+    {
+     "title": "And the Beautiful Bess!",
+     "type": "versatile",
+     "copies": 2,
+     "impact": 1.05
+    },
+    {
+     "title": "Set the Stage",
+     "type": "scheme",
+     "copies": 2,
+     "impact": 2.24
+    }
+   ],
+   "requires_alive": []
+  }
+ },
+ "_notes": [
+  "Sheet 178 of the tournament savegame (8x4, its own FaceURL), read card by card from the image on 2026-11-02. CardID = 17800 + idx; 17700 = the character card, a sheet of its own (177, 1x1) inside the same physical deck, which is why the catalog lists two images and card_ids 17700..17829.",
+  "unmatched-memory files the hero as `harry-houdini` (`memory_slug`) and names it 'Harry Houdini'; the hero card, the miniature and the cards read HOUDINI (`name`), the sparring slug is the catalog's `houdini`.",
+  "Restriction band (HOUDINI, BESS or ANY) and copies (xN) read from the images. HOUDINI on The Big Reveal, An Illusion Of My Own Design, Vanishing Act, Grand Escape and A Magician Never Reveals His Secrets; BESS on And The Beautiful Bess! and Set The Stage; ANY on the other six titles.",
+  "Hero card (read from the image): HOUDINI, MELEE, START HEALTH 14, MOVE 2; sidekick BESS, MELEE, START HEALTH 5 (move 2 from unmatched-memory: the hero card prints no move for the sidekick).",
+  "Discrepancy with unmatched-memory (the real card wins): An Illusion Of My Own Design prints BOOST 1, unmatched-memory says 2 (`boost` below overrides it). The BOOSTED WITH text of the six cards that have one is appended to the card text by the importer (`effectBoost`).",
+  "ESCAPE ARTIST stays as data here; the interpreter reads the `maneuver_boost_places_hero` rule of data/heroes/effects/houdini.json."
+ ]
+}

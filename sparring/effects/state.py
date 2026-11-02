@@ -11,7 +11,8 @@ from typing import Iterable
 # Heroes whose cards and ability the interpreter resolves by default, whoever plays them (C5: Medusa; D1 the Hellboy
 # box for the bot, E2 for the human too, in table mode: effects/table.py). `Game` derives `fx.dsl_heroes` from the
 # heroes in play and persist omits the set when it is this default, so old saves load unchanged.
-INTERPRETED_HEROES = frozenset({"medusa", "hellboy", "abe-sapien", "baba-yaga", "liz-sherman", "leonardo", "donatello", "michelangelo", "raphael"})
+INTERPRETED_HEROES = frozenset({"medusa", "hellboy", "abe-sapien", "baba-yaga", "liz-sherman", "leonardo", "donatello", "michelangelo", "raphael",
+                                "houdini"})
 
 
 def interpreted(slugs: Iterable[str]) -> set[str]:
@@ -119,6 +120,19 @@ class EffectState:
             return True
         from .modifiers import can_force_discard
         return can_force_discard(self, player, source_player)
+
+    def hero_rule(self, player: int, rule: str) -> bool:
+        """The hero of `player` has the passive rule `rule` (ESCAPE ARTIST: `maneuver_boost_places_hero`)."""
+        if not self.dsl_heroes:
+            return False
+        from .modifiers import hero_rule
+        return hero_rule(self.game(), player, rule)
+
+    def boost_effects(self, player: int, card) -> None:
+        """`card` was spent as a BOOST outside a combat (a Maneuver): its `boost` moment runs now as an effect of `player`."""
+        if self.dsl_heroes:
+            from .events import run_boost
+            run_boost(self.game(), player, card)
 
     def can_move(self, fighter) -> bool:
         """False when a status keeps `fighter` where it is (Burning Barrier, Counterhex Shield vs. enemy effects)."""

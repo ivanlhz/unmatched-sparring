@@ -137,6 +137,9 @@ class CombatFlow:
         self.redirects: list[dict] = []              # combat damage redirections registered this combat
         self.late_cancelled: set[str] = set()        # sides whose DURING and AFTER effects (not IMMEDIATELY) are cancelled
         self.cancel_hits: set[str] = set()           # sides whose card really lost an effect to a cancellation
+        self.boost_granted: set[str] = set()         # sides an effect lets BOOST their card (An Illusion Of My Own Design)
+        self.boosted: dict[str, list[int]] = {}      # side -> ids of the cards it was boosted with, in order (The Big Reveal)
+        self.deferred_loss: int | None = None        # the player whose hero fell in this combat and may still be saved by an AFTER effect
         self.choosers: dict | None = None            # player -> effects Chooser; None = the controllers decide
 
     @property
@@ -217,6 +220,7 @@ class CombatFlow:
         if phase is Phase.AFTER:
             self.after_open = self.game.winner is None
         elif phase is Phase.DONE:
+            self._settle_deferred_defeat()
             for owner, card in self.played:
                 inventions.settle_played(self.game, owner, card)
             if self.game.winner is None:
@@ -314,17 +318,46 @@ class CombatFlow:
             if victim is not self.tgt and damage:
                 result.applied.append(t("cf.redirect", victim=victim.fid, target=self.tgt.fid))
         self.game.damage(victim, damage, "combat")
+        if self.game.winner is not None and victim.hero and self._defers_defeat(victim):
+            self.game.winner, self.deferred_loss = None, victim.owner     # the AFTER effects may bring the hero back
         result.atk_value, result.def_value, result.damage, result.attacker_won = ctx.atk_value, ctx.def_value, damage, damage >= 1
         result.cancelled = set(ctx.cancelled)
         result.cancelled_after = set(ctx.cancelled_after)
         loser = self.tgt if damage >= 1 else self.att       # a tie is lost by the attacker (the engine's "won")
         self.game.fx.emit("combat_lost", loser.owner, loser)
 
+    def replace_combatant(self, old: Fighter, new: Fighter) -> bool:
+        """`new` takes the place of `old` in this combat (Smoke And Mirrors): the same cards, another fighter. The rival's
+        card is aimed at the new one from now on. False if `old` is not in the combat."""
+        if old is self.att:
+            self.att = new
+        elif old is self.tgt:
+            self.tgt = new
+        else:
+            return False
+        self.ctx.attacker, self.ctx.target = self.att, self.tgt
+        self.result.attacker, self.result.target = self.att.fid, self.tgt.fid
+        self.sides = [Side(*s) for s in _side_cards(self.ctx)]
+        return True
+
+    def _defers_defeat(self, victim: Fighter) -> bool:
+        """The victim's owner plays a card whose text says the defeat waits for the AFTER effects (All Part of the Show)."""
+        from .effects.modifiers import defers_defeat
+        return any(s.fighter.owner == victim.owner and defers_defeat(s.card) and not self.is_cancelled(s.name)
+                   for s in self.sides)
+
+    def _settle_deferred_defeat(self) -> None:
+        """The AFTER effects are over: a hero still down loses the game now."""
+        owner, self.deferred_loss = self.deferred_loss, None
+        if owner is not None and not self.game.hero(owner).alive:
+            self.game.winner = 1 - owner
+
     # ---------- serialization ----------
     def to_dict(self) -> dict:
         out = self._base_dict(self.ctx, self.result)
         if (self.runs or self.printed_set or self.mods["atk"] or self.mods["def"] or self.redirects
-                or self.late_cancelled or self.cancel_hits):
+                or self.late_cancelled or self.cancel_hits or self.boost_granted or self.boosted
+                or self.deferred_loss is not None):
             out["dsl"] = {"runs": {k: r.to_dict() for k, r in self.runs.items()}, "printed_set": dict(self.printed_set),
                           "mods": {k: [list(m) for m in v] for k, v in self.mods.items()},
                           "redirects": [dict(r) for r in self.redirects]}
@@ -332,6 +365,12 @@ class CombatFlow:
                 out["dsl"]["late_cancelled"] = sorted(self.late_cancelled)
             if self.cancel_hits:
                 out["dsl"]["cancel_hits"] = sorted(self.cancel_hits)
+            if self.boost_granted:
+                out["dsl"]["boost_granted"] = sorted(self.boost_granted)
+            if self.boosted:
+                out["dsl"]["boosted"] = {k: list(v) for k, v in self.boosted.items()}
+            if self.deferred_loss is not None:
+                out["dsl"]["deferred_loss"] = self.deferred_loss
         return out
 
     def _base_dict(self, ctx, res) -> dict:
@@ -374,6 +413,7 @@ class CombatFlow:
         flow.sides = []
         flow.runs, flow.printed_set, flow.redirects, flow.choosers = {}, {}, [], None
         flow.late_cancelled, flow.cancel_hits = set(), set()
+        flow.boost_granted, flow.boosted, flow.deferred_loss = set(), {}, None
         flow.mods = {"atk": [], "def": []}
         if "dsl" in raw:
             from .effects.run import EffectRun
@@ -385,6 +425,9 @@ class CombatFlow:
             flow.mods = {k: [list(m) for m in v] for k, v in d["mods"].items()}
             flow.redirects = [dict(r) for r in d["redirects"]]
             flow.late_cancelled, flow.cancel_hits = set(d.get("late_cancelled", ())), set(d.get("cancel_hits", ()))
+            flow.boost_granted = set(d.get("boost_granted", ()))
+            flow.boosted = {k: list(v) for k, v in d.get("boosted", {}).items()}
+            flow.deferred_loss = d.get("deferred_loss")
         if raw["ctx"] is not None:
             c, r = raw["ctx"], raw["result"]
             flow.ctx = CombatCtx(att, tgt, flow.atk_card, flow.def_card, c["atk_value"], c["def_value"],
@@ -489,22 +532,34 @@ def dsl_immediately(flow: CombatFlow, side: Side) -> Await | None:
 
 @rule(Phase.DURING, match=_dsl)
 def dsl_during(flow: CombatFlow, side: Side) -> Await | None:
-    """The card's DURING ops, then its free BOOST if the data says `may_boost` (either side: Out Of Time defends)."""
-    from .effects.modifiers import add_value, may_boost
+    """The card's DURING ops, then its free BOOST: `may_boost` in the data (either side: Out Of Time defends), or an
+    effect that granted it (`allow_boost`), as many cards as the card says (`max_boosts`). Each boost card spent runs its
+    own `boost` moment (BOOSTED WITH) right away."""
+    from .effects.modifiers import add_value, boost_limit
+    from .effects.ops_combat import run_boost_moment
     if (wait := _run_moment(flow, side, "during")) is not None:
         return wait
-    if not may_boost(side.card):
-        return None
     owner = side.fighter.owner
-    answered, boost = flow.answer("dsl_during")
-    if not answered:
-        return Await(PendingChoice("boost", owner, side.card.card_id))
-    if boost is not None:
-        _check_boost(boost)
-        flow.game.discard_card(owner, boost)
-        add_value(flow, side.name, boost.boost, t("cf.boost_with_plain", title=boost.title))
-        if side.name == "atk":
-            flow.result.boost_card = boost
+    limit = max(boost_limit(side.card), 1 if side.name in flow.boost_granted else 0)
+    for n in range(limit):
+        answered, boost = flow.answer("dsl_during" if n == 0 else f"dsl_during:{n}")
+        if not answered:
+            flow.await_key = f"{flow.phase.value}:{side.name}:dsl_during" + (f":{n}" if n else "")     # where `resume` files the card
+            return Await(PendingChoice("boost", owner, side.card.card_id, False, {"n": n} if n else {}))
+        if boost is None:
+            break
+        done = flow.boosted.setdefault(side.name, [])
+        if len(done) <= n:                    # the first pass spends the card; a rerun after a pause inside its effect does not
+            _check_boost(boost)
+            flow.game.discard_card(owner, boost)
+            done.append(boost.card_id)
+            add_value(flow, side.name, boost.boost, t("cf.boost_with_plain", title=boost.title))
+            if side.name == "atk":
+                flow.result.boost_card = boost
+            flow.game.fx.emit("card_boosted", owner, boost)
+        if (wait := run_boost_moment(flow, side, boost, n)) is not None:
+            flow.await_key = f"boost:{side.name}:{n}:dsl_during"       # `awaiting_run` finds the run by this key's head
+            return wait
 
 
 @rule(Phase.AFTER, match=_dsl)
@@ -519,6 +574,15 @@ def _i_won(flow: CombatFlow, side: Side) -> bool:
 
 
 # ---------- synchronous driver ----------
+def _nth(boost: "Card | list | None", choice: PendingChoice) -> "Card | None":
+    """The caller's boost for this prompt: a single card, or the cards the human put down for a card with several
+    boosts (The Big Reveal), one per prompt in the order they were spent."""
+    if not isinstance(boost, list):
+        return boost
+    n = choice.extra.get("n", 0)
+    return boost[n] if n < len(boost) else None
+
+
 def legacy_chooser(game: Game, flow: CombatFlow, boost: Card | None, human: int | None = None) -> Callable[[PendingChoice], Card | None]:
     """Answers boost choices the way the pre-flow resolve_combat did: a Medusa card, a defender's card or a card of
     the bot's interpreted hero asks its owner's controller (with the live CombatCtx); the human's card (`human`: the
@@ -534,8 +598,8 @@ def legacy_chooser(game: Game, flow: CombatFlow, boost: Card | None, human: int 
         player = choice.player
         bot_dsl = _is_bot(game, player) and game.fx.interprets(player)
         if player == human and not is_medusa_card(flow.card_by_id(choice.card_id, player)):
-            return boost
+            return _nth(boost, choice)
         if bot_dsl or player != flow.att.owner or is_medusa_card(flow.card_by_id(choice.card_id, player)):
             return game.controllers[player].choose_combat_boost(game, flow.ctx)
-        return boost
+        return _nth(boost, choice)
     return choose

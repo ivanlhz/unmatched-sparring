@@ -111,6 +111,16 @@ def _boost(run, game, spec):
     modifiers.add_value(flow, side, top.boost, t("cf.boost_impulse", title=top.title))
 
 
+@op("allow_boost")
+def _allow_boost(run, game, spec):
+    """"Your opponent may BOOST their card": the side of that card is asked for a BOOST in its DURING even if the card
+    has no `may_boost` (An Illusion Of My Own Design). A cancelled side gets none (nobody is left to ask)."""
+    flow = _flow(run, "allow_boost")
+    side = _side(run, game, spec["card"])
+    if side is not None:
+        flow.boost_granted.add(side)
+
+
 # ---------------------------------------------------------------- statuses
 
 @op("status")
@@ -253,28 +263,51 @@ def run_moment(flow, side, moment: str):
     """Runs (or continues) one card moment of one side. Returns the Await of a paused effect, else None.
     `flow.runs` keeps every run, finished ones included, so a rerun after a pause never starts it again. A run says
     what it did when it ends (`narrate`), once: the bot's in `result.applied`, the rival's in `result.human_effects`."""
-    from .run import Ctx, EffectRun
-    game, key = flow.game, f"{moment}:{side.name}"
-    run = flow.runs.get(key)
-    if run is None:
+    key = f"{moment}:{side.name}"
+    if key not in flow.runs:
         owner = side.fighter.owner
-        ops = load_effects(game.players[owner].hero.slug).moment_ops(side.card.title, moment)
+        ops = load_effects(flow.game.players[owner].hero.slug).moment_ops(side.card.title, moment)
         if not ops:
             return None
-        rival = side.rival
-        ctx = Ctx(owner=owner, this_fid=side.fighter.fid, card_id=side.card.card_id, moment=moment,
-                  attacker_fid=flow.att.fid, defender_fid=flow.tgt.fid,
-                  opp_card_id=_rival_card_id(flow, side), attack_card_id=flow.atk_card.card_id,
-                  defense_card_id=None if flow.def_card is None else flow.def_card.card_id,
-                  played_as="attack" if side.name == "atk" else "defense")
-        if moment == "after":
-            won = flow.result.attacker_won == (side.name == "atk")
-            ctx.combat_result = "won" if won else "lost"
-            dealt = flow.result.damage if flow.result.attacker_won == (side.name == "atk") else 0
-            ctx.damage_dealt, ctx.damage_taken = (dealt, 0) if won else (0, flow.result.damage)
-        run = flow.runs[key] = EffectRun(ops, ctx, label=moment)
-        run.flow = flow
-        run.flags["before"] = narrate.snapshot(game, flow)
+        flow.runs[key] = _start(flow, side, ops, moment, side.card.card_id)
+    return _continue(flow, flow.runs[key])
+
+
+def run_boost_moment(flow, side, boost, n: int):
+    """The `boost` moment of a card `side` has just spent as a BOOST (docs/effects-dsl.md, "BOOSTED WITH"): its ops run
+    as an effect of the boosting player, right after the card's value was added. `n` numbers the boosts of a card that
+    takes several (The Big Reveal). Same pause and narration rules as `run_moment`."""
+    key = f"boost:{side.name}:{n}"
+    if key not in flow.runs:
+        owner = side.fighter.owner
+        ops = load_effects(flow.game.players[owner].hero.slug).moment_ops(boost.title, "boost")
+        if not ops:
+            return None
+        flow.runs[key] = _start(flow, side, ops, "boost", boost.card_id)
+    return _continue(flow, flow.runs[key])
+
+
+def _start(flow, side, ops, moment: str, card_id: int):
+    from .run import Ctx, EffectRun
+    game, owner = flow.game, side.fighter.owner
+    ctx = Ctx(owner=owner, this_fid=side.fighter.fid, card_id=card_id, moment=moment,
+              attacker_fid=flow.att.fid, defender_fid=flow.tgt.fid,
+              opp_card_id=_rival_card_id(flow, side), attack_card_id=flow.atk_card.card_id,
+              defense_card_id=None if flow.def_card is None else flow.def_card.card_id,
+              played_as="attack" if side.name == "atk" else "defense")
+    if moment == "after":
+        won = flow.result.attacker_won == (side.name == "atk")
+        ctx.combat_result = "won" if won else "lost"
+        dealt = flow.result.damage if flow.result.attacker_won == (side.name == "atk") else 0
+        ctx.damage_dealt, ctx.damage_taken = (dealt, 0) if won else (0, flow.result.damage)
+    run = EffectRun(ops, ctx, label=moment)
+    run.flow = flow
+    run.flags["before"] = narrate.snapshot(game, flow)
+    return run
+
+
+def _continue(flow, run):
+    game = flow.game
     wait = run.run(game, flow.choosers)
     if wait is None and "before" in run.flags:
         # the bot's card in `applied` ("Aplicado: ..."); the other player's in `human_effects` (E2: with what they

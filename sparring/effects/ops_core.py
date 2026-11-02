@@ -546,3 +546,4 @@ def _plugin(run, game, spec):
 from . import ops_combat  # noqa: E402,F401  (registers the combat ops over the registry above)
 from . import ops_info  # noqa: E402,F401  (registers look_hand, reveal, look_deck, search_deck, return_to_deck, put_in_hand)
 from . import plugins_raphael  # noqa: E402,F401  (registers raphael:unbridled_rage)
+from . import plugins_houdini  # noqa: E402,F401  (registers houdini:replace_combatant, houdini:return_boosted)

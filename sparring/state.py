@@ -452,6 +452,15 @@ class Game:
             raise RuleError(t("err.illegal_move", fid=fighter.fid, dest=dest, steps=steps))
         fighter.pos = dest
 
+    def place_fighter(self, fighter: Fighter, dest: int) -> None:
+        """Puts the fighter on any empty space (a placement, not a move: no path, no range)."""
+        if dest == fighter.pos:
+            return
+        taken = {o.pos for o in self.fighters.values() if o.alive and o is not fighter}
+        if dest not in self.board.spaces or dest in taken or not self.fx.can_move(fighter):
+            raise RuleError(t("err.illegal_place", fid=fighter.fid, dest=dest))
+        fighter.pos = dest
+
     def damage(self, fighter: Fighter, n: float, source: str = "effect", by: Fighter | None = None) -> float:
         if not fighter.alive or n <= 0:
             return 0
@@ -575,8 +584,15 @@ class Game:
         if boost_card is not None:
             extra = boost_card.boost
             self.discard_card(player, boost_card)
+            self.fx.emit("card_boosted", player, boost_card)
+            self.fx.boost_effects(player, boost_card)
+        placing = boost_card is not None and self.fx.hero_rule(player, "maneuver_boost_places_hero")
         for fid, dest in moves.items():
-            self.move_fighter(self.fighters[fid], dest, self.fighters[fid].move + extra)
+            f = self.fighters[fid]
+            if placing and f.hero:
+                self.place_fighter(f, dest)       # ESCAPE ARTIST: boosting, the hero goes to any space instead of moving
+            else:
+                self.move_fighter(f, dest, f.move + extra)
         self.fx.emit("after_maneuver", player)
 
     def play_scheme(self, player: int, fighter: Fighter, card: Card, target: Fighter | None = None,

@@ -24,7 +24,7 @@ def as_dicts(deck) -> list[dict]:
 
 
 def test_available_heroes_are_the_hellboy_box_medusa_and_the_four_turtles():
-    assert set(available_heroes()) == {"medusa", "hellboy", "abe-sapien", "baba-yaga", "liz-sherman", "leonardo", "donatello", "michelangelo", "raphael"}
+    assert set(available_heroes()) == {"medusa", "hellboy", "abe-sapien", "baba-yaga", "liz-sherman", "leonardo", "donatello", "michelangelo", "raphael", "houdini"}
 
 
 def test_medusa_herodef_matches_the_wired_fighters_and_the_golden_deck():

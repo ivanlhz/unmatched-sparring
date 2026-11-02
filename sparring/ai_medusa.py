@@ -63,6 +63,8 @@ from math import ceil, comb
 from .cards import can_be_boost
 from .combat import GAZE_DAMAGE, GLANCE_DAMAGE, ON_EARTH
 from .controller import Controller
+from .effects.model import walk_ops
+from .effects.modifiers import boost_limit, card_effects, defers_defeat
 from .state import ANUNG, EXHAUST_DAMAGE, Fighter, Game
 
 GAZE = "medusa_gaze"      # Medusa's start-of-turn ability trigger (data/heroes/effects/medusa.json)
@@ -114,7 +116,10 @@ DECK_SCARCITY_FLOOR = 0.25  # share of DECK_SCARCITY still charged when the race
 MIN_NET = 0.25              # floor of the expected net damage per attack, so no estimate divides by zero
 ACTION_VALUE = 1.0          # an action that gives away a scheme: at least the draw of a maneuver, often an attack
 
-FREE_BOOST = ("Second Shot", "Turtle power!")      # cards that may BOOST themselves from the hand for free
+BOOST_ACTION = 0.9        # a BOOSTED WITH that gains an action (it only pays on the bot's own turn)
+STRIP_VALUE = 1.0         # a card the rival loses to a BOOSTED WITH that picks one from their hand
+LOOK_VALUE = 0.5          # what looking at the rival's hand is worth by itself
+RESCUE_SHARE = 0.9        # share of the cost of dying a card that brings the hero back (All Part of the Show) takes away
 ELECTRO_GRENADE = "Electro grenade"
 UNTESTED = "Untested enhancements"
 INVENTION_PLAY = 1.2      # what playing an invention early is worth: its bonus (tucked) lasts the rest of the game
@@ -138,13 +143,18 @@ AFTER_BONUS = {
     "Relentless": (0.6, 0.0),                       # the card comes back to the deck and 1 is drawn
     "Break something": (0.5, 0.0),                  # cancels the rival card's effects
     "Unbridled rage": (0.8, 0.0),                   # expected bonus of the cards it can give up
+    "For My Next Trick": (CARD_VALUE + 0.9, 0.0),   # Houdini: moves a fighter, draws one and gains an action
+    "Vanishing Act": (0.3, 0.0),                    # moves one of the two fighters up to 3 spaces
+    "Grand Escape": (0.0, 0.3),                     # the winner goes to any space
+    "The Big Reveal": (0.3, 0.0),                   # a boosted card comes back to the hand
+    "Misdirection": (0.4, 0.0),                     # cancels the rival card's effects
 }
 DISCARD_EFFECTS = ("Clutching Claws", "Hiss and Slither")
 
 KEEP_BASE = {"attack": 1.0, "defense": 0.8, "versatile": 1.1, "scheme": 0.9}
 INVENTION_KEEP = 1.5
 KEEP_SPECIAL = {"Gaze of Stone": 3.0, "Feint": 1.4, "A Momentary Glance": 1.6, "Hiss and Slither": 1.8,
-                "Winged Frenzy": 1.0}
+                "Winged Frenzy": 1.0, "All Part of the Show": 2.0}
 
 
 def keep_value(card, hand) -> float:
@@ -320,6 +330,42 @@ def protect_factor(game: Game, f: Fighter) -> float:
     return max(1.0, kill_value(game, f) / KILL_SIDEKICK)
 
 
+def boost_effect_value(game: Game, me: int, card) -> float:
+    """What the BOOSTED WITH of `card` is worth to `me` if the card is spent as a boost now (0 for a card without one), read
+    from the card's `boost` moment: the cards it draws (unknown: CARD_VALUE each), the action it gains (only on the own turn),
+    the hit points it heals or deals (the best blow on a rival, a kill and the hero's finishing blow included) and the
+    look at the rival's hand that strips a card from it. Whoever spends the card still pays its keep value."""
+    fx = card_effects(card)
+    ops = fx.moments.get("boost") if fx is not None else None
+    if not ops:
+        return 0.0
+    hero = game.hero(me)
+    total = 0.0
+    for op in walk_ops(ops):
+        kind = op["op"]
+        n = op["amount"] if isinstance(op.get("amount"), int) else 1
+        if kind == "draw" and op["player"] == "owner":
+            total += CARD_VALUE * n
+        elif kind == "gain_action" and game.turn == me:
+            total += BOOST_ACTION * n
+        elif kind == "heal" and hero.alive:
+            total += W_MEDUSA_HP * min(n, hero.max_hp - hero.hp)
+        elif kind == "damage":
+            total += max((weight(f) * min(n, f.hp) + ((HERO_KILL + LETHAL if f.hero else kill_value(game, f)) if f.hp <= n else 0.0)
+                          for f in game.foes(me)), default=0.0)
+        elif kind == "look_hand" and game.players[1 - me].hand:
+            total += LOOK_VALUE + STRIP_VALUE
+    return total
+
+
+def free_boosts(game: Game, me: int, card, hand) -> list:
+    """The cards the hand would spend to BOOST `card` with by its own text (`may_boost`, `max_boosts`): the biggest boosts,
+    best BOOSTED WITH first on a tie. Empty when the card has no free BOOST or nothing in the hand can be spent."""
+    limit = boost_limit(card)
+    spare = [x for x in hand if x is not card and can_be_boost(x)]
+    return sorted(spare, key=lambda x: (-x.boost, -boost_effect_value(game, me, x), x.card_id))[:limit]
+
+
 def is_striker(game: Game, f: Fighter) -> bool:
     prof = fighter_profile(game, f)
     return prof is not None and prof["role"] == "striker"
@@ -492,9 +538,7 @@ class MedusaAI(Controller):
 
     def p_win_of(self, game: Game, model: Model, f: Fighter, t: Fighter, c) -> float:
         atk = self.card_value(game, f, t, c) + game.attack_bonus(f)
-        if c.title in FREE_BOOST:
-            spare = [x for x in game.players[self.me].hand if x is not c]
-            atk += BOOST_RELIANCE * max((x.boost for x in spare), default=0)
+        atk += BOOST_RELIANCE * sum(x.boost for x in free_boosts(game, self.me, c, game.players[self.me].hand))
         atk += self.during_gain(game, c)
         return sum(p for p, dv in model.defense_dist(t) if atk - (dv or 0) >= 1)
 
@@ -517,11 +561,10 @@ class MedusaAI(Controller):
         """(value, expected damage, probability of killing `t`) of attacking `t` with `f` and card `c`."""
         hand = game.players[self.me].hand
         atk, cost = self.card_value(game, f, t, c) + game.attack_bonus(f), CARD_VALUE + 0.05 * c.boost    # ANUNG UN RAMA's +2, a live ONGOING
-        if c.title in FREE_BOOST:
-            spare = [x for x in hand if x is not c]
-            if spare:
-                atk += BOOST_RELIANCE * max(x.boost for x in spare)
-                cost += CARD_VALUE
+        boosts = free_boosts(game, self.me, c, hand)
+        atk += BOOST_RELIANCE * sum(x.boost for x in boosts)
+        cost += CARD_VALUE * len(boosts)
+        effects = BOOST_RELIANCE * sum(boost_effect_value(game, self.me, x) for x in boosts)     # what spending them also does
         atk += self.during_gain(game, c)
         if "invention" in c.tags:
             cost -= INVENTION_PLAY
@@ -535,7 +578,7 @@ class MedusaAI(Controller):
             gaze_dmg += p * extra
             p_kill += p * (net + extra >= t.hp)
         w = weight(t)
-        value = w * (e_net + gaze_dmg) - cost
+        value = w * (e_net + gaze_dmg) - cost + effects
         if p_kill > 0:      # the kill prize is only looked up when the blow can kill (it scans both decks)
             value += (HERO_KILL + LETHAL if t.hero else kill_value(game, t)) * p_kill   # finishing the hero wins the game
         if t.hero and f.owner == self.me:
@@ -628,23 +671,29 @@ class MedusaAI(Controller):
         medusa = game.hero(self.me)
         variants: list = [(None, 0.0)]
         seen = set()
-        for c in sorted(hand, key=lambda c: (keep_value(c, hand), -c.boost, c.card_id)):
+        net = lambda c: keep_value(c, hand) * 0.5 - boost_effect_value(game, self.me, c)     # its BOOSTED WITH pays part of the price
+        for c in sorted(hand, key=lambda c: (net(c), -c.boost, c.card_id)):
             if can_be_boost(c) and c.boost not in seen:    # for each reach, the card that hurts least to spend
                 seen.add(c.boost)
-                variants.append((c, keep_value(c, hand) * 0.5))
+                variants.append((c, net(c)))
         out = []
-        by_extra: dict[int, list[int]] = {}    # the best destinations depend only on the reach, not on the card
+        by_extra: dict[tuple, list[int]] = {}    # the best destinations depend only on the reach, not on the card
         for boost, cost in variants:
             extra = boost.boost if boost else 0
-            if extra not in by_extra:
-                options = game.legal_moves(medusa, medusa.move + extra) | {medusa.pos}
+            places = boost is not None and game.fx.hero_rule(self.me, "maneuver_boost_places_hero")     # ESCAPE ARTIST
+            if (extra, places) not in by_extra:
+                if places:
+                    taken = {f.pos for f in game.fighters.values() if f.alive and f is not medusa}
+                    options = ({s for s in game.board.spaces if s not in taken} if game.fx.can_move(medusa) else set()) | {medusa.pos}
+                else:
+                    options = game.legal_moves(medusa, medusa.move + extra) | {medusa.pos}
                 ranked = sorted(((-self.position_value(game, model, {medusa.fid: d}), d) for d in options))
                 # besides the best by position, those that leave Medusa within range of a rival: moving and attacking
                 # in the same double action (position alone would never choose them if the rival is dangerous)
                 striking = [x for x in ranked if any(game.board.can_reach_target(x[1], e.pos, medusa.ranged)
                                                      for e in game.foes(self.me))]
-                by_extra[extra] = list(dict.fromkeys(d for _, d in ranked[:3] + striking[:2]))
-            scored = by_extra[extra]
+                by_extra[(extra, places)] = list(dict.fromkeys(d for _, d in ranked[:3] + striking[:2]))
+            scored = by_extra[(extra, places)]
             for d in dict.fromkeys(scored + [medusa.pos]):
                 for harpies_advance in (True, False):
                     g = game.clone()
@@ -693,9 +742,11 @@ class MedusaAI(Controller):
                 self.expected_draw(g, 2 if a.p_win > 0 else 1)   # pessimistic: exhaustion is not played on a coin flip
         elif a.kind == "maneuver":
             self.expected_draw(g, 1)
+            bonus_actions = 0
             if a.boost is not None:
                 hand.remove(a.boost)
                 g.players[self.me].discard.append(a.boost)
+                bonus_actions = self.expected_boost_effect(g, a.boost)
             for fid, d in a.moves.items():
                 if g.fighters[fid].alive:
                     g.fighters[fid].pos = d
@@ -710,7 +761,24 @@ class MedusaAI(Controller):
         elif a.kind == "scheme":        # the simulation already spent the action and granted what the card gives
             return a.sim.clone()
         g.actions_left -= 1
+        if a.kind == "maneuver":
+            g.actions_left += bonus_actions
         return g
+
+    def expected_boost_effect(self, g: Game, card) -> int:
+        """The BOOSTED WITH of a card spent in the maneuver, applied to the expected state: draws (unknown cards) and heals;
+        returns the actions it gains (the blow of a damage is valued, not simulated)."""
+        fx = card_effects(card)
+        gained = 0
+        for op in walk_ops(fx.moments.get("boost", [])) if fx is not None else ():
+            n = op["amount"] if isinstance(op.get("amount"), int) else 1
+            if op["op"] == "draw" and op["player"] == "owner":
+                self.expected_draw(g, n)
+            elif op["op"] == "gain_action" and g.turn == self.me:
+                gained += n
+            elif op["op"] == "heal" and g.hero(self.me).alive:
+                g.heal(g.hero(self.me), n)
+        return gained
 
     # ---------- time: deck, hand and desperation ----------
     def draw_budget(self, game: Game) -> int:
@@ -1004,7 +1072,7 @@ class MedusaAI(Controller):
             else:
                 net = max(0, ctx.atk_value + c.boost - ctx.def_value)
                 gain = weight(t) * (min(net, t.hp) - min(now, t.hp))
-            gain -= keep_value(c, hand)
+            gain += boost_effect_value(game, self.me, c) - keep_value(c, hand)
             if gain > best_gain:
                 best, best_gain = c, gain
         return best
@@ -1033,6 +1101,8 @@ class MedusaAI(Controller):
 
     def eval_defense(self, game: Game, model: Model, dist, target: Fighter, c) -> float:
         dv = c.value if c else 0
+        boosts = free_boosts(game, self.me, c, game.players[self.me].hand) if c is not None else []
+        dv += BOOST_RELIANCE * sum(x.boost for x in boosts)
         exp = p_dead = p_hit = p_block = 0.0
         for p, av in dist:
             net = max(0, (av or 0) - dv) if av is not None else 0
@@ -1049,6 +1119,9 @@ class MedusaAI(Controller):
         v -= CARD_VALUE + 0.05 * c.boost
         if "invention" in c.tags:
             v += INVENTION_PLAY
+        if defers_defeat(c) and target.hero:
+            v += RESCUE_SHARE * LETHAL * p_dead      # the hero that would fall comes back with 4 health: the game goes on
+        v += BOOST_RELIANCE * sum(boost_effect_value(game, self.me, x) for x in boosts)
         always, on_win = AFTER_BONUS.get(c.title, (0.0, 0.0))
         v += always + on_win * p_block
         if c.title == "Feint":

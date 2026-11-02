@@ -46,6 +46,30 @@ def may_boost(card) -> bool:
     return fx is not None and fx.may_boost
 
 
+def hero_rule(game, player: int, rule: str) -> bool:
+    """The hero of `player` is interpreted and its effects file has the passive `{"kind": "rule", "rule": rule}`."""
+    slug = game.players[player].hero.slug
+    return slug in game.fx.dsl_heroes and any(p["kind"] == "rule" and p["rule"] == rule for p in load_effects(slug).passives)
+
+
+def boost_limit(card) -> int:
+    """How many cards the owner may BOOST `card` with by its own text: 0 without `may_boost`, else `max_boosts` (1, or 2
+    for The Big Reveal)."""
+    fx = card_effects(card)
+    return 0 if fx is None or not fx.may_boost else fx.max_boosts
+
+
+def has_boost_effect(card) -> bool:
+    """The card does something when it is spent as a BOOST (its `boost` moment, Houdini's "BOOSTED WITH")."""
+    fx = card_effects(card)
+    return fx is not None and bool(fx.moments.get("boost"))
+
+
+def defers_defeat(card) -> bool:
+    fx = card_effects(card)
+    return fx is not None and fx.defers_defeat
+
+
 @lru_cache(maxsize=None)
 def _deck_boost_titles() -> frozenset[str]:
     return frozenset(

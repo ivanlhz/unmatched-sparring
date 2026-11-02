@@ -1,0 +1,39 @@
+{
+ "slug": "houdini",
+ "_notes": [
+  "Houdini's deck is sheet 178 (CardIDs 17800-17829, its own FaceURL); the character card 17700 is a sheet of its own (177, 1x1) inside the same physical deck, so the catalog lists two images and CardIDs 17700-17829 while deck.identity holds only the playing cards' sheet. No other hero has CardIDs 177xx or 178xx, and no GUID of this file is used by another hero.",
+  "The Houdini miniature (3ec3d1) is a Custom_Assetbundle; the Custom_Model nicknamed 'Houdini' that carries MAX_VALUE 14 (fdb21e) is his life dial. Bess is a Custom_Token (a73e79); the Custom_Model nicknamed 'Bess' with MAX_VALUE 5 (ede1d4) is her dial."
+ ],
+ "bag": {
+  "guid": "d696f8",
+  "inner": "312c0d"
+ },
+ "deck": {
+  "guid": "a3afc4",
+  "card_ids": [
+   17800,
+   17829
+  ],
+  "character_card_id": 17700,
+  "identity": [
+   {
+    "face": "https://steamusercontent-a.akamaihd.net/ugc/14816525931763925620/76806F85738A5A2206CA0BE0187B905F52B9BEAC/",
+    "back": "https://steamusercontent-a.akamaihd.net/ugc/15910068555542719218/336425CC1DDE0F2347665DA3353D7223E15989B9/"
+   }
+  ]
+ },
+ "fighters": {
+  "houdini": {
+   "piece": "3ec3d1",
+   "dial": "fdb21e",
+   "dial_max": 14
+  },
+  "bess": {
+   "piece": "a73e79",
+   "dial": "ede1d4",
+   "dial_max": 5
+  }
+ },
+ "tokens": {},
+ "counter_dials": {}
+}
