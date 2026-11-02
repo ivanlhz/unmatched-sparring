@@ -61,6 +61,11 @@ Text conventions: "owner" is the player who plays the card or who the ability be
   a scheme cannot carry it. It holds in any combat in which the card is played: Second Shot is attack only,
   but Out Of Time is versatile and, played in defense, boosts the defense (today the engine only contemplates the boost of the
   human's attack; the interpreter must cover both sides).
+- `max_boosts` (optional, 2 or more, with `may_boost`): how many cards the owner may BOOST this card with ("You may BOOST this card
+  twice", Houdini's The Big Reveal). The combat asks once per boost, the next only if the previous one was made.
+- `defers_defeat` (optional): played in a combat, the defeat of its owner's hero by that combat's damage does not end the game yet:
+  the loss waits until the AFTER effects are done (All Part of the Show). `look_shield` (optional): held in the hand, it lets its
+  owner cancel a look at their hand (A Magician Never Reveals His Secrets). See section 27.
 - `uncancelable` (optional, false by default): `cancel_effects` does not erase the effects of this card.
 - `effects`: the five moments, always present and always lists (empty if there is nothing):
   - `immediately`, `during`, `after`: combat. The defender resolves first at each moment.
@@ -210,7 +215,8 @@ There are never conditions in strings.
 | `attacked` | `target: FighterSel` | `$attacker`, `$target`, `attack_card` |
 | `combat_damage_dealt` | `by: FighterSel` | `$by`, `$to`, `$amount` |
 | `damage_taken` | `target: FighterSel`, `damage: effect | combat | any`, `min` | `$target`, `$amount` |
-| `card_discarded` | `player`, `from: [hand, deck]`, `cause_not: hand_limit`?, `filter: CardFilter` | `$card` |
+| `card_discarded` | `player`, `from: [hand, deck]`, `cause_not: hand_limit`?, `by: opponent`?, `filter: CardFilter` | `$card` |
+| `card_boosted` | `player`, `filter: CardFilter` | `$card` |
 | `card_played` | `player`, `filter` | `$card` |
 | `fighter_defeated` | `fighter: FighterSel` | `$fighter` |
 | `combat_lost` | `player` (default `owner`; `any`) | `$fighter` |
@@ -248,6 +254,7 @@ Every op is `{"op": "<name>", ...args}`. Arguments not listed are an error.
 | `modify_value` | `card: CardRef`, `amount` | | adds (negative subtracts); never drops below 0 |
 | `set_value` | `card` and `amount` or `ignore: true` | | `amount`: the printed value becomes N (bonuses stay); `ignore: true`: "ignore its value", the total value becomes 0 (Incinerate) |
 | `boost` | `card: CardRef` | `chooser` | boosts that card now (discards the top card of its owner's deck). For the card's own free "may BOOST", `may_boost` is used |
+| `allow_boost` | `card: CardRef` | | "Your opponent may BOOST their card": that card's side is asked for the free BOOST of `may_boost` cards in DURING even if the card has none (An Illusion Of My Own Design) |
 | `status` | `name`, `until: Event` and `target: FighterSel` or `player: PlayerSel` | `amount` | see the status table |
 | `counter` | `name` and `delta` or `set` | `player` | clipped to the min/max of `ability.counters` |
 | `gain_action` | `amount` | `player` | blocked by `cannot_gain_actions` and the `no_gain_actions` rule |
@@ -286,7 +293,7 @@ Every op is `{"op": "<name>", ...args}`. Arguments not listed are an error.
 | kind | args | |
 |---|---|---|
 | `modify_value` | `cards: {player, type?, fighter?}`, `amount` | continuous +N to the cards that meet it (ANUNG +2 to Hellboy's attacks; Fight Or Flight +1) |
-| `rule` | `rule`, `amount`? | `no_attack_as_first_action`, `effect_damage_bonus` (`amount`; not to exhaustion), `max_hand_size` (`amount`), `no_gain_actions` |
+| `rule` | `rule`, `amount`? | `no_attack_as_first_action`, `effect_damage_bonus` (`amount`; not to exhaustion), `max_hand_size` (`amount`), `no_gain_actions`, `maneuver_boost_places_hero` (ESCAPE ARTIST) |
 | `status` | like the `status` op without `until` | while the card stays in play |
 | `redirect_damage` | like the op, with `optional` and `chooser` | FATEFUL BARGAINS. It is the only place where `optional` is a field and not an op: a modifier contains no ops to wrap |
 | `may_boost` | `fighter: FighterSel` | that fighter may boost its attacks (King Arthur) |
@@ -299,7 +306,8 @@ Every op is `{"op": "<name>", ...args}`. Arguments not listed are an error.
 - `scheme`: when the scheme is played. If the card has `ongoing`, after the ops it stays in play: its `modifiers` hold and
   its `triggers` fire until `until`; then it goes to the discard. Ivan's rule (28/10): there is only one active ONGOING
   at a time (one per player); playing another replaces the active one (it goes to the discard).
-- `boost`: when the card is used as a boost.
+- `boost`: when the card is used as a boost (section 27): the card's own ops, run for the player who spends it, before its value
+  is added (a combat boost, Iván 2/11) or right after it is discarded (a Maneuver boost).
 - `ability.triggers` and `ongoing.triggers`: a single format (Trigger with `when: Event`). An optional trigger is
   decided by `chooser`.
 - `ability.passives`: continuous modifiers with an optional `while`.
@@ -592,7 +600,7 @@ Doubtful migration decisions (see also the `notes` of each file):
   and ONGOING `redirect_damage` act on effect damage inside the `damage` op, asking the optional ones through the
   chooser of the passive's owner.
 - `next_attack_bonus` is consumed by the first attack of that player (`CombatFlow._reveal`).
-- Not covered: the `scheme` moment (C3), the `boost` moment of a card used as a boost, `until` events other than
+- Not covered: the `scheme` moment (C3), `until` events other than
   the turn events for `status` statuses (the ONGOING `until`s are C3's).
 
 ## 14. E1 human choice infrastructure (`session_choices.py`, `Session`)
@@ -1052,3 +1060,42 @@ Everything here is additive: no existing file reads these words, so the nine ear
 - **Whole hand into the deck for the table player** (`return_to_deck` of `{"zone": "hand", "pick": "all"}` to `shuffle`): the engine moves its virtual hand into its virtual deck and shuffles; the intent `hand_to_deck_all` has the bot put their seat's hand into their deck (`return_hand_to_deck` + `shuffle_deck`) before the draws that follow are dealt.
 - **Table side** (`session_rage`, `session_pile`, `session_translators`): the pile modes `blind`, `reveal` and `play` next to Raphael's `rage`; the translators `stack_top`, `reveal_deck`, `shuffle_deck`, `hand_to_deck_all` and `combat_card_to_bottom` (DARK PACT paid by the human: the card at their combat spot goes to the bottom of their deck by GUID before the draw). A trigger a human's decision parks right after a combat is shown by `Session._after_combat` and the combat's closing line is held back until it is answered.
 - **Same CardID range as Medusa and the turtles**: see docs/card-identity.md.
+
+## 27. Houdini: the BOOSTED WITH moment, several boosts, placing the hero on a boosted Maneuver
+
+Houdini is the first hero whose cards do something when they are spent as a BOOST. Everything here is additive: no earlier effects file
+uses these words.
+
+- **The `boost` moment of a card** runs when the card is spent as a boost. In a combat (`combat_flow.dsl_during`, `ops_combat.run_boost_moment`)
+  it runs inside the boosting side's DURING as an effect of the boosting player, BEFORE the boost value is added (Iván 2/11: every boost card is discarded, their effects run as a chain, each resolved in full before the next, then the values are added and the combat resolves; `flow.boost_valued` records that they were) (`Ctx.moment ==
+  "boost"`, run label `boost`, key `boost:<side>:<n>` in `flow.runs`, so a pause inside it survives `CombatFlow.to_dict`). In a Maneuver
+  (`Game.maneuver` -> `EffectState.boost_effects` -> `events.run_boost`) it runs right after the boost card is discarded and before the
+  movers move, like a trigger: a run a chooser pauses is parked, the human's is narrated. A boost that is not made runs nothing; a card with
+  an empty `boost` moment costs nothing. `gain_action` only gives the action to the player whose turn it is, which is the printed "if it's your
+  turn" of And The Beautiful Bess!.
+- **Event `card_boosted`** (`{"event": "card_boosted", "player": "owner"|"opponent"|"any", "filter"?}`, binds `$card`): emitted at the same
+  moment, for triggers that react to any boost.
+- **`max_boosts`** (with `may_boost`): the DURING asks for a boost up to that many times. The 2nd prompt is a `PendingChoice("boost", ...,
+  extra={"n": 1})`, answered under the key `<phase>:<side>:dsl_during:1`. The cards a side was boosted with are kept in `CombatFlow.boosted`
+  (`side -> [card ids]`, saved in `dsl`), which the plugin `houdini:return_boosted` (The Big Reveal's AFTER) reads.
+- **`allow_boost`** puts the side of the named card in `CombatFlow.boost_granted` (saved in `dsl`): its DURING asks for one boost even without
+  `may_boost`. A side whose effects were cancelled before DURING runs no DURING and gets none.
+- **`defers_defeat`**: `CombatFlow._damage` takes back the `winner` the combat damage set when the victim is a hero and its owner plays such a
+  card (not cancelled), and keeps `flow.deferred_loss` (the owner, saved in `dsl`). The AFTER phase opens as usual (the defender's first, so
+  All Part of the Show's `revive`); when the flow reaches DONE a hero still down loses the game then (`_settle_deferred_defeat`).
+- **`look_shield`**: `look_hand` on a hand that holds such a card (the bot's: known; the human's: not read, so the human is asked on the panel
+  if the card is not in their discard pile) asks its owner whether to reveal it. Revealed: the card is shown (the looker now knows it), nothing
+  else is looked at and the looker's later pick among the cards they were to see fizzles (`run.flags["look_cancelled"]`).
+- **Rule `maneuver_boost_places_hero`** (ESCAPE ARTIST, `ability.passives`): in a Maneuver that spends a boost card the hero's destination is
+  any empty space (`Game.place_fighter`: a placement, no path, no range; `fx.can_move` still applies) and the sidekicks move as normal with
+  the boost added. `Game.maneuver` reads it through `fx.hero_rule`, so the heuristic AI (`MedusaAI.maneuver_acts`), the search
+  (`EngineState._hero_options`) and the live bot all use the same rule. The human places the miniature by hand and the table sync reads it.
+- **`card_discarded` with `by: opponent`**: the discard happened while the rival's effect was running (`fx.acting`), not by the owner's own hand
+  limit or choice. And The Beautiful Bess! is a hero trigger on it (`and_the_beautiful_bess`): a card in the hand that reacts to being discarded.
+- **Plugins**: `houdini:replace_combatant` (Smoke And Mirrors: after the swap the other fighter of Houdini and Bess takes the place of the one
+  that played the card, attacking or defending: `CombatFlow.replace_combatant` rebuilds the sides and the rival's card is aimed at the new
+  fighter) and `houdini:return_boosted` (The Big Reveal: choose one of the boosted cards still in the discard pile and `put_in_hand` it).
+- **AI**: `ai_medusa.boost_effect_value` reads the `boost` moment of a card (cards drawn, action gained, health healed or dealt, a look at the
+  rival's hand that strips a card) and prices it; the combat boost choice, the Maneuver boost choice (`maneuver_acts`), the expected state after a
+  Maneuver (`apply_expected`), the attack and defense evaluation of `may_boost` cards (`free_boosts`, up to `max_boosts` cards) and the search's
+  boost variants and combat boost all use it.

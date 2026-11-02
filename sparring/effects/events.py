@@ -98,8 +98,8 @@ def _normalize(game, name: str, args: tuple) -> dict | None:
         return {"name": name, "player": args[0], "card": args[1]}
     if name == "card_discarded":
         return {"name": name, "player": args[0], "card": args[1], "zone": args[2] if len(args) > 2 else "hand",
-                "cause": args[3] if len(args) > 3 else None}
-    if name == "card_played":
+                "cause": args[3] if len(args) > 3 else None, "acting": game.fx.acting}
+    if name in ("card_played", "card_boosted"):
         return {"name": name, "player": args[0], "card": args[1]}
     if name == "fighter_defeated":
         return {"name": name, "fighter": args[0]}
@@ -216,10 +216,12 @@ def matches(game, owner: int, when: dict, ev: dict) -> bool:
         if kind == "combat" and not is_combat or kind == "effect" and (is_combat or ev["source"] == "exhaustion"):
             return False
         return ev["amount"] >= when.get("min", 1) and _fighter_ok(game, owner, when.get("target"), ev["fighter"])
-    if name in ("card_discarded", "card_played"):
+    if name in ("card_discarded", "card_played", "card_boosted"):
         if not _player_ok(when.get("player", "owner"), ev["player"], owner):
             return False
         if "from" in when and ev.get("zone") not in when["from"]:
+            return False
+        if when.get("by") == "opponent" and ev.get("acting") != 1 - ev["player"]:    # the rival's effect made them discard it
             return False
         if when.get("cause_not") is not None and ev.get("cause") == when["cause_not"]:
             return False
@@ -244,6 +246,28 @@ def _fire(game, owner: int, trig: dict, ev: dict, label: str, card_id: int | Non
     if pending is not None:
         if before is not None:
             run.flags["said_before"] = before                # the line is written when the human's choice is answered
+        game.fx.parked.append(run)
+    elif before is not None:
+        _say(game, run, before)
+    return pending
+
+
+def run_boost(game, player: int, card, choosers=None):
+    """`card` was spent as a BOOST outside a combat (a Maneuver): its `boost` moment runs now as an effect of `player`
+    (a combat boost runs inside the flow: `ops_combat.run_boost_moment`). Like a trigger, a run a chooser pauses is
+    parked and a human's run is narrated. Returns the Await, if any."""
+    slug = game.players[player].hero.slug
+    if slug not in game.fx.dsl_heroes:
+        return None
+    ops = load_effects(slug).moment_ops(card.title, "boost")
+    if not ops:
+        return None
+    run = EffectRun(ops, Ctx(owner=player, this_fid=game.hero(player).fid, card_id=card.card_id, moment="boost"), label="boost")
+    before = narrate.snapshot(game) if table.physical(game, player) else None
+    pending = run.run(game, choosers or default_choosers(game))
+    if pending is not None:
+        if before is not None:
+            run.flags["said_before"] = before
         game.fx.parked.append(run)
     elif before is not None:
         _say(game, run, before)

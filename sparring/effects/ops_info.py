@@ -17,7 +17,7 @@ Order convention for `order` / `rest` lists: top of the deck first. Atomic like 
 orders, random permutations) are obtained before the first mutation."""
 from __future__ import annotations
 
-from . import table
+from . import modifiers, table
 from .ops_core import _cards_of, op
 from .select import _matches, amount, card_ref, locate, player_of, players_of, select_cards
 
@@ -43,11 +43,34 @@ def _look_hand(run, game, spec):
     """The live session installs `Game.hand_reader` (D3): the real table hand is read exactly here, never elsewhere;
     a clone or a simulation has no reader and looks at its own (determinized) hand."""
     owner, target = run.ctx.owner, player_of(game, run, spec["player"])
+    if target != owner and _shield_cancels(run, game, owner, target):
+        return
     if target != owner:
         reader = game.hand_reader
         cards = list(game.players[target].hand) if reader is None else reader(target)
         game.observe_hand(owner, cards)
         run.flags["looked_hand"] = True      # the narration says "looks at" only for a look, not for a changed `seen`
+
+
+def _shield_cancels(run, game, owner: int, target: int) -> bool:
+    """A card of `target`'s deck that cancels a look at their hand (`look_shield`): the holder is asked whether to reveal it.
+    The bot's hand is its own, so only a held card asks. The table player's is virtual, so the engine cannot know: it asks
+    unless the card is already in their discard pile. Revealed: the looker sees that card and nothing else, and what the
+    effect would have picked among the cards it never saw fizzles (`look_cancelled`)."""
+    st = game.players[target]
+    shield = next((c for c in st.full_set if modifiers.look_shield(c)), None)
+    if shield is None:
+        return False
+    if table.physical(game, target):
+        if shield in st.discard or shield in st.tucked or shield in st.removed:
+            return False
+    elif shield not in st.hand:
+        return False
+    if not run.ask(game, "optional", target, [True, False], 1, 1, "reveal the shield", shield=shield.title)[0]:
+        return False
+    run.flags["look_cancelled"] = True
+    _remember_in_hand(game, target, shield)           # the looker has seen that card in that hand, and nothing else
+    return True
 
 
 @op("reveal")

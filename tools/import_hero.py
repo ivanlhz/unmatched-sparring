@@ -7,8 +7,9 @@
 unmatched-memory (`../unmatched-memory/data/heroes/<slug>.json`, or UNMATCHED_MEMORY) is read only and provides
 life, movement, reach, sidekicks, ability and the cards (title, type, value, boost, copies, texts).
 The overlay `data/heroes/overlay/<slug>.json` provides what unmatched-memory lacks: the fighter id (`fid`),
-the corrected sidekicks (sparring name, fid, count), the CardID sheet (`deck.card_base` + `deck.sheet`:
-idx, title, fighter restriction, tags and, if the real card says something else, `text`; `memory_title` when
+the corrected sidekicks (sparring name, fid, count), `memory_slug` and `name` when unmatched-memory files the hero under
+another slug or name (Houdini: `harry-houdini`, "Harry Houdini"; the card reads HOUDINI), the CardID sheet (`deck.card_base` + `deck.sheet`:
+idx, title, fighter restriction, tags and, if the real card says something else, `text` or `boost`; `memory_title` when
 unmatched-memory spells the title differently), and forms, counters, triggers, passives and `hand` (starting and
 maximum hand size when they are not 5 and 7: Michelangelo's PIZZA PARTY).
 With the DSL effects (`data/heroes/effects/<slug>.json`) and the cards it computes `ai_profile`: the static profile of each
@@ -31,7 +32,7 @@ from sparring.heroes import HEROES_DIR, parse_hero  # noqa: E402
 OVERLAY_DIR = HEROES_DIR / "overlay"
 EFFECTS_DIR = HEROES_DIR / "effects"
 TEXT_PARTS = (("effect", ""), ("effectImmediately", "IMMEDIATELY: "), ("effectDuring", "DURING COMBAT: "),
-              ("effectAfter", "AFTER COMBAT: "))
+              ("effectAfter", "AFTER COMBAT: "), ("effectBoost", ""))
 
 
 def card_text(src: dict) -> str:
@@ -56,8 +57,8 @@ def sidekick_groups(um: dict) -> list[dict]:
 
 
 def build(slug: str, memory: Path, overlay_dir: Path = OVERLAY_DIR, effects_dir: Path = EFFECTS_DIR) -> dict:
-    um = json.loads((memory / "data" / "heroes" / f"{slug}.json").read_text(encoding="utf-8"))
     ov = json.loads((overlay_dir / f"{slug}.json").read_text(encoding="utf-8"))
+    um = json.loads((memory / "data" / "heroes" / f"{ov.get('memory_slug', slug)}.json").read_text(encoding="utf-8"))
     groups = sidekick_groups(um)
     if "sidekicks" in ov:
         sidekicks = [{**(groups[i] if i < len(groups) else {}), **s} for i, s in enumerate(ov["sidekicks"])]
@@ -76,7 +77,7 @@ def build(slug: str, memory: Path, overlay_dir: Path = OVERLAY_DIR, effects_dir:
                 raise SystemExit(f"{slug}: the overlay sheet cites {entry['title']!r} (idx {entry.get('idx')}), which does not "
                                  f"exist in unmatched-memory; known titles: {', '.join(sorted(by_title))}")
             cards.append({"idx": entry["idx"], "title": entry["title"], "fighter": entry["fighter"], "type": src["type"],
-                          "value": src["value"], "boost": src["boostValue"],
+                          "value": src["value"], "boost": entry.get("boost", src["boostValue"]),     # the printed boost wins
                           "text": entry.get("text") or card_text(src),     # the real card wins over unmatched-memory
                           "tags": list(entry.get("tags", ()))})
         sheet_titles = [e.get("memory_title", e["title"]) for e in deck_ov["sheet"]]
@@ -90,9 +91,9 @@ def build(slug: str, memory: Path, overlay_dir: Path = OVERLAY_DIR, effects_dir:
                 "cards": [{"title": c["title"], "fighter": None, "type": c["type"], "value": c["value"],
                            "boost": c["boostValue"], "copies": c["copies"], "text": card_text(c)} for c in um["cards"]]}
     out = {
-        "_source": {"memory": f"unmatched-memory/data/heroes/{slug}.json",
+        "_source": {"memory": f"unmatched-memory/data/heroes/{ov.get('memory_slug', slug)}.json",
                     "overlay": f"data/heroes/overlay/{slug}.json", "generator": "tools/import_hero.py"},
-        "slug": slug, "name": um["name"], "fid": ov["fid"], "hp": int(um["hp"]), "move": int(um["move"]),
+        "slug": slug, "name": ov.get("name", um["name"]), "fid": ov["fid"], "hp": int(um["hp"]), "move": int(um["move"]),
         "attack": um["attackType"], "set": (um.get("set") or {}).get("key"),
         "ability": ov.get("ability", (um.get("specialAbility") or "").strip()),
         "sidekicks": sidekicks, "forms": ov.get("forms"), "counters": ov.get("counters") or {},

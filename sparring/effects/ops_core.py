@@ -325,7 +325,7 @@ def _where_refs(game, run, where: dict) -> dict:
     return out
 
 
-def _plan_spots(game, run, fighters, where: dict, chooser: int, op_name: str, **becomes) -> list[tuple]:
+def _plan_spots(game, run, fighters, where: dict, chooser: int, op_name: str, hp=None, **becomes) -> list[tuple]:
     """(fighter, spot, by_hand): `by_hand` marks the table player's own piece, which they place themselves; its spot
     is provisional (the first legal one) until the table sync reads where they put it."""
     plan = []
@@ -333,8 +333,10 @@ def _plan_spots(game, run, fighters, where: dict, chooser: int, op_name: str, **
         for f in _one_after_another(fighters):
             options = space_options(game, run, where, mover=f)
             by_hand = table.piece_is_physical(game, chooser, f)
-            got = options[:1] if by_hand else run.ask(game, "space", chooser, options, 1, 1, f"{op_name} to",
-                                                      fighter=f.fid, op=op_name, where=_where_refs(game, run, where))
+            stays = [f.died_at] if f.hero and f.died_at in options else options[:1]     # a hero put back by hand: where his miniature already stands
+            got = stays if by_hand else run.ask(game, "space", chooser, options, 1, 1, f"{op_name} to",
+                                                      fighter=f.fid, op=op_name, where=_where_refs(game, run, where),
+                                                      **({} if hp is None else {"hp": hp}))
             if got:
                 plan.append((f, got[0], by_hand))
                 set_attrs(f, pos=got[0], **becomes)
@@ -343,7 +345,7 @@ def _plan_spots(game, run, fighters, where: dict, chooser: int, op_name: str, **
 
 def _return_to_board(run, game, spec, op_name: str, targets, hp) -> None:
     chooser = _chooser(game, run, spec)
-    for f, spot, by_hand in _plan_spots(game, run, targets, spec["where"], chooser, op_name, alive=True):
+    for f, spot, by_hand in _plan_spots(game, run, targets, spec["where"], chooser, op_name, hp=hp, alive=True):
         f.alive, f.pos, f.hp = True, spot, min(hp, f.max_hp)
         if by_hand:
             table.note(run, op=op_name, fid=f.fid, where=spec["where"], hp=f.hp)
@@ -475,6 +477,8 @@ def _choice_context(game, run, spec: dict) -> dict:
     Delivery: how many moments of the rival's card have effects to cancel)."""
     ctx = {}
     ops, other = spec.get("ops") or [], spec.get("else") or []
+    if any(o["op"] == "plugin" and o["id"] == "houdini:replace_combatant" for o in ops):      # Smoke And Mirrors: a bot weighs the swap
+        ctx["replaces_combatant"] = {"this": run.ctx.this_fid, "role": run.ctx.played_as}
     if len(ops) == 1 and ops[0]["op"] == "return_to_deck" and isinstance(ops[0]["cards"], dict) \
             and ops[0]["cards"]["zone"] == "deck" and ops[0]["cards"].get("pick") == "top":
         owner = player_of(game, run, ops[0]["cards"]["player"])      # putting the top card at the bottom (The future of Ninjutsu)
@@ -566,3 +570,4 @@ from . import ops_combat  # noqa: E402,F401  (registers the combat ops over the 
 from . import ops_info  # noqa: E402,F401  (registers look_hand, reveal, look_deck, search_deck, return_to_deck, put_in_hand)
 from . import plugins_raphael  # noqa: E402,F401  (registers raphael:unbridled_rage)
 from . import plugins_strange  # noqa: E402,F401  (registers strange:blind_boost, strange:mists_of_munnopor, strange:reveal_to_top)
+from . import plugins_houdini  # noqa: E402,F401  (registers houdini:replace_combatant, houdini:return_boosted)

@@ -1,0 +1,78 @@
+# Houdini (Houdini vs. The Genie)
+
+Set "Houdini vs. The Genie". Playable by the bot and by the human, either side, against every other hero. Data read from the real card images (sheet 178 of the tournament savegame, character card 17700 on its own sheet 177) on 2026-11-02. Verified on FakeTTS only: nothing of Houdini has been seen on a real table (see `docs/live-checklist.md`).
+
+## Summary
+- Melee hero, 14 life, move 2. Sidekick **Bess**: one, melee, 5 life, move 2 (fid `bess`). The hero card, the miniature and the cards say HOUDINI; unmatched-memory files him as `harry-houdini` / "Harry Houdini" (overlay `memory_slug` and `name`; the slug of the project is the catalog's `houdini`).
+- Ability **ESCAPE ARTIST**: when you take the Maneuver action and BOOST, you may place Houdini in any space instead of moving. (Bess moves as normal.) It is the passive rule `maneuver_boost_places_hero`.
+- Deck: 30 cards, `CardID = 17800 + idx`, restriction bands HOUDINI, BESS and ANY. The deck object of the save holds 31 cards (the 30 plus the character card `17700`), hence the two images in the catalog and CardIDs `17700..17829` there; `data/tts/houdini.json` holds the playing cards' sheet (`17800-17829`, its own image). **No other hero uses 177xx or 178xx**, so Houdini never shares CardIDs with Medusa and the turtles; nothing special is needed to tell his deck apart (docs/card-identity.md still applies to every lookup).
+- Table: Houdini's miniature `3ec3d1` and dial `fdb21e` (max 14); Bess's token `a73e79` and dial `ede1d4` (max 5). No GUID is shared with another hero (`tests/test_hero_houdini_data.py`).
+- Six of his cards do something when they are **spent as a BOOST** ("BOOSTED WITH"): the new generic `boost` moment of the effects DSL (docs/effects-dsl.md, section 27).
+
+## Cards (as implemented)
+
+| Title | Type | Value | Boost | Copies | Who | Effect |
+|---|---|---|---|---|---|---|
+| The Big Reveal | attack | 2 | 3 | 2 | Houdini | DURING: you may BOOST this card twice (`max_boosts`). AFTER: return one card you boosted with to your hand (plugin `houdini:return_boosted`) |
+| An Illusion of My Own Design | attack | 4 | 1 | 2 | Houdini | IMMEDIATELY: your opponent may BOOST their card (`allow_boost`). DURING: you may BOOST this card |
+| Sleight of Hand | attack | 1 | 3 | 2 | any | IMMEDIATELY: return it and play another card (**not coded**). BOOSTED WITH: draw 1 |
+| For My Next Trick | attack | 2 | 2 | 2 | any | AFTER: move one of your fighters up to 1 space, draw 1, gain 1 action |
+| Flourish | attack | 3 | 2 | 4 | any | DURING: you may BOOST this card. BOOSTED WITH: draw 1 |
+| Vanishing Act | versatile | 2 | 2 | 3 | Houdini | AFTER: move one fighter of the combat up to 3 spaces, through the opposing fighters |
+| Smoke and Mirrors | versatile | 3 | 1 | 2 | any | IMMEDIATELY: Houdini and Bess may swap spaces; if they do, the other one is now in the combat (plugin `houdini:replace_combatant`) |
+| Misdirection | versatile | 2 | 1 | 3 | any | IMMEDIATELY: cancel all effects on the opponent's card. BOOSTED WITH: 2 damage to any fighter |
+| And the Beautiful Bess! | versatile | 3 | 1 | 2 | Bess | If the opponent's effect makes you discard it, draw 1 (ability trigger `and_the_beautiful_bess`). BOOSTED WITH: gain 1 action if it is your turn |
+| Grand Escape | defense | 2 | 3 | 3 | Houdini | DURING: you may BOOST this card. AFTER: if you won, place your fighter in any space |
+| All Part of the Show | defense | 2 | 2 | 2 | any | Its effect cannot be canceled. AFTER: if your fighter was defeated, set its health to 4 and place it in any space, even if it was Houdini (`defers_defeat`). BOOSTED WITH: Houdini recovers 2 health |
+| Set the Stage | scheme | - | 2 | 2 | Bess | Draw 3, then put a card from your hand on top of your deck. BOOSTED WITH: look at the opponent's hand and choose a card for them to discard |
+| A Magician Never Reveals His Secrets | scheme | - | 4 | 1 | Houdini | Draw 2, gain 1 action. If an effect would let an opponent look at your hand, you may reveal this card and cancel that effect (`look_shield`) |
+
+## Discrepancies with unmatched-memory
+- An Illusion of My Own Design prints BOOST **1**; unmatched-memory says 2. The overlay overrides it (`boost`).
+- The card text of the six BOOSTED WITH cards is the printed text plus the bubble over the boost value; the importer now appends `effectBoost` to the card text (empty for every other hero).
+- Nothing else differs (types, values, copies and restrictions of the 13 titles agree with the images).
+
+## How the boost effects work (the new engine concept)
+- A card spent as a boost runs its `boost` moment as an effect of the player who spent it, **before the boost value is added** (Iván 2/11). In a combat, inside the boosting side's DURING: all the boost cards are discarded first, then their BOOSTED WITH effects run one after the other as a chain (each fully resolved, choices included, before the next), then the boost values are added and the combat resolves. In a Maneuver: the card's effect, then the movement or placement. A boost that is not made runs nothing. The event `card_boosted` is raised at the same moment.
+- In a combat the card with `may_boost` asks for the boost after its DURING effects (up to `max_boosts` cards: The Big Reveal's second boost is asked only if the first was made). The bot decides with `choose_combat_boost`; the human puts the boost cards in their discard pile at Reveal and presses Continue (two cards for The Big Reveal; more than the card allows is refused by name).
+- The human's own boost effects are resolved by the engine in table mode: draws are dealt by the bot, damage and healing reach the dials, a look at the bot's hand lays the bot's hand out, a card to discard from the bot is chosen on the panel. In a Maneuver the human puts the boost card in their discard pile, places the pieces and presses End action: the bot then reads the pile, recognises the boost card and runs its BOOSTED WITH (one boost card per Maneuver is recognised; a card without boost value is warned about, as before).
+
+## Rules decisions (follow the engine's and the other heroes')
+1. **ESCAPE ARTIST is a placement.** With a boost card the hero goes to any EMPTY space of the board (no path, no range, not through the pieces, not onto one); Bess moves as normal with the boost added to her move. Without a boost the Maneuver is the ordinary one. The bot places him with the same evaluation as any move (survival first, striking position second); the human places the miniature by hand and nothing validates it.
+2. **BOOSTED WITH and a cancel.** Boost effects belong to the boost card, not to the card played: a cancel of the played card's effects (Misdirection, Feint, Planned Recklessness...) does not stop them. The boost itself (the DURING of a `may_boost` card) is cancelled with the card, as for every other hero.
+3. **Bess's gain of an action** is `gain_action`, which only works for the player whose turn it is: that is the printed "if it's your turn". Boosting a defense on the rival's turn gives nothing; the actions are subject to the usual blocks (Cold Iron And Holy Water, Pact Of Time).
+4. **Set the Stage's boost** follows the project rule for hidden information: the bot reads the human's hand only at that moment (and keeps what it saw); the human, boosting, is shown the bot's hand and picks the card with the same panel as Confront Any Demon or God. With the rival's hand empty nothing happens.
+5. **The Big Reveal** may return only a card boosted with in THIS combat that is still in the owner's discard pile. The bot picks the most valuable one; the human picks on the panel and takes it from their pile by hand.
+6. **An Illusion of My Own Design** gives the rival one free BOOST (a single card, even if the rival card has none and even if it is a defense), after the rival card's own DURING effects. If the Illusion is cancelled before its IMMEDIATELY resolves (the defender resolves first), nothing is granted; if the rival's card is cancelled it runs no DURING and gets no boost.
+7. **Smoke and Mirrors**: only with both Houdini and Bess alive (otherwise nothing is asked). After the swap the OTHER fighter takes the place of the one that played the card, attacking or defending, with the same card and no range check; the rival's card is aimed at the new fighter (damage, AFTER effects, `combatant`), and the combat line names the fighter that fought. The bot swaps when defending if the blow hurts the other fighter less (a sidekick soaks a big blow that would be wasted on her, the hero takes the small ones); attacking it does not swap. The human is asked on the panel and swaps the two miniatures by hand (the chat says it).
+8. **All Part of the Show** keeps the game going: if the combat damage defeats the hero of the card's owner, the loss waits until the AFTER effects are done (the defender's first, so this card's) and only a hero still down then loses. The fighter that played the card comes back with 4 health on any empty space (Houdini or Bess); the card cannot be cancelled. The bot puts him where the position evaluation likes best; the human puts the miniature by hand and the bot sets the dial.
+9. **A Magician Never Reveals His Secrets** (the reveal): held in hand, when a card would look at the owner's hand the owner may reveal it; the look is cancelled, the looker has seen that one card, and what they were to pick among the cards they never saw fizzles (no discard). The bot always reveals it. The human is asked on the panel whenever the bot's card is about to look at their hand and the card is not in their discard pile (the engine cannot know their hand; "only if you hold it" is on the honour of the player). Declining lets the look happen.
+10. **And the Beautiful Bess!** draws only when the discard is the result of the opponent's effect and the engine saw it (`fx.acting`). The hand limit and the owner's own discards draw nothing. A discard the HUMAN makes by hand at the table is settled when the table is read and the engine then does not know whose effect it was: the bot's effects on the human's Bess do not fire it (the human draws the card themselves; nothing warns them).
+11. **Sleight of Hand's IMMEDIATELY is not coded** (it replaces a card already on the table in the middle of the combat, for the bot on the real table too): the card is a plain value-1 attack with its BOOSTED WITH, and the bot values it as a boost card (boost 3 and a card). The human can still change their face-down card BEFORE pressing Reveal, which is what the card approximates.
+12. Ties go to the defender, the bot announces each action in chat before acting, buttons that do not apply are hidden, and the bot never reads the human's hand unless a card says so: all as in the other heroes' docs.
+
+## Decisions confirmed by Iván (2/11)
+- **Order of a boost**: BOOSTED WITH effects resolve before the boost value is applied and before the attack resolves; with two boosts (The Big Reveal) they are a chain, each resolved before the next, then the values are added. Maneuver: effects first, then the movement (if an effect fells a mover or ends the game, nothing else moves).
+- **ESCAPE ARTIST works with any card of boost value 1 or more**, even one whose BOOSTED WITH does nothing.
+- **Misdirection's boost damage is never dealt by the bot to a fighter of its own**: correct (a human may choose their own).
+- All the other rules decisions above are accepted as they are.
+
+## Open questions for Iván
+- **Sleight of Hand** (IMMEDIATELY): not coded. Do you want it for the bot (it would need the bot to take its card back from the combat spot and put another one down, with its own announcement)? The human can approximate it by changing the card before Reveal.
+- **Boosting a Maneuver when the deck is empty**: the Maneuver's draw hurts first (exhaustion) and the placement still happens if Houdini survives: same order as the engine's Maneuver.
+- **The Big Reveal / "twice"**: two cards, one after the other, each with its own BOOSTED WITH. If it means the same card twice, nothing changes for the cards that have no effect.
+- **All Part of the Show** only saves from the combat damage of THIS combat (the AFTER of the defender's card): effect damage that defeats Houdini at another moment is not deferred.
+- **Smoke and Mirrors** when the attacker's target was Houdini and Bess is not adjacent to the attacker: no range check (the substitute stands where the first one did). If you rule that the substitute must be in range, the swap still moves them.
+- **Illusion's boost after a Feint** (Medusa's Feint cancels everything): the rival's boost is not offered because the Illusion is cancelled first (rule 6).
+- **Magician's reveal for the human**: the panel asks whenever the bot is about to look and you have not discarded the card; there is no way to know whether you hold it (we trust you).
+- **Hand limit and gained actions**: an action gained at 0 left lets you act once more; not seen live.
+
+## AI
+- The AI profile comes from the data (Houdini `hero`, Bess `striker`; exclusive cards The Big Reveal, An Illusion, Vanishing Act, Grand Escape, A Magician... and Bess's two).
+- **BOOSTED WITH is priced** (`ai_medusa.boost_effect_value`, read from the card's `boost` moment): a drawn card 0.4, an action 0.9 (only on its own turn), health healed by the hero's weight, the best blow on a rival (a kill, or the hero's finishing blow, at its full prize), a look at the rival's hand that strips a card 1.5 (0 if the rival has no hand). It is used by the combat boost choice (`choose_combat_boost`), the Maneuver boost choice (the boost card whose effect pays most of its keep value is spent), the expected state after a Maneuver (`apply_expected`: its draws, its action, its heal), the attack and defense evaluation of the `may_boost` cards (`free_boosts`: the biggest boosts in hand, as many as `max_boosts`) and the search (`SearchController.choose_combat_boost`, `EngineState._boost_variants`).
+- **ESCAPE ARTIST**: a boosted Maneuver offers every empty space to the hero (the best by position value plus the ones from which he strikes), in the heuristic (`maneuver_acts`) and in the search (`EngineState._hero_options`). The same evaluation that keeps the other heroes out of reach (survival, double blows) makes him leave when threatened; the striking squares make him land next to a target and attack with the second action.
+- Schemes of a sidekick: Set the Stage is Bess's, so the bot plays it with her (`ai_medusa.scheme_fighter`; the heuristic, the search and the simulation of the scheme use the same fighter). `KEEP_SPECIAL` keeps Set the Stage, A Magician... and All Part of the Show in hand; `AFTER_BONUS` prices the AFTER effects of the new cards; a defense that brings the hero back (`defers_defeat`) is worth most of the cost of dying.
+- Decisions: the swap of Smoke and Mirrors (`EffectAI._swap_combatant`), the placement of a hero that comes back (`EffectAI._hero_return`: the evaluation of the position, not the Harpy rule), always revealing the Magician.
+
+## Tests
+`tests/test_hero_houdini_data.py` (data, identity, detection), `tests/test_houdini_effects.py` (every card, the boost moment, ESCAPE ARTIST, bot side), `tests/test_houdini_human.py` (the human's boosts, Maneuver boosts, Smoke and Mirrors, All Part of the Show, the Magician's question, at the panel), `tests/test_houdini_session.py` (the bot's Houdini on the session), `tests/test_houdini_ai.py` (the AI), `tests/test_houdini_matrix.py` (Houdini against the nine heroes in both seats: full session games with a passive and an attacking human, headless games with the heuristic and the search).

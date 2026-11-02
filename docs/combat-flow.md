@@ -139,3 +139,13 @@ are outside the hand mid-combat; the flow holds them and DONE discards them).
 ## DSL rules (C2)
 
 After the legacy rules, `dsl_immediately`, `dsl_during` and `dsl_after` match a side whose owner's hero is in `game.fx.dsl_heroes`; the legacy rules do not match those cards. `dsl_during` also asks the free BOOST of `may_boost` cards, for either side. `PendingChoice` has a second kind, `"effect"` (key + request of the paused EffectRun), and `flow.to_dict()` gains a `"dsl"` key only when an interpreter run, value change or redirection exists. See docs/effects-dsl.md section 12.
+
+### Boosts (Houdini, docs/effects-dsl.md section 27)
+
+`dsl_during` asks one boost per card allowed (`may_boost`, `max_boosts`, or `allow_boost` for the rival's card): the first prompt is
+filed under `<phase>:<side>:dsl_during`, the next under `...:dsl_during:<n>` (`PendingChoice.extra["n"]`), and the combat keeps the ids
+it was boosted with (`CombatFlow.boosted`). Every boost card spent runs its `boost` moment as `boost:<side>:<n>` in `flow.runs`; while
+it is paused `await_key` is `boost:<side>:<n>:dsl_during` so `awaiting_run` finds it. `to_dict()["dsl"]` also carries `boost_granted`,
+`boosted` and `deferred_loss` (the owner of a hero the combat damage defeated while a `defers_defeat` card was in play: the loss is
+settled when the flow reaches DONE). `replace_combatant` swaps who fights (Smoke And Mirrors) and rebuilds the sides.
+

@@ -23,8 +23,8 @@ def as_dicts(deck) -> list[dict]:
     return [{k: getattr(c, k) for k in DECK_FIELDS} for c in deck]
 
 
-def test_available_heroes_are_the_hellboy_box_medusa_the_four_turtles_and_doctor_strange():
-    assert set(available_heroes()) == {"medusa", "hellboy", "abe-sapien", "baba-yaga", "liz-sherman", "leonardo", "donatello", "michelangelo", "raphael", "doctor-strange"}
+def test_available_heroes_are_the_hellboy_box_medusa_the_four_turtles_doctor_strange_and_houdini():
+    assert set(available_heroes()) == {"medusa", "hellboy", "abe-sapien", "baba-yaga", "liz-sherman", "leonardo", "donatello", "michelangelo", "raphael", "doctor-strange", "houdini"}
 
 
 def test_medusa_herodef_matches_the_wired_fighters_and_the_golden_deck():

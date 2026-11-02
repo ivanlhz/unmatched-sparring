@@ -14,7 +14,7 @@ from sparring.heroes import HEROES_DIR, load_hero
 from tools.validate_effects import EFFECTS_DIR, SCHEMA_PATH, effect_files, load_schema, validate, validate_file
 
 DOC = Path(__file__).resolve().parent.parent / "docs" / "effects-dsl.md"
-BOX = ["medusa", "hellboy", "abe-sapien", "baba-yaga", "liz-sherman", "leonardo", "donatello", "michelangelo", "raphael", "doctor-strange"]
+BOX = ["medusa", "hellboy", "abe-sapien", "baba-yaga", "liz-sherman", "leonardo", "donatello", "michelangelo", "raphael", "doctor-strange", "houdini"]
 
 
 @pytest.fixture(scope="module")
@@ -78,7 +78,9 @@ def test_may_boost_marks_in_data_what_combat_can_boost_detects_by_text():
                 by_text[(slug, card["title"])] = True
     assert flagged == by_text
     assert set(flagged) == {("medusa", "Second Shot"), ("hellboy", "Second Shot"), ("baba-yaga", "Out Of Time"),
-                           ("donatello", "Turtle power!"), ("michelangelo", "Turtle Power!!"), ("raphael", "Turtle power!"), ("leonardo", "Turtle power!")}
+                           ("donatello", "Turtle power!"), ("michelangelo", "Turtle Power!!"), ("raphael", "Turtle power!"), ("leonardo", "Turtle power!"),
+                               ("houdini", "Flourish"), ("houdini", "Grand Escape"), ("houdini", "An Illusion of My Own Design"),
+                               ("houdini", "The Big Reveal")}
     for slug, title in flagged:
         card = next(c for c in load_effects(slug)["cards"] if c["title"] == title)
         assert not any(op["op"] == "boost" for op in card["effects"]["during"]), "may_boost is not duplicated as an op"

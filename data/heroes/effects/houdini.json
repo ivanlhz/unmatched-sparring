@@ -1,0 +1,249 @@
+{
+ "schema": 1,
+ "hero": "houdini",
+ "notes": [
+  "Texts read from sheet 178 of the tournament save on 2026-11-02 (the images, not unmatched-memory; the BOOSTED WITH line of a card is the text in the bubble over its boost value, appended to the card text by the importer).",
+  "Houdini is the first hero whose cards do something when they are spent as a BOOST: the `boost` moment of a card (docs/effects-dsl.md, 'BOOSTED WITH') runs when the card is used as a boost, in a combat (the DURING boost of `may_boost` cards, `ops_combat.run_boost_moment`) and in a Maneuver (`events.run_boost`), for the boosting player, before the card's value is added (Iván 2/11). The event `card_boosted` is emitted at the same moment.",
+  "New engine pieces, all additive (docs/effects-dsl.md, Houdini section): the `boost` moment of a card spent as a boost, the event `card_boosted`, `max_boosts` (The Big Reveal boosts twice), the op `allow_boost` (An Illusion Of My Own Design lets the opponent boost their card), `defers_defeat` (All Part of the Show), `look_shield` (A Magician Never Reveals His Secrets), the passive rule `maneuver_boost_places_hero` (ESCAPE ARTIST), `by: opponent` on the `card_discarded` event, and the plugins `houdini:replace_combatant` and `houdini:return_boosted`.",
+  "Rules decisions taken without an official ruling are listed in docs/heroes/houdini.md, 'Open questions for Ivan'."
+ ],
+ "ability": {
+  "text": "ESCAPE ARTIST\nWhen you take the maneuver action and BOOST, you may place Houdini in any space instead of moving. (Bess moves as normal.)",
+  "triggers": [
+   {
+    "id": "and_the_beautiful_bess",
+    "when": {"event": "card_discarded", "player": "owner", "from": ["hand"], "by": "opponent", "filter": {"title": "And the Beautiful Bess!"}},
+    "ops": [{"op": "draw", "player": "owner", "amount": 1}],
+    "notes": "The printed text of And The Beautiful Bess!: 'If you discard this card as a result of an opponent's effect, draw 1 card.' It is a reaction of a card in the hand, so it lives here and fires on the discard (`by: opponent` = the rival's effect was running). A discard the human makes by hand at the table is settled when the table is read and the engine then does not know whose effect it was: it does not fire for the bot's effects on the human's Bess (the human draws the card themselves; said in docs/heroes/houdini.md)."
+   }
+  ],
+  "passives": [
+   {"kind": "rule", "id": "escape_artist", "rule": "maneuver_boost_places_hero"}
+  ],
+  "notes": "ESCAPE ARTIST is the rule `maneuver_boost_places_hero`: in a Maneuver that spends a BOOST card, Houdini's destination is any empty space (a placement: no path, no range) and Bess moves as normal, with the boost added to her move. `Game.maneuver` applies it, so the AI, the search and the live bot all place him through the same code; the human places the miniature by hand."
+ },
+ "cards": [
+  {
+   "title": "The Big Reveal",
+   "copies": 2,
+   "text": "DURING COMBAT: You may BOOST this card twice. AFTER COMBAT: Return one card you boosted with to your hand.",
+   "may_boost": true,
+   "max_boosts": 2,
+   "effects": {
+    "immediately": [],
+    "during": [],
+    "after": [
+     {"op": "plugin", "id": "houdini:return_boosted"}
+    ],
+    "scheme": [], "boost": []
+   },
+   "notes": "Attack only (value 2, boost 3), Houdini only. `may_boost` + `max_boosts: 2`: the combat asks for a boost twice (the second only if the first was made); every card spent runs its own BOOSTED WITH. After the combat the owner chooses one of the cards they boosted with THIS combat that is still in their discard pile and takes it back to their hand (nothing to return if no boost was made, or the card was taken from the pile meanwhile)."
+  },
+  {
+   "title": "An Illusion of My Own Design",
+   "copies": 2,
+   "text": "IMMEDIATELY: Your opponent may BOOST their card. DURING COMBAT: You may BOOST this card.",
+   "may_boost": true,
+   "effects": {
+    "immediately": [
+     {"op": "allow_boost", "card": "opponent_card"}
+    ],
+    "during": [],
+    "after": [],
+    "scheme": [], "boost": []
+   },
+   "notes": "Attack only (value 4, boost 1 as printed), Houdini only. The rival's card gets the free BOOST of `may_boost` cards this combat (one card, from the hand), after its own DURING effects, even if it has none. A rival card whose effects were cancelled before DURING gets no boost (a cancelled side runs no DURING). The human rival boosts as they do for Second Shot: the card goes to their discard at Reveal."
+  },
+  {
+   "title": "Sleight of Hand",
+   "copies": 2,
+   "text": "IMMEDIATELY: You may return this card to your hand and choose a different card to play. Resolve all effects on that card as normal. BOOSTED WITH: Draw 1 card.",
+   "effects": {
+    "immediately": [],
+    "during": [],
+    "after": [],
+    "scheme": [],
+    "boost": [
+     {"op": "draw", "player": "owner", "amount": 1}
+    ]
+   },
+   "notes": "Attack only (value 1, boost 3). The IMMEDIATELY (take the card back and play another) is NOT coded: it would replace a card already on the table in the middle of the combat, for the bot on the real table too. The card plays as a plain value-1 attack, and the bot values it as a boost card (boost 3 and a card drawn). See 'Open questions for Ivan'."
+  },
+  {
+   "title": "For My Next Trick",
+   "copies": 2,
+   "text": "AFTER COMBAT: Move one of your fighters up to 1 space. Draw 1 card. Gain 1 action.",
+   "effects": {
+    "immediately": [], "during": [],
+    "after": [
+     {"op": "move", "target": {"side": "own", "pick": "one"}, "amount": 1, "up_to": true, "chooser": "owner"},
+     {"op": "draw", "player": "owner", "amount": 1},
+     {"op": "gain_action", "amount": 1}
+    ],
+    "scheme": [], "boost": []
+   },
+   "notes": "Attack only (value 2, boost 2). Any of the owner's living fighters, Houdini or Bess, moves up to 1 space (staying is allowed)."
+  },
+  {
+   "title": "Flourish",
+   "copies": 4,
+   "text": "DURING COMBAT: You may BOOST this card. BOOSTED WITH: Draw 1 card.",
+   "may_boost": true,
+   "effects": {
+    "immediately": [], "during": [], "after": [], "scheme": [],
+    "boost": [
+     {"op": "draw", "player": "owner", "amount": 1}
+    ]
+   },
+   "notes": "Attack only (value 3, boost 2): the best card to boost with when the boost is needed (draws one) and a fine attack with its own free boost."
+  },
+  {
+   "title": "Vanishing Act",
+   "copies": 3,
+   "text": "AFTER COMBAT: Choose one of the fighters in the combat and move them up to 3 spaces. They may move through their opposing fighters.",
+   "effects": {
+    "immediately": [], "during": [],
+    "after": [
+     {"op": "move", "target": "combatant", "amount": 3, "up_to": true, "through_enemies": true, "chooser": "owner"}
+    ],
+    "scheme": [], "boost": []
+   },
+   "notes": "Versatile (value 2, boost 2), Houdini only. The owner chooses ONE of the two fighters of the combat (either side's, a defeated one is not there any more) and where it goes, up to 3 spaces, through the fighters that oppose it. `combatant` is whoever fought: after Smoke And Mirrors it is the substitute."
+  },
+  {
+   "title": "Smoke and Mirrors",
+   "copies": 2,
+   "text": "IMMEDIATELY: Houdini and Bess may swap spaces. If they do, your other fighter is now in the combat.",
+   "effects": {
+    "immediately": [
+     {"op": "if", "condition": {"test": "exists", "fighters": {"side": "own", "kind": "sidekick"}}, "then": [
+      {"op": "optional", "chooser": "owner", "ops": [
+       {"op": "swap", "target": "hero", "with": {"side": "own", "kind": "sidekick"}, "as": "swapped"},
+       {"op": "plugin", "id": "houdini:replace_combatant", "args": {"swapped": "$swapped"}}
+      ]}
+     ]}
+    ],
+    "during": [], "after": [], "scheme": [], "boost": []
+   },
+   "notes": "Versatile (value 3, boost 1). Houdini and Bess (both alive) swap spaces; if they did, the OTHER one of the two takes the place of the fighter that played the card in this very combat, attacking or defending with this card, in the space the first one had: no range check, the card stays in play for the new fighter. The rival's card is aimed at the new fighter (damage and AFTER effects too). The two spaces are the swap's; the plugin only changes who is in the combat."
+  },
+  {
+   "title": "Misdirection",
+   "copies": 3,
+   "text": "IMMEDIATELY: Cancel all effects on your opponent's card. BOOSTED WITH: Deal 2 damage to any fighter.",
+   "effects": {
+    "immediately": [
+     {"op": "cancel_effects", "card": "opponent_card"}
+    ],
+    "during": [], "after": [], "scheme": [],
+    "boost": [
+     {"op": "damage", "target": {"side": "any"}, "amount": 2, "chooser": "owner"}
+    ]
+   },
+   "notes": "Versatile (value 2, boost 1). As a boost it deals 2 effect damage to ANY fighter on the board (the owner's too, if they want): the bot hits the rival piece that pays most."
+  },
+  {
+   "title": "And the Beautiful Bess!",
+   "copies": 2,
+   "text": "If you discard this card as a result of an opponent's effect, draw 1 card. BOOSTED WITH: If it's your turn, gain 1 action.",
+   "effects": {
+    "immediately": [], "during": [], "after": [], "scheme": [],
+    "boost": [
+     {"op": "gain_action", "amount": 1}
+    ]
+   },
+   "notes": "Versatile (value 3, boost 1), Bess only. BOOSTED WITH: `gain_action` only gives the action to the player whose turn it is, which is the printed 'if it's your turn' (boosting a defense on the rival's turn gives nothing). The discard reaction is the ability trigger `and_the_beautiful_bess`."
+  },
+  {
+   "title": "Grand Escape",
+   "copies": 3,
+   "text": "DURING COMBAT: You may BOOST this card. AFTER COMBAT: If you won the combat, place your fighter in any space.",
+   "may_boost": true,
+   "effects": {
+    "immediately": [], "during": [],
+    "after": [
+     {"op": "if", "condition": {"test": "combat_result", "result": "won"}, "then": [
+      {"op": "place", "target": "this", "where": {"any": true}, "chooser": "owner"}
+     ]}
+    ],
+    "scheme": [], "boost": []
+   },
+   "notes": "Defense only (value 2, boost 3), Houdini only. 'Won' follows the engine: the defender wins a tie or a higher value. The fighter that played it goes to any empty space."
+  },
+  {
+   "title": "All Part of the Show",
+   "copies": 2,
+   "text": "This card's effect cannot be canceled. AFTER COMBAT: If your fighter was defeated, set their health to 4 instead and place them in any space. (This effect happens even if Houdini was defeated.) BOOSTED WITH: Houdini recovers 2 health.",
+   "uncancelable": true,
+   "defers_defeat": true,
+   "effects": {
+    "immediately": [], "during": [],
+    "after": [
+     {"op": "if", "condition": {"test": "exists", "fighters": {"role": "this", "state": "defeated"}}, "then": [
+      {"op": "revive", "target": {"role": "this", "state": "defeated"}, "where": {"any": true}, "hp": 4}
+     ]}
+    ],
+    "scheme": [],
+    "boost": [
+     {"op": "heal", "target": {"side": "own", "kind": "hero"}, "amount": 2}
+    ]
+   },
+   "notes": "Defense only (value 2, boost 2). `defers_defeat`: when the combat damage would defeat the hero of the card's owner, the game is NOT over yet: the loss waits until the AFTER effects are done (the defender's first, so this card's), and only a hero still down then loses. The fighter that played the card, if defeated, comes back with 4 health on any empty space (a sidekick is revived the same way). Nothing cancels the AFTER (`uncancelable`). As a boost: Houdini recovers 2 health (not above his maximum)."
+  },
+  {
+   "title": "Set the Stage",
+   "copies": 2,
+   "text": "Draw 3 cards. Then, put a card in your hand on top of your deck. BOOSTED WITH: Look at an opponent's hand and choose a card for them to discard.",
+   "effects": {
+    "immediately": [], "during": [], "after": [],
+    "scheme": [
+     {"op": "draw", "player": "owner", "amount": 3},
+     {"op": "return_to_deck", "cards": {"zone": "hand", "player": "owner", "amount": 1, "chooser": "owner"}, "position": "top"}
+    ],
+    "boost": [
+     {"op": "look_hand", "player": "opponent"},
+     {"op": "discard", "cards": {"zone": "hand", "player": "opponent", "amount": 1, "chooser": "owner"}}
+    ]
+   },
+   "notes": "Scheme, Bess only (boost 2). As a boost the owner looks at the rival's hand and picks a card for them to discard: the bot reads the human's hand only then (look_hand, the rule of the project); the human, boosting, is shown the bot's hand and picks as with Confront Any Demon or God."
+  },
+  {
+   "title": "A Magician Never Reveals His Secrets",
+   "copies": 1,
+   "text": "Draw 2 cards. Gain 1 action. If an effect would let an opponent look at your hand, you may reveal this card and cancel that effect.",
+   "look_shield": true,
+   "effects": {
+    "immediately": [], "during": [], "after": [],
+    "scheme": [
+     {"op": "draw", "player": "owner", "amount": 2},
+     {"op": "gain_action", "amount": 1}
+    ],
+    "boost": []
+   },
+   "notes": "Scheme, Houdini only (boost 4: the biggest boost of the deck). `look_shield`: while it is in its owner's hand, a `look_hand` of the rival on that hand asks the owner whether to reveal it; if they do, the card is shown, the look is cancelled and the rival's later pick among the cards they never saw fizzles. See the Houdini section of docs/effects-dsl.md."
+  }
+ ],
+ "plugins": [
+  {"id": "houdini:replace_combatant", "why": "Smoke And Mirrors: after the swap, the other fighter takes the place of the one that played the card IN the running combat (attacker or defender), which no op can do."},
+  {"id": "houdini:return_boosted", "why": "The Big Reveal: choose one of the cards this combat was boosted with (the flow keeps them) and return it from the discard pile to the hand; the DSL has no selector for 'cards boosted with this combat'."}
+ ],
+ "hidden_info": [
+  {
+   "card": "Set the Stage",
+   "what": "As a boost: look_hand on the rival's hand and a discard chosen among what was seen.",
+   "bot_plays_it": "The bot reads the human's hand ONLY when the boost runs, chooses the card to discard and keeps the rest as the human's KnownHand.",
+   "human_plays_it": "The bot lays its hand out and the human picks the card it discards, as with Confront Any Demon or God."
+  },
+  {
+   "card": "A Magician Never Reveals His Secrets",
+   "what": "The holder may reveal it to cancel a look at their hand.",
+   "bot_plays_it": "The bot always reveals it when a look at its hand is coming (it costs it only the knowledge of one card).",
+   "human_plays_it": "A panel question whenever the bot is about to look at the human's hand and the card is not in their discard pile: reveal it (only if you hold it) or not."
+  }
+ ],
+ "open_questions": [
+  "Sleight of Hand: the IMMEDIATELY (return it and play a different card) is not coded: see the card's notes.",
+  "The Big Reveal: 'boost this card twice' = two cards spent from the hand one after the other, each with its own BOOSTED WITH.",
+  "All Part of the Show: a hero defeated by the combat damage of a card other than the defender's own (effect damage) is not saved: only the combat damage of THIS combat is deferred."
+ ]
+}

@@ -15,7 +15,7 @@ import logging
 import random
 from dataclasses import replace
 
-from ..ai_medusa import GAZE, Act, MedusaAI
+from ..ai_medusa import GAZE, Act, MedusaAI, scheme_fighter
 from ..cards import Card
 from ..combat import is_medusa_card
 from ..controller import Controller
@@ -157,7 +157,8 @@ class IsmctsMedusa(Controller):
             moves, spot = plan_frenzy(game, self.me, first[3])
             return Act("frenzy", fid=hero.fid, card=by_title(hand, first[1]), moves=moves, spot=spot)
         if kind == "scheme":        # D2: executed with the SyntheticChooser the search evaluated it with
-            return Act("scheme", fid=hero.fid, card=by_title(hand, first[1]), variant=first[3])
+            card = by_title(hand, first[1])
+            return Act("scheme", fid=scheme_fighter(game, self.me, card).fid, card=card, variant=first[3])
         raise ValueError(f"move without an equivalent action: {chosen!r}")
 
     def execute(self, game: Game, act: Act) -> None:

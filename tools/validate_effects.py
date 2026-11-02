@@ -36,6 +36,7 @@ EVENT_BINDINGS = {
     "damage_taken": {"target": "fighter", "amount": "number"},
     "card_discarded": {"card": "card"},
     "card_played": {"card": "card"},
+    "card_boosted": {"card": "card"},
     "fighter_defeated": {"fighter": "fighter"},
     "combat_lost": {"fighter": "fighter"},
     "after_combat": {"fighter": "fighter", "card": "card"},

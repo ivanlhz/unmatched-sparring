@@ -47,6 +47,7 @@ from . import session_translators as translators
 from .session_choices import panel_text
 from .spaces import describe, zone_text
 from .combat import FEINT, GLANCE_DAMAGE, can_boost, deck_boost, is_medusa_card, scheme_gain_actions
+from .effects.modifiers import boost_limit, grants_boost, has_boost_effect
 from .state import ANUNG, DETECTIVE, EXHAUST_DAMAGE, Fighter, Game, RuleError
 from .tts import lua, ui
 from .tts.lua import ChatKind
@@ -311,6 +312,7 @@ class Session:
         self.hand_discarded: set[int] = set()         # CardIDs the bot moved from the human's hand to their pile in this step (Crown Of Flame): nothing left to ask
         self.hand_deck: set[int] = set()              # CardIDs the human put from their discard into their deck by hand (session_pile): not moved again
         self.hand_moved: dict[str, int] = {}          # fid -> space the human put a miniature on by hand (session_moves): not projected again
+        self.boost_note: dict | None = None                   # what the bot's Maneuver boost card drew and gained (`_note_boost`)
         self.fx_looked = False                        # a look_hand re-identified the human's virtual hand in this step
         self.reveal_bot_hand = False                  # a card of the human looked at the bot's hand in this step (E3)
         self._attach_choosers()
@@ -978,8 +980,9 @@ class Session:
     def _human_played(self, p: Pending) -> frozenset:
         """The human's cards this combat took out of their hand by their own hand (the played card, the boost)."""
         played = {c.card_id for owner, c in p.flow.played if owner == self.human}
-        boost = (p.combat or {}).get("boost")
-        return frozenset(played | ({boost} if boost is not None else set()))
+        combat = p.combat or {}
+        boosts = combat.get("boosts") or ([combat["boost"]] if combat.get("boost") is not None else [])
+        return frozenset(played | set(boosts))
 
     def _paused(self) -> tuple[str, object, EffectRun] | None:
         """(kind, holder, run) of the decision the panel shows: ("flow", CombatFlow, run), ("effect", run, run) or
@@ -1147,6 +1150,8 @@ class Session:
                 human_effects.finish(self, run)
                 if self.moving and self.game.turn == self.human:
                     self.say(t("sess.press_end"), ChatKind.YOUR_TURN)
+        elif human_effects.STEP in run.flags:         # the BOOSTED WITH of a Maneuver boost the human answered
+            human_effects.finish(self, run)
         if self.game.turn == self.bot and self.pending is None and self.game.winner is None:
             self._bot_continue()
 
@@ -1180,7 +1185,8 @@ class Session:
         the table already read (`Pending.combat["boost"]`), the rest as the synchronous `resolve_combat` does."""
         p = self.pending
         mine = {c.card_id: c for c in self.game.players[self.human].full_set}
-        boost = None if p.combat["boost"] is None else mine[p.combat["boost"]]
+        ids = p.combat.get("boosts") or ([p.combat["boost"]] if p.combat["boost"] is not None else [])
+        boost = [mine[i] for i in ids] if len(ids) > 1 else (mine[ids[0]] if ids else None)    # a card with several boosts takes a list
         flow.choosers = hidden.flow_choosers(self, p)      # the Perfect Shot prediction decided at play time
         choose = legacy_chooser(self.game, flow, boost, self.human)
         while (wait := flow.run()) is not None:
@@ -1788,9 +1794,13 @@ class Session:
         base, self.maneuver_baseline = self.maneuver_baseline, None
         if base is None:
             return
-        for c in self.game.players[self.human].discard:
-            if c.card_id not in base and not can_be_boost(c):
+        new = [c for c in self.game.players[self.human].discard if c.card_id not in base]
+        for c in new:
+            if not can_be_boost(c):
                 self.say(t("maneuver.no_boost_value", title=c.title), ChatKind.WARNING)
+        spent = [c for c in new if can_be_boost(c)]
+        if len(spent) == 1 and has_boost_effect(spent[0]) and self.game.fx.interprets(self.human):
+            human_effects.maneuver_boost(self, spent[0])      # BOOSTED WITH: its ops run now, like a scheme's
 
     def _announce_exhaustion(self, hp0: dict[str, float], alive0: dict[str, bool]) -> None:
         """Drawing with an empty deck hurts everyone: it is announced and written like any other damage."""
@@ -2069,7 +2079,8 @@ class Session:
             self.say(t("reveal.illegal", err=e), ChatKind.WARNING)
             return
         human_guid = theirs[0]["guid"] if theirs else None
-        if human_card is not None and can_boost(human_card):      # your attack (Second Shot) or your defense (Out Of Time)
+        granted = p.bot_card is not None and grants_boost(p.bot_card)
+        if human_card is not None and (can_boost(human_card) or granted):      # your attack (Second Shot), your defense (Out Of Time), a boost the bot's card allows
             if p.bot_card is not None and is_medusa_card(p.bot_card) and p.bot_card.title == FEINT:
                 self.say(t("reveal.feint", bot=p.bot_card.title, card=human_card.title), ChatKind.COMBAT)
             elif boost_session.offered(self, p, human_card):
@@ -2091,6 +2102,8 @@ class Session:
                                {"guid": guid, "baseline": baseline, "hand": self._rd_human_count(-1), "stuck": False})
         if p.wait.deck:
             self.say(t("boost.revealed_deck", title=card.title), ChatKind.YOUR_TURN)
+        elif boost_limit(card) > 1:
+            self.say(t("boost.revealed_many", title=card.title, n=boost_limit(card)), ChatKind.YOUR_TURN)
         else:
             self.say(t("boost.revealed", title=card.title), ChatKind.YOUR_TURN)
 
@@ -2117,22 +2130,25 @@ class Session:
         if use:
             seen = {r["id"] for r in self._rd_human_discard() if r["id"] in mine}
             new = sorted(seen - set(p.wait.extra["baseline"]) - {card.card_id})
+            limit = max(boost_limit(card), 1)       # a card that says "boost this card twice" takes up to that many
             if not new:
                 self.say(t("boost.no_new"), ChatKind.WARNING)
                 return
-            if len(new) > 1:
-                self.say(t("boost.many_new", n=len(new), titles=", ".join(mine[i].title for i in new)), ChatKind.WARNING)
+            if len(new) > limit:
+                self.say(t("boost.many_new" if limit == 1 else "boost.many_new_max", n=len(new), max=limit,
+                           titles=", ".join(mine[i].title for i in new)), ChatKind.WARNING)
                 return
             before, now = p.wait.extra["hand"], self._rd_human_count(-1)
             if p.wait.deck:          # Flame Lash: comes from the bottom of the deck, the hand does not change
                 before = -1
-            if isinstance(before, int) and before >= 0 and now >= 0 and now != before - 1:
-                self.say(t("boost.from_hand", before=before, now=now, expected=max(before - 1, 0)), ChatKind.WARNING)
+            if isinstance(before, int) and before >= 0 and now >= 0 and now != before - len(new):
+                self.say(t("boost.from_hand", before=before, now=now, expected=max(before - len(new), 0)), ChatKind.WARNING)
                 return
-            boost = mine[new[0]]
-            if not p.wait.deck and not can_be_boost(boost):
-                self.say(t("boost.no_value", title=boost.title), ChatKind.WARNING)
+            spent = [mine[i] for i in new]
+            if not p.wait.deck and (bad := next((c for c in spent if not can_be_boost(c)), None)) is not None:
+                self.say(t("boost.no_value", title=bad.title), ChatKind.WARNING)
                 return
+            boost = spent if len(spent) > 1 else spent[0]
         self.sync_positions()                     # the table rules: something may have moved while waiting
         self._resolve_combat(p, card, p.wait.extra["guid"], flip=False, boost=boost)
         p = self.pending                          # a refused combat restores the snapshot: a rebuilt Pending
@@ -2148,7 +2164,7 @@ class Session:
         self.say(t("cancel.stuck"))
 
     def _resolve_combat(self, p: Pending, human_card: Card | None, human_guid: str | None, flip: bool,
-                        boost: Card | None) -> None:
+                        boost: Card | list | None) -> None:
         """Runs the combat. A card effect may stop it at a decision of the human: the combat stays in `p.flow`
         (saved) with the choice on the panel, and `_after_combat` closes it when the flow ends. If the engine refuses
         it, everything returns to the snapshot taken before (the action is not spent, the cards go back)."""
@@ -2158,17 +2174,21 @@ class Session:
         self.combat_guids = {human_card.card_id: human_guid} if human_card is not None and human_guid else {}
         value = self.pending_value
         saved = self.to_dict()
+        boosts = [] if boost is None else list(boost) if isinstance(boost, list) else [boost]
         p.combat = {"flip": flip, "human_guid": human_guid, "bot_seen": len(g.players[self.bot].discard),
                     "alive_before": self._alive_map(), "before": self._snapshot_bot(),
-                    "boost": None if boost is None else boost.card_id}
+                    "boost": None if not boosts else boosts[0].card_id}
+        if len(boosts) > 1:
+            p.combat["boosts"] = [b.card_id for b in boosts]
         try:
             if human_card is not None:
                 self.make_known(human_card)
                 self._transit[human_card.card_id] = 0
-            if boost is not None and deck_boost(human_card) and g.fx.interprets(self.human):
-                human_effects.stage_bottom_card(self, boost)      # Flame Lash's own DURING op discards it
-            elif boost is not None:
-                self.make_known(boost, keep=(human_card,))
+            if boosts and deck_boost(human_card) and g.fx.interprets(self.human):
+                human_effects.stage_bottom_card(self, boosts[0])      # Flame Lash's own DURING op discards it
+            else:
+                for b in boosts:
+                    self.make_known(b, keep=(human_card, *boosts))
             p.combat["fx"] = bot_effects.snapshot(self)   # after the human's cards are known: the diff is the effects'
             if p.declared is not None:           # the `attacked` event already spent a token: project from before it
                 p.combat["fx"]["counters"] = dict(p.declared["counters"])
@@ -2258,8 +2278,8 @@ class Session:
         pending = [(card, why) for card, why in ((res.atk_card, t("cause.attack")), (res.def_card, t("cause.defense")))
                    if card is not None and card in bot.full_set and card not in bot.discard]    # leave at the end of the flow
         reasons = {card.card_id: why for card, why in pending}
-        if res.boost_card is not None and res.boost_card in bot.full_set:
-            reasons[res.boost_card.card_id] = t("cause.combat_boost")
+        for i in self._bot_boost_ids(p):
+            reasons[i] = t("cause.combat_boost")
         listed = [self._discard_list(c["bot_seen"], reasons, t("cause.effect"))] + [t("combat.discard_item", title=card.title, why=why) for card, why in pending]
         if line := ", ".join(x for x in listed if x):
             self.say(t("combat.bot_discards", list=line))
@@ -2317,8 +2337,8 @@ class Session:
         for card, why in ((res.atk_card, t("cause.attack")), (res.def_card, t("cause.defense"))):
             if card is not None and card in g.players[self.bot].full_set:
                 reasons[card.card_id] = why
-        if res.boost_card is not None and res.boost_card in g.players[self.bot].full_set:
-            reasons[res.boost_card.card_id] = t("cause.combat_boost")
+        for i in self._bot_boost_ids(p):
+            reasons[i] = t("cause.combat_boost")
         listed = self._discard_list(c["bot_seen"], reasons, t("cause.effect"), told=set(told["ids"]) if told else ())
         if listed:
             self.say(t("combat.bot_discards", list=listed))
@@ -2353,9 +2373,17 @@ class Session:
             return
         self.say(t("combat.after"), ChatKind.YOUR_TURN)
 
+    def _bot_boost_ids(self, p: Pending) -> set[int]:
+        """The cards the bot spent as a boost in this combat, whichever side it was on (an attack's or a defense's)."""
+        flow = p.flow
+        ids = {i for side, spent in flow.boosted.items() for i in spent if (flow.att if side == "atk" else flow.tgt).owner == self.bot}
+        card = flow.result.boost_card            # the interpreter's own boosts are all in `flow.boosted`; a legacy path's is here
+        return ids | ({card.card_id} if card is not None and card in self.game.players[self.bot].full_set else set())
+
     def _combat_text(self, p: Pending, res) -> str:
         """Breakdown of where each total comes from: card played, bonuses and boost card, with their titles."""
-        attacker, target = self._name(p.attacker), self._name(p.target)
+        fighters = self.game.fighters                  # who fought: Smoke And Mirrors may have put the other one in
+        attacker, target = self._name(fighters[res.attacker]), self._name(fighters[res.target])
         atk = t("combat.atk", who=attacker, parts=res.atk_parts[0]) + "".join(
             t("combat.join_and" if i == 0 else "combat.join_comma", part=part) for i, part in enumerate(res.atk_parts[1:]))
         if res.def_card is None:
@@ -3103,7 +3131,28 @@ class Session:
         others = self._hp_text(hp0, skip=act.target if act.kind == "glance" else healed if act.kind == "scheme" else None)
         if act.kind == "maneuver" and not moved:
             text += t("bot.draws_idle")
+        if act.kind == "maneuver" and act.boost is not None and has_boost_effect(act.boost) and self.boost_note is not None:
+            text += self._boosted_with_text(act)
         return (text + (t("bot.moves", moved="; ".join(moved)) if moved else "") + (f". {others}" if others else "") + ".")
+
+    def _note_boost(self, act, fx_before: dict, actions0: int) -> None:
+        """Right after the engine ran the bot's Maneuver (before the table is written and the draws are dealt, which use
+        the counters up): what the BOOSTED WITH of its boost card did to its own cards and actions."""
+        g, self.boost_note = self.game, None
+        if act.kind != "maneuver" or act.boost is None or not has_boost_effect(act.boost):
+            return
+        self.boost_note = {"drawn": g.drawn[self.bot] - fx_before["drawn"] - 1,          # the Maneuver's own draw is not the card's
+                           "gained": g.actions_left - (actions0 - 1)}
+
+    def _boosted_with_text(self, act) -> str:
+        """' (draws 1 and gains 1 action)' after the Maneuver line: the card's trace on cards and actions; the hit points and
+        the pieces it moved are told by the lines that follow. Empty when it left none."""
+        note, parts = self.boost_note, []
+        if note["drawn"] > 0:
+            parts.append(t("bot.scheme_draws", n=note["drawn"]))
+        if note["gained"] > 0:
+            parts.append(tn("narr.gain_actions", note["gained"], verb=t("narr.v.gain.bot")))
+        return t("bot.boosted_with", title=act.boost.title, what=t("common.and").join(parts)) if parts else ""
 
     def _recover_placing(self) -> None:
         """A card the bot put face down whose reply never arrived (timeout after running): if it is at its
@@ -3224,6 +3273,7 @@ class Session:
                 if act.kind in ("scheme", "glance", "frenzy"):
                     self.zoom_ids.add(act.card.card_id)       # the human reads it when it leaves the hand for the discard
                 self.ai.execute(g, act)
+                self._note_boost(act, fx_before, actions0)
                 self._mark_dirty(before)
                 self._persist()
                 paused = self._paused() is not None
