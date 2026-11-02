@@ -26,6 +26,15 @@ Position value (kiting)
   +PRESSURE for each rival in Medusa's zone (ability + shot without moving).
   Simplification: bodies do not block the rival's path (they only occupy attack spaces).
 
+Survival (any hero)
+  * A rival already in reach hits twice in its turn: the hero's threat counts its two best attacks (`Model.two_hit_dist`)
+    against my two best defenses in hand (none: undefended), each landed blow one point heavier (EFFECT_MARGIN).
+    The more likely that kills (continuous up to SURVIVAL_P), the less desperation eases the fear of dying, so running
+    away (maneuver, with or without a boost, and the free move of ANUNG UN RAMA) outranks the "move to strike"
+    preference whenever the strike square carries a SURVIVAL_P chance of death.
+  * Lethal first (`lethal_attack`): an attack on the rival hero that kills with LETHAL_GO chance, or two attacks whose
+    expected damage together clears its HP by TWO_ATTACK_MARGIN, is played before any survival consideration.
+
 Exhaustion, hand limit and desperation
   * Drawing with an empty deck does EXHAUST_DAMAGE to each own fighter: `apply_expected` simulates it (a maneuver
     or a Snipe/Regroup that kills Medusa is worth -DEATH) and draws with a deck are counted as unknown cards
@@ -92,6 +101,10 @@ WIN_PRIZE = 60.0            # winning is worth what losing costs: expected progr
 PROGRESS_DISCOUNT = 0.8     # the rival can step aside before my next turn
 CLOCK_HORIZON = 8           # with 8 or more draws to pay the deck clock does not press
 IDLE_MANEUVER = 0.5         # (not Medusa, whose kiting is standing clear) a maneuver that moves nobody and spends no boost is only a draw: it gives way to a decent attack
+EFFECT_MARGIN = 1           # survival: a blow that lands is counted one point heavier (effects after or during the combat: Crowd control, Unbridled rage)
+SURVIVAL_P = 0.25           # survival: from this chance of dying next turn the fear of the rival is no longer eased by desperation
+TWO_ATTACK_MARGIN = 3       # two attacks only open the turn when their expected damage together exceeds the rival's hit points by this much (a coin flip is left to the ranking)
+LETHAL_GO = 0.5             # an attack on the rival hero that kills with at least this chance is played before anything else
 ATTACKS_PER_TURN = 1.0      # measured in simulation: about one attack and one draw per own turn
 DRAWS_PER_TURN = 1.0
 LONG_GAME = 12              # turns: a race longer than this is "the game will not end soon" (also caps the estimate)
@@ -154,6 +167,7 @@ class Act:
     total: float = 0.0
     exp_damage: float = 0.0
     p_win: float = 0.0
+    p_kill: float = 0.0
     variant: str | None = None      # scheme: the SyntheticChooser policy the search evaluated it with (D2)
     sim: object = None              # scheme: the game the heuristic's simulation left (its expected state)
 
@@ -200,6 +214,33 @@ class Model:
         if total == 0:
             return [(1.0, 0)]
         return [(p / total, v) for p, v in dist]
+
+    def two_hit_dist(self, f: Fighter) -> list[tuple[float, int, int]]:
+        """(probability, best, second best attack value) of the rival's hand for `f`, over the hands it can hold
+        (0 where it has no second attack): what two actions in a row can hit with. The lowest-ranked chosen card of
+        the sorted pool is the best of the hand, the next one the second best."""
+        bonus = self.game.attack_bonus(f)
+        key = ("two", f.name, bonus, self.h)
+        if key in self._cache:
+            return self._cache[key]
+        vals = sorted((c.value + bonus if c.can_attack and c.usable_by(f.name) else 0 for c in self.pool), reverse=True)
+        n, h = self.n, min(self.h, self.n)
+        out: dict = {}
+        if h == 0:
+            out[(0, 0)] = 1.0
+        elif h == 1:
+            for i in range(n):
+                out[(vals[i], 0)] = out.get((vals[i], 0), 0) + 1 / n
+        else:
+            tot = comb(n, h)
+            for i in range(n - 1):
+                for j in range(i + 1, n - h + 2):
+                    p = comb(n - 1 - j, h - 2) / tot
+                    if p:
+                        out[(vals[i], vals[j])] = out.get((vals[i], vals[j]), 0) + p
+        res = [(p, a, b) for (a, b), p in out.items()]
+        self._cache[key] = res
+        return res
 
     def defense_dist(self, t: Fighter):
         destiny = self.game.destiny_count(self.opp)
@@ -351,6 +392,9 @@ class MedusaAI(Controller):
     def plan(self, game: Game) -> Act:
         model = Model(game, self.me)
         ranked = self.candidates(game, model)
+        kill = self.lethal_attack(game, ranked)
+        if kill is not None:
+            return kill
         width = TOP_FIRST_DESPERATE if self.desperation(game) >= 0.3 else TOP_FIRST
         firsts = ranked[:width] + self.approach_acts(game, ranked[width:])
         if game.actions_left < 2:
@@ -363,6 +407,24 @@ class MedusaAI(Controller):
             if best_v is None or total > best_v + 1e-9:
                 best, best_v = a1, total
         return best
+
+    def lethal_attack(self, game: Game, ranked: list[Act]) -> Act | None:
+        """The attack to open with when this turn can finish the rival hero: one that kills with LETHAL_GO or more
+        chance, or (two actions) the biggest of two different attacks whose expected damage together clears its hit points
+        by TWO_ATTACK_MARGIN.
+        Survival terms never hold it back: a win now needs no defense next turn."""
+        rival = game.hero(1 - self.me)
+        hits = [a for a in ranked if a.kind == "attack" and a.target == rival.fid]
+        sure = [a for a in hits if a.p_kill >= LETHAL_GO]
+        if sure:
+            return max(sure, key=lambda a: (a.p_kill, a.value))
+        if game.actions_left >= 2:
+            ordered = sorted(hits, key=lambda a: -a.exp_damage)
+            for i, first in enumerate(ordered):
+                second = next((b for b in ordered[i + 1:] if b.card.title != first.card.title), None)
+                if second is not None and first.exp_damage + second.exp_damage >= rival.hp + TWO_ATTACK_MARGIN:
+                    return first
+        return None
 
     def approach_acts(self, game: Game, rest: list[Act]) -> list[Act]:
         """Maneuvers outside the top acts that end in reach of a rival when none is in reach now and the hand has an
@@ -409,8 +471,9 @@ class MedusaAI(Controller):
                     if c.title in seen or not c.can_attack or not c.usable_by(f.name):
                         continue
                     seen.add(c.title)
-                    value, dmg = self.attack_eval(game, model, f, t, c)
-                    out.append(Act("attack", value, f.fid, t.fid, c, exp_damage=dmg, p_win=self.p_win_of(game, model, f, t, c)))
+                    value, dmg, kill = self.attack_outcome(game, model, f, t, c)
+                    out.append(Act("attack", value, f.fid, t.fid, c, exp_damage=dmg, p_win=self.p_win_of(game, model, f, t, c),
+                                   p_kill=kill))
         return out
 
     def eval_attack(self, game: Game, model: Model, f: Fighter, t: Fighter, c) -> float:
@@ -447,6 +510,10 @@ class MedusaAI(Controller):
         return 0.0
 
     def attack_eval(self, game: Game, model: Model, f: Fighter, t: Fighter, c) -> tuple[float, float]:
+        return self.attack_outcome(game, model, f, t, c)[:2]
+
+    def attack_outcome(self, game: Game, model: Model, f: Fighter, t: Fighter, c) -> tuple[float, float, float]:
+        """(value, expected damage, probability of killing `t`) of attacking `t` with `f` and card `c`."""
         hand = game.players[self.me].hand
         atk, cost = self.card_value(game, f, t, c) + game.attack_bonus(f), CARD_VALUE + 0.05 * c.boost    # ANUNG UN RAMA's +2, a live ONGOING
         if c.title in FREE_BOOST:
@@ -479,7 +546,7 @@ class MedusaAI(Controller):
             decisive = p_kill >= 0.5 or (p_win >= 0.85 and e_net >= 5)
             if not decisive:
                 value -= self.transform_penalty(game, model)
-        return value, e_net + gaze_dmg
+        return value, e_net + gaze_dmg, p_kill
 
     def transform_penalty(self, game: Game, model: Model) -> float:
         opp = 1 - self.me
@@ -733,6 +800,7 @@ class MedusaAI(Controller):
         hand = game.players[self.me].hand
         despair = self.desperation(game)
         score = 0.0
+        despair_fear = 1 - DESPERATE_FEAR_DROP * despair
         for e in foes:
             extra = game.form(1 - self.me) == ANUNG and e.hero
             best = 0.0
@@ -742,9 +810,10 @@ class MedusaAI(Controller):
                 if steps >= MAX_ENEMY_STEPS:
                     continue
                 need = steps - e.move - (ANUNG_FREE_MOVE if extra else 0)
-                p_reach = model.p_boost(need) * (BOOST_DISCOUNT if need > 0 else DOUBLE_ATTACK if steps == 0 else 1.0)
+                p_reach = model.p_boost(need) * (BOOST_DISCOUNT if need > 0 else 1.0)
                 if p_reach <= 0:
                     continue
+                twice = DOUBLE_ATTACK if steps == 0 else 1.0     # already in reach: the rival has an action to spare for a second blow
                 my_def = max((c.value for c in hand if c.can_defend and c.usable_by(t.name)), default=0)
                 exp = p_dead = 0.0
                 for p, v in model.attack_dist(e):
@@ -758,10 +827,15 @@ class MedusaAI(Controller):
                     danger = HARPY_VALUE * t.max_hp * p_hit      # positional fear is not scaled for a single prized piece (Lobster, Koschei): it must still go and shoot (scaling it cost 2-9 wins of 30 in the simulator); the last piece of a group (Agents, Harpies) is shielded more because the cards that need any of them die with it. Defense and boost decisions scale for all
                     if sum(1 for x in mine if x.name == t.name) == 1 and (fighter_profile(game, t) or {}).get("count", 1) > 1:
                         danger *= protect_factor(game, t)
+                    danger *= despair_fear * twice
                 else:
-                    danger = W_MEDUSA_HP * exp + LETHAL * p_dead
+                    held = 0.0
+                    if steps == 0:      # the chance of dying comes from the two blows, not from DOUBLE_ATTACK times one
+                        p_dead = self.two_hit_threat(model, e, t, hand)[1]
+                        held = self.survival_weight(p_dead) * (1 - despair)     # dying loses the game: desperation eases its fear less
+                    danger = W_MEDUSA_HP * exp * twice * despair_fear + LETHAL * p_dead * (1 - DESPERATE_FEAR_DROP * despair * (1 - held))
                 best = max(best, p_reach * danger)
-            score -= best * (1 - DESPERATE_FEAR_DROP * despair)
+            score -= best
         medusa = game.hero(self.me)
         for e in foes:
             if board.share_zone(pos[medusa.fid], pos[e.fid]):
@@ -776,6 +850,39 @@ class MedusaAI(Controller):
                 if is_striker(game, h) and any(board.can_reach_target(pos[h.fid], pos[e.fid], h.ranged) for e in foes):
                     score += self.strike_reward(game, h)
         return score
+
+    def double_blow_risk(self, game: Game, model: Model, override: dict) -> float:
+        """Chance that my hero dies to the two blows of a rival already in reach of it, with `override` positions."""
+        pos = {f.fid: f.pos for f in game.fighters.values() if f.alive}
+        pos.update(override)
+        me = game.hero(self.me)
+        hand = game.players[self.me].hand
+        risk = 0.0
+        for e in game.foes(self.me):
+            if e.fid not in pos or not any(s == pos[e.fid] for s in self.strike_spots(game.board, pos[me.fid], e.ranged)):
+                continue
+            risk = max(risk, self.two_hit_threat(model, e, me, hand)[1])
+        return risk
+
+    @staticmethod
+    def survival_weight(p_dead: float) -> float:
+        """0..1: how much of the fear of dying desperation can no longer ease (continuous up to SURVIVAL_P)."""
+        return min(1.0, p_dead / SURVIVAL_P)
+
+    def two_hit_threat(self, model: Model, e: Fighter, t: Fighter, hand) -> tuple[float, float]:
+        """(expected damage, probability of dying) of `t` (a hero of mine) when rival `e`, already in reach, hits twice
+        in its turn. The best defense in my hand covers the first blow, the second best the second; every blow
+        that lands counts EFFECT_MARGIN more for the effects the printed value does not show."""
+        defs = sorted((c.value for c in hand if c.can_defend and c.usable_by(t.name)), reverse=True) + [0, 0]
+        exp = p_dead = 0.0
+        for p, first, second in model.two_hit_dist(e):
+            dmg = 0
+            for v, d in ((first, defs[0]), (second, defs[1])):
+                net = max(0, v - d)
+                dmg += net + (EFFECT_MARGIN if net > 0 else 0)
+            exp += p * min(dmg, t.hp)
+            p_dead += p * (dmg >= t.hp)
+        return exp, p_dead
 
     def strike_reward(self, game: Game, f: Fighter) -> float:
         """Position value of an own striker ending in strike range of a rival: STRIKE_PER_POINT for each point of the
@@ -810,8 +917,15 @@ class MedusaAI(Controller):
     def best_dest(self, game: Game, model: Model, f: Fighter, steps: int, through: bool) -> int:
         options = game.legal_moves(f, steps, through) | {f.pos}
         if f.hero:
-            options = self.reach_dests(game, f, options) or options
-            return max(options, key=lambda d: (self.position_value(game, model, {f.fid: d}), -d))
+            rank = lambda d: (self.position_value(game, model, {f.fid: d}), -d)
+            reaching = self.reach_dests(game, f, options)
+            if not reaching:
+                return max(options, key=rank)
+            strike = max(reaching, key=rank)
+            # getting into position for the attack is not worth a likely death: the survival fear decides then
+            if self.double_blow_risk(game, model, {f.fid: strike}) >= SURVIVAL_P:
+                return max(options, key=rank)
+            return strike
         return max(options, key=lambda d: (self.harpy_score(game, f, d), -d))
 
     # ---------- execution ----------
