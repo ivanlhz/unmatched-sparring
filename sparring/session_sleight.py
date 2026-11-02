@@ -18,7 +18,7 @@ def bot_swap(session, p) -> Callable[[], None]:
     """Queues the bot's swap when the engine's attack card is no longer the one on the table; returns the check to run after the
     step's writes went out (a no-op when there is nothing to swap). Idempotent: `p.bot_card` follows the table."""
     flow = p.flow
-    if flow is None or p.kind != "bot_attacks" or flow.atk_card is p.bot_card or p.bot_card is None:
+    if flow is None or p.kind != "bot_attacks" or not flow.returned or flow.atk_card is p.bot_card or p.bot_card is None:
         return lambda: None
     from .session import SessionError             # the session imports this module: resolved at call time
     old, new, cfg = p.bot_card, flow.atk_card, session.cfg
@@ -39,6 +39,6 @@ def bot_swap(session, p) -> Callable[[], None]:
         guid = result_of(placed).get("placed")
         if guid:
             p.bot_card_guid = guid
-        if not guid or (back is not None and not result_of(back).get("returned")):
+        if not guid or back is None or not result_of(back).get("returned"):
             session.say(t("sleight.bot_manual", old=old.title, new=new.title), ChatKind.WARNING)
     return check

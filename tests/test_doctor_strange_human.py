@@ -427,6 +427,9 @@ def test_mists_played_by_the_human_replaces_the_bots_attack_with_a_card_from_its
     assert said(msgs, "Hellboy ataca con Right Hand Of Doom (4)")
     assert game.fighters["strange"].hp == hp - (4 - 2) and session._paused()[2].label == "dark_pact"
     assert excalibur in game.players[0].discard and top in game.players[0].discard
+    heads = [h for ops in table.msglog for h in ops]
+    assert "place_card_face_up" not in heads and "return_card_to_hand" not in heads       # Sleight Of Hand's swap, not the Mists'
+    assert not said(msgs, "la recoge en su mano")
 
 
 # ---------------------------------------------------------------- The Winds of Watoomb

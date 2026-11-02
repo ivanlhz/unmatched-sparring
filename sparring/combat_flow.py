@@ -142,6 +142,7 @@ class CombatFlow:
         self.boost_valued: set[str] = set()          # sides whose boost values were added (after their BOOSTED WITH effects)
         self.deferred_loss: int | None = None        # the player whose hero fell in this combat and may still be saved by an AFTER effect
         self.choosers: dict | None = None            # player -> effects Chooser; None = the controllers decide
+        self.returned = False                        # the attacker's card went back to the hand (Sleight Of Hand), not to the discard pile (Mists)
         self.again = False                           # the attacker's card was swapped during its IMMEDIATELY: the new card's runs next (Sleight Of Hand)
 
     @property
@@ -358,6 +359,7 @@ class CombatFlow:
             self.game.players[1 - owner].known.add(old, self.game.turn_no)
             self.runs.pop("immediately:atk", None)
             self.again = True
+            self.returned = True
         else:
             self.game.players[owner].discard.append(old)
         self.atk_card = ctx.atk_card = res.atk_card = new
@@ -395,7 +397,7 @@ class CombatFlow:
         out = self._base_dict(self.ctx, self.result)
         if (self.runs or self.printed_set or self.mods["atk"] or self.mods["def"] or self.redirects
                 or self.late_cancelled or self.cancel_hits or self.boost_granted or self.boosted
-                or self.deferred_loss is not None or self.boost_valued):
+                or self.deferred_loss is not None or self.boost_valued or self.returned):
             out["dsl"] = {"runs": {k: r.to_dict() for k, r in self.runs.items()}, "printed_set": dict(self.printed_set),
                           "mods": {k: [list(m) for m in v] for k, v in self.mods.items()},
                           "redirects": [dict(r) for r in self.redirects]}
@@ -411,6 +413,8 @@ class CombatFlow:
                 out["dsl"]["deferred_loss"] = self.deferred_loss
             if self.boost_valued:
                 out["dsl"]["boost_valued"] = sorted(self.boost_valued)
+            if self.returned:
+                out["dsl"]["returned"] = True
         return out
 
     def _base_dict(self, ctx, res) -> dict:
@@ -451,7 +455,7 @@ class CombatFlow:
             raw["pending"], default_player=att.owner, deck_of=lambda _: False)
         flow.ctx = flow.result = None
         flow.sides = []
-        flow.runs, flow.printed_set, flow.redirects, flow.choosers, flow.again = {}, {}, [], None, False
+        flow.runs, flow.printed_set, flow.redirects, flow.choosers, flow.again, flow.returned = {}, {}, [], None, False, False
         flow.late_cancelled, flow.cancel_hits = set(), set()
         flow.boost_granted, flow.boosted, flow.deferred_loss, flow.boost_valued = set(), {}, None, set()
         flow.mods = {"atk": [], "def": []}
@@ -469,6 +473,7 @@ class CombatFlow:
             flow.boosted = {k: list(v) for k, v in d.get("boosted", {}).items()}
             flow.deferred_loss = d.get("deferred_loss")
             flow.boost_valued = set(d.get("boost_valued", ()))
+            flow.returned = bool(d.get("returned", False))
         if raw["ctx"] is not None:
             c, r = raw["ctx"], raw["result"]
             flow.ctx = CombatCtx(att, tgt, flow.atk_card, flow.def_card, c["atk_value"], c["def_value"],
