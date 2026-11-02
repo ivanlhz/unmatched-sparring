@@ -10,6 +10,7 @@ step (`session_translators.return_to_deck`) that the table already shows them in
 from __future__ import annotations
 
 from .effects.choose import ChoiceRequest
+from . import session_rage as rage
 from .i18n import t
 from .session_choices import panel_text, request_card
 from .tts.lua import ChatKind
@@ -21,6 +22,8 @@ def manual_request(session) -> ChoiceRequest | None:
     """The pending decision of the human when it picks cards out of their own discard pile to put them in the deck."""
     run = session.effect_run
     req = None if run is None else run.awaiting
+    if req is not None and req.player == session.human and rage.is_rage(req):
+        return req                                   # Unbridled rage: cards INTO the discard pile, the same Done button
     if (req is None or req.kind != "cards" or req.player != session.human or req.extra.get("zone") != "discard"
             or req.extra.get("of") != session.human or req.extra.get("purpose") != "return"):
         return None
@@ -44,6 +47,8 @@ def _how_many(req: ChoiceRequest) -> str:
 
 
 def instruction(session, req: ChoiceRequest) -> str:
+    if rage.is_rage(req):
+        return rage.instruction(session, req)
     st = session.game.players[session.human]
     no_scheme = any(c.card_id not in req.options and c.is_scheme for c in st.discard)
     kind = t("pile.kind.single" if req.max == 1 else "pile.kind.multi") if no_scheme else ""
@@ -61,6 +66,8 @@ def reprompt(session, req: ChoiceRequest) -> str:
 
 
 def status(session, req: ChoiceRequest) -> str:
+    if rage.is_rage(req):
+        return rage.status(session, req)
     return panel_text(t("pile.status"))
 
 
@@ -103,9 +110,14 @@ def press(session, paused, index) -> None:
     if index != 1:
         session.say(t("choice.no_such_button"), ChatKind.WARNING)
         return
-    ids, why = verdict(session, req)
+    by_rage = rage.is_rage(req)
+    ids, why = rage.verdict(session, req) if by_rage else verdict(session, req)
     if ids is None:
         session.say(why, ChatKind.WARNING)
+        return
+    if by_rage:                                   # the engine discards them from the virtual hand: nothing to undo here
+        session.say(rage.counted(session, req, ids), ChatKind.YOUR_TURN)
+        session._answer_choice(paused, ids)
         return
     session.hand_deck.update(ids)
     session._answer_choice(paused, ids)

@@ -368,3 +368,30 @@ def test_break_something_defending_against_a_vanilla_attack_hurts_an_adjacent_ri
     rf, liz = pair(g, "raphael", "liz")
     res = g.attack(liz, rf, give(g, 1, "Fireball"), give(g, 0, "Break something"))
     assert liz.hp == 16 - 2 and res.damage == 3
+
+
+# ---------------------------------------------------------------- a cancelled may_boost card is not boosted (docs/heroes/raphael.md)
+
+@pytest.mark.parametrize("foe, rival, boosts", [
+    ("liz-sherman", "Feint", False),             # IMMEDIATELY: cancels every effect, the DURING boost with them
+    ("donatello", "Short circuit", True),        # cancels only AFTER: the boost of the DURING stays
+])
+def test_a_may_boost_attack_is_boosted_unless_the_rival_cancels_its_during(bprd, foe, rival, boosts):
+    g = mk(bprd, foe)
+    pair(g, "raphael", foe.split("-")[0])
+    power, spare = give(g, 0, "Turtle power!"), give(g, 0, "Sai")
+    g.controllers[0].boost = spare
+    res = g.attack(g.fighters["raphael"], g.fighters[foe.split("-")[0]], power, give(g, 1, rival))
+    assert (res.boost_card is spare) is boosts
+    assert res.atk_value == 3 + (spare.boost if boosts else 0) and (spare in g.players[0].discard) is boosts
+    assert (spare in g.players[0].hand) is not boosts
+
+
+def test_a_defense_that_cancels_during_and_after_takes_the_boost_of_a_may_boost_attack(bprd):
+    g = mk(bprd, "leonardo")                      # the human side of this pair is Raphael's rival Leonardo: his Turtle power!
+    g.turn, g.actions_left = 1, 2
+    pair(g, "leonardo", "raphael")
+    power, spare = give(g, 1, "Turtle power!"), give(g, 1, "Turtle power!", 1)
+    g.controllers[1].boost = spare
+    res = g.attack(g.fighters["leonardo"], g.fighters["raphael"], power, give(g, 0, "Break something"))
+    assert res.boost_card is None and spare in g.players[1].hand and res.atk_value == 3

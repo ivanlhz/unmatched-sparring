@@ -130,14 +130,19 @@ class FxTable(Table):
         return self._deck_insert(s, "top")
 
     def do_shuffle_into_deck(self, s):
-        guids = re.findall(r'"g(\d+)"', re.search(r"local wanted = \{(.*?)\}", s).group(1))
+        wanted = re.findall(r'"([gh])(\d+)"', re.search(r"local wanted = \{(.*?)\}", s).group(1))
         pile, deck = ((self.human_discard, self.human_deck) if self._human_side(s) else (self.bot_discard, self.bot_deck))
-        added = [int(g) for g in guids if int(g) in pile and int(g) not in self.stuck_in_pile]
-        for i in added:
-            pile.remove(i)
+        on_spot = {r["id"] for r in self.face_down}          # the human's card at the combat spot (Relentless): GUID h<id>
+        added = [(k, int(g)) for k, g in wanted if int(g) not in self.stuck_in_pile
+                 and (int(g) in pile or (k == "h" and int(g) in on_spot and self._human_side(s)))]
+        for k, i in added:
+            if k == "h":
+                self.face_down = [r for r in self.face_down if r["id"] != i]
+            else:
+                pile.remove(i)
             deck.append(i)
-        self.deck_moves.append(("shuffle", added))
-        return {"added": len(added), "moved": [f"g{i}" for i in added], "deck": "DECK1", "quantity": len(deck)}
+        self.deck_moves.append(("shuffle", [i for _, i in added]))
+        return {"added": len(added), "moved": [f"{k}{i}" for k, i in added], "deck": "DECK1", "quantity": len(deck)}
 
     def do_return_card_to_hand(self, s):
         i = int(re.search(r'getObjectFromGUID\("g(\d+)"\)', s).group(1))

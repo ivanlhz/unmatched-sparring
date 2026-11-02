@@ -5,6 +5,7 @@ from __future__ import annotations
 
 import pytest
 
+from sparring.state import Game
 from sparring.tts.ui import Event
 from test_batch import click
 from test_d3_table_effects import build, card_ids, human_attack, human_hand, said, set_hand
@@ -76,28 +77,90 @@ def test_payback_time_after_a_lost_combat_this_turn_is_worth_five(rig, monkeypat
     assert said(msgs, "Raphael ataca con Payback time! (5)") or said(msgs, "total 5"), msgs
 
 
+def relentless_id(game):
+    return next(c.card_id for c in game.players[1].full_set if c.title == "Relentless")
+
+
 @with_rig(TRAINING)
-def test_relentless_is_shuffled_into_the_deck_and_the_human_is_told_to_do_it(rig, monkeypatch):
+def test_relentless_is_moved_into_the_deck_shuffled_and_one_card_is_dealt_by_the_bot(rig, monkeypatch):
     session, table, game, fake, cfg = rig
     defends(session, game, monkeypatch, TRAINING)
     human_hand(table, game, "Relentless", "Sai")
+    rid = relentless_id(game)
     msgs = attack(session, table, game, "raphael", "Relentless")
-    assert said(msgs, "Pon Relentless de tu zona de combate en tu mazo y baraja")
-    assert not said(msgs, "Devuelve 1 carta de tu mano")
-    assert not any(c.title == "Relentless" for c in game.players[1].discard) and said(msgs, "Tu carta: Relentless: robas 1")
+    assert said(msgs, "Meto Relentless de tu zona de combate en tu mazo y lo barajo")
+    assert not said(msgs, "Pon Relentless de tu zona de combate")           # nothing left for the human to do by hand
+    assert table.deck_moves == [("shuffle", [rid])] and table.human_deck == [rid] and table.face_down == []
+    assert table.human_deals == [1] and said(msgs, "Te he dado 1 carta")       # the deal comes after the shuffle
+    assert rid in [c.card_id for c in game.players[1].deck] and not any(c.card_id == rid for c in game.players[1].discard)
+    assert rid not in table.human_discard
+    assert len(game.players[1].hand) == table.human_count
+    session.snap = None
+    click(session, table, Event.HP, {"fighter": "hellboy", "delta": 0})        # the next reading: nothing is flagged
+    assert rid in [c.card_id for c in game.players[1].deck] and not any(c.card_id == rid for c in game.players[1].discard)
 
 
 @with_rig(TRAINING)
-def test_unbridled_rage_asks_how_many_and_the_table_owes_those_discards(rig, monkeypatch):
+def test_relentless_falls_back_to_the_instruction_when_the_table_refuses(rig, monkeypatch):
+    session, table, game, fake, cfg = rig
+    defends(session, game, monkeypatch, TRAINING)
+    human_hand(table, game, "Relentless", "Sai")
+    table.stuck_in_pile = {relentless_id(game)}
+    msgs = attack(session, table, game, "raphael", "Relentless")
+    assert said(msgs, "No he podido meter Relentless en tu mazo: ponla tú de tu zona de combate en tu mazo y baraja")
+    assert not any(c.title == "Relentless" for c in game.players[1].discard) and said(msgs, "Tu carta: Relentless: robas 1")
+
+
+def give_up(table, game, *titles):
+    """The human puts these cards (from their hand) in their discard pile on the table."""
+    ids = card_ids(game, 1, *titles)
+    for i in ids:
+        if i in table.human_hand:
+            table.human_hand.remove(i)
+    table.human_discard += ids
+    table.human_count -= len(ids)
+    return ids
+
+
+def done(session, table):
+    return click(session, table, Event.CHOICE, {"i": 1})
+
+
+@with_rig(TRAINING)
+def test_unbridled_rage_waits_for_the_cards_on_the_discard_pile_and_counts_two_each(rig, monkeypatch):
     session, table, game, fake, cfg = rig
     defends(session, game, monkeypatch, TRAINING)
     human_hand(table, game, "Unbridled rage", "Sai", "Heroes in a half shell", "Let's do this!")
     msgs = attack(session, table, game, "raphael", "Unbridled rage")
-    assert session.effect_run is not None and session.effect_run.awaiting.kind == "amount"
-    assert session.effect_run.awaiting.options == list(range(len(game.players[1].hand) + 1))
-    msgs = press(session, table, 2)
-    assert said(msgs, "Descarta 2 carta(s) (Unbridled rage)")
+    req = session.effect_run.awaiting
+    assert req.kind == "cards" and req.min == 0 and not any(i in req.options for i in card_ids(game, 1, "Let's do this!"))
+    assert said(msgs, "pon en tu descarte las cartas de defensa o versatiles") and not said(msgs, "Elige una cantidad")
+    assert session.panel_view()[0].startswith("Pon las cartas a sacrificar")
+    ids = give_up(table, game, "Sai", "Heroes in a half shell")
+    msgs = done(session, table)
+    assert said(msgs, "cuento Sai, Heroes in a half shell") and said(msgs, "+4")
     assert said(msgs, "Unbridled rage (3) y Unbridled rage (+4): total 7") and said(msgs, "Dano 4")
+    assert session.effect_run is None and sorted(c.card_id for c in game.players[1].discard if c.card_id in ids) == sorted(ids)
+    assert len(game.players[1].hand) == table.human_count                     # the engine's hand follows the table
+    assert not said(msgs, "Descarta 2 carta(s)")
+
+
+@with_rig(TRAINING)
+def test_unbridled_rage_rejects_an_attack_card_says_why_and_accepts_it_once_taken_back(rig, monkeypatch):
+    session, table, game, fake, cfg = rig
+    defends(session, game, monkeypatch, TRAINING)
+    human_hand(table, game, "Unbridled rage", "Sai", "Let's do this!")
+    attack(session, table, game, "raphael", "Unbridled rage")
+    sai, lets = give_up(table, game, "Sai", "Let's do this!")
+    msgs = done(session, table)
+    assert said(msgs, "Let's do this! (ataque) no se puede sacrificar con Unbridled rage") and said(msgs, "defensa y versatiles")
+    assert not said(msgs, "Sai (") and session.effect_run is not None            # nothing was applied, still waiting
+    assert game.players[1].discard == [] or lets not in [c.card_id for c in game.players[1].discard]
+    table.human_discard.remove(lets)                                              # taken back to the hand
+    table.human_hand.append(lets)
+    table.human_count += 1
+    msgs = done(session, table)
+    assert said(msgs, "cuento Sai") and said(msgs, "total 5") and session.effect_run is None
 
 
 @with_rig(TRAINING)
@@ -106,8 +169,8 @@ def test_unbridled_rage_with_zero_cards_is_just_a_three(rig, monkeypatch):
     defends(session, game, monkeypatch, TRAINING)
     human_hand(table, game, "Unbridled rage", "Sai")
     attack(session, table, game, "raphael", "Unbridled rage")
-    msgs = press(session, table, 0)
-    assert said(msgs, "Raphael ataca con Unbridled rage (3): total 3") and not said(msgs, "Descarta")
+    msgs = done(session, table)
+    assert said(msgs, "no sacrificas ninguna carta") and said(msgs, "Raphael ataca con Unbridled rage (3): total 3")
 
 
 @with_rig(TRAINING)
@@ -148,3 +211,66 @@ def test_slapshot_by_casey_is_six_next_to_the_rival(rig, monkeypatch):
     human_hand(table, game, "Slapshot")
     msgs = attack(session, table, game, "casey", "Slapshot")
     assert said(msgs, "Casey Jones ataca con Slapshot (2) y Slapshot (+4): total 6") or said(msgs, "total 6"), msgs
+
+
+# ---------------------------------------------------------------- the free boost of Turtle power! and the rival's cancel
+
+PLANNED = "Planned Recklessness"
+
+
+def hellboy_form(monkeypatch, form):
+    """Planned Recklessness only cancels the rival's effects while Hellboy is OCCULT DETECTIVE."""
+    real = Game.form
+    monkeypatch.setattr(Game, "form", lambda self, player: form if player == 0 else real(self, player))
+
+
+@with_rig(PLANNED, PLANNED)
+def test_a_cancelled_turtle_power_is_not_offered_a_boost(rig, monkeypatch):
+    session, table, game, fake, cfg = rig
+    hellboy_form(monkeypatch, "OCCULT DETECTIVE")
+    defends(session, game, monkeypatch, PLANNED)
+    human_hand(table, game, "Turtle power!", "Sai")
+    msgs = attack(session, table, game, "raphael", "Turtle power!")
+    assert said(msgs, "Planned Recklessness te quita el boost de Turtle power!")
+    assert not said(msgs, "si quieres potenciar") and session.pending is None and session.pending_value == 0
+    assert any(m.startswith("Combate:") for m in msgs)
+    assert "total 3" in next(m for m in msgs if m.startswith("Combate:"))
+
+
+@with_rig(PLANNED, PLANNED)
+def test_turtle_power_keeps_its_boost_when_the_rival_does_not_cancel_anything(rig, monkeypatch):
+    session, table, game, fake, cfg = rig
+    hellboy_form(monkeypatch, "ANUNG UN RAMA")                 # as ANUNG UN RAMA Planned Recklessness cancels nothing
+    defends(session, game, monkeypatch, PLANNED)
+    human_hand(table, game, "Turtle power!", "Sai")
+    msgs = attack(session, table, game, "raphael", "Turtle power!")
+    assert said(msgs, "Turtle power! revelado: si quieres potenciar") and session.pending.wait is not None
+    assert not said(msgs, "te quita el boost")
+
+
+def test_short_circuit_cancels_only_the_after_effects_so_the_boost_stays(tmp_path, monkeypatch):
+    session, table, game, fake, cfg, client = build(tmp_path, "donatello", "raphael", ("Short circuit",))
+    put_adjacent(game, table, cfg, "raphael", "donatello")
+    defends(session, game, monkeypatch, "Short circuit")
+    human_hand(table, game, "Turtle power!", "Sai")
+    try:
+        msgs = attack(session, table, game, "raphael", "Turtle power!", target="donatello")
+        assert said(msgs, "Turtle power! revelado: si quieres potenciar") and not said(msgs, "te quita el boost")
+    finally:
+        client.close()
+        fake.close()
+
+
+def test_break_something_takes_the_boost_of_a_humans_leonardo_turtle_power(tmp_path, monkeypatch):
+    """DURING and AFTER are cancelled by the bot's IMMEDIATELY: the boost goes with the DURING."""
+    session, table, game, fake, cfg, client = build(tmp_path, "raphael", "leonardo", ("Break something",))
+    put_adjacent(game, table, cfg, "leonardo", "raphael")
+    try:
+        defends(session, game, monkeypatch, "Break something")
+        human_hand(table, game, "Turtle power!", "For Sensei")
+        msgs = attack(session, table, game, "leonardo", "Turtle power!", target="raphael")
+        assert said(msgs, "Break something te quita el boost de Turtle power!") and not said(msgs, "si quieres potenciar")
+        assert session.pending is None
+    finally:
+        client.close()
+        fake.close()

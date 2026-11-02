@@ -34,7 +34,7 @@
     ],
     "after": [], "scheme": [], "boost": []
    },
-   "notes": "The owner decides how many (0 included) and which; the plugin discards them from the hand and adds +2 each. Bot: a request of kind cards with `per_card` and the combat context (EffectAI weighs each card's keep value against the damage 2 more points would add). Human: the panel asks how many, then the table owes that many discards from their hand ('Discard N defense or versatile cards'); the engine does not see the human's hand. The card is attack only (value 3, boost 4)."
+   "notes": "The owner decides how many (0 included) and which; the plugin discards them from the hand and adds +2 each. Bot: a request of kind cards with `per_card` and the combat context (EffectAI weighs each card's keep value against the damage 2 more points would add). Human: they put the cards they give up in their discard pile and press Done; the session reads the pile by CardID, refuses any card that is not a defense or versatile card of theirs and answers with the valid ones (session_rage); the engine does not see the human's hand. The card is attack only (value 3, boost 4)."
   },
   {
    "title": "Let's do this!",
@@ -179,7 +179,7 @@
   {"id": "raphael:unbridled_rage", "why": "A DURING cost-and-bonus with a free number of discarded cards whose count then feeds a value: the DSL has no op that reads how many cards a previous discard took (docs/effects-dsl.md, section 9, gap 12) and no way for the human to decide a count that the engine cannot see in their hand."}
  ],
  "hidden_info": [
-  {"card": "Unbridled rage", "rule": "The bot discards from its own hand and its discards are public. When the human plays it, the engine never looks at their hand: the panel asks how many cards they discard and the table owes those discards (the bot learns them from the discard pile)."},
+  {"card": "Unbridled rage", "rule": "The bot discards from its own hand and its discards are public. When the human plays it, the engine never looks at their hand: they put the cards in their discard pile and press Done; the bot reads the pile, checks the types and adds +2 per valid card."},
   {"card": "Relentless", "rule": "The card is shuffled into the owner's deck face down; the rival saw it played, then loses track of it. The bot forgets a known deck top when it shuffles."},
   {"card": "Raphael is cool but rude", "rule": "The draw is blind for both sides."}
  ],

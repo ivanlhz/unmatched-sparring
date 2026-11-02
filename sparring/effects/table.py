@@ -26,6 +26,24 @@ def physical(game, player: int) -> bool:
     return table_player(game) == player
 
 
+def make_known(game, player: int, card, keep: tuple = ()) -> None:
+    """The table player's hand is virtual: when a card is seen (played, boosted, put on their discard pile) it is
+    swapped with one of the virtual hand (never with those of `keep`, already known in this same step)."""
+    st = game.players[player]
+    if card in st.hand:
+        return
+    if card in st.discard:                    # the card is face down on the table: the discard read was old
+        st.discard.remove(card)
+    elif card in st.deck:
+        st.deck.remove(card)
+    known = game.players[1 - player].known.seen
+    spare = [c for c in st.hand if c not in keep and c.card_id not in known] or [c for c in st.hand if c not in keep]
+    if spare:
+        st.hand.remove(spare[-1])
+        st.deck.append(spare[-1])
+    st.hand.append(card)
+
+
 def hand_pick_is_physical(game, run, sel) -> bool:
     """A choice out of the table player's own hand at their own choice, at random or of all of it: the engine never
     names those cards (its copy of the hand is placeholders), the table settles it."""

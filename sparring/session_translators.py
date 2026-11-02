@@ -406,6 +406,41 @@ def _return_bot(session, intent: dict, ctx: Ctx) -> list[Check]:
                                set(ids) - (set(known) - _unmoved(op, known, guids) if op is not None else set()))]
 
 
+def combat_card_to_deck(session, ids: list[int], ctx: Ctx) -> list[Check]:
+    """Relentless played by the human: the card sits at their combat spot, face up, and its AFTER sends it into their
+    deck. The bot moves it by GUID (the one it read at the reveal), shuffles their deck and the draw the card owes is
+    dealt after it (`Session._deal_owed_draws`). No deck GUID, no identity, an unknown GUID or a table that refuses:
+    the old chat instruction, the human does it."""
+    from .session import SessionError             # the session imports this module: resolved at call time
+    by_id = _by_id(session, session.human)
+    titles = join_titles(by_id[i].title for i in ids)
+    guids = {i: session.combat_guids[i] for i in ids if i in session.combat_guids}
+
+    def by_hand(missing: list[int]) -> None:
+        session.say(t("raphael.combat_to_deck", cards=join_titles(by_id[i].title for i in missing), cause=ctx.cause), ChatKind.YOUR_TURN)
+    if not session.cfg.human_deck_guid or len(guids) != len(ids):
+        by_hand(ids)
+        return []
+    try:
+        identity = session._identity("human")
+    except ERRORS + (SessionError,):
+        by_hand(ids)
+        return []
+    session.fx_in_flight.update(ids)
+    session.say(t("raphael.combat_to_deck_bot", cards=titles, cause=ctx.cause), ChatKind.SCHEME)
+    op = session._w(lua.shuffle_into_deck(session.cfg.human_deck_guid, [guids[i] for i in ids], session.cfg.human_card_ids,
+                                          identity=identity), DOMAIN)
+
+    def check() -> None:
+        moved = result_of(op).get("moved")
+        left = [i for i in ids if not isinstance(moved, list) or guids[i] not in moved]
+        if left:
+            session.fx_in_flight.difference_update(left)
+            session.say(t("raphael.combat_to_deck_failed", cards=join_titles(by_id[i].title for i in left), cause=ctx.cause),
+                        ChatKind.YOUR_TURN)
+    return [check]
+
+
 def _fall_back(session, intent: dict, ctx: Ctx, position: str, missing: set[int]) -> None:
     """What the table did not take is left to the human variant, worded for the position the bot tried."""
     if missing:

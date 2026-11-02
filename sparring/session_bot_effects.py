@@ -37,7 +37,7 @@ from typing import Callable
 
 from .cards import Card
 from .i18n import plural, t
-from .session_translators import Ctx, is_tail, translate
+from .session_translators import Ctx, combat_card_to_deck, is_tail, translate
 from .tts import lua
 from .tts.lua import ChatKind
 
@@ -63,7 +63,7 @@ def read_human_hand(session, player: int) -> list[Card]:
     by_id = {c.card_id: c for c in st.full_set}
     cards = [by_id[r["id"]] for r in rows if isinstance(r, dict) and r.get("id") in by_id]
     for c in cards:
-        session._make_known(c, keep=tuple(cards))
+        session.make_known(c, keep=tuple(cards))
     for c in [c for c in st.hand if c not in cards]:     # the rest of the virtual hand was never there
         st.hand.remove(c)
         st.deck.append(c)
@@ -269,15 +269,14 @@ def _human_cards(session, before: dict, played: frozenset, looked: bool, ctx: Ct
     for intent in _groups(intents, "return_to_deck", human, "hand", hand_to_deck, keep_order=True):
         checks += translate(session, intent, ctx) or []
     drawn = 0 if looked else len([i for i in h1["hand"] if i in h0["deck"]])    # a look moves placeholders, not cards
+    played_back = [i for it in intents if it["op"] == "return_to_deck" and it["player"] == human and it["zone"] == "discard"
+                   for i in it["cards"] if i in h1["deck"] and i not in h0["discard"] and i not in h0["deck"]]    # Relentless
+    if played_back:                               # the bot puts it in the deck BEFORE the draw it owes is dealt
+        checks += combat_card_to_deck(session, played_back, ctx) or []
     session._deal_owed_draws(cause)               # the draws of the effect are dealt to the hand (the `draw` translator)
     from_hand = len([i for i in h0["hand"] if i in played])
     entered = g.fx.ongoing_card_id(human)         # an ONGOING that entered play left the hand without a discard
     from_hand += int(entered is not None and entered != in_play and entered in h0["hand"] and entered not in played)
-    played_back = [i for it in intents if it["op"] == "return_to_deck" and it["player"] == human and it["zone"] == "discard"
-                   for i in it["cards"] if i in h1["deck"] and i not in h0["discard"] and i not in h0["deck"]]    # Relentless
-    if played_back:
-        titles = ", ".join(c.title for c in st.full_set if c.card_id in played_back)
-        session.say(t("raphael.combat_to_deck", cards=titles, cause=cause), ChatKind.YOUR_TURN)
     unknown = len(h0["hand"]) + drawn - len(h1["hand"]) - from_hand - len(to_discard) - by_bot - len(hand_to_deck) - len(played_back)
     if unknown > 0:
         session.say(t("bot.return_hand", cards=plural(unknown, "noun.card"), cause=cause), ChatKind.YOUR_TURN)
