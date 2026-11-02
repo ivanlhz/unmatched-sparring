@@ -393,7 +393,8 @@ class MedusaAI(Controller):
         model = Model(game, self.me)
         ranked = self.candidates(game, model)
         kill = self.lethal_attack(game, ranked)
-        if kill is not None:
+        # an act the ranking already sees winning the game (Pact Of Peace on a 1 HP hero) beats the shortcut
+        if kill is not None and not (ranked[0] is not kill and ranked[0].total >= DEATH / 2):
             return kill
         width = TOP_FIRST_DESPERATE if self.desperation(game) >= 0.3 else TOP_FIRST
         firsts = ranked[:width] + self.approach_acts(game, ranked[width:])
