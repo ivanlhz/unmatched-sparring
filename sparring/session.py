@@ -43,6 +43,7 @@ from . import session_hidden as hidden
 from . import session_moves as moves
 from . import session_pieces as piece_id
 from . import session_pile as pile
+from . import session_sleight as sleight
 from . import session_translators as translators
 from .session_choices import panel_text
 from .spaces import describe, zone_text
@@ -2223,6 +2224,7 @@ class Session:
             # not at the end of the combat, so he sees what is being resolved
             self._flip_queued([(p.bot_card_guid, "bot"), (p.combat["human_guid"], "human")])
             p.combat["flipped"] = True
+        fin_swap = sleight.bot_swap(self, p)         # Sleight Of Hand: after the reveal, before the result is told
         self._mark_dirty(_bot_snapshot(p.combat["before"]))
         fin_dials = self._tell_damage_dealt(p)
         if self._table_gate(p):
@@ -2231,6 +2233,7 @@ class Session:
         fin_fx = self._project_effects(p.combat.get("fx"), self._human_played(p), cause)
         self._try_flush_table()
         fin_dials()
+        fin_swap()
         fin_fx()
         p.combat["before"], p.combat["fx"] = self._snapshot_bot(), bot_effects.snapshot(self)
         if (wait := p.flow.pending) is not None and wait.kind == "effect" and wait.player == self.human:
@@ -2326,6 +2329,7 @@ class Session:
             self.zoom_ids.add(p.bot_card.card_id)         # not flipped on the table: the discard shows it instead
         if c["flip"] and not c.get("flipped"):
             self._flip_queued([(None if discarded_now and side == "bot" else guid, side) for guid, side in flip_cards])
+        fin_swap = sleight.bot_swap(self, p)         # Sleight Of Hand: after the reveal, before the result is told
         self.pending, self.pending_value, self.chosen_attacker = None, 0, None
         said_first = len(self.messages)
         if self.pending_discard is not None:      # before any I/O: a table failure cannot leave it without a basis
@@ -2363,6 +2367,7 @@ class Session:
         fin_table = self._try_flush_stage()
         fin_dials()
         fin_table()
+        fin_swap()
         fin_fx()
         if g.winner is not None:
             self.say(t("game.over", winner=g.winner))

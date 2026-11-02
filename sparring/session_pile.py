@@ -110,7 +110,10 @@ def _settle_play(session, req: ChoiceRequest, ids: list[int]) -> None:
     from .session_translators import DOMAIN, ERRORS, result_of
     from .tts import lua
     old = req.extra.get("old")
+    sleight = bool(req.extra.get("sleight"))
     rows = {r["id"]: r.get("guid") for r in session._rd_combat_spot() if isinstance(r, dict) and r.get("guid")}
+    if sleight and not ids:                       # they kept Sleight Of Hand: it is still the card of the combat
+        return
     session.combat_guids.pop(old, None)
     if ids and rows.get(ids[0]):
         session.combat_guids[ids[0]] = rows[ids[0]]
@@ -119,13 +122,16 @@ def _settle_play(session, req: ChoiceRequest, ids: list[int]) -> None:
     by_id = {c.card_id: c for c in session.game.players[session.human].full_set}
     cfg = session.cfg
     try:
-        op = session._w(lua.card_to_discard(rows[old], cfg.human_discard_zone, cfg.human_card_ids,
-                                            identity=session._identity("human")), DOMAIN)
-        moved = result_of(op).get("moved")
+        if sleight:                               # Sleight Of Hand goes back to their hand, not to the discard pile
+            moved = result_of(session._w(lua.return_card_to_hand(rows[old], cfg.human_seat), DOMAIN)).get("returned")
+        else:
+            op = session._w(lua.card_to_discard(rows[old], cfg.human_discard_zone, cfg.human_card_ids,
+                                                identity=session._identity("human")), DOMAIN)
+            moved = result_of(op).get("moved")
     except ERRORS + (SessionError,):              # a table or identity failure: the human does it
         moved = None
     if not moved:
-        session.say(t("mists.move_old", title=by_id[old].title), ChatKind.WARNING)
+        session.say(t("sleight.move_old" if sleight else "mists.move_old", title=by_id[old].title), ChatKind.WARNING)
 
 
 def press(session, paused, index) -> None:

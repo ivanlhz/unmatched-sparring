@@ -11,7 +11,8 @@ else changes nothing: the chat says what is wrong and the panel keeps waiting. T
   reveal  No, Really, I'm a Doctor: the card from their hand shown on the discard pile, exactly one; the bot then puts it on top
           of their deck (`session_translators.stack_top`).
   play    The Mists of Munnopor: the card their deck revealed and they play, face up at their combat spot instead of the
-          one that was discarded; none is fine (no playable card in the deck)."""
+          one that was discarded; none is fine (no playable card in the deck). Sleight Of Hand (`sleight` in the request): the
+          card they take back to their hand and play instead, same spot; none keeps Sleight Of Hand where it is."""
 from __future__ import annotations
 
 from .effects.choose import ChoiceRequest
@@ -40,12 +41,17 @@ def instruction(session, req: ChoiceRequest) -> str:
         return t("blind.instruction", card=card, n=req.max)
     if m == "reveal":
         return t("reveal.instruction", card=card)
+    if m == "play" and req.extra.get("sleight"):
+        attacker = session.game.fighters.get(req.extra.get("attacker"))
+        return t("sleight.instruction", card=card, attacker=attacker.name if attacker is not None else "")
     if m == "play":
         return t("mists.instruction", card=card, attacker=req.extra.get("attacker", ""))
     return t("rage.instruction", card=card, per=req.extra.get("per_card", 2))
 
 
 def status(session, req: ChoiceRequest) -> str:
+    if mode(req) == "play" and req.extra.get("sleight"):
+        return panel_text(t("sleight.status"))
     return panel_text(t({"blind": "blind.status", "reveal": "reveal.status", "play": "mists.status"}.get(mode(req), "rage.status")))
 
 
@@ -96,13 +102,18 @@ def _verdict_play(session, req: ChoiceRequest) -> tuple[list[int] | None, str | 
     st = session.game.players[session.human]
     by_id = {c.card_id: c for c in st.full_set}
     old = req.extra.get("old")
-    new = [r["id"] for r in _combat_spot(session) if r.get("id") in by_id and r["id"] != old]
+    at_spot = {r["id"] for r in _combat_spot(session) if r.get("id") in by_id}
+    new = sorted(at_spot - {old})
     if not new:
-        return [], None                      # no playable card in the whole deck: the attack has no card
+        if req.extra.get("sleight") and old not in at_spot:      # taken back with nothing in its place: neither card is in play
+            return None, t("sleight.missing", card=by_id[old].title)
+        return [], None                      # Mists: no playable card in the whole deck, the attack has no card. Sleight: they keep it
     if len(new) > 1:
         return None, t("mists.too_many", titles=", ".join(by_id[i].title for i in new))
     card, attacker = by_id[new[0]], session.game.fighters.get(req.extra.get("attacker"))
     if new[0] not in req.options:
+        if req.extra.get("sleight") and card.title == by_id[old].title:
+            return None, t("sleight.same", title=card.title, card=card.title)
         why = t("mists.not_playable", title=card.title, kind=t(f"rage.type.{card.type}"),
                 fighter=attacker.name if attacker is not None else "")
         return None, why
@@ -120,6 +131,8 @@ def counted(session, req: ChoiceRequest, ids: list[int]) -> str:
                  bonus=f"+{sum(by_id[i].boost for i in ids)}")
     if m == "reveal":
         return t("reveal.counted", card=card, title=by_id[ids[0]].title, boost=by_id[ids[0]].boost)
+    if m == "play" and req.extra.get("sleight"):
+        return t("sleight.kept", card=card) if not ids else t("sleight.counted", card=card, title=by_id[ids[0]].title)
     if m == "play":
         return t("mists.none", card=card) if not ids else t("mists.counted", card=card, title=by_id[ids[0]].title)
     if not ids:

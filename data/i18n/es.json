@@ -963,6 +963,7 @@
  "sleight.counted": "{card}: vuelve a tu mano y juegas {title} en su lugar.",
  "sleight.kept": "{card}: te la quedas y atacas con ella.",
  "sleight.move_old": "Recoge {title} de tu zona de combate y ponla en tu mano.",
- "sleight.bot": "{title}: el bot recoge {old} en su mano y pone {new} boca arriba en su zona de combate en su lugar.",
- "sleight.bot_manual": "No he podido hacerlo en la mesa: recoge {old} de la zona de combate del bot en su mano y pon {new} boca arriba ahi en su lugar."
+ "sleight.bot": "{old}: el bot la recoge en su mano y pone {new} boca arriba en su zona de combate en su lugar.",
+ "sleight.bot_manual": "No he podido hacerlo en la mesa: recoge {old} de la zona de combate del bot en su mano y pon {new} boca arriba ahi en su lugar.",
+ "sleight.missing": "{card} ya no esta en tu zona de combate y no hay ninguna carta nueva: pon en ella la carta que juegas en su lugar (o vuelve a dejar {card}) y pulsa [[btn.done]] otra vez."
 }

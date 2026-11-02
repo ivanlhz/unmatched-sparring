@@ -48,6 +48,11 @@ A cancelled side is skipped unless `when_cancelled=True`; cancellation is checke
 defender Feint cancels the attacker before it resolves). Handlers are re-entrant: they return `Await` BEFORE mutating
 anything; after `resume` the same handler runs again and finds its answer in `answers`.
 
+A handler may swap the attacker's card while it runs (`replace_attack_card`). With `back_to_hand` (Sleight Of Hand, section 27 of
+docs/effects-dsl.md) it happens inside the attacker's own IMMEDIATELY: the flow drops that side's finished-to-be run and sets `flow.again`,
+so `step()` leaves `side_idx` where it is and the same side runs its IMMEDIATELY again, now with the new card. `again` is consumed in the
+same step (never saved).
+
 Engine hooks (code moved from the old function):
 
 | Phase | What happens |
