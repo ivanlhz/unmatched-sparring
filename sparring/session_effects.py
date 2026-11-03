@@ -85,6 +85,12 @@ def play_scheme(session, card: Card) -> None:
     from .ai_medusa import scheme_fighter          # the fighter the card is restricted to plays it (Jackalope Horns is the Jackalope's)
     fighter = scheme_fighter(g, session.human, card)
     if fighter is None:                            # a sidekick's card with that sidekick down: nobody can play it, the hero does not
+        st = g.players[session.human]
+        if card in st.discard:                     # not played: the card is back in the hand and the action is given back
+            st.discard.remove(card)
+            st.hand.append(card)
+        g.actions_left += 1
+        g.fx.taken = max(0, g.fx.taken - 1)
         session.say(t("scheme.no_fighter", title=card.title, fighter=card.fighter), ChatKind.WARNING)
         return
     run, pending = ongoing.resolve_scheme(g, session.human, fighter, card, session._choosers())

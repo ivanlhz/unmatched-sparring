@@ -172,7 +172,7 @@ def test_disengage_places_the_fighter_on_an_empty_space_of_its_zone_win_or_lose(
     g.controllers[0].queue = [lambda req: asked.append(req.options) or [zone[-1]]]
     res = g.attack(bigfoot, leonardo, give(g, 0, "Disengage"), g.players[1].hand[0])
     assert not res.attacker_won and bigfoot.pos == zone[-1]
-    assert set(asked[0]) <= set(zone) | {bigfoot_start}     # only spaces of the zone were offered (the fighter's own square is a no-op)
+    assert set(asked[0]) <= set(zone) and bigfoot_start not in asked[0]     # only OTHER empty spaces of the zone: staying is not allowed (Iván, 2026-11-03)
 
 
 # ---------------------------------------------------------------- Momentous Shift
@@ -501,3 +501,26 @@ def test_an_enemy_only_in_the_second_zone_of_bigfoots_space_switches_the_ability
     g.controllers[0].queue = [[True]]
     g.end_turn()
     assert len(g.players[0].hand) == 1
+
+
+def test_disengage_with_no_other_empty_space_in_the_zone_does_nothing(bprd):
+    mates = lambda sp: [t for t in sorted(bprd.spaces) if t != sp and bprd.share_zone(sp, t)]
+    spot = min(sorted(bprd.spaces), key=lambda sp: len(mates(sp)))
+    full = mates(spot)
+    g = mk(bprd, "leonardo")
+    bigfoot, leonardo = pair(g, "bigfoot", "leonardo")
+    others = [f for f in g.fighters.values() if f.alive and f is not bigfoot]
+    assert len(full) <= len(others), "the smallest zone of the board has more spaces than there are other fighters"
+    bigfoot.pos = spot
+    far = [t for t in sorted(bprd.spaces, reverse=True) if t != spot and t not in full]
+    foe = next(f for f in others if f.owner == 1 and f.hero)
+    next_to = next(t for t in full if bprd.adjacent(spot, t))
+    foe.pos = next_to
+    full.remove(next_to)
+    for f in [f for f in others if f is not foe]:
+        f.pos = full.pop(0) if full else far.pop(0)
+    wall(g)
+    attack = give(g, 0, "Disengage")
+    g.controllers[0].queue = [lambda req: [spot]]
+    g.attack(bigfoot, foe, attack, g.players[1].hand[0])
+    assert bigfoot.pos == spot and len(g.controllers[0].queue) == 1          # nothing was asked, nothing moved

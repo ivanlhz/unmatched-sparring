@@ -187,7 +187,7 @@ def test_disengage_leaves_the_placement_of_your_own_miniature_to_you(rig, monkey
     human_hand(table, game, "Disengage", "Skirmish")
     msgs = attack(session, table, game, "bigfoot", "Disengage")
     assert session.effect_run is None and session.pending is None
-    assert said(msgs, "en la mesa: coloca a bigfoot en la zona de tu heroe"), msgs
+    assert said(msgs, "en la mesa: coloca a bigfoot en otra casilla de la zona de tu heroe"), msgs
 
 
 @with_rig("hellboy", "bigfoot", TRAINING)
@@ -219,7 +219,8 @@ def test_jackalope_horns_is_played_by_the_jackalope_you_move_it_first_and_then_n
     req = session.effect_run.awaiting
     assert req.kind == "fighter" and set(req.options) == {"hellboy", "bigfoot"} and req.min == 1
     assert said(msgs, "Elige un luchador adyacente a The Jackalope"), msgs
-    press(session, table, "hellboy")
+    msgs = press(session, table, "hellboy")
+    assert not said(msgs, "lo he movido yo") and not said(msgs, "efecto del bot"), msgs      # the move was the human's
     assert game.fighters["hellboy"].hp == hp["hellboy"] - 2 and game.fighters["bigfoot"].hp == hp["bigfoot"] and session.pending is None
     assert cfg.session_config().dials["hellboy"] in {g for g, _ in table.dial_writes}
 
@@ -244,7 +245,7 @@ def test_disengage_played_by_the_jackalope_names_the_jackalopes_zone_not_the_her
     put_adjacent(game, table, cfg, "jackalope", "hellboy")
     human_hand(table, game, "Disengage", "Skirmish")
     msgs = attack(session, table, game, "jackalope", "Disengage")
-    assert said(msgs, "en la mesa: coloca a jackalope en la zona de jackalope"), msgs
+    assert said(msgs, "en la mesa: coloca a jackalope en otra casilla de la zona de The Jackalope"), msgs
     assert not said(msgs, "zona de tu heroe")
 
 
@@ -256,7 +257,10 @@ def test_a_scheme_of_a_dead_sidekick_is_refused_not_played_by_the_hero(rig):
     human_hand(table, game, "Jackalope Horns", "Hoax")
     hp = {f.fid: f.hp for f in game.fighters.values()}
     bigfoot_at = game.fighters["bigfoot"].pos
+    actions, hand = game.actions_left, len(game.players[1].hand)
     msgs = human_scheme(session, table, game, "Jackalope Horns")
     assert said(msgs, "Jackalope Horns solo puede jugarla The Jackalope, que no esta en el tablero"), msgs
+    assert game.actions_left == actions, "the refused scheme costs no action"
+    assert any(c.title == "Jackalope Horns" for c in game.players[1].hand) and not any(c.title == "Jackalope Horns" for c in game.players[1].discard)
     assert session.effect_run is None and {f.fid: f.hp for f in game.fighters.values()} == hp
     assert game.fighters["bigfoot"].pos == bigfoot_at and not said(msgs, "mueve a bigfoot")

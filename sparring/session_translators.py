@@ -232,6 +232,8 @@ def _moved_piece(session, intent: dict, ctx: Ctx):
     f = session.game.fighters[intent["fid"]]
     if not f.alive or f.pos is None or (alive0 and f.pos == pos0):
         return None
+    if session.hand_moved.get(f.fid) == f.pos:        # the human put it there by hand (session_moves): nothing to project or say
+        return None
     return f
 
 

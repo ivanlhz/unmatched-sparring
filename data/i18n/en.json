@@ -277,6 +277,7 @@
  "tbl.where.zone_hero": "in your hero's zone",
  "tbl.where.zone": "in the zone of {who}",
  "tbl.where.zone_other": "another space in the zone of {who}",
+ "tbl.where.zone_hero_other": "another space in your hero's zone",
  "tbl.where.nearest_hero": "as close as possible to your hero",
  "tbl.where.nearest": "as close as possible to {who}",
  "tbl.where.adjacent": "on an adjacent space",

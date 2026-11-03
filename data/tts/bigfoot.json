@@ -3,7 +3,7 @@
  "_notes": [
   "Bigfoot's deck is sheet 176 (CardIDs 17600-17629, the 30 playing cards; the character card is 309 on sheet 3) like Medusa's, the four turtles' and Doctor Strange's: only deck.identity tells the decks apart (docs/card-identity.md).",
   "The Jackalope's piece is a Custom_Token (b31c7a, nickname 'Jackalope'); the Custom_Model nicknamed 'The Jackalope' with MAX_VALUE 6 (18c384) is its life dial. Bigfoot's miniature (dc0472) and his dial (de393d, MAX_VALUE 16) are both nicknamed 'Bigfoot'.",
-  "GUID collision: the save gives the Jackalope's dial 18c384 the same GUID as Lobster Johnson's dial (Hellboy's bag). Pinned in tests/test_piece_identity.py, documented in docs/heroes/bigfoot.md; dials are not re-pointed by name like miniatures are."
+  "GUID collision: the save gives the Jackalope's dial 18c384 the same GUID as Lobster Johnson's dial (Hellboy's bag). Pinned in tests/test_piece_identity.py; the session tells the two dials apart by name (session_pieces.resolve_dials, tests/test_dial_identity.py), see docs/heroes/bigfoot.md."
  ],
  "bag": {
   "guid": "5d4e2c",

@@ -277,6 +277,7 @@
  "tbl.where.zone_hero": "la zona de tu heroe",
  "tbl.where.zone": "la zona de {who}",
  "tbl.where.zone_other": "otra casilla de la zona de {who}",
+ "tbl.where.zone_hero_other": "otra casilla de la zona de tu heroe",
  "tbl.where.nearest_hero": "lo mas cerca posible de tu heroe",
  "tbl.where.nearest": "lo mas cerca posible de {who}",
  "tbl.where.adjacent": "una casilla adyacente",

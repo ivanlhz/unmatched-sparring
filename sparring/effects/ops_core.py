@@ -333,7 +333,7 @@ def _note_where(game, run, where: dict) -> dict:
         if key in where:
             ref = _ref_fighter(game, run, where[key])
             if ref is not None:
-                out[key] = "hero" if ref is game.hero(run.ctx.owner) else ref.fid
+                out[key] = "hero" if ref is game.hero(run.ctx.owner) else ref.name
     return out
 
 
@@ -344,6 +344,8 @@ def _plan_spots(game, run, fighters, where: dict, chooser: int, op_name: str, hp
     with _trial() as set_attrs:
         for f in _one_after_another(fighters):
             options = space_options(game, run, where, mover=f)
+            if not options:                              # no space to choose from: nothing happens
+                continue
             by_hand = table.piece_is_physical(game, chooser, f)
             stays = [f.died_at] if f.hero and f.died_at in options else options[:1]     # a hero put back by hand: where his miniature already stands
             got = stays if by_hand else run.ask(game, "space", chooser, options, 1, 1, f"{op_name} to",

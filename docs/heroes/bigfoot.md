@@ -42,17 +42,19 @@ None: type, value, boost, copies and text of the 11 titles agree with the images
 4. **"Each fighter adjacent to Bigfoot" (Savagery) and "any one fighter adjacent to the Jackalope" (Jackalope Horns) include the player's own fighters**, as Medusa's A Momentary Glance does (Iván, 28/10). The bot never hurts its own unless it must (the Horns' damage is mandatory when someone is adjacent).
 5. **Jackalope Horns is played by the Jackalope.** The bot already chose the fighter of a scheme from the card's restriction (`scheme_fighter`); the human's scheme used to be run always as the hero's, which would have moved Bigfoot, so `session_effects.play_scheme` now asks `scheme_fighter` too (generic: a scheme restricted to a sidekick is that sidekick's). With that sidekick down nobody can play it: the chat says so (`scheme.no_fighter`) and the hero does not play it instead.
 6. **The human moves the Jackalope by hand first, then names the victim.** The move has `await_destination`: the Jackalope is asked like a rival's miniature (chat instruction, Done on the panel, the bot reads the table and validates the move), so the engine knows where it ended; then the damage question is "Choose a fighter adjacent to The Jackalope" over the fighters really next to it (not asked with one or none).
-7. **Disengage** offers the spaces of the zone the engine finds empty; the fighter's own space is among the options (staying is a legal no-op). With nobody to choose it does nothing.
+7. **Disengage** offers the OTHER empty spaces of the fighter's zone (`other: true`): staying where it is is not allowed. With no other empty space in the zone nothing happens (nothing is asked). The human places the miniature by hand: the chat says "another space in your hero's zone" (or the sidekick's name when a sidekick plays it).
 8. **Skirmish** moves one fighter of the combat, the owner's or the rival's, up to 2 spaces without passing through opposing fighters (the card does not say so). A fighter defeated in the combat is not there any more.
 9. **Momentous Shift as a defense** compares with where the fighter stood when the rival's turn began (the turn-start positions the interpreter records at every start of turn). A defender moved by an effect during that turn counts as having started elsewhere only if it began that turn on another space.
 10. **Regroup** draws 2 if you won (never 3) and 1 otherwise.
 
+## Decisions of Iván (2026-11-03)
+- **Savagery** hits his own Jackalope when it stands next to Bigfoot ("each fighter adjacent"): confirmed as implemented.
+- **Jackalope Horns** damage is mandatory even if only Bigfoot is adjacent to the Jackalope: confirmed as implemented.
+- **Momentous Shift as a defense** uses the turn-start positions of the rival's turn: confirmed as implemented.
+- **The ability draws before the hand limit** is enforced (a human with a full hand may draw and discard back to the limit; the bot refuses at the limit): confirmed as implemented.
+- **Disengage must NOT allow staying on the fighter's own space**: the placement is on a different empty space of the fighter's zone, nothing happens if there is none (bot and human).
+
 ## Open questions for Iván
-- **Savagery and the Jackalope**: "each fighter adjacent to Bigfoot" is read as including his own Jackalope when it stands next to him. If it should only hit opposing fighters, change the selector's `side` to `enemy`.
-- **Jackalope Horns on your own Bigfoot**: allowed (the card says "any one fighter"). The damage is mandatory, so with only Bigfoot next to the Jackalope the bot must hit him; with anyone else it never does (same as Medusa's Glance).
-- **Momentous Shift in defense**: read from the rival's turn start (a defender that did not move on its own turn but was pushed by an effect counts as "different"). Say if "started this turn" should mean only the owner's own turn.
-- **The drawn card and the hand limit**: the ability draws before the hand limit is enforced, so with a full hand you can draw and then discard back to the limit (cycling a card). The bot refuses that; the human may do it.
-- **Disengage's own space**: the engine lists the fighter's current space among the legal placements (a no-op). Harmless; say if the card should force a different space.
 - **GUID 18c384 (Jackalope and Lobster dials)**: resolved by the dials' names; I have assumed the dial objects are called "Lobster Johnson" and "The Jackalope" as in the save. Tell me if the chat ever says it cannot tell them apart.
 
 ## AI

@@ -53,10 +53,10 @@
    "effects": {
     "immediately": [], "during": [], "scheme": [], "boost": [],
     "after": [
-     {"op": "place", "target": "this", "where": {"zone_of": "this"}, "chooser": "owner"}
+     {"op": "place", "target": "this", "where": {"zone_of": "this", "other": true}, "chooser": "owner"}
     ]
    },
-   "notes": "Attack 4 / boost 2, any fighter of Bigfoot. Happens whether the combat was won or not. 'This fighter' is the fighter that played the card (a defeated one is not placed). The zone is the board's zone of the space the fighter stands on; with no empty space in it nothing happens."
+   "notes": "Attack 4 / boost 2, any fighter of Bigfoot. Happens whether the combat was won or not. 'This fighter' is the fighter that played the card (a defeated one is not placed). The zone is the board's zone of the space the fighter stands on; the fighter must change space (`other`: its own square is not offered), and with no other empty space in it nothing happens (Iván, 2026-11-03)."
   },
   {
    "title": "Momentous Shift",
