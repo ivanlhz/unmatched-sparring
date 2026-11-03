@@ -1,0 +1,178 @@
+{
+ "_notes": [
+  "Sheet 176 of the tournament savegame (8x4), read card by card from the image on 2026-11-03. CardID = 17600 + idx; 309 = character card (sheet 3, 10x7, index 9). The deck object of the save holds 31 cards: the 30 of the deck plus the character card, which is why the catalog says card_count 31 and card_ids [309, 17629].",
+  "Restriction band (BIGFOOT, THE JACKALOPE or ANY) and copies (xN printed on each card) read from the images; type, value and boost match unmatched-memory for all 11 titles. Bigfoot's deck is sheet 176 like Medusa's, the four turtles' and Doctor Strange's: only deck.identity (data/tts/bigfoot.json) tells the decks apart (docs/card-identity.md).",
+  "Restriction by card: BIGFOOT on Larger Than Life, Savagery and Crash Through the Trees; THE JACKALOPE on Jackalope Horns; ANY on the other seven titles (Disengage, Momentous Shift, Skirmish, Hoax, Regroup, Feint, It's Just Your Imagination).",
+  "Hero card (read from the image): BIGFOOT, MELEE, START HEALTH 16, MOVE 3; sidekick THE JACKALOPE, MELEE, START HEALTH 6 (the card prints the move once, 3, for both). One Jackalope.",
+  "The ability is an end_of_turn trigger on the interpreter (data/heroes/effects/bigfoot.json); no counters, forms or passives."
+ ],
+ "fid": "bigfoot",
+ "sidekicks": [
+  {
+   "fid": "jackalope",
+   "name": "The Jackalope",
+   "tts_tokens": ["Jackalope"]
+  }
+ ],
+ "forms": null,
+ "counters": {},
+ "triggers": [],
+ "passives": [],
+ "deck": {
+  "card_base": 17600,
+  "sheet_id": 176,
+  "hero_card_id": 309,
+  "sheet": [
+   {
+    "idx": 0,
+    "title": "Larger Than Life",
+    "fighter": "Bigfoot"
+   },
+   {
+    "idx": 1,
+    "title": "Larger Than Life",
+    "fighter": "Bigfoot"
+   },
+   {
+    "idx": 2,
+    "title": "Larger Than Life",
+    "fighter": "Bigfoot"
+   },
+   {
+    "idx": 3,
+    "title": "Savagery",
+    "fighter": "Bigfoot"
+   },
+   {
+    "idx": 4,
+    "title": "Savagery",
+    "fighter": "Bigfoot"
+   },
+   {
+    "idx": 5,
+    "title": "Savagery",
+    "fighter": "Bigfoot"
+   },
+   {
+    "idx": 6,
+    "title": "Disengage",
+    "fighter": "any"
+   },
+   {
+    "idx": 7,
+    "title": "Disengage",
+    "fighter": "any"
+   },
+   {
+    "idx": 8,
+    "title": "Momentous Shift",
+    "fighter": "any"
+   },
+   {
+    "idx": 9,
+    "title": "Momentous Shift",
+    "fighter": "any"
+   },
+   {
+    "idx": 10,
+    "title": "Momentous Shift",
+    "fighter": "any"
+   },
+   {
+    "idx": 11,
+    "title": "Skirmish",
+    "fighter": "any"
+   },
+   {
+    "idx": 12,
+    "title": "Skirmish",
+    "fighter": "any"
+   },
+   {
+    "idx": 13,
+    "title": "Skirmish",
+    "fighter": "any"
+   },
+   {
+    "idx": 14,
+    "title": "Hoax",
+    "fighter": "any"
+   },
+   {
+    "idx": 15,
+    "title": "Hoax",
+    "fighter": "any"
+   },
+   {
+    "idx": 16,
+    "title": "Hoax",
+    "fighter": "any"
+   },
+   {
+    "idx": 17,
+    "title": "Regroup",
+    "fighter": "any"
+   },
+   {
+    "idx": 18,
+    "title": "Regroup",
+    "fighter": "any"
+   },
+   {
+    "idx": 19,
+    "title": "Regroup",
+    "fighter": "any"
+   },
+   {
+    "idx": 20,
+    "title": "Feint",
+    "fighter": "any"
+   },
+   {
+    "idx": 21,
+    "title": "Feint",
+    "fighter": "any"
+   },
+   {
+    "idx": 22,
+    "title": "Feint",
+    "fighter": "any"
+   },
+   {
+    "idx": 23,
+    "title": "It's Just Your Imagination",
+    "fighter": "any"
+   },
+   {
+    "idx": 24,
+    "title": "It's Just Your Imagination",
+    "fighter": "any"
+   },
+   {
+    "idx": 25,
+    "title": "Crash Through the Trees",
+    "fighter": "Bigfoot"
+   },
+   {
+    "idx": 26,
+    "title": "Crash Through the Trees",
+    "fighter": "Bigfoot"
+   },
+   {
+    "idx": 27,
+    "title": "Jackalope Horns",
+    "fighter": "The Jackalope"
+   },
+   {
+    "idx": 28,
+    "title": "Jackalope Horns",
+    "fighter": "The Jackalope"
+   },
+   {
+    "idx": 29,
+    "title": "Jackalope Horns",
+    "fighter": "The Jackalope"
+   }
+  ]
+ }
+}

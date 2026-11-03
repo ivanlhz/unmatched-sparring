@@ -457,6 +457,8 @@ class EffectAI:
             return None if top is None else [keep_value(top, [top]) < self.medusa(req.player).avg_unseen_keep(game)]
         if "gains_action" in req.extra or "cancels" in req.extra:
             return [self._card_from_hand_pays(game, req)]
+        if "draws" in req.extra:
+            return [self._free_draw(game, req)]
         if "cost_cards" in req.extra:      # a price in cards: the interpreter sends the combat context, one policy
             return [worth_paying(req)]
         if "to" in req.extra:               # a redirect passive (FATEFUL BARGAINS): whoever loses the bot less takes it
@@ -481,6 +483,13 @@ class EffectAI:
         if yes is None or no is None:
             return [not cost]
         return [yes >= no - 1e-9] if not cost else [yes > no + PAY_MARGIN]
+
+    @staticmethod
+    def _free_draw(game: Game, req: ChoiceRequest) -> bool:
+        """An optional draw that costs nothing (an ability's "you may draw"): taken unless the deck is too short (an empty
+        deck hurts every own fighter: exhaustion) or the hand is already at its limit (the extra card would only be discarded)."""
+        mine = game.players[req.player]
+        return len(mine.deck) >= req.extra["draws"] and len(mine.hand) < game.hand_cap(req.player)
 
     def _dark_pact(self, game: Game, req: ChoiceRequest) -> bool:
         """DARK PACT: 1 hit point for the card it recycles and a draw. Never when the hit point kills the hero, and never

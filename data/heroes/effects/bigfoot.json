@@ -1,0 +1,160 @@
+{
+ "schema": 1,
+ "hero": "bigfoot",
+ "notes": [
+  "Texts read from sheet 176 of the tournament savegame (card images) on 2026-11-03; the character card is 309 on sheet 3 (10x7, index 9). Sheet 176 is also Medusa's, the four turtles' and Doctor Strange's DeckID: the CardIDs repeat and only the deck image tells the decks apart (docs/card-identity.md).",
+  "No engine addition: every card and the ability are written with ops that already exist (Feint is the cancel of the other heroes, Skirmish is Houdini's Vanishing Act with 2 spaces and no passing through, Momentous Shift is Shock And Awe's condition, Jackalope Horns is Party Wagon's shape).",
+  "1v1 reading: 'your opponent' is the only rival; 'any one fighter' (Jackalope Horns) and 'each fighter' (Savagery) include the player's own fighters, as Medusa's A Momentary Glance does (Iván, 28/10)."
+ ],
+ "ability": {
+  "text": "At the end of your turn, if there are no opposing fighters in Bigfoot's zone, you may draw 1 card.",
+  "triggers": [
+   {
+    "id": "bigfoot_draw",
+    "when": {"event": "end_of_turn", "player": "owner"},
+    "condition": {"not": {"test": "exists", "fighters": {"side": "enemy", "where": {"zone_of": "hero"}}}},
+    "ops": [
+     {"op": "optional", "chooser": "owner", "ops": [
+      {"op": "draw", "player": "owner", "amount": 1}
+     ]}
+    ],
+    "notes": "The condition is the board's zone of Bigfoot's space (the same SpaceSel as Medusa's gaze): an opposing fighter in his zone, sidekick or hero, switches it off. It is checked when the turn ends, before the hand limit is enforced (Game.end_turn emits the event first), so the drawn card may be the one discarded for the limit. The bot decides it with the evaluation (EffectAI._optional: a draw from an empty deck costs exhaustion damage and is refused); the human is asked Yes / No only when the condition holds."
+   }
+  ],
+  "passives": [],
+  "notes": "Only Bigfoot's own zone counts (not the Jackalope's); with Bigfoot defeated the game is over."
+ },
+ "cards": [
+  {
+   "title": "Larger Than Life",
+   "copies": 3,
+   "text": "",
+   "effects": {"immediately": [], "during": [], "after": [], "scheme": [], "boost": []},
+   "notes": "Attack 6 / boost 3, Bigfoot only. No text: a plain attack."
+  },
+  {
+   "title": "Savagery",
+   "copies": 3,
+   "text": "AFTER COMBAT: If you won the combat, deal 1 damage to each fighter adjacent to Bigfoot.",
+   "effects": {
+    "immediately": [], "during": [], "scheme": [], "boost": [],
+    "after": [
+     {"op": "if", "condition": {"test": "combat_result", "result": "won"}, "then": [
+      {"op": "damage", "target": {"side": "any", "where": {"adjacent_to": "hero"}, "pick": "all"}, "amount": 1}
+     ]}
+    ]
+   },
+   "notes": "Attack 4 / boost 3, Bigfoot only. Effect damage to every fighter next to Bigfoot at that moment, the Jackalope too when it stands there (the text says 'each fighter'; open question). The combat's own victim is hit again if it is still adjacent. Bigfoot defeated in the combat: the game is over before this."
+  },
+  {
+   "title": "Disengage",
+   "copies": 2,
+   "text": "AFTER COMBAT: Choose an empty space in this fighter's zone. Place this fighter in that space.",
+   "effects": {
+    "immediately": [], "during": [], "scheme": [], "boost": [],
+    "after": [
+     {"op": "place", "target": "this", "where": {"zone_of": "this"}, "chooser": "owner"}
+    ]
+   },
+   "notes": "Attack 4 / boost 2, any fighter of Bigfoot. Happens whether the combat was won or not. 'This fighter' is the fighter that played the card (a defeated one is not placed). The zone is the board's zone of the space the fighter stands on; with no empty space in it nothing happens."
+  },
+  {
+   "title": "Momentous Shift",
+   "copies": 3,
+   "text": "DURING COMBAT: If your fighter started this turn in a different space, this card's value is 5 instead.",
+   "effects": {
+    "immediately": [], "after": [], "scheme": [], "boost": [],
+    "during": [
+     {"op": "if", "condition": {"test": "moved_this_turn", "fighter": "this"},
+      "then": [{"op": "set_value", "card": "this", "amount": 5}]}
+    ]
+   },
+   "notes": "Versatile (value 3, boost 1), any fighter. Played on the rival's turn (as a defense) the fighter's turn-start space is the one it had when that turn began, so a defender that was moved by an effect does not count as 'started in a different space' unless the turn bookkeeping says so (the interpreter's moved_this_turn). Open question."
+  },
+  {
+   "title": "Skirmish",
+   "copies": 3,
+   "text": "AFTER COMBAT: If you won the combat, choose one of the fighters in the combat and move them up to 2 spaces.",
+   "effects": {
+    "immediately": [], "during": [], "scheme": [], "boost": [],
+    "after": [
+     {"op": "if", "condition": {"test": "combat_result", "result": "won"}, "then": [
+      {"op": "move", "target": "combatant", "amount": 2, "up_to": true, "chooser": "owner"}
+     ]}
+    ]
+   },
+   "notes": "Versatile (value 4, boost 1), any fighter. The owner chooses ONE of the two fighters of the combat (the rival's too) and where it goes, up to 2 spaces; a fighter defeated in the combat is not there any more. No passing through opposing fighters (the card does not say it)."
+  },
+  {
+   "title": "Hoax",
+   "copies": 3,
+   "text": "AFTER COMBAT: Move your fighter up to 5 spaces. You may move that fighter through spaces containing opposing fighters.",
+   "effects": {
+    "immediately": [], "during": [], "scheme": [], "boost": [],
+    "after": [
+     {"op": "move", "target": "this", "amount": 5, "up_to": true, "through_enemies": true, "chooser": "owner"}
+    ]
+   },
+   "notes": "Versatile (value 4, boost 2), any fighter. Won or not. 'Your fighter' is the one that played the card; a defeated one does not move."
+  },
+  {
+   "title": "Regroup",
+   "copies": 3,
+   "text": "AFTER COMBAT: Draw 1 card. If you won the combat, draw 2 cards instead.",
+   "effects": {
+    "immediately": [], "during": [], "scheme": [], "boost": [],
+    "after": [
+     {"op": "if", "condition": {"test": "combat_result", "result": "won"},
+      "then": [{"op": "draw", "player": "owner", "amount": 2}],
+      "else": [{"op": "draw", "player": "owner", "amount": 1}]}
+    ]
+   },
+   "notes": "Versatile (value 1, boost 2), any fighter. Two cards on a win, one otherwise (never three)."
+  },
+  {
+   "title": "Feint",
+   "copies": 3,
+   "text": "IMMEDIATELY: Cancel all effects on your opponent's card.",
+   "effects": {"immediately": [{"op": "cancel_effects", "card": "opponent_card"}], "during": [], "after": [], "scheme": [], "boost": []},
+   "notes": "Versatile (value 2, boost 2), any fighter."
+  },
+  {
+   "title": "It's Just Your Imagination",
+   "copies": 2,
+   "text": "IMMEDIATELY: Cancel all effects on your opponent's card.",
+   "effects": {"immediately": [{"op": "cancel_effects", "card": "opponent_card"}], "during": [], "after": [], "scheme": [], "boost": []},
+   "notes": "Defense 3 / boost 3, any fighter."
+  },
+  {
+   "title": "Crash Through the Trees",
+   "copies": 2,
+   "text": "Move Bigfoot up to 5 spaces. You may move Bigfoot through spaces containing opposing fighters.",
+   "effects": {
+    "immediately": [], "during": [], "after": [], "boost": [],
+    "scheme": [{"op": "move", "target": "hero", "amount": 5, "up_to": true, "through_enemies": true, "chooser": "owner"}]
+   },
+   "notes": "Scheme, boost 3, Bigfoot only. Up to 5, 0 included (staying is allowed)."
+  },
+  {
+   "title": "Jackalope Horns",
+   "copies": 3,
+   "text": "Move the Jackalope up to 5 spaces. You may move the Jackalope through spaces containing opposing fighters. Then deal 2 damage to any one fighter adjacent to the Jackalope.",
+   "effects": {
+    "immediately": [], "during": [], "after": [], "boost": [],
+    "scheme": [
+     {"op": "move", "target": "this", "amount": 5, "up_to": true, "through_enemies": true, "chooser": "owner"},
+     {"op": "damage", "target": {"side": "any", "where": {"adjacent_to": "this"}, "other": true}, "amount": 2, "chooser": "owner"}
+    ]
+   },
+   "notes": "Scheme, boost 2, the Jackalope only (the card is played by the Jackalope: `this`). The damage is mandatory when anyone is adjacent after the move and it is effect damage; the owner chooses the victim among ALL adjacent fighters, their own Bigfoot included (the card says 'any one fighter'; Iván, 28/10, for Medusa's Glance). Nobody adjacent: only the move happens."
+  }
+ ],
+ "plugins": [],
+ "hidden_info": [],
+ "open_questions": [
+  "Savagery: 'each fighter adjacent to Bigfoot' is read as including his own Jackalope when it stands next to him.",
+  "Jackalope Horns: 'any one fighter adjacent to the Jackalope' is read as including Bigfoot (own fighters may be chosen; the bot never does unless it must).",
+  "Momentous Shift played as a defense: 'started this turn in a different space' is read from the turn-start positions of the interpreter (the turn of the rival when defending).",
+  "The ability draws at the end of the turn BEFORE the hand limit is enforced."
+ ]
+}

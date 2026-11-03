@@ -1,0 +1,404 @@
+{
+ "_source": {
+  "memory": "unmatched-memory/data/heroes/bigfoot.json",
+  "overlay": "data/heroes/overlay/bigfoot.json",
+  "generator": "tools/import_hero.py"
+ },
+ "slug": "bigfoot",
+ "name": "Bigfoot",
+ "fid": "bigfoot",
+ "hp": 16,
+ "move": 3,
+ "attack": "melee",
+ "set": "robin-hood-vs-bigfoot",
+ "ability": "At the end of your turn, if there are no opposing fighters in Bigfoot's zone, you may draw 1 card.",
+ "sidekicks": [
+  {
+   "name": "The Jackalope",
+   "hp": 6,
+   "move": 3,
+   "attack": "melee",
+   "count": 1,
+   "fid": "jackalope",
+   "tts_tokens": [
+    "Jackalope"
+   ]
+  }
+ ],
+ "forms": null,
+ "counters": {},
+ "triggers": [],
+ "passives": [],
+ "deck": {
+  "card_base": 17600,
+  "sheet": 176,
+  "cards": [
+   {
+    "idx": 0,
+    "title": "Larger Than Life",
+    "fighter": "Bigfoot",
+    "type": "attack",
+    "value": 6,
+    "boost": 3,
+    "text": "",
+    "tags": []
+   },
+   {
+    "idx": 1,
+    "title": "Larger Than Life",
+    "fighter": "Bigfoot",
+    "type": "attack",
+    "value": 6,
+    "boost": 3,
+    "text": "",
+    "tags": []
+   },
+   {
+    "idx": 2,
+    "title": "Larger Than Life",
+    "fighter": "Bigfoot",
+    "type": "attack",
+    "value": 6,
+    "boost": 3,
+    "text": "",
+    "tags": []
+   },
+   {
+    "idx": 3,
+    "title": "Savagery",
+    "fighter": "Bigfoot",
+    "type": "attack",
+    "value": 4,
+    "boost": 3,
+    "text": "AFTER COMBAT: If you won the combat, deal 1 damage to each fighter adjacent to Bigfoot.",
+    "tags": []
+   },
+   {
+    "idx": 4,
+    "title": "Savagery",
+    "fighter": "Bigfoot",
+    "type": "attack",
+    "value": 4,
+    "boost": 3,
+    "text": "AFTER COMBAT: If you won the combat, deal 1 damage to each fighter adjacent to Bigfoot.",
+    "tags": []
+   },
+   {
+    "idx": 5,
+    "title": "Savagery",
+    "fighter": "Bigfoot",
+    "type": "attack",
+    "value": 4,
+    "boost": 3,
+    "text": "AFTER COMBAT: If you won the combat, deal 1 damage to each fighter adjacent to Bigfoot.",
+    "tags": []
+   },
+   {
+    "idx": 6,
+    "title": "Disengage",
+    "fighter": "any",
+    "type": "attack",
+    "value": 4,
+    "boost": 2,
+    "text": "AFTER COMBAT: Choose an empty space in this fighter's zone. Place this fighter in that space.",
+    "tags": []
+   },
+   {
+    "idx": 7,
+    "title": "Disengage",
+    "fighter": "any",
+    "type": "attack",
+    "value": 4,
+    "boost": 2,
+    "text": "AFTER COMBAT: Choose an empty space in this fighter's zone. Place this fighter in that space.",
+    "tags": []
+   },
+   {
+    "idx": 8,
+    "title": "Momentous Shift",
+    "fighter": "any",
+    "type": "versatile",
+    "value": 3,
+    "boost": 1,
+    "text": "DURING COMBAT: If your fighter started this turn in a different space, this card's value is 5 instead.",
+    "tags": []
+   },
+   {
+    "idx": 9,
+    "title": "Momentous Shift",
+    "fighter": "any",
+    "type": "versatile",
+    "value": 3,
+    "boost": 1,
+    "text": "DURING COMBAT: If your fighter started this turn in a different space, this card's value is 5 instead.",
+    "tags": []
+   },
+   {
+    "idx": 10,
+    "title": "Momentous Shift",
+    "fighter": "any",
+    "type": "versatile",
+    "value": 3,
+    "boost": 1,
+    "text": "DURING COMBAT: If your fighter started this turn in a different space, this card's value is 5 instead.",
+    "tags": []
+   },
+   {
+    "idx": 11,
+    "title": "Skirmish",
+    "fighter": "any",
+    "type": "versatile",
+    "value": 4,
+    "boost": 1,
+    "text": "AFTER COMBAT: If you won the combat, choose one of the fighters in the combat and move them up to 2 spaces.",
+    "tags": []
+   },
+   {
+    "idx": 12,
+    "title": "Skirmish",
+    "fighter": "any",
+    "type": "versatile",
+    "value": 4,
+    "boost": 1,
+    "text": "AFTER COMBAT: If you won the combat, choose one of the fighters in the combat and move them up to 2 spaces.",
+    "tags": []
+   },
+   {
+    "idx": 13,
+    "title": "Skirmish",
+    "fighter": "any",
+    "type": "versatile",
+    "value": 4,
+    "boost": 1,
+    "text": "AFTER COMBAT: If you won the combat, choose one of the fighters in the combat and move them up to 2 spaces.",
+    "tags": []
+   },
+   {
+    "idx": 14,
+    "title": "Hoax",
+    "fighter": "any",
+    "type": "versatile",
+    "value": 4,
+    "boost": 2,
+    "text": "AFTER COMBAT: Move your fighter up to 5 spaces. You may move that fighter through spaces containing opposing fighters.",
+    "tags": []
+   },
+   {
+    "idx": 15,
+    "title": "Hoax",
+    "fighter": "any",
+    "type": "versatile",
+    "value": 4,
+    "boost": 2,
+    "text": "AFTER COMBAT: Move your fighter up to 5 spaces. You may move that fighter through spaces containing opposing fighters.",
+    "tags": []
+   },
+   {
+    "idx": 16,
+    "title": "Hoax",
+    "fighter": "any",
+    "type": "versatile",
+    "value": 4,
+    "boost": 2,
+    "text": "AFTER COMBAT: Move your fighter up to 5 spaces. You may move that fighter through spaces containing opposing fighters.",
+    "tags": []
+   },
+   {
+    "idx": 17,
+    "title": "Regroup",
+    "fighter": "any",
+    "type": "versatile",
+    "value": 1,
+    "boost": 2,
+    "text": "AFTER COMBAT: Draw 1 card. If you won the combat, draw 2 cards instead.",
+    "tags": []
+   },
+   {
+    "idx": 18,
+    "title": "Regroup",
+    "fighter": "any",
+    "type": "versatile",
+    "value": 1,
+    "boost": 2,
+    "text": "AFTER COMBAT: Draw 1 card. If you won the combat, draw 2 cards instead.",
+    "tags": []
+   },
+   {
+    "idx": 19,
+    "title": "Regroup",
+    "fighter": "any",
+    "type": "versatile",
+    "value": 1,
+    "boost": 2,
+    "text": "AFTER COMBAT: Draw 1 card. If you won the combat, draw 2 cards instead.",
+    "tags": []
+   },
+   {
+    "idx": 20,
+    "title": "Feint",
+    "fighter": "any",
+    "type": "versatile",
+    "value": 2,
+    "boost": 2,
+    "text": "IMMEDIATELY: Cancel all effects on your opponent's card.",
+    "tags": []
+   },
+   {
+    "idx": 21,
+    "title": "Feint",
+    "fighter": "any",
+    "type": "versatile",
+    "value": 2,
+    "boost": 2,
+    "text": "IMMEDIATELY: Cancel all effects on your opponent's card.",
+    "tags": []
+   },
+   {
+    "idx": 22,
+    "title": "Feint",
+    "fighter": "any",
+    "type": "versatile",
+    "value": 2,
+    "boost": 2,
+    "text": "IMMEDIATELY: Cancel all effects on your opponent's card.",
+    "tags": []
+   },
+   {
+    "idx": 23,
+    "title": "It's Just Your Imagination",
+    "fighter": "any",
+    "type": "defense",
+    "value": 3,
+    "boost": 3,
+    "text": "IMMEDIATELY: Cancel all effects on your opponent's card.",
+    "tags": []
+   },
+   {
+    "idx": 24,
+    "title": "It's Just Your Imagination",
+    "fighter": "any",
+    "type": "defense",
+    "value": 3,
+    "boost": 3,
+    "text": "IMMEDIATELY: Cancel all effects on your opponent's card.",
+    "tags": []
+   },
+   {
+    "idx": 25,
+    "title": "Crash Through the Trees",
+    "fighter": "Bigfoot",
+    "type": "scheme",
+    "value": null,
+    "boost": 3,
+    "text": "Move Bigfoot up to 5 spaces. You may move Bigfoot through spaces containing opposing fighters.",
+    "tags": []
+   },
+   {
+    "idx": 26,
+    "title": "Crash Through the Trees",
+    "fighter": "Bigfoot",
+    "type": "scheme",
+    "value": null,
+    "boost": 3,
+    "text": "Move Bigfoot up to 5 spaces. You may move Bigfoot through spaces containing opposing fighters.",
+    "tags": []
+   },
+   {
+    "idx": 27,
+    "title": "Jackalope Horns",
+    "fighter": "The Jackalope",
+    "type": "scheme",
+    "value": null,
+    "boost": 2,
+    "text": "Move the Jackalope up to 5 spaces. You may move the Jackalope through spaces containing opposing fighters. Then deal 2 damage to any one fighter adjacent to the Jackalope.",
+    "tags": []
+   },
+   {
+    "idx": 28,
+    "title": "Jackalope Horns",
+    "fighter": "The Jackalope",
+    "type": "scheme",
+    "value": null,
+    "boost": 2,
+    "text": "Move the Jackalope up to 5 spaces. You may move the Jackalope through spaces containing opposing fighters. Then deal 2 damage to any one fighter adjacent to the Jackalope.",
+    "tags": []
+   },
+   {
+    "idx": 29,
+    "title": "Jackalope Horns",
+    "fighter": "The Jackalope",
+    "type": "scheme",
+    "value": null,
+    "boost": 2,
+    "text": "Move the Jackalope up to 5 spaces. You may move the Jackalope through spaces containing opposing fighters. Then deal 2 damage to any one fighter adjacent to the Jackalope.",
+    "tags": []
+   }
+  ]
+ },
+ "ai_profile": {
+  "bigfoot": {
+   "name": "Bigfoot",
+   "hero": true,
+   "count": 1,
+   "max_hp": 16,
+   "move": 3,
+   "ranged": false,
+   "role": "hero",
+   "attack": {
+    "cards": 23,
+    "mean": 3.48,
+    "max": 6
+   },
+   "exclusive": [
+    {
+     "title": "Larger Than Life",
+     "type": "attack",
+     "copies": 3,
+     "impact": 1.2
+    },
+    {
+     "title": "Savagery",
+     "type": "attack",
+     "copies": 3,
+     "impact": 1.47
+    },
+    {
+     "title": "Crash Through the Trees",
+     "type": "scheme",
+     "copies": 2,
+     "impact": 0.6
+    }
+   ]
+  },
+  "jackalope": {
+   "name": "The Jackalope",
+   "hero": false,
+   "count": 1,
+   "max_hp": 6,
+   "move": 3,
+   "ranged": false,
+   "role": "striker",
+   "attack": {
+    "cards": 17,
+    "mean": 2.94,
+    "max": 4
+   },
+   "exclusive": [
+    {
+     "title": "Jackalope Horns",
+     "type": "scheme",
+     "copies": 3,
+     "impact": 2.4
+    }
+   ],
+   "requires_alive": []
+  }
+ },
+ "_notes": [
+  "Sheet 176 of the tournament savegame (8x4), read card by card from the image on 2026-11-03. CardID = 17600 + idx; 309 = character card (sheet 3, 10x7, index 9). The deck object of the save holds 31 cards: the 30 of the deck plus the character card, which is why the catalog says card_count 31 and card_ids [309, 17629].",
+  "Restriction band (BIGFOOT, THE JACKALOPE or ANY) and copies (xN printed on each card) read from the images; type, value and boost match unmatched-memory for all 11 titles. Bigfoot's deck is sheet 176 like Medusa's, the four turtles' and Doctor Strange's: only deck.identity (data/tts/bigfoot.json) tells the decks apart (docs/card-identity.md).",
+  "Restriction by card: BIGFOOT on Larger Than Life, Savagery and Crash Through the Trees; THE JACKALOPE on Jackalope Horns; ANY on the other seven titles (Disengage, Momentous Shift, Skirmish, Hoax, Regroup, Feint, It's Just Your Imagination).",
+  "Hero card (read from the image): BIGFOOT, MELEE, START HEALTH 16, MOVE 3; sidekick THE JACKALOPE, MELEE, START HEALTH 6 (the card prints the move once, 3, for both). One Jackalope.",
+  "The ability is an end_of_turn trigger on the interpreter (data/heroes/effects/bigfoot.json); no counters, forms or passives."
+ ]
+}

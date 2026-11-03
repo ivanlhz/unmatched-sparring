@@ -82,7 +82,9 @@ def play_scheme(session, card: Card) -> None:
     step = {"bot": session._snapshot_bot(), "fx": bot_effects.snapshot(session), "alive": session._alive_map(),
             "narrate": narrate.snapshot(g), "seen": len(g.players[session.bot].discard),
             "in_play": g.fx.ongoing_card_id(session.human)}
-    run, pending = ongoing.resolve_scheme(g, session.human, g.hero(session.human), card, session._choosers())
+    from .ai_medusa import scheme_fighter          # the fighter the card is restricted to plays it (Jackalope Horns is the Jackalope's)
+    fighter = scheme_fighter(g, session.human, card) or g.hero(session.human)
+    run, pending = ongoing.resolve_scheme(g, session.human, fighter, card, session._choosers())
     run.flags[STEP] = step
     if pending is not None:
         session.say(t("fx.detected", title=card.title), ChatKind.SCHEME)

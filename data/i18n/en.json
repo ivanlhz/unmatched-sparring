@@ -949,6 +949,7 @@
  "strange.shuffle_you": "Shuffle your deck ({cause}).",
  "strange.shuffle_bot": "I shuffle my deck ({cause}).",
  "choice.prompt.ability.dark_pact": "DARK PACT: do you deal 1 damage to Doctor Strange to put the card you played at the bottom of your deck and draw 1 card?",
+ "choice.prompt.ability.bigfoot_draw": "End of your turn, and no opposing fighter is in Bigfoot's zone: do you draw 1 card?",
  "strange.hand_to_deck_bot": "I shuffle your hand into your deck ({cause}).",
  "strange.hand_to_deck_failed": "Shuffle your hand into your deck and draw the cards the card gives you yourself: I do not deal them before your hand goes back ({cause}).",
  "strange.hand_to_deck_failed_late": "I could not put your hand into your deck: shuffle it into your deck and draw the cards the card gives you yourself ({cause}).",

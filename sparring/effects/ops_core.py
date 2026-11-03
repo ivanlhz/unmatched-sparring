@@ -494,6 +494,8 @@ def _choice_context(game, run, spec: dict) -> dict:
     pact = _pact_context(game, run, ops)
     if pact is not None:
         ctx["pact"] = pact
+    if not spec.get("cost") and ops and all(o["op"] == "draw" and o.get("player") == "owner" and isinstance(o.get("amount"), int) for o in ops):
+        ctx["draws"] = sum(o["amount"] for o in ops)         # a free draw: a bot refuses it when the deck or the hand cannot take it
     if len(other) == 1 and other[0]["op"] == "damage" and isinstance(other[0].get("amount"), int):
         ctx["else_damage"] = other[0]["amount"]
         cands, _ = fighter_candidates(game, run, other[0]["target"])

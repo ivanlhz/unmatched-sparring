@@ -373,6 +373,20 @@
         "Verified live by Iván (docs/live-checklist.md, section Doctor Strange)"
       ],
       "note": "Engine additions are additive (docs/effects-dsl.md, section 26). Rules decisions and open questions for Iván: docs/heroes/doctor-strange.md."
+    },
+    {
+      "id": "HERO-BIGFOOT",
+      "title": "Bigfoot (Robin Hood vs. Bigfoot) playable by the bot and by the human against every hero",
+      "status": "in-progress",
+      "criteria": [
+        "data/heroes/overlay/bigfoot.json, data/heroes/bigfoot.json, data/heroes/effects/bigfoot.json and data/tts/bigfoot.json generated and validated (import_hero --check --all, validate_effects, import_save --check); the 11 titles (30 cards, sheet 176, character card 309) read from the card images; ai_profile computed by the importer, no hero-name case in the AI",
+        "His deck shares CardIDs 17600-17629 with Medusa, the four turtles and Doctor Strange: told apart by deck image and owner, never by a bare CardID; same-CardID tests in both seats (tests/test_hero_bigfoot_data.py, tests/test_card_identity.py); every piece GUID of the save checked against the other heroes' (the collisions found and how they were resolved are in docs/heroes/bigfoot.md)",
+        "All 11 cards on the interpreter for both seats: Larger Than Life, Savagery (1 damage to every fighter adjacent to Bigfoot), Disengage (placed on an empty space of the zone), Momentous Shift (5 if the fighter began the turn elsewhere), Skirmish, Hoax, Regroup (draw 1, 2 if won), Feint, It's Just Your Imagination, Crash Through the Trees and Jackalope Horns (move 5 through opposing fighters, then 2 damage to one adjacent fighter)",
+        "The ability (end of the turn, no opposing fighter in Bigfoot's zone, you may draw 1 card) is an end_of_turn trigger of the interpreter: the bot decides it, the human is asked Yes / No only when the condition holds and is told to draw on the table; the zone is the board's zone data",
+        "Bigfoot against each of the 11 other heroes in both seats reaches game over on FakeTTS (passive and attacking human) (tests/test_bigfoot_matrix.py)",
+        "Verified live by Iván (docs/live-checklist.md, section Bigfoot)"
+      ],
+      "note": "Engine additions, if any, are additive (docs/effects-dsl.md). Rules decisions and open questions for Iván: docs/heroes/bigfoot.md. Live test pending."
     }
   ]
 }

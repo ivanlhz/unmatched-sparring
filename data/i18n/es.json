@@ -949,6 +949,7 @@
  "strange.shuffle_you": "Baraja tu mazo ({cause}).",
  "strange.shuffle_bot": "Barajo mi mazo ({cause}).",
  "choice.prompt.ability.dark_pact": "PACTO OSCURO: infliges 1 de dano a Doctor Strange para poner la carta que jugaste en el fondo de tu mazo y robar 1 carta?",
+ "choice.prompt.ability.bigfoot_draw": "Fin de tu turno y ningun luchador rival esta en la zona de Bigfoot: robas 1 carta?",
  "strange.hand_to_deck_bot": "Barajo tu mano en tu mazo ({cause}).",
  "strange.hand_to_deck_failed": "Baraja tu mano en tu mazo y roba tu las cartas que da la carta: no te las doy antes de que tu mano vuelva al mazo ({cause}).",
  "strange.hand_to_deck_failed_late": "No he podido meter tu mano en tu mazo: baraja tu mano en tu mazo y roba tu las cartas que da la carta ({cause}).",

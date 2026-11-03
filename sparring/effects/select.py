@@ -143,12 +143,13 @@ def fighter_candidates(game, run, sel) -> tuple[list, bool]:
         out.append(f)
     if "where" in sel:
         where = sel["where"]
-        spaces = set(space_options(game, run, where, default_empty=False))
-        out = [f for f in out if f.pos in spaces]
-        if "nearest_to" in where and out:
-            ref = _ref_fighter(game, run, where["nearest_to"])
-            best = min(game.board.distance(ref.pos, f.pos) for f in out)
-            out = [f for f in out if game.board.distance(ref.pos, f.pos) == best]
+        if not _anchor_unknown(game, run, where):            # the anchor the human moved by hand: every candidate stays, the human answers
+            spaces = set(space_options(game, run, where, default_empty=False))
+            out = [f for f in out if f.pos in spaces]
+            if "nearest_to" in where and out:
+                ref = _ref_fighter(game, run, where["nearest_to"])
+                best = min(game.board.distance(ref.pos, f.pos) for f in out)
+                out = [f for f in out if game.board.distance(ref.pos, f.pos) == best]
         if sel.get("other"):
             for key in ("zone_of", "adjacent_to", "space_of", "nearest_to"):
                 if key in where:
@@ -175,9 +176,22 @@ def fighter_candidates(game, run, sel) -> tuple[list, bool]:
     return out, sel.get("pick", "one") == "all"
 
 
+def _anchor_unknown(game, run, where: dict) -> bool:
+    """True if a space selector hangs from a fighter the human moved by hand earlier in this run ("deal 2 damage to a fighter
+    adjacent to the Jackalope" after the Jackalope's move): the engine does not know where it stands now."""
+    passed = run.flags.get("passed") or {}
+    return any(key in where and any(passed.get(f.fid, []) is None for f in _role_fighters(game, run, where[key]))
+               for key in ("zone_of", "adjacent_to", "space_of", "nearest_to"))
+
+
 def _path_unknown(game, run, sel) -> bool:
-    """True if `sel` filters by `passed_by` and a mover's path is one the engine did not see (moved by hand)."""
-    ref = (sel.get("filter") or {}).get("passed_by") if isinstance(sel, dict) else None
+    """True if `sel` filters by `passed_by` and a mover's path is one the engine did not see (moved by hand), or hangs from a
+    fighter that was moved by hand (`_anchor_unknown`)."""
+    if not isinstance(sel, dict):
+        return False
+    if isinstance(sel.get("where"), dict) and _anchor_unknown(game, run, sel["where"]):
+        return True
+    ref = (sel.get("filter") or {}).get("passed_by")
     if ref is None:
         return False
     passed = run.flags.get("passed") or {}
