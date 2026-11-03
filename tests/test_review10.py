@@ -54,8 +54,8 @@ function realshape(o)
   end
   return o
 end
-mkobj({{guid = '906a7a', type = 'Zone', cx = 15, cz = 0, hw = 5, hd = 12}})
-mkobj({{guid = 'b7a0b8', type = 'Zone', cx = -12.5, cz = 0, hw = 6, hd = 12}})
+mkobj({{guid = '906a7a', type = 'Scripting', cx = 15, cz = 0, hw = 5, hd = 12}})
+mkobj({{guid = 'b7a0b8', type = 'Scripting', cx = -12.5, cz = 0, hw = 6, hd = 12}})
 local mc = {{}}
 for i = 0, 29 do table.insert(mc, {{cid = 17600 + i, guid = 'm' .. i, owner = 'medusa'}}) end
 realshape(mkobj({{guid = 'd42056', type = 'Deck', cards = mc, pos = {{x = 7.28, y = 1, z = 13.93}},

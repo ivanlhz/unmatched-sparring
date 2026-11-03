@@ -29,11 +29,11 @@ from typing import Callable
 
 from .search.controller import make_bot_ai
 from .board import Board
-from .hero_detect import HeroDetectionError, detect_heroes, read_table
+from .hero_detect import HeroDetectionError, detect_heroes, detected_decks, read_table
 from .heroes import HeroDataError, load_hero
 from . import game_log, i18n, persist
 from .i18n import t
-from .session import DEFAULT_ACTION_ANNOUNCE_HOLD, DEFAULT_BOT_PAUSE, DEFAULT_ONGOING_HOLD, DEFAULT_WILDFIRE_HOLD, TABLE_ERRORS, Msg, Session, SessionConfig, SessionError, piece_guids
+from .session import DEFAULT_ACTION_ANNOUNCE_HOLD, DEFAULT_BOT_PAUSE, DEFAULT_ONGOING_HOLD, DEFAULT_WILDFIRE_HOLD, TABLE_ERRORS, Msg, Session, SessionConfig, SessionError, deck_where, piece_guids
 from .state import DEFAULT_HEROES, Game
 from .session_translators import ASIDE_STEP
 from .tts import lua, ui
@@ -95,6 +95,21 @@ SRC_DEFAULT, SRC_OPTION, SRC_CONFIG, SRC_SAVE, SRC_TABLE = ("default", "option",
 HERO_AUTO = "auto"
 
 
+def _deck_zone(raw: dict, key: str) -> str | None:
+    """GUID of a deck Scripting zone (`bot_deck_zone` / `human_deck_zone`); empty, missing or TODO means none."""
+    v = raw.get(key)
+    if is_todo(v) or (isinstance(v, str) and not v.strip()):
+        return None
+    if not isinstance(v, str):
+        raise ValueError(t("cfg.deck_zone_bad", key=key, value=v))
+    return v.strip()
+
+
+def _deck_zones(raw: dict) -> dict[str, str]:
+    zones = {side: _deck_zone(raw, f"{side}_deck_zone") for side in ("bot", "human")}
+    return {side: g for side, g in zones.items() if g}
+
+
 def hero_setting(raw: dict, key: str) -> str | None:
     """The hero fixed for a side (`bot_hero` / `human_hero`); None if it is `auto` or missing: it has to be detected."""
     v = raw.get(key)
@@ -135,6 +150,7 @@ class PlayConfig:
     warnings: list[str] = field(default_factory=list)      # configuration warnings (printed at start-up)
     base: dict = field(default_factory=dict)                # the configuration before `with_hero_data`
     sources: tuple[str, str] = (SRC_DEFAULT, SRC_DEFAULT)   # where each side's hero comes from
+    detected_decks: dict[str, str] = field(default_factory=dict)   # side -> GUID of the deck the start-up read found
 
     @property
     def language(self) -> str:
@@ -212,6 +228,9 @@ class PlayConfig:
                 bot_discard_rot_y=float(r.get("bot_discard_rot_y", 90.0)),
                 human_deck_guid=r.get("human_deck_guid"),
                 human_deck_spot=tuple(r["human_deck_spot"]) if r.get("human_deck_spot") else None,
+                bot_deck_zone=_deck_zone(r, "bot_deck_zone"), human_deck_zone=_deck_zone(r, "human_deck_zone"),
+                deck_radius=float(r.get("deck_radius", lua.DECK_RADIUS)),
+                bot_deck_hint=self.detected_decks.get("bot"), human_deck_hint=self.detected_decks.get("human"),
                 start_spaces=self._start_spaces(),
                 bot_discard_bounds=tuple(float(v) for v in r["bot_discard_bounds"])
                 if r.get("bot_discard_bounds") else None,
@@ -290,19 +309,23 @@ class PlayConfig:
     def _dry_build(self, cfg: SessionConfig) -> None:
         """Builds every script once with the configuration: a badly written value fails here, not in mid-game."""
         lua.read_hand(cfg.bot_seat), lua.read_hand(cfg.human_seat), lua.count_hand(cfg.human_seat)
-        lua.read_discard(cfg.bot_discard_zone, [cfg.bot_deck_guid], [cfg.bot_deck_spot])
+        lua.read_discard(cfg.bot_discard_zone, [cfg.bot_deck_guid], [cfg.bot_deck_spot],
+                         exclude_zones=[cfg.bot_deck_zone] if cfg.bot_deck_zone else [])
         lua.read_discard(cfg.human_discard_zone, [cfg.human_deck_guid] if cfg.human_deck_guid else [],
-                         [cfg.human_deck_spot] if cfg.human_deck_spot else [])
+                         [cfg.human_deck_spot] if cfg.human_deck_spot else [],
+                         exclude_zones=[cfg.human_deck_zone] if cfg.human_deck_zone else [])
         ident = (("https://example.invalid/face", "https://example.invalid/back"),)
         spots = [(cfg.bot_card_spot[0], cfg.bot_card_spot[2]), tuple(cfg.human_card_spot), tuple(cfg.bot_deck_spot)]
         scope = lua.Scope((cfg.bot_seat, cfg.human_seat), (cfg.bot_discard_zone, cfg.human_discard_zone), tuple(spots))
-        lua.deal_cards(cfg.bot_deck_guid, 1, cfg.bot_seat, spot=cfg.bot_deck_spot, identity=ident)
+        lua.deal_cards(cfg.bot_deck_guid, 1, cfg.bot_seat, spot=cfg.bot_deck_spot, identity=ident,
+                       zone=cfg.bot_deck_zone, radius=cfg.deck_radius)
         lua.discard_cards([0], [cfg.bot_discard_spot], cfg.bot_discard_rot_y, identity=ident, scope=scope)
-        lua.reset_deck(cfg.bot_deck_guid, cfg.bot_deck_spot, cfg.bot_card_ids, identity=ident, scope=scope)
-        lua.deck_identities([(cfg.bot_deck_guid, tuple(cfg.bot_deck_spot), cfg.bot_card_ids)])
+        lua.reset_deck(cfg.bot_deck_guid, cfg.bot_deck_spot, cfg.bot_card_ids, identity=ident, scope=scope,
+                       zone=cfg.bot_deck_zone)
+        lua.deck_identities([(cfg.bot_deck_guid, tuple(cfg.bot_deck_spot), cfg.bot_card_ids, cfg.bot_deck_zone)])
         lua.play_card_face_down(0, cfg.bot_seat, *cfg.bot_card_spot, cfg.rot_y, identity=ident)
         lua.flip_card(cfg.bot_deck_guid, cfg.rot_y, identity=ident)
-        lua.reset_plan([(cfg.bot_deck_guid, cfg.bot_deck_spot, cfg.bot_card_ids, ident)], scope=scope)
+        lua.reset_plan([(cfg.bot_deck_guid, cfg.bot_deck_spot, cfg.bot_card_ids, ident, cfg.bot_deck_zone)], scope=scope)
         lua.hand_identities(cfg.bot_seat, cfg.bot_card_ids)
         lua.read_face_down_cards(*cfg.human_card_spot, cfg.reveal_radius)
         for name in cfg.nicknames.values():
@@ -312,8 +335,8 @@ class PlayConfig:
         lua.move_piece(self.board, guids[0], next(iter(self.board.spaces)))
         lua.read_health_dials(sorted({*cfg.dials.values(), *([cfg.destiny_dial] if cfg.destiny_dial else [])}))
         lua.set_health_dials({g: 0 for g in {*cfg.dials.values(), *([cfg.destiny_dial] if cfg.destiny_dial else [])}})
-        lua.return_hand_to_deck(cfg.bot_seat, cfg.bot_deck_guid, identity=ident)
-        lua.shuffle_deck(cfg.bot_deck_guid, cfg.bot_deck_spot, identity=ident)
+        lua.return_hand_to_deck(cfg.bot_seat, cfg.bot_deck_guid, identity=ident, zone=cfg.bot_deck_zone)
+        lua.shuffle_deck(cfg.bot_deck_guid, cfg.bot_deck_spot, identity=ident, zone=cfg.bot_deck_zone)
         if cfg.dead_spot is not None:
             if len(cfg.dead_spot) != 3:
                 raise ValueError("dead_spot: (x, y, z)")
@@ -397,18 +420,19 @@ def resolve_heroes(client, cfg: PlayConfig, saved: tuple[str, str] | None = None
     is read and unclear, `HeroDetectionError`."""
     names = list(hero_pair(cfg.base))
     sources = list(cfg.sources)
+    reading, r = None, cfg.raw
     if saved:
         for i in (0, 1):
             if sources[i] == SRC_DEFAULT:
                 names[i], sources[i] = saved[i], SRC_SAVE
     if SRC_DEFAULT in sources:
         fixed = tuple(None if src == SRC_DEFAULT else name for name, src in zip(names, sources))
-        r, failure = cfg.raw, None
+        failure = None
         if not (r.get("bot_deck_spot") and r.get("human_deck_spot")) or is_todo(r.get("human_deck_spot")):
             failure = t("herosel.no_spots")
         else:
             try:
-                reading = read_table(ReadOnlyClient(client))
+                reading = read_table(ReadOnlyClient(client), _deck_zones(r))
             except (TTSLuaError, TimeoutError, OSError, ValueError, TypeError, KeyError) as e:
                 failure = t("herosel.read_failed", error=e)
         if failure:
@@ -421,6 +445,9 @@ def resolve_heroes(client, cfg: PlayConfig, saved: tuple[str, str] | None = None
     raw = {**cfg.base, "bot_hero": names[0], "human_hero": names[1]}
     out = build_config(raw, tuple(sources))     # type: ignore[arg-type]
     out.warnings = list(cfg.warnings)
+    if reading is not None:
+        out.detected_decks = detected_decks(reading, out.heroes, r["bot_deck_spot"], r["human_deck_spot"],
+                                            float(r.get("deck_radius", lua.DECK_RADIUS)), _deck_zones(r))
     echo(describe_heroes(out))
     return out
 
@@ -518,7 +545,8 @@ def read_only_report(client, cfg: PlayConfig) -> list[str]:
 
     out.append(t("ro.header"))
     guids = {t("ro.label.board"): lua.BOARD_GUIDS[cfg.board.key], t("ro.label.bot_deck"): val("bot_deck_guid"),
-             t("ro.label.bot_discard"): val("bot_discard_zone"), t("ro.label.human_discard"): val("human_discard_zone")}
+             t("ro.label.bot_discard"): val("bot_discard_zone"), t("ro.label.human_discard"): val("human_discard_zone"),
+             t("ro.label.bot_deck_zone"): val("bot_deck_zone"), t("ro.label.human_deck_zone"): val("human_deck_zone")}
     guids.update({t("ro.label.probe", guid=g): g for g in raw.get("probe_guids", [])})
     known = {k: g for k, g in guids.items() if g}
     found = read(t("ro.read.objects"), lambda: lua.inspect_guids(sorted(set(known.values())))) or {}
@@ -531,7 +559,7 @@ def read_only_report(client, cfg: PlayConfig) -> list[str]:
                          x=info["x"], y=info["y"], z=info["z"]))
         else:
             warn.append(t("ro.w.missing_guid", label=label, guid=g))
-    for label in (k for k, g in guids.items() if not g):
+    for label in (k for k, g in guids.items() if not g and "zone" not in label.lower()):
         out.append(t("ro.todo_label", label=label))
 
     wanted = raw.get("pieces") or {}
@@ -595,13 +623,29 @@ def read_only_report(client, cfg: PlayConfig) -> list[str]:
         zones[side] = zone
         deck_guid, deck_spot = ((val("bot_deck_guid"), raw.get("bot_deck_spot")) if side == "bot"
                                 else (raw.get("human_deck_guid"), raw.get("human_deck_spot")))
+        deck_zone = _deck_zone(raw, f"{side}_deck_zone")
         rows = read(t("ro.read.discard", role=role), lambda z=zone: lua.read_discard(
-            z, [deck_guid] if deck_guid else [], [deck_spot] if deck_spot else [])) or []
+            z, [deck_guid] if deck_guid else [], [deck_spot] if deck_spot else [],
+            exclude_zones=[deck_zone] if deck_zone else [])) or []
         out.append(t("ro.discard_line", role=role, n=len(rows), titles=show_ids(rows)))
         shared = hands.get(side, set()) & {r["id"] for r in rows}
         if shared:
             warn.append(t("ro.w.discard_shares", role=role, zone=zone, n=len(shared),
                           titles=", ".join(titles.get(i, str(i)) for i in sorted(shared))))
+    for side in ("bot", "human"):
+        deck_guid, deck_spot = val(f"{side}_deck_guid"), raw.get(f"{side}_deck_spot")
+        card_ids = raw.get(f"{side}_card_ids")
+        if not (deck_guid and deck_spot and card_ids) or is_todo(deck_spot):
+            continue
+        deck_zone, radius = _deck_zone(raw, f"{side}_deck_zone"), float(raw.get("deck_radius", lua.DECK_RADIUS))
+        role = t(f"ro.role.{side}")
+        res = read(t("ro.read.deck", role=role), lambda g=deck_guid, sp=deck_spot, c=card_ids, z=deck_zone: lua.deck_identities(
+            [(g, tuple(sp), tuple(c), z)], radius))
+        entry = res[0] if isinstance(res, list) and res and isinstance(res[0], dict) else None
+        if entry and entry.get("found"):
+            out.append(t("ro.deck_found", role=role, guid=entry.get("guid"), where=deck_where(deck_zone, deck_spot, radius)))
+        elif entry is not None:
+            warn.append(t("ro.w.deck_not_found", role=role, where=deck_where(deck_zone, deck_spot, radius)))
     if zones:
         over = read(t("ro.read.zones"), lambda: lua.zone_overlaps(sorted(set(zones.values())))) or {}
         over = over if isinstance(over, dict) else {}
@@ -793,6 +837,7 @@ def recover_after_reload(session: Session, client: TTSClient, targets: list[str]
     "stop" if any is missing (the loaded game is not this one: carrying on would write on somebody else's table);
     "retry" if TTS does not answer yet; "ok" with the panel recreated and the table marked for resync."""
     try:
+        session.load_identities()                # a deck re-formed by the reload may have another GUID
         found = client.call_lua(lua.inspect_guids(session.guids_in_use())) or {}
         found = found if isinstance(found, dict) else {}
         missing = [t("common.or").join(group) for group in session.guid_groups()
@@ -909,6 +954,26 @@ def build_game(cfg: PlayConfig, first: str, seed: int) -> Game:
     return game
 
 
+def check_deck_zones(client, scfg: SessionConfig, echo: Callable[[str], None] = print) -> None:
+    """Start-up: each configured deck zone must exist and be a Scripting zone (else `SessionError` naming the key); one
+    that overlaps a hand zone or a discard zone is warned about (a deck zone only claims what is face down in it)."""
+    zones = {key: g for key, g in (("bot_deck_zone", scfg.bot_deck_zone), ("human_deck_zone", scfg.human_deck_zone)) if g}
+    if not zones:
+        return
+    res = client.call_lua(lua.zone_overlaps(sorted(set(zones.values())),
+                                            [scfg.bot_discard_zone, scfg.human_discard_zone])) or {}
+    res = res if isinstance(res, dict) else {}
+    for key, guid in zones.items():
+        info = res.get(guid) or {}
+        if not info.get("found"):
+            raise SessionError(t("cfg.deck_zone_missing", key=key, guid=guid))
+        if not info.get("zone"):
+            raise SessionError(t("cfg.deck_zone_not_zone", key=key, guid=guid, type=info.get("type")))
+        others = [*(info.get("hands") or []), *(info.get("zones") or [])]
+        if others:
+            echo(t("console.warn_line", text=t("cfg.deck_zone_overlaps", key=key, guid=guid, others=", ".join(others))))
+
+
 def play(cfg: PlayConfig, client: TTSClient, first: str, seed: int, stop: threading.Event,
          echo: Callable[[str], None] = print, poll: float = 0.1, state_path: Path | None = None,
          resume: bool = False, timing: bool = False, ai: str | None = None,
@@ -941,6 +1006,15 @@ def play(cfg: PlayConfig, client: TTSClient, first: str, seed: int, stop: thread
         session.resolve_pieces()                 # before the panel is built: its snapshot carries the GUIDs found by name
     except TABLE_ERRORS:
         pass                                     # the start-up check tries again and says why
+    try:
+        session.load_identities()                # adopts the decks' current GUIDs too: the panel's snapshot skips them by GUID
+    except TABLE_ERRORS:
+        pass                                     # retried on first use
+    try:
+        check_deck_zones(client, scfg, echo)
+    except (TTSLuaError, OSError):
+        pass                                     # table not reachable now: the zones are looked for again on first use
+    # a missing deck zone or one that is not a Scripting zone (SessionError) stops the start-up, naming the key
     for warning in floor_layout_warnings(cfg):
         echo(t("console.warn_line", text=warning))
     client.call_lua(lua.clear_markings(remove_panel=True))     # leftovers of a previous run that died without cleaning up

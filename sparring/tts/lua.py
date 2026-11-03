@@ -209,19 +209,22 @@ def count_hand(seat_color: str) -> str:
 
 @_registered
 def read_discard(zone_guid: str, exclude_guids: list[str] | tuple[str, ...] = (),
-                 exclude_spots: list[tuple[float, float]] | tuple = (), exclude_radius: float = 1.5) -> str:
+                 exclude_spots: list[tuple[float, float]] | tuple = (), exclude_radius: float = 1.5,
+                 exclude_zones: list[str] | tuple[str, ...] = ()) -> str:
     """CardIDs of the cards (loose or inside a Deck) found inside a scripting ZONE.
 
     Only a zone GUID is valid (`getObjects()` of the zone); a deck GUID is not a zone. Draw decks
     are usually inside or at the edge of the zone: they are excluded by GUID and so is everything closer than
     `exclude_radius` to any of the `exclude_spots` (x, z) IF FACE DOWN (the last loose card
-    of the draw deck); a face-up card next to the deck is discard and is always read."""
+    of the draw deck); a face-up card next to the deck is discard and is always read. Whatever lies inside one of the
+    `exclude_zones` (the side's deck zone) is the draw deck and is never read."""
     if not isinstance(exclude_guids, (list, tuple)) or not isinstance(exclude_spots, (list, tuple)):
         raise TypeError("lists expected")
     skip = "{" + ", ".join(f"[{_guid(g)}]=true" for g in exclude_guids) + "}"
     spots = "{" + ", ".join("{" + ", ".join(_spot(sp, exclude_radius)[:2]) + "}" for sp in exclude_spots) + "}"
     return ("-- sparring:read_discard\n" + _card_ids_helper() + f"local z = getObjectFromGUID({_guid(zone_guid)})\n"
             f"local skip = {skip}\nlocal spots = {spots}\nlocal r2 = {_f(exclude_radius)} ^ 2\n"
+            + _skip_zones_lua(exclude_zones) +
             """local objs = {}
 for _, o in ipairs(z.getObjects()) do
   local p = o.getPosition()
@@ -233,6 +236,33 @@ for _, o in ipairs(z.getObjects()) do
 end
 return JSON.encode(cardIds(objs))
 """)
+
+
+ZONE_LUA = """local function isZone(z)
+  return z ~= nil and z.type == "Scripting"
+end
+local function zoneObjects(z)
+  local out = {}
+  if not isZone(z) then return out end
+  for _, o in ipairs(z.getObjects()) do
+    if type(o) ~= "table" or type(o.getGUID) == "function" then table.insert(out, o) end
+  end
+  return out
+end
+"""      # a Scripting zone's objects (TTS reports a ScriptingTrigger as type "Scripting"); anything else has none
+
+
+def _skip_zones_lua(zones) -> str:
+    """Lua that adds to the `skip` table the GUID of everything FACE DOWN inside each of the scripting `zones` (deck zones;
+    a face-up discard lying in an overlapping zone is still discard)."""
+    if not zones:
+        return ""
+    return ZONE_LUA + f"""for _, zg in ipairs({_guid_list(zones)}) do
+  for _, o in ipairs(zoneObjects(getObjectFromGUID(zg))) do
+    if o.is_face_down then skip[o.getGUID()] = true end
+  end
+end
+"""
 
 
 def _spot(spot: tuple[float, float], radius: float) -> tuple[str, str, str]:
@@ -425,43 +455,70 @@ end
 """
 
 
-def _find_deck(spot, radius) -> str:
-    """Lua that, if `d` is nil, looks for `d` among the Decks/Cards closer than `radius` to the point (x, z) that `ours` accepts
-    (the bot's deck, or its last loose card). It only counts what is face down (a face-up card next to the
-    point is a discard) and the closest to the point wins. Without a point it does not search. Requires `_ours_lua` first."""
-    if spot is None:
-        return ""
-    x, z, r = _spot(spot, radius)
-    return f"""if d == nil then
-  local best = nil
-  for _, o in ipairs(getObjects()) do
-    if (o.type == "Deck" or o.type == "Card") and o.is_face_down then
-      local p = o.getPosition()
-      local d2 = (p.x - {x}) ^ 2 + (p.z - {z}) ^ 2
-      if d2 <= {r} ^ 2 and ours(o) and (best == nil or d2 < best) then d = o; best = d2 end
+DECK_RADIUS = 2.9      # search radius around a deck spot; below the 3.0 `deck_clear` that keeps discard slots away from the deck
+
+
+def _deck_finder(spot, radius, zone) -> str:
+    """Lua that defines `findDeck(guid)`: the draw deck of a side (a Deck, or its last loose Card) that `ours` accepts.
+    The GUID is tried first; TTS gives a re-formed deck a new one, so then the deck is searched where it lives.
+    With a scripting `zone` (`bot_deck_zone` / `human_deck_zone`) that is the only place that counts: the object found
+    by GUID must be inside it and, if not, the Deck (else the loose Card) inside the zone is taken. Without a zone, and
+    with a `spot` (x, z), the nearest Deck or Card closer than `radius`. Only what is face down counts (a face-up card
+    is discard), so the discard piles are never taken for the deck. Requires `_ours_lua` first."""
+    body = ""
+    if zone is not None:
+        body += f"""  local inside = zoneObjects(getObjectFromGUID({_guid(zone)}))
+  if d ~= nil then
+    local found = false
+    for _, o in ipairs(inside) do
+      if o.getGUID() == d.getGUID() then found = true end
+    end
+    if not found then d = nil end
+  end
+  if d == nil then
+    for _, o in ipairs(inside) do
+      if (o.type == "Deck" or o.type == "Card") and o.is_face_down and ours(o) and (d == nil or (o.type == "Deck" and d.type ~= "Deck")) then d = o end
     end
   end
+"""
+    elif spot is not None:
+        x, z, r = _spot(spot, radius)
+        body += f"""  if d == nil then
+    local best = nil
+    for _, o in ipairs(getObjects()) do
+      if (o.type == "Deck" or o.type == "Card") and o.is_face_down then
+        local p = o.getPosition()
+        local d2 = (p.x - {x}) ^ 2 + (p.z - {z}) ^ 2
+        if d2 <= {r} ^ 2 and ours(o) and (best == nil or d2 < best) then d = o; best = d2 end
+      end
+    end
+  end
+"""
+    return ZONE_LUA + f"""local function findDeck(guid)
+  local d = getObjectFromGUID(guid)
+  if d ~= nil and (not d.is_face_down or not ours(d)) then d = nil end
+{body}  return d
 end
 """
 
 
 @_registered
 def deal_cards(deck_guid: str, n: int, seat_color: str, spot: tuple[float, float] | None = None,
-               radius: float = 2.0, id_range: tuple[int, int] = BOT_CARD_IDS, *, identity) -> str:
+               radius: float = DECK_RADIUS, id_range: tuple[int, int] = BOT_CARD_IDS, *, identity,
+               zone: str | None = None) -> str:
     """Deals n cards from the physical deck to the seat's hand (a real draw).
 
     With a single card left TTS stops having a "Deck": a "Card" remains (and the deck's GUID may
     disappear). With `spot` (x, z of the deck) that deck or loose card is searched closer than `radius` to the point,
     and the loose card is taken to the seat's hand. Only an object counts (also the one found by GUID) whose
     cards fall in `id_range` AND have the image of `identity` (the bot's deck): a foreign card, from another game that
-    shares DeckID, or a token near the point is ignored. Empty deck: dealt = 0."""
+    shares DeckID, or a token near the point is ignored. With `zone` the deck is searched only inside that scripting
+    zone (see `_deck_finder`). Empty deck: dealt = 0."""
     color = _color(seat_color)
-    own = _ours_lua(identity, id_range)
-    find = _find_deck(spot, radius)
+    own = _ours_lua(identity, id_range) + _deck_finder(spot, radius, zone)
     return f"""-- sparring:deal_cards
-{own}local d = getObjectFromGUID({_guid(deck_guid)})
-if d ~= nil and not ours(d) then d = nil end
-{find}local k = 0
+{own}local d = findDeck({_guid(deck_guid)})
+local k = 0
 if d ~= nil and d.type == "Deck" then
   k = math.min({_i(n)}, d.getQuantity())
   d.deal(k, {color})
@@ -477,14 +534,15 @@ return JSON.encode({{dealt = k}})
 
 @_registered
 def return_hand_to_deck(seat_color: str, deck_guid: str, id_range: tuple[int, int] = BOT_CARD_IDS, *,
-                        identity) -> str:
+                        identity, spot: tuple[float, float] | None = None, zone: str | None = None,
+                        radius: float = DECK_RADIUS) -> str:
     """MULLIGAN, step 1: puts into the deck (putObject) all the cards of the seat's hand whose CardID falls in
     `id_range` AND with the image of `identity` (the bot's deck). Returns how many it put; `deck = false` if the deck's
     GUID does not exist. Always check by re-reading the table's hand."""
-    own = _ours_lua(identity, id_range)
+    own = _ours_lua(identity, id_range) + _deck_finder(spot, radius, zone)
     return f"""-- sparring:return_hand_to_deck
-{own}local d = getObjectFromGUID({_guid(deck_guid)})
-if d == nil or not ours(d) then return JSON.encode({{returned = 0, deck = false}}) end
+{own}local d = findDeck({_guid(deck_guid)})
+if d == nil then return JSON.encode({{returned = 0, deck = false}}) end
 local cards = {{}}
 for _, o in ipairs(Player[{_color(seat_color)}].getHandObjects(1)) do
   if o.type == "Card" and ours(o) then table.insert(cards, o) end
@@ -495,16 +553,14 @@ return JSON.encode({{returned = #cards, deck = true}})
 
 
 @_registered
-def shuffle_deck(deck_guid: str, spot: tuple[float, float] | None = None, radius: float = 2.0,
-                 id_range: tuple[int, int] = BOT_CARD_IDS, *, identity) -> str:
+def shuffle_deck(deck_guid: str, spot: tuple[float, float] | None = None, radius: float = DECK_RADIUS,
+                 id_range: tuple[int, int] = BOT_CARD_IDS, *, identity, zone: str | None = None) -> str:
     """MULLIGAN, step 2: shuffles the deck. After `putObject` the deck's GUID may change: with `spot` it is searched by
     position (like `deal_cards`). Returns `shuffled` and the number of cards it has, to verify it."""
-    own = _ours_lua(identity, id_range)
-    find = _find_deck(spot, radius)
+    own = _ours_lua(identity, id_range) + _deck_finder(spot, radius, zone)
     return f"""-- sparring:shuffle_deck
-{own}local d = getObjectFromGUID({_guid(deck_guid)})
-if d ~= nil and not ours(d) then d = nil end
-{find}if d ~= nil and d.type == "Deck" then
+{own}local d = findDeck({_guid(deck_guid)})
+if d ~= nil and d.type == "Deck" then
   d.shuffle()
   return JSON.encode({{shuffled = true, quantity = d.getQuantity()}})
 end
@@ -603,7 +659,8 @@ end, 0.6)
 def resolve_hand_row(guids: list[str], seat_color: str, *, identity, id_range: tuple[int, int] = BOT_CARD_IDS,
                      discard: str | None = None, face_down: bool = False,
                      spot: tuple[float, float, float] = (0.0, 0.0, 0.0), rot_y: float = 0,
-                     deck_guid: str | None = None) -> str:
+                     deck_guid: str | None = None, deck_spot: tuple[float, float] | None = None,
+                     deck_zone: str | None = None, deck_radius: float = DECK_RADIUS) -> str:
     """Closes the row of `show_hand_row`: returns to the seat's hand all the cards of the row (by GUID) except the
     one discarded, which goes to the discard `spot`. The discarded one is the card with GUID `discard` or, with `face_down`, THE ONLY card
     of the row that is face down (if there are 0 or several it moves nothing and returns `down`). Without `discard` or `face_down` it is
@@ -623,8 +680,9 @@ def resolve_hand_row(guids: list[str], seat_color: str, *, identity, id_range: t
     pick = _guid(discard) if discard is not None else "nil"
     deck_check = ""
     if deck_guid is not None:                 # the deck is checked before anything moves: a failure moves nothing
-        deck_check = f"""local deck = getObjectFromGUID({_guid(deck_guid)})
-if deck == nil or not ours(deck) then return JSON.encode({{discarded = false, returned = {{}}, found = #objs, down = down, deck = false}}) end
+        own += _deck_finder(deck_spot, deck_radius, deck_zone)
+        deck_check = f"""local deck = findDeck({_guid(deck_guid)})
+if deck == nil then return JSON.encode({{discarded = false, returned = {{}}, found = #objs, down = down, deck = false}}) end
 """
         # a one-card deck is a Card in TTS and has no putObject: the chosen card is dropped on it, same facing
         chosen_goes = """if deck.type == "Deck" then
@@ -1036,17 +1094,21 @@ return JSON.encode(out)
 
 
 @_registered
-def zone_overlaps(zone_guids: list[str]) -> str:
-    """Read only: GUIDs of the hand zones (HandTrigger) whose box overlaps each given zone."""
-    if not isinstance(zone_guids, (list, tuple)):
+def zone_overlaps(zone_guids: list[str], other_guids: list[str] | tuple[str, ...] = ()) -> str:
+    """Read only: for each given zone, `found`, `zone` (it is a zone, not a bag or a deck), the hand zones (HandTrigger)
+    whose box overlaps it (`hands`) and which of `other_guids` (e.g. the discard zones) overlap it (`zones`)."""
+    if not isinstance(zone_guids, (list, tuple)) or not isinstance(other_guids, (list, tuple)):
         raise TypeError("GUID list expected")
     wanted = "{" + ", ".join(_guid(g) for g in zone_guids) + "}"
+    others = "{" + ", ".join(_guid(g) for g in other_guids) + "}"
     return f"""-- sparring:zone_overlaps
-local out = {{}}
+{ZONE_LUA}local out = {{}}
 for _, g in ipairs({wanted}) do
   local z = getObjectFromGUID(g)
   if z == nil then
     out[g] = {{found = false}}
+  elseif not isZone(z) then
+    out[g] = {{found = true, zone = false, type = tostring(z.type)}}
   else
     local b = z.getBounds()
     local hands = {{}}
@@ -1059,7 +1121,18 @@ for _, g in ipairs({wanted}) do
         end
       end
     end
-    out[g] = {{found = true, hands = hands}}
+    local zones = {{}}
+    for _, og in ipairs({others}) do
+      local oz = getObjectFromGUID(og)
+      if og ~= g and isZone(oz) then
+        local ob = oz.getBounds()
+        if math.abs(b.center.x - ob.center.x) <= (b.size.x + ob.size.x) / 2
+           and math.abs(b.center.z - ob.center.z) <= (b.size.z + ob.size.z) / 2 then
+          table.insert(zones, og)
+        end
+      end
+    end
+    out[g] = {{found = true, zone = true, hands = hands, zones = zones}}
   end
 end
 return JSON.encode(out)
@@ -1502,6 +1575,8 @@ class SnapSpec:
     human_deck: str | None = None          # the human's draw deck: only how many cards it has is looked at
     bot_ongoing_spot: tuple[float, float] | None = None      # (x, z) where each side's ONGOING scheme lies (E2)
     human_ongoing_spot: tuple[float, float] | None = None
+    bot_skip_zones: tuple[str, ...] = ()      # deck zones: whatever lies inside is the draw deck, never discard
+    human_skip_zones: tuple[str, ...] = ()
 
 
 def _pairs(spots) -> str:
@@ -1529,10 +1604,15 @@ def snapshot_lua(spec: SnapSpec, seq_expr: str | None = None) -> str:
         raise ValueError("sequence expression not allowed")
     stamp = f"snap.seq = {seq_expr}\n" if seq_expr else ""
     return f"""local function sparringSnapshot()
-{_card_ids_helper()}{_board_prelude(spec.board, spec.board_guid)}local function zoneCards(guid, skip, spots, r2)
+{_card_ids_helper()}{ZONE_LUA}{_board_prelude(spec.board, spec.board_guid)}local function zoneCards(guid, skip, spots, r2, deckZones)
   local z = getObjectFromGUID(guid)
   local objs = {{}}
   if z == nil then return {{}} end
+  for _, zg in ipairs(deckZones) do
+    for _, o in ipairs(zoneObjects(getObjectFromGUID(zg))) do
+      if o.is_face_down then skip[o.getGUID()] = true end
+    end
+  end
   for _, o in ipairs(z.getObjects()) do
     local p = o.getPosition()
     local near = false
@@ -1563,8 +1643,8 @@ local snap = {{}}
 snap.bot_hand = cardIds(Player[{_color(spec.bot_seat)}].getHandObjects(1))
 snap.human_count = #Player[{_color(spec.human_seat)}].getHandObjects(1)
 local r2 = {_f(spec.exclude_radius)} ^ 2
-snap.bot_discard = zoneCards({_guid(spec.bot_zone)}, skipSet({_guid_list(spec.bot_skip)}), {_pairs(spec.bot_spots)}, r2)
-snap.human_discard = zoneCards({_guid(spec.human_zone)}, skipSet({_guid_list(spec.human_skip)}), {_pairs(spec.human_spots)}, r2)
+snap.bot_discard = zoneCards({_guid(spec.bot_zone)}, skipSet({_guid_list(spec.bot_skip)}), {_pairs(spec.bot_spots)}, r2, {_guid_list(spec.bot_skip_zones)})
+snap.human_discard = zoneCards({_guid(spec.human_zone)}, skipSet({_guid_list(spec.human_skip)}), {_pairs(spec.human_spots)}, r2, {_guid_list(spec.human_skip_zones)})
 snap.face_bot = cardsAt({_f(spec.bot_card_spot[0])}, {_f(spec.bot_card_spot[1])}, {_f(spec.reveal_radius)}, false)
 snap.face_human = cardsAt({_f(spec.human_card_spot[0])}, {_f(spec.human_card_spot[1])}, {_f(spec.reveal_radius)}, false)
 snap.ongoing_bot = {_ongoing_lua(spec.bot_ongoing_spot, spec.reveal_radius)}
@@ -1778,20 +1858,18 @@ HUMAN_CARD_IDS = (HELLBOY_BASE, HELLBOY_BASE + 29)      # CardID range of Hellbo
 
 
 @_registered
-def reset_deck(deck_guid: str, spot: tuple[float, float], id_range: tuple[int, int], radius: float = 2.0, *,
-               identity, scope: Scope) -> str:
+def reset_deck(deck_guid: str, spot: tuple[float, float], id_range: tuple[int, int], radius: float = DECK_RADIUS, *,
+               identity, scope: Scope, zone: str | None = None) -> str:
     """RESTART: puts into the draw deck ALL the cards of a side (those in hands, discards, face down
     on the table and loose Decks) and shuffles it. Only counts what has a CardID of `id_range` AND the
     image (`identity`) of that side, and what is in the `scope` (hands, discards, combat and deck; never the whole
     table), without anyone holding it. A Deck with a single foreign card is not touched. The deck is found by GUID or, if TTS
     destroyed it when it was left empty, by position `spot`; without a deck, loose cards are grouped (`group`). Returns
     how many cards are in the deck."""
-    own = _ours_lua(identity, id_range)
-    find = _find_deck(spot, radius)
+    own = _ours_lua(identity, id_range) + _deck_finder(spot, radius, zone)
     return f"""-- sparring:reset_deck
-{own}{_scope_lua(scope)}local d = getObjectFromGUID({_guid(deck_guid)})
-if d ~= nil and not ours(d) then d = nil end
-{find}local others = {{}}
+{own}{_scope_lua(scope)}local d = findDeck({_guid(deck_guid)})
+local others = {{}}
 for _, o in ipairs(scopeObjects()) do
   if (o.type == "Card" or o.type == "Deck") and o ~= d and ours(o) then
     table.insert(others, o)
@@ -1817,19 +1895,17 @@ return JSON.encode({{deck = true, quantity = 1}})
 
 
 @_registered
-def reset_plan(sides: list[tuple[str, tuple[float, float] | None, tuple[int, int], tuple]], radius: float = 2.0, *,
-               scope: Scope) -> str:
+def reset_plan(sides: list[tuple], radius: float = DECK_RADIUS, *, scope: Scope) -> str:
     """Read only, in ONE message: what `reset_deck` would gather for each side `(deck_guid, spot, id_range,
-    identity)`, without moving anything. One entry per side, in order: `deck` (there is a deck), `loose` (loose objects of the
+    identity[, zone])`, without moving anything. One entry per side, in order: `deck` (there is a deck), `loose` (loose objects of the
     side) and `total` (cards that would end up in the deck)."""
     if not isinstance(sides, (list, tuple)) or not 1 <= len(sides) <= 2:
         raise TypeError("list of 1 or 2 sides expected")
     blocks = []
-    for deck_guid, spot, id_range, identity in sides:
+    for deck_guid, spot, id_range, identity, *zone in sides:
         blocks.append(f"""table.insert(out, (function()
-{_ours_lua(identity, id_range)}local d = getObjectFromGUID({_guid(deck_guid)})
-if d ~= nil and not ours(d) then d = nil end
-{_find_deck(spot, radius)}local function size(o) if o.type == "Deck" then return o.getQuantity() end return 1 end
+{_ours_lua(identity, id_range)}{_deck_finder(spot, radius, zone[0] if zone else None)}local d = findDeck({_guid(deck_guid)})
+local function size(o) if o.type == "Deck" then return o.getQuantity() end return 1 end
 local total, loose = 0, 0
 if d ~= nil then total = size(d) end
 for _, o in ipairs(scopeObjects()) do
@@ -1848,24 +1924,31 @@ end)())
 
 
 @_registered
-def deck_identities(decks: list[tuple[str, tuple[float, float] | None, tuple[int, int]]], radius: float = 2.0) -> str:
+def deck_identities(decks: list[tuple], radius: float = DECK_RADIUS) -> str:
     """Read only, at start: the identity (FaceURL, BackURL of the DeckID image of each card) of each configured
     deck, read from the object itself and only from cards whose CardID falls in the side's range. It is found by GUID
-    or, if TTS turned it into a Card, by position: then ALL its cards must fall in the range. Returns one
-    entry per deck: `found` and the distinct `face`/`back` pairs of all its cards."""
+    or, if TTS turned it into a Card or gave the re-formed deck a new GUID, by position (the nearest within `radius`
+    of its spot) or, for a deck with a scripting zone, only inside the zone: then ALL its cards must fall in the range.
+    Each deck is `(guid or [guids], spot, id_range[, zone])`: the first GUID that is a face-down Deck or Card (and, with a
+    zone, lies in it) wins; a face-up object is never taken. Returns one entry per deck: `found`, its current `guid` and the
+    distinct `face`/`back` pairs of all its cards."""
     if not isinstance(decks, (list, tuple)) or not 1 <= len(decks) <= 4:
         raise TypeError("list of 1 to 4 decks expected")
     rows = []
-    for guid, spot, rng in decks:
+    for guid, spot, rng, *zone in decks:
         lo, hi = _range(rng)
         if spot is None:
             where = "nil"
         else:
             x, z, r = _spot(spot, radius)
             where = f"{{{x}, {z}, {r}}}"
-        rows.append(f"{{{_guid(guid)}, {where}, {lo}, {hi}}}")
+        zone_guid = _guid(zone[0]) if zone and zone[0] else "nil"
+        guids = [guid] if isinstance(guid, str) else list(guid)
+        if not 1 <= len(guids) <= 4:
+            raise TypeError("1 to 4 candidate GUIDs per deck")
+        rows.append(f"{{{_guid_list(guids)}, {where}, {lo}, {hi}, {zone_guid}}}")
     return f"""-- sparring:deck_identities
-{_IMAGE_LUA}local function entriesOf(o, data)
+{ZONE_LUA}{_IMAGE_LUA}local function entriesOf(o, data)
   if o.type == "Card" then return {{data}} end
   return data.ContainedObjects or {{}}
 end
@@ -1879,17 +1962,34 @@ local function inRange(o, lo, hi)
 end
 local out = {{}}
 for _, row in ipairs({{{", ".join(rows)}}}) do
-  local d = getObjectFromGUID(row[1])
-  if d == nil and row[2] ~= nil then
+  local d = nil
+  for _, g in ipairs(row[1]) do
+    local o = getObjectFromGUID(g)
+    if d == nil and o ~= nil and (o.type == "Deck" or o.type == "Card") and o.is_face_down then d = o end
+  end
+  if row[5] ~= nil then
+    local inside = zoneObjects(getObjectFromGUID(row[5]))
+    local keep = false
+    for _, o in ipairs(inside) do
+      if d ~= nil and o.getGUID() == d.getGUID() then keep = true end
+    end
+    if not keep then d = nil end
+    for _, o in ipairs(inside) do
+      if d == nil and (o.type == "Deck" or o.type == "Card") and o.is_face_down and inRange(o, row[3], row[4]) then d = o end
+    end
+  elseif d == nil and row[2] ~= nil then
+    local best = nil
     for _, o in ipairs(getObjects()) do
-      if o.type == "Deck" or o.type == "Card" then
+      if (o.type == "Deck" or o.type == "Card") and o.is_face_down then
         local p = o.getPosition()
-        if (p.x - row[2][1]) ^ 2 + (p.z - row[2][2]) ^ 2 <= row[2][3] ^ 2 and inRange(o, row[3], row[4]) then d = o; break end
+        local d2 = (p.x - row[2][1]) ^ 2 + (p.z - row[2][2]) ^ 2
+        if d2 <= row[2][3] ^ 2 and inRange(o, row[3], row[4]) and (best == nil or d2 < best) then d = o; best = d2 end
       end
     end
   end
   local entry = {{found = d ~= nil, pairs = {{}}}}
   if d ~= nil then
+    entry.guid = d.getGUID()
     local data = d.getData()
     local seen = {{}}
     for _, c in ipairs(entriesOf(d, data)) do
@@ -1919,14 +2019,16 @@ MAX_PILE_PAIRS = 12      # distinct "face|back" images reported for a deck that 
 
 @_registered
 def table_heroes(ranges: list[tuple[int, int]], guids: list[str], identities: list | None = None,
-                 min_unknown: int = 5) -> str:
+                 min_unknown: int = 5, deck_zones: dict[str, str] | None = None) -> str:
     """Read only, at start-up: which heroes are on the table. For each loose Deck or Card on the table (those inside
     a bag do not count) it returns its spot and how many of its cards belong to each hero (`counts`, indexed like `ranges`);
     and, from `guids` (miniatures), the spot of those loose on the table. With `identities` (one per range: the hero's
     (FaceURL, BackURL) pairs) a card only counts if its image is also the hero's: in the real save almost
     every deck shares DeckID 176 with Medusa. A Deck of at least `min_unknown` cards that belongs to no
     hero also comes back, with `counts` at zero, its name and `pairs` (the distinct "face|back" images of its cards) to
-    look it up in the hero catalog (`data/catalog/heroes.json`) and say which deck it is or that it is not recognized."""
+    look it up in the hero catalog (`data/catalog/heroes.json`) and say which deck it is or that it is not recognized.
+    `deck_zones` ({"bot": zone GUID, "human": zone GUID}): a pile lying inside one of them comes back with `side`, which
+    decides whose it is instead of its distance to the deck spots."""
     if not isinstance(ranges, (list, tuple)) or not 1 <= len(ranges) <= MAX_HERO_RANGES:
         raise TypeError(f"list of 1 to {MAX_HERO_RANGES} CardID ranges expected")
     if not isinstance(guids, (list, tuple)) or len(guids) > MAX_HERO_GUIDS:
@@ -1935,8 +2037,10 @@ def table_heroes(ranges: list[tuple[int, int]], guids: list[str], identities: li
         raise TypeError("one deck identity per range expected")
     rows = ", ".join("{" + ", ".join(_range(r)) + "}" for r in ranges)
     idents = "{" + ", ".join(_identity(i) for i in identities) + "}" if identities is not None else "nil"
+    zones_lua = "{" + ", ".join(f"[{lua_str(side)}] = {_guid(g)}" for side, g in sorted((deck_zones or {}).items())
+                                if g) + "}"
     return f"""-- sparring:table_heroes
-{_IMAGE_LUA}local ranges = {{{rows}}}
+{ZONE_LUA}{_IMAGE_LUA}local ranges = {{{rows}}}
 local idents = {idents}
 local function isHero(i, c, fallback)
   if idents == nil then return true end
@@ -1946,6 +2050,10 @@ local function isHero(i, c, fallback)
     if idents[i][tostring(info.FaceURL) .. "|" .. tostring(info.BackURL)] ~= true then return false end
   end
   return true
+end
+local sideOf = {{}}
+for side, zg in pairs({zones_lua}) do
+  for _, o in ipairs(zoneObjects(getObjectFromGUID(zg))) do sideOf[o.getGUID()] = side end
 end
 local piles = {{}}
 for _, o in ipairs(getObjects()) do
@@ -1984,7 +2092,7 @@ for _, o in ipairs(getObjects()) do
         end
       end
       table.insert(piles, {{type = o.type, guid = o.getGUID(), x = p.x, z = p.z, counts = counts, name = name,
-                           size = #cards, pairs = pairsOf}})
+                           size = #cards, pairs = pairsOf, side = sideOf[o.getGUID()], down = o.is_face_down == true}})
     end
   end
 end
@@ -2192,12 +2300,12 @@ end)()"""
 end)()"""
 
 
-def _deck_insert(card, deck_guid: str, tag: str, bottom: bool, identity, id_range) -> str:
+def _deck_insert(card, deck_guid: str, tag: str, bottom: bool, identity, id_range, spot, zone, radius) -> str:
     flip_in = "local r = deck.getRotation()\ndeck.setRotation(Vector(r.x, r.y, (r.z + 180) % 360))\n" if bottom else ""
     flip_out = "deck.setRotation(Vector(r.x, r.y, r.z))\n" if bottom else ""
     return f"""-- sparring:{tag}
-{_ours_lua(identity, id_range)}{_LOOSE_LUA}local deck = getObjectFromGUID({_guid(deck_guid)})
-if deck == nil or not ours(deck) then return JSON.encode({{placed = false, deck = false}}) end
+{_ours_lua(identity, id_range)}{_deck_finder(spot, radius, zone)}{_LOOSE_LUA}local deck = findDeck({_guid(deck_guid)})
+if deck == nil then return JSON.encode({{placed = false, deck = false}}) end
 local card = {_card_ref_lua(card)}
 if card == nil then return JSON.encode({{placed = false}}) end
 {flip_in}deck = deck.putObject(card) or deck
@@ -2206,26 +2314,30 @@ if card == nil then return JSON.encode({{placed = false}}) end
 
 
 @_registered
-def card_to_deck_top(card: str | int, deck_guid: str, id_range: tuple[int, int] = BOT_CARD_IDS, *, identity) -> str:
+def card_to_deck_top(card: str | int, deck_guid: str, id_range: tuple[int, int] = BOT_CARD_IDS, *, identity,
+                     spot: tuple[float, float] | None = None, zone: str | None = None,
+                     radius: float = DECK_RADIUS) -> str:
     """Puts a loose card (by GUID or CardID) on top of a deck of the same side. `putObject` adds on top. If the deck
     is a single card it becomes a deck with another GUID: the new one comes back as `deck`. Only a card that is
     `ours` (`id_range` and the image of `identity`: the bot's by default, the human's when the session projects their
     own discard pile card into their deck, Ivan 29/10) and in no hand zone counts; the deck must be `ours` too, else
     `{placed = false, deck = false}`."""
-    return _deck_insert(card, deck_guid, "card_to_deck_top", False, identity, id_range)
+    return _deck_insert(card, deck_guid, "card_to_deck_top", False, identity, id_range, spot, zone, radius)
 
 
 @_registered
 def card_to_deck_bottom(card: str | int, deck_guid: str, id_range: tuple[int, int] = BOT_CARD_IDS, *,
-                        identity) -> str:
+                        identity, spot: tuple[float, float] | None = None, zone: str | None = None,
+                        radius: float = DECK_RADIUS) -> str:
     """Puts a loose card at the bottom of a deck of the same side: the deck is turned over (instant) so its bottom is
     the top, the card is put in and the deck turned back. Same guards as `card_to_deck_top`. Verify live."""
-    return _deck_insert(card, deck_guid, "card_to_deck_bottom", True, identity, id_range)
+    return _deck_insert(card, deck_guid, "card_to_deck_bottom", True, identity, id_range, spot, zone, radius)
 
 
 @_registered
 def hand_to_deck(seat_color: str, card_ids: list[int], deck_guid: str, id_range: tuple[int, int] = BOT_CARD_IDS, *,
-                 identity, bottom: bool = False, shuffle: bool = False) -> str:
+                 identity, bottom: bool = False, shuffle: bool = False, spot: tuple[float, float] | None = None,
+                 zone: str | None = None, radius: float = DECK_RADIUS) -> str:
     """Puts cards of the bot's HAND (by CardID, in that order, the first match of each) into the bot's deck: on top,
     at the bottom (`bottom`: the deck is turned over for the puts, like `card_to_deck_bottom`, so the last id ends
     up as the very bottom card) or anywhere (`shuffle`: shuffled after). The loose-card builders refuse hand zones on
@@ -2239,8 +2351,8 @@ def hand_to_deck(seat_color: str, card_ids: list[int], deck_guid: str, id_range:
     flip_in = "deck.setRotation(Vector(r.x, r.y, (r.z + 180) % 360))\n" if bottom else ""
     flip_out = "deck.setRotation(Vector(r.x, r.y, r.z))\n" if bottom else ""
     return f"""-- sparring:hand_to_deck
-{_ours_lua(identity, id_range)}local deck = getObjectFromGUID({_guid(deck_guid)})
-if deck == nil or not ours(deck) then return JSON.encode({{placed = {{}}, deck = false}}) end
+{_ours_lua(identity, id_range)}{_deck_finder(spot, radius, zone)}local deck = findDeck({_guid(deck_guid)})
+if deck == nil then return JSON.encode({{placed = {{}}, deck = false}}) end
 local order = {order}
 local byId = {{}}
 for _, o in ipairs(Player[{_color(seat_color)}].getHandObjects(1)) do
@@ -2327,7 +2439,8 @@ _ANY_OURS_LUA = "local function ours(o) return not o.held_by_color end\n"
 
 @_registered
 def shuffle_into_deck(deck_guid: str, cards: list[str], id_range: tuple[int, int] = BOT_CARD_IDS, *,
-                      identity=None) -> str:
+                      identity=None, spot: tuple[float, float] | None = None, zone: str | None = None,
+                      radius: float = DECK_RADIUS) -> str:
     """Puts the loose cards (by GUID) into a deck and shuffles it. A card in ANY hand zone is never taken. With
     `identity` the deck and every card must be `ours` (`id_range` and the image: the human's when the session shuffles
     their own discard pile card into their deck, Ivan 29/10), else `{added = 0, deck = false}`. Returns `{added,
@@ -2335,9 +2448,11 @@ def shuffle_into_deck(deck_guid: str, cards: list[str], id_range: tuple[int, int
     if not isinstance(cards, (list, tuple)) or not 1 <= len(cards) <= MAX_DECK_CARDS:
         raise ValueError(f"1 to {MAX_DECK_CARDS} cards expected")
     own = _ours_lua(identity, id_range) if identity is not None else _ANY_OURS_LUA + "local function cardOurs() return true end\n"
+    finder = _deck_finder(spot, radius, zone) if identity is not None else (
+        "local function findDeck(guid) local d = getObjectFromGUID(guid); if d ~= nil and not ours(d) then d = nil end return d end\n")
     return f"""-- sparring:shuffle_into_deck
-{own}{_LOOSE_LUA}local deck = getObjectFromGUID({_guid(deck_guid)})
-if deck == nil or not ours(deck) then return JSON.encode({{added = 0, deck = false, moved = {{}}}}) end
+{own}{finder}{_LOOSE_LUA}local deck = findDeck({_guid(deck_guid)})
+if deck == nil then return JSON.encode({{added = 0, deck = false, moved = {{}}}}) end
 local wanted = {_guid_list(cards)}
 local moved = {{}}
 -- A card of a stacked pile (a Deck) is no object of its own: `getObjectFromGUID` does not find it and it has to be
@@ -2380,7 +2495,8 @@ return JSON.encode({{added = #moved, moved = moved, deck = deck.getGUID(), quant
 
 @_registered
 def deal_row(deck_guid: str, spots: list[tuple[float, float, float]], rot_y: float = 0, face_up: bool = True,
-             id_range: tuple[int, int] = BOT_CARD_IDS, *, identity) -> str:
+             id_range: tuple[int, int] = BOT_CARD_IDS, *, identity, spot: tuple[float, float] | None = None,
+             zone: str | None = None, radius: float = DECK_RADIUS) -> str:
     """Deals the top cards of the bot's deck onto `spots` (one card per spot), face up by default. Instant. The last
     card of a deck is a loose card, not a deck: it is found near where the deck was, and only if it is `ours`
     (`id_range` and the image of `identity`) and in no hand zone. A deck that is not `ours` deals nothing
@@ -2390,9 +2506,9 @@ def deal_row(deck_guid: str, spots: list[tuple[float, float, float]], rot_y: flo
     rows = "{" + ", ".join(_xyz(s) for s in spots) + "}"
     rot_z = "0" if face_up else "180"
     return f"""-- sparring:deal_row
-{_ours_lua(identity, id_range)}{_LOOSE_LUA}local spots = {rows}
-local deck = getObjectFromGUID({_guid(deck_guid)})
-if deck == nil or not ours(deck) then return JSON.encode({{dealt = {{}}, deck = false}}) end
+{_ours_lua(identity, id_range)}{_deck_finder(spot, radius, zone)}{_LOOSE_LUA}local spots = {rows}
+local deck = findDeck({_guid(deck_guid)})
+if deck == nil then return JSON.encode({{dealt = {{}}, deck = false}}) end
 local home = deck.getPosition()
 local dealt = {{}}
 local function loose()
@@ -2404,7 +2520,7 @@ local function loose()
   end
 end
 for i, at in ipairs(spots) do
-  local cur = getObjectFromGUID({_guid(deck_guid)})
+  local cur = findDeck({_guid(deck_guid)})
   if cur ~= nil and cur.type == "Deck" then
     local c = cur.takeObject({{position = at, rotation = Vector(0, {_f(rot_y)}, {rot_z}), smooth = false}})
     if c ~= nil then table.insert(dealt, c.getGUID()) end

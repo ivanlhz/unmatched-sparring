@@ -110,7 +110,7 @@ class FxTable(Table):
 
     def _human_side(self, s):
         """True when the script targets the HUMAN's deck: those cards move from the human pile to `human_deck`."""
-        return self.human_deck_guid is not None and f'getObjectFromGUID("{self.human_deck_guid}")' in s
+        return self.human_deck_guid is not None and f'findDeck("{self.human_deck_guid}")' in s
 
     def _deck_insert(self, s, kind):
         m = re.search(r"CardID == (\d+)", s)

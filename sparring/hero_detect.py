@@ -41,13 +41,14 @@ def hero_slugs() -> list[str]:
     return sorted(p.stem for p in TTS_DIR.glob("*.json"))
 
 
-def read_table(client) -> TableReading:
-    """One read (`table_heroes`) with the CardID ranges and the miniatures of every hero that has TTS data."""
+def read_table(client, deck_zones: dict[str, str] | None = None) -> TableReading:
+    """One read (`table_heroes`) with the CardID ranges and the miniatures of every hero that has TTS data.
+    `deck_zones` ({"bot": GUID, "human": GUID} of the Scripting zones over the decks): a pile inside one is that side's."""
     slugs = hero_slugs()
     tables = [load_hero_table(s) for s in slugs]
     guids = sorted({g for t in tables for f in t.fighters.values() for g in f.pieces})
     res = client.call_lua(lua.table_heroes([t.card_ids for t in tables], guids, [t.identity for t in tables],
-                                           MIN_CARDS)) or {}
+                                           MIN_CARDS, deck_zones)) or {}
     pieces = res.get("pieces") if isinstance(res.get("pieces"), dict) else {}
     piles = [_with_catalog(p, slugs) for p in res.get("piles") or []]
     return TableReading(piles, {g: (p["x"], p["z"]) for g, p in pieces.items()}, slugs)
@@ -63,6 +64,8 @@ def _with_catalog(pile: dict, playable: list[str]) -> dict:
 
 
 def _side(pile: dict, spots: dict[str, tuple[float, float]]) -> str:
+    if pile.get("side") in spots:                  # inside a deck zone: the zone says whose it is
+        return pile["side"]
     return min(spots, key=lambda s: math.hypot(pile["x"] - spots[s][0], pile["z"] - spots[s][1]))
 
 
@@ -103,6 +106,31 @@ def _report(reading: TableReading, totals: dict[str, dict[str, int]],
         lines.append(i18n.t("hero.report.unknown_deck", deck=_deck_name(pile),
                             who=i18n.t("hero.who.bot" if _side(pile, spots) == BOT else "hero.who.human")))
     return "\n".join(lines) or i18n.t("hero.report.none")
+
+
+def detected_decks(reading: TableReading, heroes: tuple[str, str], bot_spot, human_spot,
+                   radius: float = lua.DECK_RADIUS, zones: dict[str, str] | None = None) -> dict[str, str]:
+    """GUID of the pile of each side's hero (the one with the most cards of it) that is that side's DRAW DECK: face down
+    and inside the side's deck zone or, without one, within `radius` of its deck spot. A stacked discard pile, a
+    spare deck or a stray card elsewhere on the half is not it. A side with no such pile is missing."""
+    spots = {BOT: tuple(bot_spot), HUMAN: tuple(human_spot)}
+    zones = zones or {}
+    out: dict[str, str] = {}
+    for side, slug in zip((BOT, HUMAN), heroes):
+        if slug not in reading.slugs:
+            continue
+        i = reading.slugs.index(slug)
+
+        def is_deck(p: dict) -> bool:
+            if p.get("down") is False or p["counts"][i] < MIN_CARDS:
+                return False
+            if zones.get(side):
+                return p.get("side") == side
+            return math.hypot(p["x"] - spots[side][0], p["z"] - spots[side][1]) <= radius
+        piles = [p for p in reading.piles if _side(p, spots) == side and is_deck(p)]
+        if piles:
+            out[side] = max(piles, key=lambda p: p["counts"][i])["guid"]
+    return out
 
 
 def detect_heroes(reading: TableReading, bot_spot, human_spot,

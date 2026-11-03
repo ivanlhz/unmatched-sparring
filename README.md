@@ -92,7 +92,8 @@ The file holds what belongs to the **table**; everything that belongs to a **her
 | `bot_ongoing_spot`, `human_ongoing_spot` | Where ONGOING schemes are kept. |
 | `bot_tuck_spot`, `bot_removed_spot` | Donatello only: where the bot lays the inventions it tucks under its hero card and the cards it removes from the game (outside its discard and combat zones; estimates). |
 | `bot_discard_zone`, `human_discard_zone`, `bot_discard_spot/step/rows/bounds` | Discard zones. The bot lays its discards in an ordered grid so you can read the order of play. |
-| `bot_deck_spot`, `human_deck_spot` | Draw piles (also used by hero detection). |
+| `bot_deck_spot`, `human_deck_spot` | Draw piles (also used by hero detection). Without a deck zone the bot takes the nearest face-down deck or card within `deck_radius` (2.9) of the spot. |
+| `bot_deck_zone`, `human_deck_zone` | Optional. GUIDs of Scripting zones over each draw pile; see [Deck zones](#deck-zones-optional). |
 | `dead_spot`, `human_dead_spot` | Where fallen miniatures are put aside. |
 | `look_spot`, `look_step`, `bot_row_spot`, `bot_row_step` | Rows where the bot lays out cards for look-at-hand effects. |
 | `panel_position`, `panel_scale` | Where the panel floats and how big it is. |
@@ -106,6 +107,20 @@ The file holds what belongs to the **table**; everything that belongs to a **her
 | `ai`, `ai_time_budget`, `ai_seed`, `ai_eval` | AI choice and tuning. See [The two AIs](#6-the-two-ais). |
 
 A value of `"TODO"` has to be filled in by hand after the first `--read-only` run (the bot will not play until it is).
+
+#### Deck zones (optional)
+
+TTS gives a deck a new GUID whenever it is re-formed (gathering the cards back by hand, a restart, the last card turning into a loose card), and a deck that someone nudged can lie farther than `deck_radius` from its spot. A deck zone makes the lookup exact: when `bot_deck_zone` / `human_deck_zone` is set, the bot looks for that side's deck (or its last loose card) **only inside the zone**, whatever its GUID. It is the same idea as the discard zones.
+
+Create each zone once, in TTS:
+
+1. Open the Scripting zone tool (Zones menu, top bar, Scripting) and drag a rectangle over the deck spot, a little bigger than a card (about 3 x 4 units). Keep it clear of the discard zone and the hand zones.
+2. Put the deck inside it (face down).
+3. Right-click the zone, Scripting, and copy its GUID.
+4. Write it in `config\table.json`: `"bot_deck_zone": "<guid>"` and `"human_deck_zone": "<guid>"`. Leave a key out to keep the spot search for that side.
+5. Run `--read-only` to check: each side should report its deck as found inside its zone. At start-up the bot refuses a zone GUID that does not exist or is not a Scripting zone, and warns if the zone overlaps a hand or discard zone (only what is face down in a deck zone counts as the deck, so a face-up discard there is still read as discard).
+
+Without zones the bot adopts the GUID the table shows at start-up (and when resuming, if the saved one is gone), so a re-formed deck is still found. The zone is the deck's only home: if the deck is moved out of it the bot says where it looked and asks you to put it back.
 
 ### First run: read-only
 

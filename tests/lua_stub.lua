@@ -17,6 +17,7 @@ function mkobj(o)
   o.name = o.name or ""
   o.gm = o.gm or ""
   if o.resting == nil then o.resting = true end
+  if o.type == "Deck" and o.is_face_down == nil then o.is_face_down = true end   -- decks lie face down unless a test says otherwise
   o.getGUID = function() return o.guid end
   o.getName = function() return o.name end
   o.setName = function(n) o.name = n end
@@ -88,11 +89,12 @@ function mkobj(o)
       end
     end
   end
-  if o.type == "Zone" then
+  if o.type == "Scripting" then
+    o.getBounds = o.getBounds or function() return {center = vec(o.cx, 1, o.cz), size = vec(o.hw * 2, 1, o.hd * 2)} end
     o.getObjects = function()
       local t = {}
       for _, x in ipairs(OBJECTS) do
-        if x ~= o and x.type ~= "Zone" and math.abs(x.pos.x - o.cx) <= o.hw and math.abs(x.pos.z - o.cz) <= o.hd then
+        if x ~= o and x.type ~= "Scripting" and math.abs(x.pos.x - o.cx) <= o.hw and math.abs(x.pos.z - o.cz) <= o.hd then
           table.insert(t, x)
         end
       end

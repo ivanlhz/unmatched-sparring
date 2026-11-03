@@ -93,7 +93,7 @@ def test_discard_zooms_only_the_card_asked_for(rt):
     scope = lua.Scope(("Blue",), ("ZN",), ((0.0, 0.0),))
     rt.execute('mkobj({guid = "h1", type = "Card", cid = 150, owner = "x", hand = "Blue"})')
     rt.execute('mkobj({guid = "h2", type = "Card", cid = 151, owner = "x", hand = "Blue"})')
-    rt.execute('mkobj({guid = "ZN", type = "Zone", cx = 99, cz = 99, hw = 1, hd = 1})')
+    rt.execute('mkobj({guid = "ZN", type = "Scripting", cx = 99, cz = 99, hw = 1, hd = 1})')
     script = lua.discard_cards([150, 151], [(1.0, 2.0, 3.0), (4.0, 2.0, 3.0)], 90, identity=X_IDENT, scope=scope,
                                id_range=X_IDS, zoom=ZOOM, zoom_id=151)
     assert json.loads(rt.execute(script))["moved"] == [150, 151]
@@ -316,7 +316,7 @@ def test_a_card_whose_deck_key_is_not_its_id_div_100_is_still_zoomed(rt):
 
 def test_a_card_taken_out_of_a_deck_is_zoomed_with_an_odd_key_too(rt):
     scope = lua.Scope(("Blue",), ("ZN",), ((0.0, 0.0),))
-    rt.execute('mkobj({guid = "ZN", type = "Zone", cx = 0, cz = 0, hw = 5, hd = 5})')
+    rt.execute('mkobj({guid = "ZN", type = "Scripting", cx = 0, cz = 0, hw = 5, hd = 5})')
     rt.execute('mkobj({guid = "D1", type = "Deck", pos = Vector(0, 1, 0), cards = {'
                '{cid = 150, guid = "k1", owner = "x", deck_key = "7"}, {cid = 151, guid = "k2", owner = "x"}}})')
     script = lua.discard_cards([150], [(1.0, 2.0, 3.0)], 90, identity=X_IDENT, scope=scope, id_range=X_IDS,

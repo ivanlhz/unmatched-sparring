@@ -773,7 +773,7 @@ def test_d9_deal_fallback_only_takes_objects_whose_card_id_is_in_the_bot_deck_ra
     custom = t_deal_cards("d42056", 1, "Green", spot=(1.0, 2.0), id_range=(100, 129))
     assert "id < 100 or id > 129" in custom
     assert "and ours(o) and (best == nil" not in t_deal_cards("d42056", 1, "Green"), "without a point there is no search"
-    assert "if d ~= nil and not ours(d) then d = nil end" in s, "the deck found by GUID must also be ours"
+    assert "if d ~= nil and (not d.is_face_down or not ours(d)) then d = nil end" in s, "the deck found by GUID must also be ours and face down"
 
 
 # ---------- ordered discard in the zone ----------

@@ -121,6 +121,11 @@ class SessionConfig:
     deck_clear: float = 3.0        # slots closer than this to the draw deck are skipped
     human_deck_guid: str | None = None            # the human's draw deck (may be inside their zone)
     human_deck_spot: tuple[float, float] | None = None
+    bot_deck_zone: str | None = None              # optional Scripting zone over each deck: the deck is searched ONLY inside it
+    human_deck_zone: str | None = None
+    deck_radius: float = lua.DECK_RADIUS          # without a zone: nearest face-down deck/card this close to the deck spot
+    bot_deck_hint: str | None = None              # GUID the start-up read found for each deck (TTS re-forms decks with a new one)
+    human_deck_hint: str | None = None
     deck_exclude_radius: float = 1.5              # whatever is this close to a deck is not discard
     start_spaces: dict[str, int] = field(default_factory=dict)   # hero fid -> its real starting space
     bot_discard_bounds: tuple[float, float, float, float, float] | None = None   # (cx, cz, size x, z, rotY) of the zone
@@ -186,6 +191,13 @@ def piece_guids(value) -> list[str]:
     if not isinstance(guids, (list, tuple)) or not guids or not all(isinstance(g, str) for g in guids):
         raise ValueError(t("cfg.piece_guid", value=value))
     return list(guids)
+
+
+def deck_where(zone: str | None, spot, radius: float) -> str:
+    """Where a deck is looked for, for the messages: the zone, or the spot and radius."""
+    if zone:
+        return t("deck.where.zone", zone=zone)
+    return t("deck.where.spot", x=f"{float(spot[0]):g}", z=f"{float(spot[1]):g}", r=f"{radius:g}") if spot else t("deck.where.guid")
 
 
 # configuration keys that identify the table and the game (fine settings do not count)
@@ -368,6 +380,8 @@ class Session:
         self._post: list[Callable[[], bool]] = []           # checks that wait for the button's closing
         self._snap_spec: lua.SnapSpec | None = None
         self.configured_pieces = {fid: piece_guids(v) for fid, v in cfg.pieces.items()}   # as the data gives them (identity of the table)
+        self._deck_origin: dict[str, str] = {}              # "bot_deck_guid"/"human_deck_guid" -> the configured GUID, for each one adopted
+        self._saved_decks: dict[str, str] = {}               # side -> live deck GUID read from session.json (first candidate on resume)
         self._dial_origin: dict[str, str] = {}              # fid -> the dial GUID the data gave it, for each one resolved by name
         self.resolved_dials: dict[str, str] = {}            # fid -> life dial GUID found by name when two dials shared one (saved)
         self._dial_unresolved: set[str] = set()             # fids whose dial cannot be told from another's: not written, not verified
@@ -393,6 +407,8 @@ class Session:
     def _check_config(self) -> None:
         if (not isinstance(self.cfg.bot_deck_spot, (tuple, list)) or len(self.cfg.bot_deck_spot) != 2):
             raise SessionError(t("cfg.deck_spot_required"))
+        if not 0 < self.cfg.deck_radius < self.cfg.deck_clear:        # a discard slot is deck_clear away: it must stay out of reach
+            raise SessionError(t("cfg.deck_radius", radius=self.cfg.deck_radius, clear=self.cfg.deck_clear))
         missing = sorted(set(self.game.fighters) - set(self.cfg.pieces))
         if missing:
             raise SessionError(t("cfg.missing_pieces", ids=", ".join(missing)))
@@ -668,9 +684,10 @@ class Session:
         c, g, s = self.cfg, self.game, self.setup
         step = s.setdefault("mull_step", "start")
         if step == "start":
-            res = self._w(lua.return_hand_to_deck(c.bot_seat, c.bot_deck_guid, c.bot_card_ids, identity=self._identity()), "cards").result or {}
+            res = self._w(lua.return_hand_to_deck(c.bot_seat, c.bot_deck_guid, c.bot_card_ids, identity=self._identity(),
+                                                       **self._deck_kw()), "cards").result or {}
             if not res.get("deck"):
-                raise SessionError(t("err.mull_no_deck"))
+                raise SessionError(t("err.mull_no_deck", where=self.deck_where()))
             if not self._settle(lambda: not self._table_hand_ids()):
                 raise SessionError(t("err.mull_not_returned"))
             step = s["mull_step"] = "returned"
@@ -679,7 +696,8 @@ class Session:
             total = len(g.players[self.bot].full_set)
 
             def shuffled() -> bool:
-                r = self._w(lua.shuffle_deck(c.bot_deck_guid, c.bot_deck_spot, id_range=c.bot_card_ids, identity=self._identity()), "cards").result or {}
+                r = self._w(lua.shuffle_deck(c.bot_deck_guid, id_range=c.bot_card_ids, identity=self._identity(),
+                                                   **self._deck_kw()), "cards").result or {}
                 return bool(r.get("shuffled")) and r.get("quantity") == total
             if not self._settle(shuffled):
                 raise SessionError(t("err.shuffle", total=total))
@@ -1308,11 +1326,11 @@ class Session:
         sizes = {"bot": len(fresh.players[self.bot].full_set), "human": len(fresh.players[self.human].full_set)}
         self._flush()
         self._check_reset_plan(scope, sizes)
-        decks = {"bot": self._w(lua.reset_deck(c.bot_deck_guid, c.bot_deck_spot, c.bot_card_ids,
-                                               identity=self._identity(), scope=scope), "cards")}
+        decks = {"bot": self._w(lua.reset_deck(c.bot_deck_guid, id_range=c.bot_card_ids, identity=self._identity(),
+                                               scope=scope, **self._deck_kw()), "cards")}
         if c.human_deck_guid:
-            decks["human"] = self._w(lua.reset_deck(c.human_deck_guid, c.human_deck_spot, c.human_card_ids,
-                                                    identity=self._identity("human"), scope=scope), "cards")
+            decks["human"] = self._w(lua.reset_deck(c.human_deck_guid, id_range=c.human_card_ids, identity=self._identity("human"),
+                                                    scope=scope, **self._deck_kw("human")), "cards")
         else:
             self.say(t("restart.no_human_deck"), ChatKind.WARNING)
         pieces = self._table_pieces()
@@ -1347,11 +1365,12 @@ class Session:
         """Before moving anything: each side must be able to gather ALL its cards into its deck. If one cannot, the
         restart is rejected as a whole (one side is never left returned and the other not)."""
         c = self.cfg
-        sides = [("bot", c.bot_deck_guid, c.bot_deck_spot, c.bot_card_ids)]
+        sides = [("bot", c.bot_deck_guid, c.bot_deck_spot, c.bot_card_ids, c.bot_deck_zone)]
         if c.human_deck_guid:
-            sides.append(("human", c.human_deck_guid, c.human_deck_spot, c.human_card_ids))
+            sides.append(("human", c.human_deck_guid, c.human_deck_spot, c.human_card_ids, c.human_deck_zone))
         plans = self.client.call_lua(lua.reset_plan(
-            [(guid, spot, rng, self._identity(side)) for side, guid, spot, rng in sides], scope=scope))
+            [(guid, spot, rng, self._identity(side), zone) for side, guid, spot, rng, zone in sides], c.deck_radius,
+            scope=scope))
         if not isinstance(plans, list) or len(plans) != len(sides):
             raise TTSLuaError(t("err.reset_plan", got=repr(str(plans)[:80])))
         for (side, *_), plan in zip(sides, plans):
@@ -1365,7 +1384,7 @@ class Session:
         """The session moves to the new game, keeping the client, the configuration and the run settings."""
         keep = ("client", "ai", "cfg", "bot", "human", "timing", "state_path", "first_mode", "new_game", "clock",
                 "cost_log", "broadcast", "snap", "_trusted", "_queue", "_post", "_expect_hand", "_snap_spec", "_depth",
-                "_epoch", "messages", "_write_seq", "_deck_ident", "game_log")
+                "_epoch", "messages", "_write_seq", "_deck_ident", "game_log", "_deck_origin")
         saved = {k: self.__dict__[k] for k in keep}
         blank = Session(fresh, self.client, self.ai, self.cfg, self.bot)
         self.__dict__.clear()
@@ -1421,6 +1440,7 @@ class Session:
                            for side, pairs in {**self._saved_ident, **self._deck_ident}.items()},
             **({"resolved_pieces": self.resolved_pieces} if self.resolved_pieces else {}),
             **({"resolved_dials": self.resolved_dials} if self.resolved_dials else {}),
+            **({"deck_live": self._live_decks()} if self._live_decks() else {}),
         }
 
     @property
@@ -1435,6 +1455,7 @@ class Session:
     def _config_hash(self, **override) -> str:
         c = self.cfg
         identity = {k: getattr(c, k) for k in IDENTITY_KEYS}
+        identity.update(self.configured_decks)          # the decks as configured, not the GUID the table gave them
         identity["dials"] = self.configured_dials
         identity.update(override)
         identity["pieces"] = {fid: v for fid, v in sorted(self.configured_pieces.items())}
@@ -1498,6 +1519,8 @@ class Session:
             self._saved_ident = self._load_saved_identities(d.get("deck_ident"))
             piece_id.restore(self, d.get("resolved_pieces"))
             piece_id.restore_dials(self, d.get("resolved_dials"))
+            self._saved_decks = {side: g for side, g in (d.get("deck_live") or {}).items()
+                                 if side in ("bot", "human") and isinstance(g, str) and lua._GUID.fullmatch(g)}
         except (KeyError, TypeError, IndexError, ValueError) as e:
             raise persist.StateError(t("save.invalid", error=repr(e))) from None
 
@@ -1585,17 +1608,21 @@ class Session:
         as the data gives them, not as resolved by name)."""
         c = self.cfg
         pcs = self.configured_pieces if configured else {fid: piece_guids(v) for fid, v in c.pieces.items()}
-        guids = [lua.BOARD_GUIDS[self.game.board.key], c.bot_deck_guid, c.bot_discard_zone, c.human_discard_zone,
+        guids = [lua.BOARD_GUIDS[self.game.board.key], self.configured_decks["bot_deck_guid"] if configured else c.bot_deck_guid,
+                 c.bot_discard_zone, c.human_discard_zone,
                  *(g for v in pcs.values() for g in v), *(self.configured_dials if configured else c.dials).values(),
-                 *([c.destiny_dial] if c.destiny_dial else [])]
+                 *([c.destiny_dial] if c.destiny_dial else []), *self._deck_zones()]
         return sorted(set(guids))
+
+    def _deck_zones(self) -> list[str]:
+        return [z for z in (self.cfg.bot_deck_zone, self.cfg.human_deck_zone) if z]
 
     def guid_groups(self) -> list[list[str]]:
         """GUIDs that must exist, in groups: one of each group is enough (a miniature with states is a single object
         at a time; the rest of the GUIDs are its own)."""
         c = self.cfg
         singles = [lua.BOARD_GUIDS[self.game.board.key], c.bot_deck_guid, c.bot_discard_zone, c.human_discard_zone,
-                   *c.dials.values(), *([c.destiny_dial] if c.destiny_dial else [])]
+                   *c.dials.values(), *([c.destiny_dial] if c.destiny_dial else []), *self._deck_zones()]
         return [[g] for g in sorted(set(singles))] + [piece_guids(v) for _, v in sorted(c.pieces.items())]
 
     def _require_human_turn(self) -> bool:
@@ -1669,8 +1696,8 @@ class Session:
         c = self.cfg
         before, discarded = len(st.hand), len(st.discard)
         try:
-            script = lua.deal_cards(c.human_deck_guid, 1, c.human_seat, spot=c.human_deck_spot,
-                                    id_range=c.human_card_ids, identity=self._identity("human"))
+            script = lua.deal_cards(c.human_deck_guid, 1, c.human_seat, id_range=c.human_card_ids,
+                                    identity=self._identity("human"), **self._deck_kw("human"))
         except TABLE_ERRORS as e:
             self.say(t("deal.maneuver_fail", err=e), ChatKind.WARNING)
             return
@@ -1746,8 +1773,8 @@ class Session:
         cards = plural(n, "noun.card")
         before, discarded = len(st.hand) - n, len(st.discard)
         try:
-            script = lua.deal_cards(c.human_deck_guid, n, c.human_seat, spot=c.human_deck_spot,
-                                    id_range=c.human_card_ids, identity=self._identity("human"))
+            script = lua.deal_cards(c.human_deck_guid, n, c.human_seat, id_range=c.human_card_ids,
+                                    identity=self._identity("human"), **self._deck_kw("human"))
             op = self._w(script, "cards")
         except TABLE_ERRORS as e:
             # Nothing was written, so the engine's count is the only record: it stays (the next reading of the hand
@@ -3395,22 +3422,68 @@ class Session:
     def _timed(self, label: str):
         return _Timed(self, label)
 
-    def load_identities(self) -> None:
-        """At the start: the identity of each configured deck (FaceURL/BackURL of its cards' CustomDeck), read from the
-        object itself. The CardID does not identify a deck (other card games share DeckID), so no card write
-        touches anything that does not have these images."""
+    def _deck_kw(self, side: str = "bot") -> dict:
+        """Where the side's deck is looked for when its GUID is gone: `spot`, `zone` and `radius` for the lua builders."""
         c = self.cfg
-        decks = [("bot", (c.bot_deck_guid, tuple(c.bot_deck_spot), c.bot_card_ids))]
+        spot, zone = (c.bot_deck_spot, c.bot_deck_zone) if side == "bot" else (c.human_deck_spot, c.human_deck_zone)
+        return {"spot": tuple(spot) if spot else None, "zone": zone, "radius": c.deck_radius}
+
+    def deck_where(self, side: str = "bot") -> str:
+        kw = self._deck_kw(side)
+        return deck_where(kw["zone"], kw["spot"], kw["radius"])
+
+    def _live_decks(self) -> dict[str, str]:
+        """Sides whose deck GUID is no longer the configured one (TTS gave the re-formed deck another)."""
+        return {side: getattr(self.cfg, f"{side}_deck_guid") for side in ("bot", "human")
+                if f"{side}_deck_guid" in self._deck_origin}
+
+    @property
+    def configured_decks(self) -> dict[str, str | None]:
+        """The deck GUIDs as the data gives them, not as adopted from the table (the identity of the table)."""
+        return {key: self._deck_origin.get(key, getattr(self.cfg, key)) for key in ("bot_deck_guid", "human_deck_guid")}
+
+    def _adopt_deck(self, side: str, guid: str) -> None:
+        """The deck the table shows is the one the session uses from now on; the identity of the table keeps the
+        configured GUID (`_deck_origin`) so a resume still recognizes the save."""
+        c, key = self.cfg, f"{side}_deck_guid"
+        if getattr(c, key) == guid:
+            return
+        self._deck_origin.setdefault(key, getattr(c, key))
+        setattr(c, key, guid)
+        self._snap_spec = None                              # the snapshot skips the deck by GUID
+
+    def load_identities(self) -> None:
+        """At the start: the identity of each deck (FaceURL/BackURL of its cards' CustomDeck), read from the object
+        itself. The CardID does not identify a deck (other card games share DeckID), so no card write touches
+        anything that does not have these images. The deck is found by GUID (the configured or adopted one first, then the saved live one,
+        then the one the start-up read detected; only a face-down deck counts), else in its Scripting zone or around its spot, and the GUID it
+        has now is adopted."""
+        c = self.cfg
+        hints = {"bot": c.bot_deck_hint, "human": c.human_deck_hint}
+
+        def candidates(side: str, current: str) -> list[str]:
+            """GUIDs to try, the first one that is a face-down deck winning: the current one (configured, or adopted
+            earlier), then the saved live one (resume), then the one detection found near the spot or in the zone."""
+            out = [current]
+            for g in (self._saved_decks.get(side), hints[side]):
+                if g and g not in out:
+                    out.append(g)
+            return out
+        decks = [("bot", (candidates("bot", c.bot_deck_guid), tuple(c.bot_deck_spot), c.bot_card_ids, c.bot_deck_zone))]
         if c.human_deck_guid:
-            decks.append(("human", (c.human_deck_guid, tuple(c.human_deck_spot) if c.human_deck_spot else None,
-                                    c.human_card_ids)))
-        res = self.client.call_lua(lua.deck_identities([d for _, d in decks]))
+            decks.append(("human", (candidates("human", c.human_deck_guid),
+                                    tuple(c.human_deck_spot) if c.human_deck_spot else None,
+                                    c.human_card_ids, c.human_deck_zone)))
+        res = self.client.call_lua(lua.deck_identities([d for _, d in decks], c.deck_radius))
         if not isinstance(res, list) or len(res) != len(decks) or not all(isinstance(e, dict) for e in res):
             raise TTSLuaError(t("err.identity_reply", got=repr(str(res)[:80])))
         for (side, _), entry in zip(decks, res):
             pairs = self._parse_pairs(entry.get("pairs"))
             if entry.get("found") and pairs:
                 self._deck_ident[side] = pairs
+                guid = entry.get("guid")
+                if isinstance(guid, str) and lua._GUID.fullmatch(guid):
+                    self._adopt_deck(side, guid)
 
     @staticmethod
     def _parse_pairs(rows) -> tuple:
@@ -3476,7 +3549,8 @@ class Session:
                 (c.bot_card_spot[0], c.bot_card_spot[2]), tuple(c.human_card_spot), c.reveal_radius,
                 tuple(pieces), tuple(dials), human_deck=c.human_deck_guid,
                 bot_ongoing_spot=(c.bot_ongoing_spot[0], c.bot_ongoing_spot[2]) if c.bot_ongoing_spot else None,
-                human_ongoing_spot=tuple(c.human_ongoing_spot) if c.human_ongoing_spot else None)
+                human_ongoing_spot=tuple(c.human_ongoing_spot) if c.human_ongoing_spot else None,
+                bot_skip_zones=self._skip_zones("bot"), human_skip_zones=self._skip_zones("human"))
         return self._snap_spec
 
     @staticmethod
@@ -3671,12 +3745,16 @@ class Session:
             return self._view("cards")["bot_hand"]
         return self.client.call_lua(lua.read_hand(self.cfg.bot_seat)) or []
 
+    def _skip_zones(self, side: str) -> tuple[str, ...]:
+        zone = self.cfg.bot_deck_zone if side == "bot" else self.cfg.human_deck_zone
+        return (zone,) if zone else ()
+
     def _rd_bot_discard(self) -> list[dict]:
         c = self.cfg
         if c.batch:
             return self._view("cards")["bot_discard"]
         return self.client.call_lua(lua.read_discard(c.bot_discard_zone, [c.bot_deck_guid], [c.bot_deck_spot],
-                                                     c.deck_exclude_radius)) or []
+                                                     c.deck_exclude_radius, self._skip_zones("bot"))) or []
 
     def _rd_human_discard(self) -> list[dict]:
         return self._rd_human_discard_raw() or []
@@ -3688,7 +3766,8 @@ class Session:
             return self._view("cards")["human_discard"]
         skip = [c.human_deck_guid] if c.human_deck_guid else []
         spots = [c.human_deck_spot] if c.human_deck_spot else []
-        return self.client.call_lua(lua.read_discard(c.human_discard_zone, skip, spots, c.deck_exclude_radius))
+        return self.client.call_lua(lua.read_discard(c.human_discard_zone, skip, spots, c.deck_exclude_radius,
+                                                     self._skip_zones("human")))
 
     def _rd_human_count(self, default: int) -> int:
         if self.cfg.batch:
@@ -4290,8 +4369,8 @@ class Session:
         deal_op = None
         if n:
             deal_op = self._w(lua.deal_cards(self.cfg.bot_deck_guid, n, self.cfg.bot_seat,
-                                             spot=self.cfg.bot_deck_spot, id_range=self.cfg.bot_card_ids,
-                                             identity=self._identity()), "cards")
+                                             id_range=self.cfg.bot_card_ids, identity=self._identity(),
+                                             **self._deck_kw()), "cards")
         # the card played face down counts in the engine's hand but is not in the table's hand
         want_discard = {c.card_id for c in st.discard}
         want_hand = len([c for c in st.hand if c.card_id not in held])
@@ -4310,7 +4389,7 @@ class Session:
             if self.cfg.batch:
                 check_discard()
             if short:
-                raise SessionError(t("err.deck_dealt", dealt=n - short, n=n))
+                raise SessionError(t("err.deck_dealt", dealt=n - short, n=n, where=self.deck_where()))
             if any(o.domain == "fx" for o in self._queue):
                 self._flush()                     # a bot effect that moves its cards (Pyrotechnics) is no `cards` write:
                                                   # no read sends it, and the check would see the table without it
