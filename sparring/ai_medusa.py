@@ -65,7 +65,7 @@ from .combat import GAZE_DAMAGE, GLANCE_DAMAGE, ON_EARTH
 from .controller import Controller
 from .effects.model import walk_ops
 from .effects.modifiers import boost_limit, card_effects, defers_defeat
-from .ai_profile import STYLE_HIT_AND_RUN, derive_style
+from .ai_profile import FINISHER_BOOSTS, STYLE_HIT_AND_RUN, derive_style
 from .state import ANUNG, EXHAUST_DAMAGE, Fighter, Game
 
 GAZE = "medusa_gaze"      # Medusa's start-of-turn ability trigger (data/heroes/effects/medusa.json)
@@ -124,6 +124,12 @@ BOOST_ACTION = 0.9        # a BOOSTED WITH that gains an action (it only pays on
 STRIP_VALUE = 1.0         # a card the rival loses to a BOOSTED WITH that picks one from their hand
 LOOK_VALUE = 0.5          # what looking at the rival's hand is worth by itself
 RESCUE_SHARE = 0.9        # share of the cost of dying a card that brings the hero back (All Part of the Show) takes away
+RESCUE_KEEP_URGENT = 4.0  # a card that brings the hero back is kept this much more at full urgency (low health or a rival blow that could finish him)
+RESCUE_REVIVE_HP = 4      # health the hero comes back with: urgency is full at this health
+RESCUE_WASTE = 2.0        # a rescue card played as a defense in a blow that will not kill: what the wasted card costs on top of its keep value
+SLEIGHT, MAGICIAN = "Sleight of Hand", "A Magician Never Reveals His Secrets"
+SETUP_CARDS = {SLEIGHT: (1.6, 0.6), MAGICIAN: (2.2, 1.0)}   # kept for the finisher plan: (extra while a finisher is in the hand, extra while one is still in the deck). The Magician is the biggest boost (4) of a Big Reveal: rarely played as a scheme
+SETUP_EDGE = 1.0          # opening a finisher with Sleight Of Hand is worth this more than playing it cold: the rival's card is face up before the swap
 ELECTRO_GRENADE = "Electro grenade"
 UNTESTED = "Untested enhancements"
 INVENTION_PLAY = 1.2      # what playing an invention early is worth: its bonus (tucked) lasts the rest of the game
@@ -160,7 +166,7 @@ DISCARD_EFFECTS = ("Clutching Claws", "Hiss and Slither")
 KEEP_BASE = {"attack": 1.0, "defense": 0.8, "versatile": 1.1, "scheme": 0.9}
 INVENTION_KEEP = 1.5
 KEEP_SPECIAL = {"Gaze of Stone": 3.0, "Feint": 1.4, "A Momentary Glance": 1.6, "Hiss and Slither": 1.8,
-                "Winged Frenzy": 1.0, "All Part of the Show": 2.0, "Set the Stage": 2.0, "A Magician Never Reveals His Secrets": 2.0}
+                "Winged Frenzy": 1.0, "All Part of the Show": 3.0, "The Big Reveal": 3.0, "Set the Stage": 2.0, "A Magician Never Reveals His Secrets": 2.0}
 
 
 CANCEL_KEEP = 1.6         # keep value a card that cancels the rival card's effects gains against a rival whose deck lives on effects
@@ -169,6 +175,8 @@ RUN_FEAR = 2.2            # hit and run: the fear of standing where the rival re
 OPPORTUNITY_FLOOR = 3.0   # hit and run: a blow expected to land less than this (after the chance of a cancel) is not an opportunity: it is not worth standing in reach for
 OPPORTUNITY_PER_POINT = 6.0   # hit and run: bonus per point of expected blow above the floor (the surprise: the rival is least able to answer it)
 STRIKE_FIRSTS = 3         # hit and run: placements next to a rival the planner always looks at, besides the best ranked ones
+POKE_FLOOR = {"Flourish": 1.5, "An Illusion of My Own Design": 2.0}   # hit and run: these attacks are worth a small risk at a lower floor than OPPORTUNITY_FLOOR (Illusion's is higher: the rival gets a free boost, and it passes for a Big Reveal)
+POKE_SHARE = 0.5          # hit and run: a poke pays this share of the opportunity bonus per point (it is a nibble, not the surprise)
 CHIP_DISCOUNT = 0.25       # a BOOSTED WITH hit that does not kill is worth this much less (at most) the healthier the target is: early chip damage
 
 
@@ -200,6 +208,42 @@ def effect_reliance(game: Game, me: int) -> float:
     return min(1.0, max(0.0, (withfx / total - RELIANCE_LOW) / (RELIANCE_HIGH - RELIANCE_LOW)))
 
 
+def finishers_in(cards, hero_name: str) -> list:
+    """The cards among `cards` a hero named `hero_name` may play as a finisher: an attack it may BOOST FINISHER_BOOSTS times or more."""
+    return [c for c in cards if c.can_attack and c.usable_by(hero_name) and boost_limit(c) >= FINISHER_BOOSTS]
+
+
+def rescue_urgency(game: Game, me: int) -> float:
+    """0..1: how soon `me`'s hero may need the card that brings him back from a defeat. From his health (full urgency at the
+    health he comes back with) and from the best attack the rival's deck still holds (public): twice its value less the
+    defender's likely 2, over his health. The higher, the more such a card is worth in the hand."""
+    hero = game.hero(me)
+    if not hero.alive:
+        return 0.0
+    low = (hero.max_hp - hero.hp) / max(1, hero.max_hp - RESCUE_REVIVE_HP)
+    st, rival = game.players[1 - me], game.hero(1 - me)
+    best = max((c.value or 0 for c in st.full_set if c not in st.gone and c.can_attack and c.usable_by(rival.name)), default=0)
+    threat = 2 * max(0, best + game.attack_bonus(rival) - 2) / max(1, hero.hp)
+    return min(1.0, max(low, threat, 0.0))
+
+
+def situational_keep(game: Game, me: int, card, hand, spending_on_finisher: bool = False) -> float:
+    """What the position adds to `keep_value`: a card that brings the hero back (All Part of the Show) is worth more the closer he is
+    to dying; Sleight Of Hand and the Magician serve the finisher (kept while one is in the hand, less while one is still to come;
+    `spending_on_finisher`: the card is being spent as a boost of that very finisher, so the plan costs nothing)."""
+    extra = 0.0
+    if defers_defeat(card):
+        extra += RESCUE_KEEP_URGENT * rescue_urgency(game, me)
+    if card.title in SETUP_CARDS and not spending_on_finisher:
+        in_hand, in_deck = SETUP_CARDS[card.title]
+        mine, name = game.players[me], game.hero(me).name
+        if finishers_in([c for c in hand if c is not card], name):
+            extra += in_hand
+        elif finishers_in([c for c in mine.full_set if c not in mine.gone and c not in hand], name):
+            extra += in_deck
+    return extra
+
+
 def keep_value(card, hand, reliance: float = 0.0) -> float:
     """What the card is worth in the hand. `reliance` (effect_reliance of the rival) adds CANCEL_KEEP x reliance to a card
     that cancels the rival's card effects: it stays in the hand against an effect-heavy deck."""
@@ -225,6 +269,7 @@ class Act:
     exp_damage: float = 0.0
     p_win: float = 0.0
     p_kill: float = 0.0
+    via: object = None              # attack: the card whose blow this act stands for (Sleight Of Hand swaps into it)
     variant: str | None = None      # scheme: the SyntheticChooser policy the search evaluated it with (D2)
     sim: object = None              # scheme: the game the heuristic's simulation left (its expected state)
 
@@ -428,11 +473,17 @@ def boost_effect_value(game: Game, me: int, card) -> float:
     return total
 
 
+def bot_may_spend(card) -> bool:
+    """The bot spends this card as a boost: any card with a boost value except a finisher (The Big Reveal, Iván 3/11: never, with no
+    last resort). It is not a rule of the game: the human may boost with it, and the engine accepts it."""
+    return can_be_boost(card) and boost_limit(card) < FINISHER_BOOSTS
+
+
 def free_boosts(game: Game, me: int, card, hand) -> list:
     """The cards the hand would spend to BOOST `card` with by its own text (`may_boost`, `max_boosts`): the biggest boosts,
     best BOOSTED WITH first on a tie. Empty when the card has no free BOOST or nothing in the hand can be spent."""
     limit = boost_limit(card)
-    spare = [x for x in hand if x is not card and can_be_boost(x)]
+    spare = [x for x in hand if x is not card and bot_may_spend(x)]
     return sorted(spare, key=lambda x: (-x.boost, -boost_effect_value(game, me, x), x.card_id))[:limit]
 
 
@@ -465,6 +516,10 @@ class MedusaAI(Controller):
 
     def hit_and_run(self, game: Game) -> bool:
         return STYLE_HIT_AND_RUN in self.style(game)
+
+    def keep(self, game: Game, card, hand, reliance: float = 0.0, spending_on_finisher: bool = False) -> float:
+        """`keep_value` plus what the position adds (`situational_keep`)."""
+        return keep_value(card, hand, reliance) + situational_keep(game, self.me, card, hand, spending_on_finisher)
 
     def should_mulligan(self, game: Game, hand) -> bool:
         """Bad opening hand: no card to attack with, or three or more that are no use for attacking (schemes and
@@ -588,13 +643,19 @@ class MedusaAI(Controller):
         unknown cards), against the rival's likely defense, and is shrunk by the chance the rival holds a card that cancels the
         effects of the attack (the Big Reveal's boosts and its return). A small or doubtful blow gets nothing: the bot would
         rather stay out of reach than trade it."""
-        if a.kind != "attack" or a.fid != game.hero(self.me).fid or not game.fighters[a.target].hero or not self.hit_and_run(game):
+        if a.kind != "attack" or not self.hit_and_run(game):
             return 0.0
-        f, t, c = game.fighters[a.fid], game.fighters[a.target], a.card
+        f, t, c = game.fighters[a.fid], game.fighters[a.target], a.via or a.card
+        poke = POKE_FLOOR.get(c.title)
+        if not (f.hero and t.hero) and poke is None:      # only the hero's blow on a rival hero is "the chance"; a nibble is allowed to a sidekick too
+            return 0.0
         atk = self.card_value(game, f, t, c) + game.attack_bonus(f) + self.during_gain(game, c)
         atk += sum(x.boost for x in free_boosts(game, self.me, c, game.players[self.me].hand))
         blow = sum(p * min(t.hp, max(0.0, atk - (dv or 0))) for p, dv in model.defense_dist(t))
-        return OPPORTUNITY_PER_POINT * max(0.0, blow * (1 - model.p_holds(cancels_effects)) - OPPORTUNITY_FLOOR)
+        blow *= 1 - model.p_holds(cancels_effects)
+        if poke is not None:       # a small blow with a card worth a nibble (it also bluffs a finisher): the bonus is smaller
+            return POKE_SHARE * OPPORTUNITY_PER_POINT * max(0.0, blow - poke)
+        return OPPORTUNITY_PER_POINT * max(0.0, blow - OPPORTUNITY_FLOOR)
 
     def candidates(self, game: Game, model: Model) -> list[Act]:
         """Legal actions ordered by own value + value of the position they leave. Passing does not exist: a maneuver without moving still draws."""
@@ -629,9 +690,28 @@ class MedusaAI(Controller):
                         continue
                     seen.add(c.title)
                     value, dmg, kill = self.attack_outcome(game, model, f, t, c)
-                    out.append(Act("attack", value, f.fid, t.fid, c, exp_damage=dmg, p_win=self.p_win_of(game, model, f, t, c),
-                                   p_kill=kill))
+                    act = Act("attack", value, f.fid, t.fid, c, exp_damage=dmg, p_win=self.p_win_of(game, model, f, t, c),
+                              p_kill=kill)
+                    out.append(self.setup_act(game, model, f, t, act) if c.title == SLEIGHT else act)
         return out
+
+    def setup_act(self, game: Game, model: Model, f: Fighter, t: Fighter, act: Act) -> Act:
+        """Sleight Of Hand with a finisher (The Big Reveal) in the hand: playing it is the way to launch the finisher. The rival's
+        card is face up when the swap is decided, so the finisher is played only against a defense it beats (and Sleight Of Hand, back
+        in the hand, boosts it). Worth the finisher's blow plus SETUP_EDGE, shrunk by the chance the rival holds a card that cancels
+        the effects of the attack (no swap is offered then and the blow stays a 1). The act stays Sleight Of Hand; `via` is the finisher."""
+        best = None
+        for c in finishers_in(game.players[self.me].hand, f.name):
+            outcome = self.attack_outcome(game, model, f, t, c)
+            if best is None or outcome[0] > best[1][0]:
+                best = (c, outcome)
+        if best is None or best[1][0] <= act.value:
+            return act
+        card, (value, dmg, kill) = best
+        cancel = model.p_holds(cancels_effects)
+        return Act("attack", (1 - cancel) * (value + SETUP_EDGE) + cancel * act.value, f.fid, t.fid, act.card,
+                   exp_damage=(1 - cancel) * dmg, p_win=(1 - cancel) * self.p_win_of(game, model, f, t, card),
+                   p_kill=(1 - cancel) * kill, via=card)
 
     def eval_attack(self, game: Game, model: Model, f: Fighter, t: Fighter, c) -> float:
         return self.attack_eval(game, model, f, t, c)[0]
@@ -773,6 +853,7 @@ class MedusaAI(Controller):
         gained = sum(1 for c in hand_after if c not in hand)
         value = self.effect_ai().material_delta(game, after, me) - CARD_VALUE
         value += CARD_VALUE * gained - sum(keep_value(c, hand) for c in lost)
+        value -= situational_keep(game, me, card, hand)       # the Magician as a scheme gives up the boost of a Big Reveal
         gained = after.actions_left - (game.actions_left - 1)
         if not self.scheme_changed_nothing(game, after, card):
             value += ACTION_VALUE * gained       # an action handed back is only worth something when the card did more
@@ -810,9 +891,10 @@ class MedusaAI(Controller):
         variants: list = [(None, 0.0)]
         seen = set()
         rel = effect_reliance(game, self.me)
-        net = lambda c: keep_value(c, hand, rel) * 0.5 - boost_effect_value(game, self.me, c)     # its BOOSTED WITH pays part of the price
+        # its BOOSTED WITH pays part of the price; a card that brings the hero back is never given up for a reach (the full price)
+        net = lambda c: self.keep(game, c, hand, rel) * (1.0 if defers_defeat(c) else 0.5) - boost_effect_value(game, self.me, c)
         for c in sorted(hand, key=lambda c: (net(c), -c.boost, c.card_id)):
-            if can_be_boost(c) and c.boost not in seen:    # for each reach, the card that hurts least to spend
+            if bot_may_spend(c) and c.boost not in seen:    # for each reach, the card that hurts least to spend
                 seen.add(c.boost)
                 variants.append((c, net(c)))
         out = []
@@ -1203,7 +1285,7 @@ class MedusaAI(Controller):
     def choose_discard(self, game: Game, player: int, n: int, reason: str):
         hand = game.players[player].hand
         rel = effect_reliance(game, player)
-        return sorted(hand, key=lambda c: (keep_value(c, hand, rel), c.card_id))[:n]
+        return sorted(hand, key=lambda c: (self.keep(game, c, hand, rel), c.card_id))[:n]
 
     def effect_ai(self):
         """The EffectAI (sparring/ai_effects.py) built on this class's evaluation: it answers the DSL decisions and
@@ -1226,7 +1308,7 @@ class MedusaAI(Controller):
         rel = effect_reliance(game, self.me)
         defending = t.owner == self.me
         best, best_gain = None, 0.0
-        for c in filter(can_be_boost, hand):
+        for c in filter(bot_may_spend, hand):
             if defending:
                 net = max(0, ctx.atk_value - ctx.def_value - c.boost)
                 gain = (W_MEDUSA_HP if t.hero else HARPY_VALUE) * (min(now, t.hp) - min(net, t.hp))
@@ -1236,7 +1318,7 @@ class MedusaAI(Controller):
             else:
                 net = max(0, ctx.atk_value + c.boost - ctx.def_value)
                 gain = weight(t) * (min(net, t.hp) - min(now, t.hp))
-            gain += boost_effect_value(game, self.me, c) - keep_value(c, hand, rel)
+            gain += boost_effect_value(game, self.me, c) - self.keep(game, c, hand, rel, not defending and boost_limit(ctx.atk_card) >= FINISHER_BOOSTS)
             if gain > best_gain:
                 best, best_gain = c, gain
         return best
@@ -1305,6 +1387,7 @@ class MedusaAI(Controller):
             v += INVENTION_PLAY
         if defers_defeat(c) and target.hero:
             v += RESCUE_SHARE * LETHAL * p_dead      # the hero that would fall comes back with 4 health: the game goes on
+            v -= (RESCUE_WASTE + situational_keep(game, self.me, c, game.players[self.me].hand)) * (1 - p_dead)   # not worth spending on a blow that will not kill
         v += BOOST_RELIANCE * sum(boost_effect_value(game, self.me, x) for x in boosts)
         always, on_win = AFTER_BONUS.get(c.title, (0.0, 0.0))
         v += always + on_win * p_block

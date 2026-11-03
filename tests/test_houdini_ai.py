@@ -198,7 +198,7 @@ def test_the_hit_and_run_style_comes_from_the_hero_data(bprd):
 def test_a_healthy_houdini_in_reach_with_no_big_blow_blinks_out_of_reach(bprd):
     g = mk(bprd)
     houdini, hellboy = pair(g, "houdini", "hellboy")
-    give(g, 0, "Flourish")
+    give(g, 0, "Vanishing Act")
     give(g, 0, "Sleight of Hand")
     give(g, 0, "Misdirection")
     rival_hand(g, 4)
@@ -229,8 +229,8 @@ def test_with_the_rivals_cancels_gone_houdini_places_next_to_it_and_plays_the_bi
     assert g.board.adjacent(first.moves["houdini"], medusa.pos)
     ai.execute(g, first)
     second = ai.plan(g)
-    assert second.kind == "attack" and second.card.title == "The Big Reveal"
-    assert len(free_boosts(g, 0, second.card, g.players[0].hand)) == 2
+    assert second.kind == "attack" and (second.via or second.card).title == "The Big Reveal"
+    assert len(free_boosts(g, 0, second.via or second.card, g.players[0].hand)) == 2
 
 
 def strikable_next_turn(g, rival, pos):
@@ -287,4 +287,136 @@ def test_the_position_value_of_a_dead_hero_does_not_raise(bprd):
     houdini = g.fighters["houdini"]
     houdini.hp, houdini.alive, houdini.pos = -1, False, None
     MedusaAI(0).position_value(g, Model(g, 0))
+
+
+# ---------------------------------------------------------------- the cards Iván 3/11 saw wasted in the live game
+
+def test_all_part_of_the_show_is_not_spent_as_a_boost_when_hurt(bprd):
+    """Live 3/11: at 12 health the bot boosted a Maneuver with it for the 2 health it heals. Its keep value grows as Houdini
+    drops, so the Maneuver spends the small boost card instead."""
+    g = mk(bprd)
+    give(g, 0, "All Part of the Show")
+    give(g, 0, "Misdirection")
+    for hp in (12, 8, 5):
+        g.fighters["houdini"].hp = hp
+        act = MedusaAI(0).plan(g)
+        assert act.kind == "maneuver" and act.boost is not None and act.boost.title != "All Part of the Show"
+
+
+def test_all_part_of_the_show_is_kept_harder_the_closer_houdini_is_to_dying(bprd):
+    from sparring.ai_medusa import keep_value, situational_keep
+    g = mk(bprd)
+    card = give(g, 0, "All Part of the Show")
+    keep = lambda: keep_value(card, [card]) + situational_keep(g, 0, card, [card])
+    g.fighters["houdini"].hp = 14
+    healthy = keep()
+    g.fighters["houdini"].hp = 5
+    assert keep() > healthy + 1
+    assert healthy > keep_value(give(g, 0, "Grand Escape"), []) + 1           # never a plain defense card's price
+
+
+def test_all_part_of_the_show_is_played_as_a_defense_only_when_the_blow_is_likely_lethal(bprd):
+    g = mk(bprd)
+    houdini, hellboy = pair(g, "houdini", "hellboy")
+    card = give(g, 0, "All Part of the Show")
+    ai = MedusaAI(0)
+    assert ai.choose_defense(g, hellboy, houdini) is None            # a healthy Houdini does not waste it
+    houdini.hp = 3
+    assert ai.choose_defense(g, hellboy, houdini) is card            # a blow that may kill: it brings him back
+
+
+def keep_order(g, cards):
+    g.players[0].hand[:] = cards
+    return [c.title for c in MedusaAI(0).choose_discard(g, 0, len(cards), "limit")]
+
+
+def test_sleight_of_hand_is_kept_while_the_big_reveal_plan_is_possible(bprd):
+    g = mk(bprd)
+    discard_all(g, 0, "The Big Reveal")
+    cards = [give(g, 0, t) for t in ("Sleight of Hand", "Flourish", "Misdirection")]
+    assert keep_order(g, cards)[0] == "Sleight of Hand"                     # no finisher left: just a weak attack
+    g = mk(bprd)
+    cards = [give(g, 0, t) for t in ("Sleight of Hand", "Flourish", "Misdirection", "The Big Reveal")]
+    assert keep_order(g, cards)[0] != "Sleight of Hand"
+
+
+def test_sleight_of_hand_is_played_to_launch_the_big_reveal(bprd):
+    """The rival's card is face up before the swap, so Sleight Of Hand is the way to open The Big Reveal: the act is the
+    Sleight (what is played) standing for the finisher (`via`); without a Big Reveal it is a plain value-1 attack."""
+    g = mk(bprd)
+    pair(g, "houdini", "hellboy")
+    sleight, reveal = give(g, 0, "Sleight of Hand"), give(g, 0, "The Big Reveal")
+    give(g, 0, "Flourish")
+    rival_hand(g, 3, avoid=("Misdirection", "Feint"))
+    g.actions_left = 2
+    ai = MedusaAI(0)
+    attacks = [a for a in ai.attack_acts(g, Model(g, 0)) if a.fid == "houdini"]
+    opener = next(a for a in attacks if a.card is sleight)
+    assert opener.via is reveal
+    assert opener.value > next(a for a in attacks if a.card is reveal).value
+    g.players[0].hand.remove(reveal)
+    plain = next(a for a in ai.attack_acts(g, Model(g, 0)) if a.card is sleight)
+    assert plain.via is None and plain.value < 1
+
+
+def test_the_magician_is_a_big_reveal_boost_not_a_scheme_to_draw(bprd):
+    from sparring.ai_medusa import situational_keep
+    g = mk(bprd)
+    magician, reveal = give(g, 0, "A Magician Never Reveals His Secrets"), give(g, 0, "The Big Reveal")
+    give(g, 0, "Flourish")
+    ai = MedusaAI(0)
+    assert situational_keep(g, 0, magician, g.players[0].hand) > 2          # kept for the finisher
+    assert not any(a.kind == "scheme" and a.card is magician for a in ai.candidates(g, Model(g, 0))[:1])
+    _, hellboy = pair(g, "houdini", "hellboy")
+    assert free_boosts(g, 0, reveal, g.players[0].hand)[0] is magician      # its 4 is the first boost of the finisher
+    ctx = type("Ctx", (), dict(target=hellboy, atk_card=reveal, atk_value=2, def_value=2))()
+    assert ai.choose_combat_boost(g, ctx) is magician                       # spent on the finisher without counting the plan against it
+    g.players[0].hand.remove(reveal)
+    discard_all(g, 0, "The Big Reveal")
+    assert situational_keep(g, 0, magician, g.players[0].hand) == 0         # the finisher is gone: the draw is all it is for
+    assert any(a.kind == "scheme" and a.card is magician for a in ai.candidates(g, Model(g, 0)))
+
+
+def test_the_big_reveal_is_never_spent_as_a_boost_not_even_to_survive(bprd):
+    """Iván 3/11, absolute: not in a Maneuver (ESCAPE ARTIST included), not in a combat, not as the boost of another Big Reveal;
+    and the hand limit gives up other cards first."""
+    g = mk(bprd)
+    reveal, other = give(g, 0, "The Big Reveal"), give(g, 0, "The Big Reveal", 1)
+    act = MedusaAI(0).plan(g)
+    assert act.kind == "maneuver" and act.boost is None
+    assert free_boosts(g, 0, other, g.players[0].hand) == []
+    houdini, hellboy = pair(g, "houdini", "hellboy")
+    houdini.hp = 2                                                  # a blow that kills: a boost would save him, and still it is not spent
+    ctx = type("Ctx", (), dict(target=houdini, atk_card=None, atk_value=6, def_value=2))()
+    assert MedusaAI(0).choose_combat_boost(g, ctx) is None
+    cards = [reveal, give(g, 0, "Flourish"), give(g, 0, "Smoke and Mirrors")]
+    assert keep_order(g, cards)[-1] == "The Big Reveal"
+
+
+def poke(bprd, monkeypatch, title, fighter, floor_table):
+    """The bot's last action with `title` and a Grand Escape (boost 3) in hand, `fighter` next to Hellboy: does it attack?"""
+    import sparring.ai_medusa as m
+    monkeypatch.setattr(m, "POKE_FLOOR", floor_table)
+    g = mk(bprd)
+    pair(g, fighter, "hellboy")
+    give(g, 0, title)
+    give(g, 0, "Grand Escape")
+    rival_hand(g, 4, avoid=("Feint", "Misdirection"))
+    g.actions_left = 1
+    act = MedusaAI(0).plan(g)
+    return act.kind == "attack" and act.card.title == title and act.fid == fighter
+
+
+@pytest.mark.parametrize("title", ["Flourish", "An Illusion of My Own Design"])
+def test_houdini_pokes_with_flourish_and_the_illusion_when_the_blow_is_decent(bprd, monkeypatch, title):
+    from sparring.ai_medusa import POKE_FLOOR
+    assert poke(bprd, monkeypatch, title, "houdini", POKE_FLOOR)
+    if title == "Flourish":                                       # the Illusion (4) is already a big enough blow to be played
+        assert not poke(bprd, monkeypatch, title, "houdini", {})  # the hit-and-run style alone would blink out
+
+
+def test_bess_attacks_with_flourish(bprd, monkeypatch):
+    """Bess is not suppressed by the hit-and-run style (that is the hero's); the poke bonus also covers her."""
+    from sparring.ai_medusa import POKE_FLOOR
+    assert poke(bprd, monkeypatch, "Flourish", "bess", POKE_FLOOR)
 

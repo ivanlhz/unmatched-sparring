@@ -38,8 +38,8 @@ from dataclasses import dataclass, field
 from functools import lru_cache
 from math import sqrt
 
-from ..ai_medusa import GAZE, boost_effect_value, scheme_fighter
-from ..cards import Card, can_be_boost
+from ..ai_medusa import GAZE, boost_effect_value, bot_may_spend, scheme_fighter
+from ..cards import Card
 from ..combat import is_medusa_card, resolve_combat
 from ..controller import Controller
 from ..effects import ongoing
@@ -277,7 +277,7 @@ class SearchController(Controller):
         sign = -1 if t.owner == self.me else 1
         now = min(max(0, ctx.atk_value - ctx.def_value), t.hp)
         best, best_gain = None, 0.0
-        for c in filter(can_be_boost, hand):
+        for c in filter(bot_may_spend, hand):
             net = min(max(0, ctx.atk_value + sign * c.boost - ctx.def_value), t.hp)
             gain = sign * (net - now) - 0.3 * card_worth(c) + 0.3 * boost_effect_value(game, self.me, c)     # BOOSTED WITH
             if gain > best_gain:
@@ -635,7 +635,7 @@ class EngineState:
     def _boost_variants(self, p: int) -> list[Card | None]:
         """Without boost, the cheapest card with the maximum boost and the cheapest card in hand (if its boost is
         different): at most three reaches."""
-        hand = [c for c in self.game.players[p].hand if can_be_boost(c)]
+        hand = [c for c in self.game.players[p].hand if bot_may_spend(c)]
         if not hand:
             return [None]
         cheapest = min(hand, key=lambda c: (card_worth(c), c.card_id))

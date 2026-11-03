@@ -11,6 +11,10 @@ tested hero's seat), on one board, with seeds 0..games-1: two runs differ only b
   free space from which its attack reaches the hero, then attacks; no boost counted). This is the reach the AI fears;
 - `attackable_now`: share that end with a rival hero already able to attack it without moving (the old, stricter metric);
 - finishers: how many times the hero played the card titled `--finisher` (default The Big Reveal) and the rival HP it took;
+- per-card counters (Houdini): All Part of the Show spent as a boost / played as a defense / times it saved the hero; Sleight of
+  Hand used as the opener of a Big Reveal (swapped into it, or boosting it) / spent as a Maneuver boost / played otherwise;
+  A Magician Never Reveals His Secrets played as a scheme / spent as a boost of a Big Reveal / spent as any other boost;
+  Flourish and An Illusion of My Own Design attacks, by the hero and by a sidekick (summed in `--compare`);
 - average game length in turns."""
 from __future__ import annotations
 
@@ -27,6 +31,20 @@ from sparring.state import Game                   # noqa: E402
 
 ME, RIVAL = 0, 1
 MAX_TURNS = 120
+APS, SLEIGHT, BIG_REVEAL, MAGICIAN = "All Part of the Show", "Sleight of Hand", "The Big Reveal", "A Magician Never Reveals His Secrets"
+CARD_COUNTERS = ("aps_boost", "aps_defense", "aps_saved", "sleight_big_reveal", "sleight_boosts_big_reveal", "sleight_maneuver_boost",
+                 "sleight_other", "magician_scheme", "magician_big_reveal", "magician_other_boost", "flourish_hero", "flourish_sidekick",
+                 "illusion_hero", "illusion_sidekick", "big_reveal_boost")
+
+
+class SpyFx:
+    """The effects state with `emit` replaced (its slots are read-only): every other attribute is the real one."""
+
+    def __init__(self, fx, emit):
+        self._fx, self.emit = fx, emit
+
+    def __getattr__(self, name):
+        return getattr(self._fx, name)
 
 
 def next_turn_reach(game: Game, me, rival_hero) -> bool:
@@ -41,19 +59,60 @@ def next_turn_reach(game: Game, me, rival_hero) -> bool:
 def play(seed: int, hero: str, rival: str, finisher: str, board: str = "bprd-hq") -> dict:
     ctl = {ME: MedusaAI(ME), RIVAL: MedusaAI(RIVAL)}
     game = Game.new(Board.load(board), seed, ctl, bot_player=ME, heroes=(hero, rival))
-    out = dict(won=0, lost=0, turns=0, my_turns=0, in_reach=0, attackable_now=0, finisher_n=0, finisher_dmg=0.0, attacks=0)
-    real_attack = game.attack
+    out = dict(won=0, lost=0, turns=0, my_turns=0, in_reach=0, attackable_now=0, finisher_n=0, finisher_dmg=0.0, attacks=0, **dict.fromkeys(CARD_COUNTERS, 0))
+    real_attack, real_maneuver, real_scheme, real_emit = game.attack, game.maneuver, game.play_scheme, game.fx.emit
+    spent = []       # the titles the tested hero spent as boosts since the last action was settled
+
+    def emit(name, *args):
+        if name == "card_boosted" and args[0] == ME:
+            spent.append(args[1].title)
+        return real_emit(name, *args)
+
+    def settle(into_big_reveal: bool) -> None:
+        """Classify the boosts of the action that just ended: into a Big Reveal, or anywhere else."""
+        for title in spent:
+            out["aps_boost"] += title == APS
+            out["big_reveal_boost"] += title == BIG_REVEAL
+            out["sleight_boosts_big_reveal"] += title == SLEIGHT and into_big_reveal
+            out["magician_big_reveal"] += title == MAGICIAN and into_big_reveal
+            out["magician_other_boost"] += title == MAGICIAN and not into_big_reveal
+        spent.clear()
+
+    def maneuver(player, moves, boost_card=None):
+        out["sleight_maneuver_boost"] += player == ME and boost_card is not None and boost_card.title == SLEIGHT
+        res = real_maneuver(player, moves, boost_card)
+        settle(False)
+        return res
+
+    def play_scheme(player, fighter, card, *a, **k):
+        out["magician_scheme"] += player == ME and card.title == MAGICIAN
+        return real_scheme(player, fighter, card, *a, **k)
+
+    def count_cards(att, tgt, card, hp, res):
+        """The per-card counters of one combat the tested hero's side took part in."""
+        settle(att.owner == ME and res.atk_card.title == BIG_REVEAL)
+        if att.owner == ME:
+            side = "hero" if att.hero else "sidekick"
+            for title, key in (("Flourish", "flourish"), ("An Illusion of My Own Design", "illusion")):
+                out[f"{key}_{side}"] += card.title == title
+            if card.title == SLEIGHT:
+                out["sleight_big_reveal" if res.atk_card.title == BIG_REVEAL else "sleight_other"] += 1
+        elif tgt.owner == ME and res.def_card is not None and res.def_card.title == APS:
+            out["aps_defense"] += 1
+            out["aps_saved"] += tgt.hero and tgt.alive and res.damage >= hp
 
     def attack(att, tgt, card, *a, **k):
         hp = tgt.hp
         res = real_attack(att, tgt, card, *a, **k)
+        count_cards(att, tgt, card, hp, res)
         if game.turn == ME and att.fid == game.hero(ME).fid:
             out["attacks"] += 1
             if card.title == finisher:
                 out["finisher_n"] += 1
                 out["finisher_dmg"] += max(0, hp - tgt.hp)
         return res
-    game.attack = attack
+    game.attack, game.maneuver, game.play_scheme = attack, maneuver, play_scheme
+    game.fx = SpyFx(game.fx, emit)
     while game.winner is None and game.turn_no <= MAX_TURNS:
         game.begin_turn()
         ctl[game.turn].take_turn(game)
@@ -74,7 +133,7 @@ def run(hero: str, rival: str, games: int, finisher: str) -> dict:
     rows = [play(s, hero, rival, finisher) for s in range(games)]
     n = len(rows)
     tot = lambda k: sum(r[k] for r in rows)
-    return dict(hero=hero, rival=rival, games=n, win=tot("won") / n, loss=tot("lost") / n,
+    return dict(hero=hero, rival=rival, games=n, cards={k: tot(k) for k in CARD_COUNTERS}, win=tot("won") / n, loss=tot("lost") / n,
                 in_reach=tot("in_reach") / max(1, tot("my_turns")),
                 attackable_now=tot("attackable_now") / max(1, tot("my_turns")), finisher_n=tot("finisher_n"),
                 finisher_dmg=tot("finisher_dmg"), avg_turns=tot("turns") / n)
@@ -88,6 +147,12 @@ def compare(a_path: str, b_path: str) -> None:
               f"{x['attackable_now']:.0%} -> {y['attackable_now']:.0%} | "
               f"{x['finisher_n']} -> {y['finisher_n']} | {x['finisher_dmg']:.0f} -> {y['finisher_dmg']:.0f} | "
               f"{x['avg_turns']:.1f} -> {y['avg_turns']:.1f}")
+    print("\nsummed over the matchups (A -> B)")
+    for label, key in (("win rate", "win"), ("next-turn reach", "in_reach"), ("Big Reveals", "finisher_n")):
+        total = lambda rows: sum(r[key] for r in rows)
+        print(f"{label}: {total(a) / len(a):.3f} -> {total(b) / len(b):.3f}" if key != "finisher_n" else f"{label}: {total(a)} -> {total(b)}")
+    for k in CARD_COUNTERS:
+        print(f"{k}: {sum(x.get('cards', {}).get(k, 0) for x in a)} -> {sum(y.get('cards', {}).get(k, 0) for y in b)}")
 
 
 def main() -> None:
