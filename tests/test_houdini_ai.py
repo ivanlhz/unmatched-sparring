@@ -7,6 +7,7 @@ import random
 import pytest
 
 from conftest import give
+from sparring.cards import Card
 from sparring.ai_medusa import MedusaAI, Model, boost_effect_value, cancels_effects, free_boosts, scheme_fighter
 from sparring.search.controller import IsmctsMedusa
 from sparring.search.ismcts import SearchConfig
@@ -232,9 +233,58 @@ def test_with_the_rivals_cancels_gone_houdini_places_next_to_it_and_plays_the_bi
     assert len(free_boosts(g, 0, second.card, g.players[0].hand)) == 2
 
 
-def test_with_a_feint_likely_in_the_rivals_hand_houdini_keeps_away(bprd):
-    """The same scene with the three Feints still among the cards the rival may hold (public: not in its discard pile)."""
-    g, medusa = far_setup(bprd, False)
-    assert Model(g, 0).p_holds(cancels_effects) > 0.25
-    first = MedusaAI(0).plan(g)
-    assert not (first.kind == "maneuver" and g.board.adjacent(first.moves["houdini"], medusa.pos))
+def strikable_next_turn(g, rival, pos):
+    """A free space within the rival's Move from which its attack reaches `pos`."""
+    board, taken = g.board, {f.pos for f in g.fighters.values() if f.alive}
+    return any(board.can_reach_target(s, pos, rival.ranged) and board.distance(rival.pos, s) <= rival.move
+               and (s == rival.pos or s not in taken) for s in board.spaces)
+
+
+def final_spot_after_first_action(g, ai):
+    first = ai.plan(g)
+    return first, (first.moves["houdini"] if first.kind == "maneuver" and "houdini" in first.moves else g.fighters["houdini"].pos)
+
+
+def test_only_the_rivals_public_cancel_risk_flips_the_strike_into_keeping_out_of_reach(bprd, monkeypatch):
+    """The same scene (the rival's Feints are in its discard pile: nothing else about the estimates changes) played twice; the
+    only difference is the chance `Model.p_holds` reports for a full cancel in the rival's hand. At its real value (0) Houdini
+    places himself next to Medusa to strike; told the risk is 0.9 he ends out of her reach next turn."""
+    g, medusa = far_setup(bprd, True)
+    strike, strike_spot = final_spot_after_first_action(g, MedusaAI(0))
+    assert strike.kind == "maneuver" and g.board.adjacent(strike_spot, medusa.pos)
+    assert strikable_next_turn(g, medusa, strike_spot)
+
+    g, medusa = far_setup(bprd, True)
+    real = Model.p_holds
+    monkeypatch.setattr(Model, "p_holds", lambda self, pred: 0.9 if pred is cancels_effects else real(self, pred))
+    _, away_spot = final_spot_after_first_action(g, MedusaAI(0))
+    assert not strikable_next_turn(g, medusa, away_spot)
+
+
+def test_a_hero_with_a_two_boost_card_but_no_placement_rule_is_not_hit_and_run(bprd, monkeypatch):
+    from sparring.ai_profile import STYLE_FINISHER, STYLE_HIT_AND_RUN, derive_style
+    assert derive_style(False, 2) == frozenset({STYLE_FINISHER})
+    assert derive_style(True, 0) == frozenset({STYLE_HIT_AND_RUN})
+    g = mk(bprd)
+    monkeypatch.setattr(type(g.fx), "hero_rule", lambda self, player, rule: False)       # Houdini's data without ESCAPE ARTIST
+    ai = MedusaAI(0)
+    assert not ai.hit_and_run(g) and STYLE_FINISHER in ai.style(g)
+
+
+def test_the_finisher_count_ignores_cards_the_hero_cannot_play(bprd, monkeypatch):
+    from sparring.ai_profile import STYLE_FINISHER
+    g = mk(bprd)
+    monkeypatch.setattr("sparring.ai_medusa.boost_limit", lambda c: 2 if c.title == "The Big Reveal" else 1)
+    assert STYLE_FINISHER in MedusaAI(0).style(g)
+    monkeypatch.setattr(Card, "usable_by", lambda self, name: self.title != "The Big Reveal" and self.fighter in ("any", name))
+    assert STYLE_FINISHER not in MedusaAI(0).style(g)
+
+
+def test_the_position_value_of_a_dead_hero_does_not_raise(bprd):
+    """Seen in a simulated game (Houdini vs Abe Sapien, seed 34): Houdini dies in the combat and the rival's AFTER effect
+    (Concussion Device) still asks the bot where to move; the evaluation looked up the dead hero's square (KeyError)."""
+    g = mk(bprd, "abe-sapien")
+    houdini = g.fighters["houdini"]
+    houdini.hp, houdini.alive, houdini.pos = -1, False, None
+    MedusaAI(0).position_value(g, Model(g, 0))
+

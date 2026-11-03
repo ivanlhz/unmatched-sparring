@@ -54,15 +54,23 @@ STRIKER_MIN_HP = 3          # a melee fighter with this many hit points or more 
 
 # ---------------------------------------------------------------- play style (derived from the hero's data, read by ai_medusa)
 STYLE_HIT_AND_RUN = "hit_and_run"
+STYLE_FINISHER = "finisher"
 FINISHER_BOOSTS = 2         # a card the owner may BOOST this many times or more (The Big Reveal) is a finisher: it is saved for a blow that lands
 
 
 def derive_style(places_on_boosted_maneuver: bool, max_boosts: int) -> frozenset:
-    """The play style of a hero from what its data allows: a hero that a boosted Maneuver can place on any space
-    (ESCAPE ARTIST, rule `maneuver_boost_places_hero`) can stay out of the rival's reach almost always and pop in for the
-    kill; one with a card that takes FINISHER_BOOSTS boosts has the blow worth popping in for. Either makes it a
-    hit-and-run fighter (`ai_medusa`: stronger fear of standing in reach, a bonus for a real opportunity)."""
-    return frozenset({STYLE_HIT_AND_RUN}) if places_on_boosted_maneuver or max_boosts >= FINISHER_BOOSTS else frozenset()
+    """The play style traits of a hero from what its data allows, each independent of the other:
+    - hit and run: a boosted Maneuver can place the hero on any space (ESCAPE ARTIST, rule `maneuver_boost_places_hero`), so it
+      can stay out of the rival's reach almost always and pop in for a blow (`ai_medusa`: stronger fear of standing in reach, a
+      bonus for a real opportunity). Without the placement rule there is no way back in: the trait is never granted.
+    - finisher: a card the hero's own fighters may BOOST FINISHER_BOOSTS times or more is a blow worth saving."""
+    traits = set()
+    if places_on_boosted_maneuver:
+        traits.add(STYLE_HIT_AND_RUN)
+    if max_boosts >= FINISHER_BOOSTS:
+        traits.add(STYLE_FINISHER)
+    return frozenset(traits)
+
 
 OP_POINTS = {"set_hp": 0.5, "revive": 1.5, "summon": 1.5, "move": 0.3, "swap": 0.3, "place": 0.4,
              "cancel_effects": 1.0, "redirect_damage": 1.0, "set_value": 0.5, "boost": 0.4, "search_deck": 0.6,

@@ -459,7 +459,7 @@ class MedusaAI(Controller):
             self._styles = {}
         if hero.name not in self._styles:
             places = game.fx.hero_rule(self.me, "maneuver_boost_places_hero")
-            most = max((boost_limit(c) for c in game.players[self.me].full_set), default=0)
+            most = max((boost_limit(c) for c in game.players[self.me].full_set if c.usable_by(hero.name)), default=0)
             self._styles[hero.name] = derive_style(places, most)
         return self._styles[hero.name]
 
