@@ -359,6 +359,24 @@ def test_sleight_of_hand_is_played_to_launch_the_big_reveal(bprd):
     assert plain.via is None and plain.value < 1
 
 
+def test_a_feint_drawn_out_by_the_bait_is_worth_something(bprd, monkeypatch):
+    """Sleight Of Hand is a bait: if the rival answers it with a cancel (no swap is offered), the cancel is spent and cannot stop the
+    Big Reveal later. The act is worth more than a plain Sleight and the bait value is what makes the difference."""
+    import sparring.ai_medusa as m
+    g = mk(bprd)
+    pair(g, "houdini", "hellboy")
+    sleight = give(g, 0, "Sleight of Hand")
+    give(g, 0, "The Big Reveal")
+    rival_hand(g, 3)
+    ai = MedusaAI(0)
+    monkeypatch.setattr(Model, "p_holds", lambda self, pred: 1.0 if pred is cancels_effects else 0.0)
+    opener = lambda: next(a for a in ai.attack_acts(g, Model(g, 0)) if a.card is sleight)
+    with_bait = opener().value
+    monkeypatch.setattr(m, "CANCEL_BAIT", 0.0)
+    assert with_bait == pytest.approx(opener().value + 1.2)
+    assert with_bait > 0                                       # a value-1 attack that costs a card is a loss without the bait
+
+
 def test_the_magician_is_a_big_reveal_boost_not_a_scheme_to_draw(bprd):
     from sparring.ai_medusa import situational_keep
     g = mk(bprd)

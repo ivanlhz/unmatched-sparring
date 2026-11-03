@@ -188,6 +188,15 @@ def test_the_bot_swaps_when_the_other_card_is_clearly_better(bprd):
     assert sleight in g.players[0].hand or sleight in g.players[0].discard         # kept in the hand, or then spent as the boost
 
 
+def test_the_swap_into_the_big_reveal_depends_on_the_revealed_defense_and_the_damage(bprd):
+    """Bait: the swap is not automatic. With a boost card for the Big Reveal the blow is heavy against the revealed 3 and it swaps;
+    without it the Big Reveal would not beat the defense and Sleight Of Hand stays a plain attack."""
+    g, res, _ = play(bprd, ["The Big Reveal", "Grand Escape"], "B.P.R.D. Training")
+    assert res.atk_card.title == "The Big Reveal" and res.damage >= 4
+    g, res, sleight = play(bprd, ["The Big Reveal"], "B.P.R.D. Training")
+    assert res.atk_card is sleight and res.damage == 0
+
+
 def test_the_bot_swaps_against_an_open_rival(bprd):
     g, res, sleight = play(bprd, ["Flourish"])
     assert res.atk_card.title == "Flourish" and res.damage > 1

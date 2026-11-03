@@ -130,6 +130,7 @@ RESCUE_WASTE = 2.0        # a rescue card played as a defense in a blow that wil
 SLEIGHT, MAGICIAN = "Sleight of Hand", "A Magician Never Reveals His Secrets"
 SETUP_CARDS = {SLEIGHT: (1.6, 0.6), MAGICIAN: (2.2, 1.0)}   # kept for the finisher plan: (extra while a finisher is in the hand, extra while one is still in the deck). The Magician is the biggest boost (4) of a Big Reveal: rarely played as a scheme
 SETUP_EDGE = 1.0          # opening a finisher with Sleight Of Hand is worth this more than playing it cold: the rival's card is face up before the swap
+CANCEL_BAIT = 1.2         # Sleight Of Hand is a bait: a rival that answers it with a Feint (or any cancel) spends that card, which then cannot cancel the finisher
 ELECTRO_GRENADE = "Electro grenade"
 UNTESTED = "Untested enhancements"
 INVENTION_PLAY = 1.2      # what playing an invention early is worth: its bonus (tucked) lasts the rest of the game
@@ -698,8 +699,9 @@ class MedusaAI(Controller):
     def setup_act(self, game: Game, model: Model, f: Fighter, t: Fighter, act: Act) -> Act:
         """Sleight Of Hand with a finisher (The Big Reveal) in the hand: playing it is the way to launch the finisher. The rival's
         card is face up when the swap is decided, so the finisher is played only against a defense it beats (and Sleight Of Hand, back
-        in the hand, boosts it). Worth the finisher's blow plus SETUP_EDGE, shrunk by the chance the rival holds a card that cancels
-        the effects of the attack (no swap is offered then and the blow stays a 1). The act stays Sleight Of Hand; `via` is the finisher."""
+        in the hand, boosts it). Worth the finisher's blow plus SETUP_EDGE; when the rival holds a card that cancels the effects of the
+        attack (Feint) no swap is offered and the blow stays a 1, but the bait worked: the cancel is spent (CANCEL_BAIT) and cannot
+        cancel the finisher later. The act stays Sleight Of Hand; `via` is the finisher."""
         best = None
         for c in finishers_in(game.players[self.me].hand, f.name):
             outcome = self.attack_outcome(game, model, f, t, c)
@@ -709,7 +711,7 @@ class MedusaAI(Controller):
             return act
         card, (value, dmg, kill) = best
         cancel = model.p_holds(cancels_effects)
-        return Act("attack", (1 - cancel) * (value + SETUP_EDGE) + cancel * act.value, f.fid, t.fid, act.card,
+        return Act("attack", (1 - cancel) * (value + SETUP_EDGE) + cancel * (act.value + CANCEL_BAIT), f.fid, t.fid, act.card,
                    exp_damage=(1 - cancel) * dmg, p_win=(1 - cancel) * self.p_win_of(game, model, f, t, card),
                    p_kill=(1 - cancel) * kill, via=card)
 
