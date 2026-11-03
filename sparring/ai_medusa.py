@@ -172,7 +172,8 @@ def cancels_effects(card) -> bool:
     Misdirection. A partial cancel (Raphael's Break something: only DURING and AFTER, its IMMEDIATELY stays) does not
     count: such a card is an attack first, and hoarding it as an anti-effects answer starves the attacks."""
     fx = card_effects(card)
-    return fx is not None and any(op["op"] == "cancel_effects" and not op.get("moments")
+    return fx is not None and any(op["op"] == "cancel_effects"
+                                  and (not op.get("moments") or "immediately" in op["moments"])   # same rule as ops_combat
                                   for m in ("immediately", "during") for op in walk_ops(fx.moments.get(m) or []))
 
 
