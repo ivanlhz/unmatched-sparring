@@ -1,7 +1,7 @@
 # Card identity: the shared CardID range
 
-In the tournament savegame Medusa, the four TMNT turtles (Leonardo, Donatello, Michelangelo, Raphael) and Doctor Strange are
-all DeckID 176, so all six decks have CardIDs 17600-17629. Only the deck image (FaceURL, BackURL of the CustomDeck,
+In the tournament savegame Medusa, the four TMNT turtles (Leonardo, Donatello, Michelangelo, Raphael), Doctor Strange and Bigfoot are
+all DeckID 176, so all seven decks have CardIDs 17600-17629. Only the deck image (FaceURL, BackURL of the CustomDeck,
 `deck.identity` in `data/tts/<slug>.json`) tells them apart. Any pairing of the nine heroes works at the table, in both seats,
 including Medusa against a turtle and a turtle against a turtle (`tests/test_tmnt_matrix.py`), and Doctor Strange against each of
 them (`tests/test_doctor_strange_matrix.py`; only the
@@ -38,7 +38,7 @@ them (`tests/test_doctor_strange_matrix.py`; only the
 - `hero_table.table_defaults` accepts equal CardID ranges when the two decks have different images and refuses them when the
   images overlap too. Hero detection (`hero_detect`, `lua.table_heroes`) uses range plus image.
 
-## What a new hero in sheet 176 must follow (Doctor Strange was the last one)
+## What a new hero in sheet 176 must follow (Bigfoot was the last one)
 
 1. `data/tts/<slug>.json` with its own `deck.identity` (the images of its deck object), not Medusa's or another turtle's.
 2. Never `card.card_id in range(...)`, `card_id == X` or a dict keyed by CardID built from both players. Use `game.card_of`,
@@ -46,6 +46,9 @@ them (`tests/test_doctor_strange_matrix.py`; only the
 3. A new Lua builder takes `id_range` and `identity` together and filters with `_ours_lua`.
 4. A new ChoiceRequest is created through `EffectRun.ask` (it adds `card_owner`); one created by hand passes the owner.
 5. Add the slug to the matrix (`HEROES` in `tests/test_tmnt_matrix.py`); the matrix is the proof.
+
+Bigfoot (`tests/test_hero_bigfoot_data.py`, `tests/test_bigfoot_matrix.py`) follows these rules like Doctor Strange: his own `deck.identity` in
+`data/tts/bigfoot.json`, and a matrix against the other ten heroes of the project in both seats.
 
 ## Houdini needs none of this
 
@@ -61,6 +64,9 @@ Cards are told apart by value (above); pieces by GUID **and name**. The tourname
 miniatures the same GUID (`4fdf31`, each inside its own bag; the only cross-hero collision in `data/tts/*.json`, pinned by
 `tests/test_piece_identity.py`). TTS keeps GUIDs unique, so when both are on the table the second one out of its bag gets a
 new random GUID and the configured one would make the session follow the other hero's piece.
+
+The save has a second collision, of a dial: The Jackalope's and Lobster Johnson's life dials are both `18c384`. `session_pieces` does not resolve
+dials by name; see docs/heroes/bigfoot.md.
 
 `sparring/session_pieces.py` handles it for any piece (miniature or token, any hero):
 

@@ -1100,3 +1100,17 @@ uses these words.
   rival's hand that strips a card) and prices it; the combat boost choice, the Maneuver boost choice (`maneuver_acts`), the expected state after a
   Maneuver (`apply_expected`), the attack and defense evaluation of `may_boost` cards (`free_boosts`, up to `max_boosts` cards) and the search's
   boost variants and combat boost all use it.
+
+## 28. Bigfoot: an optional draw at the end of the turn, a scheme by a sidekick, positions the human moves
+
+No new op or event: Bigfoot is written with what already existed (`end_of_turn` trigger with an `optional` that `draw`s, a `not exists` condition on the
+zone of the hero, `moved_this_turn`, `move` / `place` with `through_enemies`). Three small additive pieces of the engine came with him:
+
+- **A free optional draw** (an `optional` with no `cost` whose ops are all `draw` for the owner) sends `draws: n` in the request context
+  (`ops_core._choice_context`). `EffectAI._free_draw` answers it for a bot: yes unless the deck holds fewer cards than the draw (exhaustion) or the
+  hand is already at its limit.
+- **The fighter that plays a scheme at the table.** `session_effects.play_scheme` used to run every human scheme as the hero's; it now takes the fighter
+  the card is restricted to (`ai_medusa.scheme_fighter`, the helper the bot already used): Jackalope Horns' `this` is the Jackalope.
+- **A space selector that hangs from a fighter the human moved by hand** (`select._anchor_unknown`): the engine never sees the destination, so `where: {adjacent_to: this}`
+  (and `zone_of`, `space_of`, `nearest_to`) keeps every candidate and the selector may be answered with nobody (`min 0`), like `filter.passed_by` after a
+  move by hand. Only for a fighter whose move is in `run.flags["passed"]` as `None` (a miniature the human moved), never for the bot's or a simulation's.
