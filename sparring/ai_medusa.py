@@ -1046,12 +1046,13 @@ class MedusaAI(Controller):
                 best = max(best, p_reach * danger)
             score -= best
         medusa = game.hero(self.me)
-        for e in foes:
+        hero_on_board = medusa.fid in pos       # the hero can be dead mid-combat (an after-effect move is still being chosen)
+        for e in foes if hero_on_board else ():
             if board.share_zone(pos[medusa.fid], pos[e.fid]):
                 score += PRESSURE
             if despair > 0 and e.hero and board.can_reach_target(pos[medusa.fid], pos[e.fid], medusa.ranged):
                 score += despair * WIN_PRIZE * PROGRESS_DISCOUNT * self.win_progress(game, model, medusa, e)
-        if medusa.name != "Medusa" and foes and not self.hit_and_run(game):     # a fighter that fears the rival's blows still has to close in to hit back
+        if hero_on_board and medusa.name != "Medusa" and foes and not self.hit_and_run(game):     # a fighter that fears the rival's blows still has to close in to hit back
             score -= APPROACH_PULL * min(board.distance(pos[medusa.fid], pos[e.fid]) for e in foes)
         for h in mine:
             if not h.hero and foes:
