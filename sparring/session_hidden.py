@@ -281,7 +281,8 @@ def close_row(session, value: list, ok: bool) -> None:
                                          id_range=cfg.bot_card_ids, discard=guid, spot=spot,
                                          rot_y=cfg.bot_discard_rot_y,
                                          deck_guid=cfg.bot_deck_guid if guid and dest == "deck" else None,
-                                         deck_spot=session._deck_kw()["spot"], deck_zone=cfg.bot_deck_zone), DOMAIN)
+                                         deck_spot=session._deck_kw()["spot"], deck_zone=cfg.bot_deck_zone,
+                                         deck_radius=cfg.deck_radius), DOMAIN)
     if guid and dest == "discard":
         session.bot_discarded.add(card.card_id)   # the reconciliation of this same script must not move it again
     if guid:

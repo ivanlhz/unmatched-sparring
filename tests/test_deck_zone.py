@@ -256,7 +256,7 @@ def test_a_resume_trusts_the_live_guid_it_saved_and_accepts_the_save(rig):
     asked = NewGuidTable(table, "963448")
     table.do_deck_identities = asked
     other.load_identities()
-    assert '{"963448", {' in asked.asked[0], "the saved live GUID is the first candidate"
+    assert '"DECK1", "963448"' in asked.asked[0], "the saved live GUID is tried after the configured one"
     assert other.cfg.bot_deck_guid == "963448"
 
 
@@ -274,7 +274,7 @@ def test_the_detected_guid_is_tried_first(rig):
     session.cfg.bot_deck_hint = "963448"
     table.do_deck_identities = asked = NewGuidTable(table, "963448")
     session.load_identities()
-    assert '{"963448", {' in asked.asked[0] and session.cfg.bot_deck_guid == "963448"
+    assert '"DECK1", "963448"' in asked.asked[0] and session.cfg.bot_deck_guid == "963448"
 
 
 def test_the_deck_lookups_carry_the_zone_and_the_spot(rig):

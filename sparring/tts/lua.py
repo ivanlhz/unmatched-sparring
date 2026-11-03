@@ -238,14 +238,29 @@ return JSON.encode(cardIds(objs))
 """)
 
 
+ZONE_LUA = """local function isZone(z)
+  if z == nil or z.type == "Bag" or z.type == "Infinite" or z.type == "Deck" or z.type == "Card" then return false end
+  return type(z.getObjects) == "function"
+end
+local function zoneObjects(z)
+  local out = {}
+  if not isZone(z) then return out end
+  for _, o in ipairs(z.getObjects()) do
+    if type(o) ~= "table" or type(o.getGUID) == "function" then table.insert(out, o) end
+  end
+  return out
+end
+"""      # a Scripting zone's objects; anything that is not a zone (a bag, a missing GUID) has none
+
+
 def _skip_zones_lua(zones) -> str:
-    """Lua that adds to the `skip` table the GUID of everything lying inside each of the scripting `zones` (deck zones)."""
+    """Lua that adds to the `skip` table the GUID of everything FACE DOWN inside each of the scripting `zones` (deck zones;
+    a face-up discard lying in an overlapping zone is still discard)."""
     if not zones:
         return ""
-    return f"""for _, zg in ipairs({_guid_list(zones)}) do
-  local dz = getObjectFromGUID(zg)
-  if dz ~= nil then
-    for _, o in ipairs(dz.getObjects()) do skip[o.getGUID()] = true end
+    return ZONE_LUA + f"""for _, zg in ipairs({_guid_list(zones)}) do
+  for _, o in ipairs(zoneObjects(getObjectFromGUID(zg))) do
+    if o.is_face_down then skip[o.getGUID()] = true end
   end
 end
 """
@@ -453,8 +468,7 @@ def _deck_finder(spot, radius, zone) -> str:
     is discard), so the discard piles are never taken for the deck. Requires `_ours_lua` first."""
     body = ""
     if zone is not None:
-        body += f"""  local z = getObjectFromGUID({_guid(zone)})
-  local inside = z ~= nil and z.getObjects() or {{}}
+        body += f"""  local inside = zoneObjects(getObjectFromGUID({_guid(zone)}))
   if d ~= nil then
     local found = false
     for _, o in ipairs(inside) do
@@ -481,9 +495,9 @@ def _deck_finder(spot, radius, zone) -> str:
     end
   end
 """
-    return f"""local function findDeck(guid)
+    return ZONE_LUA + f"""local function findDeck(guid)
   local d = getObjectFromGUID(guid)
-  if d ~= nil and not ours(d) then d = nil end
+  if d ~= nil and (not d.is_face_down or not ours(d)) then d = nil end
 {body}  return d
 end
 """
@@ -647,7 +661,7 @@ def resolve_hand_row(guids: list[str], seat_color: str, *, identity, id_range: t
                      discard: str | None = None, face_down: bool = False,
                      spot: tuple[float, float, float] = (0.0, 0.0, 0.0), rot_y: float = 0,
                      deck_guid: str | None = None, deck_spot: tuple[float, float] | None = None,
-                     deck_zone: str | None = None) -> str:
+                     deck_zone: str | None = None, deck_radius: float = DECK_RADIUS) -> str:
     """Closes the row of `show_hand_row`: returns to the seat's hand all the cards of the row (by GUID) except the
     one discarded, which goes to the discard `spot`. The discarded one is the card with GUID `discard` or, with `face_down`, THE ONLY card
     of the row that is face down (if there are 0 or several it moves nothing and returns `down`). Without `discard` or `face_down` it is
@@ -667,7 +681,7 @@ def resolve_hand_row(guids: list[str], seat_color: str, *, identity, id_range: t
     pick = _guid(discard) if discard is not None else "nil"
     deck_check = ""
     if deck_guid is not None:                 # the deck is checked before anything moves: a failure moves nothing
-        own += _deck_finder(deck_spot, DECK_RADIUS, deck_zone)
+        own += _deck_finder(deck_spot, deck_radius, deck_zone)
         deck_check = f"""local deck = findDeck({_guid(deck_guid)})
 if deck == nil then return JSON.encode({{discarded = false, returned = {{}}, found = #objs, down = down, deck = false}}) end
 """
@@ -1081,17 +1095,21 @@ return JSON.encode(out)
 
 
 @_registered
-def zone_overlaps(zone_guids: list[str]) -> str:
-    """Read only: GUIDs of the hand zones (HandTrigger) whose box overlaps each given zone."""
-    if not isinstance(zone_guids, (list, tuple)):
+def zone_overlaps(zone_guids: list[str], other_guids: list[str] | tuple[str, ...] = ()) -> str:
+    """Read only: for each given zone, `found`, `zone` (it is a zone, not a bag or a deck), the hand zones (HandTrigger)
+    whose box overlaps it (`hands`) and which of `other_guids` (e.g. the discard zones) overlap it (`zones`)."""
+    if not isinstance(zone_guids, (list, tuple)) or not isinstance(other_guids, (list, tuple)):
         raise TypeError("GUID list expected")
     wanted = "{" + ", ".join(_guid(g) for g in zone_guids) + "}"
+    others = "{" + ", ".join(_guid(g) for g in other_guids) + "}"
     return f"""-- sparring:zone_overlaps
-local out = {{}}
+{ZONE_LUA}local out = {{}}
 for _, g in ipairs({wanted}) do
   local z = getObjectFromGUID(g)
   if z == nil then
     out[g] = {{found = false}}
+  elseif not isZone(z) then
+    out[g] = {{found = true, zone = false, type = tostring(z.type)}}
   else
     local b = z.getBounds()
     local hands = {{}}
@@ -1104,7 +1122,18 @@ for _, g in ipairs({wanted}) do
         end
       end
     end
-    out[g] = {{found = true, hands = hands}}
+    local zones = {{}}
+    for _, og in ipairs({others}) do
+      local oz = getObjectFromGUID(og)
+      if og ~= g and isZone(oz) then
+        local ob = oz.getBounds()
+        if math.abs(b.center.x - ob.center.x) <= (b.size.x + ob.size.x) / 2
+           and math.abs(b.center.z - ob.center.z) <= (b.size.z + ob.size.z) / 2 then
+          table.insert(zones, og)
+        end
+      end
+    end
+    out[g] = {{found = true, zone = true, hands = hands, zones = zones}}
   end
 end
 return JSON.encode(out)
@@ -1576,14 +1605,13 @@ def snapshot_lua(spec: SnapSpec, seq_expr: str | None = None) -> str:
         raise ValueError("sequence expression not allowed")
     stamp = f"snap.seq = {seq_expr}\n" if seq_expr else ""
     return f"""local function sparringSnapshot()
-{_card_ids_helper()}{_board_prelude(spec.board, spec.board_guid)}local function zoneCards(guid, skip, spots, r2, deckZones)
+{_card_ids_helper()}{ZONE_LUA}{_board_prelude(spec.board, spec.board_guid)}local function zoneCards(guid, skip, spots, r2, deckZones)
   local z = getObjectFromGUID(guid)
   local objs = {{}}
   if z == nil then return {{}} end
   for _, zg in ipairs(deckZones) do
-    local dz = getObjectFromGUID(zg)
-    if dz ~= nil then
-      for _, o in ipairs(dz.getObjects()) do skip[o.getGUID()] = true end
+    for _, o in ipairs(zoneObjects(getObjectFromGUID(zg))) do
+      if o.is_face_down then skip[o.getGUID()] = true end
     end
   end
   for _, o in ipairs(z.getObjects()) do
@@ -1902,7 +1930,8 @@ def deck_identities(decks: list[tuple], radius: float = DECK_RADIUS) -> str:
     deck, read from the object itself and only from cards whose CardID falls in the side's range. It is found by GUID
     or, if TTS turned it into a Card or gave the re-formed deck a new GUID, by position (the nearest within `radius`
     of its spot) or, for a deck with a scripting zone, only inside the zone: then ALL its cards must fall in the range.
-    Each deck is `(guid, spot, id_range[, zone])`. Returns one entry per deck: `found`, its current `guid` and the
+    Each deck is `(guid or [guids], spot, id_range[, zone])`: the first GUID that is a face-down Deck or Card (and, with a
+    zone, lies in it) wins; a face-up object is never taken. Returns one entry per deck: `found`, its current `guid` and the
     distinct `face`/`back` pairs of all its cards."""
     if not isinstance(decks, (list, tuple)) or not 1 <= len(decks) <= 4:
         raise TypeError("list of 1 to 4 decks expected")
@@ -1915,9 +1944,12 @@ def deck_identities(decks: list[tuple], radius: float = DECK_RADIUS) -> str:
             x, z, r = _spot(spot, radius)
             where = f"{{{x}, {z}, {r}}}"
         zone_guid = _guid(zone[0]) if zone and zone[0] else "nil"
-        rows.append(f"{{{_guid(guid)}, {where}, {lo}, {hi}, {zone_guid}}}")
+        guids = [guid] if isinstance(guid, str) else list(guid)
+        if not 1 <= len(guids) <= 4:
+            raise TypeError("1 to 4 candidate GUIDs per deck")
+        rows.append(f"{{{_guid_list(guids)}, {where}, {lo}, {hi}, {zone_guid}}}")
     return f"""-- sparring:deck_identities
-{_IMAGE_LUA}local function entriesOf(o, data)
+{ZONE_LUA}{_IMAGE_LUA}local function entriesOf(o, data)
   if o.type == "Card" then return {{data}} end
   return data.ContainedObjects or {{}}
 end
@@ -1931,10 +1963,13 @@ local function inRange(o, lo, hi)
 end
 local out = {{}}
 for _, row in ipairs({{{", ".join(rows)}}}) do
-  local d = getObjectFromGUID(row[1])
-  local zone = row[5] ~= nil and getObjectFromGUID(row[5]) or nil
+  local d = nil
+  for _, g in ipairs(row[1]) do
+    local o = getObjectFromGUID(g)
+    if d == nil and o ~= nil and (o.type == "Deck" or o.type == "Card") and o.is_face_down then d = o end
+  end
   if row[5] ~= nil then
-    local inside = zone ~= nil and zone.getObjects() or {{}}
+    local inside = zoneObjects(getObjectFromGUID(row[5]))
     local keep = false
     for _, o in ipairs(inside) do
       if d ~= nil and o.getGUID() == d.getGUID() then keep = true end
@@ -2006,7 +2041,7 @@ def table_heroes(ranges: list[tuple[int, int]], guids: list[str], identities: li
     zones_lua = "{" + ", ".join(f"[{lua_str(side)}] = {_guid(g)}" for side, g in sorted((deck_zones or {}).items())
                                 if g) + "}"
     return f"""-- sparring:table_heroes
-{_IMAGE_LUA}local ranges = {{{rows}}}
+{ZONE_LUA}{_IMAGE_LUA}local ranges = {{{rows}}}
 local idents = {idents}
 local function isHero(i, c, fallback)
   if idents == nil then return true end
@@ -2019,10 +2054,7 @@ local function isHero(i, c, fallback)
 end
 local sideOf = {{}}
 for side, zg in pairs({zones_lua}) do
-  local dz = getObjectFromGUID(zg)
-  if dz ~= nil then
-    for _, o in ipairs(dz.getObjects()) do sideOf[o.getGUID()] = side end
-  end
+  for _, o in ipairs(zoneObjects(getObjectFromGUID(zg))) do sideOf[o.getGUID()] = side end
 end
 local piles = {{}}
 for _, o in ipairs(getObjects()) do
@@ -2061,7 +2093,7 @@ for _, o in ipairs(getObjects()) do
         end
       end
       table.insert(piles, {{type = o.type, guid = o.getGUID(), x = p.x, z = p.z, counts = counts, name = name,
-                           size = #cards, pairs = pairsOf, side = sideOf[o.getGUID()]}})
+                           size = #cards, pairs = pairsOf, side = sideOf[o.getGUID()], down = o.is_face_down == true}})
     end
   end
 end

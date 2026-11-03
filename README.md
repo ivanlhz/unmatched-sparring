@@ -110,14 +110,15 @@ A value of `"TODO"` has to be filled in by hand after the first `--read-only` ru
 
 #### Deck zones (optional)
 
-TTS gives a deck a new GUID whenever it is re-formed (a shuffle, a mulligan, the last card), and a deck that someone nudged can lie farther than `deck_radius` from its spot. A deck zone makes the lookup exact: when `bot_deck_zone` / `human_deck_zone` is set, the bot looks for that side's deck (or its last loose card) **only inside the zone**, whatever its GUID. It is the same idea as the discard zones.
+TTS gives a deck a new GUID whenever it is re-formed (gathering the cards back by hand, a restart, the last card turning into a loose card), and a deck that someone nudged can lie farther than `deck_radius` from its spot. A deck zone makes the lookup exact: when `bot_deck_zone` / `human_deck_zone` is set, the bot looks for that side's deck (or its last loose card) **only inside the zone**, whatever its GUID. It is the same idea as the discard zones.
 
 Create each zone once, in TTS:
 
 1. Open the Scripting zone tool (Zones menu, top bar, Scripting) and drag a rectangle over the deck spot, a little bigger than a card (about 3 x 4 units). Keep it clear of the discard zone and the hand zones.
 2. Put the deck inside it (face down).
-3. Right-click the zone, Scripting, and copy its GUID (or read it with `--read-only` after adding it to `probe_guids`).
-4. Write it in `config	able.json`: `"bot_deck_zone": "<guid>"` and `"human_deck_zone": "<guid>"`. Leave a key out to keep the spot search for that side.
+3. Right-click the zone, Scripting, and copy its GUID.
+4. Write it in `config\table.json`: `"bot_deck_zone": "<guid>"` and `"human_deck_zone": "<guid>"`. Leave a key out to keep the spot search for that side.
+5. Run `--read-only` to check: each side should report its deck as found inside its zone. At start-up the bot refuses a zone GUID that does not exist or is not a Scripting zone, and warns if the zone overlaps a hand or discard zone (only what is face down in a deck zone counts as the deck, so a face-up discard there is still read as discard).
 
 Without zones the bot adopts the GUID the table shows at start-up (and when resuming, if the saved one is gone), so a re-formed deck is still found. The zone is the deck's only home: if the deck is moved out of it the bot says where it looked and asks you to put it back.
 

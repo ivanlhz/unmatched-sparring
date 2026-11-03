@@ -783,7 +783,7 @@ def combat_card_to_bottom(session, ids: list[int], ctx: Ctx) -> list[Check]:
     session.fx_in_flight.update(ids)
     session.say(t("strange.combat_to_bottom_bot", cards=titles, cause=ctx.cause), ChatKind.SCHEME)
     ops = [(i, session._w(lua.card_to_deck_bottom(guids[i], session.cfg.human_deck_guid, session.cfg.human_card_ids,
-                                                  identity=identity), DOMAIN)) for i in ids]
+                                                  identity=identity, **session._deck_kw("human")), DOMAIN)) for i in ids]
 
     def check() -> None:
         left = [i for i, op in ops if not result_of(op).get("placed")]
@@ -820,7 +820,8 @@ def _stack_bot(session, intent: dict, ctx: Ctx) -> list[Check]:
         return _stack_human(session, intent, ctx)
     session.fx_in_flight.add(card)
     session.say(t("strange.stack_top_bot", title=by_id[card].title, cause=ctx.cause), ChatKind.SCHEME)
-    op = session._w(lua.card_to_deck_top(guid, cfg.human_deck_guid, cfg.human_card_ids, identity=identity), DOMAIN)
+    op = session._w(lua.card_to_deck_top(guid, cfg.human_deck_guid, cfg.human_card_ids, identity=identity,
+                                                  **session._deck_kw("human")), DOMAIN)
 
     def check() -> None:
         if not result_of(op).get("placed"):
@@ -865,8 +866,8 @@ def _shuffle_bot(session, intent: dict, ctx: Ctx) -> list[Check]:
     from .session import SessionError
     cfg = session.cfg
     try:
-        session._w(lua.shuffle_deck(cfg.bot_deck_guid, cfg.bot_deck_spot, id_range=cfg.bot_card_ids,
-                                    identity=session._identity()), DOMAIN)
+        session._w(lua.shuffle_deck(cfg.bot_deck_guid, id_range=cfg.bot_card_ids,
+                                    identity=session._identity(), **session._deck_kw()), DOMAIN)
     except ERRORS + (SessionError,):
         return []
     session.say(t("strange.shuffle_bot", cause=ctx.cause), ChatKind.SCHEME)
@@ -897,8 +898,10 @@ def _hand_all_bot(session, intent: dict, ctx: Ctx) -> list[Check]:
     cfg = session.cfg
     try:
         identity = session._identity("human")
-        back = session._w(lua.return_hand_to_deck(cfg.human_seat, cfg.human_deck_guid, cfg.human_card_ids, identity=identity), DOMAIN)
-        session._w(lua.shuffle_deck(cfg.human_deck_guid, cfg.human_deck_spot, id_range=cfg.human_card_ids, identity=identity), DOMAIN)
+        back = session._w(lua.return_hand_to_deck(cfg.human_seat, cfg.human_deck_guid, cfg.human_card_ids, identity=identity,
+                                                   **session._deck_kw("human")), DOMAIN)
+        session._w(lua.shuffle_deck(cfg.human_deck_guid, id_range=cfg.human_card_ids, identity=identity,
+                                    **session._deck_kw("human")), DOMAIN)
     except ERRORS + (SessionError,):
         return _hand_all_human(session, intent, ctx)
     session.say(t("strange.hand_to_deck_bot", cause=ctx.cause), ChatKind.SCHEME)

@@ -222,7 +222,7 @@ class Table:
         return {"pairs": [{"face": "https://img.test/face", "back": "https://img.test/back"}]}
 
     def do_deck_identities(self, s):
-        n = len(re.findall(r'\{"\w+", (?:nil|\{)', s))
+        n = len(re.findall(r'\{\{"\w+"(?:, "\w+")*\}, (?:nil|\{)', s))
         return [{"found": True, "pairs": [{"face": "https://img.test/face", "back": "https://img.test/back"}]}
                 for _ in range(n)]
 

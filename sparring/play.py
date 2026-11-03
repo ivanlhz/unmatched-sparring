@@ -446,7 +446,8 @@ def resolve_heroes(client, cfg: PlayConfig, saved: tuple[str, str] | None = None
     out = build_config(raw, tuple(sources))     # type: ignore[arg-type]
     out.warnings = list(cfg.warnings)
     if reading is not None:
-        out.detected_decks = detected_decks(reading, out.heroes, r["bot_deck_spot"], r["human_deck_spot"])
+        out.detected_decks = detected_decks(reading, out.heroes, r["bot_deck_spot"], r["human_deck_spot"],
+                                            float(r.get("deck_radius", lua.DECK_RADIUS)), _deck_zones(r))
     echo(describe_heroes(out))
     return out
 
@@ -953,6 +954,26 @@ def build_game(cfg: PlayConfig, first: str, seed: int) -> Game:
     return game
 
 
+def check_deck_zones(client, scfg: SessionConfig, echo: Callable[[str], None] = print) -> None:
+    """Start-up: each configured deck zone must exist and be a Scripting zone (else `SessionError` naming the key); one
+    that overlaps a hand zone or a discard zone is warned about (a deck zone only claims what is face down in it)."""
+    zones = {key: g for key, g in (("bot_deck_zone", scfg.bot_deck_zone), ("human_deck_zone", scfg.human_deck_zone)) if g}
+    if not zones:
+        return
+    res = client.call_lua(lua.zone_overlaps(sorted(set(zones.values())),
+                                            [scfg.bot_discard_zone, scfg.human_discard_zone])) or {}
+    res = res if isinstance(res, dict) else {}
+    for key, guid in zones.items():
+        info = res.get(guid) or {}
+        if not info.get("found"):
+            raise SessionError(t("cfg.deck_zone_missing", key=key, guid=guid))
+        if not info.get("zone"):
+            raise SessionError(t("cfg.deck_zone_not_zone", key=key, guid=guid, type=info.get("type")))
+        others = [*(info.get("hands") or []), *(info.get("zones") or [])]
+        if others:
+            echo(t("console.warn_line", text=t("cfg.deck_zone_overlaps", key=key, guid=guid, others=", ".join(others))))
+
+
 def play(cfg: PlayConfig, client: TTSClient, first: str, seed: int, stop: threading.Event,
          echo: Callable[[str], None] = print, poll: float = 0.1, state_path: Path | None = None,
          resume: bool = False, timing: bool = False, ai: str | None = None,
@@ -989,6 +1010,10 @@ def play(cfg: PlayConfig, client: TTSClient, first: str, seed: int, stop: thread
         session.load_identities()                # adopts the decks' current GUIDs too: the panel's snapshot skips them by GUID
     except TABLE_ERRORS:
         pass                                     # retried on first use
+    try:
+        check_deck_zones(client, scfg, echo)
+    except TABLE_ERRORS:
+        pass                                     # the zones are looked for again on first use
     for warning in floor_layout_warnings(cfg):
         echo(t("console.warn_line", text=warning))
     client.call_lua(lua.clear_markings(remove_panel=True))     # leftovers of a previous run that died without cleaning up

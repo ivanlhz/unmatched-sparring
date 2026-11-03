@@ -1611,15 +1611,18 @@ class Session:
         guids = [lua.BOARD_GUIDS[self.game.board.key], self.configured_decks["bot_deck_guid"] if configured else c.bot_deck_guid,
                  c.bot_discard_zone, c.human_discard_zone,
                  *(g for v in pcs.values() for g in v), *(self.configured_dials if configured else c.dials).values(),
-                 *([c.destiny_dial] if c.destiny_dial else [])]
+                 *([c.destiny_dial] if c.destiny_dial else []), *self._deck_zones()]
         return sorted(set(guids))
+
+    def _deck_zones(self) -> list[str]:
+        return [z for z in (self.cfg.bot_deck_zone, self.cfg.human_deck_zone) if z]
 
     def guid_groups(self) -> list[list[str]]:
         """GUIDs that must exist, in groups: one of each group is enough (a miniature with states is a single object
         at a time; the rest of the GUIDs are its own)."""
         c = self.cfg
         singles = [lua.BOARD_GUIDS[self.game.board.key], c.bot_deck_guid, c.bot_discard_zone, c.human_discard_zone,
-                   *c.dials.values(), *([c.destiny_dial] if c.destiny_dial else [])]
+                   *c.dials.values(), *([c.destiny_dial] if c.destiny_dial else []), *self._deck_zones()]
         return [[g] for g in sorted(set(singles))] + [piece_guids(v) for _, v in sorted(c.pieces.items())]
 
     def _require_human_turn(self) -> bool:
@@ -3452,20 +3455,23 @@ class Session:
     def load_identities(self) -> None:
         """At the start: the identity of each deck (FaceURL/BackURL of its cards' CustomDeck), read from the object
         itself. The CardID does not identify a deck (other card games share DeckID), so no card write touches
-        anything that does not have these images. The deck is found by GUID (the one the start-up read detected, else
-        the saved live one, else the configured one), else in its Scripting zone or around its spot, and the GUID it
+        anything that does not have these images. The deck is found by GUID (the configured or adopted one first, then the saved live one,
+        then the one the start-up read detected; only a face-down deck counts), else in its Scripting zone or around its spot, and the GUID it
         has now is adopted."""
         c = self.cfg
         hints = {"bot": c.bot_deck_hint, "human": c.human_deck_hint}
 
-        def first(side: str, current: str) -> str:
-            """Live GUID already adopted; else the saved one (resume) or the one detection found; else the configured one."""
-            if f"{side}_deck_guid" in self._deck_origin:
-                return current
-            return self._saved_decks.get(side) or hints[side] or current
-        decks = [("bot", (first("bot", c.bot_deck_guid), tuple(c.bot_deck_spot), c.bot_card_ids, c.bot_deck_zone))]
+        def candidates(side: str, current: str) -> list[str]:
+            """GUIDs to try, the first one that is a face-down deck winning: the current one (configured, or adopted
+            earlier), then the saved live one (resume), then the one detection found near the spot or in the zone."""
+            out = [current]
+            for g in (self._saved_decks.get(side), hints[side]):
+                if g and g not in out:
+                    out.append(g)
+            return out
+        decks = [("bot", (candidates("bot", c.bot_deck_guid), tuple(c.bot_deck_spot), c.bot_card_ids, c.bot_deck_zone))]
         if c.human_deck_guid:
-            decks.append(("human", (first("human", c.human_deck_guid),
+            decks.append(("human", (candidates("human", c.human_deck_guid),
                                     tuple(c.human_deck_spot) if c.human_deck_spot else None,
                                     c.human_card_ids, c.human_deck_zone)))
         res = self.client.call_lua(lua.deck_identities([d for _, d in decks], c.deck_radius))
