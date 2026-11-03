@@ -12,6 +12,8 @@ No terminal, Python or uv needed:
 2. Open Tabletop Simulator with the **Unmatched Official Tournament Table** savegame ("October 2026 (Hellboy)" version). You sit White, the bot sits Green.
 3. Set up both heroes on the table and press **START** in the launcher. **CHECK THE TABLE** reads the table without changing anything and tells you what is missing.
 
+![The launcher: START, CHECK THE TABLE and the game options](docs/images/launcher.png)
+
 The installer is not code-signed, so Windows SmartScreen may warn you: choose "More info" and then "Run anyway". The rest of this page is for running the bot from source and for contributors.
 
 ## Contents
