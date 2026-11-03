@@ -476,6 +476,21 @@ def test_the_magician_is_not_played_as_a_scheme_while_a_big_reveal_is_unseen(bpr
     assert magician in g.players[0].discard
 
 
+def test_sleight_and_the_magician_are_not_maneuver_boosts_while_a_big_reveal_is_unseen(bprd, monkeypatch):
+    def turn():
+        g = mk(bprd)
+        cards = [give(g, 0, "A Magician Never Reveals His Secrets"), give(g, 0, "Sleight of Hand"), give(g, 0, "The Big Reveal")]
+        g.actions_left = 1
+        MedusaAI(0).take_turn(g)
+        return g, cards[:2]
+    g, cards = turn()
+    assert all(c in g.players[0].hand for c in cards)
+    import sparring.ai_medusa as m
+    monkeypatch.setattr(m, "finisher_plan", lambda *a, **k: None)           # control: with the plan dead the same hand spends them
+    g, cards = turn()
+    assert any(c in g.players[0].discard for c in cards)
+
+
 def test_all_part_of_the_show_is_never_a_maneuver_boost_in_a_whole_turn_at_low_life(bprd):
     for hp in (9, 5, 2):
         g = mk(bprd)

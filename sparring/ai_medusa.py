@@ -243,6 +243,12 @@ def situational_keep(game: Game, me: int, card, hand, spending_on_finisher: bool
     return extra
 
 
+def held_for_plan(game: Game, me: int, card, hand) -> bool:
+    """The card serves the finisher (Sleight Of Hand, the Magician) and a Big Reveal may still come: the bot does not play it as a
+    scheme or spend it as a Maneuver boost (a hard gate: the weights lost to the position value and the two-action planner)."""
+    return card.title in SETUP_CARDS and finisher_plan(game, me, card, hand) is not None
+
+
 def finisher_plan(game: Game, me: int, card, hand) -> str | None:
     """Where a finisher the hero may play is still to be had besides `card`: "hand", else "deck" (unseen: not in the hand, not
     in the discard pile), else None (the plan is dead)."""
@@ -855,7 +861,7 @@ class MedusaAI(Controller):
             fighter = scheme_fighter(game, self.me, c)
             if fighter is None:
                 continue
-            if c.title in SETUP_CARDS and finisher_plan(game, self.me, c, game.players[self.me].hand):
+            if held_for_plan(game, self.me, c, game.players[self.me].hand):
                 continue      # a boost of the finisher (the Magician) is not played as a scheme while a Big Reveal may still come (Iván: almost never)
             seen.add(c.title)
             if c.title == "A Momentary Glance":
@@ -925,7 +931,7 @@ class MedusaAI(Controller):
         # its BOOSTED WITH pays part of the price; a card that brings the hero back is never given up for a reach (the full price)
         net = lambda c: self.keep(game, c, hand, rel) * (1.0 if defers_defeat(c) else 0.5) - boost_effect_value(game, self.me, c)
         for c in sorted(hand, key=lambda c: (net(c), -c.boost, c.card_id)):
-            if maneuver_may_spend(c) and c.boost not in seen:    # for each reach, the card that hurts least to spend
+            if maneuver_may_spend(c) and not held_for_plan(game, self.me, c, hand) and c.boost not in seen:    # for each reach, the card that hurts least to spend
                 seen.add(c.boost)
                 variants.append((c, net(c)))
         out = []
