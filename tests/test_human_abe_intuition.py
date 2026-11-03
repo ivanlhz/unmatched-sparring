@@ -90,6 +90,7 @@ def test_a_table_that_disagrees_with_the_engine_is_warned_and_the_engine_stays(r
     msgs = human_abe_hits_hellboy(session, table, game, cfg, monkeypatch)
     assert said(msgs, "en la mesa hay 1 ficha(s) de Intuicion activa(s) y yo conte 0: me fio de mi cuenta")
     assert game.fx.counter_value(1, "intuition") == 1
+    assert table.intuition["active"] == 1 and table.intuition_turns == [], "absolute target: nothing pushed to 2"
 
 
 @with_rig("hellboy", "abe-sapien", *HAND)
@@ -139,7 +140,29 @@ def test_the_english_line_carries_the_same_numbers(rig):
 
 
 def test_the_lua_op_finds_the_tokens_by_name_and_turns_a_stack_one_by_one():
-    script = lua.set_intuition_tokens("Intuition Token", "5a17e9", 180, 0, True, 2, ["Red", "Blue"])
+    script = lua.set_intuition_tokens("Intuition Token", "5a17e9", 180, 0, 2, ["Red", "Blue"])
     assert "-- sparring:set_intuition_tokens" in script and 'o.getName() == NAME' in script
-    assert "local TO_ACTIVE = true" in script and "takeObject" in script and "pingTable" in script
-    assert "for _ = 1, 2 do" in script
+    assert "local TARGET = 2" in script and "takeObject" in script and "pingTable" in script
+
+
+@with_rig("hellboy", "abe-sapien", *HAND)
+def test_the_starting_count_is_said_when_the_setup_ends_and_again_after_a_restart(rig):
+    session, table, game, fake, cfg = rig
+    session._intuition_said = 0                                 # the silent first look the setup's steps make
+    session.messages = []
+    session.setup = {"stage": "wait_human", "mull_done": False, "mull_decision": None, "mull_step": "start", "human_mull": False}
+    session._setup_begin()
+    assert said(session.messages, "Abe Sapien tiene 0 de 2 fichas de Intuicion activas")
+    session._intuition_said = 2                                 # the old game's value
+    session.messages = []
+    session._begin_game()
+    assert said(session.messages, "Abe Sapien tiene 0 de 2 fichas de Intuicion activas")
+
+
+@with_rig("hellboy", "abe-sapien", *HAND)
+def test_a_failed_write_is_not_reported_as_tokens_not_found(rig, monkeypatch):
+    session, table, game, fake, cfg = rig
+    monkeypatch.setattr(type(table), "do_set_intuition_tokens", lambda self, s: (_ for _ in ()).throw(OSError("boom")))
+    msgs = human_abe_hits_hellboy(session, table, game, cfg, monkeypatch)
+    assert game.fx.counter_value(1, "intuition") == 1
+    assert not said(msgs, "no encuentro tus fichas")

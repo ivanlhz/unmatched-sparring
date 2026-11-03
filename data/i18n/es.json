@@ -516,6 +516,7 @@
  "intuition.why.nodata": "no se que cara es cual en esas fichas",
  "intuition.why.missing": "no encuentro tus fichas de Intuicion en la mesa",
  "intuition.why.partial": "no he podido girarlas todas",
+ "intuition.why.write_failed": "la mesa no ha aceptado mi cambio",
  "intuition.mismatch": "{name}: en la mesa hay {table} ficha(s) de Intuicion activa(s) y yo conte {engine}: me fio de mi cuenta, revisalas.",
  "dials.touched": "No toco {items}: parece cambiado a mano. {advice}",
  "dials.item": "{label} (marca {mark:g}, el motor {want})",

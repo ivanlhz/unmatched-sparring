@@ -48,7 +48,7 @@ from . import session_translators as translators
 from .session_choices import panel_text
 from .spaces import describe, zone_text
 from .combat import FEINT, GLANCE_DAMAGE, can_boost, deck_boost, is_medusa_card, scheme_gain_actions
-from .effects.model import load_effects
+from .effects.model import EffectError, load_effects
 from .effects.modifiers import boost_limit, grants_boost, has_boost_effect
 from .state import ANUNG, DETECTIVE, EXHAUST_DAMAGE, Fighter, Game, RuleError
 from .tts import lua, ui
@@ -448,6 +448,7 @@ class Session:
             self._deck_ident.setdefault(side, pairs)
 
     def _begin_game(self) -> None:
+        self._intuition_said = None               # a restart keeps the old game's count otherwise
         self.game_log.new_game((self.game.hero_def(self.bot).name, self.game.hero_def(self.human).name))
         self.game_log.observe(self.game, self._name)
         self._check_config()
@@ -781,6 +782,8 @@ class Session:
         self.setup = None
         self.sync_human()
         self.say(t("setup.done"))
+        self._intuition_said = None               # the setup's silent first look must not hide the starting count
+        self._track_intuition(announce=True)
         if g.turn == self.bot:
             self.bot_stage = "start"
             self._persist()
@@ -2461,7 +2464,10 @@ class Session:
     def _intuition_range(self):
         """The counter range of the HUMAN's Intuition tokens (Abe Sapien), else None. The bot's Abe has real copies on
         the table (`translators._counter_bot`); the human's tokens are theirs to flip."""
-        return load_effects(self.game.hero_def(self.human).slug).counters.get(INTUITION)
+        try:
+            return load_effects(self.game.hero_def(self.human).slug).counters.get(INTUITION)
+        except EffectError:
+            return None
 
     def _track_intuition(self, announce: bool = False) -> None:
         """Tells in chat how many of the human Abe's Intuition tokens are active when the engine changes that count,
@@ -2496,7 +2502,7 @@ class Session:
         try:
             table = load_hero_table(self.game.hero_def(self.human).slug)
             source, faces = table.tokens[INTUITION], table.token_faces[INTUITION]["faces"]
-            script = lua.set_intuition_tokens(INTUITION_TOKEN, source, float(faces["active"]), float(faces["inactive"]), on, n,
+            script = lua.set_intuition_tokens(INTUITION_TOKEN, source, float(faces["active"]), float(faces["inactive"]), now,
                                               [self.cfg.human_seat, self.cfg.bot_seat])
         except (HeroTableError, KeyError, TypeError, ValueError):
             ask(t("intuition.why.nodata"))
@@ -2504,18 +2510,25 @@ class Session:
         op = self._w(script, translators.DOMAIN)
 
         def check() -> None:
-            res = translators.result_of(op)
+            try:
+                res = op.result or {}
+            except translators.ERRORS:
+                ask(t("intuition.why.write_failed"))
+                return
             if not res.get("total"):
                 ask(t("intuition.why.missing"))
                 return
             if res.get("active") != prev:
                 self.say(t("intuition.mismatch", name=name, table=res.get("active"), engine=prev), ChatKind.WARNING)
             done = int(res.get("flipped") or 0)
-            if done < n:
-                ask(t("intuition.why.partial"), n - done)
+            after = res.get("after")
+            if after is not None and after != now:
+                ask(t("intuition.why.partial"), abs(now - after))
             if done:
                 self.say(t("intuition.turned_on" if on else "intuition.turned_off", name=name,
                            tokens=plural(done, "noun.token"), n=now, max=top), ChatKind.ABILITY)
+            elif after == now:                    # the table already showed the engine's count: nothing to turn
+                self.say(t("intuition.state", name=name, n=now, max=top, dark=plural(top - now, "noun.token")), ChatKind.ABILITY)
         self._post.append(check)
 
     def _track_destiny(self) -> bool:

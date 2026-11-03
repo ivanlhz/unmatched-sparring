@@ -72,16 +72,17 @@ class FxTable(Table):
         return {"guid": new, "state": n, "moved": new}
 
     def do_set_intuition_tokens(self, s):
-        to_active = "local TO_ACTIVE = true" in s
-        count = int(re.search(r"for _ = 1, (\d+) do", s).group(1))
+        target = int(re.search(r"local TARGET = (\d+)", s).group(1))
         box = self.intuition
         before = box["active"]
         if box["total"] == 0:
-            return {"total": 0, "active": 0, "flipped": 0, "guids": []}
-        done = min(count, box["total"] - before if to_active else before)
-        box["active"] += done if to_active else -done
-        self.intuition_turns.append((to_active, done))
-        return {"total": box["total"], "active": before, "flipped": done, "guids": [f"i{k}" for k in range(done)]}
+            return {"total": 0, "active": 0, "after": 0, "flipped": 0, "guids": []}
+        box["active"] = min(target, box["total"])
+        done = abs(box["active"] - before)
+        if done:
+            self.intuition_turns.append((box["active"] > before, done))
+        return {"total": box["total"], "active": before, "after": box["active"], "flipped": done,
+                "guids": [f"i{k}" for k in range(done)]}
 
     def do_flip_token(self, s):
         self.flipped.append(re.search(r'getObjectFromGUID\("(\w+)"\)', s).group(1))
