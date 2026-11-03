@@ -62,6 +62,7 @@ function createWindow() {
     minHeight: 600,
     backgroundColor: '#ffffff',
     title: 'Unmatched Sparring',
+    icon: path.join(__dirname, '..', 'assets', 'icon.png'),
     webPreferences: { preload: path.join(__dirname, 'preload.js'), contextIsolation: true, sandbox: true },
   });
   win.loadFile(path.join(__dirname, 'renderer', 'index.html'));
