@@ -424,7 +424,8 @@ def test_bridge_objects_report_lists_hellboy_and_abe_objects():
     assert play._bridge_objects("hellboy") == {
         "hellboy hellboy state 1": "f9789a", "hellboy hellboy state 2": "e6f06e", "hellboy token ability": "1644a3",
         "hellboy token ability child": "30d50e"}
-    assert play._bridge_objects("abe-sapien") == {"abe-sapien token intuition (source)": "5a17e9"}
+    assert play._bridge_objects("abe-sapien") == {"abe-sapien token intuition": "5a17e9", "abe-sapien token intuition child": "b75787",
+                                                   "abe-sapien token intuition (source)": "5a17e9"}
     assert play._bridge_objects("medusa") == {}
 
     class Cfg:

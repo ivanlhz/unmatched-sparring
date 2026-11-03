@@ -48,9 +48,11 @@ from . import session_translators as translators
 from .session_choices import panel_text
 from .spaces import describe, zone_text
 from .combat import FEINT, GLANCE_DAMAGE, can_boost, deck_boost, is_medusa_card, scheme_gain_actions
+from .effects.model import load_effects
 from .effects.modifiers import boost_limit, grants_boost, has_boost_effect
 from .state import ANUNG, DETECTIVE, EXHAUST_DAMAGE, Fighter, Game, RuleError
 from .tts import lua, ui
+from .tts.hero_table import HeroTableError, load_hero_table
 from .tts.lua import ChatKind
 from .tts.client import TTSClient, TTSLuaError
 from . import i18n
@@ -201,6 +203,9 @@ def deck_where(zone: str | None, spot, radius: float) -> str:
 
 
 # configuration keys that identify the table and the game (fine settings do not count)
+INTUITION = "intuition"                 # Abe Sapien's ability counter (two tokens)
+INTUITION_TOKEN = "Intuition Token"      # nickname of those tokens on the table (data/tts/abe-sapien.json, stack 5a17e9)
+
 IDENTITY_KEYS = ("destiny_dial", "bot_seat", "human_seat", "bot_deck_guid", "bot_discard_zone", "human_discard_zone",
                  "human_deck_guid", "start_spaces", "dials")
 
@@ -359,6 +364,7 @@ class Session:
         self.destiny_seen: tuple[int, str] | None = None   # (destinies, form) already written and verified on the dial
         self._transit: dict[int, int] = {}                 # CardID played by the human -> reads it has gone without reaching the discard
         self.combat_guids: dict[int, str] = {}             # CardID of the human's card at the combat spot -> its GUID (Relentless moves it)
+        self._intuition_said: int | None = None            # the human Abe's active tokens already told in chat
         self._destiny_said: tuple[int, str] | None = None  # what was already announced (not repeated while retrying)
         self.placing: dict | None = None         # bot card put on the table whose reply never arrived
         self.dials_attempted: dict[str, int] = {}  # GUID -> last value tried to write (verified or not)
@@ -459,6 +465,7 @@ class Session:
         if self.game.turn == self.bot:
             self.bot_stage = "start"
         self._open(announce_turn=True)
+        self._track_intuition(announce=True)
 
     def _announce_first(self) -> None:
         if self.first_mode is None:
@@ -494,12 +501,14 @@ class Session:
         self.game_log.resumed()
         self.game_log.observe(self.game, self._name)
         self.say(t("sess.resumed"))
+        self._intuition_said = None
         if self.setup is not None:
             self.say(t("sess.resume.setup", stage=self.setup["stage"]))
             self._setup_advance()
             self._write_dials(post=True)
             return self._done()
         self._open(announce_turn=False)
+        self._track_intuition(announce=True)
         self._write_dials(post=True)              # the table already shows the engine's life, not the one from before the cut
         if self.game.winner is not None:
             self.say(t("sess.resume.game_over", winner=self.game.winner))
@@ -859,6 +868,7 @@ class Session:
 
     def _done(self) -> list[str]:
         self._say_triggers()
+        self._track_intuition()
         hidden.after_step(self)                   # a look of the human at the bot's hand: the row rides this script
         self._tell_blocks()
         self._commit()
@@ -2247,7 +2257,8 @@ class Session:
                 p.flow = g.begin_attack(p.attacker, p.target, human_card, p.bot_card, values=(value, 0),
                                         attacked=p.declared is None)
             else:
-                p.flow = g.begin_attack(p.attacker, p.target, p.bot_card, human_card, values=(0, value))
+                p.flow = g.begin_attack(p.attacker, p.target, p.bot_card, human_card, values=(0, value),
+                                        attacked=p.declared is None)
             p.wait = None                         # the boost (if any) is now an answer inside the flow
             self._drive_flow(p.flow)
         except RuleError as e:
@@ -2446,6 +2457,66 @@ class Session:
         else:
             dfn = t("combat.def", who=target, parts=res.def_parts[0]) + "".join(t("combat.join_comma", part=part) for part in res.def_parts[1:])
         return t("combat.line", atk=atk, atk_value=res.atk_value, dfn=dfn, def_value=res.def_value, damage=res.damage)
+
+    def _intuition_range(self):
+        """The counter range of the HUMAN's Intuition tokens (Abe Sapien), else None. The bot's Abe has real copies on
+        the table (`translators._counter_bot`); the human's tokens are theirs to flip."""
+        return load_effects(self.game.hero_def(self.human).slug).counters.get(INTUITION)
+
+    def _track_intuition(self, announce: bool = False) -> None:
+        """Tells in chat how many of the human Abe's Intuition tokens are active when the engine changes that count,
+        and has the bot turn the physical tokens (`_turn_intuition_tokens`). `announce`: also say the current count
+        (game start, resume)."""
+        rng = self._intuition_range()
+        if rng is None:
+            return
+        g, human = self.game, self.human
+        now, prev = g.fx.counter_value(human, INTUITION, rng.start), self._intuition_said
+        self._intuition_said = now
+        name = self._name(g.hero(human))
+        if prev is None or prev == now:
+            if prev is None and announce:
+                self.say(t("intuition.state", name=name, n=now, max=rng.max, dark=plural(rng.max - now, "noun.token")),
+                         ChatKind.ABILITY)
+            return
+        self._turn_intuition_tokens(prev, now, name, rng.max)
+
+    def _turn_intuition_tokens(self, prev: int, now: int, name: str, top: int) -> None:
+        """The bot turns the human's physical Intuition tokens to match the engine (active face when one is activated,
+        inactive when one is spent) and pings them. The table is read in the same script: a count that differs from
+        `prev` is warned (the engine stays the authority) and tokens that cannot be found or turned are asked of the
+        human by chat."""
+        on, n = now > prev, abs(now - prev)
+        tokens = plural(n, "noun.token")
+        manual = "intuition.on_manual" if on else "intuition.off_manual"
+
+        def ask(why: str, left: int = n) -> None:
+            self.say(t(manual, name=name, tokens=plural(left, "noun.token"), n=now, max=top, why=why), ChatKind.ABILITY)
+
+        try:
+            table = load_hero_table(self.game.hero_def(self.human).slug)
+            source, faces = table.tokens[INTUITION], table.token_faces[INTUITION]["faces"]
+            script = lua.set_intuition_tokens(INTUITION_TOKEN, source, float(faces["active"]), float(faces["inactive"]), on, n,
+                                              [self.cfg.human_seat, self.cfg.bot_seat])
+        except (HeroTableError, KeyError, TypeError, ValueError):
+            ask(t("intuition.why.nodata"))
+            return
+        op = self._w(script, translators.DOMAIN)
+
+        def check() -> None:
+            res = translators.result_of(op)
+            if not res.get("total"):
+                ask(t("intuition.why.missing"))
+                return
+            if res.get("active") != prev:
+                self.say(t("intuition.mismatch", name=name, table=res.get("active"), engine=prev), ChatKind.WARNING)
+            done = int(res.get("flipped") or 0)
+            if done < n:
+                ask(t("intuition.why.partial"), n - done)
+            if done:
+                self.say(t("intuition.turned_on" if on else "intuition.turned_off", name=name,
+                           tokens=plural(done, "noun.token"), n=now, max=top), ChatKind.ABILITY)
+        self._post.append(check)
 
     def _track_destiny(self) -> bool:
         """Counts Hellboy's destinies in his discard pile (the engine equates them to the table's discard in sync_human),

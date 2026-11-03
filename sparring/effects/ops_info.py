@@ -91,7 +91,10 @@ def _reveal(run, game, spec):
                 continue
             if zone == "hand":
                 _remember_in_hand(game, holder, card)
-                run.flags["looked_hand"] = True
+                if cards == "attack_card":    # the rival's attack made public is not a look at their hand
+                    run.flags["attack_face_up"] = True
+                else:
+                    run.flags["looked_hand"] = True
             elif zone == "deck" and game.players[holder].deck[:1] == [card]:
                 _watcher(game, holder).set_top([card.card_id])
 

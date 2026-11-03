@@ -446,17 +446,30 @@ def declare_attack(session, p, card):
 
 # ---------------------------------------------------------------- the bot's attack played face up
 
+def declare_bot_attack(session, p) -> None:
+    """The bot attacks the human's Abe, who has an active token: the `attacked` event is raised now, as for the human's
+    own attacks (`declare_attack`), so UNCANNY INTUITION spends the token and draws BEFORE the defense is chosen
+    (Ivan, 29/10) and the drawn card is dealt to the human's hand at once, so it can be their defense."""
+    g = session.game
+    p.declared = {"counters": dict(g.fx.counters[session.bot]), "revealed": True}
+    g.fx.emit("attacked", p.attacker, p.target, p.bot_card)
+    session._deal_owed_draws(t("cause.intuition"))
+
+
 def bot_attack_placed(session, p) -> None:
     """The bot's attack card is on the table face down. Perfect Shot (the bot predicts and announces) or the
     human Abe's UNCANNY INTUITION turn it face up in the same step."""
     from .ai_effects import predict_value
     g, card = session.game, p.bot_card
     lines = []
+    revealed = attack_revealed(g, p.target)
+    if revealed and p.declared is None:
+        declare_bot_attack(session, p)
     if _has_plugin(g, session.bot, card, PERFECT_SHOT):
         n = predict_value(g, session.bot)
         p.prediction = {"value": n}
         lines.append(t("hidden.bot_predicts", card=card.title, n=n))
-    if attack_revealed(g, p.target):
+    if revealed:
         lines.append(t("hidden.bot_intuition", name=session._name(p.target), card=card.title, value=card.value))
     if not lines:
         return

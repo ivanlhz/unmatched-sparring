@@ -2559,6 +2559,81 @@ return JSON.encode({{taken = new.getGUID(), moved = new.getGUID(), via = via}})
 """
 
 
+@_registered
+def set_intuition_tokens(name: str, source_guid: str, active_z: float, inactive_z: float, to_active: bool, count: int,
+                         seat_colors: list[str]) -> str:
+    """Abe Sapien's Intuition tokens of the HUMAN, found on the table by nickname `name` (or GUID `source_guid`): the bot
+    turns `count` of them to the active face (`to_active`) or back to the inactive one, then pings each. A face is read
+    from the token's Z rotation (`active_z` / `inactive_z`: the nearer one wins). A stack of several tokens gives one
+    with `takeObject` (rotation set at once) so the others keep their face. Everything that could be a Deck, a Card, a
+    bag, a zone or the bot's panel is skipped. Returns `{total, active (before), flipped, guids}`: `total` 0 means the
+    tokens are not on the table."""
+    if not isinstance(count, int) or isinstance(count, bool) or not 1 <= count <= 8:
+        raise ValueError("count 1-8 expected")
+    return f"""-- sparring:set_intuition_tokens
+local seats = {_seats_lua(seat_colors)}
+{_PINGER_LUA}local NAME, SRC = {lua_str(name)}, {_guid(source_guid)}
+local ACTIVE_Z, INACTIVE_Z = {_f(active_z)}, {_f(inactive_z)}
+local TO_ACTIVE = {"true" if to_active else "false"}
+local function near(a, b)
+  local d = math.abs((a - b) % 360)
+  return math.min(d, 360 - d)
+end
+local function isActive(o)
+  local z = o.getRotation().z
+  return near(z, ACTIVE_Z) < near(z, INACTIVE_Z)
+end
+local skip = {{Deck = true, Card = true, Bag = true, Infinite = true, Block = true, Board = true, Hand = true, Scripting = true}}
+local cands, active, total = {{}}, 0, 0
+for _, o in ipairs(getObjects()) do
+  local ok, hit = pcall(function()
+    return not skip[o.type] and o.getName() ~= {lua_str(PANEL_NAME)} and (o.getGUID() == SRC or o.getName() == NAME)
+  end)
+  if ok and hit then
+    local qty = 1
+    pcall(function() local q = o.getQuantity() if q ~= nil and q > 1 then qty = q end end)
+    local on = isActive(o)
+    cands[#cands + 1] = {{obj = o, qty = qty, on = on}}
+    total = total + qty
+    if on then active = active + qty end
+  end
+end
+local flipped, guids = 0, {{}}
+local function flipOne()
+  for _, c in ipairs(cands) do
+    if c.qty > 0 and c.on ~= TO_ACTIVE then
+      local r = c.obj.getRotation()
+      local z = TO_ACTIVE and ACTIVE_Z or INACTIVE_Z
+      local p = c.obj.getPosition()
+      local target
+      if c.qty > 1 then
+        local new = c.obj.takeObject({{position = Vector(p.x + 2.2, p.y + 0.4, p.z), rotation = Vector(r.x, r.y, z), smooth = false}})
+        if new == nil then return false end
+        c.qty = c.qty - 1
+        cands[#cands + 1] = {{obj = new, qty = 1, on = TO_ACTIVE}}
+        target = new
+      else
+        c.obj.setPosition(Vector(p.x, p.y + 0.3, p.z))
+        c.obj.setRotation(Vector(r.x, r.y, z))
+        c.on = TO_ACTIVE
+        target = c.obj
+      end
+      guids[#guids + 1] = target.getGUID()
+      local at = target.getPosition()
+      Wait.time(function() pcall(function() pinger().pingTable(at) end) end, {_f(PING_LEAD)} + (#guids - 1) * {_f(PING_GAP)})
+      return true
+    end
+  end
+  return false
+end
+for _ = 1, {_i(count)} do
+  if not flipOne() then break end
+  flipped = flipped + 1
+end
+return JSON.encode({{total = total, active = active, flipped = flipped, guids = guids}})
+"""
+
+
 TOKEN_TYPES = frozenset({"Custom_Token", "Custom_Tile", "Figurine", "Custom_Model", "Chip"})
 
 

@@ -677,6 +677,7 @@ def test_read_only_allowlist_is_exactly_the_pure_read_builders(bprd):
         "discard_cards": lambda: t_discard_cards([1], [(0, 0, 0)]), "broadcast": lambda: lua.broadcast("x"),
         "move_piece": lambda: lua.move_piece(bprd, "abc", sorted(bprd.spaces)[0]),
         "play_card_face_down": lambda: t_play_card_face_down(1, "Blue", 0, 0, 0),
+        "set_intuition_tokens": lambda: lua.set_intuition_tokens("Intuition Token", "abc", 180, 0, True, 1, ["Blue"]),
         "flip_card": lambda: t_flip_card("abc"), "create_panel": lambda: lua.create_panel(["medusa"]),
         "draw_markings": lambda: lua.draw_markings([("DESCARTE", "abc")], [("COMBATE", 0, 0)]),
         "clear_markings": lambda: lua.clear_markings(),

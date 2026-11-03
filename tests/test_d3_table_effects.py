@@ -49,6 +49,8 @@ class FxTable(Table):
         self.hand_moves: list[tuple[str, list[int]]] = []
         self.deck_moves: list[tuple[str, list[int]]] = []
         self.human_deck: list[int] = []
+        self.intuition = {"total": 2, "active": 0}          # the human Abe's physical tokens
+        self.intuition_turns: list[tuple[bool, int]] = []
 
     def snapshot_state(self):
         snap = super().snapshot_state()
@@ -68,6 +70,18 @@ class FxTable(Table):
         self.missing_pieces.discard(new)
         self.states.append((guid, n))
         return {"guid": new, "state": n, "moved": new}
+
+    def do_set_intuition_tokens(self, s):
+        to_active = "local TO_ACTIVE = true" in s
+        count = int(re.search(r"for _ = 1, (\d+) do", s).group(1))
+        box = self.intuition
+        before = box["active"]
+        if box["total"] == 0:
+            return {"total": 0, "active": 0, "flipped": 0, "guids": []}
+        done = min(count, box["total"] - before if to_active else before)
+        box["active"] += done if to_active else -done
+        self.intuition_turns.append((to_active, done))
+        return {"total": box["total"], "active": before, "flipped": done, "guids": [f"i{k}" for k in range(done)]}
 
     def do_flip_token(self, s):
         self.flipped.append(re.search(r'getObjectFromGUID\("(\w+)"\)', s).group(1))
@@ -325,7 +339,8 @@ def test_confront_lost_reads_the_human_hand_once_and_the_named_discard_is_owed_u
     assert human_reads(table) == []
     n = fake.lua_messages
     msgs = click(session, table, Event.REVEAL)
-    assert fake.lua_messages - n <= 3 + 1, "the look is the one extra message"
+    # the look is one extra message; Abe's combat damage turns one of his Intuition tokens on the table, another
+    assert fake.lua_messages - n <= 3 + 2, "the look and the token are the extra messages"
     assert len(human_reads(table)) == 1
     known = game.players[0].known
     gone = [i for i in real if i not in known.seen]

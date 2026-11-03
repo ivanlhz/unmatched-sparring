@@ -45,6 +45,17 @@
  "tokens": {
   "intuition": "5a17e9"
  },
+ "token_faces": {
+  "intuition": {
+   "child": "b75787",
+   "verify_live": true,
+   "faces": {
+    "inactive": 0,
+    "active": 180
+   },
+   "note": "Z rotation of an Intuition token for each face. The save rests the stack at rotZ 0 showing the main image and the glued back image sits at rotZ 180; the tokens start inactive (dark), so inactive = 0 and active (green with yellow stripes) = 180 is INFERRED, not seen. Swap the two numbers if a live flip shows the wrong face; the tokens are found on the table by the nickname 'Intuition Token' (or GUID 5a17e9)."
+  }
+ },
  "token_sources": {
   "intuition": {
    "verify_live": true,
