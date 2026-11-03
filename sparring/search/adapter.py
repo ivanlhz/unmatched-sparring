@@ -38,8 +38,8 @@ from dataclasses import dataclass, field
 from functools import lru_cache
 from math import sqrt
 
-from ..ai_medusa import GAZE, boost_effect_value, bot_may_spend, scheme_fighter
-from ..cards import Card
+from ..ai_medusa import GAZE, boost_effect_value, bot_may_spend, maneuver_may_spend, scheme_fighter
+from ..cards import Card, can_be_boost
 from ..combat import is_medusa_card, resolve_combat
 from ..controller import Controller
 from ..effects import ongoing
@@ -635,7 +635,8 @@ class EngineState:
     def _boost_variants(self, p: int) -> list[Card | None]:
         """Without boost, the cheapest card with the maximum boost and the cheapest card in hand (if its boost is
         different): at most three reaches."""
-        hand = [c for c in self.game.players[p].hand if bot_may_spend(c)]
+        may = maneuver_may_spend if p == self.observer else can_be_boost     # Iván's bans are the bot's own; the modelled rival boosts as the rules allow
+        hand = [c for c in self.game.players[p].hand if may(c)]
         if not hand:
             return [None]
         cheapest = min(hand, key=lambda c: (card_worth(c), c.card_id))

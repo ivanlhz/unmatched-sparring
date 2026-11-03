@@ -321,7 +321,7 @@ def test_all_part_of_the_show_is_played_as_a_defense_only_when_the_blow_is_likel
     card = give(g, 0, "All Part of the Show")
     ai = MedusaAI(0)
     assert ai.choose_defense(g, hellboy, houdini) is None            # a healthy Houdini does not waste it
-    houdini.hp = 3
+    houdini.hp = 1
     assert ai.choose_defense(g, hellboy, houdini) is card            # a blow that may kill: it brings him back
 
 
@@ -411,30 +411,87 @@ def test_the_big_reveal_is_never_spent_as_a_boost_not_even_to_survive(bprd):
     assert keep_order(g, cards)[-1] == "The Big Reveal"
 
 
-def poke(bprd, monkeypatch, title, fighter, floor_table):
-    """The bot's last action with `title` and a Grand Escape (boost 3) in hand, `fighter` next to Hellboy: does it attack?"""
+def poke(bprd, monkeypatch, title, fighter, boost_title, floor_table):
+    """The bot's last action with `title` and `boost_title` in hand, `fighter` next to Hellboy (4 cards in his hand): does it attack?"""
     import sparring.ai_medusa as m
     monkeypatch.setattr(m, "POKE_FLOOR", floor_table)
     g = mk(bprd)
     pair(g, fighter, "hellboy")
     give(g, 0, title)
-    give(g, 0, "Grand Escape")
+    give(g, 0, boost_title)
     rival_hand(g, 4, avoid=("Feint", "Misdirection"))
     g.actions_left = 1
     act = MedusaAI(0).plan(g)
     return act.kind == "attack" and act.card.title == title and act.fid == fighter
 
 
-@pytest.mark.parametrize("title", ["Flourish", "An Illusion of My Own Design"])
-def test_houdini_pokes_with_flourish_and_the_illusion_when_the_blow_is_decent(bprd, monkeypatch, title):
-    from sparring.ai_medusa import POKE_FLOOR
-    assert poke(bprd, monkeypatch, title, "houdini", POKE_FLOOR)
-    if title == "Flourish":                                       # the Illusion (4) is already a big enough blow to be played
-        assert not poke(bprd, monkeypatch, title, "houdini", {})  # the hit-and-run style alone would blink out
+# (card, fighter, the boost card that makes the blow decent but not a big one): each attacks with the poke table and does not without it
+POKES = [("Flourish", "houdini", "Grand Escape"), ("An Illusion of My Own Design", "houdini", "Vanishing Act"),
+         ("Flourish", "bess", "Vanishing Act")]
 
 
-def test_bess_attacks_with_flourish(bprd, monkeypatch):
-    """Bess is not suppressed by the hit-and-run style (that is the hero's); the poke bonus also covers her."""
+def test_bess_never_defends_with_all_part_of_the_show_and_houdini_not_against_a_blow_that_will_not_kill(bprd):
+    g = mk(bprd)
+    ai = MedusaAI(0)
+    card = give(g, 0, "All Part of the Show")
+    hellboy, bess = pair(g, "hellboy", "bess")
+    bess.hp = 1                                        # her defeat does not save Houdini: the card is not for her
+    assert ai.choose_defense(g, hellboy, bess) is not card
+    houdini, hellboy = pair(g, "houdini", "hellboy")
+    houdini.hp = 8
+    assert ai.choose_defense(g, hellboy, houdini) is not card
+
+
+def test_the_search_bans_the_big_reveal_and_the_rescue_card_as_the_bots_maneuver_boost_only(bprd):
+    from sparring.search.adapter import EngineState
+    g = mk(bprd)
+    for t in ("The Big Reveal", "All Part of the Show", "Flourish"):
+        give(g, 0, t)
+    bot = {c.title if c else None for c in EngineState(g, observer=0)._boost_variants(0)}
+    assert bot == {None, "Flourish"}
+    modelled = {c.title if c else None for c in EngineState(g, observer=1)._boost_variants(0)}
+    assert {"The Big Reveal", "All Part of the Show"} <= modelled
+
+
+def magician_turn(bprd, hp):
+    g = mk(bprd)
+    g.fighters["houdini"].hp = hp
+    magician = give(g, 0, "A Magician Never Reveals His Secrets")
+    give(g, 0, "The Big Reveal")
+    hand_filler(g, 0, 2, avoid=("The Big Reveal", "A Magician Never Reveals His Secrets"))
+    rival_hand(g, 4)
+    g.actions_left = 1
+    MedusaAI(0).take_turn(g)
+    return g, magician
+
+
+@pytest.mark.parametrize("hp", [14, 8, 5])
+def test_the_magician_is_not_played_as_a_scheme_while_a_big_reveal_is_unseen(bprd, monkeypatch, hp):
+    """Through the planner (`take_turn`), not just the ranking. The control: with the plan "dead" (no finisher seen) the same scene plays it."""
+    g, magician = magician_turn(bprd, hp)
+    assert magician in g.players[0].hand and magician not in g.players[0].discard
+    import sparring.ai_medusa as m
+    monkeypatch.setattr(m, "finisher_plan", lambda *a, **k: None)
+    g, magician = magician_turn(bprd, hp)
+    assert magician in g.players[0].discard
+
+
+def test_all_part_of_the_show_is_never_a_maneuver_boost_in_a_whole_turn_at_low_life(bprd):
+    for hp in (9, 5, 2):
+        g = mk(bprd)
+        g.fighters["houdini"].hp = hp
+        card = give(g, 0, "All Part of the Show")
+        give(g, 0, "Sleight of Hand")
+        give(g, 0, "The Big Reveal")
+        hand_filler(g, 0, 1, avoid=("The Big Reveal", "All Part of the Show", "Sleight of Hand"))
+        g.actions_left = 2
+        MedusaAI(0).take_turn(g)
+        assert card in g.players[0].hand
+
+
+@pytest.mark.parametrize("title,fighter,boost", POKES)
+def test_flourish_and_the_illusion_are_played_as_pokes_by_houdini_and_bess(bprd, monkeypatch, title, fighter, boost):
     from sparring.ai_medusa import POKE_FLOOR
-    assert poke(bprd, monkeypatch, "Flourish", "bess", POKE_FLOOR)
+    assert poke(bprd, monkeypatch, title, fighter, boost, POKE_FLOOR)
+    assert not poke(bprd, monkeypatch, title, fighter, boost, {})
 

@@ -32,19 +32,30 @@ from sparring.state import Game                   # noqa: E402
 ME, RIVAL = 0, 1
 MAX_TURNS = 120
 APS, SLEIGHT, BIG_REVEAL, MAGICIAN = "All Part of the Show", "Sleight of Hand", "The Big Reveal", "A Magician Never Reveals His Secrets"
-CARD_COUNTERS = ("aps_boost", "aps_defense", "aps_saved", "sleight_big_reveal", "sleight_boosts_big_reveal", "sleight_maneuver_boost",
-                 "sleight_other", "magician_scheme", "magician_big_reveal", "magician_other_boost", "flourish_hero", "flourish_sidekick",
-                 "illusion_hero", "illusion_sidekick", "big_reveal_boost")
+SHORT = {APS: "aps", SLEIGHT: "sleight", BIG_REVEAL: "big_reveal", MAGICIAN: "magician", "Flourish": "flourish",
+         "An Illusion of My Own Design": "illusion"}
+CARD_COUNTERS = ("aps_boost", "aps_defense", "aps_saved", "sleight_big_reveal", "sleight_boosts_big_reveal", "sleight_other",
+                 "magician_scheme", "magician_big_reveal", "magician_other_boost", "flourish_hero", "flourish_sidekick",
+                 "illusion_hero", "illusion_sidekick", "big_reveal_boost",
+                 *(f"maneuver_boost_{k}" for k in SHORT.values()), *(f"hand_limit_{k}" for k in SHORT.values()))
+
+_HOOKS: dict = {}       # id(effects state) -> callback(name, *args): the games being measured
 
 
-class SpyFx:
-    """The effects state with `emit` replaced (its slots are read-only): every other attribute is the real one."""
+def install_emit_spy(fx_class) -> None:
+    """Event spy on the class (the effects state has read-only slots, so an instance cannot be patched and a proxy would change
+    what the engine reads): one wrapper, called only for the states registered in `_HOOKS`."""
+    if getattr(fx_class.emit, "_spy", False):
+        return
+    real = fx_class.emit
 
-    def __init__(self, fx, emit):
-        self._fx, self.emit = fx, emit
-
-    def __getattr__(self, name):
-        return getattr(self._fx, name)
+    def emit(self, name, *args):
+        hook = _HOOKS.get(id(self))
+        if hook is not None:
+            hook(name, *args)
+        return real(self, name, *args)
+    emit._spy = True
+    fx_class.emit = emit
 
 
 def next_turn_reach(game: Game, me, rival_hero) -> bool:
@@ -60,33 +71,38 @@ def play(seed: int, hero: str, rival: str, finisher: str, board: str = "bprd-hq"
     ctl = {ME: MedusaAI(ME), RIVAL: MedusaAI(RIVAL)}
     game = Game.new(Board.load(board), seed, ctl, bot_player=ME, heroes=(hero, rival))
     out = dict(won=0, lost=0, turns=0, my_turns=0, in_reach=0, attackable_now=0, finisher_n=0, finisher_dmg=0.0, attacks=0, **dict.fromkeys(CARD_COUNTERS, 0))
-    real_attack, real_maneuver, real_scheme, real_emit = game.attack, game.maneuver, game.play_scheme, game.fx.emit
+    real_attack, real_maneuver, real_scheme, real_discard = game.attack, game.maneuver, game.play_scheme, game.discard_card
     spent = []       # the titles the tested hero spent as boosts since the last action was settled
 
-    def emit(name, *args):
+    def on_event(name, *args):
         if name == "card_boosted" and args[0] == ME:
             spent.append(args[1].title)
-        return real_emit(name, *args)
 
-    def settle(into_big_reveal: bool) -> None:
-        """Classify the boosts of the action that just ended: into a Big Reveal, or anywhere else."""
+    def settle(into_big_reveal: bool, in_maneuver: bool = False) -> None:
+        """Classify the boosts of the action that just ended: into a Big Reveal, in a Maneuver, or any other."""
         for title in spent:
             out["aps_boost"] += title == APS
             out["big_reveal_boost"] += title == BIG_REVEAL
             out["sleight_boosts_big_reveal"] += title == SLEIGHT and into_big_reveal
             out["magician_big_reveal"] += title == MAGICIAN and into_big_reveal
             out["magician_other_boost"] += title == MAGICIAN and not into_big_reveal
+            if in_maneuver and title in SHORT:
+                out[f"maneuver_boost_{SHORT[title]}"] += 1
         spent.clear()
 
     def maneuver(player, moves, boost_card=None):
-        out["sleight_maneuver_boost"] += player == ME and boost_card is not None and boost_card.title == SLEIGHT
         res = real_maneuver(player, moves, boost_card)
-        settle(False)
+        settle(False, in_maneuver=True)
         return res
 
     def play_scheme(player, fighter, card, *a, **k):
         out["magician_scheme"] += player == ME and card.title == MAGICIAN
         return real_scheme(player, fighter, card, *a, **k)
+
+    def discard_card(player, card, played=False, cause=None):
+        if player == ME and cause == "hand_limit" and card.title in SHORT:
+            out[f"hand_limit_{SHORT[card.title]}"] += 1
+        return real_discard(player, card, played, cause)
 
     def count_cards(att, tgt, card, hp, res):
         """The per-card counters of one combat the tested hero's side took part in."""
@@ -107,12 +123,13 @@ def play(seed: int, hero: str, rival: str, finisher: str, board: str = "bprd-hq"
         count_cards(att, tgt, card, hp, res)
         if game.turn == ME and att.fid == game.hero(ME).fid:
             out["attacks"] += 1
-            if card.title == finisher:
+            if res.atk_card.title == finisher:      # also a Big Reveal launched through Sleight of Hand
                 out["finisher_n"] += 1
                 out["finisher_dmg"] += max(0, hp - tgt.hp)
         return res
-    game.attack, game.maneuver, game.play_scheme = attack, maneuver, play_scheme
-    game.fx = SpyFx(game.fx, emit)
+    game.attack, game.maneuver, game.play_scheme, game.discard_card = attack, maneuver, play_scheme, discard_card
+    install_emit_spy(type(game.fx))
+    _HOOKS[id(game.fx)] = on_event
     while game.winner is None and game.turn_no <= MAX_TURNS:
         game.begin_turn()
         ctl[game.turn].take_turn(game)
@@ -125,12 +142,13 @@ def play(seed: int, hero: str, rival: str, finisher: str, board: str = "bprd-hq"
         game.log.clear()
         if game.winner is None:
             game.end_turn()
+    _HOOKS.pop(id(game.fx), None)
     out["won"], out["lost"], out["turns"] = int(game.winner == ME), int(game.winner == RIVAL), game.turn_no
     return out
 
 
-def run(hero: str, rival: str, games: int, finisher: str) -> dict:
-    rows = [play(s, hero, rival, finisher) for s in range(games)]
+def run(hero: str, rival: str, games: int, finisher: str, first_seed: int = 0) -> dict:
+    rows = [play(s, hero, rival, finisher) for s in range(first_seed, first_seed + games)]
     n = len(rows)
     tot = lambda k: sum(r[k] for r in rows)
     return dict(hero=hero, rival=rival, games=n, cards={k: tot(k) for k in CARD_COUNTERS}, win=tot("won") / n, loss=tot("lost") / n,
@@ -160,6 +178,7 @@ def main() -> None:
     ap.add_argument("--hero")
     ap.add_argument("--rivals", nargs="+", default=[])
     ap.add_argument("--games", type=int, default=60)
+    ap.add_argument("--first-seed", type=int, default=0, help="seeds first..first+games-1")
     ap.add_argument("--finisher", default="The Big Reveal")
     ap.add_argument("--out")
     ap.add_argument("--compare", nargs=2)
@@ -168,7 +187,7 @@ def main() -> None:
         return compare(*args.compare)
     res = []
     for r in args.rivals:
-        res.append(run(args.hero, r, args.games, args.finisher))
+        res.append(run(args.hero, r, args.games, args.finisher, args.first_seed))
         print(res[-1], flush=True)
     if args.out:
         json.dump(res, open(args.out, "w"), indent=1)
