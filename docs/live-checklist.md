@@ -28,6 +28,7 @@ With `--read-only` look at the report and fix whatever is wrong. Try with a card
 - [x] **(E2)** `human_ongoing_spot` / `bot_ongoing_spot`: ONGOING zone below the combat zone, on both sides. *(OK 29/10)*
 - [ ] `panel_position` / `panel_scale`: the panel is seen and pressed well from your seat; the floor DISCARD/COMBAT rectangles do not end up under the panel.
 - [ ] `bot_unpack_spot` / `human_unpack_spot` only if you use `--unpack`.
+- [ ] Deck zones (optional): create a Scripting zone over each deck spot, copy the GUIDs into `bot_deck_zone` / `human_deck_zone` and check that `--read-only` prints `deck: found (GUID ...) inside the Scripting zone ...` for both; push the deck out of the zone and check the report says it was NOT found and where it looked. Without zones: a deck with a new GUID up to 2.9 from its spot is still found.
 
 ### Hero detection (`--read-only`)
 - [x] With `bot_hero`/`human_hero` on `"auto"`: the report gives the right hero for each side (a LOOSE Deck or Card with a CardID of its range, the closest to `*_deck_spot`). If in doubt, it refuses to start and says so. *(OK 29/10)*
