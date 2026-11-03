@@ -5,6 +5,7 @@ from __future__ import annotations
 import pytest
 
 from conftest import give
+from sparring.state import Game
 from sparring.ai_medusa import MedusaAI, boost_effect_value, cancels_effects, effect_reliance, keep_value
 from test_houdini_ai import mk
 
@@ -55,3 +56,13 @@ def test_the_bot_still_spends_misdirection_for_the_lethal_blow(bprd):
     g.fighters["hellboy"].hp = 2
     ai = MedusaAI(0)
     assert boost_effect_value(g, 0, card) - keep_value(card, g.players[0].hand, effect_reliance(g, 0)) > 0
+
+
+def test_a_partial_cancel_is_not_hoarded_as_an_anti_effects_answer(bprd):
+    g = Game.new(bprd, 3, controllers={0: MedusaAI(0), 1: MedusaAI(1)}, heroes=("raphael", "hellboy"), bot_player=0)
+    g.turn, g.turn_no = 0, 2
+    g.begin_turn()
+    g.players[0].hand.clear()
+    card = give(g, 0, "Break something")
+    assert not cancels_effects(card)
+    assert keep_value(card, [card], 1.0) == keep_value(card, [card])

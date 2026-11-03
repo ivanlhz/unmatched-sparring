@@ -173,10 +173,13 @@ CHIP_DISCOUNT = 0.25       # a BOOSTED WITH hit that does not kill is worth this
 
 
 def cancels_effects(card) -> bool:
-    """The card's IMMEDIATELY / DURING cancels the effects of the opponent's card (read from the effects data)."""
+    """The card's IMMEDIATELY / DURING cancels ALL the effects of the opponent's card (read from the effects data): Feint,
+    Misdirection. A partial cancel (Raphael's Break something: only DURING and AFTER, its IMMEDIATELY stays) does not
+    count: such a card is an attack first, and hoarding it as an anti-effects answer starves the attacks."""
     fx = card_effects(card)
-    return fx is not None and any(op["op"] == "cancel_effects" for m in ("immediately", "during")
-                                  for op in walk_ops(fx.moments.get(m) or []))
+    return fx is not None and any(op["op"] == "cancel_effects"
+                                  and (not op.get("moments") or "immediately" in op["moments"])   # same rule as ops_combat
+                                  for m in ("immediately", "during") for op in walk_ops(fx.moments.get(m) or []))
 
 
 def effect_reliance(game: Game, me: int) -> float:
