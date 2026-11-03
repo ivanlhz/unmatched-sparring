@@ -121,7 +121,7 @@ def test_the_bot_announces_then_takes_sleight_back_to_its_hand_and_plays_the_oth
     assert session.pending is None
 
 
-@with_rig("houdini", "hellboy", SLEIGHT, "Flourish", "Vanishing Act", "Grand Escape")
+@with_rig("houdini", "hellboy", SLEIGHT, "Flourish", "Vanishing Act")
 def test_the_returned_sleight_can_be_the_boost_of_the_card_it_made_room_for(rig, monkeypatch):
     session, table, game, fake, cfg = rig
     flourish = answer_swap(session, monkeypatch, game, "Flourish", boost=True)
