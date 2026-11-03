@@ -65,8 +65,9 @@ miniatures the same GUID (`4fdf31`, each inside its own bag; the only cross-hero
 `tests/test_piece_identity.py`). TTS keeps GUIDs unique, so when both are on the table the second one out of its bag gets a
 new random GUID and the configured one would make the session follow the other hero's piece.
 
-The save has a second collision, of a dial: The Jackalope's and Lobster Johnson's life dials are both `18c384`. `session_pieces` does not resolve
-dials by name; see docs/heroes/bigfoot.md.
+The save has a second collision, of a dial: The Jackalope's and Lobster Johnson's life dials are both `18c384`. `session_pieces.resolve_dials` tells
+them apart by the dial's name (`lua.find_dials_by_name`) before the first dial write, saves the result (`resolved_dials`) and, when it cannot, says so
+and neither writes nor checks that dial; see docs/heroes/bigfoot.md and `tests/test_dial_identity.py`.
 
 `sparring/session_pieces.py` handles it for any piece (miniature or token, any hero):
 

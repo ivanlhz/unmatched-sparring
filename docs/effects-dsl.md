@@ -1101,16 +1101,24 @@ uses these words.
   Maneuver (`apply_expected`), the attack and defense evaluation of `may_boost` cards (`free_boosts`, up to `max_boosts` cards) and the search's
   boost variants and combat boost all use it.
 
-## 28. Bigfoot: an optional draw at the end of the turn, a scheme by a sidekick, positions the human moves
+## 28. Bigfoot: an optional draw at the end of the turn, a scheme by a sidekick, a move the human makes by hand first
 
-No new op or event: Bigfoot is written with what already existed (`end_of_turn` trigger with an `optional` that `draw`s, a `not exists` condition on the
-zone of the hero, `moved_this_turn`, `move` / `place` with `through_enemies`). Three small additive pieces of the engine came with him:
+No new event or op: Bigfoot is written with what already existed (`end_of_turn` trigger with an `optional` that `draw`s, a `not exists` condition on the
+zone of the hero, `moved_this_turn`, `move` / `place` with `through_enemies`). Small additive pieces of the engine came with him:
 
-- **A free optional draw** (an `optional` with no `cost` whose ops are all `draw` for the owner) sends `draws: n` in the request context
-  (`ops_core._choice_context`). `EffectAI._free_draw` answers it for a bot: yes unless the deck holds fewer cards than the draw (exhaustion) or the
-  hand is already at its limit.
+- **A free optional draw** (an `optional` with no `cost` whose ops are all `draw` for the owner) sends `draws: n` and `draws_at: <event of the trigger>` in the
+  request context (`ops_core._choice_context`). `EffectAI._free_draw` answers it for a bot: at the END of the turn (`draws_at == "end_of_turn"`) it
+  refuses when the deck holds fewer cards than the draw (exhaustion) or the hand is already at its limit; anywhere else (OCCULT DETECTIVE, start of the
+  turn) it always takes it, as before.
 - **The fighter that plays a scheme at the table.** `session_effects.play_scheme` used to run every human scheme as the hero's; it now takes the fighter
-  the card is restricted to (`ai_medusa.scheme_fighter`, the helper the bot already used): Jackalope Horns' `this` is the Jackalope.
-- **A space selector that hangs from a fighter the human moved by hand** (`select._anchor_unknown`): the engine never sees the destination, so `where: {adjacent_to: this}`
-  (and `zone_of`, `space_of`, `nearest_to`) keeps every candidate and the selector may be answered with nobody (`min 0`), like `filter.passed_by` after a
-  move by hand. Only for a fighter whose move is in `run.flags["passed"]` as `None` (a miniature the human moved), never for the bot's or a simulation's.
+  the card is restricted to (`ai_medusa.scheme_fighter`, the helper the bot already used): Jackalope Horns' `this` is the Jackalope. If nobody alive can
+  play the card it is refused with a chat line (`scheme.no_fighter`), never played by the hero.
+- **`await_destination`** (optional boolean on `move`): the human's own miniature is asked like a rival's (a `space` request: the chat says what to move,
+  the panel shows Done, the bot validates the table and applies the move) instead of being left to the table as a note. Use it when a later op of the same
+  effect depends on where the fighter ends (Jackalope Horns: "then deal 2 damage to a fighter adjacent to the Jackalope"). Without it a move by hand is a
+  note and the engine does not know the destination until the table is read.
+- **Prompt of a choice "adjacent to X"**: a `fighter` request whose selector has `where: {adjacent_to: ...}` carries `near` (the anchor's id) and the panel
+  says "Choose a fighter adjacent to <name>" (`choice.prompt.fighter_adjacent`).
+- **Chat line of a placement by hand** (`ops_core._note_where`): the references of `where` are resolved to who they are now (the owner's hero stays "hero",
+  any other fighter, `this` included, is named), so a sidekick's "this fighter's zone" is not "your hero's zone".
+- **Two life dials with one GUID** (Lobster Johnson / The Jackalope) are told apart by name at the first dial write: `docs/card-identity.md`, "Piece identity".

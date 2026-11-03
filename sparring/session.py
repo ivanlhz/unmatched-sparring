@@ -368,6 +368,11 @@ class Session:
         self._post: list[Callable[[], bool]] = []           # checks that wait for the button's closing
         self._snap_spec: lua.SnapSpec | None = None
         self.configured_pieces = {fid: piece_guids(v) for fid, v in cfg.pieces.items()}   # as the data gives them (identity of the table)
+        self._dial_origin: dict[str, str] = {}              # fid -> the dial GUID the data gave it, for each one resolved by name
+        self.resolved_dials: dict[str, str] = {}            # fid -> life dial GUID found by name when two dials shared one (saved)
+        self._dial_unresolved: set[str] = set()             # fids whose dial cannot be told from another's: not written, not verified
+        self._dial_notes_said: set[str] = set()
+        self._dials_resolved = False                        # the shared dials were looked at since start / resume / adopt
         self.resolved_pieces: dict[str, list[str]] = {}     # fid -> GUIDs found by name when the configured one held another piece (saved)
         self._piece_notes: list[str] = []                   # what the resolution has to tell the player
         self._piece_gave_up: set[str] = set()               # fids whose piece was looked for by name once, in vain
@@ -1316,7 +1321,7 @@ class Session:
                 info = pieces.get(f.fid) or {}
                 guid = info["guid"] if info.get("found") else self._guids(f.fid)[0]
                 self._w(lua.place_piece(guid, spot[0] + sign * slot, spot[1], spot[2]), "pieces")
-        want = {guid: fresh.fighters[fid].max_hp for fid, guid in c.dials.items()}
+        want = {guid: fresh.fighters[fid].max_hp for fid, guid in self._live_dials().items()}
         want = {g: int(v) for g, v in want.items()}
         if c.destiny_dial:
             want[c.destiny_dial] = 0
@@ -1415,7 +1420,13 @@ class Session:
             "deck_ident": {side: [list(pair) for pair in pairs]
                            for side, pairs in {**self._saved_ident, **self._deck_ident}.items()},
             **({"resolved_pieces": self.resolved_pieces} if self.resolved_pieces else {}),
+            **({"resolved_dials": self.resolved_dials} if self.resolved_dials else {}),
         }
+
+    @property
+    def configured_dials(self) -> dict[str, str]:
+        """The life dial GUIDs as the data gives them, not as resolved by name (the identity of the table)."""
+        return {fid: self._dial_origin.get(fid, g) for fid, g in self.cfg.dials.items()}
 
     def fingerprint(self) -> dict:
         """Fingerprint of the save: which table (GUIDs and identity settings) and which game it belongs to."""
@@ -1424,6 +1435,7 @@ class Session:
     def _config_hash(self, **override) -> str:
         c = self.cfg
         identity = {k: getattr(c, k) for k in IDENTITY_KEYS}
+        identity["dials"] = self.configured_dials
         identity.update(override)
         identity["pieces"] = {fid: v for fid, v in sorted(self.configured_pieces.items())}
         identity["board"] = self.game.board.key
@@ -1485,6 +1497,7 @@ class Session:
             self.game_id = d["fingerprint"]["game_id"]
             self._saved_ident = self._load_saved_identities(d.get("deck_ident"))
             piece_id.restore(self, d.get("resolved_pieces"))
+            piece_id.restore_dials(self, d.get("resolved_dials"))
         except (KeyError, TypeError, IndexError, ValueError) as e:
             raise persist.StateError(t("save.invalid", error=repr(e))) from None
 
@@ -1573,7 +1586,7 @@ class Session:
         c = self.cfg
         pcs = self.configured_pieces if configured else {fid: piece_guids(v) for fid, v in c.pieces.items()}
         guids = [lua.BOARD_GUIDS[self.game.board.key], c.bot_deck_guid, c.bot_discard_zone, c.human_discard_zone,
-                 *(g for v in pcs.values() for g in v), *c.dials.values(),
+                 *(g for v in pcs.values() for g in v), *(self.configured_dials if configured else c.dials).values(),
                  *([c.destiny_dial] if c.destiny_dial else [])]
         return sorted(set(guids))
 
@@ -2472,7 +2485,7 @@ class Session:
         if not self.cfg.destiny_dial and (only_destiny or not self.cfg.dials):
             return lambda: True
         g = self.game
-        dials = {} if only_destiny else self.cfg.dials
+        dials = {} if only_destiny else self._live_dials()
         want = {guid: (max(0, math.ceil(g.fighters[fid].hp)) if g.fighters[fid].alive else 0)
                 for fid, guid in dials.items()}
         label = {guid: self._name(g.fighters[fid]) for fid, guid in dials.items()}
@@ -2754,7 +2767,7 @@ class Session:
             return
         if not isinstance(res, dict):
             return
-        for fid, guid in self.cfg.dials.items():
+        for fid, guid in self._live_dials().items():
             if guid in self._dials_pending:
                 continue
             f, info = self.game.fighters[fid], res.get(guid) or {}
@@ -4494,6 +4507,19 @@ class Session:
         self._piece_notes += notes
         return changed
 
+    def _live_dials(self) -> dict[str, str]:
+        """fid -> life dial GUID the engine may write and read: two dials with one GUID are told apart by name first (once per
+        start / resume / adopt while it works, again at the next write while it does not); one that cannot be is left out and said."""
+        if not self._dials_resolved and self.setup is None and piece_id.shared_dials(self):
+            notes = piece_id.resolve_dials(self)
+            if not self._dial_unresolved:
+                self._dials_resolved = True
+            for line in notes:
+                if line not in self._dial_notes_said:          # an unresolved dial is retried at every write: said once
+                    self._dial_notes_said.add(line)
+                    self.say(line, ChatKind.WARNING)
+        return {fid: g for fid, g in self.cfg.dials.items() if fid not in self._dial_unresolved}
+
     def _tell_piece_notes(self) -> None:
         notes, self._piece_notes = self._piece_notes, []
         for line in notes:
@@ -4503,6 +4529,7 @@ class Session:
         """At start, resume and adopt: GUIDs two heroes share in the data are said and the next table read verifies every
         piece by name (it is the read the step makes anyway: no extra message)."""
         self._piece_gave_up, self._piece_full_check = set(), True
+        self._dials_resolved = False
         for line in piece_id.shared_guids(self):
             self.say(line, ChatKind.WARNING)
         self._tell_piece_notes()

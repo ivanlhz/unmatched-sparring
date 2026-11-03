@@ -161,6 +161,14 @@ class Table:
                 out.setdefault(name.lower(), []).append({"guid": g, "type": self.found_type})
         return out
 
+    def do_find_dials_by_name(self, s):
+        wanted = set(re.findall(r'\["([^"]*)"\]=true', s))
+        out = {}
+        for g, row in self.dials.items():
+            if str(row.get("name", "")).lower() in wanted:
+                out.setdefault(str(row["name"]).lower(), []).append({"guid": g, "type": "Custom_Model"})
+        return out
+
     def do_move_piece(self, s):
         guid = re.search(r'getObjectFromGUID\("(\w+)"\)', s.split("local target")[1]).group(1)
         space = int(re.search(r"spaceWorld\((\d+)\)", s).group(1))

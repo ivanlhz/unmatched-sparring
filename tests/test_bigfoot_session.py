@@ -8,7 +8,8 @@ from sparring.tts.ui import Event
 from test_batch import click
 from test_bigfoot_human import centre, isolate_bot
 from test_d3_table_effects import bot_turn, human_hand, said
-from test_e2_human_cards import put_adjacent, rig, with_rig  # noqa: F401
+from test_e2_human_cards import put_adjacent, with_rig
+from test_bigfoot_human import rig  # noqa: F401
 
 BOT_HAND = ("Jackalope Horns", "Savagery", "Hoax", "Feint", "Regroup")
 
@@ -73,7 +74,7 @@ def test_the_bots_savagery_hurts_everyone_next_to_bigfoot_and_the_dials_follow(r
     assert game.fighters["hellboy"].hp == hp["hellboy"] - 4 - 1
     assert game.fighters["lobster"].hp == hp["lobster"] - 1 and game.fighters["jackalope"].hp == hp["jackalope"] - 1
     written = {g for g, _ in table.dial_writes}
-    assert {cfg.session_config().dials[f] for f in ("hellboy", "lobster", "jackalope")} <= written
+    assert {session.cfg.dials[f] for f in ("hellboy", "lobster", "jackalope")} <= written
 
 
 def isolate_bot_rivals(game, table, cfg):

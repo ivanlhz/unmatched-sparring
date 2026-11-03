@@ -3,7 +3,7 @@
  "hero": "bigfoot",
  "notes": [
   "Texts read from sheet 176 of the tournament savegame (card images) on 2026-11-03; the character card is 309 on sheet 3 (10x7, index 9). Sheet 176 is also Medusa's, the four turtles' and Doctor Strange's DeckID: the CardIDs repeat and only the deck image tells the decks apart (docs/card-identity.md).",
-  "No engine addition: every card and the ability are written with ops that already exist (Feint is the cancel of the other heroes, Skirmish is Houdini's Vanishing Act with 2 spaces and no passing through, Momentous Shift is Shock And Awe's condition, Jackalope Horns is Party Wagon's shape).",
+  "Every card and the ability use ops that already existed (Feint is the cancel of the other heroes, Skirmish is Houdini's Vanishing Act with 2 spaces and no passing through, Momentous Shift is Shock And Awe's condition, Jackalope Horns is Party Wagon's shape). The only schema addition is `await_destination` on Jackalope Horns' move (docs/effects-dsl.md, section 28): the human's own miniature is asked like a rival's (move it by hand, press Done) because the damage that follows hangs from where it ends.",
   "1v1 reading: 'your opponent' is the only rival; 'any one fighter' (Jackalope Horns) and 'each fighter' (Savagery) include the player's own fighters, as Medusa's A Momentary Glance does (Iván, 28/10)."
  ],
  "ability": {
@@ -142,7 +142,7 @@
    "effects": {
     "immediately": [], "during": [], "after": [], "boost": [],
     "scheme": [
-     {"op": "move", "target": "this", "amount": 5, "up_to": true, "through_enemies": true, "chooser": "owner"},
+     {"op": "move", "target": "this", "amount": 5, "up_to": true, "through_enemies": true, "await_destination": true, "chooser": "owner"},
      {"op": "damage", "target": {"side": "any", "where": {"adjacent_to": "this"}, "other": true}, "amount": 2, "chooser": "owner"}
     ]
    },

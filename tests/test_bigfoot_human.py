@@ -7,13 +7,29 @@ His deck is sheet 176 like Medusa's, the turtles' and Doctor Strange's: every id
 human's deck."""
 from __future__ import annotations
 
+import pytest
+
 from sparring.ai_medusa import Act
 from sparring.tts.ui import Event
 from test_batch import click
 from test_d3_table_effects import card_ids, human_attack, human_hand, said
-from test_e2_human_cards import adjacent_free, bot_defends_with_nothing, human_scheme, press, put_adjacent, rig, with_rig  # noqa: F401
+from test_d3_table_effects import build
+from test_dial_identity import split_shared_dials
+from test_e2_human_cards import adjacent_free, bot_defends_with_nothing, human_scheme, press, put_adjacent, with_rig
 
 TRAINING = "B.P.R.D. Training"        # Hellboy's defense of value 3
+
+
+@pytest.fixture
+def rig(request, tmp_path):
+    """The e2 rig, with the two dials the save gives one GUID (Lobster Johnson's and the Jackalope's) told apart on the table as TTS does."""
+    bot, human, hand, over = request.param
+    session, table, game, fake, cfg, client = build(tmp_path, bot, human, hand, **over)
+    if {bot, human} == {"hellboy", "bigfoot"}:
+        split_shared_dials(session, table, game)
+    yield session, table, game, fake, cfg
+    client.close()
+    fake.close()
 
 
 def attack(session, table, game, attacker, title, target="hellboy"):
@@ -121,7 +137,7 @@ def test_savagery_won_hurts_every_fighter_next_to_bigfoot_and_the_dials_follow(r
     assert game.fighters["lobster"].hp == hp["lobster"] - 1 and game.fighters["jackalope"].hp == hp["jackalope"] - 1
     assert said(msgs, "Tu carta: Savagery")
     written = {g for g, _ in table.dial_writes}
-    assert {cfg.session_config().dials[f] for f in ("hellboy", "lobster", "jackalope")} <= written
+    assert {session.cfg.dials[f] for f in ("hellboy", "lobster", "jackalope")} <= written
 
 
 @with_rig("hellboy", "bigfoot", TRAINING)
@@ -183,30 +199,64 @@ def test_crash_through_the_trees_leaves_bigfoots_move_to_you(rig):
 
 
 @with_rig("hellboy", "bigfoot", TRAINING)
-def test_jackalope_horns_is_played_by_the_jackalope_you_move_it_and_name_who_takes_two(rig):
-    """The scheme is the Jackalope's: it is the one that moves (by hand: the table says so) and the damage hangs from where it
-    ends, which the engine cannot see, so every other fighter is offered, nobody included."""
+def test_jackalope_horns_is_played_by_the_jackalope_you_move_it_first_and_then_name_who_takes_two(rig):
+    """The scheme is the Jackalope's. The chat first tells you to move the Jackalope by hand (Done), and only then does the damage
+    question come, naming the Jackalope and offering the fighters next to where you put it."""
     session, table, game, fake, cfg = rig
+    centre(game, table, cfg)
     put_adjacent(game, table, cfg, "hellboy", "bigfoot")
     human_hand(table, game, "Jackalope Horns", "Hoax")
     hp = {fid: game.fighters[fid].hp for fid in ("hellboy", "bigfoot")}
-    human_scheme(session, table, game, "Jackalope Horns")
-    assert game.fighters["hellboy"].hp == hp["hellboy"] and game.fighters["bigfoot"].hp == hp["bigfoot"]
+    msgs = human_scheme(session, table, game, "Jackalope Horns")
     req = session.effect_run.awaiting
-    assert req.kind == "fighter" and req.min == 0 and "hellboy" in req.options and "lobster" in req.options and "bigfoot" in req.options
-    assert "jackalope" not in req.options
-    msgs = press(session, table, "hellboy")
-    assert said(msgs, "mueve a jackalope hasta 5 casillas (puede atravesar rivales)"), msgs
-    assert game.fighters["hellboy"].hp == hp["hellboy"] - 2 and session.pending is None
+    assert req.kind == "space" and req.extra["fighter"] == "jackalope" and req.extra["steps"] == 5 and req.extra["through"] is True
+    assert said(msgs, "Jackalope Horns: mueve a Jackalope") or said(msgs, "Mueve"), msgs
+    assert game.fighters["hellboy"].hp == hp["hellboy"] and game.fighters["bigfoot"].hp == hp["bigfoot"]
+    spot = next(s for s in sorted(game.board.adj[game.fighters["hellboy"].pos])
+                if s in req.options and s in game.board.adj[game.fighters["bigfoot"].pos])
+    msgs = by_hand(session, table, cfg, "jackalope", spot)
+    assert game.fighters["jackalope"].pos == spot
+    req = session.effect_run.awaiting
+    assert req.kind == "fighter" and set(req.options) == {"hellboy", "bigfoot"} and req.min == 1
+    assert said(msgs, "Elige un luchador adyacente a The Jackalope"), msgs
+    press(session, table, "hellboy")
+    assert game.fighters["hellboy"].hp == hp["hellboy"] - 2 and game.fighters["bigfoot"].hp == hp["bigfoot"] and session.pending is None
     assert cfg.session_config().dials["hellboy"] in {g for g, _ in table.dial_writes}
 
 
 @with_rig("hellboy", "bigfoot", TRAINING)
-def test_jackalope_horns_may_name_nobody_when_nobody_ends_up_next_to_the_jackalope(rig):
+def test_jackalope_horns_with_nobody_next_to_where_you_put_it_asks_nothing(rig):
     session, table, game, fake, cfg = rig
     human_hand(table, game, "Jackalope Horns", "Hoax")
     hp = {f.fid: f.hp for f in game.fighters.values()}
     human_scheme(session, table, game, "Jackalope Horns")
     req = session.effect_run.awaiting
-    click(session, table, Event.CHOICE, {"i": len(req.options) + 1})          # the last button is "None"
-    assert session.pending is None and {f.fid: f.hp for f in game.fighters.values()} == hp
+    lonely = next(o for o in req.options if all(game.board.distance(o, f.pos) > 1 for f in game.fighters.values()
+                                                if f.alive and f.fid != "jackalope"))
+    by_hand(session, table, cfg, "jackalope", lonely)
+    assert session.effect_run is None and session.pending is None and {f.fid: f.hp for f in game.fighters.values()} == hp
+
+
+@with_rig("hellboy", "bigfoot", TRAINING)
+def test_disengage_played_by_the_jackalope_names_the_jackalopes_zone_not_the_heros(rig, monkeypatch):
+    session, table, game, fake, cfg = rig
+    bot_defends_with_nothing(session, monkeypatch)
+    put_adjacent(game, table, cfg, "jackalope", "hellboy")
+    human_hand(table, game, "Disengage", "Skirmish")
+    msgs = attack(session, table, game, "jackalope", "Disengage")
+    assert said(msgs, "en la mesa: coloca a jackalope en la zona de jackalope"), msgs
+    assert not said(msgs, "zona de tu heroe")
+
+
+@with_rig("hellboy", "bigfoot", TRAINING)
+def test_a_scheme_of_a_dead_sidekick_is_refused_not_played_by_the_hero(rig):
+    session, table, game, fake, cfg = rig
+    put_adjacent(game, table, cfg, "hellboy", "bigfoot")
+    game.fighters["jackalope"].alive, game.fighters["jackalope"].hp = False, 0
+    human_hand(table, game, "Jackalope Horns", "Hoax")
+    hp = {f.fid: f.hp for f in game.fighters.values()}
+    bigfoot_at = game.fighters["bigfoot"].pos
+    msgs = human_scheme(session, table, game, "Jackalope Horns")
+    assert said(msgs, "Jackalope Horns solo puede jugarla The Jackalope, que no esta en el tablero"), msgs
+    assert session.effect_run is None and {f.fid: f.hp for f in game.fighters.values()} == hp
+    assert game.fighters["bigfoot"].pos == bigfoot_at and not said(msgs, "mueve a bigfoot")

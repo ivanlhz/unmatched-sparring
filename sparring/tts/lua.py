@@ -813,6 +813,37 @@ return JSON.encode(out)
 
 
 @_registered
+def find_dials_by_name(names: list[str]) -> str:
+    """Read only: the life dials on the table (objects whose script has a CONFIG table with MAX_VALUE) whose name, without TTS
+    colour tags and in lower case, is one of `names` (lower case). Used when two life dials share a GUID in the data
+    (Lobster Johnson's and The Jackalope's): TTS gives the second one a new GUID. {name: [{guid, type}]}."""
+    if not isinstance(names, (list, tuple)):
+        raise TypeError("name list expected")
+    wanted = "{" + ", ".join(f"[{lua_str(n)}]=true" for n in names) + "}"
+    return f"""-- sparring:find_dials_by_name
+local wanted = {wanted}
+local out = {{}}
+for _, o in ipairs(getObjects()) do
+  local ty = o.type
+  if ty ~= "Deck" and ty ~= "Card" and not string.find(ty, "Bag") then
+    local plain = string.lower((string.gsub(o.getName() or "", "%[[%w%-/]*%]", "")))
+    plain = (string.gsub(plain, "%s+", " "))
+    plain = (string.gsub(plain, "^ ", ""))
+    plain = (string.gsub(plain, " $", ""))
+    if wanted[plain] then
+      local ok, cfg = pcall(function() return o.getTable("CONFIG") end)
+      if ok and type(cfg) == "table" and cfg.MAX_VALUE ~= nil then
+        out[plain] = out[plain] or {{}}
+        table.insert(out[plain], {{guid = o.getGUID(), type = ty}})
+      end
+    end
+  end
+end
+return JSON.encode(out)
+"""
+
+
+@_registered
 def inspect_guids(guids: list[str]) -> str:
     """Read only: type, name, quantity and position of each object (to check the configuration's GUIDs)."""
     if not isinstance(guids, (list, tuple)):

@@ -273,7 +273,7 @@ def _move(run, game, spec):
         for f in _one_after_another(targets):
             if not f.alive or f.pos is None or not game.fx.can_move(f):
                 continue
-            if table.piece_is_physical(game, chooser, f):     # the human moves their own miniature by hand
+            if table.piece_is_physical(game, chooser, f) and not spec.get("await_destination"):     # the human moves their own miniature by hand
                 by_hand.append(f)
                 continue
             dests = sorted(game.legal_moves(f, steps, through))
@@ -325,6 +325,18 @@ def _where_refs(game, run, where: dict) -> dict:
     return out
 
 
+def _note_where(game, run, where: dict) -> dict:
+    """The SpaceSel for the chat line the human reads: the references resolved to who they are NOW (the owner's hero stays
+    "hero"; any other fighter, `this` included, is named), so "this fighter's zone" of a sidekick is not "your hero's zone"."""
+    out = dict(where)
+    for key in ("zone_of", "adjacent_to", "nearest_to"):
+        if key in where:
+            ref = _ref_fighter(game, run, where[key])
+            if ref is not None:
+                out[key] = "hero" if ref is game.hero(run.ctx.owner) else ref.fid
+    return out
+
+
 def _plan_spots(game, run, fighters, where: dict, chooser: int, op_name: str, hp=None, **becomes) -> list[tuple]:
     """(fighter, spot, by_hand): `by_hand` marks the table player's own piece, which they place themselves; its spot
     is provisional (the first legal one) until the table sync reads where they put it."""
@@ -348,7 +360,7 @@ def _return_to_board(run, game, spec, op_name: str, targets, hp) -> None:
     for f, spot, by_hand in _plan_spots(game, run, targets, spec["where"], chooser, op_name, hp=hp, alive=True):
         f.alive, f.pos, f.hp = True, spot, min(hp, f.max_hp)
         if by_hand:
-            table.note(run, op=op_name, fid=f.fid, where=spec["where"], hp=f.hp)
+            table.note(run, op=op_name, fid=f.fid, where=_note_where(game, run, spec["where"]), hp=f.hp)
         else:
             table.intent(game, op=op_name, fid=f.fid, owner=f.owner)
 
@@ -360,7 +372,7 @@ def _place(run, game, spec):
                if f.alive and game.fx.can_move(f)]
     for f, spot, by_hand in _plan_spots(game, run, targets, spec["where"], chooser, "place"):
         if by_hand:
-            table.note(run, op="place", fid=f.fid, where=spec["where"])
+            table.note(run, op="place", fid=f.fid, where=_note_where(game, run, spec["where"]))
         elif spot != f.pos:
             f.pos = spot
             table.intent(game, op="place", fid=f.fid, owner=f.owner)
@@ -495,7 +507,8 @@ def _choice_context(game, run, spec: dict) -> dict:
     if pact is not None:
         ctx["pact"] = pact
     if not spec.get("cost") and ops and all(o["op"] == "draw" and o.get("player") == "owner" and isinstance(o.get("amount"), int) for o in ops):
-        ctx["draws"] = sum(o["amount"] for o in ops)         # a free draw: a bot refuses it when the deck or the hand cannot take it
+        ctx["draws"] = sum(o["amount"] for o in ops)         # a free draw; `draws_at`: the event of the trigger that offers it
+        ctx["draws_at"] = run.ctx.moment
     if len(other) == 1 and other[0]["op"] == "damage" and isinstance(other[0].get("amount"), int):
         ctx["else_damage"] = other[0]["amount"]
         cands, _ = fighter_candidates(game, run, other[0]["target"])

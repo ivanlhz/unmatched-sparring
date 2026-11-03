@@ -143,13 +143,12 @@ def fighter_candidates(game, run, sel) -> tuple[list, bool]:
         out.append(f)
     if "where" in sel:
         where = sel["where"]
-        if not _anchor_unknown(game, run, where):            # the anchor the human moved by hand: every candidate stays, the human answers
-            spaces = set(space_options(game, run, where, default_empty=False))
-            out = [f for f in out if f.pos in spaces]
-            if "nearest_to" in where and out:
-                ref = _ref_fighter(game, run, where["nearest_to"])
-                best = min(game.board.distance(ref.pos, f.pos) for f in out)
-                out = [f for f in out if game.board.distance(ref.pos, f.pos) == best]
+        spaces = set(space_options(game, run, where, default_empty=False))
+        out = [f for f in out if f.pos in spaces]
+        if "nearest_to" in where and out:
+            ref = _ref_fighter(game, run, where["nearest_to"])
+            best = min(game.board.distance(ref.pos, f.pos) for f in out)
+            out = [f for f in out if game.board.distance(ref.pos, f.pos) == best]
         if sel.get("other"):
             for key in ("zone_of", "adjacent_to", "space_of", "nearest_to"):
                 if key in where:
@@ -176,22 +175,9 @@ def fighter_candidates(game, run, sel) -> tuple[list, bool]:
     return out, sel.get("pick", "one") == "all"
 
 
-def _anchor_unknown(game, run, where: dict) -> bool:
-    """True if a space selector hangs from a fighter the human moved by hand earlier in this run ("deal 2 damage to a fighter
-    adjacent to the Jackalope" after the Jackalope's move): the engine does not know where it stands now."""
-    passed = run.flags.get("passed") or {}
-    return any(key in where and any(passed.get(f.fid, []) is None for f in _role_fighters(game, run, where[key]))
-               for key in ("zone_of", "adjacent_to", "space_of", "nearest_to"))
-
-
 def _path_unknown(game, run, sel) -> bool:
-    """True if `sel` filters by `passed_by` and a mover's path is one the engine did not see (moved by hand), or hangs from a
-    fighter that was moved by hand (`_anchor_unknown`)."""
-    if not isinstance(sel, dict):
-        return False
-    if isinstance(sel.get("where"), dict) and _anchor_unknown(game, run, sel["where"]):
-        return True
-    ref = (sel.get("filter") or {}).get("passed_by")
+    """True if `sel` filters by `passed_by` and a mover's path is one the engine did not see (moved by hand)."""
+    ref = (sel.get("filter") or {}).get("passed_by") if isinstance(sel, dict) else None
     if ref is None:
         return False
     passed = run.flags.get("passed") or {}
@@ -211,6 +197,15 @@ def _passed_by(game, run, fighters: list, ref) -> list:
     return [f for f in fighters if f.fid in keep]
 
 
+def _near(game, run, sel) -> str | None:
+    """The fighter a selector says "adjacent to" (its id), for the prompt of the choice."""
+    where = sel.get("where") if isinstance(sel, dict) else None
+    if not isinstance(where, dict) or "adjacent_to" not in where:
+        return None
+    ref = _ref_fighter(game, run, where["adjacent_to"])
+    return None if ref is None or ref is game.hero(run.ctx.owner) else ref.fid       # the owner's hero keeps the generic prompt
+
+
 def pick_fighters(game, run, sel, chooser: int, prompt: str = "", **extra) -> list:
     """The fighters a selector designates. `pick: one` with several candidates asks `chooser`; with none it is
     empty (the op does nothing); `pick: all` returns every candidate (zero is fine). `extra` (the op name, its
@@ -219,6 +214,9 @@ def pick_fighters(game, run, sel, chooser: int, prompt: str = "", **extra) -> li
     unknown = _path_unknown(game, run, sel)          # moved by hand: the human may also answer "nobody was passed"
     if pick_all or not cands or (len(cands) == 1 and not unknown):
         return cands
+    near = _near(game, run, sel)
+    if near is not None:
+        extra["near"] = near                         # "adjacent to the Jackalope": the panel says it
     got = run.ask(game, "fighter", chooser, [f.fid for f in cands], 0 if unknown else 1, 1, prompt or "choose a fighter", **extra)
     if not got:
         return []

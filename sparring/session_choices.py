@@ -158,6 +158,8 @@ def prompt_text(game, req: ChoiceRequest) -> str:
         names = {fid: f.name for fid, f in game.fighters.items()}
         base = t("choice.prompt.redirect", to=names.get(req.extra["to"], req.extra["to"]), amount=req.extra.get("amount", "?"),
                  fighter=names.get(req.extra["fighter"], req.extra["fighter"]))
+    elif req.kind == "fighter" and req.extra.get("near") in game.fighters:        # "adjacent to the Jackalope"
+        base = t("choice.prompt.fighter_adjacent", who=game.fighters[req.extra["near"]].name)
     card = request_card(game, req)
     title = card.title if card is not None else None
     if req.kind == "optional" and base == _prompt("optional") and title:

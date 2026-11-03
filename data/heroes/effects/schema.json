@@ -361,7 +361,7 @@
      "distinct": {"type": "boolean"},
      "chooser": {"$ref": "#/$defs/Chooser"}}},
    {"type": "object", "additionalProperties": false, "required": ["op", "target", "amount", "up_to"],
-    "properties": {"op": {"const": "move"}, "target": {"$ref": "#/$defs/FighterSel"}, "amount": {"$ref": "#/$defs/Amount"}, "up_to": {"type": "boolean"}, "through_enemies": {"type": "boolean"}, "chooser": {"$ref": "#/$defs/Chooser"}, "as": {"$ref": "#/$defs/Name"}}},
+    "properties": {"op": {"const": "move"}, "target": {"$ref": "#/$defs/FighterSel"}, "amount": {"$ref": "#/$defs/Amount"}, "up_to": {"type": "boolean"}, "through_enemies": {"type": "boolean"}, "await_destination": {"type": "boolean"}, "chooser": {"$ref": "#/$defs/Chooser"}, "as": {"$ref": "#/$defs/Name"}}},
    {"type": "object", "additionalProperties": false, "required": ["op", "target", "where"],
     "properties": {"op": {"const": "place"}, "target": {"$ref": "#/$defs/FighterSel"}, "where": {"$ref": "#/$defs/SpaceSel"}, "chooser": {"$ref": "#/$defs/Chooser"}}},
    {"type": "object", "additionalProperties": false, "required": ["op", "target", "with"],

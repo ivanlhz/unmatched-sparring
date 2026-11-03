@@ -450,3 +450,54 @@ def test_the_ai_plays_jackalope_horns_with_the_jackalope_not_with_bigfoot(bprd):
     ai = MedusaAI(0)
     acts = [a for a in ai.scheme_acts(g, Model(g, 0)) if a.kind == "scheme"]
     assert {a.card.title: a.fid for a in acts} == {"Jackalope Horns": "jackalope", "Crash Through the Trees": "bigfoot"}
+
+
+# ---------------------------------------------------------------- the free-draw rule belongs to the END of the turn
+
+def test_hellboys_start_of_turn_draw_is_still_taken_with_a_full_hand(bprd):
+    """OCCULT DETECTIVE (start of the turn) has no hand-limit reason to refuse: with 7 cards the bot still draws its 2."""
+    g = Game.new(bprd, 3, controllers={0: MedusaAI(0), 1: Asking()}, heroes=("hellboy", "medusa"), bot_player=0)
+    g.turn, g.turn_no = 0, 2
+    for p in g.players:
+        p.hand.clear()
+    hand_filler(g, 0, g.hand_cap(0))
+    g.fighters["hellboy"].pos = g.start_spaces[1]            # the trigger needs Hellboy on the rival's starting space
+    g.begin_turn()
+    assert len(g.players[0].hand) == g.hand_cap(0) + 2
+
+
+def test_bigfoots_end_of_turn_draw_is_refused_at_the_limit_and_taken_one_below(bprd):
+    for filled, expect in ((6, 7), (7, 7)):
+        g = mk(bprd)
+        pair(g, "bigfoot", "hellboy")
+        isolate(g)
+        g.controllers[0] = MedusaAI(0)
+        hand_filler(g, 0, filled)
+        g.end_turn()
+        assert len(g.players[0].hand) == expect, filled
+
+
+# ---------------------------------------------------------------- zones: a space in several zones
+
+def test_an_enemy_only_in_the_second_zone_of_bigfoots_space_switches_the_ability_off(bprd):
+    """A space in two zones: an enemy that shares only the second one is in Bigfoot's zone all the same."""
+    s = next(s for s in sorted(bprd.spaces) if len(bprd.zones(s)) > 1)
+    first, second = sorted(bprd.zones(s))[:2]
+    g = mk(bprd)
+    isolate(g)
+    only_second = [t for t in sorted(bprd.spaces) if t != s and second in bprd.zones(t) and first not in bprd.zones(t)
+                   and all(f.pos != t for f in g.fighters.values() if f.alive)]
+    assert only_second, "no space belongs to the second zone only"
+    g.fighters["bigfoot"].pos = s
+    g.fighters["hellboy"].pos = only_second[0]
+    assert bprd.share_zone(s, only_second[0]) and not (bprd.zones(only_second[0]) & {first})
+    g.controllers[0].queue = [[True]]
+    g.end_turn()
+    assert not g.players[0].hand and g.controllers[0].queue == [[True]]
+    g = mk(bprd)                                                           # the control: nobody in either zone, the question comes
+    isolate(g)
+    g.fighters["bigfoot"].pos = s
+    g.fighters["hellboy"].pos = next(t for t in sorted(bprd.spaces, reverse=True) if not bprd.share_zone(s, t))
+    g.controllers[0].queue = [[True]]
+    g.end_turn()
+    assert len(g.players[0].hand) == 1

@@ -486,8 +486,12 @@ class EffectAI:
 
     @staticmethod
     def _free_draw(game: Game, req: ChoiceRequest) -> bool:
-        """An optional draw that costs nothing (an ability's "you may draw"): taken unless the deck is too short (an empty
-        deck hurts every own fighter: exhaustion) or the hand is already at its limit (the extra card would only be discarded)."""
+        """An optional draw that costs nothing (an ability's "you may draw"). At the END of the turn (Bigfoot) it is refused when the
+        deck holds fewer cards than the draw (an empty deck hurts every own fighter: exhaustion) or the hand is already at its
+        limit (the card would only be discarded by the hand limit that follows at once). Anywhere else (OCCULT DETECTIVE at the start of
+        the turn, when the hand limit has not been reached yet and the cards can be played) it is always taken, as before."""
+        if req.extra.get("draws_at") != "end_of_turn":
+            return True
         mine = game.players[req.player]
         return len(mine.deck) >= req.extra["draws"] and len(mine.hand) < game.hand_cap(req.player)
 
