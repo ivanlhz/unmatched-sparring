@@ -33,7 +33,7 @@ d.deal = function(k, color) DEALT = k; DEALT_FROM = d.guid end
 
 
 def zone(runtime, guid, cx, cz, hw=2.0, hd=2.0):
-    runtime.execute(f"mkobj({{guid = '{guid}', type = 'Zone', cx = {cx}, cz = {cz}, hw = {hw}, hd = {hd}}})")
+    runtime.execute(f"mkobj({{guid = '{guid}', type = 'Scripting', cx = {cx}, cz = {cz}, hw = {hw}, hd = {hd}}})")
 
 
 def dealt(runtime):

@@ -42,8 +42,8 @@ def rt():
     runtime.execute(STUB)
     runtime.globals().JSON = runtime.table_from({"encode": lambda v: json.dumps(conv(v))})
     runtime.execute("""
-mkobj({guid = '906a7a', type = 'Zone', cx = 15, cz = 0, hw = 5, hd = 12})
-mkobj({guid = 'b7a0b8', type = 'Zone', cx = -12.5, cz = 0, hw = 6, hd = 12})
+mkobj({guid = '906a7a', type = 'Scripting', cx = 15, cz = 0, hw = 5, hd = 12})
+mkobj({guid = 'b7a0b8', type = 'Scripting', cx = -12.5, cz = 0, hw = 6, hd = 12})
 """)
     return runtime
 

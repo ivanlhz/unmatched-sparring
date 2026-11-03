@@ -89,12 +89,12 @@ function mkobj(o)
       end
     end
   end
-  if o.type == "Zone" then
+  if o.type == "Scripting" then
     o.getBounds = o.getBounds or function() return {center = vec(o.cx, 1, o.cz), size = vec(o.hw * 2, 1, o.hd * 2)} end
     o.getObjects = function()
       local t = {}
       for _, x in ipairs(OBJECTS) do
-        if x ~= o and x.type ~= "Zone" and math.abs(x.pos.x - o.cx) <= o.hw and math.abs(x.pos.z - o.cz) <= o.hd then
+        if x ~= o and x.type ~= "Scripting" and math.abs(x.pos.x - o.cx) <= o.hw and math.abs(x.pos.z - o.cz) <= o.hd then
           table.insert(t, x)
         end
       end

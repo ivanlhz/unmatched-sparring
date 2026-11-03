@@ -239,8 +239,7 @@ return JSON.encode(cardIds(objs))
 
 
 ZONE_LUA = """local function isZone(z)
-  if z == nil or z.type == "Bag" or z.type == "Infinite" or z.type == "Deck" or z.type == "Card" then return false end
-  return type(z.getObjects) == "function"
+  return z ~= nil and z.type == "Scripting"
 end
 local function zoneObjects(z)
   local out = {}
@@ -250,7 +249,7 @@ local function zoneObjects(z)
   end
   return out
 end
-"""      # a Scripting zone's objects; anything that is not a zone (a bag, a missing GUID) has none
+"""      # a Scripting zone's objects (TTS reports a ScriptingTrigger as type "Scripting"); anything else has none
 
 
 def _skip_zones_lua(zones) -> str:

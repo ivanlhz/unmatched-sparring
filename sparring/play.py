@@ -1012,8 +1012,9 @@ def play(cfg: PlayConfig, client: TTSClient, first: str, seed: int, stop: thread
         pass                                     # retried on first use
     try:
         check_deck_zones(client, scfg, echo)
-    except TABLE_ERRORS:
-        pass                                     # the zones are looked for again on first use
+    except (TTSLuaError, OSError):
+        pass                                     # table not reachable now: the zones are looked for again on first use
+    # a missing deck zone or one that is not a Scripting zone (SessionError) stops the start-up, naming the key
     for warning in floor_layout_warnings(cfg):
         echo(t("console.warn_line", text=warning))
     client.call_lua(lua.clear_markings(remove_panel=True))     # leftovers of a previous run that died without cleaning up

@@ -125,3 +125,59 @@ def test_deck_zones_are_part_of_the_guids_that_must_exist(rig):
     session, table, game = rig
     session.cfg.bot_deck_zone = "bdz906"
     assert "bdz906" in session.guids_in_use() and ["bdz906"] in session.guid_groups()
+
+
+# ---------- the start-up path: a bad deck zone stops play(), an unreachable table does not ----------
+def _start_play(monkeypatch, zone_error):
+    import threading
+    from types import SimpleNamespace
+    from sparring import play
+    from sparring.session import SessionError
+
+    class Reached(Exception):
+        pass
+
+    class FakeSession:
+        def __init__(self, *a, **k):
+            self.game_log = SimpleNamespace(path=None)
+
+        def resolve_pieces(self):
+            pass
+
+        def load_identities(self):
+            pass
+
+    def bad_zone(*a, **k):
+        raise zone_error
+
+    class Client:
+        def call_lua(self, *a, **k):
+            raise Reached()                      # the step after the zone check: the start-up went on
+
+    cfg = SimpleNamespace(language="en", raw={}, session_config=lambda: SimpleNamespace(bot_pause=0, card_zoom=True))
+    monkeypatch.setattr(play, "build_game", lambda *a, **k: SimpleNamespace(own=lambda p: []))
+    monkeypatch.setattr(play, "Session", FakeSession)
+    monkeypatch.setattr(play, "make_bot_ai", lambda *a, **k: None)
+    monkeypatch.setattr(play, "ai_config", lambda *a, **k: None)
+    monkeypatch.setattr(play, "check_deck_zones", bad_zone)
+    monkeypatch.setattr(play, "floor_layout_warnings", lambda cfg: [])
+    return play, SessionError, Reached, lambda: play.play(cfg, Client(), "random", 1, threading.Event(), echo=lambda m: None)
+
+
+def test_a_missing_deck_zone_stops_the_start_up(monkeypatch):
+    import pytest
+    from sparring.session import SessionError
+    play, SessionError, Reached, run = _start_play(monkeypatch, SessionError("bot_deck_zone 'bdz906' is not on the table"))
+    with pytest.raises(SessionError, match="bot_deck_zone"):
+        run()
+
+
+def test_an_unreachable_table_at_the_zone_check_does_not_stop_the_start_up(monkeypatch):
+    import pytest
+    from sparring.tts.client import TTSLuaError
+    play, SessionError, Reached, run = _start_play(monkeypatch, OSError("TTS not reachable"))
+    with pytest.raises(Reached):
+        run()
+    play, SessionError, Reached, run = _start_play(monkeypatch, TTSLuaError("lua error"))
+    with pytest.raises(Reached):
+        run()
