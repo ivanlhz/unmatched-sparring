@@ -789,6 +789,8 @@
  "board.several": "There are several maps on the table ({names}). Leave only the one you want to play and start again. Supported maps: {maps}.",
  "board.excluded": "{name} is not supported: it {reason}. Supported maps: {maps}.",
  "board.unavailable": "{name} is not supported yet: its map data did not pass verification. Supported maps: {maps}.",
+ "board.unverified": "{name} is waiting for the map check: its data was extracted from the picture and nobody has confirmed it yet (tools/map_checker.py). Supported maps: {maps}.",
+ "cfg.board_guid_none": "none (the board is found on the table)",
  "board.reason.tokens": "needs its battlefield tokens",
  "board.reason.doors": "needs doors",
  "board.found": "Map on the table: {name}.",

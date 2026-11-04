@@ -4,6 +4,7 @@
  "source": "Unmatched Official Tournament Table October 2026, Custom_Board of the The White House bag",
  "imageKey": "0C7120D47E4D3D1E76FD11BB76F5751C09878EEC",
  "playable": false,
+ "verified": false,
  "problems": [
   "spaces with a single neighbour, so a connector is probably missing: [9, 10, 11, 13]",
   "the board is not connected (18 of 32 spaces reachable from space 0)"

@@ -4,6 +4,7 @@
  "source": "Unmatched Official Tournament Table October 2026, Custom_Board of the The Alamo bag",
  "imageKey": "7A3C327F4E198144CB6B9522B9CB7A2CB9A7E1EE",
  "playable": false,
+ "verified": false,
  "problems": [
   "spaces with a single neighbour, so a connector is probably missing: [2, 10, 11, 31]",
   "the board is not connected (26 of 37 spaces reachable from space 0)"

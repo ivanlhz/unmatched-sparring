@@ -32,7 +32,7 @@ def test_every_map_of_the_save_is_in_the_catalog_once():
     assert len(keys) == len(set(keys)) == 37
     assert len({e.image_key for e in ENTRIES}) == 37
     assert all(re.fullmatch(r"[0-9A-F]{40}", e.image_key) for e in ENTRIES)
-    assert {e.status for e in ENTRIES} <= {"supported", "excluded", "unavailable"}
+    assert {e.status for e in ENTRIES} <= {"supported", "unverified", "excluded", "unavailable"}
 
 
 def test_the_maps_that_need_tokens_or_doors_are_the_excluded_ones():
@@ -50,11 +50,18 @@ def test_every_data_file_is_in_the_catalog_and_the_other_way_round():
     assert files == {e.key for e in ENTRIES if e.status != "excluded"}
 
 
+@pytest.mark.parametrize("entry", [e for e in ENTRIES if e.status == "unverified"], ids=lambda e: e.key)
+def test_an_extracted_map_waits_for_a_person_before_it_is_played(entry):
+    raw = data_of(entry.key)
+    assert raw["playable"] is True and raw["verified"] is False
+
+
 @pytest.mark.parametrize("entry", SUPPORTED, ids=lambda e: e.key)
 def test_a_supported_map_is_a_sound_board(entry):
     raw = data_of(entry.key)
     board = Board.load(entry.key)
-    assert raw["key"] == entry.key and raw["imageKey"] == entry.image_key and raw.get("playable", True) is True
+    assert raw["key"] == entry.key and raw["imageKey"] == entry.image_key
+    assert raw.get("playable", True) is True and raw["verified"] is True
     ids = sorted(board.spaces)
     assert ids == list(range(len(ids))) and len(ids) >= 20
     for a in ids:

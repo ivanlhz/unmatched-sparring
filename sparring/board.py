@@ -18,7 +18,8 @@ class Space:
 @dataclass(frozen=True)
 class MapEntry:
     """One map of the official save (data/maps/catalog.json). `status`: supported (data verified), excluded (needs
-    tokens or doors: `reason`) or unavailable (its data did not pass the checks of tools/import_map.py)."""
+    tokens or doors: `reason`), unverified (extracted from the picture and waiting for a person to confirm it in
+    tools/map_checker.py) or unavailable (its data did not pass the checks of tools/import_map.py)."""
     key: str
     name: str
     image_key: str          # the SHA-1 the board's image URL ends with: how a board on the table is recognised

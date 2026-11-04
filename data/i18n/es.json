@@ -789,6 +789,8 @@
  "board.several": "Hay varios mapas en la mesa ({names}). Deja solo el que quieras jugar y vuelve a empezar. Mapas soportados: {maps}.",
  "board.excluded": "{name} no está soportado: {reason}. Mapas soportados: {maps}.",
  "board.unavailable": "{name} aún no está soportado: sus datos no pasaron la verificación. Mapas soportados: {maps}.",
+ "board.unverified": "{name} está pendiente de la revisión del mapa: sus datos se sacaron de la imagen y nadie los ha confirmado aún (tools/map_checker.py). Mapas soportados: {maps}.",
+ "cfg.board_guid_none": "ninguno (el tablero se busca en la mesa)",
  "board.reason.tokens": "necesita sus fichas de campo de batalla",
  "board.reason.doors": "necesita puertas",
  "board.found": "Mapa en la mesa: {name}.",

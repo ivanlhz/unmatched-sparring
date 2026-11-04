@@ -4,6 +4,7 @@
  "source": "Unmatched Official Tournament Table October 2026, Custom_Board of the Venice bag",
  "imageKey": "C50BC196AD6E3239CC12C57985117BB3B8C89B48",
  "playable": false,
+ "verified": false,
  "problems": [
   "spaces with a single neighbour, so a connector is probably missing: [0, 10, 12, 20, 28]"
  ],

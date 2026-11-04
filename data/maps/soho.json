@@ -4,6 +4,7 @@
  "source": "Unmatched Official Tournament Table October 2026, Custom_Board of the Soho bag",
  "imageKey": "0BFB47CD5E88BFB4B2A70750FFB19424D836EB1D",
  "playable": false,
+ "verified": false,
  "problems": [
   "spaces without a neighbour: [2]",
   "spaces with a single neighbour, so a connector is probably missing: [3, 4, 15]",

@@ -7,7 +7,7 @@ from __future__ import annotations
 
 import pytest
 
-from sparring import board_detect, i18n
+from sparring import i18n, play
 from sparring.board import Board, MapEntry, catalog
 from sparring.board_detect import BoardError, choose_board, image_key_of
 from sparring.play import detect_board, load_config, main
@@ -29,7 +29,9 @@ ENTRIES = [MapEntry("bprd-hq", "B.P.R.D. Headquarters", BPRD, "supported", None)
            MapEntry("azuchi-castle", "Azuchi Castle", AZUCHI, "supported", None),
            MapEntry("navy-pier", "Navy Pier", "A" * 40, "excluded", "tokens"),
            MapEntry("heorot", "Heorot", "B" * 40, "excluded", "doors"),
-           MapEntry("soho", "Soho", "C" * 40, "unavailable", None)]
+           MapEntry("soho", "Soho", "C" * 40, "unavailable", None),
+           MapEntry("yukon", "Yukon", "E" * 40, "unverified", None)]
+PAD = "98097621768AC24FF097E6997A46CF69EE91FE46"
 
 
 @pytest.fixture(autouse=True)
@@ -82,6 +84,28 @@ def test_a_map_whose_data_did_not_pass_verification_is_refused():
     i18n.set_language("en")
     with pytest.raises(BoardError, match="Soho.*verif"):
         choose_board([{"guid": "abc123", "image": url_of("C" * 40)}], ENTRIES)
+
+
+def test_a_map_extracted_but_not_confirmed_by_a_person_is_refused_as_pending():
+    i18n.set_language("en")
+    with pytest.raises(BoardError, match="Yukon.*map check"):
+        choose_board([{"guid": "abc123", "image": url_of("E" * 40)}], ENTRIES)
+
+
+@pytest.mark.parametrize("language, word", [("es", "ningún tablero"), ("en", "No map board")])
+def test_only_the_three_locked_pads_of_the_save_count_as_no_board(language, word):
+    i18n.set_language(language)
+    pads = [{"guid": g, "image": url_of(PAD)} for g in ("45c723", "8315f0", "6bd0e3")]
+    with pytest.raises(BoardError, match=word):
+        choose_board(pads, ENTRIES)
+
+
+def test_a_map_like_board_that_is_not_in_the_catalog_is_unknown_even_beside_the_pads():
+    i18n.set_language("en")
+    found = [{"guid": "45c723", "image": url_of(PAD)}, {"guid": "abc123", "image": url_of("D" * 40)}]
+    with pytest.raises(BoardError, match="not a map I know") as e:
+        choose_board(found, ENTRIES)
+    assert "D" * 40 in str(e.value) and PAD not in str(e.value)
 
 
 @pytest.mark.parametrize("language, word", [("es", "ningún tablero"), ("en", "No map board")])
@@ -172,7 +196,7 @@ def test_the_default_table_is_still_bprd(live, cfg_file, capsys):
 @pytest.mark.parametrize("key, word", [("A" * 40, "Navy Pier"), ("B" * 40, "Heorot")])
 def test_start_up_stops_on_an_excluded_map_and_touches_nothing(live, cfg_file, capsys, key, word, monkeypatch):
     table, fake, ports = live
-    monkeypatch.setattr(board_detect, "load_catalog", lambda: ENTRIES)
+    monkeypatch.setattr(play, "board_catalog", lambda: ENTRIES)
     with_boards(table, ("abc123", key))
     assert main(["--config", str(cfg_file()), *ports]) == 2
     err = capsys.readouterr().err

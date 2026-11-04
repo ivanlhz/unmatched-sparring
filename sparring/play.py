@@ -28,7 +28,6 @@ from pathlib import Path
 from typing import Callable
 
 from .search.controller import make_bot_ai
-from . import board_detect
 from .board import Board, catalog as board_catalog
 from .board_detect import BoardError, choose_board
 from .hero_detect import HeroDetectionError, detect_heroes, detected_decks, read_table
@@ -406,17 +405,18 @@ def load_config(path: str | Path, bot_hero: str | None = None, human_hero: str |
     return cfg
 
 
-def build_config(raw: dict, sources: tuple[str, str]) -> PlayConfig:
+def build_config(raw: dict, sources: tuple[str, str], found_board_guid: str | None = None) -> PlayConfig:
     board_key = raw.get("board", "bprd-hq")
     if board_key not in {e.key for e in board_catalog() if e.status == "supported"}:
         raise ConfigError(t("cfg.unknown_board", board=board_key))
-    found_guid = raw.get("found_board_guid")         # set by `detect_board`: the board on the table, whatever its GUID
-    if not found_guid and raw.get("board_guid") not in (None, lua.BOARD_GUIDS.get(board_key)):
-        raise ConfigError(t("cfg.board_guid", guid=raw["board_guid"], board=board_key, expected=lua.BOARD_GUIDS.get(board_key)))
+    expected = lua.BOARD_GUIDS.get(board_key)
+    if not found_board_guid and raw.get("board_guid") not in (None, expected):
+        raise ConfigError(t("cfg.board_guid", guid=raw["board_guid"], board=board_key,
+                            expected=expected or t("cfg.board_guid_none")))
     full = with_hero_data(raw)
     todos = [k for k in REQUIRED if is_todo(full.get(k))]
     board = Board.load(board_key)
-    board.guid = found_guid or raw.get("board_guid")
+    board.guid = found_board_guid or raw.get("board_guid")
     return PlayConfig(full, board, todos, base=raw, sources=sources)
 
 
@@ -424,8 +424,8 @@ def detect_board(client, cfg: PlayConfig, echo: Callable[[str], None] = print) -
     """Finds the map on the table by its image (read only) and rebuilds the configuration on it, with the board's real
     GUID. `BoardError` when the board is unknown, excluded or unverified."""
     found = ReadOnlyClient(client).call_lua(lua.list_boards())
-    entry, guid = choose_board(found if isinstance(found, list) else [], board_detect.load_catalog())
-    out = build_config({**cfg.base, "board": entry.key, "found_board_guid": guid}, cfg.sources)
+    entry, guid = choose_board(found if isinstance(found, list) else [], board_catalog())
+    out = build_config({**cfg.base, "board": entry.key}, cfg.sources, found_board_guid=guid)
     out.warnings = list(cfg.warnings)
     echo(t("board.found", name=entry.name))
     return out
@@ -464,7 +464,7 @@ def resolve_heroes(client, cfg: PlayConfig, saved: tuple[str, str] | None = None
                 if sources[i] == SRC_DEFAULT:
                     names[i], sources[i] = found[i], SRC_TABLE
     raw = {**cfg.base, "bot_hero": names[0], "human_hero": names[1]}
-    out = build_config(raw, tuple(sources))     # type: ignore[arg-type]
+    out = build_config(raw, tuple(sources), found_board_guid=cfg.board.guid)     # type: ignore[arg-type]
     out.warnings = list(cfg.warnings)
     if reading is not None:
         out.detected_decks = detected_decks(reading, out.heroes, r["bot_deck_spot"], r["human_deck_spot"],

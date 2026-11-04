@@ -4,6 +4,7 @@
  "source": "Unmatched Official Tournament Table October 2026, Custom_Board of the Naglfar bag",
  "imageKey": "5B3E8C95A5CB5A6F9E4EED4B264BEF7BCC05009A",
  "playable": false,
+ "verified": false,
  "problems": [
   "spaces without a neighbour: [0, 1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12]",
   "spaces with a single neighbour, so a connector is probably missing: [13]",

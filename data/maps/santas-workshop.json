@@ -4,6 +4,7 @@
  "source": "Unmatched Official Tournament Table October 2026, Custom_Board of the Santa's Workshop bag",
  "imageKey": "DFEB04738BD0C314EFFACEAB057D58C36726E744",
  "playable": false,
+ "verified": false,
  "problems": [
   "the board is not connected (30 of 34 spaces reachable from space 0)"
  ],

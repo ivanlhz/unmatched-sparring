@@ -25,13 +25,13 @@
   "key": "fayrlund-forest",
   "name": "Fayrlund Forest",
   "imageKey": "3F48D58145740E8CE184F810ED2239398FDB089E",
-  "status": "supported"
+  "status": "unverified"
  },
  {
   "key": "globe-theatre",
   "name": "Globe Theatre",
   "imageKey": "0768A71A1CE24D7D42AD3D24CE0D6FD9D059E7B6",
-  "status": "supported"
+  "status": "unverified"
  },
  {
   "key": "hanging-gardens",
@@ -39,8 +39,7 @@
   "imageKey": "4DBDF3EFF73E984DDFABFD430D5C176610D2FF3C",
   "status": "unavailable",
   "why": [
-   "spaces with a single neighbour, so a connector is probably missing: [5]",
-   "1 pairs of connectors cross each other, e.g. (6, 13) with (9, 14)"
+   "spaces with a single neighbour, so a connector is probably missing: [5]"
   ]
  },
  {
@@ -88,7 +87,7 @@
   "key": "marmoreal",
   "name": "Marmoreal",
   "imageKey": "C7DCD8B1ABC2C6846B8BF827E66BDF622D48C56D",
-  "status": "supported"
+  "status": "unverified"
  },
  {
   "key": "mcminnville-or",
@@ -130,7 +129,7 @@
   "key": "pandemonium",
   "name": "Pandemonium",
   "imageKey": "9284F791116F8B65BA96B0770D86AF1BD3B64FDE",
-  "status": "supported"
+  "status": "unverified"
  },
  {
   "key": "point-pleasant",
@@ -171,13 +170,13 @@
   "key": "sarpedon",
   "name": "Sarpedon",
   "imageKey": "217838151A5DEE64C203853F738BDA73EF545368",
-  "status": "supported"
+  "status": "unverified"
  },
  {
   "key": "sherwood-forest",
   "name": "Sherwood Forest",
   "imageKey": "66622B833C4CED43EFE3EFC5DF662629F7123F26",
-  "status": "supported"
+  "status": "unverified"
  },
  {
   "key": "soho",
@@ -195,25 +194,25 @@
   "key": "streets-of-novigrad",
   "name": "Streets Of Novigrad",
   "imageKey": "5087704D1C17E05F00E39ECC7BF676C113B4495A",
-  "status": "supported"
+  "status": "unverified"
  },
  {
   "key": "sunnydale-high",
   "name": "Sunnydale High",
   "imageKey": "57B45F37C652D08111F36E0A0A100AB26E71C1E2",
-  "status": "supported"
+  "status": "unverified"
  },
  {
   "key": "t-rex-paddock",
   "name": "T. Rex Paddock",
   "imageKey": "D71DDD26993B427DFFBE626ABF165593CC9E641C",
-  "status": "supported"
+  "status": "unverified"
  },
  {
   "key": "technodrome",
   "name": "Technodrome",
   "imageKey": "8CCE8C30CBF43A4BD5BC66322DFCB34B78DF8F19",
-  "status": "supported"
+  "status": "unverified"
  },
  {
   "key": "the-alamo",
@@ -229,7 +228,7 @@
   "key": "the-bronze",
   "name": "The Bronze",
   "imageKey": "554A2764BE762BA55B9F66B631ECB8B65B68ABFB",
-  "status": "supported"
+  "status": "unverified"
  },
  {
   "key": "the-raft",
@@ -261,7 +260,7 @@
   "key": "tsing-shan-monastery",
   "name": "Tsing Shan Monastery",
   "imageKey": "FF2DD63521ECE50E3146CE05A5D0273FBE0BC5EE",
-  "status": "supported"
+  "status": "unverified"
  },
  {
   "key": "venice",
@@ -276,12 +275,12 @@
   "key": "yukon",
   "name": "Yukon",
   "imageKey": "2F120874F41A48924AD0B06605749D05DC91D3D6",
-  "status": "supported"
+  "status": "unverified"
  },
  {
   "key": "yukon-1900",
   "name": "Yukon 1900",
   "imageKey": "4200C6A9E3DDC1E4D9706BD156CCFDE18BF53ADE",
-  "status": "supported"
+  "status": "unverified"
  }
 ]

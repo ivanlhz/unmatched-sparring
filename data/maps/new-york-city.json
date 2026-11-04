@@ -4,6 +4,7 @@
  "source": "Unmatched Official Tournament Table October 2026, Custom_Board of the New York City bag",
  "imageKey": "543129A111DCC370B80C0132F6955AEDC5011970",
  "playable": false,
+ "verified": false,
  "problems": [
   "spaces with a single neighbour, so a connector is probably missing: [18]"
  ],

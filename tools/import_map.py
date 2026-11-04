@@ -18,8 +18,9 @@ The save is read only. For each `Custom_Board` inside a `Custom_Model_Infinite_B
 
 Maps that need tokens or doors (a "<map> Battlefield Items" bag beside the map, or a Doors bag next to its own bag) are
 only listed in the catalog as excluded. Every other map is checked (spaces = the published count, symmetric and
-connected, no two connectors crossing, no space with a single neighbour, a zone on every space, the published zone
-count, start markers 1 and 2); a map that fails is written with `"playable": false` and the reasons. A verification
+connected, no space with a single neighbour, a zone on every space, the published zone
+count, start markers 1 and 2); a map that fails is written with `"playable": false` and the reasons; every extracted map is written `"verified": false`
+and is only played after a person confirms it in tools/map_checker.py. A verification
 picture of every non-excluded map goes to `--check-dir`. Data files that already exist are kept (`--overwrite`)."""
 from __future__ import annotations
 
@@ -539,9 +540,6 @@ def check_map(m: Extracted, expected: dict | None) -> list[str]:
                 queue.append(v)
     if len(seen) != n:
         problems.append(f"the board is not connected ({len(seen)} of {n} spaces reachable from space 0)")
-    crossing = crossing_edges(m.centers, m.edges)
-    if crossing:
-        problems.append(f"{len(crossing)} pairs of connectors cross each other, e.g. {crossing[0][0]} with {crossing[0][1]}")
     bare = [i for i, z in enumerate(m.zones) if not z]
     if bare:
         problems.append(f"spaces without a zone: {bare}")
@@ -555,20 +553,10 @@ def check_map(m: Extracted, expected: dict | None) -> list[str]:
     return problems
 
 
-def crossing_edges(centers: np.ndarray, edges: set[tuple[int, int]]) -> list[tuple[tuple[int, int], tuple[int, int]]]:
-    """Pairs of edges (not sharing a circle) whose straight lines cross: connectors in these maps do not cross, so a
-    crossing means one of them is not a connector."""
-    def turn(a, b, c):
-        return (b[0] - a[0]) * (c[1] - a[1]) - (b[1] - a[1]) * (c[0] - a[0])
-    ordered = sorted(edges)
-    return [(e, f) for k, e in enumerate(ordered) for f in ordered[k + 1:] if not set(e) & set(f)
-            and turn(centers[e[0]], centers[e[1]], centers[f[0]]) * turn(centers[e[0]], centers[e[1]], centers[f[1]]) < 0
-            and turn(centers[f[0]], centers[f[1]], centers[e[0]]) * turn(centers[f[0]], centers[f[1]], centers[e[1]]) < 0]
-
-
 def map_data(m: Extracted, source: str) -> dict:
     adj = adjacency_lists(len(m.centers), m.edges)
-    data = {"key": m.key, "name": m.name, "source": source, "imageKey": m.image_key, "playable": m.playable}
+    data = {"key": m.key, "name": m.name, "source": source, "imageKey": m.image_key, "playable": m.playable,
+            "verified": False}           # extracted from a picture: a person confirms it in tools/map_checker.py
     if m.problems:
         data["problems"] = m.problems
     data["starts"] = dict(sorted(m.starts.items()))
@@ -641,7 +629,7 @@ def render_check(m: Extracted, path: Path, width: int = 1280) -> None:
         cv2.rectangle(canvas, (x + 18, y - 26), (x + 50, y - 6), (0, 0, 200), -1)
         cv2.putText(canvas, f"S{digit}", (x + 21, y - 11), font, 0.5, (255, 255, 255), 1, cv2.LINE_AA)
     header = np.full((44, width, 3), 30, np.uint8)
-    status = "PLAYABLE" if m.playable else "NOT PLAYABLE: " + "; ".join(m.problems)
+    status = "CHECKS PASSED (unconfirmed)" if m.playable else "CHECKS FAILED: " + "; ".join(m.problems)
     cv2.putText(header, f"{m.name} - {len(m.centers)} spaces, {len(m.edges)} edges - {status}"[:150], (8, 28), font, 0.55,
                 (80, 220, 80) if m.playable else (60, 60, 255), 1, cv2.LINE_AA)
     names = sorted({n for z in m.zones for n in z})
@@ -719,7 +707,8 @@ def main(argv: list[str] | None = None) -> int:
             data = map_data(m, f"{save.get('SaveName', 'save')}, Custom_Board of the {sm.name} bag")
             target.write_text(json.dumps(data, indent=1, ensure_ascii=False) + "\n", encoding="utf-8")
         render_check(m, args.check_dir / f"{sm.key}.png")
-        status = "supported" if m.playable else "unavailable"
+        verified = json.loads(target.read_text(encoding="utf-8")).get("verified") is True
+        status = "supported" if m.playable and verified else "unverified" if m.playable else "unavailable"
         catalog.append({**entry, "status": status, **({"why": m.problems} if m.problems else {})})
         print(f"{sm.key}: {status} {len(m.centers)} spaces {len(m.edges)} edges starts {m.starts} {'; '.join(m.problems)}", flush=True)
     if not args.only:

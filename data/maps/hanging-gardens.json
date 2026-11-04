@@ -4,9 +4,9 @@
  "source": "Unmatched Official Tournament Table October 2026, Custom_Board of the Hanging Gardens bag",
  "imageKey": "4DBDF3EFF73E984DDFABFD430D5C176610D2FF3C",
  "playable": false,
+ "verified": false,
  "problems": [
-  "spaces with a single neighbour, so a connector is probably missing: [5]",
-  "1 pairs of connectors cross each other, e.g. (6, 13) with (9, 14)"
+  "spaces with a single neighbour, so a connector is probably missing: [5]"
  ],
  "starts": {
   "1": 32,

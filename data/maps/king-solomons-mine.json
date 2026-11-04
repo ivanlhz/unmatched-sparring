@@ -4,6 +4,7 @@
  "source": "Unmatched Official Tournament Table October 2026, Custom_Board of the King Solomon's Mine bag",
  "imageKey": "E53BD609B29F229BF6A9CDCF066C1BF1FA010693",
  "playable": false,
+ "verified": false,
  "problems": [
   "spaces with a single neighbour, so a connector is probably missing: [4]",
   "spaces without a zone: [0, 1]",

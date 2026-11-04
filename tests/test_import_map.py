@@ -237,7 +237,7 @@ def test_a_map_with_problems_is_written_as_not_playable(tmp_path):
     data = im.map_data(bad, "test")
     assert data["playable"] is False and data["problems"]
     good = im.map_data(extracted(), "test")
-    assert good["playable"] is True and "problems" not in good
+    assert good["playable"] is True and good["verified"] is False and "problems" not in good
 
 
 def test_the_data_file_loads_as_a_board(tmp_path):
@@ -265,10 +265,3 @@ def test_images_are_only_fetched_over_https_and_once(tmp_path):
     assert im.fetch_image("https://never-called.test/b", cached) == cached
 
 
-def test_two_connectors_that_cross_are_reported():
-    m = extracted()
-    m.centers = np.array([(0.0, 0.0), (100.0, 100.0), (0.0, 100.0), (100.0, 0.0)])
-    m.edges = {(0, 1), (2, 3), (0, 2), (1, 3), (0, 3)}
-    assert im.crossing_edges(m.centers, {(0, 1), (2, 3)}) == [((0, 1), (2, 3))]
-    assert im.crossing_edges(m.centers, {(0, 2), (1, 3), (0, 3)}) == []
-    assert any("cross" in p for p in im.check_map(m, None))

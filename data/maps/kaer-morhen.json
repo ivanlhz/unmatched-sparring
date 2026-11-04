@@ -4,6 +4,7 @@
  "source": "Unmatched Official Tournament Table October 2026, Custom_Board of the Kaer Morhen bag",
  "imageKey": "1B03816D8A9DE120D4B046DB8F74D738942F4CE3",
  "playable": false,
+ "verified": false,
  "problems": [
   "spaces with a single neighbour, so a connector is probably missing: [0, 11, 19]"
  ],

@@ -4,6 +4,7 @@
  "source": "Unmatched Official Tournament Table October 2026, Custom_Board of the McMinnville, OR bag",
  "imageKey": "9A3451D3AF18838A7E26D333A59A9114CBE9DAC7",
  "playable": false,
+ "verified": false,
  "problems": [
   "spaces with a single neighbour, so a connector is probably missing: [13, 19]"
  ],
