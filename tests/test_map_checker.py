@@ -331,3 +331,23 @@ def test_the_check_warns_about_a_space_that_cannot_be_left():
 def test_the_check_warns_about_a_space_that_cannot_be_reached():
     cut = mc.apply_edit(ring(), {"edges": [[0, 1], [1, 2], [2, 3]], "one_way": [[3, 2]]})     # 2 -> 3 is closed
     assert any("not connected" in p for p in mc.validate(cut))
+
+
+# ---------- review: strict bonus and one-way entries ----------
+@pytest.mark.parametrize("bad", [
+    [{"from": 0, "to": 1, "value": 0}], [{"from": 0, "to": 1, "value": -1}], [{"from": 0, "to": 1, "value": "2"}],
+    [{"from": 0, "to": 1, "value": 1.7}], [{"from": 0, "to": 1, "value": 4}], [{"from": 0, "to": 1, "value": True}],
+    [{"from": "0", "to": 1, "value": 1}], [{"from": 0, "to": 1, "value": 1}, {"from": 1, "to": 0, "value": 1}]])
+def test_bonuses_must_be_small_positive_integers_one_way_round(bad):
+    with pytest.raises(ValueError):
+        mc.apply_edit(ring(), {"bonuses": bad})
+
+
+def test_the_largest_bonus_is_accepted():
+    assert mc.apply_edit(ring(), {"bonuses": [{"from": 0, "to": 1, "value": mc.MAX_BONUS}]})["bonuses"][0]["value"] == 3
+
+
+@pytest.mark.parametrize("bad", [[["01"]], [[0]], [[0, 1, 2]], [["0", "1"]], [[0, 1.0]], [[True, 1]], ["01"], [[0, None]]])
+def test_one_way_entries_must_be_pairs_of_integers(bad):
+    with pytest.raises((ValueError, TypeError)):
+        mc.apply_edit(ring(), {"one_way": bad})

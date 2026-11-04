@@ -94,6 +94,7 @@
  "spaces.off_board": "fuera del tablero",
  "spaces.next_to": "pegada a {name}",
  "spaces.distance": "a {d} casillas de {name}",
+ "spaces.one_away": "a 1 casilla de {name}",
  "noun.card.one": "carta",
  "noun.card.other": "cartas",
  "common.and": " y ",

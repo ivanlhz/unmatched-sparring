@@ -81,8 +81,8 @@ def space_options(game, run, sel, default_empty: bool = True, mover=None) -> lis
         out.discard(mover.pos)
     if "nearest_to" in sel and out:
         ref = _ref_fighter(game, run, sel["nearest_to"])
-        best = min(board.distance(ref.pos, s) for s in out)
-        out = {s for s in out if board.distance(ref.pos, s) == best}
+        best = min(board.span(ref.pos, s) for s in out)        # span, like nearest_free: "nearest" is spatial, not the walk
+        out = {s for s in out if board.span(ref.pos, s) == best}
     return sorted(out)
 
 
@@ -147,8 +147,8 @@ def fighter_candidates(game, run, sel) -> tuple[list, bool]:
         out = [f for f in out if f.pos in spaces]
         if "nearest_to" in where and out:
             ref = _ref_fighter(game, run, where["nearest_to"])
-            best = min(game.board.distance(ref.pos, f.pos) for f in out)
-            out = [f for f in out if game.board.distance(ref.pos, f.pos) == best]
+            best = min(game.board.span(ref.pos, f.pos) for f in out)       # span: "nearest" is spatial, not the walk
+            out = [f for f in out if game.board.span(ref.pos, f.pos) == best]
         if sel.get("other"):
             for key in ("zone_of", "adjacent_to", "space_of", "nearest_to"):
                 if key in where:

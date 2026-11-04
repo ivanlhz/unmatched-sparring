@@ -299,15 +299,16 @@ class SyntheticChooser:
                     return [] if may_stay and strikes_from(f.pos) else [min(strikes, key=lambda s: (near(s), s))]
                 best = min(options, key=lambda s: (near(s), s))
                 return [] if may_stay and near(f.pos) <= near(best) else [best]
-            best = max(options, key=lambda s: (near(s), -s))
-            return [] if may_stay and near(f.pos) >= near(best) else [best]
+            away = lambda s: min(board.distance(e.pos, s) for e in foes)      # fleeing: it is the foe that walks to s
+            best = max(options, key=lambda s: (away(s), -s))
+            return [] if may_stay and away(f.pos) >= away(best) else [best]
         ref = hero.pos if hero.alive and hero.pos is not None else None
         if ref is None:
             return None
         if self.greedy:         # a rival piece where the own hero strikes it
             within = [s for s in options if board.can_reach_target(ref, s, hero.ranged)]
             return [min(within or options, key=lambda s: (board.distance(ref, s), s))]
-        return [max(options, key=lambda s: (board.distance(ref, s), -s))]
+        return [max(options, key=lambda s: (board.distance(s, ref), -s))]       # away from the hero: the piece walks s -> hero
 
     def _cards(self, game, req: ChoiceRequest) -> list:
         from ..search.adapter import card_worth

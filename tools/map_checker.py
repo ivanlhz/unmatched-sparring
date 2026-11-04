@@ -25,6 +25,7 @@ from urllib.parse import urlparse
 ROOT = Path(__file__).resolve().parent.parent
 MAPS_DIR = ROOT / "data" / "maps"
 I18N_EN = ROOT / "data" / "i18n" / "en.json"
+MAX_BONUS = 3                        # the largest high-ground bonus the checker accepts
 BOARD_UNITS = 16.75                   # same constant as tools/import_map.py: the picture is stretched over a square board
 MAX_BODY = 1_000_000
 EXPECTED_ALIASES = {"thrilla-in-manilla": "thrilla-in-manila"}
@@ -93,8 +94,9 @@ def apply_edit(data: dict, edit: dict) -> dict:
     if "bonuses" in edit:
         bonuses = {}
         for b in edit["bonuses"]:
-            a, c, value = int(b["from"]), int(b["to"]), int(b.get("value", 1))
-            if a not in ids or c not in ids or a == c or value == 0:
+            a, c, value = b["from"], b["to"], b.get("value", 1)
+            if not all(type(v) is int for v in (a, c, value)) or a not in ids or c not in ids or a == c \
+                    or not 1 <= value <= MAX_BONUS or (c, a) in bonuses:
                 raise ValueError(f"bad bonus {b}")
             bonuses[(a, c)] = value
         if bonuses:
@@ -104,7 +106,9 @@ def apply_edit(data: dict, edit: dict) -> dict:
     if "one_way" in edit:
         pairs = []
         for pair in edit["one_way"]:
-            a, b = (int(v) for v in pair)
+            if not isinstance(pair, list) or len(pair) != 2 or not all(type(v) is int for v in pair):
+                raise ValueError(f"bad one-way edge {pair}")
+            a, b = pair
             if a not in ids or b not in ids or a == b:
                 raise ValueError(f"bad one-way edge {pair}")
             if [a, b] not in pairs:

@@ -225,7 +225,7 @@ def rescue_urgency(game: Game, me: int) -> float:
     low = (hero.max_hp - hero.hp) / max(1, hero.max_hp - RESCUE_REVIVE_HP)
     st, rival = game.players[1 - me], game.hero(1 - me)
     best = max((c.value or 0 for c in st.full_set if c not in st.gone and c.can_attack and c.usable_by(rival.name)), default=0)
-    threat = 2 * max(0, best + game.attack_bonus(rival) - 2) / max(1, hero.hp)
+    threat = 2 * max(0, best + game.attack_bonus(rival, hero) - 2) / max(1, hero.hp)
     return min(1.0, max(low, threat, 0.0))
 
 

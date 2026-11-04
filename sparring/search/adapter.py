@@ -140,6 +140,16 @@ def reach(game: Game, f: Fighter, steps: int, through: bool = False) -> frozense
     return reach_from(game.board, f.pos, steps, own, enemy, through)
 
 
+def nearest_walk_from(board, pos: int, foes: tuple[int, ...]) -> int:
+    """Steps the nearest foe needs to walk to `pos` (fleeing and placement: it is the foe that walks, and with one-way
+    edges that is not the distance from `pos` to the foe)."""
+    key = (board.key, "from", pos, foes)
+    d = _near_cache.get(key)
+    if d is None:
+        d = _near_cache[key] = min((board.distance(e, pos) for e in foes), default=0)
+    return d
+
+
 def nearest(board, pos: int, foes: tuple[int, ...]) -> int:
     key = (board.key, pos, foes)
     d = _near_cache.get(key)
@@ -194,7 +204,7 @@ def policy_dest_from(board, pos: int, options, foes: tuple[int, ...], policy: st
     cands = set(options) | {pos}
     if policy == "advance":
         return min(cands, key=lambda d: (nearest(board, d, foes), d))
-    return max(cands, key=lambda d: (nearest(board, d, foes), -d))
+    return max(cands, key=lambda d: (nearest_walk_from(board, d, foes), -d))
 
 
 def foe_positions(game: Game, player: int) -> tuple[int, ...]:
@@ -249,7 +259,7 @@ def plan_frenzy(game: Game, player: int, variant: str) -> tuple[dict[str, int], 
 
 def placement_choice(game: Game, player: int, options: list[int]) -> int | None:
     foes = foe_positions(game, player)
-    return max(options, key=lambda s: (nearest(game.board, s, foes), -s)) if options else None
+    return max(options, key=lambda s: (nearest_walk_from(game.board, s, foes), -s)) if options else None
 
 
 @lru_cache(maxsize=None)
@@ -756,7 +766,7 @@ class EngineState:
                 factor, bucket = w.boost_reach, after_move
             else:
                 continue
-            net, kill = attack_stats(values, g.attack_bonus(e) - best_def, hero.hp)
+            net, kill = attack_stats(values, g.attack_bonus(e, hero if e.pos in spots else None) - best_def, hero.hp)
             bucket.append((factor * (net + (w.defend_card_hp if best_def else 0.0)), factor * kill))
         if not in_range and not after_move:
             return 0.0, 0.0

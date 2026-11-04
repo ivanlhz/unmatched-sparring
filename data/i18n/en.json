@@ -94,6 +94,7 @@
  "spaces.off_board": "off the board",
  "spaces.next_to": "next to {name}",
  "spaces.distance": "{d} spaces from {name}",
+ "spaces.one_away": "1 space from {name}",
  "noun.card.one": "card",
  "noun.card.other": "cards",
  "common.and": " and ",
