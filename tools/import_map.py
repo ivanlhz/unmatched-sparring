@@ -679,6 +679,7 @@ def main(argv: list[str] | None = None) -> int:
     ap.add_argument("--expected", type=Path, help="unmatched-memory data/maps.json, for the published space/zone counts")
     ap.add_argument("--only", action="append", help="only this map key (repeatable)")
     ap.add_argument("--overwrite", action="store_true", help="also regenerate data files that already exist")
+    ap.add_argument("--force-unverify", action="store_true", help="with --overwrite, also regenerate maps a person confirmed (they become unverified)")
     args = ap.parse_args(argv)
     save = json.loads(args.save.read_text(encoding="utf-8"))
     maps = read_save_maps(save)
@@ -699,7 +700,10 @@ def main(argv: list[str] | None = None) -> int:
             continue
         img = load_work_image(fetch_image(sm.url, args.images / f"{entry['imageKey']}.img"))
         target = args.out / f"{sm.key}.json"
-        if target.exists() and not args.overwrite:
+        confirmed = target.exists() and json.loads(target.read_text(encoding="utf-8")).get("verified") is True
+        if confirmed and args.overwrite and not args.force_unverify:
+            print(f"{sm.key}: confirmed by a person, kept (--force-unverify would reset it)")
+        if target.exists() and (not args.overwrite or (confirmed and not args.force_unverify)):
             m = extracted_from_data(json.loads(target.read_text(encoding="utf-8")), img)
             entry["name"] = m.name
         else:

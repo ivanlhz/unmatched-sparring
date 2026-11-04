@@ -2,6 +2,7 @@
 The browser page itself is not tested."""
 from __future__ import annotations
 
+import http.client
 import json
 import sys
 import threading
@@ -49,7 +50,7 @@ def test_an_edit_replaces_the_edges_zones_and_starts_and_leaves_the_original_alo
 
 
 @pytest.mark.parametrize("edit", [{"edges": [[0, 9]]}, {"edges": [[1, 1]]}, {"zones": {"9": ["red"]}}, {"zones": {"0": "red"}},
-                                  {"starts": {"1": 9}}, {"starts": {"7": 0}}])
+                                  {"starts": {"1": 9}}, {"starts": {"7": 0}}, {"starts": {"5": 0}}])
 def test_a_bad_edit_is_rejected(edit):
     with pytest.raises(ValueError):
         mc.apply_edit(ring(), edit)
@@ -192,3 +193,54 @@ def test_the_server_confirms_through_the_same_logic(server):
 
 def test_the_checker_refuses_an_images_folder_inside_the_repo():
     assert mc.main(["--images", str(ROOT / "assets")]) == 2
+
+
+def test_a_map_that_is_already_confirmed_is_refused_unless_reconfirming_is_allowed(maps):
+    assert mc.confirm(maps, "t", {}, None, ZONES)[0] is True
+    ok, problems = mc.confirm(maps, "t", {"zones": {"1": ["blue"]}}, None, ZONES)
+    assert not ok and "already confirmed" in problems[0]
+    assert json.loads((maps / "t.json").read_text(encoding="utf-8"))["spaces"][1]["zones"] == ["red"]
+    assert mc.confirm(maps, "t", {"zones": {"1": ["blue"]}}, None, ZONES, allow_reconfirm=True)[0] is True
+
+
+def raw_post(base, path, headers, body=b""):
+    conn = http.client.HTTPConnection(base.split("//")[1], timeout=5)
+    conn.putrequest("POST", path, skip_host=True)
+    for k, v in headers.items():
+        conn.putheader(k, v)
+    conn.endheaders(body)
+    resp = conn.getresponse()
+    return resp.status, resp.read()
+
+
+def test_the_server_checks_who_is_asking_before_it_reads_the_body(server):
+    base, _ = server
+    # claims 100 bytes and sends none: a server that read first would hang until the timeout
+    status, _ = raw_post(base, "/api/confirm/t", {"Host": "evil.test", "Content-Type": "application/json", "Content-Length": "100"})
+    assert status == 403
+
+
+@pytest.mark.parametrize("length", ["-5", "abc", "999999999"])
+def test_a_missing_negative_or_huge_content_length_is_a_400(server, length):
+    base, _ = server
+    headers = {"Host": base.split("//")[1], "Content-Type": "application/json", "Content-Length": length}
+    assert raw_post(base, "/api/confirm/t", headers)[0] == 400
+    assert raw_post(base, "/api/confirm/t", {k: v for k, v in headers.items() if k != "Content-Length"})[0] == 400
+
+
+@pytest.mark.parametrize("body", [b"[1,2]", b'"x"', b"null", b"{not json"])
+def test_a_body_that_is_not_a_json_object_is_a_400_not_a_traceback(server, body):
+    base, maps = server
+    headers = {"Host": base.split("//")[1], "Content-Type": "application/json", "Content-Length": str(len(body))}
+    assert raw_post(base, "/api/check/t", headers, body)[0] == 400
+    assert raw_post(base, "/api/confirm/t", headers, body)[0] == 400
+    assert json.loads((maps / "catalog.json").read_text(encoding="utf-8"))[0]["status"] == "unavailable"
+
+
+def test_the_server_refuses_to_reconfirm_unless_started_with_the_flag(server):
+    base, maps = server
+    post = {"Content-Type": "application/json"}
+    assert json.loads(call(base + "/api/confirm/t", {}, post)[1])["written"] is True
+    again = json.loads(call(base + "/api/confirm/t", {"zones": {"1": ["blue"]}}, post)[1])
+    assert again["written"] is False and "already confirmed" in again["problems"][0]
+    assert json.loads(call(base + "/api/maps")[1])["reconfirm"] is False

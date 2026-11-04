@@ -26,6 +26,7 @@ ROOT = Path(__file__).resolve().parent.parent
 MAPS_DIR = ROOT / "data" / "maps"
 I18N_EN = ROOT / "data" / "i18n" / "en.json"
 BOARD_UNITS = 16.75                   # same constant as tools/import_map.py: the picture is stretched over a square board
+MAX_BODY = 1_000_000
 EXPECTED_ALIASES = {"thrilla-in-manilla": "thrilla-in-manila"}
 
 
@@ -79,7 +80,7 @@ def apply_edit(data: dict, edit: dict) -> dict:
     if "starts" in edit:
         starts = {}
         for digit, sid in edit["starts"].items():
-            if digit not in ("1", "2", "3", "4", "5") or int(sid) not in ids:
+            if digit not in ("1", "2", "3", "4") or int(sid) not in ids:
                 raise ValueError(f"bad start {digit}: {sid}")
             starts[digit] = int(sid)
         out["starts"] = dict(sorted(starts.items()))
@@ -141,7 +142,7 @@ def _write_json(path: Path, data) -> None:
 
 
 def confirm(maps_dir: Path, key: str, edit: dict, expected: dict | None = None,
-            zone_names: list[str] | None = None) -> tuple[bool, list[str]]:
+            zone_names: list[str] | None = None, allow_reconfirm: bool = False) -> tuple[bool, list[str]]:
     """Applies the person's edit to data/maps/<key>.json and, if the checks pass, writes it as verified and playable
     and marks the map supported in catalog.json. Returns (written, problems); nothing is written when problems remain."""
     path = maps_dir / f"{_safe_key(key)}.json"
@@ -150,6 +151,8 @@ def confirm(maps_dir: Path, key: str, edit: dict, expected: dict | None = None,
     entry = next((e for e in catalog if e["key"] == key), None)
     if entry is None or entry["status"] == "excluded" or not path.exists():
         return False, [f"{key} cannot be confirmed (not in the catalog, or it needs tokens or doors)"]
+    if entry["status"] == "supported" and not allow_reconfirm:
+        return False, [f"{key} is already confirmed; start the checker with --allow-reconfirm to change it"]
     edited = apply_edit(json.loads(path.read_text(encoding="utf-8")), edit)
     problems = validate(edited, expected, zone_names)
     if problems:
@@ -219,12 +222,12 @@ label{display:inline-block;width:110px}
 <div id=side><b>Maps</b><div id=list></div><hr><div id=panel></div></div>
 <div id=stage><div id=wrap><img id=img><svg id=lines viewBox="0 0 1000 1000" preserveAspectRatio="none"></svg></div></div>
 <script>
-let M=null,key=null,edges=new Set(),sel=null,ZN=[];
+let M=null,key=null,edges=new Set(),sel=null,ZN=[],RECONFIRM=false,RO=false,ST={};
 const $=id=>document.getElementById(id), ek=(a,b)=>Math.min(a,b)+"-"+Math.max(a,b);
 async function api(p,body){const r=await fetch(p,body?{method:"POST",headers:{"Content-Type":"application/json"},body:JSON.stringify(body)}:{});return r.json()}
-async function init(){const d=await api("/api/maps");ZN=d.zones;$("list").innerHTML="";
+async function init(){const d=await api("/api/maps");ZN=d.zones;RECONFIRM=d.reconfirm;ST={};for(const m of d.maps)ST[m.key]=m.status;$("list").innerHTML="";
  for(const m of d.maps){const a=document.createElement("a");a.className=m.status;a.textContent=m.name+" ["+m.status+"]";a.onclick=()=>open(m.key);$("list").append(a)}}
-async function open(k){key=k;M=await api("/api/map/"+k);edges=new Set();for(const s of M.spaces)for(const n of s.adj)edges.add(ek(s.id,n));
+async function open(k){key=k;RO=ST[k]==="supported"&&!RECONFIRM;M=await api("/api/map/"+k);edges=new Set();for(const s of M.spaces)for(const n of s.adj)edges.add(ek(s.id,n));
  sel=null;$("img").src="/image/"+k;draw();panel("")}
 function body(){const zones={};for(const s of M.spaces)zones[s.id]=s.zones;return{edges:[...edges].map(e=>e.split("-").map(Number)),zones,starts:M.starts}}
 function draw(){const w=$("wrap");w.querySelectorAll(".sp").forEach(e=>e.remove());let svg="";
@@ -234,14 +237,15 @@ function draw(){const w=$("wrap");w.querySelectorAll(".sp").forEach(e=>e.remove(
  for(const s of M.spaces){const d=document.createElement("div");d.className="sp"+(sel===s.id?" sel":"");
   const st=Object.entries(M.starts).filter(([k,v])=>v===s.id).map(([k])=>"S"+k).join(" ");if(st)d.classList.add("start");
   d.style.left=s.fx*100+"%";d.style.top=s.fy*100+"%";d.innerHTML=s.id+(st?" "+st:"")+"<small>"+s.zones.join("/")+"</small>";
-  d.onclick=()=>{if(sel===null)sel=s.id;else if(sel===s.id)sel=null;else{const k=ek(sel,s.id);edges.has(k)?edges.delete(k):edges.add(k);sel=null}draw();panel()};w.append(d)}}
+  d.onclick=()=>{if(RO)return;if(sel===null)sel=s.id;else if(sel===s.id)sel=null;else{const k=ek(sel,s.id);edges.has(k)?edges.delete(k):edges.add(k);sel=null}draw();panel()};w.append(d)}}
 function panel(msg){const p=$("panel");if(!M)return;let h="<b>"+M.name+"</b><br>";
  if(M.problems)h+="<div id=problems>Import said: "+M.problems.join("\n")+"</div>";
- if(sel!==null){const s=M.spaces[sel];h+="<hr>Space "+sel+"<br>";
+ if(RO)h+="<div id=ok>Confirmed map: read-only (start the checker with --allow-reconfirm to change it).</div>";
+ if(sel!==null&&!RO){const s=M.spaces[sel];h+="<hr>Space "+sel+"<br>";
   for(const z of ZN)h+=`<label><input type=checkbox ${s.zones.includes(z)?"checked":""} onchange="zone(${sel},'${z}',this.checked)"> ${z}</label>`;
   h+="<br>";for(const n of ["1","2","3","4"])h+=`<button onclick="start('${n}',${sel})">start ${n}</button>`;
   h+=`<button onclick="clearStart(${sel})">no start</button>`}
- h+="<hr><button onclick=check()>Check</button><button onclick=confirmMap()>Confirm (write)</button><div id=problems>"+(msg||"")+"</div>";p.innerHTML=h}
+ h+=RO?"<hr>":"<hr><button onclick=check()>Check</button><button onclick=confirmMap()>Confirm (write)</button><div id=problems>"+(msg||"")+"</div>";p.innerHTML=h}
 function zone(id,z,on){const s=M.spaces[id];s.zones=on?[...new Set([...s.zones,z])]:s.zones.filter(x=>x!==z);draw();panel()}
 function start(n,id){M.starts[n]=id;draw();panel()}
 function clearStart(id){for(const k in M.starts)if(M.starts[k]===id)delete M.starts[k];draw();panel()}
@@ -256,6 +260,7 @@ class Handler(BaseHTTPRequestHandler):
     images_dir: Path
     expected: dict = {}
     zones: list[str] = []
+    allow_reconfirm = False
 
     def log_message(self, *args):          # keep the console quiet
         pass
@@ -264,6 +269,16 @@ class Handler(BaseHTTPRequestHandler):
         host = (self.headers.get("Host") or "").split(":")[0]
         origin = self.headers.get("Origin")
         return host in ("127.0.0.1", "localhost") and (origin is None or urlparse(origin).hostname in ("127.0.0.1", "localhost"))
+
+    def _discard_body(self) -> None:
+        """After a refusal, drops what the client already sent (briefly) so closing does not reset its connection."""
+        length = self.headers.get("Content-Length", "")
+        if length.isdigit():
+            self.connection.settimeout(0.2)
+            try:
+                self.rfile.read(min(int(length), MAX_BODY))
+            except OSError:
+                pass
 
     def _send(self, code: int, body: bytes, ctype: str) -> None:
         self.send_response(code)
@@ -283,7 +298,7 @@ class Handler(BaseHTTPRequestHandler):
             if path == "/":
                 return self._send(200, PAGE.encode("utf-8"), "text/html; charset=utf-8")
             if path == "/api/maps":
-                return self._json({"maps": list_maps(self.maps_dir), "zones": self.zones})
+                return self._json({"maps": list_maps(self.maps_dir), "zones": self.zones, "reconfirm": self.allow_reconfirm})
             if path.startswith("/api/map/"):
                 return self._json(map_view(self.maps_dir, path.rsplit("/", 1)[1]))
             if path.startswith("/image/"):
@@ -297,18 +312,25 @@ class Handler(BaseHTTPRequestHandler):
         self._send(404, b"not found", "text/plain")
 
     def do_POST(self):
-        raw = self.rfile.read(int(self.headers.get("Content-Length") or 0))
         if not self._local_only() or self.headers.get("Content-Type") != "application/json":
+            self._discard_body()
             return self._send(403, b"local json only", "text/plain")
+        length = self.headers.get("Content-Length", "")
+        if not length.isdigit() or int(length) > MAX_BODY:
+            return self._send(400, b"bad Content-Length", "text/plain")
+        raw = self.rfile.read(int(length))
         path = urlparse(self.path).path
         try:
             edit = json.loads(raw)
+            if not isinstance(edit, dict):
+                raise ValueError("the body must be a JSON object")
             key = _safe_key(path.rsplit("/", 1)[1])
             if path.startswith("/api/check/"):
                 data = apply_edit(json.loads((self.maps_dir / f"{key}.json").read_text(encoding="utf-8")), edit)
                 return self._json({"problems": validate(data, self.expected.get(key), self.zones)})
             if path.startswith("/api/confirm/"):
-                written, problems = confirm(self.maps_dir, key, edit, self.expected.get(key), self.zones)
+                written, problems = confirm(self.maps_dir, key, edit, self.expected.get(key), self.zones,
+                                              self.allow_reconfirm)
                 return self._json({"written": written, "problems": problems})
         except (OSError, ValueError, KeyError, TypeError) as e:
             return self._json({"problems": [f"rejected: {e}"], "written": False}, 400)
@@ -321,12 +343,14 @@ def main(argv: list[str] | None = None) -> int:
                     help="folder with <imageKey>.img pictures, outside the repo (or MAP_IMAGES_DIR)")
     ap.add_argument("--expected", type=Path, help="unmatched-memory data/maps.json, for the published space/zone counts")
     ap.add_argument("--port", type=int, default=8765)
+    ap.add_argument("--allow-reconfirm", action="store_true", help="let maps that are already confirmed be edited again")
     args = ap.parse_args(argv)
     images = Path(args.images).resolve()
     if ROOT in images.parents or images == ROOT:
         print("--images must be outside the repository: the map art is not ours to commit", file=sys.stderr)
         return 2
     Handler.images_dir, Handler.expected, Handler.zones = images, load_expected(args.expected), known_zones()
+    Handler.allow_reconfirm = args.allow_reconfirm
     server = ThreadingHTTPServer(("127.0.0.1", args.port), Handler)
     print(f"Map checker on http://127.0.0.1:{args.port}  (Ctrl+C to stop)")
     try:

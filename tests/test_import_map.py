@@ -265,3 +265,29 @@ def test_images_are_only_fetched_over_https_and_once(tmp_path):
     assert im.fetch_image("https://never-called.test/b", cached) == cached
 
 
+
+
+def test_overwrite_keeps_a_map_a_person_confirmed_unless_forced(tmp_path, monkeypatch):
+    save = save_with(map_bag("Yukon", 0, 0))
+    save_path = tmp_path / "save.json"
+    save_path.write_text(json.dumps(save), encoding="utf-8")
+    out = tmp_path / "maps"
+    out.mkdir()
+    confirmed = {"key": "yukon", "name": "Yukon", "imageKey": "A" * 40, "verified": True, "playable": True, "starts": {"1": 0},
+                 "spaces": [{"id": 0, "local": [1.0, 2.0], "zones": ["red"], "adj": []}]}
+    (out / "yukon.json").write_text(json.dumps(confirmed), encoding="utf-8")
+    calls = []
+
+    def fake_extract(sm, img, expected=None):
+        calls.append(sm.key)
+        return extracted()
+    monkeypatch.setattr(im, "fetch_image", lambda url, dest: dest)
+    monkeypatch.setattr(im, "load_work_image", lambda path: blank(400, 200))
+    monkeypatch.setattr(im, "extract_map", fake_extract)
+    monkeypatch.setattr(im, "render_check", lambda *a, **k: None)
+    argv = ["--save", str(save_path), "--images", str(tmp_path / "img"), "--out", str(out), "--check-dir", str(tmp_path / "c"),
+            "--overwrite"]
+    assert im.main(argv) == 0
+    assert calls == [] and json.loads((out / "yukon.json").read_text(encoding="utf-8")) == confirmed
+    assert im.main(argv + ["--force-unverify"]) == 0
+    assert calls == ["yukon"] and json.loads((out / "yukon.json").read_text(encoding="utf-8"))["verified"] is False
