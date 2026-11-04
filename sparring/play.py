@@ -28,7 +28,9 @@ from pathlib import Path
 from typing import Callable
 
 from .search.controller import make_bot_ai
-from .board import Board
+from . import board_detect
+from .board import Board, catalog as board_catalog
+from .board_detect import BoardError, choose_board
 from .hero_detect import HeroDetectionError, detect_heroes, detected_decks, read_table
 from .heroes import HeroDataError, load_hero
 from . import game_log, i18n, persist, table_prep
@@ -85,7 +87,7 @@ def migrate_legacy_files(state: Path) -> list[str]:
 BOT, HUMAN = 0, 1
 READ_ONLY_TAGS = frozenset({"snapshot", "piece_spaces_by_guid", "read_hand", "count_hand", "read_discard",
                             "read_face_down_cards", "read_cards_at", "inspect_guids", "read_health_dials", "zone_overlaps", "deck_identities",
-                            "hand_identities", "reset_plan", "table_heroes", "inspect_objects", "find_pieces_by_name", "find_dials_by_name"})
+                            "hand_identities", "reset_plan", "table_heroes", "inspect_objects", "find_pieces_by_name", "find_dials_by_name", "list_boards"})
 
 REQUIRED = ("bot_seat", "human_seat", "nicknames", "bot_card_spot", "human_card_spot", "bot_discard_spot",
             "bot_discard_zone", "bot_deck_guid", "human_discard_zone", "bot_deck_spot", "pieces")
@@ -406,13 +408,27 @@ def load_config(path: str | Path, bot_hero: str | None = None, human_hero: str |
 
 def build_config(raw: dict, sources: tuple[str, str]) -> PlayConfig:
     board_key = raw.get("board", "bprd-hq")
-    if board_key not in lua.BOARD_GUIDS:
+    if board_key not in {e.key for e in board_catalog() if e.status == "supported"}:
         raise ConfigError(t("cfg.unknown_board", board=board_key))
-    if raw.get("board_guid") not in (None, lua.BOARD_GUIDS[board_key]):
-        raise ConfigError(t("cfg.board_guid", guid=raw["board_guid"], board=board_key, expected=lua.BOARD_GUIDS[board_key]))
+    found_guid = raw.get("found_board_guid")         # set by `detect_board`: the board on the table, whatever its GUID
+    if not found_guid and raw.get("board_guid") not in (None, lua.BOARD_GUIDS.get(board_key)):
+        raise ConfigError(t("cfg.board_guid", guid=raw["board_guid"], board=board_key, expected=lua.BOARD_GUIDS.get(board_key)))
     full = with_hero_data(raw)
     todos = [k for k in REQUIRED if is_todo(full.get(k))]
-    return PlayConfig(full, Board.load(board_key), todos, base=raw, sources=sources)
+    board = Board.load(board_key)
+    board.guid = found_guid or raw.get("board_guid")
+    return PlayConfig(full, board, todos, base=raw, sources=sources)
+
+
+def detect_board(client, cfg: PlayConfig, echo: Callable[[str], None] = print) -> PlayConfig:
+    """Finds the map on the table by its image (read only) and rebuilds the configuration on it, with the board's real
+    GUID. `BoardError` when the board is unknown, excluded or unverified."""
+    found = ReadOnlyClient(client).call_lua(lua.list_boards())
+    entry, guid = choose_board(found if isinstance(found, list) else [], board_detect.load_catalog())
+    out = build_config({**cfg.base, "board": entry.key, "found_board_guid": guid}, cfg.sources)
+    out.warnings = list(cfg.warnings)
+    echo(t("board.found", name=entry.name))
+    return out
 
 
 def resolve_heroes(client, cfg: PlayConfig, saved: tuple[str, str] | None = None,
@@ -549,7 +565,7 @@ def read_only_report(client, cfg: PlayConfig) -> list[str]:
             return None
 
     out.append(t("ro.header"))
-    guids = {t("ro.label.board"): lua.BOARD_GUIDS[cfg.board.key], t("ro.label.bot_deck"): val("bot_deck_guid"),
+    guids = {t("ro.label.board"): lua.board_guid(cfg.board), t("ro.label.bot_deck"): val("bot_deck_guid"),
              t("ro.label.bot_discard"): val("bot_discard_zone"), t("ro.label.human_discard"): val("human_discard_zone"),
              t("ro.label.bot_deck_zone"): val("bot_deck_zone"), t("ro.label.human_deck_zone"): val("human_deck_zone")}
     guids.update({t("ro.label.probe", guid=g): g for g in raw.get("probe_guids", [])})
@@ -1195,10 +1211,11 @@ def _main(args: argparse.Namespace, stop: threading.Event, status: Callable[[str
         client.start_listening()
         try:
             saved = saved_heroes(args.state) if args.resume and not args.read_only else None
+            cfg = detect_board(client, cfg)
             cfg = resolve_heroes(client, cfg, saved)
             if not args.read_only:
                 cfg.session_config()
-        except (HeroDetectionError, ConfigError, persist.StateError, SessionError) as e:
+        except (BoardError, HeroDetectionError, ConfigError, persist.StateError, SessionError) as e:
             print(t("console.cannot_start", error=e), file=sys.stderr)
             status("error cannot_start")
             return 2

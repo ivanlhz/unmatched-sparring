@@ -140,8 +140,13 @@ def _snaps_table(board: Board) -> str:
     return "{" + rows + "}"
 
 
-def _board_prelude(board: Board, board_guid: str | None = None) -> str:
-    guid = board_guid or BOARD_GUIDS[board.key]
+def board_guid(board: Board) -> str:
+    """GUID of the board on the table: the one the start-up found, else the one the first two maps were set up with."""
+    return board.guid or BOARD_GUIDS[board.key]
+
+
+def _board_prelude(board: Board, override: str | None = None) -> str:
+    guid = override or board_guid(board)
     return (f"local board = getObjectFromGUID({_guid(guid)})\n"
             f"local snaps = {_snaps_table(board)}\n"
             "local function spaceWorld(id) local c = snaps[id]; return board.positionToWorld(Vector(c[1], 0, c[2])) end\n")
@@ -895,6 +900,23 @@ for _, o in ipairs(getObjects()) do
         table.insert(out[plain], {{guid = o.getGUID(), type = ty}})
       end
     end
+  end
+end
+return JSON.encode(out)
+"""
+
+
+@_registered
+def list_boards() -> str:
+    """Read only: GUID and image URL of every board (Custom_Board) loose on the table, to tell which map is in play."""
+    return """-- sparring:list_boards
+local out = {}
+for _, o in ipairs(getObjects()) do
+  if o.type == "Board" then
+    local ok, custom = pcall(function() return o.getCustomObject() end)
+    local image = ""
+    if ok and type(custom) == "table" and custom.image ~= nil then image = tostring(custom.image) end
+    table.insert(out, {guid = o.getGUID(), image = image})
   end
 end
 return JSON.encode(out)

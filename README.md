@@ -71,7 +71,20 @@ Limitations:
 - Which cards of your hero does the bot resolve for you? Mostly none: you apply your own card effects on the table, and the bot checks the important ones (movements, discards, draws) against its own rules engine and tells you what to do. See [How to play](#4-how-to-play).
 - Heroes outside the twelve need effects, a card sheet and table data written first (see [Adding a hero](#adding-a-hero)). A bot hero without coded effects would announce that its ability "is not coded yet" and play by card value and boost only.
 
-Boards: **B.P.R.D. Headquarters** (`data/maps/bprd-hq.json`) is the board used and tested, including in live games. The map data of **Azuchi Castle** (`data/maps/azuchi-castle.json`) is bundled and accepted by `"board": "azuchi-castle"` in the config, but the table positions in `config\table.json` are those of the B.P.R.D. table and it has not been played live.
+### Maps
+
+The bot plays on the map that is on the table: at start-up it reads the loose boards, recognises the map by its image (`data/maps/catalog.json`) and uses that board's real GUID, so a map taken out of its bag in the official save works whatever GUID TTS gave it. `board` in the configuration only matters for the offline simulator. If the board is unknown, needs tokens or doors, or has no verified data, the bot refuses to start and says which map it saw and which ones it supports (`--read-only` does the same check). Two maps on the table at once are refused too; leave only the one you play.
+
+**Supported (16)**: Azuchi Castle, B.P.R.D. Headquarters, Fayrlund Forest, Globe Theatre, Marmoreal, Pandemonium, Sarpedon, Sherwood Forest, Streets Of Novigrad, Sunnydale High, T. Rex Paddock, Technodrome, The Bronze, Tsing Shan Monastery, Yukon, Yukon 1900.
+
+- B.P.R.D. Headquarters has been played live. Azuchi Castle's data was checked by hand but not played live. The other 14 were extracted by [tools/import_map.py](tools/import_map.py) from the map image and the board's snap points and passed its checks (space count equal to the published one, symmetric and connected graph, no connector crossing another, no space with a single neighbour, a zone on every space, start markers 1 and 2); nobody has looked them over yet and none has been played live. Their adjacency and zones come from the picture, so look at `docs/maps-check\<key>.png` (map, space ids, edges, zone names, start markers) before trusting one, and report what is wrong.
+- The table positions in `config\table.json` (card spots, zones, panel) are those of the B.P.R.D. table setup, whatever the map; they have not been re-checked for the other maps.
+
+**Excluded because they need tokens or doors (6)**: Helicarrier, Hell's Kitchen, Navy Pier, Sanctum Sanctorum and The Raft (each has a "Battlefield Items" bag in the save) and Heorot (a Doors bag sits next to it). The bot has no tokens or doors, so it refuses them.
+
+**Not supported yet (15)**, because the extraction did not pass its checks and I do not guess: Baskerville Manor, Hanging Gardens, Kaer Morhen, King Solomon's Mine, McMinnville, OR, Naglfar, New York City, Point Pleasant, Raptor Paddock, Santa's Workshop, Soho, The Alamo, The White House, Thrilla In Manila, Venice. Their data files say `"playable": false` and why, and their pictures are in `docs/maps-check` too. Most fail on a connector the extraction missed (a space left with one neighbour); Naglfar is two ships joined by printed portal icons that the bot cannot follow.
+
+Not enforced by the bot, on any map: the save carries no rule text for the maps, so any special rule a map may have in the official rulebook is not enforced. The only marks I can see are printed on the pictures: an orange claw-and-exclamation icon on some connectors (Azuchi Castle, Fayrlund Forest, Globe Theatre, Pandemonium, Streets Of Novigrad, T. Rex Paddock, The Bronze, Technodrome); the bot treats those connectors as plain adjacency and ignores the icon, and what it stands for is not in the save. The save also has two small loose boards, Phone Booth and Bathroom Stall, and a second Doors bag with the generic components; none is tied to a map in the save, so I could not tell whether one of the supported maps uses them.
 
 ## 3. Requirements and setup
 
@@ -100,7 +113,7 @@ The file holds what belongs to the **table**; everything that belongs to a **her
 |---|---|
 | `language` | `"es"` (default) or `"en"`. See [Languages](#5-languages). |
 | `bot_hero`, `human_hero` | A hero slug or `"auto"` (detect from the table). |
-| `board`, `board_guid` | `bprd-hq` / `ec6f27`. |
+| `board`, `board_guid` | `bprd-hq` / `ec6f27`: only the fallback for the offline simulator; with TTS the map and its GUID are read from the table (see [Maps](#maps)). |
 | `bot_seat`, `human_seat` | `Green` / `White`. |
 | `bot_card_spot`, `human_card_spot` | Where the face-down combat cards are. |
 | `bot_ongoing_spot`, `human_ongoing_spot` | Where ONGOING schemes are kept. |
@@ -383,7 +396,7 @@ Works (verified against FakeTTS, and live where noted):
 Known limitations:
 
 - Not everything has been seen on a real table. The live checklist ([docs/live-checklist.md](docs/live-checklist.md)) lists what is still unchecked per hero: for example Glimpse Of Hell, Confront Any Demon or God, Out Of Time, and parts of the announce pause.
-- The human is limited to the twelve heroes (F19). The bot is calibrated for one table (the tournament savegame, B.P.R.D. HQ) and for you being White and the bot Green.
+- The human is limited to the twelve heroes (F19). The bot is calibrated for one table (the tournament savegame) and for you being White and the bot Green.
 - You resolve the effects of your own cards by hand. The bot learns about them from the table (discard, health dials) and by the buttons you press; effects that move or place pieces on your side are validated, but your own Maneuver and miniature moves are read without validation.
 - Look-at-hand effects that the bot suffers (your card looks at its hand) are done by laying its hand out. When one of the bot's cards lets it look at your hand, it reads your hand zone at that moment only and forgets each card as it leaves your hand; this has not been seen on a real table yet.
 - Two equidistant spaces cannot be told apart from the table snapshot.

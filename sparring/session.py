@@ -1634,7 +1634,7 @@ class Session:
         c = self.cfg
         pcs = self.configured_pieces if configured else {fid: piece_guids(v) for fid, v in c.pieces.items()}
         zones = self.configured_zones if configured else {k: getattr(c, k) for k in DISCARD_ZONE_KEYS}
-        guids = [lua.BOARD_GUIDS[self.game.board.key], self.configured_decks["bot_deck_guid"] if configured else c.bot_deck_guid,
+        guids = [lua.board_guid(self.game.board), self.configured_decks["bot_deck_guid"] if configured else c.bot_deck_guid,
                  zones["bot_discard_zone"], zones["human_discard_zone"],
                  *(g for v in pcs.values() for g in v), *(self.configured_dials if configured else c.dials).values(),
                  *([c.destiny_dial] if c.destiny_dial else []), *self._deck_zones()]
@@ -1647,7 +1647,7 @@ class Session:
         """GUIDs that must exist, in groups: one of each group is enough (a miniature with states is a single object
         at a time; the rest of the GUIDs are its own)."""
         c = self.cfg
-        singles = [lua.BOARD_GUIDS[self.game.board.key], c.bot_deck_guid, c.bot_discard_zone, c.human_discard_zone,
+        singles = [lua.board_guid(self.game.board), c.bot_deck_guid, c.bot_discard_zone, c.human_discard_zone,
                    *c.dials.values(), *([c.destiny_dial] if c.destiny_dial else []), *self._deck_zones()]
         return [[g] for g in sorted(set(singles))] + [piece_guids(v) for _, v in sorted(c.pieces.items())]
 

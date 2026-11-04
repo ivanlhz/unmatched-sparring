@@ -15,10 +15,27 @@ class Space:
     zones: frozenset[str]
 
 
+@dataclass(frozen=True)
+class MapEntry:
+    """One map of the official save (data/maps/catalog.json). `status`: supported (data verified), excluded (needs
+    tokens or doors: `reason`) or unavailable (its data did not pass the checks of tools/import_map.py)."""
+    key: str
+    name: str
+    image_key: str          # the SHA-1 the board's image URL ends with: how a board on the table is recognised
+    status: str
+    reason: str | None = None
+
+
+def catalog() -> list[MapEntry]:
+    raw = json.loads((DATA_DIR / "maps" / "catalog.json").read_text(encoding="utf-8"))
+    return [MapEntry(e["key"], e["name"], e["imageKey"], e["status"], e.get("reason")) for e in raw]
+
+
 class Board:
     def __init__(self, key: str, name: str, spaces: list[Space], adj: dict[int, set[int]], starts: dict[str, int]):
         self.key = key
         self.name = name
+        self.guid: str | None = None        # the board's GUID on the table, once found (set by the start-up)
         self.spaces = {s.id: s for s in spaces}
         self.adj = adj
         self.starts = starts

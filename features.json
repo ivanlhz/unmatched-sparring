@@ -410,6 +410,29 @@
         "A TTS reload (messageID 1) after the zones were created: they are not in the TTS save, so the bot stops with the missing-GUID message; restart it"
       ],
       "note": "Asked by Iván on 4/11 so people who download the bot can use the official save without making two zones by hand. Nothing here was run against real TTS. Branch official-save-setup."
+    },
+    {
+      "id": "F21",
+      "title": "Every map of the official save",
+      "status": "in-progress",
+      "criteria": [
+        "tools/import_map.py reads the maps of the official save (read only) and, from each board's snap points and image, writes data/maps/<key>.json: spaces (snap points with a circle around them; the pixel of a snap is W/2 - x*W/16.75, H/2 + z*H/16.75), adjacency (connectors thinned to a pixel graph, circle to circle without crossing a third one), zones (k-means colours per circle, one palette per map, names from spaces.color.*), starts 1-4 (numbered diamonds read by template matching); on bprd-hq the adjacency matches 51 of the 52 live-verified edges and invents none",
+        "Every map is checked (spaces = the published count, symmetric and connected, no two connectors crossing, no space with a single neighbour, a zone on every space, the published zone count, start markers 1 and 2 on different spaces); a map that fails any check is written with playable false and the reasons, listed as unavailable in data/maps/catalog.json, and refused at start-up; a picture of every non-excluded map (image, space ids, edges, zone names, start markers) is in docs/maps-check",
+        "Supported: B.P.R.D. Headquarters, Azuchi Castle (unchanged data) and 14 extracted maps (Fayrlund Forest, Globe Theatre, Marmoreal, Pandemonium, Sarpedon, Sherwood Forest, Streets Of Novigrad, Sunnydale High, T. Rex Paddock, Technodrome, The Bronze, Tsing Shan Monastery, Yukon, Yukon 1900); unavailable (15, failed checks): Baskerville Manor, Hanging Gardens, Kaer Morhen, King Solomon's Mine, McMinnville OR, Naglfar, New York City, Point Pleasant, Raptor Paddock, Santa's Workshop, Soho, The Alamo, The White House, Thrilla In Manila, Venice",
+        "Excluded because they need tokens or doors, read off the save: Helicarrier, Hell's Kitchen, Navy Pier, Sanctum Sanctorum, The Raft (a 'Battlefield Items' bag each) and Heorot (a Doors bag next to it); they have no data file. Uncertain, not excluded: a second Doors bag, and the Phone Booth and Bathroom Stall boards, sit with the generic components and are tied to no map in the save",
+        "The map is found on the table by its image, never by a fixed GUID: the start-up reads every loose Board (lua.list_boards, read only, messageID 3), matches the SHA-1 the image URL ends with against the catalog and uses that board's GUID in every script (lua.board_guid, Board.guid); bprd-hq and azuchi-castle keep their old GUIDs as the fallback and the existing tests are unchanged",
+        "An unknown, excluded or unverified board, none at all, or two maps at once stop the start-up (exit 2) with an i18n message (es and en) that names the map and lists the supported ones; boards that are not maps are ignored while exactly one map is there",
+        "Only messageID 2 and 3 are used, never messageID 1 or the Global UI; list_boards is read only (tests)",
+        "README lists the supported, excluded and unavailable maps with the reasons and what the bot does not enforce"
+      ],
+      "verify_live": [
+        "TTS returns type 'Board' for o.type and the image URL in getCustomObject().image of a loose Custom_Board (the script is only tested on lupa and FakeTTS)",
+        "A map taken out of its infinite bag (new GUID) is recognised and the miniatures are placed on it; the decorative locked board 6bd0e3 and the Phone Booth / Bathroom Stall boards do not get in the way",
+        "Each extracted map looks right on the real table against docs/maps-check: edges, zones and start spaces 1 and 2; any wrong edge is reported with the map and the space ids",
+        "The orange claw icons printed on some connectors (Azuchi Castle, Fayrlund Forest, Technodrome, ...): what they mean in the rules, since the bot treats those connectors as plain adjacency",
+        "The refusal messages read well on the console for an excluded map, an unavailable one and two maps at once"
+      ],
+      "note": "Asked by Iván on 4/11 after the bot crashed on a map picked from the official save (board.positionToWorld on nil: the board was looked up by a fixed GUID). Exclusion rule from Iván: only maps that need tokens or doors; any other special rule is listed as not enforced (the save has no rule text, so the README can only name the marks visible on the pictures). The adjacency and zones come from the pictures and nobody has looked them over yet; maps that failed a check are marked not playable rather than guessed. Branch all-maps, from official-save-setup."
     }
   ]
 }

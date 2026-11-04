@@ -76,6 +76,8 @@ class Table:
         self.stray_near_deck: list[dict] = []       # loose Card objects near the deck (CardID, guid)
         self.discard_spots: dict[int, tuple[float, float, float]] = {}   # CardID -> spot asked for when discarding
         self.markings: list[str] = []
+        self.boards = [{"guid": "ec6f27", "image": "https://steamusercontent-a.akamaihd.net/ugc/10620501219968268988/"
+                                                   "1E5B373863CF97C6FF9E3478C687923A1C3E47AD/"}]   # the loose boards (B.P.R.D. HQ)
         self.dial_writes: list[tuple[str, int]] = []
         self.piece_names: dict[str, str] = {}
         self.placed: list[tuple[str, float, float, float]] = []
@@ -274,6 +276,9 @@ class Table:
     def do_zone_overlaps(self, s):
         guids = re.findall(r'"(\w+)"', re.search(r"ipairs\(\{(.*?)\}\)", s).group(1))
         return {g: {"found": True, "hands": self.hand_zones.get(g, [])} for g in guids}
+
+    def do_list_boards(self, s):
+        return self.boards
 
     def do_inspect_guids(self, s):
         guids = re.findall(r'"(\w+)"', re.search(r"ipairs\(\{(.*?)\}\)", s).group(1))

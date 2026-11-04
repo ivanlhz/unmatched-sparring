@@ -669,7 +669,7 @@ def test_read_only_allowlist_is_exactly_the_pure_read_builders(bprd):
         "read_hand": lambda: lua.read_hand("Blue"), "count_hand": lambda: lua.count_hand("Blue"),
         "read_discard": lambda: lua.read_discard("abc", ["d42056"], [(1.0, 2.0)]),
         "read_face_down_cards": lambda: lua.read_face_down_cards(0, 0),
-        "inspect_guids": lambda: lua.inspect_guids(["abc"]), "read_health_dials": lambda: lua.read_health_dials(["abc"]),
+        "list_boards": lambda: lua.list_boards(), "inspect_guids": lambda: lua.inspect_guids(["abc"]), "read_health_dials": lambda: lua.read_health_dials(["abc"]),
         "zone_overlaps": lambda: lua.zone_overlaps(["abc"]),
         "deck_identities": lambda: lua.deck_identities([("abc", (0.0, 3.0), lua.BOT_CARD_IDS)]),
         "deal_cards": lambda: t_deal_cards("abc", 1, "Blue", spot=(0, 0)),

@@ -268,6 +268,15 @@ Nothing of this has been seen on a real table. Load "Unmatched Official Tourname
 - [ ] **Fresh restart without reloading TTS**: the leftover created zones are reused (no duplicate zone on top of them).
 - [ ] **TTS reload after creating the zones** (load another save): the bot stops with the missing-GUID message; restart it.
 
+### Maps of the official save (F21)
+Nothing of this has been seen on a real table. Load the official save, take a map out of its bag in the map area and put it on the table, then start the bot (or run `--read-only`).
+- [ ] **TTS returns what the script reads**: `o.type` of a loose Custom_Board is `Board`, and `getCustomObject().image` is the image URL whose last 40 hex characters are the SHA-1 in `data/maps/catalog.json` (the script reads `guid` and `image` of every `Board`; if the report says "image ?" the URL has another shape).
+- [ ] **A board with a new GUID is found**: with B.P.R.D. HQ taken out of its bag, the console says "Map on the table: B.P.R.D. Headquarters", `--read-only` lists the new GUID as the board, and the miniatures are placed on the right spaces (it used to crash with `board.positionToWorld` on nil).
+- [ ] **Each supported map**: take it out, start with `--read-only`, then play a few turns: miniatures land on the circles, the start spaces 1 and 2 are the diamonds numbered 1 and 2, a move and an attack respect the connectors. Compare with `docs/maps-check\<key>.png`; note any wrong edge or zone (map and space ids).
+- [ ] **Refusals**: an excluded map (Navy Pier, Heorot), an unavailable one (Venice) and two maps at once each stop the start-up with a message that names the map and lists the supported ones, and nothing on the table is touched.
+- [ ] **The table's own decorative boards** (the locked pad board 6bd0e3 and the small Phone Booth / Bathroom Stall boards if you pull them out) do not stop the start-up while one map is on the table.
+- [ ] **Resume** on another map than the saved game is rejected by the table identity check.
+
 ## 4. Panel and buttons
 
 - [x] The choice buttons of a card **only appear when it is played** (hidden, **never greyed out**). *(OK 30/10)*
