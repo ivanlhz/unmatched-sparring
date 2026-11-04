@@ -276,3 +276,27 @@ def test_an_edit_without_passages_keeps_the_ones_on_file(maps):
     (maps / "t.json").write_text(json.dumps(data), encoding="utf-8")
     assert mc.confirm(maps, "t", {}, None, ZONES)[0]
     assert json.loads((maps / "t.json").read_text(encoding="utf-8"))["passages"] == [[0, 2]]
+
+
+# ---------- directional bonuses ----------
+def test_confirm_round_trips_bonuses_into_a_board(maps):
+    ok, problems = mc.confirm(maps, "t", {"bonuses": [{"from": 1, "to": 0, "value": 1}]}, None, ZONES)
+    assert ok, problems
+    assert json.loads((maps / "t.json").read_text(encoding="utf-8"))["bonuses"] == [{"from": 1, "to": 0, "value": 1}]
+    board = Board.load(maps / "t.json")
+    assert board.attack_bonus(1, 0) == 1 and board.attack_bonus(0, 1) == 0
+
+
+def test_a_bonus_between_spaces_that_are_not_adjacent_fails_the_check():
+    data = mc.apply_edit(ring(), {"bonuses": [{"from": 0, "to": 2, "value": 1}]})
+    assert any("not adjacent" in p for p in mc.validate(data))
+    assert mc.validate(mc.apply_edit(ring(), {"bonuses": [{"from": 0, "to": 1, "value": 1}]})) == []
+
+
+def test_bad_or_empty_bonus_edits():
+    with pytest.raises(ValueError):
+        mc.apply_edit(ring(), {"bonuses": [{"from": 0, "to": 9}]})
+    kept = mc.apply_edit(ring(), {"bonuses": [{"from": 0, "to": 1}]})
+    assert kept["bonuses"][0]["value"] == 1
+    assert "bonuses" not in mc.apply_edit(kept, {"bonuses": []})
+    assert mc.apply_edit(kept, {})["bonuses"] == kept["bonuses"]

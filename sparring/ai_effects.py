@@ -350,7 +350,7 @@ class EffectAI:
         info, me = req.extra["sleight"], req.player
         f, target, old = game.fighters[info["fighter"]], game.fighters[info["target"]], game.card_of(info["old"], me)
         ai = self.medusa(me)
-        known = _KnownDefense(game, me, info["def_value"] - (info["atk_value"] - (old.value or 0) - game.attack_bonus(f)))
+        known = _KnownDefense(game, me, info["def_value"] - (info["atk_value"] - (old.value or 0) - game.attack_bonus(f, target)))
         keep = ai.attack_outcome(game, known, f, target, old)[0]
         hand = game.players[me].hand
         shadow = copy.copy(game)                      # the hand as it would be after the swap: Sleight Of Hand back in it

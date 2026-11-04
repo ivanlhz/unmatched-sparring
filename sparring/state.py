@@ -371,10 +371,13 @@ class Game:
         return [t for t in self.players[player].hero.triggers
                 if t.get("when") == when and t.get("form", form) == form]
 
-    def attack_bonus_parts(self, fighter: Fighter) -> list[tuple[int, str]]:
-        """(bonus, tag) of each active attack passive of the hero (Hellboy in ANUNG UN RAMA: (2, 'ANUNG UN RAMA'))."""
-        return (self.players[fighter.owner].hero.attack_bonuses(self.form(fighter.owner), fighter.hero)
-                + self.combat_bonus_parts(fighter.owner) + inventions.bonus_parts(self, fighter.owner, "attack"))
+    def attack_bonus_parts(self, fighter: Fighter, target: Fighter | None = None) -> list[tuple[int, str]]:
+        """(bonus, tag) of each active attack passive of the hero (Hellboy in ANUNG UN RAMA: (2, 'ANUNG UN RAMA')),
+        plus the board's high ground when the `target` it hits is known."""
+        parts = (self.players[fighter.owner].hero.attack_bonuses(self.form(fighter.owner), fighter.hero)
+                 + self.combat_bonus_parts(fighter.owner) + inventions.bonus_parts(self, fighter.owner, "attack"))
+        high = self.board.attack_bonus(fighter.pos, target.pos) if target is not None else 0
+        return parts + [(high, t("cf.high_ground"))] if high else parts
 
     def defense_bonus_parts(self, player: int) -> list[tuple[int, str]]:
         """(bonus, label) added to the card `player` defends with: the live ONGOING and the tucked inventions."""
@@ -404,12 +407,13 @@ class Game:
     def combat_bonus_total(self, player: int) -> int:
         return sum(n for n, _ in self.combat_bonus_parts(player))
 
-    def attack_bonus(self, fighter: Fighter) -> int:
-        """Bonus of `fighter`'s NEXT attack (used by the AI to measure threats). A scheme's ONGOING expires when its
+    def attack_bonus(self, fighter: Fighter, target: Fighter | None = None) -> int:
+        """Bonus of `fighter`'s NEXT attack (used by the AI to measure threats; with `target`, the high ground too). A scheme's ONGOING expires when its
         owner's turn begins: if it is not their turn now, that bonus no longer reaches their next attack."""
         passives = self.players[fighter.owner].hero.attack_bonus(self.form(fighter.owner), fighter.hero)
         tucked = sum(n for n, _ in inventions.bonus_parts(self, fighter.owner, "attack"))
-        return passives + tucked + (self.combat_bonus_total(fighter.owner) if self.turn == fighter.owner else 0)
+        high = self.board.attack_bonus(fighter.pos, target.pos) if target is not None else 0
+        return passives + tucked + high + (self.combat_bonus_total(fighter.owner) if self.turn == fighter.owner else 0)
 
     def legal_moves(self, fighter: Fighter, steps: int, through_enemies: bool = False) -> set[int]:
         if not self.fx.can_move(fighter):

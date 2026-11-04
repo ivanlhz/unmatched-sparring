@@ -60,10 +60,7 @@
   "key": "kaer-morhen",
   "name": "Kaer Morhen",
   "imageKey": "1B03816D8A9DE120D4B046DB8F74D738942F4CE3",
-  "status": "unavailable",
-  "why": [
-   "spaces with a single neighbour, so a connector is probably missing: [0, 11, 19]"
-  ]
+  "status": "supported"
  },
  {
   "key": "king-solomons-mine",

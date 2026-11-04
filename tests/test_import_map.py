@@ -278,7 +278,7 @@ def test_overwrite_keeps_a_map_a_person_confirmed_unless_forced(tmp_path, monkey
     (out / "yukon.json").write_text(json.dumps(confirmed), encoding="utf-8")
     calls = []
 
-    def fake_extract(sm, img, expected=None, passages=None):
+    def fake_extract(sm, img, expected=None, passages=None, bonuses=None):
         calls.append(sm.key)
         return extracted()
     monkeypatch.setattr(im, "fetch_image", lambda url, dest: dest)
@@ -332,7 +332,7 @@ def test_overwriting_an_unverified_map_keeps_its_passages(tmp_path, monkeypatch)
     (out / "yukon.json").write_text(json.dumps(old), encoding="utf-8")
     seen = []
 
-    def fake_extract(sm, img, expected=None, passages=None):
+    def fake_extract(sm, img, expected=None, passages=None, bonuses=None):
         seen.append(passages)
         m = extracted(edges={(0, 1), (2, 3)})
         m.passages = [list(g) for g in passages or []]
@@ -345,3 +345,27 @@ def test_overwriting_an_unverified_map_keeps_its_passages(tmp_path, monkeypatch)
                     "--check-dir", str(tmp_path / "c"), "--overwrite"]) == 0
     assert seen == [[[0, 2]]]
     assert json.loads((out / "yukon.json").read_text(encoding="utf-8"))["passages"] == [[0, 2]]
+
+
+def test_overwriting_an_unverified_map_keeps_its_bonuses(tmp_path, monkeypatch):
+    save_path = tmp_path / "save.json"
+    save_path.write_text(json.dumps(save_with(map_bag("Yukon", 0, 0))), encoding="utf-8")
+    out = tmp_path / "maps"
+    out.mkdir()
+    old = {"key": "yukon", "name": "Yukon", "imageKey": "A" * 40, "verified": False, "playable": False, "starts": {"1": 0},
+           "bonuses": [{"from": 1, "to": 0, "value": 1}],
+           "spaces": [{"id": 0, "local": [1.0, 2.0], "zones": ["red"], "adj": []}]}
+    (out / "yukon.json").write_text(json.dumps(old), encoding="utf-8")
+
+    def fake_extract(sm, img, expected=None, passages=None, bonuses=None):
+        m = extracted()
+        m.bonuses = [dict(b) for b in bonuses or []]
+        return m
+    monkeypatch.setattr(im, "fetch_image", lambda url, dest: dest)
+    monkeypatch.setattr(im, "load_work_image", lambda path: blank(400, 200))
+    monkeypatch.setattr(im, "extract_map", fake_extract)
+    monkeypatch.setattr(im, "render_check", lambda *a, **k: None)
+    assert im.main(["--save", str(save_path), "--images", str(tmp_path / "img"), "--out", str(out),
+                    "--check-dir", str(tmp_path / "c"), "--overwrite"]) == 0
+    assert json.loads((out / "yukon.json").read_text(encoding="utf-8"))["bonuses"] == [{"from": 1, "to": 0, "value": 1}]
+    assert im.extracted_from_data(json.loads((out / "yukon.json").read_text(encoding="utf-8")), blank(400, 200)).bonuses         == [{"from": 1, "to": 0, "value": 1}]

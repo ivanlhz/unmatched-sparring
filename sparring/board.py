@@ -34,7 +34,8 @@ def catalog() -> list[MapEntry]:
 
 class Board:
     def __init__(self, key: str, name: str, spaces: list[Space], adj: dict[int, set[int]], starts: dict[str, int],
-                 passages: tuple[tuple[int, ...], ...] = ()):
+                 passages: tuple[tuple[int, ...], ...] = (),
+                 bonuses: dict[tuple[int, int], int] | None = None):
         self.key = key
         self.name = name
         self.guid: str | None = None        # the board's GUID on the table, once found (set by the start-up)
@@ -45,6 +46,7 @@ class Board:
         for group in passages:
             for a in group:
                 self.moves[a].update(b for b in group if b != a)
+        self.bonuses = bonuses or {}        # (from, to) -> attack bonus of a fighter on `from` hitting one on `to` (stairs)
         self.starts = starts
         self._dist = {s: self._bfs(s) for s in self.spaces}
 
@@ -61,7 +63,8 @@ class Board:
                 adj[s["id"]].add(n)
                 adj[n].add(s["id"])
         passages = tuple(tuple(g) for g in raw.get("passages", ()))
-        return cls(raw["key"], raw["name"], spaces, adj, raw["starts"], passages)
+        bonuses = {(b["from"], b["to"]): b["value"] for b in raw.get("bonuses", ())}
+        return cls(raw["key"], raw["name"], spaces, adj, raw["starts"], passages, bonuses)
 
     def _bfs(self, src: int) -> dict[int, int]:
         dist = {src: 0}
@@ -79,6 +82,10 @@ class Board:
 
     def adjacent(self, a: int, b: int) -> bool:
         return b in self.adj[a]
+
+    def attack_bonus(self, a: int | None, b: int | None) -> int:
+        """Bonus to the attack value of a fighter on `a` hitting one on `b` (high ground); directional, attack only."""
+        return self.bonuses.get((a, b), 0)
 
     def zones(self, s: int) -> frozenset[str]:
         return self.spaces[s].zones

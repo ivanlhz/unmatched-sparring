@@ -323,9 +323,9 @@ class Model:
         return self.best_dist(("atk", f.name, bonus),
                               lambda c: c.value + bonus if c.can_attack and c.usable_by(f.name) else None)
 
-    def committed_attack_dist(self, f: Fighter):
+    def committed_attack_dist(self, f: Fighter, target: Fighter | None = None):
         """Value of the attack given that the rival has already played a card: without the "has no card" mass, renormalized."""
-        bonus = self.game.attack_bonus(f)
+        bonus = self.game.attack_bonus(f, target)
         fn = lambda c: c.value + bonus if c.can_attack and c.usable_by(f.name) else None
         dist = [(p, v) for p, v in self.best_dist(("commit", f.name, bonus), fn, max(self.h, 1)) if v is not None]
         total = sum(p for p, _ in dist)
@@ -671,7 +671,7 @@ class MedusaAI(Controller):
         poke = POKE_FLOOR.get(c.title)
         if not (f.hero and t.hero) and poke is None:      # only the hero's blow on a rival hero is "the chance"; a nibble is allowed to a sidekick too
             return 0.0
-        atk = self.card_value(game, f, t, c) + game.attack_bonus(f) + self.during_gain(game, c)
+        atk = self.card_value(game, f, t, c) + game.attack_bonus(f, t) + self.during_gain(game, c)
         atk += sum(x.boost for x in free_boosts(game, self.me, c, game.players[self.me].hand))
         blow = sum(p * min(t.hp, max(0.0, atk - (dv or 0))) for p, dv in model.defense_dist(t))
         blow *= 1 - model.p_holds(cancels_effects)
@@ -776,7 +776,7 @@ class MedusaAI(Controller):
         return c.title == CLOAK and hero.pos is not None and t.pos is not None and t.pos in game.board.adj[hero.pos]
 
     def p_win_of(self, game: Game, model: Model, f: Fighter, t: Fighter, c) -> float:
-        atk = self.card_value(game, f, t, c) + game.attack_bonus(f)
+        atk = self.card_value(game, f, t, c) + game.attack_bonus(f, t)
         atk += BOOST_RELIANCE * sum(x.boost for x in free_boosts(game, self.me, c, game.players[self.me].hand))
         atk += self.during_gain(game, c)
         ignore = self.cloak_ignores(game, f, t, c)
@@ -805,7 +805,7 @@ class MedusaAI(Controller):
     def attack_outcome(self, game: Game, model: Model, f: Fighter, t: Fighter, c) -> tuple[float, float, float]:
         """(value, expected damage, probability of killing `t`) of attacking `t` with `f` and card `c`."""
         hand = game.players[self.me].hand
-        atk, cost = self.card_value(game, f, t, c) + game.attack_bonus(f), CARD_VALUE + 0.05 * c.boost    # ANUNG UN RAMA's +2, a live ONGOING
+        atk, cost = self.card_value(game, f, t, c) + game.attack_bonus(f, t), CARD_VALUE + 0.05 * c.boost    # ANUNG UN RAMA's +2, a live ONGOING
         boosts = free_boosts(game, self.me, c, hand)
         atk += BOOST_RELIANCE * sum(x.boost for x in boosts)
         cost += CARD_VALUE * len(boosts)
@@ -1365,12 +1365,12 @@ class MedusaAI(Controller):
         know; otherwise the value is the distribution of what the rival may have committed."""
         model = Model(game, self.me)
         hand = game.players[self.me].hand
-        self._attacker = attacker
+        self._attacker, self._defender = attacker, target
         try:
             if attack_card is not None:
-                dist = [(1.0, (attack_card.value or 0) + game.attack_bonus(attacker))]
+                dist = [(1.0, (attack_card.value or 0) + game.attack_bonus(attacker, target))]
             else:
-                dist = model.committed_attack_dist(attacker)
+                dist = model.committed_attack_dist(attacker, target)
             best, best_v = None, None
             options = [None] + [c for c in hand if c.can_defend and c.usable_by(target.name)]
             seen = set()
@@ -1383,14 +1383,14 @@ class MedusaAI(Controller):
                 if best_v is None or v > best_v + 1e-9:
                     best, best_v = c, v
         finally:
-            self._attacker = None
+            self._attacker = self._defender = None
         return best
 
-    def mists_dist(self, game: Game, model: Model, attacker: Fighter) -> list[tuple[float, int]]:
+    def mists_dist(self, game: Game, model: Model, attacker: Fighter, target: Fighter | None = None) -> list[tuple[float, int]]:
         """What the attack becomes when The Mists of Munnopor replace it: the first playable card of the rival's deck, one nobody
         chose, so its value is that of a card drawn at random among the attack and versatile cards the attacker may still have
         (public: the pool is its whole deck minus its discard pile)."""
-        bonus = game.attack_bonus(attacker)
+        bonus = game.attack_bonus(attacker, target)
         values = [c.value + bonus for c in model.pool if c.can_attack and c.usable_by(attacker.name)]
         if not values:
             return [(1.0, 0)]
@@ -1398,7 +1398,7 @@ class MedusaAI(Controller):
 
     def eval_defense(self, game: Game, model: Model, dist, target: Fighter, c) -> float:
         if c is not None and c.title == MISTS and getattr(self, "_attacker", None) is not None:
-            dist = self.mists_dist(game, model, self._attacker)
+            dist = self.mists_dist(game, model, self._attacker, getattr(self, "_defender", None))
         elif c is not None and c.title == CLOAK and getattr(self, "_attacker", None) is not None:
             hero = game.hero(target.owner)
             if hero.pos is not None and self._attacker.pos in game.board.adj[hero.pos]:

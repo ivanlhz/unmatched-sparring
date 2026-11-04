@@ -60,7 +60,8 @@ def edges_of(data: dict) -> set[tuple[int, int]]:
 
 def apply_edit(data: dict, edit: dict) -> dict:
     """A copy of `data` with the person's changes: `edges` (the full list of [a, b]), `zones` ({id: [names]}) and
-    `passages` (the full list of secret-passage groups) and `starts` ({"1": id, ...}). Anything missing from `edit` is left as it was. Raises ValueError on a bad id."""
+    `passages` (the full list of secret-passage groups), `bonuses` (the full list of {from, to, value}: high ground on
+    the stairs) and `starts` ({"1": id, ...}). Anything missing from `edit` is left as it was. Raises ValueError on a bad id."""
     ids = {s["id"] for s in data["spaces"]}
     out = json.loads(json.dumps(data))
     if "edges" in edit:
@@ -89,6 +90,17 @@ def apply_edit(data: dict, edit: dict) -> dict:
             out["passages"] = groups
         else:
             out.pop("passages", None)
+    if "bonuses" in edit:
+        bonuses = {}
+        for b in edit["bonuses"]:
+            a, c, value = int(b["from"]), int(b["to"]), int(b.get("value", 1))
+            if a not in ids or c not in ids or a == c or value == 0:
+                raise ValueError(f"bad bonus {b}")
+            bonuses[(a, c)] = value
+        if bonuses:
+            out["bonuses"] = [{"from": a, "to": c, "value": v} for (a, c), v in sorted(bonuses.items())]
+        else:
+            out.pop("bonuses", None)
     if "starts" in edit:
         starts = {}
         for digit, sid in edit["starts"].items():
@@ -131,6 +143,9 @@ def validate(data: dict, expected: dict | None = None, zone_names: list[str] | N
             seen_in_groups.update(group)
             for a in group:
                 moves[a].update(set(group) - {a})
+    for b in data.get("bonuses") or []:
+        if b["to"] not in adj.get(b["from"], ()):
+            problems.append(f"bonus {b['from']}->{b['to']}: the spaces are not adjacent")
     if ids and all(b in adj for n in adj.values() for b in n):
         seen, queue = {ids[0]}, deque([ids[0]])
         while queue:
@@ -240,6 +255,7 @@ body{font:14px system-ui,sans-serif;margin:0;display:flex;height:100vh}
 border-radius:14px;font-weight:bold;cursor:pointer;padding:1px 3px;font-size:13px}
 .sp small{display:block;font-weight:normal;font-size:10px;color:#ffd}
 .sp.sel{border-color:#f0f;background:#406c}.sp.start{border-color:#f33}
+.bonus-from{border-color:#6f6;background:#262c}
 .sp.pass{border-color:#f90;border-style:dashed;background:#530c}.sp.pass.cur{border-color:#0ff;background:#056c}
 button.on{background:#f90;font-weight:bold}
 button{margin:2px;padding:4px 8px} #problems{color:#f99;white-space:pre-wrap} #ok{color:#7d7}
@@ -248,44 +264,51 @@ label{display:inline-block;width:110px}
 <div id=side><b>Maps</b><div id=list></div><hr><div id=panel></div></div>
 <div id=stage><div id=wrap><img id=img><svg id=lines viewBox="0 0 1000 1000" preserveAspectRatio="none"></svg></div></div>
 <script>
-let M=null,key=null,edges=new Set(),sel=null,PASS=[],cur=0,pmode=false,ZN=[],RECONFIRM=false,RO=false,ST={};
+let M=null,key=null,edges=new Set(),sel=null,PASS=[],cur=0,pmode=false,BON=[],bmode=false,bsel=null,ZN=[],RECONFIRM=false,RO=false,ST={};
 const $=id=>document.getElementById(id), ek=(a,b)=>Math.min(a,b)+"-"+Math.max(a,b);
 async function api(p,body){const r=await fetch(p,body?{method:"POST",headers:{"Content-Type":"application/json"},body:JSON.stringify(body)}:{});return r.json()}
 async function init(){const d=await api("/api/maps");ZN=d.zones;RECONFIRM=d.reconfirm;ST={};for(const m of d.maps)ST[m.key]=m.status;$("list").innerHTML="";
  for(const m of d.maps){const a=document.createElement("a");a.className=m.status;a.textContent=m.name+" ["+m.status+"]";a.onclick=()=>open(m.key);$("list").append(a)}}
 async function open(k){key=k;RO=ST[k]==="supported"&&!RECONFIRM;M=await api("/api/map/"+k);edges=new Set();for(const s of M.spaces)for(const n of s.adj)edges.add(ek(s.id,n));
- PASS=(M.passages||[]).map(g=>[...g]);cur=0;pmode=false;sel=null;$("img").src="/image/"+k;draw();panel("")}
-function body(){const zones={};for(const s of M.spaces)zones[s.id]=s.zones;return{passages:PASS.filter(g=>g.length>1),edges:[...edges].map(e=>e.split("-").map(Number)),zones,starts:M.starts}}
+ PASS=(M.passages||[]).map(g=>[...g]);cur=0;pmode=false;BON=(M.bonuses||[]).map(b=>({...b}));bmode=false;bsel=null;sel=null;$("img").src="/image/"+k;draw();panel("")}
+function body(){const zones={};for(const s of M.spaces)zones[s.id]=s.zones;return{bonuses:BON,passages:PASS.filter(g=>g.length>1),edges:[...edges].map(e=>e.split("-").map(Number)),zones,starts:M.starts}}
 function draw(){const w=$("wrap");w.querySelectorAll(".sp").forEach(e=>e.remove());let svg="";
  for(const e of edges){const[a,b]=e.split("-").map(Number),A=M.spaces[a],B=M.spaces[b];
   svg+=`<line x1="${A.fx*1000}" y1="${A.fy*1000}" x2="${B.fx*1000}" y2="${B.fy*1000}" stroke="#ff0" stroke-width="3" vector-effect="non-scaling-stroke"/>`}
+ BON.forEach(b=>{const A=M.spaces[b.from],B=M.spaces[b.to],mx=(A.fx+B.fx)*500,my=(A.fy+B.fy)*500,ax=B.fx*1000-A.fx*1000,ay=B.fy*1000-A.fy*1000,L=Math.hypot(ax,ay)||1,ux=ax/L*14,uy=ay/L*14;
+  svg+=`<line x1="${A.fx*1000}" y1="${A.fy*1000}" x2="${B.fx*1000}" y2="${B.fy*1000}" stroke="#6f6" stroke-width="3" vector-effect="non-scaling-stroke"/>`
+   +`<polygon points="${mx+ux},${my+uy} ${mx-uy*0.6-ux*0.6},${my+ux*0.6-uy*0.6} ${mx+uy*0.6-ux*0.6},${my-ux*0.6-uy*0.6}" fill="#6f6"/>`
+   +`<text x="${mx}" y="${my-10}" fill="#6f6" font-size="16" font-weight="bold" text-anchor="middle">+${b.value}</text>`});
  PASS.forEach((g,i)=>{for(let j=1;j<g.length;j++){const A=M.spaces[g[j-1]],B=M.spaces[g[j]];
   svg+=`<line x1="${A.fx*1000}" y1="${A.fy*1000}" x2="${B.fx*1000}" y2="${B.fy*1000}" stroke="${i===cur?"#0ff":"#f90"}" stroke-width="3" stroke-dasharray="8 6" vector-effect="non-scaling-stroke"/>`}});
  $("lines").innerHTML=svg;
  for(const s of M.spaces){const d=document.createElement("div");d.className="sp"+(sel===s.id?" sel":"");
   const st=Object.entries(M.starts).filter(([k,v])=>v===s.id).map(([k])=>"S"+k).join(" ");if(st)d.classList.add("start");
-  d.style.left=s.fx*100+"%";d.style.top=s.fy*100+"%";const gi=PASS.findIndex(g=>g.includes(s.id));if(gi>=0){d.classList.add("pass");if(gi===cur)d.classList.add("cur")}
+  d.style.left=s.fx*100+"%";d.style.top=s.fy*100+"%";if(bsel===s.id)d.classList.add("bonus-from");const gi=PASS.findIndex(g=>g.includes(s.id));if(gi>=0){d.classList.add("pass");if(gi===cur)d.classList.add("cur")}
   d.innerHTML=(gi>=0?"&#128274;":"")+s.id+(st?" "+st:"")+"<small>"+s.zones.join("/")+"</small>";
-  d.onclick=()=>{if(RO)return;if(pmode){togglePass(s.id);return}if(sel===null)sel=s.id;else if(sel===s.id)sel=null;else{const k=ek(sel,s.id);edges.has(k)?edges.delete(k):edges.add(k);sel=null}draw();panel()};w.append(d)}}
+  d.onclick=()=>{if(RO)return;if(bmode){clickBonus(s.id);return}if(pmode){togglePass(s.id);return}if(sel===null)sel=s.id;else if(sel===s.id)sel=null;else{const k=ek(sel,s.id);edges.has(k)?edges.delete(k):edges.add(k);sel=null}draw();panel()};w.append(d)}}
 function panel(msg){const p=$("panel");if(!M)return;let h="<b>"+M.name+"</b><br>";
  if(M.problems)h+="<div id=problems>Import said: "+M.problems.join("\n")+"</div>";
  if(RO)h+="<div id=ok>Confirmed map: read-only (start the checker with --allow-reconfirm to change it).</div>";
- if(!RO){h+=`<hr><button class="${pmode?"on":""}" onclick=setPmode(!pmode)>Passage mode (key P): ${pmode?"ON":"off"}</button>`;
+ if(!RO){h+=`<hr><button class="${pmode?"on":""}" onclick=setPmode(!pmode)>Passage mode (key P): ${pmode?"ON":"off"}</button><button class="${bmode?"on":""}" onclick=setBmode(!bmode)>Bonus mode (key B): ${bmode?"ON":"off"}</button>`;
+  if(bmode){h+="<br>Click the space the attacker stands on, then the adjacent space it hits: toggles +1 for that direction only (high ground). Bonuses: "+(BON.map(b=>b.from+"&rarr;"+b.to+" +"+b.value).join(", ")||"none")+"<br>"}
   if(pmode){h+="<br>Click spaces to add or remove them from the selected group (padlock = secret passage: move only, not adjacent).<br>";
    PASS.forEach((g,i)=>{h+=`<button class="${i===cur?"on":""}" onclick=pickGroup(${i})>group ${i+1}: ${g.join(",")||"empty"}</button>`});
    h+=`<br><button onclick=newGroup()>New group</button><button onclick=dropGroup()>Delete group</button>`}}
- if(sel!==null&&!RO&&!pmode){const s=M.spaces[sel];h+="<hr>Space "+sel+"<br>";
+ if(sel!==null&&!RO&&!pmode&&!bmode){const s=M.spaces[sel];h+="<hr>Space "+sel+"<br>";
   for(const z of ZN)h+=`<label><input type=checkbox ${s.zones.includes(z)?"checked":""} onchange="zone(${sel},'${z}',this.checked)"> ${z}</label>`;
   h+="<br>";for(const n of ["1","2","3","4"])h+=`<button onclick="start('${n}',${sel})">start ${n}</button>`;
   h+=`<button onclick="clearStart(${sel})">no start</button>`}
  h+=RO?"<hr>":"<hr><button onclick=check()>Check</button><button onclick=confirmMap()>Confirm (write)</button><div id=problems>"+(msg||"")+"</div>";p.innerHTML=h}
-function setPmode(on){pmode=on;sel=null;if(on&&!PASS.length)PASS.push([]);draw();panel()}
+function setBmode(on){bmode=on;if(on)pmode=false;bsel=null;sel=null;draw();panel()}
+function clickBonus(id){if(bsel===null){bsel=id}else if(bsel===id){bsel=null}else{const i=BON.findIndex(b=>b.from===bsel&&b.to===id);if(i>=0)BON.splice(i,1);else if(!edges.has(ek(bsel,id))){const m="Spaces "+bsel+" and "+id+" are not adjacent: a bonus needs an edge";bsel=null;draw();return panel(m)}else BON.push({from:bsel,to:id,value:1});bsel=null}draw();panel()}
+function setPmode(on){pmode=on;if(on)bmode=false;sel=null;if(on&&!PASS.length)PASS.push([]);draw();panel()}
 function togglePass(id){const other=PASS.findIndex((g,i)=>i!==cur&&g.includes(id));if(other>=0)return panel("Space "+id+" is already in group "+(other+1));
  if(!PASS.length)PASS.push([]);const g=PASS[cur],i=g.indexOf(id);if(i>=0)g.splice(i,1);else g.push(id);draw();panel()}
 function pickGroup(i){cur=i;draw();panel()}
 function newGroup(){PASS.push([]);cur=PASS.length-1;draw();panel()}
 function dropGroup(){PASS.splice(cur,1);cur=0;draw();panel()}
-addEventListener("keydown",e=>{if(e.key.toLowerCase()==="p"&&M&&!RO&&!/INPUT|TEXTAREA/.test(e.target.tagName))setPmode(!pmode)});
+addEventListener("keydown",e=>{if(M&&!RO&&!/INPUT|TEXTAREA/.test(e.target.tagName)){const k=e.key.toLowerCase();if(k==="p")setPmode(!pmode);else if(k==="b")setBmode(!bmode)}});
 function zone(id,z,on){const s=M.spaces[id];s.zones=on?[...new Set([...s.zones,z])]:s.zones.filter(x=>x!==z);draw();panel()}
 function start(n,id){M.starts[n]=id;draw();panel()}
 function clearStart(id){for(const k in M.starts)if(M.starts[k]===id)delete M.starts[k];draw();panel()}

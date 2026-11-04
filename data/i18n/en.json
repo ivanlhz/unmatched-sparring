@@ -752,6 +752,7 @@
  "err.bad_target": "{what}: {fid} is not a valid target",
  "err.tts_no_value": "TTS returned no value (it is busy, paused or reloading: check the TTS window)",
  "cf.extra": "extra value ({n:+d})",
+ "cf.high_ground": "high ground",
  "cf.cancelled": " cancelled",
  "cf.redirect": "{victim} takes the combat damage instead of {target}",
  "cf.boost_with": "boosts with {title} (+{boost})",

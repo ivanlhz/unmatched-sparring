@@ -752,6 +752,7 @@
  "err.bad_target": "{what}: {fid} no es un objetivo valido",
  "err.tts_no_value": "TTS no devolvio valor (esta ocupado, en pausa o recargando: revisa la ventana de TTS)",
  "cf.extra": "valor extra ({n:+d})",
+ "cf.high_ground": "terreno elevado",
  "cf.cancelled": " cancelada",
  "cf.redirect": "{victim} recibe el dano de combate en lugar de {target}",
  "cf.boost_with": "potencia con {title} (+{boost})",

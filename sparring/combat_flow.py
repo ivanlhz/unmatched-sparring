@@ -286,7 +286,7 @@ class CombatFlow:
 
     def _reveal(self) -> None:
         game, att, tgt, atk_card, def_card, values = self.game, self.att, self.tgt, self.atk_card, self.def_card, self.values
-        bonus_parts = game.attack_bonus_parts(att)   # hero passives (Hellboy in ANUNG UN RAMA: +2)
+        bonus_parts = game.attack_bonus_parts(att, tgt)   # hero passives (Hellboy in ANUNG UN RAMA: +2)
         if game.fx.statuses:
             from .effects.modifiers import fighter_attack_bonus, take_next_attack_bonus
             bonus_parts = bonus_parts + take_next_attack_bonus(game.fx, att.owner) + fighter_attack_bonus(game.fx, att.fid)
