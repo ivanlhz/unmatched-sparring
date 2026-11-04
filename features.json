@@ -406,6 +406,7 @@
         "TTS keeps the scale given to spawnObject for a ScriptingTrigger (the script also calls setScale) and returns its GUID at once (no_guid is reported if not)",
         "The created zones are the same size and place as the hand-made ones: the white floor rectangles match and the discard grid fills the bot zone",
         "The locked Dice Cannon (5085eb) is destroyed by destruct() like the other objects, and the two clocks (6126d5, 790396) and the decks disappear; the two hand cards counters and every zone stay",
+        "The type guard: TTS Lua o.name returns the save-file names (DeckCustom, Die_20, Custom_Assetbundle, Digital_Clock), not Deck or a (Clone) suffix; if not, all six are skipped with why=type and nothing is removed",
         "A TTS reload (messageID 1) after the zones were created: they are not in the TTS save, so the bot stops with the missing-GUID message; restart it"
       ],
       "note": "Asked by Iván on 4/11 so people who download the bot can use the official save without making two zones by hand. Nothing here was run against real TTS. Branch official-save-setup."
