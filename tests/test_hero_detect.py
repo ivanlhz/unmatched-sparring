@@ -213,6 +213,8 @@ def wire():
 
     def answer(msg):
         tag = msg["script"].split("\n")[0]
+        if tag == "-- sparring:list_boards":         # the map on the table (B.P.R.D. HQ); not one of the hero reads counted below
+            return [{"guid": "ec6f27", "image": "https://x.test/ugc/1/1E5B373863CF97C6FF9E3478C687923A1C3E47AD/"}]
         state["scripts"].append(tag)
         if tag == "-- sparring:table_heroes":
             return {"piles": state["piles"], "pieces": {}}
