@@ -257,7 +257,7 @@ class PlayConfig:
                 card_zoom_scale=float(r.get("card_zoom_scale", SessionConfig.card_zoom_scale)),
                 card_zoom_spot=tuple(float(v) for v in r.get("card_zoom_spot", SessionConfig.card_zoom_spot)),
                 card_zoom_rot=tuple(float(v) for v in r["card_zoom_rot"]) if r.get("card_zoom_rot") else None,
-                zone_spawns=table_prep.zone_spawns(r), remove_plan=table_prep.removal_list(r))
+                zone_spawns=table_prep.zone_spawns(r), remove_plan=table_prep.removal_plan(r), remove_limits=table_prep.removal_limits(r))
             if not (math.isfinite(cfg.bot_pause) and 0 <= cfg.bot_pause <= 30):
                 raise ValueError(t("cfg.range.pause", key="bot_pause", max=30))
             if not (math.isfinite(cfg.wildfire_hold) and 0 <= cfg.wildfire_hold <= lua.MAX_HOLD):

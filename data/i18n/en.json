@@ -1003,6 +1003,11 @@
  "prep.zone_straightened": "I straightened the {role} discard zone ({guid}): rotation 0, {rot:g}, 0.",
  "prep.zone_no_guid": "TTS did not give a GUID to the {role} discard zone I created: restart the bot once the table has settled.",
  "err.prepare_reply": "invalid answer to the table preparation: {got}",
- "cfg.remove_table": "remove_table_guids: a list of GUIDs (strings)",
- "prep.removed": "I removed {what} {guid} from the table (it was not needed)."
+ "cfg.remove_table": "remove_table: an object of GUID -> expected TTS object name (strings)",
+ "prep.removed": "I removed {what} {guid} from the table (it was not needed).",
+ "cfg.remove_limits": "remove_table_limits: two positive numbers (|x|, |z|)",
+ "prep.skipped": "I did not remove {guid} {what}: {why}.",
+ "prep.why.type": "it is not the kind of object expected under that GUID",
+ "prep.why.place": "it is outside the central table",
+ "prep.why.zone": "it is a zone the bot uses"
 }

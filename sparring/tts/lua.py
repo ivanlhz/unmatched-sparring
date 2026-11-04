@@ -1146,7 +1146,8 @@ ZONE_MATCH_TOLERANCE = 1.5       # units: a Scripting zone whose position and sc
 
 
 @_registered
-def prepare_table(zones: list[tuple[str, list[str], tuple, tuple, float]], remove: list[str]) -> str:
+def prepare_table(zones: list[tuple[str, list[str], tuple, tuple, float]], remove: list[tuple[str, str]],
+                  limits: tuple[float, float] = (26.0, 36.0)) -> str:
     """Start-up preparation of a table that was not made for the bot, in ONE message.
 
     `zones` = (key, candidate GUIDs, position, scale, rotY) of each Scripting zone the bot needs. The first candidate that
@@ -1154,11 +1155,19 @@ def prepare_table(zones: list[tuple[str, list[str], tuple, tuple, float]], remov
     straight); if none is, a Scripting zone already on the table under any other GUID whose position and scale match the
     transform (within `ZONE_MATCH_TOLERANCE`, any rotation) is adopted the same way (a zone created by an earlier run whose
     GUID was never saved); only if there is none a Scripting zone (`ScriptingTrigger`) is spawned with that transform (`created`;
-    TTS gives it a new GUID, returned as `guid`; `no_guid` if it did not give one). `remove` = GUIDs: each of those objects that is on the table is DESTROYED (the absent ones are skipped). Only those GUIDs, never by area or type. Returns `{zones = {key = {guid, status}}, removed = [{guid, name}]}`.
-    It touches neither the Global nor the UI."""
+    TTS gives it a new GUID, returned as `guid`; `no_guid` if it did not give one). `remove` = (GUID, expected object name): such an object that is on the table is DESTROYED only if its
+    name (the TTS type, e.g. DeckCustom) is the expected one, it lies inside |x| <= limits[0], |z| <= limits[1] and it is not
+    a zone just adopted; anything else under that GUID is left alone and reported in `skipped` (TTS can hand a freed GUID to
+    another object). Absent ones are skipped silently; never by area or type alone. Returns `{zones = {key = {guid, status}},
+    removed = [{guid, name}], skipped = [{guid, name, why}]}`. It touches neither the Global nor the UI."""
     if not isinstance(zones, (list, tuple)) or len(zones) > MAX_PREP_ZONES or not isinstance(remove, (list, tuple)) \
             or len(remove) > MAX_PREP_REMOVE:
         raise ValueError("too many zones or objects to prepare")
+    if not isinstance(limits, (list, tuple)) or len(limits) != 2:
+        raise TypeError("limits: (|x|, |z|) expected")
+    remove_rows = []
+    for guid, name in remove:
+        remove_rows.append(f'{{{_guid(guid)}, {lua_str(name)}}}')
     zone_rows = []
     for key, candidates, pos, scale, rot_y in zones:
         if not isinstance(candidates, (list, tuple)) or len(pos) != 3 or len(scale) != 3:
@@ -1167,11 +1176,12 @@ def prepare_table(zones: list[tuple[str, list[str], tuple, tuple, float]], remov
                          f'{{{", ".join(_f(v) for v in scale)}}}, {_f(rot_y)}}}')
     return f"""-- sparring:prepare_table
 {ZONE_LUA}local ZONES = {{{", ".join(zone_rows)}}}
-local REMOVE = {_guid_list(remove)}
+local REMOVE = {{{", ".join(remove_rows)}}}
+local LIMIT_X, LIMIT_Z = {_f(limits[0])}, {_f(limits[1])}
 local function off(a, b)
   return math.abs(((a - b + 180) % 360) - 180)
 end
-local out = {{zones = {{}}, removed = {{}}}}
+local out = {{zones = {{}}, removed = {{}}, skipped = {{}}}}
 local taken = {{}}
 for _, zr in ipairs(ZONES) do
   local key, candidates, pos, scale, rotY = zr[1], zr[2], zr[3], zr[4], zr[5]
@@ -1214,12 +1224,20 @@ for _, zr in ipairs(ZONES) do
     out.zones[key] = {{guid = guid, status = status}}
   end
 end
-for _, g in ipairs(REMOVE) do
+for _, r in ipairs(REMOVE) do
+  local g = r[1]
   local o = getObjectFromGUID(g)
   if o ~= nil then
-    local name = o.name
-    o.destruct()
-    table.insert(out.removed, {{guid = g, name = name}})
+    local name, p, why = o.name, o.getPosition(), nil
+    if taken[g] then why = "zone"
+    elseif name ~= r[2] then why = "type"
+    elseif math.abs(p.x) > LIMIT_X or math.abs(p.z) > LIMIT_Z then why = "place" end
+    if why ~= nil then
+      table.insert(out.skipped, {{guid = g, name = name, why = why}})
+    else
+      o.destruct()
+      table.insert(out.removed, {{guid = g, name = name}})
+    end
   end
 end
 return JSON.encode(out)

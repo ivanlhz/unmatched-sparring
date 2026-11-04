@@ -1003,6 +1003,11 @@
  "prep.zone_straightened": "He enderezado la zona de descarte {role} ({guid}): rotacion 0, {rot:g}, 0.",
  "prep.zone_no_guid": "TTS no ha dado GUID a la zona de descarte {role} que he creado: reinicia el bot cuando la mesa se haya asentado.",
  "err.prepare_reply": "respuesta no valida a la preparacion de la mesa: {got}",
- "cfg.remove_table": "remove_table_guids: una lista de GUIDs (cadenas)",
- "prep.removed": "He quitado {what} {guid} de la mesa (no hacia falta)."
+ "cfg.remove_table": "remove_table: un objeto de GUID -> nombre de objeto TTS esperado (cadenas)",
+ "prep.removed": "He quitado {what} {guid} de la mesa (no hacia falta).",
+ "cfg.remove_limits": "remove_table_limits: dos numeros positivos (|x|, |z|)",
+ "prep.skipped": "No he quitado {guid} {what}: {why}.",
+ "prep.why.type": "no es el tipo de objeto que se espera con ese GUID",
+ "prep.why.place": "esta fuera de la mesa central",
+ "prep.why.zone": "es una zona que usa el bot"
 }

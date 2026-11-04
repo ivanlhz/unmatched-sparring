@@ -30,6 +30,8 @@ lupa = pytest.importorskip("lupa")
 from lupa import lua54  # noqa: E402
 
 REMOVED = ["addeca", "cb6cbc", "65be8d", "5085eb", "6126d5", "790396"]
+KINDS = {"addeca": "DeckCustom", "cb6cbc": "DeckCustom", "65be8d": "Die_20", "5085eb": "Custom_Assetbundle",
+         "6126d5": "Digital_Clock", "790396": "Digital_Clock"}
 KEPT = ["d26d8c", "5c7e75", "45c723", "1523b0", "bf4717", "dfe8db", "28ff83", "f93f2a"]   # counters, board, fog of war, hand and scripting triggers
 
 
@@ -48,7 +50,7 @@ def tts():
 
 def prepare(runtime, zones, remove, rid=1):
     n = len(runtime.globals().SENT)
-    runtime.execute(lua.request(lua.prepare_table(zones, remove), rid))
+    runtime.execute(lua.request(lua.prepare_table(zones, remove, table_prep.removal_limits(raw_config())), rid))
     reply = conv(runtime.globals().SENT[n + 1])
     assert "err" not in reply, reply
     return json.loads(reply["value"])
@@ -127,9 +129,11 @@ def test_a_spawn_without_a_guid_is_reported_not_trusted(tts):
 
 # ---------- 2. the loose objects of the save: Lua ----------
 def table_objects(tts):
-    """The six objects to remove and eight that must stay, as in the official save."""
+    """The six objects to remove (name and place as in the official save) and eight that must stay."""
     tts.execute("""
-for _, g in ipairs({'addeca', 'cb6cbc', '65be8d', '5085eb', '6126d5', '790396'}) do mkobj({guid = g, type = 'Generic', name = 'Loose'}) end
+local at = {addeca = {'DeckCustom', -5.7, -1.5}, cb6cbc = {'DeckCustom', 5.5, -1.5}, ['65be8d'] = {'Die_20', -0.7, -1.6},
+            ['5085eb'] = {'Custom_Assetbundle', 2.1, -30.0}, ['6126d5'] = {'Digital_Clock', 5.5, 27.2}, ['790396'] = {'Digital_Clock', -5.1, 27.2}}
+for g, a in pairs(at) do mkobj({guid = g, type = 'Generic', name = a[1], pos = Vector(a[2], 1.6, a[3])}) end
 for _, g in ipairs({'d26d8c', '5c7e75', '45c723', '1523b0', 'bf4717', 'dfe8db', '28ff83', 'f93f2a'}) do mkobj({guid = g, type = 'Generic', name = 'Keep'}) end
 getObjectFromGUID('5085eb').locked = true""")
 
@@ -140,8 +144,9 @@ def present(tts, guid):
 
 def test_only_the_listed_objects_are_destroyed_and_everything_else_stays(tts):
     table_objects(tts)
-    res = prepare(tts, [], list(table_prep.removal_list(raw_config())))
-    assert [r["guid"] for r in res["removed"]] == REMOVED
+    res = prepare(tts, [], list(table_prep.removal_plan(raw_config())))
+    assert sorted(r["guid"] for r in res["removed"]) == sorted(REMOVED)
+    assert res["skipped"] == []
     assert not any(present(tts, g) for g in REMOVED)
     assert all(present(tts, g) for g in KEPT)
     assert tts.eval("#OBJECTS") == len(KEPT)
@@ -150,12 +155,12 @@ def test_only_the_listed_objects_are_destroyed_and_everything_else_stays(tts):
 def test_an_absent_object_is_skipped_and_the_others_are_still_destroyed(tts):
     table_objects(tts)
     tts.execute("getObjectFromGUID('65be8d').destruct()")
-    res = prepare(tts, [], list(table_prep.removal_list(raw_config())))
-    assert [r["guid"] for r in res["removed"]] == ["addeca", "cb6cbc", "5085eb", "6126d5", "790396"]
+    res = prepare(tts, [], list(table_prep.removal_plan(raw_config())))
+    assert sorted(r["guid"] for r in res["removed"]) == sorted(["addeca", "cb6cbc", "5085eb", "6126d5", "790396"])
 
 
 def test_nothing_to_remove_is_an_empty_answer(tts):
-    assert prepare(tts, [], list(table_prep.removal_list(raw_config())))["removed"] == []
+    assert prepare(tts, [], list(table_prep.removal_plan(raw_config())))["removed"] == []
 
 
 def test_an_empty_list_destroys_nothing(tts):
@@ -164,18 +169,19 @@ def test_an_empty_list_destroys_nothing(tts):
 
 
 def test_the_builder_destroys_only_listed_guids_and_never_by_area_or_type():
-    script = lua.prepare_table([], ["abc123", "def456"])
-    assert script.count("destruct()") == 1 and "for _, g in ipairs(REMOVE)" in script
-    assert 'local REMOVE = {"abc123", "def456"}' in script
-    body = script.split("for _, g in ipairs(REMOVE)", 1)[1]
-    assert "getObjects()" not in body and "o.type" not in body and "getObjectFromGUID(g)" in body
+    script = lua.prepare_table([], [("abc123", "Die_20"), ("def456", "DeckCustom")])
+    assert script.count("destruct()") == 1 and "for _, r in ipairs(REMOVE)" in script
+    assert 'local REMOVE = {{"abc123", "Die_20"}, {"def456", "DeckCustom"}}' in script
+    body = script.split("for _, r in ipairs(REMOVE)", 1)[1]
+    assert "getObjects()" not in body and "o.type" not in body and "getObjectFromGUID(g)" in body and "name ~= r[2]" in body
     for forbidden in ("takeObject", "putObject", "Global", "UI.", "spawnObjectData", "setLuaScript", "messageID"):
         assert forbidden not in script, forbidden
 
 
 def test_the_default_list_never_holds_a_counter_a_zone_a_trigger_or_the_board():
-    listed = set(table_prep.removal_list(raw_config()))
+    listed = {g for g, _ in table_prep.removal_plan(raw_config())}
     assert listed == set(REMOVED)
+    assert dict(table_prep.removal_plan(raw_config())) == KINDS
     assert listed.isdisjoint(KEPT)
     assert listed.isdisjoint({"d26d8c", "5c7e75"}), "the two hand cards counters stay"
     raw = raw_config()
@@ -184,11 +190,11 @@ def test_the_default_list_never_holds_a_counter_a_zone_a_trigger_or_the_board():
 
 def test_the_builder_refuses_what_it_cannot_write_safely():
     with pytest.raises(ValueError):
-        lua.prepare_table([], [f"g{i}" for i in range(lua.MAX_PREP_REMOVE + 1)])
+        lua.prepare_table([], [(f"g{i}", "Die_20") for i in range(lua.MAX_PREP_REMOVE + 1)])
     with pytest.raises(ValueError):
         lua.prepare_table([("bot_discard_zone", ["bad guid!"], (0.0, 0.0, 0.0), (1.0, 1.0, 1.0), 270.0)], [])
     with pytest.raises(ValueError):
-        lua.prepare_table([], ["bad guid!"])
+        lua.prepare_table([], [("bad guid!", "Die_20")])
 
 
 # ---------- configuration ----------
@@ -217,8 +223,10 @@ def test_bot_discard_bounds_describe_the_zone_as_it_is_created():
 
 
 @pytest.mark.parametrize("over", [
-    {"remove_table_guids": "addeca"},                                       # not a list
-    {"remove_table_guids": ["addeca", 5]},                                  # not strings
+    {"remove_table": ["addeca"]},                                           # not a GUID -> name map
+    {"remove_table": {"addeca": 5}},                                        # name not a string
+    {"remove_table_limits": [26.0]},                                        # not (|x|, |z|)
+    {"remove_table_limits": [26.0, -1]},                                    # not positive
     {"bot_discard_zone_spawn": {"position": [1, 2, 3]}},                    # no scale
     {"human_discard_zone_spawn": {"position": [1, 2, "x"], "scale": [1, 1, 1]}},
 ])
@@ -230,12 +238,12 @@ def test_a_badly_written_key_is_a_configuration_error(cfg_file, over):
 def test_the_session_config_carries_the_new_keys(cfg_file):
     scfg = load_config(cfg_file()).session_config()
     assert set(scfg.zone_spawns) == {"bot_discard_zone", "human_discard_zone"}
-    assert list(scfg.remove_plan) == REMOVED
+    assert [g for g, _ in scfg.remove_plan] == REMOVED and scfg.remove_limits == (26.0, 36.0)
 
 
 def test_the_new_keys_are_documented_in_the_comment_block():
     notes = "\n".join(raw_config()["_notes"])
-    for key in ("discard_zone_rot_y", "bot_discard_zone_spawn", "human_discard_zone_spawn", "remove_table_guids"):
+    for key in ("discard_zone_rot_y", "bot_discard_zone_spawn", "human_discard_zone_spawn", "remove_table", "remove_table_limits"):
         assert key in notes, key
 
 
@@ -486,7 +494,7 @@ def test_play_with_an_old_style_config_prepares_nothing(live, cfg_file, tmp_path
     table, fake, ports = live
     path = cfg_file()
     data = json.loads(path.read_text())
-    for key in ("bot_discard_zone_spawn", "human_discard_zone_spawn", "remove_table_guids"):
+    for key in ("bot_discard_zone_spawn", "human_discard_zone_spawn", "remove_table"):
         data.pop(key)
     path.write_text(json.dumps(data), encoding="utf-8")
     assert run_play(table, fake, ports, path, tmp_path / "s.json", until=(tmp_path / "s.json").exists) == 0
@@ -519,19 +527,102 @@ def test_two_zones_never_adopt_the_same_object(tts):
     assert res["zones"]["human_discard_zone"]["status"] == "created"
 
 
-def test_the_guids_are_on_disk_as_soon_as_the_preparation_is_done(tmp_path):
+def test_a_fresh_start_does_not_write_a_game_that_has_not_begun(tmp_path):
     s = make_session(FakeClient(answer(CREATED)))
     s.state_path = tmp_path / "s.json"
     s.prepare_table(resume=False)
+    assert not s.state_path.exists(), "a file written now would look resumable; the first step of the game saves the zones"
+    s._persist()
     assert json.loads(s.state_path.read_text())["zones_live"] == {"bot_discard_zone": "newbot1", "human_discard_zone": "newhum1"}
 
 
-def test_nothing_is_written_when_no_zone_was_replaced(tmp_path):
-    s = make_session(FakeClient(answer({"bot_discard_zone": {"guid": "906a7a", "status": "found"},
-                                        "human_discard_zone": {"guid": "b7a0b8", "status": "found"}})))
-    s.state_path = tmp_path / "s.json"
+def test_an_interrupted_start_leaves_zones_the_next_start_adopts_without_a_state_file(tts):
+    first = prepare(tts, [spec(), spec("human_discard_zone", ("b7a0b8",))], [])          # the run that died before saving
+    again = prepare(tts, [spec(), spec("human_discard_zone", ("b7a0b8",))], [], rid=2)
+    assert {k: v["guid"] for k, v in again["zones"].items()} == {k: v["guid"] for k, v in first["zones"].items()}
+    assert tts.eval("#SPAWNS") == 2
+
+
+def test_a_resume_that_replaces_a_zone_saves_it_and_keeps_everything_else_of_the_file(tmp_path):
+    first = make_session(FakeClient(answer(CREATED)))
+    first.prepare_table(resume=False)
+    first._deck_origin["bot_deck_guid"] = "d42056"                      # a deck GUID the table gave it earlier
+    first.cfg.bot_deck_guid = "deckLIVE1"
+    saved = json.loads(json.dumps(first.to_dict()))
+    assert saved["deck_live"] == {"bot": "deckLIVE1"}
+    second = make_session(FakeClient(answer({"bot_discard_zone": {"guid": "newbot1", "status": "found"},
+                                             "human_discard_zone": {"guid": "newhum2", "status": "created"}})))
+    second.state_path = tmp_path / "s.json"
+    second.load_dict(json.loads(json.dumps(saved)))
+    second.prepare_table(resume=True)                                   # before load_identities: the deck is not adopted yet
+    written = json.loads(second.state_path.read_text())
+    assert written["zones_live"] == {"bot_discard_zone": "newbot1", "human_discard_zone": "newhum2"}
+    assert written["deck_live"] == saved["deck_live"], "the saved deck GUID survives the early write"
+    assert {k: v for k, v in written.items() if k not in ("zones_live", "version")} == {k: v for k, v in saved.items() if k != "zones_live"}
+
+
+def test_a_resume_that_changes_no_zone_writes_nothing(tmp_path):
+    first = make_session(FakeClient(answer(CREATED)))
+    first.prepare_table(resume=False)
+    saved = json.loads(json.dumps(first.to_dict()))
+    second = make_session(FakeClient(answer({"bot_discard_zone": {"guid": "newbot1", "status": "found"},
+                                             "human_discard_zone": {"guid": "newhum1", "status": "found"}})))
+    second.state_path = tmp_path / "s.json"
+    second.load_dict(saved)
+    second.prepare_table(resume=True)
+    assert not second.state_path.exists()
+
+
+# ---------- the destroy guards ----------
+def one_object(tts, guid, name, x, z):
+    tts.execute(f"mkobj({{guid = '{guid}', type = 'Generic', name = '{name}', pos = Vector({x}, 1.6, {z})}})")
+
+
+def test_an_object_that_is_not_the_expected_kind_is_left_alone_and_reported(tts):
+    one_object(tts, "790396", "Bag", 5.0, 0.0)               # TTS gave the freed GUID to something else
+    res = prepare(tts, [], [("790396", "Digital_Clock")])
+    assert res["removed"] == [] and res["skipped"] == [{"guid": "790396", "name": "Bag", "why": "type"}]
+    assert present(tts, "790396")
+
+
+@pytest.mark.parametrize("x, z", [(26.5, 0.0), (-26.5, 0.0), (0.0, 36.5), (0.0, -36.5), (30.0, -9.0), (-10.5, 108.8)])
+def test_an_object_outside_the_central_table_is_left_alone_and_reported(tts, x, z):
+    one_object(tts, "790396", "Digital_Clock", x, z)           # e.g. the template in the Timers bag
+    res = prepare(tts, [], [("790396", "Digital_Clock")])
+    assert res["removed"] == [] and res["skipped"][0]["why"] == "place" and present(tts, "790396")
+
+
+@pytest.mark.parametrize("x, z", [(26.0, 36.0), (-26.0, -36.0), (5.5, 27.2), (2.1, -30.0)])
+def test_an_object_inside_the_limits_is_destroyed(tts, x, z):
+    one_object(tts, "790396", "Digital_Clock", x, z)
+    assert prepare(tts, [], [("790396", "Digital_Clock")])["removed"] == [{"guid": "790396", "name": "Digital_Clock"}]
+    assert not present(tts, "790396")
+
+
+def test_an_adopted_zone_is_never_destroyed_even_if_its_guid_is_listed(tts):
+    tts.execute("mkobj({guid = 'zonexx', type = 'Scripting', name = 'Digital_Clock', pos = Vector(14.9677, 4.1422, 0.7422), scale = Vector(35.4306, 5.1, 8.5464)})")
+    res = prepare(tts, [spec()], [("zonexx", "Digital_Clock")])
+    assert res["zones"]["bot_discard_zone"]["guid"] == "zonexx"
+    assert res["removed"] == [] and res["skipped"][0]["why"] == "zone" and present(tts, "zonexx")
+
+
+def test_a_guid_the_bot_uses_is_never_sent_for_removal():
+    client = FakeClient(answer(CREATED))
+    s = make_session(client, remove_plan=(("906a7a", "Digital_Clock"), ("d42056", "Die_20"), ("04b2c9", "Die_20"), ("addeca", "DeckCustom")))
+    s._saved_zones = {"bot_discard_zone": "newbot1"}
+    s.cfg.remove_plan += (("newbot1", "Die_20"),)
     s.prepare_table(resume=False)
-    assert not s.state_path.exists()
+    assert 'local REMOVE = {{"addeca", "DeckCustom"}}' in client.scripts[0]
+
+
+def test_the_skipped_objects_are_said_in_the_chat():
+    s = make_session(FakeClient({**answer({"bot_discard_zone": {"guid": "906a7a", "status": "found"},
+                                           "human_discard_zone": {"guid": "b7a0b8", "status": "found"}}),
+                                 "skipped": [{"guid": "790396", "name": "Bag", "why": "type"},
+                                             {"guid": "6126d5", "name": "Digital_Clock", "why": "place"}]}))
+    s.prepare_table(resume=False)
+    s._say_startup_notes()
+    assert len(s.messages) == 2 and "790396" in s.messages[0] and "tipo" in s.messages[0] and "fuera" in s.messages[1]
 
 
 def read_only(live, cfg_file, tmp_path, state_zones):

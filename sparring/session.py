@@ -167,7 +167,8 @@ class SessionConfig:
     card_zoom_spot: tuple[float, float, float] = (0.0, 12.0, 0.0)   # where it floats: above the board centre, outside every zone
     card_zoom_rot: tuple[float, float, float] | None = None      # (x, y, z) degrees; default flat, readable from the human's seat
     zone_spawns: dict[str, ZoneSpawn] = field(default_factory=dict)   # discard zone key -> transform to create / straighten it with
-    remove_plan: tuple[str, ...] = ()   # GUIDs of the loose objects of the official save destroyed at a fresh start
+    remove_plan: tuple[tuple[str, str], ...] = ()   # (GUID, expected object name) of the loose objects destroyed at a fresh start
+    remove_limits: tuple[float, float] = (26.0, 36.0)   # |x|, |z| of the central table rectangle they must lie in
 
 
 def zoom_spec(cfg: "SessionConfig") -> lua.ZoomSpec | None:
@@ -1461,7 +1462,7 @@ class Session:
                            for side, pairs in {**self._saved_ident, **self._deck_ident}.items()},
             **({"resolved_pieces": self.resolved_pieces} if self.resolved_pieces else {}),
             **({"resolved_dials": self.resolved_dials} if self.resolved_dials else {}),
-            **({"deck_live": self._live_decks()} if self._live_decks() else {}),
+            **({"deck_live": {**self._saved_decks, **self._live_decks()}} if {**self._saved_decks, **self._live_decks()} else {}),
             **({"zones_live": self._live_zones()} if self._live_zones() else {}),
         }
 
@@ -3580,20 +3581,23 @@ class Session:
         those GUIDs; never on `resume`: the game is already laid out). One message to TTS, only if there is
         something to do. The GUID of a created zone is used from now on and saved in the session file (`zones_live`).
         What it did is said by the start / resume (`_startup_notes`). `saved_zones` = the `zones_live` of an earlier session
-        file, for a fresh start (on resume they come from the loaded file). The adopted or created GUIDs are saved at once,
-        so a Ctrl+C before the game begins does not lose them."""
+        file, for a fresh start (on resume they come from the loaded file). On resume a changed zone GUID is saved at once;
+        a fresh start saves with the game's first step (a game not begun must not look resumable), and the position match
+        of the script adopts the zones an interrupted start left behind."""
         c = self.cfg
         if saved_zones:
             self._saved_zones = self.read_saved_zones(saved_zones)
-        remove = [] if resume else list(c.remove_plan)
+        protected = {*self.guids_in_use(), *self.guids_in_use(configured=True), *self._saved_zones.values()}
+        remove = [] if resume else [(g, name) for g, name in c.remove_plan if g not in protected]
         if not c.zone_spawns and not remove:
             return
+        before = dict(self._saved_zones)
         zones = []
         for key, spawn in c.zone_spawns.items():
             saved, configured = self._saved_zones.get(key), getattr(c, key)
             candidates = [g for g in ((saved, configured) if resume else (configured, saved)) if g]
             zones.append((key, list(dict.fromkeys(candidates)), spawn.position, spawn.scale, spawn.rot_y))
-        res = self.client.call_lua(lua.prepare_table(zones, remove))
+        res = self.client.call_lua(lua.prepare_table(zones, remove, c.remove_limits))
         if not isinstance(res, dict):
             raise SessionError(t("err.prepare_reply", got=repr(str(res)[:80])))
         found = res.get("zones") if isinstance(res.get("zones"), dict) else {}
@@ -3612,8 +3616,13 @@ class Session:
         for row in res.get("removed") if isinstance(res.get("removed"), list) else []:
             if isinstance(row, dict) and isinstance(row.get("guid"), str):
                 self._startup_notes.append((t("prep.removed", what=row.get("name") or "", guid=row["guid"]), ChatKind.WARNING))
-        if self._live_zones():
-            self._persist()
+        for row in res.get("skipped") if isinstance(res.get("skipped"), list) else []:
+            if isinstance(row, dict) and isinstance(row.get("guid"), str):
+                self._startup_notes.append((t("prep.skipped", guid=row["guid"], what=row.get("name") or "",
+                                              why=t("prep.why." + str(row.get("why")))
+                                              if row.get("why") in ("type", "place", "zone") else ""), ChatKind.WARNING))
+        if resume and self._live_zones() != before:
+            self._persist()                   # the loaded game is complete: only the zones changed
 
     def _say_startup_notes(self) -> None:
         for text, kind in self._startup_notes:

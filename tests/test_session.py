@@ -265,7 +265,7 @@ class Table:
             else:
                 zones[key] = {"guid": guids[0], "status": self.zone_status}
         removed = []
-        for g in re.findall(r'"(\w+)"', s.split("local REMOVE = ", 1)[1].splitlines()[0]):
+        for g in re.findall(r'\{"(\w+)", "\w+"\}', s.split("local REMOVE = ", 1)[1].splitlines()[0]):
             if g in self.removable:
                 removed.append({"guid": g, "name": "DeckCustom"})
                 self.removed.append(g)

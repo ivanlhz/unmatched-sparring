@@ -12,6 +12,7 @@ from .i18n import t
 DISCARD_ZONE_KEYS = ("bot_discard_zone", "human_discard_zone")
 SPAWN_SUFFIX = "_spawn"                 # config key of each zone's default transform: bot_discard_zone_spawn
 DEFAULT_ZONE_ROT_Y = 270.0              # straight: the long side of both zones runs along z
+DEFAULT_REMOVE_LIMITS = (26.0, 36.0)    # the central table: the hands sit at |x| 30, the hero bags past |z| 37
 
 
 @dataclass(frozen=True)
@@ -45,9 +46,19 @@ def zone_spawns(raw: dict) -> dict[str, ZoneSpawn]:
     return out
 
 
-def removal_list(raw: dict) -> tuple[str, ...]:
-    """GUIDs of the loose objects destroyed at a fresh start (`remove_table_guids`): exactly these, never by area."""
-    guids = raw.get("remove_table_guids") or []
-    if not isinstance(guids, list) or not all(isinstance(g, str) and g for g in guids):
+def removal_plan(raw: dict) -> tuple[tuple[str, str], ...]:
+    """(GUID, expected TTS object name) of the loose objects destroyed at a fresh start (`remove_table`): exactly these,
+    and each only if it still is that kind of object (TTS can hand a freed GUID to something else)."""
+    plan = raw.get("remove_table") or {}
+    if not isinstance(plan, dict) or not all(isinstance(g, str) and g and isinstance(n, str) and n for g, n in plan.items()):
         raise ValueError(t("cfg.remove_table"))
-    return tuple(guids)
+    return tuple(plan.items())
+
+
+def removal_limits(raw: dict) -> tuple[float, float]:
+    """(|x|, |z|) of the central table rectangle a listed object must be inside to be destroyed."""
+    limits = raw.get("remove_table_limits", DEFAULT_REMOVE_LIMITS)
+    if not isinstance(limits, (list, tuple)) or len(limits) != 2 or not all(
+            isinstance(v, (int, float)) and not isinstance(v, bool) and v > 0 for v in limits):
+        raise ValueError(t("cfg.remove_limits"))
+    return float(limits[0]), float(limits[1])
