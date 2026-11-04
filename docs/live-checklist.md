@@ -258,6 +258,16 @@ Nothing of Bigfoot has been seen on a real table. His deck is sheet 176 like Med
 - [ ] **UNCANNY INTUITION**: B attacks -> face-down card that is **turned** face up in the same script, named in the chat. H attacks the bot's Abe -> the chat warns on Attack; at Reveal the bot spends the token and draws **before** choosing a defense (the drawn card may be the defense); put the attack face down (it is turned at Reveal).
 - [ ] Partial failure (one card does not move): the row stays, the bot says so once and you choose by button; the table wins on the next read.
 
+### Official save set-up (F20)
+Nothing of this has been seen on a real table. Load "Unmatched Official Tournament Table October 2026 (Hellboy)" (no discard zones, decks / d20 / Dice Cannon in the centre) and start the bot.
+- [ ] **Zones created**: the chat says the bot and human discard zones were created (with a GUID); the white floor rectangles appear where the hand-made ones were (bot x 10.7..19.3, human x -18..-7), straight along z, and the bot's discard grid fills its zone from the first discard.
+- [ ] **Size honoured**: select a created zone with the zone tool: scale about 35.4 x 5.1 x 8.5 (bot) and 33.2 x 5.1 x 11.0 (human), rotation 0 / 270 / 0. If the scale is 1 x 1 x 1, `spawnObject` dropped it and `setScale` did not help.
+- [ ] **Pre-sparring save**: on "Unmatched Sparring Bot Base" the bot says it straightened both zones (269.09 / 269.43 -> 270) and creates nothing; start the bot a second time: it says nothing (already straight).
+- [ ] **Centre cleared**: the two decks, the d20 and the Dice Cannon move to the pocket south of the board (x -1, 4, 8 and 2.1; z -28 and -33), keep their orientation, one chat line each; nothing is opened. Check the Dice Cannon (size unknown) overlaps nothing and the board can be placed in the centre. A second FRESH start moves them to the same spots again (by design: put them elsewhere and they come back); `--resume` never moves them.
+- [ ] **Resume**: Ctrl+C, then `--resume`: the same created zones are used (no third zone appears), the objects in the centre are not touched, the discards already on the pile are still read.
+- [ ] **Fresh restart without reloading TTS**: the leftover created zones are reused (no duplicate zone on top of them).
+- [ ] **TTS reload after creating the zones** (load another save): the bot stops with the missing-GUID message; restart it.
+
 ## 4. Panel and buttons
 
 - [x] The choice buttons of a card **only appear when it is played** (hidden, **never greyed out**). *(OK 30/10)*

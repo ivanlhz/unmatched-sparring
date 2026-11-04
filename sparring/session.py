@@ -51,6 +51,7 @@ from .combat import FEINT, GLANCE_DAMAGE, can_boost, deck_boost, is_medusa_card,
 from .effects.model import EffectError, load_effects
 from .effects.modifiers import boost_limit, grants_boost, has_boost_effect
 from .state import ANUNG, DETECTIVE, EXHAUST_DAMAGE, Fighter, Game, RuleError
+from .table_prep import DISCARD_ZONE_KEYS, ZoneSpawn
 from .tts import lua, ui
 from .tts.hero_table import HeroTableError, load_hero_table
 from .tts.lua import ChatKind
@@ -165,6 +166,8 @@ class SessionConfig:
     card_zoom_scale: float = 4.0                                 # size factor of the copy
     card_zoom_spot: tuple[float, float, float] = (0.0, 12.0, 0.0)   # where it floats: above the board centre, outside every zone
     card_zoom_rot: tuple[float, float, float] | None = None      # (x, y, z) degrees; default flat, readable from the human's seat
+    zone_spawns: dict[str, ZoneSpawn] = field(default_factory=dict)   # discard zone key -> transform to create / straighten it with
+    clear_plan: tuple[tuple[str, tuple[float, float, float]], ...] = ()   # (GUID, parking spot) of what is moved out of the table's centre
 
 
 def zoom_spec(cfg: "SessionConfig") -> lua.ZoomSpec | None:
@@ -388,6 +391,9 @@ class Session:
         self.configured_pieces = {fid: piece_guids(v) for fid, v in cfg.pieces.items()}   # as the data gives them (identity of the table)
         self._deck_origin: dict[str, str] = {}              # "bot_deck_guid"/"human_deck_guid" -> the configured GUID, for each one adopted
         self._saved_decks: dict[str, str] = {}               # side -> live deck GUID read from session.json (first candidate on resume)
+        self._zone_origin: dict[str, str] = {}              # "bot_discard_zone"/"human_discard_zone" -> the configured GUID, for each one created or replaced
+        self._saved_zones: dict[str, str] = {}              # zone key -> live GUID read from session.json (first candidate on resume)
+        self._startup_notes: list[tuple[str, ChatKind]] = []   # what the table preparation did: said by the start / resume
         self._dial_origin: dict[str, str] = {}              # fid -> the dial GUID the data gave it, for each one resolved by name
         self.resolved_dials: dict[str, str] = {}            # fid -> life dial GUID found by name when two dials shared one (saved)
         self._dial_unresolved: set[str] = set()             # fids whose dial cannot be told from another's: not written, not verified
@@ -433,6 +439,7 @@ class Session:
         End action (if the bot starts, `bot_stage` is left half-done and resumable)."""
         self.snap = None
         self.messages = []
+        self._say_startup_notes()
         self._destiny_tried = False
         self._begin_game()
         return self._done()
@@ -495,6 +502,7 @@ class Session:
         """Resumes a game loaded from a save: the table rules (it is re-read) and it picks up where it left off."""
         self.snap = None
         self.messages = []
+        self._say_startup_notes()
         self._destiny_tried = False
         self._check_config()
         self._check_pieces()
@@ -1454,6 +1462,7 @@ class Session:
             **({"resolved_pieces": self.resolved_pieces} if self.resolved_pieces else {}),
             **({"resolved_dials": self.resolved_dials} if self.resolved_dials else {}),
             **({"deck_live": self._live_decks()} if self._live_decks() else {}),
+            **({"zones_live": self._live_zones()} if self._live_zones() else {}),
         }
 
     @property
@@ -1469,6 +1478,7 @@ class Session:
         c = self.cfg
         identity = {k: getattr(c, k) for k in IDENTITY_KEYS}
         identity.update(self.configured_decks)          # the decks as configured, not the GUID the table gave them
+        identity.update(self.configured_zones)          # and the discard zones: one created at start-up has a new GUID every time
         identity["dials"] = self.configured_dials
         identity.update(override)
         identity["pieces"] = {fid: v for fid, v in sorted(self.configured_pieces.items())}
@@ -1534,6 +1544,7 @@ class Session:
             piece_id.restore_dials(self, d.get("resolved_dials"))
             self._saved_decks = {side: g for side, g in (d.get("deck_live") or {}).items()
                                  if side in ("bot", "human") and isinstance(g, str) and lua._GUID.fullmatch(g)}
+            self._saved_zones = self.read_saved_zones(d.get("zones_live"))
         except (KeyError, TypeError, IndexError, ValueError) as e:
             raise persist.StateError(t("save.invalid", error=repr(e))) from None
 
@@ -1621,8 +1632,9 @@ class Session:
         as the data gives them, not as resolved by name)."""
         c = self.cfg
         pcs = self.configured_pieces if configured else {fid: piece_guids(v) for fid, v in c.pieces.items()}
+        zones = self.configured_zones if configured else {k: getattr(c, k) for k in DISCARD_ZONE_KEYS}
         guids = [lua.BOARD_GUIDS[self.game.board.key], self.configured_decks["bot_deck_guid"] if configured else c.bot_deck_guid,
-                 c.bot_discard_zone, c.human_discard_zone,
+                 zones["bot_discard_zone"], zones["human_discard_zone"],
                  *(g for v in pcs.values() for g in v), *(self.configured_dials if configured else c.dials).values(),
                  *([c.destiny_dial] if c.destiny_dial else []), *self._deck_zones()]
         return sorted(set(guids))
@@ -3535,6 +3547,73 @@ class Session:
         self._deck_origin.setdefault(key, getattr(c, key))
         setattr(c, key, guid)
         self._snap_spec = None                              # the snapshot skips the deck by GUID
+
+    def _live_zones(self) -> dict[str, str]:
+        """Discard zones whose GUID is no longer the configured one (the bot created them, TTS gave them another)."""
+        return {key: getattr(self.cfg, key) for key in DISCARD_ZONE_KEYS if key in self._zone_origin}
+
+    @property
+    def configured_zones(self) -> dict[str, str]:
+        """The discard zone GUIDs as the configuration gives them, not as created at start-up (the identity of the table)."""
+        return {key: self._zone_origin.get(key, getattr(self.cfg, key)) for key in DISCARD_ZONE_KEYS}
+
+    @staticmethod
+    def read_saved_zones(raw) -> dict[str, str]:
+        """The `zones_live` of a session file, keeping only well-formed entries."""
+        if not isinstance(raw, dict):
+            return {}
+        return {key: g for key, g in raw.items()
+                if key in DISCARD_ZONE_KEYS and isinstance(g, str) and lua._GUID.fullmatch(g)}
+
+    def _adopt_zone(self, key: str, guid: str) -> None:
+        """The zone the table shows is the one the session uses from now on; the identity of the table keeps the
+        configured GUID (`_zone_origin`), as with the decks, so a resume still recognizes the save."""
+        if getattr(self.cfg, key) == guid:
+            return
+        self._zone_origin.setdefault(key, getattr(self.cfg, key))
+        setattr(self.cfg, key, guid)
+        self._snap_spec = None                              # the snapshot reads the zones by GUID
+
+    def prepare_table(self, resume: bool) -> None:
+        """Makes the table usable before anything reads it: a discard zone the save lacks is created (a straight one) and
+        one it has is straightened; on a fresh start, whatever `clear_plan` lists that sits in the middle of the table is
+        moved to its parking spot (never on `resume`: the game is already laid out). One message to TTS, only if there is
+        something to do. The GUID of a created zone is used from now on and saved in the session file (`zones_live`).
+        What it did is said by the start / resume (`_startup_notes`)."""
+        c = self.cfg
+        park = [] if resume else list(c.clear_plan)
+        if not c.zone_spawns and not park:
+            return
+        zones = []
+        for key, spawn in c.zone_spawns.items():
+            saved, configured = self._saved_zones.get(key), getattr(c, key)
+            candidates = [g for g in ((saved, configured) if resume else (configured, saved)) if g]
+            zones.append((key, list(dict.fromkeys(candidates)), spawn.position, spawn.scale, spawn.rot_y))
+        res = self.client.call_lua(lua.prepare_table(zones, park))
+        if not isinstance(res, dict):
+            raise SessionError(t("err.prepare_reply", got=repr(str(res)[:80])))
+        found = res.get("zones") if isinstance(res.get("zones"), dict) else {}
+        for key, spawn in c.zone_spawns.items():
+            entry = found.get(key) if isinstance(found.get(key), dict) else {}
+            role = t("ro.role.bot" if key.startswith("bot") else "ro.role.human")
+            guid, status = entry.get("guid"), entry.get("status")
+            if status == "no_guid" or not (isinstance(guid, str) and lua._GUID.fullmatch(guid)):
+                raise SessionError(t("prep.zone_no_guid", role=role))
+            self._adopt_zone(key, guid)
+            if status == "created":
+                self._startup_notes.append((t("prep.zone_created", role=role, guid=guid), ChatKind.WARNING))
+            elif status == "straightened":
+                self._startup_notes.append((t("prep.zone_straightened", role=role, guid=guid, rot=spawn.rot_y),
+                                            ChatKind.WARNING))
+        for row in res.get("parked") if isinstance(res.get("parked"), list) else []:
+            if isinstance(row, dict) and isinstance(row.get("guid"), str):
+                self._startup_notes.append((t("prep.parked", what=row.get("name") or "", guid=row["guid"],
+                                              x=float(row.get("x", 0)), z=float(row.get("z", 0))), ChatKind.WARNING))
+
+    def _say_startup_notes(self) -> None:
+        for text, kind in self._startup_notes:
+            self.say(text, kind)
+        self._startup_notes = []
 
     def load_identities(self) -> None:
         """At the start: the identity of each deck (FaceURL/BackURL of its cards' CustomDeck), read from the object

@@ -1139,6 +1139,80 @@ return JSON.encode(out)
 """
 
 
+MAX_PREP_ZONES = 4
+MAX_PREP_PARK = 12
+ZONE_ANGLE_TOLERANCE = 0.05      # degrees: a zone this close to the wanted rotation is already straight
+
+
+@_registered
+def prepare_table(zones: list[tuple[str, list[str], tuple, tuple, float]],
+                  park: list[tuple[str, tuple[float, float, float]]]) -> str:
+    """Start-up preparation of a table that was not made for the bot, in ONE message.
+
+    `zones` = (key, candidate GUIDs, position, scale, rotY) of each Scripting zone the bot needs. The first candidate that
+    is a Scripting zone is used and set to rotation (0, rotY, 0) (`straightened` if it was off, `found` if it was already
+    straight); if none is on the table a Scripting zone (`ScriptingTrigger`) is spawned with that transform (`created`;
+    TTS gives it a new GUID, returned as `guid`; `no_guid` if it did not give one). `park` = (GUID, position): each of those
+    objects that is on the table is MOVED to its position keeping its rotation (never opened, never destroyed); the ones that
+    are absent are left out. Returns `{zones = {key = {guid, status}}, parked = [{guid, name, x, z}]}`. It touches neither
+    the Global nor the UI."""
+    if not isinstance(zones, (list, tuple)) or len(zones) > MAX_PREP_ZONES or not isinstance(park, (list, tuple))             or len(park) > MAX_PREP_PARK:
+        raise ValueError("too many zones or objects to prepare")
+    zone_rows, park_rows = [], []
+    for key, candidates, pos, scale, rot_y in zones:
+        if not isinstance(candidates, (list, tuple)) or len(pos) != 3 or len(scale) != 3:
+            raise TypeError("zone: (key, [GUID], (x, y, z), (sx, sy, sz), rotY) expected")
+        zone_rows.append(f'{{{lua_str(key)}, {_guid_list(candidates)}, {{{", ".join(_f(v) for v in pos)}}}, '
+                         f'{{{", ".join(_f(v) for v in scale)}}}, {_f(rot_y)}}}')
+    for guid, pos in park:
+        if len(pos) != 3:
+            raise TypeError("spot (x, y, z) expected")
+        park_rows.append(f'{{{_guid(guid)}, {_f(pos[0])}, {_f(pos[1])}, {_f(pos[2])}}}')
+    return f"""-- sparring:prepare_table
+{ZONE_LUA}local ZONES = {{{", ".join(zone_rows)}}}
+local PARK = {{{", ".join(park_rows)}}}
+local function off(a, b)
+  return math.abs(((a - b + 180) % 360) - 180)
+end
+local out = {{zones = {{}}, parked = {{}}}}
+for _, zr in ipairs(ZONES) do
+  local key, candidates, pos, scale, rotY = zr[1], zr[2], zr[3], zr[4], zr[5]
+  local zone = nil
+  for _, g in ipairs(candidates) do
+    local c = getObjectFromGUID(g)
+    if isZone(c) then zone = c break end
+  end
+  local status = "found"
+  if zone ~= nil then
+    local r = zone.getRotation()
+    if off(r.x, 0) > {_f(ZONE_ANGLE_TOLERANCE)} or off(r.y, rotY) > {_f(ZONE_ANGLE_TOLERANCE)} or off(r.z, 0) > {_f(ZONE_ANGLE_TOLERANCE)} then
+      zone.setRotation(Vector(0, rotY, 0))
+      status = "straightened"
+    end
+  else
+    zone = spawnObject({{type = "ScriptingTrigger", position = Vector(pos[1], pos[2], pos[3]),
+                        rotation = Vector(0, rotY, 0), scale = Vector(scale[1], scale[2], scale[3])}})
+    if zone ~= nil then zone.setScale(Vector(scale[1], scale[2], scale[3])) end   -- in case the spawn call drops the scale
+    status = "created"
+  end
+  local guid = zone ~= nil and zone.getGUID() or nil
+  if guid == nil or guid == "" then
+    out.zones[key] = {{guid = "", status = "no_guid"}}
+  else
+    out.zones[key] = {{guid = guid, status = status}}
+  end
+end
+for _, p in ipairs(PARK) do
+  local o = getObjectFromGUID(p[1])
+  if o ~= nil then
+    o.setPositionSmooth(Vector(p[2], p[3], p[4]), false, true)
+    table.insert(out.parked, {{guid = p[1], name = o.name, x = p[2], z = p[4]}})
+  end
+end
+return JSON.encode(out)
+"""
+
+
 def ascii_text(text: str, limit: int = 64) -> list[str]:
     """Free text -> pieces that `lua_str` admits (ASCII without accents, whitelisted characters, <= limit)."""
     import unicodedata

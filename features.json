@@ -387,6 +387,29 @@
         "Verified live by Iván (docs/live-checklist.md, section Bigfoot)"
       ],
       "note": "Engine additions, if any, are additive (docs/effects-dsl.md). Rules decisions and open questions for Iván: docs/heroes/bigfoot.md. Live test pending."
+    },
+    {
+      "id": "F20",
+      "title": "The bot prepares the official community save itself",
+      "status": "in-progress",
+      "criteria": [
+        "At start-up, fresh and --resume, if the configured discard zone GUID is not on the table the bot spawns a Scripting zone (ScriptingTrigger) with the position and scale of config/table.json (bot_discard_zone_spawn, human_discard_zone_spawn) and rotation (0, discard_zone_rot_y = 270, 0): straight, not the 269.09 / 269.43 of the hand-made zones",
+        "A discard zone that IS on the table (the hand-made 906a7a / b7a0b8 of the pre-sparring save) is only straightened to rotation (0, 270, 0); position and scale are untouched; one already straight is not touched at all",
+        "The GUID TTS gives a created zone is used for the rest of the session and kept in the session file (zones_live); config/table.json is never rewritten; --resume looks for the saved GUID first, then the configured one, and creates a new zone only if neither is on the table; the table identity (config hash, fingerprint) keeps the configured GUIDs, so saves of the old table still resume",
+        "bot_discard_bounds says rotY 270 and matches the zone as created (test); the discard grid keeps exactly the same slots and all of them fit inside the zone; start-up layout warnings stay empty",
+        "The chat and console say, in es and en (i18n), which zones were created or straightened",
+        "On a fresh start only (never --resume), each of clear_table_guids that is on the table (decks addeca and cb6cbc, d20 65be8d, Dice Cannon 5085eb) is MOVED, keeping its rotation, to its spot of clear_table_spots, in the same single TTS message as the zones; absent ones are skipped; nothing is opened, destroyed or taken from a bag; each move is reported in the chat",
+        "The parking spots are outside every zone the bot uses (hands, board, discard zones, decks, combat, ONGOING, look rows, tuck/removed rows, dead spots, card zoom, unpack rows, panel) and clear of each other: tests/test_official_save_setup.py checks them against config/table.json, and start-up warns if a configuration moves one onto something",
+        "Only messageID 2 and 3 of the external API are used, the Global UI is never touched; a configuration without the new keys behaves exactly as before",
+        "Verified live by Iván on the official save (docs/live-checklist.md, section Official save set-up)"
+      ],
+      "verify_live": [
+        "TTS keeps the scale given to spawnObject for a ScriptingTrigger (the script also calls setScale) and returns its GUID at once (no_guid is reported if not)",
+        "The created zones are the same size and place as the hand-made ones: the white floor rectangles match and the discard grid fills the bot zone",
+        "The Dice Cannon (size unknown) and the two decks, parked in the pocket south of the board, overlap nothing and the board can be placed in the centre",
+        "A TTS reload (messageID 1) after the zones were created: they are not in the TTS save, so the bot stops with the missing-GUID message; restart it"
+      ],
+      "note": "Asked by Iván on 4/11 so people who download the bot can use the official save without making two zones by hand. Nothing here was run against real TTS. Branch official-save-setup."
     }
   ]
 }

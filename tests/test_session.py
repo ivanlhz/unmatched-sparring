@@ -68,6 +68,11 @@ class Table:
         self.move_fails: set[str] = set()           # piece GUID that cannot be moved
         self.dials: dict[str, dict] = {}            # dial GUID -> read_health_dials answer
         self.hand_zones: dict[str, list[str]] = {}  # zone GUID -> overlapping hand zones
+        self.prepared: list[str] = []               # prepare_table scripts received
+        self.new_zones: dict[str, str] = {}         # discard zone key -> GUID of the zone the preparation creates (absent: it is on the table)
+        self.zone_status = "found"                  # what the preparation says of a zone that is on the table
+        self.parkable: set[str] = set()             # GUIDs of the objects of the centre that are on the table
+        self.parked: list[str] = []                 # GUIDs the preparation moved
         self.stray_near_deck: list[dict] = []       # loose Card objects near the deck (CardID, guid)
         self.discard_spots: dict[int, tuple[float, float, float]] = {}   # CardID -> spot asked for when discarding
         self.markings: list[str] = []
@@ -247,6 +252,25 @@ class Table:
                 self.dials[g] = {**self.dials[g], "value": int(v)}
             self.dial_writes.append((g, int(v)))
         return {g: {"found": g in self.dials, "written": True, "value": int(v)} for g, v in rows}
+
+    def do_prepare_table(self, s):
+        """A table whose discard zones are the configured ones, except those listed in `new_zones` (key -> GUID TTS gives
+        the zone created for it); the objects in `parkable` exist and are moved where the script says."""
+        self.prepared.append(s)
+        zones = {}
+        for key, cands in re.findall(r'\{"(\w+)", \{([^}]*)\},', s.split("local ZONES = ", 1)[1].split("local PARK", 1)[0]):
+            guids = re.findall(r'"(\w+)"', cands)
+            if key in self.new_zones:
+                zones[key] = {"guid": self.new_zones[key], "status": "created"}
+            else:
+                zones[key] = {"guid": guids[0], "status": self.zone_status}
+        parked = []
+        park = s.split("local PARK = ", 1)[1].splitlines()[0]
+        for g, x, y, z in re.findall(r'\{"(\w+)", ([-\d.]+), ([-\d.]+), ([-\d.]+)\}', park):
+            if g in self.parkable:
+                parked.append({"guid": g, "name": "DeckCustom", "x": float(x), "z": float(z)})
+                self.parked.append(g)
+        return {"zones": zones, "parked": parked}
 
     def do_zone_overlaps(self, s):
         guids = re.findall(r'"(\w+)"', re.search(r"ipairs\(\{(.*?)\}\)", s).group(1))

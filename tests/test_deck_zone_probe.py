@@ -141,6 +141,9 @@ def _start_play(monkeypatch, zone_error):
         def __init__(self, *a, **k):
             self.game_log = SimpleNamespace(path=None)
 
+        def prepare_table(self, resume):
+            pass
+
         def resolve_pieces(self):
             pass
 

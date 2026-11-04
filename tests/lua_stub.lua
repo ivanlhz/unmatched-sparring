@@ -136,7 +136,17 @@ end
 function sendExternalMessage(t) table.insert(SENT, t) end
 BROADCASTS = {}
 function broadcastToAll(text, color) table.insert(BROADCASTS, {text = text, r = color[1], g = color[2], b = color[3]}) end
-function spawnObject(t) return mkobj({guid = "spawn1", type = t.type}) end
+SPAWNS = {}
+function spawnObject(t)
+  if t.type == "ScriptingTrigger" then       -- a Scripting zone: TTS gives it a fresh GUID and reports it as "Scripting"
+    local p, sc, r = t.position, t.scale, t.rotation
+    local z = mkobj({guid = "zone" .. (#SPAWNS + 1), type = "Scripting", pos = vec(p.x, p.y, p.z), rot = vec(r.x, r.y, r.z),
+                     scale = vec(sc.x, sc.y, sc.z), cx = p.x, cz = p.z, hw = sc.x / 2, hd = sc.z / 2})
+    table.insert(SPAWNS, z)
+    return z
+  end
+  return mkobj({guid = "spawn1", type = t.type})
+end
 function spawnObjectData(t)
   local d = t.data
   SPAWNED = (SPAWNED or 0) + 1

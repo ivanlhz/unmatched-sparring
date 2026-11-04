@@ -78,7 +78,7 @@ Boards: **B.P.R.D. Headquarters** (`data/maps/bprd-hq.json`) is the board used a
 You need:
 
 - Windows (the commands below are PowerShell), Python 3.11 (the project venv uses 3.11.15) and [uv](https://docs.astral.sh/uv/).
-- Tabletop Simulator with the **Unmatched Official Tournament Table** savegame, the "October 2026 (Hellboy)" version, loaded. Put a copy of the savegame in `saves\` (that folder is git-ignored; some importer tools read it). The bot does not need the file to play; the table in TTS is what matters.
+- Tabletop Simulator with the **Unmatched Official Tournament Table** savegame, the "October 2026 (Hellboy)" version, loaded. Put a copy of the savegame in `saves\` (that folder is git-ignored; some importer tools read it). The bot does not need the file to play; the table in TTS is what matters. The official save works as it comes: at start-up the bot [prepares the table itself](#official-save-set-up) (it creates the two discard zones, which that save does not have, and moves the loose decks, the d20 and the Dice Cannon out of the centre).
 - The seats: **the bot is Green, you are White**. The config holds the positions measured on that table (hands, discard zones, deck spots, combat spots, panel).
 
 Install:
@@ -106,6 +106,8 @@ The file holds what belongs to the **table**; everything that belongs to a **her
 | `bot_ongoing_spot`, `human_ongoing_spot` | Where ONGOING schemes are kept. |
 | `bot_tuck_spot`, `bot_removed_spot` | Donatello only: where the bot lays the inventions it tucks under its hero card and the cards it removes from the game (outside its discard and combat zones; estimates). |
 | `bot_discard_zone`, `human_discard_zone`, `bot_discard_spot/step/rows/bounds` | Discard zones. The bot lays its discards in an ordered grid so you can read the order of play. |
+| `discard_zone_rot_y`, `bot_discard_zone_spawn`, `human_discard_zone_spawn` | Transform the bot creates a missing discard zone with (and straightens an existing one to). See [Official save set-up](#official-save-set-up). |
+| `clear_table_guids`, `clear_table_spots` | Objects the official save leaves in the centre and where the bot parks them at a fresh start. |
 | `bot_deck_spot`, `human_deck_spot` | Draw piles (also used by hero detection). Without a deck zone the bot takes the nearest face-down deck or card within `deck_radius` (2.9) of the spot. |
 | `bot_deck_zone`, `human_deck_zone` | Optional. GUIDs of Scripting zones over each draw pile; see [Deck zones](#deck-zones-optional). |
 | `dead_spot`, `human_dead_spot` | Where fallen miniatures are put aside. |
@@ -121,6 +123,15 @@ The file holds what belongs to the **table**; everything that belongs to a **her
 | `ai`, `ai_time_budget`, `ai_seed`, `ai_eval` | AI choice and tuning. See [The two AIs](#6-the-two-ais). |
 
 A value of `"TODO"` has to be filled in by hand after the first `--read-only` run (the bot will not play until it is).
+
+#### Official save set-up
+
+The community save "Unmatched Official Tournament Table October 2026 (Hellboy)" is played as it comes. It differs from the author's own "pre-sparring" table in two ways, and the bot fixes both when it starts:
+
+- **Discard zones.** The official save has no Scripting zones over the discard piles. If the GUID in `bot_discard_zone` / `human_discard_zone` is not on the table, the bot creates the zone with the position and scale in `bot_discard_zone_spawn` / `human_discard_zone_spawn` and **rotation 0, 270, 0 (`discard_zone_rot_y`): created straight**. TTS gives the new zone its own GUID; the bot uses it for the session and keeps it in its state file (`zones_live`), so `--resume` finds the same zone. `config	able.json` is never rewritten. A zone that is on the table (the hand-made `906a7a` / `b7a0b8` of the pre-sparring save, which were slightly crooked at 269.09 / 269.43 degrees) is only straightened to the same rotation. The bot says in the chat which zones it created or straightened. Remove a `*_spawn` key to stop the bot from creating or straightening that zone.
+- **The centre of the table.** The official save leaves two 78-card decks (`addeca`, `cb6cbc`), a d20 (`65be8d`) and the Dice Cannon (`5085eb`) where the B.P.R.D. HQ board goes. At a fresh start (never with `--resume`) the bot **moves** each one that is on the table to the matching spot of `clear_table_spots`, in the free pocket south of the board, and says so in the chat. It never opens or destroys anything. Start-up warns if a spot is moved onto something the bot uses.
+
+The created zones belong to the running TTS game. If you load a different save while the bot runs, they are gone and the bot stops with the missing-GUID message; start it again.
 
 #### Deck zones (optional)
 

@@ -718,6 +718,8 @@ def test_read_only_allowlist_is_exactly_the_pure_read_builders(bprd):
         "read_cards_at": lambda: lua.read_cards_at(0, 0),
         "place_card_face_up": lambda: lua.place_card_face_up(1, "Blue", 0, 0, 0, identity=TEST_IDENT),
         "hold": lambda: lua.hold(3),
+        "prepare_table": lambda: lua.prepare_table([("bot_discard_zone", ["abc"], (0.0, 4.0, 0.0), (8.0, 5.0, 8.0), 270.0)],
+                                                   [("def", (0.0, 2.0, -28.0))]),
         "info_dialog": lambda: lua.info_dialog("White", "You win! Medusa has fallen."),
     }
     registered = {n for n, f in inspect.getmembers(lua, inspect.isfunction) if hasattr(f, "__wrapped__")}
