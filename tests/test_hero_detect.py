@@ -444,3 +444,14 @@ def test_main_refuses_a_catalog_hero_with_exit_2_and_a_clear_message(wire, capsy
     err = capsys.readouterr().err
     assert "El humano juega Alice, que el bot todavia no sabe jugar" in err and "--human-hero" in err
     assert state["scripts"] == ["-- sparring:table_heroes"]
+
+
+def test_the_official_saves_centre_decks_listed_for_removal_are_not_read_as_hero_decks():
+    # the official save has two loose 78-card decks (addeca, cb6cbc) in the centre that the fresh start removes
+    centre = [{"type": "DeckCustom", "guid": g, "x": x, "z": -1.5, "counts": [0] * len(SLUGS), "name": "", "size": 78}
+              for g, x in (("addeca", -5.7), ("cb6cbc", 5.5))]
+    cfg = resolve_heroes(Reader(*MEDUSA_LIZ, *centre), load_config(REAL_CONFIG), echo=lambda _: None)
+    assert cfg.heroes == ("medusa", "liz-sherman")
+    with pytest.raises(HeroDetectionError) as e:        # no hero laid out yet: say so, do not blame the centre decks
+        resolve_heroes(Reader(*centre), load_config(REAL_CONFIG), echo=lambda _: None)
+    assert "78" not in str(e.value)

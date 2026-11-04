@@ -435,6 +435,9 @@ def resolve_heroes(client, cfg: PlayConfig, saved: tuple[str, str] | None = None
         else:
             try:
                 reading = read_table(ReadOnlyClient(client), _deck_zones(r))
+                # the loose objects the fresh start removes (the official save's two centre decks) are not hero decks
+                removed = {g for g, _ in table_prep.removal_plan(r)}
+                reading.piles = [p for p in reading.piles if p.get("guid") not in removed]
             except (TTSLuaError, TimeoutError, OSError, ValueError, TypeError, KeyError) as e:
                 failure = t("herosel.read_failed", error=e)
         if failure:
