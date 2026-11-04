@@ -1,0 +1,388 @@
+{
+ "key": "naglfar",
+ "name": "Naglfar",
+ "source": "Unmatched Official Tournament Table October 2026, Custom_Board of the Naglfar bag",
+ "imageKey": "5B3E8C95A5CB5A6F9E4EED4B264BEF7BCC05009A",
+ "playable": false,
+ "problems": [
+  "spaces without a neighbour: [0, 1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12]",
+  "spaces with a single neighbour, so a connector is probably missing: [13]",
+  "the board is not connected (1 of 28 spaces reachable from space 0)"
+ ],
+ "starts": {
+  "1": 27,
+  "2": 11,
+  "3": 18,
+  "4": 4
+ },
+ "spaces": [
+  {
+   "id": 0,
+   "local": [
+    -5.286,
+    3.391
+   ],
+   "zones": [
+    "brown",
+    "gray"
+   ],
+   "adj": []
+  },
+  {
+   "id": 1,
+   "local": [
+    -3.986,
+    5.358
+   ],
+   "zones": [
+    "brown"
+   ],
+   "adj": []
+  },
+  {
+   "id": 2,
+   "local": [
+    -3.021,
+    2.632
+   ],
+   "zones": [
+    "gray"
+   ],
+   "adj": []
+  },
+  {
+   "id": 3,
+   "local": [
+    -2.152,
+    5.741
+   ],
+   "zones": [
+    "brown"
+   ],
+   "adj": []
+  },
+  {
+   "id": 4,
+   "local": [
+    -0.351,
+    5.72
+   ],
+   "zones": [
+    "brown"
+   ],
+   "adj": []
+  },
+  {
+   "id": 5,
+   "local": [
+    1.507,
+    5.636
+   ],
+   "zones": [
+    "brown"
+   ],
+   "adj": []
+  },
+  {
+   "id": 6,
+   "local": [
+    1.33,
+    2.252
+   ],
+   "zones": [
+    "gray"
+   ],
+   "adj": []
+  },
+  {
+   "id": 7,
+   "local": [
+    -0.921,
+    2.552
+   ],
+   "zones": [
+    "gray"
+   ],
+   "adj": []
+  },
+  {
+   "id": 8,
+   "local": [
+    4.143,
+    2.246
+   ],
+   "zones": [
+    "beige",
+    "gray"
+   ],
+   "adj": []
+  },
+  {
+   "id": 9,
+   "local": [
+    3.157,
+    4.729
+   ],
+   "zones": [
+    "beige"
+   ],
+   "adj": []
+  },
+  {
+   "id": 10,
+   "local": [
+    4.875,
+    5.657
+   ],
+   "zones": [
+    "beige"
+   ],
+   "adj": []
+  },
+  {
+   "id": 11,
+   "local": [
+    6.762,
+    5.478
+   ],
+   "zones": [
+    "beige"
+   ],
+   "adj": []
+  },
+  {
+   "id": 12,
+   "local": [
+    6.133,
+    2.726
+   ],
+   "zones": [
+    "beige",
+    "gray"
+   ],
+   "adj": []
+  },
+  {
+   "id": 13,
+   "local": [
+    7.318,
+    -3.364
+   ],
+   "zones": [
+    "sky"
+   ],
+   "adj": [
+    14
+   ]
+  },
+  {
+   "id": 14,
+   "local": [
+    5.284,
+    -2.982
+   ],
+   "zones": [
+    "sky"
+   ],
+   "adj": [
+    13,
+    15,
+    16
+   ]
+  },
+  {
+   "id": 15,
+   "local": [
+    6.106,
+    -5.979
+   ],
+   "zones": [
+    "sky"
+   ],
+   "adj": [
+    14,
+    17
+   ]
+  },
+  {
+   "id": 16,
+   "local": [
+    3.386,
+    -2.562
+   ],
+   "zones": [
+    "teal"
+   ],
+   "adj": [
+    14,
+    17,
+    18
+   ]
+  },
+  {
+   "id": 17,
+   "local": [
+    3.369,
+    -6.367
+   ],
+   "zones": [
+    "teal"
+   ],
+   "adj": [
+    15,
+    16,
+    18,
+    20
+   ]
+  },
+  {
+   "id": 18,
+   "local": [
+    1.576,
+    -4.398
+   ],
+   "zones": [
+    "teal"
+   ],
+   "adj": [
+    16,
+    17
+   ]
+  },
+  {
+   "id": 19,
+   "local": [
+    -0.152,
+    -3.236
+   ],
+   "zones": [
+    "navy",
+    "teal"
+   ],
+   "adj": [
+    20,
+    21
+   ]
+  },
+  {
+   "id": 20,
+   "local": [
+    -0.6,
+    -5.88
+   ],
+   "zones": [
+    "navy",
+    "teal"
+   ],
+   "adj": [
+    17,
+    19,
+    22
+   ]
+  },
+  {
+   "id": 21,
+   "local": [
+    -1.913,
+    -2.529
+   ],
+   "zones": [
+    "navy",
+    "teal"
+   ],
+   "adj": [
+    19,
+    22,
+    23
+   ]
+  },
+  {
+   "id": 22,
+   "local": [
+    -2.251,
+    -5.106
+   ],
+   "zones": [
+    "navy",
+    "teal"
+   ],
+   "adj": [
+    20,
+    21
+   ]
+  },
+  {
+   "id": 23,
+   "local": [
+    -3.733,
+    -3.244
+   ],
+   "zones": [
+    "navy"
+   ],
+   "adj": [
+    21,
+    24,
+    25,
+    27
+   ]
+  },
+  {
+   "id": 24,
+   "local": [
+    -4.551,
+    -5.677
+   ],
+   "zones": [
+    "navy"
+   ],
+   "adj": [
+    23,
+    27
+   ]
+  },
+  {
+   "id": 25,
+   "local": [
+    -5.771,
+    -1.271
+   ],
+   "zones": [
+    "white"
+   ],
+   "adj": [
+    23,
+    26
+   ]
+  },
+  {
+   "id": 26,
+   "local": [
+    -7.403,
+    -2.366
+   ],
+   "zones": [
+    "white"
+   ],
+   "adj": [
+    25,
+    27
+   ]
+  },
+  {
+   "id": 27,
+   "local": [
+    -6.233,
+    -4.57
+   ],
+   "zones": [
+    "navy"
+   ],
+   "adj": [
+    23,
+    24,
+    26
+   ]
+  }
+ ]
+}

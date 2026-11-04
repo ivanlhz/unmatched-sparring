@@ -1,0 +1,492 @@
+{
+ "key": "baskerville-manor",
+ "name": "Baskerville Manor",
+ "source": "Unmatched Official Tournament Table October 2026, Custom_Board of the Baskerville Manor bag",
+ "imageKey": "468715E49E561FDC98803FA83CF8C29C210331B1",
+ "playable": false,
+ "problems": [
+  "spaces with a single neighbour, so a connector is probably missing: [8, 24, 31]",
+  "the board is not connected (19 of 32 spaces reachable from space 0)"
+ ],
+ "starts": {
+  "1": 19,
+  "2": 2,
+  "3": 13,
+  "4": 6
+ },
+ "spaces": [
+  {
+   "id": 0,
+   "local": [
+    6.887,
+    -5.824
+   ],
+   "zones": [
+    "sky"
+   ],
+   "adj": [
+    1,
+    4
+   ]
+  },
+  {
+   "id": 1,
+   "local": [
+    4.742,
+    -6.652
+   ],
+   "zones": [
+    "sky"
+   ],
+   "adj": [
+    0,
+    2
+   ]
+  },
+  {
+   "id": 2,
+   "local": [
+    3.532,
+    -3.813
+   ],
+   "zones": [
+    "brown",
+    "sky"
+   ],
+   "adj": [
+    1,
+    7
+   ]
+  },
+  {
+   "id": 3,
+   "local": [
+    5.195,
+    -2.661
+   ],
+   "zones": [
+    "sky"
+   ],
+   "adj": [
+    4,
+    7
+   ]
+  },
+  {
+   "id": 4,
+   "local": [
+    7.132,
+    -2.915
+   ],
+   "zones": [
+    "sky"
+   ],
+   "adj": [
+    0,
+    3,
+    5
+   ]
+  },
+  {
+   "id": 5,
+   "local": [
+    6.634,
+    1.09
+   ],
+   "zones": [
+    "teal"
+   ],
+   "adj": [
+    4,
+    6,
+    9
+   ]
+  },
+  {
+   "id": 6,
+   "local": [
+    4.738,
+    0.354
+   ],
+   "zones": [
+    "teal"
+   ],
+   "adj": [
+    5,
+    7
+   ]
+  },
+  {
+   "id": 7,
+   "local": [
+    2.914,
+    -0.772
+   ],
+   "zones": [
+    "sky",
+    "teal"
+   ],
+   "adj": [
+    2,
+    3,
+    6
+   ]
+  },
+  {
+   "id": 8,
+   "local": [
+    2.864,
+    3.041
+   ],
+   "zones": [
+    "forest",
+    "teal"
+   ],
+   "adj": [
+    9
+   ]
+  },
+  {
+   "id": 9,
+   "local": [
+    5.613,
+    4.479
+   ],
+   "zones": [
+    "gray",
+    "teal"
+   ],
+   "adj": [
+    5,
+    8,
+    10
+   ]
+  },
+  {
+   "id": 10,
+   "local": [
+    4.68,
+    6.7
+   ],
+   "zones": [
+    "gray"
+   ],
+   "adj": [
+    9,
+    11
+   ]
+  },
+  {
+   "id": 11,
+   "local": [
+    2.953,
+    6.039
+   ],
+   "zones": [
+    "gray"
+   ],
+   "adj": [
+    10,
+    12
+   ]
+  },
+  {
+   "id": 12,
+   "local": [
+    1.197,
+    6.502
+   ],
+   "zones": [
+    "gray"
+   ],
+   "adj": [
+    11,
+    13,
+    14
+   ]
+  },
+  {
+   "id": 13,
+   "local": [
+    0.01,
+    4.37
+   ],
+   "zones": [
+    "forest",
+    "gray"
+   ],
+   "adj": [
+    12,
+    14,
+    15
+   ]
+  },
+  {
+   "id": 14,
+   "local": [
+    -0.738,
+    6.725
+   ],
+   "zones": [
+    "gray"
+   ],
+   "adj": [
+    12,
+    13,
+    15
+   ]
+  },
+  {
+   "id": 15,
+   "local": [
+    -2.163,
+    4.944
+   ],
+   "zones": [
+    "gray"
+   ],
+   "adj": [
+    13,
+    14,
+    16
+   ]
+  },
+  {
+   "id": 16,
+   "local": [
+    -4.306,
+    5.13
+   ],
+   "zones": [
+    "gray"
+   ],
+   "adj": [
+    15,
+    17,
+    18
+   ]
+  },
+  {
+   "id": 17,
+   "local": [
+    -5.844,
+    6.71
+   ],
+   "zones": [
+    "gray"
+   ],
+   "adj": [
+    16,
+    18
+   ]
+  },
+  {
+   "id": 18,
+   "local": [
+    -7.109,
+    4.693
+   ],
+   "zones": [
+    "gray",
+    "navy"
+   ],
+   "adj": [
+    16,
+    17
+   ]
+  },
+  {
+   "id": 19,
+   "local": [
+    -4.848,
+    1.814
+   ],
+   "zones": [
+    "navy"
+   ],
+   "adj": [
+    20,
+    22
+   ]
+  },
+  {
+   "id": 20,
+   "local": [
+    -6.854,
+    1.274
+   ],
+   "zones": [
+    "navy"
+   ],
+   "adj": [
+    19,
+    21
+   ]
+  },
+  {
+   "id": 21,
+   "local": [
+    -5.687,
+    -0.707
+   ],
+   "zones": [
+    "navy"
+   ],
+   "adj": [
+    20,
+    22,
+    30
+   ]
+  },
+  {
+   "id": 22,
+   "local": [
+    -3.073,
+    1.122
+   ],
+   "zones": [
+    "forest",
+    "navy"
+   ],
+   "adj": [
+    19,
+    21,
+    23,
+    28
+   ]
+  },
+  {
+   "id": 23,
+   "local": [
+    -0.956,
+    -0.232
+   ],
+   "zones": [
+    "forest"
+   ],
+   "adj": [
+    22,
+    24
+   ]
+  },
+  {
+   "id": 24,
+   "local": [
+    0.689,
+    1.293
+   ],
+   "zones": [
+    "forest"
+   ],
+   "adj": [
+    23
+   ]
+  },
+  {
+   "id": 25,
+   "local": [
+    -0.191,
+    -3.861
+   ],
+   "zones": [
+    "brown"
+   ],
+   "adj": [
+    26,
+    27,
+    28
+   ]
+  },
+  {
+   "id": 26,
+   "local": [
+    1.844,
+    -6.087
+   ],
+   "zones": [
+    "brown"
+   ],
+   "adj": [
+    25,
+    27
+   ]
+  },
+  {
+   "id": 27,
+   "local": [
+    -1.289,
+    -6.026
+   ],
+   "zones": [
+    "brown"
+   ],
+   "adj": [
+    25,
+    26,
+    28
+   ]
+  },
+  {
+   "id": 28,
+   "local": [
+    -3.087,
+    -3.875
+   ],
+   "zones": [
+    "brown",
+    "forest",
+    "tan"
+   ],
+   "adj": [
+    22,
+    25,
+    27,
+    29,
+    30
+   ]
+  },
+  {
+   "id": 29,
+   "local": [
+    -4.812,
+    -5.859
+   ],
+   "zones": [
+    "tan"
+   ],
+   "adj": [
+    28,
+    30,
+    31
+   ]
+  },
+  {
+   "id": 30,
+   "local": [
+    -5.829,
+    -3.807
+   ],
+   "zones": [
+    "tan"
+   ],
+   "adj": [
+    21,
+    28,
+    29
+   ]
+  },
+  {
+   "id": 31,
+   "local": [
+    -6.988,
+    -5.78
+   ],
+   "zones": [
+    "tan"
+   ],
+   "adj": [
+    29
+   ]
+  }
+ ]
+}

@@ -1,0 +1,495 @@
+{
+ "key": "marmoreal",
+ "name": "Marmoreal",
+ "source": "Unmatched Official Tournament Table October 2026, Custom_Board of the Marmoreal bag",
+ "imageKey": "C7DCD8B1ABC2C6846B8BF827E66BDF622D48C56D",
+ "playable": true,
+ "starts": {
+  "1": 2,
+  "2": 29,
+  "3": 9,
+  "4": 16
+ },
+ "spaces": [
+  {
+   "id": 0,
+   "local": [
+    5.892,
+    -6.481
+   ],
+   "zones": [
+    "beige",
+    "white"
+   ],
+   "adj": [
+    1,
+    8
+   ]
+  },
+  {
+   "id": 1,
+   "local": [
+    6.295,
+    -3.759
+   ],
+   "zones": [
+    "beige",
+    "forest",
+    "pink"
+   ],
+   "adj": [
+    0,
+    2,
+    7
+   ]
+  },
+  {
+   "id": 2,
+   "local": [
+    6.279,
+    -0.977
+   ],
+   "zones": [
+    "beige",
+    "pink"
+   ],
+   "adj": [
+    1,
+    3
+   ]
+  },
+  {
+   "id": 3,
+   "local": [
+    6.043,
+    1.796
+   ],
+   "zones": [
+    "beige",
+    "pink"
+   ],
+   "adj": [
+    2,
+    4,
+    5
+   ]
+  },
+  {
+   "id": 4,
+   "local": [
+    5.179,
+    5.908
+   ],
+   "zones": [
+    "brown"
+   ],
+   "adj": [
+    3,
+    30
+   ]
+  },
+  {
+   "id": 5,
+   "local": [
+    4.172,
+    2.077
+   ],
+   "zones": [
+    "pink"
+   ],
+   "adj": [
+    3,
+    25
+   ]
+  },
+  {
+   "id": 6,
+   "local": [
+    3.339,
+    -0.982
+   ],
+   "zones": [
+    "forest",
+    "teal"
+   ],
+   "adj": [
+    7,
+    10,
+    24
+   ]
+  },
+  {
+   "id": 7,
+   "local": [
+    4.326,
+    -3.393
+   ],
+   "zones": [
+    "beige",
+    "forest"
+   ],
+   "adj": [
+    1,
+    6,
+    10
+   ]
+  },
+  {
+   "id": 8,
+   "local": [
+    3.837,
+    -6.776
+   ],
+   "zones": [
+    "white"
+   ],
+   "adj": [
+    0,
+    9
+   ]
+  },
+  {
+   "id": 9,
+   "local": [
+    1.852,
+    -6.807
+   ],
+   "zones": [
+    "white"
+   ],
+   "adj": [
+    8,
+    11
+   ]
+  },
+  {
+   "id": 10,
+   "local": [
+    2.182,
+    -3.235
+   ],
+   "zones": [
+    "forest",
+    "teal"
+   ],
+   "adj": [
+    6,
+    7,
+    12,
+    24
+   ]
+  },
+  {
+   "id": 11,
+   "local": [
+    -0.063,
+    -5.966
+   ],
+   "zones": [
+    "forest",
+    "teal",
+    "white"
+   ],
+   "adj": [
+    9,
+    12,
+    14
+   ]
+  },
+  {
+   "id": 12,
+   "local": [
+    -0.055,
+    -2.236
+   ],
+   "zones": [
+    "forest",
+    "teal"
+   ],
+   "adj": [
+    10,
+    11,
+    13
+   ]
+  },
+  {
+   "id": 13,
+   "local": [
+    -2.225,
+    -3.174
+   ],
+   "zones": [
+    "forest",
+    "teal"
+   ],
+   "adj": [
+    12,
+    16,
+    21,
+    22
+   ]
+  },
+  {
+   "id": 14,
+   "local": [
+    -2.191,
+    -6.783
+   ],
+   "zones": [
+    "white"
+   ],
+   "adj": [
+    11,
+    15
+   ]
+  },
+  {
+   "id": 15,
+   "local": [
+    -4.318,
+    -6.828
+   ],
+   "zones": [
+    "white"
+   ],
+   "adj": [
+    14,
+    17
+   ]
+  },
+  {
+   "id": 16,
+   "local": [
+    -4.349,
+    -3.37
+   ],
+   "zones": [
+    "forest",
+    "teal"
+   ],
+   "adj": [
+    13,
+    17,
+    21
+   ]
+  },
+  {
+   "id": 17,
+   "local": [
+    -6.309,
+    -4.614
+   ],
+   "zones": [
+    "teal"
+   ],
+   "adj": [
+    15,
+    16,
+    18
+   ]
+  },
+  {
+   "id": 18,
+   "local": [
+    -6.334,
+    -1.497
+   ],
+   "zones": [
+    "lilac",
+    "teal"
+   ],
+   "adj": [
+    17,
+    19,
+    21
+   ]
+  },
+  {
+   "id": 19,
+   "local": [
+    -6.281,
+    1.282
+   ],
+   "zones": [
+    "lilac"
+   ],
+   "adj": [
+    18,
+    20
+   ]
+  },
+  {
+   "id": 20,
+   "local": [
+    -4.68,
+    2.592
+   ],
+   "zones": [
+    "lilac"
+   ],
+   "adj": [
+    19,
+    28,
+    29
+   ]
+  },
+  {
+   "id": 21,
+   "local": [
+    -3.464,
+    -0.899
+   ],
+   "zones": [
+    "forest",
+    "teal"
+   ],
+   "adj": [
+    13,
+    16,
+    18,
+    22
+   ]
+  },
+  {
+   "id": 22,
+   "local": [
+    -1.518,
+    0.072
+   ],
+   "zones": [
+    "forest",
+    "maroon",
+    "teal"
+   ],
+   "adj": [
+    13,
+    21,
+    23
+   ]
+  },
+  {
+   "id": 23,
+   "local": [
+    -0.07,
+    1.733
+   ],
+   "zones": [
+    "forest",
+    "maroon",
+    "teal"
+   ],
+   "adj": [
+    22,
+    24
+   ]
+  },
+  {
+   "id": 24,
+   "local": [
+    1.374,
+    0.061
+   ],
+   "zones": [
+    "forest",
+    "maroon",
+    "teal"
+   ],
+   "adj": [
+    6,
+    10,
+    23
+   ]
+  },
+  {
+   "id": 25,
+   "local": [
+    1.924,
+    3.836
+   ],
+   "zones": [
+    "brown",
+    "forest",
+    "teal"
+   ],
+   "adj": [
+    5,
+    28
+   ]
+  },
+  {
+   "id": 26,
+   "local": [
+    0.843,
+    6.446
+   ],
+   "zones": [
+    "brown",
+    "maroon"
+   ],
+   "adj": [
+    27,
+    30
+   ]
+  },
+  {
+   "id": 27,
+   "local": [
+    -0.996,
+    6.686
+   ],
+   "zones": [
+    "brown",
+    "maroon"
+   ],
+   "adj": [
+    26,
+    29
+   ]
+  },
+  {
+   "id": 28,
+   "local": [
+    -1.983,
+    3.872
+   ],
+   "zones": [
+    "brown",
+    "forest",
+    "teal"
+   ],
+   "adj": [
+    20,
+    25
+   ]
+  },
+  {
+   "id": 29,
+   "local": [
+    -3.67,
+    5.543
+   ],
+   "zones": [
+    "brown",
+    "lilac"
+   ],
+   "adj": [
+    20,
+    27
+   ]
+  },
+  {
+   "id": 30,
+   "local": [
+    2.994,
+    6.62
+   ],
+   "zones": [
+    "brown"
+   ],
+   "adj": [
+    4,
+    26
+   ]
+  }
+ ]
+}

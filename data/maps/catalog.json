@@ -1,0 +1,287 @@
+[
+ {
+  "key": "azuchi-castle",
+  "name": "Azuchi Castle",
+  "imageKey": "35CA9807066CA49CED8A3F7DCB6BBD1AEF1C5AB4",
+  "status": "supported"
+ },
+ {
+  "key": "baskerville-manor",
+  "name": "Baskerville Manor",
+  "imageKey": "468715E49E561FDC98803FA83CF8C29C210331B1",
+  "status": "unavailable",
+  "why": [
+   "spaces with a single neighbour, so a connector is probably missing: [8, 24, 31]",
+   "the board is not connected (19 of 32 spaces reachable from space 0)"
+  ]
+ },
+ {
+  "key": "bprd-hq",
+  "name": "B.P.R.D. Headquarters",
+  "imageKey": "1E5B373863CF97C6FF9E3478C687923A1C3E47AD",
+  "status": "supported"
+ },
+ {
+  "key": "fayrlund-forest",
+  "name": "Fayrlund Forest",
+  "imageKey": "3F48D58145740E8CE184F810ED2239398FDB089E",
+  "status": "supported"
+ },
+ {
+  "key": "globe-theatre",
+  "name": "Globe Theatre",
+  "imageKey": "0768A71A1CE24D7D42AD3D24CE0D6FD9D059E7B6",
+  "status": "supported"
+ },
+ {
+  "key": "hanging-gardens",
+  "name": "Hanging Gardens",
+  "imageKey": "4DBDF3EFF73E984DDFABFD430D5C176610D2FF3C",
+  "status": "unavailable",
+  "why": [
+   "spaces with a single neighbour, so a connector is probably missing: [5]",
+   "1 pairs of connectors cross each other, e.g. (6, 13) with (9, 14)"
+  ]
+ },
+ {
+  "key": "helicarrier",
+  "name": "Helicarrier",
+  "imageKey": "4F708937371F185D1CFA535F9869DA88C1DBD2B9",
+  "status": "excluded",
+  "reason": "tokens"
+ },
+ {
+  "key": "hells-kitchen",
+  "name": "Hell's Kitchen",
+  "imageKey": "79C3F98FB3DB4DB06703303B4E8382BAD968F85E",
+  "status": "excluded",
+  "reason": "tokens"
+ },
+ {
+  "key": "heorot",
+  "name": "Heorot",
+  "imageKey": "DE8DCABBCB0F979E4C8A17B827E940A02757F33C",
+  "status": "excluded",
+  "reason": "doors"
+ },
+ {
+  "key": "kaer-morhen",
+  "name": "Kaer Morhen",
+  "imageKey": "1B03816D8A9DE120D4B046DB8F74D738942F4CE3",
+  "status": "unavailable",
+  "why": [
+   "spaces with a single neighbour, so a connector is probably missing: [0, 11, 19]"
+  ]
+ },
+ {
+  "key": "king-solomons-mine",
+  "name": "King Solomon's Mine",
+  "imageKey": "E53BD609B29F229BF6A9CDCF066C1BF1FA010693",
+  "status": "unavailable",
+  "why": [
+   "spaces with a single neighbour, so a connector is probably missing: [4]",
+   "spaces without a zone: [0, 1]",
+   "start marker 1 not found"
+  ]
+ },
+ {
+  "key": "marmoreal",
+  "name": "Marmoreal",
+  "imageKey": "C7DCD8B1ABC2C6846B8BF827E66BDF622D48C56D",
+  "status": "supported"
+ },
+ {
+  "key": "mcminnville-or",
+  "name": "McMinnville, OR",
+  "imageKey": "9A3451D3AF18838A7E26D333A59A9114CBE9DAC7",
+  "status": "unavailable",
+  "why": [
+   "spaces with a single neighbour, so a connector is probably missing: [13, 19]"
+  ]
+ },
+ {
+  "key": "naglfar",
+  "name": "Naglfar",
+  "imageKey": "5B3E8C95A5CB5A6F9E4EED4B264BEF7BCC05009A",
+  "status": "unavailable",
+  "why": [
+   "spaces without a neighbour: [0, 1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12]",
+   "spaces with a single neighbour, so a connector is probably missing: [13]",
+   "the board is not connected (1 of 28 spaces reachable from space 0)"
+  ]
+ },
+ {
+  "key": "navy-pier",
+  "name": "Navy Pier",
+  "imageKey": "88A581E5FF80F341D8902D7FB3E25C6ED7057939",
+  "status": "excluded",
+  "reason": "tokens"
+ },
+ {
+  "key": "new-york-city",
+  "name": "New York City",
+  "imageKey": "543129A111DCC370B80C0132F6955AEDC5011970",
+  "status": "unavailable",
+  "why": [
+   "spaces with a single neighbour, so a connector is probably missing: [18]"
+  ]
+ },
+ {
+  "key": "pandemonium",
+  "name": "Pandemonium",
+  "imageKey": "9284F791116F8B65BA96B0770D86AF1BD3B64FDE",
+  "status": "supported"
+ },
+ {
+  "key": "point-pleasant",
+  "name": "Point Pleasant",
+  "imageKey": "7D96CEAF921D195771509708A9E1F31919CDB549",
+  "status": "unavailable",
+  "why": [
+   "spaces without a neighbour: [8]",
+   "the board is not connected (41 of 42 spaces reachable from space 0)"
+  ]
+ },
+ {
+  "key": "raptor-paddock",
+  "name": "Raptor Paddock",
+  "imageKey": "527CF3199BDF2DC7DE5470E7632155E6919111FF",
+  "status": "unavailable",
+  "why": [
+   "spaces with a single neighbour, so a connector is probably missing: [3]"
+  ]
+ },
+ {
+  "key": "sanctum-sanctorum",
+  "name": "Sanctum Sanctorum",
+  "imageKey": "CD4942F1051ADC97B312BEE29CD95D516F550B2E",
+  "status": "excluded",
+  "reason": "tokens"
+ },
+ {
+  "key": "santas-workshop",
+  "name": "Santa's Workshop",
+  "imageKey": "DFEB04738BD0C314EFFACEAB057D58C36726E744",
+  "status": "unavailable",
+  "why": [
+   "the board is not connected (30 of 34 spaces reachable from space 0)"
+  ]
+ },
+ {
+  "key": "sarpedon",
+  "name": "Sarpedon",
+  "imageKey": "217838151A5DEE64C203853F738BDA73EF545368",
+  "status": "supported"
+ },
+ {
+  "key": "sherwood-forest",
+  "name": "Sherwood Forest",
+  "imageKey": "66622B833C4CED43EFE3EFC5DF662629F7123F26",
+  "status": "supported"
+ },
+ {
+  "key": "soho",
+  "name": "Soho",
+  "imageKey": "0BFB47CD5E88BFB4B2A70750FFB19424D836EB1D",
+  "status": "unavailable",
+  "why": [
+   "spaces without a neighbour: [2]",
+   "spaces with a single neighbour, so a connector is probably missing: [3, 4, 15]",
+   "the board is not connected (8 of 29 spaces reachable from space 0)",
+   "8 zone colours found, the map has 7"
+  ]
+ },
+ {
+  "key": "streets-of-novigrad",
+  "name": "Streets Of Novigrad",
+  "imageKey": "5087704D1C17E05F00E39ECC7BF676C113B4495A",
+  "status": "supported"
+ },
+ {
+  "key": "sunnydale-high",
+  "name": "Sunnydale High",
+  "imageKey": "57B45F37C652D08111F36E0A0A100AB26E71C1E2",
+  "status": "supported"
+ },
+ {
+  "key": "t-rex-paddock",
+  "name": "T. Rex Paddock",
+  "imageKey": "D71DDD26993B427DFFBE626ABF165593CC9E641C",
+  "status": "supported"
+ },
+ {
+  "key": "technodrome",
+  "name": "Technodrome",
+  "imageKey": "8CCE8C30CBF43A4BD5BC66322DFCB34B78DF8F19",
+  "status": "supported"
+ },
+ {
+  "key": "the-alamo",
+  "name": "The Alamo",
+  "imageKey": "7A3C327F4E198144CB6B9522B9CB7A2CB9A7E1EE",
+  "status": "unavailable",
+  "why": [
+   "spaces with a single neighbour, so a connector is probably missing: [2, 10, 11, 31]",
+   "the board is not connected (26 of 37 spaces reachable from space 0)"
+  ]
+ },
+ {
+  "key": "the-bronze",
+  "name": "The Bronze",
+  "imageKey": "554A2764BE762BA55B9F66B631ECB8B65B68ABFB",
+  "status": "supported"
+ },
+ {
+  "key": "the-raft",
+  "name": "The Raft",
+  "imageKey": "642B4169D10BEF7AF8420858CC7E67932D8C1681",
+  "status": "excluded",
+  "reason": "tokens"
+ },
+ {
+  "key": "the-white-house",
+  "name": "The White House",
+  "imageKey": "0C7120D47E4D3D1E76FD11BB76F5751C09878EEC",
+  "status": "unavailable",
+  "why": [
+   "spaces with a single neighbour, so a connector is probably missing: [9, 10, 11, 13]",
+   "the board is not connected (18 of 32 spaces reachable from space 0)"
+  ]
+ },
+ {
+  "key": "thrilla-in-manila",
+  "name": "Thrilla In Manila",
+  "imageKey": "302A089562A30588B64EE498C4B945C4AE72E5A7",
+  "status": "unavailable",
+  "why": [
+   "spaces with a single neighbour, so a connector is probably missing: [0, 9]"
+  ]
+ },
+ {
+  "key": "tsing-shan-monastery",
+  "name": "Tsing Shan Monastery",
+  "imageKey": "FF2DD63521ECE50E3146CE05A5D0273FBE0BC5EE",
+  "status": "supported"
+ },
+ {
+  "key": "venice",
+  "name": "Venice",
+  "imageKey": "C50BC196AD6E3239CC12C57985117BB3B8C89B48",
+  "status": "unavailable",
+  "why": [
+   "spaces with a single neighbour, so a connector is probably missing: [0, 10, 12, 20, 28]"
+  ]
+ },
+ {
+  "key": "yukon",
+  "name": "Yukon",
+  "imageKey": "2F120874F41A48924AD0B06605749D05DC91D3D6",
+  "status": "supported"
+ },
+ {
+  "key": "yukon-1900",
+  "name": "Yukon 1900",
+  "imageKey": "4200C6A9E3DDC1E4D9706BD156CCFDE18BF53ADE",
+  "status": "supported"
+ }
+]

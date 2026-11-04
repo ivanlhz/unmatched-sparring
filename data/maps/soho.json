@@ -1,0 +1,446 @@
+{
+ "key": "soho",
+ "name": "Soho",
+ "source": "Unmatched Official Tournament Table October 2026, Custom_Board of the Soho bag",
+ "imageKey": "0BFB47CD5E88BFB4B2A70750FFB19424D836EB1D",
+ "playable": false,
+ "problems": [
+  "spaces without a neighbour: [2]",
+  "spaces with a single neighbour, so a connector is probably missing: [3, 4, 15]",
+  "the board is not connected (8 of 29 spaces reachable from space 0)",
+  "8 zone colours found, the map has 7"
+ ],
+ "starts": {
+  "1": 26,
+  "2": 8,
+  "3": 17,
+  "4": 2
+ },
+ "spaces": [
+  {
+   "id": 0,
+   "local": [
+    0.496,
+    3.876
+   ],
+   "zones": [
+    "brick",
+    "red"
+   ],
+   "adj": [
+    1,
+    19
+   ]
+  },
+  {
+   "id": 1,
+   "local": [
+    -0.908,
+    6.122
+   ],
+   "zones": [
+    "brick",
+    "orange"
+   ],
+   "adj": [
+    0,
+    3
+   ]
+  },
+  {
+   "id": 2,
+   "local": [
+    -3.349,
+    3.833
+   ],
+   "zones": [
+    "orange"
+   ],
+   "adj": []
+  },
+  {
+   "id": 3,
+   "local": [
+    -4.31,
+    6.106
+   ],
+   "zones": [
+    "brick",
+    "orange"
+   ],
+   "adj": [
+    1
+   ]
+  },
+  {
+   "id": 4,
+   "local": [
+    -6.477,
+    5.996
+   ],
+   "zones": [
+    "orange"
+   ],
+   "adj": [
+    5
+   ]
+  },
+  {
+   "id": 5,
+   "local": [
+    -7.086,
+    3.248
+   ],
+   "zones": [
+    "brown"
+   ],
+   "adj": [
+    4,
+    6,
+    7
+   ]
+  },
+  {
+   "id": 6,
+   "local": [
+    -5.121,
+    0.977
+   ],
+   "zones": [
+    "brown",
+    "orange"
+   ],
+   "adj": [
+    5,
+    13,
+    14
+   ]
+  },
+  {
+   "id": 7,
+   "local": [
+    -7.073,
+    0.502
+   ],
+   "zones": [
+    "brown"
+   ],
+   "adj": [
+    5,
+    8
+   ]
+  },
+  {
+   "id": 8,
+   "local": [
+    -6.371,
+    -1.949
+   ],
+   "zones": [
+    "brown"
+   ],
+   "adj": [
+    7,
+    9,
+    13
+   ]
+  },
+  {
+   "id": 9,
+   "local": [
+    -7.045,
+    -6.287
+   ],
+   "zones": [
+    "brown",
+    "navy"
+   ],
+   "adj": [
+    8,
+    10
+   ]
+  },
+  {
+   "id": 10,
+   "local": [
+    -4.944,
+    -6.47
+   ],
+   "zones": [
+    "brown",
+    "navy"
+   ],
+   "adj": [
+    9,
+    11
+   ]
+  },
+  {
+   "id": 11,
+   "local": [
+    -2.842,
+    -6.398
+   ],
+   "zones": [
+    "navy"
+   ],
+   "adj": [
+    10,
+    12,
+    28
+   ]
+  },
+  {
+   "id": 12,
+   "local": [
+    -1.942,
+    -2.341
+   ],
+   "zones": [
+    "gray",
+    "navy"
+   ],
+   "adj": [
+    11,
+    13,
+    23
+   ]
+  },
+  {
+   "id": 13,
+   "local": [
+    -3.96,
+    -1.109
+   ],
+   "zones": [
+    "brown",
+    "gray",
+    "navy"
+   ],
+   "adj": [
+    6,
+    8,
+    12,
+    14
+   ]
+  },
+  {
+   "id": 14,
+   "local": [
+    -1.903,
+    0.118
+   ],
+   "zones": [
+    "navy",
+    "orange"
+   ],
+   "adj": [
+    6,
+    13
+   ]
+  },
+  {
+   "id": 15,
+   "local": [
+    2.667,
+    0.589
+   ],
+   "zones": [
+    "forest"
+   ],
+   "adj": [
+    16
+   ]
+  },
+  {
+   "id": 16,
+   "local": [
+    4.726,
+    1.043
+   ],
+   "zones": [
+    "forest"
+   ],
+   "adj": [
+    15,
+    17
+   ]
+  },
+  {
+   "id": 17,
+   "local": [
+    6.858,
+    3.449
+   ],
+   "zones": [
+    "brick",
+    "red"
+   ],
+   "adj": [
+    16,
+    18
+   ]
+  },
+  {
+   "id": 18,
+   "local": [
+    5.052,
+    5.838
+   ],
+   "zones": [
+    "brick",
+    "forest"
+   ],
+   "adj": [
+    17,
+    19
+   ]
+  },
+  {
+   "id": 19,
+   "local": [
+    2.371,
+    5.616
+   ],
+   "zones": [
+    "brick",
+    "forest"
+   ],
+   "adj": [
+    0,
+    18
+   ]
+  },
+  {
+   "id": 20,
+   "local": [
+    6.978,
+    -1.784
+   ],
+   "zones": [
+    "gray"
+   ],
+   "adj": [
+    21,
+    24
+   ]
+  },
+  {
+   "id": 21,
+   "local": [
+    4.505,
+    -2.334
+   ],
+   "zones": [
+    "gray",
+    "teal"
+   ],
+   "adj": [
+    20,
+    22
+   ]
+  },
+  {
+   "id": 22,
+   "local": [
+    2.075,
+    -2.399
+   ],
+   "zones": [
+    "gray",
+    "teal"
+   ],
+   "adj": [
+    21,
+    23,
+    27
+   ]
+  },
+  {
+   "id": 23,
+   "local": [
+    0.103,
+    -1.692
+   ],
+   "zones": [
+    "gray"
+   ],
+   "adj": [
+    12,
+    22
+   ]
+  },
+  {
+   "id": 24,
+   "local": [
+    6.824,
+    -6.258
+   ],
+   "zones": [
+    "teal"
+   ],
+   "adj": [
+    20,
+    25
+   ]
+  },
+  {
+   "id": 25,
+   "local": [
+    4.95,
+    -6.214
+   ],
+   "zones": [
+    "teal"
+   ],
+   "adj": [
+    24,
+    26
+   ]
+  },
+  {
+   "id": 26,
+   "local": [
+    3.167,
+    -6.141
+   ],
+   "zones": [
+    "teal"
+   ],
+   "adj": [
+    25,
+    27
+   ]
+  },
+  {
+   "id": 27,
+   "local": [
+    1.243,
+    -6.249
+   ],
+   "zones": [
+    "navy",
+    "teal"
+   ],
+   "adj": [
+    22,
+    26,
+    28
+   ]
+  },
+  {
+   "id": 28,
+   "local": [
+    -0.92,
+    -6.373
+   ],
+   "zones": [
+    "navy"
+   ],
+   "adj": [
+    11,
+    27
+   ]
+  }
+ ]
+}
