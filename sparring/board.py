@@ -35,18 +35,22 @@ def catalog() -> list[MapEntry]:
 class Board:
     def __init__(self, key: str, name: str, spaces: list[Space], adj: dict[int, set[int]], starts: dict[str, int],
                  passages: tuple[tuple[int, ...], ...] = (),
-                 bonuses: dict[tuple[int, int], int] | None = None):
+                 bonuses: dict[tuple[int, int], int] | None = None,
+                 one_way: tuple[tuple[int, int], ...] = ()):
         self.key = key
         self.name = name
         self.guid: str | None = None        # the board's GUID on the table, once found (set by the start-up)
         self.spaces = {s.id: s for s in spaces}
         self.adj = adj                      # true adjacency: melee, "adjacent" effects
         self.passages = passages            # groups of spaces (secret passages) a fighter can move between in one step
-        self.moves = {s: set(n) for s, n in adj.items()}      # the movement graph: adjacency plus the passage links
+        self.moves = {s: set(n) for s, n in adj.items()}      # the movement graph (directed): adjacency plus passage links, minus one-way edges walked backwards
         for group in passages:
             for a in group:
                 self.moves[a].update(b for b in group if b != a)
         self.bonuses = bonuses or {}        # (from, to) -> attack bonus of a fighter on `from` hitting one on `to` (stairs)
+        self.one_way = one_way              # (from, to): moving is allowed from -> to only; still adjacent both ways
+        for a, b in one_way:
+            self.moves[b].discard(a)
         self.starts = starts
         self._dist = {s: self._bfs(s) for s in self.spaces}
 
@@ -64,7 +68,8 @@ class Board:
                 adj[n].add(s["id"])
         passages = tuple(tuple(g) for g in raw.get("passages", ()))
         bonuses = {(b["from"], b["to"]): b["value"] for b in raw.get("bonuses", ())}
-        return cls(raw["key"], raw["name"], spaces, adj, raw["starts"], passages, bonuses)
+        one_way = tuple((a, b) for a, b in raw.get("one_way", ()))
+        return cls(raw["key"], raw["name"], spaces, adj, raw["starts"], passages, bonuses, one_way)
 
     def _bfs(self, src: int) -> dict[int, int]:
         dist = {src: 0}
@@ -78,7 +83,13 @@ class Board:
         return dist
 
     def distance(self, a: int, b: int) -> int:
+        """Steps a fighter needs to walk from a to b (99: it cannot)."""
         return self._dist[a].get(b, 99)
+
+    def span(self, a: int, b: int) -> int:
+        """Spaces between a and b whichever way they are walked (descriptions, nearest free space): `distance` is
+        directional once the board has one-way edges."""
+        return min(self.distance(a, b), self.distance(b, a))
 
     def adjacent(self, a: int, b: int) -> bool:
         return b in self.adj[a]
@@ -120,4 +131,4 @@ class Board:
         if zone_of is not None:
             same = [s for s in free if self.share_zone(zone_of, s)]
             free = same or free
-        return min(free, key=lambda s: (self.distance(origin, s), s))
+        return min(free, key=lambda s: (self.span(origin, s), s))

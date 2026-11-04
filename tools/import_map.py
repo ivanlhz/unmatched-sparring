@@ -478,6 +478,7 @@ class Extracted:
     problems: list[str] = field(default_factory=list)
     passages: list[list[int]] = field(default_factory=list)    # secret-passage groups: movement links, not adjacency
     bonuses: list[dict] = field(default_factory=list)          # directional attack bonuses (stairs): {from, to, value}
+    one_way: list[list[int]] = field(default_factory=list)     # [from, to]: movement only from -> to (still adjacent)
 
     @property
     def playable(self) -> bool:
@@ -485,9 +486,10 @@ class Extracted:
 
 
 def extract_map(save_map: SaveMap, img: np.ndarray, expected: dict | None = None,
-                passages: list[list[int]] | None = None, bonuses: list[dict] | None = None) -> Extracted:
+                passages: list[list[int]] | None = None, bonuses: list[dict] | None = None,
+                one_way: list[list[int]] | None = None) -> Extracted:
     """Runs the whole extraction on one map and checks it. `expected` is the published {spacesCount, zonesCount};
-    `passages` and `bonuses` are what a person already recorded for this map (the picture cannot show them)."""
+    `passages`, `bonuses` and `one_way` are what a person already recorded for this map (the picture cannot show them)."""
     pixels = snap_pixels(save_map.snaps, img.shape)
     r = circle_radius(img)
     refined, ring = refine_centers(img, pixels, r)
@@ -513,6 +515,7 @@ def extract_map(save_map: SaveMap, img: np.ndarray, expected: dict | None = None
                     len(pixels) - len(keep))
     out.passages = [list(g) for g in passages or []]
     out.bonuses = [dict(b) for b in bonuses or []]
+    out.one_way = [list(p) for p in one_way or []]
     out.problems += check_map(out, expected)
     return out
 
@@ -523,6 +526,16 @@ def adjacency_lists(n: int, edges: set[tuple[int, int]]) -> list[list[int]]:
         adj[a].add(b)
         adj[b].add(a)
     return [sorted(s) for s in adj]
+
+
+def reachable_from(graph: dict[int, set[int]], src: int) -> set[int]:
+    seen, queue = {src}, [src]
+    while queue:
+        for v in graph[queue.pop()]:
+            if v not in seen:
+                seen.add(v)
+                queue.append(v)
+    return seen
 
 
 def movement_lists(n: int, edges: set[tuple[int, int]], passages: list[list[int]]) -> list[list[int]]:
@@ -547,14 +560,16 @@ def check_map(m: Extracted, expected: dict | None) -> list[str]:
     dead_ends = [i for i, a in enumerate(adj) if len(a) == 1]
     if dead_ends:
         problems.append(f"spaces with a single neighbour, so a connector is probably missing: {dead_ends}")
-    seen, queue = {0}, [0]
-    while queue:
-        for v in adj[queue.pop()]:
-            if v not in seen:
-                seen.add(v)
-                queue.append(v)
+    walk = {a: set(neigh) for a, neigh in enumerate(adj)}
+    for a, b in m.one_way:                   # walked one way only: drop the way back
+        walk[b].discard(a)
+    seen = reachable_from(walk, 0)
     if len(seen) != n:
         problems.append(f"the board is not connected ({len(seen)} of {n} spaces reachable from space 0)")
+    back = {a: {b for b in walk if a in walk[b]} for a in walk}
+    stuck = sorted(set(range(n)) - reachable_from(back, 0))
+    if m.one_way and stuck:
+        problems.append(f"spaces that cannot be left towards space 0 by movement (one-way edges): {stuck}")
     bare = [i for i, z in enumerate(m.zones) if not z]
     if bare:
         problems.append(f"spaces without a zone: {bare}")
@@ -579,6 +594,8 @@ def map_data(m: Extracted, source: str) -> dict:
         data["passages"] = m.passages
     if m.bonuses:
         data["bonuses"] = m.bonuses
+    if m.one_way:
+        data["one_way"] = m.one_way
     data["spaces"] = [{"id": i, "local": [round(x, 3), round(z, 3)], "zones": sorted(m.zones[i]), "adj": adj[i]}
                       for i, (x, z) in enumerate(m.local)]
     return data
@@ -675,7 +692,7 @@ def extracted_from_data(data: dict, img: np.ndarray) -> Extracted:
     return Extracted(data["key"], data["name"], data["imageKey"], img, list(range(len(spaces))),
                      [tuple(s["local"]) for s in spaces], centers, edges, [list(s["zones"]) for s in spaces], {}, starts, 0,
                      passages=[list(g) for g in data.get("passages", [])],
-                     bonuses=[dict(b) for b in data.get("bonuses", [])])
+                     bonuses=[dict(b) for b in data.get("bonuses", [])], one_way=[list(p) for p in data.get("one_way", [])])
 
 
 # ---------------------------------------------------------------- command line
@@ -729,7 +746,8 @@ def main(argv: list[str] | None = None) -> int:
             entry["name"] = m.name
         else:
             old = json.loads(target.read_text(encoding="utf-8")) if target.exists() else {}
-            m = extract_map(sm, img, expected.get(sm.key), old.get("passages"), old.get("bonuses"))    # keeps what a person recorded
+            m = extract_map(sm, img, expected.get(sm.key), old.get("passages"), old.get("bonuses"),
+                        old.get("one_way"))    # keeps what a person recorded
             data = map_data(m, f"{save.get('SaveName', 'save')}, Custom_Board of the {sm.name} bag")
             target.write_text(json.dumps(data, indent=1, ensure_ascii=False) + "\n", encoding="utf-8")
         render_check(m, args.check_dir / f"{sm.key}.png")

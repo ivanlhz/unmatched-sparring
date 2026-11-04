@@ -300,3 +300,34 @@ def test_bad_or_empty_bonus_edits():
     assert kept["bonuses"][0]["value"] == 1
     assert "bonuses" not in mc.apply_edit(kept, {"bonuses": []})
     assert mc.apply_edit(kept, {})["bonuses"] == kept["bonuses"]
+
+
+# ---------- one-way edges ----------
+def test_confirm_round_trips_one_way_into_a_board(maps):
+    ok, problems = mc.confirm(maps, "t", {"one_way": [[0, 1]]}, None, ZONES)
+    assert ok, problems
+    assert json.loads((maps / "t.json").read_text(encoding="utf-8"))["one_way"] == [[0, 1]]
+    board = Board.load(maps / "t.json")
+    assert board.adjacent(1, 0) and 0 not in board.moves[1] and 1 in board.moves[0]
+
+
+def test_one_way_edits_are_validated():
+    with pytest.raises(ValueError):
+        mc.apply_edit(ring(), {"one_way": [[0, 9]]})
+    assert any("not adjacent" in p for p in mc.validate(mc.apply_edit(ring(), {"one_way": [[0, 2]]})))
+    both = mc.apply_edit(ring(), {"one_way": [[0, 1], [1, 0]]})
+    assert any("both directions" in p for p in mc.validate(both))
+    kept = mc.apply_edit(ring(), {"one_way": [[0, 1]]})
+    assert mc.apply_edit(kept, {})["one_way"] == [[0, 1]] and "one_way" not in mc.apply_edit(kept, {"one_way": []})
+
+
+def test_the_check_warns_about_a_space_that_cannot_be_left():
+    path = {"edges": [[0, 1], [1, 2], [2, 3]]}                         # 0-1-2-3 in a row
+    assert mc.validate(mc.apply_edit(ring(), path)) == []
+    trapped = mc.apply_edit(ring(), {**path, "one_way": [[2, 3]]})      # 3 can be reached but never left
+    assert any("cannot be reached by movement" in p and "[3]" in p for p in mc.validate(trapped))
+
+
+def test_the_check_warns_about_a_space_that_cannot_be_reached():
+    cut = mc.apply_edit(ring(), {"edges": [[0, 1], [1, 2], [2, 3]], "one_way": [[3, 2]]})     # 2 -> 3 is closed
+    assert any("not connected" in p for p in mc.validate(cut))

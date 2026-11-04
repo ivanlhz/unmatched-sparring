@@ -61,7 +61,7 @@ def edges_of(data: dict) -> set[tuple[int, int]]:
 def apply_edit(data: dict, edit: dict) -> dict:
     """A copy of `data` with the person's changes: `edges` (the full list of [a, b]), `zones` ({id: [names]}) and
     `passages` (the full list of secret-passage groups), `bonuses` (the full list of {from, to, value}: high ground on
-    the stairs) and `starts` ({"1": id, ...}). Anything missing from `edit` is left as it was. Raises ValueError on a bad id."""
+    the stairs), `one_way` (the full list of [from, to]: moving only that way) and `starts` ({"1": id, ...}). Anything missing from `edit` is left as it was. Raises ValueError on a bad id."""
     ids = {s["id"] for s in data["spaces"]}
     out = json.loads(json.dumps(data))
     if "edges" in edit:
@@ -101,6 +101,18 @@ def apply_edit(data: dict, edit: dict) -> dict:
             out["bonuses"] = [{"from": a, "to": c, "value": v} for (a, c), v in sorted(bonuses.items())]
         else:
             out.pop("bonuses", None)
+    if "one_way" in edit:
+        pairs = []
+        for pair in edit["one_way"]:
+            a, b = (int(v) for v in pair)
+            if a not in ids or b not in ids or a == b:
+                raise ValueError(f"bad one-way edge {pair}")
+            if [a, b] not in pairs:
+                pairs.append([a, b])
+        if pairs:
+            out["one_way"] = sorted(pairs)
+        else:
+            out.pop("one_way", None)
     if "starts" in edit:
         starts = {}
         for digit, sid in edit["starts"].items():
@@ -146,6 +158,14 @@ def validate(data: dict, expected: dict | None = None, zone_names: list[str] | N
     for b in data.get("bonuses") or []:
         if b["to"] not in adj.get(b["from"], ()):
             problems.append(f"bonus {b['from']}->{b['to']}: the spaces are not adjacent")
+    one_way = data.get("one_way") or []
+    for a, b in one_way:
+        if b not in adj.get(a, ()):
+            problems.append(f"one-way edge {a}->{b}: the spaces are not adjacent")
+        elif [b, a] in one_way:
+            problems.append(f"edge {a}-{b} is one-way in both directions, so nobody can cross it")
+        else:
+            moves[b].discard(a)
     if ids and all(b in adj for n in adj.values() for b in n):
         seen, queue = {ids[0]}, deque([ids[0]])
         while queue:
@@ -155,6 +175,16 @@ def validate(data: dict, expected: dict | None = None, zone_names: list[str] | N
                     queue.append(n)
         if len(seen) != len(ids):
             problems.append(f"the board (with its passages) is not connected ({len(seen)} of {len(ids)} spaces reachable from space {ids[0]})")
+        elif one_way:             # every space can be reached; can each one also be left towards the first (no one-way trap)?
+            back = {a: {b for b in moves if a in moves[b]} for a in moves}
+            out, queue = {ids[0]}, deque([ids[0]])
+            while queue:
+                for n in back[queue.popleft()]:
+                    if n not in out:
+                        out.add(n)
+                        queue.append(n)
+            if len(out) != len(ids):
+                problems.append(f"with the one-way edges, spaces from which space {ids[0]} cannot be reached by movement: {sorted(set(ids) - out)}")
     bare = [s["id"] for s in spaces if not s["zones"]]
     if bare:
         problems.append(f"spaces without a zone: {bare}")
@@ -264,17 +294,21 @@ label{display:inline-block;width:110px}
 <div id=side><b>Maps</b><div id=list></div><hr><div id=panel></div></div>
 <div id=stage><div id=wrap><img id=img><svg id=lines viewBox="0 0 1000 1000" preserveAspectRatio="none"></svg></div></div>
 <script>
-let M=null,key=null,edges=new Set(),sel=null,PASS=[],cur=0,pmode=false,BON=[],bmode=false,bsel=null,ZN=[],RECONFIRM=false,RO=false,ST={};
+let M=null,key=null,edges=new Set(),sel=null,PASS=[],cur=0,pmode=false,BON=[],bmode=false,bsel=null,OW=[],omode=false,osel=null,ZN=[],RECONFIRM=false,RO=false,ST={};
 const $=id=>document.getElementById(id), ek=(a,b)=>Math.min(a,b)+"-"+Math.max(a,b);
 async function api(p,body){const r=await fetch(p,body?{method:"POST",headers:{"Content-Type":"application/json"},body:JSON.stringify(body)}:{});return r.json()}
 async function init(){const d=await api("/api/maps");ZN=d.zones;RECONFIRM=d.reconfirm;ST={};for(const m of d.maps)ST[m.key]=m.status;$("list").innerHTML="";
  for(const m of d.maps){const a=document.createElement("a");a.className=m.status;a.textContent=m.name+" ["+m.status+"]";a.onclick=()=>open(m.key);$("list").append(a)}}
 async function open(k){key=k;RO=ST[k]==="supported"&&!RECONFIRM;M=await api("/api/map/"+k);edges=new Set();for(const s of M.spaces)for(const n of s.adj)edges.add(ek(s.id,n));
- PASS=(M.passages||[]).map(g=>[...g]);cur=0;pmode=false;BON=(M.bonuses||[]).map(b=>({...b}));bmode=false;bsel=null;sel=null;$("img").src="/image/"+k;draw();panel("")}
-function body(){const zones={};for(const s of M.spaces)zones[s.id]=s.zones;return{bonuses:BON,passages:PASS.filter(g=>g.length>1),edges:[...edges].map(e=>e.split("-").map(Number)),zones,starts:M.starts}}
+ PASS=(M.passages||[]).map(g=>[...g]);cur=0;pmode=false;BON=(M.bonuses||[]).map(b=>({...b}));OW=(M.one_way||[]).map(p=>[...p]);omode=false;osel=null;bmode=false;bsel=null;sel=null;$("img").src="/image/"+k;draw();panel("")}
+function body(){const zones={};for(const s of M.spaces)zones[s.id]=s.zones;return{one_way:OW,bonuses:BON,passages:PASS.filter(g=>g.length>1),edges:[...edges].map(e=>e.split("-").map(Number)),zones,starts:M.starts}}
 function draw(){const w=$("wrap");w.querySelectorAll(".sp").forEach(e=>e.remove());let svg="";
  for(const e of edges){const[a,b]=e.split("-").map(Number),A=M.spaces[a],B=M.spaces[b];
   svg+=`<line x1="${A.fx*1000}" y1="${A.fy*1000}" x2="${B.fx*1000}" y2="${B.fy*1000}" stroke="#ff0" stroke-width="3" vector-effect="non-scaling-stroke"/>`}
+ OW.forEach(([a,b])=>{const A=M.spaces[a],B=M.spaces[b],dx=(B.fx-A.fx)*1000,dy=(B.fy-A.fy)*1000,L=Math.hypot(dx,dy)||1,ux=dx/L,uy=dy/L,
+  tx=A.fx*1000+dx*0.72,ty=A.fy*1000+dy*0.72,h=22,w=12;
+  svg+=`<line x1="${A.fx*1000}" y1="${A.fy*1000}" x2="${tx}" y2="${ty}" stroke="#f33" stroke-width="5" vector-effect="non-scaling-stroke"/>`
+   +`<polygon points="${tx+ux*h},${ty+uy*h} ${tx-uy*w},${ty+ux*w} ${tx+uy*w},${ty-ux*w}" fill="#f33" stroke="#fff" stroke-width="2"/>`});
  BON.forEach(b=>{const A=M.spaces[b.from],B=M.spaces[b.to],mx=(A.fx+B.fx)*500,my=(A.fy+B.fy)*500,ax=B.fx*1000-A.fx*1000,ay=B.fy*1000-A.fy*1000,L=Math.hypot(ax,ay)||1,ux=ax/L*14,uy=ay/L*14;
   svg+=`<line x1="${A.fx*1000}" y1="${A.fy*1000}" x2="${B.fx*1000}" y2="${B.fy*1000}" stroke="#6f6" stroke-width="3" vector-effect="non-scaling-stroke"/>`
    +`<polygon points="${mx+ux},${my+uy} ${mx-uy*0.6-ux*0.6},${my+ux*0.6-uy*0.6} ${mx+uy*0.6-ux*0.6},${my-ux*0.6-uy*0.6}" fill="#6f6"/>`
@@ -284,31 +318,37 @@ function draw(){const w=$("wrap");w.querySelectorAll(".sp").forEach(e=>e.remove(
  $("lines").innerHTML=svg;
  for(const s of M.spaces){const d=document.createElement("div");d.className="sp"+(sel===s.id?" sel":"");
   const st=Object.entries(M.starts).filter(([k,v])=>v===s.id).map(([k])=>"S"+k).join(" ");if(st)d.classList.add("start");
-  d.style.left=s.fx*100+"%";d.style.top=s.fy*100+"%";if(bsel===s.id)d.classList.add("bonus-from");const gi=PASS.findIndex(g=>g.includes(s.id));if(gi>=0){d.classList.add("pass");if(gi===cur)d.classList.add("cur")}
+  d.style.left=s.fx*100+"%";d.style.top=s.fy*100+"%";if(bsel===s.id||osel===s.id)d.classList.add("bonus-from");const gi=PASS.findIndex(g=>g.includes(s.id));if(gi>=0){d.classList.add("pass");if(gi===cur)d.classList.add("cur")}
   d.innerHTML=(gi>=0?"&#128274;":"")+s.id+(st?" "+st:"")+"<small>"+s.zones.join("/")+"</small>";
-  d.onclick=()=>{if(RO)return;if(bmode){clickBonus(s.id);return}if(pmode){togglePass(s.id);return}if(sel===null)sel=s.id;else if(sel===s.id)sel=null;else{const k=ek(sel,s.id);edges.has(k)?edges.delete(k):edges.add(k);sel=null}draw();panel()};w.append(d)}}
+  d.onclick=()=>{if(RO)return;if(omode){clickOneWay(s.id);return}if(bmode){clickBonus(s.id);return}if(pmode){togglePass(s.id);return}if(sel===null)sel=s.id;else if(sel===s.id)sel=null;else{const k=ek(sel,s.id);edges.has(k)?edges.delete(k):edges.add(k);sel=null}draw();panel()};w.append(d)}}
 function panel(msg){const p=$("panel");if(!M)return;let h="<b>"+M.name+"</b><br>";
  if(M.problems)h+="<div id=problems>Import said: "+M.problems.join("\n")+"</div>";
  if(RO)h+="<div id=ok>Confirmed map: read-only (start the checker with --allow-reconfirm to change it).</div>";
- if(!RO){h+=`<hr><button class="${pmode?"on":""}" onclick=setPmode(!pmode)>Passage mode (key P): ${pmode?"ON":"off"}</button><button class="${bmode?"on":""}" onclick=setBmode(!bmode)>Bonus mode (key B): ${bmode?"ON":"off"}</button>`;
+ if(!RO){h+=`<hr><button class="${pmode?"on":""}" onclick=setPmode(!pmode)>Passage mode (key P): ${pmode?"ON":"off"}</button><button class="${bmode?"on":""}" onclick=setBmode(!bmode)>Bonus mode (key B): ${bmode?"ON":"off"}</button><button class="${omode?"on":""}" onclick=setOmode(!omode)>One-way mode (key O): ${omode?"ON":"off"}</button>`;
+  if(omode){h+="<br>Click A then B on an existing edge: cycles A&rarr;B only, B&rarr;A only, two-way (red arrow = the only way you may walk; still adjacent for attacks). One-way: "+(OW.map(p=>p[0]+"&rarr;"+p[1]).join(", ")||"none")+"<br>"}
   if(bmode){h+="<br>Click the space the attacker stands on, then the adjacent space it hits: toggles +1 for that direction only (high ground). Bonuses: "+(BON.map(b=>b.from+"&rarr;"+b.to+" +"+b.value).join(", ")||"none")+"<br>"}
   if(pmode){h+="<br>Click spaces to add or remove them from the selected group (padlock = secret passage: move only, not adjacent).<br>";
    PASS.forEach((g,i)=>{h+=`<button class="${i===cur?"on":""}" onclick=pickGroup(${i})>group ${i+1}: ${g.join(",")||"empty"}</button>`});
    h+=`<br><button onclick=newGroup()>New group</button><button onclick=dropGroup()>Delete group</button>`}}
- if(sel!==null&&!RO&&!pmode&&!bmode){const s=M.spaces[sel];h+="<hr>Space "+sel+"<br>";
+ if(sel!==null&&!RO&&!pmode&&!bmode&&!omode){const s=M.spaces[sel];h+="<hr>Space "+sel+"<br>";
   for(const z of ZN)h+=`<label><input type=checkbox ${s.zones.includes(z)?"checked":""} onchange="zone(${sel},'${z}',this.checked)"> ${z}</label>`;
   h+="<br>";for(const n of ["1","2","3","4"])h+=`<button onclick="start('${n}',${sel})">start ${n}</button>`;
   h+=`<button onclick="clearStart(${sel})">no start</button>`}
  h+=RO?"<hr>":"<hr><button onclick=check()>Check</button><button onclick=confirmMap()>Confirm (write)</button><div id=problems>"+(msg||"")+"</div>";p.innerHTML=h}
-function setBmode(on){bmode=on;if(on)pmode=false;bsel=null;sel=null;draw();panel()}
+function setOmode(on){omode=on;if(on)pmode=bmode=false;osel=null;sel=null;draw();panel()}
+function clickOneWay(id){if(osel===null){osel=id;draw();return}if(osel===id){osel=null;draw();return}const a=osel,b=id;osel=null;
+ if(!edges.has(ek(a,b))){draw();return panel("Spaces "+a+" and "+b+" are not adjacent: one-way needs an edge")}
+ const i=OW.findIndex(p=>p[0]===a&&p[1]===b),j=OW.findIndex(p=>p[0]===b&&p[1]===a);
+ if(i>=0){OW[i]=[b,a]}else if(j>=0){OW.splice(j,1)}else OW.push([a,b]);draw();panel()}
+function setBmode(on){bmode=on;if(on)pmode=omode=false;bsel=null;sel=null;draw();panel()}
 function clickBonus(id){if(bsel===null){bsel=id}else if(bsel===id){bsel=null}else{const i=BON.findIndex(b=>b.from===bsel&&b.to===id);if(i>=0)BON.splice(i,1);else if(!edges.has(ek(bsel,id))){const m="Spaces "+bsel+" and "+id+" are not adjacent: a bonus needs an edge";bsel=null;draw();return panel(m)}else BON.push({from:bsel,to:id,value:1});bsel=null}draw();panel()}
-function setPmode(on){pmode=on;if(on)bmode=false;sel=null;if(on&&!PASS.length)PASS.push([]);draw();panel()}
+function setPmode(on){pmode=on;if(on)bmode=omode=false;sel=null;if(on&&!PASS.length)PASS.push([]);draw();panel()}
 function togglePass(id){const other=PASS.findIndex((g,i)=>i!==cur&&g.includes(id));if(other>=0)return panel("Space "+id+" is already in group "+(other+1));
  if(!PASS.length)PASS.push([]);const g=PASS[cur],i=g.indexOf(id);if(i>=0)g.splice(i,1);else g.push(id);draw();panel()}
 function pickGroup(i){cur=i;draw();panel()}
 function newGroup(){PASS.push([]);cur=PASS.length-1;draw();panel()}
 function dropGroup(){PASS.splice(cur,1);cur=0;draw();panel()}
-addEventListener("keydown",e=>{if(M&&!RO&&!/INPUT|TEXTAREA/.test(e.target.tagName)){const k=e.key.toLowerCase();if(k==="p")setPmode(!pmode);else if(k==="b")setBmode(!bmode)}});
+addEventListener("keydown",e=>{if(M&&!RO&&!/INPUT|TEXTAREA/.test(e.target.tagName)){const k=e.key.toLowerCase();if(k==="p")setPmode(!pmode);else if(k==="b")setBmode(!bmode);else if(k==="o")setOmode(!omode)}});
 function zone(id,z,on){const s=M.spaces[id];s.zones=on?[...new Set([...s.zones,z])]:s.zones.filter(x=>x!==z);draw();panel()}
 function start(n,id){M.starts[n]=id;draw();panel()}
 function clearStart(id){for(const k in M.starts)if(M.starts[k]===id)delete M.starts[k];draw();panel()}

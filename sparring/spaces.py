@@ -28,7 +28,7 @@ def describe(game, space: int | None, exclude=(), name: Callable = lambda f: f.n
     refs = [f for f in game.fighters.values() if f.alive and f.pos is not None and f.fid not in exclude and f.pos != space]
     if not refs:
         return text
-    near = min(refs, key=lambda f: (game.board.distance(space, f.pos), f.fid))
-    d = game.board.distance(space, near.pos)
+    near = min(refs, key=lambda f: (game.board.span(space, f.pos), f.fid))
+    d = game.board.span(space, near.pos)
     rel = t("spaces.next_to", name=name(near)) if game.board.adjacent(space, near.pos) else t("spaces.distance", d=d, name=name(near))
     return f"{text}, {rel}"
