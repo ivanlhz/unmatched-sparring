@@ -278,7 +278,7 @@ def test_overwrite_keeps_a_map_a_person_confirmed_unless_forced(tmp_path, monkey
     (out / "yukon.json").write_text(json.dumps(confirmed), encoding="utf-8")
     calls = []
 
-    def fake_extract(sm, img, expected=None):
+    def fake_extract(sm, img, expected=None, passages=None):
         calls.append(sm.key)
         return extracted()
     monkeypatch.setattr(im, "fetch_image", lambda url, dest: dest)
@@ -291,3 +291,57 @@ def test_overwrite_keeps_a_map_a_person_confirmed_unless_forced(tmp_path, monkey
     assert calls == [] and json.loads((out / "yukon.json").read_text(encoding="utf-8")) == confirmed
     assert im.main(argv + ["--force-unverify"]) == 0
     assert calls == ["yukon"] and json.loads((out / "yukon.json").read_text(encoding="utf-8"))["verified"] is False
+
+
+# ---------- secret passages ----------
+def test_passages_count_as_movement_links_in_the_checks():
+    two_islands = {(0, 1), (2, 3)}
+    assert any("not connected" in p for p in im.check_map(extracted(edges=two_islands), None))
+    bridged = extracted(edges=two_islands)
+    bridged.passages = [[0, 2]]
+    assert not any("not connected" in p for p in im.check_map(bridged, None))
+
+
+def test_a_dead_end_with_a_passage_is_not_a_missing_connector():
+    m = extracted(edges={(0, 1), (1, 2), (2, 3), (1, 3)})            # space 0 has a single neighbour
+    assert any("single neighbour" in p for p in im.check_map(m, None))
+    m.passages = [[0, 3]]
+    assert not any("single neighbour" in p for p in im.check_map(m, None))
+
+
+def test_passages_are_written_and_loaded_without_becoming_adjacency(tmp_path):
+    m = extracted(edges={(0, 1), (2, 3)})
+    m.passages = [[0, 2]]
+    data = im.map_data(m, "test")
+    assert data["passages"] == [[0, 2]]
+    assert "passages" not in im.map_data(extracted(), "test")
+    path = tmp_path / "t.json"
+    path.write_text(json.dumps(data), encoding="utf-8")
+    board = Board.load(path)
+    assert not board.adjacent(0, 2) and board.distance(0, 2) == 1
+    assert im.extracted_from_data(data, blank(400, 200)).passages == [[0, 2]]
+
+
+def test_overwriting_an_unverified_map_keeps_its_passages(tmp_path, monkeypatch):
+    save_path = tmp_path / "save.json"
+    save_path.write_text(json.dumps(save_with(map_bag("Yukon", 0, 0))), encoding="utf-8")
+    out = tmp_path / "maps"
+    out.mkdir()
+    old = {"key": "yukon", "name": "Yukon", "imageKey": "A" * 40, "verified": False, "playable": False, "starts": {"1": 0},
+           "passages": [[0, 2]], "spaces": [{"id": 0, "local": [1.0, 2.0], "zones": ["red"], "adj": []}]}
+    (out / "yukon.json").write_text(json.dumps(old), encoding="utf-8")
+    seen = []
+
+    def fake_extract(sm, img, expected=None, passages=None):
+        seen.append(passages)
+        m = extracted(edges={(0, 1), (2, 3)})
+        m.passages = [list(g) for g in passages or []]
+        return m
+    monkeypatch.setattr(im, "fetch_image", lambda url, dest: dest)
+    monkeypatch.setattr(im, "load_work_image", lambda path: blank(400, 200))
+    monkeypatch.setattr(im, "extract_map", fake_extract)
+    monkeypatch.setattr(im, "render_check", lambda *a, **k: None)
+    assert im.main(["--save", str(save_path), "--images", str(tmp_path / "img"), "--out", str(out),
+                    "--check-dir", str(tmp_path / "c"), "--overwrite"]) == 0
+    assert seen == [[[0, 2]]]
+    assert json.loads((out / "yukon.json").read_text(encoding="utf-8"))["passages"] == [[0, 2]]

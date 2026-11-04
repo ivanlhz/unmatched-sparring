@@ -3,18 +3,22 @@
  "name": "Baskerville Manor",
  "source": "Unmatched Official Tournament Table October 2026, Custom_Board of the Baskerville Manor bag",
  "imageKey": "468715E49E561FDC98803FA83CF8C29C210331B1",
- "playable": false,
- "verified": false,
- "problems": [
-  "spaces with a single neighbour, so a connector is probably missing: [8, 24, 31]",
-  "the board is not connected (19 of 32 spaces reachable from space 0)"
- ],
+ "playable": true,
+ "verified": true,
  "starts": {
   "1": 19,
   "2": 2,
   "3": 13,
   "4": 6
  },
+ "passages": [
+  [
+   0,
+   10,
+   21,
+   31
+  ]
+ ],
  "spaces": [
   {
    "id": 0,
@@ -56,7 +60,8 @@
    ],
    "adj": [
     1,
-    7
+    7,
+    26
    ]
   },
   {
@@ -144,7 +149,8 @@
     "teal"
    ],
    "adj": [
-    9
+    9,
+    24
    ]
   },
   {
@@ -219,7 +225,8 @@
    "adj": [
     12,
     14,
-    15
+    15,
+    24
    ]
   },
   {
@@ -249,7 +256,8 @@
    "adj": [
     13,
     14,
-    16
+    16,
+    22
    ]
   },
   {
@@ -264,7 +272,8 @@
    "adj": [
     15,
     17,
-    18
+    18,
+    22
    ]
   },
   {
@@ -350,6 +359,8 @@
     "navy"
    ],
    "adj": [
+    15,
+    16,
     19,
     21,
     23,
@@ -380,6 +391,8 @@
     "forest"
    ],
    "adj": [
+    8,
+    13,
     23
    ]
   },
@@ -408,6 +421,7 @@
     "brown"
    ],
    "adj": [
+    2,
     25,
     27
    ]

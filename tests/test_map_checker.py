@@ -244,3 +244,35 @@ def test_the_server_refuses_to_reconfirm_unless_started_with_the_flag(server):
     again = json.loads(call(base + "/api/confirm/t", {"zones": {"1": ["blue"]}}, post)[1])
     assert again["written"] is False and "already confirmed" in again["problems"][0]
     assert json.loads(call(base + "/api/maps")[1])["reconfirm"] is False
+
+
+# ---------- secret passages ----------
+def test_passages_make_a_split_board_connected():
+    split = mc.apply_edit(ring(), {"edges": [[0, 1], [2, 3]]})
+    assert any("not connected" in p for p in mc.validate(split))
+    bridged = mc.apply_edit(split, {"passages": [[1, 2]]})
+    assert bridged["passages"] == [[1, 2]] and mc.validate(bridged) == []
+
+
+def test_bad_passages_are_rejected_or_dropped():
+    with pytest.raises(ValueError):
+        mc.apply_edit(ring(), {"passages": [[0, 9]]})
+    assert "passages" not in mc.apply_edit(mc.apply_edit(ring(), {"passages": [[0, 2]]}), {"passages": [[1], []]})
+    assert any("two passage groups" in p for p in mc.validate({**ring(), "passages": [[0, 1], [1, 2]]}))
+
+
+def test_confirm_round_trips_passages_into_a_board(maps):
+    ok, problems = mc.confirm(maps, "t", {"edges": [[0, 1], [2, 3]], "passages": [[1, 2]]}, None, ZONES)
+    assert ok, problems
+    written = json.loads((maps / "t.json").read_text(encoding="utf-8"))
+    assert written["passages"] == [[1, 2]] and mc.map_view(maps, "t")["passages"] == [[1, 2]]
+    board = Board.load(maps / "t.json")
+    assert not board.adjacent(1, 2) and board.distance(0, 3) == 3
+
+
+def test_an_edit_without_passages_keeps_the_ones_on_file(maps):
+    data = ring()
+    data["passages"] = [[0, 2]]
+    (maps / "t.json").write_text(json.dumps(data), encoding="utf-8")
+    assert mc.confirm(maps, "t", {}, None, ZONES)[0]
+    assert json.loads((maps / "t.json").read_text(encoding="utf-8"))["passages"] == [[0, 2]]

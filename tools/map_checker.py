@@ -60,7 +60,7 @@ def edges_of(data: dict) -> set[tuple[int, int]]:
 
 def apply_edit(data: dict, edit: dict) -> dict:
     """A copy of `data` with the person's changes: `edges` (the full list of [a, b]), `zones` ({id: [names]}) and
-    `starts` ({"1": id, ...}). Anything missing from `edit` is left as it was. Raises ValueError on a bad id."""
+    `passages` (the full list of secret-passage groups) and `starts` ({"1": id, ...}). Anything missing from `edit` is left as it was. Raises ValueError on a bad id."""
     ids = {s["id"] for s in data["spaces"]}
     out = json.loads(json.dumps(data))
     if "edges" in edit:
@@ -77,6 +77,18 @@ def apply_edit(data: dict, edit: dict) -> dict:
         if space is None or not isinstance(names, list) or not all(isinstance(n, str) for n in names):
             raise ValueError(f"bad zones for space {sid}")
         space["zones"] = sorted(set(names))
+    if "passages" in edit:
+        groups = []
+        for group in edit["passages"]:
+            members = sorted({int(v) for v in group})
+            if any(v not in ids for v in members):
+                raise ValueError(f"bad passage {group}")
+            if len(members) >= 2:
+                groups.append(members)
+        if groups:
+            out["passages"] = groups
+        else:
+            out.pop("passages", None)
     if "starts" in edit:
         starts = {}
         for digit, sid in edit["starts"].items():
@@ -107,15 +119,27 @@ def validate(data: dict, expected: dict | None = None, zone_names: list[str] | N
                 problems.append(f"space {a} is joined to itself")
     if expected and expected.get("spacesCount") not in (None, len(spaces)):
         problems.append(f"{len(spaces)} spaces, the map has {expected['spacesCount']}")
+    passages = data.get("passages") or []
+    moves = {a: set(n) for a, n in adj.items()}
+    seen_in_groups: set[int] = set()
+    for group in passages:
+        if len(group) < 2 or any(v not in adj for v in group):
+            problems.append(f"bad passage group {group}")
+        elif seen_in_groups & set(group):
+            problems.append(f"a space is in two passage groups: {group}")
+        else:
+            seen_in_groups.update(group)
+            for a in group:
+                moves[a].update(set(group) - {a})
     if ids and all(b in adj for n in adj.values() for b in n):
         seen, queue = {ids[0]}, deque([ids[0]])
         while queue:
-            for n in adj[queue.popleft()]:
+            for n in moves[queue.popleft()]:
                 if n not in seen:
                     seen.add(n)
                     queue.append(n)
         if len(seen) != len(ids):
-            problems.append(f"the board is not connected ({len(seen)} of {len(ids)} spaces reachable from space {ids[0]})")
+            problems.append(f"the board (with its passages) is not connected ({len(seen)} of {len(ids)} spaces reachable from space {ids[0]})")
     bare = [s["id"] for s in spaces if not s["zones"]]
     if bare:
         problems.append(f"spaces without a zone: {bare}")
@@ -216,36 +240,52 @@ body{font:14px system-ui,sans-serif;margin:0;display:flex;height:100vh}
 border-radius:14px;font-weight:bold;cursor:pointer;padding:1px 3px;font-size:13px}
 .sp small{display:block;font-weight:normal;font-size:10px;color:#ffd}
 .sp.sel{border-color:#f0f;background:#406c}.sp.start{border-color:#f33}
+.sp.pass{border-color:#f90;border-style:dashed;background:#530c}.sp.pass.cur{border-color:#0ff;background:#056c}
+button.on{background:#f90;font-weight:bold}
 button{margin:2px;padding:4px 8px} #problems{color:#f99;white-space:pre-wrap} #ok{color:#7d7}
 label{display:inline-block;width:110px}
 </style>
 <div id=side><b>Maps</b><div id=list></div><hr><div id=panel></div></div>
 <div id=stage><div id=wrap><img id=img><svg id=lines viewBox="0 0 1000 1000" preserveAspectRatio="none"></svg></div></div>
 <script>
-let M=null,key=null,edges=new Set(),sel=null,ZN=[],RECONFIRM=false,RO=false,ST={};
+let M=null,key=null,edges=new Set(),sel=null,PASS=[],cur=0,pmode=false,ZN=[],RECONFIRM=false,RO=false,ST={};
 const $=id=>document.getElementById(id), ek=(a,b)=>Math.min(a,b)+"-"+Math.max(a,b);
 async function api(p,body){const r=await fetch(p,body?{method:"POST",headers:{"Content-Type":"application/json"},body:JSON.stringify(body)}:{});return r.json()}
 async function init(){const d=await api("/api/maps");ZN=d.zones;RECONFIRM=d.reconfirm;ST={};for(const m of d.maps)ST[m.key]=m.status;$("list").innerHTML="";
  for(const m of d.maps){const a=document.createElement("a");a.className=m.status;a.textContent=m.name+" ["+m.status+"]";a.onclick=()=>open(m.key);$("list").append(a)}}
 async function open(k){key=k;RO=ST[k]==="supported"&&!RECONFIRM;M=await api("/api/map/"+k);edges=new Set();for(const s of M.spaces)for(const n of s.adj)edges.add(ek(s.id,n));
- sel=null;$("img").src="/image/"+k;draw();panel("")}
-function body(){const zones={};for(const s of M.spaces)zones[s.id]=s.zones;return{edges:[...edges].map(e=>e.split("-").map(Number)),zones,starts:M.starts}}
+ PASS=(M.passages||[]).map(g=>[...g]);cur=0;pmode=false;sel=null;$("img").src="/image/"+k;draw();panel("")}
+function body(){const zones={};for(const s of M.spaces)zones[s.id]=s.zones;return{passages:PASS.filter(g=>g.length>1),edges:[...edges].map(e=>e.split("-").map(Number)),zones,starts:M.starts}}
 function draw(){const w=$("wrap");w.querySelectorAll(".sp").forEach(e=>e.remove());let svg="";
  for(const e of edges){const[a,b]=e.split("-").map(Number),A=M.spaces[a],B=M.spaces[b];
   svg+=`<line x1="${A.fx*1000}" y1="${A.fy*1000}" x2="${B.fx*1000}" y2="${B.fy*1000}" stroke="#ff0" stroke-width="3" vector-effect="non-scaling-stroke"/>`}
+ PASS.forEach((g,i)=>{for(let j=1;j<g.length;j++){const A=M.spaces[g[j-1]],B=M.spaces[g[j]];
+  svg+=`<line x1="${A.fx*1000}" y1="${A.fy*1000}" x2="${B.fx*1000}" y2="${B.fy*1000}" stroke="${i===cur?"#0ff":"#f90"}" stroke-width="3" stroke-dasharray="8 6" vector-effect="non-scaling-stroke"/>`}});
  $("lines").innerHTML=svg;
  for(const s of M.spaces){const d=document.createElement("div");d.className="sp"+(sel===s.id?" sel":"");
   const st=Object.entries(M.starts).filter(([k,v])=>v===s.id).map(([k])=>"S"+k).join(" ");if(st)d.classList.add("start");
-  d.style.left=s.fx*100+"%";d.style.top=s.fy*100+"%";d.innerHTML=s.id+(st?" "+st:"")+"<small>"+s.zones.join("/")+"</small>";
-  d.onclick=()=>{if(RO)return;if(sel===null)sel=s.id;else if(sel===s.id)sel=null;else{const k=ek(sel,s.id);edges.has(k)?edges.delete(k):edges.add(k);sel=null}draw();panel()};w.append(d)}}
+  d.style.left=s.fx*100+"%";d.style.top=s.fy*100+"%";const gi=PASS.findIndex(g=>g.includes(s.id));if(gi>=0){d.classList.add("pass");if(gi===cur)d.classList.add("cur")}
+  d.innerHTML=(gi>=0?"&#128274;":"")+s.id+(st?" "+st:"")+"<small>"+s.zones.join("/")+"</small>";
+  d.onclick=()=>{if(RO)return;if(pmode){togglePass(s.id);return}if(sel===null)sel=s.id;else if(sel===s.id)sel=null;else{const k=ek(sel,s.id);edges.has(k)?edges.delete(k):edges.add(k);sel=null}draw();panel()};w.append(d)}}
 function panel(msg){const p=$("panel");if(!M)return;let h="<b>"+M.name+"</b><br>";
  if(M.problems)h+="<div id=problems>Import said: "+M.problems.join("\n")+"</div>";
  if(RO)h+="<div id=ok>Confirmed map: read-only (start the checker with --allow-reconfirm to change it).</div>";
- if(sel!==null&&!RO){const s=M.spaces[sel];h+="<hr>Space "+sel+"<br>";
+ if(!RO){h+=`<hr><button class="${pmode?"on":""}" onclick=setPmode(!pmode)>Passage mode (key P): ${pmode?"ON":"off"}</button>`;
+  if(pmode){h+="<br>Click spaces to add or remove them from the selected group (padlock = secret passage: move only, not adjacent).<br>";
+   PASS.forEach((g,i)=>{h+=`<button class="${i===cur?"on":""}" onclick=pickGroup(${i})>group ${i+1}: ${g.join(",")||"empty"}</button>`});
+   h+=`<br><button onclick=newGroup()>New group</button><button onclick=dropGroup()>Delete group</button>`}}
+ if(sel!==null&&!RO&&!pmode){const s=M.spaces[sel];h+="<hr>Space "+sel+"<br>";
   for(const z of ZN)h+=`<label><input type=checkbox ${s.zones.includes(z)?"checked":""} onchange="zone(${sel},'${z}',this.checked)"> ${z}</label>`;
   h+="<br>";for(const n of ["1","2","3","4"])h+=`<button onclick="start('${n}',${sel})">start ${n}</button>`;
   h+=`<button onclick="clearStart(${sel})">no start</button>`}
  h+=RO?"<hr>":"<hr><button onclick=check()>Check</button><button onclick=confirmMap()>Confirm (write)</button><div id=problems>"+(msg||"")+"</div>";p.innerHTML=h}
+function setPmode(on){pmode=on;sel=null;if(on&&!PASS.length)PASS.push([]);draw();panel()}
+function togglePass(id){const other=PASS.findIndex((g,i)=>i!==cur&&g.includes(id));if(other>=0)return panel("Space "+id+" is already in group "+(other+1));
+ if(!PASS.length)PASS.push([]);const g=PASS[cur],i=g.indexOf(id);if(i>=0)g.splice(i,1);else g.push(id);draw();panel()}
+function pickGroup(i){cur=i;draw();panel()}
+function newGroup(){PASS.push([]);cur=PASS.length-1;draw();panel()}
+function dropGroup(){PASS.splice(cur,1);cur=0;draw();panel()}
+addEventListener("keydown",e=>{if(e.key.toLowerCase()==="p"&&M&&!RO&&!/INPUT|TEXTAREA/.test(e.target.tagName))setPmode(!pmode)});
 function zone(id,z,on){const s=M.spaces[id];s.zones=on?[...new Set([...s.zones,z])]:s.zones.filter(x=>x!==z);draw();panel()}
 function start(n,id){M.starts[n]=id;draw();panel()}
 function clearStart(id){for(const k in M.starts)if(M.starts[k]===id)delete M.starts[k];draw();panel()}

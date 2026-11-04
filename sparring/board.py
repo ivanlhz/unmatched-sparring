@@ -33,12 +33,18 @@ def catalog() -> list[MapEntry]:
 
 
 class Board:
-    def __init__(self, key: str, name: str, spaces: list[Space], adj: dict[int, set[int]], starts: dict[str, int]):
+    def __init__(self, key: str, name: str, spaces: list[Space], adj: dict[int, set[int]], starts: dict[str, int],
+                 passages: tuple[tuple[int, ...], ...] = ()):
         self.key = key
         self.name = name
         self.guid: str | None = None        # the board's GUID on the table, once found (set by the start-up)
         self.spaces = {s.id: s for s in spaces}
-        self.adj = adj
+        self.adj = adj                      # true adjacency: melee, "adjacent" effects
+        self.passages = passages            # groups of spaces (secret passages) a fighter can move between in one step
+        self.moves = {s: set(n) for s, n in adj.items()}      # the movement graph: adjacency plus the passage links
+        for group in passages:
+            for a in group:
+                self.moves[a].update(b for b in group if b != a)
         self.starts = starts
         self._dist = {s: self._bfs(s) for s in self.spaces}
 
@@ -54,14 +60,15 @@ class Board:
             for n in s["adj"]:
                 adj[s["id"]].add(n)
                 adj[n].add(s["id"])
-        return cls(raw["key"], raw["name"], spaces, adj, raw["starts"])
+        passages = tuple(tuple(g) for g in raw.get("passages", ()))
+        return cls(raw["key"], raw["name"], spaces, adj, raw["starts"], passages)
 
     def _bfs(self, src: int) -> dict[int, int]:
         dist = {src: 0}
         q = deque([src])
         while q:
             cur = q.popleft()
-            for n in self.adj[cur]:
+            for n in self.moves[cur]:
                 if n not in dist:
                     dist[n] = dist[cur] + 1
                     q.append(n)
@@ -86,14 +93,14 @@ class Board:
         return self.adjacent(a, b) or (ranged and self.share_zone(a, b))
 
     def reachable(self, start: int, steps: int, own: set[int], enemy: set[int], through_enemies: bool = False) -> set[int]:
-        """Spaces where it can end: passes through own fighters, not rivals (unless an effect says so), ends on an empty one."""
+        """Spaces where it can end (moving along adjacency and passages): passes through own fighters, not rivals (unless an effect says so), ends on an empty one."""
         seen = {start: 0}
         q = deque([start])
         while q:
             cur = q.popleft()
             if seen[cur] == steps:
                 continue
-            for n in sorted(self.adj[cur]):
+            for n in sorted(self.moves[cur]):
                 if n in seen or (n in enemy and not through_enemies):
                     continue
                 seen[n] = seen[cur] + 1

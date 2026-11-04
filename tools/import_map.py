@@ -476,14 +476,17 @@ class Extracted:
     starts: dict[str, int]
     non_space_snaps: int
     problems: list[str] = field(default_factory=list)
+    passages: list[list[int]] = field(default_factory=list)    # secret-passage groups: movement links, not adjacency
 
     @property
     def playable(self) -> bool:
         return not self.problems
 
 
-def extract_map(save_map: SaveMap, img: np.ndarray, expected: dict | None = None) -> Extracted:
-    """Runs the whole extraction on one map and checks it. `expected` is the published {spacesCount, zonesCount}."""
+def extract_map(save_map: SaveMap, img: np.ndarray, expected: dict | None = None,
+                passages: list[list[int]] | None = None) -> Extracted:
+    """Runs the whole extraction on one map and checks it. `expected` is the published {spacesCount, zonesCount};
+    `passages` are the secret-passage groups a person already recorded for this map (the picture cannot show them)."""
     pixels = snap_pixels(save_map.snaps, img.shape)
     r = circle_radius(img)
     refined, ring = refine_centers(img, pixels, r)
@@ -507,6 +510,7 @@ def extract_map(save_map: SaveMap, img: np.ndarray, expected: dict | None = None
                     [save_map.snaps[i] for i in keep], centers, edges,
                     [[names[k] for k in m] for m in members], dict(zip(names, palette_rgb(palette))), starts,
                     len(pixels) - len(keep))
+    out.passages = [list(g) for g in passages or []]
     out.problems += check_map(out, expected)
     return out
 
@@ -519,13 +523,22 @@ def adjacency_lists(n: int, edges: set[tuple[int, int]]) -> list[list[int]]:
     return [sorted(s) for s in adj]
 
 
+def movement_lists(n: int, edges: set[tuple[int, int]], passages: list[list[int]]) -> list[list[int]]:
+    """Adjacency plus the secret-passage links: who a fighter can move to in one step."""
+    moves = [set(a) for a in adjacency_lists(n, edges)]
+    for group in passages:
+        for a in group:
+            moves[a].update(b for b in group if b != a)
+    return [sorted(s) for s in moves]
+
+
 def check_map(m: Extracted, expected: dict | None) -> list[str]:
     """Why the extraction cannot be trusted (empty list: every check passed)."""
     problems = []
     n = len(m.centers)
     if expected and expected.get("spacesCount") not in (None, n):
         problems.append(f"{n} spaces found, the map has {expected['spacesCount']}")
-    adj = adjacency_lists(n, m.edges)
+    adj = movement_lists(n, m.edges, m.passages)
     isolated = [i for i, a in enumerate(adj) if not a]
     if isolated:
         problems.append(f"spaces without a neighbour: {isolated}")
@@ -560,6 +573,8 @@ def map_data(m: Extracted, source: str) -> dict:
     if m.problems:
         data["problems"] = m.problems
     data["starts"] = dict(sorted(m.starts.items()))
+    if m.passages:
+        data["passages"] = m.passages
     data["spaces"] = [{"id": i, "local": [round(x, 3), round(z, 3)], "zones": sorted(m.zones[i]), "adj": adj[i]}
                       for i, (x, z) in enumerate(m.local)]
     return data
@@ -654,7 +669,8 @@ def extracted_from_data(data: dict, img: np.ndarray) -> Extracted:
     edges = {(min(s["id"], n), max(s["id"], n)) for s in spaces for n in s["adj"]}
     starts = {d: v for d, v in data["starts"].items()}
     return Extracted(data["key"], data["name"], data["imageKey"], img, list(range(len(spaces))),
-                     [tuple(s["local"]) for s in spaces], centers, edges, [list(s["zones"]) for s in spaces], {}, starts, 0)
+                     [tuple(s["local"]) for s in spaces], centers, edges, [list(s["zones"]) for s in spaces], {}, starts, 0,
+                     passages=[list(g) for g in data.get("passages", [])])
 
 
 # ---------------------------------------------------------------- command line
@@ -707,7 +723,8 @@ def main(argv: list[str] | None = None) -> int:
             m = extracted_from_data(json.loads(target.read_text(encoding="utf-8")), img)
             entry["name"] = m.name
         else:
-            m = extract_map(sm, img, expected.get(sm.key))
+            kept = json.loads(target.read_text(encoding="utf-8")).get("passages") if target.exists() else None
+            m = extract_map(sm, img, expected.get(sm.key), kept)     # a re-extraction keeps the recorded secret passages
             data = map_data(m, f"{save.get('SaveName', 'save')}, Custom_Board of the {sm.name} bag")
             target.write_text(json.dumps(data, indent=1, ensure_ascii=False) + "\n", encoding="utf-8")
         render_check(m, args.check_dir / f"{sm.key}.png")

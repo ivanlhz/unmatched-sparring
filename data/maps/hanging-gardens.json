@@ -3,11 +3,8 @@
  "name": "Hanging Gardens",
  "source": "Unmatched Official Tournament Table October 2026, Custom_Board of the Hanging Gardens bag",
  "imageKey": "4DBDF3EFF73E984DDFABFD430D5C176610D2FF3C",
- "playable": false,
- "verified": false,
- "problems": [
-  "spaces with a single neighbour, so a connector is probably missing: [5]"
- ],
+ "playable": true,
+ "verified": true,
  "starts": {
   "1": 32,
   "2": 19,
@@ -91,6 +88,7 @@
    ],
    "adj": [
     3,
+    5,
     32
    ]
   },
@@ -104,6 +102,7 @@
     "cream"
    ],
    "adj": [
+    4,
     6
    ]
   },

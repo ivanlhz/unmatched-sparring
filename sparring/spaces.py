@@ -30,5 +30,5 @@ def describe(game, space: int | None, exclude=(), name: Callable = lambda f: f.n
         return text
     near = min(refs, key=lambda f: (game.board.distance(space, f.pos), f.fid))
     d = game.board.distance(space, near.pos)
-    rel = t("spaces.next_to", name=name(near)) if d == 1 else t("spaces.distance", d=d, name=name(near))
+    rel = t("spaces.next_to", name=name(near)) if game.board.adjacent(space, near.pos) else t("spaces.distance", d=d, name=name(near))
     return f"{text}, {rel}"

@@ -9,11 +9,7 @@
   "key": "baskerville-manor",
   "name": "Baskerville Manor",
   "imageKey": "468715E49E561FDC98803FA83CF8C29C210331B1",
-  "status": "unavailable",
-  "why": [
-   "spaces with a single neighbour, so a connector is probably missing: [8, 24, 31]",
-   "the board is not connected (19 of 32 spaces reachable from space 0)"
-  ]
+  "status": "supported"
  },
  {
   "key": "bprd-hq",
@@ -25,22 +21,19 @@
   "key": "fayrlund-forest",
   "name": "Fayrlund Forest",
   "imageKey": "3F48D58145740E8CE184F810ED2239398FDB089E",
-  "status": "unverified"
+  "status": "supported"
  },
  {
   "key": "globe-theatre",
   "name": "Globe Theatre",
   "imageKey": "0768A71A1CE24D7D42AD3D24CE0D6FD9D059E7B6",
-  "status": "unverified"
+  "status": "supported"
  },
  {
   "key": "hanging-gardens",
   "name": "Hanging Gardens",
   "imageKey": "4DBDF3EFF73E984DDFABFD430D5C176610D2FF3C",
-  "status": "unavailable",
-  "why": [
-   "spaces with a single neighbour, so a connector is probably missing: [5]"
-  ]
+  "status": "supported"
  },
  {
   "key": "helicarrier",

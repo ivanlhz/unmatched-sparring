@@ -70,7 +70,7 @@ def test_a_supported_map_is_a_sound_board(entry):
         assert board.zones(a), f"space {a} has no zone"
     seen, queue = {0}, deque([0])
     while queue:
-        for n in board.adj[queue.popleft()]:
+        for n in board.moves[queue.popleft()]:
             if n not in seen:
                 seen.add(n)
                 queue.append(n)

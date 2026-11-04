@@ -4,7 +4,7 @@
  "source": "Unmatched Official Tournament Table October 2026, Custom_Board of the Globe Theatre bag",
  "imageKey": "0768A71A1CE24D7D42AD3D24CE0D6FD9D059E7B6",
  "playable": true,
- "verified": false,
+ "verified": true,
  "starts": {
   "1": 29,
   "2": 21,
@@ -23,6 +23,7 @@
    ],
    "adj": [
     1,
+    14,
     15
    ]
   },
@@ -239,6 +240,7 @@
     "tan"
    ],
    "adj": [
+    0,
     13,
     16,
     17
