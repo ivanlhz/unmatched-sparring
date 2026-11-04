@@ -17,3 +17,10 @@ assets/med_row*.jpg
 launcher/node_modules/
 launcher/build/
 launcher/dist/
+
+# Map art (Restoration Games, copyrighted, kept local only)
+assets/map_*.jpg
+assets/fit*.jpg
+assets/z_*.jpg
+assets/spaces_1_and_2.jpg
+docs/maps-check/
