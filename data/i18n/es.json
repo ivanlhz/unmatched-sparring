@@ -999,14 +999,10 @@
  "sleight.bot_manual": "No he podido hacerlo en la mesa: recoge {old} de la zona de combate del bot en su mano y pon {new} boca arriba ahi en su lugar.",
  "sleight.missing": "{card} ya no esta en tu zona de combate y no hay ninguna carta nueva: pon en ella la carta que juegas en su lugar (o vuelve a dejar {card}) y pulsa [[btn.done]] otra vez.",
  "cfg.vec3": "{key}: se esperan tres numeros (x, y, z)",
- "cfg.clear_table": "clear_table_guids y clear_table_spots: dos listas de la misma longitud (GUIDs, y un punto (x, y, z) para cada uno)",
  "prep.zone_created": "La zona de descarte {role} no estaba en la mesa: la he creado (GUID {guid}).",
  "prep.zone_straightened": "He enderezado la zona de descarte {role} ({guid}): rotacion 0, {rot:g}, 0.",
  "prep.zone_no_guid": "TTS no ha dado GUID a la zona de descarte {role} que he creado: reinicia el bot cuando la mesa se haya asentado.",
- "prep.parked": "He movido {what} {guid} fuera del centro de la mesa a x {x:.1f}, z {z:.1f} (no he abierto ni destruido nada).",
- "layout.park_overlap": "el aparcamiento de {guid} (clear_table_spots, x {x0:.1f}..{x1:.1f}, z {z0:.1f}..{z1:.1f}) pisa {name}: muevelo en la configuracion.",
- "layout.hands": "zonas de mano",
  "err.prepare_reply": "respuesta no valida a la preparacion de la mesa: {got}",
- "layout.board": "el tablero",
- "layout.deck": "mazo de robo {side}"
+ "cfg.remove_table": "remove_table_guids: una lista de GUIDs (cadenas)",
+ "prep.removed": "He quitado {what} {guid} de la mesa (no hacia falta)."
 }

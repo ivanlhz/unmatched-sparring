@@ -1,7 +1,7 @@
 """Start-up preparation of a table that was not built for the bot (the official community save): the discard zones
-it lacks are created, and what sits in the middle of the table is moved to a parking spot.
+it lacks are created, and the loose objects of the save that the bot does not want on the table are removed.
 
-This module reads and validates the configuration (`ZoneSpawn`, `ParkPlan`); the table writes are one script
+This module reads and validates the configuration (`ZoneSpawn`, `removal_list`); the table writes are one script
 (`lua.prepare_table`) sent by `Session.prepare_table`."""
 from __future__ import annotations
 
@@ -45,12 +45,9 @@ def zone_spawns(raw: dict) -> dict[str, ZoneSpawn]:
     return out
 
 
-def park_plan(raw: dict) -> tuple[tuple[str, tuple[float, float, float]], ...]:
-    """(GUID, parking spot) of each object cleared from the centre of the table: `clear_table_guids[i]` goes to
-    `clear_table_spots[i]`."""
-    guids, spots = raw.get("clear_table_guids") or [], raw.get("clear_table_spots") or []
-    if not isinstance(guids, list) or not isinstance(spots, list) or not all(isinstance(g, str) for g in guids):
-        raise ValueError(t("cfg.clear_table"))
-    if len(guids) != len(spots):
-        raise ValueError(t("cfg.clear_table"))
-    return tuple((g, _vec3(s, "clear_table_spots")) for g, s in zip(guids, spots))
+def removal_list(raw: dict) -> tuple[str, ...]:
+    """GUIDs of the loose objects destroyed at a fresh start (`remove_table_guids`): exactly these, never by area."""
+    guids = raw.get("remove_table_guids") or []
+    if not isinstance(guids, list) or not all(isinstance(g, str) and g for g in guids):
+        raise ValueError(t("cfg.remove_table"))
+    return tuple(guids)

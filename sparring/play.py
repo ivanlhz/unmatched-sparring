@@ -151,6 +151,7 @@ class PlayConfig:
     base: dict = field(default_factory=dict)                # the configuration before `with_hero_data`
     sources: tuple[str, str] = (SRC_DEFAULT, SRC_DEFAULT)   # where each side's hero comes from
     detected_decks: dict[str, str] = field(default_factory=dict)   # side -> GUID of the deck the start-up read found
+    saved_zones: dict[str, str] = field(default_factory=dict)      # discard zones the bot created in an earlier run (state file)
 
     @property
     def language(self) -> str:
@@ -256,7 +257,7 @@ class PlayConfig:
                 card_zoom_scale=float(r.get("card_zoom_scale", SessionConfig.card_zoom_scale)),
                 card_zoom_spot=tuple(float(v) for v in r.get("card_zoom_spot", SessionConfig.card_zoom_spot)),
                 card_zoom_rot=tuple(float(v) for v in r["card_zoom_rot"]) if r.get("card_zoom_rot") else None,
-                zone_spawns=table_prep.zone_spawns(r), clear_plan=table_prep.park_plan(r))
+                zone_spawns=table_prep.zone_spawns(r), remove_plan=table_prep.removal_list(r))
             if not (math.isfinite(cfg.bot_pause) and 0 <= cfg.bot_pause <= 30):
                 raise ValueError(t("cfg.range.pause", key="bot_pause", max=30))
             if not (math.isfinite(cfg.wildfire_hold) and 0 <= cfg.wildfire_hold <= lua.MAX_HOLD):
@@ -550,7 +551,12 @@ def read_only_report(client, cfg: PlayConfig) -> list[str]:
              t("ro.label.bot_deck_zone"): val("bot_deck_zone"), t("ro.label.human_deck_zone"): val("human_deck_zone")}
     guids.update({t("ro.label.probe", guid=g): g for g in raw.get("probe_guids", [])})
     known = {k: g for k, g in guids.items() if g}
-    found = read(t("ro.read.objects"), lambda: lua.inspect_guids(sorted(set(known.values())))) or {}
+    saved = {key: g for key, g in cfg.saved_zones.items() if g not in known.values()}
+    found = read(t("ro.read.objects"), lambda: lua.inspect_guids(sorted({*known.values(), *saved.values()}))) or {}
+    live = {key: saved[key] for key in saved if not (found.get(val(key)) or {}).get("found")
+            and (found.get(saved[key]) or {}).get("found")}      # a zone the bot created earlier stands in for the configured one
+    swap = {val(key): g for key, g in live.items()}
+    known = {k: swap.get(g, g) for k, g in known.items()}
     out.append(t("ro.objects"))
     for label, g in known.items():
         info = found.get(g, {"found": False})
@@ -617,7 +623,7 @@ def read_only_report(client, cfg: PlayConfig) -> list[str]:
     zones: dict[str, str] = {}
     for side, key in (("bot", "bot_discard_zone"), ("human", "human_discard_zone")):
         role = t(f"ro.role.{side}")
-        zone = val(key)
+        zone = live.get(key) or val(key)
         if not zone:
             out.append(t("ro.discard_todo", role=role, key=key))
             continue
@@ -766,7 +772,6 @@ def floor_layout_warnings(cfg: PlayConfig) -> list[str]:
         if a0 < x1 and a1 > x0 and b0 < z1 and b1 > z0:
             warnings.append(t("layout.under_panel", name=name, x0=x0, x1=x1, z0=z0, z1=z1))
     warnings += _look_row_warnings(cfg, items)
-    warnings += park_warnings(cfg)
     return warnings
 
 
@@ -826,75 +831,6 @@ def _look_row_warnings(cfg: PlayConfig, items: list[tuple[str, str, tuple[float,
     for key, (a0, a1, b0, b1) in asides.items():
         crowd = [*others, *look_rows, *((k, r) for k, r in asides.items() if k != key)]
         out += [t("layout.row_overlap", what=t("layout.aside_row"), key=key, x0=a0, x1=a1, z0=b0, z1=b1, name=name)
-                for name, (x0, x1, z0, z1) in crowd if a0 < x1 and a1 > x0 and b0 < z1 and b1 > z0]
-    return out
-
-
-# Where the official save keeps its hands (read from "Unmatched Official Tournament Table October 2026 (Hellboy)": the
-# side hands sit at |x| 30 and the end ones past z 28) and the board of the "pre-sparring" table (ec6f27 at 1.7, -2.7; its
-# space anchors reach 7.3 from the centre, plus the art around them). The parking spots must clear them all.
-HAND_AREAS = (("west", (-32.1, -27.9, -30.0, 28.0)), ("east", (27.9, 32.1, -30.0, 28.0)), ("north", (-16.1, 16.1, 28.0, 40.0)))
-BOARD_AREA = (-9.3, 12.7, -13.7, 8.3)
-PARK_FOOTPRINT = 3.2        # side of the square assumed for any parked object (a card is 2.2 x 3.2; the Dice Cannon is unmeasured)
-UNPACK_WARN_ITEMS = 8       # objects laid out from an unpack spot that the parking must not run into
-
-
-def _square(x: float, z: float, side: float) -> tuple[float, float, float, float]:
-    return x - side / 2, x + side / 2, z - side / 2, z + side / 2
-
-
-def reserved_areas(cfg: PlayConfig) -> list[tuple[str, tuple[float, float, float, float]]]:
-    """(name, rectangle x min, x max, z min, z max) of every area the bot uses on the floor besides labels: hands, the
-    board, the discard zones (also the ones it creates), decks, combat and ONGOING boxes, rows, dead spots, the zoom
-    copy, the unpack rows and the panel. A parked object has to stay out of all of them."""
-    r = cfg.raw
-    out = [(t("layout.hands") + f" {side}", rect) for side, rect in HAND_AREAS]
-    out.append((t("layout.board"), BOARD_AREA))
-    out.append((t("layout.panel"), lua.panel_footprint(cfg.panel_position, cfg.panel_scale, ui.PANEL_WIDTH,
-                                                         ui.panel_height(len(cfg.fighter_ids)))))
-    out += [(name, rect) for kind, name, rect in _floor_items(cfg) if kind != "label"]
-    bot_name, human_name = cfg.hero_names
-    for side_name, key in ((bot_name, "bot_discard_zone"), (human_name, "human_discard_zone")):
-        spawn = table_prep.zone_spawns(r).get(key)
-        if spawn is not None and not (key == "bot_discard_zone" and r.get("bot_discard_bounds")):
-            out.append((t("layout.zone", name=t("floor.discard", name=side_name)),
-                        _zone_rect((spawn.position[0], spawn.position[2], spawn.scale[0], spawn.scale[2], spawn.rot_y))))
-    for side in ("bot", "human"):
-        if r.get(f"{side}_deck_spot"):
-            out.append((t("layout.deck", side=side), _square(*r[f"{side}_deck_spot"], PARK_FOOTPRINT)))
-    for key in ("dead_spot", "human_dead_spot", "token_spot"):
-        if r.get(key):
-            out.append((key, _square(r[key][0], r[key][2], PARK_FOOTPRINT)))
-    zoom = r.get("card_zoom_spot", SessionConfig.card_zoom_spot)
-    scale = float(r.get("card_zoom_scale", SessionConfig.card_zoom_scale))
-    w, d = lua.CARD_SIZE
-    out.append(("card_zoom_spot", (zoom[0] - d * scale / 2, zoom[0] + d * scale / 2, zoom[2] - w * scale / 2, zoom[2] + w * scale / 2)))
-    for key in LOOK_ROWS:
-        out.append((t(LOOK_ROWS[key][3]), look_row_rect(cfg, ROW_WARN_CARDS, key)))
-    for key in ASIDE_SPOTS:
-        if r.get(key):
-            out.append((key, aside_row_rect(cfg, key)))
-    step = [float(v) for v in r.get("unpack_step", UNPACK_STEP)]
-    for side, default in UNPACK_SPOTS.items():
-        ox, _, oz = (float(v) for v in (r.get(f"{side}_unpack_spot") or default))
-        ends = [(ox + n * step[0], oz + n * step[2]) for n in (0, UNPACK_WARN_ITEMS - 1)]
-        out.append((f"{side}_unpack_spot", (min(e[0] for e in ends) - PARK_FOOTPRINT / 2, max(e[0] for e in ends) + PARK_FOOTPRINT / 2,
-                                          min(e[1] for e in ends) - PARK_FOOTPRINT / 2, max(e[1] for e in ends) + PARK_FOOTPRINT / 2)))
-    return out
-
-
-def park_warnings(cfg: PlayConfig) -> list[str]:
-    """Start-up warnings: a parking spot (`clear_table_spots`) may not overlap anything the bot uses, nor another spot."""
-    try:
-        plan = table_prep.park_plan(cfg.raw)
-    except ValueError:
-        return []                      # the configuration check says it
-    spots = [(f"clear_table_spots {g}", _square(s[0], s[2], PARK_FOOTPRINT)) for g, s in plan]
-    out = []
-    for i, (guid, _) in enumerate(plan):
-        a0, a1, b0, b1 = spots[i][1]
-        crowd = [*reserved_areas(cfg), *(spot for j, spot in enumerate(spots) if j != i)]
-        out += [t("layout.park_overlap", guid=guid, x0=a0, x1=a1, z0=b0, z1=b1, name=name)
                 for name, (x0, x1, z0, z1) in crowd if a0 < x1 and a1 > x0 and b0 < z1 and b1 > z0]
     return out
 
@@ -1083,10 +1019,8 @@ def play(cfg: PlayConfig, client: TTSClient, first: str, seed: int, stop: thread
         if state_path is None:
             raise persist.StateError(t("save.needs_file"))
         session.load_dict(persist.load(state_path))
-    else:
-        session._saved_zones = saved_zones(state_path)
     try:
-        session.prepare_table(resume)            # before anything reads the zones: a missing one is created, a tilted one straightened
+        session.prepare_table(resume, None if resume else saved_zones(state_path))            # before anything reads the zones: a missing one is created, a tilted one straightened
     except (TTSLuaError, OSError):
         pass                                     # table not reachable now: the next step says so
     targets = [f.fid for f in game.own(BOT)]
@@ -1269,6 +1203,7 @@ def _main(args: argparse.Namespace, stop: threading.Event, status: Callable[[str
             if warning not in printed:
                 print(t("console.warning", text=warning), file=sys.stderr)
         if args.read_only:
+            cfg.saved_zones = saved_zones(args.state)
             print("\n".join(read_only_report(client, cfg)))
             return 0
         seed = args.seed if args.seed is not None else secrets.randbelow(2 ** 31)

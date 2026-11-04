@@ -2,7 +2,7 @@
 
 The official "Unmatched Official Tournament Table" save has no discard zones and keeps two decks, a d20 and the Dice
 Cannon in the middle of the table. At start-up the bot creates the zones (straight: rotY 270), straightens the
-hand-made ones of the pre-sparring save, and parks those four objects out of the way (fresh start only).
+hand-made ones of the pre-sparring save, and destroys the loose objects of the save the bot does not want (a listed set of GUIDs, fresh start only).
 
 The Lua tests run the generated script with lupa (tests/lua_stub.lua); the session ones use a fake client; the
 `play` ones go through `play.main` against the fake table."""
@@ -29,7 +29,8 @@ from test_session import NICK, PIECES, Table  # noqa: F401
 lupa = pytest.importorskip("lupa")
 from lupa import lua54  # noqa: E402
 
-CENTRE_GUIDS = ["addeca", "cb6cbc", "65be8d", "5085eb"]
+REMOVED = ["addeca", "cb6cbc", "65be8d", "5085eb", "6126d5", "790396"]
+KEPT = ["d26d8c", "5c7e75", "45c723", "1523b0", "bf4717", "dfe8db", "28ff83", "f93f2a"]   # counters, board, fog of war, hand and scripting triggers
 
 
 def raw_config() -> dict:
@@ -45,9 +46,9 @@ def tts():
     return runtime
 
 
-def prepare(runtime, zones, park, rid=1):
+def prepare(runtime, zones, remove, rid=1):
     n = len(runtime.globals().SENT)
-    runtime.execute(lua.request(lua.prepare_table(zones, park), rid))
+    runtime.execute(lua.request(lua.prepare_table(zones, remove), rid))
     reply = conv(runtime.globals().SENT[n + 1])
     assert "err" not in reply, reply
     return json.loads(reply["value"])
@@ -124,57 +125,70 @@ def test_a_spawn_without_a_guid_is_reported_not_trusted(tts):
     assert prepare(tts, [spec()], [])["zones"]["bot_discard_zone"] == {"guid": "", "status": "no_guid"}
 
 
-# ---------- 2. the centre of the table: Lua ----------
-def centre(tts):
+# ---------- 2. the loose objects of the save: Lua ----------
+def table_objects(tts):
+    """The six objects to remove and eight that must stay, as in the official save."""
     tts.execute("""
-mkobj({guid = 'addeca', type = 'Deck', name = 'DeckCustom', pos = Vector(-5.7, 2.0, -1.5), rot = Vector(0, 270, 180)})
-mkobj({guid = 'cb6cbc', type = 'Deck', name = 'DeckCustom', pos = Vector(5.5, 2.0, -1.5), rot = Vector(0, 90, 180)})
-mkobj({guid = '65be8d', type = 'Die_20', name = 'Die_20', pos = Vector(-0.7, 2.7, -1.6), rot = Vector(0, 270.4, 0)})
-mkobj({guid = '5085eb', type = 'Generic', name = 'Custom_Assetbundle', pos = Vector(2.1, 1.7, -30.0), rot = Vector(0, 0, 0)})""")
+for _, g in ipairs({'addeca', 'cb6cbc', '65be8d', '5085eb', '6126d5', '790396'}) do mkobj({guid = g, type = 'Generic', name = 'Loose'}) end
+for _, g in ipairs({'d26d8c', '5c7e75', '45c723', '1523b0', 'bf4717', 'dfe8db', '28ff83', 'f93f2a'}) do mkobj({guid = g, type = 'Generic', name = 'Keep'}) end
+getObjectFromGUID('5085eb').locked = true""")
 
 
-def where(tts, guid):
-    return {k: tts.eval(f"getObjectFromGUID('{guid}').pos.{k}") for k in "xz"}
+def present(tts, guid):
+    return tts.eval(f"getObjectFromGUID('{guid}') ~= nil")
 
 
-def test_the_objects_of_the_centre_are_moved_to_their_spot_keeping_their_rotation(tts):
-    centre(tts)
-    plan = table_prep.park_plan(raw_config())
-    before = {g: vec(tts, f"getObjectFromGUID('{g}')", "rot") for g in CENTRE_GUIDS}
-    count = tts.eval("#OBJECTS")
-    res = prepare(tts, [], list(plan))
-    assert [p["guid"] for p in res["parked"]] == CENTRE_GUIDS
-    for guid, spot in plan:
-        assert where(tts, guid) == pytest.approx({"x": spot[0], "z": spot[2]})
-        assert vec(tts, f"getObjectFromGUID('{guid}')", "rot") == before[guid], "the rotation is kept"
-    assert tts.eval("#OBJECTS") == count, "nothing is destroyed or created"
+def test_only_the_listed_objects_are_destroyed_and_everything_else_stays(tts):
+    table_objects(tts)
+    res = prepare(tts, [], list(table_prep.removal_list(raw_config())))
+    assert [r["guid"] for r in res["removed"]] == REMOVED
+    assert not any(present(tts, g) for g in REMOVED)
+    assert all(present(tts, g) for g in KEPT)
+    assert tts.eval("#OBJECTS") == len(KEPT)
 
 
-def test_an_absent_object_is_skipped_and_the_others_still_move(tts):
-    centre(tts)
+def test_an_absent_object_is_skipped_and_the_others_are_still_destroyed(tts):
+    table_objects(tts)
     tts.execute("getObjectFromGUID('65be8d').destruct()")
-    res = prepare(tts, [], list(table_prep.park_plan(raw_config())))
-    assert [p["guid"] for p in res["parked"]] == ["addeca", "cb6cbc", "5085eb"]
+    res = prepare(tts, [], list(table_prep.removal_list(raw_config())))
+    assert [r["guid"] for r in res["removed"]] == ["addeca", "cb6cbc", "5085eb", "6126d5", "790396"]
 
 
-def test_nothing_to_move_is_an_empty_answer(tts):
-    assert prepare(tts, [], list(table_prep.park_plan(raw_config())))["parked"] == []
+def test_nothing_to_remove_is_an_empty_answer(tts):
+    assert prepare(tts, [], list(table_prep.removal_list(raw_config())))["removed"] == []
 
 
-def test_the_preparation_script_never_opens_destroys_or_touches_the_global_ui():
-    script = lua.prepare_table([spec()], list(table_prep.park_plan(raw_config())))
-    for forbidden in ("destruct", "takeObject", "putObject", "Global", "UI.", "spawnObjectData", "setLuaScript", "messageID"):
+def test_an_empty_list_destroys_nothing(tts):
+    table_objects(tts)
+    assert prepare(tts, [], [])["removed"] == [] and tts.eval("#OBJECTS") == len(REMOVED) + len(KEPT)
+
+
+def test_the_builder_destroys_only_listed_guids_and_never_by_area_or_type():
+    script = lua.prepare_table([], ["abc123", "def456"])
+    assert script.count("destruct()") == 1 and "for _, g in ipairs(REMOVE)" in script
+    assert 'local REMOVE = {"abc123", "def456"}' in script
+    body = script.split("for _, g in ipairs(REMOVE)", 1)[1]
+    assert "getObjects()" not in body and "o.type" not in body and "getObjectFromGUID(g)" in body
+    for forbidden in ("takeObject", "putObject", "Global", "UI.", "spawnObjectData", "setLuaScript", "messageID"):
         assert forbidden not in script, forbidden
-    assert script.startswith("-- sparring:prepare_table")
+
+
+def test_the_default_list_never_holds_a_counter_a_zone_a_trigger_or_the_board():
+    listed = set(table_prep.removal_list(raw_config()))
+    assert listed == set(REMOVED)
+    assert listed.isdisjoint(KEPT)
+    assert listed.isdisjoint({"d26d8c", "5c7e75"}), "the two hand cards counters stay"
+    raw = raw_config()
+    assert listed.isdisjoint({raw["bot_discard_zone"], raw["human_discard_zone"], raw["board_guid"], *raw["probe_guids"]})
 
 
 def test_the_builder_refuses_what_it_cannot_write_safely():
     with pytest.raises(ValueError):
-        lua.prepare_table([], [(f"g{i}", (0.0, 0.0, 0.0)) for i in range(lua.MAX_PREP_PARK + 1)])
+        lua.prepare_table([], [f"g{i}" for i in range(lua.MAX_PREP_REMOVE + 1)])
     with pytest.raises(ValueError):
         lua.prepare_table([("bot_discard_zone", ["bad guid!"], (0.0, 0.0, 0.0), (1.0, 1.0, 1.0), 270.0)], [])
-    with pytest.raises(TypeError):
-        lua.prepare_table([], [("abc", (0.0, 0.0))])
+    with pytest.raises(ValueError):
+        lua.prepare_table([], ["bad guid!"])
 
 
 # ---------- configuration ----------
@@ -203,9 +217,8 @@ def test_bot_discard_bounds_describe_the_zone_as_it_is_created():
 
 
 @pytest.mark.parametrize("over", [
-    {"clear_table_spots": [[0, 2, -28]]},                                   # fewer spots than GUIDs
-    {"clear_table_guids": "addeca"},                                        # not a list
-    {"clear_table_spots": [[0, 2], [0, 2], [0, 2], [0, 2]]},                # not (x, y, z)
+    {"remove_table_guids": "addeca"},                                       # not a list
+    {"remove_table_guids": ["addeca", 5]},                                  # not strings
     {"bot_discard_zone_spawn": {"position": [1, 2, 3]}},                    # no scale
     {"human_discard_zone_spawn": {"position": [1, 2, "x"], "scale": [1, 1, 1]}},
 ])
@@ -217,12 +230,12 @@ def test_a_badly_written_key_is_a_configuration_error(cfg_file, over):
 def test_the_session_config_carries_the_new_keys(cfg_file):
     scfg = load_config(cfg_file()).session_config()
     assert set(scfg.zone_spawns) == {"bot_discard_zone", "human_discard_zone"}
-    assert [g for g, _ in scfg.clear_plan] == CENTRE_GUIDS
+    assert list(scfg.remove_plan) == REMOVED
 
 
 def test_the_new_keys_are_documented_in_the_comment_block():
     notes = "\n".join(raw_config()["_notes"])
-    for key in ("discard_zone_rot_y", "bot_discard_zone_spawn", "human_discard_zone_spawn", "clear_table_guids", "clear_table_spots"):
+    for key in ("discard_zone_rot_y", "bot_discard_zone_spawn", "human_discard_zone_spawn", "remove_table_guids"):
         assert key in notes, key
 
 
@@ -254,49 +267,11 @@ def test_the_floor_layout_uses_the_straight_zone_and_still_clears_the_panel():
 
 
 def test_the_created_zones_overlap_no_hand_zone_of_the_official_save():
+    hands = [(-32.1, -27.9, -30.0, 28.0), (27.9, 32.1, -30.0, 28.0), (-16.1, 16.1, 28.0, 40.0)]   # the save's HandTriggers
     for spawn in table_prep.zone_spawns(raw_config()).values():
         x0, x1, z0, z1 = play._zone_rect((spawn.position[0], spawn.position[2], spawn.scale[0], spawn.scale[2], spawn.rot_y))
-        for _, (a0, a1, b0, b1) in play.HAND_AREAS:
+        for a0, a1, b0, b1 in hands:
             assert not (x0 < a1 and x1 > a0 and z0 < b1 and z1 > b0)
-
-
-# ---------- the parking spots ----------
-def test_every_parking_spot_is_clear_of_everything_the_bot_uses():
-    cfg = load_config(REAL_CONFIG)
-    assert play.park_warnings(cfg) == []
-    areas = play.reserved_areas(cfg)
-    names = " | ".join(n for n, _ in areas)
-    for expected in ("caja de combate", "ONGOING", "zonas de mano", "panel", "tablero", "mazo de robo", "descarte", "fila", "bot_tuck_spot", "bot_removed_spot",
-                     "card_zoom_spot", "dead_spot", "unpack"):
-        assert expected.lower() in names.lower(), expected
-    half = play.PARK_FOOTPRINT / 2
-    for guid, (x, y, z) in table_prep.park_plan(cfg.raw):
-        assert y >= 1.7, "above the table, not in it"
-        for name, (x0, x1, z0, z1) in areas:
-            assert not (x - half < x1 and x + half > x0 and z - half < z1 and z + half > z0), (guid, name)
-
-
-def test_the_parking_spots_do_not_overlap_each_other():
-    spots = [(g, s) for g, s in table_prep.park_plan(raw_config())]
-    for i, (_, a) in enumerate(spots):
-        for _, b in spots[i + 1:]:
-            assert abs(a[0] - b[0]) >= play.PARK_FOOTPRINT or abs(a[2] - b[2]) >= play.PARK_FOOTPRINT
-
-
-@pytest.mark.parametrize("spot, what", [
-    ([-12.5, 2.0, -24.5], "panel"),                    # under the panel
-    ([-2.0, 2.0, -18.0], "caja"),                      # on the human's combat box
-    ([15.0, 2.0, 0.0], "zona"),                        # inside the bot's discard zone
-    ([-12.0, 2.0, 5.0], "zona"),                       # inside the human's discard zone
-    ([11.5, 2.0, -29.0], "fila"),              # on the look column
-    ([30.0, 2.0, -9.0], "mano"),                       # on a hand zone
-])
-def test_a_parking_spot_on_something_the_bot_uses_is_warned(spot, what):
-    raw = {**raw_config(), "clear_table_spots": [spot, [4.0, 2.0, -28.0], [8.0, 2.0, -28.0], [2.1, 2.0, -33.0]]}
-    cfg = play.build_config(raw, ("default", "default"))
-    warnings = play.park_warnings(cfg)
-    assert warnings and what in " ".join(warnings), warnings
-    assert warnings == [w for w in play.floor_layout_warnings(cfg) if "clear_table_spots" in w], "start-up prints them"
 
 
 # ---------- 3. the session ----------
@@ -315,8 +290,8 @@ def make_session(client=None, **over) -> Session:
     return Session(Game.new(Board.load("bprd-hq"), seed=3, controllers={}), client or FakeClient(), MedusaAI(0), scfg)
 
 
-def answer(zones, parked=()):
-    return {"zones": zones, "parked": [{"guid": g, "name": "DeckCustom", "x": 1.0, "z": -28.0} for g in parked]}
+def answer(zones, removed=()):
+    return {"zones": zones, "removed": [{"guid": g, "name": "DeckCustom"} for g in removed]}
 
 
 CREATED = {"bot_discard_zone": {"guid": "newbot1", "status": "created"},
@@ -342,14 +317,14 @@ def test_a_created_zone_is_used_for_the_rest_of_the_session_and_said_in_the_chat
 
 def test_the_chat_lines_come_out_in_english_too():
     s = make_session(FakeClient(answer({"bot_discard_zone": {"guid": "906a7a", "status": "straightened"},
-                                        "human_discard_zone": CREATED["human_discard_zone"]}, parked=["addeca"])))
+                                        "human_discard_zone": CREATED["human_discard_zone"]}, removed=["addeca"])))
     i18n.set_language("en")
     s.prepare_table(resume=False)
     s._say_startup_notes()
     text = " | ".join(s.messages)
     assert "I straightened the bot discard zone (906a7a): rotation 0, 270, 0." in text
     assert "I created it (GUID newhum1)" in text
-    assert "I moved DeckCustom addeca out of the centre of the table to x 1.0, z -28.0" in text
+    assert "I removed DeckCustom addeca from the table" in text
 
 
 def test_a_straightened_zone_keeps_its_guid_and_is_said():
@@ -370,27 +345,27 @@ def test_a_zone_that_was_already_straight_says_nothing():
     assert s.messages == []
 
 
-def test_the_parked_objects_are_reported_one_by_one():
+def test_the_removed_objects_are_reported_one_by_one():
     s = make_session(FakeClient(answer({"bot_discard_zone": {"guid": "906a7a", "status": "found"},
-                                        "human_discard_zone": {"guid": "b7a0b8", "status": "found"}}, parked=CENTRE_GUIDS)))
+                                        "human_discard_zone": {"guid": "b7a0b8", "status": "found"}}, removed=REMOVED)))
     s.prepare_table(resume=False)
     s._say_startup_notes()
-    assert [g for g in CENTRE_GUIDS if any(g in m and "movido" in m for m in s.messages)] == CENTRE_GUIDS
+    assert [g for g in REMOVED if any(g in m and "quitado" in m for m in s.messages)] == REMOVED
 
 
-def test_a_fresh_start_sends_the_parking_plan_and_a_resume_does_not():
+def test_a_fresh_start_sends_the_removal_list_and_a_resume_does_not():
     fresh, resumed = FakeClient(answer(CREATED)), FakeClient(answer(CREATED))
     make_session(fresh).prepare_table(resume=False)
     make_session(resumed).prepare_table(resume=True)
-    assert all(g in fresh.scripts[0] for g in CENTRE_GUIDS)
-    assert not any(g in resumed.scripts[0] for g in CENTRE_GUIDS), "nothing is moved when resuming"
-    assert "local PARK = {}" in resumed.scripts[0]
+    assert all(g in fresh.scripts[0] for g in REMOVED)
+    assert not any(g in resumed.scripts[0] for g in REMOVED), "nothing is removed when resuming"
+    assert "local REMOVE = {}" in resumed.scripts[0]
 
 
 def test_nothing_is_sent_when_there_is_nothing_to_prepare():
     client = FakeClient(answer({}))
-    make_session(client, zone_spawns={}, clear_plan=()).prepare_table(resume=False)
-    make_session(client, zone_spawns={}, clear_plan=()).prepare_table(resume=True)
+    make_session(client, zone_spawns={}, remove_plan=()).prepare_table(resume=False)
+    make_session(client, zone_spawns={}, remove_plan=()).prepare_table(resume=True)
     assert client.scripts == []
     only_resume = make_session(client, zone_spawns={})
     only_resume.prepare_table(resume=True)
@@ -445,8 +420,7 @@ def test_a_persisted_zone_that_is_gone_on_resume_is_replaced_by_the_configured_o
 def test_a_fresh_start_prefers_the_configured_zone_and_reuses_a_leftover_one_before_creating_more():
     client = FakeClient(answer(CREATED))
     s = make_session(client)
-    s._saved_zones = {"bot_discard_zone": "newbot1", "bogus": "x"}
-    s.prepare_table(resume=False)
+    s.prepare_table(resume=False, saved_zones={"bot_discard_zone": "newbot1", "bogus": "x"})
     assert '{"bot_discard_zone", {"906a7a", "newbot1"}' in client.scripts[0]
     assert '{"human_discard_zone", {"b7a0b8"}' in client.scripts[0]
 
@@ -457,7 +431,7 @@ def test_a_malformed_zones_live_is_ignored():
 
 
 def test_the_zones_the_save_was_made_with_do_not_change_the_table_identity_of_a_save_without_them():
-    old = make_session(zone_spawns={}, clear_plan=())
+    old = make_session(zone_spawns={}, remove_plan=())
     new = make_session()
     assert old.fingerprint()["config_hash"] == new.fingerprint()["config_hash"]
 
@@ -480,30 +454,30 @@ def run_play(table, fake, ports, cfg_path, state, extra=(), until=None):
     return code["c"]
 
 
-def test_play_creates_the_zones_parks_the_centre_and_saves_the_new_guids(live, cfg_file, tmp_path):
+def test_play_creates_the_zones_removes_the_loose_objects_and_saves_the_new_guids(live, cfg_file, tmp_path):
     table, fake, ports = live
     table.new_zones = {"bot_discard_zone": "newbot1", "human_discard_zone": "newhum1"}
-    table.parkable = set(CENTRE_GUIDS)
+    table.removable = set(REMOVED)
     state = tmp_path / "s.json"
     assert run_play(table, fake, ports, cfg_file(), state, until=state.exists) == 0
     assert len(table.prepared) == 1, "one message for the whole preparation"
-    assert table.parked == CENTRE_GUIDS
+    assert table.removed == REMOVED
     chat = " ".join(table.broadcasts)
-    assert "la he creado" in chat and "He movido" in chat
+    assert "la he creado" in chat and "He quitado" in chat
     assert json.loads(state.read_text())["zones_live"] == {"bot_discard_zone": "newbot1", "human_discard_zone": "newhum1"}
     assert any("newbot1" in s for s in table.markings + table.scripts if "draw_markings" in s), "the floor marks the new zone"
 
 
-def test_play_resume_uses_the_saved_zone_and_moves_nothing(live, cfg_file, tmp_path):
+def test_play_resume_uses_the_saved_zone_and_removes_nothing(live, cfg_file, tmp_path):
     table, fake, ports = live
     table.new_zones = {"bot_discard_zone": "newbot1", "human_discard_zone": "newhum1"}
-    table.parkable = set(CENTRE_GUIDS)
+    table.removable = set(REMOVED)
     state = tmp_path / "s.json"
     assert run_play(table, fake, ports, cfg_file(), state, until=state.exists) == 0
-    table.new_zones, table.parked, table.prepared = {}, [], []
+    table.new_zones, table.removed, table.prepared = {}, [], []
     assert run_play(table, fake, ports, cfg_file(), state, ["--resume"],
                     until=lambda: any("reanudada" in b for b in table.broadcasts)) == 0, "the save of the first run is accepted"
-    assert table.parked == [] and "local PARK = {}" in table.prepared[0]
+    assert table.removed == [] and "local REMOVE = {}" in table.prepared[0]
     assert '{"bot_discard_zone", {"newbot1", "BOTZ"}' in table.prepared[0]
     assert json.loads(state.read_text())["zones_live"]["bot_discard_zone"] == "newbot1"
 
@@ -512,8 +486,74 @@ def test_play_with_an_old_style_config_prepares_nothing(live, cfg_file, tmp_path
     table, fake, ports = live
     path = cfg_file()
     data = json.loads(path.read_text())
-    for key in ("bot_discard_zone_spawn", "human_discard_zone_spawn", "clear_table_guids", "clear_table_spots"):
+    for key in ("bot_discard_zone_spawn", "human_discard_zone_spawn", "remove_table_guids"):
         data.pop(key)
     path.write_text(json.dumps(data), encoding="utf-8")
     assert run_play(table, fake, ports, path, tmp_path / "s.json", until=(tmp_path / "s.json").exists) == 0
     assert table.prepared == []
+
+
+# ---------- review fixes ----------
+def test_a_zone_with_the_spawn_transform_under_an_unknown_guid_is_adopted_not_duplicated(tts):
+    """An earlier run created the zones and died before saving their GUIDs: no state file, no known GUID."""
+    first = prepare(tts, [spec(), spec("human_discard_zone", ("b7a0b8",))], [])
+    assert tts.eval("#SPAWNS") == 2
+    tts.execute("SPAWNS[1].rot = Vector(0, 12, 0)")          # any rotation counts
+    again = prepare(tts, [spec(), spec("human_discard_zone", ("b7a0b8",))], [], rid=2)
+    assert tts.eval("#SPAWNS") == 2, "nothing is spawned a second time"
+    assert {k: v["guid"] for k, v in again["zones"].items()} == {k: v["guid"] for k, v in first["zones"].items()}
+    assert again["zones"]["bot_discard_zone"]["status"] == "straightened"
+    assert vec(tts, "SPAWNS[1]", "rot")["y"] == 270.0
+
+
+def test_a_zone_that_is_far_from_the_transform_is_not_adopted(tts):
+    tts.execute("""mkobj({guid = 'other1', type = 'Scripting', pos = Vector(14.9677, 4.1422, 12.0), scale = Vector(35.4306, 5.1, 8.5464)})
+                  mkobj({guid = 'other2', type = 'Scripting', pos = Vector(14.9677, 4.1422, 0.7422), scale = Vector(3, 5.1, 3)})""")
+    assert prepare(tts, [spec()], [])["zones"]["bot_discard_zone"]["status"] == "created"
+
+
+def test_two_zones_never_adopt_the_same_object(tts):
+    tts.execute("mkobj({guid = 'one111', type = 'Scripting', pos = Vector(14.9677, 4.1422, 0.7422), scale = Vector(35.4306, 5.1, 8.5464)})")
+    res = prepare(tts, [spec(), spec("human_discard_zone", ("b7a0b8",))], [])
+    assert res["zones"]["bot_discard_zone"]["guid"] == "one111"
+    assert res["zones"]["human_discard_zone"]["status"] == "created"
+
+
+def test_the_guids_are_on_disk_as_soon_as_the_preparation_is_done(tmp_path):
+    s = make_session(FakeClient(answer(CREATED)))
+    s.state_path = tmp_path / "s.json"
+    s.prepare_table(resume=False)
+    assert json.loads(s.state_path.read_text())["zones_live"] == {"bot_discard_zone": "newbot1", "human_discard_zone": "newhum1"}
+
+
+def test_nothing_is_written_when_no_zone_was_replaced(tmp_path):
+    s = make_session(FakeClient(answer({"bot_discard_zone": {"guid": "906a7a", "status": "found"},
+                                        "human_discard_zone": {"guid": "b7a0b8", "status": "found"}})))
+    s.state_path = tmp_path / "s.json"
+    s.prepare_table(resume=False)
+    assert not s.state_path.exists()
+
+
+def read_only(live, cfg_file, tmp_path, state_zones):
+    table, fake, ports = live
+    table.missing_guids = {"BOTZ"}
+    state = tmp_path / "s.json"
+    if state_zones:
+        state.write_text(json.dumps({"version": 1, "zones_live": state_zones}), encoding="utf-8")
+    assert play.main(["--config", str(cfg_file()), "--read-only", "--state", str(state), *ports]) == 0
+    return table
+
+
+def test_read_only_reports_the_saved_zone_instead_of_the_missing_configured_one(live, cfg_file, tmp_path, capsys):
+    table = read_only(live, cfg_file, tmp_path, {"bot_discard_zone": "newbot1"})
+    out = capsys.readouterr().out
+    assert "newbot1" in out
+    assert not any("NO existe" in line for line in out.splitlines() if "BOTZ" in line)
+    assert any('"newbot1"' in s for s in table.scripts if s.startswith("-- sparring:read_discard"))
+    assert not any(s.startswith("-- sparring:prepare_table") for s in table.scripts), "read-only creates nothing"
+
+
+def test_read_only_without_a_saved_zone_still_says_the_configured_one_is_missing(live, cfg_file, tmp_path, capsys):
+    read_only(live, cfg_file, tmp_path, None)
+    out = capsys.readouterr().out
+    assert any("BOTZ" in line and "NO existe" in line for line in out.splitlines())

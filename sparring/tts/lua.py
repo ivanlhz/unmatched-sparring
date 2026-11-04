@@ -1140,41 +1140,39 @@ return JSON.encode(out)
 
 
 MAX_PREP_ZONES = 4
-MAX_PREP_PARK = 12
+MAX_PREP_REMOVE = 12
 ZONE_ANGLE_TOLERANCE = 0.05      # degrees: a zone this close to the wanted rotation is already straight
+ZONE_MATCH_TOLERANCE = 1.5       # units: a Scripting zone whose position and scale are this close to the spawn transform is that zone
 
 
 @_registered
-def prepare_table(zones: list[tuple[str, list[str], tuple, tuple, float]],
-                  park: list[tuple[str, tuple[float, float, float]]]) -> str:
+def prepare_table(zones: list[tuple[str, list[str], tuple, tuple, float]], remove: list[str]) -> str:
     """Start-up preparation of a table that was not made for the bot, in ONE message.
 
     `zones` = (key, candidate GUIDs, position, scale, rotY) of each Scripting zone the bot needs. The first candidate that
     is a Scripting zone is used and set to rotation (0, rotY, 0) (`straightened` if it was off, `found` if it was already
-    straight); if none is on the table a Scripting zone (`ScriptingTrigger`) is spawned with that transform (`created`;
-    TTS gives it a new GUID, returned as `guid`; `no_guid` if it did not give one). `park` = (GUID, position): each of those
-    objects that is on the table is MOVED to its position keeping its rotation (never opened, never destroyed); the ones that
-    are absent are left out. Returns `{zones = {key = {guid, status}}, parked = [{guid, name, x, z}]}`. It touches neither
-    the Global nor the UI."""
-    if not isinstance(zones, (list, tuple)) or len(zones) > MAX_PREP_ZONES or not isinstance(park, (list, tuple))             or len(park) > MAX_PREP_PARK:
+    straight); if none is, a Scripting zone already on the table under any other GUID whose position and scale match the
+    transform (within `ZONE_MATCH_TOLERANCE`, any rotation) is adopted the same way (a zone created by an earlier run whose
+    GUID was never saved); only if there is none a Scripting zone (`ScriptingTrigger`) is spawned with that transform (`created`;
+    TTS gives it a new GUID, returned as `guid`; `no_guid` if it did not give one). `remove` = GUIDs: each of those objects that is on the table is DESTROYED (the absent ones are skipped). Only those GUIDs, never by area or type. Returns `{zones = {key = {guid, status}}, removed = [{guid, name}]}`.
+    It touches neither the Global nor the UI."""
+    if not isinstance(zones, (list, tuple)) or len(zones) > MAX_PREP_ZONES or not isinstance(remove, (list, tuple)) \
+            or len(remove) > MAX_PREP_REMOVE:
         raise ValueError("too many zones or objects to prepare")
-    zone_rows, park_rows = [], []
+    zone_rows = []
     for key, candidates, pos, scale, rot_y in zones:
         if not isinstance(candidates, (list, tuple)) or len(pos) != 3 or len(scale) != 3:
             raise TypeError("zone: (key, [GUID], (x, y, z), (sx, sy, sz), rotY) expected")
         zone_rows.append(f'{{{lua_str(key)}, {_guid_list(candidates)}, {{{", ".join(_f(v) for v in pos)}}}, '
                          f'{{{", ".join(_f(v) for v in scale)}}}, {_f(rot_y)}}}')
-    for guid, pos in park:
-        if len(pos) != 3:
-            raise TypeError("spot (x, y, z) expected")
-        park_rows.append(f'{{{_guid(guid)}, {_f(pos[0])}, {_f(pos[1])}, {_f(pos[2])}}}')
     return f"""-- sparring:prepare_table
 {ZONE_LUA}local ZONES = {{{", ".join(zone_rows)}}}
-local PARK = {{{", ".join(park_rows)}}}
+local REMOVE = {_guid_list(remove)}
 local function off(a, b)
   return math.abs(((a - b + 180) % 360) - 180)
 end
-local out = {{zones = {{}}, parked = {{}}}}
+local out = {{zones = {{}}, removed = {{}}}}
+local taken = {{}}
 for _, zr in ipairs(ZONES) do
   local key, candidates, pos, scale, rotY = zr[1], zr[2], zr[3], zr[4], zr[5]
   local zone = nil
@@ -1182,6 +1180,20 @@ for _, zr in ipairs(ZONES) do
     local c = getObjectFromGUID(g)
     if isZone(c) then zone = c break end
   end
+  if zone == nil then
+    for _, c in ipairs(getObjects()) do
+      if isZone(c) and not taken[c.getGUID()] then
+        local cp, cs = c.getPosition(), c.getScale()
+        if math.abs(cp.x - pos[1]) <= {_f(ZONE_MATCH_TOLERANCE)} and math.abs(cp.y - pos[2]) <= {_f(ZONE_MATCH_TOLERANCE)}
+           and math.abs(cp.z - pos[3]) <= {_f(ZONE_MATCH_TOLERANCE)}
+           and math.abs(cs.x - scale[1]) <= {_f(ZONE_MATCH_TOLERANCE)} and math.abs(cs.z - scale[3]) <= {_f(ZONE_MATCH_TOLERANCE)} then
+          zone = c
+          break
+        end
+      end
+    end
+  end
+  if zone ~= nil then taken[zone.getGUID()] = true end
   local status = "found"
   if zone ~= nil then
     local r = zone.getRotation()
@@ -1202,11 +1214,12 @@ for _, zr in ipairs(ZONES) do
     out.zones[key] = {{guid = guid, status = status}}
   end
 end
-for _, p in ipairs(PARK) do
-  local o = getObjectFromGUID(p[1])
+for _, g in ipairs(REMOVE) do
+  local o = getObjectFromGUID(g)
   if o ~= nil then
-    o.setPositionSmooth(Vector(p[2], p[3], p[4]), false, true)
-    table.insert(out.parked, {{guid = p[1], name = o.name, x = p[2], z = p[4]}})
+    local name = o.name
+    o.destruct()
+    table.insert(out.removed, {{guid = g, name = name}})
   end
 end
 return JSON.encode(out)

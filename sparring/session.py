@@ -167,7 +167,7 @@ class SessionConfig:
     card_zoom_spot: tuple[float, float, float] = (0.0, 12.0, 0.0)   # where it floats: above the board centre, outside every zone
     card_zoom_rot: tuple[float, float, float] | None = None      # (x, y, z) degrees; default flat, readable from the human's seat
     zone_spawns: dict[str, ZoneSpawn] = field(default_factory=dict)   # discard zone key -> transform to create / straighten it with
-    clear_plan: tuple[tuple[str, tuple[float, float, float]], ...] = ()   # (GUID, parking spot) of what is moved out of the table's centre
+    remove_plan: tuple[str, ...] = ()   # GUIDs of the loose objects of the official save destroyed at a fresh start
 
 
 def zoom_spec(cfg: "SessionConfig") -> lua.ZoomSpec | None:
@@ -3574,22 +3574,26 @@ class Session:
         setattr(self.cfg, key, guid)
         self._snap_spec = None                              # the snapshot reads the zones by GUID
 
-    def prepare_table(self, resume: bool) -> None:
+    def prepare_table(self, resume: bool, saved_zones: dict[str, str] | None = None) -> None:
         """Makes the table usable before anything reads it: a discard zone the save lacks is created (a straight one) and
-        one it has is straightened; on a fresh start, whatever `clear_plan` lists that sits in the middle of the table is
-        moved to its parking spot (never on `resume`: the game is already laid out). One message to TTS, only if there is
+        one it has is straightened; on a fresh start, the objects of `remove_plan` that are on the table are destroyed (only
+        those GUIDs; never on `resume`: the game is already laid out). One message to TTS, only if there is
         something to do. The GUID of a created zone is used from now on and saved in the session file (`zones_live`).
-        What it did is said by the start / resume (`_startup_notes`)."""
+        What it did is said by the start / resume (`_startup_notes`). `saved_zones` = the `zones_live` of an earlier session
+        file, for a fresh start (on resume they come from the loaded file). The adopted or created GUIDs are saved at once,
+        so a Ctrl+C before the game begins does not lose them."""
         c = self.cfg
-        park = [] if resume else list(c.clear_plan)
-        if not c.zone_spawns and not park:
+        if saved_zones:
+            self._saved_zones = self.read_saved_zones(saved_zones)
+        remove = [] if resume else list(c.remove_plan)
+        if not c.zone_spawns and not remove:
             return
         zones = []
         for key, spawn in c.zone_spawns.items():
             saved, configured = self._saved_zones.get(key), getattr(c, key)
             candidates = [g for g in ((saved, configured) if resume else (configured, saved)) if g]
             zones.append((key, list(dict.fromkeys(candidates)), spawn.position, spawn.scale, spawn.rot_y))
-        res = self.client.call_lua(lua.prepare_table(zones, park))
+        res = self.client.call_lua(lua.prepare_table(zones, remove))
         if not isinstance(res, dict):
             raise SessionError(t("err.prepare_reply", got=repr(str(res)[:80])))
         found = res.get("zones") if isinstance(res.get("zones"), dict) else {}
@@ -3605,10 +3609,11 @@ class Session:
             elif status == "straightened":
                 self._startup_notes.append((t("prep.zone_straightened", role=role, guid=guid, rot=spawn.rot_y),
                                             ChatKind.WARNING))
-        for row in res.get("parked") if isinstance(res.get("parked"), list) else []:
+        for row in res.get("removed") if isinstance(res.get("removed"), list) else []:
             if isinstance(row, dict) and isinstance(row.get("guid"), str):
-                self._startup_notes.append((t("prep.parked", what=row.get("name") or "", guid=row["guid"],
-                                              x=float(row.get("x", 0)), z=float(row.get("z", 0))), ChatKind.WARNING))
+                self._startup_notes.append((t("prep.removed", what=row.get("name") or "", guid=row["guid"]), ChatKind.WARNING))
+        if self._live_zones():
+            self._persist()
 
     def _say_startup_notes(self) -> None:
         for text, kind in self._startup_notes:

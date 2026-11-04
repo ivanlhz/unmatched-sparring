@@ -999,14 +999,10 @@
  "sleight.bot_manual": "I could not do it on the table: take {old} from the bot's combat spot back to its hand and put {new} face up there instead.",
  "sleight.missing": "{card} is no longer on your combat spot and there is no new card there: put the card you play instead on your combat spot (or put {card} back) and press [[btn.done]] again.",
  "cfg.vec3": "{key}: three numbers (x, y, z) expected",
- "cfg.clear_table": "clear_table_guids and clear_table_spots: two lists of the same length (GUIDs, and one (x, y, z) spot for each)",
  "prep.zone_created": "The {role} discard zone was not on the table: I created it (GUID {guid}).",
  "prep.zone_straightened": "I straightened the {role} discard zone ({guid}): rotation 0, {rot:g}, 0.",
  "prep.zone_no_guid": "TTS did not give a GUID to the {role} discard zone I created: restart the bot once the table has settled.",
- "prep.parked": "I moved {what} {guid} out of the centre of the table to x {x:.1f}, z {z:.1f} (nothing opened or destroyed).",
- "layout.park_overlap": "parking spot of {guid} (clear_table_spots, x {x0:.1f}..{x1:.1f}, z {z0:.1f}..{z1:.1f}) overlaps {name}: move it in the configuration.",
- "layout.hands": "hand zones",
  "err.prepare_reply": "invalid answer to the table preparation: {got}",
- "layout.board": "the board",
- "layout.deck": "{side} draw deck"
+ "cfg.remove_table": "remove_table_guids: a list of GUIDs (strings)",
+ "prep.removed": "I removed {what} {guid} from the table (it was not needed)."
 }

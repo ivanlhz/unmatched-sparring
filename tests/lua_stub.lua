@@ -51,6 +51,7 @@ function mkobj(o)
   o.setLock = function(v) o.locked = v end
   if not o.no_smooth then o.isSmoothMoving = function() return o.smooth == true end end
   o.setScale = function(v) o.scale = v end
+  o.getScale = function() local s = o.scale or vec(1, 1, 1); return vec(s.x, s.y, s.z) end
   o.getData = function()
     if o.data then return o.data end
     if o.type == "Card" then return {CardID = o.cid, CustomDeck = customDeck(o.owner, o.cid, o.deck_key)} end
