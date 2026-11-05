@@ -178,10 +178,16 @@ def validate(data: dict, expected: dict | None = None, zone_names: list[str] | N
     for b in data.get("bonuses") or []:
         if b["to"] not in adj.get(b["from"], ()):
             problems.append(f"bonus {b['from']}->{b['to']}: the spaces are not adjacent")
+    seen_hazards: set[tuple[int, int]] = set()
     for h in data.get("hazards") or []:
         a, b = h["edge"]
         if b not in adj.get(a, ()):
             problems.append(f"hazard {a}-{b}: the spaces are not adjacent")
+        if type(h.get("damage")) is not int or not 1 <= h["damage"] <= MAX_HAZARD:
+            problems.append(f"hazard {a}-{b}: damage {h.get('damage')!r} is not a whole number from 1 to {MAX_HAZARD}")
+        if (min(a, b), max(a, b)) in seen_hazards:
+            problems.append(f"hazard {a}-{b} is listed twice")
+        seen_hazards.add((min(a, b), max(a, b)))
     one_way = data.get("one_way") or []
     for a, b in one_way:
         if b not in adj.get(a, ()):

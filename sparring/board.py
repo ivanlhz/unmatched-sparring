@@ -32,6 +32,9 @@ def catalog() -> list[MapEntry]:
     return [MapEntry(e["key"], e["name"], e["imageKey"], e["status"], e.get("reason")) for e in raw]
 
 
+MAX_HAZARD = 3      # the largest damage a hazard edge may deal (the map checker accepts the same)
+
+
 def edge_key(a: int, b: int) -> tuple[int, int]:
     return (a, b) if a < b else (b, a)
 
@@ -75,7 +78,14 @@ class Board:
         passages = tuple(tuple(g) for g in raw.get("passages", ()))
         bonuses = {(b["from"], b["to"]): b["value"] for b in raw.get("bonuses", ())}
         one_way = tuple((a, b) for a, b in raw.get("one_way", ()))
-        hazards = {edge_key(*h["edge"]): h["damage"] for h in raw.get("hazards", ())}
+        hazards: dict[tuple[int, int], int] = {}
+        for h in raw.get("hazards", ()):
+            edge, damage = h.get("edge"), h.get("damage")
+            if (not isinstance(edge, list) or len(edge) != 2 or not all(type(v) is int for v in edge)
+                    or type(damage) is not int or not 1 <= damage <= MAX_HAZARD
+                    or edge[1] not in adj.get(edge[0], ()) or edge_key(*edge) in hazards):
+                raise ValueError(f"{raw['key']}: bad hazard {h}")
+            hazards[edge_key(*edge)] = damage
         return cls(raw["key"], raw["name"], spaces, adj, raw["starts"], passages, bonuses, one_way, hazards)
 
     def _bfs(self, src: int) -> dict[int, int]:
@@ -113,7 +123,15 @@ class Board:
         shortest of those on a tie; it cannot enter `blocked` spaces. Empty when the board has no hazards or there is no path."""
         if not self.hazards or src == dst:
             return []
-        cap = self.distance(src, dst) if steps is None else steps
+        cap = steps
+        if cap is None:                          # the shortest way the blockers leave open
+            seen, frontier, cap = {src}, [src], 0
+            while frontier and dst not in seen:
+                cap += 1
+                frontier = [n for node in frontier for n in sorted(self.moves[node])
+                            if n not in seen and n not in blocked and not seen.add(n)]
+            if dst not in seen:
+                return []
         layers: list[dict[int, tuple[int, int | None]]] = [{src: (0, None)}]
         for _ in range(cap):
             nxt: dict[int, tuple[int, int | None]] = {}

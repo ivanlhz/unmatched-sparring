@@ -234,7 +234,9 @@ class Game:
         self.bot_player: int | None = None     # who the bot plays: its not yet coded effects are not resolved by the human
         self.effect_shield: dict[int, int] = {}
         self.hazard_taken: set[tuple[str, tuple[int, int]]] = set()    # (fighter, hazard edge) already paid this turn
-        self.hazard_hits: list[tuple[str, tuple[int, int], int]] = []  # (fighter, edge, damage) not yet announced by the session
+        self.hazard_hits: list[tuple[str, tuple[int, int], float, float]] = []  # (fighter, edge, damage dealt, hp before) not yet announced
+        self.hazard_hook = None      # called after a walk that hurt someone (the session announces and writes the dials)
+        self.placing: set[str] = set()      # fighters a table player puts down by hand now: a new position read for them is a placement
         self.drawn = [0, 0]
         self.draw_events = [0, 0]      # cards drawn since the start, never reset (`drawn` is: the deal settles it); for the game log
         self.phantom_draws = 0   # draws the AI expects when simulating (unknown cards), never in a real game
@@ -480,9 +482,12 @@ class Game:
         for edge in crossed:
             self.hazard_taken.add((fighter.fid, edge))
             if fighter.alive:
-                dmg = self.board.hazards[edge]
-                self.hazard_hits.append((fighter.fid, edge, dmg))
-                self.damage(fighter, dmg, "hazard")
+                before = fighter.hp
+                dealt = self.damage(fighter, self.board.hazards[edge], "hazard")
+                if dealt:
+                    self.hazard_hits.append((fighter.fid, edge, dealt, before))
+        if self.hazard_hits and self.hazard_hook is not None:
+            self.hazard_hook()
 
     def place_fighter(self, fighter: Fighter, dest: int) -> None:
         """Puts the fighter on any empty space (a placement, not a move: no path, no range)."""
@@ -578,6 +583,7 @@ class Game:
         """Starts the turn of `self.turn`: 2 actions and its ONGOING schemes expire. Returns what expired."""
         self.actions_left = 2
         self.hazard_taken.clear()
+        self.placing.clear()
         expired = ongoing.expiring_parts(self, self.turn)
         ongoing.expire_legacy(self, self.turn)
         self.fx.emit("start_of_turn", self.turn)

@@ -1002,6 +1002,7 @@ class Session:
         if self.game.fx.intents is None:
             self.game.fx.intents = []             # the ops report what they do to the table: the translators take it
         self.game.hand_reader = self._read_human_hand
+        self.game.hazard_hook = lambda: self._announce_hazards(write_dials=True)
 
     def _read_human_hand(self, player: int) -> list[Card]:
         hidden.note_look(self, player)
@@ -3452,7 +3453,6 @@ class Session:
                 if act.kind in ("scheme", "glance", "frenzy"):
                     self.zoom_ids.add(act.card.card_id)       # the human reads it when it leaves the hand for the discard
                 self.ai.execute(g, act)
-                self._announce_hazards()
                 self._note_boost(act, fx_before, actions0)
                 self._mark_dirty(before)
                 self._persist()
@@ -4848,10 +4848,10 @@ class Session:
         `write_dials` the life dials are written (the human's move has no action of the bot to carry them)."""
         g = self.game
         hits, g.hazard_hits = g.hazard_hits, []
-        for fid, (a, b), dmg in hits:
+        for fid, (a, b), dmg, before in hits:
             f = g.fighters[fid]
-            after = max(f.hp, 0)
-            self.say(t("hazard.hit", name=self._name(f), a=a, b=b, dmg=dmg, before=after + dmg, after=after), ChatKind.COMBAT)
+            self.say(t("hazard.hit", name=self._name(f), a=a, b=b, dmg=dmg, before=before, after=max(before - dmg, 0)),
+                     ChatKind.COMBAT)
             if not f.alive:
                 self._announce_fall(f)
         if hits and write_dials:
@@ -4859,6 +4859,15 @@ class Session:
         if hits and g.winner is not None:
             self.say(t("game.over_fix", winner=g.winner))
             self._game_over_dialog()
+
+    def _hand_move_pays(self, f: Fighter) -> bool:
+        """Whether a change of position read from the table is a real move by the human (hazard edges hurt) and not a
+        placement: the setup places pieces, effects put them down by hand (`game.placing`), and ESCAPE ARTIST places the
+        hero instead of moving it (a boosted maneuver cannot be told from a plain one on the table: never charged)."""
+        g = self.game
+        if f.owner != self.human or not g.board.hazards or self.setup is not None or f.fid in g.placing:
+            return False
+        return not (f.hero and g.fx.hero_rule(f.owner, "maneuver_boost_places_hero"))
 
     def sync_positions(self) -> None:
         for fid, info in self._table_pieces().items():
@@ -4876,11 +4885,12 @@ class Session:
             elif info["space"] != f.pos and not self.game.fx.can_move(f):
                 self._warn(fid, "pinned", t("warn.pinned", name=name, where=describe(self.game, f.pos, (fid,), self._name)))
             else:
-                if info["space"] != f.pos and f.pos is not None and f.owner == self.human and self.game.board.hazards:
+                if info["space"] != f.pos and f.pos is not None and self._hand_move_pays(f):
                     # the human moved this piece by hand: only the two ends are known, so the least-hazard shortest way is charged
                     self.game.walk(f, info["space"], None)
-                    self._announce_hazards(write_dials=True)
                 else:
+                    if info["space"] != f.pos:
+                        self.game.placing.discard(fid)
                     f.pos = info["space"]
                 for kind in ("missing", "off", "pinned"):
                     self._warned.discard((fid, kind))

@@ -47,7 +47,7 @@ def test_a_move_across_a_hazard_edge_hurts_once_per_turn():
     g, med = duel()
     hp = med.hp
     g.move_fighter(med, 2, 1)
-    assert med.hp == hp - 1 and g.hazard_hits == [("medusa", edge_key(0, 2), 1)]
+    assert med.hp == hp - 1 and g.hazard_hits == [("medusa", edge_key(0, 2), 1, hp)]
     g.move_fighter(med, 0, 1)                                           # the same edge again, same turn: free
     g.move_fighter(med, 2, 1)
     assert med.hp == hp - 1
@@ -114,3 +114,55 @@ def test_the_bot_does_not_walk_into_a_hazard_for_a_small_gain(monkeypatch):
     assert ai.best_dest(g, Model(g, 0), med, 3, False) == 2
     g.board.hazards = into_two                                              # 2 costs 2 HP now: not worth 1 point
     assert ai.best_dest(g, Model(g, 0), med, 3, False) != 2
+
+
+def test_a_human_move_with_blockers_pays_for_the_way_that_is_open():
+    g, _ = duel(hazards={})
+    b = g.board
+    for src in sorted(b.spaces):
+        for dst in sorted(b.spaces):
+            mids = [m for m in b.moves[src] if dst in b.moves[m]] if b.distance(src, dst) == 2 else []
+            alts = [(x, y) for x in b.moves[src] if len(mids) == 1 and x != mids[0] for y in b.moves[x]
+                    if y not in (src, mids[0]) and dst in b.moves[y]]
+            if alts:
+                x, y = alts[0]
+                b.hazards = {edge_key(y, dst): 3}
+                free = [q for q in sorted(b.spaces) if q not in {src, dst, mids[0], x, y}]
+                place(g, hellboy=src, medusa=mids[0], lobster=free[0], harpy1=free[1], harpy2=free[2], harpy3=free[3])
+                hb = g.fighters["hellboy"]
+                hp = hb.hp
+                g.walk(hb, dst, None)
+                assert hb.hp == hp - 3, "the only open way crosses the hazard"
+                return
+    raise AssertionError("no such place on bprd-hq")
+
+
+def test_each_hit_records_the_hp_before_and_the_damage_really_dealt(monkeypatch):
+    g, med = duel(hazards={edge_key(0, 2): 2, edge_key(2, 4): 3, edge_key(0, 3): 3, edge_key(3, 4): 3})
+    monkeypatch.setattr(type(g.fx), "adjust_damage", lambda self, f, n, source: n - 1)        # an effect that softens every hit by 1
+    hp = med.hp
+    g.move_fighter(med, 4, 2)
+    assert g.hazard_hits == [("medusa", edge_key(0, 2), 1, hp), ("medusa", edge_key(2, 4), 2, hp - 1)]
+
+
+def test_a_hit_that_is_prevented_is_not_recorded(monkeypatch):
+    g, med = duel()
+    monkeypatch.setattr(type(g.fx), "adjust_damage", lambda self, f, n, source: 0)
+    g.move_fighter(med, 2, 1)
+    assert g.hazard_hits == [] and med.hp == med.max_hp and g.hazard_taken
+
+
+def test_a_board_rejects_bad_hazards(tmp_path):
+    adj = {0: [1], 1: [0, 2], 2: [1]}
+    for bad in ([{"edge": [0, 2], "damage": 1}], [{"edge": [0, 1], "damage": 0}], [{"edge": [0, 1], "damage": 4}],
+                [{"edge": [0, 1], "damage": 1.5}], [{"edge": [0, 1], "damage": 1}, {"edge": [1, 0], "damage": 2}],
+                [{"edge": [0, 9], "damage": 1}], [{"damage": 1}]):
+        data = {"key": "t", "name": "T", "starts": {"1": 0, "2": 2}, "hazards": bad,
+                "spaces": [{"id": i, "local": [float(i), 0.0], "zones": ["red"], "adj": adj[i]} for i in range(3)]}
+        path = tmp_path / "t.json"
+        path.write_text(json.dumps(data), encoding="utf-8")
+        try:
+            Board.load(path)
+        except ValueError:
+            continue
+        raise AssertionError(f"accepted {bad}")

@@ -362,6 +362,7 @@ def _return_to_board(run, game, spec, op_name: str, targets, hp) -> None:
     for f, spot, by_hand in _plan_spots(game, run, targets, spec["where"], chooser, op_name, hp=hp, alive=True):
         f.alive, f.pos, f.hp = True, spot, min(hp, f.max_hp)
         if by_hand:
+            game.placing.add(f.fid)
             table.note(run, op=op_name, fid=f.fid, where=_note_where(game, run, spec["where"]), hp=f.hp)
         else:
             table.intent(game, op=op_name, fid=f.fid, owner=f.owner)
@@ -374,6 +375,7 @@ def _place(run, game, spec):
                if f.alive and game.fx.can_move(f)]
     for f, spot, by_hand in _plan_spots(game, run, targets, spec["where"], chooser, "place"):
         if by_hand:
+            game.placing.add(f.fid)
             table.note(run, op="place", fid=f.fid, where=_note_where(game, run, spec["where"]))
         elif spot != f.pos:
             f.pos = spot
@@ -390,6 +392,7 @@ def _swap(run, game, spec):
         first, second = a[0], b[0]
         swapped = [first.fid, second.fid]
         if table.piece_is_physical(game, chooser, first) and table.piece_is_physical(game, chooser, second):
+            game.placing.update((first.fid, second.fid))
             table.note(run, op="swap", fid=first.fid, other=second.fid)      # the table player swaps their miniatures by hand
         else:
             first.pos, second.pos = second.pos, first.pos

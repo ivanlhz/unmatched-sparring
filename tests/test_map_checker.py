@@ -405,3 +405,12 @@ def test_a_confirmed_map_gets_its_one_way_edges_through_the_server_when_reconfir
 def test_a_one_way_edge_marked_in_both_directions_is_reported_once():
     both = mc.apply_edit(ring(), {"one_way": [[0, 1], [1, 0]]})
     assert [p for p in mc.validate(both) if "both directions" in p] == ["edge 0-1 is one-way in both directions, so nobody can cross it"]
+
+
+def test_the_check_flags_a_hazard_with_a_bad_damage_or_listed_twice():
+    base = ring()
+    for damage in (0, mc.MAX_HAZARD + 1, 1.5, "2"):
+        bad = {**base, "hazards": [{"edge": [0, 1], "damage": damage}]}
+        assert any("damage" in p for p in mc.validate(bad)), damage
+    twice = {**base, "hazards": [{"edge": [0, 1], "damage": 1}, {"edge": [1, 0], "damage": 2}]}
+    assert any("listed twice" in p for p in mc.validate(twice))
