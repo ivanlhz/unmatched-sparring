@@ -296,6 +296,7 @@ class Game:
         g.bot_player = self.bot_player
         g.effect_shield = dict(self.effect_shield)
         g.hazard_taken, g.hazard_hits = set(self.hazard_taken), []
+        g.placing, g.hazard_hook = set(self.placing), None      # a clone never announces
         g.drawn = [0, 0]
         g.draw_events = [0, 0]
         g.phantom_draws = self.phantom_draws

@@ -166,3 +166,26 @@ def test_a_board_rejects_bad_hazards(tmp_path):
         except ValueError:
             continue
         raise AssertionError(f"accepted {bad}")
+
+
+def test_a_clone_can_begin_a_turn_and_walk_across_a_hazard_without_announcing():
+    g, med = duel()
+    g.placing.add("lobster")
+    g.hazard_hook = lambda: (_ for _ in ()).throw(AssertionError("a clone must never announce"))
+    c = g.clone()
+    assert c.placing == {"lobster"} and c.placing is not g.placing and c.hazard_hook is None
+    c.end_turn()
+    c.begin_turn()
+    assert c.placing == set()
+    cm = c.fighters["medusa"]
+    hp = cm.hp
+    c.move_fighter(cm, 2, 1)
+    assert cm.hp == hp - 1 and med.hp == hp
+
+
+def test_a_pending_hand_placement_survives_a_save():
+    g, _ = duel()
+    g.placing.add("lobster")
+    other, _ = duel()
+    apply_game(other, json.loads(json.dumps(game_to_dict(g))))
+    assert other.placing == {"lobster"} and "placing" not in game_to_dict(duel()[0])
