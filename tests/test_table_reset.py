@@ -48,6 +48,9 @@ class GateTable(Table):
         self.hellboy_form2 = False                       # Hellboy's miniature is in its second state
         self.token_rot = 180.0                           # ability token: 180 = OCCULT DETECTIVE (start), 0 = ANUNG UN RAMA
         self.zoom_cleared = 0
+        self.inner_on_table = {"e5a45c", "c592d8"}       # inner bags of Medusa and Hellboy lying on the table (as with --unpack)
+        self.outers: dict[str, tuple[str, list[str]]] = {}   # infinite bag GUID -> (nickname, GUIDs it holds)
+        self.bags_taken: list[str] = []
         self.sticky = 0                                  # cards in the human's hand the bot's reset cannot move
         self.flips = 0
         self.dial_start: dict[str, int] = {}             # dial GUID -> its starting value
@@ -119,10 +122,29 @@ class GateTable(Table):
                 "present": {k: (k in self.strays) if k.startswith("other:") else not self.in_bags for k in labels}}
 
     def do_unpack_from_bags(self, s):
+        """The real script's rules: an item comes out only of its inner bag, which must be on the table or be taken out of
+        the hero's infinite bag (named as the script says and listing it) in the same message."""
         self.unpacked += 1
-        taken = ["04b2c9"] if self.in_bags else []
-        self.in_bags = False
-        return {"present": [], "taken": taken, "missing": []}
+        outers = {inner: (outer, nick) for inner, outer, nick in re.findall(r'\["(\w+)"\] = \{"(\w+)", "([^"]*)"\}', s)}
+        rows = re.findall(r'\{"(?:deck|piece|dial|token)", \{([^}]*)\}, "(\w+)", ', s)
+        taken, missing, failed, pulled = [], [], [], []
+        if self.in_bags:
+            for guids, inner in rows:
+                if inner not in self.inner_on_table and inner in outers and inner not in pulled \
+                        and inner not in [f["guid"] for f in failed]:
+                    outer, nick = outers[inner]
+                    have = self.outers.get(outer)
+                    if have is None or have[0] != nick:
+                        failed.append({"guid": inner, "why": "outer"})
+                    elif inner not in have[1]:
+                        failed.append({"guid": inner, "why": "listed"})
+                    else:
+                        pulled.append(inner)
+                first = re.findall(r'"(\w+)"', guids)[0]
+                (taken if inner in self.inner_on_table or inner in pulled else missing).append(first)
+            self.bags_taken += pulled
+            self.in_bags = bool(missing)
+        return {"present": [], "taken": taken, "missing": missing, "bags": pulled, "bags_failed": failed}
 
     def do_prepare_table(self, s):
         self.removable = {g for g, n in self.leftovers.items() if n == KINDS.get(g)}
@@ -382,15 +404,32 @@ def test_nothing_starts_before_start_game_and_the_press_runs_the_normal_start_wi
 
 
 @pytest.mark.gate
-def test_pressing_start_on_a_dirty_table_is_possible_only_after_cleaning(gate_live, cfg_file, tmp_path):
+def test_start_game_is_refused_while_the_table_is_not_ready(gate_live, cfg_file, tmp_path):
     table, fake, _ = gate_live
     stop, t, result = run_main(gate_live, cfg_file, tmp_path)
     try:
         assert wait_for(lambda: shown(table, "btn_prep") == (True, True))
         assert shown(table, "btn_start") == (False, False), "a dirty table offers only the cleaning"
-        press(fake, "start_game")
+        press(fake, "start_game")                                        # a stale or forged click
+        assert wait_for(lambda: "no empiezo" in " ".join(table.broadcasts))
         time.sleep(0.4)
-        assert wait_for(lambda: any("Leo los heroes" in b for b in table.broadcasts))   # a pressed start is honoured
+        assert not game_started(table) and shown(table, "btn_prep") == (True, True)
+        assert not any("Leo los heroes" in b for b in table.broadcasts) and table.removed == []
+    finally:
+        finish(stop, t, result)
+
+
+@pytest.mark.gate
+def test_starting_through_the_gate_never_removes_anything_silently(gate_live, cfg_file, tmp_path):
+    table, fake, _ = gate_live
+    table.make_ready()
+    stop, t, result = run_main(gate_live, cfg_file, tmp_path)
+    try:
+        assert wait_for(lambda: shown(table, "btn_start") == (True, True))
+        table.leftovers["addeca"] = "DeckCustom"                          # something lands there after the check
+        press(fake, "start_game")
+        assert wait_for(lambda: any("Tu turno" in b for b in table.broadcasts))
+        assert table.removed == [] and "local REMOVE = {}" in table.prepared[-1]
     finally:
         finish(stop, t, result)
 
@@ -704,7 +743,7 @@ def test_a_pair_that_is_not_medusa_and_hellboy_is_reset_but_nothing_is_unpacked_
     def no_unpack(*a):
         raise AssertionError("nothing may be unpacked over the other decks")
     lines, session = table_reset.clean_and_prepare(Client(), lambda cfg: 1 / 0, object(), no_unpack, print, previous=Previous())
-    assert calls == ["-- sparring:clear_markings", "reset"]
+    assert calls == ["reset"]
     assert session is None and len(lines) == 1 and "Houdini" in lines[0] and "Doctor Strange" in lines[0] and "bolsas" in lines[0]
 
 
@@ -713,3 +752,117 @@ def test_the_two_faced_tokens_have_a_starting_face_in_the_data():
     for slug, name in (("hellboy", "ability"), ("abe-sapien", "intuition")):
         table = load_hero_table(slug)
         assert table_reset.START_FACE[name] in table.token_faces[name]["faces"] and table.tokens[name]
+
+
+# ---------- the inner bag comes out of the hero's infinite bag ----------
+def unpack_script(runtime, outers, rid=1):
+    plan = [("piece", ("04b2c9",), "e5a45c", (22.0, 2.5, -10.0), None), ("dial", ("bcd809",), "e5a45c", (22.0, 2.5, -7.0), None)]
+    n = len(runtime.globals().SENT)
+    runtime.execute(lua.request(lua.unpack_from_bags(plan, outers), rid))
+    reply = conv(runtime.globals().SENT[n + 1])
+    assert "err" not in reply, reply
+    return json.loads(reply["value"])
+
+
+def hero_bags(tts, nickname="Medusa", holds="e5a45c"):
+    tts.execute(f"""
+local outer = mkobj({{guid = '65070e', type = 'Infinite', name = '{nickname}', items = {{{{guid = '{holds}', name = 'bag'}}}}}})
+TAKEN_FROM_OUTER = 0
+outer.takeObject = function(t)
+  TAKEN_FROM_OUTER = TAKEN_FROM_OUTER + 1
+  return mkobj({{guid = 'copy01', type = 'Bag', pos = Vector(t.position),
+                 items = {{{{guid = '04b2c9', name = 'Medusa'}}, {{guid = 'bcd809', name = 'Medusa'}}}}}})
+end""")
+
+
+OUTERS = {"e5a45c": ("65070e", "Medusa")}
+
+
+def test_an_inner_bag_inside_an_infinite_bag_is_taken_out_first_then_emptied_and_removed(tts):  # noqa: F811
+    hero_bags(tts)
+    res = unpack_script(tts, OUTERS)
+    assert res["bags"] == ["e5a45c"] and res["bags_failed"] == [] and res["missing"] == []
+    assert res["taken"] == ["04b2c9", "bcd809"]
+    assert tts.eval("TAKEN_FROM_OUTER") == 1, "one copy of the inner bag for both items"
+    assert tts.eval("getObjectFromGUID('copy01')") is None, "the emptied copy is destroyed"
+    assert tts.eval("getObjectFromGUID('65070e') ~= nil"), "the infinite bag stays"
+
+
+@pytest.mark.parametrize("nickname, holds, why", [("Not Medusa", "e5a45c", "outer"), ("Medusa", "other1", "listed")])
+def test_the_infinite_bag_is_trusted_only_with_its_nickname_and_its_contents(tts, nickname, holds, why):  # noqa: F811
+    hero_bags(tts, nickname, holds)
+    res = unpack_script(tts, OUTERS)
+    assert res["bags_failed"] == [{"guid": "e5a45c", "why": why}] and res["taken"] == [] and res["missing"] == ["04b2c9", "bcd809"]
+    assert tts.eval("TAKEN_FROM_OUTER") == 0
+
+
+def test_without_the_gates_outers_an_infinite_bag_is_never_touched(tts):  # noqa: F811
+    hero_bags(tts)
+    res = unpack_script(tts, None)
+    assert res["missing"] == ["04b2c9", "bcd809"] and res["bags"] == [] and tts.eval("TAKEN_FROM_OUTER") == 0
+
+
+def test_an_inner_bag_already_on_the_table_is_used_and_the_infinite_one_left_alone(tts):  # noqa: F811
+    hero_bags(tts)
+    tts.execute("mkobj({guid = 'e5a45c', type = 'Bag', items = {{guid = '04b2c9'}, {guid = 'bcd809'}}})")
+    res = unpack_script(tts, OUTERS)
+    assert res["taken"] == ["04b2c9", "bcd809"] and res["bags"] == [] and tts.eval("TAKEN_FROM_OUTER") == 0
+
+
+def test_every_hero_has_an_infinite_bag_named_after_the_hero_in_the_official_save():
+    from test_official_table_gate import OBJECTS
+    from sparring.heroes import load_hero
+    from sparring.tts.hero_table import load_hero_table
+    for slug in ("medusa", "hellboy"):
+        table = load_hero_table(slug)
+        assert OBJECTS[table.bag]["nickname"] == load_hero(slug).name
+    assert play.unpack_outers(load_config(raw_config_path()))["e5a45c"] == ("65070e", "Medusa")
+
+
+def raw_config_path():
+    from test_play import REAL_CONFIG
+    return REAL_CONFIG
+
+
+# ---------- resume and configuration errors around the gate ----------
+@pytest.mark.gate
+def test_resuming_a_real_saved_game_skips_the_gate_and_keeps_the_file(gate_live, cfg_file, tmp_path, monkeypatch):
+    table, fake, ports = gate_live
+    table.make_ready()
+    state = tmp_path / "s.json"
+    monkeypatch.setattr(table_reset, "ENABLED", False)                  # the first game is played without the gate
+    stop, t, result = run_main(gate_live, cfg_file, tmp_path)
+    try:
+        assert wait_for(state.exists)
+    finally:
+        finish(stop, t, result)
+    saved = state.read_bytes()
+    monkeypatch.setattr(table_reset, "ENABLED", True)
+    table.panels.clear()
+    table.broadcasts.clear()
+    stop, result = threading.Event(), {}
+    t = threading.Thread(target=lambda: result.setdefault("code", main(
+        ["--config", str(cfg_file()), "--resume", "--poll", "0.02", *ports, "--state", str(state)], stop=stop)))
+    t.start()
+    try:
+        assert wait_for(lambda: any("reanudada" in b for b in table.broadcasts))
+    finally:
+        finish(stop, t, result)
+    assert not any("no esta lista" in b or "Comenzar partida" in b for b in table.broadcasts)
+    assert state.exists() and json.loads(state.read_text(encoding="utf-8"))["heroes"] == json.loads(saved)["heroes"]
+
+
+@pytest.mark.gate
+def test_a_configuration_error_after_the_gate_is_a_cannot_start_exit_2(gate_live, cfg_file, tmp_path, monkeypatch, capsys):
+    table, fake, ports = gate_live
+    armed = []
+    real = play.PlayConfig.session_config
+
+    def flaky(self):
+        if armed:
+            raise play.ConfigError("boom")
+        return real(self)
+    monkeypatch.setattr(play.PlayConfig, "session_config", flaky)
+    monkeypatch.setattr(play, "pregame", lambda cfg, *a, **k: armed.append(1) or cfg)
+    code = main(["--config", str(cfg_file()), *ports, "--state", str(tmp_path / "s.json")])
+    assert code == 2 and "boom" in capsys.readouterr().err

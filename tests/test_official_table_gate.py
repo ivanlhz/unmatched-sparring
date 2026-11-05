@@ -27,7 +27,8 @@ from sparring.state import Game
 FIXTURE = Path(__file__).parent / "fixtures" / "official_table.json"
 SAVE = repo_toplevel() / "saves" / "Unmatched Official Tournament Table October 2026 (Hellboy).json"
 OBJECTS = {o["guid"]: o for o in json.loads(FIXTURE.read_text(encoding="utf-8"))["objects"]}
-PAD_IMAGE = next(o["image"] for o in OBJECTS.values() if o["name"] == "Custom_Board")
+PAD_KEY = next(o["image_key"] for o in OBJECTS.values() if o["name"] == "Custom_Board")
+PAD_IMAGE = f"https://img.test/{PAD_KEY}/"
 WRITES_ALLOWED = {"clear_markings", "create_panel", "set_panel", "broadcast", "prepare_table", "take_map", "unpack_from_bags",
                   "reset_deck", "place_piece", "set_health_dials", "flip_decks_down", "set_token_face", "set_state",
                   "composite", "hold", "name_pieces"}
@@ -40,11 +41,15 @@ class OfficialTable(GateTable):
         super().__init__()
         self.in_bags = True
         self.leftovers = {g: o["name"] for g, o in OBJECTS.items() if g in REMOVED}
-        self.boards = [{"guid": g, "image": o["image"]} for g, o in OBJECTS.items() if o["name"] == "Custom_Board"]
+        self.boards = [{"guid": g, "image": f"https://img.test/{o['image_key']}/"} for g, o in OBJECTS.items()
+                       if o["name"] == "Custom_Board"]
         self.zones_on_table: set[str] = set()
         self.new_zones = {"bot_discard_zone": "zonebot", "human_discard_zone": "zonehum"}
         self.map_taken: list[str] = []
         self.destroyed: list[str] = []
+        self.inner_on_table = set()                        # the inner bags are inside the heroes' infinite bags
+        self.outers = {t.bag: (OBJECTS[t.bag]["nickname"], [c["guid"] for c in OBJECTS[t.bag]["contains"]])
+                       for t in (load_hero_table("medusa"), load_hero_table("hellboy"))}
 
     def do_table_audit(self, s):
         out = super().do_table_audit(s)
@@ -79,7 +84,7 @@ class OfficialTable(GateTable):
     def do_unpack_from_bags(self, s):
         was = self.in_bags
         out = super().do_unpack_from_bags(s)
-        if was:
+        if was and not self.in_bags:
             self.positions = {n: i + 1 for i, n in enumerate(self.nick.values())}
             self.piece_dist = {n: 99.0 for n in self.positions}
             self.bot_deck = list(BOT_DECK)
@@ -164,6 +169,7 @@ def test_the_button_turns_the_official_table_into_the_prepared_state_and_touches
         assert table.map_taken == ["ab5e89:ec6f27:-0.35, 1.63, -3.18"]
         # moves: the heroes' objects out of their bags, cards in decks, dials full, pieces off the board
         assert table.unpacked == 1 and not table.in_bags and len(table.bot_deck) == 30
+        assert sorted(table.bags_taken) == ["c592d8", "e5a45c"], "each inner bag came out of its infinite bag first"
         assert {g: r["value"] for g, r in table.dials.items()} == table.dial_start
         assert all(d == 99.0 for d in table.piece_dist.values()) and table.moves == []
         # no hand dealt, no game started
@@ -236,9 +242,49 @@ def test_a_bag_that_does_not_give_the_map_is_said_and_the_button_stays(official,
     try:
         assert wait_for(lambda: shown(table, "btn_prep") == (True, True))
         press(fake, "prepare_table")
-        assert wait_for(lambda: any("No he podido limpiar" in b for b in table.broadcasts))
-        assert "ab5e89" in " ".join(table.broadcasts) and shown(table, "btn_prep") == (True, True)
+        assert wait_for(lambda: "ab5e89" in " ".join(table.broadcasts))
+        assert "No he podido limpiar" in " ".join(table.broadcasts) and shown(table, "btn_prep") == (True, True)
         assert shown(table, "btn_start") == (False, False) and table.destroyed == [] and not game_started(table)
+    finally:
+        finish(stop, t, result)
+
+
+@pytest.mark.gate
+def test_a_hero_bag_that_does_not_give_its_inner_bag_is_said_with_what_to_do_by_hand(official, cfg_file, tmp_path):
+    table, fake, _ = official
+    table.outers["65070e"] = ("Not Medusa", table.outers["65070e"][1])      # the infinite bag carries another name
+    stop, t, result = run_main(official, cfg_file, tmp_path)
+    try:
+        assert wait_for(lambda: shown(table, "btn_prep") == (True, True))
+        press(fake, "prepare_table")
+        assert wait_for(lambda: "A mano" in " ".join(table.broadcasts))
+        text = " ".join(table.broadcasts)
+        assert "Medusa" in text and "e5a45c" in text and "65070e" in text and "otro nombre" in text
+        assert "No he podido limpiar" in text and shown(table, "btn_prep") == (True, True)
+        assert shown(table, "btn_start") == (False, False) and table.destroyed == [] and not game_started(table)
+    finally:
+        finish(stop, t, result)
+
+
+@pytest.mark.gate
+def test_the_audit_is_one_message_and_the_whole_cleaning_a_handful(official, cfg_file, tmp_path):
+    table, fake, _ = official
+    client = client_for(official)
+    try:
+        session = session_for(client, cfg_file())
+        before = fake.lua_messages
+        table_reset.audit(client, session, None, raw_config())
+        assert fake.lua_messages - before <= 2, "one composite (plus the deck identities the first time)"
+    finally:
+        client.close()
+    stop, t, result = run_main(official, cfg_file, tmp_path)
+    try:
+        assert wait_for(lambda: shown(table, "btn_prep") == (True, True))
+        before = len(table.sent)
+        press(fake, "prepare_table")
+        assert wait_for(lambda: shown(table, "btn_start") == (True, True))
+        steps = [x for x in table.sent[before:] if x != "broadcast"]          # the chat lines are not steps of the cleaning
+        assert len(steps) <= 24, steps
     finally:
         finish(stop, t, result)
 
@@ -261,11 +307,14 @@ def test_ensure_map_leaves_alone_a_table_with_a_map_or_a_configuration_without_o
 
         def call_lua(self, script):
             self.sent.append(script.split("\n", 1)[0])
+            if script.startswith("-- sparring:composite"):         # the clearing, and the map if it was asked for
+                n = len(re.findall(r"results\[\d+\] = run", script))
+                return {"ops": [{}, {"taken": False, "why": "bag"}][:n]}
             return self.boards
     known = [{"guid": "ec6f27", "image": Table().boards[0]["image"]}]
-    assert table_reset.ensure_map(Client(known), raw_config()) is None
-    assert table_reset.ensure_map(Client([]), {}) is None
+    assert table_reset.clear_and_ensure_map(Client(known), raw_config()) is None
+    assert table_reset.clear_and_ensure_map(Client([]), {}) is None
     empty = Client([{"guid": "45c723", "image": PAD_IMAGE}])
     with pytest.raises(SessionError, match="ab5e89"):
-        table_reset.ensure_map(empty, raw_config())
-    assert empty.sent == ["-- sparring:list_boards", "-- sparring:take_map"]
+        table_reset.clear_and_ensure_map(empty, raw_config())
+    assert empty.sent[0] == "-- sparring:list_boards" and empty.sent[1] == "-- sparring:composite"

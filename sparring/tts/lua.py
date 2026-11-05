@@ -982,14 +982,23 @@ MAX_UNPACK = 40
 
 
 @_registered
-def unpack_from_bags(items: list[tuple[str, tuple[str, ...], str, tuple[float, float, float], tuple[int, int] | None]]) -> str:
+def unpack_from_bags(items: list[tuple[str, tuple[str, ...], str, tuple[float, float, float], tuple[int, int] | None]],
+                     outers: dict[str, tuple[str, str]] | None = None) -> str:
     """Takes from a hero's INNER bag what is not on the table. `items` = (kind, GUID of each state, GUID of the
     inner bag, spot (x, y, z), CardID range if it is a deck).
 
     An object counts as present (and is not touched) if ANY of its GUIDs answers; a deck, in addition, if a Deck or a Card whose cards fall in its range exists ANYWHERE
     ON THE TABLE (TTS turns the deck into a Card and changes its GUID; on the real table the decks end up 3-26 units from their spot, so distance is no use; hero ranges do not overlap). If it is missing, it is only taken from the bag with that bag GUID, which must exist, be of type Bag and contain the GUID:
     never from another bag on the table (GUIDs repeat between the mod's bags) nor from an infinite one (it would clone). What cannot
-    be taken comes back in `missing`. Returns `{present, taken, missing}`. It touches neither the Global nor the UI."""
+    be taken comes back in `missing`. Returns `{present, taken, missing, bags, bags_failed}`. It touches neither the Global nor the UI.
+
+    `outers` (the pre-game gate only) = {inner bag GUID: (GUID of the hero's INFINITE bag, its nickname)}: in the official save
+    the inner bag is not on the table but inside the hero's infinite bag. If an item is missing and its inner bag is not on the
+    table, the inner bag is taken out of the infinite one first (a copy: that is what an infinite bag gives) at the spot of the
+    item, but only if the infinite bag with that GUID is on the table, carries that nickname and lists the inner bag; the copy is
+    what the items are taken from (its GUID may differ) and it is destroyed once empty. `bags` = inner bags taken out,
+    `bags_failed` = [{guid, why}] (`outer`: the infinite bag is not there or has another name; `listed`: it does not hold the
+    inner bag; `take`: TTS gave nothing)."""
     if not isinstance(items, (list, tuple)) or not 1 <= len(items) <= MAX_UNPACK:
         raise ValueError(f"between 1 and {MAX_UNPACK} objects expected")
     rows = []
@@ -1003,8 +1012,11 @@ def unpack_from_bags(items: list[tuple[str, tuple[str, ...], str, tuple[float, f
         lo, hi = _range(rng) if rng is not None else ("0", "0")
         rows.append(f'{{{lua_str(kind)}, {_guid_list(guids)}, {_guid(bag)}, {_f(pos[0])}, {_f(pos[1])}, {_f(pos[2])}, '
                     f'{lo}, {hi}, {"true" if rng is not None else "false"}}}')
+    outer_rows = ", ".join(f'[{_guid(inner)}] = {{{_guid(outer)}, {lua_str(nick)}}}'
+                           for inner, (outer, nick) in (outers or {}).items())
     return f"""-- sparring:unpack_from_bags
 local ITEMS = {{{", ".join(rows)}}}
+local OUTERS = {{{outer_rows}}}
 local function cardsOf(o)
   if o.type == "Card" then return {{o.getData()}} end
   return o.getData().ContainedObjects or {{}}
@@ -1022,7 +1034,35 @@ local function deckAnywhere(lo, hi)
   end
   return false
 end
-local out = {{present = {{}}, taken = {{}}, missing = {{}}}}
+local out = {{present = {{}}, taken = {{}}, missing = {{}}, bags = {{}}, bags_failed = {{}}}}
+local pulled = {{}}
+local function innerBag(guid, spot)
+  local bag = pulled[guid] or getObjectFromGUID(guid)
+  if bag ~= nil or OUTERS[guid] == nil or pulled[guid] == false then return bag end
+  pulled[guid] = false
+  local outer, why = getObjectFromGUID(OUTERS[guid][1]), nil
+  if outer == nil or outer.getName() ~= OUTERS[guid][2] then why = "outer" end
+  if why == nil then
+    why = "listed"
+    local ok, inside = pcall(function() return outer.getObjects() end)
+    if ok and type(inside) == "table" then
+      for _, e in ipairs(inside) do
+        if e.guid == guid then why = nil end
+      end
+    end
+  end
+  if why == nil then
+    bag = outer.takeObject({{guid = guid, position = Vector(spot[1], spot[2], spot[3]), smooth = false}})
+    if bag == nil then why = "take" end
+  end
+  if why ~= nil then
+    table.insert(out.bags_failed, {{guid = guid, why = why}})
+    return nil
+  end
+  pulled[guid] = bag
+  table.insert(out.bags, guid)
+  return bag
+end
 for _, it in ipairs(ITEMS) do
   local kind, guids = it[1], it[2]
   local here = false
@@ -1033,7 +1073,7 @@ for _, it in ipairs(ITEMS) do
   if here then
     table.insert(out.present, guids[1])
   else
-    local bag = getObjectFromGUID(it[3])
+    local bag = innerBag(it[3], {{it[4], it[5], it[6]}})
     local listed = false
     if bag ~= nil and bag.type == "Bag" then
       for _, e in ipairs(bag.getObjects()) do
@@ -1047,6 +1087,12 @@ for _, it in ipairs(ITEMS) do
                        callback_function = function(o) if kind == "deck" then o.shuffle() end end}})
       table.insert(out.taken, guids[1])
     end
+  end
+end
+for _, bag in pairs(pulled) do
+  if bag then
+    local ok, left = pcall(function() return #bag.getObjects() end)
+    if ok and left == 0 then bag.destruct() end
   end
 end
 return JSON.encode(out)

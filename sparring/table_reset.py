@@ -34,7 +34,8 @@ and tokens out of their bags, and puts everything in the state below. Everything
 CLEAN AND PREPARE (always with Medusa as the bot, Hellboy as the human, on the map the table shows):
   - zoom copies and the bot's markings are removed (they carry our name and GM notes);
   - the map is taken out of its bag if the table has none (`lua.take_map`, only from the configured bag);
-  - the heroes are taken out of their bags (`play.prepare_heroes`);
+  - the heroes are taken out of their bags (`play.prepare_heroes`): in the official save a hero's inner bag sits inside the
+    hero's INFINITE bag, so it is first taken out of there (guarded by the infinite bag's GUID, nickname and contents);
   - the discard zones are created or straightened and the leftovers the guard lets through are destroyed
     (`Session.prepare_table`);
   - the restart machinery returns EVERY card of both sides to its deck from anywhere on the table, shuffles it, refills
@@ -153,10 +154,9 @@ def _nearest_face(spec: dict, rot_z: float) -> str | None:
     return min(faces, key=lambda k: min(abs((rot_z - faces[k]) % 360), 360 - abs((rot_z - faces[k]) % 360)))
 
 
-def read_map(client) -> tuple[str, object]:
-    """What map the table has, read only: ("ok", MapEntry) with a playable one; ("none", "") with only the pad boards of
-    the official save; ("other", message) with something the bot cannot play (unknown, excluded, unverified, two maps)."""
-    found = client.call_lua(lua.list_boards())
+def map_state(found) -> tuple[str, object]:
+    """What map the boards read off the table make: ("ok", MapEntry) with a playable one; ("none", "") with only the pad
+    boards of the official save; ("other", message) with something the bot cannot play (unknown, excluded, unverified, two)."""
     found = found if isinstance(found, list) else []
     try:
         return "ok", choose_board(found, board_catalog())[0]
@@ -166,9 +166,30 @@ def read_map(client) -> tuple[str, object]:
         return "other", str(e)
 
 
+def read_map(client) -> tuple[str, object]:
+    """`map_state` of the boards on the table (one read)."""
+    return map_state(client.call_lua(lua.list_boards()))
+
+
+def batch(client, named: list[tuple[str, str]]) -> dict:
+    """ONE message to TTS for several builders (`lua.composite`, each runs inside its own pcall): {name: that builder's
+    answer}. A builder that failed raises `SessionError` naming it. TTS takes ~0.5 s per message, so the audit and each step of
+    the cleaning go out as one."""
+    res = client.call_lua(lua.composite([script for _, script in named]))
+    ops = res.get("ops") if isinstance(res, dict) else None
+    if not isinstance(ops, list) or len(ops) != len(named):
+        raise SessionError(t("gate.batch_reply", got=repr(str(res)[:80])))
+    out = {}
+    for (name, _), answer in zip(named, ops):
+        if isinstance(answer, dict) and answer.get("__err"):
+            raise SessionError(t("gate.batch_failed", name=name, error=answer["__err"]))
+        out[name] = answer
+    return out
+
+
 def audit(client, session, state_path: Path | None = None, raw: dict | None = None) -> Audit:
-    """Reads the table (a handful of messages) and says what is out of place for the heroes `session` plays. `raw` is
-    the configuration (it says which map the gate may put on an empty table)."""
+    """Reads the table (ONE message, see `batch`; plus the deck identities the first time) and says what is out of place for
+    the heroes `session` plays. `raw` is the configuration (it says which map the gate may put on an empty table)."""
     c, game = session.cfg, session.game
     out = Audit()
     heroes = [game.hero_def(p) for p in (session.bot, session.human)]
@@ -181,11 +202,32 @@ def audit(client, session, state_path: Path | None = None, raw: dict | None = No
         for kind, guids in tables[slug].unpack_items():
             if kind != "deck":
                 presence.append((f"{slug}:{kind}:{guids[0]}", list(guids)))
-    others = other_hero_presence(slugs)
-    res = client.call_lua(lua.table_audit(remove, c.remove_limits, [c.bot_seat, c.human_seat], presence + others))
-    res = res if isinstance(res, dict) else {}
-    present = res.get("present") if isinstance(res.get("present"), dict) else {}
+    sides = _deck_sides(session)
+    guids = sorted({g for v in c.pieces.values() for g in _guids(v)})
+    wanted = {guid: game.fighters[fid].max_hp for fid, guid in c.dials.items() if fid in game.fighters}
+    if c.destiny_dial:
+        wanted[c.destiny_dial] = 0
+    token_guids = {(slug, name): tables[slug].tokens.get(name) for slug in slugs for name in tables[slug].token_faces
+                   if name in START_FACE and tables[slug].tokens.get(name)}
+    zones = {"bot_discard_zone": c.bot_discard_zone, "human_discard_zone": c.human_discard_zone}
+    reads = [("audit", lua.table_audit(remove, c.remove_limits, [c.bot_seat, c.human_seat],
+                                       presence + other_hero_presence(slugs))),
+             ("boards", lua.list_boards()),
+             ("facing", lua.deck_facing(_facing_args(session), c.deck_radius)),
+             ("plans", lua.reset_plan([(guid, spot, rng, session._identity(side), zone)
+                                       for side, guid, spot, rng, zone, _ in sides], c.deck_radius, scope=session._scope()))]
+    if c.zone_spawns:
+        reads.append(("zones", lua.zone_overlaps(sorted(set(zones.values())))))
+    if guids:
+        reads.append(("pieces", lua.piece_spaces_by_guid(game.board, guids)))
+    if wanted:
+        reads.append(("dials", lua.read_health_dials(sorted(wanted))))
+    if token_guids:
+        reads.append(("tokens", lua.inspect_objects(sorted(set(token_guids.values())))))
+    got = batch(client, reads)
 
+    res = got["audit"] if isinstance(got["audit"], dict) else {}
+    present = res.get("present") if isinstance(res.get("present"), dict) else {}
     left = [f"{row.get('name')} {row.get('guid')}" for row in res.get("removable") or [] if isinstance(row, dict)]
     if left:
         out.issues.append(Issue("leftovers", ", ".join(left)))
@@ -197,7 +239,7 @@ def audit(client, session, state_path: Path | None = None, raw: dict | None = No
     full = [f"{seat} {n}" for seat, n in hands.items() if isinstance(n, (int, float)) and n > 0]
     if full:
         out.issues.append(Issue("hand_cards", ", ".join(full)))
-    state, found_map = read_map(client)
+    state, found_map = map_state(got["boards"])
     plan = table_prep.map_plan(raw) if raw is not None else None
     if state == "none" and plan is not None:
         out.issues.append(Issue("map_missing", ""))
@@ -207,10 +249,8 @@ def audit(client, session, state_path: Path | None = None, raw: dict | None = No
         out.notices.append(t("gate.notice.map_unplayable", error=found_map))
     elif plan is not None and found_map.key != plan.board:
         out.notices.append(t("gate.notice.map_other", name=found_map.name))
-    if c.zone_spawns:
-        zones = {"bot_discard_zone": c.bot_discard_zone, "human_discard_zone": c.human_discard_zone}
-        read_zones = client.call_lua(lua.zone_overlaps(sorted(set(zones.values()))))
-        read_zones = read_zones if isinstance(read_zones, dict) else {}
+    if "zones" in got:
+        read_zones = got["zones"] if isinstance(got["zones"], dict) else {}
         gone = [t("ro.role.bot" if key.startswith("bot") else "ro.role.human") for key, guid in zones.items()
                 if key in c.zone_spawns and not ((read_zones.get(guid) or {}).get("found")
                                                  and (read_zones.get(guid) or {}).get("zone") is not False)]
@@ -222,13 +262,8 @@ def audit(client, session, state_path: Path | None = None, raw: dict | None = No
     if stray:
         out.notices.append(t("gate.notice.other_heroes", detail=", ".join(load_hero(s).name for s in stray)))
 
-    sides = _deck_sides(session)
-    facing = client.call_lua(lua.deck_facing(_facing_args(session), c.deck_radius))
-    facing = facing if isinstance(facing, list) and len(facing) == len(sides) else [{}] * len(sides)
-    plans = client.call_lua(lua.reset_plan([(guid, spot, rng, session._identity(side), zone)
-                                            for side, guid, spot, rng, zone, _ in sides], c.deck_radius,
-                                           scope=session._scope()))
-    plans = plans if isinstance(plans, list) and len(plans) == len(sides) else [{}] * len(sides)
+    facing = got["facing"] if isinstance(got["facing"], list) and len(got["facing"]) == len(sides) else [{}] * len(sides)
+    plans = got["plans"] if isinstance(got["plans"], list) and len(got["plans"]) == len(sides) else [{}] * len(sides)
     wrong, face_up = [], []
     for (side, *_, owner), plan, face in zip(sides, plans, facing):
         plan = plan if isinstance(plan, dict) else {}
@@ -248,9 +283,7 @@ def audit(client, session, state_path: Path | None = None, raw: dict | None = No
     if out_of_bag:
         out.issues.append(Issue("heroes_out", ", ".join(load_hero(s).name for s in sorted(out_of_bag))))
 
-    guids = sorted({g for v in c.pieces.values() for g in _guids(v)})
-    found = client.call_lua(lua.piece_spaces_by_guid(game.board, guids)) if guids else {}
-    found = found if isinstance(found, dict) else {}
+    found = got.get("pieces") if isinstance(got.get("pieces"), dict) else {}
 
     def here(g: str) -> dict:
         return found.get(g) if isinstance(found.get(g), dict) else {}
@@ -262,22 +295,14 @@ def audit(client, session, state_path: Path | None = None, raw: dict | None = No
                if len(_guids(v)) > 1 and not here(_guids(v)[0]).get("found") and any(here(g).get("found") for g in _guids(v)[1:])]
     if changed:
         out.issues.append(Issue("forms", ", ".join(changed)))
-    wanted = {guid: game.fighters[fid].max_hp for fid, guid in c.dials.items() if fid in game.fighters}
-    if c.destiny_dial:
-        wanted[c.destiny_dial] = 0
-    read = client.call_lua(lua.read_health_dials(sorted(wanted))) if wanted else {}
-    read = read if isinstance(read, dict) else {}
+    read = got.get("dials") if isinstance(got.get("dials"), dict) else {}
     off = [g for g, v in wanted.items() if (read.get(g) or {}).get("found") and (read.get(g) or {}).get("value") is not None
            and int(read[g]["value"]) != v]
     if off:
         names = {guid: fid for fid, guid in c.dials.items()}
         out.issues.append(Issue("dials", ", ".join(c.nicknames.get(names.get(g, ""), t("gate.destiny_dial")) for g in off)))
-
-    token_guids = {(slug, name): tables[slug].tokens.get(name) for slug in slugs for name in tables[slug].token_faces
-                   if name in START_FACE and tables[slug].tokens.get(name)}
     if token_guids:
-        seen = client.call_lua(lua.inspect_objects(sorted(set(token_guids.values()))))
-        seen = seen if isinstance(seen, dict) else {}
+        seen = got["tokens"] if isinstance(got["tokens"], dict) else {}
         turned = []
         for (slug, name), guid in sorted(token_guids.items()):
             info = seen.get(guid) if isinstance(seen.get(guid), dict) else {}
@@ -291,50 +316,68 @@ def audit(client, session, state_path: Path | None = None, raw: dict | None = No
     return out
 
 
-def reset_forms_and_tokens(client, session) -> None:
-    """Hellboy's miniature back to its first state, the two-faced tokens to their starting face, Abe's Intuition tokens
-    to inactive. Each is a no-op on a table that is already right."""
+def start_face_ops(client, session) -> list[tuple[str, str]]:
+    """The writes that put Hellboy's miniature back in its first state, the two-faced tokens on their starting face and Abe's
+    Intuition tokens inactive, as builders for `batch` (one read first for the miniatures that have several states; a
+    table that is already right gets writes that change nothing)."""
     c = session.cfg
+    forms = {}
     for owner in (session.bot, session.human):
-        table = load_hero_table(session.game.hero_def(owner).slug)
-        for fid in table.fighters:
+        for fid in load_hero_table(session.game.hero_def(owner).slug).fighters:
             states = _guids(c.pieces.get(fid) or [])               # the GUIDs of its states, as the session resolved them
             if len(states) > 1:
-                rows = client.call_lua(lua.piece_spaces_by_guid(session.game.board, states)) or {}
-                now = [g for g in states if (rows.get(g) or {}).get("found")]
-                if now and now[0] != states[0]:
-                    client.call_lua(lua.set_state(now[0], 1))
+                forms[fid] = states
+    rows = client.call_lua(lua.piece_spaces_by_guid(session.game.board, sorted({g for v in forms.values() for g in v}))) \
+        if forms else {}
+    rows = rows if isinstance(rows, dict) else {}
+    ops = []
+    for fid, states in forms.items():
+        now = [g for g in states if (rows.get(g) or {}).get("found")]
+        if now and now[0] != states[0]:
+            ops.append((f"form {fid}", lua.set_state(now[0], 1)))
+    for owner in (session.bot, session.human):
+        table = load_hero_table(session.game.hero_def(owner).slug)
         for name, spec in table.token_faces.items():
             guid, face = table.tokens.get(name), _first_face(table, name)
             if not guid or face is None:
                 continue
             if name == "intuition":
                 faces = spec["faces"]
-                client.call_lua(lua.set_intuition_tokens(INTUITION_TOKEN, guid, float(faces["active"]),
-                                                         float(faces["inactive"]), 0, [c.human_seat]))
+                ops.append((f"{name} tokens", lua.set_intuition_tokens(INTUITION_TOKEN, guid, float(faces["active"]),
+                                                                       float(faces["inactive"]), 0, [c.human_seat])))
             else:
-                client.call_lua(lua.set_token_face(guid, float(face)))
+                ops.append((f"{name} token", lua.set_token_face(guid, float(face))))
+    return ops
 
 
 def reset_cards_and_pieces(client, session) -> None:
     """Everything of the session's two heroes back to its starting state: cards to their decks (face down, shuffled),
-    pieces off the board, dials full, forms and tokens at their start. Raises what the table raises."""
+    pieces off the board, dials full, forms and tokens at their start. Raises what the table raises.
+
+    Messages: the deck identities (reads); one to turn a face-up deck down, because the card writes only find face-down
+    decks; the restart machinery (`Session._reset_table`, its own few messages: it must see its writes settle before it
+    checks); and one batch for what follows (decks face down again, forms, tokens)."""
     session.resolve_pieces()
     session.load_identities()
     client.call_lua(lua.flip_decks_down(_facing_args(session), session.cfg.deck_radius))
     session._reset_table(session._fresh_game())
-    client.call_lua(lua.flip_decks_down(_facing_args(session), session.cfg.deck_radius))
-    reset_forms_and_tokens(client, session)
+    batch(client, [("decks", lua.flip_decks_down(_facing_args(session), session.cfg.deck_radius)),
+                   *start_face_ops(client, session)])
 
 
-def ensure_map(client, raw: dict) -> Msg | None:
-    """A table with no map gets the configured one (`prepare_map`) out of its bag; a table with any map, or a
-    configuration without `prepare_map`, is left alone. Raises `SessionError` when the bag does not give it."""
+def clear_and_ensure_map(client, raw: dict) -> Msg | None:
+    """Removes the zoom copies and the bot's markings (they carry our name and GM notes) and, if the table has no map, takes
+    the configured one (`prepare_map`) out of its bag: one read and one write. A table with a map, or a configuration
+    without `prepare_map`, keeps what it has. Raises `SessionError` when the bag does not give the map."""
     plan = table_prep.map_plan(raw)
-    if plan is None or read_map(client)[0] != "none":
+    needed = plan is not None and read_map(client)[0] == "none"
+    ops = [("clear", lua.clear_markings(remove_panel=True))]
+    if needed:
+        ops.append(("map", lua.take_map(plan.bag, plan.board_guid, plan.position, plan.rot_y, plan.scale)))
+    got = batch(client, ops)
+    if not needed:
         return None
-    res = client.call_lua(lua.take_map(plan.bag, plan.board_guid, plan.position, plan.rot_y, plan.scale))
-    res = res if isinstance(res, dict) else {}
+    res = got["map"] if isinstance(got["map"], dict) else {}
     if not res.get("taken"):
         raise SessionError(t("gate.map_failed", bag=plan.bag, guid=plan.board_guid, why=res.get("why") or "?"))
     return Msg(t("gate.map_taken", bag=plan.bag), lua.ChatKind.WARNING)
@@ -342,16 +385,21 @@ def ensure_map(client, raw: dict) -> Msg | None:
 
 def clean_and_prepare(client, make_session: Callable, cfg, unpack: Callable, echo: Callable[[str], None],
                       previous: object | None = None) -> tuple[list[Msg], Session | None]:
-    """Takes the heroes of `cfg` out of their bags and resets the table for them. `previous` is a session on the pair the
-    table showed when it is not this one: its cards are gathered too, but nothing of `cfg` is unpacked over its decks.
-    Raises what the table raises (the caller words it). Returns the chat lines of the preparation and the session that
-    did it (it holds the discard zones it created or adopted; None for the `previous` case)."""
-    client.call_lua(lua.clear_markings(remove_panel=True))           # zoom copies and markings carry our name and notes
+    """Takes the heroes of `cfg` out of their bags (`unpack` returns what it could not do, which is said in the chat with what
+    to do by hand) and resets the table for them. `previous` is a session on the pair the table showed when it is not this
+    one: its cards are gathered too, but nothing of `cfg` is unpacked over its decks. Raises what the table raises (the caller
+    words it). Returns the chat lines of the preparation and the session that did it (it holds the discard zones it created or
+    adopted; None for the `previous` case).
+
+    Not merged into one message: unpacking and `Session.prepare_table` have each their own reply to read (what is missing, the
+    GUIDs of the zones TTS creates) before the next step can be worded or addressed."""
     if previous is not None:
         reset_cards_and_pieces(client, previous)
         return [Msg(t("gate.other_pair_reset", bot=previous.game.hero_def(previous.bot).name,
                       human=previous.game.hero_def(previous.human).name), lua.ChatKind.WARNING)], None
-    unpack(client, cfg, echo)
+    problems = unpack(client, cfg, echo, True)
+    if problems:
+        raise SessionError(" ".join(problems))
     session = make_session(cfg)
     session.messages = []
     session.prepare_table(False, None)
@@ -462,7 +510,7 @@ class Gate:
         self.say(t("gate.cleaning", bot=bot, human=human))
         shown = tuple(self.session.game.hero_def(p).slug for p in (self.session.bot, self.session.human))
         try:
-            taken = ensure_map(self.client, self.cfg.raw)          # before reading the map: the board's GUID is new
+            taken = clear_and_ensure_map(self.client, self.cfg.raw)          # before reading the map: the board's GUID is new
             if taken is not None:
                 self.announce([taken])
             cfg = self.redetect(*PREP_HEROES)
@@ -490,7 +538,12 @@ class Gate:
         self.refresh()
 
     def on_start(self):
-        """The configuration of the table as it is now, or None (and the reason in the chat) if it cannot be read."""
+        """The configuration of the table as it is now, or None (and the reason in the chat) if it cannot be read. Start game is
+        only offered once the table is ready; a press that still arrives on a table that is not ready is refused."""
+        if not self.cleaned:
+            self.say(t("gate.start_refused"), lua.ChatKind.WARNING)
+            self.refresh()
+            return None
         self.say(t("gate.starting"))
         try:
             return self.redetect(None, None)

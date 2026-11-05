@@ -1,5 +1,5 @@
 {
-"_note": "Layout of the official tournament save as TTS loads it: GUID, TTS object name, nickname, position, locked, and the direct contents of bags. No art, no scripts. Regenerated from the save by the test that checks it.",
+"_note": "Layout of the official tournament save as TTS loads it: GUID, TTS object name, nickname, position, locked, the direct contents of bags and the 40-hex image key of the boards. No art, no scripts. Extracted from the save once; test_the_fixture_is_the_official_save compares it with the save when the save is present.",
 "objects": [
 {
 "guid": "bf4717",
@@ -2579,7 +2579,7 @@
 0.0
 ],
 "locked": true,
-"image": "https://steamusercontent-a.akamaihd.net/ugc/17210524493909076160/98097621768AC24FF097E6997A46CF69EE91FE46/"
+"image_key": "98097621768AC24FF097E6997A46CF69EE91FE46"
 },
 {
 "guid": "8315f0",
@@ -2591,7 +2591,7 @@
 -78.41
 ],
 "locked": true,
-"image": "https://steamusercontent-a.akamaihd.net/ugc/17210524493909076160/98097621768AC24FF097E6997A46CF69EE91FE46/"
+"image_key": "98097621768AC24FF097E6997A46CF69EE91FE46"
 },
 {
 "guid": "6bd0e3",
@@ -2603,7 +2603,7 @@
 73.77
 ],
 "locked": true,
-"image": "https://steamusercontent-a.akamaihd.net/ugc/17210524493909076160/98097621768AC24FF097E6997A46CF69EE91FE46/"
+"image_key": "98097621768AC24FF097E6997A46CF69EE91FE46"
 },
 {
 "guid": "4099ee",

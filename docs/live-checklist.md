@@ -279,7 +279,7 @@ Nothing of this has been seen on a real table. The definition of a ready table i
 - [ ] **Pieces and dials**: miniatures end at the dead spots (not on the board), life dials full, destiny 0, Hellboy's miniature in his first form (OCCULT DETECTIVE) with the ability token at rotZ 180.
 - [ ] **Abe's Intuition tokens** (only if Abe was on the table when pressing): they end inactive; see the Abe item for which rotation is which.
 - [ ] **Leftovers**: the six objects of the official save are destroyed only if their `o.name` matches (F20); one that does not match is named in the chat and left alone.
-- [ ] **Bags**: with Medusa and Hellboy still in their bags the button takes their deck, pieces, dials and token out (`play.prepare_heroes`).
+- [ ] **Bags**: with Medusa and Hellboy still in their infinite bags (nicknames "Medusa" and "Hellboy") the button first takes each inner bag (e5a45c, c592d8) out of the infinite one with `takeObject` (a copy, possibly with another GUID; the bot uses the object it got and destroys it once empty), then their deck, pieces, dials and token out of it. If TTS refuses, the chat says which hero and how to do it by hand ("A mano: ..."), and the button stays.
 - [ ] **Another pair on the table** (e.g. Houdini and Strange): their cards go back to their decks and miniatures off the board, nothing is unpacked over their decks, and the chat asks to put them in their bags and press again.
 - [ ] **Saved game**: after cleaning `state/session.json` is gone, so `--resume` finds nothing.
 - [ ] **Second press** changes nothing and says so; a table the bot cannot fully clean names what is left and keeps the button.

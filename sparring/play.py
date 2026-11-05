@@ -917,22 +917,41 @@ def unpack_plan(cfg: PlayConfig) -> list[tuple]:
     return out
 
 
-def prepare_heroes(client, cfg: PlayConfig, echo: Callable[[str], None] = print) -> None:
+def unpack_outers(cfg: PlayConfig) -> dict[str, tuple[str, str]]:
+    """{inner bag GUID: (infinite bag GUID, its nickname)} of both heroes: in the official save the inner bag sits inside the
+    hero's infinite bag, named after the hero."""
+    out = {}
+    for slug in cfg.heroes:
+        table = load_hero_table(slug)
+        out[table.inner_bag] = (table.bag, load_hero(slug).name)
+    return out
+
+
+def prepare_heroes(client, cfg: PlayConfig, echo: Callable[[str], None] = print, from_infinite: bool = False) -> list[str]:
     """Only with --unpack (or "unpack": true) and never when resuming: takes out of each hero's inner bag whatever is
     missing on the table. Missing = NO GUID of the object answers (all its states) and, for a deck, none of its piles
     is on its spot. Things are taken only from the bag with the hero's bag GUID; if it is not on the table nothing is
-    done and a warning is printed (the bot never takes anything out of an infinite bag). A single message to TTS."""
+    done and a warning is printed (the bot never takes anything out of an infinite bag). A single message to TTS.
+
+    With `from_infinite` (the pre-game gate) an inner bag that is not on the table is first taken out of the hero's infinite
+    bag (`unpack_outers`). Returns what could not be done, one sentence per hero (empty when all went well), for the chat."""
     plan = unpack_plan(cfg)
-    res = client.call_lua(lua.unpack_from_bags(plan)) or {}
+    res = client.call_lua(lua.unpack_from_bags(plan, unpack_outers(cfg) if from_infinite else None)) or {}
     taken, missing = list(res.get("taken") or []), list(res.get("missing") or [])
+    failed = {row.get("guid"): row.get("why") for row in res.get("bags_failed") or [] if isinstance(row, dict)}
     if taken:
         echo(t("console.unpacked", n=len(taken), items=", ".join(taken)))
+    problems = []
     for slug in cfg.heroes:
         table = load_hero_table(slug)
         lost = [g for _, guids in table.unpack_items() for g in guids[:1] if g in missing]
         if lost:
             echo(t("console.warn_line", text=t("console.unpack_missing", guids=", ".join(lost),
                                                 hero=load_hero(slug).name, bag=table.inner_bag)))
+            problems.append(t("gate.unpack_problem", hero=load_hero(slug).name, bag=table.inner_bag, outer=table.bag,
+                              why=t("gate.unpack_why." + str(failed.get(table.inner_bag) or "none")),
+                              guids=", ".join(lost)))
+    return problems
 
 
 def run_loop(session: Session, client: TTSClient, stop: threading.Event, announce: Callable[[list[str]], None],
@@ -1037,7 +1056,7 @@ def play(cfg: PlayConfig, client: TTSClient, first: str, seed: int, stop: thread
          echo: Callable[[str], None] = print, poll: float = 0.1, state_path: Path | None = None,
          resume: bool = False, timing: bool = False, ai: str | None = None,
          ai_time: float | None = None, bot_pause: float | None = None, unpack: bool = False,
-         card_zoom: bool = True, on_ready: Callable[[], None] = lambda: None) -> None:
+         card_zoom: bool = True, on_ready: Callable[[], None] = lambda: None, gated: bool = False) -> None:
     i18n.set_language(cfg.language)                  # before the first panel or chat line; --resume takes the current one
     scfg = cfg.session_config()
     if bot_pause is not None:
@@ -1046,6 +1065,8 @@ def play(cfg: PlayConfig, client: TTSClient, first: str, seed: int, stop: thread
         scfg.bot_pause = bot_pause
     if not card_zoom:
         scfg.card_zoom = False
+    if gated:
+        scfg.remove_plan = ()          # the pre-game gate has cleaned the table with its own guarded report: no silent removal
     if (unpack or cfg.raw.get("unpack") is True) and not resume:
         prepare_heroes(client, cfg, echo)
     game = build_game(cfg, first, seed)
@@ -1265,12 +1286,19 @@ def _main(args: argparse.Namespace, stop: threading.Event, status: Callable[[str
             cfg.saved_zones = saved_zones(args.state)
             print("\n".join(read_only_report(client, cfg)))
             return 0
+        gated = False                                   # started through the pre-game gate
         if not args.resume and table_reset.gate_enabled(cfg.raw):
             status("playing")
             cfg = pregame(cfg, client, args, stop, notes=tuple(gate_notes))     # nothing starts until "Start game" is pressed
             if cfg is None:
                 return 0
-            cfg.session_config()
+            try:
+                cfg.session_config()
+            except ConfigError as e:
+                print(t("console.cannot_start", error=e), file=sys.stderr)
+                status("error cannot_start")
+                return 2
+            gated = True
         seed = args.seed if args.seed is not None else secrets.randbelow(2 ** 31)
         state = Path(args.state)
         if not args.resume and state.exists():
@@ -1278,7 +1306,7 @@ def _main(args: argparse.Namespace, stop: threading.Event, status: Callable[[str
         state.parent.mkdir(parents=True, exist_ok=True)
         play(cfg, client, args.first, seed, stop, poll=args.poll, state_path=state, resume=args.resume,
              timing=args.timing, ai=args.ai, ai_time=args.ai_time, bot_pause=args.bot_pause,
-             unpack=args.unpack, card_zoom=not args.no_card_zoom, on_ready=lambda: status("playing"))
+             unpack=args.unpack, card_zoom=not args.no_card_zoom, on_ready=lambda: status("playing"), gated=gated)
         return 0
     except (SessionError, persist.StateError) as e:
         print(t("console.cannot_start", error=e), file=sys.stderr)
