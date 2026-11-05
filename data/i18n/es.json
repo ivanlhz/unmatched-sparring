@@ -1063,6 +1063,7 @@
  "gate.notice.map_other": "El mapa de la mesa es {name}, no B.P.R.D. HQ: lo dejo como esta.",
  "gate.map_failed": "No he podido sacar el mapa {guid} de la bolsa {bag} ({why}).",
  "gate.map_taken": "He sacado el mapa B.P.R.D. HQ de su bolsa ({bag}) y lo he puesto en el centro de la mesa.",
+ "gate.unpack_error": "Ha fallado el script que saca los heroes de sus bolsas: {error}",
  "gate.unpack_problem": "No he podido sacar de su bolsa lo de {hero} ({guids}): {why} A mano: abre la bolsa de {hero} (GUID {outer}), saca la bolsa interior {bag} y vuelca su contenido en la mesa; luego pulsa el boton otra vez.",
  "gate.unpack_why.outer": "la bolsa infinita no esta en la mesa o tiene otro nombre.",
  "gate.unpack_why.listed": "la bolsa infinita no contiene la bolsa interior.",

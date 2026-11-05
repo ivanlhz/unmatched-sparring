@@ -1063,6 +1063,7 @@
  "gate.notice.map_other": "The map on the table is {name}, not B.P.R.D. HQ: I leave it as it is.",
  "gate.map_failed": "I could not take the map {guid} out of the bag {bag} ({why}).",
  "gate.map_taken": "I took the B.P.R.D. HQ map out of its bag ({bag}) and laid it in the middle of the table.",
+ "gate.unpack_error": "The script that takes the heroes out of their bags failed: {error}",
  "gate.unpack_problem": "I could not take {hero}'s things out of their bag ({guids}): {why} By hand: open the {hero} bag (GUID {outer}), take out the inner bag {bag} and tip its contents onto the table; then press the button again.",
  "gate.unpack_why.outer": "the infinite bag is not on the table or has another name.",
  "gate.unpack_why.listed": "the infinite bag does not hold the inner bag.",

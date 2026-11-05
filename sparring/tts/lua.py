@@ -984,7 +984,7 @@ UNPACK_SPAWN_WAIT = 4.0       # seconds to wait for the copy of an inner bag out
 
 @_registered
 def unpack_from_bags(items: list[tuple[str, tuple[str, ...], str, tuple[float, float, float], tuple[int, int] | None]],
-                     outers: dict[str, tuple[str, str]] | None = None) -> str:
+                     outers: dict[str, tuple[str, str, str, tuple[str, ...]]] | None = None) -> str:
     """Takes from a hero's INNER bag what is not on the table. `items` = (kind, GUID of each state, GUID of the
     inner bag, spot (x, y, z), CardID range if it is a deck).
 
@@ -993,7 +993,8 @@ def unpack_from_bags(items: list[tuple[str, tuple[str, ...], str, tuple[float, f
     never from another bag on the table (GUIDs repeat between the mod's bags) nor from an infinite one (it would clone). What cannot
     be taken comes back in `missing`. Returns `{present, taken, missing, bags, bags_failed}`. It touches neither the Global nor the UI.
 
-    `outers` (the pre-game gate only) = {inner bag GUID: (GUID of the hero's INFINITE bag, its nickname)}: in the official save
+    `outers` (the pre-game gate only) = {inner bag GUID: (GUID of the hero's INFINITE bag, its nickname, the nickname of the
+    inner bag as it comes out, GUIDs of everything that inner bag holds)}: in the official save
     the inner bag is not on the table but inside the hero's infinite bag. If an item is missing and its inner bag is not on the
     table, the inner bag is taken out of the infinite one first (a copy: that is what an infinite bag gives) at the spot of the
     item, but only if the infinite bag with that GUID is on the table, carries that nickname and lists the inner bag; the copy is
@@ -1004,8 +1005,9 @@ def unpack_from_bags(items: list[tuple[str, tuple[str, ...], str, tuple[float, f
     An infinite bag spawns its copy LATER (its `takeObject` answers through `callback_function`), so with `outers` the reply
     is sent from that callback (the request wrapper's `JSON.encode` is a closure that answers the call by its id whenever it
     runs; `TTSClient` waits for it) after the items have been taken out of the copy, or after `UNPACK_SPAWN_WAIT` s if it never
-    comes. A loose Bag an earlier press left (one that lists every item still missing) is reused, never duplicated, and
-    destroyed once empty; `reused` lists those. Without `outers` the reply is immediate."""
+    comes. A loose Bag an earlier press left is reused, never duplicated, and destroyed once empty (`reused` lists those), but
+    only if it carries the inner bag's nickname, lists every item still missing AND lists nothing that is not the hero's own
+    (the save repeats GUIDs across heroes: Loki's inner bag also holds Medusa's dial, and must never be taken for hers). Without `outers` the reply is immediate."""
     if not isinstance(items, (list, tuple)) or not 1 <= len(items) <= MAX_UNPACK:
         raise ValueError(f"between 1 and {MAX_UNPACK} objects expected")
     rows = []
@@ -1019,8 +1021,8 @@ def unpack_from_bags(items: list[tuple[str, tuple[str, ...], str, tuple[float, f
         lo, hi = _range(rng) if rng is not None else ("0", "0")
         rows.append(f'{{{lua_str(kind)}, {_guid_list(guids)}, {_guid(bag)}, {_f(pos[0])}, {_f(pos[1])}, {_f(pos[2])}, '
                     f'{lo}, {hi}, {"true" if rng is not None else "false"}}}')
-    outer_rows = ", ".join(f'[{_guid(inner)}] = {{{_guid(outer)}, {lua_str(nick)}}}'
-                           for inner, (outer, nick) in (outers or {}).items())
+    outer_rows = ", ".join(f'[{_guid(inner)}] = {{{_guid(outer)}, {lua_str(nick)}, {lua_str(name)}, {_guid_list(members)}}}'
+                           for inner, (outer, nick, name, members) in (outers or {}).items())
     return f"""-- sparring:unpack_from_bags
 local ITEMS = {{{", ".join(rows)}}}
 local OUTERS = {{{outer_rows}}}
@@ -1061,7 +1063,24 @@ local function listsAll(bag, guids)
   end
   return true
 end
-local function finish()
+local function belongs(bag, inner)
+  local mine = {{}}
+  for _, g in ipairs(OUTERS[inner][4]) do mine[g] = true end
+  local ok, inside = pcall(function() return bag.getObjects() end)
+  if not ok or type(inside) ~= "table" then return false end
+  for _, e in ipairs(inside) do
+    if not mine[e.guid] then return false end
+  end
+  return true
+end
+local finish
+local function safely()
+  local ok, res = pcall(finish)
+  if ok then return res end
+  out.error = tostring(res)
+  return JSON.encode(out)
+end
+function finish()
   if replied then return "" end
   replied = true
   for i, it in ipairs(ITEMS) do
@@ -1103,7 +1122,7 @@ for inner, w in pairs(wanted) do
     resolved[inner] = bag
   elseif OUTERS[inner] ~= nil then
     for _, o in ipairs(getObjects()) do                  -- a copy an earlier press left loose is reused, never duplicated
-      if o ~= bag and listsAll(o, w.guids) then
+      if o ~= bag and o.getName() == OUTERS[inner][3] and listsAll(o, w.guids) and belongs(o, inner) then
         resolved[inner] = o
         table.insert(out.reused, inner)
         table.insert(made, o)
@@ -1133,21 +1152,21 @@ for inner, w in pairs(wanted) do
                            table.insert(out.bags, inner)
                            table.insert(made, o)
                            pending = pending - 1
-                           if started and pending == 0 then finish() end
+                           if started and pending == 0 then safely() end
                          end}})
     end
   end
 end
 started = true
 if pending == 0 then
-  return finish()
+  return safely()
 else
   Wait.time(function()           -- the copy never arrived: say so instead of leaving the bot waiting
     if replied then return end
     for inner, _ in pairs(wanted) do
       if resolved[inner] == nil then table.insert(out.bags_failed, {{guid = inner, why = "spawning"}}) end
     end
-    finish()
+    safely()
   end, {_f(UNPACK_SPAWN_WAIT)})
   return ""
 end

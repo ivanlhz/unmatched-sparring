@@ -130,7 +130,7 @@ class GateTable(Table):
         listing it). An infinite bag spawns its copy LATER: with `spawn_late` the copy appears only after the reply, so that
         press answers `spawning` and leaves the copy loose for the next one."""
         self.unpacked += 1
-        outers = {inner: (outer, nick) for inner, outer, nick in re.findall(r'\["(\w+)"\] = \{"(\w+)", "([^"]*)"\}', s)}
+        outers = {inner: (outer, nick) for inner, outer, nick in re.findall(r'\["(\w+)"\] = \{"(\w+)", "([^"]*)", "[^"]*", \{', s)}
         rows = re.findall(r'\{"(?:deck|piece|dial|token)", \{([^}]*)\}, "(\w+)", ', s)
         taken, missing, failed, pulled, reused = [], [], [], [], []
         if self.in_bags:
@@ -774,9 +774,10 @@ def test_the_two_faced_tokens_have_a_starting_face_in_the_data():
 
 
 # ---------- the inner bag comes out of the hero's infinite bag ----------
-def run_unpack(runtime, outers, rid=1):
+def run_unpack(runtime, outers, rid=1, only=None):
     """Sends the unpack request; returns a function that reads its reply (None while TTS has not answered)."""
     plan = [("piece", ("04b2c9",), "e5a45c", (22.0, 2.5, -10.0), None), ("dial", ("bcd809",), "e5a45c", (22.0, 2.5, -7.0), None)]
+    plan = [row for row in plan if only is None or row[1][0] == only]
     n = len(runtime.globals().SENT)
     runtime.execute(lua.request(lua.unpack_from_bags(plan, outers), rid))
 
@@ -806,7 +807,7 @@ outer.takeObject = function(t)
 end""")
 
 
-OUTERS = {"e5a45c": ("65070e", "Medusa")}
+OUTERS = {"e5a45c": ("65070e", "Medusa", "", tuple(play.load_hero_table("medusa").all_guids()))}
 
 
 def test_the_reply_waits_for_the_copy_the_infinite_bag_spawns_later_and_one_press_unpacks(tts):  # noqa: F811
@@ -829,6 +830,52 @@ def test_a_copy_left_loose_by_an_earlier_press_is_reused_and_no_second_one_is_ma
     assert res["reused"] == ["e5a45c"] and res["taken"] == ["04b2c9", "bcd809"] and res["bags"] == []
     assert tts.eval("TAKEN_FROM_OUTER") == 0, "the infinite bag is not asked for another copy"
     assert tts.eval("getObjectFromGUID('copy77')") is None, "the reused copy goes once it is empty"
+
+
+def test_another_heros_loose_bag_that_repeats_a_guid_is_never_reused(tts):  # noqa: F811
+    """The save repeats GUIDs across heroes: Loki's inner bag also holds Medusa's dial (bcd809)."""
+    hero_bags(tts)
+    tts.execute("mkobj({guid = '1d7bfd', type = 'Bag', items = {{guid = 'bcd809'}, {guid = 'lok001'}}})")
+    reply = run_unpack(tts, OUTERS, only="bcd809")
+    assert reply() is None and tts.eval("TAKEN_FROM_OUTER") == 1, "a fresh copy is asked for instead"
+    tts.execute("SPAWN()")
+    res = reply()
+    assert res["reused"] == [] and res["bags"] == ["e5a45c"] and res["taken"] == ["bcd809"]
+    assert tts.eval("#getObjectFromGUID('1d7bfd').items") == 2, "Loki's bag is untouched"
+    assert tts.eval("getObjectFromGUID('1d7bfd') ~= nil"), "and it is not destroyed"
+
+
+def test_a_loose_bag_with_the_right_items_but_a_foreign_one_beside_them_is_not_reused(tts):  # noqa: F811
+    hero_bags(tts)
+    tts.execute("mkobj({guid = 'copy88', type = 'Bag', items = {{guid = '04b2c9'}, {guid = 'bcd809'}, {guid = 'lok001'}}})")
+    reply = run_unpack(tts, OUTERS)
+    assert reply() is None and tts.eval("TAKEN_FROM_OUTER") == 1
+    tts.execute("SPAWN()")
+    assert reply()["reused"] == [] and tts.eval("getObjectFromGUID('copy88') ~= nil")
+
+
+def test_a_loose_bag_with_another_name_is_not_reused(tts):  # noqa: F811
+    hero_bags(tts)
+    tts.execute("mkobj({guid = 'copy89', type = 'Bag', name = 'Loki', items = {{guid = '04b2c9'}, {guid = 'bcd809'}}})")
+    reply = run_unpack(tts, OUTERS)
+    assert reply() is None and tts.eval("TAKEN_FROM_OUTER") == 1
+    tts.execute("SPAWN()")
+    assert reply()["reused"] == [] and tts.eval("getObjectFromGUID('copy89') ~= nil")
+
+
+def test_an_error_after_the_copy_spawned_still_answers_with_the_error(tts):  # noqa: F811
+    hero_bags(tts)
+    tts.execute("""getObjectFromGUID('65070e').takeObject = function(t)
+  SPAWN = function()
+    local copy = mkobj({guid = 'copy01', type = 'Bag', pos = Vector(t.position), items = {{guid = '04b2c9'}, {guid = 'bcd809'}}})
+    copy.takeObject = function() error('boom') end
+    t.callback_function(copy)
+  end
+end""")
+    reply = run_unpack(tts, OUTERS)
+    assert reply() is None
+    tts.execute("SPAWN()")
+    assert "boom" in reply()["error"], "the bot is told, not left waiting"
 
 
 def test_a_loose_bag_missing_one_of_the_items_is_not_taken_for_the_copy(tts):  # noqa: F811
@@ -882,7 +929,8 @@ def test_every_hero_has_an_infinite_bag_named_after_the_hero_in_the_official_sav
     for slug in ("medusa", "hellboy"):
         table = load_hero_table(slug)
         assert OBJECTS[table.bag]["nickname"] == load_hero(slug).name
-    assert play.unpack_outers(load_config(raw_config_path()))["e5a45c"] == ("65070e", "Medusa")
+    outer, nick, name, members = play.unpack_outers(load_config(raw_config_path()))["e5a45c"]
+    assert (outer, nick, name) == ("65070e", "Medusa", "") and "bcd809" in members and "d42056" in members
 
 
 def raw_config_path():

@@ -917,13 +917,16 @@ def unpack_plan(cfg: PlayConfig) -> list[tuple]:
     return out
 
 
-def unpack_outers(cfg: PlayConfig) -> dict[str, tuple[str, str]]:
-    """{inner bag GUID: (infinite bag GUID, its nickname)} of both heroes: in the official save the inner bag sits inside the
-    hero's infinite bag, named after the hero."""
+INNER_BAG_NAME = ""          # the nickname of a hero's inner bag in the official save (all of them are unnamed)
+
+
+def unpack_outers(cfg: PlayConfig) -> dict[str, tuple[str, str, str, tuple[str, ...]]]:
+    """{inner bag GUID: (infinite bag GUID, its nickname, the inner bag's nickname, GUIDs the inner bag holds)} of both heroes:
+    in the official save the inner bag sits inside the hero's infinite bag, named after the hero."""
     out = {}
     for slug in cfg.heroes:
         table = load_hero_table(slug)
-        out[table.inner_bag] = (table.bag, load_hero(slug).name)
+        out[table.inner_bag] = (table.bag, load_hero(slug).name, INNER_BAG_NAME, tuple(table.all_guids()))
     return out
 
 
@@ -941,7 +944,7 @@ def prepare_heroes(client, cfg: PlayConfig, echo: Callable[[str], None] = print,
     failed = {row.get("guid"): row.get("why") for row in res.get("bags_failed") or [] if isinstance(row, dict)}
     if taken:
         echo(t("console.unpacked", n=len(taken), items=", ".join(taken)))
-    problems = []
+    problems = [t("gate.unpack_error", error=res["error"])] if res.get("error") else []
     for slug in cfg.heroes:
         table = load_hero_table(slug)
         lost = [g for _, guids in table.unpack_items() for g in guids[:1] if g in missing]
