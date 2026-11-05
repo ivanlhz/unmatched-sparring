@@ -519,6 +519,7 @@
  "intuition.why.missing": "I cannot find your Intuition tokens on the table",
  "intuition.why.partial": "I could not turn all of them",
  "intuition.why.write_failed": "the table did not take my write",
+ "intuition.reset": "UNCANNY INTUITION: new game, so I turned {tokens} left active by the last one back to the dark side.",
  "intuition.mismatch": "{name}: the table shows {table} active Intuition token(s) and I counted {engine}: I trust my count, check them.",
  "dials.touched": "I am not touching {items}: it looks changed by hand. {advice}",
  "dials.item": "{label} (shows {mark:g}, the engine says {want})",

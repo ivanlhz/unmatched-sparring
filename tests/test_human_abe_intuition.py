@@ -166,3 +166,34 @@ def test_a_failed_write_is_not_reported_as_tokens_not_found(rig, monkeypatch):
     msgs = human_abe_hits_hellboy(session, table, game, cfg, monkeypatch)
     assert game.fx.counter_value(1, "intuition") == 1
     assert not said(msgs, "no encuentro tus fichas")
+
+
+@with_rig("hellboy", "abe-sapien", *HAND)
+def test_a_table_with_more_active_tokens_than_the_engine_is_turned_to_dark_and_says_so(rig, monkeypatch):
+    session, table, game, fake, cfg = rig
+    table.intuition["active"] = 2                               # the engine counts 0 and then 1: one token goes to the dark side
+    msgs = human_abe_hits_hellboy(session, table, game, cfg, monkeypatch)
+    assert table.intuition["active"] == 1 and table.intuition_turns == [(False, 1)]
+    assert said(msgs, "he girado 1 ficha a su cara oscura")
+    assert not said(msgs, "he girado 1 ficha a su cara activa")
+
+
+@with_rig("hellboy", "abe-sapien", *HAND)
+def test_the_manual_request_names_the_side_the_table_still_has_to_reach(rig, monkeypatch):
+    session, table, game, fake, cfg = rig
+    monkeypatch.setattr(type(table), "do_set_intuition_tokens",
+                        lambda self, s: {"total": 2, "active": 2, "after": 2, "flipped": 0, "guids": []})
+    msgs = human_abe_hits_hellboy(session, table, game, cfg, monkeypatch)       # engine 0 -> 1, the table stays on 2
+    assert said(msgs, "gira 1 ficha de Intuicion a su cara oscura")
+    assert not said(msgs, "a su cara activa (verde")
+
+
+@with_rig("hellboy", "abe-sapien", *HAND)
+def test_a_restart_turns_the_tokens_the_last_game_left_active_back_to_dark(rig):
+    session, table, game, fake, cfg = rig
+    table.intuition["active"] = 2
+    session.restart_armed = lambda: True
+    session._restart({})
+    session._commit()
+    assert table.intuition["active"] == 0 and table.intuition_turns == [(False, 2)]
+    assert any("partida nueva" in str(m) and "cara oscura" in str(m) for m in session.messages)

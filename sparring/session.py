@@ -1325,6 +1325,7 @@ class Session:
                 self.say(t("restart.delete_fail", path=self.state_path, err=e), ChatKind.WARNING)
         self.say(t("restart.done"))
         self._begin_game()
+        self._darken_intuition_tokens()
 
     def _fresh_game(self) -> Game:
         if self.new_game is not None:
@@ -2505,11 +2506,10 @@ class Session:
         inactive when one is spent) and pings them. The table is read in the same script: a count that differs from
         `prev` is warned (the engine stays the authority) and tokens that cannot be found or turned are asked of the
         human by chat."""
-        on, n = now > prev, abs(now - prev)
-        tokens = plural(n, "noun.token")
-        manual = "intuition.on_manual" if on else "intuition.off_manual"
+        n = abs(now - prev)
 
-        def ask(why: str, left: int = n) -> None:
+        def ask(why: str, left: int = n, on: bool = now > prev) -> None:
+            manual = "intuition.on_manual" if on else "intuition.off_manual"
             self.say(t(manual, name=name, tokens=plural(left, "noun.token"), n=now, max=top, why=why), ChatKind.ABILITY)
 
         try:
@@ -2531,17 +2531,44 @@ class Session:
             if not res.get("total"):
                 ask(t("intuition.why.missing"))
                 return
-            if res.get("active") != prev:
-                self.say(t("intuition.mismatch", name=name, table=res.get("active"), engine=prev), ChatKind.WARNING)
+            before, after = res.get("active"), res.get("after")
+            if before != prev:
+                self.say(t("intuition.mismatch", name=name, table=before, engine=prev), ChatKind.WARNING)
             done = int(res.get("flipped") or 0)
-            after = res.get("after")
             if after is not None and after != now:
-                ask(t("intuition.why.partial"), abs(now - after))
+                ask(t("intuition.why.partial"), abs(now - after), on=after < now)
             if done:
+                # the direction is the table's own: with a table that disagrees, the engine's count can lie on the other side
+                on = before < now if before is not None else now > prev
                 self.say(t("intuition.turned_on" if on else "intuition.turned_off", name=name,
                            tokens=plural(done, "noun.token"), n=now, max=top), ChatKind.ABILITY)
             elif after == now:                    # the table already showed the engine's count: nothing to turn
                 self.say(t("intuition.state", name=name, n=now, max=top, dark=plural(top - now, "noun.token")), ChatKind.ABILITY)
+        self._post.append(check)
+
+    def _darken_intuition_tokens(self) -> None:
+        """After a restart: the human Abe's tokens left active by the last game go back to the dark side (the new game
+        starts with none active)."""
+        rng = self._intuition_range()
+        if rng is None:
+            return
+        try:
+            table = load_hero_table(self.game.hero_def(self.human).slug)
+            source, faces = table.tokens[INTUITION], table.token_faces[INTUITION]["faces"]
+            script = lua.set_intuition_tokens(INTUITION_TOKEN, source, float(faces["active"]), float(faces["inactive"]), rng.start,
+                                              [self.cfg.human_seat, self.cfg.bot_seat])
+        except (HeroTableError, KeyError, TypeError, ValueError):
+            return
+        op = self._w(script, translators.DOMAIN)
+
+        def check() -> None:
+            try:
+                done = int((op.result or {}).get("flipped") or 0)
+            except translators.ERRORS:
+                return
+            if done:
+                self.say(t("intuition.reset", name=self._name(self.game.hero(self.human)), tokens=plural(done, "noun.token")),
+                         ChatKind.ABILITY)
         self._post.append(check)
 
     def _track_destiny(self) -> bool:
