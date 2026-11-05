@@ -979,7 +979,8 @@ return JSON.encode(out)
 
 
 MAX_UNPACK = 40
-UNPACK_SPAWN_WAIT = 4.0       # seconds to wait for the copy of an inner bag out of an infinite one (the client waits 5 s + 8 s)
+UNPACK_REUSE_RADIUS = 3.0      # a leftover copy lies where this hero's copy is spawned (its first item's spot); farther is not ours
+UNPACK_SPAWN_WAIT = 4.0      # seconds to wait for the copy of an inner bag out of an infinite one (the client waits 5 s + 8 s)
 
 
 @_registered
@@ -1122,7 +1123,9 @@ for inner, w in pairs(wanted) do
     resolved[inner] = bag
   elseif OUTERS[inner] ~= nil then
     for _, o in ipairs(getObjects()) do                  -- a copy an earlier press left loose is reused, never duplicated
-      if o ~= bag and o.getName() == OUTERS[inner][3] and listsAll(o, w.guids) and belongs(o, inner) then
+      local p = o.getPosition()
+      if o ~= bag and o.getName() == OUTERS[inner][3] and listsAll(o, w.guids) and belongs(o, inner)
+         and (p.x - w.spot[1]) ^ 2 + (p.z - w.spot[3]) ^ 2 <= {_f(UNPACK_REUSE_RADIUS)} ^ 2 then
         resolved[inner] = o
         table.insert(out.reused, inner)
         table.insert(made, o)

@@ -825,7 +825,7 @@ def test_the_reply_waits_for_the_copy_the_infinite_bag_spawns_later_and_one_pres
 
 def test_a_copy_left_loose_by_an_earlier_press_is_reused_and_no_second_one_is_made(tts):  # noqa: F811
     hero_bags(tts)
-    tts.execute("mkobj({guid = 'copy77', type = 'Bag', items = {{guid = '04b2c9'}, {guid = 'bcd809'}}})")
+    tts.execute("mkobj({guid = 'copy77', type = 'Bag', pos = Vector(22, 2.5, -8.5), items = {{guid = '04b2c9'}, {guid = 'bcd809'}}})")
     res = run_unpack(tts, OUTERS)()
     assert res["reused"] == ["e5a45c"] and res["taken"] == ["04b2c9", "bcd809"] and res["bags"] == []
     assert tts.eval("TAKEN_FROM_OUTER") == 0, "the infinite bag is not asked for another copy"
@@ -835,7 +835,7 @@ def test_a_copy_left_loose_by_an_earlier_press_is_reused_and_no_second_one_is_ma
 def test_another_heros_loose_bag_that_repeats_a_guid_is_never_reused(tts):  # noqa: F811
     """The save repeats GUIDs across heroes: Loki's inner bag also holds Medusa's dial (bcd809)."""
     hero_bags(tts)
-    tts.execute("mkobj({guid = '1d7bfd', type = 'Bag', items = {{guid = 'bcd809'}, {guid = 'lok001'}}})")
+    tts.execute("mkobj({guid = '1d7bfd', type = 'Bag', pos = Vector(22, 2.5, -8.5), items = {{guid = 'bcd809'}, {guid = 'lok001'}}})")
     reply = run_unpack(tts, OUTERS, only="bcd809")
     assert reply() is None and tts.eval("TAKEN_FROM_OUTER") == 1, "a fresh copy is asked for instead"
     tts.execute("SPAWN()")
@@ -845,9 +845,32 @@ def test_another_heros_loose_bag_that_repeats_a_guid_is_never_reused(tts):  # no
     assert tts.eval("getObjectFromGUID('1d7bfd') ~= nil"), "and it is not destroyed"
 
 
+def test_another_heros_bag_emptied_down_to_a_shared_guid_far_from_the_spot_is_not_reused(tts):  # noqa: F811
+    hero_bags(tts)
+    tts.execute("mkobj({guid = '1d7bfd', type = 'Bag', pos = Vector(-20, 2.5, 40), items = {{guid = 'bcd809'}}})")
+    reply = run_unpack(tts, OUTERS, only="bcd809")
+    assert reply() is None and tts.eval("TAKEN_FROM_OUTER") == 1, "it lies nowhere near where this hero's copy is spawned"
+    tts.execute("SPAWN()")
+    res = reply()
+    assert res["reused"] == [] and res["taken"] == ["bcd809"] and tts.eval("getObjectFromGUID('1d7bfd') ~= nil")
+
+
+def test_a_genuine_leftover_at_the_spot_is_reused(tts):  # noqa: F811
+    hero_bags(tts)
+    tts.execute("mkobj({guid = 'copy66', type = 'Bag', pos = Vector(22, 2.5, -8.5), items = {{guid = 'bcd809'}}})")
+    assert run_unpack(tts, OUTERS, only="bcd809")()["reused"] == ["e5a45c"]
+
+
+def test_the_same_bag_four_units_from_the_spot_is_not_reused(tts):  # noqa: F811
+    hero_bags(tts)
+    tts.execute("mkobj({guid = 'copy67', type = 'Bag', pos = Vector(26, 2.5, -7), items = {{guid = 'bcd809'}}})")
+    reply = run_unpack(tts, OUTERS, only="bcd809")
+    assert reply() is None and tts.eval("TAKEN_FROM_OUTER") == 1
+
+
 def test_a_loose_bag_with_the_right_items_but_a_foreign_one_beside_them_is_not_reused(tts):  # noqa: F811
     hero_bags(tts)
-    tts.execute("mkobj({guid = 'copy88', type = 'Bag', items = {{guid = '04b2c9'}, {guid = 'bcd809'}, {guid = 'lok001'}}})")
+    tts.execute("mkobj({guid = 'copy88', type = 'Bag', pos = Vector(22, 2.5, -8.5), items = {{guid = '04b2c9'}, {guid = 'bcd809'}, {guid = 'lok001'}}})")
     reply = run_unpack(tts, OUTERS)
     assert reply() is None and tts.eval("TAKEN_FROM_OUTER") == 1
     tts.execute("SPAWN()")
@@ -856,7 +879,7 @@ def test_a_loose_bag_with_the_right_items_but_a_foreign_one_beside_them_is_not_r
 
 def test_a_loose_bag_with_another_name_is_not_reused(tts):  # noqa: F811
     hero_bags(tts)
-    tts.execute("mkobj({guid = 'copy89', type = 'Bag', name = 'Loki', items = {{guid = '04b2c9'}, {guid = 'bcd809'}}})")
+    tts.execute("mkobj({guid = 'copy89', type = 'Bag', pos = Vector(22, 2.5, -8.5), name = 'Loki', items = {{guid = '04b2c9'}, {guid = 'bcd809'}}})")
     reply = run_unpack(tts, OUTERS)
     assert reply() is None and tts.eval("TAKEN_FROM_OUTER") == 1
     tts.execute("SPAWN()")
@@ -880,7 +903,7 @@ end""")
 
 def test_a_loose_bag_missing_one_of_the_items_is_not_taken_for_the_copy(tts):  # noqa: F811
     hero_bags(tts)
-    tts.execute("mkobj({guid = 'other9', type = 'Bag', items = {{guid = '04b2c9'}}})")
+    tts.execute("mkobj({guid = 'other9', type = 'Bag', pos = Vector(22, 2.5, -8.5), items = {{guid = '04b2c9'}}})")
     reply = run_unpack(tts, OUTERS)
     assert reply() is None and tts.eval("TAKEN_FROM_OUTER") == 1
     tts.execute("SPAWN()")
