@@ -979,6 +979,7 @@ return JSON.encode(out)
 
 
 MAX_UNPACK = 40
+UNPACK_SPAWN_WAIT = 4.0       # seconds to wait for the copy of an inner bag out of an infinite one (the client waits 5 s + 8 s)
 
 
 @_registered
@@ -998,7 +999,13 @@ def unpack_from_bags(items: list[tuple[str, tuple[str, ...], str, tuple[float, f
     item, but only if the infinite bag with that GUID is on the table, carries that nickname and lists the inner bag; the copy is
     what the items are taken from (its GUID may differ) and it is destroyed once empty. `bags` = inner bags taken out,
     `bags_failed` = [{guid, why}] (`outer`: the infinite bag is not there or has another name; `listed`: it does not hold the
-    inner bag; `take`: TTS gave nothing; `spawning`: the copy lists nothing yet)."""
+    inner bag; `spawning`: the copy did not appear within `UNPACK_SPAWN_WAIT` seconds).
+
+    An infinite bag spawns its copy LATER (its `takeObject` answers through `callback_function`), so with `outers` the reply
+    is sent from that callback (the request wrapper's `JSON.encode` is a closure that answers the call by its id whenever it
+    runs; `TTSClient` waits for it) after the items have been taken out of the copy, or after `UNPACK_SPAWN_WAIT` s if it never
+    comes. A loose Bag an earlier press left (one that lists every item still missing) is reused, never duplicated, and
+    destroyed once empty; `reused` lists those. Without `outers` the reply is immediate."""
     if not isinstance(items, (list, tuple)) or not 1 <= len(items) <= MAX_UNPACK:
         raise ValueError(f"between 1 and {MAX_UNPACK} objects expected")
     rows = []
@@ -1034,73 +1041,116 @@ local function deckAnywhere(lo, hi)
   end
   return false
 end
-local out = {{present = {{}}, taken = {{}}, missing = {{}}, bags = {{}}, bags_failed = {{}}}}
-local pulled = {{}}
-local function innerBag(guid, spot)
-  local bag = pulled[guid] or getObjectFromGUID(guid)
-  if bag ~= nil or OUTERS[guid] == nil or pulled[guid] == false then return bag end
-  pulled[guid] = false
-  local outer, why = getObjectFromGUID(OUTERS[guid][1]), nil
-  if outer == nil or outer.getName() ~= OUTERS[guid][2] then why = "outer" end
-  if why == nil then
-    why = "listed"
-    local ok, inside = pcall(function() return outer.getObjects() end)
+local out = {{present = {{}}, taken = {{}}, missing = {{}}, bags = {{}}, reused = {{}}, bags_failed = {{}}}}
+local resolved, made, pending, started, replied = {{}}, {{}}, 0, false, false
+local wanted, here = {{}}, {{}}
+local function lists(bag, guid)
+  if bag ~= nil and bag.type == "Bag" then
+    local ok, inside = pcall(function() return bag.getObjects() end)
     if ok and type(inside) == "table" then
       for _, e in ipairs(inside) do
-        if e.guid == guid then why = nil end
+        if e.guid == guid then return true end
       end
     end
   end
-  if why == nil then
-    bag = outer.takeObject({{guid = guid, position = Vector(spot[1], spot[2], spot[3]), smooth = false}})
-    if bag == nil then
-      why = "take"
-    else                                  -- the copy may still be spawning: it must already list what is in it
-      local ok, inside = pcall(function() return bag.getObjects() end)
-      if not ok or type(inside) ~= "table" or #inside == 0 then why = "spawning" end
-    end
-  end
-  if why ~= nil then
-    table.insert(out.bags_failed, {{guid = guid, why = why}})
-    return nil
-  end
-  pulled[guid] = bag
-  table.insert(out.bags, guid)
-  return bag
+  return false
 end
-for _, it in ipairs(ITEMS) do
-  local kind, guids = it[1], it[2]
-  local here = false
+local function listsAll(bag, guids)
   for _, g in ipairs(guids) do
-    if getObjectFromGUID(g) ~= nil then here = true end
+    if not lists(bag, g) then return false end
   end
-  if not here and it[9] then here = deckAnywhere(it[7], it[8]) end
-  if here then
-    table.insert(out.present, guids[1])
-  else
-    local bag = innerBag(it[3], {{it[4], it[5], it[6]}})
-    local listed = false
-    if bag ~= nil and bag.type == "Bag" then
-      for _, e in ipairs(bag.getObjects()) do
-        if e.guid == guids[1] then listed = true end
+  return true
+end
+local function finish()
+  if replied then return "" end
+  replied = true
+  for i, it in ipairs(ITEMS) do
+    local kind, guids = it[1], it[2]
+    if here[i] then
+      table.insert(out.present, guids[1])
+    else
+      local bag = resolved[it[3]] or nil
+      if bag ~= nil and lists(bag, guids[1]) then
+        bag.takeObject({{guid = guids[1], position = Vector(it[4], it[5], it[6]), smooth = false,
+                         callback_function = function(o) if kind == "deck" then o.shuffle() end end}})
+        table.insert(out.taken, guids[1])
+      else
+        table.insert(out.missing, guids[1])
       end
     end
-    if not listed then
-      table.insert(out.missing, guids[1])
-    else
-      bag.takeObject({{guid = guids[1], position = Vector(it[4], it[5], it[6]), smooth = false,
-                       callback_function = function(o) if kind == "deck" then o.shuffle() end end}})
-      table.insert(out.taken, guids[1])
-    end
   end
-end
-for _, bag in pairs(pulled) do
-  if bag then
+  for _, bag in ipairs(made) do
     local ok, left = pcall(function() return #bag.getObjects() end)
     if ok and left == 0 then bag.destruct() end
   end
+  return JSON.encode(out)
 end
-return JSON.encode(out)
+for i, it in ipairs(ITEMS) do
+  local guids = it[2]
+  here[i] = false
+  for _, g in ipairs(guids) do
+    if getObjectFromGUID(g) ~= nil then here[i] = true end
+  end
+  if not here[i] and it[9] then here[i] = deckAnywhere(it[7], it[8]) end
+  if not here[i] then
+    wanted[it[3]] = wanted[it[3]] or {{spot = {{it[4], it[5], it[6]}}, guids = {{}}}}
+    table.insert(wanted[it[3]].guids, guids[1])
+  end
+end
+for inner, w in pairs(wanted) do
+  local bag = getObjectFromGUID(inner)
+  if listsAll(bag, w.guids) then
+    resolved[inner] = bag
+  elseif OUTERS[inner] ~= nil then
+    for _, o in ipairs(getObjects()) do                  -- a copy an earlier press left loose is reused, never duplicated
+      if o ~= bag and listsAll(o, w.guids) then
+        resolved[inner] = o
+        table.insert(out.reused, inner)
+        table.insert(made, o)
+        break
+      end
+    end
+  end
+  if resolved[inner] == nil and OUTERS[inner] ~= nil then
+    local outer, why = getObjectFromGUID(OUTERS[inner][1]), nil
+    if outer == nil or outer.getName() ~= OUTERS[inner][2] then why = "outer" end
+    if why == nil then
+      why = "listed"
+      local ok, inside = pcall(function() return outer.getObjects() end)
+      if ok and type(inside) == "table" then
+        for _, e in ipairs(inside) do
+          if e.guid == inner then why = nil end
+        end
+      end
+    end
+    if why ~= nil then
+      table.insert(out.bags_failed, {{guid = inner, why = why}})
+    else
+      pending = pending + 1          -- an infinite bag spawns its copy later: the items are taken in the callback
+      outer.takeObject({{guid = inner, position = Vector(w.spot[1], w.spot[2], w.spot[3]), smooth = false,
+                         callback_function = function(o)
+                           resolved[inner] = o
+                           table.insert(out.bags, inner)
+                           table.insert(made, o)
+                           pending = pending - 1
+                           if started and pending == 0 then finish() end
+                         end}})
+    end
+  end
+end
+started = true
+if pending == 0 then
+  return finish()
+else
+  Wait.time(function()           -- the copy never arrived: say so instead of leaving the bot waiting
+    if replied then return end
+    for inner, _ in pairs(wanted) do
+      if resolved[inner] == nil then table.insert(out.bags_failed, {{guid = inner, why = "spawning"}}) end
+    end
+    finish()
+  end, {_f(UNPACK_SPAWN_WAIT)})
+  return ""
+end
 """
 
 

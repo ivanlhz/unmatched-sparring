@@ -268,6 +268,39 @@ def test_a_hero_bag_that_does_not_give_its_inner_bag_is_said_with_what_to_do_by_
 
 
 @pytest.mark.gate
+def test_a_slow_copy_fails_the_first_press_and_the_second_reuses_it_without_a_duplicate(official, cfg_file, tmp_path):
+    table, fake, _ = official
+    table.spawn_late = True                                  # TTS has not spawned the copies when the script answers
+    stop, t, result = run_main(official, cfg_file, tmp_path)
+    try:
+        assert wait_for(lambda: shown(table, "btn_prep") == (True, True))
+        press(fake, "prepare_table")
+        assert wait_for(said(table, "aun se estaba creando", "arreglarla a mano"))
+        assert wait_for(lambda: shown(table, "btn_prep") == (True, True))
+        assert shown(table, "btn_start") == (False, False) and table.copies_made == 2 and table.destroyed == []
+        table.spawn_late = False                             # the copies are there now
+        press(fake, "prepare_table")
+        assert wait_for(lambda: shown(table, "btn_start") == (True, True))
+        assert table.copies_made == 2 and table.bags_taken == [], "the loose copies were reused, none was made again"
+        assert not table.loose_copies and sorted(table.destroyed) == sorted(REMOVED)
+    finally:
+        finish(stop, t, result)
+
+
+@pytest.mark.gate
+def test_one_press_makes_exactly_one_copy_per_hero_bag(official, cfg_file, tmp_path):
+    table, fake, _ = official
+    stop, t, result = run_main(official, cfg_file, tmp_path)
+    try:
+        assert wait_for(lambda: shown(table, "btn_prep") == (True, True))
+        press(fake, "prepare_table")
+        assert wait_for(lambda: shown(table, "btn_start") == (True, True))
+        assert table.copies_made == 2 and not table.loose_copies
+    finally:
+        finish(stop, t, result)
+
+
+@pytest.mark.gate
 def test_the_audit_is_one_message_and_the_whole_cleaning_a_handful(official, cfg_file, tmp_path):
     table, fake, _ = official
     client = client_for(official)

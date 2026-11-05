@@ -51,6 +51,9 @@ class GateTable(Table):
         self.inner_on_table = {"e5a45c", "c592d8"}       # inner bags of Medusa and Hellboy lying on the table (as with --unpack)
         self.outers: dict[str, tuple[str, list[str]]] = {}   # infinite bag GUID -> (nickname, GUIDs it holds)
         self.bags_taken: list[str] = []
+        self.spawn_late = False                          # the infinite bag's copy appears after the reply
+        self.loose_copies: set[str] = set()              # inner bag copies lying loose on the table
+        self.copies_made = 0                             # copies the infinite bags have spawned in all
         self.sticky = 0                                  # cards in the human's hand the bot's reset cannot move
         self.flips = 0
         self.dial_start: dict[str, int] = {}             # dial GUID -> its starting value
@@ -122,15 +125,17 @@ class GateTable(Table):
                 "present": {k: (k in self.strays) if k.startswith("other:") else not self.in_bags for k in labels}}
 
     def do_unpack_from_bags(self, s):
-        """The real script's rules: an item comes out only of its inner bag, which must be on the table or be taken out of
-        the hero's infinite bag (named as the script says and listing it) in the same message."""
+        """The real script's rules: an item comes out only of its inner bag, which must be on the table, be a copy an earlier
+        press left loose (reused, never duplicated) or be taken out of the hero's infinite bag (named as the script says and
+        listing it). An infinite bag spawns its copy LATER: with `spawn_late` the copy appears only after the reply, so that
+        press answers `spawning` and leaves the copy loose for the next one."""
         self.unpacked += 1
         outers = {inner: (outer, nick) for inner, outer, nick in re.findall(r'\["(\w+)"\] = \{"(\w+)", "([^"]*)"\}', s)}
         rows = re.findall(r'\{"(?:deck|piece|dial|token)", \{([^}]*)\}, "(\w+)", ', s)
-        taken, missing, failed, pulled = [], [], [], []
+        taken, missing, failed, pulled, reused = [], [], [], [], []
         if self.in_bags:
             for guids, inner in rows:
-                if inner not in self.inner_on_table and inner in outers and inner not in pulled \
+                if inner not in self.inner_on_table and inner in outers and inner not in pulled and inner not in reused \
                         and inner not in [f["guid"] for f in failed]:
                     outer, nick = outers[inner]
                     have = self.outers.get(outer)
@@ -138,13 +143,21 @@ class GateTable(Table):
                         failed.append({"guid": inner, "why": "outer"})
                     elif inner not in have[1]:
                         failed.append({"guid": inner, "why": "listed"})
+                    elif inner in self.loose_copies:
+                        self.loose_copies.discard(inner)
+                        reused.append(inner)
+                    elif self.spawn_late:
+                        self.loose_copies.add(inner)
+                        self.copies_made += 1
+                        failed.append({"guid": inner, "why": "spawning"})
                     else:
+                        self.copies_made += 1
                         pulled.append(inner)
                 first = re.findall(r'"(\w+)"', guids)[0]
-                (taken if inner in self.inner_on_table or inner in pulled else missing).append(first)
+                (taken if inner in self.inner_on_table or inner in pulled or inner in reused else missing).append(first)
             self.bags_taken += pulled
             self.in_bags = bool(missing)
-        return {"present": [], "taken": taken, "missing": missing, "bags": pulled, "bags_failed": failed}
+        return {"present": [], "taken": taken, "missing": missing, "bags": pulled, "reused": reused, "bags_failed": failed}
 
     def do_prepare_table(self, s):
         self.removable = {g for g, n in self.leftovers.items() if n == KINDS.get(g)}
@@ -761,67 +774,104 @@ def test_the_two_faced_tokens_have_a_starting_face_in_the_data():
 
 
 # ---------- the inner bag comes out of the hero's infinite bag ----------
-def unpack_script(runtime, outers, rid=1):
+def run_unpack(runtime, outers, rid=1):
+    """Sends the unpack request; returns a function that reads its reply (None while TTS has not answered)."""
     plan = [("piece", ("04b2c9",), "e5a45c", (22.0, 2.5, -10.0), None), ("dial", ("bcd809",), "e5a45c", (22.0, 2.5, -7.0), None)]
     n = len(runtime.globals().SENT)
     runtime.execute(lua.request(lua.unpack_from_bags(plan, outers), rid))
-    reply = conv(runtime.globals().SENT[n + 1])
-    assert "err" not in reply, reply
-    return json.loads(reply["value"])
+
+    def reply():
+        if len(runtime.globals().SENT) <= n:
+            return None
+        got = conv(runtime.globals().SENT[n + 1])
+        assert "err" not in got, got
+        return json.loads(got["value"])
+    return reply
 
 
 def hero_bags(tts, nickname="Medusa", holds="e5a45c"):
+    """The hero's infinite bag. Like TTS, its takeObject returns nothing: the copy appears LATER, when SPAWN() runs, and only
+    then is the callback called."""
     tts.execute(f"""
 local outer = mkobj({{guid = '65070e', type = 'Infinite', name = '{nickname}', items = {{{{guid = '{holds}', name = 'bag'}}}}}})
 TAKEN_FROM_OUTER = 0
+SPAWN = nil
 outer.takeObject = function(t)
   TAKEN_FROM_OUTER = TAKEN_FROM_OUTER + 1
-  return mkobj({{guid = 'copy01', type = 'Bag', pos = Vector(t.position),
-                 items = {{{{guid = '04b2c9', name = 'Medusa'}}, {{guid = 'bcd809', name = 'Medusa'}}}}}})
+  SPAWN = function()
+    local copy = mkobj({{guid = 'copy01', type = 'Bag', pos = Vector(t.position),
+                         items = {{{{guid = '04b2c9', name = 'Medusa'}}, {{guid = 'bcd809', name = 'Medusa'}}}}}})
+    t.callback_function(copy)
+  end
 end""")
 
 
 OUTERS = {"e5a45c": ("65070e", "Medusa")}
 
 
-def test_an_inner_bag_inside_an_infinite_bag_is_taken_out_first_then_emptied_and_removed(tts):  # noqa: F811
+def test_the_reply_waits_for_the_copy_the_infinite_bag_spawns_later_and_one_press_unpacks(tts):  # noqa: F811
     hero_bags(tts)
-    res = unpack_script(tts, OUTERS)
-    assert res["bags"] == ["e5a45c"] and res["bags_failed"] == [] and res["missing"] == []
+    reply = run_unpack(tts, OUTERS)
+    assert reply() is None, "nothing is answered while the copy has not spawned"
+    assert tts.eval("TAKEN_FROM_OUTER") == 1
+    tts.execute("SPAWN()")
+    res = reply()
+    assert res["bags"] == ["e5a45c"] and res["bags_failed"] == [] and res["missing"] == [] and res["reused"] == []
     assert res["taken"] == ["04b2c9", "bcd809"]
-    assert tts.eval("TAKEN_FROM_OUTER") == 1, "one copy of the inner bag for both items"
     assert tts.eval("getObjectFromGUID('copy01')") is None, "the emptied copy is destroyed"
     assert tts.eval("getObjectFromGUID('65070e') ~= nil"), "the infinite bag stays"
+
+
+def test_a_copy_left_loose_by_an_earlier_press_is_reused_and_no_second_one_is_made(tts):  # noqa: F811
+    hero_bags(tts)
+    tts.execute("mkobj({guid = 'copy77', type = 'Bag', items = {{guid = '04b2c9'}, {guid = 'bcd809'}}})")
+    res = run_unpack(tts, OUTERS)()
+    assert res["reused"] == ["e5a45c"] and res["taken"] == ["04b2c9", "bcd809"] and res["bags"] == []
+    assert tts.eval("TAKEN_FROM_OUTER") == 0, "the infinite bag is not asked for another copy"
+    assert tts.eval("getObjectFromGUID('copy77')") is None, "the reused copy goes once it is empty"
+
+
+def test_a_loose_bag_missing_one_of_the_items_is_not_taken_for_the_copy(tts):  # noqa: F811
+    hero_bags(tts)
+    tts.execute("mkobj({guid = 'other9', type = 'Bag', items = {{guid = '04b2c9'}}})")
+    reply = run_unpack(tts, OUTERS)
+    assert reply() is None and tts.eval("TAKEN_FROM_OUTER") == 1
+    tts.execute("SPAWN()")
+    assert reply()["bags"] == ["e5a45c"] and tts.eval("getObjectFromGUID('other9') ~= nil")
+
+
+def test_a_copy_that_never_spawns_is_answered_after_the_wait_as_spawning(tts):  # noqa: F811
+    hero_bags(tts)
+    reply = run_unpack(tts, OUTERS)
+    assert reply() is None
+    tts.execute("for _, f in ipairs(TIMERS) do f() end")                     # the wait runs out
+    res = reply()
+    assert res["bags_failed"] == [{"guid": "e5a45c", "why": "spawning"}] and res["taken"] == []
+    assert res["missing"] == ["04b2c9", "bcd809"]
+    tts.execute("SPAWN()")                                                    # a late copy changes nothing
+    assert tts.eval("#SENT") == 1, "one reply per request"
 
 
 @pytest.mark.parametrize("nickname, holds, why", [("Not Medusa", "e5a45c", "outer"), ("Medusa", "other1", "listed")])
 def test_the_infinite_bag_is_trusted_only_with_its_nickname_and_its_contents(tts, nickname, holds, why):  # noqa: F811
     hero_bags(tts, nickname, holds)
-    res = unpack_script(tts, OUTERS)
+    res = run_unpack(tts, OUTERS)()
     assert res["bags_failed"] == [{"guid": "e5a45c", "why": why}] and res["taken"] == [] and res["missing"] == ["04b2c9", "bcd809"]
     assert tts.eval("TAKEN_FROM_OUTER") == 0
 
 
-def test_a_copy_that_does_not_list_its_contents_yet_is_reported_not_used(tts):  # noqa: F811
+def test_without_the_gates_outers_an_infinite_bag_is_never_touched_nor_a_loose_bag_reused(tts):  # noqa: F811
     hero_bags(tts)
-    tts.execute("""getObjectFromGUID('65070e').takeObject = function(t)
-  return mkobj({guid = 'copy01', type = 'Bag', pos = Vector(t.position), items = {}})   -- still spawning
-end""")
-    res = unpack_script(tts, OUTERS)
-    assert res["bags_failed"] == [{"guid": "e5a45c", "why": "spawning"}] and res["taken"] == []
-    assert res["missing"] == ["04b2c9", "bcd809"]
-
-
-def test_without_the_gates_outers_an_infinite_bag_is_never_touched(tts):  # noqa: F811
-    hero_bags(tts)
-    res = unpack_script(tts, None)
-    assert res["missing"] == ["04b2c9", "bcd809"] and res["bags"] == [] and tts.eval("TAKEN_FROM_OUTER") == 0
+    tts.execute("mkobj({guid = 'copy77', type = 'Bag', items = {{guid = '04b2c9'}, {guid = 'bcd809'}}})")
+    res = run_unpack(tts, None)()
+    assert res["missing"] == ["04b2c9", "bcd809"] and res["bags"] == [] and res["reused"] == []
+    assert tts.eval("TAKEN_FROM_OUTER") == 0
 
 
 def test_an_inner_bag_already_on_the_table_is_used_and_the_infinite_one_left_alone(tts):  # noqa: F811
     hero_bags(tts)
     tts.execute("mkobj({guid = 'e5a45c', type = 'Bag', items = {{guid = '04b2c9'}, {guid = 'bcd809'}}})")
-    res = unpack_script(tts, OUTERS)
+    res = run_unpack(tts, OUTERS)()
     assert res["taken"] == ["04b2c9", "bcd809"] and res["bags"] == [] and tts.eval("TAKEN_FROM_OUTER") == 0
 
 
