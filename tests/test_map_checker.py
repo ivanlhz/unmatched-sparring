@@ -383,3 +383,25 @@ def test_the_check_flags_a_hazard_on_spaces_that_are_not_adjacent():
 def test_hazards_are_kept_when_not_in_the_edit_and_cleared_by_an_empty_list():
     kept = mc.apply_edit(ring(), {"hazards": [{"edge": [0, 1], "damage": 2}]})
     assert mc.apply_edit(kept, {})["hazards"] == kept["hazards"] and "hazards" not in mc.apply_edit(kept, {"hazards": []})
+
+
+def test_a_confirmed_map_gets_its_one_way_edges_through_the_server_when_reconfirming_is_allowed(server):
+    base, maps = server
+    post = {"Content-Type": "application/json"}
+    assert json.loads(call(base + "/api/confirm/t", {}, post)[1])["written"] is True
+    mc.Handler.allow_reconfirm = True
+    try:
+        assert json.loads(call(base + "/api/maps")[1])["reconfirm"] is True
+        edit = {"one_way": [[0, 1]]}
+        assert json.loads(call(base + "/api/check/t", edit, post)[1])["problems"] == []
+        assert json.loads(call(base + "/api/confirm/t", edit, post)[1])["written"] is True
+        assert json.loads(call(base + "/api/map/t")[1])["one_way"] == [[0, 1]]            # reopened: still there
+        assert json.loads(call(base + "/api/confirm/t", {"one_way": [[1, 0]]}, post)[1])["written"] is True
+        assert json.loads((maps / "t.json").read_text(encoding="utf-8"))["one_way"] == [[1, 0]]
+    finally:
+        mc.Handler.allow_reconfirm = False
+
+
+def test_a_one_way_edge_marked_in_both_directions_is_reported_once():
+    both = mc.apply_edit(ring(), {"one_way": [[0, 1], [1, 0]]})
+    assert [p for p in mc.validate(both) if "both directions" in p] == ["edge 0-1 is one-way in both directions, so nobody can cross it"]

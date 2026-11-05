@@ -187,7 +187,8 @@ def validate(data: dict, expected: dict | None = None, zone_names: list[str] | N
         if b not in adj.get(a, ()):
             problems.append(f"one-way edge {a}->{b}: the spaces are not adjacent")
         elif [b, a] in one_way:
-            problems.append(f"edge {a}-{b} is one-way in both directions, so nobody can cross it")
+            if a < b:
+                problems.append(f"edge {a}-{b} is one-way in both directions, so nobody can cross it")
         else:
             moves[b].discard(a)
     if ids and all(b in adj for n in adj.values() for b in n):
