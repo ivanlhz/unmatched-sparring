@@ -48,6 +48,7 @@ class GateTable(Table):
         self.hellboy_form2 = False                       # Hellboy's miniature is in its second state
         self.token_rot = 180.0                           # ability token: 180 = OCCULT DETECTIVE (start), 0 = ANUNG UN RAMA
         self.zoom_cleared = 0
+        self.decks_away = False                          # both decks were dumped by hand elsewhere on the table (not in a bag)
         self.inner_on_table = {"e5a45c", "c592d8"}       # inner bags of Medusa and Hellboy lying on the table (as with --unpack)
         self.outers: dict[str, tuple[str, list[str]]] = {}   # infinite bag GUID -> (nickname, GUIDs it holds)
         self.bags_taken: list[str] = []
@@ -69,7 +70,7 @@ class GateTable(Table):
         return self
 
     def do_deck_facing(self, s):
-        return [{"found": not self.in_bags, "face_down": not self.deck_face_up, "flipped": False} for _ in range(2)]
+        return [{"found": not self.in_bags and not self.decks_away, "face_down": not self.deck_face_up, "flipped": False} for _ in range(2)]
 
     def do_flip_decks_down(self, s):
         self.flips += self.deck_face_up
@@ -170,6 +171,8 @@ class GateTable(Table):
         bot, human = self._outside()
         if self.in_bags:
             return [{"deck": False, "loose": 0, "total": 0}] * 2
+        if self.decks_away:
+            return [{"deck": False, "loose": 1, "total": 30}] * 2
         deck = not self.deck_face_up                      # the writes only take a face-down deck
         return [{"deck": deck, "loose": bot, "total": len(self.bot_deck) + bot},
                 {"deck": deck, "loose": human, "total": 30}]
@@ -217,6 +220,42 @@ def test_a_table_arranged_for_a_new_game_audits_ready(gate_live, cfg_file):
     finally:
         client.close()
     assert result.ready and result.issues == [] and result.notices == []
+
+
+def test_one_failing_side_read_does_not_kill_the_audit(gate_live, cfg_file):
+    table, _, _ = gate_live
+    table.make_ready()
+    table.do_read_health_dials = lambda s: {"__error__": "boom"}
+    client = client_for(gate_live)
+    try:
+        result = table_reset.audit(client, session_for(client, cfg_file()))
+    finally:
+        client.close()
+    assert result.ready, "the dials read failed; everything else was still audited"
+
+
+def test_a_failing_core_read_still_fails_the_audit(gate_live, cfg_file):
+    table, _, _ = gate_live
+    table.do_deck_facing = lambda s: {"__error__": "boom"}
+    client = client_for(gate_live)
+    try:
+        with pytest.raises(table_reset.SessionError):
+            table_reset.audit(client, session_for(client, cfg_file()))
+    finally:
+        client.close()
+
+
+def test_decks_dumped_by_hand_elsewhere_are_out_of_place_not_in_the_bag(gate_live, cfg_file):
+    table, _, _ = gate_live
+    table.make_ready()
+    table.decks_away = True
+    client = client_for(gate_live)
+    try:
+        result = table_reset.audit(client, session_for(client, cfg_file()))
+    finally:
+        client.close()
+    assert codes(result) == ["cards_loose"], "on the table: out of place, never 'still in the bag'"
+    assert "fuera de su sitio" in result.issues_text()
 
 
 @pytest.mark.parametrize("dirt, code", [
@@ -558,15 +597,37 @@ mkobj({guid = '04b2c9', type = 'Generic'})""")
 
 
 def take_map(runtime, bag="ab5e89", board="ec6f27", rid=1):
+    """Sends the take_map request; returns the reply (None while TTS has not answered)."""
     n = len(runtime.globals().SENT)
     runtime.execute(lua.request(lua.take_map(bag, board, (-0.35, 1.63, -3.18), 269.99, 0.85), rid))
-    reply = conv(runtime.globals().SENT[n + 1])
-    assert "err" not in reply, reply
-    return json.loads(reply["value"])
+    if len(runtime.globals().SENT) <= n:
+        return None
+    got = conv(runtime.globals().SENT[n + 1])
+    assert "err" not in got, got
+    return json.loads(got["value"])
+
+
+def map_bag(tts, spawn_late=False):
+    """The map's infinite bag as live TTS has it: getObjects() lists nothing, takeObject (no GUID) gives a copy of the board;
+    with `spawn_late` the copy appears only when SPAWN() runs (the callback is called then)."""
+    tts.execute("""
+mkobj({guid = 'ab5e89', type = 'Infinite', name = 'Custom_Model_Infinite_Bag', infinite = true,
+       items = {{guid = 'ec6f27', name = 'B.P.R.D. HQ', type = 'Board'}}})
+TAKES = 0
+""")
+    if spawn_late:
+        tts.execute("""
+local bag = getObjectFromGUID('ab5e89')
+bag.takeObject = function(t)
+  TAKES = TAKES + 1
+  assert(t.guid == nil, 'an infinite bag is asked WITHOUT a GUID')
+  SPAWN = function() t.callback_function(mkobj({guid = 'newmap', type = 'Board', pos = Vector(t.position)})) end
+end""")
 
 
 def test_the_map_comes_out_of_its_bag_laid_flat_scaled_and_locked(tts):  # noqa: F811
-    tts.execute("mkobj({guid = 'ab5e89', type = 'Infinite', infinite = true, items = {{guid = 'ec6f27', name = 'B.P.R.D. HQ'}}})")
+    map_bag(tts)
+    assert tts.eval("#getObjectFromGUID('ab5e89').getObjects()") == 0, "live, an infinite bag lists nothing"
     res = take_map(tts)
     assert res == {"taken": True, "guid": "ec6f27x"}
     assert tts.eval("getObjectFromGUID('ec6f27x').locked") is True
@@ -575,16 +636,63 @@ def test_the_map_comes_out_of_its_bag_laid_flat_scaled_and_locked(tts):  # noqa:
     assert tts.eval("#getObjectFromGUID('ab5e89').items") == 1, "an infinite bag is not emptied"
 
 
-def test_the_map_is_taken_only_from_the_configured_bag_and_only_that_board(tts):  # noqa: F811
-    assert take_map(tts)["why"] == "bag"
-    tts.execute("mkobj({guid = 'ab5e89', type = 'Infinite', infinite = true, items = {{guid = 'other1', name = 'Another'}}})")
-    assert take_map(tts, rid=2) == {"taken": False, "why": "board"}
+def test_the_map_reply_comes_from_the_spawn_callback(tts):  # noqa: F811
+    map_bag(tts, spawn_late=True)
+    assert take_map(tts) is None, "nothing is answered while the copy has not spawned"
+    tts.execute("SPAWN()")
+    got = conv(tts.globals().SENT[tts.eval("#SENT")])
+    assert json.loads(got["value"]) == {"taken": True, "guid": "newmap"}
+    assert tts.eval("getObjectFromGUID('newmap').locked") is True
+    assert tts.eval("getObjectFromGUID('newmap').scale.x") == pytest.approx(0.85)
+
+
+def test_a_copy_that_never_spawns_is_answered_after_the_wait_and_a_late_one_still_settles(tts):  # noqa: F811
+    map_bag(tts, spawn_late=True)
+    assert take_map(tts) is None
+    tts.execute("for _, f in ipairs(TIMERS) do f() end")
+    n = tts.eval("#SENT")
+    assert json.loads(conv(tts.globals().SENT[n])["value"]) == {"taken": False, "why": "spawning"}
+    tts.execute("SPAWN()")
+    assert tts.eval("#SENT") == n, "one reply per request"
+    assert tts.eval("getObjectFromGUID('newmap').locked") is True
+
+
+def test_a_map_copy_an_earlier_press_left_is_reused_never_duplicated(tts):  # noqa: F811
+    map_bag(tts, spawn_late=True)
+    assert take_map(tts) is None
+    tts.execute("SPAWN()")                                      # the first press: the copy arrives (marked by our callback)
+    res = take_map(tts, rid=2)
+    assert res == {"taken": True, "guid": "newmap", "reused": True}
+    assert tts.eval("TAKES") == 1, "no second copy"
+
+
+def test_a_pad_board_near_the_spot_is_not_taken_for_our_copy(tts):  # noqa: F811
+    map_bag(tts)
+    tts.execute("mkobj({guid = '45c723', type = 'Board', pos = Vector(0, 1, 0)})")
+    assert take_map(tts)["guid"] == "ec6f27x"
+
+
+def test_a_copy_that_is_not_a_board_is_destroyed(tts):  # noqa: F811
+    tts.execute("mkobj({guid = 'ab5e89', type = 'Infinite', infinite = true, items = {{guid = 'other1', name = 'Another', type = 'Generic'}}})")
+    assert take_map(tts) == {"taken": False, "why": "take"}
     assert tts.eval("#OBJECTS") == 1
 
 
-def test_the_map_script_touches_nothing_but_that_bag():
+def test_a_normal_bag_still_gives_the_board_by_guid_and_must_list_it(tts):  # noqa: F811
+    tts.execute("mkobj({guid = 'ab5e89', type = 'Bag', items = {{guid = 'other1', name = 'Another'}}})")
+    assert take_map(tts) == {"taken": False, "why": "board"}
+    tts.execute("mkobj({guid = 'ab5e90', type = 'Bag', items = {{guid = 'ec6f27', name = 'Map', type = 'Board'}}})")
+    assert take_map(tts, bag="ab5e90", rid=2) == {"taken": True, "guid": "ec6f27"}
+
+
+def test_the_map_is_taken_only_from_the_configured_bag(tts):  # noqa: F811
+    assert take_map(tts)["why"] == "bag"
+    assert tts.eval("#OBJECTS") == 0
+
+
+def test_the_map_script_names_one_bag_and_checks_the_copy():
     script = lua.take_map("ab5e89", "ec6f27", (0.0, 1.5, 0.0), 270.0, 0.85)
-    assert script.count("takeObject") == 1 and "destruct" not in script and "getObjects()" not in script.replace("bag.getObjects()", "")
+    assert script.count('getObjectFromGUID("ab5e89")') == 1 and "callback_function" in script and "UI." not in script
     with pytest.raises(ValueError):
         lua.take_map("ab5e89", "ec6f27", (0.0, 1.5, 0.0), 270.0, 50.0)
 
@@ -794,7 +902,7 @@ def hero_bags(tts, nickname="Medusa", holds="e5a45c"):
     """The hero's infinite bag. Like TTS, its takeObject returns nothing: the copy appears LATER, when SPAWN() runs, and only
     then is the callback called."""
     tts.execute(f"""
-local outer = mkobj({{guid = '65070e', type = 'Infinite', name = '{nickname}', items = {{{{guid = '{holds}', name = 'bag'}}}}}})
+local outer = mkobj({{guid = '65070e', type = 'Infinite', infinite = true, name = '{nickname}', items = {{{{guid = '{holds}', name = 'bag'}}}}}})
 TAKEN_FROM_OUTER = 0
 SPAWN = nil
 outer.takeObject = function(t)
@@ -922,12 +1030,43 @@ def test_a_copy_that_never_spawns_is_answered_after_the_wait_as_spawning(tts):  
     assert tts.eval("#SENT") == 1, "one reply per request"
 
 
-@pytest.mark.parametrize("nickname, holds, why", [("Not Medusa", "e5a45c", "outer"), ("Medusa", "other1", "listed")])
-def test_the_infinite_bag_is_trusted_only_with_its_nickname_and_its_contents(tts, nickname, holds, why):  # noqa: F811
-    hero_bags(tts, nickname, holds)
+def test_the_infinite_bag_is_trusted_only_with_its_nickname(tts):  # noqa: F811
+    hero_bags(tts, "Not Medusa")
     res = run_unpack(tts, OUTERS)()
-    assert res["bags_failed"] == [{"guid": "e5a45c", "why": why}] and res["taken"] == [] and res["missing"] == ["04b2c9", "bcd809"]
+    assert res["bags_failed"] == [{"guid": "e5a45c", "why": "outer"}] and res["taken"] == [] and res["missing"] == ["04b2c9", "bcd809"]
     assert tts.eval("TAKEN_FROM_OUTER") == 0
+
+
+def test_an_infinite_hero_bag_is_not_asked_to_list_its_content_live_it_lists_nothing(tts):  # noqa: F811
+    """Live TTS: getObjects() of an infinite bag is empty, yet it gives a copy of its single object (takeObject without a GUID)."""
+    hero_bags(tts)
+    assert tts.eval("#getObjectFromGUID('65070e').getObjects()") == 0
+    tts.execute("""
+getObjectFromGUID('65070e').takeObject = function(t)
+  assert(t.guid == nil, 'an infinite bag is asked WITHOUT a GUID')
+  TAKEN_FROM_OUTER = TAKEN_FROM_OUTER + 1
+  SPAWN = function()
+    t.callback_function(mkobj({guid = 'copy01', type = 'Bag', pos = Vector(t.position),
+                               items = {{guid = '04b2c9', name = 'Medusa'}, {guid = 'bcd809', name = 'Medusa'}}}))
+  end
+end""")
+    reply = run_unpack(tts, OUTERS)
+    tts.execute("SPAWN()")
+    res = reply()
+    assert res["bags"] == ["e5a45c"] and res["bags_failed"] == [] and res["taken"] == ["04b2c9", "bcd809"]
+
+
+def test_a_copy_from_the_infinite_hero_bag_that_is_not_a_bag_is_destroyed_and_reported(tts):  # noqa: F811
+    hero_bags(tts)
+    tts.execute("""
+getObjectFromGUID('65070e').takeObject = function(t)
+  SPAWN = function() t.callback_function(mkobj({guid = 'junk01', type = 'Generic', pos = Vector(t.position)})) end
+end""")
+    reply = run_unpack(tts, OUTERS)
+    tts.execute("SPAWN()")
+    res = reply()
+    assert res["bags_failed"] == [{"guid": "e5a45c", "why": "listed"}] and res["taken"] == []
+    assert tts.eval("getObjectFromGUID('junk01')") is None
 
 
 def test_without_the_gates_outers_an_infinite_bag_is_never_touched_nor_a_loose_bag_reused(tts):  # noqa: F811

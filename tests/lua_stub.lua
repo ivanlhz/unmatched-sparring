@@ -71,13 +71,16 @@ function mkobj(o)
     for i, y in ipairs(OBJECTS) do if y == x then table.remove(OBJECTS, i) break end end
     return o
   end
-  o.getObjects = o.getObjects or function() local t = {} for _, it in ipairs(o.items or {}) do t[#t + 1] = {guid = it.guid, name = it.name} end return t end
+  -- like live TTS: an infinite bag does not list its content (it always gives a copy of its single object)
+  o.getObjects = o.getObjects or function() local t = {} if o.infinite then return t end for _, it in ipairs(o.items or {}) do t[#t + 1] = {guid = it.guid, name = it.name} end return t end
   o.takeObject = function(t)
     if o.items then
       for i, it in ipairs(o.items) do
         if it.guid == t.guid or (t.guid == nil and i == 1) then
           if not o.infinite then table.remove(o.items, i) end
-          return mkobj({guid = it.guid .. (o.infinite and "x" or ""), type = "Custom_Token", pos = Vector(t.position)})
+          local made = mkobj({guid = it.guid .. (o.infinite and "x" or ""), type = it.type or "Custom_Token", pos = Vector(t.position)})
+          if t.callback_function then t.callback_function(made) end
+          return made
         end
       end
       return nil

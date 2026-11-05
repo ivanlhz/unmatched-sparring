@@ -1373,7 +1373,7 @@ class Session:
         for side, op in decks.items():
             res = op.result or {}
             if not res.get("deck") or res.get("quantity") != sizes[side]:
-                raise SessionError(t("err.deck_incomplete", side=t("sess.side.bot" if side == "bot" else "sess.side.human"), got=res.get("quantity"), want=sizes[side]))
+                raise SessionError(t("err.deck_incomplete", side=t("sess.side.bot" if side == "bot" else "sess.side.human"), button=self._reset_button(), got=res.get("quantity"), want=sizes[side]))
         own = {x.card_id for x in fresh.players[self.bot].full_set}
 
         def clean() -> bool:
@@ -1383,7 +1383,11 @@ class Session:
                     and not on_board and ("human" not in decks or self._rd_human_count(0) == 0)
                     and all((dials.get(g) or {}).get("value") == v for g, v in want.items()))
         if not self._settle(clean):
-            raise SessionError(t("err.reset_dirty"))
+            raise SessionError(t("err.reset_dirty", button=self._reset_button()))
+
+    def _reset_button(self) -> str:
+        """The panel button that repeats the reset, (its label in the current language), for the error texts."""
+        return t("panel.restart")
 
     def _check_reset_plan(self, scope: lua.Scope, sizes: dict[str, int]) -> None:
         """Before moving anything: each side must be able to gather ALL its cards into its deck. If one cannot, the
@@ -1399,9 +1403,9 @@ class Session:
             raise TTSLuaError(t("err.reset_plan", got=repr(str(plans)[:80])))
         for (side, *_), plan in zip(sides, plans):
             plan = plan if isinstance(plan, dict) else {}
-            total, gatherable = plan.get("total"), plan.get("deck") or (plan.get("loose") or 0) >= 2
+            total, gatherable = plan.get("total"), plan.get("deck") or (plan.get("loose") or 0) >= 1
             if total != sizes[side] or not gatherable:
-                raise SessionError(t("err.reset_gather", n=sizes[side], side=t("sess.side.bot" if side == "bot" else "sess.side.human"),
+                raise SessionError(t("err.reset_gather", button=self._reset_button(), n=sizes[side], side=t("sess.side.bot" if side == "bot" else "sess.side.human"),
                                      found=total if isinstance(total, int) else 0))
 
     def _adopt_fresh(self, fresh: Game) -> None:

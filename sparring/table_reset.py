@@ -33,7 +33,8 @@ and tokens out of their bags, and puts everything in the state below. Everything
 
 CLEAN AND PREPARE (always with Medusa as the bot, Hellboy as the human, on the map the table shows):
   - zoom copies and the bot's markings are removed (they carry our name and GM notes);
-  - the map is taken out of its bag if the table has none (`lua.take_map`, only from the configured bag);
+  - the map is taken out of its bag if the table has none (`lua.take_map`, only from the configured bag; for an infinite
+    bag a copy comes out and the script answers from the spawn callback, so it is its own message);
   - the heroes are taken out of their bags (`play.prepare_heroes`): in the official save a hero's inner bag sits inside the
     hero's INFINITE bag, so it is first taken out of there (guarded by the infinite bag's GUID, nickname and contents);
   - the discard zones are created or straightened and the leftovers the guard lets through are destroyed
@@ -82,6 +83,9 @@ class CleaningSession(Session):
 
     def _scope(self) -> lua.Scope:
         return dataclasses.replace(super()._scope(), everywhere=True)
+
+    def _reset_button(self) -> str:
+        return t("panel.prep")
 
 
 @dataclass(frozen=True)
@@ -171,10 +175,11 @@ def read_map(client) -> tuple[str, object]:
     return map_state(client.call_lua(lua.list_boards()))
 
 
-def batch(client, named: list[tuple[str, str]]) -> dict:
+def batch(client, named: list[tuple[str, str]], optional: frozenset[str] = frozenset()) -> dict:
     """ONE message to TTS for several builders (`lua.composite`, each runs inside its own pcall): {name: that builder's
     answer}. A builder that failed raises `SessionError` naming it. TTS takes ~0.5 s per message, so the audit and each step of
-    the cleaning go out as one."""
+    the cleaning go out as one. A read named in `optional` that failed answers None instead of raising: the caller can do
+    without it (one failing side read must not kill the whole audit)."""
     res = client.call_lua(lua.composite([script for _, script in named]))
     ops = res.get("ops") if isinstance(res, dict) else None
     if not isinstance(ops, list) or len(ops) != len(named):
@@ -182,9 +187,15 @@ def batch(client, named: list[tuple[str, str]]) -> dict:
     out = {}
     for (name, _), answer in zip(named, ops):
         if isinstance(answer, dict) and answer.get("__err"):
+            if name in optional:
+                out[name] = None
+                continue
             raise SessionError(t("gate.batch_failed", name=name, error=answer["__err"]))
         out[name] = answer
     return out
+
+
+AUDIT_SIDE_READS = frozenset({"pieces", "dials", "tokens"})      # the audit still says something useful without them
 
 
 def audit(client, session, state_path: Path | None = None, raw: dict | None = None) -> Audit:
@@ -224,7 +235,7 @@ def audit(client, session, state_path: Path | None = None, raw: dict | None = No
         reads.append(("dials", lua.read_health_dials(sorted(wanted))))
     if token_guids:
         reads.append(("tokens", lua.inspect_objects(sorted(set(token_guids.values())))))
-    got = batch(client, reads)
+    got = batch(client, reads, optional=AUDIT_SIDE_READS)
 
     res = got["audit"] if isinstance(got["audit"], dict) else {}
     present = res.get("present") if isinstance(res.get("present"), dict) else {}
@@ -271,11 +282,15 @@ def audit(client, session, state_path: Path | None = None, raw: dict | None = No
         name, want = game.hero_def(owner).name, len(game.players[owner].full_set)
         if face.get("found") and face.get("face_down") is False:
             face_up.append(name)
-        if not plan.get("deck") and not face.get("found"):
+        away = not plan.get("deck") and not face.get("found") and (plan.get("loose") or 0) > 0 and (plan.get("total") or 0) > 0
+        if not plan.get("deck") and not face.get("found") and not away:
             if game.hero_def(owner).slug not in out_of_bag:
                 out_of_bag.append(game.hero_def(owner).slug)
-        elif plan.get("deck") and (plan.get("total") != want or plan.get("loose")):
-            wrong.append(t("gate.cards_of", name=name, got=plan.get("total"), want=want))
+        elif away and plan.get("total") == want:
+            wrong.append(t("gate.deck_away", name=name))           # on the table, only not at its spot: not "in the bag"
+        elif plan.get("deck") or away:
+            if plan.get("total") != want or plan.get("loose"):
+                wrong.append(t("gate.cards_of", name=name, got=plan.get("total"), want=want))
     if wrong:
         out.issues.append(Issue("cards_loose", ", ".join(wrong)))
     if face_up:
@@ -284,6 +299,8 @@ def audit(client, session, state_path: Path | None = None, raw: dict | None = No
         out.issues.append(Issue("heroes_out", ", ".join(load_hero(s).name for s in sorted(out_of_bag))))
 
     found = got.get("pieces") if isinstance(got.get("pieces"), dict) else {}
+    if found.get("no_board"):                  # no map on the table: no piece can be on it
+        found = {}
 
     def here(g: str) -> dict:
         return found.get(g) if isinstance(found.get(g), dict) else {}
@@ -302,7 +319,7 @@ def audit(client, session, state_path: Path | None = None, raw: dict | None = No
         names = {guid: fid for fid, guid in c.dials.items()}
         out.issues.append(Issue("dials", ", ".join(c.nicknames.get(names.get(g, ""), t("gate.destiny_dial")) for g in off)))
     if token_guids:
-        seen = got["tokens"] if isinstance(got["tokens"], dict) else {}
+        seen = got.get("tokens") if isinstance(got.get("tokens"), dict) else {}
         turned = []
         for (slug, name), guid in sorted(token_guids.items()):
             info = seen.get(guid) if isinstance(seen.get(guid), dict) else {}
@@ -371,13 +388,12 @@ def clear_and_ensure_map(client, raw: dict) -> Msg | None:
     without `prepare_map`, keeps what it has. Raises `SessionError` when the bag does not give the map."""
     plan = table_prep.map_plan(raw)
     needed = plan is not None and read_map(client)[0] == "none"
-    ops = [("clear", lua.clear_markings(remove_panel=True))]
-    if needed:
-        ops.append(("map", lua.take_map(plan.bag, plan.board_guid, plan.position, plan.rot_y, plan.scale)))
-    got = batch(client, ops)
+    batch(client, [("clear", lua.clear_markings(remove_panel=True))])
     if not needed:
         return None
-    res = got["map"] if isinstance(got["map"], dict) else {}
+    # on its own, not in the batch: an infinite bag spawns the copy later and the script answers from its callback
+    res = client.call_lua(lua.take_map(plan.bag, plan.board_guid, plan.position, plan.rot_y, plan.scale))
+    res = res if isinstance(res, dict) else {}
     if not res.get("taken"):
         raise SessionError(t("gate.map_failed", bag=plan.bag, guid=plan.board_guid, why=res.get("why") or "?"))
     return Msg(t("gate.map_taken", bag=plan.bag), lua.ChatKind.WARNING)
@@ -469,15 +485,26 @@ class Gate:
         self.cleaned = result.ready
         return result
 
+    def say_notes(self, full: bool) -> None:
+        """What start-up could not read (no map, no heroes: normal on a table that is not ready, which the audit lists and the
+        button fixes) is one short line; the details only when the table looks ready or could not be checked."""
+        if not self.notes:
+            return
+        if full:
+            for note in self.notes:
+                self.say(t("gate.not_read", error=note), lua.ChatKind.WARNING)
+        else:
+            self.say(t("gate.not_read_yet"), lua.ChatKind.NEUTRAL)
+
     def begin(self) -> None:
-        for note in self.notes:
-            self.say(t("gate.not_read", error=note), lua.ChatKind.WARNING)
         try:
             result = self.check()
         except self.errors as e:
+            self.say_notes(full=True)
             self.say(t("gate.audit_failed", error=e), lua.ChatKind.WARNING)
             self.refresh()
             return
+        self.say_notes(full=result.ready)
         for line in result.notices:
             self.say(line, lua.ChatKind.WARNING)
         if result.ready:

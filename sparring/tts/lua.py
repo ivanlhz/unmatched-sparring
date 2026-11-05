@@ -156,11 +156,14 @@ def _board_prelude(board: Board, override: str | None = None) -> str:
 def piece_spaces_by_guid(board: Board, guids: list[str], board_guid: str | None = None) -> str:
     """Space (nearest anchor point in XZ), distance to it, type and name of each piece by GUID.
 
-    `dist` lets the caller discard pieces far from the board; a GUID that does not exist comes out as `found = false`."""
+    `dist` lets the caller discard pieces far from the board; a GUID that does not exist comes out as `found = false`.
+    With no board on the table (the official save, before the map is taken out) there is nothing to measure against: the
+    answer is `{no_board = true}` instead of a Lua error, and the caller treats every piece as off the board."""
     if not isinstance(guids, (list, tuple)):
         raise TypeError("GUID list expected")
     wanted = "{" + ", ".join(_guid(g) for g in guids) + "}"
-    return "-- sparring:piece_spaces_by_guid\n" + _board_prelude(board, board_guid) + f"""local wanted = {wanted}
+    return "-- sparring:piece_spaces_by_guid\n" + _board_prelude(board, board_guid) + f"""if board == nil then return JSON.encode({{no_board = true}}) end
+local wanted = {wanted}
 local world = {{}}
 for id, _ in pairs(snaps) do world[id] = spaceWorld(id) end
 local out = {{}}
@@ -980,6 +983,7 @@ return JSON.encode(out)
 
 MAX_UNPACK = 40
 UNPACK_REUSE_RADIUS = 3.0      # a leftover copy lies where this hero's copy is spawned (its first item's spot); farther is not ours
+MAP_MARK = "sparring-map"      # GM notes of the map copy we took out (clear_markings only touches the exact "sparring")
 UNPACK_SPAWN_WAIT = 4.0      # seconds to wait for the copy of an inner bag out of an infinite one (the client waits 5 s + 8 s)
 
 
@@ -998,7 +1002,9 @@ def unpack_from_bags(items: list[tuple[str, tuple[str, ...], str, tuple[float, f
     inner bag as it comes out, GUIDs of everything that inner bag holds)}: in the official save
     the inner bag is not on the table but inside the hero's infinite bag. If an item is missing and its inner bag is not on the
     table, the inner bag is taken out of the infinite one first (a copy: that is what an infinite bag gives) at the spot of the
-    item, but only if the infinite bag with that GUID is on the table, carries that nickname and lists the inner bag; the copy is
+    item, but only if the infinite bag with that GUID is on the table and carries that nickname. A NORMAL outer bag must also list the inner bag
+    (taken by GUID); an INFINITE one (`type == "Infinite"` or Custom_Model_Infinite_Bag) is not asked: live its `getObjects()` does not
+    list its content, so `takeObject` is called WITHOUT a GUID and the copy must be a Bag (else `listed` and it is destroyed); the copy is
     what the items are taken from (its GUID may differ) and it is destroyed once empty. `bags` = inner bags taken out,
     `bags_failed` = [{guid, why}] (`outer`: the infinite bag is not there or has another name; `listed`: it does not hold the
     inner bag; `spawning`: the copy did not appear within `UNPACK_SPAWN_WAIT` seconds).
@@ -1136,7 +1142,8 @@ for inner, w in pairs(wanted) do
   if resolved[inner] == nil and OUTERS[inner] ~= nil then
     local outer, why = getObjectFromGUID(OUTERS[inner][1]), nil
     if outer == nil or outer.getName() ~= OUTERS[inner][2] then why = "outer" end
-    if why == nil then
+    local infinite = outer ~= nil and (outer.type == "Infinite" or outer.name == "Custom_Model_Infinite_Bag")
+    if why == nil and not infinite then      -- an infinite bag does not list its content live: it always gives its single object
       why = "listed"
       local ok, inside = pcall(function() return outer.getObjects() end)
       if ok and type(inside) == "table" then
@@ -1149,14 +1156,23 @@ for inner, w in pairs(wanted) do
       table.insert(out.bags_failed, {{guid = inner, why = why}})
     else
       pending = pending + 1          -- an infinite bag spawns its copy later: the items are taken in the callback
-      outer.takeObject({{guid = inner, position = Vector(w.spot[1], w.spot[2], w.spot[3]), smooth = false,
-                         callback_function = function(o)
+      local give = {{position = Vector(w.spot[1], w.spot[2], w.spot[3]), smooth = false}}
+      if not infinite then give.guid = inner end
+      give.callback_function = function(o)
+                           if o == nil or o.type ~= "Bag" then
+                             table.insert(out.bags_failed, {{guid = inner, why = "listed"}})
+                             pending = pending - 1
+                             if o ~= nil then o.destruct() end
+                             if started and pending == 0 then safely() end
+                             return
+                           end
                            resolved[inner] = o
                            table.insert(out.bags, inner)
                            table.insert(made, o)
                            pending = pending - 1
                            if started and pending == 0 then safely() end
-                         end}})
+                         end
+      outer.takeObject(give)
     end
   end
 end
@@ -1445,15 +1461,61 @@ return JSON.encode(out)
 
 @_registered
 def take_map(bag_guid: str, board_guid: str, position: tuple[float, float, float], rot_y: float, scale: float) -> str:
-    """Takes a map's board out of the bag it sits in (the official save keeps each map in an infinite bag, so the board
-    that comes out is a copy with a GUID of its own) and lays it flat at `position`, rotation (0, rot_y, 0), `scale`,
-    locked. Only from the bag with that GUID and only the object with `board_guid` inside it; nothing else is touched.
-    Returns `{taken = true, guid}` or `{taken = false, why = "bag" | "board" | "take"}`."""
+    """Takes a map's board out of the bag it sits in and lays it flat at `position`, rotation (0, rot_y, 0), `scale`,
+    locked. Only from the bag with that GUID; nothing else is touched.
+
+    The official save keeps each map in an INFINITE bag (`o.type == "Infinite"`, name Custom_Model_Infinite_Bag). Live, its
+    `getObjects()` does not list the board it holds, so the listing is not consulted: an infinite bag always gives a copy of
+    its single object, taken with `takeObject` WITHOUT a GUID (a copy has a GUID of its own; the caller recognises the
+    map by its image). The copy arrives LATER: scale, lock and the check that it is a Board happen in `callback_function`,
+    and the reply is sent from there (or after `UNPACK_SPAWN_WAIT` s with `why = "spawning"`; the callback still finishes the
+    copy afterwards). A copy an earlier press left (a Board with our GM notes within `UNPACK_REUSE_RADIUS` of the spot) is
+    reused, never duplicated. A copy that is not a Board is destroyed. Any other bag must list `board_guid` and gives it
+    at once by GUID.
+
+    Because it may answer later, it cannot go inside `composite`; send it alone. Returns `{taken = true, guid}` (`reused`
+    when it was already there) or `{taken = false, why = "bag" | "board" | "take" | "spawning"}`."""
     if len(position) != 3 or not 0 < float(scale) < 10:
         raise ValueError("map transform: (x, y, z) and a scale between 0 and 10")
+    where = ", ".join(_f(v) for v in position)
     return f"""-- sparring:take_map
 local bag = getObjectFromGUID({_guid(bag_guid)})
 if bag == nil then return JSON.encode({{taken = false, why = "bag"}}) end
+local SPOT = Vector({where})
+local MINE = {lua_str(MAP_MARK)}
+local replied = false
+local function answer(res)
+  if replied then return "" end
+  replied = true
+  return JSON.encode(res)
+end
+local function settle(board)
+  board.setScale(Vector({_f(scale)}, {_f(scale)}, {_f(scale)}))
+  board.setLock(true)
+  board.setGMNotes(MINE)
+end
+local infinite = bag.type == "Infinite" or bag.name == "Custom_Model_Infinite_Bag"
+if infinite then
+  for _, o in ipairs(getObjects()) do                      -- a copy an earlier press left is reused, never duplicated
+    local p = o.getPosition()
+    if o ~= bag and o.type == "Board" and o.getGMNotes() == MINE
+       and (p.x - SPOT.x) ^ 2 + (p.z - SPOT.z) ^ 2 <= {_f(UNPACK_REUSE_RADIUS)} ^ 2 then
+      return answer({{taken = true, guid = o.getGUID(), reused = true}})
+    end
+  end
+  bag.takeObject({{position = SPOT, rotation = Vector(0, {_f(rot_y)}, 0), smooth = false,
+                  callback_function = function(spawned)
+                    if spawned == nil or spawned.type ~= "Board" then
+                      if spawned ~= nil then spawned.destruct() end   -- a copy of ours that is not the map
+                      answer({{taken = false, why = "take"}})
+                      return
+                    end
+                    settle(spawned)
+                    answer({{taken = true, guid = spawned.getGUID()}})
+                  end}})
+  Wait.time(function() answer({{taken = false, why = "spawning"}}) end, {_f(UNPACK_SPAWN_WAIT)})
+  return ""
+end
 local listed = false
 local ok, items = pcall(function() return bag.getObjects() end)
 if ok and type(items) == "table" then
@@ -1462,11 +1524,10 @@ if ok and type(items) == "table" then
   end
 end
 if not listed then return JSON.encode({{taken = false, why = "board"}}) end
-local board = bag.takeObject({{guid = {_guid(board_guid)}, position = Vector({", ".join(_f(v) for v in position)}),
+local board = bag.takeObject({{guid = {_guid(board_guid)}, position = SPOT,
                               rotation = Vector(0, {_f(rot_y)}, 0), smooth = false}})
 if board == nil then return JSON.encode({{taken = false, why = "take"}}) end
-board.setScale(Vector({_f(scale)}, {_f(scale)}, {_f(scale)}))
-board.setLock(true)
+settle(board)
 return JSON.encode({{taken = true, guid = board.getGUID()}})
 """
 
@@ -2246,8 +2307,17 @@ def reset_deck(deck_guid: str, spot: tuple[float, float], id_range: tuple[int, i
     image (`identity`) of that side, and what is in the `scope` (hands, discards, combat and deck; never the whole
     table), without anyone holding it. A Deck with a single foreign card is not touched. The deck is found by GUID or, if TTS
     destroyed it when it was left empty, by position `spot`; without a deck, loose cards are grouped (`group`). Returns
-    how many cards are in the deck."""
+    how many cards are in the deck. With a scope `everywhere` (the pre-game cleaning) a deck put down by hand far from its
+    spot, or face up, is adopted (the biggest ours), turned face down and brought back to the spot before the shuffle."""
     own = _ours_lua(identity, id_range) + _deck_finder(spot, radius, zone)
+    if spot is not None:
+        sx, sz, sr = _spot(spot, radius)
+        bring = f"""do local p = d.getPosition()          -- a deck left away from its spot comes back to it
+  if (p.x - {sx}) ^ 2 + (p.z - {sz}) ^ 2 > {sr} ^ 2 then d.setPosition(Vector({sx}, 3, {sz})) end
+end
+"""
+    else:
+        bring = ""
     return f"""-- sparring:reset_deck
 {own}{_scope_lua(scope)}local d = findDeck({_guid(deck_guid)})
 local others = {{}}
@@ -2256,8 +2326,17 @@ for _, o in ipairs(scopeObjects()) do
     table.insert(others, o)
   end
 end
-if d == nil then
-  if #others >= 2 then
+if d == nil then                          -- the deck is not at its spot (put down by hand elsewhere, or face up): adopt the biggest
+  local biggest = nil
+  for _, o in ipairs(others) do
+    if o.type == "Deck" and (biggest == nil or o.getQuantity() > biggest.getQuantity()) then biggest = o end
+  end
+  if biggest ~= nil then
+    d = biggest
+    for i, o in ipairs(others) do
+      if o == biggest then table.remove(others, i) break end
+    end
+  elseif #others >= 2 then
     local made = group(others)
     d = made and made[1]
     others = {{}}
@@ -2266,8 +2345,9 @@ if d == nil then
   end
 end
 if d == nil then return JSON.encode({{deck = false, quantity = 0}}) end
+if d.is_face_down == false then d.flip() end
 for _, o in ipairs(others) do d = d.putObject(o) or d end
-if d.type == "Deck" then
+{bring}if d.type == "Deck" then
   d.shuffle()
   return JSON.encode({{deck = true, quantity = d.getQuantity()}})
 end

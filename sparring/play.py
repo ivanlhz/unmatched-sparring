@@ -949,8 +949,9 @@ def prepare_heroes(client, cfg: PlayConfig, echo: Callable[[str], None] = print,
         table = load_hero_table(slug)
         lost = [g for _, guids in table.unpack_items() for g in guids[:1] if g in missing]
         if lost:
-            echo(t("console.warn_line", text=t("console.unpack_missing", guids=", ".join(lost),
-                                                hero=load_hero(slug).name, bag=table.inner_bag)))
+            if not from_infinite:             # the gate words this itself (the chat line below); that warning would contradict it
+                echo(t("console.warn_line", text=t("console.unpack_missing", guids=", ".join(lost),
+                                                    hero=load_hero(slug).name, bag=table.inner_bag)))
             problems.append(t("gate.unpack_problem", hero=load_hero(slug).name, bag=table.inner_bag, outer=table.bag,
                               why=t("gate.unpack_why." + str(failed.get(table.inner_bag) or "none")),
                               guids=", ".join(lost)))

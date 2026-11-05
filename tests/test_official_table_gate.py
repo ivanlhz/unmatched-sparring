@@ -19,6 +19,7 @@ from sparring.tts.hero_table import load_hero_table
 from test_official_save_setup import KINDS, REMOVED, raw_config
 from test_play import cfg_file, free_port, live  # noqa: F401
 from test_session import Table, set_bot_hand
+from test_review10 import conv
 from test_table_reset import (BOT_DECK, said, GateTable, client_for, finish, game_started, press, run_main, session_for, shown,
                               wait_for)
 from sparring.board import Board
@@ -32,6 +33,23 @@ PAD_IMAGE = f"https://img.test/{PAD_KEY}/"
 WRITES_ALLOWED = {"clear_markings", "create_panel", "set_panel", "broadcast", "prepare_table", "take_map", "unpack_from_bags",
                   "reset_deck", "place_piece", "set_health_dials", "flip_decks_down", "set_token_face", "set_state",
                   "composite", "hold", "name_pieces"}
+
+
+def run_real_lua(script: str, world: str = ""):
+    """The generated script itself under lupa on an empty table (plus `world`, Lua that sets it up): the fake must not stand in
+    for what the real script does with a table that lacks something. Returns the decoded reply or {"__error__": ...}."""
+    lupa = pytest.importorskip("lupa")
+    from lupa import lua54
+    rt = lua54.LuaRuntime()
+    rt.execute((Path(__file__).parent / "lua_stub.lua").read_text(encoding="utf-8"))
+    replies = []
+    rt.globals().JSON = rt.table_from({"encode": lambda v: replies.append(json.dumps(conv(v))) or ""})
+    try:
+        rt.execute(world)
+        rt.execute(script)
+    except lupa.LuaError as e:
+        return {"__error__": str(e)}
+    return json.loads(replies[0]) if replies else None
 
 
 class OfficialTable(GateTable):
@@ -70,16 +88,23 @@ class OfficialTable(GateTable):
         self.destroyed += [r["guid"] for r in out["removed"]]
         return out
 
+    def do_piece_spaces_by_guid(self, s):
+        if all(OBJECTS.get(b["guid"], {}).get("name") == "Custom_Board" for b in self.boards):      # no map on the table: the real script, not a fake's answer
+            return run_real_lua(s)
+        return super().do_piece_spaces_by_guid(s)
+
     def do_take_map(self, s):
         bag = re.search(r'getObjectFromGUID\("(\w+)"\)', s).group(1)
-        board = re.search(r'e\.guid == "(\w+)"', s).group(1)
-        listed = [c["guid"] for c in OBJECTS.get(bag, {}).get("contains", [])]
-        if board not in listed:
-            return {"taken": False, "why": "board"}
-        where = re.search(r"Vector\(([^)]*)\),\s+rotation", s).group(1)
-        self.map_taken.append(f"{bag}:{board}:{where}")
-        self.boards.append({"guid": "newbrd", "image": Table().boards[0]["image"]})
-        return {"taken": True, "guid": "newbrd"}
+        held = OBJECTS.get(bag, {}).get("contains", [])
+        world = (f"mkobj({{guid = '{bag}', type = 'Infinite', name = 'Custom_Model_Infinite_Bag', infinite = true, "
+                 f"items = {{{{guid = '{held[0]['guid']}', name = 'map', type = 'Board'}}}}}})") if held else ""
+        out = run_real_lua(s, world)
+        if out and out.get("taken"):
+            where = re.search(r"local SPOT = Vector\(([^)]*)\)", s).group(1)
+            self.map_taken.append(f"{bag}:{held[0]['guid']}:{where}")
+            self.boards.append({"guid": "newbrd", "image": Table().boards[0]["image"]})
+            out["guid"] = "newbrd"
+        return out
 
     def do_unpack_from_bags(self, s):
         was = self.in_bags
@@ -148,6 +173,33 @@ def test_the_official_table_is_reported_not_ready_and_the_game_does_not_start(of
             assert guid in text, guid
         assert shown(table, "btn_start") == (False, False) and not game_started(table)
         assert table.panels and all(s in ((False, False),) for k, s in table.panels[0][1].items() if k not in ("btn_prep", "btn_start"))
+    finally:
+        finish(stop, t, result)
+
+
+@pytest.mark.gate
+def test_the_audit_never_crashes_on_a_table_without_a_map(official, cfg_file, tmp_path):
+    """Live: the pieces read did `board.positionToWorld` on the nil board and the whole audit died."""
+    table, fake, _ = official
+    stop, t, result = run_main(official, cfg_file, tmp_path)
+    try:
+        assert wait_for(lambda: shown(table, "btn_prep") == (True, True))
+        text = " ".join(table.broadcasts)
+        assert "No he podido revisar la mesa" not in text and "Ha fallado un paso" not in text
+        assert "no hay ningun mapa" in text and "pieces_on_board" not in text
+    finally:
+        finish(stop, t, result)
+
+
+@pytest.mark.gate
+def test_the_unreadable_map_and_heroes_are_one_short_line_while_the_gate_waits(official, cfg_file, tmp_path):
+    table, fake, _ = official
+    stop, t, result = run_main(official, cfg_file, tmp_path)
+    try:
+        assert wait_for(lambda: shown(table, "btn_prep") == (True, True))
+        text = " ".join(table.broadcasts)
+        assert "No he podido leer la mesa tal como esta" not in text and "No puedo saber el heroe" not in text
+        assert text.count("Aun no he leido el mapa") == 1
     finally:
         finish(stop, t, result)
 
@@ -250,7 +302,7 @@ def test_a_bag_that_does_not_give_the_map_is_said_and_the_button_stays(official,
 
 
 @pytest.mark.gate
-def test_a_hero_bag_that_does_not_give_its_inner_bag_is_said_with_what_to_do_by_hand(official, cfg_file, tmp_path):
+def test_a_hero_bag_that_does_not_give_its_inner_bag_is_said_with_what_to_do_by_hand(official, cfg_file, tmp_path, capsys):
     table, fake, _ = official
     table.outers["65070e"] = ("Not Medusa", table.outers["65070e"][1])      # the infinite bag carries another name
     stop, t, result = run_main(official, cfg_file, tmp_path)
@@ -262,6 +314,8 @@ def test_a_hero_bag_that_does_not_give_its_inner_bag_is_said_with_what_to_do_by_
         text = " ".join(table.broadcasts)
         assert "Medusa" in text and "e5a45c" in text and "65070e" in text and "otro nombre" in text
         assert "No he podido limpiar" in text and shown(table, "btn_prep") == (True, True)
+        seen = capsys.readouterr()
+        assert "no saca nada de una bolsa infinita" not in seen.out + seen.err, "the old start-flow warning contradicts the gate"
         assert shown(table, "btn_start") == (False, False) and table.destroyed == [] and not game_started(table)
     finally:
         finish(stop, t, result)
