@@ -289,6 +289,12 @@ def finish(stop, t, result):
     assert not t.is_alive() and result["code"] == 0
 
 
+def said(table, *needles):
+    """Wait condition: every needle is in the chat so far. A long line reaches the chat in several chunks, so wait on its LAST
+    fragment (and on whatever else the test is about to read), never on the first."""
+    return lambda: all(n in " ".join(table.broadcasts) for n in needles)
+
+
 def shown(table, button):
     """(pressable, visible) of a panel button in the last panel update that mentions it."""
     for _, states in reversed(table.panels):
@@ -307,7 +313,7 @@ def test_a_dirty_table_shows_the_clean_button_and_says_why_and_the_game_does_not
     table.leftovers["addeca"] = "DeckCustom"
     stop, t, result = run_main(gate_live, cfg_file, tmp_path)
     try:
-        assert wait_for(lambda: any("no esta lista" in b for b in table.broadcasts) and table.panels)
+        assert wait_for(lambda: said(table, "Medusa y Hellboy")() and table.panels)
         assert shown(table, "btn_prep") == (True, True) and shown(table, "btn_start") == (False, False)
         text = " ".join(table.broadcasts)
         assert "objetos sueltos" in text and "cartas en las manos" in text and "miniaturas en el tablero" in text
@@ -325,7 +331,7 @@ def test_a_ready_table_shows_start_and_tells_the_human_to_prepare_heroes_and_map
     table.make_ready()
     stop, t, result = run_main(gate_live, cfg_file, tmp_path)
     try:
-        assert wait_for(lambda: any("Comenzar partida" in b for b in table.broadcasts) and table.panels)
+        assert wait_for(lambda: said(table, "No empiezo hasta")() and table.panels)
         assert shown(table, "btn_start") == (True, True) and shown(table, "btn_prep") == (False, False)
         text = " ".join(table.broadcasts)
         assert "ya esta lista" in text and "heroes y el mapa" in text and "No empiezo hasta" in text
@@ -465,7 +471,7 @@ def test_a_table_that_cannot_be_cleaned_says_so_and_can_be_retried(gate_live, cf
     try:
         assert wait_for(lambda: shown(table, "btn_prep") == (True, True))
         press(fake, "prepare_table")
-        assert wait_for(lambda: any("No he podido limpiar" in b for b in table.broadcasts))
+        assert wait_for(said(table, "No he podido limpiar", "arreglarla a mano"))
         assert wait_for(lambda: shown(table, "btn_prep") == (True, True))
         assert shown(table, "btn_start") == (False, False) and not game_started(table)
     finally:
@@ -691,7 +697,7 @@ def test_what_the_cleaning_cannot_fix_is_named_and_the_button_stays(gate_live, c
     try:
         assert wait_for(lambda: shown(table, "btn_prep") == (True, True))
         press(fake, "prepare_table")
-        assert wait_for(lambda: any("queda esto" in b for b in table.broadcasts))
+        assert wait_for(said(table, "queda esto", "Red 3"))
         assert shown(table, "btn_prep") == (True, True) and shown(table, "btn_start") == (False, False)
         assert all(d == 99.0 for d in table.piece_dist.values()), "the rest was cleaned"
         assert "Red 3" in " ".join(table.broadcasts)
@@ -794,6 +800,16 @@ def test_the_infinite_bag_is_trusted_only_with_its_nickname_and_its_contents(tts
     res = unpack_script(tts, OUTERS)
     assert res["bags_failed"] == [{"guid": "e5a45c", "why": why}] and res["taken"] == [] and res["missing"] == ["04b2c9", "bcd809"]
     assert tts.eval("TAKEN_FROM_OUTER") == 0
+
+
+def test_a_copy_that_does_not_list_its_contents_yet_is_reported_not_used(tts):  # noqa: F811
+    hero_bags(tts)
+    tts.execute("""getObjectFromGUID('65070e').takeObject = function(t)
+  return mkobj({guid = 'copy01', type = 'Bag', pos = Vector(t.position), items = {}})   -- still spawning
+end""")
+    res = unpack_script(tts, OUTERS)
+    assert res["bags_failed"] == [{"guid": "e5a45c", "why": "spawning"}] and res["taken"] == []
+    assert res["missing"] == ["04b2c9", "bcd809"]
 
 
 def test_without_the_gates_outers_an_infinite_bag_is_never_touched(tts):  # noqa: F811

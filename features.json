@@ -448,6 +448,7 @@
       ],
       "verify_live": [
         "lua.take_map: bag.takeObject({guid, position, rotation, smooth = false}) on the infinite 'B.P.R.D HQ' bag (ab5e89) returns the board at once (the bot reads list_boards right after) and the board keeps scale 0.85 and the lock; the bag is still full afterwards; the map lies on the pad board and the discard grid, decks and combat spots of config/table.json fall on it as in the earlier games",
+        "unpack_from_bags with outers: right after outer.takeObject on the hero's infinite bag the script calls getObjects()/takeObject on the copy while TTS may still be spawning it; the script refuses a copy that lists nothing yet (bags_failed 'spawning', the chat says to wait and press again) instead of retrying, so check live whether the copy is usable at once (smooth = false) or the first press regularly says 'spawning'; if it does, make the script wait until the copy rests (Wait.condition) or split the take in two messages",
         "Medusa's and Hellboy's objects unpack to their rows and deck spots on the official table (play.prepare_heroes) and nothing lands on a hand zone or on the map's spaces",
         "TTS keeps the panel's two new buttons hidden in a game and shows them, one per row beside Mulligan and Ready, in the gate; the labels fit the column",
         "The panel XML exists 0.5 s after create_panel: PANEL_SETTLE (0.7 s) is enough for the first set_panel of the gate to take effect",

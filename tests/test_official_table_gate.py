@@ -19,7 +19,7 @@ from sparring.tts.hero_table import load_hero_table
 from test_official_save_setup import KINDS, REMOVED, raw_config
 from test_play import cfg_file, free_port, live  # noqa: F401
 from test_session import Table, set_bot_hand
-from test_table_reset import (BOT_DECK, GateTable, client_for, finish, game_started, press, run_main, session_for, shown,
+from test_table_reset import (BOT_DECK, said, GateTable, client_for, finish, game_started, press, run_main, session_for, shown,
                               wait_for)
 from sparring.board import Board
 from sparring.state import Game
@@ -140,7 +140,7 @@ def test_the_official_table_is_reported_not_ready_and_the_game_does_not_start(of
     table, fake, _ = official
     stop, t, result = run_main(official, cfg_file, tmp_path)
     try:
-        assert wait_for(lambda: any("no esta lista" in b for b in table.broadcasts) and shown(table, "btn_prep") == (True, True))
+        assert wait_for(lambda: said(table, "Medusa y Hellboy")() and shown(table, "btn_prep") == (True, True))
         text = " ".join(table.broadcasts)
         for needle in ("objetos sueltos", "no hay ningun mapa", "faltan las zonas de descarte", "siguen en la bolsa"):
             assert needle in text, needle
@@ -242,7 +242,7 @@ def test_a_bag_that_does_not_give_the_map_is_said_and_the_button_stays(official,
     try:
         assert wait_for(lambda: shown(table, "btn_prep") == (True, True))
         press(fake, "prepare_table")
-        assert wait_for(lambda: "ab5e89" in " ".join(table.broadcasts))
+        assert wait_for(said(table, "ab5e89", "arreglarla a mano"))
         assert "No he podido limpiar" in " ".join(table.broadcasts) and shown(table, "btn_prep") == (True, True)
         assert shown(table, "btn_start") == (False, False) and table.destroyed == [] and not game_started(table)
     finally:
@@ -257,7 +257,8 @@ def test_a_hero_bag_that_does_not_give_its_inner_bag_is_said_with_what_to_do_by_
     try:
         assert wait_for(lambda: shown(table, "btn_prep") == (True, True))
         press(fake, "prepare_table")
-        assert wait_for(lambda: "A mano" in " ".join(table.broadcasts))
+        assert wait_for(said(table, "A mano", "arreglarla a mano"))
+        assert wait_for(lambda: shown(table, "btn_prep") == (True, True))
         text = " ".join(table.broadcasts)
         assert "Medusa" in text and "e5a45c" in text and "65070e" in text and "otro nombre" in text
         assert "No he podido limpiar" in text and shown(table, "btn_prep") == (True, True)

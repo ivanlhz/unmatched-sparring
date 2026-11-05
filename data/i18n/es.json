@@ -1067,6 +1067,7 @@
  "gate.unpack_why.outer": "la bolsa infinita no esta en la mesa o tiene otro nombre.",
  "gate.unpack_why.listed": "la bolsa infinita no contiene la bolsa interior.",
  "gate.unpack_why.take": "TTS no ha entregado la bolsa interior.",
+ "gate.unpack_why.spawning": "la bolsa interior aun se estaba creando; espera un momento y repite el boton (la copia que quedo suelta puedes borrarla).",
  "gate.unpack_why.none": "su bolsa interior no esta en la mesa ni pude sacarla.",
  "gate.batch_reply": "TTS no ha contestado a la lectura de la mesa como esperaba ({got})",
  "gate.batch_failed": "Ha fallado un paso de la mesa ({name}): {error}",

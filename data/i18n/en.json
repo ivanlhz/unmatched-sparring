@@ -1067,6 +1067,7 @@
  "gate.unpack_why.outer": "the infinite bag is not on the table or has another name.",
  "gate.unpack_why.listed": "the infinite bag does not hold the inner bag.",
  "gate.unpack_why.take": "TTS did not hand over the inner bag.",
+ "gate.unpack_why.spawning": "the inner bag was still spawning; wait a moment and press the button again (you can delete the loose copy it left).",
  "gate.unpack_why.none": "its inner bag is not on the table and I could not take it out.",
  "gate.batch_reply": "TTS did not answer the table read as expected ({got})",
  "gate.batch_failed": "A step on the table failed ({name}): {error}",

@@ -998,7 +998,7 @@ def unpack_from_bags(items: list[tuple[str, tuple[str, ...], str, tuple[float, f
     item, but only if the infinite bag with that GUID is on the table, carries that nickname and lists the inner bag; the copy is
     what the items are taken from (its GUID may differ) and it is destroyed once empty. `bags` = inner bags taken out,
     `bags_failed` = [{guid, why}] (`outer`: the infinite bag is not there or has another name; `listed`: it does not hold the
-    inner bag; `take`: TTS gave nothing)."""
+    inner bag; `take`: TTS gave nothing; `spawning`: the copy lists nothing yet)."""
     if not isinstance(items, (list, tuple)) or not 1 <= len(items) <= MAX_UNPACK:
         raise ValueError(f"between 1 and {MAX_UNPACK} objects expected")
     rows = []
@@ -1053,7 +1053,12 @@ local function innerBag(guid, spot)
   end
   if why == nil then
     bag = outer.takeObject({{guid = guid, position = Vector(spot[1], spot[2], spot[3]), smooth = false}})
-    if bag == nil then why = "take" end
+    if bag == nil then
+      why = "take"
+    else                                  -- the copy may still be spawning: it must already list what is in it
+      local ok, inside = pcall(function() return bag.getObjects() end)
+      if not ok or type(inside) ~= "table" or #inside == 0 then why = "spawning" end
+    end
   end
   if why ~= nil then
     table.insert(out.bags_failed, {{guid = guid, why = why}})
