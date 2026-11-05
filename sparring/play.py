@@ -32,7 +32,7 @@ from .board import Board, catalog as board_catalog
 from .board_detect import BoardError, choose_board
 from .hero_detect import HeroDetectionError, detect_heroes, detected_decks, read_table
 from .heroes import HeroDataError, load_hero
-from . import game_log, i18n, persist, table_prep
+from . import game_log, i18n, persist, table_prep, table_reset
 from .i18n import t
 from .session import DEFAULT_ACTION_ANNOUNCE_HOLD, DEFAULT_BOT_PAUSE, DEFAULT_ONGOING_HOLD, DEFAULT_WILDFIRE_HOLD, TABLE_ERRORS, Msg, Session, SessionConfig, SessionError, deck_where, piece_guids
 from .state import DEFAULT_HEROES, Game
@@ -86,7 +86,7 @@ def migrate_legacy_files(state: Path) -> list[str]:
 BOT, HUMAN = 0, 1
 READ_ONLY_TAGS = frozenset({"snapshot", "piece_spaces_by_guid", "read_hand", "count_hand", "read_discard",
                             "read_face_down_cards", "read_cards_at", "inspect_guids", "read_health_dials", "zone_overlaps", "deck_identities",
-                            "hand_identities", "reset_plan", "table_heroes", "inspect_objects", "find_pieces_by_name", "find_dials_by_name", "list_boards"})
+                            "hand_identities", "reset_plan", "table_heroes", "inspect_objects", "find_pieces_by_name", "find_dials_by_name", "list_boards", "table_audit", "deck_facing"})
 
 REQUIRED = ("bot_seat", "human_seat", "nicknames", "bot_card_spot", "human_card_spot", "bot_discard_spot",
             "bot_discard_zone", "bot_deck_guid", "human_discard_zone", "bot_deck_spot", "pieces")
@@ -1011,6 +1011,28 @@ def check_deck_zones(client, scfg: SessionConfig, echo: Callable[[str], None] = 
             echo(t("console.warn_line", text=t("cfg.deck_zone_overlaps", key=key, guid=guid, others=", ".join(others))))
 
 
+GATE_ERRORS = (*TABLE_ERRORS, BoardError, HeroDetectionError, ConfigError, HeroTableError)
+
+
+def pregame(cfg: PlayConfig, client: TTSClient, args: argparse.Namespace, stop: threading.Event,
+            echo: Callable[[str], None] = print, notes: tuple[str, ...] = ()) -> PlayConfig | None:
+    """The pre-game gate (`table_reset`): checks the loaded table, offers the clean-and-prepare button and waits for
+    "Start game". Returns the configuration read from the table at that moment (None if the bot is stopped first)."""
+    i18n.set_language(cfg.language)
+
+    def redetect(bot: str | None, human: str | None) -> PlayConfig:
+        fresh = load_config(args.config, bot or args.bot_hero, human or args.human_hero, args.language)
+        return resolve_heroes(client, detect_board(client, fresh, echo), None, echo)
+
+    def make_session(on: PlayConfig) -> Session:
+        return table_reset.CleaningSession(build_game(on, "random", 0), client, make_bot_ai(ai_config(on, None, None), BOT),
+                       on.session_config(), bot=BOT)
+    gate = table_reset.Gate(client, cfg, redetect=redetect, make_session=make_session, unpack=prepare_heroes,
+                            announce=make_announcer(client, echo), echo=echo, stop=stop, errors=GATE_ERRORS,
+                            poll=args.poll, state_path=Path(args.state), notes=notes)
+    return gate.run()
+
+
 def play(cfg: PlayConfig, client: TTSClient, first: str, seed: int, stop: threading.Event,
          echo: Callable[[str], None] = print, poll: float = 0.1, state_path: Path | None = None,
          resume: bool = False, timing: bool = False, ai: str | None = None,
@@ -1205,14 +1227,31 @@ def _main(args: argparse.Namespace, stop: threading.Event, status: Callable[[str
     for warning in cfg.warnings:
         print(t("console.warning", text=warning), file=sys.stderr)
     printed = set(cfg.warnings)
+    gate_notes: list[str] = []
     client = TTSClient(send_port=args.send_port, listen_port=args.listen_port)
     try:
         status("connecting")
         client.start_listening()
         try:
             saved = saved_heroes(args.state) if args.resume and not args.read_only else None
-            cfg = detect_board(client, cfg)
-            cfg = resolve_heroes(client, cfg, saved)
+            # with the pre-game gate the table may be one that is not ready (the official save has no map out and its
+            # heroes in bags): what cannot be read is said in the chat and the button prepares it
+            gate_mode = not (args.resume or args.read_only) and table_reset.gate_enabled(cfg.raw)
+            try:
+                cfg = detect_board(client, cfg)
+            except BoardError as e:
+                if not gate_mode:
+                    raise
+                gate_notes.append(str(e))
+            try:
+                cfg = resolve_heroes(client, cfg, saved)
+            except HeroDetectionError as e:
+                if not gate_mode:
+                    raise
+                gate_notes.append(str(e))
+                cfg = build_config({**cfg.base, "bot_hero": args.bot_hero or table_reset.PREP_HEROES[0],
+                                    "human_hero": args.human_hero or table_reset.PREP_HEROES[1]},
+                                   cfg.sources, found_board_guid=cfg.board.guid)
             if not args.read_only:
                 cfg.session_config()
         except (BoardError, HeroDetectionError, ConfigError, persist.StateError, SessionError) as e:
@@ -1226,6 +1265,12 @@ def _main(args: argparse.Namespace, stop: threading.Event, status: Callable[[str
             cfg.saved_zones = saved_zones(args.state)
             print("\n".join(read_only_report(client, cfg)))
             return 0
+        if not args.resume and table_reset.gate_enabled(cfg.raw):
+            status("playing")
+            cfg = pregame(cfg, client, args, stop, notes=tuple(gate_notes))     # nothing starts until "Start game" is pressed
+            if cfg is None:
+                return 0
+            cfg.session_config()
         seed = args.seed if args.seed is not None else secrets.randbelow(2 ** 31)
         state = Path(args.state)
         if not args.resume and state.exists():

@@ -43,6 +43,8 @@ class Event(str, Enum):
     LOOK = "look_hand"         # "Look at bot's hand": the bot's cards face up in a row (discard one, e.g. Confront)
     LOOK_PING = "look_ping"    # the human's ping (Tab) on a card of that row: the one that is discarded
     CHOICE = "choice"          # btn_choice_<i>: option i (1..6) of the pending effect choice, in {"i": i}
+    PREPARE = "prepare_table"  # "Clean table and prepare": only before the game (the pre-game gate, `sparring/table_reset.py`)
+    START = "start_game"       # "Start game": ends the gate and lets the normal start flow run
 
 
 PANEL_ROTATION = (0, 0, 270)     # confirmed live: with 90 it looked upside down from the White seat
@@ -62,6 +64,7 @@ FIXED_BUTTONS = {"btn_maneuver": "onManeuver", "btn_scheme": "onScheme", "btn_re
                  "btn_value": "onValueSend", "btn_mulligan": "onMulligan", "btn_ready": "onReady",
                  "btn_restart": "onRestart", "btn_boost": "onBoost", "btn_noboost": "onNoBoost",
                  "btn_look": "onLook", **dict.fromkeys(CHOICE_BUTTONS, "onChoice")}
+GATE_BUTTONS = ("btn_prep", "btn_start")     # born hidden; only the pre-game gate shows them (never part of a game's panel states)
 SETUP_ONLY = ("btn_mulligan", "btn_ready")
 GAME_ONLY = ("btn_restart",)
 
@@ -158,6 +161,8 @@ function onRestart() send({{event = "restart"}}) end
 function onBoost() send({{event = "boost"}}) end
 function onNoBoost() send({{event = "no_boost"}}) end
 function onLook() send({{event = "look_hand"}}) end
+function onPrepare() send({{event = "prepare_table"}}) end
+function onStart() send({{event = "start_game"}}) end
 function onChoice(player, btn, id)
   local n = tonumber(tostring(id):match("^btn_choice_(%d)$"))
   if n then send({{event = "choice", i = n}}) end
@@ -255,8 +260,10 @@ def panel_xml(target_ids: list[str], attacker_ids: tuple[str, ...] = DEFAULT_ATT
             + _text(t("panel.life"), 16, 'fontStyle="Bold"') + hp_rows + '</VerticalLayout>')
     game = (f'<VerticalLayout {section} preferredWidth="260" preferredHeight="{side_h}">'
             + _text(t("panel.game"), 16, 'fontStyle="Bold"')
-            + _row(_button("btn_mulligan", "onMulligan", t("panel.mulligan")))
-            + _row(_button("btn_ready", "onReady", t("panel.ready")))
+            + _row(_button("btn_mulligan", "onMulligan", t("panel.mulligan")),   # the gate buttons share the rows of the setup
+                   _button("btn_prep", "onPrepare", t("panel.prep"), 16).replace("<Button ", '<Button active="false" '))
+            + _row(_button("btn_ready", "onReady", t("panel.ready")),            # ones: the gate precedes the setup, never overlaps it
+                   _button("btn_start", "onStart", t("panel.start"), 16).replace("<Button ", '<Button active="false" '))
             + _row(_button("btn_restart", "onRestart", t("panel.restart")))
             + _row(_button("btn_undo", "onUndoGameOver", t("panel.undo")))
             + f'<InputField placeholder="{t("panel.value_placeholder")}" onValueChanged="onValueEdit" preferredHeight="40"/>'

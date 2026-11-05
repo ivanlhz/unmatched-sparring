@@ -197,6 +197,14 @@ globals().update(_shims())
 
 
 @pytest.fixture(autouse=True)
+def _pregame_gate_off(request, monkeypatch):
+    """The pre-game gate waits for a button before any game starts: every test that goes through `play.main` expects the
+    game to start at once, so it is off unless the test asks for it (`@pytest.mark.gate`)."""
+    from sparring import table_reset
+    monkeypatch.setattr(table_reset, "ENABLED", request.node.get_closest_marker("gate") is not None)
+
+
+@pytest.fixture(autouse=True)
 def _spanish_by_default():
     """The player-facing language is process-wide: every test starts (and leaves) it in Spanish."""
     from sparring import i18n

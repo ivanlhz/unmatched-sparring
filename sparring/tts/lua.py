@@ -356,11 +356,13 @@ end
 @dataclass(frozen=True)
 class Scope:
     """Where cards are searched: the hands of both seats, both discard zones and the surroundings of the combat spots and
-    of the deck. Never the whole table."""
+    of the deck. Never the whole table, except with `everywhere` (the pre-game cleaning): then every Deck or Card on the
+    table is a candidate, which is safe because callers keep only what `ours` accepts (CardID range AND deck image)."""
     seats: tuple
     zones: tuple
     spots: tuple
     radius: float = 2.0
+    everywhere: bool = False
 
 
 def _scope_lua(scope: Scope) -> str:
@@ -390,6 +392,7 @@ def _scope_lua(scope: Scope) -> str:
   for _, o in ipairs(getObjects()) do
     if o.type == "Deck" or o.type == "Card" then
       local p = o.getPosition()
+      if {"true" if scope.everywhere else "false"} then add(o) end
       for _, sp in ipairs(spots) do
         if (p.x - sp[1]) ^ 2 + (p.z - sp[2]) ^ 2 <= {r} ^ 2 then add(o) break end
       end
@@ -1266,6 +1269,134 @@ return JSON.encode(out)
 """
 
 
+MAX_AUDIT_PRESENCE = 40
+
+
+@_registered
+def table_audit(remove: list[tuple[str, str]], limits: tuple[float, float], seats: list[str],
+                presence: list[tuple[str, list[str]]]) -> str:
+    """Read only, in ONE message: what the pre-game table check needs that no other read gives.
+
+    `remove` = (GUID, expected object name) of the loose objects `prepare_table` would destroy; it answers with the
+    SAME guard (the TTS object name, inside |x| <= limits[0], |z| <= limits[1]) but destroys nothing: `removable` =
+    [{guid, name}], `blocked` = [{guid, name, why}] (`type` or `place`). `hands` = number of objects in each seat's hand,
+    and `present` = for each (label, GUIDs) of `presence`,
+    whether ANY of its GUIDs is on the table. It touches neither the Global nor the UI."""
+    if not isinstance(remove, (list, tuple)) or len(remove) > MAX_PREP_REMOVE or not isinstance(seats, (list, tuple)) \
+            or not 1 <= len(seats) <= 2 or not isinstance(presence, (list, tuple)) or len(presence) > MAX_AUDIT_PRESENCE:
+        raise ValueError("too many objects to audit")
+    if not isinstance(limits, (list, tuple)) or len(limits) != 2:
+        raise TypeError("limits: (|x|, |z|) expected")
+    remove_rows = ", ".join(f"{{{_guid(g)}, {lua_str(name)}}}" for g, name in remove)
+    presence_rows = ", ".join(f"{{{lua_str(label)}, {_guid_list(guids)}}}" for label, guids in presence)
+    return f"""-- sparring:table_audit
+local REMOVE = {{{remove_rows}}}
+local LIMIT_X, LIMIT_Z = {_f(limits[0])}, {_f(limits[1])}
+local out = {{removable = {{}}, blocked = {{}}, hands = {{}}, present = {{}}}}
+for _, r in ipairs(REMOVE) do
+  local o = getObjectFromGUID(r[1])
+  if o ~= nil then
+    local name, p, why = o.name, o.getPosition(), nil
+    if name ~= r[2] then why = "type"
+    elseif math.abs(p.x) > LIMIT_X or math.abs(p.z) > LIMIT_Z then why = "place" end
+    if why ~= nil then
+      table.insert(out.blocked, {{guid = r[1], name = name, why = why}})
+    else
+      table.insert(out.removable, {{guid = r[1], name = name}})
+    end
+  end
+end
+for _, seat in ipairs({{{", ".join(_color(c) for c in seats)}}}) do
+  out.hands[seat] = #Player[seat].getHandObjects(1)
+end
+for _, row in ipairs({{{presence_rows}}}) do
+  local here = false
+  for _, g in ipairs(row[2]) do
+    if getObjectFromGUID(g) ~= nil then here = true end
+  end
+  out.present[row[1]] = here
+end
+return JSON.encode(out)
+"""
+
+
+@_registered
+def take_map(bag_guid: str, board_guid: str, position: tuple[float, float, float], rot_y: float, scale: float) -> str:
+    """Takes a map's board out of the bag it sits in (the official save keeps each map in an infinite bag, so the board
+    that comes out is a copy with a GUID of its own) and lays it flat at `position`, rotation (0, rot_y, 0), `scale`,
+    locked. Only from the bag with that GUID and only the object with `board_guid` inside it; nothing else is touched.
+    Returns `{taken = true, guid}` or `{taken = false, why = "bag" | "board" | "take"}`."""
+    if len(position) != 3 or not 0 < float(scale) < 10:
+        raise ValueError("map transform: (x, y, z) and a scale between 0 and 10")
+    return f"""-- sparring:take_map
+local bag = getObjectFromGUID({_guid(bag_guid)})
+if bag == nil then return JSON.encode({{taken = false, why = "bag"}}) end
+local listed = false
+local ok, items = pcall(function() return bag.getObjects() end)
+if ok and type(items) == "table" then
+  for _, e in ipairs(items) do
+    if e.guid == {_guid(board_guid)} then listed = true end
+  end
+end
+if not listed then return JSON.encode({{taken = false, why = "board"}}) end
+local board = bag.takeObject({{guid = {_guid(board_guid)}, position = Vector({", ".join(_f(v) for v in position)}),
+                              rotation = Vector(0, {_f(rot_y)}, 0), smooth = false}})
+if board == nil then return JSON.encode({{taken = false, why = "take"}}) end
+board.setScale(Vector({_f(scale)}, {_f(scale)}, {_f(scale)}))
+board.setLock(true)
+return JSON.encode({{taken = true, guid = board.getGUID()}})
+"""
+
+
+def _deck_facing_lua(label: str, sides: list[tuple], radius: float, flip: bool) -> str:
+    if not isinstance(sides, (list, tuple)) or not 1 <= len(sides) <= 2:
+        raise TypeError("list of 1 or 2 sides expected")
+    blocks = []
+    turn = ("local down = best.is_face_down == true\n"
+            "local flipped = false\n"
+            "if not down then\n  best.flip()\n  flipped = true\nend\n"
+            "return {found = true, face_down = down or flipped, flipped = flipped}\n"
+            if flip else
+            "return {found = true, face_down = best.is_face_down == true}\n")
+    for spot, zone, id_range, identity in sides:
+        pool = f"zoneObjects(getObjectFromGUID({_guid(zone)}))" if zone else "getObjects()"
+        x, z, r = _spot(spot, radius)
+        blocks.append(f"""table.insert(out, (function()
+{_ours_lua(identity, id_range)}local best, bestKey = nil, nil
+for _, o in ipairs({pool}) do
+  if (o.type == "Deck" or o.type == "Card") and not o.held_by_color and ours(o) then
+    local p = o.getPosition()
+    local d2 = (p.x - {x}) ^ 2 + (p.z - {z}) ^ 2
+    if d2 <= {r} ^ 2 then
+      local key = (o.type == "Deck" and 0 or 1e9) + d2
+      if bestKey == nil or key < bestKey then best, bestKey = o, key end
+    end
+  end
+end
+if best == nil then return {{found = false}} end
+{turn}end)())
+""")
+    return f"""-- sparring:{label}
+{ZONE_LUA}local out = {{}}
+{"".join(blocks)}return JSON.encode(out)
+"""
+
+
+@_registered
+def deck_facing(sides: list[tuple], radius: float = DECK_RADIUS) -> str:
+    """Read only: for each side `(spot (x, z), deck zone GUID or None, id_range, identity)` the draw deck (the Deck of the
+    side nearest its spot, else a loose Card of it; FACE UP ones count too, unlike the finder of the card writes) and
+    whether it lies face down. One entry per side: `{found, face_down}`."""
+    return _deck_facing_lua("deck_facing", sides, radius, False)
+
+
+@_registered
+def flip_decks_down(sides: list[tuple], radius: float = DECK_RADIUS) -> str:
+    """The same search as `deck_facing`, turning the deck face down when it lies face up (a deck left face up by the last
+    game would not be found by the writes, which only take face-down decks). Returns `{found, face_down, flipped}` per side."""
+    return _deck_facing_lua("flip_decks_down", sides, radius, True)
+
+
 def ascii_text(text: str, limit: int = 64) -> list[str]:
     """Free text -> pieces that `lua_str` admits (ASCII without accents, whitelisted characters, <= limit)."""
     import unicodedata
@@ -1655,7 +1786,7 @@ def create_panel(target_ids: list[str], position: tuple[float, float, float] = P
     x, y, z = (_f(v) for v in position)
     xml = ui.panel_xml(target_ids, attacker_ids, rotation=rotation, scale=scale, names=names)
     handler_script = ui.handler_script(snapshot_lua(snapshot, "wseq") if snapshot is not None else None,
-                                       ui.element_ids(target_ids, attacker_ids),
+                                       [*ui.element_ids(target_ids, attacker_ids), *ui.GATE_BUTTONS],
                                        human_seat or (snapshot.human_seat if snapshot is not None else None))
     return f"""-- sparring:create_panel
 local panel

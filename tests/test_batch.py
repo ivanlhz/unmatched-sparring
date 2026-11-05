@@ -212,7 +212,7 @@ def test_panel_script_locks_buttons_locally_and_sends_the_snapshot(bprd):
 
 def test_panel_ids_cover_every_button_of_the_xml():
     xml = ui.panel_xml(["medusa", "harpy1"])
-    assert set(re.findall(r'<Button [^>]*id="(\w+)"', xml)) == set(ui.element_ids(["medusa", "harpy1"]))
+    assert set(re.findall(r'<Button [^>]*id="(\w+)"', xml)) == {*ui.element_ids(["medusa", "harpy1"]), *ui.GATE_BUTTONS}
     assert 'id="status"' in xml and "TURNO" in xml and "VIDA" in xml and "PARTIDA" in xml
     assert 'rotation="0 0 270"' in xml
 

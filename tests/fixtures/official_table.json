@@ -1,0 +1,3607 @@
+{
+"_note": "Layout of the official tournament save as TTS loads it: GUID, TTS object name, nickname, position, locked, and the direct contents of bags. No art, no scripts. Regenerated from the save by the test that checks it.",
+"objects": [
+{
+"guid": "bf4717",
+"name": "HandTrigger",
+"nickname": "",
+"pos": [
+0.12,
+5.09,
+38.07
+],
+"locked": true
+},
+{
+"guid": "dfe8db",
+"name": "HandTrigger",
+"nickname": "",
+"pos": [
+30.02,
+5.09,
+-25.04
+],
+"locked": true
+},
+{
+"guid": "aed1b8",
+"name": "HandTrigger",
+"nickname": "",
+"pos": [
+30.07,
+5.09,
+6.95
+],
+"locked": true
+},
+{
+"guid": "20c02f",
+"name": "HandTrigger",
+"nickname": "",
+"pos": [
+29.96,
+5.09,
+22.95
+],
+"locked": true
+},
+{
+"guid": "f8d527",
+"name": "HandTrigger",
+"nickname": "",
+"pos": [
+29.99,
+5.09,
+-9.0
+],
+"locked": true
+},
+{
+"guid": "c53b1c",
+"name": "HandTrigger",
+"nickname": "",
+"pos": [
+-30.02,
+5.09,
+23.03
+],
+"locked": true
+},
+{
+"guid": "9bdc19",
+"name": "HandTrigger",
+"nickname": "",
+"pos": [
+-30.05,
+5.09,
+6.99
+],
+"locked": true
+},
+{
+"guid": "dd569b",
+"name": "HandTrigger",
+"nickname": "",
+"pos": [
+-30.05,
+5.09,
+-9.01
+],
+"locked": true
+},
+{
+"guid": "5aeb1e",
+"name": "HandTrigger",
+"nickname": "",
+"pos": [
+-30.04,
+5.09,
+-24.98
+],
+"locked": true
+},
+{
+"guid": "b7501e",
+"name": "HandTrigger",
+"nickname": "",
+"pos": [
+-11.0,
+5.09,
+29.79
+],
+"locked": true
+},
+{
+"guid": "d65092",
+"name": "HandTrigger",
+"nickname": "",
+"pos": [
+10.97,
+5.09,
+29.88
+],
+"locked": true
+},
+{
+"guid": "400cc9",
+"name": "Infinite_Bag",
+"nickname": "The Raft Battlefield Items",
+"pos": [
+-10.46,
+1.76,
+68.57
+],
+"locked": true,
+"contains": [
+{
+"guid": "052aaa",
+"name": "Bag",
+"nickname": "The Raft Battlefield Items"
+}
+]
+},
+{
+"guid": "4fad95",
+"name": "Die_20",
+"nickname": "",
+"pos": [
+-12.75,
+4.0,
+104.25
+],
+"locked": false
+},
+{
+"guid": "c62d7b",
+"name": "CardCustom",
+"nickname": "Attack Sequence",
+"pos": [
+-26.88,
+1.61,
+108.38
+],
+"locked": true
+},
+{
+"guid": "fb439a",
+"name": "CardCustom",
+"nickname": "Arsenal Rules",
+"pos": [
+-24.12,
+1.61,
+104.62
+],
+"locked": true
+},
+{
+"guid": "dc492e",
+"name": "Infinite_Bag",
+"nickname": "Card Counters",
+"pos": [
+-26.88,
+1.58,
+104.62
+],
+"locked": true,
+"contains": [
+{
+"guid": "2bd79a",
+"name": "Custom_Model",
+"nickname": "Card Counter"
+}
+]
+},
+{
+"guid": "67444c",
+"name": "Infinite_Bag",
+"nickname": "Navy Pier Battlefield Items",
+"pos": [
+-20.46,
+1.76,
+62.87
+],
+"locked": true,
+"contains": [
+{
+"guid": "1e2518",
+"name": "Bag",
+"nickname": "Navy Pier Battlefield Items"
+}
+]
+},
+{
+"guid": "b15e89",
+"name": "Infinite_Bag",
+"nickname": "Helicarrier Battlefield Items",
+"pos": [
+-10.46,
+1.76,
+62.87
+],
+"locked": true,
+"contains": [
+{
+"guid": "1f7b76",
+"name": "Bag",
+"nickname": "Helicarrier Battlefield Items"
+}
+]
+},
+{
+"guid": "41ff59",
+"name": "Infinite_Bag",
+"nickname": "Phone Booth",
+"pos": [
+-6.25,
+1.58,
+108.75
+],
+"locked": true,
+"contains": [
+{
+"guid": "d4c975",
+"name": "Custom_Board",
+"nickname": ""
+}
+]
+},
+{
+"guid": "414a0c",
+"name": "Infinite_Bag",
+"nickname": "Bathroom Stall",
+"pos": [
+-3.75,
+1.58,
+108.75
+],
+"locked": true,
+"contains": [
+{
+"guid": "4dde4e",
+"name": "Custom_Board",
+"nickname": ""
+}
+]
+},
+{
+"guid": "e4e71a",
+"name": "Infinite_Bag",
+"nickname": "Doors",
+"pos": [
+-1.25,
+1.58,
+108.75
+],
+"locked": true,
+"contains": [
+{
+"guid": "d7f88f",
+"name": "Custom_Token",
+"nickname": ""
+}
+]
+},
+{
+"guid": "0cc8d7",
+"name": "Custom_Model_Infinite_Bag",
+"nickname": "Tournament Coins",
+"pos": [
+-30.13,
+1.66,
+108.37
+],
+"locked": true,
+"contains": [
+{
+"guid": "914d86",
+"name": "Custom_Model",
+"nickname": ""
+}
+]
+},
+{
+"guid": "0787da",
+"name": "Custom_Model_Infinite_Bag",
+"nickname": "",
+"pos": [
+-24.12,
+1.62,
+108.38
+],
+"locked": true,
+"contains": [
+{
+"guid": "7c6ee5",
+"name": "Deck",
+"nickname": ""
+}
+]
+},
+{
+"guid": "7f5d26",
+"name": "Infinite_Bag",
+"nickname": "Hell's Kitchen Battlefield Items",
+"pos": [
+-0.46,
+1.76,
+68.57
+],
+"locked": true,
+"contains": [
+{
+"guid": "ec20e3",
+"name": "Bag",
+"nickname": "Hell's Kitchen Battlefield Items"
+}
+]
+},
+{
+"guid": "f61971",
+"name": "Infinite_Bag",
+"nickname": "Sanctum Sanctorum Battlefield Items",
+"pos": [
+-0.46,
+1.76,
+62.87
+],
+"locked": true,
+"contains": [
+{
+"guid": "1f7b76",
+"name": "Bag",
+"nickname": "Sanctum Sanctorum Battlefield Items"
+}
+]
+},
+{
+"guid": "65be8d",
+"name": "Die_20",
+"nickname": "",
+"pos": [
+-0.67,
+2.74,
+-1.6
+],
+"locked": false
+},
+{
+"guid": "5085eb",
+"name": "Custom_Assetbundle",
+"nickname": "Android Arm: Dice Cannon",
+"pos": [
+2.13,
+1.68,
+-30.01
+],
+"locked": true
+},
+{
+"guid": "0b0602",
+"name": "Infinite_Bag",
+"nickname": "Doors",
+"pos": [
+-30.46,
+1.76,
+68.57
+],
+"locked": true,
+"contains": [
+{
+"guid": "d7f88f",
+"name": "Custom_Token",
+"nickname": ""
+}
+]
+},
+{
+"guid": "af6cfa",
+"name": "Custom_Model_Infinite_Bag",
+"nickname": "Blackbeard",
+"pos": [
+19.13,
+1.61,
+-46.87
+],
+"locked": true,
+"contains": [
+{
+"guid": "541533",
+"name": "Custom_Model_Bag",
+"nickname": ""
+}
+]
+},
+{
+"guid": "a0ba70",
+"name": "Custom_Model_Infinite_Bag",
+"nickname": "Alice",
+"pos": [
+28.63,
+1.61,
+-87.37
+],
+"locked": true,
+"contains": [
+{
+"guid": "ecb865",
+"name": "Custom_Model_Bag",
+"nickname": ""
+}
+]
+},
+{
+"guid": "cde243",
+"name": "Custom_Model_Infinite_Bag",
+"nickname": "Wyatt Earp",
+"pos": [
+14.38,
+1.61,
+-40.12
+],
+"locked": true,
+"contains": [
+{
+"guid": "494e23",
+"name": "Custom_Model_Bag",
+"nickname": ""
+}
+]
+},
+{
+"guid": "a6447e",
+"name": "Custom_Model_Infinite_Bag",
+"nickname": "George Washington",
+"pos": [
+19.13,
+1.61,
+-40.12
+],
+"locked": true,
+"contains": [
+{
+"guid": "08a266",
+"name": "Custom_Model_Bag",
+"nickname": ""
+}
+]
+},
+{
+"guid": "5a93d0",
+"name": "Custom_Model_Infinite_Bag",
+"nickname": "Rosie The Riveter",
+"pos": [
+23.88,
+1.61,
+-40.12
+],
+"locked": true,
+"contains": [
+{
+"guid": "628b52",
+"name": "Custom_Model_Bag",
+"nickname": ""
+}
+]
+},
+{
+"guid": "845f05",
+"name": "Custom_Model_Infinite_Bag",
+"nickname": "John Henry",
+"pos": [
+28.63,
+1.61,
+-40.12
+],
+"locked": true,
+"contains": [
+{
+"guid": "646707",
+"name": "Custom_Model_Bag",
+"nickname": ""
+}
+]
+},
+{
+"guid": "ed3aca",
+"name": "Custom_Model_Infinite_Bag",
+"nickname": "Muhammad Ali",
+"pos": [
+-14.12,
+1.61,
+-46.87
+],
+"locked": true,
+"contains": [
+{
+"guid": "016a1f",
+"name": "Custom_Model_Bag",
+"nickname": ""
+}
+]
+},
+{
+"guid": "16d6a0",
+"name": "Custom_Model_Infinite_Bag",
+"nickname": "Krang",
+"pos": [
+-9.37,
+1.61,
+-46.87
+],
+"locked": true,
+"contains": [
+{
+"guid": "ea660c",
+"name": "Custom_Model_Bag",
+"nickname": ""
+}
+]
+},
+{
+"guid": "2968ae",
+"name": "Custom_Model_Infinite_Bag",
+"nickname": "Shredder",
+"pos": [
+-4.62,
+1.61,
+-46.87
+],
+"locked": true,
+"contains": [
+{
+"guid": "cfddb8",
+"name": "Custom_Model_Bag",
+"nickname": ""
+}
+]
+},
+{
+"guid": "183245",
+"name": "Custom_Model_Infinite_Bag",
+"nickname": "Raphael",
+"pos": [
+0.13,
+1.61,
+-46.87
+],
+"locked": true,
+"contains": [
+{
+"guid": "80f529",
+"name": "Custom_Model_Bag",
+"nickname": ""
+}
+]
+},
+{
+"guid": "f3d5c7",
+"name": "Custom_Model_Infinite_Bag",
+"nickname": "Michelangelo",
+"pos": [
+4.88,
+1.61,
+-46.87
+],
+"locked": true,
+"contains": [
+{
+"guid": "17b586",
+"name": "Custom_Model_Bag",
+"nickname": ""
+}
+]
+},
+{
+"guid": "716005",
+"name": "Custom_Model_Infinite_Bag",
+"nickname": "Donatello",
+"pos": [
+9.63,
+1.61,
+-46.87
+],
+"locked": true,
+"contains": [
+{
+"guid": "f908de",
+"name": "Custom_Model_Bag",
+"nickname": ""
+}
+]
+},
+{
+"guid": "80f94d",
+"name": "Custom_Model_Infinite_Bag",
+"nickname": "Leonardo",
+"pos": [
+14.38,
+1.61,
+-46.87
+],
+"locked": true,
+"contains": [
+{
+"guid": "69b878",
+"name": "Custom_Model_Bag",
+"nickname": ""
+}
+]
+},
+{
+"guid": "a20352",
+"name": "Custom_Model_Infinite_Bag",
+"nickname": "Chupacabra",
+"pos": [
+23.88,
+1.61,
+-46.87
+],
+"locked": true,
+"contains": [
+{
+"guid": "d980fa",
+"name": "Custom_Model_Bag",
+"nickname": ""
+}
+]
+},
+{
+"guid": "1d8e72",
+"name": "Custom_Model_Infinite_Bag",
+"nickname": "King Arthur",
+"pos": [
+23.88,
+1.61,
+-87.37
+],
+"locked": true,
+"contains": [
+{
+"guid": "67a983",
+"name": "Custom_Model_Bag",
+"nickname": ""
+}
+]
+},
+{
+"guid": "15414a",
+"name": "Custom_Model_Infinite_Bag",
+"nickname": "Pandora",
+"pos": [
+28.63,
+1.61,
+-46.87
+],
+"locked": true,
+"contains": [
+{
+"guid": "30d94f",
+"name": "Custom_Model_Bag",
+"nickname": ""
+}
+]
+},
+{
+"guid": "213b55",
+"name": "Custom_Model_Infinite_Bag",
+"nickname": "Loki",
+"pos": [
+-14.12,
+1.61,
+-53.62
+],
+"locked": true,
+"contains": [
+{
+"guid": "1d7bfd",
+"name": "Custom_Model_Bag",
+"nickname": ""
+}
+]
+},
+{
+"guid": "4dc6f9",
+"name": "Custom_Model_Infinite_Bag",
+"nickname": "Philippa",
+"pos": [
+-9.37,
+1.61,
+-53.62
+],
+"locked": true,
+"contains": [
+{
+"guid": "859216",
+"name": "Custom_Model_Bag",
+"nickname": ""
+}
+]
+},
+{
+"guid": "9183b3",
+"name": "Custom_Model_Infinite_Bag",
+"nickname": "Eredin",
+"pos": [
+-4.62,
+1.61,
+-53.62
+],
+"locked": true,
+"contains": [
+{
+"guid": "7fa54d",
+"name": "Custom_Model_Bag",
+"nickname": ""
+}
+]
+},
+{
+"guid": "2b339c",
+"name": "Custom_Model_Infinite_Bag",
+"nickname": "Yennefer & Triss",
+"pos": [
+0.13,
+1.61,
+-53.62
+],
+"locked": true,
+"contains": [
+{
+"guid": "eaf05e",
+"name": "Custom_Model_Bag",
+"nickname": ""
+}
+]
+},
+{
+"guid": "45ae7e",
+"name": "Custom_Model_Infinite_Bag",
+"nickname": "Ciri",
+"pos": [
+4.88,
+1.61,
+-53.62
+],
+"locked": true,
+"contains": [
+{
+"guid": "f2c999",
+"name": "Custom_Model_Bag",
+"nickname": ""
+}
+]
+},
+{
+"guid": "16d9b6",
+"name": "Custom_Model_Infinite_Bag",
+"nickname": "The Ancient Leshen",
+"pos": [
+9.63,
+1.61,
+-53.62
+],
+"locked": true,
+"contains": [
+{
+"guid": "755a85",
+"name": "Custom_Model_Bag",
+"nickname": ""
+}
+]
+},
+{
+"guid": "3fe840",
+"name": "Custom_Model_Infinite_Bag",
+"nickname": "Geralt Of Rivia",
+"pos": [
+14.38,
+1.61,
+-53.62
+],
+"locked": true,
+"contains": [
+{
+"guid": "00f637",
+"name": "Custom_Model_Bag",
+"nickname": ""
+}
+]
+},
+{
+"guid": "74c4a9",
+"name": "Custom_Model_Infinite_Bag",
+"nickname": "The Wayward Sisters",
+"pos": [
+19.13,
+1.61,
+-53.62
+],
+"locked": true,
+"contains": [
+{
+"guid": "e1b17c",
+"name": "Custom_Model_Bag",
+"nickname": ""
+}
+]
+},
+{
+"guid": "872108",
+"name": "Custom_Model_Infinite_Bag",
+"nickname": "Hamlet",
+"pos": [
+23.88,
+1.61,
+-53.62
+],
+"locked": true,
+"contains": [
+{
+"guid": "fa80b2",
+"name": "Custom_Model_Bag",
+"nickname": ""
+}
+]
+},
+{
+"guid": "d190f0",
+"name": "Custom_Model_Infinite_Bag",
+"nickname": "Queen Titania",
+"pos": [
+28.63,
+1.61,
+-53.62
+],
+"locked": true,
+"contains": [
+{
+"guid": "1ba40d",
+"name": "Custom_Model_Bag",
+"nickname": ""
+}
+]
+},
+{
+"guid": "1d77d4",
+"name": "Custom_Model_Infinite_Bag",
+"nickname": "William Shakespeare",
+"pos": [
+-14.12,
+1.61,
+-60.37
+],
+"locked": true,
+"contains": [
+{
+"guid": "914e5d",
+"name": "Custom_Model_Bag",
+"nickname": ""
+}
+]
+},
+{
+"guid": "9954f4",
+"name": "Custom_Model_Infinite_Bag",
+"nickname": "Oda Nobunaga",
+"pos": [
+-9.37,
+1.61,
+-60.37
+],
+"locked": true,
+"contains": [
+{
+"guid": "a38988",
+"name": "Custom_Model_Bag",
+"nickname": ""
+}
+]
+},
+{
+"guid": "c5fe82",
+"name": "Custom_Model_Infinite_Bag",
+"nickname": "Tomoe Gozen",
+"pos": [
+-4.62,
+1.61,
+-60.37
+],
+"locked": true,
+"contains": [
+{
+"guid": "5b6a57",
+"name": "Custom_Model_Bag",
+"nickname": ""
+}
+]
+},
+{
+"guid": "55b9e4",
+"name": "Custom_Model_Infinite_Bag",
+"nickname": "Dr. Jill Trent, Science Sleuth",
+"pos": [
+0.13,
+1.61,
+-60.37
+],
+"locked": true,
+"contains": [
+{
+"guid": "35d821",
+"name": "Custom_Model_Bag",
+"nickname": ""
+}
+]
+},
+{
+"guid": "3ac954",
+"name": "Custom_Model_Infinite_Bag",
+"nickname": "Nikola Tesla",
+"pos": [
+4.88,
+1.61,
+-60.37
+],
+"locked": true,
+"contains": [
+{
+"guid": "a0844d",
+"name": "Custom_Model_Bag",
+"nickname": ""
+}
+]
+},
+{
+"guid": "4732a0",
+"name": "Custom_Model_Infinite_Bag",
+"nickname": "Golden Bat",
+"pos": [
+9.63,
+1.61,
+-60.37
+],
+"locked": true,
+"contains": [
+{
+"guid": "e5eea9",
+"name": "Custom_Model_Bag",
+"nickname": ""
+}
+]
+},
+{
+"guid": "f2421d",
+"name": "Custom_Model_Infinite_Bag",
+"nickname": "Annie Christmas",
+"pos": [
+14.38,
+1.61,
+-60.37
+],
+"locked": true,
+"contains": [
+{
+"guid": "6a6ee7",
+"name": "Custom_Model_Bag",
+"nickname": ""
+}
+]
+},
+{
+"guid": "04711f",
+"name": "Custom_Model_Infinite_Bag",
+"nickname": "She-Hulk",
+"pos": [
+19.13,
+1.61,
+-60.37
+],
+"locked": true,
+"contains": [
+{
+"guid": "58c7be",
+"name": "Custom_Model_Bag",
+"nickname": ""
+}
+]
+},
+{
+"guid": "828053",
+"name": "Custom_Model_Infinite_Bag",
+"nickname": "Spider-Man",
+"pos": [
+23.88,
+1.61,
+-60.37
+],
+"locked": true,
+"contains": [
+{
+"guid": "1b9b30",
+"name": "Custom_Model_Bag",
+"nickname": ""
+}
+]
+},
+{
+"guid": "2020f0",
+"name": "Custom_Model_Infinite_Bag",
+"nickname": "Doctor Strange",
+"pos": [
+28.63,
+1.61,
+-60.37
+],
+"locked": true,
+"contains": [
+{
+"guid": "f6d99b",
+"name": "Custom_Model_Bag",
+"nickname": ""
+}
+]
+},
+{
+"guid": "fe0138",
+"name": "Custom_Model_Infinite_Bag",
+"nickname": "Winter Soldier",
+"pos": [
+-14.12,
+1.61,
+-67.12
+],
+"locked": true,
+"contains": [
+{
+"guid": "4768f8",
+"name": "Custom_Model_Bag",
+"nickname": ""
+}
+]
+},
+{
+"guid": "6fd36e",
+"name": "Custom_Model_Infinite_Bag",
+"nickname": "Black Panther",
+"pos": [
+-9.37,
+1.61,
+-67.12
+],
+"locked": true,
+"contains": [
+{
+"guid": "8027aa",
+"name": "Custom_Model_Bag",
+"nickname": ""
+}
+]
+},
+{
+"guid": "dc3ea2",
+"name": "Custom_Model_Infinite_Bag",
+"nickname": "Black Widow",
+"pos": [
+-4.62,
+1.61,
+-67.12
+],
+"locked": true,
+"contains": [
+{
+"guid": "fbe3c6",
+"name": "Custom_Model_Bag",
+"nickname": ""
+}
+]
+},
+{
+"guid": "5dc049",
+"name": "Custom_Model_Infinite_Bag",
+"nickname": "Squirrel Girl",
+"pos": [
+0.13,
+1.61,
+-67.12
+],
+"locked": true,
+"contains": [
+{
+"guid": "d01148",
+"name": "Custom_Model_Bag",
+"nickname": ""
+}
+]
+},
+{
+"guid": "306147",
+"name": "Custom_Model_Infinite_Bag",
+"nickname": "Cloak & Dagger",
+"pos": [
+4.88,
+1.61,
+-67.12
+],
+"locked": true,
+"contains": [
+{
+"guid": "f1cab6",
+"name": "Custom_Model_Bag",
+"nickname": ""
+}
+]
+},
+{
+"guid": "5e17fd",
+"name": "Custom_Model_Infinite_Bag",
+"nickname": "Ms. Marvel",
+"pos": [
+9.63,
+1.61,
+-67.12
+],
+"locked": true,
+"contains": [
+{
+"guid": "c28c18",
+"name": "Custom_Model_Bag",
+"nickname": ""
+}
+]
+},
+{
+"guid": "2c0a34",
+"name": "Custom_Model_Infinite_Bag",
+"nickname": "The Genie",
+"pos": [
+14.38,
+1.61,
+-67.12
+],
+"locked": true,
+"contains": [
+{
+"guid": "85bfbb",
+"name": "Custom_Model_Bag",
+"nickname": ""
+}
+]
+},
+{
+"guid": "d696f8",
+"name": "Custom_Model_Infinite_Bag",
+"nickname": "Houdini",
+"pos": [
+19.13,
+1.61,
+-67.12
+],
+"locked": true,
+"contains": [
+{
+"guid": "312c0d",
+"name": "Custom_Model_Bag",
+"nickname": ""
+}
+]
+},
+{
+"guid": "6a32c2",
+"name": "Custom_Model_Infinite_Bag",
+"nickname": "T. Rex",
+"pos": [
+23.88,
+1.61,
+-67.12
+],
+"locked": true,
+"contains": [
+{
+"guid": "2aaaef",
+"name": "Custom_Model_Bag",
+"nickname": ""
+}
+]
+},
+{
+"guid": "47f574",
+"name": "Custom_Model_Infinite_Bag",
+"nickname": "Dr. Sattler",
+"pos": [
+28.63,
+1.61,
+-67.12
+],
+"locked": true,
+"contains": [
+{
+"guid": "f6af5e",
+"name": "Custom_Model_Bag",
+"nickname": ""
+}
+]
+},
+{
+"guid": "4c1656",
+"name": "Custom_Model_Infinite_Bag",
+"nickname": "Bullseye",
+"pos": [
+-14.12,
+1.61,
+-73.87
+],
+"locked": true,
+"contains": [
+{
+"guid": "3db866",
+"name": "Custom_Model_Bag",
+"nickname": ""
+}
+]
+},
+{
+"guid": "85cef8",
+"name": "Custom_Model_Infinite_Bag",
+"nickname": "Elektra",
+"pos": [
+-9.37,
+1.61,
+-73.87
+],
+"locked": true,
+"contains": [
+{
+"guid": "070893",
+"name": "Custom_Model_Bag",
+"nickname": ""
+}
+]
+},
+{
+"guid": "3a21b2",
+"name": "Custom_Model_Infinite_Bag",
+"nickname": "Daredevil",
+"pos": [
+-4.62,
+1.61,
+-73.87
+],
+"locked": true,
+"contains": [
+{
+"guid": "cfc96e",
+"name": "Custom_Model_Bag",
+"nickname": ""
+}
+]
+},
+{
+"guid": "61bda2",
+"name": "Custom_Model_Infinite_Bag",
+"nickname": "Ghost Rider",
+"pos": [
+0.13,
+1.61,
+-73.87
+],
+"locked": true,
+"contains": [
+{
+"guid": "9b4c2c",
+"name": "Custom_Model_Bag",
+"nickname": ""
+}
+]
+},
+{
+"guid": "ea69a7",
+"name": "Custom_Model_Infinite_Bag",
+"nickname": "Luke Cage",
+"pos": [
+4.88,
+1.61,
+-73.87
+],
+"locked": true,
+"contains": [
+{
+"guid": "91ff31",
+"name": "Custom_Model_Bag",
+"nickname": ""
+}
+]
+},
+{
+"guid": "b840b3",
+"name": "Custom_Model_Infinite_Bag",
+"nickname": "Moon Knight",
+"pos": [
+9.63,
+1.61,
+-73.87
+],
+"locked": true,
+"contains": [
+{
+"guid": "21541f",
+"name": "Custom_Model_Bag",
+"nickname": ""
+}
+]
+},
+{
+"guid": "ce28ea",
+"name": "Custom_Model_Infinite_Bag",
+"nickname": "Sun Wukong",
+"pos": [
+14.38,
+1.61,
+-73.87
+],
+"locked": true,
+"contains": [
+{
+"guid": "2a729b",
+"name": "Custom_Model_Bag",
+"nickname": ""
+}
+]
+},
+{
+"guid": "a3a6c6",
+"name": "Custom_Model_Infinite_Bag",
+"nickname": "Bloody Mary",
+"pos": [
+19.13,
+1.61,
+-73.87
+],
+"locked": true,
+"contains": [
+{
+"guid": "5a8997",
+"name": "Custom_Model_Bag",
+"nickname": ""
+}
+]
+},
+{
+"guid": "1362fd",
+"name": "Custom_Model_Infinite_Bag",
+"nickname": "Yennenga",
+"pos": [
+23.88,
+1.61,
+-73.87
+],
+"locked": true,
+"contains": [
+{
+"guid": "4ed331",
+"name": "Custom_Model_Bag",
+"nickname": ""
+}
+]
+},
+{
+"guid": "e9df2a",
+"name": "Custom_Model_Infinite_Bag",
+"nickname": "Achilles",
+"pos": [
+28.63,
+1.61,
+-73.87
+],
+"locked": true,
+"contains": [
+{
+"guid": "42ac50",
+"name": "Custom_Model_Bag",
+"nickname": ""
+}
+]
+},
+{
+"guid": "a59c54",
+"name": "Custom_Model_Infinite_Bag",
+"nickname": "Deadpool",
+"pos": [
+-14.12,
+1.61,
+-80.62
+],
+"locked": true,
+"contains": [
+{
+"guid": "660082",
+"name": "Custom_Model_Bag",
+"nickname": ""
+}
+]
+},
+{
+"guid": "23da2d",
+"name": "Custom_Model_Infinite_Bag",
+"nickname": "Beowulf",
+"pos": [
+-9.37,
+1.61,
+-80.62
+],
+"locked": true,
+"contains": [
+{
+"guid": "3b0a52",
+"name": "Custom_Model_Bag",
+"nickname": ""
+}
+]
+},
+{
+"guid": "9a5f4e",
+"name": "Custom_Model_Infinite_Bag",
+"nickname": "Little Red Riding Hood",
+"pos": [
+-4.62,
+1.61,
+-80.62
+],
+"locked": true,
+"contains": [
+{
+"guid": "7d8bbe",
+"name": "Custom_Model_Bag",
+"nickname": ""
+}
+]
+},
+{
+"guid": "9e79df",
+"name": "Custom_Model_Infinite_Bag",
+"nickname": "Willow",
+"pos": [
+0.13,
+1.61,
+-80.62
+],
+"locked": true,
+"contains": [
+{
+"guid": "4808aa",
+"name": "Custom_Model_Bag",
+"nickname": ""
+}
+]
+},
+{
+"guid": "b9d8a4",
+"name": "Custom_Model_Infinite_Bag",
+"nickname": "Spike",
+"pos": [
+4.88,
+1.61,
+-80.62
+],
+"locked": true,
+"contains": [
+{
+"guid": "9dde51",
+"name": "Custom_Model_Bag",
+"nickname": ""
+}
+]
+},
+{
+"guid": "8ae8f5",
+"name": "Custom_Model_Infinite_Bag",
+"nickname": "Angel",
+"pos": [
+9.63,
+1.61,
+-80.62
+],
+"locked": true,
+"contains": [
+{
+"guid": "eef135",
+"name": "Custom_Model_Bag",
+"nickname": ""
+}
+]
+},
+{
+"guid": "758e7d",
+"name": "Custom_Model_Infinite_Bag",
+"nickname": "Buffy",
+"pos": [
+14.38,
+1.61,
+-80.62
+],
+"locked": true,
+"contains": [
+{
+"guid": "c043df",
+"name": "Custom_Model_Bag",
+"nickname": ""
+}
+]
+},
+{
+"guid": "3efaee",
+"name": "Custom_Model_Infinite_Bag",
+"nickname": "Dr. Jekyll & Mr. Hyde",
+"pos": [
+19.13,
+1.61,
+-80.62
+],
+"locked": true,
+"contains": [
+{
+"guid": "44117d",
+"name": "Custom_Model_Bag",
+"nickname": ""
+}
+]
+},
+{
+"guid": "679a64",
+"name": "Custom_Model_Infinite_Bag",
+"nickname": "Dracula",
+"pos": [
+23.88,
+1.61,
+-80.62
+],
+"locked": true,
+"contains": [
+{
+"guid": "66ffc4",
+"name": "Custom_Model_Bag",
+"nickname": ""
+}
+]
+},
+{
+"guid": "384a8b",
+"name": "Custom_Model_Infinite_Bag",
+"nickname": "Invisible Man",
+"pos": [
+28.63,
+1.61,
+-80.62
+],
+"locked": true,
+"contains": [
+{
+"guid": "220081",
+"name": "Custom_Model_Bag",
+"nickname": ""
+}
+]
+},
+{
+"guid": "248c8e",
+"name": "Custom_Model_Infinite_Bag",
+"nickname": "Sherlock Holmes",
+"pos": [
+-14.12,
+1.61,
+-87.37
+],
+"locked": true,
+"contains": [
+{
+"guid": "0d01e1",
+"name": "Custom_Model_Bag",
+"nickname": ""
+}
+]
+},
+{
+"guid": "230e58",
+"name": "Custom_Model_Infinite_Bag",
+"nickname": "Raptors",
+"pos": [
+-9.37,
+1.61,
+-87.37
+],
+"locked": true,
+"contains": [
+{
+"guid": "9f42d9",
+"name": "Custom_Model_Bag",
+"nickname": ""
+}
+]
+},
+{
+"guid": "a81612",
+"name": "Custom_Model_Infinite_Bag",
+"nickname": "Robert Muldoon",
+"pos": [
+-4.62,
+1.61,
+-87.37
+],
+"locked": true,
+"contains": [
+{
+"guid": "2fdc64",
+"name": "Custom_Model_Bag",
+"nickname": ""
+}
+]
+},
+{
+"guid": "5d4e2c",
+"name": "Custom_Model_Infinite_Bag",
+"nickname": "Bigfoot",
+"pos": [
+0.13,
+1.61,
+-87.37
+],
+"locked": true,
+"contains": [
+{
+"guid": "db6772",
+"name": "Custom_Model_Bag",
+"nickname": ""
+}
+]
+},
+{
+"guid": "ee2fcc",
+"name": "Custom_Model_Infinite_Bag",
+"nickname": "Robin Hood",
+"pos": [
+4.88,
+1.61,
+-87.37
+],
+"locked": true,
+"contains": [
+{
+"guid": "6c439e",
+"name": "Custom_Model_Bag",
+"nickname": ""
+}
+]
+},
+{
+"guid": "e29958",
+"name": "Custom_Model_Infinite_Bag",
+"nickname": "Bruce Lee",
+"pos": [
+9.63,
+1.61,
+-87.37
+],
+"locked": true,
+"contains": [
+{
+"guid": "5c3dfa",
+"name": "Custom_Model_Bag",
+"nickname": ""
+}
+]
+},
+{
+"guid": "6e6722",
+"name": "Custom_Model_Infinite_Bag",
+"nickname": "Sinbad",
+"pos": [
+14.38,
+1.61,
+-87.37
+],
+"locked": true,
+"contains": [
+{
+"guid": "e22b3b",
+"name": "Custom_Model_Bag",
+"nickname": ""
+}
+]
+},
+{
+"guid": "65070e",
+"name": "Custom_Model_Infinite_Bag",
+"nickname": "Medusa",
+"pos": [
+19.13,
+1.61,
+-87.37
+],
+"locked": true,
+"contains": [
+{
+"guid": "e5a45c",
+"name": "Custom_Model_Bag",
+"nickname": ""
+}
+]
+},
+{
+"guid": "8860ad",
+"name": "Infinite_Bag",
+"nickname": "Card Counters",
+"pos": [
+-19.0,
+1.58,
+108.75
+],
+"locked": true,
+"contains": [
+{
+"guid": "9ff985",
+"name": "Custom_Model",
+"nickname": "Card Counter"
+}
+]
+},
+{
+"guid": "d68f95",
+"name": "Infinite_Bag",
+"nickname": "Action Counters",
+"pos": [
+-16.75,
+1.58,
+108.75
+],
+"locked": true,
+"contains": [
+{
+"guid": "f8aba5",
+"name": "Counter",
+"nickname": "Action Counter"
+}
+]
+},
+{
+"guid": "a185be",
+"name": "Infinite_Bag",
+"nickname": "Hand Counters",
+"pos": [
+-14.25,
+1.58,
+108.75
+],
+"locked": true,
+"contains": [
+{
+"guid": "d26d8c",
+"name": "Custom_Token",
+"nickname": "White's Hand Cards counter"
+}
+]
+},
+{
+"guid": "3bcddb",
+"name": "Infinite_Bag",
+"nickname": "Timers",
+"pos": [
+-21.5,
+1.58,
+108.75
+],
+"locked": true,
+"contains": [
+{
+"guid": "790396",
+"name": "Digital_Clock",
+"nickname": ""
+}
+]
+},
+{
+"guid": "790396",
+"name": "Digital_Clock",
+"nickname": "",
+"pos": [
+-5.13,
+1.59,
+27.2
+],
+"locked": false
+},
+{
+"guid": "6126d5",
+"name": "Digital_Clock",
+"nickname": "",
+"pos": [
+5.47,
+1.59,
+27.2
+],
+"locked": false
+},
+{
+"guid": "d26d8c",
+"name": "Custom_Token",
+"nickname": "White's Hand Cards counter",
+"pos": [
+-11.41,
+1.69,
+22.03
+],
+"locked": true
+},
+{
+"guid": "5c7e75",
+"name": "Custom_Token",
+"nickname": "Green's Hand Cards counter",
+"pos": [
+11.66,
+1.69,
+22.09
+],
+"locked": true
+},
+{
+"guid": "dc33a7",
+"name": "Custom_Model_Infinite_Bag",
+"nickname": "Marmoreal",
+"pos": [
+-17.81,
+1.69,
+79.97
+],
+"locked": true,
+"contains": [
+{
+"guid": "0d3e22",
+"name": "Custom_Board",
+"nickname": ""
+}
+]
+},
+{
+"guid": "d99a06",
+"name": "Custom_Model_Infinite_Bag",
+"nickname": "Sherwood Forest",
+"pos": [
+-7.81,
+1.69,
+79.97
+],
+"locked": true,
+"contains": [
+{
+"guid": "11ca6f",
+"name": "Custom_Board",
+"nickname": ""
+}
+]
+},
+{
+"guid": "f082d7",
+"name": "Custom_Model_Infinite_Bag",
+"nickname": "Yukon",
+"pos": [
+2.19,
+1.69,
+79.97
+],
+"locked": true,
+"contains": [
+{
+"guid": "45bb16",
+"name": "Custom_Board",
+"nickname": ""
+}
+]
+},
+{
+"guid": "5f5e31",
+"name": "Custom_Model_Infinite_Bag",
+"nickname": "Yukon 1900",
+"pos": [
+12.19,
+1.69,
+79.97
+],
+"locked": true,
+"contains": [
+{
+"guid": "1e0b94",
+"name": "Custom_Board",
+"nickname": ""
+}
+]
+},
+{
+"guid": "cdc928",
+"name": "Custom_Model_Infinite_Bag",
+"nickname": "Raptor Paddock",
+"pos": [
+-27.81,
+1.69,
+74.27
+],
+"locked": true,
+"contains": [
+{
+"guid": "f2d3bc",
+"name": "Custom_Board",
+"nickname": ""
+}
+]
+},
+{
+"guid": "cbced5",
+"name": "Custom_Model_Infinite_Bag",
+"nickname": "Soho",
+"pos": [
+-17.81,
+1.69,
+74.27
+],
+"locked": true,
+"contains": [
+{
+"guid": "7d65fb",
+"name": "Custom_Board",
+"nickname": ""
+}
+]
+},
+{
+"guid": "b49b1a",
+"name": "Custom_Model_Infinite_Bag",
+"nickname": "Sunnydale High",
+"pos": [
+2.19,
+1.69,
+74.27
+],
+"locked": true,
+"contains": [
+{
+"guid": "f4155c",
+"name": "Custom_Board",
+"nickname": ""
+}
+]
+},
+{
+"guid": "a05c95",
+"name": "Custom_Model_Infinite_Bag",
+"nickname": "The Bronze",
+"pos": [
+12.19,
+1.69,
+74.27
+],
+"locked": true,
+"contains": [
+{
+"guid": "74d496",
+"name": "Custom_Board",
+"nickname": ""
+}
+]
+},
+{
+"guid": "344c3e",
+"name": "Custom_Model_Infinite_Bag",
+"nickname": "Heorot",
+"pos": [
+-27.81,
+1.69,
+68.57
+],
+"locked": true,
+"contains": [
+{
+"guid": "e57969",
+"name": "Custom_Board",
+"nickname": ""
+}
+]
+},
+{
+"guid": "9186fe",
+"name": "Custom_Model_Infinite_Bag",
+"nickname": "Hanging Gardens",
+"pos": [
+-17.81,
+1.69,
+68.57
+],
+"locked": true,
+"contains": [
+{
+"guid": "713039",
+"name": "Custom_Board",
+"nickname": ""
+}
+]
+},
+{
+"guid": "920c09",
+"name": "Custom_Model_Infinite_Bag",
+"nickname": "The Raft",
+"pos": [
+-7.81,
+1.69,
+68.57
+],
+"locked": true,
+"contains": [
+{
+"guid": "35384f",
+"name": "Custom_Board",
+"nickname": ""
+}
+]
+},
+{
+"guid": "27fc7c",
+"name": "Custom_Model_Infinite_Bag",
+"nickname": "Hell's Kitchen",
+"pos": [
+2.19,
+1.69,
+68.57
+],
+"locked": true,
+"contains": [
+{
+"guid": "2f9af1",
+"name": "Custom_Board",
+"nickname": ""
+}
+]
+},
+{
+"guid": "b4d86c",
+"name": "Custom_Model_Infinite_Bag",
+"nickname": "T. Rex Paddock",
+"pos": [
+12.19,
+1.69,
+68.57
+],
+"locked": true,
+"contains": [
+{
+"guid": "ca60ea",
+"name": "Custom_Board",
+"nickname": ""
+}
+]
+},
+{
+"guid": "b10c5a",
+"name": "Custom_Model_Infinite_Bag",
+"nickname": "Baskerville Manor",
+"pos": [
+-7.81,
+1.69,
+74.27
+],
+"locked": true,
+"contains": [
+{
+"guid": "90e830",
+"name": "Custom_Board",
+"nickname": ""
+}
+]
+},
+{
+"guid": "af77f0",
+"name": "Custom_Model_Infinite_Bag",
+"nickname": "King Solomon's Mine",
+"pos": [
+-27.81,
+1.69,
+62.87
+],
+"locked": true,
+"contains": [
+{
+"guid": "48824a",
+"name": "Custom_Board",
+"nickname": ""
+}
+]
+},
+{
+"guid": "f88c67",
+"name": "Custom_Model_Infinite_Bag",
+"nickname": "Navy Pier",
+"pos": [
+-17.81,
+1.69,
+62.87
+],
+"locked": true,
+"contains": [
+{
+"guid": "8b77ab",
+"name": "Custom_Board",
+"nickname": ""
+}
+]
+},
+{
+"guid": "9a306d",
+"name": "Custom_Model_Infinite_Bag",
+"nickname": "Helicarrier",
+"pos": [
+-7.81,
+1.69,
+62.87
+],
+"locked": true,
+"contains": [
+{
+"guid": "45799a",
+"name": "Custom_Board",
+"nickname": ""
+}
+]
+},
+{
+"guid": "e8528e",
+"name": "Custom_Model_Infinite_Bag",
+"nickname": "Sanctum Sanctorum",
+"pos": [
+2.19,
+1.69,
+62.87
+],
+"locked": true,
+"contains": [
+{
+"guid": "953f1f",
+"name": "Custom_Board",
+"nickname": ""
+}
+]
+},
+{
+"guid": "f26987",
+"name": "Custom_Model_Infinite_Bag",
+"nickname": "Point Pleasant",
+"pos": [
+12.19,
+1.69,
+62.87
+],
+"locked": true,
+"contains": [
+{
+"guid": "fdeb85",
+"name": "Custom_Board",
+"nickname": ""
+}
+]
+},
+{
+"guid": "02530b",
+"name": "Custom_Model_Infinite_Bag",
+"nickname": "McMinnville, OR",
+"pos": [
+-27.81,
+1.69,
+57.17
+],
+"locked": true,
+"contains": [
+{
+"guid": "0cdc28",
+"name": "Custom_Board",
+"nickname": ""
+}
+]
+},
+{
+"guid": "647b76",
+"name": "Custom_Model_Infinite_Bag",
+"nickname": "Azuchi Castle",
+"pos": [
+-17.81,
+1.69,
+57.17
+],
+"locked": true,
+"contains": [
+{
+"guid": "e57969",
+"name": "Custom_Board",
+"nickname": ""
+}
+]
+},
+{
+"guid": "dbb15e",
+"name": "Custom_Model_Infinite_Bag",
+"nickname": "Globe Theatre",
+"pos": [
+-7.81,
+1.69,
+57.17
+],
+"locked": true,
+"contains": [
+{
+"guid": "f597ec",
+"name": "Custom_Board",
+"nickname": "Globe Theatre"
+}
+]
+},
+{
+"guid": "a337ba",
+"name": "Custom_Model_Infinite_Bag",
+"nickname": "Kaer Morhen",
+"pos": [
+2.19,
+1.69,
+57.17
+],
+"locked": true,
+"contains": [
+{
+"guid": "fdb304",
+"name": "Custom_Board",
+"nickname": "Kaer Morhen"
+}
+]
+},
+{
+"guid": "3918dc",
+"name": "Custom_Model_Infinite_Bag",
+"nickname": "Fayrlund Forest",
+"pos": [
+12.19,
+1.69,
+57.17
+],
+"locked": true,
+"contains": [
+{
+"guid": "ac76fd",
+"name": "Custom_Board",
+"nickname": "Fayrlund Forest"
+}
+]
+},
+{
+"guid": "c2cc29",
+"name": "Custom_Model_Infinite_Bag",
+"nickname": "Streets Of Novigrad",
+"pos": [
+-27.81,
+1.69,
+51.47
+],
+"locked": true,
+"contains": [
+{
+"guid": "b22d7b",
+"name": "Custom_Board",
+"nickname": ""
+}
+]
+},
+{
+"guid": "5aab1c",
+"name": "Custom_Model_Infinite_Bag",
+"nickname": "Naglfar",
+"pos": [
+-17.81,
+1.69,
+51.47
+],
+"locked": true,
+"contains": [
+{
+"guid": "53b672",
+"name": "Custom_Board",
+"nickname": "Naglfar"
+}
+]
+},
+{
+"guid": "89405a",
+"name": "Custom_Model_Infinite_Bag",
+"nickname": "Venice",
+"pos": [
+-7.81,
+1.69,
+51.47
+],
+"locked": true,
+"contains": [
+{
+"guid": "1979ec",
+"name": "Custom_Board",
+"nickname": ""
+}
+]
+},
+{
+"guid": "882d4d",
+"name": "Custom_Model_Infinite_Bag",
+"nickname": "Santa's Workshop",
+"pos": [
+2.19,
+1.69,
+51.47
+],
+"locked": true,
+"contains": [
+{
+"guid": "62c712",
+"name": "Custom_Board",
+"nickname": ""
+}
+]
+},
+{
+"guid": "c4c6f6",
+"name": "Custom_Model_Infinite_Bag",
+"nickname": "Tsing Shan Monastery",
+"pos": [
+12.19,
+1.69,
+51.47
+],
+"locked": true,
+"contains": [
+{
+"guid": "00f13e",
+"name": "Custom_Board",
+"nickname": ""
+}
+]
+},
+{
+"guid": "efe6ab",
+"name": "Custom_Model_Infinite_Bag",
+"nickname": "Thrilla In Manila",
+"pos": [
+-27.81,
+1.69,
+45.77
+],
+"locked": true,
+"contains": [
+{
+"guid": "968943",
+"name": "Custom_Board",
+"nickname": ""
+}
+]
+},
+{
+"guid": "207684",
+"name": "Custom_Model_Infinite_Bag",
+"nickname": "New York City",
+"pos": [
+-17.81,
+1.69,
+45.77
+],
+"locked": true,
+"contains": [
+{
+"guid": "47b11b",
+"name": "Custom_Board",
+"nickname": ""
+}
+]
+},
+{
+"guid": "efe18f",
+"name": "Custom_Model_Infinite_Bag",
+"nickname": "Technodrome",
+"pos": [
+-7.81,
+1.69,
+45.77
+],
+"locked": true,
+"contains": [
+{
+"guid": "1ace1b",
+"name": "Custom_Board",
+"nickname": ""
+}
+]
+},
+{
+"guid": "2802a6",
+"name": "Custom_Model_Infinite_Bag",
+"nickname": "The Alamo",
+"pos": [
+2.19,
+1.69,
+45.77
+],
+"locked": true,
+"contains": [
+{
+"guid": "2ebe0e",
+"name": "Custom_Board",
+"nickname": ""
+}
+]
+},
+{
+"guid": "b95b03",
+"name": "Custom_Model_Infinite_Bag",
+"nickname": "The White House",
+"pos": [
+12.19,
+1.69,
+45.77
+],
+"locked": true,
+"contains": [
+{
+"guid": "38c290",
+"name": "Custom_Board",
+"nickname": ""
+}
+]
+},
+{
+"guid": "914d86",
+"name": "Custom_Model",
+"nickname": "",
+"pos": [
+29.0,
+1.71,
+39.99
+],
+"locked": false
+},
+{
+"guid": "834982",
+"name": "Custom_Model",
+"nickname": "",
+"pos": [
+20.5,
+1.71,
+39.99
+],
+"locked": false
+},
+{
+"guid": "44d279",
+"name": "Custom_Model",
+"nickname": "",
+"pos": [
+24.73,
+1.71,
+40.0
+],
+"locked": false
+},
+{
+"guid": "cd225e",
+"name": "Custom_Model_Infinite_Bag",
+"nickname": "Sarpedon",
+"pos": [
+-27.81,
+1.69,
+79.97
+],
+"locked": true,
+"contains": [
+{
+"guid": "8c27ec",
+"name": "Custom_Board",
+"nickname": ""
+}
+]
+},
+{
+"guid": "2540a6",
+"name": "Notecard",
+"nickname": "Credits",
+"pos": [
+24.25,
+1.75,
+105.75
+],
+"locked": true
+},
+{
+"guid": "842417",
+"name": "Infinite_Bag",
+"nickname": "Pick/Ban Deck (Cardbacks)",
+"pos": [
+-8.75,
+1.58,
+108.75
+],
+"locked": true,
+"contains": [
+{
+"guid": "a333fa",
+"name": "DeckCustom",
+"nickname": ""
+}
+]
+},
+{
+"guid": "ca53bb",
+"name": "Infinite_Bag",
+"nickname": "Moon Knight Cards and Mini",
+"pos": [
+-26.13,
+1.57,
+-115.13
+],
+"locked": true,
+"contains": [
+{
+"guid": "a9bccf",
+"name": "Bag",
+"nickname": ""
+}
+]
+},
+{
+"guid": "ee8380",
+"name": "Infinite_Bag",
+"nickname": "Pick/Ban Deck (Cardbacks)",
+"pos": [
+-21.88,
+1.57,
+-115.13
+],
+"locked": true,
+"contains": [
+{
+"guid": "a333fa",
+"name": "DeckCustom",
+"nickname": ""
+}
+]
+},
+{
+"guid": "45c723",
+"name": "Custom_Board",
+"nickname": "",
+"pos": [
+0.0,
+1.0,
+0.0
+],
+"locked": true,
+"image": "https://steamusercontent-a.akamaihd.net/ugc/17210524493909076160/98097621768AC24FF097E6997A46CF69EE91FE46/"
+},
+{
+"guid": "8315f0",
+"name": "Custom_Board",
+"nickname": "",
+"pos": [
+-0.39,
+1.0,
+-78.41
+],
+"locked": true,
+"image": "https://steamusercontent-a.akamaihd.net/ugc/17210524493909076160/98097621768AC24FF097E6997A46CF69EE91FE46/"
+},
+{
+"guid": "6bd0e3",
+"name": "Custom_Board",
+"nickname": "",
+"pos": [
+0.0,
+1.0,
+73.77
+],
+"locked": true,
+"image": "https://steamusercontent-a.akamaihd.net/ugc/17210524493909076160/98097621768AC24FF097E6997A46CF69EE91FE46/"
+},
+{
+"guid": "4099ee",
+"name": "3DText",
+"nickname": "",
+"pos": [
+-24.21,
+1.59,
+-117.99
+],
+"locked": true
+},
+{
+"guid": "3efeee",
+"name": "Custom_Model_Infinite_Bag",
+"nickname": "Hellboy",
+"pos": [
+9.63,
+1.61,
+-40.12
+],
+"locked": true,
+"contains": [
+{
+"guid": "c592d8",
+"name": "Custom_Model_Bag",
+"nickname": ""
+}
+]
+},
+{
+"guid": "3e5356",
+"name": "Infinite_Bag",
+"nickname": "Pick/Ban Deck",
+"pos": [
+-11.5,
+1.58,
+108.75
+],
+"locked": true,
+"contains": [
+{
+"guid": "a333fa",
+"name": "DeckCustom",
+"nickname": ""
+}
+]
+},
+{
+"guid": "a45f6f",
+"name": "Custom_Model_Infinite_Bag",
+"nickname": "Baba Yaga",
+"pos": [
+-4.62,
+1.61,
+-40.12
+],
+"locked": true,
+"contains": [
+{
+"guid": "a31afe",
+"name": "Custom_Model_Bag",
+"nickname": ""
+}
+]
+},
+{
+"guid": "e61609",
+"name": "Custom_Model_Infinite_Bag",
+"nickname": "Liz Sherman",
+"pos": [
+0.13,
+1.61,
+-40.12
+],
+"locked": true,
+"contains": [
+{
+"guid": "77449a",
+"name": "Custom_Model_Bag",
+"nickname": ""
+}
+]
+},
+{
+"guid": "a959bb",
+"name": "Custom_Model_Infinite_Bag",
+"nickname": "Abe Sapien",
+"pos": [
+4.88,
+1.61,
+-40.12
+],
+"locked": true,
+"contains": [
+{
+"guid": "0c03c0",
+"name": "Custom_Model_Bag",
+"nickname": ""
+}
+]
+},
+{
+"guid": "addeca",
+"name": "DeckCustom",
+"nickname": "",
+"pos": [
+-5.75,
+1.99,
+-1.5
+],
+"locked": false,
+"contains": [
+{
+"guid": "af4d96",
+"name": "Card",
+"nickname": ""
+},
+{
+"guid": "4e52a4",
+"name": "Card",
+"nickname": ""
+},
+{
+"guid": "54b577",
+"name": "Card",
+"nickname": ""
+},
+{
+"guid": "6c1b12",
+"name": "Card",
+"nickname": ""
+},
+{
+"guid": "899876",
+"name": "Card",
+"nickname": ""
+},
+{
+"guid": "6fc9a8",
+"name": "Card",
+"nickname": ""
+},
+{
+"guid": "59d9d1",
+"name": "Card",
+"nickname": ""
+},
+{
+"guid": "6bb30d",
+"name": "Card",
+"nickname": ""
+},
+{
+"guid": "e1928a",
+"name": "Card",
+"nickname": ""
+},
+{
+"guid": "aaf1de",
+"name": "Card",
+"nickname": ""
+},
+{
+"guid": "1651aa",
+"name": "Card",
+"nickname": ""
+},
+{
+"guid": "8fd1b6",
+"name": "Card",
+"nickname": ""
+},
+{
+"guid": "a98132",
+"name": "Card",
+"nickname": ""
+},
+{
+"guid": "df8d89",
+"name": "Card",
+"nickname": ""
+},
+{
+"guid": "56e768",
+"name": "Card",
+"nickname": ""
+},
+{
+"guid": "9b7b72",
+"name": "Card",
+"nickname": ""
+},
+{
+"guid": "99492c",
+"name": "Card",
+"nickname": ""
+},
+{
+"guid": "e85c2a",
+"name": "Card",
+"nickname": ""
+},
+{
+"guid": "1e0c1e",
+"name": "Card",
+"nickname": ""
+},
+{
+"guid": "d1bd80",
+"name": "Card",
+"nickname": ""
+},
+{
+"guid": "694fe4",
+"name": "Card",
+"nickname": ""
+},
+{
+"guid": "00105e",
+"name": "Card",
+"nickname": ""
+},
+{
+"guid": "a9406c",
+"name": "Card",
+"nickname": ""
+},
+{
+"guid": "e5d77d",
+"name": "Card",
+"nickname": ""
+},
+{
+"guid": "7d4b35",
+"name": "Card",
+"nickname": ""
+},
+{
+"guid": "75561a",
+"name": "Card",
+"nickname": ""
+},
+{
+"guid": "9e69cb",
+"name": "Card",
+"nickname": ""
+},
+{
+"guid": "6ac119",
+"name": "Card",
+"nickname": ""
+},
+{
+"guid": "24cb8a",
+"name": "Card",
+"nickname": ""
+},
+{
+"guid": "82d6c8",
+"name": "Card",
+"nickname": ""
+},
+{
+"guid": "0e0e4c",
+"name": "Card",
+"nickname": ""
+},
+{
+"guid": "c848b3",
+"name": "Card",
+"nickname": ""
+},
+{
+"guid": "361206",
+"name": "Card",
+"nickname": ""
+},
+{
+"guid": "970da7",
+"name": "Card",
+"nickname": ""
+},
+{
+"guid": "a7ba10",
+"name": "Card",
+"nickname": ""
+},
+{
+"guid": "5ca794",
+"name": "Card",
+"nickname": ""
+},
+{
+"guid": "bdd1ba",
+"name": "Card",
+"nickname": ""
+},
+{
+"guid": "12e2c0",
+"name": "Card",
+"nickname": ""
+},
+{
+"guid": "9d1347",
+"name": "Card",
+"nickname": ""
+},
+{
+"guid": "f82802",
+"name": "Card",
+"nickname": ""
+},
+{
+"guid": "445385",
+"name": "Card",
+"nickname": ""
+},
+{
+"guid": "e3cc80",
+"name": "Card",
+"nickname": ""
+},
+{
+"guid": "e8118b",
+"name": "Card",
+"nickname": ""
+},
+{
+"guid": "77b216",
+"name": "Card",
+"nickname": ""
+},
+{
+"guid": "2e85ad",
+"name": "Card",
+"nickname": ""
+},
+{
+"guid": "08aabe",
+"name": "Card",
+"nickname": ""
+},
+{
+"guid": "1cd423",
+"name": "Card",
+"nickname": ""
+},
+{
+"guid": "e83aa7",
+"name": "Card",
+"nickname": ""
+},
+{
+"guid": "8e203e",
+"name": "Card",
+"nickname": ""
+},
+{
+"guid": "7deb26",
+"name": "Card",
+"nickname": ""
+},
+{
+"guid": "778969",
+"name": "Card",
+"nickname": ""
+},
+{
+"guid": "996355",
+"name": "Card",
+"nickname": ""
+},
+{
+"guid": "5335eb",
+"name": "Card",
+"nickname": ""
+},
+{
+"guid": "293bc8",
+"name": "Card",
+"nickname": ""
+},
+{
+"guid": "4d83a6",
+"name": "Card",
+"nickname": ""
+},
+{
+"guid": "93d905",
+"name": "Card",
+"nickname": ""
+},
+{
+"guid": "cdab01",
+"name": "Card",
+"nickname": ""
+},
+{
+"guid": "413c07",
+"name": "Card",
+"nickname": ""
+},
+{
+"guid": "3da4da",
+"name": "Card",
+"nickname": ""
+},
+{
+"guid": "b0f2f4",
+"name": "Card",
+"nickname": ""
+},
+{
+"guid": "834df2",
+"name": "Card",
+"nickname": ""
+},
+{
+"guid": "c50baa",
+"name": "Card",
+"nickname": ""
+},
+{
+"guid": "a9e9d8",
+"name": "Card",
+"nickname": ""
+},
+{
+"guid": "f50079",
+"name": "Card",
+"nickname": ""
+},
+{
+"guid": "1083f9",
+"name": "Card",
+"nickname": ""
+},
+{
+"guid": "7f60b8",
+"name": "Card",
+"nickname": ""
+},
+{
+"guid": "12b33e",
+"name": "Card",
+"nickname": ""
+},
+{
+"guid": "a1f566",
+"name": "Card",
+"nickname": ""
+},
+{
+"guid": "b1a3c2",
+"name": "Card",
+"nickname": ""
+},
+{
+"guid": "d5e18a",
+"name": "Card",
+"nickname": ""
+},
+{
+"guid": "5ee145",
+"name": "Card",
+"nickname": ""
+},
+{
+"guid": "773ec9",
+"name": "Card",
+"nickname": ""
+},
+{
+"guid": "9cde15",
+"name": "Card",
+"nickname": ""
+},
+{
+"guid": "dcb6fc",
+"name": "Card",
+"nickname": ""
+},
+{
+"guid": "476502",
+"name": "Card",
+"nickname": ""
+},
+{
+"guid": "ed7cfd",
+"name": "Card",
+"nickname": ""
+},
+{
+"guid": "ab5668",
+"name": "Card",
+"nickname": ""
+},
+{
+"guid": "22ccdb",
+"name": "Card",
+"nickname": ""
+}
+]
+},
+{
+"guid": "cb6cbc",
+"name": "DeckCustom",
+"nickname": "",
+"pos": [
+5.5,
+1.99,
+-1.5
+],
+"locked": false,
+"contains": [
+{
+"guid": "af4d96",
+"name": "Card",
+"nickname": ""
+},
+{
+"guid": "4e52a4",
+"name": "Card",
+"nickname": ""
+},
+{
+"guid": "54b577",
+"name": "Card",
+"nickname": ""
+},
+{
+"guid": "6c1b12",
+"name": "Card",
+"nickname": ""
+},
+{
+"guid": "899876",
+"name": "Card",
+"nickname": ""
+},
+{
+"guid": "6fc9a8",
+"name": "Card",
+"nickname": ""
+},
+{
+"guid": "59d9d1",
+"name": "Card",
+"nickname": ""
+},
+{
+"guid": "6bb30d",
+"name": "Card",
+"nickname": ""
+},
+{
+"guid": "e1928a",
+"name": "Card",
+"nickname": ""
+},
+{
+"guid": "aaf1de",
+"name": "Card",
+"nickname": ""
+},
+{
+"guid": "1651aa",
+"name": "Card",
+"nickname": ""
+},
+{
+"guid": "8fd1b6",
+"name": "Card",
+"nickname": ""
+},
+{
+"guid": "a98132",
+"name": "Card",
+"nickname": ""
+},
+{
+"guid": "df8d89",
+"name": "Card",
+"nickname": ""
+},
+{
+"guid": "56e768",
+"name": "Card",
+"nickname": ""
+},
+{
+"guid": "9b7b72",
+"name": "Card",
+"nickname": ""
+},
+{
+"guid": "99492c",
+"name": "Card",
+"nickname": ""
+},
+{
+"guid": "e85c2a",
+"name": "Card",
+"nickname": ""
+},
+{
+"guid": "1e0c1e",
+"name": "Card",
+"nickname": ""
+},
+{
+"guid": "d1bd80",
+"name": "Card",
+"nickname": ""
+},
+{
+"guid": "694fe4",
+"name": "Card",
+"nickname": ""
+},
+{
+"guid": "00105e",
+"name": "Card",
+"nickname": ""
+},
+{
+"guid": "a9406c",
+"name": "Card",
+"nickname": ""
+},
+{
+"guid": "e5d77d",
+"name": "Card",
+"nickname": ""
+},
+{
+"guid": "7d4b35",
+"name": "Card",
+"nickname": ""
+},
+{
+"guid": "75561a",
+"name": "Card",
+"nickname": ""
+},
+{
+"guid": "9e69cb",
+"name": "Card",
+"nickname": ""
+},
+{
+"guid": "6ac119",
+"name": "Card",
+"nickname": ""
+},
+{
+"guid": "24cb8a",
+"name": "Card",
+"nickname": ""
+},
+{
+"guid": "82d6c8",
+"name": "Card",
+"nickname": ""
+},
+{
+"guid": "0e0e4c",
+"name": "Card",
+"nickname": ""
+},
+{
+"guid": "c848b3",
+"name": "Card",
+"nickname": ""
+},
+{
+"guid": "361206",
+"name": "Card",
+"nickname": ""
+},
+{
+"guid": "970da7",
+"name": "Card",
+"nickname": ""
+},
+{
+"guid": "a7ba10",
+"name": "Card",
+"nickname": ""
+},
+{
+"guid": "5ca794",
+"name": "Card",
+"nickname": ""
+},
+{
+"guid": "bdd1ba",
+"name": "Card",
+"nickname": ""
+},
+{
+"guid": "12e2c0",
+"name": "Card",
+"nickname": ""
+},
+{
+"guid": "9d1347",
+"name": "Card",
+"nickname": ""
+},
+{
+"guid": "f82802",
+"name": "Card",
+"nickname": ""
+},
+{
+"guid": "445385",
+"name": "Card",
+"nickname": ""
+},
+{
+"guid": "e3cc80",
+"name": "Card",
+"nickname": ""
+},
+{
+"guid": "e8118b",
+"name": "Card",
+"nickname": ""
+},
+{
+"guid": "77b216",
+"name": "Card",
+"nickname": ""
+},
+{
+"guid": "2e85ad",
+"name": "Card",
+"nickname": ""
+},
+{
+"guid": "08aabe",
+"name": "Card",
+"nickname": ""
+},
+{
+"guid": "1cd423",
+"name": "Card",
+"nickname": ""
+},
+{
+"guid": "e83aa7",
+"name": "Card",
+"nickname": ""
+},
+{
+"guid": "8e203e",
+"name": "Card",
+"nickname": ""
+},
+{
+"guid": "7deb26",
+"name": "Card",
+"nickname": ""
+},
+{
+"guid": "778969",
+"name": "Card",
+"nickname": ""
+},
+{
+"guid": "996355",
+"name": "Card",
+"nickname": ""
+},
+{
+"guid": "5335eb",
+"name": "Card",
+"nickname": ""
+},
+{
+"guid": "293bc8",
+"name": "Card",
+"nickname": ""
+},
+{
+"guid": "4d83a6",
+"name": "Card",
+"nickname": ""
+},
+{
+"guid": "93d905",
+"name": "Card",
+"nickname": ""
+},
+{
+"guid": "cdab01",
+"name": "Card",
+"nickname": ""
+},
+{
+"guid": "413c07",
+"name": "Card",
+"nickname": ""
+},
+{
+"guid": "3da4da",
+"name": "Card",
+"nickname": ""
+},
+{
+"guid": "b0f2f4",
+"name": "Card",
+"nickname": ""
+},
+{
+"guid": "834df2",
+"name": "Card",
+"nickname": ""
+},
+{
+"guid": "c50baa",
+"name": "Card",
+"nickname": ""
+},
+{
+"guid": "a9e9d8",
+"name": "Card",
+"nickname": ""
+},
+{
+"guid": "f50079",
+"name": "Card",
+"nickname": ""
+},
+{
+"guid": "1083f9",
+"name": "Card",
+"nickname": ""
+},
+{
+"guid": "7f60b8",
+"name": "Card",
+"nickname": ""
+},
+{
+"guid": "12b33e",
+"name": "Card",
+"nickname": ""
+},
+{
+"guid": "a1f566",
+"name": "Card",
+"nickname": ""
+},
+{
+"guid": "b1a3c2",
+"name": "Card",
+"nickname": ""
+},
+{
+"guid": "d5e18a",
+"name": "Card",
+"nickname": ""
+},
+{
+"guid": "5ee145",
+"name": "Card",
+"nickname": ""
+},
+{
+"guid": "773ec9",
+"name": "Card",
+"nickname": ""
+},
+{
+"guid": "9cde15",
+"name": "Card",
+"nickname": ""
+},
+{
+"guid": "dcb6fc",
+"name": "Card",
+"nickname": ""
+},
+{
+"guid": "476502",
+"name": "Card",
+"nickname": ""
+},
+{
+"guid": "ed7cfd",
+"name": "Card",
+"nickname": ""
+},
+{
+"guid": "ab5668",
+"name": "Card",
+"nickname": ""
+},
+{
+"guid": "22ccdb",
+"name": "Card",
+"nickname": ""
+}
+]
+},
+{
+"guid": "06c99d",
+"name": "3DText",
+"nickname": "",
+"pos": [
+24.73,
+1.59,
+43.9
+],
+"locked": true
+},
+{
+"guid": "5a2a82",
+"name": "Checker_black",
+"nickname": "Roster Arranger",
+"pos": [
+-24.42,
+1.59,
+-37.57
+],
+"locked": false
+},
+{
+"guid": "1523b0",
+"name": "FogOfWarTrigger",
+"nickname": "",
+"pos": [
+0.0,
+-3.5,
+0.0
+],
+"locked": true
+},
+{
+"guid": "5b722a",
+"name": "Custom_Model_Infinite_Bag",
+"nickname": "Pandemonium",
+"pos": [
+-17.81,
+1.69,
+40.07
+],
+"locked": true,
+"contains": [
+{
+"guid": "ea8fcf",
+"name": "Custom_Board",
+"nickname": "Pandemonium"
+}
+]
+},
+{
+"guid": "ab5e89",
+"name": "Custom_Model_Infinite_Bag",
+"nickname": "B.P.R.D HQ",
+"pos": [
+-27.81,
+1.69,
+40.07
+],
+"locked": true,
+"contains": [
+{
+"guid": "ec6f27",
+"name": "Custom_Board",
+"nickname": "B.P.R.D. HQ"
+}
+]
+},
+{
+"guid": "28ff83",
+"name": "ScriptingTrigger",
+"nickname": "",
+"pos": [
+-30.05,
+5.09,
+-9.01
+],
+"locked": true
+},
+{
+"guid": "f93f2a",
+"name": "ScriptingTrigger",
+"nickname": "",
+"pos": [
+29.99,
+5.09,
+-9.0
+],
+"locked": true
+}
+]
+}

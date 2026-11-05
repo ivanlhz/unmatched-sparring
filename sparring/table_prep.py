@@ -62,3 +62,31 @@ def removal_limits(raw: dict) -> tuple[float, float]:
             isinstance(v, (int, float)) and not isinstance(v, bool) and v > 0 for v in limits):
         raise ValueError(t("cfg.remove_limits"))
     return float(limits[0]), float(limits[1])
+
+
+@dataclass(frozen=True)
+class MapPlan:
+    """Where the map the gate puts on an empty table comes from and lands: the bag it sits in (an infinite one in the
+    official save), the board's GUID inside it and the transform it was played with (the layout of config/table.json
+    assumes it)."""
+    board: str                                   # catalog key of the map
+    bag: str
+    board_guid: str
+    position: tuple[float, float, float]
+    rot_y: float
+    scale: float
+
+
+def map_plan(raw: dict) -> MapPlan | None:
+    """`prepare_map` of the configuration; None when absent (the gate then never puts a map on the table)."""
+    spec = raw.get("prepare_map")
+    if spec is None:
+        return None
+    if not isinstance(spec, dict) or not all(isinstance(spec.get(k), str) and spec[k] for k in ("board", "bag", "board_guid")):
+        raise ValueError(t("cfg.prepare_map"))
+    scale, rot = spec.get("scale"), spec.get("rot_y", 0.0)
+    if isinstance(scale, bool) or not isinstance(scale, (int, float)) or not 0 < scale < 10 \
+            or isinstance(rot, bool) or not isinstance(rot, (int, float)):
+        raise ValueError(t("cfg.prepare_map"))
+    return MapPlan(spec["board"], spec["bag"], spec["board_guid"], _vec3(spec.get("position"), "prepare_map.position"),
+                   float(rot), float(scale))

@@ -432,6 +432,33 @@
         "The refusal messages read well on the console for an excluded map, an unverified one, an unavailable one and two maps at once"
       ],
       "note": "Asked by Iván on 4/11 after the bot crashed on a map picked from the official save (board.positionToWorld on nil: the board was looked up by a fixed GUID). Exclusion rule from Iván: only maps that need tokens or doors; any other special rule is listed as not enforced (the save has no rule text, so the README can only name the marks visible on the pictures). Review of 4/11: imported adjacency was wrong on every sampled map, so extracted maps need a person's confirmation in tools/map_checker.py before the bot plays them, and the map art left the repository. Branch all-maps, from official-save-setup."
+    },
+    {
+      "id": "F22",
+      "title": "Pre-game gate: check the table, clean and prepare it, start only on a button",
+      "status": "in-progress",
+      "criteria": [
+        "On a fresh start (never --resume; config key pregame_gate, default true) nothing starts by itself: the bot reads the loaded table (sparring/table_reset.py, docstring = the definition of a READY TABLE) and shows only two right-panel buttons, \"Clean table and prepare\" (es: Limpiar mesa y preparar) while the table is not ready and \"Start game\" (es: Comenzar partida) once it is; the chat says what is out of place, briefly",
+        "Ready table: no remove_table leftovers (the prepare_table guard, evaluated read only); both hands empty; every card of both heroes in its deck wherever it lay (hands, discards, combat, ONGOING, look rows, loose on the table or the board; found by CardID range AND deck image); decks face down; no miniature on the board and Hellboy in his first form; life dials full and destiny 0; two-faced tokens (Hellboy ability, Abe Intuition) on their starting face; the heroes' decks, dials, pieces and tokens out of their bags; no saved game (state/session.json) for --resume; things it will not touch (other heroes' objects, a missing board, a loose object failing the name or place guard, a foreign card in a hand) are reported, not counted",
+        "Pressing the clean button, always with Medusa (bot, Green) and Hellboy (human, White) on the map the table shows: zoom copies removed, heroes unpacked from their bags, guarded leftovers destroyed, every card gathered (never destroyed) into its deck, face down and shuffled, miniatures set aside off the board, dials refilled, destiny 0, Hellboy back to his first form, tokens to their starting face, saved game deleted; no piece on the board, no hand dealt, no mulligan, no turn; the table is then read again and what is still off is named in the chat and the button stays; a second press on a ready table changes nothing",
+        "MAIN CASE, the official tournament save as it loads (tests/fixtures/official_table.json = its 170 objects): it has out the two 78-card decks, the d20, the Dice Cannon and the two clocks in the middle, no discard zones and no map (only the locked pad boards), and every hero and map inside infinite bags. The button destroys the six centre objects (GUID + expected name + inside the limits, as F20), creates the two discard zones, takes the B.P.R.D. HQ board out of its bag onto the table with the transform of config prepare_map (-0.35, 1.63, -3.18, rotY 269.99, scale 0.85, locked), takes Medusa's and Hellboy's decks, dials, pieces and tokens out of their bags, and leaves the prepared state; the hero and map bags, counters, hand zones, pad boards, fog of war trigger and everything else stay; start-up no longer stops on a table without a map (the chat says so and the button fixes it); a map already on the table is never replaced",
+        "A table showing another pair of heroes has that pair reset too but nothing is unpacked over its decks: the chat asks to put them in their bags and to press again",
+        "\"Start game\" re-reads the heroes and the map from the table and runs the normal start flow (deal, mulligan, placement); before the press nothing is dealt or placed; \"Ready\" of the setup is a different, later button (the human's confirmation after placing his pieces) and is untouched",
+        "Only messageID 2 and 3, never the Global UI; the audit scripts are read only (table_audit, deck_facing are in READ_ONLY_TAGS); texts in es and en"
+      ],
+      "verify_live": [
+        "lua.take_map: bag.takeObject({guid, position, rotation, smooth = false}) on the infinite 'B.P.R.D HQ' bag (ab5e89) returns the board at once (the bot reads list_boards right after) and the board keeps scale 0.85 and the lock; the bag is still full afterwards; the map lies on the pad board and the discard grid, decks and combat spots of config/table.json fall on it as in the earlier games",
+        "Medusa's and Hellboy's objects unpack to their rows and deck spots on the official table (play.prepare_heroes) and nothing lands on a hand zone or on the map's spaces",
+        "TTS keeps the panel's two new buttons hidden in a game and shows them, one per row beside Mulligan and Ready, in the gate; the labels fit the column",
+        "The panel XML exists 0.5 s after create_panel: PANEL_SETTLE (0.7 s) is enough for the first set_panel of the gate to take effect",
+        "Object.is_face_down and Object.flip() on a Deck/Card: a face-up deck is turned down; the deck stays within deck_radius of its spot",
+        "The Scope(everywhere) read finds loose cards of the heroes anywhere (also on the board and under other objects) and nothing of other card games (identity check)",
+        "Hellboy's miniature goes back to state 1 with set_state and keeps its place; his ability token ends at rotZ 180 (OCCULT DETECTIVE); Abe's Intuition tokens end inactive (rotZ 0, to be confirmed with the Abe verify_live)",
+        "The o.name values of the remove_table objects (see F20) also decide what the audit reports as leftovers",
+        "table_audit counts Player[seat].getHandObjects(1) per seat; the zoom copy (SparringZoom) is destroyed by clear_markings(remove_panel=True)",
+        "After cleaning, the reading finds the table ready: nothing is left unfound because of an object type TTS reports differently"
+      ],
+      "note": "Asked by Iván on 5/11: savegame preparation, NOT starting a game. Code in sparring/table_reset.py plus small hooks in play.py, tts/ui.py and tts/lua.py (session.py untouched). Branch table-ready, from all-maps ac45589."
     }
   ]
 }

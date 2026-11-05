@@ -268,6 +268,23 @@ Nothing of this has been seen on a real table. Load "Unmatched Official Tourname
 - [ ] **Fresh restart without reloading TTS**: the leftover created zones are reused (no duplicate zone on top of them).
 - [ ] **TTS reload after creating the zones** (load another save): the bot stops with the missing-GUID message; restart it.
 
+### Pre-game gate: check, clean and prepare the table (F22)
+Nothing of this has been seen on a real table. The definition of a ready table is the docstring of `sparring/table_reset.py`. Start the bot (fresh, not `--resume`) on a table left in a game, then on the official save.
+- [ ] **THE MAIN CASE: the official tournament save, just loaded** (nothing prepared, no map out). Start the bot: it does NOT stop on "no map"; the chat says the table is not ready and lists: loose objects (the six GUIDs), no map, discard zones missing, Medusa and Hellboy in their bags. Press the button: the six centre objects disappear (decks, d20, Dice Cannon, clocks), two discard zones appear (straight, rotation 0/270/0), the B.P.R.D. HQ map is laid on the pad board in the middle (check it sits where it did in earlier games: the deck spots, discard grid and combat spots fall on it), Medusa's and Hellboy's decks, dials, pieces and tokens come out of their bags (decks at the deck spots, pieces and dials in the unpack rows or at the dead spots, none on the map), no hand is dealt. Everything else stays: all hero and map bags, counters, hand zones, pad boards. The chat ends with "prepare the table ... and press Comenzar partida".
+- [ ] **Infinite bag**: `bag.takeObject` on the infinite 'B.P.R.D HQ' bag gives the board immediately with a new GUID (the bag stays full); `o.type` of that bag lets the script through (it only needs `getObjects()`); if the chat says "No he podido sacar el mapa ... (bag/board/take)", copy the reason.
+- [ ] **Buttons**: the right panel shows only "Limpiar mesa y preparar" (table not ready) or only "Comenzar partida" (ready), no game button; the labels fit; in a normal game both are hidden. They sit beside Mulligan and Ready.
+- [ ] **Panel timing**: the first status line and buttons appear (`PANEL_SETTLE` 0.7 s after creating the panel is enough; if the buttons stay as in the XML, raise it).
+- [ ] **Chat**: a dirty table lists what is out of place, briefly; a ready one says so; both end with "prepare the table with the heroes and map and press Comenzar partida".
+- [ ] **Cleaning from a mid-game table**: hands, discards, combat cards, ONGOING cards, the look row and a zoom copy are gone; every card of Medusa and Hellboy is back in its own deck (30 cards each, face down, shuffled, at the deck spot, also a deck left face up); cards dropped loose on the board come back too; nothing of other card games moves.
+- [ ] **Pieces and dials**: miniatures end at the dead spots (not on the board), life dials full, destiny 0, Hellboy's miniature in his first form (OCCULT DETECTIVE) with the ability token at rotZ 180.
+- [ ] **Abe's Intuition tokens** (only if Abe was on the table when pressing): they end inactive; see the Abe item for which rotation is which.
+- [ ] **Leftovers**: the six objects of the official save are destroyed only if their `o.name` matches (F20); one that does not match is named in the chat and left alone.
+- [ ] **Bags**: with Medusa and Hellboy still in their bags the button takes their deck, pieces, dials and token out (`play.prepare_heroes`).
+- [ ] **Another pair on the table** (e.g. Houdini and Strange): their cards go back to their decks and miniatures off the board, nothing is unpacked over their decks, and the chat asks to put them in their bags and press again.
+- [ ] **Saved game**: after cleaning `state/session.json` is gone, so `--resume` finds nothing.
+- [ ] **Second press** changes nothing and says so; a table the bot cannot fully clean names what is left and keeps the button.
+- [ ] **Start game**: nothing is dealt or placed before the press; the press reads the heroes and the map from the table and the normal flow starts (deal, mulligan, placement).
+
 ### Maps of the official save (F21)
 Nothing of this has been seen on a real table. Load the official save, take a map out of its bag in the map area and put it on the table, then start the bot (or run `--read-only`).
 - [ ] **TTS returns what the script reads**: `o.type` of a loose Custom_Board is `Board`, and `getCustomObject().image` is the image URL whose last 40 hex characters are the SHA-1 in `data/maps/catalog.json` (the script reads `guid` and `image` of every `Board`; if the report says "image ?" the URL has another shape).
