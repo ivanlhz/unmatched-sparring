@@ -351,3 +351,35 @@ def test_the_largest_bonus_is_accepted():
 def test_one_way_entries_must_be_pairs_of_integers(bad):
     with pytest.raises((ValueError, TypeError)):
         mc.apply_edit(ring(), {"one_way": bad})
+
+
+# ---------- hazard edges ----------
+def test_confirm_round_trips_hazards_into_a_board(maps):
+    ok, problems = mc.confirm(maps, "t", {"hazards": [{"edge": [2, 1], "damage": 2}, {"edge": [0, 1]}]}, None, ZONES)
+    assert ok, problems
+    saved = json.loads((maps / "t.json").read_text(encoding="utf-8"))["hazards"]
+    assert saved == [{"edge": [0, 1], "damage": 1}, {"edge": [1, 2], "damage": 2}]
+    assert Board.load(maps / "t.json").hazards == {(0, 1): 1, (1, 2): 2}
+
+
+@pytest.mark.parametrize("hazard", [{"edge": [0, 9], "damage": 1}, {"edge": [1, 1], "damage": 1}, {"edge": [0, 1], "damage": 0},
+                                    {"edge": [0, 1], "damage": mc.MAX_HAZARD + 1}, {"edge": [0, 1], "damage": 1.5},
+                                    {"edge": [0], "damage": 1}, {"damage": 1}, "0-1"])
+def test_bad_hazards_are_rejected(hazard):
+    with pytest.raises(ValueError):
+        mc.apply_edit(ring(), {"hazards": [hazard]})
+
+
+def test_a_repeated_hazard_edge_is_rejected_in_either_order():
+    with pytest.raises(ValueError):
+        mc.apply_edit(ring(), {"hazards": [{"edge": [0, 1], "damage": 1}, {"edge": [1, 0], "damage": 2}]})
+
+
+def test_the_check_flags_a_hazard_on_spaces_that_are_not_adjacent():
+    assert any("hazard 0-2" in p and "not adjacent" in p for p in mc.validate(mc.apply_edit(ring(), {"hazards": [{"edge": [0, 2], "damage": 1}]})))
+    assert not any("hazard" in p for p in mc.validate(mc.apply_edit(ring(), {"hazards": [{"edge": [0, 1], "damage": 1}]})))
+
+
+def test_hazards_are_kept_when_not_in_the_edit_and_cleared_by_an_empty_list():
+    kept = mc.apply_edit(ring(), {"hazards": [{"edge": [0, 1], "damage": 2}]})
+    assert mc.apply_edit(kept, {})["hazards"] == kept["hazards"] and "hazards" not in mc.apply_edit(kept, {"hazards": []})

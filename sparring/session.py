@@ -3425,6 +3425,7 @@ class Session:
                 if act.kind in ("scheme", "glance", "frenzy"):
                     self.zoom_ids.add(act.card.card_id)       # the human reads it when it leaves the hand for the discard
                 self.ai.execute(g, act)
+                self._announce_hazards()
                 self._note_boost(act, fx_before, actions0)
                 self._mark_dirty(before)
                 self._persist()
@@ -4814,6 +4815,24 @@ class Session:
     def _on_board(self, info: dict) -> bool:
         return bool(info.get("found")) and info.get("dist", 0) <= self.cfg.off_board_dist
 
+    def _announce_hazards(self, write_dials: bool = False) -> None:
+        """Tells the chat about the hazard-edge damage the engine has charged since the last call (a move of the bot, a
+        piece the human moved by hand): who, which edge, the new health. A fall is announced like any other; with
+        `write_dials` the life dials are written (the human's move has no action of the bot to carry them)."""
+        g = self.game
+        hits, g.hazard_hits = g.hazard_hits, []
+        for fid, (a, b), dmg in hits:
+            f = g.fighters[fid]
+            after = max(f.hp, 0)
+            self.say(t("hazard.hit", name=self._name(f), a=a, b=b, dmg=dmg, before=after + dmg, after=after), ChatKind.COMBAT)
+            if not f.alive:
+                self._announce_fall(f)
+        if hits and write_dials:
+            self._write_dials()
+        if hits and g.winner is not None:
+            self.say(t("game.over_fix", winner=g.winner))
+            self._game_over_dialog()
+
     def sync_positions(self) -> None:
         for fid, info in self._table_pieces().items():
             f = self.game.fighters[fid]
@@ -4830,7 +4849,12 @@ class Session:
             elif info["space"] != f.pos and not self.game.fx.can_move(f):
                 self._warn(fid, "pinned", t("warn.pinned", name=name, where=describe(self.game, f.pos, (fid,), self._name)))
             else:
-                f.pos = info["space"]
+                if info["space"] != f.pos and f.pos is not None and f.owner == self.human and self.game.board.hazards:
+                    # the human moved this piece by hand: only the two ends are known, so the least-hazard shortest way is charged
+                    self.game.walk(f, info["space"], None)
+                    self._announce_hazards(write_dials=True)
+                else:
+                    f.pos = info["space"]
                 for kind in ("missing", "off", "pinned"):
                     self._warned.discard((fid, kind))
 

@@ -416,6 +416,7 @@
  "hp.part": "{name} from {before:g} to {after:g}",
  "hp.line": "HP: {parts}",
  "exhaust.line": "Empty deck: {hp}.",
+ "hazard.hit": "{name} crosses a hazard edge ({a}-{b}) and loses {dmg} HP: from {before:g} to {after:g}.",
  "game.over_fix": "Game over: player {winner} wins. If it was an HP mistake, fix it with +1 or press [[panel.undo]].",
  "scheme.prompt": "Scheme: leave your scheme card face up in your discard pile; I recognise it myself and apply whatever needs no choice from you. Press [[panel.end_action]] when you are done.",
  "scheme.detect_discard": "I detect {title}: applied, {gain}. Discarding your hand is up to you: they are your cards.",

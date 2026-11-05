@@ -30,6 +30,7 @@ def game_to_dict(g: Game) -> dict:
     return {
         "turn": g.turn, "turn_no": g.turn_no, "actions_left": g.actions_left, "winner": g.winner,
         "effect_shield": {str(k): v for k, v in g.effect_shield.items()}, "drawn": list(g.drawn),
+        **({"hazard_taken": sorted([fid, list(e)] for fid, e in g.hazard_taken)} if g.hazard_taken else {}),
         **({"combat_bonus": [[list(b) for b in side] for side in legacy]} if any(legacy) else {}),
         **({"fx": fx} if fx else {}),
         "fighters": {fid: {"hp": f.hp, "pos": f.pos, "alive": f.alive, "died_at": f.died_at} for fid, f in g.fighters.items()},
@@ -49,6 +50,7 @@ def apply_game(g: Game, d: dict) -> None:
         g.turn, g.turn_no, g.actions_left, g.winner = d["turn"], d["turn_no"], d["actions_left"], d["winner"]
         g.effect_shield = {int(k): v for k, v in d["effect_shield"].items()}
         g.drawn = list(d["drawn"])
+        g.hazard_taken = {(fid, (e[0], e[1])) for fid, e in d.get("hazard_taken", [])}
         fx = d.get("fx") or {}
         g.fx = EffectState.from_dict(fx)
         if "dsl_heroes" not in fx:

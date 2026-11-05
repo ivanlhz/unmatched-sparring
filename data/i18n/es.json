@@ -416,6 +416,7 @@
  "hp.part": "{name} de {before:g} a {after:g}",
  "hp.line": "PV: {parts}",
  "exhaust.line": "Mazo vacio: {hp}.",
+ "hazard.hit": "{name} cruza un paso peligroso ({a}-{b}) y pierde {dmg} PV: de {before:g} a {after:g}.",
  "game.over_fix": "Fin de partida: gana el jugador {winner}. Si ha sido un error de PV, corrige con +1 o pulsa [[panel.undo]].",
  "scheme.prompt": "Plan: deja tu carta de plan boca arriba en tu descarte; la reconozco sola y aplico lo que no necesite eleccion tuya. Pulsa [[panel.end_action]] cuando termines.",
  "scheme.detect_discard": "Detecto {title}: aplicado, {gain}. Descartar tu mano lo haces tu: son tus cartas.",

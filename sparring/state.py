@@ -233,6 +233,8 @@ class Game:
         self.winner: int | None = None
         self.bot_player: int | None = None     # who the bot plays: its not yet coded effects are not resolved by the human
         self.effect_shield: dict[int, int] = {}
+        self.hazard_taken: set[tuple[str, tuple[int, int]]] = set()    # (fighter, hazard edge) already paid this turn
+        self.hazard_hits: list[tuple[str, tuple[int, int], int]] = []  # (fighter, edge, damage) not yet announced by the session
         self.drawn = [0, 0]
         self.draw_events = [0, 0]      # cards drawn since the start, never reset (`drawn` is: the deal settles it); for the game log
         self.phantom_draws = 0   # draws the AI expects when simulating (unknown cards), never in a real game
@@ -291,6 +293,7 @@ class Game:
         g.turn, g.turn_no, g.actions_left, g.winner = self.turn, self.turn_no, self.actions_left, self.winner
         g.bot_player = self.bot_player
         g.effect_shield = dict(self.effect_shield)
+        g.hazard_taken, g.hazard_hits = set(self.hazard_taken), []
         g.drawn = [0, 0]
         g.draw_events = [0, 0]
         g.phantom_draws = self.phantom_draws
@@ -454,7 +457,32 @@ class Game:
             return
         if dest not in self.legal_moves(fighter, steps, through_enemies):
             raise RuleError(t("err.illegal_move", fid=fighter.fid, dest=dest, steps=steps))
+        self.walk(fighter, dest, steps, through_enemies)
+
+    def hazard_edges(self, fighter: Fighter, dest: int, steps: int | None, through_enemies: bool = False) -> list[tuple[int, int]]:
+        """The hazard edges `fighter` would pay for going to `dest` now (see `Board.hazard_path` for the path assumed)."""
+        if not self.board.hazards or fighter.pos is None:
+            return []
+        blocked = frozenset() if through_enemies else frozenset(self.occupied(1 - fighter.owner))
+        taken = frozenset(e for fid, e in self.hazard_taken if fid == fighter.fid)
+        return self.board.hazard_path(fighter.pos, dest, steps, blocked, taken)
+
+    def hazard_damage(self, fighter: Fighter, dest: int, steps: int | None, through_enemies: bool = False) -> int:
+        """Damage `fighter` would take going to `dest` now: what the bot weighs before it moves."""
+        return sum(self.board.hazards[e] for e in self.hazard_edges(fighter, dest, steps, through_enemies))
+
+    def walk(self, fighter: Fighter, dest: int, steps: int | None, through_enemies: bool = False) -> None:
+        """Puts the fighter on `dest` (already known legal) and charges the hazard edges of its path: each distinct
+        hazard edge hurts a fighter once per turn, whoever's turn it is; the damage can defeat it like any other.
+        Every way a fighter walks along spaces (maneuver, move effects, a human's move read from the table) comes here."""
+        crossed = self.hazard_edges(fighter, dest, steps, through_enemies)
         fighter.pos = dest
+        for edge in crossed:
+            self.hazard_taken.add((fighter.fid, edge))
+            if fighter.alive:
+                dmg = self.board.hazards[edge]
+                self.hazard_hits.append((fighter.fid, edge, dmg))
+                self.damage(fighter, dmg, "hazard")
 
     def place_fighter(self, fighter: Fighter, dest: int) -> None:
         """Puts the fighter on any empty space (a placement, not a move: no path, no range)."""
@@ -549,6 +577,7 @@ class Game:
     def begin_turn(self) -> list[tuple[int, str]]:
         """Starts the turn of `self.turn`: 2 actions and its ONGOING schemes expire. Returns what expired."""
         self.actions_left = 2
+        self.hazard_taken.clear()
         expired = ongoing.expiring_parts(self, self.turn)
         ongoing.expire_legacy(self, self.turn)
         self.fx.emit("start_of_turn", self.turn)

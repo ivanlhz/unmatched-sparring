@@ -479,6 +479,7 @@ class Extracted:
     passages: list[list[int]] = field(default_factory=list)    # secret-passage groups: movement links, not adjacency
     bonuses: list[dict] = field(default_factory=list)          # directional attack bonuses (stairs): {from, to, value}
     one_way: list[list[int]] = field(default_factory=list)     # [from, to]: movement only from -> to (still adjacent)
+    hazards: list[dict] = field(default_factory=list)          # {edge: [a, b], damage}: hurts the first crossing in a turn
 
     @property
     def playable(self) -> bool:
@@ -487,9 +488,9 @@ class Extracted:
 
 def extract_map(save_map: SaveMap, img: np.ndarray, expected: dict | None = None,
                 passages: list[list[int]] | None = None, bonuses: list[dict] | None = None,
-                one_way: list[list[int]] | None = None) -> Extracted:
+                one_way: list[list[int]] | None = None, hazards: list[dict] | None = None) -> Extracted:
     """Runs the whole extraction on one map and checks it. `expected` is the published {spacesCount, zonesCount};
-    `passages`, `bonuses` and `one_way` are what a person already recorded for this map (the picture cannot show them)."""
+    `passages`, `bonuses`, `one_way` and `hazards` are what a person already recorded for this map (the picture cannot show them)."""
     pixels = snap_pixels(save_map.snaps, img.shape)
     r = circle_radius(img)
     refined, ring = refine_centers(img, pixels, r)
@@ -516,6 +517,7 @@ def extract_map(save_map: SaveMap, img: np.ndarray, expected: dict | None = None
     out.passages = [list(g) for g in passages or []]
     out.bonuses = [dict(b) for b in bonuses or []]
     out.one_way = [list(p) for p in one_way or []]
+    out.hazards = [{"edge": list(h["edge"]), "damage": h["damage"]} for h in hazards or []]
     out.problems += check_map(out, expected)
     return out
 
@@ -596,6 +598,8 @@ def map_data(m: Extracted, source: str) -> dict:
         data["bonuses"] = m.bonuses
     if m.one_way:
         data["one_way"] = m.one_way
+    if m.hazards:
+        data["hazards"] = m.hazards
     data["spaces"] = [{"id": i, "local": [round(x, 3), round(z, 3)], "zones": sorted(m.zones[i]), "adj": adj[i]}
                       for i, (x, z) in enumerate(m.local)]
     return data
@@ -692,7 +696,8 @@ def extracted_from_data(data: dict, img: np.ndarray) -> Extracted:
     return Extracted(data["key"], data["name"], data["imageKey"], img, list(range(len(spaces))),
                      [tuple(s["local"]) for s in spaces], centers, edges, [list(s["zones"]) for s in spaces], {}, starts, 0,
                      passages=[list(g) for g in data.get("passages", [])],
-                     bonuses=[dict(b) for b in data.get("bonuses", [])], one_way=[list(p) for p in data.get("one_way", [])])
+                     bonuses=[dict(b) for b in data.get("bonuses", [])], one_way=[list(p) for p in data.get("one_way", [])],
+                     hazards=[{"edge": list(h["edge"]), "damage": h["damage"]} for h in data.get("hazards", [])])
 
 
 # ---------------------------------------------------------------- command line
@@ -747,7 +752,7 @@ def main(argv: list[str] | None = None) -> int:
         else:
             old = json.loads(target.read_text(encoding="utf-8")) if target.exists() else {}
             m = extract_map(sm, img, expected.get(sm.key), old.get("passages"), old.get("bonuses"),
-                        old.get("one_way"))    # keeps what a person recorded
+                        old.get("one_way"), old.get("hazards"))    # keeps what a person recorded
             data = map_data(m, f"{save.get('SaveName', 'save')}, Custom_Board of the {sm.name} bag")
             target.write_text(json.dumps(data, indent=1, ensure_ascii=False) + "\n", encoding="utf-8")
         render_check(m, args.check_dir / f"{sm.key}.png")

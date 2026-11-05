@@ -1263,10 +1263,19 @@ class MedusaAI(Controller):
         foes = game.foes(self.me)
         return {d for d in options if any(game.board.can_reach_target(d, e.pos, f.ranged) for e in foes)}
 
+    @staticmethod
+    def hazard_cost(game: Game, f: Fighter, dest: int, steps: int, through: bool) -> float:
+        """What the hazard edges on the way to `dest` cost `f` (the hit points they take, and the piece if it falls)."""
+        dmg = game.hazard_damage(f, dest, steps, through)
+        if not dmg:
+            return 0.0
+        cost = (W_MEDUSA_HP if f.hero else HARPY_VALUE) * dmg
+        return cost + (LETHAL if f.hero else KILL_SIDEKICK) * (dmg >= f.hp)
+
     def best_dest(self, game: Game, model: Model, f: Fighter, steps: int, through: bool) -> int:
         options = game.legal_moves(f, steps, through) | {f.pos}
         if f.hero:
-            rank = lambda d: (self.position_value(game, model, {f.fid: d}), -d)
+            rank = lambda d: (self.position_value(game, model, {f.fid: d}) - self.hazard_cost(game, f, d, steps, through), -d)
             reaching = self.reach_dests(game, f, options)
             if not reaching:
                 return max(options, key=rank)
@@ -1275,7 +1284,7 @@ class MedusaAI(Controller):
             if self.double_blow_risk(game, model, {f.fid: strike}) >= SURVIVAL_P:
                 return max(options, key=rank)
             return strike
-        return max(options, key=lambda d: (self.harpy_score(game, f, d), -d))
+        return max(options, key=lambda d: (self.harpy_score(game, f, d) - self.hazard_cost(game, f, d, steps, through), -d))
 
     # ---------- execution ----------
     def execute(self, game: Game, a: Act) -> None:

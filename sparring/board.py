@@ -32,11 +32,16 @@ def catalog() -> list[MapEntry]:
     return [MapEntry(e["key"], e["name"], e["imageKey"], e["status"], e.get("reason")) for e in raw]
 
 
+def edge_key(a: int, b: int) -> tuple[int, int]:
+    return (a, b) if a < b else (b, a)
+
+
 class Board:
     def __init__(self, key: str, name: str, spaces: list[Space], adj: dict[int, set[int]], starts: dict[str, int],
                  passages: tuple[tuple[int, ...], ...] = (),
                  bonuses: dict[tuple[int, int], int] | None = None,
-                 one_way: tuple[tuple[int, int], ...] = ()):
+                 one_way: tuple[tuple[int, int], ...] = (),
+                 hazards: dict[tuple[int, int], int] | None = None):
         self.key = key
         self.name = name
         self.guid: str | None = None        # the board's GUID on the table, once found (set by the start-up)
@@ -48,6 +53,7 @@ class Board:
             for a in group:
                 self.moves[a].update(b for b in group if b != a)
         self.bonuses = bonuses or {}        # (from, to) -> attack bonus of a fighter on `from` hitting one on `to` (stairs)
+        self.hazards = hazards or {}        # (low id, high id) -> damage of the first crossing of that edge in a turn
         self.one_way = one_way              # (from, to): moving is allowed from -> to only; still adjacent both ways
         for a, b in one_way:
             self.moves[b].discard(a)
@@ -69,7 +75,8 @@ class Board:
         passages = tuple(tuple(g) for g in raw.get("passages", ()))
         bonuses = {(b["from"], b["to"]): b["value"] for b in raw.get("bonuses", ())}
         one_way = tuple((a, b) for a, b in raw.get("one_way", ()))
-        return cls(raw["key"], raw["name"], spaces, adj, raw["starts"], passages, bonuses, one_way)
+        hazards = {edge_key(*h["edge"]): h["damage"] for h in raw.get("hazards", ())}
+        return cls(raw["key"], raw["name"], spaces, adj, raw["starts"], passages, bonuses, one_way, hazards)
 
     def _bfs(self, src: int) -> dict[int, int]:
         dist = {src: 0}
@@ -97,6 +104,37 @@ class Board:
     def attack_bonus(self, a: int | None, b: int | None) -> int:
         """Bonus to the attack value of a fighter on `a` hitting one on `b` (high ground); directional, attack only."""
         return self.bonuses.get((a, b), 0)
+
+    def hazard_path(self, src: int, dst: int, steps: int | None, blocked: frozenset[int] = frozenset(),
+                    taken: frozenset = frozenset()) -> list[tuple[int, int]]:
+        """The hazard edges (not in `taken`) crossed on the way the mover is assumed to take from src to dst.
+        The mover is assumed to take the path of least hazard damage among those of at most `steps` steps (`None`: the
+        shortest length, which is all a human's move on the table tells: only where the piece started and ended), the
+        shortest of those on a tie; it cannot enter `blocked` spaces. Empty when the board has no hazards or there is no path."""
+        if not self.hazards or src == dst:
+            return []
+        cap = self.distance(src, dst) if steps is None else steps
+        layers: list[dict[int, tuple[int, int | None]]] = [{src: (0, None)}]
+        for _ in range(cap):
+            nxt: dict[int, tuple[int, int | None]] = {}
+            for node, (cost, _) in layers[-1].items():
+                for n in sorted(self.moves[node]):
+                    if n in blocked:
+                        continue
+                    edge = edge_key(node, n)
+                    c = cost + (self.hazards[edge] if edge in self.hazards and edge not in taken else 0)
+                    if n not in nxt or c < nxt[n][0]:
+                        nxt[n] = (c, node)
+            layers.append(nxt)
+        best = min(((layer[dst][0], k) for k, layer in enumerate(layers) if dst in layer), default=None)
+        if best is None:
+            return []
+        path, node = [], dst
+        for k in range(best[1], 0, -1):
+            prev = layers[k][node][1]
+            path.append(edge_key(prev, node))
+            node = prev
+        return [e for e in reversed(path) if e in self.hazards and e not in taken]
 
     def zones(self, s: int) -> frozenset[str]:
         return self.spaces[s].zones
