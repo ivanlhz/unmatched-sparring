@@ -3,14 +3,8 @@
  "name": "Soho",
  "source": "Unmatched Official Tournament Table October 2026, Custom_Board of the Soho bag",
  "imageKey": "0BFB47CD5E88BFB4B2A70750FFB19424D836EB1D",
- "playable": false,
- "verified": false,
- "problems": [
-  "spaces without a neighbour: [2]",
-  "spaces with a single neighbour, so a connector is probably missing: [3, 4, 15]",
-  "the board is not connected (8 of 29 spaces reachable from space 0)",
-  "8 zone colours found, the map has 7"
- ],
+ "playable": true,
+ "verified": true,
  "starts": {
   "1": 26,
   "2": 8,
@@ -25,12 +19,12 @@
     3.876
    ],
    "zones": [
-    "brick",
-    "red"
+    "brick"
    ],
    "adj": [
     1,
-    19
+    19,
+    23
    ]
   },
   {
@@ -57,7 +51,10 @@
    "zones": [
     "orange"
    ],
-   "adj": []
+   "adj": [
+    3,
+    13
+   ]
   },
   {
    "id": 3,
@@ -70,7 +67,8 @@
     "orange"
    ],
    "adj": [
-    1
+    1,
+    2
    ]
   },
   {
@@ -219,6 +217,7 @@
     "navy"
    ],
    "adj": [
+    2,
     6,
     8,
     12,
@@ -237,7 +236,8 @@
    ],
    "adj": [
     6,
-    13
+    13,
+    15
    ]
   },
   {
@@ -250,6 +250,7 @@
     "forest"
    ],
    "adj": [
+    14,
     16
    ]
   },
@@ -274,12 +275,12 @@
     3.449
    ],
    "zones": [
-    "brick",
-    "red"
+    "brick"
    ],
    "adj": [
     16,
-    18
+    18,
+    20
    ]
   },
   {
@@ -322,6 +323,7 @@
     "gray"
    ],
    "adj": [
+    17,
     21,
     24
    ]
@@ -367,6 +369,7 @@
     "gray"
    ],
    "adj": [
+    0,
     12,
     22
    ]

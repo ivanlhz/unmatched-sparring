@@ -3,12 +3,8 @@
  "name": "Point Pleasant",
  "source": "Unmatched Official Tournament Table October 2026, Custom_Board of the Point Pleasant bag",
  "imageKey": "7D96CEAF921D195771509708A9E1F31919CDB549",
- "playable": false,
- "verified": false,
- "problems": [
-  "spaces without a neighbour: [8]",
-  "the board is not connected (41 of 42 spaces reachable from space 0)"
- ],
+ "playable": true,
+ "verified": true,
  "starts": {
   "1": 30,
   "2": 13,
@@ -144,6 +140,7 @@
    ],
    "adj": [
     5,
+    8,
     9,
     38
    ]
@@ -158,7 +155,10 @@
     "brown",
     "maroon"
    ],
-   "adj": []
+   "adj": [
+    7,
+    9
+   ]
   },
   {
    "id": 9,
@@ -172,6 +172,7 @@
    "adj": [
     5,
     7,
+    8,
     10
    ]
   },

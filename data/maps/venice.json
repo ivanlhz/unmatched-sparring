@@ -3,11 +3,8 @@
  "name": "Venice",
  "source": "Unmatched Official Tournament Table October 2026, Custom_Board of the Venice bag",
  "imageKey": "C50BC196AD6E3239CC12C57985117BB3B8C89B48",
- "playable": false,
- "verified": false,
- "problems": [
-  "spaces with a single neighbour, so a connector is probably missing: [0, 10, 12, 20, 28]"
- ],
+ "playable": true,
+ "verified": true,
  "starts": {
   "1": 15,
   "2": 6,
@@ -26,7 +23,8 @@
     "orange"
    ],
    "adj": [
-    1
+    1,
+    3
    ]
   },
   {
@@ -71,6 +69,7 @@
     "red"
    ],
    "adj": [
+    0,
     2,
     5
    ]
@@ -177,7 +176,8 @@
     "red"
    ],
    "adj": [
-    9
+    9,
+    11
    ]
   },
   {
@@ -192,6 +192,7 @@
    ],
    "adj": [
     1,
+    10,
     12,
     13,
     27
@@ -208,7 +209,8 @@
     "teal"
    ],
    "adj": [
-    11
+    11,
+    20
    ]
   },
   {
@@ -327,7 +329,9 @@
     "teal"
    ],
    "adj": [
-    19
+    12,
+    19,
+    28
    ]
   },
   {
@@ -450,6 +454,7 @@
     "gold"
    ],
    "adj": [
+    20,
     29
    ]
   },

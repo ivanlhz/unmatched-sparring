@@ -3,11 +3,8 @@
  "name": "New York City",
  "source": "Unmatched Official Tournament Table October 2026, Custom_Board of the New York City bag",
  "imageKey": "543129A111DCC370B80C0132F6955AEDC5011970",
- "playable": false,
- "verified": false,
- "problems": [
-  "spaces with a single neighbour, so a connector is probably missing: [18]"
- ],
+ "playable": true,
+ "verified": true,
  "starts": {
   "1": 39,
   "2": 6,
@@ -211,7 +208,8 @@
    "adj": [
     8,
     11,
-    13
+    13,
+    18
    ]
   },
   {
@@ -307,7 +305,9 @@
     "navy"
    ],
    "adj": [
-    17
+    12,
+    17,
+    22
    ]
   },
   {
@@ -364,9 +364,11 @@
     "gray"
    ],
    "adj": [
+    18,
     20,
     21,
     23,
+    40,
     42
    ]
   },
@@ -500,7 +502,8 @@
     1,
     2,
     29,
-    31
+    31,
+    33
    ]
   },
   {
@@ -545,6 +548,7 @@
     "orange"
    ],
    "adj": [
+    30,
     31,
     32,
     34
@@ -654,6 +658,7 @@
     "gray"
    ],
    "adj": [
+    22,
     36,
     41
    ]

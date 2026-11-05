@@ -3,11 +3,8 @@
  "name": "Thrilla In Manila",
  "source": "Unmatched Official Tournament Table October 2026, Custom_Board of the Thrilla In Manila bag",
  "imageKey": "302A089562A30588B64EE498C4B945C4AE72E5A7",
- "playable": false,
- "verified": false,
- "problems": [
-  "spaces with a single neighbour, so a connector is probably missing: [0, 9]"
- ],
+ "playable": true,
+ "verified": true,
  "starts": {
   "1": 0,
   "2": 9
@@ -115,7 +112,8 @@
    ],
    "adj": [
     5,
-    7
+    7,
+    8
    ]
   },
   {
@@ -146,6 +144,7 @@
     "red"
    ],
    "adj": [
+    6,
     7,
     9,
     11
@@ -161,7 +160,8 @@
     "red"
    ],
    "adj": [
-    8
+    8,
+    10
    ]
   },
   {
@@ -175,6 +175,7 @@
     "gray"
    ],
    "adj": [
+    9,
     11,
     12
    ]
@@ -402,6 +403,7 @@
    "adj": [
     20,
     22,
+    25,
     26
    ]
   },
@@ -417,6 +419,7 @@
    ],
    "adj": [
     23,
+    24,
     27,
     28
    ]

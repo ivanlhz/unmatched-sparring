@@ -4,7 +4,7 @@
  "source": "Unmatched Official Tournament Table October 2026, Custom_Board of the Marmoreal bag",
  "imageKey": "C7DCD8B1ABC2C6846B8BF827E66BDF622D48C56D",
  "playable": true,
- "verified": false,
+ "verified": true,
  "starts": {
   "1": 2,
   "2": 29,
@@ -381,7 +381,9 @@
    ],
    "adj": [
     22,
-    24
+    24,
+    26,
+    27
    ]
   },
   {
@@ -428,6 +430,7 @@
     "maroon"
    ],
    "adj": [
+    23,
     27,
     30
    ]
@@ -443,6 +446,7 @@
     "maroon"
    ],
    "adj": [
+    23,
     26,
     29
    ]

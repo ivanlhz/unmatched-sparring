@@ -3,13 +3,8 @@
  "name": "Naglfar",
  "source": "Unmatched Official Tournament Table October 2026, Custom_Board of the Naglfar bag",
  "imageKey": "5B3E8C95A5CB5A6F9E4EED4B264BEF7BCC05009A",
- "playable": false,
- "verified": false,
- "problems": [
-  "spaces without a neighbour: [0, 1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12]",
-  "spaces with a single neighbour, so a connector is probably missing: [13]",
-  "the board is not connected (1 of 28 spaces reachable from space 0)"
- ],
+ "playable": true,
+ "verified": true,
  "starts": {
   "1": 27,
   "2": 11,
@@ -27,7 +22,10 @@
     "brown",
     "gray"
    ],
-   "adj": []
+   "adj": [
+    1,
+    2
+   ]
   },
   {
    "id": 1,
@@ -38,7 +36,11 @@
    "zones": [
     "brown"
    ],
-   "adj": []
+   "adj": [
+    0,
+    3,
+    25
+   ]
   },
   {
    "id": 2,
@@ -49,7 +51,12 @@
    "zones": [
     "gray"
    ],
-   "adj": []
+   "adj": [
+    0,
+    3,
+    7,
+    22
+   ]
   },
   {
    "id": 3,
@@ -60,7 +67,11 @@
    "zones": [
     "brown"
    ],
-   "adj": []
+   "adj": [
+    1,
+    2,
+    4
+   ]
   },
   {
    "id": 4,
@@ -71,7 +82,10 @@
    "zones": [
     "brown"
    ],
-   "adj": []
+   "adj": [
+    3,
+    7
+   ]
   },
   {
    "id": 5,
@@ -82,7 +96,9 @@
    "zones": [
     "brown"
    ],
-   "adj": []
+   "adj": [
+    6
+   ]
   },
   {
    "id": 6,
@@ -93,7 +109,11 @@
    "zones": [
     "gray"
    ],
-   "adj": []
+   "adj": [
+    5,
+    7,
+    8
+   ]
   },
   {
    "id": 7,
@@ -104,7 +124,11 @@
    "zones": [
     "gray"
    ],
-   "adj": []
+   "adj": [
+    2,
+    4,
+    6
+   ]
   },
   {
    "id": 8,
@@ -116,7 +140,11 @@
     "beige",
     "gray"
    ],
-   "adj": []
+   "adj": [
+    6,
+    9,
+    12
+   ]
   },
   {
    "id": 9,
@@ -127,7 +155,10 @@
    "zones": [
     "beige"
    ],
-   "adj": []
+   "adj": [
+    8,
+    10
+   ]
   },
   {
    "id": 10,
@@ -138,7 +169,11 @@
    "zones": [
     "beige"
    ],
-   "adj": []
+   "adj": [
+    9,
+    11,
+    19
+   ]
   },
   {
    "id": 11,
@@ -149,7 +184,10 @@
    "zones": [
     "beige"
    ],
-   "adj": []
+   "adj": [
+    10,
+    12
+   ]
   },
   {
    "id": 12,
@@ -161,7 +199,11 @@
     "beige",
     "gray"
    ],
-   "adj": []
+   "adj": [
+    8,
+    11,
+    13
+   ]
   },
   {
    "id": 13,
@@ -173,6 +215,7 @@
     "sky"
    ],
    "adj": [
+    12,
     14
    ]
   },
@@ -261,6 +304,7 @@
     "teal"
    ],
    "adj": [
+    10,
     20,
     21
    ]
@@ -308,6 +352,7 @@
     "teal"
    ],
    "adj": [
+    2,
     20,
     21
    ]
@@ -352,6 +397,7 @@
     "white"
    ],
    "adj": [
+    1,
     23,
     26
    ]
