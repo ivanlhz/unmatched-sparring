@@ -8,7 +8,7 @@ Presentation video: https://youtu.be/9ymhnuhgaZI
 
 No terminal, Python or uv needed:
 
-1. Download **`UnmatchedSparring-Setup-0.1.0.exe`** from the [latest release](https://github.com/ivanlhz/unmatched-sparring/releases/latest) and run it. It installs for your Windows user only and opens the launcher.
+1. Download **`UnmatchedSparring-Setup-0.2.0.exe`** from the [latest release](https://github.com/ivanlhz/unmatched-sparring/releases/latest) and run it. It installs for your Windows user only and opens the launcher.
 2. Open Tabletop Simulator with the **Unmatched Official Tournament Table** savegame ("October 2026 (Hellboy)" version). You sit White, the bot sits Green.
 3. Set up both heroes on the table and press **START** in the launcher. **CHECK THE TABLE** reads the table without changing anything and tells you what is missing.
 
