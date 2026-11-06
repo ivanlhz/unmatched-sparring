@@ -1065,6 +1065,7 @@
  "gate.issue.zones": "faltan las zonas de descarte ({detail})",
  "gate.notice.map_unplayable": "El mapa de la mesa no se puede jugar: {error}",
  "gate.unpack_error": "Ha fallado el script que saca los heroes de sus bolsas: {error}",
+ "gate.decks_not_seen": "Los mazos de {heroes} no han aparecido en la mesa tras sacarlos de sus bolsas, asi que no se que CardID les ha dado TTS. Comprueba que los heroes han salido y pulsa [[panel.prep]] otra vez.",
  "gate.layout_missing": "La disposicion de la mesa (layout en table.json) no tiene hueco para la carta de personaje del lado {side}: no puedo prepararla.",
  "gate.layout_unplaced": "No he colocado estos objetos (no hay hueco para ellos en la disposicion o no estan en la mesa): {guids}. Se quedan donde estaban.",
  "gate.unpack_problem": "No he podido sacar de su bolsa lo de {hero} ({guids}): {why} A mano: abre la bolsa de {hero} (GUID {outer}), saca la bolsa interior {bag} y vuelca su contenido en la mesa; luego pulsa el boton otra vez.",

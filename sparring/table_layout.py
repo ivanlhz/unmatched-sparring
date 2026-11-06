@@ -128,6 +128,12 @@ def _borrowed(slot: Slot, their_dial, my_dial) -> Slot:
     return Slot((mx - (x - tx), y, mz + (z - tz)), turned.rot)
 
 
+def own_token_slots(side: str, table: HeroTable, name: str) -> list[Slot]:
+    """The resting places `data/tts/<slug>.json` gives the hero's token `name` on `side` (`token_slots`, measured on the table);
+    none if it gives none for that side."""
+    return [Slot(pos, rot) for pos, rot in table.token_slots.get(name, {}).get(side, ())]
+
+
 def plan(raw: dict, side: str, table: HeroTable) -> Plan:
     """The placements of `table`'s hero on `side` (everything but the character card, which the gate lays when it takes it
     out of the deck). A list role with fewer slots on `side` than objects borrows the other side's, mirrored."""
@@ -136,7 +142,10 @@ def plan(raw: dict, side: str, table: HeroTable) -> Plan:
     used: dict[str, int] = {}
     for item in items(table):
         slot = have.get(item.role)
-        if isinstance(slot, list):
+        own = own_token_slots(side, table, item.key.removeprefix("token:")) if item.kind == "token" else []
+        if own:
+            slot = own[0]                                        # the hero's own place, whatever the layout's token slots say
+        elif isinstance(slot, list):
             n = used.get(item.role, 0)
             used[item.role] = n + 1
             slot = slot[n] if n < len(slot) else None

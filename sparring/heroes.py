@@ -111,10 +111,12 @@ class HeroDef:
                 out.append(FighterSpec(fid, s.name, False, s.hp, s.move, s.ranged, on_board))
         return out
 
-    def deck(self) -> list[Card]:
+    def deck(self, shift: int = 0) -> list[Card]:
+        """The hero's 30 cards. `shift` moves every CardID by that many (a multiple of 100): TTS renumbers a deck's DeckID
+        when it spawns next to another with the same one, and the table's cards then carry the shifted ids."""
         if self.card_base is None:
             raise HeroDataError(f"{self.slug}: deck without a CardID sheet or fighter restrictions (pending F08)")
-        return [Card(self.card_base + c["idx"], c["title"], c["fighter"], c["type"], c["value"], c["boost"],
+        return [Card(self.card_base + shift + c["idx"], c["title"], c["fighter"], c["type"], c["value"], c["boost"],
                      c.get("text", ""), frozenset(c.get("tags", ()))) for c in self.cards]
 
     def attack_bonuses(self, form: str | None, fighter_is_hero: bool) -> list[tuple[int, str]]:

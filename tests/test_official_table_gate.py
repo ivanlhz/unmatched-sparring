@@ -28,7 +28,7 @@ PAD_KEY = next(o["image_key"] for o in OBJECTS.values() if o["name"] == "Custom_
 PAD_IMAGE = f"https://img.test/{PAD_KEY}/"
 WRITES_ALLOWED = {"clear_markings", "create_panel", "set_panel", "broadcast", "prepare_table", "clear_setup", "place_map",
                   "unpack_from_bags", "reset_deck", "place_piece", "set_health_dials", "flip_decks_down", "set_token_face",
-                  "set_state", "composite", "hold", "name_pieces", "take_character_cards", "arrange_objects"}
+                  "set_state", "composite", "hold", "name_pieces", "take_character_cards", "arrange_objects", "split_token_stack"}
 
 
 def run_real_lua(script: str, world: str = ""):
@@ -297,6 +297,9 @@ def test_the_audit_is_one_message_and_cleaning_and_preparing_are_a_handful(offic
         press(fake, "prepare_table")
         assert wait_for(lambda: shown(table, "btn_start") == (True, True))
         steps = [x for x in table.sent[before:] if x != "broadcast"]
+        # budget of the whole Prepare press: scan, map, unpack, the table_heroes rescan that reads the decks' real DeckIDs (it
+        # can repeat while the decks spawn), the preparing session, the character cards, resets and the closing batch; raise it
+        # only for a step the player's table really needs
         assert len(steps) <= 26, steps
     finally:
         finish(stop, t, result)

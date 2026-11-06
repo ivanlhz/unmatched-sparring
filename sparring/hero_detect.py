@@ -1,8 +1,9 @@
 """Which hero each side plays, read from the decks lying on the table (read only).
 
-A hero is "on the table" if there is a loose Deck or Card with a CardID of its range (`data/tts/<slug>.json`,
-`deck.card_ids`) AND the image of its deck (`deck.identity`): the CardID alone is not enough, in the tournament save
-almost every deck (Raphael, Alice, Ciri...) uses Medusa's DeckID 176. What is inside the bags does not count. Each pile
+A hero is "on the table" if there is a loose Deck or Card with a card index of its range (`data/tts/<slug>.json`,
+`deck.card_ids`, CardID % 100) AND the image of its deck (`deck.identity`): the CardID alone is not enough, in the tournament save
+almost every deck (Raphael, Alice, Ciri...) uses Medusa's DeckID 176, and TTS renumbers the DeckID of a second one on spawn
+(`deck_shifts`). What is inside the bags does not count. Each pile
 is assigned to the side whose deck spot is closest; a hero's side is the one where it has the most cards (and at least
 MIN_CARDS); among several candidates only one with >=2x the second wins. Loose miniatures only serve to explain the
 error. Nothing is guessed: a deck that belongs to no playable hero is looked up by its images in the catalog
@@ -20,7 +21,7 @@ from . import i18n
 from .hero_catalog import load_catalog
 from .heroes import load_hero
 from .tts import lua
-from .tts.hero_table import TTS_DIR, load_hero_table
+from .tts.hero_table import TTS_DIR, card_shift, load_hero_table
 
 MIN_CARDS = 5          # fewer cards of a hero on a side is a stray card, not its deck
 BOT, HUMAN = "bot", "human"
@@ -140,6 +141,24 @@ def detected_decks(reading: TableReading, heroes: tuple[str, str], bot_spot, hum
         if piles:
             out[side] = max(piles, key=lambda p: p["counts"][i])["guid"]
     return out
+
+
+def deck_shifts(reading: TableReading, heroes: tuple[str, str]) -> tuple[int | None, int | None]:
+    """CardID shift (bot, human) of the decks on the table: TTS renumbers the DeckID of a deck that spawns beside another
+    with the same one (Medusa and Michelangelo both ship 176), so the cards carry another range than the data's. The hero is
+    found by its image (the reading counts by image and CardID % 100); its DeckID is read off the pile holding most of its
+    cards. None for a hero whose deck was not seen (not on the table yet, or a reading without DeckIDs): that is not
+    the same as "not renumbered" (0), and the caller decides what to do about it."""
+    out: list[int | None] = []
+    for slug in heroes:
+        if slug not in reading.slugs:
+            out.append(None)
+            continue
+        i = reading.slugs.index(slug)
+        held = [p for p in reading.piles if p["counts"][i] and (p.get("deck_ids") or [0] * (i + 1))[i]]
+        best = max(held, key=lambda p: p["counts"][i], default=None)
+        out.append(None if best is None else card_shift(load_hero_table(slug), int(best["deck_ids"][i])))
+    return out[0], out[1]
 
 
 def detect_heroes(reading: TableReading, bot_spot, human_spot,

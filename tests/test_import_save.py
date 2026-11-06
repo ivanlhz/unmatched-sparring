@@ -315,3 +315,14 @@ def test_the_output_folder_can_never_hold_the_save(tmp_path):
         assert e.value.code == 2
     assert save.read_text(encoding="utf-8") == FIXTURE.read_text(encoding="utf-8")
     assert import_save.main([str(save), "--hero", "hellboy", "--out", str(tmp_path / "out")]) == 0
+
+
+def test_merge_keeps_the_hand_measured_token_slots():
+    slots = {"intuition": {"human": [{"pos": [-3.12, 1.76, 17.99], "rot": [0, 90, 0]}], "bot": [{"pos": [1.75, 1.64, 18.0], "rot": [0, 270, 0]}]}}
+    derived = {"slug": "abe-sapien", "bag": {"guid": "ob0001", "inner": "in0001"}, "deck": {"guid": "dk0001"},
+               "fighters": {}, "tokens": {}, "counter_dials": {}}
+    existing = {**derived, "token_slots": slots}
+    report = Report("abe-sapien")
+    out = merge(derived, existing, report)
+    assert out["token_slots"] == slots and out["token_slots"] is not slots
+    assert "token_slots" in report.kept

@@ -1065,6 +1065,7 @@
  "gate.issue.zones": "the discard zones are missing ({detail})",
  "gate.notice.map_unplayable": "The map on the table cannot be played: {error}",
  "gate.unpack_error": "The script that takes the heroes out of their bags failed: {error}",
+ "gate.decks_not_seen": "The decks of {heroes} did not appear on the table after taking them out of their bags, so I cannot tell which CardIDs TTS gave them. Check that the heroes came out and press [[panel.prep]] again.",
  "gate.layout_missing": "The table layout (layout in table.json) has no slot for the {side} side's character card: I cannot prepare it.",
  "gate.layout_unplaced": "I did not lay these objects out (the layout has no slot for them or they are not on the table): {guids}. They stay where they were.",
  "gate.unpack_problem": "I could not take {hero}'s things out of their bag ({guids}): {why} By hand: open the {hero} bag (GUID {outer}), take out the inner bag {bag} and tip its contents onto the table; then press the button again.",
