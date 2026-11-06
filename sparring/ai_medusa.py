@@ -1172,7 +1172,12 @@ class MedusaAI(Controller):
             if despair > 0 and e.hero and board.can_reach_target(pos[medusa.fid], pos[e.fid], medusa.ranged):
                 score += despair * WIN_PRIZE * PROGRESS_DISCOUNT * self.win_progress(game, model, medusa, e)
         if hero_on_board and medusa.name != "Medusa" and foes and not self.hit_and_run(game):     # a fighter that fears the rival's blows still has to close in to hit back
-            score -= APPROACH_PULL * min(board.distance(pos[medusa.fid], pos[e.fid]) for e in foes)
+            if medusa.ranged:       # a shooter only needs a space from which it can attack, not to stand next to the rival
+                score -= APPROACH_PULL * min(
+                    (board.distance(pos[medusa.fid], s) for e in foes for s in self.strike_spots(board, pos[e.fid], True)),
+                    default=0)
+            else:
+                score -= APPROACH_PULL * min(board.distance(pos[medusa.fid], pos[e.fid]) for e in foes)
         for h in mine:
             if not h.hero and foes:
                 score -= 0.05 * min(board.distance(pos[h.fid], pos[e.fid]) for e in foes)

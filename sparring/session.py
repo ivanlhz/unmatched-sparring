@@ -348,6 +348,7 @@ class Session:
         self.dirty = False                       # the engine moved the bot and the table does not reflect it yet
         self.unprojected: dict | None = None     # previous positions of pieces not yet projected
         self.bot_stage: str | None = None        # "start": bot turn begun in the engine, I/O pending
+        self.first_turn_pending = False          # the new game's first start-of-turn triggers have not fired yet
         self.start_line: str | None = None      # what the bot Hellboy start-of-turn trigger (ANUNG or DETECTIVE) did, said before the first write
         self.wildfire_scene: dict | None = None  # what the bot's Wildfire did at the turn change, shown at its first write
         self.said_returns: set[int] = set()      # cards whose return to the bot's hand the Wildfire scene already announced
@@ -457,6 +458,7 @@ class Session:
             self._deck_ident.setdefault(side, pairs)
 
     def _begin_game(self) -> None:
+        self.first_turn_pending = True            # built with `begin_turn(emit=False)`: see `_start_first_turn`
         self._intuition_said = None               # a restart keeps the old game's count otherwise
         self.game_log.new_game((self.game.hero_def(self.bot).name, self.game.hero_def(self.human).name))
         self.game_log.observe(self.game, self._name)
@@ -476,6 +478,27 @@ class Session:
             self.bot_stage = "start"
         self._open(announce_turn=True)
         self._track_intuition(announce=True)
+
+    def _start_first_turn(self) -> None:
+        """The first turn's start-of-turn triggers. The game was built with `begin_turn(emit=False)`: before the table
+        was set (no pieces placed, no hands dealt) a Wildfire or an ANUNG UN RAMA would run in the engine only and
+        never reach the table. They run here, once, when the game really begins; the bot's leave the same debt and
+        Wildfire scene as any later turn (`start_bot_turn`). A table error before it does not lose it: the flag is
+        saved and the bot's turn or the human's start fire it on the retry."""
+        g = self.game
+        if not self.first_turn_pending:
+            return
+        self.first_turn_pending = False
+        if g.turn_no != 1:                        # a later turn change already fired its own triggers: never twice
+            return
+        if g.turn != self.bot:
+            g.start_first_turn()
+            return
+        before, fx_before = self._snapshot_bot(), bot_effects.snapshot(self)
+        probe = self._wildfire_probe()
+        g.start_first_turn()
+        self._turn_change_debt(before, fx_before)
+        self.wildfire_scene = self._wildfire_outcome(probe)
 
     def _announce_first(self) -> None:
         if self.first_mode is None:
@@ -565,6 +588,8 @@ class Session:
                 self._flush_table()                  # deal of the opening hands
             self.sync_positions()
             self.sync_human()
+            if announce_turn:
+                self._start_first_turn()          # on the pieces just read, not on the engine's default spaces
             if self.game.turn == self.bot and self.pending is None and self.game.winner is None and not self.moving:
                 self._bot_continue()
             elif announce_turn and self.game.turn == self.human:
@@ -853,6 +878,7 @@ class Session:
         self.say(t("setup.done"))
         self._intuition_said = None               # the setup's silent first look must not hide the starting count
         self._track_intuition(announce=True)
+        self._start_first_turn()
         if g.turn == self.bot:
             self.bot_stage = "start"
             self._persist()
@@ -1405,7 +1431,7 @@ class Session:
                         heroes=(self.game.hero_def(self.bot).slug, self.game.hero_def(self.human).slug))
         if self.first_mode in ("human", "bot"):
             game.turn = self.human if self.first_mode == "human" else self.bot
-        game.begin_turn()
+        game.begin_turn(emit=False)          # its triggers fire when the table is set (`_start_first_turn`)
         return game
 
     def _reset_table(self, fresh: Game) -> None:
@@ -1524,7 +1550,7 @@ class Session:
             "chosen_attacker": self.chosen_attacker, "moving": self.moving,
             "bot_discarded": sorted(self.bot_discarded), "dirty": self.dirty,
             "unprojected": None if self.unprojected is None else {k: list(v) for k, v in self.unprojected.items()},
-            "bot_stage": self.bot_stage, "limit_waived": self.limit_waived, "flush_failures": self.flush_failures,
+            "bot_stage": self.bot_stage, "first_turn_pending": self.first_turn_pending, "limit_waived": self.limit_waived, "flush_failures": self.flush_failures,
             "placing": self.placing, "fingerprint": self.fingerprint(),
             "destiny_seen": None if self.destiny_seen is None else list(self.destiny_seen),
             "scheme_baseline": self.scheme_baseline, "dial_debt": self.dial_debt, "setup": self.setup,
@@ -1600,6 +1626,7 @@ class Session:
             un = d["unprojected"]
             self.unprojected = None if un is None else {k: (v[0], v[1]) for k, v in un.items()}
             self.bot_stage, self.limit_waived = d["bot_stage"], d["limit_waived"]
+            self.first_turn_pending = bool(d.get("first_turn_pending", False))
             self.flush_failures = d["flush_failures"]
             self.placing = d.get("placing")
             self.scheme_baseline = d.get("scheme_baseline")
@@ -3428,12 +3455,38 @@ class Session:
             self.read_bot_hand()
             self.say(t("bot.card_down", title=card.title), ChatKind.WARNING)
 
+    def _log_decision(self, act) -> None:
+        """Replay aid: the bot's hand, its hero's space and the chosen action, written only to the local game log.
+        The hand is secret, so this never goes through `say` (chat, broadcast, human-visible messages)."""
+        try:
+            self._write_decision(act)
+        except Exception as exc:  # a replay aid must never break the bot turn
+            print(f"decision log skipped: {exc!r}")
+
+    def _write_decision(self, act) -> None:
+        g = self.game
+        hand = ", ".join(c.title for c in g.players[self.bot].hand)
+        parts = [act.kind]
+        if act.fid:
+            parts.append(act.fid)
+        if act.target:
+            parts.append(f"-> {act.target}")
+        if act.card is not None:
+            parts.append(f"card={act.card.title}")
+        if act.moves:
+            parts.append(f"moves={act.moves}")
+        if act.spot is not None:
+            parts.append(f"spot={act.spot}")
+        self.game_log.line(f"BOT DECISION: hand=[{hand}] hero@{g.hero(self.bot).pos} action: {' '.join(parts)}")
+
     def _bot_continue(self) -> None:
         """Resumable bot turn: each I/O step that fails leaves the state ready to repeat End action.
 
         Checkpoints (saved to disk): at the start of the turn, after Medusa's ability and after each action,
         so that a cut or a resumed Ctrl+C repeats nothing already done."""
         g = self.game
+        if self.first_turn_pending and g.turn == self.bot and self.bot_stage == "start":
+            self._start_first_turn()              # a table error at game start skipped it
         self._revoke_look_after_button()
         if self.start_line is not None:          # said, held, and only then the start-of-turn discard, move or draw reach the table
             said_first, line, self.start_line = len(self.messages), self.start_line, None
@@ -3499,6 +3552,7 @@ class Session:
             with self._timed(t("timing.bot_action")):
                 self.read_bot_hand()
                 act = self.ai.plan(g)
+                self._log_decision(act)
                 if act.kind == "attack":
                     attacker, target = g.fighters[act.fid], g.fighters[act.target]
                     announced = self.cfg.action_announce_hold > 0
@@ -3600,6 +3654,8 @@ class Session:
         move, Wildfire's bottom card) is said and waited for: only End action (and the hit-point buttons) work
         until you have done it (Ivan, 29/10)."""
         g = self.game
+        if self.first_turn_pending and g.turn == self.human:
+            self._start_first_turn()              # a table error at game start skipped it
         self._warned.discard((g.hero(self.human).fid, "draw"))
         form = g.form(self.human)
         self.say(t("turn.yours") if g.hero_def(self.human).forms is None else t("turn.yours_form", form=form), ChatKind.YOUR_TURN)

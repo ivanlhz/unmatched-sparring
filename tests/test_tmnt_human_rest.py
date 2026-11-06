@@ -278,3 +278,40 @@ def test_michelangelo_is_a_party_dude_heals_each_friendly_fighter_by_one(rig):
     written = {g for g, _ in table.dial_writes}
     assert {cfg.session_config().dials["mikey"], cfg.session_config().dials["april"]} <= written
     assert session.effect_run is None
+
+
+@with_rig("liz-sherman", "michelangelo", TRAINING)
+def test_back_for_seconds_cards_the_engine_then_draws_for_you_still_go_into_the_real_deck(rig):
+    """Live 6/11: Back For Seconds against Fleeting Moments. The engine shuffles the two pile cards into your (guessed)
+    deck and then draws one of them for Fleeting Moments: on the table both go into your deck, none is a pickup."""
+    session, table, game, fake, cfg = rig
+    put_adjacent(game, table, cfg, "mikey", "liz")
+    human_hand(table, game, "Back For Seconds")       # Michelangelo's limit is 3: the two maneuvers fill it
+    earlier = card_ids(game, 1, "Cowabunga!!", "Heroes In A Half Shell")
+    st = game.players[1]
+    for i in earlier:
+        c = next(c for c in st.full_set if c.card_id == i)
+        for zone in (st.hand, st.deck):
+            if c in zone:
+                zone.remove(c)
+        st.discard.append(c)
+    table.human_discard = list(earlier)
+    back = card_ids(game, 1, "Back For Seconds")[0]
+    fleeting = next(c for c in game.players[0].full_set if c.title == "Fleeting Moments")
+    for zone in (game.players[0].deck, game.players[0].discard):
+        if fleeting in zone:
+            zone.remove(fleeting)
+    if fleeting not in game.players[0].hand:
+        game.players[0].hand.append(fleeting)
+        table.bot_deck = [c.card_id for c in game.players[0].deck]
+        table.bot_discard = [c.card_id for c in game.players[0].discard]
+        table.bot_hand = [c.card_id for c in game.players[0].hand]
+    out = bot_turn(session, table, [Act("attack", fid="liz", target="mikey", card=fleeting)])
+    assert session.pending is not None, out
+    st.deck.clear()                               # the engine's draw can only take a card Back For Seconds put back
+    table.face_down = [{"id": back, "guid": f"h{back}"}]
+    table.human_count -= 1
+    msgs = click(session, table, Event.REVEAL)
+    assert said(msgs, "en tu mazo y lo barajo"), msgs
+    assert not said(msgs, "de tu descarte a tu mano"), msgs
+    assert not set(earlier) & set(table.human_discard), "the bot took both cards off the human's pile"
