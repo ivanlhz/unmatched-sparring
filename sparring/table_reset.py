@@ -39,6 +39,8 @@ CLEAN AND PREPARE (always with Medusa as the bot, Hellboy as the human, on the m
     hero's INFINITE bag, so it is first taken out of there (guarded by the infinite bag's GUID, nickname and contents);
   - the discard zones are created or straightened and the leftovers the guard lets through are destroyed
     (`Session.prepare_table`);
+  - each character card is taken out of its deck (a deck out of a bag holds it on top of the 30) and left face up 5 units
+    behind the deck spot (`CHARACTER_CARD_OFFSET`); it is outside the CardID range, so no audit or gathering sees it;
   - the restart machinery returns EVERY card of both sides to its deck from anywhere on the table, shuffles it, refills
     the dials, zeroes the destiny dial and sets the miniatures aside (`Session._reset_table`); a deck left face up is
     turned down; Hellboy's miniature goes back to its first state; the two-faced tokens go back to their starting face;
@@ -74,6 +76,8 @@ PREP_HEROES = ("medusa", "hellboy")          # bot, human: the pair the cleaned 
 PANEL_CHUNK = 70                              # `lua.set_panel` takes at most 80 elements per call
 PANEL_SETTLE = 0.7                            # seconds the panel needs for its XML to exist (it is written 0.5 s after the object)
 ENABLED = True                                # tests turn the gate off globally and opt in where they exercise it
+CHARACTER_CARD_OFFSET = (0.0, 5.0)           # (dx, dz) from the deck spot to the loose character card: past `deck_radius` (2.9) and
+CHARACTER_CARD_HEIGHT = 2.5                   # clear of both discard zones (the decks lie outside them in x), the combat spots (z -18) and the dials
 START_FACE = {"ability": "occult_detective", "intuition": "inactive"}     # starting face of each two-faced token (token_faces)
 
 
@@ -372,14 +376,30 @@ def start_face_ops(client, session) -> list[tuple[str, str]]:
     return ops
 
 
+def take_character_cards(client, session) -> None:
+    """One message: each side's character card leaves its draw deck (the deck that comes out of a hero's bag holds it on top of
+    the 30, 31 in all, and no card write accepts a deck with a card outside its range) and lies face up
+    `CHARACTER_CARD_OFFSET` from the deck spot. A deck that has no such card is left alone, so pressing again is harmless."""
+    sides = []
+    for side, guid, spot, rng, zone, owner in _deck_sides(session):
+        if spot is None:
+            continue
+        table = load_hero_table(session.game.hero_def(owner).slug)
+        sides.append((guid, rng, table.identity, table.character_card_id,
+                      (spot[0] + CHARACTER_CARD_OFFSET[0], CHARACTER_CARD_HEIGHT, spot[1] + CHARACTER_CARD_OFFSET[1])))
+    if sides:
+        client.call_lua(lua.take_character_cards(sides))
+
+
 def reset_cards_and_pieces(client, session) -> None:
     """Everything of the session's two heroes back to its starting state: cards to their decks (face down, shuffled),
     pieces off the board, dials full, forms and tokens at their start. Raises what the table raises.
 
-    Messages: the deck identities (reads); one to turn a face-up deck down, because the card writes only find face-down
+    Messages: one to take the character cards out of the decks; the deck identities (reads); one to turn a face-up deck down, because the card writes only find face-down
     decks; the restart machinery (`Session._reset_table`, its own few messages: it must see its writes settle before it
     checks); and one batch for what follows (decks face down again, forms, tokens)."""
     session.resolve_pieces()
+    take_character_cards(client, session)
     session.load_identities()
     client.call_lua(lua.flip_decks_down(_facing_args(session), session.cfg.deck_radius))
     session._reset_table(session._fresh_game())

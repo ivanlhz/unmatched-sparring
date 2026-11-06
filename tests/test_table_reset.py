@@ -58,6 +58,9 @@ class GateTable(Table):
         self.sticky = 0                                  # cards in the human's hand the bot's reset cannot move
         self.flips = 0
         self.dial_start: dict[str, int] = {}             # dial GUID -> its starting value
+        self.char_in_deck = False                        # decks hold the character card (31 cards): no card write accepts them
+        self.bag_decks_seen = False                      # a deck has come out of a bag holding the character card
+        self.char_loose: list[tuple[float, float, float]] = []    # where each character card was laid, in script order
 
     def make_ready(self):
         self.in_bags, self.bot_hand, self.bot_deck, self.human_count = False, [], list(BOT_DECK), 0
@@ -70,13 +73,30 @@ class GateTable(Table):
         return self
 
     def do_deck_facing(self, s):
-        return [{"found": not self.in_bags and not self.decks_away, "face_down": not self.deck_face_up, "flipped": False} for _ in range(2)]
+        found = not self.in_bags and not self.decks_away and not self.char_in_deck    # `ours` needs EVERY card of a Deck in range
+        return [{"found": found, "face_down": not self.deck_face_up, "flipped": False} for _ in range(2)]
 
     def do_flip_decks_down(self, s):
+        if self.char_in_deck:
+            return [{"found": False}] * 2
         self.flips += self.deck_face_up
         out = [{"found": True, "face_down": True, "flipped": self.deck_face_up} for _ in range(2)]
         self.deck_face_up = False
         return out
+
+    def do_take_character_cards(self, s):
+        """The real script: a deck holding the character card gives it up and it is laid at `dest`; otherwise nothing."""
+        dests = re.findall(r"position = Vector\(([-\d.]+), ([-\d.]+), ([-\d.]+)\)", s)
+        found = not self.in_bags
+        taken = found and self.char_in_deck
+        if taken:
+            self.char_loose = [tuple(float(v) for v in d) for d in dests]
+            self.char_in_deck = False
+        return [{"found": found, "taken": taken}] * len(dests)
+
+    def hero_bag_decks(self):
+        """What a deck taken out of a hero's bag is: the 30 cards plus the character card on top, lying face up."""
+        self.char_in_deck, self.deck_face_up, self.bag_decks_seen = True, True, True
 
     def do_set_state(self, s):
         self.hellboy_form2 = False
@@ -158,6 +178,8 @@ class GateTable(Table):
                 (taken if inner in self.inner_on_table or inner in pulled or inner in reused else missing).append(first)
             self.bags_taken += pulled
             self.in_bags = bool(missing)
+            if not self.in_bags:
+                self.hero_bag_decks()
         return {"present": [], "taken": taken, "missing": missing, "bags": pulled, "reused": reused, "bags_failed": failed}
 
     def do_prepare_table(self, s):
@@ -169,7 +191,7 @@ class GateTable(Table):
 
     def do_reset_plan(self, s):
         bot, human = self._outside()
-        if self.in_bags:
+        if self.in_bags or self.char_in_deck:
             return [{"deck": False, "loose": 0, "total": 0}] * 2
         if self.decks_away:
             return [{"deck": False, "loose": 1, "total": 30}] * 2

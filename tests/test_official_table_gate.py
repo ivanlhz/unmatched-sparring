@@ -32,7 +32,7 @@ PAD_KEY = next(o["image_key"] for o in OBJECTS.values() if o["name"] == "Custom_
 PAD_IMAGE = f"https://img.test/{PAD_KEY}/"
 WRITES_ALLOWED = {"clear_markings", "create_panel", "set_panel", "broadcast", "prepare_table", "take_map", "unpack_from_bags",
                   "reset_deck", "place_piece", "set_health_dials", "flip_decks_down", "set_token_face", "set_state",
-                  "composite", "hold", "name_pieces"}
+                  "composite", "hold", "name_pieces", "take_character_cards"}
 
 
 def run_real_lua(script: str, world: str = ""):
