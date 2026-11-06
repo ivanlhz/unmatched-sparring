@@ -536,7 +536,7 @@ def test_start_with_both_hands_empty_deals_the_bot_five_and_without_a_human_deck
     table.bot_hand, table.human_count = [], 0
     out = session.start()
     assert len(table.bot_hand) == 5 and table.deal_calls == [5] and len(game.players[0].hand) == 5
-    assert any("roba tus 5 cartas iniciales a mano" in m for m in out)   # no human deck configured: the fallback
+    assert any("Cartas que te faltan por robar a mano: 5" in m for m in out)   # no human deck configured: the fallback
 
 
 def test_start_with_hands_already_dealt_does_not_deal(rig):

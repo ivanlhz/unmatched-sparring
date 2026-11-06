@@ -394,6 +394,7 @@ class Session:
         self._saved_decks: dict[str, str] = {}               # side -> live deck GUID read from session.json (first candidate on resume)
         self._zone_origin: dict[str, str] = {}              # "bot_discard_zone"/"human_discard_zone" -> the configured GUID, for each one created or replaced
         self._saved_zones: dict[str, str] = {}              # zone key -> live GUID read from session.json (first candidate on resume)
+        self.prep_removed = 0                                   # loose objects the last table preparation destroyed
         self._startup_notes: list[tuple[str, ChatKind]] = []   # what the table preparation did: said by the start / resume
         self._dial_origin: dict[str, str] = {}              # fid -> the dial GUID the data gave it, for each one resolved by name
         self.resolved_dials: dict[str, str] = {}            # fid -> life dial GUID found by name when two dials shared one (saved)
@@ -588,40 +589,58 @@ class Session:
 
     def _deal_human_start(self) -> None:
         """The human's opening hand: when their seat is empty the bot deals it from their deck (the human then decides
-        the mulligan); without a human deck or on a failed deal they are told to draw it themselves."""
+        the mulligan); without a human deck or on a failed deal they are told to draw what is missing themselves."""
         if self._rd_human_count(1) != 0:
             return
         n = self.game.start_hand(self.human)
-        if self._deal_human_hand(n, mulligan=False):
+        missing, _ = self._deal_human_hand(n, mulligan=False)
+        if missing == 0:
             self.say(t("sess.deal_yours", n=n), ChatKind.YOUR_TURN)
         else:
-            self.say(t("sess.draw_yours", n=n), ChatKind.YOUR_TURN)
+            self.say(t("sess.draw_yours", n=missing), ChatKind.YOUR_TURN)
 
-    def _deal_human_hand(self, n: int, mulligan: bool) -> bool:
+    def _deal_human_hand(self, n: int, mulligan: bool) -> tuple[int, bool]:
         """Deals `n` cards from the human's deck to their seat; with `mulligan` first returns their hand to the deck and
-        shuffles it. False (nothing more is tried) when there is no human deck or the table does not confirm it, so the
-        human does it by hand. The engine's virtual hand is settled by the next read of the table, as with any deal."""
+        shuffles it. Returns `(missing, redo)`: `missing` is how many cards the human still has to draw by hand (0 when
+        the hand is complete) and `redo` is True when a mulligan did not happen at all (their hand is untouched). When
+        the deal fails, the seat is read again, because the script may have run with its reply lost: only what is
+        really missing is asked for. The engine's virtual hand is settled by the next read of the table."""
         c = self.cfg
         if not c.human_deck_guid:
-            return False
-        kw, ident = self._deck_kw("human"), self._identity("human")
+            return n, mulligan
+        returned = False
         try:
+            kw, ident = self._deck_kw("human"), self._identity("human")
             if mulligan:
                 back = self._w(lua.return_hand_to_deck(c.human_seat, c.human_deck_guid, c.human_card_ids, identity=ident,
                                                        **kw), "cards").result or {}
-                if not back.get("deck") or not self._settle(lambda: self._rd_human_count(1) == 0):
-                    return False
+                if not back.get("deck"):
+                    return self._human_missing(n), True
+                returned = True
+                if not self._settle(lambda: self._rd_human_count(1) == 0):
+                    return self._human_missing(n), False
                 total = len(self.game.players[self.human].full_set)
-                shuffled = self._w(lua.shuffle_deck(c.human_deck_guid, id_range=c.human_card_ids, identity=ident, **kw),
-                                   "cards").result or {}
-                if not shuffled.get("shuffled") or shuffled.get("quantity") != total:
-                    return False
+
+                def shuffled() -> bool:
+                    r = self._w(lua.shuffle_deck(c.human_deck_guid, id_range=c.human_card_ids, identity=ident, **kw),
+                                "cards").result or {}
+                    return bool(r.get("shuffled")) and r.get("quantity") == total
+                if not self._settle(shuffled):
+                    return self._human_missing(n), False
             dealt = (self._w(lua.deal_cards(c.human_deck_guid, n, c.human_seat, id_range=c.human_card_ids,
                                             identity=ident, **kw), "cards").result or {}).get("dealt")
         except TABLE_ERRORS:
-            return False
+            return self._human_missing(n), mulligan and not returned
         self.snap = None
-        return dealt == n
+        return (0, False) if dealt == n else (self._human_missing(n), False)
+
+    def _human_missing(self, n: int) -> int:
+        """Cards the human's seat lacks to have `n`, read again from the table (all of them if it cannot be read)."""
+        self.snap = None
+        try:
+            return max(0, n - self._rd_human_count(0))
+        except TABLE_ERRORS:
+            return n
 
     # ---------- game setup: persisted state machine ----------
     # Stages (self.setup["stage"]): those the bot runs alone, and those waiting for the human (Ready button).
@@ -871,12 +890,17 @@ class Session:
         elif s.get("human_mull"):
             self.say(t("setup.mull.done", n=self.game.start_hand(self.human)), ChatKind.WARNING)
         else:
-            s["human_mull"] = True
             n = self.game.start_hand(self.human)
-            dealt, side = self._deal_human_hand(n, mulligan=True), bool(self._sidekicks())
-            tag = (("setup.mull.dealt.sidekick" if side else "setup.mull.dealt.plain") if dealt
-                   else ("setup.mull.go.sidekick" if side else "setup.mull.go.plain"))
-            self.say(t(tag, n=n, names=self._sidekick_names()), ChatKind.YOUR_TURN)
+            missing, redo = self._deal_human_hand(n, mulligan=True)
+            s["human_mull"] = True
+            side = bool(self._sidekicks())
+            if missing == 0 and not redo:
+                tag = "setup.mull.dealt.sidekick" if side else "setup.mull.dealt.plain"
+            elif redo:
+                tag = "setup.mull.go.sidekick" if side else "setup.mull.go.plain"
+            else:
+                tag = "setup.mull.partial"
+            self.say(t(tag, n=n, missing=missing, names=self._sidekick_names()), ChatKind.YOUR_TURN)
 
     def _human_setup_ok(self) -> bool:
         g = self.game
@@ -893,8 +917,9 @@ class Session:
         if count == 0:
             self.say(t("setup.draw_first", n=self.game.start_hand(self.human)), ChatKind.WARNING)
             return False
-        if (self.setup or {}).get("human_mull") and count != self.game.start_hand(self.human):
-            self.say(t("setup.mull_count", n=self.game.start_hand(self.human), count=count), ChatKind.WARNING)
+        if count != self.game.start_hand(self.human):
+            tag = "setup.mull_count" if (self.setup or {}).get("human_mull") else "setup.hand_count"
+            self.say(t(tag, n=self.game.start_hand(self.human), count=count), ChatKind.WARNING)
             return False
         return True
 
@@ -3690,6 +3715,7 @@ class Session:
                                             ChatKind.WARNING))
         for row in res.get("removed") if isinstance(res.get("removed"), list) else []:
             if isinstance(row, dict) and isinstance(row.get("guid"), str):
+                self.prep_removed += 1
                 self._startup_notes.append((t("prep.removed", what=row.get("name") or "", guid=row["guid"]), ChatKind.WARNING))
         for row in res.get("skipped") if isinstance(res.get("skipped"), list) else []:
             if isinstance(row, dict) and isinstance(row.get("guid"), str):

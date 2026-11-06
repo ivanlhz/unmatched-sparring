@@ -521,6 +521,7 @@ def test_clean_table_leaves_no_hero_and_no_map_and_asks_the_player_to_drag_them(
         assert shown(table, "btn_clean") == (True, True) and shown(table, "btn_prep") == (True, True)
         assert shown(table, "btn_start") == (False, False)
         assert "Mesa limpia" in " ".join(table.broadcasts)
+        assert "(0 objetos quitados)" not in " ".join(table.broadcasts), "the count includes the leftovers it removed"
     finally:
         finish(stop, t, result)
 

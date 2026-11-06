@@ -158,13 +158,13 @@ def test_double_press_restarts_everything_in_one_message_and_goes_back_to_the_dr
     msgs = click(session, table, Event.RESTART)
     assert session.game is not game and session.game_id != old_id
     assert table.resets == ["bot", "human"]
-    assert table.human_discard == [] and table.face_down == [] and table.human_count == 0
+    assert table.human_discard == [] and table.face_down == [] and table.human_count == session.game.start_hand(1), "the bot deals the new opening hand"
     assert table.bot_discard == [] and len(table.bot_hand) + len(table.bot_deck) + len(table.bot_play) == 30
     assert table.dials["DM"]["value"] == 16 and table.dials["DH"]["value"] == 18 and table.dials["DD"]["value"] == 0
     assert any("Partida reiniciada" in m for m in msgs)
     assert session.setup is not None and session.setup["stage"] in ("wait_human_first", "wait_human", "hand")
     assert json.loads((tmp_path / "session.json").read_text(encoding="utf-8"))["fingerprint"]["game_id"] == session.game_id
-    assert brig[3].lua_messages - n <= 6, "restarting does not cost dozens of messages"
+    assert brig[3].lua_messages - n <= 7, "restarting does not cost dozens of messages (6 + the human's opening deal, which needs the seat read first)"
 
 
 def test_restart_moves_every_piece_off_the_board_to_the_two_dead_spots(brig, tmp_path):

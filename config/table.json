@@ -126,6 +126,7 @@
     270.0
   ],
   "discard_zone_rot_y": 270.0,
+  "human_discard_bounds": [-15.4623, 0.6652, 33.1625, 10.9523, 270.0],
   "bot_discard_zone_spawn": {"position": [17.4677, 4.1422, 0.7422], "scale": [35.4306, 5.1, 8.5464]},
   "human_discard_zone_spawn": {"position": [-15.4623, 4.1422, 0.6652], "scale": [33.1625, 5.1, 10.9523]},
   "remove_table": {"addeca": "DeckCustom", "cb6cbc": "DeckCustom", "65be8d": "Die_20", "5085eb": "Custom_Assetbundle", "6126d5": "Digital_Clock", "790396": "Digital_Clock"},
@@ -136,7 +137,7 @@
     -20.0
   ],
   "look_spot": [
-    -23.0,
+    -24.5,
     2.5,
     0.0
   ],

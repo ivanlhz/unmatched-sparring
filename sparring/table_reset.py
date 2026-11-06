@@ -545,7 +545,9 @@ class Gate:
             batch(self.client, [("clear", lua.clear_markings(remove_panel=True))])
             removed, mixed = player_setup.cleared_summary(self.client.call_lua(player_setup.clear_script(self.cfg.raw)))
             self.session.messages = []
+            self.session.prep_removed = 0
             self.session.prepare_table(False, None)
+            removed += self.session.prep_removed
             self.session._say_startup_notes()
             self.announce(list(self.session.messages))
             self._forget_saved_game()

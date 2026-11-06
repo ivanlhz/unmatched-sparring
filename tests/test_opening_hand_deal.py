@@ -80,7 +80,7 @@ def test_without_a_human_deck_or_on_a_failed_deal_the_human_is_told_to_draw(deal
     session, table, game = deal_rig
     table.human_deal_fails = True
     out = session.start()
-    assert any("roba tus 5 cartas iniciales a mano" in m for m in out)
+    assert any("Cartas que te faltan por robar a mano: 5" in m for m in out)
     assert not any("Te he repartido" in m for m in out)
 
 
@@ -121,3 +121,72 @@ def test_setup_messages_carry_the_hand_size_not_a_literal_five():
 def test_every_hero_hand_size_comes_from_its_data():
     sizes = {slug: (load_hero(slug).hand_start, load_hero(slug).hand_max) for slug in ("michelangelo", "medusa", "hellboy")}
     assert sizes == {"michelangelo": (3, 3), "medusa": (5, 7), "hellboy": (5, 7)}
+
+
+def lost_reply(table, dealt_to_table: int):
+    """The deal runs on the table (`dealt_to_table` cards reach the seat) but the reply says nothing was dealt."""
+    real = table.do_deal_cards
+
+    def do_deal(s):
+        if '"Red"' not in s:
+            return real(s)
+        table.human_count += dealt_to_table
+        return {"dealt": 0}
+    table.do_deal_cards = do_deal
+
+
+def test_a_lost_reply_of_a_deal_that_ran_does_not_ask_for_the_hand_again(deal_rig):
+    session, table, game = deal_rig
+    lost_reply(table, 5)
+    out = session.start()
+    assert any("Te he repartido tus 5 cartas iniciales" in m for m in out)
+    assert not any("te faltan por robar" in m for m in out)
+
+
+def test_a_partial_deal_asks_only_for_the_missing_cards(deal_rig):
+    session, table, game = deal_rig
+    lost_reply(table, 3)
+    out = session.start()
+    assert any("por robar a mano: 2" in m for m in out)
+
+
+def test_ready_needs_exactly_the_starting_hand(deal_rig):
+    session, table, game = deal_rig
+    session.start()
+    place_human(table, hellboy=30, lobster=29, count=10)
+    assert any("Debes tener 5 cartas" in m and "tienes 10" in m for m in session.handle(Event.READY))
+    place_human(table, hellboy=30, lobster=29, count=2)
+    assert any("tienes 2" in m for m in session.handle(Event.READY))
+    assert session.setup is not None
+
+
+def test_a_failing_lookup_does_not_burn_the_mulligan_or_raise(deal_rig, monkeypatch):
+    from sparring.session import SessionError
+    session, table, game = deal_rig
+    session.start()
+    monkeypatch.setattr(session, "_identity", lambda *a, **k: (_ for _ in ()).throw(SessionError("no identity")))
+    out = session.handle(Event.MULLIGAN)
+    assert any("devuelve tu mano" in m for m in out), "the by-hand text is said"
+    assert session.setup["human_mull"] and table.human_deals == [5]
+
+
+def test_the_human_mulligan_shuffle_waits_for_a_lagging_deck_quantity(deal_rig):
+    session, table, game = deal_rig
+    session.start()
+    real, calls = table.do_shuffle_deck, []
+
+    def lagging(s):
+        calls.append(1)
+        out = real(s)
+        return out if len(calls) > 1 else {**out, "quantity": out["quantity"] - 1}
+    table.do_shuffle_deck = lagging
+    out = session.handle(Event.MULLIGAN)
+    assert len(calls) == 2 and any("Mulligan hecho" in m for m in out)
+
+
+def test_the_real_config_describes_the_human_discard_zone_and_the_floor_is_clear():
+    from pathlib import Path
+    from sparring import play
+    cfg = play.load_config(Path(__file__).resolve().parent.parent / "config" / "table.json")
+    assert cfg.raw["human_discard_bounds"][:2] == cfg.raw["human_discard_zone_spawn"]["position"][::2]
+    assert play.floor_layout_warnings(cfg) == []

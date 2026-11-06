@@ -899,7 +899,7 @@ def recover_after_reload(session: Session, client: TTSClient, targets: list[str]
     return "ok", [t("play.reload_ok")]
 
 
-UNPACK_SPOTS = {"bot": (22.0, 2.5, -10.0), "human": (-22.0, 2.5, 10.5)}   # outside the hands (|x| >= 25) and the discards
+UNPACK_SPOTS = {"bot": (24.0, 2.5, -10.0), "human": (-24.0, 2.5, 10.5)}   # clear of the discard zones (x +21.74 / -20.94), the hand zones (|x| >= 25.1) and the look row (z > 8.9)
 UNPACK_STEP = (0.0, 0.0, 3.0)
 
 

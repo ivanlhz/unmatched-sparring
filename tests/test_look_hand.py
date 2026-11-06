@@ -591,7 +591,7 @@ def test_the_set_aside_rows_of_donatello_clash_with_nothing_and_a_clash_is_warne
 def test_look_keys_reach_the_session_config():
     cfg = play.load_config(os.path.join(os.path.dirname(os.path.abspath(__file__)), "..", "config", "table.json"))
     scfg = cfg.session_config()
-    assert scfg.look_spot == (-23.0, 2.5, 0.0) and scfg.look_step == (0.0, 2.6) and scfg.look_rot_y is None
+    assert scfg.look_spot == (-24.5, 2.5, 0.0) and scfg.look_step == (0.0, 2.6) and scfg.look_rot_y is None
     cfg.raw.update({"look_spot": [1, 2, 3], "look_step": [0.5, 0.0], "look_rot_y": 180})
     scfg = cfg.session_config()
     assert (scfg.look_spot, scfg.look_step, scfg.look_rot_y) == ((1.0, 2.0, 3.0), (0.5, 0.0), 180.0)
