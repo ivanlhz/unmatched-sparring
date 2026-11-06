@@ -15,14 +15,14 @@
     "Discard zones created by the user: human_discard_zone b7a0b8 (center -12.5,0.7, ~x -18..-7) and bot_discard_zone 906a7a (center 15.0,0.7, ~x 10.75..19.25). They are big on purpose: the discard is left IN ORDER and spread over a grid so the rival can see what was played (bot_discard_spot = origin, bot_discard_step = (column dx, row dz), bot_discard_rows slots per column; slots less than 3 from the draw deck are skipped).",
     "The draw decks are inside or at the edge of those zones: bot_deck_guid d42056 at (11.5, 12.0) (inside 906a7a) and human_deck_guid 00dc9a at (-7.7, 12.5) (edge of b7a0b8). read_discard excludes them by GUID and by position (1.5).",
     "Deck zones (optional, absent on purpose until you create them): bot_deck_zone / human_deck_zone = GUID of a Scripting zone placed over each draw pile (TTS Zones > Scripting, a rectangle a bit bigger than a card, over bot_deck_spot / human_deck_spot, away from the discard and hand zones; right-click it to copy its GUID). When set, that side's deck (or its last loose card) is looked for ONLY inside the zone, whatever its GUID, and whatever lies in the zone is never read as discard. Without them the bot adopts the deck GUID found at start-up (and on --resume if the saved one is gone) and takes the nearest face-down deck or card within deck_radius (default 2.9, always below the 3.0 that keeps discard slots away from the deck) of bot_deck_spot / human_deck_spot. If the deck is not found the message says where it looked.",
-    "Combat zone (face-down card), according to the user: to the RIGHT of the board from the White seat, -z side, away from the dials and decks (z 12..17). human_card_spot (-2.0, -18.0) and bot_card_spot (6.0, 1.7, -18.0): between the two discard zones in x (-18..-7 and 10.75..19.25) and past the edge of the board (the anchor points reach z -13). Configurable. off_board_dist 4.0 is an estimate: calibrate it with the distances from --read-only.",
+    "Combat zone (face-down card), according to the user: to the RIGHT of the board from the White seat, -z side, away from the dials and decks (z 12..17). human_card_spot (-2.0, -22.0) and bot_card_spot (6.0, 1.7, -22.0): between the two discard zones in x (-18..-7 and 10.75..19.25) and past the edge of the board (the anchor points reach z -13); they sit at z -22 (boxes z -23.6..-20.4) so the boxes do not overlap the right edge of bigger maps such as B.P.R.D. HQ and Naglfar (they were at z -18 until 6/11). The ONGOING boxes are 5 further, at z -27. Configurable. off_board_dist 4.0 is an estimate: calibrate it with the distances from --read-only.",
     "start_spaces: REAL starting spaces of the table (Medusa on 30, Hellboy on 3); they are not those of the default map. bot_discard_bounds: (center x, center z, size x, size z, rotY) of zone 906a7a read from the save (live.json 27/10): the discard grid only uses slots whose center falls inside and, when full, stacks on top starting from the first. panel_position: above the playmats (y 1.0) and the objects (~1.57).",
     "dead_spot: where the bot sets aside its fallen miniatures (one per piece, 1.5 apart in x); it is an estimate, calibrate it live. human_dead_spot is the same for the human's.",
     "Setup: the bot deals its hand, decides on a mulligan (once: the 5 cards back to the deck, shuffled and 5 dealt; house rule or unconfirmed, see the README) and places Medusa and the Harpies according to who goes first; the human places Hellboy and Lobster and presses Ready. The starting spaces come from the rulebook (the first player takes space 1 of the map, the second space 2) unless start_spaces is fixed by hand. mulligan_bot=false turns it off for the bot; mulligan_human=false turns off the human's Mulligan button.",
     "Row of the human's cards that look at the bot's hand (Remove A Painful Memory, Advanced Psychometry, Every Possible Angle): bot_row_spot is the CENTER of the row where the bot lays its cards face up and bot_row_step the (dx, dz) between cards (2.6 in z, cards turned 90 degrees; look_rot_y turns them too). Default [11.5, 2.5, -29.0]: a column in z -20..-38 with 7 cards, to the right of the bot's combat (x 4.9..7.1) and ONGOING boxes, past the -z edge of its discard zone 906a7a (x 10.7..19.3, z -17..18) and before the hero bags (z -40) and the die (2.1, -30); free in the 26/10 save. Start-up warns if it overlaps the panel, a combat/ONGOING box or a discard. The Look at bot's hand panel button still uses look_spot.",
     "Looking at the bot's hand (F16, panel button): look_spot is the CENTER of the row where the bot lays its cards face up (an estimate, calibrate it live: in front of the human's seat, outside the hands, discards and combat zones; start-up warns if it overlaps the panel or a combat box) and look_step the (dx, dz) between cards (2.6 in z for cards turned 90 degrees; up to 12 cards). look_rot_y (optional) turns the cards; default bot_discard_rot_y.",
     "unpack (optional, off): with --unpack or \"unpack\": true (only the boolean true) the bot, BEFORE playing and never with --resume, takes out of each hero's inner bag whatever is not on the table (no GUID of its states; a deck, in addition, with no Deck or Card of its CardID range anywhere on the table) and lays it in a row from bot_unpack_spot / human_unpack_spot (default [22,2.5,-10] and [-22,2.5,10.5], outside the hand zones; each unpack_step [0,0,3]); the deck goes to its deck spot and is shuffled. If the inner bag is not on the table it does nothing and warns; it never takes from an infinite bag. start_spaces accepts fighter ids or the keys bot / human.",
-    "bot_tuck_spot / bot_removed_spot (Donatello, estimates: calibrate live): where the bot lays the inventions it tucks under its hero card and the cards it removes from the game, face up. Defaults [18,1.7,-24] and [18,1.7,-28]: two rows growing in +x (1.6 per card), past the bot_row_spot look column (x up to 13.1), beyond the -z edge of its discard zone (z -17), clear of its combat and ONGOING boxes and of dead_spot (z -20). Start-up warns if either row (6 cards) overlaps the panel, a combat/ONGOING box, a discard, a look row or the other. Without them the bot only says what to move and you move it. The human tucks and sets aside by hand.",
+    "bot_tuck_spot / bot_removed_spot (Donatello, estimates: calibrate live): where the bot lays the inventions it tucks under its hero card and the cards it removes from the game, face up. Defaults [18,1.7,-24] and [18,1.7,-28]: two rows growing in +x (1.6 per card), past the bot_row_spot look column (x up to 13.1), beyond the -z edge of its discard zone (z -17), clear of its combat and ONGOING boxes (z -23.6..-20.4 and -28.6..-25.4) and of dead_spot (z -20; its cards reach z -21.6, the tuck row z -22.4). Start-up warns if either row (6 cards) overlaps the panel, a combat/ONGOING box, a discard, a look row or the other. Without them the bot only says what to move and you move it. The human tucks and sets aside by hand.",
     "card_zoom: when true (default) the bot shows a BIG copy of the card the human must read, like Alt+hover but triggered by it: its combat card when it is revealed (or discarded without a flip), its schemes (glance, frenzy, scheme) as they leave its hand, its ONGOING scheme placed face up and the card Wildfire discards. The copy is spawned in the same TTS message as the write, floats at card_zoom_spot, is locked and not interactable, and destroys itself after card_zoom_seconds; only one at a time. It is a Card with its own CardID (99900+) and the name SparringZoom: no read of the table takes it for a card. --no-card-zoom turns it off for a run. card_zoom_scale is the size factor (4 = four times a card), card_zoom_spot (x, y, z) must stay outside every zone (the default floats 12 above the board centre), card_zoom_rot (optional, x y z degrees) defaults to flat with the same turn as the look row (look_rot_y or bot_discard_rot_y), readable from the human seat; add an x tilt to lean it toward the camera. Estimates: calibrate live."
   ],
   "language": "es",
@@ -65,11 +65,11 @@
   "bot_card_spot": [
     6.0,
     1.7,
-    -18.0
+    -22.0
   ],
   "human_card_spot": [
     -2.0,
-    -18.0
+    -22.0
   ],
   "bot_discard_spot": [
     17.5,
@@ -168,11 +168,11 @@
   "bot_ongoing_spot": [
     6.0,
     1.7,
-    -23.0
+    -27.0
   ],
   "human_ongoing_spot": [
     -2.0,
-    -23.0
+    -27.0
   ],
   "bot_tuck_spot": [
     18.0,

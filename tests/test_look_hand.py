@@ -569,7 +569,7 @@ def test_the_real_config_row_does_not_overlap_the_panel_or_the_floor_boxes():
 
 def test_a_row_that_would_cover_the_combat_boxes_or_the_panel_is_warned_about():
     cfg = play.load_config(os.path.join(os.path.dirname(os.path.abspath(__file__)), "..", "config", "table.json"))
-    cfg.raw["look_spot"] = [6.0, 2.5, -18.0]
+    cfg.raw["look_spot"] = [6.0, 2.5, -22.0]
     assert any("pisa caja de combate" in w for w in play.floor_layout_warnings(cfg))
     cfg.raw["look_spot"] = [cfg.panel_position[0], 2.5, cfg.panel_position[2]]
     assert any("pisa el panel" in w for w in play.floor_layout_warnings(cfg))
@@ -584,7 +584,7 @@ def test_the_set_aside_rows_of_donatello_clash_with_nothing_and_a_clash_is_warne
     cfg.raw["bot_tuck_spot"] = [18.0, 1.7, -24.0]
     cfg.raw["bot_removed_spot"] = [18.0, 1.7, -24.0]                  # both rows on the same spot
     assert any("bot_removed_spot" in w and "bot_tuck_spot" in w for w in play.look_row_warnings(cfg))
-    cfg.raw["bot_removed_spot"] = [6.0, 1.7, -18.0]                   # over the bot's combat box
+    cfg.raw["bot_removed_spot"] = [6.0, 1.7, -22.0]                   # over the bot's combat box
     assert any("bot_removed_spot" in w and "caja de combate" in w for w in play.look_row_warnings(cfg))
 
 
@@ -674,7 +674,7 @@ def test_the_card_row_key_reaches_the_session_config_and_a_clash_is_warned_about
     scfg = cfg.session_config()
     assert scfg.bot_row_spot == tuple(cfg.raw["bot_row_spot"]) and scfg.bot_row_step == (0.0, 2.6)
     assert SessionConfig.bot_row_spot == (11.5, 2.5, -29.0)
-    cfg.raw["bot_row_spot"] = [6.0, 2.5, -23.0]
+    cfg.raw["bot_row_spot"] = [6.0, 2.5, -27.0]
     assert any("bot_row_spot" in w and "pisa caja ONGOING BOT" in w for w in play.floor_layout_warnings(cfg))
     cfg.raw["bot_row_spot"] = [1, 2]
     with pytest.raises(play.ConfigError):
