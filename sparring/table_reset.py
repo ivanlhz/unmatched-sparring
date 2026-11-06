@@ -39,8 +39,9 @@ CLEAN AND PREPARE (always with Medusa as the bot, Hellboy as the human, on the m
     hero's INFINITE bag, so it is first taken out of there (guarded by the infinite bag's GUID, nickname and contents);
   - the discard zones are created or straightened and the leftovers the guard lets through are destroyed
     (`Session.prepare_table`);
-  - each character card is taken out of its deck (a deck out of a bag holds it on top of the 30) and left face up 5 units
-    behind the deck spot (`CHARACTER_CARD_OFFSET`); it is outside the CardID range, so no audit or gathering sees it;
+  - each character card is taken out of its deck (a deck out of a bag holds it on top of the 30) and left at its slot of the
+    `layout` of config/table.json (outside the CardID range, so no audit or gathering sees it); once everything else is done
+    the decks, dials, tokens and miniatures are laid at their slots too (`table_layout`: one slot per side and role);
   - the restart machinery returns EVERY card of both sides to its deck from anywhere on the table, shuffles it, refills
     the dials, zeroes the destiny dial and sets the miniatures aside (`Session._reset_table`); a deck left face up is
     turned down; Hellboy's miniature goes back to its first state; the two-faced tokens go back to their starting face;
@@ -60,7 +61,7 @@ from dataclasses import dataclass, field
 from pathlib import Path
 from typing import Callable
 
-from . import table_prep
+from . import table_layout, table_prep
 from .board import catalog as board_catalog
 from .board_detect import TABLE_PAD_IMAGES, BoardError, choose_board, image_key_of
 from .i18n import t
@@ -76,8 +77,6 @@ PREP_HEROES = ("medusa", "hellboy")          # bot, human: the pair the cleaned 
 PANEL_CHUNK = 70                              # `lua.set_panel` takes at most 80 elements per call
 PANEL_SETTLE = 0.7                            # seconds the panel needs for its XML to exist (it is written 0.5 s after the object)
 ENABLED = True                                # tests turn the gate off globally and opt in where they exercise it
-CHARACTER_CARD_OFFSET = (0.0, 5.0)           # (dx, dz) from the deck spot to the loose character card: past `deck_radius` (2.9) and
-CHARACTER_CARD_HEIGHT = 2.5                   # clear of both discard zones (the decks lie outside them in x), the combat spots (z -18) and the dials
 START_FACE = {"ability": "occult_detective", "intuition": "inactive"}     # starting face of each two-faced token (token_faces)
 
 
@@ -376,35 +375,56 @@ def start_face_ops(client, session) -> list[tuple[str, str]]:
     return ops
 
 
-def take_character_cards(client, session) -> None:
+def _lifted(slot: table_layout.Slot) -> tuple[tuple, tuple]:
+    """(position, rotation) of a slot, a little above the height it rests at, so that nothing is dropped through the table."""
+    x, y, z = slot.pos
+    return (x, y + table_layout.SETTLE_LIFT, z), slot.rot
+
+
+def take_character_cards(client, session, raw: dict) -> None:
     """One message: each side's character card leaves its draw deck (the deck that comes out of a hero's bag holds it on top of
-    the 30, 31 in all, and no card write accepts a deck with a card outside its range) and lies face up
-    `CHARACTER_CARD_OFFSET` from the deck spot. A deck that has no such card is left alone, so pressing again is harmless."""
+    the 30, 31 in all, and no card write accepts a deck with a card outside its range) and lies at the `character_card` slot
+    of that side's layout. A deck that has no such card is left alone, so pressing again is harmless."""
     sides = []
     for side, guid, spot, rng, zone, owner in _deck_sides(session):
-        if spot is None:
-            continue
+        slot = table_layout.character_slot(raw, side)
+        if slot is None:
+            raise SessionError(t("gate.layout_missing", side=side))
         table = load_hero_table(session.game.hero_def(owner).slug)
-        sides.append((guid, rng, table.identity, table.character_card_id,
-                      (spot[0] + CHARACTER_CARD_OFFSET[0], CHARACTER_CARD_HEIGHT, spot[1] + CHARACTER_CARD_OFFSET[1])))
-    if sides:
-        client.call_lua(lua.take_character_cards(sides))
+        sides.append((guid, rng, table.identity, table.character_card_id, *_lifted(slot)))
+    client.call_lua(lua.take_character_cards(sides))
 
 
-def reset_cards_and_pieces(client, session) -> None:
+def layout_ops(session, raw: dict) -> tuple[list[tuple[str, str]], list[str]]:
+    """(the op for `batch` that lays every placeable object of both sides at its slot, GUIDs that have no slot)."""
+    items, unplaced = [], []
+    for side, _, _, _, _, owner in _deck_sides(session):
+        found = table_layout.plan(raw, side, load_hero_table(session.game.hero_def(owner).slug))
+        items += [(p.guids, *_lifted(p.slot)) for p in found.placements]
+        unplaced += found.unplaced
+    return ([("layout", lua.arrange_objects(items))] if items else []), unplaced
+
+
+def reset_cards_and_pieces(client, session, raw: dict, arrange: bool = False) -> list[Msg]:
     """Everything of the session's two heroes back to its starting state: cards to their decks (face down, shuffled),
-    pieces off the board, dials full, forms and tokens at their start. Raises what the table raises.
+    pieces off the board, dials full, forms and tokens at their start. Raises what the table raises. With `arrange` the
+    objects end at the slots of the layout of `raw` (the last op of the closing batch, so no extra message) and the chat
+    lines about what could not be placed are returned.
 
     Messages: one to take the character cards out of the decks; the deck identities (reads); one to turn a face-up deck down, because the card writes only find face-down
     decks; the restart machinery (`Session._reset_table`, its own few messages: it must see its writes settle before it
-    checks); and one batch for what follows (decks face down again, forms, tokens)."""
+    checks); and one batch for what follows (decks face down again, forms, tokens, the layout)."""
     session.resolve_pieces()
-    take_character_cards(client, session)
+    take_character_cards(client, session, raw)
     session.load_identities()
     client.call_lua(lua.flip_decks_down(_facing_args(session), session.cfg.deck_radius))
     session._reset_table(session._fresh_game())
-    batch(client, [("decks", lua.flip_decks_down(_facing_args(session), session.cfg.deck_radius)),
-                   *start_face_ops(client, session)])
+    ops, unplaced = layout_ops(session, raw) if arrange else ([], [])
+    got = batch(client, [("decks", lua.flip_decks_down(_facing_args(session), session.cfg.deck_radius)),
+                         *start_face_ops(client, session), *ops])
+    res = got.get("layout") if isinstance(got.get("layout"), dict) else {}
+    left = [*unplaced, *(res.get("missing") or [])]
+    return [Msg(t("gate.layout_unplaced", guids=", ".join(left)), lua.ChatKind.WARNING)] if left else []
 
 
 def clear_and_ensure_map(client, raw: dict) -> Msg | None:
@@ -435,7 +455,7 @@ def clean_and_prepare(client, make_session: Callable, cfg, unpack: Callable, ech
     Not merged into one message: unpacking and `Session.prepare_table` have each their own reply to read (what is missing, the
     GUIDs of the zones TTS creates) before the next step can be worded or addressed."""
     if previous is not None:
-        reset_cards_and_pieces(client, previous)
+        reset_cards_and_pieces(client, previous, cfg.raw)
         return [Msg(t("gate.other_pair_reset", bot=previous.game.hero_def(previous.bot).name,
                       human=previous.game.hero_def(previous.human).name), lua.ChatKind.WARNING)], None
     problems = unpack(client, cfg, echo, True)
@@ -445,7 +465,7 @@ def clean_and_prepare(client, make_session: Callable, cfg, unpack: Callable, ech
     session.messages = []
     session.prepare_table(False, None)
     session._say_startup_notes()
-    reset_cards_and_pieces(client, session)
+    session.messages += reset_cards_and_pieces(client, session, cfg.raw, True)
     return list(session.messages), session
 
 

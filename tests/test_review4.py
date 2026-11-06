@@ -725,6 +725,8 @@ def test_read_only_allowlist_is_exactly_the_pure_read_builders(bprd):
         "deck_facing": lambda: lua.deck_facing([((0.0, 3.0), None, lua.BOT_CARD_IDS, TEST_IDENT)]),
         "flip_decks_down": lambda: lua.flip_decks_down([((0.0, 3.0), None, lua.BOT_CARD_IDS, TEST_IDENT)]),
         "take_map": lambda: lua.take_map("abc", "def", (0.0, 1.5, 0.0), 270.0, 0.85),
+        "take_character_cards": lambda: lua.take_character_cards([("abc", lua.BOT_CARD_IDS, TEST_IDENT, 302, (0.0, 1.5, 0.0), (0, 90, 0))]),
+        "arrange_objects": lambda: lua.arrange_objects([(("abc",), (0.0, 1.5, 0.0), (0, 90, 0))]),
     }
     registered = {n for n, f in inspect.getmembers(lua, inspect.isfunction) if hasattr(f, "__wrapped__")}
     assert registered == set(builders), registered ^ set(builders)

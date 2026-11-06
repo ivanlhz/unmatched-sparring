@@ -1582,7 +1582,7 @@ def flip_decks_down(sides: list[tuple], radius: float = DECK_RADIUS) -> str:
 @_registered
 def take_character_cards(sides: list[tuple]) -> str:
     """Takes each side's character card out of its draw deck and lays it face up at `dest`. `sides` = (deck GUID, CardID
-    range of the deck, identity, CardID of the character card, dest (x, y, z)). The deck that comes out of a hero's bag holds
+    range of the deck, identity, CardID of the character card, dest (x, y, z), rotation (rx, ry, rz)). The deck that comes out of a hero's bag holds
     the range's cards PLUS the character card (31), so `ours` rejects it; here a Deck qualifies when every card is either in
     the range with the deck image or the character card, and at least one is of the range. The deck is looked up by GUID,
     else any such Deck on the table. The card is taken by its own GUID (it normally sits on top, but anywhere works) and
@@ -1591,7 +1591,7 @@ def take_character_cards(sides: list[tuple]) -> str:
     if not isinstance(sides, (list, tuple)) or not 1 <= len(sides) <= 2:
         raise TypeError("list of 1 or 2 sides expected")
     blocks = []
-    for deck_guid, id_range, identity, card_id, dest in sides:
+    for deck_guid, id_range, identity, card_id, dest, rot in sides:
         if not isinstance(dest, (tuple, list)) or len(dest) != 3:
             raise TypeError("dest (x, y, z) expected")
         blocks.append(f"""table.insert(out, (function()
@@ -1620,7 +1620,7 @@ for _, o in ipairs(pool) do
     if whole then
       seen = true
       if char ~= nil then
-        local params = {{position = Vector({_f(dest[0])}, {_f(dest[1])}, {_f(dest[2])}), rotation = Vector(0, o.getRotation().y, 0), smooth = false}}
+        local params = {{position = Vector({_f(dest[0])}, {_f(dest[1])}, {_f(dest[2])}), rotation = Vector({_f(rot[0])}, {_f(rot[1])}, {_f(rot[2])}), smooth = false}}
         if char.guid ~= nil then params.guid = char.guid else params.index = char.index end
         o.takeObject(params)
         return {{found = true, taken = true}}
@@ -1634,6 +1634,42 @@ end)())
     return f"""-- sparring:take_character_cards
 local out = {{}}
 {"".join(blocks)}return JSON.encode(out)
+"""
+
+
+MAX_ARRANGE = 40
+
+
+@_registered
+def arrange_objects(items: list[tuple]) -> str:
+    """Lays objects at an exact position and rotation, at once (no smooth move). `items` = (GUIDs of one object's states,
+    (x, y, z), (rx, ry, rz)): the first GUID that exists on the table is the one placed (Hellboy's miniature changes GUID
+    with its form). Only objects named by GUID are touched; one that is held by a hand or not on the table is reported, not
+    searched for. Returns `{placed: [GUID...], missing: [GUID of the first state...]}`."""
+    if not isinstance(items, (list, tuple)) or not 1 <= len(items) <= MAX_ARRANGE:
+        raise ValueError(f"between 1 and {MAX_ARRANGE} objects expected")
+    rows = []
+    for guids, pos, rot in items:
+        if not all(isinstance(v, (tuple, list)) and len(v) == 3 for v in (pos, rot)):
+            raise TypeError("position and rotation (x, y, z) expected")
+        rows.append(f"{{{_guid_list(guids)}, Vector({_f(pos[0])}, {_f(pos[1])}, {_f(pos[2])}), "
+                    f"Vector({_f(rot[0])}, {_f(rot[1])}, {_f(rot[2])})}}")
+    return f"""-- sparring:arrange_objects
+local out = {{placed = {{}}, missing = {{}}}}
+for _, row in ipairs({{{", ".join(rows)}}}) do
+  local o = nil
+  for _, g in ipairs(row[1]) do
+    if o == nil then o = getObjectFromGUID(g) end
+  end
+  if o == nil or o.held_by_color then
+    table.insert(out.missing, row[1][1])
+  else
+    o.setPosition(row[2])
+    o.setRotation(row[3])
+    table.insert(out.placed, o.getGUID())
+  end
+end
+return JSON.encode(out)
 """
 
 

@@ -6,11 +6,11 @@ from __future__ import annotations
 
 import dataclasses
 import json
+from pathlib import Path
 
 import pytest
 
-from sparring import table_reset
-from sparring.cards import repo_toplevel
+from sparring import table_layout, table_reset
 from sparring.play import load_config
 from sparring.tts import lua
 from sparring.tts.hero_table import load_hero_table
@@ -20,8 +20,8 @@ from test_review9 import BOT_ID, SCOPE, rt, run  # noqa: F401
 from test_table_reset import cfg_file, client_for, codes, finish, gate_live, press, run_main, session_for, shown, wait_for  # noqa: F401
 
 MEDUSA = load_hero_table("medusa")
-DEST = (7.28, 2.5, 18.93)
-SIDE = ("d42056", lua.BOT_CARD_IDS, BOT_ID, MEDUSA.character_card_id, DEST)
+DEST = (5.28, 1.81, 15.0)
+SIDE = ("d42056", lua.BOT_CARD_IDS, BOT_ID, MEDUSA.character_card_id, DEST, (0, 90, 0))
 EVERYWHERE = dataclasses.replace(SCOPE, everywhere=True)
 PLAN = ("d42056", (7.28, 13.93), lua.BOT_CARD_IDS, BOT_ID, None)
 
@@ -96,16 +96,76 @@ def test_the_new_script_is_a_registered_builder_and_asks_for_one_or_two_sides():
             lua.take_character_cards(bad)
 
 
-def test_the_character_card_offset_leaves_the_deck_radius_and_both_discard_zones():
-    raw = json.loads((repo_toplevel() / "config" / "table.json").read_text(encoding="utf-8"))
-    dx, dz = table_reset.CHARACTER_CARD_OFFSET
-    assert (dx * dx + dz * dz) ** 0.5 > raw.get("deck_radius", lua.DECK_RADIUS) + 2.0
-    cx, cz, sx, sz, _ = raw["bot_discard_bounds"]
-    hz = raw["human_discard_zone_spawn"]
-    zones = [(cx, cz, sz / 2, sx / 2), (hz["position"][0], hz["position"][2], hz["scale"][2] / 2, hz["scale"][0] / 2)]
-    for key in ("bot_deck_spot", "human_deck_spot"):
-        x, z = raw[key][0] + dx, raw[key][1] + dz
-        assert not any(abs(x - zx) <= hw and abs(z - zz) <= hd for zx, zz, hw, hd in zones), key
+# ---------- the layout ----------
+def config_raw() -> dict:
+    return json.loads((Path(__file__).resolve().parent.parent / "config" / "table.json").read_text(encoding="utf-8"))
+
+
+def character_slots():
+    return [table_layout.character_slot(config_raw(), side) for side in ("bot", "human")]
+
+
+def lifted(slot):
+    return (slot.pos[0], slot.pos[1] + table_layout.SETTLE_LIFT, slot.pos[2]), slot.rot
+
+
+def expected_layout(raw=None, pair=("medusa", "hellboy")):
+    """{first GUID: (position, rotation)} the gate must leave, from the configuration and the hero data."""
+    raw = raw or config_raw()
+    out = {}
+    for side, slug in zip(("bot", "human"), pair):
+        for p in table_layout.plan(raw, side, load_hero_table(slug)).placements:
+            out[p.guids[0]] = lifted(p.slot)
+    return out
+
+
+IVAN = {  # the table as Ivan arranged it by hand (TS_AutoSave 5/11 09:37): GUID -> (pos, rot)
+    "d42056": ((5.13, 1.76, 17.71), (0, 90, 180)), "bcd809": ((2.49, 1.66, 14.83), (0, 90, 0)),
+    "04b2c9": ((4.90, 2.89, 25.91), (0, 0, 0)), "328e52": ((2.18, 1.72, 22.73), (0, 0, 0)),
+    "33c5ec": ((3.85, 1.72, 23.05), (0, 0, 0)), "01eb1f": ((5.77, 1.72, 22.21), (0, 0, 0)),
+    "00dc9a": ((-6.70, 1.76, 17.55), (0, 270, 180)), "046660": ((-3.96, 1.66, 15.12), (0, 270, 0)),
+    "18c384": ((-3.77, 1.66, 17.68), (0, 270, 0)), "e17c66": ((-4.28, 1.66, 20.19), (0, 270, 0)),
+    "1644a3": ((-6.96, 1.67, 15.01), (0, 90, 180)), "f9789a": ((-3.57, 1.59, 25.33), (0, 0, 0)),
+    "e33604": ((-5.50, 1.72, 26.69), (0, 0, 0)),
+}
+
+
+def test_the_layout_in_the_configuration_is_the_table_ivan_arranged():
+    got = expected_layout()
+    assert sorted(got) == sorted(IVAN)
+    for guid, (pos, rot) in IVAN.items():
+        assert got[guid] == ((pos[0], pos[1] + table_layout.SETTLE_LIFT, pos[2]), tuple(float(v) for v in rot)), guid
+    raw = config_raw()
+    assert raw["bot_deck_spot"] == [5.13, 17.71] and raw["human_deck_spot"] == [-6.7, 17.55], "the decks are found where they lie"
+    assert raw["prepare_map"]["position"] == [0.07, 1.64, -1.93] and raw["prepare_map"]["scale"] == 1.10
+    assert [s.pos for s in character_slots()] == [(5.28, 1.61, 15.0), (-6.73, 1.61, 15.07)]
+    assert [s.rot for s in character_slots()] == [(0.0, 90.0, 0.0), (0.0, 270.0, 0.0)]
+
+
+def test_another_pair_on_the_same_sides_lands_in_the_same_slots():
+    raw = config_raw()
+    plan = table_layout.plan(raw, "bot", load_hero_table("hellboy"))
+    assert [(p.role, p.guids[0]) for p in plan.placements] == [
+        ("deck", "00dc9a"), ("dial", "046660"), ("pieces", "f9789a"), ("pieces", "e33604")]
+    assert plan.placements[0].slot == table_layout.slots(raw, "bot")["deck"]
+    assert plan.unplaced == ["18c384", "e17c66", "1644a3"], "sidekick dial, destiny dial and token have no bot slot"
+
+
+def test_a_slot_that_is_not_three_numbers_is_refused():
+    raw = {"layout": {"bot": {"deck": {"pos": [1, 2], "rot": [0, 0, 0]}}}}
+    with pytest.raises(ValueError):
+        table_layout.slots(raw, "bot")
+
+
+def test_arrange_objects_lays_the_first_guid_that_exists_at_the_exact_transform(rt):  # noqa: F811
+    rt.execute("mkobj({guid = 'e6f06e', type = 'Custom_Token', pos = {x = 0, y = 1, z = 0}})\n"
+               "mkobj({guid = 'held', type = 'Custom_Token', held_by_color = 'White'})")
+    res = run(rt, lua.arrange_objects([(("f9789a", "e6f06e"), (-3.57, 1.79, 25.33), (0, 0, 0)),
+                                       (("held",), (1, 1, 1), (0, 0, 0)), (("gone",), (1, 1, 1), (0, 0, 0))]))
+    assert res == {"placed": ["e6f06e"], "missing": ["held", "gone"]}
+    o = rt.globals().getObjectFromGUID("e6f06e")
+    assert (o.pos.x, o.pos.y, o.pos.z) == (-3.57, 1.79, 25.33)
+    assert lua.is_sendable(lua.arrange_objects([(("a",), (0, 0, 0), (0, 0, 0))]))
 
 
 # ---------- the gate ----------
@@ -120,11 +180,9 @@ def test_a_fresh_table_from_the_bags_ends_ready_with_30_card_face_down_decks_and
         assert wait_for(lambda: shown(table, "btn_start") == (True, True)), table.broadcasts[-5:]
         assert table.bag_decks_seen and not table.char_in_deck and not table.deck_face_up
         assert len(table.bot_deck) == 30
-        dx, dz = table_reset.CHARACTER_CARD_OFFSET
-        cfg = load_config(cfg_file())
-        spots = (cfg.raw["bot_deck_spot"], cfg.raw["human_deck_spot"])
-        assert sorted(table.char_loose) == sorted((x + dx, 2.5, z + dz) for x, z in spots)
+        assert sorted(table.char_loose) == sorted(lifted(slot) for slot in character_slots())
         assert "take_character_cards" in table.sent
+        assert table.arranged == expected_layout(), "every object ends at its slot, rotation included"
     finally:
         finish(stop, t, result)
 
@@ -139,7 +197,8 @@ def test_decks_already_unpacked_with_31_cards_face_up_are_fixed_by_pressing_agai
         press(fake, "prepare_table")
         assert wait_for(lambda: shown(table, "btn_start") == (True, True)), table.broadcasts[-5:]
         assert not table.char_in_deck and not table.deck_face_up and len(table.bot_deck) == 30
-        assert len(table.char_loose) == 2
+        assert table.arranged == expected_layout()
+        assert sorted(table.char_loose) == sorted(lifted(slot) for slot in character_slots())
     finally:
         finish(stop, t, result)
 
@@ -147,7 +206,25 @@ def test_decks_already_unpacked_with_31_cards_face_up_are_fixed_by_pressing_agai
 def test_the_audit_does_not_flag_the_loose_character_cards(gate_live, cfg_file):  # noqa: F811
     table, fake, ports = gate_live
     table.make_ready()
-    table.char_loose = [(7.28, 2.5, 18.93), (-4.6, 2.5, 18.67)]
+    table.char_loose = [lifted(slot) for slot in character_slots()]
     client = client_for(gate_live)
     session = session_for(client, cfg_file())
     assert codes(table_reset.audit(client, session)) == []
+
+
+@pytest.mark.gate
+def test_an_object_without_a_slot_stays_and_the_chat_names_it(gate_live, cfg_file, tmp_path):  # noqa: F811
+    table, fake, _ = gate_live
+    table.hero_bag_decks()
+    raw = config_raw()
+    layout = json.loads(json.dumps(raw["layout"]))
+    layout["human"]["pieces"] = layout["human"]["pieces"][:1]
+    stop, t, result = run_main(gate_live, cfg_file, tmp_path, layout=layout)
+    try:
+        assert wait_for(lambda: shown(table, "btn_prep") == (True, True))
+        press(fake, "prepare_table")
+        assert wait_for(lambda: shown(table, "btn_start") == (True, True)), table.broadcasts[-5:]
+        assert "e33604" not in table.arranged and "f9789a" in table.arranged
+        assert "No he colocado estos objetos" in " ".join(table.broadcasts) and "e33604" in " ".join(table.broadcasts)
+    finally:
+        finish(stop, t, result)

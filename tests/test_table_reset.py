@@ -5,6 +5,7 @@ The audit script runs under lupa (tests/lua_stub.lua); the gate itself runs thro
 like the other end-to-end tests."""
 from __future__ import annotations
 
+import types
 import json
 import re
 import threading
@@ -60,7 +61,8 @@ class GateTable(Table):
         self.dial_start: dict[str, int] = {}             # dial GUID -> its starting value
         self.char_in_deck = False                        # decks hold the character card (31 cards): no card write accepts them
         self.bag_decks_seen = False                      # a deck has come out of a bag holding the character card
-        self.char_loose: list[tuple[float, float, float]] = []    # where each character card was laid, in script order
+        self.char_loose: list[tuple[tuple, tuple]] = []   # (position, rotation) each character card was laid at, in script order
+        self.arranged: dict[str, tuple[tuple, tuple]] = {}   # first GUID -> (position, rotation) the layout laid it at
 
     def make_ready(self):
         self.in_bags, self.bot_hand, self.bot_deck, self.human_count = False, [], list(BOT_DECK), 0
@@ -85,14 +87,28 @@ class GateTable(Table):
         return out
 
     def do_take_character_cards(self, s):
-        """The real script: a deck holding the character card gives it up and it is laid at `dest`; otherwise nothing."""
-        dests = re.findall(r"position = Vector\(([-\d.]+), ([-\d.]+), ([-\d.]+)\)", s)
+        """The real script: a deck holding the character card gives it up and it is laid at `dest` with that rotation;
+        otherwise nothing."""
+        dests = re.findall(r"position = Vector\(([-\d.]+), ([-\d.]+), ([-\d.]+)\), rotation = Vector\(([-\d.]+), ([-\d.]+), ([-\d.]+)\)", s)
         found = not self.in_bags
         taken = found and self.char_in_deck
         if taken:
-            self.char_loose = [tuple(float(v) for v in d) for d in dests]
+            self.char_loose = [(tuple(float(v) for v in d[:3]), tuple(float(v) for v in d[3:])) for d in dests]
             self.char_in_deck = False
         return [{"found": found, "taken": taken}] * len(dests)
+
+    def do_arrange_objects(self, s):
+        """The real script: the first GUID of each row that is on the table is laid at the position and rotation, at once."""
+        rows = re.findall(r"\{\{((?:\"\w+\"(?:, )?)+)\}, Vector\(([^)]*)\), Vector\(([^)]*)\)\}", s)
+        out = {"placed": [], "missing": []}
+        for guids, pos, rot in rows:
+            first = re.findall(r'"(\w+)"', guids)[0]
+            if self.in_bags:
+                out["missing"].append(first)
+                continue
+            self.arranged[first] = (tuple(float(v) for v in pos.split(",")), tuple(float(v) for v in rot.split(",")))
+            out["placed"].append(first)
+        return out
 
     def hero_bag_decks(self):
         """What a deck taken out of a hero's bag is: the 30 cards plus the character card on top, lying face up."""
@@ -894,7 +910,7 @@ def test_the_cleaning_session_searches_the_whole_table(gate_live, cfg_file):
 
 def test_a_pair_that_is_not_medusa_and_hellboy_is_reset_but_nothing_is_unpacked_over_its_decks(monkeypatch):
     calls = []
-    monkeypatch.setattr(table_reset, "reset_cards_and_pieces", lambda client, session: calls.append("reset"))
+    monkeypatch.setattr(table_reset, "reset_cards_and_pieces", lambda client, session, raw, arrange=False: calls.append("reset") or [])
 
     class Hero:
         def __init__(self, name):
@@ -913,7 +929,7 @@ def test_a_pair_that_is_not_medusa_and_hellboy_is_reset_but_nothing_is_unpacked_
 
     def no_unpack(*a):
         raise AssertionError("nothing may be unpacked over the other decks")
-    lines, session = table_reset.clean_and_prepare(Client(), lambda cfg: 1 / 0, object(), no_unpack, print, previous=Previous())
+    lines, session = table_reset.clean_and_prepare(Client(), lambda cfg: 1 / 0, types.SimpleNamespace(raw={}), no_unpack, print, previous=Previous())
     assert calls == ["reset"]
     assert session is None and len(lines) == 1 and "Houdini" in lines[0] and "Doctor Strange" in lines[0] and "bolsas" in lines[0]
 

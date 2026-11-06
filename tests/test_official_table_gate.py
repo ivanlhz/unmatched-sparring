@@ -218,7 +218,7 @@ def test_the_button_turns_the_official_table_into_the_prepared_state_and_touches
         assert sorted(table.destroyed) == sorted(REMOVED) and table.leftovers == {}
         # creates: the two discard zones and the map (from the B.P.R.D. HQ bag, with the configured transform)
         assert table.zones_on_table == {"zonebot", "zonehum"}
-        assert table.map_taken == ["ab5e89:ec6f27:-0.35, 1.63, -3.18"]
+        assert table.map_taken == ["ab5e89:ec6f27:0.07, 1.64, -1.93"]
         # moves: the heroes' objects out of their bags, cards in decks, dials full, pieces off the board
         assert table.unpacked == 1 and not table.in_bags and len(table.bot_deck) == 30
         assert sorted(table.bags_taken) == ["c592d8", "e5a45c"], "each inner bag came out of its infinite bag first"
@@ -382,7 +382,7 @@ def test_the_map_plan_is_validated_and_optional():
     assert table_prep.map_plan({}) is None
     plan = table_prep.map_plan(raw_config())
     assert (plan.board, plan.bag, plan.board_guid, plan.position, plan.rot_y, plan.scale) == \
-        ("bprd-hq", "ab5e89", "ec6f27", (-0.35, 1.63, -3.18), 269.99, 0.85)
+        ("bprd-hq", "ab5e89", "ec6f27", (0.07, 1.64, -1.93), 270.0, 1.10)
     for bad in ({"board": "x"}, {**raw_config()["prepare_map"], "scale": 0}, {**raw_config()["prepare_map"], "position": [1, 2]}):
         with pytest.raises(ValueError):
             table_prep.map_plan({"prepare_map": bad})
