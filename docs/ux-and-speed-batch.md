@@ -54,3 +54,8 @@ Iván notices lag both when he presses his own action and during the bot's turn.
 - A status line that updates live (`UI.setAttribute`/`setValue` on the bot's own object, never Global).
 - Buttons that cannot be used are greyed out (`interactable=false`): Reveal with no combat, targets out of range, setup buttons during the game, and so on.
 - Keep the orientation (rotation 0 0 270) and white text; the scale may change.
+
+## Live note (6/11/2026, after v0.3.0)
+Iván still finds the game slow at times, and TTS sometimes stutters in the middle of an action (he wondered whether windowed mode matters; unlikely, rule it out by playing full screen). Saved as a future improvement, not started.
+- First measure again with the current code (the `--timing` idea above): messages per button and per bot action, and which Lua scripts freeze TTS. Likely culprits: scripts that walk `getObjects()` and call `getData()` on whole decks (the gate audit, `table_heroes`, `reset_plan`, `snapshot`), spawns, and `_settle` retries.
+- Then cut the count of messages per button (target design above) and make the heavy reads cheaper (filter by type/zone before `getData()`).
