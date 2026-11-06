@@ -724,7 +724,10 @@ def test_read_only_allowlist_is_exactly_the_pure_read_builders(bprd):
         "table_audit": lambda: lua.table_audit([("def", "Die_20")], (26.0, 36.0), ["Blue"], [("medusa:piece:abc", ["abc"])]),
         "deck_facing": lambda: lua.deck_facing([((0.0, 3.0), None, lua.BOT_CARD_IDS, TEST_IDENT)]),
         "flip_decks_down": lambda: lua.flip_decks_down([((0.0, 3.0), None, lua.BOT_CARD_IDS, TEST_IDENT)]),
-        "take_map": lambda: lua.take_map("abc", "def", (0.0, 1.5, 0.0), 270.0, 0.85),
+        "place_map": lambda: lua.place_map("abc", (0.0, 1.5, 0.0), 270.0, 0.85),
+        "clear_setup": lambda: lua.clear_setup([((17600, 17629), TEST_IDENT, 302)], ["abc"], ["medusa"], ["ABCDEF"], (26.0, 36.0)),
+        "list_bags": lambda: lua.list_bags(),
+        "read_transforms": lambda: lua.read_transforms([("bot:deck", "object", ["abc"], "medusa", 1, 0)]),
         "take_character_cards": lambda: lua.take_character_cards([("abc", lua.BOT_CARD_IDS, TEST_IDENT, 302, (0.0, 1.5, 0.0), (0, 90, 0))]),
         "arrange_objects": lambda: lua.arrange_objects([(("abc",), (0.0, 1.5, 0.0), (0, 90, 0))]),
     }

@@ -10,11 +10,12 @@ from pathlib import Path
 
 import pytest
 
-from sparring import table_layout, table_reset
+from sparring import map_setup, table_layout, table_reset
 from sparring.play import load_config
 from sparring.tts import lua
 from sparring.tts.hero_table import load_hero_table
-from test_official_table_gate import official  # noqa: F401
+from test_official_table_gate import drag_prepared_pair, official  # noqa: F401
+from test_player_setup import medusa_hellboy_out, medusa_live, write_setups  # noqa: F401
 from test_play import live  # noqa: F401
 from test_review9 import BOT_ID, SCOPE, rt, run  # noqa: F401
 from test_table_reset import cfg_file, client_for, codes, finish, gate_live, press, run_main, session_for, shown, wait_for  # noqa: F401
@@ -137,7 +138,8 @@ def test_the_layout_in_the_configuration_is_the_table_ivan_arranged():
         assert got[guid] == ((pos[0], pos[1] + table_layout.SETTLE_LIFT, pos[2]), tuple(float(v) for v in rot)), guid
     raw = config_raw()
     assert raw["bot_deck_spot"] == [5.13, 17.71] and raw["human_deck_spot"] == [-6.7, 17.55], "the decks are found where they lie"
-    assert raw["prepare_map"]["position"] == [0.07, 1.64, -1.93] and raw["prepare_map"]["scale"] == 1.10
+    bprd = map_setup.setup_for("bprd-hq")
+    assert bprd.position == (0.07, 1.64, -1.93) and bprd.scale == 1.10 and bprd.layout == raw["layout"]
     assert [s.pos for s in character_slots()] == [(5.28, 1.61, 15.0), (-6.73, 1.61, 15.07)]
     assert [s.rot for s in character_slots()] == [(0.0, 90.0, 0.0), (0.0, 270.0, 0.0)]
 
@@ -173,6 +175,7 @@ def test_arrange_objects_lays_the_first_guid_that_exists_at_the_exact_transform(
 def test_a_fresh_table_from_the_bags_ends_ready_with_30_card_face_down_decks_and_the_character_card_loose_beside_each(
         official, cfg_file, tmp_path):  # noqa: F811
     table, fake, _ = official
+    drag_prepared_pair(table)
     stop, t, result = run_main(official, cfg_file, tmp_path)
     try:
         assert wait_for(lambda: shown(table, "btn_prep") == (True, True))
@@ -188,10 +191,11 @@ def test_a_fresh_table_from_the_bags_ends_ready_with_30_card_face_down_decks_and
 
 
 @pytest.mark.gate
-def test_decks_already_unpacked_with_31_cards_face_up_are_fixed_by_pressing_again(gate_live, cfg_file, tmp_path):  # noqa: F811
-    table, fake, _ = gate_live
+def test_decks_already_unpacked_with_31_cards_face_up_are_fixed_by_pressing_prepare(medusa_live, cfg_file, tmp_path):  # noqa: F811
+    table, fake, _ = medusa_live
+    medusa_hellboy_out(table)
     table.hero_bag_decks()
-    stop, t, result = run_main(gate_live, cfg_file, tmp_path)
+    stop, t, result = run_main(medusa_live, cfg_file, tmp_path)
     try:
         assert wait_for(lambda: shown(table, "btn_prep") == (True, True)), "31 cards face up is not a ready table"
         press(fake, "prepare_table")
@@ -213,13 +217,15 @@ def test_the_audit_does_not_flag_the_loose_character_cards(gate_live, cfg_file):
 
 
 @pytest.mark.gate
-def test_an_object_without_a_slot_stays_and_the_chat_names_it(gate_live, cfg_file, tmp_path):  # noqa: F811
-    table, fake, _ = gate_live
+def test_an_object_without_a_slot_stays_and_the_chat_names_it(medusa_live, cfg_file, tmp_path):  # noqa: F811
+    table, fake, _ = medusa_live
+    medusa_hellboy_out(table)
     table.hero_bag_decks()
     raw = config_raw()
     layout = json.loads(json.dumps(raw["layout"]))
     layout["human"]["pieces"] = layout["human"]["pieces"][:1]
-    stop, t, result = run_main(gate_live, cfg_file, tmp_path, layout=layout)
+    write_setups(map_setup.SETUPS_PATH, **{"bprd-hq": {"scale": 1.1, "position": [0.07, 1.64, -1.93], "rot_y": 270.0, "layout": layout}})
+    stop, t, result = run_main(medusa_live, cfg_file, tmp_path)
     try:
         assert wait_for(lambda: shown(table, "btn_prep") == (True, True))
         press(fake, "prepare_table")

@@ -460,6 +460,30 @@
         "After cleaning, the reading finds the table ready: nothing is left unfound because of an object type TTS reports differently"
       ],
       "note": "Asked by Iván on 5/11: savegame preparation, NOT starting a game. Code in sparring/table_reset.py plus small hooks in play.py, tts/ui.py and tts/lua.py (session.py untouched). Branch table-ready, from all-maps ac45589."
+    },
+    {
+      "id": "F23",
+      "title": "The player sets the table: Clean table, drag map and heroes, Prepare (per-map calibration)",
+      "status": "in-progress",
+      "criteria": [
+        "Three gate buttons (btn_clean, btn_prep, btn_start; events clean_table, prepare_table, start_game; es/en captions): Clean table and Prepare are offered while the table is not ready, Start game only when it is; Clean table stays available on a ready table to change heroes or map",
+        "Clean table (lua.clear_setup) destroys every hero object (Deck/Card whose cards are all a hero's by CardID range AND deck image or its character card, also in a hand; loose bags that hold only hero GUIDs; loose objects inside the play area whose GUID is a hero's or whose name is a fighter's) and every Board whose image is a catalog map; never an infinite bag, the pads, zones, triggers, hand zones or anything beyond |x| 26 / |z| 36; a pile mixing hero and foreign cards is left and reported. It also creates the discard zones, removes the guarded leftovers of the official save and deletes the saved game",
+        "The real clear_setup script on the 170 objects of the official save destroys nothing (tests/test_official_table_gate.py)",
+        "Prepare (sparring/player_setup.py) reads boards, loose bags and loose decks in one message: the map by its image, each half's hero by the bag copy it holds (every GUID in it is the hero's) or by its loose deck (CardID range AND image); the bot's half is +x, the player's -x. It says 'Bot: X, Tu: Y, Mapa: Z'. A hero the bot cannot play (catalog name or unknown bag), a missing or repeated hero, two heroes on one half, the same hero on both halves, no map or an unplayable map: clear chat lines and nothing is touched",
+        "Closed bags (a copy with a GUID of its own) and opened contents both work, mixed too: the items come out of the copy the player dropped (unpack_from_bags with the copy as the bag; adopted copies are destroyed once empty); a deck counts as present only with the hero's image (heroes share CardID ranges)",
+        "Map calibration (sparring/map_setup.py, config/map_setups.json): a calibrated map is laid at its scale, position and rot_y (lua.place_map, locked) and brings its own layout slots and deck spots (bot_deck_spot / human_deck_spot are its deck slots: play.detect_board applies them, so in-game deck finding points at where the decks were laid); B.P.R.D. HQ's entry is the transform and layout verified live on 5/11. An uncalibrated map is used as it lies with the default layout of config/table.json and the chat prints the exact calibrate command",
+        "python -m sparring.calibrate --map <key> [--dry-run] reads (read-only scripts only) the board's transform and every deck, character card, dial, token and miniature of both heroes from the table arranged by hand, in the order of the layout slots, and writes that map's entry keeping the others; it names what it could not find and writes nothing then",
+        "Tested with two non-default heroes (Bigfoot vs Houdini) on another map: closed bags, opened contents, heroes on swapped halves, both on one half, uncalibrated and calibrated maps, a lost piece, a failing preparation, Medusa vs Hellboy through the old dirty-state matrix, and the calibration command"
+      ],
+      "verify_live": [
+        "What dragging a hero from the roster gives: a Bag copy of the inner bag whose getObjects() lists the same GUIDs as the data (d42056... for Medusa); list_bags and the match against data/tts must recognise it, and the items must come out of the copy by those GUIDs",
+        "What dragging a map gives: a Board (type Board, image of the catalog); Clean table must destroy it even locked, and place_map must scale and lock it",
+        "Objects taken out of a copy keep their GUIDs (the template is not in the world); if TTS renames one, Prepare reports it as missing and session.resolve_pieces handles the pieces it can by name",
+        "Opening a bag and spreading its contents by hand: the loose deck (31 cards, character card inside) is read as the hero by CardID range and image",
+        "clear_setup: Deck/Card getData() of a pile in a hand, held_by_color, and destruct() of a locked Board",
+        "calibrate: read_transforms returns clean rotations for decks (rx 0 / 360, rz 180) and the board's getScale().x; the bot must be closed (same listen port)"
+      ],
+      "note": "Asked by Ivan on 6/11. Replaces the single 'Clean table and prepare' button of F22 (always Medusa vs Hellboy on B.P.R.D. HQ). Branch feat/player-setup from master 5815b9b. The infinite-bag path of unpack_from_bags (outers) is no longer used by the gate."
     }
   ]
 }

@@ -1,5 +1,6 @@
 """Pre-game gate: before a game starts, the bot checks that the loaded table is arranged for a NEW game and, if not,
-offers a button that cleans and prepares it. Nothing starts until the human presses "Start game".
+offers the buttons that clean it and prepare it for the map and heroes the player drops on it. Nothing starts until the
+human presses "Start game".
 
 READY TABLE (what `audit` checks, for the two heroes the table shows, or Medusa and Hellboy if it shows none):
   1. No leftover loose object of the save: none of the `remove_table` GUIDs is on the table with its expected TTS name
@@ -19,38 +20,33 @@ READY TABLE (what `audit` checks, for the two heroes the table shows, or Medusa 
      is in the map catalog; the locked pad boards of the official save do not count).
 What it never judges: WHICH map is on the table (a person chooses it), the fighters' placement, the hands dealt, any game
 rule. Things it finds but will not touch are reported, not counted as dirt: objects of other heroes on the table, a map
-other than B.P.R.D. HQ or one that cannot be played, a loose object whose name or place does not match the removal
-guard, a foreign card in a hand.
+that cannot be played, a loose object whose name or place does not match the removal guard, a foreign card in a hand.
 
 THE OFFICIAL TOURNAMENT TABLE AS IT LOADS (saves/Unmatched Official Tournament Table October 2026 (Hellboy).json, 170
 objects): it has out, in the middle, two 78-card decks (addeca, cb6cbc), a d20 (65be8d), the locked Dice Cannon
 (5085eb) and two Digital_Clocks (6126d5, 790396); no discard zone and no map (only the locked pad boards 45c723, 8315f0,
-6bd0e3); every hero (117 infinite bags, the Medusa and Hellboy ones among them) and every map (31 infinite bags) in
-shelves beyond |z| 40; counters, rules cards, Doors and Battlefield Items bags, 11 hand zones and a few loose models on
-the shelves. The button creates the two discard zones, destroys the six centre objects (name and place guarded), takes
-the B.P.R.D. HQ board out of its bag onto the table (`prepare_map`), takes Medusa's and Hellboy's decks, dials, pieces
-and tokens out of their bags, and puts everything in the state below. Everything else stays where it is.
+6bd0e3); every hero (117 infinite bags) and every map (31 infinite bags) in the roster beyond |z| 40; counters, rules cards,
+Doors and Battlefield Items bags, 11 hand zones and a few loose models on the shelves.
 
-CLEAN AND PREPARE (always with Medusa as the bot, Hellboy as the human, on the map the table shows):
-  - zoom copies and the bot's markings are removed (they carry our name and GM notes);
-  - the map is taken out of its bag if the table has none (`lua.take_map`, only from the configured bag; for an infinite
-    bag a copy comes out and the script answers from the spawn callback, so it is its own message);
-  - the heroes are taken out of their bags (`play.prepare_heroes`): in the official save a hero's inner bag sits inside the
-    hero's INFINITE bag, so it is first taken out of there (guarded by the infinite bag's GUID, nickname and contents);
-  - the discard zones are created or straightened and the leftovers the guard lets through are destroyed
-    (`Session.prepare_table`);
-  - each character card is taken out of its deck (a deck out of a bag holds it on top of the 30) and left at its slot of the
-    `layout` of config/table.json (outside the CardID range, so no audit or gathering sees it); once everything else is done
-    the decks, dials, tokens and miniatures are laid at their slots too (`table_layout`: one slot per side and role);
-  - the restart machinery returns EVERY card of both sides to its deck from anywhere on the table, shuffles it, refills
-    the dials, zeroes the destiny dial and sets the miniatures aside (`Session._reset_table`); a deck left face up is
-    turned down; Hellboy's miniature goes back to its first state; the two-faced tokens go back to their starting face;
-  - the saved game of the bot is deleted.
-Cards are gathered, never destroyed; only the guarded GUID list is ever destroyed. No piece goes to the board, no hand
-is dealt, no turn is opened. After cleaning, the table is read again and compared with the definition above: what is
-still off is named in the chat and the button stays. If the table shows another pair of heroes than Medusa and Hellboy,
-that pair is reset too (its cards back in its decks) but its decks stay where they are: Medusa's deck would land on
-them, so the chat asks to put them in their bags and to press again.
+THE PLAYER SETS THE TABLE (`sparring/player_setup.py`; three buttons: Clean table, Prepare, Start game):
+  - CLEAN TABLE destroys every hero object (decks and cards, character cards, bags the player dropped, miniatures, dials,
+    tokens; identified by CardID range AND deck image, by GUID and by name) and every map board of the catalog, the zoom copies
+    and the bot's markings, creates or straightens the two discard zones, destroys the leftovers the removal guard lets through
+    and deletes the saved game. The infinite bags of the roster and everything else stay where they are.
+  - The player drags the map and the two heroes from the roster (a copy of a board, a copy of each hero's inner bag), the bot's
+    hero to the bot's half (+x) and their own to theirs (-x), closed or opened.
+  - PREPARE reads the table (`player_setup.scan`/`decide`: the map by its image, each half's hero by the bag it holds or the
+    deck lying there), says in the chat "Bot: X, Tu: Y, Mapa: Z" and, if all is well, lays the map at the transform calibrated
+    for it (`map_setup`: scale, place, rotation; an uncalibrated map is left as it lies and the chat gives the command to
+    calibrate it), takes the heroes out of their bags, takes each character card out of its deck (a deck out of a bag holds it on
+    top of the 30) and leaves it at its slot of the map layout, returns every card to its deck, shuffles, refills the dials,
+    zeroes the destiny dial and sets the miniatures aside, then lays decks, dials, tokens and miniatures at the slots of the
+    map layout (`table_layout`: one slot per side and role; the default `layout` of config/table.json for an uncalibrated map).
+    A hero the bot cannot play, a missing or duplicated hero, two heroes on one half or no map is said in the chat and nothing
+    is touched.
+Cards are gathered, never destroyed by Prepare; only Clean table destroys, and only what it recognises. No piece goes to the
+board, no hand is dealt, no turn is opened. After preparing, the table is read again and compared with the definition above:
+what is still off is named in the chat.
 
 The loop here owns the panel until "Start game": it hides every game button and shows only the gate ones."""
 from __future__ import annotations
@@ -61,7 +57,7 @@ from dataclasses import dataclass, field
 from pathlib import Path
 from typing import Callable
 
-from . import table_layout, table_prep
+from . import player_setup, table_layout
 from .board import catalog as board_catalog
 from .board_detect import TABLE_PAD_IMAGES, BoardError, choose_board, image_key_of
 from .i18n import t
@@ -73,7 +69,6 @@ from .tts.client import TTSLuaError
 from .tts.hero_table import TTS_DIR, HeroTableError, load_hero_table
 from .tts.ui import Event, parse_event
 
-PREP_HEROES = ("medusa", "hellboy")          # bot, human: the pair the cleaned table is prepared with
 PANEL_CHUNK = 70                              # `lua.set_panel` takes at most 80 elements per call
 PANEL_SETTLE = 0.7                            # seconds the panel needs for its XML to exist (it is written 0.5 s after the object)
 ENABLED = True                                # tests turn the gate off globally and opt in where they exercise it
@@ -203,9 +198,9 @@ def batch(client, named: list[tuple[str, str]], optional: frozenset[str] = froze
 AUDIT_SIDE_READS = frozenset({"pieces", "dials", "tokens"})      # the audit still says something useful without them
 
 
-def audit(client, session, state_path: Path | None = None, raw: dict | None = None) -> Audit:
+def audit(client, session, state_path: Path | None = None) -> Audit:
     """Reads the table (ONE message, see `batch`; plus the deck identities the first time) and says what is out of place for
-    the heroes `session` plays. `raw` is the configuration (it says which map the gate may put on an empty table)."""
+    the heroes `session` plays."""
     c, game = session.cfg, session.game
     out = Audit()
     heroes = [game.hero_def(p) for p in (session.bot, session.human)]
@@ -256,15 +251,10 @@ def audit(client, session, state_path: Path | None = None, raw: dict | None = No
     if full:
         out.issues.append(Issue("hand_cards", ", ".join(full)))
     state, found_map = map_state(got["boards"])
-    plan = table_prep.map_plan(raw) if raw is not None else None
-    if state == "none" and plan is not None:
+    if state == "none":
         out.issues.append(Issue("map_missing", ""))
-    elif state == "none":
-        out.notices.append(t("gate.notice.no_map"))
     elif state == "other":
         out.notices.append(t("gate.notice.map_unplayable", error=found_map))
-    elif plan is not None and found_map.key != plan.board:
-        out.notices.append(t("gate.notice.map_other", name=found_map.name))
     if "zones" in got:
         read_zones = got["zones"] if isinstance(got["zones"], dict) else {}
         gone = [t("ro.role.bot" if key.startswith("bot") else "ro.role.human") for key, guid in zones.items()
@@ -427,38 +417,15 @@ def reset_cards_and_pieces(client, session, raw: dict, arrange: bool = False) ->
     return [Msg(t("gate.layout_unplaced", guids=", ".join(left)), lua.ChatKind.WARNING)] if left else []
 
 
-def clear_and_ensure_map(client, raw: dict) -> Msg | None:
-    """Removes the zoom copies and the bot's markings (they carry our name and GM notes) and, if the table has no map, takes
-    the configured one (`prepare_map`) out of its bag: one read and one write. A table with a map, or a configuration
-    without `prepare_map`, keeps what it has. Raises `SessionError` when the bag does not give the map."""
-    plan = table_prep.map_plan(raw)
-    needed = plan is not None and read_map(client)[0] == "none"
-    batch(client, [("clear", lua.clear_markings(remove_panel=True))])
-    if not needed:
-        return None
-    # on its own, not in the batch: an infinite bag spawns the copy later and the script answers from its callback
-    res = client.call_lua(lua.take_map(plan.bag, plan.board_guid, plan.position, plan.rot_y, plan.scale))
-    res = res if isinstance(res, dict) else {}
-    if not res.get("taken"):
-        raise SessionError(t("gate.map_failed", bag=plan.bag, guid=plan.board_guid, why=res.get("why") or "?"))
-    return Msg(t("gate.map_taken", bag=plan.bag), lua.ChatKind.WARNING)
-
-
-def clean_and_prepare(client, make_session: Callable, cfg, unpack: Callable, echo: Callable[[str], None],
-                      previous: object | None = None) -> tuple[list[Msg], Session | None]:
-    """Takes the heroes of `cfg` out of their bags (`unpack` returns what it could not do, which is said in the chat with what
-    to do by hand) and resets the table for them. `previous` is a session on the pair the table showed when it is not this
-    one: its cards are gathered too, but nothing of `cfg` is unpacked over its decks. Raises what the table raises (the caller
-    words it). Returns the chat lines of the preparation and the session that did it (it holds the discard zones it created or
-    adopted; None for the `previous` case).
+def prepare_session(client, make_session: Callable, cfg, unpack: Callable, echo: Callable[[str], None]) -> tuple[list[Msg], Session]:
+    """Takes the heroes of `cfg` out of what the player dropped (`unpack` returns what it could not do, said in the chat with
+    what to do by hand) and leaves the table prepared for them: discard zones, cards in their decks, dials full, everything at
+    its slot of the map layout. Raises what the table raises (the caller words it). Returns the chat lines and the session
+    that did it (it holds the discard zones it created or adopted).
 
     Not merged into one message: unpacking and `Session.prepare_table` have each their own reply to read (what is missing, the
     GUIDs of the zones TTS creates) before the next step can be worded or addressed."""
-    if previous is not None:
-        reset_cards_and_pieces(client, previous, cfg.raw)
-        return [Msg(t("gate.other_pair_reset", bot=previous.game.hero_def(previous.bot).name,
-                      human=previous.game.hero_def(previous.human).name), lua.ChatKind.WARNING)], None
-    problems = unpack(client, cfg, echo, True)
+    problems = unpack(client, cfg, echo)
     if problems:
         raise SessionError(" ".join(problems))
     session = make_session(cfg)
@@ -486,7 +453,7 @@ class Gate:
         self.settle = PANEL_SETTLE if settle is None else settle
         self.state_path = state_path
         self.session = make_session(cfg)
-        self.cleaned = False                     # the last audit found the table ready
+        self.cleaned = False                     # the last audit found the table ready (prepared)
         self._panel_for: tuple | None = None
 
     def say(self, text: str, kind=lua.ChatKind.NEUTRAL) -> None:
@@ -507,12 +474,12 @@ class Gate:
         self._panel_for = key
         self.stop.wait(self.settle)           # the panel's XML is written 0.5 s after the object: a set_panel before is lost
 
-    def show(self, status_tag: str, prep: bool, start: bool) -> None:
+    def show(self, status_tag: str, prep: bool, start: bool, clean: bool = True) -> None:
         self._panel()
         s = self.session
         ids = ui.element_ids([f.fid for f in s.game.own(s.bot)], tuple(f.fid for f in s.game.own(s.human)))
         states = {i: (False, False) for i in ids}
-        states["btn_prep"], states["btn_start"] = (prep, prep), (start, start)
+        states["btn_clean"], states["btn_prep"], states["btn_start"] = (clean, clean), (prep, prep), (start, start)
         text = panel_text(t(status_tag))
         items = sorted(states.items())
         for n in range(0, len(items), PANEL_CHUNK):
@@ -526,7 +493,7 @@ class Gate:
 
     # ---------- steps ----------
     def check(self) -> Audit:
-        result = audit(self.client, self.session, self.state_path, self.cfg.raw)
+        result = audit(self.client, self.session, self.state_path)
         self.cleaned = result.ready
         return result
 
@@ -570,40 +537,76 @@ class Gate:
         except OSError as e:
             self.say(t("restart.delete_fail", path=self.state_path, err=e), lua.ChatKind.WARNING)
 
-    def on_prepare(self) -> None:
+    def on_clean(self) -> None:
+        """Empties the table of every hero and map (and of the leftovers of the official save), so the player can drag the next
+        game map and heroes from the roster."""
+        self.say(t("setup.cleaning"))
         try:
-            if self.check().ready:
-                self.say(t("gate.nothing_to_do"))
-                self.refresh()
-                return
-        except self.errors:
-            pass                                  # cannot read it: try the cleaning anyway, it reports what fails
-        bot, human = (load_hero(s).name for s in PREP_HEROES)
-        self.say(t("gate.cleaning", bot=bot, human=human))
-        shown = tuple(self.session.game.hero_def(p).slug for p in (self.session.bot, self.session.human))
-        try:
-            taken = clear_and_ensure_map(self.client, self.cfg.raw)          # before reading the map: the board's GUID is new
-            if taken is not None:
-                self.announce([taken])
-            cfg = self.redetect(*PREP_HEROES)
-            previous = self.session if shown != PREP_HEROES else None
-            lines, cleaned = clean_and_prepare(self.client, self.make_session, cfg, self.unpack, self.echo, previous)
-            self.announce(lines)
+            batch(self.client, [("clear", lua.clear_markings(remove_panel=True))])
+            removed, mixed = player_setup.cleared_summary(self.client.call_lua(player_setup.clear_script(self.cfg.raw)))
+            self.session.messages = []
+            self.session.prepare_table(False, None)
+            self.session._say_startup_notes()
+            self.announce(list(self.session.messages))
             self._forget_saved_game()
-            self.cfg, self.session = cfg, cleaned or self.make_session(cfg)      # the cleaning one knows the zones it made
-            self._panel_for = None                # the cleaning removed the panel with the zoom copies
-            result = audit(self.client, self.session, self.state_path, cfg.raw)
         except self.errors as e:
             self._panel_for = None
             self.cleaned = False
-            self.say(t("gate.clean_failed", error=e), lua.ChatKind.WARNING)
+            self.say(t("setup.clean_failed", error=e), lua.ChatKind.WARNING)
+            self.refresh()
+            return
+        self._panel_for = None                    # the cleaning removed the panel with the zoom copies
+        self.cleaned = False
+        self.say(t("setup.cleaned", n=removed), lua.ChatKind.YOUR_TURN)
+        if mixed:
+            self.say(t("setup.mixed_left", guids=", ".join(mixed)), lua.ChatKind.WARNING)
+        self.say(t("setup.drag"), lua.ChatKind.YOUR_TURN)
+        self.refresh()
+
+    def on_prepare(self) -> None:
+        """Reads the map and the two heroes the player dropped (`player_setup`), says what it found and lays everything out on
+        the slots of that map. Anything the bot cannot play, or missing, is said in the chat and nothing is touched."""
+        try:
+            found = player_setup.scan(self.client, self.cfg.raw, batch)
+        except self.errors as e:
+            self.say(t("setup.scan_failed", error=e), lua.ChatKind.WARNING)
+            self.refresh()
+            return
+        setup, problems = player_setup.decide(found)
+        if setup is None:
+            for line in problems:
+                self.say(line, lua.ChatKind.WARNING)
+            self.say(t("setup.fix_then_prepare"), lua.ChatKind.WARNING)
+            self.refresh()
+            return
+        self.say(player_setup.describe(setup), lua.ChatKind.YOUR_TURN)
+        if setup.calibration is None:
+            self.say(player_setup.not_calibrated(setup), lua.ChatKind.WARNING)
+        try:
+            if setup.calibration is not None:
+                c = setup.calibration
+                placed = self.client.call_lua(lua.place_map(setup.board_guid, c.position, c.rot_y, c.scale))
+                if not (isinstance(placed, dict) and placed.get("placed")):
+                    raise SessionError(t("setup.map_failed", guid=setup.board_guid))
+            cfg = self.redetect(setup.bot, setup.human)
+            lines, prepared = prepare_session(self.client, self.make_session, cfg,
+                                              lambda client, on, echo: self.unpack(client, on, echo, False, setup.bags), self.echo)
+            self.announce(lines)
+            self._forget_saved_game()
+            self.cfg, self.session = cfg, prepared      # the preparing session knows the zones it made
+            self._panel_for = None
+            result = audit(self.client, self.session, self.state_path)
+        except self.errors as e:
+            self._panel_for = None
+            self.cleaned = False
+            self.say(t("setup.prepare_failed", error=e), lua.ChatKind.WARNING)
             self.refresh()
             return
         self.cleaned = result.ready
         for line in result.notices:
             self.say(line, lua.ChatKind.WARNING)
         if result.ready:
-            self.say(t("gate.cleaned", bot=bot, human=human), lua.ChatKind.YOUR_TURN)
+            self.say(t("setup.prepared", bot=load_hero(setup.bot).name, human=load_hero(setup.human).name), lua.ChatKind.YOUR_TURN)
             self.say_next()
         else:
             self.say(t("gate.left_over", issues=result.issues_text()), lua.ChatKind.WARNING)
@@ -640,7 +643,9 @@ class Gate:
                     event, _ = parse_event(raw)
                 except (KeyError, ValueError, TypeError, AttributeError):
                     continue
-                if event is Event.PREPARE:
+                if event is Event.CLEAN:
+                    self.on_clean()
+                elif event is Event.PREPARE:
                     self.on_prepare()
                 elif event is Event.START:
                     cfg = self.on_start()

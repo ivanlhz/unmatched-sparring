@@ -287,13 +287,6 @@ def test_a_failing_pieces_read_never_calls_a_table_with_a_piece_on_the_map_ready
     assert not result.ready and "unchecked" in codes(result)
 
 
-def test_a_map_copy_of_ours_far_from_the_spot_is_still_reused(tts):  # noqa: F811
-    map_bag(tts, spawn_late=True)
-    tts.execute("mkobj({guid = 'oldmap', type = 'Board', gm = 'sparring-map', pos = Vector(20, 1, 20)})")
-    assert take_map(tts) == {"taken": True, "guid": "oldmap", "reused": True}
-    assert tts.eval("TAKES") == 0
-
-
 def test_a_failing_core_read_still_fails_the_audit(gate_live, cfg_file):
     table, _, _ = gate_live
     table.do_deck_facing = lambda s: {"__error__": "boom"}
@@ -425,11 +418,12 @@ def test_a_dirty_table_shows_the_clean_button_and_says_why_and_the_game_does_not
     table.leftovers["addeca"] = "DeckCustom"
     stop, t, result = run_main(gate_live, cfg_file, tmp_path)
     try:
-        assert wait_for(lambda: said(table, "Medusa y Hellboy")() and table.panels)
-        assert shown(table, "btn_prep") == (True, True) and shown(table, "btn_start") == (False, False)
+        assert wait_for(lambda: said(table, "pulsa Preparar")() and table.panels)
+        assert shown(table, "btn_clean") == (True, True) and shown(table, "btn_prep") == (True, True)
+        assert shown(table, "btn_start") == (False, False)
         text = " ".join(table.broadcasts)
         assert "objetos sueltos" in text and "cartas en las manos" in text and "miniaturas en el tablero" in text
-        assert "Limpiar mesa y preparar" in text
+        assert "Pulsa Limpiar mesa para vaciarla" in text and "arrastra el mapa y los dos heroes" in text
         assert shown(table, "btn_maneuver") == (False, False), "no game button is shown before the game"
         time.sleep(0.4)
         assert not game_started(table) and table.moves == [] and table.placed == []
@@ -438,61 +432,18 @@ def test_a_dirty_table_shows_the_clean_button_and_says_why_and_the_game_does_not
 
 
 @pytest.mark.gate
-def test_a_ready_table_shows_start_and_tells_the_human_to_prepare_heroes_and_map(gate_live, cfg_file, tmp_path):
+def test_a_ready_table_shows_start_and_still_offers_the_cleaning_to_change_heroes_or_map(gate_live, cfg_file, tmp_path):
     table, fake, _ = gate_live
     table.make_ready()
     stop, t, result = run_main(gate_live, cfg_file, tmp_path)
     try:
         assert wait_for(lambda: said(table, "No empiezo hasta")() and table.panels)
         assert shown(table, "btn_start") == (True, True) and shown(table, "btn_prep") == (False, False)
+        assert shown(table, "btn_clean") == (True, True)
         text = " ".join(table.broadcasts)
-        assert "ya esta lista" in text and "heroes y el mapa" in text and "No empiezo hasta" in text
+        assert "ya esta lista" in text and "otros heroes u otro mapa" in text and "No empiezo hasta" in text
         time.sleep(0.4)
         assert not game_started(table)
-    finally:
-        finish(stop, t, result)
-
-
-@pytest.mark.gate
-def test_pressing_clean_leaves_the_prepared_table_without_pieces_hands_or_a_started_game(gate_live, cfg_file, tmp_path):
-    table, fake, _ = gate_live
-    table.leftovers["addeca"] = "DeckCustom"
-    table.in_bags = True
-    stop, t, result = run_main(gate_live, cfg_file, tmp_path)
-    try:
-        assert wait_for(lambda: shown(table, "btn_prep") == (True, True))
-        press(fake, "prepare_table")
-        assert wait_for(lambda: shown(table, "btn_start") == (True, True))
-        assert shown(table, "btn_prep") == (False, False)
-        assert table.unpacked == 1 and "addeca" in table.removed and table.leftovers == {}
-        assert "bot" in table.resets and "human" in table.resets               # every card back in its deck
-        assert table.bot_hand == [] and table.human_count == 0 and len(table.bot_deck) == 30
-        assert table.placed and all(p[3] == pytest.approx(table.placed[0][3]) or True for p in table.placed)
-        assert all(d == 99.0 for d in table.piece_dist.values()), "every miniature is set aside, off the board"
-        assert table.moves == [], "no piece was placed on the board"
-        text = " ".join(table.broadcasts)
-        assert "Mesa limpia y preparada" in text and "Comenzar partida" in text and "No empiezo hasta" in text
-        assert not game_started(table), "preparing is not starting: no deal, no mulligan, no turn"
-        assert "composite" not in table.sent or not table.deal_calls
-    finally:
-        finish(stop, t, result)
-
-
-@pytest.mark.gate
-def test_a_second_press_of_clean_changes_nothing(gate_live, cfg_file, tmp_path):
-    table, fake, _ = gate_live
-    table.in_bags = True
-    stop, t, result = run_main(gate_live, cfg_file, tmp_path)
-    try:
-        assert wait_for(lambda: shown(table, "btn_prep") == (True, True))
-        press(fake, "prepare_table")
-        assert wait_for(lambda: shown(table, "btn_start") == (True, True))
-        writes = (table.unpacked, list(table.resets), list(table.placed), list(table.dial_writes), len(table.prepared))
-        said = len(table.broadcasts)
-        press(fake, "prepare_table")                                           # a stale or double click
-        assert wait_for(lambda: any("nada que hacer" in b for b in table.broadcasts[said:]))
-        assert (table.unpacked, list(table.resets), list(table.placed), list(table.dial_writes), len(table.prepared)) == writes
-        assert shown(table, "btn_start") == (True, True) and not game_started(table)
     finally:
         finish(stop, t, result)
 
@@ -574,46 +525,32 @@ def test_resuming_never_goes_through_the_gate(gate_live, cfg_file, tmp_path):
     assert code == 2 and not table.panels and not any("no esta lista" in b for b in table.broadcasts)
 
 
-@pytest.mark.gate
-def test_a_table_that_cannot_be_cleaned_says_so_and_can_be_retried(gate_live, cfg_file, tmp_path):
-    table, fake, _ = gate_live
-    table.in_bags = True
-    table.bot_deck = []                                   # the deck cannot be gathered: the restart machinery refuses
-    stop, t, result = run_main(gate_live, cfg_file, tmp_path)
-    try:
-        assert wait_for(lambda: shown(table, "btn_prep") == (True, True))
-        press(fake, "prepare_table")
-        assert wait_for(said(table, "No he podido limpiar", "arreglarla a mano"))
-        assert wait_for(lambda: shown(table, "btn_prep") == (True, True))
-        assert shown(table, "btn_start") == (False, False) and not game_started(table)
-    finally:
-        finish(stop, t, result)
-
-
 # ---------- the panel ----------
 def test_the_gate_buttons_exist_born_hidden_and_the_events_parse():
     xml = ui.panel_xml(["medusa"], ("hellboy",))
-    for ident, handler in (("btn_prep", "onPrepare"), ("btn_start", "onStart")):
+    for ident, handler in (("btn_clean", "onClean"), ("btn_prep", "onPrepare"), ("btn_start", "onStart")):
         assert re.search(rf'<Button [^>]*active="false"[^>]*id="{ident}" onClick="{handler}"', xml), ident
+    assert ui.parse_event({"event": "clean_table"}) == (Event.CLEAN, {})
     assert ui.parse_event({"event": "prepare_table"}) == (Event.PREPARE, {})
     assert ui.parse_event({"event": "start_game"}) == (Event.START, {})
     script = ui.handler_script(None, [*ui.element_ids(["medusa"], ("hellboy",)), *ui.GATE_BUTTONS])
-    assert 'send({event = "prepare_table"})' in script and 'send({event = "start_game"})' in script
-    assert '"btn_prep"' in script and '"btn_start"' in script
+    assert 'send({event = "clean_table"})' in script and 'send({event = "prepare_table"})' in script
+    assert 'send({event = "start_game"})' in script
+    assert '"btn_clean"' in script and '"btn_prep"' in script and '"btn_start"' in script
 
 
 def test_a_game_panel_never_touches_the_gate_buttons(brig):  # noqa: F811
     session, table, game, fake = brig
     _, states = session.panel_view()
-    assert "btn_prep" not in states and "btn_start" not in states
+    assert not {"btn_clean", "btn_prep", "btn_start"} & set(states)
 
 
 def test_the_gate_texts_exist_in_both_languages():
-    for lang, prep, start in (("es", "Limpiar mesa y preparar", "Comenzar partida"), ("en", "Clean table and prepare", "Start game")):
+    for lang, clean, prep, start in (("es", "Limpiar mesa", "Preparar", "Comenzar partida"), ("en", "Clean table", "Prepare", "Start game")):
         with i18n.using(lang):
-            assert i18n.t("panel.prep") == prep and i18n.t("panel.start") == start
-            assert start in i18n.t("gate.next") and start in i18n.t("gate.status.ready")
-            assert prep in i18n.t("gate.status.dirty")
+            assert i18n.t("panel.clean") == clean and i18n.t("panel.prep") == prep and i18n.t("panel.start") == start
+            assert start in i18n.t("gate.next") and start in i18n.t("gate.status.ready") and clean in i18n.t("gate.status.ready")
+            assert prep in i18n.t("gate.status.dirty") and clean in i18n.t("gate.status.dirty")
             for code in ("leftovers", "hand_cards", "cards_loose", "heroes_out", "pieces_on_board", "dials"):
                 assert i18n.t(f"gate.issue.{code}", detail="x") != f"gate.issue.{code}"
 
@@ -654,107 +591,6 @@ mkobj({guid = '04b2c9', type = 'Generic'})""")
     res = audit_script(tts, [], [("medusa:piece:04b2c9", ["04b2c9"]), ("medusa:dial:bcd809", ["bcd809", "zzz"]), ("other:houdini", ["h1"])])
     assert res["hands"] == {"Green": 2, "White": 0}
     assert res["present"] == {"medusa:piece:04b2c9": True, "medusa:dial:bcd809": False, "other:houdini": False}
-
-
-def take_map(runtime, bag="ab5e89", board="ec6f27", rid=1):
-    """Sends the take_map request; returns the reply (None while TTS has not answered)."""
-    n = len(runtime.globals().SENT)
-    runtime.execute(lua.request(lua.take_map(bag, board, (-0.35, 1.63, -3.18), 269.99, 0.85), rid))
-    if len(runtime.globals().SENT) <= n:
-        return None
-    got = conv(runtime.globals().SENT[n + 1])
-    assert "err" not in got, got
-    return json.loads(got["value"])
-
-
-def map_bag(tts, spawn_late=False):
-    """The map's infinite bag as live TTS has it: getObjects() lists nothing, takeObject (no GUID) gives a copy of the board;
-    with `spawn_late` the copy appears only when SPAWN() runs (the callback is called then)."""
-    tts.execute("""
-mkobj({guid = 'ab5e89', type = 'Infinite', name = 'Custom_Model_Infinite_Bag', infinite = true,
-       items = {{guid = 'ec6f27', name = 'B.P.R.D. HQ', type = 'Board'}}})
-TAKES = 0
-""")
-    if spawn_late:
-        tts.execute("""
-local bag = getObjectFromGUID('ab5e89')
-bag.takeObject = function(t)
-  TAKES = TAKES + 1
-  assert(t.guid == nil, 'an infinite bag is asked WITHOUT a GUID')
-  SPAWN = function() t.callback_function(mkobj({guid = 'newmap', type = 'Board', pos = Vector(t.position)})) end
-end""")
-
-
-def test_the_map_comes_out_of_its_bag_laid_flat_scaled_and_locked(tts):  # noqa: F811
-    map_bag(tts)
-    assert tts.eval("#getObjectFromGUID('ab5e89').getObjects()") == 0, "live, an infinite bag lists nothing"
-    res = take_map(tts)
-    assert res == {"taken": True, "guid": "ec6f27x"}
-    assert tts.eval("getObjectFromGUID('ec6f27x').locked") is True
-    assert tts.eval("getObjectFromGUID('ec6f27x').scale.x") == pytest.approx(0.85)
-    assert tts.eval("getObjectFromGUID('ec6f27x').pos.z") == pytest.approx(-3.18)
-    assert tts.eval("#getObjectFromGUID('ab5e89').items") == 1, "an infinite bag is not emptied"
-
-
-def test_the_map_reply_comes_from_the_spawn_callback(tts):  # noqa: F811
-    map_bag(tts, spawn_late=True)
-    assert take_map(tts) is None, "nothing is answered while the copy has not spawned"
-    tts.execute("SPAWN()")
-    got = conv(tts.globals().SENT[tts.eval("#SENT")])
-    assert json.loads(got["value"]) == {"taken": True, "guid": "newmap"}
-    assert tts.eval("getObjectFromGUID('newmap').locked") is True
-    assert tts.eval("getObjectFromGUID('newmap').scale.x") == pytest.approx(0.85)
-
-
-def test_a_copy_that_never_spawns_is_answered_after_the_wait_and_a_late_one_still_settles(tts):  # noqa: F811
-    map_bag(tts, spawn_late=True)
-    assert take_map(tts) is None
-    tts.execute("for _, f in ipairs(TIMERS) do f() end")
-    n = tts.eval("#SENT")
-    assert json.loads(conv(tts.globals().SENT[n])["value"]) == {"taken": False, "why": "spawning"}
-    tts.execute("SPAWN()")
-    assert tts.eval("#SENT") == n, "one reply per request"
-    assert tts.eval("getObjectFromGUID('newmap').locked") is True
-
-
-def test_a_map_copy_an_earlier_press_left_is_reused_never_duplicated(tts):  # noqa: F811
-    map_bag(tts, spawn_late=True)
-    assert take_map(tts) is None
-    tts.execute("SPAWN()")                                      # the first press: the copy arrives (marked by our callback)
-    res = take_map(tts, rid=2)
-    assert res == {"taken": True, "guid": "newmap", "reused": True}
-    assert tts.eval("TAKES") == 1, "no second copy"
-
-
-def test_a_pad_board_near_the_spot_is_not_taken_for_our_copy(tts):  # noqa: F811
-    map_bag(tts)
-    tts.execute("mkobj({guid = '45c723', type = 'Board', pos = Vector(0, 1, 0)})")
-    assert take_map(tts)["guid"] == "ec6f27x"
-
-
-def test_a_copy_that_is_not_a_board_is_destroyed(tts):  # noqa: F811
-    tts.execute("mkobj({guid = 'ab5e89', type = 'Infinite', infinite = true, items = {{guid = 'other1', name = 'Another', type = 'Generic'}}})")
-    assert take_map(tts) == {"taken": False, "why": "take"}
-    assert tts.eval("#OBJECTS") == 1
-
-
-def test_a_normal_bag_still_gives_the_board_by_guid_and_must_list_it(tts):  # noqa: F811
-    tts.execute("mkobj({guid = 'ab5e89', type = 'Bag', items = {{guid = 'other1', name = 'Another'}}})")
-    assert take_map(tts) == {"taken": False, "why": "board"}
-    tts.execute("mkobj({guid = 'ab5e90', type = 'Bag', items = {{guid = 'ec6f27', name = 'Map', type = 'Board'}}})")
-    assert take_map(tts, bag="ab5e90", rid=2) == {"taken": True, "guid": "ec6f27"}
-
-
-def test_the_map_is_taken_only_from_the_configured_bag(tts):  # noqa: F811
-    assert take_map(tts)["why"] == "bag"
-    assert tts.eval("#OBJECTS") == 0
-
-
-def test_the_map_script_names_one_bag_and_checks_the_copy():
-    script = lua.take_map("ab5e89", "ec6f27", (0.0, 1.5, 0.0), 270.0, 0.85)
-    assert script.count('getObjectFromGUID("ab5e89")') == 1 and "callback_function" in script and "UI." not in script
-    with pytest.raises(ValueError):
-        lua.take_map("ab5e89", "ec6f27", (0.0, 1.5, 0.0), 270.0, 50.0)
 
 
 # ---------- cleaning: every dirty state ends clean ----------
@@ -825,70 +661,6 @@ def pristine(table, state):
     assert table.moves == [] and table.deal_calls == []
 
 
-@pytest.mark.gate
-@pytest.mark.parametrize("name", list(DIRTY))
-def test_every_dirty_state_ends_clean_and_prepared(gate_live, cfg_file, tmp_path, name):
-    table, fake, _ = gate_live
-    dirt, over = DIRTY[name]
-    table.make_ready()
-    state = tmp_path / "s.json"
-    dirt(table, state)
-    stop, t, result = run_main(gate_live, cfg_file, tmp_path, **over)
-    try:
-        assert wait_for(lambda: shown(table, "btn_prep") == (True, True))
-        assert shown(table, "btn_start") == (False, False), f"{name}: dirty, yet the start is offered"
-        press(fake, "prepare_table")
-        assert wait_for(lambda: shown(table, "btn_start") == (True, True)), table.broadcasts[-4:]
-        assert shown(table, "btn_prep") == (False, False)
-        pristine(table, state)
-        assert table.zoom_cleared >= 1, "the zoom copies are removed"
-        assert any("Mesa limpia y preparada" in b for b in table.broadcasts) and not game_started(table)
-    finally:
-        finish(stop, t, result)
-
-
-@pytest.mark.gate
-def test_a_table_that_is_dirty_in_every_way_at_once_ends_clean(gate_live, cfg_file, tmp_path):
-    table, fake, _ = gate_live
-    table.make_ready()
-    state = tmp_path / "s.json"
-    mid_game(table, state)
-    cards_scattered(table, state)
-    table.deck_face_up = True
-    table.leftovers.update({"addeca": "DeckCustom", "5085eb": "Custom_Assetbundle"})
-    table.piece_dist.clear()
-    stop, t, result = run_main(gate_live, cfg_file, tmp_path)
-    try:
-        assert wait_for(lambda: shown(table, "btn_prep") == (True, True))
-        press(fake, "prepare_table")
-        assert wait_for(lambda: shown(table, "btn_start") == (True, True))
-        pristine(table, state)
-        assert sorted(table.removed) == ["5085eb", "addeca"] and table.leftovers == {}
-    finally:
-        finish(stop, t, result)
-
-
-@pytest.mark.gate
-def test_what_the_cleaning_cannot_fix_is_named_and_the_button_stays(gate_live, cfg_file, tmp_path):
-    table, fake, _ = gate_live
-    table.make_ready()
-    table.sticky = 3                                   # three cards in the human's hand that the bot's reset cannot move
-    table.piece_dist.clear()
-    stop, t, result = run_main(gate_live, cfg_file, tmp_path)
-    try:
-        assert wait_for(lambda: shown(table, "btn_prep") == (True, True))
-        press(fake, "prepare_table")
-        assert wait_for(said(table, "queda esto", "Red 3"))
-        assert shown(table, "btn_prep") == (True, True) and shown(table, "btn_start") == (False, False)
-        assert all(d == 99.0 for d in table.piece_dist.values()), "the rest was cleaned"
-        assert "Red 3" in " ".join(table.broadcasts)
-        table.sticky = 0                                # the human takes them away; pressing again finishes
-        press(fake, "prepare_table")
-        assert wait_for(lambda: shown(table, "btn_start") == (True, True))
-    finally:
-        finish(stop, t, result)
-
-
 def test_cards_are_gathered_from_the_whole_table_not_only_from_the_known_spots():
     narrow = lua.Scope(("Green", "White"), ("906a7a", "b7a0b8"), ((6.0, -18.0),))
     wide = lua.Scope(("Green", "White"), ("906a7a", "b7a0b8"), ((6.0, -18.0),), everywhere=True)
@@ -906,32 +678,6 @@ def test_the_cleaning_session_searches_the_whole_table(gate_live, cfg_file):
         assert Session._scope(session).everywhere is False
     finally:
         client.close()
-
-
-def test_a_pair_that_is_not_medusa_and_hellboy_is_reset_but_nothing_is_unpacked_over_its_decks(monkeypatch):
-    calls = []
-    monkeypatch.setattr(table_reset, "reset_cards_and_pieces", lambda client, session, raw, arrange=False: calls.append("reset") or [])
-
-    class Hero:
-        def __init__(self, name):
-            self.name = name
-
-    class Game:
-        def hero_def(self, p):
-            return Hero(["Houdini", "Doctor Strange"][p])
-
-    class Previous:
-        game, bot, human = Game(), 0, 1
-
-    class Client:
-        def call_lua(self, script):
-            calls.append(script.split("\n", 1)[0])
-
-    def no_unpack(*a):
-        raise AssertionError("nothing may be unpacked over the other decks")
-    lines, session = table_reset.clean_and_prepare(Client(), lambda cfg: 1 / 0, types.SimpleNamespace(raw={}), no_unpack, print, previous=Previous())
-    assert calls == ["reset"]
-    assert session is None and len(lines) == 1 and "Houdini" in lines[0] and "Doctor Strange" in lines[0] and "bolsas" in lines[0]
 
 
 def test_the_two_faced_tokens_have_a_starting_face_in_the_data():

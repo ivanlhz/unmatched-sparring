@@ -43,7 +43,8 @@ class Event(str, Enum):
     LOOK = "look_hand"         # "Look at bot's hand": the bot's cards face up in a row (discard one, e.g. Confront)
     LOOK_PING = "look_ping"    # the human's ping (Tab) on a card of that row: the one that is discarded
     CHOICE = "choice"          # btn_choice_<i>: option i (1..6) of the pending effect choice, in {"i": i}
-    PREPARE = "prepare_table"  # "Clean table and prepare": only before the game (the pre-game gate, `sparring/table_reset.py`)
+    CLEAN = "clean_table"      # "Clean table": removes every hero and map (the pre-game gate, `sparring/table_reset.py`)
+    PREPARE = "prepare_table"  # "Prepare": reads the map and the two heroes the player dropped and lays them out
     START = "start_game"       # "Start game": ends the gate and lets the normal start flow run
 
 
@@ -64,7 +65,7 @@ FIXED_BUTTONS = {"btn_maneuver": "onManeuver", "btn_scheme": "onScheme", "btn_re
                  "btn_value": "onValueSend", "btn_mulligan": "onMulligan", "btn_ready": "onReady",
                  "btn_restart": "onRestart", "btn_boost": "onBoost", "btn_noboost": "onNoBoost",
                  "btn_look": "onLook", **dict.fromkeys(CHOICE_BUTTONS, "onChoice")}
-GATE_BUTTONS = ("btn_prep", "btn_start")     # born hidden; only the pre-game gate shows them (never part of a game's panel states)
+GATE_BUTTONS = ("btn_clean", "btn_prep", "btn_start")     # born hidden; only the pre-game gate shows them (never part of a game's panel states)
 SETUP_ONLY = ("btn_mulligan", "btn_ready")
 GAME_ONLY = ("btn_restart",)
 
@@ -161,6 +162,7 @@ function onRestart() send({{event = "restart"}}) end
 function onBoost() send({{event = "boost"}}) end
 function onNoBoost() send({{event = "no_boost"}}) end
 function onLook() send({{event = "look_hand"}}) end
+function onClean() send({{event = "clean_table"}}) end
 function onPrepare() send({{event = "prepare_table"}}) end
 function onStart() send({{event = "start_game"}}) end
 function onChoice(player, btn, id)
@@ -264,7 +266,8 @@ def panel_xml(target_ids: list[str], attacker_ids: tuple[str, ...] = DEFAULT_ATT
                    _button("btn_prep", "onPrepare", t("panel.prep"), 16).replace("<Button ", '<Button active="false" '))
             + _row(_button("btn_ready", "onReady", t("panel.ready")),            # ones: the gate precedes the setup, never overlaps it
                    _button("btn_start", "onStart", t("panel.start"), 16).replace("<Button ", '<Button active="false" '))
-            + _row(_button("btn_restart", "onRestart", t("panel.restart")))
+            + _row(_button("btn_restart", "onRestart", t("panel.restart")),
+                   _button("btn_clean", "onClean", t("panel.clean"), 16).replace("<Button ", '<Button active="false" '))
             + _row(_button("btn_undo", "onUndoGameOver", t("panel.undo")))
             + f'<InputField placeholder="{t("panel.value_placeholder")}" onValueChanged="onValueEdit" preferredHeight="40"/>'
             + _row(_button("btn_value", "onValueSend", t("panel.send_value"))) + '</VerticalLayout>')

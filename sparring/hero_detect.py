@@ -41,17 +41,26 @@ def hero_slugs() -> list[str]:
     return sorted(p.stem for p in TTS_DIR.glob("*.json"))
 
 
-def read_table(client, deck_zones: dict[str, str] | None = None) -> TableReading:
-    """One read (`table_heroes`) with the CardID ranges and the miniatures of every hero that has TTS data.
-    `deck_zones` ({"bot": GUID, "human": GUID} of the Scripting zones over the decks): a pile inside one is that side's."""
-    slugs = hero_slugs()
-    tables = [load_hero_table(s) for s in slugs]
+def table_script(deck_zones: dict[str, str] | None = None) -> str:
+    """The read (`table_heroes`) with the CardID ranges, identities and miniatures of every hero that has TTS data."""
+    tables = [load_hero_table(s) for s in hero_slugs()]
     guids = sorted({g for t in tables for f in t.fighters.values() for g in f.pieces})
-    res = client.call_lua(lua.table_heroes([t.card_ids for t in tables], guids, [t.identity for t in tables],
-                                           MIN_CARDS, deck_zones)) or {}
+    return lua.table_heroes([t.card_ids for t in tables], guids, [t.identity for t in tables], MIN_CARDS, deck_zones)
+
+
+def parse_table(res) -> TableReading:
+    """The reading of what `table_script` answered."""
+    slugs = hero_slugs()
+    res = res or {}
     pieces = res.get("pieces") if isinstance(res.get("pieces"), dict) else {}
     piles = [_with_catalog(p, slugs) for p in res.get("piles") or []]
     return TableReading(piles, {g: (p["x"], p["z"]) for g, p in pieces.items()}, slugs)
+
+
+def read_table(client, deck_zones: dict[str, str] | None = None) -> TableReading:
+    """One read (`table_heroes`) with the CardID ranges and the miniatures of every hero that has TTS data.
+    `deck_zones` ({"bot": GUID, "human": GUID} of the Scripting zones over the decks): a pile inside one is that side's."""
+    return parse_table(client.call_lua(table_script(deck_zones)))
 
 
 def _with_catalog(pile: dict, playable: list[str]) -> dict:

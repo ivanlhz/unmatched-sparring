@@ -70,28 +70,45 @@ def character_slot(raw: dict, side: str) -> Slot | None:
     return slot if isinstance(slot, Slot) else None
 
 
+@dataclass(frozen=True)
+class Item:
+    """One object of a hero that has a slot: the slot role it goes to, a key that names it (for the calibration), the GUIDs of
+    its states and what it is ("deck", "dial", "token" or "piece")."""
+    role: str
+    key: str
+    guids: tuple[str, ...]
+    kind: str
+
+
+def items(table: HeroTable) -> list[Item]:
+    """The objects of `table`'s hero in the order their slots are given: the deck, the first life dial, the other life dials,
+    the counter dials, the special tokens and the miniatures. The character card has its own slot (the gate lays it when it
+    takes it out of the deck). The calibration reads the objects in this same order."""
+    dials = [(fid, f.dial) for fid, f in table.fighters.items() if f.dial]
+    out = [Item("deck", "deck", (table.deck_guid,), "deck")]
+    if dials:
+        out.append(Item("dial", f"dial:{dials[0][0]}", (dials[0][1],), "dial"))
+    out += [Item("sidekick_dials", f"dial:{fid}", (g,), "dial") for fid, g in dials[1:]]
+    out += [Item("counter_dials", f"counter:{name}", (g,), "dial") for name, g in table.counter_dials.items()]
+    out += [Item("tokens", f"token:{name}", (g,), "token") for name, g in table.tokens.items()]
+    out += [Item("pieces", f"piece:{fid}", f.pieces, "piece") for fid, f in table.fighters.items()]
+    return out
+
+
 def plan(raw: dict, side: str, table: HeroTable) -> Plan:
     """The placements of `table`'s hero on `side` (everything but the character card, which the gate lays when it takes it
     out of the deck)."""
     have = slots(raw, side)
     out = Plan()
-    dials = [f.dial for f in table.fighters.values() if f.dial]
-    wanted: list[tuple[str, tuple[str, ...]]] = [("deck", (table.deck_guid,))]
-    if dials:
-        wanted.append(("dial", (dials[0],)))
-    wanted += [("sidekick_dials", (g,)) for g in dials[1:]]
-    wanted += [("counter_dials", (g,)) for g in table.counter_dials.values()]
-    wanted += [("tokens", (g,)) for g in table.tokens.values()]
-    wanted += [("pieces", f.pieces) for f in table.fighters.values()]
     used: dict[str, int] = {}
-    for role, guids in wanted:
-        slot = have.get(role)
+    for item in items(table):
+        slot = have.get(item.role)
         if isinstance(slot, list):
-            n = used.get(role, 0)
-            used[role] = n + 1
+            n = used.get(item.role, 0)
+            used[item.role] = n + 1
             slot = slot[n] if n < len(slot) else None
         if slot is None:
-            out.unplaced.append(guids[0])
+            out.unplaced.append(item.guids[0])
         else:
-            out.placements.append(Placement(role, guids, slot))
+            out.placements.append(Placement(item.role, item.guids, slot))
     return out

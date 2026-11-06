@@ -229,8 +229,27 @@ The bot creates a panel floating over the table. A status line at the top says w
 | GAME | **Undo game over** | Shown only after the game ended, to fix a false win. |
 | GAME | value box + **Send value** | A number for something the engine cannot compute on your side (a boost, On Earth As It Is In Hell...). |
 
-### Before the game: check, clean, start
-On a fresh start (not `--resume`) nothing begins by itself. The bot reads the loaded table and, if it is not arranged for a new game (leftover objects, cards in hands, discards, combat or anywhere on the table, miniatures on the board, dials below full, a deck face up, a saved game of the bot...), tells you what is out of place in the chat and shows **Clean table and prepare** on the right panel. On the official tournament save as it loads (no map out, no discard zones, two decks, a d20, the Dice Cannon and two clocks in the middle, every hero in its bag) pressing it removes those six centre objects (only by GUID and expected name), creates the discard zones, lays the B.P.R.D. HQ map on the table (`prepare_map` in the configuration) and takes Medusa's and Hellboy's objects out of their bags; everything else of the save stays. On any table it also gathers every card of Medusa and Hellboy into their decks, sets the miniatures off the board, refills the dials, resets Hellboy's form and tokens, deletes the saved game and leaves both heroes ready, without placing pieces, dealing or starting. Then set the table up with the heroes and the map you want to test and press **Start game**: the bot reads the heroes and the map from the table and the normal set-up below begins. `"pregame_gate": false` in `config\table.json` skips all this. The exact definition of a ready table is in `sparring/table_reset.py`.
+### Before the game: clean, drag, prepare, start
+On a fresh start (not `--resume`) nothing begins by itself. The bot reads the loaded table and, if it is not arranged for a new game, tells you in the chat what is out of place and shows three buttons on the right panel:
+
+1. **Clean table** removes every hero (decks, cards, character cards, bags, miniatures, dials, tokens) and every map from the table, plus the loose leftovers of the official tournament save (the two 78-card decks, the d20, the Dice Cannon and the two clocks, only by GUID and expected name), creates the discard zones and deletes the saved game. The roster of infinite bags on the right of the table is never touched.
+2. **Drag** the map and the two heroes from that roster (dragging gives a copy): the bot's hero to the bot's half of the table (**+x**), yours to yours (**-x**), halves split at x = 0. Leave the hero bags closed or open them and spread their contents, either works.
+3. **Prepare** reads the table and says what it found ("Bot: Medusa, Tu: Hellboy, Mapa: B.P.R.D. Headquarters"). A hero the bot cannot play, a missing or repeated hero, two heroes on one half or no map is named in the chat and nothing is touched. Otherwise it lays the map at the scale, place and rotation calibrated for it, takes the heroes out of their bags, takes each character card out of its deck, gathers every card into its deck, refills the dials, sets the miniatures off the board and lays decks, character cards, dials, tokens and miniatures on the slots calibrated for that map. It places no piece, deals nothing and starts nothing.
+4. **Start game** (offered once the table is ready) reads the heroes and the map again and the normal set-up below begins.
+
+`"pregame_gate": false` in `config\table.json` skips all this. The exact definition of a ready table is in `sparring/table_reset.py`; how the player sets the table is in `sparring/player_setup.py`.
+
+#### Calibrating a map
+Each map is bigger or smaller than the next, so where its decks and dials go differs. The calibration of a map (its scale, place, rotation and the slot of every deck, character card, dial, token and miniature of both sides) lives in `config\map_setups.json`, one entry per map; B.P.R.D. HQ is calibrated. A map without an entry is used as it lies (not scaled or moved) with the default `layout` of `config\table.json`, and the chat says so and prints the command below. Nobody edits the file by hand:
+
+1. In TTS put the map on the table, scale and turn it as you want it, take both heroes out of their bags (the bot's on the +x half, yours on the -x half) and lay every deck, character card, dial, token and miniature where it should go.
+2. Close the bot (it uses the same port) and run, read only:
+
+```powershell
+uv run python -m sparring.calibrate --map azuchi-castle
+```
+
+`--map` is the key of `data\maps\catalog.json`; `--dry-run` shows what would be written without saving. Calibrate with the heroes that have the most objects (a hero with more objects than the map has slots keeps the extra ones where they were unpacked and the chat says so).
 
 ### Set-up and mulligan
 

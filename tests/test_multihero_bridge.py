@@ -353,6 +353,7 @@ def world():
             return rt.eval("count")(guid)
 
         def run(self, plan):
+            plan = [row[:5] for row in plan]          # these cards carry no images: the identity check has its own tests
             return json.loads(rt.execute(lua.unpack_from_bags(plan).split("\n", 1)[1]))
     return W()
 

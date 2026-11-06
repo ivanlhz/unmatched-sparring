@@ -1,7 +1,7 @@
 """The pre-game gate on the OFFICIAL tournament table exactly as the save loads it (tests/fixtures/official_table.json:
 GUID, TTS object name, position and bag contents of its 170 objects, taken from the save): no map out, no discard zones,
-the six centre objects, every hero and map in a bag. Pressing the button must turn it into the prepared state and touch
-nothing else."""
+the six centre objects, every hero and map in an infinite bag of the roster. Clean table must touch nothing but the leftovers
+of the save; the player then drags a map and two heroes from the roster and Prepare turns it into the prepared state."""
 from __future__ import annotations
 
 import json
@@ -11,28 +11,24 @@ from pathlib import Path
 
 import pytest
 
-from sparring import table_prep, table_reset
+from sparring import table_reset
 from sparring.cards import repo_toplevel
-from sparring.session import SessionError
 from sparring.tts import lua
 from sparring.tts.hero_table import load_hero_table
 from test_official_save_setup import KINDS, REMOVED, raw_config
 from test_play import cfg_file, free_port, live  # noqa: F401
-from test_session import Table, set_bot_hand
 from test_review10 import conv
-from test_table_reset import (BOT_DECK, said, GateTable, client_for, finish, game_started, press, run_main, session_for, shown,
-                              wait_for)
-from sparring.board import Board
-from sparring.state import Game
+from test_table_reset import said, client_for, finish, game_started, press, run_main, session_for, shown, wait_for
+from test_player_setup import Obj, SetupTable
 
 FIXTURE = Path(__file__).parent / "fixtures" / "official_table.json"
 SAVE = repo_toplevel() / "saves" / "Unmatched Official Tournament Table October 2026 (Hellboy).json"
 OBJECTS = {o["guid"]: o for o in json.loads(FIXTURE.read_text(encoding="utf-8"))["objects"]}
 PAD_KEY = next(o["image_key"] for o in OBJECTS.values() if o["name"] == "Custom_Board")
 PAD_IMAGE = f"https://img.test/{PAD_KEY}/"
-WRITES_ALLOWED = {"clear_markings", "create_panel", "set_panel", "broadcast", "prepare_table", "take_map", "unpack_from_bags",
-                  "reset_deck", "place_piece", "set_health_dials", "flip_decks_down", "set_token_face", "set_state",
-                  "composite", "hold", "name_pieces", "take_character_cards"}
+WRITES_ALLOWED = {"clear_markings", "create_panel", "set_panel", "broadcast", "prepare_table", "clear_setup", "place_map",
+                  "unpack_from_bags", "reset_deck", "place_piece", "set_health_dials", "flip_decks_down", "set_token_face",
+                  "set_state", "composite", "hold", "name_pieces", "take_character_cards", "arrange_objects"}
 
 
 def run_real_lua(script: str, world: str = ""):
@@ -52,22 +48,18 @@ def run_real_lua(script: str, world: str = ""):
     return json.loads(replies[0]) if replies else None
 
 
-class OfficialTable(GateTable):
-    """The official table as it loads: heroes in bags, no map, no zones, the six objects of the centre."""
+class OfficialTable(SetupTable):
+    """The official table as it loads: heroes and maps in the roster (nothing of them on the table), no zones, the six objects of
+    the centre; the player's drops come from `SetupTable`."""
 
     def __init__(self):
-        super().__init__()
-        self.in_bags = True
+        super().__init__("medusa", "hellboy")
+        self.positions = {n: i + 1 for i, n in enumerate(self.nick.values())}
         self.leftovers = {g: o["name"] for g, o in OBJECTS.items() if g in REMOVED}
-        self.boards = [{"guid": g, "image": f"https://img.test/{o['image_key']}/"} for g, o in OBJECTS.items()
-                       if o["name"] == "Custom_Board"]
+        self.world = [Obj("pad", g, image=f"https://img.test/{o['image_key']}/") for g, o in OBJECTS.items() if o["name"] == "Custom_Board"]
         self.zones_on_table: set[str] = set()
         self.new_zones = {"bot_discard_zone": "zonebot", "human_discard_zone": "zonehum"}
-        self.map_taken: list[str] = []
         self.destroyed: list[str] = []
-        self.inner_on_table = set()                        # the inner bags are inside the heroes' infinite bags
-        self.outers = {t.bag: (OBJECTS[t.bag]["nickname"], [c["guid"] for c in OBJECTS[t.bag]["contains"]])
-                       for t in (load_hero_table("medusa"), load_hero_table("hellboy"))}
 
     def do_table_audit(self, s):
         out = super().do_table_audit(s)
@@ -89,43 +81,25 @@ class OfficialTable(GateTable):
         return out
 
     def do_piece_spaces_by_guid(self, s):
-        if all(OBJECTS.get(b["guid"], {}).get("name") == "Custom_Board" for b in self.boards):      # no map on the table: the real script, not a fake's answer
+        if all(o.kind == "pad" for o in self.world if o.kind in ("pad", "board")):      # no map on the table: the real script, not a fake's answer
             return run_real_lua(s)
         return super().do_piece_spaces_by_guid(s)
-
-    def do_take_map(self, s):
-        bag = re.search(r'getObjectFromGUID\("(\w+)"\)', s).group(1)
-        held = OBJECTS.get(bag, {}).get("contains", [])
-        world = (f"mkobj({{guid = '{bag}', type = 'Infinite', name = 'Custom_Model_Infinite_Bag', infinite = true, "
-                 f"items = {{{{guid = '{held[0]['guid']}', name = 'map', type = 'Board'}}}}}})") if held else ""
-        out = run_real_lua(s, world)
-        if out and out.get("taken"):
-            where = re.search(r"local SPOT = Vector\(([^)]*)\)", s).group(1)
-            self.map_taken.append(f"{bag}:{held[0]['guid']}:{where}")
-            self.boards.append({"guid": "newbrd", "image": Table().boards[0]["image"]})
-            out["guid"] = "newbrd"
-        return out
-
-    def do_unpack_from_bags(self, s):
-        was = self.in_bags
-        out = super().do_unpack_from_bags(s)
-        if was and not self.in_bags:
-            self.positions = {n: i + 1 for i, n in enumerate(self.nick.values())}
-            self.piece_dist = {n: 99.0 for n in self.positions}
-            self.bot_deck = list(BOT_DECK)
-            self.dials = {g: {"found": True, "name": "dial", "value": v, "max": 20} for g, v in self.dial_start.items()}
-        return out
 
 
 @pytest.fixture
 def official(live, monkeypatch):  # noqa: F811
     _, fake, ports = live
     table = OfficialTable()
-    table.dial_start = {"bcd809": 16, "046660": 18, "18c384": 6, "e17c66": 0}
-    table.bot_deck, table.human_count, table.positions, table.dials = [], 0, {}, {}
     fake.return_value = table
     monkeypatch.setattr(table_reset, "PANEL_SETTLE", 0.0)
     return table, fake, ports
+
+
+def drag_prepared_pair(table):
+    """The player drags the B.P.R.D. HQ board and Medusa's and Hellboy's bags from the roster: Medusa to the bot's half."""
+    table.drop_map("bprd-hq")
+    table.drop_bag("medusa", 7)
+    table.drop_bag("hellboy", -7)
 
 
 # ---------- the fixture is the save ----------
@@ -140,15 +114,22 @@ def test_the_fixture_is_the_official_save():
 def test_the_official_table_has_what_the_configuration_expects():
     assert len(OBJECTS) == 170
     assert {g: OBJECTS[g]["name"] for g in REMOVED} == KINDS, "the names the removal guard expects are the ones the save has"
-    plan = table_prep.map_plan(raw_config())
-    assert plan is not None and plan.bag in OBJECTS and plan.board_guid in [c["guid"] for c in OBJECTS[plan.bag]["contains"]]
-    assert "B.P.R.D" in OBJECTS[plan.bag]["nickname"]
     pads = [g for g, o in OBJECTS.items() if o["name"] == "Custom_Board"]
-    assert sorted(pads) == ["45c723", "6bd0e3", "8315f0"] and plan.board_guid not in pads, "no map on the table, only the pads"
+    assert sorted(pads) == ["45c723", "6bd0e3", "8315f0"], "no map on the table, only the pads"
     assert not any(g in OBJECTS for g in ("906a7a", "b7a0b8")), "the save has no discard zones"
     for slug in ("medusa", "hellboy"):
         table = load_hero_table(slug)
         assert table.inner_bag in [c["guid"] for c in OBJECTS[table.bag]["contains"]], slug
+
+
+def test_the_roster_is_what_the_player_drags_from_infinite_bags_far_from_the_play_area():
+    """Dragging from an infinite bag gives a copy of its single object: a hero's inner bag, a map's board."""
+    assert OBJECTS["ab5e89"]["name"] == "Custom_Model_Infinite_Bag" and "B.P.R.D" in OBJECTS["ab5e89"]["nickname"]
+    assert [c["guid"] for c in OBJECTS["ab5e89"]["contains"]] == ["ec6f27"]
+    heroes = {load_hero_table(slug).bag for slug in ("medusa", "hellboy", "bigfoot", "houdini")}
+    assert all(OBJECTS[b]["name"] == "Custom_Model_Infinite_Bag" for b in heroes)
+    roster = [g for g, o in OBJECTS.items() if "Infinite_Bag" in o["name"]]
+    assert len(roster) > 100 and all(abs(OBJECTS[g]["pos"][2]) > 36 for g in roster), "outside the limits Clean table works in"
 
 
 def test_nothing_in_the_removal_list_is_a_bag_a_counter_a_hand_zone_or_the_pads():
@@ -159,20 +140,40 @@ def test_nothing_in_the_removal_list_is_a_bag_a_counter_a_hand_zone_or_the_pads(
     assert set(shelves).isdisjoint(REMOVED)
 
 
+def test_clean_table_script_destroys_nothing_on_the_official_table_as_it_loads():
+    """The REAL script on a world made of the save: no object of it is a hero's or a map's, so the cleaning finds nothing."""
+    from sparring import player_setup
+    kinds = {"Custom_Model_Infinite_Bag": "Infinite", "Infinite_Bag": "Infinite", "DeckCustom": "Deck", "CardCustom": "Card",
+             "Custom_Board": "Board", "HandTrigger": "ScriptingTrigger", "ScriptingTrigger": "ScriptingTrigger",
+             "FogOfWarTrigger": "ScriptingTrigger"}
+    world = []
+    for g, o in OBJECTS.items():
+        nick = re.sub(r"[^A-Za-z0-9 ._:-]", " ", o["nickname"] or "")
+        x, y, z = o["pos"]
+        kind = kinds.get(o["name"], "Custom_Model")
+        extra = {"Card": ", cid = 1, owner = 'rules'", "Deck": ", cards = {}"}.get(kind, "")
+        world.append(f"mkobj({{guid = '{g}', type = '{kind}', name = '{nick}', pos = Vector({x}, {y}, {z}){extra}}})")
+    world.append("for _, o in ipairs(getObjects()) do if o.type == 'Board' then "
+                 "o.getCustomObject = function() return {image = 'https://x.test/ugc/AB/98097621768AC24FF097E6997A46CF69EE91FE46/'} end end end")
+    got = run_real_lua(player_setup.clear_script(raw_config()), "\n".join(world))
+    assert got == {"cards": 0, "boards": 0, "bags": 0, "objects": 0, "mixed": []}, got
+
+
 # ---------- the audit ----------
 @pytest.mark.gate
 def test_the_official_table_is_reported_not_ready_and_the_game_does_not_start(official, cfg_file, tmp_path):
     table, fake, _ = official
     stop, t, result = run_main(official, cfg_file, tmp_path)
     try:
-        assert wait_for(lambda: said(table, "Medusa y Hellboy")() and shown(table, "btn_prep") == (True, True))
+        assert wait_for(lambda: said(table, "pulsa Preparar")() and shown(table, "btn_prep") == (True, True))
         text = " ".join(table.broadcasts)
         for needle in ("objetos sueltos", "no hay ningun mapa", "faltan las zonas de descarte", "siguen en la bolsa"):
             assert needle in text, needle
         for guid in ("addeca", "cb6cbc", "65be8d", "5085eb", "6126d5", "790396"):
             assert guid in text, guid
         assert shown(table, "btn_start") == (False, False) and not game_started(table)
-        assert table.panels and all(s in ((False, False),) for k, s in table.panels[0][1].items() if k not in ("btn_prep", "btn_start"))
+        assert table.panels and all(s in ((False, False),) for k, s in table.panels[0][1].items()
+                                    if k not in ("btn_clean", "btn_prep", "btn_start"))
     finally:
         finish(stop, t, result)
 
@@ -204,60 +205,61 @@ def test_the_unreadable_map_and_heroes_are_one_short_line_while_the_gate_waits(o
         finish(stop, t, result)
 
 
-# ---------- the button ----------
+# ---------- the buttons ----------
+READS = {"list_boards", "table_audit", "deck_facing", "reset_plan", "piece_spaces_by_guid", "read_health_dials", "zone_overlaps",
+         "inspect_objects", "deck_identities", "hand_identities", "find_pieces_by_name", "find_dials_by_name", "read_hand",
+         "read_discard", "count_hand", "snapshot", "inspect_guids", "list_bags", "table_heroes"}
+
+
 @pytest.mark.gate
-def test_the_button_turns_the_official_table_into_the_prepared_state_and_touches_nothing_else(official, cfg_file, tmp_path):
+def test_clean_table_creates_the_zones_removes_the_six_objects_and_touches_nothing_else(official, cfg_file, tmp_path):
     table, fake, _ = official
     stop, t, result = run_main(official, cfg_file, tmp_path)
     try:
-        assert wait_for(lambda: shown(table, "btn_prep") == (True, True))
+        assert wait_for(lambda: shown(table, "btn_clean") == (True, True))
+        press(fake, "clean_table")
+        assert wait_for(said(table, "Arrastra ahora el mapa")), table.broadcasts[-5:]
+        assert sorted(table.destroyed) == sorted(REMOVED) and table.leftovers == {}
+        assert table.zones_on_table == {"zonebot", "zonehum"}
+        assert [o.kind for o in table.world] == ["pad"] * 3, "the table pads stay"
+        assert table.unpacked == 0 and table.arranged == {} and not game_started(table)
+        assert set(table.sent) <= WRITES_ALLOWED | READS, set(table.sent)
+    finally:
+        finish(stop, t, result)
+
+
+@pytest.mark.gate
+def test_clean_then_drag_then_prepare_turns_the_official_table_into_the_prepared_state(official, cfg_file, tmp_path):
+    table, fake, _ = official
+    stop, t, result = run_main(official, cfg_file, tmp_path)
+    try:
+        assert wait_for(lambda: shown(table, "btn_clean") == (True, True))
+        press(fake, "clean_table")
+        assert wait_for(said(table, "Arrastra ahora el mapa"))
+        drag_prepared_pair(table)
         press(fake, "prepare_table")
         assert wait_for(lambda: shown(table, "btn_start") == (True, True)), table.broadcasts[-5:]
         assert shown(table, "btn_prep") == (False, False)
-        # removes: exactly the six, nothing more
-        assert sorted(table.destroyed) == sorted(REMOVED) and table.leftovers == {}
-        # creates: the two discard zones and the map (from the B.P.R.D. HQ bag, with the configured transform)
-        assert table.zones_on_table == {"zonebot", "zonehum"}
-        assert table.map_taken == ["ab5e89:ec6f27:0.07, 1.64, -1.93"]
-        # moves: the heroes' objects out of their bags, cards in decks, dials full, pieces off the board
+        assert sorted(table.destroyed) == sorted(REMOVED) and table.zones_on_table == {"zonebot", "zonehum"}
+        # B.P.R.D. HQ is calibrated: the transform the gate had before maps were calibrated
+        assert table.map_placed == [("mapcopy1", (0.07, 1.64, -1.93), 270.0, 1.1)]
         assert table.unpacked == 1 and not table.in_bags and len(table.bot_deck) == 30
-        assert sorted(table.bags_taken) == ["c592d8", "e5a45c"], "each inner bag came out of its infinite bag first"
         assert {g: r["value"] for g, r in table.dials.items()} == table.dial_start
         assert all(d == 99.0 for d in table.piece_dist.values()) and table.moves == []
-        # no hand dealt, no game started
         assert table.bot_hand == [] and table.human_count == 0 and table.deal_calls == [] and not game_started(table)
-        # nothing else was written to the table
-        assert set(table.sent) <= WRITES_ALLOWED | {"list_boards", "table_audit", "deck_facing", "reset_plan", "piece_spaces_by_guid",
-                                                    "read_health_dials", "zone_overlaps", "inspect_objects", "deck_identities",
-                                                    "hand_identities", "find_pieces_by_name", "find_dials_by_name", "read_hand",
-                                                    "read_discard", "count_hand", "snapshot", "inspect_guids"}, set(table.sent)
+        deck = raw_config()["layout"]["bot"]["deck"]["pos"]
+        assert table.arranged["d42056"][0] == (deck[0], deck[1] + 0.2, deck[2]), "Medusa's deck at the bot's slot of the map"
+        assert set(table.sent) <= WRITES_ALLOWED | READS, set(table.sent)
         text = " ".join(table.broadcasts)
-        assert "mapa B.P.R.D. HQ" in text and "Mesa limpia y preparada" in text
-        assert "heroes y el mapa que quieras probar" in text and "Comenzar partida" in text
+        assert "Bot: Medusa Tu: Hellboy Mapa: B.P.R.D. Headquarters" in text and "Mesa preparada" in text and "Comenzar partida" in text
     finally:
         finish(stop, t, result)
 
 
 @pytest.mark.gate
-def test_a_second_press_on_the_prepared_official_table_changes_nothing(official, cfg_file, tmp_path):
+def test_start_game_after_preparing_runs_the_normal_start_on_the_map_that_was_laid(official, cfg_file, tmp_path):
     table, fake, _ = official
-    stop, t, result = run_main(official, cfg_file, tmp_path)
-    try:
-        assert wait_for(lambda: shown(table, "btn_prep") == (True, True))
-        press(fake, "prepare_table")
-        assert wait_for(lambda: shown(table, "btn_start") == (True, True))
-        before = (list(table.map_taken), list(table.destroyed), table.unpacked, list(table.placed), list(table.resets))
-        said = len(table.broadcasts)
-        press(fake, "prepare_table")
-        assert wait_for(lambda: any("nada que hacer" in b for b in table.broadcasts[said:]))
-        assert (list(table.map_taken), list(table.destroyed), table.unpacked, list(table.placed), list(table.resets)) == before
-    finally:
-        finish(stop, t, result)
-
-
-@pytest.mark.gate
-def test_start_game_after_the_button_runs_the_normal_start_on_the_map_that_was_laid(official, cfg_file, tmp_path):
-    table, fake, _ = official
+    drag_prepared_pair(table)
     stop, t, result = run_main(official, cfg_file, tmp_path)
     try:
         assert wait_for(lambda: shown(table, "btn_prep") == (True, True))
@@ -272,137 +274,29 @@ def test_start_game_after_the_button_runs_the_normal_start_on_the_map_that_was_l
 
 
 @pytest.mark.gate
-def test_a_table_with_a_map_already_out_does_not_get_a_second_one(official, cfg_file, tmp_path):
-    table, fake, _ = official
-    table.boards.append({"guid": "ec6f27", "image": Table().boards[0]["image"]})
-    stop, t, result = run_main(official, cfg_file, tmp_path)
-    try:
-        assert wait_for(lambda: shown(table, "btn_prep") == (True, True))
-        assert not any("ningun mapa" in b for b in table.broadcasts)
-        press(fake, "prepare_table")
-        assert wait_for(lambda: shown(table, "btn_start") == (True, True))
-        assert table.map_taken == []
-    finally:
-        finish(stop, t, result)
-
-
-@pytest.mark.gate
-def test_a_bag_that_does_not_give_the_map_is_said_and_the_button_stays(official, cfg_file, tmp_path):
-    table, fake, _ = official
-    table.do_take_map = lambda s: {"taken": False, "why": "bag"}
-    stop, t, result = run_main(official, cfg_file, tmp_path)
-    try:
-        assert wait_for(lambda: shown(table, "btn_prep") == (True, True))
-        press(fake, "prepare_table")
-        assert wait_for(said(table, "ab5e89", "arreglarla a mano"))
-        assert "No he podido limpiar" in " ".join(table.broadcasts) and shown(table, "btn_prep") == (True, True)
-        assert shown(table, "btn_start") == (False, False) and table.destroyed == [] and not game_started(table)
-    finally:
-        finish(stop, t, result)
-
-
-@pytest.mark.gate
-def test_a_hero_bag_that_does_not_give_its_inner_bag_is_said_with_what_to_do_by_hand(official, cfg_file, tmp_path, capsys):
-    table, fake, _ = official
-    table.outers["65070e"] = ("Not Medusa", table.outers["65070e"][1])      # the infinite bag carries another name
-    stop, t, result = run_main(official, cfg_file, tmp_path)
-    try:
-        assert wait_for(lambda: shown(table, "btn_prep") == (True, True))
-        press(fake, "prepare_table")
-        assert wait_for(said(table, "A mano", "arreglarla a mano"))
-        assert wait_for(lambda: shown(table, "btn_prep") == (True, True))
-        text = " ".join(table.broadcasts)
-        assert "Medusa" in text and "e5a45c" in text and "65070e" in text and "otro nombre" in text
-        assert "No he podido limpiar" in text and shown(table, "btn_prep") == (True, True)
-        seen = capsys.readouterr()
-        assert "no saca nada de una bolsa infinita" not in seen.out + seen.err, "the old start-flow warning contradicts the gate"
-        assert shown(table, "btn_start") == (False, False) and table.destroyed == [] and not game_started(table)
-    finally:
-        finish(stop, t, result)
-
-
-@pytest.mark.gate
-def test_a_slow_copy_fails_the_first_press_and_the_second_reuses_it_without_a_duplicate(official, cfg_file, tmp_path):
-    table, fake, _ = official
-    table.spawn_late = True                                  # TTS has not spawned the copies when the script answers
-    stop, t, result = run_main(official, cfg_file, tmp_path)
-    try:
-        assert wait_for(lambda: shown(table, "btn_prep") == (True, True))
-        press(fake, "prepare_table")
-        assert wait_for(said(table, "aun se estaba creando", "arreglarla a mano"))
-        assert wait_for(lambda: shown(table, "btn_prep") == (True, True))
-        assert shown(table, "btn_start") == (False, False) and table.copies_made == 2 and table.destroyed == []
-        table.spawn_late = False                             # the copies are there now
-        press(fake, "prepare_table")
-        assert wait_for(lambda: shown(table, "btn_start") == (True, True))
-        assert table.copies_made == 2 and table.bags_taken == [], "the loose copies were reused, none was made again"
-        assert not table.loose_copies and sorted(table.destroyed) == sorted(REMOVED)
-    finally:
-        finish(stop, t, result)
-
-
-@pytest.mark.gate
-def test_one_press_makes_exactly_one_copy_per_hero_bag(official, cfg_file, tmp_path):
-    table, fake, _ = official
-    stop, t, result = run_main(official, cfg_file, tmp_path)
-    try:
-        assert wait_for(lambda: shown(table, "btn_prep") == (True, True))
-        press(fake, "prepare_table")
-        assert wait_for(lambda: shown(table, "btn_start") == (True, True))
-        assert table.copies_made == 2 and not table.loose_copies
-    finally:
-        finish(stop, t, result)
-
-
-@pytest.mark.gate
-def test_the_audit_is_one_message_and_the_whole_cleaning_a_handful(official, cfg_file, tmp_path):
+def test_the_audit_is_one_message_and_cleaning_and_preparing_are_a_handful(official, cfg_file, tmp_path):
     table, fake, _ = official
     client = client_for(official)
     try:
         session = session_for(client, cfg_file())
         before = fake.lua_messages
-        table_reset.audit(client, session, None, raw_config())
+        table_reset.audit(client, session, None)
         assert fake.lua_messages - before <= 2, "one composite (plus the deck identities the first time)"
     finally:
         client.close()
     stop, t, result = run_main(official, cfg_file, tmp_path)
     try:
-        assert wait_for(lambda: shown(table, "btn_prep") == (True, True))
+        assert wait_for(lambda: shown(table, "btn_clean") == (True, True))
+        before = len(table.sent)
+        press(fake, "clean_table")
+        assert wait_for(said(table, "Arrastra ahora el mapa"))
+        steps = [x for x in table.sent[before:] if x != "broadcast"]          # the chat lines are not steps
+        assert len(steps) <= 8, steps
+        drag_prepared_pair(table)
         before = len(table.sent)
         press(fake, "prepare_table")
         assert wait_for(lambda: shown(table, "btn_start") == (True, True))
-        steps = [x for x in table.sent[before:] if x != "broadcast"]          # the chat lines are not steps of the cleaning
-        assert len(steps) <= 24, steps
+        steps = [x for x in table.sent[before:] if x != "broadcast"]
+        assert len(steps) <= 26, steps
     finally:
         finish(stop, t, result)
-
-
-# ---------- the helpers ----------
-def test_the_map_plan_is_validated_and_optional():
-    assert table_prep.map_plan({}) is None
-    plan = table_prep.map_plan(raw_config())
-    assert (plan.board, plan.bag, plan.board_guid, plan.position, plan.rot_y, plan.scale) == \
-        ("bprd-hq", "ab5e89", "ec6f27", (0.07, 1.64, -1.93), 270.0, 1.10)
-    for bad in ({"board": "x"}, {**raw_config()["prepare_map"], "scale": 0}, {**raw_config()["prepare_map"], "position": [1, 2]}):
-        with pytest.raises(ValueError):
-            table_prep.map_plan({"prepare_map": bad})
-
-
-def test_ensure_map_leaves_alone_a_table_with_a_map_or_a_configuration_without_one():
-    class Client:
-        def __init__(self, boards):
-            self.boards, self.sent = boards, []
-
-        def call_lua(self, script):
-            self.sent.append(script.split("\n", 1)[0])
-            if script.startswith("-- sparring:composite"):         # the clearing, and the map if it was asked for
-                n = len(re.findall(r"results\[\d+\] = run", script))
-                return {"ops": [{}, {"taken": False, "why": "bag"}][:n]}
-            return self.boards
-    known = [{"guid": "ec6f27", "image": Table().boards[0]["image"]}]
-    assert table_reset.clear_and_ensure_map(Client(known), raw_config()) is None
-    assert table_reset.clear_and_ensure_map(Client([]), {}) is None
-    empty = Client([{"guid": "45c723", "image": PAD_IMAGE}])
-    with pytest.raises(SessionError, match="ab5e89"):
-        table_reset.clear_and_ensure_map(empty, raw_config())
-    assert empty.sent[0] == "-- sparring:list_boards" and empty.sent[1] == "-- sparring:composite"

@@ -32,7 +32,7 @@ from .board import Board, catalog as board_catalog
 from .board_detect import BoardError, choose_board
 from .hero_detect import HeroDetectionError, detect_heroes, detected_decks, read_table
 from .heroes import HeroDataError, load_hero
-from . import game_log, i18n, persist, table_prep, table_reset
+from . import game_log, i18n, map_setup, persist, table_prep, table_reset
 from .i18n import t
 from .session import DEFAULT_ACTION_ANNOUNCE_HOLD, DEFAULT_BOT_PAUSE, DEFAULT_ONGOING_HOLD, DEFAULT_WILDFIRE_HOLD, TABLE_ERRORS, Msg, Session, SessionConfig, SessionError, deck_where, piece_guids
 from .state import DEFAULT_HEROES, Game
@@ -86,7 +86,8 @@ def migrate_legacy_files(state: Path) -> list[str]:
 BOT, HUMAN = 0, 1
 READ_ONLY_TAGS = frozenset({"snapshot", "piece_spaces_by_guid", "read_hand", "count_hand", "read_discard",
                             "read_face_down_cards", "read_cards_at", "inspect_guids", "read_health_dials", "zone_overlaps", "deck_identities",
-                            "hand_identities", "reset_plan", "table_heroes", "inspect_objects", "find_pieces_by_name", "find_dials_by_name", "list_boards", "table_audit", "deck_facing"})
+                            "hand_identities", "reset_plan", "table_heroes", "inspect_objects", "find_pieces_by_name", "find_dials_by_name", "list_boards", "table_audit", "deck_facing", "list_bags",
+                            "read_transforms"})
 
 REQUIRED = ("bot_seat", "human_seat", "nicknames", "bot_card_spot", "human_card_spot", "bot_discard_spot",
             "bot_discard_zone", "bot_deck_guid", "human_discard_zone", "bot_deck_spot", "pieces")
@@ -425,7 +426,11 @@ def detect_board(client, cfg: PlayConfig, echo: Callable[[str], None] = print) -
     GUID. `BoardError` when the board is unknown, excluded or unverified."""
     found = ReadOnlyClient(client).call_lua(lua.list_boards())
     entry, guid = choose_board(found if isinstance(found, list) else [], board_catalog())
-    out = build_config({**cfg.base, "board": entry.key}, cfg.sources, found_board_guid=guid)
+    try:
+        calibrated = map_setup.overrides(entry.key)         # this map's slots and deck spots, if it was calibrated
+    except ValueError as e:
+        raise ConfigError(str(e)) from None
+    out = build_config({**cfg.base, "board": entry.key, **calibrated}, cfg.sources, found_board_guid=guid)
     out.warnings = list(cfg.warnings)
     echo(t("board.found", name=entry.name))
     return out
@@ -910,7 +915,7 @@ def unpack_plan(cfg: PlayConfig) -> list[tuple]:
         for kind, guids in table.unpack_items():
             if kind == "deck" and deck_xz:
                 out.append((kind, guids, table.inner_bag, (float(deck_xz[0]), float(origin[1]), float(deck_xz[1])),
-                            table.card_ids))
+                            table.card_ids, table.identity))
                 continue
             out.append((kind, guids, table.inner_bag, tuple(float(o) + n * d for o, d in zip(origin, step)), None))
             n += 1
@@ -930,16 +935,25 @@ def unpack_outers(cfg: PlayConfig) -> dict[str, tuple[str, str, str, tuple[str, 
     return out
 
 
-def prepare_heroes(client, cfg: PlayConfig, echo: Callable[[str], None] = print, from_infinite: bool = False) -> list[str]:
+def prepare_heroes(client, cfg: PlayConfig, echo: Callable[[str], None] = print, from_infinite: bool = False,
+                   dropped: dict[str, str] | None = None) -> list[str]:
     """Only with --unpack (or "unpack": true) and never when resuming: takes out of each hero's inner bag whatever is
     missing on the table. Missing = NO GUID of the object answers (all its states) and, for a deck, none of its piles
     is on its spot. Things are taken only from the bag with the hero's bag GUID; if it is not on the table nothing is
     done and a warning is printed (the bot never takes anything out of an infinite bag). A single message to TTS.
 
     With `from_infinite` (the pre-game gate) an inner bag that is not on the table is first taken out of the hero's infinite
-    bag (`unpack_outers`). Returns what could not be done, one sentence per hero (empty when all went well), for the chat."""
+    bag (`unpack_outers`). Returns what could not be done, one sentence per hero (empty when all went well), for the chat.
+
+    `dropped` ({hero slug: GUID of the bag the player dropped from the roster}, the player-setup gate): the hero's items are taken
+    from that bag (a copy of the inner bag, destroyed once empty) instead of from the inner bag of the data; what is already
+    loose on the table (the player opened the bag) is left alone."""
     plan = unpack_plan(cfg)
-    res = client.call_lua(lua.unpack_from_bags(plan, unpack_outers(cfg) if from_infinite else None)) or {}
+    if dropped:
+        owner = {load_hero_table(slug).inner_bag: dropped[slug] for slug in cfg.heroes if slug in dropped}
+        plan = [(kind, guids, owner.get(bag, bag), *rest) for kind, guids, bag, *rest in plan]
+    res = client.call_lua(lua.unpack_from_bags(plan, unpack_outers(cfg) if from_infinite else None,
+                                               tuple((dropped or {}).values()))) or {}
     taken, missing = list(res.get("taken") or []), list(res.get("missing") or [])
     failed = {row.get("guid"): row.get("why") for row in res.get("bags_failed") or [] if isinstance(row, dict)}
     if taken:
@@ -952,6 +966,9 @@ def prepare_heroes(client, cfg: PlayConfig, echo: Callable[[str], None] = print,
             if not from_infinite:             # the gate words this itself (the chat line below); that warning would contradict it
                 echo(t("console.warn_line", text=t("console.unpack_missing", guids=", ".join(lost),
                                                     hero=load_hero(slug).name, bag=table.inner_bag)))
+            if dropped is not None:
+                problems.append(t("setup.unpack_missing", hero=load_hero(slug).name, guids=", ".join(lost)))
+                continue
             problems.append(t("gate.unpack_problem", hero=load_hero(slug).name, bag=table.inner_bag, outer=table.bag,
                               why=t("gate.unpack_why." + str(failed.get(table.inner_bag) or "none")),
                               guids=", ".join(lost)))
@@ -1274,8 +1291,8 @@ def _main(args: argparse.Namespace, stop: threading.Event, status: Callable[[str
                 if not gate_mode:
                     raise
                 gate_notes.append(str(e))
-                cfg = build_config({**cfg.base, "bot_hero": args.bot_hero or table_reset.PREP_HEROES[0],
-                                    "human_hero": args.human_hero or table_reset.PREP_HEROES[1]},
+                cfg = build_config({**cfg.base, "bot_hero": args.bot_hero or DEFAULT_HEROES[0],
+                                    "human_hero": args.human_hero or DEFAULT_HEROES[1]},
                                    cfg.sources, found_board_guid=cfg.board.guid)
             if not args.read_only:
                 cfg.session_config()

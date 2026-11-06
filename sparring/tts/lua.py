@@ -983,15 +983,16 @@ return JSON.encode(out)
 
 MAX_UNPACK = 40
 UNPACK_REUSE_RADIUS = 3.0      # a leftover copy lies where this hero's copy is spawned (its first item's spot); farther is not ours
-MAP_MARK = "sparring-map"      # GM notes of the map copy we took out (clear_markings only touches the exact "sparring")
 UNPACK_SPAWN_WAIT = 4.0      # seconds to wait for the copy of an inner bag out of an infinite one (the client waits 5 s + 8 s)
 
 
 @_registered
 def unpack_from_bags(items: list[tuple[str, tuple[str, ...], str, tuple[float, float, float], tuple[int, int] | None]],
-                     outers: dict[str, tuple[str, str, str, tuple[str, ...]]] | None = None) -> str:
+                     outers: dict[str, tuple[str, str, str, tuple[str, ...]]] | None = None,
+                     adopt: tuple[str, ...] = ()) -> str:
     """Takes from a hero's INNER bag what is not on the table. `items` = (kind, GUID of each state, GUID of the
-    inner bag, spot (x, y, z), CardID range if it is a deck).
+    inner bag, spot (x, y, z), CardID range if it is a deck[, the deck's identity: with it only a deck of that image counts as present,
+    since several heroes share a CardID range]).
 
     An object counts as present (and is not touched) if ANY of its GUIDs answers; a deck, in addition, if a Deck or a Card whose cards fall in its range exists ANYWHERE
     ON THE TABLE (TTS turns the deck into a Card and changes its GUID; on the real table the decks end up 3-26 units from their spot, so distance is no use; hero ranges do not overlap). If it is missing, it is only taken from the bag with that bag GUID, which must exist, be of type Bag and contain the GUID:
@@ -1014,11 +1015,14 @@ def unpack_from_bags(items: list[tuple[str, tuple[str, ...], str, tuple[float, f
     runs; `TTSClient` waits for it) after the items have been taken out of the copy, or after `UNPACK_SPAWN_WAIT` s if it never
     comes. A loose Bag an earlier press left is reused, never duplicated, and destroyed once empty (`reused` lists those), but
     only if it carries the inner bag's nickname, lists every item still missing AND lists nothing that is not the hero's own
-    (the save repeats GUIDs across heroes: Loki's inner bag also holds Medusa's dial, and must never be taken for hers). Without `outers` the reply is immediate."""
+    (the save repeats GUIDs across heroes: Loki's inner bag also holds Medusa's dial, and must never be taken for hers). Without `outers` the reply is immediate.
+
+    `adopt` = GUIDs of loose bags the player dropped from the roster (a copy of the hero's inner bag): when one of them is the
+    bag an item is taken from (its GUID stands in the items' "inner bag" field), it is destroyed once it is empty."""
     if not isinstance(items, (list, tuple)) or not 1 <= len(items) <= MAX_UNPACK:
         raise ValueError(f"between 1 and {MAX_UNPACK} objects expected")
     rows = []
-    for kind, guids, bag, pos, rng in items:
+    for kind, guids, bag, pos, rng, *rest in items:
         if kind not in ("deck", "piece", "dial", "token"):
             raise ValueError(f"unknown object kind {kind!r}")
         if not isinstance(pos, (tuple, list)) or len(pos) != 3:
@@ -1026,24 +1030,35 @@ def unpack_from_bags(items: list[tuple[str, tuple[str, ...], str, tuple[float, f
         if not isinstance(guids, (tuple, list)) or not guids:
             raise TypeError("GUID list expected")
         lo, hi = _range(rng) if rng is not None else ("0", "0")
+        ident = _identity(rest[0]) if rest and rest[0] and rng is not None else "false"
         rows.append(f'{{{lua_str(kind)}, {_guid_list(guids)}, {_guid(bag)}, {_f(pos[0])}, {_f(pos[1])}, {_f(pos[2])}, '
-                    f'{lo}, {hi}, {"true" if rng is not None else "false"}}}')
+                    f'{lo}, {hi}, {"true" if rng is not None else "false"}, {ident}}}')
     outer_rows = ", ".join(f'[{_guid(inner)}] = {{{_guid(outer)}, {lua_str(nick)}, {lua_str(name)}, {_guid_list(members)}}}'
                            for inner, (outer, nick, name, members) in (outers or {}).items())
+    adopt_rows = ", ".join(f"[{_guid(g)}] = true" for g in adopt)
     return f"""-- sparring:unpack_from_bags
-local ITEMS = {{{", ".join(rows)}}}
+{_IMAGE_LUA}local ITEMS = {{{", ".join(rows)}}}
 local OUTERS = {{{outer_rows}}}
+local ADOPT = {{{adopt_rows}}}
 local function cardsOf(o)
   if o.type == "Card" then return {{o.getData()}} end
   return o.getData().ContainedObjects or {{}}
 end
-local function deckAnywhere(lo, hi)
+local function deckAnywhere(lo, hi, ident)
   for _, o in ipairs(getObjects()) do
     if o.type == "Deck" or o.type == "Card" then
       local cards, ok = cardsOf(o), true
+      local fallback = o.getData().CustomDeck
       if #cards == 0 then ok = false end
       for _, c in ipairs(cards) do
         if type(c.CardID) ~= "number" or c.CardID < lo or c.CardID > hi then ok = false end
+        if ok and ident then
+          local images = imagesOf(c, fallback)
+          if #images == 0 then ok = false end
+          for _, info in ipairs(images) do
+            if ident[tostring(info.FaceURL) .. "|" .. tostring(info.BackURL)] ~= true then ok = false end
+          end
+        end
       end
       if ok then return true end
     end
@@ -1117,7 +1132,7 @@ for i, it in ipairs(ITEMS) do
   for _, g in ipairs(guids) do
     if getObjectFromGUID(g) ~= nil then here[i] = true end
   end
-  if not here[i] and it[9] then here[i] = deckAnywhere(it[7], it[8]) end
+  if not here[i] and it[9] then here[i] = deckAnywhere(it[7], it[8], it[10]) end
   if not here[i] then
     wanted[it[3]] = wanted[it[3]] or {{spot = {{it[4], it[5], it[6]}}, guids = {{}}}}
     table.insert(wanted[it[3]].guids, guids[1])
@@ -1127,6 +1142,7 @@ for inner, w in pairs(wanted) do
   local bag = getObjectFromGUID(inner)
   if listsAll(bag, w.guids) then
     resolved[inner] = bag
+    if ADOPT[inner] then table.insert(made, bag) end
   elseif OUTERS[inner] ~= nil then
     for _, o in ipairs(getObjects()) do                  -- a copy an earlier press left loose is reused, never duplicated
       local p = o.getPosition()
@@ -1459,77 +1475,6 @@ return JSON.encode(out)
 """
 
 
-@_registered
-def take_map(bag_guid: str, board_guid: str, position: tuple[float, float, float], rot_y: float, scale: float) -> str:
-    """Takes a map's board out of the bag it sits in and lays it flat at `position`, rotation (0, rot_y, 0), `scale`,
-    locked. Only from the bag with that GUID; nothing else is touched.
-
-    The official save keeps each map in an INFINITE bag (`o.type == "Infinite"`, name Custom_Model_Infinite_Bag). Live, its
-    `getObjects()` does not list the board it holds, so the listing is not consulted: an infinite bag always gives a copy of
-    its single object, taken with `takeObject` WITHOUT a GUID (a copy has a GUID of its own; the caller recognises the
-    map by its image). The copy arrives LATER: scale, lock and the check that it is a Board happen in `callback_function`,
-    and the reply is sent from there (or after `UNPACK_SPAWN_WAIT` s with `why = "spawning"`; the callback still finishes the
-    copy afterwards). A copy an earlier press left (a Board with our GM notes, anywhere on the table) is
-    reused, never duplicated. A copy that is not a Board is destroyed. Any other bag must list `board_guid` and gives it
-    at once by GUID.
-
-    Because it may answer later, it cannot go inside `composite`; send it alone. Returns `{taken = true, guid}` (`reused`
-    when it was already there) or `{taken = false, why = "bag" | "board" | "take" | "spawning"}`."""
-    if len(position) != 3 or not 0 < float(scale) < 10:
-        raise ValueError("map transform: (x, y, z) and a scale between 0 and 10")
-    where = ", ".join(_f(v) for v in position)
-    return f"""-- sparring:take_map
-local bag = getObjectFromGUID({_guid(bag_guid)})
-if bag == nil then return JSON.encode({{taken = false, why = "bag"}}) end
-local SPOT = Vector({where})
-local MINE = {lua_str(MAP_MARK)}
-local replied = false
-local function answer(res)
-  if replied then return "" end
-  replied = true
-  return JSON.encode(res)
-end
-local function settle(board)
-  board.setScale(Vector({_f(scale)}, {_f(scale)}, {_f(scale)}))
-  board.setLock(true)
-  board.setGMNotes(MINE)
-end
-local infinite = bag.type == "Infinite" or bag.name == "Custom_Model_Infinite_Bag"
-if infinite then
-  for _, o in ipairs(getObjects()) do                      -- a copy an earlier press left is reused, never duplicated
-    if o ~= bag and o.type == "Board" and o.getGMNotes() == MINE then
-      return answer({{taken = true, guid = o.getGUID(), reused = true}})
-    end
-  end
-  bag.takeObject({{position = SPOT, rotation = Vector(0, {_f(rot_y)}, 0), smooth = false,
-                  callback_function = function(spawned)
-                    if spawned == nil or spawned.type ~= "Board" then
-                      if spawned ~= nil then spawned.destruct() end   -- a copy of ours that is not the map
-                      answer({{taken = false, why = "take"}})
-                      return
-                    end
-                    settle(spawned)
-                    answer({{taken = true, guid = spawned.getGUID()}})
-                  end}})
-  Wait.time(function() answer({{taken = false, why = "spawning"}}) end, {_f(UNPACK_SPAWN_WAIT)})
-  return ""
-end
-local listed = false
-local ok, items = pcall(function() return bag.getObjects() end)
-if ok and type(items) == "table" then
-  for _, e in ipairs(items) do
-    if e.guid == {_guid(board_guid)} then listed = true end
-  end
-end
-if not listed then return JSON.encode({{taken = false, why = "board"}}) end
-local board = bag.takeObject({{guid = {_guid(board_guid)}, position = SPOT,
-                              rotation = Vector(0, {_f(rot_y)}, 0), smooth = false}})
-if board == nil then return JSON.encode({{taken = false, why = "take"}}) end
-settle(board)
-return JSON.encode({{taken = true, guid = board.getGUID()}})
-"""
-
-
 def _deck_facing_lua(label: str, sides: list[tuple], radius: float, flip: bool) -> str:
     if not isinstance(sides, (list, tuple)) or not 1 <= len(sides) <= 2:
         raise TypeError("list of 1 or 2 sides expected")
@@ -1667,6 +1612,222 @@ for _, row in ipairs({{{", ".join(rows)}}}) do
     o.setPosition(row[2])
     o.setRotation(row[3])
     table.insert(out.placed, o.getGUID())
+  end
+end
+return JSON.encode(out)
+"""
+
+
+MAX_BAG_GUIDS = 60
+
+
+@_registered
+def list_bags() -> str:
+    """Read only: every loose bag (type Bag, so not the infinite ones of the roster) with its spot and the GUIDs it holds, to
+    tell which hero a bag the player dropped from the roster is (a copy of the hero's inner bag)."""
+    return f"""-- sparring:list_bags
+local out = {{}}
+for _, o in ipairs(getObjects()) do
+  if o.type == "Bag" then
+    local p = o.getPosition()
+    local guids = {{}}
+    local ok, inside = pcall(function() return o.getObjects() end)
+    if ok and type(inside) == "table" then
+      for _, e in ipairs(inside) do
+        if #guids < {MAX_BAG_GUIDS} then table.insert(guids, e.guid) end
+      end
+    end
+    table.insert(out, {{guid = o.getGUID(), name = o.getName() or "", x = p.x, y = p.y, z = p.z, guids = guids}})
+  end
+end
+return JSON.encode(out)
+"""
+
+
+MAX_CLEAR_HEROES = 24
+MAX_CLEAR_GUIDS = 400
+MAX_CLEAR_NAMES = 80
+MAX_CLEAR_MAPS = 64
+
+
+@_registered
+def clear_setup(heroes: list[tuple], guids: list[str], names: list[str], map_keys: list[str],
+                limits: tuple[float, float]) -> str:
+    """Destroys what a previous game left of its heroes and its map, and nothing else ("Clean table" of the pre-game gate).
+
+    `heroes` = (CardID range, identity, CardID of the character card) of every hero the bot can play; `guids` = every GUID
+    of those heroes' decks, miniatures, dials and tokens; `names` = plain lower-case names of their miniatures and dials;
+    `map_keys` = the 40-hex image keys of the maps of the catalog; `limits` = (|x|, |z|) of the play area. Destroyed:
+      - a Deck or Card (also in a hand) all of whose cards are a hero's (CardID in its range AND its deck image, or its
+        character card), so a mixed pile is left alone and reported;
+      - a loose Board whose image is a catalog map (the pad boards of the table are not);
+      - a loose Bag inside the limits that holds only hero GUIDs (a copy of a hero's bag the player dropped);
+      - any other loose object inside the limits and not an infinite bag whose GUID is a hero's or whose name is one of
+        `names` (an object spawned from a copy may have a GUID of its own).
+    Answers `{cards, boards, bags, objects, mixed}` (counts; `mixed` = GUIDs of piles left alone)."""
+    if not isinstance(heroes, (list, tuple)) or not 1 <= len(heroes) <= MAX_CLEAR_HEROES:
+        raise ValueError(f"between 1 and {MAX_CLEAR_HEROES} heroes expected")
+    if not isinstance(guids, (list, tuple)) or len(guids) > MAX_CLEAR_GUIDS or not isinstance(names, (list, tuple)) \
+            or len(names) > MAX_CLEAR_NAMES or not isinstance(map_keys, (list, tuple)) or len(map_keys) > MAX_CLEAR_MAPS:
+        raise ValueError("too many objects to clear")
+    if not isinstance(limits, (list, tuple)) or len(limits) != 2:
+        raise TypeError("limits: (|x|, |z|) expected")
+    rows = ", ".join("{" + ", ".join(_range(rng)) + f", {_identity(identity)}, {_i(card)}}}" for rng, identity, card in heroes)
+    mine = "{" + ", ".join(f"[{_guid(g)}] = true" for g in guids) + "}"
+    wanted = "{" + ", ".join(f"[{lua_str(n)}] = true" for n in names) + "}"
+    keys = "{" + ", ".join(lua_str(k.upper()) for k in map_keys) + "}"
+    return f"""-- sparring:clear_setup
+{_IMAGE_LUA}local HEROES = {{{rows}}}
+local MINE, NAMES, MAPS = {mine}, {wanted}, {keys}
+local LIMIT_X, LIMIT_Z = {_f(limits[0])}, {_f(limits[1])}
+local function heroCard(c, fallback)
+  local id = c.CardID
+  if type(id) ~= "number" then return false end
+  for _, h in ipairs(HEROES) do
+    if id == h[4] then return true end
+    if id >= h[1] and id <= h[2] then
+      local images = imagesOf(c, fallback)
+      local all = #images > 0
+      for _, info in ipairs(images) do
+        if h[3][tostring(info.FaceURL) .. "|" .. tostring(info.BackURL)] ~= true then all = false end
+      end
+      if all then return true end
+    end
+  end
+  return false
+end
+local function plain(name)
+  local n = string.lower((string.gsub(name or "", "%[[%w%-/]*%]", "")))
+  n = (string.gsub(n, "%s+", " "))
+  n = (string.gsub(n, "^ ", ""))
+  return (string.gsub(n, " $", ""))
+end
+local out = {{cards = 0, boards = 0, bags = 0, objects = 0, mixed = {{}}}}
+local doomed = {{}}
+for _, o in ipairs(getObjects()) do
+  local ty, p = o.type, o.getPosition()
+  local inside = math.abs(p.x) <= LIMIT_X and math.abs(p.z) <= LIMIT_Z
+  if ty == "Deck" or ty == "Card" then
+    local data = o.getData()
+    local cards = (ty == "Card") and {{data}} or (data.ContainedObjects or {{}})
+    local hero, other = 0, 0
+    for _, c in ipairs(cards) do
+      if heroCard(c, data.CustomDeck) then hero = hero + 1 else other = other + 1 end
+    end
+    if hero > 0 and other == 0 then
+      table.insert(doomed, {{o, "cards"}})
+    elseif hero > 0 then
+      table.insert(out.mixed, o.getGUID())
+    end
+  elseif ty == "Board" then
+    local ok, custom = pcall(function() return o.getCustomObject() end)
+    local image = (ok and type(custom) == "table" and custom.image ~= nil) and string.upper(tostring(custom.image)) or ""
+    for _, k in ipairs(MAPS) do
+      if string.find(image, k, 1, true) then table.insert(doomed, {{o, "boards"}}) break end
+    end
+  elseif ty == "Bag" then
+    local ok, held = pcall(function() return o.getObjects() end)
+    if inside and ok and type(held) == "table" and #held > 0 then
+      local all = true
+      for _, e in ipairs(held) do
+        if not MINE[e.guid] then all = false end
+      end
+      if all then table.insert(doomed, {{o, "bags"}}) end
+    end
+  elseif inside and ty ~= "Infinite" and not string.find(ty, "Trigger") and ty ~= "Scripting"
+         and o.getName ~= nil and o.getName() ~= {lua_str(PANEL_NAME)} then
+    if MINE[o.getGUID()] or NAMES[plain(o.getName())] then table.insert(doomed, {{o, "objects"}}) end
+  end
+end
+for _, d in ipairs(doomed) do
+  out[d[2]] = out[d[2]] + 1
+  d[1].destruct()
+end
+return JSON.encode(out)
+"""
+
+
+@_registered
+def place_map(guid: str, position: tuple[float, float, float], rot_y: float, scale: float) -> str:
+    """Lays the board with that GUID flat at `position`, rotation (0, rot_y, 0), `scale` (uniform), locked: the calibrated
+    transform of its map. `{placed: false}` if the GUID is not a Board on the table."""
+    if len(position) != 3 or not 0 < float(scale) < 10:
+        raise ValueError("map transform: (x, y, z) and a scale between 0 and 10")
+    where = ", ".join(_f(v) for v in position)
+    return f"""-- sparring:place_map
+local board = getObjectFromGUID({_guid(guid)})
+if board == nil or board.type ~= "Board" then return JSON.encode({{placed = false}}) end
+board.setLock(false)
+board.setScale(Vector({_f(scale)}, {_f(scale)}, {_f(scale)}))
+board.setRotation(Vector(0, {_f(rot_y)}, 0))
+board.setPosition(Vector({where}))
+board.setLock(true)
+return JSON.encode({{placed = true}})
+"""
+
+
+MAX_TRANSFORM_ROWS = 40
+
+
+@_registered
+def read_transforms(rows: list[tuple]) -> str:
+    """Read only: position, rotation and scale of each wanted object, for the calibration of a map. `rows` = (key, kind,
+    GUIDs, plain lower-case name, side, CardID): `kind` is "object" (a miniature or token), "dial" (an object whose script has
+    CONFIG.MAX_VALUE) or "card" (a loose Card with that CardID). The first GUID that exists wins; failing that, the loose
+    object of the right kind with that name. `side` (+1 / -1) keeps only what lies on that half of the table (x > 0 / x < 0);
+    0 means anywhere. Answers `{key: {found, guid, x, y, z, rx, ry, rz, sx}}`, or `{found = false, why = "none" | "several"}`
+    when the name fits no object or more than one."""
+    if not isinstance(rows, (list, tuple)) or not 1 <= len(rows) <= MAX_TRANSFORM_ROWS:
+        raise ValueError(f"between 1 and {MAX_TRANSFORM_ROWS} objects expected")
+    body = []
+    for key, kind, guids, name, side, card in rows:
+        if kind not in ("object", "dial", "card") or side not in (-1, 0, 1):
+            raise ValueError("kind: object, dial or card; side: -1, 0 or 1")
+        body.append(f"{{{lua_str(key)}, {lua_str(kind)}, {_guid_list(guids)}, {lua_str(name)}, {_i(side)}, {_i(card)}}}")
+    return f"""-- sparring:read_transforms
+local function plain(name)
+  local n = string.lower((string.gsub(name or "", "%[[%w%-/]*%]", "")))
+  n = (string.gsub(n, "%s+", " "))
+  n = (string.gsub(n, "^ ", ""))
+  return (string.gsub(n, " $", ""))
+end
+local function isDial(o)
+  local ok, cfg = pcall(function() return o.getTable("CONFIG") end)
+  return ok and type(cfg) == "table" and cfg.MAX_VALUE ~= nil
+end
+local function describe(o)
+  local p, r, s = o.getPosition(), o.getRotation(), o.getScale()
+  return {{found = true, guid = o.getGUID(), x = p.x, y = p.y, z = p.z, rx = r.x, ry = r.y, rz = r.z, sx = s.x}}
+end
+local out = {{}}
+for _, row in ipairs({{{", ".join(body)}}}) do
+  local key, kind, guids, name, side, card = row[1], row[2], row[3], row[4], row[5], row[6]
+  local function onSide(o) return side == 0 or (o.getPosition().x * side) > 0 end
+  local found = nil
+  if kind ~= "card" then
+    for _, g in ipairs(guids) do
+      local o = getObjectFromGUID(g)
+      if found == nil and o ~= nil and onSide(o) then found = o end
+    end
+  end
+  if found ~= nil then
+    out[key] = describe(found)
+  else
+    local hits = {{}}
+    for _, o in ipairs(getObjects()) do
+      local ty = o.type
+      if kind == "card" then
+        if ty == "Card" and not o.held_by_color and onSide(o) and o.getData().CardID == card then table.insert(hits, o) end
+      elseif name ~= "" and ty ~= "Deck" and ty ~= "Card" and not string.find(ty, "Bag") and ty ~= "Board" and onSide(o)
+             and plain(o.getName()) == name and (isDial(o) == (kind == "dial")) then
+        table.insert(hits, o)
+      end
+    end
+    if #hits == 1 then
+      out[key] = describe(hits[1])
+    else
+      out[key] = {{found = false, why = (#hits == 0) and "none" or "several"}}
+    end
   end
 end
 return JSON.encode(out)

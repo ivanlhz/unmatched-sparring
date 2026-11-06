@@ -268,7 +268,7 @@ Nothing of this has been seen on a real table. Load "Unmatched Official Tourname
 - [ ] **Fresh restart without reloading TTS**: the leftover created zones are reused (no duplicate zone on top of them).
 - [ ] **TTS reload after creating the zones** (load another save): the bot stops with the missing-GUID message; restart it.
 
-### Pre-game gate: check, clean and prepare the table (F22)
+### Pre-game gate: check, clean and prepare the table (F22; partly superseded by F23 above)
 Nothing of this has been seen on a real table. The definition of a ready table is the docstring of `sparring/table_reset.py`. Start the bot (fresh, not `--resume`) on a table left in a game, then on the official save.
 - [ ] **THE MAIN CASE: the official tournament save, just loaded** (nothing prepared, no map out). Start the bot: it does NOT stop on "no map"; the chat says the table is not ready and lists: loose objects (the six GUIDs), no map, discard zones missing, Medusa and Hellboy in their bags. Press the button: the six centre objects disappear (decks, d20, Dice Cannon, clocks), two discard zones appear (straight, rotation 0/270/0), the B.P.R.D. HQ map is laid on the pad board in the middle (check it sits where it did in earlier games: the deck spots, discard grid and combat spots fall on it), Medusa's and Hellboy's decks, dials, pieces and tokens come out of their bags (decks at the deck spots, pieces and dials in the unpack rows or at the dead spots, none on the map), no hand is dealt. Everything else stays: all hero and map bags, counters, hand zones, pad boards. The chat ends with "prepare the table ... and press Comenzar partida".
 - [ ] **Infinite bags (learned live, 4/11)**: `getObjects()` of an infinite bag does NOT list its content, so nothing may require the GUID to be listed: the map bag and the heroes' outer bags are asked with `takeObject` WITHOUT a GUID (a copy of the single object), the copy arrives later and the script finishes and answers in `callback_function` (the map: scale, lock, GM notes `sparring-map`, must be a `Board`; the inner hero bag: must be a `Bag`). Check: one press lays the map and unpacks both heroes, no loose copy is left, a second press reuses what is there. If the chat says "No he podido sacar el mapa ... (bag/board/take/spawning)", copy the reason.
@@ -286,6 +286,19 @@ Nothing of this has been seen on a real table. The definition of a ready table i
 - [ ] **Saved game**: after cleaning `state/session.json` is gone, so `--resume` finds nothing.
 - [ ] **Second press** changes nothing and says so; a table the bot cannot fully clean names what is left and keeps the button.
 - [ ] **Start game**: nothing is dealt or placed before the press; the press reads the heroes and the map from the table and the normal flow starts (deal, mulligan, placement).
+
+### The player sets the table: Clean table, drag, Prepare, calibrate (F23)
+Replaces the single button of F22 below (its items about unpacking from the infinite bags no longer apply: the player drags the copies). Nothing of this has been seen on a real table. Start the bot (fresh, not `--resume`) on the official save.
+- [ ] **Buttons**: the right panel shows "Limpiar mesa" and "Preparar" (and "Comenzar partida" once ready), the captions fit, none shows in a game.
+- [ ] **Clean table** on a table left in a game: every hero object and the map disappear (also cards in hands and the character cards); the six leftovers of the save go; the roster of infinite bags and the pads stay; the chat says how many objects were removed and asks you to drag the map and the heroes.
+- [ ] **What dragging gives**: drag Medusa's bag from the roster. It is a Bag copy; Prepare must recognise it (Bot: Medusa). Note its GUID and whether the items inside keep the GUIDs of `data/tts/medusa.json`.
+- [ ] **Closed bags**: map + Medusa's bag on the +x half + Hellboy's bag on the -x half, then Prepare: chat "Bot: Medusa, Tu: Hellboy, Mapa: ..."; the map goes to its calibrated transform; everything lands on the slots; the empty bag copies are gone.
+- [ ] **Opened contents**: same, but open the bags and spread the contents by hand first: same result, nothing duplicated.
+- [ ] **Swapped halves and other heroes**: Hellboy on the bot's side, Medusa on yours; then a pair like Bigfoot and Houdini on another map.
+- [ ] **Refusals**: both heroes on one half; no map; the same hero twice; a hero the bot cannot play (e.g. Blackbeard): each is named in the chat and nothing moves.
+- [ ] **Uncalibrated map** (any map but B.P.R.D. HQ): the map stays as dropped, the chat prints `python -m sparring.calibrate --map <key>`.
+- [ ] **Calibrate**: arrange a map and both heroes by hand, close the bot, run that command. `config\map_setups.json` gets the entry; clean the table, drag the same things again and Prepare: they land where you had put them. Check `--dry-run` writes nothing.
+- [ ] **In game**: after Prepare and Start game the bot finds both decks (draws, discards) on that map.
 
 ### Maps of the official save (F21)
 Nothing of this has been seen on a real table. Load the official save, take a map out of its bag in the map area and put it on the table, then start the bot (or run `--read-only`).
