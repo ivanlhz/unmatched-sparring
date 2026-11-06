@@ -5,10 +5,10 @@ applied by the flow's legacy rules, the ONGOING bonus and the actions of a schem
 from __future__ import annotations
 
 import re
-from dataclasses import dataclass, field
+from dataclasses import dataclass, field, replace
 from functools import lru_cache
 
-from .cards import Card, can_be_boost
+from .cards import MEDUSA_BASE, Card, can_be_boost
 from .effects import ongoing
 from .heroes import load_hero
 from .i18n import t
@@ -31,8 +31,9 @@ def _medusa_cards() -> frozenset[Card]:
 
 def is_medusa_card(card: Card) -> bool:
     """One of Medusa's cards. A CardID range cannot say so: the TMNT decks share Medusa's 17600-17629 (docs/card-identity.md),
-    so the card is compared by value with her deck (a Card is frozen: id, title, fighter, numbers, text, tags)."""
-    return card in _medusa_cards()
+    so the card is compared by value with her deck (a Card is frozen: id, title, fighter, numbers, text, tags), its id taken
+    back to her sheet first: TTS may have renumbered the DeckID of her deck."""
+    return replace(card, card_id=MEDUSA_BASE + card.card_id % 100) in _medusa_cards()
 
 
 @dataclass

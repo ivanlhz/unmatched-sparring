@@ -49,6 +49,7 @@ class HeroTable:
     counter_dials: dict[str, str] = field(default_factory=dict)   # dial of each of the hero's counters (destinies)
     token_faces: dict[str, dict] = field(default_factory=dict)    # Z rotation of each face of a two-faced token (verify live)
     token_sources: dict[str, dict] = field(default_factory=dict)  # how to get another copy of a token (verify live)
+    token_slots: dict[str, dict] = field(default_factory=dict)     # own resting places of a token by side, ((x, y, z), (rx, ry, rz)) each, measured on the table: win over the layout's `tokens`
 
     def unpack_items(self) -> list[tuple[str, tuple[str, ...]]]:
         """(kind, GUID of each state) of everything that has to be taken out of the inner bag to play with the hero.
@@ -67,6 +68,16 @@ class HeroTable:
         for f in self.fighters.values():
             out += [*f.pieces, *([f.dial] if f.dial else [])]
         return out + [*self.tokens.values(), *self.counter_dials.values()]
+
+
+def card_shift(table: HeroTable, deck_id: int) -> int:
+    """How far the hero's CardIDs moved when TTS renumbered the DeckID of its deck from the data's to `deck_id`
+    (0 if it did not). The image identity is the deck's real key; the DeckID is only where TTS put it."""
+    return (deck_id - table.card_ids[0] // 100) * 100 if deck_id > 0 else 0
+
+
+def shifted(ids: tuple[int, int], shift: int) -> tuple[int, int]:
+    return ids[0] + shift, ids[1] + shift
 
 
 def _guid_list(value, where: str) -> tuple[str, ...]:
@@ -88,7 +99,10 @@ def parse_hero_table(raw: dict, hero: HeroDef, where: str = "tts") -> HeroTable:
                           tuple((i["face"], i["back"]) for i in deck["identity"]), fighters,
                           dict(raw.get("tokens") or {}), dict(raw.get("counter_dials") or {}),
                           {k: dict(v) for k, v in (raw.get("token_faces") or {}).items()},
-                          {k: dict(v) for k, v in (raw.get("token_sources") or {}).items()})
+                          {k: dict(v) for k, v in (raw.get("token_sources") or {}).items()},
+                          {k: {side: tuple((tuple(float(v) for v in s["pos"]), tuple(float(v) for v in s["rot"])) for s in rows)
+                               for side, rows in v.items()}
+                           for k, v in (raw.get("token_slots") or {}).items()})
     except (KeyError, TypeError, ValueError, IndexError) as e:
         raise HeroTableError(f"{where}: invalid TTS data ({e!r})") from None
     _validate(table, hero, where)
@@ -148,8 +162,9 @@ def nicknames_for(hero: HeroDef, table: HeroTable) -> dict[str, str]:
     return out
 
 
-def table_defaults(bot_slug: str, human_slug: str) -> dict:
-    """What is specific to the two heroes, with the keys of `config/table.json` (which wins if it repeats them)."""
+def table_defaults(bot_slug: str, human_slug: str, shifts: tuple[int, int] = (0, 0)) -> dict:
+    """What is specific to the two heroes, with the keys of `config/table.json` (which wins if it repeats them). `shifts`:
+    CardID shift of each one's deck when TTS renumbered its DeckID (`card_shift`); the CardID ranges come out shifted."""
     if bot_slug == human_slug:
         raise HeroTableError(f"both sides play {bot_slug!r}: there are no pieces or deck for two")
     bot, human = load_hero(bot_slug), load_hero(human_slug)
@@ -171,7 +186,7 @@ def table_defaults(bot_slug: str, human_slug: str) -> dict:
         raise HeroTableError("two fighters with the same name: " + ", ".join(sorted(nicknames.values())))
     out = {"nicknames": nicknames, "pieces": pieces, "dials": dials,
            "bot_deck_guid": tb.deck_guid, "human_deck_guid": th.deck_guid,
-           "bot_card_ids": list(tb.card_ids), "human_card_ids": list(th.card_ids),
+           "bot_card_ids": list(shifted(tb.card_ids, shifts[0])), "human_card_ids": list(shifted(th.card_ids, shifts[1])),
            "bot_identity": [list(p) for p in tb.identity], "human_identity": [list(p) for p in th.identity]}
     for hero, table in ((human, th), (bot, tb)):     # one Hellboy per game, on either side
         if hero.forms is not None and hero.forms.counter in table.counter_dials:

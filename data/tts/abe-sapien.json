@@ -48,12 +48,12 @@
  "token_faces": {
   "intuition": {
    "child": "b75787",
-   "verify_live": true,
+   "verify_live": false,
    "faces": {
     "inactive": 0,
     "active": 180
    },
-   "note": "Z rotation of an Intuition token for each face. The save rests the stack at rotZ 0 showing the main image and the glued back image sits at rotZ 180; the tokens start inactive (dark), so inactive = 0 and active (green with yellow stripes) = 180 is INFERRED, not seen. Swap the two numbers if a live flip shows the wrong face; the tokens are found on the table by the nickname 'Intuition Token' (or GUID 5a17e9)."
+   "note": "Z rotation of an Intuition token for each face: inactive (dark) = 0, active (green with yellow stripes) = 180. CONFIRMED live on 6/11: the player turned the tokens to inactive by hand and they rest at rotZ 0. The tokens are found on the table by the nickname 'Intuition Token' (or GUID 5a17e9)."
   }
  },
  "token_sources": {
@@ -61,6 +61,62 @@
    "verify_live": true,
    "mode": "auto",
    "note": "Another Uncanny Intuition token comes from the same object: takeObject for a bag, infinite bag or stack, clone for a single token. Confirm the object type with --read-only."
+  }
+ },
+ "token_slots": {
+  "intuition": {
+   "human": [
+    {
+     "pos": [
+      -3.12,
+      1.76,
+      17.99
+     ],
+     "rot": [
+      0,
+      90,
+      0
+     ]
+    },
+    {
+     "pos": [
+      -3.11,
+      1.76,
+      20.62
+     ],
+     "rot": [
+      0,
+      90,
+      0
+     ]
+    }
+   ],
+   "bot": [
+    {
+     "pos": [
+      1.75,
+      1.64,
+      18.0
+     ],
+     "rot": [
+      0,
+      270,
+      0
+     ]
+    },
+    {
+     "pos": [
+      1.67,
+      1.64,
+      20.37
+     ],
+     "rot": [
+      0,
+      270,
+      0
+     ]
+    }
+   ]
   }
  },
  "counter_dials": {}

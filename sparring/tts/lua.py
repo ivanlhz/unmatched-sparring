@@ -1051,7 +1051,7 @@ local function deckAnywhere(lo, hi, ident)
       local fallback = o.getData().CustomDeck
       if #cards == 0 then ok = false end
       for _, c in ipairs(cards) do
-        if type(c.CardID) ~= "number" or c.CardID < lo or c.CardID > hi then ok = false end
+        if type(c.CardID) ~= "number" or c.CardID % 100 < lo % 100 or c.CardID % 100 > hi % 100 then ok = false end
         if ok and ident then
           local images = imagesOf(c, fallback)
           if #images == 0 then ok = false end
@@ -1685,7 +1685,7 @@ local function heroCard(c, fallback)
   if type(id) ~= "number" then return false end
   for _, h in ipairs(HEROES) do
     if id == h[4] then return true end
-    if id >= h[1] and id <= h[2] then
+    if id % 100 >= h[1] % 100 and id % 100 <= h[2] % 100 then
       local images = imagesOf(c, fallback)
       local all = #images > 0
       for _, info in ipairs(images) do
@@ -2735,10 +2735,11 @@ MAX_PILE_PAIRS = 12      # distinct "face|back" images reported for a deck that 
 def table_heroes(ranges: list[tuple[int, int]], guids: list[str], identities: list | None = None,
                  min_unknown: int = 5, deck_zones: dict[str, str] | None = None) -> str:
     """Read only, at start-up: which heroes are on the table. For each loose Deck or Card on the table (those inside
-    a bag do not count) it returns its spot and how many of its cards belong to each hero (`counts`, indexed like `ranges`);
+    a bag do not count) it returns its spot and how many of its cards belong to each hero (`counts`, indexed like `ranges`) and the DeckID those cards carry (`deck_ids`);
     and, from `guids` (miniatures), the spot of those loose on the table. With `identities` (one per range: the hero's
     (FaceURL, BackURL) pairs) a card only counts if its image is also the hero's: in the real save almost
-    every deck shares DeckID 176 with Medusa. A Deck of at least `min_unknown` cards that belongs to no
+    every deck shares DeckID 176 with Medusa, and TTS renumbers the DeckID of a second one on spawn, so with identities
+    the range only fixes the card's index (CardID % 100) and the image decides whose it is. A Deck of at least `min_unknown` cards that belongs to no
     hero also comes back, with `counts` at zero, its name and `pairs` (the distinct "face|back" images of its cards) to
     look it up in the hero catalog (`data/catalog/heroes.json`) and say which deck it is or that it is not recognized.
     `deck_zones` ({"bot": zone GUID, "human": zone GUID}): a pile lying inside one of them comes back with `side`, which
@@ -2756,6 +2757,10 @@ def table_heroes(ranges: list[tuple[int, int]], guids: list[str], identities: li
     return f"""-- sparring:table_heroes
 {ZONE_LUA}{_IMAGE_LUA}local ranges = {{{rows}}}
 local idents = {idents}
+local function inRange(r, id)
+  if idents == nil then return id >= r[1] and id <= r[2] end
+  return id % 100 >= r[1] % 100 and id % 100 <= r[2] % 100
+end
 local function isHero(i, c, fallback)
   if idents == nil then return true end
   local images = imagesOf(c, fallback)
@@ -2775,13 +2780,14 @@ for _, o in ipairs(getObjects()) do
     local data = o.getData()
     local cards = (o.type == "Card") and {{data}} or (data.ContainedObjects or {{}})
     local fallback = data.CustomDeck
-    local counts, any = {{}}, false
-    for i = 1, #ranges do counts[i] = 0 end
+    local counts, deckIds, any = {{}}, {{}}, false
+    for i = 1, #ranges do counts[i] = 0; deckIds[i] = 0 end
     for _, c in ipairs(cards) do
       if type(c.CardID) == "number" then
         for i, r in ipairs(ranges) do
-          if c.CardID >= r[1] and c.CardID <= r[2] and isHero(i, c, fallback) then
+          if inRange(r, c.CardID) and isHero(i, c, fallback) then
             counts[i] = counts[i] + 1; any = true
+            deckIds[i] = math.floor(c.CardID / 100)
           end
         end
       end
@@ -2805,7 +2811,7 @@ for _, o in ipairs(getObjects()) do
           end
         end
       end
-      table.insert(piles, {{type = o.type, guid = o.getGUID(), x = p.x, z = p.z, counts = counts, name = name,
+      table.insert(piles, {{type = o.type, guid = o.getGUID(), x = p.x, z = p.z, counts = counts, deck_ids = deckIds, name = name,
                            size = #cards, pairs = pairsOf, side = sideOf[o.getGUID()], down = o.is_face_down == true}})
     end
   end
@@ -2881,6 +2887,52 @@ end
 local new = obj.setState({_i(state_index)})
 if new == nil then return JSON.encode({{changed = false}}) end
 return JSON.encode({{guid = new.getGUID(), state = {_i(state_index)}, moved = new.getGUID()}})
+"""
+
+
+@_registered
+def split_token_stack(items: list[tuple]) -> str:
+    """Puts the SECOND (and later) token of a hero whose tokens rest in separate places at its place: `items` = (stack GUID,
+    nickname of the token, (x, y, z), (rx, ry, rz)), one per extra place. A token with that nickname that is already loose (not
+    the stack's GUID, not yet used by an earlier place) is laid there; otherwise one is taken out of the stack with `takeObject`
+    (it gets a NEW GUID, which is why it is found by nickname from then on: the cleaning destroys it by nickname too). A stack of
+    one and nothing loose changes nothing. Returns `{split: [GUID of each token taken], placed: [GUID of each loose one laid]}`."""
+    if not isinstance(items, (list, tuple)) or not 1 <= len(items) <= 8:
+        raise ValueError("between 1 and 8 places expected")
+    rows = []
+    for guid, nick, pos, rot in items:
+        if not all(isinstance(v, (tuple, list)) and len(v) == 3 for v in (pos, rot)):
+            raise TypeError("position and rotation (x, y, z) expected")
+        rows.append(f"{{{_guid(guid)}, {lua_str(nick)}, Vector({_f(pos[0])}, {_f(pos[1])}, {_f(pos[2])}), "
+                    f"Vector({_f(rot[0])}, {_f(rot[1])}, {_f(rot[2])})}}")
+    return f"""-- sparring:split_token_stack
+local skip = {{Deck = true, Card = true, Bag = true, Infinite = true, Block = true, Board = true, Hand = true, Scripting = true}}
+local split, placed, used = {{}}, {{}}, {{}}
+for _, row in ipairs({{{", ".join(rows)}}}) do
+  local stack = getObjectFromGUID(row[1])
+  local loose = nil
+  for _, o in ipairs(getObjects()) do
+    local ok, hit = pcall(function()
+      return not skip[o.type] and o.getName() == row[2] and o.getGUID() ~= row[1] and not used[o.getGUID()]
+    end)
+    if ok and hit and loose == nil then loose = o end
+  end
+  local qty = 1
+  if stack ~= nil then pcall(function() local q = stack.getQuantity() if q ~= nil and q > 1 then qty = q end end) end
+  if loose ~= nil then
+    loose.setPosition(row[3])
+    loose.setRotation(row[4])
+    used[loose.getGUID()] = true
+    table.insert(placed, loose.getGUID())
+  elseif stack ~= nil and qty > 1 then
+    local new = stack.takeObject({{position = row[3], rotation = row[4], smooth = false}})
+    if new ~= nil then
+      used[new.getGUID()] = true
+      table.insert(split, new.getGUID())
+    end
+  end
+end
+return JSON.encode({{split = split, placed = placed}})
 """
 
 

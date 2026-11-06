@@ -22,6 +22,7 @@ import re
 import secrets
 import sys
 import threading
+import time
 import traceback
 from dataclasses import dataclass, field
 from pathlib import Path
@@ -30,7 +31,7 @@ from typing import Callable
 from .search.controller import make_bot_ai
 from .board import Board, catalog as board_catalog
 from .board_detect import BoardError, choose_board
-from .hero_detect import HeroDetectionError, detect_heroes, detected_decks, read_table
+from .hero_detect import HeroDetectionError, deck_shifts, detect_heroes, detected_decks, read_table
 from .heroes import HeroDataError, load_hero
 from . import game_log, i18n, map_setup, persist, table_prep, table_reset
 from .i18n import t
@@ -154,6 +155,7 @@ class PlayConfig:
     sources: tuple[str, str] = (SRC_DEFAULT, SRC_DEFAULT)   # where each side's hero comes from
     detected_decks: dict[str, str] = field(default_factory=dict)   # side -> GUID of the deck the start-up read found
     saved_zones: dict[str, str] = field(default_factory=dict)      # discard zones the bot created in an earlier run (state file)
+    shifts_read: bool = False       # the CardID shifts of the decks were taken from the table (or the saved game), not assumed
 
     @property
     def language(self) -> str:
@@ -166,6 +168,11 @@ class PlayConfig:
         """(bot hero, human hero): `bot_hero` / `human_hero` of the configuration, Medusa vs Hellboy by default. Each
         one needs its data/heroes/<slug>.json."""
         return hero_pair(self.raw)
+
+    @property
+    def card_shifts(self) -> tuple[int, int]:
+        """CardID shift of each side's deck (0 unless TTS renumbered its DeckID; `deck_shifts`)."""
+        return int(self.raw.get("bot_card_shift") or 0), int(self.raw.get("human_card_shift") or 0)
 
     @property
     def pending_heroes(self) -> tuple[bool, bool]:
@@ -219,6 +226,7 @@ class PlayConfig:
                 dials=dict(r.get("dials", {})), destiny_dial=r.get("destiny_dial"),
                 bot_card_ids=tuple(r.get("bot_card_ids", lua.BOT_CARD_IDS)),
                 human_card_ids=tuple(r.get("human_card_ids", lua.HUMAN_CARD_IDS)),
+                bot_card_shift=self.card_shifts[0], human_card_shift=self.card_shifts[1],
                 deck_identity={side: tuple(tuple(p) for p in r[f"{side}_identity"])
                                for side in ("bot", "human") if r.get(f"{side}_identity")},
                 bot_label=self.hero_names[0], human_label=self.hero_names[1],
@@ -359,7 +367,7 @@ def with_hero_data(raw: dict) -> dict:
     everything written still works); of the fighters only those of the two heroes count."""
     bot, human = hero_pair(raw)
     try:
-        derived = table_defaults(bot, human)
+        derived = table_defaults(bot, human, (int(raw.get("bot_card_shift") or 0), int(raw.get("human_card_shift") or 0)))
         fids = {f.fid for slug in (bot, human) for f in load_hero(slug).fighters()}
     except (HeroTableError, HeroDataError) as e:
         raise ConfigError(str(e)) from None
@@ -436,6 +444,53 @@ def detect_board(client, cfg: PlayConfig, echo: Callable[[str], None] = print) -
     return out
 
 
+def with_deck_shifts(cfg: PlayConfig, shifts: tuple[int, int]) -> PlayConfig:
+    """The same configuration with the CardID ranges of the decks moved by `shifts` (bot, human)."""
+    if shifts == cfg.card_shifts:
+        return cfg
+    out = build_config({**cfg.base, "bot_card_shift": shifts[0], "human_card_shift": shifts[1]}, cfg.sources,
+                       found_board_guid=cfg.board.guid)
+    out.warnings, out.detected_decks, out.saved_zones = list(cfg.warnings), dict(cfg.detected_decks), dict(cfg.saved_zones)
+    out.shifts_read = cfg.shifts_read
+    return out
+
+
+SHIFT_TRIES = 20                    # reads of the table while waiting for freshly unpacked decks to appear
+SHIFT_PAUSE = 0.5                   # seconds between those reads (a Gate passes its own settle)
+
+
+def rescan_deck_shifts(client, cfg: PlayConfig, pause: Callable[[], object] | None = None, *, require: bool = False,
+                       tries: int = SHIFT_TRIES) -> PlayConfig:
+    """Reads the decks lying on the table (read only) and returns `cfg` with the CardID ranges they really carry: TTS
+    renumbers a deck's DeckID when it spawns next to another with the same one.
+
+    `require` (after unpacking the heroes from their bags): a deck spawns, and is renumbered, AFTER the unpack script has
+    answered, so a deck not seen yet is not "shift 0". Waits with `pause()` and reads again up to `tries` times and, if a
+    deck still is not there, raises `SessionError` instead of guessing. Without it (heroes the player already set out) a
+    deck that is not on the table keeps shift 0 and a table that cannot be read changes nothing."""
+    pause = pause or (lambda: time.sleep(SHIFT_PAUSE))
+    shifts: tuple[int | None, int | None] = (None, None)
+    for attempt in range(max(1, tries) if require else 1):
+        if attempt:
+            pause()
+        try:
+            reading = read_table(ReadOnlyClient(client), _deck_zones(cfg.raw))
+        except (TTSLuaError, TimeoutError, OSError):
+            if require:
+                raise
+            return cfg
+        shifts = deck_shifts(reading, cfg.heroes)
+        if None not in shifts:
+            break
+    else:
+        if require:
+            missing = [load_hero(s).name for s, v in zip(cfg.heroes, shifts) if v is None]
+            raise SessionError(t("gate.decks_not_seen", heroes=", ".join(missing)))
+    out = with_deck_shifts(cfg, (shifts[0] or 0, shifts[1] or 0))
+    out.shifts_read = True
+    return out
+
+
 def resolve_heroes(client, cfg: PlayConfig, saved: tuple[str, str] | None = None,
                    echo: Callable[[str], None] = print) -> PlayConfig:
     """Fixes each side's hero before `with_hero_data`: launch option > configuration > saved game (when resuming) >
@@ -443,14 +498,13 @@ def resolve_heroes(client, cfg: PlayConfig, saved: tuple[str, str] | None = None
     is read and unclear, `HeroDetectionError`."""
     names = list(hero_pair(cfg.base))
     sources = list(cfg.sources)
-    reading, r = None, cfg.raw
+    reading, r, failure = None, cfg.raw, None
     if saved:
         for i in (0, 1):
             if sources[i] == SRC_DEFAULT:
                 names[i], sources[i] = saved[i], SRC_SAVE
     if SRC_DEFAULT in sources:
         fixed = tuple(None if src == SRC_DEFAULT else name for name, src in zip(names, sources))
-        failure = None
         if not (r.get("bot_deck_spot") and r.get("human_deck_spot")) or is_todo(r.get("human_deck_spot")):
             failure = t("herosel.no_spots")
         else:
@@ -474,6 +528,9 @@ def resolve_heroes(client, cfg: PlayConfig, saved: tuple[str, str] | None = None
     if reading is not None:
         out.detected_decks = detected_decks(reading, out.heroes, r["bot_deck_spot"], r["human_deck_spot"],
                                             float(r.get("deck_radius", lua.DECK_RADIUS)), _deck_zones(r))
+    if reading is not None:                    # the table was read for the heroes: it also says where the decks' ids are
+        out = with_deck_shifts(out, tuple(v or 0 for v in deck_shifts(reading, out.heroes)))
+        out.shifts_read = True
     echo(describe_heroes(out))
     return out
 
@@ -504,7 +561,7 @@ class ReadOnlyClient:
 
 
 def _titles(cfg: PlayConfig) -> dict[int, str]:
-    return {c.card_id: c.title for slug in cfg.heroes for c in load_hero(slug).deck()}
+    return {c.card_id: c.title for slug, shift in zip(cfg.heroes, cfg.card_shifts) for c in load_hero(slug).deck(shift)}
 
 
 def _bridge_objects(slug: str) -> dict[str, str]:
@@ -1024,7 +1081,7 @@ def ai_config(cfg: PlayConfig, ai: str | None, ai_time: float | None) -> dict:
 
 
 def build_game(cfg: PlayConfig, first: str, seed: int) -> Game:
-    game = Game.new(cfg.board, seed, controllers={}, bot_player=BOT, heroes=cfg.heroes)
+    game = Game.new(cfg.board, seed, controllers={}, bot_player=BOT, heroes=cfg.heroes, card_shifts=cfg.card_shifts)
     if first in ("human", "bot"):
         game.turn = HUMAN if first == "human" else BOT
     game.begin_turn(emit=False)          # its triggers fire when the table is set (`Session._start_first_turn`)
@@ -1062,13 +1119,17 @@ def pregame(cfg: PlayConfig, client: TTSClient, args: argparse.Namespace, stop: 
 
     def redetect(bot: str | None, human: str | None) -> PlayConfig:
         fresh = load_config(args.config, bot or args.bot_hero, human or args.human_hero, args.language)
-        return resolve_heroes(client, detect_board(client, fresh, echo), None, echo)
+        found = resolve_heroes(client, detect_board(client, fresh, echo), None, echo)
+        if (bot or human) or found.shifts_read:      # preparing rescans after it unpacks the decks (`Gate.rescan`)
+            return found
+        return rescan_deck_shifts(client, found)
 
     def make_session(on: PlayConfig) -> Session:
         return table_reset.CleaningSession(build_game(on, "random", 0), client, make_bot_ai(ai_config(on, None, None), BOT),
                        on.session_config(), bot=BOT)
     gate = table_reset.Gate(client, cfg, redetect=redetect, make_session=make_session, unpack=prepare_heroes,
                             announce=make_announcer(client, echo), echo=echo, stop=stop, errors=GATE_ERRORS,
+                            rescan=lambda on, pause: rescan_deck_shifts(client, on, pause, require=True),
                             poll=args.poll, state_path=Path(args.state), notes=notes)
     return gate.run()
 
@@ -1079,6 +1140,10 @@ def play(cfg: PlayConfig, client: TTSClient, first: str, seed: int, stop: thread
          ai_time: float | None = None, bot_pause: float | None = None, unpack: bool = False,
          card_zoom: bool = True, on_ready: Callable[[], None] = lambda: None, gated: bool = False) -> None:
     i18n.set_language(cfg.language)                  # before the first panel or chat line; --resume takes the current one
+    if (unpack or cfg.raw.get("unpack") is True) and not resume:
+        prepare_heroes(client, cfg, echo)
+        # the decks spawn (and TTS may renumber their DeckID) after the unpack answered: read the ranges they really carry
+        cfg = rescan_deck_shifts(client, cfg, lambda: stop.wait(SHIFT_PAUSE), require=True)
     scfg = cfg.session_config()
     if bot_pause is not None:
         if not (math.isfinite(bot_pause) and 0 <= bot_pause <= 30):
@@ -1088,8 +1153,6 @@ def play(cfg: PlayConfig, client: TTSClient, first: str, seed: int, stop: thread
         scfg.card_zoom = False
     if gated:
         scfg.remove_plan = ()          # the pre-game gate has cleaned the table with its own guarded report: no silent removal
-    if (unpack or cfg.raw.get("unpack") is True) and not resume:
-        prepare_heroes(client, cfg, echo)
     game = build_game(cfg, first, seed)
     session = Session(game, client, make_bot_ai(ai_config(cfg, ai, ai_time), BOT), scfg, bot=BOT)
     session.state_path = state_path
@@ -1197,6 +1260,18 @@ def saved_heroes(state_path: str | Path) -> tuple[str, str] | None:
     return (str(heroes[0]), str(heroes[1])) if isinstance(heroes, list) and len(heroes) == 2 else None
 
 
+def saved_card_shifts(state_path: str | Path) -> tuple[int, int] | None:
+    """The CardID shifts (bot, human) of the saved game's decks; None if it holds none (a save from before DeckID
+    renumbering, or none at all): then the table says."""
+    try:
+        shifts = persist.load(state_path).get("card_shifts")
+    except persist.StateError:
+        return None
+    if isinstance(shifts, list) and len(shifts) == 2 and all(isinstance(v, int) for v in shifts):
+        return shifts[0], shifts[1]
+    return None
+
+
 def saved_language(state_path: str | Path) -> str | None:
     """The language the saved game was played in; None if it holds none (an older save) or does not exist."""
     try:
@@ -1287,6 +1362,9 @@ def _main(args: argparse.Namespace, stop: threading.Event, status: Callable[[str
                 gate_notes.append(str(e))
             try:
                 cfg = resolve_heroes(client, cfg, saved)
+                if args.resume and not args.read_only:   # the game was played with the ids it saved (none: the data's); the table is not asked
+                    cfg = with_deck_shifts(cfg, saved_card_shifts(args.state) or (0, 0))
+                    cfg.shifts_read = True
             except HeroDetectionError as e:
                 if not gate_mode:
                     raise
@@ -1294,6 +1372,8 @@ def _main(args: argparse.Namespace, stop: threading.Event, status: Callable[[str
                 cfg = build_config({**cfg.base, "bot_hero": args.bot_hero or DEFAULT_HEROES[0],
                                     "human_hero": args.human_hero or DEFAULT_HEROES[1]},
                                    cfg.sources, found_board_guid=cfg.board.guid)
+            if not cfg.shifts_read and not gate_mode:        # the gate reads them itself, after it prepares the table
+                cfg = rescan_deck_shifts(client, cfg)
             if not args.read_only:
                 cfg.session_config()
         except (BoardError, HeroDetectionError, ConfigError, persist.StateError, SessionError) as e:

@@ -251,17 +251,19 @@ class Game:
     @classmethod
     def new(cls, board: Board, seed: int, controllers: dict[int, Controller] | None = None,
             bot_player: int = 0, starts: tuple[str, str] = ("1", "2"),
-            heroes: tuple[str, str] = DEFAULT_HEROES) -> "Game":
+            heroes: tuple[str, str] = DEFAULT_HEROES, card_shifts: tuple[int, int] = (0, 0)) -> "Game":
         """`heroes`: (slug of `bot_player`'s hero, slug of the other); each comes from data/heroes/<slug>.json.
-        `starts`: starting space of each one's map, in that same order."""
+        `starts`: starting space of each one's map, in that same order.
+        `card_shifts`: CardID shift of each one's deck, in that same order (TTS renumbered its DeckID)."""
         rng = random.Random(seed)
         other = 1 - bot_player
         defs = {bot_player: load_hero(heroes[0]), other: load_hero(heroes[1])}
         if defs[bot_player].fid == defs[other].fid:
             raise RuleError(t("err.same_hero", slug=heroes[0]))
         players: list[PlayerState | None] = [None, None]
+        shifts = {bot_player: card_shifts[0], other: card_shifts[1]}
         for owner, h in defs.items():
-            players[owner] = PlayerState(h, [], h.deck())
+            players[owner] = PlayerState(h, [], h.deck(shifts[owner]))
         start_spaces = {bot_player: board.starts[starts[0]], other: board.starts[starts[1]]}
         fighters, taken = [], set()
         for owner in (bot_player, other):

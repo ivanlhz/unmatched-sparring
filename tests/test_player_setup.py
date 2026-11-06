@@ -243,7 +243,8 @@ class SetupTable(GateTable):
         for o in self.world:
             if o.kind == "deck":
                 piles.append({"type": "Deck", "guid": o.guid, "x": o.x, "z": o.z, "name": "", "size": 31, "pairs": [], "side": None,
-                              "down": True, "counts": [30 if slug == o.slug else 0 for slug in slugs]})
+                              "down": True, "counts": [30 if slug == o.slug else 0 for slug in slugs],
+                              "deck_ids": [load_hero_table(slug).card_ids[0] // 100 if slug == o.slug else 0 for slug in slugs]})
         return {"piles": piles, "pieces": {}}
 
     def do_read_transforms(self, s):

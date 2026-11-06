@@ -62,7 +62,7 @@ from .board import catalog as board_catalog
 from .board_detect import TABLE_PAD_IMAGES, BoardError, choose_board, image_key_of
 from .i18n import t
 from .heroes import load_hero
-from .session import INTUITION_TOKEN, Msg, Session, SessionError
+from .session import INTUITION_TOKEN, TOKEN_NICKNAMES, Msg, Session, SessionError
 from .session_choices import panel_text
 from .tts import lua, ui
 from .tts.client import TTSLuaError
@@ -392,7 +392,12 @@ def layout_ops(session, raw: dict) -> tuple[list[tuple[str, str]], list[str]]:
         found = table_layout.plan(raw, side, load_hero_table(session.game.hero_def(owner).slug))
         items += [(p.guids, *_lifted(p.slot)) for p in found.placements]
         unplaced += found.unplaced
-    return ([("layout", lua.arrange_objects(items))] if items else []), unplaced
+    ops = [("layout", lua.arrange_objects(items))] if items else []
+    split = [(guid, TOKEN_NICKNAMES[name], *_lifted(slot)) for side, _, _, _, _, owner in _deck_sides(session)
+             for table in [load_hero_table(session.game.hero_def(owner).slug)]
+             for name, guid in table.tokens.items() if name in TOKEN_NICKNAMES
+             for slot in table_layout.own_token_slots(side, table, name)[1:]]
+    return (ops + ([("token stacks", lua.split_token_stack(split))] if split else [])), unplaced
 
 
 def reset_cards_and_pieces(client, session, raw: dict, arrange: bool = False) -> list[Msg]:
@@ -410,44 +415,53 @@ def reset_cards_and_pieces(client, session, raw: dict, arrange: bool = False) ->
     client.call_lua(lua.flip_decks_down(_facing_args(session), session.cfg.deck_radius))
     session._reset_table(session._fresh_game())
     ops, unplaced = layout_ops(session, raw) if arrange else ([], [])
+    # the layout first: a slot's rotation must never decide the face a two-faced token ends on (Abe's Intuition tokens rest
+    # at the slot's Z, and the first face op that follows turns them to the starting one)
     got = batch(client, [("decks", lua.flip_decks_down(_facing_args(session), session.cfg.deck_radius)),
-                         *start_face_ops(client, session), *ops])
+                         *ops, *start_face_ops(client, session)])
     res = got.get("layout") if isinstance(got.get("layout"), dict) else {}
     left = [*unplaced, *(res.get("missing") or [])]
     return [Msg(t("gate.layout_unplaced", guids=", ".join(left)), lua.ChatKind.WARNING)] if left else []
 
 
-def prepare_session(client, make_session: Callable, cfg, unpack: Callable, echo: Callable[[str], None]) -> tuple[list[Msg], Session]:
+def prepare_session(client, make_session: Callable, cfg, unpack: Callable, echo: Callable[[str], None],
+                    rescan: Callable | None = None) -> tuple[list[Msg], Session, object]:
     """Takes the heroes of `cfg` out of what the player dropped (`unpack` returns what it could not do, said in the chat with
     what to do by hand) and leaves the table prepared for them: discard zones, cards in their decks, dials full, everything at
     its slot of the map layout. Raises what the table raises (the caller words it). Returns the chat lines and the session
-    that did it (it holds the discard zones it created or adopted).
+    that did it (it holds the discard zones it created or adopted), and the configuration it worked with: unpacking spawns the
+    decks, TTS may renumber their DeckID there, so `rescan(cfg)` reads the ranges they really carry before anything is searched.
 
     Not merged into one message: unpacking and `Session.prepare_table` have each their own reply to read (what is missing, the
     GUIDs of the zones TTS creates) before the next step can be worded or addressed."""
     problems = unpack(client, cfg, echo)
     if problems:
         raise SessionError(" ".join(problems))
+    if rescan is not None:
+        cfg = rescan(cfg)
     session = make_session(cfg)
     session.messages = []
     session.prepare_table(False, None)
     session._say_startup_notes()
     session.messages += reset_cards_and_pieces(client, session, cfg.raw, True)
-    return list(session.messages), session
+    return list(session.messages), session, cfg
 
 
 class Gate:
     """The pre-game loop. `redetect(bot, human)` returns the configuration of the table for those heroes (None = read
     them from the table) and raises what start-up raises when it cannot; `make_session(cfg)` builds a throw-away
-    session on a configuration (it is only used to read and reset the table, never to play)."""
+    session on a configuration (it is only used to read and reset the table, never to play); `rescan(cfg, settle)`, optional, gives
+    the configuration back with the deck ranges read after the heroes were unpacked (`settle()` waits between its reads)."""
 
     def __init__(self, client, cfg, *, redetect: Callable, make_session: Callable, unpack: Callable,
                  announce: Callable[[list], None], echo: Callable[[str], None], stop: threading.Event,
                  errors: tuple[type[BaseException], ...], poll: float = 0.1, settle: float | None = None,
-                 state_path: Path | None = None, notes: tuple[str, ...] = ()):
+                 state_path: Path | None = None, notes: tuple[str, ...] = (),
+                 rescan: Callable | None = None):
         self.notes = notes                       # what start-up could not read from the table (said first)
         self.client, self.cfg = client, cfg
         self.redetect, self.make_session, self.unpack = redetect, make_session, unpack
+        self.rescan = rescan                     # (cfg, settle) -> cfg with the CardID ranges of the decks as TTS numbered them
         self.announce, self.echo, self.stop, self.errors = announce, echo, stop, errors
         self.poll = poll
         self.settle = PANEL_SETTLE if settle is None else settle
@@ -455,6 +469,9 @@ class Gate:
         self.session = make_session(cfg)
         self.cleaned = False                     # the last audit found the table ready (prepared)
         self._panel_for: tuple | None = None
+
+    def _settle(self) -> None:
+        self.stop.wait(self.settle)
 
     def say(self, text: str, kind=lua.ChatKind.NEUTRAL) -> None:
         self.announce([Msg(text, kind)])
@@ -591,8 +608,9 @@ class Gate:
                 if not (isinstance(placed, dict) and placed.get("placed")):
                     raise SessionError(t("setup.map_failed", guid=setup.board_guid))
             cfg = self.redetect(setup.bot, setup.human)
-            lines, prepared = prepare_session(self.client, self.make_session, cfg,
-                                              lambda client, on, echo: self.unpack(client, on, echo, False, setup.bags), self.echo)
+            lines, prepared, cfg = prepare_session(self.client, self.make_session, cfg,
+                                                   lambda client, on, echo: self.unpack(client, on, echo, False, setup.bags),
+                                                   self.echo, self.rescan and (lambda on: self.rescan(on, self._settle)))
             self.announce(lines)
             self._forget_saved_game()
             self.cfg, self.session = cfg, prepared      # the preparing session knows the zones it made

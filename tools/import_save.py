@@ -31,7 +31,7 @@ from sparring.heroes import DECK_SIZE, HeroDef, available_heroes, hero_path, loa
 from sparring.tts.hero_table import TTS_DIR, HeroTableError, parse_hero_table  # noqa: E402
 
 MAX_VALUE_RE = re.compile(r"MAX_VALUE\s*=\s*(\d+)")
-KEPT_FIELDS = ("_notes", "token_faces", "token_sources")
+KEPT_FIELDS = ("_notes", "token_faces", "token_sources", "token_slots")
 
 
 class SaveImportError(Exception):
@@ -314,7 +314,7 @@ def merge(derived: dict, existing: dict | None, report: Report) -> dict:
     for key in ("bag", "deck", "fighters", "tokens"):
         if key in derived:
             out[key] = derived[key]
-    for key in ("token_faces", "token_sources"):
+    for key in ("token_faces", "token_sources", "token_slots"):
         if key in existing:
             out[key] = json.loads(json.dumps(existing[key]))
     for key, child in token_children.items():

@@ -90,3 +90,9 @@ and neither writes nor checks that dial; see docs/heroes/bigfoot.md and `tests/t
 
 Limits: dials are not resolved by name (a life dial carries no hero name); a shared dial GUID would only be warned about. A
 piece with several states (Hellboy) replaces the state GUID that was found, keeping the others.
+
+## Renumbered DeckIDs and character cards
+
+TTS renumbers the DeckID of a deck that spawns beside another with the same one (Medusa and Michelangelo both ship 176; Michelangelo's lands at 177xx). The bot finds each hero's deck by image identity and card index (`CardID % 100`), reads the DeckID it really has and keeps the shift per side (`bot_card_shift` / `human_card_shift`, saved in the session as `card_shifts`); every CardID range of the session and every CardID of the engine's decks carries it.
+
+Character cards (Medusa 302, Bigfoot 309, the turtles 363/364/366/368) live under CustomDeck key "3" and are matched by their exact CardID. If TTS ever renumbered that sheet, `take_character_cards` would miss them. The same goes for Houdini's character card 17700, which sits in the 177 namespace.

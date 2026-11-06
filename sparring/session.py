@@ -148,6 +148,8 @@ class SessionConfig:
     live_ui: bool = False          # status line, buttons by state and on-screen announcements in the same script
     bot_card_ids: tuple[int, int] = lua.BOT_CARD_IDS         # CardID range of the bot's deck (of its hero: data/tts)
     human_card_ids: tuple[int, int] = lua.HUMAN_CARD_IDS     # and of the human's deck
+    bot_card_shift: int = 0        # how far TTS moved each deck's CardIDs from the data's (it renumbers a repeated DeckID); already in the ranges
+    human_card_shift: int = 0
     deck_identity: dict[str, tuple] = field(default_factory=dict)   # "bot"/"human" -> (FaceURL, BackURL) pairs from data/tts
     bot_label: str = "MEDUSA"      # name of each side on the floor labels (its hero's)
     human_label: str = "HELLBOY"
@@ -208,7 +210,8 @@ def deck_where(zone: str | None, spot, radius: float) -> str:
 
 # configuration keys that identify the table and the game (fine settings do not count)
 INTUITION = "intuition"                 # Abe Sapien's ability counter (two tokens)
-INTUITION_TOKEN = "Intuition Token"      # nickname of those tokens on the table (data/tts/abe-sapien.json, stack 5a17e9)
+TOKEN_NICKNAMES = {"intuition": "Intuition Token"}   # tokens that rest in several places or are split off a stack: found by nickname
+INTUITION_TOKEN = TOKEN_NICKNAMES["intuition"]      # nickname of those tokens on the table (data/tts/abe-sapien.json, stack 5a17e9)
 
 IDENTITY_KEYS = ("destiny_dial", "bot_seat", "human_seat", "bot_deck_guid", "bot_discard_zone", "human_discard_zone",
                  "human_deck_guid", "start_spaces", "dials")
@@ -1428,7 +1431,8 @@ class Session:
         if self.new_game is not None:
             return self.new_game()
         game = Game.new(self.game.board, secrets.randbelow(2 ** 31), controllers={}, bot_player=self.bot,
-                        heroes=(self.game.hero_def(self.bot).slug, self.game.hero_def(self.human).slug))
+                        heroes=(self.game.hero_def(self.bot).slug, self.game.hero_def(self.human).slug),
+                        card_shifts=(self.cfg.bot_card_shift, self.cfg.human_card_shift))
         if self.first_mode in ("human", "bot"):
             game.turn = self.human if self.first_mode == "human" else self.bot
         game.begin_turn(emit=False)          # its triggers fire when the table is set (`_start_first_turn`)
@@ -1537,6 +1541,7 @@ class Session:
         return {
             "game": persist.game_to_dict(self.game),
             "heroes": [self.game.hero_def(self.bot).slug, self.game.hero_def(self.human).slug],
+            "card_shifts": [self.cfg.bot_card_shift, self.cfg.human_card_shift],
             "language": i18n.language(),
             "pending": None if p is None else {
                 "kind": p.kind, "attacker": p.attacker.fid, "target": p.target.fid,

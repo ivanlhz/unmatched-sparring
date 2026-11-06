@@ -17,6 +17,7 @@ from .board import MapEntry, catalog as board_catalog
 from .board_detect import TABLE_PAD_IMAGES, BoardError, choose_board, image_key_of
 from .heroes import load_hero
 from .i18n import t
+from .session import TOKEN_NICKNAMES
 from .tts import lua
 from .tts.hero_table import load_hero_table
 
@@ -176,6 +177,7 @@ def clear_script(raw: dict) -> str:
         hero = load_hero(table.slug)
         names |= {" ".join(spec.name.lower().split()) for spec in hero.fighters()}
         names |= {f.nickname.lower() for f in table.fighters.values() if f.nickname}
+        names |= {nick.lower() for name, nick in TOKEN_NICKNAMES.items() if name in table.tokens}   # the one split off a stack has a new GUID
     return lua.clear_setup([(table.card_ids, table.identity, table.character_card_id) for table in tables],
                            sorted({g for table in tables for g in table.all_guids()}),
                            sorted(n for n in names if _safe(n)), [e.image_key for e in board_catalog()],
