@@ -580,15 +580,22 @@ class Game:
         self.actions_left += n
 
     # turn
-    def begin_turn(self) -> list[tuple[int, str]]:
-        """Starts the turn of `self.turn`: 2 actions and its ONGOING schemes expire. Returns what expired."""
+    def begin_turn(self, emit: bool = True) -> list[tuple[int, str]]:
+        """Starts the turn of `self.turn`: 2 actions and its ONGOING schemes expire. Returns what expired. `emit=False`
+        leaves out the start-of-turn triggers: the first turn of a session game, whose table is not set yet (the
+        session fires them with `start_first_turn` once the game really begins)."""
         self.actions_left = 2
         self.hazard_taken.clear()
         self.placing.clear()
         expired = ongoing.expiring_parts(self, self.turn)
         ongoing.expire_legacy(self, self.turn)
-        self.fx.emit("start_of_turn", self.turn)
+        if emit:
+            self.start_first_turn()
         return expired
+
+    def start_first_turn(self) -> None:
+        """The start-of-turn triggers of `self.turn` (Wildfire, ANUNG UN RAMA...), on their own."""
+        self.fx.emit("start_of_turn", self.turn)
 
     def use_action(self) -> None:
         if self.actions_left <= 0:

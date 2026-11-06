@@ -276,11 +276,21 @@ def _human_cards(session, before: dict, played: frozenset, looked: bool, ctx: Ct
     hand_to_deck = [i for i in h1["deck"] if i in knew and i not in h0["discard"]]
     for intent in _groups(intents, "return_to_deck", human, "hand", hand_to_deck, keep_order=True):
         checks += translate(session, intent, ctx) or []
-    drawn = 0 if looked else len([i for i in h1["hand"] if i in h0["deck"]])    # a look moves placeholders, not cards
+    # a pile card an effect shuffled into your deck that the engine then drew for you (Back For Seconds, then a draw of
+    # the combat): your engine deck is a guess, so on the table it goes into the real deck and the draw is dealt from
+    # it; it is never a pickup from the discard pile
+    returned = {c for it in intents if it["op"] == "return_to_deck" and it["player"] == human and it["zone"] == "discard"
+                for c in it["cards"]}
+    redrawn = [i for i in h0["discard"] if i in returned and i in h1["hand"]]
+    drawn = 0 if looked else len([i for i in h1["hand"] if i in h0["deck"]]) + len(redrawn)   # a look moves placeholders, not cards
     played_back = [i for it in intents if it["op"] == "return_to_deck" and it["player"] == human and it["zone"] == "discard"
                    for i in it["cards"] if i in h1["deck"] and i not in h0["discard"] and i not in h0["deck"]]    # Relentless
     if played_back:                               # the bot puts it in the deck BEFORE the draw it owes is dealt
         checks += combat_card_to_deck(session, played_back, ctx) or []
+    disc_to_deck = [i for i in h0["discard"] if i in h1["deck"] or i in redrawn]
+    if redrawn:                                   # the engine drew after the shuffle: the deck gets them first
+        for intent in _groups(intents, "return_to_deck", human, "discard", disc_to_deck, keep_order=True):
+            checks += translate(session, intent, ctx) or []
     session._deal_owed_draws(cause)               # the draws of the effect are dealt to the hand (the `draw` translator)
     from_hand = len([i for i in h0["hand"] if i in played])
     entered = g.fx.ongoing_card_id(human)         # an ONGOING that entered play left the hand without a discard
@@ -289,10 +299,10 @@ def _human_cards(session, before: dict, played: frozenset, looked: bool, ctx: Ct
     unknown = len(h0["hand"]) + drawn - len(h1["hand"]) - from_hand - len(to_discard) - by_bot - len(hand_to_deck) - len(played_back) - whole
     if unknown > 0:
         session.say(t("bot.return_hand", cards=plural(unknown, "noun.card"), cause=cause), ChatKind.YOUR_TURN)
-    disc_to_deck = [i for i in h0["discard"] if i in h1["deck"]]
-    for intent in _groups(intents, "return_to_deck", human, "discard", disc_to_deck, keep_order=True):
-        checks += translate(session, intent, ctx) or []
-    disc_to_hand = [i for i in h0["discard"] if i in h1["hand"]]
+    if not redrawn:
+        for intent in _groups(intents, "return_to_deck", human, "discard", disc_to_deck, keep_order=True):
+            checks += translate(session, intent, ctx) or []
+    disc_to_hand = [i for i in h0["discard"] if i in h1["hand"] and i not in redrawn]
     for intent in _groups(intents, "put_in_hand", human, "discard", disc_to_hand):
         checks += translate(session, intent, ctx) or []
     return checks

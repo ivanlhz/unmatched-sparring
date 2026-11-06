@@ -1027,7 +1027,7 @@ def build_game(cfg: PlayConfig, first: str, seed: int) -> Game:
     game = Game.new(cfg.board, seed, controllers={}, bot_player=BOT, heroes=cfg.heroes)
     if first in ("human", "bot"):
         game.turn = HUMAN if first == "human" else BOT
-    game.begin_turn()
+    game.begin_turn(emit=False)          # its triggers fire when the table is set (`Session._start_first_turn`)
     return game
 
 
