@@ -1045,6 +1045,7 @@
  "gate.issue.leftovers": "quedan objetos sueltos de la partida anterior ({detail})",
  "gate.issue.hand_cards": "hay cartas en las manos ({detail})",
  "gate.issue.cards_loose": "hay cartas fuera de su mazo ({detail})",
+ "gate.issue.unchecked": "no he podido comprobar piezas, diales o fichas ({detail})",
  "gate.issue.heroes_out": "mazo, diales o piezas de {detail} siguen en la bolsa",
  "gate.issue.pieces_on_board": "hay miniaturas en el tablero ({detail})",
  "gate.issue.dials": "los diales no estan en su valor inicial ({detail})",

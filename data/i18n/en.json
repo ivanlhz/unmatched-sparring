@@ -1045,6 +1045,7 @@
  "gate.issue.leftovers": "loose objects of the previous game are left ({detail})",
  "gate.issue.hand_cards": "there are cards in the hands ({detail})",
  "gate.issue.cards_loose": "cards are outside their deck ({detail})",
+ "gate.issue.unchecked": "I could not check pieces, dials or tokens ({detail})",
  "gate.issue.heroes_out": "the deck, dials or pieces of {detail} are still in the bag",
  "gate.issue.pieces_on_board": "miniatures are on the board ({detail})",
  "gate.issue.dials": "dials are not at their starting value ({detail})",

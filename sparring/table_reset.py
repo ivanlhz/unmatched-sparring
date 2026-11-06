@@ -178,8 +178,9 @@ def read_map(client) -> tuple[str, object]:
 def batch(client, named: list[tuple[str, str]], optional: frozenset[str] = frozenset()) -> dict:
     """ONE message to TTS for several builders (`lua.composite`, each runs inside its own pcall): {name: that builder's
     answer}. A builder that failed raises `SessionError` naming it. TTS takes ~0.5 s per message, so the audit and each step of
-    the cleaning go out as one. A read named in `optional` that failed answers None instead of raising: the caller can do
-    without it (one failing side read must not kill the whole audit)."""
+    the cleaning go out as one. A read named in `optional` that failed answers None instead of raising, and its error is kept in
+    `out["__failed"]` = {name: error}: the caller must report it (one failing side read must not kill the whole audit, but
+    the table it would have checked is not checked)."""
     res = client.call_lua(lua.composite([script for _, script in named]))
     ops = res.get("ops") if isinstance(res, dict) else None
     if not isinstance(ops, list) or len(ops) != len(named):
@@ -189,6 +190,7 @@ def batch(client, named: list[tuple[str, str]], optional: frozenset[str] = froze
         if isinstance(answer, dict) and answer.get("__err"):
             if name in optional:
                 out[name] = None
+                out.setdefault("__failed", {})[name] = answer["__err"]
                 continue
             raise SessionError(t("gate.batch_failed", name=name, error=answer["__err"]))
         out[name] = answer
@@ -328,6 +330,9 @@ def audit(client, session, state_path: Path | None = None, raw: dict | None = No
                 turned.append(f"{load_hero(slug).name} {name}")
         if turned:
             out.issues.append(Issue("tokens", ", ".join(turned)))
+    unchecked = got.get("__failed") or {}
+    if unchecked:
+        out.issues.append(Issue("unchecked", "; ".join(f"{name}: {err}" for name, err in sorted(unchecked.items()))))
     if state_path is not None and Path(state_path).exists():
         out.issues.append(Issue("saved_game", ""))
     return out

@@ -222,16 +222,38 @@ def test_a_table_arranged_for_a_new_game_audits_ready(gate_live, cfg_file):
     assert result.ready and result.issues == [] and result.notices == []
 
 
-def test_one_failing_side_read_does_not_kill_the_audit(gate_live, cfg_file):
+def test_one_failing_side_read_does_not_kill_the_audit_but_blocks_readiness(gate_live, cfg_file):
     table, _, _ = gate_live
     table.make_ready()
+    table.leftovers["addeca"] = "DeckCustom"              # the rest of the audit is still reported
     table.do_read_health_dials = lambda s: {"__error__": "boom"}
     client = client_for(gate_live)
     try:
         result = table_reset.audit(client, session_for(client, cfg_file()))
     finally:
         client.close()
-    assert result.ready, "the dials read failed; everything else was still audited"
+    assert not result.ready and codes(result) == ["leftovers", "unchecked"]
+    assert "boom" in result.issues_text() and "no he podido comprobar" in result.issues_text()
+
+
+def test_a_failing_pieces_read_never_calls_a_table_with_a_piece_on_the_map_ready(gate_live, cfg_file):
+    table, _, _ = gate_live
+    table.make_ready()
+    table.piece_dist.pop("Hellboy")                      # Hellboy stands on the map
+    table.do_piece_spaces_by_guid = lambda s: {"__error__": "boom"}
+    client = client_for(gate_live)
+    try:
+        result = table_reset.audit(client, session_for(client, cfg_file()))
+    finally:
+        client.close()
+    assert not result.ready and "unchecked" in codes(result)
+
+
+def test_a_map_copy_of_ours_far_from_the_spot_is_still_reused(tts):  # noqa: F811
+    map_bag(tts, spawn_late=True)
+    tts.execute("mkobj({guid = 'oldmap', type = 'Board', gm = 'sparring-map', pos = Vector(20, 1, 20)})")
+    assert take_map(tts) == {"taken": True, "guid": "oldmap", "reused": True}
+    assert tts.eval("TAKES") == 0
 
 
 def test_a_failing_core_read_still_fails_the_audit(gate_live, cfg_file):

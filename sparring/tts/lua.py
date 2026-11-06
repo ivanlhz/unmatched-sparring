@@ -1469,7 +1469,7 @@ def take_map(bag_guid: str, board_guid: str, position: tuple[float, float, float
     its single object, taken with `takeObject` WITHOUT a GUID (a copy has a GUID of its own; the caller recognises the
     map by its image). The copy arrives LATER: scale, lock and the check that it is a Board happen in `callback_function`,
     and the reply is sent from there (or after `UNPACK_SPAWN_WAIT` s with `why = "spawning"`; the callback still finishes the
-    copy afterwards). A copy an earlier press left (a Board with our GM notes within `UNPACK_REUSE_RADIUS` of the spot) is
+    copy afterwards). A copy an earlier press left (a Board with our GM notes, anywhere on the table) is
     reused, never duplicated. A copy that is not a Board is destroyed. Any other bag must list `board_guid` and gives it
     at once by GUID.
 
@@ -1497,9 +1497,7 @@ end
 local infinite = bag.type == "Infinite" or bag.name == "Custom_Model_Infinite_Bag"
 if infinite then
   for _, o in ipairs(getObjects()) do                      -- a copy an earlier press left is reused, never duplicated
-    local p = o.getPosition()
-    if o ~= bag and o.type == "Board" and o.getGMNotes() == MINE
-       and (p.x - SPOT.x) ^ 2 + (p.z - SPOT.z) ^ 2 <= {_f(UNPACK_REUSE_RADIUS)} ^ 2 then
+    if o ~= bag and o.type == "Board" and o.getGMNotes() == MINE then
       return answer({{taken = true, guid = o.getGUID(), reused = true}})
     end
   end
