@@ -72,7 +72,7 @@ def test_a_missing_zone_is_created_straight_with_the_configured_transform(tts):
     assert tts.eval("#SPAWNS") == 1
     assert tts.eval("SPAWNS[1].type") == "Scripting"                      # TTS reports a ScriptingTrigger as Scripting
     assert vec(tts, "SPAWNS[1]", "rot") == {"x": 0, "y": 270.0, "z": 0}
-    assert vec(tts, "SPAWNS[1]", "pos") == pytest.approx({"x": 14.9677, "y": 4.1422, "z": 0.7422})
+    assert vec(tts, "SPAWNS[1]", "pos") == pytest.approx({"x": 17.4677, "y": 4.1422, "z": 0.7422})
     assert vec(tts, "SPAWNS[1]", "scale") == pytest.approx({"x": 35.4306, "y": 5.1, "z": 8.5464})
 
 
@@ -80,7 +80,7 @@ def test_both_zones_are_created_with_their_own_transform(tts):
     res = prepare(tts, [spec(), spec("human_discard_zone", ("b7a0b8",))], [])
     assert {k: v["status"] for k, v in res["zones"].items()} == {"bot_discard_zone": "created", "human_discard_zone": "created"}
     assert res["zones"]["bot_discard_zone"]["guid"] != res["zones"]["human_discard_zone"]["guid"]
-    assert vec(tts, "SPAWNS[2]", "pos") == pytest.approx({"x": -12.4623, "y": 4.1422, "z": 0.6652})
+    assert vec(tts, "SPAWNS[2]", "pos") == pytest.approx({"x": -15.4623, "y": 4.1422, "z": 0.6652})
     assert vec(tts, "SPAWNS[2]", "scale") == pytest.approx({"x": 33.1625, "y": 5.1, "z": 10.9523})
     assert vec(tts, "SPAWNS[2]", "rot")["y"] == 270.0
 
@@ -201,9 +201,9 @@ def test_the_builder_refuses_what_it_cannot_write_safely():
 def test_the_default_transforms_come_from_the_config_and_are_straight():
     spawns = table_prep.zone_spawns(raw_config())
     assert set(spawns) == {"bot_discard_zone", "human_discard_zone"}
-    assert spawns["bot_discard_zone"].position == (14.9677, 4.1422, 0.7422)
+    assert spawns["bot_discard_zone"].position == (17.4677, 4.1422, 0.7422)
     assert spawns["bot_discard_zone"].scale == (35.4306, 5.1, 8.5464)
-    assert spawns["human_discard_zone"].position == (-12.4623, 4.1422, 0.6652)
+    assert spawns["human_discard_zone"].position == (-15.4623, 4.1422, 0.6652)
     assert spawns["human_discard_zone"].scale == (33.1625, 5.1, 10.9523)
     assert {s.rot_y for s in spawns.values()} == {270.0}
 
@@ -515,13 +515,13 @@ def test_a_zone_with_the_spawn_transform_under_an_unknown_guid_is_adopted_not_du
 
 
 def test_a_zone_that_is_far_from_the_transform_is_not_adopted(tts):
-    tts.execute("""mkobj({guid = 'other1', type = 'Scripting', pos = Vector(14.9677, 4.1422, 12.0), scale = Vector(35.4306, 5.1, 8.5464)})
-                  mkobj({guid = 'other2', type = 'Scripting', pos = Vector(14.9677, 4.1422, 0.7422), scale = Vector(3, 5.1, 3)})""")
+    tts.execute("""mkobj({guid = 'other1', type = 'Scripting', pos = Vector(17.4677, 4.1422, 12.0), scale = Vector(35.4306, 5.1, 8.5464)})
+                  mkobj({guid = 'other2', type = 'Scripting', pos = Vector(17.4677, 4.1422, 0.7422), scale = Vector(3, 5.1, 3)})""")
     assert prepare(tts, [spec()], [])["zones"]["bot_discard_zone"]["status"] == "created"
 
 
 def test_two_zones_never_adopt_the_same_object(tts):
-    tts.execute("mkobj({guid = 'one111', type = 'Scripting', pos = Vector(14.9677, 4.1422, 0.7422), scale = Vector(35.4306, 5.1, 8.5464)})")
+    tts.execute("mkobj({guid = 'one111', type = 'Scripting', pos = Vector(17.4677, 4.1422, 0.7422), scale = Vector(35.4306, 5.1, 8.5464)})")
     res = prepare(tts, [spec(), spec("human_discard_zone", ("b7a0b8",))], [])
     assert res["zones"]["bot_discard_zone"]["guid"] == "one111"
     assert res["zones"]["human_discard_zone"]["status"] == "created"
@@ -600,7 +600,7 @@ def test_an_object_inside_the_limits_is_destroyed(tts, x, z):
 
 
 def test_an_adopted_zone_is_never_destroyed_even_if_its_guid_is_listed(tts):
-    tts.execute("mkobj({guid = 'zonexx', type = 'Scripting', name = 'Digital_Clock', pos = Vector(14.9677, 4.1422, 0.7422), scale = Vector(35.4306, 5.1, 8.5464)})")
+    tts.execute("mkobj({guid = 'zonexx', type = 'Scripting', name = 'Digital_Clock', pos = Vector(17.4677, 4.1422, 0.7422), scale = Vector(35.4306, 5.1, 8.5464)})")
     res = prepare(tts, [spec()], [("zonexx", "Digital_Clock")])
     assert res["zones"]["bot_discard_zone"]["guid"] == "zonexx"
     assert res["removed"] == [] and res["skipped"][0]["why"] == "zone" and present(tts, "zonexx")

@@ -72,7 +72,7 @@
     -18.0
   ],
   "bot_discard_spot": [
-    15.0,
+    17.5,
     2.0,
     -14.0
   ],
@@ -119,15 +119,15 @@
     17.55
   ],
   "bot_discard_bounds": [
-    14.9677,
+    17.4677,
     0.7422,
     35.4306,
     8.5464,
     270.0
   ],
   "discard_zone_rot_y": 270.0,
-  "bot_discard_zone_spawn": {"position": [14.9677, 4.1422, 0.7422], "scale": [35.4306, 5.1, 8.5464]},
-  "human_discard_zone_spawn": {"position": [-12.4623, 4.1422, 0.6652], "scale": [33.1625, 5.1, 10.9523]},
+  "bot_discard_zone_spawn": {"position": [17.4677, 4.1422, 0.7422], "scale": [35.4306, 5.1, 8.5464]},
+  "human_discard_zone_spawn": {"position": [-15.4623, 4.1422, 0.6652], "scale": [33.1625, 5.1, 10.9523]},
   "remove_table": {"addeca": "DeckCustom", "cb6cbc": "DeckCustom", "65be8d": "Die_20", "5085eb": "Custom_Assetbundle", "6126d5": "Digital_Clock", "790396": "Digital_Clock"},
   "remove_table_limits": [26.0, 36.0],
   "dead_spot": [
