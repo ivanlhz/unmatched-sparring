@@ -584,8 +584,44 @@ class Session:
             self.game.drawn[self.bot] = self.game.start_hand(self.bot)
             self.dirty = True
             self.say(t("sess.bot_deals", n=self.game.start_hand(self.bot)))
-        if self._rd_human_count(1) == 0:
-            self.say(t("sess.deal_yours", n=self.game.start_hand(self.human)), ChatKind.YOUR_TURN)
+        self._deal_human_start()
+
+    def _deal_human_start(self) -> None:
+        """The human's opening hand: when their seat is empty the bot deals it from their deck (the human then decides
+        the mulligan); without a human deck or on a failed deal they are told to draw it themselves."""
+        if self._rd_human_count(1) != 0:
+            return
+        n = self.game.start_hand(self.human)
+        if self._deal_human_hand(n, mulligan=False):
+            self.say(t("sess.deal_yours", n=n), ChatKind.YOUR_TURN)
+        else:
+            self.say(t("sess.draw_yours", n=n), ChatKind.YOUR_TURN)
+
+    def _deal_human_hand(self, n: int, mulligan: bool) -> bool:
+        """Deals `n` cards from the human's deck to their seat; with `mulligan` first returns their hand to the deck and
+        shuffles it. False (nothing more is tried) when there is no human deck or the table does not confirm it, so the
+        human does it by hand. The engine's virtual hand is settled by the next read of the table, as with any deal."""
+        c = self.cfg
+        if not c.human_deck_guid:
+            return False
+        kw, ident = self._deck_kw("human"), self._identity("human")
+        try:
+            if mulligan:
+                back = self._w(lua.return_hand_to_deck(c.human_seat, c.human_deck_guid, c.human_card_ids, identity=ident,
+                                                       **kw), "cards").result or {}
+                if not back.get("deck") or not self._settle(lambda: self._rd_human_count(1) == 0):
+                    return False
+                total = len(self.game.players[self.human].full_set)
+                shuffled = self._w(lua.shuffle_deck(c.human_deck_guid, id_range=c.human_card_ids, identity=ident, **kw),
+                                   "cards").result or {}
+                if not shuffled.get("shuffled") or shuffled.get("quantity") != total:
+                    return False
+            dealt = (self._w(lua.deal_cards(c.human_deck_guid, n, c.human_seat, id_range=c.human_card_ids,
+                                            identity=ident, **kw), "cards").result or {}).get("dealt")
+        except TABLE_ERRORS:
+            return False
+        self.snap = None
+        return dealt == n
 
     # ---------- game setup: persisted state machine ----------
     # Stages (self.setup["stage"]): those the bot runs alone, and those waiting for the human (Ready button).
@@ -627,7 +663,8 @@ class Session:
                         self._setup_place_hero()
                         names, many = self._sidekick_names(), len(self._sidekicks()) > 1
                         tag = ("setup.first.several" if many else "setup.first.single") if names else "setup.first.alone"
-                        self.say(t(tag, names=names, zone=zone_text(self.game, self.game.start_spaces[self.human])),
+                        self.say(t(tag, names=names, n=self.game.start_hand(self.human),
+                                   zone=zone_text(self.game, self.game.start_spaces[self.human])),
                                  ChatKind.YOUR_TURN)
                 elif stage == "place_bot":
                     self._require_bot_hand_matches()
@@ -636,8 +673,9 @@ class Session:
                         self._setup_place_hero()
                         self.setup["stage"] = "wait_human"
                         names = self._sidekick_names()
-                        self.say(t("setup.then.names", names=names, zone=zone_text(self.game, self.game.start_spaces[self.human]))
-                                 if names else t("setup.then.alone"), ChatKind.YOUR_TURN)
+                        n = self.game.start_hand(self.human)
+                        self.say(t("setup.then.names", names=names, n=n, zone=zone_text(self.game, self.game.start_spaces[self.human]))
+                                 if names else t("setup.then.alone", n=n), ChatKind.YOUR_TURN)
                     else:
                         self.setup["stage"] = "begin"
                 elif stage == "begin":
@@ -657,6 +695,7 @@ class Session:
         self.read_bot_hand()
         if self.dirty:
             self._flush_table()
+        self._deal_human_start()
 
     def _setup_mulligan(self) -> None:
         """Once only: if the hand is bad, the 5 cards go back to the deck, it is shuffled and 5 new ones dealt.
@@ -819,8 +858,9 @@ class Session:
         self._setup_advance()
 
     def _human_mulligan(self, _: dict) -> None:
-        """The human's Mulligan button: only during setup, once and before Ready. The bot does not touch its deck: it
-        tells them to return the hand, shuffle and draw 5 (the human draws at their seat)."""
+        """The human's Mulligan button: only during setup, once and before Ready. The bot returns their hand to their
+        deck, shuffles and deals the new starting hand; without a human deck (or if the table fails) it tells them to
+        do it by hand."""
         s = self.setup
         if s is None:
             self.say(t("setup.mull.only_setup"), ChatKind.WARNING)
@@ -832,8 +872,11 @@ class Session:
             self.say(t("setup.mull.done", n=self.game.start_hand(self.human)), ChatKind.WARNING)
         else:
             s["human_mull"] = True
-            self.say(t("setup.mull.go.sidekick", n=self.game.start_hand(self.human), names=self._sidekick_names()) if self._sidekicks()
-                     else t("setup.mull.go.plain", n=self.game.start_hand(self.human)), ChatKind.YOUR_TURN)
+            n = self.game.start_hand(self.human)
+            dealt, side = self._deal_human_hand(n, mulligan=True), bool(self._sidekicks())
+            tag = (("setup.mull.dealt.sidekick" if side else "setup.mull.dealt.plain") if dealt
+                   else ("setup.mull.go.sidekick" if side else "setup.mull.go.plain"))
+            self.say(t(tag, n=n, names=self._sidekick_names()), ChatKind.YOUR_TURN)
 
     def _human_setup_ok(self) -> bool:
         g = self.game

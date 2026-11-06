@@ -530,20 +530,20 @@ def test_a_pending_combat_between_living_fighters_is_untouched_by_an_hp_change(r
 
 
 # ---------- 8. opening hands ----------
-def test_start_with_both_hands_empty_deals_the_bot_five_and_tells_the_human_to_draw(rig):
+def test_start_with_both_hands_empty_deals_the_bot_five_and_without_a_human_deck_tells_the_human_to_draw(rig):
     session, table, game = rig
     table.bot_deck = [c.card_id for c in game.players[0].full_set]
     table.bot_hand, table.human_count = [], 0
     out = session.start()
     assert len(table.bot_hand) == 5 and table.deal_calls == [5] and len(game.players[0].hand) == 5
-    assert any("Roba tus 5 cartas" in m for m in out)
+    assert any("roba tus 5 cartas iniciales a mano" in m for m in out)   # no human deck configured: the fallback
 
 
 def test_start_with_hands_already_dealt_does_not_deal(rig):
     session, table, game = rig
     table.human_count = 5
     out = session.start()
-    assert table.deal_calls == [] and not any("Roba tus 5" in m for m in out)
+    assert table.deal_calls == [] and not any("roba tus 5" in m.lower() for m in out)
 
 
 def test_start_deals_the_bot_even_when_the_human_already_drew(rig):
@@ -551,7 +551,7 @@ def test_start_deals_the_bot_even_when_the_human_already_drew(rig):
     table.bot_deck = [c.card_id for c in game.players[0].full_set]
     table.bot_hand, table.human_count = [], 5
     out = session.start()
-    assert len(table.bot_hand) == 5 and not any("Roba tus 5" in m for m in out)
+    assert len(table.bot_hand) == 5 and not any("roba tus 5" in m.lower() for m in out)
 
 
 # ---------- 9. double click ----------
