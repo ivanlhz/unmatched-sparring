@@ -113,8 +113,19 @@ def _borrowing(raw: dict, side: str) -> dict[str, Slot | list[Slot]]:
     for role in LIST_ROLES:
         mine, theirs = have.get(role, []), other.get(role, [])
         if isinstance(mine, list) and isinstance(theirs, list) and len(theirs) > len(mine):
-            have[role] = mine + [mirrored(s) for s in theirs[len(mine):]]
+            have[role] = mine + [_borrowed(s, other.get("dial"), have.get("dial")) for s in theirs[len(mine):]]
     return have
+
+
+def _borrowed(slot: Slot, their_dial, my_dial) -> Slot:
+    """`slot` of the other half, laid on this one at the same offset from this half's hero dial (x of the offset flipped)
+    as it had from theirs: the halves are not calibrated as exact mirrors, so a plain x flip can land a sidekick dial on
+    this half's deck (Houdini's Bess, live). Without a dial on both halves, the plain mirror."""
+    turned = mirrored(slot)
+    if not isinstance(their_dial, Slot) or not isinstance(my_dial, Slot):
+        return turned
+    (x, y, z), (tx, _, tz), (mx, _, mz) = slot.pos, their_dial.pos, my_dial.pos
+    return Slot((mx - (x - tx), y, mz + (z - tz)), turned.rot)
 
 
 def plan(raw: dict, side: str, table: HeroTable) -> Plan:

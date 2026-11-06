@@ -154,9 +154,12 @@ def test_another_pair_on_the_same_sides_lands_in_the_same_slots():
     assert plan.unplaced == [], "the live bug: Hellboy's extra dials and tile had no slot on the half Medusa was calibrated on"
     by_role = {p.role: p.slot for p in plan.placements}
     human = table_layout.slots(raw, "human")
-    assert by_role["sidekick_dials"] == table_layout.Slot((3.77, 1.66, 17.68), (0.0, 90.0, 0.0)), "mirrored from the human half"
-    assert by_role["tokens"] == table_layout.mirrored(human["tokens"][0])
-    assert by_role["tokens"].rot == (0.0, 270.0, 180.0)
+    side_dial = by_role["sidekick_dials"]
+    assert side_dial.pos == pytest.approx((2.30, 1.66, 17.39)), "at the human sidekick's offset from its dial, x flipped"
+    assert side_dial.rot == (0.0, 90.0, 0.0)
+    deck = table_layout.slots(raw, "bot")["deck"].pos
+    assert abs(side_dial.pos[0] - deck[0]) > 2.5, "the live bug: Bess's dial landed on Houdini's deck"
+    assert by_role["tokens"].rot == table_layout.mirrored(human["tokens"][0]).rot == (0.0, 270.0, 180.0)
 
 
 def test_a_side_with_its_own_slots_does_not_borrow():
