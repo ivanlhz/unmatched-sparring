@@ -190,3 +190,22 @@ def test_the_real_config_describes_the_human_discard_zone_and_the_floor_is_clear
     cfg = play.load_config(Path(__file__).resolve().parent.parent / "config" / "table.json")
     assert cfg.raw["human_discard_bounds"][:2] == cfg.raw["human_discard_zone_spawn"]["position"][::2]
     assert play.floor_layout_warnings(cfg) == []
+
+
+def test_a_return_that_took_nothing_is_not_reported_as_a_mulligan(deal_rig):
+    """The deck was found but the hand never left the seat: the by-hand text is said, never "Mulligan hecho"."""
+    session, table, game = deal_rig
+    session.start()
+    table.do_return_hand_to_deck = lambda s: {"returned": 0, "deck": True}
+    out = session.handle(Event.MULLIGAN)
+    assert any("devuelve tu mano" in m for m in out) and not any("Mulligan hecho" in m for m in out)
+    assert table.human_count == 5 and table.human_deals == [5]
+
+
+def test_a_shuffle_that_never_settles_tells_the_human_to_shuffle_first(deal_rig):
+    session, table, game = deal_rig
+    session.start()
+    table.do_shuffle_deck = lambda s: {"shuffled": True, "quantity": 1}
+    out = session.handle(Event.MULLIGAN)
+    assert any("Barajalo tu primero" in m and "faltan: 5" in m for m in out)
+    assert table.human_deals == [5]

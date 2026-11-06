@@ -361,6 +361,7 @@
  "setup.mull.go.sidekick": "Mulligan: devuelve tu mano a tu mazo, baraja y vuelve a robar {n} cartas. Despues coloca a {names} y pulsa [[btn.ready]].",
  "setup.mull.go.plain": "Mulligan: devuelve tu mano a tu mazo, baraja y vuelve a robar {n} cartas. Despues pulsa [[btn.ready]].",
  "setup.mull.partial": "Mulligan a medias: he devuelto tu mano pero no he podido repartirla entera. Cartas que te faltan por robar a mano: {missing}. Despues pulsa [[btn.ready]].",
+ "setup.mull.unshuffled": "Mulligan a medias: he devuelto tu mano pero no he podido barajar tu mazo. Barajalo tu primero y roba a mano las cartas que te faltan: {missing}. Despues pulsa [[btn.ready]].",
  "setup.mull.dealt.sidekick": "Mulligan hecho: he devuelto tu mano al mazo, lo he barajado y te he repartido {n} cartas nuevas. Ahora coloca a {names} y pulsa [[btn.ready]].",
  "setup.mull.dealt.plain": "Mulligan hecho: he devuelto tu mano al mazo, lo he barajado y te he repartido {n} cartas nuevas. Pulsa [[btn.ready]].",
  "setup.missing_piece": "Falta colocar a {name} en tu casilla de salida ({zone}).",

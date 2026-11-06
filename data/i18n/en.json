@@ -361,6 +361,7 @@
  "setup.mull.go.sidekick": "Mulligan: put your hand back in your deck, shuffle and draw {n} cards again. Then place {names} and press [[btn.ready]].",
  "setup.mull.go.plain": "Mulligan: put your hand back in your deck, shuffle and draw {n} cards again. Then press [[btn.ready]].",
  "setup.mull.partial": "Mulligan half done: I put your hand back but could not deal it all. Cards you still have to draw by hand: {missing}. Then press [[btn.ready]].",
+ "setup.mull.unshuffled": "Mulligan half done: I put your hand back but could not shuffle your deck. Shuffle it yourself first, then draw the cards you are missing by hand: {missing}. Then press [[btn.ready]].",
  "setup.mull.dealt.sidekick": "Mulligan done: I put your hand back in your deck, shuffled it and dealt you {n} new cards. Now place {names} and press [[btn.ready]].",
  "setup.mull.dealt.plain": "Mulligan done: I put your hand back in your deck, shuffled it and dealt you {n} new cards. Press [[btn.ready]].",
  "setup.missing_piece": "{name} still has to be placed on your starting space ({zone}).",
