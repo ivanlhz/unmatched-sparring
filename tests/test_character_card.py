@@ -148,9 +148,22 @@ def test_another_pair_on_the_same_sides_lands_in_the_same_slots():
     raw = config_raw()
     plan = table_layout.plan(raw, "bot", load_hero_table("hellboy"))
     assert [(p.role, p.guids[0]) for p in plan.placements] == [
-        ("deck", "00dc9a"), ("dial", "046660"), ("pieces", "f9789a"), ("pieces", "e33604")]
+        ("deck", "00dc9a"), ("dial", "046660"), ("sidekick_dials", "18c384"), ("counter_dials", "e17c66"),
+        ("tokens", "1644a3"), ("pieces", "f9789a"), ("pieces", "e33604")]
     assert plan.placements[0].slot == table_layout.slots(raw, "bot")["deck"]
-    assert plan.unplaced == ["18c384", "e17c66", "1644a3"], "sidekick dial, destiny dial and token have no bot slot"
+    assert plan.unplaced == [], "the live bug: Hellboy's extra dials and tile had no slot on the half Medusa was calibrated on"
+    by_role = {p.role: p.slot for p in plan.placements}
+    human = table_layout.slots(raw, "human")
+    assert by_role["sidekick_dials"] == table_layout.Slot((3.77, 1.66, 17.68), (0.0, 90.0, 0.0)), "mirrored from the human half"
+    assert by_role["tokens"] == table_layout.mirrored(human["tokens"][0])
+    assert by_role["tokens"].rot == (0.0, 270.0, 180.0)
+
+
+def test_a_side_with_its_own_slots_does_not_borrow():
+    raw = config_raw()
+    plan = table_layout.plan(raw, "human", load_hero_table("hellboy"))
+    assert plan.unplaced == []
+    assert [p.slot for p in plan.placements if p.role == "sidekick_dials"] == table_layout.slots(raw, "human")["sidekick_dials"]
 
 
 def test_a_slot_that_is_not_three_numbers_is_refused():
@@ -224,6 +237,7 @@ def test_an_object_without_a_slot_stays_and_the_chat_names_it(medusa_live, cfg_f
     raw = config_raw()
     layout = json.loads(json.dumps(raw["layout"]))
     layout["human"]["pieces"] = layout["human"]["pieces"][:1]
+    layout["bot"]["pieces"] = layout["bot"]["pieces"][:1]     # else the human half borrows the bot's mirrored
     write_setups(map_setup.SETUPS_PATH, **{"bprd-hq": {"scale": 1.1, "position": [0.07, 1.64, -1.93], "rot_y": 270.0, "layout": layout}})
     stop, t, result = run_main(medusa_live, cfg_file, tmp_path)
     try:

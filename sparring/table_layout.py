@@ -95,10 +95,32 @@ def items(table: HeroTable) -> list[Item]:
     return out
 
 
+SIDES = ("bot", "human")
+
+
+def mirrored(slot: Slot) -> Slot:
+    """`slot` on the other half of the table: the halves face each other across x = 0, so x flips and the slot turns 180."""
+    (x, y, z), (rx, ry, rz) = slot.pos, slot.rot
+    return Slot((-x, y, z), (rx, (ry + 180) % 360, rz))
+
+
+def _borrowing(raw: dict, side: str) -> dict[str, Slot | list[Slot]]:
+    """The slots of `side`, each list role topped up with the other side's extra slots mirrored: the layout is calibrated
+    with one pair of heroes, so a hero with more dials or tokens than the one that sat on this half uses the spots its rival
+    had for them (Hellboy's three dials on the half where Medusa had one)."""
+    have = slots(raw, side)
+    other = slots(raw, SIDES[1 - SIDES.index(side)]) if side in SIDES else {}
+    for role in LIST_ROLES:
+        mine, theirs = have.get(role, []), other.get(role, [])
+        if isinstance(mine, list) and isinstance(theirs, list) and len(theirs) > len(mine):
+            have[role] = mine + [mirrored(s) for s in theirs[len(mine):]]
+    return have
+
+
 def plan(raw: dict, side: str, table: HeroTable) -> Plan:
     """The placements of `table`'s hero on `side` (everything but the character card, which the gate lays when it takes it
-    out of the deck)."""
-    have = slots(raw, side)
+    out of the deck). A list role with fewer slots on `side` than objects borrows the other side's, mirrored."""
+    have = _borrowing(raw, side)
     out = Plan()
     used: dict[str, int] = {}
     for item in items(table):
