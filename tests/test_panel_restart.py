@@ -140,8 +140,10 @@ def test_another_button_between_the_two_presses_disarms_it(brig, tmp_path):
     assert session.game is game
 
 
-def test_double_press_restarts_everything_in_one_message_and_goes_back_to_the_draw(brig, tmp_path):
+@pytest.mark.parametrize("first, cap", [("human", 7), ("bot", 8)])
+def test_double_press_restarts_everything_in_one_message_and_goes_back_to_the_draw(brig, tmp_path, first, cap):
     session, table, game, clock = prepared(brig, tmp_path)
+    session.first_mode = first        # who goes first is random per restart and the bot placing first costs 1 message
     with_cfg(session, human_deck_guid="HDECK", human_deck_spot=(-4.6, 13.67), setup=True)
     session._snap_spec = None
     click(session, table, Event.MANEUVER)
@@ -164,7 +166,7 @@ def test_double_press_restarts_everything_in_one_message_and_goes_back_to_the_dr
     assert any("Partida reiniciada" in m for m in msgs)
     assert session.setup is not None and session.setup["stage"] in ("wait_human_first", "wait_human", "hand")
     assert json.loads((tmp_path / "session.json").read_text(encoding="utf-8"))["fingerprint"]["game_id"] == session.game_id
-    assert brig[3].lua_messages - n <= 7, "restarting does not cost dozens of messages (6 + the human's opening deal, which needs the seat read first)"
+    assert brig[3].lua_messages - n <= cap, "restarting does not cost dozens of messages (5/6 at base + 2 for the human's opening deal: the seat read and the deal)"
 
 
 def test_restart_moves_every_piece_off_the_board_to_the_two_dead_spots(brig, tmp_path):
