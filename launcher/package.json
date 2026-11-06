@@ -1,7 +1,7 @@
 {
   "name": "unmatched-sparring-launcher",
   "productName": "Unmatched Sparring",
-  "version": "0.2.0",
+  "version": "0.3.0",
   "description": "Desktop launcher for the Unmatched sparring bot in Tabletop Simulator",
   "license": "MIT",
   "private": true,
