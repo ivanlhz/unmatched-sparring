@@ -229,6 +229,7 @@ The bot creates a panel floating over the table. A status line at the top says w
 | LIFE | **-1**, **+1**, **Remove** (one row per fighter, both sides) | Adjust health for damage or healing that the engine does not see, or remove a fallen fighter. |
 | GAME | **Mulligan**, **Ready (setup)** | Only during set-up. |
 | GAME | **Restart game** | Press twice within 3 seconds. Returns every card to its deck, resets health, clears the saved game and starts over. |
+| GAME | **New game** | Always there. Press twice within 3 seconds: discards the game and its save and goes back to the Clean / Prepare / Start gate, so you can put another map and other heroes on the table. |
 | GAME | **Undo game over** | Shown only after the game ended, to fix a false win. |
 | GAME | value box + **Send value** | A number for something the engine cannot compute on your side (a boost, On Earth As It Is In Hell...). |
 
