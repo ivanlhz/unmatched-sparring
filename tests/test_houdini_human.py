@@ -218,6 +218,30 @@ def test_a_boosted_maneuver_survives_a_resume_and_is_not_boosted_twice(rig):
 
 
 @with_rig("hellboy", "houdini", TRAINING)
+def test_a_second_card_in_the_pile_is_warned_as_not_a_second_boost(rig):
+    session, table, game, fake, cfg = rig
+    human_hand(table, game, "Flourish", "Sleight of Hand")
+    click(session, table, Event.MANEUVER)
+    spend(table, game, "Flourish")
+    click(session, table, Event.MANEUVER_BOOST)
+    spend(table, game, "Sleight of Hand")
+    msgs = click(session, table, Event.END_ACTION)
+    assert said(msgs, "solo cuenta una potenciacion") and said(msgs, "Sleight of Hand"), msgs
+    assert table.human_deals == [1, 1] and not session.moving                  # not boosted twice; the action ended
+    assert any(c.title == "Sleight of Hand" for c in game.players[1].discard)
+
+
+@with_rig("hellboy", "houdini", TRAINING)
+def test_a_boost_without_effects_does_not_promise_them(rig):
+    session, table, game, fake, cfg = rig
+    human_hand(table, game, "The Big Reveal", "Flourish")
+    click(session, table, Event.MANEUVER)
+    spend(table, game, "The Big Reveal")
+    msgs = click(session, table, Event.MANEUVER_BOOST)
+    assert said(msgs, "Maniobra potenciada con The Big Reveal") and not said(msgs, "primero sus efectos"), msgs
+
+
+@with_rig("hellboy", "houdini", TRAINING)
 def test_the_old_habit_boost_then_end_action_applies_the_effects_and_waits_for_a_second_end_action(rig):
     session, table, game, fake, cfg = rig
     human_hand(table, game, "Flourish", "Sleight of Hand")

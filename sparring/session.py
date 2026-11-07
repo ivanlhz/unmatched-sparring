@@ -1860,7 +1860,6 @@ class Session:
             return
         try:
             op = self._w(script, "cards")
-            self._deal_at = time.monotonic()
         except TABLE_ERRORS as e:             # the reply may arrive late with the card already dealt
             self.say(t("deal.confirm_fail", err=e), ChatKind.WARNING)
             return
@@ -1934,7 +1933,6 @@ class Session:
             script = lua.deal_cards(c.human_deck_guid, n, c.human_seat, id_range=c.human_card_ids,
                                     identity=self._identity("human"), **self._deck_kw("human"))
             op = self._w(script, "cards")
-            self._deal_at = time.monotonic()
         except TABLE_ERRORS as e:
             # Nothing was written, so the engine's count is the only record: it stays (the next reading of the hand
             # settles it when he draws by hand) and the cards are not owed again (`human_dealt` already caught up).
@@ -1994,13 +1992,13 @@ class Session:
         BOOSTED WITH runs (choices on the panel) and only then do they move or place the pieces and press End action."""
         g = self.game
         if (g.winner is not None or g.turn != self.human or self.pending is not None or not self.moving
-                or self.maneuver_baseline is None or self.maneuver_boosted is not None):
+                or self.maneuver_baseline is None):
             self.say(t("maneuver.boost_none"), ChatKind.WARNING)
             return
         self.sync_human()
-        boosted, saw_new = self._read_maneuver_boost()
+        _, saw_new = self._read_maneuver_boost()
         if not saw_new:
-            self.say(t("maneuver.boost_no_card"), ChatKind.WARNING)
+            self.say(t("maneuver.boost_none" if self.maneuver_boosted is not None else "maneuver.boost_no_card"), ChatKind.WARNING)
 
     def _read_maneuver_boost(self) -> tuple[bool, bool]:
         """Looks for the boost card among the cards that reached the human's discard pile since the Maneuver began.
@@ -2034,12 +2032,14 @@ class Session:
         """Announces the boost (and ESCAPE ARTIST when the hero has it), runs BOOSTED WITH, and leaves the action open."""
         g = self.game
         self.maneuver_boosted = card.card_id
+        runs_effects = has_boost_effect(card) and g.fx.interprets(self.human)
+        fx_first = t("maneuver.fx_first") if runs_effects else ""
         if g.fx.hero_rule(self.human, "maneuver_boost_places_hero"):
-            self.say(t("maneuver.boosted_places", title=card.title, value=card.boost, hero=self._name(g.hero(self.human))),
-                     ChatKind.YOUR_TURN)
+            self.say(t("maneuver.boosted_places", title=card.title, value=card.boost, hero=self._name(g.hero(self.human)),
+                       fx=fx_first), ChatKind.YOUR_TURN)
         else:
-            self.say(t("maneuver.boosted", title=card.title, value=card.boost), ChatKind.YOUR_TURN)
-        if has_boost_effect(card) and g.fx.interprets(self.human):
+            self.say(t("maneuver.boosted", title=card.title, value=card.boost, fx=fx_first), ChatKind.YOUR_TURN)
+        if runs_effects:
             human_effects.maneuver_boost(self, card)      # BOOSTED WITH: its ops run now, like a scheme's
         if self._paused() is None and self.game.winner is None:
             self.say(t("maneuver.boost_then_end"), ChatKind.YOUR_TURN)
@@ -2950,7 +2950,7 @@ class Session:
         if self._paused() is not None:            # the plan asks you something: the turn cannot end (nor its actions be counted) before the answer
             return
         if self.maneuver_baseline is not None:
-            if self.maneuver_boosted is None and self._read_maneuver_boost()[0]:
+            if self._read_maneuver_boost()[0]:
                 return                                # old habit (boost card in the pile, End action): effects now, the action ends at the next End action
             self.maneuver_baseline, self.maneuver_boosted = None, None
         if self.ability_wait is not None:         # the table was read: your start-of-turn ability is done
@@ -4048,6 +4048,13 @@ class Session:
             self.snap, self._trusted = snap, False
         return self.snap
 
+    def _stamp_deal(self, scripts: list[str]) -> None:
+        """A script that deals cards to the human's seat just ran: until `DEAL_FLIGHT` passes, a card read in their
+        discard zone may be one still flying from the deck to the hand (`sync_human`)."""
+        seat = f'"{self.cfg.human_seat}"'
+        if any(x.startswith("-- sparring:deal_cards") and seat in x for x in scripts):
+            self._deal_at = time.monotonic()
+
     def _w(self, script: str, domain: str) -> _Op:
         """Writes to the table: immediate without `batch`, queued with it (goes out on the next `_flush`)."""
         op = _Op(self, script, domain)
@@ -4055,6 +4062,7 @@ class Session:
             self._queue.append(op)
         else:
             op.value, op.done = self.client.call_lua(script), True
+            self._stamp_deal([script])
         return op
 
     def _flush(self) -> None:
@@ -4085,6 +4093,7 @@ class Session:
                 for o in ops:
                     o.error, o.done = e, True
                 raise
+            self._stamp_deal([o.script for o in ops])
             results = res.get("ops") if isinstance(res, dict) else None
             results = results if isinstance(results, list) and len(results) == len(ops) else [None] * len(ops)
             for o, r in zip(ops, results):
