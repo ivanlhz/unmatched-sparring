@@ -2726,7 +2726,7 @@ return JSON.encode(out)
 """
 
 
-MAX_HERO_RANGES = 12
+MAX_HERO_RANGES = 24      # one CardID range per hero with TTS data (data/tts/*.json): room for the roster to grow
 MAX_HERO_GUIDS = 80
 MAX_PILE_PAIRS = 12      # distinct "face|back" images reported for a deck that is nobody's (to look it up in the catalog)
 

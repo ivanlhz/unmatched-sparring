@@ -18,7 +18,7 @@ OVERLAY = HEROES_DIR / "overlay" / "doctor-strange.json"
 EFFECTS = HEROES_DIR / "effects" / "doctor-strange.json"
 TTS = HEROES_DIR.parent / "tts" / "doctor-strange.json"
 MOMENTS = ("immediately", "during", "after", "scheme", "boost")
-SHARING = ["medusa", "leonardo", "donatello", "michelangelo", "raphael"]
+SHARING = ["medusa", "leonardo", "donatello", "michelangelo", "raphael", "bigfoot", "daredevil", "luke-cage", "bullseye"]
 
 # (copies, restriction, type, value, boost) as printed on the cards.
 REAL_CARDS = {
@@ -133,11 +133,12 @@ def test_table_data_names_both_pieces_the_deck_range_and_its_own_images():
 @pytest.mark.parametrize("other", SHARING)
 def test_strange_shares_the_card_range_but_not_the_images_with_medusa_and_each_turtle(other):
     strange, theirs = load_hero_table("doctor-strange"), load_hero_table(other)
-    assert strange.card_ids == theirs.card_ids == (17600, 17629)
+    top = 17621 if other == "daredevil" else 17629                 # Daredevil's deck has 22 cards
+    assert strange.card_ids == (17600, 17629) and theirs.card_ids == (17600, top)
     assert not set(strange.identity) & set(theirs.identity)
     for bot, human in (("doctor-strange", other), (other, "doctor-strange")):
         defaults = table_defaults(bot, human)
-        assert defaults["bot_card_ids"] == defaults["human_card_ids"] == [17600, 17629]
+        assert defaults["bot_card_ids"] == list(load_hero_table(bot).card_ids) and defaults["human_card_ids"] == list(load_hero_table(human).card_ids)
         assert defaults["bot_identity"] != defaults["human_identity"]
 
 

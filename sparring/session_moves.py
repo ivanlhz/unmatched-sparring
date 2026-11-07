@@ -48,6 +48,10 @@ def where_text(session, req: ChoiceRequest) -> str:
         text = t("moves.where.any")
     elif "zone_of" in where:
         text = t("moves.where.zone", who=who("zone_of"))
+    elif "next_to_nearest_foe" in where:
+        text = t("moves.where.next_to_foe")
+    elif "no_zone_of" in where:
+        text = t("moves.where.no_zone", who=who("no_zone_of"))
     elif "adjacent_to" in where:
         text = t("moves.where.adjacent", who=who("adjacent_to"))
     elif "nearest_to" in where:

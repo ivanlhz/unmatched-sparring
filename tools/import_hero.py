@@ -9,9 +9,10 @@ life, movement, reach, sidekicks, ability and the cards (title, type, value, boo
 The overlay `data/heroes/overlay/<slug>.json` provides what unmatched-memory lacks: the fighter id (`fid`),
 the corrected sidekicks (sparring name, fid, count), `memory_slug` and `name` when unmatched-memory files the hero under
 another slug or name (Houdini: `harry-houdini`, "Harry Houdini"; the card reads HOUDINI), the CardID sheet (`deck.card_base` + `deck.sheet`:
-idx, title, fighter restriction, tags and, if the real card says something else, `text` or `boost`; `memory_title` when
+idx, title, fighter restriction, tags and, if the real card says something else, `text`, `value` or `boost`; `memory_title` when
 unmatched-memory spells the title differently), and forms, counters, triggers, passives and `hand` (starting and
-maximum hand size when they are not 5 and 7: Michelangelo's PIZZA PARTY).
+maximum hand size when they are not 5 and 7: Michelangelo's PIZZA PARTY) and `reach_spaces` (the hero attacks anyone that many spaces away,
+zones ignored: Bullseye's 5).
 With the DSL effects (`data/heroes/effects/<slug>.json`) and the cards it computes `ai_profile`: the static profile of each
 fighter for the AI (sparring/ai_profile.py); the overlay can fix `ai_role: {fid: striker|keep_away}`.
 Without a sheet, the HeroDef carries the unmatched-memory cards with no CardID or restriction and the engine cannot play with it."""
@@ -27,7 +28,7 @@ sys.path.insert(0, str(ROOT))
 
 from sparring.ai_profile import compute_ai_profile  # noqa: E402
 from sparring.cards import memory_dir  # noqa: E402
-from sparring.heroes import HEROES_DIR, parse_hero  # noqa: E402
+from sparring.heroes import DECK_SIZE, HEROES_DIR, parse_hero  # noqa: E402
 
 OVERLAY_DIR = HEROES_DIR / "overlay"
 EFFECTS_DIR = HEROES_DIR / "effects"
@@ -77,7 +78,7 @@ def build(slug: str, memory: Path, overlay_dir: Path = OVERLAY_DIR, effects_dir:
                 raise SystemExit(f"{slug}: the overlay sheet cites {entry['title']!r} (idx {entry.get('idx')}), which does not "
                                  f"exist in unmatched-memory; known titles: {', '.join(sorted(by_title))}")
             cards.append({"idx": entry["idx"], "title": entry["title"], "fighter": entry["fighter"], "type": src["type"],
-                          "value": src["value"], "boost": entry.get("boost", src["boostValue"]),     # the printed boost wins
+                          "value": entry.get("value", src["value"]), "boost": entry.get("boost", src["boostValue"]),     # the printed value and boost win
                           "text": entry.get("text") or card_text(src),     # the real card wins over unmatched-memory
                           "tags": list(entry.get("tags", ()))})
         sheet_titles = [e.get("memory_title", e["title"]) for e in deck_ov["sheet"]]
@@ -86,6 +87,8 @@ def build(slug: str, memory: Path, overlay_dir: Path = OVERLAY_DIR, effects_dir:
             if n != src["copies"]:
                 raise SystemExit(f"{slug}: {title!r} appears {n} times in the sheet and unmatched-memory says {src['copies']}")
         deck = {"card_base": deck_ov["card_base"], "sheet": deck_ov.get("sheet_id"), "cards": cards}
+        if len(cards) != DECK_SIZE:                      # a deck of another size says so (Daredevil: 22); the usual 30 is implied
+            deck["size"] = len(cards)
     else:
         deck = {"card_base": None, "sheet": None,
                 "cards": [{"title": c["title"], "fighter": None, "type": c["type"], "value": c["value"],
@@ -103,6 +106,8 @@ def build(slug: str, memory: Path, overlay_dir: Path = OVERLAY_DIR, effects_dir:
     effects = json.loads(effects_path.read_text(encoding="utf-8")) if effects_path.exists() else None
     if "hand" in ov:
         out["hand"] = ov["hand"]
+    if ov.get("reach_spaces"):
+        out["reach_spaces"] = int(ov["reach_spaces"])
     out["ai_profile"] = compute_ai_profile(out, effects, ov.get("ai_role"))
     if ov.get("_notes"):
         out["_notes"] = ov["_notes"]

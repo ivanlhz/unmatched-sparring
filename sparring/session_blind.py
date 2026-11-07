@@ -16,7 +16,7 @@ from .tts.lua import ChatKind
 
 
 def is_count(req: ChoiceRequest | None) -> bool:
-    return req is not None and req.kind == "amount" and bool(req.extra.get("blind_count"))
+    return req is not None and req.kind == "amount" and bool(req.extra.get("blind_count") or req.extra.get("top_discard"))
 
 
 def declared(session, run, value: list) -> None:
@@ -26,6 +26,8 @@ def declared(session, run, value: list) -> None:
     count = int(value[0]) if value else 0
     card = request_card(session.game, req)
     name = card.title if card is not None else t("pile.this_card")
+    if req.extra.get("ability"):                                # Daredevil's special ability, not the card's own BLIND BOOST
+        name = t("blind.ability_name")
     if count == 0:
         session.say(t("blind.none", card=name), ChatKind.YOUR_TURN)
         return
@@ -34,8 +36,11 @@ def declared(session, run, value: list) -> None:
         session.say(t("blind.auto_failed", card=name, why=why), ChatKind.WARNING)
         return
     by_id = {c.card_id: c for c in session.game.players[session.human].full_set}
-    session.say(t("blind.auto", card=name, n=len(moved), titles=", ".join(by_id[i].title for i in moved),
-                  bonus=f"+{sum(by_id[i].boost for i in moved)}"), ChatKind.YOUR_TURN)
+    if req.extra.get("top_discard"):                            # Take A Knee: the heal is told by the effect's own line
+        session.say(t("knee.auto", card=name, title=by_id[moved[0]].title), ChatKind.YOUR_TURN)
+    else:
+        session.say(t("blind.auto", card=name, n=len(moved), titles=", ".join(by_id[i].title for i in moved),
+                      bonus=f"+{sum(by_id[i].boost for i in moved)}"), ChatKind.YOUR_TURN)
     run.flags.setdefault("blind_cards", {})[req.key.rsplit(":", 1)[0]] = moved
 
 

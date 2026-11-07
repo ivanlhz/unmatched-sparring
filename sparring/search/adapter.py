@@ -175,12 +175,12 @@ def attack_stats(values: tuple[int, ...], delta: int, hp: float) -> tuple[float,
     return r
 
 
-def strike_spots(board, target_pos: int, ranged: bool) -> frozenset[int]:
-    """Spaces from which an attacker (melee or ranged) strikes whoever is at `target_pos`."""
-    key = (board.key, target_pos, ranged)
+def strike_spots(board, target_pos: int, ranged: bool, reach: int = 0) -> frozenset[int]:
+    """Spaces from which an attacker (melee, ranged or with a reach in spaces) strikes whoever is at `target_pos`."""
+    key = (board.key, target_pos, ranged, reach)
     r = _strike_cache.get(key)
     if r is None:
-        r = _strike_cache[key] = frozenset(s for s in board.spaces if board.can_reach_target(s, target_pos, ranged))
+        r = _strike_cache[key] = frozenset(s for s in board.spaces if board.can_reach_target(s, target_pos, ranged, reach))
     return r
 
 
@@ -285,10 +285,10 @@ class SearchController(Controller):
         hand = game.players[self.me].hand
         t = ctx.target
         sign = -1 if t.owner == self.me else 1
-        now = min(max(0, ctx.atk_value - ctx.def_value), t.hp)
+        now = min(game.combat_damage_taken(t, max(0, ctx.atk_value - ctx.def_value)), t.hp)
         best, best_gain = None, 0.0
         for c in filter(bot_may_spend, hand):
-            net = min(max(0, ctx.atk_value + sign * c.boost - ctx.def_value), t.hp)
+            net = min(game.combat_damage_taken(t, max(0, ctx.atk_value + sign * c.boost - ctx.def_value)), t.hp)
             gain = sign * (net - now) - 0.3 * card_worth(c) + 0.3 * boost_effect_value(game, self.me, c)     # BOOSTED WITH
             if gain > best_gain:
                 best, best_gain = c, gain
@@ -678,7 +678,7 @@ class EngineState:
     def _striking_spots(self, p: int) -> frozenset[int]:
         g = self.game
         hero = g.hero(p)
-        return frozenset().union(*(strike_spots(g.board, e.pos, hero.ranged) for e in g.foes(p)))
+        return frozenset().union(*(strike_spots(g.board, e.pos, hero.ranged, hero.reach) for e in g.foes(p)))
 
     def _policies(self, p: int) -> tuple[str, ...]:
         return SIDEKICK_POLICIES if any(not f.hero for f in self.game.own(p)) else ("stay",)
@@ -755,7 +755,7 @@ class EngineState:
             values = attack_values(g.players[attacker], e.name)
             if not values:
                 continue
-            spots = strike_spots(g.board, hero.pos, e.ranged)
+            spots = strike_spots(g.board, hero.pos, e.ranged, e.reach)
             own = frozenset(mates - {e.pos})
             steps = e.move + free_steps(g, e)
             if e.pos in spots:

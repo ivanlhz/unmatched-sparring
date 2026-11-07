@@ -26,6 +26,20 @@
     },
     "triggers": {"type": "array", "items": {"$ref": "#/$defs/Trigger"}},
     "passives": {"type": "array", "items": {"$ref": "#/$defs/Modifier"}},
+    "during": {
+     "type": "array",
+     "items": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["id", "ops"],
+      "properties": {
+       "id": {"$ref": "#/$defs/Name"},
+       "condition": {"$ref": "#/$defs/Condition"},
+       "ops": {"$ref": "#/$defs/Ops"},
+       "notes": {"type": "string"}
+      }
+     }
+    },
     "notes": {"type": ["string", "null"]}
    }
   },
@@ -91,9 +105,11 @@
    "properties": {
     "any": {"const": true},
     "zone_of": {"$ref": "#/$defs/FighterRef"},
+    "no_zone_of": {"$ref": "#/$defs/FighterRef"},
     "adjacent_to": {"$ref": "#/$defs/FighterRef"},
     "space_of": {"$ref": "#/$defs/FighterRef"},
     "nearest_to": {"$ref": "#/$defs/FighterRef"},
+    "next_to_nearest_foe": {"$ref": "#/$defs/FighterRef"},
     "start_space_of": {"$ref": "#/$defs/PlayerSel"},
     "start": {"type": "boolean"},
     "empty": {"type": "boolean"},
@@ -126,7 +142,7 @@
     "zone": {"enum": ["hand", "discard", "deck", "in_play"]},
     "player": {"$ref": "#/$defs/PlayerSel"},
     "filter": {"$ref": "#/$defs/CardFilter"},
-    "pick": {"enum": ["chosen", "all", "random", "top", "bottom"]},
+    "pick": {"enum": ["chosen", "all", "random", "top", "bottom", "last"]},
     "amount": {"$ref": "#/$defs/Amount"},
     "up_to": {"type": "boolean"},
     "chooser": {"$ref": "#/$defs/Chooser"},
@@ -153,7 +169,7 @@
    {"type": "object", "additionalProperties": false, "required": ["stat"],
     "properties": {
      "stat": {"enum": ["hand_size", "hp", "max_hp", "actions_taken_this_turn", "damage_dealt_this_combat", "damage_taken_this_combat",
-      "other_cards_played_this_turn", "zones", "combats_lost_this_turn"]},
+      "other_cards_played_this_turn", "zones", "combats_lost_this_turn", "combats_won_this_turn"]},
      "player": {"$ref": "#/$defs/PlayerSel"},
      "fighter": {"$ref": "#/$defs/FighterRef"},
      "times": {"type": "integer"}}}
@@ -256,7 +272,7 @@
     "properties": {
      "kind": {"const": "rule"},
      "id": {"$ref": "#/$defs/Name"},
-     "rule": {"enum": ["no_attack_as_first_action", "effect_damage_bonus", "max_hand_size", "no_gain_actions", "maneuver_boost_places_hero"]},
+     "rule": {"enum": ["no_attack_as_first_action", "effect_damage_bonus", "max_hand_size", "no_gain_actions", "maneuver_boost_places_hero", "combat_damage_reduction"]},
      "amount": {"type": "integer"},
      "while": {"$ref": "#/$defs/Condition"}}},
    {"type": "object", "additionalProperties": false, "required": ["kind", "name"],
@@ -326,7 +342,8 @@
       "during": {"$ref": "#/$defs/Ops"},
       "after": {"$ref": "#/$defs/Ops"},
       "scheme": {"$ref": "#/$defs/Ops"},
-      "boost": {"$ref": "#/$defs/Ops"}
+      "boost": {"$ref": "#/$defs/Ops"},
+      "unboosted": {"$ref": "#/$defs/Ops"}
      }
     },
     "ongoing": {"anyOf": [{"type": "null"}, {"$ref": "#/$defs/Ongoing"}]},
@@ -381,6 +398,8 @@
     "properties": {"op": {"const": "boost"}, "card": {"$ref": "#/$defs/CardRef"}, "chooser": {"$ref": "#/$defs/Chooser"}}},
    {"type": "object", "additionalProperties": false, "required": ["op", "card"],
     "properties": {"op": {"const": "allow_boost"}, "card": {"$ref": "#/$defs/CardRef"}}},
+   {"type": "object", "additionalProperties": false, "required": ["op"],
+    "properties": {"op": {"const": "consider_won"}}},
    {"type": "object", "additionalProperties": false, "required": ["op", "name", "until"],
     "properties": {"op": {"const": "status"}, "name": {"$ref": "#/$defs/StatusName"}, "until": {"$ref": "#/$defs/Event"}, "target": {"$ref": "#/$defs/FighterSel"}, "player": {"$ref": "#/$defs/PlayerSel"}, "amount": {"$ref": "#/$defs/Amount"}}},
    {"type": "object", "additionalProperties": false, "required": ["op", "name"],

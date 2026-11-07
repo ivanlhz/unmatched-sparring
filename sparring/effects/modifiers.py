@@ -52,6 +52,14 @@ def hero_rule(game, player: int, rule: str) -> bool:
     return slug in game.fx.dsl_heroes and any(p["kind"] == "rule" and p["rule"] == rule for p in load_effects(slug).passives)
 
 
+def hero_rule_amount(game, player: int, rule: str) -> int:
+    """Sum of the `amount` of the hero's passive rules `rule` (Luke Cage: `combat_damage_reduction` 2); 0 without one."""
+    slug = game.players[player].hero.slug
+    if slug not in game.fx.dsl_heroes:
+        return 0
+    return sum(p.get("amount", 0) for p in load_effects(slug).passives if p["kind"] == "rule" and p["rule"] == rule)
+
+
 def boost_limit(card) -> int:
     """How many cards the owner may BOOST `card` with by its own text: 0 without `may_boost`, else `max_boosts` (1, or 2
     for The Big Reveal)."""

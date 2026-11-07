@@ -171,6 +171,8 @@ class TableChooser:
             return [False]
         if req.extra.get("blind_count"):             # BLIND BOOST: no declaration without the panel, so none is made
             return [0]
+        if req.extra.get("confirm"):                 # Take A Knee: the one option is the effect itself
+            return list(req.options)
         if req.min == 0:
             return []
         raise NotImplementedError(f"{req.prompt or req.kind}: a forced choice of the human needs the panel (E1)")
@@ -294,7 +296,7 @@ class SyntheticChooser:
             return None
         if f.owner == me:
             near = lambda s: min(board.distance(s, e.pos) for e in foes)
-            strikes_from = lambda s: any(board.can_reach_target(s, e.pos, f.ranged) for e in foes)
+            strikes_from = lambda s: any(board.can_reach_target(s, e.pos, f.ranged, f.reach) for e in foes)
             may_stay = req.min == 0 and f.pos is not None
             if self.greedy:
                 strikes = [s for s in options if strikes_from(s)]
@@ -309,7 +311,7 @@ class SyntheticChooser:
         if ref is None:
             return None
         if self.greedy:         # a rival piece where the own hero strikes it
-            within = [s for s in options if board.can_reach_target(ref, s, hero.ranged)]
+            within = [s for s in options if board.can_reach_target(ref, s, hero.ranged, hero.reach)]
             return [min(within or options, key=lambda s: (board.distance(ref, s), s))]
         return [max(options, key=lambda s: (board.distance(s, ref), -s))]       # away from the hero: the piece walks s -> hero
 

@@ -58,7 +58,7 @@ def space_options(game, run, sel, default_empty: bool = True, mover=None) -> lis
     other than `mover`."""
     board = game.board
     out = set(board.spaces)
-    for key in ("zone_of", "adjacent_to", "space_of", "nearest_to"):
+    for key in ("zone_of", "no_zone_of", "adjacent_to", "space_of", "nearest_to"):
         if key not in sel:
             continue
         ref = _ref_fighter(game, run, sel[key])
@@ -66,10 +66,20 @@ def space_options(game, run, sel, default_empty: bool = True, mover=None) -> lis
             return []
         if key == "zone_of":
             out &= {s for s in board.spaces if board.share_zone(ref.pos, s)}
+        elif key == "no_zone_of":                          # shares no zone with the fighter's space (Tactical Retreat)
+            out -= {s for s in board.spaces if board.share_zone(ref.pos, s)}
         elif key == "adjacent_to":
             out &= set(board.adj[ref.pos])
         elif key == "space_of":
             out &= {ref.pos}
+    if "next_to_nearest_foe" in sel:       # Where's My Money?: next to the nearest opposing fighter (to any of them when tied)
+        ref = _ref_fighter(game, run, sel["next_to_nearest_foe"])
+        foes = [f for f in game.fighters.values() if ref is not None and ref.pos is not None and f.alive
+                and f.pos is not None and f.owner != ref.owner]
+        if not foes:
+            return []
+        best = min(board.span(ref.pos, f.pos) for f in foes)        # span: "nearest" is spatial, not the walk
+        out &= {s for f in foes if board.span(ref.pos, f.pos) == best for s in board.adj[f.pos]}
     if "start_space_of" in sel:
         out &= {game.start_spaces[player_of(game, run, sel["start_space_of"])]}
     if sel.get("start"):                                   # any starting space of the board
@@ -212,6 +222,9 @@ def pick_fighters(game, run, sel, chooser: int, prompt: str = "", **extra) -> li
     amount...) travels in the request so a bot can score the candidates for what is about to happen to them."""
     cands, pick_all = fighter_candidates(game, run, sel)
     unknown = _path_unknown(game, run, sel)          # moved by hand: the human may also answer "nobody was passed"
+    if pick_all and unknown and cands:               # "each fighter it moved through" along a path nobody saw: the human names them (Through Adversity)
+        got = run.ask(game, "fighter", chooser, [f.fid for f in cands], 0, len(cands), prompt or "choose the fighters", **extra)
+        return [game.fighters[i] for i in got]
     if pick_all or not cands or (len(cands) == 1 and not unknown):
         return cands
     near = _near(game, run, sel)
@@ -318,6 +331,8 @@ def select_cards(game, run, sel: dict, purpose: str = "choose", prompt: str | No
         return cands[:n]
     if pick == "bottom":
         return cands[::-1][:n]
+    if pick == "last":                             # the cards that reached the discard pile most recently (Devil Of Hell's Kitchen)
+        return cands[::-1][:n]
     if pick == "random":
         return run.random_sample(cands, n)
     chooser = player_of(game, run, sel.get("chooser", "owner"))
@@ -400,6 +415,8 @@ def _stat(game, run, a):
         return max(0, game.fx.played[player] - 1)         # the card being resolved is counted already
     if stat == "combats_lost_this_turn":
         return game.fx.lost[player]
+    if stat == "combats_won_this_turn":
+        return game.fx.won[player]
     if stat == "damage_dealt_this_combat":
         return run.ctx.damage_dealt
     if stat == "damage_taken_this_combat":

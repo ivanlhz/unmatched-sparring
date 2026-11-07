@@ -46,7 +46,7 @@ OP_BINDINGS = {"draw": "card", "discard": "card", "choose": "card", "look_deck":
                "damage": "fighter", "swap": "fighter", "move": "fighter", "remove_from_game": "card"}
 # type each field expects when it carries a $var reference
 PLAYER_KEYS = frozenset({"player", "chooser", "order", "start_space_of"})
-FIGHTER_KEYS = frozenset({"role", "zone_of", "adjacent_to", "space_of", "nearest_to", "fighter", "target",
+FIGHTER_KEYS = frozenset({"role", "zone_of", "no_zone_of", "adjacent_to", "space_of", "nearest_to", "next_to_nearest_foe", "fighter", "target",
                           "with", "by", "from", "fighters", "count", "passed_by"})
 CARD_KEYS = frozenset({"card", "cards", "of", "except", "count_of"})
 NUMBER_KEYS = frozenset({"amount", "hp", "left", "right", "look"})
@@ -236,6 +236,11 @@ class Semantics:
         ab = self.doc["ability"]
         for i, t in enumerate(ab["triggers"]):
             self.trigger(t, f"ability.triggers[{i}]")
+        for i, eff in enumerate(ab.get("during") or ()):
+            ctx = _Ctx({}, set())
+            if "condition" in eff:
+                self.refs(eff["condition"], f"ability.during[{i}].condition", ctx)
+            self.ops(eff["ops"], f"ability.during[{i}].ops", ctx)
         for i, p in enumerate(ab["passives"]):
             if "id" not in p:
                 self.errors.append(f"ability.passives[{i}]: a passive needs 'id'")
@@ -263,6 +268,10 @@ class Semantics:
     def card(self, card: dict, path: str) -> None:
         for moment in MOMENTS:
             self.ops(card["effects"][moment], f"{path}.effects.{moment}", _Ctx({}, set()))
+        if card["effects"].get("unboosted"):
+            if not card.get("may_boost"):
+                self.errors.append(f"{path}: 'unboosted' is what happens when the free BOOST is declined: it needs may_boost")
+            self.ops(card["effects"]["unboosted"], f"{path}.effects.unboosted", _Ctx({}, set()))
         ongoing = card.get("ongoing")
         if ongoing:
             for i, m in enumerate(ongoing["modifiers"]):
@@ -436,6 +445,8 @@ class Semantics:
             for k in ("chooser", "up_to"):
                 if k in sel:
                     self.errors.append(f"{path}: {k!r} only goes with pick 'chosen' (here pick {pick!r})")
+        if sel["zone"] != "discard" and pick == "last":
+            self.errors.append(f"{path}: pick 'last' (the most recently discarded) is only valid on the discard pile")
         if sel["zone"] == "hand" and pick in ("top", "bottom"):
             self.errors.append(f"{path}: the hand has no order; pick {pick!r} is only valid on the deck")
         if counting or sel["zone"] not in HIDDEN_ZONES or pick != "chosen":

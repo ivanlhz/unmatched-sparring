@@ -20,6 +20,7 @@ Text conventions: "owner" is the player who plays the card or who the ability be
   "counters": {"intuition": {"min": 0, "max": 2, "start": 0}},
   "triggers": [Trigger],
   "passives": [Passive],
+  "during": [{"id": "<name>", "condition": Condition, "ops": [Op]}],
   "notes": "..."
  },
  "cards": [Card],
@@ -35,6 +36,7 @@ Text conventions: "owner" is the player who plays the card or who the ability be
 - `hero`: slug equal to that of `data/heroes/<slug>.json` (HeroDef). The validator cross-checks titles, copies and text.
 - `ability.counters`: the hero's token counters (intuition tokens, rage, coils). Pile counters
   (destiny) stay in the HeroDef (`counters` + `forms`); from here they are only read (`{"counter": "destiny"}`).
+- `ability.during`: the hero's own DURING COMBAT effects (section 29), run in the DURING of every combat in which the owner played a card.
 - `plugins`: every `{"op": "plugin"}` or `{"kind": "plugin"}` uses an id from this list and every id in the list is used.
 - `hidden_info`, `open_questions`, `discrepancies`, `table`, `notes`: free documentation; the validator only
   requires the basic types.
@@ -67,7 +69,7 @@ Text conventions: "owner" is the player who plays the card or who the ability be
   the loss waits until the AFTER effects are done (All Part of the Show). `look_shield` (optional): held in the hand, it lets its
   owner cancel a look at their hand (A Magician Never Reveals His Secrets). See section 27.
 - `uncancelable` (optional, false by default): `cancel_effects` does not erase the effects of this card.
-- `effects`: the five moments, always present and always lists (empty if there is nothing):
+- `effects`: the five moments, always present and always lists (empty if there is nothing), plus the optional `unboosted` (only with `may_boost`: the DURING ops for when its owner did not BOOST, run right after that question; section 31):
   - `immediately`, `during`, `after`: combat. The defender resolves first at each moment.
   - `scheme`: when playing a scheme (one action). Only on cards of type scheme; the other three are empty on schemes.
   - `boost`: when THIS card is discarded as a boost card (Houdini's "BOOSTED WITH").
@@ -111,8 +113,8 @@ A `pick: one` selector with no candidates does nothing (the op is skipped); with
 
 ### 2.3 Spaces (SpaceSel)
 
-Object with any of: `any: true` | `zone_of: FighterRef` | `adjacent_to: FighterRef` | `space_of: FighterRef`
-| `nearest_to: FighterRef` | `start_space_of: PlayerSel` | `start: true` (any starting space of the board) | `empty: bool` (default true for placing). FighterRef is
+Object with any of: `any: true` | `zone_of: FighterRef` | `no_zone_of: FighterRef` (sharing no zone with that fighter's space) | `adjacent_to: FighterRef` | `space_of: FighterRef`
+| `nearest_to: FighterRef` | `next_to_nearest_foe: FighterRef` (section 30) | `start_space_of: PlayerSel` | `start: true` (any starting space of the board) | `empty: bool` (default true for placing). FighterRef is
 a `role` string (`this`, `hero`, `opposing`, `attacker`, `defender`, `$var`).
 
 ### 2.4 Cards (CardSel and CardRef)
@@ -126,7 +128,7 @@ CardSel (object):
 | `zone` | `hand`, `discard`, `deck`, `in_play` | required. `in_play`: permanent schemes on the table |
 | `player` | PlayerSel | required |
 | `filter` | see below | |
-| `pick` | `chosen` (default), `all`, `random`, `top`, `bottom` | `chosen`: `chooser` chooses. `random`: chance (there is no "random" chooser). `top`/`bottom`: only in `deck` (the hand has no order) |
+| `pick` | `chosen` (default), `all`, `random`, `top`, `bottom`, `last` | `chosen`: `chooser` chooses. `random`: chance (there is no "random" chooser). `top`/`bottom`: only in `deck` (the hand has no order). `last`: only in `discard`, the cards that reached the pile most recently, newest first (section 29) |
 | `amount` | Amount | how many; default 1. Forbidden with `pick: all`. If there are fewer candidates, it is cut down to those there are |
 | `up_to` | bool (default false) | the chooser may take fewer (0 included). Only with `pick: chosen` |
 | `chooser` | PlayerSel (default `owner`) | only with `pick: chosen` |
@@ -150,7 +152,7 @@ An integer, a numeric event binding (`"$amount"`, see 2.10), or one of these obj
 - `{"count": FighterSel}` or `{"count_cards": CardSel}`: how many meet the selector.
 - `{"counter": "<name>", "player": PlayerSel}`: counter of the HeroDef or of `ability.counters` (default `owner`).
 - `{"stat": ..., "player"|"fighter": ...}` with stat in `hand_size`, `hp`, `max_hp`, `actions_taken_this_turn`,
-  `damage_dealt_this_combat`, `damage_taken_this_combat`, `combats_lost_this_turn`.
+  `damage_dealt_this_combat`, `damage_taken_this_combat`, `combats_lost_this_turn`, `combats_won_this_turn`.
 
 ### 2.6 Who chooses (chooser)
 
@@ -255,6 +257,7 @@ Every op is `{"op": "<name>", ...args}`. Arguments not listed are an error.
 | `set_value` | `card` and `amount` or `ignore: true` | | `amount`: the printed value becomes N (bonuses stay); `ignore: true`: "ignore its value", the total value becomes 0 (Incinerate) |
 | `boost` | `card: CardRef` | `chooser` | boosts that card now (discards the top card of its owner's deck). For the card's own free "may BOOST", `may_boost` is used |
 | `allow_boost` | `card: CardRef` | | "Your opponent may BOOST their card": that card's side is asked for the free BOOST of `may_boost` cards in DURING even if the card has none (An Illusion Of My Own Design) |
+| `consider_won` | | | "You are considered to have won this combat" (Bullseye's Arrogant But Effective): the owner's side becomes the combat's winner for every later condition and for the turn's tally; see section 31 |
 | `status` | `name`, `until: Event` and `target: FighterSel` or `player: PlayerSel` | `amount` | see the status table |
 | `counter` | `name` and `delta` or `set` | `player` | clipped to the min/max of `ability.counters` |
 | `gain_action` | `amount` | `player` | blocked by `cannot_gain_actions` and the `no_gain_actions` rule |
@@ -293,7 +296,7 @@ Every op is `{"op": "<name>", ...args}`. Arguments not listed are an error.
 | kind | args | |
 |---|---|---|
 | `modify_value` | `cards: {player, type?, fighter?}`, `amount` | continuous +N to the cards that meet it (ANUNG +2 to Hellboy's attacks; Fight Or Flight +1) |
-| `rule` | `rule`, `amount`? | `no_attack_as_first_action`, `effect_damage_bonus` (`amount`; not to exhaustion), `max_hand_size` (`amount`), `no_gain_actions`, `maneuver_boost_places_hero` (ESCAPE ARTIST) |
+| `rule` | `rule`, `amount`? | `no_attack_as_first_action`, `effect_damage_bonus` (`amount`; not to exhaustion), `max_hand_size` (`amount`), `no_gain_actions`, `maneuver_boost_places_hero` (ESCAPE ARTIST), `combat_damage_reduction` (`amount`; Luke Cage, section 30) |
 | `status` | like the `status` op without `until` | while the card stays in play |
 | `redirect_damage` | like the op, with `optional` and `chooser` | FATEFUL BARGAINS. It is the only place where `optional` is a field and not an op: a modifier contains no ops to wrap |
 | `may_boost` | `fighter: FighterSel` | that fighter may boost its attacks (King Arthur) |
@@ -1123,3 +1126,37 @@ zone of the hero, `moved_this_turn`, `move` / `place` with `through_enemies`). S
 - **Chat line of a placement by hand** (`ops_core._note_where`): the references of `where` are resolved to who they are now (the owner's hero stays "hero",
   any other fighter, `this` included, is named), so a sidekick's "this fighter's zone" is not "your hero's zone".
 - **Two life dials with one GUID** (Lobster Johnson / The Jackalope) are told apart by name at the first dial write: `docs/card-identity.md`, "Piece identity".
+
+## 29. Daredevil (Hell's Kitchen): the hero's own DURING effects, a deck of 22, the last cards of the pile
+
+Everything here is additive: no earlier effects file uses these words, so the other heroes behave as before.
+
+- **`ability.during`** (list of `{id, condition?, ops}`; `Ability.during` in `schema.json`, `HeroEffects.ability_during`): DURING COMBAT effects of the HERO, not of a card. `ops_combat.run_moment` composes the DURING ops of every card the hero plays with them (`during_with_ability`): each effect runs under its `condition` (Daredevil: `hand_size <= 2`, counted after the card left the hand). When the card has DURING ops of its own and the ability applies, the ability's ops run first, always (Iván 2026-11-07: no order choice, no prompt). A side whose card effects were cancelled still gets the ability (`combat_flow.dsl_during_hero_ability`: a rule with `when_cancelled` that only matches a cancelled side of a hero that has `ability.during`); the card's own ops are dropped in that case. A defender with no card has no side, so no ability.
+- **CardSel `pick: last`** (discard only): the `amount` cards that most recently reached the pile, newest first (`PlayerState.discard` only ever appends, so the order is the order of arrival). Devil of Hell's Kitchen: `return_to_deck` of `{"zone": "discard", "pick": "last", "amount": 4}` plus `this`, both to `shuffle`: the card and the top four of the pile, 5 in all.
+- **`HeroDef.deck_size`** (`deck.size` in the generated HeroDef, absent for the usual 30): the number of playing cards. `heroes._validate` checks the sheet against it, `hero_table` checks the CardID range (`card_base .. card_base + deck_size - 1`) and `tools/import_save.deck_sheet(deck, size)` finds such a deck. The character card is not one of them: the deck object in the save holds `deck_size + 1` cards.
+- **`EffectRun.ask(..., confirm=True)`**: a single forced option is still asked (the table player has to press it). Take A Knee for the human: the one button lets the bot move the real top card of their deck.
+- **Plugins** (`sparring/effects/plugins_daredevil.py`): `daredevil:blind_boost` is `strange:blind_boost` under Daredevil's id (a plugin id carries its hero's fid; `args.ability: true` marks the ability's request for the chat), `daredevil:take_a_knee` (discard the top card, bind it with `args.as`; the engine's player reads its deck, the table player presses one button and the bot moves the card). The shared half is `plugins_strange.discard_top(run, game, owner, count)`.
+- **`pick_fighters` with `pick: all` over a path nobody saw** (`passed_by` after the human moved their miniature by hand): the human is asked which fighters were passed (a `fighter` request, `min 0`, `max` = the candidates, multi-pick with the confirm button) instead of every candidate being hit. Through Adversity: `move hero up to 4 through_enemies as mover`, then `damage 1` to `{side: enemy, filter: {passed_by: $mover}, pick: all}`.
+- **Table side** (`session_blind`): the request flag `top_discard` goes through the same declared-count path as the BLIND BOOST (`is_count`, `declared`: the bot moves the top card to the human's pile by `deck_top_to_discard`, says it in the chat as `knee.auto`, and the run reads the CardID from `run.flags["blind_cards"]`); a refused table falls back to the `cards` request of the BLIND BOOST (`pile_mode: blind`).
+- **Same CardID range as the other sheet-176 decks**: see docs/card-identity.md.
+
+## 30. Luke Cage: a combat damage reduction, a space next to the nearest foe, crossing the mover's own side
+
+Written with the ops that already existed (`move` with `as`, `damage` with `passed_by`, `swap`, `place`, `return_to_deck`, `end_turn`, `set_value`, `stat: damage_taken_this_combat`). Small additive pieces:
+
+- **Passive rule `combat_damage_reduction`** (`amount`, in `ability.passives`): the hero's combat damage is cut by `amount` before it lands, never below 0 (Luke Cage: 2). Only the hero himself, only combat damage (never effect damage, exhaustion or `set_hp`). `Game.combat_damage_taken(victim, blow)` (reads `fx.combat_damage_reduction`) is the one place: `CombatFlow._damage` uses it, so the damage that lands is the reduced one everywhere downstream (`result.damage`, who won, `stat: damage_taken_this_combat`, the dial) and the chat says how much was taken off (`cf.reduced`); the AI's damage estimates (attack outcome, defense evaluation, two-hit threat, combat boost, the search's boost) go through it too. The winner is named by the damage that landed, so a blow the reduction cut to 0 is a win for the defender.
+- **SpaceSel `next_to_nearest_foe: FighterRef`**: the free spaces adjacent to the opposing fighter nearest to that fighter (`board.span`, "nearest" is spatial); with several tied, adjacent to any of them. The fighter itself may stay where it is if it is already adjacent. Chat texts `tbl.where.next_to_foe` / `moves.where.next_to_foe`.
+- **`move` records the mover's own side as crossed** (`run.flags["passed"]`, read by the FighterSel filter `passed_by`): a mover may always cross its own side, so those fighters on some path of at most `amount` spaces are recorded besides the opposing ones (those only with `through_enemies`). Power Man: `move` the opposing fighter (`as: mover`), then `damage` the rival's fighters `passed_by: $mover` (`side: enemy`, `pick: all`). Donatello's Party wagon! is unaffected (`side: enemy` leaves its own side out).
+- **Plugin `luke:replace_combatant`** (Got My Back?): Houdini's `replace_combatant` under Luke Cage's fid (the validator demands the prefix); `ops_core._choice_context` and the AI (`EffectAI._swap_combatant`, which now counts the 2 less) treat both ids alike.
+
+## 31. Bullseye: a reach in spaces, the tally of combats won, "considered to have won", a declined BOOST
+
+Everything here is additive: no earlier effects file or HeroDef uses these words, so the fourteen earlier heroes behave as before.
+
+- **HeroDef `reach_spaces`** (overlay key `reach_spaces`, `HeroDef.reach_spaces`, `FighterSpec.reach`, `Fighter.reach`; 0 = the usual rule): the hero also attacks anyone up to that many spaces away, whatever the zones. It is data, not an effect: `Board.can_reach_target(a, b, ranged, reach)` adds `spaces_apart(a, b) <= reach` (spaces counted along the printed adjacency, never through passages or one-way edges; no line of sight needed) to the usual rule: adjacent, or a ranged fighter sharing a zone, or within the reach whatever the zones. A ranged hero keeps his zone shot beyond the reach. `Game.can_attack` (and so the human's attack at the panel), the bot's positioning (`strike_spots`, `position_value`, `approach_acts`, `reach_dests`, the search's `strike_spots`) and the effects chooser pass the fighter's `reach`. Bullseye's is 5; another hero that "attacks up to N spaces away, ignoring zones" (Ms. Marvel) only needs its own number in its overlay.
+- **Stat `combats_won_this_turn`** (`{"stat": "combats_won_this_turn", "player": ...}`): combats that player won in the CURRENT turn, whoever's turn it is (reset at `start_of_turn`), for the combats that already ended: the damage of the combat being resolved is dealt after DURING, so IMMEDIATELY and DURING read "already won". `fx.won` (`[n0, n1]`) is recorded only when a hero's effects name the stat or `consider_won` (`events.TRACKS["won"]`) and saved only when non-zero. It is counted next to `combat_lost` (the winner is the other player): the engine's "won" is "dealt damage" for the attacker and "took none" for the defender, a tie being won by the defender.
+- **Op `consider_won`** (no arguments): at the card's AFTER the owner's side becomes the winner of the combat (`CombatFlow.considered_won`, saved in `dsl`; `CombatFlow.won_by(side)` is the one reading it): the AFTER effects that resolve later read `combat_result` from it, and the tally moves (the rival's win becomes the owner's, and likewise the losses when something counts them). The damage already dealt is not undone. A side that already won is left alone. The chat says it (`narr.considered_won`).
+- **`effects.unboosted`** (optional list of ops on a card with `may_boost`): what happens when the owner does not BOOST. After the free BOOST question (and only when the owner declined it or had no card to boost with) the ops run, still in the DURING, as the moment `unboosted` (`CombatFlow` run key `unboosted:<side>`). A card cancelled before DURING has no BOOST question and runs nothing. I Never Miss: `draw 1`. The validator demands `may_boost` for it.
+- **SpaceSel `no_zone_of: FighterRef`**: the spaces that share no zone with the fighter's space (Tactical Retreat: `{"no_zone_of": "hero", "other": true}` in a `place`). The chat for a placement by hand names it (`tbl.where.no_zone*`, `moves.where.no_zone`).
+- **Same CardID range as Medusa, the turtles, Doctor Strange and Bigfoot**: see docs/card-identity.md.
+- **Hero detection**: `lua.MAX_HERO_RANGES` (the most CardID ranges one table read takes) went from 12 to 24: the thirteenth hero with TTS data made every detection fall back to Medusa / Hellboy.

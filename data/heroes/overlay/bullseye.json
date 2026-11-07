@@ -1,0 +1,177 @@
+{
+ "_notes": [
+  "Sheet 176 of the tournament savegame (8x4), read card by card from the image on 2026-11-07. CardID = 17600 + idx; 339 = character card (sheet 3, 10x7, index 39). The deck object of the save holds 31 cards: the 30 of the deck plus the character card, which is why the catalog says card_count 31 and card_ids [339, 17629]. Bullseye's deck is sheet 176 like Medusa's, the four turtles', Doctor Strange's and Bigfoot's: only deck.identity (data/tts/bullseye.json) tells the decks apart (docs/card-identity.md).",
+  "Hero card (read from the image): BULLSEYE, RANGED, START HEALTH 14, MOVE 2; special ability 'Bullseye can attack from up to 5 spaces away (ignoring zones).' No sidekicks (unmatched-memory has an empty sidekick entry, ignored). Every card carries the BULLSEYE band (none ANY): the restriction changes nothing while he has no sidekicks.",
+  "Reach: `reach_spaces` 5 is a HeroDef parameter, not a card effect: attack range is measured in spaces along the map's adjacency, whatever the zones, in addition to the ranged zone rule (Board.can_reach_target `reach`), for the engine's attack validation, the bot's positioning and the human's attacks. Another hero that attacks 'up to N spaces away' only needs its own number here.",
+  "Copies (xN printed on each card), type, value and boost match unmatched-memory for all 12 titles. Discrepancies: For My Next Trick says 'Move Bullseye up to 1 space' on the card where unmatched-memory has 'Move one of your fighters up to 1 space' (the same thing without sidekicks); Study The Target is one scheme whose text sits on two lines (unmatched-memory has no space after 'Draw 2 cards.')."
+ ],
+ "fid": "bullseye",
+ "reach_spaces": 5,
+ "sidekicks": [],
+ "forms": null,
+ "counters": {},
+ "triggers": [],
+ "passives": [],
+ "deck": {
+  "card_base": 17600,
+  "sheet_id": 176,
+  "hero_card_id": 339,
+  "sheet": [
+   {
+    "idx": 0,
+    "title": "World's Greatest Assassin",
+    "fighter": "Bullseye"
+   },
+   {
+    "idx": 1,
+    "title": "World's Greatest Assassin",
+    "fighter": "Bullseye"
+   },
+   {
+    "idx": 2,
+    "title": "I Planned To Be Here",
+    "fighter": "Bullseye"
+   },
+   {
+    "idx": 3,
+    "title": "I Planned To Be Here",
+    "fighter": "Bullseye"
+   },
+   {
+    "idx": 4,
+    "title": "I Never Miss",
+    "fighter": "Bullseye"
+   },
+   {
+    "idx": 5,
+    "title": "I Never Miss",
+    "fighter": "Bullseye"
+   },
+   {
+    "idx": 6,
+    "title": "I Never Miss",
+    "fighter": "Bullseye"
+   },
+   {
+    "idx": 7,
+    "title": "I Never Miss",
+    "fighter": "Bullseye"
+   },
+   {
+    "idx": 8,
+    "title": "For My Next Trick",
+    "fighter": "Bullseye",
+    "text": "AFTER COMBAT: Move Bullseye up to 1 space. Draw 1 card. Gain 1 action."
+   },
+   {
+    "idx": 9,
+    "title": "For My Next Trick",
+    "fighter": "Bullseye",
+    "text": "AFTER COMBAT: Move Bullseye up to 1 space. Draw 1 card. Gain 1 action."
+   },
+   {
+    "idx": 10,
+    "title": "For My Next Trick",
+    "fighter": "Bullseye",
+    "text": "AFTER COMBAT: Move Bullseye up to 1 space. Draw 1 card. Gain 1 action."
+   },
+   {
+    "idx": 11,
+    "title": "Feint",
+    "fighter": "Bullseye"
+   },
+   {
+    "idx": 12,
+    "title": "Feint",
+    "fighter": "Bullseye"
+   },
+   {
+    "idx": 13,
+    "title": "Arrogant But Effective",
+    "fighter": "Bullseye"
+   },
+   {
+    "idx": 14,
+    "title": "Arrogant But Effective",
+    "fighter": "Bullseye"
+   },
+   {
+    "idx": 15,
+    "title": "Arrogant But Effective",
+    "fighter": "Bullseye"
+   },
+   {
+    "idx": 16,
+    "title": "I'm Better And I'll Prove It",
+    "fighter": "Bullseye"
+   },
+   {
+    "idx": 17,
+    "title": "I'm Better And I'll Prove It",
+    "fighter": "Bullseye"
+   },
+   {
+    "idx": 18,
+    "title": "Master Strategist",
+    "fighter": "Bullseye"
+   },
+   {
+    "idx": 19,
+    "title": "Master Strategist",
+    "fighter": "Bullseye"
+   },
+   {
+    "idx": 20,
+    "title": "Ricochet",
+    "fighter": "Bullseye"
+   },
+   {
+    "idx": 21,
+    "title": "Ricochet",
+    "fighter": "Bullseye"
+   },
+   {
+    "idx": 22,
+    "title": "Ricochet",
+    "fighter": "Bullseye"
+   },
+   {
+    "idx": 23,
+    "title": "Right Between The Eyes",
+    "fighter": "Bullseye"
+   },
+   {
+    "idx": 24,
+    "title": "Right Between The Eyes",
+    "fighter": "Bullseye"
+   },
+   {
+    "idx": 25,
+    "title": "Tactical Retreat",
+    "fighter": "Bullseye"
+   },
+   {
+    "idx": 26,
+    "title": "Tactical Retreat",
+    "fighter": "Bullseye"
+   },
+   {
+    "idx": 27,
+    "title": "Tactical Retreat",
+    "fighter": "Bullseye"
+   },
+   {
+    "idx": 28,
+    "title": "Study The Target",
+    "fighter": "Bullseye",
+    "text": "Draw 2 cards. If you won a combat this turn, draw 1 additional card and gain 1 action."
+   },
+   {
+    "idx": 29,
+    "title": "Study The Target",
+    "fighter": "Bullseye",
+    "text": "Draw 2 cards. If you won a combat this turn, draw 1 additional card and gain 1 action."
+   }
+  ]
+ }
+}

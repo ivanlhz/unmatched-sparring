@@ -36,7 +36,9 @@ from .ai_medusa import (DECK_SCARCITY, HARPY_VALUE, KILL_SIDEKICK, LETHAL, SURVI
 from .controller import Controller
 from .effects import ongoing
 from .effects.choose import ChoiceRequest, ControllerChooser, SyntheticChooser, default_answer, worth_paying
-from .effects.model import EffectError, load_effects
+from .effects.model import EffectError, load_effects, walk_ops
+from .effects.modifiers import card_effects
+from .effects.ops_core import _passed_through
 from .effects.ops_combat import PREDICT_OP
 from .effects.run import Ctx, EffectRun
 from .search.adapter import card_worth
@@ -76,6 +78,7 @@ PACT_RISK_STEP = 0.1                                    # ... and the hit point 
 PACT_RECYCLE = 4.0                                      # a card put at the bottom of a deck of n cards comes back with weight PACT_RECYCLE / (n + 1)
 SWAP_MARGIN = 0.4                                       # Sleight Of Hand is swapped only when the other card beats it by this much, after the cards each one costs to keep
 SWAP_KEEP_SHARE = 0.5                                   # share of the difference between keeping Sleight Of Hand and keeping the other card that counts against the swap
+DEVIL_TITLE, DEVIL_EMPTY_VALUE = "Devil of Hell's Kitchen", 8    # Daredevil's card: worth 8 once the deck is empty, which a blind boost can cause
 BLIND_COST = 0.1                                        # a blind boost mills one card of the deck: the exhaustion clock ticks
 
 
@@ -266,6 +269,7 @@ class EffectAI:
         options = list(req.options)
         if f.owner == me and req.extra.get("op") == "move":     # the legacy move rule, plan included; staying = []
             dest = ai.choose_move(game, f, req.extra["steps"], req.extra.get("through", False))
+            dest = self._dest_with_pass_damage(game, req, f, dest, options)
             return [dest] if dest in options else ([] if req.min == 0 else None)
         if f.owner == me and f.hero and not f.alive:              # the hero coming back (All Part of the Show): where he stands best
             return self._hero_return(game, req, f, options)
@@ -285,6 +289,42 @@ class EffectAI:
         if req.min == 0 and stay >= scored[best]:
             return []
         return [best]
+
+    def _dest_with_pass_damage(self, game: Game, req: ChoiceRequest, f, usual: int | None, options: list) -> int | None:
+        """A move whose card then hits each rival it passed (Through Adversity: `damage` to `passed_by` the mover) is
+        judged by the position AND the blows on the fighters crossed on the way, a kill included (a 1-HP sidekick
+        passed is dead). The usual destination is a candidate, so nothing is gained only when nothing is hit."""
+        dmg, hits_all = self._pass_damage(game, req)
+        if not dmg or not req.extra.get("through"):
+            return usual
+        me, steps, ai = req.player, req.extra["steps"], self.medusa(req.player)
+        model = Model(game, me)
+
+        def total(d: int) -> float:
+            rivals = [game.fighters[i] for i in _passed_through(game, f, f.pos, d, steps, True)]
+            blows = [self.blow_value(e, dmg, game) for e in rivals if e.owner != me]
+            hits = sum(blows) if hits_all else max(blows, default=0.0)       # one chosen rival (Party wagon!) is worth the best single blow
+            return ai.position_value(game, model, {f.fid: d}) - ai.hazard_cost(game, f, d, steps, True) + hits
+
+        cands = {d for d in options if d is not None} | {f.pos}
+        if usual is not None:
+            cands.add(usual)
+        return max(cands, key=lambda d: (total(d), d == usual, -d))
+
+    @staticmethod
+    def _pass_damage(game: Game, req: ChoiceRequest) -> tuple[float, bool]:
+        """(damage, to_all) the asking card deals to the fighters its mover passed through: to every one of them
+        (`pick: all`, Through Adversity) or to the one rival its owner chooses (Party wagon!). (0, False) when none."""
+        if req.card_id is None or req.card_owner is None:
+            return 0.0, False
+        fx = card_effects(game.card_of(req.card_id, req.card_owner))
+        if fx is None:
+            return 0.0, False
+        for o in walk_ops(fx.moments):
+            sel = o.get("target") or {}
+            if o.get("op") == "damage" and isinstance(sel, dict) and "passed_by" in (sel.get("filter") or {})                     and isinstance(o.get("amount"), (int, float)):
+                return float(o["amount"]), sel.get("pick") == "all"
+        return 0.0, False
 
     def _hero_return(self, game: Game, req: ChoiceRequest, f, options: list) -> list | None:
         """The hero put back on the board with `hp` (the request says) is judged where he would stand: the evaluation of the
@@ -555,6 +595,8 @@ class EffectAI:
         if not pool or target is None:
             return min(req.options)
         value, margin, limit = x["value"], x["margin"], x["limit"]
+        card = None if req.card_id is None else game.card_of(req.card_id, me)
+        emptied = DEVIL_EMPTY_VALUE - card.value if card is not None and card.title == DEVIL_TITLE else 0      # the ability always resolves first
 
         @lru_cache(maxsize=None)
         def score(total: int) -> float:
@@ -569,7 +611,7 @@ class EffectAI:
             n = min(n, len(pool), len(mine.deck))
             if n == 0:
                 return score(value)
-            totals = [value + sum(boosts) for boosts in combinations(pool, n)]
+            totals = [value + sum(boosts) + (emptied if n >= len(mine.deck) else 0) for boosts in combinations(pool, n)]
             return sum(map(score, totals)) / len(totals) - BLIND_COST * n
         return max(req.options, key=lambda n: (worth(n), -n))
 
@@ -585,7 +627,7 @@ class EffectAI:
         if other is None:
             return False
         blow = req.extra.get("at_stake", 0)
-        lose = lambda f: -self.hp_change(f, f.hp - blow, me, game)
+        lose = lambda f: -self.hp_change(f, f.hp - game.combat_damage_taken(f, blow), me, game)     # Luke Cage takes 2 less
         return lose(other) < lose(this) - 1e-9
 
     def _card_from_hand_pays(self, game: Game, req: ChoiceRequest) -> bool:

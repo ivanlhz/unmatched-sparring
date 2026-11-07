@@ -109,18 +109,18 @@ def _same(a: str, b: str) -> bool:
     return _plain(COLOR_TAG_RE.sub("", a)) == _plain(COLOR_TAG_RE.sub("", b))
 
 
-def deck_sheet(deck: dict) -> tuple[tuple[int, int], int] | None:
-    """(CardID range of the 30 playing cards, character CardID) of a physical hero deck, or None if it is not one.
-    The 30 cards share a sheet (CardID // 100); the character card is the single card from another sheet."""
+def deck_sheet(deck: dict, size: int = DECK_SIZE) -> tuple[tuple[int, int], int] | None:
+    """(CardID range of the `size` playing cards, character CardID) of a physical hero deck, or None if it is not one.
+    The playing cards share a sheet (CardID // 100); the character card is the single card from another sheet."""
     by_sheet: dict[int, list[int]] = {}
     for cid in deck["DeckIDs"]:
         by_sheet.setdefault(cid // 100, []).append(cid)
-    main = [ids for ids in by_sheet.values() if len(ids) == DECK_SIZE]
-    rest = [ids for ids in by_sheet.values() if len(ids) != DECK_SIZE]
+    main = [ids for ids in by_sheet.values() if len(ids) == size]
+    rest = [ids for ids in by_sheet.values() if len(ids) != size]
     if len(main) != 1 or len(rest) != 1 or len(rest[0]) != 1:
         return None
     lo, hi = min(main[0]), max(main[0])
-    if hi - lo != DECK_SIZE - 1:
+    if hi - lo != size - 1:
         return None
     return (lo, hi), rest[0][0]
 
@@ -154,8 +154,8 @@ def find_hero_bag(objects: list[dict], hero: HeroDef) -> tuple[dict, dict]:
         return outer, inner_bags[0]
     if hero.card_base is None:
         raise SaveImportError(f"no bag named {hero.name!r} (and the HeroDef has no CardID sheet to search by)")
-    wanted = (hero.card_base, hero.card_base + DECK_SIZE - 1)
-    decks = [d for d in walk_all(objects) if is_deck(d) and (deck_sheet(d) or (None,))[0] == wanted]
+    wanted = (hero.card_base, hero.card_base + hero.deck_size - 1)
+    decks = [d for d in walk_all(objects) if is_deck(d) and (deck_sheet(d, hero.deck_size) or (None,))[0] == wanted]
     if not decks:
         raise SaveImportError(f"no bag named {hero.name!r} and no deck of CardIDs {wanted[0]}..{wanted[1]}")
     if len(decks) > 1:
@@ -194,7 +194,7 @@ def extract_hero(objects: list[dict], hero: HeroDef, raw_hero: dict, report: Rep
     contents = list(inner.get("ContainedObjects") or ())
     claimed: set[str] = set()
 
-    decks = [(o, deck_sheet(o)) for o in contents if is_deck(o)]
+    decks = [(o, deck_sheet(o, hero.deck_size)) for o in contents if is_deck(o)]
     decks = [(o, s) for o, s in decks if s is not None]
     if hero.card_base is not None:
         decks = [(o, s) for o, s in decks if s[0][0] == hero.card_base] or decks

@@ -111,6 +111,29 @@ def _boost(run, game, spec):
     modifiers.add_value(flow, side, top.boost, t("cf.boost_impulse", title=top.title))
 
 
+@op("consider_won")
+def _consider_won(run, game, spec):
+    """"You are considered to have won this combat" (Bullseye's Arrogant But Effective), at the card's AFTER: the owner's side
+    becomes the winner for every condition that reads it later in this combat (the rival's AFTER, which resolves after the
+    owner's when the owner attacked) and for the turn's tally (`combats_won_this_turn`): the combat moves from the rival's wins
+    and the owner's losses to the owner's wins and the rival's losses. The damage already dealt stays. A side that won
+    already is left as it is."""
+    flow = _flow(run, "consider_won")
+    side = "atk" if run.ctx.played_as == "attack" else "def"
+    if flow.won_by(side):
+        return
+    me, rival = run.ctx.owner, 1 - run.ctx.owner
+    fx = game.fx
+    flow.considered_won = side
+    run.ctx.combat_result = "won"
+    fx.won[me] += 1
+    fx.won[rival] = max(0, fx.won[rival] - 1)
+    from .events import tracked
+    if "lost" in tracked(frozenset(fx.dsl_heroes)):          # the losses are only counted when some hero's data reads them
+        fx.lost[rival] += 1
+        fx.lost[me] = max(0, fx.lost[me] - 1)
+
+
 @op("allow_boost")
 def _allow_boost(run, game, spec):
     """"Your opponent may BOOST their card": the side of that card is asked for a BOOST in its DURING even if the card
@@ -266,11 +289,26 @@ def run_moment(flow, side, moment: str):
     key = f"{moment}:{side.name}"
     if key not in flow.runs:
         owner = side.fighter.owner
-        ops = load_effects(flow.game.players[owner].hero.slug).moment_ops(side.card.title, moment)
+        fx = load_effects(flow.game.players[owner].hero.slug)
+        ops = fx.moment_ops(side.card.title, moment)
+        if moment == "during" and fx.ability_during:
+            ops = during_with_ability(fx.ability_during, [] if flow.is_cancelled(side.name) else ops)
         if not ops:
             return None
         flow.runs[key] = _start(flow, side, ops, moment, side.card.card_id)
     return _continue(flow, flow.runs[key])
+
+
+def during_with_ability(ability: tuple, card_ops: list) -> list:
+    """The ops of a DURING moment of a hero that has DURING COMBAT effects of its own (`ability.during`, Daredevil: "if you
+    have other DURING COMBAT effects, choose the order"; ruled by Iván 2026-11-07: the ability always goes first). Each ability
+    effect runs under its condition, before the card's ops; a card whose effects were cancelled has no ops left (`card_ops`
+    empty): the hero's ability still runs, it is not on the card."""
+    ops = list(card_ops)
+    for eff in ability:
+        run = list(eff["ops"]) + ops           # Iván 2026-11-07: the ability always resolves first, nobody chooses
+        ops = [{"op": "if", "condition": eff["condition"], "then": run, "else": list(ops)}] if "condition" in eff else run
+    return ops
 
 
 def run_boost_moment(flow, side, boost, n: int):
@@ -296,7 +334,7 @@ def _start(flow, side, ops, moment: str, card_id: int):
               defense_card_id=None if flow.def_card is None else flow.def_card.card_id,
               played_as="attack" if side.name == "atk" else "defense")
     if moment == "after":
-        won = flow.result.attacker_won == (side.name == "atk")
+        won = flow.won_by(side.name)
         ctx.combat_result = "won" if won else "lost"
         dealt = flow.result.damage if flow.result.attacker_won == (side.name == "atk") else 0
         ctx.damage_dealt, ctx.damage_taken = (dealt, 0) if won else (0, flow.result.damage)

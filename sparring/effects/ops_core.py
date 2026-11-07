@@ -273,13 +273,15 @@ def _move(run, game, spec):
         for f in _one_after_another(targets):
             if not f.alive or f.pos is None or not game.fx.can_move(f):
                 continue
+            dests = sorted(game.legal_moves(f, steps, through))
+            if not up_to:       # exactly N: with no space exactly N away the move is cancelled (Iván, 2026-11-07)
+                dests = [d for d in dests if game.board.distance(f.pos, d) == steps]
+                if not dests:
+                    table.note(run, op="move_none", fid=f.fid, amount=steps)
+                    continue
             if table.piece_is_physical(game, chooser, f) and not spec.get("await_destination"):     # the human moves their own miniature by hand
                 by_hand.append(f)
                 continue
-            dests = sorted(game.legal_moves(f, steps, through))
-            if not up_to:       # exactly N: the farthest spaces when some are exactly N away
-                exact = [d for d in dests if game.board.distance(f.pos, d) == steps]
-                dests = exact or dests
             got = run.ask(game, "space", chooser, dests, 0 if up_to else 1, 1, "move to",
                           fighter=f.fid, op="move", steps=steps, through=through, up_to=up_to)
             if got:
@@ -288,7 +290,7 @@ def _move(run, game, spec):
     passed = run.flags.setdefault("passed", {})
     for f, dest in plan:
         origin = f.pos
-        passed[f.fid] = _passed_through(game, f, origin, dest, steps) if through else []
+        passed[f.fid] = _passed_through(game, f, origin, dest, steps, through)
         game.move_fighter(f, dest, steps, through)
         if f.pos != origin:
             table.intent(game, op="move", fid=f.fid, owner=f.owner)
@@ -299,13 +301,15 @@ def _move(run, game, spec):
         run.bind("fighters", spec["as"], [f.fid for f, _ in plan] + [f.fid for f in by_hand])
 
 
-def _passed_through(game, mover, origin: int, dest: int, steps: int) -> list[str]:
-    """Opposing fighters `mover` may have moved through on its way from `origin` to `dest`: those on some path of at
-    most `steps` spaces (the board has no fixed path, the mover's owner chooses it)."""
+def _passed_through(game, mover, origin: int, dest: int, steps: int, through: bool) -> list[str]:
+    """Fighters `mover` may have moved through on its way from `origin` to `dest`: those on some path of at most `steps`
+    spaces (the board has no fixed path, the mover's owner chooses it). The fighters that oppose the mover count when it
+    may cross them (`through_enemies`); its own side always does (a mover crosses its friends: Power Man hits them)."""
     if origin == dest:
         return []
     dist = game.board.distance
-    return [e.fid for e in game.own(1 - mover.owner)
+    crossed = (game.own(1 - mover.owner) if through else []) + [f for f in game.own(mover.owner) if f is not mover]
+    return [e.fid for e in crossed
             if e.pos not in (origin, dest) and dist(origin, e.pos) + dist(e.pos, dest) <= steps]
 
 
@@ -317,7 +321,9 @@ def _where_refs(game, run, where: dict) -> dict:
         out["any"] = True
     if where.get("other"):
         out["other"] = True
-    for key in ("zone_of", "adjacent_to", "nearest_to"):
+    if "next_to_nearest_foe" in where:
+        out["next_to_nearest_foe"] = True
+    for key in ("zone_of", "no_zone_of", "adjacent_to", "nearest_to"):
         if key in where:
             ref = _ref_fighter(game, run, where[key])
             if ref is not None:
@@ -329,7 +335,7 @@ def _note_where(game, run, where: dict) -> dict:
     """The SpaceSel for the chat line the human reads: the references resolved to who they are NOW (the owner's hero stays
     "hero"; any other fighter, `this` included, is named), so "this fighter's zone" of a sidekick is not "your hero's zone"."""
     out = dict(where)
-    for key in ("zone_of", "adjacent_to", "nearest_to"):
+    for key in ("zone_of", "no_zone_of", "adjacent_to", "nearest_to"):
         if key in where:
             ref = _ref_fighter(game, run, where[key])
             if ref is not None:
@@ -494,7 +500,7 @@ def _choice_context(game, run, spec: dict) -> dict:
     Delivery: how many moments of the rival's card have effects to cancel)."""
     ctx = {}
     ops, other = spec.get("ops") or [], spec.get("else") or []
-    if any(o["op"] == "plugin" and o["id"] == "houdini:replace_combatant" for o in ops):      # Smoke And Mirrors: a bot weighs the swap
+    if any(o["op"] == "plugin" and o["id"] in ("houdini:replace_combatant", "luke:replace_combatant") for o in ops):      # Smoke And Mirrors: a bot weighs the swap
         ctx["replaces_combatant"] = {"this": run.ctx.this_fid, "role": run.ctx.played_as}
     if len(ops) == 1 and ops[0]["op"] == "return_to_deck" and isinstance(ops[0]["cards"], dict) \
             and ops[0]["cards"]["zone"] == "deck" and ops[0]["cards"].get("pick") == "top":
@@ -591,4 +597,6 @@ from . import ops_info  # noqa: E402,F401  (registers look_hand, reveal, look_de
 from . import plugins_raphael  # noqa: E402,F401  (registers raphael:unbridled_rage)
 from . import plugins_strange  # noqa: E402,F401  (registers strange:blind_boost, strange:mists_of_munnopor, strange:reveal_to_top)
 from . import plugins_houdini  # noqa: E402,F401  (registers houdini:replace_combatant, houdini:return_boosted)
+from . import plugins_daredevil  # noqa: E402,F401  (registers daredevil:take_a_knee)
 from . import plugins_donatello  # noqa: E402,F401  (registers donatello:future_of_ninjutsu)
+from . import plugins_luke  # noqa: E402,F401  (registers luke:replace_combatant)

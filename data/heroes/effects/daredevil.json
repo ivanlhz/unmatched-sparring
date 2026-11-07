@@ -1,0 +1,296 @@
+{
+ "schema": 1,
+ "hero": "daredevil",
+ "notes": [
+  "Texts read from sheet 176 of the tournament savegame (card images) and the character card (338, sheet 3, index 38) on 2026-11-07; they agree with unmatched-memory word for word. Sheet 176 is also Medusa's, the turtles', Doctor Strange's... deck: only the deck image tells the decks apart (docs/card-identity.md).",
+  "1v1 reading: 'your opponent' is the only rival, 'a fighter adjacent to Daredevil' is any fighter next to him, 'moves through' as in Donatello's Party wagon!.",
+  "BLIND BOOST is the repo's rule (Ivan, 2026-11-07, docs/heroes/doctor-strange.md): the owner DECLARES the count before any card is seen, the cards are discarded from the top of the deck and their BOOST added automatically; a short deck discards what is there.",
+  "The special ability is a DURING COMBAT effect of the hero, written under `ability.during` (docs/effects-dsl.md section 29): it runs in the DURING of each combat in which the owner played a card, also when the rival cancelled the card's effects (it is on the hero, not on the card), and when the card has DURING effects of its own the owner chooses the order (`choose_effect` of the two orders)."
+ ],
+ "ability": {
+  "text": "DURING COMBAT: If you have 2 or fewer cards in your hand, you may BLIND BOOST your attack or defense.\n(If you have other DURING COMBAT effects, choose the order.)",
+  "triggers": [],
+  "passives": [],
+  "during": [
+   {
+    "id": "blind_boost",
+    "condition": {
+     "test": "compare",
+     "left": {
+      "stat": "hand_size",
+      "player": "owner"
+     },
+     "op": "<=",
+     "right": 2
+    },
+    "ops": [
+     {
+      "op": "plugin",
+      "id": "daredevil:blind_boost",
+      "args": {
+       "times": 1,
+       "ability": true
+      }
+     }
+    ],
+    "notes": "The hand is counted when the DURING resolves: the card played is no longer in it (the cards of a free BOOST come out of it later). A declared 0 is allowed ('you may'). With no card played there is no attack or defense to boost."
+   }
+  ],
+  "notes": "The ability has no trigger and no passive: it is the `during` list."
+ },
+ "cards": [
+  {
+   "title": "Devil of Hell's Kitchen",
+   "copies": 2,
+   "text": "DURING COMBAT: If you have no cards in your deck, the value of this card is 8 instead. AFTER COMBAT: Shuffle this card and the top four cards of your discard pile into your deck.",
+   "effects": {
+    "immediately": [],
+    "during": [
+     {
+      "op": "if",
+      "condition": {
+       "not": {
+        "test": "exists",
+        "cards": {
+         "zone": "deck",
+         "player": "owner"
+        }
+       }
+      },
+      "then": [
+       {
+        "op": "set_value",
+        "card": "this",
+        "amount": 8
+       }
+      ]
+     }
+    ],
+    "after": [
+     {
+      "op": "return_to_deck",
+      "cards": {
+       "zone": "discard",
+       "player": "owner",
+       "pick": "last",
+       "amount": 4
+      },
+      "position": "shuffle"
+     },
+     {
+      "op": "return_to_deck",
+      "cards": "this",
+      "position": "shuffle"
+     }
+    ],
+    "scheme": [],
+    "boost": []
+   },
+   "notes": "Attack (value 4, boost 3). Iván 2026-11-07: the card returns itself plus the LAST 4 cards that reached the discard pile (5 in all, as printed): this card (still at the combat spot, zone combat) and the 4 cards that reached the discard pile most recently (`pick: last`, in the order they arrived there: boosts of this combat, blind-boosted cards, earlier plays). Two `return_to_deck` ops, both to shuffle: the deck ends in a random order either way. The DURING reads the deck as it is when the card resolves, so Daredevil's BLIND BOOST can empty it first (the owner chooses the order)."
+  },
+  {
+   "title": "Man Without Fear",
+   "copies": 2,
+   "text": "DURING COMBAT: You may BLIND BOOST this attack. (This is in addition to any BLIND BOOST from Daredevil's special ability.)",
+   "effects": {
+    "immediately": [],
+    "during": [
+     {
+      "op": "plugin",
+      "id": "daredevil:blind_boost",
+      "args": {
+       "times": 1
+      }
+     }
+    ],
+    "after": [],
+    "scheme": [],
+    "boost": []
+   },
+   "notes": "Attack (value 2, boost 3). A second, independent BLIND BOOST (0 or 1, declared up front) next to the one of the ability; the owner chooses the order of the two."
+  },
+  {
+   "title": "Feint",
+   "copies": 3,
+   "text": "IMMEDIATELY: Cancel all effects on your opponent's card.",
+   "effects": {
+    "immediately": [
+     {
+      "op": "cancel_effects",
+      "card": "opponent_card"
+     }
+    ],
+    "during": [],
+    "after": [],
+    "scheme": [],
+    "boost": []
+   },
+   "notes": "Versatile (value 2, boost 1)."
+  },
+  {
+   "title": "Grappling Hook",
+   "copies": 3,
+   "text": "AFTER COMBAT: Move Daredevil up to 2 spaces.",
+   "effects": {
+    "immediately": [],
+    "during": [],
+    "after": [
+     {
+      "op": "move",
+      "target": "hero",
+      "amount": 2,
+      "up_to": true
+     }
+    ],
+    "scheme": [],
+    "boost": []
+   },
+   "notes": "Versatile (value 3, boost 2)."
+  },
+  {
+   "title": "Take A Knee",
+   "copies": 3,
+   "text": "AFTER COMBAT: Discard the top card of your deck. Recover health equal to its BOOST value.",
+   "effects": {
+    "immediately": [],
+    "during": [],
+    "after": [
+     {
+      "op": "plugin",
+      "id": "daredevil:take_a_knee",
+      "args": {
+       "as": "knee"
+      }
+     },
+     {
+      "op": "heal",
+      "target": "hero",
+      "amount": {
+       "attr": "boost",
+       "of": "$knee"
+      }
+     }
+    ],
+    "scheme": [],
+    "boost": []
+   },
+   "notes": "Versatile (value 3, boost 2). The top card goes to the discard pile face up (public) and Daredevil recovers its BOOST (capped at his maximum). An empty deck discards nothing and heals nothing. The table player presses one button and the bot moves the real card (docs/heroes/daredevil.md)."
+  },
+  {
+   "title": "Son Of A Boxer",
+   "copies": 3,
+   "text": "AFTER COMBAT: If you lost the combat, deal 2 damage to a fighter adjacent to Daredevil.",
+   "effects": {
+    "immediately": [],
+    "during": [],
+    "after": [
+     {
+      "op": "if",
+      "condition": {
+       "test": "combat_result",
+       "result": "lost"
+      },
+      "then": [
+       {
+        "op": "damage",
+        "target": {
+         "side": "any",
+         "where": {
+          "adjacent_to": "hero"
+         }
+        },
+        "amount": 2,
+        "chooser": "owner"
+       }
+      ]
+     }
+    ],
+    "scheme": [],
+    "boost": []
+   },
+   "notes": "Defense (value 3, boost 2). 'A fighter adjacent to Daredevil' is any fighter (the owner picks; with no sidekicks the rival's are the only candidates). A tie is lost by the attacker, as the engine counts."
+  },
+  {
+   "title": "Through Adversity",
+   "copies": 3,
+   "text": "Move Daredevil up to 4 spaces. He may move through opposing fighters. Deal 1 damage to each opposing fighter Daredevil moves through.",
+   "effects": {
+    "immediately": [],
+    "during": [],
+    "after": [],
+    "scheme": [
+     {
+      "op": "move",
+      "target": "hero",
+      "amount": 4,
+      "up_to": true,
+      "through_enemies": true,
+      "as": "mover"
+     },
+     {
+      "op": "damage",
+      "target": {
+       "side": "enemy",
+       "filter": {
+        "passed_by": "$mover"
+       },
+       "pick": "all"
+      },
+      "amount": 1
+     }
+    ],
+    "boost": []
+   },
+   "notes": "Scheme (boost 2). Same reading as Donatello's Party wagon!: 'moved through' is an opposing fighter on some path of at most 4 spaces from where he started to where he ended. With the bot's move the engine knows who was passed and the damage is automatic, to ALL of them. When the human walks the miniature by hand the engine cannot see the path: the panel asks which opposing fighters he passed (none to as many as there are) and each one named takes 1."
+  },
+  {
+   "title": "Breather",
+   "copies": 3,
+   "text": "Choose an attack, defense, or versatile card from your discard pile and return it to your hand.",
+   "effects": {
+    "immediately": [],
+    "during": [],
+    "after": [],
+    "scheme": [
+     {
+      "op": "put_in_hand",
+      "cards": {
+       "zone": "discard",
+       "player": "owner",
+       "filter": {
+        "type_not": "scheme"
+       },
+       "amount": 1,
+       "chooser": "owner"
+      }
+     }
+    ],
+    "boost": []
+   },
+   "notes": "Scheme (boost 2). Any non-scheme card of the owner's discard pile (public information); with none there is nothing to return."
+  }
+ ],
+ "plugins": [
+  {
+   "id": "daredevil:blind_boost",
+   "why": "BLIND BOOST up to N times: the owner declares the count first, then that many TOP cards of the deck are discarded and their BOOST added (the plugin of Doctor Strange, plugins_strange.py, under Daredevil's own id)."
+  },
+  {
+   "id": "daredevil:take_a_knee",
+   "why": "Discard the top card of the deck and bind it for the heal: for the human the bot moves the real top card to their discard pile and reads which one it was (the engine does not know their deck)."
+  }
+ ],
+ "hidden_info": [
+  {
+   "card": "Take A Knee",
+   "what": "the top card of the owner's deck is discarded face up",
+   "bot_rule": "The bot reads its own deck. For the human it moves the real top card to their discard pile (Lua deck_top_to_discard) and reads its CardID there; it never looks at the rest of the deck."
+  },
+  {
+   "card": "Man Without Fear",
+   "what": "blind-boosted cards are discarded face up from the top of the deck",
+   "bot_rule": "Same as Doctor Strange's BLIND BOOST."
+  }
+ ],
+ "open_questions": []
+}

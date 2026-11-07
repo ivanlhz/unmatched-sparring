@@ -130,9 +130,14 @@ def _where(where) -> str:
         if where.get("other"):
             return t("tbl.where.zone_hero_other") if who == "hero" else t("tbl.where.zone_other", who=who)
         return t("tbl.where.zone_hero") if who in ("hero", "this") else t("tbl.where.zone", who=who)
+    if "no_zone_of" in where:
+        who = where["no_zone_of"]
+        return t("tbl.where.no_zone_hero") if who in ("hero", "this") else t("tbl.where.no_zone", who=who)
     if "nearest_to" in where:
         who = where["nearest_to"]
         return t("tbl.where.nearest_hero") if who in ("hero", "this") else t("tbl.where.nearest", who=who)
+    if "next_to_nearest_foe" in where:
+        return t("tbl.where.next_to_foe")
     if "adjacent_to" in where:
         return t("tbl.where.adjacent")
     return t("tbl.where.default")
@@ -144,6 +149,8 @@ def line(n: dict) -> str:
         how = t("tbl.up_to" if n.get("up_to", True) else "tbl.exactly")
         through = t("tbl.through") if n.get("through") else ""
         return t("tbl.move", fid=n["fid"], how=how, squares=plural(n["amount"], "noun.space"), through=through)
+    if op == "move_none":
+        return t("tbl.move_none", fid=n["fid"], squares=plural(n["amount"], "noun.space"))
     if op == "place":
         return t("tbl.place", fid=n["fid"], where=_where(n.get("where")))
     if op == "swap":

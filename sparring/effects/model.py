@@ -10,7 +10,7 @@ from typing import Iterator
 from ..board import DATA_DIR
 
 EFFECTS_DIR = DATA_DIR / "heroes" / "effects"
-MOMENTS = ("immediately", "during", "after", "scheme", "boost")
+MOMENTS = ("immediately", "during", "after", "scheme", "boost", "unboosted")      # unboosted: a `may_boost` card's DURING ops for when its owner did not BOOST (I Never Miss)
 
 
 class EffectError(Exception):
@@ -45,6 +45,7 @@ class HeroEffects:
     passives: tuple[dict, ...] = ()
     counters: dict[str, CounterRange] = field(default_factory=dict)
     plugins: frozenset[str] = frozenset()
+    ability_during: tuple[dict, ...] = ()       # the hero's own DURING COMBAT effects: [{id, condition?, ops}] (Daredevil, section 29)
 
     def card(self, title: str) -> CardEffects:
         try:
@@ -81,7 +82,7 @@ def parse_effects(raw: dict) -> HeroEffects:
                     for k, v in (ability.get("counters") or {}).items()}
         return HeroEffects(raw["hero"], cards, tuple(ability.get("triggers") or ()),
                            tuple(ability.get("passives") or ()), counters,
-                           frozenset(p["id"] for p in raw.get("plugins") or ()))
+                           frozenset(p["id"] for p in raw.get("plugins") or ()), tuple(ability.get("during") or ()))
     except (KeyError, TypeError, ValueError) as e:
         raise EffectError(f"invalid effects file ({e!r})") from None
 

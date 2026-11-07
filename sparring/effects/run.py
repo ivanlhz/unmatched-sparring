@@ -86,10 +86,11 @@ class EffectRun:
     def ask(self, game, kind: str, player: int, options: list, lo: int, hi: int, prompt: str = "",
             ordered: bool = False, **extra) -> list:
         """A decision of `player`. Forced answers (nothing to choose) are taken without asking, except an
-        `ordered` pick of all, where the order itself is the decision."""
+        `ordered` pick of all, where the order itself is the decision, and a `confirm` one (Take A Knee: the table player
+        presses the single option so the bot moves the card)."""
         if not options:
             return []
-        if lo >= len(options) and not (ordered and len(options) > 1):
+        if lo >= len(options) and not (ordered and len(options) > 1) and not extra.get("confirm"):
             return list(options)
         key = f"{self._op_key}:{self._asks}"
         self._asks += 1

@@ -31,7 +31,8 @@ TRACKS = {"attacked": ("attacked_this_turn", "combat_damage_dealt"),
           "turn_start_pos": ("moved_this_turn",),
           "taken": ("actions_taken_this_turn", "no_attack_as_first_action"),
           "played": ("other_cards_played_this_turn",),
-          "lost": ("combat_lost", "combats_lost_this_turn")}
+          "lost": ("combat_lost", "combats_lost_this_turn"),
+          "won": ("combats_won_this_turn", "consider_won")}
 
 
 def _strings(node):
@@ -118,12 +119,16 @@ def _bookkeeping(game, ev: dict) -> None:
         fx.taken = 0
         fx.played = [0, 0]
         fx.lost = [0, 0]
+        fx.won = [0, 0]
         fx.turn_start_pos = ({fid: f.pos for fid, f in game.fighters.items() if f.alive}
                              if "turn_start_pos" in keep else {})
     elif ev["name"] == "attacked" and "attacked" in keep:
         fx.attacked.append(ev["attacker"].fid)
-    elif ev["name"] == "combat_lost" and "lost" in keep:
-        fx.lost[ev["player"]] += 1
+    elif ev["name"] == "combat_lost":
+        if "lost" in keep:
+            fx.lost[ev["player"]] += 1
+        if "won" in keep:
+            fx.won[1 - ev["player"]] += 1
 
 
 # ------------------------------------------------------------------ matching
