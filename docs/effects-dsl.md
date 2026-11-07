@@ -114,7 +114,7 @@ A `pick: one` selector with no candidates does nothing (the op is skipped); with
 ### 2.3 Spaces (SpaceSel)
 
 Object with any of: `any: true` | `zone_of: FighterRef` | `adjacent_to: FighterRef` | `space_of: FighterRef`
-| `nearest_to: FighterRef` | `start_space_of: PlayerSel` | `start: true` (any starting space of the board) | `empty: bool` (default true for placing). FighterRef is
+| `nearest_to: FighterRef` | `next_to_nearest_foe: FighterRef` (section 30) | `start_space_of: PlayerSel` | `start: true` (any starting space of the board) | `empty: bool` (default true for placing). FighterRef is
 a `role` string (`this`, `hero`, `opposing`, `attacker`, `defender`, `$var`).
 
 ### 2.4 Cards (CardSel and CardRef)
@@ -295,7 +295,7 @@ Every op is `{"op": "<name>", ...args}`. Arguments not listed are an error.
 | kind | args | |
 |---|---|---|
 | `modify_value` | `cards: {player, type?, fighter?}`, `amount` | continuous +N to the cards that meet it (ANUNG +2 to Hellboy's attacks; Fight Or Flight +1) |
-| `rule` | `rule`, `amount`? | `no_attack_as_first_action`, `effect_damage_bonus` (`amount`; not to exhaustion), `max_hand_size` (`amount`), `no_gain_actions`, `maneuver_boost_places_hero` (ESCAPE ARTIST) |
+| `rule` | `rule`, `amount`? | `no_attack_as_first_action`, `effect_damage_bonus` (`amount`; not to exhaustion), `max_hand_size` (`amount`), `no_gain_actions`, `maneuver_boost_places_hero` (ESCAPE ARTIST), `combat_damage_reduction` (`amount`; Luke Cage, section 30) |
 | `status` | like the `status` op without `until` | while the card stays in play |
 | `redirect_damage` | like the op, with `optional` and `chooser` | FATEFUL BARGAINS. It is the only place where `optional` is a field and not an op: a modifier contains no ops to wrap |
 | `may_boost` | `fighter: FighterSel` | that fighter may boost its attacks (King Arthur) |
@@ -1138,3 +1138,12 @@ Everything here is additive: no earlier effects file uses these words, so the ot
 - **`pick_fighters` with `pick: all` over a path nobody saw** (`passed_by` after the human moved their miniature by hand): the human is asked which fighters were passed (a `fighter` request, `min 0`, `max` = the candidates, multi-pick with the confirm button) instead of every candidate being hit. Through Adversity: `move hero up to 4 through_enemies as mover`, then `damage 1` to `{side: enemy, filter: {passed_by: $mover}, pick: all}`.
 - **Table side** (`session_blind`): the request flag `top_discard` goes through the same declared-count path as the BLIND BOOST (`is_count`, `declared`: the bot moves the top card to the human's pile by `deck_top_to_discard`, says it in the chat as `knee.auto`, and the run reads the CardID from `run.flags["blind_cards"]`); a refused table falls back to the `cards` request of the BLIND BOOST (`pile_mode: blind`).
 - **Same CardID range as the other sheet-176 decks**: see docs/card-identity.md.
+
+## 30. Luke Cage: a combat damage reduction, a space next to the nearest foe, crossing the mover's own side
+
+Written with the ops that already existed (`move` with `as`, `damage` with `passed_by`, `swap`, `place`, `return_to_deck`, `end_turn`, `set_value`, `stat: damage_taken_this_combat`). Small additive pieces:
+
+- **Passive rule `combat_damage_reduction`** (`amount`, in `ability.passives`): the hero's combat damage is cut by `amount` before it lands, never below 0 (Luke Cage: 2). Only the hero himself, only combat damage (never effect damage, exhaustion or `set_hp`). `Game.combat_damage_taken(victim, blow)` (reads `fx.combat_damage_reduction`) is the one place: `CombatFlow._damage` uses it, so the damage that lands is the reduced one everywhere downstream (`result.damage`, who won, `stat: damage_taken_this_combat`, the dial) and the chat says how much was taken off (`cf.reduced`); the AI's damage estimates (attack outcome, defense evaluation, two-hit threat, combat boost, the search's boost) go through it too. The winner is named by the damage that landed, so a blow the reduction cut to 0 is a win for the defender.
+- **SpaceSel `next_to_nearest_foe: FighterRef`**: the free spaces adjacent to the opposing fighter nearest to that fighter (`board.span`, "nearest" is spatial); with several tied, adjacent to any of them. The fighter itself may stay where it is if it is already adjacent. Chat texts `tbl.where.next_to_foe` / `moves.where.next_to_foe`.
+- **`move` records the mover's own side as crossed** (`run.flags["passed"]`, read by the FighterSel filter `passed_by`): a mover may always cross its own side, so those fighters on some path of at most `amount` spaces are recorded besides the opposing ones (those only with `through_enemies`). Power Man: `move` the opposing fighter (`as: mover`), then `damage` the rival's fighters `passed_by: $mover` (`side: enemy`, `pick: all`). Donatello's Party wagon! is unaffected (`side: enemy` leaves its own side out).
+- **Plugin `luke:replace_combatant`** (Got My Back?): Houdini's `replace_combatant` under Luke Cage's fid (the validator demands the prefix); `ops_core._choice_context` and the AI (`EffectAI._swap_combatant`, which now counts the 2 less) treat both ids alike.

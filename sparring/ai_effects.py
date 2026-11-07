@@ -590,7 +590,7 @@ class EffectAI:
         if other is None:
             return False
         blow = req.extra.get("at_stake", 0)
-        lose = lambda f: -self.hp_change(f, f.hp - blow, me, game)
+        lose = lambda f: -self.hp_change(f, f.hp - game.combat_damage_taken(f, blow), me, game)     # Luke Cage takes 2 less
         return lose(other) < lose(this) - 1e-9
 
     def _card_from_hand_pays(self, game: Game, req: ChoiceRequest) -> bool:

@@ -1,0 +1,35 @@
+{
+ "slug": "luke-cage",
+ "bag": {
+  "guid": "ea69a7",
+  "inner": "91ff31"
+ },
+ "deck": {
+  "guid": "6ed1cf",
+  "card_ids": [
+   17600,
+   17629
+  ],
+  "character_card_id": 322,
+  "identity": [
+   {
+    "face": "https://steamusercontent-a.akamaihd.net/ugc/17074948105438471749/6A857D4D846ED61BB37FDE9A183B558BAEE6611B/",
+    "back": "https://steamusercontent-a.akamaihd.net/ugc/13095595610986323009/B1292C9A9453C15B63147B1885609C03E1F08F7C/"
+   }
+  ]
+ },
+ "fighters": {
+  "luke": {
+   "piece": "b56d0d",
+   "dial": "63d2ef",
+   "dial_max": 13
+  },
+  "misty": {
+   "piece": "2b710e",
+   "dial": "d35f8c",
+   "dial_max": 6
+  }
+ },
+ "tokens": {},
+ "counter_dials": {}
+}

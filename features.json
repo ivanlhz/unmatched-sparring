@@ -403,6 +403,20 @@
       "note": "Engine additions are additive (docs/effects-dsl.md, section 29). Rules decisions and open questions for Iván: docs/heroes/daredevil.md. Live test pending."
     },
     {
+      "id": "HERO-LUKE-CAGE",
+      "title": "Luke Cage (Redemption Row) playable by the bot and by the human against every hero",
+      "status": "in-progress",
+      "criteria": [
+        "data/heroes/overlay/luke-cage.json, data/heroes/luke-cage.json, data/heroes/effects/luke-cage.json and data/tts/luke-cage.json generated and validated (import_hero --check, validate_effects, import_save --check); all 13 titles (30 cards, sheet 176, character card 322) read from the card images, the second paragraph of the ability and Skin Like Titanium's printed 0 recorded as discrepancies",
+        "His deck shares CardIDs 17600-17629 with Medusa, the four turtles, Doctor Strange and Bigfoot: told apart by deck image and owner, never by a bare CardID; same-CardID tests in both seats (tests/test_hero_luke_cage_data.py, tests/test_card_identity.py, tests/test_luke_cage_matrix.py); no piece GUID shared with another hero",
+        "The ability (2 less combat damage, passive rule combat_damage_reduction) is applied by one place (Game.combat_damage_taken) that the combat flow and the bot's damage estimates share; a blow cut to 0 is a win for the defender",
+        "All 13 cards on the interpreter for both seats: Power Man, Skin Like Titanium, Trash Talk, Got My Back? (Houdini's swap machinery), Where's My Money? (SpaceSel next_to_nearest_foe), Still Standing, Pushback, Daughter of the Dragon, Regroup, Get Paid, Commanding Impact, Hero For Hire, Sweet Christmas!",
+        "Luke Cage against each of the 12 other heroes in both seats reaches game over on FakeTTS (passive and attacking human) and in the simulator (tests/test_luke_cage_matrix.py); the human's choices (Got My Back?, Still Standing, the bot's piece moved by hand) are parked runs that survive --resume (tests/test_luke_cage_human.py)",
+        "Verified live by Iván (docs/live-checklist.md, section Luke Cage)"
+      ],
+      "note": "Engine additions are additive (docs/effects-dsl.md, section 30). Rules decisions and open questions for Iván: docs/heroes/luke-cage.md. Live test pending."
+    },
+    {
       "id": "F20",
       "title": "The bot prepares the official community save itself",
       "status": "in-progress",

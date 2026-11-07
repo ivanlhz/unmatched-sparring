@@ -1,8 +1,8 @@
 # Card identity: the shared CardID range
 
-In the tournament savegame Medusa, the four TMNT turtles (Leonardo, Donatello, Michelangelo, Raphael), Doctor Strange, Bigfoot and Daredevil
-are all DeckID 176, so all eight decks have CardIDs 17600-17629 (Daredevil's has 22 cards: 17600-17621). Only the deck image (FaceURL, BackURL of the CustomDeck,
-`deck.identity` in `data/tts/<slug>.json`) tells them apart. Any pairing of the nine heroes works at the table, in both seats,
+In the tournament savegame Medusa, the four TMNT turtles (Leonardo, Donatello, Michelangelo, Raphael), Doctor Strange, Bigfoot, Daredevil, Luke Cage and Bullseye
+are all DeckID 176, so all ten decks have CardIDs 17600-17629 (Daredevil's has 22 cards: 17600-17621). Only the deck image (FaceURL, BackURL of the CustomDeck,
+`deck.identity` in `data/tts/<slug>.json`) tells them apart. Any pairing of the fifteen heroes works at the table, in both seats,
 including Medusa against a turtle and a turtle against a turtle (`tests/test_tmnt_matrix.py`), and Doctor Strange against each of
 them (`tests/test_doctor_strange_matrix.py`; only the
 30 deck cards overlap, his character card is 337). The rule is one sentence:

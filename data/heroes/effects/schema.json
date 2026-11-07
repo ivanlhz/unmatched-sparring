@@ -108,6 +108,7 @@
     "adjacent_to": {"$ref": "#/$defs/FighterRef"},
     "space_of": {"$ref": "#/$defs/FighterRef"},
     "nearest_to": {"$ref": "#/$defs/FighterRef"},
+    "next_to_nearest_foe": {"$ref": "#/$defs/FighterRef"},
     "start_space_of": {"$ref": "#/$defs/PlayerSel"},
     "start": {"type": "boolean"},
     "empty": {"type": "boolean"},
@@ -270,7 +271,7 @@
     "properties": {
      "kind": {"const": "rule"},
      "id": {"$ref": "#/$defs/Name"},
-     "rule": {"enum": ["no_attack_as_first_action", "effect_damage_bonus", "max_hand_size", "no_gain_actions", "maneuver_boost_places_hero"]},
+     "rule": {"enum": ["no_attack_as_first_action", "effect_damage_bonus", "max_hand_size", "no_gain_actions", "maneuver_boost_places_hero", "combat_damage_reduction"]},
      "amount": {"type": "integer"},
      "while": {"$ref": "#/$defs/Condition"}}},
    {"type": "object", "additionalProperties": false, "required": ["kind", "name"],

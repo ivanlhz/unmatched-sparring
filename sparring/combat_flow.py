@@ -326,6 +326,10 @@ class CombatFlow:
             victim = combat_redirect_target(self)
             if victim is not self.tgt and damage:
                 result.applied.append(t("cf.redirect", victim=victim.fid, target=self.tgt.fid))
+        taken = self.game.combat_damage_taken(victim, damage)
+        if taken != damage:
+            result.applied.append(t("cf.reduced", victim=victim.fid, n=damage - taken))     # Luke Cage: the ability took some off
+            damage = taken
         self.game.damage(victim, damage, "combat")
         if self.game.winner is not None and victim.hero and self._defers_defeat(victim):
             self.game.winner, self.deferred_loss = None, victim.owner     # the AFTER effects may bring the hero back

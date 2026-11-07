@@ -119,6 +119,8 @@ ACTION_VALUE = 1.0          # an action that gives away a scheme: at least the d
 
 BLIND_BOOST = {"Bolts of Balthakk": (1, None), "Seven Suns of Cinnibus": (2, 7)}   # Doctor Strange: (blind boosts allowed, total above which the value is ignored)
 MASTER, CLOAK, RINGS, MISTS = "Master of Kamar-Taj", "Cloak of Levitation", "The Rings of Raggadorr", "The Mists of Munnopor"
+DAUGHTER, SKIN, GOT_MY_BACK = "Daughter of the Dragon", "Skin Like Titanium", "Got My Back?"     # Luke Cage
+SKIN_RETURN = 0.8         # Skin Like Titanium: a lost combat sends back the damage taken, but only a lost combat does (the blow it replies to already hurt)
 MISTS_EDGE = 0.4          # the Mists also cancel the effects of the attack that was played and replace it with a card nobody chose
 BOOST_ACTION = 0.9        # a BOOSTED WITH that gains an action (it only pays on the bot's own turn)
 STRIP_VALUE = 1.0         # a card the rival loses to a BOOSTED WITH that picks one from their hand
@@ -162,6 +164,12 @@ AFTER_BONUS = {
     "Grand Escape": (0.0, 0.3),                     # the winner goes to any space
     "The Big Reveal": (0.3, 0.0),                   # a boosted card comes back to the hand
     "Misdirection": (0.4, 0.0),                     # cancels the rival card's effects
+    "Get Paid": (0.0, 2 * CARD_VALUE),              # Luke Cage: draws 2 when it wins
+    "Commanding Impact": (CARD_VALUE, 0.0),         # draws 1
+    "Still Standing": (0.0, 0.6),                   # two cards from the discard back into the deck when it wins
+    "Pushback": (0.2, 0.0),                         # moves the opposing fighter up to 3 spaces
+    "Power Man": (0.8, 0.0),                        # moves the opposing fighter, 1 damage to it and to each fighter it crossed
+    "Trash Talk": (0.0, 0.7),                       # cancels the rival card's effects; a win ends the rival's turn
 }
 DISCARD_EFFECTS = ("Clutching Claws", "Hiss and Slither")
 
@@ -761,6 +769,8 @@ class MedusaAI(Controller):
             return 5.0
         if c.title == MASTER and self.strange_with_wong(game, f.owner):
             return 4.0
+        if c.title == DAUGHTER and f.pos is not None and t.pos is not None and t.pos in game.board.adj[f.pos]:
+            return 6.0                  # Misty Knight (the only fighter that plays it) is next to the target
         return float(c.value)
 
     @staticmethod
@@ -780,7 +790,7 @@ class MedusaAI(Controller):
         atk += BOOST_RELIANCE * sum(x.boost for x in free_boosts(game, self.me, c, game.players[self.me].hand))
         atk += self.during_gain(game, c)
         ignore = self.cloak_ignores(game, f, t, c)
-        return sum(p for p, dv in model.defense_dist(t) if atk - (0 if ignore else (dv or 0)) >= 1)
+        return sum(p for p, dv in model.defense_dist(t) if game.combat_damage_taken(t, atk - (0 if ignore else (dv or 0))) >= 1)
 
     def during_gain(self, game: Game, c) -> float:
         """What the DURING of a Donatello attack is expected to add to its value: Electro grenade removes up to 4
@@ -816,7 +826,7 @@ class MedusaAI(Controller):
         e_net = p_win = p_kill = gaze_dmg = 0.0
         ignore = self.cloak_ignores(game, f, t, c)
         for p, dv in model.defense_dist(t):
-            net = max(0.0, atk - (0 if ignore else (dv or 0)))
+            net = game.combat_damage_taken(t, max(0.0, atk - (0 if ignore else (dv or 0))))     # Luke Cage: 2 less
             won = net >= 1
             e_net += p * min(net, t.hp)
             p_win += p * won
@@ -1147,7 +1157,7 @@ class MedusaAI(Controller):
                 for p, v in model.attack_dist(e):
                     if v is None:
                         continue
-                    dmg = max(0, v - my_def)
+                    dmg = game.combat_damage_taken(t, max(0, v - my_def))
                     exp += p * min(dmg, t.hp)
                     p_dead += p * (dmg >= t.hp)
                 if not t.hero:
@@ -1232,7 +1242,7 @@ class MedusaAI(Controller):
         for p, first, second in model.two_hit_dist(e):
             dmg = 0
             for v, d in ((first, defs[0]), (second, defs[1])):
-                net = max(0, v - d)
+                net = model.game.combat_damage_taken(t, max(0, v - d))
                 dmg += net + (EFFECT_MARGIN if net > 0 else 0)
             exp += p * min(dmg, t.hp)
             p_dead += p * (dmg >= t.hp)
@@ -1355,19 +1365,19 @@ class MedusaAI(Controller):
         (Out Of Time, D1): the damage it spares the bot's own fighter, and its life when the hit would kill it."""
         hand = game.players[self.me].hand
         t = ctx.target
-        now = max(0, ctx.atk_value - ctx.def_value)
+        now = game.combat_damage_taken(t, max(0, ctx.atk_value - ctx.def_value))
         rel = effect_reliance(game, self.me)
         defending = t.owner == self.me
         best, best_gain = None, 0.0
         for c in filter(bot_may_spend, hand):
             if defending:
-                net = max(0, ctx.atk_value - ctx.def_value - c.boost)
+                net = game.combat_damage_taken(t, max(0, ctx.atk_value - ctx.def_value - c.boost))
                 gain = (W_MEDUSA_HP if t.hero else HARPY_VALUE) * (min(now, t.hp) - min(net, t.hp))
                 gain += LETHAL if t.hero and now >= t.hp > net else 0.0
                 if not t.hero:
                     gain *= protect_factor(game, t)
             else:
-                net = max(0, ctx.atk_value + c.boost - ctx.def_value)
+                net = game.combat_damage_taken(t, max(0, ctx.atk_value + c.boost - ctx.def_value))
                 gain = weight(t) * (min(net, t.hp) - min(now, t.hp))
             gain += boost_effect_value(game, self.me, c) - self.keep(game, c, hand, rel, not defending and boost_limit(ctx.atk_card) >= FINISHER_BOOSTS)
             if gain > best_gain:
@@ -1418,19 +1428,34 @@ class MedusaAI(Controller):
             if hero.pos is not None and self._attacker.pos in game.board.adj[hero.pos]:
                 dist = [(1.0, 0)]                      # Doctor Strange is next to the attacker: its value counts for nothing
         dv = c.value if c else 0
+        attacker = getattr(self, "_attacker", None)
+        if c is not None and c.title == DAUGHTER and attacker is not None and target.pos is not None and attacker.pos in game.board.adj[target.pos]:
+            dv = 6                                 # Misty Knight (she defends with it) is next to the attacker
         boosts = free_boosts(game, self.me, c, game.players[self.me].hand) if c is not None else []
         dv += BOOST_RELIANCE * sum(x.boost for x in boosts)
-        exp = p_dead = p_hit = p_block = 0.0
-        for p, av in dist:
-            net = max(0, (av or 0) - dv) if av is not None else 0
-            exp += p * min(net, target.hp)
-            p_dead += p * (net >= target.hp)
-            p_hit += p * (net >= 1)
-            p_block += p * (net == 0)
-        if not target.hero:
-            v = -HARPY_VALUE * target.max_hp * p_hit * protect_factor(game, target)   # a dead card engine is worth a defense card
-        else:
-            v = -W_MEDUSA_HP * exp - LETHAL * p_dead
+
+        def tally(victim: Fighter):
+            exp = p_dead = p_hit = p_block = 0.0
+            for p, av in dist:
+                net = game.combat_damage_taken(victim, max(0, (av or 0) - dv)) if av is not None else 0
+                exp += p * min(net, victim.hp)
+                p_dead += p * (net >= victim.hp)
+                p_hit += p * (net >= 1)
+                p_block += p * (net == 0)
+            return exp, p_dead, p_hit, p_block
+
+        def price(victim: Fighter, exp: float, p_dead: float, p_hit: float) -> float:
+            if not victim.hero:
+                return -HARPY_VALUE * victim.max_hp * p_hit * protect_factor(game, victim)   # a dead card engine is worth a defense card
+            return -W_MEDUSA_HP * exp - LETHAL * p_dead
+
+        exp, p_dead, p_hit, p_block = tally(target)
+        v = price(target, exp, p_dead, p_hit)
+        if c is not None and c.title == GOT_MY_BACK and not target.hero and game.hero(target.owner).alive:
+            luke = game.hero(target.owner)         # Misty may swap with Luke Cage: he takes the blow if that costs less
+            swapped = tally(luke)
+            if price(luke, *swapped[:3]) > v:
+                (exp, p_dead, p_hit, p_block), v = swapped, price(luke, *swapped[:3])
         if c is None:
             return v
         v -= CARD_VALUE + 0.05 * c.boost
@@ -1443,6 +1468,8 @@ class MedusaAI(Controller):
         v += BOOST_RELIANCE * sum(boost_effect_value(game, self.me, x) for x in boosts)
         always, on_win = AFTER_BONUS.get(c.title, (0.0, 0.0))
         v += always + on_win * p_block
+        if c.title == SKIN and attacker is not None:
+            v += SKIN_RETURN * weight(attacker) * exp         # the damage it took goes back to the attacker
         if c.title == "Feint":
             v += 0.3
         if c.title == MISTS:

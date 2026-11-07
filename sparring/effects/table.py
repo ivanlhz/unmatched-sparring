@@ -133,6 +133,8 @@ def _where(where) -> str:
     if "nearest_to" in where:
         who = where["nearest_to"]
         return t("tbl.where.nearest_hero") if who in ("hero", "this") else t("tbl.where.nearest", who=who)
+    if "next_to_nearest_foe" in where:
+        return t("tbl.where.next_to_foe")
     if "adjacent_to" in where:
         return t("tbl.where.adjacent")
     return t("tbl.where.default")

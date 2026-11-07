@@ -1,0 +1,431 @@
+{
+ "_source": {
+  "memory": "unmatched-memory/data/heroes/luke-cage.json",
+  "overlay": "data/heroes/overlay/luke-cage.json",
+  "generator": "tools/import_hero.py"
+ },
+ "slug": "luke-cage",
+ "name": "Luke Cage",
+ "fid": "luke",
+ "hp": 13,
+ "move": 2,
+ "attack": "melee",
+ "set": "redemption-row",
+ "ability": "Luke Cage takes 2 less combat damage from attacks.\nWhen defending, Luke Cage wins combat if he takes no damage even if he didn't play a card.",
+ "sidekicks": [
+  {
+   "name": "Misty Knight",
+   "hp": 6,
+   "move": 2,
+   "attack": "range",
+   "count": 1,
+   "fid": "misty"
+  }
+ ],
+ "forms": null,
+ "counters": {},
+ "triggers": [],
+ "passives": [],
+ "deck": {
+  "card_base": 17600,
+  "sheet": 176,
+  "cards": [
+   {
+    "idx": 0,
+    "title": "Sweet Christmas!",
+    "fighter": "Luke Cage",
+    "type": "attack",
+    "value": 6,
+    "boost": 1,
+    "text": "",
+    "tags": []
+   },
+   {
+    "idx": 1,
+    "title": "Sweet Christmas!",
+    "fighter": "Luke Cage",
+    "type": "attack",
+    "value": 6,
+    "boost": 1,
+    "text": "",
+    "tags": []
+   },
+   {
+    "idx": 2,
+    "title": "Get Paid",
+    "fighter": "Luke Cage",
+    "type": "attack",
+    "value": 4,
+    "boost": 2,
+    "text": "AFTER COMBAT: If you won the combat, draw 2 cards.",
+    "tags": []
+   },
+   {
+    "idx": 3,
+    "title": "Get Paid",
+    "fighter": "Luke Cage",
+    "type": "attack",
+    "value": 4,
+    "boost": 2,
+    "text": "AFTER COMBAT: If you won the combat, draw 2 cards.",
+    "tags": []
+   },
+   {
+    "idx": 4,
+    "title": "Hero For Hire",
+    "fighter": "Luke Cage",
+    "type": "attack",
+    "value": 3,
+    "boost": 1,
+    "text": "DURING COMBAT: You may BOOST this attack.",
+    "tags": []
+   },
+   {
+    "idx": 5,
+    "title": "Hero For Hire",
+    "fighter": "Luke Cage",
+    "type": "attack",
+    "value": 3,
+    "boost": 1,
+    "text": "DURING COMBAT: You may BOOST this attack.",
+    "tags": []
+   },
+   {
+    "idx": 6,
+    "title": "Hero For Hire",
+    "fighter": "Luke Cage",
+    "type": "attack",
+    "value": 3,
+    "boost": 1,
+    "text": "DURING COMBAT: You may BOOST this attack.",
+    "tags": []
+   },
+   {
+    "idx": 7,
+    "title": "Commanding Impact",
+    "fighter": "any",
+    "type": "attack",
+    "value": 5,
+    "boost": 1,
+    "text": "AFTER COMBAT: Draw 1 card.",
+    "tags": []
+   },
+   {
+    "idx": 8,
+    "title": "Commanding Impact",
+    "fighter": "any",
+    "type": "attack",
+    "value": 5,
+    "boost": 1,
+    "text": "AFTER COMBAT: Draw 1 card.",
+    "tags": []
+   },
+   {
+    "idx": 9,
+    "title": "Commanding Impact",
+    "fighter": "any",
+    "type": "attack",
+    "value": 5,
+    "boost": 1,
+    "text": "AFTER COMBAT: Draw 1 card.",
+    "tags": []
+   },
+   {
+    "idx": 10,
+    "title": "Still Standing",
+    "fighter": "any",
+    "type": "attack",
+    "value": 4,
+    "boost": 2,
+    "text": "AFTER COMBAT: If you won the combat, choose 2 cards in your discard pile and shuffle them into your deck.",
+    "tags": []
+   },
+   {
+    "idx": 11,
+    "title": "Still Standing",
+    "fighter": "any",
+    "type": "attack",
+    "value": 4,
+    "boost": 2,
+    "text": "AFTER COMBAT: If you won the combat, choose 2 cards in your discard pile and shuffle them into your deck.",
+    "tags": []
+   },
+   {
+    "idx": 12,
+    "title": "Regroup",
+    "fighter": "any",
+    "type": "versatile",
+    "value": 1,
+    "boost": 3,
+    "text": "AFTER COMBAT: Draw 1 card. If you won the combat, draw 2 cards instead.",
+    "tags": []
+   },
+   {
+    "idx": 13,
+    "title": "Regroup",
+    "fighter": "any",
+    "type": "versatile",
+    "value": 1,
+    "boost": 3,
+    "text": "AFTER COMBAT: Draw 1 card. If you won the combat, draw 2 cards instead.",
+    "tags": []
+   },
+   {
+    "idx": 14,
+    "title": "Regroup",
+    "fighter": "any",
+    "type": "versatile",
+    "value": 1,
+    "boost": 3,
+    "text": "AFTER COMBAT: Draw 1 card. If you won the combat, draw 2 cards instead.",
+    "tags": []
+   },
+   {
+    "idx": 15,
+    "title": "Pushback",
+    "fighter": "Misty Knight",
+    "type": "versatile",
+    "value": 2,
+    "boost": 3,
+    "text": "AFTER COMBAT: Move the opposing fighter up to 3 spaces.",
+    "tags": []
+   },
+   {
+    "idx": 16,
+    "title": "Pushback",
+    "fighter": "Misty Knight",
+    "type": "versatile",
+    "value": 2,
+    "boost": 3,
+    "text": "AFTER COMBAT: Move the opposing fighter up to 3 spaces.",
+    "tags": []
+   },
+   {
+    "idx": 17,
+    "title": "Daughter of the Dragon",
+    "fighter": "Misty Knight",
+    "type": "versatile",
+    "value": 2,
+    "boost": 2,
+    "text": "DURING COMBAT: If Misty Knight is adjacent to the opposing fighter, the value of this card is 6 instead.",
+    "tags": []
+   },
+   {
+    "idx": 18,
+    "title": "Daughter of the Dragon",
+    "fighter": "Misty Knight",
+    "type": "versatile",
+    "value": 2,
+    "boost": 2,
+    "text": "DURING COMBAT: If Misty Knight is adjacent to the opposing fighter, the value of this card is 6 instead.",
+    "tags": []
+   },
+   {
+    "idx": 19,
+    "title": "Power Man",
+    "fighter": "Luke Cage",
+    "type": "defense",
+    "value": 2,
+    "boost": 1,
+    "text": "AFTER COMBAT: Move the opposing fighter up to 3 spaces. You may move them through other opposing fighters. Deal 1 damage to them and each opposing fighter they moved through.",
+    "tags": []
+   },
+   {
+    "idx": 20,
+    "title": "Power Man",
+    "fighter": "Luke Cage",
+    "type": "defense",
+    "value": 2,
+    "boost": 1,
+    "text": "AFTER COMBAT: Move the opposing fighter up to 3 spaces. You may move them through other opposing fighters. Deal 1 damage to them and each opposing fighter they moved through.",
+    "tags": []
+   },
+   {
+    "idx": 21,
+    "title": "Skin Like Titanium",
+    "fighter": "Luke Cage",
+    "type": "defense",
+    "value": 0,
+    "boost": 1,
+    "text": "AFTER COMBAT: If you lost the combat, deal damage to the opposing fighter equal to the amount of combat damage you took.",
+    "tags": []
+   },
+   {
+    "idx": 22,
+    "title": "Skin Like Titanium",
+    "fighter": "Luke Cage",
+    "type": "defense",
+    "value": 0,
+    "boost": 1,
+    "text": "AFTER COMBAT: If you lost the combat, deal damage to the opposing fighter equal to the amount of combat damage you took.",
+    "tags": []
+   },
+   {
+    "idx": 23,
+    "title": "Trash Talk",
+    "fighter": "any",
+    "type": "defense",
+    "value": 2,
+    "boost": 1,
+    "text": "IMMEDIATELY: Cancel all effects on your opponent's card. AFTER COMBAT: If you won the combat, end the turn.",
+    "tags": []
+   },
+   {
+    "idx": 24,
+    "title": "Trash Talk",
+    "fighter": "any",
+    "type": "defense",
+    "value": 2,
+    "boost": 1,
+    "text": "IMMEDIATELY: Cancel all effects on your opponent's card. AFTER COMBAT: If you won the combat, end the turn.",
+    "tags": []
+   },
+   {
+    "idx": 25,
+    "title": "Trash Talk",
+    "fighter": "any",
+    "type": "defense",
+    "value": 2,
+    "boost": 1,
+    "text": "IMMEDIATELY: Cancel all effects on your opponent's card. AFTER COMBAT: If you won the combat, end the turn.",
+    "tags": []
+   },
+   {
+    "idx": 26,
+    "title": "Got My Back?",
+    "fighter": "Misty Knight",
+    "type": "defense",
+    "value": 1,
+    "boost": 2,
+    "text": "IMMEDIATELY: Misty Knight may swap spaces with Luke Cage. If she does, Luke Cage is now the defender.",
+    "tags": []
+   },
+   {
+    "idx": 27,
+    "title": "Got My Back?",
+    "fighter": "Misty Knight",
+    "type": "defense",
+    "value": 1,
+    "boost": 2,
+    "text": "IMMEDIATELY: Misty Knight may swap spaces with Luke Cage. If she does, Luke Cage is now the defender.",
+    "tags": []
+   },
+   {
+    "idx": 28,
+    "title": "Where's My Money?",
+    "fighter": "Luke Cage",
+    "type": "scheme",
+    "value": null,
+    "boost": 1,
+    "text": "Place Luke Cage adjacent to the nearest opposing fighter. Gain 1 action.",
+    "tags": []
+   },
+   {
+    "idx": 29,
+    "title": "Where's My Money?",
+    "fighter": "Luke Cage",
+    "type": "scheme",
+    "value": null,
+    "boost": 1,
+    "text": "Place Luke Cage adjacent to the nearest opposing fighter. Gain 1 action.",
+    "tags": []
+   }
+  ]
+ },
+ "ai_profile": {
+  "luke": {
+   "name": "Luke Cage",
+   "hero": true,
+   "count": 1,
+   "max_hp": 13,
+   "move": 2,
+   "ranged": false,
+   "role": "hero",
+   "attack": {
+    "cards": 15,
+    "mean": 3.67,
+    "max": 6
+   },
+   "exclusive": [
+    {
+     "title": "Sweet Christmas!",
+     "type": "attack",
+     "copies": 2,
+     "impact": 1.2
+    },
+    {
+     "title": "Get Paid",
+     "type": "attack",
+     "copies": 2,
+     "impact": 1.24
+    },
+    {
+     "title": "Hero For Hire",
+     "type": "attack",
+     "copies": 3,
+     "impact": 0.75
+    },
+    {
+     "title": "Power Man",
+     "type": "defense",
+     "copies": 2,
+     "impact": 2.04
+    },
+    {
+     "title": "Skin Like Titanium",
+     "type": "defense",
+     "copies": 2,
+     "impact": 1.06
+    },
+    {
+     "title": "Where's My Money?",
+     "type": "scheme",
+     "copies": 2,
+     "impact": 1.7
+    }
+   ]
+  },
+  "misty": {
+   "name": "Misty Knight",
+   "hero": false,
+   "count": 1,
+   "max_hp": 6,
+   "move": 2,
+   "ranged": true,
+   "role": "striker",
+   "attack": {
+    "cards": 12,
+    "mean": 2.83,
+    "max": 5
+   },
+   "exclusive": [
+    {
+     "title": "Pushback",
+     "type": "versatile",
+     "copies": 2,
+     "impact": 0.78
+    },
+    {
+     "title": "Daughter of the Dragon",
+     "type": "versatile",
+     "copies": 2,
+     "impact": 0.81
+    },
+    {
+     "title": "Got My Back?",
+     "type": "defense",
+     "copies": 2,
+     "impact": 0.72
+    }
+   ],
+   "requires_alive": []
+  }
+ },
+ "_notes": [
+  "Sheet 176 of the tournament savegame (8x4), read card by card from the image on 2026-11-07. CardID = 17600 + idx; 322 = character card (sheet 3, 10x7, index 22). The deck object of the save holds 31 cards: the 30 of the deck plus the character card, which is why the catalog says card_count 31 and card_ids [322, 17629].",
+  "Restriction band (LUKE CAGE, MISTY KNIGHT or ANY) and copies (xN printed on each card) read from the images; type, boost and text match unmatched-memory for all 13 titles. Luke Cage's deck is sheet 176 like Medusa's, the four turtles', Doctor Strange's and Bigfoot's: only deck.identity (data/tts/luke-cage.json) tells the decks apart (docs/card-identity.md).",
+  "Discrepancies with unmatched-memory (the real card wins): (1) the character card has a SECOND paragraph of the ability that unmatched-memory lacks: 'When defending, Luke Cage wins combat if he takes no damage even if he didn't play a card.' (the `ability` string below carries both paragraphs). (2) Skin Like Titanium prints value 0 (unmatched-memory: null), carried by `value` in its sheet entries. Restrictions are not in unmatched-memory at all.",
+  "Hero card (read from the image): LUKE CAGE, MELEE, START HEALTH 13, MOVE 2; sidekick MISTY KNIGHT, RANGED, START HEALTH 6 (the card prints the move once, 2, for both). One Misty Knight.",
+  "The first ability paragraph (2 less combat damage) is the passive rule combat_damage_reduction of the interpreter (data/heroes/effects/luke-cage.json); no counters, forms or triggers."
+ ]
+}

@@ -426,6 +426,11 @@ class Game:
         high = self.board.attack_bonus(fighter.pos, target.pos) if target is not None else 0
         return passives + tucked + high + (self.combat_bonus_total(fighter.owner) if self.turn == fighter.owner else 0)
 
+    def combat_damage_taken(self, victim: Fighter, blow: float) -> float:
+        """The combat damage `victim` really takes from a blow of `blow` points: the hero's ability may take some off
+        (Luke Cage: 2 less); never below 0."""
+        return max(0, blow - self.fx.combat_damage_reduction(victim)) if blow > 0 else blow
+
     def legal_moves(self, fighter: Fighter, steps: int, through_enemies: bool = False) -> set[int]:
         if not self.fx.can_move(fighter):
             return {fighter.pos}

@@ -46,7 +46,7 @@ OP_BINDINGS = {"draw": "card", "discard": "card", "choose": "card", "look_deck":
                "damage": "fighter", "swap": "fighter", "move": "fighter", "remove_from_game": "card"}
 # type each field expects when it carries a $var reference
 PLAYER_KEYS = frozenset({"player", "chooser", "order", "start_space_of"})
-FIGHTER_KEYS = frozenset({"role", "zone_of", "adjacent_to", "space_of", "nearest_to", "fighter", "target",
+FIGHTER_KEYS = frozenset({"role", "zone_of", "adjacent_to", "space_of", "nearest_to", "next_to_nearest_foe", "fighter", "target",
                           "with", "by", "from", "fighters", "count", "passed_by"})
 CARD_KEYS = frozenset({"card", "cards", "of", "except", "count_of"})
 NUMBER_KEYS = frozenset({"amount", "hp", "left", "right", "look"})
