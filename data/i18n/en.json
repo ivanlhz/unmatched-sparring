@@ -313,6 +313,7 @@
  "tbl.exactly": "exactly ",
  "tbl.through": " (may pass through rivals)",
  "tbl.move": "move {fid} {how}{squares}{through}",
+ "tbl.move_none": "{fid} cannot move exactly {squares}: no space is that far away, so the move is cancelled",
  "tbl.swap": "swap the spaces of {fid} and {other}",
  "tbl.place": "place {fid} {where}",
  "tbl.put": "put {fid} on the board ({where}) with {hp} HP",

@@ -351,6 +351,31 @@ def test_master_strategist_moves_exactly_four_spaces_through_rivals(bprd):
     assert b.pos == max(req.options)
 
 
+def test_master_strategist_with_no_space_exactly_four_away_cancels_the_move(bprd, monkeypatch):
+    """Iván, 2026-11-07: no space exactly 4 away means no move at all (not "any space within 4")."""
+    g = mk(bprd, "leonardo")
+    b, h = pair(g, "bullseye", "leonardo")
+    wall(g)
+    start = b.pos
+    near = {s for s in bprd.spaces if 0 < bprd.distance(start, s) < 4 and s != h.pos}
+    monkeypatch.setattr(g, "legal_moves", lambda f, steps, through: near)
+    seen = []
+    g.controllers[0].queue = [lambda req: seen.append(req) or [max(req.options)]]
+    g.attack(b, h, give(g, 0, "Master Strategist"), g.players[1].hand[0])
+    assert not [r for r in seen if r.kind == "space"] and b.pos == start
+
+
+def test_the_bot_is_not_asked_to_plan_a_fallback_move_for_master_strategist(bprd, monkeypatch):
+    from sparring.ai_effects import EffectAI
+    g = mk(bprd, "leonardo")
+    b, h = pair(g, "bullseye", "leonardo")
+    start = b.pos
+    monkeypatch.setattr(g, "legal_moves", lambda f, steps, through: {s for s in bprd.spaces if 0 < bprd.distance(start, s) < 4})
+    dests = [d for d in g.legal_moves(b, 4, True) if g.board.distance(start, d) == 4]
+    assert dests == [] and EffectAI(0).choose_effect(g, __import__("sparring.effects.choose", fromlist=["x"]).ChoiceRequest(
+        "space", 0, dests, 1, 1, None, "k", "move to", {"fighter": "bullseye", "op": "move", "steps": 4, "through": True, "up_to": False}, 0)) in (None, [])
+
+
 # ---------------------------------------------------------------- Ricochet
 
 def test_ricochet_hits_a_fighter_in_the_opposing_fighters_zone_when_it_survives(bprd):

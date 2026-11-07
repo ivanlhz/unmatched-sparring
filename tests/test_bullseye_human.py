@@ -176,6 +176,20 @@ def test_master_strategist_leaves_the_exact_four_space_move_of_your_miniature_to
 
 
 @with_rig("hellboy", "bullseye", TRAINING)
+def test_master_strategist_with_no_space_exactly_four_away_is_skipped_and_the_chat_says_so(rig, monkeypatch):
+    """Iván, 2026-11-07: no exact space means the move is cancelled; the human is not asked to move (no stall)."""
+    session, table, game, fake, cfg = rig
+    bot_defends_with_nothing(session, monkeypatch)
+    put_adjacent(game, table, cfg, "bullseye", "hellboy")
+    start = game.fighters["bullseye"].pos
+    monkeypatch.setattr(game, "legal_moves", lambda f, steps, through: {s for s in game.board.spaces if 0 < game.board.distance(start, s) < 4})
+    human_hand(table, game, "Master Strategist", "Feint")
+    msgs = attack(session, table, game, "Master Strategist")
+    assert session.effect_run is None and session.pending is None and game.fighters["bullseye"].pos == start
+    assert said(msgs, "no puede moverse exactamente 4 casillas") and not said(msgs, "mueve a bullseye exactamente"), msgs
+
+
+@with_rig("hellboy", "bullseye", TRAINING)
 def test_arrogant_but_effective_says_it_counts_as_a_win_and_leaves_the_move_to_you(rig, monkeypatch):
     session, table, game, fake, cfg = rig
     card = next(c for c in game.players[0].hand if c.title == TRAINING)

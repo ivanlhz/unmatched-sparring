@@ -59,19 +59,19 @@ Every item below is also an open question for Iván.
 5. I Planned To Be Here: "started your turn in your current space" is "has not moved this turn" (the space at the start of the turn against the one now): a Maneuver or an effect that moved him makes it 2.
 6. I Never Miss: the card draws when the BOOST is declined and also when there was nothing to boost with; boosting with a card (even a 0) means no draw.
 7. For My Next Trick: the move is up to 1 and optional; the draw and the action happen win or lose; a defeated Bullseye does not move.
-8. Master Strategist: "exactly 4" is the destinations exactly 4 spaces away (by walking) when there are some, else any space within 4; through opposing fighters, never ending on one. The human moves by hand and the table is read.
+8. Master Strategist: "exactly 4" is only the destinations exactly 4 spaces away (by walking); when there is none the effect is cancelled and he does not move (CONFIRMED by Iván 2026-11-07). Through opposing fighters, never ending on one. The human moves by hand and the table is read; with no exact space the human is not asked to move and the chat says the move is cancelled (`move_none` note), and the bot is never asked (no fallback).
 9. Ricochet: "a fighter in the opposing fighter's zone" includes the opposing fighter itself (if it survived) and Bullseye's own fighter if he stands there; the owner chooses and the bot never hits its own. Effect damage.
 10. Right Between The Eyes: the rival chooses the card to discard, at IMMEDIATELY (before their DURING); the card they play in this combat is already out of their hand.
 11. Tactical Retreat: any empty space none of whose zones is a zone of his current space; a teleport (no path, no range). No such space: nothing happens.
 12. Study The Target: draws 2, then 1 more and 1 action when a combat was won this turn; the scheme itself costs its action first.
+13. Ricochet may hit the opposing fighter itself (if it survived), not only another fighter in its zone (CONFIRMED by Iván 2026-11-07).
+14. Master Strategist with no space exactly 4 away: no move (CONFIRMED by Iván 2026-11-07, see 8).
+15. World's Greatest Assassin: a BOOST or an effect of the opponent's card that resolves after IMMEDIATELY still adds to a value that was ignored (CONFIRMED by Iván 2026-11-07).
+16. A combat won as the defender (the attacker dealt no damage) counts as "won a combat this turn" (CONFIRMED by Iván 2026-11-07).
 
 ## Open questions for Iván
 - Reach: do the secret passages shorten the 5-space count? (Read as no.)
 - Arrogant But Effective: should the rival's AFTER ("if you won" / "if you lost") read the changed result too, or only Bullseye's own effects and the turn's tally?
-- Ricochet: may it hit the opposing fighter itself, or only "another" fighter in its zone?
-- Master Strategist: with no space exactly 4 away (a small map or blocked paths), may he move less?
-- World's Greatest Assassin: a BOOST or an effect of the opponent's card that resolves after IMMEDIATELY still adds to a value that was ignored.
-- Does a combat won as the defender (the attacker dealt no damage) count as "won a combat this turn" for the cards that read it? (Read as yes.)
 
 ## AI
 - The AI profile comes from the data (Bullseye `hero`, ranged: the importer's `ai_profile`). No hero-name case in the engine: the conditional values are read from the turn's record (`fx.won`, `fx.turn_start_pos`) in `ai_medusa.card_value`: I'm Better And I'll Prove It is worth 6 after a win (also as a defense in `eval_defense`), I Planned To Be Here 5 while he has not moved, World's Greatest Assassin ignores the rival's card after a win (`ignores_defense`, shared with Cloak of Levitation), Right Between The Eyes strips a card after a win (`STRIP_VALUE`). `AFTER_BONUS` prices the draws and moves of I Never Miss, Arrogant But Effective, Master Strategist, Ricochet and Tactical Retreat; For My Next Trick already had Houdini's entry (the same effect). Study The Target is valued by simulating it like the other schemes.

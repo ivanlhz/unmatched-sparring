@@ -49,7 +49,7 @@ The DURING reads the deck as it is when the card resolves (`not exists deck`).
 
 ## Through Adversity: the jump
 Written like Donatello's Party wagon! (docs/heroes/donatello.md, decision 5): `move` of `hero` up to 4 with `through_enemies`, `as: mover`; then `damage 1` to `{side: enemy, filter: {passed_by: $mover}, pick: all}`. "Moved through" is an opposing fighter on some path of at most 4 spaces from where he started to where he ended.
-- **Bot**: the engine knows the path, every fighter passed takes 1 automatically (all of them). The destination comes from its usual movement rules, so the bot hits only when its chosen square also passes a rival (it does not plan the scheme for the damage; its value is the one any scheme gets).
+- **Bot**: the engine knows the path, every fighter passed takes 1 automatically (all of them). The bot chooses the square valuing the damage to the fighters passed (CONFIRMED by Iván 2026-11-07): `EffectAI._dest_with_pass_damage` scores each destination as position value minus hazard plus the blow value of 1 damage on each rival crossed (`blow_value`: the AI's usual weights, a kill worth `kill_value`, so finishing 1-HP sidekicks or a 1-HP hero is worth a lot). Its usual square is one of the candidates, so with nothing to gain it keeps that one. The scheme's value is the simulation (`scheme_outcome` + `material_delta`), which goes through that same choice, so the bot plays Through Adversity when the jump kills. Unlike Party wagon! (donatello.md, decision 5) it does plan for the damage.
 - **Human**: they walk the miniature by hand and the engine cannot see the path. After the move the panel asks which opposing fighters he passed through: one button per opposing fighter plus "None" (a multi-pick: press each one he passed, then confirm), and each fighter named takes 1 damage. New in `select.pick_fighters`: a `pick: all` selector with an unseen path asks the human instead of hitting every rival.
 
 ## Breather
@@ -62,16 +62,16 @@ Written like Donatello's Party wagon! (docs/heroes/donatello.md, decision 5): `m
 4. Grappling Hook moves Daredevil up to 2 spaces after the combat; if he was defeated nothing happens.
 5. Take A Knee heals the BOOST of the discarded card (0 for none) and stops at 17. As a defense it heals after the combat.
 6. Devil of Hell's Kitchen: 5 cards in all (itself + the 4 most recent of the pile; CONFIRMED by Iván on 2026-11-07, as printed); fewer if the pile is short. A cancelled Devil (Feint) shuffles nothing and keeps the value 4 (its DURING is cancelled too).
-7. Through Adversity: the path is not fixed, every rival on some path of at most 4 spaces counts; the human names who.
+7. Through Adversity: the path is not fixed, every rival on some path of at most 4 spaces counts; the human names who. The bot picks its square for the damage it deals, kills first, see above (CONFIRMED by Iván 2026-11-07).
 8. Breather offers every non-scheme card of the pile; with none there is nothing to return.
+9. The human's discard order is read from the table; several cards laid between two readings are ordered by CardID (CONFIRMED by Iván 2026-11-07 as acceptable; a physical read of the pile would refine it).
+10. The ability survives a cancellation such as Feint (it is on the hero; CONFIRMED by Iván 2026-11-07).
+11. The order labels are English text in the effects file, shown as is in the Spanish panel (CONFIRMED by Iván 2026-11-07).
+12. Take A Knee for the human needs one press so the bot can move the real top card (CONFIRMED by Iván 2026-11-07).
+13. A deck of 1 card with the ability: declaring 1 empties the deck; with Devil of Hell's Kitchen and the ability first the Devil is worth 8 that combat (CONFIRMED by Iván 2026-11-07, as written).
 
 ## Open questions for Iván
-- The human's discard order: the engine only learns the order cards reached the pile by reading the table. Several cards laid between two readings (for example a boost card, the played card and a blind-boosted card in one combat) are ordered by CardID, so "the last 4" may differ from the physical pile in that case. A physical read of the pile's stacking order would fix it.
-- The ability under a cancellation: read as surviving Feint (it is on the hero). If you want a rival's cancel to stop it too, it is one condition.
-- The order labels of the choice are English text in the effects file ("ability first, then the card" / "card first, then the ability"), shown as is in the Spanish panel (same as Hellboy's option labels).
-- Take A Knee for the human needs one press ("1") so the bot can move the real top card; it is not optional in the rules. Say if you would rather the bot did it without any button.
-- Through Adversity: with the bot's move the damage hits ALL rivals on any path of 4; the bot does not choose a path to maximise it.
-- A deck of 1 card with the ability: declaring 1 empties the deck; with Devil of Hell's Kitchen and the ability first the Devil is worth 8 that combat. Implemented as written; check you like how often the bot does it.
+- Order of the ability versus the card DURING COMBAT: still open (the engine asks the owner which goes first).
 
 ## AI
 The AI profile comes from the data (one fighter, role `hero`). The bot's hints: BLIND BOOST by `EffectAI._blind_boost` (with the Devil's +4 when the boost empties the deck, ability first), Take A Knee and Breather valued as any heal and recover effects, Through Adversity as any scheme (simulated), Son Of A Boxer as a defense with an AFTER hit. Simulator check (`python -m sparring.sim`, heuristic AI, 20 games per opponent against the simulator's scripted player, 2026-11-07): Daredevil as the bot won 182 of 240 games (76 %), between 11/20 (Hellboy, Raphael) and 20/20 (Donatello), with no error and no unfinished game; for comparison Doctor Strange won 20/20 and Bigfoot 19/20 against Hellboy under the same player. The bot uses all eight cards (Through Adversity, Breather, Take A Knee, the Devil and Man Without Fear appear in real plays) and the ability applies in about 40 % of its combat plays. Tests below.

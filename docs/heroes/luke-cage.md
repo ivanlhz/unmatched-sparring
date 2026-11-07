@@ -49,15 +49,16 @@ Every item that is a real doubt is also an open question below.
 8. **Trash Talk** ends the turn in progress (the attacker's when defending): its remaining actions are lost; with an attack, the owner's own.
 9. **Daughter of the Dragon**: Misty must be next to the opposing fighter (she is the only one who can play it); the printed value becomes 6 (bonuses stay). It is a versatile card: Misty defending next to the attacker defends with 6.
 10. **Pushback** moves the opposing fighter whether or not the combat was won (as printed); not through other fighters.
+11. **Power Man, who is "moved through"**: the rival's other fighters on some path of at most 3 spaces (CONFIRMED by Iván 2026-11-07).
+12. **Power Man, the damage "to them"** is unconditional, also when the opposing fighter is not moved at all (CONFIRMED by Iván 2026-11-07).
+13. **Got My Back?, range**: no range check on the new defender, Houdini's precedent (CONFIRMED by Iván 2026-11-07).
+14. **Where's My Money?, "nearest"**: spatial distance from Luke, ties choose freely (CONFIRMED by Iván 2026-11-07).
+15. **Trash Talk** "end the turn" removes all the rival's remaining actions (CONFIRMED by Iván 2026-11-07). It is how `end_turn` already works (`ops_core._end_turn` sets `actions_left = 0` and flags the current turn as ended), verified.
+16. **Skin Like Titanium** reads the damage that actually landed, after the 2 less (CONFIRMED by Iván 2026-11-07).
+17. **The second ability paragraph** (wins if he takes no damage even without a card) needs no code; a defender with no card against a blow of 0 damage wins (CONFIRMED by Iván 2026-11-07).
 
 ## Open questions for Iván
-- **Power Man, who is "moved through"**: I read "other opposing fighters" as the rival's other fighters (the moved fighter's own team), the only ones a fighter can always cross, and damage every one that could lie on some path of at most 3 spaces. If you meant Luke's own fighters (or only the ones the path really crosses), say so.
-- **Power Man, the damage "to them"**: read as unconditional (also when the opposing fighter is not moved at all).
-- **Got My Back?, range**: no range check on the new defender (Houdini's precedent). A ranged attacker aimed at Misty can end up hitting Luke from where he could not shoot; a melee attacker next to Misty may not be next to Luke after the swap.
-- **Where's My Money?, "nearest"**: spatial distance from Luke, not the movement distance; ties choose freely.
-- **Trash Talk**: "end the turn" read as ending the rival's turn when Luke defends (its unused actions are lost).
-- **Skin Like Titanium** read as "the damage that actually landed" (after the 2 less), not the blow before the reduction.
-- **The second ability paragraph** ("wins combat if he takes no damage even if he didn't play a card") needs no code because the engine never required a card to win a combat; check that this is also how the real rules treat a defender who plays no card against a blow of 0 damage.
+None open: everything was answered by Iván on 2026-11-07 (decisions above).
 
 ## AI
 - The AI profile comes from the data (Luke `hero`, Misty `striker`; exclusive cards: Pushback, Daughter of the Dragon and Got My Back? for Misty).

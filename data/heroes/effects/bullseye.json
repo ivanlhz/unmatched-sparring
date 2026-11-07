@@ -108,7 +108,7 @@
      {"op": "move", "target": "hero", "amount": 4, "up_to": false, "through_enemies": true, "chooser": "owner"}
     ]
    },
-   "notes": "Versatile 3 / boost 3. Exactly 4 (`up_to: false`): the destinations exactly 4 spaces away when there are some, else any space within 4 (the interpreter's reading of 'exactly' when the map or the rival's fighter leaves none). Through opposing fighters, never ending on one."
+   "notes": "Versatile 3 / boost 3. Exactly 4 (`up_to: false`): only the destinations exactly 4 spaces away; with none the effect is cancelled and he does not move (CONFIRMED by Iván 2026-11-07). Through opposing fighters, never ending on one."
   },
   {
    "title": "Ricochet",

@@ -274,13 +274,15 @@ def _move(run, game, spec):
         for f in _one_after_another(targets):
             if not f.alive or f.pos is None or not game.fx.can_move(f):
                 continue
+            dests = sorted(game.legal_moves(f, steps, through))
+            if not up_to:       # exactly N: with no space exactly N away the move is cancelled (Iván, 2026-11-07)
+                dests = [d for d in dests if game.board.distance(f.pos, d) == steps]
+                if not dests:
+                    table.note(run, op="move_none", fid=f.fid, amount=steps)
+                    continue
             if table.piece_is_physical(game, chooser, f) and not spec.get("await_destination"):     # the human moves their own miniature by hand
                 by_hand.append(f)
                 continue
-            dests = sorted(game.legal_moves(f, steps, through))
-            if not up_to:       # exactly N: the farthest spaces when some are exactly N away
-                exact = [d for d in dests if game.board.distance(f.pos, d) == steps]
-                dests = exact or dests
             got = run.ask(game, "space", chooser, dests, 0 if up_to else 1, 1, "move to",
                           fighter=f.fid, op="move", steps=steps, through=through, up_to=up_to)
             if got:

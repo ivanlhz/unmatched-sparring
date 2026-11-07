@@ -36,7 +36,9 @@ from .ai_medusa import (DECK_SCARCITY, HARPY_VALUE, KILL_SIDEKICK, LETHAL, SURVI
 from .controller import Controller
 from .effects import ongoing
 from .effects.choose import ChoiceRequest, ControllerChooser, SyntheticChooser, default_answer, worth_paying
-from .effects.model import EffectError, load_effects
+from .effects.model import EffectError, load_effects, walk_ops
+from .effects.modifiers import card_effects
+from .effects.ops_core import _passed_through
 from .effects.ops_combat import PREDICT_OP
 from .effects.run import Ctx, EffectRun
 from .search.adapter import card_worth
@@ -267,6 +269,7 @@ class EffectAI:
         options = list(req.options)
         if f.owner == me and req.extra.get("op") == "move":     # the legacy move rule, plan included; staying = []
             dest = ai.choose_move(game, f, req.extra["steps"], req.extra.get("through", False))
+            dest = self._dest_with_pass_damage(game, req, f, dest, options)
             return [dest] if dest in options else ([] if req.min == 0 else None)
         if f.owner == me and f.hero and not f.alive:              # the hero coming back (All Part of the Show): where he stands best
             return self._hero_return(game, req, f, options)
@@ -286,6 +289,38 @@ class EffectAI:
         if req.min == 0 and stay >= scored[best]:
             return []
         return [best]
+
+    def _dest_with_pass_damage(self, game: Game, req: ChoiceRequest, f, usual: int | None, options: list) -> int | None:
+        """A move whose card then hits each rival it passed (Through Adversity: `damage` to `passed_by` the mover) is
+        judged by the position AND the blows on the fighters crossed on the way, a kill included (a 1-HP sidekick
+        passed is dead). The usual destination is a candidate, so nothing is gained only when nothing is hit."""
+        dmg = self._pass_damage(game, req)
+        if not dmg or not req.extra.get("through"):
+            return usual
+        me, steps, ai = req.player, req.extra["steps"], self.medusa(req.player)
+        model = Model(game, me)
+
+        def total(d: int) -> float:
+            rivals = [game.fighters[i] for i in _passed_through(game, f, f.pos, d, steps, True)]
+            hits = sum(self.blow_value(e, dmg, game) for e in rivals if e.owner != me)
+            return ai.position_value(game, model, {f.fid: d}) - ai.hazard_cost(game, f, d, steps, True) + hits
+
+        cands = {d for d in options if d is not None} | {f.pos}
+        if usual is not None:
+            cands.add(usual)
+        return max(cands, key=lambda d: (total(d), d == usual, -d))
+
+    @staticmethod
+    def _pass_damage(game: Game, req: ChoiceRequest) -> float:
+        """The damage the asking card deals to each fighter its mover passed through (0 when it deals none)."""
+        if req.card_id is None or req.card_owner is None:
+            return 0.0
+        fx = card_effects(game.card_of(req.card_id, req.card_owner))
+        if fx is None:
+            return 0.0
+        return float(sum(o.get("amount", 0) for o in walk_ops(fx.moments)
+                         if o.get("op") == "damage" and "passed_by" in ((o.get("target") or {}).get("filter") or {})
+                         if isinstance(o.get("amount"), (int, float))))
 
     def _hero_return(self, game: Game, req: ChoiceRequest, f, options: list) -> list | None:
         """The hero put back on the board with `hp` (the request says) is judged where he would stand: the evaluation of the

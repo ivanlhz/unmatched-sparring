@@ -478,3 +478,80 @@ def test_deck_sheet_finds_a_deck_of_22_cards_with_its_character_card():
     from tools.import_save import deck_sheet
     ids = {"DeckIDs": [338, *range(17600, 17622)]}
     assert deck_sheet(ids, 22) == ((17600, 17621), 338) and deck_sheet(ids) is None
+
+
+# ---------------------------------------------------------------- the bot's square for Through Adversity (Iván, 2026-11-07)
+
+def bot_game(bprd, foe="baba-yaga"):
+    """Like `mk` but the real bot (MedusaAI) answers for Daredevil."""
+    from sparring.ai_medusa import MedusaAI
+    g = Game.new(bprd, 3, controllers={0: MedusaAI(0), 1: Asking()}, heroes=("daredevil", foe), bot_player=0)
+    g.turn, g.turn_no = 0, 2
+    g.begin_turn()
+    for p in g.players:
+        p.hand.clear()
+    return g
+
+
+def crossing(board):
+    """Spaces (a, b, c): a and c three apart with b on the way, so that Daredevil going a -> c may cross b."""
+    for a in sorted(board.spaces):
+        for b in sorted(board.adj[a]):
+            for c in sorted(board.adj[b] - {a}):
+                if board.distance(a, c) == 2 and a != c:
+                    return a, b, c
+
+
+def far_away(g, keep):
+    for f in g.fighters.values():
+        if f.alive and f.fid not in keep:
+            f.pos = max(g.board.spaces, key=lambda s: min(g.board.distance(s, g.fighters[k].pos) for k in keep))
+
+
+def test_the_bot_goes_through_a_one_hp_sidekick_with_through_adversity_and_kills_it(bprd):
+    g = bot_game(bprd)
+    d = g.fighters["daredevil"]
+    sidekick = next(f for f in g.own(1) if not f.hero)
+    a, b, c = crossing(g.board)
+    d.pos, sidekick.pos, sidekick.hp = a, b, 1
+    far_away(g, ("daredevil", sidekick.fid))
+    ai = EffectAI(0)
+    req = ChoiceRequest("space", 0, sorted(g.legal_moves(d, 4, True)), 0, 1, give(g, 0, "Through Adversity").card_id,
+                        "k", "move to", {"fighter": "daredevil", "op": "move", "steps": 4, "through": True, "up_to": True}, 0)
+    dest = ai.choose_effect(g, req)
+    assert dest and dest[0] != sidekick.pos
+    assert sidekick.fid in __import__("sparring.effects.ops_core", fromlist=["x"])._passed_through(g, d, a, dest[0], 4, True)
+    g.play_scheme(0, d, g.players[0].hand[0])
+    assert not sidekick.alive
+
+
+def test_without_anything_to_gain_the_bot_keeps_the_square_it_would_pick_anyway(bprd):
+    g = bot_game(bprd)
+    d = g.fighters["daredevil"]
+    far_away(g, ("daredevil",))
+    for f in g.own(1):
+        f.pos = max(g.board.spaces)
+    card = give(g, 0, "Through Adversity")
+    ai = EffectAI(0)
+    options = sorted(g.legal_moves(d, 4, True))
+    req = ChoiceRequest("space", 0, options, 0, 1, card.card_id, "k", "move to",
+                        {"fighter": "daredevil", "op": "move", "steps": 4, "through": True, "up_to": True}, 0)
+    usual = ai.medusa(0).choose_move(g, d, 4, True)
+    assert ai.choose_effect(g, req) == ([usual] if usual != d.pos else [])
+
+
+def test_the_bot_plays_through_adversity_as_its_plan_when_it_can_kill_a_one_hp_sidekick(bprd):
+    g = bot_game(bprd)
+    d = g.fighters["daredevil"]
+    sidekick = next(f for f in g.own(1) if not f.hero)
+    a, b, c = crossing(g.board)
+    d.pos, sidekick.pos, sidekick.hp = a, b, 1
+    far_away(g, ("daredevil", sidekick.fid))
+    card = give(g, 0, "Through Adversity")
+    ai = g.controllers[0]
+    with_kill = ai.scheme_act(g, card, d)
+    sidekick.hp = sidekick.max_hp
+    without_kill = ai.scheme_act(g, card, d)
+    assert with_kill.value > without_kill.value + 1
+    sidekick.hp = 1
+    assert ai.plan(g).card is card
