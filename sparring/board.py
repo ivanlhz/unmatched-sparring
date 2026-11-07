@@ -62,6 +62,7 @@ class Board:
             self.moves[b].discard(a)
         self.starts = starts
         self._dist = {s: self._bfs(s) for s in self.spaces}
+        self._adj_dist: dict[int, dict[int, int]] | None = None     # built on first use: only a hero with a reach in spaces asks
 
     @classmethod
     def load(cls, key_or_path: str | Path) -> "Board":
@@ -89,11 +90,15 @@ class Board:
         return cls(raw["key"], raw["name"], spaces, adj, raw["starts"], passages, bonuses, one_way, hazards)
 
     def _bfs(self, src: int) -> dict[int, int]:
+        return self._bfs_over(src, self.moves)
+
+    @staticmethod
+    def _bfs_over(src: int, graph: dict[int, set[int]]) -> dict[int, int]:
         dist = {src: 0}
         q = deque([src])
         while q:
             cur = q.popleft()
-            for n in self.moves[cur]:
+            for n in graph[cur]:
                 if n not in dist:
                     dist[n] = dist[cur] + 1
                     q.append(n)
@@ -160,11 +165,21 @@ class Board:
     def share_zone(self, a: int, b: int) -> bool:
         return bool(self.spaces[a].zones & self.spaces[b].zones)
 
-    def can_reach_target(self, a: int, b: int, ranged: bool) -> bool:
-        """Melee: adjacent. Ranged: adjacent or shares at least one zone."""
+    def spaces_apart(self, a: int, b: int) -> int:
+        """Spaces between a and b counted along the printed adjacency (passages and one-way edges are about walking, not
+        about distance): what a reach in spaces measures. 99 when the map has no such path."""
+        if self._adj_dist is None:
+            self._adj_dist = {s: self._bfs_over(s, self.adj) for s in self.spaces}
+        return self._adj_dist[a].get(b, 99)
+
+    def can_reach_target(self, a: int, b: int, ranged: bool, reach: int = 0) -> bool:
+        """Melee: adjacent. Ranged: adjacent or shares at least one zone. `reach` > 0 (Bullseye: 5) adds anyone up to that many
+        spaces away, whatever the zones: the ranged zone rule still holds."""
         if a == b:
             return False
-        return self.adjacent(a, b) or (ranged and self.share_zone(a, b))
+        if self.adjacent(a, b) or (ranged and self.share_zone(a, b)):
+            return True
+        return bool(reach) and self.spaces_apart(a, b) <= reach
 
     def reachable(self, start: int, steps: int, own: set[int], enemy: set[int], through_enemies: bool = False) -> set[int]:
         """Spaces where it can end (moving along adjacency and passages): passes through own fighters, not rivals (unless an effect says so), ends on an empty one."""

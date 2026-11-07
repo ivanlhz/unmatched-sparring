@@ -130,6 +130,9 @@ def _where(where) -> str:
         if where.get("other"):
             return t("tbl.where.zone_hero_other") if who == "hero" else t("tbl.where.zone_other", who=who)
         return t("tbl.where.zone_hero") if who in ("hero", "this") else t("tbl.where.zone", who=who)
+    if "no_zone_of" in where:
+        who = where["no_zone_of"]
+        return t("tbl.where.no_zone_hero") if who in ("hero", "this") else t("tbl.where.no_zone", who=who)
     if "nearest_to" in where:
         who = where["nearest_to"]
         return t("tbl.where.nearest_hero") if who in ("hero", "this") else t("tbl.where.nearest", who=who)

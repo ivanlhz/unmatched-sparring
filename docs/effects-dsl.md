@@ -67,7 +67,7 @@ Text conventions: "owner" is the player who plays the card or who the ability be
   the loss waits until the AFTER effects are done (All Part of the Show). `look_shield` (optional): held in the hand, it lets its
   owner cancel a look at their hand (A Magician Never Reveals His Secrets). See section 27.
 - `uncancelable` (optional, false by default): `cancel_effects` does not erase the effects of this card.
-- `effects`: the five moments, always present and always lists (empty if there is nothing):
+- `effects`: the five moments, always present and always lists (empty if there is nothing), plus the optional `unboosted` (only with `may_boost`: the DURING ops for when its owner did not BOOST, run right after that question; section 29):
   - `immediately`, `during`, `after`: combat. The defender resolves first at each moment.
   - `scheme`: when playing a scheme (one action). Only on cards of type scheme; the other three are empty on schemes.
   - `boost`: when THIS card is discarded as a boost card (Houdini's "BOOSTED WITH").
@@ -111,7 +111,7 @@ A `pick: one` selector with no candidates does nothing (the op is skipped); with
 
 ### 2.3 Spaces (SpaceSel)
 
-Object with any of: `any: true` | `zone_of: FighterRef` | `adjacent_to: FighterRef` | `space_of: FighterRef`
+Object with any of: `any: true` | `zone_of: FighterRef` | `no_zone_of: FighterRef` (sharing no zone with that fighter's space) | `adjacent_to: FighterRef` | `space_of: FighterRef`
 | `nearest_to: FighterRef` | `start_space_of: PlayerSel` | `start: true` (any starting space of the board) | `empty: bool` (default true for placing). FighterRef is
 a `role` string (`this`, `hero`, `opposing`, `attacker`, `defender`, `$var`).
 
@@ -150,7 +150,7 @@ An integer, a numeric event binding (`"$amount"`, see 2.10), or one of these obj
 - `{"count": FighterSel}` or `{"count_cards": CardSel}`: how many meet the selector.
 - `{"counter": "<name>", "player": PlayerSel}`: counter of the HeroDef or of `ability.counters` (default `owner`).
 - `{"stat": ..., "player"|"fighter": ...}` with stat in `hand_size`, `hp`, `max_hp`, `actions_taken_this_turn`,
-  `damage_dealt_this_combat`, `damage_taken_this_combat`, `combats_lost_this_turn`.
+  `damage_dealt_this_combat`, `damage_taken_this_combat`, `combats_lost_this_turn`, `combats_won_this_turn`.
 
 ### 2.6 Who chooses (chooser)
 
@@ -255,6 +255,7 @@ Every op is `{"op": "<name>", ...args}`. Arguments not listed are an error.
 | `set_value` | `card` and `amount` or `ignore: true` | | `amount`: the printed value becomes N (bonuses stay); `ignore: true`: "ignore its value", the total value becomes 0 (Incinerate) |
 | `boost` | `card: CardRef` | `chooser` | boosts that card now (discards the top card of its owner's deck). For the card's own free "may BOOST", `may_boost` is used |
 | `allow_boost` | `card: CardRef` | | "Your opponent may BOOST their card": that card's side is asked for the free BOOST of `may_boost` cards in DURING even if the card has none (An Illusion Of My Own Design) |
+| `consider_won` | | | "You are considered to have won this combat" (Bullseye's Arrogant But Effective): the owner's side becomes the combat's winner for every later condition and for the turn's tally; see section 29 |
 | `status` | `name`, `until: Event` and `target: FighterSel` or `player: PlayerSel` | `amount` | see the status table |
 | `counter` | `name` and `delta` or `set` | `player` | clipped to the min/max of `ability.counters` |
 | `gain_action` | `amount` | `player` | blocked by `cannot_gain_actions` and the `no_gain_actions` rule |
@@ -1123,3 +1124,15 @@ zone of the hero, `moved_this_turn`, `move` / `place` with `through_enemies`). S
 - **Chat line of a placement by hand** (`ops_core._note_where`): the references of `where` are resolved to who they are now (the owner's hero stays "hero",
   any other fighter, `this` included, is named), so a sidekick's "this fighter's zone" is not "your hero's zone".
 - **Two life dials with one GUID** (Lobster Johnson / The Jackalope) are told apart by name at the first dial write: `docs/card-identity.md`, "Piece identity".
+
+## 29. Bullseye: a reach in spaces, the tally of combats won, "considered to have won", a declined BOOST
+
+Everything here is additive: no earlier effects file or HeroDef uses these words, so the twelve earlier heroes behave as before.
+
+- **HeroDef `reach_spaces`** (overlay key `reach_spaces`, `HeroDef.reach_spaces`, `FighterSpec.reach`, `Fighter.reach`; 0 = the usual rule): the hero also attacks anyone up to that many spaces away, whatever the zones. It is data, not an effect: `Board.can_reach_target(a, b, ranged, reach)` adds `spaces_apart(a, b) <= reach` (spaces counted along the printed adjacency, never through passages or one-way edges; no line of sight needed) to the usual rule: adjacent, or a ranged fighter sharing a zone, or within the reach whatever the zones. A ranged hero keeps his zone shot beyond the reach. `Game.can_attack` (and so the human's attack at the panel), the bot's positioning (`strike_spots`, `position_value`, `approach_acts`, `reach_dests`, the search's `strike_spots`) and the effects chooser pass the fighter's `reach`. Bullseye's is 5; another hero that "attacks up to N spaces away, ignoring zones" (Ms. Marvel) only needs its own number in its overlay.
+- **Stat `combats_won_this_turn`** (`{"stat": "combats_won_this_turn", "player": ...}`): combats that player won in the CURRENT turn, whoever's turn it is (reset at `start_of_turn`), for the combats that already ended: the damage of the combat being resolved is dealt after DURING, so IMMEDIATELY and DURING read "already won". `fx.won` (`[n0, n1]`) is recorded only when a hero's effects name the stat or `consider_won` (`events.TRACKS["won"]`) and saved only when non-zero. It is counted next to `combat_lost` (the winner is the other player): the engine's "won" is "dealt damage" for the attacker and "took none" for the defender, a tie being won by the defender.
+- **Op `consider_won`** (no arguments): at the card's AFTER the owner's side becomes the winner of the combat (`CombatFlow.considered_won`, saved in `dsl`; `CombatFlow.won_by(side)` is the one reading it): the AFTER effects that resolve later read `combat_result` from it, and the tally moves (the rival's win becomes the owner's, and likewise the losses when something counts them). The damage already dealt is not undone. A side that already won is left alone. The chat says it (`narr.considered_won`).
+- **`effects.unboosted`** (optional list of ops on a card with `may_boost`): what happens when the owner does not BOOST. After the free BOOST question (and only when the owner declined it or had no card to boost with) the ops run, still in the DURING, as the moment `unboosted` (`CombatFlow` run key `unboosted:<side>`). A card cancelled before DURING has no BOOST question and runs nothing. I Never Miss: `draw 1`. The validator demands `may_boost` for it.
+- **SpaceSel `no_zone_of: FighterRef`**: the spaces that share no zone with the fighter's space (Tactical Retreat: `{"no_zone_of": "hero", "other": true}` in a `place`). The chat for a placement by hand names it (`tbl.where.no_zone*`, `moves.where.no_zone`).
+- **Same CardID range as Medusa, the turtles, Doctor Strange and Bigfoot**: see docs/card-identity.md.
+- **Hero detection**: `lua.MAX_HERO_RANGES` (the most CardID ranges one table read takes) went from 12 to 24: the thirteenth hero with TTS data made every detection fall back to Medusa / Hellboy.

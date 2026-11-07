@@ -50,6 +50,7 @@ class FighterSpec:
     move: int
     ranged: bool
     on_board: bool = True                 # False: starts in reserve (off the board) until an effect summons it
+    reach: int = 0                        # attack reach in spaces, zones ignored (Bullseye: 5); 0 = the usual melee / ranged rule
 
 
 @dataclass(frozen=True)
@@ -89,6 +90,7 @@ class HeroDef:
     ai_profile: dict = field(default_factory=dict)    # per fighter group, computed at import (sparring/ai_profile.py)
     hand_start: int = DEFAULT_START_HAND              # opening hand (Michelangelo: 3)
     hand_max: int = DEFAULT_HAND_LIMIT                # most cards kept at the end of the turn (Michelangelo: 3)
+    reach_spaces: int = 0                             # the hero attacks anyone up to this many spaces away, zones ignored (Bullseye: 5); 0 = the usual rule
 
     def fighter_profile(self, name: str) -> dict | None:
         """The AI profile of the fighter called `name` (hero or sidekick group), None when the HeroDef has none."""
@@ -103,7 +105,7 @@ class HeroDef:
 
     def fighters(self) -> list[FighterSpec]:
         """Hero and sidekicks in placement order, with their fighter ids."""
-        out = [FighterSpec(self.fid, self.name, True, self.hp, self.move, self.ranged)]
+        out = [FighterSpec(self.fid, self.name, True, self.hp, self.move, self.ranged, reach=self.reach_spaces)]
         for s in self.sidekicks:
             for i in range(1, s.count + 1):
                 fid = f"{s.fid}{i}" if s.count > 1 else s.fid
@@ -161,7 +163,8 @@ def parse_hero(raw: dict, where: str = "hero") -> HeroDef:
                        tuple(raw.get("triggers") or ()), tuple(raw.get("passives") or ()),
                        deck.get("card_base"), tuple(deck.get("cards") or ()), raw.get("ai_profile") or {},
                        int((raw.get("hand") or {}).get("start", DEFAULT_START_HAND)),
-                       int((raw.get("hand") or {}).get("max", DEFAULT_HAND_LIMIT)))
+                       int((raw.get("hand") or {}).get("max", DEFAULT_HAND_LIMIT)),
+                       int(raw.get("reach_spaces") or 0))
     except (KeyError, TypeError, ValueError) as e:
         raise HeroDataError(f"{where}: invalid HeroDef ({e!r})") from None
     _validate(hero, where)
@@ -173,6 +176,8 @@ def _validate(h: HeroDef, where: str) -> None:
         raise HeroDataError(f"{where}: invalid life or movement")
     if h.hand_start <= 0 or h.hand_max <= 0:
         raise HeroDataError(f"{where}: invalid hand size")
+    if h.reach_spaces < 0:
+        raise HeroDataError(f"{where}: invalid reach")
     if any(s.count <= 0 or s.hp <= 0 for s in h.sidekicks):
         raise HeroDataError(f"{where}: sidekick with an invalid count or life")
     fids = [f.fid for f in h.fighters()]

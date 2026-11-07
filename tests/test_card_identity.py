@@ -11,7 +11,7 @@ from sparring.effects.select import find_card
 from sparring.heroes import load_hero
 from sparring.state import Game
 
-SHARING = ["medusa", "leonardo", "donatello", "michelangelo", "raphael", "doctor-strange", "bigfoot"]
+SHARING = ["medusa", "leonardo", "donatello", "michelangelo", "raphael", "doctor-strange", "bigfoot", "bullseye"]
 
 
 def test_the_five_decks_really_share_one_card_id_range():

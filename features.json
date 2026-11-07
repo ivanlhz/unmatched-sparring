@@ -389,6 +389,20 @@
       "note": "Engine additions, if any, are additive (docs/effects-dsl.md). Rules decisions and open questions for Iván: docs/heroes/bigfoot.md. Live test pending."
     },
     {
+      "id": "HERO-BULLSEYE",
+      "title": "Bullseye (Hell's Kitchen, no sidekick) playable by the bot and by the human against every hero",
+      "status": "in-progress",
+      "criteria": [
+        "data/heroes/overlay/bullseye.json, data/heroes/bullseye.json, data/heroes/effects/bullseye.json and data/tts/bullseye.json generated and validated (import_hero, validate_effects, import_save); the 12 titles (30 cards, sheet 176, character card 339) read from the card images; ai_profile computed by the importer",
+        "His deck shares CardIDs 17600-17629 with Medusa, the four turtles, Doctor Strange and Bigfoot: told apart by deck image and owner, never by a bare CardID (tests/test_hero_bullseye_data.py, tests/test_card_identity.py)",
+        "His ability (attack from up to 5 spaces away, zones ignored) is the HeroDef parameter reach_spaces: the engine's attack validation (also the human's attack at the panel), the bot's positioning and the search read it; a generic parameter for any hero that attacks N spaces away",
+        "All 12 cards on the interpreter for both seats: the tally of combats won this turn (World's Greatest Assassin, I'm Better And I'll Prove It, Right Between The Eyes, Study The Target), Arrogant But Effective (considered to have won), I Planned To Be Here, I Never Miss (free BOOST; a draw when it is declined), For My Next Trick, Feint, Master Strategist, Ricochet and Tactical Retreat",
+        "Bullseye against each of the 12 other heroes in both seats reaches game over on FakeTTS (passive and attacking human) and in the simulator (tests/test_bullseye_matrix.py)",
+        "Verified live by Iván (docs/live-checklist.md, section Bullseye)"
+      ],
+      "note": "Engine additions are additive (docs/effects-dsl.md, section 29). Rules decisions and open questions for Iván: docs/heroes/bullseye.md. Live test pending."
+    },
+    {
       "id": "F20",
       "title": "The bot prepares the official community save itself",
       "status": "in-progress",

@@ -58,7 +58,7 @@ def space_options(game, run, sel, default_empty: bool = True, mover=None) -> lis
     other than `mover`."""
     board = game.board
     out = set(board.spaces)
-    for key in ("zone_of", "adjacent_to", "space_of", "nearest_to"):
+    for key in ("zone_of", "no_zone_of", "adjacent_to", "space_of", "nearest_to"):
         if key not in sel:
             continue
         ref = _ref_fighter(game, run, sel[key])
@@ -66,6 +66,8 @@ def space_options(game, run, sel, default_empty: bool = True, mover=None) -> lis
             return []
         if key == "zone_of":
             out &= {s for s in board.spaces if board.share_zone(ref.pos, s)}
+        elif key == "no_zone_of":                          # shares no zone with the fighter's space (Tactical Retreat)
+            out -= {s for s in board.spaces if board.share_zone(ref.pos, s)}
         elif key == "adjacent_to":
             out &= set(board.adj[ref.pos])
         elif key == "space_of":
@@ -400,6 +402,8 @@ def _stat(game, run, a):
         return max(0, game.fx.played[player] - 1)         # the card being resolved is counted already
     if stat == "combats_lost_this_turn":
         return game.fx.lost[player]
+    if stat == "combats_won_this_turn":
+        return game.fx.won[player]
     if stat == "damage_dealt_this_combat":
         return run.ctx.damage_dealt
     if stat == "damage_taken_this_combat":

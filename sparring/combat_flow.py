@@ -144,6 +144,7 @@ class CombatFlow:
         self.choosers: dict | None = None            # player -> effects Chooser; None = the controllers decide
         self.returned = False                        # the attacker's card went back to the hand (Sleight Of Hand), not to the discard pile (Mists)
         self.again = False                           # the attacker's card was swapped during its IMMEDIATELY: the new card's runs next (Sleight Of Hand)
+        self.considered_won: str | None = None       # the side an effect says is considered to have won, whatever the damage ("atk" | "def"; Bullseye's Arrogant But Effective)
 
     @property
     def done(self) -> bool:
@@ -208,6 +209,13 @@ class CombatFlow:
             return None
         self.await_key = key
         return PendingChoice("table", prev.fighter.owner, prev.card.card_id)
+
+    def won_by(self, side_name: str) -> bool:
+        """The side won this combat: the attacker if it dealt damage, the defender if it did not, unless an effect made the
+        other side the one that is considered to have won."""
+        if self.considered_won is not None:
+            return self.considered_won == side_name
+        return self.result.attacker_won == (side_name == "atk")
 
     def is_cancelled(self, side_name: str) -> bool:
         """The side's effects are cancelled in the current phase: wholly, or from DURING on (Break something)."""
@@ -397,7 +405,7 @@ class CombatFlow:
         out = self._base_dict(self.ctx, self.result)
         if (self.runs or self.printed_set or self.mods["atk"] or self.mods["def"] or self.redirects
                 or self.late_cancelled or self.cancel_hits or self.boost_granted or self.boosted
-                or self.deferred_loss is not None or self.boost_valued or self.returned):
+                or self.deferred_loss is not None or self.boost_valued or self.returned or self.considered_won):
             out["dsl"] = {"runs": {k: r.to_dict() for k, r in self.runs.items()}, "printed_set": dict(self.printed_set),
                           "mods": {k: [list(m) for m in v] for k, v in self.mods.items()},
                           "redirects": [dict(r) for r in self.redirects]}
@@ -415,6 +423,8 @@ class CombatFlow:
                 out["dsl"]["boost_valued"] = sorted(self.boost_valued)
             if self.returned:
                 out["dsl"]["returned"] = True
+            if self.considered_won:
+                out["dsl"]["considered_won"] = self.considered_won
         return out
 
     def _base_dict(self, ctx, res) -> dict:
@@ -456,6 +466,7 @@ class CombatFlow:
         flow.ctx = flow.result = None
         flow.sides = []
         flow.runs, flow.printed_set, flow.redirects, flow.choosers, flow.again, flow.returned = {}, {}, [], None, False, False
+        flow.considered_won = None
         flow.late_cancelled, flow.cancel_hits = set(), set()
         flow.boost_granted, flow.boosted, flow.deferred_loss, flow.boost_valued = set(), {}, None, set()
         flow.mods = {"atk": [], "def": []}
@@ -474,6 +485,7 @@ class CombatFlow:
             flow.deferred_loss = d.get("deferred_loss")
             flow.boost_valued = set(d.get("boost_valued", ()))
             flow.returned = bool(d.get("returned", False))
+            flow.considered_won = d.get("considered_won")
         if raw["ctx"] is not None:
             c, r = raw["ctx"], raw["result"]
             flow.ctx = CombatCtx(att, tgt, flow.atk_card, flow.def_card, c["atk_value"], c["def_value"],
@@ -603,6 +615,8 @@ def dsl_during(flow: CombatFlow, side: Side) -> Await | None:
             flow.game.discard_card(owner, boost)
             done.append(boost.card_id)
             flow.game.fx.emit("card_boosted", owner, boost)
+    if not done and (wait := _run_moment(flow, side, "unboosted")) is not None:     # I Never Miss: "if you don't BOOST this attack, draw 1 card"
+        return wait
     spent = [flow.card_by_id(i, owner) for i in done]
     for n, boost in enumerate(spent):
         if (wait := run_boost_moment(flow, side, boost, n)) is not None:
@@ -624,7 +638,7 @@ def dsl_after(flow: CombatFlow, side: Side) -> Await | None:
 
 
 def _i_won(flow: CombatFlow, side: Side) -> bool:
-    return flow.result.attacker_won == (side.name == "atk")
+    return flow.won_by(side.name)
 
 
 # ---------- synchronous driver ----------

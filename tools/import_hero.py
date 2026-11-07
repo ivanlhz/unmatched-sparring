@@ -11,7 +11,8 @@ the corrected sidekicks (sparring name, fid, count), `memory_slug` and `name` wh
 another slug or name (Houdini: `harry-houdini`, "Harry Houdini"; the card reads HOUDINI), the CardID sheet (`deck.card_base` + `deck.sheet`:
 idx, title, fighter restriction, tags and, if the real card says something else, `text` or `boost`; `memory_title` when
 unmatched-memory spells the title differently), and forms, counters, triggers, passives and `hand` (starting and
-maximum hand size when they are not 5 and 7: Michelangelo's PIZZA PARTY).
+maximum hand size when they are not 5 and 7: Michelangelo's PIZZA PARTY) and `reach_spaces` (the hero attacks anyone that many spaces away,
+zones ignored: Bullseye's 5).
 With the DSL effects (`data/heroes/effects/<slug>.json`) and the cards it computes `ai_profile`: the static profile of each
 fighter for the AI (sparring/ai_profile.py); the overlay can fix `ai_role: {fid: striker|keep_away}`.
 Without a sheet, the HeroDef carries the unmatched-memory cards with no CardID or restriction and the engine cannot play with it."""
@@ -103,6 +104,8 @@ def build(slug: str, memory: Path, overlay_dir: Path = OVERLAY_DIR, effects_dir:
     effects = json.loads(effects_path.read_text(encoding="utf-8")) if effects_path.exists() else None
     if "hand" in ov:
         out["hand"] = ov["hand"]
+    if ov.get("reach_spaces"):
+        out["reach_spaces"] = int(ov["reach_spaces"])
     out["ai_profile"] = compute_ai_profile(out, effects, ov.get("ai_role"))
     if ov.get("_notes"):
         out["_notes"] = ov["_notes"]
