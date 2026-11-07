@@ -362,6 +362,7 @@ Nothing of this has been seen on a real table. Load the official save, take a ma
 
 - [x] The choice buttons of a card **only appear when it is played** (hidden, **never greyed out**). *(OK 30/10)*
 - [x] The labels change (`UI.setValue` on a Button): "Value 3", "Discard X", "Take 2". If they do not update, note it (**verify live** item). *(OK 29/10)*
+- [ ] **New game** (pressed twice within 3 s) mid-game and at game over: the panel goes back to Clean / Prepare / Start; a different map and heroes are detected and the new game starts. At game over check that "Undo game over" and "New game" both fit in their shared row.
 - [ ] **Cancel** during a combat pause: it works; if every option is rejected and you cannot get out, note which (the way out is Restart).
 - [ ] **Blocked** restrictions (not just warned): Pact Of Freedom, Cold Iron (if you draw physically anyway, the bot accepts it when syncing and says so).
 - [ ] Maneuver with BOOST 0 (Liz's burning card): it should warn in the chat (pending item; if it does not warn, note it).

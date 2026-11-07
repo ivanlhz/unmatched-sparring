@@ -1066,6 +1066,8 @@ def run_loop(session: Session, client: TTSClient, stop: threading.Event, announc
             except Exception:                                    # noqa: BLE001 - the game must go on
                 traceback.print_exc()
                 announce([Msg(t("play.internal_error"), lua.ChatKind.WARNING)])
+            if session.back_to_gate:                              # New game confirmed: the rest of the clicks belong to the old game
+                return
         if not events:
             stop.wait(poll)
 
@@ -1138,7 +1140,8 @@ def play(cfg: PlayConfig, client: TTSClient, first: str, seed: int, stop: thread
          echo: Callable[[str], None] = print, poll: float = 0.1, state_path: Path | None = None,
          resume: bool = False, timing: bool = False, ai: str | None = None,
          ai_time: float | None = None, bot_pause: float | None = None, unpack: bool = False,
-         card_zoom: bool = True, on_ready: Callable[[], None] = lambda: None, gated: bool = False) -> None:
+         card_zoom: bool = True, on_ready: Callable[[], None] = lambda: None, gated: bool = False) -> bool:
+    """Plays until the bot is stopped (False) or the player confirms New game (True: back to the pre-game gate)."""
     i18n.set_language(cfg.language)                  # before the first panel or chat line; --resume takes the current one
     if (unpack or cfg.raw.get("unpack") is True) and not resume:
         prepare_heroes(client, cfg, echo)
@@ -1158,6 +1161,7 @@ def play(cfg: PlayConfig, client: TTSClient, first: str, seed: int, stop: thread
     session.state_path = state_path
     session.game_log.path = game_log.log_path(state_path)
     session.first_mode = first
+    session.can_regate = table_reset.gate_enabled(cfg.raw)
     session.new_game = lambda: build_game(cfg, first, secrets.randbelow(2 ** 31))
     if timing:
         session.timing = client.trace = lambda line: echo(t("console.timing", line=line) if not line.startswith("[") else line)
@@ -1202,6 +1206,7 @@ def play(cfg: PlayConfig, client: TTSClient, first: str, seed: int, stop: thread
                  recover=lambda: recover_after_reload(session, client, targets, cfg.panel_position,
                                               cfg.panel_rotation, cfg.panel_scale, cfg.nicknames,
                                               attackers=cfg.attacker_ids))
+        return session.back_to_gate
     finally:
         try:
             client.call_lua(lua.clear_markings(remove_panel=True))
@@ -1387,28 +1392,33 @@ def _main(args: argparse.Namespace, stop: threading.Event, status: Callable[[str
             cfg.saved_zones = saved_zones(args.state)
             print("\n".join(read_only_report(client, cfg)))
             return 0
-        gated = False                                   # started through the pre-game gate
-        if not args.resume and table_reset.gate_enabled(cfg.raw):
-            status("playing")
-            cfg = pregame(cfg, client, args, stop, notes=tuple(gate_notes))     # nothing starts until "Start game" is pressed
-            if cfg is None:
+        resume, seed = args.resume, args.seed
+        while True:                                     # a confirmed "New game" comes back here: gate, then another game
+            gated = False                               # started through the pre-game gate
+            if not resume and table_reset.gate_enabled(cfg.raw):
+                status("playing")
+                cfg = pregame(cfg, client, args, stop, notes=tuple(gate_notes))     # nothing starts until "Start game" is pressed
+                gate_notes = []
+                if cfg is None:
+                    return 0
+                try:
+                    cfg.session_config()
+                except ConfigError as e:
+                    print(t("console.cannot_start", error=e), file=sys.stderr)
+                    status("error cannot_start")
+                    return 2
+                gated = True
+            state = Path(args.state)
+            if not resume and state.exists():
+                print(t("console.warning", text=t("console.overwrite", state=state)))
+            state.parent.mkdir(parents=True, exist_ok=True)
+            back_to_gate = play(cfg, client, args.first, seed if seed is not None else secrets.randbelow(2 ** 31), stop,
+                                poll=args.poll, state_path=state, resume=resume, timing=args.timing, ai=args.ai,
+                                ai_time=args.ai_time, bot_pause=args.bot_pause, unpack=args.unpack,
+                                card_zoom=not args.no_card_zoom, on_ready=lambda: status("playing"), gated=gated)
+            if not back_to_gate:
                 return 0
-            try:
-                cfg.session_config()
-            except ConfigError as e:
-                print(t("console.cannot_start", error=e), file=sys.stderr)
-                status("error cannot_start")
-                return 2
-            gated = True
-        seed = args.seed if args.seed is not None else secrets.randbelow(2 ** 31)
-        state = Path(args.state)
-        if not args.resume and state.exists():
-            print(t("console.warning", text=t("console.overwrite", state=state)))
-        state.parent.mkdir(parents=True, exist_ok=True)
-        play(cfg, client, args.first, seed, stop, poll=args.poll, state_path=state, resume=args.resume,
-             timing=args.timing, ai=args.ai, ai_time=args.ai_time, bot_pause=args.bot_pause,
-             unpack=args.unpack, card_zoom=not args.no_card_zoom, on_ready=lambda: status("playing"), gated=gated)
-        return 0
+            resume, seed = False, None
     except (SessionError, persist.StateError) as e:
         print(t("console.cannot_start", error=e), file=sys.stderr)
         status("error cannot_start")
