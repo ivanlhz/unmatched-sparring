@@ -1,0 +1,33 @@
+{
+ "slug": "daredevil",
+ "_notes": [
+  "Daredevil's deck is sheet 176 (CardIDs 17600-17621, the 22 playing cards; the character card is 338 on sheet 3) like Medusa's, the turtles' and Doctor Strange's: only deck.identity tells the decks apart (docs/card-identity.md). The deck object of the save holds 23 cards (22 + the character card): that is correct (Ivan, 2026-11-07), the catalog says card_count 23. He has no sidekick: one miniature (ae91f4) and one dial (cfc705, MAX_VALUE 17)."
+ ],
+ "bag": {
+  "guid": "3a21b2",
+  "inner": "cfc96e"
+ },
+ "deck": {
+  "guid": "eb4390",
+  "card_ids": [
+   17600,
+   17621
+  ],
+  "character_card_id": 338,
+  "identity": [
+   {
+    "face": "https://steamusercontent-a.akamaihd.net/ugc/18334206832992153926/4514EF105C468169CD29CD3CB970C0C59AC8320B/",
+    "back": "https://steamusercontent-a.akamaihd.net/ugc/10477533814257048005/D1E54C535D4C43D88A80E6D036C970E23DD58299/"
+   }
+  ]
+ },
+ "fighters": {
+  "daredevil": {
+   "piece": "ae91f4",
+   "dial": "cfc705",
+   "dial_max": 17
+  }
+ },
+ "tokens": {},
+ "counter_dials": {}
+}

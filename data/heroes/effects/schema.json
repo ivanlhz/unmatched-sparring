@@ -26,6 +26,20 @@
     },
     "triggers": {"type": "array", "items": {"$ref": "#/$defs/Trigger"}},
     "passives": {"type": "array", "items": {"$ref": "#/$defs/Modifier"}},
+    "during": {
+     "type": "array",
+     "items": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["id", "ops"],
+      "properties": {
+       "id": {"$ref": "#/$defs/Name"},
+       "condition": {"$ref": "#/$defs/Condition"},
+       "ops": {"$ref": "#/$defs/Ops"},
+       "notes": {"type": "string"}
+      }
+     }
+    },
     "notes": {"type": ["string", "null"]}
    }
   },
@@ -126,7 +140,7 @@
     "zone": {"enum": ["hand", "discard", "deck", "in_play"]},
     "player": {"$ref": "#/$defs/PlayerSel"},
     "filter": {"$ref": "#/$defs/CardFilter"},
-    "pick": {"enum": ["chosen", "all", "random", "top", "bottom"]},
+    "pick": {"enum": ["chosen", "all", "random", "top", "bottom", "last"]},
     "amount": {"$ref": "#/$defs/Amount"},
     "up_to": {"type": "boolean"},
     "chooser": {"$ref": "#/$defs/Chooser"},

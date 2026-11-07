@@ -1,7 +1,7 @@
 # Card identity: the shared CardID range
 
-In the tournament savegame Medusa, the four TMNT turtles (Leonardo, Donatello, Michelangelo, Raphael), Doctor Strange and Bigfoot are
-all DeckID 176, so all seven decks have CardIDs 17600-17629. Only the deck image (FaceURL, BackURL of the CustomDeck,
+In the tournament savegame Medusa, the four TMNT turtles (Leonardo, Donatello, Michelangelo, Raphael), Doctor Strange, Bigfoot and Daredevil
+are all DeckID 176, so all eight decks have CardIDs 17600-17629 (Daredevil's has 22 cards: 17600-17621). Only the deck image (FaceURL, BackURL of the CustomDeck,
 `deck.identity` in `data/tts/<slug>.json`) tells them apart. Any pairing of the nine heroes works at the table, in both seats,
 including Medusa against a turtle and a turtle against a turtle (`tests/test_tmnt_matrix.py`), and Doctor Strange against each of
 them (`tests/test_doctor_strange_matrix.py`; only the
@@ -38,7 +38,7 @@ them (`tests/test_doctor_strange_matrix.py`; only the
 - `hero_table.table_defaults` accepts equal CardID ranges when the two decks have different images and refuses them when the
   images overlap too. Hero detection (`hero_detect`, `lua.table_heroes`) uses range plus image.
 
-## What a new hero in sheet 176 must follow (Bigfoot was the last one)
+## What a new hero in sheet 176 must follow (Daredevil was the last one)
 
 1. `data/tts/<slug>.json` with its own `deck.identity` (the images of its deck object), not Medusa's or another turtle's.
 2. Never `card.card_id in range(...)`, `card_id == X` or a dict keyed by CardID built from both players. Use `game.card_of`,
@@ -47,6 +47,7 @@ them (`tests/test_doctor_strange_matrix.py`; only the
 4. A new ChoiceRequest is created through `EffectRun.ask` (it adds `card_owner`); one created by hand passes the owner.
 5. Add the slug to the matrix (`HEROES` in `tests/test_tmnt_matrix.py`); the matrix is the proof.
 
+Daredevil (`tests/test_hero_daredevil_data.py`, `tests/test_daredevil_matrix.py`) also shares the sheet but has 22 playing cards: his CardIDs are 17600-17621 (`HeroDef.deck_size`), his deck object holds 23 cards with the character card 338, and his images are his own (`deck.identity` in `data/tts/daredevil.json`).
 Bigfoot (`tests/test_hero_bigfoot_data.py`, `tests/test_bigfoot_matrix.py`) follows these rules like Doctor Strange: his own `deck.identity` in
 `data/tts/bigfoot.json`, and a matrix against the other ten heroes of the project in both seats.
 

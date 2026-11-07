@@ -266,11 +266,32 @@ def run_moment(flow, side, moment: str):
     key = f"{moment}:{side.name}"
     if key not in flow.runs:
         owner = side.fighter.owner
-        ops = load_effects(flow.game.players[owner].hero.slug).moment_ops(side.card.title, moment)
+        fx = load_effects(flow.game.players[owner].hero.slug)
+        ops = fx.moment_ops(side.card.title, moment)
+        if moment == "during" and fx.ability_during:
+            ops = during_with_ability(fx.ability_during, [] if flow.is_cancelled(side.name) else ops)
         if not ops:
             return None
         flow.runs[key] = _start(flow, side, ops, moment, side.card.card_id)
     return _continue(flow, flow.runs[key])
+
+
+def during_with_ability(ability: tuple, card_ops: list) -> list:
+    """The ops of a DURING moment of a hero that has DURING COMBAT effects of its own (`ability.during`, Daredevil: "if you
+    have other DURING COMBAT effects, choose the order"). Each ability effect runs under its condition. When the card has
+    DURING ops too and the ability applies, its owner chooses the order (a `choose_effect` between the two orders); a card
+    whose effects were cancelled has no ops left (`card_ops` empty): the hero's ability still runs, it is not on the card."""
+    ops = list(card_ops)
+    for eff in ability:
+        mine = list(eff["ops"])
+        if ops:
+            both = [{"label": "ability first, then the card", "ops": mine + ops},
+                    {"label": "card first, then the ability", "ops": ops + mine}]
+            run = [{"op": "choose_effect", "amount": 1, "chooser": "owner", "options": both, "order": True}]
+        else:
+            run = mine
+        ops = [{"op": "if", "condition": eff["condition"], "then": run, "else": list(ops)}] if "condition" in eff else run
+    return ops
 
 
 def run_boost_moment(flow, side, boost, n: int):

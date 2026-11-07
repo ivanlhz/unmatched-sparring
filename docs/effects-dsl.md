@@ -20,6 +20,7 @@ Text conventions: "owner" is the player who plays the card or who the ability be
   "counters": {"intuition": {"min": 0, "max": 2, "start": 0}},
   "triggers": [Trigger],
   "passives": [Passive],
+  "during": [{"id": "<name>", "condition": Condition, "ops": [Op]}],
   "notes": "..."
  },
  "cards": [Card],
@@ -35,6 +36,7 @@ Text conventions: "owner" is the player who plays the card or who the ability be
 - `hero`: slug equal to that of `data/heroes/<slug>.json` (HeroDef). The validator cross-checks titles, copies and text.
 - `ability.counters`: the hero's token counters (intuition tokens, rage, coils). Pile counters
   (destiny) stay in the HeroDef (`counters` + `forms`); from here they are only read (`{"counter": "destiny"}`).
+- `ability.during`: the hero's own DURING COMBAT effects (section 29), run in the DURING of every combat in which the owner played a card.
 - `plugins`: every `{"op": "plugin"}` or `{"kind": "plugin"}` uses an id from this list and every id in the list is used.
 - `hidden_info`, `open_questions`, `discrepancies`, `table`, `notes`: free documentation; the validator only
   requires the basic types.
@@ -126,7 +128,7 @@ CardSel (object):
 | `zone` | `hand`, `discard`, `deck`, `in_play` | required. `in_play`: permanent schemes on the table |
 | `player` | PlayerSel | required |
 | `filter` | see below | |
-| `pick` | `chosen` (default), `all`, `random`, `top`, `bottom` | `chosen`: `chooser` chooses. `random`: chance (there is no "random" chooser). `top`/`bottom`: only in `deck` (the hand has no order) |
+| `pick` | `chosen` (default), `all`, `random`, `top`, `bottom`, `last` | `chosen`: `chooser` chooses. `random`: chance (there is no "random" chooser). `top`/`bottom`: only in `deck` (the hand has no order). `last`: only in `discard`, the cards that reached the pile most recently, newest first (section 29) |
 | `amount` | Amount | how many; default 1. Forbidden with `pick: all`. If there are fewer candidates, it is cut down to those there are |
 | `up_to` | bool (default false) | the chooser may take fewer (0 included). Only with `pick: chosen` |
 | `chooser` | PlayerSel (default `owner`) | only with `pick: chosen` |
@@ -1123,3 +1125,16 @@ zone of the hero, `moved_this_turn`, `move` / `place` with `through_enemies`). S
 - **Chat line of a placement by hand** (`ops_core._note_where`): the references of `where` are resolved to who they are now (the owner's hero stays "hero",
   any other fighter, `this` included, is named), so a sidekick's "this fighter's zone" is not "your hero's zone".
 - **Two life dials with one GUID** (Lobster Johnson / The Jackalope) are told apart by name at the first dial write: `docs/card-identity.md`, "Piece identity".
+
+## 29. Daredevil (Hell's Kitchen): the hero's own DURING effects, a deck of 22, the last cards of the pile
+
+Everything here is additive: no earlier effects file uses these words, so the other heroes behave as before.
+
+- **`ability.during`** (list of `{id, condition?, ops}`; `Ability.during` in `schema.json`, `HeroEffects.ability_during`): DURING COMBAT effects of the HERO, not of a card. `ops_combat.run_moment` composes the DURING ops of every card the hero plays with them (`during_with_ability`): each effect runs under its `condition` (Daredevil: `hand_size <= 2`, counted after the card left the hand). When the card has DURING ops of its own and the ability applies, the owner chooses the order: a `choose_effect` between the two orders (`options` labelled "ability first, then the card" / "card first, then the ability", request flag `during_order`; `EffectAI` answers "ability first"). A side whose card effects were cancelled still gets the ability (`combat_flow.dsl_during_hero_ability`: a rule with `when_cancelled` that only matches a cancelled side of a hero that has `ability.during`); the card's own ops are dropped in that case. A defender with no card has no side, so no ability.
+- **CardSel `pick: last`** (discard only): the `amount` cards that most recently reached the pile, newest first (`PlayerState.discard` only ever appends, so the order is the order of arrival). Devil of Hell's Kitchen: `return_to_deck` of `{"zone": "discard", "pick": "last", "amount": 3}` plus `this`, both to `shuffle`, is "the last 4 cards played, itself included".
+- **`HeroDef.deck_size`** (`deck.size` in the generated HeroDef, absent for the usual 30): the number of playing cards. `heroes._validate` checks the sheet against it, `hero_table` checks the CardID range (`card_base .. card_base + deck_size - 1`) and `tools/import_save.deck_sheet(deck, size)` finds such a deck. The character card is not one of them: the deck object in the save holds `deck_size + 1` cards.
+- **`EffectRun.ask(..., confirm=True)`**: a single forced option is still asked (the table player has to press it). Take A Knee for the human: the one button lets the bot move the real top card of their deck.
+- **Plugins** (`sparring/effects/plugins_daredevil.py`): `daredevil:blind_boost` is `strange:blind_boost` under Daredevil's id (a plugin id carries its hero's fid; `args.ability: true` marks the ability's request for the chat), `daredevil:take_a_knee` (discard the top card, bind it with `args.as`; the engine's player reads its deck, the table player presses one button and the bot moves the card). The shared half is `plugins_strange.discard_top(run, game, owner, count)`.
+- **`pick_fighters` with `pick: all` over a path nobody saw** (`passed_by` after the human moved their miniature by hand): the human is asked which fighters were passed (a `fighter` request, `min 0`, `max` = the candidates, multi-pick with the confirm button) instead of every candidate being hit. Through Adversity: `move hero up to 4 through_enemies as mover`, then `damage 1` to `{side: enemy, filter: {passed_by: $mover}, pick: all}`.
+- **Table side** (`session_blind`): the request flag `top_discard` goes through the same declared-count path as the BLIND BOOST (`is_count`, `declared`: the bot moves the top card to the human's pile by `deck_top_to_discard`, says it in the chat as `knee.auto`, and the run reads the CardID from `run.flags["blind_cards"]`); a refused table falls back to the `cards` request of the BLIND BOOST (`pile_mode: blind`).
+- **Same CardID range as the other sheet-176 decks**: see docs/card-identity.md.

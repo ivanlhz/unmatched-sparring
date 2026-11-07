@@ -1,0 +1,130 @@
+{
+ "_notes": [
+  "Sheet 176 of the tournament savegame (8x4), read card by card from the image on 2026-11-07. CardID = 17600 + idx; 338 = character card (sheet 3, 10x7, index 38). The deck holds 22 playing cards (2+2+3+3+3+3+3+3 copies), so the deck object of the save has 23 cards (22 + the character card): `deck.size` is 22 and the catalog says card_count 23, card_ids [338, 17621]. CONFIRMED by Ivan on 2026-11-07: 23 in the save is correct, it is not a broken deck.",
+  "Titles, types, values, boosts, copies and texts of all 8 titles match unmatched-memory (the card images say the same). Every card carries the DAREDEVIL band, so the restriction is the hero's own name. Daredevil's deck is sheet 176 like Medusa's and the turtles': only deck.identity (data/tts/daredevil.json) tells the decks apart (docs/card-identity.md).",
+  "Daredevil has no sidekick (unmatched-memory has one empty entry). His ability is a DURING COMBAT effect of the hero, not a trigger: it lives in the effects file as `ability.during` (docs/effects-dsl.md section 29)."
+ ],
+ "fid": "daredevil",
+ "sidekicks": [],
+ "forms": null,
+ "counters": {},
+ "triggers": [],
+ "passives": [],
+ "deck": {
+  "card_base": 17600,
+  "sheet_id": 176,
+  "hero_card_id": 338,
+  "sheet": [
+   {
+    "idx": 0,
+    "title": "Devil of Hell's Kitchen",
+    "fighter": "Daredevil"
+   },
+   {
+    "idx": 1,
+    "title": "Devil of Hell's Kitchen",
+    "fighter": "Daredevil"
+   },
+   {
+    "idx": 2,
+    "title": "Man Without Fear",
+    "fighter": "Daredevil"
+   },
+   {
+    "idx": 3,
+    "title": "Man Without Fear",
+    "fighter": "Daredevil"
+   },
+   {
+    "idx": 4,
+    "title": "Feint",
+    "fighter": "Daredevil"
+   },
+   {
+    "idx": 5,
+    "title": "Feint",
+    "fighter": "Daredevil"
+   },
+   {
+    "idx": 6,
+    "title": "Feint",
+    "fighter": "Daredevil"
+   },
+   {
+    "idx": 7,
+    "title": "Grappling Hook",
+    "fighter": "Daredevil"
+   },
+   {
+    "idx": 8,
+    "title": "Grappling Hook",
+    "fighter": "Daredevil"
+   },
+   {
+    "idx": 9,
+    "title": "Grappling Hook",
+    "fighter": "Daredevil"
+   },
+   {
+    "idx": 10,
+    "title": "Take A Knee",
+    "fighter": "Daredevil"
+   },
+   {
+    "idx": 11,
+    "title": "Take A Knee",
+    "fighter": "Daredevil"
+   },
+   {
+    "idx": 12,
+    "title": "Take A Knee",
+    "fighter": "Daredevil"
+   },
+   {
+    "idx": 13,
+    "title": "Son Of A Boxer",
+    "fighter": "Daredevil"
+   },
+   {
+    "idx": 14,
+    "title": "Son Of A Boxer",
+    "fighter": "Daredevil"
+   },
+   {
+    "idx": 15,
+    "title": "Son Of A Boxer",
+    "fighter": "Daredevil"
+   },
+   {
+    "idx": 16,
+    "title": "Through Adversity",
+    "fighter": "Daredevil"
+   },
+   {
+    "idx": 17,
+    "title": "Through Adversity",
+    "fighter": "Daredevil"
+   },
+   {
+    "idx": 18,
+    "title": "Through Adversity",
+    "fighter": "Daredevil"
+   },
+   {
+    "idx": 19,
+    "title": "Breather",
+    "fighter": "Daredevil"
+   },
+   {
+    "idx": 20,
+    "title": "Breather",
+    "fighter": "Daredevil"
+   },
+   {
+    "idx": 21,
+    "title": "Breather",
+    "fighter": "Daredevil"
+   }
+  ]
+ }
+}

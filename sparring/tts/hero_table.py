@@ -17,7 +17,7 @@ from functools import lru_cache
 from pathlib import Path
 
 from ..board import DATA_DIR
-from ..heroes import DECK_SIZE, HeroDef, load_hero
+from ..heroes import HeroDef, load_hero
 
 TTS_DIR = DATA_DIR / "tts"
 
@@ -120,7 +120,7 @@ def _validate(t: HeroTable, hero: HeroDef, where: str) -> None:
             raise HeroTableError(f"{where}: {fid}: the dial goes up to {f.dial_max} and the HeroDef says {specs[fid].hp} HP")
         if f.dial is None and specs[fid].hp > 1:
             raise HeroTableError(f"{where}: {fid}: has {specs[fid].hp} HP and there is no dial")
-    if hero.card_base is not None and t.card_ids != (hero.card_base, hero.card_base + DECK_SIZE - 1):
+    if hero.card_base is not None and t.card_ids != (hero.card_base, hero.card_base + hero.deck_size - 1):
         raise HeroTableError(f"{where}: CardID range {t.card_ids} differs from the HeroDef's sheet")
     if not t.identity:
         raise HeroTableError(f"{where}: no deck identity (FaceURL, BackURL)")

@@ -212,6 +212,9 @@ def pick_fighters(game, run, sel, chooser: int, prompt: str = "", **extra) -> li
     amount...) travels in the request so a bot can score the candidates for what is about to happen to them."""
     cands, pick_all = fighter_candidates(game, run, sel)
     unknown = _path_unknown(game, run, sel)          # moved by hand: the human may also answer "nobody was passed"
+    if pick_all and unknown and cands:               # "each fighter it moved through" along a path nobody saw: the human names them (Through Adversity)
+        got = run.ask(game, "fighter", chooser, [f.fid for f in cands], 0, len(cands), prompt or "choose the fighters", **extra)
+        return [game.fighters[i] for i in got]
     if pick_all or not cands or (len(cands) == 1 and not unknown):
         return cands
     near = _near(game, run, sel)
@@ -317,6 +320,8 @@ def select_cards(game, run, sel: dict, purpose: str = "choose", prompt: str | No
     if pick == "top":
         return cands[:n]
     if pick == "bottom":
+        return cands[::-1][:n]
+    if pick == "last":                             # the cards that reached the discard pile most recently (Devil Of Hell's Kitchen)
         return cands[::-1][:n]
     if pick == "random":
         return run.random_sample(cands, n)

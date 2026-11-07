@@ -76,6 +76,7 @@ PACT_RISK_STEP = 0.1                                    # ... and the hit point 
 PACT_RECYCLE = 4.0                                      # a card put at the bottom of a deck of n cards comes back with weight PACT_RECYCLE / (n + 1)
 SWAP_MARGIN = 0.4                                       # Sleight Of Hand is swapped only when the other card beats it by this much, after the cards each one costs to keep
 SWAP_KEEP_SHARE = 0.5                                   # share of the difference between keeping Sleight Of Hand and keeping the other card that counts against the swap
+DEVIL_TITLE, DEVIL_EMPTY_VALUE = "Devil of Hell's Kitchen", 8    # Daredevil's card: worth 8 once the deck is empty, which a blind boost can cause
 BLIND_COST = 0.1                                        # a blind boost mills one card of the deck: the exhaustion clock ticks
 
 
@@ -430,6 +431,8 @@ class EffectAI:
     def _effect(self, game: Game, req: ChoiceRequest, nested: bool) -> list | None:
         if req.extra.get("op") == PREDICT_OP:
             return [predict_value(game, req.player)]
+        if req.extra.get("during_order"):          # Daredevil: the ability first is never worse (its blind boost can empty the deck the card reads)
+            return [0]
         if req.extra.get("future") == "deck":
             return [self._future_deck(game, req)]
         if req.extra.get("future") == "peek":
@@ -555,6 +558,8 @@ class EffectAI:
         if not pool or target is None:
             return min(req.options)
         value, margin, limit = x["value"], x["margin"], x["limit"]
+        card = None if req.card_id is None else game.card_of(req.card_id, me)
+        emptied = DEVIL_EMPTY_VALUE - card.value if card is not None and card.title == DEVIL_TITLE else 0      # the order choice puts the ability first
 
         @lru_cache(maxsize=None)
         def score(total: int) -> float:
@@ -569,7 +574,7 @@ class EffectAI:
             n = min(n, len(pool), len(mine.deck))
             if n == 0:
                 return score(value)
-            totals = [value + sum(boosts) for boosts in combinations(pool, n)]
+            totals = [value + sum(boosts) + (emptied if n >= len(mine.deck) else 0) for boosts in combinations(pool, n)]
             return sum(map(score, totals)) / len(totals) - BLIND_COST * n
         return max(req.options, key=lambda n: (worth(n), -n))
 

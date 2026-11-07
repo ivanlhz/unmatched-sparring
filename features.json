@@ -389,6 +389,20 @@
       "note": "Engine additions, if any, are additive (docs/effects-dsl.md). Rules decisions and open questions for Iván: docs/heroes/bigfoot.md. Live test pending."
     },
     {
+      "id": "HERO-DAREDEVIL",
+      "title": "Daredevil (Hell's Kitchen) playable by the bot and by the human against every hero",
+      "status": "in-progress",
+      "criteria": [
+        "data/heroes/overlay/daredevil.json, data/heroes/daredevil.json, data/heroes/effects/daredevil.json and data/tts/daredevil.json generated and validated (import_hero --check, validate_effects, import_save); all 8 titles (22 cards, sheet 176, character card 338) read from the card images; the deck object of the save holds 23 cards and that is correct (HeroDef.deck_size 22, catalog card_count 23)",
+        "His deck shares CardIDs 17600-17621 with Medusa, the turtles, Doctor Strange and Bigfoot: told apart by deck image and owner, never by a bare CardID (tests/test_hero_daredevil_data.py, tests/test_card_identity.py, tests/test_daredevil_matrix.py); no piece GUID shared with another hero",
+        "The special ability is a hero DURING effect of the interpreter (ability.during): BLIND BOOST (declared 0 or 1 up front, cards discarded from the top of the deck) with 2 or fewer cards in hand, surviving a cancelled card, with the owner choosing the order against the card's own DURING effects; the bot declares it by expected score, the human gets 0 / 1 only when it applies and the bot moves the real top card",
+        "All 8 cards on the interpreter for both seats: Devil of Hell's Kitchen (8 with an empty deck; the last 4 cards played back into the deck, itself included), Man Without Fear, Feint, Grappling Hook, Take A Knee (discard the top card, heal its BOOST: one button for the human), Son Of A Boxer, Through Adversity (move through rivals, 1 damage to each; the human names who he passed), Breather",
+        "Daredevil against each of the 12 other heroes in both seats reaches game over on FakeTTS (passive and attacking human) and in the simulator with the heuristic and the search AI (tests/test_daredevil_matrix.py)",
+        "Verified live by Iván (docs/live-checklist.md, section Daredevil)"
+      ],
+      "note": "Engine additions are additive (docs/effects-dsl.md, section 29). Rules decisions and open questions for Iván: docs/heroes/daredevil.md. Live test pending."
+    },
+    {
       "id": "F20",
       "title": "The bot prepares the official community save itself",
       "status": "in-progress",

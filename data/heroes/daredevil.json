@@ -1,0 +1,318 @@
+{
+ "_source": {
+  "memory": "unmatched-memory/data/heroes/daredevil.json",
+  "overlay": "data/heroes/overlay/daredevil.json",
+  "generator": "tools/import_hero.py"
+ },
+ "slug": "daredevil",
+ "name": "Daredevil",
+ "fid": "daredevil",
+ "hp": 17,
+ "move": 3,
+ "attack": "melee",
+ "set": "hells-kitchen",
+ "ability": "DURING COMBAT: If you have 2 or fewer cards in your hand, you may BLIND BOOST your attack or defense.\n(If you have other DURING COMBAT effects, choose the order.)",
+ "sidekicks": [],
+ "forms": null,
+ "counters": {},
+ "triggers": [],
+ "passives": [],
+ "deck": {
+  "card_base": 17600,
+  "sheet": 176,
+  "cards": [
+   {
+    "idx": 0,
+    "title": "Devil of Hell's Kitchen",
+    "fighter": "Daredevil",
+    "type": "attack",
+    "value": 4,
+    "boost": 3,
+    "text": "DURING COMBAT: If you have no cards in your deck, the value of this card is 8 instead. AFTER COMBAT: Shuffle this card and the top four cards of your discard pile into your deck.",
+    "tags": []
+   },
+   {
+    "idx": 1,
+    "title": "Devil of Hell's Kitchen",
+    "fighter": "Daredevil",
+    "type": "attack",
+    "value": 4,
+    "boost": 3,
+    "text": "DURING COMBAT: If you have no cards in your deck, the value of this card is 8 instead. AFTER COMBAT: Shuffle this card and the top four cards of your discard pile into your deck.",
+    "tags": []
+   },
+   {
+    "idx": 2,
+    "title": "Man Without Fear",
+    "fighter": "Daredevil",
+    "type": "attack",
+    "value": 2,
+    "boost": 3,
+    "text": "DURING COMBAT: You may BLIND BOOST this attack. (This is in addition to any BLIND BOOST from Daredevil's special ability.)",
+    "tags": []
+   },
+   {
+    "idx": 3,
+    "title": "Man Without Fear",
+    "fighter": "Daredevil",
+    "type": "attack",
+    "value": 2,
+    "boost": 3,
+    "text": "DURING COMBAT: You may BLIND BOOST this attack. (This is in addition to any BLIND BOOST from Daredevil's special ability.)",
+    "tags": []
+   },
+   {
+    "idx": 4,
+    "title": "Feint",
+    "fighter": "Daredevil",
+    "type": "versatile",
+    "value": 2,
+    "boost": 1,
+    "text": "IMMEDIATELY: Cancel all effects on your opponent's card.",
+    "tags": []
+   },
+   {
+    "idx": 5,
+    "title": "Feint",
+    "fighter": "Daredevil",
+    "type": "versatile",
+    "value": 2,
+    "boost": 1,
+    "text": "IMMEDIATELY: Cancel all effects on your opponent's card.",
+    "tags": []
+   },
+   {
+    "idx": 6,
+    "title": "Feint",
+    "fighter": "Daredevil",
+    "type": "versatile",
+    "value": 2,
+    "boost": 1,
+    "text": "IMMEDIATELY: Cancel all effects on your opponent's card.",
+    "tags": []
+   },
+   {
+    "idx": 7,
+    "title": "Grappling Hook",
+    "fighter": "Daredevil",
+    "type": "versatile",
+    "value": 3,
+    "boost": 2,
+    "text": "AFTER COMBAT: Move Daredevil up to 2 spaces.",
+    "tags": []
+   },
+   {
+    "idx": 8,
+    "title": "Grappling Hook",
+    "fighter": "Daredevil",
+    "type": "versatile",
+    "value": 3,
+    "boost": 2,
+    "text": "AFTER COMBAT: Move Daredevil up to 2 spaces.",
+    "tags": []
+   },
+   {
+    "idx": 9,
+    "title": "Grappling Hook",
+    "fighter": "Daredevil",
+    "type": "versatile",
+    "value": 3,
+    "boost": 2,
+    "text": "AFTER COMBAT: Move Daredevil up to 2 spaces.",
+    "tags": []
+   },
+   {
+    "idx": 10,
+    "title": "Take A Knee",
+    "fighter": "Daredevil",
+    "type": "versatile",
+    "value": 3,
+    "boost": 2,
+    "text": "AFTER COMBAT: Discard the top card of your deck. Recover health equal to its BOOST value.",
+    "tags": []
+   },
+   {
+    "idx": 11,
+    "title": "Take A Knee",
+    "fighter": "Daredevil",
+    "type": "versatile",
+    "value": 3,
+    "boost": 2,
+    "text": "AFTER COMBAT: Discard the top card of your deck. Recover health equal to its BOOST value.",
+    "tags": []
+   },
+   {
+    "idx": 12,
+    "title": "Take A Knee",
+    "fighter": "Daredevil",
+    "type": "versatile",
+    "value": 3,
+    "boost": 2,
+    "text": "AFTER COMBAT: Discard the top card of your deck. Recover health equal to its BOOST value.",
+    "tags": []
+   },
+   {
+    "idx": 13,
+    "title": "Son Of A Boxer",
+    "fighter": "Daredevil",
+    "type": "defense",
+    "value": 3,
+    "boost": 2,
+    "text": "AFTER COMBAT: If you lost the combat, deal 2 damage to a fighter adjacent to Daredevil.",
+    "tags": []
+   },
+   {
+    "idx": 14,
+    "title": "Son Of A Boxer",
+    "fighter": "Daredevil",
+    "type": "defense",
+    "value": 3,
+    "boost": 2,
+    "text": "AFTER COMBAT: If you lost the combat, deal 2 damage to a fighter adjacent to Daredevil.",
+    "tags": []
+   },
+   {
+    "idx": 15,
+    "title": "Son Of A Boxer",
+    "fighter": "Daredevil",
+    "type": "defense",
+    "value": 3,
+    "boost": 2,
+    "text": "AFTER COMBAT: If you lost the combat, deal 2 damage to a fighter adjacent to Daredevil.",
+    "tags": []
+   },
+   {
+    "idx": 16,
+    "title": "Through Adversity",
+    "fighter": "Daredevil",
+    "type": "scheme",
+    "value": null,
+    "boost": 2,
+    "text": "Move Daredevil up to 4 spaces. He may move through opposing fighters. Deal 1 damage to each opposing fighter Daredevil moves through.",
+    "tags": []
+   },
+   {
+    "idx": 17,
+    "title": "Through Adversity",
+    "fighter": "Daredevil",
+    "type": "scheme",
+    "value": null,
+    "boost": 2,
+    "text": "Move Daredevil up to 4 spaces. He may move through opposing fighters. Deal 1 damage to each opposing fighter Daredevil moves through.",
+    "tags": []
+   },
+   {
+    "idx": 18,
+    "title": "Through Adversity",
+    "fighter": "Daredevil",
+    "type": "scheme",
+    "value": null,
+    "boost": 2,
+    "text": "Move Daredevil up to 4 spaces. He may move through opposing fighters. Deal 1 damage to each opposing fighter Daredevil moves through.",
+    "tags": []
+   },
+   {
+    "idx": 19,
+    "title": "Breather",
+    "fighter": "Daredevil",
+    "type": "scheme",
+    "value": null,
+    "boost": 2,
+    "text": "Choose an attack, defense, or versatile card from your discard pile and return it to your hand.",
+    "tags": []
+   },
+   {
+    "idx": 20,
+    "title": "Breather",
+    "fighter": "Daredevil",
+    "type": "scheme",
+    "value": null,
+    "boost": 2,
+    "text": "Choose an attack, defense, or versatile card from your discard pile and return it to your hand.",
+    "tags": []
+   },
+   {
+    "idx": 21,
+    "title": "Breather",
+    "fighter": "Daredevil",
+    "type": "scheme",
+    "value": null,
+    "boost": 2,
+    "text": "Choose an attack, defense, or versatile card from your discard pile and return it to your hand.",
+    "tags": []
+   }
+  ],
+  "size": 22
+ },
+ "ai_profile": {
+  "daredevil": {
+   "name": "Daredevil",
+   "hero": true,
+   "count": 1,
+   "max_hp": 17,
+   "move": 3,
+   "ranged": false,
+   "role": "hero",
+   "attack": {
+    "cards": 13,
+    "mean": 2.77,
+    "max": 4
+   },
+   "exclusive": [
+    {
+     "title": "Devil of Hell's Kitchen",
+     "type": "attack",
+     "copies": 2,
+     "impact": 1.71
+    },
+    {
+     "title": "Man Without Fear",
+     "type": "attack",
+     "copies": 2,
+     "impact": 0.9
+    },
+    {
+     "title": "Feint",
+     "type": "versatile",
+     "copies": 3,
+     "impact": 1.2
+    },
+    {
+     "title": "Grappling Hook",
+     "type": "versatile",
+     "copies": 3,
+     "impact": 0.93
+    },
+    {
+     "title": "Take A Knee",
+     "type": "versatile",
+     "copies": 3,
+     "impact": 2.13
+    },
+    {
+     "title": "Son Of A Boxer",
+     "type": "defense",
+     "copies": 3,
+     "impact": 1.51
+    },
+    {
+     "title": "Through Adversity",
+     "type": "scheme",
+     "copies": 3,
+     "impact": 1.8
+    },
+    {
+     "title": "Breather",
+     "type": "scheme",
+     "copies": 3,
+     "impact": 0.8
+    }
+   ]
+  }
+ },
+ "_notes": [
+  "Sheet 176 of the tournament savegame (8x4), read card by card from the image on 2026-11-07. CardID = 17600 + idx; 338 = character card (sheet 3, 10x7, index 38). The deck holds 22 playing cards (2+2+3+3+3+3+3+3 copies), so the deck object of the save has 23 cards (22 + the character card): `deck.size` is 22 and the catalog says card_count 23, card_ids [338, 17621]. CONFIRMED by Ivan on 2026-11-07: 23 in the save is correct, it is not a broken deck.",
+  "Titles, types, values, boosts, copies and texts of all 8 titles match unmatched-memory (the card images say the same). Every card carries the DAREDEVIL band, so the restriction is the hero's own name. Daredevil's deck is sheet 176 like Medusa's and the turtles': only deck.identity (data/tts/daredevil.json) tells the decks apart (docs/card-identity.md).",
+  "Daredevil has no sidekick (unmatched-memory has one empty entry). His ability is a DURING COMBAT effect of the hero, not a trigger: it lives in the effects file as `ability.during` (docs/effects-dsl.md section 29)."
+ ]
+}
