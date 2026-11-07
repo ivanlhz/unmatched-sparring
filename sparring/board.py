@@ -56,7 +56,7 @@ class Board:
             for a in group:
                 self.moves[a].update(b for b in group if b != a)
         self.bonuses = bonuses or {}        # (from, to) -> attack bonus of a fighter on `from` hitting one on `to` (stairs)
-        self.hazards = hazards or {}        # (low id, high id) -> damage of the first crossing of that edge in a turn
+        self.hazards = hazards or {}        # (low id, high id) -> damage a fighter takes the first time in a turn it crosses that edge (once per turn in all, not per edge)
         self.one_way = one_way              # (from, to): moving is allowed from -> to only; still adjacent both ways
         for a, b in one_way:
             self.moves[b].discard(a)
@@ -121,12 +121,14 @@ class Board:
         return self.bonuses.get((a, b), 0)
 
     def hazard_path(self, src: int, dst: int, steps: int | None, blocked: frozenset[int] = frozenset(),
-                    taken: frozenset = frozenset()) -> list[tuple[int, int]]:
-        """The hazard edges (not in `taken`) crossed on the way the mover is assumed to take from src to dst.
-        The mover is assumed to take the path of least hazard damage among those of at most `steps` steps (`None`: the
+                    hurt: bool = False) -> list[tuple[int, int]]:
+        """The hazard edge the mover pays for on the way assumed from src to dst: a fighter takes hazard damage at most
+        once per turn, so only the FIRST hazard edge of the path counts (the list holds that one edge, or is empty).
+        `hurt`: the fighter already took hazard damage this turn, so nothing is charged.
+        The mover is assumed to take the path of least damage among those of at most `steps` steps (`None`: the
         shortest length, which is all a human's move on the table tells: only where the piece started and ended), the
         shortest of those on a tie; it cannot enter `blocked` spaces. Empty when the board has no hazards or there is no path."""
-        if not self.hazards or src == dst:
+        if not self.hazards or src == dst or hurt:
             return []
         cap = steps
         if cap is None:                          # the shortest way the blockers leave open
@@ -137,27 +139,33 @@ class Board:
                             if n not in seen and n not in blocked and not seen.add(n)]
             if dst not in seen:
                 return []
-        layers: list[dict[int, tuple[int, int | None]]] = [{src: (0, None)}]
+        # state: (space, already paid on this walk) -> (damage, state it came from, hazard edge paid on the way in)
+        State = tuple[int, bool]
+        layers: list[dict[State, tuple[int, State | None, tuple[int, int] | None]]] = [{(src, False): (0, None, None)}]
         for _ in range(cap):
-            nxt: dict[int, tuple[int, int | None]] = {}
-            for node, (cost, _) in layers[-1].items():
+            nxt: dict[State, tuple[int, State | None, tuple[int, int] | None]] = {}
+            for (node, paid), (cost, _, _) in layers[-1].items():
                 for n in sorted(self.moves[node]):
                     if n in blocked:
                         continue
                     edge = edge_key(node, n)
-                    c = cost + (self.hazards[edge] if edge in self.hazards and edge not in taken else 0)
-                    if n not in nxt or c < nxt[n][0]:
-                        nxt[n] = (c, node)
+                    pays = edge in self.hazards and not paid
+                    key = (n, paid or pays)
+                    c = cost + (self.hazards[edge] if pays else 0)
+                    if key not in nxt or c < nxt[key][0]:
+                        nxt[key] = (c, (node, paid), edge if pays else None)
             layers.append(nxt)
-        best = min(((layer[dst][0], k) for k, layer in enumerate(layers) if dst in layer), default=None)
+        best = min(((layer[(dst, p)][0], k, p) for k, layer in enumerate(layers) for p in (False, True) if (dst, p) in layer),
+                   default=None)
         if best is None:
             return []
-        path, node = [], dst
+        state = (dst, best[2])
         for k in range(best[1], 0, -1):
-            prev = layers[k][node][1]
-            path.append(edge_key(prev, node))
-            node = prev
-        return [e for e in reversed(path) if e in self.hazards and e not in taken]
+            _, prev, edge = layers[k][state]
+            if edge is not None:
+                return [edge]
+            state = prev
+        return []
 
     def zones(self, s: int) -> frozenset[str]:
         return self.spaces[s].zones

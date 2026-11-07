@@ -234,7 +234,7 @@ class Game:
         self.winner: int | None = None
         self.bot_player: int | None = None     # who the bot plays: its not yet coded effects are not resolved by the human
         self.effect_shield: dict[int, int] = {}
-        self.hazard_taken: set[tuple[str, tuple[int, int]]] = set()    # (fighter, hazard edge) already paid this turn
+        self.hazard_taken: set[str] = set()    # fighters already hurt by a hazard edge this turn (once per turn in all)
         self.hazard_hits: list[tuple[str, tuple[int, int], float, float]] = []  # (fighter, edge, damage dealt, hp before) not yet announced
         self.hazard_hook = None      # called after a walk that hurt someone (the session announces and writes the dials)
         self.placing: set[str] = set()      # fighters a table player puts down by hand now: a new position read for them is a placement
@@ -474,25 +474,25 @@ class Game:
         self.walk(fighter, dest, steps, through_enemies)
 
     def hazard_edges(self, fighter: Fighter, dest: int, steps: int | None, through_enemies: bool = False) -> list[tuple[int, int]]:
-        """The hazard edges `fighter` would pay for going to `dest` now (see `Board.hazard_path` for the path assumed)."""
+        """The hazard edge `fighter` would pay for going to `dest` now: at most one, none if it was already hurt this turn
+        (see `Board.hazard_path` for the path assumed)."""
         if not self.board.hazards or fighter.pos is None:
             return []
         blocked = frozenset() if through_enemies else frozenset(self.occupied(1 - fighter.owner))
-        taken = frozenset(e for fid, e in self.hazard_taken if fid == fighter.fid)
-        return self.board.hazard_path(fighter.pos, dest, steps, blocked, taken)
+        return self.board.hazard_path(fighter.pos, dest, steps, blocked, fighter.fid in self.hazard_taken)
 
     def hazard_damage(self, fighter: Fighter, dest: int, steps: int | None, through_enemies: bool = False) -> int:
         """Damage `fighter` would take going to `dest` now: what the bot weighs before it moves."""
         return sum(self.board.hazards[e] for e in self.hazard_edges(fighter, dest, steps, through_enemies))
 
     def walk(self, fighter: Fighter, dest: int, steps: int | None, through_enemies: bool = False) -> None:
-        """Puts the fighter on `dest` (already known legal) and charges the hazard edges of its path: each distinct
-        hazard edge hurts a fighter once per turn, whoever's turn it is; the damage can defeat it like any other.
+        """Puts the fighter on `dest` (already known legal) and charges the first hazard edge of its path: a
+        fighter takes hazard damage once per turn in all, whoever's turn it is, and the rest of its crossings are free; the damage can defeat it like any other.
         Every way a fighter walks along spaces (maneuver, move effects, a human's move read from the table) comes here."""
         crossed = self.hazard_edges(fighter, dest, steps, through_enemies)
         fighter.pos = dest
         for edge in crossed:
-            self.hazard_taken.add((fighter.fid, edge))
+            self.hazard_taken.add(fighter.fid)
             if fighter.alive:
                 before = fighter.hp
                 dealt = self.damage(fighter, self.board.hazards[edge], "hazard")
