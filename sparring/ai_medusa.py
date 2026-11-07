@@ -121,6 +121,7 @@ BLIND_BOOST = {"Bolts of Balthakk": (1, None), "Seven Suns of Cinnibus": (2, 7)}
 MASTER, CLOAK, RINGS, MISTS = "Master of Kamar-Taj", "Cloak of Levitation", "The Rings of Raggadorr", "The Mists of Munnopor"
 DAUGHTER, SKIN, GOT_MY_BACK = "Daughter of the Dragon", "Skin Like Titanium", "Got My Back?"     # Luke Cage
 SKIN_RETURN = 0.8         # Skin Like Titanium: a lost combat sends back the damage taken, but only a lost combat does (the blow it replies to already hurt)
+ASSASSIN, BETTER, PLANNED, EYES = "World's Greatest Assassin", "I'm Better And I'll Prove It", "I Planned To Be Here", "Right Between The Eyes"   # Bullseye: conditions read from the turn's record
 MISTS_EDGE = 0.4          # the Mists also cancel the effects of the attack that was played and replace it with a card nobody chose
 BOOST_ACTION = 0.9        # a BOOSTED WITH that gains an action (it only pays on the bot's own turn)
 STRIP_VALUE = 1.0         # a card the rival loses to a BOOSTED WITH that picks one from their hand
@@ -170,6 +171,11 @@ AFTER_BONUS = {
     "Pushback": (0.2, 0.0),                         # moves the opposing fighter up to 3 spaces
     "Power Man": (0.8, 0.0),                        # moves the opposing fighter, 1 damage to it and to each fighter it crossed
     "Trash Talk": (0.0, 0.7),                       # cancels the rival card's effects; a win ends the rival's turn
+    "I Never Miss": (0.5 * CARD_VALUE, 0.0),        # Bullseye: the card it draws when it is not boosted (the boost decision prices it)
+    "Arrogant But Effective": (0.4, 0.0),           # moves up to 2 and counts as a win for the cards that read "already won this turn"
+    "Master Strategist": (0.3, 0.0),                # exactly 4 spaces, through rivals
+    "Ricochet": (0.8, 0.0),                         # 1 damage to a fighter in the zone of a rival that was not defeated
+    "Tactical Retreat": (0.3, 0.0),                 # puts him in a space that shares no zone
 }
 DISCARD_EFFECTS = ("Clutching Claws", "Hiss and Slither")
 
@@ -509,6 +515,13 @@ def maneuver_may_spend(card) -> bool:
     return bot_may_spend(card) and not defers_defeat(card)
 
 
+def declined_draws(card) -> int:
+    """Cards the card draws when its free BOOST is declined (I Never Miss), read from its `unboosted` ops."""
+    fx = card_effects(card)
+    ops = fx.moments.get("unboosted") if fx is not None else None
+    return sum(op["amount"] for op in walk_ops(ops or []) if op["op"] == "draw" and isinstance(op.get("amount"), int))
+
+
 def free_boosts(game: Game, me: int, card, hand) -> list:
     """The cards the hand would spend to BOOST `card` with by its own text (`may_boost`, `max_boosts`): the biggest boosts,
     best BOOSTED WITH first on a tie. Empty when the card has no free BOOST or nothing in the hand can be spent."""
@@ -653,7 +666,7 @@ class MedusaAI(Controller):
             return []
         board, foes = game.board, game.foes(self.me)
         return [a for a in rest if a.kind == "maneuver" and hero.fid in a.moves
-                and any(board.can_reach_target(a.moves[hero.fid], e.pos, hero.ranged) for e in foes)][:APPROACH_TOP]
+                and any(board.can_reach_target(a.moves[hero.fid], e.pos, hero.ranged, hero.reach) for e in foes)][:APPROACH_TOP]
 
     def strike_firsts(self, game: Game, rest: list[Act]) -> list[Act]:
         """Hit and run: placements (boosted Maneuvers) that end in reach of a rival hero with an attack still to play. The
@@ -664,7 +677,7 @@ class MedusaAI(Controller):
             return []
         board, rivals = game.board, [e for e in game.foes(self.me) if e.hero]
         return [a for a in rest if a.kind == "maneuver" and a.boost is not None and hero.fid in a.moves
-                and any(board.can_reach_target(a.moves[hero.fid], e.pos, hero.ranged) for e in rivals)][:STRIKE_FIRSTS]
+                and any(board.can_reach_target(a.moves[hero.fid], e.pos, hero.ranged, hero.reach) for e in rivals)][:STRIKE_FIRSTS]
 
     def opportunity_bonus(self, game: Game, model: Model, a: Act) -> float:
         """Hit and run: what an attack of the hero on a rival hero is worth beyond its own value when it is the real chance to
@@ -771,6 +784,10 @@ class MedusaAI(Controller):
             return 4.0
         if c.title == DAUGHTER and f.pos is not None and t.pos is not None and t.pos in game.board.adj[f.pos]:
             return 6.0                  # Misty Knight (the only fighter that plays it) is next to the target
+        if c.title == BETTER and game.fx.won[f.owner]:
+            return 6.0
+        if c.title == PLANNED and f.pos is not None and game.fx.turn_start_pos.get(f.fid) == f.pos:
+            return 5.0
         return float(c.value)
 
     @staticmethod
@@ -780,8 +797,11 @@ class MedusaAI(Controller):
         return hero.pos is not None and any(o.name == "Wong" and o.pos in game.board.adj[hero.pos] for o in game.own(owner))
 
     @staticmethod
-    def cloak_ignores(game: Game, f: Fighter, t: Fighter, c) -> bool:
-        """Cloak of Levitation: Doctor Strange himself is next to the opposing fighter, whose card then counts for nothing."""
+    def ignores_defense(game: Game, f: Fighter, t: Fighter, c) -> bool:
+        """The card makes the rival's card count for nothing: Cloak of Levitation with Doctor Strange himself next to the opposing
+        fighter, World's Greatest Assassin after a combat won this turn."""
+        if c.title == ASSASSIN:
+            return bool(game.fx.won[f.owner])
         hero = game.hero(f.owner)
         return c.title == CLOAK and hero.pos is not None and t.pos is not None and t.pos in game.board.adj[hero.pos]
 
@@ -789,7 +809,7 @@ class MedusaAI(Controller):
         atk = self.card_value(game, f, t, c) + game.attack_bonus(f, t)
         atk += BOOST_RELIANCE * sum(x.boost for x in free_boosts(game, self.me, c, game.players[self.me].hand))
         atk += self.during_gain(game, c)
-        ignore = self.cloak_ignores(game, f, t, c)
+        ignore = self.ignores_defense(game, f, t, c)
         return sum(p for p, dv in model.defense_dist(t) if game.combat_damage_taken(t, atk - (0 if ignore else (dv or 0))) >= 1)
 
     def during_gain(self, game: Game, c) -> float:
@@ -824,7 +844,7 @@ class MedusaAI(Controller):
         if "invention" in c.tags:
             cost -= INVENTION_PLAY
         e_net = p_win = p_kill = gaze_dmg = 0.0
-        ignore = self.cloak_ignores(game, f, t, c)
+        ignore = self.ignores_defense(game, f, t, c)
         for p, dv in model.defense_dist(t):
             net = game.combat_damage_taken(t, max(0.0, atk - (0 if ignore else (dv or 0))))     # Luke Cage: 2 less
             won = net >= 1
@@ -845,6 +865,8 @@ class MedusaAI(Controller):
         if c.title == RINGS:             # the damage dealt heals the fighter and the friendly ones beside it (only what is missing counts)
             near = [o for o in game.own(f.owner) if o is f or (o.pos is not None and f.pos is not None and o.pos in game.board.adj[f.pos])]
             value += W_MEDUSA_HP * min(e_net, sum(o.max_hp - o.hp for o in near)) * p_win
+        if c.title == EYES and game.fx.won[f.owner] and game.players[1 - f.owner].hand:       # the rival discards a card of their choice
+            value += STRIP_VALUE
         if c.title in DISCARD_EFFECTS:
             decisive = p_kill >= 0.5 or (p_win >= 0.85 and e_net >= 5)
             if not decisive:
@@ -958,7 +980,7 @@ class MedusaAI(Controller):
                 ranked = sorted(((-self.position_value(game, model, {medusa.fid: d}), d) for d in options))
                 # besides the best by position, those that leave Medusa within range of a rival: moving and attacking
                 # in the same double action (position alone would never choose them if the rival is dangerous)
-                striking = [x for x in ranked if any(game.board.can_reach_target(x[1], e.pos, medusa.ranged)
+                striking = [x for x in ranked if any(game.board.can_reach_target(x[1], e.pos, medusa.ranged, medusa.reach)
                                                      for e in game.foes(self.me))]
                 by_extra[(extra, places)] = list(dict.fromkeys(d for _, d in ranked[:3] + striking[:2]))
             scored = by_extra[(extra, places)]
@@ -1120,10 +1142,10 @@ class MedusaAI(Controller):
                        if c.can_attack and c.usable_by(medusa.name)), reverse=True)
         return min(1.0, sum(dmgs[:2]) / rival.hp) if rival.hp > 0 else 1.0
 
-    def strike_spots(self, board, pos: int, ranged: bool) -> list[int]:
-        key = (board.key, pos, ranged)
+    def strike_spots(self, board, pos: int, ranged: bool, reach: int = 0) -> list[int]:
+        key = (board.key, pos, ranged, reach)
         if key not in self._strike_cache:
-            self._strike_cache[key] = [s for s in board.spaces if board.can_reach_target(s, pos, ranged)]
+            self._strike_cache[key] = [s for s in board.spaces if board.can_reach_target(s, pos, ranged, reach)]
         return self._strike_cache[key]
 
     def position_value(self, game: Game, model: Model, override: dict | None = None) -> float:
@@ -1143,7 +1165,7 @@ class MedusaAI(Controller):
             extra = game.form(1 - self.me) == ANUNG and e.hero
             best = 0.0
             for t in mine:
-                spots = [s for s in self.strike_spots(board, pos[t.fid], e.ranged) if s == pos[e.fid] or s not in occupied]
+                spots = [s for s in self.strike_spots(board, pos[t.fid], e.ranged, e.reach) if s == pos[e.fid] or s not in occupied]
                 steps = min((board.distance(pos[e.fid], s) for s in spots), default=MAX_ENEMY_STEPS)
                 if steps >= MAX_ENEMY_STEPS:
                     continue
@@ -1179,19 +1201,19 @@ class MedusaAI(Controller):
         for e in foes if hero_on_board else ():
             if board.share_zone(pos[medusa.fid], pos[e.fid]):
                 score += PRESSURE
-            if despair > 0 and e.hero and board.can_reach_target(pos[medusa.fid], pos[e.fid], medusa.ranged):
+            if despair > 0 and e.hero and board.can_reach_target(pos[medusa.fid], pos[e.fid], medusa.ranged, medusa.reach):
                 score += despair * WIN_PRIZE * PROGRESS_DISCOUNT * self.win_progress(game, model, medusa, e)
         if hero_on_board and medusa.name != "Medusa" and foes and not self.hit_and_run(game):     # a fighter that fears the rival's blows still has to close in to hit back
             if medusa.ranged:       # a shooter only needs a space from which it can attack, not to stand next to the rival
                 score -= APPROACH_PULL * min(
-                    (board.distance(pos[medusa.fid], s) for e in foes for s in self.strike_spots(board, pos[e.fid], True)),
+                    (board.distance(pos[medusa.fid], s) for e in foes for s in self.strike_spots(board, pos[e.fid], True, medusa.reach)),
                     default=0)
             else:
                 score -= APPROACH_PULL * min(board.distance(pos[medusa.fid], pos[e.fid]) for e in foes)
         for h in mine:
             if not h.hero and foes:
                 score -= 0.05 * min(board.distance(pos[h.fid], pos[e.fid]) for e in foes)
-                if is_striker(game, h) and any(board.can_reach_target(pos[h.fid], pos[e.fid], h.ranged) for e in foes):
+                if is_striker(game, h) and any(board.can_reach_target(pos[h.fid], pos[e.fid], h.ranged, h.reach) for e in foes):
                     score += self.strike_reward(game, h)
         return score
 
@@ -1209,7 +1231,7 @@ class MedusaAI(Controller):
                 if e.pos is None:
                     continue
                 strikes = game.legal_moves(e, e.move + 1) | {e.pos}
-                if any(game.board.can_reach_target(s, t.pos, e.ranged) for s in strikes):
+                if any(game.board.can_reach_target(s, t.pos, e.ranged, e.reach) for s in strikes):
                     risk = max(risk, self.two_hit_threat(model, e, t, hand)[1])
             return risk
         finally:
@@ -1223,7 +1245,7 @@ class MedusaAI(Controller):
         hand = game.players[self.me].hand
         risk = 0.0
         for e in game.foes(self.me):
-            if e.fid not in pos or not any(s == pos[e.fid] for s in self.strike_spots(game.board, pos[me.fid], e.ranged)):
+            if e.fid not in pos or not any(s == pos[e.fid] for s in self.strike_spots(game.board, pos[me.fid], e.ranged, e.reach)):
                 continue
             risk = max(risk, self.two_hit_threat(model, e, me, hand)[1])
         return risk
@@ -1264,7 +1286,7 @@ class MedusaAI(Controller):
         b = game.board
         near = min(b.distance(dest, e.pos) for e in foes)
         if is_striker(game, h):
-            reach = any(b.can_reach_target(dest, e.pos, h.ranged) for e in foes)
+            reach = any(b.can_reach_target(dest, e.pos, h.ranged, h.reach) for e in foes)
             return -0.25 * near + (self.strike_reward(game, h) if reach else 0.0)
         return -0.25 * near + (0.6 if near == 1 else 0.0)
 
@@ -1276,7 +1298,7 @@ class MedusaAI(Controller):
                 or not any(c.can_attack and c.usable_by(f.name) for c in game.players[self.me].hand)):
             return set()
         foes = game.foes(self.me)
-        return {d for d in options if any(game.board.can_reach_target(d, e.pos, f.ranged) for e in foes)}
+        return {d for d in options if any(game.board.can_reach_target(d, e.pos, f.ranged, f.reach) for e in foes)}
 
     @staticmethod
     def hazard_cost(game: Game, f: Fighter, dest: int, steps: int, through: bool) -> float:
@@ -1380,6 +1402,8 @@ class MedusaAI(Controller):
                 net = game.combat_damage_taken(t, max(0, ctx.atk_value + c.boost - ctx.def_value))
                 gain = weight(t) * (min(net, t.hp) - min(now, t.hp))
             gain += boost_effect_value(game, self.me, c) - self.keep(game, c, hand, rel, not defending and boost_limit(ctx.atk_card) >= FINISHER_BOOSTS)
+            if not defending:
+                gain -= CARD_VALUE * declined_draws(ctx.atk_card)      # I Never Miss: not boosting draws a card
             if gain > best_gain:
                 best, best_gain = c, gain
         return best
@@ -1427,7 +1451,7 @@ class MedusaAI(Controller):
             hero = game.hero(target.owner)
             if hero.pos is not None and self._attacker.pos in game.board.adj[hero.pos]:
                 dist = [(1.0, 0)]                      # Doctor Strange is next to the attacker: its value counts for nothing
-        dv = c.value if c else 0
+        dv = (6 if c.title == BETTER and game.fx.won[target.owner] else c.value) if c else 0
         attacker = getattr(self, "_attacker", None)
         if c is not None and c.title == DAUGHTER and attacker is not None and target.pos is not None and attacker.pos in game.board.adj[target.pos]:
             dv = 6                                 # Misty Knight (she defends with it) is next to the attacker

@@ -397,7 +397,7 @@
         "His deck shares CardIDs 17600-17621 with Medusa, the turtles, Doctor Strange and Bigfoot: told apart by deck image and owner, never by a bare CardID (tests/test_hero_daredevil_data.py, tests/test_card_identity.py, tests/test_daredevil_matrix.py); no piece GUID shared with another hero",
         "The special ability is a hero DURING effect of the interpreter (ability.during): BLIND BOOST (declared 0 or 1 up front, cards discarded from the top of the deck) with 2 or fewer cards in hand, surviving a cancelled card, with the owner choosing the order against the card's own DURING effects; the bot declares it by expected score, the human gets 0 / 1 only when it applies and the bot moves the real top card",
         "All 8 cards on the interpreter for both seats: Devil of Hell's Kitchen (8 with an empty deck; the last 4 cards played back into the deck, itself included), Man Without Fear, Feint, Grappling Hook, Take A Knee (discard the top card, heal its BOOST: one button for the human), Son Of A Boxer, Through Adversity (move through rivals, 1 damage to each; the human names who he passed), Breather",
-        "Daredevil against each of the 12 other heroes in both seats reaches game over on FakeTTS (passive and attacking human) and in the simulator with the heuristic and the search AI (tests/test_daredevil_matrix.py)",
+        "Daredevil against each of the 14 other heroes in both seats reaches game over on FakeTTS (passive and attacking human) and in the simulator with the heuristic and the search AI (tests/test_daredevil_matrix.py)",
         "Verified live by Iván (docs/live-checklist.md, section Daredevil)"
       ],
       "note": "Engine additions are additive (docs/effects-dsl.md, section 29). Rules decisions and open questions for Iván: docs/heroes/daredevil.md. Live test pending."
@@ -411,10 +411,24 @@
         "His deck shares CardIDs 17600-17629 with Medusa, the four turtles, Doctor Strange and Bigfoot: told apart by deck image and owner, never by a bare CardID; same-CardID tests in both seats (tests/test_hero_luke_cage_data.py, tests/test_card_identity.py, tests/test_luke_cage_matrix.py); no piece GUID shared with another hero",
         "The ability (2 less combat damage, passive rule combat_damage_reduction) is applied by one place (Game.combat_damage_taken) that the combat flow and the bot's damage estimates share; a blow cut to 0 is a win for the defender",
         "All 13 cards on the interpreter for both seats: Power Man, Skin Like Titanium, Trash Talk, Got My Back? (Houdini's swap machinery), Where's My Money? (SpaceSel next_to_nearest_foe), Still Standing, Pushback, Daughter of the Dragon, Regroup, Get Paid, Commanding Impact, Hero For Hire, Sweet Christmas!",
-        "Luke Cage against each of the 12 other heroes in both seats reaches game over on FakeTTS (passive and attacking human) and in the simulator (tests/test_luke_cage_matrix.py); the human's choices (Got My Back?, Still Standing, the bot's piece moved by hand) are parked runs that survive --resume (tests/test_luke_cage_human.py)",
+        "Luke Cage against each of the 14 other heroes in both seats reaches game over on FakeTTS (passive and attacking human) and in the simulator (tests/test_luke_cage_matrix.py); the human's choices (Got My Back?, Still Standing, the bot's piece moved by hand) are parked runs that survive --resume (tests/test_luke_cage_human.py)",
         "Verified live by Iván (docs/live-checklist.md, section Luke Cage)"
       ],
       "note": "Engine additions are additive (docs/effects-dsl.md, section 30). Rules decisions and open questions for Iván: docs/heroes/luke-cage.md. Live test pending."
+    },
+    {
+      "id": "HERO-BULLSEYE",
+      "title": "Bullseye (Hell's Kitchen, no sidekick) playable by the bot and by the human against every hero",
+      "status": "in-progress",
+      "criteria": [
+        "data/heroes/overlay/bullseye.json, data/heroes/bullseye.json, data/heroes/effects/bullseye.json and data/tts/bullseye.json generated and validated (import_hero, validate_effects, import_save); the 12 titles (30 cards, sheet 176, character card 339) read from the card images; ai_profile computed by the importer",
+        "His deck shares CardIDs 17600-17629 with Medusa, the four turtles, Doctor Strange and Bigfoot: told apart by deck image and owner, never by a bare CardID (tests/test_hero_bullseye_data.py, tests/test_card_identity.py)",
+        "His ability (attack from up to 5 spaces away, zones ignored) is the HeroDef parameter reach_spaces: the engine's attack validation (also the human's attack at the panel), the bot's positioning and the search read it; a generic parameter for any hero that attacks N spaces away",
+        "All 12 cards on the interpreter for both seats: the tally of combats won this turn (World's Greatest Assassin, I'm Better And I'll Prove It, Right Between The Eyes, Study The Target), Arrogant But Effective (considered to have won), I Planned To Be Here, I Never Miss (free BOOST; a draw when it is declined), For My Next Trick, Feint, Master Strategist, Ricochet and Tactical Retreat",
+        "Bullseye against each of the 14 other heroes in both seats reaches game over on FakeTTS (passive and attacking human) and in the simulator (tests/test_bullseye_matrix.py)",
+        "Verified live by Iván (docs/live-checklist.md, section Bullseye)"
+      ],
+      "note": "Engine additions are additive (docs/effects-dsl.md, section 31). Rules decisions and open questions for Iván: docs/heroes/bullseye.md. Live test pending."
     },
     {
       "id": "F20",

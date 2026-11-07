@@ -65,7 +65,8 @@ def snapshot(game, flow=None) -> dict:
             "cancelled_after": [] if flow is None or flow.ctx is None else sorted(flow.ctx.cancelled_after),
             "redirects": 0 if flow is None else len(flow.redirects),
             "mods": {} if flow is None else {side: len(mods) for side, mods in flow.mods.items()},
-            "printed": {} if flow is None else dict(flow.printed_set)}
+            "printed": {} if flow is None else dict(flow.printed_set),
+            "won_by": None if flow is None else flow.considered_won}
 
 
 def describe(game, before: dict, run, flow=None, title: str | None = None) -> str:
@@ -279,6 +280,9 @@ def _combat(before: dict, flow) -> list[str]:
         else:
             out += [t("narr.value_delta", title=card.title, delta=f"{delta:+d}")
                     for delta, _ in flow.mods[side][before["mods"].get(side, 0):]]
+    if flow.considered_won and flow.considered_won != before.get("won_by"):        # "you are considered to have won this combat"
+        owner = flow.att.owner if flow.considered_won == "atk" else flow.tgt.owner
+        out.append(t("narr.considered_won.bot" if owner == flow.game.bot_player else "narr.considered_won.human"))
     for r in flow.redirects[before["redirects"]:]:
         to = r["to"].get("name") if isinstance(r["to"], dict) else None
         out.append(t("narr.redirects_to", to=to) if to else t("narr.redirects"))

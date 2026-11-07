@@ -37,6 +37,7 @@ class Fighter:
     pos: int | None = None
     alive: bool = True
     died_at: int | None = None     # space where it fell: an HP mistake is undone by putting it back there
+    reach: int = 0                 # attacks anyone up to this many spaces away, zones ignored (Bullseye: 5); 0 = the usual rule
 
 
 @dataclass
@@ -272,12 +273,12 @@ class Game:
             for spec in defs[owner].fighters():
                 if not spec.on_board:       # starts in reserve: off the board until an effect summons it
                     fighters.append(Fighter(spec.fid, spec.name, owner, spec.hero, spec.hp, spec.hp, spec.move,
-                                            spec.ranged, None, alive=False))
+                                            spec.ranged, None, alive=False, reach=spec.reach))
                     continue
                 pos = board.nearest_free(start_spaces[owner], taken, zone_of=start_spaces[owner])
                 taken.add(pos)
                 fighters.append(Fighter(spec.fid, spec.name, owner, spec.hero, spec.hp, spec.hp, spec.move,
-                                        spec.ranged, pos))
+                                        spec.ranged, pos, reach=spec.reach))
         for p in players:
             p.deck = list(p.full_set)
             rng.shuffle(p.deck)
@@ -440,7 +441,7 @@ class Game:
     def can_attack(self, attacker: Fighter, target: Fighter) -> bool:
         return (attacker.alive and target.alive and attacker.owner != target.owner
                 and self.fx.may_attack(attacker.owner)
-                and self.board.can_reach_target(attacker.pos, target.pos, attacker.ranged))
+                and self.board.can_reach_target(attacker.pos, target.pos, attacker.ranged, attacker.reach))
 
     # known hand of the rival (effect "look at the hand"): see KnownHand
     def observe_hand(self, viewer: int, cards: list[Card]) -> None:

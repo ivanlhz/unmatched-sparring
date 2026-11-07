@@ -1,0 +1,174 @@
+{
+ "schema": 1,
+ "hero": "bullseye",
+ "notes": [
+  "Texts read from sheet 176 of the tournament savegame (card images) on 2026-11-07; the character card is 339 on sheet 3 (10x7, index 39). Sheet 176 is also Medusa's, the four turtles', Doctor Strange's and Bigfoot's DeckID: the CardIDs repeat and only the deck image tells the decks apart (docs/card-identity.md).",
+  "The ability (attack from up to 5 spaces away, zones ignored) is not an effect: it is the HeroDef's `reach_spaces` (docs/effects-dsl.md, section 31), read by the engine's attack validation and the bot's positioning.",
+  "Four additive engine pieces came with him (section 31): the stat `combats_won_this_turn` ('if you already won a combat this turn'), the op `consider_won` (Arrogant But Effective), the SpaceSel `no_zone_of` (Tactical Retreat) and the card's `unboosted` ops (I Never Miss: 'if you don't BOOST this attack, draw 1 card'). Everything else uses ops that already existed.",
+  "'Already won a combat this turn' is the tally of the CURRENT turn whoever's it is, for combats that ended before the one being resolved (the damage of this combat is dealt after DURING, so it is not counted in IMMEDIATELY or DURING). A combat won because of 'you are considered to have won' counts as won."
+ ],
+ "ability": {
+  "text": "Bullseye can attack from up to 5 spaces away (ignoring zones).",
+  "triggers": [],
+  "passives": [],
+  "notes": "Data, not effects: HeroDef `reach_spaces: 5` (overlay). Bullseye is ranged on his character card; the reach (5 spaces, zones ignored) ADDS to the ranged zone rule: same-zone targets farther than 5 spaces stay in reach."
+ },
+ "cards": [
+  {
+   "title": "World's Greatest Assassin",
+   "copies": 2,
+   "text": "IMMEDIATELY: If you already won a combat this turn, ignore the value of your opponent's card.",
+   "effects": {
+    "during": [], "after": [], "scheme": [], "boost": [],
+    "immediately": [
+     {"op": "if", "condition": {"test": "compare", "left": {"stat": "combats_won_this_turn", "player": "owner"}, "op": ">=", "right": 1},
+      "then": [{"op": "set_value", "card": "opponent_card", "ignore": true}]}
+    ]
+   },
+   "notes": "Attack 4 / boost 3. Incinerate's `set_value ignore`: the rival card's whole value counts for 0 at that moment; a BOOST or an effect of theirs that resolves later still adds."
+  },
+  {
+   "title": "I Planned To Be Here",
+   "copies": 2,
+   "text": "DURING COMBAT: If you started your turn in your current space, the value of this card is 5 instead.",
+   "effects": {
+    "immediately": [], "after": [], "scheme": [], "boost": [],
+    "during": [
+     {"op": "if", "condition": {"not": {"test": "moved_this_turn", "fighter": "this"}},
+      "then": [{"op": "set_value", "card": "this", "amount": 5}]}
+    ]
+   },
+   "notes": "Attack 2 / boost 3. 'Started your turn in your current space' is `not moved_this_turn` (the space at the start of the turn against the one now). The printed value becomes 5, bonuses stay."
+  },
+  {
+   "title": "I Never Miss",
+   "copies": 4,
+   "text": "DURING COMBAT: You may BOOST this attack. If you don't BOOST this attack, draw 1 card.",
+   "may_boost": true,
+   "effects": {
+    "immediately": [], "during": [], "after": [], "scheme": [], "boost": [],
+    "unboosted": [{"op": "draw", "player": "owner", "amount": 1}]
+   },
+   "notes": "Attack 3 / boost 2. The free BOOST of `may_boost`; when the owner declines it (or has nothing to boost with) the `unboosted` ops run right after, still in the DURING: they draw 1 card. A cancelled card has no DURING, so no boost and no draw."
+  },
+  {
+   "title": "For My Next Trick",
+   "copies": 3,
+   "text": "AFTER COMBAT: Move Bullseye up to 1 space. Draw 1 card. Gain 1 action.",
+   "effects": {
+    "immediately": [], "during": [], "scheme": [], "boost": [],
+    "after": [
+     {"op": "move", "target": "hero", "amount": 1, "up_to": true, "chooser": "owner"},
+     {"op": "draw", "player": "owner", "amount": 1},
+     {"op": "gain_action", "amount": 1}
+    ]
+   },
+   "notes": "Attack 2 / boost 2. Won or not. The card says 'Bullseye' (unmatched-memory: 'one of your fighters'; he has no sidekicks). A defeated Bullseye does not move. The attack is own-turn only, so the action is gained."
+  },
+  {
+   "title": "Feint",
+   "copies": 2,
+   "text": "IMMEDIATELY: Cancel all effects on your opponent's card.",
+   "effects": {"immediately": [{"op": "cancel_effects", "card": "opponent_card"}], "during": [], "after": [], "scheme": [], "boost": []},
+   "notes": "Versatile 2 / boost 2."
+  },
+  {
+   "title": "Arrogant But Effective",
+   "copies": 3,
+   "text": "AFTER COMBAT: You are considered to have won this combat. Move Bullseye up to 2 spaces.",
+   "effects": {
+    "immediately": [], "during": [], "scheme": [], "boost": [],
+    "after": [
+     {"op": "consider_won"},
+     {"op": "move", "target": "hero", "amount": 2, "up_to": true, "chooser": "owner"}
+    ]
+   },
+   "notes": "Versatile 2 / boost 2. 'Considered to have won' (op consider_won): from this AFTER on the combat counts as won by Bullseye's side for every condition that reads it (the rival's AFTER when Bullseye attacked, since the defender resolves first) and for the turn's tally (`combats_won_this_turn`, which World's Greatest Assassin, I'm Better And I'll Prove It, Right Between The Eyes and Study The Target read); the combat moves from the rival's wins and Bullseye's losses to Bullseye's wins and the rival's losses. The damage already dealt is not undone. Open question."
+  },
+  {
+   "title": "I'm Better And I'll Prove It",
+   "copies": 2,
+   "text": "DURING COMBAT: If you already won a combat this turn, the value of this card is 6 instead.",
+   "effects": {
+    "immediately": [], "after": [], "scheme": [], "boost": [],
+    "during": [
+     {"op": "if", "condition": {"test": "compare", "left": {"stat": "combats_won_this_turn", "player": "owner"}, "op": ">=", "right": 1},
+      "then": [{"op": "set_value", "card": "this", "amount": 6}]}
+    ]
+   },
+   "notes": "Versatile 2 / boost 2. The printed value becomes 6, bonuses stay."
+  },
+  {
+   "title": "Master Strategist",
+   "copies": 2,
+   "text": "AFTER COMBAT: Move Bullseye exactly 4 spaces. You may move through opposing fighters.",
+   "effects": {
+    "immediately": [], "during": [], "scheme": [], "boost": [],
+    "after": [
+     {"op": "move", "target": "hero", "amount": 4, "up_to": false, "through_enemies": true, "chooser": "owner"}
+    ]
+   },
+   "notes": "Versatile 3 / boost 3. Exactly 4 (`up_to: false`): the destinations exactly 4 spaces away when there are some, else any space within 4 (the interpreter's reading of 'exactly' when the map or the rival's fighter leaves none). Through opposing fighters, never ending on one."
+  },
+  {
+   "title": "Ricochet",
+   "copies": 3,
+   "text": "AFTER COMBAT: If the opposing fighter was not defeated, deal 1 damage to a fighter in the opposing fighter's zone.",
+   "effects": {
+    "immediately": [], "during": [], "scheme": [], "boost": [],
+    "after": [
+     {"op": "if", "condition": {"test": "exists", "fighters": {"role": "opposing"}},
+      "then": [{"op": "damage", "target": {"side": "any", "where": {"zone_of": "opposing"}}, "amount": 1, "chooser": "owner"}]}
+    ]
+   },
+   "notes": "Versatile 3 / boost 2. Effect damage. The owner chooses among ALL the fighters in the opposing fighter's zone, the opposing fighter included (it is still in its own zone) and Bullseye's own side too if it stands there (the card says 'a fighter'; Iván, 28/10, for Medusa's Glance); the bot never hits its own. The opposing fighter defeated in the combat: nothing."
+  },
+  {
+   "title": "Right Between The Eyes",
+   "copies": 2,
+   "text": "IMMEDIATELY: If you already won a combat this turn, your opponent discards 1 card.",
+   "effects": {
+    "during": [], "after": [], "scheme": [], "boost": [],
+    "immediately": [
+     {"op": "if", "condition": {"test": "compare", "left": {"stat": "combats_won_this_turn", "player": "owner"}, "op": ">=", "right": 1},
+      "then": [{"op": "discard", "cards": {"zone": "hand", "player": "opponent", "amount": 1, "chooser": "opponent"}}]}
+    ]
+   },
+   "notes": "Versatile 3 / boost 3. The rival chooses the card (Clutching Claws' rule); the card they play in this combat is already out of their hand."
+  },
+  {
+   "title": "Tactical Retreat",
+   "copies": 3,
+   "text": "AFTER COMBAT: Place Bullseye in a space that shares no zones with his current space.",
+   "effects": {
+    "immediately": [], "during": [], "scheme": [], "boost": [],
+    "after": [
+     {"op": "place", "target": "hero", "where": {"no_zone_of": "hero", "other": true}, "chooser": "owner"}
+    ]
+   },
+   "notes": "Defense 3 / boost 2. Any empty space none of whose zones is a zone of the space he stands on (SpaceSel `no_zone_of`). A teleport: no path, no range. No such space (a small map): nothing happens. A defeated Bullseye is not placed."
+  },
+  {
+   "title": "Study The Target",
+   "copies": 2,
+   "text": "Draw 2 cards. If you won a combat this turn, draw 1 additional card and gain 1 action.",
+   "effects": {
+    "immediately": [], "during": [], "after": [], "boost": [],
+    "scheme": [
+     {"op": "draw", "player": "owner", "amount": 2},
+     {"op": "if", "condition": {"test": "compare", "left": {"stat": "combats_won_this_turn", "player": "owner"}, "op": ">=", "right": 1},
+      "then": [{"op": "draw", "player": "owner", "amount": 1}, {"op": "gain_action", "amount": 1}]}
+    ]
+   },
+   "notes": "Scheme, boost 3. Played on his own turn: the tally is of this turn's combats. Three cards and one action back (net zero action) after a won combat."
+  }
+ ],
+ "plugins": [],
+ "hidden_info": [],
+ "open_questions": [
+  "Arrogant But Effective: 'considered to have won' is read as moving the whole result (the rival loses it too, the tally of both sides follows) from its AFTER on.",
+  "Ricochet: 'a fighter in the opposing fighter's zone' includes the opposing fighter itself and Bullseye's own fighters.",
+  "Master Strategist: 'exactly 4 spaces' with no space exactly 4 away falls back to any space within 4.",
+  "Right Between The Eyes: the discard is the rival's choice and happens at IMMEDIATELY, before the rival's DURING."
+ ]
+}

@@ -1,0 +1,30 @@
+{
+ "slug": "bullseye",
+ "bag": {
+  "guid": "4c1656",
+  "inner": "3db866"
+ },
+ "deck": {
+  "guid": "303a39",
+  "card_ids": [
+   17600,
+   17629
+  ],
+  "character_card_id": 339,
+  "identity": [
+   {
+    "face": "https://steamusercontent-a.akamaihd.net/ugc/12077623608186487680/B96ACE9016D1379045E426C45485C0E002B4DCD1/",
+    "back": "https://steamusercontent-a.akamaihd.net/ugc/13747940337316207451/8B30CB0DA985A2D250FA211D717E3CDE4EA2D9FD/"
+   }
+  ]
+ },
+ "fighters": {
+  "bullseye": {
+   "piece": "ca1bc5",
+   "dial": "166320",
+   "dial_max": 14
+  }
+ },
+ "tokens": {},
+ "counter_dials": {}
+}

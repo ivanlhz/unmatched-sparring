@@ -322,7 +322,7 @@ def _where_refs(game, run, where: dict) -> dict:
         out["other"] = True
     if "next_to_nearest_foe" in where:
         out["next_to_nearest_foe"] = True
-    for key in ("zone_of", "adjacent_to", "nearest_to"):
+    for key in ("zone_of", "no_zone_of", "adjacent_to", "nearest_to"):
         if key in where:
             ref = _ref_fighter(game, run, where[key])
             if ref is not None:
@@ -334,7 +334,7 @@ def _note_where(game, run, where: dict) -> dict:
     """The SpaceSel for the chat line the human reads: the references resolved to who they are NOW (the owner's hero stays
     "hero"; any other fighter, `this` included, is named), so "this fighter's zone" of a sidekick is not "your hero's zone"."""
     out = dict(where)
-    for key in ("zone_of", "adjacent_to", "nearest_to"):
+    for key in ("zone_of", "no_zone_of", "adjacent_to", "nearest_to"):
         if key in where:
             ref = _ref_fighter(game, run, where[key])
             if ref is not None:

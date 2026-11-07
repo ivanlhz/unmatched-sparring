@@ -64,7 +64,7 @@ def next_turn_reach(game: Game, me, rival_hero) -> bool:
     taken = {f.pos for f in game.fighters.values() if f.alive}
     return any(s == rival_hero.pos or s not in taken
                for s in board.spaces
-               if board.can_reach_target(s, me.pos, rival_hero.ranged) and board.distance(rival_hero.pos, s) <= rival_hero.move)
+               if board.can_reach_target(s, me.pos, rival_hero.ranged, rival_hero.reach) and board.distance(rival_hero.pos, s) <= rival_hero.move)
 
 
 def play(seed: int, hero: str, rival: str, finisher: str, board: str = "bprd-hq") -> dict:

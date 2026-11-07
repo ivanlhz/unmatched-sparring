@@ -51,6 +51,8 @@ Daredevil (`tests/test_hero_daredevil_data.py`, `tests/test_daredevil_matrix.py`
 Bigfoot (`tests/test_hero_bigfoot_data.py`, `tests/test_bigfoot_matrix.py`) follows these rules like Doctor Strange: his own `deck.identity` in
 `data/tts/bigfoot.json`, and a matrix against the other ten heroes of the project in both seats.
 
+Bullseye (Hell's Kitchen, character card 339) is the tenth deck of sheet 176 (`tests/test_hero_bullseye_data.py`, `tests/test_bullseye_matrix.py`): his own `deck.identity` in `data/tts/bullseye.json`, a matrix against the other fourteen heroes in both seats, and `SHARING` in `tests/test_card_identity.py`.
+
 ## Houdini needs none of this
 
 Houdini's deck is sheet 178 (CardIDs 17800-17829) with the character card on a sheet of its own (177, CardID 17700); no other hero of

@@ -10,7 +10,7 @@ from typing import Iterator
 from ..board import DATA_DIR
 
 EFFECTS_DIR = DATA_DIR / "heroes" / "effects"
-MOMENTS = ("immediately", "during", "after", "scheme", "boost")
+MOMENTS = ("immediately", "during", "after", "scheme", "boost", "unboosted")      # unboosted: a `may_boost` card's DURING ops for when its owner did not BOOST (I Never Miss)
 
 
 class EffectError(Exception):
