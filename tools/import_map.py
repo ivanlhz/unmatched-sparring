@@ -479,7 +479,7 @@ class Extracted:
     passages: list[list[int]] = field(default_factory=list)    # secret-passage groups: movement links, not adjacency
     bonuses: list[dict] = field(default_factory=list)          # directional attack bonuses (stairs): {from, to, value}
     one_way: list[list[int]] = field(default_factory=list)     # [from, to]: movement only from -> to (still adjacent)
-    hazards: list[dict] = field(default_factory=list)          # {edge: [a, b], damage}: hurts the first crossing in a turn
+    hazards: list[dict] = field(default_factory=list)          # {edge: [a, b], damage}: a fighter takes it the first time in a turn it crosses a hazard edge (once per turn in all)
 
     @property
     def playable(self) -> bool:

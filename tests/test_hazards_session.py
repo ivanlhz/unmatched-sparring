@@ -77,7 +77,7 @@ def test_the_hero_that_places_itself_with_a_boosted_maneuver_is_never_charged(ri
     assert hb.pos == nb and hb.hp == hp
 
 
-def test_the_hp_in_each_message_of_a_move_over_two_hazards_follows_the_hits(rig, monkeypatch):    # noqa: F811
+def test_a_hand_move_over_two_hazards_is_charged_and_announced_once(rig, monkeypatch):    # noqa: F811
     session, table, game = rig
     hb = game.fighters["hellboy"]
     b = game.board
@@ -88,8 +88,8 @@ def test_the_hp_in_each_message_of_a_move_over_two_hazards_follows_the_hits(rig,
     hp = hb.hp
     put_on_table(session, table, "Hellboy", dst)
     said = [str(m) for m in session.messages if "peligroso" in str(m)]
-    assert len(said) == 2
-    assert f"de {hp:g} a {hp - 1:g}" in said[0] and f"de {hp - 1:g} a {hp - 3:g}" in said[1], said
+    assert len(said) == 1, "one hurt per turn in all: the second hazard on the way is free"
+    assert f"de {hp:g} a {hp - 1:g}" in said[0], said
 
 
 def test_a_move_the_engine_makes_in_a_human_effect_is_announced_and_the_dials_written_at_once(rig, monkeypatch):    # noqa: F811

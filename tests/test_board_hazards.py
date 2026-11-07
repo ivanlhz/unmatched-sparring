@@ -1,4 +1,4 @@
-"""Hazard edges: the first time a fighter crosses one in a turn it takes the edge's damage, whoever's turn it is."""
+"""Hazard edges: the first time in a turn a fighter crosses one it takes the edge's damage (once per turn in all), whoever's turn it is."""
 from __future__ import annotations
 
 import json
@@ -38,12 +38,13 @@ def test_the_mover_takes_the_way_with_least_damage():
     assert g.hazard_path(0, 4, 2) == [edge_key(0, 2)]                 # 0-2-4 costs 1, 0-3-4 costs 2
     g.hazards = {edge_key(0, 2): 3, edge_key(0, 3): 1}
     assert g.hazard_path(0, 4, 2) == [edge_key(0, 3)]
+    assert g.hazard_path(0, 4, 2, hurt=True) == []                     # already hurt this turn: nothing more to pay
     assert g.hazard_path(0, 1, 2) == []                                # 0-1 is free
     assert g.hazard_path(0, 4, 2, blocked=frozenset({3})) == [edge_key(0, 2)]
     assert g.hazard_path(0, 0, 2) == [] and Board.load("bprd-hq").hazard_path(0, 4, 2) == []
 
 
-def test_a_move_across_a_hazard_edge_hurts_once_per_turn():
+def test_a_fighter_is_hurt_by_hazard_edges_once_per_turn_in_total():
     g, med = duel()
     hp = med.hp
     g.move_fighter(med, 2, 1)
@@ -52,8 +53,8 @@ def test_a_move_across_a_hazard_edge_hurts_once_per_turn():
     g.move_fighter(med, 2, 1)
     assert med.hp == hp - 1
     g.move_fighter(med, 0, 1)
-    g.move_fighter(med, 3, 1)                                           # another hazard edge hurts
-    assert med.hp == hp - 3
+    g.move_fighter(med, 3, 1)                                           # another hazard edge: still free, one hurt per turn in all
+    assert med.hp == hp - 1 and len(g.hazard_hits) == 1
 
 
 def test_the_edge_hurts_again_the_next_turn_and_both_players_pay():
@@ -91,7 +92,7 @@ def test_hazard_damage_is_known_before_moving_and_the_clone_keeps_what_was_paid(
     g, med = duel()
     assert g.hazard_damage(med, 2, 1) == 1 and g.hazard_damage(med, 4, 2) == 1
     g.move_fighter(med, 2, 1)
-    assert g.hazard_damage(med, 0, 1) == 0
+    assert g.hazard_damage(med, 0, 1) == 0 and g.hazard_damage(med, 3, 1) == 0
     clone = g.clone()
     assert clone.hazard_taken == g.hazard_taken and clone.hazard_hits == []
 
@@ -104,6 +105,38 @@ def test_what_was_paid_survives_a_save():
     apply_game(other, saved)
     assert other.hazard_taken == g.hazard_taken
     assert "hazard_taken" not in game_to_dict(duel()[0])
+
+
+def test_an_old_save_with_fighter_and_edge_pairs_still_loads():
+    g, _ = duel()
+    saved = json.loads(json.dumps(game_to_dict(g)))
+    saved["hazard_taken"] = [["medusa", [0, 2]], ["hellboy", [0, 3]]]
+    apply_game(g, saved)
+    assert g.hazard_taken == {"medusa", "hellboy"}
+
+
+def test_the_least_damage_path_pays_only_its_first_hazard_edge():
+    g, med = duel(hazards={edge_key(0, 2): 2, edge_key(2, 4): 3, edge_key(0, 3): 3, edge_key(3, 4): 3})
+    assert g.board.hazard_path(0, 4, 2) == [edge_key(0, 2)]            # 0-2-4 would cost 5 per edge, now the first edge: 2
+    hp = med.hp
+    g.move_fighter(med, 4, 2)
+    assert med.hp == hp - 2 and len(g.hazard_hits) == 1
+
+
+def test_the_real_pandemonium_hazards_load_and_are_charged_once():
+    b = Board.load("pandemonium")
+    assert b.hazards == {edge_key(*e): 1 for e in [(16, 13), (18, 9), (8, 10), (10, 7), (5, 4), (27, 2), (26, 2)]}
+    g = Game.new(b, seed=3, controllers={0: Scripted(), 1: Scripted()})
+    g.turn, g.turn_no = 0, 2
+    g.begin_turn()
+    place(g, medusa=2, hellboy=15, harpy1=20, harpy2=21, harpy3=22, lobster=1)
+    med = g.fighters["medusa"]
+    path = b.hazard_path(2, 28, None)
+    assert path == [edge_key(2, 27)]                                   # distance 2 and every shortest way crosses 2-27
+    assert g.hazard_damage(med, 28, None, True) == 1
+    hp = med.hp
+    g.walk(med, 28, None, True)
+    assert med.hp == hp - 1 and g.hazard_damage(med, 2, None, True) == 0
 
 
 def test_the_bot_does_not_walk_into_a_hazard_for_a_small_gain(monkeypatch):
@@ -137,12 +170,12 @@ def test_a_human_move_with_blockers_pays_for_the_way_that_is_open():
     raise AssertionError("no such place on bprd-hq")
 
 
-def test_each_hit_records_the_hp_before_and_the_damage_really_dealt(monkeypatch):
+def test_the_hit_records_the_hp_before_and_the_damage_really_dealt(monkeypatch):
     g, med = duel(hazards={edge_key(0, 2): 2, edge_key(2, 4): 3, edge_key(0, 3): 3, edge_key(3, 4): 3})
     monkeypatch.setattr(type(g.fx), "adjust_damage", lambda self, f, n, source: n - 1)        # an effect that softens every hit by 1
     hp = med.hp
     g.move_fighter(med, 4, 2)
-    assert g.hazard_hits == [("medusa", edge_key(0, 2), 1, hp), ("medusa", edge_key(2, 4), 2, hp - 1)]
+    assert g.hazard_hits == [("medusa", edge_key(0, 2), 1, hp)]
 
 
 def test_a_hit_that_is_prevented_is_not_recorded(monkeypatch):
