@@ -1175,14 +1175,14 @@ for inner, w in pairs(wanted) do
       local give = {{position = Vector(w.spot[1], w.spot[2], w.spot[3]), smooth = false}}
       if not infinite then give.guid = inner end
       give.callback_function = function(o)
-                           if replied then                -- it arrived after the timeout reply: nobody will unpack or clean it
-                             if o ~= nil then o.destruct() end
+                           if replied then                -- it arrived after the timeout reply: nobody will unpack it
+                             if o ~= nil and infinite then o.destruct() end    -- a copy; a real inner bag (taken by GUID) is left
                              return
                            end
                            if o == nil or o.type ~= "Bag" then
                              table.insert(out.bags_failed, {{guid = inner, why = "listed"}})
                              pending = pending - 1
-                             if o ~= nil then o.destruct() end
+                             if o ~= nil and infinite then o.destruct() end    -- only a copy; never the real object taken by GUID
                              if started and pending == 0 then safely() end
                              return
                            end

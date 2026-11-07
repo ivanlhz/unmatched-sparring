@@ -175,8 +175,8 @@ def test_restart_moves_every_piece_off_the_board_to_the_two_dead_spots(brig, tmp
     click(session, table, Event.RESTART)
     placed = {name: (x, z) for name, x, y, z in table.placed}
     assert set(placed) == set(session.cfg.nicknames.values())
-    assert all(placed[n][0] > 15 for n in ("Medusa", "Harpy 1", "Harpy 2", "Harpy 3"))
-    assert all(placed[n][0] < -15 for n in ("Hellboy", "Lobster Johnson"))
+    assert all(placed[n][0] > 19 for n in ("Medusa", "Harpy 1", "Harpy 2", "Harpy 3"))
+    assert all(placed[n][0] < -19 for n in ("Hellboy", "Lobster Johnson"))
     assert len({v for v in placed.values()}) == 6, "each piece in its slot"
 
 
