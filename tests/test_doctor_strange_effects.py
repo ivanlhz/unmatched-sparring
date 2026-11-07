@@ -97,7 +97,7 @@ def test_bolts_gain_an_action_when_they_win_and_blind_boost_adds_the_top_card_of
     decline_pact(g)
     s, liz = pair(g, "strange", "liz")
     (top,) = on_top(g, 0, "Bolts of Balthakk")
-    g.controllers[0].choose_effect = lambda game, req: [True] if req.extra.get("blind_boost") else ([False] if "pact" in req.extra else None)
+    g.controllers[0].choose_effect = lambda game, req: [1] if req.extra.get("blind_count") else ([False] if "pact" in req.extra else None)
     g.actions_left = 2
     card = give(g, 0, "Bolts of Balthakk", 1)
     deck_before = len(g.players[0].deck)
@@ -111,7 +111,7 @@ def test_bolts_without_a_blind_boost_use_nothing_and_a_lost_combat_gives_no_acti
     g = mk(bprd, "liz-sherman")
     decline_pact(g)
     s, liz = pair(g, "strange", "liz")
-    g.controllers[0].choose_effect = lambda game, req: [False]
+    g.controllers[0].choose_effect = lambda game, req: [0] if req.extra.get("blind_count") else [False]
     g.actions_left = 2
     card = give(g, 0, "Bolts of Balthakk")
     deck_before = len(g.players[0].deck)
@@ -124,12 +124,12 @@ def test_seven_suns_blind_boost_twice_and_a_total_above_seven_counts_for_nothing
     decline_pact(g)
     s, liz = pair(g, "strange", "liz")
     on_top(g, 0, "Bolts of Balthakk", "Bolts of Balthakk")        # boost 3 each: 3 + 3 + 3 = 9 > 7
-    g.controllers[0].choose_effect = lambda game, req: [True] if req.extra.get("blind_boost") else ([False] if "pact" in req.extra else None)
+    g.controllers[0].choose_effect = lambda game, req: [2] if req.extra.get("blind_count") else ([False] if "pact" in req.extra else None)
     res = g.attack(s, liz, give(g, 0, "Seven Suns of Cinnibus"), None)
     assert res.atk_value == 0 and res.damage == 0 and not res.attacker_won
 
 
-def test_seven_suns_stay_at_seven_or_below_and_are_boosted_up_to_two_times_only(bprd):
+def test_seven_suns_declare_the_count_once_before_any_card_moves_and_take_that_many_cards(bprd):
     g = mk(bprd, "liz-sherman")
     decline_pact(g)
     s, liz = pair(g, "strange", "liz")
@@ -137,13 +137,40 @@ def test_seven_suns_stay_at_seven_or_below_and_are_boosted_up_to_two_times_only(
     asked = []
 
     def choose(game, req):
-        if req.extra.get("blind_boost"):
-            asked.append(req.extra["left"])
-            return [True]
+        if req.extra.get("blind_count"):
+            asked.append((req.kind, list(req.options), len(game.players[0].deck)))
+            return [2]
         return [False] if "pact" in req.extra else None
     g.controllers[0].choose_effect = choose
+    deck_before = len(g.players[0].deck)
     res = g.attack(s, liz, give(g, 0, "Seven Suns of Cinnibus"), None)
-    assert asked == [2, 1] and res.atk_value == 3 + 2 + 1 == 6 and res.attacker_won
+    assert asked == [("amount", [0, 1, 2], deck_before)], "one up-front question, the deck untouched when it is asked"
+    assert res.atk_value == 3 + 2 + 1 == 6 and res.attacker_won and len(g.players[0].deck) == deck_before - 2
+
+
+def test_bolts_offer_zero_or_one_and_an_empty_deck_is_not_asked(bprd):
+    g = mk(bprd, "liz-sherman")
+    decline_pact(g)
+    s, liz = pair(g, "strange", "liz")
+    seen = []
+    g.controllers[0].choose_effect = lambda game, req: (seen.append(list(req.options)) or [0]) if req.extra.get("blind_count") else None
+    g.attack(s, liz, give(g, 0, "Bolts of Balthakk"), None)
+    assert seen == [[0, 1]]
+    g.players[0].deck.clear()
+    g.actions_left = 2
+    g.attack(s, liz, give(g, 0, "Bolts of Balthakk", 1), None)
+    assert seen == [[0, 1]], "no cards on the deck: nothing to declare"
+
+
+def test_a_deck_with_fewer_cards_than_declared_gives_what_it_has(bprd):
+    g = mk(bprd, "liz-sherman")
+    decline_pact(g)
+    s, liz = pair(g, "strange", "liz")
+    g.players[0].deck[:] = g.players[0].deck[:1]
+    top = g.players[0].deck[0]
+    g.controllers[0].choose_effect = lambda game, req: [2] if req.extra.get("blind_count") else None
+    res = g.attack(s, liz, give(g, 0, "Seven Suns of Cinnibus"), None)
+    assert res.atk_value == 3 + top.boost and top in g.players[0].discard and g.players[0].deck == []
 
 
 # ---------------------------------------------------------------- versatile cards
@@ -460,16 +487,54 @@ def test_the_bot_does_not_pay_dark_pact_when_the_hit_point_leaves_it_in_lethal_r
     assert risk[8] > 0.05 and not ai._dark_pact(g, pact_request(g, hp_left=9))      # a point more risk than it brings
 
 
-def test_a_blind_boost_that_could_push_seven_suns_over_seven_is_declined_and_a_safe_one_taken(bprd):
-    g = mk(bprd, "liz-sherman")
-    s, liz = pair(g, "strange", "liz")
-    ai = EffectAI(0)
+def blind_count_request(value, limit, options=(0, 1, 2)):
+    extra = {"blind_count": True, "times": max(options), "attacking": True, "margin": value - 4, "value": value, "limit": limit,
+             "target": "liz"}
+    return ChoiceRequest("amount", 0, list(options), 1, 1, None, "during/x:0", "", extra, 0)
 
-    def ask(value, limit):
-        extra = {"blind_boost": True, "left": 1, "attacking": True, "margin": value - 4, "value": value, "limit": limit,
-                 "target": "liz"}
-        return ai._blind_boost(g, ChoiceRequest("optional", 0, [True, False], 1, 1, None, "during/x:0", "", extra, 0))
-    assert ask(3, 7) is True and ask(6, 7) is False and ask(2, None) is True
+
+def deck_of(g, *titles):
+    """The bot's deck holds only the first card of each title; every other card is in its discard pile."""
+    st = g.players[0]
+    keep = [next(c for c in st.deck if c.title == t) for t in titles]
+    st.discard.extend(c for c in st.deck if c not in keep)
+    st.deck[:] = keep
+
+
+def test_the_bot_declares_the_count_by_expected_score_with_the_seven_suns_overshoot_counted_up_front(bprd):
+    g = mk(bprd, "liz-sherman")
+    pair(g, "strange", "liz")
+    ai = EffectAI(0)
+    ask = lambda value, limit, options=(0, 1, 2): ai._blind_boost(g, blind_count_request(value, limit, options=options))
+    deck_of(g, "Bolts of Balthakk", "Master of Kamar-Taj", "Seven Suns of Cinnibus")         # boosts 3, 2, 2
+    assert ask(3, 7) == 1, "Seven Suns at 3: one card never passes 7, two always do (3 + 2 + 2 = 7 is the best pair, 3 + 3 + 2 = 8)"
+    assert ask(6, 7) == 0 and ask(7, 7) == 0, "no room left"
+    assert ask(2, None, (0, 1)) == 1, "Bolts have no ceiling: a free boost is taken"
+    g = mk(bprd, "liz-sherman")
+    pair(g, "strange", "liz")
+    ai = EffectAI(0)
+    deck_of(g, "Feint", "Cloak of Levitation", "The Winds of Watoomb")                      # boost 1 each
+    assert ask(3, 7) == 2, "two cards of boost 1 still fit under 7: 3 + 1 + 1"
+
+
+def test_the_bots_count_is_zero_without_a_deck_or_a_target(bprd):
+    g = mk(bprd, "liz-sherman")
+    ai = EffectAI(0)
+    g.players[0].deck.clear()
+    assert ai._blind_boost(g, blind_count_request(3, 7)) == 0
+
+
+def test_the_synchronous_table_chooser_declares_no_blind_boost(bprd):
+    from sparring.effects.choose import TableChooser
+    g = mk(bprd, "liz-sherman")
+    assert TableChooser().choose(g, blind_count_request(3, 7)) == [0]
+
+
+def test_a_rollout_declares_the_most_cards_that_cannot_push_seven_suns_over_seven(bprd):
+    from sparring.effects.choose import SyntheticChooser
+    g = mk(bprd, "liz-sherman")
+    pick = lambda value, limit, options=(0, 1, 2): SyntheticChooser(policy="greedy").choose(g, blind_count_request(value, limit, options=options))
+    assert pick(1, 7) == [2] and pick(4, 7) == [1] and pick(5, 7) == [0] and pick(2, None) == [2] and pick(2, None, (0, 1)) == [1]
 
 
 def test_dark_pact_without_an_opinion_is_never_paid(bprd):

@@ -7,7 +7,8 @@ else changes nothing: the chat says what is wrong and the panel keeps waiting. T
 (a single Done); this module owns the wording and the verdict of each mode:
 
   rage    Unbridled rage: defense or versatile cards given up, laid on the discard pile (+2 each); zero is fine.
-  blind   BLIND BOOST (Doctor Strange): the top cards of their deck, laid on the discard pile, up to N; zero is fine.
+  blind   BLIND BOOST (Doctor Strange), only when the bot could not move the cards itself: the top N cards of their deck (the
+          number they declared), laid on the discard pile.
   reveal  No, Really, I'm a Doctor: the card from their hand shown on the discard pile, exactly one; the bot then puts it on top
           of their deck (`session_translators.stack_top`).
   play    The Mists of Munnopor: the card their deck revealed and they play, face up at their combat spot instead of the
@@ -52,7 +53,7 @@ def instruction(session, req: ChoiceRequest) -> str:
 def status(session, req: ChoiceRequest) -> str:
     if mode(req) == "play" and req.extra.get("sleight"):
         return panel_text(t("sleight.status"))
-    return panel_text(t({"blind": "blind.status", "reveal": "reveal.status", "play": "mists.status"}.get(mode(req), "rage.status")))
+    return panel_text(t({"blind": "blind.status", "reveal": "reveal.status", "play": "mists.status"}.get(mode(req), "rage.status"), n=req.max))
 
 
 def _aside(session, req: ChoiceRequest) -> set[int]:
@@ -88,6 +89,8 @@ def verdict(session, req: ChoiceRequest) -> tuple[list[int] | None, str | None]:
         return None, t("blind.too_many" if m == "blind" else "reveal.too_many", n=len(arrived), max=req.max,
                        titles=", ".join(by_id[i].title for i in arrived), card=_card_name(session, req))
     elif len(arrived) < req.min:
+        if m == "blind":
+            return None, t("blind.too_few", card=_card_name(session, req), min=req.min, n=len(arrived))
         return None, t("reveal.none", card=_card_name(session, req))
     return arrived, None
 

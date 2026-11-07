@@ -169,6 +169,8 @@ class TableChooser:
     def choose(self, game, req: ChoiceRequest) -> list:
         if req.kind == "optional":
             return [False]
+        if req.extra.get("blind_count"):             # BLIND BOOST: no declaration without the panel, so none is made
+            return [0]
         if req.min == 0:
             return []
         raise NotImplementedError(f"{req.prompt or req.kind}: a forced choice of the human needs the panel (E1)")
@@ -213,9 +215,6 @@ class SyntheticChooser:
         return self.policy == "greedy"
 
     def _optional(self, game, req: ChoiceRequest) -> list:
-        if req.extra.get("blind_boost"):             # free: yes unless a card that ignores a value above its limit may be pushed over it
-            limit = req.extra.get("limit")
-            return [limit is None or req.extra["value"] + MAX_BOOST <= limit]
         if "pact" in req.extra:                      # DARK PACT in a rollout: while the hero can spare the hit points
             pact = req.extra["pact"]
             hero = game.fighters[pact["fighter"]]
@@ -223,6 +222,10 @@ class SyntheticChooser:
         return [self.greedy or "cost_cards" not in req.extra]
 
     def _amount(self, game, req: ChoiceRequest) -> list:
+        if req.extra.get("blind_count"):             # BLIND BOOST: as many as cannot push a card that ignores a value above its limit over it
+            limit = req.extra.get("limit")
+            safe = [n for n in req.options if limit is None or req.extra["value"] + n * MAX_BOOST <= limit]
+            return [max(safe, default=min(req.options))]
         top = max(req.options)
         if req.extra.get("zone") in (None, "deck"):            # a draw: never into exhaustion
             top = max(min(req.options), min(top, len(game.players[req.player].deck)))

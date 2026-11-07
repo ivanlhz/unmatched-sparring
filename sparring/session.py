@@ -37,6 +37,7 @@ from .effects.run import EffectRun
 from .game_log import GameLog
 from . import session_boost as boost_session
 from . import session_bot_effects as bot_effects
+from . import session_blind as blind
 from . import session_choices as choices
 from . import session_effects as human_effects
 from . import session_hidden as hidden
@@ -1245,6 +1246,8 @@ class Session:
         if kind == "predict":
             hidden.answer_prediction(self, holder, value)
             return
+        if blind.is_count(getattr(run, "awaiting", None)):      # BLIND BOOST: the bot moves the declared cards before the engine goes on
+            blind.declared(self, run, value)
         if kind == "flow":
             ok = self._guarded(lambda: self._answer_flow(holder, value))
             hidden.close_row(self, value, ok)     # a pick among the bot's hand cards: the row follows the engine

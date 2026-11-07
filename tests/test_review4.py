@@ -709,6 +709,7 @@ def test_read_only_allowlist_is_exactly_the_pure_read_builders(bprd):
         "hand_to_discard": lambda: lua.hand_to_discard("Blue", "abc", identity=TEST_IDENT),
         "card_to_discard": lambda: lua.card_to_discard("abc", "def", identity=TEST_IDENT),
         "deal_row": lambda: lua.deal_row("abc", [(0.0, 0.0, 0.0)], identity=TEST_IDENT),
+        "deck_top_to_discard": lambda: lua.deck_top_to_discard("abc", 1, "def", identity=TEST_IDENT),
         "take_token_copy": lambda: lua.take_token_copy("abc", (0.0, 0.0, 0.0)),
         "remove_token": lambda: lua.remove_token("abc"),
         "place_from_bag": lambda: lua.place_from_bag("abc", "Rat", (0.0, 0.0, 0.0)),

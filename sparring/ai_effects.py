@@ -29,6 +29,7 @@ from __future__ import annotations
 import copy
 import random
 from functools import lru_cache
+from itertools import combinations
 
 from .ai_medusa import (DECK_SCARCITY, HARPY_VALUE, KILL_SIDEKICK, LETHAL, SURVIVAL_P, W_HERO, W_MEDUSA_HP,
                         W_SIDEKICK, MedusaAI, Model, effect_reliance, keep_value, kill_value, play_signature)
@@ -417,6 +418,8 @@ class EffectAI:
         return sorted(req.options, key=lambda i: (-self.blow_value(fighters[i], DEFAULT_BLOW, game), i))
 
     def _amount(self, game: Game, req: ChoiceRequest, nested: bool) -> list:
+        if req.extra.get("blind_count"):
+            return [self._blind_boost(game, req)]
         top = max(req.options)
         if req.extra.get("zone") in (None, "deck") and top > 0:
             n = min(top, len(game.players[req.player].deck))      # drawing from an empty deck only hurts
@@ -446,8 +449,6 @@ class EffectAI:
     def _optional(self, game: Game, req: ChoiceRequest, nested: bool) -> list | None:
         if "pact" in req.extra:
             return [self._dark_pact(game, req)]
-        if req.extra.get("blind_boost"):
-            return [self._blind_boost(game, req)]
         if "shield" in req.extra:           # A Magician Never Reveals His Secrets: showing one card costs less than a look at the hand
             return [True]
         if "replaces_combatant" in req.extra:
@@ -518,18 +519,20 @@ class EffectAI:
         cost = W_MEDUSA_HP * dmg * (1 + PACT_URGENCY * max(0, PACT_COMFORT - left)) + LETHAL * (after - now)
         return draw + recycle - cost > PACT_MARGIN
 
-    def _blind_boost(self, game: Game, req: ChoiceRequest) -> bool:
-        """BLIND BOOST: free (the top card of the deck, no card of the hand), so it is taken while the expected value of
-        the blow improves: the average over the boosts the bot's deck can still hold, a card that ignores a value above
-        its `limit` (Seven Suns) counting 0 for a total over it."""
+    def _blind_boost(self, game: Game, req: ChoiceRequest) -> int:
+        """BLIND BOOST, declared up front: how many cards (0..N) to discard from the top of the deck. The bot knows what its
+        deck holds, so each count is scored by the expected blow over every set of that many cards it can still turn up;
+        a card that ignores a value above its `limit` (Seven Suns) counts 0 for a total over it, so the overshoot of the
+        second card weighs in before anything is seen. Each card milled costs BLIND_COST; a tie keeps the smaller count."""
         x, me = req.extra, req.player
         mine = game.players[me]
-        pool = [c for c in mine.full_set if c not in mine.hand and c not in mine.gone]    # its own deck: it knows what is in it
+        pool = [c.boost for c in mine.full_set if c not in mine.hand and c not in mine.gone]    # its own deck: it knows what is in it
         target = game.fighters.get(x["target"])
         if not pool or target is None:
-            return False
+            return min(req.options)
         value, margin, limit = x["value"], x["margin"], x["limit"]
 
+        @lru_cache(maxsize=None)
         def score(total: int) -> float:
             if limit is not None and total > limit:
                 total = 0
@@ -537,8 +540,15 @@ class EffectAI:
             if x["attacking"]:
                 return self.blow_value(target, max(0, net), game)
             return self.hp_change(target, target.hp - max(0, -net), me, game)
-        gain = sum(score(value + c.boost) for c in pool) / len(pool) - score(value)
-        return gain - BLIND_COST > 0
+
+        def worth(n: int) -> float:
+            n = min(n, len(pool), len(mine.deck))
+            if n == 0:
+                return score(value)
+            totals = [value + sum(boosts) for boosts in combinations(pool, n)]
+            return sum(map(score, totals)) / len(totals) - BLIND_COST * n
+        return max(req.options, key=lambda n: (worth(n), -n))
+
     def _swap_combatant(self, game: Game, req: ChoiceRequest) -> bool:
         """Smoke And Mirrors: swap Houdini and Bess so the other one fights in this combat. Defending, the one that loses the
         less to the blow as things stand takes it (a sidekick that the blow would only overkill soaks it for the hero;
