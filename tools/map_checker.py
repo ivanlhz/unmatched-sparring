@@ -63,8 +63,8 @@ def edges_of(data: dict) -> set[tuple[int, int]]:
 def apply_edit(data: dict, edit: dict) -> dict:
     """A copy of `data` with the person's changes: `edges` (the full list of [a, b]), `zones` ({id: [names]}) and
     `passages` (the full list of secret-passage groups), `bonuses` (the full list of {from, to, value}: high ground on
-    the stairs), `one_way` (the full list of [from, to]: moving only that way), `hazards` (the full list of {edge: [a, b], damage}: hurts the
-    first crossing of the edge in a turn) and `starts` ({"1": id, ...}). Anything missing from `edit` is left as it was. Raises ValueError on a bad id."""
+    the stairs), `one_way` (the full list of [from, to]: moving only that way), `hazards` (the full list of {edge: [a, b], damage}: a fighter
+    pays the first hazard edge it crosses in a turn, then no more that turn) and `starts` ({"1": id, ...}). Anything missing from `edit` is left as it was. Raises ValueError on a bad id."""
     ids = {s["id"] for s in data["spaces"]}
     out = json.loads(json.dumps(data))
     if "edges" in edit:
@@ -359,7 +359,7 @@ function panel(msg){const p=$("panel");if(!M)return;let h="<b>"+M.name+"</b><br>
  if(M.problems)h+="<div id=problems>Import said: "+M.problems.join("\n")+"</div>";
  if(RO)h+="<div id=ok>Confirmed map: read-only (start the checker with --allow-reconfirm to change it).</div>";
  if(!RO){h+=`<hr><button class="${pmode?"on":""}" onclick=setPmode(!pmode)>Passage mode (key P): ${pmode?"ON":"off"}</button><button class="${bmode?"on":""}" onclick=setBmode(!bmode)>Bonus mode (key B): ${bmode?"ON":"off"}</button><button class="${omode?"on":""}" onclick=setOmode(!omode)>One-way mode (key O): ${omode?"ON":"off"}</button><button class="${hmode?"on":""}" onclick=setHmode(!hmode)>Hazard mode (key H): ${hmode?"ON":"off"}</button>`;
-  if(hmode){h+="<br>Click A then B on an existing edge: cycles the damage of the first crossing each turn 1, 2, 3, none (pink dashed line, either direction). Hazards: "+(HZ.map(z=>z.edge.join("-")+" -"+z.damage).join(", ")||"none")+"<br>"}
+  if(hmode){h+="<br>Click A then B on an existing edge: cycles its damage 1, 2, 3, none; a fighter pays only its first hazard crossing each turn (pink dashed line, either direction). Hazards: "+(HZ.map(z=>z.edge.join("-")+" -"+z.damage).join(", ")||"none")+"<br>"}
   if(omode){h+="<br>Click A then B on an existing edge: cycles A&rarr;B only, B&rarr;A only, two-way (red arrow = the only way you may walk; still adjacent for attacks). One-way: "+(OW.map(p=>p[0]+"&rarr;"+p[1]).join(", ")||"none")+"<br>"}
   if(bmode){h+="<br>Click the space the attacker stands on, then the adjacent space it hits: toggles +1 for that direction only (high ground). Bonuses: "+(BON.map(b=>b.from+"&rarr;"+b.to+" +"+b.value).join(", ")||"none")+"<br>"}
   if(pmode){h+="<br>Click spaces to add or remove them from the selected group (padlock = secret passage: move only, not adjacent).<br>";
