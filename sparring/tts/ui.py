@@ -40,6 +40,7 @@ class Event(str, Enum):
     RESTART = "restart"
     BOOST = "boost"            # "Continue": reads the boost card the human put in their discard and resolves
     NO_BOOST = "no_boost"      # "No boost": resolves without boosting
+    MANEUVER_BOOST = "maneuver_boost"   # "Boost": reads the boost card in the discard pile during the human's Maneuver
     LOOK = "look_hand"         # "Look at bot's hand": the bot's cards face up in a row (discard one, e.g. Confront)
     LOOK_PING = "look_ping"    # the human's ping (Tab) on a card of that row: the one that is discarded
     CHOICE = "choice"          # btn_choice_<i>: option i (1..6) of the pending effect choice, in {"i": i}
@@ -63,7 +64,7 @@ CHOICE_BUTTONS = tuple(f"btn_choice_{i}" for i in range(1, 7))     # hidden exce
 FIXED_BUTTONS = {"btn_maneuver": "onManeuver", "btn_scheme": "onScheme", "btn_reveal": "onReveal",
                  "btn_cancel": "onCancel", "btn_end": "onEndAction", "btn_undo": "onUndoGameOver",
                  "btn_value": "onValueSend", "btn_mulligan": "onMulligan", "btn_ready": "onReady",
-                 "btn_restart": "onRestart", "btn_boost": "onBoost", "btn_noboost": "onNoBoost",
+                 "btn_restart": "onRestart", "btn_boost": "onBoost", "btn_noboost": "onNoBoost", "btn_mboost": "onManeuverBoost",
                  "btn_look": "onLook", **dict.fromkeys(CHOICE_BUTTONS, "onChoice")}
 GATE_BUTTONS = ("btn_clean", "btn_prep", "btn_start")     # born hidden; only the pre-game gate shows them (never part of a game's panel states)
 SETUP_ONLY = ("btn_mulligan", "btn_ready")
@@ -161,6 +162,7 @@ function onMulligan() send({{event = "mulligan"}}) end
 function onRestart() send({{event = "restart"}}) end
 function onBoost() send({{event = "boost"}}) end
 function onNoBoost() send({{event = "no_boost"}}) end
+function onManeuverBoost() send({{event = "maneuver_boost"}}) end
 function onLook() send({{event = "look_hand"}}) end
 function onClean() send({{event = "clean_table"}}) end
 function onPrepare() send({{event = "prepare_table"}}) end
@@ -250,6 +252,7 @@ def panel_xml(target_ids: list[str], attacker_ids: tuple[str, ...] = DEFAULT_ATT
                    _button("btn_boost", "onBoost", t("panel.continue")).replace("<Button ", '<Button active="false" '),
                    _button("btn_noboost", "onNoBoost", t("panel.no_boost")).replace("<Button ", '<Button active="false" '))
             + _row(_button("btn_end", "onEndAction", t("panel.end_action")),
+                   _button("btn_mboost", "onManeuverBoost", t("panel.maneuver_boost")).replace("<Button ", '<Button active="false" '),
                    _button("btn_look", "onLook", t("panel.look")).replace("<Button ", '<Button active="false" '))
             + _choice_row(CHOICE_BUTTONS[:3]) + _choice_row(CHOICE_BUTTONS[3:])
             + '</VerticalLayout>')

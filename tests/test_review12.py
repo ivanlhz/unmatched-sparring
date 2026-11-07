@@ -87,8 +87,8 @@ from sparring.session import SessionError  # noqa: E402
 from sparring.state import EXHAUST_DAMAGE  # noqa: E402
 from sparring.tts import lua  # noqa: E402
 
-DEALT_MSG = ("Maniobra: te he dado 1 carta. Mueve tus miniaturas (puedes potenciar descartando una carta) y pulsa "
-             "Fin de accion")
+DEALT_MSG = ("Maniobra: te he dado 1 carta. Para potenciar, pon la carta en tu descarte y pulsa Potenciar ANTES de mover; "
+             "luego mueve tus miniaturas y pulsa Fin de accion")
 
 
 def with_human_deck(session):

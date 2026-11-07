@@ -74,6 +74,7 @@ TABLE_ERRORS = (SessionError, TTSLuaError, OSError)      # TimeoutError es un OS
 RESTART_WINDOW = 3.0   # seconds to confirm Restart game with a second press
 COMPOSITE_OVERHEAD = 12_000   # what the snapshot and the frame of a composite take up, besides its operations
 TRANSIT_READS = 4   # discard reads to wait for a card the human just played before giving it up as lost
+DEAL_FLIGHT = 3.0   # seconds after the bot deals cards to the human during which a card read in their discard zone may be one still flying to the hand
 
 
 class Msg(str):
@@ -370,6 +371,8 @@ class Session:
         self.zoom_ids: set[int] = set()                    # bot cards the next discard write shows as a big copy
         self.scheme_baseline: list[int] | None = None      # human's discard when pressing Scheme: waits for their card
         self.maneuver_baseline: list[int] | None = None    # their discard at Maneuver: a BOOST 0 card put there is warned
+        self.maneuver_boosted: int | None = None           # the card this Maneuver was boosted with (once; its effects already ran)
+        self._deal_at = -1e9                                # when cards were last dealt to the human (they may still be flying to their hand)
         self.ability_wait: str | None = None               # the human's start-of-turn ability to do on the table before anything else (E2)
         self._attack_announced: tuple | None = None     # the bot attack already said before its card went down (a retry stays quiet)
         self.declared_carry: dict | None = None            # a cancelled attack already declared (UNCANNY INTUITION spent): the same attack again does not re-spend
@@ -1018,7 +1021,7 @@ class Session:
                  Event.VALUE: self._value, Event.CANCEL: self._cancel, Event.HP: self._hp,
                  Event.REMOVE: self._remove, Event.UNDO_GAME_OVER: self._undo_game_over, Event.READY: self._ready,
                  Event.MULLIGAN: self._human_mulligan, Event.RESTART: self._restart,
-                 Event.BOOST: self._boost, Event.NO_BOOST: self._no_boost,
+                 Event.BOOST: self._boost, Event.NO_BOOST: self._no_boost, Event.MANEUVER_BOOST: self._maneuver_boost,
                  Event.LOOK: self._look_hand, Event.LOOK_PING: self._look_ping, Event.CHOICE: self._choice}
         if self.setup is not None and event not in (Event.READY, Event.HP, Event.REMOVE, Event.CANCEL, Event.VALUE,
                                                     Event.MULLIGAN, Event.RESTART):
@@ -1311,6 +1314,8 @@ class Session:
                     self.say(t("sess.press_end"), ChatKind.YOUR_TURN)
         elif human_effects.STEP in run.flags:         # the BOOSTED WITH of a Maneuver boost the human answered
             human_effects.finish(self, run)
+            if self.moving and self.game.turn == self.human and self.game.winner is None:
+                self.say(t("maneuver.boost_then_end"), ChatKind.YOUR_TURN)
         if self.game.turn == self.bot and self.pending is None and self.game.winner is None:
             self._bot_continue()
 
@@ -1573,6 +1578,7 @@ class Session:
             "destiny_seen": None if self.destiny_seen is None else list(self.destiny_seen),
             "scheme_baseline": self.scheme_baseline, "dial_debt": self.dial_debt, "setup": self.setup,
             **({"maneuver_baseline": self.maneuver_baseline} if self.maneuver_baseline is not None else {}),
+            **({"maneuver_boosted": self.maneuver_boosted} if self.maneuver_boosted is not None else {}),
             **({"ability_wait": self.ability_wait} if self.ability_wait is not None else {}),
             **({"human_dealt": self.human_dealt} if self.human_dealt != self.game.drawn[self.human] else {}),
             **({"declared_carry": self.declared_carry} if self.declared_carry is not None else {}),
@@ -1651,6 +1657,7 @@ class Session:
             self.placing = d.get("placing")
             self.scheme_baseline = d.get("scheme_baseline")
             self.maneuver_baseline = d.get("maneuver_baseline")
+            self.maneuver_boosted = d.get("maneuver_boosted")
             self.ability_wait = d.get("ability_wait")
             self.human_dealt = int(d.get("human_dealt", self.game.drawn[self.human]))     # absent: everything counted was dealt
             self.declared_carry = d.get("declared_carry") if isinstance(d.get("declared_carry"), dict) else None
@@ -1821,6 +1828,7 @@ class Session:
         self.moving = True
         st = self.game.players[self.human]
         self.maneuver_baseline = [c.card_id for c in st.discard]
+        self.maneuver_boosted = None
         if not self.game.fx.can_draw(self.human):
             self.say(t("maneuver.no_draw", reason=choices.NO_DRAW_REASON), ChatKind.YOUR_TURN)
             return
@@ -1979,19 +1987,62 @@ class Session:
             else:
                 self.say(t("deal.missing_n", n=n), ChatKind.WARNING)
 
-    def _check_maneuver_boost(self) -> None:
-        """A card without BOOST value (Liz's burning cards) put in the discard during the Maneuver boosts nothing
-        (docs/heroes/liz-sherman.md): said once, the table is not corrected."""
-        base, self.maneuver_baseline = self.maneuver_baseline, None
-        if base is None:
+    def _maneuver_boost(self, _: dict) -> None:
+        """The "Boost" button of a human Maneuver: the boost card they put in their discard pile is recognised NOW, its
+        BOOSTED WITH runs (choices on the panel) and only then do they move or place the pieces and press End action."""
+        g = self.game
+        if (g.winner is not None or g.turn != self.human or self.pending is not None or not self.moving
+                or self.maneuver_baseline is None):
+            self.say(t("maneuver.boost_none"), ChatKind.WARNING)
             return
+        self.sync_human()
+        _, saw_new = self._read_maneuver_boost()
+        if not saw_new:
+            self.say(t("maneuver.boost_none" if self.maneuver_boosted is not None else "maneuver.boost_no_card"), ChatKind.WARNING)
+
+    def _read_maneuver_boost(self) -> tuple[bool, bool]:
+        """Looks for the boost card among the cards that reached the human's discard pile since the Maneuver began.
+        Returns (a boost was made now, there were new cards). A card without BOOST value (Liz's burning cards) boosts
+        nothing (docs/heroes/liz-sherman.md): said once, the table is not corrected. One boost per Maneuver."""
+        base = self.maneuver_baseline
+        if base is None:
+            return False, False
         new = [c for c in self.game.players[self.human].discard if c.card_id not in base]
+        if not new:
+            return False, False
         for c in new:
             if not can_be_boost(c):
                 self.say(t("maneuver.no_boost_value", title=c.title), ChatKind.WARNING)
         spent = [c for c in new if can_be_boost(c)]
-        if len(spent) == 1 and has_boost_effect(spent[0]) and self.game.fx.interprets(self.human):
-            human_effects.maneuver_boost(self, spent[0])      # BOOSTED WITH: its ops run now, like a scheme's
+        if self.maneuver_boosted is not None:           # already boosted: another card is not a second boost
+            boosted = next(c for c in self.game.players[self.human].full_set if c.card_id == self.maneuver_boosted)
+            for c in spent:
+                self.say(t("maneuver.boost_again", boosted=boosted.title, title=c.title), ChatKind.WARNING)
+        elif len(spent) > 1:
+            self.say(t("maneuver.boost_many", n=len(spent), titles=", ".join(c.title for c in spent)), ChatKind.WARNING)
+            return False, True
+        elif spent:
+            self._apply_maneuver_boost(spent[0])
+            self.maneuver_baseline = [*base, *(c.card_id for c in new)]
+            return True, True
+        self.maneuver_baseline = [*base, *(c.card_id for c in new)]
+        return False, True
+
+    def _apply_maneuver_boost(self, card: Card) -> None:
+        """Announces the boost (and ESCAPE ARTIST when the hero has it), runs BOOSTED WITH, and leaves the action open."""
+        g = self.game
+        self.maneuver_boosted = card.card_id
+        runs_effects = has_boost_effect(card) and g.fx.interprets(self.human)
+        fx_first = t("maneuver.fx_first") if runs_effects else ""
+        if g.fx.hero_rule(self.human, "maneuver_boost_places_hero"):
+            self.say(t("maneuver.boosted_places", title=card.title, value=card.boost, hero=self._name(g.hero(self.human)),
+                       fx=fx_first), ChatKind.YOUR_TURN)
+        else:
+            self.say(t("maneuver.boosted", title=card.title, value=card.boost, fx=fx_first), ChatKind.YOUR_TURN)
+        if runs_effects:
+            human_effects.maneuver_boost(self, card)      # BOOSTED WITH: its ops run now, like a scheme's
+        if self._paused() is None and self.game.winner is None:
+            self.say(t("maneuver.boost_then_end"), ChatKind.YOUR_TURN)
 
     def _announce_exhaustion(self, hp0: dict[str, float], alive0: dict[str, bool]) -> None:
         """Drawing with an empty deck hurts everyone: it is announced and written like any other damage."""
@@ -2898,7 +2949,10 @@ class Session:
         self.scheme_baseline = None
         if self._paused() is not None:            # the plan asks you something: the turn cannot end (nor its actions be counted) before the answer
             return
-        self._check_maneuver_boost()
+        if self.maneuver_baseline is not None:
+            if self._read_maneuver_boost()[0]:
+                return                                # old habit (boost card in the pile, End action): effects now, the action ends at the next End action
+            self.maneuver_baseline, self.maneuver_boosted = None, None
         if self.ability_wait is not None:         # the table was read: your start-of-turn ability is done
             self.ability_wait = None
             self.say(t("end.ability_done"), ChatKind.ABILITY)
@@ -3994,6 +4048,13 @@ class Session:
             self.snap, self._trusted = snap, False
         return self.snap
 
+    def _stamp_deal(self, scripts: list[str]) -> None:
+        """A script that deals cards to the human's seat just ran: until `DEAL_FLIGHT` passes, a card read in their
+        discard zone may be one still flying from the deck to the hand (`sync_human`)."""
+        seat = f'"{self.cfg.human_seat}"'
+        if any(x.startswith("-- sparring:deal_cards") and seat in x for x in scripts):
+            self._deal_at = time.monotonic()
+
     def _w(self, script: str, domain: str) -> _Op:
         """Writes to the table: immediate without `batch`, queued with it (goes out on the next `_flush`)."""
         op = _Op(self, script, domain)
@@ -4001,6 +4062,7 @@ class Session:
             self._queue.append(op)
         else:
             op.value, op.done = self.client.call_lua(script), True
+            self._stamp_deal([script])
         return op
 
     def _flush(self) -> None:
@@ -4031,6 +4093,7 @@ class Session:
                 for o in ops:
                     o.error, o.done = e, True
                 raise
+            self._stamp_deal([o.script for o in ops])
             results = res.get("ops") if isinstance(res, dict) else None
             results = results if isinstance(results, list) and len(results) == len(ops) else [None] * len(ops)
             for o, r in zip(ops, results):
@@ -4209,11 +4272,15 @@ class Session:
         states["btn_cancel"] = (cancellable and (not boosting or stuck), not boosting or stuck)
         states["btn_boost"] = (boosting, boosting)
         states["btn_noboost"] = (boosting, boosting)
+        can_boost_maneuver = (not in_setup and g.winner is None and g.turn == self.human and self.pending is None
+                              and self.moving and self.maneuver_baseline is not None and self.maneuver_boosted is None
+                              and not choosing and self.look is None)
+        states["btn_mboost"] = (can_boost_maneuver, can_boost_maneuver)
         states["btn_end"] = (not in_setup and g.winner is None
                              and (self.pending is None or self.look is not None or gate), True)
         states["btn_look"] = (self._look_blocked() is None and not choosing, self.look_granted)
         if choosing:
-            for i in ("btn_reveal", "btn_cancel", "btn_end", "btn_boost", "btn_noboost"):
+            for i in ("btn_reveal", "btn_cancel", "btn_end", "btn_boost", "btn_noboost", "btn_mboost"):
                 states[i] = (False, states[i][1])
         if gate:
             states["btn_cancel"] = (False, states["btn_cancel"][1])
@@ -5060,9 +5127,12 @@ class Session:
         known = {x.card_id for x in st.discard}
         # a change only counts if two reads see it (card in transit, edge); the click's snapshot is already the
         # second: the human cannot be dragging a card while pressing a button
-        if ids != known and not (self.cfg.batch and self._trusted):
+        # A card the bot just dealt may still be flying from the deck to the hand over the discard zone: the snapshot of
+        # the write that dealt it is not trusted (the live 7/11 case: Flourish's drawn card was read as discarded).
+        in_flight = time.monotonic() - self._deal_at < DEAL_FLIGHT
+        if ids != known and not (self.cfg.batch and self._trusted and not in_flight):
             if self.cfg.settle_wait > 0:
-                time.sleep(self.cfg.settle_wait)
+                time.sleep(self.cfg.settle_wait * (2.5 if in_flight else 1))
             if self.cfg.batch:
                 self.snap = None
             again = read()
