@@ -104,8 +104,8 @@ def test_card_effects_say_what_the_real_cards_say(effects):
     devil = by["Devil of Hell's Kitchen"]
     assert devil["during"][0]["then"] == [{"op": "set_value", "card": "this", "amount": 8}]
     assert devil["after"] == [
-        {"op": "return_to_deck", "cards": {"zone": "discard", "player": "owner", "pick": "last", "amount": 3}, "position": "shuffle"},
-        {"op": "return_to_deck", "cards": "this", "position": "shuffle"}]        # 3 + itself: the last 4 cards played (Ivan)
+        {"op": "return_to_deck", "cards": {"zone": "discard", "player": "owner", "pick": "last", "amount": 4}, "position": "shuffle"},
+        {"op": "return_to_deck", "cards": "this", "position": "shuffle"}]        # itself + the top 4 of the pile: 5 in all (Ivan, 2026-11-07)
     assert by["Man Without Fear"]["during"] == [{"op": "plugin", "id": "daredevil:blind_boost", "args": {"times": 1}}]
     assert by["Through Adversity"]["scheme"][0] == {"op": "move", "target": "hero", "amount": 4, "up_to": True, "through_enemies": True, "as": "mover"}
     assert by["Through Adversity"]["scheme"][1]["target"] == {"side": "enemy", "filter": {"passed_by": "$mover"}, "pick": "all"}

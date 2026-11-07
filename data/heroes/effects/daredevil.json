@@ -73,7 +73,7 @@
        "zone": "discard",
        "player": "owner",
        "pick": "last",
-       "amount": 3
+       "amount": 4
       },
       "position": "shuffle"
      },
@@ -86,7 +86,7 @@
     "scheme": [],
     "boost": []
    },
-   "notes": "Attack (value 4, boost 3). Iván 2026-11-07: the card returns the LAST 4 cards played, itself included: this card (still at the combat spot, zone combat) and the 3 cards that reached the discard pile most recently (`pick: last`, in the order they arrived there: boosts of this combat, blind-boosted cards, earlier plays). Two `return_to_deck` ops, both to shuffle: the deck ends in a random order either way. The DURING reads the deck as it is when the card resolves, so Daredevil's BLIND BOOST can empty it first (the owner chooses the order)."
+   "notes": "Attack (value 4, boost 3). Iván 2026-11-07: the card returns itself plus the LAST 4 cards that reached the discard pile (5 in all, as printed): this card (still at the combat spot, zone combat) and the 4 cards that reached the discard pile most recently (`pick: last`, in the order they arrived there: boosts of this combat, blind-boosted cards, earlier plays). Two `return_to_deck` ops, both to shuffle: the deck ends in a random order either way. The DURING reads the deck as it is when the card resolves, so Daredevil's BLIND BOOST can empty it first (the owner chooses the order)."
   },
   {
    "title": "Man Without Fear",
@@ -293,7 +293,7 @@
   }
  ],
  "open_questions": [
-  "Devil of Hell's Kitchen: 'this card and the top four cards of your discard pile' is read as the last 4 cards played, itself included (Ivan, 2026-11-07).",
+  "Devil of Hell's Kitchen: 'this card and the top four cards of your discard pile' is read as printed: itself plus the 4 cards that most recently reached the pile, 5 in all (Ivan, 2026-11-07).",
   "Through Adversity: the path is not fixed; every opposing fighter on some path of at most 4 spaces counts as moved through."
  ]
 }

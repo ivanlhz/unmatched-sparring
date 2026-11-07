@@ -181,10 +181,10 @@ def test_the_one_button_waiting_at_the_panel_survives_a_save_and_a_restore(rig, 
 # ---------------------------------------------------------------- Devil of Hell's Kitchen
 
 @with_rig()
-def test_the_devil_puts_itself_and_the_last_three_cards_of_the_pile_back_in_the_deck(rig, monkeypatch):
+def test_the_devil_puts_itself_and_the_last_four_cards_of_the_pile_back_in_the_deck(rig, monkeypatch):
     session, table, game, fake, cfg = rig
     no_defense(session, monkeypatch)
-    old = [sid(game, "Feint", 2), sid(game, "Breather", 2), sid(game, "Grappling Hook", 0), sid(game, "Take A Knee", 0)]       # none is in their hand
+    old = [sid(game, "Feint", 2), sid(game, "Breather", 2), sid(game, "Grappling Hook", 0), sid(game, "Take A Knee", 0), sid(game, "Son Of A Boxer", 0)]       # none is in their hand
     table.human_discard += old
     for c in game.players[1].full_set:
         if c.card_id in old and c not in game.players[1].discard:
@@ -196,7 +196,7 @@ def test_the_devil_puts_itself_and_the_last_three_cards_of_the_pile_back_in_the_
     msgs = hit(session, table, game, DEVIL, [DEVIL, "Feint", "Breather", "Son Of A Boxer"])
     ids = [i for _, moved in table.deck_moves for i in moved]
     devil = sid(game, DEVIL)
-    assert sorted(ids) == sorted([devil, *old[1:]]), (ids, msgs)                     # itself + the last 3 (Breather, Knee, Hook)
+    assert sorted(ids) == sorted([devil, *old[1:]]), (ids, msgs)                     # itself + the last 4 (Ivan, 2026-11-07)
     assert old[0] in table.human_discard and all(i not in table.human_discard for i in old[1:])
     assert [kind for kind, _ in table.deck_moves] == ["shuffle", "shuffle"]
     assert said(msgs, "Meto Devil of Hell's Kitchen de tu zona de combate en tu mazo y lo barajo")

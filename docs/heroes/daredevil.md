@@ -15,7 +15,7 @@ His deck is sheet 176 like Medusa's, the turtles', Doctor Strange's and Bigfoot'
 
 | Title | Type | Value | Boost | Copies | Effect |
 |---|---|---|---|---|---|
-| Devil of Hell's Kitchen | attack | 4 | 3 | 2 | DURING: with no cards in your deck the value is 8 instead. AFTER: shuffle this card and the last 3 cards that reached your discard pile into your deck (the last 4 cards played, itself included) |
+| Devil of Hell's Kitchen | attack | 4 | 3 | 2 | DURING: with no cards in your deck the value is 8 instead. AFTER: shuffle this card and the last 4 cards that reached your discard pile into your deck (5 cards in all) |
 | Man Without Fear | attack | 2 | 3 | 2 | DURING: you may BLIND BOOST this attack (in addition to the ability's) |
 | Feint | versatile | 2 | 1 | 3 | IMMEDIATELY: cancel all effects on the opponent's card |
 | Grappling Hook | versatile | 3 | 2 | 3 | AFTER: move Daredevil up to 2 spaces |
@@ -40,7 +40,7 @@ Written as data, `ability.during[0]` of `data/heroes/effects/daredevil.json`: un
 - **Human**: buttons "0 / 1" only when it applies and only then, named "la habilidad especial de Daredevil" in the chat (`blind.ability_name`); the bot moves the real top card of the human's deck to their discard pile (`lua.deck_top_to_discard`), reads its CardID and adds its BOOST. If the table refuses the chat asks them to lay the card by hand (`pile_mode: blind`). The declaration is a parked choice: it survives `--resume`.
 
 ## Devil of Hell's Kitchen
-Real text: "Shuffle this card and the top four cards of your discard pile into your deck." Iván (2026-11-07): the card retrieves the LAST 4 cards played, INCLUDING itself. So two `return_to_deck` ops, both `shuffle`: the 3 cards that most recently reached the discard pile (new CardSel `pick: last`, newest first) and then `this` (still at the combat spot, zone `combat`, as Relentless / Raphael's cards). "Last played" is the order in which cards reached the discard pile: the engine's `PlayerState.discard` is a list that only ever appends (boosts and blind-boosted cards of this combat are already in it, the played card arrives last), so the order is tracked for free. For the human's pile the engine learns arrivals when it reads the table: cards that appear between two readings are ordered by CardID (open question below).
+Real text: "Shuffle this card and the top four cards of your discard pile into your deck." Iván (2026-11-07): as printed, 5 cards in all: itself plus the 4 that most recently reached the pile. So two `return_to_deck` ops, both `shuffle`: the 4 cards that most recently reached the discard pile (new CardSel `pick: last`, newest first) and then `this` (still at the combat spot, zone `combat`, as Relentless / Raphael's cards). "Last played" is the order in which cards reached the discard pile: the engine's `PlayerState.discard` is a list that only ever appends (boosts and blind-boosted cards of this combat are already in it, the played card arrives last), so the order is tracked for free. For the human's pile the engine learns arrivals when it reads the table: cards that appear between two readings are ordered by CardID (open question below).
 The DURING reads the deck as it is when the card resolves (`not exists deck`).
 - **Table**: the discard cards are moved by the bot by GUID into the human's deck and the deck is shuffled (`_human_discard_to_deck`, same as Pancakes! / Searing Clarity), then the card at the combat spot goes in and the deck is shuffled again (`combat_card_to_deck`, as Raphael's cards): two shuffles, same distribution as one.
 
@@ -61,13 +61,12 @@ Written like Donatello's Party wagon! (docs/heroes/donatello.md, decision 5): `m
 3. Son Of A Boxer: "a fighter adjacent to Daredevil" is any fighter (the owner chooses; with no sidekick only the rival's can be there). "If you lost the combat" follows the engine: a tie is lost by the attacker.
 4. Grappling Hook moves Daredevil up to 2 spaces after the combat; if he was defeated nothing happens.
 5. Take A Knee heals the BOOST of the discarded card (0 for none) and stops at 17. As a defense it heals after the combat.
-6. Devil of Hell's Kitchen: 4 cards in all (itself + the 3 most recent of the pile); fewer if the pile is short. A cancelled Devil (Feint) shuffles nothing and keeps the value 4 (its DURING is cancelled too).
+6. Devil of Hell's Kitchen: 5 cards in all (itself + the 4 most recent of the pile; CONFIRMED by Iván on 2026-11-07, as printed); fewer if the pile is short. A cancelled Devil (Feint) shuffles nothing and keeps the value 4 (its DURING is cancelled too).
 7. Through Adversity: the path is not fixed, every rival on some path of at most 4 spaces counts; the human names who.
 8. Breather offers every non-scheme card of the pile; with none there is nothing to return.
 
 ## Open questions for Iván
-- Devil of Hell's Kitchen: "this card and the top four cards of your discard pile" is read as the last 4 cards played INCLUDING itself (your 2026-11-07 fact). The literal text could also be read as 5 cards (itself plus four). Say if the 5-card reading is the one.
-- The human's discard order: the engine only learns the order cards reached the pile by reading the table. Several cards laid between two readings (for example a boost card, the played card and a blind-boosted card in one combat) are ordered by CardID, so "the last 3" may differ from the physical pile in that case. A physical read of the pile's stacking order would fix it.
+- The human's discard order: the engine only learns the order cards reached the pile by reading the table. Several cards laid between two readings (for example a boost card, the played card and a blind-boosted card in one combat) are ordered by CardID, so "the last 4" may differ from the physical pile in that case. A physical read of the pile's stacking order would fix it.
 - The ability under a cancellation: read as surviving Feint (it is on the hero). If you want a rival's cancel to stop it too, it is one condition.
 - The order labels of the choice are English text in the effects file ("ability first, then the card" / "card first, then the ability"), shown as is in the Spanish panel (same as Hellboy's option labels).
 - Take A Knee for the human needs one press ("1") so the bot can move the real top card; it is not optional in the rules. Say if you would rather the bot did it without any button.

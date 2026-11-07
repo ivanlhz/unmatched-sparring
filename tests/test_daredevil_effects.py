@@ -227,17 +227,17 @@ def test_the_card_first_order_misses_the_empty_deck(bprd):
     assert res.atk_value == 4 + last.boost
 
 
-def test_the_devil_shuffles_itself_and_the_last_three_cards_that_reached_the_discard_pile_into_the_deck(bprd):
+def test_the_devil_shuffles_itself_and_the_last_four_cards_that_reached_the_discard_pile_into_the_deck(bprd):
     g = mk(bprd, "liz-sherman")
     d, liz = pair(g, "daredevil", "liz")
     script(g, 0)
-    old = to_discard(g, 0, "Feint", "Breather", "Grappling Hook", "Take A Knee")      # arrival order: Feint first ... Knee last
+    old = to_discard(g, 0, "Feint", "Breather", "Grappling Hook", "Take A Knee", "Son Of A Boxer")      # arrival order: Feint first ... Boxer last
     devil = give(g, 0, DEVIL)
     deck = len(g.players[0].deck)
     g.attack(d, liz, devil, None)
-    back = {devil, old[1], old[2], old[3]}                                          # itself + the last 3
+    back = {devil, *old[1:]}                                                        # itself + the last 4 (Ivan, 2026-11-07)
     assert set(g.players[0].discard) == {old[0]} and back <= set(g.players[0].deck)
-    assert len(g.players[0].deck) == deck + 4
+    assert len(g.players[0].deck) == deck + 5
 
 
 def test_the_devil_returns_fewer_cards_when_the_discard_pile_is_short(bprd):
