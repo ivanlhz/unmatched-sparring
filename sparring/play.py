@@ -88,7 +88,7 @@ BOT, HUMAN = 0, 1
 READ_ONLY_TAGS = frozenset({"snapshot", "piece_spaces_by_guid", "read_hand", "count_hand", "read_discard",
                             "read_face_down_cards", "read_cards_at", "inspect_guids", "read_health_dials", "zone_overlaps", "deck_identities",
                             "hand_identities", "reset_plan", "table_heroes", "inspect_objects", "find_pieces_by_name", "find_dials_by_name", "list_boards", "table_audit", "deck_facing", "list_bags",
-                            "read_transforms"})
+                            "read_transforms", "peek_deck_top"})
 
 REQUIRED = ("bot_seat", "human_seat", "nicknames", "bot_card_spot", "human_card_spot", "bot_discard_spot",
             "bot_discard_zone", "bot_deck_guid", "human_discard_zone", "bot_deck_spot", "pieces")

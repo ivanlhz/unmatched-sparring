@@ -150,6 +150,8 @@ def prompt_text(game, req: ChoiceRequest) -> str:
         base = _prompt("one_card")
     elif req.kind == "effect" and req.extra.get("op") == "predict":
         base = _prompt("predict")
+    elif req.kind == "effect" and req.extra.get("future"):      # The future of Ninjutsu: which deck, then leave or bottom
+        base = _prompt(f"future_{req.extra['future']}")
     elif req.kind == "optional" and req.extra.get("discards"):
         base = t("choice.prompt.discards", titles=card_titles(game, req.extra["discards"], req.card_owner if req.card_owner is not None else req.player))
         if "else_damage" in req.extra:

@@ -243,6 +243,8 @@ class Game:
         # the live session's reader of a hand `look_hand` wants (the real table hand, D3); None = the engine's hand.
         # Never copied into clones: a simulation determinizes and must not read the table.
         self.hand_reader: Callable[[int], list[Card]] | None = None
+        # the same for the top card of the table player's real deck (The future of Ninjutsu): its CardID or None; never in clones
+        self.deck_reader: Callable[[int], int | None] | None = None
         self.log: list[str] = []
         self.fx = EffectState()    # DSL interpreter state and hooks (docs/effects-dsl.md); inert unless fx.dsl_heroes
         self.fx.dsl_heroes = default_dsl_heroes(self)   # the bot is not known yet: Game.new recomputes it
@@ -303,6 +305,7 @@ class Game:
         g.draw_events = [0, 0]
         g.phantom_draws = self.phantom_draws
         g.hand_reader = None                   # a clone never reads the table: it looks at its determinized hand
+        g.deck_reader = None
         g.log = []
         g.fx = self.fx.copy()
         g.fx.attach(g)

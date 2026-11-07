@@ -3303,6 +3303,127 @@ return JSON.encode({{dealt = dealt}})
 
 
 @_registered
+def deck_card_to_spot(card_id: int, deck_guid: str, at: tuple[float, float, float], rot_y: float = 0,
+                      id_range: tuple[int, int] = BOT_CARD_IDS, *, identity, spot: tuple[float, float] | None = None,
+                      zone: str | None = None, radius: float = DECK_RADIUS) -> str:
+    """Takes ONE card of a deck out by CardID (not the top one: the bot's physical order is not the engine's) and lays
+    it face up at `at`. The card must be `ours` (`id_range` and the image of `identity`), so a card of another hero
+    that shares the CardID is never taken. A deck that is a single loose Card is moved as it is and its place and turn are returned (`single`, `home`,
+    `rot`: `card_home` puts it back there). Instant. Returns
+    `{taken, guid}` (`deck = false` when the deck is not there, `taken = false` when it does not hold the card)."""
+    own = _ours_lua(identity, id_range) + _deck_finder(spot, radius, zone)
+    return f"""-- sparring:deck_card_to_spot
+{own}local deck = findDeck({_guid(deck_guid)})
+if deck == nil then return JSON.encode({{taken = false, deck = false}}) end
+local at = {_xyz(at)}
+local turn = Vector(0, {_f(rot_y)}, 0)
+if deck.type == "Card" then
+  if deck.getData().CardID ~= {_i(card_id)} then return JSON.encode({{taken = false}}) end
+  local home, was = deck.getPosition(), deck.getRotation()
+  deck.setRotation(turn)
+  deck.setPosition(at)
+  return JSON.encode({{taken = true, guid = deck.getGUID(), single = true,
+                      home = {{home.x, home.y, home.z}}, rot = {{was.x, was.y, was.z}}}})
+end
+local data = deck.getData()
+for _, entry in ipairs(data.ContainedObjects or {{}}) do
+  if entry.CardID == {_i(card_id)} and cardOurs(entry, data.CustomDeck) then
+    local card = deck.takeObject({{guid = entry.GUID, position = at, rotation = turn, smooth = false}})
+    if card == nil then return JSON.encode({{taken = false}}) end
+    return JSON.encode({{taken = true, guid = card.getGUID()}})
+  end
+end
+return JSON.encode({{taken = false}})
+"""
+
+
+@_registered
+def peek_deck_top(deck_guid: str, id_range: tuple[int, int] = BOT_CARD_IDS, *, identity,
+                  spot: tuple[float, float] | None = None, zone: str | None = None,
+                  radius: float = DECK_RADIUS) -> str:
+    """Read only: the CardID of the top card of a deck (the first of its contents, the one `takeObject` gives), looked
+    up as `ours` (`id_range` and the image of `identity`). A single loose Card is its own top. Returns `{found, id,
+    quantity}` (`deck = false` when the deck is not there, `found = false` when its top is not ours)."""
+    own = _ours_lua(identity, id_range) + _deck_finder(spot, radius, zone)
+    return f"""-- sparring:peek_deck_top
+{own}local deck = findDeck({_guid(deck_guid)})
+if deck == nil then return JSON.encode({{found = false, deck = false}}) end
+local data = deck.getData()
+local cards = data.ContainedObjects or {{}}
+local first = deck.type == "Card" and data or cards[1]
+if first == nil or not cardOurs(first, data.CustomDeck) then return JSON.encode({{found = false}}) end
+return JSON.encode({{found = true, id = first.CardID, quantity = deck.type == "Card" and 1 or #cards}})
+"""
+
+
+@_registered
+def card_home(card_guid: str, pos: tuple[float, float, float], rot: tuple[float, float, float],
+              id_range: tuple[int, int] = BOT_CARD_IDS, *, identity) -> str:
+    """Puts a loose card of ours (by GUID, in no hand zone) back at `pos` with the turn `rot` (instant): the last card of a
+    deck that `deck_card_to_spot` laid face up goes back face down where the deck was, so the deck exists again (a face-up
+    card is never found as a deck). Returns `{placed}`."""
+    if not all(isinstance(v, (tuple, list)) and len(v) == 3 for v in (pos, rot)):
+        raise TypeError("position and rotation (x, y, z) expected")
+    return f"""-- sparring:card_home
+{_ours_lua(identity, id_range)}{_LOOSE_LUA}local card = {_card_ref_lua(card_guid)}
+if card == nil then return JSON.encode({{placed = false}}) end
+card.setRotation({_xyz(rot)})
+card.setPosition({_xyz(pos)})
+return JSON.encode({{placed = true, guid = card.getGUID()}})
+"""
+
+
+@_registered
+def deck_top_to_bottom(deck_guid: str, expect_id: int, id_range: tuple[int, int] = BOT_CARD_IDS, *, identity,
+                       spot: tuple[float, float] | None = None, zone: str | None = None,
+                       radius: float = DECK_RADIUS) -> str:
+    """Moves the top card of a deck to its bottom, only if that top card is `expect_id` and `ours` (`id_range` and
+    the image of `identity`): the card was read a moment ago and nobody must lose a different one. The top card is
+    taken off with `takeObject()` (what TTS calls the top, whatever order the read assumed) and its CardID is checked: a
+    different one goes back on top and nothing moves (`mismatch`). The rest is turned over (instant) so its bottom is its top, the card goes in and the deck is turned
+    back, like `card_to_deck_bottom`. A single card is already at the bottom. Returns `{moved, deck}` (`deck = false`
+    when the deck is not there, `moved = false` when the top card is not the expected one)."""
+    own = _ours_lua(identity, id_range) + _deck_finder(spot, radius, zone)
+    return f"""-- sparring:deck_top_to_bottom
+{own}local deck = findDeck({_guid(deck_guid)})
+if deck == nil then return JSON.encode({{moved = false, deck = false}}) end
+local data = deck.getData()
+if deck.type == "Card" then return JSON.encode({{moved = data.CardID == {_i(expect_id)}, single = true}}) end
+local first = (data.ContainedObjects or {{}})[1]
+if first == nil or first.CardID ~= {_i(expect_id)} or not cardOurs(first, data.CustomDeck) then
+  return JSON.encode({{moved = false}})
+end
+local home = deck.getPosition()
+local r = deck.getRotation()
+local card = deck.takeObject({{position = Vector(home.x, home.y + 2, home.z), smooth = false}})
+if card == nil then return JSON.encode({{moved = false}}) end
+local taken = card.getData().CardID
+local rest = findDeck({_guid(deck_guid)})
+if rest == nil then
+  for _, o in ipairs(getObjects()) do
+    if o ~= card and o.type == "Card" and o.is_face_down and ours(o) then
+      local p = o.getPosition()
+      if math.abs(p.x - home.x) < 1.5 and math.abs(p.z - home.z) < 1.5 then rest = o end
+    end
+  end
+end
+if rest == nil then
+  card.setPosition(home)
+  return JSON.encode({{moved = false, deck = false}})
+end
+if taken ~= {_i(expect_id)} then
+  -- TTS's top card is not the one that was read: it goes back on top and nothing moves
+  rest = rest.putObject(card) or rest
+  return JSON.encode({{moved = false, mismatch = true, deck = rest.getGUID()}})
+end
+rest.setRotation(Vector(r.x, r.y, (r.z + 180) % 360))
+rest = rest.putObject(card) or rest
+rest.setRotation(Vector(r.x, r.y, r.z))
+return JSON.encode({{moved = true, deck = rest.getGUID()}})
+"""
+
+
+@_registered
 def take_token_copy(source_guid: str, position: tuple[float, float, float]) -> str:
     """Gets one more token from a source object (Abe's Uncanny Intuition): a bag or infinite bag and a stack give one with
     `takeObject`; a single token is `clone`d. Returns `{taken: guid, via}` (`moved` too, so a composite waits for it)."""

@@ -157,16 +157,19 @@
    "effects": {
     "immediately": [], "during": [], "after": [],
     "scheme": [
-     {"op": "look_deck", "player": "owner", "amount": 1, "as": "top"},
-     {"op": "optional", "chooser": "owner", "ops": [
-      {"op": "return_to_deck", "cards": {"zone": "deck", "player": "owner", "pick": "top", "amount": 1}, "position": "bottom"}
+     {"op": "plugin", "id": "donatello:future_of_ninjutsu"},
+     {"op": "if", "condition": {"test": "plugin", "id": "donatello:future_of_ninjutsu", "key": "own_deck"}, "then": [
+      {"op": "look_deck", "player": "owner", "amount": 1, "as": "top"},
+      {"op": "optional", "chooser": "owner", "ops": [
+       {"op": "return_to_deck", "cards": {"zone": "deck", "player": "owner", "pick": "top", "amount": 1}, "position": "bottom"}
+      ]}
      ]},
      {"op": "draw", "player": "owner", "amount": 1},
      {"op": "gain_action", "amount": 1}
     ],
     "boost": []
    },
-   "notes": "'Any deck' is read as the owner's own deck: the other deck is face down on the table and the bot's order is virtual (nothing true to look at), so looking at it is not modelled (docs/heroes/donatello.md, open questions)."
+   "notes": "'Any deck' (rule confirmed by Ivan on 2026-11-07, rules video): the plugin asks which deck; the owner's own deck goes on to the `if` below (the flow of the printed text, unchanged), the rival's is looked at inside the plugin and the `if` is skipped. The draw and the action are the owner's either way (docs/heroes/donatello.md, Decision 7)."
   },
   {
    "title": "Electro grenade",
@@ -226,14 +229,17 @@
    "notes": "Playing it costs one action like any scheme. Once tucked, every scheme the owner plays gives back 1 action (including the next Smoke bomb, there is only one)."
   }
  ],
- "plugins": [],
+ "plugins": [
+  {"id": "donatello:future_of_ninjutsu", "why": "Look at the top card of ANY deck, the owner's or the rival's: the owner chooses the deck, the rival's top card is the engine's own (the bot's deck) or is read from the table (the human's real deck), and the card may go to the bottom; the human is shown the bot's real card and the bot moves the human's on the table."}
+ ],
  "hidden_info": [
   {"where": "INVENTIVE / Thinking ahead / Donatello does machines", "rule": "Cards put on the bottom of the deck from the hand go face down: the rival does not see them (a look at the hand degrades to 'possible'). From the discard pile they are public."},
   {"where": "The future of Ninjutsu (the top card of the own deck)", "rule": "The bot decides on its own top card (its deck order is its own information); the human looks at theirs on the table and the engine never names their virtual top card."},
+  {"where": "The future of Ninjutsu (the top card of the rival's deck)", "rule": "The human looking at the bot's deck is shown the bot's real top card (face up on the table, pinged) and decides leave / bottom; the bot looking at the human's deck reads their real top card from the table, announces only that it looked and what it did (the card itself is not public), and remembers it as the known top of their deck only until they draw it."},
   {"where": "Removed from the game and tucked cards", "rule": "Public: they are face up and the rival's pool of possible hidden cards excludes them."}
  ],
  "open_questions": [
   "The tucked invention does not help in the combat or scheme that tucks it ('after you play').",
-  "'Any deck' of The future of Ninjutsu is read as the owner's own deck."
+  "A tucked invention does not help in the combat or scheme that tucks it, Decision 2 (reading kept, still not confirmed by video)."
  ]
 }

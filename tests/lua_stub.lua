@@ -26,7 +26,8 @@ function mkobj(o)
   o.getPosition = function() return vec(o.pos.x, o.pos.y, o.pos.z) end
   o.setPosition = function(p) o.pos = Vector(p); if HAND_ZONES then o.hand = nil; if o.use_hands ~= false then for _, z in ipairs(HAND_ZONES) do if math.abs(o.pos.x - z.cx) <= z.hw and math.abs(o.pos.z - z.cz) <= z.hd then o.hand = z.color end end end end; MOVES = (MOVES or 0) + 1; o.moved_count = (o.moved_count or 0) + 1 end
   o.setPositionSmooth = function(p) o.pos = Vector(p); o.moved_count = (o.moved_count or 0) + 1; if o.never_rests then o.resting = false end end
-  o.setRotation = function(r) o.rot = r end
+  -- an object that declares a side keeps it true to its turn: turned to z = 180 it is face down, otherwise face up
+  o.setRotation = function(r) o.rot = r; if o.is_face_down ~= nil then o.is_face_down = (math.floor((r.z or 0) + 0.5) % 360 == 180) end end
   o.setRotationSmooth = function(r) o.rot = r end
   o.getRotation = function() local r = o.rot or vec(0, 0, 0); return vec(r.x, r.y, r.z) end
   o.getAttachments = function() return o.attached or {} end

@@ -42,6 +42,7 @@ from . import session_effects as human_effects
 from . import session_hidden as hidden
 from . import session_moves as moves
 from . import session_pieces as piece_id
+from . import session_peek as peek
 from . import session_pile as pile
 from . import session_sleight as sleight
 from . import session_translators as translators
@@ -340,6 +341,8 @@ class Session:
         self.boost_note: dict | None = None                   # what the bot's Maneuver boost card drew and gained (`_note_boost`)
         self.fx_looked = False                        # a look_hand re-identified the human's virtual hand in this step
         self.reveal_bot_hand = False                  # a card of the human looked at the bot's hand in this step (E3)
+        self.peek: dict | None = None                 # the bot's top card face up in the row, while the human decides (The future of Ninjutsu)
+        self.peek_pins: dict[str, list[int]] = {"top": [], "bottom": []}     # cards the human left on top / put at the bottom of the bot's deck: its engine order
         self._attach_choosers()
         self.chosen_attacker: str | None = None
         self.moving = False
@@ -563,6 +566,7 @@ class Session:
         elif self.effect_run is not None:
             self.choice_ui = choices.ChoiceUI()
             self.say(t("sess.resume.effect", prompt=choices.prompt_text(self.game, self.effect_run.awaiting)), ChatKind.YOUR_TURN)
+            peek.remind(self)
         elif self._table_gate(self.pending):
             self.say(t("sess.resume.table_gate"), ChatKind.YOUR_TURN)
         elif self.pending is not None and self.pending.wait is not None:
@@ -1101,6 +1105,7 @@ class Session:
         if self.game.fx.intents is None:
             self.game.fx.intents = []             # the ops report what they do to the table: the translators take it
         self.game.hand_reader = self._read_human_hand
+        self.game.deck_reader = (lambda player: peek.read_top(self, player)) if self.cfg.human_deck_guid else None
         self.game.hazard_hook = lambda: self._announce_hazards(write_dials=True)
 
     def _read_human_hand(self, player: int) -> list[Card]:
@@ -1174,6 +1179,8 @@ class Session:
 
     def _show_choice(self, req) -> None:
         self.choice_ui.sync(req)
+        if peek.wants(self, req):
+            peek.open_row(self, req)          # the bot's top card face up in the row, pinged
         if (req.kind == "cards" and req.player == self.human and req.extra.get("zone") == "hand"
                 and req.extra.get("of") == self.bot and req.extra.get("purpose") == "discard"):
             return                                # look-and-discard: `hidden.manual_start` explains it, no option list
@@ -1251,8 +1258,10 @@ class Session:
             if ok:
                 self._combat_step_done(self.pending)
             return
+        asked = run.awaiting
         ok = self._guarded(lambda: self._answer_run(run, value))
         hidden.close_row(self, value, ok)
+        peek.answered(self, asked, value, ok)     # the card of the row goes back on top or to the bottom of the bot's deck
         if ok and run.done:
             if kind == "effect":
                 self.free_effect = None
@@ -1323,6 +1332,7 @@ class Session:
     def _answer_run(self, run: EffectRun, value: list) -> None:
         if "said_before" in run.flags:            # the run changes nothing until now: its line must not include what other triggers did meanwhile
             run.flags["said_before"] = narrate.snapshot(self.game)
+        peek.pin(self, run.awaiting, value)       # the order the human chose for the bot's deck, before any reread of its table
         run.resume(value)
         self._continue_effect(run)
 
@@ -1568,6 +1578,7 @@ class Session:
             "deck_ident": {side: [list(pair) for pair in pairs]
                            for side, pairs in {**self._saved_ident, **self._deck_ident}.items()},
             **({"resolved_pieces": self.resolved_pieces} if self.resolved_pieces else {}),
+            **peek.to_dict(self),
             **({"resolved_dials": self.resolved_dials} if self.resolved_dials else {}),
             **({"deck_live": {**self._saved_decks, **self._live_decks()}} if {**self._saved_decks, **self._live_decks()} else {}),
             **({"zones_live": self._live_zones()} if self._live_zones() else {}),
@@ -1626,6 +1637,7 @@ class Session:
             self.fx_unprojected = d.get("fx_unprojected")
             self.pending_discard, self.pending_value = d["pending_discard"], d["pending_value"]
             self.look = self._load_look(d.get("look"))
+            self.peek, self.peek_pins = peek.load(d)
             self.chosen_attacker, self.moving = d["chosen_attacker"], d["moving"]
             self.bot_discarded, self.dirty = set(d["bot_discarded"]), d["dirty"]
             un = d["unprojected"]
@@ -4514,7 +4526,7 @@ class Session:
             c = by_id.get(card_id)                # the hand in view is in the table's row, not in its hand
             if c is not None and c not in cards and c not in st.discard:
                 cards.append(c)
-        unseen = [c for c in st.full_set if c not in cards and c not in st.discard and c not in in_play]
+        unseen = peek.engine_order(self, [c for c in st.full_set if c not in cards and c not in st.discard and c not in in_play])
         owed = min(self.game.drawn[self.bot], len(unseen))
         st.hand = cards + unseen[:owed]
         st.deck = unseen[owed:]

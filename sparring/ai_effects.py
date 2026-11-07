@@ -427,6 +427,10 @@ class EffectAI:
     def _effect(self, game: Game, req: ChoiceRequest, nested: bool) -> list | None:
         if req.extra.get("op") == PREDICT_OP:
             return [predict_value(game, req.player)]
+        if req.extra.get("future") == "deck":
+            return [self._future_deck(game, req)]
+        if req.extra.get("future") == "peek":
+            return [self._future_peek(game, req)]
         found = self._locate(game, req)
         if nested or found is None:
             return None
@@ -442,6 +446,26 @@ class EffectAI:
             gain = round(value - before, 6) if value is not None else 0.0
             scored.append((gain, SyntheticChooser._option_worth(game, req.player, options[k]), -k, k))   # a tie: the one that does something
         return [max(scored)[3]]
+
+    def _future_deck(self, game: Game, req: ChoiceRequest) -> int:
+        """The future of Ninjutsu, which deck to look at: 0 own, 1 the rival's. Decided before the rival's top card can be
+        known. The own deck when its top card is worth less than the average card still to come (burying it is a sure gain);
+        otherwise the rival's, where the best card of the human can be put out of their reach."""
+        top = req.extra.get("own_top")
+        if top is None:
+            return 1
+        card = game.cards_by_id(req.player).get(top)
+        return 0 if card is not None and keep_value(card, [card]) < self.medusa(req.player).avg_unseen_keep(game) else 1
+
+    def _future_peek(self, game: Game, req: ChoiceRequest) -> int:
+        """The future of Ninjutsu on the rival's deck: 1 (bottom) when the card is worth more to the human than the average
+        card they still hold in their deck or hand, 0 (leave) otherwise. What they already played is out of the average."""
+        rival = 1 - req.player
+        st = game.players[rival]
+        card = game.cards_by_id(rival)[req.extra["top"]]
+        left = [c for c in st.full_set if c not in st.gone]
+        average = sum(card_worth(c) for c in left) / len(left) if left else 0.0
+        return 1 if card_worth(card) > average else 0
 
     def _optional(self, game: Game, req: ChoiceRequest, nested: bool) -> list | None:
         if "pact" in req.extra:
