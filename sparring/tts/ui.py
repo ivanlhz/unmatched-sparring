@@ -38,6 +38,7 @@ class Event(str, Enum):
     READY = "ready"
     MULLIGAN = "mulligan"
     RESTART = "restart"
+    NEW_GAME = "new_game"      # "New game": discards this game and goes back to the pre-game gate (new map and heroes)
     BOOST = "boost"            # "Continue": reads the boost card the human put in their discard and resolves
     NO_BOOST = "no_boost"      # "No boost": resolves without boosting
     MANEUVER_BOOST = "maneuver_boost"   # "Boost": reads the boost card in the discard pile during the human's Maneuver
@@ -64,7 +65,7 @@ CHOICE_BUTTONS = tuple(f"btn_choice_{i}" for i in range(1, 7))     # hidden exce
 FIXED_BUTTONS = {"btn_maneuver": "onManeuver", "btn_scheme": "onScheme", "btn_reveal": "onReveal",
                  "btn_cancel": "onCancel", "btn_end": "onEndAction", "btn_undo": "onUndoGameOver",
                  "btn_value": "onValueSend", "btn_mulligan": "onMulligan", "btn_ready": "onReady",
-                 "btn_restart": "onRestart", "btn_boost": "onBoost", "btn_noboost": "onNoBoost", "btn_mboost": "onManeuverBoost",
+                 "btn_restart": "onRestart", "btn_newgame": "onNewGame", "btn_boost": "onBoost", "btn_noboost": "onNoBoost", "btn_mboost": "onManeuverBoost",
                  "btn_look": "onLook", **dict.fromkeys(CHOICE_BUTTONS, "onChoice")}
 GATE_BUTTONS = ("btn_clean", "btn_prep", "btn_start")     # born hidden; only the pre-game gate shows them (never part of a game's panel states)
 SETUP_ONLY = ("btn_mulligan", "btn_ready")
@@ -160,6 +161,7 @@ function onUndoGameOver() send({{event = "undo_game_over"}}) end
 function onReady() send({{event = "ready"}}) end
 function onMulligan() send({{event = "mulligan"}}) end
 function onRestart() send({{event = "restart"}}) end
+function onNewGame() send({{event = "new_game"}}) end
 function onBoost() send({{event = "boost"}}) end
 function onNoBoost() send({{event = "no_boost"}}) end
 function onManeuverBoost() send({{event = "maneuver_boost"}}) end
@@ -283,7 +285,8 @@ def panel_xml(target_ids: list[str], attacker_ids: tuple[str, ...] = DEFAULT_ATT
                    _button("btn_start", "onStart", t("panel.start"), 16).replace("<Button ", '<Button active="false" '))
             + _row(_button("btn_restart", "onRestart", t("panel.restart")),
                    _button("btn_clean", "onClean", t("panel.clean"), 16).replace("<Button ", '<Button active="false" '))
-            + _row(_button("btn_undo", "onUndoGameOver", t("panel.undo")))
+            + _row(_button("btn_undo", "onUndoGameOver", t("panel.undo"), 16),     # undo shows only at game over; New game fills the row otherwise
+                   _button("btn_newgame", "onNewGame", t("panel.new_game"), 16))
             + f'<InputField placeholder="{t("panel.value_placeholder")}" onValueChanged="onValueEdit" preferredHeight="40"/>'
             + _row(_button("btn_value", "onValueSend", t("panel.send_value"))) + '</VerticalLayout>')
     height = panel_height(len(fighters))

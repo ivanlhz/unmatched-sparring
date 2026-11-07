@@ -284,6 +284,7 @@ def test_only_the_first_click_of_a_batch_keeps_its_snapshot():
     from sparring import play
 
     class Spy:
+        back_to_gate = False
         def __init__(self):
             self.seen = []
 

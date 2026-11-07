@@ -279,11 +279,12 @@ class _Timed:
 
 
 # with the bot's hand in view only what resolves it is attended to (or does not touch it: HP, remove, value)
-CHOICE_EVENTS = (Event.CHOICE, Event.CANCEL, Event.LOOK_PING, Event.HP, Event.REMOVE, Event.VALUE, Event.RESTART)
-ABILITY_EVENTS = (Event.END_ACTION, Event.HP, Event.REMOVE, Event.RESTART)   # while your start-of-turn ability waits
-GATE_EVENTS = (Event.END_ACTION, Event.HP, Event.REMOVE, Event.RESTART)    # while the combat waits for a step of your hand
+CHOICE_EVENTS = (Event.CHOICE, Event.CANCEL, Event.LOOK_PING, Event.HP, Event.REMOVE, Event.VALUE, Event.RESTART,
+                Event.NEW_GAME)
+ABILITY_EVENTS = (Event.END_ACTION, Event.HP, Event.REMOVE, Event.RESTART, Event.NEW_GAME)   # while your start-of-turn ability waits
+GATE_EVENTS = (Event.END_ACTION, Event.HP, Event.REMOVE, Event.RESTART, Event.NEW_GAME)    # while the combat waits for a step of your hand
 LOOK_EVENTS = (Event.LOOK_PING, Event.CHOICE, Event.CANCEL, Event.END_ACTION, Event.HP, Event.REMOVE, Event.VALUE,
-               Event.RESTART)
+               Event.RESTART, Event.NEW_GAME)
 CARD_TYPE_TAGS = {"attack": "look.type.attack", "defense": "look.type.defense", "versatile": "look.type.versatile", "scheme": "look.type.scheme"}
 
 SNAP_KEYS = ("bot_hand", "human_count", "bot_discard", "human_discard", "face_bot", "face_human", "pieces", "dials")
@@ -392,6 +393,9 @@ class Session:
         self._gone: dict[int, int] = {}                     # CardID missing from the table's discard -> button on which it was seen
         self._depth = 0                                     # >0 while a button, the start or a resume is being attended
         self._restart_at: float | None = None               # instant of the first tap on Restart game
+        self._new_game_at: float | None = None              # instant of the first tap on New game
+        self.back_to_gate = False                           # set by a confirmed New game: the run loop ends and play() returns to the gate
+        self.can_regate = True                              # False when the pre-game gate is off: New game has nowhere to go back to
         self.cost_log: list[tuple[str, int, float]] = []   # (what, messages to TTS, seconds) per button and per action
         self.snap: dict | None = None                       # current table snapshot (fast mode)
         self._trusted = False                               # the snapshot comes from the click: no need to re-read to confirm
@@ -1020,11 +1024,11 @@ class Session:
                  Event.SCHEME: self._scheme, Event.REVEAL: self._reveal, Event.END_ACTION: self._end_action,
                  Event.VALUE: self._value, Event.CANCEL: self._cancel, Event.HP: self._hp,
                  Event.REMOVE: self._remove, Event.UNDO_GAME_OVER: self._undo_game_over, Event.READY: self._ready,
-                 Event.MULLIGAN: self._human_mulligan, Event.RESTART: self._restart,
+                 Event.MULLIGAN: self._human_mulligan, Event.RESTART: self._restart, Event.NEW_GAME: self._new_game,
                  Event.BOOST: self._boost, Event.NO_BOOST: self._no_boost, Event.MANEUVER_BOOST: self._maneuver_boost,
                  Event.LOOK: self._look_hand, Event.LOOK_PING: self._look_ping, Event.CHOICE: self._choice}
         if self.setup is not None and event not in (Event.READY, Event.HP, Event.REMOVE, Event.CANCEL, Event.VALUE,
-                                                    Event.MULLIGAN, Event.RESTART):
+                                                    Event.MULLIGAN, Event.RESTART, Event.NEW_GAME):
             self.say(t("sess.setting_up"), ChatKind.WARNING)
             return self._done()
         if self.look is not None and event not in LOOK_EVENTS:
@@ -1041,6 +1045,8 @@ class Session:
             return self._done()
         if event is not Event.RESTART:
             self._restart_at = None               # any other button disarms the confirmation
+        if event is not Event.NEW_GAME:
+            self._new_game_at = None
         try:
             table[event](payload)
         except RuleError as e:
@@ -1445,6 +1451,26 @@ class Session:
         self._begin_game()
         self._darken_intuition_tokens()
 
+    def _new_game(self, _: dict) -> None:
+        """Double press (same window as Restart): discards the saved game and asks `play` to return to the pre-game
+        gate, where the player puts another map and other heroes. Nothing on the table is touched here."""
+        if not self.can_regate:
+            return
+        if not self.new_game_armed():
+            self._new_game_at = self.clock()
+            self.say(t("newgame.arm"), ChatKind.WARNING)
+            return
+        self._new_game_at = None
+        if self.look is not None:
+            self._look_best_effort_cancel()
+        if self.state_path is not None:
+            try:
+                self.state_path.unlink(missing_ok=True)
+            except OSError as e:
+                self.say(t("restart.delete_fail", path=self.state_path, err=e), ChatKind.WARNING)
+        self.say(t("newgame.done"))
+        self.back_to_gate = True
+
     def _fresh_game(self) -> Game:
         if self.new_game is not None:
             return self.new_game()
@@ -1751,7 +1777,7 @@ class Session:
         return out
 
     def _persist(self) -> None:
-        if self.state_path is None:
+        if self.state_path is None or self.back_to_gate:      # a discarded game must not leave its save behind
             return
         try:
             persist.save_atomic(self.state_path, self.to_dict())
@@ -4304,7 +4330,11 @@ class Session:
         states["btn_mulligan"] = (bool(waiting and self.cfg.mulligan_human and not self.setup.get("human_mull")),
                                   in_setup)
         states["btn_restart"] = (True, not in_setup)
+        states["btn_newgame"] = (True, self.can_regate)
         return self._status_text(), {k: v for k, v in states.items() if k in set(self._panel_ids())}
+
+    def new_game_armed(self) -> bool:
+        return self._new_game_at is not None and self.clock() - self._new_game_at <= RESTART_WINDOW
 
     def restart_armed(self) -> bool:
         return self._restart_at is not None and self.clock() - self._restart_at <= RESTART_WINDOW
@@ -4313,6 +4343,8 @@ class Session:
         g = self.game
         if self.restart_armed():
             return panel_text(t("st.restart_armed"))
+        if self.new_game_armed():
+            return panel_text(t("st.new_game_armed"))
         if self.setup is not None:
             if self.setup["stage"] in ("wait_human_first", "wait_human"):
                 return panel_text(t("st.setup_wait"))
