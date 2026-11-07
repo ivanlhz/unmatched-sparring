@@ -591,3 +591,4 @@ from . import ops_info  # noqa: E402,F401  (registers look_hand, reveal, look_de
 from . import plugins_raphael  # noqa: E402,F401  (registers raphael:unbridled_rage)
 from . import plugins_strange  # noqa: E402,F401  (registers strange:blind_boost, strange:mists_of_munnopor, strange:reveal_to_top)
 from . import plugins_houdini  # noqa: E402,F401  (registers houdini:replace_combatant, houdini:return_boosted)
+from . import plugins_donatello  # noqa: E402,F401  (registers donatello:future_of_ninjutsu)

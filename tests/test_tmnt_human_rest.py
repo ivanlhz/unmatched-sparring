@@ -170,6 +170,9 @@ def test_the_future_of_ninjutsu_draws_gains_an_action_and_asks_about_the_top_car
     msgs = human_scheme(session, table, game, "The future of Ninjutsu")
     assert session.effect_run is not None, msgs
     req = session.effect_run.awaiting
+    assert req.kind == "effect" and req.extra["future"] == "deck", "any deck: first the human chooses which (7/11)"
+    press(session, table, 0)                                    # their own deck: the flow that existed before
+    req = session.effect_run.awaiting
     assert req.kind == "optional", req
     press(session, table, False)
     assert session.effect_run is None
