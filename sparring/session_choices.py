@@ -146,7 +146,9 @@ def prompt_text(game, req: ChoiceRequest) -> str:
     ability = f"choice.prompt.ability.{req.key.split('/')[0]}"       # the question of a hero's own trigger (INVENTIVE)
     if req.kind == "optional" and req.card_id is None and has(ability):
         return t(ability)
-    if req.kind == "cards" and req.max == 1:        # no "card(s)": the panel status drops the parentheses (live 29/10)
+    if req.kind == "amount" and req.extra.get("blind_count"):      # BLIND BOOST: how many, before any card moves
+        base = t("choice.prompt.blind_count", n=req.extra["times"])
+    elif req.kind == "cards" and req.max == 1:        # no "card(s)": the panel status drops the parentheses (live 29/10)
         base = _prompt("one_card")
     elif req.kind == "effect" and req.extra.get("op") == "predict":
         base = _prompt("predict")

@@ -60,6 +60,20 @@ class StrangeTable(AsideTable):
             return {"moved": [i], "count": 1, "zone": True}
         return {"moved": [], "count": 0, "zone": True}
 
+    top_discard_fail = None              # "deck": no deck of theirs found; "short": one card fewer than asked
+    top_discards: list = []
+
+    def do_deck_top_to_discard(self, s):
+        """The top cards of the human's deck (`human_deck`, the first is the top) face up onto their discard pile."""
+        n = int(re.search(r"for _ = 1, (\d+) do", s).group(1))
+        self.top_discards.append(n)
+        if self.top_discard_fail == "deck":
+            return {"moved": [], "count": 0, "deck": False, "zone": True}
+        n = n - 1 if self.top_discard_fail == "short" else n
+        moved = [self.human_deck.pop(0) for _ in range(min(n, len(self.human_deck)))]
+        self.human_discard += moved
+        return {"moved": moved, "count": len(moved), "deck": True, "zone": True}
+
     def do_shuffle_deck(self, s):
         self.shuffles += 1
         return {"shuffled": True, "quantity": len(self.bot_deck)}
@@ -85,6 +99,7 @@ def rig(request, tmp_path):
     table.human_card_spot = tuple(cfg.session_config().human_card_spot)
     table.human_deck = []
     table.hand_returns = []
+    table.top_discards = []
     put_adjacent(game, table, cfg, game.hero(1).fid, game.hero(0).fid)
     yield session, table, game, fake, cfg
     client.close()
@@ -210,61 +225,190 @@ def test_dark_pact_is_not_offered_for_a_card_wong_played(rig, monkeypatch):
 
 # ---------------------------------------------------------------- BLIND BOOST
 
+def on_deck(table, game, *titles):
+    """The physical top of the human's deck, in order (the first is the top)."""
+    table.human_deck = [sid(game, title, titles[:k].count(title)) for k, title in enumerate(titles)]
+    return list(table.human_deck)
+
+
+def shrink_deck_at_the_plugin(monkeypatch, game, keep):
+    """The engine's virtual deck of the human is rebuilt as the table is read: cut it to `keep` cards just as the plugin starts."""
+    from sparring.effects import plugins_strange
+    real = plugins_strange._flow
+
+    def flow(run, name):
+        del game.players[1].deck[keep:]
+        return real(run, name)
+    monkeypatch.setattr(plugins_strange, "_flow", flow)
+
+
 @with_rig()
-def test_blind_boost_waits_for_the_top_card_on_the_discard_pile_and_adds_its_boost_value(rig, monkeypatch):
+def test_bolts_ask_zero_or_one_up_front_with_two_buttons_and_nothing_moves_until_they_answer(rig, monkeypatch):
     session, table, game, fake, cfg = rig
     no_defense(session, monkeypatch)
     human_hand(table, game, "Bolts of Balthakk", "Feint")
+    on_deck(table, game, "Master of Kamar-Taj")
     msgs = attack(session, table, game, "Bolts of Balthakk")
     req = session.effect_run.awaiting
-    assert req.kind == "cards" and req.extra["pile_mode"] == "blind" and req.min == 0 and req.max == 1
-    assert said(msgs, "IMPULSO A CIEGAS") and session.panel_view()[0].startswith("Pon en tu descarte las cartas de arriba")
-    top = sid(game, "Master of Kamar-Taj")                                       # boost 2
-    table.human_discard.append(top)                                              # the top card of their real deck, face up
+    assert req.kind == "amount" and req.options == [0, 1] and req.extra["blind_count"] and req.extra["times"] == 1
+    assert pause_labels(session) == ["0", "1"]
+    assert said(msgs, "IMPULSO A CIEGAS: cuantas cartas descartas de arriba de tu mazo (hasta 1)")
+    assert session.panel_view()[0].startswith("IMPULSO A CIEGAS")
+    assert table.top_discards == [] and table.human_discard == [], "the cards are taken only after the declaration"
+
+
+@with_rig()
+def test_declaring_one_moves_the_top_card_to_the_pile_face_up_and_adds_its_boost_value(rig, monkeypatch):
+    session, table, game, fake, cfg = rig
+    no_defense(session, monkeypatch)
+    human_hand(table, game, "Bolts of Balthakk", "Feint")
+    top, second = on_deck(table, game, "Master of Kamar-Taj", "Feint")           # boost 2
+    attack(session, table, game, "Bolts of Balthakk")
     deck_before = len(game.players[1].deck)
-    msgs = done(session, table)
-    assert said(msgs, "cuento Master of Kamar-Taj") and said(msgs, "+2")
+    msgs = done(session, table, 2)                                                # "1"
+    assert table.top_discards == [1] and table.human_discard == [top] and table.human_deck == [second]
+    assert said(msgs, "descarto las 1 de arriba de tu mazo, boca arriba: Master of Kamar-Taj. +2 al valor")
     assert said(msgs, "Doctor Strange ataca con Bolts of Balthakk (2)") and said(msgs, "total 4")
     assert top in [c.card_id for c in game.players[1].discard] and len(game.players[1].deck) == deck_before - 1
     assert len(game.players[1].hand) == table.human_count                      # the hand did not change, the deck did
+    assert not said(msgs, "No he podido mover") and not said(session.messages, "no coincide")
     assert session._paused() is not None and session._paused()[2].label == "dark_pact"
 
 
 @with_rig()
-def test_blind_boost_with_nothing_on_the_pile_is_no_boost(rig, monkeypatch):
+def test_declaring_zero_takes_nothing(rig, monkeypatch):
     session, table, game, fake, cfg = rig
     no_defense(session, monkeypatch)
     human_hand(table, game, "Bolts of Balthakk", "Feint")
+    on_deck(table, game, "Master of Kamar-Taj")
     attack(session, table, game, "Bolts of Balthakk")
-    msgs = done(session, table)
-    assert said(msgs, "no potencias") and said(msgs, "total 2") and session.effect_run is not None
+    msgs = done(session, table, 1)                                                # "0"
+    assert table.top_discards == [] and table.human_discard == []
+    assert said(msgs, "no potencias") and said(msgs, "total 2") and session._paused()[2].label == "dark_pact"
 
 
 @with_rig()
-def test_bolts_allow_one_blind_boost(rig, monkeypatch):
-    session, table, game, fake, cfg = rig
-    no_defense(session, monkeypatch)
-    human_hand(table, game, "Bolts of Balthakk", "Seven Suns of Cinnibus")
-    attack(session, table, game, "Bolts of Balthakk")
-    table.human_discard += [sid(game, "Master of Kamar-Taj"), sid(game, "Master of Kamar-Taj", 1)]
-    msgs = done(session, table)
-    assert said(msgs, "solo permite 1") and session._paused()[2].awaiting.extra["pile_mode"] == "blind"
-    table.human_discard.pop()
-    msgs = done(session, table)
-    assert said(msgs, "cuento Master of Kamar-Taj") and session._paused()[2].label == "dark_pact"
-
-
-@with_rig()
-def test_seven_suns_boosted_over_seven_count_for_nothing(rig, monkeypatch):
+def test_seven_suns_offer_zero_one_or_two_and_two_cards_move_in_one_write(rig, monkeypatch):
     session, table, game, fake, cfg = rig
     no_defense(session, monkeypatch)
     human_hand(table, game, "Seven Suns of Cinnibus", "Feint")
+    first, second = on_deck(table, game, "Master of Kamar-Taj", "Feint")         # boosts 2 and 1
     attack(session, table, game, "Seven Suns of Cinnibus")
-    assert session.effect_run.awaiting.max == 2
-    table.human_discard += [sid(game, "Bolts of Balthakk"), sid(game, "Bolts of Balthakk", 1)]      # boost 3 + 3: 9 > 7
+    assert session.effect_run.awaiting.options == [0, 1, 2] and pause_labels(session) == ["0", "1", "2"]
+    msgs = done(session, table, 3)                                                # "2"
+    assert table.top_discards == [2] and table.human_discard == [first, second]
+    assert said(msgs, "Master of Kamar-Taj, Feint") and said(msgs, "+3 al valor") and said(msgs, "total 6")
+
+
+@with_rig()
+def test_seven_suns_over_seven_after_the_declared_boosts_count_for_nothing(rig, monkeypatch):
+    session, table, game, fake, cfg = rig
+    no_defense(session, monkeypatch)
+    human_hand(table, game, "Seven Suns of Cinnibus", "Feint")
+    on_deck(table, game, "Bolts of Balthakk", "Bolts of Balthakk")              # boost 3 + 3: 3 + 6 = 9 > 7
+    attack(session, table, game, "Seven Suns of Cinnibus")
     hp = game.fighters["hellboy"].hp
-    msgs = done(session, table)
+    msgs = done(session, table, 3)
     assert said(msgs, "total 0") and game.fighters["hellboy"].hp == hp
+
+
+@with_rig()
+def test_the_buttons_only_appear_for_a_card_that_allows_a_blind_boost(rig, monkeypatch):
+    session, table, game, fake, cfg = rig
+    no_defense(session, monkeypatch)
+    human_hand(table, game, "Feint", "Bolts of Balthakk")
+    on_deck(table, game, "Master of Kamar-Taj")
+    attack(session, table, game, "Feint")
+    assert session._paused()[2].label == "dark_pact" and pause_labels(session) == ["Si", "No"]
+    assert table.top_discards == []
+
+
+@with_rig()
+def test_an_empty_deck_asks_nothing_and_boosts_nothing(rig, monkeypatch):
+    session, table, game, fake, cfg = rig
+    no_defense(session, monkeypatch)
+    human_hand(table, game, "Bolts of Balthakk", "Feint")
+    shrink_deck_at_the_plugin(monkeypatch, game, 0)
+    attack(session, table, game, "Bolts of Balthakk")
+    assert session._paused()[2].label == "dark_pact" and table.top_discards == []
+
+
+@with_rig()
+def test_a_deck_with_one_card_left_gives_that_one_when_two_were_declared(rig, monkeypatch):
+    session, table, game, fake, cfg = rig
+    no_defense(session, monkeypatch)
+    human_hand(table, game, "Seven Suns of Cinnibus", "Feint")
+    (only,) = on_deck(table, game, "Feint")
+    shrink_deck_at_the_plugin(monkeypatch, game, 1)
+    attack(session, table, game, "Seven Suns of Cinnibus")
+    msgs = done(session, table, 3)
+    assert table.top_discards == [1] and table.human_discard == [only] and said(msgs, "total 4")
+
+
+@with_rig()
+def test_when_the_table_refuses_the_chat_asks_them_to_lay_the_top_cards_and_the_bot_reads_them(rig, monkeypatch):
+    session, table, game, fake, cfg = rig
+    no_defense(session, monkeypatch)
+    human_hand(table, game, "Seven Suns of Cinnibus", "Feint")
+    first, _ = on_deck(table, game, "Master of Kamar-Taj", "Feint")
+    table.top_discard_fail = "deck"
+    attack(session, table, game, "Seven Suns of Cinnibus")
+    msgs = done(session, table, 3)                                                # "2"
+    req = session._paused()[2].awaiting
+    assert said(msgs, "No he podido mover las cartas de arriba de tu mazo para Seven Suns of Cinnibus")
+    assert req.kind == "cards" and req.extra["pile_mode"] == "blind" and req.min == req.max == 2
+    assert said(msgs, "IMPULSO A CIEGAS x2") and session.panel_view()[0].startswith("Pon en tu descarte las 2 cartas")
+    table.human_discard += [first]
+    msgs = done(session, table)
+    assert said(msgs, "has declarado 2 pero solo veo 1") and session._paused()[2].awaiting.kind == "cards"
+    table.human_discard += [sid(game, "Feint")]
+    msgs = done(session, table)
+    assert said(msgs, "cuento Feint, Master of Kamar-Taj") and said(msgs, "total 6")
+    assert session._paused()[2].label == "dark_pact"
+
+
+@with_rig()
+def test_a_table_that_moves_fewer_cards_than_declared_is_a_failure_and_the_moved_one_still_counts_by_hand(rig, monkeypatch):
+    session, table, game, fake, cfg = rig
+    no_defense(session, monkeypatch)
+    human_hand(table, game, "Seven Suns of Cinnibus", "Feint")
+    first, _ = on_deck(table, game, "Master of Kamar-Taj", "Feint")
+    table.top_discard_fail = "short"
+    attack(session, table, game, "Seven Suns of Cinnibus")
+    msgs = done(session, table, 3)
+    assert table.human_discard == [first] and said(msgs, "No he podido mover") and session._paused()[2].awaiting.kind == "cards"
+    table.human_discard += [sid(game, "Feint")]
+    assert said(done(session, table), "cuento Feint, Master of Kamar-Taj")
+
+
+@with_rig()
+def test_the_declaration_waiting_at_the_panel_survives_a_save_and_a_restore(rig, monkeypatch):
+    session, table, game, fake, cfg = rig
+    no_defense(session, monkeypatch)
+    human_hand(table, game, "Seven Suns of Cinnibus", "Feint")
+    first, _ = on_deck(table, game, "Master of Kamar-Taj", "Feint")
+    attack(session, table, game, "Seven Suns of Cinnibus")
+    session._restore(session.to_dict())                          # what --resume does
+    game = session.game
+    req = session._paused()[2].awaiting
+    assert req.kind == "amount" and req.options == [0, 1, 2] and pause_labels(session) == ["0", "1", "2"]
+    assert table.top_discards == []
+    msgs = done(session, table, 2)                               # "1" after the restore
+    assert table.human_discard == [first] and said(msgs, "total 5")
+
+
+@with_rig()
+def test_the_cards_the_bot_read_are_saved_with_the_run_so_a_rerun_of_the_plugin_does_not_ask_again(rig, monkeypatch):
+    session, table, game, fake, cfg = rig
+    no_defense(session, monkeypatch)
+    human_hand(table, game, "Bolts of Balthakk", "Feint")
+    first, _ = on_deck(table, game, "Master of Kamar-Taj", "Feint")
+    attack(session, table, game, "Bolts of Balthakk")
+    run = session._paused()[2]
+    from sparring.session_blind import declared
+    declared(session, run, [1])
+    assert run.flags["blind_cards"] == {run.awaiting.key.rsplit(":", 1)[0]: [first]}
+    assert run.to_dict()["flags"]["blind_cards"]
 
 
 # ---------------------------------------------------------------- No, Really, I'm a Doctor

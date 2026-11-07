@@ -38,40 +38,51 @@ def _unplayed(st) -> list[int]:
 
 @plugin("strange:blind_boost")
 def _blind_boost(run, game, spec):
-    """"You may BLIND BOOST this card (up to N times)": the top card of the owner's deck is discarded and its BOOST value
-    added to the card's value; the owner decides each time. For the human the real top cards are laid on their discard
-    pile by them (a `cards` request up to N) and the engine drops them from its virtual deck."""
+    """"You may BLIND BOOST this card (up to N times)": the owner DECLARES how many (0..N) before any card moves, then
+    that many cards come off the TOP of their deck, face up, and each adds its BOOST value. There is no stopping after
+    seeing a card. A deck with fewer cards gives what it has (no rule says more; docs/heroes/doctor-strange.md).
+    For the human the bot moves the real top cards to their pile (`session_blind`) and hands the plugin the CardIDs it
+    read (`run.flags["blind_cards"]`); if the table refuses, the human lays them on the pile and the bot reads them."""
     flow = _flow(run, "strange:blind_boost")
     args = spec.get("args") or {}
     times, limit = int(args["times"]), args.get("ignore_above")
     owner = run.ctx.owner
     side = "atk" if run.ctx.played_as == "attack" else "def"
-    st, label = game.players[owner], _title(run, game)
-    if table.physical(game, owner):
-        got = run.ask(game, "cards", owner, _unplayed(st), 0, times, "blind boost", zone="discard", purpose="bonus",
-                      of=owner, table_discard=True, pile_mode="blind", times=times)
-        by_id = {c.card_id: c for c in st.full_set}
-        for card_id in got:
-            card = by_id[card_id]
-            table.take_from_deck(game, owner, card)
-            st.discard.append(card)
-            game.fx.emit("card_discarded", owner, card, "deck")
-            modifiers.add_value(flow, side, card.boost, t("cf.blind_boost", title=card.title, boost=card.boost))
+    st = game.players[owner]
+    if not st.deck:
         return
-    for done in range(times):
-        if not st.deck:
-            return
-        mine, theirs = (flow.ctx.atk_value, flow.ctx.def_value) if side == "atk" else (flow.ctx.def_value, flow.ctx.atk_value)
-        yes = run.ask(game, "optional", owner, [True, False], 1, 1, "blind boost?", blind_boost=True, left=times - done,
-                      attacking=side == "atk", margin=mine - theirs, value=mine, limit=limit, target=flow.tgt.fid)[0]
-        if not yes:
-            return
+    mine, theirs = (flow.ctx.atk_value, flow.ctx.def_value) if side == "atk" else (flow.ctx.def_value, flow.ctx.atk_value)
+    count = run.ask(game, "amount", owner, list(range(times + 1)), 1, 1, "blind boost", blind_count=True, times=times,
+                    attacking=side == "atk", margin=mine - theirs, value=mine, limit=limit, target=flow.tgt.fid)[0]
+    count = min(count, len(st.deck))
+    if count == 0:
+        return
+    if table.physical(game, owner):
+        _blind_boost_human(run, game, flow, side, count)
+        return
+    for _ in range(count):
         top = st.deck.pop(0)
         st.discard.append(top)
         game.players[1 - owner].known.drop_top(top.card_id)
         run.flags.setdefault("deck_discards", []).append(top.card_id)
         game.fx.emit("card_discarded", owner, top, "deck")
         modifiers.add_value(flow, side, top.boost, t("cf.blind_boost", title=top.title, boost=top.boost))
+
+
+def _blind_boost_human(run, game, flow, side: str, count: int) -> None:
+    owner = run.ctx.owner
+    st = game.players[owner]
+    found = (run.flags.get("blind_cards") or {}).pop(run._op_key, None)
+    if found is None:
+        found = run.ask(game, "cards", owner, _unplayed(st), count, count, "blind boost", zone="discard", purpose="bonus",
+                        of=owner, table_discard=True, pile_mode="blind", times=count)
+    by_id = {c.card_id: c for c in st.full_set}
+    for card_id in found:
+        card = by_id[card_id]
+        table.take_from_deck(game, owner, card)
+        st.discard.append(card)
+        game.fx.emit("card_discarded", owner, card, "deck")
+        modifiers.add_value(flow, side, card.boost, t("cf.blind_boost", title=card.title, boost=card.boost))
 
 
 # ---------------------------------------------------------------- The Mists of Munnopor

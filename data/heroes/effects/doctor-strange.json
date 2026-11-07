@@ -5,7 +5,7 @@
   "Texts read from sheet 176 of the tournament savegame (card images) on 2026-11-02; the character card is 337 on sheet 3 (10x7, index 37). Sheet 176 is Medusa's and the four turtles' DeckID too: the CardIDs repeat and only the deck image tells the decks apart (docs/card-identity.md).",
   "Discrepancy with unmatched-memory (the card wins, via `text` in the overlay): The Rings of Raggadorr says 'AFTER COMBAT: If you won the combat, your fighter and each friendly fighter adjacent to them recover health equal to the damage dealt.' unmatched-memory carries a Black Panther text for it (a BOOST up to two times that draws cards). 'No, Really, I'm a Doctor' has commas on the card (unmatched-memory: 'No Really, I'm a Doctor'; the overlay uses `memory_title`).",
   "1v1 reading: 'your opponent' is the only rival, 'friendly fighters' are Doctor Strange and Wong, 'all players' are the two players.",
-  "BLIND BOOST (Brains and Brawn): discard the top card of your deck and add its BOOST value to the card's value (the card is not chosen). Plugin `strange:blind_boost`: the owner decides each time (up to the printed number of times).",
+  "BLIND BOOST (Brains and Brawn, Ivan 2026-11-07): the owner DECLARES how many blind boosts (0..N) before any card is taken, then that many cards are discarded from the top of the deck, face up, and their BOOST values are added. There is no stopping after seeing a card. Plugin `strange:blind_boost`: one `amount` request with the count.",
   "'A starting space' is any starting space of the board (`SpaceSel.start`: the four numbered spaces of the map, free ones only); 'another starting space' is any other free one (the first fighter placed already holds its space).",
   "DARK PACT is a trigger on the new event `after_combat` (one per card played in the combat, after the played cards reached the discard pile). It fires when Doctor Strange HIMSELF played the card (`fighter: hero`); a card played by Wong does not count."
  ],
@@ -187,7 +187,7 @@
   }
  ],
  "plugins": [
-  {"id": "strange:blind_boost", "why": "BLIND BOOST up to N times: each time the owner decides, then the TOP card of the deck is discarded and its BOOST value added; for the human the card is the real top one, read from their discard pile (the engine does not know their deck)."},
+  {"id": "strange:blind_boost", "why": "BLIND BOOST up to N times: the owner declares the count first (an `amount` request), then that many TOP cards of the deck are discarded and their BOOST values added; for the human the bot moves the real top cards to their discard pile and reads which they were (the engine does not know their deck)."},
   {"id": "strange:mists_of_munnopor", "why": "The rival's card is replaced by one found by revealing their deck until an attack or versatile card the attacker may play shows up; a reveal loop with a replacement of the card in the running combat."},
   {"id": "strange:reveal_to_top", "why": "A card of the owner's hand is chosen, shown to the rival and put on top of the deck (it becomes the known top card): for the human it is a card only they hold, so they lay it on their discard pile for the bot to read and the bot moves it on top of their deck."}
  ],
@@ -197,8 +197,7 @@
   {"card": "Eye of Agamotto", "what": "the whole hand is shuffled into the deck and 5 cards are drawn", "bot_rule": "Nothing is read: the human shuffles by hand and the bot deals the 5 cards."}
  ],
  "open_questions": [
-  "BLIND BOOST is read as discarding the top card of the deck (no choice, no cost in hand). Check the Brains and Brawn rulebook.",
   "A starting space is read as any of the four starting spaces of the board.",
-  "DARK PACT is read as applying only when Doctor Strange himself played the card."
+  "BLIND BOOST with fewer cards in the deck than declared discards what is there; an empty deck asks nothing."
  ]
 }

@@ -3200,6 +3200,61 @@ return JSON.encode({{moved = {{card.getData().CardID}}, count = 1, zone = true}}
 """
 
 
+@_registered
+def deck_top_to_discard(deck_guid: str, n: int, zone_guid: str, id_range: tuple[int, int] = BOT_CARD_IDS, *, identity,
+                        spot: tuple[float, float] | None = None, zone: str | None = None,
+                        radius: float = DECK_RADIUS) -> str:
+    """Moves the top `n` cards of a draw deck onto the discard pile of the scripting zone `zone_guid`, face up and in
+    order (the first is the top): Doctor Strange's BLIND BOOST of the human. The deck is found like `deal_cards` does
+    (GUID, `zone` or `spot`) and must be `ours` (`id_range` and the image of `identity`); the last card of a deck is a
+    loose Card near where the deck was. The pile is the first face-up Deck or Card of the zone that is `ours`: the
+    cards go above it with its turn; with no pile they go to the zone's centre. Instant, so the next reading already
+    sees them. Returns `{moved: [CardID...], count, deck, zone}` in the order they left the deck (`deck = false`: no
+    deck of ours, `zone = false`: no such zone; nothing moves in both cases). Fewer than `n` when the deck ran out."""
+    if not isinstance(n, int) or isinstance(n, bool) or not 1 <= n <= MAX_ROW_CARDS:
+        raise ValueError(f"1 to {MAX_ROW_CARDS} cards expected")
+    return f"""-- sparring:deck_top_to_discard
+{_ours_lua(identity, id_range)}{_deck_finder(spot, radius, zone)}{_LOOSE_LUA}local deck = findDeck({_guid(deck_guid)})
+if deck == nil then return JSON.encode({{moved = {{}}, count = 0, deck = false, zone = true}}) end
+local pile = getObjectFromGUID({_guid(zone_guid)})
+if pile == nil then return JSON.encode({{moved = {{}}, count = 0, deck = true, zone = false}}) end
+local home = deck.getPosition()
+local at, turn = pile.getPosition(), 0
+for _, o in ipairs(pile.getObjects()) do
+  if o ~= deck and (o.type == "Deck" or o.type == "Card") and not o.is_face_down and ours(o) then
+    at, turn = o.getPosition(), o.getRotation().y
+    break
+  end
+end
+local function loose()
+  for _, o in ipairs(getObjects()) do
+    if looseOurs(o) then
+      local p = o.getPosition()
+      if math.abs(p.x - home.x) < 1.5 and math.abs(p.z - home.z) < 1.5 then return o end
+    end
+  end
+end
+local moved = {{}}
+for _ = 1, {_i(n)} do
+  local to = Vector(at.x, at.y + 1 + 0.25 * #moved, at.z)
+  local cur = findDeck({_guid(deck_guid)})
+  local card
+  if cur ~= nil and cur.type == "Deck" then
+    card = cur.takeObject({{position = to, rotation = Vector(0, turn, 0), smooth = false}})
+  else
+    card = cur or loose()
+    if card ~= nil then
+      card.setRotation(Vector(0, turn, 0))
+      card.setPosition(to)
+    end
+  end
+  if card == nil then break end
+  table.insert(moved, card.getData().CardID)
+end
+return JSON.encode({{moved = moved, count = #moved, deck = true, zone = true}})
+"""
+
+
 _ANY_OURS_LUA = "local function ours(o) return not o.held_by_color end\n"
 
 
