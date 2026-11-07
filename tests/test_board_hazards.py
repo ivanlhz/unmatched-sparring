@@ -132,11 +132,11 @@ def test_the_real_pandemonium_hazards_load_and_are_charged_once():
     place(g, medusa=2, hellboy=15, harpy1=20, harpy2=21, harpy3=22, lobster=1)
     med = g.fighters["medusa"]
     path = b.hazard_path(2, 28, None)
-    assert path == [] or len(path) == 1                                # a free equally short way is taken if there is one
-    assert g.hazard_damage(med, 28, None, True) == (1 if path else 0)
+    assert path == [edge_key(2, 27)]                                   # distance 2 and every shortest way crosses 2-27
+    assert g.hazard_damage(med, 28, None, True) == 1
     hp = med.hp
     g.walk(med, 28, None, True)
-    assert med.hp == hp - len(path)
+    assert med.hp == hp - 1 and g.hazard_damage(med, 2, None, True) == 0
 
 
 def test_the_bot_does_not_walk_into_a_hazard_for_a_small_gain(monkeypatch):
