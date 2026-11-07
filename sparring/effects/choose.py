@@ -171,6 +171,8 @@ class TableChooser:
             return [False]
         if req.extra.get("blind_count"):             # BLIND BOOST: no declaration without the panel, so none is made
             return [0]
+        if req.extra.get("confirm"):                 # Take A Knee: the one option is the effect itself
+            return list(req.options)
         if req.min == 0:
             return []
         raise NotImplementedError(f"{req.prompt or req.kind}: a forced choice of the human needs the panel (E1)")

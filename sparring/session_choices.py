@@ -148,6 +148,8 @@ def prompt_text(game, req: ChoiceRequest) -> str:
         return t(ability)
     if req.kind == "amount" and req.extra.get("blind_count"):      # BLIND BOOST: how many, before any card moves
         base = t("choice.prompt.blind_count", n=req.extra["times"])
+    elif req.kind == "amount" and req.extra.get("top_discard"):      # Take A Knee: one button, the bot moves the card
+        base = t("choice.prompt.top_discard")
     elif req.kind == "cards" and req.max == 1:        # no "card(s)": the panel status drops the parentheses (live 29/10)
         base = _prompt("one_card")
     elif req.kind == "effect" and req.extra.get("op") == "predict":

@@ -52,37 +52,44 @@ def _blind_boost(run, game, spec):
     if not st.deck:
         return
     mine, theirs = (flow.ctx.atk_value, flow.ctx.def_value) if side == "atk" else (flow.ctx.def_value, flow.ctx.atk_value)
+    extra = {"ability": True} if args.get("ability") else {}        # Daredevil's special ability, not a card's BLIND BOOST
     count = run.ask(game, "amount", owner, list(range(times + 1)), 1, 1, "blind boost", blind_count=True, times=times,
-                    attacking=side == "atk", margin=mine - theirs, value=mine, limit=limit, target=flow.tgt.fid)[0]
+                    attacking=side == "atk", margin=mine - theirs, value=mine, limit=limit, target=flow.tgt.fid, **extra)[0]
+    for top in discard_top(run, game, owner, count):
+        modifiers.add_value(flow, side, top.boost, t("cf.blind_boost", title=top.title, boost=top.boost))
+
+
+def discard_top(run, game, owner: int, count: int) -> list:
+    """Discards `count` cards from the top of `owner`'s deck, face up, and returns them in the order they left (a deck
+    with fewer cards gives what it has). The engine's player: the cards come off its known deck. The table player: the
+    session's bot has already moved the real top cards (`run.flags["blind_cards"]`, `session_blind`); if the table
+    refused, a `cards` request (`pile_mode: blind`) asks them to lay the cards by hand and the bot reads them."""
+    st = game.players[owner]
     count = min(count, len(st.deck))
-    if count == 0:
-        return
+    if count <= 0:
+        return []
+    out = []
     if table.physical(game, owner):
-        _blind_boost_human(run, game, flow, side, count)
-        return
+        found = (run.flags.get("blind_cards") or {}).pop(run._op_key, None)
+        if found is None:
+            found = run.ask(game, "cards", owner, _unplayed(st), count, count, "blind boost", zone="discard", purpose="bonus",
+                            of=owner, table_discard=True, pile_mode="blind", times=count)
+        by_id = {c.card_id: c for c in st.full_set}
+        for card_id in found:
+            card = by_id[card_id]
+            table.take_from_deck(game, owner, card)
+            st.discard.append(card)
+            game.fx.emit("card_discarded", owner, card, "deck")
+            out.append(card)
+        return out
     for _ in range(count):
         top = st.deck.pop(0)
         st.discard.append(top)
         game.players[1 - owner].known.drop_top(top.card_id)
         run.flags.setdefault("deck_discards", []).append(top.card_id)
         game.fx.emit("card_discarded", owner, top, "deck")
-        modifiers.add_value(flow, side, top.boost, t("cf.blind_boost", title=top.title, boost=top.boost))
-
-
-def _blind_boost_human(run, game, flow, side: str, count: int) -> None:
-    owner = run.ctx.owner
-    st = game.players[owner]
-    found = (run.flags.get("blind_cards") or {}).pop(run._op_key, None)
-    if found is None:
-        found = run.ask(game, "cards", owner, _unplayed(st), count, count, "blind boost", zone="discard", purpose="bonus",
-                        of=owner, table_discard=True, pile_mode="blind", times=count)
-    by_id = {c.card_id: c for c in st.full_set}
-    for card_id in found:
-        card = by_id[card_id]
-        table.take_from_deck(game, owner, card)
-        st.discard.append(card)
-        game.fx.emit("card_discarded", owner, card, "deck")
-        modifiers.add_value(flow, side, card.boost, t("cf.blind_boost", title=card.title, boost=card.boost))
+        out.append(top)
+    return out
 
 
 # ---------------------------------------------------------------- The Mists of Munnopor

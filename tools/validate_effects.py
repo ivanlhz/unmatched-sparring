@@ -236,6 +236,11 @@ class Semantics:
         ab = self.doc["ability"]
         for i, t in enumerate(ab["triggers"]):
             self.trigger(t, f"ability.triggers[{i}]")
+        for i, eff in enumerate(ab.get("during") or ()):
+            ctx = _Ctx({}, set())
+            if "condition" in eff:
+                self.refs(eff["condition"], f"ability.during[{i}].condition", ctx)
+            self.ops(eff["ops"], f"ability.during[{i}].ops", ctx)
         for i, p in enumerate(ab["passives"]):
             if "id" not in p:
                 self.errors.append(f"ability.passives[{i}]: a passive needs 'id'")
@@ -436,6 +441,8 @@ class Semantics:
             for k in ("chooser", "up_to"):
                 if k in sel:
                     self.errors.append(f"{path}: {k!r} only goes with pick 'chosen' (here pick {pick!r})")
+        if sel["zone"] != "discard" and pick == "last":
+            self.errors.append(f"{path}: pick 'last' (the most recently discarded) is only valid on the discard pile")
         if sel["zone"] == "hand" and pick in ("top", "bottom"):
             self.errors.append(f"{path}: the hand has no order; pick {pick!r} is only valid on the deck")
         if counting or sel["zone"] not in HIDDEN_ZONES or pick != "chosen":

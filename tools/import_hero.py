@@ -27,7 +27,7 @@ sys.path.insert(0, str(ROOT))
 
 from sparring.ai_profile import compute_ai_profile  # noqa: E402
 from sparring.cards import memory_dir  # noqa: E402
-from sparring.heroes import HEROES_DIR, parse_hero  # noqa: E402
+from sparring.heroes import DECK_SIZE, HEROES_DIR, parse_hero  # noqa: E402
 
 OVERLAY_DIR = HEROES_DIR / "overlay"
 EFFECTS_DIR = HEROES_DIR / "effects"
@@ -86,6 +86,8 @@ def build(slug: str, memory: Path, overlay_dir: Path = OVERLAY_DIR, effects_dir:
             if n != src["copies"]:
                 raise SystemExit(f"{slug}: {title!r} appears {n} times in the sheet and unmatched-memory says {src['copies']}")
         deck = {"card_base": deck_ov["card_base"], "sheet": deck_ov.get("sheet_id"), "cards": cards}
+        if len(cards) != DECK_SIZE:                      # a deck of another size says so (Daredevil: 22); the usual 30 is implied
+            deck["size"] = len(cards)
     else:
         deck = {"card_base": None, "sheet": None,
                 "cards": [{"title": c["title"], "fighter": None, "type": c["type"], "value": c["value"],

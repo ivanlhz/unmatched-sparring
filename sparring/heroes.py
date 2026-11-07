@@ -21,7 +21,7 @@ from .cards import Card
 
 HEROES_DIR = DATA_DIR / "heroes"
 CARD_TYPES = ("attack", "defense", "versatile", "scheme")
-DECK_SIZE = 30
+DECK_SIZE = 30              # playing cards of a deck unless the HeroDef says otherwise (`deck.size`: Daredevil has 22)
 DEFAULT_START_HAND = 5      # opening hand and end-of-turn hand limit of a hero whose card says nothing else
 DEFAULT_HAND_LIMIT = 7
 
@@ -89,6 +89,7 @@ class HeroDef:
     ai_profile: dict = field(default_factory=dict)    # per fighter group, computed at import (sparring/ai_profile.py)
     hand_start: int = DEFAULT_START_HAND              # opening hand (Michelangelo: 3)
     hand_max: int = DEFAULT_HAND_LIMIT                # most cards kept at the end of the turn (Michelangelo: 3)
+    deck_size: int = DECK_SIZE                        # playing cards of the deck (the character card is not one): CardIDs card_base .. card_base + deck_size - 1
 
     def fighter_profile(self, name: str) -> dict | None:
         """The AI profile of the fighter called `name` (hero or sidekick group), None when the HeroDef has none."""
@@ -112,7 +113,7 @@ class HeroDef:
         return out
 
     def deck(self, shift: int = 0) -> list[Card]:
-        """The hero's 30 cards. `shift` moves every CardID by that many (a multiple of 100): TTS renumbers a deck's DeckID
+        """The hero's playing cards (30, or `deck_size`). `shift` moves every CardID by that many (a multiple of 100): TTS renumbers a deck's DeckID
         when it spawns next to another with the same one, and the table's cards then carry the shifted ids."""
         if self.card_base is None:
             raise HeroDataError(f"{self.slug}: deck without a CardID sheet or fighter restrictions (pending F08)")
@@ -161,7 +162,8 @@ def parse_hero(raw: dict, where: str = "hero") -> HeroDef:
                        tuple(raw.get("triggers") or ()), tuple(raw.get("passives") or ()),
                        deck.get("card_base"), tuple(deck.get("cards") or ()), raw.get("ai_profile") or {},
                        int((raw.get("hand") or {}).get("start", DEFAULT_START_HAND)),
-                       int((raw.get("hand") or {}).get("max", DEFAULT_HAND_LIMIT)))
+                       int((raw.get("hand") or {}).get("max", DEFAULT_HAND_LIMIT)),
+                       int(deck.get("size", DECK_SIZE)))
     except (KeyError, TypeError, ValueError) as e:
         raise HeroDataError(f"{where}: invalid HeroDef ({e!r})") from None
     _validate(hero, where)
@@ -186,11 +188,11 @@ def _validate(h: HeroDef, where: str) -> None:
             raise HeroDataError(f"{where}: counter {c.name}: unknown pile {c.pile!r}")
     if h.card_base is None:
         return
-    if len(h.cards) != DECK_SIZE:
-        raise HeroDataError(f"{where}: the deck has {len(h.cards)} cards, not {DECK_SIZE}")
+    if len(h.cards) != h.deck_size:
+        raise HeroDataError(f"{where}: the deck has {len(h.cards)} cards, not {h.deck_size}")
     idxs = [c.get("idx") for c in h.cards]
-    if sorted(idxs) != list(range(DECK_SIZE)):
-        raise HeroDataError(f"{where}: the sheet idx must be 0..{DECK_SIZE - 1} without repeats")
+    if sorted(idxs) != list(range(h.deck_size)):
+        raise HeroDataError(f"{where}: the sheet idx must be 0..{h.deck_size - 1} without repeats")
     allowed = h.fighter_names | {"any"}
     for c in h.cards:
         if c.get("type") not in CARD_TYPES:

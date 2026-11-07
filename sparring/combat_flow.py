@@ -616,6 +616,18 @@ def dsl_during(flow: CombatFlow, side: Side) -> Await | None:
             flow.result.boost_card = spent[-1]
 
 
+def _has_own_during(flow: CombatFlow, side: Side) -> bool:
+    from .effects.model import load_effects
+    return bool(load_effects(flow.game.players[side.fighter.owner].hero.slug).ability_during)
+
+
+@rule(Phase.DURING, when_cancelled=True, match=lambda flow, side: _dsl(flow, side) and flow.is_cancelled(side.name) and _has_own_during(flow, side))
+def dsl_during_hero_ability(flow: CombatFlow, side: Side) -> Await | None:
+    """A side whose card effects were cancelled still has its hero's DURING COMBAT ability (Daredevil's BLIND BOOST): it is
+    on the hero, not on the card (docs/effects-dsl.md section 29). `dsl_during` above skips a cancelled side."""
+    return _run_moment(flow, side, "during")
+
+
 @rule(Phase.AFTER, match=_dsl)
 def dsl_after(flow: CombatFlow, side: Side) -> Await | None:
     if side.name in flow.ctx.cancelled_after:
