@@ -248,8 +248,7 @@ def _choose_effect(run, game, spec):
         if not left:
             break
         pool = left if spec.get("distinct") else list(range(len(options)))
-        k = run.ask(game, "effect", chooser, pool, 1, 1, "choose an effect", labels=labels,
-                    **({"during_order": True} if spec.get("order") else {}))[0]
+        k = run.ask(game, "effect", chooser, pool, 1, 1, "choose an effect", labels=labels)[0]
         picked.append(k)
         if spec.get("distinct"):
             left.remove(k)

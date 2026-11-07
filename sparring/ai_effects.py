@@ -294,7 +294,7 @@ class EffectAI:
         """A move whose card then hits each rival it passed (Through Adversity: `damage` to `passed_by` the mover) is
         judged by the position AND the blows on the fighters crossed on the way, a kill included (a 1-HP sidekick
         passed is dead). The usual destination is a candidate, so nothing is gained only when nothing is hit."""
-        dmg = self._pass_damage(game, req)
+        dmg, hits_all = self._pass_damage(game, req)
         if not dmg or not req.extra.get("through"):
             return usual
         me, steps, ai = req.player, req.extra["steps"], self.medusa(req.player)
@@ -302,7 +302,8 @@ class EffectAI:
 
         def total(d: int) -> float:
             rivals = [game.fighters[i] for i in _passed_through(game, f, f.pos, d, steps, True)]
-            hits = sum(self.blow_value(e, dmg, game) for e in rivals if e.owner != me)
+            blows = [self.blow_value(e, dmg, game) for e in rivals if e.owner != me]
+            hits = sum(blows) if hits_all else max(blows, default=0.0)       # one chosen rival (Party wagon!) is worth the best single blow
             return ai.position_value(game, model, {f.fid: d}) - ai.hazard_cost(game, f, d, steps, True) + hits
 
         cands = {d for d in options if d is not None} | {f.pos}
@@ -311,16 +312,19 @@ class EffectAI:
         return max(cands, key=lambda d: (total(d), d == usual, -d))
 
     @staticmethod
-    def _pass_damage(game: Game, req: ChoiceRequest) -> float:
-        """The damage the asking card deals to each fighter its mover passed through (0 when it deals none)."""
+    def _pass_damage(game: Game, req: ChoiceRequest) -> tuple[float, bool]:
+        """(damage, to_all) the asking card deals to the fighters its mover passed through: to every one of them
+        (`pick: all`, Through Adversity) or to the one rival its owner chooses (Party wagon!). (0, False) when none."""
         if req.card_id is None or req.card_owner is None:
-            return 0.0
+            return 0.0, False
         fx = card_effects(game.card_of(req.card_id, req.card_owner))
         if fx is None:
-            return 0.0
-        return float(sum(o.get("amount", 0) for o in walk_ops(fx.moments)
-                         if o.get("op") == "damage" and "passed_by" in ((o.get("target") or {}).get("filter") or {})
-                         if isinstance(o.get("amount"), (int, float))))
+            return 0.0, False
+        for o in walk_ops(fx.moments):
+            sel = o.get("target") or {}
+            if o.get("op") == "damage" and isinstance(sel, dict) and "passed_by" in (sel.get("filter") or {})                     and isinstance(o.get("amount"), (int, float)):
+                return float(o["amount"]), sel.get("pick") == "all"
+        return 0.0, False
 
     def _hero_return(self, game: Game, req: ChoiceRequest, f, options: list) -> list | None:
         """The hero put back on the board with `hp` (the request says) is judged where he would stand: the evaluation of the
@@ -466,8 +470,6 @@ class EffectAI:
     def _effect(self, game: Game, req: ChoiceRequest, nested: bool) -> list | None:
         if req.extra.get("op") == PREDICT_OP:
             return [predict_value(game, req.player)]
-        if req.extra.get("during_order"):          # Daredevil: the ability first is never worse (its blind boost can empty the deck the card reads)
-            return [0]
         if req.extra.get("future") == "deck":
             return [self._future_deck(game, req)]
         if req.extra.get("future") == "peek":

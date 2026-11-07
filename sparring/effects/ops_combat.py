@@ -301,18 +301,12 @@ def run_moment(flow, side, moment: str):
 
 def during_with_ability(ability: tuple, card_ops: list) -> list:
     """The ops of a DURING moment of a hero that has DURING COMBAT effects of its own (`ability.during`, Daredevil: "if you
-    have other DURING COMBAT effects, choose the order"). Each ability effect runs under its condition. When the card has
-    DURING ops too and the ability applies, its owner chooses the order (a `choose_effect` between the two orders); a card
-    whose effects were cancelled has no ops left (`card_ops` empty): the hero's ability still runs, it is not on the card."""
+    have other DURING COMBAT effects, choose the order"; ruled by Iván 2026-11-07: the ability always goes first). Each ability
+    effect runs under its condition, before the card's ops; a card whose effects were cancelled has no ops left (`card_ops`
+    empty): the hero's ability still runs, it is not on the card."""
     ops = list(card_ops)
     for eff in ability:
-        mine = list(eff["ops"])
-        if ops:
-            both = [{"label": "ability first, then the card", "ops": mine + ops},
-                    {"label": "card first, then the ability", "ops": ops + mine}]
-            run = [{"op": "choose_effect", "amount": 1, "chooser": "owner", "options": both, "order": True}]
-        else:
-            run = mine
+        run = list(eff["ops"]) + ops           # Iván 2026-11-07: the ability always resolves first, nobody chooses
         ops = [{"op": "if", "condition": eff["condition"], "then": run, "else": list(ops)}] if "condition" in eff else run
     return ops
 

@@ -50,7 +50,7 @@ Arrogant But Effective (`consider_won`): from its AFTER on the combat counts as 
 The free BOOST of `may_boost` (the human is offered it after Reveal, the bot decides with `choose_combat_boost`). When the owner declines it, or has no card to spend, the `unboosted` ops run right after in the DURING: draw 1 (the human is dealt it). A card cancelled before DURING (Feint) has no BOOST question and draws nothing.
 
 ## Rules decisions (the user is away: the most reasonable reading, applied)
-Every item below is also an open question for Iván.
+Every item below was confirmed by Iván on 2026-11-07.
 
 1. Reach: he is ranged (adjacent or same zone, as any ranged fighter) and "up to 5 spaces away (ignoring zones)" adds targets within 5 spaces along the adjacency whatever the zones. Secret passages do not shorten the distance.
 2. "Already won a combat this turn" counts every combat of the current turn the player won, attacking or defending, on either player's turn; a combat won because of "considered to have won" counts too.
@@ -68,10 +68,11 @@ Every item below is also an open question for Iván.
 14. Master Strategist with no space exactly 4 away: no move (CONFIRMED by Iván 2026-11-07, see 8).
 15. World's Greatest Assassin: a BOOST or an effect of the opponent's card that resolves after IMMEDIATELY still adds to a value that was ignored (CONFIRMED by Iván 2026-11-07).
 16. A combat won as the defender (the attacker dealt no damage) counts as "won a combat this turn" (CONFIRMED by Iván 2026-11-07).
+17. Reach: the secret passages do NOT shorten the 5-space count (CONFIRMED by Iván 2026-11-07).
+18. Arrogant But Effective: the rival's AFTER effects DO read the changed result (CONFIRMED by Iván 2026-11-07). Example: Medusa's defense "if you won, draw" does not draw.
 
 ## Open questions for Iván
-- Reach: do the secret passages shorten the 5-space count? (Read as no.)
-- Arrogant But Effective: should the rival's AFTER ("if you won" / "if you lost") read the changed result too, or only Bullseye's own effects and the turn's tally?
+None open: everything was answered by Iván on 2026-11-07 (decisions above).
 
 ## AI
 - The AI profile comes from the data (Bullseye `hero`, ranged: the importer's `ai_profile`). No hero-name case in the engine: the conditional values are read from the turn's record (`fx.won`, `fx.turn_start_pos`) in `ai_medusa.card_value`: I'm Better And I'll Prove It is worth 6 after a win (also as a defense in `eval_defense`), I Planned To Be Here 5 while he has not moved, World's Greatest Assassin ignores the rival's card after a win (`ignores_defense`, shared with Cloak of Levitation), Right Between The Eyes strips a card after a win (`STRIP_VALUE`). `AFTER_BONUS` prices the draws and moves of I Never Miss, Arrogant But Effective, Master Strategist, Ricochet and Tactical Retreat; For My Next Trick already had Houdini's entry (the same effect). Study The Target is valued by simulating it like the other schemes.

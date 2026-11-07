@@ -38,17 +38,14 @@ def on_top(g, player, *titles):
     return cards
 
 
-def script(g, count=0, order=0, other=None):
-    """The owner's answers (recorded in `requests`): `count` blind boosts, option `order` of an order choice (0: the ability
-    first) and, for any other request, whatever `other(req)` says (None: the generic answer)."""
+def script(g, count=0, other=None):
+    """The owner's answers (recorded in `requests`): `count` blind boosts and, for any other request, whatever `other(req)` says (None: the generic answer)."""
     ctl = g.controllers[0]
 
     def choose(game, req):
         ctl.requests.append(req)
         if req.extra.get("blind_count"):
             return [count]
-        if req.extra.get("during_order"):
-            return [order]
         return other(req) if other else None
     ctl.choose_effect = choose
 
@@ -168,24 +165,15 @@ def test_man_without_fear_adds_its_own_blind_boost_to_the_one_of_the_ability(bpr
     assert res.atk_value == 2 + a.boost + b.boost == 6 and {a, b} <= set(g.players[0].discard)
 
 
-def test_the_owner_chooses_the_order_when_the_card_has_its_own_during_effect(bprd):
+def test_the_ability_always_resolves_before_the_cards_own_during_effect_and_nobody_is_asked_the_order(bprd):
     g = mk(bprd, "liz-sherman")
     d, liz = pair(g, "daredevil", "liz")
     on_top(g, 0, "Breather", "Breather")
-    script(g, 1, order=1)
+    script(g, 1)
     g.attack(d, liz, give(g, 0, "Man Without Fear"), None)
-    orders = [r for r in asked(g) if r.extra.get("during_order")]
-    assert len(orders) == 1 and orders[0].kind == "effect" and len(orders[0].options) == 2
-    counts = [r for r in asked(g) if r.extra.get("blind_count")]
-    assert [r.extra.get("ability", False) for r in counts] == [False, True]            # the card first, then the ability
-
-
-def test_a_card_without_during_effects_and_a_hand_over_two_asks_no_order(bprd):
-    g = mk(bprd, "liz-sherman")
-    d, liz = pair(g, "daredevil", "liz")
-    script(g, 0)
-    g.attack(d, liz, give(g, 0, "Grappling Hook"), None)
     assert not [r for r in asked(g) if r.extra.get("during_order")]
+    counts = [r for r in asked(g) if r.extra.get("blind_count")]
+    assert [r.extra.get("ability", False) for r in counts] == [True, False]            # the ability first, then the card
 
 
 # ---------------------------------------------------------------- Devil of Hell's Kitchen
@@ -212,19 +200,9 @@ def test_a_blind_boost_that_empties_the_deck_first_makes_the_devil_worth_8(bprd)
     d, liz = pair(g, "daredevil", "liz")
     (last,) = on_top(g, 0, "Breather")
     g.players[0].deck[:] = [last]
-    script(g, 1, order=0)
+    script(g, 1)
     res = g.attack(d, liz, give(g, 0, DEVIL), None)
     assert res.atk_value == 8 + last.boost == 10 and last in g.players[0].deck      # the AFTER shuffled it back
-
-
-def test_the_card_first_order_misses_the_empty_deck(bprd):
-    g = mk(bprd, "liz-sherman")
-    d, liz = pair(g, "daredevil", "liz")
-    (last,) = on_top(g, 0, "Breather")
-    g.players[0].deck[:] = [last]
-    script(g, 1, order=1)
-    res = g.attack(d, liz, give(g, 0, DEVIL), None)
-    assert res.atk_value == 4 + last.boost
 
 
 def test_the_devil_shuffles_itself_and_the_last_four_cards_that_reached_the_discard_pile_into_the_deck(bprd):
@@ -445,7 +423,6 @@ def test_the_bot_counts_the_empty_deck_bonus_of_the_devil_when_declaring(bprd):
     req = request(g, margin=-3, value=4)
     req.card_id = devil.card_id
     assert ai._blind_boost(g, req) == 1
-    assert ai.decide(g, ChoiceRequest("effect", 0, [0, 1], 1, 1, devil.card_id, "k", "", {"during_order": True, "labels": ["a", "b"]}, 0), False) == [0]
 
 
 # ---------------------------------------------------------------- the engine pieces Daredevil added
@@ -555,3 +532,5 @@ def test_the_bot_plays_through_adversity_as_its_plan_when_it_can_kill_a_one_hp_s
     assert with_kill.value > without_kill.value + 1
     sidekick.hp = 1
     assert ai.plan(g).card is card
+    req = ChoiceRequest("space", 0, [], 0, 1, card.card_id, "k", "", {}, 0)
+    assert EffectAI._pass_damage(g, req) == (1.0, True)             # every fighter passed takes the damage: the blows add up

@@ -96,21 +96,17 @@ def visible_none(session):
 
 
 @with_rig()
-def test_a_card_with_its_own_during_effect_asks_the_order_first_then_each_declaration(rig, monkeypatch):
+def test_a_card_with_its_own_during_effect_asks_the_ability_first_then_the_card_with_no_order_choice(rig, monkeypatch):
     session, table, game, fake, cfg = rig
     no_defense(session, monkeypatch)
     first, second = on_deck(table, game, "Breather", "Feint")
     hit(session, table, game, "Man Without Fear", ["Man Without Fear", "Feint", "Breather"])
     req = session.effect_run.awaiting
-    assert req.kind == "effect" and req.extra["during_order"] and len(req.options) == 2
-    assert labels(session) == ["ability first, then the card", "card first, then the ability"]
-    press(session, table, 1)                                                          # the card first
-    req = session.effect_run.awaiting
-    assert req.kind == "amount" and req.extra["blind_count"] and not req.extra.get("ability")
-    done(session, table, 2)                                                           # 1 from the card
-    req = session.effect_run.awaiting
-    assert req.extra["ability"] is True
+    assert req.kind == "amount" and req.extra["blind_count"] and req.extra["ability"] is True
     done(session, table, 2)                                                           # 1 from the ability
+    req = session.effect_run.awaiting
+    assert req.extra["blind_count"] and not req.extra.get("ability")
+    done(session, table, 2)                                                           # 1 from the card
     assert table.human_discard == [first, second] and table.top_discards == [1, 1]
 
 

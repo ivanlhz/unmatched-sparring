@@ -32,3 +32,47 @@ def test_the_search_bot_plays_donatello_both_ways_without_falling_back(other):
         ai = sim.make_bot("ismcts", iterations=6, seed=1)
         out = sim.play(1, bot_hero=bot, human_hero=human, medusa=ai, max_turns=30)
         assert out.turns >= 1 and ai.fallbacks == 0
+
+
+# ---------------------------------------------------------------- the bot's square for Party wagon! (damage to a rival it passed)
+
+def wagon_game(bprd):
+    from test_donatello_effects import make
+    g = make(bprd, human="baba-yaga")
+    g.controllers[0] = MedusaAI(0)
+    return g
+
+
+def wagon_request(g, card):
+    from sparring.effects.choose import ChoiceRequest
+    don = g.hero(0)
+    return ChoiceRequest("space", 0, sorted(g.legal_moves(don, 5, True)), 0, 1, card.card_id, "k", "move to",
+                         {"fighter": "donatello", "op": "move", "steps": 5, "through": True, "up_to": True}, 0)
+
+
+def test_the_bot_moves_through_a_one_hp_sidekick_with_party_wagon_and_kills_it(bprd):
+    from sparring.ai_effects import EffectAI
+    from sparring.effects.ops_core import _passed_through
+    g = wagon_game(bprd)
+    don = g.hero(0)
+    sidekick = next(f for f in g.own(1) if not f.hero)
+    a = sorted(g.board.spaces)[0]
+    b = min(g.board.adj[a])
+    don.pos, sidekick.pos, sidekick.hp = a, b, 1
+    for f in g.fighters.values():
+        if f.alive and f.fid not in ("donatello", sidekick.fid, "metalhead"):
+            f.pos = max(g.board.spaces, key=lambda s: g.board.distance(a, s))
+    g.fighters["metalhead"].alive, g.fighters["metalhead"].pos = False, None       # Donatello is the only mover to choose
+    pw = give(g, "Party wagon!")
+    dest = EffectAI(0).choose_effect(g, wagon_request(g, pw))
+    assert dest and sidekick.fid in _passed_through(g, don, a, dest[0], 5, True)
+    g.play_scheme(0, don, pw)
+    assert not sidekick.alive
+
+
+def test_party_wagon_damages_one_chosen_rival_so_the_bot_values_the_best_single_blow(bprd):
+    from sparring.ai_effects import EffectAI
+    from test_donatello_effects import give as give_wagon
+    g = wagon_game(bprd)
+    pw = give_wagon(g, "Party wagon!")
+    assert EffectAI._pass_damage(g, wagon_request(g, pw)) == (2.0, False)

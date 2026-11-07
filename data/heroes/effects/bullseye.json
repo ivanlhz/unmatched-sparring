@@ -165,10 +165,5 @@
  ],
  "plugins": [],
  "hidden_info": [],
- "open_questions": [
-  "Arrogant But Effective: 'considered to have won' is read as moving the whole result (the rival loses it too, the tally of both sides follows) from its AFTER on.",
-  "Ricochet: 'a fighter in the opposing fighter's zone' includes the opposing fighter itself and Bullseye's own fighters.",
-  "Master Strategist: 'exactly 4 spaces' with no space exactly 4 away falls back to any space within 4.",
-  "Right Between The Eyes: the discard is the rival's choice and happens at IMMEDIATELY, before the rival's DURING."
- ]
+ "open_questions": []
 }

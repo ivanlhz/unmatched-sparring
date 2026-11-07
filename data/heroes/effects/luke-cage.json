@@ -179,10 +179,5 @@
   {"id": "luke:replace_combatant", "why": "Got My Back?: after the swap, Luke Cage takes the place of Misty Knight as the defender IN the running combat (Houdini's Smoke and Mirrors does the same: houdini:replace_combatant), which no op can do."}
  ],
  "hidden_info": [],
- "open_questions": [
-  "Power Man: 'Deal 1 damage to them' is read as unconditional (the opposing fighter is hit even when the owner chooses not to move it).",
-  "Power Man: 'other opposing fighters' are the rival's other fighters (the moved fighter's own side, which it can always cross); Luke Cage's own fighters are never crossed. The path is the owner's choice: any fighter that lies on SOME path of at most 3 spaces from start to end counts as 'moved through'.",
-  "Got My Back?: no range check for the new defender; the attacker's card is aimed at Luke Cage.",
-  "Where's My Money?: 'nearest' by the board's span from Luke Cage; ties let the owner pick any tied fighter."
- ]
+ "open_questions": []
 }
