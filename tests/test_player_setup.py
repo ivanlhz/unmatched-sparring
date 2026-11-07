@@ -73,6 +73,25 @@ def test_clean_destroys_every_hero_object_of_the_game_and_nothing_else(tts):  # 
         "a bag with a foreign object, another hero's deck (same CardID range, other image), the roster and the shelves stay"
 
 
+def test_clean_destroys_an_empty_unnamed_bag_but_not_a_named_one_or_one_outside_the_area(tts):  # noqa: F811
+    tts.execute("mkobj({guid = 'husk1', type = 'Bag', pos = Vector(24, 1, -8)})")
+    tts.execute("mkobj({guid = 'husk2', type = 'Bag', pos = Vector(24, 1, -50)})")
+    tts.execute("mkobj({guid = 'named', type = 'Bag', name = 'My dice', pos = Vector(20, 1, -8)})")
+    tts.execute("mkobj({guid = 'roster', type = 'Infinite', infinite = true, name = 'Bigfoot', pos = Vector(19, 1, 3)})")
+    res = run(tts, clear_script())
+    assert res["bags"] == 1
+    left = {g: tts.eval(f"getObjectFromGUID('{g}') ~= nil") for g in ("husk1", "husk2", "named", "roster")}
+    assert left == {"husk1": False, "husk2": True, "named": True, "roster": True}
+
+
+def test_clean_destroys_a_fallen_miniature_at_every_slot_of_the_dead_spot_row(tts):  # noqa: F811
+    from sparring.session import fallen_slot
+    for slot in range(6):
+        x, _, z = fallen_slot((24.0, 2.5, -20.0), True, slot)
+        tts.execute(f"mkobj({{guid = 'dc0472' .. {slot}, type = 'Custom_Model', name = 'Bigfoot', pos = Vector({x}, 2.5, {z})}})")
+    assert run(tts, clear_script())["objects"] == 6
+
+
 def test_clean_leaves_a_pile_that_mixes_hero_cards_with_foreign_ones_and_says_so(tts):  # noqa: F811
     tts.execute(deck_object(BOT_HERO, "mixed1", 5, cards=10, extra=[555]))
     tts.execute("local d = getObjectFromGUID('mixed1'); d.cards[#d.cards].owner = 'foreign'")

@@ -1175,6 +1175,10 @@ for inner, w in pairs(wanted) do
       local give = {{position = Vector(w.spot[1], w.spot[2], w.spot[3]), smooth = false}}
       if not infinite then give.guid = inner end
       give.callback_function = function(o)
+                           if replied then                -- it arrived after the timeout reply: nobody will unpack or clean it
+                             if o ~= nil then o.destruct() end
+                             return
+                           end
                            if o == nil or o.type ~= "Bag" then
                              table.insert(out.bags_failed, {{guid = inner, why = "listed"}})
                              pending = pending - 1
@@ -1661,7 +1665,8 @@ def clear_setup(heroes: list[tuple], guids: list[str], names: list[str], map_key
       - a Deck or Card (also in a hand) all of whose cards are a hero's (CardID in its range AND its deck image, or its
         character card), so a mixed pile is left alone and reported;
       - a loose Board whose image is a catalog map (the pad boards of the table are not);
-      - a loose Bag inside the limits that holds only hero GUIDs (a copy of a hero's bag the player dropped);
+      - a loose Bag inside the limits that holds only hero GUIDs (a copy of a hero's bag the player dropped), or that is empty
+        and unnamed (what an unpacked copy leaves; a named bag, e.g. the roster's or the player's, is never touched);
       - any other loose object inside the limits and not an infinite bag whose GUID is a hero's or whose name is one of
         `names` (an object spawned from a copy may have a GUID of its own).
     Answers `{cards, boards, bags, objects, mixed}` (counts; `mixed` = GUIDs of piles left alone)."""
@@ -1733,6 +1738,8 @@ for _, o in ipairs(getObjects()) do
         if not MINE[e.guid] then all = false end
       end
       if all then table.insert(doomed, {{o, "bags"}}) end
+    elseif inside and ok and type(held) == "table" and o.getName() == "" and not MINE[o.getGUID()] then
+      table.insert(doomed, {{o, "bags"}})        -- the empty husk of a hero bag copy that was unpacked
     end
   elseif inside and ty ~= "Infinite" and not string.find(ty, "Trigger") and ty ~= "Scripting"
          and o.getName ~= nil and o.getName() ~= {lua_str(PANEL_NAME)} then
