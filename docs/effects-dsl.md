@@ -1022,7 +1022,7 @@ All additive; nothing of the other heroes changes (the goldens are byte-identica
 ## 24. Michelangelo (additive extensions)
 
 - Events: `after_scheme` (`player`) fires when a DSL scheme is finished (`ongoing.finish_scheme`); `after_attack` is now emitted by the engine when a combat reaches DONE (the played cards are already in the discard).
-- Amount `{"stat": "other_cards_played_this_turn", "player"?}`: cards the player played this turn (attack, defense, scheme) without counting the card being resolved. Recorded only when a loaded hero's data names the stat (`events.TRACKS`, `fx.played`, saved only when non-zero).
+- Amount `{"stat": "other_cards_played_this_turn", "player"?}`: cards the player played on their own turn (attack, scheme; defenses on the rival's turn are not recorded, CONFIRMED by Ivan 2026-11-07) without counting the card being resolved. Recorded only when a loaded hero's data names the stat (`events.TRACKS`, `fx.played`, saved only when non-zero).
 - Status `attack_bonus` (fighter scope, needs `amount`): every attack the fighter makes while it lasts gets +amount (`next_attack_bonus` is consumed by the first attack).
 - `optional` with a `return_to_deck` cost from the hand is only offered when the hand can pay it; the bot's request carries `gains_action` or `cancels` so the AI can price it.
 - HeroDef `hand` ({start, max}): per-hero opening hand and end-of-turn hand limit (defaults 5 and 7).

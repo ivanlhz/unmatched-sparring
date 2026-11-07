@@ -82,7 +82,7 @@
      {"op": "modify_value", "card": "this", "amount": {"stat": "other_cards_played_this_turn"}}
     ]
    },
-   "notes": "Versatile 3, boost 2, Michelangelo. 'Played' = a card placed as an attack, a defense or a scheme by this player since the start of the current turn (whoever's turn it is: defending on the rival's turn counts the defenses already made that turn). Boosts, discards and Maneuvers are not plays, and the card itself is not counted."
+   "notes": "Versatile 3, boost 2, Michelangelo. 'Played' = a card placed as an attack or a scheme by this player on their own turn (CONFIRMED by Ivan 2026-11-07). Defenses on the rival's turn never count, so Cowabunga!! played as a defense gets +0. Boosts, discards and Maneuvers are not plays, and the card itself is not counted."
   },
   {
    "title": "Let's Go!!",
@@ -202,7 +202,6 @@
  ],
  "open_questions": [
   "Does 'after you attack' include the attack of a sidekick (April)? Assumed yes: the player attacks, whichever of their fighters does it.",
-  "Does 'cards you played this turn' (Cowabunga!!) include the defense cards played on the rival's turn? Assumed yes, only those of the current turn.",
   "Shell Insertion: 'each opponent discards 1 card' is the rival's choice (they pick which card).",
   "Hi-Yaaaaah!!: 'an adjacent opposing fighter' is any rival fighter next to the attacker, not only the one in the combat."
  ]

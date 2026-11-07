@@ -36,7 +36,7 @@ class EffectState:
         self.turn_start_pos: dict[str, int] = {}         # fid -> space at the start of the turn (moved_this_turn)
         self.attacked: list[str] = []                    # fids that attacked this turn (one entry per attack; last = current)
         self.taken = 0                                   # actions the current player has spent this turn
-        self.played: list[int] = [0, 0]                  # cards each player has played this turn (attack, defense, scheme)
+        self.played: list[int] = [0, 0]                  # cards each player has played on their own turn (attack, scheme)
         self.lost = [0, 0]                               # combats each player lost this turn (Raphael's ANGER ISSUES, Payback time!)
         self.acting: int | None = None                   # player whose effect op is running right now (transient)
         self.parked: list = []                           # EffectRuns of triggers a chooser paused, in firing order (saved)
@@ -99,9 +99,9 @@ class EffectState:
                 self.taken += 1
 
     def count_played(self, player: int) -> None:
-        """`player` plays a card (an attack, a defense or a scheme): what Cowabunga!! counts. Only recorded for games
-        whose data reads it (`events.TRACKS`)."""
-        if self.dsl_heroes:
+        """`player` plays a card (an attack or a scheme) on their own turn: what Cowabunga!! counts. Defenses on the
+        rival's turn are not counted. Only recorded for games whose data reads it (`events.TRACKS`)."""
+        if self.dsl_heroes and player == self.game().turn:
             from .events import tracked
             if "played" in tracked(frozenset(self.dsl_heroes)):
                 self.played[player] += 1

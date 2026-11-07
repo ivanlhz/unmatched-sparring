@@ -68,10 +68,12 @@ Files: `data/heroes/overlay/leonardo.json` (CardID sheet), `data/heroes/leonardo
 
 (none yet: the first live game is pending)
 
+## Confirmed by Ivan (2026-11-07)
+- TEAM TACTICS may move rival fighters (the rival's miniature is moved by the owner of the ability).
+- TEAM TACTICS "1 space" means up to 1 (it may be declined or the fighter stay).
+- "Friendly" (Fearless leader, Eat, sleep, and breathe ninjutsu) is the player's own other fighter.
+
 ## Open questions for Iván
 
 1. Spatial awareness when the opposing fighter fell in the combat: read as "no draw" (a fallen fighter is in no zone).
-2. TEAM TACTICS on the rival's fighters: allowed ("any fighter"); the rival's miniature is moved by the owner of the ability.
-3. TEAM TACTICS "1 space": up to 1 (it may be declined or the fighter stay).
-4. Fearless leader / Eat, sleep, and breathe ninjutsu: "friendly" read as the player's own other fighter.
-5. I have a plan: the extra card is discarded from the hand in addition to the card already played.
+2. I have a plan: the extra card is discarded from the hand in addition to the card already played.
