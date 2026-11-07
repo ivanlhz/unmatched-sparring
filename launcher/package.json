@@ -10,7 +10,8 @@
     "dev": "electron .",
     "test": "node --test test/*.test.js",
     "build:bot": "node scripts/build-bot.js",
-    "dist": "npm run build:bot && electron-builder --win nsis"
+    "dist:installer": "electron-builder --win nsis --publish never",
+    "dist": "npm run build:bot && npm run dist:installer"
   },
   "devDependencies": {
     "electron": "45.2.1",

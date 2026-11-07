@@ -44,7 +44,14 @@ npm test              # unit tests of the launcher (node:test, no extra dependen
 npm run dev           # the window, running the bot with `uv run python -m sparring.play` from the repository
 npm run build:bot     # PyInstaller: build\bot-dist\sparring-bot\sparring-bot.exe (+ _internal\ with data\ and config\)
 npm run dist          # build:bot, then electron-builder: dist\UnmatchedSparring-Setup-<version>.exe
+npm run dist:installer # retry only the installer, using the already-built bot
 ```
+
+`build:bot` uses an isolated Python environment (the repository's `.venv` is not included). It writes all
+tool output to `build\build-bot.log`, reports progress every 30 seconds, and stops the process tree on Windows
+if the build takes more than 10 minutes or is cancelled with Ctrl+C. A failed or interrupted bot build prevents
+the installer step from running. If the bot succeeds but packaging fails, use `npm run dist:installer` to retry
+packaging; run the full `npm run dist` after changing any Python code or bundled data.
 
 If `npm install` leaves `node_modules\electron\dist` empty (the download can fail silently behind a TLS-inspecting
 proxy), run `$env:NODE_OPTIONS="--use-system-ca"; node node_modules\electron\install.js`. The same
