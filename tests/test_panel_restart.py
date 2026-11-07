@@ -175,8 +175,8 @@ def test_restart_moves_every_piece_off_the_board_to_the_two_dead_spots(brig, tmp
     click(session, table, Event.RESTART)
     placed = {name: (x, z) for name, x, y, z in table.placed}
     assert set(placed) == set(session.cfg.nicknames.values())
-    assert all(placed[n][0] > 20 for n in ("Medusa", "Harpy 1", "Harpy 2", "Harpy 3"))
-    assert all(placed[n][0] < -20 for n in ("Hellboy", "Lobster Johnson"))
+    assert all(placed[n][0] > 19 for n in ("Medusa", "Harpy 1", "Harpy 2", "Harpy 3"))
+    assert all(placed[n][0] < -19 for n in ("Hellboy", "Lobster Johnson"))
     assert len({v for v in placed.values()}) == 6, "each piece in its slot"
 
 
@@ -229,8 +229,21 @@ def test_a_dead_human_fighter_is_moved_off_the_board_and_announced(brig):
     with_cfg(session, dead_spot=(24.0, 2.5, -20.0))
     msgs = click(session, table, Event.REMOVE, {"fighter": "lobster"})
     assert "Lobster Johnson cae: lo he apartado." in msgs
-    assert table.placed == [("Lobster Johnson", -25.5, 2.5, -20.0)]
+    assert table.placed == [("Lobster Johnson", -22.5, 2.5, -20.0)]
     assert table.piece_dist["Lobster Johnson"] > session.cfg.off_board_dist
+
+
+@pytest.mark.parametrize("mine", [True, False])
+def test_every_fallen_slot_stays_inside_the_area_clean_table_reaches(mine):
+    from sparring.session import fallen_slot
+    from test_official_save_setup import raw_config
+    raw = raw_config()
+    limit_x, limit_z = raw["remove_table_limits"]
+    spot = tuple(raw["dead_spot"] if mine else raw["human_dead_spot"])
+    row = [fallen_slot(spot, mine, n) for n in range(8)]
+    assert row[0] == spot
+    assert all(abs(x) <= limit_x and abs(z) <= limit_z for x, _, z in row), row
+    assert len({x for x, _, _ in row}) == 8, "one slot per piece, none on another"
 
 
 def test_a_dead_human_fighter_goes_to_the_configured_human_dead_spot(brig):

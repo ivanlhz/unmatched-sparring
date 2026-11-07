@@ -186,6 +186,15 @@ def zoom_spec(cfg: "SessionConfig") -> lua.ZoomSpec | None:
     return lua.ZoomSpec(cfg.card_zoom_spot, rot, cfg.card_zoom_scale, cfg.card_zoom_seconds)
 
 
+FALLEN_STEP = 1.5
+
+
+def fallen_slot(spot: tuple[float, float, float], mine: bool, slot: int) -> tuple[float, float, float]:
+    """Where the `slot`-th fallen piece of a side lies: the row grows from the dead spot toward the centre of the table
+    (the dead spots sit at the edge of "Clean table"'s area, so growing outward would leave pieces it cannot reach)."""
+    return (spot[0] + (-FALLEN_STEP if mine else FALLEN_STEP) * slot, spot[1], spot[2])
+
+
 def human_dead_spot(cfg: "SessionConfig") -> tuple[float, float, float] | None:
     """The human's fallen zone: the configured one or, by default, the bot's mirrored to the other side of the table
     (off the board, next to their seat)."""
@@ -1502,11 +1511,11 @@ class Session:
         else:
             self.say(t("restart.no_human_deck"), ChatKind.WARNING)
         pieces = self._table_pieces()
-        for owner, spot, sign in ((self.bot, bot_spot, 1.5), (self.human, human_spot, -1.5)):
+        for owner, spot, mine in ((self.bot, bot_spot, True), (self.human, human_spot, False)):
             for slot, f in enumerate(sorted(fresh.own(owner, alive_only=False), key=lambda f: f.fid)):
                 info = pieces.get(f.fid) or {}
                 guid = info["guid"] if info.get("found") else self._guids(f.fid)[0]
-                self._w(lua.place_piece(guid, spot[0] + sign * slot, spot[1], spot[2]), "pieces")
+                self._w(lua.place_piece(guid, *fallen_slot(spot, mine, slot)), "pieces")
         want = {guid: fresh.fighters[fid].max_hp for fid, guid in self._live_dials().items()}
         want = {g: int(v) for g, v in want.items()}
         if c.destiny_dial:
@@ -4940,7 +4949,7 @@ class Session:
         failed = t("bury.failed_mine" if mine else "bury.failed_human", name=name)
         if spot is not None:
             slot = sorted(f.fid for f in self.game.own(owner, alive_only=False)).index(fid)
-            at = (spot[0] + (1.5 if mine else -1.5) * slot, spot[1], spot[2])
+            at = fallen_slot(spot, mine, slot)
             if defer:
                 info = (pieces if pieces is not None else self._table_pieces()).get(fid) or {}
                 guids = [info["guid"]] if info.get("found") else self._guids(fid)

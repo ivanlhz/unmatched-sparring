@@ -737,6 +737,34 @@ def test_the_reply_waits_for_the_copy_the_infinite_bag_spawns_later_and_one_pres
     assert tts.eval("getObjectFromGUID('65070e') ~= nil"), "the infinite bag stays"
 
 
+def test_a_copy_that_arrives_after_the_timeout_reply_is_destroyed_not_left_loose(tts):  # noqa: F811
+    hero_bags(tts)
+    reply = run_unpack(tts, OUTERS)
+    assert reply() is None
+    tts.execute("for _, f in ipairs(TIMERS) do f() end")
+    res = reply()
+    assert res["bags_failed"] == [{"guid": "e5a45c", "why": "spawning"}]
+    tts.execute("SPAWN()")
+    assert tts.eval("getObjectFromGUID('copy01')") is None, "the late copy is destroyed"
+
+
+def test_the_real_inner_bag_taken_from_a_finite_outer_bag_is_never_destroyed_when_it_arrives_late(tts):  # noqa: F811
+    tts.execute("""
+local outer = mkobj({guid = '65070e', type = 'Bag', name = 'Medusa', items = {{guid = 'e5a45c', name = 'bag'}}})
+outer.takeObject = function(t)
+  SPAWN = function()
+    t.callback_function(mkobj({guid = 'e5a45c', type = 'Bag', pos = Vector(t.position),
+                               items = {{guid = '04b2c9'}, {guid = 'bcd809'}}}))
+  end
+end""")
+    reply = run_unpack(tts, OUTERS)
+    assert reply() is None
+    tts.execute("for _, f in ipairs(TIMERS) do f() end")
+    assert reply()["bags_failed"] == [{"guid": "e5a45c", "why": "spawning"}]
+    tts.execute("SPAWN()")
+    assert tts.eval("getObjectFromGUID('e5a45c') ~= nil"), "the player's real hero bag survives"
+
+
 def test_a_copy_left_loose_by_an_earlier_press_is_reused_and_no_second_one_is_made(tts):  # noqa: F811
     hero_bags(tts)
     tts.execute("mkobj({guid = 'copy77', type = 'Bag', pos = Vector(24, 2.5, -8.5), items = {{guid = '04b2c9'}, {guid = 'bcd809'}}})")

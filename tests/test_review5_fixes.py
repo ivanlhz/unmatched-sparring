@@ -1167,7 +1167,7 @@ def test_a_dead_harpy_is_moved_off_the_board_by_the_bot(rig):
     destiny_rig(session, table)
     game.damage(game.fighters["harpy2"], 1, "combat")
     session._project({"harpy2": (21, True)})
-    assert table.placed == [("Harpy 2", 24.0 + 1.5, 2.5, -20.0)]
+    assert table.placed == [("Harpy 2", 24.0 - 1.5, 2.5, -20.0)]
     assert any("Harpy 2 cae: la he apartado" in m for m in session.messages)
 
 
