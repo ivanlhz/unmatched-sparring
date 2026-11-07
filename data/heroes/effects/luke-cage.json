@@ -1,0 +1,188 @@
+{
+ "schema": 1,
+ "hero": "luke-cage",
+ "notes": [
+  "Texts read from sheet 176 of the tournament savegame (card images) on 2026-11-07; the character card is 322 on sheet 3 (10x7, index 22). Sheet 176 is also Medusa's, the four turtles', Doctor Strange's and Bigfoot's DeckID: the CardIDs repeat and only the deck image tells the decks apart (docs/card-identity.md).",
+  "Discrepancy with unmatched-memory: the character card carries a second ability paragraph ('When defending, Luke Cage wins combat if he takes no damage even if he didn't play a card.') that unmatched-memory lacks. The engine already names the winner by the damage taken (a defender who takes none wins, with or without a card), so that paragraph needs no data; it is recorded in the ability text and in docs/heroes/luke-cage.md.",
+  "1v1 reading: 'your opponent' is the only rival; 'the opposing fighter' is the other fighter of the combat in a combat card and, in Where's My Money?, any fighter of the rival.",
+  "The one schema addition is the SpaceSel key `next_to_nearest_foe` (Where's My Money?) and the passive rule `combat_damage_reduction` (the ability); see docs/effects-dsl.md, section 29."
+ ],
+ "ability": {
+  "text": "Luke Cage takes 2 less combat damage from attacks.\nWhen defending, Luke Cage wins combat if he takes no damage even if he didn't play a card.",
+  "triggers": [],
+  "passives": [
+   {"id": "luke_skin", "kind": "rule", "rule": "combat_damage_reduction", "amount": 2}
+  ],
+  "notes": "Only Luke Cage himself (not Misty Knight) and only combat damage (the damage of a combat, never effect damage, exhaustion or set_hp): the blow of the attacker's value over the defender's is cut by 2 before it lands (Game.combat_damage_taken, CombatFlow._damage). The winner is named from the damage that landed, so a blow of 2 or less is a win for the defender, with no defense card played (the engine already gives a defender who takes no damage the combat). When Misty defends and Got My Back? makes Luke the defender, he is the victim and the reduction applies."
+ },
+ "cards": [
+  {
+   "title": "Sweet Christmas!",
+   "copies": 2,
+   "text": "",
+   "effects": {"immediately": [], "during": [], "after": [], "scheme": [], "boost": []},
+   "notes": "Attack 6 / boost 1, Luke Cage only. No text: a plain attack."
+  },
+  {
+   "title": "Get Paid",
+   "copies": 2,
+   "text": "AFTER COMBAT: If you won the combat, draw 2 cards.",
+   "effects": {
+    "immediately": [], "during": [], "scheme": [], "boost": [],
+    "after": [
+     {"op": "if", "condition": {"test": "combat_result", "result": "won"}, "then": [{"op": "draw", "player": "owner", "amount": 2}]}
+    ]
+   },
+   "notes": "Attack 4 / boost 2, Luke Cage only."
+  },
+  {
+   "title": "Hero For Hire",
+   "copies": 3,
+   "text": "DURING COMBAT: You may BOOST this attack.",
+   "may_boost": true,
+   "effects": {"immediately": [], "during": [], "after": [], "scheme": [], "boost": []},
+   "notes": "Attack 3 / boost 1, Luke Cage only. The free BOOST is the card's `may_boost`."
+  },
+  {
+   "title": "Commanding Impact",
+   "copies": 3,
+   "text": "AFTER COMBAT: Draw 1 card.",
+   "effects": {
+    "immediately": [], "during": [], "scheme": [], "boost": [],
+    "after": [{"op": "draw", "player": "owner", "amount": 1}]
+   },
+   "notes": "Attack 5 / boost 1, ANY. The draw does not depend on the result."
+  },
+  {
+   "title": "Still Standing",
+   "copies": 2,
+   "text": "AFTER COMBAT: If you won the combat, choose 2 cards in your discard pile and shuffle them into your deck.",
+   "effects": {
+    "immediately": [], "during": [], "scheme": [], "boost": [],
+    "after": [
+     {"op": "if", "condition": {"test": "combat_result", "result": "won"}, "then": [
+      {"op": "return_to_deck", "cards": {"zone": "discard", "player": "owner", "amount": 2, "chooser": "owner"}, "position": "shuffle"}
+     ]}
+    ]
+   },
+   "notes": "Attack 4 / boost 2, ANY. Exactly 2 cards when the discard pile holds 2 or more, fewer if it holds fewer. The played card itself is not in the discard pile yet while the AFTER effects run, so it cannot be chosen."
+  },
+  {
+   "title": "Regroup",
+   "copies": 3,
+   "text": "AFTER COMBAT: Draw 1 card. If you won the combat, draw 2 cards instead.",
+   "effects": {
+    "immediately": [], "during": [], "scheme": [], "boost": [],
+    "after": [
+     {"op": "if", "condition": {"test": "combat_result", "result": "won"},
+      "then": [{"op": "draw", "player": "owner", "amount": 2}],
+      "else": [{"op": "draw", "player": "owner", "amount": 1}]}
+    ]
+   },
+   "notes": "Versatile (value 1, boost 3), ANY. Two cards on a win, one otherwise (never three)."
+  },
+  {
+   "title": "Pushback",
+   "copies": 2,
+   "text": "AFTER COMBAT: Move the opposing fighter up to 3 spaces.",
+   "effects": {
+    "immediately": [], "during": [], "scheme": [], "boost": [],
+    "after": [{"op": "move", "target": "opposing", "amount": 3, "up_to": true, "chooser": "owner"}]
+   },
+   "notes": "Versatile (value 2, boost 3), Misty Knight only. The owner chooses where the opposing fighter goes (not through other fighters); a defeated one is not moved. It does not depend on the result."
+  },
+  {
+   "title": "Daughter of the Dragon",
+   "copies": 2,
+   "text": "DURING COMBAT: If Misty Knight is adjacent to the opposing fighter, the value of this card is 6 instead.",
+   "effects": {
+    "immediately": [], "after": [], "scheme": [], "boost": [],
+    "during": [
+     {"op": "if", "condition": {"test": "exists", "fighters": {"role": "opposing", "where": {"adjacent_to": "this"}}},
+      "then": [{"op": "set_value", "card": "this", "amount": 6}]}
+    ]
+   },
+   "notes": "Versatile (value 2, boost 2), Misty Knight only, so `this` is Misty: she must be next to the opposing fighter of the combat; the printed value becomes 6 (bonuses stay)."
+  },
+  {
+   "title": "Power Man",
+   "copies": 2,
+   "text": "AFTER COMBAT: Move the opposing fighter up to 3 spaces. You may move them through other opposing fighters. Deal 1 damage to them and each opposing fighter they moved through.",
+   "effects": {
+    "immediately": [], "during": [], "scheme": [], "boost": [],
+    "after": [
+     {"op": "move", "target": "opposing", "amount": 3, "up_to": true, "chooser": "owner", "as": "mover"},
+     {"op": "damage", "target": "opposing", "amount": 1},
+     {"op": "damage", "target": {"side": "enemy", "filter": {"passed_by": "$mover"}, "pick": "all"}, "amount": 1}
+    ]
+   },
+   "notes": "Defense (value 2, boost 1), Luke Cage only. 'Them' is the opposing fighter of the combat (the attacker): 1 damage even if the owner chooses not to move it. 'Other opposing fighters' are the rival's other fighters, from Luke Cage's side: the moved fighter's own team, which it may always cross (so the move needs no `through_enemies`: Luke Cage and Misty Knight are never crossed). 'Moved through' = a fighter of that team on some path of at most 3 spaces from where the fighter started to where it ended (the board has no fixed path: the owner chooses it; the move records them in `run.flags[\"passed\"]`, as for Donatello's Party wagon!). A defeated opposing fighter is not moved nor hit."
+  },
+  {
+   "title": "Skin Like Titanium",
+   "copies": 2,
+   "text": "AFTER COMBAT: If you lost the combat, deal damage to the opposing fighter equal to the amount of combat damage you took.",
+   "effects": {
+    "immediately": [], "during": [], "scheme": [], "boost": [],
+    "after": [
+     {"op": "if", "condition": {"test": "combat_result", "result": "lost"},
+      "then": [{"op": "damage", "target": "opposing", "amount": {"stat": "damage_taken_this_combat"}}]}
+    ]
+   },
+   "notes": "Defense (printed value 0, boost 1), Luke Cage only. 'The combat damage you took' is what really landed, after Luke Cage's own 2 less: a blow that his ability reduced to 0 is a win and deals nothing. It is effect damage on the opposing fighter."
+  },
+  {
+   "title": "Trash Talk",
+   "copies": 3,
+   "text": "IMMEDIATELY: Cancel all effects on your opponent's card. AFTER COMBAT: If you won the combat, end the turn.",
+   "effects": {
+    "immediately": [{"op": "cancel_effects", "card": "opponent_card"}],
+    "during": [], "scheme": [], "boost": [],
+    "after": [
+     {"op": "if", "condition": {"test": "combat_result", "result": "won"}, "then": [{"op": "end_turn"}]}
+    ]
+   },
+   "notes": "Defense (value 2, boost 1), ANY. 'End the turn' ends the turn in progress (the attacker's, when defending): its remaining actions are lost. Played with an attack the turn is the owner's own."
+  },
+  {
+   "title": "Got My Back?",
+   "copies": 2,
+   "text": "IMMEDIATELY: Misty Knight may swap spaces with Luke Cage. If she does, Luke Cage is now the defender.",
+   "effects": {
+    "immediately": [
+     {"op": "if", "condition": {"test": "exists", "fighters": {"side": "own", "kind": "hero"}}, "then": [
+      {"op": "optional", "chooser": "owner", "ops": [
+       {"op": "swap", "target": "this", "with": "hero", "as": "swapped"},
+       {"op": "plugin", "id": "luke:replace_combatant", "args": {"swapped": "$swapped"}}
+      ]}
+     ]}
+    ],
+    "during": [], "after": [], "scheme": [], "boost": []
+   },
+   "notes": "Defense (value 1, boost 2), Misty Knight only, so `this` is Misty. Both alive: they swap spaces; if they did, Luke Cage takes the place of Misty in this combat as the defender, with this card in play for him, in the space Misty had: no range check, the attacker's card is aimed at him from now on (damage, his 2 less and the AFTER effects too)."
+  },
+  {
+   "title": "Where's My Money?",
+   "copies": 2,
+   "text": "Place Luke Cage adjacent to the nearest opposing fighter. Gain 1 action.",
+   "effects": {
+    "immediately": [], "during": [], "after": [], "boost": [],
+    "scheme": [
+     {"op": "place", "target": "hero", "where": {"next_to_nearest_foe": "hero"}, "chooser": "owner"},
+     {"op": "gain_action", "amount": 1}
+    ]
+   },
+   "notes": "Scheme (boost 1), Luke Cage only. 'Nearest' is spatial (the board's span, as everywhere), counted from Luke Cage; with several opposing fighters tied, the owner may go next to any of them. If he is already next to the nearest one he may stay. The action is gained even when there is no free space."
+  }
+ ],
+ "plugins": [
+  {"id": "luke:replace_combatant", "why": "Got My Back?: after the swap, Luke Cage takes the place of Misty Knight as the defender IN the running combat (Houdini's Smoke and Mirrors does the same: houdini:replace_combatant), which no op can do."}
+ ],
+ "hidden_info": [],
+ "open_questions": [
+  "Power Man: 'Deal 1 damage to them' is read as unconditional (the opposing fighter is hit even when the owner chooses not to move it).",
+  "Power Man: 'other opposing fighters' are the rival's other fighters (the moved fighter's own side, which it can always cross); Luke Cage's own fighters are never crossed. The path is the owner's choice: any fighter that lies on SOME path of at most 3 spaces from start to end counts as 'moved through'.",
+  "Got My Back?: no range check for the new defender; the attacker's card is aimed at Luke Cage.",
+  "Where's My Money?: 'nearest' by the board's span from Luke Cage; ties let the owner pick any tied fighter."
+ ]
+}

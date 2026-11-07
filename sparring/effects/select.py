@@ -70,6 +70,14 @@ def space_options(game, run, sel, default_empty: bool = True, mover=None) -> lis
             out &= set(board.adj[ref.pos])
         elif key == "space_of":
             out &= {ref.pos}
+    if "next_to_nearest_foe" in sel:       # Where's My Money?: next to the nearest opposing fighter (to any of them when tied)
+        ref = _ref_fighter(game, run, sel["next_to_nearest_foe"])
+        foes = [f for f in game.fighters.values() if ref is not None and ref.pos is not None and f.alive
+                and f.pos is not None and f.owner != ref.owner]
+        if not foes:
+            return []
+        best = min(board.span(ref.pos, f.pos) for f in foes)        # span: "nearest" is spatial, not the walk
+        out &= {s for f in foes if board.span(ref.pos, f.pos) == best for s in board.adj[f.pos]}
     if "start_space_of" in sel:
         out &= {game.start_spaces[player_of(game, run, sel["start_space_of"])]}
     if sel.get("start"):                                   # any starting space of the board

@@ -285,10 +285,10 @@ class SearchController(Controller):
         hand = game.players[self.me].hand
         t = ctx.target
         sign = -1 if t.owner == self.me else 1
-        now = min(max(0, ctx.atk_value - ctx.def_value), t.hp)
+        now = min(game.combat_damage_taken(t, max(0, ctx.atk_value - ctx.def_value)), t.hp)
         best, best_gain = None, 0.0
         for c in filter(bot_may_spend, hand):
-            net = min(max(0, ctx.atk_value + sign * c.boost - ctx.def_value), t.hp)
+            net = min(game.combat_damage_taken(t, max(0, ctx.atk_value + sign * c.boost - ctx.def_value)), t.hp)
             gain = sign * (net - now) - 0.3 * card_worth(c) + 0.3 * boost_effect_value(game, self.me, c)     # BOOSTED WITH
             if gain > best_gain:
                 best, best_gain = c, gain

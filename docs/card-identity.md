@@ -1,7 +1,7 @@
 # Card identity: the shared CardID range
 
-In the tournament savegame Medusa, the four TMNT turtles (Leonardo, Donatello, Michelangelo, Raphael), Doctor Strange and Bigfoot are
-all DeckID 176, so all seven decks have CardIDs 17600-17629. Only the deck image (FaceURL, BackURL of the CustomDeck,
+In the tournament savegame Medusa, the four TMNT turtles (Leonardo, Donatello, Michelangelo, Raphael), Doctor Strange, Bigfoot and Luke Cage are
+all DeckID 176, so all eight decks have CardIDs 17600-17629. Only the deck image (FaceURL, BackURL of the CustomDeck,
 `deck.identity` in `data/tts/<slug>.json`) tells them apart. Any pairing of the nine heroes works at the table, in both seats,
 including Medusa against a turtle and a turtle against a turtle (`tests/test_tmnt_matrix.py`), and Doctor Strange against each of
 them (`tests/test_doctor_strange_matrix.py`; only the

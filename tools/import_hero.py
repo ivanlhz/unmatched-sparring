@@ -9,7 +9,7 @@ life, movement, reach, sidekicks, ability and the cards (title, type, value, boo
 The overlay `data/heroes/overlay/<slug>.json` provides what unmatched-memory lacks: the fighter id (`fid`),
 the corrected sidekicks (sparring name, fid, count), `memory_slug` and `name` when unmatched-memory files the hero under
 another slug or name (Houdini: `harry-houdini`, "Harry Houdini"; the card reads HOUDINI), the CardID sheet (`deck.card_base` + `deck.sheet`:
-idx, title, fighter restriction, tags and, if the real card says something else, `text` or `boost`; `memory_title` when
+idx, title, fighter restriction, tags and, if the real card says something else, `text`, `value` or `boost`; `memory_title` when
 unmatched-memory spells the title differently), and forms, counters, triggers, passives and `hand` (starting and
 maximum hand size when they are not 5 and 7: Michelangelo's PIZZA PARTY).
 With the DSL effects (`data/heroes/effects/<slug>.json`) and the cards it computes `ai_profile`: the static profile of each
@@ -77,7 +77,7 @@ def build(slug: str, memory: Path, overlay_dir: Path = OVERLAY_DIR, effects_dir:
                 raise SystemExit(f"{slug}: the overlay sheet cites {entry['title']!r} (idx {entry.get('idx')}), which does not "
                                  f"exist in unmatched-memory; known titles: {', '.join(sorted(by_title))}")
             cards.append({"idx": entry["idx"], "title": entry["title"], "fighter": entry["fighter"], "type": src["type"],
-                          "value": src["value"], "boost": entry.get("boost", src["boostValue"]),     # the printed boost wins
+                          "value": entry.get("value", src["value"]), "boost": entry.get("boost", src["boostValue"]),     # the printed value and boost win
                           "text": entry.get("text") or card_text(src),     # the real card wins over unmatched-memory
                           "tags": list(entry.get("tags", ()))})
         sheet_titles = [e.get("memory_title", e["title"]) for e in deck_ov["sheet"]]
