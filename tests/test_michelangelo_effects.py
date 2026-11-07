@@ -197,7 +197,7 @@ def test_cowabunga_adds_one_for_each_other_card_played_this_turn(g):
     assert third.atk_value == 3 + 3                                  # two attacks and a scheme
 
 
-def test_cowabunga_counts_the_defenses_made_on_the_rivals_turn_and_resets_every_turn(g):
+def test_cowabunga_ignores_the_defenses_made_on_the_rivals_turn_and_resets_every_turn(g):
     g.turn, g.turn_no = 1, 3
     g.begin_turn()
     pair(g, "hellboy", "mikey")
@@ -205,11 +205,11 @@ def test_cowabunga_counts_the_defenses_made_on_the_rivals_turn_and_resets_every_
     assert first.def_value == 5
     g.actions_left = 2
     second = attack(g, "hellboy", "mikey", "Service Pistol", "Cowabunga!!")
-    assert second.def_value == 3 + 1                                 # the first defense counts
+    assert second.def_value == 3                                     # defenses on the rival's turn never count
     g.end_turn()
     g.begin_turn()
     pair(g, "mikey", "hellboy")
-    assert attack(g, "mikey", "hellboy", "Cowabunga!!").atk_value == 3      # a new turn: nothing counted
+    assert attack(g, "mikey", "hellboy", "Cowabunga!!").atk_value == 3      # nothing played on the own turn yet
 
 
 def test_lets_go_moves_a_friendly_fighter_up_to_3_spaces_after_combat(g):

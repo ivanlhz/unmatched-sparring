@@ -395,6 +395,8 @@ def _stat(game, run, a):
     if stat == "actions_taken_this_turn":
         return game.fx.taken if player == game.turn else 0
     if stat == "other_cards_played_this_turn":
+        if player != game.turn:                            # a defense on the rival's turn: nothing was played on the own turn
+            return 0
         return max(0, game.fx.played[player] - 1)         # the card being resolved is counted already
     if stat == "combats_lost_this_turn":
         return game.fx.lost[player]

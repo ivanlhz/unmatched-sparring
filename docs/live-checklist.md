@@ -184,7 +184,7 @@ Everything here is new (1/11) and has only run against FakeTTS. The deck shares 
 - [ ] Hi-Yaaaaah!!, Guaranteed Delivery, Shell Insertion: the card put on the **bottom of the deck** from the hand (yours by hand, the bot's by script).
 - [ ] **Shell Insertion**: the four buttons (two picks, labels short), the rival's discard, the 2 random discards shuffled back (by GUID).
 - [ ] **Nunchaku**: +1 to every attack of Michelangelo that turn (the chat line lists it), not April's.
-- [ ] **Cowabunga!!** counts the cards played this turn (including the defenses on the rival's turn).
+- [ ] **Cowabunga!!** counts only the cards played on your own turn: as a defense on the rival's turn it gets +0.
 
 ### Raphael (Teenage Mutant Ninja Turtles)
 

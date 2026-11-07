@@ -33,7 +33,7 @@ Set "Adventures: Teenage Mutant Ninja Turtles". Data, effects, table data and en
 ## Engine and design decisions
 1. **Hand size** is data (`hand` in the overlay, `HeroDef.hand_start/hand_max`, `Game.start_hand/hand_cap`), default 5 and 7. Used by the deal, the mulligan, the end-of-turn limit (bot and human), the bot's evaluation and the search.
 2. **PIZZA PARTY** is two ability triggers on events: `after_attack` (emitted when the combat reaches DONE, with the cards already in the discard) and `after_scheme` (when the scheme is finished). Any fighter of the player counts. The human's draw is dealt by the existing owed-draw path.
-3. **Cowabunga!!** uses the stat `other_cards_played_this_turn`; the engine counts plays (attack, defense, scheme) per player per turn only when a loaded hero's data names it.
+3. **Cowabunga!!** uses the stat `other_cards_played_this_turn`; the engine counts plays (attack, scheme) per player on their own turn only when a loaded hero's data names it. Cards played on the rival's turn (defenses) never count, so Cowabunga!! played as a defense gets +0 (CONFIRMED by Ivan 2026-11-07).
 4. **Nunchaku** is the fighter status `attack_bonus` until the end of the turn (not an ONGOING: it stays out of the ONGOING slot).
 5. **Shell Insertion** uses `choose_effect` with `distinct`; the human picks with the panel, the bot simulates each option.
 6. The bot pays a card from its hand for an action (Hi-Yaaaaah!!) while another card that can use the action stays in hand, and for Guaranteed Delivery's cancel when the card it gives up is below average and the rival's card has effects (`EffectAI._card_from_hand_pays`).
@@ -42,10 +42,12 @@ Set "Adventures: Teenage Mutant Ninja Turtles". Data, effects, table data and en
 ## Adventures wording in 1 versus 1
 "Each opponent" is the one rival; "each friendly fighter" is Michelangelo and April.
 
+## Confirmed by Ivan (2026-11-07)
+- Cowabunga!!: only cards played on the owner's own turn count; defenses on the rival's turn do not (+0 as a defense).
+- Hi-Yaaaaah!!: "adjacent opposing fighter" is any rival fighter adjacent to the attacker, not only the one fought.
+- Maximum hand size 3 is applied at the end of the turn (like the 7 of every hero); a Maneuver or PIZZA PARTY may take the hand above 3 during the turn.
+
 ## Open questions for Ivan
 - Does "after you attack" include April's attacks? Assumed yes.
-- Cowabunga!!: do defenses on the rival's turn count as "cards you played this turn"? Assumed yes, current turn only.
-- Hi-Yaaaaah!!: "adjacent opposing fighter" is any rival fighter adjacent to the attacker, not only the one fought.
 - Shell Insertion: the rival chooses which card to discard.
-- Maximum hand size 3 is applied at the end of the turn (like the 7 of every hero); a Maneuver or PIZZA PARTY may take the hand above 3 during the turn.
 - Guaranteed Delivery as the human: the price card goes to the deck bottom by hand and the engine does not learn which card it was, so AFTER COMBAT's "if your hand is empty, draw 2" reads the engine's hand (live-only risk; `tests/test_tmnt_human_cards.py`).
