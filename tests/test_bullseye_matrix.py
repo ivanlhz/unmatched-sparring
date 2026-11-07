@@ -15,8 +15,7 @@ from test_d3_table_effects import build, set_hand
 from test_donatello_session import SPOTS, AsideTable
 from test_tmnt_matrix import HERO_HP, MAX_STEPS, AttackDriver, human_step
 
-OTHERS = ["medusa", "hellboy", "abe-sapien", "baba-yaga", "liz-sherman", "leonardo", "donatello", "michelangelo", "raphael",
-          "doctor-strange", "houdini", "bigfoot"]
+OTHERS = ["medusa", "hellboy", "abe-sapien", "baba-yaga", "liz-sherman", "leonardo", "donatello", "michelangelo", "raphael", "doctor-strange", "houdini", "bigfoot", "daredevil", "luke-cage"]
 PAIRS = [("bullseye", h) for h in OTHERS] + [(b, "bullseye") for b in OTHERS]
 IDS = [f"{b}-vs-{h}" for b, h in PAIRS]
 

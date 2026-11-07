@@ -20,7 +20,7 @@ OVERLAY = HEROES_DIR / "overlay" / "bullseye.json"
 EFFECTS = HEROES_DIR / "effects" / "bullseye.json"
 TTS = HEROES_DIR.parent / "tts" / "bullseye.json"
 MOMENTS = ("immediately", "during", "after", "scheme", "boost")
-SHARING = ["medusa", "leonardo", "donatello", "michelangelo", "raphael", "doctor-strange", "bigfoot"]
+SHARING = ["medusa", "leonardo", "donatello", "michelangelo", "raphael", "doctor-strange", "bigfoot", "daredevil", "luke-cage"]
 EVERYONE = SHARING + ["hellboy", "abe-sapien", "baba-yaga", "liz-sherman", "houdini"]
 
 # (copies, restriction, type, value, boost) as printed on the cards.
@@ -160,11 +160,12 @@ def test_table_data_names_the_piece_the_dial_the_deck_range_and_its_own_images()
 @pytest.mark.parametrize("other", SHARING)
 def test_bullseye_shares_the_card_range_but_not_the_images_with_medusa_the_turtles_strange_and_bigfoot(other):
     bullseye, theirs = load_hero_table("bullseye"), load_hero_table(other)
-    assert bullseye.card_ids == theirs.card_ids == (17600, 17629)
+    top = 17621 if other == "daredevil" else 17629                 # Daredevil's deck has 22 cards
+    assert bullseye.card_ids == (17600, 17629) and theirs.card_ids == (17600, top)
     assert not set(bullseye.identity) & set(theirs.identity)
     for bot, human in (("bullseye", other), (other, "bullseye")):
         defaults = table_defaults(bot, human)
-        assert defaults["bot_card_ids"] == defaults["human_card_ids"] == [17600, 17629]
+        assert {tuple(defaults["bot_card_ids"]), tuple(defaults["human_card_ids"])} == {(17600, 17629), (17600, top)}
         assert defaults["bot_identity"] != defaults["human_identity"]
 
 

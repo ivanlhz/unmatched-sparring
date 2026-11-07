@@ -15,8 +15,7 @@ from test_doctor_strange_matrix import StrangeAttackDriver, play_to_the_end
 from test_tmnt_matrix import HERO_HP
 
 DAREDEVIL = "daredevil"
-OTHERS = ["medusa", "hellboy", "abe-sapien", "baba-yaga", "liz-sherman", "leonardo", "donatello", "michelangelo", "raphael",
-          "doctor-strange", "houdini", "bigfoot"]
+OTHERS = ["medusa", "hellboy", "abe-sapien", "baba-yaga", "liz-sherman", "leonardo", "donatello", "michelangelo", "raphael", "doctor-strange", "houdini", "bigfoot", "luke-cage", "bullseye"]
 PAIRS = [(DAREDEVIL, h) for h in OTHERS] + [(b, DAREDEVIL) for b in OTHERS]
 IDS = [f"{b}-vs-{h}" for b, h in PAIRS]
 

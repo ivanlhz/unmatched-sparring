@@ -18,7 +18,7 @@ OVERLAY = HEROES_DIR / "overlay" / "doctor-strange.json"
 EFFECTS = HEROES_DIR / "effects" / "doctor-strange.json"
 TTS = HEROES_DIR.parent / "tts" / "doctor-strange.json"
 MOMENTS = ("immediately", "during", "after", "scheme", "boost")
-SHARING = ["medusa", "leonardo", "donatello", "michelangelo", "raphael"]
+SHARING = ["medusa", "leonardo", "donatello", "michelangelo", "raphael", "bigfoot", "daredevil", "luke-cage", "bullseye"]
 
 # (copies, restriction, type, value, boost) as printed on the cards.
 REAL_CARDS = {

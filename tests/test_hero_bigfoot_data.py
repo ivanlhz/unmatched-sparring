@@ -17,7 +17,7 @@ OVERLAY = HEROES_DIR / "overlay" / "bigfoot.json"
 EFFECTS = HEROES_DIR / "effects" / "bigfoot.json"
 TTS = HEROES_DIR.parent / "tts" / "bigfoot.json"
 MOMENTS = ("immediately", "during", "after", "scheme", "boost")
-SHARING = ["medusa", "leonardo", "donatello", "michelangelo", "raphael", "doctor-strange"]
+SHARING = ["medusa", "leonardo", "donatello", "michelangelo", "raphael", "doctor-strange", "daredevil", "luke-cage", "bullseye"]
 EVERYONE = SHARING + ["hellboy", "abe-sapien", "baba-yaga", "liz-sherman", "houdini"]
 
 # (copies, restriction, type, value, boost) as printed on the cards.
