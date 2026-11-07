@@ -596,7 +596,7 @@ class EffectAI:
             return min(req.options)
         value, margin, limit = x["value"], x["margin"], x["limit"]
         card = None if req.card_id is None else game.card_of(req.card_id, me)
-        emptied = DEVIL_EMPTY_VALUE - card.value if card is not None and card.title == DEVIL_TITLE else 0      # the order choice puts the ability first
+        emptied = DEVIL_EMPTY_VALUE - card.value if card is not None and card.title == DEVIL_TITLE else 0      # the ability always resolves first
 
         @lru_cache(maxsize=None)
         def score(total: int) -> float:
