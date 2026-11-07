@@ -165,7 +165,7 @@ def test_bullseye_shares_the_card_range_but_not_the_images_with_medusa_the_turtl
     assert not set(bullseye.identity) & set(theirs.identity)
     for bot, human in (("bullseye", other), (other, "bullseye")):
         defaults = table_defaults(bot, human)
-        assert {tuple(defaults["bot_card_ids"]), tuple(defaults["human_card_ids"])} == {(17600, 17629), (17600, top)}
+        assert defaults["bot_card_ids"] == list(load_hero_table(bot).card_ids) and defaults["human_card_ids"] == list(load_hero_table(human).card_ids)
         assert defaults["bot_identity"] != defaults["human_identity"]
 
 

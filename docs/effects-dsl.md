@@ -69,7 +69,7 @@ Text conventions: "owner" is the player who plays the card or who the ability be
   the loss waits until the AFTER effects are done (All Part of the Show). `look_shield` (optional): held in the hand, it lets its
   owner cancel a look at their hand (A Magician Never Reveals His Secrets). See section 27.
 - `uncancelable` (optional, false by default): `cancel_effects` does not erase the effects of this card.
-- `effects`: the five moments, always present and always lists (empty if there is nothing), plus the optional `unboosted` (only with `may_boost`: the DURING ops for when its owner did not BOOST, run right after that question; section 29):
+- `effects`: the five moments, always present and always lists (empty if there is nothing), plus the optional `unboosted` (only with `may_boost`: the DURING ops for when its owner did not BOOST, run right after that question; section 31):
   - `immediately`, `during`, `after`: combat. The defender resolves first at each moment.
   - `scheme`: when playing a scheme (one action). Only on cards of type scheme; the other three are empty on schemes.
   - `boost`: when THIS card is discarded as a boost card (Houdini's "BOOSTED WITH").
@@ -257,7 +257,7 @@ Every op is `{"op": "<name>", ...args}`. Arguments not listed are an error.
 | `set_value` | `card` and `amount` or `ignore: true` | | `amount`: the printed value becomes N (bonuses stay); `ignore: true`: "ignore its value", the total value becomes 0 (Incinerate) |
 | `boost` | `card: CardRef` | `chooser` | boosts that card now (discards the top card of its owner's deck). For the card's own free "may BOOST", `may_boost` is used |
 | `allow_boost` | `card: CardRef` | | "Your opponent may BOOST their card": that card's side is asked for the free BOOST of `may_boost` cards in DURING even if the card has none (An Illusion Of My Own Design) |
-| `consider_won` | | | "You are considered to have won this combat" (Bullseye's Arrogant But Effective): the owner's side becomes the combat's winner for every later condition and for the turn's tally; see section 29 |
+| `consider_won` | | | "You are considered to have won this combat" (Bullseye's Arrogant But Effective): the owner's side becomes the combat's winner for every later condition and for the turn's tally; see section 31 |
 | `status` | `name`, `until: Event` and `target: FighterSel` or `player: PlayerSel` | `amount` | see the status table |
 | `counter` | `name` and `delta` or `set` | `player` | clipped to the min/max of `ability.counters` |
 | `gain_action` | `amount` | `player` | blocked by `cannot_gain_actions` and the `no_gain_actions` rule |

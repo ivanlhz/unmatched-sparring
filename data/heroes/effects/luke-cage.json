@@ -5,7 +5,7 @@
   "Texts read from sheet 176 of the tournament savegame (card images) on 2026-11-07; the character card is 322 on sheet 3 (10x7, index 22). Sheet 176 is also Medusa's, the four turtles', Doctor Strange's and Bigfoot's DeckID: the CardIDs repeat and only the deck image tells the decks apart (docs/card-identity.md).",
   "Discrepancy with unmatched-memory: the character card carries a second ability paragraph ('When defending, Luke Cage wins combat if he takes no damage even if he didn't play a card.') that unmatched-memory lacks. The engine already names the winner by the damage taken (a defender who takes none wins, with or without a card), so that paragraph needs no data; it is recorded in the ability text and in docs/heroes/luke-cage.md.",
   "1v1 reading: 'your opponent' is the only rival; 'the opposing fighter' is the other fighter of the combat in a combat card and, in Where's My Money?, any fighter of the rival.",
-  "The one schema addition is the SpaceSel key `next_to_nearest_foe` (Where's My Money?) and the passive rule `combat_damage_reduction` (the ability); see docs/effects-dsl.md, section 29."
+  "The one schema addition is the SpaceSel key `next_to_nearest_foe` (Where's My Money?) and the passive rule `combat_damage_reduction` (the ability); see docs/effects-dsl.md, section 30."
  ],
  "ability": {
   "text": "Luke Cage takes 2 less combat damage from attacks.\nWhen defending, Luke Cage wins combat if he takes no damage even if he didn't play a card.",
