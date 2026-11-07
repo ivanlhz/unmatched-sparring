@@ -181,6 +181,79 @@ def test_a_maneuver_boost_runs_its_boosted_with_for_you(rig):
 
 
 @with_rig("hellboy", "houdini", TRAINING)
+def test_the_boost_button_resolves_the_effects_before_you_place_and_never_ends_the_action(rig):
+    session, table, game, fake, cfg = rig
+    human_hand(table, game, "Flourish", "Sleight of Hand")
+    houdini = game.fighters["houdini"]
+    taken = {f.pos for f in game.fighters.values() if f.alive}
+    far = max((s for s in game.board.spaces if s not in taken), key=lambda s: game.board.distance(houdini.pos, s))
+    assert session.panel_view()[1]["btn_mboost"] == (False, False)             # no Maneuver, no button
+    click(session, table, Event.MANEUVER)
+    assert session.panel_view()[1]["btn_mboost"] == (True, True)
+    spend(table, game, "Flourish")
+    msgs = click(session, table, Event.MANEUVER_BOOST)
+    assert said(msgs, "robas 1") and said(msgs, "ESCAPE ARTIST"), msgs
+    assert table.human_deals == [1, 1] and len(game.players[1].hand) == table.human_count
+    assert session.moving and game.turn == 1 and game.actions_left == 1           # still your Maneuver
+    assert session.panel_view()[1]["btn_mboost"] == (False, False)             # one boost per Maneuver
+    table.positions[cfg.nicknames["houdini"]] = far
+    msgs = click(session, table, Event.END_ACTION)
+    assert houdini.pos == far and not any("ilegal" in m.lower() for m in msgs)
+    assert not session.moving and table.human_deals == [1, 1]                   # nothing is applied twice
+
+
+@with_rig("hellboy", "houdini", TRAINING)
+def test_a_boosted_maneuver_survives_a_resume_and_is_not_boosted_twice(rig):
+    session, table, game, fake, cfg = rig
+    human_hand(table, game, "Flourish", "Sleight of Hand")
+    click(session, table, Event.MANEUVER)
+    ids = spend(table, game, "Flourish")
+    click(session, table, Event.MANEUVER_BOOST)
+    saved = session.to_dict()
+    assert saved["maneuver_boosted"] == ids[0]
+    session.load_dict(saved)
+    assert session.maneuver_boosted == ids[0] and session.panel_view()[1]["btn_mboost"] == (False, False)
+    click(session, table, Event.END_ACTION)
+    assert table.human_deals == [1, 1] and not session.moving
+
+
+@with_rig("hellboy", "houdini", TRAINING)
+def test_the_old_habit_boost_then_end_action_applies_the_effects_and_waits_for_a_second_end_action(rig):
+    session, table, game, fake, cfg = rig
+    human_hand(table, game, "Flourish", "Sleight of Hand")
+    click(session, table, Event.MANEUVER)
+    spend(table, game, "Flourish")
+    msgs = click(session, table, Event.END_ACTION)
+    assert said(msgs, "robas 1") and said(msgs, "ESCAPE ARTIST"), msgs
+    assert session.moving and game.turn == 1                                      # the action did NOT end
+    click(session, table, Event.END_ACTION)
+    assert not session.moving and table.human_deals == [1, 1]
+
+
+@with_rig("hellboy", "houdini", TRAINING)
+def test_the_boost_button_without_a_new_card_in_the_discard_only_warns(rig):
+    session, table, game, fake, cfg = rig
+    human_hand(table, game, "Flourish")
+    click(session, table, Event.MANEUVER)
+    msgs = click(session, table, Event.MANEUVER_BOOST)
+    assert said(msgs, "No veo ninguna carta nueva"), msgs
+    assert session.moving and table.human_deals == [1]
+    assert session.panel_view()[1]["btn_mboost"] == (True, True)
+
+
+@with_rig("hellboy", "houdini", TRAINING, "Excalibur", "Service Pistol")
+def test_a_boost_with_a_choice_waits_for_the_answer_and_for_end_action(rig):
+    session, table, game, fake, cfg = rig
+    human_hand(table, game, "Set the Stage", "Flourish")
+    click(session, table, Event.MANEUVER)
+    spend(table, game, "Set the Stage")
+    click(session, table, Event.MANEUVER_BOOST)
+    assert session.effect_run is not None and session.effect_run.awaiting.kind == "cards"
+    assert session.moving and game.turn == 1
+    assert session.panel_view()[1]["btn_end"][0] is False or session.panel_view()[1]["btn_mboost"] == (False, False)
+
+
+@with_rig("hellboy", "houdini", TRAINING)
 def test_a_maneuver_boost_with_bess_gives_the_action_back(rig):
     session, table, game, fake, cfg = rig
     human_hand(table, game, "And the Beautiful Bess!", "Flourish")
@@ -387,3 +460,37 @@ def test_the_big_reveal_with_no_boost_card_is_a_normal_combat(rig, monkeypatch):
     attack(session, table, game, "houdini", "The Big Reveal")
     msgs = click(session, table, Event.NO_BOOST)
     assert "total 2" in combat_line(msgs)
+
+
+# ---------------------------------------------------------------- the card dealt by the BOOSTED WITH is still flying
+
+@with_rig("hellboy", "houdini", TRAINING)
+def test_a_card_dealt_by_the_boost_and_still_flying_is_not_read_as_discarded(rig, monkeypatch):
+    """Live 7/11: the card the bot dealt as Flourish's draw was read in the human's discard zone while it flew from the
+    deck to the hand (the snapshot of the write that dealt it was trusted), and the engine put it in the pile."""
+    session, table, game, fake, cfg = rig
+    bot_defends_with_nothing(session, monkeypatch)
+    human_hand(table, game, "Flourish", "Sleight of Hand")
+    vanishing = card_ids(game, 1, "Vanishing Act")[0]
+    game.actions_left = 1                                   # this Maneuver is the last action: the bot's turn follows
+    click(session, table, Event.MANEUVER)
+    flight = {"reads": 0}
+    plain, plain_deal = table.snapshot_state, table.do_deal_cards
+
+    def snapshot_state():
+        snap = plain()
+        if flight["reads"] > 0:
+            flight["reads"] -= 1
+            snap["human_discard"] = snap["human_discard"] + [{"id": vanishing, "guid": f"g{vanishing}"}]
+        return snap
+
+    def deal(script):
+        flight["reads"] = 3
+        return plain_deal(script)
+    table.snapshot_state, table.do_deal_cards = snapshot_state, deal
+    spend(table, game, "Flourish")
+    click(session, table, Event.MANEUVER_BOOST)
+    click(session, table, Event.END_ACTION)
+    st = game.players[1]
+    assert all(c.card_id != vanishing for c in st.discard), [c.title for c in st.discard]
+    assert len(st.hand) == table.human_count
