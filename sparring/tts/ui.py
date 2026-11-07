@@ -220,9 +220,21 @@ def _text(text: str, size: int = 18, extra: str = "") -> str:
     return f'<Text color="#FFFFFF" fontSize="{size}" {extra}>{text}</Text>'.replace(" >", ">")
 
 
+# the GAME column (title, 5 button rows and the value field) must fit even with two lone heroes:
+# with only the LIFE rows sizing it, Liz vs Bullseye squashed Mulligan and Ready into blank slivers (7/11)
+# 348 is the height the default table (Medusa and 3 harpies vs Hellboy and the lobster) always had and rendered
+# well; a taller panel would cover the HELLBOY label of the real table
+GAME_COLUMN_MIN = 60 + 48 * 6
+
+
+def side_height(fighter_count: int) -> int:
+    """Height of the LIFE / GAME row: the LIFE rows of `fighter_count` fighters, never less than the GAME column."""
+    return max(60 + 48 * fighter_count, GAME_COLUMN_MIN)
+
+
 def panel_height(fighter_count: int) -> int:
     """Height of the panel in UI pixels (with the LIFE side column of `fighter_count` fighters)."""
-    return 40 + 40 + 7 * (ROW_HEIGHT + 8) + 40 + (60 + 48 * fighter_count) + 40
+    return 40 + 40 + 7 * (ROW_HEIGHT + 8) + 40 + side_height(fighter_count) + 40
 
 
 def panel_xml(target_ids: list[str], attacker_ids: tuple[str, ...] = DEFAULT_ATTACKERS,
@@ -260,7 +272,7 @@ def panel_xml(target_ids: list[str], attacker_ids: tuple[str, ...] = DEFAULT_ATT
         _row(f'<Text color="#FFFFFF" fontSize="16" preferredWidth="150">{label(f)}</Text>',
              _button(f"hpm_{f}", "onHp", "-1", 16), _button(f"hpp_{f}", "onHp", "+1", 16),
              _button(f"rm_{f}", "onRemove", t("panel.remove"), 16), height=40) for f in fighters)
-    side_h = 60 + 48 * len(fighters)
+    side_h = side_height(len(fighters))
     life = (f'<VerticalLayout {section} preferredWidth="470" preferredHeight="{side_h}">'
             + _text(t("panel.life"), 16, 'fontStyle="Bold"') + hp_rows + '</VerticalLayout>')
     game = (f'<VerticalLayout {section} preferredWidth="260" preferredHeight="{side_h}">'
