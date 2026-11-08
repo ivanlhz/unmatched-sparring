@@ -2,7 +2,7 @@
  "slug": "jill-trent",
  "_notes": [
   "The inner bag also holds a Custom_Token (8af285, no nickname) with the face of the Ultrabiotic Tonic gadget: the hero token `gadget` (data/heroes/overlay/jill-trent.json `token_names`). Active gadget = the engine's counter `gadget` (0 none, 1 Hypnoray Blaster, 2 Ultrabiotic Tonic); the bot moves the token with setPosition (sparring/session_gadget.py): ON Jill's character card while the Tonic is active, BESIDE it when the Blaster is active or no gadget is. The character card (348) prints no Blaster, so there is no Blaster piece.",
-  "token_slots.gadget.<side> = [beside the card, on the card]: derived from the `character_card` slot of that side in config/table.json `layout` (identical in every entry of config/map_setups.json): on the card = its x, z and y + 0.12; beside = 2.6 units toward lower z (clear of the deck, at z + 2.7, and of the dial, toward the table centre) at y + 0.03; rot Y = the card's, rot Z 0 (the only face). NOT measured on a real table: calibrate live (docs/live-checklist.md).",
+  "token_slots.gadget.<side> = [beside the card, on the card]. On the card = the `character_card` slot of that side in config/table.json `layout` (x, z, y + 0.12, its rot Y, rot Z 0). Beside: the bot's measured live on B.P.R.D. HQ on 2026-11-08 (where Ivan put it, past the deck, away from the map: the first guess at z 12.4 lay under the board); the human's mirrors it from that side's card. The on-card spot and the rot Z are still not checked live.",
   "Daisy's miniature is the Custom_Token 0bf463 (Abe Sapien's agent Carla has the same GUID: docs/card-identity.md, \"Piece identity\") and her life dial the Custom_Model e10c99 (max 6); Jill's miniature is the Custom_Assetbundle 448a24 and her dial the Custom_Model 9bb234 (max 13)."
  ],
  "bag": {
@@ -43,9 +43,9 @@
    "bot": [
     {
      "pos": [
-      5.28,
-      1.64,
-      12.4
+      4.98,
+      1.76,
+      21.1
      ],
      "rot": [
       0,
@@ -69,9 +69,9 @@
    "human": [
     {
      "pos": [
-      -6.73,
-      1.64,
-      12.47
+      -6.6,
+      1.76,
+      21.17
      ],
      "rot": [
       0,

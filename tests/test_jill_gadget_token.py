@@ -77,13 +77,14 @@ def test_the_token_is_a_hero_token_with_two_places_per_side_and_the_bag_is_still
 @pytest.mark.parametrize("layout", [RAW["layout"], *(e["layout"] for e in SETUPS.values())])
 @pytest.mark.parametrize("side", ["bot", "human"])
 def test_the_places_come_from_the_character_card_spot_of_every_calibrated_layout(layout, side):
-    """On the card: its x and z. Beside it: 2.6 units toward lower z. Always the card's Y rotation and Z 0 (face up)."""
+    """On the card: its x and z. Beside it: past the deck (z + 2.7), away from the map, in the card's column (measured live on
+    B.P.R.D. HQ, 2026-11-08: the first guess, 2.6 toward lower z, lay under the board). Always the card's Y rotation and Z 0."""
     (bx, by, bz), (brx, bry, brz) = places(side)[0]
     (ox, oy, oz), (orx, ory, orz) = places(side)[1]
     card = layout[side]["character_card"]
     cx, cy, cz = card["pos"]
-    assert (ox, oz) == pytest.approx((cx, cz), abs=0.01) and (bx, bz) == pytest.approx((cx, cz - 2.6), abs=0.01)
-    assert oy > cy and by < oy and (brx, brz, orx, orz) == (0, 0, 0, 0)
+    assert (ox, oz) == pytest.approx((cx, cz), abs=0.01) and abs(bx - cx) < 0.5 and bz > cz + 2.7 + 1.5
+    assert oy > cy and by > cy and (brx, brz, orx, orz) == (0, 0, 0, 0)
     assert bry == ory == pytest.approx(card["rot"][1])
 
 
