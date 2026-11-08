@@ -41,6 +41,7 @@ from . import session_bot_effects as bot_effects
 from . import session_blind as blind
 from . import session_choices as choices
 from . import session_effects as human_effects
+from . import session_gadget as gadget_token
 from . import session_hidden as hidden
 from . import session_moves as moves
 from . import session_pieces as piece_id
@@ -398,6 +399,8 @@ class Session:
         self._transit: dict[int, int] = {}                 # CardID played by the human -> reads it has gone without reaching the discard
         self.combat_guids: dict[int, str] = {}             # CardID of the human's card at the combat spot -> its GUID (Relentless moves it)
         self._intuition_said: int | None = None            # the human Abe's active tokens already told in chat
+        self._gadget_shown: int | None = None              # the gadget Jill Trent's token was last put at (None: not placed yet this game)
+        self._gadget_missing_said = False                  # the missing token was already told in chat
         self._destiny_said: tuple[int, str] | None = None  # what was already announced (not repeated while retrying)
         self.placing: dict | None = None         # bot card put on the table whose reply never arrived
         self.dials_attempted: dict[str, int] = {}  # GUID -> last value tried to write (verified or not)
@@ -491,6 +494,7 @@ class Session:
     def _begin_game(self) -> None:
         self.first_turn_pending = True            # built with `begin_turn(emit=False)`: see `_start_first_turn`
         self._intuition_said = None               # a restart keeps the old game's count otherwise
+        self._gadget_shown = None
         self.game_log.new_game((self.game.hero_def(self.bot).name, self.game.hero_def(self.human).name))
         self.game_log.observe(self.game, self._name)
         self._check_config()
@@ -509,6 +513,7 @@ class Session:
             self.bot_stage = "start"
         self._open(announce_turn=True)
         self._track_intuition(announce=True)
+        gadget_token.track(self)
 
     def _start_first_turn(self) -> None:
         """The first turn's start-of-turn triggers. The game was built with `begin_turn(emit=False)`: before the table
@@ -568,6 +573,7 @@ class Session:
         self.game_log.observe(self.game, self._name)
         self.say(t("sess.resumed"))
         self._intuition_said = None
+        self._gadget_shown = None
         if self.setup is not None:
             self.say(t("sess.resume.setup", stage=self.setup["stage"]))
             self._setup_advance()
@@ -575,6 +581,7 @@ class Session:
             return self._done()
         self._open(announce_turn=False)
         self._track_intuition(announce=True)
+        gadget_token.track(self)
         self._write_dials(post=True)              # the table already shows the engine's life, not the one from before the cut
         if self.game.winner is not None:
             self.say(t("sess.resume.game_over", winner=self.game.winner))
@@ -911,6 +918,7 @@ class Session:
         self.say(t("setup.done"))
         self._intuition_said = None               # the setup's silent first look must not hide the starting count
         self._track_intuition(announce=True)
+        gadget_token.track(self)
         self._start_first_turn()
         if g.turn == self.bot:
             self.bot_stage = "start"
@@ -1010,6 +1018,7 @@ class Session:
     def _done(self) -> list[str]:
         self._say_triggers()
         self._track_intuition()
+        gadget_token.track(self)
         hidden.after_step(self)                   # a look of the human at the bot's hand: the row rides this script
         self._tell_blocks()
         self._commit()

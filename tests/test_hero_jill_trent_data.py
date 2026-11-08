@@ -153,7 +153,7 @@ def test_table_data_names_the_pieces_the_dials_the_deck_range_and_its_own_images
     assert (tts["bag"]["guid"], tts["deck"]["guid"]) == ("55b9e4", "f918b9")
     assert tts["fighters"]["jill"] == {"piece": "448a24", "dial": "9bb234", "dial_max": 13}
     assert tts["fighters"]["daisy"] == {"piece": "0bf463", "dial": "e10c99", "dial_max": 6}
-    assert tts["tokens"] == {} and tts["counter_dials"] == {}
+    assert tts["tokens"] == {"gadget": "8af285"} and tts["counter_dials"] == {} and "ignored_tokens" not in tts
 
 
 # ---------------------------------------------------------------- the shared CardID range

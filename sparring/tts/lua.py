@@ -3915,6 +3915,27 @@ return JSON.encode({{removed = true}})
 
 
 @_registered
+def move_token(guid: str, position: tuple[float, float, float], rotation: tuple[float, float, float]) -> str:
+    """Puts a token at `position` with `rotation`, instantly (`setPosition`/`setRotation`, never smooth), only if it is one of
+    `TOKEN_TYPES`: never a Deck, a Card, a bag or an object carrying a Lua script (Jill Trent's gadget token). Returns
+    `{found, moved}`: `found` false when nothing has that GUID, `moved` false (with `type`) when it is not a token."""
+    kinds = "{" + ", ".join(f'["{t}"] = true' for t in sorted(TOKEN_TYPES)) + "}"
+    return f"""-- sparring:move_token
+local obj = getObjectFromGUID({_guid(guid)})
+if obj == nil then return JSON.encode({{found = false, moved = false}}) end
+local kinds = {kinds}
+local script = ""
+pcall(function() script = obj.getLuaScript() or "" end)
+if kinds[obj.type] ~= true or script ~= "" then
+  return JSON.encode({{found = true, moved = false, type = obj.type}})
+end
+obj.setPosition(Vector({_f(position[0])}, {_f(position[1])}, {_f(position[2])}))
+obj.setRotation(Vector({_f(rotation[0])}, {_f(rotation[1])}, {_f(rotation[2])}))
+return JSON.encode({{found = true, moved = true}})
+"""
+
+
+@_registered
 def place_from_bag(bag_guid: str, name_or_guid: str, position: tuple[float, float, float]) -> str:
     """Takes one object out of a bag by GUID or by name and puts it at `position` (reserve / summon). `{taken: false}` if
     the bag or the object is not there. Returns `{taken: guid, moved: guid}`."""

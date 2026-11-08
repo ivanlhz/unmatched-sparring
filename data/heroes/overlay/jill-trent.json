@@ -7,9 +7,9 @@
  "ability": "GADGETOLOGY: At the start of your turn, activate one of your gadgets. Whenever Jill Trent attacks, resolve the active gadget's effect.\nHypnoray Blaster: DURING COMBAT: If your card's printed value is lower than your opponent's, reveal the top card of your opponent's deck. Increase the value of your attack by the BOOST value of the revealed card.\nUltrabiotic Tonic: AFTER COMBAT: If your card's printed value is higher than your opponent's, Jill Trent recovers 1 health.",
  "fid": "jill",
  "memory_slug": "dr-jill-trent",
- "ignored_tokens": [
-  "8af285"
- ],
+ "token_names": {
+  "8af285": "gadget"
+ },
  "sidekicks": [
   {
    "fid": "daisy",

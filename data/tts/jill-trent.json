@@ -1,41 +1,98 @@
 {
-  "slug": "jill-trent",
-  "_notes": [
-    "The inner bag also holds a Custom_Token (8af285, no nickname) with the face of the Ultrabiotic Tonic gadget. The bot does not use gadget tokens (the active gadget is the engine's counter `gadget`, said in the chat): the overlay lists it in `ignored_tokens`, so tools/import_save.py does not report it as stray. Daisy's miniature is the Custom_Token 0bf463 (Abe Sapien's agent Carla has the same GUID: docs/card-identity.md, \"Piece identity\") and her life dial the Custom_Model e10c99 (max 6); Jill's miniature is the Custom_Assetbundle 448a24 and her dial the Custom_Model 9bb234 (max 13)."
+ "slug": "jill-trent",
+ "_notes": [
+  "The inner bag also holds a Custom_Token (8af285, no nickname) with the face of the Ultrabiotic Tonic gadget: the hero token `gadget` (data/heroes/overlay/jill-trent.json `token_names`). Active gadget = the engine's counter `gadget` (0 none, 1 Hypnoray Blaster, 2 Ultrabiotic Tonic); the bot moves the token with setPosition (sparring/session_gadget.py): ON Jill's character card while the Tonic is active, BESIDE it when the Blaster is active or no gadget is. The character card (348) prints no Blaster, so there is no Blaster piece.",
+  "token_slots.gadget.<side> = [beside the card, on the card]: derived from the `character_card` slot of that side in config/table.json `layout` (identical in every entry of config/map_setups.json): on the card = its x, z and y + 0.12; beside = 2.6 units toward lower z (clear of the deck, at z + 2.7, and of the dial, toward the table centre) at y + 0.03; rot Y = the card's, rot Z 0 (the only face). NOT measured on a real table: calibrate live (docs/live-checklist.md).",
+  "Daisy's miniature is the Custom_Token 0bf463 (Abe Sapien's agent Carla has the same GUID: docs/card-identity.md, \"Piece identity\") and her life dial the Custom_Model e10c99 (max 6); Jill's miniature is the Custom_Assetbundle 448a24 and her dial the Custom_Model 9bb234 (max 13)."
+ ],
+ "bag": {
+  "guid": "55b9e4",
+  "inner": "35d821"
+ },
+ "deck": {
+  "guid": "f918b9",
+  "card_ids": [
+   17600,
+   17629
   ],
-  "bag": {
-    "guid": "55b9e4",
-    "inner": "35d821"
-  },
-  "deck": {
-    "guid": "f918b9",
-    "card_ids": [
-      17600,
-      17629
-    ],
-    "character_card_id": 348,
-    "identity": [
-      {
-        "face": "https://steamusercontent-a.akamaihd.net/ugc/11408525703721717087/540EB002F48039208B435BB2DF65412700BAAA91/",
-        "back": "https://steamusercontent-a.akamaihd.net/ugc/15478771875546134371/EF414307E9B2DABA26EC145260E08673F5E96EB2/"
-      }
-    ]
-  },
-  "fighters": {
-    "jill": {
-      "piece": "448a24",
-      "dial": "9bb234",
-      "dial_max": 13
-    },
-    "daisy": {
-      "piece": "0bf463",
-      "dial": "e10c99",
-      "dial_max": 6
-    }
-  },
-  "tokens": {},
-  "counter_dials": {},
-  "ignored_tokens": [
-    "8af285"
+  "character_card_id": 348,
+  "identity": [
+   {
+    "face": "https://steamusercontent-a.akamaihd.net/ugc/11408525703721717087/540EB002F48039208B435BB2DF65412700BAAA91/",
+    "back": "https://steamusercontent-a.akamaihd.net/ugc/15478771875546134371/EF414307E9B2DABA26EC145260E08673F5E96EB2/"
+   }
   ]
+ },
+ "fighters": {
+  "jill": {
+   "piece": "448a24",
+   "dial": "9bb234",
+   "dial_max": 13
+  },
+  "daisy": {
+   "piece": "0bf463",
+   "dial": "e10c99",
+   "dial_max": 6
+  }
+ },
+ "tokens": {
+  "gadget": "8af285"
+ },
+ "token_slots": {
+  "gadget": {
+   "bot": [
+    {
+     "pos": [
+      5.28,
+      1.64,
+      12.4
+     ],
+     "rot": [
+      0,
+      90,
+      0
+     ]
+    },
+    {
+     "pos": [
+      5.28,
+      1.73,
+      15.0
+     ],
+     "rot": [
+      0,
+      90,
+      0
+     ]
+    }
+   ],
+   "human": [
+    {
+     "pos": [
+      -6.73,
+      1.64,
+      12.47
+     ],
+     "rot": [
+      0,
+      270,
+      0
+     ]
+    },
+    {
+     "pos": [
+      -6.73,
+      1.73,
+      15.07
+     ],
+     "rot": [
+      0,
+      270,
+      0
+     ]
+    }
+   ]
+  }
+ },
+ "counter_dials": {}
 }

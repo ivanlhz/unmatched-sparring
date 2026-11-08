@@ -12,8 +12,9 @@ another slug or name (Houdini: `harry-houdini`, "Harry Houdini"; the card reads 
 idx, title, fighter restriction, tags and, if the real card says something else, `text`, `value` or `boost`; `memory_title` when
 unmatched-memory spells the title differently), and forms, counters, triggers, passives and `hand` (starting and
 maximum hand size when they are not 5 and 7: Michelangelo's PIZZA PARTY) and `reach_spaces` (the hero attacks anyone that many spaces away,
-zones ignored: Bullseye's 5) and `ignored_tokens` (GUIDs of tokens in the hero's bag that the bot does not use, so tools/import_save.py does not
-report them as stray: Jill Trent's Ultrabiotic Tonic token).
+zones ignored: Bullseye's 5), `ignored_tokens` (GUIDs of tokens in the hero's bag that the bot does not use, so tools/import_save.py does not
+report them as stray) and `token_names` ({GUID: name} of tokens of the bag with no nickname the bot does use: tools/import_save.py files them in `tokens`
+under that name; Jill Trent's Ultrabiotic Tonic token is `gadget`).
 With the DSL effects (`data/heroes/effects/<slug>.json`) and the cards it computes `ai_profile`: the static profile of each
 fighter for the AI (sparring/ai_profile.py); the overlay can fix `ai_role: {fid: striker|keep_away}`.
 Without a sheet, the HeroDef carries the unmatched-memory cards with no CardID or restriction and the engine cannot play with it."""
@@ -111,6 +112,8 @@ def build(slug: str, memory: Path, overlay_dir: Path = OVERLAY_DIR, effects_dir:
         out["reach_spaces"] = int(ov["reach_spaces"])
     if ov.get("ignored_tokens"):
         out["ignored_tokens"] = list(ov["ignored_tokens"])
+    if ov.get("token_names"):
+        out["token_names"] = dict(ov["token_names"])
     out["ai_profile"] = compute_ai_profile(out, effects, ov.get("ai_role"))
     if ov.get("_notes"):
         out["_notes"] = ov["_notes"]

@@ -257,10 +257,11 @@ def extract_hero(objects: list[dict], hero: HeroDef, raw_hero: dict, report: Rep
     tokens: dict[str, str] = {}
     token_children: dict[str, str] = {}
     ignored = set(raw_hero.get("ignored_tokens") or ())          # tokens of the bag the bot deliberately does not use (Jill Trent's gadget token)
+    names = dict(raw_hero.get("token_names") or {})              # tokens with no nickname the bot does use, by GUID (Jill Trent's gadget token)
     for o in pieces:
         if o["GUID"] in claimed or o["GUID"] in ignored or not o.get("Name", "").startswith("Custom_Token"):
             continue
-        key = _token_key(_nick(o))
+        key = names.get(o["GUID"]) or _token_key(_nick(o))
         if key not in expected_tokens:
             report.problems.append(f"token {key!r} ({o['GUID']}, nickname {_nick(o)!r}): {hero.name} uses no such "
                                    f"token (expected: {', '.join(sorted(expected_tokens)) or 'none'})")
@@ -298,6 +299,7 @@ def expected_token_keys(raw_hero: dict) -> set[str]:
             if t.get("token")}
     if raw_hero.get("forms"):
         keys.add("ability")
+    keys.update((raw_hero.get("token_names") or {}).values())
     return keys
 
 

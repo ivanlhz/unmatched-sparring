@@ -51,6 +51,8 @@ class FxTable(Table):
         self.human_deck: list[int] = []
         self.intuition = {"total": 2, "active": 0}          # the human Abe's physical tokens
         self.intuition_turns: list[tuple[bool, int]] = []
+        self.token_moves: list[tuple[str, tuple[float, float, float], tuple[float, float, float]]] = []   # (GUID, position, rotation) of each move_token
+        self.missing_tokens: set[str] = set()               # GUIDs of tokens the player took off the table
 
     def snapshot_state(self):
         snap = super().snapshot_state()
@@ -83,6 +85,14 @@ class FxTable(Table):
             self.intuition_turns.append((box["active"] > before, done))
         return {"total": box["total"], "active": before, "after": box["active"], "flipped": done,
                 "guids": [f"i{k}" for k in range(done)]}
+
+    def do_move_token(self, s):
+        guid = re.search(r'getObjectFromGUID\("(\w+)"\)', s).group(1)
+        if guid in self.missing_tokens:
+            return {"found": False, "moved": False}
+        vec = [tuple(float(v) for v in m) for m in re.findall(r"Vector\(([-\d.]+), ([-\d.]+), ([-\d.]+)\)", s)]
+        self.token_moves.append((guid, vec[0], vec[1]))
+        return {"found": True, "moved": True}
 
     def do_flip_token(self, s):
         self.flipped.append(re.search(r'getObjectFromGUID\("(\w+)"\)', s).group(1))

@@ -712,6 +712,7 @@ def test_read_only_allowlist_is_exactly_the_pure_read_builders(bprd):
         "deck_top_to_discard": lambda: lua.deck_top_to_discard("abc", 1, "def", identity=TEST_IDENT),
         "take_token_copy": lambda: lua.take_token_copy("abc", (0.0, 0.0, 0.0)),
         "remove_token": lambda: lua.remove_token("abc"),
+        "move_token": lambda: lua.move_token("abc", (0.0, 1.5, 0.0), (0.0, 90.0, 0.0)),
         "place_from_bag": lambda: lua.place_from_bag("abc", "Rat", (0.0, 0.0, 0.0)),
         "inspect_objects": lambda: lua.inspect_objects(["abc"]),
         "find_pieces_by_name": lambda: lua.find_pieces_by_name(["abe sapien"]),

@@ -32,6 +32,7 @@ from .tts.client import TTSLuaError
 from .tts.hero_table import HeroTable, HeroTableError, load_hero_table
 from .tts.lua import ChatKind
 
+PLACED_TOKEN = "gadget"         # a counter whose token is moved between two places instead of copied (Jill Trent's gadget)
 DOMAIN = "fx"                  # queue domain of the writes of a projection: no read of the session forces them out early
 ERRORS = (TTSLuaError, OSError)
 BOT, HUMAN = "bot", "human"
@@ -570,6 +571,8 @@ def token_spot(session, k: int) -> tuple[float, float, float]:
 def _counter_mode(session, intent: dict) -> str | None:
     if intent["player"] != session.bot:
         return None                               # the human's counters are their dials (`_track_destiny`)
+    if intent["name"] == PLACED_TOKEN:
+        return None                               # Jill's gadget token is moved, not copied (session_gadget.track)
     table = hero_table(session)
     return BOT if table is not None and table.tokens.get(intent["name"]) else None    # a counter without a token on the table
 

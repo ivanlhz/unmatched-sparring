@@ -332,9 +332,9 @@
    }
   ]
  },
- "ignored_tokens": [
-  "8af285"
- ],
+ "token_names": {
+  "8af285": "gadget"
+ },
  "ai_profile": {
   "jill": {
    "name": "Dr. Jill Trent",
