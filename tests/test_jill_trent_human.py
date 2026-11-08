@@ -25,14 +25,35 @@ TRAINING = "B.P.R.D. Training"        # Hellboy's defense of value 3
 
 
 class JillTable(DeckTable):
-    """The deck table that also answers the read of several top cards (`count`)."""
+    """The deck table that also answers the read of several top cards (`count`), of the human's deck and of the bot's."""
+
+    foreign: frozenset = frozenset()          # CardIDs on the bot's deck that are not its own (a card dropped on it)
 
     def do_peek_deck_top(self, s):
+        if not self._human_side(s):
+            return self.read_bot_top(s)
         out = super().do_peek_deck_top(s)
         count = re.search(r"math\.min\((\d+), #cards\)", s)
         if count and out.get("found"):
             out["ids"] = self.human_deck[:int(count.group(1))]
         return out
+
+    def stack(self, *top_first):
+        """The human picks the laid cards up and drops them on the bot's deck one by one: a card dropped on a deck ends on top, so the
+        last one dropped (the first of `top_first`) is the top card."""
+        for i in reversed(top_first):
+            self.row.remove(i)
+            self.bot_deck.insert(0, i)
+
+    def read_bot_top(self, s):
+        """The bot's physical deck (top first): the read stops at the first card that is not the bot's own."""
+        count = int(re.search(r"math\.min\((\d+), #cards\)", s).group(1))
+        ids = []
+        for i in self.bot_deck[:count]:
+            if i in self.foreign:
+                break
+            ids.append(i)
+        return {"found": bool(ids), "id": ids[0] if ids else None, "ids": ids, "quantity": len(self.bot_deck)}
 
 
 @pytest.fixture
@@ -132,7 +153,8 @@ def test_you_bury_one_card_of_the_bots_deck_and_order_the_rest_and_the_order_is_
     click(session, table, Event.CHOICE, {"i": 2})                          # the second of the three goes to the bottom
     req = session.effect_run.awaiting
     assert req.kind == "order" and sorted(req.options) == sorted([top3[0].card_id, top3[2].card_id])
-    click(session, table, Event.CHOICE, {"i": 2})                          # the order: the third first, then the first
+    assert sorted(table.row) == sorted(req.options) and labels(session) == ["Hecho"], "the two cards lie on the table: only Done"
+    table.stack(top3[2].card_id, top3[0].card_id)                          # the order: the third first, then the first
     msgs = click(session, table, Event.CHOICE, {"i": 1})
     deck = game.players[0].deck
     assert [c.card_id for c in deck[:2]] == [top3[2].card_id, top3[0].card_id] and deck[-1] is top3[1], msgs

@@ -251,6 +251,9 @@ class PlayConfig:
                 look_step=tuple(float(v) for v in r.get("look_step", SessionConfig.look_step)),
                 bot_row_spot=tuple(float(v) for v in r.get("bot_row_spot", SessionConfig.bot_row_spot)),
                 bot_row_step=tuple(float(v) for v in r.get("bot_row_step", SessionConfig.bot_row_step)),
+                order_by_hand=bool(r.get("order_by_hand", True)),
+                order_spot=tuple(float(v) for v in r.get("order_spot", SessionConfig.order_spot)),
+                order_step=tuple(float(v) for v in r.get("order_step", SessionConfig.order_step)),
                 look_rot_y=float(r["look_rot_y"]) if r.get("look_rot_y") is not None else None,
                 token_spot=tuple(float(v) for v in r["token_spot"]) if r.get("token_spot") else None,
                 bot_ongoing_spot=tuple(float(v) for v in r["bot_ongoing_spot"]) if r.get("bot_ongoing_spot") else None,
@@ -299,6 +302,8 @@ class PlayConfig:
                 raise ValueError("look_spot: (x, y, z); look_step: (dx, dz)")
             if len(cfg.bot_row_spot) != 3 or len(cfg.bot_row_step) != 2:
                 raise ValueError("bot_row_spot: (x, y, z); bot_row_step: (dx, dz)")
+            if len(cfg.order_spot) != 3 or len(cfg.order_step) != 2:
+                raise ValueError("order_spot: (x, y, z); order_step: (dx, dz)")
             if cfg.bot_discard_bounds is not None and len(cfg.bot_discard_bounds) != 5:
                 raise ValueError(t("cfg.bounds"))
             self._dry_build(cfg)

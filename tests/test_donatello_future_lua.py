@@ -123,3 +123,15 @@ d.takeObject = function(t) t.guid = d.cards[#d.cards].guid; return take(t) end""
     out = run(rt, to_bottom("deck01", 101))
     assert out["moved"] is False and out["mismatch"] is True
     assert sorted(c["guid"] for c in table_py(rt, 'getObjectFromGUID("deck01").cards')) == ["c1", "c2", "c3"], "all three still in the deck"
+
+
+def test_laying_every_card_of_a_short_deck_in_a_row_one_by_one_empties_it_and_each_card_lands_at_its_own_spot(rt):
+    """The order-by-hand flow (Sight Beyond Sight) lays the engine's top N by CardID one call after another in a single message:
+    with a deck of exactly N cards the last card becomes a loose Card with a GUID of its own (the stub models live TTS), which the call
+    finds at the deck's spot, as the session's calls always pass it."""
+    deck(rt, n=3)
+    outs = [run(rt, to_spot(cid, "deck01", (x, 2, 9), 90, spot=(0, 0))) for cid, x in ((103, -3), (101, 0), (102, 3))]
+    assert [o["taken"] for o in outs] == [True, True, True] and outs[2].get("single") is True
+    for guid, x in (("c3", -3), ("c1", 0), ("c2", 3)):
+        card = rt.eval(f'getObjectFromGUID("{guid}")')
+        assert (card.pos.x, card.pos.z) == (x, 9)

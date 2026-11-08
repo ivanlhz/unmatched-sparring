@@ -307,8 +307,9 @@ def test_insightful_deduction_of_the_human_shows_the_three_before_they_choose_an
     attack(session, table, game, "jill", "Insightful Deduction")
     assert session.effect_run.awaiting.extra["purpose"] == "bottom", "the human is still deciding"
     assert table.reveal_copies == top3 and stop_button(session) == (True, True), "already on the table, in the order they lay"
-    click(session, table, Event.CHOICE, {"i": 2})
-    click(session, table, Event.CHOICE, {"i": 2})
+    click(session, table, Event.CHOICE, {"i": 2})                      # the second goes to the bottom
+    assert sorted(table.row) == sorted([top3[0], top3[2]]), "the other two lie on the table for the human to order"
+    table.stack(top3[2], top3[0])
     click(session, table, Event.CHOICE, {"i": 1})
     assert session.effect_run is None and table.reveal_copies == top3, "they stay after the decision"
     assert len([s for s in table.scripts if s.startswith("-- sparring:reveal_show")]) == 1, "shown once, not on every rerun of the op"

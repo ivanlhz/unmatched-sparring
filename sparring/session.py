@@ -46,6 +46,7 @@ from . import session_hidden as hidden
 from . import session_moves as moves
 from . import session_pieces as piece_id
 from . import session_peek as peek
+from . import session_order as order_cards
 from . import session_jill as jill_decks      # noqa: F401  (registers the translators of Jill Trent's deck reveals)
 from . import session_pile as pile
 from . import session_reveal as reveal
@@ -164,6 +165,9 @@ class SessionConfig:
     look_step: tuple[float, float] = (0.0, 2.6)                 # (dx, dz) between cards of the row
     bot_row_spot: tuple[float, float, float] = (11.5, 2.5, -29.0)   # center of the row of the bot's hand the human's cards look at (next to its combat and ONGOING zones)
     bot_row_step: tuple[float, float] = (0.0, 2.6)              # (dx, dz) between cards of that row
+    order_by_hand: bool = True                                   # the human orders the bot's top cards on the table (session_order); False: panel buttons
+    order_spot: tuple[float, float, float] = (-3.0, 2.5, 22.5)   # center of the row where the bot lays its top cards for the human to order (estimate: calibrate live)
+    order_step: tuple[float, float] = (3.4, 0.0)                 # (dx, dz) between cards of that row
     look_rot_y: float | None = None                              # turn of the row's cards (default: the bot discard's)
     token_spot: tuple[float, float, float] | None = None         # where the bot lays its active ability tokens (Abe); default: beside its deck
     bot_ongoing_spot: tuple[float, float, float] | None = None   # ONGOING zone below each combat zone (E2, Ivan): the bot lays its
@@ -362,6 +366,7 @@ class Session:
         self.fx_looked = False                        # a look_hand re-identified the human's virtual hand in this step
         self.reveal_bot_hand = False                  # a card of the human looked at the bot's hand in this step (E3)
         self.peek: dict | None = None                 # the bot's top card face up in the row, while the human decides (The future of Ninjutsu)
+        self.order_row: dict | None = None            # the bot's top cards face up on the table, while the human orders them by hand (session_order)
         self.peek_pins: dict[str, list[int]] = {"top": [], "bottom": []}     # cards the human left on top / put at the bottom of the bot's deck: its engine order
         self._attach_choosers()
         self.chosen_attacker: str | None = None
@@ -597,6 +602,9 @@ class Session:
         elif pile.manual_request(self) is not None:
             self.choice_ui = choices.ChoiceUI()
             self.say(pile.reprompt(self, pile.manual_request(self)), ChatKind.YOUR_TURN)
+        elif order_cards.manual_request(self) is not None:
+            self.choice_ui = choices.ChoiceUI()
+            self.say(order_cards.remind(self), ChatKind.YOUR_TURN)
         elif self.effect_run is not None:
             self.choice_ui = choices.ChoiceUI()
             self.say(t("sess.resume.effect", prompt=choices.prompt_text(self.game, self.effect_run.awaiting)), ChatKind.YOUR_TURN)
@@ -1222,6 +1230,8 @@ class Session:
         self.choice_ui.sync(req)
         if peek.wants(self, req):
             peek.open_row(self, req)          # the bot's top card face up in the row, pinged
+        if order_cards.wants(self, req) and order_cards.open_row(self, req):
+            return                                # the bot's top cards lie face up on the table: the human orders them by hand
         if (req.kind == "cards" and req.player == self.human and req.extra.get("zone") == "hand"
                 and req.extra.get("of") == self.bot and req.extra.get("purpose") == "discard"):
             return                                # look-and-discard: `hidden.manual_start` explains it, no option list
@@ -1273,6 +1283,9 @@ class Session:
             return
         if pile.manual_request(self) is not None:         # cards from your discard to your deck: 1 is Done
             pile.press(self, paused, payload.get("i"))
+            return
+        if order_cards.manual_request(self) is not None:   # the bot's top cards on the table, stacked by you: 1 is Done
+            order_cards.press(self, paused, payload.get("i"))
             return
         verdict, value = choices.press(self.game, run.awaiting, self.choice_ui, payload.get("i"))
         if verdict == "error":
@@ -1371,6 +1384,8 @@ class Session:
         return translators.combat_card_to_bottom(self, ids, translators.Ctx(cause)) if ids else []
 
     def _answer_flow(self, flow: CombatFlow, value: list) -> None:
+        run = flow.awaiting_run
+        order_cards.pin(self, None if run is None else run.awaiting, value)     # undone with the save if the answer is refused
         flow.resume(value)
         self._drive_flow(flow)
 
@@ -1378,6 +1393,7 @@ class Session:
         if "said_before" in run.flags:            # the run changes nothing until now: its line must not include what other triggers did meanwhile
             run.flags["said_before"] = narrate.snapshot(self.game)
         peek.pin(self, run.awaiting, value)       # the order the human chose for the bot's deck, before any reread of its table
+        order_cards.pin(self, run.awaiting, value)
         run.resume(value)
         self._continue_effect(run)
 
@@ -1406,6 +1422,8 @@ class Session:
             return moves.view(self, req)[1]
         if pile.manual_request(self) is not None:
             return pile.view(self, req)[1]
+        if order_cards.manual_request(self) is not None:
+            return order_cards.view(self, req)[1]
         return choices.panel_choice_view(self.game, req, self.choice_ui)[1]
 
     # ---------- the look at the bot's hand: only when a card allows it ----------
@@ -1647,6 +1665,7 @@ class Session:
                            for side, pairs in {**self._saved_ident, **self._deck_ident}.items()},
             **({"resolved_pieces": self.resolved_pieces} if self.resolved_pieces else {}),
             **peek.to_dict(self),
+            **order_cards.to_dict(self),
             **({"resolved_dials": self.resolved_dials} if self.resolved_dials else {}),
             **({"deck_live": {**self._saved_decks, **self._live_decks()}} if {**self._saved_decks, **self._live_decks()} else {}),
             **({"zones_live": self._live_zones()} if self._live_zones() else {}),
@@ -1706,6 +1725,7 @@ class Session:
             self.pending_discard, self.pending_value = d["pending_discard"], d["pending_value"]
             self.look = self._load_look(d.get("look"))
             self.peek, self.peek_pins = peek.load(d)
+            self.order_row = order_cards.load(d)
             self.chosen_attacker, self.moving = d["chosen_attacker"], d["moving"]
             self.bot_discarded, self.dirty = set(d["bot_discarded"]), d["dirty"]
             un = d["unprojected"]
@@ -4364,8 +4384,10 @@ class Session:
         manual = hidden.manual_request(self) is not None
         by_hand = moves.manual_request(self)
         by_pile = pile.manual_request(self)
+        by_order = order_cards.manual_request(self)
         states.update((hidden.manual_view(self) if manual else moves.view(self, by_hand) if by_hand is not None
                        else pile.view(self, by_pile) if by_pile is not None
+                       else order_cards.view(self, by_order) if by_order is not None
                        else choices.panel_choice_view(g, req, self.choice_ui))[0])
         for ident in self._blocked_buttons():
             states[ident] = (False, False)
@@ -4410,6 +4432,8 @@ class Session:
             return panel_text(moves.status(self, moves.manual_request(self)), 80, t("btn.done"))
         if pile.manual_request(self) is not None:
             return panel_text(pile.status(self, pile.manual_request(self)), 80, t("btn.done"))
+        if order_cards.manual_request(self) is not None:
+            return order_cards.status(self, order_cards.manual_request(self))
         if self.effect_run is not None:
             return panel_text(choices.prompt_text(g, self.effect_run.awaiting), 80, t("st.choose"))
         if g.turn != self.human:
