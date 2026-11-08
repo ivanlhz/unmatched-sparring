@@ -431,6 +431,20 @@
       "note": "Engine additions are additive (docs/effects-dsl.md, section 31). Rules decisions and open questions for Iván: docs/heroes/bullseye.md. Live test pending."
     },
     {
+      "id": "HERO-GOLDEN-BAT",
+      "title": "Golden Bat (Tales to Amaze, no sidekick) playable by the bot and by the human against every hero",
+      "status": "in-progress",
+      "criteria": [
+        "data/heroes/overlay/golden-bat.json, data/heroes/golden-bat.json, data/heroes/effects/golden-bat.json and data/tts/golden-bat.json generated and validated (import_hero, validate_effects, import_save); the 12 titles (30 cards, sheet 176, character card 345) read from the card images; ai_profile computed by the importer",
+        "His deck shares CardIDs 17600-17629 with Medusa, the four turtles, Doctor Strange, Bigfoot, Daredevil, Luke Cage and Bullseye: told apart by deck image and owner, never by a bare CardID (tests/test_hero_golden_bat_data.py, tests/test_card_identity.py)",
+        "His ability THE FIRST SUPERHERO (+2 to his attacks while the owner has taken no Maneuver action this turn) is a HeroDef attack_bonus passive with `unless: maneuver`, fed by the per-turn Maneuver tally; the combat and the bot's estimates read it",
+        "All 12 cards on the interpreter for both seats: Super Strength, Vaporizing Eyebeams (random discard), A Punch to Shake the Earth (zone damage), Sight Beyond Sight (look at and reorder the rival's top 3), Terrifying Roar (no fighter leaves its space), Skirmish, Like a Flash of Golden Light (zone test against the turn's start), Insight of the Ancients (random card back), Imposing Presence, He Laughs at Your Feebleness, Arrive Just in Time and Alpine Fortress (including its table translation when the shuffled card is drawn at once)",
+        "Golden Bat against each of the 15 other heroes in both seats reaches game over on FakeTTS (passive and attacking human) and in the simulator (tests/test_golden_bat_matrix.py)",
+        "Verified live by Iván (docs/live-checklist.md, section Golden Bat)"
+      ],
+      "note": "Engine additions are additive (docs/effects-dsl.md, section 32). Rules decisions and open questions for Iván: docs/heroes/golden-bat.md. Live test pending."
+    },
+    {
       "id": "F20",
       "title": "The bot prepares the official community save itself",
       "status": "in-progress",

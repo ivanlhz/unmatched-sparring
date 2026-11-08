@@ -28,8 +28,9 @@ _BOTS = ControllerChooser()
 # Turn bookkeeping and the words of an effects file that read it: a hero whose data never names them does not get
 # it recorded, so a game of such heroes saves exactly as it did before the interpreter.
 TRACKS = {"attacked": ("attacked_this_turn", "combat_damage_dealt"),
-          "turn_start_pos": ("moved_this_turn",),
+          "turn_start_pos": ("moved_this_turn", "no_zone_with_turn_start"),
           "taken": ("actions_taken_this_turn", "no_attack_as_first_action"),
+          "maneuvers": ("maneuvers_this_turn",),
           "played": ("other_cards_played_this_turn",),
           "lost": ("combat_lost", "combats_lost_this_turn"),
           "won": ("combats_won_this_turn", "consider_won")}
@@ -117,6 +118,7 @@ def _bookkeeping(game, ev: dict) -> None:
     if ev["name"] == "start_of_turn":
         fx.attacked.clear()
         fx.taken = 0
+        fx.maneuvers = 0
         fx.played = [0, 0]
         fx.lost = [0, 0]
         fx.won = [0, 0]

@@ -1859,6 +1859,7 @@ class Session:
             return
         self._begin_action()
         self.game.use_action()
+        self.game.fx.count_maneuver()
         hp0, alive0 = {fid: f.hp for fid, f in self.game.fighters.items()}, self._alive_map()
         self.moving = True
         st = self.game.players[self.human]

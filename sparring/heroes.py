@@ -122,20 +122,23 @@ class HeroDef:
         return [Card(self.card_base + shift + c["idx"], c["title"], c["fighter"], c["type"], c["value"], c["boost"],
                      c.get("text", ""), frozenset(c.get("tags", ()))) for c in self.cards]
 
-    def attack_bonuses(self, form: str | None, fighter_is_hero: bool) -> list[tuple[int, str]]:
+    def attack_bonuses(self, form: str | None, fighter_is_hero: bool, maneuvered: bool = False) -> list[tuple[int, str]]:
         """(bonus, tag) of each `attack_bonus` passive active in that form (Hellboy: (2, 'ANUNG UN RAMA')).
-        The tag is the form that activates it or, if the passive does not depend on the form, its id."""
+        The tag is the form that activates it or, if the passive does not depend on the form, its id. A passive with
+        `"unless": "maneuver"` is off once the owner has taken a Maneuver action this turn (`maneuvered`; Golden Bat)."""
         out = []
         for p in self.passives:
             if p.get("effect") != "attack_bonus" or p.get("form", form) != form:
+                continue
+            if maneuvered and p.get("unless") == "maneuver":
                 continue
             if p.get("fighter", "hero") == "hero" and not fighter_is_hero:
                 continue
             out.append((int(p["n"]), p.get("form") or p.get("id") or "pasiva"))
         return out
 
-    def attack_bonus(self, form: str | None, fighter_is_hero: bool) -> int:
-        return sum(n for n, _ in self.attack_bonuses(form, fighter_is_hero))
+    def attack_bonus(self, form: str | None, fighter_is_hero: bool, maneuvered: bool = False) -> int:
+        return sum(n for n, _ in self.attack_bonuses(form, fighter_is_hero, maneuvered))
 
 
 def hero_path(slug: str, heroes_dir: Path = HEROES_DIR) -> Path:

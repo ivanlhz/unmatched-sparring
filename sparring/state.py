@@ -386,7 +386,8 @@ class Game:
     def attack_bonus_parts(self, fighter: Fighter, target: Fighter | None = None) -> list[tuple[int, str]]:
         """(bonus, tag) of each active attack passive of the hero (Hellboy in ANUNG UN RAMA: (2, 'ANUNG UN RAMA')),
         plus the board's high ground when the `target` it hits is known."""
-        parts = (self.players[fighter.owner].hero.attack_bonuses(self.form(fighter.owner), fighter.hero)
+        parts = (self.players[fighter.owner].hero.attack_bonuses(self.form(fighter.owner), fighter.hero,
+                                                                  self.fx.maneuvered(fighter.owner))
                  + self.combat_bonus_parts(fighter.owner) + inventions.bonus_parts(self, fighter.owner, "attack"))
         high = self.board.attack_bonus(fighter.pos, target.pos) if target is not None else 0
         return parts + [(high, t("cf.high_ground"))] if high else parts
@@ -422,7 +423,8 @@ class Game:
     def attack_bonus(self, fighter: Fighter, target: Fighter | None = None) -> int:
         """Bonus of `fighter`'s NEXT attack (used by the AI to measure threats; with `target`, the high ground too). A scheme's ONGOING expires when its
         owner's turn begins: if it is not their turn now, that bonus no longer reaches their next attack."""
-        passives = self.players[fighter.owner].hero.attack_bonus(self.form(fighter.owner), fighter.hero)
+        passives = self.players[fighter.owner].hero.attack_bonus(self.form(fighter.owner), fighter.hero,
+                                                                 self.fx.maneuvered(fighter.owner))
         tucked = sum(n for n, _ in inventions.bonus_parts(self, fighter.owner, "attack"))
         high = self.board.attack_bonus(fighter.pos, target.pos) if target is not None else 0
         return passives + tucked + high + (self.combat_bonus_total(fighter.owner) if self.turn == fighter.owner else 0)
@@ -633,6 +635,7 @@ class Game:
             if f is None or f.owner != player or not f.alive:
                 raise RuleError(t("err.cannot_move", fid=fid))
         self.use_action()
+        self.fx.count_maneuver()
         alive0 = {fid for fid, f in self.fighters.items() if f.alive}
         self.draw(player)    # exhaustion can kill fighters (and end the game) before they are moved
         if self.winner is not None:

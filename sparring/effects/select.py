@@ -409,6 +409,8 @@ def _stat(game, run, a):
         return len(game.players[player].hand)
     if stat == "actions_taken_this_turn":
         return game.fx.taken if player == game.turn else 0
+    if stat == "maneuvers_this_turn":
+        return game.fx.maneuvers if player == game.turn else 0
     if stat == "other_cards_played_this_turn":
         if player != game.turn:                            # a defense on the rival's turn: nothing was played on the own turn
             return 0
@@ -465,6 +467,11 @@ def condition(game, run, c: dict) -> bool:
         f = _ref_fighter(game, run, c["fighter"])
         start = None if f is None else game.fx.turn_start_pos.get(f.fid)
         return start is not None and f.pos != start
+    if test == "no_zone_with_turn_start":      # Like a Flash of Golden Light: the fighter's space shares no zone with where it began the turn
+        f = _ref_fighter(game, run, c["fighter"])
+        start = None if f is None else game.fx.turn_start_pos.get(f.fid)
+        return (start is not None and f.pos is not None and start != f.pos        # not moving shares everything
+                and not game.board.share_zone(start, f.pos))
     if test == "played_as":
         return run.ctx.played_as == c["side"]
     if test == "compare":

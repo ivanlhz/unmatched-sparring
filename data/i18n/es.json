@@ -335,6 +335,7 @@
  "tbl.rest.shuffle": "baraja el mazo",
  "tbl.rest.bottom": "el resto al fondo",
  "tbl.search": "mira {look}, pon {take} en tu mano y {rest}",
+ "tbl.look_foreign_deck": "el bot no puede mirar tu mazo real: no lee nada y tus cartas de arriba se quedan como estan",
  "tbl.look_deck.top": "mira {cards} de la parte de arriba de tu mazo (puedes ponerla abajo)",
  "tbl.look_deck.bottom": "mira {cards} de la parte de abajo de tu mazo",
  "tbl.deck_to_bottom": "pon {cards} de arriba de tu mazo en el fondo",

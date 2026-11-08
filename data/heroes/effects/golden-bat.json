@@ -1,0 +1,369 @@
+{
+ "schema": 1,
+ "hero": "golden-bat",
+ "notes": [
+  "Texts read from sheet 176 of the tournament savegame (card images) on 2026-11-08; the character card is 345 on sheet 3 (10x7, index 45). Sheet 176 is also Medusa's, the four turtles', Doctor Strange's, Bigfoot's, Daredevil's, Luke Cage's and Bullseye's DeckID: the CardIDs repeat and only the deck image tells the decks apart (docs/card-identity.md).",
+  "Additive engine pieces that came with him (docs/effects-dsl.md section 32): the stat `maneuvers_this_turn`, the Test `no_zone_with_turn_start`, `search_deck` with `take.amount` 0 (a look that takes nothing) and the HeroDef passive key `unless: maneuver`. Everything else uses ops that already existed.",
+  "1v1 reading: 'your opponent' is the only rival; the card's 'your zone' / 'Golden Bat's zone' is the zone(s) of Golden Bat's space (he is the only fighter on his side)."
+ ],
+ "ability": {
+  "text": "THE FIRST SUPERHERO: If you haven't taken a Maneuver action this turn, add +2 to the value of Golden Bat's attacks.",
+  "triggers": [],
+  "passives": [
+   {
+    "id": "first_superhero",
+    "kind": "modify_value",
+    "cards": {
+     "player": "owner",
+     "type": "attack",
+     "fighter": "hero"
+    },
+    "amount": 2,
+    "while": {
+     "test": "compare",
+     "left": {
+      "stat": "maneuvers_this_turn",
+      "player": "owner"
+     },
+     "op": "==",
+     "right": 0
+    }
+   }
+  ],
+  "notes": "Data first, as Hellboy's ANUNG UN RAMA: the engine reads the HeroDef passive attack_bonus (n 2, `unless: maneuver`, `HeroDef.attack_bonuses`), which `Game.attack_bonus_parts` (the combat) and `Game.attack_bonus` (the bot's estimates) ask with `fx.maneuvered(owner)`: off as soon as the owner has taken a Maneuver action in the running turn, back at the next start of turn. The `maneuvers_this_turn` tally (`fx.maneuvers`, reset at start_of_turn) is counted by Game.maneuver and by the session's Maneuver button the moment the action is spent, even if the draw is then blocked. Other actions (attack, scheme, a gained action) do not count. It applies to every attack of Golden Bat on his own turn, versatile cards played as attacks included, never to a defense; a card of a boosted maneuver does not make it a different action. The passive written here documents the rule; the interpreter does not apply `ability.passives` of kind modify_value (as for Hellboy)."
+ },
+ "cards": [
+  {
+   "title": "Super Strength",
+   "copies": 2,
+   "text": "",
+   "effects": {
+    "immediately": [],
+    "during": [],
+    "after": [],
+    "scheme": [],
+    "boost": []
+   },
+   "notes": "Attack 5 / boost 1. No text."
+  },
+  {
+   "title": "Vaporizing Eyebeams",
+   "copies": 3,
+   "text": "AFTER COMBAT: Your opponent discards 1 random card.",
+   "effects": {
+    "immediately": [],
+    "during": [],
+    "after": [
+     {
+      "op": "discard",
+      "cards": {
+       "zone": "hand",
+       "player": "opponent",
+       "pick": "random",
+       "amount": 1
+      }
+     }
+    ],
+    "scheme": [],
+    "boost": []
+   },
+   "notes": "Attack 2 / boost 2. Won or not. `pick: random` on the rival's hand looks at nothing (docs/effects-dsl.md section 6): the bot's rival hand is never read, the human's real card is discarded by the table (Liz Sherman's Wildfire precedent)."
+  },
+  {
+   "title": "A Punch to Shake the Earth",
+   "copies": 3,
+   "text": "AFTER COMBAT: Deal 1 damage to each opposing fighter in your zone. If you won the combat, deal 2 damage instead.",
+   "effects": {
+    "immediately": [],
+    "during": [],
+    "after": [
+     {
+      "op": "if",
+      "condition": {
+       "test": "combat_result",
+       "result": "won"
+      },
+      "then": [
+       {
+        "op": "damage",
+        "target": {
+         "side": "enemy",
+         "where": {
+          "zone_of": "this"
+         },
+         "pick": "all"
+        },
+        "amount": 2
+       }
+      ],
+      "else": [
+       {
+        "op": "damage",
+        "target": {
+         "side": "enemy",
+         "where": {
+          "zone_of": "this"
+         },
+         "pick": "all"
+        },
+        "amount": 1
+       }
+      ]
+     }
+    ],
+    "scheme": [],
+    "boost": []
+   },
+   "notes": "Attack 1 / boost 1. Effect damage to every living rival fighter in a zone Golden Bat's space belongs to (the opposing fighter of the combat included, when it is still in his zone and alive after the combat); 2 each when the card's owner won. The card says 'your zone' (unmatched-memory: 'Golden Bat's zone': the same, he is the only fighter)."
+  },
+  {
+   "title": "Sight Beyond Sight",
+   "copies": 3,
+   "text": "AFTER COMBAT: Look at the top 3 cards of your opponent's deck. Put them back in any order.",
+   "effects": {
+    "immediately": [],
+    "during": [],
+    "after": [
+     {
+      "op": "search_deck",
+      "player": "opponent",
+      "look": 3,
+      "take": {
+       "amount": 0
+      },
+      "to": "hand",
+      "rest": "top_ordered",
+      "chooser": "owner"
+     }
+    ],
+    "scheme": [],
+    "boost": []
+   },
+   "notes": "Versatile 2 / boost 1. Won or not. A look that takes nothing (`take.amount` 0: no question is asked) and puts the 3 cards back on top in the order the owner chooses (`top_ordered`, the first one of the order ends on top). The human looks at the bot's real top cards and orders them on the panel; the bot orders the human's top cards worst first, but only when the engine holds that deck: the human's real deck is not readable by the bot (`table.physical`), so the bot's Sight Beyond Sight does nothing but say so in the chat (the bot never reads the real deck). With a deck of fewer than 3 cards it looks at those there are. Open question."
+  },
+  {
+   "title": "Terrifying Roar",
+   "copies": 3,
+   "text": "IMMEDIATELY: Fighters cannot leave their spaces for the rest of the turn.",
+   "effects": {
+    "immediately": [
+     {
+      "op": "status",
+      "name": "cannot_leave_space",
+      "target": {
+       "side": "any",
+       "pick": "all"
+      },
+      "until": {
+       "event": "end_of_turn"
+      }
+     }
+    ],
+    "during": [],
+    "after": [],
+    "scheme": [],
+    "boost": []
+   },
+   "notes": "Versatile 3 / boost 1. Every living fighter, Golden Bat's own included (the card says 'fighters'), gets `cannot_leave_space` until the end of the current turn (the attacker's when played in defense). It is the status Liz Sherman's card uses: no move of its own, no effect can take them out of their space (`modifiers.can_move`); a fighter placed or swapped is not 'moving'. Cancelled by an IMMEDIATELY cancel before it resolves; it lasts even if a later cancel strikes the card."
+  },
+  {
+   "title": "Skirmish",
+   "copies": 2,
+   "text": "AFTER COMBAT: If you won the combat, move one of the fighters in the combat up to 2 spaces.",
+   "effects": {
+    "immediately": [],
+    "during": [],
+    "after": [
+     {
+      "op": "if",
+      "condition": {
+       "test": "combat_result",
+       "result": "won"
+      },
+      "then": [
+       {
+        "op": "move",
+        "target": "combatant",
+        "amount": 2,
+        "up_to": true,
+        "chooser": "owner"
+       }
+      ]
+     }
+    ],
+    "scheme": [],
+    "boost": []
+   },
+   "notes": "Versatile 4 / boost 1. The owner picks which of the two combatants moves (a fighter that was defeated cannot); up to 2 spaces, 0 allowed. A rival fighter moves where the owner decides, not through other fighters."
+  },
+  {
+   "title": "Like a Flash of Golden Light",
+   "copies": 3,
+   "text": "DURING COMBAT: If Golden Bat shares no zones with the space he started this turn in, this card's value is 4 instead. AFTER COMBAT: Move Golden Bat up to 5 spaces.",
+   "effects": {
+    "immediately": [],
+    "during": [
+     {
+      "op": "if",
+      "condition": {
+       "test": "no_zone_with_turn_start",
+       "fighter": "this"
+      },
+      "then": [
+       {
+        "op": "set_value",
+        "card": "this",
+        "amount": 4
+       }
+      ]
+     }
+    ],
+    "after": [
+     {
+      "op": "move",
+      "target": "hero",
+      "amount": 5,
+      "up_to": true,
+      "chooser": "owner"
+     }
+    ],
+    "scheme": [],
+    "boost": []
+   },
+   "notes": "Versatile 2 / boost 2. DURING: the test `no_zone_with_turn_start` is true when Golden Bat stands on a space that belongs to none of the zones of the space he began the turn on (`fx.turn_start_pos`); not having moved is not 'sharing no zones'. The printed value becomes 4, bonuses stay. In defense 'this turn' is the attacker's turn and the space is where he began it. AFTER: up to 5 spaces, won or not; a defeated Golden Bat does not move."
+  },
+  {
+   "title": "Insight of the Ancients",
+   "copies": 2,
+   "text": "AFTER COMBAT: If you won the combat, return a random card in your discard pile to your hand.",
+   "effects": {
+    "immediately": [],
+    "during": [],
+    "after": [
+     {
+      "op": "if",
+      "condition": {
+       "test": "combat_result",
+       "result": "won"
+      },
+      "then": [
+       {
+        "op": "put_in_hand",
+        "cards": {
+         "zone": "discard",
+         "player": "owner",
+         "pick": "random",
+         "amount": 1
+        }
+       }
+      ]
+     }
+    ],
+    "scheme": [],
+    "boost": []
+   },
+   "notes": "Versatile 3 / boost 2. The card just played is not in the discard pile yet (it reaches it after its AFTER), so it cannot come back. An empty pile: nothing."
+  },
+  {
+   "title": "Imposing Presence",
+   "copies": 2,
+   "text": "IMMEDIATELY: Cancel all effects on your opponent's card.",
+   "effects": {
+    "immediately": [
+     {
+      "op": "cancel_effects",
+      "card": "opponent_card"
+     }
+    ],
+    "during": [],
+    "after": [],
+    "scheme": [],
+    "boost": []
+   },
+   "notes": "Defense 3 / boost 2."
+  },
+  {
+   "title": "He Laughs at Your Feebleness",
+   "copies": 2,
+   "text": "",
+   "effects": {
+    "immediately": [],
+    "during": [],
+    "after": [],
+    "scheme": [],
+    "boost": []
+   },
+   "notes": "Defense 5 / boost 3. No text."
+  },
+  {
+   "title": "Arrive Just in Time",
+   "copies": 2,
+   "text": "Place Golden Bat in any space.",
+   "effects": {
+    "immediately": [],
+    "during": [],
+    "after": [],
+    "scheme": [
+     {
+      "op": "place",
+      "target": "hero",
+      "where": {
+       "any": true
+      },
+      "chooser": "owner"
+     }
+    ],
+    "boost": []
+   },
+   "notes": "Scheme, boost 2. Any empty space of the map (the one he is on included: a place may keep him there). Teleport: no path, no range."
+  },
+  {
+   "title": "Alpine Fortress",
+   "copies": 3,
+   "text": "Choose a card in your discard pile and shuffle it into your deck. Draw 2 cards. Move Golden Bat up to 4 spaces.",
+   "effects": {
+    "immediately": [],
+    "during": [],
+    "after": [],
+    "scheme": [
+     {
+      "op": "return_to_deck",
+      "cards": {
+       "zone": "discard",
+       "player": "owner",
+       "amount": 1,
+       "chooser": "owner"
+      },
+      "position": "shuffle"
+     },
+     {
+      "op": "draw",
+      "player": "owner",
+      "amount": 2
+     },
+     {
+      "op": "move",
+      "target": "hero",
+      "amount": 4,
+      "up_to": true,
+      "chooser": "owner"
+     }
+    ],
+    "boost": []
+   },
+   "notes": "Scheme, boost 3. In the printed order: the chosen card is shuffled into the deck, then 2 cards are drawn (it may be drawn right back), then the move (0 to 4 spaces). With an empty discard pile nothing is shuffled in. The scheme card itself is not in the pile yet."
+  }
+ ],
+ "plugins": [],
+ "hidden_info": [
+  {
+   "where": "Vaporizing Eyebeams (the rival random discard)",
+   "rule": "random discard from the rival's hand: a uniform index, never an identity (section 6, point 4)"
+  },
+  {
+   "where": "Sight Beyond Sight (the rival top 3)",
+   "rule": "the human reads the bot's top 3 on the panel (the card says to look); the bot reads the engine's deck only, never the human's real one, so against a human at the table the bot's card changes nothing and says so"
+  }
+ ],
+ "open_questions": []
+}

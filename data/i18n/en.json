@@ -335,6 +335,7 @@
  "tbl.rest.shuffle": "shuffle the deck",
  "tbl.rest.bottom": "the rest at the bottom",
  "tbl.search": "look at {look}, put {take} in your hand and {rest}",
+ "tbl.look_foreign_deck": "the bot cannot look at your real deck: nothing is read and your top cards stay as they are",
  "tbl.look_deck.top": "look at {cards} from the top of your deck (you may put it at the bottom)",
  "tbl.look_deck.bottom": "look at {cards} from the bottom of your deck",
  "tbl.deck_to_bottom": "put {cards} from the top of your deck at the bottom",

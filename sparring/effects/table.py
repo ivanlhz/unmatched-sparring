@@ -175,6 +175,8 @@ def line(n: dict) -> str:
         return t("tbl.deck_to_bottom", cards=plural(n["amount"], "noun.card"))
     if op == "shuffle_deck":
         return t("tbl.shuffle_deck")
+    if op == "look_foreign_deck":
+        return t("tbl.look_foreign_deck")
     if op == "search_deck":
         look = t("tbl.look.all") if n["look"] == "all" else t("tbl.look.first", n=n["look"])
         rest = t({"bottom_random": "tbl.rest.bottom_random", "bottom_ordered": "tbl.rest.bottom_ordered",

@@ -169,7 +169,7 @@
    {"type": "object", "additionalProperties": false, "required": ["stat"],
     "properties": {
      "stat": {"enum": ["hand_size", "hp", "max_hp", "actions_taken_this_turn", "damage_dealt_this_combat", "damage_taken_this_combat",
-      "other_cards_played_this_turn", "zones", "combats_lost_this_turn", "combats_won_this_turn"]},
+      "other_cards_played_this_turn", "zones", "combats_lost_this_turn", "combats_won_this_turn", "maneuvers_this_turn"]},
      "player": {"$ref": "#/$defs/PlayerSel"},
      "fighter": {"$ref": "#/$defs/FighterRef"},
      "times": {"type": "integer"}}}
@@ -201,6 +201,8 @@
     "properties": {"test": {"const": "counter"}, "name": {"$ref": "#/$defs/Name"}, "min": {"type": "integer"}, "max": {"type": "integer"}, "player": {"$ref": "#/$defs/PlayerSel"}}},
    {"type": "object", "additionalProperties": false, "required": ["test", "fighter"],
     "properties": {"test": {"const": "moved_this_turn"}, "fighter": {"$ref": "#/$defs/FighterRef"}}},
+   {"type": "object", "additionalProperties": false, "required": ["test", "fighter"],
+    "properties": {"test": {"const": "no_zone_with_turn_start"}, "fighter": {"$ref": "#/$defs/FighterRef"}}},
    {"type": "object", "additionalProperties": false, "required": ["test", "side"],
     "properties": {"test": {"const": "played_as"}, "side": {"enum": ["attack", "defense"]}}},
    {"type": "object", "additionalProperties": false, "required": ["test", "left", "op", "right"],

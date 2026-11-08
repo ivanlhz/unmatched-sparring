@@ -11,7 +11,7 @@ from typing import Iterable
 # Heroes whose cards and ability the interpreter resolves by default, whoever plays them (C5: Medusa; D1 the Hellboy
 # box for the bot, E2 for the human too, in table mode: effects/table.py). `Game` derives `fx.dsl_heroes` from the
 # heroes in play and persist omits the set when it is this default, so old saves load unchanged.
-INTERPRETED_HEROES = frozenset({"medusa", "hellboy", "abe-sapien", "baba-yaga", "liz-sherman", "leonardo", "donatello", "michelangelo", "raphael", "doctor-strange", "houdini", "bigfoot", "daredevil", "luke-cage", "bullseye"})
+INTERPRETED_HEROES = frozenset({"medusa", "hellboy", "abe-sapien", "baba-yaga", "liz-sherman", "leonardo", "donatello", "michelangelo", "raphael", "doctor-strange", "houdini", "bigfoot", "daredevil", "luke-cage", "bullseye", "golden-bat"})
 
 
 def interpreted(slugs: Iterable[str]) -> set[str]:
@@ -25,7 +25,7 @@ def default_dsl_heroes(game) -> set[str]:
 
 class EffectState:
     __slots__ = ("statuses", "ongoing", "counters", "modifiers", "dsl_heroes", "turn_start_pos", "attacked", "taken",
-                 "acting", "parked", "choosers", "said", "intents", "whole_hand", "played", "lost", "won", "_game_ref")
+                 "maneuvers", "acting", "parked", "choosers", "said", "intents", "whole_hand", "played", "lost", "won", "_game_ref")
 
     def __init__(self) -> None:
         self.statuses: list[dict] = []                   # active status effects (name, target, until, amount)
@@ -36,6 +36,7 @@ class EffectState:
         self.turn_start_pos: dict[str, int] = {}         # fid -> space at the start of the turn (moved_this_turn)
         self.attacked: list[str] = []                    # fids that attacked this turn (one entry per attack; last = current)
         self.taken = 0                                   # actions the current player has spent this turn
+        self.maneuvers = 0                               # Maneuver actions the current player has taken this turn (Golden Bat's THE FIRST SUPERHERO)
         self.played: list[int] = [0, 0]                  # cards each player has played on their own turn (attack, scheme)
         self.lost = [0, 0]                               # combats each player lost this turn (Raphael's ANGER ISSUES, Payback time!)
         self.won = [0, 0]                                # combats each player won this turn (Bullseye: "if you already won a combat this turn")
@@ -98,6 +99,18 @@ class EffectState:
             from .events import tracked
             if "taken" in tracked(frozenset(self.dsl_heroes)):
                 self.taken += 1
+
+    def count_maneuver(self) -> None:
+        """The current player took a Maneuver action (Game.maneuver, the session's Maneuver button). Only recorded for games whose
+        data reads it (`events.TRACKS`)."""
+        if self.dsl_heroes:
+            from .events import tracked
+            if "maneuvers" in tracked(frozenset(self.dsl_heroes)):
+                self.maneuvers += 1
+
+    def maneuvered(self, player: int) -> bool:
+        """`player` has already taken a Maneuver action in the turn that is running (their own turn only)."""
+        return bool(self.maneuvers) and self.game().turn == player
 
     def count_played(self, player: int) -> None:
         """`player` plays a card (an attack or a scheme) on their own turn: what Cowabunga!! counts. Defenses on the
@@ -194,7 +207,7 @@ class EffectState:
     # clone / persist
     def is_empty(self) -> bool:
         return not (self.statuses or any(self.ongoing) or any(self.counters) or self.modifiers or self.dsl_heroes
-                    or self.turn_start_pos or self.attacked or self.taken or any(self.played) or any(self.lost) or any(self.won))
+                    or self.turn_start_pos or self.attacked or self.taken or self.maneuvers or any(self.played) or any(self.lost) or any(self.won))
 
     def copy(self) -> "EffectState":
         """The state a clone (search, simulation) starts from. `choosers` and `parked` stay with the live game: a
@@ -210,6 +223,7 @@ class EffectState:
         c.turn_start_pos = dict(self.turn_start_pos)
         c.attacked = list(self.attacked)
         c.taken = self.taken
+        c.maneuvers = self.maneuvers
         c.played = list(self.played)
         c.lost = list(self.lost)
         c.won = list(self.won)
@@ -235,6 +249,8 @@ class EffectState:
             out["attacked"] = list(self.attacked)
         if self.taken:
             out["taken"] = self.taken
+        if self.maneuvers:
+            out["maneuvers"] = self.maneuvers
         if any(self.played):
             out["played"] = list(self.played)
         if any(self.lost):
@@ -257,6 +273,7 @@ class EffectState:
         fx.turn_start_pos = {str(k): int(v) for k, v in raw.get("turn_start_pos", {}).items()}
         fx.attacked = list(raw.get("attacked", []))
         fx.taken = int(raw.get("taken", 0))
+        fx.maneuvers = int(raw.get("maneuvers", 0))
         fx.played = [int(n) for n in raw.get("played", [0, 0])]
         fx.lost = [int(n) for n in raw.get("lost", [0, 0])]
         fx.won = [int(n) for n in raw.get("won", [0, 0])]
