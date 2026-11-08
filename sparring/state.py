@@ -434,11 +434,20 @@ class Game:
         (Luke Cage: 2 less); never below 0."""
         return max(0, blow - self.fx.combat_damage_reduction(victim)) if blow > 0 else blow
 
-    def legal_moves(self, fighter: Fighter, steps: int, through_enemies: bool = False) -> set[int]:
+    def passable_enemy_spaces(self, fighter: Fighter, through_enemies) -> frozenset[int]:
+        """The rival spaces `fighter` may cross without ending there when `through_enemies` is "sidekicks" (a move "through
+        sidekicks": Tomoe Gozen's Lord Kiso's Final Stand); empty for False and for True (which crosses every rival)."""
+        if through_enemies != "sidekicks":
+            return frozenset()
+        return frozenset(f.pos for f in self.foes(fighter.owner) if not f.hero)
+
+    def legal_moves(self, fighter: Fighter, steps: int, through_enemies: bool | str = False) -> set[int]:
+        """`through_enemies`: False, True (any rival may be crossed) or "sidekicks" (only the rivals' sidekicks)."""
         if not self.fx.can_move(fighter):
             return {fighter.pos}
         return self.board.reachable(fighter.pos, steps, self.occupied(fighter.owner) - {fighter.pos},
-                                    self.occupied(1 - fighter.owner), through_enemies)
+                                    self.occupied(1 - fighter.owner), through_enemies is True,
+                                    self.passable_enemy_spaces(fighter, through_enemies))
 
     def can_attack(self, attacker: Fighter, target: Fighter) -> bool:
         return (attacker.alive and target.alive and attacker.owner != target.owner
@@ -480,7 +489,7 @@ class Game:
         (see `Board.hazard_path` for the path assumed)."""
         if not self.board.hazards or fighter.pos is None:
             return []
-        blocked = frozenset() if through_enemies else frozenset(self.occupied(1 - fighter.owner))
+        blocked = frozenset() if through_enemies is True else frozenset(self.occupied(1 - fighter.owner)) - self.passable_enemy_spaces(fighter, through_enemies)
         return self.board.hazard_path(fighter.pos, dest, steps, blocked, fighter.fid in self.hazard_taken)
 
     def hazard_damage(self, fighter: Fighter, dest: int, steps: int | None, through_enemies: bool = False) -> int:
@@ -492,7 +501,7 @@ class Game:
         fighter takes hazard damage once per turn in all, whoever's turn it is, and the rest of its crossings are free; the damage can defeat it like any other.
         Every way a fighter walks along spaces (maneuver, move effects, a human's move read from the table) comes here."""
         crossed = self.hazard_edges(fighter, dest, steps, through_enemies)
-        fighter.pos = dest
+        origin, fighter.pos = fighter.pos, dest
         for edge in crossed:
             self.hazard_taken.add(fighter.fid)
             if fighter.alive:
@@ -502,6 +511,13 @@ class Game:
                     self.hazard_hits.append((fighter.fid, edge, dealt, before))
         if self.hazard_hits and self.hazard_hook is not None:
             self.hazard_hook()
+        self.departed(fighter, origin)
+
+    def departed(self, fighter: Fighter, origin: int | None) -> None:
+        """`fighter` has just left space `origin` (a walk, a placement, a swap or a move read from the table): the event
+        `left_zone` lets an ability that reacts to it (Tomoe Gozen's ATTACK OF OPPORTUNITY) look at the zones."""
+        if origin is not None and fighter.alive and fighter.pos is not None and fighter.pos != origin:
+            self.fx.emit("left_zone", fighter, origin)
 
     def place_fighter(self, fighter: Fighter, dest: int) -> None:
         """Puts the fighter on any empty space (a placement, not a move: no path, no range)."""
@@ -510,7 +526,8 @@ class Game:
         taken = {o.pos for o in self.fighters.values() if o.alive and o is not fighter}
         if dest not in self.board.spaces or dest in taken or not self.fx.can_move(fighter):
             raise RuleError(t("err.illegal_place", fid=fighter.fid, dest=dest))
-        fighter.pos = dest
+        origin, fighter.pos = fighter.pos, dest
+        self.departed(fighter, origin)
 
     def damage(self, fighter: Fighter, n: float, source: str = "effect", by: Fighter | None = None) -> float:
         if not fighter.alive or n <= 0:
@@ -684,6 +701,16 @@ class Game:
         if not card.usable_by(fighter.name):
             raise RuleError(t("err.wrong_fighter", title=card.title, fighter=card.fighter, name=fighter.name))
 
+    def attack_card_reaches(self, attacker: Fighter, target: Fighter, card: Card) -> bool:
+        """The card can be played by `attacker` against `target`: an attack that only targets an adjacent fighter
+        (`adjacent_only`: Witness My Last Battle) needs the target next to the attacker."""
+        from .effects.modifiers import adjacent_only
+        return not adjacent_only(card) or (attacker.pos is not None and target.pos in self.board.adj[attacker.pos])
+
+    def check_attack_target(self, attacker: Fighter, target: Fighter, card: Card) -> None:
+        if not self.attack_card_reaches(attacker, target, card):
+            raise RuleError(t("err.adjacent_only", title=card.title, fid=attacker.fid, target=target.fid))
+
     @staticmethod
     def check_defense_card(fighter: Fighter, card: Card) -> None:
         if not card.can_defend:
@@ -717,6 +744,7 @@ class Game:
         if not self.can_attack(attacker, target):
             raise RuleError(t("err.out_of_reach", attacker=attacker.fid, target=target.fid))
         self.check_attack_card(attacker, card)
+        self.check_attack_target(attacker, target, card)
         if card not in self.players[attacker.owner].hand:
             raise RuleError(t("err.not_in_hand", title=card.title, fid=attacker.fid))
         if def_card not in ("ask", None):
@@ -725,7 +753,8 @@ class Game:
                 raise RuleError(t("err.not_in_hand", title=def_card.title, fid=target.fid))
         self.use_action()
         from .effects.events import attack_revealed
-        revealed = attacked and attack_revealed(self, target)      # judged before the trigger spends the token
+        from .effects.modifiers import plays_face_up
+        revealed = attacked and (attack_revealed(self, target) or plays_face_up(card))      # judged before the trigger spends the token
         if attacked:
             self.fx.emit("attacked", attacker, target, card)
         if def_card == "ask":

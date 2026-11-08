@@ -293,18 +293,21 @@ def _return_to_deck(run, game, spec):
 
 @op("put_in_hand")
 def _put_in_hand(run, game, spec):
-    for holder, zone, card in _cards_of(game, run, spec["cards"], "recover"):
+    for holder, zone, card in _cards_of(game, run, spec["cards"], "recover", in_combat=True):
         st = game.players[holder]
         if zone == "discard":
             st.discard.remove(card)
         elif zone == "deck":
             st.deck.remove(card)
+        elif zone == "combat":              # played in this combat (Five Against Thousands): it goes back to the hand, not to the discard pile
+            run.flow.played[:] = [(o, c) for o, c in run.flow.played if c is not card]
+            run.flags.setdefault("combat_returns", []).append(card.card_id)       # the narration says it came back, not that it was drawn
         else:
             continue
         st.hand.append(card)
-        table.intent(game, op="put_in_hand", player=holder, zone=zone, cards=[card.card_id])
+        table.intent(game, op="put_in_hand", player=holder, zone="discard" if zone == "combat" else zone, cards=[card.card_id])
         watcher = _watcher(game, holder)
         was_known_top = card.card_id in watcher.top_of_deck
         watcher.drop_top(card.card_id)
-        if zone == "discard" or was_known_top:       # a public pile, or a card the rival already knew
+        if zone in ("discard", "combat") or was_known_top:       # a public pile or the combat spot, or a card the rival already knew
             _remember_in_hand(game, holder, card)

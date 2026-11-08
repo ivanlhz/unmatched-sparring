@@ -40,6 +40,7 @@ EVENT_BINDINGS = {
     "fighter_defeated": {"fighter": "fighter"},
     "combat_lost": {"fighter": "fighter"},
     "after_combat": {"fighter": "fighter", "card": "card"},
+    "left_zone": {"fighter": "fighter"},
 }
 # type of the binding each op creates with `as`
 OP_BINDINGS = {"draw": "card", "discard": "card", "choose": "card", "look_deck": "card", "search_deck": "card",

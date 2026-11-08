@@ -85,6 +85,18 @@ def look_shield(card) -> bool:
     return fx is not None and fx.look_shield
 
 
+def adjacent_only(card) -> bool:
+    """The attack can only target a fighter adjacent to the attacker (data `adjacent_only`: Witness My Last Battle)."""
+    fx = card_effects(card)
+    return fx is not None and fx.adjacent_only
+
+
+def plays_face_up(card) -> bool:
+    """The attack is played face up (data `face_up`: Witness My Last Battle): the defender's choice may know it."""
+    fx = card_effects(card)
+    return fx is not None and fx.face_up
+
+
 def defers_defeat(card) -> bool:
     fx = card_effects(card)
     return fx is not None and fx.defers_defeat

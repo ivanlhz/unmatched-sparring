@@ -473,6 +473,20 @@
       "note": "Engine additions are additive (docs/effects-dsl.md, section 34). Rules decisions and open questions for Iván: docs/heroes/she-hulk.md. Live test pending."
     },
     {
+      "id": "HERO-TOMOE-GOZEN",
+      "title": "Tomoe Gozen (Sun's Origin, no sidekick) playable by the bot and by the human against every hero",
+      "status": "in-progress",
+      "criteria": [
+        "data/heroes/overlay/tomoe-gozen.json, data/heroes/tomoe-gozen.json, data/heroes/effects/tomoe-gozen.json and data/tts/tomoe-gozen.json generated and validated (import_hero, validate_effects, import_save); the 12 titles (30 cards, sheet 176, character card 354) read from the card images; ai_profile computed by the importer",
+        "Her deck shares CardIDs 17600-17629 with Medusa, the four turtles, Doctor Strange, Bigfoot, Daredevil, Luke Cage and Bullseye: told apart by deck image and owner, never by a bare CardID (tests/test_hero_tomoe_gozen_data.py, tests/test_card_identity.py); her life dial shares Donatello's GUID (ca8e35), told apart by name (tests/test_piece_identity.py)",
+        "ATTACK OF OPPORTUNITY (an opposing hero that leaves her zone takes 1 damage) is the ability trigger on the event left_zone: raised by walks, placements, swaps and the human's moves by hand; the bot prices it in its movement",
+        "All 12 cards on the interpreter for both seats: Witness My Last Battle (adjacent-only, face up, ends the turn), Deeds Of Valor (combat damage cap), Lord Kiso's Final Stand (move through sidekicks), Five Against Thousands (back to the hand), Fearsome Strength, A Warrior's Way, A Worthy Opponent, Flash of Steel, Refuse to Retreat, Piercing Shot, Confront Any Demon or God and Skirmish",
+        "Tomoe Gozen against each of the 15 other heroes in both seats reaches game over on FakeTTS (passive and attacking human) and in the simulator (tests/test_tomoe_gozen_matrix.py)",
+        "Verified live by Iván (docs/live-checklist.md, section Tomoe Gozen)"
+      ],
+      "note": "Engine additions are additive (docs/effects-dsl.md, section 35). Rules decisions and open questions for Iván: docs/heroes/tomoe-gozen.md. Live test pending."
+    },
+    {
       "id": "F20",
       "title": "The bot prepares the official community save itself",
       "status": "in-progress",

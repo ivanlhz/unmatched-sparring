@@ -146,6 +146,7 @@ class CombatFlow:
         self.again = False                           # the attacker's card was swapped during its IMMEDIATELY: the new card's runs next (Sleight Of Hand)
         self.considered_won: str | None = None       # the side an effect says is considered to have won, whatever the damage ("atk" | "def"; Bullseye's Arrogant But Effective)
         self.value_locked: set[str] = set()         # sides whose value an effect froze (Jill Trent's Stasis Diffuser): nothing changes it any more
+        self.damage_caps: dict[str, int] = {}        # fighter id -> the most combat damage it takes in this combat (Tomoe Gozen's Deeds Of Valor)
 
     @property
     def done(self) -> bool:
@@ -339,6 +340,10 @@ class CombatFlow:
         if taken != damage:
             result.applied.append(t("cf.reduced", victim=victim.fid, n=damage - taken))     # Luke Cage: the ability took some off
             damage = taken
+        cap = self.damage_caps.get(victim.fid)
+        if cap is not None and damage > cap:
+            result.applied.append(t("cf.capped", victim=victim.fid, n=cap))                # Deeds Of Valor: at most `cap` this combat
+            damage = cap
         self.game.damage(victim, damage, "combat")
         if self.game.winner is not None and victim.hero and self._defers_defeat(victim):
             self.game.winner, self.deferred_loss = None, victim.owner     # the AFTER effects may bring the hero back
@@ -411,7 +416,7 @@ class CombatFlow:
         if (self.runs or self.printed_set or self.mods["atk"] or self.mods["def"] or self.redirects
                 or self.late_cancelled or self.cancel_hits or self.boost_granted or self.boosted
                 or self.deferred_loss is not None or self.boost_valued or self.returned or self.considered_won
-                or self.value_locked):
+                or self.value_locked or self.damage_caps):
             out["dsl"] = {"runs": {k: r.to_dict() for k, r in self.runs.items()}, "printed_set": dict(self.printed_set),
                           "mods": {k: [list(m) for m in v] for k, v in self.mods.items()},
                           "redirects": [dict(r) for r in self.redirects]}
@@ -433,6 +438,8 @@ class CombatFlow:
                 out["dsl"]["considered_won"] = self.considered_won
             if self.value_locked:
                 out["dsl"]["value_locked"] = sorted(self.value_locked)
+            if self.damage_caps:
+                out["dsl"]["damage_caps"] = dict(self.damage_caps)
         return out
 
     def _base_dict(self, ctx, res) -> dict:
@@ -474,7 +481,7 @@ class CombatFlow:
         flow.ctx = flow.result = None
         flow.sides = []
         flow.runs, flow.printed_set, flow.redirects, flow.choosers, flow.again, flow.returned = {}, {}, [], None, False, False
-        flow.considered_won = None
+        flow.considered_won, flow.damage_caps = None, {}
         flow.value_locked = set()
         flow.late_cancelled, flow.cancel_hits = set(), set()
         flow.boost_granted, flow.boosted, flow.deferred_loss, flow.boost_valued = set(), {}, None, set()
@@ -496,6 +503,7 @@ class CombatFlow:
             flow.returned = bool(d.get("returned", False))
             flow.considered_won = d.get("considered_won")
             flow.value_locked = set(d.get("value_locked", ()))
+            flow.damage_caps = {k: int(v) for k, v in d.get("damage_caps", {}).items()}
         if raw["ctx"] is not None:
             c, r = raw["ctx"], raw["result"]
             flow.ctx = CombatCtx(att, tgt, flow.atk_card, flow.def_card, c["atk_value"], c["def_value"],

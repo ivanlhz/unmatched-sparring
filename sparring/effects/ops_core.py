@@ -267,7 +267,8 @@ def _one_after_another(fighters) -> list:
 @op("move")
 def _move(run, game, spec):
     chooser = _chooser(game, run, spec)
-    steps, through, up_to = int(amount(game, run, spec["amount"])), spec.get("through_enemies", False), spec["up_to"]
+    steps, up_to = int(amount(game, run, spec["amount"])), spec["up_to"]
+    through = spec.get("through_enemies", False) or ("sidekicks" if spec.get("through_sidekicks") else False)     # False | True | "sidekicks"
     targets = pick_fighters(game, run, spec["target"], chooser, op="move", amount=steps, through=through)
     plan, by_hand = [], []
     with _trial() as set_attrs:
@@ -302,14 +303,15 @@ def _move(run, game, spec):
         run.bind("fighters", spec["as"], [f.fid for f, _ in plan] + [f.fid for f in by_hand])
 
 
-def _passed_through(game, mover, origin: int, dest: int, steps: int, through: bool) -> list[str]:
+def _passed_through(game, mover, origin: int, dest: int, steps: int, through: bool | str) -> list[str]:
     """Fighters `mover` may have moved through on its way from `origin` to `dest`: those on some path of at most `steps`
     spaces (the board has no fixed path, the mover's owner chooses it). The fighters that oppose the mover count when it
     may cross them (`through_enemies`); its own side always does (a mover crosses its friends: Power Man hits them)."""
     if origin == dest:
         return []
     dist = game.board.distance
-    crossed = (game.own(1 - mover.owner) if through else []) + [f for f in game.own(mover.owner) if f is not mover]
+    rivals = game.own(1 - mover.owner) if through is True else [f for f in game.own(1 - mover.owner) if not f.hero] if through else []
+    crossed = rivals + [f for f in game.own(mover.owner) if f is not mover]
     return [e.fid for e in crossed
             if e.pos not in (origin, dest) and dist(origin, e.pos) + dist(e.pos, dest) <= steps]
 
@@ -385,8 +387,9 @@ def _place(run, game, spec):
             game.placing.add(f.fid)
             table.note(run, op="place", fid=f.fid, where=_note_where(game, run, spec["where"]))
         elif spot != f.pos:
-            f.pos = spot
+            origin, f.pos = f.pos, spot
             table.intent(game, op="place", fid=f.fid, owner=f.owner)
+            game.departed(f, origin)
 
 
 @op("swap")
@@ -402,9 +405,12 @@ def _swap(run, game, spec):
             game.placing.update((first.fid, second.fid))
             table.note(run, op="swap", fid=first.fid, other=second.fid)      # the table player swaps their miniatures by hand
         else:
+            origins = (first.pos, second.pos)
             first.pos, second.pos = second.pos, first.pos
             for f in (first, second):
                 table.intent(game, op="swap", fid=f.fid, owner=f.owner)
+            for f, origin in zip((first, second), origins):
+                game.departed(f, origin)
     if "as" in spec:
         run.bind("fighters", spec["as"], swapped)
 
@@ -526,6 +532,8 @@ def _choice_context(game, run, spec: dict) -> dict:
             ctx["cancels"] = _cancellable_moments(game, run)
     if len(ops) == 1 and ops[0]["op"] == "discard" and isinstance(ops[0]["cards"], str):
         ctx["discards"] = [c.card_id for c in card_ref(game, run, ops[0]["cards"])]
+    if len(ops) == 1 and ops[0]["op"] == "put_in_hand" and ops[0]["cards"] == "this" and run.ctx.card_id is not None:
+        ctx["returns_card"] = run.ctx.card_id           # the card played comes back to the hand for the cost (Five Against Thousands)
     pact = _pact_context(game, run, ops)
     if pact is not None:
         ctx["pact"] = pact

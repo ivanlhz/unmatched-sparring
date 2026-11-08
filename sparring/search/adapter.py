@@ -135,6 +135,8 @@ def reach(game: Game, f: Fighter, steps: int, through: bool = False) -> frozense
     """`Game.legal_moves` with a cache (a fighter immobilized by an effect, Burning Barrier, stays where it is)."""
     if not game.fx.can_move(f):
         return frozenset({f.pos})
+    if through == "sidekicks":              # a move through the rivals' sidekicks only (not worth a cache entry)
+        return frozenset(game.legal_moves(f, steps, through))
     own = frozenset(game.occupied(f.owner) - {f.pos})
     enemy = frozenset(game.occupied(1 - f.owner))
     return reach_from(game.board, f.pos, steps, own, enemy, through)
@@ -396,7 +398,7 @@ class EngineState:
             return [("anung_to", None)] + [("anung_to", d) for d in sorted(reach(g, hero, card.boost))]
         if self.phase == "attack_card":
             f = g.fighters[self.partial[0]]
-            return [("attack_card", f.fid, t) for t in self._attack_titles(p, f)]
+            return [("attack_card", f.fid, t) for t in self._attack_titles(p, f, g.fighters[self.partial[1]])]
         if self.phase == "maneuver_place":
             return [("place", d, policy) for d, policy in self._placements(p, hero)]
         moves = self._attack_moves(p) + self._scheme_moves(p)
@@ -513,6 +515,9 @@ class EngineState:
                 continue
             gone = st.gone
             known = [c for c in self.knowledge.known_in_hand.get(p, ()) if c not in gone]
+            if self.pending is not None and self.pending[2] is not None and g.fighters[self.pending[0]].owner == p \
+                    and self.pending[2] not in known:
+                known.append(self.pending[2])         # an attack played face up (Witness My Last Battle) is in the hand the defense answers
             top = [c for c in self.knowledge.top_of_deck.get(p, ()) if c not in gone and c not in known]
             pool = sorted((c for c in st.full_set if c not in gone and c not in known and c not in top),
                           key=lambda c: c.card_id)
@@ -607,8 +612,10 @@ class EngineState:
                 out.append(("defend", c.title))
         return out
 
-    def _attack_titles(self, p: int, f: Fighter) -> list[str]:
-        return list(dict.fromkeys(c.title for c in self.game.players[p].hand if c.can_attack and c.usable_by(f.name)))
+    def _attack_titles(self, p: int, f: Fighter, target: Fighter | None = None) -> list[str]:
+        """The titles `f` may attack with; with `target`, only the cards that can reach it (an adjacent-only attack)."""
+        return list(dict.fromkeys(c.title for c in self.game.players[p].hand if c.can_attack and c.usable_by(f.name)
+                                  and (target is None or self.game.attack_card_reaches(f, target, c))))
 
     def _attack_moves(self, p: int) -> list:
         g = self.game
@@ -616,7 +623,7 @@ class EngineState:
         for f in g.own(p):
             if not self._attack_titles(p, f):
                 continue
-            out += [("attack", f.fid, t.fid) for t in g.foes(p) if g.can_attack(f, t)]
+            out += [("attack", f.fid, t.fid) for t in g.foes(p) if g.can_attack(f, t) and self._attack_titles(p, f, t)]
         return out
 
     def _scheme_moves(self, p: int) -> list:

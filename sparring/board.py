@@ -189,8 +189,10 @@ class Board:
             return True
         return bool(reach) and self.spaces_apart(a, b) <= reach
 
-    def reachable(self, start: int, steps: int, own: set[int], enemy: set[int], through_enemies: bool = False) -> set[int]:
-        """Spaces where it can end (moving along adjacency and passages): passes through own fighters, not rivals (unless an effect says so), ends on an empty one."""
+    def reachable(self, start: int, steps: int, own: set[int], enemy: set[int], through_enemies: bool = False,
+                  passable: frozenset[int] | set[int] = frozenset()) -> set[int]:
+        """Spaces where it can end (moving along adjacency and passages): passes through own fighters, not rivals (unless an effect says so), ends on an empty one.
+        `passable`: the rival spaces it may cross all the same (Tomoe Gozen moves through sidekicks), never end on."""
         seen = {start: 0}
         q = deque([start])
         while q:
@@ -198,7 +200,7 @@ class Board:
             if seen[cur] == steps:
                 continue
             for n in sorted(self.moves[cur]):
-                if n in seen or (n in enemy and not through_enemies):
+                if n in seen or (n in enemy and not through_enemies and n not in passable):
                     continue
                 seen[n] = seen[cur] + 1
                 q.append(n)

@@ -35,6 +35,8 @@ class CardEffects:
     max_boosts: int = 1                  # with `may_boost`: how many cards its owner may BOOST it with (The Big Reveal: 2)
     defers_defeat: bool = False          # played in a combat, the defeat of its fighter's hero waits for the AFTER effects (All Part of the Show)
     look_shield: bool = False            # held in hand, its owner may reveal it to cancel a look at their hand (A Magician Never Reveals His Secrets)
+    adjacent_only: bool = False          # an attack that can only target a fighter adjacent to the attacker (Witness My Last Battle)
+    face_up: bool = False                # an attack played face up: the defense may know it (Witness My Last Battle)
 
 
 @dataclass(frozen=True)
@@ -76,7 +78,8 @@ def parse_effects(raw: dict) -> HeroEffects:
     try:
         cards = {c["title"]: CardEffects(c["title"], dict(c.get("effects") or {}), bool(c.get("may_boost")),
                                          bool(c.get("uncancelable")), c.get("ongoing"), c.get("invention"),
-                                         int(c.get("max_boosts", 1)), bool(c.get("defers_defeat")), bool(c.get("look_shield")))
+                                         int(c.get("max_boosts", 1)), bool(c.get("defers_defeat")), bool(c.get("look_shield")),
+                                         bool(c.get("adjacent_only")), bool(c.get("face_up")))
                  for c in raw["cards"]}
         ability = raw.get("ability") or {}
         counters = {k: CounterRange(int(v["min"]), int(v["max"]), int(v.get("start", v["min"])))

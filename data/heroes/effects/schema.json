@@ -253,7 +253,9 @@
    {"type": "object", "additionalProperties": false, "required": ["event"],
     "properties": {"event": {"const": "after_combat"}, "player": {"$ref": "#/$defs/PlayerOrAny"}, "fighter": {"$ref": "#/$defs/FighterSel"}}},
    {"type": "object", "additionalProperties": false, "required": ["event", "fighter"],
-    "properties": {"event": {"const": "fighter_defeated"}, "fighter": {"$ref": "#/$defs/FighterSel"}}}
+    "properties": {"event": {"const": "fighter_defeated"}, "fighter": {"$ref": "#/$defs/FighterSel"}}},
+   {"type": "object", "additionalProperties": false, "required": ["event", "fighter"],
+    "properties": {"event": {"const": "left_zone"}, "fighter": {"$ref": "#/$defs/FighterSel"}}}
   ]},
 
   "Trigger": {
@@ -348,6 +350,8 @@
     "max_boosts": {"type": "integer", "minimum": 2},
     "defers_defeat": {"type": "boolean"},
     "look_shield": {"type": "boolean"},
+    "adjacent_only": {"type": "boolean"},
+    "face_up": {"type": "boolean"},
     "uncancelable": {"type": "boolean"},
     "effects": {
      "type": "object",
@@ -395,7 +399,7 @@
      "tag": {"$ref": "#/$defs/Name"},
      "chooser": {"$ref": "#/$defs/Chooser"}}},
    {"type": "object", "additionalProperties": false, "required": ["op", "target", "amount", "up_to"],
-    "properties": {"op": {"const": "move"}, "target": {"$ref": "#/$defs/FighterSel"}, "amount": {"$ref": "#/$defs/Amount"}, "up_to": {"type": "boolean"}, "through_enemies": {"type": "boolean"}, "await_destination": {"type": "boolean"}, "chooser": {"$ref": "#/$defs/Chooser"}, "as": {"$ref": "#/$defs/Name"}}},
+    "properties": {"op": {"const": "move"}, "target": {"$ref": "#/$defs/FighterSel"}, "amount": {"$ref": "#/$defs/Amount"}, "up_to": {"type": "boolean"}, "through_enemies": {"type": "boolean"}, "through_sidekicks": {"type": "boolean"}, "await_destination": {"type": "boolean"}, "chooser": {"$ref": "#/$defs/Chooser"}, "as": {"$ref": "#/$defs/Name"}}},
    {"type": "object", "additionalProperties": false, "required": ["op", "target", "where"],
     "properties": {"op": {"const": "place"}, "target": {"$ref": "#/$defs/FighterSel"}, "where": {"$ref": "#/$defs/SpaceSel"}, "chooser": {"$ref": "#/$defs/Chooser"}}},
    {"type": "object", "additionalProperties": false, "required": ["op", "target", "with"],
@@ -419,6 +423,8 @@
     "properties": {"op": {"const": "consider_won"}}},
    {"type": "object", "additionalProperties": false, "required": ["op", "card"],
     "properties": {"op": {"const": "lock_value"}, "card": {"$ref": "#/$defs/CardRef"}}},
+   {"type": "object", "additionalProperties": false, "required": ["op", "target", "amount"],
+    "properties": {"op": {"const": "cap_combat_damage"}, "target": {"$ref": "#/$defs/FighterSel"}, "amount": {"$ref": "#/$defs/Amount"}, "chooser": {"$ref": "#/$defs/Chooser"}}},
    {"type": "object", "additionalProperties": false, "required": ["op", "name", "until"],
     "properties": {"op": {"const": "status"}, "name": {"$ref": "#/$defs/StatusName"}, "until": {"$ref": "#/$defs/Event"}, "target": {"$ref": "#/$defs/FighterSel"}, "player": {"$ref": "#/$defs/PlayerSel"}, "amount": {"$ref": "#/$defs/Amount"}}},
    {"type": "object", "additionalProperties": false, "required": ["op", "name"],
