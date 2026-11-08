@@ -469,6 +469,43 @@ def test_lady_justice_is_a_defense_of_value_zero_and_a_bot_prices_its_mill(bprd)
     assert MedusaAI(0).rival_average_boost(g) > 0
 
 
+def lady_vs_plain_defense(bprd, keep):
+    """The defense the bot's She-Hulk picks (Lady Justice or a plain value-2 defense) when the rival's discard pile holds every
+    card whose BOOST fails `keep`, so the average of what is left is public and fixed."""
+    from sparring.ai_medusa import MedusaAI
+    g = mk(bprd, turn=1)
+    sh, h = pair(g, "shehulk", "hellboy")
+    rival = g.players[1]
+    rival.discard = [c for c in rival.full_set if not keep(c.boost)]
+    rival.deck = [c for c in rival.full_set if keep(c.boost)]
+    ai = MedusaAI(0)
+    plain = next(c for c in g.players[0].full_set if c.title != "Lady Justice" and c.can_defend and c.value == 2 and c.usable_by("She-Hulk"))
+    lady = give(g, 0, "Lady Justice")
+    g.players[0].hand.append(plain)
+    return ai.rival_average_boost(g), ai.choose_defense(g, h, sh), lady, plain
+
+
+def test_the_bot_defends_with_lady_justice_when_the_rivals_remaining_boost_is_high(bprd):
+    average, picked, lady, _ = lady_vs_plain_defense(bprd, lambda b: b >= 2)
+    assert average >= 1.5
+    assert picked is lady
+
+
+def test_the_bot_keeps_lady_justice_when_the_rivals_remaining_boost_is_low(bprd):
+    average, picked, lady, plain = lady_vs_plain_defense(bprd, lambda b: b <= 1)
+    assert average < 1.5
+    assert picked is not lady
+
+
+def test_the_price_of_lady_justice_reads_only_the_public_composition_of_the_rivals_deck(bprd):
+    from sparring.ai_medusa import MedusaAI
+    g = mk(bprd, turn=1)
+    rival = g.players[1]
+    before = MedusaAI(0).rival_average_boost(g)
+    rival.deck.reverse()                                                         # the real order of the deck changes nothing
+    assert MedusaAI(0).rival_average_boost(g) == before
+
+
 # ---------------------------------------------------------------- the op, the narration
 
 def test_spend_action_takes_actions_and_counts_them_and_the_chat_says_so(bprd):
