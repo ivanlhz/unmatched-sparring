@@ -207,6 +207,22 @@ def test_a_token_the_player_removed_is_said_once_and_the_game_goes_on(rig, monke
     assert counter_value(game, 0, "gadget") == 1 and game.turn == 1 and not session._paused()
 
 
+@jill_rig("jill-trent", "hellboy")
+def test_a_failed_write_is_not_a_missing_token_and_is_retried_at_the_next_step(rig, monkeypatch):
+    session, table, game, fake, cfg = rig
+    told, say = [], session.say
+    session.say = lambda text, *a, **k: (told.append(text), say(text, *a, **k))[1]
+    real = table.do_move_token
+    monkeypatch.setattr(table, "do_move_token", lambda s: {"__error__": "TTS refused the script"})
+    click(session, table, Event.MANEUVER)
+    assert [m for m in told if "no he podido mover la ficha" in m] and not [m for m in told if "no encuentro la ficha" in m]
+    assert session._gadget_shown is None and not table.token_moves
+    monkeypatch.setattr(table, "do_move_token", real)
+    click(session, table, Event.MANEUVER)
+    assert at(table, places("bot")[0]) and session._gadget_shown == 0
+    assert len([m for m in told if "no he podido mover la ficha" in m]) == 1
+
+
 # ---------------------------------------------------------------- the Lua of the move
 
 def token(rt, name="", kind="Custom_Token", extra=""):  # noqa: F811

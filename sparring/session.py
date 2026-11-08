@@ -401,6 +401,7 @@ class Session:
         self._intuition_said: int | None = None            # the human Abe's active tokens already told in chat
         self._gadget_shown: int | None = None              # the gadget Jill Trent's token was last put at (None: not placed yet this game)
         self._gadget_missing_said = False                  # the missing token was already told in chat
+        self._gadget_failed_said = False                   # the failed write of the token was already told in chat
         self._destiny_said: tuple[int, str] | None = None  # what was already announced (not repeated while retrying)
         self.placing: dict | None = None         # bot card put on the table whose reply never arrived
         self.dials_attempted: dict[str, int] = {}  # GUID -> last value tried to write (verified or not)
@@ -3646,6 +3647,7 @@ class Session:
         if scene is not None:
             self._wildfire_reveal(scene)
         fin_fx, self.fx_unprojected = self._project_effects(self.fx_unprojected), None
+        gadget_token.track(self)                  # the token moves in the same flush as the gadget announcement
         if scene is None:
             self._flush_table()
             fin_fx()
@@ -4187,7 +4189,7 @@ class Session:
             for o in ops:
                 if o.error is not None and not o.seen:
                     tag = o.script.split("\n", 1)[0].removeprefix("-- sparring:")
-                    self.say(t("sess.tts_failed", tag=tag, err=o.error), ChatKind.WARNING)
+                    self.say(t("sess.tts_failed", script=tag, err=o.error), ChatKind.WARNING)
 
     def _commit(self) -> None:
         """Closing of each button: what is left in the queue, the status line, the panel buttons and the announcements,

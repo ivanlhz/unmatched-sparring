@@ -8,7 +8,7 @@ active gadget, and BESIDE the card when the Blaster is active or no gadget is (`
 `track` runs wherever the session looks at its own state (every step, game start, resume, restart). It compares the counter with
 what it last put on the table and, when they differ, moves the token with `lua.move_token` (a plain write, messageID 3 only,
 whoever plays Jill: the bot's AI choice and the human's panel choice both end in the counter). The first look of a game or of a
-resumed game always writes, so the token is re-placed from the saved counter. A token the player removed is said once in the chat;
+resumed game always writes, so the token is re-placed from the saved counter. A token the player removed is said once per game in the chat (a failed write is a different line, retried at the next step);
 the game never waits for it."""
 from __future__ import annotations
 
@@ -65,8 +65,12 @@ def track(session) -> None:
     def check() -> None:
         try:
             res = op.result or {}
-        except ERRORS:                                     # the write failed: the same warning, the game goes on
-            res = {}
+        except ERRORS:                                     # the write itself failed: told once, retried by the next step
+            session._gadget_shown = None
+            if not session._gadget_failed_said:
+                session._gadget_failed_said = True
+                session.say(t("gadget.write_failed", name=session._name(session.game.hero(player))), ChatKind.WARNING)
+            return
         if not res.get("moved") and not session._gadget_missing_said:
             session._gadget_missing_said = True
             session.say(t("gadget.token_missing", name=session._name(session.game.hero(player))), ChatKind.WARNING)

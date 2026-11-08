@@ -3926,7 +3926,8 @@ if obj == nil then return JSON.encode({{found = false, moved = false}}) end
 local kinds = {kinds}
 local script = ""
 pcall(function() script = obj.getLuaScript() or "" end)
-if kinds[obj.type] ~= true or script ~= "" then
+if kinds[obj.type] ~= true or obj.getName() == {lua_str(PANEL_NAME)} or obj.getGMNotes() == {lua_str(MARKER)}
+   or script ~= "" then
   return JSON.encode({{found = true, moved = false, type = obj.type}})
 end
 obj.setPosition(Vector({_f(position[0])}, {_f(position[1])}, {_f(position[2])}))
