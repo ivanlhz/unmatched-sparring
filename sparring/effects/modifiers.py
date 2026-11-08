@@ -19,7 +19,7 @@ from .model import EFFECTS_DIR, CardEffects, EffectError, load_effects, walk_ops
 FIGHTER_STATUSES = ("immune_to_effect_damage", "cannot_leave_space", "attack_bonus")
 PLAYER_STATUSES = ("immune_to_enemy_effect_damage", "immune_to_enemy_effect_moves",
                    "immune_to_enemy_forced_discards", "cannot_gain_actions", "cannot_draw", "next_attack_bonus")
-_DEFAULT_PLAYER = {"end_of_turn": "any", "start_of_turn": "owner", "after_maneuver": "any"}
+_DEFAULT_PLAYER = {"end_of_turn": "any", "start_of_turn": "owner", "after_maneuver": "any", "after_attack": "any"}
 
 
 # ---------------------------------------------------------------- card data by title
@@ -287,6 +287,8 @@ def add_value(flow, side: str, n: int, label: str, record: bool = True) -> int:
     it as a modifier of the side (the announcement); a change of the printed value is not one."""
     ctx = flow.ctx
     now = ctx.atk_value if side == "atk" else ctx.def_value
+    if side in flow.value_locked:
+        return 0                 # Stasis Diffuser: the value cannot be changed
     new = max(0, now + n)        # Ivan (28/10): never below 0 at every step, in timing order
     if side == "atk":
         ctx.atk_value = new
@@ -303,15 +305,31 @@ def set_value(flow, side: str, n: int, label: str, ignore: bool) -> None:
     """`ignore`: "ignore this card's value" - the whole value goes to 0, bonuses included (Incinerate). Otherwise "the
     value becomes N" replaces the PRINTED value and leaves bonuses and extras alone (On Earth, Shock And Awe)."""
     if ignore:
+        if side in flow.value_locked:
+            return
         total = flow.ctx.atk_value if side == "atk" else flow.ctx.def_value
         flow.printed_set[side] = 0
         add_value(flow, side, -total, label)
+        return
+    if side in flow.value_locked:
         return
     before = printed_value(flow, side)
     flow.printed_set[side] = n
     add_value(flow, side, n - before, label, record=False)
     if side == "atk":
         flow.result.atk_parts[0] = f"{flow.atk_card.title} ({n})"
+
+
+def lock_value(flow, side: str, label: str) -> None:
+    """The side's total goes to the printed value of its card and is frozen: `add_value` and `set_value` ignore it from now on
+    (Stasis Diffuser). The change is listed as a modifier of the side, like any value effect."""
+    card = flow.atk_card if side == "atk" else flow.def_card
+    if card is None or side in flow.value_locked:
+        return
+    now = flow.ctx.atk_value if side == "atk" else flow.ctx.def_value
+    flow.printed_set[side] = card.value or 0
+    add_value(flow, side, (card.value or 0) - now, label)
+    flow.value_locked.add(side)
 
 
 # ---------------------------------------------------------------- redirected damage

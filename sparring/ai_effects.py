@@ -474,6 +474,8 @@ class EffectAI:
             return [self._future_deck(game, req)]
         if req.extra.get("future") == "peek":
             return [self._future_peek(game, req)]
+        if req.extra.get("tag") == "gadget":
+            return [self._gadget(game, req)]
         found = self._locate(game, req)
         if nested or found is None:
             return None
@@ -489,6 +491,18 @@ class EffectAI:
             gain = round(value - before, 6) if value is not None else 0.0
             scored.append((gain, SyntheticChooser._option_worth(game, req.player, options[k]), -k, k))   # a tie: the one that does something
         return [max(scored)[3]]
+
+    GADGET_HEAL_GAP = 3       # Jill: from this many missing hit points the Ultrabiotic Tonic (1 health a win) beats the Hypnoray Blaster
+
+    def _gadget(self, game: Game, req: ChoiceRequest) -> int:
+        """Jill Trent's gadget for the turn: 0 Hypnoray Blaster, 1 Ultrabiotic Tonic. The Blaster (a bonus when her printed value is
+        the lower one, which her cheap attacks often are, and a look at the rival's top card) unless a Hypnotist waits in her hand
+        (it only cancels with the Blaster active) or she is hurt enough for the heal to matter."""
+        me = req.player
+        hero = game.hero(me)
+        if any(c.title == "Hypnotist" for c in game.players[me].hand):
+            return 0
+        return 1 if hero.max_hp - hero.hp >= self.GADGET_HEAL_GAP else 0
 
     def _future_deck(self, game: Game, req: ChoiceRequest) -> int:
         """The future of Ninjutsu, which deck to look at: 0 own, 1 the rival's. Decided before the rival's top card can be

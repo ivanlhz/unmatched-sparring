@@ -46,6 +46,7 @@ class HeroEffects:
     counters: dict[str, CounterRange] = field(default_factory=dict)
     plugins: frozenset[str] = frozenset()
     ability_during: tuple[dict, ...] = ()       # the hero's own DURING COMBAT effects: [{id, condition?, ops}] (Daredevil, section 29)
+    ability_after: tuple[dict, ...] = ()        # the hero's own AFTER COMBAT effects, same shape (Jill Trent's gadget, section 32)
 
     def card(self, title: str) -> CardEffects:
         try:
@@ -82,7 +83,8 @@ def parse_effects(raw: dict) -> HeroEffects:
                     for k, v in (ability.get("counters") or {}).items()}
         return HeroEffects(raw["hero"], cards, tuple(ability.get("triggers") or ()),
                            tuple(ability.get("passives") or ()), counters,
-                           frozenset(p["id"] for p in raw.get("plugins") or ()), tuple(ability.get("during") or ()))
+                           frozenset(p["id"] for p in raw.get("plugins") or ()), tuple(ability.get("during") or ()),
+                           tuple(ability.get("after") or ()))
     except (KeyError, TypeError, ValueError) as e:
         raise EffectError(f"invalid effects file ({e!r})") from None
 

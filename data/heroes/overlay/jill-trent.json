@@ -1,0 +1,180 @@
+{
+ "_notes": [
+  "Sheet 176 of the tournament savegame (8x4), read card by card from the image on 2026-11-08. CardID = 17600 + idx; 348 = character card (sheet 3, 10x7, index 48). The deck object of the save holds 31 cards: the 30 of the deck plus the character card, which is why the catalog says card_count 31 and card_ids [348, 17629]. Her deck is sheet 176 like Medusa's, the four turtles', Doctor Strange's, Bigfoot's and the Marvel decks': only deck.identity (data/tts/jill-trent.json) tells the decks apart (docs/card-identity.md).",
+  "Restriction band (JILL TRENT, DAISY or ANY) and copies (xN printed on each card) read from the images; type, value, boost and text of the 13 titles agree with unmatched-memory (memory slug dr-jill-trent). Slug in this project: jill-trent (catalog slug dr-jill-trent-science-sleuth); fighter ids jill and daisy.",
+  "Hero card (read from the image): DR. JILL TRENT, MELEE, START HEALTH 13, MOVE 2; special ability GADGETOLOGY: 'At the start of your turn, activate one of your gadgets.' and 'Whenever Jill Trent attacks, resolve the active gadget's effect.' Sidekick DAISY, MELEE, START HEALTH 6 (the card prints the move once, 2, for both). One Daisy. The two gadgets are not on the character card; their texts (Hypnoray Blaster, Ultrabiotic Tonic) come from unmatched-memory and are in the effects file."
+ ],
+ "ability": "GADGETOLOGY: At the start of your turn, activate one of your gadgets. Whenever Jill Trent attacks, resolve the active gadget's effect.\nHypnoray Blaster: DURING COMBAT: If your card's printed value is lower than your opponent's, reveal the top card of your opponent's deck. Increase the value of your attack by the BOOST value of the revealed card.\nUltrabiotic Tonic: AFTER COMBAT: If your card's printed value is higher than your opponent's, Jill Trent recovers 1 health.",
+ "fid": "jill",
+ "memory_slug": "dr-jill-trent",
+ "ignored_tokens": [
+  "8af285"
+ ],
+ "sidekicks": [
+  {
+   "fid": "daisy",
+   "name": "Daisy"
+  }
+ ],
+ "forms": null,
+ "counters": {},
+ "triggers": [],
+ "passives": [],
+ "deck": {
+  "card_base": 17600,
+  "sheet_id": 176,
+  "hero_card_id": 348,
+  "sheet": [
+   {
+    "idx": 0,
+    "title": "Battle of Wits",
+    "fighter": "Dr. Jill Trent"
+   },
+   {
+    "idx": 1,
+    "title": "Battle of Wits",
+    "fighter": "Dr. Jill Trent"
+   },
+   {
+    "idx": 2,
+    "title": "Battle of Wits",
+    "fighter": "Dr. Jill Trent"
+   },
+   {
+    "idx": 3,
+    "title": "Energizing Spray",
+    "fighter": "any"
+   },
+   {
+    "idx": 4,
+    "title": "Energizing Spray",
+    "fighter": "any"
+   },
+   {
+    "idx": 5,
+    "title": "Utility Belt",
+    "fighter": "Dr. Jill Trent"
+   },
+   {
+    "idx": 6,
+    "title": "Utility Belt",
+    "fighter": "Dr. Jill Trent"
+   },
+   {
+    "idx": 7,
+    "title": "Utility Belt",
+    "fighter": "Dr. Jill Trent"
+   },
+   {
+    "idx": 8,
+    "title": "Stasis Diffuser",
+    "fighter": "any"
+   },
+   {
+    "idx": 9,
+    "title": "Stasis Diffuser",
+    "fighter": "any"
+   },
+   {
+    "idx": 10,
+    "title": "Laser Pen",
+    "fighter": "any"
+   },
+   {
+    "idx": 11,
+    "title": "Laser Pen",
+    "fighter": "any"
+   },
+   {
+    "idx": 12,
+    "title": "Laser Pen",
+    "fighter": "any"
+   },
+   {
+    "idx": 13,
+    "title": "Insightful Deduction",
+    "fighter": "any"
+   },
+   {
+    "idx": 14,
+    "title": "Insightful Deduction",
+    "fighter": "any"
+   },
+   {
+    "idx": 15,
+    "title": "Caught Red-Handed",
+    "fighter": "any"
+   },
+   {
+    "idx": 16,
+    "title": "Caught Red-Handed",
+    "fighter": "any"
+   },
+   {
+    "idx": 17,
+    "title": "Gyroscopic Jetpack",
+    "fighter": "any"
+   },
+   {
+    "idx": 18,
+    "title": "Gyroscopic Jetpack",
+    "fighter": "any"
+   },
+   {
+    "idx": 19,
+    "title": "Gyroscopic Jetpack",
+    "fighter": "any"
+   },
+   {
+    "idx": 20,
+    "title": "Ace Fighter",
+    "fighter": "Daisy"
+   },
+   {
+    "idx": 21,
+    "title": "Ace Fighter",
+    "fighter": "Daisy"
+   },
+   {
+    "idx": 22,
+    "title": "Sisters in Arms",
+    "fighter": "Daisy"
+   },
+   {
+    "idx": 23,
+    "title": "Sisters in Arms",
+    "fighter": "Daisy"
+   },
+   {
+    "idx": 24,
+    "title": "Hypnotist",
+    "fighter": "Dr. Jill Trent"
+   },
+   {
+    "idx": 25,
+    "title": "Hypnotist",
+    "fighter": "Dr. Jill Trent"
+   },
+   {
+    "idx": 26,
+    "title": "Indestructible Cloth",
+    "fighter": "any"
+   },
+   {
+    "idx": 27,
+    "title": "Indestructible Cloth",
+    "fighter": "any"
+   },
+   {
+    "idx": 28,
+    "title": "Helpful Assistant",
+    "fighter": "Daisy"
+   },
+   {
+    "idx": 29,
+    "title": "Helpful Assistant",
+    "fighter": "Daisy"
+   }
+  ]
+ }
+}

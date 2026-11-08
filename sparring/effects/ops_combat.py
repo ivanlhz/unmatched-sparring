@@ -93,6 +93,17 @@ def _set_value(run, game, spec):
         modifiers.set_value(flow, side, n, _label(run, game), bool(spec.get("ignore")))
 
 
+@op("lock_value")
+def _lock_value(run, game, spec):
+    """"The value of the card is equal to its printed value and cannot be changed" (Jill Trent's Stasis Diffuser): the
+    running total of that side goes back to the card's printed value and every later change of it (a value effect, a BOOST)
+    is ignored for the rest of the combat. The card's own printed value is the one on the card, not one an effect set."""
+    flow = _flow(run, "lock_value")
+    side = _side(run, game, spec["card"])
+    if side is not None:
+        modifiers.lock_value(flow, side, _label(run, game))
+
+
 @op("boost")
 def _boost(run, game, spec):
     """Boosts the card now: the top card of the card owner's deck is discarded and its BOOST value added (even 0)."""
@@ -293,6 +304,9 @@ def run_moment(flow, side, moment: str):
         ops = fx.moment_ops(side.card.title, moment)
         if moment == "during" and fx.ability_during:
             ops = during_with_ability(fx.ability_during, [] if flow.is_cancelled(side.name) else ops)
+        elif moment == "after" and fx.ability_after:       # Jill Trent's gadget: on the hero, so a cancelled card keeps it
+            gone = flow.is_cancelled(side.name) or side.name in flow.ctx.cancelled_after
+            ops = during_with_ability(fx.ability_after, [] if gone else ops)
         if not ops:
             return None
         flow.runs[key] = _start(flow, side, ops, moment, side.card.card_id)

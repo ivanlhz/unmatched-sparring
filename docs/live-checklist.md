@@ -295,6 +295,21 @@ Nothing of Bullseye has been seen on a real table. His deck is sheet 176 like Me
 - [ ] **For My Next Trick (H)**: after the combat, win or not: move Bullseye up to 1 space by hand, the bot deals you 1 card, you get an action back.
 - [ ] Feint (cancel), World's Greatest Assassin (4) and the rest of the numbers as printed.
 
+### Dr. Jill Trent (Tales to Amaze, with Daisy)
+
+Nothing of Jill Trent has been seen on a real table. Her deck is sheet 176 like Medusa's, the turtles', Doctor Strange's, Bigfoot's and the Marvel decks': the first thing to check is that the table is read right (16 heroes with TTS data).
+- [ ] **Detection (auto)**: with her deck at one spot and any other hero's at the other, the start-up line names Dr. Jill Trent; the bag `55b9e4` holds a deck of 31 cards (character card 348) and the Ultrabiotic Tonic token, which the bot ignores.
+- [ ] Pieces: Jill's miniature `448a24` and dial `9bb234` (13), Daisy's token `0bf463` and dial `e10c99` (6) found by GUID and name (Abe Sapien's agent Carla is also `0bf463`: with both heroes in play the second piece out of its bag gets a new GUID and the session follows it by name).
+- [ ] **Gadget, human (H)**: at the start of your turn the panel shows two buttons, Hypnoray Blaster and Ultrabiotic Tonic; the chat says which is active. **(B)**: the bot's Jill picks one each turn (the Tonic when hurt by 3 or more, the Blaster otherwise).
+- [ ] **Hypnoray Blaster (H)**: attack with a card whose printed value is lower than the bot's defense: the chat names the top card of the bot's deck (it stays on top) and your attack is worth its BOOST more. **(B)**: the bot's Jill does the same on you: the bot reads the real top card of your deck (one read message) and names it in the chat.
+- [ ] **Ultrabiotic Tonic**: with a printed value higher than the rival's (or no card against it) Jill recovers 1 (the dial follows). Not for Daisy, unless she plays Sisters In Arms next to Jill (then Jill recovers).
+- [ ] **Battle of Wits**: the chat names both top cards; 3 damage only when yours has the strictly higher BOOST.
+- [ ] **Insightful Deduction (H)**: the panel asks which of the bot's top three goes to the bottom, then the order of the other two; the bot's next draws follow it. **(B)**: the bot reads your real top three (one read message), names them and tells you to put one card at the bottom and the others on top in that order; it never moves your deck.
+- [ ] **Stasis Diffuser**: the rival's card is worth its printed value (a boost or a value effect of theirs adds nothing).
+- [ ] **Indestructible Cloth**: no effect damage to your fighter in that combat, from either side; combat damage lands.
+- [ ] **Utility Belt (H)**: three buttons (recover 1, move Jill 1 space, draw 1); with the move you place Jill by hand. **Helpful Assistant (H)**: pick up to 3 of your Jill cards in your discard pile; shuffle them into your deck by hand. **Caught Red-Handed**: the bot discards 1 (2 if you won); against you the bot asks you to discard.
+- [ ] Hypnotist (cancel only with the Blaster active), Gyroscopic Jetpack (up to 2, through rivals), Ace Fighter, Energizing Spray and Laser Pen as printed.
+
 ### Hidden information (cards that look at the bot's hand, and the bot's on you)
 - [ ] **The bot's hand row**: when playing Confront Any Demon or God (only if you lose), Advanced Psychometry (adjacent), Remove A Painful Memory (with an ONGOING) or Every Possible Angle, the bot lays its hand **face up in a row** at `bot_row_spot` and **pings** each card (`ping_points`). The **Look at bot's hand** button uses another row, at `look_spot`.
 - [ ] **The bot's own pings do not choose for you** (9335eab): with the row open, the bot does not "choose" a card by itself. *(31/10 failure with Remove A Painful Memory: it chose Posthumous Power within 1 s; fixed, still to be seen. If it happens again, widen `BOT_PING_WINDOW`.)*

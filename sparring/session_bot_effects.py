@@ -43,7 +43,7 @@ from .tts.lua import ChatKind
 
 
 
-DIRECT_OPS = ("tuck", "remove", "reveal_deck", "shuffle_deck", "stack_top", "hand_to_deck_all", "future_look")     # translated as they were reported, no diff involved
+DIRECT_OPS = ("tuck", "remove", "reveal_deck", "shuffle_deck", "stack_top", "hand_to_deck_all", "future_look", "reveal_top", "deck_order")     # translated as they were reported, no diff involved
 
 
 def bot_cause() -> str:

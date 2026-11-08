@@ -236,11 +236,12 @@ class Semantics:
         ab = self.doc["ability"]
         for i, t in enumerate(ab["triggers"]):
             self.trigger(t, f"ability.triggers[{i}]")
-        for i, eff in enumerate(ab.get("during") or ()):
-            ctx = _Ctx({}, set())
-            if "condition" in eff:
-                self.refs(eff["condition"], f"ability.during[{i}].condition", ctx)
-            self.ops(eff["ops"], f"ability.during[{i}].ops", ctx)
+        for moment in ("during", "after"):
+            for i, eff in enumerate(ab.get(moment) or ()):
+                ctx = _Ctx({}, set())
+                if "condition" in eff:
+                    self.refs(eff["condition"], f"ability.{moment}[{i}].condition", ctx)
+                self.ops(eff["ops"], f"ability.{moment}[{i}].ops", ctx)
         for i, p in enumerate(ab["passives"]):
             if "id" not in p:
                 self.errors.append(f"ability.passives[{i}]: a passive needs 'id'")

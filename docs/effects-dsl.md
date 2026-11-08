@@ -21,6 +21,7 @@ Text conventions: "owner" is the player who plays the card or who the ability be
   "triggers": [Trigger],
   "passives": [Passive],
   "during": [{"id": "<name>", "condition": Condition, "ops": [Op]}],
+  "after": [{"id": "<name>", "condition": Condition, "ops": [Op]}],
   "notes": "..."
  },
  "cards": [Card],
@@ -37,6 +38,7 @@ Text conventions: "owner" is the player who plays the card or who the ability be
 - `ability.counters`: the hero's token counters (intuition tokens, rage, coils). Pile counters
   (destiny) stay in the HeroDef (`counters` + `forms`); from here they are only read (`{"counter": "destiny"}`).
 - `ability.during`: the hero's own DURING COMBAT effects (section 29), run in the DURING of every combat in which the owner played a card.
+- `ability.after`: the hero's own AFTER COMBAT effects, the same shape and the same rules as `during` (section 32): run in the AFTER of every combat in which the owner played a card, before the card's own AFTER ops, even when the card's effects were cancelled.
 - `plugins`: every `{"op": "plugin"}` or `{"kind": "plugin"}` uses an id from this list and every id in the list is used.
 - `hidden_info`, `open_questions`, `discrepancies`, `table`, `notes`: free documentation; the validator only
   requires the basic types.
@@ -246,7 +248,7 @@ Every op is `{"op": "<name>", ...args}`. Arguments not listed are an error.
 | `discard` | `cards: CardSel | CardRef` | `as` | from the hand, the deck (top/bottom) or `in_play` to the discard. With a CardRef it discards exactly those |
 | `remove_from_game` | `cards: CardSel` (zone `discard`) | `as` | the cards leave the game for good (`PlayerState.removed`, public); see "Donatello" below |
 | `choose` | `cards: CardSel`, `as` | | only binds, moves nothing |
-| `choose_effect` | `options: [{label, ops}]`, `amount` | `distinct`, `chooser` | choose EFFECTS; `distinct` forbids repeating |
+| `choose_effect` | `options: [{label, ops}]`, `amount` | `distinct`, `chooser`, `tag` | choose EFFECTS; `distinct` forbids repeating; `tag` (a name) travels in the request so a bot can recognise what the options are about (`gadget`, section 32) |
 | `move` | `target`, `amount`, `up_to` | `through_enemies`, `chooser` | `chooser` decides the destination (default `owner`, also for rival fighters: replaces the old `push`) |
 | `place` | `target`, `where: SpaceSel` | `chooser` | teleport |
 | `swap` | `target`, `with: FighterSel` | `chooser` | |
@@ -258,6 +260,7 @@ Every op is `{"op": "<name>", ...args}`. Arguments not listed are an error.
 | `boost` | `card: CardRef` | `chooser` | boosts that card now (discards the top card of its owner's deck). For the card's own free "may BOOST", `may_boost` is used |
 | `allow_boost` | `card: CardRef` | | "Your opponent may BOOST their card": that card's side is asked for the free BOOST of `may_boost` cards in DURING even if the card has none (An Illusion Of My Own Design) |
 | `consider_won` | | | "You are considered to have won this combat" (Bullseye's Arrogant But Effective): the owner's side becomes the combat's winner for every later condition and for the turn's tally; see section 31 |
+| `lock_value` | `card: CardRef` | | "the value of that card is equal to its printed value and cannot be changed" (Jill Trent's Stasis Diffuser, section 32): the side's total goes back to the card's printed value and every later change of it in this combat is ignored |
 | `status` | `name`, `until: Event` and `target: FighterSel` or `player: PlayerSel` | `amount` | see the status table |
 | `counter` | `name` and `delta` or `set` | `player` | clipped to the min/max of `ability.counters` |
 | `gain_action` | `amount` | `player` | blocked by `cannot_gain_actions` and the `no_gain_actions` rule |
@@ -1160,3 +1163,20 @@ Everything here is additive: no earlier effects file or HeroDef uses these words
 - **SpaceSel `no_zone_of: FighterRef`**: the spaces that share no zone with the fighter's space (Tactical Retreat: `{"no_zone_of": "hero", "other": true}` in a `place`). The chat for a placement by hand names it (`tbl.where.no_zone*`, `moves.where.no_zone`).
 - **Same CardID range as Medusa, the turtles, Doctor Strange and Bigfoot**: see docs/card-identity.md.
 - **Hero detection**: `lua.MAX_HERO_RANGES` (the most CardID ranges one table read takes) went from 12 to 24: the thirteenth hero with TTS data made every detection fall back to Medusa / Hellboy.
+
+## 32. Jill Trent: gadgets, the hero's own AFTER effects, a frozen value, a status that lasts one combat, revealing deck cards
+
+Everything here is additive: no earlier effects file or HeroDef uses these words, so the fifteen earlier heroes behave as before.
+
+- **GADGETOLOGY** is written with what existed plus two small pieces: the ability counter `gadget` (`ability.counters`: 0 = none yet, 1 = Hypnoray Blaster, 2 = Ultrabiotic Tonic), a `start_of_turn` trigger whose op is a mandatory `choose_effect` that `counter`-sets it, and conditions `counter` (`min`/`max`) wherever a card reads "your active gadget". The trigger is run by the engine for both seats (`table.start_of_turn_is_physical` no longer counts a trigger made only of `optional`, `draw`, `choose_effect` and `counter` as one the human does on the table): the human sees two buttons, the bot decides with `EffectAI._gadget` (the request carries the tag).
+- **`ability.after`** (`HeroEffects.ability_after`, `Ability.after` in `schema.json`): like `ability.during`, `ops_combat.run_moment` composes the hero's AFTER effects with the card's (`during_with_ability`: the ability first, under its `condition`). The gadgets are on the hero, so a card whose effects were cancelled (all of them, or only the AFTER ones) still gets them: `combat_flow.dsl_after` keeps running a side whose `cancelled_after` is set when the hero has `ability.after`, and the rule `dsl_after_hero_ability` (`when_cancelled`) does the same for a fully cancelled side. "Whenever Jill attacks" is `{"all": [{"test": "exists", "fighters": {"role": "this", "kind": "hero"}}, {"test": "played_as", "side": "attack"}, ...]}`: the hero and not a sidekick, an attack and not a defense.
+- **Printed values**: `{"attr": "value", "of": "this"}` / `"opponent_card"` is the number printed on the card (never the running value), 0 when there is no card (a defender who played none).
+- **Op `lock_value`** (`card`): `modifiers.lock_value` sets the side's total to the card's printed value and adds the side to `CombatFlow.value_locked` (saved in `dsl`); `add_value` and `set_value` (so `modify_value`, `set_value`, a BOOST, an ONGOING bonus applied later) ignore a locked side for the rest of the combat. The boost cards are still discarded and their own effects still run. Stasis Diffuser: `lock_value` on `opponent_card` at IMMEDIATELY.
+- **Status expiry `after_attack`**: `{"event": "after_attack", "fighter": {"side": "any"}}` as the `until` of a status expires it when the combat is over, after every AFTER effect (`EffectState.emit` expires statuses on it; `_DEFAULT_PLAYER` says any). Indestructible Cloth: `immune_to_effect_damage` on `this` until the end of the combat (`end_of_turn` would last the whole turn).
+- **`choose_effect.tag`**: see the ops table.
+- **Plugins** (`sparring/effects/plugins_jill.py`; the deck cards revealed are the engine's for the engine's player and the table's, read through `Game.deck_reader(player, n)`, for the table player; a table that cannot be read shows nothing and the effect does nothing):
+  - `jill:hypnoray`: reveal the top card of the opponent's deck and add its BOOST to the owner's card value (`modifiers.add_value`, so a locked side ignores it). Hypnoray Blaster and Sisters In Arms use it.
+  - `jill:reveal_tops` + plugin test `higher_boost` (Battle of Wits): reveal both top cards and compare their BOOST values (kept as numbers: bound cards resolve against the owner's deck, which can share CardIDs with the rival's).
+  - `jill:insightful_deduction`: reveal the top 3 cards of the opponent's deck, ask the owner which goes to the bottom (a `cards` request, `purpose: bottom`, `of` = the deck's owner) and the order of the rest (an `order` request), and reorder the engine's deck; the bot's choice buries the rival's best card (`card_worth`) and leaves the weakest on top.
+- **Table side**: intents `reveal_top` {player, viewer, cards} (a chat line naming the revealed cards, nothing moves) and `deck_order` {player, top, bottom, owner} (`sparring/session_jill.py`): the human's choice for the bot's deck is pinned in `Session.peek_pins` (the engine order the table never had), the bot's choice for the human's deck is told to the human, who arranges the real deck by hand. `lua.peek_deck_top(..., count=N)` reads the top N CardIDs (`ids`) for the bot's read of the human's deck; `session_peek.read_top(session, player, n)` is the `Game.deck_reader`. Both ops are in `session_bot_effects.DIRECT_OPS`.
+- **Same CardID range as the other sheet-176 decks**: see docs/card-identity.md.

@@ -87,9 +87,9 @@ def piece_is_physical(game, chooser: int, fighter) -> bool:
 def start_of_turn_is_physical(game, player: int, trig: dict) -> bool:
     """The table player's start-of-turn ability (Hellboy's ANUNG discard and move, Wildfire's bottom card) reads their
     real hand or an unknown discard: it is theirs on the table, announced by the session. A trigger that only draws
-    (OCCULT DETECTIVE's optional draw) is not: the engine asks on the panel and the session deals the cards."""
+    (OCCULT DETECTIVE's optional draw, Jill Trent's choice of a gadget) is not: the engine asks on the panel and the session deals the cards."""
     from .model import walk_ops
-    only_draws = all(o["op"] in ("optional", "draw") for o in walk_ops(trig["ops"]))
+    only_draws = all(o["op"] in ("optional", "draw", "choose_effect", "counter") for o in walk_ops(trig["ops"]))     # Jill's gadget: a button and a counter, nothing on the table
     return physical(game, player) and trig["when"]["event"] == "start_of_turn" and not only_draws
 
 

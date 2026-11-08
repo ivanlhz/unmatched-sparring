@@ -53,6 +53,8 @@ Bigfoot (`tests/test_hero_bigfoot_data.py`, `tests/test_bigfoot_matrix.py`) foll
 
 Bullseye (Hell's Kitchen, character card 339) is the tenth deck of sheet 176 (`tests/test_hero_bullseye_data.py`, `tests/test_bullseye_matrix.py`): his own `deck.identity` in `data/tts/bullseye.json`, a matrix against the other fourteen heroes in both seats, and `SHARING` in `tests/test_card_identity.py`.
 
+Dr. Jill Trent (Tales to Amaze, character card 348, slug `jill-trent`) is another deck of sheet 176 (`tests/test_hero_jill_trent_data.py`, `tests/test_jill_trent_matrix.py`): her own `deck.identity` in `data/tts/jill-trent.json`, a matrix against the other fifteen heroes in both seats, and `SHARING` in `tests/test_card_identity.py`. The catalog files her under `dr-jill-trent-science-sleuth`; the project slug is the shorter one.
+
 ## Houdini needs none of this
 
 Houdini's deck is sheet 178 (CardIDs 17800-17829) with the character card on a sheet of its own (177, CardID 17700); no other hero of
@@ -67,6 +69,8 @@ Cards are told apart by value (above); pieces by GUID **and name**. The tourname
 miniatures the same GUID (`4fdf31`, each inside its own bag; the only cross-hero collision in `data/tts/*.json`, pinned by
 `tests/test_piece_identity.py`). TTS keeps GUIDs unique, so when both are on the table the second one out of its bag gets a
 new random GUID and the configured one would make the session follow the other hero's piece.
+
+A third collision is a miniature: Daisy's token in Jill Trent's bag and Abe Sapien's agent Carla are both `0bf463` (`tests/test_piece_identity.py` pins it; the Abe vs Jill matrix plays it in both seats). The same machinery tells them apart by name ("Daisy" / "Carla").
 
 The save has a second collision, of a dial: The Jackalope's and Lobster Johnson's life dials are both `18c384`. `session_pieces.resolve_dials` tells
 them apart by the dial's name (`lua.find_dials_by_name`) before the first dial write, saves the result (`resolved_dials`) and, when it cannot, says so

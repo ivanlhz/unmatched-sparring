@@ -150,8 +150,12 @@ def prompt_text(game, req: ChoiceRequest) -> str:
         base = t("choice.prompt.blind_count", n=req.extra["times"])
     elif req.kind == "amount" and req.extra.get("top_discard"):      # Take A Knee: one button, the bot moves the card
         base = t("choice.prompt.top_discard")
+    elif req.kind == "cards" and req.extra.get("purpose") == "bottom":      # Insightful Deduction: which one goes to the bottom
+        base = _prompt("bottom")
     elif req.kind == "cards" and req.max == 1:        # no "card(s)": the panel status drops the parentheses (live 29/10)
         base = _prompt("one_card")
+    elif req.kind == "effect" and req.extra.get("tag") == "gadget":      # Jill Trent: the gadget of the turn
+        base = _prompt("gadget")
     elif req.kind == "effect" and req.extra.get("op") == "predict":
         base = _prompt("predict")
     elif req.kind == "effect" and req.extra.get("future"):      # The future of Ninjutsu: which deck, then leave or bottom

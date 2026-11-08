@@ -44,6 +44,7 @@ from . import session_hidden as hidden
 from . import session_moves as moves
 from . import session_pieces as piece_id
 from . import session_peek as peek
+from . import session_jill as jill_decks      # noqa: F401  (registers the translators of Jill Trent's deck reveals)
 from . import session_pile as pile
 from . import session_sleight as sleight
 from . import session_translators as translators
@@ -1124,7 +1125,7 @@ class Session:
         if self.game.fx.intents is None:
             self.game.fx.intents = []             # the ops report what they do to the table: the translators take it
         self.game.hand_reader = self._read_human_hand
-        self.game.deck_reader = (lambda player: peek.read_top(self, player)) if self.cfg.human_deck_guid else None
+        self.game.deck_reader = (lambda player, n=None: peek.read_top(self, player, n)) if self.cfg.human_deck_guid else None
         self.game.hazard_hook = lambda: self._announce_hazards(write_dials=True)
 
     def _read_human_hand(self, player: int) -> list[Card]:

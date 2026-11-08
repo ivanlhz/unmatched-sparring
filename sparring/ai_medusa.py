@@ -176,6 +176,14 @@ AFTER_BONUS = {
     "Master Strategist": (0.3, 0.0),                # exactly 4 spaces, through rivals
     "Ricochet": (0.8, 0.0),                         # 1 damage to a fighter in the zone of a rival that was not defeated
     "Tactical Retreat": (0.3, 0.0),                 # puts him in a space that shares no zone
+    "Energizing Spray": (0.9 * ACTION_VALUE, 0.0),  # Jill Trent: gains an action
+    "Utility Belt": (0.8 * CARD_VALUE, 0.0),        # one of: recover 1, move 1, draw 1
+    "Battle of Wits": (0.9, 0.0),                   # 3 damage when her top card has the higher BOOST (about one time in three)
+    "Laser Pen": (1.0, 0.0),                        # 1 damage to the opposing fighter, always
+    "Insightful Deduction": (0.4, 0.0),             # buries the rival's best top card of three
+    "Caught Red-Handed": (0.5 * CARD_VALUE, 0.5 * CARD_VALUE),   # the rival discards 1, 2 if it wins
+    "Gyroscopic Jetpack": (0.3, 0.0),               # moves her up to 2 spaces, through rivals
+    "Ace Fighter": (CARD_VALUE, 0.0),               # draws 1
 }
 DISCARD_EFFECTS = ("Clutching Claws", "Hiss and Slither")
 

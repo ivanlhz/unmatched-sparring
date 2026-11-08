@@ -142,7 +142,7 @@ def find_hero_bag(objects: list[dict], hero: HeroDef) -> tuple[dict, dict]:
     """(outer bag, inner bag) of a hero: the outer bag is the one named after the hero (its inner bag is the only
     bag directly inside it) or, failing that, the bag around the bag that directly holds a deck with the hero's
     CardID sheet."""
-    named = [o for o in walk_all(objects) if is_bag(o) and _same(_nick(o), hero.name)]
+    named = [o for o in walk_all(objects) if is_bag(o) and _same(_nick(o).split(",")[0], hero.name)]     # the bag may carry a subtitle: "Dr. Jill Trent, Science Sleuth"
     if len(named) > 1:
         raise SaveImportError(f"{len(named)} bags named {hero.name!r}: " + ", ".join(o["GUID"] for o in named))
     if named:
@@ -256,8 +256,9 @@ def extract_hero(objects: list[dict], hero: HeroDef, raw_hero: dict, report: Rep
 
     tokens: dict[str, str] = {}
     token_children: dict[str, str] = {}
+    ignored = set(raw_hero.get("ignored_tokens") or ())          # tokens of the bag the bot deliberately does not use (Jill Trent's gadget token)
     for o in pieces:
-        if o["GUID"] in claimed or not o.get("Name", "").startswith("Custom_Token"):
+        if o["GUID"] in claimed or o["GUID"] in ignored or not o.get("Name", "").startswith("Custom_Token"):
             continue
         key = _token_key(_nick(o))
         if key not in expected_tokens:
