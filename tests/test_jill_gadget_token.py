@@ -1,6 +1,6 @@
-"""Jill Trent's gadget token is a real piece on the table (Iván, 2026-11-08): the Ultrabiotic Tonic token lies ON her character card
-while the Tonic is the active gadget and BESIDE the card when the Blaster is active or no gadget is. The bot moves it (setPosition /
-setRotation through `lua.move_token`) whenever the engine's counter `gadget` changes, whoever plays Jill. Sessions run against FakeTTS
+"""Jill Trent's gadget token is a real piece on the table (Iván, 2026-11-08): it is double-sided, with ONE resting spot per side. Face up
+(rot Z 0) is the Ultrabiotic Tonic, flipped (rot Z 180) the Hypnoray Blaster, and face up turned 90 degrees means no gadget yet. The bot
+moves it (setPosition / setRotation through `lua.move_token`) whenever the engine's counter `gadget` changes, whoever plays Jill. Sessions run against FakeTTS
 (batch mode, `FxTable.do_move_token`); the Lua of the moves, the layout and the table cleaning run on the lupa stub of TTS."""
 from __future__ import annotations
 
@@ -9,7 +9,7 @@ from pathlib import Path
 
 import pytest
 
-from sparring import ai_effects, player_setup, table_layout, table_reset
+from sparring import ai_effects, player_setup, session_gadget, table_layout, table_reset
 from sparring.effects.select import counter_value
 from sparring.tts import lua
 from sparring.tts.hero_table import load_hero_table
@@ -24,30 +24,29 @@ SETUPS = json.loads((ROOT / "config" / "map_setups.json").read_text(encoding="ut
 JILL = load_hero_table("jill-trent")
 TOKEN = "8af285"
 BLASTER, TONIC = 0, 1                     # index of the answer in the panel: Hypnoray Blaster, Ultrabiotic Tonic
+NONE, BLASTER_UP, TONIC_UP = 0, 1, 2      # the engine's counter `gadget`
 
 
-def places(side: str) -> tuple:
-    """((beside position, rotation), (on the card position, rotation)) as the data gives them."""
-    beside, on = table_layout.own_token_slots(side, JILL, "gadget")
-    return (beside.pos, beside.rot), (on.pos, on.rot)
+def place(side: str) -> tuple:
+    """(position, rotation) of the single resting spot as the data gives it."""
+    slots = table_layout.own_token_slots(side, JILL, "gadget")
+    assert len(slots) == 1, "one resting spot per side"
+    return slots[0].pos, slots[0].rot
 
 
 def last_move(table):
     assert table.token_moves, "the token was never moved"
     guid, pos, rot = table.token_moves[-1]
-    assert guid == TOKEN and rot[2] == 0, "face up"
+    assert guid == TOKEN
     return pos, rot
 
 
-def lifted(slot) -> tuple:
-    (x, y, z), rot = slot
-    return (x, round(y + table_layout.SETTLE_LIFT, 2), z), rot
-
-
-def at(table, slot) -> bool:
+def at(table, side: str, gadget: int) -> bool:
+    """The last write put the token on `side`'s spot, lifted, turned as the counter value `gadget` says."""
     pos, rot = last_move(table)
-    (x, y, z), want_rot = lifted(slot)
-    return (pos[0], round(pos[1], 2), pos[2]) == (x, y, z) and rot == want_rot
+    (x, y, z), (rx, ry, rz) = place(side)
+    want = {TONIC_UP: (rx, ry, 0), BLASTER_UP: (rx, ry, 180), NONE: (rx, (ry + session_gadget.NONE_TURN) % 360, 0)}[gadget]
+    return (pos[0], round(pos[1], 2), pos[2]) == (x, round(y + table_layout.SETTLE_LIFT, 2), z) and tuple(rot) == want
 
 
 @pytest.fixture
@@ -65,7 +64,7 @@ def jill_rig(bot, human):
 
 # ---------------------------------------------------------------- the data
 
-def test_the_token_is_a_hero_token_with_two_places_per_side_and_the_bag_is_still_recognised():
+def test_the_token_is_a_hero_token_with_one_place_per_side_and_the_bag_is_still_recognised():
     assert JILL.tokens == {"gadget": TOKEN} and JILL.ignored_tokens == ()
     assert TOKEN in JILL.all_guids() and ("token", (TOKEN,)) in JILL.unpack_items()
     tables = {"jill-trent": JILL, "abe-sapien": load_hero_table("abe-sapien")}
@@ -76,50 +75,49 @@ def test_the_token_is_a_hero_token_with_two_places_per_side_and_the_bag_is_still
 
 @pytest.mark.parametrize("layout", [RAW["layout"], *(e["layout"] for e in SETUPS.values())])
 @pytest.mark.parametrize("side", ["bot", "human"])
-def test_the_places_come_from_the_character_card_spot_of_every_calibrated_layout(layout, side):
-    """On the card: its x and z. Beside it: past the deck (z + 2.7), away from the map, in the card's column (measured live on
-    B.P.R.D. HQ, 2026-11-08: the first guess, 2.6 toward lower z, lay under the board). Always the card's Y rotation and Z 0."""
-    (bx, by, bz), (brx, bry, brz) = places(side)[0]
-    (ox, oy, oz), (orx, ory, orz) = places(side)[1]
+def test_the_place_comes_from_the_character_card_spot_of_every_calibrated_layout(layout, side):
+    """Past the deck (z + 2.7), away from the map, in the card's column (measured live on B.P.R.D. HQ, 2026-11-08: the first guess,
+    2.6 toward lower z, lay under the board). The card's Y rotation, X and Z 0."""
+    (bx, by, bz), (brx, bry, brz) = place(side)
     card = layout[side]["character_card"]
     cx, cy, cz = card["pos"]
-    assert (ox, oz) == pytest.approx((cx, cz), abs=0.01) and abs(bx - cx) < 0.5 and bz > cz + 2.7 + 1.5
-    assert oy > cy and by > cy and (brx, brz, orx, orz) == (0, 0, 0, 0)
-    assert bry == ory == pytest.approx(card["rot"][1])
+    assert abs(bx - cx) < 0.5 and bz > cz + 2.7 + 1.5 and by > cy
+    assert (brx, brz) == (0, 0) and bry == pytest.approx(card["rot"][1])
 
 
-# ---------------------------------------------------------------- set-up: beside the card
+# ---------------------------------------------------------------- set-up: at the resting spot
 
 @pytest.mark.parametrize("side", ["bot", "human"])
-def test_the_layout_puts_the_token_beside_the_card(side):
+def test_the_layout_puts_the_token_at_its_single_spot(side):
     plan = table_layout.plan(RAW, side, JILL)
     token = next(p for p in plan.placements if p.guids == (TOKEN,))
-    assert token.role == "tokens" and (token.slot.pos, token.slot.rot) == places(side)[0] and TOKEN not in plan.unplaced
+    assert token.role == "tokens" and (token.slot.pos, token.slot.rot) == place(side) and TOKEN not in plan.unplaced
 
 
 @pytest.mark.parametrize("side", ["bot", "human"])
-def test_preparar_lays_the_token_beside_the_card_on_the_table(rt, side):  # noqa: F811
+def test_preparar_lays_the_token_at_its_spot_face_up_on_the_table(rt, side):  # noqa: F811
     rt.execute(f"mkobj({{guid = '{TOKEN}', type = 'Custom_Token', pos = {{x = 0, y = 1, z = 0}}, rot = {{x = 0, y = 0, z = 0}}}})")
     plan = table_layout.plan(RAW, side, JILL)
     items = [(p.guids, *table_reset._lifted(p.slot)) for p in plan.placements]
     assert run(rt, lua.arrange_objects(items))["missing"]            # the deck and the miniatures are not on this fake table
     obj = rt.globals().getObjectFromGUID(TOKEN)
-    (x, y, z), rot = lifted(places(side)[0])
+    (x, y, z), rot = place(side)
+    y = round(y + table_layout.SETTLE_LIFT, 2)
     assert (round(obj.pos.x, 2), round(obj.pos.y, 2), round(obj.pos.z, 2)) == (x, y, z) and obj.rot.y == rot[1] and obj.rot.z == 0
 
 
 @jill_rig("jill-trent", "hellboy")
-def test_the_first_step_of_a_game_puts_the_token_beside_the_card_for_the_bot_seat(rig):
+def test_the_first_step_of_a_game_turns_the_token_for_no_gadget_for_the_bot_seat(rig):
     session, table, game, fake, cfg = rig
     click(session, table, Event.MANEUVER)
-    assert counter_value(game, 0, "gadget") == 0 and at(table, places("bot")[0]) and len(table.token_moves) == 1
+    assert counter_value(game, 0, "gadget") == 0 and at(table, "bot", NONE) and len(table.token_moves) == 1
 
 
 @jill_rig("hellboy", "jill-trent")
-def test_the_first_step_of_a_game_puts_the_token_beside_the_card_for_the_human_seat(rig):
+def test_the_first_step_of_a_game_turns_the_token_for_no_gadget_for_the_human_seat(rig):
     session, table, game, fake, cfg = rig
     click(session, table, Event.MANEUVER)
-    assert counter_value(game, 1, "gadget") == 0 and at(table, places("human")[0])
+    assert counter_value(game, 1, "gadget") == 0 and at(table, "human", NONE)
 
 
 @jill_rig("hellboy", "medusa")
@@ -136,13 +134,13 @@ def bot_chooses(monkeypatch, answer: int) -> None:
 
 
 @jill_rig("jill-trent", "hellboy")
-@pytest.mark.parametrize("answer, expected", [(TONIC, "on"), (BLASTER, "beside")])
-def test_the_bots_choice_moves_the_token_on_the_card_for_the_tonic_and_beside_it_for_the_blaster(rig, monkeypatch, answer, expected):
+@pytest.mark.parametrize("answer, expected", [(TONIC, TONIC_UP), (BLASTER, BLASTER_UP)])
+def test_the_bots_choice_leaves_the_token_face_up_for_the_tonic_and_flipped_for_the_blaster(rig, monkeypatch, answer, expected):
     session, table, game, fake, cfg = rig
     bot_chooses(monkeypatch, answer)
     bot_turn(session, table, [])
     assert counter_value(game, 0, "gadget") == answer + 1
-    assert at(table, places("bot")[1 if expected == "on" else 0])
+    assert at(table, "bot", expected)
     assert not session._paused() and not [m for m in session.messages if "cannot find" in m]
 
 
@@ -151,10 +149,10 @@ def test_the_token_follows_the_counter_turn_after_turn(rig, monkeypatch):
     session, table, game, fake, cfg = rig
     bot_chooses(monkeypatch, TONIC)
     bot_turn(session, table, [])
-    assert at(table, places("bot")[1])
+    assert at(table, "bot", TONIC_UP)
     game.fx.set_counter(0, "gadget", 1)                           # the next choice is the Blaster
     click(session, table, Event.MANEUVER)
-    assert at(table, places("bot")[0])
+    assert at(table, "bot", BLASTER_UP)
     moved = len(table.token_moves)
     click(session, table, Event.MANEUVER)
     assert len(table.token_moves) == moved, "an unchanged counter writes nothing"
@@ -168,10 +166,10 @@ def test_the_panel_choice_moves_the_token_for_the_human_seat(rig):
     bot_turn(session, table, [])
     assert session._paused() is not None
     click(session, table, Event.CHOICE, {"i": 2})              # Ultrabiotic Tonic
-    assert counter_value(game, 1, "gadget") == 2 and at(table, places("human")[1])
+    assert counter_value(game, 1, "gadget") == 2 and at(table, "human", TONIC_UP)
     game.fx.set_counter(1, "gadget", 1)                        # the next turn's choice: Hypnoray Blaster
     click(session, table, Event.MANEUVER)
-    assert at(table, places("human")[0])
+    assert at(table, "human", BLASTER_UP)
 
 
 # ---------------------------------------------------------------- resume
@@ -181,14 +179,14 @@ def test_resume_puts_the_token_back_where_the_saved_counter_says(rig):
     session, table, game, fake, cfg = rig
     game.fx.set_counter(0, "gadget", 2)
     session.resume()
-    assert at(table, places("bot")[1]) and len(table.token_moves) == 1
+    assert at(table, "bot", TONIC_UP) and len(table.token_moves) == 1
 
 
 @jill_rig("hellboy", "jill-trent")
-def test_resume_with_no_gadget_active_puts_the_token_beside_the_card(rig):
+def test_resume_with_no_gadget_active_turns_the_token(rig):
     session, table, game, fake, cfg = rig
     session.resume()
-    assert at(table, places("human")[0])
+    assert at(table, "human", NONE)
 
 
 # ---------------------------------------------------------------- a missing token
@@ -220,7 +218,7 @@ def test_a_failed_write_is_not_a_missing_token_and_is_retried_at_the_next_step(r
     assert session._gadget_shown is None and not table.token_moves
     monkeypatch.setattr(table, "do_move_token", real)
     click(session, table, Event.MANEUVER)
-    assert at(table, places("bot")[0]) and session._gadget_shown == 0
+    assert at(table, "bot", NONE) and session._gadget_shown == 0
     assert len([m for m in told if "no he podido mover la ficha" in m]) == 1
 
 
@@ -230,11 +228,20 @@ def token(rt, name="", kind="Custom_Token", extra=""):  # noqa: F811
     rt.execute(f"mkobj({{guid = '{TOKEN}', type = '{kind}', name = '{name}', pos = {{x = 9, y = 1, z = 9}}, rot = {{x = 0, y = 180, z = 180}}{extra}}})")
 
 
-def test_move_token_sets_position_and_rotation_instantly_and_face_up(rt):  # noqa: F811
+def test_move_token_sets_position_and_rotation_instantly(rt):  # noqa: F811
     token(rt)
     assert run(rt, lua.move_token(TOKEN, (5.28, 1.93, 15.0), (0.0, 90.0, 0.0))) == {"found": True, "moved": True}
     obj = rt.globals().getObjectFromGUID(TOKEN)
     assert (obj.pos.x, obj.pos.y, obj.pos.z) == (5.28, 1.93, 15.0) and (obj.rot.x, obj.rot.y, obj.rot.z) == (0, 90, 0)
+
+
+@pytest.mark.parametrize("kind", ["Tile", "Token"])
+def test_move_token_moves_the_types_tts_really_reports_for_this_token(rt, kind):  # noqa: F811
+    """Seen on the real table: the gadget token is a "Tile", not a "Custom_Token"."""
+    token(rt, kind=kind)
+    assert run(rt, lua.move_token(TOKEN, (5.28, 1.93, 15.0), (0.0, 90.0, 180.0))) == {"found": True, "moved": True}
+    obj = rt.globals().getObjectFromGUID(TOKEN)
+    assert (obj.pos.x, obj.rot.z) == (5.28, 180)
 
 
 def test_move_token_says_so_when_the_token_is_not_on_the_table_and_never_moves_a_card(rt):  # noqa: F811

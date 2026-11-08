@@ -2,8 +2,10 @@
 
 The engine's counter `gadget` (0 none, 1 Hypnoray Blaster, 2 Ultrabiotic Tonic) is the authority. The only physical gadget
 piece is the Tonic token (`tokens.gadget` in data/tts/jill-trent.json); the Blaster is not printed on the character card
-(read from the card image) and has no piece. The convention: the token lies ON Jill's character card while the Tonic is the
-active gadget, and BESIDE the card when the Blaster is active or no gadget is (`token_slots.gadget.<side>`: [beside, on card]).
+(read from the card image) and has no separate piece. The token is double-sided (Iván, 2026-11-08): the face up (rot Z 0) is the
+Ultrabiotic Tonic and the other face is the Hypnoray Blaster. It has ONE resting spot per side (`token_slots.gadget.<side>[0]`)
+and only its rotation tells the gadget: Tonic face up, Blaster flipped (rot Z 180), no gadget (Jill plays second, before her first
+turn) face up turned `NONE_TURN` degrees about Y.
 
 `track` runs wherever the session looks at its own state (every step, game start, resume, restart). It compares the counter with
 what it last put on the table and, when they differ, moves the token with `lua.move_token` (a plain write, messageID 3 only,
@@ -20,8 +22,8 @@ from .tts.hero_table import HeroTableError, load_hero_table
 from .tts.lua import ChatKind
 
 GADGET = PLACED_TOKEN        # name of the counter and of the token in the hero's data
-TONIC = 2                  # value of the counter while the Ultrabiotic Tonic is the active gadget
-BESIDE, ON_CARD = 0, 1     # index of each resting place in `token_slots.gadget.<side>`
+BLASTER, TONIC = 1, 2      # values of the counter while each gadget is the active one
+NONE_TURN = 90.0           # degrees about Y the token is turned, face up, while no gadget is active yet
 
 
 def owner(session) -> int | None:
@@ -36,15 +38,20 @@ def owner(session) -> int | None:
 
 
 def spot(session, player: int, active: int):
-    """(guid, position, rotation) where the token rests for the gadget `active`, or None if the data gives no places."""
+    """(guid, position, rotation) where the token rests for the gadget `active`, or None if the data gives no place."""
     table = load_hero_table(session.game.hero_def(player).slug)
     side = "bot" if player == session.bot else "human"
     slots = own_token_slots(side, table, GADGET)
-    if len(slots) <= ON_CARD:
+    if not slots:
         return None
-    slot = slots[ON_CARD if active == TONIC else BESIDE]
+    slot = slots[0]
     x, y, z = slot.pos
-    return table.tokens[GADGET], (x, y + SETTLE_LIFT, z), slot.rot
+    rx, ry, rz = slot.rot
+    if active == BLASTER:
+        rz = 180.0
+    elif active != TONIC:
+        ry = (ry + NONE_TURN) % 360
+    return table.tokens[GADGET], (x, y + SETTLE_LIFT, z), (rx, ry, rz)
 
 
 def track(session) -> None:

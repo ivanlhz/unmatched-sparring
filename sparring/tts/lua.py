@@ -3891,7 +3891,9 @@ return JSON.encode({{total = total, active = active, after = now, flipped = flip
 """
 
 
-TOKEN_TYPES = frozenset({"Custom_Token", "Custom_Tile", "Figurine", "Custom_Model", "Chip"})
+# "Tile" and "Token" are what TTS reports for a token imported from a save (Jill Trent's gadget token is a "Tile"); the plain Custom_*
+# names are what a custom-made one reports. A Deck, a Card, a bag and the bot's panel (name + GM notes) stay out either way.
+TOKEN_TYPES = frozenset({"Custom_Token", "Custom_Tile", "Tile", "Token", "Figurine", "Custom_Model", "Chip"})
 
 
 @_registered
