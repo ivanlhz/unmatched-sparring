@@ -608,7 +608,8 @@ def test_clear_markings_can_remove_the_panel_and_only_ours():
 def test_cleanup_only_destroys_what_carries_our_marker(remove_panel):
     script = lua.clear_markings(remove_panel=remove_panel)
     assert f'getGMNotes() == "{lua.MARKER}"' in script
-    assert script.count("destruct()") <= script.count("ours and")
+    assert f'getGMNotes() == "{lua.REVEAL_MARKER}"' in script, "the revealed-card copies carry their own marker"
+    assert script.count("destruct()") <= script.count("ours and") + script.count("elseif reveal then")
 
 
 def test_panel_and_labels_carry_the_marker_and_are_found_only_with_it():

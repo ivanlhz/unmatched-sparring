@@ -37,6 +37,7 @@ from typing import Callable
 
 from .cards import Card
 from .i18n import plural, t
+from . import session_reveal as reveal
 from .session_translators import Ctx, combat_card_to_deck, is_tail, translate
 from .tts import lua
 from .tts.lua import ChatKind
@@ -103,8 +104,9 @@ def project(session, before: dict | None, played: frozenset = frozenset(), cause
     an intent is honoured only for what the diff confirms, and a change no op reported is translated with an intent
     inferred from the diff."""
     intents = _drain_intents(session)             # also when there is nothing to project: no stale intent reaches the next step
+    shown = reveal.show(session, reveal.revealed_by(session, intents))     # first: the copies are laid before any reorder of a deck
     if before is None:
-        return lambda: None
+        return shown
     moved = set(session.fx_in_flight)             # what this button already moved (a look row's pick, E3)
     looked, session.fx_looked = session.fx_looked, False
     ctx = Ctx(cause or bot_cause(), before)
@@ -114,6 +116,7 @@ def project(session, before: dict | None, played: frozenset = frozenset(), cause
     checks += _human_cards(session, before, played, looked, ctx, intents)
 
     def fin() -> None:
+        shown()
         for check in checks:
             check()
     return fin
@@ -276,7 +279,7 @@ def _human_cards(session, before: dict, played: frozenset, looked: bool, ctx: Ct
     # placeholders around without moving anything on the table)
     knew = set(before["seen"]) | set(known.top_of_deck)
     blind = {i for it in intents if it["op"] == "deck_order" and it["player"] == human for i in it["seen"]}   # read in the deck, reordered blind: never from the hand
-    stale = set(before.get("top", ())) & set(h0["deck"])      # already known on top before the step (read blind earlier): not a hand card that went back
+    stale = set(before.get("top", ())) & set(h0["deck"])      # already known on top of the deck before the step (read blind earlier): not a hand card that went back
     hand_to_deck = [i for i in h1["deck"] if i in knew and i not in h0["discard"] and i not in blind and i not in stale]
     for intent in _groups(intents, "return_to_deck", human, "hand", hand_to_deck, keep_order=True):
         checks += translate(session, intent, ctx) or []

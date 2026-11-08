@@ -155,6 +155,7 @@ def _reveal_to_top(run, game, spec):
         table.make_known(game, owner, card)
         st.hand.remove(card)
         st.deck.insert(0, card)
+        table.intent(game, op="reveal_show", player=owner, cards=[card.card_id])
         table.intent(game, op="stack_top", player=owner, card=card.card_id)
     else:
         if not st.hand:
@@ -165,6 +166,7 @@ def _reveal_to_top(run, game, spec):
         card = {c.card_id: c for c in st.hand}[got[0]]
         st.hand.remove(card)
         st.deck.insert(0, card)
+        table.intent(game, op="reveal_show", player=owner, cards=[card.card_id])
         table.intent(game, op="return_to_deck", player=owner, zone="hand", cards=[card.card_id], position="top")
     game.players[1 - owner].known.set_top([card.card_id])
     run.bind("cards", name, [card.card_id])

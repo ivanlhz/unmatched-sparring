@@ -230,6 +230,7 @@ The bot creates a panel floating over the table. A status line at the top says w
 | TURN | **Continue** / **No boost** | Appear when your card allows a boost (for example Second Shot): put a card from your hand in your discard and press Continue, or No boost. |
 | TURN | **End action** | The step after every action and every combat: the bot syncs positions and discards, then continues or starts its turn. |
 | TURN | **Look at bot's hand** | For effects that let you see the bot's hand (see below). Does not cost an action. |
+| TURN | **Stop revealing** | Only while revealed cards lie large over the board (any card whose text says reveal); removes them. The game does not wait for it. |
 | LIFE | **-1**, **+1**, **Remove** (one row per fighter, both sides) | Adjust health for damage or healing that the engine does not see, or remove a fallen fighter. |
 | GAME | **Mulligan**, **Ready (setup)** | Only during set-up. |
 | GAME | **Restart game** | Press twice within 3 seconds. Returns every card to its deck, resets health, clears the saved game and starts over. |

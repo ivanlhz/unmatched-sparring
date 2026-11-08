@@ -69,6 +69,7 @@ def _shield_cancels(run, game, owner: int, target: int) -> bool:
     if not run.ask(game, "optional", target, [True, False], 1, 1, "reveal the shield", shield=shield.title)[0]:
         return False
     run.flags["look_cancelled"] = True
+    table.intent(game, op="reveal_show", player=target, cards=[shield.card_id])      # revealed: every player reads it (session_reveal)
     _remember_in_hand(game, target, shield)           # the looker has seen that card in that hand, and nothing else
     return True
 

@@ -98,11 +98,13 @@ def _insightful_deduction(run, game, spec):
     if not seen:
         return
     ids = [c.card_id for c in seen]
+    if not run.flags.get("revealed_top"):          # the three cards are laid on the table before the owner decides, once (the op reruns after each answer)
+        run.flags["revealed_top"] = True
+        show(game, owner, rival, seen)
     bottom = run.ask(game, "cards", owner, ids, 1, 1, "put one on the bottom", zone="deck", purpose="bottom", of=rival)[0]
     rest = [i for i in ids if i != bottom]
     top = rest if len(rest) < 2 else run.ask(game, "order", owner, rest, len(rest), len(rest), "order the rest",
                                               ordered=True, zone="deck", purpose="order", of=rival, position="top")
-    show(game, owner, rival, seen)
     by_id = {c.card_id: c for c in seen}
     st = game.players[rival]
     if not table.physical(game, rival):

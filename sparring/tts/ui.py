@@ -44,6 +44,7 @@ class Event(str, Enum):
     MANEUVER_BOOST = "maneuver_boost"   # "Boost": reads the boost card in the discard pile during the human's Maneuver
     LOOK = "look_hand"         # "Look at bot's hand": the bot's cards face up in a row (discard one, e.g. Confront)
     LOOK_PING = "look_ping"    # the human's ping (Tab) on a card of that row: the one that is discarded
+    STOP_REVEAL = "stop_reveal"  # "Stop revealing": the big copies of the revealed cards are destroyed (shown only while they lie there)
     CHOICE = "choice"          # btn_choice_<i>: option i (1..6) of the pending effect choice, in {"i": i}
     CLEAN = "clean_table"      # "Clean table": removes every hero and map (the pre-game gate, `sparring/table_reset.py`)
     PREPARE = "prepare_table"  # "Prepare": reads the map and the two heroes the player dropped and lays them out
@@ -66,7 +67,7 @@ FIXED_BUTTONS = {"btn_maneuver": "onManeuver", "btn_scheme": "onScheme", "btn_re
                  "btn_cancel": "onCancel", "btn_end": "onEndAction", "btn_undo": "onUndoGameOver",
                  "btn_value": "onValueSend", "btn_mulligan": "onMulligan", "btn_ready": "onReady",
                  "btn_restart": "onRestart", "btn_newgame": "onNewGame", "btn_boost": "onBoost", "btn_noboost": "onNoBoost", "btn_mboost": "onManeuverBoost",
-                 "btn_look": "onLook", **dict.fromkeys(CHOICE_BUTTONS, "onChoice")}
+                 "btn_look": "onLook", "btn_unreveal": "onStopReveal", **dict.fromkeys(CHOICE_BUTTONS, "onChoice")}
 GATE_BUTTONS = ("btn_clean", "btn_prep", "btn_start")     # born hidden; only the pre-game gate shows them (never part of a game's panel states)
 SETUP_ONLY = ("btn_mulligan", "btn_ready")
 GAME_ONLY = ("btn_restart",)
@@ -166,6 +167,7 @@ function onBoost() send({{event = "boost"}}) end
 function onNoBoost() send({{event = "no_boost"}}) end
 function onManeuverBoost() send({{event = "maneuver_boost"}}) end
 function onLook() send({{event = "look_hand"}}) end
+function onStopReveal() send({{event = "stop_reveal"}}) end
 function onClean() send({{event = "clean_table"}}) end
 function onPrepare() send({{event = "prepare_table"}}) end
 function onStart() send({{event = "start_game"}}) end
@@ -267,7 +269,8 @@ def panel_xml(target_ids: list[str], attacker_ids: tuple[str, ...] = DEFAULT_ATT
                    _button("btn_noboost", "onNoBoost", t("panel.no_boost")).replace("<Button ", '<Button active="false" '))
             + _row(_button("btn_end", "onEndAction", t("panel.end_action")),
                    _button("btn_mboost", "onManeuverBoost", t("panel.maneuver_boost")).replace("<Button ", '<Button active="false" '),
-                   _button("btn_look", "onLook", t("panel.look")).replace("<Button ", '<Button active="false" '))
+                   _button("btn_look", "onLook", t("panel.look")).replace("<Button ", '<Button active="false" '),
+                   _button("btn_unreveal", "onStopReveal", t("panel.stop_reveal"), 16).replace("<Button ", '<Button active="false" '))
             + _choice_row(CHOICE_BUTTONS[:3]) + _choice_row(CHOICE_BUTTONS[3:])
             + '</VerticalLayout>')
     hp_rows = "".join(

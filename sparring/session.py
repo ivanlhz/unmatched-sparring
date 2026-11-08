@@ -47,6 +47,7 @@ from . import session_pieces as piece_id
 from . import session_peek as peek
 from . import session_jill as jill_decks      # noqa: F401  (registers the translators of Jill Trent's deck reveals)
 from . import session_pile as pile
+from . import session_reveal as reveal
 from . import session_sleight as sleight
 from . import session_translators as translators
 from .session_choices import panel_text
@@ -173,6 +174,10 @@ class SessionConfig:
     card_zoom_scale: float = 4.0                                 # size factor of the copy
     card_zoom_spot: tuple[float, float, float] = (0.0, 12.0, 0.0)   # where it floats: above the board centre, outside every zone
     card_zoom_rot: tuple[float, float, float] | None = None      # (x, y, z) degrees; default flat, readable from the human's seat
+    reveal_display: bool = True                                  # revealed cards are laid large on the table until the human dismisses them (Ivan, 2026-11-08)
+    reveal_spot: tuple[float, float, float] = (0.0, 14.0, 0.0)   # centre of the row: above the zoom copy, over the board centre (estimate: calibrate live)
+    reveal_scale: float = 2.5                                    # size factor of each copy (the zoom's 4 is too wide for a row of three)
+    reveal_step: float = 6.2                                     # distance between neighbouring copies along z
     zone_spawns: dict[str, ZoneSpawn] = field(default_factory=dict)   # discard zone key -> transform to create / straighten it with
     remove_plan: tuple[tuple[str, str], ...] = ()   # (GUID, expected object name) of the loose objects destroyed at a fresh start
     remove_limits: tuple[float, float] = (26.0, 36.0)   # |x|, |z| of the central table rectangle they must lie in
@@ -381,6 +386,7 @@ class Session:
         self.dial_debt = False                              # a dial could not be written during the bot's turn
         self.over_shown = False                            # the game-over dialog went out
         self.zoom_ids: set[int] = set()                    # bot cards the next discard write shows as a big copy
+        self.reveal_shown = False                          # big copies of revealed cards lie on the table: "Stop revealing" shows (session_reveal)
         self.scheme_baseline: list[int] | None = None      # human's discard when pressing Scheme: waits for their card
         self.maneuver_baseline: list[int] | None = None    # their discard at Maneuver: a BOOST 0 card put there is warned
         self.maneuver_boosted: int | None = None           # the card this Maneuver was boosted with (once; its effects already ran)
@@ -552,6 +558,7 @@ class Session:
         """Resumes a game loaded from a save: the table rules (it is re-read) and it picks up where it left off."""
         self.snap = None
         self.messages = []
+        reveal.clear(self, orphans=True)          # copies a run that died left on the table: none is shown to a resumed game
         self._say_startup_notes()
         self._destiny_tried = False
         self._check_config()
@@ -1031,6 +1038,9 @@ class Session:
             return self._handle(event, payload)
 
     def _handle(self, event: Event, payload: dict) -> list[str]:
+        if event is Event.STOP_REVEAL:            # dismissing the copies touches no game state: valid in every state
+            reveal.stop(self)
+            return self._done()
         table = {Event.MANEUVER: self._maneuver, Event.ATTACKER: self._choose_attacker, Event.ATTACK: self._attack,
                  Event.SCHEME: self._scheme, Event.REVEAL: self._reveal, Event.END_ACTION: self._end_action,
                  Event.VALUE: self._value, Event.CANCEL: self._cancel, Event.HP: self._hp,
@@ -1450,6 +1460,7 @@ class Session:
         self._restart_at = None
         if self.look is not None:
             self._look_best_effort_cancel()
+        reveal.clear(self)
         fresh = self._fresh_game()
         self._reset_table(fresh)
         self._adopt_fresh(fresh)
@@ -1474,6 +1485,7 @@ class Session:
         self._new_game_at = None
         if self.look is not None:
             self._look_best_effort_cancel()
+        reveal.clear(self)
         if self.state_path is not None:
             try:
                 self.state_path.unlink(missing_ok=True)
@@ -4358,6 +4370,7 @@ class Session:
                                   in_setup)
         states["btn_restart"] = (True, not in_setup)
         states["btn_newgame"] = (True, self.can_regate)
+        states["btn_unreveal"] = (True, self.reveal_shown)          # hidden, never greyed out, when nothing is revealed
         return self._status_text(), {k: v for k, v in states.items() if k in set(self._panel_ids())}
 
     def new_game_armed(self) -> bool:

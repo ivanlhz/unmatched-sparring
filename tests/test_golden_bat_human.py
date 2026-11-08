@@ -88,3 +88,12 @@ def test_later_buttons_never_name_the_cards_the_bot_read(rig, events):
     session.ai.pick_ability_target = lambda g: None
     later = [str(m) for ev in events for m in click(session, table, ev)]
     assert not [(t, m) for m in later for t in titles if t in m]
+
+
+def test_a_look_shows_nothing_and_shows_no_button(rig):
+    """Ivan, 2026-11-08: Sight Beyond Sight only LOOKS at the human's deck (not a reveal): no copy, no Stop revealing button."""
+    session, table, game, fake, cfg = rig
+    play_sight_beyond_sight(session, table, game, cfg)
+    click(session, table, Event.REVEAL)
+    assert not [s for s in table.scripts if s.startswith("-- sparring:reveal_show")] and table.reveal_copies == []
+    assert session.panel_view()[1]["btn_unreveal"] == (True, False)

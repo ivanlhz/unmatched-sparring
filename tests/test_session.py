@@ -76,6 +76,7 @@ class Table:
         self.stray_near_deck: list[dict] = []       # loose Card objects near the deck (CardID, guid)
         self.discard_spots: dict[int, tuple[float, float, float]] = {}   # CardID -> spot asked for when discarding
         self.markings: list[str] = []
+        self.reveal_copies: list[int] = []          # CardIDs of the big revealed-card copies on show (session_reveal)
         self.boards = [{"guid": "ec6f27", "image": "https://steamusercontent-a.akamaihd.net/ugc/10620501219968268988/"
                                                    "1E5B373863CF97C6FF9E3478C687923A1C3E47AD/"}]   # the loose boards (B.P.R.D. HQ)
         self.dial_writes: list[tuple[str, int]] = []
@@ -307,7 +308,20 @@ class Table:
         return {"drawn": 4, "labels": 0, "panel": True}
 
     def do_clear_markings(self, s):
-        return {"removed": 0}
+        gone = len(self.reveal_copies) if '"sparring-reveal" and name == "SparringZoom" and true' in s else 0
+        if gone:
+            self.reveal_copies = []
+        return {"removed": gone}
+
+    def do_reveal_show(self, s):
+        """Like the real script: the copies of the cards asked for replace the ones on show (the originals are not touched)."""
+        ids = [int(i) for row in re.findall(r"ids = \{([\d, ]*)\}", s) for i in row.split(",") if i.strip()]
+        self.reveal_copies = ids
+        return {"shown": len(ids), "missing": []}
+
+    def do_reveal_clear(self, s):
+        gone, self.reveal_copies = len(self.reveal_copies), []
+        return {"removed": gone}
 
     def _tick(self):
         self._reads += 1

@@ -736,6 +736,9 @@ def test_read_only_allowlist_is_exactly_the_pure_read_builders(bprd):
         "peek_deck_top": lambda: lua.peek_deck_top("abc", identity=TEST_IDENT),
         "deck_top_to_bottom": lambda: lua.deck_top_to_bottom("abc", 1, identity=TEST_IDENT),
         "deck_reorder": lambda: lua.deck_reorder("abc", [1, 2], [2, 1], identity=TEST_IDENT),
+        "reveal_show": lambda: lua.reveal_show([lua.RevealGroup((1,), lua.BOT_CARD_IDS, TEST_IDENT)],
+                                               lua.RevealSpec((0.0, 14.0, 0.0), (0.0, 270.0, 0.0), 2.5, 6.2), ("Red",)),
+        "reveal_clear": lambda: lua.reveal_clear(),
         "card_home": lambda: lua.card_home("abc", (0.0, 0.0, 0.0), (0.0, 0.0, 180.0), identity=TEST_IDENT),
     }
     registered = {n for n, f in inspect.getmembers(lua, inspect.isfunction) if hasattr(f, "__wrapped__")}

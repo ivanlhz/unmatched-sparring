@@ -518,3 +518,14 @@ def test_a_card_dealt_by_the_boost_and_still_flying_is_not_read_as_discarded(rig
     st = game.players[1]
     assert all(c.card_id != vanishing for c in st.discard), [c.title for c in st.discard]
     assert len(st.hand) == table.human_count
+
+
+@with_rig("hellboy", "houdini", "Confront Any Demon or God", TRAINING)
+def test_revealing_the_magician_lays_it_large_for_both_players(rig):
+    """Ivan, 2026-11-08: the human reveals A Magician Never Reveals His Secrets to cancel a look: every player reads the card."""
+    session, table, game, fake, cfg = rig
+    bot_confronts_smoke(session, table, game, cfg)
+    assert table.reveal_copies == []
+    press(session, table, True)
+    magician = card_ids(game, 1, "A Magician Never Reveals His Secrets")[0]
+    assert table.reveal_copies == [magician] and session.panel_view()[1]["btn_unreveal"] == (True, True)

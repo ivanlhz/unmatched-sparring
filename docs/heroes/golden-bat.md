@@ -64,3 +64,6 @@ None.
 
 ## Tests
 `tests/test_hero_golden_bat_data.py` (data, card identity, detection), `tests/test_golden_bat_effects.py` (the ability and every card on the interpreter), `tests/test_golden_bat_human.py` (the bot's Sight Beyond Sight at the FakeTTS table: the blind reorder, no card named, and the abort when the top changed), `tests/test_deck_reorder_lua.py` (`lua.deck_reorder` on the Lua stub: decks of 1, 2, 3 and more cards, mismatch, face down only), `tests/test_golden_bat_matrix.py` (full games against the fifteen other heroes in both seats, passive and attacking human, headless with the heuristic and the search AI).
+
+## Not a reveal (Ivan, 2026-11-08)
+Sight Beyond Sight only LOOKS at the human's top cards: nothing is shown, no Stop revealing button, and the bot reorders blind (`lua.deck_reorder`). The global reveal rule is in docs/heroes/jill-trent.md.

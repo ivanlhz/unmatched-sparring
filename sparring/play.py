@@ -267,6 +267,10 @@ class PlayConfig:
                 card_zoom_scale=float(r.get("card_zoom_scale", SessionConfig.card_zoom_scale)),
                 card_zoom_spot=tuple(float(v) for v in r.get("card_zoom_spot", SessionConfig.card_zoom_spot)),
                 card_zoom_rot=tuple(float(v) for v in r["card_zoom_rot"]) if r.get("card_zoom_rot") else None,
+                reveal_display=bool(r.get("reveal_display", True)),
+                reveal_spot=tuple(float(v) for v in r.get("reveal_spot", SessionConfig.reveal_spot)),
+                reveal_scale=float(r.get("reveal_scale", SessionConfig.reveal_scale)),
+                reveal_step=float(r.get("reveal_step", SessionConfig.reveal_step)),
                 zone_spawns=table_prep.zone_spawns(r), remove_plan=table_prep.removal_plan(r), remove_limits=table_prep.removal_limits(r))
             if not (math.isfinite(cfg.bot_pause) and 0 <= cfg.bot_pause <= 30):
                 raise ValueError(t("cfg.range.pause", key="bot_pause", max=30))
@@ -280,6 +284,8 @@ class PlayConfig:
                 raise ValueError("card_zoom_spot: (x, y, z); card_zoom_rot: (x, y, z)")
             if not (0 < cfg.card_zoom_seconds <= lua.MAX_ZOOM_SECONDS and 0 < cfg.card_zoom_scale <= lua.MAX_ZOOM_SCALE):
                 raise ValueError(t("cfg.range.zoom", seconds=lua.MAX_ZOOM_SECONDS, scale=lua.MAX_ZOOM_SCALE))
+            if len(cfg.reveal_spot) != 3 or not (0 < cfg.reveal_scale <= lua.MAX_REVEAL_SCALE and 0 < cfg.reveal_step <= 20):
+                raise ValueError(f"reveal_spot: (x, y, z); reveal_scale between 0 and {lua.MAX_REVEAL_SCALE:g}; reveal_step between 0 and 20")
             if cfg.token_spot is not None and len(cfg.token_spot) != 3:
                 raise ValueError("token_spot: (x, y, z)")
             if cfg.bot_ongoing_spot is not None and len(cfg.bot_ongoing_spot) != 3:

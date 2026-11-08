@@ -466,6 +466,150 @@ end
 """
 
 
+REVEAL_MARKER = "sparring-reveal"   # GM notes of a revealed-card copy: the zoom's own cleaning (MARKER) never touches it
+REVEAL_CARD_BASE = 100000           # CardID of a reveal copy: 100000 + slot * 100 + the card's index; every copy has a deck key of its own
+MAX_REVEAL_CARDS = 8
+MAX_REVEAL_SCALE = 6.0
+
+
+@dataclass(frozen=True)
+class RevealSpec:
+    """Where and how big the revealed cards are laid (Ivan, 2026-11-08: a revealed card is shown to every player until the
+    human dismisses it). `spot` (x, y, z) is the centre of the row, `rot` the rotation of every copy, `scale` the size factor
+    and `step` the distance between neighbours along z."""
+    spot: tuple[float, float, float]
+    rot: tuple[float, float, float]
+    scale: float
+    step: float
+
+
+@dataclass(frozen=True)
+class RevealGroup:
+    """The cards `ids` (CardIDs) of one side, found by `id_range` and the image of `identity`, wherever they lie (deck, hand, pile)."""
+    ids: tuple[int, ...]
+    id_range: tuple[int, int]
+    identity: tuple
+
+
+def _reveal_destroy_lua() -> str:
+    return f"""for _, old in ipairs(getObjects()) do
+  if old.getName() == {lua_str(ZOOM_NAME)} and old.getGMNotes() == {lua_str(REVEAL_MARKER)} then old.destruct() end
+end
+"""
+
+
+@_registered
+def reveal_show(groups: list[RevealGroup], spec: RevealSpec, seats: tuple[str, ...] = ()) -> str:
+    """Lays a LARGE, face-up, locked, non-interactable COPY of each revealed card side by side (the originals never move and no
+    deck is touched: the cards are looked up by CardID in the table's decks, loose cards and the hands of `seats`, and only their
+    data is copied). The copies stay until `reveal_clear`; a new `reveal_show` replaces them. A copy is tagged like the zoom's
+    (name and tag `SparringZoom`, so every table read that skips the zoom skips it) with GM notes of its own, a CardID of
+    100000 or more and a deck key per slot, so no read by range, image or name takes it for a card of the table. Returns
+    `{shown, missing}` (`missing`: the CardIDs not found)."""
+    if not isinstance(spec, RevealSpec) or len(spec.spot) != 3 or len(spec.rot) != 3:
+        raise TypeError("RevealSpec with a spot (x, y, z) and a rotation (x, y, z) expected")
+    if not 0 < float(spec.scale) <= MAX_REVEAL_SCALE or not 0 < float(spec.step) <= 20:
+        raise ValueError(f"reveal scale between 0 and {MAX_REVEAL_SCALE:g} and step between 0 and 20")
+    if not isinstance(groups, (list, tuple)) or not 1 <= len(groups) <= 2 or not all(isinstance(g, RevealGroup) for g in groups):
+        raise TypeError("one or two RevealGroup expected")
+    total = sum(len(g.ids) for g in groups)
+    if not 1 <= total <= MAX_REVEAL_CARDS:
+        raise ValueError(f"1 to {MAX_REVEAL_CARDS} revealed cards expected")
+    rows = []
+    for g in groups:
+        if not all(isinstance(i, int) and not isinstance(i, bool) and i >= 0 for i in g.ids):
+            raise TypeError("CardIDs expected")
+        lo, hi = _range(g.id_range)
+        rows.append(f"{{test = sideTest({_identity(g.identity)}, {lo}, {hi}), ids = {{{', '.join(_i(i) for i in g.ids)}}}}}")
+    if not isinstance(seats, (tuple, list)) or not all(isinstance(c, str) for c in seats):
+        raise TypeError("seats: colors expected")
+    hands = ", ".join(_color(c) for c in seats)
+    x, y, z = (_f(v) for v in spec.spot)
+    rx, ry, rz = (_f(v) for v in spec.rot)
+    k, step = _f(spec.scale), _f(spec.step)
+    return f"""-- sparring:reveal_show
+{_IMAGE_LUA}local function sideTest(IDENT, lo, hi)
+  return function(entry, fallback)
+    local id = entry.CardID
+    if type(id) ~= "number" or id < lo or id > hi then return false end
+    local images = imagesOf(entry, fallback)
+    if #images == 0 then return false end
+    for _, info in ipairs(images) do
+      if IDENT[tostring(info.FaceURL) .. "|" .. tostring(info.BackURL)] ~= true then return false end
+    end
+    return true
+  end
+end
+local groups = {{{", ".join(rows)}}}
+local pool, seen = {{}}, {{}}
+local function consider(o)
+  local g = o.getGUID()
+  if seen[g] or o.getName() == {lua_str(ZOOM_NAME)} then return end
+  seen[g] = true
+  if o.type == "Card" then
+    local d = o.getData()
+    table.insert(pool, {{entry = d, fallback = d.CustomDeck}})
+  elseif o.type == "Deck" then
+    local d = o.getData()
+    for _, c in ipairs(d.ContainedObjects or {{}}) do table.insert(pool, {{entry = c, fallback = d.CustomDeck}}) end
+  end
+end
+for _, o in ipairs(getObjects()) do consider(o) end
+for _, seat in ipairs({{{hands}}}) do
+  for _, o in ipairs(Player[seat].getHandObjects(1)) do consider(o) end
+end
+local found, missing = {{}}, {{}}
+for _, grp in ipairs(groups) do
+  for _, id in ipairs(grp.ids) do
+    local hit = nil
+    for _, p in ipairs(pool) do
+      if not p.used and p.entry.CardID == id and grp.test(p.entry, p.fallback) then hit = p break end
+    end
+    if hit ~= nil then hit.used = true table.insert(found, hit) else table.insert(missing, id) end
+  end
+end
+{_reveal_destroy_lua()}local shown = 0
+for i, p in ipairs(found) do
+  pcall(function()
+    local id = p.entry.CardID
+    local sheet = imagesOf(p.entry, p.fallback)[1]
+    local data = {{}}
+    for key, v in pairs(p.entry) do data[key] = v end
+    data.GUID = nil
+    data.CardID = {_i(REVEAL_CARD_BASE)} + i * 100 + id % 100
+    data.CustomDeck = {{[tostring({_i(REVEAL_CARD_BASE // 100)} + i)] = sheet}}
+    data.Nickname = {lua_str(ZOOM_NAME)}
+    data.GMNotes = {lua_str(REVEAL_MARKER)}
+    data.Tags = {{{lua_str(ZOOM_NAME)}}}
+    data.Locked = true
+    data.Hands = false
+    local copy = spawnObjectData({{data = data, position = Vector({x}, {y}, {z} + (i - (#found + 1) / 2) * {step}), rotation = Vector({rx}, {ry}, {rz})}})
+    copy.setScale(Vector({k}, {k}, {k}))
+    copy.setLock(true)
+    copy.interactable = false
+    shown = shown + 1
+  end)
+end
+return JSON.encode({{shown = shown, missing = missing}})
+"""
+
+
+@_registered
+def reveal_clear() -> str:
+    """Destroys every revealed-card copy `reveal_show` laid (only objects with the zoom's name AND the reveal GM notes). The
+    originals are not touched. Returns `{removed}`."""
+    return f"""-- sparring:reveal_clear
+local removed = 0
+for _, old in ipairs(getObjects()) do
+  if old.getName() == {lua_str(ZOOM_NAME)} and old.getGMNotes() == {lua_str(REVEAL_MARKER)} then
+    old.destruct()
+    removed = removed + 1
+  end
+end
+return JSON.encode({{removed = removed}})
+"""
+
+
 DECK_RADIUS = 2.9      # search radius around a deck spot; below the 3.0 `deck_clear` that keeps discard slots away from the deck
 
 
@@ -2207,9 +2351,13 @@ local removed = 0
 for _, o in ipairs(getObjects()) do
   local name = o.getName()
   local ours = o.getGMNotes() == {lua_str(MARKER)}
+  local reveal = o.getGMNotes() == {lua_str(REVEAL_MARKER)} and name == {lua_str(ZOOM_NAME)} and {"true" if remove_panel else "false"}
   if ours and o.getName() == {lua_str(PANEL_NAME)} then
     o.setVectorLines({{}})
-{drop_panel}  elseif ours and (string.sub(name, 1, {len(MARK_PREFIX)}) == {lua_str(MARK_PREFIX)} or (name == {lua_str(ZOOM_NAME)} and {"true" if remove_panel else "false"})) then
+{drop_panel}  elseif reveal then
+    o.destruct()
+    removed = removed + 1
+  elseif ours and (string.sub(name, 1, {len(MARK_PREFIX)}) == {lua_str(MARK_PREFIX)} or (name == {lua_str(ZOOM_NAME)} and {"true" if remove_panel else "false"})) then
     o.destruct()
     removed = removed + 1
   end

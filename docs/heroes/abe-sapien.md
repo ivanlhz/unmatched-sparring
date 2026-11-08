@@ -53,3 +53,6 @@ Data verified on 28/10/2026 against the tournament save (`saves\Unmatched Offici
 - 6. Agent tokens in TTS: they are called Victor, Carla and Kate; the engine numbers them agent1..agent3. The fid -> GUID mapping is needed in the game configuration (step 10 of the plan), like the Harpies.
 - Every Possible Angle: how the engine records the bot's card that returns on top of its deck (it becomes known to the human: it does not affect the bot's information).
 - Ivan (3/11): human Abe's Intuition tokens are turned BY THE BOT on the table (`lua.set_intuition_tokens`, found by nickname "Intuition Token"/GUID 5a17e9; faces from `token_faces.intuition` in data/tts/abe-sapien.json, inferred, verify_live): activate on combat damage, spend when attacked. The spend happens when the bot's attack is placed (`session_hidden.declare_bot_attack`): token spent, card drawn and dealt before the defense. If the tokens cannot be found or turned the chat asks the human to do it; a table that disagrees with the engine is warned and the engine stays the authority.
+
+## Not wired to the reveal display (Ivan, 2026-11-08)
+UNCANNY INTUITION says the attack "is played face up" (the DSL op is named `reveal` but the text does not say reveal): the attack stays on its combat spot and the existing card zoom shows the bot's. The global reveal rule is in docs/heroes/jill-trent.md.

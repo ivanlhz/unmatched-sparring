@@ -700,3 +700,19 @@ def test_a_trigger_parked_after_a_combat_on_another_event_keeps_the_closing_line
     msgs = attack(session, table, game, "Feint")
     assert session._paused() is not None and session._paused()[2].ctx.moment == "after_attack"
     assert said(msgs, "Resuelve los efectos de despues del combate")
+
+
+@with_rig()
+def test_no_really_lays_the_revealed_card_large_until_the_human_dismisses_it(rig, monkeypatch):
+    """Ivan, 2026-11-08: a revealed card is shown to every player; the card the human lays on their pile is revealed too."""
+    session, table, game, fake, cfg = rig
+    game.fighters["strange"].hp = 8
+    human_hand(table, game, "No, Really, I'm a Doctor", "Bolts of Balthakk", "Feint")
+    human_scheme(session, table, game, "No, Really, I'm a Doctor")
+    bolts = sid(game, "Bolts of Balthakk")
+    table.human_discard.append(bolts)
+    table.human_count -= 1
+    done(session, table)
+    assert table.reveal_copies == [bolts] and session.panel_view()[1]["btn_unreveal"] == (True, True)
+    click(session, table, Event.STOP_REVEAL)
+    assert table.reveal_copies == [] and session.panel_view()[1]["btn_unreveal"] == (True, False)
