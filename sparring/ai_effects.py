@@ -68,6 +68,7 @@ DEFAULT_REACH = 2                                       # steps a place/swap can
 HP_OPS = ("damage", "heal", "set_hp")
 RELOCATE_OPS = ("move", "place", "swap")
 CANCEL_MAX_KEEP = 1.6                                   # the card given up to cancel the rival's effects is worth this or less
+RETURN_MARGIN = 0.3                                       # a card taken back to the hand must be worth this much more than the one given up for it (Five Against Thousands)
 BONUS_MARGIN = 0.2                                      # a card is given up for a bonus only when it clearly pays
 BOUNCE_BONUS = 0.5                                      # a returning card at the bottom also burns 1 when it comes back
 PACT_MARGIN = 0.3                                       # DARK PACT is paid when it returns this much more than the hit point costs
@@ -232,7 +233,7 @@ class EffectAI:
         best placed, a rival piece where it hurts the bot least (the same chooser picks the space next)."""
         ai, model = self.medusa(me), Model(game, me)
         steps = int(extra.get("amount") or DEFAULT_REACH) if op == "move" else DEFAULT_REACH
-        through = bool(extra.get("through", False))
+        through = extra.get("through", False)         # False | True | "sidekicks"
 
         def gain(f) -> float:
             if not f.alive or f.pos is None:
@@ -524,6 +525,8 @@ class EffectAI:
             return [self._card_from_hand_pays(game, req)]
         if "draws" in req.extra:
             return [self._free_draw(game, req)]
+        if "returns_card" in req.extra:     # Five Against Thousands: a card given up to take the one just played back
+            return [self._returns_card_pays(game, req)]
         if "cost_cards" in req.extra:      # a price in cards: the interpreter sends the combat context, one policy
             return [worth_paying(req)]
         if "to" in req.extra:               # a redirect passive (FATEFUL BARGAINS): whoever loses the bot less takes it
@@ -643,6 +646,17 @@ class EffectAI:
         if "gains_action" in req.extra:
             return any(c.can_attack or c.is_scheme for c in rest)
         return req.extra["cancels"] > 0 and keep_value(junk, hand) <= CANCEL_MAX_KEEP
+
+    @staticmethod
+    def _returns_card_pays(game: Game, req: ChoiceRequest) -> bool:
+        """The card just played comes back to the hand for one card of the hand: worth it while the card that comes back is
+        worth more to keep than the least useful card of the hand that pays for it."""
+        hand = game.players[req.player].hand
+        card = game.cards_by_id(req.player).get(req.extra["returns_card"])
+        if not hand or card is None:
+            return False
+        junk = min(hand, key=lambda c: (keep_value(c, hand), c.card_id))
+        return keep_value(card, [*hand, card]) > keep_value(junk, hand) + RETURN_MARGIN
 
     def _discard_or_take(self, game: Game, req: ChoiceRequest) -> bool:
         """Remove A Painful Memory's "discard it or take N": the named cards are the bot's own and known, so the

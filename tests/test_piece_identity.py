@@ -45,13 +45,14 @@ def swap_reassignment(session, table) -> str:
 
 def test_every_guid_in_the_hero_data_belongs_to_one_hero_except_the_known_collisions():
     """Pieces, dials, decks, tokens and counter dials of all the heroes. The second collision is a dial: the save gives Lobster
-    Johnson's life dial (in Hellboy's bag) and The Jackalope's (in Bigfoot's) the GUID 18c384."""
+    Johnson's life dial (in Hellboy's bag) and The Jackalope's (in Bigfoot's) the GUID 18c384. The third is a dial too: Tomoe Gozen's
+    life dial has Donatello's GUID ca8e35 (the save reuses it for Chupacabra's and Little Red's as well; each dial is named after its hero)."""
     owners = defaultdict(set)
     for path in TTS_DIR.glob("*.json"):
         for g in load_hero_table(path.stem).all_guids():
             owners[g].add(path.stem)
     shared = {g: sorted(s) for g, s in owners.items() if len(s) > 1}
-    assert shared == {SHARED: ["abe-sapien", "donatello"], "18c384": ["bigfoot", "hellboy"]}
+    assert shared == {SHARED: ["abe-sapien", "donatello"], "18c384": ["bigfoot", "hellboy"], "ca8e35": ["donatello", "tomoe-gozen"]}
 
 
 def test_plain_name_strips_tts_colour_tags():

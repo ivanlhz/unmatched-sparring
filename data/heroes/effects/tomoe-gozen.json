@@ -1,0 +1,199 @@
+{
+ "schema": 1,
+ "hero": "tomoe-gozen",
+ "notes": [
+  "Texts read from sheet 176 of the tournament savegame (card images) on 2026-11-08; the character card is 354 on sheet 3 (10x7, index 54). Sheet 176 is also Medusa's, the four turtles', Doctor Strange's, Bigfoot's, Daredevil's, Luke Cage's and Bullseye's DeckID: the CardIDs repeat and only the deck image tells the decks apart (docs/card-identity.md).",
+  "Five additive engine pieces came with her (docs/effects-dsl.md, section 32): the event `left_zone` (ATTACK OF OPPORTUNITY), the card flags `adjacent_only` and `face_up` (Witness My Last Battle), the op `cap_combat_damage` (Deeds Of Valor), the `move` parameter `through_sidekicks` (Lord Kiso's Final Stand) and `put_in_hand` of a card played in the running combat (Five Against Thousands). Everything else uses ops that already existed; Confront Any Demon Or God and Skirmish are word for word Hellboy's and Bigfoot's cards.",
+  "Ranged hero with no reach parameter: she attacks as any ranged fighter (adjacent, or sharing a zone)."
+ ],
+ "ability": {
+  "text": "ATTACK OF OPPORTUNITY\nWhen an opposing hero leaves Tomoe Gozen's zone, deal 1 damage to that hero.",
+  "triggers": [
+   {
+    "id": "attack_of_opportunity",
+    "when": {"event": "left_zone", "fighter": {"side": "enemy", "kind": "hero"}},
+    "ops": [{"op": "damage", "target": "$fighter", "amount": 1}]
+   }
+  ],
+  "passives": [],
+  "notes": "The event `left_zone` fires for a fighter that stood in a zone of Tomoe Gozen's space and, after being moved, shares none with it (a Maneuver, a move or a placement by any effect, hers or the rival's, or a hand move read from the table). The damage is effect damage, 1 per departure, to the hero that left; Tomoe Gozen's own movement never fires it (the rival stays where it was and 'the opposing hero leaves' is not what happened)."
+ },
+ "cards": [
+  {
+   "title": "Witness My Last Battle",
+   "copies": 2,
+   "text": "This attack can only target a fighter adjacent to Tomoe Gozen. Play it face up. AFTER COMBAT: End the turn.",
+   "adjacent_only": true,
+   "face_up": true,
+   "effects": {
+    "immediately": [], "during": [], "scheme": [], "boost": [],
+    "after": [{"op": "end_turn"}]
+   },
+   "notes": "Attack 7 / boost 4. `adjacent_only`: the engine refuses the card against a target that is not adjacent (printed adjacency, as the 'adjacent' of every other card), for the human's attack and for the bot's choice. `face_up`: the attack lies face up, so the defender's choice may know it (public information, like Perfect Shot played face up). The AFTER ends the current turn win or lose (Luke Cage's Power Man precedent for `end_turn` in a combat)."
+  },
+  {
+   "title": "Piercing Shot",
+   "copies": 3,
+   "text": "AFTER COMBAT: Draw 2 cards.",
+   "effects": {
+    "immediately": [], "during": [], "scheme": [], "boost": [],
+    "after": [{"op": "draw", "player": "owner", "amount": 2}]
+   },
+   "notes": "Attack 2 / boost 1. Win or lose."
+  },
+  {
+   "title": "A Warrior's Way",
+   "copies": 2,
+   "text": "AFTER COMBAT: Move the opposing fighter up to 3 spaces. Then, if they are a hero, place Tomoe Gozen in a space adjacent to them.",
+   "effects": {
+    "immediately": [], "during": [], "scheme": [], "boost": [],
+    "after": [
+     {"op": "move", "target": "opposing", "amount": 3, "up_to": true, "chooser": "owner"},
+     {"op": "if", "condition": {"test": "exists", "fighters": {"role": "opposing", "kind": "hero"}},
+      "then": [{"op": "place", "target": "hero", "where": {"adjacent_to": "opposing"}, "chooser": "owner"}]}
+    ]
+   },
+   "notes": "Attack 2 / boost 1. Tomoe Gozen's owner chooses where the opposing fighter goes (up to 3, 0 included; no passing through other opposing fighters: the card does not say it). A move that takes a hero out of her zone fires ATTACK OF OPPORTUNITY. If the opposing fighter is a hero that was not defeated she is placed on a free space adjacent to it (she may stay if she already is: the space is not free but she is the one standing there; with none free nothing happens). Nothing happens after a defeat."
+  },
+  {
+   "title": "Five Against Thousands",
+   "copies": 2,
+   "text": "AFTER COMBAT: If Tomoe Gozen is adjacent to the opposing fighter, you may discard a card to put this card back into your hand.",
+   "effects": {
+    "immediately": [], "during": [], "scheme": [], "boost": [],
+    "after": [
+     {"op": "if", "condition": {"test": "exists", "fighters": {"role": "opposing", "where": {"adjacent_to": "this"}}},
+      "then": [{"op": "optional",
+       "cost": [{"op": "discard", "cards": {"zone": "hand", "player": "owner", "amount": 1, "chooser": "owner"}}],
+       "ops": [{"op": "put_in_hand", "cards": "this"}]}]}
+    ]
+   },
+   "notes": "Attack 4 / boost 1. 'Adjacent to the opposing fighter' is read at the AFTER (a defeated opposing fighter is not adjacent). The price is any card of the hand (it cannot be paid with an empty hand); the card played in the combat leaves the combat spot for the hand instead of going to the discard pile (`put_in_hand` of `this`, section 32). The rival sees the card back in the hand."
+  },
+  {
+   "title": "Fearsome Strength",
+   "copies": 2,
+   "text": "IMMEDIATELY: Tomoe Gozen may swap spaces with an adjacent fighter. AFTER COMBAT: Deal 1 damage to an adjacent fighter.",
+   "effects": {
+    "during": [], "scheme": [], "boost": [],
+    "immediately": [
+     {"op": "optional", "chooser": "owner", "ops": [
+      {"op": "swap", "target": "hero", "with": {"side": "any", "where": {"adjacent_to": "this"}, "other": true}, "chooser": "owner"}
+     ]}
+    ],
+    "after": [
+     {"op": "damage", "target": {"side": "any", "where": {"adjacent_to": "this"}, "other": true}, "amount": 1, "chooser": "owner"}
+    ]
+   },
+   "notes": "Attack 3 / boost 1. The swap is optional and with any adjacent fighter (the opposing one, or a sidekick of the rival; she has none of her own). The damage at the AFTER is effect damage to an adjacent fighter she chooses, measured where she stands after the swap; with none adjacent nothing happens. The swap moves the rival hero: it never leaves her zone (it takes her space), so ATTACK OF OPPORTUNITY does not fire."
+  },
+  {
+   "title": "A Worthy Opponent",
+   "copies": 3,
+   "text": "DURING COMBAT: If the opposing fighter is a hero, this card's value is 5 instead.",
+   "effects": {
+    "immediately": [], "after": [], "scheme": [], "boost": [],
+    "during": [
+     {"op": "if", "condition": {"test": "exists", "fighters": {"role": "opposing", "kind": "hero"}},
+      "then": [{"op": "set_value", "card": "this", "amount": 5}]}
+    ]
+   },
+   "notes": "Versatile 3 / boost 3. The printed value becomes 5 against a hero, attacking or defending; bonuses stay."
+  },
+  {
+   "title": "Confront Any Demon or God",
+   "copies": 2,
+   "text": "AFTER COMBAT: Draw 1 card. Then, if you lost the combat, look at your opponent's hand and choose 1 card for them to discard.",
+   "effects": {
+    "immediately": [], "during": [], "scheme": [], "boost": [],
+    "after": [
+     {"op": "draw", "player": "owner", "amount": 1},
+     {"op": "if", "condition": {"test": "combat_result", "result": "lost"}, "then": [
+      {"op": "look_hand", "player": "opponent"},
+      {"op": "discard", "cards": {"zone": "hand", "player": "opponent", "amount": 1, "chooser": "owner"}}
+     ]}
+    ]
+   },
+   "notes": "Versatile 3 / boost 3. Word for word Hellboy's card: the same ops and the same rule for the hidden hand (the bot reads the human's hand only here)."
+  },
+  {
+   "title": "Skirmish",
+   "copies": 3,
+   "text": "AFTER COMBAT: If you won the combat, choose one of the fighters in the combat and move them up to 2 spaces.",
+   "effects": {
+    "immediately": [], "during": [], "scheme": [], "boost": [],
+    "after": [
+     {"op": "if", "condition": {"test": "combat_result", "result": "won"}, "then": [
+      {"op": "move", "target": "combatant", "amount": 2, "up_to": true, "chooser": "owner"}
+     ]}
+    ]
+   },
+   "notes": "Versatile 4 / boost 1. Word for word Bigfoot's card. The owner chooses ONE of the two fighters of the combat (the rival's too) and where it goes, up to 2 spaces; a rival hero moved out of her zone takes the 1 damage of ATTACK OF OPPORTUNITY."
+  },
+  {
+   "title": "Flash of Steel",
+   "copies": 3,
+   "text": "IMMEDIATELY: If the opposing fighter is a hero, cancel all effects on your opponent's card. AFTER COMBAT: If the opposing fighter is adjacent, deal 1 damage to them.",
+   "effects": {
+    "during": [], "scheme": [], "boost": [],
+    "immediately": [
+     {"op": "if", "condition": {"test": "exists", "fighters": {"role": "opposing", "kind": "hero"}},
+      "then": [{"op": "cancel_effects", "card": "opponent_card"}]}
+    ],
+    "after": [
+     {"op": "if", "condition": {"test": "exists", "fighters": {"role": "opposing", "where": {"adjacent_to": "this"}}},
+      "then": [{"op": "damage", "target": "opposing", "amount": 1}]}
+    ]
+   },
+   "notes": "Versatile 2 / boost 1. Both parts only against a hero (the cancel) or an adjacent fighter (the damage, effect damage, read at the AFTER: a defeated opposing fighter takes nothing)."
+  },
+  {
+   "title": "Refuse to Retreat",
+   "copies": 2,
+   "text": "IMMEDIATELY: Tomoe Gozen cannot leave her space for the rest of the turn. AFTER COMBAT: If the opposing fighter is adjacent, your opponent discards 1 card.",
+   "effects": {
+    "during": [], "scheme": [], "boost": [],
+    "immediately": [
+     {"op": "status", "name": "cannot_leave_space", "target": "this", "until": {"event": "end_of_turn"}}
+    ],
+    "after": [
+     {"op": "if", "condition": {"test": "exists", "fighters": {"role": "opposing", "where": {"adjacent_to": "this"}}},
+      "then": [{"op": "discard", "cards": {"zone": "hand", "player": "opponent", "amount": 1, "chooser": "opponent"}}]}
+    ]
+   },
+   "notes": "Defense 3 / boost 2. 'The rest of the turn' is the CURRENT turn, whoever's it is (a defense played on the rival's turn pins her until that turn ends): `cannot_leave_space` until `end_of_turn`. It also stops the rival's effects from moving her. The rival chooses the card they discard (Clutching Claws' rule); a cancelled IMMEDIATELY does not pin her."
+  },
+  {
+   "title": "Deeds of Valor",
+   "copies": 3,
+   "text": "DURING COMBAT: Tomoe Gozen cannot take more than 2 combat damage this combat.",
+   "effects": {
+    "immediately": [], "after": [], "scheme": [], "boost": [],
+    "during": [{"op": "cap_combat_damage", "target": "this", "amount": 2}]
+   },
+   "notes": "Defense 2 / boost 2. Registers a cap for THIS combat (`cap_combat_damage`, section 32): the combat damage that lands on her is at most 2. Combat damage only: effect damage and exhaustion are not capped, and a cancelled card registers nothing."
+  },
+  {
+   "title": "Lord Kiso's Final Stand",
+   "copies": 3,
+   "text": "Move Tomoe Gozen up to 3 spaces. She may move through sidekicks. Then, choose one: - Tomoe Gozen recovers 2 health - gain 1 action",
+   "effects": {
+    "immediately": [], "during": [], "after": [], "boost": [],
+    "scheme": [
+     {"op": "move", "target": "hero", "amount": 3, "up_to": true, "through_sidekicks": true, "chooser": "owner"},
+     {"op": "choose_effect", "amount": 1, "chooser": "owner", "options": [
+      {"label": "Tomoe Gozen recovers 2 health", "ops": [{"op": "heal", "target": "hero", "amount": 2}]},
+      {"label": "Gain 1 action", "ops": [{"op": "gain_action", "amount": 1}]}
+     ]}
+    ]
+   },
+   "notes": "Scheme, boost 2. 'Through sidekicks' (`through_sidekicks`): she may cross any sidekick, her own or the rival's, never an opposing hero; she ends on an empty space as always. The move is up to 3 (0 included). The scheme costs its action first, so gaining 1 action nets zero."
+  }
+ ],
+ "plugins": [],
+ "hidden_info": [
+  {"card": "Confront Any Demon or God", "what": "look_hand on the rival's hand after losing the combat, and a discard chosen among what was seen.", "bot_plays_it": "The bot reads the human's hand ONLY when resolving this AFTER and keeps it as the human's KnownHand (Hellboy's rule).", "human_plays_it": "The bot reveals its hand (chat or face-up row) and the human chooses with the panel buttons."},
+  {"card": "Witness My Last Battle", "what": "the attack is played face up", "bot_rule": "Public information: the human's defense or the bot's attack is read as it lies on the table; nothing hidden is read."}
+ ],
+ "open_questions": []
+}

@@ -28,6 +28,7 @@ from __future__ import annotations
 
 from .effects.choose import ChoiceRequest
 from .effects.events import attack_revealed
+from .effects.modifiers import plays_face_up
 from .effects.model import EffectError, load_effects, walk_ops
 from .effects.ops_combat import FACE_DOWN, PERFECT_SHOT, PREDICT_OP, PREDICT_VALUES
 from .i18n import plural, t
@@ -429,6 +430,7 @@ def declare_attack(session, p, card):
     # judged before the trigger spends the token; a declaration carried over from a cancelled attack (Ivan,
     # 29/10: the token stays spent, the draw stands, nothing fires twice) keeps the face-up it earned
     by_ability = attack_revealed(g, p.target) or bool(p.declared and p.declared.get("revealed"))
+    by_card = plays_face_up(card)                        # the card itself is played face up (Witness My Last Battle)
     if p.declared is None:
         drawn = g.drawn[session.bot]
         p.declared = {"counters": dict(g.fx.counters[session.bot]), "revealed": by_ability}   # the token projection diffs from here
@@ -438,6 +440,9 @@ def declare_attack(session, p, card):
             session._flush_table()
     if by_ability:
         session.say(t("hidden.intuition_face_up", card=card.title, value=card.value), ChatKind.ATTACK)
+        return card
+    if by_card:
+        session.say(t("hidden.card_face_up", card=card.title, value=card.value), ChatKind.ATTACK)
         return card
     if p.prediction is not None and p.prediction["value"] is not None:
         return card
@@ -463,6 +468,7 @@ def bot_attack_placed(session, p) -> None:
     g, card = session.game, p.bot_card
     lines = []
     revealed = attack_revealed(g, p.target)
+    face_up = plays_face_up(card)                    # Witness My Last Battle: the card itself says "play it face up"
     if revealed and p.declared is None:
         declare_bot_attack(session, p)
     if _has_plugin(g, session.bot, card, PERFECT_SHOT):
@@ -471,6 +477,8 @@ def bot_attack_placed(session, p) -> None:
         lines.append(t("hidden.bot_predicts", card=card.title, n=n))
     if revealed:
         lines.append(t("hidden.bot_intuition", name=session._name(p.target), card=card.title, value=card.value))
+    elif face_up:
+        lines.append(t("hidden.bot_card_face_up", card=card.title, value=card.value))
     if not lines:
         return
     if p.bot_card_guid:

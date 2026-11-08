@@ -1,8 +1,8 @@
 # Card identity: the shared CardID range
 
-In the tournament savegame Medusa, the four TMNT turtles (Leonardo, Donatello, Michelangelo, Raphael), Doctor Strange, Bigfoot, Daredevil, Luke Cage and Bullseye
-are all DeckID 176, so all ten decks have CardIDs 17600-17629 (Daredevil's has 22 cards: 17600-17621). Only the deck image (FaceURL, BackURL of the CustomDeck,
-`deck.identity` in `data/tts/<slug>.json`) tells them apart. Any pairing of the fifteen heroes works at the table, in both seats,
+In the tournament savegame Medusa, the four TMNT turtles (Leonardo, Donatello, Michelangelo, Raphael), Doctor Strange, Bigfoot, Daredevil, Luke Cage, Bullseye and Tomoe Gozen
+are all DeckID 176, so all eleven decks have CardIDs 17600-17629 (Daredevil's has 22 cards: 17600-17621). Only the deck image (FaceURL, BackURL of the CustomDeck,
+`deck.identity` in `data/tts/<slug>.json`) tells them apart. Any pairing of the sixteen heroes works at the table, in both seats,
 including Medusa against a turtle and a turtle against a turtle (`tests/test_tmnt_matrix.py`), and Doctor Strange against each of
 them (`tests/test_doctor_strange_matrix.py`; only the
 30 deck cards overlap, his character card is 337). The rule is one sentence:
@@ -53,6 +53,8 @@ Bigfoot (`tests/test_hero_bigfoot_data.py`, `tests/test_bigfoot_matrix.py`) foll
 
 Bullseye (Hell's Kitchen, character card 339) is the tenth deck of sheet 176 (`tests/test_hero_bullseye_data.py`, `tests/test_bullseye_matrix.py`): his own `deck.identity` in `data/tts/bullseye.json`, a matrix against the other fourteen heroes in both seats, and `SHARING` in `tests/test_card_identity.py`.
 
+Tomoe Gozen (Sun's Origin, character card 354) is the eleventh deck of sheet 176 (`tests/test_hero_tomoe_gozen_data.py`, `tests/test_tomoe_gozen_matrix.py`): her own `deck.identity` in `data/tts/tomoe-gozen.json`, a matrix against the other fifteen heroes in both seats, and `SHARING` in `tests/test_card_identity.py`. Her life dial also shares a GUID with Donatello's (`ca8e35`): see "Piece identity" below.
+
 ## Houdini needs none of this
 
 Houdini's deck is sheet 178 (CardIDs 17800-17829) with the character card on a sheet of its own (177, CardID 17700); no other hero of
@@ -71,6 +73,8 @@ new random GUID and the configured one would make the session follow the other h
 The save has a second collision, of a dial: The Jackalope's and Lobster Johnson's life dials are both `18c384`. `session_pieces.resolve_dials` tells
 them apart by the dial's name (`lua.find_dials_by_name`) before the first dial write, saves the result (`resolved_dials`) and, when it cannot, says so
 and neither writes nor checks that dial; see docs/heroes/bigfoot.md and `tests/test_dial_identity.py`.
+
+The third collision is a dial too: Tomoe Gozen's life dial has Donatello's GUID `ca8e35` (the save reuses it for Chupacabra's and Little Red's as well; every one of them is a Custom_Model named after its hero). The same `resolve_dials` handles it by name (pinned by `tests/test_piece_identity.py`; `tests/test_tomoe_gozen_matrix.py` plays the pair in both seats).
 
 `sparring/session_pieces.py` handles it for any piece (miniature or token, any hero):
 

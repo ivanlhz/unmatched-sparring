@@ -1,0 +1,30 @@
+{
+ "slug": "tomoe-gozen",
+ "bag": {
+  "guid": "c5fe82",
+  "inner": "5b6a57"
+ },
+ "deck": {
+  "guid": "abfd59",
+  "card_ids": [
+   17600,
+   17629
+  ],
+  "character_card_id": 354,
+  "identity": [
+   {
+    "face": "https://steamusercontent-a.akamaihd.net/ugc/11275775950349264081/038CA5204A56FB0877B3A5EC492E463AAA146CD6/",
+    "back": "https://steamusercontent-a.akamaihd.net/ugc/11567582482729598080/30D829839CA0263E246A02A471C5A9C41D3D262F/"
+   }
+  ]
+ },
+ "fighters": {
+  "tomoe": {
+   "piece": "66c85f",
+   "dial": "ca8e35",
+   "dial_max": 14
+  }
+ },
+ "tokens": {},
+ "counter_dials": {}
+}

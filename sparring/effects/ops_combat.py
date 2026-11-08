@@ -134,6 +134,18 @@ def _consider_won(run, game, spec):
         fx.lost[me] = max(0, fx.lost[me] - 1)
 
 
+@op("cap_combat_damage")
+def _cap_combat_damage(run, game, spec):
+    """"X cannot take more than N combat damage this combat" (Tomoe Gozen's Deeds Of Valor, a DURING op): registers the cap
+    for THIS combat; `CombatFlow._damage` cuts the combat damage that lands on the fighter to N (after the hero's own
+    reduction, if any). Several caps on one fighter: the lowest holds. Effect damage and exhaustion are never capped."""
+    flow = _flow(run, "cap_combat_damage")
+    n = int(amount(game, run, spec["amount"]))
+    for f in pick_fighters(game, run, spec["target"], player_of(game, run, spec.get("chooser", "owner")),
+                           op="cap_combat_damage", amount=n):
+        flow.damage_caps[f.fid] = min(n, flow.damage_caps.get(f.fid, n))
+
+
 @op("allow_boost")
 def _allow_boost(run, game, spec):
     """"Your opponent may BOOST their card": the side of that card is asked for a BOOST in its DURING even if the card

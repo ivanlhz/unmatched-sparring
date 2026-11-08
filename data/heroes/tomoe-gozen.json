@@ -1,0 +1,421 @@
+{
+ "_source": {
+  "memory": "unmatched-memory/data/heroes/tomoe-gozen.json",
+  "overlay": "data/heroes/overlay/tomoe-gozen.json",
+  "generator": "tools/import_hero.py"
+ },
+ "slug": "tomoe-gozen",
+ "name": "Tomoe Gozen",
+ "fid": "tomoe",
+ "hp": 14,
+ "move": 2,
+ "attack": "range",
+ "set": "suns-origin",
+ "ability": "ATTACK OF OPPORTUNITY\nWhen an opposing hero leaves Tomoe Gozen's zone, deal 1 damage to that hero.",
+ "sidekicks": [],
+ "forms": null,
+ "counters": {},
+ "triggers": [],
+ "passives": [],
+ "deck": {
+  "card_base": 17600,
+  "sheet": 176,
+  "cards": [
+   {
+    "idx": 0,
+    "title": "Witness My Last Battle",
+    "fighter": "Tomoe Gozen",
+    "type": "attack",
+    "value": 7,
+    "boost": 4,
+    "text": "This attack can only target a fighter adjacent to Tomoe Gozen. Play it face up. AFTER COMBAT: End the turn.",
+    "tags": []
+   },
+   {
+    "idx": 1,
+    "title": "Witness My Last Battle",
+    "fighter": "Tomoe Gozen",
+    "type": "attack",
+    "value": 7,
+    "boost": 4,
+    "text": "This attack can only target a fighter adjacent to Tomoe Gozen. Play it face up. AFTER COMBAT: End the turn.",
+    "tags": []
+   },
+   {
+    "idx": 2,
+    "title": "Piercing Shot",
+    "fighter": "Tomoe Gozen",
+    "type": "attack",
+    "value": 2,
+    "boost": 1,
+    "text": "AFTER COMBAT: Draw 2 cards.",
+    "tags": []
+   },
+   {
+    "idx": 3,
+    "title": "Piercing Shot",
+    "fighter": "Tomoe Gozen",
+    "type": "attack",
+    "value": 2,
+    "boost": 1,
+    "text": "AFTER COMBAT: Draw 2 cards.",
+    "tags": []
+   },
+   {
+    "idx": 4,
+    "title": "Piercing Shot",
+    "fighter": "Tomoe Gozen",
+    "type": "attack",
+    "value": 2,
+    "boost": 1,
+    "text": "AFTER COMBAT: Draw 2 cards.",
+    "tags": []
+   },
+   {
+    "idx": 5,
+    "title": "A Warrior's Way",
+    "fighter": "Tomoe Gozen",
+    "type": "attack",
+    "value": 2,
+    "boost": 1,
+    "text": "AFTER COMBAT: Move the opposing fighter up to 3 spaces. Then, if they are a hero, place Tomoe Gozen in a space adjacent to them.",
+    "tags": []
+   },
+   {
+    "idx": 6,
+    "title": "A Warrior's Way",
+    "fighter": "Tomoe Gozen",
+    "type": "attack",
+    "value": 2,
+    "boost": 1,
+    "text": "AFTER COMBAT: Move the opposing fighter up to 3 spaces. Then, if they are a hero, place Tomoe Gozen in a space adjacent to them.",
+    "tags": []
+   },
+   {
+    "idx": 7,
+    "title": "Five Against Thousands",
+    "fighter": "Tomoe Gozen",
+    "type": "attack",
+    "value": 4,
+    "boost": 1,
+    "text": "AFTER COMBAT: If Tomoe Gozen is adjacent to the opposing fighter, you may discard a card to put this card back into your hand.",
+    "tags": []
+   },
+   {
+    "idx": 8,
+    "title": "Five Against Thousands",
+    "fighter": "Tomoe Gozen",
+    "type": "attack",
+    "value": 4,
+    "boost": 1,
+    "text": "AFTER COMBAT: If Tomoe Gozen is adjacent to the opposing fighter, you may discard a card to put this card back into your hand.",
+    "tags": []
+   },
+   {
+    "idx": 9,
+    "title": "Fearsome Strength",
+    "fighter": "Tomoe Gozen",
+    "type": "attack",
+    "value": 3,
+    "boost": 1,
+    "text": "IMMEDIATELY: Tomoe Gozen may swap spaces with an adjacent fighter. AFTER COMBAT: Deal 1 damage to an adjacent fighter.",
+    "tags": []
+   },
+   {
+    "idx": 10,
+    "title": "Fearsome Strength",
+    "fighter": "Tomoe Gozen",
+    "type": "attack",
+    "value": 3,
+    "boost": 1,
+    "text": "IMMEDIATELY: Tomoe Gozen may swap spaces with an adjacent fighter. AFTER COMBAT: Deal 1 damage to an adjacent fighter.",
+    "tags": []
+   },
+   {
+    "idx": 11,
+    "title": "A Worthy Opponent",
+    "fighter": "Tomoe Gozen",
+    "type": "versatile",
+    "value": 3,
+    "boost": 3,
+    "text": "DURING COMBAT: If the opposing fighter is a hero, this card's value is 5 instead.",
+    "tags": []
+   },
+   {
+    "idx": 12,
+    "title": "A Worthy Opponent",
+    "fighter": "Tomoe Gozen",
+    "type": "versatile",
+    "value": 3,
+    "boost": 3,
+    "text": "DURING COMBAT: If the opposing fighter is a hero, this card's value is 5 instead.",
+    "tags": []
+   },
+   {
+    "idx": 13,
+    "title": "A Worthy Opponent",
+    "fighter": "Tomoe Gozen",
+    "type": "versatile",
+    "value": 3,
+    "boost": 3,
+    "text": "DURING COMBAT: If the opposing fighter is a hero, this card's value is 5 instead.",
+    "tags": []
+   },
+   {
+    "idx": 14,
+    "title": "Confront Any Demon or God",
+    "fighter": "Tomoe Gozen",
+    "type": "versatile",
+    "value": 3,
+    "boost": 3,
+    "text": "AFTER COMBAT: Draw 1 card. Then, if you lost the combat, look at your opponent's hand and choose 1 card for them to discard.",
+    "tags": []
+   },
+   {
+    "idx": 15,
+    "title": "Confront Any Demon or God",
+    "fighter": "Tomoe Gozen",
+    "type": "versatile",
+    "value": 3,
+    "boost": 3,
+    "text": "AFTER COMBAT: Draw 1 card. Then, if you lost the combat, look at your opponent's hand and choose 1 card for them to discard.",
+    "tags": []
+   },
+   {
+    "idx": 16,
+    "title": "Skirmish",
+    "fighter": "Tomoe Gozen",
+    "type": "versatile",
+    "value": 4,
+    "boost": 1,
+    "text": "AFTER COMBAT: If you won the combat, choose one of the fighters in the combat and move them up to 2 spaces.",
+    "tags": []
+   },
+   {
+    "idx": 17,
+    "title": "Skirmish",
+    "fighter": "Tomoe Gozen",
+    "type": "versatile",
+    "value": 4,
+    "boost": 1,
+    "text": "AFTER COMBAT: If you won the combat, choose one of the fighters in the combat and move them up to 2 spaces.",
+    "tags": []
+   },
+   {
+    "idx": 18,
+    "title": "Skirmish",
+    "fighter": "Tomoe Gozen",
+    "type": "versatile",
+    "value": 4,
+    "boost": 1,
+    "text": "AFTER COMBAT: If you won the combat, choose one of the fighters in the combat and move them up to 2 spaces.",
+    "tags": []
+   },
+   {
+    "idx": 19,
+    "title": "Flash of Steel",
+    "fighter": "Tomoe Gozen",
+    "type": "versatile",
+    "value": 2,
+    "boost": 1,
+    "text": "IMMEDIATELY: If the opposing fighter is a hero, cancel all effects on your opponent's card. AFTER COMBAT: If the opposing fighter is adjacent, deal 1 damage to them.",
+    "tags": []
+   },
+   {
+    "idx": 20,
+    "title": "Flash of Steel",
+    "fighter": "Tomoe Gozen",
+    "type": "versatile",
+    "value": 2,
+    "boost": 1,
+    "text": "IMMEDIATELY: If the opposing fighter is a hero, cancel all effects on your opponent's card. AFTER COMBAT: If the opposing fighter is adjacent, deal 1 damage to them.",
+    "tags": []
+   },
+   {
+    "idx": 21,
+    "title": "Flash of Steel",
+    "fighter": "Tomoe Gozen",
+    "type": "versatile",
+    "value": 2,
+    "boost": 1,
+    "text": "IMMEDIATELY: If the opposing fighter is a hero, cancel all effects on your opponent's card. AFTER COMBAT: If the opposing fighter is adjacent, deal 1 damage to them.",
+    "tags": []
+   },
+   {
+    "idx": 22,
+    "title": "Refuse to Retreat",
+    "fighter": "Tomoe Gozen",
+    "type": "defense",
+    "value": 3,
+    "boost": 2,
+    "text": "IMMEDIATELY: Tomoe Gozen cannot leave her space for the rest of the turn. AFTER COMBAT: If the opposing fighter is adjacent, your opponent discards 1 card.",
+    "tags": []
+   },
+   {
+    "idx": 23,
+    "title": "Refuse to Retreat",
+    "fighter": "Tomoe Gozen",
+    "type": "defense",
+    "value": 3,
+    "boost": 2,
+    "text": "IMMEDIATELY: Tomoe Gozen cannot leave her space for the rest of the turn. AFTER COMBAT: If the opposing fighter is adjacent, your opponent discards 1 card.",
+    "tags": []
+   },
+   {
+    "idx": 24,
+    "title": "Deeds of Valor",
+    "fighter": "Tomoe Gozen",
+    "type": "defense",
+    "value": 2,
+    "boost": 2,
+    "text": "DURING COMBAT: Tomoe Gozen cannot take more than 2 combat damage this combat.",
+    "tags": []
+   },
+   {
+    "idx": 25,
+    "title": "Deeds of Valor",
+    "fighter": "Tomoe Gozen",
+    "type": "defense",
+    "value": 2,
+    "boost": 2,
+    "text": "DURING COMBAT: Tomoe Gozen cannot take more than 2 combat damage this combat.",
+    "tags": []
+   },
+   {
+    "idx": 26,
+    "title": "Deeds of Valor",
+    "fighter": "Tomoe Gozen",
+    "type": "defense",
+    "value": 2,
+    "boost": 2,
+    "text": "DURING COMBAT: Tomoe Gozen cannot take more than 2 combat damage this combat.",
+    "tags": []
+   },
+   {
+    "idx": 27,
+    "title": "Lord Kiso's Final Stand",
+    "fighter": "Tomoe Gozen",
+    "type": "scheme",
+    "value": null,
+    "boost": 2,
+    "text": "Move Tomoe Gozen up to 3 spaces. She may move through sidekicks. Then, choose one: - Tomoe Gozen recovers 2 health - gain 1 action",
+    "tags": []
+   },
+   {
+    "idx": 28,
+    "title": "Lord Kiso's Final Stand",
+    "fighter": "Tomoe Gozen",
+    "type": "scheme",
+    "value": null,
+    "boost": 2,
+    "text": "Move Tomoe Gozen up to 3 spaces. She may move through sidekicks. Then, choose one: - Tomoe Gozen recovers 2 health - gain 1 action",
+    "tags": []
+   },
+   {
+    "idx": 29,
+    "title": "Lord Kiso's Final Stand",
+    "fighter": "Tomoe Gozen",
+    "type": "scheme",
+    "value": null,
+    "boost": 2,
+    "text": "Move Tomoe Gozen up to 3 spaces. She may move through sidekicks. Then, choose one: - Tomoe Gozen recovers 2 health - gain 1 action",
+    "tags": []
+   }
+  ]
+ },
+ "ai_profile": {
+  "tomoe": {
+   "name": "Tomoe Gozen",
+   "hero": true,
+   "count": 1,
+   "max_hp": 14,
+   "move": 2,
+   "ranged": true,
+   "role": "hero",
+   "attack": {
+    "cards": 22,
+    "mean": 3.23,
+    "max": 7
+   },
+   "exclusive": [
+    {
+     "title": "Witness My Last Battle",
+     "type": "attack",
+     "copies": 2,
+     "impact": 1.35
+    },
+    {
+     "title": "Piercing Shot",
+     "type": "attack",
+     "copies": 3,
+     "impact": 1.08
+    },
+    {
+     "title": "A Warrior's Way",
+     "type": "attack",
+     "copies": 2,
+     "impact": 0.95
+    },
+    {
+     "title": "Five Against Thousands",
+     "type": "attack",
+     "copies": 2,
+     "impact": 1.07
+    },
+    {
+     "title": "Fearsome Strength",
+     "type": "attack",
+     "copies": 2,
+     "impact": 1.43
+    },
+    {
+     "title": "A Worthy Opponent",
+     "type": "versatile",
+     "copies": 3,
+     "impact": 0.96
+    },
+    {
+     "title": "Confront Any Demon or God",
+     "type": "versatile",
+     "copies": 2,
+     "impact": 1.33
+    },
+    {
+     "title": "Skirmish",
+     "type": "versatile",
+     "copies": 3,
+     "impact": 1.03
+    },
+    {
+     "title": "Flash of Steel",
+     "type": "versatile",
+     "copies": 3,
+     "impact": 1.4
+    },
+    {
+     "title": "Refuse to Retreat",
+     "type": "defense",
+     "copies": 2,
+     "impact": 1.44
+    },
+    {
+     "title": "Deeds of Valor",
+     "type": "defense",
+     "copies": 3,
+     "impact": 0.6
+    },
+    {
+     "title": "Lord Kiso's Final Stand",
+     "type": "scheme",
+     "copies": 3,
+     "impact": 2.4
+    }
+   ]
+  }
+ },
+ "_notes": [
+  "Sheet 176 of the tournament savegame (8x4), read card by card from the image on 2026-11-08. CardID = 17600 + idx; 354 = character card (sheet 3, 10x7, index 54). The deck object of the save holds 31 cards: the 30 of the deck plus the character card, which is why the catalog says card_count 31 and card_ids [354, 17629]. Tomoe Gozen's deck is sheet 176 like Medusa's, the four turtles', Doctor Strange's, Bigfoot's, Daredevil's, Luke Cage's and Bullseye's: only deck.identity (data/tts/tomoe-gozen.json) tells the decks apart (docs/card-identity.md).",
+  "Hero card (read from the image): TOMOE GOZEN, RANGED, START HEALTH 14, MOVE 2; special ability 'ATTACK OF OPPORTUNITY: When an opposing hero leaves Tomoe Gozen's zone, deal 1 damage to that hero.' (unmatched-memory appends the quote 'If only I could find a worthy foe.' to the ability; it is flavour text and the overlay drops it). No sidekicks (unmatched-memory has an empty sidekick entry, ignored). Every card carries the TOMOE GOZEN band (none ANY).",
+  "Copies (xN printed on each card), type, value and boost match unmatched-memory for all 12 titles."
+ ]
+}

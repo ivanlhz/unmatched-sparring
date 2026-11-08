@@ -1,0 +1,171 @@
+{
+ "_notes": [
+  "Sheet 176 of the tournament savegame (8x4), read card by card from the image on 2026-11-08. CardID = 17600 + idx; 354 = character card (sheet 3, 10x7, index 54). The deck object of the save holds 31 cards: the 30 of the deck plus the character card, which is why the catalog says card_count 31 and card_ids [354, 17629]. Tomoe Gozen's deck is sheet 176 like Medusa's, the four turtles', Doctor Strange's, Bigfoot's, Daredevil's, Luke Cage's and Bullseye's: only deck.identity (data/tts/tomoe-gozen.json) tells the decks apart (docs/card-identity.md).",
+  "Hero card (read from the image): TOMOE GOZEN, RANGED, START HEALTH 14, MOVE 2; special ability 'ATTACK OF OPPORTUNITY: When an opposing hero leaves Tomoe Gozen's zone, deal 1 damage to that hero.' (unmatched-memory appends the quote 'If only I could find a worthy foe.' to the ability; it is flavour text and the overlay drops it). No sidekicks (unmatched-memory has an empty sidekick entry, ignored). Every card carries the TOMOE GOZEN band (none ANY).",
+  "Copies (xN printed on each card), type, value and boost match unmatched-memory for all 12 titles."
+ ],
+ "fid": "tomoe",
+ "ability": "ATTACK OF OPPORTUNITY\nWhen an opposing hero leaves Tomoe Gozen's zone, deal 1 damage to that hero.",
+ "sidekicks": [],
+ "forms": null,
+ "counters": {},
+ "triggers": [],
+ "passives": [],
+ "deck": {
+  "card_base": 17600,
+  "sheet_id": 176,
+  "hero_card_id": 354,
+  "sheet": [
+   {
+    "idx": 0,
+    "title": "Witness My Last Battle",
+    "fighter": "Tomoe Gozen"
+   },
+   {
+    "idx": 1,
+    "title": "Witness My Last Battle",
+    "fighter": "Tomoe Gozen"
+   },
+   {
+    "idx": 2,
+    "title": "Piercing Shot",
+    "fighter": "Tomoe Gozen"
+   },
+   {
+    "idx": 3,
+    "title": "Piercing Shot",
+    "fighter": "Tomoe Gozen"
+   },
+   {
+    "idx": 4,
+    "title": "Piercing Shot",
+    "fighter": "Tomoe Gozen"
+   },
+   {
+    "idx": 5,
+    "title": "A Warrior's Way",
+    "fighter": "Tomoe Gozen"
+   },
+   {
+    "idx": 6,
+    "title": "A Warrior's Way",
+    "fighter": "Tomoe Gozen"
+   },
+   {
+    "idx": 7,
+    "title": "Five Against Thousands",
+    "fighter": "Tomoe Gozen"
+   },
+   {
+    "idx": 8,
+    "title": "Five Against Thousands",
+    "fighter": "Tomoe Gozen"
+   },
+   {
+    "idx": 9,
+    "title": "Fearsome Strength",
+    "fighter": "Tomoe Gozen"
+   },
+   {
+    "idx": 10,
+    "title": "Fearsome Strength",
+    "fighter": "Tomoe Gozen"
+   },
+   {
+    "idx": 11,
+    "title": "A Worthy Opponent",
+    "fighter": "Tomoe Gozen"
+   },
+   {
+    "idx": 12,
+    "title": "A Worthy Opponent",
+    "fighter": "Tomoe Gozen"
+   },
+   {
+    "idx": 13,
+    "title": "A Worthy Opponent",
+    "fighter": "Tomoe Gozen"
+   },
+   {
+    "idx": 14,
+    "title": "Confront Any Demon or God",
+    "fighter": "Tomoe Gozen"
+   },
+   {
+    "idx": 15,
+    "title": "Confront Any Demon or God",
+    "fighter": "Tomoe Gozen"
+   },
+   {
+    "idx": 16,
+    "title": "Skirmish",
+    "fighter": "Tomoe Gozen"
+   },
+   {
+    "idx": 17,
+    "title": "Skirmish",
+    "fighter": "Tomoe Gozen"
+   },
+   {
+    "idx": 18,
+    "title": "Skirmish",
+    "fighter": "Tomoe Gozen"
+   },
+   {
+    "idx": 19,
+    "title": "Flash of Steel",
+    "fighter": "Tomoe Gozen"
+   },
+   {
+    "idx": 20,
+    "title": "Flash of Steel",
+    "fighter": "Tomoe Gozen"
+   },
+   {
+    "idx": 21,
+    "title": "Flash of Steel",
+    "fighter": "Tomoe Gozen"
+   },
+   {
+    "idx": 22,
+    "title": "Refuse to Retreat",
+    "fighter": "Tomoe Gozen"
+   },
+   {
+    "idx": 23,
+    "title": "Refuse to Retreat",
+    "fighter": "Tomoe Gozen"
+   },
+   {
+    "idx": 24,
+    "title": "Deeds of Valor",
+    "fighter": "Tomoe Gozen"
+   },
+   {
+    "idx": 25,
+    "title": "Deeds of Valor",
+    "fighter": "Tomoe Gozen"
+   },
+   {
+    "idx": 26,
+    "title": "Deeds of Valor",
+    "fighter": "Tomoe Gozen"
+   },
+   {
+    "idx": 27,
+    "title": "Lord Kiso's Final Stand",
+    "fighter": "Tomoe Gozen"
+   },
+   {
+    "idx": 28,
+    "title": "Lord Kiso's Final Stand",
+    "fighter": "Tomoe Gozen"
+   },
+   {
+    "idx": 29,
+    "title": "Lord Kiso's Final Stand",
+    "fighter": "Tomoe Gozen"
+   }
+  ]
+ }
+}

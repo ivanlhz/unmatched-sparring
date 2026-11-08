@@ -77,7 +77,7 @@ def instruction(session, req: ChoiceRequest) -> str:
     if req.extra.get("op") == "move":
         steps = req.extra["steps"]
         how = t("moves.how.up_to" if req.extra.get("up_to", True) else "moves.how.exactly")
-        through = t("moves.through") if req.extra.get("through") else ""
+        through = t("moves.through_sidekicks" if req.extra.get("through") == "sidekicks" else "moves.through") if req.extra.get("through") else ""
         now = t("moves.now", spot=_spot(session, f.pos, (fid,))) if f.pos is not None else ""
         return t("moves.move", head=head, name=name, how=how, squares=_plural(steps), through=through,
                  optional=optional, now=now)
@@ -121,6 +121,8 @@ def _why_not_legal(session, req: ChoiceRequest, f, dest: int) -> str:
         return t("moves.too_far", name=name, squares=_plural(d), steps=steps)
     if not req.extra.get("up_to", True) and d < steps:
         return t("moves.too_short", name=name, squares=_plural(d), steps=steps)
+    if req.extra.get("through") == "sidekicks":
+        return t("moves.no_path_sidekicks", name=name, squares=_plural(steps))
     if not req.extra.get("through"):
         return t("moves.no_path", name=name, squares=_plural(steps))
     return t("moves.cannot_end", name=name)

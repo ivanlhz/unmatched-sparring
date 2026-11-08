@@ -108,6 +108,8 @@ def _normalize(game, name: str, args: tuple) -> dict | None:
         return {"name": name, "player": args[0], "fighter": args[1]}
     if name == "after_combat":
         return {"name": name, "player": args[0], "fighter": args[1], "card": args[2]}
+    if name == "left_zone":
+        return {"name": name, "fighter": args[0], "origin": args[1], "dest": args[0].pos}
     return None          # force_discard and the like: hooks for other phases, not DSL events
 
 
@@ -233,7 +235,31 @@ def matches(game, owner: int, when: dict, ev: dict) -> bool:
         return _matches(ev["card"], when.get("filter") or {})
     if name == "fighter_defeated":
         return _fighter_ok(game, owner, when.get("fighter"), ev["fighter"], defeated=True)
+    if name == "left_zone":
+        return _fighter_ok(game, owner, when.get("fighter"), ev["fighter"]) and left_zone_of(game, game.hero(owner), ev)
     return False
+
+
+def left_zone_of(game, anchor, ev: dict) -> bool:
+    """The moved fighter stood in a zone of `anchor`'s space before the move and shares none with it now (`left_zone`)."""
+    where, board = anchor.pos, game.board
+    return (anchor.alive and where is not None and ev["fighter"] is not anchor
+            and board.share_zone(ev["origin"], where) and not board.share_zone(ev["dest"], where))
+
+
+def departure_damage(game, fighter, dest: int) -> int:
+    """The damage the rival hero's ability (`left_zone` triggers whose ops `damage`) would deal `fighter` if it went to `dest`
+    now: what the bot counts as the price of leaving a zone (Tomoe Gozen's ATTACK OF OPPORTUNITY). 0 for anything else."""
+    rival = 1 - fighter.owner
+    slug = game.players[rival].hero.slug
+    if slug not in game.fx.dsl_heroes or fighter.pos is None:
+        return 0
+    ev = {"name": "left_zone", "fighter": fighter, "origin": fighter.pos, "dest": dest}
+    total = 0
+    for trig in load_effects(slug).triggers:
+        if trig["when"]["event"] == "left_zone" and matches(game, rival, trig["when"], ev):
+            total += sum(o["amount"] for o in walk_ops(trig["ops"]) if o["op"] == "damage" and isinstance(o.get("amount"), int))
+    return total
 
 
 # ------------------------------------------------------------------ running a trigger

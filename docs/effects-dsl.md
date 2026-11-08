@@ -68,6 +68,8 @@ Text conventions: "owner" is the player who plays the card or who the ability be
 - `defers_defeat` (optional): played in a combat, the defeat of its owner's hero by that combat's damage does not end the game yet:
   the loss waits until the AFTER effects are done (All Part of the Show). `look_shield` (optional): held in the hand, it lets its
   owner cancel a look at their hand (A Magician Never Reveals His Secrets). See section 27.
+- `adjacent_only` (optional, attacks only): the card can only target a fighter adjacent to its attacker; the engine refuses it against any other target for the human's attack and the bot never offers it (section 32).
+- `face_up` (optional, attacks only): the card is played face up, so the defender's choice may know it (section 32).
 - `uncancelable` (optional, false by default): `cancel_effects` does not erase the effects of this card.
 - `effects`: the five moments, always present and always lists (empty if there is nothing), plus the optional `unboosted` (only with `may_boost`: the DURING ops for when its owner did not BOOST, run right after that question; section 31):
   - `immediately`, `during`, `after`: combat. The defender resolves first at each moment.
@@ -223,6 +225,7 @@ There are never conditions in strings.
 | `fighter_defeated` | `fighter: FighterSel` | `$fighter` |
 | `combat_lost` | `player` (default `owner`; `any`) | `$fighter` |
 | `after_combat` | `player` (default `owner`; `any`), `fighter: FighterSel` | `$fighter`, `$card` |
+| `left_zone` | `fighter: FighterSel` | `$fighter` (section 32) |
 
 As expiry (`until`): `{"event": "end_of_turn"}` = the current turn, whoever's it is;
 `{"event": "start_of_turn", "player": "owner"}` = the owner's next turn;
@@ -247,7 +250,7 @@ Every op is `{"op": "<name>", ...args}`. Arguments not listed are an error.
 | `remove_from_game` | `cards: CardSel` (zone `discard`) | `as` | the cards leave the game for good (`PlayerState.removed`, public); see "Donatello" below |
 | `choose` | `cards: CardSel`, `as` | | only binds, moves nothing |
 | `choose_effect` | `options: [{label, ops}]`, `amount` | `distinct`, `chooser` | choose EFFECTS; `distinct` forbids repeating |
-| `move` | `target`, `amount`, `up_to` | `through_enemies`, `chooser` | `chooser` decides the destination (default `owner`, also for rival fighters: replaces the old `push`) |
+| `move` | `target`, `amount`, `up_to` | `through_enemies`, `through_sidekicks` (section 32), `chooser` | `chooser` decides the destination (default `owner`, also for rival fighters: replaces the old `push`) |
 | `place` | `target`, `where: SpaceSel` | `chooser` | teleport |
 | `swap` | `target`, `with: FighterSel` | `chooser` | |
 | `revive` | `target` (with `state: defeated`), `where`, `hp` | `chooser` | brings back a defeated fighter |
@@ -257,6 +260,7 @@ Every op is `{"op": "<name>", ...args}`. Arguments not listed are an error.
 | `set_value` | `card` and `amount` or `ignore: true` | | `amount`: the printed value becomes N (bonuses stay); `ignore: true`: "ignore its value", the total value becomes 0 (Incinerate) |
 | `boost` | `card: CardRef` | `chooser` | boosts that card now (discards the top card of its owner's deck). For the card's own free "may BOOST", `may_boost` is used |
 | `allow_boost` | `card: CardRef` | | "Your opponent may BOOST their card": that card's side is asked for the free BOOST of `may_boost` cards in DURING even if the card has none (An Illusion Of My Own Design) |
+| `cap_combat_damage` | `target: FighterSel`, `amount` | `chooser` | "X cannot take more than N combat damage this combat" (Tomoe Gozen's Deeds Of Valor, a DURING op); see section 32 |
 | `consider_won` | | | "You are considered to have won this combat" (Bullseye's Arrogant But Effective): the owner's side becomes the combat's winner for every later condition and for the turn's tally; see section 31 |
 | `status` | `name`, `until: Event` and `target: FighterSel` or `player: PlayerSel` | `amount` | see the status table |
 | `counter` | `name` and `delta` or `set` | `player` | clipped to the min/max of `ability.counters` |
@@ -1160,3 +1164,16 @@ Everything here is additive: no earlier effects file or HeroDef uses these words
 - **SpaceSel `no_zone_of: FighterRef`**: the spaces that share no zone with the fighter's space (Tactical Retreat: `{"no_zone_of": "hero", "other": true}` in a `place`). The chat for a placement by hand names it (`tbl.where.no_zone*`, `moves.where.no_zone`).
 - **Same CardID range as Medusa, the turtles, Doctor Strange and Bigfoot**: see docs/card-identity.md.
 - **Hero detection**: `lua.MAX_HERO_RANGES` (the most CardID ranges one table read takes) went from 12 to 24: the thirteenth hero with TTS data made every detection fall back to Medusa / Hellboy.
+
+
+## 32. Tomoe Gozen: leaving a zone, an adjacent-only face-up attack, a combat damage cap, moving through sidekicks, a card back to the hand
+
+Everything here is additive: no earlier effects file or HeroDef uses these words, so the fifteen earlier heroes behave as before.
+
+- **Event `left_zone`** (`{"event": "left_zone", "fighter": FighterSel}`; binds `$fighter`, the fighter that moved): raised by `Game.departed(fighter, origin)` after any change of a fighter's space that the engine sees: a walk (`Game.walk`: a Maneuver, the `move` op, a hand move read from the table with hazards), a placement (`Game.place_fighter` and the `place` op) and a `swap`; a move the human makes by hand is read in `Session.sync_positions` and raised there (`Session._departed_by_hand`, which also says the damage in the chat and writes the life dials). It matches the trigger of the hero that owns the ability when the moved fighter satisfies `fighter` (relative to the owner: `{"side": "enemy", "kind": "hero"}` is "an opposing hero") AND stood in a zone of the owner's hero's space before the move and shares none with it now (`events.left_zone_of`); the owner's hero moving herself never matches and a defeated hero has no ability. ATTACK OF OPPORTUNITY: `damage` 1 to `$fighter`. A swap with her never fires it (the rival takes her space, so it shares her zone).
+- **Bot pricing of a departure**: `events.departure_damage(game, fighter, dest)` (`EffectState.departure_damage`) is the damage the rival hero's `left_zone` triggers (their `damage` ops with an integer amount) would deal `fighter` if it went to `dest`; `MedusaAI.hazard_cost` (a destination chosen for an effect's move) and `MedusaAI.exit_cost` (the hero's Maneuver destinations) count it like a hazard edge.
+- **Card flags `adjacent_only` and `face_up`** (`CardEffects.adjacent_only`, `CardEffects.face_up`; `modifiers.adjacent_only(card)`, `modifiers.plays_face_up(card)`): Witness My Last Battle. `Game.attack_card_reaches(attacker, target, card)` is "the card may be played against that target" (false for an adjacent-only card against a fighter that is not next to the attacker, along the printed adjacency); `Game.check_attack_target` raises `RuleError` (`err.adjacent_only`) and `Game._declare_attack` and the human's Reveal (`Session`) call it, while the bot's attack options (`MedusaAI.attack_acts`, the search's `_attack_titles` and `to_act`) never offer the card against a target out of reach. A face-up card is shown to the defense like UNCANNY INTUITION's attack: `Game._declare_attack` passes it to `choose_defense(attack_card=...)`, `session_hidden.declare_attack` returns it for the bot's defense (chat `hidden.card_face_up`) and `bot_attack_placed` flips the bot's card (chat `hidden.bot_card_face_up`). The search's determinization (`EngineState.determinize`) puts a face-up attack in the attacker's sampled hand.
+- **Op `cap_combat_damage`** (`target`, `amount`; a DURING op): registers a cap for THIS combat (`CombatFlow.damage_caps`, fighter id -> amount, saved in `dsl`): `CombatFlow._damage` cuts the combat damage that lands on the fighter to at most `amount`, after the hero's own reduction (Luke Cage's passive). Effect damage and exhaustion are never capped; several caps on one fighter: the lowest holds; a card whose effects were cancelled registers none. The chat says it (`cf.capped`, `narr.damage_cap`). The bot's defense evaluation caps the expected damage of Deeds Of Valor (`ai_medusa.DEEDS_CAP`).
+- **`move.through_sidekicks`** (`boolean`): the mover may cross the rival's sidekicks (never the rival's hero) and never end on one. The interpreter turns it into the third value of `through`: `False`, `True` (`through_enemies`: every rival fighter) or `"sidekicks"`; `Game.legal_moves(fighter, steps, through)`, `Game.hazard_edges` and `ops_core._passed_through` read it (`Game.passable_enemy_spaces`, `Board.reachable(..., passable=...)`), and the requests, the bot's chooser and the chat (`moves.through_sidekicks`, `tbl.through_sidekicks`, `moves.no_path_sidekicks`) carry the string.
+- **`put_in_hand` of a card played in the running combat** (`{"op": "put_in_hand", "cards": "this"}` in an AFTER): like `return_to_deck` of `this` (section 25) the card leaves `flow.played` (so it does not go to the discard pile) and goes to its owner's hand; the table intent is reported with zone `discard` (the translators move it by GUID; for the human the chat says "<title> vuelve a tu mano") and the rival learns the card is in that hand (it was face up). Five Against Thousands: `optional` with a `cost` of one card discarded from the hand. The interpreter tells the bot's chooser (`returns_card` in the request) so `EffectAI._returns_card_pays` weighs the card that comes back against the least useful one of the hand.
+- **Same CardID range as the other sheet-176 decks**: see docs/card-identity.md. Her life dial has Donatello's GUID (`ca8e35`, the third cross-hero collision of the save, told apart by the dial's name like the Lobster / Jackalope one).

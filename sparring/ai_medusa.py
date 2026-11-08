@@ -122,6 +122,8 @@ MASTER, CLOAK, RINGS, MISTS = "Master of Kamar-Taj", "Cloak of Levitation", "The
 DAUGHTER, SKIN, GOT_MY_BACK = "Daughter of the Dragon", "Skin Like Titanium", "Got My Back?"     # Luke Cage
 SKIN_RETURN = 0.8         # Skin Like Titanium: a lost combat sends back the damage taken, but only a lost combat does (the blow it replies to already hurt)
 ASSASSIN, BETTER, PLANNED, EYES = "World's Greatest Assassin", "I'm Better And I'll Prove It", "I Planned To Be Here", "Right Between The Eyes"   # Bullseye: conditions read from the turn's record
+WORTHY, DEEDS, WITNESS = "A Worthy Opponent", "Deeds of Valor", "Witness My Last Battle"      # Tomoe Gozen: 5 against a hero, a cap of 2 combat damage, ends the turn
+DEEDS_CAP = 2
 MISTS_EDGE = 0.4          # the Mists also cancel the effects of the attack that was played and replace it with a card nobody chose
 BOOST_ACTION = 0.9        # a BOOSTED WITH that gains an action (it only pays on the bot's own turn)
 STRIP_VALUE = 1.0         # a card the rival loses to a BOOSTED WITH that picks one from their hand
@@ -176,6 +178,12 @@ AFTER_BONUS = {
     "Master Strategist": (0.3, 0.0),                # exactly 4 spaces, through rivals
     "Ricochet": (0.8, 0.0),                         # 1 damage to a fighter in the zone of a rival that was not defeated
     "Tactical Retreat": (0.3, 0.0),                 # puts him in a space that shares no zone
+    "Piercing Shot": (2 * CARD_VALUE, 0.0),         # Tomoe Gozen: draws 2
+    "A Warrior's Way": (0.4, 0.0),                  # moves the opposing fighter and, if it is a hero, puts her next to it
+    "Five Against Thousands": (0.5, 0.0),           # may come back to the hand for a discard (the cost is the other card's keep value)
+    "Fearsome Strength": (0.6, 0.0),                # may swap with an adjacent fighter, 1 damage to an adjacent one
+    "Flash of Steel": (0.6, 0.0),                   # cancels a hero's effects, 1 damage to an adjacent opposing fighter
+    "Refuse to Retreat": (0.4, 0.0),                # the rival discards a card when it is adjacent (she is pinned for the turn)
 }
 DISCARD_EFFECTS = ("Clutching Claws", "Hiss and Slither")
 
@@ -729,7 +737,7 @@ class MedusaAI(Controller):
                     continue
                 seen = set()
                 for c in hand:
-                    if c.title in seen or not c.can_attack or not c.usable_by(f.name):
+                    if c.title in seen or not c.can_attack or not c.usable_by(f.name) or not game.attack_card_reaches(f, t, c):
                         continue
                     seen.add(c.title)
                     value, dmg, kill = self.attack_outcome(game, model, f, t, c)
@@ -786,6 +794,8 @@ class MedusaAI(Controller):
             return 6.0                  # Misty Knight (the only fighter that plays it) is next to the target
         if c.title == BETTER and game.fx.won[f.owner]:
             return 6.0
+        if c.title == WORTHY and t.hero:
+            return 5.0                  # Tomoe Gozen: against a hero this card is worth 5
         if c.title == PLANNED and f.pos is not None and game.fx.turn_start_pos.get(f.fid) == f.pos:
             return 5.0
         return float(c.value)
@@ -862,6 +872,8 @@ class MedusaAI(Controller):
             value += self.desperation(game) * WIN_PRIZE * (e_net + gaze_dmg) / max(t.hp, 1)
         always, on_win = AFTER_BONUS.get(c.title, (0.0, 0.0))
         value += always + on_win * p_win
+        if c.title == WITNESS:           # the AFTER ends the turn: the actions still to spend are lost
+            value -= ACTION_VALUE * max(0, game.actions_left - 1)
         if c.title == RINGS:             # the damage dealt heals the fighter and the friendly ones beside it (only what is missing counts)
             near = [o for o in game.own(f.owner) if o is f or (o.pos is not None and f.pos is not None and o.pos in game.board.adj[f.pos])]
             value += W_MEDUSA_HP * min(e_net, sum(o.max_hp - o.hp for o in near)) * p_win
@@ -977,7 +989,7 @@ class MedusaAI(Controller):
                     options = ({s for s in game.board.spaces if s not in taken} if game.fx.can_move(medusa) else set()) | {medusa.pos}
                 else:
                     options = game.legal_moves(medusa, medusa.move + extra) | {medusa.pos}
-                ranked = sorted(((-self.position_value(game, model, {medusa.fid: d}), d) for d in options))
+                ranked = sorted(((-self.position_value(game, model, {medusa.fid: d}) + self.exit_cost(game, medusa, d), d) for d in options))
                 # besides the best by position, those that leave Medusa within range of a rival: moving and attacking
                 # in the same double action (position alone would never choose them if the rival is dangerous)
                 striking = [x for x in ranked if any(game.board.can_reach_target(x[1], e.pos, medusa.ranged, medusa.reach)
@@ -1303,7 +1315,15 @@ class MedusaAI(Controller):
     @staticmethod
     def hazard_cost(game: Game, f: Fighter, dest: int, steps: int, through: bool) -> float:
         """What the hazard edges on the way to `dest` cost `f` (the hit points they take, and the piece if it falls)."""
-        dmg = game.hazard_damage(f, dest, steps, through)
+        return MedusaAI.damage_cost(f, game.hazard_damage(f, dest, steps, through) + game.fx.departure_damage(f, dest))   # a rival's ATTACK OF OPPORTUNITY too
+
+    @staticmethod
+    def exit_cost(game: Game, f: Fighter, dest: int) -> float:
+        """What the rival hero's ability costs `f` for leaving the zone it stands in by going to `dest` (Tomoe Gozen's ATTACK OF OPPORTUNITY)."""
+        return MedusaAI.damage_cost(f, game.fx.departure_damage(f, dest))
+
+    @staticmethod
+    def damage_cost(f: Fighter, dmg: float) -> float:
         if not dmg:
             return 0.0
         cost = (W_MEDUSA_HP if f.hero else HARPY_VALUE) * dmg
@@ -1451,8 +1471,10 @@ class MedusaAI(Controller):
             hero = game.hero(target.owner)
             if hero.pos is not None and self._attacker.pos in game.board.adj[hero.pos]:
                 dist = [(1.0, 0)]                      # Doctor Strange is next to the attacker: its value counts for nothing
-        dv = (6 if c.title == BETTER and game.fx.won[target.owner] else c.value) if c else 0
         attacker = getattr(self, "_attacker", None)
+        dv = (6 if c.title == BETTER and game.fx.won[target.owner] else c.value) if c else 0
+        if c is not None and c.title == WORTHY and attacker is not None and attacker.hero:
+            dv = 5                                 # Tomoe Gozen: 5 against a hero
         if c is not None and c.title == DAUGHTER and attacker is not None and target.pos is not None and attacker.pos in game.board.adj[target.pos]:
             dv = 6                                 # Misty Knight (she defends with it) is next to the attacker
         boosts = free_boosts(game, self.me, c, game.players[self.me].hand) if c is not None else []
@@ -1462,6 +1484,8 @@ class MedusaAI(Controller):
             exp = p_dead = p_hit = p_block = 0.0
             for p, av in dist:
                 net = game.combat_damage_taken(victim, max(0, (av or 0) - dv)) if av is not None else 0
+                if c is not None and c.title == DEEDS and victim is target:
+                    net = min(net, DEEDS_CAP)          # Tomoe Gozen takes at most 2 combat damage this combat
                 exp += p * min(net, victim.hp)
                 p_dead += p * (net >= victim.hp)
                 p_hit += p * (net >= 1)

@@ -2349,6 +2349,7 @@ class Session:
                 if human_card is None:
                     raise RuleError(t("err.no_card_down"))
                 g.check_attack_card(p.attacker, human_card)
+                g.check_attack_target(p.attacker, p.target, human_card)
                 if not p.defended and hidden.ask_prediction(self, p, human_card):
                     return                        # Perfect Shot: the human predicts before the bot defends
                 if not p.defended:
@@ -5128,6 +5129,23 @@ class Session:
             return False
         return not (f.hero and g.fx.hero_rule(f.owner, "maneuver_boost_places_hero"))
 
+    def _departed_by_hand(self, fighter: Fighter, origin: int) -> None:
+        """The human moved or placed `fighter` by hand: `left_zone` (the bot's ATTACK OF OPPORTUNITY) may hurt it. What the
+        ability dealt is said and the life dials written (the human's move has no action of the bot to carry them)."""
+        g = self.game
+        before = {fid: (o.hp, o.alive) for fid, o in g.fighters.items()}
+        g.departed(fighter, origin)
+        hurt = [(fid, hp, g.fighters[fid]) for fid, (hp, _) in before.items() if g.fighters[fid].hp < hp]
+        for fid, hp, o in hurt:
+            self.say(t("departure.hit", name=self._name(o), before=hp, after=max(o.hp, 0)), ChatKind.COMBAT)
+            if not o.alive:
+                self._announce_fall(o)
+        if hurt:
+            self._write_dials()
+            if g.winner is not None:
+                self.say(t("game.over_fix", winner=g.winner))
+                self._game_over_dialog()
+
     def sync_positions(self) -> None:
         for fid, info in self._table_pieces().items():
             f = self.game.fighters[fid]
@@ -5148,9 +5166,12 @@ class Session:
                     # the human moved this piece by hand: only the two ends are known, so the least-hazard shortest way is charged
                     self.game.walk(f, info["space"], None)
                 else:
+                    moved_from = f.pos if info["space"] != f.pos and f.owner == self.human and not quiet else None
                     if info["space"] != f.pos:
                         self.game.placing.discard(fid)
                     f.pos = info["space"]
+                    if moved_from is not None:
+                        self._departed_by_hand(f, moved_from)
                 for kind in ("missing", "off", "pinned"):
                     self._warned.discard((fid, kind))
 

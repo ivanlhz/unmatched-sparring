@@ -64,6 +64,7 @@ def snapshot(game, flow=None) -> dict:
             "cancelled": [] if flow is None or flow.ctx is None else sorted(flow.ctx.cancelled | flow.late_cancelled),
             "cancelled_after": [] if flow is None or flow.ctx is None else sorted(flow.ctx.cancelled_after),
             "redirects": 0 if flow is None else len(flow.redirects),
+            "caps": {} if flow is None else dict(flow.damage_caps),
             "mods": {} if flow is None else {side: len(mods) for side, mods in flow.mods.items()},
             "printed": {} if flow is None else dict(flow.printed_set),
             "won_by": None if flow is None else flow.considered_won}
@@ -209,6 +210,7 @@ def _cards(game, before: dict, run) -> list[str]:
         public = [i for i in was["discard"] if i not in discard_now and i in ids]
         if p != game.bot_player:
             public += [i for i in from_deck if i in ids and i not in public]
+        public += [i for i in run.flags.get("combat_returns") or () if i in ids and i not in public and by_id.get(i) in st.hand]
         if p == game.bot_player:
             was_ids = set(before["hand_ids"][p])
             public += [i for i in _seen(game.players[1 - p])[:-1]
@@ -283,6 +285,9 @@ def _combat(before: dict, flow) -> list[str]:
     if flow.considered_won and flow.considered_won != before.get("won_by"):        # "you are considered to have won this combat"
         owner = flow.att.owner if flow.considered_won == "atk" else flow.tgt.owner
         out.append(t("narr.considered_won.bot" if owner == flow.game.bot_player else "narr.considered_won.human"))
+    for fid, n in flow.damage_caps.items():
+        if before.get("caps", {}).get(fid) != n:
+            out.append(t("narr.damage_cap", n=n))
     for r in flow.redirects[before["redirects"]:]:
         to = r["to"].get("name") if isinstance(r["to"], dict) else None
         out.append(t("narr.redirects_to", to=to) if to else t("narr.redirects"))

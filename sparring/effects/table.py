@@ -147,7 +147,7 @@ def line(n: dict) -> str:
     op = n["op"]
     if op == "move":
         how = t("tbl.up_to" if n.get("up_to", True) else "tbl.exactly")
-        through = t("tbl.through") if n.get("through") else ""
+        through = t("tbl.through_sidekicks" if n.get("through") == "sidekicks" else "tbl.through") if n.get("through") else ""
         return t("tbl.move", fid=n["fid"], how=how, squares=plural(n["amount"], "noun.space"), through=through)
     if op == "move_none":
         return t("tbl.move_none", fid=n["fid"], squares=plural(n["amount"], "noun.space"))
