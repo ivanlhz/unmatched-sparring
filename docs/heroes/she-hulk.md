@@ -54,7 +54,7 @@ Every item that is a real doubt is also an open question below.
 15. **Double Jeopardy**: heals her up to 20, never above.
 
 ## Rule decisions (Iván, 2026-11-08)
-- **Combat win (global, Iván 2026-11-07/08)**: the DEFENDER wins when its defense value is >= the attack value; the ATTACKER wins only if the attack value is > the defense value (it deals combat damage). A tie is therefore won by the defender. Every "if you won / lost" of this hero reads the engine's result (`CombatFlow.won_by`), with no card-side handling of ties; tied-combat tests in `tests/test_she_hulk_ties.py`. Legalese needed no data change: it already reads `combat_result`; only its doc note and the open question said "a tie counts as lost", which was wrong when she defends.
+- **Combat win (global, Iván 2026-11-07/08)**: the attacker wins only if combat damage lands (Luke Cage's text makes the difference explicit); a tie or no damage = the defender wins. Every "if you won / lost" of this hero reads the engine's result (`CombatFlow.won_by`), with no card-side handling of ties; tied-combat tests in `tests/test_she_hulk_ties.py`. Legalese needed no data change: it already reads `combat_result`; only its doc note and the open question said "a tie counts as lost", which was wrong when she defends.
 - **JUST THROW SOMETHING can NOT target She-Hulk herself** (current behaviour, decided).
 - **The Savage She-Hulk** needs an action left after the attack's own action (current behaviour, decided).
 

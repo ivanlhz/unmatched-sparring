@@ -2994,8 +2994,8 @@ class Session:
         if self.pending is not None:              # the card played with a late reply showed up on the table
             self.say(t("combat.bot_card_on_table"), ChatKind.WARNING)
             return
+        self.sync_human()                         # first: the boost card in the pile tells sync_positions the hero was placed
         self.sync_positions()
-        self.sync_human()
         if self.scheme_baseline is not None and not self._resolve_human_scheme(wait=False):
             self.say(t("end.no_scheme"), ChatKind.WARNING)
         self.scheme_baseline = None
@@ -5159,6 +5159,16 @@ class Session:
             return False
         return not (f.hero and g.fx.hero_rule(f.owner, "maneuver_boost_places_hero"))
 
+    def _escape_artist_placing(self, f: Fighter) -> bool:
+        """The human's hero (ESCAPE ARTIST) is being PLACED by a boosted Maneuver: the boost is already read, or a boost card sits in
+        their pile since the Maneuver began and has not been read yet (End action syncs positions before it reads the boost)."""
+        g = self.game
+        if not (f.hero and f.owner == self.human and self.maneuver_baseline is not None
+                and g.fx.hero_rule(f.owner, "maneuver_boost_places_hero")):
+            return False
+        return self.maneuver_boosted is not None or any(
+            can_be_boost(c) for c in g.players[self.human].discard if c.card_id not in self.maneuver_baseline)
+
     def _departed_by_hand(self, fighter: Fighter, origin: int, *, moved: bool = True) -> None:
         """The human moved `fighter` by hand: `left_zone` (the bot's ATTACK OF OPPORTUNITY) may hurt it. A placement or swap
         by hand (`moved=False`) is no departure."""
@@ -5217,7 +5227,7 @@ class Session:
                         self.game.walk(f, info["space"], None)
                 else:
                     moved_from = f.pos if info["space"] != f.pos and f.owner == self.human and not quiet else None
-                    placed = fid in self.game.placing
+                    placed = fid in self.game.placing or self._escape_artist_placing(f)
                     if info["space"] != f.pos:
                         self.game.placing.discard(fid)
                     f.pos = info["space"]

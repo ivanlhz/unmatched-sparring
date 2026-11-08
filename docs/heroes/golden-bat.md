@@ -50,7 +50,7 @@ Confirmed by Iván; the rest of the list is the most literal reading, applied.
 11. **Arrive Just in Time**: any empty space, his own included (placing may leave him where he is).
 12. **No sidekick**: Golden Bat has none. Daisy is Jill Trent's sidekick, not his (unmatched-memory's entry for him is wrong; ignored).
 
-13. **Combat win (global, Iván 2026-11-07/08)**: the DEFENDER wins when its defense value is >= the attack value; the ATTACKER wins only if the attack value is > the defense value (it deals combat damage). A tie is therefore won by the defender. Every "if you won / lost" of this hero reads the engine's result (`CombatFlow.won_by`), with no card-side handling of ties; tied-combat tests in `tests/test_golden_bat_ties.py`.
+13. **Combat win (global, Iván 2026-11-07/08)**: the attacker wins only if combat damage lands (Luke Cage's text makes the difference explicit); a tie or no damage = the defender wins. Every "if you won / lost" of this hero reads the engine's result (`CombatFlow.won_by`), with no card-side handling of ties; tied-combat tests in `tests/test_golden_bat_ties.py`.
 
 ## Open questions for Iván
 None.

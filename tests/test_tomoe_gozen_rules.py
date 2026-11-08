@@ -17,11 +17,11 @@ def test_a_move_out_of_her_zone_fires_it_even_when_an_effect_does_the_moving(bpr
     t, h, outside = stage(g)
     before = h.hp
     run_ops(g, [{"op": "move", "target": "this", "amount": 3, "up_to": True, "chooser": "owner"}], 1, "hellboy",
-            chooser=Answers_to(outside))
+            chooser=answering_with(outside))
     assert h.pos == outside and h.hp == before - 1                # the rival's own effect moved its hero
 
 
-def Answers_to(dest):
+def answering_with(dest):
     """A chooser that answers every space question with `dest`."""
     class Chooser:
         def choose(self, game, req):
@@ -44,7 +44,7 @@ def test_the_place_op_does_not_fire_it(bprd):
     t, h, outside = stage(g)
     before = h.hp
     run_ops(g, [{"op": "place", "target": "this", "where": {"any": True}, "chooser": "owner"}], 1, "hellboy",
-            chooser=Answers_to(outside))
+            chooser=answering_with(outside))
     assert h.pos == outside and h.hp == before
 
 
@@ -87,7 +87,6 @@ def test_a_warriors_way_lets_the_moved_fighter_cross_fighters_of_its_own_side(bp
         if mid == t.pos:
             continue
         for c in sorted(b.moves[mid]):
-            blocked = {m for m in b.spaces if m != mid}
             reach = b.reachable(h.pos, 3, set(), {mid, t.pos}, False)
             if c not in (h.pos, t.pos, mid) and c not in reach and 1 + b.distance(mid, c) <= 3:
                 spot, target = mid, c
