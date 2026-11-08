@@ -658,7 +658,7 @@ def test_panel_default_position_is_above_the_mats(tmp_path):
 def test_read_discard_skips_the_draw_decks_by_guid():
     s = lua.read_discard("ZONE1", ["DECKA", "DECKB"], [(1.0, 2.0)], 1.5)
     assert '["DECKA"]=true' in s and '["DECKB"]=true' in s
-    assert "if not skip[o.getGUID()] and not near then" in s
+    assert "if not skip[o.getGUID()] and not near and o.getName() ~= \"SparringZoom\" then" in s
 
 
 def test_the_floor_labels_are_locked_so_nobody_drags_them():

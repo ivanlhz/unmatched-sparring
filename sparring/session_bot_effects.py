@@ -116,9 +116,9 @@ def project(session, before: dict | None, played: frozenset = frozenset(), cause
     checks += _human_cards(session, before, played, looked, ctx, intents)
 
     def fin() -> None:
-        shown()
         for check in checks:
             check()
+        shown()                                   # its chat line comes after the lines that name the cards
     return fin
 
 
@@ -278,7 +278,8 @@ def _human_cards(session, before: dict, played: frozenset, looked: bool, ctx: Ct
     # beyond what the discards and the played cards explain (a look re-identifies the hand, which moves
     # placeholders around without moving anything on the table)
     knew = set(before["seen"]) | set(known.top_of_deck)
-    blind = {i for it in intents if it["op"] == "deck_order" and it["player"] == human for i in it["seen"]}   # read in the deck, reordered blind: never from the hand
+    blind = {i for it in intents if it["op"] in ("deck_order", "reveal_top") and it.get("player") == human
+             for i in (it["seen"] if it["op"] == "deck_order" else it["cards"])}   # read in the deck (reordered blind or revealed): never from the hand
     stale = set(before.get("top", ())) & set(h0["deck"])      # already known on top of the deck before the step (read blind earlier): not a hand card that went back
     hand_to_deck = [i for i in h1["deck"] if i in knew and i not in h0["discard"] and i not in blind and i not in stale]
     for intent in _groups(intents, "return_to_deck", human, "hand", hand_to_deck, keep_order=True):

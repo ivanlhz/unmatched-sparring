@@ -240,7 +240,7 @@ for _, o in ipairs(z.getObjects()) do
   for _, sp in ipairs(spots) do
     if (p.x - sp[1]) ^ 2 + (p.z - sp[2]) ^ 2 <= r2 and o.is_face_down then near = true end
   end
-  if not skip[o.getGUID()] and not near then table.insert(objs, o) end
+  if not skip[o.getGUID()] and not near and o.getName() ~= "SparringZoom" then table.insert(objs, o) end
 end
 return JSON.encode(cardIds(objs))
 """)
@@ -2469,7 +2469,7 @@ def snapshot_lua(spec: SnapSpec, seq_expr: str | None = None) -> str:
     for _, sp in ipairs(spots) do
       if (p.x - sp[1]) ^ 2 + (p.z - sp[2]) ^ 2 <= r2 and o.is_face_down then near = true end
     end
-    if not skip[o.getGUID()] and not near then table.insert(objs, o) end
+    if not skip[o.getGUID()] and not near and o.getName() ~= "SparringZoom" then table.insert(objs, o) end
   end
   return cardIds(objs)
 end

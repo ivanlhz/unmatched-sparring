@@ -62,21 +62,31 @@ def show(session, shown: list[tuple[str, list[int]]]) -> Callable[[], None]:
     if not cfg.reveal_display or not shown:
         return lambda: None
     from .session import SessionError
+    left_out, room, kept = 0, lua.MAX_REVEAL_CARDS, []
+    for side, ids in shown:                       # more cards than the table can hold: the first ones are laid, the rest counted
+        ids = list(ids)
+        kept.append((side, ids[:room]))
+        left_out += max(0, len(ids) - room)
+        room = max(0, room - len(ids))
+    kept = [(side, ids) for side, ids in kept if ids]
     try:
         groups = [lua.RevealGroup(tuple(ids), cfg.bot_card_ids if side == "bot" else cfg.human_card_ids,
-                                  session._identity(side)) for side, ids in shown]
+                                  session._identity(side)) for side, ids in kept]
         script = lua.reveal_show(groups, reveal_spec(cfg), (cfg.bot_seat, cfg.human_seat))
         op = session._w(script, DOMAIN)
     except (SessionError, ValueError, TypeError, *ERRORS):
         session.say(t("reveal.missing", n=sum(len(ids) for _, ids in shown)), ChatKind.WARNING)
         return lambda: None
     session.reveal_shown = True
-    session.say(t("reveal.shown"), ChatKind.SCHEME)
 
     def check() -> None:
         res = result_of(op)
         if res.get("shown") == 0:
             session.reveal_shown = False
+        else:
+            session.say(t("reveal.shown"), ChatKind.SCHEME)
+        if left_out:
+            session.say(t("reveal.left_out", n=left_out), ChatKind.WARNING)
         if res.get("missing"):
             session.say(t("reveal.missing", n=len(res["missing"])), ChatKind.WARNING)
     return check

@@ -17,6 +17,7 @@
  "panel.look": "Mirar mano del bot",
  "panel.stop_reveal": "Dejar de revelar",
  "reveal.shown": "Las cartas reveladas estan en la mesa. Pulsa [[panel.stop_reveal]] cuando las hayas leido.",
+ "reveal.left_out": "{n} carta(s) revelada(s) mas no caben en la mesa; ya estan nombradas arriba.",
  "reveal.missing": "{n} carta(s) revelada(s) no se pudieron poner en la mesa; ya estan nombradas arriba.",
  "panel.option": "Opcion",
  "panel.remove": "Retirar",

@@ -206,3 +206,34 @@ def test_later_buttons_never_name_the_order_or_the_buried_card(rig, events):
     session.ai.pick_ability_target = lambda g: None
     later = [str(m) for ev in events for m in click(session, table, ev)]
     assert not [(t, m) for m in later for t in titles if t in m]
+
+
+@pytest.mark.parametrize("gadget", [1, 2])
+@with_rig("jill-trent", "hellboy", "Battle of Wits", "Laser Pen", "Energizing Spray")
+def test_the_bots_reveal_of_your_top_card_is_not_read_as_a_card_going_from_your_hand_to_your_deck(rig, gadget):
+    """Regression (review of bdce8bc): in the same step the chat said "Pon X de tu mano en tu mazo y baraja" for the revealed top card."""
+    session, table, game, fake, cfg = rig
+    game.fx.set_counter(0, "gadget", gadget)
+    adjacent_free(game, table, cfg)
+    table.human_deck = [c.card_id for c in game.players[1].deck[5:9]]
+    human_hand(table, game, TRAINING)
+    card = next(c for c in game.players[0].hand if c.title == "Battle of Wits")
+    bot_turn(session, table, [Act("attack", fid="jill", target="hellboy", card=card)])
+    cid = card_ids(game, 1, TRAINING)[0]
+    table.face_down = [{"id": cid, "guid": f"h{cid}"}]
+    table.human_hand.remove(cid)
+    table.human_count -= 1
+    top_title = next(c.title for c in game.players[1].full_set if c.card_id == table.human_deck[0])
+    msgs = [str(m) for m in click(session, table, Event.REVEAL)]
+    assert any("Reveladas arriba de tu mazo" in m and top_title in m for m in msgs), "the reveal itself is public and named"
+    assert not [m for m in msgs if "mano" in m and "mazo" in m and top_title in m and "Pon " in m], msgs
+    session.ai.plan = lambda g: Act("maneuver", moves={})
+    session.ai.pick_ability_target = lambda g: None
+    later = [str(m) for ev in (Event.END_ACTION, Event.END_ACTION) for m in click(session, table, ev)]
+    assert not [m for m in later if top_title in m]
+
+
+def adjacent_free(game, table, cfg):
+    jill, hellboy = game.fighters["jill"], game.fighters["hellboy"]
+    hellboy.pos = next(s for s in sorted(game.board.adj[jill.pos]) if all(f.pos != s for f in game.fighters.values() if f.alive))
+    table.positions[cfg.nicknames["hellboy"]] = hellboy.pos

@@ -432,3 +432,34 @@ def test_the_display_can_be_switched_off_by_config(rig):
     bot_insightful(session, table, game, cfg)
     click(session, table, Event.REVEAL)
     assert table.reveal_copies == [] and not [s for s in table.scripts if s.startswith("-- sparring:reveal_show")]
+
+
+@with_rig("jill-trent", "hellboy", "Insightful Deduction", "Laser Pen", "Energizing Spray")
+def test_the_chat_line_about_the_copies_comes_after_the_lines_naming_the_cards(rig):
+    session, table, game, fake, cfg = rig
+    bot_insightful(session, table, game, cfg)
+    msgs = [str(m) for m in click(session, table, Event.REVEAL)]
+    named = next(i for i, m in enumerate(msgs) if "Reveladas arriba de tu mazo" in m)
+    button = next(i for i, m in enumerate(msgs) if "Dejar de revelar" in m)
+    assert named < button
+
+
+@with_rig("jill-trent", "hellboy", "Insightful Deduction", "Laser Pen", "Energizing Spray")
+def test_more_cards_than_the_table_holds_show_the_first_ones_and_count_the_rest(rig):
+    from sparring import session_reveal
+    session, table, game, fake, cfg = rig
+    ids = [c.card_id for c in game.players[0].deck[:11]]
+    session.messages = []
+    check = session_reveal.show(session, [("bot", ids)])
+    session._flush()
+    check()
+    assert table.reveal_copies == ids[:8] and session.reveal_shown
+    assert any("3 carta(s) revelada(s) mas no caben" in str(m) for m in session.messages)
+
+
+def test_discard_zone_read_skips_a_copy_lying_in_the_zone(rt):
+    rt.execute('mkobj({guid = "ZN", type = "Scripting", cx = 0, cz = 0, hw = 30, hd = 30})')
+    reveal(rt, group("bot", 101))
+    rt.execute('mkobj({guid = "real", type = "Card", cid = 150, owner = "x", pos = Vector(1, 1, 1), is_face_down = false})')
+    rows = json.loads(rt.execute(lua.read_discard("ZN")))
+    assert "real" in [r["guid"] for r in rows] and not [r for r in rows if r["id"] >= 100000], "the copy is not a discard card"
