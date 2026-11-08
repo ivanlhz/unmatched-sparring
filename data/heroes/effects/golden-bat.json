@@ -139,7 +139,7 @@
     "scheme": [],
     "boost": []
    },
-   "notes": "Versatile 2 / boost 1. Won or not. A look that takes nothing (`take.amount` 0: no question is asked) and puts the 3 cards back on top in the order the owner chooses (`top_ordered`, the first one of the order ends on top). The human looks at the bot's real top cards and orders them on the panel. The bot reads the human's REAL top 3 through `Game.deck_reader(player, 3)` (Iván, 2026-11-08), orders them worst first, keeps them as `KnownHand.top_of_deck` until a draw, a discard or a shuffle erases them, and tells the human to arrange the real deck by hand (intent `deck_order`, bottom null); a table that cannot be read shows nothing and the card says so in the chat. With a deck of fewer than 3 cards it looks at those there are."
+   "notes": "Versatile 2 / boost 1. Won or not. A look that takes nothing (`take.amount` 0: no question is asked) and puts the 3 cards back on top in the order the owner chooses (`top_ordered`, the first one of the order ends on top). The human looks at the bot's real top cards and orders them on the panel. The bot reads the human's REAL top 3 through `Game.deck_reader(player, 3)` (Iván, 2026-11-08), orders them worst first, keeps them as `KnownHand.top_of_deck` until a draw, a discard or a shuffle erases them, and has the table reorder the real deck blind (intent `deck_order`, bottom null, `lua.deck_reorder`; the chat gives only a count, Iván 2026-11-08); a table that cannot be read shows nothing and the card says so in the chat. With a deck of fewer than 3 cards it looks at those there are."
   },
   {
    "title": "Terrifying Roar",

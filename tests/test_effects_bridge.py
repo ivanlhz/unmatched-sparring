@@ -255,7 +255,8 @@ def test_deal_row_puts_the_top_cards_face_up_on_the_spots(rt):
     out = run(rt, deal_row("deck01", [(1, 2, 3), (4, 2, 3)], rot_y=90))
     assert out["dealt"] == ["c1", "c2"]
     assert rt.eval('getObjectFromGUID("c2").pos.x') == 4
-    assert rt.eval('getObjectFromGUID("deck01").getQuantity()') == 1
+    assert rt.eval('getObjectFromGUID("deck01")') is None, "like live TTS: the last card of a deck is a loose Card with its own GUID"
+    assert rt.eval('getObjectFromGUID("c3").type') == "Card"
     with pytest.raises(ValueError):
         deal_row("deck01", [])
 
@@ -511,7 +512,7 @@ def test_shuffle_into_deck_takes_the_cards_out_of_a_stacked_pile(rt):
     out = run(rt, lua.shuffle_into_deck("deck01", ["p1", "p3", "p4"], id_range=X_IDS, identity=X_IDENT))
     assert out["added"] == 3 and out["moved"] == ["p1", "p3", "p4"] and out["deck"] == "deck01"
     assert out["quantity"] == 6 and rt.eval('getObjectFromGUID("deck01").shuffled') is True
-    assert rt.eval('getObjectFromGUID("pile01").getQuantity()') == 1
+    assert rt.eval('getObjectFromGUID("p2").type') == "Card", "the card left in the pile is loose, as in live TTS"
 
 
 def test_shuffle_into_deck_reports_only_the_cards_that_moved(rt):

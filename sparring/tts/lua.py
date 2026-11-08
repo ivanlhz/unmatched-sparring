@@ -3505,6 +3505,142 @@ return JSON.encode({{moved = true, deck = rest.getGUID()}})
 
 
 @_registered
+def deck_reorder(deck_guid: str, seen: list[int], top: list[int], bottom: list[int] = (),
+                 id_range: tuple[int, int] = BOT_CARD_IDS, *, identity, spot: tuple[float, float] | None = None,
+                 zone: str | None = None, radius: float = DECK_RADIUS) -> str:
+    """Reorders the top cards of a deck in place, blind: `seen` are the CardIDs read a moment ago (`peek_deck_top` with
+    `count`), top first; afterwards `top` (first = new top card) lie on top of the deck, then the rest of the deck, then
+    `bottom` (the last one is the very bottom card). `top` + `bottom` must be a permutation of `seen`. Nothing is shown:
+    every card stays face down where the deck lies, no other object moves, and the reply carries no card but the
+    readback of the order.
+
+    The top is checked first: the first `len(seen)` cards of the deck (what TTS gives with `getData`) must be exactly
+    `seen`, all `ours` (`id_range` and the image of `identity`); otherwise nothing moves (`mismatch`). The cards are then
+    taken one by one with `takeObject` (instant, `smooth = false`: a smooth move cannot take a card out of a hand zone)
+    and each CardID is checked against `seen`; any difference puts them all back as they were (`mismatch`). The last card
+    of a deck is a loose Card with another GUID, so the remainder is looked up again after every take (by the GUID, else
+    near where the deck lay), never taking a lifted card or one in a hand. The cards of `bottom` go in with the remainder
+    turned over (instant); the others go on top in reverse order so that `top[0]` ends up on top. When the whole deck was
+    taken, the stack is rebuilt from its last card, laid at the deck's place and rotation. Returns `{reordered, moved,
+    quantity, was, order, last, deck}`: `order` is the readback of the first `len(top)` cards and `last` that of the
+    bottom card (`deck = false`: no deck of ours; `mismatch = true`: the top is not `seen`)."""
+    for name, cards in (("seen", seen), ("top", top), ("bottom", bottom)):
+        if not isinstance(cards, (list, tuple)) or not all(isinstance(i, int) and not isinstance(i, bool) for i in cards):
+            raise TypeError(f"{name}: a list of CardIDs expected")
+    if not 1 <= len(seen) <= MAX_ROW_CARDS or len(set(seen)) != len(seen):
+        raise ValueError(f"1 to {MAX_ROW_CARDS} different cards expected")
+    if sorted([*top, *bottom]) != sorted(seen):
+        raise ValueError("top + bottom must be a permutation of the cards seen")
+    own = _ours_lua(identity, id_range) + _deck_finder(spot, radius, zone)
+
+    def table_of(cards) -> str:
+        return "{" + ", ".join(_i(i) for i in cards) + "}"
+    return f"""-- sparring:deck_reorder
+{own}{_LOOSE_LUA}local deck = findDeck({_guid(deck_guid)})
+if deck == nil then return JSON.encode({{reordered = false, deck = false}}) end
+local seen, top, bottom = {table_of(seen)}, {table_of(top)}, {table_of(bottom)}
+local function mismatch() return JSON.encode({{reordered = false, mismatch = true}}) end
+local data = deck.getData()
+local cards = data.ContainedObjects or {{}}
+local was = deck.type == "Card" and 1 or #cards
+if deck.type == "Card" then
+  if #seen ~= 1 or data.CardID ~= seen[1] or not cardOurs(data, data.CustomDeck) then return mismatch() end
+  return JSON.encode({{reordered = true, moved = false, quantity = 1, was = 1, order = #top > 0 and {{data.CardID}} or {{}}, last = #bottom > 0 and data.CardID or nil, deck = deck.getGUID()}})
+end
+if #cards < #seen then return mismatch() end
+for i, id in ipairs(seen) do
+  if cards[i].CardID ~= id or not cardOurs(cards[i], data.CustomDeck) then return mismatch() end
+end
+local same = #bottom == 0
+for i, id in ipairs(top) do
+  if id ~= seen[i] then same = false end
+end
+if same then
+  return JSON.encode({{reordered = true, moved = false, quantity = was, was = was, order = seen, deck = deck.getGUID()}})
+end
+local home, r = deck.getPosition(), deck.getRotation()
+local lifted = {{}}
+local function isLifted(o)
+  for _, l in ipairs(lifted) do
+    if l == o then return true end
+  end
+  return false
+end
+local function remainder()
+  local d = getObjectFromGUID({_guid(deck_guid)})
+  if d ~= nil and d.type == "Deck" and not isLifted(d) and d.is_face_down and ours(d) then return d end
+  local found
+  for _, o in ipairs(getObjects()) do
+    if not isLifted(o) and (o.type == "Deck" or o.type == "Card") and o.is_face_down and ours(o) and (o.type == "Deck" or not inHand(o)) then
+      local p = o.getPosition()
+      if math.abs(p.x - home.x) < 1.5 and math.abs(p.z - home.z) < 1.5 and (found == nil or o.type == "Deck") then found = o end
+    end
+  end
+  return found
+end
+local function restack(list)
+  local base = remainder()
+  local from = #list
+  if base == nil then
+    base = list[#list]
+    base.setRotation(Vector(r.x, r.y, r.z))
+    base.setPosition(home)
+    from = #list - 1
+  end
+  for i = from, 1, -1 do base = base.putObject(list[i]) or base end
+  return base
+end
+local ok = true
+for i = 1, #seen do
+  local cur = remainder()
+  if cur == nil then ok = false break end
+  local at = Vector(home.x, home.y + 2 + 0.5 * i, home.z)
+  local card
+  if cur.type == "Deck" then
+    card = cur.takeObject({{position = at, smooth = false}})
+  else
+    card = cur
+    card.setPosition(at)
+  end
+  if card == nil then ok = false break end
+  lifted[#lifted + 1] = card
+  if card.getData().CardID ~= seen[i] then ok = false break end
+end
+if not ok then
+  if #lifted > 0 then restack(lifted) end
+  return mismatch()
+end
+local byId = {{}}
+for _, c in ipairs(lifted) do byId[c.getData().CardID] = c end
+local up, down = {{}}, {{}}
+for _, id in ipairs(top) do up[#up + 1] = byId[id] end
+for _, id in ipairs(bottom) do down[#down + 1] = byId[id] end
+local rest = remainder()
+if rest == nil then
+  for _, c in ipairs(down) do up[#up + 1] = c end
+elseif #down > 0 then
+  rest.setRotation(Vector(r.x, r.y, (r.z + 180) % 360))
+  for _, c in ipairs(down) do rest = rest.putObject(c) or rest end
+  rest.setRotation(Vector(r.x, r.y, r.z))
+end
+local final = restack(up)
+local fd = final.getData()
+local order, last = {{}}, nil
+if final.type == "Card" then
+  if #top > 0 then order[1] = fd.CardID end
+  if #bottom > 0 then last = fd.CardID end
+else
+  local fc = fd.ContainedObjects or {{}}
+  for i = 1, {len(top)} do
+    if fc[i] ~= nil then order[#order + 1] = fc[i].CardID end
+  end
+  if #bottom > 0 and #fc > 0 then last = fc[#fc].CardID end
+end
+return JSON.encode({{reordered = true, moved = true, quantity = final.type == "Card" and 1 or #(fd.ContainedObjects or {{}}), was = was, order = order, last = last, deck = final.getGUID()}})
+"""
+
+
+@_registered
 def take_token_copy(source_guid: str, position: tuple[float, float, float]) -> str:
     """Gets one more token from a source object (Abe's Uncanny Intuition): a bag or infinite bag and a stack give one with
     `takeObject`; a single token is `clone`d. Returns `{taken: guid, via}` (`moved` too, so a composite waits for it)."""

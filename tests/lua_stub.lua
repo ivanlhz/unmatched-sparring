@@ -64,11 +64,19 @@ function mkobj(o)
   end
   o.getQuantity = function() return #(o.cards or {}) end
   o.shuffle = function() o.shuffled = true end
+  -- like live TTS: a card put into a face-down deck lies on its top (cards[1]); a deck turned over takes it at the other end
+  -- (cards[#cards]); a single Card becomes a Deck with a new GUID
   o.putObject = function(x)
     PUT_LOG = PUT_LOG or {}
     table.insert(PUT_LOG, {deck = o.guid, card = x.guid, rot_z = (o.rot or vec(0, 0, 0)).z})
-    if x.type == "Card" then table.insert(o.cards, {cid = x.cid, guid = x.guid, owner = x.owner, deck_key = x.deck_key})
-    else for _, c in ipairs(x.cards) do table.insert(o.cards, c) end end
+    if o.type == "Card" then
+      o.cards = {{cid = o.cid, guid = o.guid, owner = o.owner, deck_key = o.deck_key}}
+      o.type, o.guid, o.cid = "Deck", "deck" .. serial .. "x" .. #PUT_LOG, nil
+    end
+    local at = (o.is_face_down == false) and #o.cards + 1 or 1
+    local added = {}
+    if x.type == "Card" then added = {{cid = x.cid, guid = x.guid, owner = x.owner, deck_key = x.deck_key}} else added = x.cards end
+    for k, c in ipairs(added) do table.insert(o.cards, at + k - 1, c) end
     for i, y in ipairs(OBJECTS) do if y == x then table.remove(OBJECTS, i) break end end
     return o
   end
@@ -89,7 +97,12 @@ function mkobj(o)
     for i, c in ipairs(o.cards or {}) do
       if c.guid == t.guid or (t.guid == nil and i == 1) then
         table.remove(o.cards, i)
-        local card = mkobj({guid = c.guid, type = "Card", cid = c.cid, owner = c.owner, deck_key = c.deck_key, pos = Vector(t.position)})
+        local card = mkobj({guid = c.guid, type = "Card", cid = c.cid, owner = c.owner, deck_key = c.deck_key, pos = Vector(t.position),
+                            rot = o.rot, is_face_down = o.is_face_down})
+        if #o.cards == 1 then          -- like live TTS: the last card of a deck is a loose Card with a GUID of its own
+          local last = o.cards[1]
+          o.type, o.guid, o.cid, o.owner, o.deck_key, o.cards = "Card", last.guid, last.cid, last.owner, last.deck_key, nil
+        end
         return card
       end
     end

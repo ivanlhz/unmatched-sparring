@@ -275,7 +275,8 @@ def _human_cards(session, before: dict, played: frozenset, looked: bool, ctx: Ct
     # beyond what the discards and the played cards explain (a look re-identifies the hand, which moves
     # placeholders around without moving anything on the table)
     knew = set(before["seen"]) | set(known.top_of_deck)
-    hand_to_deck = [i for i in h1["deck"] if i in knew and i not in h0["discard"]]
+    blind = {i for it in intents if it["op"] == "deck_order" and it["player"] == human for i in it["seen"]}   # read in the deck, reordered blind: never from the hand
+    hand_to_deck = [i for i in h1["deck"] if i in knew and i not in h0["discard"] and i not in blind]
     for intent in _groups(intents, "return_to_deck", human, "hand", hand_to_deck, keep_order=True):
         checks += translate(session, intent, ctx) or []
     # a pile card an effect shuffled into your deck that the engine then drew for you (Back For Seconds, then a draw of

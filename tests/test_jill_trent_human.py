@@ -1,7 +1,7 @@
 """Jill Trent at the live table (FakeTTS, batch mode), both seats: the gadget choice at the start of the human's turn, Hypnoray Blaster on
 the human's attack (the bot's top card revealed in the chat), Utility Belt's three buttons, Insightful Deduction played by the human on
 the bot's deck (which card goes to the bottom, the order of the rest, pinned in the session) and played by the bot on the human's deck
-(the bot reads the real top three, says how to arrange them and does not touch the deck). The bot's side of the same cards is in
+(the bot reads the real top three and reorders them blind: a count in the chat, never a name). The bot's side of the same cards is in
 tests/test_jill_trent_effects.py.
 
 Her deck is sheet 176 like Medusa's, the turtles', Strange's and the Marvel decks': every id the table reports is resolved against the
@@ -147,13 +147,15 @@ def test_you_bury_one_card_of_the_bots_deck_and_order_the_rest_and_the_order_is_
 # ---------------------------------------------------------------- Insightful Deduction, the bot plays it
 
 @with_rig("jill-trent", "hellboy", "Insightful Deduction", "Laser Pen", "Energizing Spray")
-def test_the_bot_reads_your_top_three_and_tells_you_how_to_arrange_your_deck(rig):
+def test_the_bot_reads_your_top_three_and_reorders_your_real_deck_blind(rig):
+    """Ivan, 2026-11-08: the bot moves the cards itself. The reveal is the card's own (public) and is told; what the bot did with
+    the cards is not: the reorder line has a count and no title, and the real deck ends in the order the bot keeps in its head."""
     session, table, game, fake, cfg = rig
     game.fx.set_counter(0, "gadget", 0)
     jill, hellboy = game.fighters["jill"], game.fighters["hellboy"]
     hellboy.pos = next(s for s in sorted(game.board.adj[jill.pos]) if all(f.pos != s for f in game.fighters.values() if f.alive))
     table.positions[cfg.nicknames["hellboy"]] = hellboy.pos
-    table.human_deck = card_ids(game, 1, "Excalibur", "Regroup" if False else "Right Hand Of Doom", "Service Pistol")
+    table.human_deck = [c.card_id for c in game.players[1].deck[5:9]]       # none of them in the engine's virtual hand; a fourth stays below
     human_hand(table, game, TRAINING)
     card = next(c for c in game.players[0].hand if c.title == "Insightful Deduction")
     bot_turn(session, table, [Act("attack", fid="jill", target="hellboy", card=card)])
@@ -163,7 +165,15 @@ def test_the_bot_reads_your_top_three_and_tells_you_how_to_arrange_your_deck(rig
     table.human_count -= 1
     before = list(table.human_deck)
     msgs = click(session, table, Event.REVEAL)
-    assert said(msgs, "Reveladas arriba de tu mazo"), msgs
-    assert said(msgs, "debajo de tu mazo") and said(msgs, "Hazlo a mano"), msgs
-    assert table.human_deck == before, "the real deck is theirs: the bot never moves it"
+    line = next((m for m in msgs if "reordenado" in m), "")
+    assert "he reordenado las 3 cartas superiores de tu mazo y he mandado 1 al fondo" in line, msgs
+    titles = [c.title for c in game.players[1].full_set if c.card_id in before]
+    assert not [t for t in titles if t in line] and not said(msgs, "Hazlo a mano") and not said(msgs, "debajo de tu mazo"), msgs
+    assert len(table.reorders) == 1 and table.reorders[0][0] == before[:3] and len(table.reorders[0][2]) == 1
+    top = game.players[0].known.top_of_deck
+    assert len(top) == 2 and table.human_deck[:2] == top, "the two on top are the ones the bot keeps in mind, in its order"
+    assert table.human_deck[-1] == table.reorders[0][2][0] and table.human_deck[2] == before[3], "the buried one is at the bottom"
+    assert sorted(table.human_deck) == sorted(before), "same cards, same count"
     assert not [s for s in table.scripts if s.startswith("-- sparring:deck_top_to_bottom")]
+    game.draw(1, 1)
+    assert game.players[0].known.top_of_deck == []

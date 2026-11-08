@@ -279,7 +279,7 @@ def human_table(g, n=3):
     return real
 
 
-def test_the_bot_reads_a_humans_real_top_three_orders_them_and_tells_the_human_to_arrange_them(bprd):
+def test_the_bot_reads_a_humans_real_top_three_orders_them_and_asks_the_table_for_a_blind_reorder(bprd):
     g = mk(bprd)
     b, h = pair(g, "bat", "hellboy")
     start_turn(g)
@@ -292,6 +292,7 @@ def test_the_bot_reads_a_humans_real_top_three_orders_them_and_tells_the_human_t
     assert [c.card_id for c in g.players[1].deck] == before, "the real deck is theirs: the engine's copy is untouched"
     intent = next(i for i in g.fx.intents if i["op"] == "deck_order")
     assert intent["player"] == 1 and intent["bottom"] is None and intent["top"] == list(reversed(seen[0].options))
+    assert intent["seen"] == real[:3], "the cards as the table gave them: what the table checks before it moves anything"
     assert g.players[0].known.top_of_deck == intent["top"]
     assert not any(i["op"] == "reveal_top" for i in g.fx.intents), "nothing is named as revealed"
 

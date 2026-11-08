@@ -1,6 +1,7 @@
 """Golden Bat's Sight Beyond Sight played by the bot against the human at the live table (FakeTTS): the bot reads the real top three
-through the table reader, tells the human how to arrange them by hand, never moves the deck and remembers the cards only until
-they are drawn. Same rig as tests/test_jill_trent_human.py."""
+through the table reader and reorders them itself, blind (Ivan, 2026-11-08): the chat says how many cards it reordered and never
+which, the deck keeps its size, nothing is revealed and the bot remembers the cards only until they are drawn. Same rig as
+tests/test_jill_trent_human.py."""
 from __future__ import annotations
 
 import pytest
@@ -21,12 +22,12 @@ def rig(tmp_path):
     fake.close()
 
 
-def test_the_bot_reads_your_top_three_tells_you_the_order_and_never_names_them_as_revealed(rig):
-    session, table, game, fake, cfg = rig
+def play_sight_beyond_sight(session, table, game, cfg):
+    """The bot attacks with Sight Beyond Sight against a human whose real deck starts with three known cards; returns the chat."""
     bat, foe = game.fighters["bat"], game.fighters["hellboy"]
     foe.pos = next(s for s in sorted(game.board.adj[bat.pos]) if all(f.pos != s for f in game.fighters.values() if f.alive))
     table.positions[cfg.nicknames["hellboy"]] = foe.pos
-    table.human_deck = card_ids(game, 1, "Excalibur", "Right Hand Of Doom", "Service Pistol")
+    table.human_deck = [c.card_id for c in game.players[1].deck[5:8]]     # none of them in the engine's virtual hand
     human_hand(table, game, TRAINING)
     card = next(c for c in game.players[0].hand if c.title == "Sight Beyond Sight")
     bot_turn(session, table, [Act("attack", fid="bat", target="hellboy", card=card)])
@@ -34,12 +35,40 @@ def test_the_bot_reads_your_top_three_tells_you_the_order_and_never_names_them_a
     table.face_down = [{"id": cid, "guid": f"h{cid}"}]
     table.human_hand.remove(cid)
     table.human_count -= 1
+
+
+def test_the_bot_reorders_your_real_top_three_blind_and_names_no_card(rig):
+    session, table, game, fake, cfg = rig
+    play_sight_beyond_sight(session, table, game, cfg)
     before = list(table.human_deck)
+    titles = [c.title for c in game.players[1].full_set if c.card_id in before]
     msgs = click(session, table, Event.REVEAL)
-    assert said(msgs, "pon estas cartas encima de tu mazo") and said(msgs, "Hazlo a mano"), msgs
-    assert not said(msgs, "Reveladas arriba"), msgs
-    assert table.human_deck == before, "the real deck is theirs: the bot never moves it"
+    assert said(msgs, "he reordenado las 3 cartas superiores de tu mazo"), msgs
+    assert not said(msgs, "Hazlo a mano") and not said(msgs, "pon estas cartas") and not said(msgs, "Reveladas arriba"), msgs
+    assert not [t for t in titles if said(msgs, t)], "no card of the human's deck is named"
+    assert len(table.reorders) == 1 and table.reorders[0][:3] == (before, table.reorders[0][1], []) and table.reorders[0][3],         "one op, inside the step's composite, with the cards as they were read"
     top = game.players[0].known.top_of_deck
-    assert sorted(top) == sorted(before[:3])
+    assert sorted(top) == sorted(before) and table.human_deck == top, "the real deck is in the order the bot chose and it remembers it"
+    assert len(table.human_deck) == len(before) and table.row == [] and table.homes == [], "same count, nothing laid out"
     game.draw(1, 1)
     assert game.players[0].known.top_of_deck == []
+
+
+def test_a_top_that_changed_since_it_was_read_aborts_the_reorder_and_the_bot_forgets_it(rig):
+    session, table, game, fake, cfg = rig
+    play_sight_beyond_sight(session, table, game, cfg)
+    before = list(table.human_deck)
+    titles = [c.title for c in game.players[1].full_set if c.card_id in before]
+    read = table.do_peek_deck_top
+
+    def read_then_drift(s):
+        out = read(s)
+        table.human_deck.insert(0, table.human_deck.pop(2))      # someone moves a card between the read and the move
+        return out
+    table.do_peek_deck_top = read_then_drift
+    drifted = [before[2], before[0], before[1]]
+    msgs = click(session, table, Event.REVEAL)
+    assert said(msgs, "no he podido reordenar tu mazo"), msgs
+    assert table.human_deck == drifted, "nothing moved"
+    assert game.players[0].known.top_of_deck == []
+    assert not [t for t in titles if said(msgs, t)] and not said(msgs, "cartas superiores"), msgs

@@ -149,10 +149,10 @@ def _shuffle_deck(run, game, spec):
 
 def _look_foreign_deck(run, game, spec, owner: int, target: int) -> bool:
     """A look that takes nothing and puts the cards back on top in the owner's order (Sight Beyond Sight) at the human's real deck:
-    the bot reads the top cards through the table reader, orders them (the human arranges the real deck by hand: intent
-    `deck_order`) and keeps them as `KnownHand.top_of_deck` until a draw or a shuffle erases them. The cards are not named in the
-    chat but in the arrangement the human has to make. False when the card does something else or the table gives nothing
-    (the caller leaves its note)."""
+    the bot reads the top cards through the table reader, orders them worst first for the human and keeps them as
+    `KnownHand.top_of_deck` until a draw or a shuffle erases them. The intent `deck_order` makes the table reorder the real
+    deck blind (`lua.deck_reorder`); the cards are never named in the chat. False when the card does something else or the
+    table gives nothing (the caller leaves its note)."""
     from .plugins_jill import top_cards
     if spec.get("rest") != "top_ordered" or spec["look"] == "all" or int(amount(game, run, spec["take"].get("amount", 1))):
         return False
@@ -161,7 +161,7 @@ def _look_foreign_deck(run, game, spec, owner: int, target: int) -> bool:
         return False
     order = [c.card_id for c in _ask_order(game, run, owner, seen, of=target, position="top")] if len(seen) > 1 else [seen[0].card_id]
     _watcher(game, target).set_top(order)
-    table.intent(game, op="deck_order", player=target, top=order, bottom=None, owner=owner)
+    table.intent(game, op="deck_order", player=target, seen=[c.card_id for c in seen], top=order, bottom=None, owner=owner)
     if "as" in spec:
         run.bind("cards", spec["as"], [])
     return True

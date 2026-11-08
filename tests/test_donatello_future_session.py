@@ -35,6 +35,7 @@ class DeckTable(FxTable):
         self.opens: list[bool] = []
         self.lone = False                           # the whole deck was one card and it lies face up in the row: no deck to find
         self.homes: list[bool] = []
+        self.reorders: list[tuple] = []             # (seen, top, bottom, inside a composite) of each deck_reorder
 
     def do_composite(self, s):
         self.depth += 1
@@ -84,6 +85,23 @@ class DeckTable(FxTable):
         if not self.human_deck:
             return {"found": False}
         return {"found": True, "id": self.human_deck[0], "quantity": len(self.human_deck)}
+
+    def do_deck_reorder(self, s):
+        """The blind reorder of the human's real deck: the top must still be what was read, else nothing moves. The cards never
+        leave the deck face down, so nothing is added to `row`, `face_down` or any other zone, and the count does not change."""
+        seen, top, bottom = (list(map(int, re.findall(r"\d+", part)))
+                             for part in re.search(r"local seen, top, bottom = \{([^}]*)\}, \{([^}]*)\}, \{([^}]*)\}", s).groups())
+        self.reorders.append((seen, top, bottom, self.depth > 0))
+        if not self.human_deck:
+            return {"reordered": False, "deck": False}
+        if self.human_deck[:len(seen)] != seen:
+            return {"reordered": False, "mismatch": True}
+        was = len(self.human_deck)
+        self.human_deck[:len(seen)] = []
+        self.human_deck[:0] = top
+        self.human_deck.extend(bottom)
+        return {"reordered": True, "moved": True, "quantity": len(self.human_deck), "was": was, "order": top,
+                "last": self.human_deck[-1], "deck": "DECK1"}
 
     def do_deck_top_to_bottom(self, s):
         self.moves.append(self.depth > 0)

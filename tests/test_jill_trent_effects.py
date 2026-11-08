@@ -507,7 +507,7 @@ def test_insightful_deduction_with_a_short_deck_does_what_it_can(bprd):
 
 def test_insightful_deduction_reads_the_human_deck_through_the_table_reader(bprd):
     """The rival is the table player: the bot reads their real top three through `Game.deck_reader` and the engine's placeholder
-    deck is left alone (the human rearranges the real one by hand)."""
+    deck is left alone (the table reorders the real one, blind: intent `deck_order`)."""
     from sparring.effects import table
     g = mk(bprd, gadget=0)
     jill, foe = pair(g, "jill", "hellboy")
@@ -523,6 +523,7 @@ def test_insightful_deduction_reads_the_human_deck_through_the_table_reader(bprd
     assert [c.card_id for c in g.players[1].deck] == before
     intent = next(i for i in g.fx.intents if i["op"] == "deck_order")
     assert sorted(intent["top"] + [intent["bottom"]]) == sorted(real) and intent["player"] == 1
+    assert intent["seen"] == real, "the cards as the table gave them, top first"
     assert table.physical(g, 1)
 
 

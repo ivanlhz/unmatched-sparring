@@ -15,8 +15,8 @@ unless one of these effects says so, at the moment it resolves. What the owner s
 which the next draw or shuffle of that deck erases.
 
 Table side: a reveal is said in the chat (intent `reveal_top`); a reorder of the bot's deck by the human is pinned in the
-session (intent `deck_order`, `session_jill`), a reorder of the human's deck by the bot is told to the human, who does it by
-hand (the real deck is theirs)."""
+session (intent `deck_order`, `session_jill`), a reorder of the human's deck by the bot is done by the bot itself, blind
+(`lua.deck_reorder`): the intent carries the cards as read (`seen`) so the table can check the top is still those cards."""
 from __future__ import annotations
 
 from ..i18n import t
@@ -113,4 +113,4 @@ def _insightful_deduction(run, game, spec):
         game.players[owner].known.set_top(list(top))
     else:
         game.players[owner].known.set_top(list(top))
-    table.intent(game, op="deck_order", player=rival, top=list(top), bottom=bottom, owner=owner)
+    table.intent(game, op="deck_order", player=rival, seen=list(ids), top=list(top), bottom=bottom, owner=owner)
