@@ -104,7 +104,7 @@ def _insightful_deduction(run, game, spec):
     bottom = run.ask(game, "cards", owner, ids, 1, 1, "put one on the bottom", zone="deck", purpose="bottom", of=rival)[0]
     rest = [i for i in ids if i != bottom]
     top = rest if len(rest) < 2 else run.ask(game, "order", owner, rest, len(rest), len(rest), "order the rest",
-                                              ordered=True, zone="deck", purpose="order", of=rival, position="top")
+                                              ordered=True, zone="deck", purpose="order", of=rival, position="top", bottom=bottom)
     by_id = {c.card_id: c for c in seen}
     st = game.players[rival]
     if not table.physical(game, rival):

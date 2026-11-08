@@ -166,8 +166,8 @@ class SessionConfig:
     bot_row_spot: tuple[float, float, float] = (11.5, 2.5, -29.0)   # center of the row of the bot's hand the human's cards look at (next to its combat and ONGOING zones)
     bot_row_step: tuple[float, float] = (0.0, 2.6)              # (dx, dz) between cards of that row
     order_by_hand: bool = True                                   # the human orders the bot's top cards on the table (session_order); False: panel buttons
-    order_spot: tuple[float, float, float] = (-3.0, 2.5, 22.5)   # center of the row where the bot lays its top cards for the human to order (estimate: calibrate live)
-    order_step: tuple[float, float] = (3.4, 0.0)                 # (dx, dz) between cards of that row
+    order_spot: tuple[float, float, float] = (-10.5, 2.5, 22.5)   # center of the row where the bot lays its top cards for the human to order (estimate: calibrate live)
+    order_step: tuple[float, float] = (0.0, 3.4)                 # (dx, dz) between cards of that row
     look_rot_y: float | None = None                              # turn of the row's cards (default: the bot discard's)
     token_spot: tuple[float, float, float] | None = None         # where the bot lays its active ability tokens (Abe); default: beside its deck
     bot_ongoing_spot: tuple[float, float, float] | None = None   # ONGOING zone below each combat zone (E2, Ivan): the bot lays its

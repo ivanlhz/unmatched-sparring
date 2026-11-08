@@ -72,7 +72,7 @@ class DeckTable(FxTable):
             return {"placed": False, "deck": False}       # a face-up card is no deck: TTS finds nothing to put it into
         if self._human_side(s) or not self.row:
             return super()._deck_insert(s, kind)
-        card_id = int(re.search(r'getObjectFromGUID\("g(\d+)"\)', s).group(1))
+        card_id = int((re.search(r"getData\(\)\.CardID == (\d+)", s) or re.search(r'getObjectFromGUID\("g(\d+)"\)', s)).group(1))
         if card_id not in self.row:
             return {"placed": False}
         self.row.remove(card_id)

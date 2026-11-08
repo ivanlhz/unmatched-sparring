@@ -85,7 +85,9 @@ def open_row(session, req: ChoiceRequest) -> bool:
         session.say(instruction(session, req), ChatKind.YOUR_TURN)
         return True
     at = spots(cfg, len(ids))
+    bottom = req.extra.get("bottom")
     try:
+        bury = None if bottom is None else _bury(session, bottom, (at[-1][0] + cfg.order_step[0], at[-1][1], at[-1][2] + cfg.order_step[1]))
         ops = [session._w(lua.deck_card_to_spot(i, cfg.bot_deck_guid, where, session._look_rot(), cfg.bot_card_ids,
                                                 identity=session._identity(), **session._deck_kw()), DOMAIN)
                for i, where in zip(ids, at)]
@@ -93,13 +95,26 @@ def open_row(session, req: ChoiceRequest) -> bool:
     except ERRORS + (SessionError, ValueError, TypeError):
         return False
     session.order_row = {"key": req.key, "ids": ids}
-    session._post.append(lambda: _laid(session, req, ops))
+    session._post.append(lambda: _laid(session, req, ops, bury))
     session.say(instruction(session, req), ChatKind.YOUR_TURN)
     return True
 
 
-def _laid(session, req: ChoiceRequest, ops: list) -> None:
-    """After the write: if the table did not give every card, the request goes back to the panel buttons."""
+def _bury(session, card_id: int, parking: tuple) -> list:
+    """The card the owner sent to the bottom (Insightful Deduction) goes to the bottom of the bot's real deck BEFORE the rest is laid:
+    taken out by CardID and deck image, then put under the deck by CardID (a loose card of the bot's, `ours` only)."""
+    cfg, kw = session.cfg, session._deck_kw()
+    take = lua.deck_card_to_spot(card_id, cfg.bot_deck_guid, parking, session._look_rot(), cfg.bot_card_ids,
+                                 identity=session._identity(), **kw)
+    put = lua.card_to_deck_bottom(card_id, cfg.bot_deck_guid, cfg.bot_card_ids, identity=session._identity(), **kw)
+    return [session._w(take, DOMAIN), session._w(put, DOMAIN)]
+
+
+def _laid(session, req: ChoiceRequest, ops: list, bury: list | None = None) -> None:
+    """After the write: a buried card that did not reach the bottom is said (the table and the engine would disagree in silence);
+    if the table did not give every card, the request goes back to the panel buttons."""
+    if bury is not None and not result_of(bury[1]).get("placed"):
+        session.say(t("order.bottom_failed", card=card_titles(session.game, [req.extra["bottom"]], session.bot)), ChatKind.WARNING)
     row = session.order_row
     if row is None or row["key"] != req.key:
         return
@@ -158,10 +173,10 @@ def press(session, paused, index) -> None:
     if ids is None:
         session.say(why, ChatKind.WARNING)
         return
-    session.say(t("order.counted"), ChatKind.YOUR_TURN)
     session._answer_choice(paused, ids)
     if manual_request(session) is None:           # answered (a refusal rolls the save back and the row stays)
         session.order_row = None
+        session.say(t("order.counted"), ChatKind.YOUR_TURN)
 
 
 def pin(session, req, value: list) -> None:

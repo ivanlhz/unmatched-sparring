@@ -207,6 +207,7 @@
  "order.mismatch": "Encima de mi mazo no estan justo las {n} cartas que puse en la mesa.{detail} Comprueba que no quede ninguna en la mesa ni haya otra encima y pulsa [[btn.done]].",
  "order.lay_failed": "No he podido sacar mis cartas de arriba para que las ordenes en la mesa.",
  "order.lay_partial": "No he podido sacar todas mis cartas de arriba: las que hayan quedado en la mesa, devuelvelas tu encima de mi mazo, boca abajo.",
+ "order.bottom_failed": "No he podido poner {card} debajo de mi mazo: ponla tu, boca abajo, debajo de mi mazo, o la mesa y mi cuenta no coincidiran.",
  "jill.order.bot": "Hecho: {bottom} va debajo de mi mazo y el resto se queda arriba en el orden que elegiste.",
  "choice.prompt.bottom": "Elige la carta que va debajo del mazo",
  "choice.prompt.gadget": "Que gadget activas?",

@@ -6,6 +6,8 @@ of the read is `deck_card_to_spot` / `peek_deck_top`, covered on the Lua stub in
 from __future__ import annotations
 
 import json
+import math
+from pathlib import Path
 
 import pytest
 
@@ -184,3 +186,41 @@ def test_with_order_by_hand_off_the_panel_buttons_stay_and_the_order_is_still_pi
     assert [c.card_id for c in game.players[0].deck[:3]] == expected
     session.read_bot_hand()
     assert [c.card_id for c in game.players[0].deck[:3]] == expected, "the panel order survives a reread of the table"
+
+
+ROOT = Path(__file__).resolve().parent.parent
+MARGIN = 0.3
+
+
+def _slots(layout):
+    """(x, z, half) of every slot of a layout: cards, dials and tokens as a 1.6 half-box (a card turned either way), pieces as 1.0."""
+    for side in layout.values():
+        for key, value in side.items():
+            for item in value if isinstance(value, list) else [value]:
+                yield item["pos"][0], item["pos"][2], 1.0 if key == "pieces" else 1.6
+
+
+@pytest.mark.parametrize("n", [2, 3])
+def test_the_row_stays_on_the_human_side_clear_of_every_slot_of_every_map(n):
+    """order_spot / order_step are an estimate of the table: at least keep the cards off x >= 0 and off everything the layout, the
+    maps, the Jill gadget token, the dead spots and the look spot put there."""
+    from types import SimpleNamespace
+    from sparring.session import SessionConfig
+    from sparring.session_order import spots
+    table = json.loads((ROOT / "config" / "table.json").read_text(encoding="utf-8"))
+    maps = json.loads((ROOT / "config" / "map_setups.json").read_text(encoding="utf-8"))
+    jill = json.loads((ROOT / "data" / "tts" / "jill-trent.json").read_text(encoding="utf-8"))
+    cfg = SimpleNamespace(order_spot=tuple(table["order_spot"]), order_step=tuple(table["order_step"]))
+    assert (cfg.order_spot, cfg.order_step) == (SessionConfig.order_spot, SessionConfig.order_step), "the code default is the table's"
+    rot = math.radians(table.get("look_rot_y", table["bot_discard_rot_y"]))
+    w, d = lua.CARD_SIZE
+    hx = abs(math.cos(rot)) * w / 2 + abs(math.sin(rot)) * d / 2
+    hz = abs(math.sin(rot)) * w / 2 + abs(math.cos(rot)) * d / 2
+    boxes = [(x, z, h) for layout in [table["layout"], *(m["layout"] for m in maps.values())] for x, z, h in _slots(layout)]
+    boxes += [(p["pos"][0], p["pos"][2], 1.6) for side in jill["token_slots"]["gadget"].values() for p in side]
+    boxes += [(table["dead_spot"][0], table["dead_spot"][2], 1.6), (table["human_dead_spot"][0], table["human_dead_spot"][2], 1.6),
+              (table["look_spot"][0], table["look_spot"][2], 1.6)]
+    for x, _, z in spots(cfg, n):
+        assert x + hx < 0, "the whole card on the human's side"
+        clash = [(bx, bz) for bx, bz, half in boxes if abs(bx - x) < hx + half + MARGIN and abs(bz - z) < hz + half + MARGIN]
+        assert not clash, (x, z, clash)

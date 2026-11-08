@@ -207,6 +207,7 @@
  "order.mismatch": "The top of my deck is not exactly the {n} cards I laid on the table.{detail} Check that none is left on the table and no other is on top, then press [[btn.done]].",
  "order.lay_failed": "I could not take my top cards out for you to order them on the table.",
  "order.lay_partial": "I could not take all my top cards out: put the ones left on the table back on my deck yourself, face down.",
+ "order.bottom_failed": "I could not put {card} under my deck: put it there yourself, face down, or the table and my count will not match.",
  "jill.order.bot": "Done: {bottom} goes to the bottom of my deck and the rest stay on top in the order you chose.",
  "choice.prompt.bottom": "Choose the card that goes to the bottom of the deck",
  "choice.prompt.gadget": "Which gadget do you activate?",
