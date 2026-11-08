@@ -220,7 +220,8 @@ def test_the_row_stays_on_the_human_side_clear_of_every_slot_of_every_map(n):
     boxes += [(p["pos"][0], p["pos"][2], 1.6) for side in jill["token_slots"]["gadget"].values() for p in side]
     boxes += [(table["dead_spot"][0], table["dead_spot"][2], 1.6), (table["human_dead_spot"][0], table["human_dead_spot"][2], 1.6),
               (table["look_spot"][0], table["look_spot"][2], 1.6)]
-    for x, _, z in spots(cfg, n):
+    from sparring.session_order import parking
+    for x, _, z in [*spots(cfg, n), parking(cfg)]:
         assert x + hx < 0, "the whole card on the human's side"
         clash = [(bx, bz) for bx, bz, half in boxes if abs(bx - x) < hx + half + MARGIN and abs(bz - z) < hz + half + MARGIN]
         assert not clash, (x, z, clash)

@@ -15,6 +15,7 @@ Two intents come from `effects/plugins_jill.py` and `effects/ops_info.py`:
 from __future__ import annotations
 
 from .i18n import t, tn
+from . import session_order as order_cards
 from .session_translators import BOT, DOMAIN, ERRORS, HUMAN, register, result_of
 from .tts import lua
 from .tts.lua import ChatKind
@@ -66,7 +67,7 @@ def _pin_bot_deck(session, intent: dict) -> list:
     pins["top"][:0] = list(intent["top"])
     pins["bottom"].append(intent["bottom"])
     session.say(t("jill.order.bot", bottom=_names(session, session.bot, [intent["bottom"]])), ChatKind.SCHEME)
-    return []
+    return order_cards.bury(session, intent["bottom"])
 
 
 def _reorder_human_deck(session, intent: dict, ctx) -> list:

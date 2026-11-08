@@ -17,7 +17,7 @@ from sparring.ai_medusa import Act
 from sparring.effects.select import counter_value
 from sparring.tts.ui import Event
 from test_batch import click
-from test_d3_table_effects import bot_turn, build, card_ids, human_attack, human_hand, said, twin_session
+from test_d3_table_effects import bot_turn, build, card_ids, human_attack, human_hand, said, to_bot_discard, twin_session
 from test_donatello_future_session import DeckTable
 from test_e2_human_cards import bot_defends_with, human_scheme, labels, press
 
@@ -154,10 +154,10 @@ def test_you_bury_one_card_of_the_bots_deck_and_order_the_rest_and_the_order_is_
     req = session.effect_run.awaiting
     assert req.kind == "order" and sorted(req.options) == sorted([top3[0].card_id, top3[2].card_id])
     assert sorted(table.row) == sorted(req.options) and labels(session) == ["Hecho"], "the two cards lie on the table: only Done"
-    assert table.bot_deck[-1] == top3[1].card_id, "the buried card was put at the bottom of the real deck by the bot itself"
-    assert top3[1].card_id not in table.row
     table.stack(top3[2].card_id, top3[0].card_id)                          # the order: the third first, then the first
     msgs = click(session, table, Event.CHOICE, {"i": 1})
+    assert table.bot_deck[-1] == top3[1].card_id, "the buried card was put at the bottom of the real deck by the bot itself"
+    assert top3[1].card_id not in table.row and table.bot_deck[:2] == [top3[2].card_id, top3[0].card_id]
     deck = game.players[0].deck
     assert [c.card_id for c in deck[:2]] == [top3[2].card_id, top3[0].card_id] and deck[-1] is top3[1], msgs
     assert said(msgs, "va debajo de mi mazo")
@@ -181,8 +181,31 @@ def test_a_buried_card_the_bot_cannot_put_at_the_bottom_is_said_in_the_chat(rig,
     top3 = list(game.players[0].deck[:3])
     attack(session, table, game, "jill", "Insightful Deduction")
     monkeypatch.setattr(table, "do_card_to_deck_bottom", lambda s: {"placed": False})
-    msgs = click(session, table, Event.CHOICE, {"i": 2})
+    click(session, table, Event.CHOICE, {"i": 2})
+    table.stack(top3[2].card_id, top3[0].card_id)
+    msgs = click(session, table, Event.CHOICE, {"i": 1})
     assert said(msgs, "No he podido poner " + top3[1].title + " debajo de mi mazo"), msgs
+
+
+@with_rig("hellboy", "jill-trent", TRAINING)
+def test_with_two_cards_left_in_the_bots_deck_the_buried_one_still_goes_to_the_real_bottom(rig, monkeypatch):
+    """Two cards in the deck: one is buried, one remains, so no order is asked and no card is laid; the bury still reaches the table."""
+    session, table, game, fake, cfg = rig
+    choose_gadget(session, table, 1)
+    jill, hellboy = game.fighters["jill"], game.fighters["hellboy"]
+    hellboy.pos = next(s for s in sorted(game.board.adj[jill.pos]) if all(f.pos != s for f in game.fighters.values() if f.alive))
+    table.positions[cfg.nicknames["hellboy"]] = hellboy.pos
+    game.fx.set_counter(1, "gadget", 0)
+    monkeypatch.setattr(session.ai, "choose_defense", lambda g, a, t: None)
+    human_hand(table, game, "Insightful Deduction", "Laser Pen")
+    two = [c.card_id for c in game.players[0].deck[:2]]
+    to_bot_discard(session, table, game, ids=[c.card_id for c in game.players[0].deck[2:]])
+    assert [c.card_id for c in game.players[0].deck] == two and table.bot_deck == two
+    attack(session, table, game, "jill", "Insightful Deduction")
+    msgs = click(session, table, Event.CHOICE, {"i": 1})              # the first of the two goes to the bottom
+    assert session.effect_run is None and table.row == [], msgs
+    assert table.bot_deck[-1] == two[0] and table.bot_deck == [two[1], two[0]], "the physical bottom is the buried card"
+    assert [c.card_id for c in game.players[0].deck] == [two[1], two[0]]
 
 
 # ---------------------------------------------------------------- Insightful Deduction, the bot plays it
