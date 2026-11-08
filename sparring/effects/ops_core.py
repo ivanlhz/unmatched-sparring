@@ -389,7 +389,7 @@ def _place(run, game, spec):
         elif spot != f.pos:
             origin, f.pos = f.pos, spot
             table.intent(game, op="place", fid=f.fid, owner=f.owner)
-            game.departed(f, origin)
+            game.departed(f, origin, moved=False)
 
 
 @op("swap")
@@ -410,7 +410,7 @@ def _swap(run, game, spec):
             for f in (first, second):
                 table.intent(game, op="swap", fid=f.fid, owner=f.owner)
             for f, origin in zip((first, second), origins):
-                game.departed(f, origin)
+                game.departed(f, origin, moved=False)
     if "as" in spec:
         run.bind("fighters", spec["as"], swapped)
 

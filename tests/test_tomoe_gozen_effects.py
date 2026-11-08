@@ -82,8 +82,8 @@ def test_it_fires_once_per_departure_and_is_effect_damage(bprd):
     g = mk(bprd)
     t, h, outside = stage(g)
     before = h.hp
-    g.place_fighter(h, outside)
-    assert h.hp == before - 1                                          # one health, by a placement (no path) too
+    g.move_fighter(h, outside, bprd.distance(h.pos, outside))
+    assert h.hp == before - 1                                          # one health, by a move
     back = next(s for s in sorted(bprd.spaces) if bprd.share_zone(t.pos, s) and s != t.pos
                 and all(f.pos != s for f in g.fighters.values() if f.alive))
     g.place_fighter(h, back)
@@ -131,7 +131,7 @@ def test_a_defeated_tomoe_gozen_has_no_ability(bprd):
     t, h, outside = stage(g)
     t.alive, t.pos = False, None
     before = h.hp
-    g.place_fighter(h, outside)
+    g.move_fighter(h, outside, bprd.distance(h.pos, outside))
     assert h.hp == before
 
 

@@ -5159,10 +5159,11 @@ class Session:
             return False
         return not (f.hero and g.fx.hero_rule(f.owner, "maneuver_boost_places_hero"))
 
-    def _departed_by_hand(self, fighter: Fighter, origin: int) -> None:
-        """The human moved or placed `fighter` by hand: `left_zone` (the bot's ATTACK OF OPPORTUNITY) may hurt it."""
+    def _departed_by_hand(self, fighter: Fighter, origin: int, *, moved: bool = True) -> None:
+        """The human moved `fighter` by hand: `left_zone` (the bot's ATTACK OF OPPORTUNITY) may hurt it. A placement or swap
+        by hand (`moved=False`) is no departure."""
         with self._announcing_departure():
-            self.game.departed(fighter, origin)
+            self.game.departed(fighter, origin, moved=moved)
 
     @contextmanager
     def _announcing_departure(self):
@@ -5216,11 +5217,12 @@ class Session:
                         self.game.walk(f, info["space"], None)
                 else:
                     moved_from = f.pos if info["space"] != f.pos and f.owner == self.human and not quiet else None
+                    placed = fid in self.game.placing
                     if info["space"] != f.pos:
                         self.game.placing.discard(fid)
                     f.pos = info["space"]
                     if moved_from is not None:
-                        self._departed_by_hand(f, moved_from)
+                        self._departed_by_hand(f, moved_from, moved=not placed)
                 for kind in ("missing", "off", "pinned"):
                     self._warned.discard((fid, kind))
 

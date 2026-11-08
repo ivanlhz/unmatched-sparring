@@ -427,7 +427,7 @@
       "then": [
        {
         "op": "heal",
-        "target": "hero",
+        "target": "this",
         "amount": 1
        }
       ]
@@ -436,7 +436,7 @@
     "scheme": [],
     "boost": []
    },
-   "notes": "Versatile (value 3, boost 1), DAISY only. Its effects cannot be canceled (`uncancelable`). While Daisy attacks with Jill (alive) on an adjacent space she resolves the active gadget as if it were Jill's: the printed value compared is Daisy's card's, the Hypnoray Blaster raises Daisy's attack and the Ultrabiotic Tonic still heals JILL (the gadget names her)."
+   "notes": "Versatile (value 3, boost 1), DAISY only. Its effects cannot be canceled (`uncancelable`). While Daisy attacks with Jill (alive) on an adjacent space she resolves the active gadget as if it were Jill's: the printed value compared is Daisy's card's, the Hypnoray Blaster raises Daisy's attack and the Ultrabiotic Tonic heals DAISY, who resolves it (Iván, 2026-11-08)."
   },
   {
    "title": "Ace Fighter",
@@ -610,8 +610,6 @@
   }
  ],
  "open_questions": [
-  "Ultrabiotic Tonic through Sisters In Arms: Jill recovers the health (the gadget names her), Daisy does not.",
-  "Stasis Diffuser also freezes the value against BOOSTS (a boost adds value); the boost cards are discarded and their effects run.",
-  "Cloth, Hypnotist and Jill's gadgets are not cancelled by a cancellation of the card: the gadget is on the hero."
+  "Rule decisions (Iván, 2026-11-08) closed: Stasis Diffuser freezes the value against BOOSTS too; Sisters in Arms + Tonic heals Daisy; gadgets survive a cancellation of Jill's card; Utility Belt moves exactly 1; Gyroscopic Jetpack's fighter is the one that played it; Helpful Assistant takes only JILL TRENT-band cards; a missing opposing card counts as value 0 in every gadget comparison."
  ]
 }

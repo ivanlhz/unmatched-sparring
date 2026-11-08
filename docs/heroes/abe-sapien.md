@@ -56,3 +56,6 @@ Data verified on 28/10/2026 against the tournament save (`saves\Unmatched Offici
 
 ## Not wired to the reveal display (Ivan, 2026-11-08)
 UNCANNY INTUITION says the attack "is played face up" (the DSL op is named `reveal` but the text does not say reveal): the attack stays on its combat spot and the existing card zoom shows the bot's. The global reveal rule is in docs/heroes/jill-trent.md.
+
+## Rule decisions (Iván, 2026-11-08)
+- **Uncanny Intuition: no reveal display.** Decided: leave it as it is (the attack stays on its combat spot and the existing card zoom shows it); nothing is laid large over the board.

@@ -384,7 +384,7 @@ def test_green_energy_does_nothing_when_it_loses(bprd):
 def legalese(g, sh, h, win, answers):
     g.controllers[0].queue = list(answers[0])
     g.controllers[1].queue = list(answers[1])
-    return g.attack(sh, h, give(g, 0, "Legalese"), None if win else give(g, 1, hellboys(g, "defense", 2)))        # a tie: she did not win
+    return g.attack(sh, h, give(g, 0, "Legalese"), None if win else give(g, 1, hellboys(g, "defense", 2)))        # a tie in her attack: the defender won, she lost
 
 
 def test_legalese_won_the_opponent_chooses_both_draw(bprd):

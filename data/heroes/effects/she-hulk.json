@@ -186,7 +186,7 @@
       ]}
     ]
    },
-   "notes": "Versatile 2 / boost 1. Won: the opponent picks; lost (anything but a win): the owner picks. Each player discards a card of their own choice (a player with an empty hand discards nothing). Both draw: the owner first."
+   "notes": "Versatile 2 / boost 1. Won (the engine's result; a tie is won by the defender): the opponent picks; lost: the owner picks. Each player discards a card of their own choice (a player with an empty hand discards nothing). Both draw: the owner first."
   },
   {
    "title": "The Defense Rests",
@@ -224,7 +224,6 @@
   {"card": "Omega-Level Threat", "rule": "The opponent discards 2 RANDOM cards: when it is the human, they choose which positions by the usual random discard (the bot never reads their hand)."}
  ],
  "open_questions": [
-  "JUST THROW SOMETHING never targets She-Hulk herself, and is not offered when no opposing fighter shares her zone.",
-  "Legalese on a tie: a combat she did not win counts as lost, so she chooses."
+  "Closed by Iván on 2026-11-08: JUST THROW SOMETHING never targets She-Hulk herself (and is not offered when no opposing fighter shares her zone); Legalese reads the engine's won/lost result (a tie is won by the defender); The Savage She-Hulk needs an action left after the attack's own."
  ]
 }

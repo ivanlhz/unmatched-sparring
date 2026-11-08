@@ -93,18 +93,70 @@ def test_no_gadget_is_active_before_her_first_turn(bprd):
     assert counter_value(g, 0, "gadget") == 0
 
 
-def test_the_bot_chooses_the_tonic_when_hurt_and_the_blaster_with_a_hypnotist_in_hand(bprd):
+def gadget_choice(g):
     from sparring.ai_effects import EffectAI
     from sparring.effects.choose import ChoiceRequest
-    g = mk(bprd)
     req = ChoiceRequest(kind="effect", player=0, options=[0, 1], min=1, max=1, key="gadgetology", prompt="choose an effect",
                         extra={"labels": ["Hypnoray Blaster", "Ultrabiotic Tonic"], "tag": "gadget"})
-    ai = EffectAI(0)
-    assert ai.choose_effect(g, req) == [0]
-    g.fighters["jill"].hp -= 5
-    assert ai.choose_effect(g, req) == [1]
-    give(g, 0, "Hypnotist")
-    assert ai.choose_effect(g, req) == [0]
+    return EffectAI(0).choose_effect(g, req)
+
+
+def gadget_scene(bprd, hand=("Laser Pen",), rival_hand=3):
+    """Jill next to Hellboy, a card she can attack with in hand, `rival_hand` unknown cards in the rival's."""
+    g = mk(bprd)
+    pair(g, "jill", "hellboy")
+    for title in hand:
+        give(g, 0, title)
+    for c in list(g.players[1].deck)[:rival_hand]:
+        g.players[1].deck.remove(c)
+        g.players[1].hand.append(c)
+    return g
+
+
+def test_the_bot_picks_the_blaster_by_default_even_when_hurt(bprd):
+    g = gadget_scene(bprd)
+    g.fighters["jill"].hp -= 8
+    assert gadget_choice(g) == [0]
+
+
+def test_the_bot_picks_the_tonic_when_jill_attacks_and_the_rival_has_no_hand(bprd):
+    g = gadget_scene(bprd, rival_hand=0)
+    assert gadget_choice(g) == [1]
+
+
+def test_the_bot_picks_the_tonic_when_the_whole_rival_hand_was_seen_with_no_defense(bprd):
+    g = gadget_scene(bprd, rival_hand=0)
+    attackers = [c for c in g.players[1].deck if c.type == "attack"][:2]
+    for c in attackers:
+        g.players[1].deck.remove(c)
+        g.players[1].hand.append(c)
+    assert gadget_choice(g) == [0]                                   # unseen hand: it could hold a defense
+    g.players[0].known.observe(attackers, 2)
+    assert gadget_choice(g) == [1]
+    seen_with_defense = [attackers[0], next(c for c in g.players[1].deck if c.can_defend)]
+    g.players[1].hand[-1:] = [seen_with_defense[1]]
+    g.players[0].known.observe(seen_with_defense, 2)
+    assert gadget_choice(g) == [0]
+
+
+def test_the_bot_picks_the_tonic_for_energizing_spray_whatever_the_rival_holds(bprd):
+    g = gadget_scene(bprd, hand=("Energizing Spray",), rival_hand=4)
+    assert gadget_choice(g) == [1]
+
+
+def test_the_bot_keeps_the_blaster_when_jill_has_nothing_to_attack_with(bprd):
+    g = gadget_scene(bprd, hand=("Hypnotist",), rival_hand=0)
+    assert gadget_choice(g) == [0]
+    g = gadget_scene(bprd, hand=(), rival_hand=0)
+    assert gadget_choice(g) == [0]
+
+
+def test_the_bot_keeps_the_blaster_when_jill_cannot_reach_anyone(bprd):
+    g = gadget_scene(bprd, hand=("Energizing Spray",), rival_hand=0)
+    far = max(g.board.spaces, key=lambda s: g.board.distance(g.fighters["jill"].pos, s))
+    for f in g.foes(0):
+        f.pos = far
+    assert gadget_choice(g) == [0]
 
 
 # ---------------------------------------------------------------- Hypnoray Blaster
@@ -222,13 +274,13 @@ def test_daisy_does_not_borrow_the_blaster_when_jill_is_far(bprd):
     assert res.atk_value == 3
 
 
-def test_daisy_borrows_the_tonic_and_it_is_jill_who_recovers(bprd):
+def test_daisy_borrows_the_tonic_and_it_is_daisy_who_recovers(bprd):
     g = mk(bprd, gadget=TONIC)
     daisy, foe = pair(g, "daisy", "hellboy")
     put_adjacent(g, "jill", "daisy")
     g.fighters["jill"].hp, daisy.hp = 8, 4
     g.attack(daisy, foe, give(g, 0, "Sisters in Arms"), None)           # printed 3 against nothing
-    assert g.fighters["jill"].hp == 9 and daisy.hp == 4
+    assert g.fighters["jill"].hp == 8 and daisy.hp == 5            # Iván, 2026-11-08: Daisy resolves the Tonic, Daisy heals
 
 
 def test_sisters_in_arms_cannot_be_cancelled(bprd):
@@ -467,6 +519,23 @@ def test_helpful_assistant_shuffles_up_to_three_jill_cards_back_and_draws(bprd):
     assert all(c in me.discard for c in other)
     req = next(r for r in g.controllers[0].requests if r.kind == "cards")
     assert set(req.options) == {c.card_id for c in jill_cards} and req.max == 3 and req.min == 0
+
+
+def test_the_bot_brings_back_the_utility_belt_first_with_helpful_assistant(bprd, monkeypatch):
+    """Iván, 2026-11-08: Helpful Assistant is mostly played to get Utility Belt back, so the belt goes first even if the generic
+    worth of the other cards is higher."""
+    monkeypatch.setattr("sparring.ai_effects.card_worth", lambda c: 0.0 if c.title == "Utility Belt" else 10.0)
+    g = mk(bprd, gadget=0)
+    g.controllers[0] = Smart()
+    me = g.players[0]
+    belts = [c for c in me.full_set if c.title == "Utility Belt"][:1]
+    others = [c for c in me.full_set if c.title in ("Battle of Wits", "Hypnotist")][:5]
+    for c in belts + others:
+        if c in me.deck:
+            me.deck.remove(c)
+        me.discard.append(c)
+    g.play_scheme(0, g.fighters["daisy"], give(g, 0, "Helpful Assistant"))
+    assert all(c not in me.discard for c in belts) and sum(c in me.discard for c in others) == len(others) - 2       # the belt took one of the three places
 
 
 # ---------------------------------------------------------------- Insightful Deduction

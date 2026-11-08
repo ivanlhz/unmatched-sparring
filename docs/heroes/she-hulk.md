@@ -44,7 +44,7 @@ Every item that is a real doubt is also an open question below.
 5. **Cease and Desist**: attacking, the value becomes 4 (printed value replaced, bonuses stay); defending it is 1. It cancels all the effects of the opponent's card (IMMEDIATELY), not its own DURING.
 6. **Omega-Level Threat**: "combat damage you dealt" is the damage that really landed (after Luke Cage's reduction, for instance), not the card's value; effect damage does not count. A hand of fewer than 2 cards discards what it has.
 7. **Sensational**: "you may choose a card in your discard pile": zero or one; the card just played is not in the pile yet.
-8. **Legalese**: won, the opponent chooses; any other result (a tie included) counts as lost and she chooses. Each player discards a card of THEIR OWN choice (an empty hand discards nothing); both draw: the owner first.
+8. **Legalese**: won (the engine's result: a tie is won by the defender, so defending on a tie the opponent chooses), the opponent chooses; lost (including a tie while she attacks) she chooses. Each player discards a card of THEIR OWN choice (an empty hand discards nothing); both draw: the owner first.
 9. **Nerve Cluster Strike**: the status is Burning Barrier's (`cannot_leave_space`, all movement of that fighter until the end of the current turn). Played in defense, "this turn" is the attacker's turn. If she is not adjacent to the opposing fighter (a shooter attacked her from afar) nothing happens.
 10. **Lady Justice**: the top card of the opponent's deck goes to ITS discard pile, face up; the value is 0 + 2 x that card's BOOST (a card with no boost adds 0); an empty deck adds nothing. With the human's deck the bot moves their real top card after they press the one button the panel shows.
 11. **Green Energy**: every fighter adjacent to her takes 1 (effect damage), the combat's victim included when it is still next to her.
@@ -53,10 +53,13 @@ Every item that is a real doubt is also an open question below.
 14. **Leap Toward**: she moves up to 4 through opposing fighters; the extra action needs an opposing fighter adjacent to her where she ends (the one she stopped at or any other).
 15. **Double Jeopardy**: heals her up to 20, never above.
 
+## Rule decisions (Iván, 2026-11-08)
+- **Combat win (global, Iván 2026-11-07/08)**: the DEFENDER wins when its defense value is >= the attack value; the ATTACKER wins only if the attack value is > the defense value (it deals combat damage). A tie is therefore won by the defender. Every "if you won / lost" of this hero reads the engine's result (`CombatFlow.won_by`), with no card-side handling of ties; tied-combat tests in `tests/test_she_hulk_ties.py`. Legalese needed no data change: it already reads `combat_result`; only its doc note and the open question said "a tie counts as lost", which was wrong when she defends.
+- **JUST THROW SOMETHING can NOT target She-Hulk herself** (current behaviour, decided).
+- **The Savage She-Hulk** needs an action left after the attack's own action (current behaviour, decided).
+
 ## Open questions for Iván
-1. **JUST THROW SOMETHING and herself**: it never hurts She-Hulk and is not offered without an opposing fighter in her zone. Is that the reading you want, or should she be allowed to target herself?
-2. **Legalese on a tie**: treated as lost (she chooses). Right?
-3. **The Savage She-Hulk's additional action**: it needs one action left after the attack's own (with 2 actions a turn, the attack must be the first). Right?
+None. (Closed on 2026-11-08: JUST THROW SOMETHING and herself; Legalese on a tie; The Savage She-Hulk's additional action.)
 
 ## AI
 - The AI profile comes from the data (She-Hulk `hero`, every card exclusive to her).
@@ -68,4 +71,4 @@ Every item that is a real doubt is also an open question below.
 - Her ability waits for the human at the start of their turn (a chat text and the End action gate); Jennifer Walters, Esq. and Leap Toward ask the human to place or move her miniature by hand.
 
 ## Tests
-`tests/test_hero_she_hulk_data.py` (data, card identity, detection), `tests/test_she_hulk_effects.py` (the ability, every card, the op `spend_action`, the bot's decisions), `tests/test_she_hulk_human.py` (FakeTTS panel: Lady Justice both ways, The Savage She-Hulk, the ability, Jennifer Walters), `tests/test_she_hulk_matrix.py` (full games against the fifteen other heroes in both seats, passive and attacking human, headless with the heuristic and the search AI).
+`tests/test_hero_she_hulk_data.py` (data, card identity, detection), `tests/test_she_hulk_effects.py` (the ability, every card, the op `spend_action`, the bot's decisions), `tests/test_she_hulk_human.py` (FakeTTS panel: Lady Justice both ways, The Savage She-Hulk, the ability, Jennifer Walters), `tests/test_she_hulk_ties.py` (tied combats, attack and defense), `tests/test_she_hulk_matrix.py` (full games against the fifteen other heroes in both seats, passive and attacking human, headless with the heuristic and the search AI).

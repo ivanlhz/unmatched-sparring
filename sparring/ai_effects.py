@@ -176,6 +176,9 @@ class _SimChooser:
         return default_answer(req) if answer is None else answer
 
 
+UTILITY_BELT = "Utility Belt"
+
+
 class EffectAI:
     def __init__(self, me: int = 0, medusa: MedusaAI | None = None, seed: int = 0):
         self.me, self.seed = me, seed
@@ -380,7 +383,8 @@ class EffectAI:
         if of == me and purpose == "remove":                        # removing own discard cards from the game: as many as allowed, the cheapest
             return sorted(req.options, key=lambda i: (worth(i), i))[:n_max]
         if of == me and zone == "discard" and purpose == "return":   # own discard back into the deck (Pancakes!): all it
-            ranked = sorted(req.options, key=lambda i: (i in cards and cards[i].destiny, -worth(i), i))
+            belt = lambda i: i in cards and cards[i].title == UTILITY_BELT       # Helpful Assistant is mostly played to get Utility Belt back
+            ranked = sorted(req.options, key=lambda i: (i in cards and cards[i].destiny, not belt(i), -worth(i), i))
             return ranked[:n_max]                                    # may, destiny cards last (they keep ANUNG UN RAMA)
         ranked = sorted(req.options, key=lambda i: (-worth(i), i))
         take = n_max if n_min < n_max and worth(ranked[0]) > 0 else n_min
@@ -525,17 +529,34 @@ class EffectAI:
             scored.append((gain, SyntheticChooser._option_worth(game, req.player, options[k]), -k, k))   # a tie: the one that does something
         return [max(scored)[3]]
 
-    GADGET_HEAL_GAP = 3       # Jill: from this many missing hit points the Ultrabiotic Tonic (1 health a win) beats the Hypnoray Blaster
-
     def _gadget(self, game: Game, req: ChoiceRequest) -> int:
-        """Jill Trent's gadget for the turn: 0 Hypnoray Blaster, 1 Ultrabiotic Tonic. The Blaster (a bonus when her printed value is
-        the lower one, which her cheap attacks often are, and a look at the rival's top card) unless a Hypnotist waits in her hand
-        (it only cancels with the Blaster active) or she is hurt enough for the heal to matter."""
+        """Jill Trent's gadget for the turn: 0 Hypnoray Blaster, 1 Ultrabiotic Tonic (Iván, 2026-11-08). The Blaster almost always;
+        the Tonic only when the bot expects to attack WITH JILL this turn and either the rival cannot defend (an empty hand, or a
+        hand fully seen with no defense card in it) or the attack is Energizing Spray, the 5."""
         me = req.player
         hero = game.hero(me)
-        if any(c.title == "Hypnotist" for c in game.players[me].hand):
+        if not self._jill_will_attack(game, me, hero):
             return 0
-        return 1 if hero.max_hp - hero.hp >= self.GADGET_HEAL_GAP else 0
+        if any(c.title == "Energizing Spray" and c.can_attack and c.usable_by(hero.name) for c in game.players[me].hand):
+            return 1
+        return 1 if self._rival_cannot_defend(game, me) else 0
+
+    @staticmethod
+    def _jill_will_attack(game: Game, me: int, hero) -> bool:
+        """Jill is alive, holds a card she can attack with and can reach a rival fighter after moving."""
+        if not hero.alive or not any(c.can_attack and c.usable_by(hero.name) for c in game.players[me].hand):
+            return False
+        spots = game.legal_moves(hero, hero.move)
+        return any(game.board.can_reach_target(pos, foe.pos, hero.ranged, hero.reach) for pos in spots for foe in game.foes(me) if foe.alive)
+
+    @staticmethod
+    def _rival_cannot_defend(game: Game, me: int) -> bool:
+        """Only what the bot may know: the rival's hand size, and the cards it has seen when it has seen the whole hand."""
+        rival = game.players[1 - me]
+        if not rival.hand:
+            return True
+        seen = [c for c in rival.full_set if c.card_id in game.players[me].known.seen]
+        return len(seen) == len(rival.hand) and not any(c.can_defend for c in seen)
 
     def _future_deck(self, game: Game, req: ChoiceRequest) -> int:
         """The future of Ninjutsu, which deck to look at: 0 own, 1 the rival's. Decided before the rival's top card can be

@@ -143,7 +143,7 @@ def test_card_effects_say_what_the_real_cards_say(effects):
     assert by["Insightful Deduction"]["after"] == [{"op": "plugin", "id": "jill:insightful_deduction"}]
     sisters = by["Sisters in Arms"]
     assert sisters["during"][0]["then"] == [{"op": "plugin", "id": "jill:hypnoray"}]
-    assert sisters["after"][0]["then"] == [{"op": "heal", "target": "hero", "amount": 1}]
+    assert sisters["after"][0]["then"] == [{"op": "heal", "target": "this", "amount": 1}]
 
 
 def test_table_data_names_the_pieces_the_dials_the_deck_range_and_its_own_images():

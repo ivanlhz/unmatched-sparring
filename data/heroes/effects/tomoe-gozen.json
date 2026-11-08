@@ -53,7 +53,7 @@
       "then": [{"op": "place", "target": "hero", "where": {"adjacent_to": "opposing"}, "chooser": "owner"}]}
     ]
    },
-   "notes": "Attack 2 / boost 1. Tomoe Gozen's owner chooses where the opposing fighter goes (up to 3, 0 included; no passing through other opposing fighters: the card does not say it). A move that takes a hero out of her zone fires ATTACK OF OPPORTUNITY. If the opposing fighter is a hero that was not defeated she is placed on a free space adjacent to it (she may stay if she already is: the space is not free but she is the one standing there; with none free nothing happens). Nothing happens after a defeat."
+   "notes": "Attack 2 / boost 1. Tomoe Gozen's owner chooses where the opposing fighter goes (up to 3, 0 included; the moved fighter may cross fighters of its own side, as any move does). A move that takes a hero out of her zone fires ATTACK OF OPPORTUNITY. If the opposing fighter is a hero that was not defeated she is placed on a free space adjacent to it (she may stay if she already is: the space is not free but she is the one standing there; with none free nothing happens). Nothing happens after a defeat."
   },
   {
    "title": "Five Against Thousands",

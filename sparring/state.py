@@ -513,10 +513,11 @@ class Game:
             self.hazard_hook()
         self.departed(fighter, origin)
 
-    def departed(self, fighter: Fighter, origin: int | None) -> None:
-        """`fighter` has just left space `origin` (a walk, a placement, a swap or a move read from the table): the event
-        `left_zone` lets an ability that reacts to it (Tomoe Gozen's ATTACK OF OPPORTUNITY) look at the zones."""
-        if origin is not None and fighter.alive and fighter.pos is not None and fighter.pos != origin:
+    def departed(self, fighter: Fighter, origin: int | None, *, moved: bool = True) -> None:
+        """`fighter` has just left space `origin`: the event `left_zone` lets an ability that reacts to it (Tomoe Gozen's ATTACK OF
+        OPPORTUNITY) look at the zones. Only a MOVE (a walk, an effect's move, a move read from the table) is a departure: a
+        placement or a swap passes `moved=False` and raises nothing (Iván, 2026-11-08)."""
+        if moved and origin is not None and fighter.alive and fighter.pos is not None and fighter.pos != origin:
             self.fx.emit("left_zone", fighter, origin)
 
     def place_fighter(self, fighter: Fighter, dest: int) -> None:
@@ -527,7 +528,7 @@ class Game:
         if dest not in self.board.spaces or dest in taken or not self.fx.can_move(fighter):
             raise RuleError(t("err.illegal_place", fid=fighter.fid, dest=dest))
         origin, fighter.pos = fighter.pos, dest
-        self.departed(fighter, origin)
+        self.departed(fighter, origin, moved=False)
 
     def damage(self, fighter: Fighter, n: float, source: str = "effect", by: Fighter | None = None) -> float:
         if not fighter.alive or n <= 0:
