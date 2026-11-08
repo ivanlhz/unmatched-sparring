@@ -46,10 +46,9 @@ def spot(session, player: int, active: int):
         return None
     slot = slots[0]
     x, y, z = slot.pos
-    rx, ry, rz = slot.rot
-    if active == BLASTER:
-        rz = 180.0
-    elif active != TONIC:
+    rx, ry, _ = slot.rot
+    rz = 180.0 if active == BLASTER else 0.0
+    if active not in (BLASTER, TONIC):
         ry = (ry + NONE_TURN) % 360
     return table.tokens[GADGET], (x, y + SETTLE_LIFT, z), (rx, ry, rz)
 

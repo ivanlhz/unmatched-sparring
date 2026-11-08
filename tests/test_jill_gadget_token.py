@@ -96,7 +96,7 @@ def test_the_layout_puts_the_token_at_its_single_spot(side):
 
 @pytest.mark.parametrize("side", ["bot", "human"])
 def test_preparar_lays_the_token_at_its_spot_face_up_on_the_table(rt, side):  # noqa: F811
-    rt.execute(f"mkobj({{guid = '{TOKEN}', type = 'Custom_Token', pos = {{x = 0, y = 1, z = 0}}, rot = {{x = 0, y = 0, z = 0}}}})")
+    rt.execute(f"mkobj({{guid = '{TOKEN}', type = 'Tile', pos = {{x = 0, y = 1, z = 0}}, rot = {{x = 0, y = 0, z = 0}}}})")
     plan = table_layout.plan(RAW, side, JILL)
     items = [(p.guids, *table_reset._lifted(p.slot)) for p in plan.placements]
     assert run(rt, lua.arrange_objects(items))["missing"]            # the deck and the miniatures are not on this fake table
@@ -224,7 +224,7 @@ def test_a_failed_write_is_not_a_missing_token_and_is_retried_at_the_next_step(r
 
 # ---------------------------------------------------------------- the Lua of the move
 
-def token(rt, name="", kind="Custom_Token", extra=""):  # noqa: F811
+def token(rt, name="", kind="Tile", extra=""):  # noqa: F811
     rt.execute(f"mkobj({{guid = '{TOKEN}', type = '{kind}', name = '{name}', pos = {{x = 9, y = 1, z = 9}}, rot = {{x = 0, y = 180, z = 180}}{extra}}})")
 
 
