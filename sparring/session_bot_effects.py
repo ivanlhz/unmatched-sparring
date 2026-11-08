@@ -198,8 +198,10 @@ def _bot_cards(session, before: dict, moved: set, intents: list[dict], ctx: Ctx)
     played_back = [i for it in intents if it["op"] == "return_to_deck" and it["player"] == bot and it["zone"] == "discard"
                    for i in it["cards"] if i in just_played and i in b1["deck"] and i not in moved]    # DARK PACT: the card it just played
     hand_to_deck = [i for i in b0["hand"] if i in b1["deck"] and i not in moved and i not in played_back]
-    disc_to_deck = [i for i in b0["discard"] if i in b1["deck"] and i not in moved and i not in played_back]
-    disc_to_hand = [i for i in b0["discard"] if i in b1["hand"] and i not in moved]
+    drawn_back = {i for it in intents if it["op"] == "return_to_deck" and it["player"] == bot and it["zone"] == "discard"
+                  for i in it["cards"] if i in b1["hand"]}      # shuffled into the deck and drawn in the same step (Alpine Fortress): the table shuffles it in and deals the draws
+    disc_to_deck = [i for i in b0["discard"] if (i in b1["deck"] or i in drawn_back) and i not in moved and i not in played_back]
+    disc_to_hand = [i for i in b0["discard"] if i in b1["hand"] and i not in moved and i not in drawn_back]
     taken = len([i for i in b0["deck"] if i in b1["hand"]]) - max(0, g.drawn[bot] - before["drawn"])
     session.fx_in_flight.update(hand_to_deck + disc_to_deck + disc_to_hand + played_back)
     for i in disc_to_deck + disc_to_hand:

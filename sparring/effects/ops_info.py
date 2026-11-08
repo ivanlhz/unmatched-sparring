@@ -118,7 +118,10 @@ def _look_deck(run, game, spec):
 
 # ---------------------------------------------------------------- deck changes
 
-def _ask_order(game, run, player: int, cards: list, **extra) -> list:
+def _ask_order(game, run, player: int, cards: list, of: int | None = None, **extra) -> list:
+    """`of`: whose cards they are when they are not the chooser's own (Sight Beyond Sight orders the rival's top cards)."""
+    if of is not None and of != player:
+        extra["of"] = of
     ids = run.ask(game, "order", player, [c.card_id for c in cards], len(cards), len(cards), "order",
                   ordered=True, zone="deck", purpose="order", **extra)
     by_id = {c.card_id: c for c in cards}
@@ -155,6 +158,11 @@ def _search_deck(run, game, spec):
         if "as" in spec:
             run.bind("cards", spec["as"], [])
         return
+    if table.physical(game, target) and chooser != target:     # the rival's real deck: the engine holds placeholders, the bot sees nothing
+        table.note(run, op="look_foreign_deck", look=spec["look"], rest=spec.get("rest", "bottom_random"))
+        if "as" in spec:
+            run.bind("cards", spec["as"], [])
+        return
     deck, hand = game.players[target].deck, game.players[target].hand
     looked = deck[:len(deck) if spec["look"] == "all" else int(spec["look"])]
     take = spec["take"]
@@ -162,12 +170,12 @@ def _search_deck(run, game, spec):
     eligible = [c for c in looked if _matches(c, flt)]
     lo = 0 if take.get("up_to") else min(n_take, len(eligible))
     got = run.ask(game, "cards", chooser, [c.card_id for c in eligible], lo, n_take, "search the deck",
-                  zone="deck", purpose="search", of=target)
+                  zone="deck", purpose="search", of=target) if n_take else []     # take 0: only a look (Sight Beyond Sight)
     taken = [c for c in eligible if c.card_id in got]
     rest = [c for c in looked if c not in taken]
     mode = spec.get("rest", "bottom_random")
     if mode in ("bottom_ordered", "top_ordered"):
-        rest = _ask_order(game, run, chooser, rest, position=mode.split("_")[0])
+        rest = _ask_order(game, run, chooser, rest, of=target, position=mode.split("_")[0])
     elif mode == "bottom_random":
         rest = run.random_sample(rest, len(rest))
     perm = _permutation(run, len(deck) - len(taken)) if mode == "shuffle" else None

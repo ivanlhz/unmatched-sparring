@@ -152,7 +152,7 @@ An integer, a numeric event binding (`"$amount"`, see 2.10), or one of these obj
 - `{"count": FighterSel}` or `{"count_cards": CardSel}`: how many meet the selector.
 - `{"counter": "<name>", "player": PlayerSel}`: counter of the HeroDef or of `ability.counters` (default `owner`).
 - `{"stat": ..., "player"|"fighter": ...}` with stat in `hand_size`, `hp`, `max_hp`, `actions_taken_this_turn`,
-  `damage_dealt_this_combat`, `damage_taken_this_combat`, `combats_lost_this_turn`, `combats_won_this_turn`.
+  `damage_dealt_this_combat`, `damage_taken_this_combat`, `combats_lost_this_turn`, `combats_won_this_turn`, `maneuvers_this_turn`.
 
 ### 2.6 Who chooses (chooser)
 
@@ -196,6 +196,7 @@ An object with `test` or a combinator `{"all": [...]}`, `{"any": [...]}`, `{"not
 | `combat_result` | `result: won | lost` | for the card's owner. `lost` = did not win |
 | `counter` | `name`, `min`?, `max`?, `player`? | |
 | `moved_this_turn` | `fighter: FighterRef` | started the turn on another space |
+| `no_zone_with_turn_start` | `fighter: FighterRef` | the fighter's space shares no zone with the space it started the turn on (not having moved is not it; section 32) |
 | `played_as` | `side: attack | defense` | how `this` was played |
 | `compare` | `left: Amount`, `op: < <= == >= > !=`, `right: Amount` | |
 | `effects_canceled` | `card: CardRef` | a cancellation of this combat took effects off that card |
@@ -1160,3 +1161,15 @@ Everything here is additive: no earlier effects file or HeroDef uses these words
 - **SpaceSel `no_zone_of: FighterRef`**: the spaces that share no zone with the fighter's space (Tactical Retreat: `{"no_zone_of": "hero", "other": true}` in a `place`). The chat for a placement by hand names it (`tbl.where.no_zone*`, `moves.where.no_zone`).
 - **Same CardID range as Medusa, the turtles, Doctor Strange and Bigfoot**: see docs/card-identity.md.
 - **Hero detection**: `lua.MAX_HERO_RANGES` (the most CardID ranges one table read takes) went from 12 to 24: the thirteenth hero with TTS data made every detection fall back to Medusa / Hellboy.
+
+## 32. Golden Bat: a Maneuver tally, a zone test against the turn's start, a look that takes nothing
+
+Everything here is additive: no earlier effects file or HeroDef uses these words, so the fifteen earlier heroes behave as before.
+
+- **Stat `maneuvers_this_turn`** (`{"stat": "maneuvers_this_turn", "player": ...}`): Maneuver actions that player has taken in the CURRENT turn (0 for the player whose turn it is not). `fx.maneuvers`, reset at `start_of_turn`, saved only when non-zero and recorded only when a hero's effects name the stat (`events.TRACKS["maneuvers"]`). `EffectState.count_maneuver()` is called by `Game.maneuver` (the bot, the search and every simulation) and by the session's Maneuver button, right after `use_action`: the action counts even if the draw is then blocked or the deck is empty. `EffectState.maneuvered(player)` is the predicate the engine reads.
+- **HeroDef passive `attack_bonus` with `"unless": "maneuver"`**: the +2 of THE FIRST SUPERHERO. `HeroDef.attack_bonuses(form, is_hero, maneuvered)` drops such a passive once the owner has maneuvered this turn; `Game.attack_bonus_parts` (the combat reveal) and `Game.attack_bonus` (the bot's estimates of its next attack, the threat of an opposing Golden Bat) pass `fx.maneuvered(owner)`. The matching `ability.passives` entry of the effects file (`modify_value` + `while` compare on the stat) documents it, as Hellboy's ANUNG UN RAMA does; the interpreter does not apply `ability.passives` of kind `modify_value`.
+- **Test `no_zone_with_turn_start`** (`fighter: FighterRef`): the fighter stands on a space that shares no zone with the space it was on when the turn started (`fx.turn_start_pos`, recorded when a hero's effects name `moved_this_turn` or this test). A fighter that has not moved is not "sharing no zones" (it shares all of its own). Like a Flash of Golden Light: DURING, `set_value this 4`.
+- **`search_deck` with `take.amount` 0**: a look that takes nothing asks no question and returns the cards it looked at to the deck in the order the chooser picks (`rest: top_ordered`). The order request carries `of` (the deck's owner) when the cards are not the chooser's own, so the panel names the rival's cards and the bot (`EffectAI._order`) puts them worst first. Sight Beyond Sight: look at the top 3 of the opponent's deck and put them back in any order.
+- **A human's real deck is not read by the bot**: `search_deck` on the table player's deck with the bot as chooser reads nothing and reorders nothing (the engine's copy is placeholders): it leaves the note `look_foreign_deck` for the chat (`tbl.look_foreign_deck`). The bot never learns the order of a real deck.
+- **Alpine Fortress at the table (`session_bot_effects._bot_cards`)**: a bot card that goes discard -> deck (shuffle) and is drawn in the same step (the scheme shuffles one in and then draws 2) is a `return_to_deck` intent whose card ends in the hand. It is now translated as a shuffle into the real deck (`drawn_back`) instead of a discard -> hand move, so the physical draws that follow deal from the shuffled deck and the table's hand count agrees with the engine's.
+- **Same CardID range as the other sheet-176 decks**: see docs/card-identity.md.

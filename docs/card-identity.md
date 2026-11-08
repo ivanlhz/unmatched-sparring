@@ -53,6 +53,8 @@ Bigfoot (`tests/test_hero_bigfoot_data.py`, `tests/test_bigfoot_matrix.py`) foll
 
 Bullseye (Hell's Kitchen, character card 339) is the tenth deck of sheet 176 (`tests/test_hero_bullseye_data.py`, `tests/test_bullseye_matrix.py`): his own `deck.identity` in `data/tts/bullseye.json`, a matrix against the other fourteen heroes in both seats, and `SHARING` in `tests/test_card_identity.py`.
 
+Golden Bat (Adventures: Tales to Amaze, character card 345) is the eleventh deck of sheet 176 (`tests/test_hero_golden_bat_data.py`, `tests/test_golden_bat_matrix.py`): his own `deck.identity` in `data/tts/golden-bat.json`, a matrix against the other fifteen heroes in both seats, and `SHARING` in `tests/test_card_identity.py`.
+
 ## Houdini needs none of this
 
 Houdini's deck is sheet 178 (CardIDs 17800-17829) with the character card on a sheet of its own (177, CardID 17700); no other hero of

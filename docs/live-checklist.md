@@ -295,6 +295,19 @@ Nothing of Bullseye has been seen on a real table. His deck is sheet 176 like Me
 - [ ] **For My Next Trick (H)**: after the combat, win or not: move Bullseye up to 1 space by hand, the bot deals you 1 card, you get an action back.
 - [ ] Feint (cancel), World's Greatest Assassin (4) and the rest of the numbers as printed.
 
+### Golden Bat (Tales to Amaze, no sidekick)
+
+Nothing of Golden Bat has been seen on a real table. His deck is sheet 176 like the other ten: the first thing to check is that the table is read right.
+- [ ] **Detection (auto)**: with his deck at one spot and any other hero's at the other, the start-up line names Golden Bat; the bag `4732a0` holds a deck of 31 cards (character card 345). His miniature `b0ebcc` and dial `0f46cb` (18) are found by GUID; nothing else comes out of his bag.
+- [ ] **THE FIRST SUPERHERO (H)**: attack without any Maneuver this turn: the result line reads "THE FIRST SUPERHERO (+2)"; after pressing Maneuver (and the card or draw it asks) the same attack has no +2 until the next turn. The bot's Golden Bat gets no +2 on an attack taken after its own Maneuver.
+- [ ] **Terrifying Roar (H)**: played by you (attack or defense), the chat says every fighter is held in place for the turn; try to move yours and the bot's pieces by hand (the engine ignores a move the table shows, the chat should flag it). **(B)**: the bot's Golden Bat does not move for the rest of the turn.
+- [ ] **Like a Flash of Golden Light (H)**: value 4 only when your Golden Bat is on a space that shares no zone with the one he started the turn on (also when defending: the space he was on when the bot's turn began); then "move up to 5 spaces" by hand. **(B)** the same from the bot's side.
+- [ ] **Sight Beyond Sight (H)**: the panel shows the bot's top 3 cards by name and asks the order; the bot's deck order follows (check its next draws). **(B)**: the bot's card cannot read your real deck: the chat says it does nothing, and your deck is left as it is.
+- [ ] **Vaporizing Eyebeams**: the bot discards a random card of your hand (the table draws it at random) and vice versa; **Insight of the Ancients** (a random card of the discard pile returns to the hand when he won).
+- [ ] **A Punch to Shake the Earth (H)**: each rival fighter in Golden Bat's zone takes 1 (2 if he won); the dials follow. Skirmish: after a win the panel asks which fighter of the combat moves up to 2 (the bot's piece is moved by hand and you press Done).
+- [ ] **Alpine Fortress (B)**: the bot shuffles a card of its discard pile into its deck and draws 2: its hand count on the table agrees with the engine. **(H)**: the chat says to shuffle a chosen card into your deck, draw 2 and move Golden Bat up to 4. **Arrive Just in Time**: place Golden Bat in any space.
+- [ ] Imposing Presence (cancel), Super Strength (5), He Laughs at Your Feebleness (5 defense) and the numbers as printed.
+
 ### Hidden information (cards that look at the bot's hand, and the bot's on you)
 - [ ] **The bot's hand row**: when playing Confront Any Demon or God (only if you lose), Advanced Psychometry (adjacent), Remove A Painful Memory (with an ONGOING) or Every Possible Angle, the bot lays its hand **face up in a row** at `bot_row_spot` and **pings** each card (`ping_points`). The **Look at bot's hand** button uses another row, at `look_spot`.
 - [ ] **The bot's own pings do not choose for you** (9335eab): with the row open, the bot does not "choose" a card by itself. *(31/10 failure with Remove A Painful Memory: it chose Posthumous Power within 1 s; fixed, still to be seen. If it happens again, widen `BOT_PING_WINDOW`.)*

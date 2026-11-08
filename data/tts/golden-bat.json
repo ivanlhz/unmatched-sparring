@@ -1,0 +1,30 @@
+{
+ "slug": "golden-bat",
+ "bag": {
+  "guid": "4732a0",
+  "inner": "e5eea9"
+ },
+ "deck": {
+  "guid": "29a029",
+  "card_ids": [
+   17600,
+   17629
+  ],
+  "character_card_id": 345,
+  "identity": [
+   {
+    "face": "https://steamusercontent-a.akamaihd.net/ugc/12549808098506582224/5B7BCEF90A12DD966F47AF84EF381BEB45B7939D/",
+    "back": "https://steamusercontent-a.akamaihd.net/ugc/13438788243416172015/557B77DBA2617F0EF9EE5DA1A3E16E815A49B3DE/"
+   }
+  ]
+ },
+ "fighters": {
+  "bat": {
+   "piece": "b0ebcc",
+   "dial": "0f46cb",
+   "dial_max": 18
+  }
+ },
+ "tokens": {},
+ "counter_dials": {}
+}

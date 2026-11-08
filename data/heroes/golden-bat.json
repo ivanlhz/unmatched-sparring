@@ -1,0 +1,430 @@
+{
+ "_source": {
+  "memory": "unmatched-memory/data/heroes/golden-bat.json",
+  "overlay": "data/heroes/overlay/golden-bat.json",
+  "generator": "tools/import_hero.py"
+ },
+ "slug": "golden-bat",
+ "name": "Golden Bat",
+ "fid": "bat",
+ "hp": 18,
+ "move": 3,
+ "attack": "melee",
+ "set": "adventures-tales-to-amaze",
+ "ability": "THE FIRST SUPERHERO\nIf you haven't taken a Maneuver action this turn, add +2 to the value of Golden Bat's attacks.",
+ "sidekicks": [],
+ "forms": null,
+ "counters": {},
+ "triggers": [],
+ "passives": [
+  {
+   "id": "THE FIRST SUPERHERO",
+   "effect": "attack_bonus",
+   "n": 2,
+   "fighter": "hero",
+   "unless": "maneuver"
+  }
+ ],
+ "deck": {
+  "card_base": 17600,
+  "sheet": 176,
+  "cards": [
+   {
+    "idx": 0,
+    "title": "Super Strength",
+    "fighter": "Golden Bat",
+    "type": "attack",
+    "value": 5,
+    "boost": 1,
+    "text": "",
+    "tags": []
+   },
+   {
+    "idx": 1,
+    "title": "Super Strength",
+    "fighter": "Golden Bat",
+    "type": "attack",
+    "value": 5,
+    "boost": 1,
+    "text": "",
+    "tags": []
+   },
+   {
+    "idx": 2,
+    "title": "Vaporizing Eyebeams",
+    "fighter": "Golden Bat",
+    "type": "attack",
+    "value": 2,
+    "boost": 2,
+    "text": "AFTER COMBAT: Your opponent discards 1 random card.",
+    "tags": []
+   },
+   {
+    "idx": 3,
+    "title": "Vaporizing Eyebeams",
+    "fighter": "Golden Bat",
+    "type": "attack",
+    "value": 2,
+    "boost": 2,
+    "text": "AFTER COMBAT: Your opponent discards 1 random card.",
+    "tags": []
+   },
+   {
+    "idx": 4,
+    "title": "Vaporizing Eyebeams",
+    "fighter": "Golden Bat",
+    "type": "attack",
+    "value": 2,
+    "boost": 2,
+    "text": "AFTER COMBAT: Your opponent discards 1 random card.",
+    "tags": []
+   },
+   {
+    "idx": 5,
+    "title": "A Punch to Shake the Earth",
+    "fighter": "Golden Bat",
+    "type": "attack",
+    "value": 1,
+    "boost": 1,
+    "text": "AFTER COMBAT: Deal 1 damage to each opposing fighter in your zone. If you won the combat, deal 2 damage instead.",
+    "tags": []
+   },
+   {
+    "idx": 6,
+    "title": "A Punch to Shake the Earth",
+    "fighter": "Golden Bat",
+    "type": "attack",
+    "value": 1,
+    "boost": 1,
+    "text": "AFTER COMBAT: Deal 1 damage to each opposing fighter in your zone. If you won the combat, deal 2 damage instead.",
+    "tags": []
+   },
+   {
+    "idx": 7,
+    "title": "A Punch to Shake the Earth",
+    "fighter": "Golden Bat",
+    "type": "attack",
+    "value": 1,
+    "boost": 1,
+    "text": "AFTER COMBAT: Deal 1 damage to each opposing fighter in your zone. If you won the combat, deal 2 damage instead.",
+    "tags": []
+   },
+   {
+    "idx": 8,
+    "title": "Sight Beyond Sight",
+    "fighter": "Golden Bat",
+    "type": "versatile",
+    "value": 2,
+    "boost": 1,
+    "text": "AFTER COMBAT: Look at the top 3 cards of your opponent's deck. Put them back in any order.",
+    "tags": []
+   },
+   {
+    "idx": 9,
+    "title": "Sight Beyond Sight",
+    "fighter": "Golden Bat",
+    "type": "versatile",
+    "value": 2,
+    "boost": 1,
+    "text": "AFTER COMBAT: Look at the top 3 cards of your opponent's deck. Put them back in any order.",
+    "tags": []
+   },
+   {
+    "idx": 10,
+    "title": "Sight Beyond Sight",
+    "fighter": "Golden Bat",
+    "type": "versatile",
+    "value": 2,
+    "boost": 1,
+    "text": "AFTER COMBAT: Look at the top 3 cards of your opponent's deck. Put them back in any order.",
+    "tags": []
+   },
+   {
+    "idx": 11,
+    "title": "Terrifying Roar",
+    "fighter": "Golden Bat",
+    "type": "versatile",
+    "value": 3,
+    "boost": 1,
+    "text": "IMMEDIATELY: Fighters cannot leave their spaces for the rest of the turn.",
+    "tags": []
+   },
+   {
+    "idx": 12,
+    "title": "Terrifying Roar",
+    "fighter": "Golden Bat",
+    "type": "versatile",
+    "value": 3,
+    "boost": 1,
+    "text": "IMMEDIATELY: Fighters cannot leave their spaces for the rest of the turn.",
+    "tags": []
+   },
+   {
+    "idx": 13,
+    "title": "Terrifying Roar",
+    "fighter": "Golden Bat",
+    "type": "versatile",
+    "value": 3,
+    "boost": 1,
+    "text": "IMMEDIATELY: Fighters cannot leave their spaces for the rest of the turn.",
+    "tags": []
+   },
+   {
+    "idx": 14,
+    "title": "Skirmish",
+    "fighter": "Golden Bat",
+    "type": "versatile",
+    "value": 4,
+    "boost": 1,
+    "text": "AFTER COMBAT: If you won the combat, move one of the fighters in the combat up to 2 spaces.",
+    "tags": []
+   },
+   {
+    "idx": 15,
+    "title": "Skirmish",
+    "fighter": "Golden Bat",
+    "type": "versatile",
+    "value": 4,
+    "boost": 1,
+    "text": "AFTER COMBAT: If you won the combat, move one of the fighters in the combat up to 2 spaces.",
+    "tags": []
+   },
+   {
+    "idx": 16,
+    "title": "Like a Flash of Golden Light",
+    "fighter": "Golden Bat",
+    "type": "versatile",
+    "value": 2,
+    "boost": 2,
+    "text": "DURING COMBAT: If Golden Bat shares no zones with the space he started this turn in, this card's value is 4 instead. AFTER COMBAT: Move Golden Bat up to 5 spaces.",
+    "tags": []
+   },
+   {
+    "idx": 17,
+    "title": "Like a Flash of Golden Light",
+    "fighter": "Golden Bat",
+    "type": "versatile",
+    "value": 2,
+    "boost": 2,
+    "text": "DURING COMBAT: If Golden Bat shares no zones with the space he started this turn in, this card's value is 4 instead. AFTER COMBAT: Move Golden Bat up to 5 spaces.",
+    "tags": []
+   },
+   {
+    "idx": 18,
+    "title": "Like a Flash of Golden Light",
+    "fighter": "Golden Bat",
+    "type": "versatile",
+    "value": 2,
+    "boost": 2,
+    "text": "DURING COMBAT: If Golden Bat shares no zones with the space he started this turn in, this card's value is 4 instead. AFTER COMBAT: Move Golden Bat up to 5 spaces.",
+    "tags": []
+   },
+   {
+    "idx": 19,
+    "title": "Insight of the Ancients",
+    "fighter": "Golden Bat",
+    "type": "versatile",
+    "value": 3,
+    "boost": 2,
+    "text": "AFTER COMBAT: If you won the combat, return a random card in your discard pile to your hand.",
+    "tags": []
+   },
+   {
+    "idx": 20,
+    "title": "Insight of the Ancients",
+    "fighter": "Golden Bat",
+    "type": "versatile",
+    "value": 3,
+    "boost": 2,
+    "text": "AFTER COMBAT: If you won the combat, return a random card in your discard pile to your hand.",
+    "tags": []
+   },
+   {
+    "idx": 21,
+    "title": "Imposing Presence",
+    "fighter": "Golden Bat",
+    "type": "defense",
+    "value": 3,
+    "boost": 2,
+    "text": "IMMEDIATELY: Cancel all effects on your opponent's card.",
+    "tags": []
+   },
+   {
+    "idx": 22,
+    "title": "Imposing Presence",
+    "fighter": "Golden Bat",
+    "type": "defense",
+    "value": 3,
+    "boost": 2,
+    "text": "IMMEDIATELY: Cancel all effects on your opponent's card.",
+    "tags": []
+   },
+   {
+    "idx": 23,
+    "title": "He Laughs at Your Feebleness",
+    "fighter": "Golden Bat",
+    "type": "defense",
+    "value": 5,
+    "boost": 3,
+    "text": "",
+    "tags": []
+   },
+   {
+    "idx": 24,
+    "title": "He Laughs at Your Feebleness",
+    "fighter": "Golden Bat",
+    "type": "defense",
+    "value": 5,
+    "boost": 3,
+    "text": "",
+    "tags": []
+   },
+   {
+    "idx": 25,
+    "title": "Arrive Just in Time",
+    "fighter": "Golden Bat",
+    "type": "scheme",
+    "value": null,
+    "boost": 2,
+    "text": "Place Golden Bat in any space.",
+    "tags": []
+   },
+   {
+    "idx": 26,
+    "title": "Arrive Just in Time",
+    "fighter": "Golden Bat",
+    "type": "scheme",
+    "value": null,
+    "boost": 2,
+    "text": "Place Golden Bat in any space.",
+    "tags": []
+   },
+   {
+    "idx": 27,
+    "title": "Alpine Fortress",
+    "fighter": "Golden Bat",
+    "type": "scheme",
+    "value": null,
+    "boost": 3,
+    "text": "Choose a card in your discard pile and shuffle it into your deck. Draw 2 cards. Move Golden Bat up to 4 spaces.",
+    "tags": []
+   },
+   {
+    "idx": 28,
+    "title": "Alpine Fortress",
+    "fighter": "Golden Bat",
+    "type": "scheme",
+    "value": null,
+    "boost": 3,
+    "text": "Choose a card in your discard pile and shuffle it into your deck. Draw 2 cards. Move Golden Bat up to 4 spaces.",
+    "tags": []
+   },
+   {
+    "idx": 29,
+    "title": "Alpine Fortress",
+    "fighter": "Golden Bat",
+    "type": "scheme",
+    "value": null,
+    "boost": 3,
+    "text": "Choose a card in your discard pile and shuffle it into your deck. Draw 2 cards. Move Golden Bat up to 4 spaces.",
+    "tags": []
+   }
+  ]
+ },
+ "ai_profile": {
+  "bat": {
+   "name": "Golden Bat",
+   "hero": true,
+   "count": 1,
+   "max_hp": 18,
+   "move": 3,
+   "ranged": false,
+   "role": "hero",
+   "attack": {
+    "cards": 21,
+    "mean": 2.57,
+    "max": 5
+   },
+   "exclusive": [
+    {
+     "title": "Super Strength",
+     "type": "attack",
+     "copies": 2,
+     "impact": 1.05
+    },
+    {
+     "title": "Vaporizing Eyebeams",
+     "type": "attack",
+     "copies": 3,
+     "impact": 0.9
+    },
+    {
+     "title": "A Punch to Shake the Earth",
+     "type": "attack",
+     "copies": 3,
+     "impact": 1.46
+    },
+    {
+     "title": "Sight Beyond Sight",
+     "type": "versatile",
+     "copies": 3,
+     "impact": 0.96
+    },
+    {
+     "title": "Terrifying Roar",
+     "type": "versatile",
+     "copies": 3,
+     "impact": 1.23
+    },
+    {
+     "title": "Skirmish",
+     "type": "versatile",
+     "copies": 2,
+     "impact": 1.03
+    },
+    {
+     "title": "Like a Flash of Golden Light",
+     "type": "versatile",
+     "copies": 3,
+     "impact": 0.99
+    },
+    {
+     "title": "Insight of the Ancients",
+     "type": "versatile",
+     "copies": 2,
+     "impact": 0.96
+    },
+    {
+     "title": "Imposing Presence",
+     "type": "defense",
+     "copies": 2,
+     "impact": 1.35
+    },
+    {
+     "title": "He Laughs at Your Feebleness",
+     "type": "defense",
+     "copies": 2,
+     "impact": 1.05
+    },
+    {
+     "title": "Arrive Just in Time",
+     "type": "scheme",
+     "copies": 2,
+     "impact": 0.7
+    },
+    {
+     "title": "Alpine Fortress",
+     "type": "scheme",
+     "copies": 3,
+     "impact": 1.9
+    }
+   ]
+  }
+ },
+ "_notes": [
+  "Sheet 176 of the tournament savegame (8x4), read card by card from the image on 2026-11-08. CardID = 17600 + idx; 345 = character card (sheet 3, 10x7, index 45). The deck object of the save holds 31 cards: the 30 of the deck plus the character card, which is why the catalog says card_count 31 and card_ids [345, 17629]. Golden Bat's deck is sheet 176 like Medusa's, the four turtles', Doctor Strange's, Bigfoot's, Daredevil's, Luke Cage's and Bullseye's: only deck.identity (data/tts/golden-bat.json) tells the decks apart (docs/card-identity.md).",
+  "Hero card (read from the image): GOLDEN BAT, MELEE, START HEALTH 18, MOVE 3; special ability THE FIRST SUPERHERO 'If you haven't taken a Maneuver action this turn, add +2 to the value of Golden Bat's attacks.' No sidekicks: unmatched-memory lists a sidekick (Daisy, flagged hasSidekicks false) that is not on the hero card nor in the savegame (one miniature GUID pair, both named Golden Bat); it is ignored. Every card carries the GOLDEN BAT band (none ANY): the restriction changes nothing while he has no sidekicks.",
+  "The ability is the HeroDef passive attack_bonus (n 2) with `unless: maneuver`: HeroDef.attack_bonuses drops it once the owner has taken a Maneuver action in the running turn (`fx.maneuvers`, counted by Game.maneuver and the session's Maneuver button). The bot's estimates (Game.attack_bonus) read the same thing.",
+  "Copies (xN printed on each card), type, value and boost match unmatched-memory for all 12 titles. Discrepancies (the real card wins): A Punch To Shake The Earth says 'each opposing fighter in your zone' where unmatched-memory has 'in Golden Bat's zone'; Skirmish says 'move one of the fighters in the combat up to 2 spaces' where unmatched-memory has 'choose one of the fighters in the combat and move them up to 2 spaces' (the same thing)."
+ ]
+}
