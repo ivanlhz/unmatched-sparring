@@ -8,6 +8,7 @@ Her deck is sheet 176 like the other nine: every id the table reports is resolve
 from __future__ import annotations
 
 from sparring.ai_medusa import Act
+from sparring.board import edge_key
 from sparring.tts.ui import Event
 from test_batch import click
 from test_d3_table_effects import bot_turn, card_ids, human_attack, human_hand, said
@@ -131,6 +132,38 @@ def test_a_human_hero_that_walks_out_of_the_bots_zone_by_hand_takes_one_damage_a
     assert game.fighters["hellboy"].pos == outside
     assert game.fighters["hellboy"].hp == hp - 1
     assert cfg.session_config().dials["hellboy"] in {g for g, _ in table.dial_writes}
+
+
+def hazard_walk_out(session, table, game, cfg, hazard_edges):
+    """The human drags Hellboy out of Tomoe's zone on a map with hazards (a move charged through `walk`). Returns his hp before
+    and the chat lines the move produced."""
+    tomoe, hellboy = game.fighters["tomoe"], game.fighters["hellboy"]
+    inside, outside = zone_exit(game, tomoe.pos)
+    put_at(game, table, cfg, "hellboy", inside)
+    game.board.hazards = {edge_key(inside, n): 1 for n in game.board.moves[inside]} if hazard_edges else {edge_key(0, 0): 1}
+    hp, seen = hellboy.hp, len(session.messages)
+    table.positions[cfg.nicknames["hellboy"]] = outside
+    click(session, table, Event.END_ACTION)
+    return hp, [str(m) for m in list(session.messages)[seen:]]
+
+
+@with_rig("tomoe-gozen", "hellboy")
+def test_on_a_map_with_hazards_the_attack_of_opportunity_is_announced_and_the_dial_written(rig):
+    session, table, game, fake, cfg = rig
+    hp, said_now = hazard_walk_out(session, table, game, cfg, hazard_edges=False)
+    assert game.fighters["hellboy"].hp == hp - 1
+    assert sum("ATTACK OF OPPORTUNITY" in m for m in said_now) == 1, said_now
+    assert cfg.session_config().dials["hellboy"] in {g for g, _ in table.dial_writes}
+
+
+@with_rig("tomoe-gozen", "hellboy")
+def test_a_hazard_and_the_attack_of_opportunity_on_the_same_move_are_each_announced_once(rig):
+    session, table, game, fake, cfg = rig
+    hp, said_now = hazard_walk_out(session, table, game, cfg, hazard_edges=True)
+    assert game.fighters["hellboy"].hp == hp - 2
+    assert sum("cruza un paso peligroso" in m for m in said_now) == 1, said_now
+    assert sum("ATTACK OF OPPORTUNITY" in m for m in said_now) == 1, said_now
+    assert any("de %d a %d" % (hp - 1, hp - 2) in m for m in said_now if "ATTACK OF OPPORTUNITY" in m), said_now
 
 
 @with_rig("tomoe-gozen", "hellboy")

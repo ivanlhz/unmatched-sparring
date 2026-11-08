@@ -1503,6 +1503,8 @@ class MedusaAI(Controller):
                 dist = [(1.0, 0)]                      # Doctor Strange is next to the attacker: its value counts for nothing
         attacker = getattr(self, "_attacker", None)
         dv = (6 if c.title == BETTER and game.fx.won[target.owner] else c.value) if c else 0
+        if c is not None and c.title == LADY:
+            dv = 2 * self.rival_average_boost(game)    # She-Hulk: twice the BOOST of the card it mills (the average of what is left)
         if c is not None and c.title == WORTHY and attacker is not None and attacker.hero:
             dv = 5                                 # Tomoe Gozen: 5 against a hero
         if c is not None and c.title == DAUGHTER and attacker is not None and target.pos is not None and attacker.pos in game.board.adj[target.pos]:

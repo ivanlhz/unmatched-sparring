@@ -21,6 +21,7 @@ import re
 import secrets
 import time
 import uuid
+from contextlib import contextmanager
 from dataclasses import dataclass, field
 from pathlib import Path
 from typing import Callable
@@ -5146,11 +5147,29 @@ class Session:
         return not (f.hero and g.fx.hero_rule(f.owner, "maneuver_boost_places_hero"))
 
     def _departed_by_hand(self, fighter: Fighter, origin: int) -> None:
-        """The human moved or placed `fighter` by hand: `left_zone` (the bot's ATTACK OF OPPORTUNITY) may hurt it. What the
-        ability dealt is said and the life dials written (the human's move has no action of the bot to carry them)."""
+        """The human moved or placed `fighter` by hand: `left_zone` (the bot's ATTACK OF OPPORTUNITY) may hurt it."""
+        with self._announcing_departure():
+            self.game.departed(fighter, origin)
+
+    @contextmanager
+    def _announcing_departure(self):
+        """Says what the departure ability dealt inside the block and writes the life dials (the human's move has no action
+        of the bot to carry them). Hazard damage dealt by a walk in the block is announced by the hazard hook: the hp
+        snapshot is retaken after each hook call so it is not said twice."""
         g = self.game
         before = {fid: (o.hp, o.alive) for fid, o in g.fighters.items()}
-        g.departed(fighter, origin)
+        hook = g.hazard_hook
+
+        def after_hazards() -> None:
+            if hook is not None:
+                hook()
+            before.update({fid: (o.hp, o.alive) for fid, o in g.fighters.items()})
+
+        g.hazard_hook = after_hazards
+        try:
+            yield
+        finally:
+            g.hazard_hook = hook
         hurt = [(fid, hp, g.fighters[fid]) for fid, (hp, _) in before.items() if g.fighters[fid].hp < hp]
         for fid, hp, o in hurt:
             self.say(t("departure.hit", name=self._name(o), before=hp, after=max(o.hp, 0)), ChatKind.COMBAT)
@@ -5180,7 +5199,8 @@ class Session:
             else:
                 if info["space"] != f.pos and f.pos is not None and self._hand_move_pays(f):
                     # the human moved this piece by hand: only the two ends are known, so the least-hazard shortest way is charged
-                    self.game.walk(f, info["space"], None)
+                    with self._announcing_departure():
+                        self.game.walk(f, info["space"], None)
                 else:
                     moved_from = f.pos if info["space"] != f.pos and f.owner == self.human and not quiet else None
                     if info["space"] != f.pos:
