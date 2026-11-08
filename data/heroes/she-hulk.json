@@ -1,0 +1,423 @@
+{
+ "_source": {
+  "memory": "unmatched-memory/data/heroes/she-hulk.json",
+  "overlay": "data/heroes/overlay/she-hulk.json",
+  "generator": "tools/import_hero.py"
+ },
+ "slug": "she-hulk",
+ "name": "She-Hulk",
+ "fid": "shehulk",
+ "hp": 20,
+ "move": 2,
+ "attack": "melee",
+ "set": "brains-and-brawn",
+ "ability": "JUST THROW SOMETHING\nAt the start of your turn, you may discard a card to deal damage equal to its BOOST value to a fighter in your zone.",
+ "sidekicks": [],
+ "forms": null,
+ "counters": {},
+ "triggers": [],
+ "passives": [],
+ "deck": {
+  "card_base": 17600,
+  "sheet": 176,
+  "cards": [
+   {
+    "idx": 0,
+    "title": "Omega-Level Threat",
+    "fighter": "She-Hulk",
+    "type": "attack",
+    "value": 5,
+    "boost": 2,
+    "text": "AFTER COMBAT: If you dealt 2 or more combat damage, your opponent discards 2 random cards.",
+    "tags": []
+   },
+   {
+    "idx": 1,
+    "title": "Omega-Level Threat",
+    "fighter": "She-Hulk",
+    "type": "attack",
+    "value": 5,
+    "boost": 2,
+    "text": "AFTER COMBAT: If you dealt 2 or more combat damage, your opponent discards 2 random cards.",
+    "tags": []
+   },
+   {
+    "idx": 2,
+    "title": "The Savage She-Hulk",
+    "fighter": "She-Hulk",
+    "type": "attack",
+    "value": 3,
+    "boost": 3,
+    "text": "DURING COMBAT: You may spend an additional action to make this card's value 9 instead.",
+    "tags": []
+   },
+   {
+    "idx": 3,
+    "title": "The Savage She-Hulk",
+    "fighter": "She-Hulk",
+    "type": "attack",
+    "value": 3,
+    "boost": 3,
+    "text": "DURING COMBAT: You may spend an additional action to make this card's value 9 instead.",
+    "tags": []
+   },
+   {
+    "idx": 4,
+    "title": "Sensational",
+    "fighter": "She-Hulk",
+    "type": "attack",
+    "value": 4,
+    "boost": 2,
+    "text": "AFTER COMBAT: If you won the combat, you may choose a card in your discard pile and shuffle it into your deck.",
+    "tags": []
+   },
+   {
+    "idx": 5,
+    "title": "Sensational",
+    "fighter": "She-Hulk",
+    "type": "attack",
+    "value": 4,
+    "boost": 2,
+    "text": "AFTER COMBAT: If you won the combat, you may choose a card in your discard pile and shuffle it into your deck.",
+    "tags": []
+   },
+   {
+    "idx": 6,
+    "title": "Sensational",
+    "fighter": "She-Hulk",
+    "type": "attack",
+    "value": 4,
+    "boost": 2,
+    "text": "AFTER COMBAT: If you won the combat, you may choose a card in your discard pile and shuffle it into your deck.",
+    "tags": []
+   },
+   {
+    "idx": 7,
+    "title": "Legalese",
+    "fighter": "She-Hulk",
+    "type": "versatile",
+    "value": 2,
+    "boost": 1,
+    "text": "AFTER COMBAT: If you won the combat, your opponent chooses whether you both draw a card or both discard a card. If you lost the combat, you make the choice instead (see above).",
+    "tags": []
+   },
+   {
+    "idx": 8,
+    "title": "Legalese",
+    "fighter": "She-Hulk",
+    "type": "versatile",
+    "value": 2,
+    "boost": 1,
+    "text": "AFTER COMBAT: If you won the combat, your opponent chooses whether you both draw a card or both discard a card. If you lost the combat, you make the choice instead (see above).",
+    "tags": []
+   },
+   {
+    "idx": 9,
+    "title": "Legalese",
+    "fighter": "She-Hulk",
+    "type": "versatile",
+    "value": 2,
+    "boost": 1,
+    "text": "AFTER COMBAT: If you won the combat, your opponent chooses whether you both draw a card or both discard a card. If you lost the combat, you make the choice instead (see above).",
+    "tags": []
+   },
+   {
+    "idx": 10,
+    "title": "Nerve Cluster Strike",
+    "fighter": "She-Hulk",
+    "type": "versatile",
+    "value": 3,
+    "boost": 1,
+    "text": "IMMEDIATELY: If She-Hulk is adjacent to the opposing fighter, the opposing fighter may not leave their space this turn.",
+    "tags": []
+   },
+   {
+    "idx": 11,
+    "title": "Nerve Cluster Strike",
+    "fighter": "She-Hulk",
+    "type": "versatile",
+    "value": 3,
+    "boost": 1,
+    "text": "IMMEDIATELY: If She-Hulk is adjacent to the opposing fighter, the opposing fighter may not leave their space this turn.",
+    "tags": []
+   },
+   {
+    "idx": 12,
+    "title": "Nerve Cluster Strike",
+    "fighter": "She-Hulk",
+    "type": "versatile",
+    "value": 3,
+    "boost": 1,
+    "text": "IMMEDIATELY: If She-Hulk is adjacent to the opposing fighter, the opposing fighter may not leave their space this turn.",
+    "tags": []
+   },
+   {
+    "idx": 13,
+    "title": "Cease and Desist",
+    "fighter": "She-Hulk",
+    "type": "versatile",
+    "value": 1,
+    "boost": 2,
+    "text": "IMMEDIATELY: Cancel all effects on your opponent's card. DURING COMBAT: If you are attacking, the value of this card is 4 instead.",
+    "tags": []
+   },
+   {
+    "idx": 14,
+    "title": "Cease and Desist",
+    "fighter": "She-Hulk",
+    "type": "versatile",
+    "value": 1,
+    "boost": 2,
+    "text": "IMMEDIATELY: Cancel all effects on your opponent's card. DURING COMBAT: If you are attacking, the value of this card is 4 instead.",
+    "tags": []
+   },
+   {
+    "idx": 15,
+    "title": "Cease and Desist",
+    "fighter": "She-Hulk",
+    "type": "versatile",
+    "value": 1,
+    "boost": 2,
+    "text": "IMMEDIATELY: Cancel all effects on your opponent's card. DURING COMBAT: If you are attacking, the value of this card is 4 instead.",
+    "tags": []
+   },
+   {
+    "idx": 16,
+    "title": "Green Energy",
+    "fighter": "She-Hulk",
+    "type": "versatile",
+    "value": 4,
+    "boost": 1,
+    "text": "AFTER COMBAT: If you won the combat, deal 1 damage to each fighter adjacent to She-Hulk.",
+    "tags": []
+   },
+   {
+    "idx": 17,
+    "title": "Green Energy",
+    "fighter": "She-Hulk",
+    "type": "versatile",
+    "value": 4,
+    "boost": 1,
+    "text": "AFTER COMBAT: If you won the combat, deal 1 damage to each fighter adjacent to She-Hulk.",
+    "tags": []
+   },
+   {
+    "idx": 18,
+    "title": "Green Energy",
+    "fighter": "She-Hulk",
+    "type": "versatile",
+    "value": 4,
+    "boost": 1,
+    "text": "AFTER COMBAT: If you won the combat, deal 1 damage to each fighter adjacent to She-Hulk.",
+    "tags": []
+   },
+   {
+    "idx": 19,
+    "title": "Lady Justice",
+    "fighter": "She-Hulk",
+    "type": "defense",
+    "value": 0,
+    "boost": 2,
+    "text": "DURING COMBAT: Discard the top card of your opponent's deck. Increase the value of this card by twice that card's boost value.",
+    "tags": []
+   },
+   {
+    "idx": 20,
+    "title": "Lady Justice",
+    "fighter": "She-Hulk",
+    "type": "defense",
+    "value": 0,
+    "boost": 2,
+    "text": "DURING COMBAT: Discard the top card of your opponent's deck. Increase the value of this card by twice that card's boost value.",
+    "tags": []
+   },
+   {
+    "idx": 21,
+    "title": "Lady Justice",
+    "fighter": "She-Hulk",
+    "type": "defense",
+    "value": 0,
+    "boost": 2,
+    "text": "DURING COMBAT: Discard the top card of your opponent's deck. Increase the value of this card by twice that card's boost value.",
+    "tags": []
+   },
+   {
+    "idx": 22,
+    "title": "The Defense Rests",
+    "fighter": "She-Hulk",
+    "type": "defense",
+    "value": 2,
+    "boost": 2,
+    "text": "AFTER COMBAT: Draw cards equal to the amount of combat damage you took.",
+    "tags": []
+   },
+   {
+    "idx": 23,
+    "title": "The Defense Rests",
+    "fighter": "She-Hulk",
+    "type": "defense",
+    "value": 2,
+    "boost": 2,
+    "text": "AFTER COMBAT: Draw cards equal to the amount of combat damage you took.",
+    "tags": []
+   },
+   {
+    "idx": 24,
+    "title": "Jennifer Walters, Esq.",
+    "fighter": "She-Hulk",
+    "type": "scheme",
+    "value": null,
+    "boost": 1,
+    "text": "Place She-Hulk in a starting space. Draw 1 card. Gain 1 action.",
+    "tags": []
+   },
+   {
+    "idx": 25,
+    "title": "Jennifer Walters, Esq.",
+    "fighter": "She-Hulk",
+    "type": "scheme",
+    "value": null,
+    "boost": 1,
+    "text": "Place She-Hulk in a starting space. Draw 1 card. Gain 1 action.",
+    "tags": []
+   },
+   {
+    "idx": 26,
+    "title": "Leap Toward",
+    "fighter": "She-Hulk",
+    "type": "scheme",
+    "value": null,
+    "boost": 1,
+    "text": "Move She-Hulk up to 4 spaces. She may move through opposing fighters. Then, if she is adjacent to an opposing fighter, gain 1 action.",
+    "tags": []
+   },
+   {
+    "idx": 27,
+    "title": "Leap Toward",
+    "fighter": "She-Hulk",
+    "type": "scheme",
+    "value": null,
+    "boost": 1,
+    "text": "Move She-Hulk up to 4 spaces. She may move through opposing fighters. Then, if she is adjacent to an opposing fighter, gain 1 action.",
+    "tags": []
+   },
+   {
+    "idx": 28,
+    "title": "Double Jeopardy",
+    "fighter": "She-Hulk",
+    "type": "scheme",
+    "value": null,
+    "boost": 2,
+    "text": "Draw 2 cards and recover 2 health.",
+    "tags": []
+   },
+   {
+    "idx": 29,
+    "title": "Double Jeopardy",
+    "fighter": "She-Hulk",
+    "type": "scheme",
+    "value": null,
+    "boost": 2,
+    "text": "Draw 2 cards and recover 2 health.",
+    "tags": []
+   }
+  ]
+ },
+ "ai_profile": {
+  "shehulk": {
+   "name": "She-Hulk",
+   "hero": true,
+   "count": 1,
+   "max_hp": 20,
+   "move": 2,
+   "ranged": false,
+   "role": "hero",
+   "attack": {
+    "cards": 19,
+    "mean": 3.05,
+    "max": 5
+   },
+   "exclusive": [
+    {
+     "title": "Omega-Level Threat",
+     "type": "attack",
+     "copies": 2,
+     "impact": 1.47
+    },
+    {
+     "title": "The Savage She-Hulk",
+     "type": "attack",
+     "copies": 2,
+     "impact": 0.99
+    },
+    {
+     "title": "Sensational",
+     "type": "attack",
+     "copies": 3,
+     "impact": 1.11
+    },
+    {
+     "title": "Legalese",
+     "type": "versatile",
+     "copies": 3,
+     "impact": 0.68
+    },
+    {
+     "title": "Nerve Cluster Strike",
+     "type": "versatile",
+     "copies": 3,
+     "impact": 1.09
+    },
+    {
+     "title": "Cease and Desist",
+     "type": "versatile",
+     "copies": 3,
+     "impact": 1.26
+    },
+    {
+     "title": "Green Energy",
+     "type": "versatile",
+     "copies": 3,
+     "impact": 1.47
+    },
+    {
+     "title": "Lady Justice",
+     "type": "defense",
+     "copies": 3,
+     "impact": 0.78
+    },
+    {
+     "title": "The Defense Rests",
+     "type": "defense",
+     "copies": 2,
+     "impact": 0.84
+    },
+    {
+     "title": "Jennifer Walters, Esq.",
+     "type": "scheme",
+     "copies": 2,
+     "impact": 2.1
+    },
+    {
+     "title": "Leap Toward",
+     "type": "scheme",
+     "copies": 2,
+     "impact": 1.3
+    },
+    {
+     "title": "Double Jeopardy",
+     "type": "scheme",
+     "copies": 2,
+     "impact": 2.9
+    }
+   ]
+  }
+ },
+ "_notes": [
+  "Sheet 176 of the tournament savegame (8x4), CardID = 17600 + idx; 336 = character card (sheet 3, 10x7, index 36). The deck object of the save holds 31 cards: the 30 of the deck plus the character card, which is why the catalog says card_count 31 and card_ids [336, 17629]. She-Hulk's deck is sheet 176 like Medusa's, the four turtles', Doctor Strange's, Bigfoot's and the Hell's Kitchen heroes': only deck.identity (data/tts/she-hulk.json) tells the decks apart (docs/card-identity.md).",
+  "Hero card (read from the image): SHE-HULK, MELEE, START HEALTH 20, MOVE 2; special ability JUST THROW SOMETHING. No sidekicks (unmatched-memory has an empty sidekick entry, ignored). Every card carries the SHE-HULK band (none ANY): the restriction changes nothing while she has no sidekicks. unmatched-memory spells the hero 'She Hulk'; the card reads SHE-HULK (the overlay `name`).",
+  "THE SHEET IMAGE OF THE SAVE IS DAMAGED: in the picture the deck object points to (data/tts/she-hulk.json, deck.identity.face) only the first row (idx 0-7: Omega-Level Threat x2, The Savage She-Hulk x2, Sensational x3, the first Legalese) is She-Hulk's; the other 22 cells show Dr. Jill Trent's cards. So only idx 0-7 could be read from the image. The order of idx 8-29 is an ASSUMPTION that follows the other heroes' sheets (attack, versatile, defense, scheme): Legalese x3 (idx 7-9), then Nerve Cluster Strike, Cease and Desist and Green Energy (versatile, in unmatched-memory's order), Lady Justice and The Defense Rests (defense), Jennifer Walters, Esq., Leap Toward and Double Jeopardy (schemes). If a real table shows another order, only this list has to change (docs/heroes/she-hulk.md, open question 1).",
+  "Titles, types, boost values, copies (xN) and texts come from unmatched-memory (the first-row cards agree with the images). Lady Justice has no printed value in unmatched-memory (null) and its text raises the value 'by twice that card's boost value': value 0 is assumed, like Luke Cage's Skin Like Titanium (`value` in its sheet entries; open question 2).",
+  "The ability (JUST THROW SOMETHING) is a start-of-turn trigger of the effects file (plugin shehulk:throw), not data here."
+ ]
+}

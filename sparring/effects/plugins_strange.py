@@ -59,7 +59,7 @@ def _blind_boost(run, game, spec):
         modifiers.add_value(flow, side, top.boost, t("cf.blind_boost", title=top.title, boost=top.boost))
 
 
-def discard_top(run, game, owner: int, count: int) -> list:
+def discard_top(run, game, owner: int, count: int, **ask_extra) -> list:
     """Discards `count` cards from the top of `owner`'s deck, face up, and returns them in the order they left (a deck
     with fewer cards gives what it has). The engine's player: the cards come off its known deck. The table player: the
     session's bot has already moved the real top cards (`run.flags["blind_cards"]`, `session_blind`); if the table
@@ -73,7 +73,7 @@ def discard_top(run, game, owner: int, count: int) -> list:
         found = (run.flags.get("blind_cards") or {}).pop(run._op_key, None)
         if found is None:
             found = run.ask(game, "cards", owner, _unplayed(st), count, count, "blind boost", zone="discard", purpose="bonus",
-                            of=owner, table_discard=True, pile_mode="blind", times=count)
+                            of=owner, table_discard=True, pile_mode="blind", times=count, **ask_extra)
         by_id = {c.card_id: c for c in st.full_set}
         for card_id in found:
             card = by_id[card_id]

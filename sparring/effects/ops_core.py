@@ -447,6 +447,14 @@ def _gain_action(run, game, spec):
             game.grant_actions(n)
 
 
+@op("spend_action")
+def _spend_action(run, game, spec):
+    """"Spend an additional action" (The Savage She-Hulk): the owner's turn loses that many actions, as an action taken would
+    (`optional` checks the price first: with fewer left the option does not exist)."""
+    for _ in range(int(amount(game, run, spec["amount"]))):
+        game.use_action()
+
+
 @op("end_turn")
 def _end_turn(run, game, spec):
     run.flags["end_turn"] = game.turn      # the CURRENT turn ends, whoever owns the card (a defense can end the attacker's)
@@ -462,8 +470,11 @@ def _if(run, game, spec):
 
 
 def _can_pay(game, run, cost: list[dict]) -> bool:
-    """Conservative: a discard (or a card put back in the deck) cost needs enough cards; any other cost is assumed payable."""
+    """Conservative: a discard (or a card put back in the deck) cost needs enough cards, an action cost enough actions left on the
+    owner's own turn; any other cost is assumed payable."""
     for c in cost:
+        if c["op"] == "spend_action" and (game.turn != run.ctx.owner or game.actions_left < int(amount(game, run, c["amount"]))):
+            return False
         if c["op"] in ("discard", "return_to_deck") and isinstance(c["cards"], dict):
             sel = c["cards"]
             need = 0 if sel.get("up_to") else min(int(amount(game, run, sel.get("amount", 1))), 1 << 30)
@@ -517,6 +528,10 @@ def _choice_context(game, run, spec: dict) -> dict:
     pact = _pact_context(game, run, ops)
     if pact is not None:
         ctx["pact"] = pact
+    if any(o["op"] == "spend_action" for o in spec.get("cost") or []):
+        buys = _action_buys(game, run, ops)
+        if buys is not None:
+            ctx["action_buys"] = buys
     if not spec.get("cost") and ops and all(o["op"] == "draw" and o.get("player") == "owner" and isinstance(o.get("amount"), int) for o in ops):
         ctx["draws"] = sum(o["amount"] for o in ops)         # a free draw; `draws_at`: the event of the trigger that offers it
         ctx["draws_at"] = run.ctx.moment
@@ -526,6 +541,20 @@ def _choice_context(game, run, spec: dict) -> dict:
         if len(cands) == 1:
             ctx["else_fighter"] = cands[0].fid       # who takes it: the answer's price in hit points
     return ctx
+
+
+def _action_buys(game, run, ops: list[dict]) -> dict | None:
+    """An action spent for a value in the running combat (The Savage She-Hulk: the printed value becomes 9): the value it adds to
+    the card (`gain`), both totals as things stand (`mine`, `theirs`) and whether the owner attacks, for a bot to price."""
+    flow = getattr(run, "flow", None)
+    setter = next((o for o in ops if o["op"] == "set_value" and isinstance(o.get("amount"), int)), None)
+    card = None if run.ctx.card_id is None else find_card(game, run.ctx.card_id, run.ctx.owner)
+    if flow is None or flow.ctx is None or setter is None or card is None:
+        return None
+    attacking = flow.att.owner == run.ctx.owner
+    mine, theirs = (flow.ctx.atk_value, flow.ctx.def_value) if attacking else (flow.ctx.def_value, flow.ctx.atk_value)
+    return {"gain": setter["amount"] - (card.value or 0), "mine": mine, "theirs": theirs, "attacking": attacking,
+            "target": (flow.tgt if attacking else flow.att).fid}
 
 
 def _pact_context(game, run, ops: list[dict]) -> dict | None:
@@ -600,3 +629,4 @@ from . import plugins_houdini  # noqa: E402,F401  (registers houdini:replace_com
 from . import plugins_daredevil  # noqa: E402,F401  (registers daredevil:take_a_knee)
 from . import plugins_donatello  # noqa: E402,F401  (registers donatello:future_of_ninjutsu)
 from . import plugins_luke  # noqa: E402,F401  (registers luke:replace_combatant)
+from . import plugins_shehulk  # noqa: E402,F401  (registers shehulk:throw, shehulk:mill)

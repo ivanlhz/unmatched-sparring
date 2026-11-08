@@ -38,6 +38,8 @@ def _card_name(session, req: ChoiceRequest) -> str:
 
 def instruction(session, req: ChoiceRequest) -> str:
     m, card = mode(req), _card_name(session, req)
+    if m == "blind" and req.extra.get("rival_deck"):        # Lady Justice: the bot's card mills THEIR deck
+        return t("blind.instruction_rival", card=card)
     if m == "blind":
         return t("blind.instruction", card=card, n=req.max)
     if m == "reveal":
@@ -130,6 +132,8 @@ def counted(session, req: ChoiceRequest, ids: list[int]) -> str:
     if m == "blind":
         if not ids:
             return t("blind.none", card=card)
+        if req.extra.get("rival_deck"):
+            return t("knee.auto", card=card, title=by_id[ids[0]].title)
         return t("blind.counted", card=card, titles=", ".join(by_id[i].title for i in ids),
                  bonus=f"+{sum(by_id[i].boost for i in ids)}")
     if m == "reveal":

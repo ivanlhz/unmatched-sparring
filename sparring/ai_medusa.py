@@ -122,6 +122,8 @@ MASTER, CLOAK, RINGS, MISTS = "Master of Kamar-Taj", "Cloak of Levitation", "The
 DAUGHTER, SKIN, GOT_MY_BACK = "Daughter of the Dragon", "Skin Like Titanium", "Got My Back?"     # Luke Cage
 SKIN_RETURN = 0.8         # Skin Like Titanium: a lost combat sends back the damage taken, but only a lost combat does (the blow it replies to already hurt)
 ASSASSIN, BETTER, PLANNED, EYES = "World's Greatest Assassin", "I'm Better And I'll Prove It", "I Planned To Be Here", "Right Between The Eyes"   # Bullseye: conditions read from the turn's record
+SAVAGE, CEASE, LADY = "The Savage She-Hulk", "Cease and Desist", "Lady Justice"     # She-Hulk: values the card's own text sets
+SAVAGE_VALUE = 9          # The Savage She-Hulk with an additional action spent (op spend_action)
 MISTS_EDGE = 0.4          # the Mists also cancel the effects of the attack that was played and replace it with a card nobody chose
 BOOST_ACTION = 0.9        # a BOOSTED WITH that gains an action (it only pays on the bot's own turn)
 STRIP_VALUE = 1.0         # a card the rival loses to a BOOSTED WITH that picks one from their hand
@@ -176,6 +178,13 @@ AFTER_BONUS = {
     "Master Strategist": (0.3, 0.0),                # exactly 4 spaces, through rivals
     "Ricochet": (0.8, 0.0),                         # 1 damage to a fighter in the zone of a rival that was not defeated
     "Tactical Retreat": (0.3, 0.0),                 # puts him in a space that shares no zone
+    "Omega-Level Threat": (0.0, 0.8),               # She-Hulk: 2 random cards of the rival's hand when it deals 2 or more
+    "Sensational": (0.0, 0.5),                      # one card of the discard pile back into the deck when it wins
+    "Cease and Desist": (0.5, 0.0),                 # cancels the rival card's effects
+    "Nerve Cluster Strike": (0.3, 0.0),             # the opposing fighter may not leave its space this turn
+    "Green Energy": (0.0, 0.5),                     # 1 damage to each fighter next to her when it wins
+    "Legalese": (0.3, 0.0),                         # the pick between both drawing and both discarding
+    "The Defense Rests": (0.5, 0.0),                # draws as many cards as the damage it took
 }
 DISCARD_EFFECTS = ("Clutching Claws", "Hiss and Slither")
 
@@ -788,7 +797,18 @@ class MedusaAI(Controller):
             return 6.0
         if c.title == PLANNED and f.pos is not None and game.fx.turn_start_pos.get(f.fid) == f.pos:
             return 5.0
+        if c.title == CEASE:
+            return 4.0                  # attacking (this is only asked of attacks)
+        if c.title == SAVAGE and game.actions_left >= 2 and game.turn == f.owner:
+            return float(SAVAGE_VALUE)  # the action after this one pays for the 9 (EffectAI decides it in the combat)
         return float(c.value)
+
+    def rival_average_boost(self, game: Game) -> float:
+        """The BOOST of the card on top of the rival's deck, as far as public information goes: the average of the cards it has not
+        played yet (its composition minus its discard pile)."""
+        st = game.players[1 - self.me]
+        left = [c for c in st.full_set if c not in st.gone]
+        return sum(c.boost for c in left) / len(left) if left else 0.0
 
     @staticmethod
     def strange_with_wong(game: Game, owner: int) -> bool:
@@ -841,6 +861,8 @@ class MedusaAI(Controller):
         cost += CARD_VALUE * len(boosts)
         effects = BOOST_RELIANCE * sum(boost_effect_value(game, self.me, x) for x in boosts)     # what spending them also does
         atk += self.during_gain(game, c)
+        if c.title == SAVAGE and game.actions_left >= 2:
+            cost += ACTION_VALUE                    # the 9 costs an additional action
         if "invention" in c.tags:
             cost -= INVENTION_PLAY
         e_net = p_win = p_kill = gaze_dmg = 0.0
