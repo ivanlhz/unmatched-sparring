@@ -737,6 +737,47 @@ return JSON.encode({{returned = c.getGUID()}})
 """
 
 
+@_registered
+def pile_card_to_hand(card_guid: str, card_id: int, seat_color: str, id_range: tuple[int, int] = BOT_CARD_IDS, *,
+                      identity) -> str:
+    """Takes ONE card of a discard pile (by the GUID the pile read gave, which is the card's own when it lies loose and the
+    entry's when the pile is a stacked Deck) and puts it into the seat's hand, INSTANT like `return_card_to_hand` (a smooth
+    move does not take a card into a hand zone). The card must be `ours` (`id_range` and the image of `identity`: sheet-176
+    decks share CardIDs, so a bare CardID never names a card) AND carry `card_id`, and it must not already be in a hand
+    zone. A card of a stacked pile is taken out with `takeObject` first. Returns `{moved, guid}` (`moved = false`: not
+    there, not ours, another card or the table refused)."""
+    return f"""-- sparring:pile_card_to_hand
+{_ours_lua(identity, id_range)}{_LOOSE_LUA}local function fetch()
+  local c = getObjectFromGUID({_guid(card_guid)})
+  if c ~= nil then
+    if looseOurs(c) and c.getData().CardID == {_i(card_id)} then return c end
+    return nil
+  end
+  for _, pile in ipairs(getObjects()) do
+    if pile.type == "Deck" and not pile.held_by_color and not inHand(pile) then
+      local data = pile.getData()
+      for _, entry in ipairs(data.ContainedObjects or {{}}) do
+        if entry.GUID == {_guid(card_guid)} and entry.CardID == {_i(card_id)} and cardOurs(entry, data.CustomDeck) then
+          local at = pile.getPosition()
+          local ok, taken = pcall(function()
+            return pile.takeObject({{guid = entry.GUID, position = Vector(at.x, at.y + 2, at.z), smooth = false}})
+          end)
+          if ok then return taken end
+          return nil
+        end
+      end
+    end
+  end
+end
+local ok, card = pcall(fetch)
+if not ok or card == nil then return JSON.encode({{moved = false}}) end
+local t = Player[{_color(seat_color)}].getHandTransform(1)
+card.setRotation(Vector(0, t.rotation.y, 0))
+card.setPosition(t.position)
+return JSON.encode({{moved = true, guid = card.getGUID()}})
+"""
+
+
 LOOK_VAR = "lookRow"     # variable of the panel script with the row shown: "guid|x|z,guid|x|z,..." (empty: no row)
 MAX_LOOK_CARDS = 12
 

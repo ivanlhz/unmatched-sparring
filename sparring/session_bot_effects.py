@@ -311,6 +311,8 @@ def _human_cards(session, before: dict, played: frozenset, looked: bool, ctx: Ct
         for intent in _groups(intents, "return_to_deck", human, "discard", disc_to_deck, keep_order=True):
             checks += translate(session, intent, ctx) or []
     disc_to_hand = [i for i in h0["discard"] if i in h1["hand"] and i not in redrawn]
-    for intent in _groups(intents, "put_in_hand", human, "discard", disc_to_hand):
-        checks += translate(session, intent, ctx) or []
+    by_engine = {c for it in intents if it["op"] == "put_in_hand" and it["player"] == human and it.get("engine") for c in it["cards"]}
+    for picked_by, ids in ((True, [i for i in disc_to_hand if i in by_engine]), (False, [i for i in disc_to_hand if i not in by_engine])):
+        for intent in _groups(intents, "put_in_hand", human, "discard", ids):
+            checks += translate(session, {**intent, "engine": picked_by}, ctx) or []
     return checks

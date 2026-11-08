@@ -497,7 +497,10 @@ def _human_discard_to_deck(session, intent: dict, ctx: Ctx) -> list[Check]:
 def _put_mode(session, intent: dict) -> str | None:
     if intent["zone"] != "discard":
         return None                               # out of a deck: hidden, counted by `search_deck`
-    return BOT if intent["player"] == session.bot else HUMAN
+    if intent["player"] == session.bot:
+        return BOT
+    # a card the engine picked for the human (Insight Of The Ancients): the bot moves it; one the human picked is theirs
+    return BOT if intent.get("engine") and session.cfg.human_deck_guid else HUMAN
 
 
 def _put_human(session, intent: dict, ctx: Ctx) -> list[Check]:
@@ -510,8 +513,44 @@ def _put_human(session, intent: dict, ctx: Ctx) -> list[Check]:
     return []
 
 
+def _human_pile_to_hand(session, intent: dict, ctx: Ctx) -> list[Check]:
+    """A card the ENGINE chose out of the human's discard pile (a random one) goes to their hand by the bot: taken off the
+    pile by GUID, CardID and the human's deck image (sheet-176 decks share CardIDs) into the White seat's hand. A card
+    not on the pile, no identity, a table error or a refused move: the old instruction (`_put_human`), so engine and
+    table are never left apart in silence."""
+    from .session import SessionError             # the session imports this module: resolved at call time
+    ids, by_id = intent["cards"], _by_id(session, session.human)
+    guids = {r["id"]: r["guid"] for r in session._rd_human_discard() if isinstance(r, dict) and "guid" in r}
+    missing = [i for i in ids if i not in guids]
+    todo = [i for i in ids if i in guids]
+    if missing:
+        _put_human(session, {**intent, "cards": missing}, ctx)
+    if not todo:
+        return []
+    try:
+        identity = session._identity("human")
+    except ERRORS + (SessionError,):
+        _put_human(session, {**intent, "cards": todo}, ctx)
+        return []
+    session.fx_in_flight.update(todo)
+    ops = [(i, session._w(lua.pile_card_to_hand(guids[i], i, session.cfg.human_seat, session.cfg.human_card_ids,
+                                                identity=identity), DOMAIN)) for i in todo]
+
+    def check() -> None:
+        done = [i for i, op in ops if result_of(op).get("moved")]
+        left = [i for i in todo if i not in done]
+        if done:
+            session.say(t("tr.pickup_done", titles=join_titles(by_id[i].title for i in done)), ChatKind.SCHEME)
+        if left:
+            session.fx_in_flight.difference_update(left)
+            _put_human(session, {**intent, "cards": left}, ctx)
+    return [check]
+
+
 @register("put_in_hand", mode=_put_mode, human=_put_human)
 def _put_bot(session, intent: dict, ctx: Ctx) -> list[Check]:
+    if intent["player"] != session.bot:
+        return _human_pile_to_hand(session, intent, ctx)
     cfg, by_id, guids, checks = session.cfg, _by_id(session, session.bot), ctx.bot_discard or {}, []
     for i in intent["cards"]:
         title = by_id[i].title

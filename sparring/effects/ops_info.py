@@ -316,6 +316,8 @@ def _return_to_deck(run, game, spec):
 
 @op("put_in_hand")
 def _put_in_hand(run, game, spec):
+    sel = spec["cards"]
+    by_engine = isinstance(sel, dict) and sel.get("pick", "chosen") != "chosen"    # random / top / last / all: nobody picked it, the table projection may move it
     for holder, zone, card in _cards_of(game, run, spec["cards"], "recover", in_combat=True):
         st = game.players[holder]
         if zone == "discard":
@@ -328,7 +330,8 @@ def _put_in_hand(run, game, spec):
         else:
             continue
         st.hand.append(card)
-        table.intent(game, op="put_in_hand", player=holder, zone="discard" if zone == "combat" else zone, cards=[card.card_id])
+        table.intent(game, op="put_in_hand", player=holder, zone="discard" if zone == "combat" else zone, cards=[card.card_id],
+                     engine=by_engine and zone == "discard")
         watcher = _watcher(game, holder)
         was_known_top = card.card_id in watcher.top_of_deck
         watcher.drop_top(card.card_id)

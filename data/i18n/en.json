@@ -801,6 +801,7 @@
  "tr.inserts": "I put {titles} {where} ({cause}).",
  "tr.return_bot_fail": "I could not put {title} back in the bot's hand: put it there yourself.",
  "tr.pickup": "Pick up {titles} from your discard pile into your hand ({cause}).",
+ "tr.pickup_done": "I put {titles} from your discard pile into your hand.",
  "tr.bot_recovers": "The bot takes {title} from its discard pile back into its hand.",
  "tr.not_loose": "I cannot find {title} loose in the bot's discard pile: put it in its hand yourself.",
  "tr.bot_takes": "The bot takes {cards} from its deck.",

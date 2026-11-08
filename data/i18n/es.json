@@ -801,6 +801,7 @@
  "tr.inserts": "Meto {titles} {where} ({cause}).",
  "tr.return_bot_fail": "No he podido devolver {title} a la mano del bot: ponla tu.",
  "tr.pickup": "Recoge {titles} de tu descarte a tu mano ({cause}).",
+ "tr.pickup_done": "He puesto {titles} de tu descarte en tu mano.",
  "tr.bot_recovers": "El bot recupera {title} de su descarte a su mano.",
  "tr.not_loose": "No encuentro {title} suelta en el descarte del bot: ponla tu en su mano.",
  "tr.bot_takes": "El bot toma {cards} de su mazo.",
