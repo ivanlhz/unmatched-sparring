@@ -3402,11 +3402,30 @@ return JSON.encode({{taken = false}})
 @_registered
 def peek_deck_top(deck_guid: str, id_range: tuple[int, int] = BOT_CARD_IDS, *, identity,
                   spot: tuple[float, float] | None = None, zone: str | None = None,
-                  radius: float = DECK_RADIUS) -> str:
+                  radius: float = DECK_RADIUS, count: int = 1) -> str:
     """Read only: the CardID of the top card of a deck (the first of its contents, the one `takeObject` gives), looked
     up as `ours` (`id_range` and the image of `identity`). A single loose Card is its own top. Returns `{found, id,
-    quantity}` (`deck = false` when the deck is not there, `found = false` when its top is not ours)."""
+    quantity}` (`deck = false` when the deck is not there, `found = false` when its top is not ours). With `count` > 1
+    (Jill Trent's Insightful Deduction) it also returns `ids`, the CardIDs of the first `count` cards, top first, and
+    stops at the first card that is not ours."""
     own = _ours_lua(identity, id_range) + _deck_finder(spot, radius, zone)
+    if count > 1:
+        return f"""-- sparring:peek_deck_top
+{own}local deck = findDeck({_guid(deck_guid)})
+if deck == nil then return JSON.encode({{found = false, deck = false}}) end
+local data = deck.getData()
+local cards = data.ContainedObjects or {{}}
+local ids = {{}}
+if deck.type == "Card" then
+  if cardOurs(data, data.CustomDeck) then ids[1] = data.CardID end
+else
+  for i = 1, math.min({int(count)}, #cards) do
+    if not cardOurs(cards[i], data.CustomDeck) then break end
+    ids[#ids + 1] = cards[i].CardID
+  end
+end
+return JSON.encode({{found = #ids > 0, id = ids[1], ids = ids, quantity = deck.type == "Card" and 1 or #cards}})
+"""
     return f"""-- sparring:peek_deck_top
 {own}local deck = findDeck({_guid(deck_guid)})
 if deck == nil then return JSON.encode({{found = false, deck = false}}) end

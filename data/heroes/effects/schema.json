@@ -40,6 +40,20 @@
       }
      }
     },
+    "after": {
+     "type": "array",
+     "items": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["id", "ops"],
+      "properties": {
+       "id": {"$ref": "#/$defs/Name"},
+       "condition": {"$ref": "#/$defs/Condition"},
+       "ops": {"$ref": "#/$defs/Ops"},
+       "notes": {"type": "string"}
+      }
+     }
+    },
     "notes": {"type": ["string", "null"]}
    }
   },
@@ -378,6 +392,7 @@
       "properties": {"label": {"type": "string", "minLength": 1}, "ops": {"$ref": "#/$defs/Ops"}}}},
      "amount": {"type": "integer", "minimum": 1},
      "distinct": {"type": "boolean"},
+     "tag": {"$ref": "#/$defs/Name"},
      "chooser": {"$ref": "#/$defs/Chooser"}}},
    {"type": "object", "additionalProperties": false, "required": ["op", "target", "amount", "up_to"],
     "properties": {"op": {"const": "move"}, "target": {"$ref": "#/$defs/FighterSel"}, "amount": {"$ref": "#/$defs/Amount"}, "up_to": {"type": "boolean"}, "through_enemies": {"type": "boolean"}, "await_destination": {"type": "boolean"}, "chooser": {"$ref": "#/$defs/Chooser"}, "as": {"$ref": "#/$defs/Name"}}},
@@ -402,6 +417,8 @@
     "properties": {"op": {"const": "allow_boost"}, "card": {"$ref": "#/$defs/CardRef"}}},
    {"type": "object", "additionalProperties": false, "required": ["op"],
     "properties": {"op": {"const": "consider_won"}}},
+   {"type": "object", "additionalProperties": false, "required": ["op", "card"],
+    "properties": {"op": {"const": "lock_value"}, "card": {"$ref": "#/$defs/CardRef"}}},
    {"type": "object", "additionalProperties": false, "required": ["op", "name", "until"],
     "properties": {"op": {"const": "status"}, "name": {"$ref": "#/$defs/StatusName"}, "until": {"$ref": "#/$defs/Event"}, "target": {"$ref": "#/$defs/FighterSel"}, "player": {"$ref": "#/$defs/PlayerSel"}, "amount": {"$ref": "#/$defs/Amount"}}},
    {"type": "object", "additionalProperties": false, "required": ["op", "name"],

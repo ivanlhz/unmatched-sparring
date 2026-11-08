@@ -1,0 +1,617 @@
+{
+ "schema": 1,
+ "hero": "jill-trent",
+ "notes": [
+  "Jill Trent, Science Sleuth (Adventures: Tales to Amaze). Melee, 13 life, move 2; sidekick Daisy (melee, 6 life). Read from the card images on 2026-11-08; the rules decisions are in docs/heroes/jill-trent.md.",
+  "GADGETOLOGY is the counter `gadget` (set at the start of her turn), the ability's `during` and `after` lists (docs/effects-dsl.md section 33) and the cards that read the active gadget."
+ ],
+ "ability": {
+  "text": "GADGETOLOGY: At the start of your turn, activate one of your gadgets. Whenever Jill Trent attacks, resolve the active gadget's effect.",
+  "counters": {
+   "gadget": {
+    "min": 0,
+    "max": 2,
+    "start": 0
+   }
+  },
+  "triggers": [
+   {
+    "id": "gadgetology",
+    "when": {
+     "event": "start_of_turn",
+     "player": "owner"
+    },
+    "ops": [
+     {
+      "op": "choose_effect",
+      "amount": 1,
+      "chooser": "owner",
+      "tag": "gadget",
+      "options": [
+       {
+        "label": "Hypnoray Blaster",
+        "ops": [
+         {
+          "op": "counter",
+          "name": "gadget",
+          "set": 1
+         }
+        ]
+       },
+       {
+        "label": "Ultrabiotic Tonic",
+        "ops": [
+         {
+          "op": "counter",
+          "name": "gadget",
+          "set": 2
+         }
+        ]
+       }
+      ]
+     }
+    ],
+    "notes": "At the start of each of her turns Jill activates one of her two gadgets (the counter `gadget`: 0 = none yet, before her first turn; 1 = Hypnoray Blaster; 2 = Ultrabiotic Tonic). The other one is switched off. The choice is mandatory; it is asked at the panel for the human and decided by EffectAI (tag `gadget`) for the bot."
+   }
+  ],
+  "passives": [],
+  "during": [
+   {
+    "id": "hypnoray_blaster",
+    "condition": {
+     "all": [
+      {
+       "test": "exists",
+       "fighters": {
+        "role": "this",
+        "kind": "hero"
+       }
+      },
+      {
+       "test": "played_as",
+       "side": "attack"
+      },
+      {
+       "test": "counter",
+       "name": "gadget",
+       "min": 1,
+       "max": 1
+      },
+      {
+       "test": "compare",
+       "left": {
+        "attr": "value",
+        "of": "this"
+       },
+       "op": "<",
+       "right": {
+        "attr": "value",
+        "of": "opponent_card"
+       }
+      }
+     ]
+    },
+    "ops": [
+     {
+      "op": "plugin",
+      "id": "jill:hypnoray"
+     }
+    ],
+    "notes": "Hypnoray Blaster, DURING COMBAT: when JILL attacks (never when she defends, never for Daisy: Sisters In Arms lends it) and the printed value of her card is lower than the printed value of the opponent's, reveal the top card of the opponent's deck and add its BOOST value to the value of her attack. No card against her is a printed value of 0 (never higher than hers). It runs in every DURING of the hero's attack, even if her card's own effects were cancelled (the gadget is on the hero, not on the card)."
+   }
+  ],
+  "after": [
+   {
+    "id": "ultrabiotic_tonic",
+    "condition": {
+     "all": [
+      {
+       "test": "exists",
+       "fighters": {
+        "role": "this",
+        "kind": "hero"
+       }
+      },
+      {
+       "test": "played_as",
+       "side": "attack"
+      },
+      {
+       "test": "counter",
+       "name": "gadget",
+       "min": 2,
+       "max": 2
+      },
+      {
+       "test": "compare",
+       "left": {
+        "attr": "value",
+        "of": "this"
+       },
+       "op": ">",
+       "right": {
+        "attr": "value",
+        "of": "opponent_card"
+       }
+      }
+     ]
+    },
+    "ops": [
+     {
+      "op": "heal",
+      "target": "hero",
+      "amount": 1
+     }
+    ],
+    "notes": "Ultrabiotic Tonic, AFTER COMBAT: when JILL attacks and the printed value of her card is higher than the opponent's, Jill recovers 1 health. A defender who played no card has a printed value of 0. Runs before the card's own AFTER effects."
+   }
+  ],
+  "notes": "The gadgets are not on the character card (it only says to activate one at the start of the turn and to resolve the active gadget's effect whenever Jill attacks): their texts come from unmatched-memory (Hypnoray Blaster, Ultrabiotic Tonic)."
+ },
+ "cards": [
+  {
+   "title": "Battle of Wits",
+   "copies": 3,
+   "text": "AFTER COMBAT: Reveal the top card of your deck and your opponent's deck. If your card has a higher BOOST value, deal 3 damage to the opposing fighter.",
+   "effects": {
+    "immediately": [],
+    "during": [],
+    "after": [
+     {
+      "op": "plugin",
+      "id": "jill:reveal_tops"
+     },
+     {
+      "op": "if",
+      "condition": {
+       "test": "plugin",
+       "id": "jill:reveal_tops",
+       "key": "higher_boost"
+      },
+      "then": [
+       {
+        "op": "damage",
+        "target": "opposing",
+        "amount": 3
+       }
+      ]
+     }
+    ],
+    "scheme": [],
+    "boost": []
+   },
+   "notes": "Attack (value 2, boost 4). Both top cards are revealed (the owner's own and the opponent's); if the BOOST value of the owner's is strictly higher the opposing fighter takes 3 damage. An empty deck has no card to compare: nothing happens. The revealed cards stay on their decks."
+  },
+  {
+   "title": "Energizing Spray",
+   "copies": 2,
+   "text": "AFTER COMBAT: Gain 1 action.",
+   "effects": {
+    "immediately": [],
+    "during": [],
+    "after": [
+     {
+      "op": "gain_action",
+      "amount": 1
+     }
+    ],
+    "scheme": [],
+    "boost": []
+   },
+   "notes": "Attack (value 5, boost 1). Any fighter may play it."
+  },
+  {
+   "title": "Hypnotist",
+   "copies": 2,
+   "text": "IMMEDIATELY: If your active gadget is Hypnoray Blaster, cancel all effects on your opponent's card.",
+   "effects": {
+    "immediately": [
+     {
+      "op": "if",
+      "condition": {
+       "test": "counter",
+       "name": "gadget",
+       "min": 1,
+       "max": 1
+      },
+      "then": [
+       {
+        "op": "cancel_effects",
+        "card": "opponent_card"
+       }
+      ]
+     }
+    ],
+    "during": [],
+    "after": [],
+    "scheme": [],
+    "boost": []
+   },
+   "notes": "Defense (value 3, boost 1), JILL only. Cancels the effects of the opponent's card only while the active gadget is Hypnoray Blaster (before her first turn no gadget is active)."
+  },
+  {
+   "title": "Utility Belt",
+   "copies": 3,
+   "text": "AFTER COMBAT: Choose one: -Jill Trent recovers 1 health, -Move Jill Trent 1 space, -Draw 1 card",
+   "effects": {
+    "immediately": [],
+    "during": [],
+    "after": [
+     {
+      "op": "choose_effect",
+      "amount": 1,
+      "chooser": "owner",
+      "options": [
+       {
+        "label": "Jill Trent recovers 1 health",
+        "ops": [
+         {
+          "op": "heal",
+          "target": "hero",
+          "amount": 1
+         }
+        ]
+       },
+       {
+        "label": "Move Jill Trent 1 space",
+        "ops": [
+         {
+          "op": "move",
+          "target": "hero",
+          "amount": 1,
+          "up_to": false,
+          "chooser": "owner"
+         }
+        ]
+       },
+       {
+        "label": "Draw 1 card",
+        "ops": [
+         {
+          "op": "draw",
+          "player": "owner",
+          "amount": 1
+         }
+        ]
+       }
+      ]
+     }
+    ],
+    "scheme": [],
+    "boost": []
+   },
+   "notes": "Versatile (value 3, boost 3), JILL only. One of three: Jill (the hero, whoever plays) recovers 1, Jill moves exactly 1 space (a move of exactly N with no space N away is cancelled), or draw 1."
+  },
+  {
+   "title": "Helpful Assistant",
+   "copies": 2,
+   "text": "Shuffle up to 3 Jill Trent cards in your discard pile back into your deck. Draw 1 card.",
+   "effects": {
+    "immediately": [],
+    "during": [],
+    "after": [],
+    "scheme": [
+     {
+      "op": "return_to_deck",
+      "cards": {
+       "zone": "discard",
+       "player": "owner",
+       "filter": {
+        "fighter": "Dr. Jill Trent"
+       },
+       "amount": 3,
+       "up_to": true,
+       "chooser": "owner"
+      },
+      "position": "shuffle"
+     },
+     {
+      "op": "draw",
+      "player": "owner",
+      "amount": 1
+     }
+    ],
+    "boost": []
+   },
+   "notes": "Scheme (boost 3), DAISY only. 'Jill Trent cards' are the cards of her own band (JILL TRENT): not the ANY cards nor Daisy's. Up to 3 of them from the discard pile are shuffled into the deck, then draw 1."
+  },
+  {
+   "title": "Insightful Deduction",
+   "copies": 2,
+   "text": "AFTER COMBAT: Reveal the top 3 cards of your opponent's deck. Put one of them on the bottom of the deck and the rest on top in any order.",
+   "effects": {
+    "immediately": [],
+    "during": [],
+    "after": [
+     {
+      "op": "plugin",
+      "id": "jill:insightful_deduction"
+     }
+    ],
+    "scheme": [],
+    "boost": []
+   },
+   "notes": "Versatile (value 3, boost 2). Reveal the top 3 cards of the opponent's deck (all of them if fewer); the owner puts one of them at the bottom and the rest on top in the order the owner says. Against the table player's deck the bot reads the real top 3 and tells the human how to arrange them (the human does it by hand); the human's choices for the bot's deck are applied to the engine's order of it."
+  },
+  {
+   "title": "Sisters in Arms",
+   "copies": 2,
+   "text": "This card's effects cannot be canceled. If Daisy and Jill Trent are adjacent and Daisy is attacking, Daisy gains the effect of Jill Trent's gadget.",
+   "uncancelable": true,
+   "effects": {
+    "immediately": [],
+    "during": [
+     {
+      "op": "if",
+      "condition": {
+       "all": [
+        {
+         "test": "played_as",
+         "side": "attack"
+        },
+        {
+         "test": "exists",
+         "fighters": {
+          "role": "hero",
+          "where": {
+           "adjacent_to": "this"
+          }
+         }
+        },
+        {
+         "test": "counter",
+         "name": "gadget",
+         "min": 1,
+         "max": 1
+        },
+        {
+         "test": "compare",
+         "left": {
+          "attr": "value",
+          "of": "this"
+         },
+         "op": "<",
+         "right": {
+          "attr": "value",
+          "of": "opponent_card"
+         }
+        }
+       ]
+      },
+      "then": [
+       {
+        "op": "plugin",
+        "id": "jill:hypnoray"
+       }
+      ]
+     }
+    ],
+    "after": [
+     {
+      "op": "if",
+      "condition": {
+       "all": [
+        {
+         "test": "played_as",
+         "side": "attack"
+        },
+        {
+         "test": "exists",
+         "fighters": {
+          "role": "hero",
+          "where": {
+           "adjacent_to": "this"
+          }
+         }
+        },
+        {
+         "test": "counter",
+         "name": "gadget",
+         "min": 2,
+         "max": 2
+        },
+        {
+         "test": "compare",
+         "left": {
+          "attr": "value",
+          "of": "this"
+         },
+         "op": ">",
+         "right": {
+          "attr": "value",
+          "of": "opponent_card"
+         }
+        }
+       ]
+      },
+      "then": [
+       {
+        "op": "heal",
+        "target": "hero",
+        "amount": 1
+       }
+      ]
+     }
+    ],
+    "scheme": [],
+    "boost": []
+   },
+   "notes": "Versatile (value 3, boost 1), DAISY only. Its effects cannot be canceled (`uncancelable`). While Daisy attacks with Jill (alive) on an adjacent space she resolves the active gadget as if it were Jill's: the printed value compared is Daisy's card's, the Hypnoray Blaster raises Daisy's attack and the Ultrabiotic Tonic still heals JILL (the gadget names her)."
+  },
+  {
+   "title": "Ace Fighter",
+   "copies": 2,
+   "text": "AFTER COMBAT: Draw 1 card.",
+   "effects": {
+    "immediately": [],
+    "during": [],
+    "after": [
+     {
+      "op": "draw",
+      "player": "owner",
+      "amount": 1
+     }
+    ],
+    "scheme": [],
+    "boost": []
+   },
+   "notes": "Versatile (value 5, boost 3), DAISY only."
+  },
+  {
+   "title": "Caught Red-Handed",
+   "copies": 2,
+   "text": "AFTER COMBAT: Your opponent discards 1 card. If you won the combat, they discard 2 cards instead.",
+   "effects": {
+    "immediately": [],
+    "during": [],
+    "after": [
+     {
+      "op": "if",
+      "condition": {
+       "test": "combat_result",
+       "result": "won"
+      },
+      "then": [
+       {
+        "op": "discard",
+        "cards": {
+         "zone": "hand",
+         "player": "opponent",
+         "amount": 2,
+         "chooser": "opponent"
+        }
+       }
+      ],
+      "else": [
+       {
+        "op": "discard",
+        "cards": {
+         "zone": "hand",
+         "player": "opponent",
+         "amount": 1,
+         "chooser": "opponent"
+        }
+       }
+      ]
+     }
+    ],
+    "scheme": [],
+    "boost": []
+   },
+   "notes": "Versatile (value 1, boost 2). The opponent chooses what to discard: 2 cards if the owner won the combat, 1 if not."
+  },
+  {
+   "title": "Gyroscopic Jetpack",
+   "copies": 3,
+   "text": "AFTER COMBAT: Move your fighter up to 2 spaces. They may move through opposing fighters.",
+   "effects": {
+    "immediately": [],
+    "during": [],
+    "after": [
+     {
+      "op": "move",
+      "target": "this",
+      "amount": 2,
+      "up_to": true,
+      "through_enemies": true,
+      "chooser": "owner"
+     }
+    ],
+    "scheme": [],
+    "boost": []
+   },
+   "notes": "Versatile (value 4, boost 2). 'Your fighter' is the fighter that played the card (Jill or Daisy)."
+  },
+  {
+   "title": "Indestructible Cloth",
+   "copies": 2,
+   "text": "IMMEDIATELY: This combat, your fighter does not take damage from effects other than combat damage.",
+   "effects": {
+    "immediately": [
+     {
+      "op": "status",
+      "name": "immune_to_effect_damage",
+      "target": "this",
+      "until": {
+       "event": "after_attack",
+       "fighter": {
+        "side": "any"
+       }
+      }
+     }
+    ],
+    "during": [],
+    "after": [],
+    "scheme": [],
+    "boost": []
+   },
+   "notes": "Defense (value 5, boost 2). The status lasts exactly this combat (`after_attack` expiry, which comes after every AFTER effect): the fighter takes no effect damage, from either side's effects, but combat damage lands as usual."
+  },
+  {
+   "title": "Laser Pen",
+   "copies": 3,
+   "text": "AFTER COMBAT: Deal 1 damage to the opposing fighter.",
+   "effects": {
+    "immediately": [],
+    "during": [],
+    "after": [
+     {
+      "op": "damage",
+      "target": "opposing",
+      "amount": 1
+     }
+    ],
+    "scheme": [],
+    "boost": []
+   },
+   "notes": "Versatile (value 2, boost 2)."
+  },
+  {
+   "title": "Stasis Diffuser",
+   "copies": 2,
+   "text": "IMMEDIATELY: The value of your opponent's card is equal to its printed value and cannot be changed.",
+   "effects": {
+    "immediately": [
+     {
+      "op": "lock_value",
+      "card": "opponent_card"
+     }
+    ],
+    "during": [],
+    "after": [],
+    "scheme": [],
+    "boost": []
+   },
+   "notes": "Versatile (value 3, boost 1). The opponent's card goes back to its printed value and nothing changes it any more in this combat: later value effects and BOOSTS of that side add nothing (the boost cards are still discarded and their own effects still run)."
+  }
+ ],
+ "plugins": [
+  {
+   "id": "jill:hypnoray",
+   "why": "Reveal the top card of the opponent's deck (the engine's for the bot, read from the table for the human) and add its BOOST value to the owner's card: no op reveals a deck card and keeps it for a value."
+  },
+  {
+   "id": "jill:reveal_tops",
+   "why": "Battle of Wits reveals the top card of BOTH decks and compares their BOOST values; a card of the rival's deck cannot be bound by name (decks share CardIDs), so the plugin keeps the two numbers and its test `higher_boost` compares them."
+  },
+  {
+   "id": "jill:insightful_deduction",
+   "why": "Reveal the top 3 cards of the opponent's deck, put one at the bottom and the rest on top in the owner's order: a selection among cards just looked at, which no CardSel expresses; it also tells the table (the human's deck is rearranged by hand, the bot's is pinned)."
+  }
+ ],
+ "hidden_info": [
+  {
+   "cards": [
+    "Battle of Wits",
+    "Insightful Deduction"
+   ],
+   "ability": "Hypnoray Blaster",
+   "rule": "The cards say 'reveal': the owner sees the top card(s) of the opponent's deck at the moment the effect resolves. The bot reads the human's real deck only then (Game.deck_reader, top n); what it saw is kept as KnownHand.top_of_deck, erased by the next draw or shuffle."
+  }
+ ],
+ "open_questions": [
+  "Ultrabiotic Tonic through Sisters In Arms: Jill recovers the health (the gadget names her), Daisy does not.",
+  "Stasis Diffuser also freezes the value against BOOSTS (a boost adds value); the boost cards are discarded and their effects run.",
+  "Cloth, Hypnotist and Jill's gadgets are not cancelled by a cancellation of the card: the gadget is on the hero."
+ ]
+}

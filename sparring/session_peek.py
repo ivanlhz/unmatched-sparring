@@ -158,17 +158,23 @@ def engine_order(session, unseen: list) -> list:
 
 # ---------------------------------------------------------------- the bot looks at the human's deck
 
-def read_top(session, player: int) -> int | None:
-    """`Game.deck_reader`: the CardID on top of the human's real deck, or None (said) when the table does not give it."""
+def read_top(session, player: int, n: int | None = None) -> "int | list[int] | None":
+    """`Game.deck_reader`: the CardID on top of the human's real deck, or None (said) when the table does not give it. With `n`
+    (Jill Trent's Insightful Deduction) the CardIDs of the top `n` cards, top first, or None when they cannot all be read."""
     from .session import SessionError
     cfg = session.cfg
     try:
         res = session.client.call_lua(lua.peek_deck_top(cfg.human_deck_guid, cfg.human_card_ids,
-                                                         identity=session._identity("human"), **session._deck_kw("human")))
+                                                         identity=session._identity("human"), **session._deck_kw("human"),
+                                                         **({"count": n} if n and n > 1 else {})))
     except ERRORS + (SessionError, ValueError, TypeError):
         res = None
-    if isinstance(res, dict) and res.get("found") and isinstance(res.get("id"), int) and not isinstance(res.get("id"), bool):
-        return res["id"]
+    if n and n > 1:
+        ids = res.get("ids") if isinstance(res, dict) else None
+        if isinstance(ids, list) and len(ids) == min(n, res.get("quantity") or 0) and all(_is_int(i) for i in ids):
+            return ids
+    elif isinstance(res, dict) and res.get("found") and _is_int(res.get("id")):
+        return res["id"] if not n else [res["id"]]
     session.say(t("peek.read_failed"), ChatKind.WARNING)
     return None
 

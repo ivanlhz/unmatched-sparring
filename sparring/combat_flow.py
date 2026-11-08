@@ -145,6 +145,7 @@ class CombatFlow:
         self.returned = False                        # the attacker's card went back to the hand (Sleight Of Hand), not to the discard pile (Mists)
         self.again = False                           # the attacker's card was swapped during its IMMEDIATELY: the new card's runs next (Sleight Of Hand)
         self.considered_won: str | None = None       # the side an effect says is considered to have won, whatever the damage ("atk" | "def"; Bullseye's Arrogant But Effective)
+        self.value_locked: set[str] = set()         # sides whose value an effect froze (Jill Trent's Stasis Diffuser): nothing changes it any more
 
     @property
     def done(self) -> bool:
@@ -409,7 +410,8 @@ class CombatFlow:
         out = self._base_dict(self.ctx, self.result)
         if (self.runs or self.printed_set or self.mods["atk"] or self.mods["def"] or self.redirects
                 or self.late_cancelled or self.cancel_hits or self.boost_granted or self.boosted
-                or self.deferred_loss is not None or self.boost_valued or self.returned or self.considered_won):
+                or self.deferred_loss is not None or self.boost_valued or self.returned or self.considered_won
+                or self.value_locked):
             out["dsl"] = {"runs": {k: r.to_dict() for k, r in self.runs.items()}, "printed_set": dict(self.printed_set),
                           "mods": {k: [list(m) for m in v] for k, v in self.mods.items()},
                           "redirects": [dict(r) for r in self.redirects]}
@@ -429,6 +431,8 @@ class CombatFlow:
                 out["dsl"]["returned"] = True
             if self.considered_won:
                 out["dsl"]["considered_won"] = self.considered_won
+            if self.value_locked:
+                out["dsl"]["value_locked"] = sorted(self.value_locked)
         return out
 
     def _base_dict(self, ctx, res) -> dict:
@@ -471,6 +475,7 @@ class CombatFlow:
         flow.sides = []
         flow.runs, flow.printed_set, flow.redirects, flow.choosers, flow.again, flow.returned = {}, {}, [], None, False, False
         flow.considered_won = None
+        flow.value_locked = set()
         flow.late_cancelled, flow.cancel_hits = set(), set()
         flow.boost_granted, flow.boosted, flow.deferred_loss, flow.boost_valued = set(), {}, None, set()
         flow.mods = {"atk": [], "def": []}
@@ -490,6 +495,7 @@ class CombatFlow:
             flow.boost_valued = set(d.get("boost_valued", ()))
             flow.returned = bool(d.get("returned", False))
             flow.considered_won = d.get("considered_won")
+            flow.value_locked = set(d.get("value_locked", ()))
         if raw["ctx"] is not None:
             c, r = raw["ctx"], raw["result"]
             flow.ctx = CombatCtx(att, tgt, flow.atk_card, flow.def_card, c["atk_value"], c["def_value"],
@@ -646,10 +652,22 @@ def dsl_during_hero_ability(flow: CombatFlow, side: Side) -> Await | None:
     return _run_moment(flow, side, "during")
 
 
+def _has_own_after(flow: CombatFlow, side: Side) -> bool:
+    from .effects.model import load_effects
+    return bool(load_effects(flow.game.players[side.fighter.owner].hero.slug).ability_after)
+
+
 @rule(Phase.AFTER, match=_dsl)
 def dsl_after(flow: CombatFlow, side: Side) -> Await | None:
-    if side.name in flow.ctx.cancelled_after:
+    if side.name in flow.ctx.cancelled_after and not _has_own_after(flow, side):
         return None
+    return _run_moment(flow, side, "after")
+
+
+@rule(Phase.AFTER, when_cancelled=True, match=lambda flow, side: _dsl(flow, side) and flow.is_cancelled(side.name) and _has_own_after(flow, side))
+def dsl_after_hero_ability(flow: CombatFlow, side: Side) -> Await | None:
+    """A side whose card effects were cancelled still has its hero's AFTER COMBAT ability (Jill Trent's gadget): it is on the
+    hero, not on the card (docs/effects-dsl.md section 33). `dsl_after` above skips a cancelled side."""
     return _run_moment(flow, side, "after")
 
 

@@ -11,7 +11,7 @@ from typing import Iterable
 # Heroes whose cards and ability the interpreter resolves by default, whoever plays them (C5: Medusa; D1 the Hellboy
 # box for the bot, E2 for the human too, in table mode: effects/table.py). `Game` derives `fx.dsl_heroes` from the
 # heroes in play and persist omits the set when it is this default, so old saves load unchanged.
-INTERPRETED_HEROES = frozenset({"medusa", "hellboy", "abe-sapien", "baba-yaga", "liz-sherman", "leonardo", "donatello", "michelangelo", "raphael", "doctor-strange", "houdini", "bigfoot", "daredevil", "luke-cage", "bullseye", "golden-bat"})
+INTERPRETED_HEROES = frozenset({"medusa", "hellboy", "abe-sapien", "baba-yaga", "liz-sherman", "leonardo", "donatello", "michelangelo", "raphael", "doctor-strange", "houdini", "bigfoot", "daredevil", "luke-cage", "bullseye", "golden-bat", "jill-trent"})
 
 
 def interpreted(slugs: Iterable[str]) -> set[str]:
@@ -163,7 +163,7 @@ class EffectState:
 
     def emit(self, name: str, *args) -> None:
         """Statuses of the `status` op expire first, then the event reaches triggers and ONGOING `until`s."""
-        if self.statuses and name in ("start_of_turn", "end_of_turn", "after_maneuver"):
+        if self.statuses and name in ("start_of_turn", "end_of_turn", "after_maneuver", "after_attack"):
             from .modifiers import expire_on_event
             expire_on_event(self, name, *args)
         if self.dsl_heroes:

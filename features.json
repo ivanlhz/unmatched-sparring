@@ -445,6 +445,20 @@
       "note": "Engine additions are additive (docs/effects-dsl.md, section 32). Rules decisions and open questions for Iván: docs/heroes/golden-bat.md. Live test pending."
     },
     {
+      "id": "HERO-JILL-TRENT",
+      "title": "Dr. Jill Trent (Tales to Amaze, with Daisy) playable by the bot and by the human against every hero",
+      "status": "in-progress",
+      "criteria": [
+        "data/heroes/overlay/jill-trent.json, data/heroes/jill-trent.json, data/heroes/effects/jill-trent.json and data/tts/jill-trent.json generated and validated (import_hero, validate_effects, import_save); the 13 titles (30 cards, sheet 176, character card 348) read from the card images; ai_profile computed by the importer",
+        "Her deck shares CardIDs 17600-17629 with Medusa, the four turtles, Doctor Strange, Bigfoot and the Marvel decks: told apart by deck image and owner, never by a bare CardID (tests/test_hero_jill_trent_data.py, tests/test_card_identity.py); Daisy's token shares a GUID with Abe Sapien's agent Carla (tests/test_piece_identity.py)",
+        "GADGETOLOGY on the interpreter for both seats: the gadget chosen at the start of her turn (panel buttons for the human, EffectAI for the bot), Hypnoray Blaster and Ultrabiotic Tonic resolved when Jill attacks (the hero's own `ability.during` / `ability.after`), Daisy borrowing them through Sisters In Arms",
+        "All 13 cards on the interpreter for both seats: Battle of Wits and Insightful Deduction reveal deck cards (the bot reads the human's real top cards from the table only then), Stasis Diffuser freezes a value (`lock_value`), Indestructible Cloth lasts one combat, Utility Belt, Helpful Assistant, Caught Red-Handed, Gyroscopic Jetpack, Hypnotist and the plain cards",
+        "Jill Trent against each of the 15 other heroes in both seats reaches game over on FakeTTS (passive and attacking human) and in the simulator (tests/test_jill_trent_matrix.py)",
+        "Verified live by Iván (docs/live-checklist.md, section Dr. Jill Trent)"
+      ],
+      "note": "Engine additions are additive (docs/effects-dsl.md, section 33). Rules decisions and open questions for Iván: docs/heroes/jill-trent.md. Live test pending."
+    },
+    {
       "id": "F20",
       "title": "The bot prepares the official community save itself",
       "status": "in-progress",

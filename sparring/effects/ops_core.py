@@ -248,7 +248,8 @@ def _choose_effect(run, game, spec):
         if not left:
             break
         pool = left if spec.get("distinct") else list(range(len(options)))
-        k = run.ask(game, "effect", chooser, pool, 1, 1, "choose an effect", labels=labels)[0]
+        extra = {"tag": spec["tag"]} if "tag" in spec else {}       # what the options are about, for the bot's judgement (Jill's gadgets)
+        k = run.ask(game, "effect", chooser, pool, 1, 1, "choose an effect", labels=labels, **extra)[0]
         picked.append(k)
         if spec.get("distinct"):
             left.remove(k)
@@ -600,3 +601,4 @@ from . import plugins_houdini  # noqa: E402,F401  (registers houdini:replace_com
 from . import plugins_daredevil  # noqa: E402,F401  (registers daredevil:take_a_knee)
 from . import plugins_donatello  # noqa: E402,F401  (registers donatello:future_of_ninjutsu)
 from . import plugins_luke  # noqa: E402,F401  (registers luke:replace_combatant)
+from . import plugins_jill  # noqa: E402,F401  (registers jill:hypnoray, jill:reveal_tops, jill:insightful_deduction)
