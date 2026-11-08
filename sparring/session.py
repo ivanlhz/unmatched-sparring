@@ -3364,7 +3364,8 @@ class Session:
         self.fx_unprojected = fx_before
         g = self.game
         self.start_line = (self._anung_start_text(before, fx_before["bot"]["discard"])
-                            or self._detective_start_text(fx_before["drawn"]))
+                            or self._detective_start_text(fx_before["drawn"])
+                            or self._throw_start_text(fx_before["bot"]["discard"]))
         self.game_log.observe(g, self._name)      # the turn start and its triggers, not folded into the bot's actions
         if (before != self._snapshot_bot() or fx_before["bot"] != bot_effects.zones(g.players[self.bot])
                 or g.drawn[self.bot]):
@@ -3385,6 +3386,18 @@ class Session:
             return t("anung.start", title=card.title, boost=card.boost, name=self._name(hero),
                      where=describe(g, hero.pos, (hero.fid,), self._name))
         return t("anung.start_still", title=card.title, boost=card.boost, name=self._name(hero))
+
+    def _throw_start_text(self, discard_before: list[int]) -> str | None:
+        """What the bot's She-Hulk JUST THROW SOMETHING start-of-turn trigger just did in the engine (discard a card, deal its BOOST to a
+        fighter in her zone), for the chat; None when it did not run (another hero, nothing thrown). The dial of the fighter it hit
+        follows the engine like any other effect damage."""
+        g = self.game
+        if g.hero_def(self.bot).slug != "she-hulk":
+            return None
+        thrown = [c for c in g.players[self.bot].discard if c.card_id not in discard_before]
+        if not thrown:
+            return None
+        return t("shehulk.throw", title=thrown[-1].title, boost=thrown[-1].boost, name=self._name(g.hero(self.bot)))
 
     def _detective_start_text(self, drawn_before: int) -> str | None:
         """What the bot's OCCULT DETECTIVE start-of-turn trigger just did in the engine (draw 2 when Hellboy starts the

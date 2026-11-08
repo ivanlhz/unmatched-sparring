@@ -125,6 +125,8 @@ def _where(where) -> str:
         return t("tbl.where.default")
     if where.get("any"):
         return t("tbl.where.any")
+    if where.get("start"):
+        return t("tbl.where.start")
     if "zone_of" in where:
         who = where["zone_of"]
         if where.get("other"):

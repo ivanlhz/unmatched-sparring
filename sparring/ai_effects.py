@@ -31,7 +31,7 @@ import random
 from functools import lru_cache
 from itertools import combinations
 
-from .ai_medusa import (DECK_SCARCITY, HARPY_VALUE, KILL_SIDEKICK, LETHAL, SURVIVAL_P, W_HERO, W_MEDUSA_HP,
+from .ai_medusa import (ACTION_VALUE, DECK_SCARCITY, HARPY_VALUE, KILL_SIDEKICK, LETHAL, SURVIVAL_P, W_HERO, W_MEDUSA_HP,
                         W_SIDEKICK, MedusaAI, Model, effect_reliance, keep_value, kill_value, play_signature)
 from .controller import Controller
 from .effects import ongoing
@@ -79,6 +79,8 @@ PACT_RECYCLE = 4.0                                      # a card put at the bott
 SWAP_MARGIN = 0.4                                       # Sleight Of Hand is swapped only when the other card beats it by this much, after the cards each one costs to keep
 SWAP_KEEP_SHARE = 0.5                                   # share of the difference between keeping Sleight Of Hand and keeping the other card that counts against the swap
 DEVIL_TITLE, DEVIL_EMPTY_VALUE = "Devil of Hell's Kitchen", 8    # Daredevil's card: worth 8 once the deck is empty, which a blind boost can cause
+ACTION_PRICE = 2 * ACTION_VALUE                         # an action spent for a bigger blow (The Savage She-Hulk) must buy a blow worth this much more
+THROW_MARGIN = 0.3                                      # JUST THROW SOMETHING discards a card only when its blow beats what the card is worth by this much
 BLIND_COST = 0.1                                        # a blind boost mills one card of the deck: the exhaustion clock ticks
 
 
@@ -352,6 +354,8 @@ class EffectAI:
             return self._bonus_discards(game, req)
         if purpose == "reveal_top":
             return self._card_to_reveal(game, req)
+        if purpose == "throw":
+            return self._card_to_throw(game, req)
         if zone == "hand" and of != me:                    # C4: what a look showed, the rest by position
             return ControllerChooser._from_rival_hand(game, req, of)
         if zone == "hand":
@@ -421,6 +425,34 @@ class EffectAI:
         best = max((i for i in req.options if i in by_id),
                    key=lambda i: (W_MEDUSA_HP * min(by_id[i].boost, missing) - 0.5 * keep_value(by_id[i], hand), -i), default=None)
         return None if best is None else [best]
+
+    def _card_to_throw(self, game: Game, req: ChoiceRequest) -> list:
+        """JUST THROW SOMETHING: the card whose BOOST hurts the best target in the zone most for the least it is worth in hand, or none
+        when no card pays for itself (the blow must beat the card's keep value by THROW_MARGIN)."""
+        me, hand = req.player, game.players[req.player].hand
+        by_id = {c.card_id: c for c in hand}
+        targets = [game.fighters[i] for i in req.extra["targets"] if i in game.fighters]
+        rel = effect_reliance(game, me)
+        best, best_gain = None, THROW_MARGIN
+        for i in sorted(req.options):
+            card = by_id.get(i)
+            if card is None or not card.boost:
+                continue
+            gain = max((self.blow_value(f, card.boost, game) for f in targets), default=0.0) - keep_value(card, hand, rel)
+            if gain > best_gain + 1e-9:
+                best, best_gain = i, gain
+        return [] if best is None else [best]
+
+    def _action_for_value(self, game: Game, req: ChoiceRequest) -> bool:
+        """The Savage She-Hulk: an additional action makes the card's value 9. Only an attacker gains from it: pay when the blow it adds
+        is worth more than ACTION_PRICE (the extra damage, a kill included)."""
+        x = req.extra["action_buys"]
+        target = game.fighters.get(x["target"])
+        if target is None or not x["attacking"]:
+            return False
+        now = game.combat_damage_taken(target, max(0, x["mine"] - x["theirs"]))
+        then = game.combat_damage_taken(target, max(0, x["mine"] + x["gain"] - x["theirs"]))
+        return self.blow_value(target, then, game) - self.blow_value(target, now, game) > ACTION_PRICE
 
     def _bonus_discards(self, game: Game, req: ChoiceRequest) -> list:
         """Unbridled rage: each card given up adds `per_card` to the value of the card. Cards go from the least to the
@@ -538,6 +570,8 @@ class EffectAI:
             return [self._card_from_hand_pays(game, req)]
         if "draws" in req.extra:
             return [self._free_draw(game, req)]
+        if "action_buys" in req.extra:      # an action spent for a value (The Savage She-Hulk)
+            return [self._action_for_value(game, req)]
         if "cost_cards" in req.extra:      # a price in cards: the interpreter sends the combat context, one policy
             return [worth_paying(req)]
         if "to" in req.extra:               # a redirect passive (FATEFUL BARGAINS): whoever loses the bot less takes it

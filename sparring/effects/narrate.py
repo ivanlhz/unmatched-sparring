@@ -241,6 +241,9 @@ def _turn(game, before: dict, run) -> list[str]:
     gained = game.actions_left - before["actions"]
     if game.turn == before["turn"] and gained > 0:          # the actions belong to whoever's turn it is
         out.append(tn("narr.gain_actions", gained, verb=t("narr.v.gain." + ("bot" if game.turn == game.bot_player else "human"))))
+    spent = before["actions"] - game.actions_left
+    if game.turn == before["turn"] and spent > 0 and run.flags.get("end_turn") is None:      # "spend an additional action"
+        out.append(tn("narr.spend_actions", spent, verb=t("narr.v.spend." + ("bot" if game.turn == game.bot_player else "human"))))
     if run.flags.get("end_turn") is not None:
         out.append(t("narr.end_turn"))
     return out

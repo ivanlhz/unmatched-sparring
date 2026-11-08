@@ -1,0 +1,230 @@
+{
+ "schema": 1,
+ "hero": "she-hulk",
+ "notes": [
+  "Texts from unmatched-memory (Brains and Brawn); the character card is 336 on sheet 3 (10x7, index 36) and was read from the image (SHE-HULK, melee, health 20, move 2). Sheet 176 is also Medusa's, the turtles', Doctor Strange's, Bigfoot's and the Hell's Kitchen heroes' DeckID: the CardIDs repeat and only the deck image tells the decks apart (docs/card-identity.md). Her sheet (30 cards) was read from the image.",
+  "1v1 reading: 'your opponent' is the only rival; she has no sidekick, so every 'fighter' of hers is She-Hulk (`hero`, `this`).",
+  "New engine pieces (docs/effects-dsl.md, section 34): the op `spend_action` (The Savage She-Hulk: 'spend an additional action'), the plugin `shehulk:throw` (JUST THROW SOMETHING) and the plugin `shehulk:mill` (Lady Justice: discard the top card of the OPPONENT's deck). Everything else uses ops that already existed."
+ ],
+ "ability": {
+  "text": "JUST THROW SOMETHING\nAt the start of your turn, you may discard a card to deal damage equal to its BOOST value to a fighter in your zone.",
+  "triggers": [
+   {
+    "id": "throw_something",
+    "when": {"event": "start_of_turn", "player": "owner"},
+    "condition": {"test": "exists", "fighters": {"side": "enemy", "where": {"zone_of": "hero"}}},
+    "ops": [
+     {"op": "plugin", "id": "shehulk:throw", "args": {"as": "thrown"}},
+     {"op": "if", "condition": {"test": "card", "card": "$thrown", "filter": {}}, "then": [
+      {"op": "damage", "target": {"side": "enemy", "where": {"zone_of": "hero"}}, "amount": {"attr": "boost", "of": "$thrown"}, "chooser": "owner"}
+     ]}
+    ],
+    "notes": "The trigger only runs when an OPPOSING fighter shares She-Hulk's zone (she never throws at herself: the literal 'a fighter in your zone' would include her, which nobody wants; open question). The plugin asks the owner for the card to discard (0 or 1 from the hand: declining is choosing none), discards it and binds it; the damage is effect damage equal to its BOOST value to the chosen enemy fighter in her zone (the opposing fighter when there is one). For the human the start of turn reads their real hand, so it is theirs on the table (`table.start_of_turn_is_physical`): the chat announces it, they discard and lower the dial by hand, and the panel waits for them. The bot decides with `EffectAI` (a `cards` request with purpose `throw`)."
+   }
+  ],
+  "passives": [],
+  "notes": "Only She-Hulk's own zone counts. With no card in hand or no opposing fighter in her zone nothing happens."
+ },
+ "cards": [
+  {
+   "title": "Jennifer Walters, Esq.",
+   "copies": 2,
+   "text": "Place She-Hulk in a starting space. Draw 1 card. Gain 1 action.",
+   "effects": {
+    "immediately": [], "during": [], "after": [], "boost": [],
+    "scheme": [
+     {"op": "place", "target": "hero", "where": {"start": true}, "chooser": "owner"},
+     {"op": "draw", "player": "owner", "amount": 1},
+     {"op": "gain_action", "amount": 1}
+    ]
+   },
+   "notes": "Scheme, boost 1. 'A starting space' is any free starting space of the board (`SpaceSel.start`), also the one she stands on. The action is gained even if no space is free."
+  },
+  {
+   "title": "Leap Toward",
+   "copies": 2,
+   "text": "Move She-Hulk up to 4 spaces. She may move through opposing fighters. Then, if she is adjacent to an opposing fighter, gain 1 action.",
+   "effects": {
+    "immediately": [], "during": [], "after": [], "boost": [],
+    "scheme": [
+     {"op": "move", "target": "hero", "amount": 4, "up_to": true, "through_enemies": true, "await_destination": true, "chooser": "owner"},
+     {"op": "if", "condition": {"test": "exists", "fighters": {"side": "enemy", "where": {"adjacent_to": "hero"}}}, "then": [
+      {"op": "gain_action", "amount": 1}
+     ]}
+    ]
+   },
+   "notes": "Scheme, boost 1. The human moves her miniature by hand and presses Done (`await_destination`): the extra action depends on where she ends. 'Adjacent to an opposing fighter' is any enemy fighter next to her, the one she stopped at or any other."
+  },
+  {
+   "title": "Nerve Cluster Strike",
+   "copies": 3,
+   "text": "IMMEDIATELY: If She-Hulk is adjacent to the opposing fighter, the opposing fighter may not leave their space this turn.",
+   "effects": {
+    "immediately": [
+     {"op": "if", "condition": {"test": "exists", "fighters": {"role": "opposing", "where": {"adjacent_to": "this"}}}, "then": [
+      {"op": "status", "name": "cannot_leave_space", "target": "opposing", "until": {"event": "end_of_turn"}}
+     ]}
+    ],
+    "during": [], "after": [], "scheme": [], "boost": []
+   },
+   "notes": "Versatile 3 / boost 1. Burning Barrier's status (Ivan's decision of 28/10: `cannot_leave_space` blocks all movement of that fighter, its owner's and effects'). Played in defense, 'this turn' is the attacker's own turn, so it also freezes the attacker after the combat."
+  },
+  {
+   "title": "Lady Justice",
+   "copies": 3,
+   "text": "DURING COMBAT: Discard the top card of your opponent's deck. Increase the value of this card by twice that card's boost value.",
+   "effects": {
+    "immediately": [], "after": [], "scheme": [], "boost": [],
+    "during": [
+     {"op": "plugin", "id": "shehulk:mill", "args": {"as": "milled"}},
+     {"op": "modify_value", "card": "this", "amount": {"attr": "boost", "of": "$milled", "times": 2}}
+    ]
+   },
+   "notes": "Defense, printed value 0 / boost 2. The card is discarded from the OPPONENT's deck, face up. With an empty deck nothing is discarded and the value stays 0 (+0). The bot's deck is the engine's; the human's is on the table: the bot moves their real top card after they press the one button the panel shows (the same machinery as BLIND BOOST and Take A Knee)."
+  },
+  {
+   "title": "Omega-Level Threat",
+   "copies": 2,
+   "text": "AFTER COMBAT: If you dealt 2 or more combat damage, your opponent discards 2 random cards.",
+   "effects": {
+    "immediately": [], "during": [], "scheme": [], "boost": [],
+    "after": [
+     {"op": "if", "condition": {"test": "compare", "left": {"stat": "damage_dealt_this_combat"}, "op": ">=", "right": 2}, "then": [
+      {"op": "discard", "cards": {"zone": "hand", "player": "opponent", "pick": "random", "amount": 2}}
+     ]}
+    ]
+   },
+   "notes": "Attack 5 / boost 2. 'Combat damage you dealt' is the damage that really landed (after any reduction), not the card's value; effect damage does not count. A hand of fewer than 2 cards discards what it has."
+  },
+  {
+   "title": "Sensational",
+   "copies": 3,
+   "text": "AFTER COMBAT: If you won the combat, you may choose a card in your discard pile and shuffle it into your deck.",
+   "effects": {
+    "immediately": [], "during": [], "scheme": [], "boost": [],
+    "after": [
+     {"op": "if", "condition": {"test": "combat_result", "result": "won"}, "then": [
+      {"op": "return_to_deck", "cards": {"zone": "discard", "player": "owner", "amount": 1, "up_to": true, "chooser": "owner"}, "position": "shuffle"}
+     ]}
+    ]
+   },
+   "notes": "Attack 4 / boost 2. 'You may': the owner can pick none. The card just played is not in the discard pile yet while the AFTER effects run, so it cannot be chosen."
+  },
+  {
+   "title": "Cease and Desist",
+   "copies": 3,
+   "text": "IMMEDIATELY: Cancel all effects on your opponent's card. DURING COMBAT: If you are attacking, the value of this card is 4 instead.",
+   "effects": {
+    "immediately": [{"op": "cancel_effects", "card": "opponent_card"}],
+    "during": [
+     {"op": "if", "condition": {"test": "played_as", "side": "attack"}, "then": [
+      {"op": "set_value", "card": "this", "amount": 4}
+     ]}
+    ],
+    "after": [], "scheme": [], "boost": []
+   },
+   "notes": "Versatile 1 / boost 2. Attacking, the printed value becomes 4 (bonuses stay); defending it is 1. It does not cancel an uncancelable card."
+  },
+  {
+   "title": "Double Jeopardy",
+   "copies": 2,
+   "text": "Draw 2 cards and recover 2 health.",
+   "effects": {
+    "immediately": [], "during": [], "after": [], "boost": [],
+    "scheme": [
+     {"op": "draw", "player": "owner", "amount": 2},
+     {"op": "heal", "target": "hero", "amount": 2}
+    ]
+   },
+   "notes": "Scheme, boost 2. She-Hulk recovers up to her 20 health."
+  },
+  {
+   "title": "Green Energy",
+   "copies": 3,
+   "text": "AFTER COMBAT: If you won the combat, deal 1 damage to each fighter adjacent to She-Hulk.",
+   "effects": {
+    "immediately": [], "during": [], "scheme": [], "boost": [],
+    "after": [
+     {"op": "if", "condition": {"test": "combat_result", "result": "won"}, "then": [
+      {"op": "damage", "target": {"side": "any", "where": {"adjacent_to": "hero"}, "pick": "all"}, "amount": 1}
+     ]}
+    ]
+   },
+   "notes": "Versatile 4 / boost 1. Savagery's shape (Bigfoot): effect damage to every fighter adjacent to She-Hulk at that moment, the combat's own victim included when it is still adjacent."
+  },
+  {
+   "title": "Legalese",
+   "copies": 3,
+   "text": "AFTER COMBAT: If you won the combat, your opponent chooses whether you both draw a card or both discard a card. If you lost the combat, you make the choice instead (see above).",
+   "effects": {
+    "immediately": [], "during": [], "scheme": [], "boost": [],
+    "after": [
+     {"op": "if", "condition": {"test": "combat_result", "result": "won"},
+      "then": [
+       {"op": "choose_effect", "chooser": "opponent", "amount": 1, "options": [
+        {"label": "You both draw a card", "ops": [
+         {"op": "draw", "player": "owner", "amount": 1},
+         {"op": "draw", "player": "opponent", "amount": 1}
+        ]},
+        {"label": "You both discard a card", "ops": [
+         {"op": "discard", "cards": {"zone": "hand", "player": "owner", "amount": 1, "chooser": "owner"}},
+         {"op": "discard", "cards": {"zone": "hand", "player": "opponent", "amount": 1, "chooser": "opponent"}}
+        ]}
+       ]}
+      ],
+      "else": [
+       {"op": "choose_effect", "chooser": "owner", "amount": 1, "options": [
+        {"label": "You both draw a card", "ops": [
+         {"op": "draw", "player": "owner", "amount": 1},
+         {"op": "draw", "player": "opponent", "amount": 1}
+        ]},
+        {"label": "You both discard a card", "ops": [
+         {"op": "discard", "cards": {"zone": "hand", "player": "owner", "amount": 1, "chooser": "owner"}},
+         {"op": "discard", "cards": {"zone": "hand", "player": "opponent", "amount": 1, "chooser": "opponent"}}
+        ]}
+       ]}
+      ]}
+    ]
+   },
+   "notes": "Versatile 2 / boost 1. Won: the opponent picks; lost (anything but a win): the owner picks. Each player discards a card of their own choice (a player with an empty hand discards nothing). Both draw: the owner first."
+  },
+  {
+   "title": "The Defense Rests",
+   "copies": 2,
+   "text": "AFTER COMBAT: Draw cards equal to the amount of combat damage you took.",
+   "effects": {
+    "immediately": [], "during": [], "scheme": [], "boost": [],
+    "after": [
+     {"op": "draw", "player": "owner", "amount": {"stat": "damage_taken_this_combat"}}
+    ]
+   },
+   "notes": "Defense 2 / boost 2. The combat damage that really landed on the fighter that played it (0 draws nothing); effect damage does not count."
+  },
+  {
+   "title": "The Savage She-Hulk",
+   "copies": 2,
+   "text": "DURING COMBAT: You may spend an additional action to make this card's value 9 instead.",
+   "effects": {
+    "immediately": [], "after": [], "scheme": [], "boost": [],
+    "during": [
+     {"op": "optional", "chooser": "owner",
+      "cost": [{"op": "spend_action", "amount": 1}],
+      "ops": [{"op": "set_value", "card": "this", "amount": 9}]}
+    ]
+   },
+   "notes": "Attack 3 / boost 3. The attack's own action is already spent when DURING runs; 'an additional action' is a second one (op `spend_action`, section 34): with none left the option does not exist. The printed value becomes 9 (bonuses stay)."
+  }
+ ],
+ "plugins": [
+  {"id": "shehulk:throw", "why": "JUST THROW SOMETHING: the owner chooses a card of their hand to discard (or none) and the card is bound for the damage that follows. A choice out of the hand with a purpose of its own that the bot weighs (the card's BOOST as damage against what the card is worth in hand); no op does that."},
+  {"id": "shehulk:mill", "why": "Lady Justice: discard the top card of the OPPONENT's deck and bind it. The human's deck is on the table: the bot moves the real top card (Take A Knee's one-button machinery) and reads which card it was; the bot's own deck is the engine's. No op discards from the rival's deck at the table."}
+ ],
+ "hidden_info": [
+  {"card": "Lady Justice", "rule": "The top card of the opponent's deck is discarded face up, so the bot reads it when it is the human's (it is public the moment it lands on their pile); never any other card of their deck."},
+  {"card": "Omega-Level Threat", "rule": "The opponent discards 2 RANDOM cards: when it is the human, they choose which positions by the usual random discard (the bot never reads their hand)."}
+ ],
+ "open_questions": [
+  "JUST THROW SOMETHING never targets She-Hulk herself, and is not offered when no opposing fighter shares her zone.",
+  "Legalese on a tie: a combat she did not win counts as lost, so she chooses."
+ ]
+}

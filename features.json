@@ -459,6 +459,20 @@
       "note": "Engine additions are additive (docs/effects-dsl.md, section 33). Rules decisions and open questions for Iván: docs/heroes/jill-trent.md. Live test pending."
     },
     {
+      "id": "HERO-SHE-HULK",
+      "title": "She-Hulk (Brains and Brawn, no sidekick) playable by the bot and by the human against every hero",
+      "status": "in-progress",
+      "criteria": [
+        "data/heroes/overlay/she-hulk.json, data/heroes/she-hulk.json, data/heroes/effects/she-hulk.json and data/tts/she-hulk.json generated and validated (import_hero, validate_effects, import_save); the 12 titles (30 cards, sheet 176, character card 336) read from the card images and unmatched-memory; ai_profile computed by the importer",
+        "Her deck shares CardIDs 17600-17629 with Medusa, the four turtles, Doctor Strange, Bigfoot, Daredevil, Luke Cage and Bullseye: told apart by deck image and owner, never by a bare CardID (tests/test_hero_she_hulk_data.py, tests/test_card_identity.py)",
+        "Her ability (JUST THROW SOMETHING: at the start of her turn discard a card to deal its BOOST to a fighter in her zone) is a start-of-turn trigger with the plugin shehulk:throw: the bot decides it with EffectAI and says it in the chat, the human does it on the table",
+        "All 12 cards on the interpreter for both seats: The Savage She-Hulk (the new op spend_action as the cost of an optional), Lady Justice (plugin shehulk:mill: the top card of the OPPONENT's deck, the human's moved by the bot after one button), Legalese, Omega-Level Threat, Sensational, Cease and Desist, Nerve Cluster Strike, Green Energy, The Defense Rests and the three schemes",
+        "She-Hulk against each of the 15 other heroes in both seats reaches game over on FakeTTS (passive and attacking human) and in the simulator (tests/test_she_hulk_matrix.py)",
+        "Verified live by Iván (docs/live-checklist.md, section She-Hulk)"
+      ],
+      "note": "Engine additions are additive (docs/effects-dsl.md, section 34). Rules decisions and open questions for Iván: docs/heroes/she-hulk.md. Live test pending."
+    },
+    {
       "id": "F20",
       "title": "The bot prepares the official community save itself",
       "status": "in-progress",

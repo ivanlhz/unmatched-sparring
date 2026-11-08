@@ -1,0 +1,30 @@
+{
+ "slug": "she-hulk",
+ "bag": {
+  "guid": "04711f",
+  "inner": "58c7be"
+ },
+ "deck": {
+  "guid": "346c1b",
+  "card_ids": [
+   17600,
+   17629
+  ],
+  "character_card_id": 336,
+  "identity": [
+   {
+    "face": "https://steamusercontent-a.akamaihd.net/ugc/16438867568485100822/2E6A8080DC095E2B89E95A56849A23C05577FB39/",
+    "back": "https://steamusercontent-a.akamaihd.net/ugc/15027988754520666841/153DAF89B601F76D7FF0AE5049CD0E00CC13399B/"
+   }
+  ]
+ },
+ "fighters": {
+  "shehulk": {
+   "piece": "95f90a",
+   "dial": "268982",
+   "dial_max": 20
+  }
+ },
+ "tokens": {},
+ "counter_dials": {}
+}

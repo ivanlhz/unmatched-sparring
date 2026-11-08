@@ -425,6 +425,8 @@
     "properties": {"op": {"const": "counter"}, "name": {"$ref": "#/$defs/Name"}, "delta": {"type": "integer"}, "set": {"type": "integer"}, "player": {"$ref": "#/$defs/PlayerSel"}}},
    {"type": "object", "additionalProperties": false, "required": ["op", "amount"],
     "properties": {"op": {"const": "gain_action"}, "amount": {"$ref": "#/$defs/Amount"},"player": {"$ref": "#/$defs/PlayerSel"}}},
+   {"type": "object", "additionalProperties": false, "required": ["op", "amount"],
+    "properties": {"op": {"const": "spend_action"}, "amount": {"$ref": "#/$defs/Amount"}}},
    {"type": "object", "additionalProperties": false, "required": ["op"],
     "properties": {"op": {"const": "end_turn"}}},
    {"type": "object", "additionalProperties": false, "required": ["op", "player"],

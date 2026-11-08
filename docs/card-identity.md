@@ -58,6 +58,8 @@ Golden Bat (Adventures: Tales to Amaze, character card 345) is the eleventh deck
 
 Dr. Jill Trent (Tales to Amaze, character card 348, slug `jill-trent`) is another deck of sheet 176 (`tests/test_hero_jill_trent_data.py`, `tests/test_jill_trent_matrix.py`): her own `deck.identity` in `data/tts/jill-trent.json`, a matrix against the other fifteen heroes in both seats, and `SHARING` in `tests/test_card_identity.py`. The catalog files her under `dr-jill-trent-science-sleuth`; the project slug is the shorter one.
 
+She-Hulk (Brains and Brawn, character card 336) is another deck of sheet 176 (`tests/test_hero_she_hulk_data.py`, `tests/test_she_hulk_matrix.py`): her own `deck.identity` in `data/tts/she-hulk.json`, a matrix against the other fifteen heroes in both seats, and `SHARING` in `tests/test_card_identity.py`.
+
 ## Houdini needs none of this
 
 Houdini's deck is sheet 178 (CardIDs 17800-17829) with the character card on a sheet of its own (177, CardID 17700); no other hero of
