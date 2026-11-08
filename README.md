@@ -42,7 +42,7 @@ A Python program that runs next to TTS and plays one side of an Unmatched game a
 
 ## 2. Available heroes
 
-Nineteen heroes have data, effects and table configuration: the five of the Hellboy box, the four Teenage Mutant Ninja Turtles (Adventures: Teenage Mutant Ninja Turtles box), Doctor Strange, Houdini, Bigfoot, Daredevil, Luke Cage, Bullseye, Golden Bat and Dr. Jill Trent, She-Hulk and Tomoe Gozen. Each can be played **by the bot** and **by the human**, in any combination, as long as the two sides are different heroes (their miniature and deck GUIDs would be the same).
+Nineteen heroes have data, effects and table configuration: the five of the Hellboy box, the four Teenage Mutant Ninja Turtles (Adventures: Teenage Mutant Ninja Turtles box), Doctor Strange, Houdini, Bigfoot, Daredevil, Luke Cage, Bullseye, Golden Bat, Dr. Jill Trent, She-Hulk and Tomoe Gozen. Each can be played **by the bot** and **by the human**, in any combination, as long as the two sides are different heroes (their miniature and deck GUIDs would be the same).
 
 | Hero | slug | HP | Notes |
 |---|---|---|---|
@@ -70,11 +70,11 @@ Where this comes from: `data/heroes/<slug>.json` (hero sheet and card list, gene
 
 How each hero is chosen: `bot_hero` / `human_hero` in `config\table.json`, or `--bot-hero SLUG` / `--human-hero SLUG` on the command line. The default is `"auto"`: at start-up the bot reads the table (read-only) and looks for loose Decks or Cards whose CardID falls in a hero's range, assigns each pile to the side whose deck spot is nearest, and prints a line such as `Detected heroes: bot Medusa, human Liz Sherman` (console messages follow the chosen language). If it cannot tell (nothing found, several candidates on one side, the same hero on both sides) it refuses to start (exit code 2) and lists what it saw. Priority: command line, then the value written in the config, then (with `--resume`) the heroes of the saved game, then detection. If the table cannot be read it falls back to Medusa (bot) and Hellboy (human) with a warning.
 
-Status: the data and effects of all sixteen heroes are verified against the real cards in the tournament savegame, and the test suite plays them against each other on a fake table (the turtles, Doctor Strange, Houdini and Bigfoot against every other hero, in both seats, with a passive and an attacking human). Played live in real TTS, end to end: the bot's Hellboy against a human Liz Sherman, Baba Yaga and Raphael; the bot's Liz Sherman and Baba Yaga against a human Baba Yaga and Liz Sherman; Medusa's Harpies and fallen pieces confirmed. Abe Sapien, Leonardo, Donatello, Michelangelo, Doctor Strange, Houdini and Bigfoot have not been played live yet, so treat them as less proven; [docs/live-checklist.md](docs/live-checklist.md) lists what is still unchecked per hero.
+Status: the data and effects of all nineteen heroes are verified against the real cards in the tournament savegame, and the test suite plays them against each other on a fake table (the turtles, Doctor Strange, Houdini and Bigfoot against every other hero, in both seats, with a passive and an attacking human). Played live in real TTS, end to end: the bot's Hellboy against a human Liz Sherman, Baba Yaga and Raphael; the bot's Liz Sherman and Baba Yaga against a human Baba Yaga and Liz Sherman; Medusa's Harpies and fallen pieces confirmed. Abe Sapien, Leonardo, Donatello, Michelangelo, Doctor Strange, Houdini and Bigfoot have not been played live yet, so treat them as less proven; [docs/live-checklist.md](docs/live-checklist.md) lists what is still unchecked per hero.
 
 Limitations:
 
-- The human side is limited to those sixteen heroes. The detector also recognises the decks of the other 78 heroes of the tournament savegame (`data/catalog/heroes.json`), but only to give a clear message such as `The human plays Bruce Lee, which the bot cannot play yet. Playable heroes: ...`. Letting the human play any catalog hero (the bot would only need its values and hand counts) is feature F19, still in the backlog.
+- The human side is limited to those nineteen heroes. The detector also recognises the decks of the other 78 heroes of the tournament savegame (`data/catalog/heroes.json`), but only to give a clear message such as `The human plays Bruce Lee, which the bot cannot play yet. Playable heroes: ...`. Letting the human play any catalog hero (the bot would only need its values and hand counts) is feature F19, still in the backlog.
 - Which cards of your hero does the bot resolve for you? Mostly none: you apply your own card effects on the table, and the bot checks the important ones (movements, discards, draws) against its own rules engine and tells you what to do. See [How to play](#4-how-to-play).
 - Heroes outside the sixteen need effects, a card sheet and table data written first (see [Adding a hero](#adding-a-hero)). A bot hero without coded effects would announce that its ability "is not coded yet" and play by card value and boost only.
 
@@ -425,7 +425,7 @@ Work on a branch per change (for example `feat/...`, `fix/...`, `docs/...`) and 
 
 Works (verified against FakeTTS, and live where noted):
 
-- Full games between any two of the sixteen heroes on the B.P.R.D. table, with set-up, mulligan, combat, schemes, ONGOING cards, forms and counters, exhaustion, health dials and game over.
+- Full games between any two of the nineteen heroes on the B.P.R.D. table, with set-up, mulligan, combat, schemes, ONGOING cards, forms and counters, exhaustion, health dials and game over.
 - Live games from set-up to the end: the bot's Hellboy against Liz Sherman, Baba Yaga and Raphael, and the bot's Liz Sherman and Baba Yaga. The panel, set-up, Hellboy's form change and Destiny dial, Pancakes!, Crown of Flame, Pact Of Secrecy, Fight Or Flight, Feint, Evade and many other cards have been checked on the real table. Medusa's Harpies and fallen pieces have been confirmed too.
 - Resuming after closing the bot or reloading TTS, restarting the game, and a plain-text game log in `state\session.log`.
 - Fast play: about one TTS message per button.
@@ -434,7 +434,7 @@ Works (verified against FakeTTS, and live where noted):
 Known limitations:
 
 - Not everything has been seen on a real table. The live checklist ([docs/live-checklist.md](docs/live-checklist.md)) lists what is still unchecked per hero: for example Glimpse Of Hell, Confront Any Demon or God, Out Of Time, and parts of the announce pause.
-- The human is limited to the sixteen heroes (F19). The bot is calibrated for one table (the tournament savegame) and for you being White and the bot Green.
+- The human is limited to the nineteen heroes (F19). The bot is calibrated for one table (the tournament savegame) and for you being White and the bot Green.
 - You resolve the effects of your own cards by hand. The bot learns about them from the table (discard, health dials) and by the buttons you press; effects that move or place pieces on your side are validated, but your own Maneuver and miniature moves are read without validation.
 - Look-at-hand effects that the bot suffers (your card looks at its hand) are done by laying its hand out. When one of the bot's cards lets it look at your hand, it reads your hand zone at that moment only and forgets each card as it leaves your hand; this has not been seen on a real table yet.
 - Two equidistant spaces cannot be told apart from the table snapshot.

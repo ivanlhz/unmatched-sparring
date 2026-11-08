@@ -18,7 +18,7 @@ OVERLAY = HEROES_DIR / "overlay" / "jill-trent.json"
 EFFECTS = HEROES_DIR / "effects" / "jill-trent.json"
 TTS = HEROES_DIR.parent / "tts" / "jill-trent.json"
 MOMENTS = ("immediately", "during", "after", "scheme", "boost")
-SHARING = ["medusa", "leonardo", "donatello", "michelangelo", "raphael", "doctor-strange", "bigfoot", "daredevil", "luke-cage", "bullseye"]
+SHARING = ["medusa", "leonardo", "donatello", "michelangelo", "raphael", "doctor-strange", "bigfoot", "daredevil", "luke-cage", "bullseye", "golden-bat", "she-hulk", "tomoe-gozen"]
 EVERYONE = SHARING + ["hellboy", "abe-sapien", "baba-yaga", "liz-sherman", "houdini"]
 J, D = "Dr. Jill Trent", "Daisy"
 

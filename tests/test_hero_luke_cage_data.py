@@ -17,7 +17,7 @@ OVERLAY = HEROES_DIR / "overlay" / "luke-cage.json"
 EFFECTS = HEROES_DIR / "effects" / "luke-cage.json"
 TTS = HEROES_DIR.parent / "tts" / "luke-cage.json"
 MOMENTS = ("immediately", "during", "after", "scheme", "boost")
-SHARING = ["medusa", "leonardo", "donatello", "michelangelo", "raphael", "doctor-strange", "bigfoot", "daredevil", "bullseye"]
+SHARING = ["medusa", "leonardo", "donatello", "michelangelo", "raphael", "doctor-strange", "bigfoot", "daredevil", "bullseye", "golden-bat", "jill-trent", "she-hulk", "tomoe-gozen"]
 EVERYONE = SHARING + ["hellboy", "abe-sapien", "baba-yaga", "liz-sherman", "houdini"]
 
 # (copies, restriction, type, value, boost) as printed on the cards.

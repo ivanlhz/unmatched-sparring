@@ -17,7 +17,7 @@ OVERLAY = HEROES_DIR / "overlay" / "tomoe-gozen.json"
 EFFECTS = HEROES_DIR / "effects" / "tomoe-gozen.json"
 TTS = HEROES_DIR.parent / "tts" / "tomoe-gozen.json"
 MOMENTS = ("immediately", "during", "after", "scheme", "boost")
-SHARING = ["medusa", "leonardo", "donatello", "michelangelo", "raphael", "doctor-strange", "bigfoot", "daredevil", "luke-cage", "bullseye"]
+SHARING = ["medusa", "leonardo", "donatello", "michelangelo", "raphael", "doctor-strange", "bigfoot", "daredevil", "luke-cage", "bullseye", "golden-bat", "jill-trent", "she-hulk"]
 EVERYONE = SHARING + ["hellboy", "abe-sapien", "baba-yaga", "liz-sherman", "houdini"]
 
 # (copies, restriction, type, value, boost) as printed on the cards.

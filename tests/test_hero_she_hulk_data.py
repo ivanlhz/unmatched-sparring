@@ -18,7 +18,7 @@ OVERLAY = HEROES_DIR / "overlay" / "she-hulk.json"
 EFFECTS = HEROES_DIR / "effects" / "she-hulk.json"
 TTS = HEROES_DIR.parent / "tts" / "she-hulk.json"
 MOMENTS = ("immediately", "during", "after", "scheme", "boost")
-SHARING = ["medusa", "leonardo", "donatello", "michelangelo", "raphael", "doctor-strange", "bigfoot", "daredevil", "luke-cage", "bullseye"]
+SHARING = ["medusa", "leonardo", "donatello", "michelangelo", "raphael", "doctor-strange", "bigfoot", "daredevil", "luke-cage", "bullseye", "golden-bat", "jill-trent", "tomoe-gozen"]
 EVERYONE = SHARING + ["hellboy", "abe-sapien", "baba-yaga", "liz-sherman", "houdini"]
 
 # (copies, restriction, type, value, boost) as printed on the cards.

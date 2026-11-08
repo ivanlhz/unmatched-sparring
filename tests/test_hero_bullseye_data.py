@@ -20,7 +20,7 @@ OVERLAY = HEROES_DIR / "overlay" / "bullseye.json"
 EFFECTS = HEROES_DIR / "effects" / "bullseye.json"
 TTS = HEROES_DIR.parent / "tts" / "bullseye.json"
 MOMENTS = ("immediately", "during", "after", "scheme", "boost")
-SHARING = ["medusa", "leonardo", "donatello", "michelangelo", "raphael", "doctor-strange", "bigfoot", "daredevil", "luke-cage"]
+SHARING = ["medusa", "leonardo", "donatello", "michelangelo", "raphael", "doctor-strange", "bigfoot", "daredevil", "luke-cage", "golden-bat", "jill-trent", "she-hulk", "tomoe-gozen"]
 EVERYONE = SHARING + ["hellboy", "abe-sapien", "baba-yaga", "liz-sherman", "houdini"]
 
 # (copies, restriction, type, value, boost) as printed on the cards.

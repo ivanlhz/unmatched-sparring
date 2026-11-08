@@ -2,7 +2,7 @@
 
 In the tournament savegame Medusa, the four TMNT turtles (Leonardo, Donatello, Michelangelo, Raphael), Doctor Strange, Bigfoot, Daredevil, Luke Cage, Bullseye and Tomoe Gozen
 are all DeckID 176, so all eleven decks have CardIDs 17600-17629 (Daredevil's has 22 cards: 17600-17621). Only the deck image (FaceURL, BackURL of the CustomDeck,
-`deck.identity` in `data/tts/<slug>.json`) tells them apart. Any pairing of the sixteen heroes works at the table, in both seats,
+`deck.identity` in `data/tts/<slug>.json`) tells them apart. Any pairing of the nineteen heroes works at the table, in both seats,
 including Medusa against a turtle and a turtle against a turtle (`tests/test_tmnt_matrix.py`), and Doctor Strange against each of
 them (`tests/test_doctor_strange_matrix.py`; only the
 30 deck cards overlap, his character card is 337). The rule is one sentence:
@@ -53,14 +53,14 @@ Bigfoot (`tests/test_hero_bigfoot_data.py`, `tests/test_bigfoot_matrix.py`) foll
 
 Bullseye (Hell's Kitchen, character card 339) is the tenth deck of sheet 176 (`tests/test_hero_bullseye_data.py`, `tests/test_bullseye_matrix.py`): his own `deck.identity` in `data/tts/bullseye.json`, a matrix against the other fourteen heroes in both seats, and `SHARING` in `tests/test_card_identity.py`.
 
-Golden Bat (Adventures: Tales to Amaze, character card 345) is the eleventh deck of sheet 176 (`tests/test_hero_golden_bat_data.py`, `tests/test_golden_bat_matrix.py`): his own `deck.identity` in `data/tts/golden-bat.json`, a matrix against the other fifteen heroes in both seats, and `SHARING` in `tests/test_card_identity.py`.
+Golden Bat (Adventures: Tales to Amaze, character card 345) is the eleventh deck of sheet 176 (`tests/test_hero_golden_bat_data.py`, `tests/test_golden_bat_matrix.py`): his own `deck.identity` in `data/tts/golden-bat.json`, a matrix against the other eighteen heroes in both seats, and `SHARING` in `tests/test_card_identity.py`.
 
 
-Dr. Jill Trent (Tales to Amaze, character card 348, slug `jill-trent`) is another deck of sheet 176 (`tests/test_hero_jill_trent_data.py`, `tests/test_jill_trent_matrix.py`): her own `deck.identity` in `data/tts/jill-trent.json`, a matrix against the other fifteen heroes in both seats, and `SHARING` in `tests/test_card_identity.py`. The catalog files her under `dr-jill-trent-science-sleuth`; the project slug is the shorter one.
+Dr. Jill Trent (Tales to Amaze, character card 348, slug `jill-trent`) is another deck of sheet 176 (`tests/test_hero_jill_trent_data.py`, `tests/test_jill_trent_matrix.py`): her own `deck.identity` in `data/tts/jill-trent.json`, a matrix against the other eighteen heroes in both seats, and `SHARING` in `tests/test_card_identity.py`. The catalog files her under `dr-jill-trent-science-sleuth`; the project slug is the shorter one.
 
-She-Hulk (Brains and Brawn, character card 336) is another deck of sheet 176 (`tests/test_hero_she_hulk_data.py`, `tests/test_she_hulk_matrix.py`): her own `deck.identity` in `data/tts/she-hulk.json`, a matrix against the other fifteen heroes in both seats, and `SHARING` in `tests/test_card_identity.py`.
+She-Hulk (Brains and Brawn, character card 336) is another deck of sheet 176 (`tests/test_hero_she_hulk_data.py`, `tests/test_she_hulk_matrix.py`): her own `deck.identity` in `data/tts/she-hulk.json`, a matrix against the other eighteen heroes in both seats, and `SHARING` in `tests/test_card_identity.py`.
 
-Tomoe Gozen (Sun's Origin, character card 354) is another deck of sheet 176 (`tests/test_hero_tomoe_gozen_data.py`, `tests/test_tomoe_gozen_matrix.py`): her own `deck.identity` in `data/tts/tomoe-gozen.json`, a matrix against the other fifteen heroes in both seats, and `SHARING` in `tests/test_card_identity.py`. Her life dial also shares a GUID with Donatello's (`ca8e35`): see "Piece identity" below.
+Tomoe Gozen (Sun's Origin, character card 354) is another deck of sheet 176 (`tests/test_hero_tomoe_gozen_data.py`, `tests/test_tomoe_gozen_matrix.py`): her own `deck.identity` in `data/tts/tomoe-gozen.json`, a matrix against the other eighteen heroes in both seats, and `SHARING` in `tests/test_card_identity.py`. Her life dial also shares a GUID with Donatello's (`ca8e35`): see "Piece identity" below.
 
 ## Houdini needs none of this
 

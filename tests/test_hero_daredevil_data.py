@@ -18,7 +18,7 @@ OVERLAY = HEROES_DIR / "overlay" / "daredevil.json"
 EFFECTS = HEROES_DIR / "effects" / "daredevil.json"
 TTS = HEROES_DIR.parent / "tts" / "daredevil.json"
 MOMENTS = ("immediately", "during", "after", "scheme", "boost")
-SHARING = ["medusa", "leonardo", "donatello", "michelangelo", "raphael", "doctor-strange", "bigfoot", "luke-cage", "bullseye"]
+SHARING = ["medusa", "leonardo", "donatello", "michelangelo", "raphael", "doctor-strange", "bigfoot", "luke-cage", "bullseye", "golden-bat", "jill-trent", "she-hulk", "tomoe-gozen"]
 
 # (copies, type, value, boost) as printed on the cards; every card carries the DAREDEVIL band.
 REAL_CARDS = {

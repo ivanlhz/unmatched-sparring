@@ -439,7 +439,7 @@
         "His deck shares CardIDs 17600-17629 with Medusa, the four turtles, Doctor Strange, Bigfoot, Daredevil, Luke Cage and Bullseye: told apart by deck image and owner, never by a bare CardID (tests/test_hero_golden_bat_data.py, tests/test_card_identity.py)",
         "His ability THE FIRST SUPERHERO (+2 to his attacks while the owner has taken no Maneuver action this turn) is a HeroDef attack_bonus passive with `unless: maneuver`, fed by the per-turn Maneuver tally; the combat and the bot's estimates read it",
         "All 12 cards on the interpreter for both seats: Super Strength, Vaporizing Eyebeams (random discard), A Punch to Shake the Earth (zone damage), Sight Beyond Sight (look at and reorder the rival's top 3), Terrifying Roar (no fighter leaves its space), Skirmish, Like a Flash of Golden Light (zone test against the turn's start), Insight of the Ancients (random card back), Imposing Presence, He Laughs at Your Feebleness, Arrive Just in Time and Alpine Fortress (including its table translation when the shuffled card is drawn at once)",
-        "Golden Bat against each of the 15 other heroes in both seats reaches game over on FakeTTS (passive and attacking human) and in the simulator (tests/test_golden_bat_matrix.py)",
+        "Golden Bat against each of the 18 other heroes in both seats reaches game over on FakeTTS (passive and attacking human) and in the simulator (tests/test_golden_bat_matrix.py)",
         "Verified live by Iván (docs/live-checklist.md, section Golden Bat)"
       ],
       "note": "Engine additions are additive (docs/effects-dsl.md, section 32). Rules decisions and open questions for Iván: docs/heroes/golden-bat.md. Live test pending."
@@ -453,7 +453,7 @@
         "Her deck shares CardIDs 17600-17629 with Medusa, the four turtles, Doctor Strange, Bigfoot and the Marvel decks: told apart by deck image and owner, never by a bare CardID (tests/test_hero_jill_trent_data.py, tests/test_card_identity.py); Daisy's token shares a GUID with Abe Sapien's agent Carla (tests/test_piece_identity.py)",
         "GADGETOLOGY on the interpreter for both seats: the gadget chosen at the start of her turn (panel buttons for the human, EffectAI for the bot), Hypnoray Blaster and Ultrabiotic Tonic resolved when Jill attacks (the hero's own `ability.during` / `ability.after`), Daisy borrowing them through Sisters In Arms",
         "All 13 cards on the interpreter for both seats: Battle of Wits and Insightful Deduction reveal deck cards (the bot reads the human's real top cards from the table only then), Stasis Diffuser freezes a value (`lock_value`), Indestructible Cloth lasts one combat, Utility Belt, Helpful Assistant, Caught Red-Handed, Gyroscopic Jetpack, Hypnotist and the plain cards",
-        "Jill Trent against each of the 15 other heroes in both seats reaches game over on FakeTTS (passive and attacking human) and in the simulator (tests/test_jill_trent_matrix.py)",
+        "Jill Trent against each of the 18 other heroes in both seats reaches game over on FakeTTS (passive and attacking human) and in the simulator (tests/test_jill_trent_matrix.py)",
         "Verified live by Iván (docs/live-checklist.md, section Dr. Jill Trent)"
       ],
       "note": "Engine additions are additive (docs/effects-dsl.md, section 33). Rules decisions and open questions for Iván: docs/heroes/jill-trent.md. Live test pending."
@@ -467,7 +467,7 @@
         "Her deck shares CardIDs 17600-17629 with Medusa, the four turtles, Doctor Strange, Bigfoot, Daredevil, Luke Cage and Bullseye: told apart by deck image and owner, never by a bare CardID (tests/test_hero_she_hulk_data.py, tests/test_card_identity.py)",
         "Her ability (JUST THROW SOMETHING: at the start of her turn discard a card to deal its BOOST to a fighter in her zone) is a start-of-turn trigger with the plugin shehulk:throw: the bot decides it with EffectAI and says it in the chat, the human does it on the table",
         "All 12 cards on the interpreter for both seats: The Savage She-Hulk (the new op spend_action as the cost of an optional), Lady Justice (plugin shehulk:mill: the top card of the OPPONENT's deck, the human's moved by the bot after one button), Legalese, Omega-Level Threat, Sensational, Cease and Desist, Nerve Cluster Strike, Green Energy, The Defense Rests and the three schemes",
-        "She-Hulk against each of the 15 other heroes in both seats reaches game over on FakeTTS (passive and attacking human) and in the simulator (tests/test_she_hulk_matrix.py)",
+        "She-Hulk against each of the 18 other heroes in both seats reaches game over on FakeTTS (passive and attacking human) and in the simulator (tests/test_she_hulk_matrix.py)",
         "Verified live by Iván (docs/live-checklist.md, section She-Hulk)"
       ],
       "note": "Engine additions are additive (docs/effects-dsl.md, section 34). Rules decisions and open questions for Iván: docs/heroes/she-hulk.md. Live test pending."
@@ -481,7 +481,7 @@
         "Her deck shares CardIDs 17600-17629 with Medusa, the four turtles, Doctor Strange, Bigfoot, Daredevil, Luke Cage and Bullseye: told apart by deck image and owner, never by a bare CardID (tests/test_hero_tomoe_gozen_data.py, tests/test_card_identity.py); her life dial shares Donatello's GUID (ca8e35), told apart by name (tests/test_piece_identity.py)",
         "ATTACK OF OPPORTUNITY (an opposing hero that leaves her zone takes 1 damage) is the ability trigger on the event left_zone: raised by walks, placements, swaps and the human's moves by hand; the bot prices it in its movement",
         "All 12 cards on the interpreter for both seats: Witness My Last Battle (adjacent-only, face up, ends the turn), Deeds Of Valor (combat damage cap), Lord Kiso's Final Stand (move through sidekicks), Five Against Thousands (back to the hand), Fearsome Strength, A Warrior's Way, A Worthy Opponent, Flash of Steel, Refuse to Retreat, Piercing Shot, Confront Any Demon or God and Skirmish",
-        "Tomoe Gozen against each of the 15 other heroes in both seats reaches game over on FakeTTS (passive and attacking human) and in the simulator (tests/test_tomoe_gozen_matrix.py)",
+        "Tomoe Gozen against each of the 18 other heroes in both seats reaches game over on FakeTTS (passive and attacking human) and in the simulator (tests/test_tomoe_gozen_matrix.py)",
         "Verified live by Iván (docs/live-checklist.md, section Tomoe Gozen)"
       ],
       "note": "Engine additions are additive (docs/effects-dsl.md, section 35). Rules decisions and open questions for Iván: docs/heroes/tomoe-gozen.md. Live test pending."
