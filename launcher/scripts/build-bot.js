@@ -36,6 +36,8 @@ const args = [
   // next to the code inside the bundle, where sparring\board.py and sparring\i18n look for them
   '--add-data', `${path.join(repo, 'data')};data`,
   '--add-data', `${path.join(repo, 'config', 'table.json')};config`,
+  // per-map calibration (sparring\map_setup.py SETUPS_PATH): without it every map is set up as uncalibrated
+  '--add-data', `${path.join(repo, 'config', 'map_setups.json')};config`,
   path.join(launcher, 'bot', 'sparring_bot.py'),
 ];
 

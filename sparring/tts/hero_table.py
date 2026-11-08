@@ -50,6 +50,7 @@ class HeroTable:
     token_faces: dict[str, dict] = field(default_factory=dict)    # Z rotation of each face of a two-faced token (verify live)
     token_sources: dict[str, dict] = field(default_factory=dict)  # how to get another copy of a token (verify live)
     token_slots: dict[str, dict] = field(default_factory=dict)     # own resting places of a token by side, ((x, y, z), (rx, ry, rz)) each, measured on the table: win over the layout's `tokens`
+    ignored_tokens: tuple[str, ...] = ()                          # GUIDs in the hero's bag the bot does not use (Jill Trent's gadget token): still the hero's, so a bag holding them is recognised
 
     def unpack_items(self) -> list[tuple[str, tuple[str, ...]]]:
         """(kind, GUID of each state) of everything that has to be taken out of the inner bag to play with the hero.
@@ -102,7 +103,8 @@ def parse_hero_table(raw: dict, hero: HeroDef, where: str = "tts") -> HeroTable:
                           {k: dict(v) for k, v in (raw.get("token_sources") or {}).items()},
                           {k: {side: tuple((tuple(float(v) for v in s["pos"]), tuple(float(v) for v in s["rot"])) for s in rows)
                                for side, rows in v.items()}
-                           for k, v in (raw.get("token_slots") or {}).items()})
+                           for k, v in (raw.get("token_slots") or {}).items()},
+                          tuple(_guid_list(raw["ignored_tokens"], f"{where}: ignored_tokens")) if raw.get("ignored_tokens") else ())
     except (KeyError, TypeError, ValueError, IndexError) as e:
         raise HeroTableError(f"{where}: invalid TTS data ({e!r})") from None
     _validate(table, hero, where)

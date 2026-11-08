@@ -61,7 +61,7 @@ def _bag_hero(guids: list[str], tables: dict) -> str | None:
     """The hero a closed bag holds: the one whose objects include every GUID in it (the save repeats some GUIDs between
     heroes, so a bag with only those is nobody's)."""
     held = set(guids)
-    fits = [slug for slug, table in tables.items() if held <= set(table.all_guids())]
+    fits = [slug for slug, table in tables.items() if held <= {*table.all_guids(), *table.ignored_tokens}]
     if len(fits) > 1:
         fits = [slug for slug in fits if tables[slug].deck_guid in held]
     return fits[0] if len(fits) == 1 else None
