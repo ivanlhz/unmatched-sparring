@@ -89,7 +89,7 @@ def snapshot(session) -> dict:
             "form": g.form(bot), "counters": dict(g.fx.counters[bot]),
             "bot": zones(g.players[bot]), "human": zones(g.players[human]),
             "in_play": g.fx.ongoing_card_id(human), "bot_in_play": g.fx.ongoing_card_id(bot),
-            "drawn": g.drawn[bot], "seen": list(g.players[bot].known.seen),
+            "drawn": g.drawn[bot], "seen": list(g.players[bot].known.seen), "top": list(g.players[bot].known.top_of_deck),
             "bot_played": [c.card_id for owner, c in (flow.played if flow is not None else ()) if owner == bot]}
 
 
@@ -276,7 +276,8 @@ def _human_cards(session, before: dict, played: frozenset, looked: bool, ctx: Ct
     # placeholders around without moving anything on the table)
     knew = set(before["seen"]) | set(known.top_of_deck)
     blind = {i for it in intents if it["op"] == "deck_order" and it["player"] == human for i in it["seen"]}   # read in the deck, reordered blind: never from the hand
-    hand_to_deck = [i for i in h1["deck"] if i in knew and i not in h0["discard"] and i not in blind]
+    stale = set(before.get("top", ())) & set(h0["deck"])      # already known on top before the step (read blind earlier): not a hand card that went back
+    hand_to_deck = [i for i in h1["deck"] if i in knew and i not in h0["discard"] and i not in blind and i not in stale]
     for intent in _groups(intents, "return_to_deck", human, "hand", hand_to_deck, keep_order=True):
         checks += translate(session, intent, ctx) or []
     # a pile card an effect shuffled into your deck that the engine then drew for you (Back For Seconds, then a draw of

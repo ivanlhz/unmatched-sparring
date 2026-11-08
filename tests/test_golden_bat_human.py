@@ -72,3 +72,19 @@ def test_a_top_that_changed_since_it_was_read_aborts_the_reorder_and_the_bot_for
     assert table.human_deck == drifted, "nothing moved"
     assert game.players[0].known.top_of_deck == []
     assert not [t for t in titles if said(msgs, t)] and not said(msgs, "cartas superiores"), msgs
+
+
+@pytest.mark.parametrize("events", [
+    [Event.END_ACTION, Event.END_ACTION, Event.END_ACTION],
+    [Event.MANEUVER, Event.END_ACTION, Event.MANEUVER, Event.END_ACTION],
+])
+def test_later_buttons_never_name_the_cards_the_bot_read(rig, events):
+    """Regression (review of b0040f5): the next button used to print "Pon X, Y de tu mano en tu mazo" with the cards read blind."""
+    session, table, game, fake, cfg = rig
+    play_sight_beyond_sight(session, table, game, cfg)
+    titles = [c.title for c in game.players[1].full_set if c.card_id in table.human_deck]
+    click(session, table, Event.REVEAL)
+    session.ai.plan = lambda g: Act("maneuver", moves={})
+    session.ai.pick_ability_target = lambda g: None
+    later = [str(m) for ev in events for m in click(session, table, ev)]
+    assert not [(t, m) for m in later for t in titles if t in m]

@@ -44,6 +44,7 @@ def _order_mode(session, intent: dict) -> str | None:
 
 def _cannot_reorder(session, intent: dict, ctx) -> list:
     """No physical human deck configured: nothing can be moved, and the cards are not named to anybody."""
+    session.game.players[session.bot].known.clear_top()
     session.say(t("order.blind_failed", cause=ctx.cause), ChatKind.WARNING)
     return []
 

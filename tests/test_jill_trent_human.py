@@ -177,3 +177,32 @@ def test_the_bot_reads_your_top_three_and_reorders_your_real_deck_blind(rig):
     assert not [s for s in table.scripts if s.startswith("-- sparring:deck_top_to_bottom")]
     game.draw(1, 1)
     assert game.players[0].known.top_of_deck == []
+
+
+@pytest.mark.parametrize("events", [
+    [Event.END_ACTION, Event.END_ACTION, Event.END_ACTION],
+    [Event.MANEUVER, Event.END_ACTION, Event.MANEUVER, Event.END_ACTION],
+])
+@with_rig("jill-trent", "hellboy", "Insightful Deduction", "Laser Pen", "Energizing Spray")
+def test_later_buttons_never_name_the_order_or_the_buried_card(rig, events):
+    """Regression (review of b0040f5): after the blind reorder the next button named the cards left on top. The reveal itself is
+    public and may be named in its own step; afterwards the bot's order and the buried card never are."""
+    session, table, game, fake, cfg = rig
+    game.fx.set_counter(0, "gadget", 0)
+    jill, hellboy = game.fighters["jill"], game.fighters["hellboy"]
+    hellboy.pos = next(s for s in sorted(game.board.adj[jill.pos]) if all(f.pos != s for f in game.fighters.values() if f.alive))
+    table.positions[cfg.nicknames["hellboy"]] = hellboy.pos
+    table.human_deck = [c.card_id for c in game.players[1].deck[5:9]]
+    human_hand(table, game, TRAINING)
+    card = next(c for c in game.players[0].hand if c.title == "Insightful Deduction")
+    bot_turn(session, table, [Act("attack", fid="jill", target="hellboy", card=card)])
+    cid = card_ids(game, 1, TRAINING)[0]
+    table.face_down = [{"id": cid, "guid": f"h{cid}"}]
+    table.human_hand.remove(cid)
+    table.human_count -= 1
+    titles = [c.title for c in game.players[1].full_set if c.card_id in table.human_deck[:3]]
+    click(session, table, Event.REVEAL)
+    session.ai.plan = lambda g: Act("maneuver", moves={})
+    session.ai.pick_ability_target = lambda g: None
+    later = [str(m) for ev in events for m in click(session, table, ev)]
+    assert not [(t, m) for m in later for t in titles if t in m]
