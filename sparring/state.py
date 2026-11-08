@@ -652,7 +652,8 @@ class Game:
             if f is None or f.owner != player or not f.alive:
                 raise RuleError(t("err.cannot_move", fid=fid))
         self.use_action()
-        self.fx.count_maneuver()
+        if self.fx.can_draw(player):          # a Maneuver whose draw is prevented does not count; an empty deck still draws (exhaustion)
+            self.fx.count_maneuver()
         alive0 = {fid for fid, f in self.fighters.items() if f.alive}
         self.draw(player)    # exhaustion can kill fighters (and end the game) before they are moved
         if self.winner is not None:

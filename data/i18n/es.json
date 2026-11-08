@@ -191,6 +191,7 @@
  "jill.reveal.human_deck": "Reveladas arriba de tu mazo: {cards}.",
  "jill.order.human": "{cause}: pon {bottom} debajo de tu mazo y {top} encima, en ese orden (la primera es la de arriba). Hazlo a mano.",
  "jill.order.none": "ninguna otra carta",
+ "order.human_top": "{cause}: pon estas cartas encima de tu mazo, en ese orden (la primera es la de arriba): {top}. Hazlo a mano.",
  "jill.order.bot": "Hecho: {bottom} va debajo de mi mazo y el resto se queda arriba en el orden que elegiste.",
  "choice.prompt.bottom": "Elige la carta que va debajo del mazo",
  "choice.prompt.gadget": "Que gadget activas?",

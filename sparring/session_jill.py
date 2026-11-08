@@ -41,6 +41,9 @@ def _order_mode(session, intent: dict) -> str | None:
 def _arrange_by_hand(session, intent: dict, ctx) -> list:
     """The bot's Insightful Deduction on the human's deck: the human puts the card at the bottom and the others on top."""
     holder = intent["player"]
+    if intent["bottom"] is None:             # only the top cards were reordered (Golden Bat's Sight Beyond Sight)
+        session.say(t("order.human_top", cause=ctx.cause, top=_names(session, holder, intent["top"])), ChatKind.YOUR_TURN)
+        return []
     session.say(t("jill.order.human", cause=ctx.cause, bottom=_names(session, holder, [intent["bottom"]]),
                   top=_names(session, holder, intent["top"]) or t("jill.order.none")), ChatKind.YOUR_TURN)
     return []

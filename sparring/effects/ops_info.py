@@ -147,6 +147,26 @@ def _shuffle_deck(run, game, spec):
         table.intent(game, op="shuffle_deck", player=player)
 
 
+def _look_foreign_deck(run, game, spec, owner: int, target: int) -> bool:
+    """A look that takes nothing and puts the cards back on top in the owner's order (Sight Beyond Sight) at the human's real deck:
+    the bot reads the top cards through the table reader, orders them (the human arranges the real deck by hand: intent
+    `deck_order`) and keeps them as `KnownHand.top_of_deck` until a draw or a shuffle erases them. The cards are not named in the
+    chat but in the arrangement the human has to make. False when the card does something else or the table gives nothing
+    (the caller leaves its note)."""
+    from .plugins_jill import top_cards
+    if spec.get("rest") != "top_ordered" or spec["look"] == "all" or int(amount(game, run, spec["take"].get("amount", 1))):
+        return False
+    seen = top_cards(game, target, int(spec["look"]))
+    if not seen:
+        return False
+    order = [c.card_id for c in _ask_order(game, run, owner, seen, of=target, position="top")] if len(seen) > 1 else [seen[0].card_id]
+    _watcher(game, target).set_top(order)
+    table.intent(game, op="deck_order", player=target, top=order, bottom=None, owner=owner)
+    if "as" in spec:
+        run.bind("cards", spec["as"], [])
+    return True
+
+
 @op("search_deck")
 def _search_deck(run, game, spec):
     owner, target = run.ctx.owner, player_of(game, run, spec["player"])
@@ -158,7 +178,9 @@ def _search_deck(run, game, spec):
         if "as" in spec:
             run.bind("cards", spec["as"], [])
         return
-    if table.physical(game, target) and chooser != target:     # the rival's real deck: the engine holds placeholders, the bot sees nothing
+    if table.physical(game, target) and chooser != target:     # the rival's real deck: the engine holds placeholders
+        if _look_foreign_deck(run, game, spec, owner, target):
+            return
         table.note(run, op="look_foreign_deck", look=spec["look"], rest=spec.get("rest", "bottom_random"))
         if "as" in spec:
             run.bind("cards", spec["as"], [])

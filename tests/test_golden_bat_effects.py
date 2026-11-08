@@ -11,11 +11,13 @@ from conftest import give
 from sparring.ai_effects import EffectAI
 from sparring.effects.choose import ChoiceRequest
 from sparring.effects.events import tracked
+from sparring.effects.model import load_effects
 from sparring.effects.state import EffectState
 from sparring.search.adapter import card_worth
-from sparring.state import Game
+from sparring.state import EXHAUST_DAMAGE, Game
 from test_bigfoot_effects import Answers, start_turn, wall
 from test_effects_combat import pair
+from test_effects_events import run_ops
 
 
 def mk(bprd, foe="hellboy", seed=3, turn=0):
@@ -123,6 +125,30 @@ def test_the_maneuver_tally_is_tracked_only_for_him_saved_cloned_and_loaded(bprd
     assert "maneuvers" not in EffectState().to_dict()
     other = Game.new(bprd, 3, controllers={0: Answers(), 1: Answers()}, heroes=("bullseye", "hellboy"), bot_player=0)
     assert "maneuvers" not in tracked(frozenset(other.fx.dsl_heroes))
+
+
+def test_a_maneuver_whose_draw_is_prevented_does_not_count_and_he_keeps_the_bonus(bprd):
+    g = mk(bprd, foe="abe-sapien")
+    b, h = pair(g, "bat", "abe")
+    start_turn(g)
+    g.actions_left = 3
+    g.fx.dsl_heroes.add("abe-sapien")
+    run_ops(g, load_effects("abe-sapien").moment_ops("Cold Iron And Holy Water", "immediately"), 1, "abe")      # Cold Iron: no draw
+    hp = [f.hp for f in g.own(0)]
+    g.maneuver(0, {})
+    assert g.fx.maneuvers == 0 and g.attack_bonus(b, h) == 2
+    assert [f.hp for f in g.own(0)] == hp, "a prevented draw deals no exhaustion damage"
+
+
+def test_a_maneuver_from_an_empty_deck_counts_and_exhaustion_hurts_each_fighter(bprd):
+    g = mk(bprd)
+    b, h = pair(g, "bat", "hellboy")
+    start_turn(g)
+    g.actions_left = 3
+    g.players[0].deck.clear()
+    g.maneuver(0, {})
+    assert g.fx.maneuvers == 1 and g.attack_bonus(b, h) == 0
+    assert b.hp == b.max_hp - EXHAUST_DAMAGE
 
 
 # ---------------------------------------------------------------- Super Strength, He Laughs at Your Feebleness
@@ -244,17 +270,73 @@ def test_sight_beyond_sight_with_a_short_deck_looks_at_what_there_is(bprd):
     assert [c.card_id for c in g.players[1].deck] == list(reversed(two))
 
 
-def test_the_bot_does_not_read_a_humans_real_deck(bprd):
-    """The human's deck at the table is physical: the engine holds placeholders, so the bot's card reads and reorders nothing."""
+def human_table(g, n=3):
+    """The rival is the table player: the engine's deck is placeholders and the real top cards come from `Game.deck_reader`."""
+    g.controllers[1].human = True
+    real = [c.card_id for c in g.players[1].deck[5:5 + max(n, 3)]]
+    g.deck_reader = lambda player, k=None: real[:k] if k else real[0]
+    g.fx.intents = []
+    return real
+
+
+def test_the_bot_reads_a_humans_real_top_three_orders_them_and_tells_the_human_to_arrange_them(bprd):
     g = mk(bprd)
     b, h = pair(g, "bat", "hellboy")
     start_turn(g)
-    g.controllers[1].human = True                       # the table player: `effects.table.physical` is true for their seat
+    real = human_table(g)
+    before = [c.card_id for c in g.players[1].deck]
+    seen = []
+    g.controllers[0].queue = [lambda req: seen.append(req) or list(reversed(req.options))]
+    g.attack(b, h, give(g, 0, "Sight Beyond Sight"), None)
+    assert len(seen) == 1 and seen[0].extra["of"] == 1 and sorted(seen[0].options) == sorted(real)
+    assert [c.card_id for c in g.players[1].deck] == before, "the real deck is theirs: the engine's copy is untouched"
+    intent = next(i for i in g.fx.intents if i["op"] == "deck_order")
+    assert intent["player"] == 1 and intent["bottom"] is None and intent["top"] == list(reversed(seen[0].options))
+    assert g.players[0].known.top_of_deck == intent["top"]
+    assert not any(i["op"] == "reveal_top" for i in g.fx.intents), "nothing is named as revealed"
+
+
+def see_top_three(g):
+    b, h = pair(g, "bat", "hellboy")
+    start_turn(g)
+    g.actions_left = 3
+    real = human_table(g)
+    g.controllers[0].queue = [lambda req: list(req.options)]
+    g.attack(b, h, give(g, 0, "Sight Beyond Sight"), None)
+    assert g.players[0].known.top_of_deck == real
+    return real
+
+
+def test_the_bot_forgets_the_top_three_when_the_human_draws(bprd):
+    g = mk(bprd)
+    see_top_three(g)
+    g.draw(1, 1)
+    assert g.players[0].known.top_of_deck == [] and not g.players[0].known.seen
+
+
+def test_the_bot_forgets_the_top_three_when_a_top_card_is_discarded_or_the_deck_is_shuffled(bprd):
+    g = mk(bprd)
+    real = see_top_three(g)
+    g.players[0].known.drop_top(real[0])             # a card leaves the deck by a route that is not a draw (a discard from the top)
+    assert real[0] not in g.players[0].known.top_of_deck
+    g = mk(bprd)
+    see_top_three(g)
+    run_ops(g, [{"op": "shuffle_deck", "player": "opponent"}], 0, "bat")
+    assert g.players[0].known.top_of_deck == []
+
+
+def test_a_table_that_cannot_be_read_shows_the_bot_nothing(bprd):
+    g = mk(bprd)
+    b, h = pair(g, "bat", "hellboy")
+    start_turn(g)
+    g.controllers[1].human = True
+    g.deck_reader = None
+    g.fx.intents = []
     before = [c.card_id for c in g.players[1].deck]
     g.controllers[0].queue = []
     g.attack(b, h, give(g, 0, "Sight Beyond Sight"), None)
     assert [c.card_id for c in g.players[1].deck] == before
-    assert g.players[0].known.top_of_deck == []
+    assert g.players[0].known.top_of_deck == [] and not any(i["op"] == "deck_order" for i in g.fx.intents)
 
 
 # ---------------------------------------------------------------- Terrifying Roar

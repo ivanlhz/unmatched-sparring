@@ -191,6 +191,7 @@
  "jill.reveal.human_deck": "Revealed from the top of your deck: {cards}.",
  "jill.order.human": "{cause}: put {bottom} at the bottom of your deck and {top} on top of it, in that order (the first is the top card). Do it by hand.",
  "jill.order.none": "no other card",
+ "order.human_top": "{cause}: put these cards on top of your deck, in that order (the first is the top card): {top}. Do it by hand.",
  "jill.order.bot": "Done: {bottom} goes to the bottom of my deck and the rest stay on top in the order you chose.",
  "choice.prompt.bottom": "Choose the card that goes to the bottom of the deck",
  "choice.prompt.gadget": "Which gadget do you activate?",

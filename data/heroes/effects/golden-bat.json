@@ -30,7 +30,7 @@
     }
    }
   ],
-  "notes": "Data first, as Hellboy's ANUNG UN RAMA: the engine reads the HeroDef passive attack_bonus (n 2, `unless: maneuver`, `HeroDef.attack_bonuses`), which `Game.attack_bonus_parts` (the combat) and `Game.attack_bonus` (the bot's estimates) ask with `fx.maneuvered(owner)`: off as soon as the owner has taken a Maneuver action in the running turn, back at the next start of turn. The `maneuvers_this_turn` tally (`fx.maneuvers`, reset at start_of_turn) is counted by Game.maneuver and by the session's Maneuver button the moment the action is spent, even if the draw is then blocked. Other actions (attack, scheme, a gained action) do not count. It applies to every attack of Golden Bat on his own turn, versatile cards played as attacks included, never to a defense; a card of a boosted maneuver does not make it a different action. The passive written here documents the rule; the interpreter does not apply `ability.passives` of kind modify_value (as for Hellboy)."
+  "notes": "Data first, as Hellboy's ANUNG UN RAMA: the engine reads the HeroDef passive attack_bonus (n 2, `unless: maneuver`, `HeroDef.attack_bonuses`), which `Game.attack_bonus_parts` (the combat) and `Game.attack_bonus` (the bot's estimates) ask with `fx.maneuvered(owner)`: off as soon as the owner has taken a Maneuver action in the running turn, back at the next start of turn. The `maneuvers_this_turn` tally (`fx.maneuvers`, reset at start_of_turn) is counted by Game.maneuver and by the session's Maneuver button the moment the action is spent, unless an effect PREVENTS the draw (Iván, 2026-11-08: that Maneuver does not count, he keeps the +2); an empty deck still draws as an exhaustion draw, so it counts. Other actions (attack, scheme, a gained action) do not count. It applies to every attack of Golden Bat on his own turn, versatile cards played as attacks included, never to a defense; a card of a boosted maneuver does not make it a different action. The passive written here documents the rule; the interpreter does not apply `ability.passives` of kind modify_value (as for Hellboy)."
  },
  "cards": [
   {
@@ -139,7 +139,7 @@
     "scheme": [],
     "boost": []
    },
-   "notes": "Versatile 2 / boost 1. Won or not. A look that takes nothing (`take.amount` 0: no question is asked) and puts the 3 cards back on top in the order the owner chooses (`top_ordered`, the first one of the order ends on top). The human looks at the bot's real top cards and orders them on the panel; the bot orders the human's top cards worst first, but only when the engine holds that deck: the human's real deck is not readable by the bot (`table.physical`), so the bot's Sight Beyond Sight does nothing but say so in the chat (the bot never reads the real deck). With a deck of fewer than 3 cards it looks at those there are. Open question."
+   "notes": "Versatile 2 / boost 1. Won or not. A look that takes nothing (`take.amount` 0: no question is asked) and puts the 3 cards back on top in the order the owner chooses (`top_ordered`, the first one of the order ends on top). The human looks at the bot's real top cards and orders them on the panel. The bot reads the human's REAL top 3 through `Game.deck_reader(player, 3)` (Iván, 2026-11-08), orders them worst first, keeps them as `KnownHand.top_of_deck` until a draw, a discard or a shuffle erases them, and tells the human to arrange the real deck by hand (intent `deck_order`, bottom null); a table that cannot be read shows nothing and the card says so in the chat. With a deck of fewer than 3 cards it looks at those there are."
   },
   {
    "title": "Terrifying Roar",
@@ -362,7 +362,7 @@
   },
   {
    "where": "Sight Beyond Sight (the rival top 3)",
-   "rule": "the human reads the bot's top 3 on the panel (the card says to look); the bot reads the engine's deck only, never the human's real one, so against a human at the table the bot's card changes nothing and says so"
+   "rule": "the human reads the bot's top 3 on the panel (the card says to look); the bot reads the human's real top 3 through the table reader at the moment the card resolves (never earlier), keeps them only until they are drawn, discarded or shuffled, and does not name them in the chat"
   }
  ],
  "open_questions": []
