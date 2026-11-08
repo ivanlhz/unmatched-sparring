@@ -1,6 +1,6 @@
 # She-Hulk (Marvel, Brains and Brawn)
 
-Playable by the bot and by the human, either side, against every other hero. Data: the hero card (character card 336, sheet 3 of the tournament savegame) was read from its image on 2026-11-08; the card list comes from unmatched-memory, checked against the only part of her sheet that the save still shows (see "The damaged sheet" below). Verified on FakeTTS only: nothing of She-Hulk has been seen on a real table (see `docs/live-checklist.md`).
+Playable by the bot and by the human, either side, against every other hero. Data: the hero card (character card 336, sheet 3 of the tournament savegame) was read from its image on 2026-11-08; the 30 cards were read from the sheet 176 image and agree with unmatched-memory. Verified on FakeTTS only: nothing of She-Hulk has been seen on a real table (see `docs/live-checklist.md`).
 
 ## Summary
 - Melee hero, 20 life, move 2, no sidekick (fid `shehulk`). One fighter: every "fighter" of the cards is She-Hulk.
@@ -26,14 +26,12 @@ Playable by the bot and by the human, either side, against every other hero. Dat
 | Leap Toward | scheme | - | 1 | 2 | Move her up to 4 (through opposing fighters). Then, if adjacent to an opposing fighter, gain 1 action |
 | Double Jeopardy | scheme | - | 2 | 2 | Draw 2 and recover 2 health |
 
-## The damaged sheet (important, open question 1)
-The image the save uses for her deck (`data/tts/she-hulk.json`, `deck.identity.face`, the same URL in every save of the project) is a composite: **only its first row (idx 0-7) is She-Hulk's** (Omega-Level Threat x2, The Savage She-Hulk x2, Sensational x3, the first Legalese); the other 22 cells are Dr. Jill Trent's cards (a mod mistake). So:
-- idx 0-7 were read from the image; idx 8-29 are an **assumed order**: Legalese idx 7-9, then Nerve Cluster Strike, Cease and Desist, Green Energy (versatile, in unmatched-memory's order), Lady Justice, The Defense Rests (defense), Jennifer Walters, Esq., Leap Toward, Double Jeopardy (schemes). It follows the type bands of the other heroes' sheets.
-- On a real table the human holding her cards will see Jill Trent's pictures for those 22 cards, and the bot reads CardIDs: until the mod's picture is fixed, or the real order is read, an id may name the wrong title. If the real order differs, only the `deck.sheet` list of `data/heroes/overlay/she-hulk.json` has to change (then `tools/import_hero.py she-hulk`).
+## The sheet
+Sheet 176 (8x4 grid) holds her 30 cards left to right, top to bottom: Omega-Level Threat x2, The Savage She-Hulk x2, Sensational x3, Legalese x3, Green Energy x3, Cease and Desist x3, Nerve Cluster Strike x3, Lady Justice x3, The Defense Rests x2, Double Jeopardy x2, Jennifer Walters, Esq. x2, Leap Toward x2 (`CardID = 17600 + idx`).
 
 ## Discrepancies with unmatched-memory
 - unmatched-memory spells the hero "She Hulk"; the card says SHE-HULK (overlay `name`: "She-Hulk").
-- **Lady Justice has no printed value** in unmatched-memory (`null`) and its text raises it "by twice that card's boost value": value 0 is assumed (the importer refuses a null on anything but a scheme, so the overlay carries `value: 0`), like Luke Cage's Skin Like Titanium.
+- **Lady Justice** is a defense card with printed value 0 (unmatched-memory has `null`; the importer refuses a null on anything but a scheme, so the overlay carries `value: 0`), like Luke Cage's Skin Like Titanium. Its text raises the value when it defends.
 - The restriction band is not in unmatched-memory at all: every card is SHE-HULK.
 
 ## Rules decisions (the user is away: the most literal reading, applied)
@@ -56,11 +54,9 @@ Every item that is a real doubt is also an open question below.
 15. **Double Jeopardy**: heals her up to 20, never above.
 
 ## Open questions for Iván
-1. **The order of idx 8-29 of her sheet is assumed** (the save's picture only shows her first row): see "The damaged sheet". Can you confirm the real order, or is the mod's picture going to be fixed?
-2. **Lady Justice's printed value**: assumed 0 (unmatched-memory has none). If the card prints another number, change `value` in the overlay (3 entries).
-3. **JUST THROW SOMETHING and herself**: it never hurts She-Hulk and is not offered without an opposing fighter in her zone. Is that the reading you want, or should she be allowed to target herself?
-4. **Legalese on a tie**: treated as lost (she chooses). Right?
-5. **The Savage She-Hulk's additional action**: it needs one action left after the attack's own (with 2 actions a turn, the attack must be the first). Right?
+1. **JUST THROW SOMETHING and herself**: it never hurts She-Hulk and is not offered without an opposing fighter in her zone. Is that the reading you want, or should she be allowed to target herself?
+2. **Legalese on a tie**: treated as lost (she chooses). Right?
+3. **The Savage She-Hulk's additional action**: it needs one action left after the attack's own (with 2 actions a turn, the attack must be the first). Right?
 
 ## AI
 - The AI profile comes from the data (She-Hulk `hero`, every card exclusive to her).

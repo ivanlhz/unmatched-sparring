@@ -1,9 +1,8 @@
 {
  "_notes": [
-  "Sheet 176 of the tournament savegame (8x4), CardID = 17600 + idx; 336 = character card (sheet 3, 10x7, index 36). The deck object of the save holds 31 cards: the 30 of the deck plus the character card, which is why the catalog says card_count 31 and card_ids [336, 17629]. She-Hulk's deck is sheet 176 like Medusa's, the four turtles', Doctor Strange's, Bigfoot's and the Hell's Kitchen heroes': only deck.identity (data/tts/she-hulk.json) tells the decks apart (docs/card-identity.md).",
+  "Sheet 176 of the tournament savegame (8x4 grid, 30 cards read left to right, top to bottom), read from the image on 2026-11-08. CardID = 17600 + idx; 336 = character card (sheet 3, 10x7, index 36). The deck object of the save holds 31 cards: the 30 of the deck plus the character card, which is why the catalog says card_count 31 and card_ids [336, 17629]. Her deck is sheet 176 like Medusa's, the four turtles', Doctor Strange's, Bigfoot's and the Hell's Kitchen heroes': only deck.identity (data/tts/she-hulk.json) tells the decks apart (docs/card-identity.md).",
   "Hero card (read from the image): SHE-HULK, MELEE, START HEALTH 20, MOVE 2; special ability JUST THROW SOMETHING. No sidekicks (unmatched-memory has an empty sidekick entry, ignored). Every card carries the SHE-HULK band (none ANY): the restriction changes nothing while she has no sidekicks. unmatched-memory spells the hero 'She Hulk'; the card reads SHE-HULK (the overlay `name`).",
-  "THE SHEET IMAGE OF THE SAVE IS DAMAGED: in the picture the deck object points to (data/tts/she-hulk.json, deck.identity.face) only the first row (idx 0-7: Omega-Level Threat x2, The Savage She-Hulk x2, Sensational x3, the first Legalese) is She-Hulk's; the other 22 cells show Dr. Jill Trent's cards. So only idx 0-7 could be read from the image. The order of idx 8-29 is an ASSUMPTION that follows the other heroes' sheets (attack, versatile, defense, scheme): Legalese x3 (idx 7-9), then Nerve Cluster Strike, Cease and Desist and Green Energy (versatile, in unmatched-memory's order), Lady Justice and The Defense Rests (defense), Jennifer Walters, Esq., Leap Toward and Double Jeopardy (schemes). If a real table shows another order, only this list has to change (docs/heroes/she-hulk.md, open question 1).",
-  "Titles, types, boost values, copies (xN) and texts come from unmatched-memory (the first-row cards agree with the images). Lady Justice has no printed value in unmatched-memory (null) and its text raises the value 'by twice that card's boost value': value 0 is assumed, like Luke Cage's Skin Like Titanium (`value` in its sheet entries; open question 2).",
+  "Lady Justice is a defense card whose printed value is 0 (unmatched-memory has null; the importer refuses a null on anything but a scheme, so `value: 0` is in its sheet entries, like Luke Cage's Skin Like Titanium). Titles, types, boosts, copies (xN) and texts agree with unmatched-memory.",
   "The ability (JUST THROW SOMETHING) is a start-of-turn trigger of the effects file (plugin shehulk:throw), not data here."
  ],
  "name": "She-Hulk",
@@ -70,17 +69,17 @@
    },
    {
     "idx": 10,
-    "title": "Nerve Cluster Strike",
+    "title": "Green Energy",
     "fighter": "She-Hulk"
    },
    {
     "idx": 11,
-    "title": "Nerve Cluster Strike",
+    "title": "Green Energy",
     "fighter": "She-Hulk"
    },
    {
     "idx": 12,
-    "title": "Nerve Cluster Strike",
+    "title": "Green Energy",
     "fighter": "She-Hulk"
    },
    {
@@ -100,17 +99,17 @@
    },
    {
     "idx": 16,
-    "title": "Green Energy",
+    "title": "Nerve Cluster Strike",
     "fighter": "She-Hulk"
    },
    {
     "idx": 17,
-    "title": "Green Energy",
+    "title": "Nerve Cluster Strike",
     "fighter": "She-Hulk"
    },
    {
     "idx": 18,
-    "title": "Green Energy",
+    "title": "Nerve Cluster Strike",
     "fighter": "She-Hulk"
    },
    {
@@ -143,32 +142,32 @@
    },
    {
     "idx": 24,
-    "title": "Jennifer Walters, Esq.",
+    "title": "Double Jeopardy",
     "fighter": "She-Hulk"
    },
    {
     "idx": 25,
-    "title": "Jennifer Walters, Esq.",
+    "title": "Double Jeopardy",
     "fighter": "She-Hulk"
    },
    {
     "idx": 26,
-    "title": "Leap Toward",
+    "title": "Jennifer Walters, Esq.",
     "fighter": "She-Hulk"
    },
    {
     "idx": 27,
-    "title": "Leap Toward",
+    "title": "Jennifer Walters, Esq.",
     "fighter": "She-Hulk"
    },
    {
     "idx": 28,
-    "title": "Double Jeopardy",
+    "title": "Leap Toward",
     "fighter": "She-Hulk"
    },
    {
     "idx": 29,
-    "title": "Double Jeopardy",
+    "title": "Leap Toward",
     "fighter": "She-Hulk"
    }
   ]

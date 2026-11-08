@@ -2,7 +2,7 @@
  "schema": 1,
  "hero": "she-hulk",
  "notes": [
-  "Texts from unmatched-memory (Brains and Brawn); the character card is 336 on sheet 3 (10x7, index 36) and was read from the image (SHE-HULK, melee, health 20, move 2). Sheet 176 is also Medusa's, the turtles', Doctor Strange's, Bigfoot's and the Hell's Kitchen heroes' DeckID: the CardIDs repeat and only the deck image tells the decks apart (docs/card-identity.md). The sheet image of her deck in the save is damaged (only the first row is hers): see docs/heroes/she-hulk.md, open question 1.",
+  "Texts from unmatched-memory (Brains and Brawn); the character card is 336 on sheet 3 (10x7, index 36) and was read from the image (SHE-HULK, melee, health 20, move 2). Sheet 176 is also Medusa's, the turtles', Doctor Strange's, Bigfoot's and the Hell's Kitchen heroes' DeckID: the CardIDs repeat and only the deck image tells the decks apart (docs/card-identity.md). Her sheet (30 cards) was read from the image.",
   "1v1 reading: 'your opponent' is the only rival; she has no sidekick, so every 'fighter' of hers is She-Hulk (`hero`, `this`).",
   "New engine pieces (docs/effects-dsl.md, section 32): the op `spend_action` (The Savage She-Hulk: 'spend an additional action'), the plugin `shehulk:throw` (JUST THROW SOMETHING) and the plugin `shehulk:mill` (Lady Justice: discard the top card of the OPPONENT's deck). Everything else uses ops that already existed."
  ],
@@ -80,7 +80,7 @@
      {"op": "modify_value", "card": "this", "amount": {"attr": "boost", "of": "$milled", "times": 2}}
     ]
    },
-   "notes": "Defense, printed value 0 (assumed: unmatched-memory has none) / boost 2. The card is discarded from the OPPONENT's deck, face up. With an empty deck nothing is discarded and the value stays 0 (+0). The bot's deck is the engine's; the human's is on the table: the bot moves their real top card after they press the one button the panel shows (the same machinery as BLIND BOOST and Take A Knee)."
+   "notes": "Defense, printed value 0 / boost 2. The card is discarded from the OPPONENT's deck, face up. With an empty deck nothing is discarded and the value stays 0 (+0). The bot's deck is the engine's; the human's is on the table: the bot moves their real top card after they press the one button the panel shows (the same machinery as BLIND BOOST and Take A Knee)."
   },
   {
    "title": "Omega-Level Threat",
@@ -224,8 +224,6 @@
   {"card": "Omega-Level Threat", "rule": "The opponent discards 2 RANDOM cards: when it is the human, they choose which positions by the usual random discard (the bot never reads their hand)."}
  ],
  "open_questions": [
-  "The order of idx 8-29 of her sheet is assumed (the picture in the save only shows her first row).",
-  "Lady Justice's printed value is assumed to be 0.",
   "JUST THROW SOMETHING never targets She-Hulk herself, and is not offered when no opposing fighter shares her zone.",
   "Legalese on a tie: a combat she did not win counts as lost, so she chooses."
  ]

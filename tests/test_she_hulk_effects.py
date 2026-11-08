@@ -184,11 +184,12 @@ def test_jennifer_walters_places_she_hulk_on_a_starting_space_draws_and_gives_th
     seen = []
     g.controllers[0].queue = [lambda req: seen.append(req) or [max(req.options)]]
     g.actions_left = 2
+    jennifer = give(g, 0, "Jennifer Walters, Esq.")
     hand0, deck0 = len(g.players[0].hand), len(g.players[0].deck)
-    g.play_scheme(0, sh, give(g, 0, "Jennifer Walters, Esq."))
+    g.play_scheme(0, sh, jennifer)
     assert seen and sh.pos == max(seen[0].options)
     assert g.actions_left == 2                                              # one spent, one gained
-    assert len(g.players[0].hand) == hand0 + 1 and len(g.players[0].deck) == deck0 - 2        # the card came out of the deck, one more was drawn
+    assert len(g.players[0].hand) == hand0 - 1 + 1 and len(g.players[0].deck) == deck0 - 1        # the scheme left the hand, one card was drawn
 
 
 def test_leap_toward_moves_four_through_opposing_fighters_and_gains_an_action_next_to_one(bprd):
@@ -258,7 +259,7 @@ def test_sensational_shuffles_a_card_of_the_discard_pile_into_the_deck_when_it_w
     g = mk(bprd)
     sh, h = pair(g, "shehulk", "hellboy")
     old = card(g, 0, "Green Energy")
-    g.players[0].deck.remove(old)
+    g.players[0].deck.remove(old) if old in g.players[0].deck else None
     g.players[0].discard.append(old)
     g.controllers[0].queue = [[old.card_id]]
     g.attack(sh, h, give(g, 0, "Sensational"), None)
@@ -269,7 +270,7 @@ def test_sensational_may_choose_nothing_and_does_nothing_when_it_loses(bprd):
     g = mk(bprd)
     sh, h = pair(g, "shehulk", "hellboy")
     old = card(g, 0, "Green Energy")
-    g.players[0].deck.remove(old)
+    g.players[0].deck.remove(old) if old in g.players[0].deck else None
     g.players[0].discard.append(old)
     g.controllers[0].queue = [[]]
     g.attack(sh, h, give(g, 0, "Sensational"), None)
@@ -277,7 +278,7 @@ def test_sensational_may_choose_nothing_and_does_nothing_when_it_loses(bprd):
     h2 = mk(bprd)
     sh2, hh2 = pair(h2, "shehulk", "hellboy")
     old2 = card(h2, 0, "Green Energy")
-    h2.players[0].deck.remove(old2)
+    h2.players[0].deck.remove(old2) if old2 in h2.players[0].deck else None
     h2.players[0].discard.append(old2)
     h2.controllers[0].queue = [[old2.card_id]]
     h2.attack(sh2, hh2, give(h2, 0, "Sensational"), wall(h2))

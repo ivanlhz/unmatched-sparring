@@ -53,7 +53,7 @@ Bigfoot (`tests/test_hero_bigfoot_data.py`, `tests/test_bigfoot_matrix.py`) foll
 
 Bullseye (Hell's Kitchen, character card 339) is the tenth deck of sheet 176 (`tests/test_hero_bullseye_data.py`, `tests/test_bullseye_matrix.py`): his own `deck.identity` in `data/tts/bullseye.json`, a matrix against the other fourteen heroes in both seats, and `SHARING` in `tests/test_card_identity.py`.
 
-She-Hulk (Brains and Brawn, character card 336) is the eleventh deck of sheet 176 (`tests/test_hero_she_hulk_data.py`, `tests/test_she_hulk_matrix.py`): her own `deck.identity` in `data/tts/she-hulk.json`, a matrix against the other fifteen heroes in both seats, and `SHARING` in `tests/test_card_identity.py`. The picture of her sheet in the save is damaged (only its first row is hers): docs/heroes/she-hulk.md.
+She-Hulk (Brains and Brawn, character card 336) is the eleventh deck of sheet 176 (`tests/test_hero_she_hulk_data.py`, `tests/test_she_hulk_matrix.py`): her own `deck.identity` in `data/tts/she-hulk.json`, a matrix against the other fifteen heroes in both seats, and `SHARING` in `tests/test_card_identity.py`.
 
 ## Houdini needs none of this
 

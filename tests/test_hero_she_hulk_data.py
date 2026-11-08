@@ -1,6 +1,5 @@
 """She-Hulk's data: overlay, generated HeroDef, structured effects (DSL v1) and table data agree with each other and with the real
-cards (the hero card 336 and the first row of sheet 176 of the tournament save, read from the images on 2026-11-08; the rest of her
-sheet in the save is Dr. Jill Trent's picture, see docs/heroes/she-hulk.md), and her deck is told apart from Medusa's, the four
+cards (the hero card 336 and sheet 176 of the tournament save, read from the images on 2026-11-08), and her deck is told apart from Medusa's, the four
 turtles', Doctor Strange's, Bigfoot's and the Hell's Kitchen heroes' (same CardIDs 17600-17629) by image and owner. No engine, no TTS,
 no sockets."""
 import json
@@ -37,10 +36,10 @@ REAL_CARDS = {
     "Leap Toward": (2, "She-Hulk", "scheme", None, 1),
     "Double Jeopardy": (2, "She-Hulk", "scheme", None, 2),
 }
-# idx order of the sheet: idx 0-7 read from the image (the rest of the picture is Dr. Jill Trent's), idx 8-29 assumed
-SHEET_ORDER = (["Omega-Level Threat"] * 2 + ["The Savage She-Hulk"] * 2 + ["Sensational"] * 3 + ["Legalese"] * 3 + ["Nerve Cluster Strike"] * 3
-               + ["Cease and Desist"] * 3 + ["Green Energy"] * 3 + ["Lady Justice"] * 3 + ["The Defense Rests"] * 2
-               + ["Jennifer Walters, Esq."] * 2 + ["Leap Toward"] * 2 + ["Double Jeopardy"] * 2)
+# idx order of the sheet, as read from the image
+SHEET_ORDER = (["Omega-Level Threat"] * 2 + ["The Savage She-Hulk"] * 2 + ["Sensational"] * 3 + ["Legalese"] * 3 + ["Green Energy"] * 3
+               + ["Cease and Desist"] * 3 + ["Nerve Cluster Strike"] * 3 + ["Lady Justice"] * 3 + ["The Defense Rests"] * 2
+               + ["Double Jeopardy"] * 2 + ["Jennifer Walters, Esq."] * 2 + ["Leap Toward"] * 2)
 
 
 @pytest.fixture(scope="module")
@@ -59,7 +58,6 @@ def test_overlay_sheet_matches_the_cards_and_the_save_numbering(overlay):
     sheet = deck["sheet"]
     assert [e["idx"] for e in sheet] == list(range(30))
     assert [e["title"] for e in sheet] == SHEET_ORDER
-    assert [e["title"] for e in sheet[:8]] == ["Omega-Level Threat"] * 2 + ["The Savage She-Hulk"] * 2 + ["Sensational"] * 3 + ["Legalese"]    # the visible row
     for title, (copies, fighter, *_) in REAL_CARDS.items():
         entries = [e for e in sheet if e["title"] == title]
         assert len(entries) == copies, title
