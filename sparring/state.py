@@ -7,6 +7,7 @@ from typing import Callable
 from .board import Board
 from .cards import Card, can_be_boost
 from .controller import Controller
+from . import enraged
 from .effects import inventions, ongoing
 from .effects.state import EffectState, default_dsl_heroes
 from .heroes import DEFAULT_HAND_LIMIT, DEFAULT_START_HAND, HeroDef, load_hero
@@ -388,13 +389,14 @@ class Game:
         plus the board's high ground when the `target` it hits is known."""
         parts = (self.players[fighter.owner].hero.attack_bonuses(self.form(fighter.owner), fighter.hero,
                                                                   self.fx.maneuvered(fighter.owner))
-                 + self.combat_bonus_parts(fighter.owner) + inventions.bonus_parts(self, fighter.owner, "attack"))
+                 + self.combat_bonus_parts(fighter.owner) + inventions.bonus_parts(self, fighter.owner, "attack")
+                 + enraged.bonus_parts(self, fighter.owner))
         high = self.board.attack_bonus(fighter.pos, target.pos) if target is not None else 0
         return parts + [(high, t("cf.high_ground"))] if high else parts
 
     def defense_bonus_parts(self, player: int) -> list[tuple[int, str]]:
         """(bonus, label) added to the card `player` defends with: the live ONGOING and the tucked inventions."""
-        return self.combat_bonus_parts(player) + inventions.bonus_parts(self, player, "defense")
+        return self.combat_bonus_parts(player) + inventions.bonus_parts(self, player, "defense") + enraged.bonus_parts(self, player)
 
     def defense_bonus_total(self, player: int) -> int:
         return sum(n for n, _ in self.defense_bonus_parts(player))
@@ -425,7 +427,7 @@ class Game:
         owner's turn begins: if it is not their turn now, that bonus no longer reaches their next attack."""
         passives = self.players[fighter.owner].hero.attack_bonus(self.form(fighter.owner), fighter.hero,
                                                                  self.fx.maneuvered(fighter.owner))
-        tucked = sum(n for n, _ in inventions.bonus_parts(self, fighter.owner, "attack"))
+        tucked = sum(n for n, _ in inventions.bonus_parts(self, fighter.owner, "attack")) + enraged.bonus_total(self, fighter.owner)
         high = self.board.attack_bonus(fighter.pos, target.pos) if target is not None else 0
         return passives + tucked + high + (self.combat_bonus_total(fighter.owner) if self.turn == fighter.owner else 0)
 
@@ -449,10 +451,19 @@ class Game:
                                     self.occupied(1 - fighter.owner), through_enemies is True,
                                     self.passable_enemy_spaces(fighter, through_enemies))
 
-    def can_attack(self, attacker: Fighter, target: Fighter) -> bool:
+    def can_attack(self, attacker: Fighter, target: Fighter, card: Card | None = None) -> bool:
+        """`card`: the attack played; a card that targets any space while its owner is enraged (Foul Purpose) is not held to the reach."""
         return (attacker.alive and target.alive and attacker.owner != target.owner
                 and self.fx.may_attack(attacker.owner)
-                and self.board.can_reach_target(attacker.pos, target.pos, attacker.ranged, attacker.reach))
+                and (self.board.can_reach_target(attacker.pos, target.pos, attacker.ranged, attacker.reach)
+                     or (card is not None and enraged.reaches_any_space(self, attacker.owner, card))))
+
+    def can_declare_attack(self, attacker: Fighter, target: Fighter) -> bool:
+        """The human names the target before the card is on the table (their hand is virtual): an enraged hero whose deck holds a card
+        that targets any space may name a far one, and the Reveal refuses it when the card played does not reach."""
+        return self.can_attack(attacker, target) or (
+            attacker.alive and target.alive and attacker.owner != target.owner and self.fx.may_attack(attacker.owner)
+            and enraged.may_name_any_space(self, attacker.owner))
 
     # known hand of the rival (effect "look at the hand"): see KnownHand
     def observe_hand(self, viewer: int, cards: list[Card]) -> None:
@@ -543,12 +554,24 @@ class Game:
         self.log.append(f"{fighter.fid} -{n} ({fighter.hp:g} hp)")
         self.fx.on_damage(fighter, n, source, by)
         if fighter.hp <= 0:
-            fighter.died_at = fighter.pos if fighter.pos is not None else fighter.died_at
-            fighter.alive, fighter.pos = False, None
-            if fighter.hero:
-                self.winner = 1 - fighter.owner
-            self.fx.emit("fighter_defeated", fighter)
+            self._fall(fighter)
         return n
+
+    def defeat(self, fighter: Fighter) -> None:
+        """The fighter is defeated outright, not by taking damage (a price paid with a sidekick: Eredin's Icy Guile): its hit points go
+        to 0 and nothing that stops or changes damage applies."""
+        if fighter.alive:
+            fighter.hp = 0
+            self.log.append(f"{fighter.fid} defeated")
+            self._fall(fighter)
+
+    def _fall(self, fighter: Fighter) -> None:
+        fighter.died_at = fighter.pos if fighter.pos is not None else fighter.died_at
+        fighter.alive, fighter.pos = False, None
+        enraged.sync_move(self, fighter.owner)
+        if fighter.hero:
+            self.winner = 1 - fighter.owner
+        self.fx.emit("fighter_defeated", fighter)
 
     def remove_from_game(self, player: int, card: Card) -> None:
         """A card of the discard pile leaves the game for good (Donatello's inventions): public, nothing brings it back."""
@@ -696,22 +719,27 @@ class Game:
         resolve_scheme(self, player, fighter, card)
         return None
 
-    @staticmethod
-    def check_attack_card(fighter: Fighter, card: Card) -> None:
-        if not card.can_attack:
+    def check_attack_card(self, fighter: Fighter, card: Card) -> None:
+        if not enraged.may_attack_with(self, fighter.owner, card):
             raise RuleError(t("err.not_attack_type", title=card.title, type=card.type))
         if not card.usable_by(fighter.name):
             raise RuleError(t("err.wrong_fighter", title=card.title, fighter=card.fighter, name=fighter.name))
 
     def attack_card_reaches(self, attacker: Fighter, target: Fighter, card: Card) -> bool:
-        """The card can be played by `attacker` against `target`: an attack that only targets an adjacent fighter
-        (`adjacent_only`: Witness My Last Battle) needs the target next to the attacker."""
+        """The card can be played by `attacker` against `target`: the target is within the attacker's reach (or the card, with its owner
+        enraged, targets any space: Foul Purpose) and an attack that only targets an adjacent fighter (`adjacent_only`: Witness My Last
+        Battle) needs the target next to the attacker."""
         from .effects.modifiers import adjacent_only
-        return not adjacent_only(card) or (attacker.pos is not None and target.pos in self.board.adj[attacker.pos])
+        if adjacent_only(card) and not (attacker.pos is not None and target.pos in self.board.adj[attacker.pos]):
+            return False
+        return (self.board.can_reach_target(attacker.pos, target.pos, attacker.ranged, attacker.reach)
+                or enraged.reaches_any_space(self, attacker.owner, card))        # Foul Purpose: the far shot needs the rage
 
     def check_attack_target(self, attacker: Fighter, target: Fighter, card: Card) -> None:
         if not self.attack_card_reaches(attacker, target, card):
-            raise RuleError(t("err.adjacent_only", title=card.title, fid=attacker.fid, target=target.fid))
+            if self.board.can_reach_target(attacker.pos, target.pos, attacker.ranged, attacker.reach):      # in reach: the card wants it adjacent
+                raise RuleError(t("err.adjacent_only", title=card.title, fid=attacker.fid, target=target.fid))
+            raise RuleError(t("err.out_of_reach", attacker=attacker.fid, target=target.fid))
 
     @staticmethod
     def check_defense_card(fighter: Fighter, card: Card) -> None:
@@ -743,7 +771,7 @@ class Game:
         it) and a defense asked after an attack a rule turns face up is the one choice that may know the card."""
         if not self.fx.may_attack(attacker.owner):
             raise RuleError(t("err.cannot_attack_first", fid=attacker.fid))
-        if not self.can_attack(attacker, target):
+        if not self.can_attack(attacker, target, card):
             raise RuleError(t("err.out_of_reach", attacker=attacker.fid, target=target.fid))
         self.check_attack_card(attacker, card)
         self.check_attack_target(attacker, target, card)
@@ -756,7 +784,7 @@ class Game:
         self.use_action()
         from .effects.events import attack_revealed
         from .effects.modifiers import plays_face_up
-        revealed = attacked and (attack_revealed(self, target) or plays_face_up(card))      # judged before the trigger spends the token
+        revealed = attacked and (attack_revealed(self, target) or plays_face_up(card, self, attacker, target))      # judged before the trigger spends the token
         if attacked:
             self.fx.emit("attacked", attacker, target, card)
         if def_card == "ask":

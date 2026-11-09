@@ -38,6 +38,7 @@ from dataclasses import dataclass, field
 from functools import lru_cache
 from math import sqrt
 
+from .. import enraged
 from ..ai_medusa import GAZE, boost_effect_value, bot_may_spend, held_for_plan, maneuver_may_spend, scheme_fighter
 from ..cards import Card, can_be_boost
 from ..combat import is_medusa_card, resolve_combat
@@ -614,7 +615,7 @@ class EngineState:
 
     def _attack_titles(self, p: int, f: Fighter, target: Fighter | None = None) -> list[str]:
         """The titles `f` may attack with; with `target`, only the cards that can reach it (an adjacent-only attack)."""
-        return list(dict.fromkeys(c.title for c in self.game.players[p].hand if c.can_attack and c.usable_by(f.name)
+        return list(dict.fromkeys(c.title for c in self.game.players[p].hand if enraged.may_attack_with(self.game, p, c) and c.usable_by(f.name)
                                   and (target is None or self.game.attack_card_reaches(f, target, c))))
 
     def _attack_moves(self, p: int) -> list:
@@ -623,7 +624,7 @@ class EngineState:
         for f in g.own(p):
             if not self._attack_titles(p, f):
                 continue
-            out += [("attack", f.fid, t.fid) for t in g.foes(p) if g.can_attack(f, t) and self._attack_titles(p, f, t)]
+            out += [("attack", f.fid, t.fid) for t in g.foes(p) if g.can_declare_attack(f, t) and self._attack_titles(p, f, t)]
         return out
 
     def _scheme_moves(self, p: int) -> list:

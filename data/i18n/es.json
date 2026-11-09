@@ -794,6 +794,7 @@
  "tr.note_deck": "Anoto {titles} en tu mazo ({cause}).",
  "tr.bot_puts_hand_bottom": "El bot pone {cards} de su mano en el fondo de su mazo.",
  "tr.bot_puts_hand_shuffle": "El bot pone {cards} de su mano en su mazo y lo baraja.",
+ "tr.bot_puts_hand_top": "El bot pone {cards} de su mano encima de su mazo.",
  "tr.bot_puts_bottom": "El bot pone {titles} de su descarte en el fondo de su mazo.",
  "tr.bot_shuffles": "El bot baraja {titles} de su descarte en su mazo.",
  "tr.gone": "{titles} ya no esta en tu descarte: doy por hecho que ya esta {where} ({cause}).",

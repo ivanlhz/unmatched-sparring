@@ -15,6 +15,7 @@ import logging
 import random
 from dataclasses import replace
 
+from .. import enraged
 from ..ai_medusa import GAZE, Act, MedusaAI, scheme_fighter
 from ..cards import Card
 from ..combat import is_medusa_card
@@ -143,7 +144,7 @@ class IsmctsMedusa(Controller):
         sub = {m[0]: m for m in chosen[1:]}
         if kind == "attack":
             fighter = game.fighters[first[1]]
-            titles = list(dict.fromkeys(c.title for c in hand if c.can_attack and c.usable_by(fighter.name)
+            titles = list(dict.fromkeys(c.title for c in hand if enraged.may_attack_with(game, self.me, c) and c.usable_by(fighter.name)
                                         and game.attack_card_reaches(fighter, game.fighters[first[2]], c)))
             card = sub["attack_card"][2] if "attack_card" in sub else titles[0]
             return Act("attack", fid=first[1], target=first[2], card=by_title(hand, card))

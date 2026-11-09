@@ -1,0 +1,438 @@
+{
+ "_source": {
+  "memory": "unmatched-memory/data/heroes/eredin.json",
+  "overlay": "data/heroes/overlay/eredin.json",
+  "generator": "tools/import_hero.py"
+ },
+ "slug": "eredin",
+ "name": "Eredin",
+ "fid": "eredin",
+ "hp": 14,
+ "move": 2,
+ "attack": "melee",
+ "set": "the-witcher-realms-fall",
+ "ability": "KING OF THE WILD HUNT\nWhile all of your Red Riders are defeated, Eredin is ENRAGED.\nIf Eredin is ENRAGED, add +1 to the value of your combat cards, and your move value is 3.",
+ "sidekicks": [
+  {
+   "name": "Red Rider",
+   "hp": 1,
+   "move": 2,
+   "attack": "melee",
+   "count": 4,
+   "fid": "rider",
+   "start_on_board": 4,
+   "reserve": 0,
+   "tts_tokens": [
+    "Maxwell",
+    "Aleksei",
+    "Adrian",
+    "Norman"
+   ]
+  }
+ ],
+ "forms": null,
+ "counters": {},
+ "triggers": [],
+ "passives": [
+  {
+   "id": "king_of_the_wild_hunt",
+   "effect": "enraged",
+   "combat_bonus": 1,
+   "move": 3
+  }
+ ],
+ "deck": {
+  "card_base": 17600,
+  "sheet": 176,
+  "cards": [
+   {
+    "idx": 0,
+    "title": "Backhand",
+    "fighter": "Eredin",
+    "type": "attack",
+    "value": 4,
+    "boost": 3,
+    "text": "AFTER COMBAT: Your opponent puts 1 random card from their hand on top of their deck. If Eredin is ENRAGED, they discard it instead.",
+    "tags": []
+   },
+   {
+    "idx": 1,
+    "title": "Backhand",
+    "fighter": "Eredin",
+    "type": "attack",
+    "value": 4,
+    "boost": 3,
+    "text": "AFTER COMBAT: Your opponent puts 1 random card from their hand on top of their deck. If Eredin is ENRAGED, they discard it instead.",
+    "tags": []
+   },
+   {
+    "idx": 2,
+    "title": "Backhand",
+    "fighter": "Eredin",
+    "type": "attack",
+    "value": 4,
+    "boost": 3,
+    "text": "AFTER COMBAT: Your opponent puts 1 random card from their hand on top of their deck. If Eredin is ENRAGED, they discard it instead.",
+    "tags": []
+   },
+   {
+    "idx": 3,
+    "title": "Brutal Strike",
+    "fighter": "Eredin",
+    "type": "attack",
+    "value": 2,
+    "boost": 3,
+    "text": "This card's effects cannot be canceled. DURING COMBAT: If your opponent's card has an IMMEDIATELY effect, ignore their card's value.",
+    "tags": []
+   },
+   {
+    "idx": 4,
+    "title": "Brutal Strike",
+    "fighter": "Eredin",
+    "type": "attack",
+    "value": 2,
+    "boost": 3,
+    "text": "This card's effects cannot be canceled. DURING COMBAT: If your opponent's card has an IMMEDIATELY effect, ignore their card's value.",
+    "tags": []
+   },
+   {
+    "idx": 5,
+    "title": "Brutal Strike",
+    "fighter": "Eredin",
+    "type": "attack",
+    "value": 2,
+    "boost": 3,
+    "text": "This card's effects cannot be canceled. DURING COMBAT: If your opponent's card has an IMMEDIATELY effect, ignore their card's value.",
+    "tags": []
+   },
+   {
+    "idx": 6,
+    "title": "Foul Purpose",
+    "fighter": "any",
+    "type": "attack",
+    "value": 3,
+    "boost": 2,
+    "text": "If Eredin is ENRAGED, you may play this card face-up to target a fighter in any space. AFTER COMBAT: You may defeat a Red Rider to return this card to your hand.",
+    "tags": [
+     "any_space_if_enraged"
+    ]
+   },
+   {
+    "idx": 7,
+    "title": "Foul Purpose",
+    "fighter": "any",
+    "type": "attack",
+    "value": 3,
+    "boost": 2,
+    "text": "If Eredin is ENRAGED, you may play this card face-up to target a fighter in any space. AFTER COMBAT: You may defeat a Red Rider to return this card to your hand.",
+    "tags": [
+     "any_space_if_enraged"
+    ]
+   },
+   {
+    "idx": 8,
+    "title": "Unyielding Hordes",
+    "fighter": "Red Rider",
+    "type": "attack",
+    "value": 1,
+    "boost": 2,
+    "text": "IMMEDIATELY: Return a defeated Red Rider to any space. DURING COMBAT: Add +1 to this card's value for each other friendly fighter adjacent to the opposing fighter.",
+    "tags": []
+   },
+   {
+    "idx": 9,
+    "title": "Unyielding Hordes",
+    "fighter": "Red Rider",
+    "type": "attack",
+    "value": 1,
+    "boost": 2,
+    "text": "IMMEDIATELY: Return a defeated Red Rider to any space. DURING COMBAT: Add +1 to this card's value for each other friendly fighter adjacent to the opposing fighter.",
+    "tags": []
+   },
+   {
+    "idx": 10,
+    "title": "Unyielding Hordes",
+    "fighter": "Red Rider",
+    "type": "attack",
+    "value": 1,
+    "boost": 2,
+    "text": "IMMEDIATELY: Return a defeated Red Rider to any space. DURING COMBAT: Add +1 to this card's value for each other friendly fighter adjacent to the opposing fighter.",
+    "tags": []
+   },
+   {
+    "idx": 11,
+    "title": "Icy Guile",
+    "fighter": "any",
+    "type": "versatile",
+    "value": 2,
+    "boost": 1,
+    "text": "IMMEDIATELY: If Eredin is ENRAGED, cancel all effects on your opponent's card. DURING COMBAT: You may defeat a Red Rider to ignore the value of your opponent's card.",
+    "tags": []
+   },
+   {
+    "idx": 12,
+    "title": "Icy Guile",
+    "fighter": "any",
+    "type": "versatile",
+    "value": 2,
+    "boost": 1,
+    "text": "IMMEDIATELY: If Eredin is ENRAGED, cancel all effects on your opponent's card. DURING COMBAT: You may defeat a Red Rider to ignore the value of your opponent's card.",
+    "tags": []
+   },
+   {
+    "idx": 13,
+    "title": "Icy Guile",
+    "fighter": "any",
+    "type": "versatile",
+    "value": 2,
+    "boost": 1,
+    "text": "IMMEDIATELY: If Eredin is ENRAGED, cancel all effects on your opponent's card. DURING COMBAT: You may defeat a Red Rider to ignore the value of your opponent's card.",
+    "tags": []
+   },
+   {
+    "idx": 14,
+    "title": "Wild Hunt",
+    "fighter": "any",
+    "type": "versatile",
+    "value": 3,
+    "boost": 2,
+    "text": "AFTER COMBAT: Deal 1 damage to each opposing fighter that is adjacent to at least one of your fighters. If Eredin is ENRAGED, deal 2 damage instead.",
+    "tags": []
+   },
+   {
+    "idx": 15,
+    "title": "Wild Hunt",
+    "fighter": "any",
+    "type": "versatile",
+    "value": 3,
+    "boost": 2,
+    "text": "AFTER COMBAT: Deal 1 damage to each opposing fighter that is adjacent to at least one of your fighters. If Eredin is ENRAGED, deal 2 damage instead.",
+    "tags": []
+   },
+   {
+    "idx": 16,
+    "title": "Wild Hunt",
+    "fighter": "any",
+    "type": "versatile",
+    "value": 3,
+    "boost": 2,
+    "text": "AFTER COMBAT: Deal 1 damage to each opposing fighter that is adjacent to at least one of your fighters. If Eredin is ENRAGED, deal 2 damage instead.",
+    "tags": []
+   },
+   {
+    "idx": 17,
+    "title": "Skirmish",
+    "fighter": "any",
+    "type": "versatile",
+    "value": 4,
+    "boost": 1,
+    "text": "AFTER COMBAT: If you won the combat, choose one of the fighters in the combat and move them up to 2 spaces.",
+    "tags": []
+   },
+   {
+    "idx": 18,
+    "title": "Skirmish",
+    "fighter": "any",
+    "type": "versatile",
+    "value": 4,
+    "boost": 1,
+    "text": "AFTER COMBAT: If you won the combat, choose one of the fighters in the combat and move them up to 2 spaces.",
+    "tags": []
+   },
+   {
+    "idx": 19,
+    "title": "Skirmish",
+    "fighter": "any",
+    "type": "versatile",
+    "value": 4,
+    "boost": 1,
+    "text": "AFTER COMBAT: If you won the combat, choose one of the fighters in the combat and move them up to 2 spaces.",
+    "tags": []
+   },
+   {
+    "idx": 20,
+    "title": "Implacable",
+    "fighter": "Eredin",
+    "type": "defense",
+    "value": 3,
+    "boost": 3,
+    "text": "If Eredin is ENRAGED, you may play this card as an attack. DURING COMBAT: You may BOOST this card.",
+    "tags": [
+     "attack_if_enraged"
+    ]
+   },
+   {
+    "idx": 21,
+    "title": "Implacable",
+    "fighter": "Eredin",
+    "type": "defense",
+    "value": 3,
+    "boost": 3,
+    "text": "If Eredin is ENRAGED, you may play this card as an attack. DURING COMBAT: You may BOOST this card.",
+    "tags": [
+     "attack_if_enraged"
+    ]
+   },
+   {
+    "idx": 22,
+    "title": "Implacable",
+    "fighter": "Eredin",
+    "type": "defense",
+    "value": 3,
+    "boost": 3,
+    "text": "If Eredin is ENRAGED, you may play this card as an attack. DURING COMBAT: You may BOOST this card.",
+    "tags": [
+     "attack_if_enraged"
+    ]
+   },
+   {
+    "idx": 23,
+    "title": "Portal Defense",
+    "fighter": "Eredin",
+    "type": "defense",
+    "value": 0,
+    "boost": 1,
+    "text": "IMMEDIATELY: Eredin swaps spaces with an adjacent friendly fighter. That fighter is now the defender. AFTER COMBAT: If Eredin is ENRAGED, draw 2 cards.",
+    "tags": []
+   },
+   {
+    "idx": 24,
+    "title": "Portal Defense",
+    "fighter": "Eredin",
+    "type": "defense",
+    "value": 0,
+    "boost": 1,
+    "text": "IMMEDIATELY: Eredin swaps spaces with an adjacent friendly fighter. That fighter is now the defender. AFTER COMBAT: If Eredin is ENRAGED, draw 2 cards.",
+    "tags": []
+   },
+   {
+    "idx": 25,
+    "title": "Might Of The Aen Elle",
+    "fighter": "Eredin",
+    "type": "scheme",
+    "value": null,
+    "boost": 2,
+    "text": "Draw 1 card. Gain 1 action. ONGOING: Eredin does not take damage except combat damage or from exhaustion. Discard this card at the end of your turn if you didn't attack.",
+    "tags": []
+   },
+   {
+    "idx": 26,
+    "title": "Might Of The Aen Elle",
+    "fighter": "Eredin",
+    "type": "scheme",
+    "value": null,
+    "boost": 2,
+    "text": "Draw 1 card. Gain 1 action. ONGOING: Eredin does not take damage except combat damage or from exhaustion. Discard this card at the end of your turn if you didn't attack.",
+    "tags": []
+   },
+   {
+    "idx": 27,
+    "title": "Close For The Kill",
+    "fighter": "any",
+    "type": "scheme",
+    "value": null,
+    "boost": 4,
+    "text": "Draw 2 cards. Move each of your fighters up to 3 spaces. They may move through opposing fighters.",
+    "tags": []
+   },
+   {
+    "idx": 28,
+    "title": "Close For The Kill",
+    "fighter": "any",
+    "type": "scheme",
+    "value": null,
+    "boost": 4,
+    "text": "Draw 2 cards. Move each of your fighters up to 3 spaces. They may move through opposing fighters.",
+    "tags": []
+   },
+   {
+    "idx": 29,
+    "title": "Close For The Kill",
+    "fighter": "any",
+    "type": "scheme",
+    "value": null,
+    "boost": 4,
+    "text": "Draw 2 cards. Move each of your fighters up to 3 spaces. They may move through opposing fighters.",
+    "tags": []
+   }
+  ]
+ },
+ "ai_profile": {
+  "eredin": {
+   "name": "Eredin",
+   "hero": true,
+   "count": 1,
+   "max_hp": 14,
+   "move": 2,
+   "ranged": false,
+   "role": "hero",
+   "attack": {
+    "cards": 17,
+    "mean": 3.0,
+    "max": 4
+   },
+   "exclusive": [
+    {
+     "title": "Backhand",
+     "type": "attack",
+     "copies": 3,
+     "impact": 1.11
+    },
+    {
+     "title": "Brutal Strike",
+     "type": "attack",
+     "copies": 3,
+     "impact": 0.81
+    },
+    {
+     "title": "Implacable",
+     "type": "defense",
+     "copies": 3,
+     "impact": 0.75
+    },
+    {
+     "title": "Portal Defense",
+     "type": "defense",
+     "copies": 2,
+     "impact": 0.97
+    },
+    {
+     "title": "Might Of The Aen Elle",
+     "type": "scheme",
+     "copies": 2,
+     "impact": 1.7
+    }
+   ]
+  },
+  "rider": {
+   "name": "Red Rider",
+   "hero": false,
+   "count": 4,
+   "max_hp": 1,
+   "move": 2,
+   "ranged": false,
+   "role": "keep_away",
+   "attack": {
+    "cards": 14,
+    "mean": 2.57,
+    "max": 4
+   },
+   "exclusive": [
+    {
+     "title": "Unyielding Hordes",
+     "type": "attack",
+     "copies": 3,
+     "impact": 1.53
+    }
+   ],
+   "requires_alive": []
+  }
+ },
+ "_notes": [
+  "Sheet 176 of the tournament savegame (8x4), read card by card from the image on 2026-11-09. CardID = 17600 + idx; 350 = character card (sheet 3, 10x7, index 50). Eredin's deck is sheet 176 like Medusa's, the four turtles', Doctor Strange's, Bigfoot's, Daredevil's, Luke Cage's, Bullseye's and Tomoe Gozen's: only deck.identity (data/tts/eredin.json) tells the decks apart (docs/card-identity.md).",
+  "Hero card (read from the image): EREDIN, MELEE, START HEALTH 14, MOVE 2; special ability 'KING OF THE WILD HUNT: While all of your Red Riders are defeated, Eredin is ENRAGED. If Eredin is ENRAGED, add +1 to the value of your combat cards, and your move value is 3.' Sidekick RED RIDERS, MELEE, START HEALTH 1, x4 (the save has four tokens: Maxwell, Aleksei, Adrian, Norman).",
+  "Bands (fighter restrictions) read from the card images: Backhand, Brutal Strike, Implacable, Portal Defense and Might Of The Aen Elle are EREDIN; Unyielding Hordes is RED RIDER (3 copies, played by a Red Rider); Foul Purpose, Icy Guile, Wild Hunt, Skirmish and Close For The Kill are ANY.",
+  "Texts differ from unmatched-memory on Might Of The Aen Elle (the real card carries an ONGOING that unmatched-memory dropped), Portal Defense ('ow the defender' typo) and Icy Guile ('Red Riper' typo): the card text wins. Titles: unmatched-memory writes them in lower case, the cards in capitals; `memory_title` bridges them.",
+  "Tags: `attack_if_enraged` (Implacable: 'If Eredin is ENRAGED, you may play this card as an attack') and `any_space_if_enraged` (Foul Purpose: 'If Eredin is ENRAGED, you may play this card face-up to target a fighter in any space') are read by sparring/enraged.py."
+ ]
+}

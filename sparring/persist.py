@@ -8,6 +8,7 @@ import json
 import os
 from pathlib import Path
 
+from . import enraged
 from .effects import ongoing
 from .effects.state import EffectState, default_dsl_heroes
 from .i18n import t
@@ -66,6 +67,7 @@ def apply_game(g: Game, d: dict) -> None:
             f = g.fighters[fid]
             f.hp, f.pos, f.alive = st["hp"], st["pos"], st["alive"]
             f.died_at = st.get("died_at")
+        enraged.sync_move(g)
         for p, saved in zip(g.players, d["players"]):
             by_id = {c.card_id: c for c in p.full_set}
             p.deck[:] = [by_id[i] for i in saved["deck"]]

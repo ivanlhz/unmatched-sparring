@@ -31,6 +31,7 @@ import random
 from functools import lru_cache
 from itertools import combinations
 
+from . import enraged
 from .ai_medusa import (ACTION_VALUE, DECK_SCARCITY, HARPY_VALUE, KILL_SIDEKICK, LETHAL, SURVIVAL_P, W_HERO, W_MEDUSA_HP,
                         W_SIDEKICK, MedusaAI, Model, effect_reliance, keep_value, kill_value, play_signature)
 from .controller import Controller
@@ -65,7 +66,10 @@ PAY_MARGIN = 0.1                                        # an optional price is p
 CARD_FLAT = 1.2                                         # an unseen rival card, in the units of keep_value
 DEFAULT_BLOW = 1                                        # damage or heal assumed when a pick does not say how much
 DEFAULT_REACH = 2                                       # steps a place/swap candidate is assumed to relocate by
-HP_OPS = ("damage", "heal", "set_hp")
+HP_OPS = ("damage", "heal", "set_hp", "defeat")
+RIDER_PRICE = 2.0                                       # hit points a defeated sidekick given up for an effect is worth (Eredin's Red Riders)
+RIDER_KEEP = 2                                          # a Red Rider is given up for a card back in the hand only while this many or fewer are left
+ENRAGE_BONUS = 2.0                                      # what the last Red Rider's fall is worth on top: the hero is enraged (+1 to every card, move 3)
 RELOCATE_OPS = ("move", "place", "swap")
 CANCEL_MAX_KEEP = 1.6                                   # the card given up to cancel the rival's effects is worth this or less
 RETURN_MARGIN = 0.3                                       # a card taken back to the hand must be worth this much more than the one given up for it (Five Against Thousands)
@@ -228,6 +232,8 @@ class EffectAI:
             if not isinstance(n, (int, float)):
                 return None
             return lambda f: EffectAI.hp_change(f, n, me, game)
+        if op == "defeat":                      # the fighter falls outright: the cheapest own piece pays, the dearest rival piece goes
+            return lambda f: EffectAI.hp_change(f, 0, me, game)
         n = n if isinstance(n, (int, float)) else DEFAULT_BLOW
         if op == "damage":
             return lambda f: EffectAI.hp_change(f, f.hp - n, me, game)
@@ -585,6 +591,8 @@ class EffectAI:
             return [True]
         if "replaces_combatant" in req.extra:
             return [self._swap_combatant(game, req)]
+        if "defeats" in req.extra:          # a fighter given up for the effect (Eredin: a Red Rider for Icy Guile or Foul Purpose)
+            return [self._fighter_pays(game, req)]
         if "bury" in req.extra:             # The future of Ninjutsu: the top card goes to the bottom if it is worse than the average card to come
             top = {c.card_id: c for c in game.players[req.player].full_set}[req.extra["bury"][0]] if req.extra["bury"] else None
             return None if top is None else [keep_value(top, [top]) < self.medusa(req.player).avg_unseen_keep(game)]
@@ -686,6 +694,22 @@ class EffectAI:
             totals = [value + sum(boosts) + (emptied if n >= len(mine.deck) else 0) for boosts in combinations(pool, n)]
             return sum(map(score, totals)) / len(totals) - BLIND_COST * n
         return max(req.options, key=lambda n: (worth(n), -n))
+
+    @staticmethod
+    def _fighter_pays(game: Game, req: ChoiceRequest) -> bool:
+        """A fighter defeated as the price of an effect. Ignoring the rival's value (Icy Guile) is worth the damage it swings in the combat
+        (`at_stake`, or the kill it decides) and pays when that reaches RIDER_PRICE; taking the card back to the hand (Foul Purpose) pays
+        only while few of them are left. Giving up the last one is worth more: it enrages the hero (+1 to every card, a longer move)."""
+        info, x, me = req.extra["defeats"], req.extra, req.player
+        left = [i for i in info["fighters"] if i in game.fighters]
+        if not left:
+            return False
+        enrages = enraged.passive(game, me) is not None and len(left) == len(game.own(me)) - 1
+        bonus = ENRAGE_BONUS if enrages else 0.0
+        if info["ignores"]:
+            stake = x.get("at_stake", 0)
+            return stake + bonus >= RIDER_PRICE or (stake > 0 and stake >= x.get("hp", float("inf")))
+        return enrages or len(left) <= RIDER_KEEP
 
     def _swap_combatant(self, game: Game, req: ChoiceRequest) -> bool:
         """Smoke And Mirrors: swap Houdini and Bess so the other one fights in this combat. Defending, the one that loses the

@@ -13,9 +13,10 @@ from contextlib import contextmanager
 from typing import Callable
 
 from . import table
+from .. import enraged
 from ..i18n import t
 from .model import EffectError, load_effects
-from .select import (_ref_fighter, Picked, amount, condition, fighter_candidates, find_card, locate, pick_fighters, player_of,
+from .select import (_ref_fighter, _role_fighters, Picked, amount, condition, fighter_candidates, find_card, locate, pick_fighters, player_of,
                      players_of, card_candidates, card_ref, select_cards, space_options)
 
 OPS: dict[str, Callable] = {}
@@ -96,6 +97,19 @@ def _damage(run, game, spec):
     hit = [f.fid for f in targets if game.damage(f, n, "effect") > 0]
     if "as" in spec:
         run.bind("fighters", spec["as"], hit)
+
+
+@op("defeat")
+def _defeat(run, game, spec):
+    """"Defeat a Red Rider" (Icy Guile's price, Foul Purpose's): the fighter falls outright, with no damage to stop or change. If that
+    leaves the owner's hero enraged in the middle of a combat, the bonus of the ability reaches the card already in play."""
+    targets = pick_fighters(game, run, spec["target"], _chooser(game, run, spec), op="defeat")
+    owner = run.ctx.owner
+    was = enraged.is_enraged(game, owner)
+    for f in targets:
+        game.defeat(f)
+    if not was and enraged.is_enraged(game, owner):
+        enraged.reach_combat(run, game, owner)
 
 
 @op("heal")
@@ -357,6 +371,10 @@ def _plan_spots(game, run, fighters, where: dict, chooser: int, op_name: str, hp
                 continue
             by_hand = table.piece_is_physical(game, chooser, f)
             stays = [f.died_at] if f.hero and f.died_at in options else options[:1]     # a hero put back by hand: where his miniature already stands
+            if by_hand and where.get("any"):        # any space: counted next to the combat's other fighter if one is free (Unyielding Hordes), the best case for its DURING
+                foes = _role_fighters(game, run, "opposing")
+                near = [s for s in options if foes and foes[0].pos is not None and s in game.board.adj[foes[0].pos]]
+                stays = near[:1] or stays
             got = stays if by_hand else run.ask(game, "space", chooser, options, 1, 1, f"{op_name} to",
                                                       fighter=f.fid, op=op_name, where=_where_refs(game, run, where),
                                                       **({} if hp is None else {"hp": hp}))
@@ -370,6 +388,7 @@ def _return_to_board(run, game, spec, op_name: str, targets, hp) -> None:
     chooser = _chooser(game, run, spec)
     for f, spot, by_hand in _plan_spots(game, run, targets, spec["where"], chooser, op_name, hp=hp, alive=True):
         f.alive, f.pos, f.hp = True, spot, min(hp, f.max_hp)
+        enraged.sync_move(game, f.owner)
         if by_hand:
             game.placing.add(f.fid)
             table.note(run, op=op_name, fid=f.fid, where=_note_where(game, run, spec["where"]), hp=f.hp)
@@ -482,6 +501,8 @@ def _can_pay(game, run, cost: list[dict]) -> bool:
     for c in cost:
         if c["op"] == "spend_action" and (game.turn != run.ctx.owner or game.actions_left < int(amount(game, run, c["amount"]))):
             return False
+        if c["op"] == "defeat" and not fighter_candidates(game, run, c["target"])[0]:
+            return False                                         # nobody to give up (no Red Rider left)
         if c["op"] in ("discard", "return_to_deck") and isinstance(c["cards"], dict):
             sel = c["cards"]
             need = 0 if sel.get("up_to") else min(int(amount(game, run, sel.get("amount", 1))), 1 << 30)
@@ -532,7 +553,13 @@ def _choice_context(game, run, spec: dict) -> dict:
             ctx["cancels"] = _cancellable_moments(game, run)
     if len(ops) == 1 and ops[0]["op"] == "discard" and isinstance(ops[0]["cards"], str):
         ctx["discards"] = [c.card_id for c in card_ref(game, run, ops[0]["cards"])]
-    if len(ops) == 1 and ops[0]["op"] == "put_in_hand" and ops[0]["cards"] == "this" and run.ctx.card_id is not None:
+    defeats = [o for o in spec.get("cost") or [] if o["op"] == "defeat"]
+    if defeats:                                          # a fighter given up for the effect (Icy Guile, Foul Purpose): `EffectAI._fighter_pays`
+        cands, _ = fighter_candidates(game, run, defeats[0]["target"])
+        ctx["defeats"] = {"fighters": [f.fid for f in cands],
+                          "returns": any(o["op"] == "put_in_hand" and o["cards"] == "this" for o in ops),
+                          "ignores": any(o["op"] == "set_value" and o.get("ignore") for o in ops)}
+    elif len(ops) == 1 and ops[0]["op"] == "put_in_hand" and ops[0]["cards"] == "this" and run.ctx.card_id is not None:
         ctx["returns_card"] = run.ctx.card_id           # the card played comes back to the hand for the cost (Five Against Thousands)
     pact = _pact_context(game, run, ops)
     if pact is not None:
@@ -640,3 +667,4 @@ from . import plugins_donatello  # noqa: E402,F401  (registers donatello:future_
 from . import plugins_luke  # noqa: E402,F401  (registers luke:replace_combatant)
 from . import plugins_jill  # noqa: E402,F401  (registers jill:hypnoray, jill:reveal_tops, jill:insightful_deduction)
 from . import plugins_shehulk  # noqa: E402,F401  (registers shehulk:throw, shehulk:mill)
+from . import plugins_eredin  # noqa: E402,F401  (registers eredin:replace_combatant and the test eredin:opponent_card)
