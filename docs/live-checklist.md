@@ -354,6 +354,21 @@ Nothing of Tomoe Gozen has been seen on a real table. Her deck is sheet 176 like
 - [ ] **Refuse to Retreat (H)**: your Maneuver is refused (she cannot leave her space) for the rest of the turn; the bot discards a card when the opposing fighter is adjacent.
 - [ ] Piercing Shot (2 cards), A Worthy Opponent (5 against a hero), Flash of Steel (cancel against a hero, 1 damage when adjacent), Fearsome Strength (swap and 1 damage), Confront Any Demon or God and Skirmish (as Hellboy's and Bigfoot's) and the numbers as printed.
 
+### Sinbad (Battle of Legends, Volume One, with The Porter)
+
+Nothing of Sinbad has been seen on a real table. His deck is sheet 176 like Medusa's, the turtles', Doctor Strange's, Bigfoot's and the Tales to Amaze decks': the first things to check are the detection, the Porter's token and the Voyages dial.
+- [ ] **Detection (auto)**: with his deck at one spot and any other hero's at the other (any deck of sheet 176 included), the start-up line names Sinbad; the bag `6e6722` holds a deck of 31 cards (character card 303).
+- [ ] **Pieces**: Sinbad's miniature `ff509a` and dial `c48fac` (15), The Porter's token `36ccb4` (a Custom_Token: check it is found as a piece, like Daisy) and dial `7859ab` (6) are found; both life dials follow the engine.
+- [ ] **The Voyages dial `10bbcb`** (a counter 0-7, `MAX_VALUE 7`) comes out of the inner bag with his other objects and is laid on a counter-dial slot (or reported as unplaced). The bot does NOT write it: set it by hand if you like (open question 4 of docs/heroes/sinbad.md).
+- [ ] **The Maneuver reach (H)**: put VOYAGE cards on your discard pile and press Maneuver: the chat says "VOYAGE: your fighters may move up to +N spaces" with N the VOYAGE cards on the pile; moving Sinbad and The Porter that far is accepted. **(B)**: with VOYAGE cards in the bot's pile its Sinbad (and the Porter) walk farther in a Maneuver than 2 spaces.
+- [ ] **VOYAGE value (H)**: attack with a VOYAGE card with N other VOYAGE cards on your discard pile: the combat line shows 2 + N. **(B)**: the bot's VOYAGE card is worth the same (the chat line shows the total).
+- [ ] **Voyage Home (H)**: after the combat the bot moves the other VOYAGE cards from your discard pile into your hand (one script per card, by GUID, CardID and your deck's image) and says so; a card it cannot move is left for you to pick up. **(B)**: the bot takes its own VOYAGE cards from its pile back to its hand and says so.
+- [ ] **Creature (H)**: the bot discards a random card and the pile follows. **(B)**: the chat names the position of your hand to discard (counting from the left) and you discard it by hand.
+- [ ] **Giant Snakes (H)**: the chat shows the bot's hand. **(B)**: the bot reads your hand once.
+- [ ] **Man-Eating Apes / Whale (H and B)**: the rival's dial drops by 2 / Sinbad's dial goes up by 2 (never above 15).
+- [ ] **Cannibals, Toil and Danger (H)**: the chat tells you to move Sinbad up to 2 / 3 spaces by hand and End action reads it. **Leap Away (H)**: the panel asks which fighter of the combat; for the bot's piece you move it where the bot says (up to 4).
+- [ ] **Serendib, Exploit, Regroup, By Fortune and Fate, Riches Beyond Compare (H)**: the bot deals 1 / 1 / 1-2 / 2 / 3 cards to your seat. **Momentous Shift**: 5 after your fighter moved this turn.
+
 ### Hidden information (cards that look at the bot's hand, and the bot's on you)
 - [ ] **The bot's hand row**: when playing Confront Any Demon or God (only if you lose), Advanced Psychometry (adjacent), Remove A Painful Memory (with an ONGOING) or Every Possible Angle, the bot lays its hand **face up in a row** at `bot_row_spot` and **pings** each card (`ping_points`). The **Look at bot's hand** button uses another row, at `look_spot`.
 - [ ] **The bot's own pings do not choose for you** (9335eab): with the row open, the bot does not "choose" a card by itself. *(31/10 failure with Remove A Painful Memory: it chose Posthumous Power within 1 s; fixed, still to be seen. If it happens again, widen `BOT_PING_WINDOW`.)*

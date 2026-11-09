@@ -473,6 +473,7 @@
  "maneuver.drew": "Maniobra: robas 1. Mueve tus miniaturas y pulsa [[panel.end_action]].",
  "maneuver.empty": "Maniobra: tu mazo esta vacio, no robas. Para potenciar, pon la carta en tu descarte y pulsa [[panel.maneuver_boost]] ANTES de mover; luego mueve tus miniaturas y pulsa [[panel.end_action]].",
  "maneuver.dealt": "Maniobra: te he dado 1 carta. Para potenciar, pon la carta en tu descarte y pulsa [[panel.maneuver_boost]] ANTES de mover; luego mueve tus miniaturas y pulsa [[panel.end_action]]",
+ "sinbad.reach": "VOYAGE: tus luchadores pueden moverse hasta +{n} casillas en esta Maniobra (+1 por cada carta VOYAGE en tu descarte; una carta VOYAGE que gastes como potenciador tambien cuenta).",
  "maneuver.fx_first": ": primero sus efectos",
  "maneuver.boost_none": "No hay ninguna Maniobra que potenciar, o ya esta potenciada.",
  "maneuver.boost_many": "Hay {n} cartas nuevas en tu descarte ({titles}): una Maniobra admite una sola potenciacion. Deja solo esa y pulsa [[panel.maneuver_boost]].",

@@ -20,7 +20,9 @@ from . import i18n
 from .tts import lua
 
 _TAGS = re.compile(r"\[[A-Za-z0-9\-/]*\]")      # the same class as the Lua side (find_pieces_by_name)
-PIECE_TYPES = ("Custom_Model", "Custom_Assetbundle", "Custom_Token", "Figurine")   # what the miniatures and tokens of data/tts are
+# What the miniatures and tokens of data/tts are. A token imported from a save (Daisy, The Porter: the save says Custom_Token) is
+# reported by TTS as "Tile" or "Token" (lua.TOKEN_TYPES), so those count too.
+PIECE_TYPES = ("Custom_Model", "Custom_Assetbundle", "Custom_Token", "Tile", "Token", "Figurine")
 
 
 def is_piece_type(kind) -> bool:

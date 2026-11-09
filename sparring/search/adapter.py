@@ -197,7 +197,7 @@ def attack_values(st: PlayerState, fighter_name: str) -> tuple[int, ...]:
 
 def free_steps(game: Game, f: Fighter) -> int:
     """Free movement before maneuvering (today, ANUNG UN RAMA's; what is specific to the hero stays here)."""
-    return ANUNG_FREE_STEPS if f.hero and game.form(f.owner) == ANUNG else 0
+    return (ANUNG_FREE_STEPS if f.hero and game.form(f.owner) == ANUNG else 0) + game.maneuver_bonus(f.owner)
 
 
 def policy_dest_from(board, pos: int, options, foes: tuple[int, ...], policy: str) -> int:
@@ -383,7 +383,8 @@ class EngineState:
                 g.form(1 - g.turn) if self.phase == "start" else None,
                 tuple((f.fid, f.pos, f.hp) for f in g.fighters.values() if f.alive),
                 tuple(sorted(c.card_id for c in g.players[mover].hand)),
-                tuple(f.fid for f in g.fighters.values() if f.alive and not g.fx.can_move(f)))    # pinned by an effect
+                tuple(f.fid for f in g.fighters.values() if f.alive and not g.fx.can_move(f)),    # pinned by an effect
+                g.maneuver_bonus(g.turn))      # the Maneuver's reach moves with the hero's ability (Sinbad's VOYAGE cards in the pile)
 
     def _generate_moves(self) -> list:
         g = self.game
@@ -431,7 +432,7 @@ class EngineState:
             _, d, policy = move
             self.phase, self.partial = "action", ()
             boost = by_title(hand, title) if title is not None else None
-            plan = sidekick_plan(g, p, boost.boost if boost else 0, policy, hero_dest=d)
+            plan = sidekick_plan(g, p, (boost.boost if boost else 0) + g.maneuver_bonus(p, boost), policy, hero_dest=d)
             g.maneuver(p, dict(((g.hero(p).fid, d),) + plan), boost)
         elif kind == "scheme":
             card = by_title(hand, move[1])
@@ -668,8 +669,9 @@ class EngineState:
         return out
 
     def _extra(self) -> int:
-        title = self.partial[0]
-        return by_title(self.game.players[self.game.turn].hand, title).boost if title is not None else 0
+        title, g = self.partial[0], self.game
+        boost = by_title(g.players[g.turn].hand, title) if title is not None else None
+        return (boost.boost if boost is not None else 0) + g.maneuver_bonus(g.turn, boost)
 
     def _approach_dest(self, dests: list[int], rng: random.Random) -> int:
         """Hero destination in the rollout: a space from which it strikes a rival; if there is none, the closest.

@@ -62,6 +62,8 @@ She-Hulk (Brains and Brawn, character card 336) is another deck of sheet 176 (`t
 
 Tomoe Gozen (Sun's Origin, character card 354) is another deck of sheet 176 (`tests/test_hero_tomoe_gozen_data.py`, `tests/test_tomoe_gozen_matrix.py`): her own `deck.identity` in `data/tts/tomoe-gozen.json`, a matrix against the other eighteen heroes in both seats, and `SHARING` in `tests/test_card_identity.py`. Her life dial also shares a GUID with Donatello's (`ca8e35`): see "Piece identity" below.
 
+Sinbad (Battle of Legends, Volume One, character card 303, slug `sinbad`) is another deck of sheet 176 (`tests/test_hero_sinbad_data.py`, `tests/test_sinbad_matrix.py`): his own `deck.identity` in `data/tts/sinbad.json`, a matrix against the other nineteen heroes in both seats, and `SHARING` in `tests/test_card_identity.py`. His bag also holds a counter dial (`Voyages`, 10bbcb) and The Porter is a Custom_Token (like Daisy); none of his GUIDs is shared with another hero.
+
 ## Houdini needs none of this
 
 Houdini's deck is sheet 178 (CardIDs 17800-17829) with the character card on a sheet of its own (177, CardID 17700); no other hero of

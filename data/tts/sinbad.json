@@ -1,0 +1,37 @@
+{
+ "slug": "sinbad",
+ "bag": {
+  "guid": "6e6722",
+  "inner": "e22b3b"
+ },
+ "deck": {
+  "guid": "09f73c",
+  "card_ids": [
+   17600,
+   17629
+  ],
+  "character_card_id": 303,
+  "identity": [
+   {
+    "face": "https://steamusercontent-a.akamaihd.net/ugc/17641802819289437601/CC2DBD1F9CAC5CA13F0997A2D326BF784FA56D1A/",
+    "back": "https://steamusercontent-a.akamaihd.net/ugc/10827762032061561658/7417D7B73EB78B6B3F1CF5CA6D1BB50E062CEFAB/"
+   }
+  ]
+ },
+ "fighters": {
+  "sinbad": {
+   "piece": "ff509a",
+   "dial": "c48fac",
+   "dial_max": 15
+  },
+  "porter": {
+   "piece": "36ccb4",
+   "dial": "7859ab",
+   "dial_max": 6
+  }
+ },
+ "tokens": {},
+ "counter_dials": {
+  "voyage": "10bbcb"
+ }
+}

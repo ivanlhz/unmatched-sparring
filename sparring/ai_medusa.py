@@ -66,6 +66,7 @@ from .controller import Controller
 from .effects.model import walk_ops
 from .effects.modifiers import boost_limit, card_effects, defers_defeat
 from .ai_profile import FINISHER_BOOSTS, STYLE_HIT_AND_RUN, derive_style
+from .ai_sinbad import own_value, voyage_count, voyage_extra
 from .state import ANUNG, EXHAUST_DAMAGE, Fighter, Game
 
 GAZE = "medusa_gaze"      # Medusa's start-of-turn ability trigger (data/heroes/effects/medusa.json)
@@ -337,6 +338,7 @@ class Model:
         st = game.players[self.opp]
         self.pool = [c for c in st.full_set if c not in st.gone]
         self.n, self.h = len(self.pool), len(st.hand)
+        self.voyages = voyage_count(game, self.opp)       # the rival's VOYAGE cards in its discard pile: +1 to each VOYAGE attack it plays
         self._cache: dict = {}
 
     def best_dist(self, key, value_fn, hand_size: int | None = None) -> list[tuple[float, int | None]]:
@@ -359,14 +361,14 @@ class Model:
 
     def attack_dist(self, f: Fighter):
         bonus = self.game.attack_bonus(f)
-        return self.best_dist(("atk", f.name, bonus),
-                              lambda c: c.value + bonus if c.can_attack and c.usable_by(f.name) else None)
+        return self.best_dist(("atk", f.name, bonus, self.voyages),
+                              lambda c: c.value + bonus + voyage_extra(c, self.voyages) if c.can_attack and c.usable_by(f.name) else None)
 
     def committed_attack_dist(self, f: Fighter, target: Fighter | None = None):
         """Value of the attack given that the rival has already played a card: without the "has no card" mass, renormalized."""
         bonus = self.game.attack_bonus(f, target)
-        fn = lambda c: c.value + bonus if c.can_attack and c.usable_by(f.name) else None
-        dist = [(p, v) for p, v in self.best_dist(("commit", f.name, bonus), fn, max(self.h, 1)) if v is not None]
+        fn = lambda c: c.value + bonus + voyage_extra(c, self.voyages) if c.can_attack and c.usable_by(f.name) else None
+        dist = [(p, v) for p, v in self.best_dist(("commit", f.name, bonus, self.voyages), fn, max(self.h, 1)) if v is not None]
         total = sum(p for p, _ in dist)
         if total == 0:
             return [(1.0, 0)]
@@ -813,6 +815,9 @@ class MedusaAI(Controller):
             return 6.0
         if c.title == WORTHY and t.hero:
             return 5.0                  # Tomoe Gozen: against a hero this card is worth 5
+        own = own_value(game, f, c)
+        if own is not None:
+            return own                  # Sinbad: a VOYAGE card's +1 per VOYAGE card in the pile, Momentous Shift's 5
         if c.title == PLANNED and f.pos is not None and game.fx.turn_start_pos.get(f.fid) == f.pos:
             return 5.0
         if c.title == CEASE:
@@ -1011,7 +1016,7 @@ class MedusaAI(Controller):
         out = []
         by_extra: dict[tuple, list[int]] = {}    # the best destinations depend only on the reach, not on the card
         for boost, cost in variants:
-            extra = boost.boost if boost else 0
+            extra = (boost.boost if boost else 0) + game.maneuver_bonus(self.me, boost)        # + the hero's ability (Sinbad's VOYAGE cards)
             places = boost is not None and game.fx.hero_rule(self.me, "maneuver_boost_places_hero")     # ESCAPE ARTIST
             if (extra, places) not in by_extra:
                 if places:
@@ -1507,6 +1512,8 @@ class MedusaAI(Controller):
             dv = 2 * self.rival_average_boost(game)    # She-Hulk: twice the BOOST of the card it mills (the average of what is left)
         if c is not None and c.title == WORTHY and attacker is not None and attacker.hero:
             dv = 5                                 # Tomoe Gozen: 5 against a hero
+        if c is not None and own_value(game, target, c) is not None:
+            dv = own_value(game, target, c)        # Sinbad's Momentous Shift defending
         if c is not None and c.title == DAUGHTER and attacker is not None and target.pos is not None and attacker.pos in game.board.adj[target.pos]:
             dv = 6                                 # Misty Knight (she defends with it) is next to the attacker
         boosts = free_boosts(game, self.me, c, game.players[self.me].hand) if c is not None else []

@@ -40,6 +40,9 @@ class ScriptedHellboy(Controller):
             cards = [c for c in hand if c.can_attack and c.usable_by(f.name)]
             if targets and cards:
                 target = min(targets, key=lambda t: (not t.hero, t.hp))
+                cards = [c for c in cards if game.attack_card_reaches(f, target, c)]     # an adjacent-only card (Witness My Last Battle) needs it next to her
+                if not cards:
+                    continue
                 card = max(cards, key=lambda c: (c.value, -c.card_id))
                 game.attack(f, target, card)
                 return True
@@ -50,7 +53,7 @@ class ScriptedHellboy(Controller):
         boost = None
         if hand and self.rng.random() < BOOST_PROB:
             boost = max(hand, key=lambda c: (c.boost, -c.card_id))
-        extra = boost.boost if boost else 0
+        extra = (boost.boost if boost else 0) + game.maneuver_bonus(self.me, boost)
         moves = {}
         taken = set()
         for f in game.own(self.me):
