@@ -142,7 +142,7 @@ def _handle(game, ev: dict) -> None:
     order = (game.turn, 1 - game.turn)
     for player in order:
         spec = spec_of(game, player)
-        if spec is not None and matches(game, player, spec["until"], ev):
+        if spec is not None and matches(game, player, spec["until"], ev) and _until_holds(game, player, spec):
             leave_play(game, player)
     todo = []
     for player in order:
@@ -159,6 +159,15 @@ def _handle(game, ev: dict) -> None:
     for player, trig, card_id in todo:
         if matches(game, player, trig["when"], ev):
             _fire(game, player, trig, ev, trig["id"], card_id)
+
+
+def _until_holds(game, player: int, spec: dict) -> bool:
+    """The ONGOING's `until_condition` (Advisor to the king: "if you didn't attack"), tested when its `until` event happens."""
+    cond = spec.get("until_condition")
+    if cond is None:
+        return True
+    run = EffectRun([], Ctx(owner=player, this_fid=game.hero(player).fid))
+    return condition(game, run, cond)
 
 
 def attack_revealed(game, target) -> bool:

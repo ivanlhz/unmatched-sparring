@@ -640,3 +640,4 @@ from . import plugins_donatello  # noqa: E402,F401  (registers donatello:future_
 from . import plugins_luke  # noqa: E402,F401  (registers luke:replace_combatant)
 from . import plugins_jill  # noqa: E402,F401  (registers jill:hypnoray, jill:reveal_tops, jill:insightful_deduction)
 from . import plugins_shehulk  # noqa: E402,F401  (registers shehulk:throw, shehulk:mill)
+from . import plugins_yennefer  # noqa: E402,F401  (registers yennefer:/triss: mill and lodge)

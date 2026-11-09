@@ -360,6 +360,8 @@ class EffectAI:
             return self._card_to_reveal(game, req)
         if purpose == "throw":
             return self._card_to_throw(game, req)
+        if purpose == "lodge":
+            return self._lodge_card(game, req)
         if zone == "hand" and of != me:                    # C4: what a look showed, the rest by position
             return ControllerChooser._from_rival_hand(game, req, of)
         if zone == "hand":
@@ -389,6 +391,17 @@ class EffectAI:
         ranked = sorted(req.options, key=lambda i: (-worth(i), i))
         take = n_max if n_min < n_max and worth(ranked[0]) > 0 else n_min
         return ranked[:take]
+
+    def _lodge_card(self, game: Game, req: ChoiceRequest) -> list:
+        """Lodge of sorceresses: the card to reveal draws its printed BOOST in cards but the player who draws the most takes that
+        much damage. Only the own hand and hit points count (the rival picks at the same time): the biggest boost the hero can afford
+        to take twice over, else the smallest one, which usually draws fewer than the rival and takes nothing."""
+        by_id = {c.card_id: c for c in game.players[req.player].hand}
+        cards = [by_id[i] for i in req.options if i in by_id]
+        hp = game.hero(req.player).hp
+        afford = [c for c in cards if c.boost * 2 < hp]
+        best = max(afford, key=lambda c: (c.boost, -c.card_id)) if afford else min(cards, key=lambda c: (c.boost, c.card_id))
+        return [best.card_id]
 
     def _swap_attack(self, game: Game, req: ChoiceRequest) -> list:
         """Sleight Of Hand: keep the card or return it and play another one from the hand. The rival's card is face up and its total

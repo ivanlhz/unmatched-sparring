@@ -60,6 +60,22 @@ def hero_rule_amount(game, player: int, rule: str) -> int:
     return sum(p.get("amount", 0) for p in load_effects(slug).passives if p["kind"] == "rule" and p["rule"] == rule)
 
 
+def hero_may_boost(game, fighter) -> bool:
+    """The hero's passive `may_boost` covers `fighter` (Yennefer's SORCERESS OF VENGERBERG: she may BOOST her attacks, whatever the
+    card says). Only the hero's passives, read from the data; a hero outside the interpreter has none."""
+    from .run import Ctx, EffectRun
+    from .select import fighter_candidates
+    slug = game.players[fighter.owner].hero.slug
+    if slug not in game.fx.dsl_heroes:
+        return False
+    for p in load_effects(slug).passives:
+        if p["kind"] == "may_boost":
+            run = EffectRun([], Ctx(owner=fighter.owner, this_fid=game.hero(fighter.owner).fid))
+            if fighter in fighter_candidates(game, run, p["fighter"])[0]:
+                return True
+    return False
+
+
 def boost_limit(card) -> int:
     """How many cards the owner may BOOST `card` with by its own text: 0 without `may_boost`, else `max_boosts` (1, or 2
     for The Big Reveal)."""

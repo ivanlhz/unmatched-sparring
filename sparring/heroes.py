@@ -92,6 +92,7 @@ class HeroDef:
     hand_max: int = DEFAULT_HAND_LIMIT                # most cards kept at the end of the turn (Michelangelo: 3)
     deck_size: int = DECK_SIZE                        # playing cards of the deck (the character card is not one): CardIDs card_base .. card_base + deck_size - 1
     reach_spaces: int = 0                             # the hero attacks anyone up to this many spaces away, zones ignored (Bullseye: 5); 0 = the usual rule
+    tts: dict = field(default_factory=dict)           # how the save names what the hero shares with another variant (Yennefer & Triss): `bag_name`, `character_cards`, `character_card_id`; only tools/import_save.py reads it
 
     def fighter_profile(self, name: str) -> dict | None:
         """The AI profile of the fighter called `name` (hero or sidekick group), None when the HeroDef has none."""
@@ -169,7 +170,7 @@ def parse_hero(raw: dict, where: str = "hero") -> HeroDef:
                        int((raw.get("hand") or {}).get("start", DEFAULT_START_HAND)),
                        int((raw.get("hand") or {}).get("max", DEFAULT_HAND_LIMIT)),
                        int(deck.get("size", DECK_SIZE)),
-                       int(raw.get("reach_spaces") or 0))
+                       int(raw.get("reach_spaces") or 0), dict(raw.get("tts") or {}))
     except (KeyError, TypeError, ValueError) as e:
         raise HeroDataError(f"{where}: invalid HeroDef ({e!r})") from None
     _validate(hero, where)
