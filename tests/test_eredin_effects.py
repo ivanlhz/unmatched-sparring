@@ -723,3 +723,17 @@ def test_the_table_note_for_a_returned_piece_names_its_miniature():
     from sparring.effects import table
     line = table.line({"op": "revive", "fid": "rider2", "name": "Aleksei", "where": {"any": True}, "hp": 1})
     assert "Aleksei" in line and "rider2" not in line
+
+
+def test_the_plus_one_hint_belongs_to_an_awaited_placement_only(bprd):
+    from sparring.effects.run import Ctx, EffectRun
+    for awaited in (False, True):
+        g = mk(bprd, "hellboy")
+        g.defeat(g.fighters["rider2"])
+        revive = {"op": "revive", "target": {"side": "own", "name": "Red Rider", "state": "defeated"}, "where": {"any": True}, "hp": 1, "chooser": "owner"}
+        if awaited:
+            revive["await_destination"] = True
+        g.controllers[0].queue = [lambda req: [min(req.options)]]
+        EffectRun([revive], Ctx(owner=0, this_fid="rider1", attacker_fid="rider1", defender_fid="hellboy")).run(g, default_choosers(g))
+        extra = g.controllers[0].requests[-1].extra
+        assert ("near_opposing" in extra) is awaited, extra

@@ -371,13 +371,9 @@ def _plan_spots(game, run, fighters, where: dict, chooser: int, op_name: str, hp
                 continue
             by_hand = table.piece_is_physical(game, chooser, f) and not await_dest      # `await_dest`: the human's placement is asked and read from the table
             stays = [f.died_at] if f.hero and f.died_at in options else options[:1]     # a hero put back by hand: where his miniature already stands
-            if by_hand and where.get("any"):        # any space: counted next to the combat's other fighter if one is free (Unyielding Hordes), the best case for its DURING
-                foes = _role_fighters(game, run, "opposing")
-                near = [s for s in options if foes and foes[0].pos is not None and s in game.board.adj[foes[0].pos]]
-                stays = near[:1] or stays
             got = stays if by_hand else run.ask(game, "space", chooser, options, 1, 1, f"{op_name} to",
                                                       fighter=f.fid, op=op_name, where=_where_refs(game, run, where),
-                                                      **_near(game, run, where), **({} if hp is None else {"hp": hp}))
+                                                      **(_near(game, run, where) if await_dest else {}), **({} if hp is None else {"hp": hp}))
             if got:
                 plan.append((f, got[0], by_hand))
                 set_attrs(f, pos=got[0], **becomes)
