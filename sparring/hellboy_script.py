@@ -54,7 +54,7 @@ class ScriptedHellboy(Controller):
         boost = None
         if hand and self.rng.random() < BOOST_PROB:
             boost = max(hand, key=lambda c: (c.boost, -c.card_id))
-        extra = boost.boost if boost else 0
+        extra = (boost.boost if boost else 0) + game.maneuver_bonus(self.me, boost)
         moves = {}
         taken = set()
         for f in game.own(self.me):

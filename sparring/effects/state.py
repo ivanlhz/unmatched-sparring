@@ -11,7 +11,7 @@ from typing import Iterable
 # Heroes whose cards and ability the interpreter resolves by default, whoever plays them (C5: Medusa; D1 the Hellboy
 # box for the bot, E2 for the human too, in table mode: effects/table.py). `Game` derives `fx.dsl_heroes` from the
 # heroes in play and persist omits the set when it is this default, so old saves load unchanged.
-INTERPRETED_HEROES = frozenset({"medusa", "hellboy", "abe-sapien", "baba-yaga", "liz-sherman", "leonardo", "donatello", "michelangelo", "raphael", "doctor-strange", "houdini", "bigfoot", "daredevil", "luke-cage", "bullseye", "golden-bat", "jill-trent", "she-hulk", "tomoe-gozen", "eredin", "ciri"})
+INTERPRETED_HEROES = frozenset({"medusa", "hellboy", "abe-sapien", "baba-yaga", "liz-sherman", "leonardo", "donatello", "michelangelo", "raphael", "doctor-strange", "houdini", "bigfoot", "daredevil", "luke-cage", "bullseye", "golden-bat", "jill-trent", "she-hulk", "tomoe-gozen", "sinbad", "eredin", "ciri"})
 
 
 def interpreted(slugs: Iterable[str]) -> set[str]:

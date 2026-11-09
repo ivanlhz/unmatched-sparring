@@ -64,6 +64,7 @@ Tomoe Gozen (Sun's Origin, character card 354) is another deck of sheet 176 (`te
 
 Ciri (The Witcher: Steel & Silver, character card 344, slug `ciri`) is another deck of sheet 176 (`tests/test_hero_ciri_data.py`, `tests/test_ciri_matrix.py`): her own `deck.identity` in `data/tts/ciri.json`, a matrix against every other hero of `data/heroes` in both seats, and `SHARING` in `tests/test_card_identity.py`. Her bag also holds a Source dial (`counter_dials.source`, `46aa92`) and a token for Ihuarraquax; none of her GUIDs is shared with another hero.
 Eredin (The Witcher: Realms Fall, character card 350) is another deck of sheet 176 (`tests/test_hero_eredin_data.py`, `tests/test_eredin_matrix.py`): his own `deck.identity` in `data/tts/eredin.json`, a matrix against the other nineteen heroes in both seats, and `SHARING` in `tests/test_card_identity.py`. His four Red Rider tokens (Maxwell, Aleksei, Adrian, Norman) are Custom_Token in the save, which real TTS reports as "Tile"; he shares no GUID with any other hero.
+Sinbad (Battle of Legends, Volume One, character card 303, slug `sinbad`) is another deck of sheet 176 (`tests/test_hero_sinbad_data.py`, `tests/test_sinbad_matrix.py`): his own `deck.identity` in `data/tts/sinbad.json`, a matrix against the other nineteen heroes in both seats, and `SHARING` in `tests/test_card_identity.py`. His bag also holds a counter dial (`Voyages`, 10bbcb) and The Porter is a Custom_Token (like Daisy); none of his GUIDs is shared with another hero.
 
 ## Houdini needs none of this
 

@@ -481,6 +481,7 @@
  "maneuver.drew": "Maneuver: you draw 1. Move your miniatures and press [[panel.end_action]].",
  "maneuver.empty": "Maneuver: your deck is empty, you do not draw. To boost, put the card in your discard pile and press [[panel.maneuver_boost]] BEFORE moving; then move your miniatures and press [[panel.end_action]].",
  "maneuver.dealt": "Maneuver: I gave you 1 card. To boost, put the card in your discard pile and press [[panel.maneuver_boost]] BEFORE moving; then move your miniatures and press [[panel.end_action]]",
+ "sinbad.reach": "VOYAGE: your fighters may move up to +{n} spaces in this Maneuver (+1 for each VOYAGE card in your discard pile; a VOYAGE card spent as the boost counts too).",
  "maneuver.fx_first": ": its effects first",
  "maneuver.boost_none": "There is no Maneuver to boost, or it is already boosted.",
  "maneuver.boost_many": "There are {n} new cards in your discard pile ({titles}): a Maneuver takes a single boost. Leave only that one and press [[panel.maneuver_boost]].",

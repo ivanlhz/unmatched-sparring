@@ -369,6 +369,12 @@ class Game:
     def counters(self, player: int) -> dict[str, int]:
         return {name: self.counter(player, name) for name in self.players[player].hero.counters}
 
+    def maneuver_bonus(self, player: int, boost: Card | None = None) -> int:
+        """Spaces the hero's ability adds to each of `player`'s fighters in a Maneuver (Sinbad's VOYAGE cards); `boost` is the card
+        a planner is about to spend, not yet in the discard pile."""
+        from .effects.maneuver import maneuver_bonus
+        return maneuver_bonus(self, player, boost)
+
     def destiny_count(self, player: int) -> int:
         return self.counter(player, "destiny") if "destiny" in self.players[player].hero.counters else 0
 
@@ -698,7 +704,7 @@ class Game:
             if placing and f.hero:
                 self.place_fighter(f, dest)       # ESCAPE ARTIST: boosting, the hero goes to any space instead of moving
             else:
-                self.move_fighter(f, dest, f.move + extra)
+                self.move_fighter(f, dest, f.move + extra + self.maneuver_bonus(player))
         self.fx.emit("after_maneuver", player)
 
     def play_scheme(self, player: int, fighter: Fighter, card: Card, target: Fighter | None = None,

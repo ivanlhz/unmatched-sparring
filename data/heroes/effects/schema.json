@@ -290,7 +290,8 @@
     "properties": {
      "kind": {"const": "rule"},
      "id": {"$ref": "#/$defs/Name"},
-     "rule": {"enum": ["no_attack_as_first_action", "effect_damage_bonus", "max_hand_size", "no_gain_actions", "maneuver_boost_places_hero", "combat_damage_reduction", "cards_uncancelable"]},
+     "rule": {"enum": ["no_attack_as_first_action", "effect_damage_bonus", "max_hand_size", "no_gain_actions", "maneuver_boost_places_hero", "combat_damage_reduction", "cards_uncancelable", "maneuver_move_per_counter"]},
+     "counter": {"$ref": "#/$defs/Name"},
      "amount": {"type": "integer"},
      "while": {"$ref": "#/$defs/Condition"}}},
    {"type": "object", "additionalProperties": false, "required": ["kind", "name"],

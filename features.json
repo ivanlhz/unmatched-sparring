@@ -612,6 +612,20 @@
         "calibrate: read_transforms returns clean rotations for decks (rx 0 / 360, rz 180) and the board's getScale().x; the bot must be closed (same listen port)"
       ],
       "note": "Asked by Ivan on 6/11. Replaces the single 'Clean table and prepare' button of F22 (always Medusa vs Hellboy on B.P.R.D. HQ). Branch feat/player-setup from master 5815b9b. The infinite-bag path of unpack_from_bags (outers) is no longer used by the gate."
+    },
+    {
+      "id": "HERO-SINBAD",
+      "title": "Sinbad (Battle of Legends, Volume One, with The Porter) playable by the bot and by the human against every hero",
+      "status": "in-progress",
+      "criteria": [
+        "data/heroes/overlay/sinbad.json, data/heroes/sinbad.json, data/heroes/effects/sinbad.json and data/tts/sinbad.json generated and validated (import_hero, validate_effects, import_save); the 16 titles (30 cards, sheet 176, character card 303) read from the card images; the seven VOYAGE cards carry the tag voyage and the HeroDef counter voyage counts them in the discard pile; ai_profile computed by the importer",
+        "His deck shares CardIDs 17600-17629 with the other sheet-176 decks: told apart by deck image and owner, never by a bare CardID (tests/test_hero_sinbad_data.py, tests/test_card_identity.py); no GUID of his is shared with another hero",
+        "The ability (+1 space per VOYAGE card in the discard pile for each fighter in a Maneuver) is the passive rule maneuver_move_per_counter: Game.maneuver adds it, the bot's planners and the search count it, the human gets a chat hint (tests/test_sinbad_effects.py, tests/test_sinbad_human.py)",
+        "All 16 cards on the interpreter for both seats: the seven VOYAGE attacks (value 2 plus the other VOYAGE cards in the pile; Voyage Home, the random discard, the look, 2 damage, the heal, the draw, the move), Commanding Impact, By Fortune and Fate, Momentous Shift, Regroup, Toil and Danger, Leap Away, Feint, Exploit and Riches Beyond Compare; no plugin",
+        "Sinbad against each of the 19 other heroes in both seats reaches game over on FakeTTS (passive and attacking human) and in the simulator (tests/test_sinbad_matrix.py)",
+        "Verified live by Iván (docs/live-checklist.md, section Sinbad)"
+      ],
+      "note": "Engine additions are additive (docs/effects-dsl.md, section 38). Rules decisions and open questions for Iván: docs/heroes/sinbad.md. Live test pending."
     }
   ]
 }

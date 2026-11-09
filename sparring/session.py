@@ -51,6 +51,7 @@ from . import session_jill as jill_decks      # noqa: F401  (registers the trans
 from . import session_pile as pile
 from . import session_reveal as reveal
 from . import session_source as source_dial
+from . import session_sinbad
 from . import session_sleight as sleight
 from . import session_translators as translators
 from .session_choices import panel_text
@@ -1917,6 +1918,7 @@ class Session:
         st = self.game.players[self.human]
         self.maneuver_baseline = [c.card_id for c in st.discard]
         self.maneuver_boosted = None
+        session_sinbad.announce_reach(self)
         if not self.game.fx.can_draw(self.human):
             self.say(t("maneuver.no_draw", reason=choices.NO_DRAW_REASON), ChatKind.YOUR_TURN)
             return
