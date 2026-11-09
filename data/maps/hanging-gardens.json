@@ -13,6 +13,81 @@
  },
  "bonuses": [
   {
+   "from": 1,
+   "to": 32,
+   "value": 1
+  },
+  {
+   "from": 2,
+   "to": 32,
+   "value": 1
+  },
+  {
+   "from": 3,
+   "to": 2,
+   "value": 1
+  },
+  {
+   "from": 3,
+   "to": 8,
+   "value": 1
+  },
+  {
+   "from": 6,
+   "to": 7,
+   "value": 1
+  },
+  {
+   "from": 6,
+   "to": 9,
+   "value": 1
+  },
+  {
+   "from": 13,
+   "to": 9,
+   "value": 1
+  },
+  {
+   "from": 15,
+   "to": 14,
+   "value": 1
+  },
+  {
+   "from": 16,
+   "to": 15,
+   "value": 1
+  },
+  {
+   "from": 16,
+   "to": 17,
+   "value": 1
+  },
+  {
+   "from": 16,
+   "to": 18,
+   "value": 1
+  },
+  {
+   "from": 18,
+   "to": 19,
+   "value": 1
+  },
+  {
+   "from": 19,
+   "to": 20,
+   "value": 1
+  },
+  {
+   "from": 21,
+   "to": 19,
+   "value": 1
+  },
+  {
+   "from": 22,
+   "to": 21,
+   "value": 1
+  },
+  {
    "from": 27,
    "to": 26,
    "value": 1
@@ -20,11 +95,6 @@
   {
    "from": 28,
    "to": 26,
-   "value": 1
-  },
-  {
-   "from": 22,
-   "to": 21,
    "value": 1
   }
  ],

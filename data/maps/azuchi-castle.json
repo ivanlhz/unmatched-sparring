@@ -16,8 +16,8 @@
     6.389
    ],
    "zones": [
-    "lilac",
-    "cream"
+    "cream",
+    "lilac"
    ],
    "adj": [
     1,
@@ -137,8 +137,8 @@
     0.319
    ],
    "zones": [
-    "yellow",
-    "green"
+    "green",
+    "yellow"
    ],
    "adj": [
     5,
@@ -190,6 +190,7 @@
    "adj": [
     9,
     10,
+    12,
     26
    ]
   },
@@ -204,6 +205,7 @@
    ],
    "adj": [
     10,
+    11,
     13
    ]
   },
@@ -259,8 +261,8 @@
     2.292
    ],
    "zones": [
-    "brown",
-    "blue"
+    "blue",
+    "brown"
    ],
    "adj": [
     15,
@@ -290,9 +292,9 @@
     2.816
    ],
    "zones": [
-    "yellow",
     "blue",
-    "brown"
+    "brown",
+    "yellow"
    ],
    "adj": [
     17,
@@ -338,8 +340,8 @@
    ],
    "zones": [
     "lilac",
-    "yellow",
-    "red"
+    "red",
+    "yellow"
    ],
    "adj": [
     20,
@@ -460,8 +462,8 @@
     4.879
    ],
    "zones": [
-    "lilac",
-    "cream"
+    "cream",
+    "lilac"
    ],
    "adj": [
     0,
@@ -476,8 +478,8 @@
     -1.268
    ],
    "zones": [
-    "yellow",
-    "blue"
+    "blue",
+    "yellow"
    ],
    "adj": [
     15,
@@ -485,5 +487,6 @@
     23
    ]
   }
- ]
+ ],
+ "playable": true
 }

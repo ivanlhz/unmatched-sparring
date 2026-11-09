@@ -89,6 +89,8 @@ def test_the_bot_sees_the_high_ground_when_it_weighs_an_attack():
 def test_hanging_gardens_stairs_are_adjacent_spaces_of_the_map():
     raw = json.loads((ROOT / "data" / "maps" / "hanging-gardens.json").read_text(encoding="utf-8"))
     board = Board.load("hanging-gardens")
-    assert {(b["from"], b["to"]) for b in raw["bonuses"]} == {(27, 26), (28, 26), (22, 21)}
+    assert {(b["from"], b["to"]) for b in raw["bonuses"]} == {(1, 32), (2, 32), (3, 2), (3, 8), (6, 7), (6, 9), (13, 9), (15, 14),
+                                                               (16, 15), (16, 17), (16, 18), (18, 19), (19, 20), (21, 19),
+                                                               (22, 21), (27, 26), (28, 26)}      # every stair, marked by hand on 2026-11-09
     assert all(board.adjacent(a, b) for a, b in board.bonuses)
     assert board.attack_bonus(27, 26) == 1 and board.attack_bonus(26, 27) == 0

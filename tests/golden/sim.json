@@ -1,21 +1,23 @@
 {
  "azuchi-castle/0": {
-  "hellboy_hp": -1,
-  "medusa_hp": 14,
+  "hellboy_hp": 0,
+  "medusa_hp": 11,
   "trace": [
    "T1 P0: P0 draws 1; lobster -3 (3 hp)",
    "T2 P1: ",
    "T3 P0: lobster -1 (2 hp); P0 draws 1; lobster -4 (-2 hp)",
    "T4 P1: harpy1 -4 (-3 hp); harpy2 -4 (-3 hp)",
-   "T5 P0: hellboy -1 (17 hp); hellboy -2 (15 hp); hellboy -8 (7 hp); P1 draws 1",
-   "T6 P1: P1 draws 1; medusa -2 (14 hp); P0 draws 1; P1 draws 1",
-   "T7 P0: hellboy -1 (6 hp); P0 draws 1; hellboy -2 (4 hp)",
-   "T8 P1: harpy3 -5 (-4 hp); P1 draws 1",
-   "T9 P0: hellboy -1 (3 hp); P0 draws 1",
-   "T10 P1: P1 draws 1; P1 draws 1",
-   "T11 P0: hellboy -1 (2 hp); hellboy -3 (-1 hp)"
+   "T5 P0: P0 draws 1; hellboy -2 (16 hp); hellboy -8 (8 hp)",
+   "T6 P1: harpy3 -3 (-2 hp); P1 draws 1; P1 draws 1",
+   "T7 P0: hellboy -1 (7 hp); P1 draws 1; hellboy -2 (5 hp)",
+   "T8 P1: medusa -4 (12 hp); P0 draws 1; P1 draws 1",
+   "T9 P0: hellboy -1 (4 hp); P0 draws 1",
+   "T10 P1: P0 draws 1; medusa -1 (11 hp); harpy1 -1 (0 hp); P1 draws 1",
+   "T11 P0: P0 draws 1; P0 draws 1",
+   "T12 P1: P1 draws 1; P1 draws 1",
+   "T13 P0: hellboy -1 (3 hp); P0 draws 1; hellboy -3 (0 hp)"
   ],
-  "turns": 11,
+  "turns": 13,
   "winner": "Medusa"
  },
  "azuchi-castle/1": {

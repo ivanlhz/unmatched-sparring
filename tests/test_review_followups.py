@@ -49,7 +49,7 @@ def test_a_passage_partner_one_step_away_is_not_plural(lang, text):
 
 # ---------- N3: the foe walks to the fleeing piece / the relocated piece walks to the hero ----------
 def test_walking_distance_helpers_follow_who_walks(kaer):
-    assert nearest(kaer, 12, (11,)) == kaer.distance(12, 11) == 4          # my own walk towards the foe
+    assert nearest(kaer, 12, (11,)) == kaer.distance(12, 11) == 7          # my own walk towards the foe (one-way arrows close the short ways)
     assert nearest_walk_from(kaer, 12, (11,)) == kaer.distance(11, 12) == 1      # the foe walks 11 -> 12
 
 
@@ -88,4 +88,4 @@ def test_nearest_to_uses_the_span_not_the_walk(kaer, monkeypatch):
     g = kaer_game(kaer, {"medusa": 12, "hellboy": 0})
     monkeypatch.setattr(select, "_ref_fighter", lambda game, run, ref: g.fighters["medusa"])
     got = select.space_options(g, None, {"nearest_to": "x"})
-    assert got == [11, 13, 24]                  # 12 -> 11 is closed to walkers, but it is as near as the others
+    assert got == [11, 13, 24, 25]              # 12 -> 11 is closed to walkers, but it is as near as the others
