@@ -81,3 +81,43 @@ def test_a_map_without_passages_behaves_as_before(tmp_path):
     assert b.passages == () and b.moves == b.adj
     assert b.distance(0, 3) == 99
     assert b.reachable(0, 5, set(), set()) == {1, 2}
+
+
+MAP_PASSAGES = {
+    "the-white-house": (7, 10, 11, 15),
+    "king-solomons-mine": (0, 2, 4, 5, 11, 18),
+}
+
+
+def drawn_adjacency(key):
+    raw = json.loads((ROOT / "data" / "maps" / f"{key}.json").read_text(encoding="utf-8"))
+    return {s["id"]: set(s["adj"]) for s in raw["spaces"]}
+
+
+@pytest.mark.parametrize("key,group", MAP_PASSAGES.items())
+def test_printed_padlocks_are_one_group_reachable_in_one_step(key, group):
+    board = Board.load(key)
+    assert board.passages == (group,)
+    for a in group:
+        for b in group:
+            if a != b:
+                assert b in board.moves[a] and board.distance(a, b) == 1
+                assert b in board.reachable(a, 1, own=set(), enemy=set())
+
+
+@pytest.mark.parametrize("key,group", MAP_PASSAGES.items())
+def test_padlocks_are_not_made_adjacent_by_the_passage(key, group):
+    board = Board.load(key)
+    drawn = drawn_adjacency(key)
+    assert all(set(board.adj[i]) == n for i, n in drawn.items())
+    for a in group:
+        for b in group:
+            if a != b and b not in drawn[a]:
+                assert not board.adjacent(a, b) and not board.can_reach_target(a, b, ranged=False)
+
+
+def test_a_far_padlock_is_one_step_not_many_on_king_solomons_mine():
+    board = Board.load("king-solomons-mine")
+    assert board.distance(4, 18) == 1
+    assert 18 in board.reachable(4, 1, own=set(), enemy=set())
+    assert 18 not in board.adj[4]
