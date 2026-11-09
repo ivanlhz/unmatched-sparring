@@ -226,7 +226,7 @@
     "type": "versatile",
     "value": 4,
     "boost": 1,
-    "text": "AFTER COMBAT: If you won the combat, choose one of the fighters in the combat and move them up to 2 spaces.",
+    "text": "AFTER COMBAT: If you won the combat, move one of the fighters in the combat up to 2 spaces.",
     "tags": []
    },
    {
@@ -236,7 +236,7 @@
     "type": "versatile",
     "value": 4,
     "boost": 1,
-    "text": "AFTER COMBAT: If you won the combat, choose one of the fighters in the combat and move them up to 2 spaces.",
+    "text": "AFTER COMBAT: If you won the combat, move one of the fighters in the combat up to 2 spaces.",
     "tags": []
    },
    {
@@ -246,7 +246,7 @@
     "type": "versatile",
     "value": 4,
     "boost": 1,
-    "text": "AFTER COMBAT: If you won the combat, choose one of the fighters in the combat and move them up to 2 spaces.",
+    "text": "AFTER COMBAT: If you won the combat, move one of the fighters in the combat up to 2 spaces.",
     "tags": []
    },
    {

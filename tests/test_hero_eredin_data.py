@@ -129,11 +129,14 @@ def test_card_effects_say_what_the_real_cards_say(effects):
     assert by["Foul Purpose"]["effects"]["after"][0]["ops"] == [{"op": "put_in_hand", "cards": "this"}]
 
 
-def test_skirmish_is_word_for_word_the_card_of_bigfoot_and_tomoe_gozen(effects):
+def test_skirmish_is_the_effect_of_bigfoots_and_tomoes_card_worded_as_on_the_card_of_golden_bat(effects):
     mine = next(c for c in effects["cards"] if c["title"] == "Skirmish")
-    for slug in ("bigfoot", "tomoe-gozen"):
+    assert mine["text"] == "AFTER COMBAT: If you won the combat, move one of the fighters in the combat up to 2 spaces."
+    for slug in ("bigfoot", "tomoe-gozen", "golden-bat"):
         theirs = next(c for c in json.loads((HEROES_DIR / "effects" / f"{slug}.json").read_text(encoding="utf-8"))["cards"] if c["title"] == "Skirmish")
-        assert mine["text"] == theirs["text"] and mine["effects"] == theirs["effects"], slug
+        assert mine["effects"] == theirs["effects"], slug
+    golden = next(c for c in json.loads((HEROES_DIR / "effects" / "golden-bat.json").read_text(encoding="utf-8"))["cards"] if c["title"] == "Skirmish")
+    assert mine["text"] == golden["text"]
 
 
 def test_table_data_names_the_pieces_the_dial_the_deck_range_and_its_own_images():

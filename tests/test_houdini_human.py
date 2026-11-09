@@ -365,7 +365,7 @@ def test_all_part_of_the_show_keeps_a_defeated_houdini_in_the_game(rig, monkeypa
     houdini = game.fighters["houdini"]
     assert houdini.alive and houdini.hp == 4
     assert table.dials[guid]["value"] == 4
-    assert said(msgs, "pon a houdini en el tablero (cualquier casilla) con 4 PV")       # the miniature is yours to place
+    assert said(msgs, "pon a Houdini en el tablero (cualquier casilla) con 4 PV")       # the miniature is yours to place
     assert not said(msgs, "lo he movido yo")                                           # and the bot did not move it meanwhile
 
 

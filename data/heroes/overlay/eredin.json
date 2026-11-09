@@ -153,17 +153,20 @@
    {
     "idx": 17,
     "title": "Skirmish",
-    "fighter": "any"
+    "fighter": "any",
+    "text": "AFTER COMBAT: If you won the combat, move one of the fighters in the combat up to 2 spaces."
    },
    {
     "idx": 18,
     "title": "Skirmish",
-    "fighter": "any"
+    "fighter": "any",
+    "text": "AFTER COMBAT: If you won the combat, move one of the fighters in the combat up to 2 spaces."
    },
    {
     "idx": 19,
     "title": "Skirmish",
-    "fighter": "any"
+    "fighter": "any",
+    "text": "AFTER COMBAT: If you won the combat, move one of the fighters in the combat up to 2 spaces."
    },
    {
     "idx": 20,

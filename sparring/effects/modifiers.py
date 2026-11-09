@@ -200,6 +200,9 @@ def _is_enemy_source(fx, owner_of_target: int) -> bool:
 
 def adjust_damage(fx, fighter, n, source):
     """Effect damage only (never combat, exhaustion or set_hp): immunities first, then the +N rule."""
+    if source == "hazard":                    # Might Of The Aen Elle: "no damage except combat damage or exhaustion", a map hazard included
+        return 0 if any(m["kind"] == "status" and m["name"] == "immune_to_effect_damage" and m.get("fid") == fighter.fid
+                                   for m in _modifier_entries(fx)) else n
     if source != "effect":
         return n
     if _fighter_has(fx, "immune_to_effect_damage", fighter.fid):

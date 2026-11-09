@@ -659,3 +659,67 @@ def test_the_search_clone_keeps_the_rage(bprd):
     c = g.clone()
     assert enraged.is_enraged(c, 0) and c.fighters["eredin"].move == 3
     c.heal(c.fighters["eredin"], 0)
+
+
+# ---------------------------------------------------------------- what the bot pays a Red Rider for
+
+def pays(g, riders_left, *, ignores, stake=0, hp=14):
+    from sparring.ai_effects import EffectAI
+    from sparring.effects.choose import ChoiceRequest
+    for fid in RIDERS[riders_left:]:
+        g.defeat(g.fighters[fid])
+    alive = [f for f in RIDERS if g.fighters[f].alive]
+    extra = {"defeats": {"fighters": alive, "returns": not ignores, "ignores": ignores}, "at_stake": stake, "hp": hp}
+    req = ChoiceRequest("optional", 0, [True, False], 1, 1, None, "k", "", extra, 0)
+    return EffectAI._fighter_pays(g, req)
+
+
+@pytest.mark.parametrize("left", [4, 3, 2])
+def test_the_bot_does_not_pay_a_rider_for_nothing_in_icy_guile(bprd, left):
+    assert not pays(mk(bprd), left, ignores=True, stake=0)
+
+
+def test_the_bot_pays_the_last_rider_for_icy_guile_because_it_enrages_him(bprd):
+    assert pays(mk(bprd), 1, ignores=True, stake=0)          # ENRAGE_BONUS (2) reaches RIDER_PRICE (2)
+
+
+@pytest.mark.parametrize("left", [4, 3])
+def test_the_bot_pays_a_rider_for_icy_guile_only_when_the_blow_is_big_enough(bprd, left):
+    assert pays(mk(bprd), left, ignores=True, stake=3)
+
+
+@pytest.mark.parametrize("left", [4, 3])
+def test_the_bot_does_not_burn_a_rider_to_get_foul_purpose_back_while_many_remain(bprd, left):
+    assert not pays(mk(bprd), left, ignores=False)
+
+
+@pytest.mark.parametrize("left", [2, 1])
+def test_the_bot_takes_foul_purpose_back_when_few_riders_remain(bprd, left):
+    assert pays(mk(bprd), left, ignores=False)
+
+
+# ---------------------------------------------------------------- Might Of The Aen Elle and the map hazards
+
+def test_might_of_the_aen_elle_also_stops_hazard_damage_but_nothing_else_does(bprd):
+    g = mk(bprd, "hellboy")
+    e = g.fighters["eredin"]
+    assert g.damage(e, 1, "hazard") == 1                      # no ONGOING in play: a hazard hurts
+    play_might(g)
+    assert g.damage(e, 1, "hazard") == 0 and e.hp == 13
+    assert g.damage(g.fighters["rider1"], 1, "hazard") == 1    # the Riders are not protected
+    assert g.damage(e, 1, "combat") == 1
+
+
+def test_a_status_from_another_card_does_not_stop_hazards(bprd):
+    from sparring.effects.run import Ctx, EffectRun
+    g = mk(bprd, "hellboy")
+    ops = [{"op": "status", "name": "immune_to_effect_damage", "target": "hero", "until": {"event": "end_of_turn"}}]
+    EffectRun(ops, Ctx(owner=0, this_fid="eredin")).run(g, default_choosers(g))
+    e = g.fighters["eredin"]
+    assert g.damage(e, 2, "effect") == 0 and g.damage(e, 1, "hazard") == 1
+
+
+def test_the_table_note_for_a_returned_piece_names_its_miniature():
+    from sparring.effects import table
+    line = table.line({"op": "revive", "fid": "rider2", "name": "Aleksei", "where": {"any": True}, "hp": 1})
+    assert "Aleksei" in line and "rider2" not in line

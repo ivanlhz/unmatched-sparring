@@ -704,7 +704,7 @@ class EffectAI:
         left = [i for i in info["fighters"] if i in game.fighters]
         if not left:
             return False
-        enrages = enraged.passive(game, me) is not None and len(left) == len(game.own(me)) - 1
+        enrages = enraged.passive(game, me) is not None and len(left) == 1
         bonus = ENRAGE_BONUS if enrages else 0.0
         if info["ignores"]:
             stake = x.get("at_stake", 0)

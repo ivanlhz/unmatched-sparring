@@ -130,20 +130,41 @@ def test_backhand_while_enraged_makes_the_bot_discard_the_card_instead(rig, monk
 
 # ---------------------------------------------------------------- Unyielding Hordes, played by a human Red Rider
 
-@with_rig("hellboy", "eredin", *HAND)
-def test_unyielding_hordes_returns_a_fallen_rider_for_the_human_to_place_and_counts_it(rig, monkeypatch):
+def hordes(rig, monkeypatch, adjacent: bool):
+    """The human's Red Rider plays Unyielding Hordes with rider2 fallen: the combat waits for the human to place rider2 and reads the table
+    before the DURING counts it. Returns (messages of the pause, messages after Done, rider2, hellboy)."""
     session, table, game, fake, cfg = rig
+    from test_e2_human_cards import by_hand
     put_adjacent(game, table, cfg, "rider1", "hellboy")
     game.defeat(game.fighters["rider2"])
     bot_defends_with_nothing(session, monkeypatch)
     human_hand(table, game, "Unyielding Hordes", "Backhand", "Skirmish")
-    msgs = attack(session, table, game, "Unyielding Hordes", attacker="rider1")
-    rider = game.fighters["rider2"]
-    assert rider.alive and rider.hp == 1 and "rider2" in game.placing
-    assert said(msgs, "pon a rider2 en el tablero (cualquier casilla) con 1 PV"), msgs      # your miniature: you place it by hand
-    assert not said(msgs, "lo he movido yo"), msgs                                           # and the bot does not move it too
-    assert rider.pos in game.board.adj[game.fighters["hellboy"].pos]                         # counted next to the target: +1 for it
-    assert game.fighters["hellboy"].hp == 18 - (1 + 2)                                       # 1 printed + Eredin and the returned rider2, both next to the target
+    before = attack(session, table, game, "Unyielding Hordes", attacker="rider1")
+    hellboy = game.fighters["hellboy"]
+    assert session.effect_run.awaiting.kind == "space" and session.effect_run.awaiting.extra["op"] == "revive"
+    taken = {f.pos for f in game.fighters.values() if f.alive}
+    if adjacent:
+        spot = next(s for s in sorted(game.board.adj[hellboy.pos]) if s not in taken)
+    else:
+        spot = next(s for s in sorted(game.board.spaces, reverse=True) if s not in taken and s not in game.board.adj[hellboy.pos] and s != hellboy.pos)
+    after = by_hand(session, table, cfg, "rider2", spot)
+    return before, after, game.fighters["rider2"], hellboy
+
+
+@with_rig("hellboy", "eredin", *HAND)
+def test_unyielding_hordes_waits_for_the_human_to_place_the_rider_and_counts_it_when_adjacent(rig, monkeypatch):
+    before, after, rider, hellboy = hordes(rig, monkeypatch, adjacent=True)
+    assert said(before, "junto a Hellboy suma +1 a esta carta"), before                     # the chat says where it counts
+    assert rider.alive and rider.pos in rig[2].board.adj[hellboy.pos] and rig[2].placing == set()
+    assert hellboy.hp == 18 - (1 + 2), after                                                 # 1 printed + Eredin and rider2, both next to the target
+    assert not said(after, "lo he movido yo")
+
+
+@with_rig("hellboy", "eredin", *HAND)
+def test_unyielding_hordes_with_the_rider_placed_elsewhere_does_not_count_it(rig, monkeypatch):
+    before, after, rider, hellboy = hordes(rig, monkeypatch, adjacent=False)
+    assert rider.alive and rider.pos not in rig[2].board.adj[hellboy.pos]
+    assert hellboy.hp == 18 - (1 + 1), after                                                 # only Eredin counts
 
 
 # ---------------------------------------------------------------- Foul Purpose and Implacable, by the human

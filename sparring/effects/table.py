@@ -158,7 +158,7 @@ def line(n: dict) -> str:
     if op == "swap":
         return t("tbl.swap", fid=n["fid"], other=n["other"])
     if op in ("revive", "summon"):
-        return t("tbl.put", fid=n["fid"], where=_where(n.get("where")), hp=f"{n['hp']:g}")
+        return t("tbl.put", fid=n.get("name") or n["fid"], where=_where(n.get("where")), hp=f"{n['hp']:g}")
     if op == "choose":
         return t("tbl.keep", cards=plural(n["amount"], "noun.card"))
     if op == "return_to_deck":

@@ -67,6 +67,7 @@
  "moves.through_sidekicks": " (may pass through sidekicks)",
  "moves.his_hero": "its hero",
  "moves.where.any": "on any free space",
+ "moves.where.any_near": " (next to {who} it adds +1 to this card)",
  "moves.where.zone": "in the zone of {who}",
  "moves.where.adjacent": "on a free space next to {who}",
  "moves.where.nearest": "on the free space nearest to {who}",

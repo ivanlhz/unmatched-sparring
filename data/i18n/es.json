@@ -67,6 +67,7 @@
  "moves.through_sidekicks": " (puede atravesar sidekicks)",
  "moves.his_hero": "su heroe",
  "moves.where.any": "cualquier casilla libre",
+ "moves.where.any_near": " (junto a {who} suma +1 a esta carta)",
  "moves.where.zone": "la zona de {who}",
  "moves.where.adjacent": "una casilla libre junto a {who}",
  "moves.where.nearest": "la casilla libre mas cercana a {who}",

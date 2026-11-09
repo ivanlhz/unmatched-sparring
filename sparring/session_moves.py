@@ -46,6 +46,8 @@ def where_text(session, req: ChoiceRequest) -> str:
         return session._name(g.fighters[where[key]]) if where.get(key) in g.fighters else t("moves.his_hero")
     if where.get("any"):
         text = t("moves.where.any")
+        if req.extra.get("near_opposing") in g.fighters:        # Unyielding Hordes counts it for its DURING only next to the opposing fighter
+            text += t("moves.where.any_near", who=session._name(g.fighters[req.extra["near_opposing"]]))
     elif "zone_of" in where:
         text = t("moves.where.zone", who=who("zone_of"))
     elif "next_to_nearest_foe" in where:

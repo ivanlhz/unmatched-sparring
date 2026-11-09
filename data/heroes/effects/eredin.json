@@ -162,6 +162,7 @@
        "any": true
       },
       "hp": 1,
+      "await_destination": true,
       "chooser": "owner"
      }
     ],
@@ -300,7 +301,7 @@
   {
    "title": "Skirmish",
    "copies": 3,
-   "text": "AFTER COMBAT: If you won the combat, choose one of the fighters in the combat and move them up to 2 spaces.",
+   "text": "AFTER COMBAT: If you won the combat, move one of the fighters in the combat up to 2 spaces.",
    "effects": {
     "immediately": [],
     "during": [],
@@ -325,7 +326,7 @@
     "scheme": [],
     "boost": []
    },
-   "notes": "Versatile 4 / boost 1, any fighter. Word for word Bigfoot's and Tomoe Gozen's card."
+   "notes": "Versatile 4 / boost 1, any fighter. The same effect as Bigfoot's and Tomoe Gozen's card, worded as on Eredin's own card (move one of the fighters in the combat up to 2 spaces)."
   },
   {
    "title": "Implacable",

@@ -405,7 +405,7 @@
    {"type": "object", "additionalProperties": false, "required": ["op", "target", "with"],
     "properties": {"op": {"const": "swap"}, "target": {"$ref": "#/$defs/FighterSel"}, "with": {"$ref": "#/$defs/FighterSel"}, "chooser": {"$ref": "#/$defs/Chooser"}, "as": {"$ref": "#/$defs/Name"}}},
    {"type": "object", "additionalProperties": false, "required": ["op", "target", "where", "hp"],
-    "properties": {"op": {"const": "revive"}, "target": {"$ref": "#/$defs/FighterSel"}, "where": {"$ref": "#/$defs/SpaceSel"}, "hp": {"$ref": "#/$defs/Amount"}, "chooser": {"$ref": "#/$defs/Chooser"}}},
+    "properties": {"op": {"const": "revive"}, "target": {"$ref": "#/$defs/FighterSel"}, "where": {"$ref": "#/$defs/SpaceSel"}, "hp": {"$ref": "#/$defs/Amount"}, "await_destination": {"type": "boolean"}, "chooser": {"$ref": "#/$defs/Chooser"}}},
    {"type": "object", "additionalProperties": false, "required": ["op", "name", "where"],
     "properties": {"op": {"const": "summon"}, "name": {"type": "string", "minLength": 1}, "where": {"$ref": "#/$defs/SpaceSel"}, "hp": {"$ref": "#/$defs/Amount"}, "chooser": {"$ref": "#/$defs/Chooser"}}},
    {"type": "object", "additionalProperties": false, "required": ["op", "card"],

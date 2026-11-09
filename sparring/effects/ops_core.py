@@ -360,7 +360,7 @@ def _note_where(game, run, where: dict) -> dict:
     return out
 
 
-def _plan_spots(game, run, fighters, where: dict, chooser: int, op_name: str, hp=None, **becomes) -> list[tuple]:
+def _plan_spots(game, run, fighters, where: dict, chooser: int, op_name: str, hp=None, await_dest: bool = False, **becomes) -> list[tuple]:
     """(fighter, spot, by_hand): `by_hand` marks the table player's own piece, which they place themselves; its spot
     is provisional (the first legal one) until the table sync reads where they put it."""
     plan = []
@@ -369,7 +369,7 @@ def _plan_spots(game, run, fighters, where: dict, chooser: int, op_name: str, hp
             options = space_options(game, run, where, mover=f)
             if not options:                              # no space to choose from: nothing happens
                 continue
-            by_hand = table.piece_is_physical(game, chooser, f)
+            by_hand = table.piece_is_physical(game, chooser, f) and not await_dest      # `await_dest`: the human's placement is asked and read from the table
             stays = [f.died_at] if f.hero and f.died_at in options else options[:1]     # a hero put back by hand: where his miniature already stands
             if by_hand and where.get("any"):        # any space: counted next to the combat's other fighter if one is free (Unyielding Hordes), the best case for its DURING
                 foes = _role_fighters(game, run, "opposing")
@@ -377,21 +377,28 @@ def _plan_spots(game, run, fighters, where: dict, chooser: int, op_name: str, hp
                 stays = near[:1] or stays
             got = stays if by_hand else run.ask(game, "space", chooser, options, 1, 1, f"{op_name} to",
                                                       fighter=f.fid, op=op_name, where=_where_refs(game, run, where),
-                                                      **({} if hp is None else {"hp": hp}))
+                                                      **_near(game, run, where), **({} if hp is None else {"hp": hp}))
             if got:
                 plan.append((f, got[0], by_hand))
                 set_attrs(f, pos=got[0], **becomes)
     return plan
 
 
+def _near(game, run, where: dict) -> dict:
+    """The combat's other fighter, for a placement on "any space" that counts next to it (Unyielding Hordes): the panel says so."""
+    foes = _role_fighters(game, run, "opposing") if where.get("any") else []
+    return {"near_opposing": foes[0].fid} if foes else {}
+
+
 def _return_to_board(run, game, spec, op_name: str, targets, hp) -> None:
     chooser = _chooser(game, run, spec)
-    for f, spot, by_hand in _plan_spots(game, run, targets, spec["where"], chooser, op_name, hp=hp, alive=True):
+    for f, spot, by_hand in _plan_spots(game, run, targets, spec["where"], chooser, op_name, hp=hp,
+                                        await_dest=bool(spec.get("await_destination")), alive=True):
         f.alive, f.pos, f.hp = True, spot, min(hp, f.max_hp)
         enraged.sync_move(game, f.owner)
         if by_hand:
             game.placing.add(f.fid)
-            table.note(run, op=op_name, fid=f.fid, where=_note_where(game, run, spec["where"]), hp=f.hp)
+            table.note(run, op=op_name, fid=f.fid, name=getattr(game, "nicknames", {}).get(f.fid), where=_note_where(game, run, spec["where"]), hp=f.hp)
         else:
             table.intent(game, op=op_name, fid=f.fid, owner=f.owner)
 
