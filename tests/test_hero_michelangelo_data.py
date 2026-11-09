@@ -4,6 +4,8 @@ the 30 real cards with the values printed on them, and data/heroes/effects/miche
 import json
 from collections import Counter
 
+import pytest
+
 from sparring.heroes import HEROES_DIR, load_hero
 from tools.import_hero import build, memory_dir
 from tools.validate_effects import validate_file
@@ -81,6 +83,8 @@ def test_the_cards_where_the_real_card_and_unmatched_memory_disagree_follow_the_
     assert by_title["Heroes In A Half Shell"].text == "" and by_title["Hard-Hitting Investigation"].fighter == "April O'Neil"
 
 
+@pytest.mark.skipif(not (memory_dir() / "data" / "heroes" / "michelangelo.json").is_file(),
+                    reason="needs the unmatched-memory repo next to this one (absent in CI)")
 def test_the_generated_file_is_what_the_importer_builds_today():
     built = build("michelangelo", memory_dir())
     assert built == load(HEROES_DIR / "michelangelo.json")
