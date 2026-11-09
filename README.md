@@ -8,7 +8,7 @@ Presentation video: https://youtu.be/9ymhnuhgaZI
 
 No terminal, Python or uv needed:
 
-1. Download **`UnmatchedSparring-Setup-0.5.0.exe`** from the [latest release](https://github.com/ivanlhz/unmatched-sparring/releases/latest) and run it. It installs for your Windows user only and opens the launcher.
+1. Download **`UnmatchedSparring-Setup-0.6.0.exe`** from the [latest release](https://github.com/ivanlhz/unmatched-sparring/releases/latest) and run it. It installs for your Windows user only and opens the launcher.
 2. Open Tabletop Simulator with the **Unmatched Official Tournament Table** savegame ("October 2026 (Hellboy)" version). You sit White, the bot sits Green.
 3. Set up both heroes on the table and press **START** in the launcher. **CHECK THE TABLE** reads the table without changing anything and tells you what is missing.
 
@@ -80,7 +80,7 @@ Limitations:
 
 - The human side is limited to those twenty-three heroes. The detector also recognises the decks of the other 78 heroes of the tournament savegame (`data/catalog/heroes.json`), but only to give a clear message such as `The human plays Bruce Lee, which the bot cannot play yet. Playable heroes: ...`. Letting the human play any catalog hero (the bot would only need its values and hand counts) is feature F19, still in the backlog.
 - Which cards of your hero does the bot resolve for you? Mostly none: you apply your own card effects on the table, and the bot checks the important ones (movements, discards, draws) against its own rules engine and tells you what to do. See [How to play](#4-how-to-play).
-- Heroes outside the sixteen need effects, a card sheet and table data written first (see [Adding a hero](#adding-a-hero)). A bot hero without coded effects would announce that its ability "is not coded yet" and play by card value and boost only.
+- Heroes outside the roster need effects, a card sheet and table data written first (see [Adding a hero](#adding-a-hero)). A bot hero without coded effects would announce that its ability "is not coded yet" and play by card value and boost only.
 
 ### Maps
 
