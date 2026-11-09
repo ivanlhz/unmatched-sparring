@@ -48,15 +48,14 @@ The passive rule `cards_uncancelable` with a `while` (`modifiers.is_uncancelable
 6. **Pushed to the brink**: "within 3 spaces" is counted along the printed adjacency (Bullseye's reach measure), whatever the zones; the 1 damage to "the opposing fighter" does nothing if it was defeated. Hero or sidekick, the owner picks.
 7. **Child of the Elder Blood**: "each other fighter in Ciri's zone" is every living fighter that shares a zone with her space except her, hers (Ihuarraquax) included.
 8. **Zireael** at SOURCE 5: against the human's hand the engine draws the position from the hand size, like the other random discards.
-9. **Unicorn ally**: "each combat your fighter is in" counts every combat of either player (a combat always has one of your fighters in it) and fires after its AFTER effects like Michelangelo's PIZZA PARTY; "at the end of your turn if you have 5 or more cards" is read before the hand limit. Another ONGOING replaces it as usual. The heal is capped at her maximum.
+9. **Unicorn ally**: "each combat your fighter is in" counts every combat of either player (a combat always has one of your fighters in it) and fires after its AFTER effects like Michelangelo's PIZZA PARTY; "at the end of your turn if you have 5 or more cards" needs no ruling: the hand limit trims to 7, which is at least 5. Another ONGOING replaces it as usual. The heal is capped at her maximum.
 10. **Combat win (global, Iván 2026-11-07/08)**: the attacker wins only if combat damage lands; a tie or no damage = the defender wins. Every "if you won" here reads the engine's result.
 
 ## Open questions for Iván
 1. **How is the Source gained?** Read as "Source cards in her discard pile" (see rule decision 1). If the rulebook says otherwise (a counter that only goes up, or one raised by playing the cards), the change is the counter definition in the overlay plus `session_source`; the cards would not change.
 2. **Several numbered lines on one card**: highest only (decision 2). The alternative is that every line the Source reaches applies (Pushed to the brink at 7 would deal 1 + 2; The lady at 8 would return to the deck and to the hand).
-3. **Searching strike's "reveal it"**: read as "show it to the rival" (the bot says the card in the chat, the human shows it), then the deck is shuffled. The alternative: no shuffle.
-4. **Unicorn ally's end-of-turn discard** counts the hand before the hand limit trims it; the alternative is after.
-5. **Channel the source** can discard Source cards that are also in the Source count: they raise the Source for the rest of the combat, since they enter the pile at once.
+3. **Searching strike's "reveal it"**: DECIDED: "show it to the rival" (the bot says the card in the chat and physically shuffles its real deck after the take; the human shows it), then the deck is shuffled.
+4. **Channel the source** can discard Source cards that are also in the Source count: they raise the Source for the rest of the combat, since they enter the pile at once.
 
 ## AI
 - The AI profile comes from the data (the importer's `ai_profile`: Ciri `hero`, Ihuarraquax a sidekick). The Source-dependent values live in `ai_ciri.py`, hooked at three places of `ai_medusa.py` (`card_value`, `during_gain`, `attack_outcome`): Lion cub of Cintra and Zireael are valued at the value the current Source gives them, Channel the source at +2 per spare Source card in the hand (half counted: the cards are not free), Pushed to the brink at the damage its AFTER does now, The lady at the cards it returns, Searching strike at a card when it wins and the deck still has a Source card.

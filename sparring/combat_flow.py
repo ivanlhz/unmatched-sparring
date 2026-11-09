@@ -541,7 +541,7 @@ def _cancel_rival(flow: CombatFlow, side: Side) -> None:
     from .effects.modifiers import is_uncancelable
     target = _other(side)
     card = flow.atk_card if target == "atk" else flow.def_card
-    if card is None or not is_uncancelable(card, flow.game):
+    if card is None or not is_uncancelable(card, flow.game, flow.att.owner if target == "atk" else flow.tgt.owner):
         flow.ctx.cancelled.add(target)
 
 

@@ -9,6 +9,7 @@ from __future__ import annotations
 from .i18n import t
 from .session_translators import DOMAIN, ERRORS, Ctx, result_of
 from .tts import lua_search
+from .tts import lua
 from .tts.lua import ChatKind
 
 
@@ -28,8 +29,17 @@ def take(session, intent: dict, ctx: Ctx) -> list:
         except ERRORS + (SessionError, ValueError, TypeError):
             session.say(t("search.not_taken", card=by_id[card_id].title), ChatKind.WARNING)
 
+    if ops:                                      # a search ends with a shuffle (the real deck, whose order nobody knows)
+        try:
+            ops.append((None, session._w(lua.shuffle_deck(cfg.bot_deck_guid, cfg.bot_deck_spot, identity=session._identity(),
+                                                          id_range=cfg.bot_card_ids, zone=cfg.bot_deck_zone), DOMAIN)))
+        except ERRORS + (SessionError, ValueError, TypeError):
+            pass
+
     def check() -> None:
         for card_id, op in ops:
+            if card_id is None:
+                continue
             if not result_of(op).get("taken"):
                 session.say(t("search.not_taken", card=by_id[card_id].title), ChatKind.WARNING)
     return [check]

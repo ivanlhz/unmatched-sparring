@@ -18,26 +18,18 @@ TRAINING = "B.P.R.D. Training"
 
 
 class CiriTable(FxTable):
-    """The fake table plus `deck_card_to_hand`: the card named by CardID leaves the bot's deck for its hand (like real TTS, which reports a
-    `Deck` or a loose `Card` there and never the top card unless it is the one asked for)."""
+    """The shared fake table (`Table.do_deck_card_to_hand`) with a switch to make the search take refuse."""
+
+    refuse_take = False
 
     def do_deck_card_to_hand(self, s):
-        i = int(re.search(r"CardID (?:~=|==) (\d+)", s).group(1))
-        if i not in self.bot_deck:
-            return {"taken": False}
-        self.bot_deck.remove(i)
-        self.bot_hand.append(i)
-        self.taken_from_deck.append(i)
-        return {"taken": True, "guid": f"g{i}"}
-
-    taken_from_deck: list = []
+        return {"taken": False} if self.refuse_take else super().do_deck_card_to_hand(s)
 
 
 @pytest.fixture
 def rig(request, tmp_path):
     bot, human, hand = request.param
     session, table, game, fake, cfg, client = build(tmp_path, bot, human, hand, table_cls=CiriTable)
-    table.taken_from_deck = []
     yield session, table, game, fake, cfg
     client.close()
     fake.close()
@@ -158,7 +150,7 @@ def test_the_bots_searching_strike_takes_the_source_card_it_found_out_of_its_rea
 @rigged("ciri", "hellboy", "Searching strike", "Blink")
 def test_a_table_that_refuses_the_search_take_is_told_to_the_human(rig):
     session, table, game, fake, cfg = rig
-    table.do_deck_card_to_hand = lambda s: {"taken": False}
+    table.refuse_take = True
     put_adjacent(game, table, cfg, "ihuarraquax", "hellboy")
     strike = next(c for c in game.players[0].hand if c.title == "Searching strike")
     human_hand(table, game, TRAINING)
@@ -204,3 +196,28 @@ def test_the_bots_zireael_at_source_five_names_a_random_position_of_the_humans_h
     line = next(m for m in msgs if "Descarta 1 carta(s) (Zireael, al azar: la carta " in m)
     assert 1 <= int(line.split("la carta ")[1].split(" ")[0]) <= len(game.players[1].hand)
     assert game.counter(0, "source") == 6                          # the 5 it had and the Zireael it just played
+
+
+@rigged("ciri", "hellboy", "Searching strike", "Blink")
+def test_the_search_take_is_followed_by_a_shuffle_of_the_bots_deck(rig):
+    session, table, game, fake, cfg = rig
+    put_adjacent(game, table, cfg, "ihuarraquax", "hellboy")
+    strike = next(c for c in game.players[0].hand if c.title == "Searching strike")
+    human_hand(table, game, TRAINING)
+    bot_turn(session, table, [Act("attack", fid="ihuarraquax", target="hellboy", card=strike)])
+    before = table.shuffles
+    click(session, table, Event.REVEAL)
+    assert len(table.taken_from_deck) == 1 and table.shuffles == before + 1
+
+
+@rigged("ciri", "hellboy", "Searching strike", "Blink")
+def test_a_deck_that_is_gone_is_told(rig):
+    session, table, game, fake, cfg = rig
+    table.deck_gone = True
+    put_adjacent(game, table, cfg, "ihuarraquax", "hellboy")
+    strike = next(c for c in game.players[0].hand if c.title == "Searching strike")
+    human_hand(table, game, TRAINING)
+    bot_turn(session, table, [Act("attack", fid="ihuarraquax", target="hellboy", card=strike)])
+    before = table.shuffles
+    msgs = click(session, table, Event.REVEAL)
+    assert said(msgs, "No pude sacar") and table.taken_from_deck == []

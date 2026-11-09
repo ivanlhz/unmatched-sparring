@@ -89,7 +89,7 @@ def verdict(session, req: ChoiceRequest) -> tuple[list[int] | None, str | None]:
             return None, t("rage.wrong_source", items=", ".join(t("rage.wrong_item_source", title=c.title) for c in wrong),
                            card=_card_name(session, req))
         if wrong:
-            items =", ".join(t("rage.wrong_item", title=c.title, kind=t(f"rage.type.{c.type}")) for c in wrong)
+            items = ", ".join(t("rage.wrong_item", title=c.title, kind=t(f"rage.type.{c.type}")) for c in wrong)
             return None, t("rage.wrong", items=items, card=_card_name(session, req))
     elif len(arrived) > req.max:
         return None, t("blind.too_many" if m == "blind" else "reveal.too_many", n=len(arrived), max=req.max,
