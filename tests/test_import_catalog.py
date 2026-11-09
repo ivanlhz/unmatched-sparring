@@ -10,6 +10,7 @@ import pytest
 from sparring.cards import repo_toplevel
 from sparring.hero_catalog import load_catalog
 from sparring.hero_detect import hero_slugs
+from sparring.heroes import HEROES_DIR
 from sparring.tts.hero_table import load_hero_table
 from tools import import_catalog
 from tools.import_catalog import CATALOG_PATH, build_catalog, clean_name, render, slugify
@@ -105,9 +106,11 @@ def test_the_cli_writes_the_catalog_checks_it_and_never_overwrites_the_save(obje
 def test_the_catalog_names_every_playable_hero_with_its_own_images():
     cat = load_catalog()
     for slug in hero_slugs():
-        hero = next(h for h in cat.heroes if h.slug == slug)
+        data = json.loads((HEROES_DIR / f"{slug}.json").read_text(encoding="utf-8"))
+        catalog_slug = data.get("catalog_slug", slug)      # a hero the catalog files under another slug declares it in its overlay
+        hero = next(h for h in cat.heroes if h.slug == catalog_slug)
         mine = {f"{face}|{back}" for face, back in load_hero_table(slug).identity}
-        assert mine <= hero.identity and cat.identify(sorted(mine)).slug == slug
+        assert mine <= hero.identity and cat.identify(sorted(mine)).slug == catalog_slug
 
 
 def test_the_committed_catalog_has_no_collisions_or_unnamed_decks():

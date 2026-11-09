@@ -5,6 +5,7 @@
   "generator": "tools/import_hero.py"
  },
  "slug": "jill-trent",
+ "catalog_slug": "dr-jill-trent-science-sleuth",
  "name": "Dr. Jill Trent",
  "fid": "jill",
  "hp": 13,
