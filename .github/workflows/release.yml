@@ -55,7 +55,7 @@ jobs:
         shell: bash
         run: |
           bot=build/bot-dist/sparring-bot
-          for file in sparring-bot.exe _internal/config/table.json _internal/config/map_setups.json _internal/data/i18n/es.json; do
+          for file in sparring-bot.exe _internal/config/table.json _internal/config/map_setups.json _internal/data/i18n/es.json _internal/data/heroes/ciri.json _internal/data/heroes/eredin.json _internal/data/heroes/sinbad.json _internal/data/heroes/yennefer-triss.json _internal/data/heroes/triss-yennefer.json _internal/data/tts/ciri.json _internal/data/tts/eredin.json _internal/data/tts/sinbad.json _internal/data/tts/yennefer-triss.json _internal/data/tts/triss-yennefer.json; do
             if [ ! -f "$bot/$file" ]; then echo "Missing in the bot bundle: $file" >&2; exit 1; fi
           done
           "$bot/sparring-bot.exe" --help > /dev/null
