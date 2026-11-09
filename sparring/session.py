@@ -5286,9 +5286,9 @@ class Session:
         # a change only counts if two reads see it (card in transit, edge); the click's snapshot is already the
         # second: the human cannot be dragging a card while pressing a button
         # A card the bot just dealt may still be flying from the deck to the hand over the discard zone: the snapshot of
-        # the write that dealt it is not trusted (the live 7/11 case: Flourish's drawn card was read as discarded).
+        # the write that dealt it is not trusted if it shows a card the engine lacks (the live 7/11 case: Flourish's drawn card was read as discarded).
         in_flight = time.monotonic() - self._deal_at < DEAL_FLIGHT
-        if ids != known and not (self.cfg.batch and self._trusted and not in_flight):
+        if ids != known and not (self.cfg.batch and self._trusted and not (in_flight and ids - known)):
             if self.cfg.settle_wait > 0:
                 time.sleep(self.cfg.settle_wait * (2.5 if in_flight else 1))
             if self.cfg.batch:
