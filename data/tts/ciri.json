@@ -1,0 +1,37 @@
+{
+ "slug": "ciri",
+ "bag": {
+  "guid": "45ae7e",
+  "inner": "f2c999"
+ },
+ "deck": {
+  "guid": "9bd73c",
+  "card_ids": [
+   17600,
+   17629
+  ],
+  "character_card_id": 344,
+  "identity": [
+   {
+    "face": "https://steamusercontent-a.akamaihd.net/ugc/11228500191513451422/65B16E739BD002D3326F681B2FC07872C293547C/",
+    "back": "https://steamusercontent-a.akamaihd.net/ugc/15649391713312355505/65068690354D9590417A44BBBEAF2DFC6F34C02A/"
+   }
+  ]
+ },
+ "fighters": {
+  "ciri": {
+   "piece": "f6fea4",
+   "dial": "e6da98",
+   "dial_max": 15
+  },
+  "ihuarraquax": {
+   "piece": "4ec239",
+   "dial": "341412",
+   "dial_max": 7
+  }
+ },
+ "tokens": {},
+ "counter_dials": {
+  "source": "46aa92"
+ }
+}

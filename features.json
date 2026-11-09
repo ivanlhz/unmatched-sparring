@@ -488,6 +488,21 @@
       "note": "Engine additions are additive (docs/effects-dsl.md, section 35). Rules decisions and open questions for Iván: docs/heroes/tomoe-gozen.md. Live test pending."
     },
     {
+      "id": "HERO-CIRI",
+      "title": "Ciri (The Witcher: Steel & Silver, sidekick Ihuarraquax) playable by the bot and by the human against every hero",
+      "status": "in-progress",
+      "criteria": [
+        "data/heroes/overlay/ciri.json, data/heroes/ciri.json, data/heroes/effects/ciri.json and data/tts/ciri.json generated and validated (import_hero, validate_effects, import_save); the 11 titles (30 cards, sheet 176, character card 344) read from the card images; ai_profile computed by the importer",
+        "Her deck shares CardIDs 17600-17629 with the other decks of sheet 176: told apart by deck image and owner, never by a bare CardID (tests/test_hero_ciri_data.py, tests/test_card_identity.py); none of her GUIDs is another hero's",
+        "The SOURCE is the HeroDef counter `source` (the 13 orb cards in her discard pile) and the tiers of Lion cub of Cintra, Zireael, Pushed to the brink, Child of the Elder Blood and The lady of space and time apply the highest threshold reached; UNCONTAINABLE POWER (a passive rule with a while: no effect of her cards can be canceled at SOURCE 7) is read by every cancel",
+        "All 11 cards on the interpreter for both seats, the sidekick's included: Channel the source (plugin ciri:channel_the_source, the human lays the Source cards on the pile), Searching strike (a deck search by what the card is: the bot's table take by CardID, the human searches by hand), Bane of the Aen Elle and Blink (moves through rivals), Parry, Unicorn ally (ongoing draw, leaves with 5 cards)",
+        "The bag's Source dial mirrors the counter on either side next to Hellboy's destiny dial (session_source, tests/test_ciri_table.py)",
+        "Ciri against each of the other heroes in both seats reaches game over on FakeTTS (passive and attacking human) and in the simulator (tests/test_ciri_matrix.py)",
+        "Verified live by Iván (docs/live-checklist.md, section Ciri)"
+      ],
+      "note": "Engine additions are additive (docs/effects-dsl.md, section 36). Rules decisions and open questions for Iván: docs/heroes/ciri.md. Live test pending."
+    },
+    {
       "id": "F20",
       "title": "The bot prepares the official community save itself",
       "status": "in-progress",

@@ -52,7 +52,7 @@ def _cancel_effects(run, game, spec):
     if side is None:
         side = _named_side(run, spec["card"])
     card = None if side is None else (flow.atk_card if side == "atk" else flow.def_card)
-    if side is None or (card is not None and modifiers.is_uncancelable(card)):
+    if side is None or (card is not None and modifiers.is_uncancelable(card, game, flow.att.owner if side == "atk" else flow.tgt.owner)):
         return
     moments = spec.get("moments")
     if moments is None or "immediately" in moments:

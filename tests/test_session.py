@@ -372,6 +372,22 @@ class Table:
         self._later(lambda: self.bot_hand.extend(drawn))
         return {"dealt": k}
 
+    deck_gone = False                              # the bot's deck GUID no longer exists (TTS re-formed it and nothing is found there)
+    taken_from_deck: list = []
+
+    def do_deck_card_to_hand(self, s):
+        """Realistic take of one card by CardID (Ciri's Searching strike): a Deck of 2 or more cards or a loose single Card gives the card
+        asked for if it is there, and a deck that is gone gives nothing (`deck = false`)."""
+        i = int(re.search(r"CardID (?:~=|==) (\d+)", s).group(1))
+        if self.deck_gone:
+            return {"taken": False, "deck": False}
+        if i not in self.bot_deck:
+            return {"taken": False}
+        self.bot_deck.remove(i)
+        self.bot_hand.append(i)
+        self.taken_from_deck = [*self.taken_from_deck, i]
+        return {"taken": True, "guid": f"g{i}"}
+
     def do_discard_cards(self, s):
         """Realistic discard: with 2 or more cards the discard is a Deck; a loose Card is only found if
         it is the only one. If the script knows how to look inside Decks (`o.type == "Deck"`), it finds them there."""

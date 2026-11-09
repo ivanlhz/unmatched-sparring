@@ -587,7 +587,7 @@ def _cancellable_moments(game, run) -> int:
     from .modifiers import card_effects, is_uncancelable
     cards = card_ref(game, run, "opponent_card")
     fx = card_effects(cards[0]) if cards else None
-    if fx is None or is_uncancelable(cards[0]):
+    if fx is None or is_uncancelable(cards[0], game, 1 - run.ctx.owner):
         return 0
     return sum(1 for m in ("immediately", "during", "after") if fx.moments.get(m))
 
@@ -640,3 +640,4 @@ from . import plugins_donatello  # noqa: E402,F401  (registers donatello:future_
 from . import plugins_luke  # noqa: E402,F401  (registers luke:replace_combatant)
 from . import plugins_jill  # noqa: E402,F401  (registers jill:hypnoray, jill:reveal_tops, jill:insightful_deduction)
 from . import plugins_shehulk  # noqa: E402,F401  (registers shehulk:throw, shehulk:mill)
+from . import plugins_ciri  # noqa: E402,F401  (registers ciri:channel_the_source)

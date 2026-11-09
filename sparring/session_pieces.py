@@ -20,7 +20,9 @@ from . import i18n
 from .tts import lua
 
 _TAGS = re.compile(r"\[[A-Za-z0-9\-/]*\]")      # the same class as the Lua side (find_pieces_by_name)
-PIECE_TYPES = ("Custom_Model", "Custom_Assetbundle", "Custom_Token", "Figurine")   # what the miniatures and tokens of data/tts are
+# what the miniatures and tokens of data/tts are. A token imported from a save (Ihuarraquax's miniature is a Custom_Token in the bag) is a
+# "Tile" or a "Token" once spawned (`lua.TOKEN_TYPES`); a Custom_Tile or a board tile is still not a piece.
+PIECE_TYPES = ("Custom_Model", "Custom_Assetbundle", "Custom_Token", "Figurine", "Tile", "Token")
 
 
 def is_piece_type(kind) -> bool:

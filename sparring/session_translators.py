@@ -584,6 +584,9 @@ def _search_bot(session, intent: dict, ctx: Ctx) -> list[Check]:
     """The real order of the bot's deck is unknown to the engine: what it took is a top card on the table, so the
     engine's draw counters follow (the card is dealt from the top of the real deck)."""
     g, bot = session.game, session.bot
+    if intent.get("cards"):                       # picked by what it is (Ciri's Searching strike): that very card leaves the real deck
+        from .session_search import take
+        return take(session, intent, ctx)
     g.drawn[bot] += intent["n"]
     g.draw_events[bot] += intent["n"]
     return _search_human(session, intent, ctx)

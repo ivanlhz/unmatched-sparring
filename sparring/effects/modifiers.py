@@ -115,9 +115,29 @@ def draws_bottom_for_boost(card) -> bool:
     return card.title in _deck_boost_titles()
 
 
-def is_uncancelable(card) -> bool:
+def hero_rule_holds(game, player: int, rule: str) -> bool:
+    """The hero of `player` has the passive rule `rule` and its `while` condition holds now (Ciri: SOURCE 7)."""
+    slug = game.players[player].hero.slug
+    if slug not in game.fx.dsl_heroes:
+        return False
+    from .run import Ctx, EffectRun
+    from .select import condition
+    for p in load_effects(slug).passives:
+        if p["kind"] == "rule" and p["rule"] == rule:
+            cond = p.get("while")
+            if cond is None or condition(game, EffectRun([], Ctx(owner=player, this_fid=game.hero(player).fid)), cond):
+                return True
+    return False
+
+
+def is_uncancelable(card, game=None, owner: int | None = None) -> bool:
+    """The card's effects cannot be canceled: its own `uncancelable`, or, given the `game` and the `owner` (the side that holds the
+    card in the combat, never looked up by value: decks of sheet 176 share cards), the owner's ability (`cards_uncancelable`:
+    Ciri's UNCONTAINABLE POWER covers every card of her deck, the sidekick's too)."""
     fx = card_effects(card)
-    return fx is not None and fx.uncancelable
+    if fx is not None and fx.uncancelable:
+        return True
+    return game is not None and owner is not None and hero_rule_holds(game, owner, "cards_uncancelable")
 
 
 # ---------------------------------------------------------------- stores

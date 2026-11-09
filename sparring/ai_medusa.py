@@ -60,6 +60,7 @@ from dataclasses import dataclass, field
 from collections import Counter
 from math import ceil, comb
 
+from . import ai_ciri as ciri_ai
 from .cards import can_be_boost
 from .combat import GAZE_DAMAGE, GLANCE_DAMAGE, ON_EARTH
 from .controller import Controller
@@ -815,6 +816,8 @@ class MedusaAI(Controller):
             return 5.0                  # Tomoe Gozen: against a hero this card is worth 5
         if c.title == PLANNED and f.pos is not None and game.fx.turn_start_pos.get(f.fid) == f.pos:
             return 5.0
+        if (source_value := ciri_ai.attack_value(game, f.owner, c)) is not None:
+            return source_value         # Ciri: the value the SOURCE gives the card
         if c.title == CEASE:
             return 4.0                  # attacking (this is only asked of attacks)
         if c.title == SAVAGE and game.actions_left >= 2 and game.turn == f.owner:
@@ -855,6 +858,8 @@ class MedusaAI(Controller):
         attack or versatile cards of the own discard pile (+1 each), Untested enhancements adds the boost of the
         bottom card of the deck (the average of the cards still to come, discounted: it is unknown)."""
         mine = game.players[self.me]
+        if c.title == ciri_ai.CHANNEL:
+            return ciri_ai.during_gain(game, self.me, c, mine.hand)
         if c.title == ELECTRO_GRENADE:
             return min(4, sum(1 for x in mine.discard if x.can_attack))
         if c.title == UNTESTED:
@@ -902,6 +907,7 @@ class MedusaAI(Controller):
             value += self.desperation(game) * WIN_PRIZE * (e_net + gaze_dmg) / max(t.hp, 1)
         always, on_win = AFTER_BONUS.get(c.title, (0.0, 0.0))
         value += always + on_win * p_win
+        value += ciri_ai.after_value(game, self.me, c, p_win, w, CARD_VALUE)
         if c.title == WITNESS:           # the AFTER ends the turn: the actions still to spend are lost
             value -= ACTION_VALUE * max(0, game.actions_left - 1)
         if c.title == RINGS:             # the damage dealt heals the fighter and the friendly ones beside it (only what is missing counts)

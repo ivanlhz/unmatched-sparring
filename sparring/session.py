@@ -50,6 +50,7 @@ from . import session_order as order_cards
 from . import session_jill as jill_decks      # noqa: F401  (registers the translators of Jill Trent's deck reveals)
 from . import session_pile as pile
 from . import session_reveal as reveal
+from . import session_source as source_dial
 from . import session_sleight as sleight
 from . import session_translators as translators
 from .session_choices import panel_text
@@ -144,6 +145,7 @@ class SessionConfig:
     mulligan_bot: bool = True      # the bot may change its opening hand once if it is bad (house rule)
     mulligan_human: bool = True    # the human has the Mulligan button during setup (house rule)
     destiny_dial: str | None = None   # GUID of the destiny dial (count of Hellboy's destinies in his discard)
+    source_dial: str | None = None    # GUID of the Source dial (count of Ciri's Source cards in her discard: session_source)
     dead_spot: tuple[float, float, float] | None = None   # where the bot sets aside the miniatures of ITS fallen
     discard_layer: float = 0.15    # height added per full turn of the discard grid
     batch: bool = False            # fast mode: reads from the snapshot and writes in a single script per step
@@ -401,6 +403,7 @@ class Session:
         self._attack_announced: tuple | None = None     # the bot attack already said before its card went down (a retry stays quiet)
         self.declared_carry: dict | None = None            # a cancelled attack already declared (UNCANNY INTUITION spent): the same attack again does not re-spend
         self.destiny_seen: tuple[int, str] | None = None   # (destinies, form) already written and verified on the dial
+        self.source_seen: int | None = None                # Source already written and verified on Ciri's dial
         self._transit: dict[int, int] = {}                 # CardID played by the human -> reads it has gone without reaching the discard
         self.combat_guids: dict[int, str] = {}             # CardID of the human's card at the combat spot -> its GUID (Relentless moves it)
         self._intuition_said: int | None = None            # the human Abe's active tokens already told in chat
@@ -1562,6 +1565,8 @@ class Session:
         want = {g: int(v) for g, v in want.items()}
         if c.destiny_dial:
             want[c.destiny_dial] = 0
+        if c.source_dial:
+            want[c.source_dial] = 0
         if want:
             self._w(lua.set_health_dials(want), "dials")
         self._flush()
@@ -1846,7 +1851,7 @@ class Session:
         guids = [lua.board_guid(self.game.board), self.configured_decks["bot_deck_guid"] if configured else c.bot_deck_guid,
                  zones["bot_discard_zone"], zones["human_discard_zone"],
                  *(g for v in pcs.values() for g in v), *(self.configured_dials if configured else c.dials).values(),
-                 *([c.destiny_dial] if c.destiny_dial else []), *self._deck_zones()]
+                 *([c.destiny_dial] if c.destiny_dial else []), *([c.source_dial] if c.source_dial else []), *self._deck_zones()]
         return sorted(set(guids))
 
     def _deck_zones(self) -> list[str]:
@@ -1857,7 +1862,8 @@ class Session:
         at a time; the rest of the GUIDs are its own)."""
         c = self.cfg
         singles = [lua.board_guid(self.game.board), c.bot_deck_guid, c.bot_discard_zone, c.human_discard_zone,
-                   *c.dials.values(), *([c.destiny_dial] if c.destiny_dial else []), *self._deck_zones()]
+                   *c.dials.values(), *([c.destiny_dial] if c.destiny_dial else []), *([c.source_dial] if c.source_dial else []),
+                   *self._deck_zones()]
         return [[g] for g in sorted(set(singles))] + [piece_guids(v) for _, v in sorted(c.pieces.items())]
 
     def _require_human_turn(self) -> bool:
@@ -2832,7 +2838,7 @@ class Session:
         `destiny_seen` only advances after a verified write (`_write_dials`), so a failure is retried on the next read."""
         g, owner = self.game, self._destiny_owner()
         if owner is None:
-            return False                          # only the hero with a destiny counter (Hellboy) carries them
+            return source_dial.stale(self)        # only the hero with a destiny counter (Hellboy) carries them; Ciri's Source dial rides along
         now = (g.destiny_count(owner), g.form(owner))
         said = self._destiny_said if self._destiny_said is not None else self.destiny_seen
         prev, self._destiny_said = said, now
@@ -2840,7 +2846,7 @@ class Session:
             self.destiny_seen = now               # without a dial there is nothing to verify
         if prev != now and owner == self.human:   # the bot's discards and its form change are announced where they happen
             self._announce_destiny(prev, now)
-        return now != self.destiny_seen
+        return now != self.destiny_seen or source_dial.stale(self)
 
     def _destiny_owner(self) -> int | None:
         """The side whose hero keeps the destiny count (Hellboy, bot or human): the one dial counts for him."""
@@ -2888,7 +2894,7 @@ class Session:
         A dial the human touched by hand (it shows neither the last thing the engine wrote nor what is now due) is NOT
         overwritten: a warning is given and nothing is written; the human reconciles it with +1 / -1 (the engine counts) or by putting it back.
         It is the safe option: neither their correction is lost nor can a dial change the engine's state."""
-        if not self.cfg.destiny_dial and (only_destiny or not self.cfg.dials):
+        if not self.cfg.destiny_dial and not self.cfg.source_dial and (only_destiny or not self.cfg.dials):
             return lambda: True
         g = self.game
         dials = {} if only_destiny else self._live_dials()
@@ -2899,6 +2905,9 @@ class Session:
             owner = self._destiny_owner()
             want[self.cfg.destiny_dial] = 0 if owner is None else g.destiny_count(owner)
             label[self.cfg.destiny_dial] = t("cause.destiny_dial")
+        if self.cfg.source_dial:
+            want.update(source_dial.want(self))
+            label[self.cfg.source_dial] = source_dial.label()
         try:
             now = self._rd_dials(sorted(want))
             touched = [gd for gd, v in want.items() if self._hand_edited(gd, v, now)]
@@ -2941,6 +2950,7 @@ class Session:
             owner = self._destiny_owner()
             if self.cfg.destiny_dial in want and owner is not None:
                 self.destiny_seen = (want[self.cfg.destiny_dial], g.form(owner))
+            source_dial.written(self, want)
             return not touched
         return verify
 

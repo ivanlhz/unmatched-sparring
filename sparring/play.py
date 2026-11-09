@@ -223,7 +223,7 @@ class PlayConfig:
                 bot_deck_guid=r["bot_deck_guid"], human_discard_zone=r["human_discard_zone"],
                 bot_deck_spot=tuple(r["bot_deck_spot"]), pieces=dict(r["pieces"]),
                 reveal_radius=float(r.get("reveal_radius", 2.0)), rot_y=float(r.get("rot_y", 0.0)),
-                dials=dict(r.get("dials", {})), destiny_dial=r.get("destiny_dial"),
+                dials=dict(r.get("dials", {})), destiny_dial=r.get("destiny_dial"), source_dial=r.get("source_dial"),
                 bot_card_ids=tuple(r.get("bot_card_ids", lua.BOT_CARD_IDS)),
                 human_card_ids=tuple(r.get("human_card_ids", lua.HUMAN_CARD_IDS)),
                 bot_card_shift=self.card_shifts[0], human_card_shift=self.card_shifts[1],
@@ -356,8 +356,9 @@ class PlayConfig:
         guids = sorted({g for v in cfg.pieces.values() for g in piece_guids(v)})
         lua.piece_spaces_by_guid(self.board, guids)
         lua.move_piece(self.board, guids[0], next(iter(self.board.spaces)))
-        lua.read_health_dials(sorted({*cfg.dials.values(), *([cfg.destiny_dial] if cfg.destiny_dial else [])}))
-        lua.set_health_dials({g: 0 for g in {*cfg.dials.values(), *([cfg.destiny_dial] if cfg.destiny_dial else [])}})
+        counter_dials = [g for g in (cfg.destiny_dial, cfg.source_dial) if g]
+        lua.read_health_dials(sorted({*cfg.dials.values(), *counter_dials}))
+        lua.set_health_dials({g: 0 for g in {*cfg.dials.values(), *counter_dials}})
         lua.return_hand_to_deck(cfg.bot_seat, cfg.bot_deck_guid, identity=ident, zone=cfg.bot_deck_zone)
         lua.shuffle_deck(cfg.bot_deck_guid, cfg.bot_deck_spot, identity=ident, zone=cfg.bot_deck_zone)
         if cfg.dead_spot is not None:
@@ -368,7 +369,7 @@ class PlayConfig:
 
 
 HERO_KEYS = ("nicknames", "pieces", "dials")       # by fighter id: the configuration refines what the data gives
-HERO_SCALARS = ("bot_deck_guid", "human_deck_guid", "destiny_dial", "bot_card_ids", "human_card_ids",
+HERO_SCALARS = ("bot_deck_guid", "human_deck_guid", "destiny_dial", "source_dial", "bot_card_ids", "human_card_ids",
                 "bot_identity", "human_identity")
 
 
@@ -684,6 +685,8 @@ def read_only_report(client, cfg: PlayConfig) -> list[str]:
     dials = dict(raw.get("dials") or {})
     if raw.get("destiny_dial"):
         dials[t("ro.label.destiny")] = raw["destiny_dial"]
+    if raw.get("source_dial"):
+        dials[t("ro.label.source")] = raw["source_dial"]
     if dials:
         out.append(t("ro.dials"))
         rows = read(t("ro.read.dials"), lambda: lua.read_health_dials(sorted(set(dials.values())))) or {}
