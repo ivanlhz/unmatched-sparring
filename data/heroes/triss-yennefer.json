@@ -1,0 +1,400 @@
+{
+ "_source": {
+  "memory": "unmatched-memory/data/heroes/yennefer-triss.json",
+  "overlay": "data/heroes/overlay/triss-yennefer.json",
+  "generator": "tools/import_hero.py"
+ },
+ "slug": "triss-yennefer",
+ "name": "Triss",
+ "fid": "triss",
+ "hp": 14,
+ "move": 2,
+ "attack": "range",
+ "set": "the-witcher-realms-fall",
+ "ability": "MERIGOLD THE FEARLESS\nAfter Triss plays a scheme, deal 2 damage to a fighter adjacent to Triss.",
+ "sidekicks": [
+  {
+   "name": "Yennefer",
+   "hp": 6,
+   "move": 2,
+   "attack": "range",
+   "count": 1,
+   "fid": "yennefer"
+  }
+ ],
+ "forms": null,
+ "counters": {},
+ "triggers": [],
+ "passives": [],
+ "deck": {
+  "card_base": 17600,
+  "sheet": 176,
+  "cards": [
+   {
+    "idx": 0,
+    "title": "Incinerate",
+    "fighter": "Yennefer",
+    "type": "attack",
+    "value": 7,
+    "boost": 2,
+    "text": "This card's effect cannot be canceled. DURING COMBAT: Your opponent may discard 2 cards to ignore this card's value.",
+    "tags": []
+   },
+   {
+    "idx": 1,
+    "title": "Incinerate",
+    "fighter": "Yennefer",
+    "type": "attack",
+    "value": 7,
+    "boost": 2,
+    "text": "This card's effect cannot be canceled. DURING COMBAT: Your opponent may discard 2 cards to ignore this card's value.",
+    "tags": []
+   },
+   {
+    "idx": 2,
+    "title": "Incinerate",
+    "fighter": "Yennefer",
+    "type": "attack",
+    "value": 7,
+    "boost": 2,
+    "text": "This card's effect cannot be canceled. DURING COMBAT: Your opponent may discard 2 cards to ignore this card's value.",
+    "tags": []
+   },
+   {
+    "idx": 3,
+    "title": "Echoing blast",
+    "fighter": "any",
+    "type": "attack",
+    "value": 3,
+    "boost": 1,
+    "text": "AFTER COMBAT: If you won the combat, return this card to your hand.",
+    "tags": []
+   },
+   {
+    "idx": 4,
+    "title": "Echoing blast",
+    "fighter": "any",
+    "type": "attack",
+    "value": 3,
+    "boost": 1,
+    "text": "AFTER COMBAT: If you won the combat, return this card to your hand.",
+    "tags": []
+   },
+   {
+    "idx": 5,
+    "title": "Echoing blast",
+    "fighter": "any",
+    "type": "attack",
+    "value": 3,
+    "boost": 1,
+    "text": "AFTER COMBAT: If you won the combat, return this card to your hand.",
+    "tags": []
+   },
+   {
+    "idx": 6,
+    "title": "Portal to anywhere",
+    "fighter": "any",
+    "type": "attack",
+    "value": 1,
+    "boost": 2,
+    "text": "AFTER COMBAT: Place a fighter in the combat in any space. Gain 1 action.",
+    "tags": []
+   },
+   {
+    "idx": 7,
+    "title": "Portal to anywhere",
+    "fighter": "any",
+    "type": "attack",
+    "value": 1,
+    "boost": 2,
+    "text": "AFTER COMBAT: Place a fighter in the combat in any space. Gain 1 action.",
+    "tags": []
+   },
+   {
+    "idx": 8,
+    "title": "Portal to anywhere",
+    "fighter": "any",
+    "type": "attack",
+    "value": 1,
+    "boost": 2,
+    "text": "AFTER COMBAT: Place a fighter in the combat in any space. Gain 1 action.",
+    "tags": []
+   },
+   {
+    "idx": 9,
+    "title": "Merigold's Hailstorm",
+    "fighter": "Triss",
+    "type": "attack",
+    "value": 4,
+    "boost": 3,
+    "text": "AFTER COMBAT: Your opponent chooses one:\n- they discard 2 cards\n- deal 3 damage to their hero\n- they discard the top 4 cards of their deck",
+    "tags": []
+   },
+   {
+    "idx": 10,
+    "title": "Merigold's Hailstorm",
+    "fighter": "Triss",
+    "type": "attack",
+    "value": 4,
+    "boost": 3,
+    "text": "AFTER COMBAT: Your opponent chooses one:\n- they discard 2 cards\n- deal 3 damage to their hero\n- they discard the top 4 cards of their deck",
+    "tags": []
+   },
+   {
+    "idx": 11,
+    "title": "Telepathy",
+    "fighter": "any",
+    "type": "versatile",
+    "value": 3,
+    "boost": 1,
+    "text": "IMMEDIATELY: Your opponent may discard 1 card. If they don't, cancel all effects on their card.",
+    "tags": []
+   },
+   {
+    "idx": 12,
+    "title": "Telepathy",
+    "fighter": "any",
+    "type": "versatile",
+    "value": 3,
+    "boost": 1,
+    "text": "IMMEDIATELY: Your opponent may discard 1 card. If they don't, cancel all effects on their card.",
+    "tags": []
+   },
+   {
+    "idx": 13,
+    "title": "Telepathy",
+    "fighter": "any",
+    "type": "versatile",
+    "value": 3,
+    "boost": 1,
+    "text": "IMMEDIATELY: Your opponent may discard 1 card. If they don't, cancel all effects on their card.",
+    "tags": []
+   },
+   {
+    "idx": 14,
+    "title": "Quick and ready",
+    "fighter": "any",
+    "type": "versatile",
+    "value": 2,
+    "boost": 2,
+    "text": "AFTER COMBAT: Place your fighter in any space in their zone. Draw 1 card.",
+    "tags": []
+   },
+   {
+    "idx": 15,
+    "title": "Quick and ready",
+    "fighter": "any",
+    "type": "versatile",
+    "value": 2,
+    "boost": 2,
+    "text": "AFTER COMBAT: Place your fighter in any space in their zone. Draw 1 card.",
+    "tags": []
+   },
+   {
+    "idx": 16,
+    "title": "Ball lightning",
+    "fighter": "any",
+    "type": "versatile",
+    "value": 3,
+    "boost": 1,
+    "text": "AFTER COMBAT: If you won the combat, your opponent discards 1 card. Otherwise, both players discard 1 card.",
+    "tags": []
+   },
+   {
+    "idx": 17,
+    "title": "Ball lightning",
+    "fighter": "any",
+    "type": "versatile",
+    "value": 3,
+    "boost": 1,
+    "text": "AFTER COMBAT: If you won the combat, your opponent discards 1 card. Otherwise, both players discard 1 card.",
+    "tags": []
+   },
+   {
+    "idx": 18,
+    "title": "Ball lightning",
+    "fighter": "any",
+    "type": "versatile",
+    "value": 3,
+    "boost": 1,
+    "text": "AFTER COMBAT: If you won the combat, your opponent discards 1 card. Otherwise, both players discard 1 card.",
+    "tags": []
+   },
+   {
+    "idx": 19,
+    "title": "Paralyzing fetters",
+    "fighter": "any",
+    "type": "defense",
+    "value": 2,
+    "boost": 2,
+    "text": "IMMEDIATELY: The value of your opponent's card is equal to its printed value and cannot be changed.",
+    "tags": []
+   },
+   {
+    "idx": 20,
+    "title": "Paralyzing fetters",
+    "fighter": "any",
+    "type": "defense",
+    "value": 2,
+    "boost": 2,
+    "text": "IMMEDIATELY: The value of your opponent's card is equal to its printed value and cannot be changed.",
+    "tags": []
+   },
+   {
+    "idx": 21,
+    "title": "Paralyzing fetters",
+    "fighter": "any",
+    "type": "defense",
+    "value": 2,
+    "boost": 2,
+    "text": "IMMEDIATELY: The value of your opponent's card is equal to its printed value and cannot be changed.",
+    "tags": []
+   },
+   {
+    "idx": 22,
+    "title": "Magical barrier",
+    "fighter": "any",
+    "type": "defense",
+    "value": 4,
+    "boost": 3,
+    "text": "IMMEDIATELY: Your fighter recovers 1 health.",
+    "tags": []
+   },
+   {
+    "idx": 23,
+    "title": "Magical barrier",
+    "fighter": "any",
+    "type": "defense",
+    "value": 4,
+    "boost": 3,
+    "text": "IMMEDIATELY: Your fighter recovers 1 health.",
+    "tags": []
+   },
+   {
+    "idx": 24,
+    "title": "Magical barrier",
+    "fighter": "any",
+    "type": "defense",
+    "value": 4,
+    "boost": 3,
+    "text": "IMMEDIATELY: Your fighter recovers 1 health.",
+    "tags": []
+   },
+   {
+    "idx": 25,
+    "title": "Advisor to the king",
+    "fighter": "any",
+    "type": "scheme",
+    "value": null,
+    "boost": 2,
+    "text": "Each of your fighters recovers 1 health. Draw 1 card. ONGOING: Your BOOST values are +1. Discard this card at the end of your turn if you didn't attack.",
+    "tags": []
+   },
+   {
+    "idx": 26,
+    "title": "Advisor to the king",
+    "fighter": "any",
+    "type": "scheme",
+    "value": null,
+    "boost": 2,
+    "text": "Each of your fighters recovers 1 health. Draw 1 card. ONGOING: Your BOOST values are +1. Discard this card at the end of your turn if you didn't attack.",
+    "tags": []
+   },
+   {
+    "idx": 27,
+    "title": "Advisor to the king",
+    "fighter": "any",
+    "type": "scheme",
+    "value": null,
+    "boost": 2,
+    "text": "Each of your fighters recovers 1 health. Draw 1 card. ONGOING: Your BOOST values are +1. Discard this card at the end of your turn if you didn't attack.",
+    "tags": []
+   },
+   {
+    "idx": 28,
+    "title": "Lodge of sorceresses",
+    "fighter": "any",
+    "type": "scheme",
+    "value": null,
+    "boost": 2,
+    "text": "Each player simultaneously reveals a card from their hand and draws cards equal to their card's BOOST value. Then, the player(s) who drew the most cards deals that much damage to their hero.",
+    "tags": []
+   },
+   {
+    "idx": 29,
+    "title": "Lodge of sorceresses",
+    "fighter": "any",
+    "type": "scheme",
+    "value": null,
+    "boost": 2,
+    "text": "Each player simultaneously reveals a card from their hand and draws cards equal to their card's BOOST value. Then, the player(s) who drew the most cards deals that much damage to their hero.",
+    "tags": []
+   }
+  ]
+ },
+ "tts": {
+  "bag_name": "Yennefer & Triss",
+  "character_cards": [
+   351,
+   352
+  ],
+  "character_card_id": 352
+ },
+ "ignored_tokens": [
+  "905f88"
+ ],
+ "ai_profile": {
+  "triss": {
+   "name": "Triss",
+   "hero": true,
+   "count": 1,
+   "max_hp": 14,
+   "move": 2,
+   "ranged": true,
+   "role": "hero",
+   "attack": {
+    "cards": 16,
+    "mean": 2.62,
+    "max": 4
+   },
+   "exclusive": [
+    {
+     "title": "Merigold's Hailstorm",
+     "type": "attack",
+     "copies": 2,
+     "impact": 2.7
+    }
+   ]
+  },
+  "yennefer": {
+   "name": "Yennefer",
+   "hero": false,
+   "count": 1,
+   "max_hp": 6,
+   "move": 2,
+   "ranged": true,
+   "role": "striker",
+   "attack": {
+    "cards": 17,
+    "mean": 3.24,
+    "max": 7
+   },
+   "exclusive": [
+    {
+     "title": "Incinerate",
+     "type": "attack",
+     "copies": 3,
+     "impact": 1.59
+    }
+   ],
+   "requires_alive": []
+  }
+ },
+ "_notes": [
+  "Sheet 176 of the tournament savegame (8x4), read card by card from the image on 2026-11-09. CardID = 17600 + idx. The deck object (7b2a33) holds 32 cards: the 30 plus TWO character cards, 351 and 352 (sheet 3, 10x7, index 51 and 52): 351 is YENNEFER as the hero (ability SORCERESS OF VENGERBERG, sidekick Triss 6 HP), 352 is TRISS as the hero (ability MERIGOLD THE FEARLESS, sidekick Yennefer 6 HP). Both read from the images on 2026-11-09.",
+  "Yennefer & Triss is ONE deck with TWO variants: the player picks which heroine is the hero at the start (the character card says so) and the other is the sidekick. Each variant is an ordinary HeroDef over the same deck: `yennefer-triss` (Yennefer hero, card 351) and `triss-yennefer` (Triss hero, card 352). Only the hero has an ability (each character card prints one), the sidekick has none. docs/heroes/yennefer-triss.md.",
+  "Card bands read from the images: Incinerate is YENNEFER, Merigold's Hailstorm is TRISS, the other nine titles are ANY. A band is the fighter that may play the card, so it follows who is hero and who is sidekick in the variant.",
+  "Advisor to the king prints an ONGOING that unmatched-memory leaves out (\"Your BOOST values are +1. Discard this card at the end of your turn if you didn't attack.\"); Telepathy has a comma unmatched-memory drops. The overlay carries the printed texts.",
+  "Copies, type, value and boost match unmatched-memory for all 11 titles."
+ ]
+}

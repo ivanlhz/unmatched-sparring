@@ -488,6 +488,21 @@
       "note": "Engine additions are additive (docs/effects-dsl.md, section 35). Rules decisions and open questions for Iván: docs/heroes/tomoe-gozen.md. Live test pending."
     },
     {
+      "id": "HERO-YENNEFER-TRISS",
+      "title": "Yennefer & Triss (The Witcher: Realms Fall; one deck, two variants) playable by the bot and by the human against every hero",
+      "status": "in-progress",
+      "criteria": [
+        "One deck, two ordinary HeroDefs: yennefer-triss (Yennefer hero 14 HP, Triss sidekick 6 HP, character card 351) and triss-yennefer (Triss hero, Yennefer sidekick, card 352); overlay, HeroDef, effects and TTS data for both generated and validated (import_hero, validate_effects, import_save); the 11 titles (30 cards, sheet 176) and the two character cards read from the images; the card bands (Incinerate YENNEFER, Merigold's Hailstorm TRISS) follow who is the hero",
+        "Each variant has only its heroine's ability: SORCERESS OF VENGERBERG (a free BOOST of Yennefer's attack that no cancel removes: the hero passive may_boost) or MERIGOLD THE FEARLESS (2 damage to an adjacent fighter after Triss plays a scheme: after_scheme trigger)",
+        "All 11 cards on the interpreter for both seats and both variants: Advisor to the king's ONGOING (BOOST values +1, discarded at the end of your turn if you did not attack: rule boost_bonus + until_condition), Lodge of sorceresses and the deck option of Merigold's Hailstorm (plugins yennefer:/triss: lodge and mill), Incinerate, Echoing blast (the bot's card goes back to its hand on the table), Portal to anywhere, Telepathy, Quick and ready, Ball lightning, Paralyzing fetters, Magical barrier",
+        "Detection: the deck is the same for both variants, so the hero miniature out of the bag (cd27f6 Yennefer, d1b3b9 Triss) tells which one is meant; none or both is a clear message with the --bot-hero / --human-hero slugs",
+        "Each variant against each of the 19 other heroes in both seats reaches game over on FakeTTS (passive and attacking human) and in the simulator; a save keeps the variant, the ONGOING and a paused Lodge question (tests/test_yennefer_triss_matrix.py, tests/test_yennefer_triss_human.py)",
+        "NOT done: the pre-game gate (Preparar) and the panel question 'which of the two is your hero?' that sets the table up (character card next to the deck, the other heroine's miniature put away, the sidekick token); see docs/heroes/yennefer-triss.md, section Pending",
+        "Verified live by Iván (docs/live-checklist.md, section Yennefer & Triss)"
+      ],
+      "note": "Design and rule decisions: docs/heroes/yennefer-triss.md. Engine additions are additive (docs/effects-dsl.md, section 36). Live test pending."
+    },
+    {
       "id": "F20",
       "title": "The bot prepares the official community save itself",
       "status": "in-progress",

@@ -62,6 +62,8 @@ She-Hulk (Brains and Brawn, character card 336) is another deck of sheet 176 (`t
 
 Tomoe Gozen (Sun's Origin, character card 354) is another deck of sheet 176 (`tests/test_hero_tomoe_gozen_data.py`, `tests/test_tomoe_gozen_matrix.py`): her own `deck.identity` in `data/tts/tomoe-gozen.json`, a matrix against the other eighteen heroes in both seats, and `SHARING` in `tests/test_card_identity.py`. Her life dial also shares a GUID with Donatello's (`ca8e35`): see "Piece identity" below.
 
+Yennefer & Triss (The Witcher: Realms Fall) is the twelfth deck of sheet 176, with a twist: the deck object holds TWO character cards (351 Yennefer as the hero, 352 Triss as the hero) and the bag serves two HeroDefs, `yennefer-triss` and `triss-yennefer`, that share the deck GUID, the CardID range and the images. The deck therefore cannot tell the two apart (`hero_detect._by_hero_piece` breaks the tie with the hero miniature out of the bag) and the two variants can never be the two sides of one game (`Game.new` refuses overlapping fighter ids). Only `yennefer-triss` is in `SHARING` in `tests/test_card_identity.py` (the other has the same images); see `tests/test_hero_yennefer_triss_data.py` and `tests/test_yennefer_triss_matrix.py`.
+
 ## Houdini needs none of this
 
 Houdini's deck is sheet 178 (CardIDs 17800-17829) with the character card on a sheet of its own (177, CardID 17700); no other hero of
