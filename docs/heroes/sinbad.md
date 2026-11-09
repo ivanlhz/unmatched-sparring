@@ -41,6 +41,7 @@ His deck is sheet 176 like Medusa's, the four turtles', Doctor Strange's, Bigfoo
 
 ## Engine additions (all additive, docs/effects-dsl.md section 36)
 - The passive rule `maneuver_move_per_counter` (+ the `counter` field of a rule modifier): `sparring/effects/maneuver.py`, reached through `Game.maneuver_bonus(player, boost=None)`. `Game.maneuver` adds it to the move of every fighter of the Maneuver; the bot's planners (`MedusaAI.maneuver_acts`, the search's `_extra`, the scripted rival of the simulator) add it to the reach they consider, and the search's estimate of a rival's reach (`free_steps`) counts it for the rival's Sinbad.
+- `ai_sinbad.own_value` prices Momentous Shift by title, so it also changes Bigfoot's AI: his Momentous Shift is now valued 5 after his fighter moved this turn (instead of the printed 3) in `MedusaAI.card_value` and in the defense evaluation (`ai_medusa.py`, `eval_defense`). Intended: the card really is worth 5 then.
 - Nothing else: the VOYAGE cards use `modify_value` with the amount `{"counter": "voyage"}` (the counter of the HeroDef, as Hellboy's destinies are read), `put_in_hand` of a CardSel with `pick: all` and a tag filter, and ops that already existed. No plugin.
 
 ## Fixes that came with him (found by his games, not specific to him)

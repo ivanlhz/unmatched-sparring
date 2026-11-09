@@ -61,6 +61,7 @@ None: type, value, boost, copies and text of the 11 titles agree with the images
 - The AI profile comes from the data (`ai_profile`, computed by the importer): Bigfoot `hero`; the Jackalope `striker` (a melee piece with 3 or more life) with Jackalope Horns as its exclusive card (impact 2.4: killing it early prevents up to three 2-damage schemes).
 - No hero-name case in the AI code. Jackalope Horns and Crash Through the Trees are valued by simulating the scheme (`scheme_act`) with the right fighter; Savagery, Disengage, Hoax and Skirmish are priced by the generic after-combat evaluation; the end-of-turn draw by `EffectAI._free_draw`.
 - Headless games with the heuristic and with ISMCTS against every other hero: `tests/test_bigfoot_matrix.py`.
+- Momentous Shift is priced by `sparring/ai_sinbad.own_value` (shared with Sinbad's identical card): 5 once its fighter has moved this turn, 3 otherwise, attacking and defending (see docs/heroes/sinbad.md, "Engine additions").
 
 ## Tests
 - `tests/test_hero_bigfoot_data.py`: overlay, generated HeroDef, effects, table data, the shared range and the GUID collision.

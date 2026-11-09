@@ -80,5 +80,5 @@ def test_headless_games_with_the_heuristic_and_the_search_ai(bot, human):
     assert out.turns >= 1 and ai.fallbacks == 0
 
 
-def test_the_matrix_has_tomoe_gozen_in_both_seats_against_every_other_hero():
+def test_the_matrix_has_sinbad_in_both_seats_against_every_other_hero():
     assert len(PAIRS) == 2 * len(OTHERS) and all(("sinbad", h) in PAIRS and (h, "sinbad") in PAIRS for h in OTHERS)
