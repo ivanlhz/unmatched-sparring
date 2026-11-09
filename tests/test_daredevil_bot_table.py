@@ -8,18 +8,17 @@ from __future__ import annotations
 
 
 from sparring.ai_medusa import Act
-from sparring.tts import lua
 from test_d3_table_effects import bot_turn, build, card_ids, said, set_hand, to_bot_discard
 from test_donatello_session import SPOTS, AsideTable
 from test_batch import click
 from sparring.tts.ui import Event
 
 DEVIL = "Devil of Hell's Kitchen"
-IDENT = (("https://x.test/f.jpg", "https://x.test/b.jpg"),)
 
 
-def devil_with_an_empty_deck(tmp_path):
+def devil_with_an_empty_deck(tmp_path, batch=True):
     session, table, game, fake, cfg, client = build(tmp_path, "daredevil", "hellboy", (DEVIL, "Feint"), table_cls=AsideTable, **SPOTS)
+    session.cfg.batch = batch
     st = game.players[0]
     held = set(card_ids(game, 0, DEVIL, "Feint"))
     to_bot_discard(session, table, game, ids=[c.card_id for c in st.full_set if c.card_id not in held])
@@ -52,9 +51,27 @@ def test_the_devil_is_worth_8_with_the_deck_empty_and_goes_back_into_the_deck_th
         fake.close()
 
 
-def test_the_shuffle_script_lays_the_first_card_down_as_the_deck_when_there_is_none():
-    script = lua.shuffle_into_deck("deck1", ["g1", "g2"], (17600, 17621), identity=IDENT, spot=(3.0, 4.0))
-    assert "-- an empty draw deck is no object in TTS" in script and "if deck == nil and home == nil" in script
-    assert "x = 3.0" in script and "z = 4.0" in script
-    bare = lua.shuffle_into_deck("deck1", ["g1"], (17600, 17621), identity=IDENT)
-    assert "local home = nil" in bare, "no place to lay it: the old refusal stays (the human is told)"
+def test_the_devil_goes_back_even_when_the_reveal_turned_it_face_up_and_the_table_is_not_in_batch_mode(tmp_path):
+    """Without batch mode the reveal flips the bot's card face up, so it is no longer read as a face-down card at its spot: the
+    session knows its GUID because it placed it."""
+    session, table, game, fake, cfg, client = devil_with_an_empty_deck(tmp_path, batch=False)
+    try:
+        msgs, devil = bot_plays_the_devil(session, table, game, cfg)
+        assert table.turned_up, "the reveal turned the cards face up"
+        assert not said(msgs, "hazlo tu"), msgs
+        assert devil.card_id in table.bot_deck and devil.card_id not in table.bot_play
+        assert set(table.bot_deck) == {c.card_id for c in game.players[0].deck}
+    finally:
+        client.close()
+        fake.close()
+
+
+def test_the_other_cards_that_fill_the_empty_deck_are_the_four_last_of_the_pile(tmp_path):
+    session, table, game, fake, cfg, client = devil_with_an_empty_deck(tmp_path)
+    try:
+        last_four = [c.card_id for c in game.players[0].discard[-4:]]
+        _, devil = bot_plays_the_devil(session, table, game, cfg)
+        assert sorted(table.bot_deck) == sorted([devil.card_id, *last_four])
+    finally:
+        client.close()
+        fake.close()

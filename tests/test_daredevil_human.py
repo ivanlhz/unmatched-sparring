@@ -250,3 +250,25 @@ def test_breather_lets_them_pick_a_non_scheme_card_from_their_discard_pile(rig):
     assert req.kind == "cards" and sorted(req.options) == sorted([a, b])
     press(session, table, a)
     assert session.effect_run is None and a in [c.card_id for c in game.players[1].hand]
+
+
+@with_rig()
+def test_the_devil_goes_back_into_a_human_deck_that_is_gone_from_the_table(rig, monkeypatch):
+    """The human's deck is empty: TTS has no Deck object, so the cards are laid down as the new deck instead of being refused
+    (the Relentless-style move of the card at the combat spot and the move of the pile cards, both by the bot)."""
+    session, table, game, fake, cfg = rig
+    no_defense(session, monkeypatch)
+    old = [sid(game, "Feint", 2), sid(game, "Breather", 2), sid(game, "Grappling Hook", 0), sid(game, "Take A Knee", 0), sid(game, "Son Of A Boxer", 0)]
+    table.human_discard += old
+    for c in game.players[1].full_set:
+        if c.card_id in old and c not in game.players[1].discard:
+            for zone in (game.players[1].deck, game.players[1].hand):
+                if c in zone:
+                    zone.remove(c)
+            game.players[1].discard.append(c)
+    table.human_deck = []
+    msgs = hit(session, table, game, DEVIL, [DEVIL, "Feint", "Breather", "Son Of A Boxer"])
+    devil = sid(game, DEVIL)
+    assert sorted(table.human_deck) == sorted([devil, *old[1:]]), (table.human_deck, msgs)
+    assert not said(msgs, "no he podido") and not said(msgs, "hazlo"), msgs
+    assert old[0] in table.human_discard and all(i not in table.human_discard for i in old[1:])

@@ -120,7 +120,18 @@ class FxTable(Table):
         self.tokens.remove(guid)
         return {"removed": True}
 
+    @staticmethod
+    def _can_lay_a_deck(s) -> bool:
+        """The script was given a place to lay a deck (`home`: a deck spot or a zone). Real TTS has no Deck object once the last
+        card is drawn: a deck writer without that place is refused (`deck = false`), with it the first card becomes the deck."""
+        return re.search(r"local home = \{x = |home = \{x = p\.x", s) is not None
+
+    def _has_deck(self, s, deck) -> bool:
+        return bool(deck) or self._can_lay_a_deck(s)
+
     def do_hand_to_deck(self, s):
+        if not self._has_deck(s, self.bot_deck):
+            return {"placed": [], "deck": False}
         ids = [int(i) for i in re.search(r"local order = \{(.*?)\}", s).group(1).split(",") if i.strip()]
         kind = "bottom" if "(r.z + 180)" in s else "shuffle" if "deck.shuffle()" in s else "top"
         placed = [i for i in ids if i in self.bot_hand]
@@ -141,6 +152,8 @@ class FxTable(Table):
         m = re.search(r"CardID == (\d+)", s)
         i = int(m.group(1)) if m else int(re.search(r'local card = \(?.*?getObjectFromGUID\("g(\d+)"\)', s, re.S).group(1))
         deck = self.human_deck if self._human_side(s) else self.bot_deck
+        if not self._has_deck(s, deck):
+            return {"placed": False, "deck": False}
         # a loose card is found wherever it lies: the discard pile or, for the bot, its combat spot (DARK PACT at a paused combat)
         pile = next((p for p in ([self.human_discard] if self._human_side(s) else [self.bot_discard, self.bot_play]) if i in p), None)
         if pile is None:
@@ -158,11 +171,11 @@ class FxTable(Table):
 
     def do_shuffle_into_deck(self, s):
         """As the real script: a loose card of ours (the discard pile, the bot's combat spot) goes in. TTS has NO deck object
-        when the last card was drawn: then only a script that lays the first card down as the new deck (its `home`) can work."""
+        when the last card was drawn: then only a script given a place to lay the first card down as the new deck can work."""
         wanted = re.findall(r'"([gh])(\d+)"', re.search(r"local wanted = \{(.*?)\}", s).group(1))
         human = self._human_side(s)
         pile, deck = ((self.human_discard, self.human_deck) if human else (self.bot_discard, self.bot_deck))
-        if not deck and "-- an empty draw deck is no object in TTS" not in s:
+        if not self._has_deck(s, deck):
             return {"added": 0, "deck": False, "moved": []}
         on_spot = {r["id"] for r in self.face_down}          # the human's card at the combat spot (Relentless): GUID h<id>
         added = [(k, int(g)) for k, g in wanted if int(g) not in self.stuck_in_pile

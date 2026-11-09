@@ -21,6 +21,7 @@ from enum import Enum
 from ..board import Board
 from ..cards import HELLBOY_BASE, MEDUSA_BASE
 from . import ui
+from .lua_deck import DECK_FUNCS, home_lua
 
 BOARD_GUIDS = {"bprd-hq": "ec6f27", "azuchi-castle": "e57969"}
 PANEL_NAME = "SparringPanel"
@@ -694,16 +695,18 @@ def return_hand_to_deck(seat_color: str, deck_guid: str, id_range: tuple[int, in
     """MULLIGAN, step 1: puts into the deck (putObject) all the cards of the seat's hand whose CardID falls in
     `id_range` AND with the image of `identity` (the bot's deck). Returns how many it put; `deck = false` if the deck's
     GUID does not exist. Always check by re-reading the table's hand."""
-    own = _ours_lua(identity, id_range) + _deck_finder(spot, radius, zone)
+    own = _ours_lua(identity, id_range) + _deck_finder(spot, radius, zone) + DECK_FUNCS
     return f"""-- sparring:return_hand_to_deck
 {own}local d = findDeck({_guid(deck_guid)})
-if d == nil then return JSON.encode({{returned = 0, deck = false}}) end
+{home_lua(spot, zone)}if d == nil and home == nil then return JSON.encode({{returned = 0, deck = false}}) end
 local cards = {{}}
 for _, o in ipairs(Player[{_color(seat_color)}].getHandObjects(1)) do
   if o.type == "Card" and ours(o) then table.insert(cards, o) end
 end
-for _, o in ipairs(cards) do d = d.putObject(o) or d end
-return JSON.encode({{returned = #cards, deck = true}})
+for _, o in ipairs(cards) do
+  if d == nil then d = layFirst(o, home) else d = d.putObject(o) or d end
+end
+return JSON.encode({{returned = #cards, deck = d ~= nil}})
 """
 
 
@@ -876,12 +879,14 @@ def resolve_hand_row(guids: list[str], seat_color: str, *, identity, id_range: t
     pick = _guid(discard) if discard is not None else "nil"
     deck_check = ""
     if deck_guid is not None:                 # the deck is checked before anything moves: a failure moves nothing
-        own += _deck_finder(deck_spot, deck_radius, deck_zone)
+        own += _deck_finder(deck_spot, deck_radius, deck_zone) + DECK_FUNCS
         deck_check = f"""local deck = findDeck({_guid(deck_guid)})
-if deck == nil then return JSON.encode({{discarded = false, returned = {{}}, found = #objs, down = down, deck = false}}) end
+{home_lua(deck_spot, deck_zone)}if deck == nil and home == nil then return JSON.encode({{discarded = false, returned = {{}}, found = #objs, down = down, deck = false}}) end
 """
         # a one-card deck is a Card in TTS and has no putObject: the chosen card is dropped on it, same facing
-        chosen_goes = """if deck.type == "Deck" then
+        chosen_goes = """if deck == nil then
+      layFirst(o, home)
+    elseif deck.type == "Deck" then
       deck.putObject(o)
     else
       local dp, dr = deck.getPosition(), deck.getRotation()
@@ -3266,12 +3271,16 @@ def _deck_insert(card, deck_guid: str, tag: str, bottom: bool, identity, id_rang
     flip_in = "local r = deck.getRotation()\ndeck.setRotation(Vector(r.x, r.y, (r.z + 180) % 360))\n" if bottom else ""
     flip_out = "deck.setRotation(Vector(r.x, r.y, r.z))\n" if bottom else ""
     return f"""-- sparring:{tag}
-{_ours_lua(identity, id_range)}{_deck_finder(spot, radius, zone)}{_LOOSE_LUA}local deck = findDeck({_guid(deck_guid)})
-if deck == nil then return JSON.encode({{placed = false, deck = false}}) end
+{_ours_lua(identity, id_range)}{_deck_finder(spot, radius, zone)}{_LOOSE_LUA}{DECK_FUNCS}local deck = findDeck({_guid(deck_guid)})
+{home_lua(spot, zone)}if deck == nil and home == nil then return JSON.encode({{placed = false, deck = false}}) end
 local card = {_card_ref_lua(card)}
 if card == nil then return JSON.encode({{placed = false}}) end
+if deck == nil then
+  deck = layFirst(card, home)
+  return JSON.encode({{placed = true, deck = deck.getGUID(), quantity = 1}})
+end
 {flip_in}deck = deck.putObject(card) or deck
-{flip_out}return JSON.encode({{placed = true, deck = deck.getGUID(), quantity = deck.getQuantity()}})
+{flip_out}return JSON.encode({{placed = true, deck = deck.getGUID(), quantity = qty(deck)}})
 """
 
 
@@ -3313,8 +3322,8 @@ def hand_to_deck(seat_color: str, card_ids: list[int], deck_guid: str, id_range:
     flip_in = "deck.setRotation(Vector(r.x, r.y, (r.z + 180) % 360))\n" if bottom else ""
     flip_out = "deck.setRotation(Vector(r.x, r.y, r.z))\n" if bottom else ""
     return f"""-- sparring:hand_to_deck
-{_ours_lua(identity, id_range)}{_deck_finder(spot, radius, zone)}local deck = findDeck({_guid(deck_guid)})
-if deck == nil then return JSON.encode({{placed = {{}}, deck = false}}) end
+{_ours_lua(identity, id_range)}{_deck_finder(spot, radius, zone)}{DECK_FUNCS}local deck = findDeck({_guid(deck_guid)})
+{home_lua(spot, zone)}if deck == nil and home == nil then return JSON.encode({{placed = {{}}, deck = false}}) end
 local order = {order}
 local byId = {{}}
 for _, o in ipairs(Player[{_color(seat_color)}].getHandObjects(1)) do
@@ -3323,18 +3332,29 @@ for _, o in ipairs(Player[{_color(seat_color)}].getHandObjects(1)) do
     if byId[id] == nil then byId[id] = o end
   end
 end
-local r = deck.getRotation()
-{flip_in}local placed = {{}}
+local r = deck ~= nil and deck.getRotation() or nil
+local function turnOver()
+  r = deck.getRotation()
+  {flip_in.replace("deck.setRotation", "deck.setRotation") if flip_in else ""}
+end
+if deck ~= nil then turnOver() end
+local placed = {{}}
 for _, id in ipairs(order) do
   local c = byId[id]
   if c ~= nil then
-    deck = deck.putObject(c) or deck
+    if deck == nil then
+      deck = layFirst(c, home)
+      turnOver()
+    else
+      deck = deck.putObject(c) or deck
+    end
     byId[id] = nil
     table.insert(placed, id)
   end
 end
-{flip_out}{"deck.shuffle()" if shuffle else ""}
-return JSON.encode({{placed = placed, deck = deck.getGUID(), quantity = deck.getQuantity()}})
+if deck == nil then return JSON.encode({{placed = placed, deck = false}}) end
+{flip_out}{"if deck.type == 'Deck' then deck.shuffle() end" if shuffle else ""}
+return JSON.encode({{placed = placed, deck = deck.getGUID(), quantity = qty(deck)}})
 """
 
 
@@ -3454,23 +3474,6 @@ return JSON.encode({{moved = moved, count = #moved, deck = true, zone = true}})
 _ANY_OURS_LUA = "local function ours(o) return not o.held_by_color end\n"
 
 
-def _empty_deck_home(spot, zone) -> str:
-    """Lua that defines `home`: where a draw deck lay (the Scripting zone's centre, else `spot`), or nil when neither is
-    known. TTS removes a deck object when its last card is drawn, so a card that goes back into an empty deck needs
-    this place to be laid face down at (`shuffle_into_deck`)."""
-    if zone is not None:
-        return f"""local home = nil
-do
-  local z = getObjectFromGUID({_guid(zone)})
-  if isZone(z) then local p = z.getPosition(); home = {{x = p.x, y = 1.5, z = p.z}} end
-end
-"""
-    if spot is not None:
-        x, z, _ = _spot(spot, 0)
-        return f"local home = {{x = {x}, y = 1.5, z = {z}}}\n"
-    return "local home = nil\n"
-
-
 @_registered
 def shuffle_into_deck(deck_guid: str, cards: list[str], id_range: tuple[int, int] = BOT_CARD_IDS, *,
                       identity=None, spot: tuple[float, float] | None = None, zone: str | None = None,
@@ -3486,9 +3489,9 @@ def shuffle_into_deck(deck_guid: str, cards: list[str], id_range: tuple[int, int
     own = _ours_lua(identity, id_range) if identity is not None else _ANY_OURS_LUA + "local function cardOurs() return true end\n"
     finder = _deck_finder(spot, radius, zone) if identity is not None else (
         "local function findDeck(guid) local d = getObjectFromGUID(guid); if d ~= nil and not ours(d) then d = nil end return d end\n")
-    home = _empty_deck_home(spot, zone) if identity is not None else "local home = nil\n"
+    home = home_lua(spot, zone) if identity is not None else "local home = nil\n"
     return f"""-- sparring:shuffle_into_deck
-{own}{finder}{_LOOSE_LUA}local deck = findDeck({_guid(deck_guid)})
+{own}{finder}{_LOOSE_LUA}{DECK_FUNCS}local deck = findDeck({_guid(deck_guid)})
 {home}if deck == nil and home == nil then return JSON.encode({{added = 0, deck = false, moved = {{}}}}) end
 local wanted = {_guid_list(cards)}
 local moved = {{}}
@@ -3521,11 +3524,7 @@ for _, g in ipairs(wanted) do
     local c = fetch(g)
     if c == nil then return false end
     if deck == nil then
-      -- an empty draw deck is no object in TTS: the first card laid face down where the deck lay IS the deck again
-      local r = c.getRotation()
-      c.setRotation(Vector(0, r.y, 180))
-      c.setPosition(Vector(home.x, home.y, home.z))
-      deck = c
+      deck = layFirst(c, home)
     else
       deck = deck.putObject(c) or deck
     end
@@ -3535,7 +3534,7 @@ for _, g in ipairs(wanted) do
 end
 if deck == nil then return JSON.encode({{added = 0, deck = false, moved = {{}}}}) end
 if deck.type == "Deck" then deck.shuffle() end
-return JSON.encode({{added = #moved, moved = moved, deck = deck.getGUID(), quantity = deck.getQuantity()}})
+return JSON.encode({{added = #moved, moved = moved, deck = deck.getGUID(), quantity = qty(deck)}})
 """
 
 
