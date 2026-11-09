@@ -67,3 +67,9 @@ Information only; see the simulation block at the end of this file.
 
 ## Tests
 - `tests/test_eredin_effects.py` (bot side: the ability, every card, the AI's offers), `tests/test_eredin_human.py` (the panel, both seats), `tests/test_eredin_matrix.py` (full games against every other hero in both seats, FakeTTS and simulator), `tests/test_hero_eredin_data.py` (data, card identity, the table data).
+
+## Simulation (information only, `python -m sparring.sim`, bprd-hq)
+No crashes in 222 games (heuristic AI unless noted; the rival of the human seat is the simulator's scripted player, which chases and attacks with its best legal card, defends at random and plays no schemes):
+- Eredin as the bot (seeds 100-119, 20 games each): Medusa 18-2, Hellboy 17-3, Abe Sapien 17-3, Baba Yaga 20-0, Liz Sherman 20-0, Donatello 20-0 (112 wins of 120); with the search AI (`--ai ismcts --iterations 8`) 5-1 against Tomoe Gozen.
+- Eredin as the scripted human (seeds 200-211, 12 games each; the bot's wins): Medusa 12, Hellboy 11, Tomoe Gozen 9, Leonardo 12, Houdini 9, Bigfoot 12, Bullseye 9, Jill Trent 11 (the scripted Eredin wins 11 of 96: it plays no schemes, so it never uses Might Of The Aen Elle or Close For The Kill).
+- What the bot's Eredin did (36 games of seeds 400-411 against Hellboy, Tomoe Gozen and Medusa, searches and clones excluded): about 4 Red Riders fall per game (83 by combat damage, 51 by the price of Icy Guile / Foul Purpose, 10 by effects), so he starts 55% of his turns ENRAGED; per game 2 attacks with Foul Purpose, 1.7 with Backhand, 0.9 with Brutal Strike, 0.5 with Implacable as an attack (only enraged), 0.4 Icy Guile, 1.4 Close For The Kill and 0.9 Might Of The Aen Elle. He never exhausts his deck. Red Riders almost never attack (their Unyielding Hordes is worth little to the heuristic): they are mostly fodder and the price of his cards.

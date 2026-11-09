@@ -9,6 +9,8 @@ His deck is sheet 176 like Medusa's and the turtles': every id the table reports
 are Custom_Token in the save, which real TTS reports as "Tile": nothing that reads or moves a piece looks at the type."""
 from __future__ import annotations
 
+import pytest
+
 from sparring import enraged
 from sparring.ai_medusa import Act
 from sparring.tts import lua
@@ -16,6 +18,7 @@ from sparring.tts.ui import Event
 from test_batch import click
 from test_d3_table_effects import bot_turn, card_ids, human_attack, human_hand, said
 from test_e2_human_cards import bot_defends_with, bot_defends_with_nothing, human_scheme, labels, press, put_adjacent, rig, with_rig  # noqa: F401
+from test_piece_identity import check, make, reassigned_fid
 from test_review9 import rt, run  # noqa: F401
 
 RIDERS = ["rider1", "rider2", "rider3", "rider4"]
@@ -369,3 +372,18 @@ def test_the_bots_foul_purpose_that_goes_back_to_its_hand_is_taken_back_on_the_t
     assert foul.card_id in table.bot_hand and foul.card_id not in table.bot_discard
     assert said(msgs, "El bot recupera Foul Purpose") or said(msgs, "recupera Foul Purpose"), msgs
     assert sorted(table.bot_hand) == sorted(c.card_id for c in game.players[0].hand)
+
+
+@pytest.mark.parametrize("kind", ["Tile", "Token", "Custom_Token"])
+def test_a_token_whatever_type_real_tts_reports_is_taken_for_a_piece_when_its_guid_must_be_resolved(tmp_path, kind):
+    """The same lookup by name as tests/test_piece_identity.py, for the type a token imported from a save has on the real table ("Tile"):
+    FakeTTS reports Custom_Token by default, which is how the filter on the type missed it."""
+    session, table, game, fake, cfg, client = make(tmp_path, "abe-sapien", "donatello")
+    try:
+        other = reassigned_fid(session, table, cfg)
+        table.found_type = kind
+        check(session)
+        assert session.cfg.pieces[other] == table.pieces[other] and session.resolved_pieces == {other: [table.pieces[other]]}
+    finally:
+        client.close()
+        fake.close()
