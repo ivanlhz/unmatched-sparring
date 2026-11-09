@@ -430,7 +430,7 @@ def declare_attack(session, p, card):
     # judged before the trigger spends the token; a declaration carried over from a cancelled attack (Ivan,
     # 29/10: the token stays spent, the draw stands, nothing fires twice) keeps the face-up it earned
     by_ability = attack_revealed(g, p.target) or bool(p.declared and p.declared.get("revealed"))
-    by_card = plays_face_up(card)                        # the card itself is played face up (Witness My Last Battle)
+    by_card = plays_face_up(card, g, p.attacker, p.target)      # the card itself is played face up (Witness My Last Battle, Foul Purpose far away)
     if p.declared is None:
         drawn = g.drawn[session.bot]
         p.declared = {"counters": dict(g.fx.counters[session.bot]), "revealed": by_ability}   # the token projection diffs from here
@@ -468,7 +468,7 @@ def bot_attack_placed(session, p) -> None:
     g, card = session.game, p.bot_card
     lines = []
     revealed = attack_revealed(g, p.target)
-    face_up = plays_face_up(card)                    # Witness My Last Battle: the card itself says "play it face up"
+    face_up = plays_face_up(card, g, p.attacker, p.target)      # Witness My Last Battle: the card itself says "play it face up"
     if revealed and p.declared is None:
         declare_bot_attack(session, p)
     if _has_plugin(g, session.bot, card, PERFECT_SHOT):

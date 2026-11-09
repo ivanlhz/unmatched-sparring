@@ -1,0 +1,51 @@
+{
+ "slug": "eredin",
+ "_notes": [
+  "Eredin's deck is sheet 176 (CardIDs 17600-17629, the 30 playing cards; the character card is 350 on sheet 3) like Medusa's, the four turtles', Doctor Strange's and the rest: only deck.identity tells the decks apart (docs/card-identity.md).",
+  "The Red Riders' pieces are four Custom_Token objects (a954e5 Maxwell, bb3949 Aleksei, 63fb79 Adrian, dc3fc9 Norman, scale 0.45) with no life dial (1 life each); real TTS reports an object imported from a save as a Tile, so nothing that reads or moves them may filter on obj.type (tests/test_eredin_human.py). Eredin's miniature is the Custom_Model dd0bc4 and his life dial the Custom_Model a0a36e (MAX_VALUE 14, the 'Hero Health' script), both nicknamed 'Eredin'.",
+  "No GUID is shared with another hero (tests/test_hero_eredin_data.py)."
+ ],
+ "bag": {
+  "guid": "9183b3",
+  "inner": "7fa54d"
+ },
+ "deck": {
+  "guid": "b0cd3e",
+  "card_ids": [
+   17600,
+   17629
+  ],
+  "character_card_id": 350,
+  "identity": [
+   {
+    "face": "https://steamusercontent-a.akamaihd.net/ugc/9572004942374507415/F8B1BA3287C7CA00A2551572FD65368983DF9EC7/",
+    "back": "https://steamusercontent-a.akamaihd.net/ugc/12049715415752692911/FA500CEC96D4918135B395E51F706593F00D5C2A/"
+   }
+  ]
+ },
+ "fighters": {
+  "eredin": {
+   "piece": "dd0bc4",
+   "dial": "a0a36e",
+   "dial_max": 14
+  },
+  "rider1": {
+   "piece": "a954e5",
+   "nickname": "Maxwell"
+  },
+  "rider2": {
+   "piece": "bb3949",
+   "nickname": "Aleksei"
+  },
+  "rider3": {
+   "piece": "63fb79",
+   "nickname": "Adrian"
+  },
+  "rider4": {
+   "piece": "dc3fc9",
+   "nickname": "Norman"
+  }
+ },
+ "tokens": {},
+ "counter_dials": {}
+}

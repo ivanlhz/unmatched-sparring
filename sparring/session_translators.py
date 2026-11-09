@@ -235,6 +235,8 @@ def _moved_piece(session, intent: dict, ctx: Ctx):
         return None
     if session.hand_moved.get(f.fid) == f.pos:        # the human put it there by hand (session_moves): nothing to project or say
         return None
+    if f.fid in session.game.placing:                 # the card told them to place it (Unyielding Hordes): the bot never moves it
+        return None
     return f
 
 
@@ -330,8 +332,11 @@ def _return_mode(session, intent: dict) -> str | None:
 
 
 def _bot_position(session, intent: dict) -> str:
-    """"bottom" only when the op said so and the engine's deck really ends with those cards; else it is shuffled."""
+    """"bottom" only when the op said so and the engine's deck really ends with those cards, "top" only when it said so and the deck
+    really starts with them (a random card of the bot's hand put on top: Eredin's Backhand); else it is shuffled."""
     deck = [c.card_id for c in session.game.players[session.bot].deck]
+    if intent.get("position") == "top" and intent["zone"] == "hand" and deck[:len(intent["cards"])] == list(intent["cards"]):
+        return "top"
     return "bottom" if intent.get("position") in (None, "bottom") and is_tail(deck, intent["cards"]) else "shuffle"
 
 
@@ -389,10 +394,10 @@ def _return_bot(session, intent: dict, ctx: Ctx) -> list[Check]:
     what = _bot_what(zone, position)
     if zone == "hand":
         bottom = position == "bottom"
-        op = session._w(lua.hand_to_deck(cfg.bot_seat, ids, cfg.bot_deck_guid, cfg.bot_card_ids,
-                                         identity=session._identity(), bottom=bottom, shuffle=not bottom,
+        op = session._w(lua.hand_to_deck(cfg.bot_seat, list(reversed(ids)) if position == "top" else ids, cfg.bot_deck_guid, cfg.bot_card_ids,
+                                         identity=session._identity(), bottom=bottom, shuffle=position == "shuffle",
                                          **session._deck_kw()), DOMAIN)
-        session.say(t("tr.bot_puts_hand_bottom" if bottom else "tr.bot_puts_hand_shuffle", cards=plural(len(ids), "noun.card")), ChatKind.SCHEME)
+        session.say(t(f"tr.bot_puts_hand_{position}", cards=plural(len(ids), "noun.card")), ChatKind.SCHEME)
         return [lambda: _fall_back(session, intent, ctx, position, set(ids) - set(result_of(op).get("placed") or []))]
     titles = join_titles(by_id[i].title for i in ids)
     if position == "bottom":

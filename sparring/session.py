@@ -26,7 +26,7 @@ from dataclasses import dataclass, field
 from pathlib import Path
 from typing import Callable
 
-from . import persist
+from . import enraged, persist
 from .ai_medusa import GAZE, MedusaAI, play_signature
 from .cards import Card, can_be_boost
 from .controller import Controller
@@ -346,6 +346,7 @@ class Session:
     def __init__(self, game: Game, client: TTSClient, ai: MedusaAI, cfg: SessionConfig, bot: int = 0):
         self.game, self.client, self.ai, self.cfg = game, client, ai, cfg
         self.bot, self.human = bot, 1 - bot
+        game.nicknames = dict(cfg.nicknames)        # fighters of one name (the Red Riders) are told apart by their miniature's name in the panel
         game.controllers[self.bot] = ai
         game.controllers[self.human] = HumanProxy(self._owe_discard)
         self.pending: Pending | None = None
@@ -2273,7 +2274,7 @@ class Session:
                 self.say(t("combat.bot_card_on_table"), ChatKind.WARNING)
             return
         attacker = self.game.fighters[self.chosen_attacker]
-        if not self.game.can_attack(attacker, target):
+        if not self.game.can_declare_attack(attacker, target):
             self.chosen_attacker = None
             raise RuleError(t("err.out_of_reach", attacker=attacker.fid, target=target.fid))
         self.pending = Pending("human_attacks", attacker, target, None, None, defended=False)
@@ -2668,6 +2669,9 @@ class Session:
         if c["flip"] and not c.get("flipped"):
             self._flip_queued([(None if discarded_now and side == "bot" else guid, side) for guid, side in flip_cards])
         fin_swap = sleight.bot_swap(self, p)         # Sleight Of Hand: after the reveal, before the result is told
+        if p.bot_card is not None and p.bot_card_guid and p.bot_card in g.players[self.bot].hand:     # its own AFTER took the card back (Foul Purpose)
+            self._w(lua.return_card_to_hand(p.bot_card_guid, self.cfg.bot_seat), "cards")
+            self.say(t("tr.bot_recovers", title=p.bot_card.title), ChatKind.SCHEME)
         self.pending, self.pending_value, self.chosen_attacker = None, 0, None
         said_first = len(self.messages)
         if self.pending_discard is not None:      # before any I/O: a table failure cannot leave it without a basis
@@ -3151,6 +3155,7 @@ class Session:
             self.say(t("revive.cannot", name=self._name(f)), ChatKind.WARNING)
             return False
         f.alive, f.hp, f.pos = True, 1, pos
+        enraged.sync_move(self.game, f.owner)
         if f.hero and self.game.winner == 1 - f.owner:
             self.game.winner = None
             self.over_shown = False
@@ -4362,7 +4367,7 @@ class Session:
                 states[f"att_{fid}"] = (free and f.alive, True)
             else:
                 try:
-                    reach = bool(free and chosen is not None and f.alive and g.can_attack(chosen, f))
+                    reach = bool(free and chosen is not None and f.alive and g.can_declare_attack(chosen, f))
                 except RuleError:
                     reach = False
                 states[fid] = (reach, True)

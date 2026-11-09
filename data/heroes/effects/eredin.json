@@ -1,0 +1,510 @@
+{
+ "schema": 1,
+ "hero": "eredin",
+ "notes": [
+  "Texts read from sheet 176 of the tournament savegame (card images) on 2026-11-09; the character card is 350 on sheet 3 (10x7, index 50). Sheet 176 is also Medusa's, the four turtles', Doctor Strange's, Bigfoot's, Daredevil's, Luke Cage's, Bullseye's and Tomoe Gozen's DeckID: the CardIDs repeat and only the deck image tells the decks apart (docs/card-identity.md).",
+  "Eredin is the first hero whose state is the absence of his sidekicks. ENRAGED is not a counter or a form: it is derived from the roster (no Red Rider alive). Cards read it with the plain condition `not exists {side own, kind sidekick}`; the engine reads it through sparring/enraged.py for the three things that are not card effects: +1 to every combat card, move 3, and the two card tags (`attack_if_enraged`: Implacable, `any_space_if_enraged`: Foul Purpose).",
+  "Additive engine pieces that came with him (docs/effects-dsl.md, section 37): the op `defeat`, the `until` flag `unless_attacked`, the `target: hero` of an ONGOING status, the HeroDef passive `enraged`, the two card tags, and the plugins `eredin:replace_combatant` and `eredin:opponent_card`. Everything else uses ops that already existed; Skirmish is word for word Bigfoot's and Tomoe Gozen's card.",
+  "Rules decisions taken without an official ruling are listed in docs/heroes/eredin.md, 'Open questions for Ivan'."
+ ],
+ "ability": {
+  "text": "KING OF THE WILD HUNT\nWhile all of your Red Riders are defeated, Eredin is ENRAGED.\nIf Eredin is ENRAGED, add +1 to the value of your combat cards, and your move value is 3.",
+  "triggers": [],
+  "passives": [
+   {
+    "kind": "modify_value",
+    "id": "king_of_the_wild_hunt",
+    "cards": {
+     "player": "owner"
+    },
+    "amount": 1,
+    "while": {
+     "not": {
+      "test": "exists",
+      "fighters": {
+       "side": "own",
+       "kind": "sidekick"
+      }
+     }
+    }
+   }
+  ],
+  "notes": "The passive above only documents the +1 (the interpreter does not apply ability.passives of kind modify_value; Golden Bat's passive is the same). KING OF THE WILD HUNT is the HeroDef passive `{effect: enraged, combat_bonus: 1, move: 3}` (data/heroes/eredin.json), read by sparring/enraged.py. ENRAGED = the owner has no sidekick alive. +1 is added to the value of every combat card the owner plays, attacking or defending, whatever fighter plays it (`Game.attack_bonus_parts` / `defense_bonus_parts`, so it shows in the combat chat as KING OF THE WILD HUNT (+1)); a Red Rider that falls in the middle of a combat (Icy Guile's price) adds it to the card in play at once. The hero's move value is 3 (`Fighter.move` follows the roster: `enraged.sync_move`, called wherever a fighter falls or returns)."
+ },
+ "cards": [
+  {
+   "title": "Backhand",
+   "copies": 3,
+   "text": "AFTER COMBAT: Your opponent puts 1 random card from their hand on top of their deck. If Eredin is ENRAGED, they discard it instead.",
+   "effects": {
+    "immediately": [],
+    "during": [],
+    "after": [
+     {
+      "op": "if",
+      "condition": {
+       "not": {
+        "test": "exists",
+        "fighters": {
+         "side": "own",
+         "kind": "sidekick"
+        }
+       }
+      },
+      "then": [
+       {
+        "op": "discard",
+        "cards": {
+         "zone": "hand",
+         "player": "opponent",
+         "pick": "random",
+         "amount": 1
+        }
+       }
+      ],
+      "else": [
+       {
+        "op": "return_to_deck",
+        "cards": {
+         "zone": "hand",
+         "player": "opponent",
+         "pick": "random",
+         "amount": 1
+        },
+        "position": "top"
+       }
+      ]
+     }
+    ],
+    "scheme": [],
+    "boost": []
+   },
+   "notes": "Attack 4 / boost 3, Eredin only. Won or not. `pick: random` on the rival's hand looks at nothing (section 6): the bot's rival hand is never read, the human's real card is put on top of their deck (or discarded) by them, the bot saying so. ENRAGED is read when the AFTER resolves."
+  },
+  {
+   "title": "Brutal Strike",
+   "copies": 3,
+   "text": "This card's effects cannot be canceled. DURING COMBAT: If your opponent's card has an IMMEDIATELY effect, ignore their card's value.",
+   "uncancelable": true,
+   "effects": {
+    "immediately": [],
+    "during": [
+     {
+      "op": "if",
+      "condition": {
+       "test": "plugin",
+       "id": "eredin:opponent_card",
+       "key": "has_immediately"
+      },
+      "then": [
+       {
+        "op": "set_value",
+        "card": "opponent_card",
+        "ignore": true
+       }
+      ]
+     }
+    ],
+    "after": [],
+    "scheme": [],
+    "boost": []
+   },
+   "notes": "Attack 2 / boost 3, Eredin only. `uncancelable`: no cancel touches it (not even the rival's IMMEDIATELY). The test is on the printed text of the rival's card (`IMMEDIATELY:`), not on what the effect did: a cancelled or conditional IMMEDIATELY still counts. With no rival card (a defender who played none) the test is false. `ignore: true` zeroes the rival's whole total, bonuses included (Incinerate)."
+  },
+  {
+   "title": "Foul Purpose",
+   "copies": 2,
+   "text": "If Eredin is ENRAGED, you may play this card face-up to target a fighter in any space. AFTER COMBAT: You may defeat a Red Rider to return this card to your hand.",
+   "effects": {
+    "immediately": [],
+    "during": [],
+    "after": [
+     {
+      "op": "optional",
+      "chooser": "owner",
+      "cost": [
+       {
+        "op": "defeat",
+        "target": {
+         "side": "own",
+         "name": "Red Rider"
+        },
+        "chooser": "owner"
+       }
+      ],
+      "ops": [
+       {
+        "op": "put_in_hand",
+        "cards": "this"
+       }
+      ]
+     }
+    ],
+    "scheme": [],
+    "boost": []
+   },
+   "notes": "Attack 3 / boost 2, any fighter. The 'target a fighter in any space' is a property of the card (the tag `any_space_if_enraged`, sparring/enraged.py), not an effect: while Eredin is enraged the card is not held to the attacker's reach (`Game.attack_card_reaches`, `Game.can_attack(card=)`), and it lies face up when the target is out of the usual reach (`far_shot`; in reach it is played as any attack). The AFTER: the owner may defeat one of their Red Rider (`defeat`, a price that is no damage) to take the card back to the hand instead of the discard pile (`put_in_hand` of `this`, section 35); with no Red Rider alive the option does not exist. The rival sees the card back in the hand."
+  },
+  {
+   "title": "Unyielding Hordes",
+   "copies": 3,
+   "text": "IMMEDIATELY: Return a defeated Red Rider to any space. DURING COMBAT: Add +1 to this card's value for each other friendly fighter adjacent to the opposing fighter.",
+   "effects": {
+    "immediately": [
+     {
+      "op": "revive",
+      "target": {
+       "side": "own",
+       "name": "Red Rider",
+       "state": "defeated"
+      },
+      "where": {
+       "any": true
+      },
+      "hp": 1,
+      "await_destination": true,
+      "chooser": "owner"
+     }
+    ],
+    "during": [
+     {
+      "op": "modify_value",
+      "card": "this",
+      "amount": {
+       "count": {
+        "side": "own",
+        "other": true,
+        "where": {
+         "adjacent_to": "opposing"
+        },
+        "pick": "all"
+       }
+      }
+     }
+    ],
+    "after": [],
+    "scheme": [],
+    "boost": []
+   },
+   "notes": "Attack 1 / boost 2, Red Rider only (the band reads RED RIDER: a Red Rider plays it). The IMMEDIATELY brings one defeated Red Rider back on any empty space (1 hit point, the owner chooses it; with none defeated nothing happens) and so ends ENRAGED. The DURING counts, after that, the friendly fighters other than the one playing it (Red Rider or Eredin) that stand next to the opposing fighter, the one just returned included."
+  },
+  {
+   "title": "Icy Guile",
+   "copies": 3,
+   "text": "IMMEDIATELY: If Eredin is ENRAGED, cancel all effects on your opponent's card. DURING COMBAT: You may defeat a Red Rider to ignore the value of your opponent's card.",
+   "effects": {
+    "immediately": [
+     {
+      "op": "if",
+      "condition": {
+       "not": {
+        "test": "exists",
+        "fighters": {
+         "side": "own",
+         "kind": "sidekick"
+        }
+       }
+      },
+      "then": [
+       {
+        "op": "cancel_effects",
+        "card": "opponent_card"
+       }
+      ]
+     }
+    ],
+    "during": [
+     {
+      "op": "optional",
+      "chooser": "owner",
+      "cost": [
+       {
+        "op": "defeat",
+        "target": {
+         "side": "own",
+         "name": "Red Rider"
+        },
+        "chooser": "owner"
+       }
+      ],
+      "ops": [
+       {
+        "op": "set_value",
+        "card": "opponent_card",
+        "ignore": true
+       }
+      ]
+     }
+    ],
+    "after": [],
+    "scheme": [],
+    "boost": []
+   },
+   "notes": "Versatile 2 / boost 1, any fighter. Attacking or defending. The IMMEDIATELY cancels all the effects of the rival's card only while Eredin is enraged (`cancel_effects`, which respects `uncancelable`: Brutal Strike). The DURING is an optional with a price: defeat one of your Red Riders (any of them, the owner chooses; the card's own player included) to ignore the value of the rival's card (the whole total goes to 0). A Red Rider that falls this way may be the last one: the hero is then enraged and the +1 of the ability reaches the card in play (`enraged.reach_combat`)."
+  },
+  {
+   "title": "Wild Hunt",
+   "copies": 3,
+   "text": "AFTER COMBAT: Deal 1 damage to each opposing fighter that is adjacent to at least one of your fighters. If Eredin is ENRAGED, deal 2 damage instead.",
+   "effects": {
+    "immediately": [],
+    "during": [],
+    "after": [
+     {
+      "op": "if",
+      "condition": {
+       "not": {
+        "test": "exists",
+        "fighters": {
+         "side": "own",
+         "kind": "sidekick"
+        }
+       }
+      },
+      "then": [
+       {
+        "op": "damage",
+        "target": {
+         "side": "enemy",
+         "filter": {
+          "adjacent_to_any": {
+           "side": "own"
+          }
+         },
+         "pick": "all"
+        },
+        "amount": 2
+       }
+      ],
+      "else": [
+       {
+        "op": "damage",
+        "target": {
+         "side": "enemy",
+         "filter": {
+          "adjacent_to_any": {
+           "side": "own"
+          }
+         },
+         "pick": "all"
+        },
+        "amount": 1
+       }
+      ]
+     }
+    ],
+    "scheme": [],
+    "boost": []
+   },
+   "notes": "Versatile 3 / boost 2, any fighter. Won or not, attacking or defending. Effect damage to every opposing fighter (hero or sidekick) next to at least one friendly fighter alive at the AFTER (the one that played the card included; a fighter the combat just defeated is not there). 2 damage while Eredin is enraged."
+  },
+  {
+   "title": "Skirmish",
+   "copies": 3,
+   "text": "AFTER COMBAT: If you won the combat, move one of the fighters in the combat up to 2 spaces.",
+   "effects": {
+    "immediately": [],
+    "during": [],
+    "after": [
+     {
+      "op": "if",
+      "condition": {
+       "test": "combat_result",
+       "result": "won"
+      },
+      "then": [
+       {
+        "op": "move",
+        "target": "combatant",
+        "amount": 2,
+        "up_to": true,
+        "chooser": "owner"
+       }
+      ]
+     }
+    ],
+    "scheme": [],
+    "boost": []
+   },
+   "notes": "Versatile 4 / boost 1, any fighter. The same effect as Bigfoot's and Tomoe Gozen's card, worded as on Eredin's own card (move one of the fighters in the combat up to 2 spaces)."
+  },
+  {
+   "title": "Implacable",
+   "copies": 3,
+   "text": "If Eredin is ENRAGED, you may play this card as an attack. DURING COMBAT: You may BOOST this card.",
+   "may_boost": true,
+   "effects": {
+    "immediately": [],
+    "during": [],
+    "after": [],
+    "scheme": [],
+    "boost": []
+   },
+   "notes": "Defense 3 / boost 3, Eredin only. `may_boost`: the free BOOST of the DURING, defending or, enraged, attacking. 'You may play this card as an attack' is a property of the card (the tag `attack_if_enraged`, sparring/enraged.py): while Eredin is enraged `Game.check_attack_card`, the bot's attack options and the search accept it as an attack; otherwise it is a plain defense. Its value is the printed 3 as an attack, plus the +1 of the ability while enraged."
+  },
+  {
+   "title": "Portal Defense",
+   "copies": 2,
+   "text": "IMMEDIATELY: Eredin swaps spaces with an adjacent friendly fighter. That fighter is now the defender. AFTER COMBAT: If Eredin is ENRAGED, draw 2 cards.",
+   "effects": {
+    "immediately": [
+     {
+      "op": "if",
+      "condition": {
+       "test": "exists",
+       "fighters": {
+        "side": "own",
+        "other": true,
+        "where": {
+         "adjacent_to": "this"
+        }
+       }
+      },
+      "then": [
+       {
+        "op": "swap",
+        "target": "this",
+        "with": {
+         "side": "own",
+         "other": true,
+         "where": {
+          "adjacent_to": "this"
+         }
+        },
+        "chooser": "owner",
+        "as": "swapped"
+       },
+       {
+        "op": "plugin",
+        "id": "eredin:replace_combatant",
+        "args": {
+         "swapped": "$swapped"
+        }
+       }
+      ]
+     }
+    ],
+    "during": [],
+    "after": [
+     {
+      "op": "if",
+      "condition": {
+       "not": {
+        "test": "exists",
+        "fighters": {
+         "side": "own",
+         "kind": "sidekick"
+        }
+       }
+      },
+      "then": [
+       {
+        "op": "draw",
+        "player": "owner",
+        "amount": 2
+       }
+      ]
+     }
+    ],
+    "scheme": [],
+    "boost": []
+   },
+   "notes": "Defense 0 / boost 1, Eredin only. The swap is not optional (the card says 'swaps'): the owner chooses which adjacent friendly fighter, with none adjacent nothing happens. After it that fighter takes Eredin's place as the defender in this combat, with this card in play for it (Houdini's Smoke And Mirrors / Luke Cage's Got My Back? mechanism, `CombatFlow.replace_combatant`): the attack's damage and AFTER effects are aimed at it from now on, in the space Eredin had. At the AFTER, if Eredin is enraged, draw 2."
+  },
+  {
+   "title": "Might Of The Aen Elle",
+   "copies": 2,
+   "text": "Draw 1 card. Gain 1 action. ONGOING: Eredin does not take damage except combat damage or from exhaustion. Discard this card at the end of your turn if you didn't attack.",
+   "effects": {
+    "immediately": [],
+    "during": [],
+    "after": [],
+    "scheme": [
+     {
+      "op": "draw",
+      "player": "owner",
+      "amount": 1
+     },
+     {
+      "op": "gain_action",
+      "amount": 1
+     }
+    ],
+    "boost": []
+   },
+   "ongoing": {
+    "modifiers": [
+     {
+      "kind": "status",
+      "name": "immune_to_effect_damage",
+      "target": "hero"
+     }
+    ],
+    "triggers": [],
+    "until": {
+     "event": "end_of_turn",
+     "player": "owner",
+     "unless_attacked": true
+    }
+   },
+   "notes": "Scheme, boost 2, Eredin only. The scheme draws 1 and gains 1 action (the scheme's own action nets zero). The ONGOING is the status `immune_to_effect_damage` on Eredin while the card stays in play: no effect damage, his own or the rival's (combat damage and exhaustion still hurt him, `set_hp` is not damage). It lapses at the end of the owner's turn only if the owner did not attack in that turn (`until.unless_attacked`): played with an attack in the same turn it protects him through the rival's turn and the next turn of the owner decides again. Like every ONGOING it is replaced by the next one the player plays. Not in unmatched-memory: read from the card image."
+  },
+  {
+   "title": "Close For The Kill",
+   "copies": 3,
+   "text": "Draw 2 cards. Move each of your fighters up to 3 spaces. They may move through opposing fighters.",
+   "effects": {
+    "immediately": [],
+    "during": [],
+    "after": [],
+    "scheme": [
+     {
+      "op": "draw",
+      "player": "owner",
+      "amount": 2
+     },
+     {
+      "op": "move",
+      "target": {
+       "side": "own",
+       "pick": "all"
+      },
+      "amount": 3,
+      "up_to": true,
+      "through_enemies": true,
+      "chooser": "owner"
+     }
+    ],
+    "boost": []
+   },
+   "notes": "Scheme, boost 4, any fighter. Draw 2, then every friendly fighter alive moves up to 3 (0 included) and may cross opposing fighters (never ends on one); the owner chooses where each goes, sidekicks before the hero (the order every `move` over several fighters uses)."
+  }
+ ],
+ "plugins": [
+  {
+   "id": "eredin:replace_combatant",
+   "why": "Portal Defense: after the swap, the friendly fighter takes Eredin's place as the defender IN the running combat (Houdini's Smoke And Mirrors and Luke Cage's Got My Back? do the same), which no op can do."
+  },
+  {
+   "id": "eredin:opponent_card",
+   "why": "Brutal Strike: 'if your opponent's card has an IMMEDIATELY effect' reads the printed text of the rival's card, which no condition can do (a card filter knows type, title and fighter only)."
+  }
+ ],
+ "hidden_info": [
+  {
+   "card": "Backhand",
+   "what": "a random card of the rival's hand goes on top of their deck, or to their discard pile when Eredin is enraged.",
+   "bot_rule": "`pick: random`: nothing is read. The bot knows only that the rival's hand has one card less; against the human the card goes to the top of their deck (or the pile) by their own hand at the table.",
+   "human_plays_it": "the bot picks the position of the random card in the human's hand and the human is told to put it where the card says; the bot's hand is virtual, so the card is the one the engine drew at random."
+  },
+  {
+   "card": "Foul Purpose",
+   "what": "played face up to target a fighter out of reach.",
+   "bot_rule": "Public information: the human's defense is chosen knowing the card (the hidden-information route of Witness My Last Battle)."
+  }
+ ],
+ "open_questions": [
+  "ENRAGED and a hero with no Red Rider at all: the rule is 'all of your Red Riders are defeated'; with none alive Eredin is enraged, the card does not ask whether they were ever on the board.",
+  "A Red Rider returned by Unyielding Hordes during a combat in which the +1 of the ability was already added: the bonus stays on the card for that combat (it is not taken back)."
+ ]
+}

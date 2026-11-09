@@ -118,6 +118,8 @@ def option_label(game, req: ChoiceRequest, option) -> str:
         card = game.cards_by_id(req.extra.get("of", req.player)).get(option)
         return safe_label(card.title if card is not None else t("choice.card_n", n=option))
     fighter = game.fighters.get(option) if isinstance(option, str) else None
+    if fighter is not None and not fighter.hero and sum(1 for o in req.options if getattr(game.fighters.get(o), "name", None) == fighter.name) > 1:
+        return safe_label(getattr(game, "nicknames", {}).get(fighter.fid, fighter.name))       # four Red Riders: the miniature's name tells them apart
     return safe_label(fighter.name if fighter is not None else option)
 
 

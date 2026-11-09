@@ -27,7 +27,7 @@ _BOTS = ControllerChooser()
 
 # Turn bookkeeping and the words of an effects file that read it: a hero whose data never names them does not get
 # it recorded, so a game of such heroes saves exactly as it did before the interpreter.
-TRACKS = {"attacked": ("attacked_this_turn", "combat_damage_dealt"),
+TRACKS = {"attacked": ("attacked_this_turn", "combat_damage_dealt", "unless_attacked"),
           "turn_start_pos": ("moved_this_turn", "no_zone_with_turn_start"),
           "taken": ("actions_taken_this_turn", "no_attack_as_first_action"),
           "maneuvers": ("maneuvers_this_turn",),
@@ -207,6 +207,8 @@ def matches(game, owner: int, when: dict, ev: dict) -> bool:
     if name in ("start_of_turn", "after_maneuver", "after_scheme"):
         return _player_ok(when.get("player", "owner"), ev["player"], owner)
     if name == "end_of_turn":
+        if when.get("unless_attacked") and game.fx.attacked:       # Might Of The Aen Elle: it only lapses at the end of a turn with no attack
+            return False
         return _player_ok(when.get("player", "any"), ev["player"], owner)
     if name == "combat_lost":
         return _player_ok(when.get("player", "owner"), ev["player"], owner)

@@ -392,7 +392,7 @@ def test_secure_the_scene_revives_your_agent_for_you_to_place_and_your_moves_are
     assert session.effect_run.awaiting.kind == "fighter", "which friendly fighter moves is still your call"
     msgs = press(session, table, "abe")
     assert session.pending is None and agent.alive and agent.hp == 1 and agent.pos is not None
-    assert any("agent2 vuelve al tablero" in m and "en la mesa: pon a agent2 en el tablero (la zona de tu heroe) con 1 PV, "
+    assert any("agent2 vuelve al tablero" in m and "en la mesa: pon a Carla en el tablero (la zona de tu heroe) con 1 PV, "
                "mueve a abe hasta 2 casillas" in m for m in msgs), msgs
     assert visible_choices(session) == []
 
@@ -538,7 +538,7 @@ def test_deathless_revives_koschei_in_the_engine_and_you_put_him_beside_baba(rig
     human_attack(session, table, game, "baba", "liz", "Deathless")
     msgs = click(session, table, Event.REVEAL)
     assert koschei.alive and koschei.hp == 3 and koschei.pos is not None
-    assert any("en la mesa: pon a koschei en el tablero (lo mas cerca posible de tu heroe) con 3 PV" in m for m in msgs), msgs
+    assert any("en la mesa: pon a Koschei en el tablero (lo mas cerca posible de tu heroe) con 3 PV" in m for m in msgs), msgs
 
 
 @with_rig(*BABA_VS_LIZ)

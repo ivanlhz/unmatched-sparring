@@ -14,6 +14,8 @@ from __future__ import annotations
 
 from functools import lru_cache
 
+from .. import enraged
+
 from .model import EFFECTS_DIR, CardEffects, EffectError, load_effects, walk_ops
 
 FIGHTER_STATUSES = ("immune_to_effect_damage", "cannot_leave_space", "attack_bonus")
@@ -91,10 +93,13 @@ def adjacent_only(card) -> bool:
     return fx is not None and fx.adjacent_only
 
 
-def plays_face_up(card) -> bool:
-    """The attack is played face up (data `face_up`: Witness My Last Battle): the defender's choice may know it."""
+def plays_face_up(card, game=None, attacker=None, target=None) -> bool:
+    """The attack is played face up (data `face_up`: Witness My Last Battle): the defender's choice may know it. With the game and
+    the two fighters, also the far shot of an enraged hero (Foul Purpose: face up to target a fighter out of reach)."""
     fx = card_effects(card)
-    return fx is not None and fx.face_up
+    if fx is not None and fx.face_up:
+        return True
+    return game is not None and target is not None and enraged.far_shot(game, attacker, target, card)
 
 
 def defers_defeat(card) -> bool:
@@ -180,6 +185,8 @@ def _modifier_entries(fx):
         entry = {**spec, "owner": owner, "card_id": fx.ongoing_card_id(owner)}
         if spec["kind"] == "status":
             entry["player"] = {"owner": owner, "opponent": 1 - owner}[spec.get("player", "owner")]
+            if spec.get("target") == "hero":                       # a status of the card's owner's hero (Might Of The Aen Elle)
+                entry["fid"] = game.hero(owner).fid
         yield entry
 
 
@@ -213,6 +220,9 @@ def _is_enemy_source(fx, owner_of_target: int) -> bool:
 
 def adjust_damage(fx, fighter, n, source):
     """Effect damage only (never combat, exhaustion or set_hp): immunities first, then the +N rule."""
+    if source == "hazard":                    # Might Of The Aen Elle: "no damage except combat damage or exhaustion", a map hazard included
+        return 0 if any(m["kind"] == "status" and m["name"] == "immune_to_effect_damage" and m.get("fid") == fighter.fid
+                                   for m in _modifier_entries(fx)) else n
     if source != "effect":
         return n
     if _fighter_has(fx, "immune_to_effect_damage", fighter.fid):

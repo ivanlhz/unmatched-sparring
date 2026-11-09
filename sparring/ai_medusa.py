@@ -61,6 +61,7 @@ from collections import Counter
 from math import ceil, comb
 
 from . import ai_ciri as ciri_ai
+from . import enraged
 from .cards import can_be_boost
 from .combat import GAZE_DAMAGE, GLANCE_DAMAGE, ON_EARTH
 from .controller import Controller
@@ -751,11 +752,12 @@ class MedusaAI(Controller):
         out = []
         for f in game.own(self.me):
             for t in game.foes(self.me):
-                if not game.can_attack(f, t):
+                if not game.can_declare_attack(f, t):
                     continue
                 seen = set()
                 for c in hand:
-                    if c.title in seen or not c.can_attack or not c.usable_by(f.name) or not game.attack_card_reaches(f, t, c):
+                    if (c.title in seen or not enraged.may_attack_with(game, self.me, c) or not c.usable_by(f.name)
+                            or not game.attack_card_reaches(f, t, c)):
                         continue
                     seen.add(c.title)
                     value, dmg, kill = self.attack_outcome(game, model, f, t, c)

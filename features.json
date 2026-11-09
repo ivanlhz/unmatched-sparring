@@ -503,6 +503,20 @@
       "note": "Engine additions are additive (docs/effects-dsl.md, section 36). Rules decisions and open questions for Iván: docs/heroes/ciri.md. Live test pending."
     },
     {
+      "id": "HERO-EREDIN",
+      "title": "Eredin (The Witcher: Realms Fall, four Red Riders) playable by the bot and by the human against every hero",
+      "status": "in-progress",
+      "criteria": [
+        "data/heroes/overlay/eredin.json, data/heroes/eredin.json, data/heroes/effects/eredin.json and data/tts/eredin.json generated and validated (import_hero, validate_effects, import_save); the 11 titles (30 cards, sheet 176, character card 350, bands EREDIN / RED RIDER / ANY) read from the card images; ai_profile computed by the importer",
+        "His deck shares CardIDs 17600-17629 with Medusa, the turtles, Doctor Strange, Bigfoot, Daredevil, Luke Cage, Bullseye, Golden Bat, Jill Trent, She-Hulk and Tomoe Gozen: told apart by deck image and owner, never by a bare CardID (tests/test_hero_eredin_data.py, tests/test_card_identity.py); his four Red Rider tokens (Custom_Token in the save, Tile in real TTS) and every GUID are his own",
+        "KING OF THE WILD HUNT: ENRAGED while no Red Rider is alive = +1 to every combat card the owner plays (attack and defense) and move value 3 (sparring/enraged.py, HeroDef passive enraged); saved games and search clones keep it",
+        "All 11 cards on the interpreter for both seats: Backhand, Brutal Strike (uncancelable, ignores a card with an IMMEDIATELY), Unyielding Hordes (revive, count of adjacent friends), Icy Guile and Foul Purpose (defeat a Red Rider as the price), Portal Defense (new defender), Might Of The Aen Elle (ONGOING immunity, lapses without an attack), Close For The Kill, Wild Hunt, Skirmish; Implacable as an attack and Foul Purpose at any range only while enraged (card tags)",
+        "Eredin against each of the 19 other heroes in both seats reaches game over on FakeTTS (passive and attacking human) and in the simulator (tests/test_eredin_matrix.py); the panel names the four Red Riders by their miniatures",
+        "Verified live by Iván (docs/live-checklist.md, section Eredin)"
+      ],
+      "note": "Engine additions are additive (docs/effects-dsl.md, section 37). Rules decisions and open questions for Iván: docs/heroes/eredin.md. Live test pending."
+    },
+    {
       "id": "F20",
       "title": "The bot prepares the official community save itself",
       "status": "in-progress",

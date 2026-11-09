@@ -1,8 +1,8 @@
 # Card identity: the shared CardID range
 
-In the tournament savegame Medusa, the four TMNT turtles (Leonardo, Donatello, Michelangelo, Raphael), Doctor Strange, Bigfoot, Daredevil, Luke Cage, Bullseye and Tomoe Gozen
-are all DeckID 176, so all eleven decks have CardIDs 17600-17629 (Daredevil's has 22 cards: 17600-17621). Only the deck image (FaceURL, BackURL of the CustomDeck,
-`deck.identity` in `data/tts/<slug>.json`) tells them apart. Any pairing of the nineteen heroes works at the table, in both seats,
+In the tournament savegame Medusa, the four TMNT turtles (Leonardo, Donatello, Michelangelo, Raphael), Doctor Strange, Bigfoot, Daredevil, Luke Cage, Bullseye, Tomoe Gozen and Eredin
+are all DeckID 176, so all twelve decks have CardIDs 17600-17629 (Daredevil's has 22 cards: 17600-17621). Only the deck image (FaceURL, BackURL of the CustomDeck,
+`deck.identity` in `data/tts/<slug>.json`) tells them apart. Any pairing of the twenty heroes works at the table, in both seats,
 including Medusa against a turtle and a turtle against a turtle (`tests/test_tmnt_matrix.py`), and Doctor Strange against each of
 them (`tests/test_doctor_strange_matrix.py`; only the
 30 deck cards overlap, his character card is 337). The rule is one sentence:
@@ -63,6 +63,7 @@ She-Hulk (Brains and Brawn, character card 336) is another deck of sheet 176 (`t
 Tomoe Gozen (Sun's Origin, character card 354) is another deck of sheet 176 (`tests/test_hero_tomoe_gozen_data.py`, `tests/test_tomoe_gozen_matrix.py`): her own `deck.identity` in `data/tts/tomoe-gozen.json`, a matrix against the other eighteen heroes in both seats, and `SHARING` in `tests/test_card_identity.py`. Her life dial also shares a GUID with Donatello's (`ca8e35`): see "Piece identity" below.
 
 Ciri (The Witcher: Steel & Silver, character card 344, slug `ciri`) is another deck of sheet 176 (`tests/test_hero_ciri_data.py`, `tests/test_ciri_matrix.py`): her own `deck.identity` in `data/tts/ciri.json`, a matrix against every other hero of `data/heroes` in both seats, and `SHARING` in `tests/test_card_identity.py`. Her bag also holds a Source dial (`counter_dials.source`, `46aa92`) and a token for Ihuarraquax; none of her GUIDs is shared with another hero.
+Eredin (The Witcher: Realms Fall, character card 350) is another deck of sheet 176 (`tests/test_hero_eredin_data.py`, `tests/test_eredin_matrix.py`): his own `deck.identity` in `data/tts/eredin.json`, a matrix against the other nineteen heroes in both seats, and `SHARING` in `tests/test_card_identity.py`. His four Red Rider tokens (Maxwell, Aleksei, Adrian, Norman) are Custom_Token in the save, which real TTS reports as "Tile"; he shares no GUID with any other hero.
 
 ## Houdini needs none of this
 

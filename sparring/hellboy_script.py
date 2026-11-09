@@ -4,6 +4,7 @@ from __future__ import annotations
 
 import random
 
+from . import enraged
 from .cards import can_be_boost
 from .controller import Controller
 from .state import ANUNG, Fighter, Game
@@ -36,13 +37,13 @@ class ScriptedHellboy(Controller):
     def try_attack(self, game: Game) -> bool:
         hand = game.players[self.me].hand
         for f in sorted(game.own(self.me), key=lambda x: not x.hero):
-            targets = [t for t in game.foes(self.me) if game.can_attack(f, t)]
-            cards = [c for c in hand if c.can_attack and c.usable_by(f.name)]
-            if targets and cards:
-                target = min(targets, key=lambda t: (not t.hero, t.hp))
-                cards = [c for c in cards if game.attack_card_reaches(f, target, c)]      # Witness My Last Battle: only an adjacent fighter
-                if not cards:
-                    continue
+            targets = [t for t in game.foes(self.me) if game.can_declare_attack(f, t)]
+            if not targets:
+                continue
+            target = min(targets, key=lambda t: (not t.hero, t.hp))
+            cards = [c for c in hand if enraged.may_attack_with(game, self.me, c) and c.usable_by(f.name)
+                     and game.attack_card_reaches(f, target, c)]          # an adjacent-only card or a far target needs the right card
+            if cards:
                 card = max(cards, key=lambda c: (c.value, -c.card_id))
                 game.attack(f, target, card)
                 return True

@@ -406,6 +406,8 @@ class Semantics:
             return
         if "zone" in node and "player" in node:
             self.card_sel(node, path, ctx, counting)
+        if node.get("test") == "plugin" and "id" in node:        # a test computed by a plugin that no op of the file runs (eredin:opponent_card)
+            self.plugins_used.add(node["id"])
         if node.get("test") == "form_is" and self.forms is not None and node["form"] not in self.forms:
             self.errors.append(f"{path}: form {node['form']!r} does not exist in the HeroDef ({sorted(self.forms)})")
         if node.get("test") == "counter" and self.counters is not None and node["name"] not in self.counters:
