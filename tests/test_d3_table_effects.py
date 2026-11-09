@@ -157,19 +157,26 @@ class FxTable(Table):
         return self._deck_insert(s, "top")
 
     def do_shuffle_into_deck(self, s):
+        """As the real script: a loose card of ours (the discard pile, the bot's combat spot) goes in. TTS has NO deck object
+        when the last card was drawn: then only a script that lays the first card down as the new deck (its `home`) can work."""
         wanted = re.findall(r'"([gh])(\d+)"', re.search(r"local wanted = \{(.*?)\}", s).group(1))
-        pile, deck = ((self.human_discard, self.human_deck) if self._human_side(s) else (self.bot_discard, self.bot_deck))
+        human = self._human_side(s)
+        pile, deck = ((self.human_discard, self.human_deck) if human else (self.bot_discard, self.bot_deck))
+        if not deck and "-- an empty draw deck is no object in TTS" not in s:
+            return {"added": 0, "deck": False, "moved": []}
         on_spot = {r["id"] for r in self.face_down}          # the human's card at the combat spot (Relentless): GUID h<id>
         added = [(k, int(g)) for k, g in wanted if int(g) not in self.stuck_in_pile
-                 and (int(g) in pile or (k == "h" and int(g) in on_spot and self._human_side(s)))]
+                 and (int(g) in pile or (k == "h" and int(g) in on_spot and human) or (k == "g" and not human and int(g) in self.bot_play))]
         for k, i in added:
             if k == "h":
                 self.face_down = [r for r in self.face_down if r["id"] != i]
+            elif i in self.bot_play:
+                self.bot_play.remove(i)
             else:
                 pile.remove(i)
             deck.append(i)
         self.deck_moves.append(("shuffle", [i for _, i in added]))
-        return {"added": len(added), "moved": [f"{k}{i}" for k, i in added], "deck": "DECK1", "quantity": len(deck)}
+        return {"added": len(added), "moved": [f"{k}{i}" for k, i in added], "deck": "DECK1" if deck else False, "quantity": len(deck)}
 
     def do_return_card_to_hand(self, s):
         i = int(re.search(r'getObjectFromGUID\("g(\d+)"\)', s).group(1))

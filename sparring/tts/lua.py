@@ -3454,6 +3454,23 @@ return JSON.encode({{moved = moved, count = #moved, deck = true, zone = true}})
 _ANY_OURS_LUA = "local function ours(o) return not o.held_by_color end\n"
 
 
+def _empty_deck_home(spot, zone) -> str:
+    """Lua that defines `home`: where a draw deck lay (the Scripting zone's centre, else `spot`), or nil when neither is
+    known. TTS removes a deck object when its last card is drawn, so a card that goes back into an empty deck needs
+    this place to be laid face down at (`shuffle_into_deck`)."""
+    if zone is not None:
+        return f"""local home = nil
+do
+  local z = getObjectFromGUID({_guid(zone)})
+  if isZone(z) then local p = z.getPosition(); home = {{x = p.x, y = 1.5, z = p.z}} end
+end
+"""
+    if spot is not None:
+        x, z, _ = _spot(spot, 0)
+        return f"local home = {{x = {x}, y = 1.5, z = {z}}}\n"
+    return "local home = nil\n"
+
+
 @_registered
 def shuffle_into_deck(deck_guid: str, cards: list[str], id_range: tuple[int, int] = BOT_CARD_IDS, *,
                       identity=None, spot: tuple[float, float] | None = None, zone: str | None = None,
@@ -3461,15 +3478,18 @@ def shuffle_into_deck(deck_guid: str, cards: list[str], id_range: tuple[int, int
     """Puts the loose cards (by GUID) into a deck and shuffles it. A card in ANY hand zone is never taken. With
     `identity` the deck and every card must be `ours` (`id_range` and the image: the human's when the session shuffles
     their own discard pile card into their deck, Ivan 29/10), else `{added = 0, deck = false}`. Returns `{added,
-    deck, quantity, moved}` (`moved`: the GUIDs that reached the deck, in order)."""
+    deck, quantity, moved}` (`moved`: the GUIDs that reached the deck, in order). With no deck at all (TTS drops the object
+    when the last card is drawn) and an `identity` with a `zone` or `spot`, the first card is laid face down at the deck's
+    place and becomes the deck, the rest go into it."""
     if not isinstance(cards, (list, tuple)) or not 1 <= len(cards) <= MAX_DECK_CARDS:
         raise ValueError(f"1 to {MAX_DECK_CARDS} cards expected")
     own = _ours_lua(identity, id_range) if identity is not None else _ANY_OURS_LUA + "local function cardOurs() return true end\n"
     finder = _deck_finder(spot, radius, zone) if identity is not None else (
         "local function findDeck(guid) local d = getObjectFromGUID(guid); if d ~= nil and not ours(d) then d = nil end return d end\n")
+    home = _empty_deck_home(spot, zone) if identity is not None else "local home = nil\n"
     return f"""-- sparring:shuffle_into_deck
 {own}{finder}{_LOOSE_LUA}local deck = findDeck({_guid(deck_guid)})
-if deck == nil then return JSON.encode({{added = 0, deck = false, moved = {{}}}}) end
+{home}if deck == nil and home == nil then return JSON.encode({{added = 0, deck = false, moved = {{}}}}) end
 local wanted = {_guid_list(cards)}
 local moved = {{}}
 -- A card of a stacked pile (a Deck) is no object of its own: `getObjectFromGUID` does not find it and it has to be
@@ -3500,12 +3520,21 @@ for _, g in ipairs(wanted) do
   local ok, done = pcall(function()
     local c = fetch(g)
     if c == nil then return false end
-    deck = deck.putObject(c) or deck
+    if deck == nil then
+      -- an empty draw deck is no object in TTS: the first card laid face down where the deck lay IS the deck again
+      local r = c.getRotation()
+      c.setRotation(Vector(0, r.y, 180))
+      c.setPosition(Vector(home.x, home.y, home.z))
+      deck = c
+    else
+      deck = deck.putObject(c) or deck
+    end
     return true
   end)
   if ok and done then table.insert(moved, g) end
 end
-deck.shuffle()
+if deck == nil then return JSON.encode({{added = 0, deck = false, moved = {{}}}}) end
+if deck.type == "Deck" then deck.shuffle() end
 return JSON.encode({{added = #moved, moved = moved, deck = deck.getGUID(), quantity = deck.getQuantity()}})
 """
 
