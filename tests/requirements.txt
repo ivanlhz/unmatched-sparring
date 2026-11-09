@@ -1,0 +1,3 @@
+# Test-only dependencies (the bot itself runs on the standard library). Same versions as the project venv.
+pytest==9.1.1
+lupa==2.8

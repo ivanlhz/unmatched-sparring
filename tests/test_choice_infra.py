@@ -141,8 +141,10 @@ def test_old_save_loads(brig):
     session, table, game, _ = brig
     fixture = json.loads((GOLDEN / "session_batch.json").read_text(encoding="utf-8"))["save"]
     assert "effect" not in fixture and "look_granted" not in fixture
-    session.load_dict(fixture)
-    assert session.effect_run is None and session.look_granted is False
+    # a save from before card_shifts / first_turn_pending existed loads with their defaults and saves in today's shape
+    old = {k: v for k, v in fixture.items() if k not in ("card_shifts", "first_turn_pending")}
+    session.load_dict(old)
+    assert session.effect_run is None and session.look_granted is False and session.first_turn_pending is False
     assert jsonable(session.to_dict()) == fixture
     assert all(session.panel_view()[1][i] == (False, False) for i in CHOICE)
 

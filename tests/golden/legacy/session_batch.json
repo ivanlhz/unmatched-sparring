@@ -4,6 +4,10 @@
    17609
   ],
   "bot_stage": null,
+  "card_shifts": [
+   0,
+   0
+  ],
   "chosen_attacker": null,
   "combat_guids": {
    "19705": "h19705"
@@ -60,6 +64,7 @@
     "pcmedusa"
    ]
   },
+  "first_turn_pending": false,
   "flush_failures": 0,
   "game": {
    "actions_left": 2,

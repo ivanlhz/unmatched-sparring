@@ -7,7 +7,7 @@
 unmatched-memory (`../unmatched-memory/data/heroes/<slug>.json`, or UNMATCHED_MEMORY) is read only and provides
 life, movement, reach, sidekicks, ability and the cards (title, type, value, boost, copies, texts).
 The overlay `data/heroes/overlay/<slug>.json` provides what unmatched-memory lacks: the fighter id (`fid`),
-the corrected sidekicks (sparring name, fid, count), `memory_slug` and `name` when unmatched-memory files the hero under
+the corrected sidekicks (sparring name, fid, count), `memory_slug`, `catalog_slug` (the slug data/catalog/heroes.json files the hero under, when it is not the project's) and `name` when unmatched-memory files the hero under
 another slug or name (Houdini: `harry-houdini`, "Harry Houdini"; the card reads HOUDINI), the CardID sheet (`deck.card_base` + `deck.sheet`:
 idx, title, fighter restriction, tags and, if the real card says something else, `text`, `value` or `boost`; `memory_title` when
 unmatched-memory spells the title differently), and forms, counters, triggers, passives and `hand` (starting and
@@ -98,7 +98,8 @@ def build(slug: str, memory: Path, overlay_dir: Path = OVERLAY_DIR, effects_dir:
     out = {
         "_source": {"memory": f"unmatched-memory/data/heroes/{ov.get('memory_slug', slug)}.json",
                     "overlay": f"data/heroes/overlay/{slug}.json", "generator": "tools/import_hero.py"},
-        "slug": slug, "name": ov.get("name", um["name"]), "fid": ov["fid"], "hp": int(um["hp"]), "move": int(um["move"]),
+        "slug": slug, **({"catalog_slug": ov["catalog_slug"]} if "catalog_slug" in ov else {}),
+        "name": ov.get("name", um["name"]), "fid": ov["fid"], "hp": int(um["hp"]), "move": int(um["move"]),
         "attack": um["attackType"], "set": (um.get("set") or {}).get("key"),
         "ability": ov.get("ability", (um.get("specialAbility") or "").strip()),
         "sidekicks": sidekicks, "forms": ov.get("forms"), "counters": ov.get("counters") or {},

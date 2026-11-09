@@ -193,7 +193,7 @@ def test_jill_is_detected_on_either_side_against_any_hero():
 
 def test_the_catalog_names_her_by_the_catalog_slug_and_her_deck_is_her_own():
     entry = load_catalog().identify([f"{f}|{b}" for f, b in load_hero_table("jill-trent").identity])
-    assert entry.slug == "dr-jill-trent-science-sleuth" and entry.name == "Dr. Jill Trent, Science Sleuth"      # the project slug is jill-trent
+    assert entry.slug == json.loads((HEROES_DIR / "jill-trent.json").read_text(encoding="utf-8"))["catalog_slug"] == "dr-jill-trent-science-sleuth" and entry.name == "Dr. Jill Trent, Science Sleuth"      # the project slug is jill-trent
 
 
 def test_the_only_piece_guid_jill_shares_with_another_hero_is_daisys_token_with_abes_agent_carla():

@@ -4,6 +4,10 @@
    17609
   ],
   "bot_stage": null,
+  "card_shifts": [
+   0,
+   0
+  ],
   "chosen_attacker": null,
   "combat_guids": {
    "19705": "h19705"
@@ -46,6 +50,7 @@
     "pcmedusa"
    ]
   },
+  "first_turn_pending": false,
   "flush_failures": 0,
   "game": {
    "actions_left": 2,
@@ -923,9 +928,9 @@
     "Te quedan 1 accion(es)."
    ],
    "sent": [
-    "piece_spaces_by_guid",
     "read_discard",
-    "count_hand"
+    "count_hand",
+    "piece_spaces_by_guid"
    ],
    "status": null,
    "step": "end action"
@@ -1134,10 +1139,10 @@
     "Tu turno (forma: OCCULT DETECTIVE)."
    ],
    "sent": [
-    "piece_spaces_by_guid",
     "read_discard",
     "read_discard",
     "count_hand",
+    "piece_spaces_by_guid",
     "piece_spaces_by_guid",
     "read_discard",
     "read_discard",
@@ -1265,10 +1270,10 @@
     "Te quedan 1 accion(es)."
    ],
    "sent": [
-    "piece_spaces_by_guid",
     "read_discard",
     "read_discard",
-    "count_hand"
+    "count_hand",
+    "piece_spaces_by_guid"
    ],
    "status": null,
    "step": "end action"
@@ -1383,10 +1388,10 @@
     "El bot ataca con medusa a lobster: deja tu defensa boca abajo (o nada) y pulsa Revelar."
    ],
    "sent": [
-    "piece_spaces_by_guid",
     "read_discard",
     "read_discard",
     "count_hand",
+    "piece_spaces_by_guid",
     "read_discard",
     "count_hand",
     "piece_spaces_by_guid",

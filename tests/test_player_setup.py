@@ -684,9 +684,8 @@ def test_an_opened_hero_that_lost_a_piece_is_named_and_the_button_stays(setup_li
     try:
         assert wait_for(lambda: shown(table, "btn_prep") == (True, True))
         press(fake, "prepare_table")
-        assert wait_for(said(table, "No he podido preparar la mesa"))
-        text = " ".join(table.broadcasts)
-        assert "Faltan en la mesa estos objetos de Bigfoot (b31c7a)" in text
+        # the line reaches the chat in 64-character chunks: wait for the fragment that names the piece, not the first one
+        assert wait_for(said(table, "No he podido preparar la mesa", "Faltan en la mesa estos objetos de Bigfoot (b31c7a)"))
         assert shown(table, "btn_start") == (False, False) and shown(table, "btn_prep") == (True, True)
     finally:
         finish(stop, t, result)

@@ -115,10 +115,10 @@ Install:
 git clone <this repository>
 cd unmatched-sparring
 uv venv
-uv pip install pytest lupa       # only needed to run the tests; the bot itself uses the standard library
+uv pip install -r tests\requirements.txt       # only needed to run the tests; the bot itself uses the standard library
 ```
 
-There is no package metadata in the repository: the bot runs on the standard library alone. `pytest` and `lupa` (a Lua interpreter used to test the generated TTS scripts) are test-only.
+There is no package metadata in the repository: the bot runs on the standard library alone. `pytest` and `lupa` (a Lua interpreter used to test the generated TTS scripts) are test-only, pinned in `tests\requirements.txt`.
 
 ### Main keys of `config\table.json`
 
@@ -378,10 +378,11 @@ Other pending work: finish the live checklist ([docs/live-checklist.md](docs/liv
 
 ```powershell
 uv venv
-uv pip install pytest lupa
+uv pip install -r tests\requirements.txt
 .venv\Scripts\python -m pytest -q
 ```
 
+- GitHub Actions runs this suite and the launcher's `npm test` on Windows for every push and pull request to `master` (`.github\workflows\ci.yml`). A `v<version>` tag builds the installer like `npm run dist` and keeps it as a workflow artifact (`.github\workflows\release.yml`); the GitHub Release itself is published by hand from that file.
 - Run **one full suite at a time** on Windows. Tests open local sockets, and two suites in parallel hit `WinError 10048` (address already in use).
 - Tests read `config\table.json`: keep it clean (no experiments in it). They cannot write under `state\` or the old `estado\` (a guard in `tests\conftest.py` points `--state` to a temporary folder).
 - `GOLDEN_UPDATE=1` regenerates the golden files (`tests\golden`, simulator and a recorded session) on purpose. They must stay identical otherwise.

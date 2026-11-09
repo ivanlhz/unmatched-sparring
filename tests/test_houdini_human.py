@@ -4,7 +4,10 @@ the panel asks (Smoke And Mirrors, the card The Big Reveal returns) and what the
 ESCAPE ARTIST and Grand Escape, the miniature the swap moves). The bot's side of the same cards is in tests/test_houdini_effects.py."""
 from __future__ import annotations
 
+import time
+
 from sparring.ai_medusa import Act
+from sparring.session import DEAL_FLIGHT
 from sparring.tts.ui import Event
 from test_batch import click
 from test_d3_table_effects import bot_turn, card_ids, human_attack, human_hand, human_reads, said
@@ -518,6 +521,65 @@ def test_a_card_dealt_by_the_boost_and_still_flying_is_not_read_as_discarded(rig
     st = game.players[1]
     assert all(c.card_id != vanishing for c in st.discard), [c.title for c in st.discard]
     assert len(st.hand) == table.human_count
+
+
+@with_rig("hellboy", "houdini", TRAINING)
+def test_a_card_the_table_lacks_during_the_flight_costs_no_second_read(rig, monkeypatch):
+    """A card missing from the pile is no flying card: the trusted click snapshot stands, the card stays in the engine's
+    discard (a removal needs two buttons) and the bot's turn costs its 3 messages, not 5."""
+    session, table, game, fake, cfg = rig
+    bot_defends_with_nothing(session, monkeypatch)
+    human_hand(table, game, "Flourish", "Sleight of Hand")
+    game.actions_left = 1
+    click(session, table, Event.MANEUVER)
+    flourish = spend(table, game, "Flourish")[0]
+    click(session, table, Event.MANEUVER_BOOST)
+    st = game.players[1]
+    assert flourish in {c.card_id for c in st.discard} and time.monotonic() - session._deal_at < DEAL_FLIGHT
+    plain = table.snapshot_state
+
+    def snapshot_state():
+        snap = plain()
+        snap["human_discard"] = [r for r in snap["human_discard"] if r["id"] != flourish]
+        return snap
+    table.snapshot_state = snapshot_state
+    n = fake.lua_messages
+    click(session, table, Event.END_ACTION)
+    assert fake.lua_messages - n == 3
+    assert flourish in {c.card_id for c in st.discard}
+
+
+@with_rig("hellboy", "houdini", TRAINING)
+def test_a_flying_card_next_to_a_missing_one_is_still_reread_and_does_not_land(rig, monkeypatch):
+    session, table, game, fake, cfg = rig
+    bot_defends_with_nothing(session, monkeypatch)
+    human_hand(table, game, "Flourish", "Sleight of Hand")
+    vanishing = card_ids(game, 1, "Vanishing Act")[0]
+    game.actions_left = 1
+    click(session, table, Event.MANEUVER)
+    flight = {"reads": 0}
+    plain, plain_deal = table.snapshot_state, table.do_deal_cards
+    missing = {}
+
+    def snapshot_state():
+        snap = plain()
+        if missing:
+            snap["human_discard"] = [r for r in snap["human_discard"] if r["id"] != missing["id"]]
+        if flight["reads"] > 0:
+            flight["reads"] -= 1
+            snap["human_discard"] = snap["human_discard"] + [{"id": vanishing, "guid": f"g{vanishing}"}]
+        return snap
+
+    def deal(script):
+        flight["reads"] = 3
+        return plain_deal(script)
+    table.snapshot_state, table.do_deal_cards = snapshot_state, deal
+    missing["id"] = spend(table, game, "Flourish")[0]
+    click(session, table, Event.MANEUVER_BOOST)
+    st = game.players[1]
+    flight["reads"] = 1                  # only the click's snapshot sees the flying card: without the re-read it would land
+    click(session, table, Event.END_ACTION)
+    assert all(c.card_id != vanishing for c in st.discard), [c.title for c in st.discard]
 
 
 @with_rig("hellboy", "houdini", "Confront Any Demon or God", TRAINING)
