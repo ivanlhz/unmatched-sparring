@@ -9,7 +9,7 @@ import pytest
 from sparring.board import Board
 
 ROOT = Path(__file__).resolve().parents[1]
-PADLOCKS = [0, 10, 21, 31]
+PADLOCKS = [0, 10, 23, 31]          # the padlock icons on the picture: 23 is the green parlour, not the purple dining room (21)
 
 
 @pytest.fixture(scope="module")
@@ -30,7 +30,7 @@ def line_map(tmp_path, passages=None):
 
 
 def test_baskerville_padlocks_are_linked_for_movement_but_not_adjacent(manor):
-    assert manor.passages == ((0, 10, 21, 31),)
+    assert manor.passages == ((0, 10, 23, 31),)
     for a in PADLOCKS:
         for b in PADLOCKS:
             if a != b:
@@ -81,3 +81,51 @@ def test_a_map_without_passages_behaves_as_before(tmp_path):
     assert b.passages == () and b.moves == b.adj
     assert b.distance(0, 3) == 99
     assert b.reachable(0, 5, set(), set()) == {1, 2}
+
+
+MAP_PASSAGES = {
+    "the-white-house": (7, 10, 11, 15),
+    "king-solomons-mine": (0, 2, 4, 5, 11, 18),
+}
+
+
+def drawn_adjacency(key):
+    raw = json.loads((ROOT / "data" / "maps" / f"{key}.json").read_text(encoding="utf-8"))
+    return {s["id"]: set(s["adj"]) for s in raw["spaces"]}
+
+
+@pytest.mark.parametrize("key,group", MAP_PASSAGES.items())
+def test_printed_padlocks_are_one_group_reachable_in_one_step(key, group):
+    board = Board.load(key)
+    assert board.passages == (group,)
+    for a in group:
+        for b in group:
+            if a != b:
+                assert b in board.moves[a] and board.distance(a, b) == 1
+                assert b in board.reachable(a, 1, own=set(), enemy=set())
+
+
+@pytest.mark.parametrize("key,group", MAP_PASSAGES.items())
+def test_padlocks_are_not_made_adjacent_by_the_passage(key, group):
+    board = Board.load(key)
+    drawn = drawn_adjacency(key)
+    assert all(set(board.adj[i]) == n for i, n in drawn.items())
+    for a in group:
+        for b in group:
+            if a != b and b not in drawn[a]:
+                assert not board.adjacent(a, b) and not board.can_reach_target(a, b, ranged=False)
+
+
+def test_a_far_padlock_is_one_step_not_many_on_king_solomons_mine():
+    board = Board.load("king-solomons-mine")
+    assert board.distance(4, 18) == 1
+    assert 18 in board.reachable(4, 1, own=set(), enemy=set())
+    assert 18 not in board.adj[4]
+
+
+def test_baskerville_dining_room_is_not_a_padlock(manor):
+    """Live report (2026-11-09): with the passage on 21 the bot left 0 and came out in the purple dining room, past a
+    human fighter. 21 has no padlock: from 0 it is far away, and the green parlour 23 is the one-step exit."""
+    assert 21 not in manor.moves[0] and manor.distance(0, 21) > 1
+    assert 23 in manor.moves[0] and manor.distance(0, 23) == 1
+    assert manor.reachable(0, 1, own=set(), enemy={23}) == {1, 4, 10, 31}      # an enemy on the green padlock blocks that exit
