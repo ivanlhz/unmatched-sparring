@@ -225,7 +225,7 @@ def _search_deck(run, game, spec):
     else:
         watcher.clear_top()
     if taken:
-        table.intent(game, op="search_deck", player=target, cards=[c.card_id for c in taken])
+        table.intent(game, op="search_deck", player=target, cards=[c.card_id for c in taken], exact=bool(flt))   # exact: picked by what it is
     if "as" in spec:
         run.bind("cards", spec["as"], [c.card_id for c in taken])
 

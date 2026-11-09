@@ -1,0 +1,546 @@
+{
+ "schema": 1,
+ "hero": "ciri",
+ "notes": [
+  "Texts read from sheet 176 of the tournament savegame (card images) on 2026-11-09; the character card is 344 on sheet 3 (10x7, index 44). Sheet 176 is also Medusa's, the four turtles', Doctor Strange's, Bigfoot's, Daredevil's, Luke Cage's, Bullseye's and Tomoe Gozen's DeckID: the CardIDs repeat and only the deck image tells the decks apart (docs/card-identity.md).",
+  "SOURCE (the orb with a number): the count of Source cards (tag `source`, the orb on the card's art band) in Ciri's discard pile, the HeroDef counter `source` read by `{\"test\": \"counter\", \"name\": \"source\", \"min\": n}` (the dial of the bag, MAX_VALUE 13, mirrors it). A card with several numbered lines applies the highest one the Source reaches (`if` / `else` chains).",
+  "Two additive engine pieces came with her: the fighter filter `within` ('an opposing fighter within 3 spaces of Ciri', Pushed to the brink) and the passive rule `cards_uncancelable` with a `while` (UNCONTAINABLE POWER, `modifiers.is_uncancelable(card, game)`). Channel the source reuses Raphael's mechanism as the plugin `ciri:channel_the_source`; everything else uses ops that already existed."
+ ],
+ "ability": {
+  "text": "UNCONTAINABLE POWER\nSOURCE 7: Effects on Ciri's cards cannot be canceled.",
+  "triggers": [],
+  "passives": [
+   {
+    "id": "uncontainable_power",
+    "kind": "rule",
+    "rule": "cards_uncancelable",
+    "while": {
+     "test": "counter",
+     "name": "source",
+     "min": 7
+    }
+   }
+  ],
+  "notes": "UNCONTAINABLE POWER: while the Source is 7 or more, no effect of a card of Ciri's deck (her own or Ihuarraquax's, whoever plays it) can be canceled: `cancel_effects` (Parry, Feint, Short circuit, Break something...) and the legacy cancels leave it as it was. The Source is read at the moment of the cancellation."
+ },
+ "cards": [
+  {
+   "title": "Lion cub of Cintra",
+   "copies": 3,
+   "text": "DURING COMBAT: SOURCE 1: This card's value is 4 instead. SOURCE 5: This card's value is 7 instead.",
+   "effects": {
+    "immediately": [],
+    "during": [
+     {
+      "op": "if",
+      "condition": {
+       "test": "counter",
+       "name": "source",
+       "min": 5
+      },
+      "then": [
+       {
+        "op": "set_value",
+        "card": "this",
+        "amount": 7
+       }
+      ],
+      "else": [
+       {
+        "op": "if",
+        "condition": {
+         "test": "counter",
+         "name": "source",
+         "min": 1
+        },
+        "then": [
+         {
+          "op": "set_value",
+          "card": "this",
+          "amount": 4
+         }
+        ]
+       }
+      ]
+     }
+    ],
+    "after": [],
+    "scheme": [],
+    "boost": []
+   },
+   "notes": "Attack 2 / boost 2, Ciri only, Source. The DURING sets the printed value to 4 (SOURCE 1) or 7 (SOURCE 5): bonuses stay and the highest tier wins. Source 0 leaves it at 2."
+  },
+  {
+   "title": "Channel the source",
+   "copies": 3,
+   "text": "DURING COMBAT: You may discard any number of Source cards from your hand. Add +2 to this card's value for each Source card you discarded.",
+   "effects": {
+    "immediately": [],
+    "during": [
+     {
+      "op": "plugin",
+      "id": "ciri:channel_the_source"
+     }
+    ],
+    "after": [],
+    "scheme": [],
+    "boost": []
+   },
+   "notes": "Attack 2 / boost 3, Ciri only. The owner decides how many Source cards of the hand to discard (0 included) and which; +2 each (`ciri:channel_the_source`, the mechanism of Raphael's Unbridled rage). Bot: a request of kind cards with `per_card` and the combat context; human: lays them on their discard pile and presses Done, the session reads the pile (`session_rage`). The cards discarded count for the Source from then on."
+  },
+  {
+   "title": "Bane of the Aen Elle",
+   "copies": 3,
+   "text": "AFTER COMBAT: Move Ihuarraquax up to 4 spaces. He may move through opposing fighters. Then, deal 1 damage to an opposing fighter he moved through.",
+   "effects": {
+    "immediately": [],
+    "during": [],
+    "after": [
+     {
+      "op": "move",
+      "target": "this",
+      "amount": 4,
+      "up_to": true,
+      "through_enemies": true,
+      "chooser": "owner",
+      "as": "mover"
+     },
+     {
+      "op": "damage",
+      "target": {
+       "side": "enemy",
+       "filter": {
+        "passed_by": "$mover"
+       }
+      },
+      "amount": 1,
+      "chooser": "owner"
+     }
+    ],
+    "scheme": [],
+    "boost": []
+   },
+   "notes": "Attack 4 / boost 4, Ihuarraquax only. He moves up to 4 spaces and may cross opposing fighters; then 1 damage to one opposing fighter he moved through (Donatello's Party wagon! reading: an opposing fighter on some path of at most 4 spaces from where he started to where he ended; with the bot's move the engine knows who was passed; when the human walks him by hand the panel offers every opposing fighter with a 'none' answer). The damage is mandatory when somebody was passed. Win or lose."
+  },
+  {
+   "title": "Pushed to the brink",
+   "copies": 3,
+   "text": "AFTER COMBAT: SOURCE 2: Deal 1 damage to the opposing fighter. SOURCE 7: Deal 2 damage to an opposing fighter within 3 spaces of Ciri.",
+   "effects": {
+    "immediately": [],
+    "during": [],
+    "after": [
+     {
+      "op": "if",
+      "condition": {
+       "test": "counter",
+       "name": "source",
+       "min": 7
+      },
+      "then": [
+       {
+        "op": "damage",
+        "target": {
+         "side": "enemy",
+         "filter": {
+          "within": {
+           "of": "hero",
+           "spaces": 3
+          }
+         }
+        },
+        "amount": 2,
+        "chooser": "owner"
+       }
+      ],
+      "else": [
+       {
+        "op": "if",
+        "condition": {
+         "test": "counter",
+         "name": "source",
+         "min": 2
+        },
+        "then": [
+         {
+          "op": "damage",
+          "target": "opposing",
+          "amount": 1
+         }
+        ]
+       }
+      ]
+     }
+    ],
+    "scheme": [],
+    "boost": []
+   },
+   "notes": "Versatile 3 / boost 2, Ciri only, Source. Win or lose. Tiers: with SOURCE 7 or more only the 7 line applies (2 damage to an opposing fighter, hero or sidekick, within 3 spaces of Ciri, counted along the printed adjacency like a reach; the owner picks and, with nobody there, nothing happens); with 2 to 6 the opposing fighter of the combat takes 1 (nothing if it was defeated). The Source is read when the AFTER resolves, before the card itself reaches the discard pile."
+  },
+  {
+   "title": "Zireael",
+   "copies": 3,
+   "text": "DURING COMBAT: SOURCE 3: This card's value is 4 instead. SOURCE 5: This card's value is 4 instead, and your opponent discards 1 random card.",
+   "effects": {
+    "immediately": [],
+    "during": [
+     {
+      "op": "if",
+      "condition": {
+       "test": "counter",
+       "name": "source",
+       "min": 5
+      },
+      "then": [
+       {
+        "op": "set_value",
+        "card": "this",
+        "amount": 4
+       },
+       {
+        "op": "discard",
+        "cards": {
+         "zone": "hand",
+         "player": "opponent",
+         "pick": "random",
+         "amount": 1
+        }
+       }
+      ],
+      "else": [
+       {
+        "op": "if",
+        "condition": {
+         "test": "counter",
+         "name": "source",
+         "min": 3
+        },
+        "then": [
+         {
+          "op": "set_value",
+          "card": "this",
+          "amount": 4
+         }
+        ]
+       }
+      ]
+     }
+    ],
+    "after": [],
+    "scheme": [],
+    "boost": []
+   },
+   "notes": "Versatile 2 / boost 2, Ciri only, Source. The DURING sets the printed value to 4 (bonuses stay): attacking or defending. With SOURCE 5 or more the opponent also discards a random card from their hand (the human's: the engine draws the position from the hand size, as Liz's cards do; the opponent with an empty hand discards nothing). A cancelled card does neither."
+  },
+  {
+   "title": "The lady of space and time",
+   "copies": 2,
+   "text": "AFTER COMBAT: SOURCE 3: Return a card from your discard pile to the top of your deck. SOURCE 8: Return a card from your discard pile to your hand. Draw 1 card.",
+   "effects": {
+    "immediately": [],
+    "during": [],
+    "after": [
+     {
+      "op": "if",
+      "condition": {
+       "test": "counter",
+       "name": "source",
+       "min": 8
+      },
+      "then": [
+       {
+        "op": "put_in_hand",
+        "cards": {
+         "zone": "discard",
+         "player": "owner",
+         "amount": 1,
+         "chooser": "owner"
+        }
+       },
+       {
+        "op": "draw",
+        "player": "owner",
+        "amount": 1
+       }
+      ],
+      "else": [
+       {
+        "op": "if",
+        "condition": {
+         "test": "counter",
+         "name": "source",
+         "min": 3
+        },
+        "then": [
+         {
+          "op": "return_to_deck",
+          "cards": {
+           "zone": "discard",
+           "player": "owner",
+           "amount": 1,
+           "chooser": "owner"
+          },
+          "position": "top"
+         }
+        ]
+       }
+      ]
+     }
+    ],
+    "scheme": [],
+    "boost": []
+   },
+   "notes": "Versatile 2 / boost 2, Ciri only, Source. Win or lose. Tiers: SOURCE 3 to 7 returns a card of the discard pile to the top of the deck; SOURCE 8 or more puts a card of the discard pile in the hand and draws 1 (the 8 line replaces the 3 line). The Source is read once, when the AFTER starts, so the card taken out of the pile changes nothing mid-resolution. The card itself is not in the pile yet. With an empty pile nothing is returned (the draw still happens)."
+  },
+  {
+   "title": "Blink",
+   "copies": 3,
+   "text": "AFTER COMBAT: Move Ciri up to 3 spaces. She may move through opposing fighters.",
+   "effects": {
+    "immediately": [],
+    "during": [],
+    "after": [
+     {
+      "op": "move",
+      "target": "hero",
+      "amount": 3,
+      "up_to": true,
+      "through_enemies": true,
+      "chooser": "owner"
+     }
+    ],
+    "scheme": [],
+    "boost": []
+   },
+   "notes": "Versatile 4 / boost 1, Ciri only. Ciri moves up to 3 spaces (0 included) and may cross opposing fighters, win or lose, attacking or defending."
+  },
+  {
+   "title": "Searching strike",
+   "copies": 3,
+   "text": "AFTER COMBAT: If you won the combat, you may search your deck for a Source card, reveal it, and add it to your hand.",
+   "effects": {
+    "immediately": [],
+    "during": [],
+    "after": [
+     {
+      "op": "if",
+      "condition": {
+       "test": "combat_result",
+       "result": "won"
+      },
+      "then": [
+       {
+        "op": "optional",
+        "chooser": "owner",
+        "ops": [
+         {
+          "op": "search_deck",
+          "player": "owner",
+          "look": "all",
+          "take": {
+           "amount": 1,
+           "filter": {
+            "tag": "source"
+           }
+          },
+          "to": "hand",
+          "rest": "shuffle",
+          "chooser": "owner",
+          "as": "found"
+         },
+         {
+          "op": "reveal",
+          "cards": "$found",
+          "to": "opponent"
+         }
+        ]
+       }
+      ]
+     }
+    ],
+    "scheme": [],
+    "boost": []
+   },
+   "notes": "Versatile 3 / boost 3, Ihuarraquax only. Only if its owner won the combat. 'You may search' is an optional; the whole deck is searched for a Source card (none: nothing is taken), the card goes to the hand face up to the rival, and the deck is shuffled. Bot: the engine picks the card and the table takes THAT card out of its real deck by CardID (session_search); the chat names it. Human: the table note tells them to search their deck by hand, show the card, take it and shuffle (the engine does not see their deck)."
+  },
+  {
+   "title": "Parry",
+   "copies": 3,
+   "text": "IMMEDIATELY: Cancel all effects on your opponent's card.",
+   "effects": {
+    "immediately": [
+     {
+      "op": "cancel_effects",
+      "card": "opponent_card"
+     }
+    ],
+    "during": [],
+    "after": [],
+    "scheme": [],
+    "boost": []
+   },
+   "notes": "Defense 3 / boost 1, any fighter. Cancels every effect of the opponent's card. It does not cancel the effects of a Ciri card while SOURCE is 7 or more (UNCONTAINABLE POWER); a Ciri Parry is itself uncancelable at SOURCE 7 or more."
+  },
+  {
+   "title": "Child of the Elder Blood",
+   "copies": 2,
+   "text": "SOURCE 4: Deal 1 damage to each other fighter in Ciri's zone. SOURCE 9: Deal 3 damage to each other fighter in Ciri's zone.",
+   "effects": {
+    "immediately": [],
+    "during": [],
+    "after": [],
+    "scheme": [
+     {
+      "op": "if",
+      "condition": {
+       "test": "counter",
+       "name": "source",
+       "min": 9
+      },
+      "then": [
+       {
+        "op": "damage",
+        "target": {
+         "side": "any",
+         "where": {
+          "zone_of": "hero"
+         },
+         "other": true,
+         "pick": "all"
+        },
+        "amount": 3
+       }
+      ],
+      "else": [
+       {
+        "op": "if",
+        "condition": {
+         "test": "counter",
+         "name": "source",
+         "min": 4
+        },
+        "then": [
+         {
+          "op": "damage",
+          "target": {
+           "side": "any",
+           "where": {
+            "zone_of": "hero"
+           },
+           "other": true,
+           "pick": "all"
+          },
+          "amount": 1
+         }
+        ]
+       }
+      ]
+     }
+    ],
+    "boost": []
+   },
+   "notes": "Scheme, boost 2, Ciri only, Source. 'Each other fighter in Ciri's zone' is every other living fighter that shares a zone with her space, hero or sidekick, her own Ihuarraquax included (Pact Of Peace's reading). Below SOURCE 4 the scheme does nothing (it still costs the action)."
+  },
+  {
+   "title": "Unicorn ally",
+   "copies": 2,
+   "text": "Ciri recovers 2 health. ONGOING: After each combat your fighter is in, draw 1 card. Discard this card at the end of your turn if you have 5 or more cards in your hand.",
+   "effects": {
+    "immediately": [],
+    "during": [],
+    "after": [],
+    "scheme": [
+     {
+      "op": "heal",
+      "target": "hero",
+      "amount": 2
+     }
+    ],
+    "boost": []
+   },
+   "ongoing": {
+    "modifiers": [],
+    "triggers": [
+     {
+      "id": "unicorn_draw",
+      "when": {
+       "event": "after_attack",
+       "fighter": {
+        "side": "any"
+       }
+      },
+      "ops": [
+       {
+        "op": "draw",
+        "player": "owner",
+        "amount": 1
+       }
+      ]
+     },
+     {
+      "id": "unicorn_leaves",
+      "when": {
+       "event": "end_of_turn",
+       "player": "owner"
+      },
+      "condition": {
+       "test": "compare",
+       "left": {
+        "stat": "hand_size"
+       },
+       "op": ">=",
+       "right": 5
+      },
+      "ops": [
+       {
+        "op": "discard",
+        "cards": {
+         "zone": "in_play",
+         "player": "owner",
+         "filter": {
+          "type": "scheme"
+         },
+         "amount": 1,
+         "chooser": "owner"
+        }
+       }
+      ]
+     }
+    ],
+    "until": {
+     "event": "fighter_defeated",
+     "fighter": {
+      "side": "own",
+      "kind": "hero"
+     }
+    }
+   },
+   "notes": "Scheme, boost 2, any fighter. Ciri recovers 2 (up to her maximum). ONGOING: after every combat the owner's fighter is in (any attack or defense of either player: in a 1 vs 1 game every combat has one of their fighters in it) the owner draws 1 card. The card leaves play by its own end-of-turn trigger (the owner's turn ends with 5 or more cards in the hand, counted before the hand limit) or when another ONGOING replaces it; the `until` is an event that never happens before the game ends (the data has no 'until never', Ciri's defeat ends the game)."
+  }
+ ],
+ "plugins": [
+  {
+   "id": "ciri:channel_the_source",
+   "why": "A free number of Source cards discarded from the hand, each +2 to the card's value: Raphael's Unbridled rage with another filter; no op expresses a count that feeds a value."
+  }
+ ],
+ "hidden_info": [
+  {
+   "card": "Searching strike",
+   "what": "searching the whole deck for a Source card and revealing it",
+   "bot_plays_it": "The engine picks the card from the cards it knows are in the deck; the table takes that very card out of the bot's real deck and the chat names it.",
+   "human_plays_it": "The human searches their own deck by hand (a table note) and shows the card."
+  },
+  {
+   "card": "Zireael",
+   "what": "the opponent discards 1 random card from their hand",
+   "bot_rule": "Against the human the engine draws the position from the hand size and the human gives that card up; the bot never looks at it."
+  }
+ ],
+ "open_questions": [
+  "How the Source is gained is not on the cards read (hero card: only UNCONTAINABLE POWER). The bag's Source dial goes to 13, exactly the number of Source cards of the deck, so it is read as 'Source cards in the discard pile' (Hellboy's destinies work the same way).",
+  "With several numbered lines on a card the highest line the Source reaches is applied, not all of them (Zireael's SOURCE 5 line repeats 'value is 4', Lady of space and time's 8 line replaces the 3 line).",
+  "Searching strike's 'reveal it' is read as 'show it to the rival'; the deck is shuffled afterwards (the rulebook's usual search).",
+  "Unicorn ally: 'each combat your fighter is in' counts every combat of either player; 'at the end of your turn if you have 5 or more cards in your hand' is read before the hand limit."
+ ]
+}

@@ -217,6 +217,11 @@ def _bot_cards(session, before: dict, moved: set, intents: list[dict], ctx: Ctx)
             checks += translate(session, intent, ctx) or []
     for intent in _groups(intents, "put_in_hand", bot, "discard", disc_to_hand):
         checks += translate(session, intent, ctx) or []
+    exact = [i for it in intents if it["op"] == "search_deck" and it["player"] == bot and it.get("exact")
+             for i in it["cards"] if i in b0["deck"] and i in b1["hand"]]        # picked by what they are: taken out of the real deck by CardID
+    if exact:
+        checks += translate(session, {"op": "search_deck", "player": bot, "n": len(exact), "cards": exact}, ctx) or []
+    taken -= len(exact)
     if taken > 0:
         checks += translate(session, {"op": "search_deck", "player": bot, "n": taken}, ctx) or []
     return checks

@@ -95,7 +95,7 @@ def to_discard(g, player, *titles):
 # ---------------------------------------------------------------- the switch
 
 def test_the_box_heroes_and_medusa_are_interpreted_for_both_sides(bprd):
-    assert INTERPRETED_HEROES == {"medusa", "hellboy", "abe-sapien", "baba-yaga", "liz-sherman", "leonardo", "donatello", "michelangelo", "raphael", "doctor-strange", "houdini", "bigfoot", "daredevil", "luke-cage", "bullseye", "golden-bat", "jill-trent", "she-hulk", "tomoe-gozen"}
+    assert INTERPRETED_HEROES == {"medusa", "hellboy", "abe-sapien", "baba-yaga", "liz-sherman", "leonardo", "donatello", "michelangelo", "raphael", "doctor-strange", "houdini", "bigfoot", "daredevil", "luke-cage", "bullseye", "golden-bat", "jill-trent", "she-hulk", "tomoe-gozen", "ciri"}
     g = mk(bprd, "liz-sherman", "hellboy")
     assert g.fx.dsl_heroes == {"liz-sherman", "hellboy"} and g.clone().fx.dsl_heroes == {"liz-sherman", "hellboy"}
     g = Game.new(bprd, 3, controllers={}, heroes=("hellboy", "medusa"), bot_player=1)      # bot in seat 1

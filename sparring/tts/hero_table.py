@@ -193,4 +193,6 @@ def table_defaults(bot_slug: str, human_slug: str, shifts: tuple[int, int] = (0,
     for hero, table in ((human, th), (bot, tb)):     # one Hellboy per game, on either side
         if hero.forms is not None and hero.forms.counter in table.counter_dials:
             out["destiny_dial"] = table.counter_dials[hero.forms.counter]
+        if "source" in hero.counters and "source" in table.counter_dials:         # Ciri's Source dial (session_source)
+            out["source_dial"] = table.counter_dials["source"]
     return out

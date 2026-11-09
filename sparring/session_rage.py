@@ -49,7 +49,8 @@ def instruction(session, req: ChoiceRequest) -> str:
         return t("sleight.instruction", card=card, attacker=attacker.name if attacker is not None else "")
     if m == "play":
         return t("mists.instruction", card=card, attacker=req.extra.get("attacker", ""))
-    return t("rage.instruction", card=card, per=req.extra.get("per_card", 2))
+    key = "rage.instruction_source" if req.extra.get("tag") == "source" else "rage.instruction"      # Ciri's Channel the source: Source cards, not types
+    return t(key, card=card, per=req.extra.get("per_card", 2))
 
 
 def status(session, req: ChoiceRequest) -> str:
@@ -84,8 +85,11 @@ def verdict(session, req: ChoiceRequest) -> tuple[list[int] | None, str | None]:
     m = mode(req)
     if m == "rage":
         wrong = [by_id[i] for i in arrived if i not in req.options]
+        if wrong and req.extra.get("tag") == "source":
+            return None, t("rage.wrong_source", items=", ".join(t("rage.wrong_item_source", title=c.title) for c in wrong),
+                           card=_card_name(session, req))
         if wrong:
-            items = ", ".join(t("rage.wrong_item", title=c.title, kind=t(f"rage.type.{c.type}")) for c in wrong)
+            items =", ".join(t("rage.wrong_item", title=c.title, kind=t(f"rage.type.{c.type}")) for c in wrong)
             return None, t("rage.wrong", items=items, card=_card_name(session, req))
     elif len(arrived) > req.max:
         return None, t("blind.too_many" if m == "blind" else "reveal.too_many", n=len(arrived), max=req.max,

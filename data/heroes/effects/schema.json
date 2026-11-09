@@ -106,7 +106,7 @@
      "filter": {
       "type": "object",
       "additionalProperties": false,
-      "properties": {"attacked_this_turn": {"type": "boolean"}, "passed_by": {"$ref": "#/$defs/FighterRef"}, "adjacent_to_any": {"$ref": "#/$defs/FighterSel"}, "is_or_adjacent_to": {"$ref": "#/$defs/FighterRef"}}
+      "properties": {"attacked_this_turn": {"type": "boolean"}, "passed_by": {"$ref": "#/$defs/FighterRef"}, "adjacent_to_any": {"$ref": "#/$defs/FighterSel"}, "is_or_adjacent_to": {"$ref": "#/$defs/FighterRef"}, "within": {"type": "object", "additionalProperties": false, "required": ["of", "spaces"], "properties": {"of": {"$ref": "#/$defs/FighterRef"}, "spaces": {"type": "integer", "minimum": 1}}}}
      },
      "pick": {"enum": ["one", "all"]}
     }
@@ -290,7 +290,7 @@
     "properties": {
      "kind": {"const": "rule"},
      "id": {"$ref": "#/$defs/Name"},
-     "rule": {"enum": ["no_attack_as_first_action", "effect_damage_bonus", "max_hand_size", "no_gain_actions", "maneuver_boost_places_hero", "combat_damage_reduction"]},
+     "rule": {"enum": ["no_attack_as_first_action", "effect_damage_bonus", "max_hand_size", "no_gain_actions", "maneuver_boost_places_hero", "combat_damage_reduction", "cards_uncancelable"]},
      "amount": {"type": "integer"},
      "while": {"$ref": "#/$defs/Condition"}}},
    {"type": "object", "additionalProperties": false, "required": ["kind", "name"],

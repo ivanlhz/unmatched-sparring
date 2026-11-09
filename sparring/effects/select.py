@@ -177,6 +177,10 @@ def fighter_candidates(game, run, sel) -> tuple[list, bool]:
         adj = game.board.adj
         out = [f for f in out if anchor is not None and anchor.pos is not None and f.pos is not None
                and (f is anchor or f.pos in adj[anchor.pos])]
+    if "within" in flt:                # "within N spaces of Ciri": counted along the printed adjacency, like a reach
+        anchor, n = _ref_fighter(game, run, flt["within"]["of"]), int(flt["within"]["spaces"])
+        out = [f for f in out if anchor is not None and anchor.pos is not None and f.pos is not None
+               and game.board.spaces_apart(anchor.pos, f.pos) <= n]
     if "adjacent_to_any" in flt:       # next to at least one other living fighter the selector designates
         others = fighter_candidates(game, run, flt["adjacent_to_any"])[0]
         adj = game.board.adj

@@ -14,7 +14,7 @@ from sparring.heroes import HEROES_DIR, load_hero
 from tools.validate_effects import EFFECTS_DIR, SCHEMA_PATH, effect_files, load_schema, validate, validate_file
 
 DOC = Path(__file__).resolve().parent.parent / "docs" / "effects-dsl.md"
-BOX = ["medusa", "hellboy", "abe-sapien", "baba-yaga", "liz-sherman", "leonardo", "donatello", "michelangelo", "raphael", "doctor-strange", "houdini", "bigfoot", "daredevil", "luke-cage", "bullseye", "golden-bat", "jill-trent", "she-hulk", "tomoe-gozen"]
+BOX = ["medusa", "hellboy", "abe-sapien", "baba-yaga", "liz-sherman", "leonardo", "donatello", "michelangelo", "raphael", "doctor-strange", "houdini", "bigfoot", "daredevil", "luke-cage", "bullseye", "golden-bat", "jill-trent", "she-hulk", "tomoe-gozen", "ciri"]
 
 
 @pytest.fixture(scope="module")

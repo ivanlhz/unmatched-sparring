@@ -221,6 +221,8 @@ def build(tmp_path, bot, human, hand, table_cls=FxTable, **over):
         session.dials_written[g] = game.fighters[fid].hp
     if scfg.destiny_dial:
         table.dials[scfg.destiny_dial] = {"found": True, "name": "destinos", "value": 0, "max": 11}
+    if scfg.source_dial:
+        table.dials[scfg.source_dial] = {"found": True, "name": "Source", "value": 0, "max": 13}
     set_hand(session, table, game, *hand)
     session._preload_identities()                               # as `_begin_game` does: no identity read mid-game
     return session, table, game, fake, cfg, client

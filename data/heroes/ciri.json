@@ -1,0 +1,462 @@
+{
+ "_source": {
+  "memory": "unmatched-memory/data/heroes/ciri.json",
+  "overlay": "data/heroes/overlay/ciri.json",
+  "generator": "tools/import_hero.py"
+ },
+ "slug": "ciri",
+ "name": "Ciri",
+ "fid": "ciri",
+ "hp": 15,
+ "move": 2,
+ "attack": "melee",
+ "set": "the-witcher-steel-silver",
+ "ability": "UNCONTAINABLE POWER\nSOURCE 7: Effects on Ciri's cards cannot be canceled.",
+ "sidekicks": [
+  {
+   "name": "Ihuarraquax",
+   "hp": 7,
+   "move": 2,
+   "attack": "melee",
+   "count": 1,
+   "fid": "ihuarraquax"
+  }
+ ],
+ "forms": null,
+ "counters": {
+  "source": {
+   "pile": "discard",
+   "tag": "source"
+  }
+ },
+ "triggers": [],
+ "passives": [],
+ "deck": {
+  "card_base": 17600,
+  "sheet": 176,
+  "cards": [
+   {
+    "idx": 0,
+    "title": "Lion cub of Cintra",
+    "fighter": "Ciri",
+    "type": "attack",
+    "value": 2,
+    "boost": 2,
+    "text": "DURING COMBAT: SOURCE 1: This card's value is 4 instead. SOURCE 5: This card's value is 7 instead.",
+    "tags": [
+     "source"
+    ]
+   },
+   {
+    "idx": 1,
+    "title": "Lion cub of Cintra",
+    "fighter": "Ciri",
+    "type": "attack",
+    "value": 2,
+    "boost": 2,
+    "text": "DURING COMBAT: SOURCE 1: This card's value is 4 instead. SOURCE 5: This card's value is 7 instead.",
+    "tags": [
+     "source"
+    ]
+   },
+   {
+    "idx": 2,
+    "title": "Lion cub of Cintra",
+    "fighter": "Ciri",
+    "type": "attack",
+    "value": 2,
+    "boost": 2,
+    "text": "DURING COMBAT: SOURCE 1: This card's value is 4 instead. SOURCE 5: This card's value is 7 instead.",
+    "tags": [
+     "source"
+    ]
+   },
+   {
+    "idx": 3,
+    "title": "Channel the source",
+    "fighter": "Ciri",
+    "type": "attack",
+    "value": 2,
+    "boost": 3,
+    "text": "DURING COMBAT: You may discard any number of Source cards from your hand. Add +2 to this card's value for each Source card you discarded.",
+    "tags": []
+   },
+   {
+    "idx": 4,
+    "title": "Channel the source",
+    "fighter": "Ciri",
+    "type": "attack",
+    "value": 2,
+    "boost": 3,
+    "text": "DURING COMBAT: You may discard any number of Source cards from your hand. Add +2 to this card's value for each Source card you discarded.",
+    "tags": []
+   },
+   {
+    "idx": 5,
+    "title": "Channel the source",
+    "fighter": "Ciri",
+    "type": "attack",
+    "value": 2,
+    "boost": 3,
+    "text": "DURING COMBAT: You may discard any number of Source cards from your hand. Add +2 to this card's value for each Source card you discarded.",
+    "tags": []
+   },
+   {
+    "idx": 6,
+    "title": "Bane of the Aen Elle",
+    "fighter": "Ihuarraquax",
+    "type": "attack",
+    "value": 4,
+    "boost": 4,
+    "text": "AFTER COMBAT: Move Ihuarraquax up to 4 spaces. He may move through opposing fighters. Then, deal 1 damage to an opposing fighter he moved through.",
+    "tags": []
+   },
+   {
+    "idx": 7,
+    "title": "Bane of the Aen Elle",
+    "fighter": "Ihuarraquax",
+    "type": "attack",
+    "value": 4,
+    "boost": 4,
+    "text": "AFTER COMBAT: Move Ihuarraquax up to 4 spaces. He may move through opposing fighters. Then, deal 1 damage to an opposing fighter he moved through.",
+    "tags": []
+   },
+   {
+    "idx": 8,
+    "title": "Bane of the Aen Elle",
+    "fighter": "Ihuarraquax",
+    "type": "attack",
+    "value": 4,
+    "boost": 4,
+    "text": "AFTER COMBAT: Move Ihuarraquax up to 4 spaces. He may move through opposing fighters. Then, deal 1 damage to an opposing fighter he moved through.",
+    "tags": []
+   },
+   {
+    "idx": 9,
+    "title": "Pushed to the brink",
+    "fighter": "Ciri",
+    "type": "versatile",
+    "value": 3,
+    "boost": 2,
+    "text": "AFTER COMBAT: SOURCE 2: Deal 1 damage to the opposing fighter. SOURCE 7: Deal 2 damage to an opposing fighter within 3 spaces of Ciri.",
+    "tags": [
+     "source"
+    ]
+   },
+   {
+    "idx": 10,
+    "title": "Pushed to the brink",
+    "fighter": "Ciri",
+    "type": "versatile",
+    "value": 3,
+    "boost": 2,
+    "text": "AFTER COMBAT: SOURCE 2: Deal 1 damage to the opposing fighter. SOURCE 7: Deal 2 damage to an opposing fighter within 3 spaces of Ciri.",
+    "tags": [
+     "source"
+    ]
+   },
+   {
+    "idx": 11,
+    "title": "Pushed to the brink",
+    "fighter": "Ciri",
+    "type": "versatile",
+    "value": 3,
+    "boost": 2,
+    "text": "AFTER COMBAT: SOURCE 2: Deal 1 damage to the opposing fighter. SOURCE 7: Deal 2 damage to an opposing fighter within 3 spaces of Ciri.",
+    "tags": [
+     "source"
+    ]
+   },
+   {
+    "idx": 12,
+    "title": "Zireael",
+    "fighter": "Ciri",
+    "type": "versatile",
+    "value": 2,
+    "boost": 2,
+    "text": "DURING COMBAT: SOURCE 3: This card's value is 4 instead. SOURCE 5: This card's value is 4 instead, and your opponent discards 1 random card.",
+    "tags": [
+     "source"
+    ]
+   },
+   {
+    "idx": 13,
+    "title": "Zireael",
+    "fighter": "Ciri",
+    "type": "versatile",
+    "value": 2,
+    "boost": 2,
+    "text": "DURING COMBAT: SOURCE 3: This card's value is 4 instead. SOURCE 5: This card's value is 4 instead, and your opponent discards 1 random card.",
+    "tags": [
+     "source"
+    ]
+   },
+   {
+    "idx": 14,
+    "title": "Zireael",
+    "fighter": "Ciri",
+    "type": "versatile",
+    "value": 2,
+    "boost": 2,
+    "text": "DURING COMBAT: SOURCE 3: This card's value is 4 instead. SOURCE 5: This card's value is 4 instead, and your opponent discards 1 random card.",
+    "tags": [
+     "source"
+    ]
+   },
+   {
+    "idx": 15,
+    "title": "The lady of space and time",
+    "fighter": "Ciri",
+    "type": "versatile",
+    "value": 2,
+    "boost": 2,
+    "text": "AFTER COMBAT: SOURCE 3: Return a card from your discard pile to the top of your deck. SOURCE 8: Return a card from your discard pile to your hand. Draw 1 card.",
+    "tags": [
+     "source"
+    ]
+   },
+   {
+    "idx": 16,
+    "title": "The lady of space and time",
+    "fighter": "Ciri",
+    "type": "versatile",
+    "value": 2,
+    "boost": 2,
+    "text": "AFTER COMBAT: SOURCE 3: Return a card from your discard pile to the top of your deck. SOURCE 8: Return a card from your discard pile to your hand. Draw 1 card.",
+    "tags": [
+     "source"
+    ]
+   },
+   {
+    "idx": 17,
+    "title": "Blink",
+    "fighter": "Ciri",
+    "type": "versatile",
+    "value": 4,
+    "boost": 1,
+    "text": "AFTER COMBAT: Move Ciri up to 3 spaces. She may move through opposing fighters.",
+    "tags": []
+   },
+   {
+    "idx": 18,
+    "title": "Blink",
+    "fighter": "Ciri",
+    "type": "versatile",
+    "value": 4,
+    "boost": 1,
+    "text": "AFTER COMBAT: Move Ciri up to 3 spaces. She may move through opposing fighters.",
+    "tags": []
+   },
+   {
+    "idx": 19,
+    "title": "Blink",
+    "fighter": "Ciri",
+    "type": "versatile",
+    "value": 4,
+    "boost": 1,
+    "text": "AFTER COMBAT: Move Ciri up to 3 spaces. She may move through opposing fighters.",
+    "tags": []
+   },
+   {
+    "idx": 20,
+    "title": "Searching strike",
+    "fighter": "Ihuarraquax",
+    "type": "versatile",
+    "value": 3,
+    "boost": 3,
+    "text": "AFTER COMBAT: If you won the combat, you may search your deck for a Source card, reveal it, and add it to your hand.",
+    "tags": []
+   },
+   {
+    "idx": 21,
+    "title": "Searching strike",
+    "fighter": "Ihuarraquax",
+    "type": "versatile",
+    "value": 3,
+    "boost": 3,
+    "text": "AFTER COMBAT: If you won the combat, you may search your deck for a Source card, reveal it, and add it to your hand.",
+    "tags": []
+   },
+   {
+    "idx": 22,
+    "title": "Searching strike",
+    "fighter": "Ihuarraquax",
+    "type": "versatile",
+    "value": 3,
+    "boost": 3,
+    "text": "AFTER COMBAT: If you won the combat, you may search your deck for a Source card, reveal it, and add it to your hand.",
+    "tags": []
+   },
+   {
+    "idx": 23,
+    "title": "Parry",
+    "fighter": "any",
+    "type": "defense",
+    "value": 3,
+    "boost": 1,
+    "text": "IMMEDIATELY: Cancel all effects on your opponent's card.",
+    "tags": []
+   },
+   {
+    "idx": 24,
+    "title": "Parry",
+    "fighter": "any",
+    "type": "defense",
+    "value": 3,
+    "boost": 1,
+    "text": "IMMEDIATELY: Cancel all effects on your opponent's card.",
+    "tags": []
+   },
+   {
+    "idx": 25,
+    "title": "Parry",
+    "fighter": "any",
+    "type": "defense",
+    "value": 3,
+    "boost": 1,
+    "text": "IMMEDIATELY: Cancel all effects on your opponent's card.",
+    "tags": []
+   },
+   {
+    "idx": 26,
+    "title": "Child of the Elder Blood",
+    "fighter": "Ciri",
+    "type": "scheme",
+    "value": null,
+    "boost": 2,
+    "text": "SOURCE 4: Deal 1 damage to each other fighter in Ciri's zone. SOURCE 9: Deal 3 damage to each other fighter in Ciri's zone.",
+    "tags": [
+     "source"
+    ]
+   },
+   {
+    "idx": 27,
+    "title": "Child of the Elder Blood",
+    "fighter": "Ciri",
+    "type": "scheme",
+    "value": null,
+    "boost": 2,
+    "text": "SOURCE 4: Deal 1 damage to each other fighter in Ciri's zone. SOURCE 9: Deal 3 damage to each other fighter in Ciri's zone.",
+    "tags": [
+     "source"
+    ]
+   },
+   {
+    "idx": 28,
+    "title": "Unicorn ally",
+    "fighter": "any",
+    "type": "scheme",
+    "value": null,
+    "boost": 2,
+    "text": "Ciri recovers 2 health. ONGOING: After each combat your fighter is in, draw 1 card. Discard this card at the end of your turn if you have 5 or more cards in your hand.",
+    "tags": []
+   },
+   {
+    "idx": 29,
+    "title": "Unicorn ally",
+    "fighter": "any",
+    "type": "scheme",
+    "value": null,
+    "boost": 2,
+    "text": "Ciri recovers 2 health. ONGOING: After each combat your fighter is in, draw 1 card. Discard this card at the end of your turn if you have 5 or more cards in your hand.",
+    "tags": []
+   }
+  ]
+ },
+ "ai_profile": {
+  "ciri": {
+   "name": "Ciri",
+   "hero": true,
+   "count": 1,
+   "max_hp": 15,
+   "move": 2,
+   "ranged": false,
+   "role": "hero",
+   "attack": {
+    "cards": 17,
+    "mean": 2.53,
+    "max": 4
+   },
+   "exclusive": [
+    {
+     "title": "Lion cub of Cintra",
+     "type": "attack",
+     "copies": 3,
+     "impact": 0.81
+    },
+    {
+     "title": "Channel the source",
+     "type": "attack",
+     "copies": 3,
+     "impact": 0.9
+    },
+    {
+     "title": "Pushed to the brink",
+     "type": "versatile",
+     "copies": 3,
+     "impact": 1.42
+    },
+    {
+     "title": "Zireael",
+     "type": "versatile",
+     "copies": 3,
+     "impact": 1.02
+    },
+    {
+     "title": "The lady of space and time",
+     "type": "versatile",
+     "copies": 2,
+     "impact": 0.98
+    },
+    {
+     "title": "Blink",
+     "type": "versatile",
+     "copies": 3,
+     "impact": 1.08
+    },
+    {
+     "title": "Child of the Elder Blood",
+     "type": "scheme",
+     "copies": 2,
+     "impact": 3.14
+    }
+   ]
+  },
+  "ihuarraquax": {
+   "name": "Ihuarraquax",
+   "hero": false,
+   "count": 1,
+   "max_hp": 7,
+   "move": 2,
+   "ranged": false,
+   "role": "striker",
+   "attack": {
+    "cards": 6,
+    "mean": 3.5,
+    "max": 4
+   },
+   "exclusive": [
+    {
+     "title": "Bane of the Aen Elle",
+     "type": "attack",
+     "copies": 3,
+     "impact": 1.56
+    },
+    {
+     "title": "Searching strike",
+     "type": "versatile",
+     "copies": 3,
+     "impact": 0.95
+    }
+   ],
+   "requires_alive": []
+  }
+ },
+ "_notes": [
+  "Sheet 176 of the tournament savegame (8x4), read card by card from the image on 2026-11-09. CardID = 17600 + idx; 344 = character card (sheet 3, 10x7, index 44). The deck object of the save holds 31 cards: the 30 of the deck plus the character card, which is why the catalog says card_count 31 and card_ids [344, 17629]. Ciri's deck is sheet 176 like Medusa's, the four turtles', Doctor Strange's, Bigfoot's, Daredevil's, Luke Cage's, Bullseye's and Tomoe Gozen's: only deck.identity (data/tts/ciri.json) tells the decks apart (docs/card-identity.md).",
+  "Hero card (read from the image): CIRI, MELEE, START HEALTH 15, MOVE 2; special ability 'UNCONTAINABLE POWER: (Source 7) Effects on Ciri's cards cannot be canceled.'; sidekick IHUARRAQUAX, MELEE, START HEALTH 7 (move 2 from unmatched-memory). One of each.",
+  "SOURCE: the Source dial of the bag (MAX_VALUE 13 = the 13 cards that carry the Source orb) counts the Source cards in Ciri's discard pile, exactly like Hellboy's destinies: the `source` counter below. A card with a numbered orb applies the highest threshold the count reaches (docs/heroes/ciri.md, Open questions). Cards with the orb in the art band (tag `source`): Lion cub of Cintra x3, Pushed to the brink x3, Zireael x3, The lady of space and time x2, Child of the Elder Blood x2 = 13. Channel the source, Blink, Bane of the Aen Elle and Searching strike carry no orb (Ciri's Channel the source and Searching strike text mention the orb cards).",
+  "Printed text differences from unmatched-memory: the numbered orbs are written SOURCE n: here (memory: the orb emoji and 'x n'); Unicorn ally's ONGOING lines are missing from unmatched-memory (it only has 'Ciri recovers 2 health.'). The Ciri band is on 19 cards, IHUARRAQUAX on 6 (Bane of the Aen Elle, Searching strike), ANY on 5 (Parry, Unicorn ally).",
+  "Copies (xN printed on each card), type, value and boost match unmatched-memory for all 11 titles."
+ ]
+}
