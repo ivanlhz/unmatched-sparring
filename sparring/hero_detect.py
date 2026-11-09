@@ -161,6 +161,21 @@ def deck_shifts(reading: TableReading, heroes: tuple[str, str]) -> tuple[int | N
     return out[0], out[1]
 
 
+def _share_deck(a: str, b: str) -> bool:
+    return load_hero_table(a).deck_guid == load_hero_table(b).deck_guid
+
+
+def _by_hero_piece(reading: TableReading, ranked: list[str], who: str, how: str) -> list[str]:
+    """Variants of one hero share their deck (Yennefer & Triss: the player picks which heroine is the hero and the other becomes the
+    sidekick), so the deck cannot tell them apart. The HERO miniature of the chosen heroine is the one that is out on the table; if
+    none or both are, nothing is guessed. Returns `ranked` with the one variant that stands out first and alone."""
+    variants = [s for s in ranked if _share_deck(ranked[0], s)]
+    out = [s for s in variants if set(load_hero_table(s).fighters[load_hero(s).fid].pieces) & set(reading.pieces)]
+    if len(out) != 1:
+        raise HeroDetectionError(i18n.t("hero.variant_unclear", who=who, names=", ".join(variants), how=how))
+    return out + [s for s in ranked if s not in variants]
+
+
 def detect_heroes(reading: TableReading, bot_spot, human_spot,
                   fixed: tuple[str | None, str | None] = (None, None)) -> tuple[str, str]:
     """(bot hero, human hero). `fixed` are the ones already decided by option, configuration or saved game."""
@@ -190,6 +205,8 @@ def detect_heroes(reading: TableReading, bot_spot, human_spot,
         ranked = sorted(cands, key=cands.get, reverse=True)
         who = i18n.t("hero.who.bot" if side == BOT else "hero.who.human")
         seen = _report(reading, totals, spots)
+        if len(ranked) > 1 and cands[ranked[0]] == cands[ranked[1]] and _share_deck(ranked[0], ranked[1]):
+            ranked = _by_hero_piece(reading, ranked, who, how)       # Yennefer & Triss: one deck, two variants
         if ranked and (len(ranked) == 1 or cands[ranked[0]] >= 2 * cands[ranked[1]]):
             if ranked[0] not in reading.slugs:
                 raise HeroDetectionError(i18n.t("hero.unplayable", who=who, name=_name(ranked[0]),

@@ -11,7 +11,7 @@ from typing import Iterable
 # Heroes whose cards and ability the interpreter resolves by default, whoever plays them (C5: Medusa; D1 the Hellboy
 # box for the bot, E2 for the human too, in table mode: effects/table.py). `Game` derives `fx.dsl_heroes` from the
 # heroes in play and persist omits the set when it is this default, so old saves load unchanged.
-INTERPRETED_HEROES = frozenset({"medusa", "hellboy", "abe-sapien", "baba-yaga", "liz-sherman", "leonardo", "donatello", "michelangelo", "raphael", "doctor-strange", "houdini", "bigfoot", "daredevil", "luke-cage", "bullseye", "golden-bat", "jill-trent", "she-hulk", "tomoe-gozen", "sinbad", "eredin", "ciri"})
+INTERPRETED_HEROES = frozenset({"medusa", "hellboy", "abe-sapien", "baba-yaga", "liz-sherman", "leonardo", "donatello", "michelangelo", "raphael", "doctor-strange", "houdini", "bigfoot", "daredevil", "luke-cage", "bullseye", "golden-bat", "jill-trent", "she-hulk", "tomoe-gozen", "yennefer-triss", "triss-yennefer", "sinbad", "eredin", "ciri"})
 
 
 def interpreted(slugs: Iterable[str]) -> set[str]:
@@ -147,6 +147,13 @@ class EffectState:
             return 0
         from .modifiers import hero_rule_amount
         return hero_rule_amount(self.game(), fighter.owner, "combat_damage_reduction")
+
+    def boost_bonus(self, player: int) -> int:
+        """What `player`'s ONGOING adds to each BOOST value they spend (Advisor to the king: +1)."""
+        if not self.dsl_heroes or not any(self.card_slots()):
+            return 0
+        from .ongoing import boost_bonus
+        return boost_bonus(self.game(), player)
 
     def departure_damage(self, fighter, dest: int) -> int:
         """Damage the rival hero's ability would deal `fighter` for going to `dest` (leaving a zone); the bot prices its moves with it."""

@@ -42,3 +42,25 @@ def bot_swap(session, p) -> Callable[[], None]:
         if not guid or back is None or not result_of(back).get("returned"):
             session.say(t("sleight.bot_manual", old=old.title, new=new.title), ChatKind.WARNING)
     return check
+
+
+def bot_card_back(session, p) -> Callable[[], None]:
+    """The bot's card ended the combat in its HAND (an AFTER that puts it back: Echoing blast, Five Against Thousands, Foul Purpose):
+    the card lies at its combat spot, so it is taken to the bot's hand by GUID before the table is compared with the engine. Like a
+    Sleight Of Hand swap, a table that refuses is said once with what to move by hand. A no-op for any other combat."""
+    card = p.bot_card
+    if card is None or not p.bot_card_guid or card not in session.game.players[session.bot].hand:
+        return lambda: None
+    from .session import SessionError             # the session imports this module: resolved at call time
+    try:
+        back = session._w(lua.return_card_to_hand(p.bot_card_guid, session.cfg.bot_seat), DOMAIN)
+    except ERRORS + (SessionError,):
+        session.say(t("card_back.bot_manual", card=card.title), ChatKind.WARNING)
+        return lambda: None
+
+    def check() -> None:
+        if result_of(back).get("returned"):
+            session.say(t("card_back.bot_done", card=card.title), ChatKind.SCHEME)
+        else:
+            session.say(t("card_back.bot_manual", card=card.title), ChatKind.WARNING)
+    return check

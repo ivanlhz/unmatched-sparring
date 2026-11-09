@@ -36,7 +36,9 @@ def declared(session, run, value: list) -> None:
         session.say(t("blind.auto_failed", card=name, why=why), ChatKind.WARNING)
         return
     by_id = {c.card_id: c for c in session.game.players[session.human].full_set}
-    if req.extra.get("top_discard"):                            # Take A Knee: the heal is told by the effect's own line
+    if req.extra.get("top_discard") and len(moved) > 1:         # Merigold's Hailstorm: four cards of the deck at once
+        session.say(t("mill.auto", card=name, n=len(moved), titles=", ".join(by_id[i].title for i in moved)), ChatKind.YOUR_TURN)
+    elif req.extra.get("top_discard"):                          # Take A Knee: the heal is told by the effect's own line
         session.say(t("knee.auto", card=name, title=by_id[moved[0]].title), ChatKind.YOUR_TURN)
     else:
         session.say(t("blind.auto", card=name, n=len(moved), titles=", ".join(by_id[i].title for i in moved),

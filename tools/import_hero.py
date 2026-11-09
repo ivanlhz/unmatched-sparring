@@ -13,7 +13,8 @@ idx, title, fighter restriction, tags and, if the real card says something else,
 unmatched-memory spells the title differently), and forms, counters, triggers, passives and `hand` (starting and
 maximum hand size when they are not 5 and 7: Michelangelo's PIZZA PARTY) and `reach_spaces` (the hero attacks anyone that many spaces away,
 zones ignored: Bullseye's 5), `ignored_tokens` (GUIDs of tokens in the hero's bag that the bot does not use, so tools/import_save.py does not
-report them as stray) and `token_names` ({GUID: name} of tokens of the bag with no nickname the bot does use: tools/import_save.py files them in `tokens`
+report them as stray) and `tts` (`bag_name`, `character_cards`, `character_card_id`: how the save names the bag and character cards of a hero that shares them with a
+variant of itself, Yennefer & Triss), `token_names` ({GUID: name} of tokens of the bag with no nickname the bot does use: tools/import_save.py files them in `tokens`
 under that name; Jill Trent's Ultrabiotic Tonic token is `gadget`).
 With the DSL effects (`data/heroes/effects/<slug>.json`) and the cards it computes `ai_profile`: the static profile of each
 fighter for the AI (sparring/ai_profile.py); the overlay can fix `ai_role: {fid: striker|keep_away}`.
@@ -111,6 +112,8 @@ def build(slug: str, memory: Path, overlay_dir: Path = OVERLAY_DIR, effects_dir:
         out["hand"] = ov["hand"]
     if ov.get("reach_spaces"):
         out["reach_spaces"] = int(ov["reach_spaces"])
+    if ov.get("tts"):
+        out["tts"] = dict(ov["tts"])
     if ov.get("ignored_tokens"):
         out["ignored_tokens"] = list(ov["ignored_tokens"])
     if ov.get("token_names"):

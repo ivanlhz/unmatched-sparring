@@ -262,7 +262,7 @@ class Game:
         rng = random.Random(seed)
         other = 1 - bot_player
         defs = {bot_player: load_hero(heroes[0]), other: load_hero(heroes[1])}
-        if defs[bot_player].fid == defs[other].fid:
+        if {f.fid for f in defs[bot_player].fighters()} & {f.fid for f in defs[other].fighters()}:     # also the two variants of one hero (Yennefer & Triss)
             raise RuleError(t("err.same_hero", slug=heroes[0]))
         players: list[PlayerState | None] = [None, None]
         shifts = {bot_player: card_shifts[0], other: card_shifts[1]}
@@ -691,7 +691,7 @@ class Game:
         moves = {fid: d for fid, d in moves.items() if fid not in alive0 or self.fighters[fid].alive}
         extra = 0
         if boost_card is not None:
-            extra = boost_card.boost
+            extra = boost_card.boost + self.fx.boost_bonus(player)
             self.discard_card(player, boost_card)
             self.fx.emit("card_boosted", player, boost_card)
             self.fx.boost_effects(player, boost_card)       # its BOOSTED WITH resolves before anything moves

@@ -1,0 +1,39 @@
+{
+ "slug": "yennefer-triss",
+ "_notes": [
+  "Read from the bag 2b339c (inner bag eaf05e) of the tournament savegame on 2026-11-09. One deck (7b2a33, 32 cards: the 30 of sheet 176 plus TWO character cards, 351 = Yennefer as the hero and 352 = Triss as the hero, sheet 3 index 51 and 52) and one bag serve both variants; this file is the variant `yennefer-triss` (hero Yennefer, sidekick Triss), the other is `triss-yennefer`. Both share the deck GUID, the CardID range and the deck identity, so the deck alone cannot tell them apart: sparring/hero_detect.py breaks the tie with the miniature on the table (the hero's own, never the other heroine's).",
+  "Pieces: the HERO miniatures are the tinted Custom_Models '[384A60]Yennefer' (cd27f6) and '[F19638]Triss' (d1b3b9); the SIDEKICK pieces are the Custom_Tokens 'Yennefer' (de2677) and 'Triss' (905f88), single faced in the save (ImageSecondaryURL empty), TTS type Custom_Token. Life dials are Custom_Models with MAX_VALUE 14 ('Hero Health': Yennefer d4701d, Triss 799107) and 6 ('Sidekick health': Yennefer 4dbc76, Triss 00da50). The bag holds all of them; a variant uses only its own four. Ivan describes the sidekick as one double-sided token; the save holds two separate single-faced tokens: to confirm live."
+ ],
+ "bag": {
+  "guid": "2b339c",
+  "inner": "eaf05e"
+ },
+ "deck": {
+  "guid": "7b2a33",
+  "card_ids": [
+   17600,
+   17629
+  ],
+  "character_card_id": 351,
+  "identity": [
+   {
+    "face": "https://steamusercontent-a.akamaihd.net/ugc/16930362931025600372/F279516C60BB84BA75324ABB225104D0B60D166B/",
+    "back": "https://steamusercontent-a.akamaihd.net/ugc/9467276126346825988/DFFAF9709E3403700C73AB8248D125D35DCCE5BB/"
+   }
+  ]
+ },
+ "fighters": {
+  "yennefer": {
+   "piece": "cd27f6",
+   "dial": "d4701d",
+   "dial_max": 14
+  },
+  "triss": {
+   "piece": "905f88",
+   "dial": "00da50",
+   "dial_max": 6
+  }
+ },
+ "tokens": {},
+ "counter_dials": {}
+}

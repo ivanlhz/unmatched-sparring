@@ -160,6 +160,11 @@ def rule_total(game, rule: str) -> int:
     return sum(m.get("amount", 0) for m in rules(game, rule))
 
 
+def boost_bonus(game, player: int) -> int:
+    """What `player`'s ONGOING adds to each BOOST value they spend ("Your BOOST values are +1": Advisor to the king)."""
+    return sum(m.get("amount", 0) for owner, m in active_modifiers(game, "rule") if owner == player and m["rule"] == "boost_bonus")
+
+
 def can_gain_actions(game, player: int) -> bool:
     if rules(game, "no_gain_actions"):
         return False

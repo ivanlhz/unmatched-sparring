@@ -1,0 +1,418 @@
+{
+ "schema": 1,
+ "hero": "yennefer-triss",
+ "notes": [
+  "Texts read from sheet 176 of the tournament savegame (card images) on 2026-11-09. One deck, two variants: this file is the variant in which the cards below are shared word for word with `triss-yennefer`; only the `ability` differs (the hero's own: each character card prints one, the sidekick has none).",
+  "Card restrictions follow the fighters: Incinerate is YENNEFER's band, Merigold's Hailstorm is TRISS's, the rest are ANY. The HeroDef names the fighters (hero and sidekick) so the band follows who is the hero in the variant.",
+  "Engine additions that came with her (docs/effects-dsl.md, section 39): the passive `may_boost` of a hero (Sorceress of Vengerberg), the rule `boost_bonus` and the ONGOING field `until_condition` (Advisor to the king). The rest uses existing ops: Incinerate is Liz Sherman's, Paralyzing fetters is Jill Trent's Stasis Diffuser, Portal to anywhere is Foul Journey's placement, Echoing blast is Five Against Thousands' return."
+ ],
+ "ability": {
+  "text": "SORCERESS OF VENGERBERG\nIMMEDIATELY: If Yennefer is attacking, you may BOOST her attack. (This effect cannot be canceled.)",
+  "triggers": [],
+  "passives": [
+   {
+    "id": "sorceress_of_vengerberg",
+    "kind": "may_boost",
+    "fighter": {
+     "side": "own",
+     "name": "Yennefer"
+    }
+   }
+  ],
+  "notes": "The hero's passive `may_boost`: whenever Yennefer attacks, whatever the card, its owner may BOOST her attack once (the free BOOST of a `may_boost` card). The card's cancelled effects do not take it away (the ability is on the hero: 'This effect cannot be canceled'), as with the hero's own DURING effects. It is the hero's ability: in the other variant, where Yennefer is the sidekick, nobody has it."
+ },
+ "cards": [
+  {
+   "title": "Incinerate",
+   "copies": 3,
+   "text": "This card's effect cannot be canceled. DURING COMBAT: Your opponent may discard 2 cards to ignore this card's value.",
+   "uncancelable": true,
+   "effects": {
+    "immediately": [],
+    "during": [
+     {
+      "op": "optional",
+      "chooser": "opponent",
+      "cost": [
+       {
+        "op": "discard",
+        "cards": {
+         "zone": "hand",
+         "player": "opponent",
+         "amount": 2,
+         "chooser": "opponent"
+        }
+       }
+      ],
+      "ops": [
+       {
+        "op": "set_value",
+        "card": "this",
+        "ignore": true
+       }
+      ]
+     }
+    ],
+    "after": [],
+    "scheme": [],
+    "boost": []
+   },
+   "notes": "Attack 7 / boost 2, band YENNEFER. Word for word Liz Sherman's Incinerate and ruled the same way (Iván 28/10): the rival may discard 2 cards from the hand, in addition to the card it defends with, to ignore the value (it stays at 0); with fewer than 2 cards it cannot pay. `uncancelable`: no cancel takes the effect off."
+  },
+  {
+   "title": "Echoing blast",
+   "copies": 3,
+   "text": "AFTER COMBAT: If you won the combat, return this card to your hand.",
+   "effects": {
+    "immediately": [],
+    "during": [],
+    "after": [
+     {
+      "op": "if",
+      "condition": {
+       "test": "combat_result",
+       "result": "won"
+      },
+      "then": [
+       {
+        "op": "put_in_hand",
+        "cards": "this"
+       }
+      ]
+     }
+    ],
+    "scheme": [],
+    "boost": []
+   },
+   "notes": "Attack 3 / boost 1. Won: the card played goes back to the hand instead of the discard pile (`put_in_hand` of `this`, as Tomoe Gozen's Five Against Thousands). A tie the defender wins counts as not won."
+  },
+  {
+   "title": "Portal to anywhere",
+   "copies": 3,
+   "text": "AFTER COMBAT: Place a fighter in the combat in any space. Gain 1 action.",
+   "effects": {
+    "immediately": [],
+    "during": [],
+    "after": [
+     {
+      "op": "place",
+      "target": "combatant",
+      "where": {
+       "any": true
+      },
+      "chooser": "owner"
+     },
+     {
+      "op": "gain_action",
+      "amount": 1
+     }
+    ],
+    "scheme": [],
+    "boost": []
+   },
+   "notes": "Attack 1 / boost 2. Baba Yaga's Foul Journey placement: the owner picks ANY fighter of the combat (either side) and an empty space anywhere; then 1 action. A fighter defeated in the combat cannot be placed, the action is gained anyway."
+  },
+  {
+   "title": "Merigold's Hailstorm",
+   "copies": 2,
+   "text": "AFTER COMBAT: Your opponent chooses one:\n- they discard 2 cards\n- deal 3 damage to their hero\n- they discard the top 4 cards of their deck",
+   "effects": {
+    "immediately": [],
+    "during": [],
+    "after": [
+     {
+      "op": "choose_effect",
+      "chooser": "opponent",
+      "amount": 1,
+      "options": [
+       {
+        "label": "You discard 2 cards",
+        "ops": [
+         {
+          "op": "discard",
+          "cards": {
+           "zone": "hand",
+           "player": "opponent",
+           "amount": 2,
+           "chooser": "opponent"
+          }
+         }
+        ]
+       },
+       {
+        "label": "Your hero takes 3 damage",
+        "ops": [
+         {
+          "op": "damage",
+          "target": {
+           "side": "enemy",
+           "kind": "hero"
+          },
+          "amount": 3
+         }
+        ]
+       },
+       {
+        "label": "Discard the top 4 cards of your deck",
+        "ops": [
+         {
+          "op": "plugin",
+          "id": "yennefer:mill",
+          "args": {
+           "amount": 4
+          }
+         }
+        ]
+       }
+      ]
+     }
+    ],
+    "scheme": [],
+    "boost": []
+   },
+   "notes": "Attack 4 / boost 3, band TRISS. AFTER, win or lose: the OPPONENT chooses one of the three. The 3 damage is effect damage to their hero (the card's owner's rival hero); the deck discard is `yennefer:mill` (plugin: the human's deck is on the table, the bot moves the real top cards as for Doctor Strange's BLIND BOOST); with fewer cards in the deck it discards what there is (no exhaustion: nothing is drawn); with fewer than 2 cards in hand the discard option still can be chosen and discards what there is."
+  },
+  {
+   "title": "Telepathy",
+   "copies": 3,
+   "text": "IMMEDIATELY: Your opponent may discard 1 card. If they don't, cancel all effects on their card.",
+   "effects": {
+    "immediately": [
+     {
+      "op": "optional",
+      "chooser": "opponent",
+      "cost": [
+       {
+        "op": "discard",
+        "cards": {
+         "zone": "hand",
+         "player": "opponent",
+         "amount": 1,
+         "chooser": "opponent"
+        }
+       }
+      ],
+      "ops": [],
+      "else": [
+       {
+        "op": "cancel_effects",
+        "card": "opponent_card"
+       }
+      ]
+     }
+    ],
+    "during": [],
+    "after": [],
+    "scheme": [],
+    "boost": []
+   },
+   "notes": "Versatile 3 / boost 1. The opponent may discard 1 card; if they do not (or cannot: empty hand) all effects of their card are cancelled. Their card's IMMEDIATELY has not run yet (the defender resolves first, then the attacker): the cancel is the card's own."
+  },
+  {
+   "title": "Quick and ready",
+   "copies": 2,
+   "text": "AFTER COMBAT: Place your fighter in any space in their zone. Draw 1 card.",
+   "effects": {
+    "immediately": [],
+    "during": [],
+    "after": [
+     {
+      "op": "place",
+      "target": "this",
+      "where": {
+       "zone_of": "opposing"
+      },
+      "chooser": "owner"
+     },
+     {
+      "op": "draw",
+      "player": "owner",
+      "amount": 1
+     }
+    ],
+    "scheme": [],
+    "boost": []
+   },
+   "notes": "Versatile 2 / boost 2. 'Their zone' is read as the zone of the OPPOSING fighter of the combat (the card says 'your fighter' and 'their': the rival's). The fighter that played the card is placed on an empty space of any zone the opposing fighter's space belongs to; then draw 1. See Open questions."
+  },
+  {
+   "title": "Ball lightning",
+   "copies": 3,
+   "text": "AFTER COMBAT: If you won the combat, your opponent discards 1 card. Otherwise, both players discard 1 card.",
+   "effects": {
+    "immediately": [],
+    "during": [],
+    "after": [
+     {
+      "op": "if",
+      "condition": {
+       "test": "combat_result",
+       "result": "won"
+      },
+      "then": [
+       {
+        "op": "discard",
+        "cards": {
+         "zone": "hand",
+         "player": "opponent",
+         "amount": 1,
+         "chooser": "opponent"
+        }
+       }
+      ],
+      "else": [
+       {
+        "op": "discard",
+        "cards": {
+         "zone": "hand",
+         "player": "owner",
+         "amount": 1,
+         "chooser": "owner"
+        }
+       },
+       {
+        "op": "discard",
+        "cards": {
+         "zone": "hand",
+         "player": "opponent",
+         "amount": 1,
+         "chooser": "opponent"
+        }
+       }
+      ]
+     }
+    ],
+    "scheme": [],
+    "boost": []
+   },
+   "notes": "Versatile 3 / boost 1. Each player chooses their own discard. Won: only the opponent discards; otherwise (lost, or a tie the defender wins) both."
+  },
+  {
+   "title": "Paralyzing fetters",
+   "copies": 3,
+   "text": "IMMEDIATELY: The value of your opponent's card is equal to its printed value and cannot be changed.",
+   "effects": {
+    "immediately": [
+     {
+      "op": "lock_value",
+      "card": "opponent_card"
+     }
+    ],
+    "during": [],
+    "after": [],
+    "scheme": [],
+    "boost": []
+   },
+   "notes": "Defense 2 / boost 2. Jill Trent's Stasis Diffuser, word for word (`lock_value`): the rival's total goes back to its printed value and later changes are ignored this combat."
+  },
+  {
+   "title": "Magical barrier",
+   "copies": 3,
+   "text": "IMMEDIATELY: Your fighter recovers 1 health.",
+   "effects": {
+    "immediately": [
+     {
+      "op": "heal",
+      "target": "this",
+      "amount": 1
+     }
+    ],
+    "during": [],
+    "after": [],
+    "scheme": [],
+    "boost": []
+   },
+   "notes": "Defense 4 / boost 3. The fighter that plays it recovers 1 health."
+  },
+  {
+   "title": "Advisor to the king",
+   "copies": 3,
+   "text": "Each of your fighters recovers 1 health. Draw 1 card. ONGOING: Your BOOST values are +1. Discard this card at the end of your turn if you didn't attack.",
+   "effects": {
+    "immediately": [],
+    "during": [],
+    "after": [],
+    "scheme": [
+     {
+      "op": "heal",
+      "target": {
+       "side": "own",
+       "pick": "all"
+      },
+      "amount": 1
+     },
+     {
+      "op": "draw",
+      "player": "owner",
+      "amount": 1
+     }
+    ],
+    "boost": []
+   },
+   "notes": "Scheme, boost 2. ONGOING (unmatched-memory leaves it out; read from the card): your BOOST values are +1 (`rule boost_bonus`, section 39) and the card is discarded at the end of YOUR turn if none of your fighters attacked during it (`until` end_of_turn + `until_condition`). Only the owner's boosts grow. A card with no BOOST value still cannot be used to boost.",
+   "ongoing": {
+    "modifiers": [
+     {
+      "kind": "rule",
+      "rule": "boost_bonus",
+      "amount": 1
+     }
+    ],
+    "triggers": [],
+    "until": {
+     "event": "end_of_turn",
+     "player": "owner"
+    },
+    "until_condition": {
+     "not": {
+      "test": "exists",
+      "fighters": {
+       "side": "own",
+       "filter": {
+        "attacked_this_turn": true
+       }
+      }
+     }
+    }
+   }
+  },
+  {
+   "title": "Lodge of sorceresses",
+   "copies": 2,
+   "text": "Each player simultaneously reveals a card from their hand and draws cards equal to their card's BOOST value. Then, the player(s) who drew the most cards deals that much damage to their hero.",
+   "effects": {
+    "immediately": [],
+    "during": [],
+    "after": [],
+    "scheme": [
+     {
+      "op": "plugin",
+      "id": "yennefer:lodge"
+     }
+    ],
+    "boost": []
+   },
+   "notes": "Scheme, boost 2. Plugin `yennefer:lodge`: each player reveals a card of their hand (the engine's hand for the bot; the human names theirs on the panel, with no look at the bot's choice first), draws that card's printed BOOST value in cards, then whoever drew the most (both on a tie) deals that many damage (effect damage) to their own hero. The revealed card stays in the hand. A player with an empty hand draws 0; with 0 each the nobody is hurt."
+  }
+ ],
+ "plugins": [
+  {
+   "id": "yennefer:mill",
+   "why": "Discard the top N cards of the rival's deck: the human's deck is on the table (plugins_strange.discard_top moves the real cards), and the choice is the opponent's own option."
+  },
+  {
+   "id": "yennefer:lodge",
+   "why": "Both players reveal a card of their hand at once and compare the cards they draw: a pair of simultaneous decisions and a comparison of the two results that no op expresses (needs both answers before anything moves)."
+  }
+ ],
+ "hidden_info": [
+  {
+   "card": "Lodge of sorceresses",
+   "what": "each player reveals one card of their hand; the revealed card's BOOST value is public from then on",
+   "bot_rule": "The bot reveals a card from its own hand (EffectAI, purpose lodge) before the human's answer is read; the human names the card they revealed on the panel (the list is every card of their set not yet public: no hand is read)."
+  }
+ ],
+ "open_questions": [
+  "See docs/heroes/yennefer-triss.md."
+ ]
+}

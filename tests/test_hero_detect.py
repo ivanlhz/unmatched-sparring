@@ -457,3 +457,15 @@ def test_the_official_saves_centre_decks_listed_for_removal_are_not_read_as_hero
     with pytest.raises(HeroDetectionError) as e:        # no hero laid out yet: say so, do not blame the centre decks
         resolve_heroes(Reader(*centre), load_config(REAL_CONFIG), echo=lambda _: None)
     assert "78" not in str(e.value)
+
+
+def test_the_table_script_has_room_for_the_roster_to_grow():
+    """The start-up read sends one CardID range per hero with TTS data and every miniature GUID: the bounds of `lua.table_heroes` are a
+    sanity limit, not a roster limit (the 24th hero data set hit the old 24 and every start-up fell back to Medusa / Hellboy)."""
+    from sparring.hero_detect import table_script
+    tables = [load_hero_table(s) for s in SLUGS]
+    guids = {g for t in tables for f in t.fighters.values() for g in f.pieces}
+    assert len(SLUGS) + 8 <= lua.MAX_HERO_RANGES and len(guids) + 16 <= lua.MAX_HERO_GUIDS
+    assert table_script().startswith("-- sparring:table_heroes")
+    with pytest.raises(TypeError):
+        lua.table_heroes([(17600, 17629)] * (lua.MAX_HERO_RANGES + 1), [])

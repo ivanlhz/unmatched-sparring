@@ -290,7 +290,7 @@
     "properties": {
      "kind": {"const": "rule"},
      "id": {"$ref": "#/$defs/Name"},
-     "rule": {"enum": ["no_attack_as_first_action", "effect_damage_bonus", "max_hand_size", "no_gain_actions", "maneuver_boost_places_hero", "combat_damage_reduction", "cards_uncancelable", "maneuver_move_per_counter"]},
+     "rule": {"enum": ["no_attack_as_first_action", "effect_damage_bonus", "max_hand_size", "no_gain_actions", "maneuver_boost_places_hero", "combat_damage_reduction", "cards_uncancelable", "maneuver_move_per_counter", "boost_bonus"]},
      "counter": {"$ref": "#/$defs/Name"},
      "amount": {"type": "integer"},
      "while": {"$ref": "#/$defs/Condition"}}},
@@ -335,7 +335,8 @@
    "properties": {
     "modifiers": {"type": "array", "items": {"$ref": "#/$defs/Modifier"}},
     "triggers": {"type": "array", "items": {"$ref": "#/$defs/Trigger"}},
-    "until": {"$ref": "#/$defs/Event"}
+    "until": {"$ref": "#/$defs/Event"},
+    "until_condition": {"$ref": "#/$defs/Condition"}
    }
   },
 

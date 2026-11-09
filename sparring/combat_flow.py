@@ -612,12 +612,24 @@ def dsl_during(flow: CombatFlow, side: Side) -> Await | None:
     effect that granted it (`allow_boost`), as many cards as the card says (`max_boosts`). Ivan 2/11: every boost card is
     discarded first, then their BOOSTED WITH effects run one after the other (each fully resolved, choices included, before
     the next), and only then are the boost values added; the combat resolves after."""
-    from .effects.modifiers import add_value, boost_limit
-    from .effects.ops_combat import run_boost_moment
+    from .effects.modifiers import boost_limit
     if (wait := _run_moment(flow, side, "during")) is not None:
         return wait
+    return _free_boost(flow, side, max(boost_limit(side.card), 1 if _may_boost_by_effect(flow, side) else 0))
+
+
+def _may_boost_by_effect(flow: CombatFlow, side: Side) -> bool:
+    """An effect lets this side BOOST its card: a card's `allow_boost`, or the hero's passive `may_boost` on an attack (Yennefer)."""
+    from .effects.modifiers import hero_may_boost
+    return side.name in flow.boost_granted or (side.name == "atk" and hero_may_boost(flow.game, side.fighter))
+
+
+def _free_boost(flow: CombatFlow, side: Side, limit: int) -> Await | None:
+    """The free BOOST of a card in its DURING (up to `limit` cards), then their BOOSTED WITH effects and values."""
+    from .effects.modifiers import add_value
+    from .effects.ongoing import boost_bonus
+    from .effects.ops_combat import run_boost_moment
     owner = side.fighter.owner
-    limit = max(boost_limit(side.card), 1 if side.name in flow.boost_granted else 0)
     if not limit:
         return None
     done = flow.boosted.setdefault(side.name, [])
@@ -633,7 +645,7 @@ def dsl_during(flow: CombatFlow, side: Side) -> Await | None:
             flow.game.discard_card(owner, boost)
             done.append(boost.card_id)
             flow.game.fx.emit("card_boosted", owner, boost)
-    if not done and (wait := _run_moment(flow, side, "unboosted")) is not None:     # I Never Miss: "if you don't BOOST this attack, draw 1 card"
+    if not done and not flow.is_cancelled(side.name) and (wait := _run_moment(flow, side, "unboosted")) is not None:     # I Never Miss: "if you don't BOOST this attack, draw 1 card"
         return wait
     spent = [flow.card_by_id(i, owner) for i in done]
     for n, boost in enumerate(spent):
@@ -643,21 +655,27 @@ def dsl_during(flow: CombatFlow, side: Side) -> Await | None:
     if side.name not in flow.boost_valued:
         flow.boost_valued.add(side.name)
         for boost in spent:
-            add_value(flow, side.name, boost.boost, t("cf.boost_with_plain", title=boost.title))
+            add_value(flow, side.name, boost.boost + boost_bonus(flow.game, owner), t("cf.boost_with_plain", title=boost.title))
         if spent and side.name == "atk":
             flow.result.boost_card = spent[-1]
 
 
 def _has_own_during(flow: CombatFlow, side: Side) -> bool:
     from .effects.model import load_effects
-    return bool(load_effects(flow.game.players[side.fighter.owner].hero.slug).ability_during)
+    from .effects.modifiers import hero_may_boost
+    own = bool(load_effects(flow.game.players[side.fighter.owner].hero.slug).ability_during)
+    return own or (side.name == "atk" and hero_may_boost(flow.game, side.fighter))
 
 
 @rule(Phase.DURING, when_cancelled=True, match=lambda flow, side: _dsl(flow, side) and flow.is_cancelled(side.name) and _has_own_during(flow, side))
 def dsl_during_hero_ability(flow: CombatFlow, side: Side) -> Await | None:
     """A side whose card effects were cancelled still has its hero's DURING COMBAT ability (Daredevil's BLIND BOOST): it is
-    on the hero, not on the card (docs/effects-dsl.md section 29). `dsl_during` above skips a cancelled side."""
-    return _run_moment(flow, side, "during")
+    on the hero, not on the card (docs/effects-dsl.md section 29). `dsl_during` above skips a cancelled side. The hero's
+    passive `may_boost` (Yennefer: "This effect cannot be canceled") keeps the free BOOST of her attack."""
+    if (wait := _run_moment(flow, side, "during")) is not None:
+        return wait
+    from .effects.modifiers import hero_may_boost
+    return _free_boost(flow, side, 1 if side.name == "atk" and hero_may_boost(flow.game, side.fighter) else 0)
 
 
 def _has_own_after(flow: CombatFlow, side: Side) -> bool:

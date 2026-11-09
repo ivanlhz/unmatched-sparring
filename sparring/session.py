@@ -2124,11 +2124,12 @@ class Session:
         self.maneuver_boosted = card.card_id
         runs_effects = has_boost_effect(card) and g.fx.interprets(self.human)
         fx_first = t("maneuver.fx_first") if runs_effects else ""
+        bonus = g.fx.boost_bonus(self.human)         # Advisor to the king: "your BOOST values are +1"
         if g.fx.hero_rule(self.human, "maneuver_boost_places_hero"):
-            self.say(t("maneuver.boosted_places", title=card.title, value=card.boost, hero=self._name(g.hero(self.human)),
+            self.say(t("maneuver.boosted_places", title=card.title, value=card.boost + bonus, hero=self._name(g.hero(self.human)),
                        fx=fx_first), ChatKind.YOUR_TURN)
         else:
-            self.say(t("maneuver.boosted", title=card.title, value=card.boost, fx=fx_first), ChatKind.YOUR_TURN)
+            self.say(t("maneuver.boosted", title=card.title, value=card.boost + bonus, fx=fx_first), ChatKind.YOUR_TURN)
         if runs_effects:
             human_effects.maneuver_boost(self, card)      # BOOSTED WITH: its ops run now, like a scheme's
         if self._paused() is None and self.game.winner is None:
@@ -2422,8 +2423,8 @@ class Session:
         if face_up:
             self.say(t("reveal.face_up", card=human_card.title), ChatKind.COMBAT)
         granted = p.bot_card is not None and grants_boost(p.bot_card)
-        if human_card is not None and (can_boost(human_card) or granted):      # your attack (Second Shot), your defense (Out Of Time), a boost the bot's card allows
-            if p.bot_card is not None and is_medusa_card(p.bot_card) and p.bot_card.title == FEINT:
+        if human_card is not None and (can_boost(human_card) or granted or boost_session.by_ability(self, p)):      # your attack (Second Shot), your defense (Out Of Time), a boost the bot's card allows
+            if p.bot_card is not None and is_medusa_card(p.bot_card) and p.bot_card.title == FEINT and not boost_session.by_ability(self, p):
                 self.say(t("reveal.feint", bot=p.bot_card.title, card=human_card.title), ChatKind.COMBAT)
             elif boost_session.offered(self, p, human_card):
                 self._await_boost(p, human_card, human_guid)
@@ -2671,9 +2672,7 @@ class Session:
         if c["flip"] and not c.get("flipped"):
             self._flip_queued([(None if discarded_now and side == "bot" else guid, side) for guid, side in flip_cards])
         fin_swap = sleight.bot_swap(self, p)         # Sleight Of Hand: after the reveal, before the result is told
-        if p.bot_card is not None and p.bot_card_guid and p.bot_card in g.players[self.bot].hand:     # its own AFTER took the card back (Foul Purpose)
-            self._w(lua.return_card_to_hand(p.bot_card_guid, self.cfg.bot_seat), "cards")
-            self.say(t("tr.bot_recovers", title=p.bot_card.title), ChatKind.SCHEME)
+        fin_back = sleight.bot_card_back(self, p)    # an attack card the AFTER put back in the bot's hand (Echoing blast)
         self.pending, self.pending_value, self.chosen_attacker = None, 0, None
         said_first = len(self.messages)
         if self.pending_discard is not None:      # before any I/O: a table failure cannot leave it without a basis
@@ -2712,6 +2711,7 @@ class Session:
         fin_dials()
         fin_table()
         fin_swap()
+        fin_back()
         fin_fx()
         if g.winner is not None:
             self.say(t("game.over", winner=g.winner))

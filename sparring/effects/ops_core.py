@@ -672,3 +672,4 @@ from . import plugins_jill  # noqa: E402,F401  (registers jill:hypnoray, jill:re
 from . import plugins_shehulk  # noqa: E402,F401  (registers shehulk:throw, shehulk:mill)
 from . import plugins_ciri  # noqa: E402,F401  (registers ciri:channel_the_source)
 from . import plugins_eredin  # noqa: E402,F401  (registers eredin:replace_combatant and the test eredin:opponent_card)
+from . import plugins_yennefer  # noqa: E402,F401  (registers yennefer:/triss: mill and lodge)

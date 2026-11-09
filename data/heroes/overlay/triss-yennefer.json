@@ -1,0 +1,202 @@
+{
+ "_notes": [
+  "Sheet 176 of the tournament savegame (8x4), read card by card from the image on 2026-11-09. CardID = 17600 + idx. The deck object (7b2a33) holds 32 cards: the 30 plus TWO character cards, 351 and 352 (sheet 3, 10x7, index 51 and 52): 351 is YENNEFER as the hero (ability SORCERESS OF VENGERBERG, sidekick Triss 6 HP), 352 is TRISS as the hero (ability MERIGOLD THE FEARLESS, sidekick Yennefer 6 HP). Both read from the images on 2026-11-09.",
+  "Yennefer & Triss is ONE deck with TWO variants: the player picks which heroine is the hero at the start (the character card says so) and the other is the sidekick. Each variant is an ordinary HeroDef over the same deck: `yennefer-triss` (Yennefer hero, card 351) and `triss-yennefer` (Triss hero, card 352). Only the hero has an ability (each character card prints one), the sidekick has none. docs/heroes/yennefer-triss.md.",
+  "Card bands read from the images: Incinerate is YENNEFER, Merigold's Hailstorm is TRISS, the other nine titles are ANY. A band is the fighter that may play the card, so it follows who is hero and who is sidekick in the variant.",
+  "Advisor to the king prints an ONGOING that unmatched-memory leaves out (\"Your BOOST values are +1. Discard this card at the end of your turn if you didn't attack.\"); Telepathy has a comma unmatched-memory drops. The overlay carries the printed texts.",
+  "Copies, type, value and boost match unmatched-memory for all 11 titles."
+ ],
+ "fid": "triss",
+ "memory_slug": "yennefer-triss",
+ "catalog_slug": "yennefer-triss",
+ "name": "Triss",
+ "ability": "MERIGOLD THE FEARLESS\nAfter Triss plays a scheme, deal 2 damage to a fighter adjacent to Triss.",
+ "sidekicks": [
+  {
+   "fid": "yennefer",
+   "name": "Yennefer",
+   "count": 1,
+   "hp": 6,
+   "move": 2,
+   "attack": "range"
+  }
+ ],
+ "tts": {
+  "bag_name": "Yennefer & Triss",
+  "character_cards": [
+   351,
+   352
+  ],
+  "character_card_id": 352
+ },
+ "ignored_tokens": [
+  "905f88"
+ ],
+ "forms": null,
+ "counters": {},
+ "triggers": [],
+ "passives": [],
+ "deck": {
+  "card_base": 17600,
+  "sheet_id": 176,
+  "hero_card_id": 352,
+  "sheet": [
+   {
+    "idx": 0,
+    "title": "Incinerate",
+    "fighter": "Yennefer"
+   },
+   {
+    "idx": 1,
+    "title": "Incinerate",
+    "fighter": "Yennefer"
+   },
+   {
+    "idx": 2,
+    "title": "Incinerate",
+    "fighter": "Yennefer"
+   },
+   {
+    "idx": 3,
+    "title": "Echoing blast",
+    "fighter": "any"
+   },
+   {
+    "idx": 4,
+    "title": "Echoing blast",
+    "fighter": "any"
+   },
+   {
+    "idx": 5,
+    "title": "Echoing blast",
+    "fighter": "any"
+   },
+   {
+    "idx": 6,
+    "title": "Portal to anywhere",
+    "fighter": "any"
+   },
+   {
+    "idx": 7,
+    "title": "Portal to anywhere",
+    "fighter": "any"
+   },
+   {
+    "idx": 8,
+    "title": "Portal to anywhere",
+    "fighter": "any"
+   },
+   {
+    "idx": 9,
+    "title": "Merigold's Hailstorm",
+    "fighter": "Triss"
+   },
+   {
+    "idx": 10,
+    "title": "Merigold's Hailstorm",
+    "fighter": "Triss"
+   },
+   {
+    "idx": 11,
+    "title": "Telepathy",
+    "fighter": "any",
+    "text": "IMMEDIATELY: Your opponent may discard 1 card. If they don't, cancel all effects on their card."
+   },
+   {
+    "idx": 12,
+    "title": "Telepathy",
+    "fighter": "any",
+    "text": "IMMEDIATELY: Your opponent may discard 1 card. If they don't, cancel all effects on their card."
+   },
+   {
+    "idx": 13,
+    "title": "Telepathy",
+    "fighter": "any",
+    "text": "IMMEDIATELY: Your opponent may discard 1 card. If they don't, cancel all effects on their card."
+   },
+   {
+    "idx": 14,
+    "title": "Quick and ready",
+    "fighter": "any"
+   },
+   {
+    "idx": 15,
+    "title": "Quick and ready",
+    "fighter": "any"
+   },
+   {
+    "idx": 16,
+    "title": "Ball lightning",
+    "fighter": "any"
+   },
+   {
+    "idx": 17,
+    "title": "Ball lightning",
+    "fighter": "any"
+   },
+   {
+    "idx": 18,
+    "title": "Ball lightning",
+    "fighter": "any"
+   },
+   {
+    "idx": 19,
+    "title": "Paralyzing fetters",
+    "fighter": "any"
+   },
+   {
+    "idx": 20,
+    "title": "Paralyzing fetters",
+    "fighter": "any"
+   },
+   {
+    "idx": 21,
+    "title": "Paralyzing fetters",
+    "fighter": "any"
+   },
+   {
+    "idx": 22,
+    "title": "Magical barrier",
+    "fighter": "any"
+   },
+   {
+    "idx": 23,
+    "title": "Magical barrier",
+    "fighter": "any"
+   },
+   {
+    "idx": 24,
+    "title": "Magical barrier",
+    "fighter": "any"
+   },
+   {
+    "idx": 25,
+    "title": "Advisor to the king",
+    "fighter": "any",
+    "text": "Each of your fighters recovers 1 health. Draw 1 card. ONGOING: Your BOOST values are +1. Discard this card at the end of your turn if you didn't attack."
+   },
+   {
+    "idx": 26,
+    "title": "Advisor to the king",
+    "fighter": "any",
+    "text": "Each of your fighters recovers 1 health. Draw 1 card. ONGOING: Your BOOST values are +1. Discard this card at the end of your turn if you didn't attack."
+   },
+   {
+    "idx": 27,
+    "title": "Advisor to the king",
+    "fighter": "any",
+    "text": "Each of your fighters recovers 1 health. Draw 1 card. ONGOING: Your BOOST values are +1. Discard this card at the end of your turn if you didn't attack."
+   },
+   {
+    "idx": 28,
+    "title": "Lodge of sorceresses",
+    "fighter": "any"
+   },
+   {
+    "idx": 29,
+    "title": "Lodge of sorceresses",
+    "fighter": "any"
+   }
+  ]
+ }
+}

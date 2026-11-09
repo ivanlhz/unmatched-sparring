@@ -14,10 +14,18 @@ from __future__ import annotations
 from .combat_flow import Phase, legacy_chooser
 
 
+def by_ability(session, p) -> bool:
+    """The human's hero ability lets this attack be BOOSTED whatever the card says (Yennefer's SORCERESS OF VENGERBERG)."""
+    from .effects.modifiers import hero_may_boost
+    return p.kind == "human_attacks" and hero_may_boost(session.game, p.attacker)
+
+
 def offered(session, p, human_card) -> bool:
     """True when the human's card still has its DURING effects (the boost) when the combat reaches DURING; False when
-    the rival's card cancels them. Any failure of the dry run answers True: the real combat then says what is wrong,
-    as it always did."""
+    the rival's card cancels them (the hero's own ability, which cannot be cancelled, is always offered). Any failure of the
+    dry run answers True: the real combat then says what is wrong, as it always did."""
+    if by_ability(session, p):
+        return True
     g = session.game.clone()
     rng_state = g.rng.getstate()                   # the clone shares the live RNG: the real combat must draw the same
     session.make_known(human_card, game=g)
