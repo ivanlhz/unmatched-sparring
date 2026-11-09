@@ -222,8 +222,10 @@ def test_the_bots_echoing_blast_goes_back_to_its_hand_when_it_wins(rig, monkeypa
     bot_turn(session, table, [Act("attack", fid="yennefer", target="hellboy", card=blast)])
     table.face_down = []
     msgs = click(session, table, Event.REVEAL)
-    assert blast in game.players[0].hand or blast.card_id in table.bot_hand, msgs
-    assert blast.card_id not in table.bot_discard
+    assert blast in game.players[0].hand and blast.card_id in table.bot_hand, msgs         # the engine's hand AND the table's
+    assert blast.card_id not in table.bot_discard and blast.card_id not in table.bot_play
+    assert any(sc.startswith("-- sparring:return_card_to_hand") for sc in table.scripts), "the card was never taken from its combat spot"
+    assert not said(session.messages, "vuelve a la mano del bot"), "the table refused: card_back.bot_manual"
 
 
 # ---------------------------------------------------------------- save and resume keep the variant, the ONGOING and a pause
@@ -256,3 +258,31 @@ def test_a_save_taken_at_the_lodge_question_resumes_and_the_answer_goes_on(rig):
     assert req.kind == "cards" and req.extra["purpose"] == "lodge"
     click(twin, table, Event.CHOICE, {"i": 1})
     assert twin._paused() is None and len(table.human_deals) >= 1
+
+
+# ---------------------------------------------------------------- the boost no cancel removes, and the Advisor's +1 told in a Maneuver
+
+@with_rig("Feint", bot="medusa", human="yennefer-triss")
+def test_the_boost_is_asked_and_counts_against_the_bots_feint(rig, monkeypatch):
+    session, table, game, fake, cfg = rig
+    put_adjacent(game, table, cfg, "yennefer", "medusa")
+    feint = next(c for c in game.players[0].hand if c.title == "Feint")
+    monkeypatch.setattr(session.ai, "choose_defense", lambda g, a, t, attack_card=None: feint)
+    human_hand(table, game, "Echoing blast", "Telepathy")
+    msgs = attack(session, table, game, "yennefer", "Echoing blast", target="medusa")
+    assert session.pending is not None and session.pending.wait is not None, msgs
+    assert said(msgs, "Echoing blast revelado: si quieres potenciar") and not said(msgs, "Combate:")
+    spend(table, game, "Telepathy")                                   # BOOST 1
+    msgs = click(session, table, Event.BOOST)
+    assert "total 4" in combat_line(msgs), combat_line(msgs)
+
+
+@with_rig("Excalibur", "Service Pistol", human="yennefer-triss")
+def test_a_maneuver_boost_with_the_advisor_in_play_is_announced_one_higher(rig):
+    session, table, game, fake, cfg = rig
+    human_hand(table, game, "Advisor to the king", "Telepathy", "Echoing blast")
+    human_scheme(session, table, game, "Advisor to the king")
+    click(session, table, Event.MANEUVER)
+    spend(table, game, "Telepathy")                                   # BOOST 1, +1 from the ONGOING
+    msgs = click(session, table, Event.MANEUVER_BOOST)
+    assert said(msgs, "(BOOST 2)") and said(msgs, "+2 al movimiento"), msgs

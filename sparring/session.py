@@ -2115,11 +2115,12 @@ class Session:
         self.maneuver_boosted = card.card_id
         runs_effects = has_boost_effect(card) and g.fx.interprets(self.human)
         fx_first = t("maneuver.fx_first") if runs_effects else ""
+        bonus = g.fx.boost_bonus(self.human)         # Advisor to the king: "your BOOST values are +1"
         if g.fx.hero_rule(self.human, "maneuver_boost_places_hero"):
-            self.say(t("maneuver.boosted_places", title=card.title, value=card.boost, hero=self._name(g.hero(self.human)),
+            self.say(t("maneuver.boosted_places", title=card.title, value=card.boost + bonus, hero=self._name(g.hero(self.human)),
                        fx=fx_first), ChatKind.YOUR_TURN)
         else:
-            self.say(t("maneuver.boosted", title=card.title, value=card.boost, fx=fx_first), ChatKind.YOUR_TURN)
+            self.say(t("maneuver.boosted", title=card.title, value=card.boost + bonus, fx=fx_first), ChatKind.YOUR_TURN)
         if runs_effects:
             human_effects.maneuver_boost(self, card)      # BOOSTED WITH: its ops run now, like a scheme's
         if self._paused() is None and self.game.winner is None:
@@ -2414,7 +2415,7 @@ class Session:
             self.say(t("reveal.face_up", card=human_card.title), ChatKind.COMBAT)
         granted = p.bot_card is not None and grants_boost(p.bot_card)
         if human_card is not None and (can_boost(human_card) or granted or boost_session.by_ability(self, p)):      # your attack (Second Shot), your defense (Out Of Time), a boost the bot's card allows
-            if p.bot_card is not None and is_medusa_card(p.bot_card) and p.bot_card.title == FEINT:
+            if p.bot_card is not None and is_medusa_card(p.bot_card) and p.bot_card.title == FEINT and not boost_session.by_ability(self, p):
                 self.say(t("reveal.feint", bot=p.bot_card.title, card=human_card.title), ChatKind.COMBAT)
             elif boost_session.offered(self, p, human_card):
                 self._await_boost(p, human_card, human_guid)

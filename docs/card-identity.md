@@ -2,7 +2,7 @@
 
 In the tournament savegame Medusa, the four TMNT turtles (Leonardo, Donatello, Michelangelo, Raphael), Doctor Strange, Bigfoot, Daredevil, Luke Cage, Bullseye and Tomoe Gozen
 are all DeckID 176, so all eleven decks have CardIDs 17600-17629 (Daredevil's has 22 cards: 17600-17621). Only the deck image (FaceURL, BackURL of the CustomDeck,
-`deck.identity` in `data/tts/<slug>.json`) tells them apart. Any pairing of the nineteen heroes works at the table, in both seats,
+`deck.identity` in `data/tts/<slug>.json`) tells them apart. Any pairing of the twenty heroes works at the table, in both seats,
 including Medusa against a turtle and a turtle against a turtle (`tests/test_tmnt_matrix.py`), and Doctor Strange against each of
 them (`tests/test_doctor_strange_matrix.py`; only the
 30 deck cards overlap, his character card is 337). The rule is one sentence:
@@ -62,7 +62,7 @@ She-Hulk (Brains and Brawn, character card 336) is another deck of sheet 176 (`t
 
 Tomoe Gozen (Sun's Origin, character card 354) is another deck of sheet 176 (`tests/test_hero_tomoe_gozen_data.py`, `tests/test_tomoe_gozen_matrix.py`): her own `deck.identity` in `data/tts/tomoe-gozen.json`, a matrix against the other eighteen heroes in both seats, and `SHARING` in `tests/test_card_identity.py`. Her life dial also shares a GUID with Donatello's (`ca8e35`): see "Piece identity" below.
 
-Yennefer & Triss (The Witcher: Realms Fall) is the twelfth deck of sheet 176, with a twist: the deck object holds TWO character cards (351 Yennefer as the hero, 352 Triss as the hero) and the bag serves two HeroDefs, `yennefer-triss` and `triss-yennefer`, that share the deck GUID, the CardID range and the images. The deck therefore cannot tell the two apart (`hero_detect._by_hero_piece` breaks the tie with the hero miniature out of the bag) and the two variants can never be the two sides of one game (`Game.new` refuses overlapping fighter ids). Only `yennefer-triss` is in `SHARING` in `tests/test_card_identity.py` (the other has the same images); see `tests/test_hero_yennefer_triss_data.py` and `tests/test_yennefer_triss_matrix.py`.
+Yennefer & Triss (The Witcher: Realms Fall) is the fifteenth deck of sheet 176, with a twist: the deck object holds TWO character cards (351 Yennefer as the hero, 352 Triss as the hero) and the bag serves two HeroDefs, `yennefer-triss` and `triss-yennefer`, that share the deck GUID, the CardID range and the images. The deck therefore cannot tell the two apart (`hero_detect._by_hero_piece` breaks the tie with the hero miniature out of the bag) and the two variants can never be the two sides of one game (`Game.new` refuses overlapping fighter ids). Only `yennefer-triss` is in `SHARING` in `tests/test_card_identity.py` (the other has the same images); see `tests/test_hero_yennefer_triss_data.py` and `tests/test_yennefer_triss_matrix.py`.
 
 ## Houdini needs none of this
 

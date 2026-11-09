@@ -404,9 +404,9 @@ def test_advisor_boost_bonus_also_counts_in_a_maneuver(bprd):
     yen, foe = pair(g, "yennefer", "hellboy")
     g.play_scheme(0, yen, give(g, 0, "Advisor to the king"))
     boost = give(g, 0, "Telepathy")
-    far = next(s for s in sorted(g.board.spaces) if g.board.distance(yen.pos, s) == 3 and all(f.pos != s for f in g.fighters.values() if f.alive))
+    far = next(s for s in sorted(g.board.spaces) if g.board.distance(yen.pos, s) == 4 and all(f.pos != s for f in g.fighters.values() if f.alive))
     g.maneuver(0, {"yennefer": far}, boost)
-    assert yen.pos == far                                           # move 2 + boost 1 + the ONGOING's 1 = 4 spaces
+    assert yen.pos == far                                           # move 2 + boost 1 + the ONGOING's 1 = 4 spaces: 3 would not reach
 
 
 # ---------------------------------------------------------------- Lodge of sorceresses
@@ -471,3 +471,29 @@ def test_the_bot_reveals_the_card_it_can_afford(bprd):
     assert EffectAI()._lodge_card(g, req) == [cards[0].card_id]               # 14 HP: the BOOST 2 card draws the most
     g.hero(0).hp = 3
     assert EffectAI()._lodge_card(g, req) == [cards[1].card_id]               # hurt: the smallest BOOST (1) takes the least
+
+
+# ---------------------------------------------------------------- the scripted rival of the simulator
+
+def test_the_scripted_rival_never_plays_an_adjacent_only_card_against_a_target_that_is_not_adjacent(bprd):
+    """Found by the simulator (Yennefer vs a scripted Tomoe Gozen): Witness My Last Battle, her adjacent-only attack, was chosen
+    against a target two spaces away and the game died with a RuleError."""
+    from sparring.hellboy_script import ScriptedHellboy
+    g = Game.new(bprd, 3, controllers={0: Answers(), 1: Answers()}, heroes=("yennefer-triss", "tomoe-gozen"), bot_player=0)
+    g.turn, g.turn_no = 1, 2
+    g.begin_turn()
+    for p in g.players:
+        p.hand.clear()
+    tomoe, yen = g.fighters["tomoe"], g.fighters["yennefer"]
+    a = min(g.board.spaces)
+    tomoe.pos = a
+    yen.pos = next(s for s in sorted(g.board.spaces) if g.board.share_zone(a, s) and s != a and s not in g.board.adj[a])
+    far = sorted((s for s in g.board.spaces if not g.board.share_zone(a, s)), reverse=True)
+    for f, s in zip([f for f in g.fighters.values() if f.fid not in ("tomoe", "yennefer")], far):
+        f.pos = s
+    witness = give(g, 1, "Witness My Last Battle")
+    assert g.can_attack(tomoe, yen) and not g.attack_card_reaches(tomoe, yen, witness)
+    script = ScriptedHellboy(1, 0)
+    assert script.try_attack(g) is False and witness in g.players[1].hand          # nothing else to play: no attack, no crash
+    yen.pos = next(s for s in sorted(g.board.adj[a]) if all(f.pos != s for f in g.fighters.values() if f.alive))
+    assert script.try_attack(g) is True and witness not in g.players[1].hand
