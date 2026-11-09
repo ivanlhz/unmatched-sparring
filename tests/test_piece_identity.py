@@ -53,7 +53,7 @@ def test_every_guid_in_the_hero_data_belongs_to_one_hero_except_the_known_collis
         for g in load_hero_table(path.stem).all_guids():
             owners[g].add(path.stem)
     shared = {g: sorted(s) for g, s in owners.items() if len(s) > 1}
-    assert shared == {SHARED: ["abe-sapien", "donatello"], "18c384": ["bigfoot", "hellboy"], "0bf463": ["abe-sapien", "jill-trent"], "ca8e35": ["donatello", "tomoe-gozen"]}
+    assert shared == {SHARED: ["abe-sapien", "donatello"], "18c384": ["bigfoot", "hellboy"], "0bf463": ["abe-sapien", "jill-trent"], "ca8e35": ["donatello", "tomoe-gozen"], "7b2a33": ["triss-yennefer", "yennefer-triss"]}
 
 
 def test_plain_name_strips_tts_colour_tags():
