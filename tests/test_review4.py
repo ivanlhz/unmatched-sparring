@@ -526,22 +526,24 @@ def test_d6_main_resume_reads_the_save_and_continues(live, cfg_file, tmp_path):
                                    stop=stop)
     t = threading.Thread(target=run, args=([],))
     t.start()
-    deadline = time.time() + 5
+    # the waits only bound a failure: on a loaded machine (the whole suite, a CI runner) one lost TTS reply costs the
+    # client's full timeout, so they are generous; the happy path returns as soon as the bot does
+    deadline = time.time() + 15
     while time.time() < deadline and not state.exists():
         time.sleep(0.02)
     fake.push({"messageID": 4, "customMessage": {"event": "scheme"}})
-    deadline = time.time() + 5
+    deadline = time.time() + 15
     while time.time() < deadline and json.loads(state.read_text())["game"]["actions_left"] != 1:
         time.sleep(0.02)
     stop.set()
-    t.join(5)
+    t.join(15)
     assert json.loads(state.read_text())["game"]["actions_left"] == 1
     stop2 = threading.Event()
     threading.Timer(0.8, stop2.set).start()
     t2 = threading.Thread(target=lambda: result.setdefault("c2", play.main(
         ["--config", str(cfg_file()), "--poll", "0.02", "--first", "human", *ports, "--state", str(state), "--resume"], stop=stop2)))
     t2.start()
-    t2.join(6)
+    t2.join(30)
     assert result["c2"] == 0
     assert any("reanudada" in b for b in table.broadcasts) and any("1 accion" in b for b in table.broadcasts)
 
