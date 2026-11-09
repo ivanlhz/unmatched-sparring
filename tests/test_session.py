@@ -47,6 +47,7 @@ class Table:
         self.fail_flip = False
         self.human_hand: list[int] = []     # only the session reads it, to validate; empty = not readable
         self.unflips: list[str] = []
+        self.turned_up: set[str] = set()                  # GUIDs of the table's cards that were turned face up
         self.returned: list[str] = []
         self.lag = 0                         # table reads that are slow to see card moves
         self._queued: list = []
@@ -478,14 +479,19 @@ class Table:
     def do_read_face_down_cards(self, s):
         z = float(re.search(r"p\.z - (-?[\d.]+)\)", s).group(1))
         if z > 0:                                   # bot card spot (z 5.0) or deck spot (z 3.0)
-            return self.stray_bot + [{"id": i, "guid": f"g{i}"} for i in self.bot_play]
+            return self.stray_bot + [{"id": i, "guid": f"g{i}"} for i in self.bot_play if f"g{i}" not in self.turned_up]    # only face-down cards
         return self.face_down
 
     def do_flip_card(self, s):
         if self.fail_flip:
             return {"__error__": "no se pudo girar"}
         guid = re.search(r'getObjectFromGUID\("(\w+)"\)', s).group(1)
-        (self.unflips if ", 180.0)" in s else self.flips).append(guid)
+        if ", 180.0)" in s:
+            self.unflips.append(guid)
+            self.turned_up.discard(guid)
+        else:
+            self.flips.append(guid)
+            self.turned_up.add(guid)
         return {"flipped": guid}
 
     def do_return_card_to_hand(self, s):

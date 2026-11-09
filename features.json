@@ -641,6 +641,19 @@
         "Verified live by Iván (docs/live-checklist.md, section Sinbad)"
       ],
       "note": "Engine additions are additive (docs/effects-dsl.md, section 38). Rules decisions and open questions for Iván: docs/heroes/sinbad.md. Live test pending."
+    },
+    {
+      "id": "F-DEVIL-EMPTY-DECK",
+      "title": "Cards go back into an empty draw deck (Devil of Hell's Kitchen, v0.5.0 bug)",
+      "status": "done",
+      "criteria": [
+        "With the bot's draw deck empty (no Deck object in TTS) the bot's Devil of Hell's Kitchen is worth 8 and its AFTER puts itself and the last four cards of the discard pile into a new face-down deck where the deck lay: the table deck and the engine deck hold the same 5 cards",
+        "The bot's own combat card is moved by the GUID the session placed it with, also in non-batch mode where the reveal turned it face up",
+        "shuffle_into_deck, card_to_deck_top, card_to_deck_bottom, hand_to_deck, return_hand_to_deck and resolve_hand_row (deck destination) lay the first card down as the deck when there is none, run on the Lua stub; with no zone and no spot they refuse as before (deck = false) and move nothing",
+        "A lone Card (the last card of a deck) reports quantity 1, not TTS's -1",
+        "The human's deck gone (Relentless-style moves of their cards) is handled the same way",
+        "The FakeTTS deck writers refuse an empty deck unless the script was given a place to lay one, and the fake's flip_card really turns the card face up"
+      ]
     }
   ]
 }

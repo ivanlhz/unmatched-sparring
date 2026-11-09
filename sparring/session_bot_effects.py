@@ -91,7 +91,15 @@ def snapshot(session) -> dict:
             "bot": zones(g.players[bot]), "human": zones(g.players[human]),
             "in_play": g.fx.ongoing_card_id(human), "bot_in_play": g.fx.ongoing_card_id(bot),
             "drawn": g.drawn[bot], "seen": list(g.players[bot].known.seen), "top": list(g.players[bot].known.top_of_deck),
-            "bot_played": [c.card_id for owner, c in (flow.played if flow is not None else ()) if owner == bot]}
+            "bot_played": [c.card_id for owner, c in (flow.played if flow is not None else ()) if owner == bot],
+            "bot_played_guid": played_guid(session)}
+
+
+def played_guid(session) -> list | None:
+    """[CardID, GUID] of the card the bot has at its combat spot (the session placed it, so it knows the GUID whether the table
+    shows the card face down or, after the reveal, face up), or None."""
+    p = session.pending
+    return [p.bot_card.card_id, p.bot_card_guid] if p is not None and p.bot_card is not None and p.bot_card_guid else None
 
 
 def project(session, before: dict | None, played: frozenset = frozenset(), cause: str | None = None) -> Callable[[], None]:
@@ -210,6 +218,14 @@ def _bot_cards(session, before: dict, moved: set, intents: list[dict], ctx: Ctx)
     for i in disc_to_deck + disc_to_hand:
         session.bot_discarded.discard(i)          # it may be discarded again later: the table has to move it again
     guids = {r["id"]: r["guid"] for r in session._rd_bot_discard()} if disc_to_deck or disc_to_hand else {}
+    placed_id, placed_guid = before.get("bot_played_guid") or [None, None]
+    for i in played_back:                         # the card it played is still at its combat spot, loose: moved by that GUID
+        if i in guids:
+            continue
+        if i == placed_id:
+            guids[i] = placed_guid
+        elif (spot := session._card_on_spot(i)) is not None:
+            guids[i] = spot
     ctx = replace(ctx, bot_discard=guids)
     checks: list[Callable[[], None]] = []
     for zone, ids in (("hand", hand_to_deck), ("discard", played_back + disc_to_deck)):
