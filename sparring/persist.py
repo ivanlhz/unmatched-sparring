@@ -6,6 +6,7 @@ from __future__ import annotations
 
 import json
 import os
+import time
 from pathlib import Path
 
 from .effects import ongoing
@@ -80,11 +81,29 @@ def apply_game(g: Game, d: dict) -> None:
         raise StateError(t("save.invalid", error=repr(e))) from None
 
 
+REPLACE_WAIT = 2.0     # seconds the save keeps retrying the replace while another handle holds the file (Windows)
+
+
 def save_atomic(path: str | Path, data: dict) -> None:
     path = Path(path)
     tmp = path.with_name(path.name + ".tmp")
     tmp.write_text(json.dumps({"version": VERSION, **data}, indent=1), encoding="utf-8")
-    os.replace(tmp, path)
+    _replace(tmp, path)
+
+
+def _replace(src: Path, dst: Path) -> None:
+    """`os.replace` that waits out a short lock: on Windows a reader of the save (or a virus scanner on the fresh
+    temporary file) makes the replace fail with PermissionError for a few milliseconds, and a lost save is worse
+    than a late one."""
+    deadline = time.monotonic() + REPLACE_WAIT
+    while True:
+        try:
+            os.replace(src, dst)
+            return
+        except PermissionError:
+            if time.monotonic() >= deadline:
+                raise
+            time.sleep(0.01)
 
 
 def load(path: str | Path) -> dict:
