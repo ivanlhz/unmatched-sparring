@@ -17,7 +17,7 @@ the controller completes the move following the principal variation.
 
 What the engine delegates in mid-resolution (Second Shot's boost, Dash, Hounds, forced discard, repositioning
 a Harpy) is decided by `SearchController` with fixed heuristics: it is not part of the tree. The sidekicks move
-as a block with a policy (stay, advance, retreat). Only complete placements enter the tree
+as a block with a policy (stay, advance, retreat, guard: stand where the rivals' paths to the hero are blocked). Only complete placements enter the tree
 (hero and sidekicks already moved) best scored by the static evaluation as an end-of-turn position
 (`PLACEMENT_KEEP`), plus the best ones from which the hero strikes and staying still: with all of them, the maneuver
 had ~30 leaves with few visits each and the noise chose the space. The rollout does not prune.
@@ -39,6 +39,7 @@ from functools import lru_cache
 from math import sqrt
 
 from .. import enraged
+from ..ai_hazards import zone_cover_factor, zone_damage
 from ..ai_medusa import GAZE, boost_effect_value, bot_may_spend, held_for_plan, maneuver_may_spend, scheme_fighter
 from ..cards import Card, can_be_boost
 from ..combat import is_medusa_card, resolve_combat
@@ -47,19 +48,19 @@ from ..effects import ongoing
 from ..effects.inventions import INVENTION_WORTH
 from ..effects.choose import SCHEME_VARIANTS, SyntheticChooser
 from ..effects.model import load_effects, walk_ops
+from ..guard import boost_reach, guard_dest, free_steps, reach_from, strike_spots
 from ..state import ANUNG, Fighter, Game, PlayerState
 
-SIDEKICK_POLICIES = ("stay", "advance", "retreat")
+SIDEKICK_POLICIES = ("stay", "advance", "retreat", "guard")
+ROLLOUT_POLICIES = ("stay", "advance", "retreat")    # "guard" lives in the tree only: its path analysis costs more than a random playout is worth
 FRENZY_VARIANTS = ("advance", "retreat")
 SCHEME_MOVES_KEEP = 6         # scheme moves per node: every title's greedy line first, the safe ones while they fit
 ASKING_OPS = ("move", "place", "swap", "revive", "summon", "optional", "choose_effect", "choose", "search_deck")
 ROLLOUT_ATTACK_PROB = 0.7     # in the rollout, whoever can attack almost always does (makes threats visible)
 ROLLOUT_BOOST_PROB = 0.3
 ROLLOUT_APPROACH_PROB = 0.5   # in the rollout, the hero maneuvering looks for a space from which to strike
-BOOST_STEPS = 2               # extra steps an attacker can buy with a boost (typical of the deck)
 PLACEMENT_KEEP = 6            # maneuver placements in the tree: the best by static evaluation...
 PLACEMENT_STRIKE_KEEP = 2     # ...plus the best ones from which the hero strikes, plus staying still
-ANUNG_FREE_STEPS = 2          # free movement of ANUNG UN RAMA at the start of the turn (see MedusaAI)
 
 
 @dataclass(frozen=True)
@@ -116,20 +117,9 @@ def by_title(hand: list[Card], title: str) -> Card:
     return next(c for c in hand if c.title == title)
 
 
-_reach_cache: dict[tuple, frozenset[int]] = {}
 _near_cache: dict[tuple, int] = {}
 _moves_cache: dict[tuple, list] = {}
 MOVES_CACHE_MAX = 50_000
-
-
-def reach_from(board, pos: int, steps: int, own: frozenset[int], enemy: frozenset[int],
-               through: bool = False) -> frozenset[int]:
-    """`Board.reachable` with a cache: within a search the same positions repeat thousands of times."""
-    key = (board.key, pos, steps, own, enemy, through)
-    r = _reach_cache.get(key)
-    if r is None:
-        r = _reach_cache[key] = frozenset(board.reachable(pos, steps, set(own), set(enemy), through))
-    return r
 
 
 def reach(game: Game, f: Fighter, steps: int, through: bool = False) -> frozenset[int]:
@@ -161,7 +151,6 @@ def nearest(board, pos: int, foes: tuple[int, ...]) -> int:
     return d
 
 
-_strike_cache: dict[tuple, frozenset[int]] = {}
 _attack_values_cache: dict[tuple, tuple[int, ...]] = {}
 _attack_stats_cache: dict[tuple, tuple[float, float]] = {}
 
@@ -178,15 +167,6 @@ def attack_stats(values: tuple[int, ...], delta: int, hp: float) -> tuple[float,
     return r
 
 
-def strike_spots(board, target_pos: int, ranged: bool, reach: int = 0) -> frozenset[int]:
-    """Spaces from which an attacker (melee, ranged or with a reach in spaces) strikes whoever is at `target_pos`."""
-    key = (board.key, target_pos, ranged, reach)
-    r = _strike_cache.get(key)
-    if r is None:
-        r = _strike_cache[key] = frozenset(s for s in board.spaces if board.can_reach_target(s, target_pos, ranged, reach))
-    return r
-
-
 def attack_values(st: PlayerState, fighter_name: str) -> tuple[int, ...]:
     """Attack values of the whole deck that `fighter_name` can use: public information, fixed during the game."""
     key = (st.hero_name, fighter_name)
@@ -194,11 +174,6 @@ def attack_values(st: PlayerState, fighter_name: str) -> tuple[int, ...]:
     if v is None:
         v = _attack_values_cache[key] = tuple(c.value for c in st.full_set if c.can_attack and c.usable_by(fighter_name))
     return v
-
-
-def free_steps(game: Game, f: Fighter) -> int:
-    """Free movement before maneuvering (today, ANUNG UN RAMA's; what is specific to the hero stays here)."""
-    return (ANUNG_FREE_STEPS if f.hero and game.form(f.owner) == ANUNG else 0) + game.maneuver_bonus(f.owner)
 
 
 def policy_dest_from(board, pos: int, options, foes: tuple[int, ...], policy: str) -> int:
@@ -234,8 +209,11 @@ def sidekick_plan(game: Game, player: int, extra: int, policy: str,
         if not game.fx.can_move(h):
             out.append((h.fid, h.pos))
             continue
-        dest = policy_dest_from(board, own[h.fid], reach_from(board, own[h.fid], h.move + extra, others, enemy),
-                                foes, policy)
+        options = reach_from(board, own[h.fid], h.move + extra, others, enemy)
+        if policy == "guard":
+            dest = guard_dest(game, own[game.hero(player).fid], options, h.fid, own)
+        else:
+            dest = policy_dest_from(board, own[h.fid], options, foes, policy)
         own[h.fid] = dest
         out.append((h.fid, dest))
     return tuple(out)
@@ -495,7 +473,7 @@ class EngineState:
             p = g.turn
             dests = sorted(self._hero_options(g.hero(p)))
             d = self._approach_dest(dests, rng) if rng.random() < ROLLOUT_APPROACH_PROB else rng.choice(dests)
-            return ("place", d, rng.choice(self._policies(p)))
+            return ("place", d, rng.choice([x for x in self._policies(p) if x in ROLLOUT_POLICIES]))
         if self.pending is not None or self.phase != "action":
             return rng.choice(self.legal_moves())
         p = g.turn
@@ -706,20 +684,36 @@ class EngineState:
         side = [f for f in g.own(p) if not f.hero]
         origin = {f.fid: f.pos for f in g.own(p)}
         scored = []
-        for d in options:
-            for policy in policies:
-                plan = sidekick_plan(g, p, extra, policy, hero_dest=d)
-                hero.pos = d
-                for fid, dest in plan:
-                    g.fighters[fid].pos = dest
-                scored.append((self._exposure(1 - p, True) - self._exposure(p, True), d, policy))
-                for f in side:
-                    f.pos = origin[f.fid]
-        hero.pos = origin[hero.fid]
-        scored.sort(key=lambda x: (-x[0], x[1], x[2]))
+        seen = set()        # policies that end in the same sidekick squares are one placement: the first one stands
+
+        def score(d: int, policy: str) -> None:
+            plan = sidekick_plan(g, p, extra, policy, hero_dest=d)
+            if (d, plan) in seen:
+                return
+            seen.add((d, plan))
+            hero.pos = d
+            for fid, dest in plan:
+                g.fighters[fid].pos = dest
+            scored.append((self._exposure(1 - p, True) - self._exposure(p, True), d, policy))
+            for f in side:
+                f.pos = origin[f.fid]
+
         spots = self._striking_spots(p)
-        striking = [(d, policy) for _, d, policy in scored if d in spots][:PLACEMENT_STRIKE_KEEP]
-        keep = {(d, policy) for _, d, policy in scored[:PLACEMENT_KEEP]} | set(striking) | {(hero.pos, "stay")}
+
+        def pick() -> tuple[list, set]:
+            ranked = sorted(scored, key=lambda x: (-x[0], x[1], x[2]))
+            striking = [(d, policy) for _, d, policy in ranked if d in spots][:PLACEMENT_STRIKE_KEEP]
+            return ranked, {(d, policy) for _, d, policy in ranked[:PLACEMENT_KEEP]} | set(striking) | {(origin[hero.fid], "stay")}
+
+        plain = [x for x in policies if x != "guard"]
+        for d in options:
+            for policy in plain:
+                score(d, policy)
+        if "guard" in policies:     # the covering placements cost a path analysis each: only for hero squares that already made the cut
+            for d in sorted({d for d, _ in pick()[1]}):
+                score(d, "guard")
+        hero.pos = origin[hero.fid]
+        keep = pick()[1]
         return sorted(keep)
 
     # ---------- evaluation ----------
@@ -746,7 +740,8 @@ class EngineState:
         """Threat on `victim`'s hero in the rival's next turn: (expected damage as a fraction of its current
         HP, probability of being killed). Each rival counts if it reaches a striking space with its movement
         (without passing through `victim`'s fighters: sidekicks in the way are a shield), discounted if it needs a
-        boost. The cost of an attack is the average value of the attacker's whole deck against the best defense in
+        boost: the biggest one the attacker's side still has to play (`boost_reach`, public), none once its cards are
+        gone. The cost of an attack is the average value of the attacker's whole deck against the best defense in
         hand, plus the defense card it spends. Actions limit: whoever is already in range can hit twice;
         whoever has to maneuver, once. If the threatened one moves first, the threat is discounted, except with `urgent`
         (the position is seen as an end of turn: used by the placement pruning)."""
@@ -759,6 +754,7 @@ class EngineState:
         best_def = max((c.value for c in hand if c.can_defend and c.usable_by(hero.name)), default=0)
         shield = frozenset(g.occupied(victim))
         mates = g.occupied(attacker)
+        boost = None                                    # the attacker's boost reach: read only when someone needs it
         in_range: list[tuple[float, float]] = []       # (cost per attack, p. of killing) of whoever is already in range
         after_move: list[tuple[float, float]] = []     # same for whoever arrives by maneuvering (factor already applied)
         for e in g.foes(victim):
@@ -772,14 +768,18 @@ class EngineState:
                 factor, bucket = 1.0, in_range
             elif reach_from(g.board, e.pos, steps, own, shield) & spots:
                 factor, bucket = 1.0, after_move
-            elif reach_from(g.board, e.pos, steps + BOOST_STEPS, own, shield) & spots:
-                factor, bucket = w.boost_reach, after_move
             else:
-                continue
+                if boost is None:
+                    boost = boost_reach(g, attacker)
+                if not boost or not reach_from(g.board, e.pos, steps + boost, own, shield) & spots:
+                    continue
+                factor, bucket = w.boost_reach, after_move
             net, kill = attack_stats(values, g.attack_bonus(e, hero if e.pos in spots else None) - best_def, hero.hp)
             bucket.append((factor * (net + (w.defend_card_hp if best_def else 0.0)), factor * kill))
+        gaze = self._zone_exposure(victim, hero)
+        urgency = w.victim_moves_first if g.turn == victim and not urgent else 1.0
         if not in_range and not after_move:
-            return 0.0, 0.0
+            return gaze[0] * urgency, gaze[1] * urgency
         actions = g.actions_left if g.turn == attacker else 2
         now_cost = max((c for c, _ in in_range), default=0.0)
         now_kill = max((k for _, k in in_range), default=0.0)
@@ -788,6 +788,24 @@ class EngineState:
         # two attacks in a row from where it is, or a maneuver and the best attack of all
         expected = max(actions * now_cost, (actions - 1) * any_cost)
         lethal = max(1 - (1 - now_kill) ** actions, any_kill if actions >= 2 else 0.0)
-        urgency = w.victim_moves_first if g.turn == victim and not urgent else 1.0
         # over the current HP, not the maximum: the same expected hit weighs more the less life is left
-        return min(1.0, expected / hero.hp) * urgency, lethal * urgency
+        gaze_hp, gaze_kill = gaze
+        return (min(1.0, expected / hero.hp + gaze_hp) * urgency,
+                1 - (1 - lethal * urgency) * (1 - gaze_kill * urgency))
+
+    def _zone_exposure(self, victim: int, hero: Fighter) -> tuple[float, float]:
+        """(expected damage as a fraction of HP, probability of dying) from the rival hero's start-of-turn damage to a fighter in
+        its zone (Medusa's gaze, from the effects data), if `victim`'s hero stands in that zone. The hit points (never the
+        chance of dying) weigh less the better the hero's defenses in hand cover the rival hero's average attack
+        (`zone_cover_factor`, as in the heuristic's `zone_hazard_cost`)."""
+        g = self.game
+        rival = g.hero(1 - victim)
+        if rival.pos is None or hero.pos is None or not g.board.share_zone(hero.pos, rival.pos):
+            return 0.0, 0.0
+        dmg = zone_damage(g, 1 - victim)
+        if not dmg:
+            return 0.0, 0.0
+        values = attack_values(g.players[1 - victim], rival.name)
+        cover = zone_cover_factor([c.value for c in g.players[victim].hand if c.can_defend and c.usable_by(hero.name)],
+                                  sum(values) / len(values) if values else 0.0)
+        return min(1.0, dmg / hero.hp) * cover, 1.0 if dmg >= hero.hp else 0.0

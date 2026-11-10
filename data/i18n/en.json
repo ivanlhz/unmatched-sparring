@@ -763,6 +763,7 @@
  "warn.missing": "I cannot find {name}'s piece ({guid}) on the table; I keep its last space.",
  "warn.off": "{name} is off the board ({dist:.1f} from the nearest space, {zone}): if it died, press [[panel.remove]]; if not, put it back on the board.",
  "warn.pinned": "{name} cannot leave its place ({where}; effect in play): put it back, I keep it there.",
+ "warn.illegal_suffix": " Put it back or fix it, then press [[panel.end_action]].",
  "warn.draw": "Your hand has grown and an effect in play stops you from drawing ({reason}): put the card back in your deck. Meanwhile I count on it.",
  "sess.save_fail": "I could not save the game to {path}: {err}",
  "err.card_not_in_hand": "{title} is not in the bot's hand on the table; action cancelled",

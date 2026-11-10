@@ -26,6 +26,13 @@ def physical(game, player: int) -> bool:
     return table_player(game) == player
 
 
+def discards_owed(game, player: int) -> int:
+    """Cards of the table player's hand already owed to their discard pile and not moved there yet: the engine's copy of the
+    hand still counts them, and they cannot pay for anything else. 0 for any other player."""
+    owed = getattr(game.controllers.get(player), "discards_owed", None)
+    return owed() if physical(game, player) and owed is not None else 0
+
+
 def make_known(game, player: int, card, keep: tuple = ()) -> None:
     """The table player's hand is virtual: when a card is seen (played, boosted, put on their discard pile) it is
     swapped with one of the virtual hand (never with those of `keep`, already known in this same step)."""

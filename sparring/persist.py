@@ -34,6 +34,7 @@ def game_to_dict(g: Game) -> dict:
         "effect_shield": {str(k): v for k, v in g.effect_shield.items()}, "drawn": list(g.drawn),
         **({"hazard_taken": sorted(g.hazard_taken)} if g.hazard_taken else {}),
         **({"placing": sorted(g.placing)} if g.placing else {}),
+        **({"hand_moves": g.hand_moves} if g.hand_moves else {}),
         **({"combat_bonus": [[list(b) for b in side] for side in legacy]} if any(legacy) else {}),
         **({"fx": fx} if fx else {}),
         "fighters": {fid: {"hp": f.hp, "pos": f.pos, "alive": f.alive, "died_at": f.died_at} for fid, f in g.fighters.items()},
@@ -56,6 +57,7 @@ def apply_game(g: Game, d: dict) -> None:
         # older saves stored (fighter, edge) pairs; only the fighter matters now (once per turn in all)
         g.hazard_taken = {x if isinstance(x, str) else x[0] for x in d.get("hazard_taken", [])}
         g.placing = set(d.get("placing", []))
+        g.hand_moves = {fid: dict(m) for fid, m in d.get("hand_moves", {}).items()}
         fx = d.get("fx") or {}
         g.fx = EffectState.from_dict(fx)
         if "dsl_heroes" not in fx:

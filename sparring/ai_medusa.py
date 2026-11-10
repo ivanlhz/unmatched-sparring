@@ -63,10 +63,12 @@ from math import ceil, comb
 from . import ai_ciri as ciri_ai
 from . import enraged
 from .cards import can_be_boost
+from .ai_hazards import attack_harm, zone_cover_factor, zone_hazard
 from .combat import GAZE_DAMAGE, GLANCE_DAMAGE, ON_EARTH
 from .controller import Controller
+from .guard import guard_dest, hero_shielded, path_steps
 from .effects.model import walk_ops
-from .effects.modifiers import boost_limit, card_effects, defers_defeat
+from .effects.modifiers import boost_limit, card_effects, defers_defeat, is_uncancelable
 from .ai_profile import FINISHER_BOOSTS, STYLE_HIT_AND_RUN, derive_style
 from .ai_sinbad import own_value, voyage_count, voyage_extra
 from .state import ANUNG, EXHAUST_DAMAGE, Fighter, Game
@@ -95,6 +97,11 @@ ANUNG_FREE_MOVE = 2
 BOOST_RELIANCE = 0.6
 TRANSFORM_PENALTY = {1: 3.0, 2: 1.8, 3: 0.8}
 MAX_ENEMY_STEPS = 9
+WALL_MIN_HP = 2         # fewest hit points of a sidekick that closes a path to the rivals (position_value)
+# The heuristic's sidekick cover (walls in the rival's path, the shield price of a blocking sidekick, the guard placement)
+# is off for the 0.7 release: three reviews found it trading attacks for blocks (Hellboy behind Lobster against Baba Yaga,
+# Eredin's Riders left bare). The search (ISMCTS) keeps its own guard policy. Turned back on by its own feature.
+HEURISTIC_GUARD = False
 TOP_FIRST = 6
 TOP_FIRST_DESPERATE = 14   # when every action counts, a wider look is taken before committing
 TOP_SECOND = 4
@@ -234,6 +241,12 @@ def cancels_effects(card) -> bool:
                                   for m in ("immediately", "during") for op in walk_ops(fx.moments.get(m) or []))
 
 
+def uncancelable_harm(game: Game, card, owner: int) -> tuple[float, float, float]:
+    """`attack_harm` of a card of `owner` whose effects cannot be canceled (the card's own rule, or its hero's: Ciri at
+    SOURCE 7), nothing for any other: what a cancel-effects defense does not prevent."""
+    return attack_harm(card) if is_uncancelable(card, game, owner) else (0.0, 0.0, 0.0)
+
+
 def effect_reliance(game: Game, me: int) -> float:
     """0..1: how much the rival's deck relies on card effects, from public data: the share of its attack / defense / versatile
     cards still to come (its full set minus what is in its discard pile; its whole set when that is empty) with an
@@ -342,6 +355,21 @@ class Model:
         self.n, self.h = len(self.pool), len(st.hand)
         self.voyages = voyage_count(game, self.opp)       # the rival's VOYAGE cards in its discard pile: +1 to each VOYAGE attack it plays
         self._cache: dict = {}
+        self._zone: dict = {}
+
+    def zone_hazard(self, game: Game) -> tuple[float, float]:
+        """(damage, cards the rival pays) of the rival hero's start-of-turn damage to a fighter in its zone (Medusa's gaze), in
+        `game`: the position being valued, which may have emptied the rival's hand or deck since this model was built. Kept per
+        what the reading depends on, so a stale value never outlives a change of hand, deck or discard pile."""
+        st = game.players[self.opp]
+        key = (game.hero(self.opp).alive, bool(st.hand), bool(st.deck), tuple(c.card_id for c in st.gone))
+        if key not in self._zone:
+            self._zone[key] = zone_hazard(game, self.opp)
+        return self._zone[key]
+
+    @property
+    def zone_dmg(self) -> float:
+        return self.zone_hazard(self.game)[0]
 
     def best_dist(self, key, value_fn, hand_size: int | None = None) -> list[tuple[float, int | None]]:
         key = (key, hand_size)
@@ -366,10 +394,26 @@ class Model:
         return self.best_dist(("atk", f.name, bonus, self.voyages),
                               lambda c: c.value + bonus + voyage_extra(c, self.voyages) if c.can_attack and c.usable_by(f.name) else None)
 
+    def attack_value_fn(self, f: Fighter, bonus: int):
+        return lambda c: c.value + bonus + voyage_extra(c, self.voyages) if c.can_attack and c.usable_by(f.name) else None
+
+    def committed_harm_by_value(self, f: Fighter, target: Fighter | None = None, uncancelable: bool = False) -> dict:
+        """value -> (discards, damage, direct) the committed attack's card effects do to the defender, averaged over the
+        cards of the rival's pool that attack with that value (the committed card is, by symmetry, any of them).
+        `uncancelable`: only the harm a cancel leaves standing (`uncancelable_harm`)."""
+        fn = self.attack_value_fn(f, self.game.attack_bonus(f, target))
+        harm = (lambda c: uncancelable_harm(self.game, c, self.opp)) if uncancelable else attack_harm
+        by_value: dict = {}
+        for c in self.pool:
+            v = fn(c)
+            if v is not None:
+                by_value.setdefault(v, []).append(harm(c))
+        return {v: tuple(sum(h[i] for h in hs) / len(hs) for i in range(3)) for v, hs in by_value.items()}
+
     def committed_attack_dist(self, f: Fighter, target: Fighter | None = None):
         """Value of the attack given that the rival has already played a card: without the "has no card" mass, renormalized."""
         bonus = self.game.attack_bonus(f, target)
-        fn = lambda c: c.value + bonus + voyage_extra(c, self.voyages) if c.can_attack and c.usable_by(f.name) else None
+        fn = self.attack_value_fn(f, bonus)
         dist = [(p, v) for p, v in self.best_dist(("commit", f.name, bonus, self.voyages), fn, max(self.h, 1)) if v is not None]
         total = sum(p for p, _ in dist)
         if total == 0:
@@ -589,6 +633,11 @@ class MedusaAI(Controller):
     def hit_and_run(self, game: Game) -> bool:
         return STYLE_HIT_AND_RUN in self.style(game)
 
+    def holds_defense(self, game: Game) -> bool:
+        """The bot's hand has a card its hero can defend with."""
+        hero = game.hero(self.me)
+        return any(c.can_defend and c.usable_by(hero.name) for c in game.players[self.me].hand)
+
     def keep(self, game: Game, card, hand, reliance: float = 0.0, spending_on_finisher: bool = False) -> float:
         """`keep_value` plus what the position adds (`situational_keep`)."""
         return keep_value(card, hand, reliance) + situational_keep(game, self.me, card, hand, spending_on_finisher)
@@ -658,9 +707,14 @@ class MedusaAI(Controller):
         if game.actions_left < 2:
             return firsts[0]
         best, best_v = None, None
+        blow = self.holds_a_blow(game, ranked)
         for a1 in firsts:
             g1 = self.apply_expected(game, a1)
-            second = self.outcome(g1) if g1.winner is not None else self.candidates(g1, model)[0].total
+            if g1.winner is not None:
+                second = self.outcome(g1)
+            else:       # what the first action did with the hero's blow goes on counting for the second one
+                second = self.candidates(g1, model, walked_out=blow and self.walks_out(game, a1),
+                                         struck=a1.kind == "attack" and a1.fid == game.hero(self.me).fid)[0].total
             total = a1.value + second
             if best_v is None or total > best_v + 1e-9:
                 best, best_v = a1, total
@@ -729,15 +783,32 @@ class MedusaAI(Controller):
         nibble = POKE_SHARE * OPPORTUNITY_PER_POINT * max(0.0, blow - poke) if poke is not None else 0.0     # a small blow with a card worth a nibble (it also bluffs a finisher)
         return max(chance, nibble)
 
-    def candidates(self, game: Game, model: Model) -> list[Act]:
-        """Legal actions ordered by own value + value of the position they leave. Passing does not exist: a maneuver without moving still draws."""
+    def holds_a_blow(self, game: Game, acts: list[Act]) -> bool:
+        """My hero has an attack among `acts` (it can play it now) and has not attacked this turn."""
+        hero = game.hero(self.me)
+        return hero.fid not in game.fx.attacked and any(a.kind == "attack" and a.fid == hero.fid for a in acts)
+
+    def walks_out(self, game: Game, a: Act) -> bool:
+        """The maneuver `a` leaves my hero where its attack reaches no rival."""
+        hero = game.hero(self.me)
+        return (a.kind == "maneuver" and hero.fid in a.moves and
+                not any(game.board.can_reach_target(a.moves[hero.fid], e.pos, hero.ranged, hero.reach) for e in game.foes(self.me)))
+
+    def candidates(self, game: Game, model: Model, walked_out: bool = False, struck: bool = False) -> list[Act]:
+        """Legal actions ordered by own value + value of the position they leave. Passing does not exist: a maneuver without moving still draws.
+        A maneuver that walks the hero out of a blow it holds and has not played this turn (`holds_a_blow`, `walks_out`) is valued
+        without the cover of its sidekicks (`position_value`): hiding behind them is not worth giving the blow up. `walked_out`
+        and `struck` say what an earlier action of this same turn, only played in the plan, did: it already walked out (no act
+        gets the cover) or the hero already struck (every act does)."""
         acts = self.attack_acts(game, model) + self.scheme_acts(game, model) + self.maneuver_acts(game, model)
+        blow = not struck and self.holds_a_blow(game, acts)
         for a in acts:
             g = self.apply_expected(game, a)
             if g.winner is not None:
                 a.total = a.value + self.outcome(g)
                 continue
-            a.total = a.value + self.position_value(g, model) + self.opportunity_bonus(game, model, a)
+            cover = not walked_out and not (blow and self.walks_out(game, a))
+            a.total = a.value + self.position_value(g, model, cover=cover) + self.opportunity_bonus(game, model, a)
             if g.actions_left == 0:
                 a.total += self.terminal_value(g, model)
         unique = {(a.kind, a.fid, a.target, a.card and a.card.card_id, a.boost and a.boost.card_id,
@@ -1037,10 +1108,19 @@ class MedusaAI(Controller):
                 # in the same double action (position alone would never choose them if the rival is dangerous)
                 striking = [x for x in ranked if any(game.board.can_reach_target(x[1], e.pos, medusa.ranged, medusa.reach)
                                                      for e in game.foes(self.me))]
-                by_extra[(extra, places)] = list(dict.fromkeys(d for _, d in ranked[:3] + striking[:2]))
+                # ... and those that reach a rival HERO: a spot that only reaches a sidekick can outrank them all by a hair
+                hero_hits = [x for x in striking if any(game.board.can_reach_target(x[1], e.pos, medusa.ranged, medusa.reach)
+                                                        for e in game.foes(self.me) if e.hero)]
+                by_extra[(extra, places)] = list(dict.fromkeys(d for _, d in ranked[:3] + striking[:2] + hero_hits[:2]))
             scored = by_extra[(extra, places)]
             for d in dict.fromkeys(scored + [medusa.pos]):
-                for harpies_advance in (True, False):
+                tried = []
+                # the covering placement is offered on the card-free maneuver (a boosted one pays a card) and `position_value`
+                # decides whether the block is worth it. A hit-and-run hero that holds both an attack card and a defense does
+                # not get it: its pokes (POKE_FLOOR) are calibrated against lines that do not trade a position gain for them
+                covers = HEURISTIC_GUARD and boost is None and (not self.hit_and_run(game) or not self.holds_defense(game) or
+                                            not any(c.can_attack and c.usable_by(f.name) for c in hand for f in game.own(self.me)))
+                for sidekicks in ("advance", "stay", "guard") if covers else ("advance", "stay"):
                     g = game.clone()
                     g.fighters[medusa.fid].pos = d
                     moves = {medusa.fid: d}
@@ -1048,10 +1128,17 @@ class MedusaAI(Controller):
                     for h in sorted((x for x in g.own(self.me) if not x.hero), key=lambda x: x.fid):
                         if exhausting and h.hp <= EXHAUST_DAMAGE:
                             continue    # drawing with an empty deck kills her before she moves
-                        if harpies_advance:
+                        if sidekicks != "stay" and g.fx.can_move(h):
                             opts = g.legal_moves(h, h.move + extra) | {h.pos}
-                            h.pos = max(opts, key=lambda s: (self.harpy_score(g, h, s), -s))
+                            if sidekicks == "advance" or h.hp < WALL_MIN_HP:      # one blow from dead it blocks nothing (`position_value`)
+                                h.pos = max(opts, key=lambda s: (self.harpy_score(g, h, s), -s))
+                            else:       # stand where the rivals' paths to the hero are blocked (shared with the search)
+                                own = {x.fid: x.pos for x in g.own(self.me)}
+                                h.pos = guard_dest(g, d, opts, h.fid, own)
                         moves[h.fid] = h.pos
+                    if moves in tried:
+                        continue
+                    tried.append(moves)
                     idle = medusa.name != "Medusa" and boost is None and all(game.fighters[fid].pos == dest for fid, dest in moves.items())
                     out.append(Act("maneuver", CARD_VALUE - cost - (IDLE_MANEUVER if idle else 0.0), medusa.fid, "", None,
                                    moves=moves, boost=boost))
@@ -1203,7 +1290,9 @@ class MedusaAI(Controller):
             self._strike_cache[key] = [s for s in board.spaces if board.can_reach_target(s, pos, ranged, reach)]
         return self._strike_cache[key]
 
-    def position_value(self, game: Game, model: Model, override: dict | None = None) -> float:
+    def position_value(self, game: Game, model: Model, override: dict | None = None, cover: bool = True) -> float:
+        """Value of the end-of-turn position (`override`: fighters standing elsewhere). `cover=False` prices my sidekicks' danger
+        in full even where they shield my hero: for a position the hero reached by giving up a blow (`candidates`)."""
         pos = {f.fid: f.pos for f in game.fighters.values() if f.alive}
         if override:
             pos.update(override)
@@ -1215,13 +1304,24 @@ class MedusaAI(Controller):
         despair = self.desperation(game)
         score = 0.0
         despair_fear = 1 - DESPERATE_FEAR_DROP * despair
-        run = RUN_FEAR if self.hit_and_run(game) else 1.0
+        runner = self.hit_and_run(game)
+        run = RUN_FEAR if runner else 1.0
+        hero_pos = next((pos[x.fid] for x in mine if x.hero), None)
+        # the fighters a rival has to walk around: my sidekicks that hold. One at its last hit point is no wall: any blow that
+        # lands kills it and the way is open again, so standing in the way only delays the rival by that blow (three Harpies
+        # around Hellboy do not keep him off Medusa, and are not worth a boost card to put there). The hero is none either:
+        # it does not stand in front of its sidekicks to cover them (Medusa gave up her first attack for that)
+        walls = frozenset(pos[x.fid] for x in mine if HEURISTIC_GUARD and not x.hero and x.hp >= WALL_MIN_HP)
         for e in foes:
             extra = game.form(1 - self.me) == ANUNG and e.hero
             best = 0.0
+            # a sidekick that lengthens this rival's walk to my hero is doing its job: see its danger below. Not for a hit-and-run
+            # hero: with its sidekick's danger priced down it hides behind it instead of playing its pokes (Flourish, An Illusion)
+            shielded = (HEURISTIC_GUARD and cover and not runner and hero_pos is not None and
+                        hero_shielded(board, pos[e.fid], e.ranged, e.reach, hero_pos, walls, walls, frozenset(occupied), MAX_ENEMY_STEPS))
             for t in mine:
-                spots = [s for s in self.strike_spots(board, pos[t.fid], e.ranged, e.reach) if s == pos[e.fid] or s not in occupied]
-                steps = min((board.distance(pos[e.fid], s) for s in spots), default=MAX_ENEMY_STEPS)
+                spots = frozenset(s for s in self.strike_spots(board, pos[t.fid], e.ranged, e.reach) if s == pos[e.fid] or s not in occupied)
+                steps = path_steps(board, pos[e.fid], spots, walls, MAX_ENEMY_STEPS)      # the rival walks around my sidekicks that hold, not through them
                 if steps >= MAX_ENEMY_STEPS:
                     continue
                 need = steps - e.move - (ANUNG_FREE_MOVE if extra else 0)
@@ -1240,6 +1340,8 @@ class MedusaAI(Controller):
                 if not t.hero:
                     p_hit = sum(p for p, v in model.attack_dist(e) if v is not None and v > my_def)
                     danger = HARPY_VALUE * t.max_hp * p_hit      # positional fear is not scaled for a single prized piece (Lobster, Koschei): it must still go and shoot (scaling it cost 2-9 wins of 30 in the simulator); the last piece of a group (Agents, Harpies) is shielded more because the cards that need any of them die with it. Defense and boost decisions scale for all
+                    if shielded:        # blocking the way to the hero is worth what the blow really takes from the sidekick, not the lump
+                        danger = min(danger, HARPY_VALUE * exp + kill_value(game, t) * p_dead)
                     if sum(1 for x in mine if x.name == t.name) == 1 and (fighter_profile(game, t) or {}).get("count", 1) > 1:
                         danger *= protect_factor(game, t)
                     danger *= despair_fear * twice
@@ -1251,6 +1353,7 @@ class MedusaAI(Controller):
                     danger = (W_MEDUSA_HP * exp * twice * despair_fear + LETHAL * p_dead * (1 - DESPERATE_FEAR_DROP * despair * (1 - held))) * run
                 best = max(best, p_reach * danger)
             score -= best
+        score -= self.zone_hazard_cost(game, model, pos, mine)
         medusa = game.hero(self.me)
         hero_on_board = medusa.fid in pos       # the hero can be dead mid-combat (an after-effect move is still being chosen)
         for e in foes if hero_on_board else ():
@@ -1271,6 +1374,33 @@ class MedusaAI(Controller):
                 if is_striker(game, h) and any(board.can_reach_target(pos[h.fid], pos[e.fid], h.ranged, h.reach) for e in foes):
                     score += self.strike_reward(game, h)
         return score
+
+    def zone_hazard_cost(self, game: Game, model: Model, pos: dict, mine) -> float:
+        """What the rival hero's start-of-turn damage to a fighter in its zone (Medusa's gaze, read from the effects data) costs
+        the end-of-turn position `pos`: the rival picks the dearest of my fighters that shares its zone. When the damage costs
+        the rival a card of its hand (She-Hulk's throw) that card comes off the bill, and a throw not worth its card is not made.
+        The hit points (never the lethal part) cost less the better the fighter's defenses in hand cover the rival hero's blow
+        (`zone_cover_factor`): the zone is also where that rival strikes. A sidekick the damage kills for sure is lost whole,
+        like the hero's lethal part: no card stops the gaze."""
+        dmg, paid = model.zone_hazard(game)
+        rival = game.hero(1 - self.me)
+        if not dmg or rival.fid not in pos:
+            return 0.0
+        board = game.board
+        hand = game.players[self.me].hand
+        blows = [(p, v) for p, v in model.attack_dist(rival) if v is not None]
+        blow = sum(p * v for p, v in blows) / sum(p for p, _ in blows) if blows else 0.0      # the rival hero's expected attack
+        worst = 0.0
+        for t in mine:
+            if not board.share_zone(pos[t.fid], pos[rival.fid]):
+                continue
+            hit = min(dmg, t.hp) * zone_cover_factor([c.value for c in hand if c.can_defend and c.usable_by(t.name)], blow)
+            if t.hero:
+                cost = W_MEDUSA_HP * hit + (LETHAL if dmg >= t.hp else 0.0)
+            else:
+                cost = HARPY_VALUE * t.max_hp * (1.0 if dmg >= t.hp else hit / t.hp)
+            worst = max(worst, cost)
+        return max(0.0, worst - paid * CARD_VALUE)
 
     def death_risk(self, game: Game, model: Model, t: Fighter, hp: float) -> float:
         """Chance that my fighter `t`, with `hp` hit points, dies in the rival's next turn: the worst of the rival fighters
@@ -1480,8 +1610,12 @@ class MedusaAI(Controller):
         try:
             if attack_card is not None:
                 dist = [(1.0, (attack_card.value or 0) + game.attack_bonus(attacker, target))]
+                self._attack_harm = {dist[0][1]: attack_harm(attack_card)}
+                self._attack_harm_fixed = {dist[0][1]: uncancelable_harm(game, attack_card, attacker.owner)}
             else:
                 dist = model.committed_attack_dist(attacker, target)
+                self._attack_harm = model.committed_harm_by_value(attacker, target)
+                self._attack_harm_fixed = model.committed_harm_by_value(attacker, target, uncancelable=True)
             best, best_v = None, None
             options = [None] + [c for c in hand if c.can_defend and c.usable_by(target.name)]
             seen = set()
@@ -1495,6 +1629,7 @@ class MedusaAI(Controller):
                     best, best_v = c, v
         finally:
             self._attacker = self._defender = None
+            self._attack_harm = self._attack_harm_fixed = {}
         return best
 
     def mists_dist(self, game: Game, model: Model, attacker: Fighter, target: Fighter | None = None) -> list[tuple[float, int]]:
@@ -1507,9 +1642,43 @@ class MedusaAI(Controller):
             return [(1.0, 0)]
         return [(1 / len(values), v) for v in values]
 
+    def mists_harm(self, game: Game, model: Model, attacker: Fighter, target: Fighter | None = None) -> dict:
+        """value -> (discards, damage, direct) of the card The Mists of Munnopor put in place of the committed one, whose effects
+        are the ones that run: the same cards and values as `mists_dist`."""
+        bonus = game.attack_bonus(attacker, target)
+        by_value: dict = {}
+        for card in model.pool:
+            if card.can_attack and card.usable_by(attacker.name):
+                by_value.setdefault(card.value + bonus, []).append(attack_harm(card))
+        return {v: tuple(sum(h[i] for h in hs) / len(hs) for i in range(3)) for v, hs in by_value.items()}
+
+    def attack_effect_harm(self, game: Game, dist, target: Fighter, c, harm_of: dict | None = None) -> float:
+        """What the effects of the attack card that ends up played cost the defender if they run: forced discards (of what is
+        left in the hand after paying for `c`: a spent card is a discard less), damage to my fighters, statuses and pushes,
+        weighted by the chance of each card. `dist` and `harm_of` (default: the committed card's) describe that card. A defense
+        card that cancels all effects (read from the data) leaves only those that cannot be canceled (`uncancelable_harm`)."""
+        if c is not None and cancels_effects(c):
+            harm_of = getattr(self, "_attack_harm_fixed", None)
+        elif harm_of is None:
+            harm_of = getattr(self, "_attack_harm", None)
+        if not harm_of:
+            return 0.0
+        hand_after = len(game.players[self.me].hand) - (c is not None)
+        total = 0.0
+        for p, av in dist:
+            discards, damage, direct = harm_of.get(av, (0.0, 0.0, 0.0))
+            hurt = (W_MEDUSA_HP * min(damage, target.hp) if target.hero      # same pricing as price() in eval_defense
+                    else HARPY_VALUE * target.max_hp * min(1.0, damage / target.hp) * protect_factor(game, target))
+            total += p * (min(discards, hand_after) * CARD_VALUE + hurt + direct)
+        return total
+
     def eval_defense(self, game: Game, model: Model, dist, target: Fighter, c) -> float:
+        # whose effects run: the committed card's (Cloak only zeroes its value), except that the Mists discard it without effects
+        # and the revealed replacement's run instead
+        effects_dist, effects_harm = dist, None
         if c is not None and c.title == MISTS and getattr(self, "_attacker", None) is not None:
-            dist = self.mists_dist(game, model, self._attacker, getattr(self, "_defender", None))
+            dist = effects_dist = self.mists_dist(game, model, self._attacker, getattr(self, "_defender", None))
+            effects_harm = self.mists_harm(game, model, self._attacker, getattr(self, "_defender", None))
         elif c is not None and c.title == CLOAK and getattr(self, "_attacker", None) is not None:
             hero = game.hero(target.owner)
             if hero.pos is not None and self._attacker.pos in game.board.adj[hero.pos]:
@@ -1551,6 +1720,7 @@ class MedusaAI(Controller):
             swapped = tally(luke)
             if price(luke, *swapped[:3]) > v:
                 (exp, p_dead, p_hit, p_block), v = swapped, price(luke, *swapped[:3])
+        v -= self.attack_effect_harm(game, effects_dist, target, c, effects_harm)
         if c is None:
             return v
         v -= CARD_VALUE + 0.05 * c.boost
@@ -1565,8 +1735,6 @@ class MedusaAI(Controller):
         v += always + on_win * p_block
         if c.title == SKIN and attacker is not None:
             v += SKIN_RETURN * weight(attacker) * exp         # the damage it took goes back to the attacker
-        if c.title == "Feint":
-            v += 0.3
         if c.title == MISTS:
             v += MISTS_EDGE
         if c.title in DISCARD_EFFECTS:

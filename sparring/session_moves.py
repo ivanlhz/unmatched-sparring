@@ -112,22 +112,49 @@ def view(session, req: ChoiceRequest) -> tuple[dict, dict]:
 
 
 def _why_not_legal(session, req: ChoiceRequest, f, dest: int) -> str:
-    g, name = session.game, session._name(f)
-    holder = next((o for o in g.fighters.values() if o.alive and o is not f and o.pos == dest), None)
+    holder = next((o for o in session.game.fighters.values() if o.alive and o is not f and o.pos == dest), None)
+    if holder is not None:
+        return t("moves.occupied", holder=session._name(holder), spot=_spot(session, dest, (holder.fid, f.fid)), name=session._name(f))
+    if req.extra.get("op") != "move":
+        return t("moves.must_end", name=session._name(f), where=where_text(session, req), spot=_spot(session, dest, (f.fid,)))
+    return why_move_illegal(session, f, dest, req.extra)
+
+
+def why_move_illegal(session, f, dest: int, move: dict, table_pos: dict | None = None) -> str:
+    """Why a walk of `f` to `dest` breaks the rules of a move {"steps", "up_to", "through"}: the space is taken, too far, too
+    short, or no path that crosses no rival the card does not let it cross. `table_pos`: where the table shows every piece."""
+    g, name, steps, through = session.game, session._name(f), move["steps"], move.get("through")
+    holder = next((o for o in g.fighters.values() if o.alive and o is not f
+                   and (table_pos or {}).get(o.fid, o.pos) == dest), None)
     if holder is not None:
         return t("moves.occupied", holder=session._name(holder), spot=_spot(session, dest, (holder.fid, f.fid)), name=name)
-    if req.extra.get("op") != "move":
-        return t("moves.must_end", name=name, where=where_text(session, req), spot=_spot(session, dest, (f.fid,)))
-    steps, d = req.extra["steps"], g.board.distance(f.pos, dest)
+    d = g.board.distance(f.pos, dest)
     if d > steps:
         return t("moves.too_far", name=name, squares=_plural(d), steps=steps)
-    if not req.extra.get("up_to", True) and d < steps:
+    if not move.get("up_to", True) and d < steps:
         return t("moves.too_short", name=name, squares=_plural(d), steps=steps)
-    if req.extra.get("through") == "sidekicks":
+    if through == "sidekicks":
         return t("moves.no_path_sidekicks", name=name, squares=_plural(steps))
-    if not req.extra.get("through"):
+    if not through:
         return t("moves.no_path", name=name, squares=_plural(steps))
     return t("moves.cannot_end", name=name)
+
+
+def hand_move_legal(game, f, dest: int, move: dict, table_pos: dict | None = None) -> bool:
+    """Whether the miniature the human walked by hand ended where the effect's move allows (a path of at most `steps`
+    spaces that crosses a rival only if the card says so, exactly `steps` away when it is not "up to"). The other pieces
+    count where the TABLE shows them (`table_pos`): several pieces moved by the same effect may swap or follow each
+    other, and only two ending on one space is wrong."""
+    where = table_pos or {}
+    spot = lambda o: where.get(o.fid, o.pos)                 # noqa: E731
+    mine = {spot(o) for o in game.own(f.owner) if o is not f}
+    rivals = {spot(o) for o in game.own(1 - f.owner)}
+    through = move.get("through")
+    passable = frozenset(spot(o) for o in game.foes(f.owner) if not o.hero) if through == "sidekicks" else frozenset()
+    reach = game.board.reachable(f.pos, move["steps"], mine, rivals, through is True, passable)
+    if dest not in reach:
+        return False
+    return move.get("up_to", True) or game.board.distance(f.pos, dest) == move["steps"]
 
 
 def verdict(session, req: ChoiceRequest) -> tuple[int | None, str | None]:

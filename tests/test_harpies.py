@@ -45,7 +45,9 @@ def _instrumented_games(monkeypatch, seeds):
 
 
 def test_bot_plays_harpy_cards_only_with_harpies_and_uses_all_three_harpies(monkeypatch):
-    log = _instrumented_games(monkeypatch, range(12))
+    # 24 games: in the first 12 every attack of harpy2 came from seed 2 alone, a game that now goes another way (a Harpy is no
+    # longer defended with Feint for its title); seeds 17, 21, 22 and 23 have her attacking
+    log = _instrumented_games(monkeypatch, range(24))
     assert log[("harpy_card", "attack")] > 0, "the bot never attacks with Harpy cards"
     for h in ("harpy1", "harpy2", "harpy3"):
         assert log[("moved", h)] > 0, f"{h} never moves in maneuvers"

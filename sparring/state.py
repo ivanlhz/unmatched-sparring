@@ -8,7 +8,7 @@ from .board import Board
 from .cards import Card, can_be_boost
 from .controller import Controller
 from . import enraged
-from .effects import inventions, ongoing
+from .effects import inventions, ongoing, table
 from .effects.state import EffectState, default_dsl_heroes
 from .heroes import DEFAULT_HAND_LIMIT, DEFAULT_START_HAND, HeroDef, load_hero
 from .i18n import t
@@ -239,6 +239,7 @@ class Game:
         self.hazard_hits: list[tuple[str, tuple[int, int], float, float]] = []  # (fighter, edge, damage dealt, hp before) not yet announced
         self.hazard_hook = None      # called after a walk that hurt someone (the session announces and writes the dials)
         self.placing: set[str] = set()      # fighters a table player puts down by hand now: a new position read for them is a placement
+        self.hand_moves: dict[str, dict] = {}   # fighter -> {"steps", "up_to", "through"}: what an effect lets the table player walk by hand; the session checks the position it reads against it
         self.drawn = [0, 0]
         self.draw_events = [0, 0]      # cards drawn since the start, never reset (`drawn` is: the deal settles it); for the game log
         self.phantom_draws = 0   # draws the AI expects when simulating (unknown cards), never in a real game
@@ -303,6 +304,7 @@ class Game:
         g.effect_shield = dict(self.effect_shield)
         g.hazard_taken, g.hazard_hits = set(self.hazard_taken), []
         g.placing, g.hazard_hook = set(self.placing), None      # a clone never announces
+        g.hand_moves = {fid: dict(m) for fid, m in self.hand_moves.items()}
         g.drawn = [0, 0]
         g.draw_events = [0, 0]
         g.phantom_draws = self.phantom_draws
@@ -622,9 +624,11 @@ class Game:
 
     def force_discard(self, player: int, n: int, reason: str, source: int | None = None,
                       cause: str | None = None) -> list[Card]:
+        """`n` is capped by the cards the player really has left to give: a table player's hand still holds, in the engine's
+        copy, the cards they already owe to their discard pile (`table.discards_owed`), and those cannot be discarded twice."""
         hand = self.players[player].hand
-        n = min(n, len(hand))
-        if not n:
+        n = min(n, len(hand) - table.discards_owed(self, player))
+        if n <= 0:
             return []
         if not self.fx.can_force_discard(player, player if source is None else source):
             return []
@@ -647,6 +651,7 @@ class Game:
         self.actions_left = 2
         self.hazard_taken.clear()
         self.placing.clear()
+        self.hand_moves.clear()            # the session re-adds the human's pending permissions: see Session._begin_turn
         expired = ongoing.expiring_parts(self, self.turn)
         ongoing.expire_legacy(self, self.turn)
         if emit:

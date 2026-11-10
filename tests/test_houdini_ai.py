@@ -207,12 +207,39 @@ def test_a_healthy_houdini_in_reach_with_no_big_blow_blinks_out_of_reach(bprd):
     assert g.board.distance(act.moves["houdini"], hellboy.pos) > hellboy.move + 1
 
 
-def far_setup(bprd, discard_cancels):
+def test_medusas_gaze_alone_moves_houdinis_maneuver_out_of_her_zone(bprd, monkeypatch):
+    """The same scene planned twice, with nothing in hand to weigh. Two spaces away from Medusa there is a space in her zone and
+    one out of it: with her gaze (her real start-of-turn damage, no fixture) Houdini ends on the one outside, and with the gaze
+    switched off, and nothing else changed, on the one inside."""
+    g = mk(bprd, "medusa")
+    houdini, medusa = pair(g, "houdini", "medusa")
+    houdini.pos, medusa.pos = 19, 14
+    rival_hand(g, 2)
+    assert Model(g, 0).zone_dmg > 0 and not g.board.share_zone(houdini.pos, medusa.pos)
+
+    def destination():
+        act = MedusaAI(0).plan(g)
+        assert act.kind == "maneuver" and act.boost is None
+        return act.moves["houdini"]
+
+    with_gaze = destination()
+    monkeypatch.setattr("sparring.ai_medusa.zone_hazard", lambda game, rival: (0.0, 0.0))
+    without = destination()
+    assert g.board.distance(with_gaze, medusa.pos) == g.board.distance(without, medusa.pos) == 2
+    assert not g.board.share_zone(with_gaze, medusa.pos)
+    assert g.board.share_zone(without, medusa.pos)
+
+
+def far_setup(bprd, discard_cancels, defense="Grand Escape"):
+    """Houdini far from Medusa with the Big Reveal plan in hand. `defense`: a card he can defend with, which eases what her gaze
+    costs him next to her (test_ai_rival_zone_damage.py); None leaves him without one."""
     g = mk(bprd, "medusa")
     medusa = g.fighters["medusa"]
     medusa.pos = far_from(g, "medusa", ["houdini", "bess"])
     for title, nth in (("The Big Reveal", 0), ("The Big Reveal", 1), ("Sleight of Hand", 0), ("Sleight of Hand", 1), ("Flourish", 0)):
         give(g, 0, title, nth)
+    if defense:
+        give(g, 0, defense)
     rival_hand(g, 3, avoid=("Feint",))
     if discard_cancels:
         discard_all(g, 1, "Feint")
@@ -231,6 +258,52 @@ def test_with_the_rivals_cancels_gone_houdini_places_next_to_it_and_plays_the_bi
     second = ai.plan(g)
     assert second.kind == "attack" and (second.via or second.card).title == "The Big Reveal"
     assert len(free_boosts(g, 0, second.via or second.card, g.players[0].hand)) == 2
+
+
+def test_the_two_best_spaces_that_strike_the_rival_hero_are_offered_whatever_reaches_only_a_sidekick(bprd):
+    """Medusa's gaze is on and Smoke and Mirrors is in hand. Space 18 only reaches a Harpy and ranks among the two best striking
+    spaces, ahead of 21: the two best spaces next to Medusa herself (21 and 28) must both be candidates of the boosted maneuver."""
+    g, medusa = far_setup(bprd, True, defense="Smoke and Mirrors")
+    assert Model(g, 0).zone_dmg > 0
+    harpies = [f.pos for f in g.foes(0) if not f.hero]
+    placements = {a.moves["houdini"] for a in MedusaAI(0).maneuver_acts(g, Model(g, 0)) if a.boost is not None}
+    assert 18 in placements and not g.board.adjacent(18, medusa.pos) and any(g.board.adjacent(18, h) for h in harpies)
+    assert {21, 28} <= placements and g.board.adjacent(21, medusa.pos) and g.board.adjacent(28, medusa.pos)
+
+
+def test_with_all_part_of_the_show_in_hand_he_approaches_medusa_on_space_21_despite_her_gaze(bprd):
+    g, medusa = far_setup(bprd, True, defense="All Part of the Show")
+    assert Model(g, 0).zone_dmg > 0
+    first = MedusaAI(0).plan(g)
+    assert first.kind == "maneuver" and first.boost is not None
+    assert first.moves["houdini"] == 21 and g.board.adjacent(21, medusa.pos)
+
+
+def test_with_no_defense_in_hand_he_keeps_away_unless_the_blow_is_a_sure_kill(bprd):
+    """Owner's rule. Houdini holds no defense. Against a healthy Medusa he ends out of her reach. With her health at what The
+    Big Reveal with its two boosts deals through the best defense she could still hold (her Feints are gone: nothing cancels
+    it), he places next to her, plays it and wins."""
+    g, medusa = far_setup(bprd, True, defense=None)
+    assert not any(c.can_defend for c in g.players[0].hand)
+    _, spot = final_spot_after_first_action(g, MedusaAI(0))
+    assert not strikable_next_turn(g, medusa, spot)
+
+    g, medusa = far_setup(bprd, True, defense=None)
+    hers = g.players[1]
+    best_defense = max(c.value for c in hers.full_set if c.can_defend and c not in hers.gone)
+    reveal = next(c for c in g.players[0].hand if c.title == "The Big Reveal")
+    blow = reveal.value + sum(sorted((c.boost for c in g.players[0].hand if c.title == "Sleight of Hand"), reverse=True)[:2])
+    medusa.hp = blow - best_defense
+    assert medusa.hp > 0 and Model(g, 0).p_holds(cancels_effects) == 0
+    ai = MedusaAI(0)
+    first = ai.plan(g)
+    assert first.kind == "maneuver" and first.boost is not None
+    assert g.board.adjacent(first.moves["houdini"], medusa.pos)
+    ai.execute(g, first)
+    second = ai.plan(g)
+    assert second.kind == "attack" and second.target == "medusa" and (second.via or second.card).title == "The Big Reveal"
+    ai.execute(g, second)
+    assert g.winner == 0
 
 
 def strikable_next_turn(g, rival, pos):
@@ -510,3 +583,60 @@ def test_flourish_and_the_illusion_are_played_as_pokes_by_houdini_and_bess(bprd,
     assert poke(bprd, monkeypatch, title, fighter, boost, POKE_FLOOR)
     assert not poke(bprd, monkeypatch, title, fighter, boost, {})
 
+
+# ---------- Bess covers Houdini, and Bess strikes when hers is the blow ----------
+def reachable_houdini(bprd, *hand):
+    """Houdini at 0 and Bess at 3; Hellboy at 12 (three cards, none that boosts more than 2: move 2 and a boost of 2) is four
+    steps from striking Houdini, through space 1 only. Lobster is out. `hand`: Houdini's cards."""
+    g = mk(bprd)
+    lobster = g.fighters["lobster"]
+    lobster.alive, lobster.pos = False, None
+    for fid, pos in (("houdini", 0), ("bess", 3), ("hellboy", 12)):
+        g.fighters[fid].pos = pos
+    hellboys = g.players[1]
+    for c in [c for c in hellboys.full_set if c.boost > 2]:
+        if c in hellboys.deck:
+            hellboys.deck.remove(c)
+        hellboys.discard.append(c)
+    rival_hand(g, 3)
+    for title in hand:
+        give(g, 0, title)
+    g.actions_left = 1
+    return g
+
+
+def test_bess_covers_a_houdini_with_no_defense_from_a_rival_that_reaches_him(bprd, heuristic_guard_on):
+    """Owner's rule: Bess may cover him. With Flourish and nothing to defend with, his last action is a card-free maneuver
+    that leaves him where he is and Bess on space 1, the only way in: Hellboy is then out of reach, and Flourish is kept."""
+    from sparring.guard import boost_reach, path_steps, strike_spots
+    g = reachable_houdini(bprd, "Flourish")
+    hellboy = g.fighters["hellboy"]
+    reach = hellboy.move + boost_reach(g, 1)
+    way_in = lambda taken: path_steps(bprd, hellboy.pos, strike_spots(bprd, 0, False) - taken, frozenset({0}) | taken, 9)
+    assert way_in(frozenset()) <= reach < way_in(frozenset({1}))
+    act = MedusaAI(0).plan(g)
+    assert act.kind == "maneuver" and act.boost is None and act.moves == {"houdini": 0, "bess": 1}
+
+
+def test_with_a_defense_in_hand_bess_does_not_leave_her_space_to_cover_him(bprd):
+    g = reachable_houdini(bprd, "Flourish", "Grand Escape")
+    act = MedusaAI(0).plan(g)
+    assert act.kind == "maneuver" and act.moves["bess"] == 3
+
+
+def test_bess_strikes_when_hers_is_the_best_blow(bprd):
+    """Houdini and Bess both next to a Hellboy at 3 hit points. And the Beautiful Bess! (Bess's own card, value 3) can finish
+    him; Houdini's only attack is Sleight of Hand (value 1). The bot attacks with Bess."""
+    g = mk(bprd)
+    bess, hellboy = pair(g, "bess", "hellboy")
+    taken = {f.pos for f in g.fighters.values() if f.alive}
+    g.fighters["houdini"].pos = next(s for s in sorted(g.board.moves[hellboy.pos]) if s not in taken)
+    hellboy.hp = 3
+    give(g, 0, "And the Beautiful Bess!")
+    give(g, 0, "Sleight of Hand")
+    rival_hand(g, 4, avoid=("Feint", "Misdirection"))
+    g.actions_left = 1
+    ai = MedusaAI(0)
+    assert any(a.fid == "houdini" and a.target == "hellboy" for a in ai.attack_acts(g, Model(g, 0))), "Houdini could attack too"
+    act = ai.plan(g)
+    assert (act.kind, act.fid, act.target, act.card.title) == ("attack", "bess", "hellboy", "And the Beautiful Bess!")

@@ -882,3 +882,122 @@ def test_in_the_session_a_bot_card_that_asks_the_human_pauses_at_the_panel_and_i
     finally:
         client.close()
         fake.close()
+
+
+def test_cards_already_owed_to_the_discard_pile_do_not_pay_a_second_price(tmp_path, monkeypatch):
+    """Bot Yennefer plays Incinerate twice before the human has moved the two cards the first one cost (the bot's turn resumed
+    without their End action): of their three cards two are owed, so the second Incinerate cannot be paid, is not asked
+    and lands at its value. Before, it was asked again and four cards were owed out of three: a debt nobody could settle."""
+    from sparring.ai_medusa import Act
+    from sparring.tts.ui import Event
+    from test_batch import click
+    from test_d3_table_effects import set_hand
+    from test_multihero_bridge import build
+    session, table, game, fake, cfg, client = build(tmp_path, "yennefer-triss", "hellboy")
+    try:
+        hb, human = game.hero(1), game.players[1]
+        human.deck[:0] = human.hand[3:]
+        del human.hand[3:]
+        set_hand(session, table, game, "Incinerate", "Incinerate")
+        monkeypatch.setattr(session.ai, "plan", lambda g: Act("attack", fid="yennefer", target="hellboy",
+                                                              card=next(c for c in g.players[0].hand if c.title == "Incinerate")))
+        monkeypatch.setattr(session.ai, "choose_combat_boost", lambda g, ctx: None)      # no Sorceress of Vengerberg BOOST
+        monkeypatch.setattr(session.ai, "pick_ability_target", lambda g: None)
+        for event in (Event.MANEUVER, Event.END_ACTION, Event.MANEUVER, Event.END_ACTION):
+            click(session, table, event)
+        del human.hand[3:]                                           # the human's two maneuvers drew
+        table.face_down = []
+        click(session, table, Event.REVEAL)
+        click(session, table, Event.CHOICE, {"i": 1})
+        assert session.pending_discard["n"] == 2 and len(human.hand) == 3 and hb.hp == hb.max_hp
+        session._bot_continue()
+        assert session.pending is not None and session.pending.kind == "bot_attacks"
+        said = click(session, table, Event.REVEAL)
+        assert session._paused() is None and session.pending is None, said
+        assert session.pending_discard["n"] == 2
+        assert hb.hp == hb.max_hp - 7
+    finally:
+        client.close()
+        fake.close()
+
+
+def test_a_forced_discard_never_asks_for_cards_already_owed(bprd):
+    """Three cards in the table player's hand, two of them already owed to their pile: a forced discard of two can only take
+    the one that is left."""
+    from sparring.state import Game
+
+    class Human:
+        human, asked = True, []
+
+        def discards_owed(self):
+            return 2
+
+        def choose_discard(self, game, player, n, reason):
+            self.asked.append(n)
+            return []
+
+    g = Game.new(bprd, 3, controllers={1: Human()})
+    del g.players[1].hand[3:]
+    g.force_discard(1, 2, "x")
+    assert Human.asked == [1]
+    Human.discards_owed = lambda self: 3
+    g.force_discard(1, 2, "x")
+    assert Human.asked == [1], "nothing left to give: the player is not asked"
+
+
+def test_two_shell_insertions_against_a_hand_of_one_card_leave_one_card_owed(tmp_path, monkeypatch):
+    """Bot Michelangelo plays both Shell Insertion in one turn, each making the human discard 1, with no End action in between
+    (the bot chains its actions). The human holds one card: the second discard has nothing left to take, one card is owed and
+    one card settles it. Before, two were owed out of one and End action could never settle the debt."""
+    from sparring.ai_medusa import Act
+    from sparring.tts.ui import Event
+    from test_batch import click
+    from test_d3_table_effects import said, set_hand
+    from test_multihero_bridge import build
+    session, table, game, fake, cfg, client = build(tmp_path, "michelangelo", "hellboy")
+    try:
+        human = game.players[1]
+        set_hand(session, table, game, "Shell Insertion", "Shell Insertion")
+        monkeypatch.setattr(session.ai, "plan", lambda g: Act("scheme", fid="april", card=next(
+            c for c in g.players[0].hand if c.title == "Shell Insertion")))
+        monkeypatch.setattr(session.ai, "pick_ability_target", lambda g: None)
+        real = session.ai.choose_effect
+
+        def discard_then_move(g, req):          # "each opponent discards 1 card", then "move a friendly fighter"
+            if req.kind == "effect":
+                return [0] if 0 in req.options else [1]
+            return real(g, req)
+
+        monkeypatch.setattr(session.ai, "choose_effect", discard_then_move)
+        for event in (Event.MANEUVER, Event.END_ACTION, Event.MANEUVER):
+            click(session, table, event)
+        table.human_count = 1
+        msgs = click(session, table, Event.END_ACTION)                 # the bot's whole turn
+        assert sum("El bot juega Shell Insertion" in m for m in msgs) == 2 and game.turn == 1
+        assert sum("Descarta 1 carta(s) (Shell Insertion)" in m for m in msgs) == 1
+        assert len(human.hand) == 1 and session.pending_discard["n"] == 1
+        table.human_discard = [human.hand[0].card_id]
+        table.human_count = 0
+        msgs = click(session, table, Event.END_ACTION)
+        assert session.pending_discard is None and not said(msgs, "Aun falta descartar"), msgs
+    finally:
+        client.close()
+        fake.close()
+
+
+def test_owed_discards_count_only_what_has_not_reached_the_pile_yet(tmp_path):
+    """Two cards owed from the hand; one is seen on the pile: one is still owed, and that is what an optional cost reads."""
+    from sparring.effects import table as fx_table
+    from test_multihero_bridge import build
+    session, table, game, fake, cfg, client = build(tmp_path, "yennefer-triss", "hellboy")
+    try:
+        human = game.players[1]
+        session._owe_discard(2, "x")
+        assert fx_table.discards_owed(game, 1) == 2 and fx_table.discards_owed(game, 0) == 0
+        human.discard.append(human.hand.pop())
+        assert fx_table.discards_owed(game, 1) == 1
+        human.discard.extend([human.hand.pop(), human.hand.pop()])
+        assert fx_table.discards_owed(game, 1) == 0
+    finally:
+        client.close()
+        fake.close()

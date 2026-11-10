@@ -40,13 +40,21 @@ def test_cli_picks_the_ai_and_beats_the_config_file():
 
 
 # ---------- session paths ----------
-def test_bot_turn_with_several_actions_and_a_defense(rig):
+def test_bot_turn_runs_every_action_through_the_search(rig, monkeypatch):
+    """The bot's whole turn runs through the search (no fallback), whatever the root move at 200 iterations is."""
     session, table, game = rig
     session.ai = ai = ismcts()
+    plans: list[Act] = []
+    real_plan = ai.plan
+    monkeypatch.setattr(ai, "plan", lambda g: plans.append(real_plan(g)) or plans[-1])
     game.actions_left = 0
     session.handle(Event.END_ACTION)                           # bot's turn with search
     assert ai.fallbacks == 0 and ai.last_report is not None
-    assert game.turn == 0 or session.pending is not None or game.winner is not None
+    assert plans and all(isinstance(a, Act) for a in plans), "every bot action was decided by the search"
+    if game.winner is None and session.pending is None:        # no attack awaiting your defense and nobody won: the turn passed
+        assert game.turn == 1 and game.actions_left == 2 and len(plans) == 2, "both actions were decided before the turn passed"
+    else:
+        assert game.turn == 0 or game.winner is not None
 
 
 def test_defense_on_reveal_with_the_search_ai(rig):

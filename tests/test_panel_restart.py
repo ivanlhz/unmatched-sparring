@@ -342,6 +342,20 @@ def test_floor_label_script_uses_a_small_configurable_font_and_the_white_seat_ro
             lua.draw_markings([("A", "abc")], [("B", 0, 0)], **bad)
 
 
+
+
+def test_after_a_restart_the_owed_discards_are_read_from_the_restarted_session(brig, tmp_path):
+    """The restart builds a blank session and keeps this one: the human's controller must ask THIS session what is owed."""
+    from sparring.effects import table as fx_table
+    session, table, game, clock = prepared(brig, tmp_path)
+    click(session, table, Event.RESTART)
+    click(session, table, Event.RESTART)
+    assert session.game is not game
+    assert fx_table.discards_owed(session.game, session.human) == 0
+    session._owe_discard(2, "x")
+    assert session.pending_discard["n"] == 2 and fx_table.discards_owed(session.game, session.human) == 2
+
+
 def test_the_lua_label_formula_matches_the_python_mirror():
     s = lua.draw_markings([("A", "abc")], [("B", 0, 0)])
     assert f"{lua.LABEL_MARGIN!r}" in s and f"{lua.LABEL_CHAR_H!r}" in s and "cx - half" in s

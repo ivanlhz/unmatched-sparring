@@ -48,7 +48,7 @@
   "winner": "Medusa"
  },
  "bprd-hq/0": {
-  "hellboy_hp": 0,
+  "hellboy_hp": -3,
   "medusa_hp": 15,
   "trace": [
    "T1 P0: P0 draws 1; P0 draws 1",
@@ -58,10 +58,10 @@
    "T5 P0: P0 draws 1",
    "T6 P1: harpy2 -1 (0 hp); P0 draws 1; P1 draws 1",
    "T7 P0: P1 draws 1; P0 draws 1",
-   "T8 P1: harpy1 -3 (-2 hp); harpy3 -3 (-2 hp); P1 draws 1",
+   "T8 P1: harpy1 -5 (-4 hp); harpy3 -1 (0 hp)",
    "T9 P0: P0 draws 1; hellboy -2 (16 hp); hellboy -8 (8 hp)",
-   "T10 P1: medusa -1 (15 hp); P1 draws 1",
-   "T11 P0: hellboy -1 (7 hp); hellboy -7 (0 hp)"
+   "T10 P1: P1 draws 1; medusa -1 (15 hp); lobster -1 (5 hp)",
+   "T11 P0: hellboy -1 (7 hp); hellboy -2 (5 hp); hellboy -8 (-3 hp)"
   ],
   "turns": 11,
   "winner": "Medusa"
@@ -96,31 +96,23 @@
   "winner": "Medusa"
  },
  "bprd-hq/2": {
-  "hellboy_hp": 0,
-  "medusa_hp": 8,
+  "hellboy_hp": -1,
+  "medusa_hp": 14,
   "trace": [
    "T1 P1: P1 draws 1; P1 draws 1",
    "T2 P0: P0 draws 1; P0 draws 1",
-   "T3 P1: ",
-   "T4 P0: P0 draws 1; P0 draws 1",
-   "T5 P1: medusa -1 (15 hp); P0 draws 1",
-   "T6 P0: hellboy -1 (17 hp); P1 draws 2",
-   "T7 P1: medusa -2 (13 hp); P1 draws 1",
-   "T8 P0: hellboy -1 (16 hp); hellboy -5 (11 hp); P0 draws 1",
-   "T9 P1: harpy1 -1 (0 hp); P1 draws 1",
-   "T10 P0: lobster -1 (5 hp); P0 draws 1; P0 draws 1",
-   "T11 P1: P0 draws 1; harpy3 -1 (0 hp); lobster -1 (4 hp); P1 draws 1",
-   "T12 P0: lobster -1 (3 hp); lobster -3 (0 hp); P0 draws 1",
-   "T13 P1: P1 draws 1; P1 draws 1",
-   "T14 P0: hellboy -1 (10 hp); hellboy -4 (6 hp); P1 draws 1",
-   "T15 P1: P1 draws 1; medusa -5 (8 hp)",
-   "T16 P0: hellboy -1 (5 hp); P0 draws 1; hellboy -3 (2 hp); P0 draws 1",
-   "T17 P1: P1 draws 1; P1 draws 2",
-   "T18 P0: hellboy -1 (1 hp); P0 draws 1",
-   "T19 P1: harpy2 -2 (-1 hp); P1 draws 2; P1 draws 1",
-   "T20 P0: P0 draws 1; hellboy -1 (0 hp)"
+   "T3 P1: harpy2 -2 (-1 hp)",
+   "T4 P0: P0 draws 1; lobster -4 (2 hp); P1 draws 2",
+   "T5 P1: medusa -1 (15 hp)",
+   "T6 P0: lobster -1 (1 hp); lobster -2 (-1 hp); P0 draws 1",
+   "T7 P1: harpy1 -1 (0 hp); P0 draws 1; harpy3 -4 (-3 hp)",
+   "T8 P0: hellboy -1 (17 hp); hellboy -2 (15 hp); hellboy -8 (7 hp); hellboy -1 (6 hp); P0 draws 2",
+   "T9 P1: P1 draws 1",
+   "T10 P0: hellboy -1 (5 hp); P0 draws 1; P0 draws 1",
+   "T11 P1: P1 draws 1; P0 draws 1; medusa -1 (14 hp)",
+   "T12 P0: hellboy -1 (4 hp); hellboy -3 (1 hp); hellboy -2 (-1 hp)"
   ],
-  "turns": 20,
+  "turns": 12,
   "winner": "Medusa"
  },
  "bprd-hq/3": {

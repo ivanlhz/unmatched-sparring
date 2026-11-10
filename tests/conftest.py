@@ -49,6 +49,13 @@ def azuchi():
 
 
 @pytest.fixture
+def heuristic_guard_on(monkeypatch):
+    """The heuristic's sidekick cover is off for release (sparring.ai_medusa.HEURISTIC_GUARD); its tests turn it on."""
+    import sparring.ai_medusa as ai_medusa
+    monkeypatch.setattr(ai_medusa, "HEURISTIC_GUARD", True)
+
+
+@pytest.fixture
 def ctl():
     return {0: Scripted(), 1: Scripted()}
 

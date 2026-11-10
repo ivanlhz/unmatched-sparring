@@ -763,6 +763,7 @@
  "warn.missing": "No encuentro la pieza de {name} ({guid}) en la mesa; mantengo su ultima casilla.",
  "warn.off": "{name} esta fuera del tablero (a {dist:.1f} de la casilla mas cercana, {zone}): si ha muerto, pulsa [[panel.remove]]; si no, devuelvela al tablero.",
  "warn.pinned": "{name} no puede dejar su sitio ({where}; efecto en juego): devuelvela, la mantengo ahi.",
+ "warn.illegal_suffix": " Devuelvela o corrigela y pulsa [[panel.end_action]].",
  "warn.draw": "Tu mano ha crecido y un efecto en juego te impide robar ({reason}): devuelve la carta a tu mazo. Mientras tanto cuento con ella.",
  "sess.save_fail": "No pude guardar la partida en {path}: {err}",
  "err.card_not_in_hand": "{title} no esta en la mano del bot en la mesa; accion cancelada",

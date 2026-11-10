@@ -312,6 +312,7 @@ def _move(run, game, spec):
             table.intent(game, op="move", fid=f.fid, owner=f.owner)
     for f in by_hand:
         passed[f.fid] = None                      # the human walks their own miniature: the engine never sees the path
+        game.hand_moves[f.fid] = {"steps": steps, "up_to": up_to, "through": through}      # the session checks where the table says it ended
         table.note(run, op="move", fid=f.fid, amount=steps, up_to=up_to, through=through)
     if "as" in spec:
         run.bind("fighters", spec["as"], [f.fid for f, _ in plan] + [f.fid for f in by_hand])
@@ -499,8 +500,9 @@ def _if(run, game, spec):
 
 
 def _can_pay(game, run, cost: list[dict]) -> bool:
-    """Conservative: a discard (or a card put back in the deck) cost needs enough cards, an action cost enough actions left on the
-    owner's own turn; any other cost is assumed payable."""
+    """Conservative: a discard (or a card put back in the deck) cost needs enough cards (of the table player's hand, those not
+    already owed to their discard pile: `table.discards_owed`), an action cost enough actions left on the owner's own turn; any
+    other cost is assumed payable."""
     for c in cost:
         if c["op"] == "spend_action" and (game.turn != run.ctx.owner or game.actions_left < int(amount(game, run, c["amount"]))):
             return False
@@ -509,7 +511,8 @@ def _can_pay(game, run, cost: list[dict]) -> bool:
         if c["op"] in ("discard", "return_to_deck") and isinstance(c["cards"], dict):
             sel = c["cards"]
             need = 0 if sel.get("up_to") else min(int(amount(game, run, sel.get("amount", 1))), 1 << 30)
-            if len(card_candidates(game, run, sel)) < need:
+            owed = table.discards_owed(game, player_of(game, run, sel["player"])) if sel["zone"] == "hand" else 0
+            if len(card_candidates(game, run, sel)) - owed < need:
                 return False
     return True
 

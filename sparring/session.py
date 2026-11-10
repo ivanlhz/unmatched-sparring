@@ -249,8 +249,8 @@ class HumanProxy(Controller):
 
     human = True
 
-    def __init__(self, owe):
-        self.owe = owe
+    def __init__(self, owe, discards_owed=lambda: 0):
+        self.owe, self.discards_owed = owe, discards_owed
 
     def take_turn(self, game: Game) -> None:
         pass
@@ -349,7 +349,7 @@ class Session:
         self.bot, self.human = bot, 1 - bot
         game.nicknames = dict(cfg.nicknames)        # fighters of one name (the Red Riders) are told apart by their miniature's name in the panel
         game.controllers[self.bot] = ai
-        game.controllers[self.human] = HumanProxy(self._owe_discard)
+        game.controllers[self.human] = HumanProxy(self._owe_discard, self._hand_discards_owed)
         self.pending: Pending | None = None
         self.pending_discard: dict | None = None
         self.free_effect: EffectRun | None = None   # an effect outside any combat, stopped at a decision of the human
@@ -365,6 +365,8 @@ class Session:
         self.fx_in_flight: set[int] = set()           # CardIDs a bot effect is moving off its pile or hand in this step
         self.hand_discarded: set[int] = set()         # CardIDs the bot moved from the human's hand to their pile in this step (Crown Of Flame): nothing left to ask
         self.hand_deck: set[int] = set()              # CardIDs the human put from their discard into their deck by hand (session_pile): not moved again
+        self._illegal_fresh: set[str] = set()           # refusals the last sync_positions has just said
+        self.illegal_hand_moves: dict[str, str] = {}    # fid -> why the table's position breaks the effect's move (set by sync_positions)
         self.hand_moved: dict[str, int] = {}          # fid -> space the human put a miniature on by hand (session_moves): not projected again
         self.boost_note: dict | None = None                   # what the bot's Maneuver boost card drew and gained (`_note_boost`)
         self.fx_looked = False                        # a look_hand re-identified the human's virtual hand in this step
@@ -1620,7 +1622,7 @@ class Session:
         self.__dict__.clear()
         self.__dict__.update(blank.__dict__)
         self.__dict__.update(saved)
-        self.game.controllers[self.human] = HumanProxy(self._owe_discard)
+        self.game.controllers[self.human] = HumanProxy(self._owe_discard, self._hand_discards_owed)
         self._attach_choosers()                   # the hand reader is a bound method: it has to be this session's
         getattr(self.ai, "reset", lambda: None)()          # an AI with memory forgets the previous game
 
@@ -1880,12 +1882,19 @@ class Session:
             return False
         return True
 
-    def _begin_action(self) -> None:
-        """Before each human action the table is re-read (it includes what they did when starting the turn)."""
+    def _begin_action(self) -> bool:
+        """Before each human action the table is re-read (it includes what they did when starting the turn). The walks an
+        earlier effect let them do by hand are settled here: legal ones are accepted, a piece left in place closes its window,
+        and one the table breaks the rules for refuses the new action (False, nothing consumed) until it is put right; the new
+        action's own rules never judge the old effect's walk."""
         self._revoke_look_after_button()
         self._try_flush_table()
         self.sync_positions()
+        if self.hand_move_refused():
+            return False
+        self.game.hand_moves.clear()
         self.sync_human()
+        return True
 
     def _try_flush_table(self) -> None:
         """Settles the bot's table debt without blocking the human: if it keeps failing only a warning is given."""
@@ -1909,7 +1918,8 @@ class Session:
     def _maneuver(self, _: dict) -> None:
         if not self._require_human_turn():
             return
-        self._begin_action()
+        if not self._begin_action():
+            return
         self.game.use_action()
         if self.game.fx.can_draw(self.human):         # a Maneuver whose draw is prevented does not count (an empty deck does)
             self.game.fx.count_maneuver()
@@ -2154,7 +2164,8 @@ class Session:
     def _scheme(self, _: dict) -> None:
         if not self._require_human_turn():
             return
-        self._begin_action()
+        if not self._begin_action():
+            return
         self.game.use_action()
         self.moving = True
         self.scheme_baseline = [c.card_id for c in self.game.players[self.human].discard]
@@ -2269,7 +2280,8 @@ class Session:
         if target is None or target.owner != self.bot or not target.alive:
             self.say(t("attack.bad_target", value=repr(payload.get("target"))), ChatKind.WARNING)
             return
-        self._begin_action()
+        if not self._begin_action():
+            return
         if self.pending is not None:              # a play with a late reply: the card is already on the table
             if not self.pending.defended:
                 self.say(t("attack.open"), ChatKind.WARNING)
@@ -2604,6 +2616,9 @@ class Session:
         p = self.pending
         self._flush_table()
         self.sync_positions()
+        if self.hand_move_refused():
+            return
+        self.game.hand_moves.clear()
         self.sync_human()
         self.moving = False
         if self._guarded(lambda: (p.flow.resume(None), self._drive_flow(p.flow))):
@@ -2676,7 +2691,7 @@ class Session:
         self.pending, self.pending_value, self.chosen_attacker = None, 0, None
         said_first = len(self.messages)
         if self.pending_discard is not None:      # before any I/O: a table failure cannot leave it without a basis
-            self.pending_discard["baseline"] = len(g.players[self.human].discard)
+            self._rebase_discard_debt()
         self._mark_dirty(_bot_snapshot(c["before"]))
         told = c.get("told")                      # the result already went out when the flow stopped at a choice in AFTER
         if told is None:
@@ -3042,6 +3057,9 @@ class Session:
             return
         self.sync_human()                         # first: the boost card in the pile tells sync_positions the hero was placed
         self.sync_positions()
+        if self.hand_move_refused():
+            return
+        self.game.hand_moves.clear()              # the action is over: what an effect let the human walk is spent
         if self.scheme_baseline is not None and not self._resolve_human_scheme(wait=False):
             self.say(t("end.no_scheme"), ChatKind.WARNING)
         self.scheme_baseline = None
@@ -3202,6 +3220,23 @@ class Session:
                 self.say(t("dials.warn", name=self._name(f), value=value, hp=f.hp), ChatKind.WARNING)
 
     # ---------- the human's discards ----------
+    def _hand_discards_owed(self) -> int:
+        """Cards the human still has to take from their hand to their discard pile for a count they owe (a price they paid, a
+        forced discard): the engine's copy of their hand still holds them until the table shows the pile."""
+        d = self.pending_discard
+        if d is None or d["kind"] != "cards" or not d.get("hand"):
+            return 0
+        arrived = 0 if d["baseline"] is None else len(self.game.players[self.human].discard) - d["baseline"]
+        return max(0, d["n"] - max(0, arrived))
+
+    def _rebase_discard_debt(self) -> None:
+        """A combat is over with a discard debt open: its count starts again from the pile as it is now, which holds the cards
+        this combat played. The cards the human already took to the pile for the debt (a table read in between saw them
+        land: an AFTER gate, `sync_human`) are paid, not asked again."""
+        d = self.pending_discard
+        d["n"] = max(0, d["n"] - d.pop("landed", 0))
+        d["baseline"] = len(self.game.players[self.human].discard)
+
     def _owe_discard(self, n: int, reason: str) -> None:
         translators.translate(self, {"op": "discard", "player": self.human, "zone": "hand", "n": n, "reason": reason,
                                      "all": self.game.fx.whole_hand}, translators.Ctx())
@@ -3325,7 +3360,7 @@ class Session:
         self._attack_announced = None             # a new turn: an identical attack is announced again
         g.end_turn()
         probe = self._wildfire_probe()
-        g.begin_turn()                            # the turn change is atomic; what follows is only I/O
+        self._begin_turn(g)                       # the turn change is atomic; what follows is only I/O
         self._turn_change_debt(before, fx_before)
         self.wildfire_scene = self._wildfire_outcome(probe)
         self.bot_stage = "start"
@@ -3339,7 +3374,7 @@ class Session:
     def start_bot_turn(self) -> None:
         before, fx_before = self._snapshot_bot(), bot_effects.snapshot(self)
         probe = self._wildfire_probe()
-        self.game.begin_turn()
+        self._begin_turn(self.game)
         self._turn_change_debt(before, fx_before)
         self.wildfire_scene = self._wildfire_outcome(probe)
         self.bot_stage = "start"
@@ -3810,7 +3845,7 @@ class Session:
         self._attack_announced = None
         g.end_turn()                              # may discard for hand limit: that is also a table debt
         hurt_at_end = any(f.hp != hp0[fid] for fid, f in g.fighters.items())      # Pact Of Peace hurts who attacked
-        expired = g.begin_turn()
+        expired = self._begin_turn(g)
         if len(g.players[self.bot].discard) > seen:
             self.say(t("combat.bot_discards", list=self._discard_list(seen, {}, t("cause.hand_limit"))))
         self._mark_dirty()
@@ -5257,8 +5292,29 @@ class Session:
                 self.say(t("game.over_fix", winner=g.winner))
                 self._game_over_dialog()
 
+    def _begin_turn(self, game) -> list:
+        """`begin_turn`, except that the permissions of the walks an effect let the human do by hand stay alive: they are settled at
+        the next read or at the start of the human's next action (`_begin_action`), never by the turn change."""
+        kept = {fid: dict(m) for fid, m in game.hand_moves.items()}
+        expired = game.begin_turn()
+        game.hand_moves.update(kept)
+        return expired
+
+    def hand_move_refused(self) -> bool:
+        """The last `sync_positions` found a miniature the human walked by hand against the rules of the effect that moved it
+        (it keeps its place in the engine): the action cannot end until it is put right. The reason was said by the sync
+        itself; if it was said by an earlier sync and not this one, it is repeated so a button never does nothing silently."""
+        for fid, text in self.illegal_hand_moves.items():
+            if fid not in self._illegal_fresh:
+                self.say(text, ChatKind.WARNING)
+        return bool(self.illegal_hand_moves)
+
     def sync_positions(self) -> None:
-        for fid, info in self._table_pieces().items():
+        self.illegal_hand_moves, self._illegal_fresh = {}, set()
+        pieces = self._table_pieces()
+        table_pos = {fid: info["space"] for fid, info in pieces.items()
+                     if self.game.fighters[fid].alive and info.get("found") and self._on_board(info)}
+        for fid, info in pieces.items():
             f = self.game.fighters[fid]
             if not f.alive:
                 continue
@@ -5272,7 +5328,18 @@ class Session:
                 self._warn(fid, "off", t("warn.off", name=name, dist=info["dist"], zone=zone_text(self.game, info["space"])))
             elif info["space"] != f.pos and not self.game.fx.can_move(f):
                 self._warn(fid, "pinned", t("warn.pinned", name=name, where=describe(self.game, f.pos, (fid,), self._name)))
+            elif ((move := self.game.hand_moves.get(fid)) is not None and info["space"] != f.pos and f.pos is not None
+                  and not moves.hand_move_legal(self.game, f, info["space"], move, table_pos)):
+                # the human walked it by hand and the table breaks the effect's rules (through a rival the card does not let it cross,
+                # too far, onto an occupied space): nothing changes, the chat says why; the piece stays where the engine has it until it is put right
+                text = moves.why_move_illegal(self, f, info["space"], move, table_pos) + t("warn.illegal_suffix")
+                self.illegal_hand_moves[fid] = text
+                if (fid, "illegal") not in self._warned:
+                    self._illegal_fresh.add(fid)
+                self._warn(fid, "illegal", text)
             else:
+                if fid in self.game.hand_moves and info["space"] != f.pos:
+                    del self.game.hand_moves[fid]                     # walked by hand, legally: the permission is spent
                 if info["space"] != f.pos and f.pos is not None and self._hand_move_pays(f):
                     # the human moved this piece by hand: only the two ends are known, so the least-hazard shortest way is charged
                     with self._announcing_departure():
@@ -5285,7 +5352,7 @@ class Session:
                     f.pos = info["space"]
                     if moved_from is not None:
                         self._departed_by_hand(f, moved_from, moved=not placed)
-                for kind in ("missing", "off", "pinned"):
+                for kind in ("missing", "off", "pinned", "illegal"):
                     self._warned.discard((fid, kind))
 
     def sync_human(self) -> None:
@@ -5361,7 +5428,15 @@ class Session:
         if isinstance(deck_qty, int) and deck_qty >= 0:
             self._deck_qty = deck_qty
         in_play = self.game.fx.ongoing_card_id(self.human)     # your ONGOING scheme sits on the pile while in play
+        on_pile = {c.card_id for c in st.discard}
         self._land_in_discard(ids - {in_play})
+        if self.pending_discard is not None and self.pending_discard["kind"] == "cards":
+            # what the table read has just put on the pile while a count is owed: see `_rebase_discard_debt`. The cards
+            # of the combat still open (the card played, a boost) go to the pile anyway: tidying them pays nothing.
+            p = self.pending
+            played = self._human_played(p) if p is not None and p.flow is not None else frozenset()
+            paid = {c.card_id for c in st.discard} - on_pile - played
+            self.pending_discard["landed"] = self.pending_discard.get("landed", 0) + len(paid)
         self._verify_maneuver_deal(real, len(ids))
         held = real + self._undealt_draws()       # the cards owed after a pending discard are not on the table yet
         self._trim_virtual_hand(held)
