@@ -39,7 +39,7 @@ from .session import DEFAULT_ACTION_ANNOUNCE_HOLD, DEFAULT_BOT_PAUSE, DEFAULT_ON
 from .state import DEFAULT_HEROES, Game
 from .session_translators import ASIDE_STEP
 from .tts import lua, ui
-from .tts.hero_table import HeroTableError, load_hero_table, table_defaults
+from .tts.hero_table import HeroTableError, load_hero_table, other_variants, table_defaults
 from .tts.client import LISTEN_PORT, SEND_PORT, TTSClient, TTSLuaError
 from .tts.ui import parse_event
 
@@ -1023,8 +1023,11 @@ def prepare_heroes(client, cfg: PlayConfig, echo: Callable[[str], None] = print,
     if dropped:
         owner = {load_hero_table(slug).inner_bag: dropped[slug] for slug in cfg.heroes if slug in dropped}
         plan = [(kind, guids, owner.get(bag, bag), *rest) for kind, guids, bag, *rest in plan]
+    kept = {g for slug in cfg.heroes for g in load_hero_table(slug).all_guids()}
+    spare = tuple(sorted({g for slug in cfg.heroes if slug in (dropped or {}) for other in other_variants(slug)
+                          for g in other.all_guids()} - kept))          # a shared box's other heroine: not placed, goes with the copy
     res = client.call_lua(lua.unpack_from_bags(plan, unpack_outers(cfg) if from_infinite else None,
-                                               tuple((dropped or {}).values()))) or {}
+                                               tuple((dropped or {}).values()), spare)) or {}
     taken, missing = list(res.get("taken") or []), list(res.get("missing") or [])
     failed = {row.get("guid"): row.get("why") for row in res.get("bags_failed") or [] if isinstance(row, dict)}
     if taken:

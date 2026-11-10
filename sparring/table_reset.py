@@ -66,7 +66,7 @@ from .session import INTUITION_TOKEN, TOKEN_NICKNAMES, Msg, Session, SessionErro
 from .session_choices import panel_text
 from .tts import lua, ui
 from .tts.client import TTSLuaError
-from .tts.hero_table import TTS_DIR, HeroTableError, load_hero_table
+from .tts.hero_table import TTS_DIR, HeroTableError, load_hero_table, other_variants
 from .tts.ui import Event, parse_event
 
 PANEL_CHUNK = 70                              # `lua.set_panel` takes at most 80 elements per call
@@ -381,7 +381,8 @@ def take_character_cards(client, session, raw: dict) -> None:
         if slot is None:
             raise SessionError(t("gate.layout_missing", side=side))
         table = load_hero_table(session.game.hero_def(owner).slug)
-        sides.append((guid, rng, table.identity, table.character_card_id, *_lifted(slot)))
+        sides.append((guid, rng, table.identity, table.character_card_id, *_lifted(slot),
+                      tuple(o.character_card_id for o in other_variants(table.slug))))
     client.call_lua(lua.take_character_cards(sides))
 
 
@@ -469,6 +470,7 @@ class Gate:
         self.session = make_session(cfg)
         self.cleaned = False                     # the last audit found the table ready (prepared)
         self._panel_for: tuple | None = None
+        self.asking: tuple[str, ...] | None = None   # the variants the panel is asking the player to choose from (a box of two heroines)
 
     def _settle(self) -> None:
         self.stop.wait(self.settle)
@@ -491,19 +493,26 @@ class Gate:
         self._panel_for = key
         self.stop.wait(self.settle)           # the panel's XML is written 0.5 s after the object: a set_panel before is lost
 
-    def show(self, status_tag: str, prep: bool, start: bool, clean: bool = True) -> None:
+    def show(self, status_tag: str, prep: bool, start: bool, clean: bool = True, options: tuple[str, ...] = ()) -> None:
+        """`options`: the heroes the player is asked to choose from, one button each (`btn_choice_1..`, the ones an effect choice uses)."""
         self._panel()
         s = self.session
         ids = ui.element_ids([f.fid for f in s.game.own(s.bot)], tuple(f.fid for f in s.game.own(s.human)))
         states = {i: (False, False) for i in ids}
         states["btn_clean"], states["btn_prep"], states["btn_start"] = (clean, clean), (prep, prep), (start, start)
+        labels = {}
+        for ident, slug in zip(ui.CHOICE_BUTTONS, options):
+            states[ident] = (True, True)
+            labels[ident] = panel_text(t("setup.lead_option", name=load_hero(slug).name))
         text = panel_text(t(status_tag))
         items = sorted(states.items())
         for n in range(0, len(items), PANEL_CHUNK):
-            self.client.call_lua(lua.set_panel(text, dict(items[n:n + PANEL_CHUNK])))
+            self.client.call_lua(lua.set_panel(text, dict(items[n:n + PANEL_CHUNK]), labels=labels if n == 0 else None))
 
     def refresh(self) -> None:
-        if self.cleaned:
+        if self.asking:
+            self.show("gate.status.pick_hero", prep=False, start=False, options=self.asking)
+        elif self.cleaned:
             self.show("gate.status.ready", prep=False, start=True)
         else:
             self.show("gate.status.dirty", prep=True, start=False)
@@ -557,6 +566,7 @@ class Gate:
     def on_clean(self) -> None:
         """Empties the table of every hero and map (and of the leftovers of the official save), so the player can drag the next
         game map and heroes from the roster."""
+        self.asking = None
         self.say(t("setup.cleaning"))
         try:
             batch(self.client, [("clear", lua.clear_markings(remove_panel=True))])
@@ -582,16 +592,40 @@ class Gate:
         self.say(t("setup.drag"), lua.ChatKind.YOUR_TURN)
         self.refresh()
 
-    def on_prepare(self) -> None:
+    def on_choice(self, payload: dict) -> None:
+        """The player's answer to the question of `on_prepare`: the button they pressed picks the variant and Prepare goes on. A press
+        with no question open (a stray click) is ignored."""
+        options, self.asking = self.asking, None
+        index = payload.get("i")
+        if not options:
+            return
+        if isinstance(index, float) and index.is_integer():       # TTS sends Lua numbers as JSON floats
+            index = int(index)
+        if isinstance(index, bool) or not isinstance(index, int) or not 1 <= index <= len(options):
+            self.asking = options
+            return
+        self.on_prepare({player_setup.HUMAN: options[index - 1]})
+
+    def on_prepare(self, picks: dict[str, str] | None = None) -> None:
         """Reads the map and the two heroes the player dropped (`player_setup`), says what it found and lays everything out on
-        the slots of that map. Anything the bot cannot play, or missing, is said in the chat and nothing is touched."""
+        the slots of that map. Anything the bot cannot play, or missing, is said in the chat and nothing is touched. When the
+        player's half holds a box of two heroines (Yennefer & Triss) the panel asks which leads before anything is moved; the
+        table is read again with the answer (`picks`), so a change made meanwhile is seen."""
+        self.asking = None
         try:
             found = player_setup.scan(self.client, self.cfg.raw, batch)
         except self.errors as e:
             self.say(t("setup.scan_failed", error=e), lua.ChatKind.WARNING)
             self.refresh()
             return
-        setup, problems = player_setup.decide(found)
+        options = None if picks else player_setup.question(found)
+        if options:
+            self.asking = options
+            self.say(t("setup.which_hero", names=t("common.and").join(load_hero(s).name for s in options)), lua.ChatKind.YOUR_TURN)
+            self.refresh()
+            return
+        bot_hero = self.cfg.raw.get("bot_hero")
+        setup, problems = player_setup.decide(found, picks=picks, bot_hero=bot_hero if isinstance(bot_hero, str) else None)
         if setup is None:
             for line in problems:
                 self.say(line, lua.ChatKind.WARNING)
@@ -660,10 +694,12 @@ class Gate:
                 self.refresh()
             for raw in self.client.poll_events():
                 try:
-                    event, _ = parse_event(raw)
+                    event, payload = parse_event(raw)
                 except (KeyError, ValueError, TypeError, AttributeError):
                     continue
-                if event is Event.CLEAN:
+                if event is Event.CHOICE:
+                    self.on_choice(payload)
+                elif event is Event.CLEAN:
                     self.on_clean()
                 elif event is Event.PREPARE:
                     self.on_prepare()

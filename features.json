@@ -654,6 +654,22 @@
         "The human's deck gone (Relentless-style moves of their cards) is handled the same way",
         "The FakeTTS deck writers refuse an empty deck unless the script was given a place to lay one, and the fake's flip_card really turns the card face up"
       ]
+    },
+    {
+      "id": "F-YT-BAG",
+      "title": "The Yennefer & Triss bag is one family of two variants (the player's panel asks which heroine leads)",
+      "status": "done",
+      "criteria": [
+        "The real bag of the tournament save (inner bag eaf05e: one shared deck, two miniatures, two sidekick tokens, four life dials = 9 objects) is recognised by the pre-game gate as the family of yennefer-triss and triss-yennefer, not as 'a bag I do not recognise'; a loose shared deck is the same family instead of 'two heroes on a half'",
+        "A bag that already holds only one variant's pieces still resolves to that variant without a question",
+        "When the human's half holds the family, Prepare asks on the panel which heroine leads (btn_choice_1/2, one button per variant, texts in en.json and es.json); nothing is unpacked or moved until the answer; Clean table or a new Prepare cancels the question",
+        "The setup takes from the bag only the chosen variant's objects (shared deck, hero miniature and dial, sidekick token and dial); the other heroine's four objects are not placed and the dropped bag is destroyed once only those are left",
+        "The shared deck's second character card (the other variant's) leaves the deck too and is destroyed, so the deck is the 30 cards of the range",
+        "When the bot's half holds the family, the bot leads with the variant fixed in config bot_hero if it belongs to the family, else with yennefer-triss",
+        "The family on both halves, or two variants of it, is refused with one clear line naming the heroines, and nothing is touched",
+        "The tests use the 9 real GUIDs and types of the tournament save (data/tts/yennefer-triss.json and triss-yennefer.json, checked against the save when it is present), never a five-object table"
+      ],
+      "note": "Live check pending: docs/live-checklist.md, section Yennefer & Triss."
     }
   ]
 }

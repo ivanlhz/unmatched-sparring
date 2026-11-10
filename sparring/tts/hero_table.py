@@ -147,6 +147,28 @@ def load_hero_table(slug: str, tts_dir: Path = TTS_DIR) -> HeroTable:
     return parse_hero_table(raw, hero, path.name)
 
 
+def variants_of(slug: str) -> tuple[str, ...]:
+    """The heroes that are one box with `slug`: the same bag and deck, told apart only by who leads (Yennefer & Triss), ordered by
+    their character card. `(slug,)` for a hero with no variants."""
+    me = load_hero_table(slug)
+    family = [me]
+    for path in sorted(TTS_DIR.glob("*.json")):
+        if path.stem == slug:
+            continue
+        try:
+            other = load_hero_table(path.stem)
+        except HeroTableError:
+            continue
+        if other.inner_bag == me.inner_bag and other.deck_guid == me.deck_guid:
+            family.append(other)
+    return tuple(t.slug for t in sorted(family, key=lambda t: t.character_card_id))
+
+
+def other_variants(slug: str) -> list[HeroTable]:
+    """The tables of the other heroes of `slug`'s box (none for a hero alone)."""
+    return [load_hero_table(s) for s in variants_of(slug) if s != slug]
+
+
 def nicknames_for(hero: HeroDef, table: HeroTable) -> dict[str, str]:
     """Name of each fighter in messages and buttons: its token's if it has one; otherwise the HeroDef's with its
     number when there are several alike (Harpy 1, Harpy 2...)."""

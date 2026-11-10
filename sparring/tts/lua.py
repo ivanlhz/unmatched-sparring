@@ -1179,7 +1179,7 @@ UNPACK_SPAWN_WAIT = 4.0      # seconds to wait for the copy of an inner bag out 
 @_registered
 def unpack_from_bags(items: list[tuple[str, tuple[str, ...], str, tuple[float, float, float], tuple[int, int] | None]],
                      outers: dict[str, tuple[str, str, str, tuple[str, ...]]] | None = None,
-                     adopt: tuple[str, ...] = ()) -> str:
+                     adopt: tuple[str, ...] = (), spare: tuple[str, ...] = ()) -> str:
     """Takes from a hero's INNER bag what is not on the table. `items` = (kind, GUID of each state, GUID of the
     inner bag, spot (x, y, z), CardID range if it is a deck[, the deck's identity: with it only a deck of that image counts as present,
     since several heroes share a CardID range]).
@@ -1208,7 +1208,9 @@ def unpack_from_bags(items: list[tuple[str, tuple[str, ...], str, tuple[float, f
     (the save repeats GUIDs across heroes: Loki's inner bag also holds Medusa's dial, and must never be taken for hers). Without `outers` the reply is immediate.
 
     `adopt` = GUIDs of loose bags the player dropped from the roster (a copy of the hero's inner bag): when one of them is the
-    bag an item is taken from (its GUID stands in the items' "inner bag" field), it is destroyed once it is empty."""
+    bag an item is taken from (its GUID stands in the items' "inner bag" field), it is destroyed once it is empty. `spare` = GUIDs a
+    dropped bag may still hold when it is destroyed: the objects of the other variants of a shared box (Yennefer & Triss: the bag
+    holds nine objects and a variant takes five), which are not placed and go with the copy. A bag with anything else left stays."""
     if not isinstance(items, (list, tuple)) or not 1 <= len(items) <= MAX_UNPACK:
         raise ValueError(f"between 1 and {MAX_UNPACK} objects expected")
     rows = []
@@ -1226,10 +1228,12 @@ def unpack_from_bags(items: list[tuple[str, tuple[str, ...], str, tuple[float, f
     outer_rows = ", ".join(f'[{_guid(inner)}] = {{{_guid(outer)}, {lua_str(nick)}, {lua_str(name)}, {_guid_list(members)}}}'
                            for inner, (outer, nick, name, members) in (outers or {}).items())
     adopt_rows = ", ".join(f"[{_guid(g)}] = true" for g in adopt)
+    spare_rows = ", ".join(f"[{_guid(g)}] = true" for g in spare)
     return f"""-- sparring:unpack_from_bags
 {_IMAGE_LUA}local ITEMS = {{{", ".join(rows)}}}
 local OUTERS = {{{outer_rows}}}
 local ADOPT = {{{adopt_rows}}}
+local SPARE = {{{spare_rows}}}
 local function cardsOf(o)
   if o.type == "Card" then return {{o.getData()}} end
   return o.getData().ContainedObjects or {{}}
@@ -1311,7 +1315,13 @@ function finish()
     end
   end
   for _, bag in ipairs(made) do
-    local ok, left = pcall(function() return #bag.getObjects() end)
+    local ok, left = pcall(function()
+      local n = 0
+      for _, e in ipairs(bag.getObjects()) do
+        if not (ADOPT[bag.getGUID()] and SPARE[e.guid]) then n = n + 1 end
+      end
+      return n
+    end)
     if ok and left == 0 then bag.destruct() end
   end
   return JSON.encode(out)
@@ -1726,27 +1736,35 @@ def take_character_cards(sides: list[tuple]) -> str:
     the range with the deck image or the character card, and at least one is of the range. The deck is looked up by GUID,
     else any such Deck on the table. The card is taken by its own GUID (it normally sits on top, but anywhere works) and
     `takeObject` spawns it later, so the deck already has its 30 cards when this answers. A deck without the card is left
-    alone (an earlier press already took it). One `{found, taken}` per side."""
+    alone (an earlier press already took it). One `{found, taken}` per side.
+
+    A side may carry a seventh element `spare`: the CardIDs of the character cards of the OTHER variants that share the deck (Yennefer &
+    Triss: one deck holds both heroines' cards and only the chosen one is played). Such a card does not make the deck foreign; it is
+    taken out and destroyed, and the side's answer gets `spared` (how many). A deck with only spare cards left is still opened."""
     if not isinstance(sides, (list, tuple)) or not 1 <= len(sides) <= 2:
         raise TypeError("list of 1 or 2 sides expected")
     blocks = []
-    for deck_guid, id_range, identity, card_id, dest, rot in sides:
+    for deck_guid, id_range, identity, card_id, dest, rot, *rest in sides:
         if not isinstance(dest, (tuple, list)) or len(dest) != 3:
             raise TypeError("dest (x, y, z) expected")
+        spare = [_i(c) for c in (rest[0] if rest else ())]
         blocks.append(f"""table.insert(out, (function()
-{_ours_lua(identity, id_range)}local function characterOf(o)
+{_ours_lua(identity, id_range)}local SPARE = {{{", ".join(f"[{c}] = true" for c in spare)}}}
+local function characterOf(o)
   local data = o.getData()
-  local char, mine, whole = nil, 0, true
+  local char, mine, whole, extra = nil, 0, true, {{}}
   for i, c in ipairs(data.ContainedObjects or {{}}) do
     if c.CardID == {_i(card_id)} then
       char = char or {{guid = c.GUID, index = i - 1}}
+    elseif SPARE[c.CardID] then
+      table.insert(extra, c.GUID)
     elseif cardOurs(c, data.CustomDeck) then
       mine = mine + 1
     else
       whole = false
     end
   end
-  return whole and mine > 0, char
+  return whole and mine > 0, char, extra
 end
 local pool = {{}}
 local byGuid = getObjectFromGUID({_guid(deck_guid)})
@@ -1755,14 +1773,20 @@ for _, o in ipairs(getObjects()) do table.insert(pool, o) end
 local seen = false
 for _, o in ipairs(pool) do
   if o.type == "Deck" and not o.held_by_color then
-    local whole, char = characterOf(o)
+    local whole, char, extra = characterOf(o)
     if whole then
       seen = true
-      if char ~= nil then
-        local params = {{position = Vector({_f(dest[0])}, {_f(dest[1])}, {_f(dest[2])}), rotation = Vector({_f(rot[0])}, {_f(rot[1])}, {_f(rot[2])}), smooth = false}}
-        if char.guid ~= nil then params.guid = char.guid else params.index = char.index end
-        o.takeObject(params)
-        return {{found = true, taken = true}}
+      if char ~= nil or #extra > 0 then
+        if char ~= nil then
+          local params = {{position = Vector({_f(dest[0])}, {_f(dest[1])}, {_f(dest[2])}), rotation = Vector({_f(rot[0])}, {_f(rot[1])}, {_f(rot[2])}), smooth = false}}
+          if char.guid ~= nil then params.guid = char.guid else params.index = char.index end
+          o.takeObject(params)
+        end
+        for _, guid in ipairs(extra) do          -- the other variants' character cards leave the deck and the game
+          local gone = o.takeObject({{guid = guid, position = Vector({_f(dest[0])}, {_f(dest[1] + 2)}, {_f(dest[2])}), smooth = false}})
+          if gone ~= nil then gone.destruct() end
+        end
+        return {{found = true, taken = char ~= nil{", spared = #extra" if spare else ""}}}
       end
     end
   end

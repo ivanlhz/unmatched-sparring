@@ -10,7 +10,7 @@ hero missing or twice, two heroes on a half, no map) comes back as chat lines an
 `scan` reads the table (one message), `decide` turns the reading into a `Setup` or the problems; `clear_table` is the cleaning."""
 from __future__ import annotations
 
-from dataclasses import dataclass, field
+from dataclasses import dataclass, field, replace
 
 from . import hero_detect, map_setup, table_prep
 from .board import MapEntry, catalog as board_catalog
@@ -19,7 +19,7 @@ from .heroes import load_hero
 from .i18n import t
 from .session import TOKEN_NICKNAMES
 from .tts import lua
-from .tts.hero_table import load_hero_table
+from .tts.hero_table import load_hero_table, variants_of
 
 BOT, HUMAN = "bot", "human"
 MIN_BAG_ITEMS = 3          # a loose bag with fewer objects is not a hero's
@@ -39,6 +39,7 @@ class Sighting:
     slug: str | None           # the hero, when the bot can play it
     name: str = ""             # what to call it when it cannot (catalog name or the object's own)
     items: int = 0
+    variants: tuple[str, ...] = ()   # slug None and these set: the box of several heroes (Yennefer & Triss); who leads is still to be chosen
 
 
 @dataclass
@@ -67,6 +68,22 @@ def _bag_hero(guids: list[str], tables: dict) -> str | None:
     return fits[0] if len(fits) == 1 else None
 
 
+def _bag_family(guids: list[str], tables: dict) -> tuple[str, ...]:
+    """The variants of a box (Yennefer & Triss) when the bag holds pieces of more than one of them, so that no single variant fits it:
+    every GUID in it is one of the box's and the variants' own pieces (the shared deck apart) are mixed. Empty otherwise."""
+    held = set(guids)
+    for slug in tables:
+        family = variants_of(slug)
+        if len(family) == 1 or slug != family[0]:
+            continue
+        objects = {g for s in family for g in tables[s].all_guids()}
+        shared = set.intersection(*(set(tables[s].all_guids()) for s in family))
+        touched = [s for s in family if held & (set(tables[s].all_guids()) - shared)]
+        if held <= objects and len(touched) > 1:
+            return family
+    return ()
+
+
 def _sightings(bags, reading: hero_detect.TableReading, tables: dict, ignore: set[str]) -> list[Sighting]:
     out = []
     for bag in bags if isinstance(bags, list) else []:
@@ -76,13 +93,16 @@ def _sightings(bags, reading: hero_detect.TableReading, tables: dict, ignore: se
         slug = _bag_hero(guids, tables)
         if slug is None and len(guids) < MIN_BAG_ITEMS:
             continue
-        out.append(Sighting(side_of(bag["x"]), "bag", bag["guid"], slug, bag.get("name") or "", len(guids)))
+        family = () if slug else _bag_family(guids, tables)
+        out.append(Sighting(side_of(bag["x"]), "bag", bag["guid"], slug, bag.get("name") or "", len(guids), family))
     for pile in reading.piles:
         if pile.get("guid") in ignore:
             continue
         side = side_of(pile["x"])
         mine = [slug for slug, n in zip(reading.slugs, pile["counts"]) if n >= hero_detect.MIN_CARDS]
-        if mine:
+        if len(mine) > 1 and set(mine) == set(variants_of(mine[0])):          # one deck, several heroes: the box
+            out.append(Sighting(side, "deck", pile["guid"], None, items=pile.get("size", 0), variants=variants_of(mine[0])))
+        elif mine:
             out += [Sighting(side, "deck", pile["guid"], slug, items=pile.get("size", 0)) for slug in mine]
         elif pile.get("catalog"):
             out.append(Sighting(side, "deck", pile["guid"], None, hero_detect._name(pile["catalog"]), pile.get("size", 0)))
@@ -105,18 +125,53 @@ def _side_name(side: str) -> str:
     return t(f"setup.side.{side}")
 
 
+def _family_names(variants: tuple[str, ...]) -> str:
+    return t("common.and").join(load_hero(s).name for s in variants)
+
+
+def question(found: Scan) -> tuple[str, ...] | None:
+    """The variants the player must choose between when their half holds a box of several heroes (Yennefer & Triss: the player
+    picks which heroine leads) and nothing else, or None. The bot's half is never asked (`decide` picks), and a box on both
+    halves is refused, not asked."""
+    mine = [s for s in found.sightings if s.side == HUMAN]
+    bots = [s for s in found.sightings if s.side == BOT]
+    if len(mine) == 1 and mine[0].variants and not any(s.variants for s in bots):
+        return mine[0].variants
+    return None
+
+
+def _resolve(seen: list[Sighting], picks: dict[str, str], bot_hero: str | None) -> list[Sighting]:
+    """The sightings with each box turned into the variant that leads: the player's answer on their half, the configured
+    `bot_hero` (else the box's first variant) on the bot's. A box without a valid answer stays unresolved."""
+    out = []
+    for s in seen:
+        if s.variants:
+            wanted = picks.get(s.side) if s.side == HUMAN else (bot_hero if bot_hero in s.variants else s.variants[0])
+            if wanted in s.variants:
+                s = replace(s, slug=wanted, variants=())
+        out.append(s)
+    return out
+
+
 def _hero_problems(seen: list[Sighting]) -> tuple[dict[str, str], list[str]]:
     """({side: slug} of the sides with exactly one playable hero, the problems of the others)."""
     problems, chosen = [], {}
     playable = ", ".join(load_hero(s).name for s in hero_detect.hero_slugs())
     for side in (BOT, HUMAN):
         here = [s for s in seen if s.side == side]
-        for s in (s for s in here if s.slug is None):
+        for s in (s for s in here if s.slug is None and not s.variants):
             if s.kind == "bag" and not s.name:
                 problems.append(t("setup.bag_unknown", side=_side_name(side), n=s.items, playable=playable))
             else:
                 problems.append(t("setup.hero_unplayable", side=_side_name(side), name=s.name or t("setup.unknown_object"),
                                   playable=playable))
+        boxes = [s for s in here if s.variants]
+        if boxes and len(here) > 1:               # a box and something else on one half: the same refusal as two heroes
+            names = [_family_names(boxes[0].variants), *(load_hero(s.slug).name for s in here if s.slug)]
+            problems.append(t("setup.two_on_side", side=_side_name(side), names=t("common.and").join(names)))
+            continue
+        for s in boxes:
+            problems.append(t("setup.family_unchosen", names=_family_names(s.variants)))
         mine = [s for s in here if s.slug is not None]
         slugs = sorted({s.slug for s in mine})
         if len(slugs) > 1:
@@ -131,8 +186,10 @@ def _hero_problems(seen: list[Sighting]) -> tuple[dict[str, str], list[str]]:
     return chosen, problems
 
 
-def decide(found: Scan, path=None) -> tuple[Setup | None, list[str]]:
-    """The `Setup` the table shows, or None and the lines that say what to fix."""
+def decide(found: Scan, path=None, picks: dict[str, str] | None = None,
+           bot_hero: str | None = None) -> tuple[Setup | None, list[str]]:
+    """The `Setup` the table shows, or None and the lines that say what to fix. `picks` ({side: slug}) answers the question of
+    `question`; `bot_hero` is the hero the configuration fixes for the bot, used only to choose among the variants of a box."""
     problems = []
     entry = guid = None
     try:
@@ -142,13 +199,20 @@ def decide(found: Scan, path=None) -> tuple[Setup | None, list[str]]:
             problems.append(t("setup.no_map"))
         else:
             problems.append(t("setup.map_unplayable", error=e))
-    chosen, hero_problems = _hero_problems(found.sightings)
+    seen = _resolve(found.sightings, picks or {}, bot_hero)
+    boxes = {s.side: s.variants for s in found.sightings if s.variants}
+    shared = [v for side, v in boxes.items() if len(boxes) == 2 or any(o.slug in v for o in found.sightings if o.side != side)]
+    if shared:                      # the same box on both halves: one deck cannot be on two sides
+        return None, [*problems, t("setup.same_family", names=_family_names(shared[0]))]
+    chosen, hero_problems = _hero_problems(seen)
     problems += hero_problems
     if len(chosen) == 2 and chosen[BOT] == chosen[HUMAN]:
         problems.append(t("setup.same_hero", name=load_hero(chosen[BOT]).name))
+    elif len(chosen) == 2 and chosen[HUMAN] in variants_of(chosen[BOT]):
+        problems.append(t("setup.same_family", names=_family_names(variants_of(chosen[BOT]))))
     if problems:
         return None, problems
-    bags = {s.slug: s.guid for s in found.sightings if s.kind == "bag" and s.slug}
+    bags = {s.slug: s.guid for s in seen if s.kind == "bag" and s.slug}
     return Setup(chosen[BOT], chosen[HUMAN], entry, guid, bags, map_setup.setup_for(entry.key, path)), []
 
 

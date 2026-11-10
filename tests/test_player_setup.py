@@ -12,7 +12,7 @@ import pytest
 from sparring import hero_detect, map_setup, player_setup, table_layout
 from sparring.board import catalog as board_catalog
 from sparring.tts import lua
-from sparring.tts.hero_table import load_hero_table
+from sparring.tts.hero_table import load_hero_table, variants_of
 from test_official_save_setup import tts  # noqa: F401
 from test_review10 import conv
 
@@ -262,8 +262,8 @@ class SetupTable(GateTable):
         for o in self.world:
             if o.kind == "deck":
                 piles.append({"type": "Deck", "guid": o.guid, "x": o.x, "z": o.z, "name": "", "size": 31, "pairs": [], "side": None,
-                              "down": True, "counts": [30 if slug == o.slug else 0 for slug in slugs],
-                              "deck_ids": [load_hero_table(slug).card_ids[0] // 100 if slug == o.slug else 0 for slug in slugs]})
+                              "down": True, "counts": [30 if slug in variants_of(o.slug) else 0 for slug in slugs],
+                              "deck_ids": [load_hero_table(slug).card_ids[0] // 100 if slug in variants_of(o.slug) else 0 for slug in slugs]})
         return {"piles": piles, "pieces": {}}
 
     def do_read_transforms(self, s):
@@ -316,10 +316,11 @@ class SetupTable(GateTable):
                 continue
             bag.guids.remove(first)
             side = "bot" if bag.x > 0 else "human"
-            item = next(i for i in table_layout.items(load_hero_table(bag.slug)) if first in i.guids)
+            item = next(i for slug in variants_of(bag.slug) for i in table_layout.items(load_hero_table(slug)) if first in i.guids)
             self.world.append(Obj(item.kind, first, key=f"{side}:{item.key}", slug=bag.slug, x=float(x), y=float(y), z=float(z)))
             taken.append(first)
-        for bag in [o for o in self.world if o.kind == "bag" and o.guid in adopt and not o.guids]:
+        spare = set(re.findall(r'\["(\w+)"\] = true', s.split("local SPARE = ", 1)[1].splitlines()[0]))
+        for bag in [o for o in self.world if o.kind == "bag" and o.guid in adopt and set(o.guids) <= spare]:
             self.world.remove(bag)
             self.bags_opened.append(bag.guid)
         if self.in_bags and not any(o.kind == "bag" for o in self.world) and not missing:
