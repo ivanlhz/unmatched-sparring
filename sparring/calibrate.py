@@ -97,7 +97,7 @@ def calibrate(client, slug: str, raw: dict, path: Path | None = None, dry_run: b
         return 2
     ro = ReadOnlyClient(client)
     found = player_setup.scan(ro, raw, _sequential)
-    setup, problems = player_setup.decide(found)
+    setup, problems = player_setup.decide(found, console=True)
     if setup is None:
         echo(t("cal.need_heroes", problems=" ".join(problems)))
         return 2

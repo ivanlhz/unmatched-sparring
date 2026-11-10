@@ -215,6 +215,10 @@ class SetupTable(GateTable):
             self.nick, self.pieces = defaults["nicknames"], defaults["pieces"]
             self.guid_name = {g: self.nick[f] for f, v in self.pieces.items() for g in ([v] if isinstance(v, str) else v)}
         self.bot_cards = load_hero_table(bot).card_ids[0]
+        self.slugs = (bot, human)
+        self.deck_chars: dict[frozenset, set[int]] = {}      # character cards still inside each box's deck, by box (the real deck 7b2a33 holds 351 AND 352)
+        self.chars_laid: list[int] = []                      # character cards taken out and laid face up
+        self.chars_destroyed: list[int] = []                 # the other variants' cards taken out and destroyed
         self.dial_start = {g: next(f.dial_max for slug in (bot, human) for f in load_hero_table(slug).fighters.values() if f.dial == g)
                            for g in defaults["dials"].values()}
         if defaults.get("destiny_dial"):
@@ -281,6 +285,7 @@ class SetupTable(GateTable):
         self.world = [o for o in self.world if o.kind == "pad"]
         self.cleared += 1
         self.in_bags, self.char_in_deck, self.deck_face_up = True, False, False
+        self.deck_chars, self.chars_laid, self.chars_destroyed = {}, [], []
         self.positions, self.piece_dist, self.dials, self.bot_deck = {}, {}, {}, []
         self.arranged = {}
         return {"cards": sum(o.kind in ("deck", "char") for o in gone), "boards": sum(o.kind == "board" for o in gone),
@@ -326,6 +331,36 @@ class SetupTable(GateTable):
         if self.in_bags and not any(o.kind == "bag" for o in self.world) and not missing:
             self.heroes_present()
         return {"present": [], "taken": taken, "missing": missing, "bags": [], "reused": [], "bags_failed": []}
+
+    def hero_bag_decks(self):
+        """A deck out of a bag holds the character cards of EVERY variant of its box (Yennefer & Triss: 351 and 352, 32 cards)."""
+        super().hero_bag_decks()
+        for slug in self.slugs:
+            ids = {load_hero_table(s).character_card_id for s in variants_of(slug)}
+            self.deck_chars[frozenset(ids)] = set(ids)
+
+    def do_take_character_cards(self, s):
+        """The real script's rule per side: a deck is opened only if every card in it is of its range, the side's character card or one
+        of its `SPARE` ids; the character card is laid at `dest`, the spare ones are destroyed."""
+        out = []
+        for block in s.split("table.insert(out, (function()")[1:]:
+            wanted = int(re.search(r"c\.CardID == (\d+)", block).group(1))
+            spare = {int(v) for v in re.findall(r"\[(\d+)\] = true", re.search(r"local SPARE = \{(.*?)\}", block).group(1))}
+            box = next((k for k in self.deck_chars if wanted in k), frozenset({wanted}))
+            held = self.deck_chars.get(box, set())
+            whole = not self.in_bags and not (held - {wanted} - spare)
+            taken = whole and wanted in held
+            if whole and (taken or held & spare):
+                if taken:
+                    d = re.search(r"position = Vector\(([-\d.]+), ([-\d.]+), ([-\d.]+)\), rotation = Vector\(([-\d.]+), ([-\d.]+), ([-\d.]+)\)",
+                                  block).groups()
+                    self.chars_laid.append(wanted)
+                    self.char_loose.append((tuple(float(v) for v in d[:3]), tuple(float(v) for v in d[3:])))
+                self.chars_destroyed += sorted(held & spare)
+                self.deck_chars[box] = held - {wanted} - spare
+            out.append({"found": whole, "taken": taken})
+        self.char_in_deck = any(self.deck_chars.values())
+        return out
 
     def heroes_present(self):
         """Every hero object is out of its bag: miniatures set aside, dials full, a deck of 30 plus the character card, face up."""

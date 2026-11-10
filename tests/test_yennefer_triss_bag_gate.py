@@ -6,10 +6,11 @@ from __future__ import annotations
 
 import pytest
 
+from sparring import table_reset
 from sparring.tts.hero_table import load_hero_table
 from test_play import live  # noqa: F401
 from test_player_setup import Obj, SetupTable, live_with, prepared_ok, start
-from test_table_reset import cfg_file, finish, press, shown, wait_for  # noqa: F401
+from test_table_reset import cfg_file, finish, press, run_main, shown, wait_for  # noqa: F401
 from test_yennefer_triss_bag import REAL_BAG, TY, YT
 
 pytestmark = pytest.mark.gate
@@ -57,12 +58,21 @@ def test_the_panel_asks_which_heroine_leads_and_the_setup_takes_only_her_five(li
         placed = {o.guid for o in table.world if o.guid in REAL_BAG}
         assert placed == set(load_hero_table(human).all_guids()), "exactly the chosen variant's five of the nine are out"
         assert not [o for o in table.world if o.guid == "copyyt"], "the dropped copy goes once only the other heroine is left in it"
+        other = TY if human == YT else YT
+        mine, theirs = (load_hero_table(s).character_card_id for s in (human, other))
+        assert not any(table.deck_chars.values()), "the 32-card shared deck ends as the 30 cards of the range"
+        assert mine in table.chars_laid and theirs not in table.chars_laid, "ONE character card of the shared deck lies out: the chosen one"
+        assert table.chars_destroyed == [theirs], "the other heroine's card is destroyed, not left in the deck or on the table"
         assert hidden(table, "btn_choice_1") and hidden(table, "btn_choice_2"), "the question is gone from the panel"
     finally:
         finish(stop, thread, result)
 
 
-def test_clean_table_cancels_an_open_question_and_a_stray_answer_does_nothing(live, monkeypatch, cfg_file, tmp_path):  # noqa: F811
+def answer(fake, i):
+    fake.push({"messageID": 4, "customMessage": {"event": "choice", "i": i}})
+
+
+def test_clean_table_cancels_an_open_question(live, monkeypatch, cfg_file, tmp_path):  # noqa: F811
     table, fake, ports = gate_with(live, monkeypatch, tmp_path)
     table.drop_bag("bigfoot", 7)
     drop_real_bag(table, -7)
@@ -73,9 +83,77 @@ def test_clean_table_cancels_an_open_question_and_a_stray_answer_does_nothing(li
         assert wait_for(lambda: shown(table, "btn_choice_1") == (True, True))
         press(fake, "clean_table")
         assert wait_for(lambda: hidden(table, "btn_choice_1") and table.cleared == 1)
-        fake.push({"messageID": 4, "customMessage": {"event": "choice", "i": 1}})
-        assert not wait_for(lambda: shown(table, "btn_start") == (True, True), 1.0)
-        assert table.unpacked == 0
+        answer(fake, 1)
+        assert not wait_for(lambda: table.unpacked, 1.0), "an answer with no question open does nothing"
+    finally:
+        finish(stop, thread, result)
+
+
+def test_an_answer_with_no_question_open_does_not_prepare_a_table_that_could_be_prepared(live, monkeypatch, cfg_file, tmp_path):  # noqa: F811
+    table, fake, ports = gate_with(live, monkeypatch, tmp_path, human="houdini")
+    table.drop_bag("bigfoot", 7)
+    table.drop_bag("houdini", -7)
+    stop, thread, result = start((table, fake, ports), cfg_file, tmp_path)
+    try:
+        assert wait_for(lambda: shown(table, "btn_prep") == (True, True))
+        answer(fake, 1)
+        assert not wait_for(lambda: table.unpacked or shown(table, "btn_start") == (True, True), 1.5), "a stray click prepared the table"
+        press(fake, "prepare_table")
+        assert prepared_ok(table, fake), "the same table does prepare when Prepare is pressed"
+    finally:
+        finish(stop, thread, result)
+
+
+def test_an_answer_outside_the_buttons_keeps_the_question_open(live, monkeypatch, cfg_file, tmp_path):  # noqa: F811
+    table, fake, ports = gate_with(live, monkeypatch, tmp_path, human=TY)
+    table.drop_bag("bigfoot", 7)
+    drop_real_bag(table, -7)
+    stop, thread, result = start((table, fake, ports), cfg_file, tmp_path)
+    try:
+        assert wait_for(lambda: shown(table, "btn_prep") == (True, True))
+        press(fake, "prepare_table")
+        assert wait_for(lambda: shown(table, "btn_choice_1") == (True, True))
+        for bad in (3, 0, "x"):
+            answer(fake, bad)
+        assert not wait_for(lambda: table.unpacked, 1.0)
+        answer(fake, 2)
+        assert prepared_ok(table, fake), "the question was still open for the real answer"
+    finally:
+        finish(stop, thread, result)
+
+
+def test_the_bot_leads_with_the_variant_the_configuration_fixes_not_the_last_hero_it_played(live, monkeypatch, cfg_file, tmp_path):  # noqa: F811
+    table, fake, ports = live_with(SetupTable(TY, "bigfoot"), live, monkeypatch, tmp_path)
+    table.drop_map("bprd-hq")
+    real = table_reset.Gate.on_prepare
+
+    def after_a_game_with_someone_else(self, *a, **k):
+        self.cfg.raw["bot_hero"] = "bigfoot"                      # what the resolved configuration says after a previous Prepare
+        return real(self, *a, **k)
+    monkeypatch.setattr(table_reset.Gate, "on_prepare", after_a_game_with_someone_else)
+    drop_real_bag(table, 7)
+    table.drop_bag("bigfoot", -7)
+    stop, thread, result = run_main((table, fake, ports), cfg_file, tmp_path, bot_hero=TY, human_hero="auto")
+    try:
+        assert wait_for(lambda: shown(table, "btn_prep") == (True, True))
+        press(fake, "prepare_table")
+        assert prepared_ok(table, fake), table.broadcasts[-6:]
+        assert "Bot: Triss" in " ".join(table.broadcasts) and hidden(table, "btn_choice_1"), "the bot's half is never asked"
+    finally:
+        finish(stop, thread, result)
+
+
+def test_a_hero_of_the_box_fixed_in_the_configuration_is_not_asked_and_is_the_one_that_starts(live, monkeypatch, cfg_file, tmp_path):  # noqa: F811
+    table, fake, ports = gate_with(live, monkeypatch, tmp_path, human=TY)
+    table.drop_bag("bigfoot", 7)
+    drop_real_bag(table, -7)
+    stop, thread, result = run_main((table, fake, ports), cfg_file, tmp_path, bot_hero="auto", human_hero=TY)
+    try:
+        assert wait_for(lambda: shown(table, "btn_prep") == (True, True))
+        press(fake, "prepare_table")
+        assert prepared_ok(table, fake), table.broadcasts[-6:]
+        assert hidden(table, "btn_choice_1") and "Tu: Triss" in " ".join(table.broadcasts)
+        assert {o.guid for o in table.world if o.guid in REAL_BAG} == set(load_hero_table(TY).all_guids())
     finally:
         finish(stop, thread, result)
 

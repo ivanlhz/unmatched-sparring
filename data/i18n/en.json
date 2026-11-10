@@ -1218,6 +1218,7 @@
  "setup.lead_option": "{name} leads",
  "setup.which_hero": "Your half holds {names}: one box with one shared deck. Pick on the panel which heroine leads; the other plays as her sidekick.",
  "setup.family_unchosen": "{names} come in one box and I need to know which of them leads. Press [[panel.prep]] and pick on the panel.",
+ "setup.family_unchosen_console": "{names} come in one box and I cannot tell which of them leads. Put the hero miniature of the heroine that leads out of the bag, next to the deck, and run this again.",
  "setup.same_family": "{names} are one box with one shared deck: they cannot be on both halves, not even one each. Leave the box on one half and give the other player a different hero.",
  "setup.hero_unplayable": "In {side} there is {name}, which the bot cannot play yet. Playable heroes: {playable}.",
  "setup.bag_unknown": "In {side} there is a bag ({n} objects) that I do not recognise as a playable hero. Playable heroes: {playable}.",

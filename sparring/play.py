@@ -1146,7 +1146,11 @@ def pregame(cfg: PlayConfig, client: TTSClient, args: argparse.Namespace, stop: 
     def make_session(on: PlayConfig) -> Session:
         return table_reset.CleaningSession(build_game(on, "random", 0), client, make_bot_ai(ai_config(on, None, None), BOT),
                        on.session_config(), bot=BOT)
-    gate = table_reset.Gate(client, cfg, redetect=redetect, make_session=make_session, unpack=prepare_heroes,
+    def configured() -> tuple[str | None, str | None]:
+        fixed = load_config(args.config, args.bot_hero, args.human_hero, args.language)
+        return hero_setting(fixed.base, "bot_hero"), hero_setting(fixed.base, "human_hero")
+
+    gate = table_reset.Gate(client, cfg, redetect=redetect, configured=configured, make_session=make_session, unpack=prepare_heroes,
                             announce=make_announcer(client, echo), echo=echo, stop=stop, errors=GATE_ERRORS,
                             rescan=lambda on, pause: rescan_deck_shifts(client, on, pause, require=True),
                             poll=args.poll, state_path=Path(args.state), notes=notes)

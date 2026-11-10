@@ -667,9 +667,14 @@
         "The shared deck's second character card (the other variant's) leaves the deck too and is destroyed, so the deck is the 30 cards of the range",
         "When the bot's half holds the family, the bot leads with the variant fixed in config bot_hero if it belongs to the family, else with yennefer-triss",
         "The family on both halves, or two variants of it, is refused with one clear line naming the heroines, and nothing is touched",
+        "A bag of the box without its deck plus the shared deck loose is one box (like any hero's bag and deck), on either half; the same box twice on a half is a duplicate; a bag that fits only one variant plus the loose shared deck is that variant",
+        "A hero miniature of one variant lying on the player's half settles the variant without a question (a prepared table is never asked again); a miniature on the other half, or both miniatures, decide nothing",
+        "A hero of the box fixed in the configuration (human_hero, command line included) answers the question for the player and wins over the panel, so Start game cannot begin with the other heroine; the bot's variant is the CONFIGURED bot_hero, not the hero of the last game",
+        "The calibration tool, which has no panel, words an unanswered box for the console and still resolves it by a miniature",
+        "The gate fake models the real 32-card shared deck (351 and 352): a prepared table ends with 30 cards, ONE character card laid and the other destroyed; a choice with no question open, or outside the buttons, changes nothing; a bag that is not the player's drop is never destroyed for holding only spare objects",
         "The tests use the 9 real GUIDs and types of the tournament save (data/tts/yennefer-triss.json and triss-yennefer.json, checked against the save when it is present), never a five-object table"
       ],
-      "note": "Live check pending: docs/live-checklist.md, section Yennefer & Triss."
+      "note": "Live check pending (risks only a real table clears): docs/live-checklist.md, section Yennefer & Triss, item F-YT-BAG."
     }
   ]
 }

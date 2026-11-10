@@ -458,10 +458,11 @@ class Gate:
                  announce: Callable[[list], None], echo: Callable[[str], None], stop: threading.Event,
                  errors: tuple[type[BaseException], ...], poll: float = 0.1, settle: float | None = None,
                  state_path: Path | None = None, notes: tuple[str, ...] = (),
-                 rescan: Callable | None = None):
+                 rescan: Callable | None = None, configured: Callable[[], tuple[str | None, str | None]] | None = None):
         self.notes = notes                       # what start-up could not read from the table (said first)
         self.client, self.cfg = client, cfg
         self.redetect, self.make_session, self.unpack = redetect, make_session, unpack
+        self.configured = configured or (lambda: (None, None))     # () -> (bot hero, human hero) the configuration FIXES (None: auto)
         self.rescan = rescan                     # (cfg, settle) -> cfg with the CardID ranges of the decks as TTS numbered them
         self.announce, self.echo, self.stop, self.errors = announce, echo, stop, errors
         self.poll = poll
@@ -618,14 +619,19 @@ class Gate:
             self.say(t("setup.scan_failed", error=e), lua.ChatKind.WARNING)
             self.refresh()
             return
-        options = None if picks else player_setup.question(found)
+        try:
+            fixed_bot, fixed_human = self.configured()
+        except self.errors as e:
+            self.say(t("setup.scan_failed", error=e), lua.ChatKind.WARNING)
+            self.refresh()
+            return
+        options = None if picks else player_setup.question(found, fixed_human)
         if options:
             self.asking = options
             self.say(t("setup.which_hero", names=t("common.and").join(load_hero(s).name for s in options)), lua.ChatKind.YOUR_TURN)
             self.refresh()
             return
-        bot_hero = self.cfg.raw.get("bot_hero")
-        setup, problems = player_setup.decide(found, picks=picks, bot_hero=bot_hero if isinstance(bot_hero, str) else None)
+        setup, problems = player_setup.decide(found, picks=picks, bot_hero=fixed_bot, human_hero=fixed_human)
         if setup is None:
             for line in problems:
                 self.say(line, lua.ChatKind.WARNING)

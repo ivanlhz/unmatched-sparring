@@ -1218,6 +1218,7 @@
  "setup.lead_option": "Lidera {name}",
  "setup.which_hero": "Tu mitad tiene a {names}: una caja con un mazo compartido. Elige en el panel que heroina lidera; la otra juega de acompanante.",
  "setup.family_unchosen": "{names} vienen en una caja y necesito saber cual de ellas lidera. Pulsa [[panel.prep]] y elige en el panel.",
+ "setup.family_unchosen_console": "{names} vienen en una caja y no puedo saber cual de ellas lidera. Saca de la bolsa la miniatura de la heroina que lidera, junto al mazo, y vuelve a ejecutarlo.",
  "setup.same_family": "{names} son una caja con un mazo compartido: no pueden estar en las dos mitades, ni una cada jugador. Deja la caja en una mitad y da al otro jugador un heroe distinto.",
  "setup.hero_unplayable": "En {side} hay {name}, que el bot todavia no sabe jugar. Heroes jugables: {playable}.",
  "setup.bag_unknown": "En {side} hay una bolsa ({n} objetos) que no reconozco como un heroe jugable. Heroes jugables: {playable}.",
