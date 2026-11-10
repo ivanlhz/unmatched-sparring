@@ -326,6 +326,31 @@ def keep_value(card, hand, reliance: float = 0.0) -> float:
     return v - 0.4 * (sum(1 for c in hand if c.title == card.title) - 1)
 
 
+SETTLED_OPS = {"choose_effect", "heal", "draw", "return_to_deck"}    # what a simulated scheme resolves as the bot will: no fighter or space to pick
+
+
+def settled_in_simulation(card) -> bool:
+    """Every op of the scheme is one of `SETTLED_OPS`: what the simulation of `scheme_act` saw it do is what it will do."""
+    fx = card_effects(card)
+    ops = list(walk_ops(fx.moments.get("scheme") or [])) if fx is not None else []
+    return bool(ops) and all(op["op"] in SETTLED_OPS for op in ops)
+
+
+def hand_room(game, player: int) -> int | None:
+    """Cards `player` still holds once the hand limit closes the turn being played (`Game.end_turn`: the hero's cap, or
+    less under an ONGOING). None on the rival's turn: the limit only falls at the end of `player`'s own turn, after it
+    has had its actions to play what it holds. An action still to play this turn counts for nothing either way: a
+    maneuver draws one more card, an attack or a scheme spends at least one."""
+    return game.fx.hand_limit(player, game.hand_cap(player)) if game.turn == player else None
+
+
+def kept_hand_value(game, player: int) -> float:
+    """What the hand of `player` is worth: the keep value of the cards that survive the hand limit (`hand_room`), which
+    discards the worst ones. A card drawn past the limit is worth only the worse card it pushes out."""
+    hand = game.players[player].hand
+    return sum(sorted((keep_value(c, hand) for c in hand), reverse=True)[:hand_room(game, player)])
+
+
 @dataclass
 class Act:
     kind: str                       # attack | maneuver | glance | frenzy | scheme (any other interpreted hero's)
@@ -1037,15 +1062,25 @@ class MedusaAI(Controller):
     def scheme_act(self, game: Game, card, fighter: Fighter | None = None) -> Act | None:
         """A scheme played on a blind clone with EffectAI deciding inside (`EffectAI.scheme_outcome`): its value is
         the material it swings (kills, the ONGOING it brings in or replaces), the cards it draws (unknown: CARD_VALUE
-        each) minus those it gives up (their keep_value) and the card itself, plus the actions it grants."""
+        each, only those the hand limit leaves room for: `hand_room`) minus those it gives up (their keep_value) and
+        the card itself, plus the actions it grants. A scheme that would change nothing and hand no action back is not an
+        act while the deck holds cards: it spends a card and an action for nothing (with an empty deck it is the pass that
+        does not exhaust). Only a scheme of `SETTLED_OPS` is judged that way: a move the simulation left where it was
+        (a neutral answer) says nothing of where the bot would move."""
         me = self.me
         fighter = fighter or game.hero(me)
         after = self.effect_ai().scheme_outcome(game, card, me, fighter.fid)
         if after is None:
             return None
+        if (game.players[me].deck and after.actions_left < game.actions_left and self.scheme_changed_nothing(game, after, card)
+                and settled_in_simulation(card)):
+            return None
         hand, hand_after = game.players[me].hand, after.players[me].hand
         lost = [c for c in hand if c is not card and c not in hand_after]
         gained = sum(1 for c in hand_after if c not in hand)
+        room = hand_room(after, me)
+        if room is not None:
+            gained = min(gained, max(0, room - (len(hand_after) - gained)))
         value = self.effect_ai().material_delta(game, after, me) - CARD_VALUE
         value += CARD_VALUE * gained - sum(keep_value(c, hand) for c in lost)
         value -= situational_keep(game, me, card, hand)       # the Magician as a scheme gives up the boost of a Big Reveal
@@ -1229,7 +1264,7 @@ class MedusaAI(Controller):
     def terminal_value(self, game: Game, model: Model | None = None) -> float:
         """Cost of closing the turn like this: discarding what exceeds the hand limit and spending scarce draws."""
         p = game.players[self.me]
-        over = len(p.hand) + game.phantom_draws - game.hand_cap(self.me)
+        over = len(p.hand) + game.phantom_draws - game.fx.hand_limit(self.me, game.hand_cap(self.me))
         cost = 0.0
         if over > 0:
             pool = sorted([keep_value(c, p.hand) for c in p.hand] + [self.avg_unseen_keep(game)] * game.phantom_draws)

@@ -751,6 +751,21 @@
         "The tests use the 9 real GUIDs and types of the tournament save (data/tts/yennefer-triss.json and triss-yennefer.json, checked against the save when it is present), never a five-object table"
       ],
       "note": "Live check pending (risks only a real table clears): docs/live-checklist.md, section Yennefer & Triss, item F-YT-BAG."
+    },
+    {
+      "id": "F-DRAW-HAND-LIMIT",
+      "title": "A card drawn past the hand limit is worth nothing to the bot",
+      "status": "done",
+      "criteria": [
+        "sparring/ai_medusa.py hand_room(game, player): the cards the player still holds once the hand limit closes the turn being played (Game.fx.hand_limit over Game.hand_cap: 7, Michelangelo 3, 3 for everyone under Pact Of Secrecy); None on the rival's turn, when the limit is a whole own turn away. An action still to play counts for nothing either way (a maneuver draws one more, an attack or a scheme spends at least one)",
+        "kept_hand_value(game, player): the keep value of the best cards up to hand_room; EffectAI.evaluate counts the hand with it, so a card past the limit only adds the worse card it pushes out",
+        "MedusaAI.scheme_act credits CARD_VALUE only for the drawn cards that fit in hand_room (Riches Beyond Compare: 3 from a hand of five, 1 from seven, 0 from eight); terminal_value discards down to the same limit, ONGOING included",
+        "EffectAI._effect: an option that only draws, with the hand at its limit and no action left, counts as doing nothing (no gain, last in a tie), like the end-of-turn draw _free_draw refuses; with an action left or with room for part of the draw the evaluation decides",
+        "A scheme whose simulation changes nothing and hands no action back is not offered as an act while the deck holds cards (a card and an action for nothing); with an empty deck it stays: it is the pass that does not exhaust",
+        "The live scene (Hellboy, 8 cards, one action, full health, empty discard pile, Pancakes! in hand): the plan is not Pancakes!; played anyway it draws nothing. Hurt and with cards to return it is played for heal + return and the hand ends at 7",
+        "With a short hand Pancakes! still draws 2; from a hand of seven (six after the scheme) the draw that half fits is still taken",
+        "Tests: tests/test_draw_hand_limit.py (each rule checked by mutation)"
+      ]
     }
   ]
 }

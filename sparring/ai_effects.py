@@ -33,7 +33,7 @@ from itertools import combinations
 
 from . import enraged
 from .ai_medusa import (ACTION_VALUE, DECK_SCARCITY, HARPY_VALUE, KILL_SIDEKICK, LETHAL, SURVIVAL_P, W_HERO, W_MEDUSA_HP,
-                        W_SIDEKICK, MedusaAI, Model, effect_reliance, keep_value, kill_value, play_signature)
+                        W_SIDEKICK, MedusaAI, Model, effect_reliance, hand_room, keep_value, kept_hand_value, kill_value, play_signature)
 from .controller import Controller
 from .effects import ongoing
 from .effects.choose import ChoiceRequest, ControllerChooser, SyntheticChooser, default_answer, worth_paying
@@ -545,8 +545,21 @@ class EffectAI:
                 return None
             value = self._simulate(base, options[k].get("ops", []), card, owner, label, req.player)
             gain = round(value - before, 6) if value is not None else 0.0
-            scored.append((gain, SyntheticChooser._option_worth(game, req.player, options[k]), -k, k))   # a tie: the one that does something
+            worth = SyntheticChooser._option_worth(game, req.player, options[k])
+            if self._draws_past_limit(game, req.player, options[k]):
+                gain, worth = min(gain, 0.0), 0
+            scored.append((gain, worth, -k, k))   # a tie: the one that does something
         return [max(scored)[3]]
+
+    @staticmethod
+    def _draws_past_limit(game: Game, me: int, option: dict) -> bool:
+        """The option only draws, with the hand already at its limit and no action left to play a card before the limit falls
+        (`hand_room`): each card drawn is one the limit discards at once. It counts as doing nothing, like the draw `_free_draw`
+        refuses: the better card the simulation happened to draw is one sample of an unknown deck, not a reason to spend the deck."""
+        ops, room = option.get("ops", []), hand_room(game, me)
+        if not ops or room is None or game.actions_left > 0 or len(game.players[me].hand) < room:
+            return False
+        return all(o["op"] == "draw" and o.get("player") == "owner" for o in ops)
 
     def _gadget(self, game: Game, req: ChoiceRequest) -> int:
         """Jill Trent's gadget for the turn: 0 Hypnoray Blaster, 1 Ultrabiotic Tonic (Iván, 2026-11-08). The Blaster almost always;
@@ -797,13 +810,13 @@ class EffectAI:
         return self.evaluate(g, me)
 
     def evaluate(self, g: Game, me: int) -> float:
-        """The bot's view of `g`: material (hit points by weight, the ONGOING in play), cards in hand, deck clock
-        and position."""
+        """The bot's view of `g`: material (hit points by weight, the ONGOING in play), the cards in hand that the hand
+        limit will leave there (`kept_hand_value`), deck clock and position."""
         if g.winner is not None:
             return SIM_WIN if g.winner == me else -SIM_WIN
         score = self.material(g, me)
         mine = g.players[me]
-        score += sum(keep_value(c, mine.hand) for c in mine.hand)
+        score += kept_hand_value(g, me)
         if mine.deck and bounces_back(g, me, mine.deck[-1]):      # it returns at the start of the turn (Wildfire)
             score += keep_value(mine.deck[-1], mine.hand) + BOUNCE_BONUS
         score -= CARD_FLAT * len(g.players[1 - me].hand)
