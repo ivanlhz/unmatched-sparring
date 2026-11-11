@@ -42,7 +42,7 @@ const run = code => vm.runInContext(code, ctx);
   for (const step of input.steps) {
     const r = run(step);
     if (r && r.then) await r;
-    out.push(run("JSON.stringify({OW, HZ, BON, edges:[...edges], RO, svg:$('lines').innerHTML, panel:$('panel').innerHTML})"));
+    out.push(run("JSON.stringify({OW, HZ, BON, edges:[...edges], RO, center:M.center||[], svg:$('lines').innerHTML, panel:$('panel').innerHTML})"));
   }
   console.log(JSON.stringify({states: out.map(JSON.parse), posts: ctx.posts}));
 })();
@@ -53,7 +53,7 @@ def page_script() -> str:
     return re.search(r"<script>(.*)</script>", mc.PAGE, re.S).group(1).replace("__MAX_HAZARD__", str(mc.MAX_HAZARD))
 
 
-def square(one_way=None, hazards=None):
+def square(one_way=None, hazards=None, center=None):
     data = {"key": "t", "name": "T", "starts": {"1": 0, "2": 2},
             "spaces": [{"id": i, "local": [float(i), float(i % 2)], "zones": ["red"], "adj": sorted({(i + 1) % 4, (i - 1) % 4}),
                         "fx": 0.2 + 0.2 * i, "fy": 0.3 + 0.1 * (i % 2)} for i in range(4)]}
@@ -61,6 +61,8 @@ def square(one_way=None, hazards=None):
         data["one_way"] = one_way
     if hazards:
         data["hazards"] = hazards
+    if center:
+        data["center"] = center
     return data
 
 
@@ -134,3 +136,16 @@ def test_a_confirmed_map_is_read_only_unless_the_checker_allows_reconfirming():
 def test_clicking_two_spaces_in_one_way_mode_goes_through_the_real_click_handlers():
     out = drive(["setOmode(true)", "clickSpace(1)", "clickSpace(2)", "clickSpace(1)", "clickSpace(2)"])
     assert [s["OW"] for s in out["states"]][-3:] == [[[1, 2]], [[1, 2]], [[2, 1]]]
+
+
+def test_the_center_toggle_overrides_and_reset_clears_and_check_sends_the_override():
+    out = drive(["centerSpace(2,true)", "centerSpace(1,true)", "centerSpace(2,false)", "check()", "resetCenter()"])
+    assert [s["center"] for s in out["states"]][:3] == [[2], [1, 2], [1]]
+    assert [p for p in out["posts"] if p["url"] == "/api/check/t"][0]["body"]["center"] == [1]
+    assert out["states"][-1]["center"] == []
+
+
+def test_the_center_is_asked_again_when_the_graph_changes_and_ringed_on_the_page():
+    out = drive(["setOmode(true);clickOneWay(0);clickOneWay(1)", "Promise.resolve().then(() => 0).then(() => 0).then(() => 0)"], center=[0, 1])
+    asked = [p for p in out["posts"] if p["url"] == "/api/center/t"]
+    assert asked and asked[-1]["body"]["one_way"] == [[0, 1]] and asked[-1]["body"]["center"] == [0, 1]

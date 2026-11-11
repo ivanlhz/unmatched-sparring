@@ -139,3 +139,29 @@ def test_nearest_free_prefers_same_zone(bprd):
                 key=lambda s: bprd.distance(start, s))
     taken = {s for s in bprd.spaces if bprd.share_zone(start, s)}
     assert bprd.nearest_free(start, taken, zone_of=start) == other  # with no free slot in the zone, falls to the nearest one
+
+
+def _raw(n=4, **extra):
+    return {"key": "t", "name": "T", "starts": {"1": 0, "2": 1}, **extra,
+            "spaces": [{"id": i, "local": [float(i), 0.0], "zones": ["red"], "adj": [j for j in (i - 1, i + 1) if 0 <= j < n]} for i in range(n)]}
+
+
+def test_the_center_is_computed_from_the_graph_and_passages_and_one_way_edges_count():
+    assert Board.from_raw(_raw(5)).center == (2,)                                  # 0-1-2-3-4: the middle
+    assert Board.from_raw(_raw(4)).center == (1, 2) and Board.from_raw(_raw(4)).eccentricity == {0: 3, 1: 2, 2: 2, 3: 3}
+    assert Board.from_raw(_raw(4, passages=[[0, 3]])).center == (0, 1, 2, 3)      # a passage shortens the walk
+    assert Board.from_raw(_raw(3, one_way=[[0, 1]])).center == (0,)               # from 0 all is reachable; 1 and 2 cannot get back
+
+
+def test_the_maps_own_center_replaces_the_computed_one_and_a_bad_one_is_rejected():
+    assert Board.from_raw(_raw(5, center=[0, 4])).center == (0, 4)
+    for bad in ([9], [1, 1], ["1"]):
+        with pytest.raises(ValueError):
+            Board.from_raw(_raw(5, center=bad))
+
+
+@pytest.mark.parametrize("key, center", [
+    ("bprd-hq", (14,)), ("baskerville-manor", (0, 10, 23, 31)), ("point-pleasant", (0, 1, 2, 3)),
+    ("king-solomons-mine", (0, 2, 4, 5, 9, 10, 11, 18, 25))])
+def test_the_computed_center_of_the_real_maps_matches_the_reference_site(key, center):
+    assert Board.load(key).center == center

@@ -44,7 +44,8 @@ class Board:
                  passages: tuple[tuple[int, ...], ...] = (),
                  bonuses: dict[tuple[int, int], int] | None = None,
                  one_way: tuple[tuple[int, int], ...] = (),
-                 hazards: dict[tuple[int, int], int] | None = None):
+                 hazards: dict[tuple[int, int], int] | None = None,
+                 center: tuple[int, ...] = ()):   # center: an override of the computed one (rarely needed)
         self.key = key
         self.name = name
         self.guid: str | None = None        # the board's GUID on the table, once found (set by the start-up)
@@ -62,6 +63,11 @@ class Board:
             self.moves[b].discard(a)
         self.starts = starts
         self._dist = {s: self._bfs(s) for s in self.spaces}
+        # eccentricity: the farthest another space is by walking (99 if one cannot be reached); the center is where it is smallest,
+        # i.e. where any space is easiest to reach. Several spaces can tie and they need not touch. The map's own "center" replaces it.
+        self.eccentricity = {s: max((self._dist[s].get(t, 99) for t in self.spaces), default=0) for s in self.spaces}
+        low = min(self.eccentricity.values(), default=0)
+        self.center: tuple[int, ...] = tuple(center) or tuple(sorted(s for s, e in self.eccentricity.items() if e == low))
         self._adj_dist: dict[int, dict[int, int]] | None = None     # built on first use: only a hero with a reach in spaces asks
 
     @classmethod
@@ -69,7 +75,10 @@ class Board:
         path = Path(key_or_path)
         if not path.suffix:
             path = DATA_DIR / "maps" / f"{key_or_path}.json"
-        raw = json.loads(path.read_text(encoding="utf-8"))
+        return cls.from_raw(json.loads(path.read_text(encoding="utf-8")))
+
+    @classmethod
+    def from_raw(cls, raw: dict) -> "Board":
         spaces = [Space(s["id"], tuple(s["local"]), frozenset(s["zones"])) for s in raw["spaces"]]
         adj: dict[int, set[int]] = {s.id: set() for s in spaces}
         for s in raw["spaces"]:
@@ -87,7 +96,10 @@ class Board:
                     or edge[1] not in adj.get(edge[0], ()) or edge_key(*edge) in hazards):
                 raise ValueError(f"{raw['key']}: bad hazard {h}")
             hazards[edge_key(*edge)] = damage
-        return cls(raw["key"], raw["name"], spaces, adj, raw["starts"], passages, bonuses, one_way, hazards)
+        center = tuple(raw.get("center", ()))
+        if not all(type(c) is int and c in adj for c in center) or len(set(center)) != len(center):
+            raise ValueError(f"{raw['key']}: bad center {list(center)}")
+        return cls(raw["key"], raw["name"], spaces, adj, raw["starts"], passages, bonuses, one_way, hazards, center)
 
     def _bfs(self, src: int) -> dict[int, int]:
         return self._bfs_over(src, self.moves)

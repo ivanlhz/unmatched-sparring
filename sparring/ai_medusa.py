@@ -70,6 +70,7 @@ from .guard import guard_dest, hero_shielded, path_steps
 from .effects.model import walk_ops
 from .effects.modifiers import boost_limit, card_effects, defers_defeat, is_uncancelable
 from .ai_profile import FINISHER_BOOSTS, STYLE_HIT_AND_RUN, derive_style
+from . import ai_sinbad
 from .ai_sinbad import own_value, voyage_count, voyage_extra
 from .state import ANUNG, EXHAUST_DAMAGE, Fighter, Game
 
@@ -927,6 +928,11 @@ class MedusaAI(Controller):
             return float(SAVAGE_VALUE)  # the action after this one pays for the 9 (EffectAI decides it in the combat)
         return float(c.value)
 
+    def room_after_play(self, game: Game) -> int | None:
+        """Cards the hand can take once the card being played has left it (`hand_room`); None without a limit to respect."""
+        room = hand_room(game, self.me)
+        return None if room is None else room - (len(game.players[self.me].hand) - 1)
+
     def rival_average_boost(self, game: Game) -> float:
         """The BOOST of the card on top of the rival's deck, as far as public information goes: the average of the cards it has not
         played yet (its composition minus its discard pile)."""
@@ -1011,6 +1017,7 @@ class MedusaAI(Controller):
         always, on_win = AFTER_BONUS.get(c.title, (0.0, 0.0))
         value += always + on_win * p_win
         value += ciri_ai.after_value(game, self.me, c, p_win, w, CARD_VALUE)
+        value += ai_sinbad.after_value(game, self.me, c, p_win, w, CARD_VALUE, W_MEDUSA_HP, self.room_after_play(game), t.hp)
         if c.title == WITNESS:           # the AFTER ends the turn: the actions still to spend are lost
             value -= ACTION_VALUE * max(0, game.actions_left - 1)
         if c.title == RINGS:             # the damage dealt heals the fighter and the friendly ones beside it (only what is missing counts)
@@ -1768,6 +1775,8 @@ class MedusaAI(Controller):
         v += BOOST_RELIANCE * sum(boost_effect_value(game, self.me, x) for x in boosts)
         always, on_win = AFTER_BONUS.get(c.title, (0.0, 0.0))
         v += always + on_win * p_block
+        if attacker is not None:
+            v += ai_sinbad.after_value(game, self.me, c, p_block, weight(attacker), CARD_VALUE, W_MEDUSA_HP, None, attacker.hp)
         if c.title == SKIN and attacker is not None:
             v += SKIN_RETURN * weight(attacker) * exp         # the damage it took goes back to the attacker
         if c.title == MISTS:

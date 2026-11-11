@@ -414,3 +414,47 @@ def test_the_check_flags_a_hazard_with_a_bad_damage_or_listed_twice():
         assert any("damage" in p for p in mc.validate(bad)), damage
     twice = {**base, "hazards": [{"edge": [0, 1], "damage": 1}, {"edge": [1, 0], "damage": 2}]}
     assert any("listed twice" in p for p in mc.validate(twice))
+
+
+# ---------- the center ----------
+def test_an_edit_sets_sorts_and_clears_the_center_and_leaves_it_alone_when_absent():
+    centered = mc.apply_edit(ring(), {"center": [2, 1, 2]})
+    assert centered["center"] == [1, 2] and "center" not in ring()
+    assert mc.apply_edit(centered, {})["center"] == [1, 2] and "center" not in mc.apply_edit(centered, {"center": []})
+
+
+@pytest.mark.parametrize("center", [[9], [-1], ["1"], [True], 1, None])
+def test_a_bad_center_is_rejected(center):
+    with pytest.raises(ValueError):
+        mc.apply_edit(ring(), {"center": center})
+
+
+def test_the_center_override_must_name_existing_spaces_and_need_not_be_connected_or_present():
+    assert mc.validate(mc.apply_edit(ring(), {"center": [0, 2]}), None, ZONES) == []          # opposite on the ring: fine
+    ghost = ring()
+    ghost["center"] = [7]
+    assert any("center names a space that does not exist" in p for p in mc.validate(ghost, None, ZONES))
+    assert mc.validate(ring(), None, ZONES) == []                                              # no center: no problem, no warning
+
+
+def test_center_info_is_computed_live_from_edges_passages_and_one_way_edges():
+    assert mc.center_info(ring())["center"] == [0, 1, 2, 3] and mc.center_info(ring())["override"] is False
+    chain = mc.apply_edit(ring(), {"edges": [[0, 1], [1, 2], [2, 3]]})                         # 0-1-2-3: the middle two
+    info = mc.center_info(chain)
+    assert info["center"] == [1, 2] and info["ecc"] == {"0": 3, "1": 2, "2": 2, "3": 3}
+    assert mc.center_info(mc.apply_edit(chain, {"passages": [[0, 3]]}))["center"] == [0, 1, 2, 3]
+    assert mc.center_info(mc.apply_edit(chain, {"center": [3]})) == {**mc.center_info(mc.apply_edit(chain, {"center": [3]})), "center": [3], "override": True}
+
+
+def test_confirm_round_trips_a_center_override_into_a_board_and_without_one_writes_none(maps):
+    assert mc.confirm(maps, "t", {"center": [2, 1]}, None, ZONES) == (True, [])
+    assert json.loads((maps / "t.json").read_text(encoding="utf-8"))["center"] == [1, 2]
+    assert Board.load(maps / "t.json").center == (1, 2)
+    assert mc.confirm(maps, "t", {"center": []}, None, ZONES, allow_reconfirm=True) == (True, [])
+    assert "center" not in json.loads((maps / "t.json").read_text(encoding="utf-8"))
+
+
+def test_the_server_answers_the_live_center_of_an_unsaved_edit(server):
+    base, _ = server
+    status, body, _ = call(base + "/api/center/t", {"edges": [[0, 1], [1, 2], [2, 3]]}, {"Content-Type": "application/json"})
+    assert status == 200 and json.loads(body)["center"] == [1, 2]

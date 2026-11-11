@@ -766,6 +766,31 @@
         "With a short hand Pancakes! still draws 2; from a hand of seven (six after the scheme) the draw that half fits is still taken",
         "Tests: tests/test_draw_hand_limit.py (each rule checked by mutation)"
       ]
+    },
+    {
+      "id": "F-SINBAD-AI-AFTER",
+      "title": "The heuristic AI prices the AFTER of Sinbad's cards: an attack that draws is not outbid by a maneuver",
+      "status": "done",
+      "criteria": [
+        "Live: Sinbad kept choosing Maneuver with seven cards in hand and barely attacked with his versatile cards. Cause: MedusaAI.attack_outcome priced the AFTER of a card only through AFTER_BONUS, which had no entry for Exploit (draw 1), By Fortune and Fate (draw 2), the VOYAGE cards (Serendib draw 1, Voyage Home takes the VOYAGE cards back, Whale heals 2, Apes 2 damage, Creature strips a card, Snakes looks at the hand, Cannibals moves) or Toil and Danger / Leap Away (moves); a maneuver's flat CARD_VALUE draw outbid them",
+        "sparring/ai_sinbad.py after_value(...): those AFTERs in the AI's units; draws and the cards Voyage Home returns count only up to the room the hand limit leaves (MedusaAI.room_after_play over hand_room); MedusaAI.attack_outcome and eval_defense (a card that defends) add it",
+        "Heuristic sim, 40 games: Sinbad vs Bigfoot maneuvers taken with 7+ cards 1.40 -> 0.45 per game, maneuvers with an attack available 5.03 -> 2.80; vs Hellboy 3.42 -> 2.77; other heroes unchanged except Baba Yaga's Exploit draw and Abe Sapien's Leap Away (same title, same text, same rule)",
+        "Only the full-hand maneuver is addressed: versatile cards are still under-used as attacks (17 of 29 non-scheme cards, 26% of attacks; Exploit 0.2 and Leap Away 0.1 plays per game) - follow-up F-VERSATILE-KEEP",
+        "Not changed: the ISMCTS search plays the engine's real draws, so it never lacked the value; its remaining maneuvers at a full hand with an attack available fall from 0.33 to 0.08 per game when the iterations go from 30 to 200 (noise of the small budget)",
+        "Tests: tests/test_sinbad_ai_after.py (each rule checked by mutation)"
+      ]
+    },
+    {
+      "id": "F-MAP-CENTER",
+      "title": "Each map knows its central spaces: the ones from which every other space is easiest to reach",
+      "status": "done",
+      "criteria": [
+        "Board.center / Board.eccentricity: spaces of minimal eccentricity over the walking graph (adjacency + secret passages, one-way edges honored); several, possibly apart; an optional \"center\" list in the map JSON overrides it (ids validated)",
+        "Matches the reference maps site: bprd-hq [14], baskerville-manor [0,10,23,31], point-pleasant [0,1,2,3], king-solomons-mine [0,2,4,5,9,10,11,18,25]",
+        "tools/map_checker.py shows the center ringed with eN labels, recomputes it live on edge/passage/one-way edits, and lets a map set or reset an override",
+        "Not yet used by the bot's decisions",
+        "Tests: tests/test_board_state.py, tests/test_map_checker.py, tests/test_map_checker_page.py"
+      ]
     }
   ]
 }

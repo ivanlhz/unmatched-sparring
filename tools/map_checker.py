@@ -5,8 +5,10 @@ r"""Local map checker: a person looks at a map, fixes what is wrong and confirms
 then open http://127.0.0.1:8765 (localhost only). `--images` is the folder `tools\import_map.py` downloaded the map
 pictures into (`<imageKey>.img`); it must stay outside the repo, the art is not ours. The page lists every map except
 the ones that need tokens or doors; for one map it shows the picture with the spaces numbered, the edges, the zones and
-the starts. Click a space, then another: that toggles the edge between them. With a space selected you can tick its
-zones and make it start 1 / 2 / 3 / 4. Check re-runs the structural checks; Confirm re-runs them and, if they pass,
+the starts and the center. Click a space, then another: that toggles the edge between them. With a space selected you can tick its
+zones, make it start 1 / 2 / 3 / 4 and add it to or remove it from the center (the middle of the board: ringed
+in gold). The center is computed: the spaces from which every other is easiest to reach (smallest eccentricity,
+walking along edges and passages); the Center tick overrides it for a map, "reset center" goes back to the computed one. Check re-runs the structural checks; Confirm re-runs them and, if they pass,
 writes data/maps/<key>.json with "playable": true, "verified": true and marks the map supported in the catalog.
 
 Only the standard library; the pure logic (edit, validate, confirm) is what the tests cover, not the page."""
@@ -23,6 +25,8 @@ from pathlib import Path
 from urllib.parse import urlparse
 
 ROOT = Path(__file__).resolve().parent.parent
+sys.path.insert(0, str(ROOT))
+from sparring.board import Board  # noqa: E402
 MAPS_DIR = ROOT / "data" / "maps"
 I18N_EN = ROOT / "data" / "i18n" / "en.json"
 MAX_BONUS = 3                        # the largest high-ground bonus the checker accepts
@@ -64,7 +68,7 @@ def apply_edit(data: dict, edit: dict) -> dict:
     """A copy of `data` with the person's changes: `edges` (the full list of [a, b]), `zones` ({id: [names]}) and
     `passages` (the full list of secret-passage groups), `bonuses` (the full list of {from, to, value}: high ground on
     the stairs), `one_way` (the full list of [from, to]: moving only that way), `hazards` (the full list of {edge: [a, b], damage}: a fighter
-    pays the first hazard edge it crosses in a turn, then no more that turn) and `starts` ({"1": id, ...}). Anything missing from `edit` is left as it was. Raises ValueError on a bad id."""
+    pays the first hazard edge it crosses in a turn, then no more that turn) and `starts` ({"1": id, ...}) and `center` (the full list of space ids in the middle of the board). Anything missing from `edit` is left as it was. Raises ValueError on a bad id."""
     ids = {s["id"] for s in data["spaces"]}
     out = json.loads(json.dumps(data))
     if "edges" in edit:
@@ -133,6 +137,14 @@ def apply_edit(data: dict, edit: dict) -> dict:
             out["hazards"] = [{"edge": [a, b], "damage": d} for (a, b), d in sorted(hazards.items())]
         else:
             out.pop("hazards", None)
+    if "center" in edit:
+        center = edit["center"]
+        if not isinstance(center, list) or not all(type(v) is int and v in ids for v in center):
+            raise ValueError(f"bad center {center}")
+        if center:
+            out["center"] = sorted(set(center))
+        else:
+            out.pop("center", None)
     if "starts" in edit:
         starts = {}
         for digit, sid in edit["starts"].items():
@@ -224,6 +236,8 @@ def validate(data: dict, expected: dict | None = None, zone_names: list[str] | N
         problems.append(f"zone names the bot does not know: {sorted(used - set(zone_names))}")
     if expected and expected.get("zonesCount") not in (None, len(used)):
         problems.append(f"{len(used)} zone colours used, the map has {expected['zonesCount']}")
+    if any(c not in adj for c in data.get("center") or []):
+        problems.append(f"the center names a space that does not exist: {data['center']}")
     starts = data.get("starts") or {}
     for digit in ("1", "2"):
         if digit not in starts:
@@ -233,6 +247,16 @@ def validate(data: dict, expected: dict | None = None, zone_names: list[str] | N
     if len(set(starts.values())) != len(starts):
         problems.append("two starts on the same space")
     return problems
+
+
+def center_info(data: dict) -> dict:
+    """The center the bot will use for this (edited) map: the spaces from which every other is easiest to reach, with each
+    space's eccentricity; `override` says whether the map's own "center" list replaced the computed one."""
+    try:
+        board = Board.from_raw(data)
+    except (KeyError, ValueError, TypeError):
+        return {"center": data.get("center") or [], "ecc": {}, "override": bool(data.get("center"))}
+    return {"center": list(board.center), "ecc": {str(k): v for k, v in board.eccentricity.items()}, "override": bool(data.get("center"))}
 
 
 def _write_json(path: Path, data) -> None:
@@ -316,6 +340,7 @@ body{font:14px system-ui,sans-serif;margin:0;display:flex;height:100vh}
 border-radius:14px;font-weight:bold;cursor:pointer;padding:1px 3px;font-size:13px}
 .sp small{display:block;font-weight:normal;font-size:10px;color:#ffd}
 .sp.sel{border-color:#f0f;background:#406c}.sp.start{border-color:#f33}
+.sp.center{box-shadow:0 0 0 4px #000,0 0 0 8px #fc0;border-color:#fc0}
 .bonus-from{border-color:#6f6;background:#262c}
 .sp.pass{border-color:#f90;border-style:dashed;background:#530c}.sp.pass.cur{border-color:#0ff;background:#056c}
 button.on{background:#f90;font-weight:bold}
@@ -325,15 +350,15 @@ label{display:inline-block;width:110px}
 <div id=side><b>Maps</b><div id=list></div><hr><div id=panel></div></div>
 <div id=stage><div id=wrap><img id=img><svg id=lines viewBox="0 0 1000 1000" preserveAspectRatio="none"></svg></div></div>
 <script>
-let M=null,key=null,edges=new Set(),sel=null,PASS=[],cur=0,pmode=false,BON=[],bmode=false,bsel=null,OW=[],omode=false,osel=null,HZ=[],hmode=false,hsel=null,ZN=[],RECONFIRM=false,RO=false,ST={},MAXH=__MAX_HAZARD__;
+let M=null,key=null,edges=new Set(),sel=null,PASS=[],cur=0,pmode=false,BON=[],bmode=false,bsel=null,OW=[],omode=false,osel=null,HZ=[],hmode=false,hsel=null,ZN=[],RECONFIRM=false,RO=false,ST={},CEN={center:[],ecc:{},override:false},sig="",MAXH=__MAX_HAZARD__;
 const $=id=>document.getElementById(id), ek=(a,b)=>Math.min(a,b)+"-"+Math.max(a,b);
 async function api(p,body){const r=await fetch(p,body?{method:"POST",headers:{"Content-Type":"application/json"},body:JSON.stringify(body)}:{});return r.json()}
 async function init(){const d=await api("/api/maps");ZN=d.zones;RECONFIRM=d.reconfirm;ST={};for(const m of d.maps)ST[m.key]=m.status;$("list").innerHTML="";
  for(const m of d.maps){const a=document.createElement("a");a.className=m.status;a.textContent=m.name+" ["+m.status+"]";a.onclick=()=>open(m.key);$("list").append(a)}}
 async function open(k){key=k;RO=ST[k]==="supported"&&!RECONFIRM;M=await api("/api/map/"+k);edges=new Set();for(const s of M.spaces)for(const n of s.adj)edges.add(ek(s.id,n));
- PASS=(M.passages||[]).map(g=>[...g]);cur=0;pmode=false;BON=(M.bonuses||[]).map(b=>({...b}));OW=(M.one_way||[]).map(p=>[...p]);omode=false;osel=null;HZ=(M.hazards||[]).map(h=>({edge:[...h.edge],damage:h.damage}));hmode=false;hsel=null;bmode=false;bsel=null;sel=null;$("img").src="/image/"+k;draw();panel("")}
-function body(){const zones={};for(const s of M.spaces)zones[s.id]=s.zones;return{hazards:HZ,one_way:OW,bonuses:BON,passages:PASS.filter(g=>g.length>1),edges:[...edges].map(e=>e.split("-").map(Number)),zones,starts:M.starts}}
-function draw(){const w=$("wrap");w.querySelectorAll(".sp").forEach(e=>e.remove());let svg="";
+ PASS=(M.passages||[]).map(g=>[...g]);cur=0;pmode=false;BON=(M.bonuses||[]).map(b=>({...b}));OW=(M.one_way||[]).map(p=>[...p]);omode=false;osel=null;HZ=(M.hazards||[]).map(h=>({edge:[...h.edge],damage:h.damage}));hmode=false;hsel=null;bmode=false;bsel=null;sel=null;sig="";CEN={center:[],ecc:{},override:false};$("img").src="/image/"+k;draw();panel("")}
+function body(){const zones={};for(const s of M.spaces)zones[s.id]=s.zones;return{hazards:HZ,one_way:OW,bonuses:BON,passages:PASS.filter(g=>g.length>1),edges:[...edges].map(e=>e.split("-").map(Number)),zones,starts:M.starts,center:M.center||[]}}
+function draw(){const w=$("wrap");const now=JSON.stringify([[...edges],PASS,OW,M.center||[]]);if(now!==sig){sig=now;refreshCenter()}w.querySelectorAll(".sp").forEach(e=>e.remove());let svg="";
  for(const e of edges){const[a,b]=e.split("-").map(Number),A=M.spaces[a],B=M.spaces[b];
   svg+=`<line x1="${A.fx*1000}" y1="${A.fy*1000}" x2="${B.fx*1000}" y2="${B.fy*1000}" stroke="#ff0" stroke-width="3" vector-effect="non-scaling-stroke"/>`}
  OW.forEach(([a,b])=>{const A=M.spaces[a],B=M.spaces[b],dx=(B.fx-A.fx)*1000,dy=(B.fy-A.fy)*1000,L=Math.hypot(dx,dy)||1,ux=dx/L,uy=dy/L,
@@ -351,9 +376,9 @@ function draw(){const w=$("wrap");w.querySelectorAll(".sp").forEach(e=>e.remove(
   svg+=`<line x1="${A.fx*1000}" y1="${A.fy*1000}" x2="${B.fx*1000}" y2="${B.fy*1000}" stroke="${i===cur?"#0ff":"#f90"}" stroke-width="3" stroke-dasharray="8 6" vector-effect="non-scaling-stroke"/>`}});
  $("lines").innerHTML=svg;
  for(const s of M.spaces){const d=document.createElement("div");d.className="sp"+(sel===s.id?" sel":"");
-  const st=Object.entries(M.starts).filter(([k,v])=>v===s.id).map(([k])=>"S"+k).join(" ");if(st)d.classList.add("start");
+  const st=Object.entries(M.starts).filter(([k,v])=>v===s.id).map(([k])=>"S"+k).join(" ");if(st)d.classList.add("start");if(CEN.center.includes(s.id))d.classList.add("center");
   d.style.left=s.fx*100+"%";d.style.top=s.fy*100+"%";if(bsel===s.id||osel===s.id||hsel===s.id)d.classList.add("bonus-from");const gi=PASS.findIndex(g=>g.includes(s.id));if(gi>=0){d.classList.add("pass");if(gi===cur)d.classList.add("cur")}
-  d.innerHTML=(gi>=0?"&#128274;":"")+s.id+(st?" "+st:"")+"<small>"+s.zones.join("/")+"</small>";
+  d.innerHTML=(gi>=0?"&#128274;":"")+(CEN.center.includes(s.id)?"&#9733;":"")+s.id+(st?" "+st:"")+"<small>"+s.zones.join("/")+(CEN.ecc[s.id]!==undefined?" e"+CEN.ecc[s.id]:"")+"</small>";
   d.onclick=()=>{if(RO)return;if(hmode){clickHazard(s.id);return}if(omode){clickOneWay(s.id);return}if(bmode){clickBonus(s.id);return}if(pmode){togglePass(s.id);return}if(sel===null)sel=s.id;else if(sel===s.id)sel=null;else{const k=ek(sel,s.id);edges.has(k)?dropEdge(k):edges.add(k);sel=null}draw();panel()};w.append(d)}}
 function panel(msg){const p=$("panel");if(!M)return;let h="<b>"+M.name+"</b><br>";
  if(M.problems)h+="<div id=problems>Import said: "+M.problems.join("\n")+"</div>";
@@ -368,7 +393,9 @@ function panel(msg){const p=$("panel");if(!M)return;let h="<b>"+M.name+"</b><br>
  if(sel!==null&&!RO&&!pmode&&!bmode&&!omode&&!hmode){const s=M.spaces[sel];h+="<hr>Space "+sel+"<br>";
   for(const z of ZN)h+=`<label><input type=checkbox ${s.zones.includes(z)?"checked":""} onchange="zone(${sel},'${z}',this.checked)"> ${z}</label>`;
   h+="<br>";for(const n of ["1","2","3","4"])h+=`<button onclick="start('${n}',${sel})">start ${n}</button>`;
-  h+=`<button onclick="clearStart(${sel})">no start</button>`}
+  h+=`<button onclick="clearStart(${sel})">no start</button>`;
+  h+=`<br><label><input type=checkbox ${CEN.center.includes(sel)?"checked":""} onchange="centerSpace(${sel},this.checked)"> Center</label>`}
+ h+="<hr>Center ("+(CEN.override?"set by hand":"computed")+", eccentricity "+(CEN.ecc[CEN.center[0]]??"?")+"): "+(CEN.center.join(", ")||"none")+(CEN.override&&!RO?` <button onclick=resetCenter()>reset center</button>`:"")+"<br>";
  h+=RO?"<hr>":"<hr><button onclick=check()>Check</button><button onclick=confirmMap()>Confirm (write)</button><div id=problems>"+(msg||"")+"</div>";p.innerHTML=h}
 function setOmode(on){omode=on;if(on)pmode=bmode=hmode=false;osel=null;sel=null;draw();panel()}
 function clickOneWay(id){if(osel===null){osel=id;draw();return}if(osel===id){osel=null;draw();return}const a=osel,b=id;osel=null;
@@ -391,10 +418,14 @@ function newGroup(){PASS.push([]);cur=PASS.length-1;draw();panel()}
 function dropGroup(){PASS.splice(cur,1);cur=0;draw();panel()}
 addEventListener("keydown",e=>{if(M&&!RO&&!/INPUT|TEXTAREA/.test(e.target.tagName)){const k=e.key.toLowerCase();if(k==="p")setPmode(!pmode);else if(k==="b")setBmode(!bmode);else if(k==="o")setOmode(!omode);else if(k==="h")setHmode(!hmode)}});
 function zone(id,z,on){const s=M.spaces[id];s.zones=on?[...new Set([...s.zones,z])]:s.zones.filter(x=>x!==z);draw();panel()}
+function centerSpace(id,on){const c=new Set(CEN.center);on?c.add(id):c.delete(id);M.center=[...c].sort((a,b)=>a-b);CEN={...CEN,center:M.center,override:M.center.length>0};draw();panel()}
+function resetCenter(){M.center=[];sig="";draw();panel()}
+async function refreshCenter(){const mine=sig,r=await api("/api/center/"+key,body());if(sig===mine&&r.center){CEN=r;draw();panel()}}
 function start(n,id){M.starts[n]=id;draw();panel()}
 function clearStart(id){for(const k in M.starts)if(M.starts[k]===id)delete M.starts[k];draw();panel()}
-async function check(){const r=await api("/api/check/"+key,body());panel(r.problems.length?r.problems.join("\n"):"Structural checks pass.")}
-async function confirmMap(){const r=await api("/api/confirm/"+key,body());if(r.written){panel("Written: "+key+" is verified.");init()}else panel(r.problems.join("\n"))}
+const warn=r=>(r.warnings||[]).length?"\nWarning: "+r.warnings.join("\nWarning: "):"";
+async function check(){const r=await api("/api/check/"+key,body());panel((r.problems.length?r.problems.join("\n"):"Structural checks pass.")+warn(r))}
+async function confirmMap(){const r=await api("/api/confirm/"+key,body());if(r.written){panel("Written: "+key+" is verified."+warn(r));init()}else panel(r.problems.join("\n")+warn(r))}
 init();
 </script>"""
 
@@ -469,6 +500,8 @@ class Handler(BaseHTTPRequestHandler):
             if not isinstance(edit, dict):
                 raise ValueError("the body must be a JSON object")
             key = _safe_key(path.rsplit("/", 1)[1])
+            if path.startswith("/api/center/"):
+                return self._json(center_info(apply_edit(json.loads((self.maps_dir / f"{key}.json").read_text(encoding="utf-8")), edit)))
             if path.startswith("/api/check/"):
                 data = apply_edit(json.loads((self.maps_dir / f"{key}.json").read_text(encoding="utf-8")), edit)
                 return self._json({"problems": validate(data, self.expected.get(key), self.zones)})
