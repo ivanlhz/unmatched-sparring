@@ -1,7 +1,8 @@
 """Live game (Hellboy bot vs human Raphael): with 6 HP and no card that defends, the bot kept maneuvering beside the
 rival's fighters and took two undefended blows (Crowd control, Unbridled rage) in one turn. When it cannot defend and
-the rival can kill it with the two actions of its turn, it must run (maneuver twice: draw, get out of reach), unless
-it can finish the rival hero this turn."""
+the rival can kill it with the two actions of its turn, it must not end the turn in reach: at 4 hit points or fewer it
+only runs (the maneuver away, then Pancakes!); at 5 or 6 its blow may come first and the last action walks away
+(F-FLEE-CHASER); with the rival hero one blow from falling it finishes it."""
 import pytest
 
 from conftest import Scripted, give
@@ -37,17 +38,35 @@ def gap(g, a="hellboy", b="raphael"):
     return g.board.distance(g.fighters[a].pos, g.fighters[b].pos)
 
 
-def test_defenseless_and_low_runs_instead_of_standing_in_reach(bprd):
-    g = scene(bprd, ATTACK_ONLY)
+@pytest.mark.parametrize("hp", [6, 5, 4, 3])
+def test_defenseless_and_low_never_ends_the_turn_in_reach(bprd, hp):
+    g = scene(bprd, ATTACK_ONLY, hp=hp)
     before = gap(g)
     MedusaAI(0).take_turn(g)
     hb, rival = g.fighters["hellboy"], g.fighters["raphael"]
     assert hb.alive and g.actions_left == 0
-    assert g.drawn[0] >= 1, "it maneuvered (drew) instead of attacking"
-    assert rival.hp == 17, "no attack was made"
+    assert g.drawn[0] >= 1, "it maneuvered (drew): the last action walks away"
     assert gap(g) > before
     assert not g.board.can_reach_target(rival.pos, hb.pos, False), "out of Raphael's reach"
     assert not g.board.can_reach_target(g.fighters["casey"].pos, hb.pos, True), "out of Casey's line (ranged)"
+
+
+@pytest.mark.parametrize("hp", [4, 3])
+def test_defenseless_and_very_low_runs_without_striking(bprd, hp):
+    """The lesson as it was learnt: no attack, Pancakes! for the two hit points and the maneuver away."""
+    g = scene(bprd, ATTACK_ONLY, hp=hp)
+    MedusaAI(0).take_turn(g)
+    assert g.fighters["raphael"].hp == 17, "no attack was made"
+    assert [c.title for c in g.players[0].discard] == ["Pancakes!"] and g.fighters["hellboy"].hp == hp + 2
+    assert gap(g) == 6
+
+
+def test_at_six_hit_points_the_blow_comes_before_the_run(bprd):
+    """Excalibur on Raphael (who does not defend here), then out of his reach: as far as the two actions get him."""
+    g = scene(bprd, ATTACK_ONLY)
+    MedusaAI(0).take_turn(g)
+    assert g.fighters["raphael"].hp == 11 and [c.title for c in g.players[0].discard] == ["Excalibur"]
+    assert gap(g) == 3
 
 
 def test_defenseless_with_lethal_available_attacks(bprd):

@@ -13,12 +13,13 @@ from dataclasses import dataclass
 
 from .ai_medusa import MedusaAI
 from .board import Board
-from .hellboy_script import ScriptedHellboy
+from .hellboy_script import ChasingHellboy, ScriptedHellboy
 from .heroes import load_hero
 from .state import Game
 
 MEDUSA, HELLBOY = 0, 1
 MAX_TURNS = 200
+RIVALS = {"random": ScriptedHellboy, "chaser": ChasingHellboy}
 
 
 @dataclass
@@ -32,11 +33,12 @@ class Outcome:
 
 def play(seed: int, board_key: str = "bprd-hq", verbose: bool = False, max_turns: int = MAX_TURNS,
          medusa: MedusaAI | None = None, trace: list[str] | None = None,
-         bot_hero: str = "medusa", human_hero: str = "hellboy") -> Outcome:
+         bot_hero: str = "medusa", human_hero: str = "hellboy", rival: str = "random") -> Outcome:
     """`trace`: if given, it receives one line per turn with the engine log (what `-v` prints).
     `bot_hero`/`human_hero`: slugs in data/heroes; `medusa` is the bot's controller (any, not only Medusa).
+    `rival`: the scripted rival, "random" (`ScriptedHellboy`) or "chaser" (`ChasingHellboy`: defends and boosts like a person).
     In the result, `medusa_hp`/`hellboy_hp` are the HP of the bot's and the human's hero (names kept from the goldens)."""
-    controllers = {MEDUSA: medusa or MedusaAI(MEDUSA), HELLBOY: ScriptedHellboy(HELLBOY, seed)}
+    controllers = {MEDUSA: medusa or MedusaAI(MEDUSA), HELLBOY: RIVALS[rival](HELLBOY, seed)}
     game = Game.new(Board.load(board_key), seed, controllers, bot_player=MEDUSA, heroes=(bot_hero, human_hero))
     while game.winner is None and game.turn_no <= max_turns:
         game.begin_turn()
@@ -69,6 +71,7 @@ def main(argv: list[str] | None = None) -> int:
     ap.add_argument("--map", default="bprd-hq")
     ap.add_argument("--bot-hero", default="medusa")
     ap.add_argument("--human-hero", default="hellboy")
+    ap.add_argument("--rival", choices=tuple(RIVALS), default="random", help="chaser: always defends, boosts to reach")
     ap.add_argument("--ai", choices=("heuristic", "ismcts"), default="heuristic")
     ap.add_argument("--iterations", type=int, default=30, help="ISMCTS iterations per decision")
     ap.add_argument("-v", "--verbose", action="store_true")
@@ -77,7 +80,7 @@ def main(argv: list[str] | None = None) -> int:
     t0, outcomes, errors = time.time(), [], []
     for seed in range(args.seed, args.seed + args.games):
         try:
-            outcomes.append(play(seed, args.map, args.verbose, bot_hero=args.bot_hero, human_hero=args.human_hero,
+            outcomes.append(play(seed, args.map, args.verbose, bot_hero=args.bot_hero, human_hero=args.human_hero, rival=args.rival,
                                  medusa=make_bot(args.ai, args.iterations, seed)))
         except Exception:
             errors.append((seed, traceback.format_exc()))

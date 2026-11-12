@@ -107,6 +107,7 @@ TOP_FIRST = 6
 TOP_FIRST_DESPERATE = 14   # when every action counts, a wider look is taken before committing
 TOP_SECOND = 4
 APPROACH_PULL = 0.1        # position value lost per space between a non-Medusa hero and the nearest rival
+BLOW_FIRSTS = 3               # extra first actions that attack from where the fighter stands (the second action may still walk away). One is not enough: the blow to open with can be the second ranked (tests/test_sinbad_live_flee.py); 2 against 3 is told apart by no test, 3 is what the simulations ran with
 APPROACH_TOP = 3           # extra first actions that walk into reach of a rival (non-Medusa heroes)
 DEATH = 120.0           # losing the game (more than LETHAL, which is weighted by probability)
 DECK_SCARCITY = {0: 3.0, 1: 1.8, 2: 1.0, 3: 0.5, 4: 0.25}   # cost of being left with few draws to pay
@@ -729,7 +730,8 @@ class MedusaAI(Controller):
         if kill is not None and not (ranked[0] is not kill and ranked[0].total >= DEATH / 2):
             return kill
         width = TOP_FIRST_DESPERATE if self.desperation(game) >= 0.3 else TOP_FIRST
-        firsts = ranked[:width] + self.approach_acts(game, ranked[width:]) + self.strike_firsts(game, ranked[width:])
+        firsts = (ranked[:width] + self.approach_acts(game, ranked[width:]) + self.strike_firsts(game, ranked[width:])
+                  + self.blow_firsts(game, ranked[width:]))
         if game.actions_left < 2:
             return firsts[0]
         best, best_v = None, None
@@ -776,6 +778,15 @@ class MedusaAI(Controller):
         board, foes = game.board, game.foes(self.me)
         return [a for a in rest if a.kind == "maneuver" and hero.fid in a.moves
                 and any(board.can_reach_target(a.moves[hero.fid], e.pos, hero.ranged, hero.reach) for e in foes)][:APPROACH_TOP]
+
+    def blow_firsts(self, game: Game, rest: list[Act]) -> list[Act]:
+        """The best attacks outside the top acts, with a second action left: the one-step ranking prices each of them where
+        the attacker stands (in reach of the rival, both its blows to come) and buries them under every maneuver that walks
+        away, but the second action can walk away just the same after the blow has landed. Without them a hero next to a
+        rival that chases it never struck: it only stepped back (live, Sinbad against Hellboy: one attack in nine turns)."""
+        if game.actions_left < 2:
+            return []
+        return [a for a in rest if a.kind == "attack"][:BLOW_FIRSTS]
 
     def strike_firsts(self, game: Game, rest: list[Act]) -> list[Act]:
         """Hit and run: placements (boosted Maneuvers) that end in reach of a rival hero with an attack still to play. The

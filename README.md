@@ -393,7 +393,7 @@ uv pip install -r tests\requirements.txt
 - Tests read `config\table.json`: keep it clean (no experiments in it). They cannot write under `state\` or the old `estado\` (a guard in `tests\conftest.py` points `--state` to a temporary folder).
 - `GOLDEN_UPDATE=1` regenerates the golden files (`tests\golden`, simulator and a recorded session) on purpose. They must stay identical otherwise.
 - `SPARRING_BATCH=1 pytest` runs the whole suite through the fast one-message-per-button mode.
-- The simulator plays bot against a scripted Hellboy: `.venv\Scripts\python -m sparring.sim --games 100 --seed 0`. `tools\bot_play_metrics.py` measures bot behaviour (attacks, idle turns, discards, win rate).
+- The simulator plays bot against a scripted Hellboy: `.venv\Scripts\python -m sparring.sim --games 100 --seed 0`. `--rival chaser` swaps the default script (walks to the nearest piece, defends 60% of the time, boosts on a coin flip) for one that hunts the bot's hero, always defends its own and boosts exactly when that gets it in reach: the yardstick for a bot that runs away. `tools\bot_play_metrics.py` measures bot behaviour (attacks, idle turns, discards, win rate).
 
 ### FakeTTS
 

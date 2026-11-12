@@ -134,8 +134,8 @@ def test_desperation_rises_when_losing_only(game, ai):
 def test_aggression_beats_kiting_when_time_is_against_us(game, ai):
     endgame(game, deck_left=1, medusa_pos=29, hellboy_pos=30)
     play_turn(game, ai)   # attacks from where he cannot reach her (maneuver + shot) or shoots now: never flees without attacking
-    assert game.fighters["medusa"].alive and game.winner is None
-    assert game.fighters["hellboy"].hp < 14
+    assert game.fighters["medusa"].alive and game.winner == 0      # Second Shot, then Gaze of Stone: a Hellboy that does not defend falls
+    assert game.fighters["hellboy"].hp == -3
 
 
 def test_live_state_with_lobster_alive_still_survives_and_attacks(game, ai):
