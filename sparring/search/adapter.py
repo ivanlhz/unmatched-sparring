@@ -40,7 +40,7 @@ from math import sqrt
 
 from .. import enraged
 from ..ai_hazards import zone_cover_factor, zone_damage
-from ..ai_medusa import GAZE, boost_effect_value, bot_may_spend, held_for_plan, maneuver_may_spend, scheme_fighter
+from ..ai_medusa import GAZE, beside_stake, boost_effect_value, bot_may_spend, held_for_plan, maneuver_may_spend, play_signature, scheme_fighter
 from ..cards import Card, can_be_boost
 from ..combat import is_medusa_card, resolve_combat
 from ..controller import Controller
@@ -52,6 +52,7 @@ from ..guard import boost_reach, guard_dest, free_steps, reach_from, strike_spot
 from ..state import ANUNG, Fighter, Game, PlayerState
 
 SIDEKICK_POLICIES = ("stay", "advance", "retreat", "guard")
+BESIDE = "beside"       # a sidekick ends next to its hero (cards that pay for it: `beside_stake`); in the tree only, offered when the stake is not 0
 ROLLOUT_POLICIES = ("stay", "advance", "retreat")    # "guard" lives in the tree only: its path analysis costs more than a random playout is worth
 FRENZY_VARIANTS = ("advance", "retreat")
 SCHEME_MOVES_KEEP = 6         # scheme moves per node: every title's greedy line first, the safe ones while they fit
@@ -76,6 +77,7 @@ class EvalWeights:
     boost_reach: float = 0.4        # the attacker that needs a boost to reach: it costs a card and is uncertain
     defend_card_hp: float = 0.75    # each attack received also costs a defense card (in equivalent HP)
     ongoing: float = 1.0            # the ONGOING in play, in hero HP (`effects.ongoing.worth`)
+    beside: float = 0.0             # share of the sidekicks standing next to their hero, when its cards pay for it (`beside_stake`)
     slope: float = 1.5              # scale of `squash` over the difference between sides
 
 
@@ -203,6 +205,7 @@ def sidekick_plan(game: Game, player: int, extra: int, policy: str,
         own[game.hero(player).fid] = hero_dest
     enemy = frozenset(game.occupied(1 - player))
     foes = tuple(sorted(enemy))
+    stake = beside_stake(game, player) > 0
     out = []
     for h in sorted((x for x in game.own(player) if not x.hero), key=lambda x: x.fid):
         others = frozenset(v for k, v in own.items() if k != h.fid)
@@ -212,11 +215,23 @@ def sidekick_plan(game: Game, player: int, extra: int, policy: str,
         options = reach_from(board, own[h.fid], h.move + extra, others, enemy)
         if policy == "guard":
             dest = guard_dest(game, own[game.hero(player).fid], options, h.fid, own)
+        elif policy == BESIDE or (policy == "advance" and stake):      # advancing, a sidekick whose hero's cards pay for it closes up
+            dest = beside_dest(board, h, own[game.hero(player).fid], options, foes)
         else:
             dest = policy_dest_from(board, own[h.fid], options, foes, policy)
         own[h.fid] = dest
         out.append((h.fid, dest))
     return tuple(out)
+
+
+def beside_dest(board, h: Fighter, hero_pos: int, options, foes: tuple[int, ...]) -> int:
+    """The square next to the hero that gives up no strike the best `advance` square has, the nearest to the rivals among them;
+    the `advance` square itself when none is reachable (like `MedusaAI.sidekick_dest` but with no slack bound: any reachable adjacent square is taken)."""
+    best = policy_dest_from(board, h.pos, options, foes, "advance")
+    strikes = lambda d: any(board.can_reach_target(d, e, h.ranged, h.reach) for e in foes)
+    keeps = strikes(best)
+    near = [d for d in set(options) | {h.pos} if d in board.adj[hero_pos] and (strikes(d) or not keeps)]
+    return min(near, key=lambda d: (nearest(board, d, foes), d)) if near else best
 
 
 def plan_frenzy(game: Game, player: int, variant: str) -> tuple[dict[str, int], int | None]:
@@ -280,6 +295,11 @@ class SearchController(Controller):
 
     def choose_move(self, game: Game, fighter: Fighter, steps: int, through_enemies: bool = False):
         policy = self.state.variant
+        if policy in (None, "advance") and not fighter.hero and beside_stake(game, fighter.owner):
+            hero_pos = game.hero(fighter.owner).pos
+            foes = foe_positions(game, fighter.owner)
+            if hero_pos is not None and foes:
+                return beside_dest(game.board, fighter, hero_pos, reach(game, fighter, steps, through_enemies) | {fighter.pos}, foes)
         if policy is None:      # Dash and Hounds: the ranged hero moves away, the others approach
             policy = "retreat" if (fighter.hero and fighter.ranged) else "advance"
         return policy_dest(game, fighter, reach(game, fighter, steps, through_enemies), policy)
@@ -353,7 +373,22 @@ class EngineState:
             if len(_moves_cache) >= MOVES_CACHE_MAX:
                 _moves_cache.clear()
             moves = _moves_cache[key] = self._generate_moves()
-        return moves
+        return self._without_pure_losses(moves)
+
+    def _without_pure_losses(self, moves: list) -> list:
+        """The schemes that would only spend here (`_pure_loss`) leave the list. Judged on this very state at every
+        call, outside the cache: the verdict reads what the signature does not hold (piles, hidden hands, draws)."""
+        if self.pending is not None or self.phase != "action" or not any(m[0] == "scheme" and m[2] is None for m in moves):
+            return moves
+        p = self.game.turn
+        hand = self.game.players[p].hand
+
+        def spends_only(m) -> bool:
+            if m[0] != "scheme" or m[2] is not None:
+                return False
+            card = by_title(hand, m[1])
+            return not is_medusa_card(card) and self._pure_loss(p, card, m[3])
+        return [m for m in moves if not spends_only(m)]
 
     def _signature(self) -> tuple:
         g = self.game
@@ -629,6 +664,30 @@ class EngineState:
             out = sorted(out, key=lambda m: m[3] == "safe")[:SCHEME_MOVES_KEEP]
         return out
 
+    def _pure_loss(self, p: int, card: Card, variant: str | None) -> bool:
+        """The scheme, played here as `apply` would, only spends: its own card and action, and maybe more cards of the
+        hand (No, Really, I'm a Doctor with nobody to heal puts one back on the deck). Nothing else moved: no piece, no
+        health, no ONGOING or status, no rival card, no draw, no action handed back, no card gained. Such a line is not a
+        move while the deck holds cards (with an empty deck it is the pass that does not exhaust), as in
+        `MedusaAI.scheme_act`. The leaf evaluation cannot tell by itself: a card is 0.15 / hand limit of a hero's life
+        and the random placements of the maneuvers it competes with are noisier than that."""
+        g = self.game
+        if not g.players[p].deck:
+            return False
+        after = g.clone()
+        after.rng = random.Random(0)        # the clone shares the game's rng: a simulated shuffle must not move it
+        after.drawn = list(g.drawn)         # `Game.clone` resets the draw counter the signatures compare
+        played = next(c for c in after.players[p].hand if c.card_id == card.card_id)
+        after.play_scheme(p, scheme_fighter(after, p, played), played,
+                          choosers={p: SyntheticChooser(policy=variant or "greedy"), 1 - p: SyntheticChooser(policy="greedy")})
+        if after.winner is not None or after.actions_left >= g.actions_left:
+            return False
+        kept = {c.card_id for c in g.players[p].hand}
+        if any(c.card_id not in kept for c in after.players[p].hand):
+            return False
+        # play_signature[0] is the own hand (it may shrink) and [1] the own deck (it may take those cards)
+        return play_signature(g, p, card)[2:] == play_signature(after, p, card)[2:]
+
     def _boost_variants(self, p: int) -> list[Card | None]:
         """Without boost, the cheapest card with the maximum boost and the cheapest card in hand (if its boost is
         different): at most three reaches."""
@@ -669,7 +728,9 @@ class EngineState:
         return frozenset().union(*(strike_spots(g.board, e.pos, hero.ranged, hero.reach) for e in g.foes(p)))
 
     def _policies(self, p: int) -> tuple[str, ...]:
-        return SIDEKICK_POLICIES if any(not f.hero for f in self.game.own(p)) else ("stay",)
+        if not any(not f.hero for f in self.game.own(p)):
+            return ("stay",)
+        return SIDEKICK_POLICIES + (BESIDE,) if beside_stake(self.game, p) else SIDEKICK_POLICIES
 
     def _placements(self, p: int, hero: Fighter) -> list[tuple[int, str]]:
         """(hero destination, sidekick policy) that enter the tree: the `PLACEMENT_KEEP` best by the
@@ -727,7 +788,10 @@ class EngineState:
         hand = min(len(g.players[p].hand), cap) / cap
         deck = min(len(g.players[p].deck), 10) / 10
         # square root: the first HP are worth more than the last; staying alive at 3 HP is not almost the same as dying
-        return (sqrt(max(hero.hp, 0) / hero.max_hp) + w.sidekicks * side_hp + w.alive * alive + w.hand * hand
+        next_to = 0.0
+        if alive and hero.pos is not None and beside_stake(g, p):
+            next_to = sum(1 for f in side if f.alive and f.pos in g.board.adj[hero.pos]) / len(side)
+        return (sqrt(max(hero.hp, 0) / hero.max_hp) + w.sidekicks * side_hp + w.beside * next_to + w.alive * alive + w.hand * hand
                 + w.deck * deck + w.ongoing * ongoing.worth(g, p) / hero.max_hp - self._exposure(p, urgent))
 
     def _exposure(self, p: int, urgent: bool) -> float:

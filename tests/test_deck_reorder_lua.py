@@ -166,7 +166,7 @@ def test_a_deck_of_one_card_is_its_own_top_and_bottom(table):
 
 def test_the_remainder_left_as_a_loose_card_still_gets_the_bottom_card(table):
     rt = table
-    deck(rt, n=4)                                   # taking three leaves one loose Card, which must be turned over for the bottom
+    deck(rt, n=4)                                   # taking three leaves one loose Card: the deck is rebuilt around it with the bottom card last
     out = run(rt, reorder("deck01", [101, 102, 103], [102, 103], [101]))
     assert out["reordered"] is True and out["quantity"] == out["was"] == 4 and out["last"] == 101
     assert order_now(rt) == [102, 103, 104, 101]

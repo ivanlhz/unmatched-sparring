@@ -133,7 +133,7 @@ class FxTable(Table):
         if not self._has_deck(s, self.bot_deck):
             return {"placed": [], "deck": False}
         ids = [int(i) for i in re.search(r"local order = \{(.*?)\}", s).group(1).split(",") if i.strip()]
-        kind = "bottom" if "(r.z + 180)" in s else "shuffle" if "deck.shuffle()" in s else "top"
+        kind = "bottom" if "bury(" in s else "shuffle" if "deck.shuffle()" in s else "top"
         placed = [i for i in ids if i in self.bot_hand]
         for i in placed:
             self.bot_hand.remove(i)

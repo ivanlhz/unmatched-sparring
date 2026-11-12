@@ -106,6 +106,8 @@ HEURISTIC_GUARD = False
 TOP_FIRST = 6
 TOP_FIRST_DESPERATE = 14   # when every action counts, a wider look is taken before committing
 TOP_SECOND = 4
+ADJACENT_BASE = 0.5        # how much `harpy_score` a sidekick gives up to stand next to the hero, from the deck alone (8 of Strange's 30 cards want it: it is the plan)
+ADJACENT_PER_CARD = 0.125  # ... and for each card of NEXT_TO_HERO in hand on top
 APPROACH_PULL = 0.1        # position value lost per space between a non-Medusa hero and the nearest rival
 BLOW_FIRSTS = 3               # extra first actions that attack from where the fighter stands (the second action may still walk away). One is not enough: the blow to open with can be the second ranked (tests/test_sinbad_live_flee.py); 2 against 3 is told apart by no test, 3 is what the simulations ran with
 APPROACH_TOP = 3           # extra first actions that walk into reach of a rival (non-Medusa heroes)
@@ -131,6 +133,7 @@ ACTION_VALUE = 1.0          # an action that gives away a scheme: at least the d
 
 BLIND_BOOST = {"Bolts of Balthakk": (1, None), "Seven Suns of Cinnibus": (2, 7)}   # Doctor Strange: (blind boosts allowed, total above which the value is ignored)
 MASTER, CLOAK, RINGS, MISTS = "Master of Kamar-Taj", "Cloak of Levitation", "The Rings of Raggadorr", "The Mists of Munnopor"
+NEXT_TO_HERO = frozenset({MASTER, RINGS, "No, Really, I'm a Doctor"})      # Doctor Strange's cards that pay when a friendly fighter stands beside him
 DAUGHTER, SKIN, GOT_MY_BACK = "Daughter of the Dragon", "Skin Like Titanium", "Got My Back?"     # Luke Cage
 SKIN_RETURN = 0.8         # Skin Like Titanium: a lost combat sends back the damage taken, but only a lost combat does (the blow it replies to already hurt)
 ASSASSIN, BETTER, PLANNED, EYES = "World's Greatest Assassin", "I'm Better And I'll Prove It", "I Planned To Be Here", "Right Between The Eyes"   # Bullseye: conditions read from the turn's record
@@ -635,6 +638,15 @@ def is_striker(game: Game, f: Fighter) -> bool:
     return prof is not None and prof["role"] == "striker"
 
 
+def beside_stake(game: Game, player: int) -> float:
+    """What a sidekick standing next to the hero is worth: ADJACENT_BASE for the deck, plus ADJACENT_PER_CARD for each card of
+    NEXT_TO_HERO in hand. Zero when the hero's deck has none of them (shared by the heuristic and the search)."""
+    st = game.players[player]
+    if not any(c.title in NEXT_TO_HERO for c in st.full_set):
+        return 0.0
+    return ADJACENT_BASE + ADJACENT_PER_CARD * sum(c.title in NEXT_TO_HERO for c in st.hand)
+
+
 class MedusaAI(Controller):
     """No randomness of its own: ties are broken by id, so given the game (seed) it is deterministic."""
 
@@ -690,7 +702,8 @@ class MedusaAI(Controller):
             if forward:
                 best = max(pool, key=lambda s: (self.harpy_score(game, h, s), -s))
             else:
-                best = max(pool, key=lambda s: (-self.harpy_score(game, h, s), -b.distance(start, s), -s))
+                beside = self.beside_hero_stake(game) > 0
+                best = max(pool, key=lambda s: (beside and s in b.adj[start], -self.harpy_score(game, h, s), -b.distance(start, s), -s))
             plan[h.fid] = best
             taken.add(best)
             zone = [s for s in zone if s != best]
@@ -1146,6 +1159,7 @@ class MedusaAI(Controller):
                 seen.add(c.boost)
                 variants.append((c, net(c)))
         out = []
+        beside = self.beside_hero_stake(game) > 0 and not self.can_hit_now(game)     # an attack to make now always beats standing next to the hero
         by_extra: dict[tuple, list[int]] = {}    # the best destinations depend only on the reach, not on the card
         for boost, cost in variants:
             extra = (boost.boost if boost else 0) + game.maneuver_bonus(self.me, boost)        # + the hero's ability (Sinbad's VOYAGE cards)
@@ -1173,7 +1187,10 @@ class MedusaAI(Controller):
                 # not get it: its pokes (POKE_FLOOR) are calibrated against lines that do not trade a position gain for them
                 covers = HEURISTIC_GUARD and boost is None and (not self.hit_and_run(game) or not self.holds_defense(game) or
                                             not any(c.can_attack and c.usable_by(f.name) for c in hand for f in game.own(self.me)))
-                for sidekicks in ("advance", "stay", "guard") if covers else ("advance", "stay"):
+                modes = ("advance", "stay", "guard") if covers else ("advance", "stay")
+                if beside:
+                    modes += ("beside",)
+                for sidekicks in modes:
                     g = game.clone()
                     g.fighters[medusa.fid].pos = d
                     moves = {medusa.fid: d}
@@ -1183,7 +1200,9 @@ class MedusaAI(Controller):
                             continue    # drawing with an empty deck kills her before she moves
                         if sidekicks != "stay" and g.fx.can_move(h):
                             opts = g.legal_moves(h, h.move + extra) | {h.pos}
-                            if sidekicks == "advance" or h.hp < WALL_MIN_HP:      # one blow from dead it blocks nothing (`position_value`)
+                            if sidekicks == "beside":
+                                h.pos = self.sidekick_dest(g, h, opts, lambda s, h=h: self.harpy_score(g, h, s))
+                            elif sidekicks == "advance" or h.hp < WALL_MIN_HP:      # one blow from dead it blocks nothing (`position_value`)
                                 h.pos = max(opts, key=lambda s: (self.harpy_score(g, h, s), -s))
                             else:       # stand where the rivals' paths to the hero are blocked (shared with the search)
                                 own = {x.fid: x.pos for x in g.own(self.me)}
@@ -1517,6 +1536,29 @@ class MedusaAI(Controller):
         best = max((c.value for c in hand if c.can_attack and c.usable_by(f.name)), default=0)
         return max(STRIKE_MIN, STRIKE_PER_POINT * (best + game.attack_bonus(f)))
 
+    def beside_hero_stake(self, game: Game) -> float:
+        return beside_stake(game, self.me)
+
+    def can_hit_now(self, game: Game) -> bool:
+        """One of my fighters holds an attack card it can play on a rival in reach from where it stands."""
+        hand = game.players[self.me].hand
+        return any(c.can_attack and c.usable_by(f.name) and game.board.can_reach_target(f.pos, e.pos, f.ranged, f.reach)
+                   for f in game.own(self.me) if f.pos is not None for e in game.foes(self.me) if e.pos is not None for c in hand)
+
+    def sidekick_dest(self, game: Game, f: Fighter, options, score) -> int:
+        """The destination of a sidekick: the best by `score`, or one beside the hero that gives up at most `beside_hero_stake` of it
+        and loses no strike on a rival the best one has (a hit always beats standing next to the hero)."""
+        best = max(options, key=lambda d: (score(d), -d))
+        stake = self.beside_hero_stake(game)
+        hero_pos = game.hero(self.me).pos
+        if not stake or f.hero or hero_pos is None:
+            return best
+        board, foes = game.board, game.foes(self.me)
+        strikes = lambda d: any(board.can_reach_target(d, e.pos, f.ranged, f.reach) for e in foes)
+        keeps = strikes(best)
+        near = [d for d in options if d in board.adj[hero_pos] and score(d) >= score(best) - stake and (strikes(d) or not keeps)]
+        return max(near, key=lambda d: (score(d), -d)) if near else best
+
     def harpy_score(self, game: Game, h: Fighter, dest: int) -> float:
         foes = game.foes(self.me)
         if not foes:
@@ -1567,7 +1609,7 @@ class MedusaAI(Controller):
             if self.double_blow_risk(game, model, {f.fid: strike}) >= SURVIVAL_P:
                 return max(options, key=rank)
             return strike
-        return max(options, key=lambda d: (self.harpy_score(game, f, d) - self.hazard_cost(game, f, d, steps, through), -d))
+        return self.sidekick_dest(game, f, options, lambda d: self.harpy_score(game, f, d) - self.hazard_cost(game, f, d, steps, through))
 
     # ---------- execution ----------
     def execute(self, game: Game, a: Act) -> None:

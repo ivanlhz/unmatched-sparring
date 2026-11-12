@@ -46,14 +46,25 @@ def is_ongoing(game, player: int, card: Card) -> bool:
         return False
 
 
-def recognize_scheme(session, base: set) -> list[Card]:
+def recognize_scheme(session, base: set, returned: dict | None = None) -> list[Card]:
     """The scheme(s) the human just played: an ONGOING one lies face up on their ONGOING spot (Ivan, 29/10), any
     other face up on their discard pile; a non-ONGOING scheme left on the spot is ignored and the human is told. Without `human_ongoing_spot` in the configuration the pile is read for
-    both (said once)."""
+    both (said once).
+
+    `returned` (`Session._scheme`): the cards of `base` that had gone back to their hand when Scheme was pressed (the
+    engine keeps a card on the pile until two buttons miss it): Wildfire's burning scheme. With no other scheme seen,
+    one of those lying on the pile again, with their hand smaller than at the press, is the scheme played (live 12/11:
+    Searing Clarity, discarded by Wildfire and then played)."""
     g, human = session.game, session.human
     st = g.players[human]
     found = [c for c in st.discard if c.card_id not in base and c.is_scheme]
+
+    def laid_again() -> list[Card]:
+        if not returned or not 0 <= session._hand_seen < returned["hand"]:
+            return []
+        return [c for c in st.discard if c.card_id in returned["cards"] and c.card_id not in session._gone and c.is_scheme]
     if session.cfg.human_ongoing_spot is None:
+        found = found or laid_again()
         if any(is_ongoing(g, human, c) for c in found):
             session._warn("ongoing", "spot", t("fx.no_spot"))
         return found
@@ -71,7 +82,7 @@ def recognize_scheme(session, base: set) -> list[Card]:
                 zone.remove(c)
         if c not in st.hand:
             st.hand.append(c)
-    return spot + [c for c in found if c not in spot]
+    return spot + [c for c in found if c not in spot] or laid_again()
 
 
 def play_scheme(session, card: Card) -> None:

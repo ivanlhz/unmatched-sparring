@@ -87,13 +87,22 @@ def test_peek_of_a_single_card_missing_deck_and_foreign_deck(rt):
         lua.peek_deck_top("deck01")
 
 
-def test_the_top_card_goes_to_the_bottom_with_the_deck_turned_over_for_the_put(rt):
+def test_the_top_card_goes_to_the_bottom_by_rebuilding_the_deck_under_it(rt):
+    """`putObject` only knows the top, whatever the deck's facing (live 12/11): the card waits locked and the deck is rebuilt."""
     deck(rt, n=3)
     out = run(rt, to_bottom("deck01", 101))
-    assert out == {"moved": True, "deck": "deck01"}
-    assert [c["guid"] for c in table_py(rt, 'getObjectFromGUID("deck01").cards')] == ["c2", "c3", "c1"]
-    assert table_py(rt, "PUT_LOG")[0]["rot_z"] == 0, "180 + 180 while the card went in"
-    assert rt.eval('getObjectFromGUID("deck01").rot.z') == 180, "turned back face down"
+    assert out["moved"] is True and out["asked"] == "deck01"
+    rebuilt = rt.eval(f'getObjectFromGUID("{out["deck"]}")')
+    assert [c["guid"] for c in table_py(rt, f'getObjectFromGUID("{out["deck"]}").cards')] == ["c2", "c3", "c1"]
+    assert rebuilt.rot.z == 180 and rebuilt.is_face_down is True, "never turned over"
+    assert rt.eval("PUT_LOG") is None and rt.eval('getObjectFromGUID("c1")') is None, "the lifted card is in the deck, not above it"
+
+
+def test_the_top_card_of_a_deck_of_two_goes_under_the_last_card(rt):
+    deck(rt, n=2)
+    out = run(rt, to_bottom("deck01", 101))
+    assert out["moved"] is True
+    assert [c["guid"] for c in table_py(rt, f'getObjectFromGUID("{out["deck"]}").cards')] == ["c2", "c1"]
 
 
 def test_the_top_card_is_only_moved_if_it_is_the_one_that_was_read(rt):

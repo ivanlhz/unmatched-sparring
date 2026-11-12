@@ -185,11 +185,14 @@ def test_card_to_deck_top_does_not_turn_the_deck(rt):
     assert table_py(rt, "PUT_LOG") == [{"deck": "deck01", "card": "loose1", "rot_z": 180}]
 
 
-def test_card_to_deck_bottom_turns_the_deck_over_for_the_put_and_back(rt):
+def test_card_to_deck_bottom_rebuilds_the_deck_with_the_card_last_and_never_turns_it(rt):
+    """`putObject` only knows the top, whatever the deck's facing (live 12/11): see test_deck_bottom_lua.py."""
     deck(rt)
-    assert run(rt, to_bottom("loose1", "deck01"))["quantity"] == 4
-    assert table_py(rt, "PUT_LOG")[0]["rot_z"] == 0      # 180 + 180 while the card went in
-    assert rt.eval('getObjectFromGUID("deck01").rot.z') == 180
+    out = run(rt, to_bottom("loose1", "deck01"))
+    assert out["placed"] is True and out["quantity"] == 4 and out["asked"] == "deck01"
+    rebuilt = rt.eval(f'getObjectFromGUID("{out["deck"]}")')
+    assert [c["cid"] for c in table_py(rt, f'getObjectFromGUID("{out["deck"]}").cards')] == [101, 102, 103, 555]
+    assert rebuilt.rot.z == 180 and rebuilt.is_face_down is True and rt.eval("PUT_LOG") is None
 
 
 def test_card_to_deck_by_card_id_and_missing_pieces(rt):
@@ -468,12 +471,13 @@ def test_hand_to_deck_puts_the_listed_hand_cards_on_top_in_order_and_nothing_els
     assert rt.eval('getObjectFromGUID("deck01").shuffled') is None
 
 
-def test_hand_to_deck_bottom_turns_the_deck_over_for_the_puts_and_back(rt):
+def test_hand_to_deck_bottom_rebuilds_the_deck_with_the_cards_last_in_order(rt):
     hand_table(rt)
     out = run(rt, hand_to_deck("Blue", [201, 203], "deck01", bottom=True))
     assert out["placed"] == [201, 203] and out["quantity"] == 4
-    assert [p["rot_z"] for p in table_py(rt, "PUT_LOG")] == [0, 0]       # 180 + 180 while the cards went in
-    assert rt.eval('getObjectFromGUID("deck01").rot.z') == 180
+    assert [c["cid"] for c in table_py(rt, f'getObjectFromGUID("{out["deck"]}").cards')] == [101, 102, 201, 203]
+    assert rt.eval(f'getObjectFromGUID("{out["deck"]}").rot.z') == 180 and rt.eval("PUT_LOG") is None
+    assert rt.eval('getObjectFromGUID("h2").hand') == "Blue" and rt.eval('getObjectFromGUID("h1")') is None
 
 
 def test_hand_to_deck_shuffle_shuffles_after_the_puts(rt):

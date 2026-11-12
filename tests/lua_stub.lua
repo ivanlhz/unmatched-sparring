@@ -4,6 +4,13 @@ SENT = {}
 TIMERS = {}
 PENDING = {}
 DEFER = false
+-- Frame mode (a test sets FRAME_MODE = true): like live TTS, `Wait.frames` / `Wait.condition` run on a later frame, a
+-- destructed object is still on the table until the frame ends and a spawned one is `spawning` for a frame. `tick(n)`
+-- advances n frames. Without it everything deferred runs at once (the old behaviour most tests rely on).
+FRAME_MODE = false
+NOW = 0
+WAITS = {}
+DYING = {}
 local function vec(x, y, z) return {x = x, y = y, z = z} end
 Vector = function(x, y, z) if type(x) == "table" then return vec(x[1] or x.x, x[2] or x.y, x[3] or x.z) end return vec(x, y, z) end
 local serial = 0
@@ -55,27 +62,33 @@ function mkobj(o)
   o.getScale = function() local s = o.scale or vec(1, 1, 1); return vec(s.x, s.y, s.z) end
   o.getData = function()
     if o.data then return o.data end
-    if o.type == "Card" then return {CardID = o.cid, CustomDeck = customDeck(o.owner, o.cid, o.deck_key)} end
-    local co = {}
-    for _, c in ipairs(o.cards or {}) do
-      table.insert(co, {CardID = c.cid, GUID = c.guid, CustomDeck = customDeck(c.owner, c.cid, c.deck_key)})
+    local r = o.rot or vec(0, 0, 0)
+    local tr = {posX = o.pos.x, posY = o.pos.y, posZ = o.pos.z, rotX = r.x, rotY = r.y, rotZ = r.z, scaleX = 1, scaleY = 1, scaleZ = 1}
+    if o.type == "Card" then
+      return {Name = "Card", GUID = o.guid, Transform = tr, CardID = o.cid, CustomDeck = o.custom or customDeck(o.owner, o.cid, o.deck_key)}
     end
-    return {ContainedObjects = co}
+    local co, ids = {}, {}
+    for _, c in ipairs(o.cards or {}) do
+      table.insert(co, {Name = "Card", CardID = c.cid, GUID = c.guid, CustomDeck = c.custom or customDeck(c.owner, c.cid, c.deck_key)})
+      table.insert(ids, c.cid)
+    end
+    return {Name = "Deck", GUID = o.guid, Transform = tr, DeckIDs = ids, CustomDeck = o.custom_deck, ContainedObjects = co}
   end
   o.getQuantity = function() return #(o.cards or {}) end
   o.shuffle = function() o.shuffled = true end
-  -- like live TTS: a card put into a face-down deck lies on its top (cards[1]); a deck turned over takes it at the other end
-  -- (cards[#cards]); a single Card becomes a Deck with a new GUID
+  -- like live TTS (seen 12/11, DARK PACT): a card put into a deck lies on its draw top (cards[1]) WHATEVER the deck's facing;
+  -- turning the deck over with setRotation in the same frame does not send the card to the bottom. A single Card becomes a
+  -- Deck with a new GUID
   o.putObject = function(x)
     PUT_LOG = PUT_LOG or {}
     table.insert(PUT_LOG, {deck = o.guid, card = x.guid, rot_z = (o.rot or vec(0, 0, 0)).z})
     if o.type == "Card" then
-      o.cards = {{cid = o.cid, guid = o.guid, owner = o.owner, deck_key = o.deck_key}}
+      o.cards = {{cid = o.cid, guid = o.guid, owner = o.owner, deck_key = o.deck_key, custom = o.custom}}
       o.type, o.guid, o.cid = "Deck", "deck" .. serial .. "x" .. #PUT_LOG, nil
     end
-    local at = (o.is_face_down == false) and #o.cards + 1 or 1
+    local at = 1
     local added = {}
-    if x.type == "Card" then added = {{cid = x.cid, guid = x.guid, owner = x.owner, deck_key = x.deck_key}} else added = x.cards end
+    if x.type == "Card" then added = {{cid = x.cid, guid = x.guid, owner = x.owner, deck_key = x.deck_key, custom = x.custom}} else added = x.cards end
     for k, c in ipairs(added) do table.insert(o.cards, at + k - 1, c) end
     for i, y in ipairs(OBJECTS) do if y == x then table.remove(OBJECTS, i) break end end
     return o
@@ -97,11 +110,11 @@ function mkobj(o)
     for i, c in ipairs(o.cards or {}) do
       if c.guid == t.guid or (t.guid == nil and i == 1) then
         table.remove(o.cards, i)
-        local card = mkobj({guid = c.guid, type = "Card", cid = c.cid, owner = c.owner, deck_key = c.deck_key, pos = Vector(t.position),
+        local card = mkobj({guid = c.guid, type = "Card", cid = c.cid, owner = c.owner, deck_key = c.deck_key, custom = c.custom, pos = Vector(t.position),
                             rot = o.rot, is_face_down = o.is_face_down})
         if #o.cards == 1 then          -- like live TTS: the last card of a deck is a loose Card with a GUID of its own
           local last = o.cards[1]
-          o.type, o.guid, o.cid, o.owner, o.deck_key, o.cards = "Card", last.guid, last.cid, last.owner, last.deck_key, nil
+          o.type, o.guid, o.cid, o.owner, o.deck_key, o.custom, o.cards = "Card", last.guid, last.cid, last.owner, last.deck_key, last.custom, nil
         end
         return card
       end
@@ -128,7 +141,18 @@ function mkobj(o)
   o.getTable = function(k) return o.tbl end
   o.setTable = function(k, t) o.tbl = t end
   o.call = function() end
-  o.destruct = function() for i, y in ipairs(OBJECTS) do if y == o then table.remove(OBJECTS, i) break end end end
+  o.destruct = function()
+    if FRAME_MODE then table.insert(DYING, o) return end       -- still on the table (getObjects, its GUID) until the frame ends
+    for i, y in ipairs(OBJECTS) do if y == o then table.remove(OBJECTS, i) break end end
+  end
+  -- a real draw: the top cards leave the deck for the seat's hand, face up
+  o.deal = o.deal or function(k, color)
+    for _ = 1, k do
+      local c = o                                   -- the last card of a deck is the deck
+      if o.type == "Deck" then c = o.takeObject({position = o.pos}) end
+      c.hand, c.is_face_down, c.rot = color, false, vec(0, 0, 0)
+    end
+  end
   table.insert(OBJECTS, o)
   return o
 end
@@ -168,14 +192,58 @@ end
 function spawnObjectData(t)
   local d = t.data
   SPAWNED = (SPAWNED or 0) + 1
+  if d.ContainedObjects ~= nil then
+    -- a deck by data: ContainedObjects[1] is the draw top. Live TTS wants DeckIDs in step with the cards and an image for each
+    assert(d.Name == "Deck" or d.Name == "DeckCustom", "deck data needs the Name of a deck")
+    assert(#d.ContainedObjects >= 2, "a deck has two cards or more")
+    assert(type(d.DeckIDs) == "table" and #d.DeckIDs == #d.ContainedObjects, "DeckIDs out of step with ContainedObjects")
+    local cards = {}
+    for i, c in ipairs(d.ContainedObjects) do
+      assert(d.DeckIDs[i] == c.CardID, "DeckIDs out of step with ContainedObjects")
+      local key = math.floor(c.CardID / 100)
+      assert(type(d.CustomDeck) == "table" and (d.CustomDeck[tostring(key)] or d.CustomDeck[key]), "no CustomDeck image for card " .. c.CardID)
+      local owner = nil      -- the stub's images name the owner (customDeck): kept so a test still tells whose card it is
+      for _, image in pairs(c.CustomDeck or {}) do owner = tostring(image.FaceURL):match("^https://img%.test/(.-)/face$") end
+      cards[i] = {cid = c.CardID, guid = c.GUID or ("card" .. SPAWNED .. "x" .. i), custom = c.CustomDeck, owner = owner}
+    end
+    local guid, rot = d.GUID, Vector(t.rotation)
+    if guid == nil or getObjectFromGUID(guid) ~= nil then guid = "spawned" .. SPAWNED end     -- a GUID in use is never given twice
+    local deck = mkobj({guid = guid, type = "Deck", cards = cards, custom_deck = d.CustomDeck, pos = Vector(t.position), rot = rot,
+                        is_face_down = math.floor((rot.z or 0) + 0.5) % 360 == 180, spawning = FRAME_MODE or nil})
+    if t.callback_function then Wait.frames(function() t.callback_function(deck) end, 1) end
+    return deck
+  end
   return mkobj({guid = "spawned" .. SPAWNED, type = "Card", cid = d.CardID, name = d.Nickname, gm = d.GMNotes,
                 tags = d.Tags, locked = d.Locked, data = d, pos = Vector(t.position), rot = Vector(t.rotation)})
 end
 Wait = {
-  frames = function(f, n) f() end,
+  frames = function(f, n)
+    if FRAME_MODE then table.insert(WAITS, {f = f, at = NOW + (n or 1)}) return end
+    f()
+  end,
   time = function(f, s) table.insert(TIMERS, f) end,
   condition = function(f, cond, timeout, tf)
+    if FRAME_MODE then table.insert(WAITS, {f = f, cond = cond, tf = tf, at = NOW + math.ceil((timeout or 1e9) * 60)}) return end
     if DEFER then table.insert(PENDING, {f = f, cond = cond, tf = tf}) return end
     if cond() then f() else tf() end
   end,
 }
+function tick(n)
+  for _ = 1, n or 1 do
+    for _, o in ipairs(DYING) do
+      for i, y in ipairs(OBJECTS) do if y == o then table.remove(OBJECTS, i) break end end
+    end
+    DYING = {}
+    for _, o in ipairs(OBJECTS) do o.spawning = nil end
+    NOW = NOW + 1
+    local due = WAITS
+    WAITS = {}
+    for _, w in ipairs(due) do
+      if w.cond == nil then
+        if w.at <= NOW then w.f() else table.insert(WAITS, w) end
+      elseif w.cond() then w.f()
+      elseif w.at <= NOW then if w.tf then w.tf() end
+      else table.insert(WAITS, w) end
+    end
+  end
+end

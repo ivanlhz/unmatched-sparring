@@ -331,7 +331,12 @@ def test_if_sleight_is_left_next_to_the_new_card_the_bot_takes_it_back_to_the_ha
     table.face_down = [{"id": old, "guid": f"h{old}"}, {"id": new, "guid": f"h{new}"}]
     msgs = done(session, table)
     assert [r["id"] for r in table.face_down] == [new] and old in table.human_hand
-    assert said(msgs, "Houdini ataca con Flourish (3)")
+    assert said(msgs, "Flourish revelado: si quieres potenciar")                            # its free BOOST is asked (F-SLEIGHT-BIG-REVEAL)
+    table.human_hand.remove(old)                                                            # the Sleight the bot sent back is the boost
+    table.human_discard.append(old)
+    table.human_count -= 1
+    msgs = click(session, table, Event.BOOST)
+    assert said(msgs, "Houdini ataca con Flourish (3)") and said(msgs, "total 6")
 
 
 @with_rig("hellboy", "houdini")
@@ -360,5 +365,6 @@ def test_resume_at_the_pause_keeps_waiting_for_the_card(rig, monkeypatch, tmp_pa
     assert req.kind == "cards" and req.extra["sleight"] and resumed.pending.flow.atk_card.title == SLEIGHT
     old, new = swap_on_table(table, game, SLEIGHT, "Flourish")
     hp = game.fighters["hellboy"].hp
-    msgs = click(resumed, table, Event.CHOICE, {"i": 1})
+    click(resumed, table, Event.CHOICE, {"i": 1})
+    msgs = click(resumed, table, Event.NO_BOOST)                                             # Flourish's free BOOST, declined
     assert "Houdini ataca con Flourish (3)" in " ".join(msgs) and game.fighters["hellboy"].hp == hp - 3

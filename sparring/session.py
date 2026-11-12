@@ -400,6 +400,9 @@ class Session:
         self.zoom_ids: set[int] = set()                    # bot cards the next discard write shows as a big copy
         self.reveal_shown = False                          # big copies of revealed cards lie on the table: "Stop revealing" shows (session_reveal)
         self.scheme_baseline: list[int] | None = None      # human's discard when pressing Scheme: waits for their card
+        # of that baseline, the cards that went back to their hand before Scheme (off the pile AND the hand grew at
+        # that read), with the hand count then: {"cards": [...], "hand": n}
+        self.scheme_returned: dict | None = None
         self.maneuver_baseline: list[int] | None = None    # their discard at Maneuver: a BOOST 0 card put there is warned
         self.maneuver_boosted: int | None = None           # the card this Maneuver was boosted with (once; its effects already ran)
         self._deal_at = -1e9                                # when cards were last dealt to the human (they may still be flying to their hand)
@@ -419,6 +422,8 @@ class Session:
         self.dials_attempted: dict[str, int] = {}  # GUID -> last value tried to write (verified or not)
         self._warned: set[tuple[str, str]] = set()
         self._deck_qty = -1                                 # cards in the human's draw deck at the last read
+        self._hand_seen = -1                                # cards in the human's table hand at the last read
+        self._hand_grew = (-1, 0)                           # (button, cards) their table hand last grew past the engine's
         self._deal_check: tuple[int, int, int] | None = None  # (hand, cards, discard) of the human when dealing them cards
         self.human_dealt = 0                                # human draws (`Game.drawn`) already dealt or taken as done (saved)
         self._epoch = 0                                     # number of the button attended (to confirm discard removals)
@@ -1417,7 +1422,16 @@ class Session:
         while (wait := flow.run()) is not None:
             if wait.choice.kind == "table" or (wait.choice.kind == "effect" and wait.choice.player == self.human):
                 return                            # `_combat_step_done` shows the choice, after what the combat already did
+            if self._swap_boost_due(p, wait.choice) and choose(wait.choice) is None:
+                return                            # `_combat_step_done` asks for the boost of the card played instead
             flow.resume(choose(wait.choice))
+
+    def _swap_boost_due(self, p: Pending, choice: PendingChoice) -> bool:
+        """The human's attack card was played INSIDE the combat (Sleight Of Hand: "Resolve all effects on that card as
+        normal"), so its free BOOST could not be put down before the combat ran: it is asked now, once, when the flow
+        reaches it."""
+        return (choice.kind == "boost" and choice.player == self.human and p.kind == "human_attacks" and p.flow.returned
+                and not p.combat.get("swap_boost"))
 
     def panel_labels(self) -> dict[str, str]:
         """Texts of the visible choice buttons (empty without a pending choice)."""
@@ -1663,6 +1677,7 @@ class Session:
             "placing": self.placing, "fingerprint": self.fingerprint(),
             "destiny_seen": None if self.destiny_seen is None else list(self.destiny_seen),
             "scheme_baseline": self.scheme_baseline, "dial_debt": self.dial_debt, "setup": self.setup,
+            **({"scheme_returned": self.scheme_returned} if self.scheme_returned else {}),
             **({"maneuver_baseline": self.maneuver_baseline} if self.maneuver_baseline is not None else {}),
             **({"maneuver_boosted": self.maneuver_boosted} if self.maneuver_boosted is not None else {}),
             **({"ability_wait": self.ability_wait} if self.ability_wait is not None else {}),
@@ -1744,6 +1759,7 @@ class Session:
             self.flush_failures = d["flush_failures"]
             self.placing = d.get("placing")
             self.scheme_baseline = d.get("scheme_baseline")
+            self.scheme_returned = d.get("scheme_returned")
             self.maneuver_baseline = d.get("maneuver_baseline")
             self.maneuver_boosted = d.get("maneuver_boosted")
             self.ability_wait = d.get("ability_wait")
@@ -2169,6 +2185,12 @@ class Session:
         self.game.use_action()
         self.moving = True
         self.scheme_baseline = [c.card_id for c in self.game.players[self.human].discard]
+        # A card the table stopped showing at this very button is still in the engine's pile (a removal needs two
+        # buttons). If their hand grew by as much at this same button it went back to the hand (Wildfire's burning
+        # card): laid on the pile again it IS the scheme played. A lone missed read (hand unchanged) proves nothing.
+        back = [i for i in self.scheme_baseline if self._gone.get(i) == self._epoch]
+        grew = self._hand_grew[1] if self._hand_grew[0] == self._epoch else 0
+        self.scheme_returned = {"cards": back, "hand": self._hand_seen} if 0 < len(back) <= grew else None
         if self._resolve_human_scheme(wait=not self.cfg.batch):
             if self._paused() is None:
                 self.say(t("sess.press_end"), ChatKind.YOUR_TURN)
@@ -2183,11 +2205,11 @@ class Session:
 
         def seen() -> bool:
             self.sync_human()
-            found[:] = human_effects.recognize_scheme(self, base)
+            found[:] = human_effects.recognize_scheme(self, base, self.scheme_returned)
             return bool(found)
         if not (self._settle(seen) if wait else seen()):
             return False
-        self.scheme_baseline = None
+        self.scheme_baseline, self.scheme_returned = None, None
         discarding = [c for c in found if self._scheme_traits(c).get("discards_hand")]
         if discarding:                            # a card that discards the hand: the rest that appears is not a played scheme
             found[:] = discarding[:1]
@@ -2455,12 +2477,56 @@ class Session:
         self._flip_queued(cards)
         p.wait = PendingChoice("boost", self.human, card.card_id, deck_boost(card),
                                {"guid": guid, "baseline": baseline, "hand": self._rd_human_count(-1), "stuck": False})
+        self._offer_boost(p, card, boost_limit(card))
+
+    def _offer_boost(self, p: Pending, card: Card, limit: int) -> None:
         if p.wait.deck:
             self.say(t("boost.revealed_deck", title=card.title), ChatKind.YOUR_TURN)
-        elif boost_limit(card) > 1:
-            self.say(t("boost.revealed_many", title=card.title, n=boost_limit(card)), ChatKind.YOUR_TURN)
+        elif limit > 1:
+            self.say(t("boost.revealed_many", title=card.title, n=limit), ChatKind.YOUR_TURN)
         else:
             self.say(t("boost.revealed", title=card.title), ChatKind.YOUR_TURN)
+
+    def _await_swap_boost(self, p: Pending, choice: PendingChoice) -> None:
+        """The running combat stops at the free BOOST of the card the human played instead of Sleight Of Hand: the same
+        wait as `_await_boost` (cards in the discard pile, Continue or No boost), answered inside the flow
+        (`_boost_swapped_card`). The hand count is not checked when the bot has just sent Sleight Of Hand flying to
+        that hand."""
+        card = p.flow.atk_card
+        own = {c.card_id for c in self.game.players[self.human].full_set}
+        baseline = sorted({r["id"] for r in self._rd_human_discard()} & own)
+        hand = -1 if p.combat.pop("hand_in_flight", False) else self._rd_human_count(-1)
+        p.wait = PendingChoice("boost", self.human, card.card_id, deck_boost(card),
+                               {"guid": self.combat_guids.get(card.card_id), "baseline": baseline, "hand": hand, "stuck": False})
+        self._offer_boost(p, card, self._boosts_left(p, card))
+
+    @staticmethod
+    def _given_boosts(p: Pending) -> list[int]:
+        """The boost cards the human already put down for the running combat (before a Sleight Of Hand swap)."""
+        if p.flow is None:
+            return []
+        return list(p.combat.get("boosts") or ([p.combat["boost"]] if p.combat["boost"] is not None else []))
+
+    def _boosts_left(self, p: Pending, card: Card) -> int:
+        return max(boost_limit(card), 1) - len(self._given_boosts(p))
+
+    def _boost_swapped_card(self, p: Pending, card: Card, spent: list) -> None:
+        """Continue / No boost for the card played instead of Sleight Of Hand: the cards become the answers of the
+        running flow, which goes on from its DURING. A refusal of the engine goes back to the wait."""
+        def step() -> None:
+            mine = {c.card_id: c for c in self.game.players[self.human].full_set}
+            boosts = [mine[i] for i in self._given_boosts(p)] + spent
+            for b in spent:
+                self.make_known(b, keep=(card, *boosts))
+            p.combat["fx"] = bot_effects.snapshot(self)       # after the boost cards are known: the diff is the effects'
+            p.combat["boost"] = boosts[0].card_id if boosts else None
+            if len(boosts) > 1:
+                p.combat["boosts"] = [b.card_id for b in boosts]
+            p.combat["swap_boost"] = True
+            p.wait = None
+            self._drive_flow(p.flow)
+        if self._guarded(step):
+            self._combat_step_done(p)
 
     def _boost(self, _: dict) -> None:
         self._finish_boost(True)
@@ -2485,7 +2551,7 @@ class Session:
         if use:
             seen = {r["id"] for r in self._rd_human_discard() if r["id"] in mine}
             new = sorted(seen - set(p.wait.extra["baseline"]) - {card.card_id})
-            limit = max(boost_limit(card), 1)       # a card that says "boost this card twice" takes up to that many
+            limit = self._boosts_left(p, card)      # a card that says "boost this card twice" takes up to that many
             if not new:
                 self.say(t("boost.no_new"), ChatKind.WARNING)
                 return
@@ -2505,6 +2571,9 @@ class Session:
                 return
             boost = spent if len(spent) > 1 else spent[0]
         self.sync_positions()                     # the table rules: something may have moved while waiting
+        if p.flow is not None:                    # Sleight Of Hand: the combat is already running, the boost is its answer
+            self._boost_swapped_card(p, card, [] if boost is None else boost if isinstance(boost, list) else [boost])
+            return
         self._resolve_combat(p, card, p.wait.extra["guid"], flip=False, boost=boost)
         p = self.pending                          # a refused combat restores the snapshot: a rebuilt Pending
         if p is not None and p.wait is not None:
@@ -2592,6 +2661,8 @@ class Session:
         p.combat["before"], p.combat["fx"] = self._snapshot_bot(), bot_effects.snapshot(self)
         if (wait := p.flow.pending) is not None and wait.kind == "effect" and wait.player == self.human:
             self._show_choice(p.flow.awaiting_run.awaiting)
+        elif wait is not None and p.wait is None and self._swap_boost_due(p, wait):
+            self._await_swap_boost(p, wait)
         elif self._table_gate(p):
             self.moving = True
             nxt = p.flow.sides[p.flow.side_idx].card.title
@@ -3062,7 +3133,7 @@ class Session:
         self.game.hand_moves.clear()              # the action is over: what an effect let the human walk is spent
         if self.scheme_baseline is not None and not self._resolve_human_scheme(wait=False):
             self.say(t("end.no_scheme"), ChatKind.WARNING)
-        self.scheme_baseline = None
+        self.scheme_baseline, self.scheme_returned = None, None
         if self._paused() is not None:            # the plan asks you something: the turn cannot end (nor its actions be counted) before the answer
             return
         if self.maneuver_baseline is not None:
@@ -3929,6 +4000,19 @@ class Session:
         setattr(c, key, guid)
         self._snap_spec = None                              # the snapshot skips the deck by GUID
 
+    def _adopt_rebuilt(self, result) -> None:
+        """A card sent to the bottom of a deck rebuilds it (`lua_deck.BURY_LUA`) and TTS gives the new deck another GUID. The
+        reply names the GUID that was `asked` for and the `deck` there is now: the session follows it, or the snapshot (which
+        counts the human's deck by GUID) would lose the deck for the rest of the game."""
+        if not isinstance(result, dict) or not isinstance(result.get("asked"), str):
+            return
+        now = result.get("deck")
+        if not isinstance(now, str) or not lua._GUID.fullmatch(now):
+            return
+        for side in ("bot", "human"):
+            if getattr(self.cfg, f"{side}_deck_guid") == result["asked"]:
+                self._adopt_deck(side, now)
+
     def _live_zones(self) -> dict[str, str]:
         """Discard zones whose GUID is no longer the configured one (the bot created them, TTS gave them another)."""
         return {key: getattr(self.cfg, key) for key in DISCARD_ZONE_KEYS if key in self._zone_origin}
@@ -4250,6 +4334,7 @@ class Session:
                     o.error = TTSLuaError(r["__err"])
                     continue
                 o.value = r
+                self._adopt_rebuilt(r)
             if wants_state:
                 self.snap = self._parse_snap(res.get("state") if isinstance(res, dict) else None,
                                              set(self.game.board.spaces))
@@ -5390,6 +5475,9 @@ class Session:
         deck_qty = (self.snap or {}).get("human_deck_qty", -1) if self.cfg.batch else -1
         fresh = [c for c in st.discard if c.card_id not in ids and c.card_id not in self._gone]
         real = self._rd_human_count(len(st.hand))
+        self._hand_seen = real
+        if real > len(st.hand):
+            self._hand_grew = (self._epoch, real - len(st.hand))
         # If the draw deck grew by as many cards as just went missing, the deck tests where they went: the removal counts
         # at once, without waiting for the second button. Growth that explains one card less in the hand (Glimpse of hell:
         # hand -> deck) does not count, or a failed stray read would lower the counter.

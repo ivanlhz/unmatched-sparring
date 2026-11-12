@@ -124,6 +124,8 @@ def _settle_play(session, req: ChoiceRequest, ids: list[int]) -> None:
     try:
         if sleight:                               # Sleight Of Hand goes back to their hand, not to the discard pile
             moved = result_of(session._w(lua.return_card_to_hand(rows[old], cfg.human_seat), DOMAIN)).get("returned")
+            if moved and session.pending is not None and session.pending.combat is not None:
+                session.pending.combat["hand_in_flight"] = True      # the hand count is not to be trusted yet (`_await_swap_boost`)
         else:
             op = session._w(lua.card_to_discard(rows[old], cfg.human_discard_zone, cfg.human_card_ids,
                                                 identity=session._identity("human")), DOMAIN)

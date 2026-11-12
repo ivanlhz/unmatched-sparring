@@ -21,7 +21,7 @@ from enum import Enum
 from ..board import Board
 from ..cards import HELLBOY_BASE, MEDUSA_BASE
 from . import ui
-from .lua_deck import DECK_FUNCS, home_lua
+from .lua_deck import BURY_LUA, DECK_FUNCS, home_lua
 
 BOARD_GUIDS = {"bprd-hq": "ec6f27", "azuchi-castle": "e57969"}
 PANEL_NAME = "SparringPanel"
@@ -620,7 +620,8 @@ def _deck_finder(spot, radius, zone) -> str:
     With a scripting `zone` (`bot_deck_zone` / `human_deck_zone`) that is the only place that counts: the object found
     by GUID must be inside it and, if not, the Deck (else the loose Card) inside the zone is taken. Without a zone, and
     with a `spot` (x, z), the nearest Deck or Card closer than `radius`. Only what is face down counts (a face-up card
-    is discard), so the discard piles are never taken for the deck. Requires `_ours_lua` first."""
+    is discard), so the discard piles are never taken for the deck. Of two that tie, the lower one: a card waiting above the
+    deck to be sent under it (`lua_deck.BURY_LUA`) is not the deck. Requires `_ours_lua` first."""
     body = ""
     if zone is not None:
         body += f"""  local inside = zoneObjects(getObjectFromGUID({_guid(zone)}))
@@ -633,19 +634,20 @@ def _deck_finder(spot, radius, zone) -> str:
   end
   if d == nil then
     for _, o in ipairs(inside) do
-      if (o.type == "Deck" or o.type == "Card") and o.is_face_down and ours(o) and (d == nil or (o.type == "Deck" and d.type ~= "Deck")) then d = o end
+      if (o.type == "Deck" or o.type == "Card") and o.is_face_down and ours(o) and (d == nil or (o.type == "Deck" and d.type ~= "Deck")
+          or (o.type == d.type and o.getPosition().y < d.getPosition().y)) then d = o end
     end
   end
 """
     elif spot is not None:
         x, z, r = _spot(spot, radius)
         body += f"""  if d == nil then
-    local best = nil
+    local best, low = nil, nil
     for _, o in ipairs(getObjects()) do
       if (o.type == "Deck" or o.type == "Card") and o.is_face_down then
         local p = o.getPosition()
         local d2 = (p.x - {x}) ^ 2 + (p.z - {z}) ^ 2
-        if d2 <= {r} ^ 2 and ours(o) and (best == nil or d2 < best) then d = o; best = d2 end
+        if d2 <= {r} ^ 2 and ours(o) and (best == nil or d2 < best or (d2 == best and p.y < low)) then d = o; best = d2; low = p.y end
       end
     end
   end
@@ -2699,7 +2701,8 @@ local function settled(o)
   return true
 end
 local function ready()
-{hold_ready}  if expectSeat ~= nil and #Player[expectSeat].getHandObjects(1) ~= expectN then return false end
+{hold_ready}  if sparringBury ~= nil and sparringBury.busy > 0 then return false end       -- a deck is being rebuilt (lua_deck.BURY_LUA)
+  if expectSeat ~= nil and #Player[expectSeat].getHandObjects(1) ~= expectN then return false end
   for _, r in ipairs(results) do
     if type(r.moved) == "string" then
       local o = getObjectFromGUID(r.moved)
@@ -2712,6 +2715,7 @@ local slow = expectSeat ~= nil
 for _, r in ipairs(results) do
   if type(r.moved) == "string" or r.dealt ~= nil then slow = true end
 end
+if sparringBury ~= nil and sparringBury.busy > 0 then slow = true end
 {hold_slow}if slow then
 {hold_timer}  Wait.frames(function()
     Wait.condition(function() pcall(finish) end, ready, {wait_for}, function() pcall(finish) end)
@@ -3291,9 +3295,7 @@ end)()"""
 end)()"""
 
 
-def _deck_insert(card, deck_guid: str, tag: str, bottom: bool, identity, id_range, spot, zone, radius) -> str:
-    flip_in = "local r = deck.getRotation()\ndeck.setRotation(Vector(r.x, r.y, (r.z + 180) % 360))\n" if bottom else ""
-    flip_out = "deck.setRotation(Vector(r.x, r.y, r.z))\n" if bottom else ""
+def _deck_insert(card, deck_guid: str, tag: str, identity, id_range, spot, zone, radius) -> str:
     return f"""-- sparring:{tag}
 {_ours_lua(identity, id_range)}{_deck_finder(spot, radius, zone)}{_LOOSE_LUA}{DECK_FUNCS}local deck = findDeck({_guid(deck_guid)})
 {home_lua(spot, zone)}if deck == nil and home == nil then return JSON.encode({{placed = false, deck = false}}) end
@@ -3303,8 +3305,8 @@ if deck == nil then
   deck = layFirst(card, home)
   return JSON.encode({{placed = true, deck = deck.getGUID(), quantity = 1}})
 end
-{flip_in}deck = deck.putObject(card) or deck
-{flip_out}return JSON.encode({{placed = true, deck = deck.getGUID(), quantity = qty(deck)}})
+deck = deck.putObject(card) or deck
+return JSON.encode({{placed = true, deck = deck.getGUID(), quantity = qty(deck)}})
 """
 
 
@@ -3317,16 +3319,31 @@ def card_to_deck_top(card: str | int, deck_guid: str, id_range: tuple[int, int] 
     `ours` (`id_range` and the image of `identity`: the bot's by default, the human's when the session projects their
     own discard pile card into their deck, Ivan 29/10) and in no hand zone counts; the deck must be `ours` too, else
     `{placed = false, deck = false}`."""
-    return _deck_insert(card, deck_guid, "card_to_deck_top", False, identity, id_range, spot, zone, radius)
+    return _deck_insert(card, deck_guid, "card_to_deck_top", identity, id_range, spot, zone, radius)
 
 
 @_registered
 def card_to_deck_bottom(card: str | int, deck_guid: str, id_range: tuple[int, int] = BOT_CARD_IDS, *,
                         identity, spot: tuple[float, float] | None = None, zone: str | None = None,
                         radius: float = DECK_RADIUS) -> str:
-    """Puts a loose card at the bottom of a deck of the same side: the deck is turned over (instant) so its bottom is
-    the top, the card is put in and the deck turned back. Same guards as `card_to_deck_top`. Verify live."""
-    return _deck_insert(card, deck_guid, "card_to_deck_bottom", True, identity, id_range, spot, zone, radius)
+    """Sends a loose card to the bottom of a deck of the same side. Same guards as `card_to_deck_top`, but nothing is
+    put: the deck is rebuilt from its data with the card as its last one, on a later frame (`lua_deck.BURY_LUA`), so the
+    card is still loose when this returns. The reply says what WILL be (`placed = true`, `quantity` with the card
+    counted, `deck` the GUID found now); inside a composite it is corrected once the deck is rebuilt: `placed = false`
+    if the card or the table failed, else `deck` is the NEW deck's GUID and `asked` the GUID that was asked for (TTS
+    gives a spawned deck another one: the session follows it)."""
+    return f"""-- sparring:card_to_deck_bottom
+{_ours_lua(identity, id_range)}{_deck_finder(spot, radius, zone)}{_LOOSE_LUA}{DECK_FUNCS}{BURY_LUA}local deck = findDeck({_guid(deck_guid)})
+{home_lua(spot, zone)}if deck == nil and home == nil then return JSON.encode({{placed = false, deck = false}}) end
+local card = {_card_ref_lua(card)}
+if card == nil then return JSON.encode({{placed = false}}) end
+local out = {{placed = true, deck = (deck or card).getGUID()}}
+out.quantity = (deck ~= nil and qty(deck) or 0) + bury({_guid(deck_guid)}, home, {{card}}, function(new, lost)
+  out.placed = not lost[1]
+  if new ~= nil then out.asked, out.deck, out.quantity = {_guid(deck_guid)}, new.getGUID(), qty(new) end
+end)
+return JSON.encode(out)
+"""
 
 
 @_registered
@@ -3334,19 +3351,18 @@ def hand_to_deck(seat_color: str, card_ids: list[int], deck_guid: str, id_range:
                  identity, bottom: bool = False, shuffle: bool = False, spot: tuple[float, float] | None = None,
                  zone: str | None = None, radius: float = DECK_RADIUS) -> str:
     """Puts cards of the bot's HAND (by CardID, in that order, the first match of each) into the bot's deck: on top,
-    at the bottom (`bottom`: the deck is turned over for the puts, like `card_to_deck_bottom`, so the last id ends
-    up as the very bottom card) or anywhere (`shuffle`: shuffled after). The loose-card builders refuse hand zones on
-    purpose; this one takes only from `seat_color`'s hand, only cards that are `ours`, and needs a deck that is
-    `ours`. Returns `{placed: [ids], deck, quantity}` (`deck = false` when the deck is not there)."""
+    at the bottom (`bottom`: the deck is rebuilt on a later frame like `card_to_deck_bottom`, the last id ends up as
+    the very bottom card and the cards are still in the hand when this returns) or anywhere (`shuffle`: shuffled
+    after). The loose-card builders refuse hand zones on purpose; this one takes only from `seat_color`'s hand, only
+    cards that are `ours`, and needs a deck that is `ours`. Returns `{placed: [ids], deck, quantity}` (`deck = false`
+    when the deck is not there)."""
     if not isinstance(card_ids, (list, tuple)) or not 1 <= len(card_ids) <= MAX_DECK_CARDS:
         raise ValueError(f"1 to {MAX_DECK_CARDS} cards expected")
     if not isinstance(bottom, bool) or not isinstance(shuffle, bool):
         raise TypeError("bottom and shuffle are booleans")
     order = "{" + ", ".join(_i(c) for c in card_ids) + "}"
-    flip_in = "deck.setRotation(Vector(r.x, r.y, (r.z + 180) % 360))\n" if bottom else ""
-    flip_out = "deck.setRotation(Vector(r.x, r.y, r.z))\n" if bottom else ""
-    return f"""-- sparring:hand_to_deck
-{_ours_lua(identity, id_range)}{_deck_finder(spot, radius, zone)}{DECK_FUNCS}local deck = findDeck({_guid(deck_guid)})
+    head = f"""-- sparring:hand_to_deck
+{_ours_lua(identity, id_range)}{_deck_finder(spot, radius, zone)}{DECK_FUNCS}{BURY_LUA if bottom else ""}local deck = findDeck({_guid(deck_guid)})
 {home_lua(spot, zone)}if deck == nil and home == nil then return JSON.encode({{placed = {{}}, deck = false}}) end
 local order = {order}
 local byId = {{}}
@@ -3356,19 +3372,37 @@ for _, o in ipairs(Player[{_color(seat_color)}].getHandObjects(1)) do
     if byId[id] == nil then byId[id] = o end
   end
 end
-local r = deck ~= nil and deck.getRotation() or nil
-local function turnOver()
-  r = deck.getRotation()
-  {flip_in.replace("deck.setRotation", "deck.setRotation") if flip_in else ""}
-end
-if deck ~= nil then turnOver() end
 local placed = {{}}
+"""
+    if bottom:
+        return head + f"""local cards = {{}}
 for _, id in ipairs(order) do
+  local c = byId[id]
+  if c ~= nil then
+    byId[id] = nil
+    table.insert(cards, c)
+    table.insert(placed, id)
+  end
+end
+if #cards == 0 then
+  if deck == nil then return JSON.encode({{placed = placed, deck = false}}) end
+  return JSON.encode({{placed = placed, deck = deck.getGUID(), quantity = qty(deck)}})
+end
+local out = {{placed = placed, deck = (deck or cards[1]).getGUID()}}
+out.quantity = (deck ~= nil and qty(deck) or 0) + bury({_guid(deck_guid)}, home, cards, function(new, lost)
+  out.placed = {{}}
+  for i, id in ipairs(placed) do
+    if not lost[i] then table.insert(out.placed, id) end
+  end
+  if new ~= nil then out.asked, out.deck, out.quantity = {_guid(deck_guid)}, new.getGUID(), qty(new) end
+end)
+return JSON.encode(out)
+"""
+    return head + f"""for _, id in ipairs(order) do
   local c = byId[id]
   if c ~= nil then
     if deck == nil then
       deck = layFirst(c, home)
-      turnOver()
     else
       deck = deck.putObject(c) or deck
     end
@@ -3377,7 +3411,7 @@ for _, id in ipairs(order) do
   end
 end
 if deck == nil then return JSON.encode({{placed = placed, deck = false}}) end
-{flip_out}{"if deck.type == 'Deck' then deck.shuffle() end" if shuffle else ""}
+{"if deck.type == 'Deck' then deck.shuffle() end" if shuffle else ""}
 return JSON.encode({{placed = placed, deck = deck.getGUID(), quantity = qty(deck)}})
 """
 
@@ -3702,10 +3736,12 @@ def deck_top_to_bottom(deck_guid: str, expect_id: int, id_range: tuple[int, int]
     """Moves the top card of a deck to its bottom, only if that top card is `expect_id` and `ours` (`id_range` and
     the image of `identity`): the card was read a moment ago and nobody must lose a different one. The top card is
     taken off with `takeObject()` (what TTS calls the top, whatever order the read assumed) and its CardID is checked: a
-    different one goes back on top and nothing moves (`mismatch`). The rest is turned over (instant) so its bottom is its top, the card goes in and the deck is turned
-    back, like `card_to_deck_bottom`. A single card is already at the bottom. Returns `{moved, deck}` (`deck = false`
-    when the deck is not there, `moved = false` when the top card is not the expected one)."""
-    own = _ours_lua(identity, id_range) + _deck_finder(spot, radius, zone)
+    different one goes back on top and nothing moves (`mismatch`). The card then waits above the rest (locked, face
+    down) and the deck is rebuilt with it as its last card on a later frame, like `card_to_deck_bottom`. A single card
+    is already at the bottom. Returns `{moved, deck}` (`deck = false` when the deck is not there, `moved = false` when
+    the top card is not the expected one; inside a composite `moved` and `deck` are corrected once the deck is rebuilt,
+    with `asked`)."""
+    own = _ours_lua(identity, id_range) + _deck_finder(spot, radius, zone) + DECK_FUNCS + BURY_LUA
     return f"""-- sparring:deck_top_to_bottom
 {own}local deck = findDeck({_guid(deck_guid)})
 if deck == nil then return JSON.encode({{moved = false, deck = false}}) end
@@ -3738,10 +3774,13 @@ if taken ~= {_i(expect_id)} then
   rest = rest.putObject(card) or rest
   return JSON.encode({{moved = false, mismatch = true, deck = rest.getGUID()}})
 end
-rest.setRotation(Vector(r.x, r.y, (r.z + 180) % 360))
-rest = rest.putObject(card) or rest
-rest.setRotation(Vector(r.x, r.y, r.z))
-return JSON.encode({{moved = true, deck = rest.getGUID()}})
+card.setLock(true)
+local out = {{moved = true, deck = rest.getGUID()}}
+bury(rest.getGUID(), nil, {{card}}, function(new, lost)
+  out.moved = not lost[1]
+  if new ~= nil then out.asked, out.deck = {_guid(deck_guid)}, new.getGUID() end
+end)
+return JSON.encode(out)
 """
 
 
@@ -3760,11 +3799,14 @@ def deck_reorder(deck_guid: str, seen: list[int], top: list[int], bottom: list[i
     taken one by one with `takeObject` (instant, `smooth = false`: a smooth move cannot take a card out of a hand zone)
     and each CardID is checked against `seen`; any difference puts them all back as they were (`mismatch`). The last card
     of a deck is a loose Card with another GUID, so the remainder is looked up again after every take (by the GUID, else
-    near where the deck lay), never taking a lifted card or one in a hand. The cards of `bottom` go in with the remainder
-    turned over (instant); the others go on top in reverse order so that `top[0]` ends up on top. When the whole deck was
-    taken, the stack is rebuilt from its last card, laid at the deck's place and rotation. Returns `{reordered, moved,
-    quantity, was, order, last, deck}`: `order` is the readback of the first `len(top)` cards and `last` that of the
-    bottom card (`deck = false`: no deck of ours; `mismatch = true`: the top is not `seen`)."""
+    near where the deck lay), never taking a lifted card or one in a hand. The others go on top in reverse order so that
+    `top[0]` ends up on top; the cards of `bottom` wait above the deck (locked) and the deck is rebuilt with them as its
+    last cards on a later frame (`lua_deck.BURY_LUA`). When the whole deck was taken, the stack is rebuilt from its last
+    card, laid at the deck's place and rotation. Returns `{reordered, moved, quantity, was, order, last, deck}`: `order`
+    is the readback of the first `len(top)` cards and `last` that of the bottom card (`deck = false`: no deck of ours;
+    `mismatch = true`: the top is not `seen`). With cards waiting for the bottom, `quantity` and `last` say what will be;
+    inside a composite they are read back from the rebuilt deck (with `reordered = false` if a card did not get in, the
+    new `deck` GUID and `asked`)."""
     for name, cards in (("seen", seen), ("top", top), ("bottom", bottom)):
         if not isinstance(cards, (list, tuple)) or not all(isinstance(i, int) and not isinstance(i, bool) for i in cards):
             raise TypeError(f"{name}: a list of CardIDs expected")
@@ -3772,7 +3814,7 @@ def deck_reorder(deck_guid: str, seen: list[int], top: list[int], bottom: list[i
         raise ValueError(f"1 to {MAX_ROW_CARDS} different cards expected")
     if sorted([*top, *bottom]) != sorted(seen):
         raise ValueError("top + bottom must be a permutation of the cards seen")
-    own = _ours_lua(identity, id_range) + _deck_finder(spot, radius, zone)
+    own = _ours_lua(identity, id_range) + _deck_finder(spot, radius, zone) + DECK_FUNCS + BURY_LUA
 
     def table_of(cards) -> str:
         return "{" + ", ".join(_i(i) for i in cards) + "}"
@@ -3859,10 +3901,7 @@ for _, id in ipairs(bottom) do down[#down + 1] = byId[id] end
 local rest = remainder()
 if rest == nil then
   for _, c in ipairs(down) do up[#up + 1] = c end
-elseif #down > 0 then
-  rest.setRotation(Vector(r.x, r.y, (r.z + 180) % 360))
-  for _, c in ipairs(down) do rest = rest.putObject(c) or rest end
-  rest.setRotation(Vector(r.x, r.y, r.z))
+  down = {{}}
 end
 local final = restack(up)
 local fd = final.getData()
@@ -3877,7 +3916,19 @@ else
   end
   if #bottom > 0 and #fc > 0 then last = fc[#fc].CardID end
 end
-return JSON.encode({{reordered = true, moved = true, quantity = final.type == "Card" and 1 or #(fd.ContainedObjects or {{}}), was = was, order = order, last = last, deck = final.getGUID()}})
+local out = {{reordered = true, moved = true, quantity = final.type == "Card" and 1 or #(fd.ContainedObjects or {{}}), was = was, order = order, last = last, deck = final.getGUID()}}
+if #down > 0 then
+  for _, c in ipairs(down) do c.setLock(true) end
+  out.quantity, out.last = out.quantity + #down, bottom[#bottom]
+  bury(final.getGUID(), nil, down, function(new, lost)
+    out.reordered = new ~= nil and next(lost) == nil
+    if new == nil then return end
+    local nd = new.getData()
+    local nc = new.type == "Deck" and (nd.ContainedObjects or {{}}) or {{nd}}
+    out.asked, out.deck, out.quantity, out.last = {_guid(deck_guid)}, new.getGUID(), #nc, nc[#nc].CardID
+  end)
+end
+return JSON.encode(out)
 """
 
 
