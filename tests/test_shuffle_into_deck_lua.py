@@ -111,7 +111,10 @@ def test_no_wanted_card_on_the_table_and_no_deck_is_a_clean_refusal(rt):
 @pytest.mark.parametrize("builder,name", [(to_top, "top"), (to_bottom, "bottom")])
 def test_a_card_put_on_top_or_bottom_of_no_deck_is_the_deck(rt, builder, name):
     loose(rt, 160)
-    assert run(rt, builder("p160", "deadguid", spot=SPOT)) == {"placed": True, "deck": "p160", "quantity": 1}
+    want = {"placed": True, "deck": "p160", "quantity": 1}
+    if name == "bottom":    # bury reports the GUID that was asked for, so the session follows the card that IS the deck now
+        want["asked"] = "deadguid"
+    assert run(rt, builder("p160", "deadguid", spot=SPOT)) == want
     deck = the_new_deck(rt)
     assert deck["type"] == "Card" and deck["down"] is True and deck["ids"] == [160]
     loose(rt, 161)
