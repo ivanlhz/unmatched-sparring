@@ -3,6 +3,7 @@ primitives that ask it (cached: the same positions repeat thousands of times wit
 `hero_shielded` let the heuristic value that block: the rival's walk around the fighters in its way."""
 from __future__ import annotations
 
+from . import upgrades
 from .state import ANUNG, Fighter, Game
 
 ANUNG_FREE_STEPS = 2          # free movement of ANUNG UN RAMA at the start of the turn (see MedusaAI)
@@ -56,7 +57,7 @@ def boost_reach(game: Game, player: int) -> int:
 
 def free_steps(game: Game, f: Fighter) -> int:
     """Free movement before maneuvering (today, ANUNG UN RAMA's; what is specific to the hero stays here)."""
-    return (ANUNG_FREE_STEPS if f.hero and game.form(f.owner) == ANUNG else 0) + game.maneuver_bonus(f.owner)
+    return (ANUNG_FREE_STEPS if f.hero and game.form(f.owner) == ANUNG else 0) + game.maneuver_bonus(f.owner) + upgrades.maneuver_bonus(game, f)
 
 
 _guard_cache: dict[tuple, int] = {}
@@ -121,7 +122,7 @@ def guard_dest(game: Game, hero_pos: int, options, fid: str, own: dict[str, int]
     others = frozenset(v for k, v in own.items() if k != fid)
     cands = frozenset(options) | {own[fid]}
     bonus, anung = game.maneuver_bonus(1 - me), game.form(1 - me) == ANUNG      # what `free_steps` adds, once per call
-    foes = tuple((e.pos, e.ranged, e.reach, e.move + bonus + (ANUNG_FREE_STEPS if anung and e.hero else 0))
+    foes = tuple((e.pos, e.ranged, e.reach, e.move + bonus + upgrades.maneuver_bonus(game, e) + (ANUNG_FREE_STEPS if anung and e.hero else 0))
                  for e in game.foes(me))
     boost = boost_reach(game, 1 - me)
     key = (board.key, hero_pos, own[fid], others, cands, mates, foes, boost)
