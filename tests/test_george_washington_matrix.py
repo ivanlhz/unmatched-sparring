@@ -49,7 +49,7 @@ def test_a_full_session_game_reaches_game_over(tmp_path, bot, human):
     assert not any("Accion ilegal" in m or "Illegal action" in m for m in said), said
 
 
-RIG_LIMIT = {("raptors", "george-washington")}       # the fake table's count of the human's hand goes to -1 (the Raptors' forced discards; the rig never discards for the human): the snapshot is refused, not a Washington defect
+RIG_LIMIT: set = set()
 
 
 def attack_params():

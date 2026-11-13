@@ -270,3 +270,25 @@ def test_defenses_in_hand_ease_the_hit_points_of_every_raptor_in_the_zone():
     values = attack_values(g.players[1], g.hero(1).name)
     assert covered == pytest.approx(bare * zone_cover_factor([3, 3], sum(values) / len(values)))
     assert covered < bare
+
+
+def test_ismcts_plays_a_defense_against_the_raptors_ambush_without_falling_back_to_the_heuristic():
+    """Regression: a rival's Counterhex Shield vetoed Ambush's discard in a rollout, `$burnt` stayed unbound and the whole search
+    fell back (the Abe Sapien matrix pair). Abe defends with the ONGOING in play against an Ambush."""
+    from sparring.effects import modifiers
+    from sparring.effects.model import load_effects
+    ai = make_bot_ai({"ai": "ismcts", "ai_iterations": 40, "ai_time_budget": 60, "ai_seed": 1}, 0)
+    g = Game.new(Board.load(BOARD), 1, controllers={0: ai, 1: ScriptedHellboy(1, 1)}, heroes=("abe-sapien", "raptors"), bot_player=0)
+    g.turn, g.turn_no = 1, 3
+    g.begin_turn()
+    for m in load_effects("abe-sapien").card("Counterhex Shield").ongoing["modifiers"]:
+        modifiers.add_modifier(g.fx, 0, 999, m)
+    arrange_pair = g.fighters["blue"], g.hero(0)
+    blue, abe = arrange_pair
+    blue.pos = sorted(g.board.adj[abe.pos])[0] if abe.pos is not None else blue.pos
+    ambush = give(g, 1, "Ambush")
+    g.players[0].hand.clear()
+    for c in [c for c in g.players[0].full_set if c.can_defend][:3]:
+        g.players[0].hand.append(c)
+    ai.choose_defense(g, blue, abe, ambush)
+    assert ai.fallbacks == 0

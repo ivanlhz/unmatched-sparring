@@ -134,6 +134,10 @@ class AttackDriver(Driver):
                 self.press(Event.MANEUVER)
                 self.end_action()
                 continue
+            if self.table.human_count <= 0:                      # no card left to attack with (forced discards drained the hand): the human maneuvers
+                self.press(Event.MANEUVER)
+                self.end_action()
+                continue
             free = next((s for s in sorted(g.board.adj[bot_hero.pos])
                          if all(f.pos != s for f in g.fighters.values() if f.alive)), None)
             if free is not None and not g.can_attack(me, bot_hero):

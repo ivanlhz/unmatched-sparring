@@ -160,3 +160,17 @@ def test_the_three_miniatures_and_their_dials_are_the_ones_of_the_data(rig):
     assert {fid: sc.pieces[fid] for fid in TEAM} == {"blue": "1a2945", "delta": "4573de", "echo": "b5c3d5"}
     assert {fid: sc.dials[fid] for fid in TEAM} == {"blue": "950174", "delta": "c93049", "echo": "deff03"}
     assert {fid: cfg.nicknames[fid] for fid in TEAM} == {"blue": "Raptor Blue", "delta": "Raptor Delta", "echo": "Raptor Echo"}
+
+
+@with_rig("raptors", "hellboy", "Ambush", "Eviscerate", "Pack Hunters", "Decoy")
+def test_the_bots_ambush_against_a_human_adds_no_boost_because_the_engine_holds_placeholders(rig):
+    """The engine's copy of the human's hand is placeholders: the random discard is the human's to make at the table and the bot never
+    learns which card it was, so the card keeps its printed 2 and the chat says the effect did nothing."""
+    session, table, game, fake, cfg = rig
+    around(game, table, cfg, "hellboy", ["blue"])
+    human_hand(table, game, "B.P.R.D. Training", "Right Hand Of Doom", "Service Pistol", "Excalibur")
+    msgs = bot_attacks(session, table, game, "Ambush", "blue", "hellboy")
+    assert said(msgs, "Descarta 1 carta(s) (Ambush, al azar"), msgs
+    assert said(msgs, "Raptor Blue ataca con Ambush (2): total 2"), msgs
+    assert said(msgs, "Aplicado: Ambush: sin efecto"), msgs
+    assert game.fighters["hellboy"].hp == 18 - 2

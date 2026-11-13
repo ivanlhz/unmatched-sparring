@@ -257,6 +257,8 @@ def _with_acting(name: str, veto=None):
 
     def wrapped(run, game, spec):
         if veto is not None and veto(run, game, spec):
+            if "as" in spec:        # the op did nothing, but the name it was to bind still exists: an effect reading it later (Ambush's $burnt) reads nothing, it does not fail
+                run.bind("cards", spec["as"], [])
             return None
         previous = _acting(game, run.ctx.owner)
         try:

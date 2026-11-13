@@ -387,3 +387,36 @@ def test_coordinated_attack_pattern_skips_a_defeated_raptor(bprd):
     g.controllers[0].queue = [answers({"effect": [0]})] * 8
     g.play_scheme(0, g.fighters["blue"], give(g, 0, "Coordinated Attack Pattern"))
     assert not g.fighters["echo"].alive and g.fighters["echo"].pos is None
+
+
+# ---------------------------------------------------------------- a discard a rule vetoed still names what it was to bind
+
+def counterhex_on(g, owner):
+    from sparring.effects import modifiers
+    from sparring.effects.model import load_effects
+    for m in load_effects("abe-sapien").card("Counterhex Shield").ongoing["modifiers"]:
+        modifiers.add_modifier(g.fx, owner, 999, m)
+
+
+def test_a_forced_discard_the_rival_forbids_binds_nothing_instead_of_leaving_the_name_unbound(bprd):
+    """Engine level: every card that reads `$name` after an `as` discard (Ambush's `$burnt`) used to fail with "$burnt is nothing" when
+    Counterhex Shield (immune_to_enemy_forced_discards) vetoed the discard, which the search hit in a rollout."""
+    from sparring.effects.choose import ControllerChooser
+    from sparring.effects.run import Ctx, EffectRun
+    g = mk(bprd, "abe-sapien")
+    counterhex_on(g, 1)
+    g.players[1].hand.extend(g.players[1].deck[:3])
+    ops = [{"op": "discard", "cards": {"zone": "hand", "player": "opponent", "pick": "random", "amount": 1}, "as": "burnt"},
+           {"op": "heal", "target": "hero", "amount": {"attr": "boost", "of": "$burnt"}}]
+    run = EffectRun(ops, Ctx(owner=0, this_fid="blue"))
+    assert run.run(g, ControllerChooser()) is None
+    assert run.bindings["burnt"] == {"t": "cards", "v": []} and len(g.players[1].hand) == 3
+
+
+def test_ambush_against_a_hand_the_rival_shields_adds_nothing(bprd):
+    g = mk(bprd, "abe-sapien")
+    counterhex_on(g, 1)
+    blue, abe = pair(g, "blue", "abe")
+    g.players[1].hand.extend(g.players[1].deck[:3])
+    res = g.attack(blue, abe, give(g, 0, "Ambush"), None)
+    assert res.atk_value == 2 and len(g.players[1].hand) == 3
