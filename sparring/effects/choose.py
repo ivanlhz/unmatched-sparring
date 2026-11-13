@@ -82,7 +82,7 @@ def default_answer(req: ChoiceRequest) -> list:
         return [req.max]
     if req.kind == "space":
         return list(req.options[:req.min])
-    if req.extra.get("purpose") in ("bonus", "swap_attack"):    # a free-count discard that adds value (Unbridled rage), a card played instead (Sleight Of Hand): none by default
+    if req.extra.get("purpose") in ("bonus", "swap_attack", "dust"):    # a free-count discard that adds value (Unbridled rage), a card played instead (Sleight Of Hand): none by default
         return []
     if req.min == req.max:
         return list(req.options[:req.min])
@@ -97,6 +97,9 @@ def worth_paying(req: ChoiceRequest) -> bool:
     return stake >= 3 * req.extra["cost_cards"] or (stake > 0 and stake >= req.extra.get("hp", float("inf")))
 
 
+OWN_JUDGEMENT_PURPOSES = ("bidding", "ruse")      # a pick among the RIVAL's cards that the controller decides itself (Philippa)
+
+
 class ControllerChooser:
     """The bot: `Controller.choose_effect`, falling back to choose_move / choose_discard / choose_placement."""
 
@@ -105,6 +108,10 @@ class ControllerChooser:
         if ctrl is None:
             return default_answer(req)
         if req.kind == "cards" and req.extra.get("zone") == "hand" and req.extra.get("of", req.player) != req.player:
+            if req.extra.get("purpose") in OWN_JUDGEMENT_PURPOSES:     # Do my bidding, Spymaster's ruse: the controller weighs what the rival would play or lose
+                answer = ctrl.choose_effect(game, req)
+                if answer is not None:
+                    return answer
             return self._from_rival_hand(game, req, req.extra["of"])    # the controller never sees these options
         answer = ctrl.choose_effect(game, req)
         if answer is not None:

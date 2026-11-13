@@ -186,6 +186,7 @@ def hand_limit(game, player: int, default: int) -> int:
 VALUE_POINT_HP = 1.0        # +1 to the owner's combat cards: about one hit point over the card's life (a combat)
 IMMUNITY_HP = 0.5           # a status that shields the owner's side (Counterhex Shield: three of them)
 EFFECT_BONUS_HP = 0.5       # +1 to the owner's effect damage (Pact Of Mortality)
+HERO_MOVE_HP = 0.4          # each space more the hero moves (Philippa's Polymorphy: 5 instead of 2) is worth this much to its owner
 
 
 def worth(game, player: int) -> float:
@@ -210,6 +211,8 @@ def _slot_worth(game, player: int) -> float:
             total += IMMUNITY_HP
         elif m["kind"] == "rule" and m["rule"] == "effect_damage_bonus":
             total += EFFECT_BONUS_HP * m.get("amount", 0)
+        elif m["kind"] == "rule" and m["rule"] == "hero_move":
+            total += HERO_MOVE_HP * max(0, m["amount"] - game.players[player].hero.move)
     return total
 
 

@@ -70,7 +70,7 @@ from .guard import guard_dest, hero_shielded, path_steps
 from .effects.model import walk_ops
 from .effects.modifiers import boost_limit, card_effects, defers_defeat, is_uncancelable
 from .ai_profile import FINISHER_BOOSTS, STYLE_HIT_AND_RUN, derive_style
-from . import ai_sinbad
+from . import ai_philippa, ai_sinbad
 from .ai_sinbad import own_value, voyage_count, voyage_extra
 from .state import ANUNG, EXHAUST_DAMAGE, Fighter, Game
 
@@ -939,6 +939,8 @@ class MedusaAI(Controller):
             return 6.0
         if c.title == WORTHY and t.hero:
             return 5.0                  # Tomoe Gozen: against a hero this card is worth 5
+        if (regicide := ai_philippa.attack_value(c, t)) is not None:
+            return regicide             # Philippa: Regicide is 6 against a hero
         own = own_value(game, f, c)
         if own is not None:
             return own                  # Sinbad: a VOYAGE card's +1 per VOYAGE card in the pile, Momentous Shift's 5
@@ -1042,6 +1044,9 @@ class MedusaAI(Controller):
         value += always + on_win * p_win
         value += ciri_ai.after_value(game, self.me, c, p_win, w, CARD_VALUE)
         value += ai_sinbad.after_value(game, self.me, c, p_win, w, CARD_VALUE, W_MEDUSA_HP, self.room_after_play(game), t.hp)
+        value += ai_philippa.after_value(game, self.me, c, p_win, w, CARD_VALUE)
+        if ai_philippa.ends_turn(c):     # Spellbreaker's AFTER ends the turn: the actions still to spend are lost
+            value -= ACTION_VALUE * max(0, game.actions_left - 1)
         if c.title == WITNESS:           # the AFTER ends the turn: the actions still to spend are lost
             value -= ACTION_VALUE * max(0, game.actions_left - 1)
         if c.title == RINGS:             # the damage dealt heals the fighter and the friendly ones beside it (only what is missing counts)
@@ -1830,6 +1835,7 @@ class MedusaAI(Controller):
         v += always + on_win * p_block
         if attacker is not None:
             v += ai_sinbad.after_value(game, self.me, c, p_block, weight(attacker), CARD_VALUE, W_MEDUSA_HP, None, attacker.hp)
+            v += ai_philippa.after_value(game, self.me, c, p_block, weight(attacker), CARD_VALUE)
         if c.title == SKIN and attacker is not None:
             v += SKIN_RETURN * weight(attacker) * exp         # the damage it took goes back to the attacker
         if c.title == MISTS:

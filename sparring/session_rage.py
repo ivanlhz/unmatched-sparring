@@ -42,18 +42,28 @@ def instruction(session, req: ChoiceRequest) -> str:
         return t("blind.instruction_rival", card=card)
     if m == "blind":
         return t("blind.instruction", card=card, n=req.max)
+    if m == "reveal" and req.extra.get("dust"):             # Blinding dust: the card given up for the damage of its BOOST
+        return t("dust.instruction", card=card)
     if m == "reveal":
         return t("reveal.instruction", card=card)
+    if m == "play" and req.extra.get("bidding"):            # Do my bidding: the bot names the card the human must play
+        attacker = session.game.fighters.get(req.extra.get("attacker"))
+        title = next((c.title for c in session.game.players[session.human].full_set if c.card_id in req.options), "")
+        return t("bidding.instruction", card=card, title=title, attacker=attacker.name if attacker is not None else "")
     if m == "play" and req.extra.get("sleight"):
         attacker = session.game.fighters.get(req.extra.get("attacker"))
         return t("sleight.instruction", card=card, attacker=attacker.name if attacker is not None else "")
     if m == "play":
         return t("mists.instruction", card=card, attacker=req.extra.get("attacker", ""))
-    key = "rage.instruction_source" if req.extra.get("tag") == "source" else "rage.instruction"      # Ciri's Channel the source: Source cards, not types
+    key = {"source": "rage.instruction_source", "any": "rage.instruction_any"}.get(req.extra.get("tag"), "rage.instruction")      # Ciri's Channel the source: Source cards; Philippa's Owlform: any card
     return t(key, card=card, per=req.extra.get("per_card", 2))
 
 
 def status(session, req: ChoiceRequest) -> str:
+    if mode(req) == "reveal" and req.extra.get("dust"):
+        return panel_text(t("dust.status"))
+    if mode(req) == "play" and req.extra.get("bidding"):
+        return panel_text(t("bidding.status"))
     if mode(req) == "play" and req.extra.get("sleight"):
         return panel_text(t("sleight.status"))
     return panel_text(t({"blind": "blind.status", "reveal": "reveal.status", "play": "mists.status"}.get(mode(req), "rage.status"), n=req.max))
@@ -114,6 +124,8 @@ def _verdict_play(session, req: ChoiceRequest) -> tuple[list[int] | None, str | 
     at_spot = {r["id"] for r in _combat_spot(session) if r.get("id") in by_id}
     new = sorted(at_spot - {old})
     if not new:
+        if req.extra.get("bidding"):                          # Do my bidding: the card chosen for them must be the one they play
+            return None, t("bidding.missing", title=by_id[req.options[0]].title)
         if req.extra.get("sleight") and old not in at_spot:      # taken back with nothing in its place: neither card is in play
             return None, t("sleight.missing", card=by_id[old].title)
         return [], None                      # Mists: no playable card in the whole deck, the attack has no card. Sleight: they keep it
@@ -140,8 +152,12 @@ def counted(session, req: ChoiceRequest, ids: list[int]) -> str:
             return t("knee.auto", card=card, title=by_id[ids[0]].title)
         return t("blind.counted", card=card, titles=", ".join(by_id[i].title for i in ids),
                  bonus=f"+{sum(by_id[i].boost for i in ids)}")
+    if m == "reveal" and req.extra.get("dust"):
+        return t("dust.counted", card=card, title=by_id[ids[0]].title, boost=by_id[ids[0]].boost)
     if m == "reveal":
         return t("reveal.counted", card=card, title=by_id[ids[0]].title, boost=by_id[ids[0]].boost)
+    if m == "play" and req.extra.get("bidding"):
+        return t("bidding.counted", card=card, title=by_id[ids[0]].title)
     if m == "play" and req.extra.get("sleight"):
         return t("sleight.kept", card=card) if not ids else t("sleight.counted", card=card, title=by_id[ids[0]].title)
     if m == "play":
