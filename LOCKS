@@ -41,3 +41,5 @@ sparring/effects/events.py  john-henry  John Henry engine pieces (board tracks, 
 sparring/session_moves.py  john-henry  John Henry engine pieces (board tracks, if_won cancel, token Lua)  14:12Z
 sparring/tts/lua.py  john-henry  John Henry engine pieces (board tracks, if_won cancel, token Lua)  14:12Z
 sparring/tts/hero_table.py  john-henry  John Henry engine pieces (board tracks, if_won cancel, token Lua)  14:12Z
+sparring/session.py  rosie  Rosie: upgrade announcements (session_rosie.track)  14:14Z
+sparring/persist.py  rosie  Rosie: ranged sync on load  14:14Z
