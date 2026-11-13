@@ -916,6 +916,18 @@
       "note": "Open: under ISMCTS the maneuvers do not seek adjacency (the evaluation weight costs attacks). Needs a tuning that keeps attacks, or Ivan's call on the trade-off. Live check: setup and card moves put Wong beside Strange; the bot still attacks."
     },
     {
+      "id": "F-STRANGE-AGGRO",
+      "title": "Bot Doctor Strange attacks more and presses the rival under ISMCTS instead of maneuvering or scheming (Ivan 13/11)",
+      "status": "done",
+      "criteria": [
+        "search.adapter.EvalWeights.caution (default 1.0) scales the expected damage on the bot's own hero in the leaf evaluation (the lethal-risk term is not scaled); HERO_EVAL['doctor-strange'] = {caution: 0.3} is applied by hero_weights() to every field the configuration left at its default; other heroes keep the default weights, ai_eval in the configuration wins",
+        "EvalWeights.beside stays 0 (Wong's adjacency is still not sought: it cost attacks); a 'pressure' multiplier on the threat against the rival was tried and dropped (no gain)",
+        "Measured (ISMCTS 200 iterations, Hellboy script / chasing and Medusa script / chasing, 30 seeds each, seeds 0-29 and 30-59): attacks per bot turn 1.289 -> 1.444 and 1.256 -> 1.390; blows given up per game 0.84 -> 0.49 and 1.03 -> 0.53; schemes per game 1.49 -> 1.28 and 1.63 -> 1.40; win rate 86% -> 89% and 85% -> 80% (noise about 9 points)",
+        "Tests: tests/test_strange_aggro.py (7): only Strange has a profile, the configuration wins, four positions where the default weights mostly maneuvered or played a scheme and the profile attacks"
+      ],
+      "note": "Live check: Strange with a rival in reach should attack rather than maneuver away; watch that he does not die more often at low hit points."
+    },
+    {
       "id": "F-STRANGE-REALLY-FULL-HP",
       "title": "ISMCTS does not play a scheme that only spends cards and an action (live 12/11: turn 1, Doctor Strange at 14/14 played No, Really, I'm a Doctor, healing nobody and putting a hand card back on the deck)",
       "status": "done",
