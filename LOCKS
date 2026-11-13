@@ -8,19 +8,31 @@
 #   Never edit a path locked by another agent. Never remove another agent's line.
 sparring/heroes.py  raptors  team heroes (SidekickDef.hero) + pack bonus  14:00Z
 sparring/state.py  raptors  team loss rule, hero() prefers alive, pack bonus  14:00Z
-features.json  philippa  Philippa hero (AI hooks, human flows, docs, shared tests)  14:07Z
-docs/effects-dsl.md  philippa  Philippa hero (AI hooks, human flows, docs, shared tests)  14:07Z
-docs/card-identity.md  philippa  Philippa hero (AI hooks, human flows, docs, shared tests)  14:07Z
-docs/live-checklist.md  philippa  Philippa hero (AI hooks, human flows, docs, shared tests)  14:07Z
-README.md  philippa  Philippa hero (AI hooks, human flows, docs, shared tests)  14:07Z
 sparring/search/adapter.py  raptors  swarm policy, attack-last-action, team zone exposure  14:12Z
 sparring/ai_hazards.py  raptors  per-fighter zone damage for a team  14:12Z
-sparring/board.py  john-henry  John Henry engine pieces (board tracks, if_won cancel, token Lua)  14:12Z
-sparring/combat_flow.py  john-henry  John Henry engine pieces (board tracks, if_won cancel, token Lua)  14:12Z
-sparring/effects/ops_combat.py  john-henry  John Henry engine pieces (board tracks, if_won cancel, token Lua)  14:12Z
 sparring/effects/events.py  john-henry  John Henry engine pieces (board tracks, if_won cancel, token Lua)  14:12Z
 sparring/session_moves.py  john-henry  John Henry engine pieces (board tracks, if_won cancel, token Lua)  14:12Z
-sparring/tts/lua.py  john-henry  John Henry engine pieces (board tracks, if_won cancel, token Lua)  14:12Z
-sparring/tts/hero_table.py  john-henry  John Henry engine pieces (board tracks, if_won cancel, token Lua)  14:12Z
-sparring/session.py  rosie  Rosie: upgrade announcements (session_rosie.track)  14:14Z
-sparring/persist.py  rosie  Rosie: ranged sync on load  14:14Z
+sparring/effects/state.py  john-henry  John Henry engine pieces, step B (tracks state, SpaceSel track, over_tracks, schema, hero lists)  14:20Z
+sparring/effects/select.py  john-henry  John Henry engine pieces, step B (tracks state, SpaceSel track, over_tracks, schema, hero lists)  14:20Z
+sparring/effects/ops_core.py  john-henry  John Henry engine pieces, step B (tracks state, SpaceSel track, over_tracks, schema, hero lists)  14:20Z
+data/heroes/effects/schema.json  john-henry  John Henry engine pieces, step B (tracks state, SpaceSel track, over_tracks, schema, hero lists)  14:20Z
+tools/validate_effects.py  john-henry  John Henry engine pieces, step B (tracks state, SpaceSel track, over_tracks, schema, hero lists)  14:20Z
+tests/test_heroes.py  john-henry  John Henry engine pieces, step B (tracks state, SpaceSel track, over_tracks, schema, hero lists)  14:20Z
+tests/test_card_identity.py  john-henry  John Henry engine pieces, step B (tracks state, SpaceSel track, over_tracks, schema, hero lists)  14:20Z
+tests/test_d1_bot_cards.py  john-henry  John Henry engine pieces, step B (tracks state, SpaceSel track, over_tracks, schema, hero lists)  14:20Z
+tests/test_effects_schema.py  john-henry  John Henry engine pieces, step B (tracks state, SpaceSel track, over_tracks, schema, hero lists)  14:20Z
+data/i18n/en.json  john-henry  John Henry engine pieces, step B (tracks state, SpaceSel track, over_tracks, schema, hero lists)  14:20Z
+data/i18n/es.json  john-henry  John Henry engine pieces, step B (tracks state, SpaceSel track, over_tracks, schema, hero lists)  14:20Z
+sparring/hero_detect.py  john-henry  John Henry engine pieces, step B (tracks state, SpaceSel track, over_tracks, schema, hero lists)  14:20Z
+sparring/effects/table.py  john-henry  John Henry engine pieces, step B (tracks state, SpaceSel track, over_tracks, schema, hero lists)  14:20Z
+sparring/ai_effects.py  john-henry  John Henry engine pieces, step B (tracks state, SpaceSel track, over_tracks, schema, hero lists)  14:20Z
+config/table.json  john-henry  John Henry engine pieces, step B (tracks state, SpaceSel track, over_tracks, schema, hero lists)  14:20Z
+sparring/session.py  john-henry  John Henry session pieces (tracks sync, token placement, AI hooks)  14:23Z
+sparring/session_translators.py  john-henry  John Henry session pieces (tracks sync, token placement, AI hooks)  14:23Z
+sparring/play.py  john-henry  John Henry session pieces (tracks sync, token placement, AI hooks)  14:23Z
+sparring/ai_medusa.py  john-henry  John Henry session pieces (tracks sync, token placement, AI hooks)  14:23Z
+docs/effects-dsl.md  john-henry  John Henry docs, features, checklist  14:29Z
+docs/live-checklist.md  john-henry  John Henry docs, features, checklist  14:29Z
+features.json  john-henry  John Henry docs, features, checklist  14:29Z
+README.md  john-henry  John Henry docs, features, checklist  14:29Z
+docs/card-identity.md  john-henry  John Henry docs, features, checklist  14:29Z

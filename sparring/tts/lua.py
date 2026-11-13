@@ -3955,6 +3955,74 @@ return JSON.encode({{taken = new.getGUID(), moved = new.getGUID(), via = via}})
 """
 
 
+_IMAGE_KEY = re.compile(r"[0-9A-Fa-f]{40}")
+
+
+@_registered
+def place_token_at_space(board: Board, source_guid: str, space: int, board_guid: str | None = None) -> str:
+    """Takes one more token from a source object (John Henry's stack of track tokens) and lays it on a space of the board:
+    `takeObject` for a bag, an infinite bag or a stack of several, `clone` for a single token (`take_token_copy` with a space for
+    a position). Returns `{taken: guid, moved: guid, via}`; `taken = false` when the source is not on the table or gives nothing."""
+    if space not in board.spaces:
+        raise ValueError(f"unknown space {space}")
+    return "-- sparring:place_token_at_space\n" + _board_prelude(board, board_guid) + f"""local src = getObjectFromGUID({_guid(source_guid)})
+if src == nil or board == nil then return JSON.encode({{taken = false}}) end
+local target = spaceWorld({_i(space)})
+local pos = Vector(target.x, target.y + {_f(LIFT)}, target.z)
+local qty = 0
+pcall(function() qty = src.getQuantity() or 0 end)
+local new, via
+if src.type == "Bag" or src.type == "Infinite" or src.type == "Deck" or qty > 1 then
+  new = src.takeObject({{position = pos, smooth = false}})
+  via = "takeObject"
+else
+  new = src.clone({{position = pos}})
+  via = "clone"
+end
+if new == nil then return JSON.encode({{taken = false, via = via}}) end
+return JSON.encode({{taken = new.getGUID(), moved = new.getGUID(), via = via}})
+"""
+
+
+@_registered
+def read_tokens_by_image(board: Board, image_key: str, board_guid: str | None = None) -> str:
+    """Read only: every token on the table whose custom image ends in `image_key` (the 40 hex digits the URL of its picture ends
+    with; John Henry's track tokens are not told apart by name or GUID, a token taken out of the stack has neither): its GUID, the
+    space whose anchor point is nearest in XZ and the distance to it. A stack of several tokens (the supply) is not a token on the
+    board: it is only counted (`stacks`). Decks, cards, bags, boards and zones are skipped. `{no_board = true}` with no board."""
+    if not isinstance(image_key, str) or not _IMAGE_KEY.fullmatch(image_key):
+        raise ValueError(f"invalid image key {image_key!r}")
+    return "-- sparring:read_tokens_by_image\n" + _board_prelude(board, board_guid) + f"""if board == nil then return JSON.encode({{no_board = true}}) end
+local KEY = {lua_str(image_key.upper())}
+local skip = {{Deck = true, Card = true, Bag = true, Infinite = true, Board = true, Hand = true, Scripting = true, Block = true}}
+local world = {{}}
+for id, _ in pairs(snaps) do world[id] = spaceWorld(id) end
+local out, stacks = {{}}, 0
+for _, o in ipairs(getObjects()) do
+  if not skip[o.type] then
+    local ok, custom = pcall(function() return o.getCustomObject() end)
+    local image = (ok and type(custom) == "table" and custom.image ~= nil) and string.upper(tostring(custom.image)) or ""
+    if image ~= "" and string.find(image, KEY, 1, true) then
+      local qty = 1
+      pcall(function() qty = o.getQuantity() or 1 end)
+      if qty > 1 then
+        stacks = stacks + 1
+      else
+        local p = o.getPosition()
+        local best, bd = nil, 1e18
+        for id, w in pairs(world) do
+          local d = (w.x - p.x) ^ 2 + (w.z - p.z) ^ 2
+          if d < bd then best, bd = id, d end
+        end
+        table.insert(out, {{guid = o.getGUID(), space = best, dist = math.sqrt(bd)}})
+      end
+    end
+  end
+end
+return JSON.encode({{tokens = out, stacks = stacks}})
+"""
+
+
 @_registered
 def set_intuition_tokens(name: str, source_guid: str, active_z: float, inactive_z: float, target: int,
                          seat_colors: list[str]) -> str:

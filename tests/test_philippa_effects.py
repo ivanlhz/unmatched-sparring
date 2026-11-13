@@ -140,7 +140,6 @@ def test_lightning_bolt_does_nothing_after_a_maneuver_this_turn(bprd):
 def test_lightning_bolt_counts_the_combat_target_too(bprd):
     g = mk(bprd)
     ph, foe = pair(g, "philippa", "hellboy")
-    g.fx.maneuvers = 0
     wall = give(g, 1, "B.P.R.D. Training")
     res = g.attack(ph, foe, give(g, 0, "Lightning bolt"), wall)
     assert foe.hp == foe.max_hp - max(0, 3 - res.def_value) - 1
@@ -190,6 +189,20 @@ def test_chain_lightning_with_several_zones_asks_which_one(bprd):
     assert other.hp == lhp - 1
 
 
+def test_a_real_maneuver_switches_the_lightning_bolt_off(bprd):
+    g = mk(bprd)
+    ph, foe = pair(g, "philippa", "hellboy")
+    lobster = g.fighters["lobster"]
+    lobster.pos = next(s for s in sorted(g.board.spaces) if g.board.share_zone(ph.pos, s) and s not in (ph.pos, foe.pos)
+                       and all(f.pos != s for f in g.fighters.values() if f.alive))
+    g.maneuver(0, {})
+    assert g.fx.maneuvers == 1
+    g.actions_left = 2
+    lhp = lobster.hp
+    g.attack(ph, foe, give(g, 0, "Lightning bolt"), None)
+    assert lobster.hp == lhp
+
+
 # ---------------------------------------------------------------- Regicide
 
 def test_regicide_is_six_against_a_hero_and_four_against_a_sidekick(bprd):
@@ -215,7 +228,6 @@ def test_spellbreaker_cancels_the_rivals_effects_and_ends_the_turn(bprd):
 def test_spellbreaker_played_in_defense_ends_the_attackers_turn(bprd):
     g = mk(bprd, foe="leonardo", turn=1)
     ph, leo = pair(g, "philippa", "leonardo")
-    g.attack(leo, ph, next(c for c in g.players[1].deck if c.can_attack), give(g, 0, "Spellbreaker")) if False else None
     atk = next(c for c in g.players[1].deck if c.can_attack and c.usable_by(leo.name))
     g.players[1].deck.remove(atk)
     g.players[1].hand.append(atk)
@@ -398,16 +410,14 @@ def test_polymorphy_lapses_at_the_end_of_her_turn_without_a_foe_in_her_zone(bprd
     g = mk(bprd)
     ph, foe = pair(g, "philippa", "hellboy")
     foe.pos = far_from(g, "philippa")
-    for f in g.fighters.values():
-        if f.owner == 1 and f is not foe:
-            f.pos = far_from(g, "philippa") if False else f.pos
     poly = give(g, 0, "Polymorphy")
-    g.controllers[0].queue = [[ph.pos]] if False else [[far_from(g, "hellboy")]]
+    g.controllers[0].queue = [[far_from(g, "hellboy")]]
     g.play_scheme(0, ph, poly)
     assert ph.move == 5
     for f in g.fighters.values():
         if f.owner == 1:
-            f.pos = f.pos if not g.board.share_zone(ph.pos, f.pos) else far_from(g, "philippa")
+            if g.board.share_zone(ph.pos, f.pos):
+                f.pos = far_from(g, "philippa")
     g.controllers[0].queue = [[False]]
     g.end_turn()
     assert g.fx.ongoing_card_id(0) is None and ph.move == 2 and poly in g.players[0].discard
@@ -417,7 +427,7 @@ def test_polymorphy_stays_while_an_opposing_fighter_shares_a_zone_with_her(bprd)
     g = mk(bprd)
     ph, foe = pair(g, "philippa", "hellboy")
     poly = give(g, 0, "Polymorphy")
-    g.controllers[0].queue = [[ph.pos]] if False else [[far_from(g, "hellboy")]]
+    g.controllers[0].queue = [[far_from(g, "hellboy")]]
     g.play_scheme(0, ph, poly)
     foe.pos = next(s for s in sorted(g.board.spaces) if g.board.share_zone(ph.pos, s) and s != ph.pos
                    and all(f.pos != s for f in g.fighters.values() if f.alive))
