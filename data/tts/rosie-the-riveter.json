@@ -1,0 +1,46 @@
+{
+ "slug": "rosie-the-riveter",
+ "_notes": [
+  "Rosie's deck is sheet 176 (CardIDs 17600-17629) like Medusa's, the turtles' and the other Tales to Amaze / Witcher decks: only deck.identity tells them apart (docs/card-identity.md). The deck object holds 31 cards: the 30 playing cards and the hero card 402 (sheet 4, 5x2, index 2).",
+  "The bag also holds the loose card 17700 (CustomDeck 177, one image): 'Rosie The Riveter's Mech Suit', the rules card of the upgrade row. It is not a playing card and not the hero card; Houdini's hero card has the same CardID (17700) but another image (docs/card-identity.md).",
+  "The four upgrade tokens are Custom_Tokens with no nickname, double-sided (the main image is the inactive face, the child object the active face). `tokens` names them by their upgrade (data/heroes/overlay/rosie-the-riveter.json token_names): merlin_engine d670b6 (printed 1), cavity_magnetron e5ef35 (2), sedgley_fist_gun 85c49f (3), whizbang f45e71 (4). The engine keeps the state (counters upgrades and upgrade_shift); the bot says every change in the chat and does not move the tokens (docs/heroes/rosie-the-riveter.md).",
+  "Rosie's miniature is the Custom_Assetbundle 862e16 and her dial the Custom_Model facfe3 (MAX_VALUE 15); Wendy's miniature is the Custom_Token 39768f and her dial the Custom_Model 45adc0 (MAX_VALUE 7)."
+ ],
+ "bag": {
+  "guid": "5a93d0",
+  "inner": "628b52"
+ },
+ "deck": {
+  "guid": "955c05",
+  "card_ids": [
+   17600,
+   17629
+  ],
+  "character_card_id": 402,
+  "identity": [
+   {
+    "face": "https://steamusercontent-a.akamaihd.net/ugc/10182176930704282427/9EA8FD293884EA295517EC565748FBF17CFB7A53/",
+    "back": "https://steamusercontent-a.akamaihd.net/ugc/9558931297113106689/C8F1D03F53C5B585F4BB793551F89EBFC905FD64/"
+   }
+  ]
+ },
+ "fighters": {
+  "rosie": {
+   "piece": "862e16",
+   "dial": "facfe3",
+   "dial_max": 15
+  },
+  "wendy": {
+   "piece": "39768f",
+   "dial": "45adc0",
+   "dial_max": 7
+  }
+ },
+ "tokens": {
+  "whizbang": "f45e71",
+  "sedgley_fist_gun": "85c49f",
+  "cavity_magnetron": "e5ef35",
+  "merlin_engine": "d670b6"
+ },
+ "counter_dials": {}
+}

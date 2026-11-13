@@ -1,0 +1,465 @@
+{
+ "_source": {
+  "memory": "unmatched-memory/data/heroes/rosie-the-riveter.json",
+  "overlay": "data/heroes/overlay/rosie-the-riveter.json",
+  "generator": "tools/import_hero.py"
+ },
+ "slug": "rosie-the-riveter",
+ "name": "Rosie The Riveter",
+ "fid": "rosie",
+ "hp": 15,
+ "move": 2,
+ "attack": "melee",
+ "set": "stars-and-stripes",
+ "ability": "FREEDOM XK-II MECH SUIT\nYou have 4 upgrade tokens. Start the game with all 4 inactive.\nAt the start of your turn, activate an upgrade.\nAt the end of your turn, if all 4 upgrades are active, deactivate all of them.",
+ "sidekicks": [
+  {
+   "name": "Wendy The Welder",
+   "hp": 7,
+   "move": 2,
+   "attack": "melee",
+   "count": 1,
+   "fid": "wendy"
+  }
+ ],
+ "forms": null,
+ "counters": {},
+ "triggers": [],
+ "passives": [
+  {
+   "id": "freedom_xk_ii",
+   "effect": "upgrades",
+   "row": [
+    {
+     "id": "merlin_engine",
+     "name": "Merlin Engine",
+     "grants": {
+      "maneuver_move": 1
+     }
+    },
+    {
+     "id": "cavity_magnetron",
+     "name": "Cavity Magnetron",
+     "grants": {
+      "draw_after_attack": 1
+     }
+    },
+    {
+     "id": "sedgley_fist_gun",
+     "name": "Sedgley Fist Gun",
+     "grants": {
+      "attack_bonus": 1
+     }
+    },
+    {
+     "id": "whizbang",
+     "name": "Whizbang",
+     "grants": {
+      "ranged": true
+     }
+    }
+   ]
+  }
+ ],
+ "deck": {
+  "card_base": 17600,
+  "sheet": 176,
+  "cards": [
+   {
+    "idx": 0,
+    "title": "We Can Do It!",
+    "fighter": "Rosie The Riveter",
+    "type": "attack",
+    "value": 4,
+    "boost": 2,
+    "text": "IMMEDIATELY: Activate an upgrade.",
+    "tags": []
+   },
+   {
+    "idx": 1,
+    "title": "We Can Do It!",
+    "fighter": "Rosie The Riveter",
+    "type": "attack",
+    "value": 4,
+    "boost": 2,
+    "text": "IMMEDIATELY: Activate an upgrade.",
+    "tags": []
+   },
+   {
+    "idx": 2,
+    "title": "D-Day",
+    "fighter": "Rosie The Riveter",
+    "type": "attack",
+    "value": 3,
+    "boost": 1,
+    "text": "AFTER COMBAT: Gain 1 free action to attack. Activate all of your upgrades. If they were already active, deal 1 damage to the opposing fighter and Rosie recovers 1 health.",
+    "tags": []
+   },
+   {
+    "idx": 3,
+    "title": "D-Day",
+    "fighter": "Rosie The Riveter",
+    "type": "attack",
+    "value": 3,
+    "boost": 1,
+    "text": "AFTER COMBAT: Gain 1 free action to attack. Activate all of your upgrades. If they were already active, deal 1 damage to the opposing fighter and Rosie recovers 1 health.",
+    "tags": []
+   },
+   {
+    "idx": 4,
+    "title": "D-Day",
+    "fighter": "Rosie The Riveter",
+    "type": "attack",
+    "value": 3,
+    "boost": 1,
+    "text": "AFTER COMBAT: Gain 1 free action to attack. Activate all of your upgrades. If they were already active, deal 1 damage to the opposing fighter and Rosie recovers 1 health.",
+    "tags": []
+   },
+   {
+    "idx": 5,
+    "title": "Overrun",
+    "fighter": "Rosie The Riveter",
+    "type": "attack",
+    "value": 3,
+    "boost": 1,
+    "text": "AFTER COMBAT: Move Rosie up to 3 spaces. She may move through opposing fighters. Then, deal 1 damage to each opposing fighter she moved through.",
+    "tags": []
+   },
+   {
+    "idx": 6,
+    "title": "Overrun",
+    "fighter": "Rosie The Riveter",
+    "type": "attack",
+    "value": 3,
+    "boost": 1,
+    "text": "AFTER COMBAT: Move Rosie up to 3 spaces. She may move through opposing fighters. Then, deal 1 damage to each opposing fighter she moved through.",
+    "tags": []
+   },
+   {
+    "idx": 7,
+    "title": "Overrun",
+    "fighter": "Rosie The Riveter",
+    "type": "attack",
+    "value": 3,
+    "boost": 1,
+    "text": "AFTER COMBAT: Move Rosie up to 3 spaces. She may move through opposing fighters. Then, deal 1 damage to each opposing fighter she moved through.",
+    "tags": []
+   },
+   {
+    "idx": 8,
+    "title": "Full Metal",
+    "fighter": "Rosie The Riveter",
+    "type": "versatile",
+    "value": 1,
+    "boost": 3,
+    "text": "DURING COMBAT: Add +1 to this card's value for each active upgrade.",
+    "tags": []
+   },
+   {
+    "idx": 9,
+    "title": "Full Metal",
+    "fighter": "Rosie The Riveter",
+    "type": "versatile",
+    "value": 1,
+    "boost": 3,
+    "text": "DURING COMBAT: Add +1 to this card's value for each active upgrade.",
+    "tags": []
+   },
+   {
+    "idx": 10,
+    "title": "Full Metal",
+    "fighter": "Rosie The Riveter",
+    "type": "versatile",
+    "value": 1,
+    "boost": 3,
+    "text": "DURING COMBAT: Add +1 to this card's value for each active upgrade.",
+    "tags": []
+   },
+   {
+    "idx": 11,
+    "title": "Momentous Shift",
+    "fighter": "any",
+    "type": "versatile",
+    "value": 3,
+    "boost": 1,
+    "text": "DURING COMBAT: If your fighter started this turn in a different space, this card's value becomes 5.",
+    "tags": []
+   },
+   {
+    "idx": 12,
+    "title": "Momentous Shift",
+    "fighter": "any",
+    "type": "versatile",
+    "value": 3,
+    "boost": 1,
+    "text": "DURING COMBAT: If your fighter started this turn in a different space, this card's value becomes 5.",
+    "tags": []
+   },
+   {
+    "idx": 13,
+    "title": "Momentous Shift",
+    "fighter": "any",
+    "type": "versatile",
+    "value": 3,
+    "boost": 1,
+    "text": "DURING COMBAT: If your fighter started this turn in a different space, this card's value becomes 5.",
+    "tags": []
+   },
+   {
+    "idx": 14,
+    "title": "Loose Lips Sink Ships!",
+    "fighter": "any",
+    "type": "versatile",
+    "value": 2,
+    "boost": 2,
+    "text": "DURING COMBAT: Your opponent reveals the top card of their deck. Decrease the value of their card by the revealed card's BOOST value.",
+    "tags": []
+   },
+   {
+    "idx": 15,
+    "title": "Loose Lips Sink Ships!",
+    "fighter": "any",
+    "type": "versatile",
+    "value": 2,
+    "boost": 2,
+    "text": "DURING COMBAT: Your opponent reveals the top card of their deck. Decrease the value of their card by the revealed card's BOOST value.",
+    "tags": []
+   },
+   {
+    "idx": 16,
+    "title": "Loose Lips Sink Ships!",
+    "fighter": "any",
+    "type": "versatile",
+    "value": 2,
+    "boost": 2,
+    "text": "DURING COMBAT: Your opponent reveals the top card of their deck. Decrease the value of their card by the revealed card's BOOST value.",
+    "tags": []
+   },
+   {
+    "idx": 17,
+    "title": "Technological Superiority",
+    "fighter": "any",
+    "type": "versatile",
+    "value": 3,
+    "boost": 2,
+    "text": "IMMEDIATELY: If you have 3 or more active upgrades, cancel all effects on your opponent's card.",
+    "tags": []
+   },
+   {
+    "idx": 18,
+    "title": "Technological Superiority",
+    "fighter": "any",
+    "type": "versatile",
+    "value": 3,
+    "boost": 2,
+    "text": "IMMEDIATELY: If you have 3 or more active upgrades, cancel all effects on your opponent's card.",
+    "tags": []
+   },
+   {
+    "idx": 19,
+    "title": "Technological Superiority",
+    "fighter": "any",
+    "type": "versatile",
+    "value": 3,
+    "boost": 2,
+    "text": "IMMEDIATELY: If you have 3 or more active upgrades, cancel all effects on your opponent's card.",
+    "tags": []
+   },
+   {
+    "idx": 20,
+    "title": "Arc Welding",
+    "fighter": "Wendy The Welder",
+    "type": "versatile",
+    "value": 3,
+    "boost": 3,
+    "text": "AFTER COMBAT: Choose one: activate an upgrade; or deal 1 damage to each adjacent opposing fighter.",
+    "tags": []
+   },
+   {
+    "idx": 21,
+    "title": "Arc Welding",
+    "fighter": "Wendy The Welder",
+    "type": "versatile",
+    "value": 3,
+    "boost": 3,
+    "text": "AFTER COMBAT: Choose one: activate an upgrade; or deal 1 damage to each adjacent opposing fighter.",
+    "tags": []
+   },
+   {
+    "idx": 22,
+    "title": "Arc Welding",
+    "fighter": "Wendy The Welder",
+    "type": "versatile",
+    "value": 3,
+    "boost": 3,
+    "text": "AFTER COMBAT: Choose one: activate an upgrade; or deal 1 damage to each adjacent opposing fighter.",
+    "tags": []
+   },
+   {
+    "idx": 23,
+    "title": "Hasty Repairs",
+    "fighter": "Rosie The Riveter",
+    "type": "defense",
+    "value": 1,
+    "boost": 2,
+    "text": "AFTER COMBAT: If you have any active upgrades, deactivate one, and Rosie recovers 3 health.",
+    "tags": []
+   },
+   {
+    "idx": 24,
+    "title": "Hasty Repairs",
+    "fighter": "Rosie The Riveter",
+    "type": "defense",
+    "value": 1,
+    "boost": 2,
+    "text": "AFTER COMBAT: If you have any active upgrades, deactivate one, and Rosie recovers 3 health.",
+    "tags": []
+   },
+   {
+    "idx": 25,
+    "title": "Hasty Repairs",
+    "fighter": "Rosie The Riveter",
+    "type": "defense",
+    "value": 1,
+    "boost": 2,
+    "text": "AFTER COMBAT: If you have any active upgrades, deactivate one, and Rosie recovers 3 health.",
+    "tags": []
+   },
+   {
+    "idx": 26,
+    "title": "Rapid Development",
+    "fighter": "Wendy The Welder",
+    "type": "scheme",
+    "value": null,
+    "boost": 3,
+    "text": "Draw 2 cards. Activate or deactivate an upgrade. Gain 1 free action to attack.",
+    "tags": []
+   },
+   {
+    "idx": 27,
+    "title": "Rapid Development",
+    "fighter": "Wendy The Welder",
+    "type": "scheme",
+    "value": null,
+    "boost": 3,
+    "text": "Draw 2 cards. Activate or deactivate an upgrade. Gain 1 free action to attack.",
+    "tags": []
+   },
+   {
+    "idx": 28,
+    "title": "\"E\" Award",
+    "fighter": "Wendy The Welder",
+    "type": "scheme",
+    "value": null,
+    "boost": 3,
+    "text": "Activate or deactivate an upgrade. Move each of your fighters up to 3 spaces.",
+    "tags": []
+   },
+   {
+    "idx": 29,
+    "title": "\"E\" Award",
+    "fighter": "Wendy The Welder",
+    "type": "scheme",
+    "value": null,
+    "boost": 3,
+    "text": "Activate or deactivate an upgrade. Move each of your fighters up to 3 spaces.",
+    "tags": []
+   }
+  ]
+ },
+ "token_names": {
+  "d670b6": "merlin_engine",
+  "e5ef35": "cavity_magnetron",
+  "85c49f": "sedgley_fist_gun",
+  "f45e71": "whizbang"
+ },
+ "ai_profile": {
+  "rosie": {
+   "name": "Rosie The Riveter",
+   "hero": true,
+   "count": 1,
+   "max_hp": 15,
+   "move": 2,
+   "ranged": false,
+   "role": "hero",
+   "attack": {
+    "cards": 20,
+    "mean": 2.65,
+    "max": 4
+   },
+   "exclusive": [
+    {
+     "title": "We Can Do It!",
+     "type": "attack",
+     "copies": 2,
+     "impact": 1.08
+    },
+    {
+     "title": "D-Day",
+     "type": "attack",
+     "copies": 3,
+     "impact": 2.11
+    },
+    {
+     "title": "Overrun",
+     "type": "attack",
+     "copies": 3,
+     "impact": 1.65
+    },
+    {
+     "title": "Full Metal",
+     "type": "versatile",
+     "copies": 3,
+     "impact": 0.63
+    },
+    {
+     "title": "Hasty Repairs",
+     "type": "defense",
+     "copies": 3,
+     "impact": 1.79
+    }
+   ]
+  },
+  "wendy": {
+   "name": "Wendy The Welder",
+   "hero": false,
+   "count": 1,
+   "max_hp": 7,
+   "move": 2,
+   "ranged": false,
+   "role": "striker",
+   "attack": {
+    "cards": 12,
+    "mean": 2.75,
+    "max": 3
+   },
+   "exclusive": [
+    {
+     "title": "Arc Welding",
+     "type": "versatile",
+     "copies": 3,
+     "impact": 1.47
+    },
+    {
+     "title": "Rapid Development",
+     "type": "scheme",
+     "copies": 2,
+     "impact": 2.6
+    },
+    {
+     "title": "\"E\" Award",
+     "type": "scheme",
+     "copies": 2,
+     "impact": 1.1
+    }
+   ],
+   "requires_alive": []
+  }
+ },
+ "_notes": [
+  "Sheet 176 of the tournament savegame (8x4), read card by card from the image on 2026-11-13 (Stars and Stripes). CardID = 17600 + idx; 402 = the hero card (sheet 4, 5x2, index 2) in the deck object, so the deck holds 31 cards. Rosie's deck is sheet 176 like Medusa's, the turtles' and the other sheet-176 decks: only deck.identity (data/tts/rosie-the-riveter.json) tells the decks apart (docs/card-identity.md).",
+  "Sheet order (idx): We Can Do It! 0-1, D-Day 2-4, Overrun 5-7, Full Metal 8-10, Momentous Shift 11-13, Loose Lips Sink Ships! 14-16, Technological Superiority 17-19, Arc Welding 20-22, Hasty Repairs 23-25, Rapid Development 26-27, \"E\" Award 28-29. Titles, types, values, boosts, copies, restriction bands (ROSIE, WENDY or ANY) and texts of the 11 titles agree with the transcription in unmatched-memory (checked card by card against the images); only the order of the titles in the transcription differs from the sheet.",
+  "Hero card (read from the image, card 402): ROSIE THE RIVETER, MELEE, START HEALTH 15, MOVE 2; sidekick WENDY THE WELDER, MELEE (unmatched-memory leaves her attack blank), START HEALTH 7 (the card prints one move, 2). Special ability FREEDOM XK-II MECH SUIT.",
+  "The four upgrades are read from the bag's four tokens (inactive face on the back, active face on the front): 1 MERLIN ENGINE (d670b6) 'When you maneuver, Rosie may move 1 additional space.', 2 CAVITY MAGNETRON (e5ef35) 'After Rosie attacks, you may draw 1 card.', 3 SEDGLEY FIST GUN (85c49f) 'Add +1 to the value of Rosie's attacks.', 4 WHIZBANG (f45e71) 'Rosie is a ranged hero.' The loose card 17700 of the bag (sheet 177, one card) is 'Rosie The Riveter's Mech Suit': the upgrades start in order 1 to 4; to activate flip the leftmost inactive upgrade face up; to deactivate flip the leftmost active upgrade face down and move it to the end of the row. The passive below is that row as data: `row` is the starting order, `grants` what each upgrade gives (read by sparring/upgrades.py)."
+ ]
+}

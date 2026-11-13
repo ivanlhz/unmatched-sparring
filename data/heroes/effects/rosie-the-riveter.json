@@ -1,0 +1,527 @@
+{
+ "schema": 1,
+ "hero": "rosie-the-riveter",
+ "notes": [
+  "Texts read from sheet 176 of the tournament savegame (card images) on 2026-11-13; the hero card is 402 on sheet 4 (5x2, index 2). Sheet 176 is also Medusa's, the turtles' and the other decks' DeckID: the CardIDs repeat and only the deck image tells the decks apart (docs/card-identity.md).",
+  "THE UPGRADES. The four upgrade tokens are in the bag with their effect printed on them (read from the images on 2026-11-13) and the loose card 17700 explains the row: they start in order 1 to 4 (1 Merlin Engine, 2 Cavity Magnetron, 3 Sedgley Fist Gun, 4 Whizbang, the numbers printed on the tokens); to ACTIVATE flip the leftmost inactive upgrade; to DEACTIVATE flip the leftmost active upgrade and move it to the end of the row. The active upgrades are therefore always a prefix of the row and the whole state is two counters: `upgrades` (how many are active, 0..4) and `upgrade_shift` (how many times the row has been rotated, 0..3). `sparring/upgrades.py` names the upgrades from the HeroDef passive `freedom_xk_ii` (data/heroes/overlay/rosie-the-riveter.json), which is where each upgrade's effect lives as data.",
+  "Cards that only count upgrades read the counter `upgrades`. The ability's reset (all four active at the end of the turn) is a plain `counter set 0`: deactivating all four rotates the row four times, which is the identity. Only a single deactivation (Hasty Repairs, the choice of Rapid Development and \"E\" Award) rotates it: plugin `rosie:deactivate`."
+ ],
+ "ability": {
+  "text": "FREEDOM XK-II MECH SUIT\nYou have 4 upgrade tokens. Start the game with all 4 inactive.\nAt the start of your turn, activate an upgrade.\nAt the end of your turn, if all 4 upgrades are active, deactivate all of them.",
+  "counters": {
+   "upgrades": {
+    "min": 0,
+    "max": 4,
+    "start": 0
+   },
+   "upgrade_shift": {
+    "min": 0,
+    "max": 3,
+    "start": 0
+   }
+  },
+  "triggers": [
+   {
+    "id": "activate_at_start",
+    "when": {
+     "event": "start_of_turn",
+     "player": "owner"
+    },
+    "ops": [
+     {
+      "op": "counter",
+      "name": "upgrades",
+      "delta": 1
+     }
+    ],
+    "notes": "At the start of the owner's turn the leftmost inactive upgrade is activated (nothing when all four already are: a card on the rival's turn may have done it)."
+   },
+   {
+    "id": "reset_at_end",
+    "when": {
+     "event": "end_of_turn",
+     "player": "owner"
+    },
+    "condition": {
+     "test": "counter",
+     "name": "upgrades",
+     "min": 4
+    },
+    "ops": [
+     {
+      "op": "counter",
+      "name": "upgrades",
+      "set": 0
+     }
+    ],
+    "notes": "At the end of the owner's turn, with all four active, all four are deactivated. The row keeps its order (four rotations)."
+   },
+   {
+    "id": "cavity_magnetron",
+    "when": {
+     "event": "after_attack",
+     "fighter": {
+      "side": "own",
+      "kind": "hero"
+     }
+    },
+    "condition": {
+     "test": "plugin",
+     "id": "rosie:upgrade",
+     "key": "cavity_magnetron"
+    },
+    "ops": [
+     {
+      "op": "optional",
+      "ops": [
+       {
+        "op": "draw",
+        "player": "owner",
+        "amount": 1
+       }
+      ]
+     }
+    ],
+    "notes": "CAVITY MAGNETRON (upgrade 2): 'After Rosie attacks, you may draw 1 card.' Only Rosie (the hero), not Wendy, and only while that upgrade is active."
+   }
+  ],
+  "passives": [],
+  "during": [
+   {
+    "id": "sedgley_fist_gun",
+    "condition": {
+     "all": [
+      {
+       "test": "exists",
+       "fighters": {
+        "role": "this",
+        "kind": "hero"
+       }
+      },
+      {
+       "test": "played_as",
+       "side": "attack"
+      },
+      {
+       "test": "plugin",
+       "id": "rosie:upgrade",
+       "key": "sedgley_fist_gun"
+      }
+     ]
+    },
+    "ops": [
+     {
+      "op": "plugin",
+      "id": "rosie:attack_bonus"
+     }
+    ],
+    "notes": "SEDGLEY FIST GUN (upgrade 3): 'Add +1 to the value of Rosie's attacks.' Only when ROSIE attacks (never Wendy, never a defense); it runs in every DURING of her attack, even if her card's own effects were cancelled (the upgrade is on the hero, not on the card). The bonus is the `attack_bonus` grants of the active upgrades in the HeroDef passive."
+   }
+  ],
+  "notes": "SEDGLEY FIST GUN is the hero's DURING above; WHIZBANG (Rosie is a ranged hero) and MERLIN ENGINE (when you maneuver, Rosie may move 1 additional space) are engine rules read from the HeroDef passive `freedom_xk_ii`: sparring/upgrades.py keeps Fighter.ranged and Fighter.move (the value only a Maneuver reads) in step with the counters. Rosie is the hero fighter, never Wendy, in all of them."
+ },
+ "cards": [
+  {
+   "title": "We Can Do It!",
+   "copies": 2,
+   "text": "IMMEDIATELY: Activate an upgrade.",
+   "effects": {
+    "immediately": [
+     {
+      "op": "counter",
+      "name": "upgrades",
+      "delta": 1
+     }
+    ],
+    "during": [],
+    "after": [],
+    "scheme": [],
+    "boost": []
+   },
+   "notes": "Attack 4 / boost 2, ROSIE only. IMMEDIATELY activates the leftmost inactive upgrade (the counter `upgrades` goes up by one, clipped at 4) (when that upgrade is the Sedgley Fist Gun its +1 counts for this very attack: the hero's DURING reads the counter after IMMEDIATELY)."
+  },
+  {
+   "title": "D-Day",
+   "copies": 3,
+   "text": "AFTER COMBAT: Gain 1 free action to attack. Activate all of your upgrades. If they were already active, deal 1 damage to the opposing fighter and Rosie recovers 1 health.",
+   "effects": {
+    "immediately": [],
+    "during": [],
+    "after": [
+     {
+      "op": "gain_action",
+      "amount": 1
+     },
+     {
+      "op": "if",
+      "condition": {
+       "test": "counter",
+       "name": "upgrades",
+       "min": 4
+      },
+      "then": [
+       {
+        "op": "damage",
+        "target": "opposing",
+        "amount": 1
+       },
+       {
+        "op": "heal",
+        "target": "this",
+        "amount": 1
+       }
+      ],
+      "else": [
+       {
+        "op": "counter",
+        "name": "upgrades",
+        "set": 4
+       }
+      ]
+     }
+    ],
+    "scheme": [],
+    "boost": []
+   },
+   "notes": "Attack 3 / boost 1, ROSIE only. 'Gain 1 free action to attack' is a plain extra action (`gain_action`): the engine has no action that can only be spent on an attack (open question 2 in docs/heroes/rosie-the-riveter.md). 'If they were already active' is read as: all four upgrades were active before this card activated them (`counter upgrades >= 4` tested before the activation); then the opposing fighter takes 1 and Rosie recovers 1 (open question 3)."
+  },
+  {
+   "title": "Overrun",
+   "copies": 3,
+   "text": "AFTER COMBAT: Move Rosie up to 3 spaces. She may move through opposing fighters. Then, deal 1 damage to each opposing fighter she moved through.",
+   "effects": {
+    "immediately": [],
+    "during": [],
+    "after": [
+     {
+      "op": "move",
+      "target": "this",
+      "amount": 3,
+      "up_to": true,
+      "through_enemies": true,
+      "as": "mover"
+     },
+     {
+      "op": "damage",
+      "target": {
+       "side": "enemy",
+       "filter": {
+        "passed_by": "$mover"
+       },
+       "pick": "all"
+      },
+      "amount": 1
+     }
+    ],
+    "scheme": [],
+    "boost": []
+   },
+   "notes": "Attack 3 / boost 1, ROSIE only. Same reading as Daredevil's Through Adversity: 'moved through' is an opposing fighter on some path of at most 3 spaces from where she started to where she ended; the human walks the miniature by hand and the panel asks which opposing fighters she passed."
+  },
+  {
+   "title": "Full Metal",
+   "copies": 3,
+   "text": "DURING COMBAT: Add +1 to this card's value for each active upgrade.",
+   "effects": {
+    "immediately": [],
+    "during": [
+     {
+      "op": "modify_value",
+      "card": "this",
+      "amount": {
+       "counter": "upgrades"
+      }
+     }
+    ],
+    "after": [],
+    "scheme": [],
+    "boost": []
+   },
+   "notes": "Versatile 1 / boost 3, ROSIE only. +1 for each active upgrade (0 to 4), read when DURING resolves."
+  },
+  {
+   "title": "Momentous Shift",
+   "copies": 3,
+   "text": "DURING COMBAT: If your fighter started this turn in a different space, this card's value becomes 5.",
+   "effects": {
+    "immediately": [],
+    "during": [
+     {
+      "op": "if",
+      "condition": {
+       "test": "moved_this_turn",
+       "fighter": "this"
+      },
+      "then": [
+       {
+        "op": "set_value",
+        "card": "this",
+        "amount": 5
+       }
+      ]
+     }
+    ],
+    "after": [],
+    "scheme": [],
+    "boost": []
+   },
+   "notes": "Versatile 3 / boost 1, ANY. Printed value 3 becomes 5, bonuses stay; the fighter that plays the card is the one that must have started the turn elsewhere."
+  },
+  {
+   "title": "Loose Lips Sink Ships!",
+   "copies": 3,
+   "text": "DURING COMBAT: Your opponent reveals the top card of their deck. Decrease the value of their card by the revealed card's BOOST value.",
+   "effects": {
+    "immediately": [],
+    "during": [
+     {
+      "op": "plugin",
+      "id": "rosie:loose_lips"
+     }
+    ],
+    "after": [],
+    "scheme": [],
+    "boost": []
+   },
+   "notes": "Versatile 2 / boost 2, ANY. Plugin `rosie:loose_lips`: reveal the top card of the opponent's deck (the table's real deck for the human) and lower the value of the opponent's card by that card's BOOST value (never below 0). Nothing happens when the opponent played no card or the deck cannot be read."
+  },
+  {
+   "title": "Technological Superiority",
+   "copies": 3,
+   "text": "IMMEDIATELY: If you have 3 or more active upgrades, cancel all effects on your opponent's card.",
+   "effects": {
+    "immediately": [
+     {
+      "op": "if",
+      "condition": {
+       "test": "counter",
+       "name": "upgrades",
+       "min": 3
+      },
+      "then": [
+       {
+        "op": "cancel_effects",
+        "card": "opponent_card"
+       }
+      ]
+     }
+    ],
+    "during": [],
+    "after": [],
+    "scheme": [],
+    "boost": []
+   },
+   "notes": "Versatile 3 / boost 2, ANY. 'Active upgrades' is the counter `upgrades`, read when IMMEDIATELY resolves."
+  },
+  {
+   "title": "Arc Welding",
+   "copies": 3,
+   "text": "AFTER COMBAT: Choose one: activate an upgrade; or deal 1 damage to each adjacent opposing fighter.",
+   "effects": {
+    "immediately": [],
+    "during": [],
+    "after": [
+     {
+      "op": "choose_effect",
+      "amount": 1,
+      "chooser": "owner",
+      "tag": "upgrade",
+      "options": [
+       {
+        "label": "Activate an upgrade",
+        "ops": [
+         {
+          "op": "counter",
+          "name": "upgrades",
+          "delta": 1
+         }
+        ]
+       },
+       {
+        "label": "Deal 1 damage to each adjacent opposing fighter",
+        "ops": [
+         {
+          "op": "damage",
+          "target": {
+           "side": "enemy",
+           "where": {
+            "adjacent_to": "this"
+           },
+           "pick": "all"
+          },
+          "amount": 1
+         }
+        ]
+       }
+      ]
+     }
+    ],
+    "scheme": [],
+    "boost": []
+   },
+   "notes": "Versatile 3 / boost 3, WENDY only. One of the two printed options, the owner's choice (the bot decides with EffectAI): activate an upgrade, or 1 damage to each opposing fighter adjacent to the fighter that played the card (Wendy)."
+  },
+  {
+   "title": "Hasty Repairs",
+   "copies": 3,
+   "text": "AFTER COMBAT: If you have any active upgrades, deactivate one, and Rosie recovers 3 health.",
+   "effects": {
+    "immediately": [],
+    "during": [],
+    "after": [
+     {
+      "op": "if",
+      "condition": {
+       "test": "counter",
+       "name": "upgrades",
+       "min": 1
+      },
+      "then": [
+       {
+        "op": "plugin",
+        "id": "rosie:deactivate"
+       },
+       {
+        "op": "heal",
+        "target": "hero",
+        "amount": 3
+       }
+      ]
+     }
+    ],
+    "scheme": [],
+    "boost": []
+   },
+   "notes": "Defense 1 / boost 2, ROSIE only. Both effects hang on having an active upgrade (the literal reading of 'If you have any active upgrades, deactivate one, and Rosie recovers 3 health'; open question 4). The deactivated upgrade is the leftmost active one and goes to the end of the row (plugin `rosie:deactivate`)."
+  },
+  {
+   "title": "Rapid Development",
+   "copies": 2,
+   "text": "Draw 2 cards. Activate or deactivate an upgrade. Gain 1 free action to attack.",
+   "effects": {
+    "immediately": [],
+    "during": [],
+    "after": [],
+    "scheme": [
+     {
+      "op": "draw",
+      "player": "owner",
+      "amount": 2
+     },
+     {
+      "op": "choose_effect",
+      "amount": 1,
+      "chooser": "owner",
+      "tag": "upgrade",
+      "options": [
+       {
+        "label": "Activate an upgrade",
+        "ops": [
+         {
+          "op": "counter",
+          "name": "upgrades",
+          "delta": 1
+         }
+        ]
+       },
+       {
+        "label": "Deactivate an upgrade",
+        "ops": [
+         {
+          "op": "plugin",
+          "id": "rosie:deactivate"
+         }
+        ]
+       }
+      ]
+     },
+     {
+      "op": "gain_action",
+      "amount": 1
+     }
+    ],
+    "boost": []
+   },
+   "notes": "Scheme, boost 3, WENDY only. Draw 2, then activate or deactivate an upgrade, then 1 extra action (`gain_action`: open question 2)."
+  },
+  {
+   "title": "\"E\" Award",
+   "copies": 2,
+   "text": "Activate or deactivate an upgrade. Move each of your fighters up to 3 spaces.",
+   "effects": {
+    "immediately": [],
+    "during": [],
+    "after": [],
+    "scheme": [
+     {
+      "op": "choose_effect",
+      "amount": 1,
+      "chooser": "owner",
+      "tag": "upgrade",
+      "options": [
+       {
+        "label": "Activate an upgrade",
+        "ops": [
+         {
+          "op": "counter",
+          "name": "upgrades",
+          "delta": 1
+         }
+        ]
+       },
+       {
+        "label": "Deactivate an upgrade",
+        "ops": [
+         {
+          "op": "plugin",
+          "id": "rosie:deactivate"
+         }
+        ]
+       }
+      ]
+     },
+     {
+      "op": "move",
+      "target": {
+       "side": "own",
+       "pick": "all"
+      },
+      "amount": 3,
+      "up_to": true
+     }
+    ],
+    "boost": []
+   },
+   "notes": "Scheme, boost 3, WENDY only. 'Activate or deactivate an upgrade' is a choice of the owner (panel for the human, EffectAI tag `upgrade` for the bot); an option that cannot do anything (all active / none active) does nothing. Both of the owner's fighters move up to 3, one after another."
+  }
+ ],
+ "plugins": [
+  {
+   "id": "rosie:attack_bonus",
+   "why": "Sedgley Fist Gun: add the attack bonus of the active upgrades (the grants of the HeroDef passive) to the value of the hero's attack, which only the HeroDef knows."
+  },
+  {
+   "id": "rosie:deactivate",
+   "why": "Deactivate one upgrade: the leftmost active one flips down and goes to the end of the row, so it changes which upgrade comes next (counters `upgrades` and `upgrade_shift`)."
+  },
+  {
+   "id": "rosie:upgrade",
+   "why": "Test: the named upgrade (merlin_engine, cavity_magnetron, sedgley_fist_gun, whizbang) is active now."
+  },
+  {
+   "id": "rosie:loose_lips",
+   "why": "Reveal the top card of the opponent's deck and lower the value of their card by its BOOST value: the real deck of the table player is read through Game.deck_reader."
+  }
+ ],
+ "hidden_info": [
+  {
+   "card": "Loose Lips Sink Ships!",
+   "what": "reveals the top card of the opponent's deck",
+   "bot_rule": "The bot reads the top card of the human's real deck only when the card says so, at that moment (Game.deck_reader, the Jill Trent route); what it saw is kept as KnownHand.top_of_deck until the next draw or shuffle. The human sees the bot's top card in the chat."
+  }
+ ],
+ "open_questions": [
+  "See docs/heroes/rosie-the-riveter.md, Pending Ivan."
+ ],
+ "discrepancies": []
+}
