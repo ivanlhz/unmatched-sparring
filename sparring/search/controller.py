@@ -21,7 +21,7 @@ from ..cards import Card
 from ..combat import is_medusa_card
 from ..controller import Controller
 from ..state import Fighter, Game
-from .adapter import EngineState, EvalWeights, Knowledge, by_title, plan_frenzy, sidekick_plan
+from .adapter import EngineState, EvalWeights, hero_weights, Knowledge, by_title, plan_frenzy, sidekick_plan
 from .ismcts import ISMCTS, SearchConfig, SearchReport
 
 DEFAULT_TIME_BUDGET = 1.5
@@ -114,7 +114,7 @@ class IsmctsMedusa(Controller):
         return Knowledge.from_game(game, self.me)
 
     def _plan(self, game: Game) -> Act:
-        root = EngineState(game, observer=self.me, knowledge=self.knowledge(game), weights=self.weights)
+        root = EngineState(game, observer=self.me, knowledge=self.knowledge(game), weights=hero_weights(self.weights, game.players[self.me].hero.slug))
         return self.to_act(game, self._decide(root))
 
     def choose_defense(self, game: Game, attacker: Fighter, target: Fighter, attack_card: Card | None = None) -> Card | None:
@@ -128,7 +128,8 @@ class IsmctsMedusa(Controller):
 
     def _choose_defense(self, game: Game, attacker: Fighter, target: Fighter, attack_card: Card | None) -> Card | None:
         root = EngineState(game, observer=self.me, knowledge=self.knowledge(game),
-                           pending=(attacker.fid, target.fid, attack_card), weights=self.weights)
+                           pending=(attacker.fid, target.fid, attack_card),
+                           weights=hero_weights(self.weights, game.players[self.me].hero.slug))
         if root.pending is None:              # the attack known (face up) and no defense card: the root resolved it
             return None
         move = self._decide(root)[0]
