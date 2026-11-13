@@ -6,3 +6,10 @@
 #            Push rejected -> git pull --rebase; if the path is now someone else's, wait and retry; else push again.
 #   release: in the SAME push as your finished work, delete your line (commit "unlock: <path> <agent>").
 #   Never edit a path locked by another agent. Never remove another agent's line.
+sparring/session.py  integrator  review D1/D3/D5  18:31Z
+data/i18n/en.json  integrator  review D1/D3/D5  18:31Z
+data/i18n/es.json  integrator  review D1/D3/D5  18:31Z
+sparring/tracks.py  integrator  review D1/D3/D5  18:31Z
+sparring/state.py  integrator  review D1/D3/D5  18:31Z
+docs/heroes/rosie-the-riveter.md  integrator  review D1/D3/D5  18:31Z
+tools/strange_measure.py  integrator  review D1/D3/D5  18:31Z
