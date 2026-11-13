@@ -428,7 +428,7 @@ Nothing of Philippa has been seen on a real table. Her deck is sheet 176 like Me
 - [ ] **Do my bidding (B)**: the bot takes your card back (the chat names the card it makes you play instead, chosen after reading your hand); put the old card back in your hand, put the named card face up on your combat spot and press Done. **(H)**: the bot's hand is laid out in a row, click the card it plays; the bot swaps its card on the table (old card back to its hand, new card face up). Pressing nothing means the same card.
 - [ ] **Polymorphy (H)**: the chat asks you to place Philippa in any space by hand; the card stays in your ONGOING zone; her move is 5 in your Maneuvers; at the end of your turn it leaves play unless an opposing fighter shares a zone with her. **(B)**: the bot places her and moves 5.
 - [ ] **Backup plan (H/B)**: a choice between health 5 and drawing 3; the dial follows.
-- [ ] **Spymaster's ruse (H)**: the bot reveals four cards (the chat lists them as the panel options), you pick two and it discards them, then it draws two. **(B)**: the panel asks you to name four cards of your hand (page through the list), the bot picks two and the chat names them: put them on your discard pile by hand; then you draw two.
+- [ ] **Spymaster's ruse (H)**: the bot chooses four cards and lays them face up in its row; take two of them to the bot's discard pile and press Done (a card that was not revealed, or a wrong count, is refused); the other two go back to its hand and it draws two. A Ctrl+C and `--resume` in the middle keeps the row. **(B)**: the panel asks you to name four cards of your hand (page through the list), the bot picks two and the chat names them: put them on your discard pile by hand; then you draw two.
 
 ### John Henry (Stars and Stripes)
 
