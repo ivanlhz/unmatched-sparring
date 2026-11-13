@@ -32,3 +32,7 @@ sparring/hero_detect.py  john-henry  John Henry engine pieces, step B (tracks st
 sparring/effects/table.py  john-henry  John Henry engine pieces, step B (tracks state, SpaceSel track, over_tracks, schema, hero lists)  14:20Z
 sparring/ai_effects.py  john-henry  John Henry engine pieces, step B (tracks state, SpaceSel track, over_tracks, schema, hero lists)  14:20Z
 config/table.json  john-henry  John Henry engine pieces, step B (tracks state, SpaceSel track, over_tracks, schema, hero lists)  14:20Z
+sparring/session.py  john-henry  John Henry session pieces (tracks sync, token placement, AI hooks)  14:23Z
+sparring/session_translators.py  john-henry  John Henry session pieces (tracks sync, token placement, AI hooks)  14:23Z
+sparring/play.py  john-henry  John Henry session pieces (tracks sync, token placement, AI hooks)  14:23Z
+sparring/ai_medusa.py  john-henry  John Henry session pieces (tracks sync, token placement, AI hooks)  14:23Z
