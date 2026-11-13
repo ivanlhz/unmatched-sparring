@@ -225,6 +225,7 @@ class EffectState:
         if game is not None and game.fighters:
             from .. import enraged
             enraged.sync_move(game, player, restore=True)
+            upgrades.sync(game, player)             # restore put the printed move back: Rosie's Merlin Engine adds to it
 
     # counters
     def counter_value(self, player: int, name: str, default: int = 0) -> int:

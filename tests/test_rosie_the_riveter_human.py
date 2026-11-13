@@ -141,6 +141,19 @@ def test_rapid_development_asks_activate_or_deactivate_and_deals_the_cards(mine)
     assert counters(game) == (2, 0) and table.human_deals == [2] and game.actions_left == 2 - 1 + 1
 
 
+def test_the_humans_free_action_from_rapid_development_is_refused_for_a_maneuver(mine):
+    session, table, game, fake, cfg = mine
+    human_hand(table, game, "Rapid Development", FILLER)
+    human_scheme(session, table, game, "Rapid Development")
+    press(session, table, 0)
+    assert game.actions_left == 2 - 1 + 1 and game.fx.attack_credit == 1
+    click(session, table, Event.END_ACTION)
+    game.actions_left = 1                                          # the real action is spent: only the free one to attack is left
+    assert game.attack_only()
+    msgs = click(session, table, Event.MANEUVER)
+    assert game.actions_left == 1 and game.fx.attack_credit == 1 and not session.moving, msgs
+
+
 def test_e_award_deactivates_an_upgrade_and_the_row_turns(mine):
     session, table, game, fake, cfg = mine
     upgrades.activate(game, 1)

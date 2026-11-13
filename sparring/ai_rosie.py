@@ -18,7 +18,7 @@ ARC = "Arc Welding"
 HASTY = "Hasty Repairs"
 
 UPGRADE_STEP = 0.3         # one more active upgrade, in cards: it is worth something for the rest of the turn, and nothing once all four reset
-FREE_ACTION = 0.8          # D-Day's extra action (the AI's ACTION_VALUE is 1.0; it can only be spent as the rules allow it, which the engine does not check)
+FREE_ACTION = 0.8          # D-Day's extra action, attack-only (the AI's ACTION_VALUE is 1.0, an attack-only one is worth less)
 MOVE_AFTER = 0.3           # Overrun's move
 HEAL_LIMIT = 3             # what Hasty Repairs recovers
 

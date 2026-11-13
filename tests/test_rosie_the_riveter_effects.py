@@ -316,6 +316,17 @@ def test_a_saved_game_and_a_clone_keep_the_move_value_merlin_engine_gave(bprd):
     assert g2.fighters["rosie"].move == 3 and g2.clone().fighters["rosie"].move == 3 and g2.fighters["wendy"].move == 2
 
 
+def test_an_ongoing_coming_or_going_does_not_wipe_merlin_engines_move(bprd):
+    """Philippa's hero_move sync puts the printed move back when an ONGOING comes or goes: Rosie's own bonus is applied again."""
+    g = mk(bprd)
+    upgrades.activate(g, 0)
+    assert g.fighters["rosie"].move == 3
+    g.fx.set_ongoing(0, g.players[0].full_set[0].card_id)
+    assert g.fighters["rosie"].move == 3
+    g.fx.take_ongoing(0)
+    assert g.fighters["rosie"].move == 3 and g.fighters["wendy"].move == 2
+
+
 def test_without_merlin_engine_a_maneuver_is_the_usual_two_spaces(bprd):
     g = mk(bprd)
     g.players[0].hand.append(g.players[0].deck.pop(0))
@@ -424,6 +435,22 @@ def test_d_day_gains_an_action_and_activates_all_the_upgrades(bprd):
     g.attack(rosie, leo, give(g, 0, "D-Day"), None)
     assert counters(g) == (4, 0) and g.actions_left == 2                       # one spent, one gained
     assert leo.hp == leo.max_hp - 3                                          # not already active: no extra damage
+
+
+def test_the_free_action_of_d_day_can_only_be_spent_on_an_attack(bprd):
+    g = mk(bprd, "leonardo")
+    rosie, leo = pair(g, "rosie", "leonardo")
+    g.attack(rosie, leo, give(g, 0, "D-Day"), None)
+    assert g.actions_left == 2 and g.fx.attack_credit == 1
+    g.players[0].hand.append(g.players[0].deck.pop(0))
+    g.maneuver(0, {})                                             # the real action
+    assert g.actions_left == 1 and g.attack_only()
+    with pytest.raises(RuleError):
+        g.maneuver(0, {})
+    with pytest.raises(RuleError):
+        g.play_scheme(0, g.fighters["wendy"], give(g, 0, '"E" Award'))
+    res = g.attack(rosie, leo, give(g, 0, "Technological Superiority"), None)
+    assert res.atk_value >= 3 and g.actions_left == 0 and g.fx.attack_credit == 0
 
 
 def test_d_day_with_all_four_already_active_hurts_the_opposing_fighter_and_heals_rosie(bprd):
@@ -589,6 +616,18 @@ def test_rapid_development_draws_two_activates_or_deactivates_and_gains_an_actio
     g2.controllers[0].queue = [[1]]
     g2.play_scheme(0, g2.fighters["wendy"], give(g2, 0, "Rapid Development"))
     assert counters(g2) == (1, 1)
+
+
+def test_rapid_development_gives_a_free_action_that_only_an_attack_may_spend(bprd):
+    g = mk(bprd)
+    g.controllers[0].queue = [[0]]
+    g.play_scheme(0, g.fighters["wendy"], give(g, 0, "Rapid Development"))
+    assert g.actions_left == 2 and g.fx.attack_credit == 1
+    g.players[0].hand.append(g.players[0].deck.pop(0))
+    g.maneuver(0, {})
+    assert g.attack_only()
+    with pytest.raises(RuleError):
+        g.maneuver(0, {})
 
 
 def test_e_award_activates_or_deactivates_and_moves_each_fighter_up_to_three(bprd):

@@ -143,7 +143,7 @@ def test_card_effects_say_what_the_real_cards_say(effects):
     assert by["Hasty Repairs"]["after"] == [{"op": "if", "condition": {"test": "counter", "name": "upgrades", "min": 1},
                                              "then": [{"op": "plugin", "id": "rosie:deactivate"}, {"op": "heal", "target": "hero", "amount": 3}]}]
     d_day = by["D-Day"]["after"]
-    assert d_day[0] == {"op": "gain_action", "amount": 1} and d_day[1]["condition"] == {"test": "counter", "name": "upgrades", "min": 4}
+    assert d_day[0] == {"op": "gain_action", "amount": 1, "only": "attack"} and d_day[1]["condition"] == {"test": "counter", "name": "upgrades", "min": 4}
     assert d_day[1]["then"] == [{"op": "damage", "target": "opposing", "amount": 1}, {"op": "heal", "target": "this", "amount": 1}]
     assert d_day[1]["else"] == [{"op": "counter", "name": "upgrades", "set": 4}]
     assert by["Overrun"]["after"][0] == {"op": "move", "target": "this", "amount": 3, "up_to": True, "through_enemies": True, "as": "mover"}
@@ -152,6 +152,7 @@ def test_card_effects_say_what_the_real_cards_say(effects):
     assert arc["op"] == "choose_effect" and [o["ops"][0]["op"] for o in arc["options"]] == ["counter", "damage"]
     scheme = by["Rapid Development"]["scheme"]
     assert [o["op"] for o in scheme] == ["draw", "choose_effect", "gain_action"] and scheme[0]["amount"] == 2
+    assert scheme[2] == {"op": "gain_action", "amount": 1, "only": "attack"}
     scheme = by['"E" Award']["scheme"]
     assert [o["op"] for o in scheme] == ["choose_effect", "move"] and scheme[1]["amount"] == 3
     assert by["Momentous Shift"]["during"][0]["then"] == [{"op": "set_value", "card": "this", "amount": 5}]

@@ -150,7 +150,8 @@
     "after": [
      {
       "op": "gain_action",
-      "amount": 1
+      "amount": 1,
+      "only": "attack"
      },
      {
       "op": "if",
@@ -183,7 +184,7 @@
     "scheme": [],
     "boost": []
    },
-   "notes": "Attack 3 / boost 1, ROSIE only. 'Gain 1 free action to attack' is a plain extra action (`gain_action`): the engine has no action that can only be spent on an attack (open question 2 in docs/heroes/rosie-the-riveter.md). 'If they were already active' is read as: all four upgrades were active before this card activated them (`counter upgrades >= 4` tested before the activation); then the opposing fighter takes 1 and Rosie recovers 1 (open question 3)."
+   "notes": "Attack 3 / boost 1, ROSIE only. 'Gain 1 free action to attack' is `gain_action` with `only: attack` (fx.attack_credit: only an attack may spend it; open question 2 in docs/heroes/rosie-the-riveter.md). 'If they were already active' is read as: all four upgrades were active before this card activated them (`counter upgrades >= 4` tested before the activation); then the opposing fighter takes 1 and Rosie recovers 1 (open question 3)."
   },
   {
    "title": "Overrun",
@@ -437,12 +438,13 @@
      },
      {
       "op": "gain_action",
-      "amount": 1
+      "amount": 1,
+      "only": "attack"
      }
     ],
     "boost": []
    },
-   "notes": "Scheme, boost 3, WENDY only. Draw 2, then activate or deactivate an upgrade, then 1 extra action (`gain_action`: open question 2)."
+   "notes": "Scheme, boost 3, WENDY only. Draw 2, then activate or deactivate an upgrade, then 1 free action to attack (`gain_action` only attack: open question 2)."
   },
   {
    "title": "\"E\" Award",

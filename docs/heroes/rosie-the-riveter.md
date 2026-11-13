@@ -35,7 +35,7 @@ Her deck is sheet 176 like Medusa's and every other deck of the sheet: the same 
 | Title | Type | Value | Boost | Copies | Fighter | Effect |
 |---|---|---|---|---|---|---|
 | We Can Do It! | attack | 4 | 2 | 2 | Rosie | IMMEDIATELY: activate an upgrade |
-| D-Day | attack | 3 | 1 | 3 | Rosie | AFTER: gain 1 free action; if all four upgrades were already active, 1 damage to the opposing fighter and Rosie recovers 1, otherwise activate all of them |
+| D-Day | attack | 3 | 1 | 3 | Rosie | AFTER: gain 1 free action to attack; if all four upgrades were already active, 1 damage to the opposing fighter and Rosie recovers 1, otherwise activate all of them |
 | Overrun | attack | 3 | 1 | 3 | Rosie | AFTER: move Rosie up to 3 through opposing fighters, then 1 damage to each one she moved through |
 | Full Metal | versatile | 1 | 3 | 3 | Rosie | DURING: +1 for each active upgrade |
 | Momentous Shift | versatile | 3 | 1 | 3 | any | DURING: if your fighter started this turn in a different space, the value is 5 |
@@ -43,7 +43,7 @@ Her deck is sheet 176 like Medusa's and every other deck of the sheet: the same 
 | Technological Superiority | versatile | 3 | 2 | 3 | any | IMMEDIATELY: with 3 or more active upgrades, cancel all effects on the opponent's card |
 | Arc Welding | versatile | 3 | 3 | 3 | Wendy | AFTER: choose one: activate an upgrade, or 1 damage to each adjacent opposing fighter |
 | Hasty Repairs | defense | 1 | 2 | 3 | Rosie | AFTER: with any active upgrade, deactivate one and Rosie recovers 3 |
-| Rapid Development | scheme | - | 3 | 2 | Wendy | draw 2, activate or deactivate an upgrade, gain 1 free action |
+| Rapid Development | scheme | - | 3 | 2 | Wendy | draw 2, activate or deactivate an upgrade, gain 1 free action to attack |
 | "E" Award | scheme | - | 3 | 2 | Wendy | activate or deactivate an upgrade, move each of your fighters up to 3 |
 
 ## Verification of the transcription (unmatched-memory vs the real cards)
@@ -76,13 +76,13 @@ Every title, type, value, boost, copy count, restriction band and text of the el
 
 ## Pending Ivan
 1. **Upgrade effects: found, please confirm.** They were not in the data. I read them from the four token images in the bag (downloaded from the save's image URLs): 1 MERLIN ENGINE, 2 CAVITY MAGNETRON, 3 SEDGLEY FIST GUN, 4 WHIZBANG (table above). If the tokens in the save differ from the printed game, the effects are the `grants` in the overlay passive.
-2. **"Gain 1 free action to attack"** (D-Day, Rapid Development): implemented as one extra action of any kind (`gain_action`). The engine has no action restricted to attacking; the restricted version would touch every planner and the panel. Should the extra action be limited to an attack?
+2. **"Gain 1 free action to attack"** (D-Day, Rapid Development): implemented as `gain_action` with `only: attack` (`fx.attack_credit`, the same attack-only free action John Henry and Wyatt Earp use): a Maneuver or a scheme cannot spend it, an attack can (the free one is spent first). Alternative reading: an extra action of any kind. Is the restriction what the card means?
 3. **D-Day "if they were already active"**: implemented as all four upgrades active before the card. Alternative: the damage and the heal happen for any upgrade that was already active, or when at least one was.
 4. **Hasty Repairs**: the heal is also conditional on having an active upgrade (literal reading). Alternative: always heal 3, deactivate one only if any.
 5. **The bot does not flip the physical upgrade tokens.** The chat says each change and the order of the row; the engine is the authority. Flipping and re-ordering four double-sided tokens on the table (the active face is the token's child object) needs measuring on the live table, like Jill Trent's gadget token. With the human as Rosie the human flips their own tokens by hand following the chat.
 6. **Cavity Magnetron for the bot** takes the draw unless its hand is already at the limit.
 7. **Card 17700** (the rules card in her bag) has Houdini's hero-card CardID. Nothing reads it today.
-8. **The AI does not count Sedgley Fist Gun's +1 when it chooses an attack** (the engine does when the combat resolves). Putting it in `Game.attack_bonus` needs a change in `sparring/state.py`, which another agent had locked during this task.
+8. **The AI does not count Sedgley Fist Gun's +1 when it chooses an attack** (the engine does when the combat resolves). Putting it in `Game.attack_bonus` needs a hook in `sparring/state.py`; not done.
 
 ## AI
 - The AI profile comes from the data (`ai_profile`: Rosie `hero`, melee; Wendy `striker`). The reach of Whizbang and Merlin's extra space are the fighter's `ranged` and `move`, which every planner reads, so they see the active upgrades; Sedgley Fist Gun's +1 is only in the combat, not in the AI's estimate of a blow.
