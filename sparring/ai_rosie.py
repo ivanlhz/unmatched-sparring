@@ -2,8 +2,9 @@
 AFTER / IMMEDIATELY of the cards that move her upgrade row.
 
 `ai_medusa.card_value` and the rival models read the printed value, so Full Metal (1, plus 1 per active upgrade) would be played as a 1.
-The bonus of Sedgley Fist Gun, the reach of Whizbang and the Merlin Engine's extra space need nothing here: they are in `Game.attack_bonus`,
-`Fighter.ranged` and `Game.maneuver_bonus`, which the AI already reads. The weights are the AI's usual ones, passed in by the caller so
+The reach of Whizbang and the Merlin Engine's extra space need nothing here: they are the hero's `Fighter.ranged` and `Fighter.move`
+(`upgrades.sync`), which the AI already reads. Sedgley Fist Gun's +1 is a DURING effect of the combat, not in `Game.attack_bonus`, so the
+AI's estimate of a blow does not see it. The weights are the AI's usual ones, passed in by the caller so
 this module never imports the AI."""
 from __future__ import annotations
 
