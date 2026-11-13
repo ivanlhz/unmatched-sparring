@@ -258,7 +258,7 @@ def test_a_free_attack_bound_to_a_fighter_attacks_only_that_fighter(bprd):
     g.actions_left = 0
     g.grant_free_attack("lobster")
     card = give(g, 0, "You Just Gonna Stand There And Bleed?")
-    with pytest.raises(RuleError):
+    with pytest.raises(RuleError, match="lobster"):
         g.attack(wyatt, hellboy, card, None)
     assert g.actions_left == 1 and card in g.players[0].hand
     g.attack(wyatt, lobster, card, None)
@@ -466,13 +466,15 @@ def test_in_vino_veritas_with_a_full_hand_only_gives_the_action(bprd):
     assert len(g.players[0].hand) == 5 and g.free_attacks == [None]
 
 
-def test_in_vino_veritas_stops_when_the_deck_runs_out(bprd):
+def test_in_vino_veritas_with_a_short_deck_draws_what_is_left_and_pays_the_exhaustion_for_the_rest(bprd):
+    """The usual rule of a draw the deck cannot give: each missing card hurts every own fighter (2). The hand has 0 after the scheme."""
     g = mk(bprd)
     arena(g)
     del g.players[0].deck[:-2]
     vino = give(g, 0, "In Vino Veritas")
     g.play_scheme(0, g.fighters["doc"], vino)
     assert len(g.players[0].hand) == 2 and g.players[0].deck == []
+    assert (g.fighters["wyatt"].hp, g.fighters["doc"].hp) == (15 - 2 * 2, 8 - 2 * 2) and g.free_attacks == [None]
 
 
 def test_you_die_first_moves_a_rival_up_to_one_space_and_the_free_attack_is_for_that_fighter(bprd):
@@ -487,7 +489,7 @@ def test_you_die_first_moves_a_rival_up_to_one_space_and_the_free_attack_is_for_
     g.use_action()                                             # the paid one is gone: only the free attack at the lobster is left
     card = give(g, 0, "You Just Gonna Stand There And Bleed?")
     put_adjacent(g, "lobster", "wyatt")
-    with pytest.raises(RuleError):
+    with pytest.raises(RuleError, match="lobster"):
         g.attack(wyatt, hellboy, card, None)
     g.attack(wyatt, lobster, card, None)
     assert g.actions_left == 0

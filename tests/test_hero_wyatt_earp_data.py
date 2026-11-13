@@ -150,7 +150,7 @@ def test_card_effects_say_what_the_real_cards_say(effects):
     two_guns = by["I Have Two Guns, One For Each Of You"]["after"][0]["then"][0]
     assert two_guns["target"] == {"side": "enemy", "where": {"zone_of": "this"}, "filter": {"except": "opposing"}}
     assert two_guns["amount"] == {"attr": "value", "of": "opponent_card"}
-    assert [o["op"] for o in by["In Vino Veritas"]["scheme"]] == ["if"] * 4 + ["plugin"]
+    assert by["In Vino Veritas"]["scheme"][0] == {"op": "draw", "player": "owner", "amount": {"hand_deficit": 4}}
     assert by["In Vino Veritas"]["scheme"][-1] == {"op": "plugin", "id": "wyatt:free_attack"}
     assert by["You Die First"]["scheme"] == [{"op": "plugin", "id": "wyatt:you_die_first"}]
 

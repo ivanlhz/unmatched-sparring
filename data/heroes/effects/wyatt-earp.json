@@ -427,76 +427,11 @@
     "after": [],
     "scheme": [
      {
-      "op": "if",
-      "condition": {
-       "test": "compare",
-       "left": {
-        "stat": "hand_size"
-       },
-       "op": "<",
-       "right": 4
-      },
-      "then": [
-       {
-        "op": "draw",
-        "player": "owner",
-        "amount": 1
-       }
-      ]
-     },
-     {
-      "op": "if",
-      "condition": {
-       "test": "compare",
-       "left": {
-        "stat": "hand_size"
-       },
-       "op": "<",
-       "right": 4
-      },
-      "then": [
-       {
-        "op": "draw",
-        "player": "owner",
-        "amount": 1
-       }
-      ]
-     },
-     {
-      "op": "if",
-      "condition": {
-       "test": "compare",
-       "left": {
-        "stat": "hand_size"
-       },
-       "op": "<",
-       "right": 4
-      },
-      "then": [
-       {
-        "op": "draw",
-        "player": "owner",
-        "amount": 1
-       }
-      ]
-     },
-     {
-      "op": "if",
-      "condition": {
-       "test": "compare",
-       "left": {
-        "stat": "hand_size"
-       },
-       "op": "<",
-       "right": 4
-      },
-      "then": [
-       {
-        "op": "draw",
-        "player": "owner",
-        "amount": 1
-       }
-      ]
+      "op": "draw",
+      "player": "owner",
+      "amount": {
+       "hand_deficit": 4
+      }
      },
      {
       "op": "plugin",
@@ -505,7 +440,7 @@
     ],
     "boost": []
    },
-   "notes": "Scheme, boost 3, DOC HOLLIDAY only. 'Draw until you have 4' is four draws of 1 each guarded by 'hand under 4' (the engine's draw is one by one, so it stops when the hand is full or the deck is empty). The free action is attack-only (`wyatt:free_attack`)."
+   "notes": "Scheme, boost 3, DOC HOLLIDAY only. 'Draw until you have 4 cards' is the draw of `{hand_deficit: 4}` (docs/effects-dsl.md section 40): what the hand lacks after the scheme left it, nothing with 4 or more. The free action is attack-only (`wyatt:free_attack`)."
   },
   {
    "title": "You Die First",

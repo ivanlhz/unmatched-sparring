@@ -857,6 +857,7 @@
  "err.illegal_place": "{fid}: no se puede colocar en la casilla {dest} (tiene que ser una casilla libre del tablero)",
  "err.no_actions": "sin acciones",
  "err.only_free_attacks": "solo quedan acciones gratis para atacar: ni un Maneuver ni un scheme pueden gastarlas",
+ "err.free_attack_target": "la accion gratis para atacar que queda solo puede atacar a {fids}",
  "err.no_boost_value": "{title} no tiene valor de impulso",
  "err.cannot_move": "{fid} no puede moverse",
  "err.cannot_play": "{title} no se puede jugar con {fid}",

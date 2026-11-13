@@ -857,6 +857,7 @@
  "err.illegal_place": "{fid}: it cannot be placed on space {dest} (it must be an empty space of the board)",
  "err.no_actions": "no actions left",
  "err.only_free_attacks": "only free actions to attack are left: a Maneuver or a scheme cannot spend them",
+ "err.free_attack_target": "the free action to attack that is left can only attack {fids}",
  "err.no_boost_value": "{title} has no boost value",
  "err.cannot_move": "{fid} cannot move",
  "err.cannot_play": "{title} cannot be played with {fid}",

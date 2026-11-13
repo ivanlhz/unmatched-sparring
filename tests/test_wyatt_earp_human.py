@@ -284,3 +284,60 @@ def test_bring_em_to_justice_adds_twice_the_boost_of_the_top_card_of_the_bots_de
     msgs = click(session, table, Event.REVEAL)
     assert said(msgs, f"Reveladas arriba de mi mazo: {top.title}"), msgs
     assert wyatt.hp == 15 - max(0, 3 - 2 * top.boost), msgs            # the bot's Training is 3 against 0 + twice the BOOST of its own top card
+
+
+# ---------------------------------------------------------------- the rest of the human's cards
+
+def test_fan_the_hammer_goes_back_to_the_humans_hand_when_it_defeats_the_fighter(mine, monkeypatch):
+    session, table, game, fake, cfg = mine
+    bot_defends_with_nothing(session, monkeypatch)
+    put_adjacent(game, table, cfg, "wyatt", "lobster")
+    game.fighters["lobster"].hp = 1
+    human_hand(table, game, "Fan The Hammer", "Second Shot")
+    fan = card_ids(game, 1, "Fan The Hammer")[0]
+    attack(session, table, game, "Fan The Hammer", target="lobster")
+    msgs = press(session, table, 0)                                             # SHOWDOWN first: the draw; then the card's own AFTER
+    assert not game.fighters["lobster"].alive and said(msgs, "vuelve a tu mano"), msgs
+    assert fan not in [c.card_id for c in game.players[1].discard]
+
+
+def test_youre_a_daisy_deals_two_cards_to_the_human(mine, monkeypatch):
+    session, table, game, fake, cfg = mine
+    bot_defends_with_nothing(session, monkeypatch)
+    put_adjacent(game, table, cfg, "doc", "hellboy")
+    human_hand(table, game, "You're A Daisy If You Do", "Second Shot")
+    attack(session, table, game, "You're A Daisy If You Do", attacker="doc")
+    press(session, table, 2)                                                    # SHOWDOWN: the step, so the deals are Daisy's alone
+    assert table.human_deals == [2]
+
+
+def test_gunfight_asks_the_human_for_the_first_and_third_hit_and_the_bot_picks_the_others(mine, monkeypatch):
+    session, table, game, fake, cfg = mine
+    bot_defends_with_nothing(session, monkeypatch)
+    put_adjacent(game, table, cfg, "wyatt", "hellboy")
+    human_hand(table, game, "Gunfight At The O.K. Corral", "Second Shot")
+    hp = {fid: f.hp for fid, f in game.fighters.items()}
+    attack(session, table, game, "Gunfight At The O.K. Corral")
+    press(session, table, 2)                                                    # SHOWDOWN first (the step)
+    req = session.effect_run.awaiting
+    assert req.kind == "fighter" and set(req.options) == set(game.fighters) and req.extra["op"] == "damage"
+    press(session, table, "hellboy")
+    req = session.effect_run.awaiting
+    assert req.kind == "fighter" and req.player == 1                            # the third hit is the human's again
+    press(session, table, "hellboy")
+    assert session.effect_run is None
+    dealt = {fid: hp[fid] - f.hp for fid, f in game.fighters.items() if hp[fid] != f.hp}
+    assert dealt["hellboy"] >= 2 + 2 and sum(dealt.values()) >= 2 + 4, dealt     # 2 combat damage... and the four hits: two ours, two theirs
+
+
+def test_the_free_action_of_you_die_first_refuses_an_attack_on_any_other_fighter(mine, monkeypatch):
+    session, table, game, fake, cfg = mine
+    bot_defends_with_nothing(session, monkeypatch)
+    put_adjacent(game, table, cfg, "wyatt", "hellboy")
+    put_adjacent(game, table, cfg, "doc", "hellboy")
+    game.actions_left, game.free_attacks = 1, ["lobster"]                     # only the free action at the lobster is left
+    human_hand(table, game, STAND, "Second Shot")
+    human_attack(session, table, game, "wyatt", "hellboy", STAND)
+    msgs = click(session, table, Event.REVEAL)
+    assert said(msgs, "solo puede atacar a lobster"), msgs
+    assert game.actions_left == 1 and game.free_attacks == ["lobster"] and game.fighters["hellboy"].hp == game.fighters["hellboy"].max_hp, msgs

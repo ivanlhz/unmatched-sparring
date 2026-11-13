@@ -710,6 +710,8 @@ class Game:
         if slot is not None:
             del self.free_attacks[slot]
         elif self.paid_actions <= 0:
+            if attack_on is not None:        # only free actions bound to other fighters are left (You Die First)
+                raise RuleError(t("err.free_attack_target", fids=", ".join(sorted(f for f in self.free_attacks if f))))
             raise RuleError(t("err.only_free_attacks"))
         self.actions_left -= 1
         self.fx.count_action()

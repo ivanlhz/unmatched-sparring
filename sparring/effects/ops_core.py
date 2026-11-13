@@ -493,6 +493,7 @@ def _spend_action(run, game, spec):
 def _end_turn(run, game, spec):
     run.flags["end_turn"] = game.turn      # the CURRENT turn ends, whoever owns the card (a defense can end the attacker's)
     game.actions_left = 0
+    game.free_attacks.clear()              # the free actions to attack go with the rest
 
 
 # ---------------------------------------------------------------- control

@@ -50,7 +50,7 @@ SHOWDOWN can give a free action to attack, and an attack that wins can offer SHO
 1. **SHOWDOWN's trigger**: "after you attack and win combat" is an attack of the owner (Wyatt's or Doc Holliday's, whoever the card is played by) that the owner won (the engine's result: the attacker wins only if combat damage lands), run in the AFTER, before the card's own AFTER, also when the card's effects were cancelled (the ability is the hero's). Defending never triggers it.
 2. **"Your fighter"** in "move your fighter up to 1 space" is the fighter that attacked. The owner may move 0.
 3. **"Free action to attack"** is an extra action that can only be spent on an attack, with any fighter and any card that can attack. For You Die First it can only attack the fighter that was moved. The free action is spent before an ordinary one, so it never costs more than the action it replaces. It is lost at the end of the turn.
-4. **"Draw until you have 4 cards"** counts the hand after the scheme left it, and stops when the deck runs out (a draw from an empty deck is not forced: the exhaustion rule applies to draws, not to this limit; four draws guarded by "hand under 4").
+4. **"Draw until you have 4 cards"** is a draw of what the hand lacks after the scheme left it (`{"hand_deficit": 4}`, docs/effects-dsl.md section 40), nothing with 4 or more. With a deck that cannot give them all, each missing card is the usual exhaustion (2 damage to each of the owner's fighters), as for any draw.
 5. **I Have Two Guns**: "a different opposing fighter in Doc Holliday's zone" is any other rival in a zone of Doc's space except the fighter of this combat; the damage is the PRINTED value of the rival's card (also when its effects were cancelled, or its value was changed in the combat). No rival card, or nobody else in the zone: no damage. The owner picks the victim.
 6. **I'm Your Huckleberry** may hit the fighter of the combat if it is still standing ("an opposing fighter in your fighter's zone").
 7. **Gunfight At The O.K. Corral**: four hits of effect damage in the printed order, the owner choosing the 1st and 3rd and the opponent the 2nd and 4th; "any fighter" includes each one's own fighters.
@@ -65,7 +65,8 @@ SHOWDOWN can give a free action to attack, and an attack that wins can offer SHO
 3. **"Your fighter"** (the move option): implemented as the fighter that attacked. Alternative: any fighter of yours.
 4. **I'm Your Huckleberry** can hit the opposing fighter of the combat: implemented as the literal "an opposing fighter in your fighter's zone". Alternative: a different one.
 5. **Order of SHOWDOWN and the card's own AFTER**: SHOWDOWN first (it is the hero's), then the card's AFTER. It matters when both draw (the hand limit) and for Fan The Hammer. Alternative: the card's AFTER first.
-6. **Doc Holliday's table piece** (`3f56bb`, a Custom_Token) is found like Daisy's and The Porter's: to check live.
+6. **"Draw until you have 4" with a short deck** pays the exhaustion for each card the deck cannot give (the engine's rule for any draw). Alternative: draw only what is left and stop.
+7. **Doc Holliday's table piece** (`3f56bb`, a Custom_Token) is found like Daisy's and The Porter's: to check live.
 
 ## AI
 - Profile from the data (`ai_profile`): Wyatt `hero`, ranged; Doc Holliday `striker`, ranged. Name-based values live in `sparring/ai_wyatt.py`.
