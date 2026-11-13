@@ -3,7 +3,7 @@
  "_notes": [
   "Washington's deck is sheet 187 (CardIDs 18700-18729, the 30 playing cards; the character card is 404 on sheet 4): the sheet is shared with Wyatt Earp's and John Henry's decks: only deck.identity tells them apart (docs/card-identity.md).",
   "The three Culper Spies are Custom_Token objects (d6183b Anna Strong, 6c6bdd Pompey Lamb, 30c3de Austin Roe) with no life dial (1 life each); real TTS reports an object imported from a save as a Tile, so nothing that reads or moves them may filter on obj.type. Washington's miniature is the Custom_Assetbundle b4ab68 and his life dial the Custom_Model 166320 (MAX_VALUE 14, the 'Hero Health' script), both nicknamed 'George Washington'.",
-  "`tokens.ruse_on` is the stack of four 'Ruse' tokens (Custom_Token_Stack 1c7d18). The bot's token that lies next to its attack card is a copy taken from it (engine counter `ruse_on`, 1 while the token is on the card); the supply counter `ruse` has no object of its own: the stack stays where it is and the chat says how many are left (docs/heroes/george-washington.md)."
+  "`tokens.ruse` is the stack of four 'Ruse' tokens (Custom_Token_Stack 1c7d18). The bot's token that lies next to its attack card is a copy taken from it (engine counter `ruse`, 1 while the token is on the card); the supply counter `ruse_tokens` has no object of its own: the stack stays where it is and the chat says how many are left (docs/heroes/george-washington.md)."
  ],
  "bag": {
   "guid": "a6447e",

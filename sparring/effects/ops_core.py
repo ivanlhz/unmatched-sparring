@@ -694,4 +694,4 @@ from . import plugins_rosie  # noqa: E402,F401  (registers rosie:deactivate, ros
 from . import plugins_wyatt  # noqa: E402,F401  (registers wyatt:free_attack, you_die_first, swear_me_in, bring_to_justice)
 from . import plugins_philippa  # noqa: E402,F401  (registers philippa: owlform, chain_lightning, blinding_dust, do_my_bidding, spymaster_ruse)
 from . import plugins_john  # noqa: E402,F401  (registers john:summon_track and the test john:paths)
-from . import plugins_washington  # noqa: E402,F401  (registers washington:use_ruse and washington:replace_combatant)
+from . import plugins_washington  # noqa: E402,F401  (registers washington:use_ruse, washington:offer_removal and washington:replace_combatant)

@@ -217,7 +217,7 @@ def test_the_bots_token_is_laid_on_the_table_and_the_human_is_asked_whether_to_d
     bot_attacks(session, table, game, "Agent 711", "washington", "hellboy")
     assert supply(game, 0) == (3, 1) and table.tokens == ["tok1"] and session.token_copies == {"ruse": ["tok1"]}
     said_now = " ".join(session.messages)
-    assert "George Washington (bot) pone una ficha de engano en su ataque, Agent 711: le quedan 3 en su reserva" in said_now, session.messages
+    assert "George Washington (bot) pone una ficha de engano en su ataque: le quedan 3 en su reserva" in said_now, session.messages
     assert session._paused()[0] == "parked" and labels(session) == ["Si", "No"]
     assert session.effect_run.awaiting.player == 1 and session.pending.kind == "bot_attacks"
     assert "hay una ficha de engano en el ataque. Descartas 1 carta al azar de tu mano" in said_now
@@ -348,3 +348,27 @@ def test_sympathetic_stain_with_no_spy_next_to_a_rival_only_looks_and_gives_no_t
     assert not said(msgs, "te pide una eleccion"), msgs
     assert session._paused() is None or session._paused()[2].awaiting.kind != "cards"
     assert supply(game, 1) == (2, 0) and len(game.players[0].hand) == 4
+
+
+@with_rig("george-washington", "hellboy", *BOT_HAND)
+def test_the_bots_attack_card_is_not_named_before_the_human_decides(rig, monkeypatch):
+    session, table, game, fake, cfg = rig
+    bot_ruse(session, monkeypatch, True)
+    put_adjacent(game, table, cfg, "washington", "hellboy")
+    human_hand(table, game, "Right Hand Of Doom", TRAINING, "Service Pistol", "Excalibur")
+    bot_attacks(session, table, game, "Agent 711", "washington", "hellboy")
+    said_now = " ".join(session.messages)
+    assert "pone una ficha de engano en su ataque: le quedan 3" in said_now and "Agent 711" not in said_now, session.messages
+
+
+@with_rig("hellboy", "george-washington", *HAND)
+def test_an_attack_already_declared_is_not_asked_about_the_token_again(rig, monkeypatch):
+    """A cancelled attack carries its declaration over (`Pending.declared`): the same attack is not declared, nor asked, twice."""
+    session, table, game, fake, cfg = rig
+    put_adjacent(game, table, cfg, "washington", "hellboy")
+    bot_defends_with_nothing(session, monkeypatch)
+    human_hand(table, game, "Agent 711", "Lead Astray", "Feint")
+    human_attack(session, table, game, "washington", "hellboy", "Agent 711")
+    session.pending.declared = {"counters": {}, "revealed": False}
+    msgs = click(session, table, Event.REVEAL)
+    assert not said(msgs, "pones una ficha de engano en este ataque") and supply(game, 1) == (4, 0)

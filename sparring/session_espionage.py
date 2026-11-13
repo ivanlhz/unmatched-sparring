@@ -119,7 +119,7 @@ def bot_attack_placed(session, p) -> None:
     else:                                              # another trigger raised the event already (Abe's UNCANNY INTUITION)
         before["counters"] = dict(p.declared["counters"])
     if ruse_on(g, session.bot):
-        session.say(t("espionage.bot_places", name=session._name(g.hero(session.bot)), card=p.bot_card.title,
+        session.say(t("espionage.bot_places", name=session._name(g.hero(session.bot)),
                       left=tokens(g, session.bot)), ChatKind.ATTACK)
     fin = session._project_effects(before)
     session._flush_table()

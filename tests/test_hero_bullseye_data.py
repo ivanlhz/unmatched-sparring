@@ -199,4 +199,5 @@ def test_the_catalog_names_bullseye_and_his_deck_is_his_own():
 def test_no_piece_guid_of_bullseye_is_shared_with_another_hero():
     mine = set(load_hero_table("bullseye").all_guids())
     for slug in [p.stem for p in HEROES_DIR.parent.joinpath("tts").glob("*.json") if p.stem != "bullseye"]:
-        assert not mine & set(load_hero_table(slug).all_guids()), slug
+        known = {"166320"} if slug == "george-washington" else set()       # the life dials share a GUID (told apart by name: tests/test_piece_identity.py)
+        assert not (mine & set(load_hero_table(slug).all_guids())) - known, slug

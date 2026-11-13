@@ -808,7 +808,7 @@ class EffectAI:
             return False
         this = game.fighters[info["this"]]
         mates, margin = [f for f in game.own(me) if f is not this], 1e-9
-        if len(mates) > 1:                  # Washington's Undercover Agent: only a Spy next to him can take his place, and a Spy is worth keeping
+        if game.players[me].hero.slug == "george-washington":                  # Washington's Undercover Agent: only a Spy next to him can take his place, and a Spy is worth keeping
             mates = [f for f in mates if this.pos is not None and f.pos in game.board.adj[this.pos]]
             margin = SPY_SWAP_MARGIN
         blow = req.extra.get("at_stake", 0)

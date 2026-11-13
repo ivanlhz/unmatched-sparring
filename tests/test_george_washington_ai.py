@@ -275,3 +275,65 @@ def test_the_bot_swaps_a_spy_in_when_the_blow_would_kill_washington(bprd):
 def test_the_bot_keeps_the_spy_out_of_a_blow_washington_can_take(bprd):
     g, flow, w = undercover(bprd, hp=14)
     assert flow.tgt is w and g.fighters["spy1"].alive and w.hp == 14 - 3
+
+
+# ---------------------------------------------------------------- the small pieces the review pinned
+
+def test_the_default_answers_never_remove_a_token_and_a_rollout_spends_one():
+    from sparring.effects.choose import SyntheticChooser, default_answer
+    req = ChoiceRequest("optional", 1, [True, False], 1, 1, None, "k", "", {"washington": "remove"}, 0)
+    assert default_answer(req) == [False]
+    assert default_answer(ChoiceRequest("optional", 0, [True, False], 1, 1, None, "k", "", {"washington": "use"}, 0)) == [True]
+    for policy in ("greedy", "safe"):
+        chooser = SyntheticChooser(policy=policy)
+        assert chooser.choose(None, req) == [False]
+        assert chooser.choose(None, ChoiceRequest("optional", 0, [True, False], 1, 1, None, "k", "", {"washington": "use"}, 0)) == [True]
+
+
+def test_make_a_stand_defending_is_a_five_for_the_bots_defense_evaluation(bprd):
+    from sparring.ai_medusa import Model
+    g = mk(bprd, turn=1)
+    ai = MedusaAI(0)
+    w, h = pair(g, "washington", "hellboy")
+    start_turn(g)
+    card = give(g, 0, "Make A Stand")
+    model = Model(g, 0)
+    dist = [(1.0, 5)]
+    still = ai.eval_defense(g, model, dist, w, card)
+    w.pos = next(s for s in sorted(g.board.adj[w.pos]) if all(f.pos != s for f in g.fighters.values() if f.alive))
+    moved = ai.eval_defense(g, model, dist, w, card)
+    assert still > moved                          # a 5 against a 5 blocks it; the printed 3 does not
+
+
+def test_misinformation_defending_is_worth_more_with_a_token_to_regain(bprd):
+    from sparring.ai_medusa import Model
+    g = mk(bprd, turn=1)
+    ai = MedusaAI(0)
+    w, h = pair(g, "washington", "hellboy")
+    card = give(g, 0, "Misinformation")
+    model, dist = Model(g, 0), [(1.0, 1)]
+    ai._attacker = h
+    g.fx.set_counter(0, "ruse_tokens", 4)
+    full = ai.eval_defense(g, model, dist, w, card)
+    g.fx.set_counter(0, "ruse_tokens", 1)
+    assert ai.eval_defense(g, model, dist, w, card) > full
+
+
+def test_only_a_spy_next_to_washington_can_take_his_place(bprd):
+    g = mk(bprd, turn=1)
+    g.controllers[0] = MedusaAI(0)
+    w, h = pair(g, "washington", "hellboy")                                       # the Spies are far away
+    g.actions_left = 2
+    w.hp = 3
+    attack = next(c for c in g.players[1].full_set if c.can_attack and (c.value or 0) == 4 and c.usable_by("Hellboy"))
+    g.players[1].hand.append(attack)
+    flow = g.begin_attack(h, w, attack, give(g, 0, "Undercover Agent"))
+    flow.run()
+    assert flow.tgt is w and w.hp == 0 or not w.alive                            # the blow kills him: no Spy was close enough to swap
+
+
+def test_the_clear_script_and_the_caps_know_the_ruse_copies_and_a_big_roster():
+    from sparring import player_setup
+    from sparring.tts import lua
+    assert lua.MAX_CLEAR_HEROES >= 80 and lua.MAX_CLEAR_GUIDS >= 1500 and lua.MAX_CLEAR_NAMES >= 500
+    assert "'ruse'" in player_setup.clear_script({}) or '"ruse"' in player_setup.clear_script({})

@@ -563,3 +563,30 @@ def test_the_ability_trigger_run_label_names_the_question(bprd):
     g.attack(w, h, give(g, 0, "Agent 711"), None)
     assert [r.key.split("/")[0] for r in g.controllers[0].requests] == ["espionage"]
     assert [r.key.split("/")[0] for r in g.controllers[1].requests] == ["espionage_remove"]
+
+
+def test_a_hand_already_owed_to_the_pile_is_not_asked_to_discard_again(bprd, monkeypatch):
+    from sparring.effects import table
+    monkeypatch.setattr(table, "physical", lambda game, player: player == 1)
+    g = mk(bprd)
+    w, h = pair(g, "washington", "hellboy")
+    stock(g, 2)
+    g.controllers[1].discards_owed = lambda: 2
+    g.controllers[0].queue = [[True]]
+    g.attack(w, h, give(g, 0, "Agent 711"), None)
+    assert g.controllers[1].requests == [] and len(g.players[1].hand) == 2
+
+
+def test_the_removal_is_a_voluntary_discard_the_player_is_its_own_source(bprd, monkeypatch):
+    from sparring.effects import table
+    monkeypatch.setattr(table, "physical", lambda game, player: player == 1)
+    g = mk(bprd)
+    w, h = pair(g, "washington", "hellboy")
+    stock(g, 3)
+    seen = []
+    real = g.force_discard
+    g.force_discard = lambda player, n, reason, source=None, cause=None: seen.append((player, source)) or real(player, n, reason, source, cause)
+    g.controllers[0].queue = [[True]]
+    g.controllers[1].queue = [[True]]
+    g.attack(w, h, give(g, 0, "Agent 711"), None)
+    assert seen == [(1, 1)]                       # not (1, 0): the rival's effects did not force it
