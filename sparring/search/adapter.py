@@ -34,7 +34,7 @@ rival hero counts as an attacker, not just as HP to keep. The weights live in `E
 from __future__ import annotations
 
 import random
-from dataclasses import dataclass, field
+from dataclasses import dataclass, field, replace
 from functools import lru_cache
 from math import sqrt
 
@@ -80,7 +80,18 @@ class EvalWeights:
     ongoing: float = 1.0            # the ONGOING in play, in hero HP (`effects.ongoing.worth`)
     beside: float = 0.0             # share of the sidekicks standing next to their hero, when its cards pay for it (`beside_stake`)
     pack: float = 0.15              # for a hero with the pack bonus (the Raptors): each fighter beyond the first standing beside the same rival, in hero HP (the +1 of every blow it lands is about two points a turn)
+    caution: float = 1.0            # multiplier of the expected damage on the bot's own hero (less: it stands in reach); the lethal risk is not scaled
     slope: float = 1.5              # scale of `squash` over the difference between sides
+
+
+HERO_EVAL: dict[str, dict[str, float]] = {"doctor-strange": {"caution": 0.3}}      # evaluation weights a hero plays with (F-STRANGE-AGGRO); the configuration's own values win
+
+
+def hero_weights(weights: EvalWeights, slug: str) -> EvalWeights:
+    """`weights` with the hero's profile on top of every field the configuration left at its default."""
+    base = EvalWeights()
+    mine = {k: v for k, v in HERO_EVAL.get(slug, {}).items() if getattr(weights, k) == getattr(base, k)}
+    return replace(weights, **mine) if mine else weights
 
 
 @dataclass(frozen=True)
@@ -840,7 +851,7 @@ class EngineState:
         """What the threat on `p`'s hero subtracts from their side (weighted `threat`)."""
         w = self.weights
         expected, lethal = self.threat(p, urgent)
-        return w.threat * expected + w.lethal * lethal
+        return w.threat * expected * (w.caution if p == self.observer else 1.0) + w.lethal * lethal
 
     def threat(self, victim: int, urgent: bool = False) -> tuple[float, float]:
         """Threat on `victim`'s hero in the rival's next turn: (expected damage as a fraction of its current

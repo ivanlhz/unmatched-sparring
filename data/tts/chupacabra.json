@@ -1,0 +1,30 @@
+{
+ "slug": "chupacabra",
+ "bag": {
+  "guid": "a20352",
+  "inner": "d980fa"
+ },
+ "deck": {
+  "guid": "3516ce",
+  "card_ids": [
+   17600,
+   17629
+  ],
+  "character_card_id": 360,
+  "identity": [
+   {
+    "face": "https://steamusercontent-a.akamaihd.net/ugc/16738008224641383131/5D286945BAAAE2ABC4E2F414EA61FDB08C81D66A/",
+    "back": "https://steamusercontent-a.akamaihd.net/ugc/16454156809237439742/8A7C481549F511C83D8BD7E3AB19D5654CD5ADA3/"
+   }
+  ]
+ },
+ "fighters": {
+  "chupacabra": {
+   "piece": "4137cf",
+   "dial": "ca8e35",
+   "dial_max": 14
+  }
+ },
+ "tokens": {},
+ "counter_dials": {}
+}

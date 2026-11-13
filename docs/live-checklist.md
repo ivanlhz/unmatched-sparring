@@ -445,6 +445,19 @@ Nothing of Yennefer & Triss has been seen on a real table. The deck is sheet 176
 - [ ] **Echoing blast (B)**: when the bot's attack wins the card goes from its combat spot back to the bot's hand; **(H)** when yours wins you take it back to your hand (the chat says it).
 - [ ] Incinerate (the bot decides whether to pay 2 cards), Portal to anywhere (any fighter of the combat, then an action), Telepathy, Quick and ready (their zone), Ball lightning, Paralyzing fetters, Magical barrier and the numbers as printed.
 
+### Wyatt Earp (Stars and Stripes, with Doc Holliday)
+
+Nothing of Wyatt Earp has been seen on a real table. His deck is sheet 187, which no other deck uses; the first things to check are the detection, Doc Holliday's token and SHOWDOWN with the free action to attack.
+- [ ] **Detection (auto)**: with his deck at one spot and any other hero's at the other, the start-up line names Wyatt Earp; the bag `cde243` holds a deck of 31 cards (CardIDs 18700-18729 and the character card 401).
+- [ ] **Pieces**: Wyatt's miniature `aa2509` (an assetbundle) and dial `facfe3` (15), Doc Holliday's token `3f56bb` (a Custom_Token: check it is found as a piece, like Daisy) and dial `7f71e0` (8) are found; both life dials follow the engine.
+- [ ] **SHOWDOWN (H)**: after an attack of yours (Wyatt's or Doc's) that wins, the panel asks "SHOWDOWN: choose an effect" with three buttons: draw 1 card (the bot deals it), gain 1 free action to attack, move your fighter up to 1 space (you move the miniature of the fighter that attacked by hand and press End action). Each effect is offered once a turn: a second win offers the other two, a third offers the last one without asking, a fourth nothing. A lost combat or a defense won offers nothing. **(B)**: the bot picks one (the chat says which); with a strong attack in its hand it takes the free action, otherwise the draw.
+- [ ] **The free action (H)**: after choosing it the chat says "ganas 1 accion gratis para atacar" and, after End action, "Te quedan N accion(es), 1 gratis y solo para atacar". With only the free action left, Maneuver and Scheme answer "solo quedan acciones gratis para atacar" and do nothing; an attack uses it. **(B)**: the bot spends it on an attack; with nothing to attack with, its turn ends (no loop).
+- [ ] **In Vino Veritas (H)**: the bot deals cards until you hold 4 (counting the hand after the scheme left it) and you gain a free action to attack; with 4 or more cards it deals none. **(B)**: the bot plays it as Doc Holliday and its table hand is dealt up to 4.
+- [ ] **You Die First (H)**: the panel asks which opposing fighter, then where (up to 1 space): the bot moves the miniature (or you do, as always for the bot's pieces) and the free action can only attack that fighter (an attack on another one is refused). **(B)**: the bot moves one of your pieces and says which.
+- [ ] **Better Swear Me In (H)**: the chat names the top card of the bot's deck ("Reveladas arriba de mi mazo: ...") and the panel asks whether to put it at the bottom. **(B)**: the chat names the top card of YOUR deck and, if the bot buries it, says only that it reordered 1 card (it never names it again); your real deck ends with that card at the bottom.
+- [ ] **Bring 'Em To Justice (H and B)**: the top card of the other deck is named and this defense is worth twice its BOOST value (the combat line shows the total).
+- [ ] **I Have Two Guns, Gunfight, Huckleberry, Marshal, Daisy, Fan The Hammer, Second Shot**: the numbers as printed. Two Guns hits another rival in Doc's zone for the printed value of the card the rival played; Gunfight alternates the picks (you, the bot, you, the bot); Marshal makes the rival discard when you attack and draws 1 when you defend; Fan The Hammer comes back to the hand when it defeats the fighter (the bot moves it by GUID); Second Shot asks for the free BOOST.
+
 ### Hidden information (cards that look at the bot's hand, and the bot's on you)
 - [ ] **The bot's hand row**: when playing Confront Any Demon or God (only if you lose), Advanced Psychometry (adjacent), Remove A Painful Memory (with an ONGOING) or Every Possible Angle, the bot lays its hand **face up in a row** at `bot_row_spot` and **pings** each card (`ping_points`). The **Look at bot's hand** button uses another row, at `look_spot`.
 - [ ] **The bot's own pings do not choose for you** (9335eab): with the row open, the bot does not "choose" a card by itself. *(31/10 failure with Remove A Painful Memory: it chose Posthumous Power within 1 s; fixed, still to be seen. If it happens again, widen `BOT_PING_WINDOW`.)*
@@ -573,3 +586,15 @@ For each failure:
 - [ ] Screenshot of the table and the panel.
 - [ ] The `--read-only` report (detection/calibration) or the `--timing` output (latency).
 - [ ] If you reloaded: with or without `--resume`; and remember you have the "pre-sparring" save.
+
+### Chupacabra (Battle of Legends, Volume Three)
+
+Nothing of Chupacabra has been seen on a real table. His deck is sheet 176 like every other hero's, and his life dial `ca8e35` is also Donatello's and Tomoe Gozen's: the first things to check are the detection and the dials.
+- [ ] **Detection (auto)**: with his deck at one spot and any other hero's at the other, the start-up line names Chupacabra; the bag `a20352` holds a deck of 31 cards (character card 360).
+- [ ] **Pieces and the shared dial**: his miniature `4137cf` (an asset bundle) and dial `ca8e35` (14) are found; against Donatello or Tomoe Gozen the chat says the dial was resolved by name and each life dial follows its own hero.
+- [ ] **THE HUNGER (H)**: after each of your attacks the panel asks Yes / No to draw a card; Yes: the bot deals you one. **(B)**: the bot's Chupacabra draws after its attacks.
+- [ ] **Ambush (H, bot Chupacabra)**: the chat names the position of the card you discard from your hand ("the card N counting from the left"); you discard it and press its BOOST value; the attack is worth 2 plus that value. **(B, you attack)**: the bot discards a card of its hand and the table follows.
+- [ ] **Unsettle**: played by you, the panel asks if you pay 2 damage; the bot discards 1 or 2 cards and its table hand follows. Played by the bot, you discard by hand the number of cards the chat says.
+- [ ] **Tooth and Tail / Feeding / Ravenous Lunge**: the dials follow the damage and the healing; with more than 2 fighters next to him the panel asks which two.
+- [ ] **Blood in the Air**: after a combat won this turn, the panel offers the BOOST of the card at Reveal.
+- [ ] **Traveler of the Night**: you move your miniature by hand (up to 4, through opposing fighters) and press End action; you keep the action.

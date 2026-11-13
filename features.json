@@ -646,6 +646,20 @@
       "note": "Engine additions are additive (docs/effects-dsl.md, section 38). Rules decisions and open questions for Iván: docs/heroes/sinbad.md. Live test pending."
     },
     {
+      "id": "HERO-CHUPACABRA",
+      "title": "Chupacabra (Battle of Legends, Volume Three) playable by the bot and by the human against every hero",
+      "status": "in-progress",
+      "criteria": [
+        "data/heroes/overlay/chupacabra.json, data/heroes/chupacabra.json, data/heroes/effects/chupacabra.json and data/tts/chupacabra.json generated and validated (import_hero, validate_effects, import_save); the 11 titles (30 cards, sheet 176, character card 360) read from the card images; the two schemes carry value null (unmatched-memory has 0)",
+        "His deck shares CardIDs 17600-17629 with the other sheet-176 decks: told apart by deck image and owner (tests/test_hero_chupacabra_data.py, tests/test_card_identity.py); the only GUID he shares is the life dial ca8e35 (Donatello, Tomoe Gozen), resolved by name",
+        "THE HUNGER is an after_attack trigger with an optional draw; all 11 cards on the interpreter for both seats with two plugins (chupacabra:ambush, chupacabra:tooth_and_tail); the human states the BOOST value of the card Ambush makes them discard (tests/test_chupacabra_effects.py, tests/test_chupacabra_human.py)",
+        "The bot plays him under the heuristic and the search AI (make_bot_ai ismcts): ai_chupacabra.py prices The More They Struggle, Ambush, Wounded Beast and the AFTERs (tests/test_chupacabra_ai.py)",
+        "Chupacabra against each of the other heroes in both seats reaches game over on FakeTTS (passive and attacking human) and in the simulator (tests/test_chupacabra_matrix.py)",
+        "Verified live by Ivan (docs/live-checklist.md, section Chupacabra)"
+      ],
+      "note": "Engine additions: none beyond the two plugins (docs/effects-dsl.md, section 42). Rules decisions and open questions for Ivan: docs/heroes/chupacabra.md. Live test pending."
+    },
+    {
       "id": "HERO-PHILIPPA",
       "title": "Philippa (The Witcher: Realms Fall, with Dijkstra) playable by the bot and by the human against every hero",
       "status": "in-progress",
@@ -675,6 +689,22 @@
         "Verified live by Iván (docs/live-checklist.md, section John Henry)"
       ],
       "note": "Engine additions are additive (docs/effects-dsl.md, section 41). Rules decisions and Pending Iván (what a PATH is, one token per space, the free action, Knock Them Silly's timing): docs/heroes/john-henry.md. Live test pending."
+    },
+    {
+      "id": "HERO-WYATT-EARP",
+      "title": "Wyatt Earp (Stars and Stripes, with Doc Holliday) playable by the bot and by the human against every hero",
+      "status": "in-progress",
+      "criteria": [
+        "data/heroes/overlay/wyatt-earp.json, data/heroes/wyatt-earp.json, data/heroes/effects/wyatt-earp.json and data/tts/wyatt-earp.json generated and validated (import_hero, validate_effects, import_save); the 12 titles (30 cards, sheet 187, character card 401 on sheet 4) read from the card images and compared with the unverified transcription of Iván's screenshots: no mismatch (docs/heroes/wyatt-earp.md); ai_profile computed by the importer",
+        "His deck is the only one on sheet 187 (CardIDs 18700-18729); no GUID of his is shared with another hero (tests/test_hero_wyatt_earp_data.py)",
+        "SHOWDOWN is the hero's own AFTER with a choose_effect whose options close once a turn (options[].condition, the counters showdown_draw / showdown_attack / showdown_move reset at the start of the owner's turn): at most three SHOWDOWNs and one free action per turn, so the chain free attack - win - free attack is bounded by the data (tests/test_wyatt_earp_effects.py)",
+        "'Free action to attack' is an engine concept: Game.free_attacks marks actions that only an attack can spend (optionally only against a given fighter); a Maneuver or a scheme is refused with only free actions left; every bot loop prunes the free actions nobody can use; persisted, cloned, narrated, shown in the chat and refused at the panel (tests/test_wyatt_earp_effects.py, tests/test_wyatt_earp_human.py, tests/test_wyatt_earp_ai.py)",
+        "All 12 cards on the interpreter for both seats: Second Shot's boost, Fan The Hammer returning to the hand, the draws, the discards, Gunfight's alternating hits, I Have Two Guns (new fighter filter except), Better Swear Me In and Bring 'Em To Justice (the top card of the other deck revealed: plugins wyatt:swear_me_in, wyatt:bring_to_justice over Jill Trent's table side), In Vino Veritas and You Die First (wyatt:free_attack, wyatt:you_die_first)",
+        "The AI picks SHOWDOWN by what each effect brings (ai_wyatt.pick_showdown, verified with the heuristic and with make_bot_ai({'ai': 'ismcts'})), plays the free actions with attacks only, and prices Bring 'Em To Justice, You Die First and Better Swear Me In (tests/test_wyatt_earp_ai.py)",
+        "Wyatt Earp against each of the 22 other heroes in both seats reaches game over on FakeTTS (passive and attacking human) and in the simulator with the heuristic and the search AI (tests/test_wyatt_earp_matrix.py)",
+        "Verified live by Iván (docs/live-checklist.md, section Wyatt Earp)"
+      ],
+      "note": "Rule decisions and Pending Ivan (is the free action attack-only? does SHOWDOWN apply to Doc?): docs/heroes/wyatt-earp.md. Engine additions are additive (docs/effects-dsl.md, section 43). Live test pending."
     },
     {
       "id": "F-DEVIL-EMPTY-DECK",
@@ -900,6 +930,18 @@
         "Tests: tests/test_strange_wong_adjacent.py (13): choose_move and the plan's maneuver end beside Strange (hands with Master/Rings/Really, a single Rings, none); Strange 10 / Wong 28 / Hellboy 25 still attacks with Rings and Wong's move keeps the strike; setup beside Strange on marmoreal, fayrlund-forest and pandemonium where it fails without the stake; Strange does not end nearer Hellboy than without the stake; the stake is 0 for Sinbad; ISMCTS (make_bot_ai, 300 iterations, fixed seeds, fallback counter 0): an available attack is still taken; the '>= 3/4 of the maneuvers end beside Strange' test is xfail until a tuning keeps both"
       ],
       "note": "Open: under ISMCTS the maneuvers do not seek adjacency (the evaluation weight costs attacks). Needs a tuning that keeps attacks, or Ivan's call on the trade-off. Live check: setup and card moves put Wong beside Strange; the bot still attacks."
+    },
+    {
+      "id": "F-STRANGE-AGGRO",
+      "title": "Bot Doctor Strange attacks more and presses the rival under ISMCTS instead of maneuvering or scheming (Ivan 13/11)",
+      "status": "done",
+      "criteria": [
+        "search.adapter.EvalWeights.caution (default 1.0) scales the expected damage on the bot's own hero in the leaf evaluation (the lethal-risk term is not scaled); HERO_EVAL['doctor-strange'] = {caution: 0.3} is applied by hero_weights() to every field the configuration left at its default; other heroes keep the default weights, ai_eval in the configuration wins",
+        "EvalWeights.beside stays 0 (Wong's adjacency is still not sought: it cost attacks); a 'pressure' multiplier on the threat against the rival was tried and dropped (no gain)",
+        "Measured (ISMCTS 200 iterations, Hellboy script / chasing and Medusa script / chasing, 30 seeds each, seeds 0-29 and 30-59): attacks per bot turn 1.289 -> 1.444 and 1.256 -> 1.390; blows given up per game 0.84 -> 0.49 and 1.03 -> 0.53; schemes per game 1.49 -> 1.28 and 1.63 -> 1.40; win rate 86% -> 89% and 85% -> 80% (noise about 9 points)",
+        "Tests: tests/test_strange_aggro.py (7): only Strange has a profile, the configuration wins, four positions where the default weights mostly maneuvered or played a scheme and the profile attacks"
+      ],
+      "note": "Live check: Strange with a rival in reach should attack rather than maneuver away; watch that he does not die more often at low hit points."
     },
     {
       "id": "F-STRANGE-REALLY-FULL-HP",
