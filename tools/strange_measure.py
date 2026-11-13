@@ -3,6 +3,7 @@ his search weights (F-STRANGE-AGGRO).
 
     python tools/strange_measure.py base  script hellboy 60 30     # no hero profile (the old weights)
     python tools/strange_measure.py profile chase medusa 60 30     # adapter.HERO_EVAL as shipped
+    python tools/strange_measure.py caution=0.1,scheme_cost=0.2 script hellboy 60 30   # the shipped profile with other weights
 
 Prints one JSON line: wins, bot turns, attacks, attacks per turn, blows given up per game and schemes per game, over the
 seeds `first .. first + games - 1` (200 search iterations per decision, board bprd-hq). Pool the cells to compare."""
@@ -25,8 +26,11 @@ def main(argv: list[str]) -> int:
     mode, rival, human, first, games = argv[0], argv[1], argv[2], int(argv[3]), int(argv[4])
     if mode == "base":
         adapter.HERO_EVAL.clear()
+    elif "=" in mode:                # e.g. caution=0.1,scheme_cost=0.2: the shipped profile with these weights changed
+        adapter.HERO_EVAL["doctor-strange"] = {**adapter.HERO_EVAL.get("doctor-strange", {}),
+                                               **{k: float(v) for k, v in (kv.split("=") for kv in mode.split(","))}}
     elif mode != "profile":
-        raise SystemExit("mode: base | profile")
+        raise SystemExit("mode: base | profile | <weight>=<x>[,<weight>=<x>]")
     metrics.MedusaAI = lambda bot: make_bot_ai({"ai": "ismcts", "ai_time_budget": 60, "ai_iterations": 200, "ai_seed": 0}, bot)
     rival_class = ChasingHellboy if rival == "chase" else ScriptedHellboy
     runs = [metrics.play(s, "doctor-strange", human, rival_class, "bprd-hq") for s in range(first, first + games)]
