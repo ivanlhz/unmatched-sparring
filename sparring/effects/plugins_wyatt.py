@@ -9,7 +9,7 @@ Bring 'Em To Justice.
     fighter, moves it (the interpreter's `move`, so the table, the reach and the chooser's rules are the usual ones) and the free
     attack is bound to that fighter. The bot's `EffectAI` answers the two requests (`op: move` on a rival piece).
   * `wyatt:swear_me_in`: "Reveal the top card of your opponent's deck. You may put it on the bottom of their deck." Jill Trent's
-    reveal (`plugins_jill`), then a yes/no the owner answers (request `optional`, `bury` = the revealed card).
+    reveal (`plugins_jill`), then a yes/no the owner answers (request `optional`, `bury_rival` = the revealed card).
   * `wyatt:bring_to_justice`: "Reveal the top card of your opponent's deck. Increase the value of this card by twice that card's
     BOOST value." `jill:hypnoray` with a factor of two.
 
@@ -47,11 +47,12 @@ def _you_die_first(run, game, spec):
     """The owner picks an opposing fighter and moves it up to 1 space; then the free attack against it is granted. Every
     decision is asked before the first mutation of each step (a step that pauses runs again and finds its answers)."""
     owner = run.ctx.owner
-    victim = pick_fighters(game, run, {"side": "enemy"}, owner, op="move", amount=1)
+    victim = pick_fighters(game, run, {"side": "enemy"}, owner, op="move", amount=1, purpose="die_first")
     if not victim:
         return
     run.bind("fighters", "victim", [victim[0].fid])
-    OPS["move"](run, game, {"op": "move", "target": {"role": "$victim"}, "amount": 1, "up_to": True})
+    OPS["move"](run, game, {"op": "move", "target": {"role": "$victim"}, "amount": 1, "up_to": True,
+                          "purpose": "die_first"})
     if owner == game.turn:
         game.grant_free_attack(victim[0].fid)
 
@@ -68,7 +69,7 @@ def _swear_me_in(run, game, spec):
     if not run.flags.get("revealed_top"):
         run.flags["revealed_top"] = True
         show(game, owner, rival, seen)
-    if not run.ask(game, "optional", owner, [True, False], 1, 1, "put it on the bottom", bury=card.card_id, of=rival,
+    if not run.ask(game, "optional", owner, [True, False], 1, 1, "put it on the bottom", bury_rival=card.card_id, of=rival,
                    title=card.title)[0]:
         return
     if not table.physical(game, rival):

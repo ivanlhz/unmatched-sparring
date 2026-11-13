@@ -31,7 +31,7 @@ import random
 from functools import lru_cache
 from itertools import combinations
 
-from . import enraged
+from . import ai_wyatt, enraged
 from .ai_medusa import (ACTION_VALUE, DECK_SCARCITY, HARPY_VALUE, KILL_SIDEKICK, LETHAL, SURVIVAL_P, W_HERO, W_MEDUSA_HP,
                         W_SIDEKICK, MedusaAI, Model, effect_reliance, hand_room, keep_value, kept_hand_value, kill_value, play_signature)
 from .controller import Controller
@@ -218,6 +218,8 @@ class EffectAI:
             return None
         if op in HP_OPS:
             score = self._hp_scorer(op, req.extra.get("amount"), me, game)
+        elif req.extra.get("purpose") == "die_first":      # You Die First: the rival the free attack on it hurts most
+            return [ai_wyatt.die_first_fighter(self.medusa(me), game, me, cands)]
         elif op in RELOCATE_OPS:
             score = self._relocation_scorer(game, op, req.extra, me)
         else:
@@ -280,6 +282,8 @@ class EffectAI:
             return None
         ai = self.medusa(me)
         options = list(req.options)
+        if f.owner != me and req.extra.get("purpose") == "die_first":      # You Die First: where the hand strikes the pulled rival best
+            return ai_wyatt.die_first_dest(ai, game, me, f, options, req.min == 0)
         if f.owner == me and req.extra.get("op") == "move":     # the legacy move rule, plan included; staying = []
             dest = ai.choose_move(game, f, req.extra["steps"], req.extra.get("through", False))
             dest = self._dest_with_pass_damage(game, req, f, dest, options)
@@ -581,6 +585,8 @@ class EffectAI:
             return [self._future_peek(game, req)]
         if req.extra.get("tag") == "gadget":
             return [self._gadget(game, req)]
+        if req.extra.get("tag") == "showdown":      # Wyatt Earp: draw, a free action to attack or a step, by what each is worth now
+            return [ai_wyatt.pick_showdown(self.medusa(req.player), game, req.player, list(req.options), req.extra.get("attacker"))]
         if req.extra.get("tag") == "zone":
             return [self._zone(game, req)]
         found = self._locate(game, req)
@@ -670,6 +676,8 @@ class EffectAI:
             return [self._swap_combatant(game, req)]
         if "defeats" in req.extra:          # a fighter given up for the effect (Eredin: a Red Rider for Icy Guile or Foul Purpose)
             return [self._fighter_pays(game, req)]
+        if "bury_rival" in req.extra:       # Better Swear Me In: the rival's top card goes to the bottom if it is worth more to them than their average card
+            return [ai_wyatt.bury_rival(game, req.player, req.extra["bury_rival"])]
         if "bury" in req.extra:             # The future of Ninjutsu: the top card goes to the bottom if it is worse than the average card to come
             top = {c.card_id: c for c in game.players[req.player].full_set}[req.extra["bury"][0]] if req.extra["bury"] else None
             return None if top is None else [keep_value(top, [top]) < self.medusa(req.player).avg_unseen_keep(game)]

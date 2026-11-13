@@ -422,7 +422,7 @@ def test_better_swear_me_in_reveals_the_top_card_and_may_bury_it(bprd):
     g.controllers[0].queue = picks(DRAW, True)
     win(g, "Better Swear Me In")
     swear = [r for r in g.controllers[0].requests if r.kind == "optional"]
-    assert len(swear) == 1 and swear[0].extra["bury"] == top.card_id and swear[0].extra["of"] == 1
+    assert len(swear) == 1 and swear[0].extra["bury_rival"] == top.card_id and swear[0].extra["of"] == 1
     assert g.players[1].deck[-1] is top and g.players[1].deck[0] is not top
 
 

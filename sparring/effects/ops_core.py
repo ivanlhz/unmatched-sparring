@@ -264,6 +264,8 @@ def _choose_effect(run, game, spec):
             break
         pool = left if spec.get("distinct") else list(open_now)
         extra = {"tag": spec["tag"]} if "tag" in spec else {}       # what the options are about, for the bot's judgement (Jill's gadgets)
+        if "tag" in spec and run.ctx.attacker_fid:
+            extra["attacker"] = run.ctx.attacker_fid                 # the fighter that attacked in the combat the choice belongs to (SHOWDOWN moves it)
         k = run.ask(game, "effect", chooser, pool, 1, 1, "choose an effect", labels=labels, **extra)[0]
         picked.append(k)
         if spec.get("distinct"):
@@ -300,7 +302,8 @@ def _move(run, game, spec):
                 by_hand.append(f)
                 continue
             got = run.ask(game, "space", chooser, dests, 0 if up_to else 1, 1, "move to",
-                          fighter=f.fid, op="move", steps=steps, through=through, up_to=up_to)
+                          fighter=f.fid, op="move", steps=steps, through=through, up_to=up_to,
+                          **({"purpose": spec["purpose"]} if "purpose" in spec else {}))
             if got:
                 plan.append((f, got[0]))
                 set_attrs(f, pos=got[0])

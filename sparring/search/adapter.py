@@ -398,6 +398,7 @@ class EngineState:
                 tuple((f.fid, f.pos, f.hp) for f in g.fighters.values() if f.alive),
                 tuple(sorted(c.card_id for c in g.players[mover].hand)),
                 tuple(f.fid for f in g.fighters.values() if f.alive and not g.fx.can_move(f)),    # pinned by an effect
+                (tuple(g.free_attacks), g.paid_actions),      # free actions to attack (Wyatt Earp) leave only attacks, and only on some fighters
                 g.maneuver_bonus(g.turn))      # the Maneuver's reach moves with the hero's ability (Sinbad's VOYAGE cards in the pile)
 
     def _generate_moves(self) -> list:
@@ -416,6 +417,8 @@ class EngineState:
             return [("attack_card", f.fid, t) for t in self._attack_titles(p, f, g.fighters[self.partial[1]])]
         if self.phase == "maneuver_place":
             return [("place", d, policy) for d, policy in self._placements(p, hero)]
+        if g.paid_actions <= 0:        # only free actions to attack are left: nothing else may be played
+            return self._attack_moves(p)
         moves = self._attack_moves(p) + self._scheme_moves(p)
         moves += [("maneuver", c.title if c else None) for c in self._boost_variants(p)]
         return moves
@@ -436,7 +439,7 @@ class EngineState:
         elif kind == "attack_card":
             att, tgt = self.partial
             self.phase, self.partial = "action", ()
-            g.use_action()
+            g.use_action(attack_on=tgt)
             self.pending = (att, tgt, by_title(hand, move[2]))
             g.fx.emit("attacked", g.fighters[att], g.fighters[tgt], self.pending[2])   # as Game._declare_attack does
         elif kind == "maneuver":
@@ -513,7 +516,7 @@ class EngineState:
             return rng.choice(self.legal_moves())
         p = g.turn
         attacks = self._attack_moves(p)
-        if attacks and rng.random() < ROLLOUT_ATTACK_PROB:
+        if attacks and (rng.random() < ROLLOUT_ATTACK_PROB or g.paid_actions <= 0):
             return rng.choice(attacks)
         boosts = self._boost_variants(p)
         boost = rng.choice(boosts[1:]) if len(boosts) > 1 and rng.random() < ROLLOUT_BOOST_PROB else None
@@ -598,6 +601,7 @@ class EngineState:
                 if len(moves) == 1:         # sub-phase without a real choice: it resolves itself
                     self.apply(moves[0])
                 return
+            g.prune_free_attacks(p)           # a free action to attack that the hand cannot use is lost: the turn ends
             if g.actions_left <= 0:
                 g.end_turn()
                 g.begin_turn()
@@ -638,7 +642,8 @@ class EngineState:
         for f in g.own(p):
             if not self._attack_titles(p, f):
                 continue
-            out += [("attack", f.fid, t.fid) for t in g.foes(p) if g.can_declare_attack(f, t) and self._attack_titles(p, f, t)]
+            out += [("attack", f.fid, t.fid) for t in g.foes(p) if g.can_declare_attack(f, t) and self._attack_titles(p, f, t)
+                    and (g.paid_actions > 0 or g.free_attack_for(t.fid) is not None)]
         return out
 
     def _scheme_moves(self, p: int) -> list:

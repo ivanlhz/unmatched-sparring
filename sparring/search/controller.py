@@ -171,6 +171,9 @@ class IsmctsMedusa(Controller):
         if target:
             game.use_ability(self.me, GAZE, target)
         while game.actions_left > 0 and game.winner is None and game.hero(self.me).alive:
+            game.prune_free_attacks(self.me)       # a free action to attack nobody can use is lost, or the loop would never end
+            if game.actions_left <= 0:
+                break
             self.execute(game, self.plan(game))
 
 
