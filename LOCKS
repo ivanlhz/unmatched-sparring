@@ -6,3 +6,22 @@
 #            Push rejected -> git pull --rebase; if the path is now someone else's, wait and retry; else push again.
 #   release: in the SAME push as your finished work, delete your line (commit "unlock: <path> <agent>").
 #   Never edit a path locked by another agent. Never remove another agent's line.
+sparring/effects/ops_core.py  washington  George Washington hero  15:13Z
+sparring/effects/state.py  washington  George Washington hero  15:13Z
+sparring/effects/choose.py  washington  George Washington hero  15:13Z
+sparring/ai_effects.py  washington  George Washington hero  15:13Z
+sparring/ai_medusa.py  washington  George Washington hero  15:13Z
+sparring/tts/lua.py  washington  George Washington hero  15:13Z
+data/i18n/en.json  washington  George Washington hero  15:13Z
+data/i18n/es.json  washington  George Washington hero  15:13Z
+tests/test_heroes.py  washington  George Washington hero  15:13Z
+tests/test_d1_bot_cards.py  washington  George Washington hero  15:13Z
+tests/test_effects_schema.py  washington  George Washington hero  15:13Z
+tests/test_piece_identity.py  washington  George Washington hero  15:13Z
+features.json  washington  George Washington hero  15:13Z
+README.md  washington  George Washington hero  15:13Z
+docs/card-identity.md  washington  George Washington hero  15:13Z
+docs/effects-dsl.md  washington  George Washington hero  15:13Z
+docs/live-checklist.md  washington  George Washington hero  15:13Z
+config/table.json  washington  George Washington hero  15:13Z
+sparring/session_hidden.py  washington  George Washington hero  15:13Z
