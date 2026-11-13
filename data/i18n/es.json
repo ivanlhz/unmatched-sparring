@@ -1299,5 +1299,7 @@
  "rosie.on": "FREEDOM XK-II MECH SUIT: {name} activa {names} ({n} de {max} activas).",
  "rosie.off": "FREEDOM XK-II MECH SUIT: {name} desactiva {names}, que pasa al final de la fila ({n} de {max} activas).",
  "rosie.reset": "FREEDOM XK-II MECH SUIT: {name} desactiva las {max} mejoras.",
- "fx.rosie.loose_lips": "Loose Lips Sink Ships!: {title}"
+ "fx.rosie.loose_lips": "Loose Lips Sink Ships!: {title}",
+ "rosie.token_missing": "No encuentro todas las fichas de mejora de {name}, asi que no las muevo: ponlas a mano como dice la fila del chat.",
+ "rosie.token_failed": "No he podido mover las fichas de mejora de {name}; lo reintento en el siguiente paso. Si siguen mal, ponlas a mano como dice la fila del chat."
 }

@@ -54,7 +54,7 @@ Every title, type, value, boost, copy count, restriction band and text of the el
 - Momentous Shift has `sourceId: 5` (the others 798-807): a transcription artefact with no effect.
 - The special ability text matches the hero card word for word. The `_source` note about "[RUSE]" marks is Washington's, not hers.
 
-## Rule decisions (the most literal reading of the card, no ruling asked: see "Pending Ivan")
+## Rule decisions (the most literal reading of the card; see "Decided by Ivan" and "Pending Ivan")
 1. **Start of turn**: the leftmost inactive upgrade is activated (nothing when all four already are: a card on the rival's turn may have done it). The trigger runs for both seats in the engine; for the human it is only a chat line.
 2. **End of turn**: only when all four are active; they are all deactivated and the row keeps its order. A card that activates the fourth upgrade on your turn therefore gives its benefit for that turn only.
 3. **Whose cards count**: "you have N active upgrades" is the whole row (the player's), not per fighter. The upgrades' own effects belong to Rosie, the hero fighter, never to Wendy.
@@ -71,18 +71,24 @@ Every title, type, value, boost, copy count, restriction band and text of the el
 - `sparring/upgrades.py`: the row of upgrades as data, its two counters, `activate` / `deactivate`, the bonus parts and `sync_ranged`.
 - `EffectState.set_counter` keeps `Fighter.ranged` and `Fighter.move` of the hero in step with the counters (`upgrades.sync`); `persist.apply_game` does it after a load. Nothing else of the engine changes: Sedgley Fist Gun is the hero's DURING, Merlin Engine is the hero's move value.
 - Plugins (`sparring/effects/plugins_rosie.py`): `rosie:deactivate`, `rosie:attack_bonus`, the test `rosie:upgrade` and `rosie:loose_lips`.
-- The session (`sparring/session_rosie.py`) says every change of the row in the chat, for either seat.
+- The session (`sparring/session_rosie.py`) says every change of the row in the chat, for either seat, and flips and pings the physical tokens for the bot's Rosie (`sparring/tts/lua_rosie.py`).
 - AI (`sparring/ai_rosie.py`): Full Metal is priced at 1 + the active upgrades; the effects of We Can Do It!, D-Day, Overrun, Arc Welding and Hasty Repairs are priced in the AFTER evaluation. The bot's estimate of an attack (`Game.attack_bonus`) does not include Sedgley Fist Gun's +1 (it is a DURING effect); the combat itself does (open question 8).
 
+## Decided by Ivan (2026-11-13)
+1. **The four upgrade effects** as read from the tokens (MERLIN ENGINE, CAVITY MAGNETRON, SEDGLEY FIST GUN, WHIZBANG: table above) are confirmed.
+2. **"Gain 1 free action to attack"** (D-Day, Rapid Development) is attack-only: `gain_action` with `only: attack` (`fx.attack_credit`, the same free action John Henry and Wyatt Earp use); a Maneuver or a scheme cannot spend it, an attack can (the free one is spent first).
+3. **D-Day "if they were already active"** means all four upgrades were active before the card.
+4. **Hasty Repairs**: the heal also needs an active upgrade.
+5. **The bot flips the physical upgrade tokens** when the engine activates or deactivates an upgrade, re-orders them by the row rule and pings each token it flips or moves (see "The tokens on the table"); the chat message stays. A human Rosie flips her own tokens by hand following the chat.
+
 ## Pending Ivan
-1. **Upgrade effects: found, please confirm.** They were not in the data. I read them from the four token images in the bag (downloaded from the save's image URLs): 1 MERLIN ENGINE, 2 CAVITY MAGNETRON, 3 SEDGLEY FIST GUN, 4 WHIZBANG (table above). If the tokens in the save differ from the printed game, the effects are the `grants` in the overlay passive.
-2. **"Gain 1 free action to attack"** (D-Day, Rapid Development): implemented as `gain_action` with `only: attack` (`fx.attack_credit`, the same attack-only free action John Henry and Wyatt Earp use): a Maneuver or a scheme cannot spend it, an attack can (the free one is spent first). Alternative reading: an extra action of any kind. Is the restriction what the card means?
-3. **D-Day "if they were already active"**: implemented as all four upgrades active before the card. Alternative: the damage and the heal happen for any upgrade that was already active, or when at least one was.
-4. **Hasty Repairs**: the heal is also conditional on having an active upgrade (literal reading). Alternative: always heal 3, deactivate one only if any.
-5. **The bot does not flip the physical upgrade tokens.** The chat says each change and the order of the row; the engine is the authority. Flipping and re-ordering four double-sided tokens on the table (the active face is the token's child object) needs measuring on the live table, like Jill Trent's gadget token. With the human as Rosie the human flips their own tokens by hand following the chat.
-6. **Cavity Magnetron for the bot** takes the draw unless its hand is already at the limit.
-7. **Card 17700** (the rules card in her bag) has Houdini's hero-card CardID. Nothing reads it today.
-8. **The AI does not count Sedgley Fist Gun's +1 when it chooses an attack** (the engine does when the combat resolves). Putting it in `Game.attack_bonus` needs a hook in `sparring/state.py`; not done.
+1. **Cavity Magnetron for the bot** takes the draw unless its hand is already at the limit.
+2. **Card 17700** (the rules card in her bag) has Houdini's hero-card CardID. Nothing reads it today.
+3. **The AI does not count Sedgley Fist Gun's +1 when it chooses an attack** (the engine does when the combat resolves). Putting it in `Game.attack_bonus` needs a hook in `sparring/state.py`; not done.
+4. **Token faces and spots, to verify live** (`token_faces.*.verify_live` in `data/tts/rosie-the-riveter.json`): the inactive face is up at Z rotation 0 and the active face at 180 (Abe Sapien's Intuition tokens, confirmed live, are the same kind of object); the four resting spots are taken from where the tokens lie when a game starts (the start order 1 to 4 left to right; the layout of the table gate lays them in the order of the bag).
+
+## The tokens on the table
+`sparring/tts/lua_rosie.py` (`set_upgrade_tokens`) puts the four tokens as the engine has them, in one write: the first `active` tokens of the row on their active face (Z 180), the rest inactive (Z 0), and each token on the resting spot of its place in the row (a deactivation sends the token to the end of the row, so the others shift one spot left). A token already right is left alone; every token it flips or moves is pinged, `PING_GAP` apart (the pinger of the other token scripts). Only token-type objects are touched. `session_rosie.track` calls it for the bot's Rosie whenever the engine state differs from what it last put there, and always at the first look of a game or a resume (an absolute write, like Jill Trent's gadget token). The four spots are kept in `Session.upgrade_slots` and saved with the session (`upgrade_slots`); a resume with none reads them from the tokens' positions in the row's current order. A token that cannot be found, or a write that fails, is said once in the chat (`rosie.token_missing`, `rosie.token_failed`) and the game goes on; the table gate's reset turns the four tokens back to their inactive face (`table_reset.START_FACE`). Tests: `tests/test_rosie_upgrade_tokens.py` (the Lua on the lupa stub: live-like objects with a Z rotation, flips, swaps, pings) and `tests/test_rosie_upgrade_tokens_session.py` (FakeTTS with live-like tokens, resume included).
 
 ## AI
 - The AI profile comes from the data (`ai_profile`: Rosie `hero`, melee; Wendy `striker`). The reach of Whizbang and Merlin's extra space are the fighter's `ranged` and `move`, which every planner reads, so they see the active upgrades; Sedgley Fist Gun's +1 is only in the combat, not in the AI's estimate of a blow.

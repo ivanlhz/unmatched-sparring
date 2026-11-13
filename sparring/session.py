@@ -457,6 +457,7 @@ class Session:
         self._dial_notes_said: set[str] = set()
         self._dials_resolved = False                        # the shared dials were looked at since start / resume / adopt
         self.resolved_pieces: dict[str, list[str]] = {}     # fid -> GUIDs found by name when the configured one held another piece (saved)
+        self.upgrade_slots: dict[str, list[list[float]]] = {}      # player -> the four resting spots of Rosie's upgrade tokens, left to right (saved: session_rosie)
         self._piece_notes: list[str] = []                   # what the resolution has to tell the player
         self._piece_gave_up: set[str] = set()               # fids whose piece was looked for by name once, in vain
         self._resolving = False
@@ -1695,6 +1696,7 @@ class Session:
             "deck_ident": {side: [list(pair) for pair in pairs]
                            for side, pairs in {**self._saved_ident, **self._deck_ident}.items()},
             **({"resolved_pieces": self.resolved_pieces} if self.resolved_pieces else {}),
+            **({"upgrade_slots": self.upgrade_slots} if self.upgrade_slots else {}),
             **peek.to_dict(self),
             **order_cards.to_dict(self),
             **({"resolved_dials": self.resolved_dials} if self.resolved_dials else {}),
@@ -1784,6 +1786,7 @@ class Session:
             self._saved_ident = self._load_saved_identities(d.get("deck_ident"))
             piece_id.restore(self, d.get("resolved_pieces"))
             piece_id.restore_dials(self, d.get("resolved_dials"))
+            self.upgrade_slots = session_rosie.read_slots(d.get("upgrade_slots"))
             self._saved_decks = {side: g for side, g in (d.get("deck_live") or {}).items()
                                  if side in ("bot", "human") and isinstance(g, str) and lua._GUID.fullmatch(g)}
             self._saved_zones = self.read_saved_zones(d.get("zones_live"))

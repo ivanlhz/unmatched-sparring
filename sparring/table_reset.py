@@ -72,7 +72,8 @@ from .tts.ui import Event, parse_event
 PANEL_CHUNK = 70                              # `lua.set_panel` takes at most 80 elements per call
 PANEL_SETTLE = 0.7                            # seconds the panel needs for its XML to exist (it is written 0.5 s after the object)
 ENABLED = True                                # tests turn the gate off globally and opt in where they exercise it
-START_FACE = {"ability": "occult_detective", "intuition": "inactive"}     # starting face of each two-faced token (token_faces)
+START_FACE = {"ability": "occult_detective", "intuition": "inactive", "merlin_engine": "inactive", "cavity_magnetron": "inactive",
+              "sedgley_fist_gun": "inactive", "whizbang": "inactive"}     # starting face of each two-faced token (token_faces)
 
 
 class CleaningSession(Session):

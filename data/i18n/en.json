@@ -1299,5 +1299,7 @@
  "rosie.on": "FREEDOM XK-II MECH SUIT: {name} activates {names} ({n} of {max} active).",
  "rosie.off": "FREEDOM XK-II MECH SUIT: {name} deactivates {names}, which goes to the end of the row ({n} of {max} active).",
  "rosie.reset": "FREEDOM XK-II MECH SUIT: {name} deactivates all {max} upgrades.",
- "fx.rosie.loose_lips": "Loose Lips Sink Ships!: {title}"
+ "fx.rosie.loose_lips": "Loose Lips Sink Ships!: {title}",
+ "rosie.token_missing": "I cannot find all of {name}'s upgrade tokens, so I will not move them: set them by hand as the row in the chat says.",
+ "rosie.token_failed": "I could not move {name}'s upgrade tokens; I will try again next step. If they stay wrong, set them by hand as the row in the chat says."
 }

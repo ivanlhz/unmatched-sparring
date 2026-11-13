@@ -3,8 +3,8 @@ schemes' choice between activating and deactivating, Overrun's move by hand, Cav
 activation and the end-of-turn reset of the human's upgrades as the chat says them, and the bot's Rosie playing the same cards against a
 human. The bot's side of the same cards is in tests/test_rosie_the_riveter_effects.py.
 
-Her deck is sheet 176 like the other decks: every id the table reports is resolved against the owner's deck. The four upgrade tokens are
-not moved by the bot (docs/heroes/rosie-the-riveter.md): the chat says each change and the order of the row."""
+Her deck is sheet 176 like the other decks: every id the table reports is resolved against the owner's deck. The four upgrade tokens: the bot flips and
+pings them for ITS Rosie (tests/test_rosie_upgrade_tokens_session.py); a human Rosie flips her own, the chat says each change and the row."""
 from __future__ import annotations
 
 import pytest
