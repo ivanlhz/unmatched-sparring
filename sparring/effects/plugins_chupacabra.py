@@ -42,12 +42,14 @@ def _ambush(run, game, spec):
 
 def _physical_discard(run, game, rival: int) -> int | None:
     """The human discards the card at the drawn position by hand (settled at End action) and says its BOOST value. The discard is
-    registered once even if the op reruns after the answer; None when they had nothing left to give."""
+    registered once even if the op reruns after the answer; None when they had nothing left to give (or a status stops the discard)."""
     if not run.flags.get("ambush_discard"):
+        owed = table.discards_owed(game, rival)
         reason = _random_positions_text(game, run, rival, 1, _card_title(game, run))
-        if not game.force_discard(rival, 1, reason, run.ctx.owner):
-            return None
-        run.flags["ambush_discard"] = True
+        game.force_discard(rival, 1, reason, run.ctx.owner)               # the table's copy of the hand holds placeholders: nothing is returned
+        run.flags["ambush_discard"] = table.discards_owed(game, rival) > owed
+    if not run.flags["ambush_discard"]:
+        return None
     boosts = sorted({c.boost for c in game.players[rival].full_set})
     return int(run.ask(game, "amount", rival, boosts, 1, 1, "boost value of the discarded card", ambush_boost=True)[0])
 
