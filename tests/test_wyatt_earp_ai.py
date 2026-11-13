@@ -156,7 +156,7 @@ def test_full_turns_of_the_bot_never_exceed_the_chain_the_three_effects_allow(bp
     ai = bot(g, kind)
     attacks = []
     real = type(g).use_action
-    monkeypatch.setattr(type(g), "use_action", lambda self, attack_on=None: (attacks.append(attack_on) if attack_on and self is g else None, real(self, attack_on))[1])
+    monkeypatch.setattr(type(g), "use_action", lambda self, attack=False, attack_on=None: (attacks.append(attack_on or "any") if (attack or attack_on) and self is g else None, real(self, attack, attack_on))[1])
     ai.take_turn(g)
     assert g.actions_left == 0 and 2 <= len(attacks) <= 3 and g.winner is None
 
