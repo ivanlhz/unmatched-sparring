@@ -31,3 +31,8 @@ sparring/session.py  john-henry  John Henry session pieces (tracks sync, token p
 sparring/session_translators.py  john-henry  John Henry session pieces (tracks sync, token placement, AI hooks)  14:23Z
 sparring/play.py  john-henry  John Henry session pieces (tracks sync, token placement, AI hooks)  14:23Z
 sparring/ai_medusa.py  john-henry  John Henry session pieces (tracks sync, token placement, AI hooks)  14:23Z
+docs/effects-dsl.md  john-henry  John Henry docs, features, checklist  14:29Z
+docs/live-checklist.md  john-henry  John Henry docs, features, checklist  14:29Z
+features.json  john-henry  John Henry docs, features, checklist  14:29Z
+README.md  john-henry  John Henry docs, features, checklist  14:29Z
+docs/card-identity.md  john-henry  John Henry docs, features, checklist  14:29Z
