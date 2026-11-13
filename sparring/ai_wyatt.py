@@ -27,6 +27,7 @@ COUNTERS = ("showdown_draw", "showdown_attack", "showdown_move")
 STRIP_AFTER = 0.6          # A Marshal And An Outlaw attacking: the rival discards a card of their choice (their least useful one)
 BURY_AFTER = 0.15          # Better Swear Me In: the look at the rival's top card and the chance to bury it
 GUNFIGHT_EDGE = 0.1        # four hits, two chosen by each side: about even, a little for whoever has the sidekick to finish
+POINTLESS_DRAW = 0.05      # a card drawn into a full hand is discarded by the limit and only shortens the deck: any other effect beats it
 DRAW_SHARE = 0.9           # the SHOWDOWN draw before it is chosen: an average card, a little less since the first effect is not always the draw
 
 
@@ -112,9 +113,10 @@ def pick_showdown(ai, game, me: int, options: list[int], attacker: str | None) -
     if DRAW in options:
         room = hand_room(game, me)
         pointless = not game.players[me].deck or (game.actions_left <= 0 and room is not None and len(game.players[me].hand) >= room)
-        values[DRAW] = 0.0 if pointless else ai.avg_unseen_keep(game) * DRAW_SHARE
+        values[DRAW] = -POINTLESS_DRAW if pointless else ai.avg_unseen_keep(game) * DRAW_SHARE
     if ATTACK in options:
-        values[ATTACK] = best_attack_value(ai, game, me)
+        best = best_attack_value(ai, game, me)
+        values[ATTACK] = best if best > 0 else -POINTLESS_DRAW       # a free action nothing can use is lost
     if MOVE in options:
         values[MOVE] = _move_gain(ai, game, me, attacker)
     return max(options, key=lambda k: (values[k], -k))
