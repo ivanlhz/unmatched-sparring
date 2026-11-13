@@ -36,3 +36,6 @@ docs/live-checklist.md  john-henry  John Henry docs, features, checklist  14:29Z
 features.json  john-henry  John Henry docs, features, checklist  14:29Z
 README.md  john-henry  John Henry docs, features, checklist  14:29Z
 docs/card-identity.md  john-henry  John Henry docs, features, checklist  14:29Z
+sparring/hellboy_script.py  john-henry  John Henry attack-only action in the turn loops  14:38Z
+sparring/search/controller.py  john-henry  John Henry attack-only action in the turn loops  14:38Z
+sparring/session_pieces.py  john-henry  John Henry attack-only action in the turn loops  14:38Z
