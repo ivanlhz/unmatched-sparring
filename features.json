@@ -675,6 +675,21 @@
    "note": "Engine additions are additive (docs/effects-dsl.md, section 40). Rules decisions and open questions for Ivan: docs/heroes/philippa.md. Live test pending."
   },
   {
+   "id": "HERO-ROSIE-THE-RIVETER",
+   "title": "Rosie the Riveter (Stars and Stripes, with Wendy The Welder) playable by the bot and by the human against every hero",
+   "status": "in-progress",
+   "criteria": [
+    "data/heroes/overlay/rosie-the-riveter.json, data/heroes/rosie-the-riveter.json, data/heroes/effects/rosie-the-riveter.json and data/tts/rosie-the-riveter.json generated and validated (import_hero, validate_effects, import_save); the 11 titles (30 cards, sheet 176, hero card 402) read from the card images and compared with the transcription of unmatched-memory (no mismatch of a value, boost, copy count, band or text; Wendy's blank attack is MELEE on the hero card)",
+    "Her deck shares CardIDs 17600-17629 with the other sheet-176 decks: told apart by deck image and owner, never by a bare CardID (tests/test_hero_rosie_the_riveter_data.py, tests/test_card_identity.py); no GUID of hers is shared with another hero; the loose rules card 17700 does not disturb Houdini's detection",
+    "The four upgrades were read from the images of the four tokens in her bag (Merlin Engine, Cavity Magnetron, Sedgley Fist Gun, Whizbang) and are data: the HeroDef passive freedom_xk_ii; the row (activate the leftmost inactive, deactivate the leftmost active and send it to the end) is two ability counters, upgrades and upgrade_shift; Sedgley's +1 is the hero's own DURING (the plugin rosie:attack_bonus), Whizbang and Merlin Engine keep the hero's Fighter.ranged and Fighter.move in step with the counters (sparring/upgrades.py), Cavity Magnetron is an optional draw trigger",
+    "All 11 cards on the interpreter for both seats, with the plugins rosie:deactivate, rosie:attack_bonus, the test rosie:upgrade and rosie:loose_lips; the start-of-turn activation and the end-of-turn reset run in the engine for both seats; the session says every change of the row in the chat (session_rosie.py; the bot does not flip the physical tokens)",
+    "The bot plays her under the search AI (make_bot_ai ismcts): ai_rosie.py prices Full Metal and the AFTER of her cards",
+    "Rosie against each of the 28 other heroes in both seats reaches game over on FakeTTS (passive and attacking human) and in the simulator with the heuristic and the search AI (tests/test_rosie_the_riveter_matrix.py)",
+    "Verified live by Ivan (docs/live-checklist.md, section Rosie the Riveter)"
+   ],
+   "note": "Engine additions are additive (docs/effects-dsl.md, section 44). Rules decisions and open questions for Ivan: docs/heroes/rosie-the-riveter.md (Pending Ivan: the upgrade effects were read from the tokens; the free action to attack is a plain action; the bot does not flip the tokens). Live test pending."
+  },
+  {
    "id": "HERO-JOHN-HENRY",
    "title": "John Henry (Stars and Stripes, no sidekick) playable by the bot and by the human against every hero",
    "status": "in-progress",

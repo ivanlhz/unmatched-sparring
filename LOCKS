@@ -6,16 +6,3 @@
 #            Push rejected -> git pull --rebase; if the path is now someone else's, wait and retry; else push again.
 #   release: in the SAME push as your finished work, delete your line (commit "unlock: <path> <agent>").
 #   Never edit a path locked by another agent. Never remove another agent's line.
-tests/test_card_identity.py  rosie  Rosie hero registration  15:13Z
-sparring/effects/state.py  rosie  Rosie hero registration  15:18Z
-sparring/effects/ops_core.py  rosie  Rosie hero registration  15:18Z
-data/i18n/en.json  rosie  Rosie hero registration  15:18Z
-data/i18n/es.json  rosie  Rosie hero registration  15:18Z
-tests/test_heroes.py  rosie  Rosie hero registration  15:18Z
-tests/test_d1_bot_cards.py  rosie  Rosie hero registration  15:18Z
-tests/test_effects_schema.py  rosie  Rosie hero registration  15:18Z
-docs/effects-dsl.md  rosie  Rosie hero registration  15:18Z
-docs/card-identity.md  rosie  Rosie hero registration  15:18Z
-docs/live-checklist.md  rosie  Rosie hero registration  15:18Z
-README.md  rosie  Rosie hero registration  15:18Z
-features.json  rosie  Rosie hero registration  15:18Z

@@ -690,6 +690,7 @@ from . import plugins_ciri  # noqa: E402,F401  (registers ciri:channel_the_sourc
 from . import plugins_eredin  # noqa: E402,F401  (registers eredin:replace_combatant and the test eredin:opponent_card)
 from . import plugins_chupacabra  # noqa: E402,F401  (registers chupacabra:ambush, chupacabra:tooth_and_tail)
 from . import plugins_yennefer  # noqa: E402,F401  (registers yennefer:/triss: mill and lodge)
+from . import plugins_rosie  # noqa: E402,F401  (registers rosie:deactivate, rosie:attack_bonus, the test rosie:upgrade and rosie:loose_lips)
 from . import plugins_wyatt  # noqa: E402,F401  (registers wyatt:free_attack, you_die_first, swear_me_in, bring_to_justice)
 from . import plugins_philippa  # noqa: E402,F401  (registers philippa: owlform, chain_lightning, blinding_dust, do_my_bidding, spymaster_ruse)
 from . import plugins_john  # noqa: E402,F401  (registers john:summon_track and the test john:paths)

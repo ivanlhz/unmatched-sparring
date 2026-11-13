@@ -16,7 +16,7 @@ from test_donatello_session import SPOTS, AsideTable
 from test_tmnt_matrix import HERO_HP, MAX_STEPS, AttackDriver, human_step
 
 SLUG = "rosie-the-riveter"
-OTHERS = ["medusa", "hellboy", "abe-sapien", "baba-yaga", "liz-sherman", "leonardo", "donatello", "michelangelo", "raphael", "doctor-strange", "houdini", "bigfoot", "daredevil", "luke-cage", "bullseye", "golden-bat", "jill-trent", "she-hulk", "tomoe-gozen", "yennefer-triss", "sinbad", "eredin", "ciri", "philippa"]
+OTHERS = ["medusa", "hellboy", "abe-sapien", "baba-yaga", "liz-sherman", "leonardo", "donatello", "michelangelo", "raphael", "doctor-strange", "houdini", "bigfoot", "daredevil", "luke-cage", "bullseye", "golden-bat", "jill-trent", "she-hulk", "tomoe-gozen", "yennefer-triss", "sinbad", "eredin", "ciri", "philippa", "wyatt-earp", "john-henry", "chupacabra", "george-washington"]
 PAIRS = [(SLUG, h) for h in OTHERS] + [(b, SLUG) for b in OTHERS]
 IDS = [f"{b}-vs-{h}" for b, h in PAIRS]
 

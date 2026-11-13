@@ -1282,5 +1282,11 @@
  "cal.what.object": "{name} de {hero}",
  "cal.arg.map": "clave del mapa (por ejemplo bprd-hq; la lista esta en data/maps/catalog.json)",
  "cal.arg.dry": "mostrar lo que se escribiria sin guardarlo",
- "cal.unknown_map": "El mapa {slug} no esta en el catalogo. Mapas: {maps}"
+ "cal.unknown_map": "El mapa {slug} no esta en el catalogo. Mapas: {maps}",
+ "rosie.none": "ninguna",
+ "rosie.state": "FREEDOM XK-II MECH SUIT: {name} tiene activas: {active}. Fila, de izquierda a derecha: {row}.",
+ "rosie.on": "FREEDOM XK-II MECH SUIT: {name} activa {names} ({n} de {max} activas).",
+ "rosie.off": "FREEDOM XK-II MECH SUIT: {name} desactiva {names}, que pasa al final de la fila ({n} de {max} activas).",
+ "rosie.reset": "FREEDOM XK-II MECH SUIT: {name} desactiva las {max} mejoras.",
+ "fx.rosie.loose_lips": "Loose Lips Sink Ships!: {title}"
 }

@@ -1282,5 +1282,11 @@
  "cal.what.object": "{name} of {hero}",
  "cal.arg.map": "key of the map (for example bprd-hq; the list is in data/maps/catalog.json)",
  "cal.arg.dry": "show what would be written without saving it",
- "cal.unknown_map": "The map {slug} is not in the catalog. Maps: {maps}"
+ "cal.unknown_map": "The map {slug} is not in the catalog. Maps: {maps}",
+ "rosie.none": "none",
+ "rosie.state": "FREEDOM XK-II MECH SUIT: {name} has active: {active}. Row, left to right: {row}.",
+ "rosie.on": "FREEDOM XK-II MECH SUIT: {name} activates {names} ({n} of {max} active).",
+ "rosie.off": "FREEDOM XK-II MECH SUIT: {name} deactivates {names}, which goes to the end of the row ({n} of {max} active).",
+ "rosie.reset": "FREEDOM XK-II MECH SUIT: {name} deactivates all {max} upgrades.",
+ "fx.rosie.loose_lips": "Loose Lips Sink Ships!: {title}"
 }

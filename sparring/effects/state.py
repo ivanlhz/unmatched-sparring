@@ -8,10 +8,12 @@ from __future__ import annotations
 import weakref
 from typing import Iterable
 
+from .. import upgrades
+
 # Heroes whose cards and ability the interpreter resolves by default, whoever plays them (C5: Medusa; D1 the Hellboy
 # box for the bot, E2 for the human too, in table mode: effects/table.py). `Game` derives `fx.dsl_heroes` from the
 # heroes in play and persist omits the set when it is this default, so old saves load unchanged.
-INTERPRETED_HEROES = frozenset({"medusa", "hellboy", "abe-sapien", "baba-yaga", "liz-sherman", "leonardo", "donatello", "michelangelo", "raphael", "doctor-strange", "houdini", "bigfoot", "daredevil", "luke-cage", "bullseye", "golden-bat", "jill-trent", "she-hulk", "tomoe-gozen", "yennefer-triss", "triss-yennefer", "sinbad", "chupacabra", "eredin", "ciri", "philippa", "john-henry", "wyatt-earp", "george-washington"})
+INTERPRETED_HEROES = frozenset({"medusa", "hellboy", "abe-sapien", "baba-yaga", "liz-sherman", "leonardo", "donatello", "michelangelo", "raphael", "doctor-strange", "houdini", "bigfoot", "daredevil", "luke-cage", "bullseye", "golden-bat", "jill-trent", "she-hulk", "tomoe-gozen", "yennefer-triss", "triss-yennefer", "sinbad", "chupacabra", "eredin", "ciri", "rosie-the-riveter", "philippa", "john-henry", "wyatt-earp", "george-washington"})
 
 
 def interpreted(slugs: Iterable[str]) -> set[str]:
@@ -230,6 +232,8 @@ class EffectState:
 
     def set_counter(self, player: int, name: str, value: int) -> None:
         self.counters[player][name] = value
+        if name in (upgrades.COUNT, upgrades.SHIFT):        # Whizbang makes Rosie ranged and Merlin Engine adds to her move while they are active
+            upgrades.sync(self.game(), player)
 
     # clone / persist
     def is_empty(self) -> bool:

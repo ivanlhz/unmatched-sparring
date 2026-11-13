@@ -216,7 +216,8 @@ def test_the_catalog_names_rosie_and_her_deck_is_her_own():
     assert catalog.identify([f"{f}|{b}" for f, b in load_hero_table(SLUG).identity]).slug == SLUG
 
 
-def test_no_guid_of_rosie_is_shared_with_another_hero():
+def test_no_guid_of_rosie_is_shared_with_another_hero_but_her_life_dial_with_wyatt_earp():
     mine = set(load_hero_table(SLUG).all_guids())
     for slug in [p.stem for p in HEROES_DIR.parent.joinpath("tts").glob("*.json") if p.stem != SLUG]:
-        assert not mine & set(load_hero_table(slug).all_guids()), slug
+        common = mine & set(load_hero_table(slug).all_guids())
+        assert common == ({"facfe3"} if slug == "wyatt-earp" else set()), slug        # her life dial is also Wyatt Earp's: told apart by the dial's name

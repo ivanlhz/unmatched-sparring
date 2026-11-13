@@ -47,13 +47,13 @@ def test_every_guid_in_the_hero_data_belongs_to_one_hero_except_the_known_collis
     """Pieces, dials, decks, tokens and counter dials of all the heroes. The second collision is a dial: the save gives Lobster
     Johnson's life dial (in Hellboy's bag) and The Jackalope's (in Bigfoot's) the GUID 18c384. The third is a miniature: Daisy's token
     (Jill Trent's bag) and Abe Sapien's agent Carla are both 0bf463. The fourth is a dial too: Tomoe Gozen's life dial has Donatello's
-    GUID ca8e35 (the save reuses it for Chupacabra's and Little Red's as well; each dial is named after its hero). The fifth is John Henry's dial, 887823, also Raphael's."""
+    GUID ca8e35 (the save reuses it for Chupacabra's and Little Red's as well; each dial is named after its hero). The fifth is John Henry's dial, 887823, also Raphael's. The sixth is Rosie the Riveter's life dial, facfe3, also Wyatt Earp's (the save reuses it; each dial is named after its hero)."""
     owners = defaultdict(set)
     for path in TTS_DIR.glob("*.json"):
         for g in load_hero_table(path.stem).all_guids():
             owners[g].add(path.stem)
     shared = {g: sorted(s) for g, s in owners.items() if len(s) > 1}
-    assert shared == {SHARED: ["abe-sapien", "donatello"], "18c384": ["bigfoot", "hellboy"], "0bf463": ["abe-sapien", "jill-trent"], "ca8e35": ["chupacabra", "donatello", "tomoe-gozen"], "7b2a33": ["triss-yennefer", "yennefer-triss"], "887823": ["john-henry", "raphael"], "166320": ["bullseye", "george-washington"]}
+    assert shared == {SHARED: ["abe-sapien", "donatello"], "18c384": ["bigfoot", "hellboy"], "0bf463": ["abe-sapien", "jill-trent"], "ca8e35": ["chupacabra", "donatello", "tomoe-gozen"], "7b2a33": ["triss-yennefer", "yennefer-triss"], "887823": ["john-henry", "raphael"], "166320": ["bullseye", "george-washington"], "facfe3": ["rosie-the-riveter", "wyatt-earp"]}
 
 
 def test_plain_name_strips_tts_colour_tags():
