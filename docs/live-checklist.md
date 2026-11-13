@@ -463,7 +463,7 @@ Nothing of Yennefer & Triss has been seen on a real table. The deck is sheet 176
 
 ### Wyatt Earp (Stars and Stripes, with Doc Holliday)
 
-Nothing of Wyatt Earp has been seen on a real table. His deck is sheet 187, which no other deck uses; the first things to check are the detection, Doc Holliday's token and SHOWDOWN with the free action to attack.
+Nothing of Wyatt Earp has been seen on a real table. His deck is on sheet 187 (shared with George Washington's and John Henry's: same CardIDs, told apart by image); the first things to check are the detection, Doc Holliday's token and SHOWDOWN with the free action to attack.
 - [ ] **Detection (auto)**: with his deck at one spot and any other hero's at the other, the start-up line names Wyatt Earp; the bag `cde243` holds a deck of 31 cards (CardIDs 18700-18729 and the character card 401).
 - [ ] **Pieces**: Wyatt's miniature `aa2509` (an assetbundle) and dial `facfe3` (15), Doc Holliday's token `3f56bb` (a Custom_Token: check it is found as a piece, like Daisy) and dial `7f71e0` (8) are found; both life dials follow the engine.
 - [ ] **SHOWDOWN (H)**: after an attack of yours (Wyatt's or Doc's) that wins, the panel asks "SHOWDOWN: choose an effect" with three buttons: draw 1 card (the bot deals it), gain 1 free action to attack, move your fighter up to 1 space (you move the miniature of the fighter that attacked by hand and press End action). Each effect is offered once a turn: a second win offers the other two, a third offers the last one without asking, a fourth nothing. A lost combat or a defense won offers nothing. **(B)**: the bot picks one (the chat says which); with a strong attack in its hand it takes the free action, otherwise the draw.
