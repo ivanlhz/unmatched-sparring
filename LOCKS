@@ -11,13 +11,3 @@ data/i18n/es.json  john-henry  review fixes  15:27Z
 docs/card-identity.md  john-henry  review fixes  15:27Z
 tests/test_card_identity.py  john-henry  review fixes  15:27Z
 features.json  john-henry  review fixes  15:27Z
-docs/effects-dsl.md  wyatt  Wyatt review fixes (sheet 187 claims, file modes)  15:30Z
-docs/live-checklist.md  wyatt  Wyatt review fixes (sheet 187 claims, file modes)  15:30Z
-README.md  wyatt  Wyatt review fixes (sheet 187 claims, file modes)  15:30Z
-sparring/effects/narrate.py  wyatt  Wyatt review fixes (sheet 187 claims, file modes)  15:30Z
-sparring/effects/state.py  wyatt  Wyatt review fixes (sheet 187 claims, file modes)  15:30Z
-sparring/hellboy_script.py  wyatt  Wyatt review fixes (sheet 187 claims, file modes)  15:30Z
-sparring/search/adapter.py  wyatt  Wyatt review fixes (sheet 187 claims, file modes)  15:30Z
-sparring/search/controller.py  wyatt  Wyatt review fixes (sheet 187 claims, file modes)  15:30Z
-sparring/session_choices.py  wyatt  Wyatt review fixes (sheet 187 claims, file modes)  15:30Z
-sparring/state.py  wyatt  Wyatt review fixes (sheet 187 claims, file modes)  15:30Z
