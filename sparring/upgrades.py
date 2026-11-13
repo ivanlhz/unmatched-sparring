@@ -9,9 +9,9 @@ first of the row, and the whole state is two numbers, kept as the hero's ability
   - `upgrade_shift`: how many times the row has turned (0..3); `row` rotated left by it is the order on the table.
 
 What each upgrade does is data too: the `grants` of its row entry, read here.
-  - `attack_bonus` (Sedgley Fist Gun): added to the value of the hero's attacks (`attack_bonus_parts`);
-  - `ranged` (Whizbang): the hero is a ranged hero while it is active (`sync_ranged` keeps `Fighter.ranged` in step with the counters);
-  - `maneuver_move` (Merlin Engine): spaces the hero may move beyond the usual in a Maneuver (`maneuver_bonus`);
+  - `attack_bonus` (Sedgley Fist Gun): added to the value of the hero's attacks in DURING (`attack_bonus_parts`, the plugin `rosie:attack_bonus`);
+  - `ranged` (Whizbang): the hero is a ranged hero while it is active (`sync` keeps `Fighter.ranged` in step with the counters);
+  - `maneuver_move` (Merlin Engine): spaces added to the hero's move value, which only a Maneuver reads (`sync` keeps `Fighter.move` in step);
   - `draw_after_attack` (Cavity Magnetron): the trigger `cavity_magnetron` of the effects file reads it through the plugin test
     `rosie:upgrade`.
 Only the hero fighter has them, never the sidekick ("Rosie is a ranged hero", "Rosie's attacks")."""
@@ -72,32 +72,23 @@ def granted(game, player: int, key: str) -> list:
 
 
 def attack_bonus_parts(game, fighter) -> list[tuple[int, str]]:
-    """(bonus, label) the active upgrades add to the value of `fighter`'s attacks: only the hero's own."""
+    """(bonus, label) the active upgrades add to the value of `fighter`'s attacks: only the hero's own (`rosie:attack_bonus` adds them in DURING)."""
     if not fighter.hero or not has(game, fighter.owner):
         return []
     return [(int(u["grants"]["attack_bonus"]), u["name"].upper()) for u in active(game, fighter.owner) if "attack_bonus" in (u.get("grants") or {})]
 
 
-def maneuver_bonus(game, fighter) -> int:
-    """Spaces `fighter` may move beyond its move in a Maneuver because of an active upgrade (the hero only)."""
-    if not fighter.hero or not has(game, fighter.owner):
-        return 0
-    return sum(int(n) for n in granted(game, fighter.owner, "maneuver_move"))
-
-
-def hero_maneuver_bonus(game, player: int) -> int:
-    """The same for `player`'s hero, for a planner that has no fighter at hand."""
-    return maneuver_bonus(game, game.hero(player)) if has(game, player) else 0
-
-
-def sync_ranged(game, player: int | None = None) -> None:
-    """The hero fighter is ranged when its printed attack is, or while an active upgrade makes it so (Whizbang). Called wherever the
+def sync(game, player: int | None = None) -> None:
+    """The hero fighter is ranged when its printed attack is, or while an active upgrade makes it so (Whizbang), and its move value is the
+    printed one plus what the active upgrades add to a Maneuver (Merlin Engine: "when you maneuver, Rosie may move 1 additional space").
+    The move value is only read where a Maneuver is planned or done, so it is the one place that bonus has to live. Called wherever the
     counters change (`EffectState.set_counter`) and when a save is loaded."""
     for who in (0, 1) if player is None else (player,):
         if not has(game, who):
             continue
-        hero = game.hero(who)
-        hero.ranged = game.players[who].hero.ranged or any(granted(game, who, "ranged"))
+        hero, printed = game.hero(who), game.players[who].hero
+        hero.ranged = printed.ranged or any(granted(game, who, "ranged"))
+        hero.move = printed.move + sum(int(n) for n in granted(game, who, "maneuver_move"))
 
 
 def activate(game, player: int, amount: int = 1) -> list[dict]:

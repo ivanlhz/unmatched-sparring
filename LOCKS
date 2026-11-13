@@ -41,5 +41,3 @@ sparring/search/controller.py  john-henry  John Henry attack-only action in the 
 sparring/session_pieces.py  john-henry  John Henry attack-only action in the turn loops  14:38Z
 tests/test_tmnt_matrix.py  raptors  AttackDriver re-reads the hero each turn (a team hero may fall without ending the game)  14:39Z
 sparring/session_bot_effects.py  john-henry  John Henry: track intent is a direct op  14:43Z
-sparring/guard.py  rosie  undo the Merlin edit (it is now the hero move value)  14:46Z
-sparring/persist.py  rosie  Rosie: upgrades.sync on load  14:46Z
