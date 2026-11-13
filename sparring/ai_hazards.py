@@ -120,6 +120,16 @@ def zone_damage(game, rival: int) -> float:
     return zone_hazard(game, rival)[0]
 
 
+def zone_exposed(game, victim: int, rival_hero) -> list:
+    """The fighters of `victim` the rival hero's zone damage can pick right now: those standing in its zone. Only the hero for a
+    hero on his own, EVERY fighter for a team (the Raptors): each of them is a target on its own, so the position is priced per
+    fighter and the prices add up, where a hero with a sidekick or two is priced by the dearest one it risks."""
+    if rival_hero.pos is None:
+        return []
+    mine = game.own(victim) if game.players[victim].hero.team else [game.hero(victim)]
+    return [f for f in mine if f.pos is not None and game.board.share_zone(f.pos, rival_hero.pos)]
+
+
 def zone_cover_factor(defenses, blow: float) -> float:
     """Share of the zone damage's hit points still charged to a fighter that holds the defense values `defenses` (the cards
     of the hand it may defend with), against a rival hero whose attack is expected to be worth `blow`. Standing in that zone is

@@ -39,6 +39,7 @@ class SidekickDef:
     move: int
     ranged: bool
     start_on_board: int | None = None     # how many start on the board; None = all, the rest start in reserve
+    team: bool = False                    # part of the hero's team: the owner is beaten only when the hero and every team member are defeated (the Raptors)
 
 
 @dataclass(frozen=True)
@@ -102,6 +103,12 @@ class HeroDef:
         return None
 
     @property
+    def team(self) -> bool:
+        """The hero fights as a team (the Raptors): the owner loses only when the hero and every team member are defeated, and the first one
+        standing is the hero fighter while Blue is down."""
+        return any(s.team for s in self.sidekicks)
+
+    @property
     def fighter_names(self) -> set[str]:
         return {self.name, *(s.name for s in self.sidekicks)}
 
@@ -157,7 +164,8 @@ def parse_hero(raw: dict, where: str = "hero") -> HeroDef:
         slug, name = raw["slug"], raw["name"]
         sidekicks = tuple(SidekickDef(s["fid"], s["name"], int(s["count"]), int(s["hp"]), int(s["move"]),
                                       _ranged(s["attack"], f"{where}: sidekick {s['name']}"),
-                                      None if s.get("start_on_board") is None else int(s["start_on_board"]))
+                                      None if s.get("start_on_board") is None else int(s["start_on_board"]),
+                                      bool(s.get("team", False)))
                           for s in raw.get("sidekicks", ()))
         counters = {k: CounterDef(k, v["pile"], v["tag"]) for k, v in (raw.get("counters") or {}).items()}
         f = raw.get("forms")

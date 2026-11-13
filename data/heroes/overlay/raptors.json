@@ -1,0 +1,299 @@
+{
+ "_notes": [
+  "Sheet 176 of the tournament savegame (8x4), read card by card from the image on 2026-11-13. CardID = 17600 + idx; 313 = character card (sheet 3, 10x7, index 13). The deck object of the save holds 31 cards (the 30 plus the character card). Raptors' deck is sheet 176 like Medusa's, the turtles' and the rest: only deck.identity (data/tts/raptors.json) tells the decks apart (docs/card-identity.md).",
+  "Hero card (read from the image): HERO RAPTORS, MELEE, START HEALTH 7, MOVE 3; ability 'Raptors add 1 to the value of their attack cards for each of your other Raptors adjacent to the defender.' The save holds THREE Raptors, each a 'Hero' miniature (Raptor Blue, Raptor Delta, Raptor Echo, Custom_Assetbundle) with its own 'Hero Health' dial (MAX_VALUE 7): the three are the hero. The engine models one hero plus sidekicks, so Blue is the hero fighter and Delta and Echo are sidekick entries flagged `team: true`: the owner loses only when all three are defeated, and when Blue falls the first Raptor standing becomes the hero fighter (Game.hero); see docs/heroes/raptors.md.",
+  "Every card is band ANY (all 30 read from the images). Texts differ from unmatched-memory on Disengage (the real card reads 'Move your Raptor to any other space in her zone', unmatched-memory has the Bigfoot wording) and Ambush ('this card's value', not 'attack value').",
+  "The pack bonus is the HeroDef passive `pack_bonus` (sparring/pack.py), read by Game.attack_bonus_parts / Game.attack_bonus like Eredin's enraged.",
+  "Every card carries the tag `raptors` so that no card of this deck equals a card of another deck of sheet 176 whose band, title, numbers and text match (Feint, band ANY, idx 16 is also Doctor Strange's: docs/card-identity.md says cards compare by value)."
+ ],
+ "name": "Raptor Blue",
+ "fid": "blue",
+ "tts": {
+  "bag_name": "Raptors"
+ },
+ "sidekicks": [
+  {
+   "fid": "delta",
+   "name": "Raptor Delta",
+   "count": 1,
+   "hp": 7,
+   "move": 3,
+   "attack": "melee",
+   "team": true
+  },
+  {
+   "fid": "echo",
+   "name": "Raptor Echo",
+   "count": 1,
+   "hp": 7,
+   "move": 3,
+   "attack": "melee",
+   "team": true
+  }
+ ],
+ "forms": null,
+ "counters": {},
+ "triggers": [],
+ "passives": [
+  {
+   "id": "pack_bonus",
+   "effect": "pack_bonus",
+   "n": 1
+  }
+ ],
+ "deck": {
+  "card_base": 17600,
+  "sheet_id": 176,
+  "hero_card_id": 313,
+  "sheet": [
+   {
+    "idx": 0,
+    "title": "Eviscerate",
+    "fighter": "any",
+    "tags": [
+     "raptors"
+    ]
+   },
+   {
+    "idx": 1,
+    "title": "Eviscerate",
+    "fighter": "any",
+    "tags": [
+     "raptors"
+    ]
+   },
+   {
+    "idx": 2,
+    "title": "Pack Hunters",
+    "fighter": "any",
+    "tags": [
+     "raptors"
+    ]
+   },
+   {
+    "idx": 3,
+    "title": "Pack Hunters",
+    "fighter": "any",
+    "tags": [
+     "raptors"
+    ]
+   },
+   {
+    "idx": 4,
+    "title": "Clever Girl",
+    "fighter": "any",
+    "text": "AFTER COMBAT: If one or more of your Raptors is adjacent to the opposing fighter, gain 1 action.",
+    "tags": [
+     "raptors"
+    ]
+   },
+   {
+    "idx": 5,
+    "title": "Clever Girl",
+    "fighter": "any",
+    "text": "AFTER COMBAT: If one or more of your Raptors is adjacent to the opposing fighter, gain 1 action.",
+    "tags": [
+     "raptors"
+    ]
+   },
+   {
+    "idx": 6,
+    "title": "Clever Girl",
+    "fighter": "any",
+    "text": "AFTER COMBAT: If one or more of your Raptors is adjacent to the opposing fighter, gain 1 action.",
+    "tags": [
+     "raptors"
+    ]
+   },
+   {
+    "idx": 7,
+    "title": "Disengage",
+    "fighter": "any",
+    "text": "AFTER COMBAT: Move your Raptor to any other space in her zone.",
+    "tags": [
+     "raptors"
+    ]
+   },
+   {
+    "idx": 8,
+    "title": "Disengage",
+    "fighter": "any",
+    "text": "AFTER COMBAT: Move your Raptor to any other space in her zone.",
+    "tags": [
+     "raptors"
+    ]
+   },
+   {
+    "idx": 9,
+    "title": "Ambush",
+    "fighter": "any",
+    "text": "DURING COMBAT: Your opponent discards 1 random card. Add its BOOST value to this card's value.",
+    "tags": [
+     "raptors"
+    ]
+   },
+   {
+    "idx": 10,
+    "title": "Ambush",
+    "fighter": "any",
+    "text": "DURING COMBAT: Your opponent discards 1 random card. Add its BOOST value to this card's value.",
+    "tags": [
+     "raptors"
+    ]
+   },
+   {
+    "idx": 11,
+    "title": "Ambush",
+    "fighter": "any",
+    "text": "DURING COMBAT: Your opponent discards 1 random card. Add its BOOST value to this card's value.",
+    "tags": [
+     "raptors"
+    ]
+   },
+   {
+    "idx": 12,
+    "title": "They Remember",
+    "fighter": "any",
+    "tags": [
+     "raptors"
+    ]
+   },
+   {
+    "idx": 13,
+    "title": "They Remember",
+    "fighter": "any",
+    "tags": [
+     "raptors"
+    ]
+   },
+   {
+    "idx": 14,
+    "title": "They Remember",
+    "fighter": "any",
+    "tags": [
+     "raptors"
+    ]
+   },
+   {
+    "idx": 15,
+    "title": "They Remember",
+    "fighter": "any",
+    "tags": [
+     "raptors"
+    ]
+   },
+   {
+    "idx": 16,
+    "title": "Feint",
+    "fighter": "any",
+    "tags": [
+     "raptors"
+    ]
+   },
+   {
+    "idx": 17,
+    "title": "Feint",
+    "fighter": "any",
+    "tags": [
+     "raptors"
+    ]
+   },
+   {
+    "idx": 18,
+    "title": "Feint",
+    "fighter": "any",
+    "tags": [
+     "raptors"
+    ]
+   },
+   {
+    "idx": 19,
+    "title": "Eaten Alive",
+    "fighter": "any",
+    "tags": [
+     "raptors"
+    ]
+   },
+   {
+    "idx": 20,
+    "title": "Eaten Alive",
+    "fighter": "any",
+    "tags": [
+     "raptors"
+    ]
+   },
+   {
+    "idx": 21,
+    "title": "Eaten Alive",
+    "fighter": "any",
+    "tags": [
+     "raptors"
+    ]
+   },
+   {
+    "idx": 22,
+    "title": "Decoy",
+    "fighter": "any",
+    "tags": [
+     "raptors"
+    ]
+   },
+   {
+    "idx": 23,
+    "title": "Decoy",
+    "fighter": "any",
+    "tags": [
+     "raptors"
+    ]
+   },
+   {
+    "idx": 24,
+    "title": "Decoy",
+    "fighter": "any",
+    "tags": [
+     "raptors"
+    ]
+   },
+   {
+    "idx": 25,
+    "title": "Decoy",
+    "fighter": "any",
+    "tags": [
+     "raptors"
+    ]
+   },
+   {
+    "idx": 26,
+    "title": "Coordinated Attack Pattern",
+    "fighter": "any",
+    "tags": [
+     "raptors"
+    ]
+   },
+   {
+    "idx": 27,
+    "title": "Coordinated Attack Pattern",
+    "fighter": "any",
+    "tags": [
+     "raptors"
+    ]
+   },
+   {
+    "idx": 28,
+    "title": "Working Things Out",
+    "fighter": "any",
+    "tags": [
+     "raptors"
+    ]
+   },
+   {
+    "idx": 29,
+    "title": "Working Things Out",
+    "fighter": "any",
+    "tags": [
+     "raptors"
+    ]
+   }
+  ]
+ }
+}

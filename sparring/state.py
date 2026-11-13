@@ -7,7 +7,7 @@ from typing import Callable
 from .board import Board
 from .cards import Card, can_be_boost
 from .controller import Controller
-from . import enraged
+from . import enraged, pack
 from .effects import inventions, ongoing, table
 from .effects.state import EffectState, default_dsl_heroes
 from .heroes import DEFAULT_HAND_LIMIT, DEFAULT_START_HAND, HeroDef, load_hero
@@ -323,7 +323,19 @@ class Game:
         return self.own(1 - player)
 
     def hero(self, player: int) -> Fighter:
-        return next(f for f in self.fighters.values() if f.owner == player and f.hero)
+        """The owner's hero fighter. The hero of a team (the Raptors) falls without ending the game while a team member stands: the
+        first of them then takes his place (`Fighter.hero`), here as well for a game loaded from a save that does not keep the flag."""
+        hero = next(f for f in self.fighters.values() if f.owner == player and f.hero)
+        if not hero.alive and self.players[player].hero.team:
+            self._succeed(hero)
+            hero = next(f for f in self.fighters.values() if f.owner == player and f.hero)
+        return hero
+
+    def _succeed(self, fallen: Fighter) -> None:
+        """A team's hero fell: the first team member still standing becomes the hero fighter (nobody when none stands)."""
+        heir = next((f for f in self.own(fallen.owner) if f is not fallen), None)
+        if heir is not None:
+            fallen.hero, heir.hero = False, True
 
     def hero_named(self, name: str) -> Fighter:
         return next(f for f in self.fighters.values() if f.hero and f.name == name)
@@ -398,7 +410,7 @@ class Game:
         parts = (self.players[fighter.owner].hero.attack_bonuses(self.form(fighter.owner), fighter.hero,
                                                                   self.fx.maneuvered(fighter.owner))
                  + self.combat_bonus_parts(fighter.owner) + inventions.bonus_parts(self, fighter.owner, "attack")
-                 + enraged.bonus_parts(self, fighter.owner))
+                 + enraged.bonus_parts(self, fighter.owner) + pack.bonus_parts(self, fighter, target))
         high = self.board.attack_bonus(fighter.pos, target.pos) if target is not None else 0
         return parts + [(high, t("cf.high_ground"))] if high else parts
 
@@ -435,7 +447,8 @@ class Game:
         owner's turn begins: if it is not their turn now, that bonus no longer reaches their next attack."""
         passives = self.players[fighter.owner].hero.attack_bonus(self.form(fighter.owner), fighter.hero,
                                                                  self.fx.maneuvered(fighter.owner))
-        tucked = sum(n for n, _ in inventions.bonus_parts(self, fighter.owner, "attack")) + enraged.bonus_total(self, fighter.owner)
+        tucked = (sum(n for n, _ in inventions.bonus_parts(self, fighter.owner, "attack")) + enraged.bonus_total(self, fighter.owner)
+                  + sum(n for n, _ in pack.bonus_parts(self, fighter, target)))
         high = self.board.attack_bonus(fighter.pos, target.pos) if target is not None else 0
         return passives + tucked + high + (self.combat_bonus_total(fighter.owner) if self.turn == fighter.owner else 0)
 
@@ -577,8 +590,11 @@ class Game:
         fighter.died_at = fighter.pos if fighter.pos is not None else fighter.died_at
         fighter.alive, fighter.pos = False, None
         enraged.sync_move(self, fighter.owner)
-        if fighter.hero:
-            self.winner = 1 - fighter.owner
+        if fighter.hero or self.players[fighter.owner].hero.team:
+            if not self.players[fighter.owner].hero.team or not self.own(fighter.owner):
+                self.winner = 1 - fighter.owner      # a team (the Raptors) is beaten only when every one of them is defeated
+            elif fighter.hero:
+                self._succeed(fighter)
         self.fx.emit("fighter_defeated", fighter)
 
     def remove_from_game(self, player: int, card: Card) -> None:
