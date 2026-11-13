@@ -42,15 +42,24 @@ def bonus_total(game, player: int) -> int:
     return sum(n for n, _ in bonus_parts(game, player))
 
 
-def sync_move(game, player: int | None = None) -> None:
-    """The hero fighter's move value is the printed one, or the passive's while he is enraged."""
+def ongoing_move(game, player: int) -> int | None:
+    """The move value the hero of `player` gets from the ONGOING rule `hero_move` in play (Philippa's Polymorphy: 5), None for none."""
+    from .effects.ongoing import active_modifiers
+    values = [int(m["amount"]) for owner, m in active_modifiers(game, "rule") if owner == player and m["rule"] == "hero_move"]
+    return max(values) if values else None
+
+
+def sync_move(game, player: int | None = None, restore: bool = False) -> None:
+    """The hero fighter's move value is the printed one, the passive's while he is enraged, or the one an ONGOING `hero_move` rule sets.
+    `restore`: an ONGOING came or went, so a hero with neither a passive nor a rule goes back to the printed value too."""
     for who in (0, 1) if player is None else (player,):
         p = passive(game, who)
-        if p is None:
+        printed = game.players[who].hero.move
+        fixed = ongoing_move(game, who)
+        if p is None and fixed is None and not restore:
             continue
         hero = game.hero(who)
-        printed = game.players[who].hero.move
-        hero.move = max(printed, int(p["move"])) if is_enraged(game, who) else printed
+        hero.move = fixed if fixed is not None else (max(printed, int(p["move"])) if p is not None and is_enraged(game, who) else printed)
 
 
 def may_attack_with(game, player: int, card) -> bool:

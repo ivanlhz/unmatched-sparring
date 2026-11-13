@@ -1,0 +1,430 @@
+{
+ "_source": {
+  "memory": "unmatched-memory/data/heroes/philippa.json",
+  "overlay": "data/heroes/overlay/philippa.json",
+  "generator": "tools/import_hero.py"
+ },
+ "slug": "philippa",
+ "name": "Philippa",
+ "fid": "philippa",
+ "hp": 12,
+ "move": 2,
+ "attack": "range",
+ "set": "the-witcher-realms-fall",
+ "ability": "TWO STEPS AHEAD\nAt the end of your turn, you may draw until you have a hand of 4 cards.",
+ "sidekicks": [
+  {
+   "name": "Dijkstra",
+   "hp": 6,
+   "move": 2,
+   "attack": "melee",
+   "count": 1,
+   "fid": "dijkstra"
+  }
+ ],
+ "forms": null,
+ "counters": {},
+ "triggers": [],
+ "passives": [],
+ "deck": {
+  "card_base": 17600,
+  "sheet": 176,
+  "cards": [
+   {
+    "idx": 0,
+    "title": "Owlform",
+    "fighter": "Philippa",
+    "type": "attack",
+    "value": 3,
+    "boost": 3,
+    "text": "DURING COMBAT: Discard any number of cards from your hand. Add +1 to this card's value for each card discarded.",
+    "tags": []
+   },
+   {
+    "idx": 1,
+    "title": "Owlform",
+    "fighter": "Philippa",
+    "type": "attack",
+    "value": 3,
+    "boost": 3,
+    "text": "DURING COMBAT: Discard any number of cards from your hand. Add +1 to this card's value for each card discarded.",
+    "tags": []
+   },
+   {
+    "idx": 2,
+    "title": "Owlform",
+    "fighter": "Philippa",
+    "type": "attack",
+    "value": 3,
+    "boost": 3,
+    "text": "DURING COMBAT: Discard any number of cards from your hand. Add +1 to this card's value for each card discarded.",
+    "tags": []
+   },
+   {
+    "idx": 3,
+    "title": "Lightning bolt",
+    "fighter": "Philippa",
+    "type": "attack",
+    "value": 3,
+    "boost": 1,
+    "text": "AFTER COMBAT: If you haven't taken a maneuver action this turn, deal 1 damage to each opposing fighter in Philippa's zone.",
+    "tags": []
+   },
+   {
+    "idx": 4,
+    "title": "Lightning bolt",
+    "fighter": "Philippa",
+    "type": "attack",
+    "value": 3,
+    "boost": 1,
+    "text": "AFTER COMBAT: If you haven't taken a maneuver action this turn, deal 1 damage to each opposing fighter in Philippa's zone.",
+    "tags": []
+   },
+   {
+    "idx": 5,
+    "title": "Lightning bolt",
+    "fighter": "Philippa",
+    "type": "attack",
+    "value": 3,
+    "boost": 1,
+    "text": "AFTER COMBAT: If you haven't taken a maneuver action this turn, deal 1 damage to each opposing fighter in Philippa's zone.",
+    "tags": []
+   },
+   {
+    "idx": 6,
+    "title": "Chain lightning",
+    "fighter": "Philippa",
+    "type": "attack",
+    "value": 2,
+    "boost": 3,
+    "text": "AFTER COMBAT: Choose a zone Philippa is in. Deal 1 damage to each opposing fighter in that zone.",
+    "tags": []
+   },
+   {
+    "idx": 7,
+    "title": "Chain lightning",
+    "fighter": "Philippa",
+    "type": "attack",
+    "value": 2,
+    "boost": 3,
+    "text": "AFTER COMBAT: Choose a zone Philippa is in. Deal 1 damage to each opposing fighter in that zone.",
+    "tags": []
+   },
+   {
+    "idx": 8,
+    "title": "Regicide",
+    "fighter": "any",
+    "type": "attack",
+    "value": 4,
+    "boost": 2,
+    "text": "DURING COMBAT: If the opposing fighter is a hero, this card's value is 6 instead.",
+    "tags": []
+   },
+   {
+    "idx": 9,
+    "title": "Regicide",
+    "fighter": "any",
+    "type": "attack",
+    "value": 4,
+    "boost": 2,
+    "text": "DURING COMBAT: If the opposing fighter is a hero, this card's value is 6 instead.",
+    "tags": []
+   },
+   {
+    "idx": 10,
+    "title": "Spellbreaker",
+    "fighter": "Philippa",
+    "type": "versatile",
+    "value": 2,
+    "boost": 2,
+    "text": "IMMEDIATELY: Cancel all effects on your opponent's card. AFTER COMBAT: End the turn.",
+    "tags": []
+   },
+   {
+    "idx": 11,
+    "title": "Spellbreaker",
+    "fighter": "Philippa",
+    "type": "versatile",
+    "value": 2,
+    "boost": 2,
+    "text": "IMMEDIATELY: Cancel all effects on your opponent's card. AFTER COMBAT: End the turn.",
+    "tags": []
+   },
+   {
+    "idx": 12,
+    "title": "Spellbreaker",
+    "fighter": "Philippa",
+    "type": "versatile",
+    "value": 2,
+    "boost": 2,
+    "text": "IMMEDIATELY: Cancel all effects on your opponent's card. AFTER COMBAT: End the turn.",
+    "tags": []
+   },
+   {
+    "idx": 13,
+    "title": "Cunning",
+    "fighter": "any",
+    "type": "versatile",
+    "value": 4,
+    "boost": 1,
+    "text": "AFTER COMBAT: Your opponent may discard 1 card. If they don't, deal 2 damage to the opposing fighter.",
+    "tags": []
+   },
+   {
+    "idx": 14,
+    "title": "Cunning",
+    "fighter": "any",
+    "type": "versatile",
+    "value": 4,
+    "boost": 1,
+    "text": "AFTER COMBAT: Your opponent may discard 1 card. If they don't, deal 2 damage to the opposing fighter.",
+    "tags": []
+   },
+   {
+    "idx": 15,
+    "title": "Redanian plot",
+    "fighter": "any",
+    "type": "versatile",
+    "value": 2,
+    "boost": 1,
+    "text": "IMMEDIATELY: Your opponent may discard 1 card. If they don't, ignore their card's value.",
+    "tags": []
+   },
+   {
+    "idx": 16,
+    "title": "Redanian plot",
+    "fighter": "any",
+    "type": "versatile",
+    "value": 2,
+    "boost": 1,
+    "text": "IMMEDIATELY: Your opponent may discard 1 card. If they don't, ignore their card's value.",
+    "tags": []
+   },
+   {
+    "idx": 17,
+    "title": "Redanian plot",
+    "fighter": "any",
+    "type": "versatile",
+    "value": 2,
+    "boost": 1,
+    "text": "IMMEDIATELY: Your opponent may discard 1 card. If they don't, ignore their card's value.",
+    "tags": []
+   },
+   {
+    "idx": 18,
+    "title": "Paralyzing fetters",
+    "fighter": "Philippa",
+    "type": "defense",
+    "value": 2,
+    "boost": 3,
+    "text": "IMMEDIATELY: The value of your opponent's card is equal to its printed value and cannot be changed.",
+    "tags": []
+   },
+   {
+    "idx": 19,
+    "title": "Paralyzing fetters",
+    "fighter": "Philippa",
+    "type": "defense",
+    "value": 2,
+    "boost": 3,
+    "text": "IMMEDIATELY: The value of your opponent's card is equal to its printed value and cannot be changed.",
+    "tags": []
+   },
+   {
+    "idx": 20,
+    "title": "Blinding dust",
+    "fighter": "Philippa",
+    "type": "defense",
+    "value": 2,
+    "boost": 2,
+    "text": "AFTER COMBAT: You may discard 1 card. If you do, deal damage to the opposing fighter equal to its BOOST value.",
+    "tags": []
+   },
+   {
+    "idx": 21,
+    "title": "Blinding dust",
+    "fighter": "Philippa",
+    "type": "defense",
+    "value": 2,
+    "boost": 2,
+    "text": "AFTER COMBAT: You may discard 1 card. If you do, deal damage to the opposing fighter equal to its BOOST value.",
+    "tags": []
+   },
+   {
+    "idx": 22,
+    "title": "Do my bidding",
+    "fighter": "any",
+    "type": "defense",
+    "value": 3,
+    "boost": 3,
+    "text": "IMMEDIATELY: Return your opponent's card to their hand. Look at their hand and choose a card for them to play.\n(It may be the same card.)",
+    "tags": []
+   },
+   {
+    "idx": 23,
+    "title": "Do my bidding",
+    "fighter": "any",
+    "type": "defense",
+    "value": 3,
+    "boost": 3,
+    "text": "IMMEDIATELY: Return your opponent's card to their hand. Look at their hand and choose a card for them to play.\n(It may be the same card.)",
+    "tags": []
+   },
+   {
+    "idx": 24,
+    "title": "Polymorphy",
+    "fighter": "Philippa",
+    "type": "scheme",
+    "value": null,
+    "boost": 3,
+    "text": "Place Philippa in any space. ONGOING: Philippa's move value is 5. Discard this card at the end of your turn if Philippa is not in a zone with an opposing fighter.",
+    "tags": []
+   },
+   {
+    "idx": 25,
+    "title": "Polymorphy",
+    "fighter": "Philippa",
+    "type": "scheme",
+    "value": null,
+    "boost": 3,
+    "text": "Place Philippa in any space. ONGOING: Philippa's move value is 5. Discard this card at the end of your turn if Philippa is not in a zone with an opposing fighter.",
+    "tags": []
+   },
+   {
+    "idx": 26,
+    "title": "Backup plan",
+    "fighter": "Philippa",
+    "type": "scheme",
+    "value": null,
+    "boost": 2,
+    "text": "Choose one:\n- set Philippa's health to 5\n- draw 3 cards",
+    "tags": []
+   },
+   {
+    "idx": 27,
+    "title": "Backup plan",
+    "fighter": "Philippa",
+    "type": "scheme",
+    "value": null,
+    "boost": 2,
+    "text": "Choose one:\n- set Philippa's health to 5\n- draw 3 cards",
+    "tags": []
+   },
+   {
+    "idx": 28,
+    "title": "Spymaster's ruse",
+    "fighter": "Dijkstra",
+    "type": "scheme",
+    "value": null,
+    "boost": 2,
+    "text": "Choose an opponent. They reveal 4 cards from their hand. Choose 2 of those cards for them to discard. Then, they draw 2 cards.",
+    "tags": []
+   },
+   {
+    "idx": 29,
+    "title": "Spymaster's ruse",
+    "fighter": "Dijkstra",
+    "type": "scheme",
+    "value": null,
+    "boost": 2,
+    "text": "Choose an opponent. They reveal 4 cards from their hand. Choose 2 of those cards for them to discard. Then, they draw 2 cards.",
+    "tags": []
+   }
+  ]
+ },
+ "ai_profile": {
+  "philippa": {
+   "name": "Philippa",
+   "hero": true,
+   "count": 1,
+   "max_hp": 12,
+   "move": 2,
+   "ranged": true,
+   "role": "hero",
+   "attack": {
+    "cards": 18,
+    "mean": 2.78,
+    "max": 4
+   },
+   "exclusive": [
+    {
+     "title": "Owlform",
+     "type": "attack",
+     "copies": 3,
+     "impact": 1.05
+    },
+    {
+     "title": "Lightning bolt",
+     "type": "attack",
+     "copies": 3,
+     "impact": 1.25
+    },
+    {
+     "title": "Chain lightning",
+     "type": "attack",
+     "copies": 2,
+     "impact": 0.9
+    },
+    {
+     "title": "Spellbreaker",
+     "type": "versatile",
+     "copies": 3,
+     "impact": 1.2
+    },
+    {
+     "title": "Paralyzing fetters",
+     "type": "defense",
+     "copies": 2,
+     "impact": 0.6
+    },
+    {
+     "title": "Blinding dust",
+     "type": "defense",
+     "copies": 2,
+     "impact": 0.9
+    },
+    {
+     "title": "Polymorphy",
+     "type": "scheme",
+     "copies": 2,
+     "impact": 0.7
+    },
+    {
+     "title": "Backup plan",
+     "type": "scheme",
+     "copies": 2,
+     "impact": 1.5
+    }
+   ]
+  },
+  "dijkstra": {
+   "name": "Dijkstra",
+   "hero": false,
+   "count": 1,
+   "max_hp": 6,
+   "move": 2,
+   "ranged": false,
+   "role": "striker",
+   "attack": {
+    "cards": 7,
+    "mean": 3.14,
+    "max": 4
+   },
+   "exclusive": [
+    {
+     "title": "Spymaster's ruse",
+     "type": "scheme",
+     "copies": 2,
+     "impact": 0.0
+    }
+   ],
+   "requires_alive": []
+  }
+ },
+ "_notes": [
+  "Sheet 176 of the tournament savegame (8x4), read card by card from the image on 2026-11-13. CardID = 17600 + idx; 349 = character card (sheet 3, 10x7, index 49). The deck object (ea91d3) holds 31 cards: the 30 plus the character card. Same sheet number as Medusa, the turtles and the other sheet-176 decks: only deck.identity tells them apart (docs/card-identity.md).",
+  "Restriction bands read from the images: PHILIPPA on Owlform, Lightning bolt, Chain lightning, Spellbreaker, Paralyzing fetters, Blinding dust, Polymorphy and Backup plan; DIJKSTRA on Spymaster's ruse; ANY on Regicide, Cunning, Redanian plot and Do my bidding.",
+  "Polymorphy prints an ONGOING that unmatched-memory leaves out (\"ONGOING: Philippa's move value is 5. Discard this card at the end of your turn if Philippa is not in a zone with an opposing fighter.\"); the overlay carries the printed text. Copies, type, value and boost of the 13 titles match unmatched-memory.",
+  "Hero card (read from the image): PHILIPPA, RANGED, START HEALTH 12, MOVE 2; special ability TWO STEPS AHEAD: 'At the end of your turn, you may draw until you have a hand of 4 cards.' Sidekick DIJKSTRA, MELEE, START HEALTH 6 (move 2 as the card prints it once for both). One Dijkstra."
+ ]
+}

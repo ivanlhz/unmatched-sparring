@@ -1,0 +1,460 @@
+{
+ "schema": 1,
+ "hero": "philippa",
+ "notes": [
+  "Texts read from sheet 176 of the tournament savegame (card images) on 2026-11-13; they agree with unmatched-memory except Polymorphy, whose ONGOING unmatched-memory leaves out.",
+  "Engine additions that came with her (docs/effects-dsl.md, section 40): the Amount `hand_deficit` (TWO STEPS AHEAD), the ONGOING rule `hero_move` (Polymorphy) and the plugins of plugins_philippa.py. The rest uses existing ops: Paralyzing fetters is Jill Trent's Stasis Diffuser, Owlform is Raphael's Unbridled rage with every card allowed, Lightning bolt reads Golden Bat's Maneuver tally, Do my bidding is Houdini's card swap aimed at the rival."
+ ],
+ "ability": {
+  "text": "TWO STEPS AHEAD\nAt the end of your turn, you may draw until you have a hand of 4 cards.",
+  "triggers": [
+   {
+    "id": "two_steps_ahead",
+    "when": {
+     "event": "end_of_turn",
+     "player": "owner"
+    },
+    "condition": {
+     "test": "compare",
+     "left": {
+      "stat": "hand_size",
+      "player": "owner"
+     },
+     "op": "<",
+     "right": 4
+    },
+    "ops": [
+     {
+      "op": "optional",
+      "chooser": "owner",
+      "ops": [
+       {
+        "op": "draw",
+        "player": "owner",
+        "amount": {
+         "hand_deficit": 4
+        }
+       }
+      ]
+     }
+    ],
+    "notes": "At the end of the owner's turn, with fewer than 4 cards in hand, the owner may draw until the hand holds 4 (Amount `hand_deficit`). The trigger runs before the hand limit is enforced; it never offers a draw with 4 or more cards. The bot refuses it when its deck holds fewer cards than it would draw (exhaustion; `EffectAI._free_draw`)."
+   }
+  ],
+  "passives": [],
+  "notes": "Only the hero's end of turn counts (a sidekick has no ability)."
+ },
+ "cards": [
+  {
+   "title": "Owlform",
+   "copies": 3,
+   "text": "DURING COMBAT: Discard any number of cards from your hand. Add +1 to this card's value for each card discarded.",
+   "effects": {
+    "immediately": [],
+    "during": [
+     {
+      "op": "plugin",
+      "id": "philippa:owlform",
+      "args": {
+       "per_card": 1
+      }
+     }
+    ],
+    "after": [],
+    "scheme": [],
+    "boost": []
+   },
+   "notes": "Attack 3 / boost 3, PHILIPPA. DURING: the owner discards any number of cards from the hand (0 included) and the card is worth +1 for each (Raphael's Unbridled rage and Ciri's Channel the source: `discard_for_bonus`, any card qualifies). The bot decides the number with `EffectAI._bonus_discards`; the human puts the cards on their discard pile and presses Done."
+  },
+  {
+   "title": "Lightning bolt",
+   "copies": 3,
+   "text": "AFTER COMBAT: If you haven't taken a maneuver action this turn, deal 1 damage to each opposing fighter in Philippa's zone.",
+   "effects": {
+    "immediately": [],
+    "during": [],
+    "after": [
+     {
+      "op": "if",
+      "condition": {
+       "test": "compare",
+       "left": {
+        "stat": "maneuvers_this_turn",
+        "player": "owner"
+       },
+       "op": "==",
+       "right": 0
+      },
+      "then": [
+       {
+        "op": "damage",
+        "target": {
+         "side": "enemy",
+         "where": {
+          "zone_of": "hero"
+         },
+         "pick": "all"
+        },
+        "amount": 1
+       }
+      ]
+     }
+    ],
+    "scheme": [],
+    "boost": []
+   },
+   "notes": "Attack 3 / boost 1, PHILIPPA. AFTER: if the owner has taken no Maneuver action this turn (stat `maneuvers_this_turn`, Golden Bat's), 1 damage to EACH opposing fighter in Philippa's zone (every zone her space belongs to; the fighter she attacked included when it is still alive)."
+  },
+  {
+   "title": "Chain lightning",
+   "copies": 2,
+   "text": "AFTER COMBAT: Choose a zone Philippa is in. Deal 1 damage to each opposing fighter in that zone.",
+   "effects": {
+    "immediately": [],
+    "during": [],
+    "after": [
+     {
+      "op": "plugin",
+      "id": "philippa:chain_lightning"
+     }
+    ],
+    "scheme": [],
+    "boost": []
+   },
+   "notes": "Attack 2 / boost 3, PHILIPPA. AFTER: choose a zone Philippa is in and deal 1 damage to each opposing fighter in that zone. A space can belong to several zones, so the plugin asks which one when there is more than one; with one zone it does not ask. Philippa defeated or off the board: nothing."
+  },
+  {
+   "title": "Regicide",
+   "copies": 2,
+   "text": "DURING COMBAT: If the opposing fighter is a hero, this card's value is 6 instead.",
+   "effects": {
+    "immediately": [],
+    "during": [
+     {
+      "op": "if",
+      "condition": {
+       "test": "exists",
+       "fighters": {
+        "role": "opposing",
+        "kind": "hero"
+       }
+      },
+      "then": [
+       {
+        "op": "set_value",
+        "card": "this",
+        "amount": 6
+       }
+      ]
+     }
+    ],
+    "after": [],
+    "scheme": [],
+    "boost": []
+   },
+   "notes": "Attack 4 / boost 2, ANY. DURING: against an opposing hero the printed value becomes 6 (bonuses stay)."
+  },
+  {
+   "title": "Spellbreaker",
+   "copies": 3,
+   "text": "IMMEDIATELY: Cancel all effects on your opponent's card. AFTER COMBAT: End the turn.",
+   "effects": {
+    "immediately": [
+     {
+      "op": "cancel_effects",
+      "card": "opponent_card"
+     }
+    ],
+    "during": [],
+    "after": [
+     {
+      "op": "end_turn"
+     }
+    ],
+    "scheme": [],
+    "boost": []
+   },
+   "notes": "Versatile 2 / boost 2, PHILIPPA. IMMEDIATELY: cancel all effects on the opponent's card. AFTER: end the turn (the CURRENT turn, whoever's it is: played as a defense it ends the attacker's turn)."
+  },
+  {
+   "title": "Cunning",
+   "copies": 2,
+   "text": "AFTER COMBAT: Your opponent may discard 1 card. If they don't, deal 2 damage to the opposing fighter.",
+   "effects": {
+    "immediately": [],
+    "during": [],
+    "after": [
+     {
+      "op": "optional",
+      "chooser": "opponent",
+      "cost": [
+       {
+        "op": "discard",
+        "cards": {
+         "zone": "hand",
+         "player": "opponent",
+         "amount": 1,
+         "chooser": "opponent"
+        }
+       }
+      ],
+      "ops": [],
+      "else": [
+       {
+        "op": "damage",
+        "target": "opposing",
+        "amount": 2
+       }
+      ]
+     }
+    ],
+    "scheme": [],
+    "boost": []
+   },
+   "notes": "Versatile 4 / boost 1, ANY. AFTER: the opponent may discard 1 card; if they do not (or cannot: empty hand) 2 damage to the opposing fighter. Telepathy's shape with the damage in the else branch."
+  },
+  {
+   "title": "Redanian plot",
+   "copies": 3,
+   "text": "IMMEDIATELY: Your opponent may discard 1 card. If they don't, ignore their card's value.",
+   "effects": {
+    "immediately": [
+     {
+      "op": "optional",
+      "chooser": "opponent",
+      "cost": [
+       {
+        "op": "discard",
+        "cards": {
+         "zone": "hand",
+         "player": "opponent",
+         "amount": 1,
+         "chooser": "opponent"
+        }
+       }
+      ],
+      "ops": [],
+      "else": [
+       {
+        "op": "set_value",
+        "card": "opponent_card",
+        "ignore": true
+       }
+      ]
+     }
+    ],
+    "during": [],
+    "after": [],
+    "scheme": [],
+    "boost": []
+   },
+   "notes": "Versatile 2 / boost 1, ANY. IMMEDIATELY: the opponent may discard 1 card; if they do not, their card's value is ignored (it counts 0: `set_value ignore`, Incinerate's wording). The rival's own IMMEDIATELY has not run yet."
+  },
+  {
+   "title": "Paralyzing fetters",
+   "copies": 2,
+   "text": "IMMEDIATELY: The value of your opponent's card is equal to its printed value and cannot be changed.",
+   "effects": {
+    "immediately": [
+     {
+      "op": "lock_value",
+      "card": "opponent_card"
+     }
+    ],
+    "during": [],
+    "after": [],
+    "scheme": [],
+    "boost": []
+   },
+   "notes": "Defense 2 / boost 3, PHILIPPA. Jill Trent's Stasis Diffuser and Yennefer's Paralyzing fetters, word for word (`lock_value`)."
+  },
+  {
+   "title": "Blinding dust",
+   "copies": 2,
+   "text": "AFTER COMBAT: You may discard 1 card. If you do, deal damage to the opposing fighter equal to its BOOST value.",
+   "effects": {
+    "immediately": [],
+    "during": [],
+    "after": [
+     {
+      "op": "plugin",
+      "id": "philippa:blinding_dust"
+     }
+    ],
+    "scheme": [],
+    "boost": []
+   },
+   "notes": "Defense 2 / boost 2, PHILIPPA. AFTER: the owner may discard 1 card; if they do, damage to the opposing fighter equal to the DISCARDED card's BOOST value (reading: 'its' is the card just discarded, the nearest antecedent; open question 1 in docs/heroes/philippa.md). A card with no BOOST value deals 0."
+  },
+  {
+   "title": "Do my bidding",
+   "copies": 2,
+   "text": "IMMEDIATELY: Return your opponent's card to their hand. Look at their hand and choose a card for them to play.\n(It may be the same card.)",
+   "effects": {
+    "immediately": [
+     {
+      "op": "plugin",
+      "id": "philippa:do_my_bidding"
+     }
+    ],
+    "during": [],
+    "after": [],
+    "scheme": [],
+    "boost": []
+   },
+   "notes": "Defense 3 / boost 3, ANY. IMMEDIATELY: the opponent's card goes back to their hand, the owner looks at that hand and chooses a card for them to play instead (an attack or versatile card the attacking fighter can play; the same card is allowed). The new card replaces the old one inside the running combat (`CombatFlow.replace_attack_card(back_to_hand=True)`, Houdini's Sleight Of Hand mechanism) and its own effects run as normal."
+  },
+  {
+   "title": "Polymorphy",
+   "copies": 2,
+   "text": "Place Philippa in any space. ONGOING: Philippa's move value is 5. Discard this card at the end of your turn if Philippa is not in a zone with an opposing fighter.",
+   "ongoing": {
+    "modifiers": [
+     {
+      "kind": "rule",
+      "rule": "hero_move",
+      "amount": 5
+     }
+    ],
+    "triggers": [],
+    "until": {
+     "event": "end_of_turn",
+     "player": "owner"
+    },
+    "until_condition": {
+     "not": {
+      "test": "exists",
+      "fighters": {
+       "side": "enemy",
+       "where": {
+        "zone_of": "hero"
+       }
+      }
+     }
+    }
+   },
+   "effects": {
+    "immediately": [],
+    "during": [],
+    "after": [],
+    "scheme": [
+     {
+      "op": "place",
+      "target": "hero",
+      "where": {
+       "any": true
+      },
+      "chooser": "owner"
+     }
+    ],
+    "boost": []
+   },
+   "notes": "Scheme, boost 3, PHILIPPA. Place Philippa in any empty space. ONGOING (unmatched-memory leaves it out; read from the card): Philippa's move value is 5 (rule `hero_move`, section 40) and the card is discarded at the end of YOUR turn if Philippa is not in a zone with an opposing fighter (`until` end_of_turn + `until_condition`, Advisor to the king's shape)."
+  },
+  {
+   "title": "Backup plan",
+   "copies": 2,
+   "text": "Choose one:\n- set Philippa's health to 5\n- draw 3 cards",
+   "effects": {
+    "immediately": [],
+    "during": [],
+    "after": [],
+    "scheme": [
+     {
+      "op": "choose_effect",
+      "amount": 1,
+      "distinct": true,
+      "chooser": "owner",
+      "options": [
+       {
+        "label": "set Philippa's health to 5",
+        "ops": [
+         {
+          "op": "set_hp",
+          "target": "hero",
+          "amount": 5
+         }
+        ]
+       },
+       {
+        "label": "draw 3 cards",
+        "ops": [
+         {
+          "op": "draw",
+          "player": "owner",
+          "amount": 3
+         }
+        ]
+       }
+      ]
+     }
+    ],
+    "boost": []
+   },
+   "notes": "Scheme, boost 2, PHILIPPA. Choose one: Philippa's health becomes 5 (literal: it also RAISES it from below 5 and lowers it from above; open question 2) or draw 3 cards."
+  },
+  {
+   "title": "Spymaster's ruse",
+   "copies": 2,
+   "text": "Choose an opponent. They reveal 4 cards from their hand. Choose 2 of those cards for them to discard. Then, they draw 2 cards.",
+   "effects": {
+    "immediately": [],
+    "during": [],
+    "after": [],
+    "scheme": [
+     {
+      "op": "plugin",
+      "id": "philippa:spymaster_ruse"
+     },
+     {
+      "op": "draw",
+      "player": "opponent",
+      "amount": 2
+     }
+    ],
+    "boost": []
+   },
+   "notes": "Scheme, boost 2, DIJKSTRA only. The opponent reveals 4 cards of their hand (their choice; all of them with fewer than 4), the owner chooses 2 of those to be discarded, then the opponent draws 2 cards (always, even with fewer than 2 discarded). Plugin `philippa:spymaster_ruse` does the reveal and the discards."
+  }
+ ],
+ "plugins": [
+  {
+   "id": "philippa:owlform",
+   "why": "Discard any number of cards from the hand for +1 each: a free count that feeds a value, Raphael's Unbridled rage with every card allowed."
+  },
+  {
+   "id": "philippa:chain_lightning",
+   "why": "Choose one of the zones Philippa's space belongs to, then hit every opposing fighter in it: a choice of zone no op expresses."
+  },
+  {
+   "id": "philippa:blinding_dust",
+   "why": "Discard a card and hit for ITS boost: the discarded card is chosen by the owner and its identity feeds the damage; the human's hand is on the table (they lay the card on their pile and the bot reads it)."
+  },
+  {
+   "id": "philippa:do_my_bidding",
+   "why": "The rival's card goes back to their hand and the owner chooses the card they play instead, inside the running combat (the card swap of Houdini's Sleight Of Hand aimed at the rival)."
+  },
+  {
+   "id": "philippa:spymaster_ruse",
+   "why": "The opponent reveals 4 cards of their hand and the owner picks 2 of exactly those to be discarded: a choice among a subset the opponent made, with both hands possibly on the table."
+  }
+ ],
+ "hidden_info": [
+  {
+   "card": "Spymaster's ruse",
+   "what": "the opponent reveals 4 cards of their hand to the owner; those cards become public knowledge (the owner has seen them)",
+   "bot_rule": "The bot reveals its four least valuable cards when it is the opponent (EffectAI, purpose ruse_reveal) and picks the two most valuable of the human's four to discard; the human names the four cards on the panel."
+  },
+  {
+   "card": "Do my bidding",
+   "what": "the owner looks at the opponent's whole hand (the returned card included)",
+   "bot_rule": "The bot reads the human's hand only through the table when this card says so (look_hand); it picks the playable card that hurts the human least."
+  }
+ ],
+ "open_questions": [
+  "Blinding dust: 'equal to its BOOST value' is read as the discarded card's BOOST (the only card the sentence names); the alternative is the opposing fighter's card.",
+  "Backup plan sets Philippa's health to 5 even from below 5 (literal reading).",
+  "Spymaster's ruse: who chooses the 4 revealed cards is the opponent (they reveal); with fewer than 4 cards all are revealed.",
+  "Do my bidding: the chosen card must be an attack or versatile card the attacking fighter may play; if the opponent has none (the returned card included, which always qualifies) nothing changes."
+ ]
+}

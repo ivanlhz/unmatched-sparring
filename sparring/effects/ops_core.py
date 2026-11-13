@@ -574,8 +574,9 @@ def _choice_context(game, run, spec: dict) -> dict:
         buys = _action_buys(game, run, ops)
         if buys is not None:
             ctx["action_buys"] = buys
-    if not spec.get("cost") and ops and all(o["op"] == "draw" and o.get("player") == "owner" and isinstance(o.get("amount"), int) for o in ops):
-        ctx["draws"] = sum(o["amount"] for o in ops)         # a free draw; `draws_at`: the event of the trigger that offers it
+    if not spec.get("cost") and ops and all(o["op"] == "draw" and o.get("player") == "owner"
+                                            and (isinstance(o.get("amount"), int) or "hand_deficit" in (o.get("amount") or ())) for o in ops):
+        ctx["draws"] = sum(amount(game, run, o["amount"]) for o in ops)         # a free draw; `draws_at`: the event of the trigger that offers it
         ctx["draws_at"] = run.ctx.moment
     if len(other) == 1 and other[0]["op"] == "damage" and isinstance(other[0].get("amount"), int):
         ctx["else_damage"] = other[0]["amount"]
@@ -676,3 +677,4 @@ from . import plugins_shehulk  # noqa: E402,F401  (registers shehulk:throw, sheh
 from . import plugins_ciri  # noqa: E402,F401  (registers ciri:channel_the_source)
 from . import plugins_eredin  # noqa: E402,F401  (registers eredin:replace_combatant and the test eredin:opponent_card)
 from . import plugins_yennefer  # noqa: E402,F401  (registers yennefer:/triss: mill and lodge)
+from . import plugins_philippa  # noqa: E402,F401  (registers philippa: owlform, chain_lightning, blinding_dust, do_my_bidding, spymaster_ruse)

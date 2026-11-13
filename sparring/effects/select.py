@@ -370,6 +370,8 @@ def amount(game, run, a):
         value = len(card_candidates(game, run, a["count_cards"]))
     elif "count_of" in a:
         value = len(card_ref(game, run, a["count_of"]))
+    elif "hand_deficit" in a:       # "draw until you have a hand of N cards": what the owner's hand lacks to reach N
+        value = max(0, int(a["hand_deficit"]) - len(game.players[player_of(game, run, a.get("player", "owner"))].hand))
     elif "counter" in a:
         player = player_of(game, run, a.get("player", "owner"))
         value = counter_value(game, player, a["counter"])

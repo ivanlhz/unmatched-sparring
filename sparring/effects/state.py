@@ -204,12 +204,21 @@ class EffectState:
         Returns the replaced card id (or None)."""
         old = self.ongoing_card_id(player)
         self.ongoing[player] = {"card_id": card_id}
+        self._sync_move(player)
         return old
 
     def take_ongoing(self, player: int) -> int | None:
         old = self.ongoing_card_id(player)
         self.ongoing[player] = None
+        self._sync_move(player)
         return old
+
+    def _sync_move(self, player: int) -> None:
+        """An ONGOING that sets the hero's move value (`hero_move`: Philippa's Polymorphy) came or went: the fighter's move follows."""
+        game = None if self._game_ref is None else self._game_ref()
+        if game is not None and game.fighters:
+            from .. import enraged
+            enraged.sync_move(game, player, restore=True)
 
     # counters
     def counter_value(self, player: int, name: str, default: int = 0) -> int:

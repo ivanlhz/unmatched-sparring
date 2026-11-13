@@ -1,0 +1,35 @@
+{
+ "slug": "philippa",
+ "bag": {
+  "guid": "4dc6f9",
+  "inner": "859216"
+ },
+ "deck": {
+  "guid": "ea91d3",
+  "card_ids": [
+   17600,
+   17629
+  ],
+  "character_card_id": 349,
+  "identity": [
+   {
+    "face": "https://steamusercontent-a.akamaihd.net/ugc/15114128653699944153/DA8409A64329F15945B40454DF98A1296D7B0DF9/",
+    "back": "https://steamusercontent-a.akamaihd.net/ugc/15822237844781347243/F2B87FF15B84A45C6FF039CF5AFA46777FE52E89/"
+   }
+  ]
+ },
+ "fighters": {
+  "philippa": {
+   "piece": "e91869",
+   "dial": "684429",
+   "dial_max": 12
+  },
+  "dijkstra": {
+   "piece": "c97270",
+   "dial": "ec1f51",
+   "dial_max": 6
+  }
+ },
+ "tokens": {},
+ "counter_dials": {}
+}

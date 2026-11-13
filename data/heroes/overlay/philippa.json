@@ -1,0 +1,179 @@
+{
+ "_notes": [
+  "Sheet 176 of the tournament savegame (8x4), read card by card from the image on 2026-11-13. CardID = 17600 + idx; 349 = character card (sheet 3, 10x7, index 49). The deck object (ea91d3) holds 31 cards: the 30 plus the character card. Same sheet number as Medusa, the turtles and the other sheet-176 decks: only deck.identity tells them apart (docs/card-identity.md).",
+  "Restriction bands read from the images: PHILIPPA on Owlform, Lightning bolt, Chain lightning, Spellbreaker, Paralyzing fetters, Blinding dust, Polymorphy and Backup plan; DIJKSTRA on Spymaster's ruse; ANY on Regicide, Cunning, Redanian plot and Do my bidding.",
+  "Polymorphy prints an ONGOING that unmatched-memory leaves out (\"ONGOING: Philippa's move value is 5. Discard this card at the end of your turn if Philippa is not in a zone with an opposing fighter.\"); the overlay carries the printed text. Copies, type, value and boost of the 13 titles match unmatched-memory.",
+  "Hero card (read from the image): PHILIPPA, RANGED, START HEALTH 12, MOVE 2; special ability TWO STEPS AHEAD: 'At the end of your turn, you may draw until you have a hand of 4 cards.' Sidekick DIJKSTRA, MELEE, START HEALTH 6 (move 2 as the card prints it once for both). One Dijkstra."
+ ],
+ "fid": "philippa",
+ "ability": "TWO STEPS AHEAD\nAt the end of your turn, you may draw until you have a hand of 4 cards.",
+ "sidekicks": [
+  {
+   "fid": "dijkstra",
+   "name": "Dijkstra"
+  }
+ ],
+ "forms": null,
+ "counters": {},
+ "triggers": [],
+ "passives": [],
+ "deck": {
+  "card_base": 17600,
+  "sheet_id": 176,
+  "hero_card_id": 349,
+  "sheet": [
+   {
+    "idx": 0,
+    "title": "Owlform",
+    "fighter": "Philippa"
+   },
+   {
+    "idx": 1,
+    "title": "Owlform",
+    "fighter": "Philippa"
+   },
+   {
+    "idx": 2,
+    "title": "Owlform",
+    "fighter": "Philippa"
+   },
+   {
+    "idx": 3,
+    "title": "Lightning bolt",
+    "fighter": "Philippa"
+   },
+   {
+    "idx": 4,
+    "title": "Lightning bolt",
+    "fighter": "Philippa"
+   },
+   {
+    "idx": 5,
+    "title": "Lightning bolt",
+    "fighter": "Philippa"
+   },
+   {
+    "idx": 6,
+    "title": "Chain lightning",
+    "fighter": "Philippa"
+   },
+   {
+    "idx": 7,
+    "title": "Chain lightning",
+    "fighter": "Philippa"
+   },
+   {
+    "idx": 8,
+    "title": "Regicide",
+    "fighter": "any"
+   },
+   {
+    "idx": 9,
+    "title": "Regicide",
+    "fighter": "any"
+   },
+   {
+    "idx": 10,
+    "title": "Spellbreaker",
+    "fighter": "Philippa"
+   },
+   {
+    "idx": 11,
+    "title": "Spellbreaker",
+    "fighter": "Philippa"
+   },
+   {
+    "idx": 12,
+    "title": "Spellbreaker",
+    "fighter": "Philippa"
+   },
+   {
+    "idx": 13,
+    "title": "Cunning",
+    "fighter": "any"
+   },
+   {
+    "idx": 14,
+    "title": "Cunning",
+    "fighter": "any"
+   },
+   {
+    "idx": 15,
+    "title": "Redanian plot",
+    "fighter": "any"
+   },
+   {
+    "idx": 16,
+    "title": "Redanian plot",
+    "fighter": "any"
+   },
+   {
+    "idx": 17,
+    "title": "Redanian plot",
+    "fighter": "any"
+   },
+   {
+    "idx": 18,
+    "title": "Paralyzing fetters",
+    "fighter": "Philippa"
+   },
+   {
+    "idx": 19,
+    "title": "Paralyzing fetters",
+    "fighter": "Philippa"
+   },
+   {
+    "idx": 20,
+    "title": "Blinding dust",
+    "fighter": "Philippa"
+   },
+   {
+    "idx": 21,
+    "title": "Blinding dust",
+    "fighter": "Philippa"
+   },
+   {
+    "idx": 22,
+    "title": "Do my bidding",
+    "fighter": "any"
+   },
+   {
+    "idx": 23,
+    "title": "Do my bidding",
+    "fighter": "any"
+   },
+   {
+    "idx": 24,
+    "title": "Polymorphy",
+    "fighter": "Philippa",
+    "text": "Place Philippa in any space. ONGOING: Philippa's move value is 5. Discard this card at the end of your turn if Philippa is not in a zone with an opposing fighter."
+   },
+   {
+    "idx": 25,
+    "title": "Polymorphy",
+    "fighter": "Philippa",
+    "text": "Place Philippa in any space. ONGOING: Philippa's move value is 5. Discard this card at the end of your turn if Philippa is not in a zone with an opposing fighter."
+   },
+   {
+    "idx": 26,
+    "title": "Backup plan",
+    "fighter": "Philippa"
+   },
+   {
+    "idx": 27,
+    "title": "Backup plan",
+    "fighter": "Philippa"
+   },
+   {
+    "idx": 28,
+    "title": "Spymaster's ruse",
+    "fighter": "Dijkstra"
+   },
+   {
+    "idx": 29,
+    "title": "Spymaster's ruse",
+    "fighter": "Dijkstra"
+   }
+  ]
+ }
+}

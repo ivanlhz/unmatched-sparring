@@ -178,6 +178,8 @@
     "properties": {"count_cards": {"$ref": "#/$defs/CardSel"}, "times": {"type": "integer"}}},
    {"type": "object", "additionalProperties": false, "required": ["count_of"],
     "properties": {"count_of": {"$ref": "#/$defs/CardRef"}, "times": {"type": "integer"}}},
+   {"type": "object", "additionalProperties": false, "required": ["hand_deficit"],
+    "properties": {"hand_deficit": {"type": "integer", "minimum": 1}, "player": {"$ref": "#/$defs/PlayerSel"}, "times": {"type": "integer"}}},
    {"type": "object", "additionalProperties": false, "required": ["counter"],
     "properties": {"counter": {"$ref": "#/$defs/Name"}, "player": {"$ref": "#/$defs/PlayerSel"}, "times": {"type": "integer"}}},
    {"type": "object", "additionalProperties": false, "required": ["stat"],
@@ -290,7 +292,7 @@
     "properties": {
      "kind": {"const": "rule"},
      "id": {"$ref": "#/$defs/Name"},
-     "rule": {"enum": ["no_attack_as_first_action", "effect_damage_bonus", "max_hand_size", "no_gain_actions", "maneuver_boost_places_hero", "combat_damage_reduction", "cards_uncancelable", "maneuver_move_per_counter", "boost_bonus"]},
+     "rule": {"enum": ["no_attack_as_first_action", "effect_damage_bonus", "max_hand_size", "no_gain_actions", "maneuver_boost_places_hero", "combat_damage_reduction", "cards_uncancelable", "maneuver_move_per_counter", "boost_bonus", "hero_move"]},
      "counter": {"$ref": "#/$defs/Name"},
      "amount": {"type": "integer"},
      "while": {"$ref": "#/$defs/Condition"}}},
