@@ -133,7 +133,7 @@ def test_espionage_is_three_triggers_on_two_counters_and_three_plugins(effects):
     assert ability["counters"] == {"ruse_tokens": {"min": 0, "max": 4, "start": 4}, "ruse": {"min": 0, "max": 1, "start": 0}}
     assert [t["id"] for t in ability["triggers"]] == ["espionage", "espionage_remove", "espionage_clear"]
     assert [t["when"]["event"] for t in ability["triggers"]] == ["attacked", "attacked", "after_attack"]
-    assert [p["id"] for p in effects["plugins"]] == ["washington:use_ruse", "washington:offer_removal", "washington:replace_combatant"]
+    assert [p["id"] for p in effects["plugins"]] == ["washington:use_ruse", "washington:offer_removal", "washington:started_here", "washington:replace_combatant"]
     assert ability["text"] == load_hero("george-washington").ability
 
 
@@ -143,13 +143,14 @@ def test_card_effects_say_what_the_real_cards_say(effects):
     assert by["Circumvent"]["effects"]["during"][0]["then"] == [{"op": "set_value", "card": "opponent_card", "ignore": True}]
     assert by["Sabotage"]["effects"]["after"][0]["then"] == [
         {"op": "discard", "cards": {"zone": "hand", "player": "opponent", "pick": "random", "amount": 2}}]
-    assert by["Allies Everywhere"]["effects"]["after"][0] == {"op": "gain_action", "amount": 1}
+    assert by["Allies Everywhere"]["effects"]["after"][0] == {"op": "gain_action", "amount": 1, "only": "attack"}
     assert by["Allies Everywhere"]["effects"]["after"][1]["then"] == [{"op": "heal", "target": {"side": "own", "kind": "hero"}, "amount": 3}]
     assert by["Misinformation"]["effects"]["after"][0]["then"] == [{"op": "counter", "name": "ruse_tokens", "delta": 1}]
     assert by["Feint"]["effects"]["immediately"] == [{"op": "cancel_effects", "card": "opponent_card"}]
     assert by["Gather Information"]["effects"]["scheme"] == [
         {"op": "draw", "player": "owner", "amount": 3},
         {"op": "move", "target": {"side": "own", "pick": "all"}, "amount": 3, "up_to": True, "through_enemies": True, "chooser": "owner"}]
+    assert by["Make A Stand"]["effects"]["during"][0]["condition"] == {"test": "plugin", "id": "washington:started_here", "key": "this"}
     assert by["Make A Stand"]["effects"]["during"][0]["then"] == [{"op": "set_value", "card": "this", "amount": 5}]
 
 

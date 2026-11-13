@@ -1,4 +1,4 @@
-"""George Washington's plugins (docs/heroes/george-washington.md): `washington:use_ruse`, `washington:offer_removal` and `washington:replace_combatant`.
+"""George Washington's plugins (docs/heroes/george-washington.md): `washington:use_ruse`, `washington:offer_removal` and `washington:replace_combatant` and the test `washington:started_here`.
 
 ESPIONAGE: "When you attack, you may use a ruse token, placing it next to the card." The trigger `espionage` of the effects file runs
 `use_ruse` when an enemy fighter is attacked. The question goes to the attacker only for a card that carries a ruse effect (the card tag
@@ -16,7 +16,7 @@ what Eredin's Portal Defense and Houdini's Smoke And Mirrors do too (`houdini:re
 from __future__ import annotations
 
 from . import table
-from .ops_core import OPS, plugin
+from .ops_core import OPS, plugin, plugin_condition
 from .plugins_houdini import _replace_combatant
 
 RUSE_TAG = "ruse"
@@ -66,3 +66,13 @@ def _offer_removal(run, game, spec):
 def _undercover_agent(run, game, spec):
     """When Washington and the Spy did swap (`args.swapped` binds both), the Spy takes his place in this combat."""
     return _replace_combatant(run, game, spec)
+
+
+@plugin_condition("washington:started_here")
+def _started_here(game, run, key: str) -> bool:
+    """Make A Stand: the fighter that plays the card is on the space it had at the start of the turn (it may have left and come back).
+    A fighter with no space recorded for the start of the turn (a Spy placed this turn) did not start anywhere."""
+    from .select import _ref_fighter
+    fighter = _ref_fighter(game, run, key)
+    start = None if fighter is None else game.fx.turn_start_pos.get(fighter.fid)
+    return start is not None and fighter.pos == start

@@ -275,7 +275,7 @@ def test_sabotage_does_nothing_when_the_combat_is_lost(bprd):
     assert not res.attacker_won and len(g.players[1].hand) == 3        # the defense card left it, nobody else
 
 
-def test_allies_everywhere_gains_an_action_and_with_the_token_heals_washington_three(bprd):
+def test_allies_everywhere_gains_an_attack_only_action_and_with_the_token_heals_washington_three(bprd):
     g = mk(bprd)
     w, h = pair(g, "washington", "hellboy")
     stock(g, 3)
@@ -284,14 +284,14 @@ def test_allies_everywhere_gains_an_action_and_with_the_token_heals_washington_t
     g.controllers[0].queue = [[True]]
     g.controllers[1].queue = [[False]]
     g.attack(w, h, give(g, 0, "Allies Everywhere"), None)
-    assert g.actions_left == 2 and w.hp == 11                          # 2 - 1 spent + 1 gained
+    assert g.actions_left == 2 and g.fx.attack_credit == 1 and w.hp == 11                          # 2 - 1 spent + 1 gained, attack-only
     g = mk(bprd)
     w, h = pair(g, "washington", "hellboy")
     w.hp = 8
     g.actions_left = 2
     g.controllers[0].queue = [[False]]
     g.attack(w, h, give(g, 0, "Allies Everywhere"), None)
-    assert g.actions_left == 2 and w.hp == 8
+    assert g.actions_left == 2 and g.fx.attack_credit == 1 and w.hp == 8
 
 
 def test_allies_everywhere_never_heals_above_the_maximum(bprd):
@@ -301,6 +301,25 @@ def test_allies_everywhere_never_heals_above_the_maximum(bprd):
     g.controllers[0].queue = [[True]]
     g.attack(w, h, give(g, 0, "Allies Everywhere"), None)
     assert w.hp == 14
+
+
+def test_the_free_action_of_allies_everywhere_cannot_be_spent_on_a_maneuver_or_a_scheme_only_on_an_attack(bprd):
+    from sparring.state import RuleError
+    g = mk(bprd)
+    w, h = pair(g, "washington", "hellboy")
+    g.actions_left = 2
+    g.attack(w, h, give(g, 0, "Allies Everywhere"), None)
+    assert g.actions_left == 2 and g.fx.attack_credit == 1
+    g.players[0].hand.append(g.players[0].deck.pop(0))
+    g.maneuver(0, {})                                                   # the real action
+    assert g.actions_left == 1 and g.attack_only()
+    with pytest.raises(RuleError):
+        g.maneuver(0, {})
+    with pytest.raises(RuleError):
+        g.play_scheme(0, w, give(g, 0, "Gather Information"))
+    assert g.actions_left == 1
+    g.attack(w, h, give(g, 0, "Lead Astray"), None)
+    assert g.actions_left == 0 and g.fx.attack_credit == 0
 
 
 def test_only_washington_plays_allies_everywhere_a_spy_plays_the_any_cards(bprd):
@@ -364,19 +383,45 @@ def test_misinformation_in_defense_gives_a_token_back_when_the_defender_wins(bpr
     assert ruse(g) == (2, 0)
 
 
-def test_make_a_stand_is_a_5_only_for_a_fighter_that_started_the_turn_where_it_stands(bprd):
+def free_spot(g, near, avoid=()):
+    return next(s for s in sorted(g.board.adj[near]) if s not in avoid and all(f.pos != s for f in g.fighters.values() if f.alive))
+
+
+def test_make_a_stand_is_a_5_for_a_fighter_standing_where_it_started_the_turn(bprd):
     g = mk(bprd)
     w, h = pair(g, "washington", "hellboy")
     start_turn(g)
-    res = g.attack(w, h, give(g, 0, "Make A Stand"), None)
-    assert res.atk_value == 5
+    assert g.attack(w, h, give(g, 0, "Make A Stand"), None).atk_value == 5
+
+
+def test_make_a_stand_still_counts_when_the_fighter_left_and_came_back(bprd):
     g = mk(bprd)
     w, h = pair(g, "washington", "hellboy")
     start_turn(g)
-    w.pos = next(s for s in sorted(g.board.adj[w.pos]) if all(f.pos != s for f in g.fighters.values() if f.alive))
-    g.fighters["hellboy"].pos = next(s for s in sorted(g.board.adj[w.pos]) if all(f.pos != s for f in g.fighters.values() if f.alive))
-    res = g.attack(w, h, give(g, 0, "Make A Stand"), None)
-    assert res.atk_value == 3
+    home = w.pos
+    w.pos = free_spot(g, home, avoid=(h.pos,))
+    w.pos = home
+    assert g.attack(w, h, give(g, 0, "Make A Stand"), None).atk_value == 5
+
+
+def test_make_a_stand_does_not_count_for_a_fighter_that_ended_on_another_space(bprd):
+    g = mk(bprd)
+    w, h = pair(g, "washington", "hellboy")
+    start_turn(g)
+    w.pos = free_spot(g, w.pos, avoid=(h.pos,))
+    h.pos = free_spot(g, w.pos)
+    assert g.attack(w, h, give(g, 0, "Make A Stand"), None).atk_value == 3
+
+
+def test_make_a_stand_does_not_count_for_a_spy_placed_this_turn(bprd):
+    g = mk(bprd)
+    g.defeat(g.fighters["spy1"])
+    w, h = pair(g, "washington", "hellboy")
+    start_turn(g)                                                       # the Spy was not on the board: no start-of-turn space
+    spy = g.fighters["spy1"]
+    spy.alive, spy.hp, spy.pos = True, 1, free_spot(g, h.pos, avoid=(w.pos,))
+    assert spy.fid not in g.fx.turn_start_pos
+    assert g.attack(spy, h, give(g, 0, "Make A Stand"), None).atk_value == 3
 
 
 def test_make_a_stand_defending_on_the_rivals_turn_is_a_5_when_not_moved(bprd):

@@ -159,7 +159,8 @@
     "after": [
      {
       "op": "gain_action",
-      "amount": 1
+      "amount": 1,
+      "only": "attack"
      },
      {
       "op": "if",
@@ -183,7 +184,7 @@
     "scheme": [],
     "boost": []
    },
-   "notes": "Attack 1 / boost 3, Washington only. 'Free action to attack' is implemented as a plain extra action (Pending Ivan 2). The heal reaches the hero, not the fighter that played the card."
+   "notes": "Attack 1 / boost 3, Washington only. The free action is attack-only (only: attack, Ivan 2026-11-13). The heal reaches the hero, not the fighter that played the card."
   },
   {
    "title": "Circumvent",
@@ -293,10 +294,9 @@
      {
       "op": "if",
       "condition": {
-       "not": {
-        "test": "moved_this_turn",
-        "fighter": "this"
-       }
+       "test": "plugin",
+       "id": "washington:started_here",
+       "key": "this"
       },
       "then": [
        {
@@ -311,7 +311,7 @@
     "scheme": [],
     "boost": []
    },
-   "notes": "Versatile 3 / boost 1, any fighter. The mirror of Sinbad's Momentous Shift. Played in defense on the rival's turn it reads the positions at the start of that turn: a fighter that has not been moved since is standing still."
+   "notes": "Versatile 3 / boost 1, any fighter. Plugin test `washington:started_here`: the fighter's current space is the one it had at the start of the turn (it may leave and come back; Ivan 2026-11-13). A fighter with no start-of-turn space (a Spy placed this turn) does not count."
   },
   {
    "title": "Feint",
@@ -568,6 +568,10 @@
    "why": "ESPIONAGE: the opponent's yes/no must say who is attacked (the bot weighs the ruse of the attack against THAT fighter) and its price is a random card of their own hand, paid as a voluntary discard; an `optional` with a `cost` cannot carry the target."
   },
   {
+   "id": "washington:started_here",
+   "why": "Make A Stand: 'started this turn in their current space' compares the current space with the one recorded at the start of the turn; no condition says 'is where it started' (moved_this_turn is false for a fighter with no recorded start)."
+  },
+  {
    "id": "washington:replace_combatant",
    "why": "Undercover Agent: after the swap, the Spy takes Washington's place as the defender IN the running combat (Eredin's Portal Defense, Houdini's Smoke And Mirrors), which no op can do."
   }
@@ -594,7 +598,6 @@
  ],
  "open_questions": [
   "[RUSE] read as 'applies only if the ruse token is still on the card' (an inference from the transcription).",
-  "'Gain 1 free action to attack' is a plain extra action.",
   "A ruse token the opponent removes is spent, not returned to Washington's supply.",
   "Any fighter of Washington's may use a ruse token ('when you attack': you), a Spy included."
  ]
