@@ -1,4 +1,4 @@
-"""Raptors on the table through the panel (FakeTTS, batch mode), both seats: the human's attacks with the PACK BONUS in the combat line,
+"""Raptors on the table through the panel (FakeTTS, batch mode), both seats: the human's attacks with the BONO DE MANADA in the combat line,
 Pack Hunters (the dials follow), the schemes (Working Things Out moves all three by hand, Coordinated Attack Pattern names the three
 miniatures), Decoy as a defense; and the bot's Raptors: the same attack against a human, the loss only when the last Raptor falls. The
 bot's side of the same cards is in tests/test_raptors_effects.py.
@@ -60,7 +60,7 @@ def test_the_human_attack_adds_one_for_each_other_raptor_next_to_the_defender_an
     human_hand(table, game, "Eviscerate", "Pack Hunters")
     human_attack(session, table, game, "blue", "hellboy", "Eviscerate")
     msgs = click(session, table, Event.REVEAL)
-    assert said(msgs, "Raptor Blue ataca con Eviscerate (5) y PACK BONUS (+2): total 7"), msgs
+    assert said(msgs, "Raptor Blue ataca con Eviscerate (5) y BONO DE MANADA (+2): total 7"), msgs
     assert game.fighters["hellboy"].hp == 18 - 7 and dial(session, cfg, table, "hellboy") == 11
 
 
@@ -72,7 +72,7 @@ def test_alone_beside_the_defender_a_raptor_gets_no_bonus(rig, monkeypatch):
     human_hand(table, game, "Eviscerate", "Pack Hunters")
     human_attack(session, table, game, "blue", "hellboy", "Eviscerate")
     msgs = click(session, table, Event.REVEAL)
-    assert said(msgs, "Raptor Blue ataca con Eviscerate (5): total 5") and not said(msgs, "PACK BONUS"), msgs
+    assert said(msgs, "Raptor Blue ataca con Eviscerate (5): total 5") and not said(msgs, "BONO DE MANADA"), msgs
 
 
 @with_rig("hellboy", "raptors", *HAND)
@@ -83,7 +83,7 @@ def test_pack_hunters_deals_one_for_each_raptor_beside_the_defender_and_the_dial
     human_hand(table, game, "Pack Hunters", "Eviscerate")
     human_attack(session, table, game, "blue", "hellboy", "Pack Hunters")
     msgs = click(session, table, Event.REVEAL)
-    assert said(msgs, "PACK BONUS (+2): total 6") and said(msgs, "Tu carta: Pack Hunters: hellboy -3 PV (9)"), msgs
+    assert said(msgs, "BONO DE MANADA (+2): total 6") and said(msgs, "Tu carta: Pack Hunters: hellboy -3 PV (9)"), msgs
     assert game.fighters["hellboy"].hp == 18 - 6 - 3 and dial(session, cfg, table, "hellboy") == 9
 
 
@@ -138,7 +138,7 @@ def test_the_bots_pack_hunters_carries_the_bonus_and_hurts_for_each_raptor_besid
     around(game, table, cfg, "hellboy", ["blue", "delta"])
     human_hand(table, game, "B.P.R.D. Training", "Right Hand Of Doom", "Service Pistol")
     msgs = bot_attacks(session, table, game, "Pack Hunters", "blue", "hellboy")
-    assert said(msgs, "Raptor Blue ataca con Pack Hunters (4) y PACK BONUS (+1): total 5"), msgs
+    assert said(msgs, "Raptor Blue ataca con Pack Hunters (4) y BONO DE MANADA (+1): total 5"), msgs
     assert said(msgs, "Aplicado: Pack Hunters: hellboy -2 PV (11)"), msgs
     assert dial(session, cfg, table, "hellboy") == 11
 

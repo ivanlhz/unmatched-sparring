@@ -8,6 +8,7 @@ import pytest
 
 from conftest import give
 from sparring import pack
+from sparring.i18n import t
 from sparring.persist import apply_game, game_to_dict
 from sparring.state import Game
 from test_bigfoot_effects import Answers, wall
@@ -133,7 +134,7 @@ def test_the_bonus_shows_in_the_parts_with_its_label(bprd):
     g = mk(bprd)
     blue, leo = pair(g, "blue", "leonardo")
     around(g, "leonardo", ["delta", "echo"])
-    assert g.attack_bonus_parts(blue, leo) == [(2, "PACK BONUS")]
+    assert g.attack_bonus_parts(blue, leo) == [(2, t("raptors.pack_bonus"))]
     assert g.attack_bonus(blue, leo) == 2
 
 

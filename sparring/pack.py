@@ -7,7 +7,8 @@ fighter of the owner standing next to the defender. Only attacks count ("their a
 (the AI measuring a threat in general) reads 0."""
 from __future__ import annotations
 
-LABEL = "PACK BONUS"
+from .i18n import t
+
 
 
 def passive(game, player: int) -> dict | None:
@@ -32,4 +33,4 @@ def bonus_parts(game, attacker, target) -> list[tuple[int, str]]:
     if p is None or target is None:
         return []
     n = len(mates_adjacent(game, attacker, target))
-    return [(int(p["n"]) * n, LABEL)] if n else []
+    return [(int(p["n"]) * n, t("raptors.pack_bonus"))] if n else []
