@@ -125,10 +125,11 @@ class AttackDriver(Driver):
         return super().press(event, payload)
 
     def human_turn(self):
-        g, bot_hero, me = self.game, self.game.hero(0), self.game.hero(1)
+        g = self.game
         for _ in range(6):
             if g.turn != 1 or g.winner is not None:
                 return
+            bot_hero, me = g.hero(0), g.hero(1)          # read again each time: the hero of a team (the Raptors) may fall without ending the game
             if not g.fx.may_attack(1):                           # Pact Of Freedom: not as the first action of the turn
                 self.press(Event.MANEUVER)
                 self.end_action()

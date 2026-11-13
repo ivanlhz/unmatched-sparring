@@ -1,0 +1,511 @@
+{
+ "schema": 1,
+ "hero": "raptors",
+ "notes": [
+  "Raptors (Jurassic Park: InGen vs Raptors). Three Raptors (Blue the hero fighter, Delta and Echo flagged hero in the HeroDef), 7 life and move 3 each; every card is ANY. Written from the card images on 2026-11-13."
+ ],
+ "ability": {
+  "text": "Raptors add 1 to the value of their attack cards for each of your other Raptors adjacent to the defender.",
+  "triggers": [],
+  "passives": [],
+  "notes": "The pack bonus is the HeroDef passive `{effect: pack_bonus, n: 1}` (data/heroes/raptors.json), read by sparring/pack.py through Game.attack_bonus_parts / Game.attack_bonus: +n to every attack card (an attack, or a versatile card played as an attack) of a Raptor for each OTHER undefeated Raptor of its owner standing next to the defender. Defense cards get nothing ('their attack cards')."
+ },
+ "cards": [
+  {
+   "title": "Ambush",
+   "copies": 3,
+   "text": "DURING COMBAT: Your opponent discards 1 random card. Add its BOOST value to this card's value.",
+   "effects": {
+    "immediately": [],
+    "during": [
+     {
+      "op": "discard",
+      "cards": {
+       "zone": "hand",
+       "player": "opponent",
+       "pick": "random",
+       "amount": 1
+      },
+      "as": "burnt"
+     },
+     {
+      "op": "modify_value",
+      "card": "this",
+      "amount": {
+       "attr": "boost",
+       "of": "$burnt"
+      }
+     }
+    ],
+    "after": [],
+    "scheme": [],
+    "boost": []
+   },
+   "notes": "Attack 2 / boost 3. The card is drawn by chance from the opponent's hand (`pick: random`: nobody looks). Its BOOST is added to this card's value (a card with no BOOST adds 0; an empty hand adds nothing). Against a human opponent the table settles the discard by hand and the engine cannot name the card, so the bonus is only known when the engine knows the discarded card (docs/heroes/raptors.md, Pending)."
+  },
+  {
+   "title": "Clever Girl",
+   "copies": 3,
+   "text": "AFTER COMBAT: If one or more of your Raptors is adjacent to the opposing fighter, gain 1 action.",
+   "effects": {
+    "immediately": [],
+    "during": [],
+    "after": [
+     {
+      "op": "if",
+      "condition": {
+       "test": "exists",
+       "fighters": {
+        "side": "own",
+        "where": {
+         "adjacent_to": "opposing"
+        }
+       }
+      },
+      "then": [
+       {
+        "op": "gain_action",
+        "amount": 1
+       }
+      ]
+     }
+    ],
+    "scheme": [],
+    "boost": []
+   },
+   "notes": "Attack 3 / boost 3. Read when the AFTER resolves, win or lose: the Raptor that played the card counts when it is next to the opposing fighter."
+  },
+  {
+   "title": "Coordinated Attack Pattern",
+   "copies": 2,
+   "text": "Choose one of your Raptors. You may place each of your other Raptors in any space in the chosen Raptor's zone.",
+   "effects": {
+    "immediately": [],
+    "during": [],
+    "after": [],
+    "scheme": [
+     {
+      "op": "choose_effect",
+      "options": [
+       {
+        "label": "Raptor Blue",
+        "ops": [
+         {
+          "op": "for_each",
+          "over": {
+           "fighters": {
+            "side": "own",
+            "name": "Raptor Blue"
+           }
+          },
+          "as": "anchor",
+          "ops": [
+           {
+            "op": "for_each",
+            "over": {
+             "fighters": {
+              "side": "own",
+              "name": "Raptor Delta"
+             }
+            },
+            "as": "mate",
+            "ops": [
+             {
+              "op": "optional",
+              "ops": [
+               {
+                "op": "place",
+                "target": "$mate",
+                "where": {
+                 "zone_of": "$anchor"
+                },
+                "chooser": "owner"
+               }
+              ]
+             }
+            ]
+           },
+           {
+            "op": "for_each",
+            "over": {
+             "fighters": {
+              "side": "own",
+              "name": "Raptor Echo"
+             }
+            },
+            "as": "mate",
+            "ops": [
+             {
+              "op": "optional",
+              "ops": [
+               {
+                "op": "place",
+                "target": "$mate",
+                "where": {
+                 "zone_of": "$anchor"
+                },
+                "chooser": "owner"
+               }
+              ]
+             }
+            ]
+           }
+          ]
+         }
+        ]
+       },
+       {
+        "label": "Raptor Delta",
+        "ops": [
+         {
+          "op": "for_each",
+          "over": {
+           "fighters": {
+            "side": "own",
+            "name": "Raptor Delta"
+           }
+          },
+          "as": "anchor",
+          "ops": [
+           {
+            "op": "for_each",
+            "over": {
+             "fighters": {
+              "side": "own",
+              "name": "Raptor Blue"
+             }
+            },
+            "as": "mate",
+            "ops": [
+             {
+              "op": "optional",
+              "ops": [
+               {
+                "op": "place",
+                "target": "$mate",
+                "where": {
+                 "zone_of": "$anchor"
+                },
+                "chooser": "owner"
+               }
+              ]
+             }
+            ]
+           },
+           {
+            "op": "for_each",
+            "over": {
+             "fighters": {
+              "side": "own",
+              "name": "Raptor Echo"
+             }
+            },
+            "as": "mate",
+            "ops": [
+             {
+              "op": "optional",
+              "ops": [
+               {
+                "op": "place",
+                "target": "$mate",
+                "where": {
+                 "zone_of": "$anchor"
+                },
+                "chooser": "owner"
+               }
+              ]
+             }
+            ]
+           }
+          ]
+         }
+        ]
+       },
+       {
+        "label": "Raptor Echo",
+        "ops": [
+         {
+          "op": "for_each",
+          "over": {
+           "fighters": {
+            "side": "own",
+            "name": "Raptor Echo"
+           }
+          },
+          "as": "anchor",
+          "ops": [
+           {
+            "op": "for_each",
+            "over": {
+             "fighters": {
+              "side": "own",
+              "name": "Raptor Blue"
+             }
+            },
+            "as": "mate",
+            "ops": [
+             {
+              "op": "optional",
+              "ops": [
+               {
+                "op": "place",
+                "target": "$mate",
+                "where": {
+                 "zone_of": "$anchor"
+                },
+                "chooser": "owner"
+               }
+              ]
+             }
+            ]
+           },
+           {
+            "op": "for_each",
+            "over": {
+             "fighters": {
+              "side": "own",
+              "name": "Raptor Delta"
+             }
+            },
+            "as": "mate",
+            "ops": [
+             {
+              "op": "optional",
+              "ops": [
+               {
+                "op": "place",
+                "target": "$mate",
+                "where": {
+                 "zone_of": "$anchor"
+                },
+                "chooser": "owner"
+               }
+              ]
+             }
+            ]
+           }
+          ]
+         }
+        ]
+       }
+      ],
+      "amount": 1,
+      "tag": "raptor"
+     }
+    ],
+    "boost": []
+   },
+   "notes": "Scheme (boost 2). The owner chooses one Raptor (the anchor, one option per Raptor: the DSL has no op that binds a chosen fighter, and the anchor never moves) and then, for each of the other two that still stand, may place it in any empty space of the anchor's zone (or leave it where it is). Choosing a defeated Raptor does nothing."
+  },
+  {
+   "title": "Decoy",
+   "copies": 4,
+   "text": "IMMEDIATELY: Choose one of your other undefeated Raptors. You may place her adjacent to the opposing fighter.",
+   "effects": {
+    "immediately": [
+     {
+      "op": "optional",
+      "ops": [
+       {
+        "op": "place",
+        "target": {
+         "side": "own",
+         "other": true
+        },
+        "where": {
+         "adjacent_to": "opposing"
+        },
+        "chooser": "owner"
+       }
+      ]
+     }
+    ],
+    "during": [],
+    "after": [],
+    "scheme": [],
+    "boost": []
+   },
+   "notes": "Defense 3 / boost 1. 'Other' is any undefeated Raptor but the one that plays the card; the placement is optional and goes to an empty space next to the opposing fighter (with none free nothing happens). It happens before the DURING, so the new position counts for the rival's pack bonus only if the card is played by a Raptor's rival (the bonus is read at the reveal of the values)."
+  },
+  {
+   "title": "Disengage",
+   "copies": 2,
+   "text": "AFTER COMBAT: Move your Raptor to any other space in her zone.",
+   "effects": {
+    "immediately": [],
+    "during": [],
+    "after": [
+     {
+      "op": "place",
+      "target": "this",
+      "where": {
+       "zone_of": "this",
+       "other": true
+      },
+      "chooser": "owner"
+     }
+    ],
+    "scheme": [],
+    "boost": []
+   },
+   "notes": "Attack 4 / boost 2, any Raptor. Happens whether the combat was won or not; 'your Raptor' is the fighter that played the card (a defeated one is not placed). The space must be a different one of her zone (`other`), and with no other empty space in it nothing happens (the same reading as Bigfoot's Disengage, Iván 2026-11-03)."
+  },
+  {
+   "title": "Eaten Alive",
+   "copies": 3,
+   "text": "AFTER COMBAT: If you won the combat, deal 1 damage to one adjacent opposing fighter.",
+   "effects": {
+    "immediately": [],
+    "during": [],
+    "after": [
+     {
+      "op": "if",
+      "condition": {
+       "test": "combat_result",
+       "result": "won"
+      },
+      "then": [
+       {
+        "op": "damage",
+        "target": {
+         "side": "enemy",
+         "where": {
+          "adjacent_to": "this"
+         }
+        },
+        "amount": 1
+       }
+      ]
+     }
+    ],
+    "scheme": [],
+    "boost": []
+   },
+   "notes": "Versatile 4 / boost 2. Effect damage to ONE opposing fighter next to the Raptor that played the card, chosen by its owner (the combat's opponent when it is adjacent counts). A won defense counts as winning the combat (the global tie rule applies)."
+  },
+  {
+   "title": "Eviscerate",
+   "copies": 2,
+   "text": "",
+   "effects": {
+    "immediately": [],
+    "during": [],
+    "after": [],
+    "scheme": [],
+    "boost": []
+   },
+   "notes": "Attack 5 / boost 3, no effect."
+  },
+  {
+   "title": "Feint",
+   "copies": 3,
+   "text": "IMMEDIATELY: Cancel all effects on your opponent's card.",
+   "effects": {
+    "immediately": [
+     {
+      "op": "cancel_effects",
+      "card": "opponent_card"
+     }
+    ],
+    "during": [],
+    "after": [],
+    "scheme": [],
+    "boost": []
+   },
+   "notes": "Versatile 2 / boost 1, any Raptor."
+  },
+  {
+   "title": "Pack Hunters",
+   "copies": 2,
+   "text": "AFTER COMBAT: If you won the combat, deal 1 damage to the opposing fighter for each of your Raptors adjacent to them.",
+   "effects": {
+    "immediately": [],
+    "during": [],
+    "after": [
+     {
+      "op": "if",
+      "condition": {
+       "test": "combat_result",
+       "result": "won"
+      },
+      "then": [
+       {
+        "op": "damage",
+        "target": "opposing",
+        "amount": {
+         "count": {
+          "side": "own",
+          "where": {
+           "adjacent_to": "opposing"
+          },
+          "pick": "all"
+         }
+        }
+       }
+      ]
+     }
+    ],
+    "scheme": [],
+    "boost": []
+   },
+   "notes": "Attack 4 / boost 2. Effect damage; the count is read when the AFTER resolves and includes the attacking Raptor itself when it stands next to the defender (it is one of 'your Raptors adjacent to them'). A defeated Raptor is not counted."
+  },
+  {
+   "title": "They Remember",
+   "copies": 4,
+   "text": "AFTER COMBAT: Gain 1 action.",
+   "effects": {
+    "immediately": [],
+    "during": [],
+    "after": [
+     {
+      "op": "gain_action",
+      "amount": 1
+     }
+    ],
+    "scheme": [],
+    "boost": []
+   },
+   "notes": "Attack 2 / boost 2. The action is gained whether the combat was won or not."
+  },
+  {
+   "title": "Working Things Out",
+   "copies": 2,
+   "text": "Move each of your Raptors up to 3 spaces. You may move them through spaces containing opposing fighters. Gain 1 action.",
+   "effects": {
+    "immediately": [],
+    "during": [],
+    "after": [],
+    "scheme": [
+     {
+      "op": "move",
+      "target": {
+       "side": "own",
+       "pick": "all"
+      },
+      "amount": 3,
+      "up_to": true,
+      "through_enemies": true,
+      "chooser": "owner"
+     },
+     {
+      "op": "gain_action",
+      "amount": 1
+     }
+    ],
+    "boost": []
+   },
+   "notes": "Scheme (boost 2). Every undefeated Raptor moves up to 3 spaces (0 included), through opposing fighters but not to a space they hold; the owner chooses the order (the same op as Eredin's Close For The Kill). The action is gained once, after the moves."
+  }
+ ],
+ "plugins": [],
+ "hidden_info": [
+  {
+   "card": "Ambush",
+   "rule": "The discard is random (nobody looks at the hand); a human opponent discards the position the bot names."
+  }
+ ],
+ "open_questions": [
+  "Loss rule: implemented as 'the owner loses when ALL three Raptors are defeated' (unmatched-memory and the card print one hero, RAPTORS, 7 life; the save has three Hero miniatures with a Hero Health dial each)."
+ ]
+}

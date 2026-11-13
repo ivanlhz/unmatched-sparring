@@ -38,7 +38,8 @@ def add(game, player: int, space: int) -> bool:
 def free_spaces(game, fighter, over_tracks: bool = False) -> frozenset[int]:
     """The spaces that cost nothing to enter when `fighter` moves: every track space for John Henry (his rule) and for any fighter
     a card moves with "do not count spaces with track tokens" (`over_tracks`). Nothing when no token is on the board."""
-    if not any(game.fx.tracks):
+    fx = getattr(game, "fx", None)
+    if fx is None or not any(fx.tracks):
         return frozenset()
     if over_tracks or (fighter.hero and game.fx.hero_rule(fighter.owner, RULE)):
         return placed(game)
@@ -61,3 +62,23 @@ def record_walk(game, fighter, origin: int | None, dest: int, blocked: frozenset
 def paths_used(game) -> int:
     """How many different track spaces John Henry has entered this turn."""
     return len(game.fx.paths)
+
+
+def attack_only(game) -> bool:
+    """Every action left is a free action that only an attack may spend (Hear That Cold Steel Ring; Wyatt Earp's `Game.free_attacks`)."""
+    return 0 < game.actions_left <= game.fx.attack_credit or (game.actions_left > 0 and game.paid_actions <= 0)
+
+
+def turn_goes_on(game) -> bool:
+    """The player whose turn it is still has something to do: an action is left and, when all that is left is a free action to attack,
+    an attack is possible with the hand they hold (otherwise the turn is over: nothing else may spend it)."""
+    game.prune_free_attacks(game.turn)       # a free action to attack nobody can use is lost (Wyatt Earp)
+    if game.actions_left <= 0:
+        return False
+    if not attack_only(game):
+        return True
+    from . import enraged
+    me = game.turn
+    return any(game.can_declare_attack(f, foe) and enraged.may_attack_with(game, me, c) and c.usable_by(f.name)
+               and game.attack_card_reaches(f, foe, c)
+               for f in game.own(me) for foe in game.foes(me) for c in game.players[me].hand)

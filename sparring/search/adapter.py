@@ -38,8 +38,8 @@ from dataclasses import dataclass, field
 from functools import lru_cache
 from math import sqrt
 
-from .. import enraged
-from ..ai_hazards import zone_cover_factor, zone_damage
+from .. import enraged, pack, tracks
+from ..ai_hazards import zone_cover_factor, zone_damage, zone_exposed
 from ..ai_medusa import GAZE, beside_stake, boost_effect_value, bot_may_spend, held_for_plan, maneuver_may_spend, play_signature, scheme_fighter
 from ..cards import Card, can_be_boost
 from ..combat import is_medusa_card, resolve_combat
@@ -52,8 +52,9 @@ from ..guard import boost_reach, guard_dest, free_steps, reach_from, strike_spot
 from ..state import ANUNG, Fighter, Game, PlayerState
 
 SIDEKICK_POLICIES = ("stay", "advance", "retreat", "guard")
+PACK = "pack"           # a follower closes on the rival the hero ends next to, so every Raptor stands beside the defender (the pack bonus); offered only to a hero with that passive
 BESIDE = "beside"       # a sidekick ends next to its hero (cards that pay for it: `beside_stake`); in the tree only, offered when the stake is not 0
-ROLLOUT_POLICIES = ("stay", "advance", "retreat")    # "guard" lives in the tree only: its path analysis costs more than a random playout is worth
+ROLLOUT_POLICIES = ("stay", "advance", "retreat", PACK)    # "guard" lives in the tree only: its path analysis costs more than a random playout is worth
 FRENZY_VARIANTS = ("advance", "retreat")
 SCHEME_MOVES_KEEP = 6         # scheme moves per node: every title's greedy line first, the safe ones while they fit
 ASKING_OPS = ("move", "place", "swap", "revive", "summon", "optional", "choose_effect", "choose", "search_deck")
@@ -78,6 +79,7 @@ class EvalWeights:
     defend_card_hp: float = 0.75    # each attack received also costs a defense card (in equivalent HP)
     ongoing: float = 1.0            # the ONGOING in play, in hero HP (`effects.ongoing.worth`)
     beside: float = 0.0             # share of the sidekicks standing next to their hero, when its cards pay for it (`beside_stake`)
+    pack: float = 0.15              # for a hero with the pack bonus (the Raptors): each fighter beyond the first standing beside the same rival, in hero HP (the +1 of every blow it lands is about two points a turn)
     slope: float = 1.5              # scale of `squash` over the difference between sides
 
 
@@ -128,7 +130,7 @@ def reach(game: Game, f: Fighter, steps: int, through: bool = False) -> frozense
     """`Game.legal_moves` with a cache (a fighter immobilized by an effect, Burning Barrier, stays where it is)."""
     if not game.fx.can_move(f):
         return frozenset({f.pos})
-    if through == "sidekicks":              # a move through the rivals' sidekicks only (not worth a cache entry)
+    if through == "sidekicks" or tracks.free_spaces(game, f):     # a move through the rivals' sidekicks only, or one over John Henry's tracks (not worth a cache entry)
         return frozenset(game.legal_moves(f, steps, through))
     own = frozenset(game.occupied(f.owner) - {f.pos})
     enemy = frozenset(game.occupied(1 - f.owner))
@@ -213,7 +215,9 @@ def sidekick_plan(game: Game, player: int, extra: int, policy: str,
             out.append((h.fid, h.pos))
             continue
         options = reach_from(board, own[h.fid], h.move + extra, others, enemy)
-        if policy == "guard":
+        if policy == PACK:
+            dest = pack_dest(game, own[game.hero(player).fid], options, h, own[h.fid])
+        elif policy == "guard":
             dest = guard_dest(game, own[game.hero(player).fid], options, h.fid, own)
         elif policy == BESIDE or (policy == "advance" and stake):      # advancing, a sidekick whose hero's cards pay for it closes up
             dest = beside_dest(board, h, own[game.hero(player).fid], options, foes)
@@ -222,6 +226,22 @@ def sidekick_plan(game: Game, player: int, extra: int, policy: str,
         own[h.fid] = dest
         out.append((h.fid, dest))
     return tuple(out)
+
+
+def pack_dest(game: Game, hero_pos: int, options, h: Fighter, pos: int) -> int:
+    """Where a follower goes to join the pack: the space next to the rival the hero stands (or ends) nearest to, the one
+    nearest to the follower among those it can reach (every such space is a strike with the pack bonus); with none in reach,
+    the reachable space nearest to that rival. The rival is the closest to the hero, the weakest of a tie."""
+    board = game.board
+    foes = [e for e in game.foes(h.owner) if e.pos is not None]
+    if not foes:
+        return pos
+    prey = min(foes, key=lambda e: (board.distance(hero_pos, e.pos), e.hp, e.fid))
+    cands = set(options) | {pos}
+    ring = cands & set(board.adj[prey.pos])
+    if ring:
+        return min(ring, key=lambda d: (board.distance(pos, d), d))
+    return min(cands, key=lambda d: (board.distance(d, prey.pos), d))
 
 
 def beside_dest(board, h: Fighter, hero_pos: int, options, foes: tuple[int, ...]) -> int:
@@ -398,8 +418,9 @@ class EngineState:
                 tuple((f.fid, f.pos, f.hp) for f in g.fighters.values() if f.alive),
                 tuple(sorted(c.card_id for c in g.players[mover].hand)),
                 tuple(f.fid for f in g.fighters.values() if f.alive and not g.fx.can_move(f)),    # pinned by an effect
-                (tuple(g.free_attacks), g.paid_actions),      # free actions to attack (Wyatt Earp) leave only attacks, and only on some fighters
-                g.maneuver_bonus(g.turn))      # the Maneuver's reach moves with the hero's ability (Sinbad's VOYAGE cards in the pile)
+                g.maneuver_bonus(g.turn),      # the Maneuver's reach moves with the hero's ability (Sinbad's VOYAGE cards in the pile)
+                g.actions_left if pack.passive(g, g.turn) else None,    # a pack's last action is spent on a blow, not on a walk (`_generate_moves`)
+                tuple(map(tuple, g.fx.tracks)), tracks.attack_only(g), tuple(g.free_attacks))      # John Henry's tracks decide his walks, and a free action to attack allows nothing else (and Wyatt Earp's can be bound to a fighter)
 
     def _generate_moves(self) -> list:
         g = self.game
@@ -417,9 +438,12 @@ class EngineState:
             return [("attack_card", f.fid, t) for t in self._attack_titles(p, f, g.fighters[self.partial[1]])]
         if self.phase == "maneuver_place":
             return [("place", d, policy) for d, policy in self._placements(p, hero)]
-        if g.paid_actions <= 0:        # only free actions to attack are left: nothing else may be played
-            return self._attack_moves(p)
-        moves = self._attack_moves(p) + self._scheme_moves(p)
+        attacks = self._attack_moves(p)
+        if tracks.attack_only(g):                   # the action left is a free action to attack: nothing else may spend it
+            return attacks
+        moves = attacks + self._scheme_moves(p)
+        if attacks and pack.passive(g, p) and g.actions_left <= 1:
+            return moves        # the pack never spends its last action walking when it has a blow to land (Iván: super aggressive); with an action to spare it may close up first (`_placements`)
         moves += [("maneuver", c.title if c else None) for c in self._boost_variants(p)]
         return moves
 
@@ -439,7 +463,7 @@ class EngineState:
         elif kind == "attack_card":
             att, tgt = self.partial
             self.phase, self.partial = "action", ()
-            g.use_action(attack_on=tgt)
+            g.use_action(attack=True, attack_on=tgt)
             self.pending = (att, tgt, by_title(hand, move[2]))
             g.fx.emit("attacked", g.fighters[att], g.fighters[tgt], self.pending[2])   # as Game._declare_attack does
         elif kind == "maneuver":
@@ -516,7 +540,7 @@ class EngineState:
             return rng.choice(self.legal_moves())
         p = g.turn
         attacks = self._attack_moves(p)
-        if attacks and (rng.random() < ROLLOUT_ATTACK_PROB or g.paid_actions <= 0):
+        if attacks and (tracks.attack_only(g) or rng.random() < ROLLOUT_ATTACK_PROB):
             return rng.choice(attacks)
         boosts = self._boost_variants(p)
         boost = rng.choice(boosts[1:]) if len(boosts) > 1 and rng.random() < ROLLOUT_BOOST_PROB else None
@@ -601,8 +625,7 @@ class EngineState:
                 if len(moves) == 1:         # sub-phase without a real choice: it resolves itself
                     self.apply(moves[0])
                 return
-            g.prune_free_attacks(p)           # a free action to attack that the hand cannot use is lost: the turn ends
-            if g.actions_left <= 0:
+            if not tracks.turn_goes_on(g):
                 g.end_turn()
                 g.begin_turn()
                 self.phase = "start"
@@ -735,7 +758,8 @@ class EngineState:
     def _policies(self, p: int) -> tuple[str, ...]:
         if not any(not f.hero for f in self.game.own(p)):
             return ("stay",)
-        return SIDEKICK_POLICIES + (BESIDE,) if beside_stake(self.game, p) else SIDEKICK_POLICIES
+        base = SIDEKICK_POLICIES + (BESIDE,) if beside_stake(self.game, p) else SIDEKICK_POLICIES
+        return base + (PACK,) if pack.passive(self.game, p) else base
 
     def _placements(self, p: int, hero: Fighter) -> list[tuple[int, str]]:
         """(hero destination, sidekick policy) that enter the tree: the `PLACEMENT_KEEP` best by the
@@ -744,6 +768,10 @@ class EngineState:
         g = self.game
         options = sorted(self._hero_options(hero))
         policies = self._policies(p)
+        if pack.passive(g, p) and self._attack_moves(p):
+            # a pack with a blow to land walks only to join it: every Raptor to a space beside the rival, the hero where he strikes from
+            options = [d for d in options if d in self._striking_spots(p)] or options
+            policies = (PACK,)
         if len(options) * len(policies) <= PLACEMENT_KEEP:
             return [(d, policy) for d in options for policy in policies]
         extra = self._extra()
@@ -796,8 +824,17 @@ class EngineState:
         next_to = 0.0
         if alive and hero.pos is not None and beside_stake(g, p):
             next_to = sum(1 for f in side if f.alive and f.pos in g.board.adj[hero.pos]) / len(side)
-        return (sqrt(max(hero.hp, 0) / hero.max_hp) + w.sidekicks * side_hp + w.beside * next_to + w.alive * alive + w.hand * hand
+        return (sqrt(max(hero.hp, 0) / hero.max_hp) + w.sidekicks * side_hp + w.beside * next_to + w.alive * alive + w.hand * hand + w.pack * self._pack_ready(p)
                 + w.deck * deck + w.ongoing * ongoing.worth(g, p) / hero.max_hp - self._exposure(p, urgent))
+
+    def _pack_ready(self, p: int) -> int:
+        """Fighters beyond the first of `p` standing beside the same rival, for a hero whose attacks grow with them (`pack.passive`): the pack
+        bonus every blow on that rival is worth next turn. 0 for any other hero."""
+        g = self.game
+        if not pack.passive(g, p):
+            return 0
+        mine = [f.pos for f in g.own(p) if f.pos is not None]
+        return max((sum(1 for pos in mine if pos in g.board.adj[e.pos]) - 1 for e in g.foes(p) if e.pos is not None), default=0) if len(mine) > 1 else 0
 
     def _exposure(self, p: int, urgent: bool) -> float:
         """What the threat on `p`'s hero subtracts from their side (weighted `threat`)."""
@@ -864,17 +901,25 @@ class EngineState:
 
     def _zone_exposure(self, victim: int, hero: Fighter) -> tuple[float, float]:
         """(expected damage as a fraction of HP, probability of dying) from the rival hero's start-of-turn damage to a fighter in
-        its zone (Medusa's gaze, from the effects data), if `victim`'s hero stands in that zone. The hit points (never the
-        chance of dying) weigh less the better the hero's defenses in hand cover the rival hero's average attack
+        its zone (Medusa's gaze, from the effects data), for the fighters of `victim` that stand in that zone: the hero alone, or
+        every fighter of a team (the Raptors: many fighters of few hit points, each one standing there is a target the rival
+        picks from, so each is weighed on its own and they add up; the game is lost only when the last one falls). The hit points
+        (never the chance of dying) weigh less the better the fighter's defenses in hand cover the rival hero's average attack
         (`zone_cover_factor`, as in the heuristic's `zone_hazard_cost`)."""
         g = self.game
         rival = g.hero(1 - victim)
-        if rival.pos is None or hero.pos is None or not g.board.share_zone(hero.pos, rival.pos):
+        exposed = zone_exposed(g, victim, rival)
+        if not exposed:
             return 0.0, 0.0
         dmg = zone_damage(g, 1 - victim)
         if not dmg:
             return 0.0, 0.0
         values = attack_values(g.players[1 - victim], rival.name)
-        cover = zone_cover_factor([c.value for c in g.players[victim].hand if c.can_defend and c.usable_by(hero.name)],
-                                  sum(values) / len(values) if values else 0.0)
-        return min(1.0, dmg / hero.hp) * cover, 1.0 if dmg >= hero.hp else 0.0
+        blow = sum(values) / len(values) if values else 0.0
+        hand = g.players[victim].hand
+        team = g.players[victim].hero.team
+        expected = sum(min(1.0, dmg / f.hp) * zone_cover_factor([c.value for c in hand if c.can_defend and c.usable_by(f.name)], blow)
+                       for f in exposed)
+        last = len(g.own(victim)) == 1
+        dies = any(dmg >= f.hp for f in exposed) and (last or not team)
+        return (expected if team else min(1.0, expected)), 1.0 if dies else 0.0

@@ -124,6 +124,8 @@ def _bookkeeping(game, ev: dict) -> None:
         fx.played = [0, 0]
         fx.lost = [0, 0]
         fx.won = [0, 0]
+        fx.paths.clear()                                 # John Henry's paths and his attack-only action are of the turn
+        fx.attack_credit = 0
         fx.turn_start_pos = ({fid: f.pos for fid, f in game.fighters.items() if f.alive}
                              if "turn_start_pos" in keep else {})
     elif ev["name"] == "attacked" and "attacked" in keep:

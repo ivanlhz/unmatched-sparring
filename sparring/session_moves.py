@@ -14,6 +14,7 @@ The distance of a dropped piece to its nearest space is the only snap informatio
 farther than `off_board_dist` is rejected; two equidistant spaces cannot be told apart from it."""
 from __future__ import annotations
 
+from . import tracks
 from .effects.choose import ChoiceRequest
 from .i18n import t, tn
 from .session_choices import panel_text, request_card
@@ -48,6 +49,8 @@ def where_text(session, req: ChoiceRequest) -> str:
         text = t("moves.where.any")
         if req.extra.get("near_opposing") in g.fighters:        # Unyielding Hordes counts it for its DURING only next to the opposing fighter
             text += t("moves.where.any_near", who=session._name(g.fighters[req.extra["near_opposing"]]))
+    elif where.get("track"):
+        text = t("moves.where.track")
     elif "zone_of" in where:
         text = t("moves.where.zone", who=who("zone_of"))
     elif "next_to_nearest_foe" in where:
@@ -80,6 +83,8 @@ def instruction(session, req: ChoiceRequest) -> str:
         steps = req.extra["steps"]
         how = t("moves.how.up_to" if req.extra.get("up_to", True) else "moves.how.exactly")
         through = t("moves.through_sidekicks" if req.extra.get("through") == "sidekicks" else "moves.through") if req.extra.get("through") else ""
+        if tracks.free_spaces(g, f, bool(req.extra.get("over_tracks"))):         # John Henry's ability, or Power Through: the track spaces are free
+            through += t("moves.over_tracks")
         now = t("moves.now", spot=_spot(session, f.pos, (fid,))) if f.pos is not None else ""
         return t("moves.move", head=head, name=name, how=how, squares=_plural(steps), through=through,
                  optional=optional, now=now)
@@ -128,7 +133,9 @@ def why_move_illegal(session, f, dest: int, move: dict, table_pos: dict | None =
                    and (table_pos or {}).get(o.fid, o.pos) == dest), None)
     if holder is not None:
         return t("moves.occupied", holder=session._name(holder), spot=_spot(session, dest, (holder.fid, f.fid)), name=name)
-    d = g.board.distance(f.pos, dest)
+    free = tracks.free_spaces(g, f, bool(move.get("tracks")))
+    d = g.board.walk_cost(f.pos, dest, free)
+    d = g.board.distance(f.pos, dest) if d is None else d
     if d > steps:
         return t("moves.too_far", name=name, squares=_plural(d), steps=steps)
     if not move.get("up_to", True) and d < steps:
@@ -151,10 +158,11 @@ def hand_move_legal(game, f, dest: int, move: dict, table_pos: dict | None = Non
     rivals = {spot(o) for o in game.own(1 - f.owner)}
     through = move.get("through")
     passable = frozenset(spot(o) for o in game.foes(f.owner) if not o.hero) if through == "sidekicks" else frozenset()
-    reach = game.board.reachable(f.pos, move["steps"], mine, rivals, through is True, passable)
+    free = tracks.free_spaces(game, f, bool(move.get("tracks")))
+    reach = game.board.reachable(f.pos, move["steps"], mine, rivals, through is True, passable, free)
     if dest not in reach:
         return False
-    return move.get("up_to", True) or game.board.distance(f.pos, dest) == move["steps"]
+    return move.get("up_to", True) or game.board.walk_cost(f.pos, dest, free) == move["steps"]
 
 
 def verdict(session, req: ChoiceRequest) -> tuple[int | None, str | None]:

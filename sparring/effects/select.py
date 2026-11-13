@@ -84,6 +84,9 @@ def space_options(game, run, sel, default_empty: bool = True, mover=None) -> lis
         out &= {game.start_spaces[player_of(game, run, sel["start_space_of"])]}
     if sel.get("start"):                                   # any starting space of the board
         out &= set(game.board.starts.values())
+    if sel.get("track"):                                   # a space with a track token (John Henry's Twelve-pound Hammer)
+        from .. import tracks
+        out &= tracks.placed(game)
     if sel.get("empty", default_empty):
         taken = {f.pos for f in game.fighters.values() if f.alive and f is not mover}
         out -= taken

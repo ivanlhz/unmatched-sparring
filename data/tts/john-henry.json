@@ -1,0 +1,44 @@
+{
+ "slug": "john-henry",
+ "_notes": [
+  "Read from the bag 845f05 (inner bag 646707) of the tournament savegame on 2026-11-13. The deck is c3109e (31 cards: the 30 of sheet 187, CardIDs 18700-18729, plus the character card 403, sheet 4 index 3); sheet 187 is John Henry's alone, so no other deck shares his CardIDs. The miniature is the Custom_Assetbundle 041a3d 'John Henry', the life dial the Custom_Model 887823 (MAX_VALUE 17, 'Hero Health'). There is no sidekick.",
+  "The TRACK TOKENS are one Custom_Token_Stack (8ba84f, Number 10, ImageURL ...7E9563244F2F4DA4659AA9164EC339BCDC766607) in the inner bag, no nickname: its image (`token_sources.track.image`) is how the table scan recognises a track token that a player took out of the stack. The bot takes a copy with takeObject and lays it on the space (`lua.place_token_at_space`); the human lays theirs by hand and the bot reads them (`lua.read_tokens_by_image`)."
+ ],
+ "bag": {
+  "guid": "845f05",
+  "inner": "646707"
+ },
+ "deck": {
+  "guid": "c3109e",
+  "card_ids": [
+   18700,
+   18729
+  ],
+  "character_card_id": 403,
+  "identity": [
+   {
+    "face": "https://steamusercontent-a.akamaihd.net/ugc/13002288003520741213/30AC9C3C57BD0376085AD3CF4056CFE4536BAFE7/",
+    "back": "https://steamusercontent-a.akamaihd.net/ugc/11040051502536085765/140279D1DAA98A1092E3C52CEDC25EB8FF26114A/"
+   }
+  ]
+ },
+ "fighters": {
+  "john": {
+   "piece": "041a3d",
+   "dial": "887823",
+   "dial_max": 17
+  }
+ },
+ "tokens": {
+  "track": "8ba84f"
+ },
+ "token_sources": {
+  "track": {
+   "verify_live": true,
+   "mode": "auto",
+   "image": "https://steamusercontent-a.akamaihd.net/ugc/13906024461946509943/7E9563244F2F4DA4659AA9164EC339BCDC766607/",
+   "note": "Another track token comes from the stack with takeObject (it holds 10: the whole supply of STEEL-DRIVING MAN). Confirm the stack type and that a taken token keeps the image with --read-only."
+  }
+ },
+ "counter_dials": {}
+}

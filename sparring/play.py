@@ -85,7 +85,7 @@ def migrate_legacy_files(state: Path) -> list[str]:
         notices.append(t("console.moved_log", old=old_log, new=new_log))
     return notices
 BOT, HUMAN = 0, 1
-READ_ONLY_TAGS = frozenset({"snapshot", "piece_spaces_by_guid", "read_hand", "count_hand", "read_discard",
+READ_ONLY_TAGS = frozenset({"snapshot", "piece_spaces_by_guid", "read_tokens_by_image", "read_hand", "count_hand", "read_discard",
                             "read_face_down_cards", "read_cards_at", "inspect_guids", "read_health_dials", "zone_overlaps", "deck_identities",
                             "hand_identities", "reset_plan", "table_heroes", "inspect_objects", "find_pieces_by_name", "find_dials_by_name", "list_boards", "table_audit", "deck_facing", "list_bags",
                             "read_transforms", "peek_deck_top"})

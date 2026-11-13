@@ -134,6 +134,8 @@ def _where(where) -> str:
         return t("tbl.where.any")
     if where.get("start"):
         return t("tbl.where.start")
+    if where.get("track"):
+        return t("tbl.where.track")
     if "zone_of" in where:
         who = where["zone_of"]
         if where.get("other"):
@@ -157,6 +159,8 @@ def line(n: dict) -> str:
     if op == "move":
         how = t("tbl.up_to" if n.get("up_to", True) else "tbl.exactly")
         through = t("tbl.through_sidekicks" if n.get("through") == "sidekicks" else "tbl.through") if n.get("through") else ""
+        if n.get("tracks"):
+            through += t("tbl.over_tracks")
         return t("tbl.move", fid=n["fid"], how=how, squares=plural(n["amount"], "noun.space"), through=through)
     if op == "move_none":
         return t("tbl.move_none", fid=n["fid"], squares=plural(n["amount"], "noun.space"))

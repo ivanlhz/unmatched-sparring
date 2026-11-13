@@ -13,7 +13,7 @@ from contextlib import contextmanager
 from typing import Callable
 
 from . import table
-from .. import enraged
+from .. import enraged, tracks
 from ..i18n import t
 from .model import EffectError, load_effects
 from .select import (_ref_fighter, _role_fighters, Picked, amount, condition, fighter_candidates, find_card, locate, pick_fighters, player_of,
@@ -286,15 +286,17 @@ def _move(run, game, spec):
     chooser = _chooser(game, run, spec)
     steps, up_to = int(amount(game, run, spec["amount"])), spec["up_to"]
     through = spec.get("through_enemies", False) or ("sidekicks" if spec.get("through_sidekicks") else False)     # False | True | "sidekicks"
+    over = bool(spec.get("over_tracks"))        # "do not count spaces with track tokens" (Power Through); John Henry's own moves ignore them by his rule
     targets = pick_fighters(game, run, spec["target"], chooser, op="move", amount=steps, through=through)
     plan, by_hand = [], []
     with _trial() as set_attrs:
         for f in _one_after_another(targets):
             if not f.alive or f.pos is None or not game.fx.can_move(f):
                 continue
-            dests = sorted(game.legal_moves(f, steps, through))
+            dests = sorted(game.legal_moves(f, steps, through, over))
             if not up_to:       # exactly N: with no space exactly N away the move is cancelled (Iván, 2026-11-07)
-                dests = [d for d in dests if game.board.distance(f.pos, d) == steps]
+                free = tracks.free_spaces(game, f, over)
+                dests = [d for d in dests if game.board.walk_cost(f.pos, d, free) == steps]
                 if not dests:
                     table.note(run, op="move_none", fid=f.fid, amount=steps)
                     continue
@@ -302,7 +304,7 @@ def _move(run, game, spec):
                 by_hand.append(f)
                 continue
             got = run.ask(game, "space", chooser, dests, 0 if up_to else 1, 1, "move to",
-                          fighter=f.fid, op="move", steps=steps, through=through, up_to=up_to,
+                          fighter=f.fid, op="move", steps=steps, through=through, up_to=up_to, **({"over_tracks": True} if over else {}),
                           **({"purpose": spec["purpose"]} if "purpose" in spec else {}))
             if got:
                 plan.append((f, got[0]))
@@ -310,25 +312,25 @@ def _move(run, game, spec):
     passed = run.flags.setdefault("passed", {})
     for f, dest in plan:
         origin = f.pos
-        passed[f.fid] = _passed_through(game, f, origin, dest, steps, through)
-        game.move_fighter(f, dest, steps, through)
+        passed[f.fid] = _passed_through(game, f, origin, dest, steps, through, tracks.free_spaces(game, f, over))
+        game.move_fighter(f, dest, steps, through, over)
         if f.pos != origin:
             table.intent(game, op="move", fid=f.fid, owner=f.owner)
     for f in by_hand:
         passed[f.fid] = None                      # the human walks their own miniature: the engine never sees the path
-        game.hand_moves[f.fid] = {"steps": steps, "up_to": up_to, "through": through}      # the session checks where the table says it ended
-        table.note(run, op="move", fid=f.fid, amount=steps, up_to=up_to, through=through)
+        game.hand_moves[f.fid] = {"steps": steps, "up_to": up_to, "through": through, **({"tracks": True} if over else {})}      # the session checks where the table says it ended
+        table.note(run, op="move", fid=f.fid, amount=steps, up_to=up_to, through=through, **({"tracks": True} if tracks.free_spaces(game, f, over) else {}))
     if "as" in spec:
         run.bind("fighters", spec["as"], [f.fid for f, _ in plan] + [f.fid for f in by_hand])
 
 
-def _passed_through(game, mover, origin: int, dest: int, steps: int, through: bool | str) -> list[str]:
+def _passed_through(game, mover, origin: int, dest: int, steps: int, through: bool | str, free=frozenset()) -> list[str]:
     """Fighters `mover` may have moved through on its way from `origin` to `dest`: those on some path of at most `steps`
     spaces (the board has no fixed path, the mover's owner chooses it). The fighters that oppose the mover count when it
     may cross them (`through_enemies`); its own side always does (a mover crosses its friends: Power Man hits them)."""
     if origin == dest:
         return []
-    dist = game.board.distance
+    dist = (lambda a, b: 99 if (c := game.board.walk_cost(a, b, free)) is None else c) if free else game.board.distance     # a space entered for nothing (a track) is not counted
     rivals = game.own(1 - mover.owner) if through is True else [f for f in game.own(1 - mover.owner) if not f.hero] if through else []
     crossed = rivals + [f for f in game.own(mover.owner) if f is not mover]
     return [e.fid for e in crossed
@@ -345,6 +347,8 @@ def _where_refs(game, run, where: dict) -> dict:
         out["other"] = True
     if "next_to_nearest_foe" in where:
         out["next_to_nearest_foe"] = True
+    if where.get("track"):
+        out["track"] = True
     for key in ("zone_of", "no_zone_of", "adjacent_to", "nearest_to"):
         if key in where:
             ref = _ref_fighter(game, run, where[key])
@@ -478,7 +482,10 @@ def _gain_action(run, game, spec):
     n = int(amount(game, run, spec["amount"]))
     for player in players_of(game, run, spec.get("player", "owner")):
         if player == game.turn:
+            before = game.actions_left
             game.grant_actions(n)
+            if spec.get("only") == "attack":        # "a free action to attack": the extra action only an attack may spend (Hear That Cold Steel Ring)
+                game.fx.attack_credit += game.actions_left - before
 
 
 @op("spend_action")
@@ -684,3 +691,4 @@ from . import plugins_eredin  # noqa: E402,F401  (registers eredin:replace_comba
 from . import plugins_yennefer  # noqa: E402,F401  (registers yennefer:/triss: mill and lodge)
 from . import plugins_wyatt  # noqa: E402,F401  (registers wyatt:free_attack, you_die_first, swear_me_in, bring_to_justice)
 from . import plugins_philippa  # noqa: E402,F401  (registers philippa: owlform, chain_lightning, blinding_dust, do_my_bidding, spymaster_ruse)
+from . import plugins_john  # noqa: E402,F401  (registers john:summon_track and the test john:paths)

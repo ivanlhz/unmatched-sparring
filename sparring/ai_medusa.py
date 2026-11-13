@@ -70,7 +70,7 @@ from .guard import guard_dest, hero_shielded, path_steps
 from .effects.model import walk_ops
 from .effects.modifiers import boost_limit, card_effects, defers_defeat, is_uncancelable
 from .ai_profile import FINISHER_BOOSTS, STYLE_HIT_AND_RUN, derive_style
-from . import ai_philippa, ai_rosie, ai_sinbad, ai_wyatt
+from . import ai_philippa, ai_rosie, ai_sinbad, ai_wyatt, tracks
 from .ai_sinbad import own_value as sinbad_own_value, voyage_count, voyage_extra
 from .state import ANUNG, EXHAUST_DAMAGE, Fighter, Game
 
@@ -737,10 +737,7 @@ class MedusaAI(Controller):
         target = self.pick_ability_target(game)
         if target:
             game.use_ability(self.me, GAZE, target)
-        while game.actions_left > 0 and game.winner is None and game.hero(self.me).alive:
-            game.prune_free_attacks(self.me)                 # a free action to attack nobody can use is lost, or the loop would never end
-            if game.actions_left <= 0:
-                break
+        while tracks.turn_goes_on(game) and game.winner is None and game.hero(self.me).alive:
             self.execute(game, self.plan(game))
 
     # ---------- planning ----------
@@ -763,9 +760,9 @@ class MedusaAI(Controller):
             if g1.winner is not None:
                 second = self.outcome(g1)
             else:       # what the first action did with the hero's blow goes on counting for the second one
-                then = self.candidates(g1, model, walked_out=blow and self.walks_out(game, a1),
+                rest = self.candidates(g1, model, walked_out=blow and self.walks_out(game, a1),
                                        struck=a1.kind == "attack" and a1.fid == game.hero(self.me).fid)
-                second = then[0].total if then else 0.0         # a free action to attack that nothing can use
+                second = rest[0].total if rest else 0.0      # nothing: all that is left is a free action to attack and no attack is possible
             total = a1.value + second
             if best_v is None or total > best_v + 1e-9:
                 best, best_v = a1, total
@@ -860,8 +857,8 @@ class MedusaAI(Controller):
         without the cover of its sidekicks (`position_value`): hiding behind them is not worth giving the blow up. `walked_out`
         and `struck` say what an earlier action of this same turn, only played in the plan, did: it already walked out (no act
         gets the cover) or the hero already struck (every act does)."""
-        if game.paid_actions <= 0:          # only free actions to attack are left (Wyatt Earp): nothing else may be played
-            acts = [a for a in self.attack_acts(game, model) if game.free_attack_for(a.target) is not None]
+        if tracks.attack_only(game):                 # only free actions to attack are left (John Henry, Wyatt Earp): nothing else may be played
+            acts = [a for a in self.attack_acts(game, model) if game.paid_actions > 0 or game.free_attack_for(a.target) is not None or not game.free_attacks]
         else:
             acts = self.attack_acts(game, model) + self.scheme_acts(game, model) + self.maneuver_acts(game, model)
         blow = not struck and self.holds_a_blow(game, acts)

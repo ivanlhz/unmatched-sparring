@@ -1,0 +1,40 @@
+{
+ "slug": "raptors",
+ "bag": {
+  "guid": "230e58",
+  "inner": "9f42d9"
+ },
+ "deck": {
+  "guid": "ab0add",
+  "card_ids": [
+   17600,
+   17629
+  ],
+  "character_card_id": 313,
+  "identity": [
+   {
+    "face": "https://steamusercontent-a.akamaihd.net/ugc/18176058414874858560/07700F1DA5396B893514419EDCE426675FA1EE77/",
+    "back": "https://steamusercontent-a.akamaihd.net/ugc/9876678183404919717/AF2D0E068D286E1031955ECAD925FB03BA5131EC/"
+   }
+  ]
+ },
+ "fighters": {
+  "blue": {
+   "piece": "1a2945",
+   "dial": "950174",
+   "dial_max": 7
+  },
+  "delta": {
+   "piece": "4573de",
+   "dial": "c93049",
+   "dial_max": 7
+  },
+  "echo": {
+   "piece": "b5c3d5",
+   "dial": "deff03",
+   "dial_max": 7
+  }
+ },
+ "tokens": {},
+ "counter_dials": {}
+}
