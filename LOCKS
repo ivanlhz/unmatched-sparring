@@ -33,3 +33,5 @@ docs/effects-dsl.md  wyatt  Wyatt Earp hero (engine, AI, i18n, docs, shared list
 docs/live-checklist.md  wyatt  Wyatt Earp hero (engine, AI, i18n, docs, shared lists)  15:10Z
 docs/card-identity.md  wyatt  Wyatt Earp hero (engine, AI, i18n, docs, shared lists)  15:10Z
 README.md  wyatt  Wyatt Earp hero (engine, AI, i18n, docs, shared lists)  15:10Z
+tests/test_piece_identity.py  raptors  known GUID collisions  15:10Z
+tests/test_card_identity.py  raptors  SHARING  15:10Z
