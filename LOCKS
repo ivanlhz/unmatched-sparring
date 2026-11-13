@@ -6,3 +6,30 @@
 #            Push rejected -> git pull --rebase; if the path is now someone else's, wait and retry; else push again.
 #   release: in the SAME push as your finished work, delete your line (commit "unlock: <path> <agent>").
 #   Never edit a path locked by another agent. Never remove another agent's line.
+data/heroes/effects/schema.json  wyatt  Wyatt Earp hero (engine, AI, i18n, docs, shared lists)  15:10Z
+data/i18n/en.json  wyatt  Wyatt Earp hero (engine, AI, i18n, docs, shared lists)  15:10Z
+data/i18n/es.json  wyatt  Wyatt Earp hero (engine, AI, i18n, docs, shared lists)  15:10Z
+sparring/ai_effects.py  wyatt  Wyatt Earp hero (engine, AI, i18n, docs, shared lists)  15:10Z
+sparring/ai_medusa.py  wyatt  Wyatt Earp hero (engine, AI, i18n, docs, shared lists)  15:10Z
+sparring/effects/choose.py  wyatt  Wyatt Earp hero (engine, AI, i18n, docs, shared lists)  15:10Z
+sparring/effects/narrate.py  wyatt  Wyatt Earp hero (engine, AI, i18n, docs, shared lists)  15:10Z
+sparring/effects/ongoing.py  wyatt  Wyatt Earp hero (engine, AI, i18n, docs, shared lists)  15:10Z
+sparring/effects/ops_core.py  wyatt  Wyatt Earp hero (engine, AI, i18n, docs, shared lists)  15:10Z
+sparring/effects/select.py  wyatt  Wyatt Earp hero (engine, AI, i18n, docs, shared lists)  15:10Z
+sparring/effects/state.py  wyatt  Wyatt Earp hero (engine, AI, i18n, docs, shared lists)  15:10Z
+sparring/hellboy_script.py  wyatt  Wyatt Earp hero (engine, AI, i18n, docs, shared lists)  15:10Z
+sparring/persist.py  wyatt  Wyatt Earp hero (engine, AI, i18n, docs, shared lists)  15:10Z
+sparring/search/adapter.py  wyatt  Wyatt Earp hero (engine, AI, i18n, docs, shared lists)  15:10Z
+sparring/search/controller.py  wyatt  Wyatt Earp hero (engine, AI, i18n, docs, shared lists)  15:10Z
+sparring/session.py  wyatt  Wyatt Earp hero (engine, AI, i18n, docs, shared lists)  15:10Z
+sparring/session_choices.py  wyatt  Wyatt Earp hero (engine, AI, i18n, docs, shared lists)  15:10Z
+sparring/state.py  wyatt  Wyatt Earp hero (engine, AI, i18n, docs, shared lists)  15:10Z
+sparring/tracks.py  wyatt  Wyatt Earp hero (engine, AI, i18n, docs, shared lists)  15:10Z
+tests/test_d1_bot_cards.py  wyatt  Wyatt Earp hero (engine, AI, i18n, docs, shared lists)  15:10Z
+tests/test_effects_schema.py  wyatt  Wyatt Earp hero (engine, AI, i18n, docs, shared lists)  15:10Z
+tests/test_heroes.py  wyatt  Wyatt Earp hero (engine, AI, i18n, docs, shared lists)  15:10Z
+features.json  wyatt  Wyatt Earp hero (engine, AI, i18n, docs, shared lists)  15:10Z
+docs/effects-dsl.md  wyatt  Wyatt Earp hero (engine, AI, i18n, docs, shared lists)  15:10Z
+docs/live-checklist.md  wyatt  Wyatt Earp hero (engine, AI, i18n, docs, shared lists)  15:10Z
+docs/card-identity.md  wyatt  Wyatt Earp hero (engine, AI, i18n, docs, shared lists)  15:10Z
+README.md  wyatt  Wyatt Earp hero (engine, AI, i18n, docs, shared lists)  15:10Z
