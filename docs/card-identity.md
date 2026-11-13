@@ -74,6 +74,8 @@ Chupacabra (Battle of Legends, Volume Three, character card 360) is another deck
 
 Wyatt Earp (Stars and Stripes, character card 401 on sheet 4, slug `wyatt-earp`) is the first deck of **sheet 187**: CardIDs 18700-18729, a range no other deck uses, so for him a bare CardID already names his card. He is told apart from the rest by image and owner like every hero (`tests/test_hero_wyatt_earp_data.py`: ranges disjoint from the 22 other heroes' and images distinct in both seats, `tests/test_wyatt_earp_matrix.py`); he is not in `SHARING`.
 
+George Washington (Stars and Stripes, character card 404 on sheet 4, slug `george-washington`) is not a sheet-176 deck but his sheet 187 (CardIDs 18700-18729, 8x4) is shared too (Wyatt Earp, John Henry): told apart by deck image and owner, never by a bare CardID (`tests/test_hero_george_washington_data.py`, `tests/test_card_identity.py` `SHEET_187`, `tests/test_george_washington_matrix.py`). His life dial `166320` is Bullseye's GUID as well: the fourth dial collision, resolved by name like Tomoe Gozen's (see "Piece identity" below; `tests/test_piece_identity.py`). The three Culper Spies are Custom_Token ("Tile" in real TTS) and the Ruse stack `1c7d18` is a Custom_Token_Stack.
+
 ## Houdini needs none of this
 
 Houdini's deck is sheet 178 (CardIDs 17800-17829) with the character card on a sheet of its own (177, CardID 17700); no other hero of

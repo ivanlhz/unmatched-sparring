@@ -3,7 +3,7 @@ and a human who attacks every turn) and headless games with the heuristic and th
 
 The same approach as tests/test_eredin_matrix.py (docs/card-identity.md): the human is a scripted player at the panel, the bot plays with its
 real AI, and both heroes start worn down (HERO_HP) so a game ends in a few dozen steps. Washington's deck is sheet 187 (CardIDs 18700-18729):
-nobody else's, so the matrix proves the other direction too, that the rest of the roster never confuses its cards with his. His life dial has
+shared with Wyatt Earp's and John Henry's decks: the matrix proves the decks are told apart by image and owner. His life dial has
 Bullseye's GUID (166320): the pair is the one that exercises the tell-apart-by-name of the two dials in both seats. His three Spies (tokens
 named Anna Strong, Pompey Lamb and Austin Roe), ESPIONAGE (the ruse token the bot spends, the question the human answers) and the schemes run
 in these games, on the bot's side and on the table player's."""

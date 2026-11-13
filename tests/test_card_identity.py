@@ -11,13 +11,15 @@ from sparring.effects.select import find_card
 from sparring.heroes import load_hero
 from sparring.state import Game
 
-SHARING = ["medusa", "leonardo", "donatello", "michelangelo", "raphael", "doctor-strange", "bigfoot", "daredevil", "luke-cage", "bullseye", "golden-bat", "jill-trent", "she-hulk", "tomoe-gozen", "yennefer-triss", "sinbad", "chupacabra", "eredin", "ciri", "philippa", "raptors"]
+SHARING = ["medusa", "leonardo", "donatello", "michelangelo", "raphael", "doctor-strange", "bigfoot", "daredevil", "luke-cage", "bullseye", "golden-bat", "jill-trent", "she-hulk", "tomoe-gozen", "yennefer-triss", "sinbad", "chupacabra", "eredin", "ciri", "philippa", "raptors", "george-washington"]
+SHEET_187 = ["george-washington"]      # CustomDeck key 187 is shared too (Wyatt Earp, George Washington, John Henry): 18700-18729
 
 
 def test_the_five_decks_really_share_one_card_id_range():
     ranges = {slug: (min(c.card_id for c in load_hero(slug).deck()), max(c.card_id for c in load_hero(slug).deck()))
               for slug in SHARING}
-    assert {slug: r for slug, r in ranges.items() if slug != "daredevil"} == {slug: (17600, 17629) for slug in SHARING if slug != "daredevil"}
+    assert {slug: r for slug, r in ranges.items() if slug != "daredevil"} == {slug: (18700, 18729) if slug in SHEET_187 else (17600, 17629)
+                                                                             for slug in SHARING if slug != "daredevil"}
     assert ranges["daredevil"] == (17600, 17621)      # 22 playing cards: his deck object holds 23 with the character card
 
 

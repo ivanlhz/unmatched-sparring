@@ -1,6 +1,6 @@
 """George Washington's data: overlay, generated HeroDef, structured effects (DSL v1) and table data agree with each other and with the real cards
 of sheet 187 of the tournament save (read tile by tile from the image on 2026-11-13, and checked against unmatched-memory's transcription of
-Ivan's screenshots: no difference), and his deck is told apart from every other hero's by CardID range and image. No engine, no TTS, no sockets."""
+Ivan's screenshots: no difference), and his deck is told apart from every other hero's by image (CardID sheet 187 is shared with Wyatt Earp and John Henry). No engine, no TTS, no sockets."""
 import json
 
 import pytest
@@ -176,10 +176,10 @@ def test_table_data_names_the_pieces_the_dial_the_deck_range_and_its_own_images(
 # ---------------------------------------------------------------- his own CardID range
 
 @pytest.mark.parametrize("other", OTHERS)
-def test_washington_shares_neither_card_ids_nor_images_with_any_other_deck(other):
+def test_washington_shares_no_image_with_any_other_deck_and_card_ids_only_with_sheet_187(other):
     washington, theirs = load_hero_table("george-washington"), load_hero_table(other)
     assert washington.card_ids == (18700, 18729)
-    assert theirs.card_ids[1] < 18700 or theirs.card_ids[0] > 18729
+    assert (theirs.card_ids[1] < 18700 or theirs.card_ids[0] > 18729) or theirs.card_ids == (18700, 18729)      # sheet 187 is shared (Wyatt Earp, John Henry): told apart by image
     assert not set(washington.identity) & set(theirs.identity)
     for bot, human in (("george-washington", other), (other, "george-washington")):
         defaults = table_defaults(bot, human)

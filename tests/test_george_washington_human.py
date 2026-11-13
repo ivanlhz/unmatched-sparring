@@ -3,7 +3,7 @@ the bot takes off by discarding a random card, the supply said in chat), the hum
 The Ring) and the bot's Washington (a ruse token laid on the table, the human asked on the panel whether to discard a random card to remove it,
 the token taken away when the combat ends). The bot's side of the same cards is in tests/test_george_washington_effects.py.
 
-His deck is sheet 187 and nobody else's (CardIDs 18700-18729). The three Culper Spies are Custom_Token in the save, which real TTS reports as
+His deck is sheet 187, shared with other decks (CardIDs 18700-18729, told apart by image). The three Culper Spies are Custom_Token in the save, which real TTS reports as
 "Tile": nothing that reads or moves a piece filters on the type."""
 from __future__ import annotations
 
