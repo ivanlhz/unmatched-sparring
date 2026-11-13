@@ -17,8 +17,6 @@ sparring/search/adapter.py  raptors  swarm policy, attack-last-action, team zone
 sparring/ai_hazards.py  raptors  per-fighter zone damage for a team  14:12Z
 sparring/effects/events.py  john-henry  John Henry engine pieces (board tracks, if_won cancel, token Lua)  14:12Z
 sparring/session_moves.py  john-henry  John Henry engine pieces (board tracks, if_won cancel, token Lua)  14:12Z
-sparring/session.py  rosie  Rosie: upgrade announcements (session_rosie.track)  14:14Z
-sparring/persist.py  rosie  Rosie: ranged sync on load  14:14Z
 sparring/effects/state.py  john-henry  John Henry engine pieces, step B (tracks state, SpaceSel track, over_tracks, schema, hero lists)  14:20Z
 sparring/effects/select.py  john-henry  John Henry engine pieces, step B (tracks state, SpaceSel track, over_tracks, schema, hero lists)  14:20Z
 sparring/effects/ops_core.py  john-henry  John Henry engine pieces, step B (tracks state, SpaceSel track, over_tracks, schema, hero lists)  14:20Z
@@ -34,4 +32,3 @@ sparring/hero_detect.py  john-henry  John Henry engine pieces, step B (tracks st
 sparring/effects/table.py  john-henry  John Henry engine pieces, step B (tracks state, SpaceSel track, over_tracks, schema, hero lists)  14:20Z
 sparring/ai_effects.py  john-henry  John Henry engine pieces, step B (tracks state, SpaceSel track, over_tracks, schema, hero lists)  14:20Z
 config/table.json  john-henry  John Henry engine pieces, step B (tracks state, SpaceSel track, over_tracks, schema, hero lists)  14:20Z
-sparring/ai_medusa.py  rosie  Rosie hero engine pieces (upgrades, plugins, AI hooks, i18n, hero lists)  14:20Z

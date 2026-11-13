@@ -70,8 +70,8 @@ from .guard import guard_dest, hero_shielded, path_steps
 from .effects.model import walk_ops
 from .effects.modifiers import boost_limit, card_effects, defers_defeat, is_uncancelable
 from .ai_profile import FINISHER_BOOSTS, STYLE_HIT_AND_RUN, derive_style
-from . import ai_philippa, ai_sinbad
-from .ai_sinbad import own_value, voyage_count, voyage_extra
+from . import ai_philippa, ai_rosie, ai_sinbad
+from .ai_sinbad import own_value as sinbad_own_value, voyage_count, voyage_extra
 from .state import ANUNG, EXHAUST_DAMAGE, Fighter, Game
 
 GAZE = "medusa_gaze"      # Medusa's start-of-turn ability trigger (data/heroes/effects/medusa.json)
@@ -234,6 +234,12 @@ STRIKE_FIRSTS = 3         # hit and run: placements next to a rival the planner 
 POKE_FLOOR = {"Flourish": 1.5, "An Illusion of My Own Design": 2.0}   # hit and run: these attacks are worth a small risk at a lower floor than OPPORTUNITY_FLOOR (Illusion's is higher: the rival gets a free boost, and it passes for a Big Reveal)
 POKE_SHARE = 0.5          # hit and run: a poke pays this share of the opportunity bonus per point (it is a nibble, not the surprise)
 CHIP_DISCOUNT = 0.25       # a BOOSTED WITH hit that does not kill is worth this much less (at most) the healthier the target is: early chip damage
+
+
+def own_value(game, fighter, card) -> float | None:
+    """The value a card will have when its DURING is known now, by name: Sinbad's VOYAGE cards and Momentous Shift, Rosie's Full Metal."""
+    value = sinbad_own_value(game, fighter, card)
+    return value if value is not None else ai_rosie.own_value(game, fighter, card)
 
 
 def cancels_effects(card) -> bool:
@@ -1044,6 +1050,7 @@ class MedusaAI(Controller):
         value += always + on_win * p_win
         value += ciri_ai.after_value(game, self.me, c, p_win, w, CARD_VALUE)
         value += ai_sinbad.after_value(game, self.me, c, p_win, w, CARD_VALUE, W_MEDUSA_HP, self.room_after_play(game), t.hp)
+        value += ai_rosie.after_value(game, self.me, c, p_win, w, CARD_VALUE, W_MEDUSA_HP, t.hp)
         value += ai_philippa.after_value(game, self.me, c, p_win, w, CARD_VALUE)
         if ai_philippa.ends_turn(c):     # Spellbreaker's AFTER ends the turn: the actions still to spend are lost
             value -= ACTION_VALUE * max(0, game.actions_left - 1)
@@ -1835,6 +1842,7 @@ class MedusaAI(Controller):
         v += always + on_win * p_block
         if attacker is not None:
             v += ai_sinbad.after_value(game, self.me, c, p_block, weight(attacker), CARD_VALUE, W_MEDUSA_HP, None, attacker.hp)
+            v += ai_rosie.after_value(game, self.me, c, p_block, weight(attacker), CARD_VALUE, W_MEDUSA_HP, attacker.hp)
             v += ai_philippa.after_value(game, self.me, c, p_block, weight(attacker), CARD_VALUE)
         if c.title == SKIN and attacker is not None:
             v += SKIN_RETURN * weight(attacker) * exp         # the damage it took goes back to the attacker
