@@ -6,27 +6,8 @@
 #            Push rejected -> git pull --rebase; if the path is now someone else's, wait and retry; else push again.
 #   release: in the SAME push as your finished work, delete your line (commit "unlock: <path> <agent>").
 #   Never edit a path locked by another agent. Never remove another agent's line.
-sparring/effects/select.py  philippa  Philippa engine pieces (fill-hand amount, hero_move rule, plugins, AI, human play mode)  13:58Z
-sparring/effects/ops_core.py  philippa  Philippa engine pieces (fill-hand amount, hero_move rule, plugins, AI, human play mode)  13:58Z
-sparring/effects/ongoing.py  philippa  Philippa engine pieces (fill-hand amount, hero_move rule, plugins, AI, human play mode)  13:58Z
-sparring/effects/state.py  philippa  Philippa engine pieces (fill-hand amount, hero_move rule, plugins, AI, human play mode)  13:58Z
-sparring/enraged.py  philippa  Philippa engine pieces (fill-hand amount, hero_move rule, plugins, AI, human play mode)  13:58Z
-data/heroes/effects/schema.json  philippa  Philippa engine pieces (fill-hand amount, hero_move rule, plugins, AI, human play mode)  13:58Z
-tools/validate_effects.py  philippa  Philippa engine pieces (fill-hand amount, hero_move rule, plugins, AI, human play mode)  13:58Z
-sparring/ai_effects.py  philippa  Philippa engine pieces (fill-hand amount, hero_move rule, plugins, AI, human play mode)  13:58Z
-sparring/session_rage.py  philippa  Philippa engine pieces (fill-hand amount, hero_move rule, plugins, AI, human play mode)  13:58Z
-data/i18n/en.json  philippa  Philippa engine pieces (fill-hand amount, hero_move rule, plugins, AI, human play mode)  13:58Z
-data/i18n/es.json  philippa  Philippa engine pieces (fill-hand amount, hero_move rule, plugins, AI, human play mode)  13:58Z
 sparring/heroes.py  raptors  team heroes (SidekickDef.hero) + pack bonus  14:00Z
 sparring/state.py  raptors  team loss rule, hero() prefers alive, pack bonus  14:00Z
-sparring/effects/choose.py  philippa  Philippa hero (AI hooks, human flows, docs, shared tests)  14:07Z
-sparring/ai_medusa.py  philippa  Philippa hero (AI hooks, human flows, docs, shared tests)  14:07Z
-sparring/session_pile.py  philippa  Philippa hero (AI hooks, human flows, docs, shared tests)  14:07Z
-sparring/session_choices.py  philippa  Philippa hero (AI hooks, human flows, docs, shared tests)  14:07Z
-tests/test_card_identity.py  philippa  Philippa hero (AI hooks, human flows, docs, shared tests)  14:07Z
-tests/test_heroes.py  philippa  Philippa hero (AI hooks, human flows, docs, shared tests)  14:07Z
-tests/test_d1_bot_cards.py  philippa  Philippa hero (AI hooks, human flows, docs, shared tests)  14:07Z
-tests/test_effects_schema.py  philippa  Philippa hero (AI hooks, human flows, docs, shared tests)  14:07Z
 features.json  philippa  Philippa hero (AI hooks, human flows, docs, shared tests)  14:07Z
 docs/effects-dsl.md  philippa  Philippa hero (AI hooks, human flows, docs, shared tests)  14:07Z
 docs/card-identity.md  philippa  Philippa hero (AI hooks, human flows, docs, shared tests)  14:07Z
@@ -34,3 +15,12 @@ docs/live-checklist.md  philippa  Philippa hero (AI hooks, human flows, docs, sh
 README.md  philippa  Philippa hero (AI hooks, human flows, docs, shared tests)  14:07Z
 sparring/search/adapter.py  raptors  swarm policy, attack-last-action, team zone exposure  14:12Z
 sparring/ai_hazards.py  raptors  per-fighter zone damage for a team  14:12Z
+sparring/board.py  john-henry  John Henry engine pieces (board tracks, if_won cancel, token Lua)  14:12Z
+sparring/combat_flow.py  john-henry  John Henry engine pieces (board tracks, if_won cancel, token Lua)  14:12Z
+sparring/effects/ops_combat.py  john-henry  John Henry engine pieces (board tracks, if_won cancel, token Lua)  14:12Z
+sparring/effects/events.py  john-henry  John Henry engine pieces (board tracks, if_won cancel, token Lua)  14:12Z
+sparring/session_moves.py  john-henry  John Henry engine pieces (board tracks, if_won cancel, token Lua)  14:12Z
+sparring/tts/lua.py  john-henry  John Henry engine pieces (board tracks, if_won cancel, token Lua)  14:12Z
+sparring/tts/hero_table.py  john-henry  John Henry engine pieces (board tracks, if_won cancel, token Lua)  14:12Z
+sparring/session.py  rosie  Rosie: upgrade announcements (session_rosie.track)  14:14Z
+sparring/persist.py  rosie  Rosie: ranged sync on load  14:14Z

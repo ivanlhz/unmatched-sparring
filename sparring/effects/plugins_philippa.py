@@ -141,8 +141,9 @@ def _do_my_bidding(run, game, spec):
     if len(options) < 2:
         return                                  # only the returned card: it is played again
     info = {"fighter": attacker.fid, "target": flow.tgt.fid, "old": old.card_id, "atk_value": flow.ctx.atk_value, "def_value": flow.ctx.def_value}
-    got = run.ask(game, "cards", owner, options, 1, 1, "choose the card they play", zone="hand", purpose="bidding", of=rival, bidding=info)
-    if got[0] == old.card_id:
+    lo = 0 if table.physical(game, owner) else 1       # the table player sees the bot's hand laid out: the returned card is on its combat spot, so "the same card" is no pick at all
+    got = run.ask(game, "cards", owner, options, lo, 1, "choose the card they play", zone="hand", purpose="bidding", of=rival, bidding=info)
+    if not got or got[0] == old.card_id:
         return
     new = game.card_of(got[0], rival)
     if table.physical(game, rival):

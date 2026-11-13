@@ -46,6 +46,7 @@ from .search.adapter import card_worth
 from .state import Game, PlayerState, RuleError
 
 GIVE_UP_PURPOSES = ("discard", "return", "reveal")      # cards the chooser parts with: the least useful go
+DUST_MARGIN = 0.3        # Blinding dust: the net gain (the blow against the card's keep value) a discard must beat
 
 
 def predict_value(game: Game, me: int) -> int:
@@ -368,6 +369,14 @@ class EffectAI:
             return self._card_to_throw(game, req)
         if purpose == "lodge":
             return self._lodge_card(game, req)
+        if purpose == "dust":
+            return self._dust_card(game, req)
+        if purpose == "bidding":
+            return self._bidding_card(game, req)
+        if purpose == "ruse":
+            return self._ruse_discards(game, req)
+        if purpose == "ruse_reveal":
+            return self._ruse_reveal(game, req)
         if zone == "hand" and of != me:                    # C4: what a look showed, the rest by position
             return ControllerChooser._from_rival_hand(game, req, of)
         if zone == "hand":
@@ -408,6 +417,46 @@ class EffectAI:
         afford = [c for c in cards if c.boost * 2 < hp]
         best = max(afford, key=lambda c: (c.boost, -c.card_id)) if afford else min(cards, key=lambda c: (c.boost, c.card_id))
         return [best.card_id]
+
+    def _dust_card(self, game: Game, req: ChoiceRequest) -> list:
+        """Blinding dust: the card to discard for damage equal to ITS BOOST, or none. Each card is weighed as the blow it deals the opposing
+        fighter against what it is worth in the hand (`keep_value`); the best net gain wins when it beats DUST_MARGIN, else the bot keeps
+        its hand. Only the bot's own hand is read."""
+        me, hand = req.player, game.players[req.player].hand
+        foe = game.fighters.get(req.extra.get("foe"))
+        if foe is None:
+            return []
+        by_id = {c.card_id: c for c in hand}
+        scored = [(self.blow_value(foe, c.boost, game) - keep_value(c, hand), -c.card_id, c.card_id) for c in (by_id[i] for i in req.options if i in by_id)]
+        best = max(scored, default=None)
+        return [best[2]] if best is not None and best[0] > DUST_MARGIN else []
+
+    def _bidding_card(self, game: Game, req: ChoiceRequest) -> list:
+        """Do my bidding: the card the rival is made to play, among the cards of their hand the bot has seen (the returned one included).
+        The weakest in value goes first, then in worth: the bot wants the rival's blow to be the least it can be."""
+        rival = req.extra.get("of", 1 - req.player)
+        cards = {c.card_id: c for c in game.players[rival].full_set}
+        return [min(req.options, key=lambda i: ((cards[i].value or 0), card_worth(cards[i]), i))]
+
+    def _ruse_discards(self, game: Game, req: ChoiceRequest) -> list:
+        """Spymaster's ruse: of the cards the rival revealed, the ones to discard are the two it would miss most (`card_worth`)."""
+        rival = req.extra.get("of", 1 - req.player)
+        cards = {c.card_id: c for c in game.players[rival].full_set}
+        ranked = sorted(req.options, key=lambda i: (-card_worth(cards[i]), i))
+        return ranked[:req.max]
+
+    def _ruse_reveal(self, game: Game, req: ChoiceRequest) -> list:
+        """Spymaster's ruse, the bot as the opponent: it reveals the cards it would miss least, because the rival discards the two best
+        of what is shown (`keep_value`, the least valuable first)."""
+        hand = game.players[req.player].hand
+        by_id = {c.card_id: c for c in hand}
+        ranked = sorted((i for i in req.options if i in by_id), key=lambda i: (keep_value(by_id[i], hand), i))
+        return ranked[:req.max]
+
+    def _zone(self, game: Game, req: ChoiceRequest) -> int:
+        """Chain lightning: the zone whose opposing fighters cost the rival most hit points (the lowest option on a tie)."""
+        best = lambda k: sum(self.blow_value(game.fighters[fid], 1, game) for fid in req.extra["hits"][k] if fid in game.fighters)
+        return max(req.options, key=lambda k: (best(k), -k))
 
     def _swap_attack(self, game: Game, req: ChoiceRequest) -> list:
         """Sleight Of Hand: keep the card or return it and play another one from the hand. The rival's card is face up and its total
@@ -532,6 +581,8 @@ class EffectAI:
             return [self._future_peek(game, req)]
         if req.extra.get("tag") == "gadget":
             return [self._gadget(game, req)]
+        if req.extra.get("tag") == "zone":
+            return [self._zone(game, req)]
         found = self._locate(game, req)
         if nested or found is None:
             return None
