@@ -7,3 +7,4 @@
 #   release: in the SAME push as your finished work, delete your line (commit "unlock: <path> <agent>").
 #   Never edit a path locked by another agent. Never remove another agent's line.
 sparring/effects/state.py  rosie  review fix: Merlin vs _sync_move  15:47Z
+docs/live-checklist.md  rosie  D-Day free action wording  15:49Z
