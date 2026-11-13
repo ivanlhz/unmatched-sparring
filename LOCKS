@@ -40,3 +40,4 @@ sparring/hellboy_script.py  john-henry  John Henry attack-only action in the tur
 sparring/search/controller.py  john-henry  John Henry attack-only action in the turn loops  14:38Z
 sparring/session_pieces.py  john-henry  John Henry attack-only action in the turn loops  14:38Z
 tests/test_tmnt_matrix.py  raptors  AttackDriver re-reads the hero each turn (a team hero may fall without ending the game)  14:39Z
+sparring/session_bot_effects.py  john-henry  John Henry: track intent is a direct op  14:43Z
