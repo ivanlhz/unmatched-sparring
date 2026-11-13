@@ -9,3 +9,7 @@
 sparring/session_hidden.py  philippa  human Spymaster ruse vs bot: row of 4 on the table  16:33Z
 data/i18n/en.json  philippa  human Spymaster ruse vs bot: row of 4 on the table  16:33Z
 data/i18n/es.json  philippa  human Spymaster ruse vs bot: row of 4 on the table  16:33Z
+sparring/effects/events.py  washington  George Washington hero  16:34Z
+docs/effects-dsl.md  washington  George Washington hero  16:34Z
+docs/live-checklist.md  washington  George Washington hero  16:34Z
+features.json  washington  George Washington hero  16:34Z
