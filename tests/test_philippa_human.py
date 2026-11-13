@@ -173,21 +173,72 @@ def awaiting(session):
     return session.effect_run.awaiting if session.effect_run is not None else session._paused()[2].awaiting
 
 
-@rigged(TRAINING, "Service Pistol", "Right Hand Of Doom", "Excalibur", "Glimpse Of Hell", "Second Shot")
-def test_the_humans_ruse_makes_the_bot_reveal_four_the_human_picks_two_and_the_bot_draws_two(rig):
+def ruse_start(rig):
+    """The human plays Spymaster's ruse against the bot, which holds six cards: returns (request, the four revealed ids)."""
     session, table, game, fake, cfg = rig
     human_hand(table, game, "Spymaster's ruse", "Owlform")
-    hand0, pile0 = len(game.players[0].hand), len(table.bot_discard)
-    msgs = human_scheme(session, table, game, "Spymaster's ruse")
+    human_scheme(session, table, game, "Spymaster's ruse")
     req = awaiting(session)
-    assert req.kind == "cards" and req.extra["purpose"] == "ruse" and len(req.options) == 4 and (req.min, req.max) == (2, 2), msgs
-    shown = {c.card_id: c.title for c in game.players[0].full_set if c.card_id in req.options}
-    assert said(session.messages, "Elige cartas (2)"), session.messages[-5:]            # the chat names the four the bot revealed
-    first, second = list(shown.values())[:2]
-    pick_card(session, table, first)
-    pick_card(session, table, second)                                                    # the second pick reaches the maximum: it answers
-    assert len(game.players[0].hand) == hand0 - 2 + 2
+    return req, list(req.options)
+
+
+@rigged(TRAINING, "Service Pistol", "Right Hand Of Doom", "Excalibur", "Glimpse Of Hell", "Second Shot")
+def test_the_humans_ruse_lays_the_bots_four_cards_in_the_row_and_the_human_puts_two_in_its_pile(rig):
+    session, table, game, fake, cfg = rig
+    hand0, pile0 = len(game.players[0].hand), len(table.bot_discard)
+    req, shown = ruse_start(rig)
+    assert req.kind == "cards" and req.extra["purpose"] == "ruse" and req.extra["ruse_table"] and len(shown) == 4 and (req.min, req.max) == (2, 2)
+    assert sorted(table.look_row) == sorted(shown) and len(table.bot_hand) == hand0 - 4, "the bot lays exactly the four it reveals, the rest stays in its hand"
+    assert said(session.messages, "Lleva 2 de ellas a su descarte"), session.messages[-4:]
+    take = shown[:2]
+    for i in take:                                                  # the human moves two row cards to the bot's discard pile
+        table.look_row.remove(i)
+        table.bot_discard.append(i)
+    done(session, table)
+    assert session.effect_run is None or session.effect_run.awaiting is None
+    discarded = {c.card_id for c in game.players[0].discard}
+    assert set(take) <= discarded and len(game.players[0].hand) == hand0 - 2 + 2
+    assert not table.look_row and set(take) <= set(table.bot_discard) and session.look is None
+    assert said(session.messages, "El bot descarta") and said(session.messages, "vuelven a la mano del bot")
     assert len(table.bot_discard) == pile0 + 2
+
+
+@rigged(TRAINING, "Service Pistol", "Right Hand Of Doom", "Excalibur", "Glimpse Of Hell", "Second Shot")
+def test_the_ruse_refuses_a_card_that_was_not_revealed_and_a_wrong_count(rig):
+    session, table, game, fake, cfg = rig
+    req, shown = ruse_start(rig)
+    hidden_one = next(i for i in table.bot_hand)                    # a card the bot kept in its hand
+    table.bot_hand.remove(hidden_one)
+    table.bot_discard.append(hidden_one)
+    table.look_row.remove(shown[0])
+    table.bot_discard.append(shown[0])
+    msgs = done(session, table)
+    assert said(msgs, "no es una de las cartas reveladas"), msgs
+    assert game.players[0].discard == [] or hidden_one not in {c.card_id for c in game.players[0].discard}
+    table.bot_discard.remove(hidden_one)
+    table.bot_hand.append(hidden_one)
+    msgs = done(session, table)
+    assert said(msgs, "Hay 1 de las 2 cartas"), msgs
+    assert session.effect_run.awaiting is not None
+
+
+@rigged(TRAINING, "Service Pistol", "Right Hand Of Doom", "Excalibur", "Glimpse Of Hell", "Second Shot")
+def test_the_ruse_survives_a_resume_in_the_middle_of_the_row(rig):
+    from test_d3_table_effects import twin_session
+    session, table, game, fake, cfg = rig
+    hand0 = len(game.players[0].hand)
+    req, shown = ruse_start(rig)
+    twin = twin_session(session, cfg, session.to_dict())
+    again = awaiting(twin)
+    assert again.extra["ruse_table"] and sorted(again.options) == sorted(shown) and twin.look is not None
+    take = shown[2:]
+    for i in take:
+        table.look_row.remove(i)
+        table.bot_discard.append(i)
+    click(twin, table, Event.CHOICE, {"i": 1})
+    g = twin.game
+    assert {c.card_id for c in g.players[0].discard} >= set(take) and len(g.players[0].hand) == hand0 - 2 + 2
+    assert twin.look is None and not table.look_row
 
 
 @rigged("Spymaster's ruse", "Owlform", bot="philippa", human="hellboy")

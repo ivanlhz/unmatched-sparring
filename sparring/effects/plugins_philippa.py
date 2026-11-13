@@ -164,7 +164,9 @@ def _spymaster_ruse(run, game, spec):
     """"Choose an opponent. They reveal 4 cards from their hand. Choose 2 of those cards for them to discard. Then, they draw 2 cards."
     (The draw is the next op of the card.) The opponent chooses the 4 cards (all of them with fewer): the bot reveals its least valuable
     ones (`purpose: ruse_reveal`), the table player names theirs on the panel. The owner then chooses 2 of exactly those (`purpose: ruse`).
-    The bot's discards are the engine's; the human's are named in the chat for them to move (the intent `discard` with `cards`)."""
+    The bot's discards are the engine's; the human's are named in the chat for them to move (the intent `discard` with `cards`).
+    The human's own ruse against the bot (`ruse_table`): the bot lays the four cards face up in the row and the human puts two of them on
+    the bot's discard pile and presses Done (`session_hidden.ruse_done`); the rest goes back to the bot's hand."""
     owner = run.ctx.owner
     rival = 1 - owner
     st = game.players[rival]
@@ -177,8 +179,13 @@ def _spymaster_ruse(run, game, spec):
     cards = {c.card_id: c for c in st.full_set}
     shown = [cards[i] for i in revealed]
     k = min(RUSE_DISCARDED, len(shown))
+    at_table = table.physical(game, owner) and not physical     # the human's ruse against the bot: the bot lays the cards in the row, the human moves two to its pile
+    shown_row = run.flags.setdefault("ruse_row", [])
+    if at_table and game.hand_reader is not None and run._op_key not in shown_row:
+        shown_row.append(run._op_key)                            # once: the op runs again when the human answers
+        game.hand_reader(rival)                                  # the session puts the revealed cards on the table (`session_hidden.after_step`)
     chosen = run.ask(game, "cards", owner, [c.card_id for c in shown], k, k, "choose 2 cards to discard", zone="hand",
-                     purpose="ruse", of=rival)
+                     purpose="ruse", of=rival, **({"ruse_table": True} if at_table else {}))
     done = run.flags.setdefault("ruse_done", {}).setdefault(run._op_key, [])
     if "shown" not in done:
         done.append("shown")

@@ -72,6 +72,9 @@ def after_step(session) -> None:
     session.reveal_bot_hand = False
     if session.look is not None or session.game.winner is not None:
         return
+    if is_ruse(req := bot_hand_request(session)):
+        show_row(session, req)
+        return
     if (req := manual_request(session)) is not None:
         manual_start(session, req)
         return
@@ -85,10 +88,18 @@ def after_step(session) -> None:
 def manual_request(session) -> ChoiceRequest | None:
     """The pending pick when it is a discard from the bot's hand (a look-and-discard card)."""
     req = bot_hand_request(session)
-    return req if req is not None and req.extra.get("purpose") == "discard" else None
+    return req if req is not None and (req.extra.get("purpose") == "discard" or is_ruse(req)) else None
+
+
+def is_ruse(req: ChoiceRequest | None) -> bool:
+    """Spymaster's ruse played by the human: the bot laid the cards it reveals in the row and the human puts the ones to discard in its pile."""
+    return req is not None and bool(req.extra.get("ruse_table"))
 
 
 def manual_start(session, req: ChoiceRequest) -> None:
+    if is_ruse(req):
+        session.say(t("hidden.ruse.start", n=req.max), ChatKind.YOUR_TURN)
+        return
     session.say(t("hidden.start", cards=plural(req.max, "noun.card")), ChatKind.YOUR_TURN)
 
 
@@ -143,6 +154,9 @@ def manual_verdict(session) -> tuple[int | None, str | None]:
 
 def manual_done(session, paused) -> None:
     """Done: validate; only a valid table reaches the engine. A wrong one changes nothing and says why."""
+    if is_ruse(req := manual_request(session)):
+        ruse_done(session, paused, req)
+        return
     cid, why = manual_verdict(session)
     if cid is None:
         session.say(why, ChatKind.WARNING)
@@ -170,6 +184,49 @@ def manual_done(session, paused) -> None:
         session.say(t("hidden.keeps_wildfire", card=card.title), ChatKind.SCHEME)
 
 
+def ruse_verdict(session, req: ChoiceRequest) -> tuple[list[int] | None, str | None]:
+    """(CardIDs, None) when the table shows exactly the allowed discards (the cards the bot revealed that the human put in its pile),
+    else (None, what is wrong). The engine's pile is the baseline: the revealed cards have not been discarded in it yet."""
+    from collections import Counter
+    st = session.game.players[session.bot]
+    own = {c.card_id for c in st.full_set}
+    new_pile = Counter(r["id"] for r in session._rd_bot_discard()) - Counter(c.card_id for c in st.discard)
+    foreign = [i for i in new_pile if i not in own]
+    if foreign:
+        return None, t("hidden.foreign", titles=_titles(session, foreign, session.human))
+    wrong = [i for i in new_pile if i not in req.options]
+    if wrong:
+        return None, t("hidden.ruse.not_shown", titles=_titles(session, wrong))
+    n = sum(new_pile.values())
+    if n < req.max:
+        return None, t("hidden.ruse.too_few", n=n, k=req.max)
+    if n > req.max:
+        return None, t("hidden.too_many", n=n, titles=_titles(session, new_pile.elements()))
+    return sorted(new_pile.elements()), None
+
+
+def ruse_done(session, paused, req: ChoiceRequest) -> None:
+    """Done on the ruse: the cards in the pile are the discards; the engine follows and the row returns the rest to the bot's hand."""
+    ids, why = ruse_verdict(session, req)
+    if ids is None:
+        session.say(why, ChatKind.WARNING)
+        return
+    had = [(i in session.bot_discarded, i in session.fx_in_flight) for i in ids]
+    session.bot_discarded.update(ids)
+    session.fx_in_flight.update(ids)
+    session._answer_choice(paused, ids)
+    if manual_request(session) is not None:       # refused (rolled back): still waiting, nothing was discarded
+        for i, (d, f) in zip(ids, had):
+            if not d:
+                session.bot_discarded.discard(i)
+            if not f:
+                session.fx_in_flight.discard(i)
+        return
+    st = session.game.players[session.bot]
+    titles = ", ".join(c.title for c in st.full_set if c.card_id in ids)
+    session.say(t("hidden.ruse.discards", titles=titles), ChatKind.SCHEME)
+
+
 def show_row(session, req: ChoiceRequest | None) -> None:
     """The bot's hand face up in the row, pinged. With `req` the row waits for the human's pick (ping or button);
     without it the row is a reveal."""
@@ -177,7 +234,9 @@ def show_row(session, req: ChoiceRequest | None) -> None:
     st = g.players[session.bot]
     by_id = {c.card_id: c for c in st.full_set}
     hand_ids = [c.card_id for c in st.hand]
-    if req is not None and sorted(req.options) != sorted(hand_ids):
+    if is_ruse(req):                          # only the cards the bot revealed are in the row; the rest of its hand stays in it
+        hand_ids = list(req.options)
+    elif req is not None and sorted(req.options) != sorted(hand_ids):
         # the bot drew in this very step (Evade, Exploit) and the request was built with a placeholder for the card
         # the table had not dealt yet; the hand was re-identified since, and the op reruns on it once answered
         req.options = hand_ids
@@ -202,7 +261,9 @@ def show_row(session, req: ChoiceRequest | None) -> None:
     session.look_fails = 0
     session.revoke_look()                        # the card itself showed the hand: no button to press
     session._post.append(lambda: session._look_shown(op))
-    if req is not None:
+    if is_ruse(req):
+        session.say(t("hidden.ruse.row", n=len(rows), k=req.max), ChatKind.YOUR_TURN)
+    elif req is not None:
         session.say(t("hidden.row_pick", n=len(rows)), ChatKind.YOUR_TURN)
     else:
         session.say(t("hidden.row_reveal", n=len(rows)), ChatKind.YOUR_TURN)
@@ -249,6 +310,9 @@ def ping(session, guid: str) -> bool:
     if mode != MODE_PICK:
         return False
     req = bot_hand_request(session)
+    if is_ruse(req):
+        session.say(t("hidden.ruse.no_ping"), ChatKind.WARNING)
+        return True
     card_id = look["ids"][look["guids"].index(guid)]
     if req is None or card_id not in req.options:
         session.say(t("hidden.ping_not_now"), ChatKind.WARNING)
@@ -266,6 +330,9 @@ def close_row(session, value: list, ok: bool) -> None:
     from .ai_effects import bounces_back
     g, cfg, st = session.game, session.cfg, session.game.players[session.bot]
     by_id = {c.card_id: c for c in st.full_set}
+    if look.get("purpose") == "ruse":
+        close_ruse_row(session, look, value)
+        return
     card = by_id.get(value[0]) if value else None
     dest, spot = "hand", (0.0, 0.0, 0.0)
     if card is not None and card in st.discard:
@@ -305,6 +372,19 @@ def close_row(session, value: list, ok: bool) -> None:
         session.say(t("hidden.close.kept", card=card.title), ChatKind.SCHEME)
     else:
         session.say(t("hidden.close.collect"), ChatKind.NEUTRAL)
+
+
+def close_ruse_row(session, look: dict, value: list) -> None:
+    """The ruse's discards are already on the bot's pile (the human put them there): what is left of the row goes back to its hand."""
+    cfg = session.cfg
+    session.look = None
+    left = [guid for cid, guid in zip(look["ids"], look["guids"]) if cid not in value]
+    if not left:
+        return
+    if cfg.batch:
+        session._expect_hand = (cfg.bot_seat, len(left))
+    session._w(lua.resolve_hand_row(left, cfg.bot_seat, identity=session._identity(), id_range=cfg.bot_card_ids), DOMAIN)
+    session.say(t("hidden.ruse.back", n=len(left)), ChatKind.SCHEME)
 
 
 def _hits_taken(game, player: int, look: dict) -> str:
