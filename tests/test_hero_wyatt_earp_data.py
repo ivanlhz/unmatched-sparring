@@ -1,6 +1,6 @@
 """Wyatt Earp's data: overlay, generated HeroDef, structured effects (DSL v1) and table data agree with each other and with the real cards of
-sheet 187 of the tournament save (read from the images on 2026-11-13, including the character card 401 on sheet 4), and his deck, the only
-one on sheet 187, is told apart from every other deck by its CardIDs and its own images. The transcription of the screenshots in
+sheet 187 of the tournament save (read from the images on 2026-11-13, including the character card 401 on sheet 4), and his deck, one of the
+several on sheet 187 (Wyatt Earp, George Washington, John Henry share CardIDs 18700-18729), is told apart from every other deck by its own images and owner. The transcription of the screenshots in
 unmatched-memory (unverified when it was written) agrees with the images card by card: no mismatch. No engine, no TTS, no sockets."""
 import json
 
@@ -20,7 +20,7 @@ TTS = HEROES_DIR.parent / "tts" / "wyatt-earp.json"
 MOMENTS = ("immediately", "during", "after", "scheme", "boost")
 EVERYONE = ["medusa", "leonardo", "donatello", "michelangelo", "raphael", "doctor-strange", "bigfoot", "daredevil", "luke-cage", "bullseye",
             "golden-bat", "jill-trent", "she-hulk", "tomoe-gozen", "sinbad", "eredin", "ciri", "hellboy", "abe-sapien", "baba-yaga",
-            "liz-sherman", "houdini"]
+            "liz-sherman", "houdini", "john-henry", "george-washington", "philippa", "chupacabra"]
 
 # (copies, restriction, type, value, boost) as printed on the cards of sheet 187.
 REAL_CARDS = {
@@ -166,12 +166,24 @@ def test_table_data_names_the_pieces_the_dials_the_deck_range_and_its_own_images
     assert tts["tokens"] == {} and tts["counter_dials"] == {}
 
 
-# ---------------------------------------------------------------- the card range of his own
+# ---------------------------------------------------------------- the shared sheet 187
 
-def test_his_card_range_is_his_own():
-    assert load_hero_table("wyatt-earp").card_ids == (18700, 18729)
+SHEET_187 = ["george-washington", "john-henry"]
+KNOWN_COLLISIONS = {"rosie-the-riveter": {"facfe3"}}      # Rosie's life dial is the same object as Wyatt's (told apart by the dial name, tests/test_piece_identity.py)
+
+
+def test_sheet_187_holds_several_decks_told_apart_by_their_images():
+    """Wyatt Earp, George Washington and John Henry all use CustomDeck 187 with CardIDs 18700-18729: only the FaceURL tells them apart."""
+    mine = load_hero_table("wyatt-earp")
+    assert mine.card_ids == (18700, 18729)
+    for slug in SHEET_187:
+        theirs = load_hero_table(slug)
+        assert theirs.card_ids == (18700, 18729), slug
+        assert not set(mine.identity) & set(theirs.identity), slug
+        assert mine.deck_guid != theirs.deck_guid, slug
     for slug in EVERYONE:
-        assert not set(range(18700, 18730)) & set(range(load_hero_table(slug).card_ids[0], load_hero_table(slug).card_ids[1] + 1)), slug
+        if slug not in SHEET_187:
+            assert load_hero_table(slug).card_ids[0] != 18700, slug
 
 
 @pytest.mark.parametrize("other", EVERYONE)
@@ -205,7 +217,7 @@ def test_the_catalog_names_wyatt_earp_and_his_deck_is_his_own():
     assert catalog.identify([f"{f}|{b}" for f, b in load_hero_table("wyatt-earp").identity]).slug == "wyatt-earp"
 
 
-def test_no_guid_of_wyatt_earp_is_shared_with_another_hero():
+def test_no_guid_of_wyatt_earp_is_shared_with_another_hero_but_the_known_collisions():
     mine = set(load_hero_table("wyatt-earp").all_guids())
     for slug in [p.stem for p in HEROES_DIR.parent.joinpath("tts").glob("*.json") if p.stem != "wyatt-earp"]:
-        assert not mine & set(load_hero_table(slug).all_guids()), slug
+        assert mine & set(load_hero_table(slug).all_guids()) == KNOWN_COLLISIONS.get(slug, set()), slug

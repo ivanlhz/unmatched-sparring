@@ -2,8 +2,7 @@
 and a human who attacks every turn) and headless games with the heuristic and the search AI.
 
 The same approach as tests/test_tomoe_gozen_matrix.py (docs/card-identity.md): the human is a scripted player at the panel, the bot
-plays with its real AI, and both heroes start worn down (HERO_HP) so a game ends in a few dozen steps. His deck is sheet 187, which no other
-deck uses; the games also run SHOWDOWN, the free actions to attack and both of his schemes on either side of the table."""
+plays with its real AI, and both heroes start worn down (HERO_HP) so a game ends in a few dozen steps. His deck is on sheet 187, shared with George Washington and John Henry (same CardIDs, told apart by image); the games also run SHOWDOWN, the free actions to attack and both of his schemes on either side of the table."""
 from __future__ import annotations
 
 import pytest
@@ -13,7 +12,7 @@ from test_d3_table_effects import build, set_hand
 from test_donatello_session import SPOTS, AsideTable
 from test_tmnt_matrix import HERO_HP, MAX_STEPS, AttackDriver, human_step
 
-OTHERS = ["medusa", "hellboy", "abe-sapien", "baba-yaga", "liz-sherman", "leonardo", "donatello", "michelangelo", "raphael", "doctor-strange", "houdini", "bigfoot", "daredevil", "luke-cage", "bullseye", "golden-bat", "jill-trent", "she-hulk", "tomoe-gozen", "sinbad", "eredin", "ciri"]
+OTHERS = ["medusa", "hellboy", "abe-sapien", "baba-yaga", "liz-sherman", "leonardo", "donatello", "michelangelo", "raphael", "doctor-strange", "houdini", "bigfoot", "daredevil", "luke-cage", "bullseye", "golden-bat", "jill-trent", "she-hulk", "tomoe-gozen", "sinbad", "eredin", "ciri", "philippa", "chupacabra", "john-henry", "george-washington", "yennefer-triss", "raptors", "rosie-the-riveter"]
 PAIRS = [("wyatt-earp", h) for h in OTHERS] + [(b, "wyatt-earp") for b in OTHERS]
 IDS = [f"{b}-vs-{h}" for b, h in PAIRS]
 

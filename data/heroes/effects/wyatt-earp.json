@@ -2,7 +2,7 @@
  "schema": 1,
  "hero": "wyatt-earp",
  "notes": [
-  "Texts read from sheet 187 of the tournament savegame (card images) on 2026-11-13; the character card is 401 on sheet 4 (5x2, index 1). The 30 cards agree with the transcription in unmatched-memory (no mismatch). Wyatt Earp's deck is the only one on sheet 187: no other hero shares its CardIDs.",
+  "Texts read from sheet 187 of the tournament savegame (card images) on 2026-11-13; the character card is 401 on sheet 4 (5x2, index 1). The 30 cards agree with the transcription in unmatched-memory (no mismatch). Sheet 187 is shared by the Stars and Stripes decks (Wyatt Earp, George Washington, John Henry: CardIDs 18700-18729, told apart only by FaceURL and owner, docs/card-identity.md).",
   "No op expresses an action that can only attack, so `wyatt:free_attack` grants one that `Game.free_attacks` marks attack-only (and, for You Die First, attack-that-fighter-only). The other plugins touch the rival's deck (Bring 'Em To Justice, Better Swear Me In: Jill Trent's reveal) and bind the fighter of You Die First."
  ],
  "ability": {

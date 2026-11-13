@@ -502,3 +502,19 @@ def test_you_die_first_is_wyatts_and_in_vino_veritas_is_docs(bprd):
     assert vino.usable_by("Doc Holliday") and not vino.usable_by("Wyatt Earp")
     with pytest.raises(RuleError):
         g.play_scheme(0, g.fighters["doc"], die)
+
+
+def test_the_search_spends_the_free_action_bound_to_the_fighter_it_attacks(bprd):
+    """EngineState's attack goes through `use_action(attack=True, attack_on=target)`: with free actions [None, "lobster"] an attack on the
+    lobster consumes the bound one, so the general one is still there for any other fighter (a bare `attack=True` would spend the wrong slot)."""
+    from sparring.search.adapter import EngineState
+    g = mk(bprd)
+    arena(g)
+    put_adjacent(g, "lobster", "wyatt")
+    give(g, 0, "You Just Gonna Stand There And Bleed?")
+    g.fx.set_counter(0, "showdown_attack", 1)                    # SHOWDOWN cannot hand a free action back inside the simulated combat
+    g.actions_left, g.free_attacks = 2, [None, "lobster"]
+    st = EngineState(g, observer=0)
+    st.apply(("attack", "wyatt", "lobster"))
+                                                                  # one card can attack: the sub-phase resolves itself
+    assert st.game.free_attacks == [None] and st.game.actions_left == 1

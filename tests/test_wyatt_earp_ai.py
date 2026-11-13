@@ -140,7 +140,7 @@ def test_a_free_action_bound_to_a_fighter_is_spent_on_that_fighter(bprd, kind):
     act = ai.plan(g)
     assert act.kind == "attack" and act.target == "lobster"
     ai.execute(g, act)
-    assert g.actions_left == 0 and not lobster.alive or lobster.hp < lobster.max_hp
+    assert g.actions_left == 0 and g.free_attacks == [] and (not lobster.alive or lobster.hp < lobster.max_hp)
 
 
 @pytest.mark.parametrize("kind", ["heuristic", "ismcts"])
@@ -221,9 +221,10 @@ def test_the_search_plays_you_die_first_and_the_free_attack_binds_to_the_fighter
     give(g, 0, "You Die First")
     give(g, 0, STAND_TITLE)
     ai = bot(g, "ismcts")
-    before = g.actions_left
     ai.take_turn(g)
-    assert g.actions_left == 0 and g.winner is None and before == 2
+    played = {c.title for c in g.players[0].discard}
+    assert g.actions_left == 0 and g.winner is None and g.free_attacks == []
+    assert {STAND_TITLE} <= played, played          # the turn ended with the attack played; You Die First is the search's choice
 
 
 def test_the_effect_ai_answers_the_requests_of_you_die_first_without_a_fallback(bprd):

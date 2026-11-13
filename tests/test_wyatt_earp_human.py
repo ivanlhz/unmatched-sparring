@@ -3,7 +3,7 @@ free action to attack (a Maneuver or a scheme cannot spend it), In Vino Veritas 
 fighters, Better Swear Me In and Bring 'Em To Justice reading the bot's deck, and the bot's Wyatt playing the same cards against a human.
 The bot's side of the same cards is in tests/test_wyatt_earp_effects.py.
 
-His deck is sheet 187: no other deck shares its CardIDs."""
+His deck is on sheet 187 with George Washington's and John Henry's: every id the table reports is resolved against the owner's deck."""
 from __future__ import annotations
 
 import pytest
