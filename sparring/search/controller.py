@@ -29,10 +29,12 @@ log = logging.getLogger(__name__)
 
 
 class IsmctsMedusa(Controller):
-    def __init__(self, me: int = 0, config: SearchConfig | None = None, weights: EvalWeights | None = None):
+    def __init__(self, me: int = 0, config: SearchConfig | None = None, weights: EvalWeights | None = None,
+                 explicit: frozenset[str] = frozenset()):
         self.me = me
         self.config = config or SearchConfig(time_budget=DEFAULT_TIME_BUDGET)
         self.weights = weights or EvalWeights()
+        self.explicit = explicit                                 # EvalWeights fields the configuration set: no hero profile overrides them
         self.heuristic = MedusaAI(me)
         self.last_report: SearchReport | None = None
         self.fallbacks = 0                                       # decisions that fell to the heuristic because of a failure
@@ -114,7 +116,7 @@ class IsmctsMedusa(Controller):
         return Knowledge.from_game(game, self.me)
 
     def _plan(self, game: Game) -> Act:
-        root = EngineState(game, observer=self.me, knowledge=self.knowledge(game), weights=hero_weights(self.weights, game.players[self.me].hero.slug))
+        root = EngineState(game, observer=self.me, knowledge=self.knowledge(game), weights=hero_weights(self.weights, game.players[self.me].hero.slug, self.explicit))
         return self.to_act(game, self._decide(root))
 
     def choose_defense(self, game: Game, attacker: Fighter, target: Fighter, attack_card: Card | None = None) -> Card | None:
@@ -129,7 +131,7 @@ class IsmctsMedusa(Controller):
     def _choose_defense(self, game: Game, attacker: Fighter, target: Fighter, attack_card: Card | None) -> Card | None:
         root = EngineState(game, observer=self.me, knowledge=self.knowledge(game),
                            pending=(attacker.fid, target.fid, attack_card),
-                           weights=hero_weights(self.weights, game.players[self.me].hero.slug))
+                           weights=hero_weights(self.weights, game.players[self.me].hero.slug, self.explicit))
         if root.pending is None:              # the attack known (face up) and no defense card: the root resolved it
             return None
         move = self._decide(root)[0]
@@ -187,5 +189,5 @@ def make_bot_ai(cfg: dict, bot: int = 0):
         return IsmctsMedusa(bot, SearchConfig(time_budget=float(cfg.get("ai_time_budget", DEFAULT_TIME_BUDGET)),
                                               iterations=None if iters is None else int(iters),
                                               seed=int(cfg.get("ai_seed", 0))),
-                            EvalWeights(**cfg.get("ai_eval", {})))
+                            EvalWeights(**cfg.get("ai_eval", {})), frozenset(cfg.get("ai_eval", {})))
     raise ValueError(f"unknown ai in the configuration: {kind!r} (heuristic | ismcts)")

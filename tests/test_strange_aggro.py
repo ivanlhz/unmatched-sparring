@@ -21,7 +21,7 @@ POSITIONS = [
 ]
 
 
-def kinds(hand, pos, seeds=(0, 1, 2)):
+def kinds(hand, pos, seeds=(0, 1, 2, 3, 4, 5)):
     out = []
     for seed in seeds:
         ai = make_bot_ai({"ai": "ismcts", "ai_time_budget": 60, "ai_iterations": 200, "ai_seed": seed}, 0)
@@ -61,4 +61,41 @@ def test_strange_attacks_where_the_default_weights_did_not(hand, pos, monkeypatc
     new = kinds(hand, pos).count("attack")
     monkeypatch.setattr(adapter, "HERO_EVAL", {})
     old = kinds(hand, pos).count("attack")
-    assert new >= 2 and new > old, (new, old)
+    assert new >= 3 and new >= old + 2, (new, old)
+
+
+def rival_table(foe, strange_pos, foe_pos, caution):
+    g = Game.new(Board.load("bprd-hq"), 3, controllers={0: None, 1: None}, heroes=("doctor-strange", foe), bot_player=0)
+    g.turn, g.turn_no = 0, 2
+    g.begin_turn()
+    g.fighters["strange"].pos, g.fighters["wong"].pos = strange_pos, 30
+    g.hero(1).pos = foe_pos
+    return adapter.EngineState(g, observer=0, weights=EvalWeights(caution=caution))
+
+
+def test_caution_scales_the_blows_in_reach_not_the_lethal_risk():
+    board = Board.load("bprd-hq")
+    for foe_pos in sorted(board.spaces):
+        full, calm = (rival_table("hellboy", 5, foe_pos, c) for c in (1.0, 0.3))
+        if foe_pos != 5 and full.game.can_attack(full.game.hero(1), full.game.hero(0)):
+            break
+    else:
+        pytest.skip("no space in reach")
+    (e_full, k_full), (e_calm, k_calm) = full.threat(0), calm.threat(0)
+    assert e_calm < e_full and k_calm == pytest.approx(k_full)
+    assert full._exposure(0, False) - calm._exposure(0, False) == pytest.approx(full.weights.threat * (e_full - e_calm))
+    assert full._exposure(1, False) == calm._exposure(1, False)          # the rival's own fear is not scaled
+
+
+def test_caution_leaves_the_zone_hazard_at_full_weight(monkeypatch):
+    """Strange inside Medusa's zone with nobody able to hit him: the gaze weighs the same at caution 0.3 and 1.0."""
+    monkeypatch.setattr(adapter, "attack_values", lambda st, name: ())      # no blow to fear: what is left of the threat is the gaze
+    board = Board.load("bprd-hq")
+    for foe_pos in sorted(board.spaces):
+        probe = rival_table("medusa", 5, foe_pos, 1.0)
+        zone = probe._zone_exposure(0, probe.game.hero(0))[0]
+        if zone > 0 and probe.threat(0, True)[0] == pytest.approx(zone):
+            break
+    else:
+        pytest.fail("no space of the board puts Strange in Medusa's zone")
+    assert rival_table("medusa", 5, foe_pos, 0.3).threat(0, True) == probe.threat(0, True)

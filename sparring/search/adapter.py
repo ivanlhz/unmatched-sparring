@@ -87,10 +87,11 @@ class EvalWeights:
 HERO_EVAL: dict[str, dict[str, float]] = {"doctor-strange": {"caution": 0.3}}      # evaluation weights a hero plays with (F-STRANGE-AGGRO); the configuration's own values win
 
 
-def hero_weights(weights: EvalWeights, slug: str) -> EvalWeights:
-    """`weights` with the hero's profile on top of every field the configuration left at its default."""
+def hero_weights(weights: EvalWeights, slug: str, explicit: frozenset[str] = frozenset()) -> EvalWeights:
+    """`weights` with the hero's profile on top of every field the configuration did not set: those in `explicit` (the keys
+    of `ai_eval`, even when equal to the default) and any field that differs from the default are left alone."""
     base = EvalWeights()
-    mine = {k: v for k, v in HERO_EVAL.get(slug, {}).items() if getattr(weights, k) == getattr(base, k)}
+    mine = {k: v for k, v in HERO_EVAL.get(slug, {}).items() if k not in explicit and getattr(weights, k) == getattr(base, k)}
     return replace(weights, **mine) if mine else weights
 
 
@@ -851,7 +852,7 @@ class EngineState:
         """What the threat on `p`'s hero subtracts from their side (weighted `threat`)."""
         w = self.weights
         expected, lethal = self.threat(p, urgent)
-        return w.threat * expected * (w.caution if p == self.observer else 1.0) + w.lethal * lethal
+        return w.threat * expected + w.lethal * lethal
 
     def threat(self, victim: int, urgent: bool = False) -> tuple[float, float]:
         """Threat on `victim`'s hero in the rival's next turn: (expected damage as a fraction of its current
@@ -907,7 +908,8 @@ class EngineState:
         lethal = max(1 - (1 - now_kill) ** actions, any_kill if actions >= 2 else 0.0)
         # over the current HP, not the maximum: the same expected hit weighs more the less life is left
         gaze_hp, gaze_kill = gaze
-        return (min(1.0, expected / hero.hp + gaze_hp) * urgency,
+        fear = w.caution if victim == self.observer else 1.0       # only of the blows in reach: the zone hazard keeps its weight
+        return (min(1.0, fear * expected / hero.hp + gaze_hp) * urgency,
                 1 - (1 - lethal * urgency) * (1 - gaze_kill * urgency))
 
     def _zone_exposure(self, victim: int, hero: Fighter) -> tuple[float, float]:
