@@ -55,6 +55,9 @@ def _cancel_effects(run, game, spec):
     if side is None or (card is not None and modifiers.is_uncancelable(card, game, flow.att.owner if side == "atk" else flow.tgt.owner)):
         return
     moments = spec.get("moments")
+    if spec.get("if_won"):                      # "if you win this combat": the result is not known yet, the flow decides it with the damage
+        flow.win_cancels.append(["atk" if run.ctx.played_as == "attack" else "def", side])
+        return
     if moments is None or "immediately" in moments:
         flow.ctx.cancelled.add(side)
     elif moments == ["after"]:                  # only the AFTER COMBAT effects (Short circuit)
@@ -67,6 +70,22 @@ def _cancel_effects(run, game, spec):
         flow.ctx.cancelled.add(side)
     if modifiers.has_effects(game, flow, side, moments):
         flow.cancel_hits.add(side)
+
+
+def settle_win_cancels(flow) -> None:
+    """The damage of the combat is known: each `cancel_effects` registered `if_won` (Knock Them Silly) takes the AFTER COMBAT effects off
+    the rival's card when its owner won, before any AFTER effect resolves."""
+    game = flow.game
+    for winner, victim in flow.win_cancels:
+        card = flow.atk_card if victim == "atk" else flow.def_card
+        if not flow.won_by(winner) or card is None:
+            continue
+        if modifiers.is_uncancelable(card, game, flow.att.owner if victim == "atk" else flow.tgt.owner):
+            continue
+        flow.ctx.cancelled_after.add(victim)
+        if modifiers.has_effects(game, flow, victim, ["after"]):
+            flow.cancel_hits.add(victim)
+    flow.win_cancels = []
 
 
 def _immediately_pending(flow, side: str) -> bool:

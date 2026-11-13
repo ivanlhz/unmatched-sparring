@@ -133,51 +133,137 @@ class Board:
         return self.bonuses.get((a, b), 0)
 
     def hazard_path(self, src: int, dst: int, steps: int | None, blocked: frozenset[int] = frozenset(),
-                    hurt: bool = False) -> list[tuple[int, int]]:
+                    hurt: bool = False, free: frozenset[int] = frozenset()) -> list[tuple[int, int]]:
         """The hazard edge the mover pays for on the way assumed from src to dst: a fighter takes hazard damage at most
         once per turn, so only the FIRST hazard edge of the path counts (the list holds that one edge, or is empty).
-        `hurt`: the fighter already took hazard damage this turn, so nothing is charged.
+        `hurt`: the fighter already took hazard damage this turn, so nothing is charged. `free`: spaces that cost no step to enter
+        (John Henry's track tokens): the walk still crosses their edges, so the hazards on them count.
         The mover is assumed to take the path of least damage among those of at most `steps` steps (`None`: the
         shortest length, which is all a human's move on the table tells: only where the piece started and ended), the
         shortest of those on a tie; it cannot enter `blocked` spaces. Empty when the board has no hazards or there is no path."""
         if not self.hazards or src == dst or hurt:
             return []
         cap = steps
-        if cap is None:                          # the shortest way the blockers leave open
-            seen, frontier, cap = {src}, [src], 0
-            while frontier and dst not in seen:
-                cap += 1
-                frontier = [n for node in frontier for n in sorted(self.moves[node])
-                            if n not in seen and n not in blocked and not seen.add(n)]
-            if dst not in seen:
+        if cap is None:                          # the cheapest way the blockers leave open
+            cap = self.walk_cost(src, dst, free, blocked)
+            if cap is None:
                 return []
-        # state: (space, already paid on this walk) -> (damage, state it came from, hazard edge paid on the way in)
+        # state: (space, already paid on this walk) -> (damage, (layer, state) it came from, hazard edge paid on the way in);
+        # layer k holds the walks that spent k steps: entering a `free` space spends none and stays in the layer
         State = tuple[int, bool]
-        layers: list[dict[State, tuple[int, State | None, tuple[int, int] | None]]] = [{(src, False): (0, None, None)}]
-        for _ in range(cap):
-            nxt: dict[State, tuple[int, State | None, tuple[int, int] | None]] = {}
+        layers: list[dict[State, tuple[int, tuple[int, State] | None, tuple[int, int] | None]]] = []
+
+        def relax(k: int, layer: dict, frontier: list[State]) -> None:
+            """Lets the walks of layer k enter free spaces (no step spent) until nothing gets cheaper."""
+            while frontier:
+                node, paid = frontier.pop()
+                cost = layer[(node, paid)][0]
+                for n in sorted(self.moves[node]):
+                    if n in blocked or n not in free:
+                        continue
+                    edge = edge_key(node, n)
+                    pays = edge in self.hazards and not paid
+                    key = (n, paid or pays)
+                    c = cost + (self.hazards[edge] if pays else 0)
+                    if key not in layer or c < layer[key][0]:
+                        layer[key] = (c, (k, (node, paid)), edge if pays else None)
+                        frontier.append(key)
+
+        first = {(src, False): (0, None, None)}
+        relax(0, first, [(src, False)])
+        layers.append(first)
+        for k in range(1, cap + 1):
+            nxt: dict[State, tuple[int, tuple[int, State] | None, tuple[int, int] | None]] = {}
             for (node, paid), (cost, _, _) in layers[-1].items():
                 for n in sorted(self.moves[node]):
-                    if n in blocked:
+                    if n in blocked or n in free:
                         continue
                     edge = edge_key(node, n)
                     pays = edge in self.hazards and not paid
                     key = (n, paid or pays)
                     c = cost + (self.hazards[edge] if pays else 0)
                     if key not in nxt or c < nxt[key][0]:
-                        nxt[key] = (c, (node, paid), edge if pays else None)
+                        nxt[key] = (c, (k - 1, (node, paid)), edge if pays else None)
+            relax(k, nxt, list(nxt))
             layers.append(nxt)
         best = min(((layer[(dst, p)][0], k, p) for k, layer in enumerate(layers) for p in (False, True) if (dst, p) in layer),
                    default=None)
         if best is None:
             return []
-        state = (dst, best[2])
-        for k in range(best[1], 0, -1):
+        k, state = best[1], (dst, best[2])
+        while True:
             _, prev, edge = layers[k][state]
             if edge is not None:
                 return [edge]
-            state = prev
-        return []
+            if prev is None:
+                return []
+            k, state = prev
+
+    def walk_cost(self, src: int, dst: int, free: frozenset[int] = frozenset(), blocked: frozenset[int] = frozenset()) -> int | None:
+        """Steps the cheapest walk from src to dst spends when entering a `free` space costs nothing (John Henry's tracks); None if
+        `blocked` spaces cut every way. With no free spaces it is the plain distance over the walkable graph."""
+        return self.step_costs(src, free, blocked).get(dst)
+
+    def step_costs(self, src: int, free: frozenset[int], blocked: frozenset[int]) -> dict[int, int]:
+        """0-1 BFS: the step cost of the cheapest walk from src to each space (entering a free space spends none)."""
+        cost = {src: 0}
+        q = deque([src])
+        while q:
+            cur = q.popleft()
+            for n in sorted(self.moves[cur]):
+                if n in blocked:
+                    continue
+                c = cost[cur] + (0 if n in free else 1)
+                if n not in cost or c < cost[n]:
+                    cost[n] = c
+                    q.appendleft(n) if n in free else q.append(n)
+        return cost
+
+    def track_route(self, src: int, dst: int, free: frozenset[int], blocked: frozenset[int] = frozenset()) -> frozenset[int]:
+        """The `free` spaces a walk from src to dst enters: of the cheapest walks (entering a free space costs nothing) the one through
+        the most free spaces, each counted once (what a table that only shows where the piece started and ended is given the benefit
+        of: John Henry's paths). Empty when there is no walk or no free space on it."""
+        back = self.costs_to(dst, free, blocked)
+        need = back.get(src)
+        if need is None or not free:
+            return frozenset()
+        best: list[frozenset[int]] = [frozenset()]
+        budget = [20000]
+
+        def walk(node: int, spent: int, seen: tuple[int, ...], used: frozenset[int]) -> None:
+            budget[0] -= 1
+            if budget[0] < 0:
+                return
+            if node == dst:
+                if spent == need and len(used) > len(best[0]):
+                    best[0] = used
+                return
+            for n in sorted(self.moves[node]):
+                if n in seen or n in blocked or n not in back:
+                    continue
+                c = spent + (0 if n in free else 1)
+                if c + back[n] > need:
+                    continue
+                walk(n, c, seen + (n,), used | {n} if n in free else used)
+
+        walk(src, 0, (src,), frozenset())
+        return best[0]
+
+    def costs_to(self, dst: int, free: frozenset[int], blocked: frozenset[int]) -> dict[int, int]:
+        """The step cost of the cheapest walk from each space to dst (the reverse of `step_costs`): a step onto a free space costs nothing."""
+        cost = {dst: 0}
+        q = deque([dst])
+        while q:
+            cur = q.popleft()
+            gain = 0 if cur in free else 1           # stepping onto `cur` costs this
+            for p in sorted(s for s in self.spaces if cur in self.moves[s]):
+                if p in blocked:
+                    continue
+                c = cost[cur] + gain
+                if p not in cost or c < cost[p]:
+                    cost[p] = c
+                    q.appendleft(p) if gain == 0 else q.append(p)
+        return cost
 
     def zones(self, s: int) -> frozenset[str]:
         return self.spaces[s].zones
@@ -202,20 +288,22 @@ class Board:
         return bool(reach) and self.spaces_apart(a, b) <= reach
 
     def reachable(self, start: int, steps: int, own: set[int], enemy: set[int], through_enemies: bool = False,
-                  passable: frozenset[int] | set[int] = frozenset()) -> set[int]:
+                  passable: frozenset[int] | set[int] = frozenset(), free: frozenset[int] | set[int] = frozenset()) -> set[int]:
         """Spaces where it can end (moving along adjacency and passages): passes through own fighters, not rivals (unless an effect says so), ends on an empty one.
-        `passable`: the rival spaces it may cross all the same (Tomoe Gozen moves through sidekicks), never end on."""
+        `passable`: the rival spaces it may cross all the same (Tomoe Gozen moves through sidekicks), never end on.
+        `free`: spaces that are not counted when entered (John Henry's track tokens): a walk may enter any number of them."""
         seen = {start: 0}
         q = deque([start])
         while q:
             cur = q.popleft()
-            if seen[cur] == steps:
-                continue
             for n in sorted(self.moves[cur]):
-                if n in seen or (n in enemy and not through_enemies and n not in passable):
+                if n in enemy and not through_enemies and n not in passable:
                     continue
-                seen[n] = seen[cur] + 1
-                q.append(n)
+                c = seen[cur] + (0 if n in free else 1)
+                if c > steps or (n in seen and seen[n] <= c):
+                    continue
+                seen[n] = c
+                q.appendleft(n) if n in free else q.append(n)
         return {s for s in seen if s != start and s not in own and s not in enemy}
 
     def nearest_free(self, origin: int, taken: set[int], zone_of: int | None = None) -> int:

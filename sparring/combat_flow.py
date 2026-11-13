@@ -147,6 +147,7 @@ class CombatFlow:
         self.considered_won: str | None = None       # the side an effect says is considered to have won, whatever the damage ("atk" | "def"; Bullseye's Arrogant But Effective)
         self.value_locked: set[str] = set()         # sides whose value an effect froze (Jill Trent's Stasis Diffuser): nothing changes it any more
         self.damage_caps: dict[str, int] = {}        # fighter id -> the most combat damage it takes in this combat (Tomoe Gozen's Deeds Of Valor)
+        self.win_cancels: list[list[str]] = []       # [winner side, side whose AFTER effects it cancels]: decided when the damage is known (John Henry's Knock Them Silly)
 
     @property
     def done(self) -> bool:
@@ -348,6 +349,9 @@ class CombatFlow:
         if self.game.winner is not None and victim.hero and self._defers_defeat(victim):
             self.game.winner, self.deferred_loss = None, victim.owner     # the AFTER effects may bring the hero back
         result.atk_value, result.def_value, result.damage, result.attacker_won = ctx.atk_value, ctx.def_value, damage, damage >= 1
+        if self.win_cancels:
+            from .effects.ops_combat import settle_win_cancels
+            settle_win_cancels(self)
         result.cancelled = set(ctx.cancelled)
         result.cancelled_after = set(ctx.cancelled_after)
         loser = self.tgt if damage >= 1 else self.att       # a tie is lost by the attacker (the engine's "won")
@@ -416,7 +420,7 @@ class CombatFlow:
         if (self.runs or self.printed_set or self.mods["atk"] or self.mods["def"] or self.redirects
                 or self.late_cancelled or self.cancel_hits or self.boost_granted or self.boosted
                 or self.deferred_loss is not None or self.boost_valued or self.returned or self.considered_won
-                or self.value_locked or self.damage_caps):
+                or self.value_locked or self.damage_caps or self.win_cancels):
             out["dsl"] = {"runs": {k: r.to_dict() for k, r in self.runs.items()}, "printed_set": dict(self.printed_set),
                           "mods": {k: [list(m) for m in v] for k, v in self.mods.items()},
                           "redirects": [dict(r) for r in self.redirects]}
@@ -440,6 +444,8 @@ class CombatFlow:
                 out["dsl"]["value_locked"] = sorted(self.value_locked)
             if self.damage_caps:
                 out["dsl"]["damage_caps"] = dict(self.damage_caps)
+            if self.win_cancels:
+                out["dsl"]["win_cancels"] = [list(w) for w in self.win_cancels]
         return out
 
     def _base_dict(self, ctx, res) -> dict:
@@ -481,7 +487,7 @@ class CombatFlow:
         flow.ctx = flow.result = None
         flow.sides = []
         flow.runs, flow.printed_set, flow.redirects, flow.choosers, flow.again, flow.returned = {}, {}, [], None, False, False
-        flow.considered_won, flow.damage_caps = None, {}
+        flow.considered_won, flow.damage_caps, flow.win_cancels = None, {}, []
         flow.value_locked = set()
         flow.late_cancelled, flow.cancel_hits = set(), set()
         flow.boost_granted, flow.boosted, flow.deferred_loss, flow.boost_valued = set(), {}, None, set()
@@ -504,6 +510,7 @@ class CombatFlow:
             flow.considered_won = d.get("considered_won")
             flow.value_locked = set(d.get("value_locked", ()))
             flow.damage_caps = {k: int(v) for k, v in d.get("damage_caps", {}).items()}
+            flow.win_cancels = [list(w) for w in d.get("win_cancels", ())]
         if raw["ctx"] is not None:
             c, r = raw["ctx"], raw["result"]
             flow.ctx = CombatCtx(att, tgt, flow.atk_card, flow.def_card, c["atk_value"], c["def_value"],
