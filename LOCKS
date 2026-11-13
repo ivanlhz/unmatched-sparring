@@ -37,3 +37,5 @@ sparring/search/controller.py  john-henry  John Henry attack-only action in the 
 sparring/session_pieces.py  john-henry  John Henry attack-only action in the turn loops  14:38Z
 sparring/session_bot_effects.py  john-henry  John Henry: track intent is a direct op  14:43Z
 sparring/tts/lua.py  john-henry  MAX_CLEAR_HEROES bound  14:55Z
+sparring/state.py  john-henry  tracks in Game  14:55Z
+sparring/search/adapter.py  john-henry  tracks in search  14:55Z
