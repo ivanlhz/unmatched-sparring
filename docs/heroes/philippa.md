@@ -52,16 +52,20 @@ Her deck is sheet 176 like Medusa's, the turtles', Doctor Strange's and the othe
 8. **Do my bidding**: it runs in the defender's IMMEDIATELY, so the rival's new card still has its own IMMEDIATELY run afterwards. The chosen card must be an attack or versatile card the attacking fighter can play against that target (adjacent-only cards included). If the opponent holds no other such card the returned card is played again. The bot picks the weakest card for the rival (value, then worth). For a human rival the bot reads their hand (`look_hand`), names the card and the human takes the old card back and puts the new one on their combat spot. For a human Philippa the bot's hand is laid out and the human clicks one; picking none means "the same card" (the returned card is on the bot's combat spot, not in its hand row).
 9. **Polymorphy**: "any space" is any EMPTY space. The ONGOING leaves play at the end of YOUR turn when no opposing fighter shares a zone with Philippa then (a fighter in the same zone, sidekick or hero, keeps it). Another ONGOING replaces it as for every ONGOING (one per player). Her move value goes back to 2 as soon as the card leaves play.
 10. **Backup plan**: "set Philippa's health to 5" also RAISES her from below 5 (literal reading). Draw 3 is the other option.
-11. **Spymaster's ruse**: the opponent chooses which 4 cards they reveal (all of them with fewer than 4). The owner chooses 2 of those; the opponent then draws 2 whatever happened. The revealed cards become known to the owner. Only Dijkstra can play it: with Dijkstra defeated the two copies are dead cards.
+11. **Spymaster's ruse**: the opponent chooses which 4 cards they reveal (all of them with fewer than 4; Ivan, 2026-11-13). The owner chooses 2 of those; the opponent then draws 2 whatever happened. The revealed cards become known to the owner. Only Dijkstra can play it: with Dijkstra defeated the two copies are dead cards.
 12. **Blinding dust**: "its BOOST value": the discarded card's BOOST (the nearest antecedent). A card with no BOOST value deals 0.
 
+## Decided by Ivan (2026-11-13)
+1. **Blinding dust**: "its BOOST value" is the discarded card's BOOST.
+2. **Backup plan**: "set health to 5" also raises her from below 5.
+3. **Polymorphy**: checked only at the end of the owner's turn; "any space" is an empty space.
+4. **Do my bidding**: the new card must be an attack or versatile card the attacking fighter can play.
+5. **Spymaster's ruse, the human against the bot (table flow)**: the bot chooses and lays the four cards face up in the row (`bot_row_spot`); the human takes two of them to the bot's discard pile and presses Done; the bot returns the other two to its hand, reads which two reached the pile (by identity: `session_hidden.ruse_verdict`, only revealed cards count, exactly two) and syncs the engine (`ruse_done`, `close_ruse_row`). Saves and resumes keep the row (`session.look`) and the pending request (`ruse_table`).
+
 ## Pending Ivan
-1. **Blinding dust**: is "its BOOST value" the BOOST of the discarded card (implemented) or of the opposing fighter's card?
-2. **Backup plan**: may it lower or raise her health to exactly 5 (implemented: yes, both)?
-3. **Spymaster's ruse**: does the opponent choose the 4 revealed cards (implemented) or is it a random 4?
-4. **Polymorphy's ONGOING** "in a zone with an opposing fighter": checked at the end of her owner's turn only (implemented).
-5. **Do my bidding in table mode**: the human cannot choose "the same card" by pointing at it (it is on the bot's combat spot); choosing nothing means the same card. OK?
-6. **Spymaster's ruse for the human**: the panel lists every card of their set that is not in a pile apart (the engine does not know their hand); they are trusted to name four cards they hold.
+1. **Do my bidding, "the same card is allowed"**: Ivan answered "yes, it may be if it comes out of the deck" (2026-11-13), which is ambiguous; asked again, nothing changed. Implemented: the returned card is a valid choice (the one the opponent already played).
+2. **Spymaster's ruse, the bot against the human**: the human names the four cards they reveal on the panel (the list is their whole set that is not in a pile apart; the engine does not know their hand), then the bot names the two to discard and the human moves them by hand. Should it use a table flow like the human's direction?
+3. **Do my bidding in table mode**: a human Philippa cannot point at "the same card" (it is on the bot's combat spot); choosing nothing means the same card.
 
 ## AI
 - The AI profile comes from the data (`ai_profile` of the importer: Philippa `hero`, ranged; Dijkstra `striker`). The name-based pricing lives in `sparring/ai_philippa.py` and is read by `MedusaAI.card_value` (Regicide 6 against a hero), `attack_outcome` and `eval_defense` (`after_value`: the lightning's reach, Cunning, Redanian plot, Do my bidding, Paralyzing fetters; Spellbreaker's end of turn costs the actions still to spend). The choices her plugins ask for are answered by `EffectAI._cards` (`dust`: the discard whose BOOST beats its keep value; `bidding`: the weakest card for the rival; `ruse`: the two cards the rival would miss most; `ruse_reveal`: when the bot is the opponent it reveals the four it would miss least) and `EffectAI._zone` (Chain lightning: the zone with the most hit points to take).
