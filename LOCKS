@@ -25,3 +25,4 @@ docs/effects-dsl.md  washington  George Washington hero  15:13Z
 docs/live-checklist.md  washington  George Washington hero  15:13Z
 config/table.json  washington  George Washington hero  15:13Z
 sparring/session_hidden.py  washington  George Washington hero  15:13Z
+tests/test_card_identity.py  rosie  Rosie hero registration  15:13Z
