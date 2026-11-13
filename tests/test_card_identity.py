@@ -29,7 +29,8 @@ def test_no_card_of_one_deck_equals_a_card_of_another(a, b):
     assert not set(load_hero(a).deck()) & set(load_hero(b).deck())
 
 
-@pytest.mark.parametrize("bot,human", [("medusa", "leonardo"), ("raphael", "donatello"), ("michelangelo", "medusa")])
+@pytest.mark.parametrize("bot,human", [("medusa", "leonardo"), ("raphael", "donatello"), ("michelangelo", "medusa"),
+                                           ("george-washington", "john-henry"), ("wyatt-earp", "george-washington"), ("john-henry", "wyatt-earp")])      # sheet 187: the three decks share 18700-18729
 def test_a_card_id_is_resolved_against_its_owner(bprd, bot, human):
     g = Game.new(bprd, 1, controllers={}, heroes=(bot, human), bot_player=0)
     for card in g.players[0].full_set:

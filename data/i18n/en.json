@@ -176,7 +176,7 @@
  "espionage.you_keep": "ESPIONAGE: no ruse token on this attack.",
  "espionage.placed": "ESPIONAGE: {name}'s ruse token stays on {card} (the bot kept its hand): {left} left in your supply.",
  "espionage.removed_by_bot": "ESPIONAGE: the bot discarded a random card to remove your ruse token: take it off the card. {left} left in your supply.",
- "espionage.bot_places": "ESPIONAGE: {name} (bot) puts a ruse token on its attack, {card}: {left} left in its supply. You may discard 1 random card to remove it, before you defend.",
+ "espionage.bot_places": "ESPIONAGE: {name} (bot) puts a ruse token on its attack: {left} left in its supply. You may discard 1 random card to remove it, before you defend.",
  "choice.prompt.ability.ruse": "ESPIONAGE: do you put a ruse token on this attack?",
  "choice.prompt.ability.espionage_remove": "ESPIONAGE: there is a ruse token on the attack. Do you discard 1 random card from your hand to remove it?",
  "hidden.bot_predicts": "The bot plays {card} face up and predicts that the printed value of your card is {n}.",
