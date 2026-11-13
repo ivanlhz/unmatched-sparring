@@ -49,15 +49,7 @@ def test_a_full_session_game_reaches_game_over(tmp_path, bot, human):
     assert not any("Accion ilegal" in m or "Illegal action" in m for m in said), said
 
 
-RIG_LIMIT = {("raptors", "george-washington")}       # the driver has no card left and only Allies Everywhere's attack-only free action: it tries a Maneuver, which is refused (the rig has no way to end the turn early); a rig limit, not a Washington defect
-
-
-def attack_params():
-    return [pytest.param(b, h, id=i, marks=[pytest.mark.xfail(reason="driver cannot end a turn with only an attack-only action left (RIG_LIMIT)", strict=False)] if (b, h) in RIG_LIMIT else [])
-            for (b, h), i in zip(PAIRS, IDS)]
-
-
-@pytest.mark.parametrize("bot,human", attack_params())
+@pytest.mark.parametrize("bot,human", PAIRS, ids=IDS)
 def test_a_game_where_the_human_attacks_every_turn_reaches_game_over(tmp_path, bot, human):
     """The human walks up to the bot's hero and attacks with a card of their own deck each turn (so the CardIDs the table
     reports for the combat are resolved against the human's deck, never the bot's) and discards to the hand limit."""

@@ -3427,7 +3427,7 @@ class Session:
         g = self.game
         if g.winner is not None or g.turn != self.human:
             return
-        if g.actions_left > 0:
+        if g.actions_left > 0 and tracks.turn_goes_on(g):
             self.say(t("turn.left_free", n=g.actions_left, free=len(g.free_attacks)) if g.free_attacks else t("turn.left", n=g.actions_left),
                      ChatKind.YOUR_TURN)
             return

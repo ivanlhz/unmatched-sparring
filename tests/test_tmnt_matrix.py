@@ -48,8 +48,26 @@ def place_by_hand(session, table) -> None:
         table.positions[session.cfg.nicknames[req.extra["fighter"]]] = req.options[0]
 
 
+def lay_the_ambush_card(session, table) -> None:
+    """Chupacabra's Ambush names a card of the human's hand and waits for it on their discard pile: the human lays it there (or, if
+    it is no longer in the hand, any of the named ones not yet on the pile) and then presses Done."""
+    paused = session._paused()
+    req = paused[2].awaiting if paused is not None else None
+    if req is None or req.kind != "cards" or not req.extra.get("ambush"):
+        return
+    card_id = next((i for i in req.options if i in table.human_hand), None)
+    if card_id is None:
+        card_id = next(i for i in req.options if i not in table.human_discard)
+    else:
+        table.human_hand.remove(card_id)
+    table.human_discard.append(card_id)
+    table.human_count = max(0, table.human_count - 1)
+    session.snap = None
+
+
 def human_step(session, table, game) -> list[str]:
     """One click of the scripted human."""
+    lay_the_ambush_card(session, table)
     settle_owed_discard(session, table, game)
     place_by_hand(session, table)
     if session._paused() is not None:

@@ -341,3 +341,12 @@ def test_the_free_action_of_you_die_first_refuses_an_attack_on_any_other_fighter
     msgs = click(session, table, Event.REVEAL)
     assert said(msgs, "solo puede atacar a lobster"), msgs
     assert game.actions_left == 1 and game.free_attacks == ["lobster"] and game.fighters["hellboy"].hp == game.fighters["hellboy"].max_hp, msgs
+
+
+def test_a_free_action_to_attack_nothing_can_spend_ends_the_turn_when_the_human_presses_end_action(mine):
+    """No card in hand attacks: the attack-only action is lost and the turn passes (a Maneuver cannot spend it, and there is no other button)."""
+    session, table, game, fake, cfg = mine
+    human_hand(table, game)
+    game.actions_left, game.free_attacks = 1, [None]
+    click(session, table, Event.END_ACTION)
+    assert game.turn == 0 and game.free_attacks == []

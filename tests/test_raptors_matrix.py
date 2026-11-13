@@ -33,22 +33,6 @@ def wear_down(session, table, game, cfg):
                 table.dials[guid]["value"] = session.dials_written[guid] = f.hp
 
 
-def human_step_laying_ambush(session, table, game):
-    """The scripted human, who also discards the card the bot's Ambush names (it waits for it on their discard pile, then Done)."""
-    paused = session._paused()
-    req = paused[2].awaiting if paused is not None else None
-    if req is not None and req.kind == "cards" and req.extra.get("ambush"):
-        card_id = next((i for i in req.options if i in table.human_hand), None)
-        if card_id is None:
-            card_id = next(i for i in req.options if i not in table.human_discard)
-        else:
-            table.human_hand.remove(card_id)
-        table.human_discard.append(card_id)
-        table.human_count = max(0, table.human_count - 1)
-        session.snap = None
-    return human_step(session, table, game)
-
-
 def play_to_the_end(tmp_path, bot: str, human: str):
     session, table, game, fake, cfg, client = build(tmp_path, bot, human, (), table_cls=AsideTable, **SPOTS)
     try:
@@ -56,7 +40,7 @@ def play_to_the_end(tmp_path, bot: str, human: str):
         steps, said = 0, []
         while game.winner is None and steps < MAX_STEPS:
             if game.turn == session.human or session.pending is not None or session._paused() is not None:
-                said += human_step_laying_ambush(session, table, game)
+                said += human_step(session, table, game)
             else:
                 session._bot_continue()
             steps += 1
