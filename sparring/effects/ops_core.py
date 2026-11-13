@@ -257,11 +257,12 @@ def _choose(run, game, spec):
 def _choose_effect(run, game, spec):
     options, chooser = spec["options"], _chooser(game, run, spec)
     labels = [o["label"] for o in options]
-    left, picked = list(range(len(options))), []
+    open_now = [k for k, o in enumerate(options) if "condition" not in o or condition(game, run, o["condition"])]     # an option may be closed (SHOWDOWN: once a turn each)
+    left, picked = list(open_now), []
     for _ in range(int(amount(game, run, spec["amount"]))):
         if not left:
             break
-        pool = left if spec.get("distinct") else list(range(len(options)))
+        pool = left if spec.get("distinct") else list(open_now)
         extra = {"tag": spec["tag"]} if "tag" in spec else {}       # what the options are about, for the bot's judgement (Jill's gadgets)
         k = run.ask(game, "effect", chooser, pool, 1, 1, "choose an effect", labels=labels, **extra)[0]
         picked.append(k)
@@ -677,4 +678,5 @@ from . import plugins_shehulk  # noqa: E402,F401  (registers shehulk:throw, sheh
 from . import plugins_ciri  # noqa: E402,F401  (registers ciri:channel_the_source)
 from . import plugins_eredin  # noqa: E402,F401  (registers eredin:replace_combatant and the test eredin:opponent_card)
 from . import plugins_yennefer  # noqa: E402,F401  (registers yennefer:/triss: mill and lodge)
+from . import plugins_wyatt  # noqa: E402,F401  (registers wyatt:free_attack, you_die_first, swear_me_in, bring_to_justice)
 from . import plugins_philippa  # noqa: E402,F401  (registers philippa: owlform, chain_lightning, blinding_dust, do_my_bidding, spymaster_ruse)

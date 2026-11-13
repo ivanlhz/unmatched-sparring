@@ -1,0 +1,176 @@
+{
+ "_notes": [
+  "Sheet 187 of the tournament savegame (8x4), read card by card from the image on 2026-11-13. CardID = 18700 + idx; 401 = character card (sheet 4, 5x2, index 1). The deck object of the save holds 31 cards: the 30 of the deck plus the character card, which is why the catalog says card_count 31 and card_ids [401, 18729].",
+  "Restriction band (WYATT EARP, DOC HOLLIDAY or ANY), values, boosts, texts and copies (xN printed on each card) of the 12 titles were compared with the screenshots' transcription in unmatched-memory (data/heroes/wyatt-earp.json, _source: unverified): all 30 cards agree, no mismatch.",
+  "Hero card (read from the image): WYATT EARP, RANGED, START HEALTH 15, MOVE 2; special ability SHOWDOWN. Sidekick DOC HOLLIDAY, RANGED, START HEALTH 8 (one Doc Holliday). The save's inner bag holds the two miniatures (Hero Health, Sidekick Health dials) and a token named 'Doc Holliday' that no rule uses."
+ ],
+ "fid": "wyatt",
+ "ability": "SHOWDOWN\nAfter you attack and win combat, choose one effect. You cannot choose the same effect twice in a turn.\n• draw 1 card\n• gain 1 free action to attack\n• move your fighter up to 1 space",
+ "sidekicks": [
+  {
+   "fid": "doc",
+   "name": "Doc Holliday"
+  }
+ ],
+ "forms": null,
+ "counters": {},
+ "triggers": [],
+ "passives": [],
+ "deck": {
+  "card_base": 18700,
+  "sheet_id": 187,
+  "hero_card_id": 401,
+  "sheet": [
+   {
+    "idx": 0,
+    "title": "You Just Gonna Stand There And Bleed?",
+    "fighter": "Wyatt Earp"
+   },
+   {
+    "idx": 1,
+    "title": "You Just Gonna Stand There And Bleed?",
+    "fighter": "Wyatt Earp"
+   },
+   {
+    "idx": 2,
+    "title": "You Just Gonna Stand There And Bleed?",
+    "fighter": "Wyatt Earp"
+   },
+   {
+    "idx": 3,
+    "title": "Fan The Hammer",
+    "fighter": "Wyatt Earp"
+   },
+   {
+    "idx": 4,
+    "title": "Fan The Hammer",
+    "fighter": "Wyatt Earp"
+   },
+   {
+    "idx": 5,
+    "title": "Second Shot",
+    "fighter": "any"
+   },
+   {
+    "idx": 6,
+    "title": "Second Shot",
+    "fighter": "any"
+   },
+   {
+    "idx": 7,
+    "title": "I Have Two Guns, One For Each Of You",
+    "fighter": "Doc Holliday"
+   },
+   {
+    "idx": 8,
+    "title": "I Have Two Guns, One For Each Of You",
+    "fighter": "Doc Holliday"
+   },
+   {
+    "idx": 9,
+    "title": "I Have Two Guns, One For Each Of You",
+    "fighter": "Doc Holliday"
+   },
+   {
+    "idx": 10,
+    "title": "A Marshal And An Outlaw",
+    "fighter": "Wyatt Earp"
+   },
+   {
+    "idx": 11,
+    "title": "A Marshal And An Outlaw",
+    "fighter": "Wyatt Earp"
+   },
+   {
+    "idx": 12,
+    "title": "A Marshal And An Outlaw",
+    "fighter": "Wyatt Earp"
+   },
+   {
+    "idx": 13,
+    "title": "Gunfight At The O.K. Corral",
+    "fighter": "Wyatt Earp"
+   },
+   {
+    "idx": 14,
+    "title": "Gunfight At The O.K. Corral",
+    "fighter": "Wyatt Earp"
+   },
+   {
+    "idx": 15,
+    "title": "Better Swear Me In",
+    "fighter": "any"
+   },
+   {
+    "idx": 16,
+    "title": "Better Swear Me In",
+    "fighter": "any"
+   },
+   {
+    "idx": 17,
+    "title": "Better Swear Me In",
+    "fighter": "any"
+   },
+   {
+    "idx": 18,
+    "title": "I'm Your Huckleberry",
+    "fighter": "any"
+   },
+   {
+    "idx": 19,
+    "title": "I'm Your Huckleberry",
+    "fighter": "any"
+   },
+   {
+    "idx": 20,
+    "title": "I'm Your Huckleberry",
+    "fighter": "any"
+   },
+   {
+    "idx": 21,
+    "title": "You're A Daisy If You Do",
+    "fighter": "Doc Holliday"
+   },
+   {
+    "idx": 22,
+    "title": "You're A Daisy If You Do",
+    "fighter": "Doc Holliday"
+   },
+   {
+    "idx": 23,
+    "title": "Bring 'Em To Justice",
+    "fighter": "Wyatt Earp"
+   },
+   {
+    "idx": 24,
+    "title": "Bring 'Em To Justice",
+    "fighter": "Wyatt Earp"
+   },
+   {
+    "idx": 25,
+    "title": "Bring 'Em To Justice",
+    "fighter": "Wyatt Earp"
+   },
+   {
+    "idx": 26,
+    "title": "You Die First",
+    "fighter": "Wyatt Earp"
+   },
+   {
+    "idx": 27,
+    "title": "You Die First",
+    "fighter": "Wyatt Earp"
+   },
+   {
+    "idx": 28,
+    "title": "In Vino Veritas",
+    "fighter": "Doc Holliday"
+   },
+   {
+    "idx": 29,
+    "title": "In Vino Veritas",
+    "fighter": "Doc Holliday"
+   }
+  ]
+ }
+}

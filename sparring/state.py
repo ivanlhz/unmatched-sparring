@@ -232,6 +232,7 @@ class Game:
         self.turn = first
         self.turn_no = 1
         self.actions_left = 2
+        self.free_attacks: list[str | None] = []   # of those actions, the ones only an attack can spend (Wyatt Earp): the fid they must attack, None = anyone
         self.winner: int | None = None
         self.bot_player: int | None = None     # who the bot plays: its not yet coded effects are not resolved by the human
         self.effect_shield: dict[int, int] = {}
@@ -300,6 +301,7 @@ class Game:
                                  list(p.tucked), list(p.removed))
                      for p in self.players]
         g.turn, g.turn_no, g.actions_left, g.winner = self.turn, self.turn_no, self.actions_left, self.winner
+        g.free_attacks = list(self.free_attacks)
         g.bot_player = self.bot_player
         g.effect_shield = dict(self.effect_shield)
         g.hazard_taken, g.hazard_hits = set(self.hazard_taken), []
@@ -643,12 +645,49 @@ class Game:
             return
         self.actions_left += n
 
+    def grant_free_attack(self, target: str | None = None) -> bool:
+        """"Gain 1 free action to attack" (Wyatt Earp): one more action that only an attack can spend, against `target` (a fighter id)
+        if given, else against anyone. False when a rule stops the player from gaining actions."""
+        if not self.fx.can_gain_actions(self.turn):
+            return False
+        self.actions_left += 1
+        self.free_attacks.append(target)
+        return True
+
+    @property
+    def paid_actions(self) -> int:
+        """The actions left that any kind of action can spend (`actions_left` less the attack-only ones)."""
+        return self.actions_left - len(self.free_attacks)
+
+    def free_attack_for(self, target: str) -> int | None:
+        """Index in `free_attacks` of the free action an attack on `target` would spend: the one bound to it first, else a general one."""
+        for wanted in (target, None):
+            if wanted in self.free_attacks:
+                return self.free_attacks.index(wanted)
+        return None
+
+    def prune_free_attacks(self, player: int) -> None:
+        """The free attacks `player` can no longer use (no card in hand that attacks, nobody to attack them with) are lost, so a loop that
+        plays "while actions are left" ends. Only a hand the engine knows (the bot's, a determinized one) can be judged."""
+        if not self.free_attacks:
+            return
+        hand = self.players[player].hand
+        usable = [target for target in self.free_attacks if any(
+            self.can_declare_attack(f, foe) and any(enraged.may_attack_with(self, player, c) and c.usable_by(f.name)
+                                                    and self.attack_card_reaches(f, foe, c) for c in hand)
+            for f in self.own(player) for foe in self.foes(player) if target in (None, foe.fid))]
+        lost = len(self.free_attacks) - len(usable)
+        if lost:
+            self.free_attacks = usable
+            self.actions_left -= lost
+
     # turn
     def begin_turn(self, emit: bool = True) -> list[tuple[int, str]]:
         """Starts the turn of `self.turn`: 2 actions and its ONGOING schemes expire. Returns what expired. `emit=False`
         leaves out the start-of-turn triggers: the first turn of a session game, whose table is not set yet (the
         session fires them with `start_first_turn` once the game really begins)."""
         self.actions_left = 2
+        self.free_attacks.clear()
         self.hazard_taken.clear()
         self.placing.clear()
         self.hand_moves.clear()            # the session re-adds the human's pending permissions: see Session._begin_turn
@@ -662,9 +701,16 @@ class Game:
         """The start-of-turn triggers of `self.turn` (Wildfire, ANUNG UN RAMA...), on their own."""
         self.fx.emit("start_of_turn", self.turn)
 
-    def use_action(self) -> None:
+    def use_action(self, attack_on: str | None = None) -> None:
+        """Spends an action. `attack_on` is the fighter id being attacked, for an attack: it spends a free action to attack first (one bound
+        to that fighter, else a general one) and then an ordinary one. Anything else (a Maneuver, a scheme) needs an ordinary action."""
         if self.actions_left <= 0:
             raise RuleError(t("err.no_actions"))
+        slot = None if attack_on is None else self.free_attack_for(attack_on)
+        if slot is not None:
+            del self.free_attacks[slot]
+        elif self.paid_actions <= 0:
+            raise RuleError(t("err.only_free_attacks"))
         self.actions_left -= 1
         self.fx.count_action()
 
@@ -792,7 +838,7 @@ class Game:
             self.check_defense_card(target, def_card)
             if def_card not in self.players[target.owner].hand:
                 raise RuleError(t("err.not_in_hand", title=def_card.title, fid=target.fid))
-        self.use_action()
+        self.use_action(attack_on=target.fid)
         from .effects.events import attack_revealed
         from .effects.modifiers import plays_face_up
         revealed = attacked and (attack_revealed(self, target) or plays_face_up(card, self, attacker, target))      # judged before the trigger spends the token

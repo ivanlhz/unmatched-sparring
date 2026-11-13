@@ -32,6 +32,7 @@ def game_to_dict(g: Game) -> dict:
     return {
         "turn": g.turn, "turn_no": g.turn_no, "actions_left": g.actions_left, "winner": g.winner,
         "effect_shield": {str(k): v for k, v in g.effect_shield.items()}, "drawn": list(g.drawn),
+        **({"free_attacks": list(g.free_attacks)} if g.free_attacks else {}),
         **({"hazard_taken": sorted(g.hazard_taken)} if g.hazard_taken else {}),
         **({"placing": sorted(g.placing)} if g.placing else {}),
         **({"hand_moves": g.hand_moves} if g.hand_moves else {}),
@@ -54,6 +55,7 @@ def apply_game(g: Game, d: dict) -> None:
         g.turn, g.turn_no, g.actions_left, g.winner = d["turn"], d["turn_no"], d["actions_left"], d["winner"]
         g.effect_shield = {int(k): v for k, v in d["effect_shield"].items()}
         g.drawn = list(d["drawn"])
+        g.free_attacks = list(d.get("free_attacks", []))
         # older saves stored (fighter, edge) pairs; only the fighter matters now (once per turn in all)
         g.hazard_taken = {x if isinstance(x, str) else x[0] for x in d.get("hazard_taken", [])}
         g.placing = set(d.get("placing", []))
