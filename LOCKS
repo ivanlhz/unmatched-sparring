@@ -39,3 +39,4 @@ docs/card-identity.md  john-henry  John Henry docs, features, checklist  14:29Z
 sparring/hellboy_script.py  john-henry  John Henry attack-only action in the turn loops  14:38Z
 sparring/search/controller.py  john-henry  John Henry attack-only action in the turn loops  14:38Z
 sparring/session_pieces.py  john-henry  John Henry attack-only action in the turn loops  14:38Z
+tests/test_tmnt_matrix.py  raptors  AttackDriver re-reads the hero each turn (a team hero may fall without ending the game)  14:39Z
