@@ -17,3 +17,5 @@ sparring/ai_effects.py  philippa  Philippa engine pieces (fill-hand amount, hero
 sparring/session_rage.py  philippa  Philippa engine pieces (fill-hand amount, hero_move rule, plugins, AI, human play mode)  13:58Z
 data/i18n/en.json  philippa  Philippa engine pieces (fill-hand amount, hero_move rule, plugins, AI, human play mode)  13:58Z
 data/i18n/es.json  philippa  Philippa engine pieces (fill-hand amount, hero_move rule, plugins, AI, human play mode)  13:58Z
+sparring/heroes.py  raptors  team heroes (SidekickDef.hero) + pack bonus  14:00Z
+sparring/state.py  raptors  team loss rule, hero() prefers alive, pack bonus  14:00Z
