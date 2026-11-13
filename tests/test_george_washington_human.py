@@ -372,3 +372,21 @@ def test_an_attack_already_declared_is_not_asked_about_the_token_again(rig, monk
     session.pending.declared = {"counters": {}, "revealed": False}
     msgs = click(session, table, Event.REVEAL)
     assert not said(msgs, "pones una ficha de engano en este ataque") and supply(game, 1) == (4, 0)
+
+
+@with_rig("hellboy", "george-washington", *HAND)
+def test_the_free_action_of_allies_everywhere_is_refused_for_a_maneuver_at_the_panel(rig, monkeypatch):
+    session, table, game, fake, cfg = rig
+    put_adjacent(game, table, cfg, "washington", "hellboy")
+    bot_defends_with_nothing(session, monkeypatch)
+    human_hand(table, game, "Allies Everywhere", "Lead Astray", "Feint")
+    game.fx.set_counter(1, "ruse_tokens", 0)
+    attack(session, table, game, "Allies Everywhere")
+    assert game.actions_left == 2 and game.fx.attack_credit == 1
+    click(session, table, Event.END_ACTION)                                    # the attack is closed
+    click(session, table, Event.MANEUVER)
+    click(session, table, Event.END_ACTION)
+    assert game.actions_left == 1 and game.attack_only()
+    msgs = click(session, table, Event.MANEUVER)
+    msgs += click(session, table, Event.END_ACTION)
+    assert game.actions_left == 1 and game.turn == 1, msgs                  # the maneuver was refused: the free action is for an attack

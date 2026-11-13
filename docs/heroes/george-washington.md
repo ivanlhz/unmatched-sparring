@@ -31,11 +31,11 @@ His deck is sheet 187 (CustomDeck key 187, CardIDs 18700-18729), shared with Wya
 ## Cards (as implemented)
 1. **Lead Astray** (attack 5 / boost 2, Washington): AFTER, move a fighter in the combat up to 2 spaces (`move` of `combatant`, the owner chooses who and where), won or lost. Skirmish's move without the condition.
 2. **Agent 711** (attack 4 / 3, Washington): AFTER, [RUSE] if you won, 7 effect damage to the opposing fighter.
-3. **Allies Everywhere** (attack 1 / 3, Washington): AFTER, gain 1 action (Pending Ivan 2); [RUSE] Washington recovers 3 health (the hero, whoever played the card).
+3. **Allies Everywhere** (attack 1 / 3, Washington): AFTER, gain 1 free action to attack (`gain_action` with `only: attack`: Maneuvers and schemes cannot spend it; Decided by Ivan 1); [RUSE] Washington recovers 3 health (the hero, whoever played the card).
 4. **Circumvent** (attack 3 / 2, ANY): DURING, [RUSE] ignore the value of the opponent's card (`set_value ignore`).
 5. **Sabotage** (attack 3 / 3, ANY): AFTER, [RUSE] if you won, the opponent discards 2 random cards (`pick: random`: the bot reads nothing; the human's are theirs by position).
 6. **Misinformation** (versatile 4 / 2, ANY): AFTER, if you won the combat, regain a ruse token (`ruse_tokens` +1, never above 4; in defense it works when the defender wins).
-7. **Make A Stand** (versatile 3 / 1, ANY): DURING, if the fighter started this turn in its current space its value becomes 5 (`moved_this_turn`, the positions recorded at the start of the turn: Sinbad's Momentous Shift in the other direction; on the rival's turn the defender is standing still if nothing moved it).
+7. **Make A Stand** (versatile 3 / 1, ANY): DURING, if the fighter started this turn in its current space its value becomes 5 (plugin test `washington:started_here`: the space recorded at the start of the turn equals the current one; it may leave and come back; a Spy placed this turn has no recorded space and does not count).
 8. **Feint** (versatile 2 / 3, ANY): the shared Feint (source id 2): cancel all effects on the opponent's card.
 9. **Recruit To The Ring** (versatile 2 / 1, ANY): AFTER, return a defeated Spy next to Washington (1 life); if you won, to any space instead (`revive`; the human places the miniature by hand, the chat says "una casilla adyacente" or "cualquier casilla").
 10. **Network Of Spies** (versatile 2 / 2, Washington): DURING +1 for each other friendly fighter in Washington's zone.
@@ -46,21 +46,23 @@ His deck is sheet 187 (CustomDeck key 187, CardIDs 18700-18729), shared with Wya
 ## Engine pieces
 None in the DSL, the schema or the validator. New: `sparring/effects/plugins_washington.py` (`washington:use_ruse`, `washington:offer_removal`, `washington:replace_combatant`), `sparring/ai_washington.py`, `sparring/session_espionage.py`; small additive edits: the `voluntary` flag of a plugin's `discard` (`ops_core._discard`), the ask-the-human hooks in `session_hidden.py` (`ask_prediction`, `answer_prediction`, `declare_attack`, `bot_attack_placed`), the `washington` extra of `choose.default_answer` / `SyntheticChooser._optional`, `ai_effects._optional` (the two decisions) and `_swap_combatant` (more than two fighters: only an adjacent friend can swap), and the card-value hooks in `ai_medusa` (next to Sinbad's).
 
-## Rule decisions (the most literal reading, applied) - Pending Ivan
-1. **[RUSE] means "applies only if the ruse token is still on the card".** The transcription marks the effects printed after the ruse-triangle icon; that reading is an inference. Alternative: the icon only says "this card may carry a ruse token" and its effect always applies.
-2. **"Gain 1 free action to attack"** is implemented as a plain extra action (`gain_action 1`). Literally the action may only be spent on an attack; restricting it needs a new kind of action in the engine, the planners of the heuristic bot and of the search, and the panel.
-3. **A token the opponent removes is gone**: it is spent and does not return to the supply (the card says "remove the ruse token"; "regain a ruse token" is a separate effect of Misinformation and Sympathetic Stain). Alternative: it goes back to the supply.
-4. **Any fighter of Washington's may use a token** when it attacks ("when *you* attack"), a Spy included, and only one token per attack.
-5. **A token is offered only on a card with a ruse effect.** On any other card it would do nothing for the attacker and only cost the opponent a decision (and a card).
-6. **The human declares the token at Reveal**, after the card is face down and before the bot defends; a cancelled attack carries the declaration over (Ivan's Abe ruling, 29/10: nothing fires twice), so the same attack is not asked again.
-7. **Make A Stand** "started this turn in their current space": the engine records the positions of the fighters alive at the start of the turn and the card asks `not moved_this_turn`; a fighter that was not on the board at the start (a Spy returned this turn and playing it at once) has no recorded space and is treated as standing still (5). Rare enough to leave; the strict reading would need a condition "started the turn exactly here".
-8. **Recruit To The Ring** brings the Spy back with 1 life; with no free space next to Washington the lost-combat case finds nowhere to put it and nothing happens. Washington defeated ends the game before it matters.
-9. **Undercover Agent** is optional ("may"); with several adjacent Spies the owner chooses. The Spy that takes his place takes the combat damage and the card's value; the attacker's card stays aimed at the same space.
-10. **Sympathetic Stain**: the adjacency of a Spy to a fighter of theirs is read when the card resolves (after the look); the token it gives back is clipped at 4. "Choose an opponent": there is only one.
-11. **Sabotage and Agent 711** need the combat won; the damage of Agent 711 is effect damage (a status that stops effect damage stops it).
+## Decided by Ivan (2026-11-13)
+1. **"Gain 1 free action to attack"** is attack-only: `gain_action` with `only: attack` (the engine's `fx.attack_credit`); a Maneuver or a scheme cannot spend it, the bot or the human (`tests/test_george_washington_effects.py`).
+2. **Make A Stand**: "started this turn in their current space" compares the current space with the one recorded at the start of the turn; the fighter may leave and come back and it still counts; a fighter with no recorded space (a Spy placed this turn) does not.
+3. **[RUSE] means "applies only if the ruse token is still on the card".**
+4. **Any fighter of Washington's, a Spy included, may use a ruse token** when it attacks.
+
+## Pending Ivan (rules taken as the most literal reading)
+1. **A token the opponent removes is gone**: it is spent and does not return to the supply (the card says "remove the ruse token"; "regain a ruse token" is a separate effect). Ivan does not know; kept as implemented. Alternative: it goes back to the supply.
+2. **A token is offered only on a card with a ruse effect.** On any other card it would do nothing for the attacker and only cost the opponent a decision (and a card).
+3. **The human declares the token at Reveal**, after the card is face down and before the bot defends; a cancelled attack carries the declaration over (Ivan's Abe ruling, 29/10), so the same attack is not asked again.
+4. **Recruit To The Ring** brings the Spy back with 1 life; with no free space next to Washington the lost-combat case finds nowhere to put it and nothing happens.
+5. **Undercover Agent** is optional ("may"); with several adjacent Spies the owner chooses. The Spy takes the combat damage and the card's value; the attacker's card stays aimed at the same space.
+6. **Sympathetic Stain**: the adjacency of a Spy to a fighter of theirs is read when the card resolves (after the look); the token it gives back is clipped at 4.
+7. **Sabotage and Agent 711** need the combat won; Agent 711's damage is effect damage (a status that stops effect damage stops it).
 
 ## Open questions for Ivan
-The eleven above, mainly 1, 2 and 3. Also: should the bot (as the defender) ever discard a card to remove a token? Applied: only when its hero is in range of Agent 711's 7 (the hero's hit points within the combat damage and 7 of death) or the unseen ruse cards hurt more than a card of its hand is worth (`ai_washington.remove_ruse`); it never gives up its last card.
+The first item above. Also: should the bot (as the defender) ever discard a card to remove a token? Applied: only when its hero is in range of Agent 711's 7 (the hero's hit points within the combat damage and 7 of death) or the unseen ruse cards hurt more than a card of its hand is worth (`ai_washington.remove_ruse`); it never gives up its last card.
 
 ## AI
 - The AI profile comes from the data (Washington `hero`, melee; the Spies `keep_away`, 3 of them: 1 life, so they are the shield and the price of Undercover Agent).
