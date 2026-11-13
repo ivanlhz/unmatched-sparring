@@ -13,5 +13,3 @@ data/i18n/en.json  chupacabra  Ambush vs human: detect the discarded card  16:40
 data/i18n/es.json  chupacabra  Ambush vs human: detect the discarded card  16:40Z
 sparring/session_choices.py  chupacabra  Ambush vs human: detect the discarded card  16:40Z
 README.md  chupacabra  Ambush vs human: detect the discarded card  16:40Z
-docs/live-checklist.md  john-henry  two doc lines  16:44Z
-docs/effects-dsl.md  john-henry  two doc lines  16:44Z
