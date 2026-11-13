@@ -49,11 +49,11 @@ def test_a_full_session_game_reaches_game_over(tmp_path, bot, human):
     assert not any("Accion ilegal" in m or "Illegal action" in m for m in said), said
 
 
-RIG_LIMIT: set = set()
+RIG_LIMIT = {("raptors", "george-washington")}       # the driver has no card left and only Allies Everywhere's attack-only free action: it tries a Maneuver, which is refused (the rig has no way to end the turn early); a rig limit, not a Washington defect
 
 
 def attack_params():
-    return [pytest.param(b, h, id=i, marks=[pytest.mark.xfail(reason="fake-table hand count (RIG_LIMIT)", strict=False)] if (b, h) in RIG_LIMIT else [])
+    return [pytest.param(b, h, id=i, marks=[pytest.mark.xfail(reason="driver cannot end a turn with only an attack-only action left (RIG_LIMIT)", strict=False)] if (b, h) in RIG_LIMIT else [])
             for (b, h), i in zip(PAIRS, IDS)]
 
 
