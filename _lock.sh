@@ -1,4 +1,4 @@
-FILES="sparring/effects/state.py tests/test_d1_bot_cards.py sparring/ai_medusa.py data/i18n/en.json data/i18n/es.json features.json docs/live-checklist.md README.md docs/card-identity.md docs/effects-dsl.md"
+FILES="sparring/effects/ops_core.py sparring/effects/select.py data/heroes/effects/schema.json tools/validate_effects.py sparring/session_rage.py data/i18n/en.json data/i18n/es.json docs/effects-dsl.md docs/live-checklist.md features.json"
 for i in $(seq 1 120); do
   git pull --rebase --autostash -q >/dev/null 2>&1
   n=0; for f in $FILES; do grep -q "^$f " LOCKS && n=1; done

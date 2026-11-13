@@ -8,5 +8,8 @@
 #   Never edit a path locked by another agent. Never remove another agent's line.
 docs/live-checklist.md  philippa  ruse flow text  16:45Z
 docs/effects-dsl.md  philippa  ruse flow text  16:45Z
-sparring/effects/ops_core.py  raptors  for_each pick one + plugin import  16:55Z
-tools/validate_effects.py  raptors  fighter filter except  16:55Z
+<<<<<<< Updated upstream
+=======
+data/i18n/en.json  rosie  Rosie token keys  16:58Z
+data/i18n/es.json  rosie  Rosie token keys  16:58Z
+>>>>>>> Stashed changes
