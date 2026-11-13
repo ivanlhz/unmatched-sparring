@@ -76,7 +76,7 @@ Every title, type, value, boost, copy count, restriction band and text of the el
 
 ## Decided by Ivan (2026-11-13)
 1. **The four upgrade effects** as read from the tokens (MERLIN ENGINE, CAVITY MAGNETRON, SEDGLEY FIST GUN, WHIZBANG: table above) are confirmed.
-2. **"Gain 1 free action to attack"** (D-Day, Rapid Development) is attack-only: `gain_action` with `only: attack` (`fx.attack_credit`, the same free action John Henry and Wyatt Earp use); a Maneuver or a scheme cannot spend it, an attack can (the free one is spent first).
+2. **"Gain 1 free action to attack"** (D-Day, Rapid Development) is attack-only: `gain_action` with `only: attack` (`fx.attack_credit`, as John Henry's; Wyatt Earp's own free actions use `Game.free_attacks`); a Maneuver or a scheme cannot spend it, an attack can (the free one is spent first).
 3. **D-Day "if they were already active"** means all four upgrades were active before the card.
 4. **Hasty Repairs**: the heal also needs an active upgrade.
 5. **The bot flips the physical upgrade tokens** when the engine activates or deactivates an upgrade, re-orders them by the row rule and pings each token it flips or moves (see "The tokens on the table"); the chat message stays. A human Rosie flips her own tokens by hand following the chat.

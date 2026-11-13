@@ -687,6 +687,8 @@
  "discard.missing": "You still have to discard {n} card(s); take the cards already played to the discard pile too.",
  "turn.left": "You have {n} action(s) left.",
  "turn.left_free": "You have {n} action(s) left, {free} of them free and only to attack.",
+ "turn.left_only_attack": "You have {n} action(s) left, all of them only to attack. Press [[panel.end_action]] again to give them up.",
+ "turn.gave_up": "You give up the {n} action(s) left that were only to attack.",
  "turn.look_first": "Before ending the turn you can look at the bot's hand (Look at bot's hand); press [[panel.end_action]] to finish.",
  "discard.limit": "Discard {n} card(s) down to {limit} and press [[panel.end_action]] ([[panel.cancel]] cancels the discard).",
  "turn.bot": "End of your turn. Bot's turn.",

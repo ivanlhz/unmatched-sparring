@@ -6,7 +6,7 @@ lists the spaces of that player's tokens (at most `SUPPLY`, one per space, never
 Henry has entered in the current turn (the reading of "paths" the docs list under Pending Ivan).
 
 The engine reaches this module from `Game.legal_moves` / `hazard_edges` / `walk` (the walks), from the `move` op (`over_tracks`, Power
-Through), from the SpaceSel `track` and from the plugins of `effects/plugins_john.py`."""
+Through, which frees nothing by itself: only John Henry's own walks ignore the tokens), from the SpaceSel `track` and from the plugins of `effects/plugins_john.py`."""
 from __future__ import annotations
 
 SUPPLY = 10
@@ -36,8 +36,8 @@ def add(game, player: int, space: int) -> bool:
 
 
 def free_spaces(game, fighter, over_tracks: bool = False) -> frozenset[int]:
-    """The spaces that cost nothing to enter when `fighter` moves: every track space for John Henry (his rule) and for any fighter
-    a card moves with "do not count spaces with track tokens" (`over_tracks`). Nothing when no token is on the board."""
+    """The spaces that cost nothing to enter when `fighter` moves: every track space, for John Henry only (his rule; Power Through's
+    `over_tracks` adds nothing for any other fighter). Nothing when no token is on the board."""
     fx = getattr(game, "fx", None)
     if fx is None or not any(fx.tracks):
         return frozenset()

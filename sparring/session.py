@@ -392,6 +392,7 @@ class Session:
         self.wildfire_scene: dict | None = None  # what the bot's Wildfire did at the turn change, shown at its first write
         self.said_returns: set[int] = set()      # cards whose return to the bot's hand the Wildfire scene already announced
         self.limit_waived = False
+        self.end_seen: tuple[int, int] | None = None     # (turn, actions left) at the last End action of the human: the same again = nothing done since
         self.flush_failures = 0                  # consecutive table failures (SessionError) while settling the debt
         self.state_path: Path | None = None      # if set, saved after every start/resume/handle
         self.game_id = uuid.uuid4().hex          # identifies this game in the save
@@ -3427,10 +3428,21 @@ class Session:
         g = self.game
         if g.winner is not None or g.turn != self.human:
             return
-        if g.actions_left > 0 and tracks.turn_goes_on(g):
-            self.say(t("turn.left_free", n=g.actions_left, free=len(g.free_attacks)) if g.free_attacks else t("turn.left", n=g.actions_left),
-                     ChatKind.YOUR_TURN)
-            return
+        if g.actions_left > 0:
+            # The human's hand is a virtual one (the real cards are on the table): it never decides whether a free attack is usable.
+            # When only attack-only actions are left, End action pressed again with nothing done in between gives them up.
+            seen, self.end_seen = self.end_seen, (g.turn_no, g.actions_left)
+            if not g.attack_only():
+                free = len(g.free_attacks) or min(g.fx.attack_credit, g.actions_left)
+                self.say(t("turn.left_free", n=g.actions_left, free=free) if free else t("turn.left", n=g.actions_left), ChatKind.YOUR_TURN)
+                return
+            if seen != self.end_seen:
+                self.say(t("turn.left_only_attack", n=g.actions_left), ChatKind.YOUR_TURN)
+                return
+            self.say(t("turn.gave_up", n=g.actions_left), ChatKind.YOUR_TURN)
+            g.actions_left = 0
+            g.free_attacks.clear()
+            g.fx.attack_credit = 0
         if self.look_granted and self._look_epoch == self._epoch:    # granted by this very button: the look comes first
             self.say(t("turn.look_first"), ChatKind.YOUR_TURN)
             return

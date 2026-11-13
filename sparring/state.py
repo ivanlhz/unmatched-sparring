@@ -468,7 +468,7 @@ class Game:
 
     def legal_moves(self, fighter: Fighter, steps: int, through_enemies: bool | str = False, over_tracks: bool = False) -> set[int]:
         """`through_enemies`: False, True (any rival may be crossed) or "sidekicks" (only the rivals' sidekicks). The spaces with a track
-        token are not counted for John Henry (his ability) nor when the move says so (`over_tracks`: Power Through)."""
+        token are not counted for John Henry (his ability); `over_tracks` (Power Through) frees the walk only for him too."""
         if not self.fx.can_move(fighter):
             return {fighter.pos}
         return self.board.reachable(fighter.pos, steps, self.occupied(fighter.owner) - {fighter.pos},

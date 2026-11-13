@@ -388,5 +388,4 @@ def test_the_free_action_of_allies_everywhere_is_refused_for_a_maneuver_at_the_p
     click(session, table, Event.END_ACTION)
     assert game.actions_left == 1 and game.attack_only()
     msgs = click(session, table, Event.MANEUVER)
-    msgs += click(session, table, Event.END_ACTION)
     assert game.actions_left == 1 and game.turn == 1, msgs                  # the maneuver was refused: the free action is for an attack

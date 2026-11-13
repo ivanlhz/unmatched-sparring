@@ -3,7 +3,7 @@ his search weights (F-STRANGE-AGGRO).
 
     python tools/strange_measure.py base  script hellboy 60 30     # no hero profile (the old weights)
     python tools/strange_measure.py profile chase medusa 60 30     # adapter.HERO_EVAL as shipped
-    python tools/strange_measure.py caution=0.1,scheme_cost=0.2 script hellboy 60 30   # the shipped profile with other weights
+    python tools/strange_measure.py caution=0.1,pack=0.2 script hellboy 60 30   # the shipped profile with other weights
 
 Prints one JSON line: wins, bot turns, attacks, attacks per turn, blows given up per game and schemes per game, over the
 seeds `first .. first + games - 1` (200 search iterations per decision, board bprd-hq). Pool the cells to compare."""

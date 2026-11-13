@@ -687,6 +687,8 @@
  "discard.missing": "Aun falta descartar {n} carta(s); lleva tambien al descarte las cartas ya jugadas.",
  "turn.left": "Te quedan {n} accion(es).",
  "turn.left_free": "Te quedan {n} accion(es), {free} gratis y solo para atacar.",
+ "turn.left_only_attack": "Te quedan {n} accion(es), todas solo para atacar. Pulsa [[panel.end_action]] otra vez para renunciar a ellas.",
+ "turn.gave_up": "Renuncias a las {n} accion(es) que te quedaban solo para atacar.",
  "turn.look_first": "Antes de terminar el turno puedes mirar la mano del bot (Mirar mano del bot); pulsa [[panel.end_action]] para terminar.",
  "discard.limit": "Descarta {n} carta(s) hasta tener {limit} y pulsa [[panel.end_action]] (Cancelar ataque anula el descarte).",
  "turn.bot": "Fin de tu turno. Turno del bot.",
