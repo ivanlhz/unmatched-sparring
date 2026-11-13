@@ -6,3 +6,6 @@
 #            Push rejected -> git pull --rebase; if the path is now someone else's, wait and retry; else push again.
 #   release: in the SAME push as your finished work, delete your line (commit "unlock: <path> <agent>").
 #   Never edit a path locked by another agent. Never remove another agent's line.
+sparring/session_hidden.py  philippa  human Spymaster ruse vs bot: row of 4 on the table  16:33Z
+data/i18n/en.json  philippa  human Spymaster ruse vs bot: row of 4 on the table  16:33Z
+data/i18n/es.json  philippa  human Spymaster ruse vs bot: row of 4 on the table  16:33Z
