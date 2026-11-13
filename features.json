@@ -646,6 +646,20 @@
       "note": "Engine additions are additive (docs/effects-dsl.md, section 38). Rules decisions and open questions for Iván: docs/heroes/sinbad.md. Live test pending."
     },
     {
+      "id": "HERO-CHUPACABRA",
+      "title": "Chupacabra (Battle of Legends, Volume Three) playable by the bot and by the human against every hero",
+      "status": "in-progress",
+      "criteria": [
+        "data/heroes/overlay/chupacabra.json, data/heroes/chupacabra.json, data/heroes/effects/chupacabra.json and data/tts/chupacabra.json generated and validated (import_hero, validate_effects, import_save); the 11 titles (30 cards, sheet 176, character card 360) read from the card images; the two schemes carry value null (unmatched-memory has 0)",
+        "His deck shares CardIDs 17600-17629 with the other sheet-176 decks: told apart by deck image and owner (tests/test_hero_chupacabra_data.py, tests/test_card_identity.py); the only GUID he shares is the life dial ca8e35 (Donatello, Tomoe Gozen), resolved by name",
+        "THE HUNGER is an after_attack trigger with an optional draw; all 11 cards on the interpreter for both seats with two plugins (chupacabra:ambush, chupacabra:tooth_and_tail); the human states the BOOST value of the card Ambush makes them discard (tests/test_chupacabra_effects.py, tests/test_chupacabra_human.py)",
+        "The bot plays him under the heuristic and the search AI (make_bot_ai ismcts): ai_chupacabra.py prices The More They Struggle, Ambush, Wounded Beast and the AFTERs (tests/test_chupacabra_ai.py)",
+        "Chupacabra against each of the other heroes in both seats reaches game over on FakeTTS (passive and attacking human) and in the simulator (tests/test_chupacabra_matrix.py)",
+        "Verified live by Ivan (docs/live-checklist.md, section Chupacabra)"
+      ],
+      "note": "Engine additions: none beyond the two plugins (docs/effects-dsl.md, section 42). Rules decisions and open questions for Ivan: docs/heroes/chupacabra.md. Live test pending."
+    },
+    {
       "id": "HERO-PHILIPPA",
       "title": "Philippa (The Witcher: Realms Fall, with Dijkstra) playable by the bot and by the human against every hero",
       "status": "in-progress",

@@ -683,6 +683,7 @@ from . import plugins_jill  # noqa: E402,F401  (registers jill:hypnoray, jill:re
 from . import plugins_shehulk  # noqa: E402,F401  (registers shehulk:throw, shehulk:mill)
 from . import plugins_ciri  # noqa: E402,F401  (registers ciri:channel_the_source)
 from . import plugins_eredin  # noqa: E402,F401  (registers eredin:replace_combatant and the test eredin:opponent_card)
+from . import plugins_chupacabra  # noqa: E402,F401  (registers chupacabra:ambush, chupacabra:tooth_and_tail)
 from . import plugins_yennefer  # noqa: E402,F401  (registers yennefer:/triss: mill and lodge)
 from . import plugins_philippa  # noqa: E402,F401  (registers philippa: owlform, chain_lightning, blinding_dust, do_my_bidding, spymaster_ruse)
 from . import plugins_john  # noqa: E402,F401  (registers john:summon_track and the test john:paths)

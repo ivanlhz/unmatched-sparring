@@ -70,6 +70,8 @@ Philippa (The Witcher: Realms Fall, character card 349, slug `philippa`) is anot
 
 John Henry (Stars and Stripes, character card 403 on sheet 4, slug `john-henry`) needs none of this: his deck is sheet 187 (CardIDs 18700-18729, his own DeckID) and `tests/test_hero_john_henry_data.py` pins that no other hero of `data/tts` has a CardID in 187xx, that his images are nobody else's, and detection in both seats. The only thing he shares is the GUID of his life dial (`887823`, Raphael's too: told apart by the dial's name), and `tests/test_john_henry_matrix.py` plays the pair.
 
+Chupacabra (Battle of Legends, Volume Three, character card 360) is another deck of sheet 176 (`tests/test_hero_chupacabra_data.py`, `tests/test_chupacabra_matrix.py`): his own `deck.identity` in `data/tts/chupacabra.json`, a matrix against the other heroes in both seats, and `SHARING` in `tests/test_card_identity.py`. His life dial is the fourth user of the Custom_Model GUID `ca8e35` (Donatello's, Tomoe Gozen's and Little Red's): told apart by the dial's name, see "Piece identity"; the matrix plays him against Donatello and Tomoe Gozen in both seats.
+
 ## Houdini needs none of this
 
 Houdini's deck is sheet 178 (CardIDs 17800-17829) with the character card on a sheet of its own (177, CardID 17700); no other hero of

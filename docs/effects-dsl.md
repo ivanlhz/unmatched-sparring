@@ -1295,3 +1295,14 @@ Additive: no earlier effects file uses these words. The gap listed in section 9 
 - **Table**: the Lua builders `place_token_at_space` (a copy of the stack laid on a space) and `read_tokens_by_image` (every token whose picture ends in the 40 hex digits of `token_sources.track.image`, with the space nearest to it; the supply stack is only counted), the intent `track` (a direct op of `session_bot_effects`, `session_translators._track_bot`) and `session_tracks.sync`, which adopts the human's tokens from the table before the positions are read. The token stack is the bag's `tokens.track` (`data/tts/john-henry.json`).
 - **Search**: the memo key of the search's legal moves includes the tracks and the credit flag; `reach()` skips the global reach cache for a fighter with free spaces.
 - **His own CardID range**: sheet 187 (CardIDs 18700-18729), no other hero has one in 187xx (docs/card-identity.md).
+
+## 42. Chupacabra: an optional draw after an attack, a conditional BOOST and two plugins
+
+No new op, event, rule or schema field.
+
+- **THE HUNGER** is an `after_attack` trigger (`fighter: {side: own}`) with an `optional` draw (Michelangelo's PIZZA PARTY event); the human is asked with `choice.prompt.ability.the_hunger`.
+- **Blood in the Air** ("if you already won a combat this turn, you may BOOST this card"): `allow_boost` of `this` behind `combats_won_this_turn >= 1`, not `may_boost` (which is unconditional); `test_may_boost_marks_in_data...` skips the "if you already won" wording for that reason.
+- **The More They Struggle**: `modify_value` with `{"attr": "value", "of": "opponent_card", "times": 2}` (the PRINTED value).
+- **Plugins** (`sparring/effects/plugins_chupacabra.py`): `chupacabra:ambush` (the rival discards a random card and its BOOST is added; for the table player the engine only draws the position, the human discards by hand and states the BOOST value in an `amount` request with `ambush_boost`, `choice.prompt.ambush`; the owed discard is registered once, `run.flags["ambush_discard"]`) and `chupacabra:tooth_and_tail` (up to 2 distinct adjacent fighters, 1 damage each, 1 health for each that took it).
+- **AI**: `sparring/ai_chupacabra.py` prices The More They Struggle, Ambush and Wounded Beast (attack and defense value) and the AFTER of Feeding, Ravenous Lunge, Tooth and Tail and Natural Toughness; `MedusaAI.card_value`, `attack_outcome` and `eval_defense` call it.
+- Same CardID range as the other sheet-176 decks (docs/card-identity.md); his life dial shares the GUID `ca8e35` with Donatello's and Tomoe Gozen's.

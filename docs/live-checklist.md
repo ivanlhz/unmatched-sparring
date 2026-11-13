@@ -573,3 +573,15 @@ For each failure:
 - [ ] Screenshot of the table and the panel.
 - [ ] The `--read-only` report (detection/calibration) or the `--timing` output (latency).
 - [ ] If you reloaded: with or without `--resume`; and remember you have the "pre-sparring" save.
+
+### Chupacabra (Battle of Legends, Volume Three)
+
+Nothing of Chupacabra has been seen on a real table. His deck is sheet 176 like every other hero's, and his life dial `ca8e35` is also Donatello's and Tomoe Gozen's: the first things to check are the detection and the dials.
+- [ ] **Detection (auto)**: with his deck at one spot and any other hero's at the other, the start-up line names Chupacabra; the bag `a20352` holds a deck of 31 cards (character card 360).
+- [ ] **Pieces and the shared dial**: his miniature `4137cf` (an asset bundle) and dial `ca8e35` (14) are found; against Donatello or Tomoe Gozen the chat says the dial was resolved by name and each life dial follows its own hero.
+- [ ] **THE HUNGER (H)**: after each of your attacks the panel asks Yes / No to draw a card; Yes: the bot deals you one. **(B)**: the bot's Chupacabra draws after its attacks.
+- [ ] **Ambush (H, bot Chupacabra)**: the chat names the position of the card you discard from your hand ("the card N counting from the left"); you discard it and press its BOOST value; the attack is worth 2 plus that value. **(B, you attack)**: the bot discards a card of its hand and the table follows.
+- [ ] **Unsettle**: played by you, the panel asks if you pay 2 damage; the bot discards 1 or 2 cards and its table hand follows. Played by the bot, you discard by hand the number of cards the chat says.
+- [ ] **Tooth and Tail / Feeding / Ravenous Lunge**: the dials follow the damage and the healing; with more than 2 fighters next to him the panel asks which two.
+- [ ] **Blood in the Air**: after a combat won this turn, the panel offers the BOOST of the card at Reveal.
+- [ ] **Traveler of the Night**: you move your miniature by hand (up to 4, through opposing fighters) and press End action; you keep the action.

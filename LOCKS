@@ -6,18 +6,3 @@
 #            Push rejected -> git pull --rebase; if the path is now someone else's, wait and retry; else push again.
 #   release: in the SAME push as your finished work, delete your line (commit "unlock: <path> <agent>").
 #   Never edit a path locked by another agent. Never remove another agent's line.
-sparring/effects/ops_core.py  chupacabra  Chupacabra hero (plugin registration, i18n, AI hooks, docs, shared tests)  15:03Z
-sparring/effects/state.py  chupacabra  Chupacabra hero (plugin registration, i18n, AI hooks, docs, shared tests)  15:03Z
-data/i18n/en.json  chupacabra  Chupacabra hero (plugin registration, i18n, AI hooks, docs, shared tests)  15:03Z
-data/i18n/es.json  chupacabra  Chupacabra hero (plugin registration, i18n, AI hooks, docs, shared tests)  15:03Z
-tests/test_heroes.py  chupacabra  Chupacabra hero (plugin registration, i18n, AI hooks, docs, shared tests)  15:03Z
-tests/test_card_identity.py  chupacabra  Chupacabra hero (plugin registration, i18n, AI hooks, docs, shared tests)  15:03Z
-tests/test_d1_bot_cards.py  chupacabra  Chupacabra hero (plugin registration, i18n, AI hooks, docs, shared tests)  15:03Z
-tests/test_effects_schema.py  chupacabra  Chupacabra hero (plugin registration, i18n, AI hooks, docs, shared tests)  15:03Z
-sparring/session_choices.py  chupacabra  Chupacabra hero (plugin registration, i18n, AI hooks, docs, shared tests)  15:03Z
-sparring/ai_medusa.py  chupacabra  Chupacabra hero (plugin registration, i18n, AI hooks, docs, shared tests)  15:03Z
-features.json  chupacabra  Chupacabra hero (plugin registration, i18n, AI hooks, docs, shared tests)  15:03Z
-docs/effects-dsl.md  chupacabra  Chupacabra hero (plugin registration, i18n, AI hooks, docs, shared tests)  15:03Z
-docs/card-identity.md  chupacabra  Chupacabra hero (plugin registration, i18n, AI hooks, docs, shared tests)  15:03Z
-docs/live-checklist.md  chupacabra  Chupacabra hero (plugin registration, i18n, AI hooks, docs, shared tests)  15:03Z
-README.md  chupacabra  Chupacabra hero (plugin registration, i18n, AI hooks, docs, shared tests)  15:03Z
