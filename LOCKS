@@ -12,3 +12,8 @@ docs/live-checklist.md  washington  George Washington hero  16:34Z
 features.json  washington  George Washington hero  16:34Z
 sparring/session.py  rosie  Rosie bot flips the upgrade tokens  16:36Z
 sparring/table_reset.py  rosie  Rosie bot flips the upgrade tokens  16:36Z
+sparring/session_rage.py  chupacabra  Ambush vs human: detect the discarded card  16:40Z
+data/i18n/en.json  chupacabra  Ambush vs human: detect the discarded card  16:40Z
+data/i18n/es.json  chupacabra  Ambush vs human: detect the discarded card  16:40Z
+sparring/session_choices.py  chupacabra  Ambush vs human: detect the discarded card  16:40Z
+README.md  chupacabra  Ambush vs human: detect the discarded card  16:40Z
