@@ -433,6 +433,8 @@ class Semantics:
             want = "player"
         elif key in FIGHTER_KEYS or (key == "to" and parent is not None):
             want = "fighter"
+        elif key == "except" and parent is not None and "zone" not in parent:       # the `except` of a FIGHTER filter names a fighter (a card selector's names a card)
+            want = "fighter"
         elif key in CARD_KEYS:
             want = "card"
         elif key in NUMBER_KEYS:

@@ -661,9 +661,12 @@ def _for_each(run, game, spec):
         kind, items = "players", players_of(game, run, over["players"])
     else:
         kind = "fighters"
-        cands, _ = fighter_candidates(game, run, over["fighters"])
-        items = run.ask(game, "order", player_of(game, run, spec.get("chooser", "owner")),
-                        [f.fid for f in cands], len(cands), len(cands), "order", ordered=True)
+        sel, chooser = over["fighters"], player_of(game, run, spec.get("chooser", "owner"))
+        if isinstance(sel, dict) and sel.get("pick") == "all":
+            cands, _ = fighter_candidates(game, run, sel)
+            items = run.ask(game, "order", chooser, [f.fid for f in cands], len(cands), len(cands), "order", ordered=True)
+        else:       # `pick: one` (the default): the chooser names ONE fighter and the ops run for it (Coordinated Attack Pattern: "choose one of your Raptors")
+            items = [f.fid for f in pick_fighters(game, run, sel, chooser, "choose a fighter", op="for_each")]
     return [(("ops",), {"var": spec["as"], "kind": kind, "items": list(items), "pos": 0})]
 
 
@@ -695,3 +698,4 @@ from . import plugins_wyatt  # noqa: E402,F401  (registers wyatt:free_attack, yo
 from . import plugins_philippa  # noqa: E402,F401  (registers philippa: owlform, chain_lightning, blinding_dust, do_my_bidding, spymaster_ruse)
 from . import plugins_john  # noqa: E402,F401  (registers john:summon_track and the test john:paths)
 from . import plugins_washington  # noqa: E402,F401  (registers washington:use_ruse, washington:offer_removal and washington:replace_combatant)
+from . import plugins_raptors  # noqa: E402,F401  (registers blue:ambush)

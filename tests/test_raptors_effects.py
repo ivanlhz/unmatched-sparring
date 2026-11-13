@@ -351,42 +351,55 @@ def test_working_things_out_may_cross_the_opposing_fighters_and_stay_put(bprd):
     assert len(moves) == 3 and all(r.extra["through"] and r.extra["up_to"] and r.extra["steps"] == 3 for r in moves)
 
 
-def test_coordinated_attack_pattern_places_the_other_raptors_in_the_chosen_raptors_zone(bprd):
+def test_coordinated_attack_pattern_asks_one_question_which_raptor_and_places_the_others_in_its_zone(bprd):
     g = mk(bprd)
     blue = g.fighters["blue"]
     far = [s for s in sorted(g.board.spaces, reverse=True) if not g.board.share_zone(blue.pos, s) and all(f.pos != s for f in g.fighters.values() if f.alive)]
     g.fighters["delta"].pos, g.fighters["echo"].pos = far[0], far[1]
-    g.controllers[0].queue = [answers({"effect": [0]})] * 8              # option 0: the anchor is Blue
+    seen = []
+
+    def answer(req):
+        seen.append(req)
+        return ["blue"] if req.kind == "fighter" else [req.options[0]]
+
+    g.controllers[0].queue = [answer] * 8
     g.play_scheme(0, blue, give(g, 0, "Coordinated Attack Pattern"))
+    assert [r.kind for r in seen] == ["fighter", "space", "space"]            # ONE choice of a Raptor, then where each of the others goes
+    assert seen[0].options == ["blue", "delta", "echo"]
     assert g.board.share_zone(blue.pos, g.fighters["delta"].pos) and g.board.share_zone(blue.pos, g.fighters["echo"].pos)
     assert g.actions_left == 1
-
-
-def test_coordinated_attack_pattern_may_leave_a_raptor_where_it_is(bprd):
-    g = mk(bprd)
-    blue = g.fighters["blue"]
-    spots = {f.fid: f.pos for f in g.own(0)}
-    g.controllers[0].queue = [answers({"effect": [0], "optional": [False]})] * 8
-    g.play_scheme(0, blue, give(g, 0, "Coordinated Attack Pattern"))
-    assert {f.fid: f.pos for f in g.own(0)} == spots
 
 
 def test_coordinated_attack_pattern_never_moves_the_chosen_raptor(bprd):
     g = mk(bprd)
     delta = g.fighters["delta"]
     spot = delta.pos
-    g.controllers[0].queue = [answers({"effect": [1]})] * 8             # option 1: the anchor is Delta
+    g.controllers[0].queue = [lambda req: ["delta"] if req.kind == "fighter" else [req.options[0]]] * 8
     g.play_scheme(0, g.fighters["blue"], give(g, 0, "Coordinated Attack Pattern"))
     assert delta.pos == spot
     assert all(g.board.share_zone(spot, g.fighters[k].pos) for k in ("blue", "echo"))
 
 
-def test_coordinated_attack_pattern_skips_a_defeated_raptor(bprd):
+def test_coordinated_attack_pattern_offers_only_the_raptors_that_still_stand(bprd):
     g = mk(bprd)
     g.defeat(g.fighters["echo"])
-    g.controllers[0].queue = [answers({"effect": [0]})] * 8
+    seen = []
+    g.controllers[0].queue = [lambda req: seen.append(req) or ([req.options[0]])] * 8
     g.play_scheme(0, g.fighters["blue"], give(g, 0, "Coordinated Attack Pattern"))
+    assert seen[0].kind == "fighter" and seen[0].options == ["blue", "delta"]
     assert not g.fighters["echo"].alive and g.fighters["echo"].pos is None
+
+
+def test_for_each_over_one_fighter_runs_its_ops_for_the_chosen_one_and_over_all_asks_the_order(bprd):
+    from sparring.effects.choose import ControllerChooser
+    from sparring.effects.run import Ctx, EffectRun
+    g = mk(bprd)
+    ops = [{"op": "for_each", "over": {"fighters": {"side": "own"}}, "as": "one", "ops": [{"op": "heal", "target": "$one", "amount": 1}]}]
+    g.fighters["delta"].hp = 3
+    g.controllers[0].queue = [lambda req: ["delta"]]
+    run = EffectRun(ops, Ctx(owner=0, this_fid="blue"))
+    assert run.run(g, ControllerChooser()) is None and g.fighters["delta"].hp == 4
+    assert [r.kind for r in g.controllers[0].requests] == ["fighter"]
 
 
 # ---------------------------------------------------------------- a discard a rule vetoed still names what it was to bind

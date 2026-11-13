@@ -109,16 +109,16 @@ def test_effects_validate_and_every_card_has_ops(effects):
             assert any(card["effects"].get(m) for m in MOMENTS), card["title"]
         assert (REAL_CARDS[card["title"]][2] == "scheme") == bool(card["effects"]["scheme"])
     assert [c["title"] for c in effects["cards"] if c.get("ongoing") or c.get("may_boost") or c.get("uncancelable")] == []
-    assert effects["plugins"] == []                                          # no plugin: the pack bonus is the HeroDef passive read by sparring/pack.py
+    assert [p["id"] for p in effects["plugins"]] == ["blue:ambush"]          # the one plugin; the pack bonus is the HeroDef passive read by sparring/pack.py
 
 
 def test_card_effects_say_what_the_real_cards_say(effects):
     by = {c["title"]: c for c in effects["cards"]}
     assert by["Feint"]["effects"]["immediately"] == [{"op": "cancel_effects", "card": "opponent_card"}]
     assert by["They Remember"]["effects"]["after"] == [{"op": "gain_action", "amount": 1}]
-    assert by["Ambush"]["effects"]["during"] == [
-        {"op": "discard", "cards": {"zone": "hand", "player": "opponent", "pick": "random", "amount": 1}, "as": "burnt"},
-        {"op": "modify_value", "card": "this", "amount": {"attr": "boost", "of": "$burnt"}}]
+    assert by["Ambush"]["effects"]["during"] == [{"op": "plugin", "id": "blue:ambush"}]
+    assert by["Coordinated Attack Pattern"]["effects"]["scheme"] == [{"op": "for_each", "over": {"fighters": {"side": "own"}}, "as": "anchor", "ops": [
+        {"op": "place", "target": {"side": "own", "pick": "all", "filter": {"except": "$anchor"}}, "where": {"zone_of": "$anchor"}, "chooser": "owner"}]}]
     assert by["Working Things Out"]["effects"]["scheme"][-1] == {"op": "gain_action", "amount": 1}
     assert by["Working Things Out"]["effects"]["scheme"][0] == {
         "op": "move", "target": {"side": "own", "pick": "all"}, "amount": 3, "up_to": True, "through_enemies": True, "chooser": "owner"}

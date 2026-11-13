@@ -40,22 +40,25 @@ The character card says HERO: RAPTORS (one card, 7 life, move 3) and the save ha
 - Titles, types, values, boosts and copies of all 11 titles match unmatched-memory (30 cards).
 
 ## Rule decisions (taken in the owner's absence, the most literal reading)
-1. **Loss**: all three Raptors defeated (see above). The card does not say; see "Pending Ivan".
+1. **Loss**: all three Raptors defeated (see above; decided by Ivan).
 2. **Pack Hunters** counts every Raptor adjacent to the opposing fighter when the AFTER resolves, the attacker included if it stands next to the defender ("each of your Raptors adjacent to them"). Effect damage, 0 when nobody is adjacent. A Raptor defeated in the combat is not counted.
 3. **Eaten Alive**: "adjacent" is adjacent to the Raptor that played the card; the owner chooses which of the opposing fighters there is hit; a won defense counts as winning (the global tie rule: the attacker wins only when combat damage lands).
 4. **Decoy** moves one of the OTHER undefeated Raptors (never the one that plays it) to an empty space adjacent to the opposing fighter, optionally; with no free adjacent space nothing happens. It resolves before the DURING, so it matters for what the DURING reads, not for the pack bonus of the rival (the rival has none).
-5. **Coordinated Attack Pattern**: one option per Raptor (the DSL has no op that binds a chosen fighter), then a yes/no and a space for each of the other two. The chosen Raptor never moves. Choosing a defeated Raptor does nothing (the panel lists all three).
+5. **Coordinated Attack Pattern**: one `fighter` question among the Raptors that still stand (`for_each` over a single fighter, docs/effects-dsl.md section 43), then a space of the chosen Raptor's zone for each of the others. The chosen Raptor never moves.
 6. **Working Things Out**: each undefeated Raptor moves up to 3 spaces (0 included), through opposing fighters but never ending on one; the owner picks the order; the action is gained once. For the human every move is by hand (the same op as Eredin's Close For The Kill).
-7. **Ambush**: the discard is by chance and the bonus is the discarded card's BOOST (0 for a card with none, nothing with an empty hand). Cancelling the card's effects (Feint) cancels the bonus.
+7. **Ambush** (plugin `blue:ambush`): the discard is by chance and the bonus is the discarded card's BOOST (0 for a card with none, nothing with an empty hand or when a rule forbids forced discards: Counterhex Shield). Cancelling the card's effects (Feint) cancels the bonus. Against a human see "Decided by Ivan".
 8. **Clever Girl** is read when the AFTER resolves, win or lose. With a melee attacker the Raptor that played it is normally adjacent, so the action is almost always gained.
 9. **Exhaustion** as everywhere: an empty deck deals 2 to each of the three Raptors.
 
+## Decided by Ivan (2026-11-13)
+1. **Loss rule**: the Raptors lose only when ALL three are defeated.
+2. **Ambush against a human**: the bot says a position from 1 to the number of cards in their hand ("the card N of your hand counting from the left"), they discard that card on their discard pile and press Done, and the bot reads which card it was and adds its BOOST (shared flow `sparring/effects/random_discard.py`, also Chupacabra's Ambush). An empty hand asks nothing and adds 0; the question survives a save and a resume.
+3. **Coordinated Attack Pattern**: ONE question, "choose a Raptor".
+
 ## Pending Ivan
-1. **Does the owner lose when ALL three Raptors are defeated, or when ANY one is?** Implemented: all three (unmatched-memory and the card print one hero, RAPTORS; the save has three hero miniatures with a dial each). One line in `Game._fall` flips it.
-2. **Ambush against a human**: the engine cannot name the card the human discards at the table (the discard is theirs and the bot never looks at their hand), so against a human opponent the BOOST is not added (the chat says "Aplicado: Ambush: sin efecto"). Against the bot it works. Alternative: the human tells the bot the BOOST value.
-3. **Who is the hero fighter once Blue falls**: the first Raptor standing (Delta, then Echo). It only matters for rival cards that say "the hero".
-4. **Coordinated Attack Pattern** offers the three Raptors as three options and asks yes/no per other Raptor; a single "choose a Raptor" request would be neater but needs a new DSL op.
-5. **Bands**: all 30 cards read ANY from the images.
+1. **Who is the hero fighter once Blue falls**: the first Raptor standing (Delta, then Echo). It only matters for rival cards that say "the hero".
+2. **Coordinated Attack Pattern** places each of the other Raptors (no yes/no per Raptor): the new space may be the one it already stands on when that is in the chosen Raptor's zone; a Raptor outside it has to be placed in the zone.
+3. **Bands**: all 30 cards read ANY from the images.
 
 ## AI
 Everything is data-driven (`ai_profile`: Blue `hero`, Delta and Echo `striker`) plus the passive `pack_bonus`; nothing names a hero. The live bot is ISMCTS (`--ai ismcts`), so everything below is in `sparring/search/adapter.py`.
