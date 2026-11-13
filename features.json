@@ -1001,6 +1001,30 @@
     "Verified live by Ivan (docs/live-checklist.md, section George Washington)"
    ],
    "note": "No engine additions to the DSL (docs/effects-dsl.md, section 41); the code is two plugins, the AI module and sparring/session_espionage.py. Rules decisions and open questions for Ivan: docs/heroes/george-washington.md ('Pending Ivan'). Live test pending."
+  },
+  {
+   "id": "HERO-RAPTORS",
+   "title": "Raptors (Jurassic Park: InGen vs. Raptors, a team of three) playable by the bot and by the human against every hero",
+   "status": "in-progress",
+   "criteria": [
+    "Overlay, HeroDef, effects and data/tts/raptors.json generated and validated; 30 cards (sheet 176, character card 313, all bands ANY) read from the card images; Disengage and Ambush carry the printed text",
+    "Team: Blue is the hero fighter, Delta and Echo are sidekicks flagged team; the owner loses only when all three are defeated, the first Raptor standing becomes the hero fighter when Blue falls (tests/test_raptors_effects.py)",
+    "PACK BONUS: +1 to an attack card per other Raptor next to the defender (sparring/pack.py, Game.attack_bonus_parts / attack_bonus), in the combat line for both seats",
+    "All 11 cards on the interpreter for both seats; Ambush against a human adds no BOOST (the table settles the discard)",
+    "Against every other hero in both seats the games reach game over on FakeTTS and in the simulator (tests/test_raptors_matrix.py)",
+    "Verified live by Ivan (docs/live-checklist.md, section Raptors)"
+   ],
+   "note": "Pending Ivan: all three or any Raptor defeated loses (docs/heroes/raptors.md)."
+  },
+  {
+   "id": "F-RAPTORS-SWARM",
+   "title": "The bot's Raptors swarm, attack every turn they can and price a rival's zone damage per Raptor",
+   "status": "in-progress",
+   "criteria": [
+    "ISMCTS: policy pack for the followers (they close on the rival the hero stands next to), pack_ready evaluation term, no Maneuver as the last action with a blow to land (search/adapter.py); a mate beside the defender in 6 of 6 scenes against 2 of 6 before",
+    "Zone damage of a rival hero (ai_hazards.zone_exposed): per Raptor in the zone, summed, in the search's threat() and the heuristic's zone_hazard_cost; 20 games vs Medusa: 0.46 Raptors in her zone per bot turn against 0.57 unaware and 0.59 hero-only",
+    "Still attacks every turn against a rival with no zone damage and against Medusa (tests/test_raptors_ai.py)"
+   ]
   }
  ]
 }

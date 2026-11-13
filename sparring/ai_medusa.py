@@ -1496,7 +1496,7 @@ class MedusaAI(Controller):
         hand = game.players[self.me].hand
         blows = [(p, v) for p, v in model.attack_dist(rival) if v is not None]
         blow = sum(p * v for p, v in blows) / sum(p for p, _ in blows) if blows else 0.0      # the rival hero's expected attack
-        worst = 0.0
+        costs = []
         for t in mine:
             if not board.share_zone(pos[t.fid], pos[rival.fid]):
                 continue
@@ -1505,8 +1505,9 @@ class MedusaAI(Controller):
                 cost = W_MEDUSA_HP * hit + (LETHAL if dmg >= t.hp else 0.0)
             else:
                 cost = HARPY_VALUE * t.max_hp * (1.0 if dmg >= t.hp else hit / t.hp)
-            worst = max(worst, cost)
-        return max(0.0, worst - paid * CARD_VALUE)
+            costs.append(cost)
+        total = sum(costs) if game.players[self.me].hero.team else max(costs, default=0.0)      # a team (the Raptors): every fighter in the zone is a target, priced on its own
+        return max(0.0, total - paid * CARD_VALUE)
 
     def death_risk(self, game: Game, model: Model, t: Fighter, hp: float) -> float:
         """Chance that my fighter `t`, with `hp` hit points, dies in the rival's next turn: the worst of the rival fighters

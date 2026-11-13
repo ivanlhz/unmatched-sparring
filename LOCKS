@@ -6,13 +6,3 @@
 #            Push rejected -> git pull --rebase; if the path is now someone else's, wait and retry; else push again.
 #   release: in the SAME push as your finished work, delete your line (commit "unlock: <path> <agent>").
 #   Never edit a path locked by another agent. Never remove another agent's line.
-sparring/effects/state.py  raptors  finish raptors  15:31Z
-tests/test_d1_bot_cards.py  raptors  finish raptors  15:31Z
-sparring/ai_medusa.py  raptors  finish raptors  15:31Z
-data/i18n/en.json  raptors  finish raptors  15:31Z
-data/i18n/es.json  raptors  finish raptors  15:31Z
-features.json  raptors  finish raptors  15:31Z
-docs/live-checklist.md  raptors  finish raptors  15:31Z
-README.md  raptors  finish raptors  15:31Z
-docs/card-identity.md  raptors  finish raptors  15:31Z
-docs/effects-dsl.md  raptors  finish raptors  15:31Z

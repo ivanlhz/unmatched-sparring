@@ -386,6 +386,19 @@ Nothing of Eredin has been seen on a real table. His deck is sheet 176 like Medu
 - [ ] **Close For The Kill (H)**: draw 2, the chat lists a move of up to 3 for each of your fighters (through opposing fighters). **(B)**: the bot moves each of its pieces.
 - [ ] **Wild Hunt (H/B)**: every opposing fighter next to one of yours takes 1 (2 enraged); the dials follow.
 - [ ] Brutal Strike (cannot be cancelled; ignores a rival card whose text says IMMEDIATELY), Skirmish (as Bigfoot's) and the numbers as printed.
+### Raptors (Jurassic Park: InGen vs. Raptors, three Raptors)
+
+Nothing of the Raptors has been seen on a real table. Their deck is sheet 176 like Medusa's and the turtles'; the three miniatures are Custom_Assetbundle with a Custom_Model life dial each (7).
+- [ ] **Detection (auto)**: with their deck at one spot and any other hero's at the other, the start-up line names the Raptors; the bag `230e58` holds a deck of 31 cards (character card 313).
+- [ ] **Pieces**: Raptor Blue `1a2945` / dial `950174`, Raptor Delta `4573de` / `c93049`, Raptor Echo `b5c3d5` / `deff03` are found by GUID; a defeated Raptor leaves the table (Blue too: the game goes on).
+- [ ] **Loss rule**: the game ends only when all three are defeated (to confirm with Ivan: all three or any).
+- [ ] **PACK BONUS (H/B)**: attacking with a Raptor, each other Raptor next to the defender adds +1; the combat line says it.
+- [ ] **Pack Hunters / Eaten Alive (H/B)**: damage after a won combat, the dials follow.
+- [ ] **Working Things Out (H)**: the chat lists a move of up to 3 for each Raptor and you get the action back. **(B)**: the bot moves its pieces.
+- [ ] **Coordinated Attack Pattern (H)**: three buttons named after the miniatures, then Yes / No for each of the other two. **(B)**: the bot places them.
+- [ ] **Decoy (H)**: Yes / No, then the other Raptors; you place her next to the opposing fighter by hand.
+- [ ] **Ambush against a human**: no BOOST bonus is added (the bot cannot name the card you discard).
+- [ ] **Bot behaviour**: it attacks every turn it can, brings the other Raptors next to the defender, and keeps its Raptors out of a rival hero's zone damage (Medusa) unless attacking.
 ### Sinbad (Battle of Legends, Volume One, with The Porter)
 
 Nothing of Sinbad has been seen on a real table. His deck is sheet 176 like Medusa's, the turtles', Doctor Strange's, Bigfoot's and the Tales to Amaze decks': the first things to check are the detection, the Porter's token and the Voyages dial.

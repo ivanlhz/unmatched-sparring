@@ -17,7 +17,7 @@ from test_tmnt_matrix import HERO_HP, MAX_STEPS, AttackDriver, human_step
 
 TEAM_HP = 2
 
-OTHERS = ["medusa", "hellboy", "abe-sapien", "baba-yaga", "liz-sherman", "leonardo", "donatello", "michelangelo", "raphael", "doctor-strange", "houdini", "bigfoot", "daredevil", "luke-cage", "bullseye", "golden-bat", "jill-trent", "she-hulk", "tomoe-gozen", "sinbad", "eredin", "ciri", "yennefer-triss", "triss-yennefer", "philippa"]
+OTHERS = ["medusa", "hellboy", "abe-sapien", "baba-yaga", "liz-sherman", "leonardo", "donatello", "michelangelo", "raphael", "doctor-strange", "houdini", "bigfoot", "daredevil", "luke-cage", "bullseye", "golden-bat", "jill-trent", "she-hulk", "tomoe-gozen", "sinbad", "eredin", "ciri", "yennefer-triss", "triss-yennefer", "philippa", "john-henry", "chupacabra"]
 PAIRS = [("raptors", h) for h in OTHERS] + [(b, "raptors") for b in OTHERS]
 IDS = [f"{b}-vs-{h}" for b, h in PAIRS]
 
