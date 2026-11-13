@@ -6,8 +6,3 @@
 #            Push rejected -> git pull --rebase; if the path is now someone else's, wait and retry; else push again.
 #   release: in the SAME push as your finished work, delete your line (commit "unlock: <path> <agent>").
 #   Never edit a path locked by another agent. Never remove another agent's line.
-data/i18n/en.json  john-henry  review fixes  15:27Z
-data/i18n/es.json  john-henry  review fixes  15:27Z
-docs/card-identity.md  john-henry  review fixes  15:27Z
-tests/test_card_identity.py  john-henry  review fixes  15:27Z
-features.json  john-henry  review fixes  15:27Z

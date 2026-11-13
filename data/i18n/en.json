@@ -847,6 +847,8 @@
  "tr.token_fail_add": "I could not take a {name} token from the table: put an active one next to {hero} yourself.",
  "tr.track_laid": "{hero} summons a track token on {where} ({n} of 10 on the board).",
  "tr.track_fail": "I could not take a track token out of {hero}'s stack: lay one on {where} yourself.",
+ "john.track.too_many": "There are {n} track tokens on the board and John Henry has only {supply}: some are left over from another game. I use {supply} and delete nothing; take the extra ones off.",
+ "john.track.leftover": "{n} track tokens were already on the board at the start of the game: they look left over from another game. I count them as John Henry's; take off any that are not.",
  "john.track.seen": "{name}'s track token on {where} (there are {n} left to summon).",
  "tr.token_fail_remove": "I could not remove the {name} token from {hero}: remove it yourself.",
  "tr.token_on": "{hero} (bot) activates {tokens} of {name}: {n} active.",

@@ -847,6 +847,8 @@
  "tr.token_fail_add": "No he podido sacar una ficha de {name} de la mesa: pon tu una activa junto a {hero}.",
  "tr.track_laid": "{hero} invoca una ficha de via en {where} ({n} de 10 en el tablero).",
  "tr.track_fail": "No he podido sacar una ficha de via de la pila de {hero}: pon una tu en {where}.",
+ "john.track.too_many": "Hay {n} fichas de via en el tablero y John Henry solo tiene {supply}: sobran de otra partida. Cuento {supply} y no borro nada; quita las que sobran.",
+ "john.track.leftover": "Habia {n} fichas de via en el tablero al empezar: parecen sobras de otra partida. Las cuento como de John Henry; quita las que no lo sean.",
  "john.track.seen": "Ficha de via de {name} en {where} (quedan {n} por invocar).",
  "tr.token_fail_remove": "No he podido retirar la ficha de {name} de {hero}: retirala tu.",
  "tr.token_on": "{hero} (bot) activa {tokens} de {name}: {n} activa(s).",

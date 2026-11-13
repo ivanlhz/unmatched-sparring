@@ -11,8 +11,8 @@ from sparring.effects.select import find_card
 from sparring.heroes import load_hero
 from sparring.state import Game
 
-SHARING = ["medusa", "leonardo", "donatello", "michelangelo", "raphael", "doctor-strange", "bigfoot", "daredevil", "luke-cage", "bullseye", "golden-bat", "jill-trent", "she-hulk", "tomoe-gozen", "yennefer-triss", "sinbad", "chupacabra", "eredin", "ciri", "philippa", "raptors", "george-washington", "rosie-the-riveter"]
-SHEET_187 = ["george-washington"]      # CustomDeck key 187 is shared too (Wyatt Earp, George Washington, John Henry): 18700-18729
+SHARING = ["medusa", "leonardo", "donatello", "michelangelo", "raphael", "doctor-strange", "bigfoot", "daredevil", "luke-cage", "bullseye", "golden-bat", "jill-trent", "she-hulk", "tomoe-gozen", "yennefer-triss", "sinbad", "chupacabra", "eredin", "ciri", "philippa", "raptors", "george-washington", "rosie-the-riveter", "john-henry", "wyatt-earp"]
+SHEET_187 = ["george-washington", "john-henry", "wyatt-earp"]      # CustomDeck key 187 is shared too (Wyatt Earp, George Washington, John Henry): 18700-18729
 
 
 def test_the_five_decks_really_share_one_card_id_range():

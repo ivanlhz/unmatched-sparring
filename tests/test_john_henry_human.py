@@ -249,3 +249,31 @@ def test_the_bots_john_henry_walks_over_its_tracks_and_the_paths_are_counted_dur
     session.ai.plan = plan
     session._bot_continue()
     assert john.pos == row[5] and seen == [(2, 0), (1, 4)]
+
+
+# ---------------------------------------------------------------- tokens left over from another game
+
+def test_more_tokens_than_the_supply_on_the_board_are_warned_and_never_deleted(mine):
+    session, table, game, fake, cfg = mine
+    for s in range(12):
+        table.lay(s)
+    msgs = click(session, table, Event.MANEUVER) + click(session, table, Event.END_ACTION)
+    assert said(msgs, "12 fichas de via") and len(table.on_board) == 12
+    assert len(game.fx.tracks[1]) == tracks.SUPPLY
+
+
+def test_several_tokens_on_the_board_on_the_first_turn_are_warned_as_left_over(mine):
+    session, table, game, fake, cfg = mine
+    game.turn_no = 2
+    table.lay(3)
+    table.lay(5)
+    msgs = click(session, table, Event.MANEUVER) + click(session, table, Event.END_ACTION)
+    assert said(msgs, "sobras de otra partida") and sorted(game.fx.tracks[1]) == [3, 5]
+
+
+def test_the_one_token_laid_on_the_first_turn_is_no_warning(mine):
+    session, table, game, fake, cfg = mine
+    game.turn_no = 2
+    table.lay(3)
+    msgs = click(session, table, Event.MANEUVER) + click(session, table, Event.END_ACTION)
+    assert not said(msgs, "sobras") and game.fx.tracks[1] == [3]

@@ -41,8 +41,9 @@ def is_john(session, player: int) -> bool:
     return session.game.hero_def(player).slug == SLUG
 
 
-def table_spaces(session) -> list[int] | None:
-    """The spaces with a track token on the table (one entry per space, at most the supply), None when the table cannot be read."""
+def table_spaces(session) -> tuple[list[int], int] | None:
+    """(the spaces with a track token on the table, one entry per space and at most the supply; how many tokens were found on the board),
+    None when the table cannot be read."""
     key = image_key()
     if key is None:
         return None
@@ -53,10 +54,13 @@ def table_spaces(session) -> list[int] | None:
     if not isinstance(found, dict) or "tokens" not in found:
         return None
     spaces: list[int] = []
+    on_board = 0
     for token in found["tokens"]:
-        if token.get("dist", 99) <= session.cfg.off_board_dist and token["space"] not in spaces:
-            spaces.append(int(token["space"]))
-    return spaces[:tracks.SUPPLY]
+        if token.get("dist", 99) <= session.cfg.off_board_dist:
+            on_board += 1
+            if token["space"] not in spaces:
+                spaces.append(int(token["space"]))
+    return spaces[:tracks.SUPPLY], on_board
 
 
 def sync(session) -> None:
@@ -65,13 +69,18 @@ def sync(session) -> None:
     g, me = session.game, session.human
     if not is_john(session, me) or session.setup is not None:
         return
-    spaces = table_spaces(session)
-    if spaces is None:
+    read = table_spaces(session)
+    if read is None:
         return
+    spaces, on_board = read
     now = g.fx.tracks[me]
     if set(spaces) == set(now):
         return
     new = [s for s in spaces if s not in now]
+    if on_board > tracks.SUPPLY:                    # more tokens than the 10 of the stack: some are left over from another game (never deleted)
+        session.say(t("john.track.too_many", n=on_board, supply=tracks.SUPPLY), ChatKind.WARNING)
+    elif len(new) > 1 and g.turn_no <= 2 and not now:      # more than the one he may have laid on his first turn: left over from another game
+        session.say(t("john.track.leftover", n=len(new)), ChatKind.WARNING)
     g.fx.tracks[me] = [s for s in now if s in spaces] + new
     hero = g.hero(me)
     for space in new:
