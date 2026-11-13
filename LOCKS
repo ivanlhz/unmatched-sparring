@@ -8,11 +8,6 @@
 #   Never edit a path locked by another agent. Never remove another agent's line.
 sparring/heroes.py  raptors  team heroes (SidekickDef.hero) + pack bonus  14:00Z
 sparring/state.py  raptors  team loss rule, hero() prefers alive, pack bonus  14:00Z
-features.json  philippa  Philippa hero (AI hooks, human flows, docs, shared tests)  14:07Z
-docs/effects-dsl.md  philippa  Philippa hero (AI hooks, human flows, docs, shared tests)  14:07Z
-docs/card-identity.md  philippa  Philippa hero (AI hooks, human flows, docs, shared tests)  14:07Z
-docs/live-checklist.md  philippa  Philippa hero (AI hooks, human flows, docs, shared tests)  14:07Z
-README.md  philippa  Philippa hero (AI hooks, human flows, docs, shared tests)  14:07Z
 sparring/search/adapter.py  raptors  swarm policy, attack-last-action, team zone exposure  14:12Z
 sparring/ai_hazards.py  raptors  per-fighter zone damage for a team  14:12Z
 sparring/effects/events.py  john-henry  John Henry engine pieces (board tracks, if_won cancel, token Lua)  14:12Z

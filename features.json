@@ -646,6 +646,21 @@
       "note": "Engine additions are additive (docs/effects-dsl.md, section 38). Rules decisions and open questions for Iván: docs/heroes/sinbad.md. Live test pending."
     },
     {
+      "id": "HERO-PHILIPPA",
+      "title": "Philippa (The Witcher: Realms Fall, with Dijkstra) playable by the bot and by the human against every hero",
+      "status": "in-progress",
+      "criteria": [
+        "data/heroes/overlay/philippa.json, data/heroes/philippa.json, data/heroes/effects/philippa.json and data/tts/philippa.json generated and validated (import_hero, validate_effects, import_save); the 13 titles (30 cards, sheet 176, character card 349) read from the card images; Polymorphy's printed ONGOING (left out by unmatched-memory) carried by the overlay; ai_profile computed by the importer",
+        "Her deck shares CardIDs 17600-17629 with the other sheet-176 decks: told apart by deck image and owner, never by a bare CardID (tests/test_hero_philippa_data.py, tests/test_card_identity.py); no GUID of hers is shared with another hero",
+        "TWO STEPS AHEAD (draw until a hand of 4 at the end of her turn) is a trigger with the Amount hand_deficit; the bot refuses it with a short deck, the human gets a Yes / No and the table deals the cards (tests/test_philippa_effects.py, tests/test_philippa_human.py)",
+        "All 13 cards on the interpreter for both seats: Owlform, the two lightnings (the zone choice), Regicide, Spellbreaker, Cunning, Redanian plot, Paralyzing fetters, Blinding dust, Do my bidding (the rival's card swapped inside the combat), Polymorphy (the ONGOING rule hero_move: her move is 5 while it lasts), Backup plan and Spymaster's ruse; the human's versions leave the hand moves to the table (tests/test_philippa_effects.py, tests/test_philippa_human.py)",
+        "The bot plays her under the search AI (make_bot_ai ismcts): ai_philippa.py prices her cards and EffectAI answers the plugin requests (dust, bidding, ruse, ruse_reveal, the zone)",
+        "Philippa against each of the 24 other heroes in both seats reaches game over on FakeTTS (passive and attacking human) and in the simulator with the heuristic and the search AI (tests/test_philippa_matrix.py)",
+        "Verified live by Ivan (docs/live-checklist.md, section Philippa)"
+      ],
+      "note": "Engine additions are additive (docs/effects-dsl.md, section 40). Rules decisions and open questions for Ivan: docs/heroes/philippa.md. Live test pending."
+    },
+    {
       "id": "F-DEVIL-EMPTY-DECK",
       "title": "Cards go back into an empty draw deck (Devil of Hell's Kitchen, v0.5.0 bug)",
       "status": "done",

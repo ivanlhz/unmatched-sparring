@@ -116,8 +116,8 @@ def test_owlform_waits_for_the_cards_the_human_lays_on_their_pile_and_adds_one_e
     hp = game.fighters["hellboy"].hp
     msgs = attack(session, table, game, "philippa", "Owlform")
     req = session.effect_run.awaiting if session.effect_run is not None else session._paused()[2].awaiting
-    assert req.kind == "cards" and req.extra["tag"] == "any" and req.extra["pile_mode"] if False else req.kind == "cards"
-    assert said(msgs, "las cartas de tu mano que quieras descartar") or said(msgs, "descartar"), msgs
+    assert req.kind == "cards" and req.extra["tag"] == "any" and req.extra.get("table_discard") and req.min == 0
+    assert said(session.messages, "las cartas de tu mano que quieras descartar"), session.messages[-3:]
     give_up(table, game, *["Regicide", "Cunning"][:given])
     done(session, table)
     assert game.fighters["hellboy"].hp == hp - 3 - bonus
@@ -249,3 +249,44 @@ def test_the_humans_do_my_bidding_lets_them_choose_the_card_the_bot_plays_and_th
     assert flow is None or flow.atk_card.card_id == other.card_id
     assert pistol in game.players[0].hand and other not in game.players[0].hand or other in game.players[0].discard
     assert any(sc.startswith("-- sparring:place_card_face_up") or "place_card_face_up" in sc for sc in table.scripts), "the bot never put the chosen card on its spot"
+
+
+@rigged("Service Pistol", "Excalibur")
+def test_the_humans_blinding_dust_asks_yes_or_no_then_the_card_they_lay_on_their_pile_hits_for_its_boost(rig):
+    session, table, game, fake, cfg = rig
+    from test_session import human_plays
+    human_hand(table, game, "Blinding dust", "Owlform", "Regicide")
+    pistol = next(c for c in game.players[0].hand if c.title == "Service Pistol")
+    bot_turn(session, table, [Act("attack", fid="hellboy", target="philippa", card=pistol)])
+    played = human_plays(table, game, "Blinding dust")
+    table.human_hand.remove(played.card_id)
+    table.human_count -= 1
+    hp = game.fighters["hellboy"].hp
+    click(session, table, Event.REVEAL)
+    req = awaiting(session)
+    assert req.kind == "optional" and req.extra["dust"]["foe"] == "hellboy"
+    click(session, table, Event.CHOICE, {"i": 1})                         # yes
+    req = awaiting(session)
+    assert req.kind == "cards" and req.extra["pile_mode"] == "reveal" and req.extra["dust"] and (req.min, req.max) == (1, 1)
+    owl = give_up(table, game, "Owlform")[0]                               # Owlform: BOOST 3
+    done(session, table)
+    assert session.effect_run is None or session.effect_run.awaiting is None
+    assert game.fighters["hellboy"].hp <= hp - 3 and any(c.card_id == owl for c in game.players[1].discard)
+    assert said(session.messages, "descartas Owlform (POTENCIAR 3)")
+
+
+@rigged("Service Pistol", "Excalibur")
+def test_declining_the_dust_discards_nothing(rig):
+    session, table, game, fake, cfg = rig
+    from test_session import human_plays
+    human_hand(table, game, "Blinding dust", "Owlform")
+    pistol = next(c for c in game.players[0].hand if c.title == "Service Pistol")
+    bot_turn(session, table, [Act("attack", fid="hellboy", target="philippa", card=pistol)])
+    played = human_plays(table, game, "Blinding dust")
+    table.human_hand.remove(played.card_id)
+    table.human_count -= 1
+    hp = game.fighters["hellboy"].hp
+    click(session, table, Event.REVEAL)
+    click(session, table, Event.CHOICE, {"i": 2})                         # no
+    assert session.effect_run is None or session.effect_run.awaiting is None
+    assert game.fighters["hellboy"].hp == hp
