@@ -1864,9 +1864,9 @@ return JSON.encode(out)
 """
 
 
-MAX_CLEAR_HEROES = 40
-MAX_CLEAR_GUIDS = 400
-MAX_CLEAR_NAMES = 80
+MAX_CLEAR_HEROES = 120      # the roster is ~80 heroes; every hero with data raises what the clear script is given (24 / 400 / 80 broke Clean table at the 25th)
+MAX_CLEAR_GUIDS = 1500
+MAX_CLEAR_NAMES = 500
 MAX_CLEAR_MAPS = 64
 
 

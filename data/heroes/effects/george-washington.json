@@ -1,0 +1,601 @@
+{
+ "schema": 1,
+ "hero": "george-washington",
+ "notes": [
+  "George Washington, Stars and Stripes (sheet 187). Cards read from the images of the tournament save on 2026-11-13 and compared with unmatched-memory's transcription: no differences (docs/heroes/george-washington.md).",
+  "Additive engine pieces: none in the DSL. ESPIONAGE uses the existing counters and the `attacked` and `after_attack` events; the code is three plugins (`sparring/effects/plugins_washington.py`), the AI (`sparring/ai_washington.py`) and the human's side of the declaration at Reveal (`sparring/session_espionage.py`).",
+  "Rules decisions taken without an official ruling are listed in docs/heroes/george-washington.md, 'Pending Ivan'."
+ ],
+ "ability": {
+  "text": "ESPIONAGE\nYou start with 4 ruse tokens.\nWhen you attack, you may use a ruse token, placing it next to the card.\nBefore your opponent chooses whether or not to defend, they may discard 1 random card to remove the ruse token.",
+  "counters": {
+   "ruse_tokens": {
+    "min": 0,
+    "max": 4,
+    "start": 4
+   },
+   "ruse": {
+    "min": 0,
+    "max": 1,
+    "start": 0
+   }
+  },
+  "triggers": [
+   {
+    "id": "espionage",
+    "when": {
+     "event": "attacked",
+     "target": {
+      "side": "enemy"
+     }
+    },
+    "condition": {
+     "all": [
+      {
+       "test": "counter",
+       "name": "ruse_tokens",
+       "min": 1
+      },
+      {
+       "test": "counter",
+       "name": "ruse",
+       "max": 0
+      }
+     ]
+    },
+    "ops": [
+     {
+      "op": "plugin",
+      "id": "washington:use_ruse"
+     }
+    ]
+   },
+   {
+    "id": "espionage_remove",
+    "when": {
+     "event": "attacked",
+     "target": {
+      "side": "enemy"
+     }
+    },
+    "condition": {
+     "test": "counter",
+     "name": "ruse",
+     "min": 1
+    },
+    "ops": [
+     {
+      "op": "plugin",
+      "id": "washington:offer_removal"
+     }
+    ]
+   },
+   {
+    "id": "espionage_clear",
+    "when": {
+     "event": "after_attack",
+     "fighter": {
+      "side": "own"
+     }
+    },
+    "ops": [
+     {
+      "op": "counter",
+      "name": "ruse",
+      "set": 0
+     }
+    ]
+   }
+  ],
+  "passives": [],
+  "notes": "Two counters. `ruse_tokens` is the supply (4 at the start; Misinformation and Sympathetic Stain give one back, never above 4). `ruse` is 1 while a ruse token lies next to the card of the attack in progress: the [RUSE] part of a card (printed after the ruse-triangle icon) reads it with the condition `counter ruse`, which is the reading 'applies only if the ruse token is still on the card' (Pending Ivan 1). Triggers, all on events the interpreter already has: `espionage` (an enemy fighter is attacked: you attack) asks the attacker whether to spend a token (plugin `washington:use_ruse`; only a card that carries a ruse effect, tag `ruse`, is worth the question); `espionage_remove` asks the OPPONENT, before they choose their defense, whether to discard 1 random card to remove the token (plugin `washington:offer_removal`: the yes/no goes to the opponent, who pays the price of Incinerate's kind, a card of their hand, at random); `espionage_clear` takes the token off when the combat is over. A token the opponent removes is gone, it does not return to the supply (Pending Ivan 3)."
+ },
+ "cards": [
+  {
+   "title": "Lead Astray",
+   "copies": 2,
+   "text": "AFTER COMBAT: Move a fighter in the combat up to 2 spaces.",
+   "effects": {
+    "immediately": [],
+    "during": [],
+    "after": [
+     {
+      "op": "move",
+      "target": "combatant",
+      "amount": 2,
+      "up_to": true,
+      "chooser": "owner"
+     }
+    ],
+    "scheme": [],
+    "boost": []
+   },
+   "notes": "Attack 5 / boost 2, Washington only. Skirmish's move (Bigfoot, Tomoe Gozen, Golden Bat, Eredin) without the 'if you won' condition: the owner picks which of the two fighters and where."
+  },
+  {
+   "title": "Agent 711",
+   "copies": 2,
+   "text": "AFTER COMBAT: [RUSE] If you won the combat, deal 7 damage to the opposing fighter.",
+   "effects": {
+    "immediately": [],
+    "during": [],
+    "after": [
+     {
+      "op": "if",
+      "condition": {
+       "all": [
+        {
+         "test": "counter",
+         "name": "ruse",
+         "min": 1
+        },
+        {
+         "test": "combat_result",
+         "result": "won"
+        }
+       ]
+      },
+      "then": [
+       {
+        "op": "damage",
+        "target": "opposing",
+        "amount": 7
+       }
+      ]
+     }
+    ],
+    "scheme": [],
+    "boost": []
+   },
+   "notes": "Attack 4 / boost 3, Washington only. [RUSE] is read as 'only while the ruse token is still on the card' (the counter `ruse`; docs/heroes/george-washington.md, Pending Ivan 1). Effect damage, so the immune_to_effect_damage statuses stop it."
+  },
+  {
+   "title": "Allies Everywhere",
+   "copies": 3,
+   "text": "AFTER COMBAT: Gain 1 free action to attack. [RUSE] Washington recovers 3 health.",
+   "effects": {
+    "immediately": [],
+    "during": [],
+    "after": [
+     {
+      "op": "gain_action",
+      "amount": 1
+     },
+     {
+      "op": "if",
+      "condition": {
+       "test": "counter",
+       "name": "ruse",
+       "min": 1
+      },
+      "then": [
+       {
+        "op": "heal",
+        "target": {
+         "side": "own",
+         "kind": "hero"
+        },
+        "amount": 3
+       }
+      ]
+     }
+    ],
+    "scheme": [],
+    "boost": []
+   },
+   "notes": "Attack 1 / boost 3, Washington only. 'Free action to attack' is implemented as a plain extra action (Pending Ivan 2). The heal reaches the hero, not the fighter that played the card."
+  },
+  {
+   "title": "Circumvent",
+   "copies": 2,
+   "text": "DURING COMBAT: [RUSE] Ignore the value of your opponent's card.",
+   "effects": {
+    "immediately": [],
+    "during": [
+     {
+      "op": "if",
+      "condition": {
+       "test": "counter",
+       "name": "ruse",
+       "min": 1
+      },
+      "then": [
+       {
+        "op": "set_value",
+        "card": "opponent_card",
+        "ignore": true
+       }
+      ]
+     }
+    ],
+    "after": [],
+    "scheme": [],
+    "boost": []
+   },
+   "notes": "Attack 3 / boost 2, any fighter. The 'ignore the value' of Bullseye and Doctor Strange (set_value ignore), behind the ruse."
+  },
+  {
+   "title": "Sabotage",
+   "copies": 2,
+   "text": "AFTER COMBAT: [RUSE] If you won the combat, your opponent discards 2 random cards.",
+   "effects": {
+    "immediately": [],
+    "during": [],
+    "after": [
+     {
+      "op": "if",
+      "condition": {
+       "all": [
+        {
+         "test": "counter",
+         "name": "ruse",
+         "min": 1
+        },
+        {
+         "test": "combat_result",
+         "result": "won"
+        }
+       ]
+      },
+      "then": [
+       {
+        "op": "discard",
+        "cards": {
+         "zone": "hand",
+         "player": "opponent",
+         "pick": "random",
+         "amount": 2
+        }
+       }
+      ]
+     }
+    ],
+    "scheme": [],
+    "boost": []
+   },
+   "notes": "Attack 3 / boost 3, any fighter. `pick: random` on the rival's hand looks at nothing (docs/effects-dsl.md section 6)."
+  },
+  {
+   "title": "Misinformation",
+   "copies": 3,
+   "text": "AFTER COMBAT: If you won the combat, regain a ruse token.",
+   "effects": {
+    "immediately": [],
+    "during": [],
+    "after": [
+     {
+      "op": "if",
+      "condition": {
+       "test": "combat_result",
+       "result": "won"
+      },
+      "then": [
+       {
+        "op": "counter",
+        "name": "ruse_tokens",
+        "delta": 1
+       }
+      ]
+     }
+    ],
+    "scheme": [],
+    "boost": []
+   },
+   "notes": "Versatile 4 / boost 2, any fighter. The counter is clipped at 4: a fifth token is not kept."
+  },
+  {
+   "title": "Make A Stand",
+   "copies": 3,
+   "text": "DURING COMBAT: If your fighter started this turn in their current space, this card's value becomes 5.",
+   "effects": {
+    "immediately": [],
+    "during": [
+     {
+      "op": "if",
+      "condition": {
+       "not": {
+        "test": "moved_this_turn",
+        "fighter": "this"
+       }
+      },
+      "then": [
+       {
+        "op": "set_value",
+        "card": "this",
+        "amount": 5
+       }
+      ]
+     }
+    ],
+    "after": [],
+    "scheme": [],
+    "boost": []
+   },
+   "notes": "Versatile 3 / boost 1, any fighter. The mirror of Sinbad's Momentous Shift. Played in defense on the rival's turn it reads the positions at the start of that turn: a fighter that has not been moved since is standing still."
+  },
+  {
+   "title": "Feint",
+   "copies": 3,
+   "text": "IMMEDIATELY: Cancel all effects on your opponent's card.",
+   "effects": {
+    "immediately": [
+     {
+      "op": "cancel_effects",
+      "card": "opponent_card"
+     }
+    ],
+    "during": [],
+    "after": [],
+    "scheme": [],
+    "boost": []
+   },
+   "notes": "Versatile 2 / boost 3, any fighter. The shared Feint (source id 2)."
+  },
+  {
+   "title": "Recruit To The Ring",
+   "copies": 2,
+   "text": "AFTER COMBAT: Return a defeated Spy to a space adjacent to Washington. If you won the combat, return that Spy to any space instead.",
+   "effects": {
+    "immediately": [],
+    "during": [],
+    "after": [
+     {
+      "op": "if",
+      "condition": {
+       "test": "exists",
+       "fighters": {
+        "side": "own",
+        "name": "Spy",
+        "state": "defeated"
+       }
+      },
+      "then": [
+       {
+        "op": "if",
+        "condition": {
+         "test": "combat_result",
+         "result": "won"
+        },
+        "then": [
+         {
+          "op": "revive",
+          "target": {
+           "side": "own",
+           "name": "Spy",
+           "state": "defeated"
+          },
+          "where": {
+           "any": true
+          },
+          "hp": 1,
+          "chooser": "owner"
+         }
+        ],
+        "else": [
+         {
+          "op": "revive",
+          "target": {
+           "side": "own",
+           "name": "Spy",
+           "state": "defeated"
+          },
+          "where": {
+           "adjacent_to": "hero"
+          },
+          "hp": 1,
+          "chooser": "owner"
+         }
+        ]
+       }
+      ]
+     }
+    ],
+    "scheme": [],
+    "boost": []
+   },
+   "notes": "Versatile 2 / boost 1, any fighter. A returned Spy comes back with 1 health (they have no more). With no free space next to Washington the revive finds nowhere to put it and does nothing."
+  },
+  {
+   "title": "Network Of Spies",
+   "copies": 2,
+   "text": "DURING COMBAT: Add +1 to this card's value for each other friendly fighter in Washington's zone.",
+   "effects": {
+    "immediately": [],
+    "during": [
+     {
+      "op": "modify_value",
+      "card": "this",
+      "amount": {
+       "count": {
+        "side": "own",
+        "other": true,
+        "where": {
+         "zone_of": "hero"
+        },
+        "pick": "all"
+       }
+      }
+     }
+    ],
+    "after": [],
+    "scheme": [],
+    "boost": []
+   },
+   "notes": "Versatile 2 / boost 2, Washington only. `other` leaves out the fighter that plays the card, Washington himself."
+  },
+  {
+   "title": "Undercover Agent",
+   "copies": 2,
+   "text": "DURING COMBAT: Washington may swap spaces with an adjacent Spy. If he does, that Spy is now the defender.",
+   "effects": {
+    "immediately": [],
+    "during": [
+     {
+      "op": "if",
+      "condition": {
+       "test": "exists",
+       "fighters": {
+        "side": "own",
+        "name": "Spy",
+        "where": {
+         "adjacent_to": "this"
+        }
+       }
+      },
+      "then": [
+       {
+        "op": "optional",
+        "chooser": "owner",
+        "ops": [
+         {
+          "op": "swap",
+          "target": "this",
+          "with": {
+           "side": "own",
+           "name": "Spy",
+           "where": {
+            "adjacent_to": "this"
+           }
+          },
+          "chooser": "owner",
+          "as": "swapped"
+         },
+         {
+          "op": "plugin",
+          "id": "washington:replace_combatant",
+          "args": {
+           "swapped": "$swapped"
+          }
+         }
+        ]
+       }
+      ]
+     }
+    ],
+    "after": [],
+    "scheme": [],
+    "boost": []
+   },
+   "notes": "Defense 1 / boost 2, Washington only. Eredin's Portal Defense mechanism (the swapped Spy takes Washington's place in the combat), but in DURING and optional."
+  },
+  {
+   "title": "Sympathetic Stain",
+   "copies": 2,
+   "text": "Choose an opponent and look at their hand. If a Spy is adjacent to one of their fighters, choose a card for them to discard and regain a ruse token.",
+   "effects": {
+    "immediately": [],
+    "during": [],
+    "after": [],
+    "scheme": [
+     {
+      "op": "look_hand",
+      "player": "opponent"
+     },
+     {
+      "op": "if",
+      "condition": {
+       "test": "exists",
+       "fighters": {
+        "side": "own",
+        "name": "Spy",
+        "filter": {
+         "adjacent_to_any": {
+          "side": "enemy"
+         }
+        }
+       }
+      },
+      "then": [
+       {
+        "op": "discard",
+        "cards": {
+         "zone": "hand",
+         "player": "opponent",
+         "amount": 1,
+         "chooser": "owner"
+        }
+       },
+       {
+        "op": "counter",
+        "name": "ruse_tokens",
+        "delta": 1
+       }
+      ]
+     }
+    ],
+    "boost": []
+   },
+   "notes": "Scheme, boost 3, played by a Spy (band SPY). The look is always made; the discard and the token need a living Spy next to any of their fighters when the card resolves. 'Choose an opponent': there is only one."
+  },
+  {
+   "title": "Gather Information",
+   "copies": 2,
+   "text": "Draw 3 cards. Move each of your fighters up to 3 spaces. They may move through opposing fighters.",
+   "effects": {
+    "immediately": [],
+    "during": [],
+    "after": [],
+    "scheme": [
+     {
+      "op": "draw",
+      "player": "owner",
+      "amount": 3
+     },
+     {
+      "op": "move",
+      "target": {
+       "side": "own",
+       "pick": "all"
+      },
+      "amount": 3,
+      "up_to": true,
+      "through_enemies": true,
+      "chooser": "owner"
+     }
+    ],
+    "boost": []
+   },
+   "notes": "Scheme, boost 2, Washington only. Eredin's Close For The Kill with one more card."
+  }
+ ],
+ "plugins": [
+  {
+   "id": "washington:use_ruse",
+   "why": "ESPIONAGE: the attacker's yes/no must carry the attack card (the bot weighs the ruse of THAT card) and the question is skipped for a card with no ruse effect; an `optional` op cannot see the attack of the event."
+  },
+  {
+   "id": "washington:offer_removal",
+   "why": "ESPIONAGE: the opponent's yes/no must say who is attacked (the bot weighs the ruse of the attack against THAT fighter) and its price is a random card of their own hand, paid as a voluntary discard; an `optional` with a `cost` cannot carry the target."
+  },
+  {
+   "id": "washington:replace_combatant",
+   "why": "Undercover Agent: after the swap, the Spy takes Washington's place as the defender IN the running combat (Eredin's Portal Defense, Houdini's Smoke And Mirrors), which no op can do."
+  }
+ ],
+ "hidden_info": [
+  {
+   "card": "Sabotage",
+   "what": "your opponent discards 2 random cards.",
+   "bot_rule": "`pick: random`: nothing is read. Against the human the engine draws the positions and the human discards those; against the bot the engine draws them and the table follows.",
+   "human_plays_it": "the bot says the positions of the cards to discard, counted from the left, as for Backhand."
+  },
+  {
+   "card": "Sympathetic Stain",
+   "what": "look at the rival's hand and choose a card for them to discard.",
+   "bot_rule": "the bot sees the human's hand through `look_hand` (the one op that shows it) and discards the most valuable card it saw; the discard and the token only happen with a Spy next to one of their fighters.",
+   "human_plays_it": "the bot shows its hand in the row and the human pings the card (the usual look-and-discard route)."
+  },
+  {
+   "card": "ESPIONAGE",
+   "what": "the ruse token lies next to a face-down attack card.",
+   "bot_rule": "the bot's decision to remove the token (discard a random card) uses public information only: the unseen cards of Washington's deck that carry a ruse effect, never the card played.",
+   "human_plays_it": "the human says at Reveal whether the token is on the attack; the bot answers before it chooses its defense."
+  }
+ ],
+ "open_questions": [
+  "[RUSE] read as 'applies only if the ruse token is still on the card' (an inference from the transcription).",
+  "'Gain 1 free action to attack' is a plain extra action.",
+  "A ruse token the opponent removes is spent, not returned to Washington's supply.",
+  "Any fighter of Washington's may use a ruse token ('when you attack': you), a Spy included."
+ ]
+}

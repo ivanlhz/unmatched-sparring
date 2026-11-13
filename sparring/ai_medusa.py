@@ -70,7 +70,7 @@ from .guard import guard_dest, hero_shielded, path_steps
 from .effects.model import walk_ops
 from .effects.modifiers import boost_limit, card_effects, defers_defeat, is_uncancelable
 from .ai_profile import FINISHER_BOOSTS, STYLE_HIT_AND_RUN, derive_style
-from . import ai_chupacabra as chupa_ai, ai_philippa, ai_rosie, ai_sinbad, ai_wyatt, tracks
+from . import ai_chupacabra as chupa_ai, ai_philippa, ai_rosie, ai_sinbad, ai_washington, ai_wyatt, tracks
 from .ai_sinbad import own_value as sinbad_own_value, voyage_count, voyage_extra
 from .state import ANUNG, EXHAUST_DAMAGE, Fighter, Game
 
@@ -956,6 +956,8 @@ class MedusaAI(Controller):
         own = own_value(game, f, c)
         if own is not None:
             return own                  # Sinbad: a VOYAGE card's +1 per VOYAGE card in the pile, Momentous Shift's 5
+        if (own := ai_washington.own_value(game, f, c)) is not None:
+            return own                  # Washington: Make A Stand's 5 standing still, Network Of Spies' friends in his zone
         if c.title == PLANNED and f.pos is not None and game.fx.turn_start_pos.get(f.fid) == f.pos:
             return 5.0
         if (source_value := ciri_ai.attack_value(game, f.owner, c)) is not None:
@@ -990,6 +992,8 @@ class MedusaAI(Controller):
         fighter, World's Greatest Assassin after a combat won this turn."""
         if c.title == ASSASSIN:
             return bool(game.fx.won[f.owner])
+        if ai_washington.circumvents(game, f, c):
+            return True                 # Washington's Circumvent with a ruse token on it
         hero = game.hero(f.owner)
         return c.title == CLOAK and hero.pos is not None and t.pos is not None and t.pos in game.board.adj[hero.pos]
 
@@ -1058,6 +1062,7 @@ class MedusaAI(Controller):
         value += ai_sinbad.after_value(game, self.me, c, p_win, w, CARD_VALUE, W_MEDUSA_HP, self.room_after_play(game), t.hp)
         value += chupa_ai.after_value(game, self.me, c, p_win, w, CARD_VALUE, W_MEDUSA_HP, ACTION_VALUE)
         value += ai_rosie.after_value(game, self.me, c, p_win, w, CARD_VALUE, W_MEDUSA_HP, t.hp)
+        value += ai_washington.after_value(game, self.me, c, p_win, w, CARD_VALUE, W_MEDUSA_HP, t.hp, ACTION_VALUE, HARPY_VALUE)
         value += ai_philippa.after_value(game, self.me, c, p_win, w, CARD_VALUE)
         value += ai_wyatt.after_value(game, self.me, c, p_win, w, CARD_VALUE, self.room_after_play(game), p_kill)
         if f.owner == self.me:
@@ -1817,6 +1822,8 @@ class MedusaAI(Controller):
             dv = own_value(game, target, c)        # Sinbad's Momentous Shift defending
         if c is not None and (chupa_dv := chupa_ai.defense_value(game, target.owner, c)) is not None:
             dv = chupa_dv                          # Chupacabra's Wounded Beast defending
+        if c is not None and ai_washington.own_value(game, target, c) is not None:
+            dv = ai_washington.own_value(game, target, c)       # Washington's Make A Stand standing still
         if c is not None and c.title == DAUGHTER and attacker is not None and target.pos is not None and attacker.pos in game.board.adj[target.pos]:
             dv = 6                                 # Misty Knight (she defends with it) is next to the attacker
         boosts = free_boosts(game, self.me, c, game.players[self.me].hand) if c is not None else []
@@ -1863,6 +1870,7 @@ class MedusaAI(Controller):
             v += ai_sinbad.after_value(game, self.me, c, p_block, weight(attacker), CARD_VALUE, W_MEDUSA_HP, None, attacker.hp)
             v += chupa_ai.after_value(game, self.me, c, p_block, weight(attacker), CARD_VALUE, W_MEDUSA_HP, ACTION_VALUE)
             v += ai_rosie.after_value(game, self.me, c, p_block, weight(attacker), CARD_VALUE, W_MEDUSA_HP, attacker.hp)
+            v += ai_washington.after_value(game, self.me, c, p_block, weight(attacker), CARD_VALUE, W_MEDUSA_HP, attacker.hp, ACTION_VALUE, HARPY_VALUE)
             v += ai_philippa.after_value(game, self.me, c, p_block, weight(attacker), CARD_VALUE)
             v += ai_wyatt.after_value(game, self.me, c, p_block, weight(attacker), CARD_VALUE, None, defending=True)
         if c.title == SKIN and attacker is not None:

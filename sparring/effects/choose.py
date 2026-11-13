@@ -77,6 +77,8 @@ def default_answer(req: ChoiceRequest) -> list:
     """The neutral answer: forced picks are taken, optional is accepted, an amount is the maximum, an optional
     move or placement stays put."""
     if req.kind == "optional":
+        if req.extra.get("washington") == "remove":     # Washington's ruse: a card is never given up without an opinion
+            return [False]
         return [not req.extra.get("pact")]      # a price in hit points (DARK PACT) is never paid without an opinion
     if req.kind == "amount":
         return [req.max]
@@ -224,6 +226,8 @@ class SyntheticChooser:
         return self.policy == "greedy"
 
     def _optional(self, game, req: ChoiceRequest) -> list:
+        if "washington" in req.extra:                # ESPIONAGE in a rollout: the attacker spends a token, the opponent keeps the card
+            return [req.extra["washington"] == "use"]
         if "pact" in req.extra:                      # DARK PACT in a rollout: while the hero can spare the hit points
             pact = req.extra["pact"]
             hero = game.fighters[pact["fighter"]]

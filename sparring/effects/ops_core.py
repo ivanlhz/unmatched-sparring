@@ -194,7 +194,7 @@ def _discard(run, game, spec):
         # human's controller owes the discard, settled at "End action")
         player = player_of(game, run, sel["player"])
         frame = run.frames[-1]
-        voluntary = bool(frame.path) and frame.path[-1] == "cost"      # a price the human chose to pay
+        voluntary = (bool(frame.path) and frame.path[-1] == "cost") or bool(spec.get("voluntary"))      # a price the human chose to pay (a plugin's `voluntary`: Washington's ruse)
         n = len(card_candidates(game, run, sel)) if sel.get("pick") == "all" else int(amount(game, run, sel.get("amount", 1)))
         reason = _card_title(game, run)
         if sel.get("pick") == "random":
@@ -557,7 +557,7 @@ def _choice_context(game, run, spec: dict) -> dict:
     Delivery: how many moments of the rival's card have effects to cancel)."""
     ctx = {}
     ops, other = spec.get("ops") or [], spec.get("else") or []
-    if any(o["op"] == "plugin" and o["id"] in ("houdini:replace_combatant", "luke:replace_combatant") for o in ops):      # Smoke And Mirrors: a bot weighs the swap
+    if any(o["op"] == "plugin" and o["id"] in ("houdini:replace_combatant", "luke:replace_combatant", "washington:replace_combatant") for o in ops):      # Smoke And Mirrors: a bot weighs the swap
         ctx["replaces_combatant"] = {"this": run.ctx.this_fid, "role": run.ctx.played_as}
     if len(ops) == 1 and ops[0]["op"] == "return_to_deck" and isinstance(ops[0]["cards"], dict) \
             and ops[0]["cards"]["zone"] == "deck" and ops[0]["cards"].get("pick") == "top":
@@ -693,3 +693,4 @@ from . import plugins_yennefer  # noqa: E402,F401  (registers yennefer:/triss: m
 from . import plugins_wyatt  # noqa: E402,F401  (registers wyatt:free_attack, you_die_first, swear_me_in, bring_to_justice)
 from . import plugins_philippa  # noqa: E402,F401  (registers philippa: owlform, chain_lightning, blinding_dust, do_my_bidding, spymaster_ruse)
 from . import plugins_john  # noqa: E402,F401  (registers john:summon_track and the test john:paths)
+from . import plugins_washington  # noqa: E402,F401  (registers washington:use_ruse and washington:replace_combatant)

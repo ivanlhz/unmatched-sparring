@@ -26,6 +26,7 @@ dealt before the defense is chosen, and the drawn card may be it), and the attac
 defense may know (`attack_card`); the human puts it face down as always and it is turned at Reveal."""
 from __future__ import annotations
 
+from . import session_espionage as espionage
 from .effects.choose import ChoiceRequest
 from .effects.events import attack_revealed
 from .effects.modifiers import plays_face_up
@@ -372,15 +373,22 @@ def ask_prediction(session, p, card) -> bool:
     if p.prediction is not None:
         return False
     req = prediction_request(session.game, session.human, card)
-    if req is None:
+    ruse = None if req is not None else espionage.ruse_request(session, p, card)
+    if req is None and ruse is None:
         return False
-    p.predict = req.to_dict()
-    session.say(t("hidden.ask_prediction", card=card.title), ChatKind.YOUR_TURN)
+    p.predict = (req or ruse).to_dict()
+    session.say(t("hidden.ask_prediction", card=card.title) if req is not None
+                else t("espionage.ask", card=card.title, left=espionage.tokens_line(session)), ChatKind.YOUR_TURN)
+    req = req or ruse
     session._show_choice(req)
     return True
 
 
 def answer_prediction(session, p, value: list) -> None:
+    if espionage.is_ruse_request(p.predict):         # Washington's ruse token, asked in the same slot at Reveal
+        espionage.answered(session, p, value)
+        session._reveal({})
+        return
     v = value[0]
     p.prediction, p.predict = {"value": None if v == FACE_DOWN else v}, None
     if v == FACE_DOWN:
@@ -434,7 +442,7 @@ def declare_attack(session, p, card):
     if p.declared is None:
         drawn = g.drawn[session.bot]
         p.declared = {"counters": dict(g.fx.counters[session.bot]), "revealed": by_ability}   # the token projection diffs from here
-        g.fx.emit("attacked", p.attacker, p.target, card)
+        espionage.emit_attacked(session, p, card)          # the bare `attacked` event, or Washington's ruse token first
         if g.drawn[session.bot] > drawn:                  # the trigger drew: the real card goes to the hand now
             session._mark_dirty()
             session._flush_table()
@@ -471,6 +479,7 @@ def bot_attack_placed(session, p) -> None:
     face_up = plays_face_up(card, g, p.attacker, p.target)      # Witness My Last Battle: the card itself says "play it face up"
     if revealed and p.declared is None:
         declare_bot_attack(session, p)
+    espionage.bot_attack_placed(session, p)            # George Washington's ESPIONAGE: a ruse token on the bot's attack
     if _has_plugin(g, session.bot, card, PERFECT_SHOT):
         n = predict_value(g, session.bot)
         p.prediction = {"value": n}

@@ -1,0 +1,454 @@
+{
+ "_source": {
+  "memory": "unmatched-memory/data/heroes/george-washington.json",
+  "overlay": "data/heroes/overlay/george-washington.json",
+  "generator": "tools/import_hero.py"
+ },
+ "slug": "george-washington",
+ "name": "George Washington",
+ "fid": "washington",
+ "hp": 14,
+ "move": 2,
+ "attack": "melee",
+ "set": "stars-and-stripes",
+ "ability": "ESPIONAGE\nYou start with 4 ruse tokens.\nWhen you attack, you may use a ruse token, placing it next to the card.\nBefore your opponent chooses whether or not to defend, they may discard 1 random card to remove the ruse token.",
+ "sidekicks": [
+  {
+   "name": "Spy",
+   "hp": 1,
+   "move": 2,
+   "attack": "melee",
+   "count": 3,
+   "fid": "spy",
+   "start_on_board": 3,
+   "reserve": 0,
+   "tts_tokens": [
+    "Anna Strong",
+    "Pompey Lamb",
+    "Austin Roe"
+   ]
+  }
+ ],
+ "forms": null,
+ "counters": {},
+ "triggers": [],
+ "passives": [],
+ "deck": {
+  "card_base": 18700,
+  "sheet": 187,
+  "cards": [
+   {
+    "idx": 0,
+    "title": "Lead Astray",
+    "fighter": "George Washington",
+    "type": "attack",
+    "value": 5,
+    "boost": 2,
+    "text": "AFTER COMBAT: Move a fighter in the combat up to 2 spaces.",
+    "tags": []
+   },
+   {
+    "idx": 1,
+    "title": "Lead Astray",
+    "fighter": "George Washington",
+    "type": "attack",
+    "value": 5,
+    "boost": 2,
+    "text": "AFTER COMBAT: Move a fighter in the combat up to 2 spaces.",
+    "tags": []
+   },
+   {
+    "idx": 2,
+    "title": "Agent 711",
+    "fighter": "George Washington",
+    "type": "attack",
+    "value": 4,
+    "boost": 3,
+    "text": "AFTER COMBAT: [RUSE] If you won the combat, deal 7 damage to the opposing fighter.",
+    "tags": [
+     "ruse"
+    ]
+   },
+   {
+    "idx": 3,
+    "title": "Agent 711",
+    "fighter": "George Washington",
+    "type": "attack",
+    "value": 4,
+    "boost": 3,
+    "text": "AFTER COMBAT: [RUSE] If you won the combat, deal 7 damage to the opposing fighter.",
+    "tags": [
+     "ruse"
+    ]
+   },
+   {
+    "idx": 4,
+    "title": "Allies Everywhere",
+    "fighter": "George Washington",
+    "type": "attack",
+    "value": 1,
+    "boost": 3,
+    "text": "AFTER COMBAT: Gain 1 free action to attack. [RUSE] Washington recovers 3 health.",
+    "tags": [
+     "ruse"
+    ]
+   },
+   {
+    "idx": 5,
+    "title": "Allies Everywhere",
+    "fighter": "George Washington",
+    "type": "attack",
+    "value": 1,
+    "boost": 3,
+    "text": "AFTER COMBAT: Gain 1 free action to attack. [RUSE] Washington recovers 3 health.",
+    "tags": [
+     "ruse"
+    ]
+   },
+   {
+    "idx": 6,
+    "title": "Allies Everywhere",
+    "fighter": "George Washington",
+    "type": "attack",
+    "value": 1,
+    "boost": 3,
+    "text": "AFTER COMBAT: Gain 1 free action to attack. [RUSE] Washington recovers 3 health.",
+    "tags": [
+     "ruse"
+    ]
+   },
+   {
+    "idx": 7,
+    "title": "Circumvent",
+    "fighter": "any",
+    "type": "attack",
+    "value": 3,
+    "boost": 2,
+    "text": "DURING COMBAT: [RUSE] Ignore the value of your opponent's card.",
+    "tags": [
+     "ruse"
+    ]
+   },
+   {
+    "idx": 8,
+    "title": "Circumvent",
+    "fighter": "any",
+    "type": "attack",
+    "value": 3,
+    "boost": 2,
+    "text": "DURING COMBAT: [RUSE] Ignore the value of your opponent's card.",
+    "tags": [
+     "ruse"
+    ]
+   },
+   {
+    "idx": 9,
+    "title": "Sabotage",
+    "fighter": "any",
+    "type": "attack",
+    "value": 3,
+    "boost": 3,
+    "text": "AFTER COMBAT: [RUSE] If you won the combat, your opponent discards 2 random cards.",
+    "tags": [
+     "ruse"
+    ]
+   },
+   {
+    "idx": 10,
+    "title": "Sabotage",
+    "fighter": "any",
+    "type": "attack",
+    "value": 3,
+    "boost": 3,
+    "text": "AFTER COMBAT: [RUSE] If you won the combat, your opponent discards 2 random cards.",
+    "tags": [
+     "ruse"
+    ]
+   },
+   {
+    "idx": 11,
+    "title": "Network Of Spies",
+    "fighter": "George Washington",
+    "type": "versatile",
+    "value": 2,
+    "boost": 2,
+    "text": "DURING COMBAT: Add +1 to this card's value for each other friendly fighter in Washington's zone.",
+    "tags": []
+   },
+   {
+    "idx": 12,
+    "title": "Network Of Spies",
+    "fighter": "George Washington",
+    "type": "versatile",
+    "value": 2,
+    "boost": 2,
+    "text": "DURING COMBAT: Add +1 to this card's value for each other friendly fighter in Washington's zone.",
+    "tags": []
+   },
+   {
+    "idx": 13,
+    "title": "Make A Stand",
+    "fighter": "any",
+    "type": "versatile",
+    "value": 3,
+    "boost": 1,
+    "text": "DURING COMBAT: If your fighter started this turn in their current space, this card's value becomes 5.",
+    "tags": []
+   },
+   {
+    "idx": 14,
+    "title": "Make A Stand",
+    "fighter": "any",
+    "type": "versatile",
+    "value": 3,
+    "boost": 1,
+    "text": "DURING COMBAT: If your fighter started this turn in their current space, this card's value becomes 5.",
+    "tags": []
+   },
+   {
+    "idx": 15,
+    "title": "Make A Stand",
+    "fighter": "any",
+    "type": "versatile",
+    "value": 3,
+    "boost": 1,
+    "text": "DURING COMBAT: If your fighter started this turn in their current space, this card's value becomes 5.",
+    "tags": []
+   },
+   {
+    "idx": 16,
+    "title": "Recruit To The Ring",
+    "fighter": "any",
+    "type": "versatile",
+    "value": 2,
+    "boost": 1,
+    "text": "AFTER COMBAT: Return a defeated Spy to a space adjacent to Washington. If you won the combat, return that Spy to any space instead.",
+    "tags": []
+   },
+   {
+    "idx": 17,
+    "title": "Recruit To The Ring",
+    "fighter": "any",
+    "type": "versatile",
+    "value": 2,
+    "boost": 1,
+    "text": "AFTER COMBAT: Return a defeated Spy to a space adjacent to Washington. If you won the combat, return that Spy to any space instead.",
+    "tags": []
+   },
+   {
+    "idx": 18,
+    "title": "Misinformation",
+    "fighter": "any",
+    "type": "versatile",
+    "value": 4,
+    "boost": 2,
+    "text": "AFTER COMBAT: If you won the combat, regain a ruse token.",
+    "tags": []
+   },
+   {
+    "idx": 19,
+    "title": "Misinformation",
+    "fighter": "any",
+    "type": "versatile",
+    "value": 4,
+    "boost": 2,
+    "text": "AFTER COMBAT: If you won the combat, regain a ruse token.",
+    "tags": []
+   },
+   {
+    "idx": 20,
+    "title": "Misinformation",
+    "fighter": "any",
+    "type": "versatile",
+    "value": 4,
+    "boost": 2,
+    "text": "AFTER COMBAT: If you won the combat, regain a ruse token.",
+    "tags": []
+   },
+   {
+    "idx": 21,
+    "title": "Feint",
+    "fighter": "any",
+    "type": "versatile",
+    "value": 2,
+    "boost": 3,
+    "text": "IMMEDIATELY: Cancel all effects on your opponent's card.",
+    "tags": []
+   },
+   {
+    "idx": 22,
+    "title": "Feint",
+    "fighter": "any",
+    "type": "versatile",
+    "value": 2,
+    "boost": 3,
+    "text": "IMMEDIATELY: Cancel all effects on your opponent's card.",
+    "tags": []
+   },
+   {
+    "idx": 23,
+    "title": "Feint",
+    "fighter": "any",
+    "type": "versatile",
+    "value": 2,
+    "boost": 3,
+    "text": "IMMEDIATELY: Cancel all effects on your opponent's card.",
+    "tags": []
+   },
+   {
+    "idx": 24,
+    "title": "Undercover Agent",
+    "fighter": "George Washington",
+    "type": "defense",
+    "value": 1,
+    "boost": 2,
+    "text": "DURING COMBAT: Washington may swap spaces with an adjacent Spy. If he does, that Spy is now the defender.",
+    "tags": []
+   },
+   {
+    "idx": 25,
+    "title": "Undercover Agent",
+    "fighter": "George Washington",
+    "type": "defense",
+    "value": 1,
+    "boost": 2,
+    "text": "DURING COMBAT: Washington may swap spaces with an adjacent Spy. If he does, that Spy is now the defender.",
+    "tags": []
+   },
+   {
+    "idx": 26,
+    "title": "Gather Information",
+    "fighter": "George Washington",
+    "type": "scheme",
+    "value": null,
+    "boost": 2,
+    "text": "Draw 3 cards. Move each of your fighters up to 3 spaces. They may move through opposing fighters.",
+    "tags": []
+   },
+   {
+    "idx": 27,
+    "title": "Gather Information",
+    "fighter": "George Washington",
+    "type": "scheme",
+    "value": null,
+    "boost": 2,
+    "text": "Draw 3 cards. Move each of your fighters up to 3 spaces. They may move through opposing fighters.",
+    "tags": []
+   },
+   {
+    "idx": 28,
+    "title": "Sympathetic Stain",
+    "fighter": "Spy",
+    "type": "scheme",
+    "value": null,
+    "boost": 3,
+    "text": "Choose an opponent and look at their hand. If a Spy is adjacent to one of their fighters, choose a card for them to discard and regain a ruse token.",
+    "tags": []
+   },
+   {
+    "idx": 29,
+    "title": "Sympathetic Stain",
+    "fighter": "Spy",
+    "type": "scheme",
+    "value": null,
+    "boost": 3,
+    "text": "Choose an opponent and look at their hand. If a Spy is adjacent to one of their fighters, choose a card for them to discard and regain a ruse token.",
+    "tags": []
+   }
+  ]
+ },
+ "token_names": {
+  "1c7d18": "ruse"
+ },
+ "ai_profile": {
+  "washington": {
+   "name": "George Washington",
+   "hero": true,
+   "count": 1,
+   "max_hp": 14,
+   "move": 2,
+   "ranged": false,
+   "role": "hero",
+   "attack": {
+    "cards": 24,
+    "mean": 2.83,
+    "max": 5
+   },
+   "exclusive": [
+    {
+     "title": "Lead Astray",
+     "type": "attack",
+     "copies": 2,
+     "impact": 1.23
+    },
+    {
+     "title": "Agent 711",
+     "type": "attack",
+     "copies": 2,
+     "impact": 3.55
+    },
+    {
+     "title": "Allies Everywhere",
+     "type": "attack",
+     "copies": 3,
+     "impact": 2.18
+    },
+    {
+     "title": "Network Of Spies",
+     "type": "versatile",
+     "copies": 2,
+     "impact": 0.78
+    },
+    {
+     "title": "Undercover Agent",
+     "type": "defense",
+     "copies": 2,
+     "impact": 0.72
+    },
+    {
+     "title": "Gather Information",
+     "type": "scheme",
+     "copies": 2,
+     "impact": 1.8
+    }
+   ]
+  },
+  "spy": {
+   "name": "Spy",
+   "hero": false,
+   "count": 3,
+   "max_hp": 1,
+   "move": 2,
+   "ranged": false,
+   "role": "keep_away",
+   "attack": {
+    "cards": 15,
+    "mean": 2.87,
+    "max": 4
+   },
+   "exclusive": [
+    {
+     "title": "Sympathetic Stain",
+     "type": "scheme",
+     "copies": 2,
+     "impact": 1.16
+    }
+   ],
+   "requires_alive": [
+    {
+     "source": "Undercover Agent",
+     "kind": "card",
+     "copies": 2,
+     "impact": 0.27
+    }
+   ]
+  }
+ },
+ "_notes": [
+  "Sheet 187 of the tournament savegame (8x4), read card by card from the image on 2026-11-13. CardID = 18700 + idx; 404 = character card (sheet 4, 5x2, index 4). Washington's deck is NOT one of the sheet-176 decks: his CardIDs 18700-18729 are nobody else's, like Houdini's 178xx (docs/card-identity.md).",
+  "Transcription check (2026-11-13): the 13 titles of unmatched-memory (transcribed from screenshots, unverified by Ivan) were compared with the 30 tiles of the deck object: every title, type, printed value, BOOST value, restriction band and copy count agrees, and so does each card text word for word. The save's deck holds 31 cards, the 30 of the deck plus the character card 404. See docs/heroes/george-washington.md.",
+  "Hero card (read from the image): GEORGE WASHINGTON, MELEE, START HEALTH 14, MOVE 2; ESPIONAGE. Sidekick CULPER SPIES, MELEE, x3, the move printed once (2) for the three. The bag holds three Custom_Token spies (Anna Strong, Pompey Lamb, Austin Roe) with no life dial (1 life each), a stack of four 'Ruse' tokens (Custom_Token_Stack 1c7d18), the miniature (Custom_Assetbundle b4ab68) and the life dial (Custom_Model 166320, 'Hero Health').",
+  "Bands read from the images: Lead Astray, Agent 711, Allies Everywhere, Network Of Spies, Undercover Agent and Gather Information are WASHINGTON; Sympathetic Stain is SPY (a Culper spy plays it); Circumvent, Sabotage, Misinformation, Make A Stand, Feint and Recruit To The Ring are ANY. The sidekick is called 'Spy' (the band and the card texts say Spy), not unmatched-memory's 'Culper spy'.",
+  "Tag `ruse` marks the four cards that carry a ruse-triangle effect (Agent 711, Circumvent, Sabotage, Allies Everywhere); the AI reads it, the engine reads the effects file."
+ ]
+}

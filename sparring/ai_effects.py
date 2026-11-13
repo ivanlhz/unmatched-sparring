@@ -31,7 +31,7 @@ import random
 from functools import lru_cache
 from itertools import combinations
 
-from . import ai_wyatt, enraged
+from . import ai_washington, ai_wyatt, enraged
 from .ai_medusa import (ACTION_VALUE, DECK_SCARCITY, HARPY_VALUE, KILL_SIDEKICK, LETHAL, SURVIVAL_P, W_HERO, W_MEDUSA_HP,
                         W_SIDEKICK, MedusaAI, Model, effect_reliance, hand_room, keep_value, kept_hand_value, kill_value, play_signature)
 from .controller import Controller
@@ -82,6 +82,7 @@ PACT_COMFORT = 8                                        # below this many hit po
 PACT_URGENCY = 0.15
 PACT_RISK_STEP = 0.1                                    # ... and the hit point does not raise the chance of dying next turn by more than this
 PACT_RECYCLE = 4.0                                      # a card put at the bottom of a deck of n cards comes back with weight PACT_RECYCLE / (n + 1)
+SPY_SWAP_MARGIN = 0.5                                   # Undercover Agent gives a Spy up for the hero's hit points only when it saves this much more than the Spy is worth
 SWAP_MARGIN = 0.4                                       # Sleight Of Hand is swapped only when the other card beats it by this much, after the cards each one costs to keep
 SWAP_KEEP_SHARE = 0.5                                   # share of the difference between keeping Sleight Of Hand and keeping the other card that counts against the swap
 DEVIL_TITLE, DEVIL_EMPTY_VALUE = "Devil of Hell's Kitchen", 8    # Daredevil's card: worth 8 once the deck is empty, which a blind boost can cause
@@ -668,6 +669,8 @@ class EffectAI:
         return 1 if card_worth(card) > average else 0
 
     def _optional(self, game: Game, req: ChoiceRequest, nested: bool) -> list | None:
+        if "washington" in req.extra:        # ESPIONAGE: a ruse token on the attack, or the discard that takes it off (ai_washington)
+            return [ai_washington.use_ruse(self, game, req) if req.extra["washington"] == "use" else ai_washington.remove_ruse(self, game, req)]
         if "pact" in req.extra:
             return [self._dark_pact(game, req)]
         if "shield" in req.extra:           # A Magician Never Reveals His Secrets: showing one card costs less than a look at the hand
@@ -804,12 +807,13 @@ class EffectAI:
         if info["role"] != "defense":
             return False
         this = game.fighters[info["this"]]
-        other = next((f for f in game.own(me) if f is not this), None)
-        if other is None:
-            return False
+        mates, margin = [f for f in game.own(me) if f is not this], 1e-9
+        if len(mates) > 1:                  # Washington's Undercover Agent: only a Spy next to him can take his place, and a Spy is worth keeping
+            mates = [f for f in mates if this.pos is not None and f.pos in game.board.adj[this.pos]]
+            margin = SPY_SWAP_MARGIN
         blow = req.extra.get("at_stake", 0)
         lose = lambda f: -self.hp_change(f, f.hp - game.combat_damage_taken(f, blow), me, game)     # Luke Cage takes 2 less
-        return lose(other) < lose(this) - 1e-9
+        return any(lose(other) < lose(this) - margin for other in mates)
 
     def _card_from_hand_pays(self, game: Game, req: ChoiceRequest) -> bool:
         """A card put on the bottom of the deck (it comes back when the deck cycles) for an extra action (Hi-Yaaaaah!!)

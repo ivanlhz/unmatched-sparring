@@ -1,0 +1,49 @@
+{
+ "slug": "george-washington",
+ "_notes": [
+  "Washington's deck is sheet 187 (CardIDs 18700-18729, the 30 playing cards; the character card is 404 on sheet 4): the range is nobody else's, so he shares no CardID with any other hero (docs/card-identity.md).",
+  "The three Culper Spies are Custom_Token objects (d6183b Anna Strong, 6c6bdd Pompey Lamb, 30c3de Austin Roe) with no life dial (1 life each); real TTS reports an object imported from a save as a Tile, so nothing that reads or moves them may filter on obj.type. Washington's miniature is the Custom_Assetbundle b4ab68 and his life dial the Custom_Model 166320 (MAX_VALUE 14, the 'Hero Health' script), both nicknamed 'George Washington'.",
+  "`tokens.ruse_on` is the stack of four 'Ruse' tokens (Custom_Token_Stack 1c7d18). The bot's token that lies next to its attack card is a copy taken from it (engine counter `ruse_on`, 1 while the token is on the card); the supply counter `ruse` has no object of its own: the stack stays where it is and the chat says how many are left (docs/heroes/george-washington.md)."
+ ],
+ "bag": {
+  "guid": "a6447e",
+  "inner": "08a266"
+ },
+ "deck": {
+  "guid": "15548c",
+  "card_ids": [
+   18700,
+   18729
+  ],
+  "character_card_id": 404,
+  "identity": [
+   {
+    "face": "https://steamusercontent-a.akamaihd.net/ugc/15101247565294818165/31B0FCA6FDB2E71B8B5CF4E88FDE571133C76032/",
+    "back": "https://steamusercontent-a.akamaihd.net/ugc/10973398497332202765/86FB6FC7AB0AF35887FC00558FF3DB522CF8F9D5/"
+   }
+  ]
+ },
+ "fighters": {
+  "washington": {
+   "piece": "b4ab68",
+   "dial": "166320",
+   "dial_max": 14
+  },
+  "spy1": {
+   "piece": "d6183b",
+   "nickname": "Anna Strong"
+  },
+  "spy2": {
+   "piece": "6c6bdd",
+   "nickname": "Pompey Lamb"
+  },
+  "spy3": {
+   "piece": "30c3de",
+   "nickname": "Austin Roe"
+  }
+ },
+ "tokens": {
+  "ruse": "1c7d18"
+ },
+ "counter_dials": {}
+}

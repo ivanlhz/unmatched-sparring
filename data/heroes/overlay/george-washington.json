@@ -1,0 +1,218 @@
+{
+ "_notes": [
+  "Sheet 187 of the tournament savegame (8x4), read card by card from the image on 2026-11-13. CardID = 18700 + idx; 404 = character card (sheet 4, 5x2, index 4). Washington's deck is NOT one of the sheet-176 decks: his CardIDs 18700-18729 are nobody else's, like Houdini's 178xx (docs/card-identity.md).",
+  "Transcription check (2026-11-13): the 13 titles of unmatched-memory (transcribed from screenshots, unverified by Ivan) were compared with the 30 tiles of the deck object: every title, type, printed value, BOOST value, restriction band and copy count agrees, and so does each card text word for word. The save's deck holds 31 cards, the 30 of the deck plus the character card 404. See docs/heroes/george-washington.md.",
+  "Hero card (read from the image): GEORGE WASHINGTON, MELEE, START HEALTH 14, MOVE 2; ESPIONAGE. Sidekick CULPER SPIES, MELEE, x3, the move printed once (2) for the three. The bag holds three Custom_Token spies (Anna Strong, Pompey Lamb, Austin Roe) with no life dial (1 life each), a stack of four 'Ruse' tokens (Custom_Token_Stack 1c7d18), the miniature (Custom_Assetbundle b4ab68) and the life dial (Custom_Model 166320, 'Hero Health').",
+  "Bands read from the images: Lead Astray, Agent 711, Allies Everywhere, Network Of Spies, Undercover Agent and Gather Information are WASHINGTON; Sympathetic Stain is SPY (a Culper spy plays it); Circumvent, Sabotage, Misinformation, Make A Stand, Feint and Recruit To The Ring are ANY. The sidekick is called 'Spy' (the band and the card texts say Spy), not unmatched-memory's 'Culper spy'.",
+  "Tag `ruse` marks the four cards that carry a ruse-triangle effect (Agent 711, Circumvent, Sabotage, Allies Everywhere); the AI reads it, the engine reads the effects file."
+ ],
+ "fid": "washington",
+ "sidekicks": [
+  {
+   "fid": "spy",
+   "name": "Spy",
+   "count": 3,
+   "hp": 1,
+   "move": 2,
+   "attack": "melee",
+   "start_on_board": 3,
+   "reserve": 0,
+   "tts_tokens": [
+    "Anna Strong",
+    "Pompey Lamb",
+    "Austin Roe"
+   ]
+  }
+ ],
+ "forms": null,
+ "counters": {},
+ "triggers": [],
+ "passives": [],
+ "token_names": {
+  "1c7d18": "ruse"
+ },
+ "deck": {
+  "card_base": 18700,
+  "sheet_id": 187,
+  "hero_card_id": 404,
+  "sheet": [
+   {
+    "idx": 0,
+    "title": "Lead Astray",
+    "fighter": "George Washington"
+   },
+   {
+    "idx": 1,
+    "title": "Lead Astray",
+    "fighter": "George Washington"
+   },
+   {
+    "idx": 2,
+    "title": "Agent 711",
+    "fighter": "George Washington",
+    "tags": [
+     "ruse"
+    ]
+   },
+   {
+    "idx": 3,
+    "title": "Agent 711",
+    "fighter": "George Washington",
+    "tags": [
+     "ruse"
+    ]
+   },
+   {
+    "idx": 4,
+    "title": "Allies Everywhere",
+    "fighter": "George Washington",
+    "tags": [
+     "ruse"
+    ]
+   },
+   {
+    "idx": 5,
+    "title": "Allies Everywhere",
+    "fighter": "George Washington",
+    "tags": [
+     "ruse"
+    ]
+   },
+   {
+    "idx": 6,
+    "title": "Allies Everywhere",
+    "fighter": "George Washington",
+    "tags": [
+     "ruse"
+    ]
+   },
+   {
+    "idx": 7,
+    "title": "Circumvent",
+    "fighter": "any",
+    "tags": [
+     "ruse"
+    ]
+   },
+   {
+    "idx": 8,
+    "title": "Circumvent",
+    "fighter": "any",
+    "tags": [
+     "ruse"
+    ]
+   },
+   {
+    "idx": 9,
+    "title": "Sabotage",
+    "fighter": "any",
+    "tags": [
+     "ruse"
+    ]
+   },
+   {
+    "idx": 10,
+    "title": "Sabotage",
+    "fighter": "any",
+    "tags": [
+     "ruse"
+    ]
+   },
+   {
+    "idx": 11,
+    "title": "Network Of Spies",
+    "fighter": "George Washington"
+   },
+   {
+    "idx": 12,
+    "title": "Network Of Spies",
+    "fighter": "George Washington"
+   },
+   {
+    "idx": 13,
+    "title": "Make A Stand",
+    "fighter": "any"
+   },
+   {
+    "idx": 14,
+    "title": "Make A Stand",
+    "fighter": "any"
+   },
+   {
+    "idx": 15,
+    "title": "Make A Stand",
+    "fighter": "any"
+   },
+   {
+    "idx": 16,
+    "title": "Recruit To The Ring",
+    "fighter": "any"
+   },
+   {
+    "idx": 17,
+    "title": "Recruit To The Ring",
+    "fighter": "any"
+   },
+   {
+    "idx": 18,
+    "title": "Misinformation",
+    "fighter": "any"
+   },
+   {
+    "idx": 19,
+    "title": "Misinformation",
+    "fighter": "any"
+   },
+   {
+    "idx": 20,
+    "title": "Misinformation",
+    "fighter": "any"
+   },
+   {
+    "idx": 21,
+    "title": "Feint",
+    "fighter": "any"
+   },
+   {
+    "idx": 22,
+    "title": "Feint",
+    "fighter": "any"
+   },
+   {
+    "idx": 23,
+    "title": "Feint",
+    "fighter": "any"
+   },
+   {
+    "idx": 24,
+    "title": "Undercover Agent",
+    "fighter": "George Washington"
+   },
+   {
+    "idx": 25,
+    "title": "Undercover Agent",
+    "fighter": "George Washington"
+   },
+   {
+    "idx": 26,
+    "title": "Gather Information",
+    "fighter": "George Washington"
+   },
+   {
+    "idx": 27,
+    "title": "Gather Information",
+    "fighter": "George Washington"
+   },
+   {
+    "idx": 28,
+    "title": "Sympathetic Stain",
+    "fighter": "Spy"
+   },
+   {
+    "idx": 29,
+    "title": "Sympathetic Stain",
+    "fighter": "Spy"
+   }
+  ]
+ }
+}
