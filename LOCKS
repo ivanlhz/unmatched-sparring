@@ -34,3 +34,10 @@ docs/live-checklist.md  philippa  Philippa hero (AI hooks, human flows, docs, sh
 README.md  philippa  Philippa hero (AI hooks, human flows, docs, shared tests)  14:07Z
 sparring/search/adapter.py  raptors  swarm policy, attack-last-action, team zone exposure  14:12Z
 sparring/ai_hazards.py  raptors  per-fighter zone damage for a team  14:12Z
+sparring/board.py  john-henry  John Henry engine pieces (board tracks, if_won cancel, token Lua)  14:12Z
+sparring/combat_flow.py  john-henry  John Henry engine pieces (board tracks, if_won cancel, token Lua)  14:12Z
+sparring/effects/ops_combat.py  john-henry  John Henry engine pieces (board tracks, if_won cancel, token Lua)  14:12Z
+sparring/effects/events.py  john-henry  John Henry engine pieces (board tracks, if_won cancel, token Lua)  14:12Z
+sparring/session_moves.py  john-henry  John Henry engine pieces (board tracks, if_won cancel, token Lua)  14:12Z
+sparring/tts/lua.py  john-henry  John Henry engine pieces (board tracks, if_won cancel, token Lua)  14:12Z
+sparring/tts/hero_table.py  john-henry  John Henry engine pieces (board tracks, if_won cancel, token Lua)  14:12Z
