@@ -6,3 +6,14 @@
 #            Push rejected -> git pull --rebase; if the path is now someone else's, wait and retry; else push again.
 #   release: in the SAME push as your finished work, delete your line (commit "unlock: <path> <agent>").
 #   Never edit a path locked by another agent. Never remove another agent's line.
+sparring/effects/select.py  philippa  Philippa engine pieces (fill-hand amount, hero_move rule, plugins, AI, human play mode)  13:58Z
+sparring/effects/ops_core.py  philippa  Philippa engine pieces (fill-hand amount, hero_move rule, plugins, AI, human play mode)  13:58Z
+sparring/effects/ongoing.py  philippa  Philippa engine pieces (fill-hand amount, hero_move rule, plugins, AI, human play mode)  13:58Z
+sparring/effects/state.py  philippa  Philippa engine pieces (fill-hand amount, hero_move rule, plugins, AI, human play mode)  13:58Z
+sparring/enraged.py  philippa  Philippa engine pieces (fill-hand amount, hero_move rule, plugins, AI, human play mode)  13:58Z
+data/heroes/effects/schema.json  philippa  Philippa engine pieces (fill-hand amount, hero_move rule, plugins, AI, human play mode)  13:58Z
+tools/validate_effects.py  philippa  Philippa engine pieces (fill-hand amount, hero_move rule, plugins, AI, human play mode)  13:58Z
+sparring/ai_effects.py  philippa  Philippa engine pieces (fill-hand amount, hero_move rule, plugins, AI, human play mode)  13:58Z
+sparring/session_rage.py  philippa  Philippa engine pieces (fill-hand amount, hero_move rule, plugins, AI, human play mode)  13:58Z
+data/i18n/en.json  philippa  Philippa engine pieces (fill-hand amount, hero_move rule, plugins, AI, human play mode)  13:58Z
+data/i18n/es.json  philippa  Philippa engine pieces (fill-hand amount, hero_move rule, plugins, AI, human play mode)  13:58Z
