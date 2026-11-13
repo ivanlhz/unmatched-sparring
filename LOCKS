@@ -34,3 +34,4 @@ sparring/hero_detect.py  john-henry  John Henry engine pieces, step B (tracks st
 sparring/effects/table.py  john-henry  John Henry engine pieces, step B (tracks state, SpaceSel track, over_tracks, schema, hero lists)  14:20Z
 sparring/ai_effects.py  john-henry  John Henry engine pieces, step B (tracks state, SpaceSel track, over_tracks, schema, hero lists)  14:20Z
 config/table.json  john-henry  John Henry engine pieces, step B (tracks state, SpaceSel track, over_tracks, schema, hero lists)  14:20Z
+sparring/ai_medusa.py  rosie  Rosie hero engine pieces (upgrades, plugins, AI hooks, i18n, hero lists)  14:20Z
