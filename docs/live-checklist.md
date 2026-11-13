@@ -395,9 +395,9 @@ Nothing of the Raptors has been seen on a real table. Their deck is sheet 176 li
 - [ ] **PACK BONUS (H/B)**: attacking with a Raptor, each other Raptor next to the defender adds +1; the combat line says it.
 - [ ] **Pack Hunters / Eaten Alive (H/B)**: damage after a won combat, the dials follow.
 - [ ] **Working Things Out (H)**: the chat lists a move of up to 3 for each Raptor and you get the action back. **(B)**: the bot moves its pieces.
-- [ ] **Coordinated Attack Pattern (H)**: three buttons named after the miniatures, then Yes / No for each of the other two. **(B)**: the bot places them.
+- [ ] **Coordinated Attack Pattern (H)**: three buttons named after the miniatures, (ONE question), then the chat tells you to place each of the other two in its zone by hand. **(B)**: the bot places them.
 - [ ] **Decoy (H)**: Yes / No, then the other Raptors; you place her next to the opposing fighter by hand.
-- [ ] **Ambush against a human**: no BOOST bonus is added (the bot cannot name the card you discard).
+- [ ] **Ambush against a human (bot Raptors)**: the chat names the position of the card you discard ("the card N counting from the left"); you lay it on your discard pile and press Done; the bot reads it and the attack is worth 2 plus its BOOST. **(H)**: your Ambush takes a random card of the bot's hand and adds its BOOST.
 - [ ] **Bot behaviour**: it attacks every turn it can, brings the other Raptors next to the defender, and keeps its Raptors out of a rival hero's zone damage (Medusa) unless attacking.
 ### Sinbad (Battle of Legends, Volume One, with The Porter)
 
@@ -622,7 +622,7 @@ Nothing of Chupacabra has been seen on a real table. His deck is sheet 176 like 
 - [ ] **Detection (auto)**: with his deck at one spot and any other hero's at the other, the start-up line names Chupacabra; the bag `a20352` holds a deck of 31 cards (character card 360).
 - [ ] **Pieces and the shared dial**: his miniature `4137cf` (an asset bundle) and dial `ca8e35` (14) are found; against Donatello or Tomoe Gozen the chat says the dial was resolved by name and each life dial follows its own hero.
 - [ ] **THE HUNGER (H)**: after each of your attacks the panel asks Yes / No to draw a card; Yes: the bot deals you one. **(B)**: the bot's Chupacabra draws after its attacks.
-- [ ] **Ambush (H, bot Chupacabra)**: the chat names the position of the card you discard from your hand ("the card N counting from the left"); you discard it and press its BOOST value; the attack is worth 2 plus that value. **(B, you attack)**: the bot discards a card of its hand and the table follows.
+- [ ] **Ambush (H, bot Chupacabra)**: the chat names the position of the card you discard from your hand ("the card N counting from the left"); you discard it on your discard pile and press Done; the bot reads the card and the attack is worth 2 plus its BOOST. **(B, you attack)**: the bot discards a card of its hand and the table follows.
 - [ ] **Unsettle**: played by you, the panel asks if you pay 2 damage; the bot discards 1 or 2 cards and its table hand follows. Played by the bot, you discard by hand the number of cards the chat says.
 - [ ] **Tooth and Tail / Feeding / Ravenous Lunge**: the dials follow the damage and the healing; with more than 2 fighters next to him the panel asks which two.
 - [ ] **Blood in the Air**: after a combat won this turn, the panel offers the BOOST of the card at Reveal.
