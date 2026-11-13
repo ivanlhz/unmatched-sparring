@@ -19,3 +19,18 @@ sparring/effects/events.py  john-henry  John Henry engine pieces (board tracks, 
 sparring/session_moves.py  john-henry  John Henry engine pieces (board tracks, if_won cancel, token Lua)  14:12Z
 sparring/session.py  rosie  Rosie: upgrade announcements (session_rosie.track)  14:14Z
 sparring/persist.py  rosie  Rosie: ranged sync on load  14:14Z
+sparring/effects/state.py  john-henry  John Henry engine pieces, step B (tracks state, SpaceSel track, over_tracks, schema, hero lists)  14:20Z
+sparring/effects/select.py  john-henry  John Henry engine pieces, step B (tracks state, SpaceSel track, over_tracks, schema, hero lists)  14:20Z
+sparring/effects/ops_core.py  john-henry  John Henry engine pieces, step B (tracks state, SpaceSel track, over_tracks, schema, hero lists)  14:20Z
+data/heroes/effects/schema.json  john-henry  John Henry engine pieces, step B (tracks state, SpaceSel track, over_tracks, schema, hero lists)  14:20Z
+tools/validate_effects.py  john-henry  John Henry engine pieces, step B (tracks state, SpaceSel track, over_tracks, schema, hero lists)  14:20Z
+tests/test_heroes.py  john-henry  John Henry engine pieces, step B (tracks state, SpaceSel track, over_tracks, schema, hero lists)  14:20Z
+tests/test_card_identity.py  john-henry  John Henry engine pieces, step B (tracks state, SpaceSel track, over_tracks, schema, hero lists)  14:20Z
+tests/test_d1_bot_cards.py  john-henry  John Henry engine pieces, step B (tracks state, SpaceSel track, over_tracks, schema, hero lists)  14:20Z
+tests/test_effects_schema.py  john-henry  John Henry engine pieces, step B (tracks state, SpaceSel track, over_tracks, schema, hero lists)  14:20Z
+data/i18n/en.json  john-henry  John Henry engine pieces, step B (tracks state, SpaceSel track, over_tracks, schema, hero lists)  14:20Z
+data/i18n/es.json  john-henry  John Henry engine pieces, step B (tracks state, SpaceSel track, over_tracks, schema, hero lists)  14:20Z
+sparring/hero_detect.py  john-henry  John Henry engine pieces, step B (tracks state, SpaceSel track, over_tracks, schema, hero lists)  14:20Z
+sparring/effects/table.py  john-henry  John Henry engine pieces, step B (tracks state, SpaceSel track, over_tracks, schema, hero lists)  14:20Z
+sparring/ai_effects.py  john-henry  John Henry engine pieces, step B (tracks state, SpaceSel track, over_tracks, schema, hero lists)  14:20Z
+config/table.json  john-henry  John Henry engine pieces, step B (tracks state, SpaceSel track, over_tracks, schema, hero lists)  14:20Z
