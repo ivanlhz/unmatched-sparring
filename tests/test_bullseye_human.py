@@ -182,7 +182,7 @@ def test_master_strategist_with_no_space_exactly_four_away_is_skipped_and_the_ch
     bot_defends_with_nothing(session, monkeypatch)
     put_adjacent(game, table, cfg, "bullseye", "hellboy")
     start = game.fighters["bullseye"].pos
-    monkeypatch.setattr(game, "legal_moves", lambda f, steps, through: {s for s in game.board.spaces if 0 < game.board.distance(start, s) < 4})
+    monkeypatch.setattr(game, "legal_moves", lambda f, steps, through, over=False: {s for s in game.board.spaces if 0 < game.board.distance(start, s) < 4})
     human_hand(table, game, "Master Strategist", "Feint")
     msgs = attack(session, table, game, "Master Strategist")
     assert session.effect_run is None and session.pending is None and game.fighters["bullseye"].pos == start

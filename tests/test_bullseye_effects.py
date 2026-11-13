@@ -358,7 +358,7 @@ def test_master_strategist_with_no_space_exactly_four_away_cancels_the_move(bprd
     wall(g)
     start = b.pos
     near = {s for s in bprd.spaces if 0 < bprd.distance(start, s) < 4 and s != h.pos}
-    monkeypatch.setattr(g, "legal_moves", lambda f, steps, through: near)
+    monkeypatch.setattr(g, "legal_moves", lambda f, steps, through, over=False: near)
     seen = []
     g.controllers[0].queue = [lambda req: seen.append(req) or [max(req.options)]]
     g.attack(b, h, give(g, 0, "Master Strategist"), g.players[1].hand[0])
@@ -370,7 +370,7 @@ def test_the_bot_is_not_asked_to_plan_a_fallback_move_for_master_strategist(bprd
     g = mk(bprd, "leonardo")
     b, h = pair(g, "bullseye", "leonardo")
     start = b.pos
-    monkeypatch.setattr(g, "legal_moves", lambda f, steps, through: {s for s in bprd.spaces if 0 < bprd.distance(start, s) < 4})
+    monkeypatch.setattr(g, "legal_moves", lambda f, steps, through, over=False: {s for s in bprd.spaces if 0 < bprd.distance(start, s) < 4})
     dests = [d for d in g.legal_moves(b, 4, True) if g.board.distance(start, d) == 4]
     assert dests == [] and EffectAI(0).choose_effect(g, __import__("sparring.effects.choose", fromlist=["x"]).ChoiceRequest(
         "space", 0, dests, 1, 1, None, "k", "move to", {"fighter": "bullseye", "op": "move", "steps": 4, "through": True, "up_to": False}, 0)) in (None, [])
