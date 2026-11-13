@@ -559,3 +559,88 @@ def test_the_walk_costs_of_other_heroes_are_untouched(bprd):
     sinbad = g.fighters["sinbad"]
     assert g.legal_moves(sinbad, 2) == bprd.reachable(sinbad.pos, 2, g.occupied(0) - {sinbad.pos}, g.occupied(1))
     assert hp(g, "sinbad") == [15]
+
+
+# ---------------------------------------------------------------- a turn whose only action left is a free action to attack
+
+def credit_turn(bprd, hand=()):
+    g = mk(bprd)
+    john, hellboy = fight(g, "hellboy")
+    g.actions_left, g.fx.attack_credit = 1, 1
+    for title in hand:
+        give(g, 0, title)
+    return g, john, hellboy
+
+
+def test_turn_goes_on_ends_the_turn_when_the_free_action_has_no_attack_to_spend_it_on(bprd):
+    g, john, hellboy = credit_turn(bprd, ("Striking Fire",))
+    assert g.attack_only() and not tracks.turn_goes_on(g)
+    give(g, 0, "Larger Than Life")
+    assert tracks.turn_goes_on(g)
+    g.fx.attack_credit = 0
+    g.players[0].hand.clear()
+    assert tracks.turn_goes_on(g), "a real action left: anything may spend it"
+
+
+def controllers():
+    from sparring import sim
+    from sparring.ai_medusa import MedusaAI
+    from sparring.hellboy_script import ChasingHellboy, ScriptedHellboy
+    return {"heuristic": lambda: MedusaAI(0), "ismcts": lambda: sim.make_bot("ismcts", iterations=4, seed=1),
+            "scripted": lambda: ScriptedHellboy(0, 1), "chasing": lambda: ChasingHellboy(0, 1)}
+
+
+@pytest.mark.parametrize("kind", ["heuristic", "ismcts", "scripted", "chasing"])
+def test_a_free_action_with_nothing_to_attack_with_ends_the_turn_without_a_maneuver(bprd, kind):
+    g, john, hellboy = credit_turn(bprd, ("Striking Fire",))
+    where, hand = john.pos, len(g.players[0].hand)
+    controllers()[kind]().take_turn(g)
+    assert g.actions_left == 1 and john.pos == where and len(g.players[0].hand) == hand, "no Maneuver, no scheme"
+
+
+@pytest.mark.parametrize("kind", ["heuristic", "ismcts", "scripted", "chasing"])
+def test_a_free_action_with_an_attack_card_and_a_rival_next_to_him_attacks(bprd, kind):
+    g, john, hellboy = credit_turn(bprd, ("Larger Than Life",))
+    life = hellboy.hp
+    controllers()[kind]().take_turn(g)
+    assert hellboy.hp < life and g.actions_left == 0 and g.fx.attack_credit == 0
+
+
+def test_the_session_loop_ends_the_bots_turn_on_a_free_action_it_cannot_use(tmp_path):
+    from test_john_henry_human import JohnTable
+    from test_d3_table_effects import build
+    from sparring.ai_medusa import MedusaAI
+    session, table, game, fake, cfg, client = build(tmp_path, "john-henry", "hellboy", ("Striking Fire",), table_cls=JohnTable)
+    try:
+        game.turn, game.actions_left, game.fx.attack_credit = 0, 1, 1
+        session.ai.pick_ability_target = lambda g: None
+        session._bot_continue()
+        assert game.turn == 1 and session.pending is None
+    finally:
+        client.close()
+        fake.close()
+
+
+def test_the_session_loop_lets_the_bot_attack_with_the_free_action(tmp_path):
+    from test_john_henry_human import JohnTable
+    from test_d3_table_effects import build
+    from test_e2_human_cards import put_adjacent
+    session, table, game, fake, cfg, client = build(tmp_path, "john-henry", "hellboy", ("Larger Than Life",), table_cls=JohnTable)
+    try:
+        put_adjacent(game, table, cfg, "john", "hellboy")
+        game.turn, game.actions_left, game.fx.attack_credit = 0, 1, 1
+        session.ai.pick_ability_target = lambda g: None
+        session._bot_continue()
+        assert session.pending is not None and session.pending.kind == "bot_attacks"
+    finally:
+        client.close()
+        fake.close()
+
+
+def test_the_plan_spends_the_free_action_like_the_engine(bprd):
+    from sparring.ai_medusa import MedusaAI, Model
+    g, john, hellboy = credit_turn(bprd, ("Larger Than Life",))
+    ai = MedusaAI(0)
+    act = next(a for a in ai.attack_acts(g, Model(g, 0)) if a.kind == "attack")
+    after = ai.apply_expected(g, act)
+    assert after.actions_left == 0 and after.fx.attack_credit == 0

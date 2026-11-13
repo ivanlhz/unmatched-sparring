@@ -2,8 +2,8 @@
 and a human who attacks every turn) and headless games with the heuristic and the search AI.
 
 The same approach as tests/test_tomoe_gozen_matrix.py (docs/card-identity.md): the human is a scripted player at the panel, the bot
-plays with its real AI, and both heroes start worn down (HERO_HP) so a game ends in a few dozen steps. His deck has a DeckID of its own
-(187): against the sheet-176 decks this matrix shows nothing is mixed up. His track tokens, the free walks, the paths and the hammers run in
+plays with its real AI, and both heroes start worn down (HERO_HP) so a game ends in a few dozen steps. His deck is sheet 187, shared with
+Wyatt Earp and Washington (same key, Wyatt the same CardIDs): this matrix shows decks are told apart by image and owner. His track tokens, the free walks, the paths and the hammers run in
 these games; his life dial shares its GUID with Raphael's (the save), so that pair is the one that proves the dial is told apart by name."""
 from __future__ import annotations
 
@@ -14,7 +14,7 @@ from test_d3_table_effects import build, set_hand
 from test_donatello_session import SPOTS, AsideTable
 from test_tmnt_matrix import HERO_HP, MAX_STEPS, AttackDriver, human_step
 
-OTHERS = ["medusa", "hellboy", "abe-sapien", "baba-yaga", "liz-sherman", "leonardo", "donatello", "michelangelo", "raphael", "doctor-strange", "houdini", "bigfoot", "daredevil", "luke-cage", "bullseye", "golden-bat", "jill-trent", "she-hulk", "tomoe-gozen", "sinbad", "eredin", "ciri", "yennefer-triss", "triss-yennefer", "philippa"]
+OTHERS = ["medusa", "hellboy", "abe-sapien", "baba-yaga", "liz-sherman", "leonardo", "donatello", "michelangelo", "raphael", "doctor-strange", "houdini", "bigfoot", "daredevil", "luke-cage", "bullseye", "golden-bat", "jill-trent", "she-hulk", "tomoe-gozen", "sinbad", "eredin", "ciri", "yennefer-triss", "triss-yennefer", "philippa", "raptors", "chupacabra", "wyatt-earp", "rosie-the-riveter"]
 PAIRS = [("john-henry", h) for h in OTHERS] + [(b, "john-henry") for b in OTHERS]
 IDS = [f"{b}-vs-{h}" for b, h in PAIRS]
 

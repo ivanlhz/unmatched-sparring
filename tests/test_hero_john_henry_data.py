@@ -1,6 +1,6 @@
 """John Henry's data: overlay, generated HeroDef, structured effects (DSL v1) and table data agree with each other and with the real cards of
 sheet 187 of the tournament save (read from the images on 2026-11-13), and with the transcription of unmatched-memory he was first added
-from (compared title by title: no difference). His deck has a DeckID of its own, so no other hero shares his CardIDs. No engine, no TTS,
+from (compared title by title: no difference). His deck is sheet 187, which other Stars and Stripes decks share (Wyatt Earp has the same CardIDs): the decks are told apart by image. No engine, no TTS,
 no sockets."""
 import json
 
@@ -193,14 +193,19 @@ def test_the_character_card_and_the_deck_are_the_hero_of_the_catalog():
 
 # ---------------------------------------------------------------- his own card range
 
-def test_his_deck_range_is_his_alone():
+def test_a_deck_with_his_card_ids_is_told_apart_by_its_images():
+    """Sheet 187 is shared (Wyatt Earp has the same CardIDs 18700-18729, Washington the same key): the range alone never names a card."""
     mine = load_hero_table("john-henry")
     assert mine.card_ids == (18700, 18729)
+    overlapping = []
     for slug in available_heroes():
         if slug == "john-henry":
             continue
         lo, hi = load_hero_table(slug).card_ids
-        assert hi < 18700 or lo > 18729, slug
+        if lo <= 18729 and hi >= 18700:
+            overlapping.append(slug)
+            assert not set(mine.identity) & set(load_hero_table(slug).identity), slug
+    assert "wyatt-earp" in overlapping
 
 
 def test_no_card_of_john_henry_equals_a_card_of_another_deck_and_none_is_medusas():

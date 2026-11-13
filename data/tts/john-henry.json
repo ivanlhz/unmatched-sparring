@@ -1,7 +1,7 @@
 {
  "slug": "john-henry",
  "_notes": [
-  "Read from the bag 845f05 (inner bag 646707) of the tournament savegame on 2026-11-13. The deck is c3109e (31 cards: the 30 of sheet 187, CardIDs 18700-18729, plus the character card 403, sheet 4 index 3); sheet 187 is John Henry's alone, so no other deck shares his CardIDs. The miniature is the Custom_Assetbundle 041a3d 'John Henry', the life dial the Custom_Model 887823 (MAX_VALUE 17, 'Hero Health'). There is no sidekick.",
+  "Read from the bag 845f05 (inner bag 646707) of the tournament savegame on 2026-11-13. The deck is c3109e (31 cards: the 30 of sheet 187, CardIDs 18700-18729, plus the character card 403, sheet 4 index 3); sheet 187 is shared: Wyatt Earp (0e4426) and George Washington (15548c) have decks with the same key and, for Wyatt, the same CardIDs, so only the deck image (deck.identity) tells them apart. The miniature is the Custom_Assetbundle 041a3d 'John Henry', the life dial the Custom_Model 887823 (MAX_VALUE 17, 'Hero Health'). There is no sidekick.",
   "The TRACK TOKENS are one Custom_Token_Stack (8ba84f, Number 10, ImageURL ...7E9563244F2F4DA4659AA9164EC339BCDC766607) in the inner bag, no nickname: its image (`token_sources.track.image`) is how the table scan recognises a track token that a player took out of the stack. The bot takes a copy with takeObject and lays it on the space (`lua.place_token_at_space`); the human lays theirs by hand and the bot reads them (`lua.read_tokens_by_image`)."
  ],
  "bag": {

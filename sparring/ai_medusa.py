@@ -1296,6 +1296,8 @@ class MedusaAI(Controller):
             slot = g.free_attack_for(a.target)       # an attack spends a free action to attack before an ordinary one
             if slot is not None:
                 del g.free_attacks[slot]
+            elif g.fx.attack_credit:                 # John Henry's free action to attack, spent first as `Game.use_action` does
+                g.fx.attack_credit -= 1
         g.actions_left -= 1
         if a.kind == "maneuver":
             g.actions_left += bonus_actions
