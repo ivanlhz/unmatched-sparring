@@ -8,3 +8,6 @@
 #   Never edit a path locked by another agent. Never remove another agent's line.
 sparring/effects/state.py  rosie  review fix: Merlin vs _sync_move  15:47Z
 docs/live-checklist.md  rosie  D-Day free action wording  15:49Z
+sparring/effects/ops_combat.py  raptors  vetoed discard binds nothing; driver hand count  15:51Z
+tests/test_tmnt_matrix.py  raptors  vetoed discard binds nothing; driver hand count  15:51Z
+tests/test_george_washington_matrix.py  raptors  vetoed discard binds nothing; driver hand count  15:51Z
