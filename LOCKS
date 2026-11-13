@@ -13,3 +13,5 @@ sparring/effects/events.py  washington  George Washington hero  16:34Z
 docs/effects-dsl.md  washington  George Washington hero  16:34Z
 docs/live-checklist.md  washington  George Washington hero  16:34Z
 features.json  washington  George Washington hero  16:34Z
+sparring/session.py  rosie  Rosie bot flips the upgrade tokens  16:36Z
+sparring/table_reset.py  rosie  Rosie bot flips the upgrade tokens  16:36Z
