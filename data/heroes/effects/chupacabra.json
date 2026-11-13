@@ -1,0 +1,177 @@
+{
+ "schema": 1,
+ "hero": "chupacabra",
+ "notes": [
+  "Texts read from sheet 176 of the tournament savegame (card images) on 2026-11-13; the character card is 360 on sheet 3 (10x7, index 60). Sheet 176 is also Medusa's DeckID and the other heroes': the CardIDs repeat and only the deck image tells the decks apart (docs/card-identity.md).",
+  "Two plugins (chupacabra:ambush, chupacabra:tooth_and_tail); everything else uses ops that already existed (docs/heroes/chupacabra.md)."
+ ],
+ "ability": {
+  "text": "THE HUNGER\nAfter you attack, you may draw a card.",
+  "triggers": [
+   {"id": "the_hunger", "when": {"event": "after_attack", "fighter": {"side": "own"}},
+    "ops": [{"op": "optional", "chooser": "owner", "ops": [{"op": "draw", "player": "owner", "amount": 1}]}]}
+  ],
+  "passives": [],
+  "notes": "'After you attack' is any attack of the player, once the combat is over (as Michelangelo's PIZZA PARTY), also when it was defended or dealt no damage; it does not fire for the defender. The draw is optional: the bot decides with its evaluation (a draw from an empty deck costs exhaustion damage), the human is asked Yes / No."
+ },
+ "cards": [
+  {
+   "title": "The More They Struggle",
+   "copies": 3,
+   "text": "DURING COMBAT: The value of this card is equal to twice the printed value of your opponent's card.",
+   "effects": {
+    "immediately": [], "after": [], "scheme": [], "boost": [],
+    "during": [
+     {"op": "modify_value", "card": "this", "amount": {"attr": "value", "of": "opponent_card", "times": 2}}
+    ]
+   },
+   "notes": "Attack 0 / boost 3. `modify_value` of twice the PRINTED value of the rival's card (`attr: value`, `times: 2`): a boost or an effect of the rival's does not count, and an absent or cancelled-before-DURING rival card counts 0. The printed 0 of this card stays."
+  },
+  {
+   "title": "Ambush",
+   "copies": 2,
+   "text": "DURING COMBAT: Your opponent discards 1 random card. Add its BOOST value to this card's attack value.",
+   "effects": {
+    "immediately": [], "after": [], "scheme": [], "boost": [],
+    "during": [
+     {"op": "plugin", "id": "chupacabra:ambush"}
+    ]
+   },
+   "notes": "Attack 2 / boost 3. Plugin `chupacabra:ambush`: the rival discards one card of their hand at random and this card's value grows by that card's BOOST value. The bot's hand is the engine's; the human's is on the table, so they discard the position the bot names and press its BOOST value (docs/heroes/chupacabra.md). A rival with an empty hand discards nothing and adds 0."
+  },
+  {
+   "title": "Feeding",
+   "copies": 3,
+   "text": "AFTER COMBAT: If Chupacabra has 7 or less health, gain 1 action and it recovers 1 health.",
+   "effects": {
+    "immediately": [], "during": [], "scheme": [], "boost": [],
+    "after": [
+     {"op": "if", "condition": {"test": "compare", "left": {"stat": "hp", "fighter": "hero"}, "op": "<=", "right": 7}, "then": [
+      {"op": "gain_action", "amount": 1},
+      {"op": "heal", "target": "hero", "amount": 1}
+     ]}
+    ]
+   },
+   "notes": "Attack 4 / boost 2. Health read when the AFTER runs, after the combat damage. The action only exists on Chupacabra's own turn (`gain_action` does nothing on a defense)."
+  },
+  {
+   "title": "Blood in the Air",
+   "copies": 3,
+   "text": "DURING COMBAT: If you already won a combat this turn, you may BOOST this card.",
+   "effects": {
+    "immediately": [], "after": [], "scheme": [], "boost": [],
+    "during": [
+     {"op": "if", "condition": {"test": "compare", "left": {"stat": "combats_won_this_turn", "player": "owner"}, "op": ">=", "right": 1}, "then": [
+      {"op": "allow_boost", "card": "this"}
+     ]}
+    ]
+   },
+   "notes": "Attack 4 / boost 4. `allow_boost` of this card when the owner already won a combat THIS turn (`combats_won_this_turn` does not count the combat being resolved): the free BOOST of `may_boost` cards, asked after the DURING."
+  },
+  {
+   "title": "Wounded Beast",
+   "copies": 3,
+   "text": "DURING COMBAT: If Chupacabra has 7 or less health, this card's value is 5 instead.",
+   "effects": {
+    "immediately": [], "after": [], "scheme": [], "boost": [],
+    "during": [
+     {"op": "if", "condition": {"test": "compare", "left": {"stat": "hp", "fighter": "hero"}, "op": "<=", "right": 7}, "then": [
+      {"op": "set_value", "card": "this", "amount": 5}
+     ]}
+    ]
+   },
+   "notes": "Versatile 3 / boost 1. `set_value` 5 (the printed 3 becomes 5, bonuses stay) with 7 or less health when the DURING runs, attacking or defending."
+  },
+  {
+   "title": "Tooth and Tail",
+   "copies": 3,
+   "text": "AFTER COMBAT: Deal 1 damage to up to 2 fighters adjacent to Chupacabra.\nChupacabra recovers 1 health for each fighter damaged this way.",
+   "effects": {
+    "immediately": [], "during": [], "scheme": [], "boost": [],
+    "after": [
+     {"op": "plugin", "id": "chupacabra:tooth_and_tail"}
+    ]
+   },
+   "notes": "Versatile 2 / boost 2. Plugin `chupacabra:tooth_and_tail`: up to 2 fighters next to Chupacabra (the owner chooses when there are more than 2 and may pick fewer), 1 effect damage to each, and 1 health back for each that really took damage (an immune fighter does not count). Adjacency is read after the combat."
+  },
+  {
+   "title": "Feint",
+   "copies": 3,
+   "text": "IMMEDIATELY: Cancel all effects on your opponent's card.",
+   "effects": {
+    "immediately": [
+     {"op": "cancel_effects", "card": "opponent_card"}
+    ],
+    "during": [], "after": [], "scheme": [], "boost": []
+   },
+   "notes": "Versatile 2 / boost 2. The same card as Sinbad's, Bigfoot's and others'."
+  },
+  {
+   "title": "Ravenous Lunge",
+   "copies": 3,
+   "text": "AFTER COMBAT: Chupacabra recovers 1 health. If you won the combat, it recovers 2 instead.",
+   "effects": {
+    "immediately": [], "during": [], "scheme": [], "boost": [],
+    "after": [
+     {"op": "if", "condition": {"test": "combat_result", "result": "won"},
+      "then": [{"op": "heal", "target": "hero", "amount": 2}],
+      "else": [{"op": "heal", "target": "hero", "amount": 1}]}
+    ]
+   },
+   "notes": "Versatile 3 / boost 2. 1 health, 2 if the combat was won (the engine's result: the attacker wins only if combat damage lands, a tie or no damage is the defender's win)."
+  },
+  {
+   "title": "Natural Toughness",
+   "copies": 2,
+   "text": "AFTER COMBAT: If you lost the combat, return this card to your hand.",
+   "effects": {
+    "immediately": [], "during": [], "scheme": [], "boost": [],
+    "after": [
+     {"op": "if", "condition": {"test": "combat_result", "result": "lost"}, "then": [
+      {"op": "put_in_hand", "cards": "this"}
+     ]}
+    ]
+   },
+   "notes": "Defense 3 / boost 3. `put_in_hand` of `this` when the combat was lost (`combat_result lost` = did not win; a defender wins ties, so the card only returns when the attacker's damage landed)."
+  },
+  {
+   "title": "Traveler of the Night",
+   "copies": 3,
+   "text": "Move your fighter up to 4 spaces. They may move through opposing fighters.\nGain 1 action.",
+   "effects": {
+    "immediately": [], "during": [], "after": [], "boost": [],
+    "scheme": [
+     {"op": "move", "target": "this", "amount": 4, "up_to": true, "through_enemies": true, "chooser": "owner"},
+     {"op": "gain_action", "amount": 1}
+    ]
+   },
+   "notes": "Scheme, boost 3. Chupacabra has no sidekicks, so 'your fighter' is the hero. Up to 4 spaces, through opposing fighters, then 1 action back."
+  },
+  {
+   "title": "Unsettle",
+   "copies": 2,
+   "text": "Choose an opponent with a fighter in Chupacabra's zone. They discard 1 card. You may deal 2 damage to Chupacabra to make them discard 2 cards instead.",
+   "effects": {
+    "immediately": [], "during": [], "after": [], "boost": [],
+    "scheme": [
+     {"op": "if", "condition": {"test": "exists", "fighters": {"side": "enemy", "where": {"zone_of": "hero"}}}, "then": [
+      {"op": "optional", "chooser": "owner",
+       "cost": [{"op": "damage", "target": "hero", "amount": 2}],
+       "ops": [{"op": "discard", "cards": {"zone": "hand", "player": "opponent", "pick": "chosen", "chooser": "opponent", "amount": 2}}],
+       "else": [{"op": "discard", "cards": {"zone": "hand", "player": "opponent", "pick": "chosen", "chooser": "opponent", "amount": 1}}]}
+     ]}
+    ]
+   },
+   "notes": "Scheme, boost 2. With two players 'choose an opponent' is the rival and the condition is an opposing fighter in Chupacabra's zone. The rival chooses what they discard. The 2 damage is a cost paid before the discards; nothing stops the owner paying it with Chupacabra on 2 or less health (most literal reading, Pending Ivan)."
+  }
+ ],
+ "plugins": [
+  {"id": "chupacabra:ambush", "why": "The rival discards a random card and its BOOST value is read: for the human's hand the engine only knows placeholders, so the human discards the card the bot names and states its BOOST value."},
+  {"id": "chupacabra:tooth_and_tail", "why": "Up to 2 distinct adjacent fighters (the DSL has no 'up to N distinct targets') and one heal per fighter that really took damage."}
+ ],
+ "hidden_info": [
+  {"card": "Ambush", "what": "the rival discards 1 random card and its BOOST value is added", "bot_rule": "The bot's hand is the engine's. The human's real card is discarded by the human at the position the bot draws from the hand size (as Liz Sherman's Wildfire) and they press its BOOST value; the bot never reads the hand."}
+ ],
+ "open_questions": [],
+ "discrepancies": []
+}

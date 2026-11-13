@@ -1,0 +1,414 @@
+{
+ "_source": {
+  "memory": "unmatched-memory/data/heroes/chupacabra.json",
+  "overlay": "data/heroes/overlay/chupacabra.json",
+  "generator": "tools/import_hero.py"
+ },
+ "slug": "chupacabra",
+ "name": "Chupacabra",
+ "fid": "chupacabra",
+ "hp": 14,
+ "move": 3,
+ "attack": "melee",
+ "set": "battle-of-legends-volume-three",
+ "ability": "THE HUNGER\nAfter you attack, you may draw a card.",
+ "sidekicks": [],
+ "forms": null,
+ "counters": {},
+ "triggers": [],
+ "passives": [],
+ "deck": {
+  "card_base": 17600,
+  "sheet": 176,
+  "cards": [
+   {
+    "idx": 0,
+    "title": "The More They Struggle",
+    "fighter": "Chupacabra",
+    "type": "attack",
+    "value": 0,
+    "boost": 3,
+    "text": "DURING COMBAT: The value of this card is equal to twice the printed value of your opponent's card.",
+    "tags": []
+   },
+   {
+    "idx": 1,
+    "title": "The More They Struggle",
+    "fighter": "Chupacabra",
+    "type": "attack",
+    "value": 0,
+    "boost": 3,
+    "text": "DURING COMBAT: The value of this card is equal to twice the printed value of your opponent's card.",
+    "tags": []
+   },
+   {
+    "idx": 2,
+    "title": "The More They Struggle",
+    "fighter": "Chupacabra",
+    "type": "attack",
+    "value": 0,
+    "boost": 3,
+    "text": "DURING COMBAT: The value of this card is equal to twice the printed value of your opponent's card.",
+    "tags": []
+   },
+   {
+    "idx": 3,
+    "title": "Ambush",
+    "fighter": "Chupacabra",
+    "type": "attack",
+    "value": 2,
+    "boost": 3,
+    "text": "DURING COMBAT: Your opponent discards 1 random card. Add its BOOST value to this card's attack value.",
+    "tags": []
+   },
+   {
+    "idx": 4,
+    "title": "Ambush",
+    "fighter": "Chupacabra",
+    "type": "attack",
+    "value": 2,
+    "boost": 3,
+    "text": "DURING COMBAT: Your opponent discards 1 random card. Add its BOOST value to this card's attack value.",
+    "tags": []
+   },
+   {
+    "idx": 5,
+    "title": "Feeding",
+    "fighter": "Chupacabra",
+    "type": "attack",
+    "value": 4,
+    "boost": 2,
+    "text": "AFTER COMBAT: If Chupacabra has 7 or less health, gain 1 action and it recovers 1 health.",
+    "tags": []
+   },
+   {
+    "idx": 6,
+    "title": "Feeding",
+    "fighter": "Chupacabra",
+    "type": "attack",
+    "value": 4,
+    "boost": 2,
+    "text": "AFTER COMBAT: If Chupacabra has 7 or less health, gain 1 action and it recovers 1 health.",
+    "tags": []
+   },
+   {
+    "idx": 7,
+    "title": "Feeding",
+    "fighter": "Chupacabra",
+    "type": "attack",
+    "value": 4,
+    "boost": 2,
+    "text": "AFTER COMBAT: If Chupacabra has 7 or less health, gain 1 action and it recovers 1 health.",
+    "tags": []
+   },
+   {
+    "idx": 8,
+    "title": "Blood in the Air",
+    "fighter": "Chupacabra",
+    "type": "attack",
+    "value": 4,
+    "boost": 4,
+    "text": "DURING COMBAT: If you already won a combat this turn, you may BOOST this card.",
+    "tags": []
+   },
+   {
+    "idx": 9,
+    "title": "Blood in the Air",
+    "fighter": "Chupacabra",
+    "type": "attack",
+    "value": 4,
+    "boost": 4,
+    "text": "DURING COMBAT: If you already won a combat this turn, you may BOOST this card.",
+    "tags": []
+   },
+   {
+    "idx": 10,
+    "title": "Blood in the Air",
+    "fighter": "Chupacabra",
+    "type": "attack",
+    "value": 4,
+    "boost": 4,
+    "text": "DURING COMBAT: If you already won a combat this turn, you may BOOST this card.",
+    "tags": []
+   },
+   {
+    "idx": 11,
+    "title": "Wounded Beast",
+    "fighter": "Chupacabra",
+    "type": "versatile",
+    "value": 3,
+    "boost": 1,
+    "text": "DURING COMBAT: If Chupacabra has 7 or less health, this card's value is 5 instead.",
+    "tags": []
+   },
+   {
+    "idx": 12,
+    "title": "Wounded Beast",
+    "fighter": "Chupacabra",
+    "type": "versatile",
+    "value": 3,
+    "boost": 1,
+    "text": "DURING COMBAT: If Chupacabra has 7 or less health, this card's value is 5 instead.",
+    "tags": []
+   },
+   {
+    "idx": 13,
+    "title": "Wounded Beast",
+    "fighter": "Chupacabra",
+    "type": "versatile",
+    "value": 3,
+    "boost": 1,
+    "text": "DURING COMBAT: If Chupacabra has 7 or less health, this card's value is 5 instead.",
+    "tags": []
+   },
+   {
+    "idx": 14,
+    "title": "Tooth and Tail",
+    "fighter": "Chupacabra",
+    "type": "versatile",
+    "value": 2,
+    "boost": 2,
+    "text": "AFTER COMBAT: Deal 1 damage to up to 2 fighters adjacent to Chupacabra.\nChupacabra recovers 1 health for each fighter damaged this way.",
+    "tags": []
+   },
+   {
+    "idx": 15,
+    "title": "Tooth and Tail",
+    "fighter": "Chupacabra",
+    "type": "versatile",
+    "value": 2,
+    "boost": 2,
+    "text": "AFTER COMBAT: Deal 1 damage to up to 2 fighters adjacent to Chupacabra.\nChupacabra recovers 1 health for each fighter damaged this way.",
+    "tags": []
+   },
+   {
+    "idx": 16,
+    "title": "Tooth and Tail",
+    "fighter": "Chupacabra",
+    "type": "versatile",
+    "value": 2,
+    "boost": 2,
+    "text": "AFTER COMBAT: Deal 1 damage to up to 2 fighters adjacent to Chupacabra.\nChupacabra recovers 1 health for each fighter damaged this way.",
+    "tags": []
+   },
+   {
+    "idx": 17,
+    "title": "Feint",
+    "fighter": "Chupacabra",
+    "type": "versatile",
+    "value": 2,
+    "boost": 2,
+    "text": "IMMEDIATELY: Cancel all effects on your opponent's card.",
+    "tags": []
+   },
+   {
+    "idx": 18,
+    "title": "Feint",
+    "fighter": "Chupacabra",
+    "type": "versatile",
+    "value": 2,
+    "boost": 2,
+    "text": "IMMEDIATELY: Cancel all effects on your opponent's card.",
+    "tags": []
+   },
+   {
+    "idx": 19,
+    "title": "Feint",
+    "fighter": "Chupacabra",
+    "type": "versatile",
+    "value": 2,
+    "boost": 2,
+    "text": "IMMEDIATELY: Cancel all effects on your opponent's card.",
+    "tags": []
+   },
+   {
+    "idx": 20,
+    "title": "Ravenous Lunge",
+    "fighter": "Chupacabra",
+    "type": "versatile",
+    "value": 3,
+    "boost": 2,
+    "text": "AFTER COMBAT: Chupacabra recovers 1 health. If you won the combat, it recovers 2 instead.",
+    "tags": []
+   },
+   {
+    "idx": 21,
+    "title": "Ravenous Lunge",
+    "fighter": "Chupacabra",
+    "type": "versatile",
+    "value": 3,
+    "boost": 2,
+    "text": "AFTER COMBAT: Chupacabra recovers 1 health. If you won the combat, it recovers 2 instead.",
+    "tags": []
+   },
+   {
+    "idx": 22,
+    "title": "Ravenous Lunge",
+    "fighter": "Chupacabra",
+    "type": "versatile",
+    "value": 3,
+    "boost": 2,
+    "text": "AFTER COMBAT: Chupacabra recovers 1 health. If you won the combat, it recovers 2 instead.",
+    "tags": []
+   },
+   {
+    "idx": 23,
+    "title": "Natural Toughness",
+    "fighter": "Chupacabra",
+    "type": "defense",
+    "value": 3,
+    "boost": 3,
+    "text": "AFTER COMBAT: If you lost the combat, return this card to your hand.",
+    "tags": []
+   },
+   {
+    "idx": 24,
+    "title": "Natural Toughness",
+    "fighter": "Chupacabra",
+    "type": "defense",
+    "value": 3,
+    "boost": 3,
+    "text": "AFTER COMBAT: If you lost the combat, return this card to your hand.",
+    "tags": []
+   },
+   {
+    "idx": 25,
+    "title": "Traveler of the Night",
+    "fighter": "Chupacabra",
+    "type": "scheme",
+    "value": null,
+    "boost": 3,
+    "text": "Move your fighter up to 4 spaces. They may move through opposing fighters.\nGain 1 action.",
+    "tags": []
+   },
+   {
+    "idx": 26,
+    "title": "Traveler of the Night",
+    "fighter": "Chupacabra",
+    "type": "scheme",
+    "value": null,
+    "boost": 3,
+    "text": "Move your fighter up to 4 spaces. They may move through opposing fighters.\nGain 1 action.",
+    "tags": []
+   },
+   {
+    "idx": 27,
+    "title": "Traveler of the Night",
+    "fighter": "Chupacabra",
+    "type": "scheme",
+    "value": null,
+    "boost": 3,
+    "text": "Move your fighter up to 4 spaces. They may move through opposing fighters.\nGain 1 action.",
+    "tags": []
+   },
+   {
+    "idx": 28,
+    "title": "Unsettle",
+    "fighter": "Chupacabra",
+    "type": "scheme",
+    "value": null,
+    "boost": 2,
+    "text": "Choose an opponent with a fighter in Chupacabra's zone. They discard 1 card. You may deal 2 damage to Chupacabra to make them discard 2 cards instead.",
+    "tags": []
+   },
+   {
+    "idx": 29,
+    "title": "Unsettle",
+    "fighter": "Chupacabra",
+    "type": "scheme",
+    "value": null,
+    "boost": 2,
+    "text": "Choose an opponent with a fighter in Chupacabra's zone. They discard 1 card. You may deal 2 damage to Chupacabra to make them discard 2 cards instead.",
+    "tags": []
+   }
+  ]
+ },
+ "ai_profile": {
+  "chupacabra": {
+   "name": "Chupacabra",
+   "hero": true,
+   "count": 1,
+   "max_hp": 14,
+   "move": 3,
+   "ranged": false,
+   "role": "hero",
+   "attack": {
+    "cards": 23,
+    "mean": 2.52,
+    "max": 4
+   },
+   "exclusive": [
+    {
+     "title": "The More They Struggle",
+     "type": "attack",
+     "copies": 3,
+     "impact": 0.48
+    },
+    {
+     "title": "Ambush",
+     "type": "attack",
+     "copies": 2,
+     "impact": 0.9
+    },
+    {
+     "title": "Feeding",
+     "type": "attack",
+     "copies": 3,
+     "impact": 1.7
+    },
+    {
+     "title": "Blood in the Air",
+     "type": "attack",
+     "copies": 3,
+     "impact": 0.9
+    },
+    {
+     "title": "Wounded Beast",
+     "type": "versatile",
+     "copies": 3,
+     "impact": 0.96
+    },
+    {
+     "title": "Tooth and Tail",
+     "type": "versatile",
+     "copies": 3,
+     "impact": 0.9
+    },
+    {
+     "title": "Feint",
+     "type": "versatile",
+     "copies": 3,
+     "impact": 1.2
+    },
+    {
+     "title": "Ravenous Lunge",
+     "type": "versatile",
+     "copies": 3,
+     "impact": 1.51
+    },
+    {
+     "title": "Natural Toughness",
+     "type": "defense",
+     "copies": 2,
+     "impact": 0.96
+    },
+    {
+     "title": "Traveler of the Night",
+     "type": "scheme",
+     "copies": 3,
+     "impact": 1.6
+    },
+    {
+     "title": "Unsettle",
+     "type": "scheme",
+     "copies": 2,
+     "impact": 0.86
+    }
+   ]
+  }
+ },
+ "_notes": [
+  "Sheet 176 of the tournament savegame (8x4), read card by card from the image on 2026-11-13. CardID = 17600 + idx; 360 = character card (sheet 3, 10x7, index 60). The deck object of the save holds 31 cards: the 30 of the deck plus the character card, hence card_count 31 and card_ids [360, 17629] in the catalog. His deck is sheet 176 like Medusa's, the turtles' and the other heroes': only deck.identity (data/tts/chupacabra.json) tells the decks apart (docs/card-identity.md).",
+  "Every card's band reads CHUPACABRA (no sidekicks). Titles, types, values, boosts, copies and texts of all 11 titles agree with unmatched-memory (whose casing is 'The more they struggle'; the card prints Title Case, kept in `title`, the memory spelling in `memory_title`). Hero card read from the image: CHUPACABRA, MELEE, MOVE 3, special ability THE HUNGER 'After you attack, you may draw a card.'; the START HEALTH digit is half hidden by the icon in the image, unmatched-memory says 14. Schemes print no value: unmatched-memory has 0 for the two schemes, the overlay writes `value: null` (idx 25-29)."
+ ]
+}

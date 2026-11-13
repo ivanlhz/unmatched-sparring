@@ -1,0 +1,194 @@
+{
+ "_notes": [
+  "Sheet 176 of the tournament savegame (8x4), read card by card from the image on 2026-11-13. CardID = 17600 + idx; 360 = character card (sheet 3, 10x7, index 60). The deck object of the save holds 31 cards: the 30 of the deck plus the character card, hence card_count 31 and card_ids [360, 17629] in the catalog. His deck is sheet 176 like Medusa's, the turtles' and the other heroes': only deck.identity (data/tts/chupacabra.json) tells the decks apart (docs/card-identity.md).",
+  "Every card's band reads CHUPACABRA (no sidekicks). Titles, types, values, boosts, copies and texts of all 11 titles agree with unmatched-memory (whose casing is 'The more they struggle'; the card prints Title Case, kept in `title`, the memory spelling in `memory_title`). Hero card read from the image: CHUPACABRA, MELEE, MOVE 3, special ability THE HUNGER 'After you attack, you may draw a card.'; the START HEALTH digit is half hidden by the icon in the image, unmatched-memory says 14. Schemes print no value: unmatched-memory has 0 for the two schemes, the overlay writes `value: null` (idx 25-29)."
+ ],
+ "fid": "chupacabra",
+ "sidekicks": [],
+ "forms": null,
+ "counters": {},
+ "triggers": [],
+ "passives": [],
+ "deck": {
+  "card_base": 17600,
+  "sheet_id": 176,
+  "hero_card_id": 360,
+  "sheet": [
+   {
+    "idx": 0,
+    "title": "The More They Struggle",
+    "fighter": "Chupacabra",
+    "memory_title": "The more they struggle"
+   },
+   {
+    "idx": 1,
+    "title": "The More They Struggle",
+    "fighter": "Chupacabra",
+    "memory_title": "The more they struggle"
+   },
+   {
+    "idx": 2,
+    "title": "The More They Struggle",
+    "fighter": "Chupacabra",
+    "memory_title": "The more they struggle"
+   },
+   {
+    "idx": 3,
+    "title": "Ambush",
+    "fighter": "Chupacabra"
+   },
+   {
+    "idx": 4,
+    "title": "Ambush",
+    "fighter": "Chupacabra"
+   },
+   {
+    "idx": 5,
+    "title": "Feeding",
+    "fighter": "Chupacabra"
+   },
+   {
+    "idx": 6,
+    "title": "Feeding",
+    "fighter": "Chupacabra"
+   },
+   {
+    "idx": 7,
+    "title": "Feeding",
+    "fighter": "Chupacabra"
+   },
+   {
+    "idx": 8,
+    "title": "Blood in the Air",
+    "fighter": "Chupacabra",
+    "memory_title": "Blood in the air"
+   },
+   {
+    "idx": 9,
+    "title": "Blood in the Air",
+    "fighter": "Chupacabra",
+    "memory_title": "Blood in the air"
+   },
+   {
+    "idx": 10,
+    "title": "Blood in the Air",
+    "fighter": "Chupacabra",
+    "memory_title": "Blood in the air"
+   },
+   {
+    "idx": 11,
+    "title": "Wounded Beast",
+    "fighter": "Chupacabra",
+    "memory_title": "Wounded beast"
+   },
+   {
+    "idx": 12,
+    "title": "Wounded Beast",
+    "fighter": "Chupacabra",
+    "memory_title": "Wounded beast"
+   },
+   {
+    "idx": 13,
+    "title": "Wounded Beast",
+    "fighter": "Chupacabra",
+    "memory_title": "Wounded beast"
+   },
+   {
+    "idx": 14,
+    "title": "Tooth and Tail",
+    "fighter": "Chupacabra",
+    "memory_title": "Tooth and tail"
+   },
+   {
+    "idx": 15,
+    "title": "Tooth and Tail",
+    "fighter": "Chupacabra",
+    "memory_title": "Tooth and tail"
+   },
+   {
+    "idx": 16,
+    "title": "Tooth and Tail",
+    "fighter": "Chupacabra",
+    "memory_title": "Tooth and tail"
+   },
+   {
+    "idx": 17,
+    "title": "Feint",
+    "fighter": "Chupacabra"
+   },
+   {
+    "idx": 18,
+    "title": "Feint",
+    "fighter": "Chupacabra"
+   },
+   {
+    "idx": 19,
+    "title": "Feint",
+    "fighter": "Chupacabra"
+   },
+   {
+    "idx": 20,
+    "title": "Ravenous Lunge",
+    "fighter": "Chupacabra",
+    "memory_title": "Ravenous lunge"
+   },
+   {
+    "idx": 21,
+    "title": "Ravenous Lunge",
+    "fighter": "Chupacabra",
+    "memory_title": "Ravenous lunge"
+   },
+   {
+    "idx": 22,
+    "title": "Ravenous Lunge",
+    "fighter": "Chupacabra",
+    "memory_title": "Ravenous lunge"
+   },
+   {
+    "idx": 23,
+    "title": "Natural Toughness",
+    "fighter": "Chupacabra",
+    "memory_title": "Natural toughness"
+   },
+   {
+    "idx": 24,
+    "title": "Natural Toughness",
+    "fighter": "Chupacabra",
+    "memory_title": "Natural toughness"
+   },
+   {
+    "idx": 25,
+    "title": "Traveler of the Night",
+    "fighter": "Chupacabra",
+    "memory_title": "Traveler of the night",
+    "value": null
+   },
+   {
+    "idx": 26,
+    "title": "Traveler of the Night",
+    "fighter": "Chupacabra",
+    "memory_title": "Traveler of the night",
+    "value": null
+   },
+   {
+    "idx": 27,
+    "title": "Traveler of the Night",
+    "fighter": "Chupacabra",
+    "memory_title": "Traveler of the night",
+    "value": null
+   },
+   {
+    "idx": 28,
+    "title": "Unsettle",
+    "fighter": "Chupacabra",
+    "value": null
+   },
+   {
+    "idx": 29,
+    "title": "Unsettle",
+    "fighter": "Chupacabra",
+    "value": null
+   }
+  ]
+ }
+}
