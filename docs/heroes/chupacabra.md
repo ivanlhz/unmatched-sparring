@@ -35,7 +35,7 @@ His deck is sheet 176 like Medusa's, the turtles' and every other hero's of the 
 
 ## Engine additions
 - `sparring/effects/plugins_chupacabra.py`, two plugins and nothing else (no new op, event, rule or schema field):
-  - `chupacabra:ambush`: the DSL cannot read the BOOST of a card the human's hand holds. For a bot or simulated rival the card is drawn from the engine's hand (`run.random_sample`), discarded, and its BOOST added (`cf.ambush`). For the human the engine only has placeholders: it draws the POSITION from the hand size exactly like every random discard from the human's hand (`ops_core._random_positions_text`, "the card N of your hand counting from the left"), registers the discard the human makes by hand, and asks them for the card's BOOST value on the panel (an `amount` request with `ambush_boost`, one button per BOOST value that exists in their deck; `choice.prompt.ambush`). The bot never reads the hand. The question is asked once even if the op reruns after the answer (`run.flags["ambush_discard"]`).
+  - `chupacabra:ambush` (via the shared helper `sparring/effects/random_discard.py`, `discard_random_known`): for a bot or simulated rival the card is drawn from the engine's hand (`run.random_sample`), discarded, and its BOOST added (`cf.ambush`). For the human (Ivan, 2026-11-13) the bot says a position from the hand size ("the card N of your hand counting from the left", `ops_core._random_positions_text`), the human discards THAT card onto their discard pile and presses Done, and the bot DETECTS the card on the table by its identity (`session_rage`, `pile_mode: reveal` with `ambush`) and adds its BOOST. An empty hand discards nothing and adds 0. The request is saved with the run, so a resume mid-flow asks the same question.
   - `chupacabra:tooth_and_tail`: "up to 2 fighters" has no DSL form. The fighters adjacent to Chupacabra are taken in order (all of them when two or fewer, a `fighter` request of 0 to 2 when more), each takes 1 effect damage and he recovers 1 for each that really took it (an immune fighter does not count).
 - Everything else is existing DSL: `modify_value` with `{"attr": "value", "of": "opponent_card", "times": 2}`, `allow_boost` of `this` behind a `combats_won_this_turn` test, `set_value`, `stat hp`, `put_in_hand` of `this`, `move ... through_enemies`, `optional` with a `cost` and an `else`.
 
@@ -56,11 +56,13 @@ His deck is sheet 176 like Medusa's, the turtles' and every other hero's of the 
 - Checked with the search (`make_bot_ai({"ai": "ismcts"})`): games against Hellboy, Bigfoot, Liz Sherman, Medusa and Sinbad, no fallbacks (`ai.fallbacks == 0`), 18 of 20 won against the scripted rival.
 
 ## Tests
-`tests/test_hero_chupacabra_data.py` (data and card identity), `tests/test_chupacabra_effects.py` (THE HUNGER, every card and both plugins on the engine), `tests/test_chupacabra_human.py` (FakeTTS, the panel: the human's cards, THE HUNGER's Yes / No, the bot's Ambush asking the human for the BOOST value, Unsettle, Tooth and Tail), `tests/test_chupacabra_matrix.py` (full games against all twenty-three other heroes in both seats, passive and attacking human, headless with the heuristic and the search AI).
+`tests/test_hero_chupacabra_data.py` (data and card identity), `tests/test_chupacabra_effects.py` (THE HUNGER, every card and both plugins on the engine), `tests/test_chupacabra_human.py` (FakeTTS, the panel: the human's cards, THE HUNGER's Yes / No, the bot's Ambush reading the card the human lays on their pile, Unsettle, Tooth and Tail), `tests/test_chupacabra_matrix.py` (full games against all twenty-three other heroes in both seats, passive and attacking human, headless with the heuristic and the search AI).
+
+## Decided by Ivan (2026-11-13)
+1. **Unsettle's cost**: the 2 damage may be paid at any health (the owner may even defeat himself). The bot's AI never pays when it would die.
+2. **Start health**: 14.
+3. **Tooth and Tail**: damages automatically when 2 or fewer fighters are adjacent; the owner only chooses when there are 3 or more.
+4. **Ambush against the human**: the bot says a number from 1 to the size of the human's hand, the human discards that card and presses Done, the bot detects the discarded card on the table and adds its BOOST (the same flow as the Raptors' Ambush; no BOOST value is typed).
 
 ## Pending Ivan
-1. **Unsettle's cost with low health**: implemented literally, the owner may deal the 2 damage to Chupacabra whatever his health (even to defeat himself). The bot's AI never pays when it would die.
-2. **Ambush on the human's hand**: the human states the BOOST value of the card they discard (one button per value). The alternative is the bot reading the card from the table's hand objects; not done because the project's rule is that the bot never reads the human's hand outside an effect that says so.
-3. **The More They Struggle against a card with no printed value** (a scheme cannot be played in a combat, so it does not arise); against a card whose value is changed by an effect the PRINTED value is used, as the card says.
-4. **Start health**: the digit is half covered on the character card image; 14 from unmatched-memory and from the dial's maximum.
-5. **Tooth and Tail with up to two fighters**: if only one or two fighters are adjacent the damage is not optional (it is never worse for Chupacabra, who has no allies); the owner only chooses when more than two are adjacent.
+1. **The More They Struggle against a card whose value an effect changes**: the PRINTED value is used, as the card says.

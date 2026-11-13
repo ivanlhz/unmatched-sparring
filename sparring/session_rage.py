@@ -44,6 +44,8 @@ def instruction(session, req: ChoiceRequest) -> str:
         return t("blind.instruction", card=card, n=req.max)
     if m == "reveal" and req.extra.get("dust"):             # Blinding dust: the card given up for the damage of its BOOST
         return t("dust.instruction", card=card)
+    if m == "reveal" and req.extra.get("ambush"):           # Ambush (and any random discard the bot reads): the position the bot named
+        return t("ambush.instruction", which=req.extra.get("which", card))
     if m == "reveal":
         return t("reveal.instruction", card=card)
     if m == "play" and req.extra.get("bidding"):            # Do my bidding: the bot names the card the human must play
@@ -62,6 +64,8 @@ def instruction(session, req: ChoiceRequest) -> str:
 def status(session, req: ChoiceRequest) -> str:
     if mode(req) == "reveal" and req.extra.get("dust"):
         return panel_text(t("dust.status"))
+    if mode(req) == "reveal" and req.extra.get("ambush"):
+        return panel_text(t("ambush.status"))
     if mode(req) == "play" and req.extra.get("bidding"):
         return panel_text(t("bidding.status"))
     if mode(req) == "play" and req.extra.get("sleight"):
@@ -154,6 +158,8 @@ def counted(session, req: ChoiceRequest, ids: list[int]) -> str:
                  bonus=f"+{sum(by_id[i].boost for i in ids)}")
     if m == "reveal" and req.extra.get("dust"):
         return t("dust.counted", card=card, title=by_id[ids[0]].title, boost=by_id[ids[0]].boost)
+    if m == "reveal" and req.extra.get("ambush"):
+        return t("ambush.counted", card=card, title=by_id[ids[0]].title, boost=by_id[ids[0]].boost)
     if m == "reveal":
         return t("reveal.counted", card=card, title=by_id[ids[0]].title, boost=by_id[ids[0]].boost)
     if m == "play" and req.extra.get("bidding"):

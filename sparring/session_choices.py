@@ -150,8 +150,6 @@ def prompt_text(game, req: ChoiceRequest) -> str:
         return t(ability)
     if req.kind == "amount" and req.extra.get("blind_count"):      # BLIND BOOST: how many, before any card moves
         base = t("choice.prompt.blind_count", n=req.extra["times"])
-    elif req.kind == "amount" and req.extra.get("ambush_boost"):      # Chupacabra's Ambush: the BOOST value of the card they discarded
-        base = t("choice.prompt.ambush")
     elif req.kind == "amount" and req.extra.get("top_discard"):      # Take A Knee: one button, the bot moves the card
         base = t("choice.prompt.top_discard_rival" if req.extra.get("rival_deck") else "choice.prompt.top_discard")
     elif req.kind == "cards" and req.extra.get("purpose") == "bottom":      # Insightful Deduction: which one goes to the bottom

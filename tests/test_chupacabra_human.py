@@ -183,17 +183,69 @@ def bot_attacks(session, table, game, title, *human_cards):
     return [*first, *click(session, table, Event.REVEAL)]
 
 
+def awaiting(session):
+    return session.effect_run.awaiting if session.effect_run is not None else session._paused()[2].awaiting
+
+
+def lay_on_pile(table, game, title):
+    """The human discards the named card of their hand onto their discard pile by hand (what the bot's Ambush waits for)."""
+    by_id = {c.card_id: c for c in game.players[1].full_set}
+    i = next(i for i in table.human_hand if by_id[i].title == title)
+    table.human_hand.remove(i)
+    table.human_discard.append(i)
+    table.human_count -= 1
+    return i
+
+
 @with_rig("Ambush", "Feint", bot="chupacabra", human="hellboy")
-def test_the_bots_ambush_names_a_position_and_the_human_says_the_boost_of_the_card(rig):
+def test_the_bots_ambush_names_a_position_and_reads_the_card_the_human_lays_on_their_pile(rig):
     session, table, game, fake, cfg = rig
     msgs = bot_attacks(session, table, game, "Ambush", TRAINING, "Excalibur", "Service Pistol")
     assert said(msgs, "al azar: la carta"), msgs
-    req = session.effect_run.awaiting if session.effect_run is not None else session._paused()[2].awaiting
-    assert req.kind == "amount" and req.extra.get("ambush_boost") and set(req.options) == {1, 2, 3, 4}
+    req = awaiting(session)
+    assert req.kind == "cards" and req.extra["pile_mode"] == "reveal" and req.extra["ambush"] and (req.min, req.max) == (1, 1)
     hp = game.fighters["hellboy"].hp
-    click(session, table, Event.CHOICE, {"i": req.options.index(3) + 1})
+    lay_on_pile(table, game, "Excalibur")                                  # BOOST 3
+    click(session, table, Event.CHOICE, {"i": 1})                          # Done
     assert session.pending is None
     assert game.fighters["hellboy"].hp == hp - (2 + 3)
+    assert any(c.title == "Excalibur" for c in game.players[1].discard)
+
+
+@with_rig("Ambush", "Feint", bot="chupacabra", human="hellboy")
+def test_the_bots_ambush_waits_while_the_pile_shows_no_new_card(rig):
+    session, table, game, fake, cfg = rig
+    bot_attacks(session, table, game, "Ambush", TRAINING, "Excalibur")
+    msgs = click(session, table, Event.CHOICE, {"i": 1})                   # Done with nothing laid down
+    assert awaiting(session).kind == "cards" and said(msgs, "no veo"), msgs
+
+
+@with_rig("Ambush", "Feint", bot="chupacabra", human="hellboy")
+def test_an_ambush_against_an_empty_human_hand_asks_nothing_and_adds_nothing(rig):
+    """The maneuvers that end the human's turn deal them a card, so the empty hand is checked at the helper the plugin uses."""
+    from sparring.effects.random_discard import discard_random_known
+    session, table, game, fake, cfg = rig
+    game.players[1].hand.clear()
+
+    class Run:
+        def ask(self, *a, **k):
+            raise AssertionError("asked about an empty hand")
+    assert discard_random_known(Run(), game, 1) is None
+
+
+@with_rig("Ambush", "Feint", bot="chupacabra", human="hellboy")
+def test_the_bots_ambush_question_survives_a_save_and_is_answered_after_the_resume(rig):
+    from test_d3_table_effects import twin_session
+    session, table, game, fake, cfg = rig
+    bot_attacks(session, table, game, "Ambush", TRAINING, "Excalibur", "Service Pistol")
+    assert awaiting(session).extra["ambush"]
+    twin = twin_session(session, cfg, session.to_dict())
+    assert awaiting(twin).extra["ambush"] and awaiting(twin).extra["which"] == awaiting(session).extra["which"]
+    hp = game.fighters["hellboy"].hp
+    lay_on_pile(table, game, "Service Pistol")                             # BOOST 2
+    twin.client = session.client
+    click(twin, table, Event.CHOICE, {"i": 1})
+    assert twin.game.fighters["hellboy"].hp == hp - (2 + 2)
 
 
 @with_rig("Unsettle", "Feint", bot="chupacabra", human="hellboy")

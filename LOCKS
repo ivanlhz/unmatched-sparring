@@ -8,8 +8,5 @@
 #   Never edit a path locked by another agent. Never remove another agent's line.
 sparring/session.py  rosie  Rosie bot flips the upgrade tokens  16:36Z
 sparring/table_reset.py  rosie  Rosie bot flips the upgrade tokens  16:36Z
-sparring/session_rage.py  chupacabra  Ambush vs human: detect the discarded card  16:40Z
-data/i18n/en.json  chupacabra  Ambush vs human: detect the discarded card  16:40Z
-data/i18n/es.json  chupacabra  Ambush vs human: detect the discarded card  16:40Z
-sparring/session_choices.py  chupacabra  Ambush vs human: detect the discarded card  16:40Z
-README.md  chupacabra  Ambush vs human: detect the discarded card  16:40Z
+docs/live-checklist.md  philippa  ruse flow text  16:45Z
+docs/effects-dsl.md  philippa  ruse flow text  16:45Z
