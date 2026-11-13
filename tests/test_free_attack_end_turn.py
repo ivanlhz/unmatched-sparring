@@ -9,8 +9,8 @@ import pytest
 
 from sparring.tts.ui import Event
 from test_batch import click
-from test_d3_table_effects import build, said
-from test_e2_human_cards import put_adjacent
+from test_d3_table_effects import build, human_attack, human_hand, said
+from test_e2_human_cards import bot_defends_with_nothing, press, put_adjacent
 from test_jill_trent_human import JillTable
 
 MECHANISMS = {"wyatt-earp": "free_attacks", "john-henry": "attack_credit", "george-washington": "attack_credit", "rosie-the-riveter": "attack_credit"}
@@ -85,6 +85,56 @@ def test_a_maneuver_between_two_end_actions_does_not_give_up_the_free_attack(tmp
         click(session, table, Event.MANEUVER)
         msgs = click(session, table, Event.END_ACTION)
         assert game.turn == 1 and game.actions_left == 1 and game.free_attacks == [None] and said(msgs, "otra vez"), msgs
+    finally:
+        client.close()
+        fake.close()
+
+
+STAND = "You Just Gonna Stand There And Bleed?"
+
+
+def winning_attack(session, table, game, title, attacker, human):
+    human_attack(session, table, game, attacker, "hellboy", title)
+    return click(session, table, Event.REVEAL)
+
+
+def test_wyatts_showdown_free_attack_after_a_maneuver_and_an_end_action_is_reported_not_given_up(tmp_path, monkeypatch):
+    """Real flow: a Maneuver and End action leave one ordinary action; a winning attack whose Showdown grants a free attack spends it; the End
+    action right after it reports the free attack (the earlier End action was about another state), and only a repeat gives it up."""
+    session, table, game, fake, client = rig(tmp_path, "wyatt-earp", True)
+    try:
+        bot_defends_with_nothing(session, monkeypatch)
+        human_hand(table, game, STAND, "Second Shot", "Fan The Hammer")
+        click(session, table, Event.MANEUVER)
+        click(session, table, Event.END_ACTION)
+        winning_attack(session, table, game, STAND, "wyatt", "wyatt-earp")
+        press(session, table, 1)                                               # SHOWDOWN: Gain 1 free action to attack
+        assert game.free_attacks == [None] and game.actions_left == 1
+        msgs = click(session, table, Event.END_ACTION)
+        assert game.turn == 1 and game.free_attacks == [None] and said(msgs, "otra vez"), msgs
+        msgs = click(session, table, Event.END_ACTION)
+        assert game.turn == 0 and said(msgs, "Renuncias"), msgs
+    finally:
+        client.close()
+        fake.close()
+
+
+def test_washingtons_allies_everywhere_after_an_end_action_is_reported_not_given_up(tmp_path, monkeypatch):
+    """Real flow with an attack_credit card: a Maneuver and End action leave one ordinary action; Allies Everywhere attacks and grants a free
+    attack; the End action right after it reports, and only a repeat gives it up."""
+    session, table, game, fake, client = rig(tmp_path, "george-washington", True)
+    try:
+        bot_defends_with_nothing(session, monkeypatch)
+        game.fx.set_counter(1, "ruse_tokens", 0)
+        human_hand(table, game, "Allies Everywhere", "Lead Astray", "Feint")
+        click(session, table, Event.MANEUVER)
+        click(session, table, Event.END_ACTION)
+        winning_attack(session, table, game, "Allies Everywhere", "washington", "george-washington")
+        assert game.actions_left == 1 and game.fx.attack_credit == 1
+        msgs = click(session, table, Event.END_ACTION)
+        assert game.turn == 1 and game.actions_left == 1 and said(msgs, "otra vez"), msgs
+        msgs = click(session, table, Event.END_ACTION)
+        assert game.turn == 0 and said(msgs, "Renuncias"), msgs
     finally:
         client.close()
         fake.close()

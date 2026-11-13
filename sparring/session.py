@@ -392,7 +392,7 @@ class Session:
         self.wildfire_scene: dict | None = None  # what the bot's Wildfire did at the turn change, shown at its first write
         self.said_returns: set[int] = set()      # cards whose return to the bot's hand the Wildfire scene already announced
         self.limit_waived = False
-        self.end_seen: tuple[int, int] | None = None     # (turn, actions left) at the last End action of the human: the same again = nothing done since
+        self.only_attack_warned: int | None = None       # `Game.attack_grants` when End action warned that only attack-only actions are left; any action of the human clears it
         self.flush_failures = 0                  # consecutive table failures (SessionError) while settling the debt
         self.state_path: Path | None = None      # if set, saved after every start/resume/handle
         self.game_id = uuid.uuid4().hex          # identifies this game in the save
@@ -1911,9 +1911,9 @@ class Session:
 
     def _require_paid_action(self) -> bool:
         """Only free actions to attack are left (Wyatt Earp): a Maneuver or a scheme cannot spend them."""
-        if self.game.paid_actions > 0:
+        if self.game.paid_actions > 0 and not self.game.attack_only():
             return True
-        self.say(t("err.only_free_attacks"), ChatKind.WARNING)
+        self.say(t("err.only_free_attacks" if self.game.free_attacks else "err.attack_only"), ChatKind.WARNING)
         return False
 
     def _begin_action(self) -> bool:
@@ -1928,6 +1928,7 @@ class Session:
             return False
         self.game.hand_moves.clear()
         self.sync_human()
+        self.only_attack_warned = None
         return True
 
     def _try_flush_table(self) -> None:
@@ -3431,12 +3432,13 @@ class Session:
         if g.actions_left > 0:
             # The human's hand is a virtual one (the real cards are on the table): it never decides whether a free attack is usable.
             # When only attack-only actions are left, End action pressed again with nothing done in between gives them up.
-            seen, self.end_seen = self.end_seen, (g.turn_no, g.actions_left)
+            warned, self.only_attack_warned = self.only_attack_warned, g.attack_grants
             if not g.attack_only():
                 free = len(g.free_attacks) or min(g.fx.attack_credit, g.actions_left)
                 self.say(t("turn.left_free", n=g.actions_left, free=free) if free else t("turn.left", n=g.actions_left), ChatKind.YOUR_TURN)
+                self.only_attack_warned = None
                 return
-            if seen != self.end_seen:
+            if warned != g.attack_grants:
                 self.say(t("turn.left_only_attack", n=g.actions_left), ChatKind.YOUR_TURN)
                 return
             self.say(t("turn.gave_up", n=g.actions_left), ChatKind.YOUR_TURN)
@@ -5415,6 +5417,7 @@ class Session:
         the next read or at the start of the human's next action (`_begin_action`), never by the turn change."""
         kept = {fid: dict(m) for fid, m in game.hand_moves.items()}
         expired = game.begin_turn()
+        self.only_attack_warned = None
         game.hand_moves.update(kept)
         return expired
 

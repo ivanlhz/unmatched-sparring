@@ -233,6 +233,7 @@ class Game:
         self.turn_no = 1
         self.actions_left = 2
         self.free_attacks: list[str | None] = []   # of those actions, the ones only an attack can spend (Wyatt Earp): the fid they must attack, None = anyone
+        self.attack_grants = 0                     # how many free actions to attack were ever granted (the session tells a new grant from a repeated End action)
         self.winner: int | None = None
         self.bot_player: int | None = None     # who the bot plays: its not yet coded effects are not resolved by the human
         self.effect_shield: dict[int, int] = {}
@@ -301,7 +302,7 @@ class Game:
                                  list(p.tucked), list(p.removed))
                      for p in self.players]
         g.turn, g.turn_no, g.actions_left, g.winner = self.turn, self.turn_no, self.actions_left, self.winner
-        g.free_attacks = list(self.free_attacks)
+        g.free_attacks, g.attack_grants = list(self.free_attacks), self.attack_grants
         g.bot_player = self.bot_player
         g.effect_shield = dict(self.effect_shield)
         g.hazard_taken, g.hazard_hits = set(self.hazard_taken), []
@@ -674,6 +675,7 @@ class Game:
         if not self.fx.can_gain_actions(self.turn):
             return False
         self.actions_left += 1
+        self.attack_grants += 1
         self.free_attacks.append(target)
         return True
 

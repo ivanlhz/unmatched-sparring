@@ -486,6 +486,7 @@ def _gain_action(run, game, spec):
             game.grant_actions(n)
             if spec.get("only") == "attack":        # "a free action to attack": the extra action only an attack may spend (Hear That Cold Steel Ring)
                 game.fx.attack_credit += game.actions_left - before
+                game.attack_grants += 1
 
 
 @op("spend_action")
