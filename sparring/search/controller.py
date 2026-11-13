@@ -15,7 +15,7 @@ import logging
 import random
 from dataclasses import replace
 
-from .. import enraged
+from .. import enraged, tracks
 from ..ai_medusa import GAZE, Act, MedusaAI, scheme_fighter
 from ..cards import Card
 from ..combat import is_medusa_card
@@ -170,7 +170,7 @@ class IsmctsMedusa(Controller):
         target = self.pick_ability_target(game)
         if target:
             game.use_ability(self.me, GAZE, target)
-        while game.actions_left > 0 and game.winner is None and game.hero(self.me).alive:
+        while tracks.turn_goes_on(game) and game.winner is None and game.hero(self.me).alive:
             self.execute(game, self.plan(game))
 
 

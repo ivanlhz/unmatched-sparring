@@ -4,7 +4,7 @@ from __future__ import annotations
 
 import random
 
-from . import enraged
+from . import enraged, tracks
 from .cards import can_be_boost
 from .controller import Controller
 from .state import ANUNG, Fighter, Game
@@ -20,7 +20,7 @@ class ScriptedHellboy(Controller):
 
     def take_turn(self, game: Game) -> None:
         self.start_of_turn(game)
-        while game.actions_left > 0 and game.winner is None:
+        while tracks.turn_goes_on(game) and game.winner is None:
             if not self.try_attack(game):
                 self.maneuver(game)
 
@@ -99,7 +99,7 @@ class ChasingHellboy(ScriptedHellboy):
 
     def take_turn(self, game: Game) -> None:
         self.start_of_turn(game)
-        while game.actions_left > 0 and game.winner is None:
+        while tracks.turn_goes_on(game) and game.winner is None:
             if self.strike(game, [game.hero(self.me)]):
                 continue
             if game.actions_left >= 2 and self.holds_attack(game) and self.maneuver(game, hunting=True):

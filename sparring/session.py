@@ -52,6 +52,7 @@ from . import session_pile as pile
 from . import session_reveal as reveal
 from . import session_source as source_dial
 from . import session_sinbad
+from . import session_tracks, tracks
 from . import session_rosie
 from . import session_sleight as sleight
 from . import session_translators as translators
@@ -3848,7 +3849,7 @@ class Session:
                     return
                 self._bot_breath()
             self._persist()
-        while g.actions_left > 0 and g.winner is None:
+        while tracks.turn_goes_on(g) and g.winner is None:
             with self._timed(t("timing.bot_action")):
                 self.read_bot_hand()
                 act = self.ai.plan(g)
@@ -5334,7 +5335,9 @@ class Session:
         placement: the setup places pieces, effects put them down by hand (`game.placing`), and ESCAPE ARTIST places the
         hero instead of moving it (a boosted maneuver cannot be told from a plain one on the table: never charged)."""
         g = self.game
-        if f.owner != self.human or not g.board.hazards or self.setup is not None or f.fid in g.placing:
+        if f.owner != self.human or self.setup is not None or f.fid in g.placing:
+            return False
+        if not g.board.hazards and not (f.hero and g.fx.tracks[f.owner]):      # nothing to charge: unless John Henry's track spaces make this walk his paths
             return False
         return not (f.hero and g.fx.hero_rule(f.owner, "maneuver_boost_places_hero"))
 
@@ -5403,6 +5406,7 @@ class Session:
 
     def sync_positions(self) -> None:
         self.illegal_hand_moves, self._illegal_fresh = {}, set()
+        session_tracks.sync(self)                 # John Henry's track tokens first: they decide what his walk cost and which spaces are his paths
         pieces = self._table_pieces()
         table_pos = {fid: info["space"] for fid, info in pieces.items()
                      if self.game.fighters[fid].alive and info.get("found") and self._on_board(info)}

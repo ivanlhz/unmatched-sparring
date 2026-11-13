@@ -1,0 +1,438 @@
+{
+ "_source": {
+  "memory": "unmatched-memory/data/heroes/john-henry.json",
+  "overlay": "data/heroes/overlay/john-henry.json",
+  "generator": "tools/import_hero.py"
+ },
+ "slug": "john-henry",
+ "name": "John Henry",
+ "fid": "john",
+ "hp": 17,
+ "move": 2,
+ "attack": "melee",
+ "set": "stars-and-stripes",
+ "ability": "STEEL-DRIVING MAN: You have 10 track tokens. At the start of your turn, summon a track token in a space in John Henry's zone. When you move John Henry, do not count spaces with track tokens.",
+ "sidekicks": [],
+ "forms": null,
+ "counters": {},
+ "triggers": [],
+ "passives": [],
+ "deck": {
+  "card_base": 18700,
+  "sheet": 187,
+  "cards": [
+   {
+    "idx": 0,
+    "title": "Nine-pound Hammer",
+    "fighter": "John Henry",
+    "type": "attack",
+    "value": 3,
+    "boost": 2,
+    "text": "AFTER COMBAT: If John Henry used at least 4 different paths this turn, deal 2 damage to each opposing fighter in his zone.",
+    "tags": [
+     "hammer"
+    ]
+   },
+   {
+    "idx": 1,
+    "title": "Nine-pound Hammer",
+    "fighter": "John Henry",
+    "type": "attack",
+    "value": 3,
+    "boost": 2,
+    "text": "AFTER COMBAT: If John Henry used at least 4 different paths this turn, deal 2 damage to each opposing fighter in his zone.",
+    "tags": [
+     "hammer"
+    ]
+   },
+   {
+    "idx": 2,
+    "title": "Nine-pound Hammer",
+    "fighter": "John Henry",
+    "type": "attack",
+    "value": 3,
+    "boost": 2,
+    "text": "AFTER COMBAT: If John Henry used at least 4 different paths this turn, deal 2 damage to each opposing fighter in his zone.",
+    "tags": [
+     "hammer"
+    ]
+   },
+   {
+    "idx": 3,
+    "title": "Twelve-pound Hammer",
+    "fighter": "John Henry",
+    "type": "attack",
+    "value": 4,
+    "boost": 2,
+    "text": "AFTER COMBAT: If John Henry used at least 4 different paths this turn, you may place a fighter in the combat in any space with a track token.",
+    "tags": [
+     "hammer"
+    ]
+   },
+   {
+    "idx": 4,
+    "title": "Twelve-pound Hammer",
+    "fighter": "John Henry",
+    "type": "attack",
+    "value": 4,
+    "boost": 2,
+    "text": "AFTER COMBAT: If John Henry used at least 4 different paths this turn, you may place a fighter in the combat in any space with a track token.",
+    "tags": [
+     "hammer"
+    ]
+   },
+   {
+    "idx": 5,
+    "title": "Eighteen-pound Hammer",
+    "fighter": "John Henry",
+    "type": "attack",
+    "value": 6,
+    "boost": 2,
+    "text": "IMMEDIATELY: If John Henry used at least 4 different paths this turn, cancel all effects on your opponent's card.",
+    "tags": [
+     "hammer"
+    ]
+   },
+   {
+    "idx": 6,
+    "title": "Eighteen-pound Hammer",
+    "fighter": "John Henry",
+    "type": "attack",
+    "value": 6,
+    "boost": 2,
+    "text": "IMMEDIATELY: If John Henry used at least 4 different paths this turn, cancel all effects on your opponent's card.",
+    "tags": [
+     "hammer"
+    ]
+   },
+   {
+    "idx": 7,
+    "title": "Hear That Cold Steel Ring",
+    "fighter": "John Henry",
+    "type": "attack",
+    "value": 2,
+    "boost": 3,
+    "text": "AFTER COMBAT: Draw 1 card. Move John Henry up to 1 space. Gain 1 free action to attack.",
+    "tags": []
+   },
+   {
+    "idx": 8,
+    "title": "Hear That Cold Steel Ring",
+    "fighter": "John Henry",
+    "type": "attack",
+    "value": 2,
+    "boost": 3,
+    "text": "AFTER COMBAT: Draw 1 card. Move John Henry up to 1 space. Gain 1 free action to attack.",
+    "tags": []
+   },
+   {
+    "idx": 9,
+    "title": "Larger Than Life",
+    "fighter": "John Henry",
+    "type": "attack",
+    "value": 6,
+    "boost": 4,
+    "text": "",
+    "tags": []
+   },
+   {
+    "idx": 10,
+    "title": "Larger Than Life",
+    "fighter": "John Henry",
+    "type": "attack",
+    "value": 6,
+    "boost": 4,
+    "text": "",
+    "tags": []
+   },
+   {
+    "idx": 11,
+    "title": "Bring Down The Mountain",
+    "fighter": "John Henry",
+    "type": "versatile",
+    "value": 3,
+    "boost": 1,
+    "text": "DURING COMBAT: Add +1 to this card's value for each HAMMER card in your discard pile.",
+    "tags": []
+   },
+   {
+    "idx": 12,
+    "title": "Bring Down The Mountain",
+    "fighter": "John Henry",
+    "type": "versatile",
+    "value": 3,
+    "boost": 1,
+    "text": "DURING COMBAT: Add +1 to this card's value for each HAMMER card in your discard pile.",
+    "tags": []
+   },
+   {
+    "idx": 13,
+    "title": "Knock Them Silly",
+    "fighter": "John Henry",
+    "type": "versatile",
+    "value": 4,
+    "boost": 1,
+    "text": "IMMEDIATELY: If you win this combat, cancel all AFTER COMBAT effects on your opponent's card.",
+    "tags": []
+   },
+   {
+    "idx": 14,
+    "title": "Knock Them Silly",
+    "fighter": "John Henry",
+    "type": "versatile",
+    "value": 4,
+    "boost": 1,
+    "text": "IMMEDIATELY: If you win this combat, cancel all AFTER COMBAT effects on your opponent's card.",
+    "tags": []
+   },
+   {
+    "idx": 15,
+    "title": "Knock Them Silly",
+    "fighter": "John Henry",
+    "type": "versatile",
+    "value": 4,
+    "boost": 1,
+    "text": "IMMEDIATELY: If you win this combat, cancel all AFTER COMBAT effects on your opponent's card.",
+    "tags": []
+   },
+   {
+    "idx": 16,
+    "title": "Momentous Shift",
+    "fighter": "John Henry",
+    "type": "versatile",
+    "value": 3,
+    "boost": 1,
+    "text": "DURING COMBAT: If John Henry started this turn in a different space, this card's value becomes 5.",
+    "tags": []
+   },
+   {
+    "idx": 17,
+    "title": "Momentous Shift",
+    "fighter": "John Henry",
+    "type": "versatile",
+    "value": 3,
+    "boost": 1,
+    "text": "DURING COMBAT: If John Henry started this turn in a different space, this card's value becomes 5.",
+    "tags": []
+   },
+   {
+    "idx": 18,
+    "title": "Momentous Shift",
+    "fighter": "John Henry",
+    "type": "versatile",
+    "value": 3,
+    "boost": 1,
+    "text": "DURING COMBAT: If John Henry started this turn in a different space, this card's value becomes 5.",
+    "tags": []
+   },
+   {
+    "idx": 19,
+    "title": "Power Through",
+    "fighter": "John Henry",
+    "type": "versatile",
+    "value": 3,
+    "boost": 3,
+    "text": "AFTER COMBAT: Move a fighter in the combat up to 2 spaces. Do not count spaces with track tokens.",
+    "tags": []
+   },
+   {
+    "idx": 20,
+    "title": "Power Through",
+    "fighter": "John Henry",
+    "type": "versatile",
+    "value": 3,
+    "boost": 3,
+    "text": "AFTER COMBAT: Move a fighter in the combat up to 2 spaces. Do not count spaces with track tokens.",
+    "tags": []
+   },
+   {
+    "idx": 21,
+    "title": "Power Through",
+    "fighter": "John Henry",
+    "type": "versatile",
+    "value": 3,
+    "boost": 3,
+    "text": "AFTER COMBAT: Move a fighter in the combat up to 2 spaces. Do not count spaces with track tokens.",
+    "tags": []
+   },
+   {
+    "idx": 22,
+    "title": "Deeds Of Valor",
+    "fighter": "John Henry",
+    "type": "defense",
+    "value": 2,
+    "boost": 2,
+    "text": "DURING COMBAT: John Henry cannot take more than 2 combat damage this combat.",
+    "tags": []
+   },
+   {
+    "idx": 23,
+    "title": "Deeds Of Valor",
+    "fighter": "John Henry",
+    "type": "defense",
+    "value": 2,
+    "boost": 2,
+    "text": "DURING COMBAT: John Henry cannot take more than 2 combat damage this combat.",
+    "tags": []
+   },
+   {
+    "idx": 24,
+    "title": "Cool Drink Of Water",
+    "fighter": "John Henry",
+    "type": "defense",
+    "value": 0,
+    "boost": 2,
+    "text": "AFTER COMBAT: John Henry recovers 3 health. Draw 1 card.",
+    "tags": []
+   },
+   {
+    "idx": 25,
+    "title": "Cool Drink Of Water",
+    "fighter": "John Henry",
+    "type": "defense",
+    "value": 0,
+    "boost": 2,
+    "text": "AFTER COMBAT: John Henry recovers 3 health. Draw 1 card.",
+    "tags": []
+   },
+   {
+    "idx": 26,
+    "title": "Cool Drink Of Water",
+    "fighter": "John Henry",
+    "type": "defense",
+    "value": 0,
+    "boost": 2,
+    "text": "AFTER COMBAT: John Henry recovers 3 health. Draw 1 card.",
+    "tags": []
+   },
+   {
+    "idx": 27,
+    "title": "Striking Fire",
+    "fighter": "John Henry",
+    "type": "scheme",
+    "value": null,
+    "boost": 2,
+    "text": "Move John Henry up to 4 spaces. Gain 1 action.",
+    "tags": []
+   },
+   {
+    "idx": 28,
+    "title": "Striking Fire",
+    "fighter": "John Henry",
+    "type": "scheme",
+    "value": null,
+    "boost": 2,
+    "text": "Move John Henry up to 4 spaces. Gain 1 action.",
+    "tags": []
+   },
+   {
+    "idx": 29,
+    "title": "Striking Fire",
+    "fighter": "John Henry",
+    "type": "scheme",
+    "value": null,
+    "boost": 2,
+    "text": "Move John Henry up to 4 spaces. Gain 1 action.",
+    "tags": []
+   }
+  ]
+ },
+ "token_names": {
+  "8ba84f": "track"
+ },
+ "ai_profile": {
+  "john": {
+   "name": "John Henry",
+   "hero": true,
+   "count": 1,
+   "max_hp": 17,
+   "move": 2,
+   "ranged": false,
+   "role": "hero",
+   "attack": {
+    "cards": 22,
+    "mean": 3.68,
+    "max": 6
+   },
+   "exclusive": [
+    {
+     "title": "Nine-pound Hammer",
+     "type": "attack",
+     "copies": 3,
+     "impact": 1.76
+    },
+    {
+     "title": "Twelve-pound Hammer",
+     "type": "attack",
+     "copies": 2,
+     "impact": 1.03
+    },
+    {
+     "title": "Eighteen-pound Hammer",
+     "type": "attack",
+     "copies": 2,
+     "impact": 1.62
+    },
+    {
+     "title": "Hear That Cold Steel Ring",
+     "type": "attack",
+     "copies": 2,
+     "impact": 1.62
+    },
+    {
+     "title": "Larger Than Life",
+     "type": "attack",
+     "copies": 2,
+     "impact": 1.2
+    },
+    {
+     "title": "Bring Down The Mountain",
+     "type": "versatile",
+     "copies": 2,
+     "impact": 0.93
+    },
+    {
+     "title": "Knock Them Silly",
+     "type": "versatile",
+     "copies": 3,
+     "impact": 1.5
+    },
+    {
+     "title": "Momentous Shift",
+     "type": "versatile",
+     "copies": 3,
+     "impact": 0.96
+    },
+    {
+     "title": "Power Through",
+     "type": "versatile",
+     "copies": 3,
+     "impact": 0.93
+    },
+    {
+     "title": "Deeds Of Valor",
+     "type": "defense",
+     "copies": 2,
+     "impact": 0.6
+    },
+    {
+     "title": "Cool Drink Of Water",
+     "type": "defense",
+     "copies": 3,
+     "impact": 2.16
+    },
+    {
+     "title": "Striking Fire",
+     "type": "scheme",
+     "copies": 3,
+     "impact": 1.6
+    }
+   ]
+  }
+ },
+ "_notes": [
+  "Sheet 187 of the tournament savegame (8x4), read card by card from the image on 2026-11-13. CardID = 18700 + idx; 403 = character card (sheet 4, 5x2, index 3). The deck object of the save holds 31 cards: the 30 of the deck plus the character card, which is why the catalog says card_count 31 and card_ids [403, 18729]. Unlike the sheet-176 decks it has its own DeckID (187), so no other hero shares its CardIDs.",
+  "Every title, type, value, boost, copy count and text of the 12 titles was compared with unmatched-memory (John Henry was transcribed from screenshots, unverified) against the card images on 2026-11-13: no mismatch. Every card is restricted to JOHN HENRY (the deck has no sidekick). The nine copies of Nine-pound, Twelve-pound and Eighteen-pound Hammer carry the tag `hammer` (Bring Down The Mountain counts them in the discard pile with a `count_cards` Amount, not a HeroDef counter: a counter would need a dial in the bag); the card art does not print a HAMMER keyword, the tag is read from the titles (docs/heroes/john-henry.md, Pending Ivan).",
+  "Hero card (read from the image): JOHN HENRY, MELEE, START HEALTH 17, MOVE 2; STEEL-DRIVING MAN. The inner bag holds a Custom_Token_Stack of 10 track tokens (8ba84f), the miniature (041a3d), the life dial (887823, MAX_VALUE 17) and the deck (c3109e)."
+ ]
+}

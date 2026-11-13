@@ -1,0 +1,370 @@
+{
+ "schema": 1,
+ "hero": "john-henry",
+ "notes": [
+  "Texts read from sheet 187 of the tournament savegame (card images) on 2026-11-13 and compared with the screenshots' transcription in unmatched-memory: no difference. The character card is 403 (sheet 4, 5x2, index 3). Sheet 187 is John Henry's alone.",
+  "First hero with tokens ON THE BOARD (docs/effects-dsl.md, section 41): the owner's track tokens are a list of spaces in the game (`fx.tracks`), summoned by the plugin `john:summon_track` at the start of his turn, read by the SpaceSel `track`, by the passive rule `track_free_move` (every walk of John Henry) and by `move.over_tracks` (Power Through). 'Paths' is the one rule the cards do not define: see open_questions."
+ ],
+ "ability": {
+  "text": "STEEL-DRIVING MAN\nYou have 10 track tokens.\nAt the start of your turn, summon a track token in a space in John Henry's zone.\nWhen you move John Henry, do not count spaces with track tokens.",
+  "triggers": [
+   {
+    "id": "steel_driving_man",
+    "when": {
+     "event": "start_of_turn",
+     "player": "owner"
+    },
+    "ops": [
+     {
+      "op": "plugin",
+      "id": "john:summon_track"
+     }
+    ],
+    "notes": "Mandatory. The track token goes to a space of John Henry's zone (his own space included, a space with a fighter on it too) that has no track token yet, while the owner still has one of the 10. The bot chooses with ai_john.pick_track_space; the human lays the token by hand (the trigger is physical at the table: the panel waits for End action and the bot then reads the table's tokens)."
+   }
+  ],
+  "passives": [
+   {
+    "id": "track_free_move",
+    "kind": "rule",
+    "rule": "track_free_move"
+   }
+  ],
+  "notes": "Spaces with a track token cost nothing to ENTER when John Henry moves (a Maneuver, a card effect, the human's hand move charged by `Game.walk`): a walk of N steps may enter any number of track spaces for free and N other spaces. The starting space is never counted; he may not end on an occupied space and may not cross a rival (unless the card says so), tracks or not."
+ },
+ "cards": [
+  {
+   "title": "Nine-pound Hammer",
+   "copies": 3,
+   "text": "AFTER COMBAT: If John Henry used at least 4 different paths this turn, deal 2 damage to each opposing fighter in his zone.",
+   "effects": {
+    "immediately": [],
+    "during": [],
+    "after": [
+     {
+      "op": "if",
+      "condition": {
+       "test": "plugin",
+       "id": "john:paths",
+       "key": "four"
+      },
+      "then": [
+       {
+        "op": "damage",
+        "target": {
+         "side": "enemy",
+         "where": {
+          "zone_of": "hero"
+         },
+         "pick": "all"
+        },
+        "amount": 2
+       }
+      ]
+     }
+    ],
+    "scheme": [],
+    "boost": []
+   },
+   "notes": "Attack 3 / boost 2, tag `hammer`. 'His zone' is the zone of John Henry's space (the spaces that share a zone with it); only the opposing fighters in it are hit."
+  },
+  {
+   "title": "Twelve-pound Hammer",
+   "copies": 2,
+   "text": "AFTER COMBAT: If John Henry used at least 4 different paths this turn, you may place a fighter in the combat in any space with a track token.",
+   "effects": {
+    "immediately": [],
+    "during": [],
+    "after": [
+     {
+      "op": "if",
+      "condition": {
+       "test": "plugin",
+       "id": "john:paths",
+       "key": "four"
+      },
+      "then": [
+       {
+        "op": "optional",
+        "ops": [
+         {
+          "op": "place",
+          "target": {
+           "role": "combatant"
+          },
+          "where": {
+           "track": true
+          }
+         }
+        ]
+       }
+      ]
+     }
+    ],
+    "scheme": [],
+    "boost": []
+   },
+   "notes": "Attack 4 / boost 2, tag `hammer`. 'A fighter in the combat' is either of the two; the owner picks which one and the space (a space with a track token and no fighter on it: two fighters do not share a space)."
+  },
+  {
+   "title": "Eighteen-pound Hammer",
+   "copies": 2,
+   "text": "IMMEDIATELY: If John Henry used at least 4 different paths this turn, cancel all effects on your opponent's card.",
+   "effects": {
+    "immediately": [
+     {
+      "op": "if",
+      "condition": {
+       "test": "plugin",
+       "id": "john:paths",
+       "key": "four"
+      },
+      "then": [
+       {
+        "op": "cancel_effects",
+        "card": "opponent_card"
+       }
+      ]
+     }
+    ],
+    "during": [],
+    "after": [],
+    "scheme": [],
+    "boost": []
+   },
+   "notes": "Attack 6 / boost 2, tag `hammer`."
+  },
+  {
+   "title": "Hear That Cold Steel Ring",
+   "copies": 2,
+   "text": "AFTER COMBAT: Draw 1 card. Move John Henry up to 1 space. Gain 1 free action to attack.",
+   "effects": {
+    "immediately": [],
+    "during": [],
+    "after": [
+     {
+      "op": "draw",
+      "player": "owner",
+      "amount": 1
+     },
+     {
+      "op": "move",
+      "target": {
+       "role": "this"
+      },
+      "amount": 1,
+      "up_to": true
+     },
+     {
+      "op": "gain_action",
+      "amount": 1,
+      "only": "attack"
+     }
+    ],
+    "scheme": [],
+    "boost": []
+   },
+   "notes": "Attack 2 / boost 3. 'A free action to attack' is one extra action that only an attack can spend (`gain_action` with `only: attack`): a Maneuver or a scheme cannot use it. It is lost with the turn."
+  },
+  {
+   "title": "Larger Than Life",
+   "copies": 2,
+   "text": "",
+   "effects": {
+    "immediately": [],
+    "during": [],
+    "after": [],
+    "scheme": [],
+    "boost": []
+   },
+   "notes": "Attack 6 / boost 4. No effect text."
+  },
+  {
+   "title": "Bring Down The Mountain",
+   "copies": 2,
+   "text": "DURING COMBAT: Add +1 to this card's value for each HAMMER card in your discard pile.",
+   "effects": {
+    "immediately": [],
+    "during": [
+     {
+      "op": "modify_value",
+      "card": "this",
+      "amount": {
+       "count_cards": {
+        "zone": "discard",
+        "player": "owner",
+        "filter": {
+         "tag": "hammer"
+        },
+        "pick": "all"
+       }
+      }
+     }
+    ],
+    "after": [],
+    "scheme": [],
+    "boost": []
+   },
+   "notes": "Versatile 3 / boost 1. HAMMER is the card tag `hammer` of the seven hammer cards (three Nine-pound, two Twelve-pound and two Eighteen-pound Hammers); the Amount is a `count_cards` of the discard pile. The card in play is not in the pile until its combat ends."
+  },
+  {
+   "title": "Knock Them Silly",
+   "copies": 3,
+   "text": "IMMEDIATELY: If you win this combat, cancel all AFTER COMBAT effects on your opponent's card.",
+   "effects": {
+    "immediately": [
+     {
+      "op": "cancel_effects",
+      "card": "opponent_card",
+      "moments": [
+       "after"
+      ],
+      "if_won": true
+     }
+    ],
+    "during": [],
+    "after": [],
+    "scheme": [],
+    "boost": []
+   },
+   "notes": "Versatile 4 / boost 1. The result is not known at IMMEDIATELY: `cancel_effects` with `if_won` is registered now and decided when the combat's damage is known, before any AFTER COMBAT effect resolves (docs/effects-dsl.md, section 41). Combat damage decides who won (the attacker if it dealt damage, the defender otherwise)."
+  },
+  {
+   "title": "Momentous Shift",
+   "copies": 3,
+   "text": "DURING COMBAT: If John Henry started this turn in a different space, this card's value becomes 5.",
+   "effects": {
+    "immediately": [],
+    "during": [
+     {
+      "op": "if",
+      "condition": {
+       "test": "moved_this_turn",
+       "fighter": "this"
+      },
+      "then": [
+       {
+        "op": "set_value",
+        "card": "this",
+        "amount": 5
+       }
+      ]
+     }
+    ],
+    "after": [],
+    "scheme": [],
+    "boost": []
+   },
+   "notes": "Versatile 3 / boost 1. Same text as Sinbad's and Bigfoot's."
+  },
+  {
+   "title": "Power Through",
+   "copies": 3,
+   "text": "AFTER COMBAT: Move a fighter in the combat up to 2 spaces. Do not count spaces with track tokens.",
+   "effects": {
+    "immediately": [],
+    "during": [],
+    "after": [
+     {
+      "op": "move",
+      "target": {
+       "role": "combatant"
+      },
+      "amount": 2,
+      "up_to": true,
+      "over_tracks": true
+     }
+    ],
+    "scheme": [],
+    "boost": []
+   },
+   "notes": "Versatile 3 / boost 3. The fighter is either one of the combat (the owner picks, rival included); spaces with a track token are free for THAT move whoever moves (`over_tracks`), as for John Henry's own moves."
+  },
+  {
+   "title": "Deeds Of Valor",
+   "copies": 2,
+   "text": "DURING COMBAT: John Henry cannot take more than 2 combat damage this combat.",
+   "effects": {
+    "immediately": [],
+    "during": [
+     {
+      "op": "cap_combat_damage",
+      "target": "this",
+      "amount": 2
+     }
+    ],
+    "after": [],
+    "scheme": [],
+    "boost": []
+   },
+   "notes": "Defense 2 / boost 2."
+  },
+  {
+   "title": "Cool Drink Of Water",
+   "copies": 3,
+   "text": "AFTER COMBAT: John Henry recovers 3 health. Draw 1 card.",
+   "effects": {
+    "immediately": [],
+    "during": [],
+    "after": [
+     {
+      "op": "heal",
+      "target": "this",
+      "amount": 3
+     },
+     {
+      "op": "draw",
+      "player": "owner",
+      "amount": 1
+     }
+    ],
+    "scheme": [],
+    "boost": []
+   },
+   "notes": "Defense 0 / boost 2."
+  },
+  {
+   "title": "Striking Fire",
+   "copies": 3,
+   "text": "Move John Henry up to 4 spaces. Gain 1 action.",
+   "effects": {
+    "immediately": [],
+    "during": [],
+    "after": [],
+    "scheme": [
+     {
+      "op": "move",
+      "target": {
+       "role": "this"
+      },
+      "amount": 4,
+      "up_to": true
+     },
+     {
+      "op": "gain_action",
+      "amount": 1
+     }
+    ],
+    "boost": []
+   },
+   "notes": "Scheme / boost 2. The move is John Henry's: the spaces with a track token are not counted."
+  }
+ ],
+ "plugins": [
+  {
+   "id": "john:summon_track",
+   "why": "A token on a space of the board: there is no op that creates a board token (docs/effects-dsl.md, section 9, gap 2); the plugin adds the space to `fx.tracks`, bounded by the 10 tokens of the supply."
+  },
+  {
+   "id": "john:paths",
+   "why": "The test of 'John Henry used at least 4 different paths this turn' (see open_questions): reads the set of track spaces John Henry entered this turn."
+  }
+ ],
+ "hidden_info": [],
+ "open_questions": [
+  "PATHS: the cards never define 'path'. Literal reading used: a path is a track space (a space with a track token) that John Henry ENTERED while moving this turn, and 'different' means four different such spaces. Passing through a track space counts as entering it; starting on one does not; entering the same one twice counts once. For a move the engine does not see step by step (a Maneuver or an effect by hand at the table) the route is the one that goes through the most track spaces among the cheapest ways. The set is emptied at the start of every turn.",
+  "A track token is never taken off the board and the 10 tokens are the whole supply: with all 10 on the board the summon does nothing. No second token goes on a space that already has one (a space is either a path or it is not).",
+  "'Gain 1 free action to attack': implemented as an extra action that only an attack may spend.",
+  "HAMMER: no card prints the keyword in the images read; the tag `hammer` is on the three Nine-pound, two Twelve-pound and two Eighteen-pound Hammers by title."
+ ]
+}

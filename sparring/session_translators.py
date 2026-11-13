@@ -960,3 +960,38 @@ def _hand_all_bot(session, intent: dict, ctx: Ctx) -> list[Check]:
         if result_of(back).get("deck") is False:
             _hand_all_human(session, intent, ctx, late=True)
     return [check]
+
+
+# ---------------------------------------------------------------- track (John Henry's STEEL-DRIVING MAN)
+
+def _track_mode(session, intent: dict) -> str | None:
+    return BOT if intent["owner"] == session.bot else None      # the human lays their own token: the table sync reads it (session_tracks)
+
+
+def _track_human(session, intent: dict, ctx: Ctx) -> list[Check]:
+    """The bot could not lay its track token: the human lays one on the space for it."""
+    g = session.game
+    session.say(t("tr.track_fail", hero=session._name(g.hero(session.bot)), where=describe(g, intent["space"], (), session._name)),
+                ChatKind.WARNING)
+    return []
+
+
+@register("track", mode=_track_mode, human=_track_human)
+def _track_bot(session, intent: dict, ctx: Ctx) -> list[Check]:
+    """A track token from the stack of the bot's bag to the space the engine chose; the copy's GUID is kept (`Session.token_copies`)."""
+    from .session_tracks import TOKEN, token_source
+    g = session.game
+    source = token_source(g.hero_def(session.bot).slug)
+    if source is None:
+        return _track_human(session, intent, ctx)
+    op = session._w(lua.place_token_at_space(g.board, source, intent["space"]), DOMAIN)
+    session.say(t("tr.track_laid", hero=session._name(g.hero(session.bot)), where=describe(g, intent["space"], (), session._name),
+                  n=len(g.fx.tracks[session.bot])), ChatKind.ABILITY)
+
+    def check() -> None:
+        guid = result_of(op).get("taken")
+        if guid:
+            session.token_copies.setdefault(TOKEN, []).append(guid)
+        else:
+            _track_human(session, intent, ctx)
+    return [check]

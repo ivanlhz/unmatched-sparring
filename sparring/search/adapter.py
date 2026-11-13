@@ -38,7 +38,7 @@ from dataclasses import dataclass, field
 from functools import lru_cache
 from math import sqrt
 
-from .. import enraged, pack
+from .. import enraged, pack, tracks
 from ..ai_hazards import zone_cover_factor, zone_damage, zone_exposed
 from ..ai_medusa import GAZE, beside_stake, boost_effect_value, bot_may_spend, held_for_plan, maneuver_may_spend, play_signature, scheme_fighter
 from ..cards import Card, can_be_boost
@@ -130,7 +130,7 @@ def reach(game: Game, f: Fighter, steps: int, through: bool = False) -> frozense
     """`Game.legal_moves` with a cache (a fighter immobilized by an effect, Burning Barrier, stays where it is)."""
     if not game.fx.can_move(f):
         return frozenset({f.pos})
-    if through == "sidekicks":              # a move through the rivals' sidekicks only (not worth a cache entry)
+    if through == "sidekicks" or tracks.free_spaces(game, f):     # a move through the rivals' sidekicks only, or one over John Henry's tracks (not worth a cache entry)
         return frozenset(game.legal_moves(f, steps, through))
     own = frozenset(game.occupied(f.owner) - {f.pos})
     enemy = frozenset(game.occupied(1 - f.owner))
@@ -419,7 +419,8 @@ class EngineState:
                 tuple(sorted(c.card_id for c in g.players[mover].hand)),
                 tuple(f.fid for f in g.fighters.values() if f.alive and not g.fx.can_move(f)),    # pinned by an effect
                 g.maneuver_bonus(g.turn),      # the Maneuver's reach moves with the hero's ability (Sinbad's VOYAGE cards in the pile)
-                g.actions_left if pack.passive(g, g.turn) else None)    # a pack's last action is spent on a blow, not on a walk (`_generate_moves`)
+                g.actions_left if pack.passive(g, g.turn) else None,    # a pack's last action is spent on a blow, not on a walk (`_generate_moves`)
+                tuple(map(tuple, g.fx.tracks)), tracks.attack_only(g))      # John Henry's tracks decide his walks, and a free action to attack allows nothing else
 
     def _generate_moves(self) -> list:
         g = self.game
@@ -438,6 +439,8 @@ class EngineState:
         if self.phase == "maneuver_place":
             return [("place", d, policy) for d, policy in self._placements(p, hero)]
         attacks = self._attack_moves(p)
+        if tracks.attack_only(g):                   # the action left is a free action to attack: nothing else may spend it
+            return attacks
         moves = attacks + self._scheme_moves(p)
         if attacks and pack.passive(g, p) and g.actions_left <= 1:
             return moves        # the pack never spends its last action walking when it has a blow to land (Iván: super aggressive); with an action to spare it may close up first (`_placements`)
@@ -460,7 +463,7 @@ class EngineState:
         elif kind == "attack_card":
             att, tgt = self.partial
             self.phase, self.partial = "action", ()
-            g.use_action()
+            g.use_action(attack=True)
             self.pending = (att, tgt, by_title(hand, move[2]))
             g.fx.emit("attacked", g.fighters[att], g.fighters[tgt], self.pending[2])   # as Game._declare_attack does
         elif kind == "maneuver":
@@ -537,7 +540,7 @@ class EngineState:
             return rng.choice(self.legal_moves())
         p = g.turn
         attacks = self._attack_moves(p)
-        if attacks and rng.random() < ROLLOUT_ATTACK_PROB:
+        if attacks and (tracks.attack_only(g) or rng.random() < ROLLOUT_ATTACK_PROB):
             return rng.choice(attacks)
         boosts = self._boost_variants(p)
         boost = rng.choice(boosts[1:]) if len(boosts) > 1 and rng.random() < ROLLOUT_BOOST_PROB else None
@@ -622,7 +625,7 @@ class EngineState:
                 if len(moves) == 1:         # sub-phase without a real choice: it resolves itself
                     self.apply(moves[0])
                 return
-            if g.actions_left <= 0:
+            if not tracks.turn_goes_on(g):
                 g.end_turn()
                 g.begin_turn()
                 self.phase = "start"

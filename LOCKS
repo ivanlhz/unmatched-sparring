@@ -6,36 +6,3 @@
 #            Push rejected -> git pull --rebase; if the path is now someone else's, wait and retry; else push again.
 #   release: in the SAME push as your finished work, delete your line (commit "unlock: <path> <agent>").
 #   Never edit a path locked by another agent. Never remove another agent's line.
-sparring/effects/events.py  john-henry  John Henry engine pieces (board tracks, if_won cancel, token Lua)  14:12Z
-sparring/session_moves.py  john-henry  John Henry engine pieces (board tracks, if_won cancel, token Lua)  14:12Z
-sparring/effects/state.py  john-henry  John Henry engine pieces, step B (tracks state, SpaceSel track, over_tracks, schema, hero lists)  14:20Z
-sparring/effects/select.py  john-henry  John Henry engine pieces, step B (tracks state, SpaceSel track, over_tracks, schema, hero lists)  14:20Z
-sparring/effects/ops_core.py  john-henry  John Henry engine pieces, step B (tracks state, SpaceSel track, over_tracks, schema, hero lists)  14:20Z
-data/heroes/effects/schema.json  john-henry  John Henry engine pieces, step B (tracks state, SpaceSel track, over_tracks, schema, hero lists)  14:20Z
-tools/validate_effects.py  john-henry  John Henry engine pieces, step B (tracks state, SpaceSel track, over_tracks, schema, hero lists)  14:20Z
-tests/test_heroes.py  john-henry  John Henry engine pieces, step B (tracks state, SpaceSel track, over_tracks, schema, hero lists)  14:20Z
-tests/test_card_identity.py  john-henry  John Henry engine pieces, step B (tracks state, SpaceSel track, over_tracks, schema, hero lists)  14:20Z
-tests/test_d1_bot_cards.py  john-henry  John Henry engine pieces, step B (tracks state, SpaceSel track, over_tracks, schema, hero lists)  14:20Z
-tests/test_effects_schema.py  john-henry  John Henry engine pieces, step B (tracks state, SpaceSel track, over_tracks, schema, hero lists)  14:20Z
-data/i18n/en.json  john-henry  John Henry engine pieces, step B (tracks state, SpaceSel track, over_tracks, schema, hero lists)  14:20Z
-data/i18n/es.json  john-henry  John Henry engine pieces, step B (tracks state, SpaceSel track, over_tracks, schema, hero lists)  14:20Z
-sparring/hero_detect.py  john-henry  John Henry engine pieces, step B (tracks state, SpaceSel track, over_tracks, schema, hero lists)  14:20Z
-sparring/effects/table.py  john-henry  John Henry engine pieces, step B (tracks state, SpaceSel track, over_tracks, schema, hero lists)  14:20Z
-sparring/ai_effects.py  john-henry  John Henry engine pieces, step B (tracks state, SpaceSel track, over_tracks, schema, hero lists)  14:20Z
-config/table.json  john-henry  John Henry engine pieces, step B (tracks state, SpaceSel track, over_tracks, schema, hero lists)  14:20Z
-sparring/session.py  john-henry  John Henry session pieces (tracks sync, token placement, AI hooks)  14:23Z
-sparring/session_translators.py  john-henry  John Henry session pieces (tracks sync, token placement, AI hooks)  14:23Z
-sparring/play.py  john-henry  John Henry session pieces (tracks sync, token placement, AI hooks)  14:23Z
-sparring/ai_medusa.py  john-henry  John Henry session pieces (tracks sync, token placement, AI hooks)  14:23Z
-docs/effects-dsl.md  john-henry  John Henry docs, features, checklist  14:29Z
-docs/live-checklist.md  john-henry  John Henry docs, features, checklist  14:29Z
-features.json  john-henry  John Henry docs, features, checklist  14:29Z
-README.md  john-henry  John Henry docs, features, checklist  14:29Z
-docs/card-identity.md  john-henry  John Henry docs, features, checklist  14:29Z
-sparring/hellboy_script.py  john-henry  John Henry attack-only action in the turn loops  14:38Z
-sparring/search/controller.py  john-henry  John Henry attack-only action in the turn loops  14:38Z
-sparring/session_pieces.py  john-henry  John Henry attack-only action in the turn loops  14:38Z
-sparring/session_bot_effects.py  john-henry  John Henry: track intent is a direct op  14:43Z
-sparring/tts/lua.py  john-henry  MAX_CLEAR_HEROES bound  14:55Z
-sparring/state.py  john-henry  tracks in Game  14:55Z
-sparring/search/adapter.py  john-henry  tracks in search  14:55Z

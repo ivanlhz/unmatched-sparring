@@ -7,7 +7,7 @@ from typing import Callable
 from .board import Board
 from .cards import Card, can_be_boost
 from .controller import Controller
-from . import enraged, pack
+from . import enraged, pack, tracks
 from .effects import inventions, ongoing, table
 from .effects.state import EffectState, default_dsl_heroes
 from .heroes import DEFAULT_HAND_LIMIT, DEFAULT_START_HAND, HeroDef, load_hero
@@ -464,13 +464,14 @@ class Game:
             return frozenset()
         return frozenset(f.pos for f in self.foes(fighter.owner) if not f.hero)
 
-    def legal_moves(self, fighter: Fighter, steps: int, through_enemies: bool | str = False) -> set[int]:
-        """`through_enemies`: False, True (any rival may be crossed) or "sidekicks" (only the rivals' sidekicks)."""
+    def legal_moves(self, fighter: Fighter, steps: int, through_enemies: bool | str = False, over_tracks: bool = False) -> set[int]:
+        """`through_enemies`: False, True (any rival may be crossed) or "sidekicks" (only the rivals' sidekicks). The spaces with a track
+        token are not counted for John Henry (his ability) nor when the move says so (`over_tracks`: Power Through)."""
         if not self.fx.can_move(fighter):
             return {fighter.pos}
         return self.board.reachable(fighter.pos, steps, self.occupied(fighter.owner) - {fighter.pos},
                                     self.occupied(1 - fighter.owner), through_enemies is True,
-                                    self.passable_enemy_spaces(fighter, through_enemies))
+                                    self.passable_enemy_spaces(fighter, through_enemies), tracks.free_spaces(self, fighter, over_tracks))
 
     def can_attack(self, attacker: Fighter, target: Fighter, card: Card | None = None) -> bool:
         """`card`: the attack played; a card that targets any space while its owner is enraged (Foul Purpose) is not held to the reach."""
@@ -509,31 +510,37 @@ class Game:
         return list(known), pool, max(0, size - len(known))
 
     # mutations
-    def move_fighter(self, fighter: Fighter, dest: int, steps: int, through_enemies: bool = False) -> None:
+    def move_fighter(self, fighter: Fighter, dest: int, steps: int, through_enemies: bool = False, over_tracks: bool = False) -> None:
         if dest == fighter.pos:
             return
-        if dest not in self.legal_moves(fighter, steps, through_enemies):
+        if dest not in self.legal_moves(fighter, steps, through_enemies, over_tracks):
             raise RuleError(t("err.illegal_move", fid=fighter.fid, dest=dest, steps=steps))
-        self.walk(fighter, dest, steps, through_enemies)
+        self.walk(fighter, dest, steps, through_enemies, over_tracks)
 
-    def hazard_edges(self, fighter: Fighter, dest: int, steps: int | None, through_enemies: bool = False) -> list[tuple[int, int]]:
+    def blocked_spaces(self, fighter: Fighter, through_enemies: bool | str = False) -> frozenset[int]:
+        """The rival spaces `fighter` cannot walk through on its way."""
+        return frozenset() if through_enemies is True else frozenset(self.occupied(1 - fighter.owner)) - self.passable_enemy_spaces(fighter, through_enemies)
+
+    def hazard_edges(self, fighter: Fighter, dest: int, steps: int | None, through_enemies: bool = False,
+                     over_tracks: bool = False) -> list[tuple[int, int]]:
         """The hazard edge `fighter` would pay for going to `dest` now: at most one, none if it was already hurt this turn
         (see `Board.hazard_path` for the path assumed)."""
         if not self.board.hazards or fighter.pos is None:
             return []
-        blocked = frozenset() if through_enemies is True else frozenset(self.occupied(1 - fighter.owner)) - self.passable_enemy_spaces(fighter, through_enemies)
-        return self.board.hazard_path(fighter.pos, dest, steps, blocked, fighter.fid in self.hazard_taken)
+        return self.board.hazard_path(fighter.pos, dest, steps, self.blocked_spaces(fighter, through_enemies), fighter.fid in self.hazard_taken,
+                                      tracks.free_spaces(self, fighter, over_tracks))
 
-    def hazard_damage(self, fighter: Fighter, dest: int, steps: int | None, through_enemies: bool = False) -> int:
+    def hazard_damage(self, fighter: Fighter, dest: int, steps: int | None, through_enemies: bool = False, over_tracks: bool = False) -> int:
         """Damage `fighter` would take going to `dest` now: what the bot weighs before it moves."""
-        return sum(self.board.hazards[e] for e in self.hazard_edges(fighter, dest, steps, through_enemies))
+        return sum(self.board.hazards[e] for e in self.hazard_edges(fighter, dest, steps, through_enemies, over_tracks))
 
-    def walk(self, fighter: Fighter, dest: int, steps: int | None, through_enemies: bool = False) -> None:
+    def walk(self, fighter: Fighter, dest: int, steps: int | None, through_enemies: bool = False, over_tracks: bool = False) -> None:
         """Puts the fighter on `dest` (already known legal) and charges the first hazard edge of its path: a
         fighter takes hazard damage once per turn in all, whoever's turn it is, and the rest of its crossings are free; the damage can defeat it like any other.
         Every way a fighter walks along spaces (maneuver, move effects, a human's move read from the table) comes here."""
-        crossed = self.hazard_edges(fighter, dest, steps, through_enemies)
+        crossed = self.hazard_edges(fighter, dest, steps, through_enemies, over_tracks)
         origin, fighter.pos = fighter.pos, dest
+        tracks.record_walk(self, fighter, origin, dest, self.blocked_spaces(fighter, through_enemies))      # John Henry's paths
         for edge in crossed:
             self.hazard_taken.add(fighter.fid)
             if fighter.alive:
@@ -678,9 +685,19 @@ class Game:
         """The start-of-turn triggers of `self.turn` (Wildfire, ANUNG UN RAMA...), on their own."""
         self.fx.emit("start_of_turn", self.turn)
 
-    def use_action(self) -> None:
+    def attack_only(self) -> bool:
+        """The actions left are all free actions that only an attack may spend (John Henry's Hear That Cold Steel Ring)."""
+        return tracks.attack_only(self)
+
+    def use_action(self, attack: bool = False) -> None:
+        """`attack`: the action is spent on an attack, which takes a free action "to attack" first; any other action needs one that is not."""
         if self.actions_left <= 0:
             raise RuleError(t("err.no_actions"))
+        if attack:
+            if self.fx.attack_credit:
+                self.fx.attack_credit -= 1
+        elif self.attack_only():
+            raise RuleError(t("err.attack_only"))
         self.actions_left -= 1
         self.fx.count_action()
 
@@ -808,7 +825,7 @@ class Game:
             self.check_defense_card(target, def_card)
             if def_card not in self.players[target.owner].hand:
                 raise RuleError(t("err.not_in_hand", title=def_card.title, fid=target.fid))
-        self.use_action()
+        self.use_action(attack=True)
         from .effects.events import attack_revealed
         from .effects.modifiers import plays_face_up
         revealed = attacked and (attack_revealed(self, target) or plays_face_up(card, self, attacker, target))      # judged before the trigger spends the token
