@@ -32,3 +32,5 @@ docs/effects-dsl.md  philippa  Philippa hero (AI hooks, human flows, docs, share
 docs/card-identity.md  philippa  Philippa hero (AI hooks, human flows, docs, shared tests)  14:07Z
 docs/live-checklist.md  philippa  Philippa hero (AI hooks, human flows, docs, shared tests)  14:07Z
 README.md  philippa  Philippa hero (AI hooks, human flows, docs, shared tests)  14:07Z
+sparring/search/adapter.py  raptors  swarm policy, attack-last-action, team zone exposure  14:12Z
+sparring/ai_hazards.py  raptors  per-fighter zone damage for a team  14:12Z
