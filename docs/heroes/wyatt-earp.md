@@ -46,7 +46,7 @@ SHOWDOWN can give a free action to attack, and an attack that wins can offer SHO
 3. A free action nothing can use is lost (`prune_free_attacks`), for the bot and the scripted rivals; the human can simply end the turn.
 4. The restriction is in the engine, not in the AI: `use_action` refuses a Maneuver or a scheme with only free actions left, and the search (`EngineState._generate_moves`) offers only attacks then.
 
-## Rule decisions (the most literal reading of the card, no ruling asked: see "Pending Ivan")
+## Rule decisions (the most literal reading of the card; confirmed by Ivan, see "Decided by Ivan")
 1. **SHOWDOWN's trigger**: "after you attack and win combat" is an attack of the owner (Wyatt's or Doc Holliday's, whoever the card is played by) that the owner won (the engine's result: the attacker wins only if combat damage lands), run in the AFTER, before the card's own AFTER, also when the card's effects were cancelled (the ability is the hero's). Defending never triggers it.
 2. **"Your fighter"** in "move your fighter up to 1 space" is the fighter that attacked. The owner may move 0.
 3. **"Free action to attack"** is an extra action that can only be spent on an attack, with any fighter and any card that can attack. For You Die First it can only attack the fighter that was moved. The free action is spent before an ordinary one, so it never costs more than the action it replaces. It is lost at the end of the turn.
@@ -59,14 +59,17 @@ SHOWDOWN can give a free action to attack, and an attack that wins can offer SHO
 10. **Bring 'Em To Justice** adds twice the BOOST of the revealed card to this defense; the value is added in the DURING (a locked value, as Stasis Diffuser's, ignores it).
 11. **Fan The Hammer** returns to the hand only if the fighter it fought was defeated (after the damage of the combat); the card then does not reach the discard pile.
 
+## Decided by Ivan (2026-11-13)
+Ivan confirmed all the readings implemented above:
+1. **Free action to attack** is attack-only (and, for You Die First, only against the fighter that was moved).
+2. **SHOWDOWN applies to Doc Holliday's attacks** (you attack: the player).
+3. **Your fighter** (the move option) is the fighter that attacked.
+4. **I'm Your Huckleberry** may hit the opposing fighter of the combat.
+5. **SHOWDOWN resolves before the card's own AFTER.**
+6. **In Vino Veritas with a short deck** pays the usual exhaustion for each card the deck cannot give.
+
 ## Pending Ivan
-1. **Is "free action to attack" attack-only?** Implemented: yes, the action can only be spent on an attack (and only against the fighter moved by You Die First). If the rulebook means a plain extra action, `Game.free_attacks` can be turned off for the three sources by replacing `wyatt:free_attack` with `gain_action`.
-2. **Does SHOWDOWN apply to Doc Holliday's attacks?** Implemented: yes ("you attack": the player). Alternative: only Wyatt's attacks.
-3. **"Your fighter"** (the move option): implemented as the fighter that attacked. Alternative: any fighter of yours.
-4. **I'm Your Huckleberry** can hit the opposing fighter of the combat: implemented as the literal "an opposing fighter in your fighter's zone". Alternative: a different one.
-5. **Order of SHOWDOWN and the card's own AFTER**: SHOWDOWN first (it is the hero's), then the card's AFTER. It matters when both draw (the hand limit) and for Fan The Hammer. Alternative: the card's AFTER first.
-6. **"Draw until you have 4" with a short deck** pays the exhaustion for each card the deck cannot give (the engine's rule for any draw). Alternative: draw only what is left and stop.
-7. **Doc Holliday's table piece** (`3f56bb`, a Custom_Token) is found like Daisy's and The Porter's: to check live.
+1. **Doc Holliday's table piece** (`3f56bb`, a Custom_Token) is found like Daisy's and The Porter's: to check live.
 
 ## AI
 - Profile from the data (`ai_profile`): Wyatt `hero`, ranged; Doc Holliday `striker`, ranged. Name-based values live in `sparring/ai_wyatt.py`.
