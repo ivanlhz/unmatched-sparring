@@ -1,0 +1,429 @@
+{
+ "_source": {
+  "memory": "unmatched-memory/data/heroes/wyatt-earp.json",
+  "overlay": "data/heroes/overlay/wyatt-earp.json",
+  "generator": "tools/import_hero.py"
+ },
+ "slug": "wyatt-earp",
+ "name": "Wyatt Earp",
+ "fid": "wyatt",
+ "hp": 15,
+ "move": 2,
+ "attack": "range",
+ "set": "stars-and-stripes",
+ "ability": "SHOWDOWN\nAfter you attack and win combat, choose one effect. You cannot choose the same effect twice in a turn.\n• draw 1 card\n• gain 1 free action to attack\n• move your fighter up to 1 space",
+ "sidekicks": [
+  {
+   "name": "Doc Holliday",
+   "hp": 8,
+   "move": 2,
+   "attack": "range",
+   "count": 1,
+   "fid": "doc"
+  }
+ ],
+ "forms": null,
+ "counters": {},
+ "triggers": [],
+ "passives": [],
+ "deck": {
+  "card_base": 18700,
+  "sheet": 187,
+  "cards": [
+   {
+    "idx": 0,
+    "title": "You Just Gonna Stand There And Bleed?",
+    "fighter": "Wyatt Earp",
+    "type": "attack",
+    "value": 5,
+    "boost": 1,
+    "text": "",
+    "tags": []
+   },
+   {
+    "idx": 1,
+    "title": "You Just Gonna Stand There And Bleed?",
+    "fighter": "Wyatt Earp",
+    "type": "attack",
+    "value": 5,
+    "boost": 1,
+    "text": "",
+    "tags": []
+   },
+   {
+    "idx": 2,
+    "title": "You Just Gonna Stand There And Bleed?",
+    "fighter": "Wyatt Earp",
+    "type": "attack",
+    "value": 5,
+    "boost": 1,
+    "text": "",
+    "tags": []
+   },
+   {
+    "idx": 3,
+    "title": "Fan The Hammer",
+    "fighter": "Wyatt Earp",
+    "type": "attack",
+    "value": 1,
+    "boost": 3,
+    "text": "AFTER COMBAT: If the opposing fighter was defeated, return this card to your hand.",
+    "tags": []
+   },
+   {
+    "idx": 4,
+    "title": "Fan The Hammer",
+    "fighter": "Wyatt Earp",
+    "type": "attack",
+    "value": 1,
+    "boost": 3,
+    "text": "AFTER COMBAT: If the opposing fighter was defeated, return this card to your hand.",
+    "tags": []
+   },
+   {
+    "idx": 5,
+    "title": "Second Shot",
+    "fighter": "any",
+    "type": "attack",
+    "value": 2,
+    "boost": 1,
+    "text": "DURING COMBAT: You may BOOST this card.",
+    "tags": []
+   },
+   {
+    "idx": 6,
+    "title": "Second Shot",
+    "fighter": "any",
+    "type": "attack",
+    "value": 2,
+    "boost": 1,
+    "text": "DURING COMBAT: You may BOOST this card.",
+    "tags": []
+   },
+   {
+    "idx": 7,
+    "title": "I Have Two Guns, One For Each Of You",
+    "fighter": "Doc Holliday",
+    "type": "attack",
+    "value": 4,
+    "boost": 1,
+    "text": "AFTER COMBAT: If your opponent played a card, deal damage equal to that card's printed value to a different opposing fighter in Doc Holliday's zone.",
+    "tags": []
+   },
+   {
+    "idx": 8,
+    "title": "I Have Two Guns, One For Each Of You",
+    "fighter": "Doc Holliday",
+    "type": "attack",
+    "value": 4,
+    "boost": 1,
+    "text": "AFTER COMBAT: If your opponent played a card, deal damage equal to that card's printed value to a different opposing fighter in Doc Holliday's zone.",
+    "tags": []
+   },
+   {
+    "idx": 9,
+    "title": "I Have Two Guns, One For Each Of You",
+    "fighter": "Doc Holliday",
+    "type": "attack",
+    "value": 4,
+    "boost": 1,
+    "text": "AFTER COMBAT: If your opponent played a card, deal damage equal to that card's printed value to a different opposing fighter in Doc Holliday's zone.",
+    "tags": []
+   },
+   {
+    "idx": 10,
+    "title": "A Marshal And An Outlaw",
+    "fighter": "Wyatt Earp",
+    "type": "versatile",
+    "value": 3,
+    "boost": 2,
+    "text": "AFTER COMBAT: If you played this card to defend, draw 1 card. If you played this card to attack, your opponent discards 1 card.",
+    "tags": []
+   },
+   {
+    "idx": 11,
+    "title": "A Marshal And An Outlaw",
+    "fighter": "Wyatt Earp",
+    "type": "versatile",
+    "value": 3,
+    "boost": 2,
+    "text": "AFTER COMBAT: If you played this card to defend, draw 1 card. If you played this card to attack, your opponent discards 1 card.",
+    "tags": []
+   },
+   {
+    "idx": 12,
+    "title": "A Marshal And An Outlaw",
+    "fighter": "Wyatt Earp",
+    "type": "versatile",
+    "value": 3,
+    "boost": 2,
+    "text": "AFTER COMBAT: If you played this card to defend, draw 1 card. If you played this card to attack, your opponent discards 1 card.",
+    "tags": []
+   },
+   {
+    "idx": 13,
+    "title": "Gunfight At The O.K. Corral",
+    "fighter": "Wyatt Earp",
+    "type": "versatile",
+    "value": 2,
+    "boost": 3,
+    "text": "AFTER COMBAT: Deal 1 damage to any fighter. Your opponent deals 1 damage to any fighter. Deal 1 damage to any fighter. Your opponent deals 1 damage to any fighter.",
+    "tags": []
+   },
+   {
+    "idx": 14,
+    "title": "Gunfight At The O.K. Corral",
+    "fighter": "Wyatt Earp",
+    "type": "versatile",
+    "value": 2,
+    "boost": 3,
+    "text": "AFTER COMBAT: Deal 1 damage to any fighter. Your opponent deals 1 damage to any fighter. Deal 1 damage to any fighter. Your opponent deals 1 damage to any fighter.",
+    "tags": []
+   },
+   {
+    "idx": 15,
+    "title": "Better Swear Me In",
+    "fighter": "any",
+    "type": "versatile",
+    "value": 2,
+    "boost": 2,
+    "text": "IMMEDIATELY: Cancel all effects on your opponent's card. AFTER COMBAT: Reveal the top card of your opponent's deck. You may put it on the bottom of their deck.",
+    "tags": []
+   },
+   {
+    "idx": 16,
+    "title": "Better Swear Me In",
+    "fighter": "any",
+    "type": "versatile",
+    "value": 2,
+    "boost": 2,
+    "text": "IMMEDIATELY: Cancel all effects on your opponent's card. AFTER COMBAT: Reveal the top card of your opponent's deck. You may put it on the bottom of their deck.",
+    "tags": []
+   },
+   {
+    "idx": 17,
+    "title": "Better Swear Me In",
+    "fighter": "any",
+    "type": "versatile",
+    "value": 2,
+    "boost": 2,
+    "text": "IMMEDIATELY: Cancel all effects on your opponent's card. AFTER COMBAT: Reveal the top card of your opponent's deck. You may put it on the bottom of their deck.",
+    "tags": []
+   },
+   {
+    "idx": 18,
+    "title": "I'm Your Huckleberry",
+    "fighter": "any",
+    "type": "versatile",
+    "value": 3,
+    "boost": 2,
+    "text": "AFTER COMBAT: If you won the combat, deal 1 damage to an opposing fighter in your fighter's zone.",
+    "tags": []
+   },
+   {
+    "idx": 19,
+    "title": "I'm Your Huckleberry",
+    "fighter": "any",
+    "type": "versatile",
+    "value": 3,
+    "boost": 2,
+    "text": "AFTER COMBAT: If you won the combat, deal 1 damage to an opposing fighter in your fighter's zone.",
+    "tags": []
+   },
+   {
+    "idx": 20,
+    "title": "I'm Your Huckleberry",
+    "fighter": "any",
+    "type": "versatile",
+    "value": 3,
+    "boost": 2,
+    "text": "AFTER COMBAT: If you won the combat, deal 1 damage to an opposing fighter in your fighter's zone.",
+    "tags": []
+   },
+   {
+    "idx": 21,
+    "title": "You're A Daisy If You Do",
+    "fighter": "Doc Holliday",
+    "type": "versatile",
+    "value": 4,
+    "boost": 3,
+    "text": "AFTER COMBAT: Draw 2 cards.",
+    "tags": []
+   },
+   {
+    "idx": 22,
+    "title": "You're A Daisy If You Do",
+    "fighter": "Doc Holliday",
+    "type": "versatile",
+    "value": 4,
+    "boost": 3,
+    "text": "AFTER COMBAT: Draw 2 cards.",
+    "tags": []
+   },
+   {
+    "idx": 23,
+    "title": "Bring 'Em To Justice",
+    "fighter": "Wyatt Earp",
+    "type": "defense",
+    "value": 0,
+    "boost": 2,
+    "text": "DURING COMBAT: Reveal the top card of your opponent's deck. Increase the value of this card by twice that card's BOOST value.",
+    "tags": []
+   },
+   {
+    "idx": 24,
+    "title": "Bring 'Em To Justice",
+    "fighter": "Wyatt Earp",
+    "type": "defense",
+    "value": 0,
+    "boost": 2,
+    "text": "DURING COMBAT: Reveal the top card of your opponent's deck. Increase the value of this card by twice that card's BOOST value.",
+    "tags": []
+   },
+   {
+    "idx": 25,
+    "title": "Bring 'Em To Justice",
+    "fighter": "Wyatt Earp",
+    "type": "defense",
+    "value": 0,
+    "boost": 2,
+    "text": "DURING COMBAT: Reveal the top card of your opponent's deck. Increase the value of this card by twice that card's BOOST value.",
+    "tags": []
+   },
+   {
+    "idx": 26,
+    "title": "You Die First",
+    "fighter": "Wyatt Earp",
+    "type": "scheme",
+    "value": null,
+    "boost": 3,
+    "text": "Move an opposing fighter up to 1 space. Gain 1 free action to attack that fighter.",
+    "tags": []
+   },
+   {
+    "idx": 27,
+    "title": "You Die First",
+    "fighter": "Wyatt Earp",
+    "type": "scheme",
+    "value": null,
+    "boost": 3,
+    "text": "Move an opposing fighter up to 1 space. Gain 1 free action to attack that fighter.",
+    "tags": []
+   },
+   {
+    "idx": 28,
+    "title": "In Vino Veritas",
+    "fighter": "Doc Holliday",
+    "type": "scheme",
+    "value": null,
+    "boost": 3,
+    "text": "Draw until you have 4 cards in your hand. Gain 1 free action to attack.",
+    "tags": []
+   },
+   {
+    "idx": 29,
+    "title": "In Vino Veritas",
+    "fighter": "Doc Holliday",
+    "type": "scheme",
+    "value": null,
+    "boost": 3,
+    "text": "Draw until you have 4 cards in your hand. Gain 1 free action to attack.",
+    "tags": []
+   }
+  ]
+ },
+ "ai_profile": {
+  "wyatt": {
+   "name": "Wyatt Earp",
+   "hero": true,
+   "count": 1,
+   "max_hp": 15,
+   "move": 2,
+   "ranged": true,
+   "role": "hero",
+   "attack": {
+    "cards": 18,
+    "mean": 2.72,
+    "max": 5
+   },
+   "exclusive": [
+    {
+     "title": "You Just Gonna Stand There And Bleed?",
+     "type": "attack",
+     "copies": 3,
+     "impact": 1.05
+    },
+    {
+     "title": "Fan The Hammer",
+     "type": "attack",
+     "copies": 2,
+     "impact": 0.66
+    },
+    {
+     "title": "A Marshal And An Outlaw",
+     "type": "versatile",
+     "copies": 3,
+     "impact": 0.96
+    },
+    {
+     "title": "Gunfight At The O.K. Corral",
+     "type": "versatile",
+     "copies": 2,
+     "impact": 2.76
+    },
+    {
+     "title": "Bring 'Em To Justice",
+     "type": "defense",
+     "copies": 3,
+     "impact": 0.6
+    },
+    {
+     "title": "You Die First",
+     "type": "scheme",
+     "copies": 2,
+     "impact": 0.8
+    }
+   ]
+  },
+  "doc": {
+   "name": "Doc Holliday",
+   "hero": false,
+   "count": 1,
+   "max_hp": 8,
+   "move": 2,
+   "ranged": true,
+   "role": "striker",
+   "attack": {
+    "cards": 13,
+    "mean": 3.0,
+    "max": 4
+   },
+   "exclusive": [
+    {
+     "title": "I Have Two Guns, One For Each Of You",
+     "type": "attack",
+     "copies": 3,
+     "impact": 1.57
+    },
+    {
+     "title": "You're A Daisy If You Do",
+     "type": "versatile",
+     "copies": 2,
+     "impact": 1.38
+    },
+    {
+     "title": "In Vino Veritas",
+     "type": "scheme",
+     "copies": 2,
+     "impact": 1.2
+    }
+   ],
+   "requires_alive": []
+  }
+ },
+ "_notes": [
+  "Sheet 187 of the tournament savegame (8x4), read card by card from the image on 2026-11-13. CardID = 18700 + idx; 401 = character card (sheet 4, 5x2, index 1). The deck object of the save holds 31 cards: the 30 of the deck plus the character card, which is why the catalog says card_count 31 and card_ids [401, 18729].",
+  "Restriction band (WYATT EARP, DOC HOLLIDAY or ANY), values, boosts, texts and copies (xN printed on each card) of the 12 titles were compared with the screenshots' transcription in unmatched-memory (data/heroes/wyatt-earp.json, _source: unverified): all 30 cards agree, no mismatch.",
+  "Hero card (read from the image): WYATT EARP, RANGED, START HEALTH 15, MOVE 2; special ability SHOWDOWN. Sidekick DOC HOLLIDAY, RANGED, START HEALTH 8 (one Doc Holliday). The save's inner bag holds Wyatt's miniature (an assetbundle, 'Wyatt Earp'), Doc's piece (a Custom_Token named 'Doc Holliday', like Daisy's and The Porter's) and the two health dials ('Hero Health', 'Sidekick Health'); no counter dial and no other token."
+ ]
+}

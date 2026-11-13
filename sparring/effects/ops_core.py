@@ -257,12 +257,15 @@ def _choose(run, game, spec):
 def _choose_effect(run, game, spec):
     options, chooser = spec["options"], _chooser(game, run, spec)
     labels = [o["label"] for o in options]
-    left, picked = list(range(len(options))), []
+    open_now = [k for k, o in enumerate(options) if "condition" not in o or condition(game, run, o["condition"])]     # an option may be closed (SHOWDOWN: once a turn each)
+    left, picked = list(open_now), []
     for _ in range(int(amount(game, run, spec["amount"]))):
         if not left:
             break
-        pool = left if spec.get("distinct") else list(range(len(options)))
+        pool = left if spec.get("distinct") else list(open_now)
         extra = {"tag": spec["tag"]} if "tag" in spec else {}       # what the options are about, for the bot's judgement (Jill's gadgets)
+        if "tag" in spec and run.ctx.attacker_fid:
+            extra["attacker"] = run.ctx.attacker_fid                 # the fighter that attacked in the combat the choice belongs to (SHOWDOWN moves it)
         k = run.ask(game, "effect", chooser, pool, 1, 1, "choose an effect", labels=labels, **extra)[0]
         picked.append(k)
         if spec.get("distinct"):
@@ -301,7 +304,8 @@ def _move(run, game, spec):
                 by_hand.append(f)
                 continue
             got = run.ask(game, "space", chooser, dests, 0 if up_to else 1, 1, "move to",
-                          fighter=f.fid, op="move", steps=steps, through=through, up_to=up_to, **({"over_tracks": True} if over else {}))
+                          fighter=f.fid, op="move", steps=steps, through=through, up_to=up_to, **({"over_tracks": True} if over else {}),
+                          **({"purpose": spec["purpose"]} if "purpose" in spec else {}))
             if got:
                 plan.append((f, got[0]))
                 set_attrs(f, pos=got[0])
@@ -496,6 +500,7 @@ def _spend_action(run, game, spec):
 def _end_turn(run, game, spec):
     run.flags["end_turn"] = game.turn      # the CURRENT turn ends, whoever owns the card (a defense can end the attacker's)
     game.actions_left = 0
+    game.free_attacks.clear()              # the free actions to attack go with the rest
 
 
 # ---------------------------------------------------------------- control
@@ -685,5 +690,6 @@ from . import plugins_ciri  # noqa: E402,F401  (registers ciri:channel_the_sourc
 from . import plugins_eredin  # noqa: E402,F401  (registers eredin:replace_combatant and the test eredin:opponent_card)
 from . import plugins_chupacabra  # noqa: E402,F401  (registers chupacabra:ambush, chupacabra:tooth_and_tail)
 from . import plugins_yennefer  # noqa: E402,F401  (registers yennefer:/triss: mill and lodge)
+from . import plugins_wyatt  # noqa: E402,F401  (registers wyatt:free_attack, you_die_first, swear_me_in, bring_to_justice)
 from . import plugins_philippa  # noqa: E402,F401  (registers philippa: owlform, chain_lightning, blinding_dust, do_my_bidding, spymaster_ruse)
 from . import plugins_john  # noqa: E402,F401  (registers john:summon_track and the test john:paths)

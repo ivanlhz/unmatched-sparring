@@ -70,7 +70,7 @@ from .guard import guard_dest, hero_shielded, path_steps
 from .effects.model import walk_ops
 from .effects.modifiers import boost_limit, card_effects, defers_defeat, is_uncancelable
 from .ai_profile import FINISHER_BOOSTS, STYLE_HIT_AND_RUN, derive_style
-from . import ai_chupacabra as chupa_ai, ai_philippa, ai_rosie, ai_sinbad, tracks
+from . import ai_chupacabra as chupa_ai, ai_philippa, ai_rosie, ai_sinbad, ai_wyatt, tracks
 from .ai_sinbad import own_value as sinbad_own_value, voyage_count, voyage_extra
 from .state import ANUNG, EXHAUST_DAMAGE, Fighter, Game
 
@@ -857,9 +857,10 @@ class MedusaAI(Controller):
         without the cover of its sidekicks (`position_value`): hiding behind them is not worth giving the blow up. `walked_out`
         and `struck` say what an earlier action of this same turn, only played in the plan, did: it already walked out (no act
         gets the cover) or the hero already struck (every act does)."""
-        acts = self.attack_acts(game, model)
-        if not tracks.attack_only(game):                 # a free action to attack (John Henry) buys nothing else
-            acts += self.scheme_acts(game, model) + self.maneuver_acts(game, model)
+        if tracks.attack_only(game):                 # only free actions to attack are left (John Henry, Wyatt Earp): nothing else may be played
+            acts = [a for a in self.attack_acts(game, model) if game.paid_actions > 0 or game.free_attack_for(a.target) is not None or not game.free_attacks]
+        else:
+            acts = self.attack_acts(game, model) + self.scheme_acts(game, model) + self.maneuver_acts(game, model)
         blow = not struck and self.holds_a_blow(game, acts)
         for a in acts:
             g = self.apply_expected(game, a)
@@ -1058,6 +1059,9 @@ class MedusaAI(Controller):
         value += chupa_ai.after_value(game, self.me, c, p_win, w, CARD_VALUE, W_MEDUSA_HP, ACTION_VALUE)
         value += ai_rosie.after_value(game, self.me, c, p_win, w, CARD_VALUE, W_MEDUSA_HP, t.hp)
         value += ai_philippa.after_value(game, self.me, c, p_win, w, CARD_VALUE)
+        value += ai_wyatt.after_value(game, self.me, c, p_win, w, CARD_VALUE, self.room_after_play(game), p_kill)
+        if f.owner == self.me:
+            value += ai_wyatt.showdown_edge(game, self.me, p_win, CARD_VALUE, self.room_after_play(game))     # winning opens SHOWDOWN
         if ai_philippa.ends_turn(c):     # Spellbreaker's AFTER ends the turn: the actions still to spend are lost
             value -= ACTION_VALUE * max(0, game.actions_left - 1)
         if c.title == WITNESS:           # the AFTER ends the turn: the actions still to spend are lost
@@ -1133,6 +1137,7 @@ class MedusaAI(Controller):
         value = self.effect_ai().material_delta(game, after, me) - CARD_VALUE
         value += CARD_VALUE * gained - sum(keep_value(c, hand) for c in lost)
         value -= situational_keep(game, me, card, hand)       # the Magician as a scheme gives up the boost of a Big Reveal
+        after.prune_free_attacks(me)             # a free action to attack that nothing in the hand can use is worth nothing
         gained = after.actions_left - (game.actions_left - 1)
         if not self.scheme_changed_nothing(game, after, card):
             value += ACTION_VALUE * gained       # an action handed back is only worth something when the card did more
@@ -1282,6 +1287,10 @@ class MedusaAI(Controller):
                 g.fighters[fid].pos = d
         elif a.kind == "scheme":        # the simulation already spent the action and granted what the card gives
             return a.sim.clone()
+        if a.kind == "attack":
+            slot = g.free_attack_for(a.target)       # an attack spends a free action to attack before an ordinary one
+            if slot is not None:
+                del g.free_attacks[slot]
         g.actions_left -= 1
         if a.kind == "maneuver":
             g.actions_left += bonus_actions
@@ -1802,6 +1811,8 @@ class MedusaAI(Controller):
             dv = 2 * self.rival_average_boost(game)    # She-Hulk: twice the BOOST of the card it mills (the average of what is left)
         if c is not None and c.title == WORTHY and attacker is not None and attacker.hero:
             dv = 5                                 # Tomoe Gozen: 5 against a hero
+        if c is not None and c.title == ai_wyatt.JUSTICE:
+            dv = ai_wyatt.justice_value(self.rival_average_boost(game))      # Wyatt Earp: twice the BOOST of the rival's top card
         if c is not None and own_value(game, target, c) is not None:
             dv = own_value(game, target, c)        # Sinbad's Momentous Shift defending
         if c is not None and (chupa_dv := chupa_ai.defense_value(game, target.owner, c)) is not None:
@@ -1853,6 +1864,7 @@ class MedusaAI(Controller):
             v += chupa_ai.after_value(game, self.me, c, p_block, weight(attacker), CARD_VALUE, W_MEDUSA_HP, ACTION_VALUE)
             v += ai_rosie.after_value(game, self.me, c, p_block, weight(attacker), CARD_VALUE, W_MEDUSA_HP, attacker.hp)
             v += ai_philippa.after_value(game, self.me, c, p_block, weight(attacker), CARD_VALUE)
+            v += ai_wyatt.after_value(game, self.me, c, p_block, weight(attacker), CARD_VALUE, None, defending=True)
         if c.title == SKIN and attacker is not None:
             v += SKIN_RETURN * weight(attacker) * exp         # the damage it took goes back to the attacker
         if c.title == MISTS:

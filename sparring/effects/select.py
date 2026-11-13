@@ -180,6 +180,9 @@ def fighter_candidates(game, run, sel) -> tuple[list, bool]:
         adj = game.board.adj
         out = [f for f in out if anchor is not None and anchor.pos is not None and f.pos is not None
                and (f is anchor or f.pos in adj[anchor.pos])]
+    if "except" in flt:                # "a different fighter": not the one the selector names (Wyatt Earp: not the fighter of the combat)
+        skip = _role_fighters(game, run, flt["except"])
+        out = [f for f in out if f not in skip]
     if "within" in flt:                # "within N spaces of Ciri": counted along the printed adjacency, like a reach
         anchor, n = _ref_fighter(game, run, flt["within"]["of"]), int(flt["within"]["spaces"])
         out = [f for f in out if anchor is not None and anchor.pos is not None and f.pos is not None

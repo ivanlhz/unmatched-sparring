@@ -245,6 +245,9 @@ class SyntheticChooser:
         last. Taking the first two options blindly played Pancakes! as heal + a return of nothing."""
         from ..ai_effects import EffectAI
         n = min(req.max, len(req.options))
+        if req.extra.get("tag") == "showdown":      # Wyatt Earp: the ability's choice is not a card's (its key names the combat card)
+            from ..ai_wyatt import rollout_showdown
+            return [rollout_showdown(game, req.player, list(req.options), self.greedy)]
         found = EffectAI._locate(game, req)
         options = found[0].get("options") or [] if found else []
         worth = {k: self._option_worth(game, req.player, options[k]) if k < len(options) else 1 for k in req.options}

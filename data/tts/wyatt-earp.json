@@ -1,0 +1,35 @@
+{
+ "slug": "wyatt-earp",
+ "bag": {
+  "guid": "cde243",
+  "inner": "494e23"
+ },
+ "deck": {
+  "guid": "0e4426",
+  "card_ids": [
+   18700,
+   18729
+  ],
+  "character_card_id": 401,
+  "identity": [
+   {
+    "face": "https://steamusercontent-a.akamaihd.net/ugc/16759385254612705843/9F5282E2E4F15D3F2A4B2E266CE95E96B8F96BDC/",
+    "back": "https://steamusercontent-a.akamaihd.net/ugc/16796644460937666713/1D5823A9FB6FCDDE2D76B1A28F6C979EFCDC8889/"
+   }
+  ]
+ },
+ "fighters": {
+  "wyatt": {
+   "piece": "aa2509",
+   "dial": "facfe3",
+   "dial_max": 15
+  },
+  "doc": {
+   "piece": "3f56bb",
+   "dial": "7f71e0",
+   "dial_max": 8
+  }
+ },
+ "tokens": {},
+ "counter_dials": {}
+}

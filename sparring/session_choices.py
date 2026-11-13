@@ -133,7 +133,7 @@ def options_text(game, req: ChoiceRequest, limit: int = 6) -> str:
 
 def card_text_hint(game, req: ChoiceRequest) -> str:
     """' Card: <printed text>' for a plain yes/no (Pyrotechnics: the question alone did not say what the card does), else ''."""
-    if req.kind != "optional" or req.extra.get("discards") or "to" in req.extra or "shield" in req.extra:
+    if req.kind != "optional" or req.extra.get("discards") or "to" in req.extra or "shield" in req.extra or "bury_rival" in req.extra:
         return ""
     card = request_card(game, req)
     text = getattr(card, "text", "") if card is not None else ""
@@ -160,6 +160,10 @@ def prompt_text(game, req: ChoiceRequest) -> str:
         base = _prompt("one_card")
     elif req.kind == "effect" and req.extra.get("tag") == "gadget":      # Jill Trent: the gadget of the turn
         base = _prompt("gadget")
+    elif req.kind == "effect" and req.extra.get("tag") == "showdown":    # Wyatt Earp: one of the effects not used yet this turn
+        base = _prompt("showdown")
+    elif req.kind == "optional" and "bury_rival" in req.extra:           # Better Swear Me In: the rival's top card, revealed
+        return t("choice.prompt.bury_rival", title=req.extra.get("title", "?"))
     elif req.kind == "effect" and req.extra.get("op") == "predict":
         base = _prompt("predict")
     elif req.kind == "effect" and req.extra.get("future"):      # The future of Ninjutsu: which deck, then leave or bottom

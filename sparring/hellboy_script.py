@@ -22,6 +22,8 @@ class ScriptedHellboy(Controller):
         self.start_of_turn(game)
         while tracks.turn_goes_on(game) and game.winner is None:
             if not self.try_attack(game):
+                if game.paid_actions <= 0:               # only free actions to attack are left, and no attack can use them
+                    break
                 self.maneuver(game)
 
     def start_of_turn(self, game: Game) -> None:
@@ -102,9 +104,11 @@ class ChasingHellboy(ScriptedHellboy):
         while tracks.turn_goes_on(game) and game.winner is None:
             if self.strike(game, [game.hero(self.me)]):
                 continue
-            if game.actions_left >= 2 and self.holds_attack(game) and self.maneuver(game, hunting=True):
+            if game.paid_actions >= 1 and game.actions_left >= 2 and self.holds_attack(game) and self.maneuver(game, hunting=True):
                 continue
             if not self.strike(game, game.own(self.me)) and not self.try_attack(game):
+                if game.paid_actions <= 0:
+                    break
                 self.maneuver(game)
 
     def strike(self, game: Game, fighters) -> bool:

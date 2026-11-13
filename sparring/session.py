@@ -1905,6 +1905,13 @@ class Session:
             return False
         return True
 
+    def _require_paid_action(self) -> bool:
+        """Only free actions to attack are left (Wyatt Earp): a Maneuver or a scheme cannot spend them."""
+        if self.game.paid_actions > 0:
+            return True
+        self.say(t("err.only_free_attacks"), ChatKind.WARNING)
+        return False
+
     def _begin_action(self) -> bool:
         """Before each human action the table is re-read (it includes what they did when starting the turn). The walks an
         earlier effect let them do by hand are settled here: legal ones are accepted, a piece left in place closes its window,
@@ -1939,7 +1946,7 @@ class Session:
 
     # ---------- the human's buttons ----------
     def _maneuver(self, _: dict) -> None:
-        if not self._require_human_turn():
+        if not self._require_human_turn() or not self._require_paid_action():
             return
         if not self._begin_action():
             return
@@ -2185,7 +2192,7 @@ class Session:
         self._drop_pending_if_gone()
 
     def _scheme(self, _: dict) -> None:
-        if not self._require_human_turn():
+        if not self._require_human_turn() or not self._require_paid_action():
             return
         if not self._begin_action():
             return
@@ -3418,7 +3425,8 @@ class Session:
         if g.winner is not None or g.turn != self.human:
             return
         if g.actions_left > 0:
-            self.say(t("turn.left", n=g.actions_left), ChatKind.YOUR_TURN)
+            self.say(t("turn.left_free", n=g.actions_left, free=len(g.free_attacks)) if g.free_attacks else t("turn.left", n=g.actions_left),
+                     ChatKind.YOUR_TURN)
             return
         if self.look_granted and self._look_epoch == self._epoch:    # granted by this very button: the look comes first
             self.say(t("turn.look_first"), ChatKind.YOUR_TURN)

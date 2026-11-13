@@ -1,0 +1,504 @@
+{
+ "schema": 1,
+ "hero": "wyatt-earp",
+ "notes": [
+  "Texts read from sheet 187 of the tournament savegame (card images) on 2026-11-13; the character card is 401 on sheet 4 (5x2, index 1). The 30 cards agree with the transcription in unmatched-memory (no mismatch). Wyatt Earp's deck is the only one on sheet 187: no other hero shares its CardIDs.",
+  "No op expresses an action that can only attack, so `wyatt:free_attack` grants one that `Game.free_attacks` marks attack-only (and, for You Die First, attack-that-fighter-only). The other plugins touch the rival's deck (Bring 'Em To Justice, Better Swear Me In: Jill Trent's reveal) and bind the fighter of You Die First."
+ ],
+ "ability": {
+  "text": "SHOWDOWN: After you attack and win combat, choose one effect. You cannot choose the same effect twice in a turn. draw 1 card; gain 1 free action to attack; move your fighter up to 1 space.",
+  "counters": {
+   "showdown_draw": {
+    "min": 0,
+    "max": 1,
+    "start": 0
+   },
+   "showdown_attack": {
+    "min": 0,
+    "max": 1,
+    "start": 0
+   },
+   "showdown_move": {
+    "min": 0,
+    "max": 1,
+    "start": 0
+   }
+  },
+  "triggers": [
+   {
+    "id": "showdown_reset",
+    "when": {
+     "event": "start_of_turn",
+     "player": "owner"
+    },
+    "ops": [
+     {
+      "op": "counter",
+      "name": "showdown_draw",
+      "set": 0
+     },
+     {
+      "op": "counter",
+      "name": "showdown_attack",
+      "set": 0
+     },
+     {
+      "op": "counter",
+      "name": "showdown_move",
+      "set": 0
+     }
+    ]
+   }
+  ],
+  "passives": [],
+  "after": [
+   {
+    "id": "showdown",
+    "condition": {
+     "all": [
+      {
+       "test": "combat_result",
+       "result": "won"
+      },
+      {
+       "test": "played_as",
+       "side": "attack"
+      }
+     ]
+    },
+    "ops": [
+     {
+      "op": "choose_effect",
+      "amount": 1,
+      "chooser": "owner",
+      "tag": "showdown",
+      "options": [
+       {
+        "label": "Draw 1 card",
+        "condition": {
+         "test": "counter",
+         "name": "showdown_draw",
+         "min": 0,
+         "max": 0
+        },
+        "ops": [
+         {
+          "op": "counter",
+          "name": "showdown_draw",
+          "set": 1
+         },
+         {
+          "op": "draw",
+          "player": "owner",
+          "amount": 1
+         }
+        ]
+       },
+       {
+        "label": "Gain 1 free action to attack",
+        "condition": {
+         "test": "counter",
+         "name": "showdown_attack",
+         "min": 0,
+         "max": 0
+        },
+        "ops": [
+         {
+          "op": "counter",
+          "name": "showdown_attack",
+          "set": 1
+         },
+         {
+          "op": "plugin",
+          "id": "wyatt:free_attack"
+         }
+        ]
+       },
+       {
+        "label": "Move your fighter up to 1 space",
+        "condition": {
+         "test": "counter",
+         "name": "showdown_move",
+         "min": 0,
+         "max": 0
+        },
+        "ops": [
+         {
+          "op": "counter",
+          "name": "showdown_move",
+          "set": 1
+         },
+         {
+          "op": "move",
+          "target": "attacker",
+          "amount": 1,
+          "up_to": true
+         }
+        ]
+       }
+      ]
+     }
+    ]
+   }
+  ],
+  "notes": "Runs in the AFTER of every combat in which the owner played a card, before the card's own AFTER, and only when the owner ATTACKED and WON. Each effect has a per-turn counter (reset at the owner's start of turn); an effect whose counter is 1 is not offered (`choose_effect.options[].condition`), so at most three SHOWDOWNs happen in a turn: the chain 'free attack, win, free attack' ends because the free attack can be chosen once, and In Vino Veritas / You Die First each cost a scheme action for the one they give back. 'Your fighter' is the fighter that attacked (Wyatt or Doc)."
+ },
+ "cards": [
+  {
+   "title": "You Just Gonna Stand There And Bleed?",
+   "copies": 3,
+   "text": "",
+   "effects": {
+    "immediately": [],
+    "during": [],
+    "after": [],
+    "scheme": [],
+    "boost": []
+   },
+   "notes": "Attack 5 / boost 1, WYATT EARP only. No text."
+  },
+  {
+   "title": "I Have Two Guns, One For Each Of You",
+   "copies": 3,
+   "text": "AFTER COMBAT: If your opponent played a card, deal damage equal to that card's printed value to a different opposing fighter in Doc Holliday's zone.",
+   "effects": {
+    "immediately": [],
+    "during": [],
+    "after": [
+     {
+      "op": "if",
+      "condition": {
+       "test": "card",
+       "card": "opponent_card",
+       "filter": {}
+      },
+      "then": [
+       {
+        "op": "damage",
+        "target": {
+         "side": "enemy",
+         "where": {
+          "zone_of": "this"
+         },
+         "filter": {
+          "except": "opposing"
+         }
+        },
+        "amount": {
+         "attr": "value",
+         "of": "opponent_card"
+        }
+       }
+      ]
+     }
+    ],
+    "scheme": [],
+    "boost": []
+   },
+   "notes": "Attack 4 / boost 1, DOC HOLLIDAY only. 'A different opposing fighter' is any enemy in the zone of Doc's space except the fighter this combat was against (`filter.except: opposing`); the owner picks. The damage is the PRINTED value of the rival's card (`attr: value` reads the printed one), also when the card's effects were cancelled; with no rival card nothing happens. Effect damage."
+  },
+  {
+   "title": "Second Shot",
+   "copies": 2,
+   "text": "DURING COMBAT: You may BOOST this card.",
+   "may_boost": true,
+   "effects": {
+    "immediately": [],
+    "during": [],
+    "after": [],
+    "scheme": [],
+    "boost": []
+   },
+   "notes": "Attack 2 / boost 1, ANY."
+  },
+  {
+   "title": "Fan The Hammer",
+   "copies": 2,
+   "text": "AFTER COMBAT: If the opposing fighter was defeated, return this card to your hand.",
+   "effects": {
+    "immediately": [],
+    "during": [],
+    "after": [
+     {
+      "op": "if",
+      "condition": {
+       "test": "exists",
+       "fighters": {
+        "role": "opposing",
+        "state": "defeated"
+       }
+      },
+      "then": [
+       {
+        "op": "put_in_hand",
+        "cards": "this"
+       }
+      ]
+     }
+    ],
+    "scheme": [],
+    "boost": []
+   },
+   "notes": "Attack 1 / boost 3, WYATT EARP only. The card goes back to the hand instead of the discard pile when the fighter it fought is defeated (after the damage of the combat and of the effects that ran before it)."
+  },
+  {
+   "title": "You're A Daisy If You Do",
+   "copies": 2,
+   "text": "AFTER COMBAT: Draw 2 cards.",
+   "effects": {
+    "immediately": [],
+    "during": [],
+    "after": [
+     {
+      "op": "draw",
+      "player": "owner",
+      "amount": 2
+     }
+    ],
+    "scheme": [],
+    "boost": []
+   },
+   "notes": "Versatile 4 / boost 3, DOC HOLLIDAY only."
+  },
+  {
+   "title": "A Marshal And An Outlaw",
+   "copies": 3,
+   "text": "AFTER COMBAT: If you played this card to defend, draw 1 card. If you played this card to attack, your opponent discards 1 card.",
+   "effects": {
+    "immediately": [],
+    "during": [],
+    "after": [
+     {
+      "op": "if",
+      "condition": {
+       "test": "played_as",
+       "side": "defense"
+      },
+      "then": [
+       {
+        "op": "draw",
+        "player": "owner",
+        "amount": 1
+       }
+      ],
+      "else": [
+       {
+        "op": "discard",
+        "cards": {
+         "zone": "hand",
+         "player": "opponent",
+         "amount": 1,
+         "chooser": "opponent"
+        }
+       }
+      ]
+     }
+    ],
+    "scheme": [],
+    "boost": []
+   },
+   "notes": "Versatile 3 / boost 2, WYATT EARP only. The rival chooses the card they discard."
+  },
+  {
+   "title": "I'm Your Huckleberry",
+   "copies": 3,
+   "text": "AFTER COMBAT: If you won the combat, deal 1 damage to an opposing fighter in your fighter's zone.",
+   "effects": {
+    "immediately": [],
+    "during": [],
+    "after": [
+     {
+      "op": "if",
+      "condition": {
+       "test": "combat_result",
+       "result": "won"
+      },
+      "then": [
+       {
+        "op": "damage",
+        "target": {
+         "side": "enemy",
+         "where": {
+          "zone_of": "this"
+         }
+        },
+        "amount": 1
+       }
+      ]
+     }
+    ],
+    "scheme": [],
+    "boost": []
+   },
+   "notes": "Versatile 3 / boost 2, ANY. 'An opposing fighter in your fighter's zone' includes the fighter of this combat if it is still standing; the owner picks."
+  },
+  {
+   "title": "Gunfight At The O.K. Corral",
+   "copies": 2,
+   "text": "AFTER COMBAT: Deal 1 damage to any fighter. Your opponent deals 1 damage to any fighter. Deal 1 damage to any fighter. Your opponent deals 1 damage to any fighter.",
+   "effects": {
+    "immediately": [],
+    "during": [],
+    "after": [
+     {
+      "op": "damage",
+      "target": {
+       "side": "any"
+      },
+      "amount": 1
+     },
+     {
+      "op": "damage",
+      "target": {
+       "side": "any"
+      },
+      "amount": 1,
+      "chooser": "opponent"
+     },
+     {
+      "op": "damage",
+      "target": {
+       "side": "any"
+      },
+      "amount": 1
+     },
+     {
+      "op": "damage",
+      "target": {
+       "side": "any"
+      },
+      "amount": 1,
+      "chooser": "opponent"
+     }
+    ],
+    "scheme": [],
+    "boost": []
+   },
+   "notes": "Versatile 2 / boost 3, WYATT EARP only. Four hits of effect damage, in the printed order: the owner picks the 1st and 3rd, the opponent the 2nd and 4th ('any fighter' includes their own and the owner's)."
+  },
+  {
+   "title": "Better Swear Me In",
+   "copies": 3,
+   "text": "IMMEDIATELY: Cancel all effects on your opponent's card. AFTER COMBAT: Reveal the top card of your opponent's deck. You may put it on the bottom of their deck.",
+   "effects": {
+    "immediately": [
+     {
+      "op": "cancel_effects",
+      "card": "opponent_card"
+     }
+    ],
+    "during": [],
+    "after": [
+     {
+      "op": "plugin",
+      "id": "wyatt:swear_me_in"
+     }
+    ],
+    "scheme": [],
+    "boost": []
+   },
+   "notes": "Versatile 2 / boost 2, ANY. The AFTER is the card's own, so it is not cancelled by the card's own IMMEDIATELY (only the rival can cancel it)."
+  },
+  {
+   "title": "Bring 'Em To Justice",
+   "copies": 3,
+   "text": "DURING COMBAT: Reveal the top card of your opponent's deck. Increase the value of this card by twice that card's BOOST value.",
+   "effects": {
+    "immediately": [],
+    "during": [
+     {
+      "op": "plugin",
+      "id": "wyatt:bring_to_justice"
+     }
+    ],
+    "after": [],
+    "scheme": [],
+    "boost": []
+   },
+   "notes": "Defense 0 / boost 2, WYATT EARP only."
+  },
+  {
+   "title": "In Vino Veritas",
+   "copies": 2,
+   "text": "Draw until you have 4 cards in your hand. Gain 1 free action to attack.",
+   "effects": {
+    "immediately": [],
+    "during": [],
+    "after": [],
+    "scheme": [
+     {
+      "op": "draw",
+      "player": "owner",
+      "amount": {
+       "hand_deficit": 4
+      }
+     },
+     {
+      "op": "plugin",
+      "id": "wyatt:free_attack"
+     }
+    ],
+    "boost": []
+   },
+   "notes": "Scheme, boost 3, DOC HOLLIDAY only. 'Draw until you have 4 cards' is the draw of `{hand_deficit: 4}` (docs/effects-dsl.md section 40): what the hand lacks after the scheme left it, nothing with 4 or more. The free action is attack-only (`wyatt:free_attack`)."
+  },
+  {
+   "title": "You Die First",
+   "copies": 2,
+   "text": "Move an opposing fighter up to 1 space. Gain 1 free action to attack that fighter.",
+   "effects": {
+    "immediately": [],
+    "during": [],
+    "after": [],
+    "scheme": [
+     {
+      "op": "plugin",
+      "id": "wyatt:you_die_first"
+     }
+    ],
+    "boost": []
+   },
+   "notes": "Scheme, boost 3, WYATT EARP only. The free action can only attack the fighter that was moved (`wyatt:you_die_first`)."
+  }
+ ],
+ "plugins": [
+  {
+   "id": "wyatt:free_attack",
+   "why": "'Gain 1 free action to attack': an extra action that only an attack can spend (and, with a target, only against that fighter). `gain_action` gives an ordinary action."
+  },
+  {
+   "id": "wyatt:you_die_first",
+   "why": "Picks an opposing fighter, moves it up to 1 space and binds the free attack to that fighter: no op carries the chosen fighter from a `move` into the later grant."
+  },
+  {
+   "id": "wyatt:swear_me_in",
+   "why": "Reveal the top card of the opponent's deck (the table's for the human, the engine's for the bot) and optionally put it at the bottom; the table is told (deck_order) as Jill Trent's Insightful Deduction does."
+  },
+  {
+   "id": "wyatt:bring_to_justice",
+   "why": "Reveal the top card of the opponent's deck and add twice its BOOST value to this card: jill:hypnoray with a factor of two."
+  }
+ ],
+ "hidden_info": [
+  {
+   "cards": [
+    "Better Swear Me In",
+    "Bring 'Em To Justice"
+   ],
+   "ability": "reveal the top card of the opponent's deck",
+   "rule": "The cards say 'reveal': the owner sees the top card of the opponent's deck at the moment the effect resolves. The bot reads the human's real deck only then (Game.deck_reader, top card); what it saw is kept as KnownHand.top_of_deck, erased by the next draw or shuffle (docs/effects-dsl.md section 33)."
+  },
+  {
+   "card": "A Marshal And An Outlaw",
+   "what": "the rival discards 1 card of their choice.",
+   "bot_plays_it": "Nobody looks: the human is asked to discard.",
+   "human_plays_it": "The bot chooses the card it gives up."
+  }
+ ],
+ "open_questions": [
+  "SHOWDOWN: 'after you attack and win combat' is read as the owner's attack (Wyatt's or Doc's) that the owner won, run before the card's own AFTER; 'your fighter' as the fighter that attacked.",
+  "'Free action to attack' is read as an extra action that can only be spent on an attack; 'that fighter' (You Die First) as only against the moved fighter.",
+  "I'm Your Huckleberry: 'an opposing fighter in your fighter's zone' includes the fighter of the combat if it is still standing.",
+  "I Have Two Guns: 'a different opposing fighter' is any other enemy in Doc's zone (not the fighter of this combat); no valid target, no damage."
+ ]
+}

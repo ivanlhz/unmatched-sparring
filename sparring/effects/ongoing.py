@@ -63,7 +63,7 @@ def scheme_traits(slug: str, title: str) -> dict:
     cannot run its ops: the table-facing traits the legacy path needs, read from the card's DSL instead of its title.
 
       bonus          the "+n to the value of your combat cards" its ONGOING adds (0 for none)
-      draw           the cards its top-level `draw` ops give
+      draw           the cards its top-level `draw` ops give (a draw whose amount is read from the board, "up to 4 cards", counts 0)
       discards_hand  it discards the whole hand (Crown Of Flame): the table moves it, the rest of what shows on the
                      pile is not another scheme
       choose         how many different effects it makes you pick (Pancakes!: 2), and `heal` the HP one of them heals"""
@@ -76,7 +76,7 @@ def scheme_traits(slug: str, title: str) -> dict:
     whole = any(o["op"] == "discard" and o["cards"].get("zone") == "hand" and o["cards"].get("pick") == "all" for o in ops)
     choices = [o for o in ops if o["op"] == "choose_effect"]
     heals = [h["amount"] for c in choices for h in walk_ops(c["options"]) if h["op"] == "heal"]
-    return {"bonus": bonus, "draw": sum(int(o["amount"]) for o in ops if o["op"] == "draw"), "discards_hand": whole,
+    return {"bonus": bonus, "draw": sum(o["amount"] for o in ops if o["op"] == "draw" and isinstance(o["amount"], int)), "discards_hand": whole,
             "choose": sum(int(c["amount"]) for c in choices), "heal": heals[0] if heals else 0}
 
 

@@ -106,7 +106,7 @@
      "filter": {
       "type": "object",
       "additionalProperties": false,
-      "properties": {"attacked_this_turn": {"type": "boolean"}, "passed_by": {"$ref": "#/$defs/FighterRef"}, "adjacent_to_any": {"$ref": "#/$defs/FighterSel"}, "is_or_adjacent_to": {"$ref": "#/$defs/FighterRef"}, "within": {"type": "object", "additionalProperties": false, "required": ["of", "spaces"], "properties": {"of": {"$ref": "#/$defs/FighterRef"}, "spaces": {"type": "integer", "minimum": 1}}}}
+      "properties": {"attacked_this_turn": {"type": "boolean"}, "passed_by": {"$ref": "#/$defs/FighterRef"}, "adjacent_to_any": {"$ref": "#/$defs/FighterSel"}, "is_or_adjacent_to": {"$ref": "#/$defs/FighterRef"}, "except": {"$ref": "#/$defs/FighterRef"}, "within": {"type": "object", "additionalProperties": false, "required": ["of", "spaces"], "properties": {"of": {"$ref": "#/$defs/FighterRef"}, "spaces": {"type": "integer", "minimum": 1}}}}
      },
      "pick": {"enum": ["one", "all"]}
     }
@@ -398,7 +398,7 @@
     "properties": {
      "op": {"const": "choose_effect"},
      "options": {"type": "array", "minItems": 2, "items": {"type": "object", "additionalProperties": false, "required": ["label", "ops"],
-      "properties": {"label": {"type": "string", "minLength": 1}, "ops": {"$ref": "#/$defs/Ops"}}}},
+      "properties": {"label": {"type": "string", "minLength": 1}, "ops": {"$ref": "#/$defs/Ops"}, "condition": {"$ref": "#/$defs/Condition"}}}},
      "amount": {"type": "integer", "minimum": 1},
      "distinct": {"type": "boolean"},
      "tag": {"$ref": "#/$defs/Name"},

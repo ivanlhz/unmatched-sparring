@@ -57,7 +57,7 @@ def snapshot(game, flow=None) -> dict:
                         for p in game.players],
             "hand_ids": [[c.card_id for c in game.players[p].hand] if p == game.bot_player else []
                          for p in (0, 1)],
-            "drawn": list(game.drawn), "actions": game.actions_left, "turn": game.turn, "said": len(game.fx.said),
+            "drawn": list(game.drawn), "actions": game.actions_left, "free": list(game.free_attacks), "turn": game.turn, "said": len(game.fx.said),
             "statuses": len(game.fx.statuses),
             "seen": [_seen(p) for p in game.players],
             "in_play": [game.fx.ongoing_card_id(p) for p in (0, 1)],
@@ -241,8 +241,13 @@ def _cards(game, before: dict, run) -> list[str]:
 def _turn(game, before: dict, run) -> list[str]:
     out = []
     gained = game.actions_left - before["actions"]
+    free = game.free_attacks[len(before.get("free", ())):] if game.turn == before["turn"] else []     # the free actions to attack (Wyatt Earp)
     if game.turn == before["turn"] and gained > 0:          # the actions belong to whoever's turn it is
-        out.append(tn("narr.gain_actions", gained, verb=t("narr.v.gain." + ("bot" if game.turn == game.bot_player else "human"))))
+        verb = t("narr.v.gain." + ("bot" if game.turn == game.bot_player else "human"))
+        if gained > len(free):
+            out.append(tn("narr.gain_actions", gained - len(free), verb=verb))
+        for target in free:
+            out.append(t("narr.gain_free_on", verb=verb, fid=target) if target else tn("narr.gain_free", 1, verb=verb))
     spent = before["actions"] - game.actions_left
     if game.turn == before["turn"] and spent > 0 and run.flags.get("end_turn") is None:      # "spend an additional action"
         out.append(tn("narr.spend_actions", spent, verb=t("narr.v.spend." + ("bot" if game.turn == game.bot_player else "human"))))

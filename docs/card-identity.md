@@ -72,6 +72,8 @@ John Henry (Stars and Stripes, character card 403 on sheet 4, slug `john-henry`)
 
 Chupacabra (Battle of Legends, Volume Three, character card 360) is another deck of sheet 176 (`tests/test_hero_chupacabra_data.py`, `tests/test_chupacabra_matrix.py`): his own `deck.identity` in `data/tts/chupacabra.json`, a matrix against the other heroes in both seats, and `SHARING` in `tests/test_card_identity.py`. His life dial is the fourth user of the Custom_Model GUID `ca8e35` (Donatello's, Tomoe Gozen's and Little Red's): told apart by the dial's name, see "Piece identity"; the matrix plays him against Donatello and Tomoe Gozen in both seats.
 
+Wyatt Earp (Stars and Stripes, character card 401 on sheet 4, slug `wyatt-earp`) is the first deck of **sheet 187**: CardIDs 18700-18729, a range no other deck uses, so for him a bare CardID already names his card. He is told apart from the rest by image and owner like every hero (`tests/test_hero_wyatt_earp_data.py`: ranges disjoint from the 22 other heroes' and images distinct in both seats, `tests/test_wyatt_earp_matrix.py`); he is not in `SHARING`.
+
 ## Houdini needs none of this
 
 Houdini's deck is sheet 178 (CardIDs 17800-17829) with the character card on a sheet of its own (177, CardID 17700); no other hero of

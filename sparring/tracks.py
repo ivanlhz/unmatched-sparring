@@ -65,13 +65,14 @@ def paths_used(game) -> int:
 
 
 def attack_only(game) -> bool:
-    """Every action left is a free action that only an attack may spend (Hear That Cold Steel Ring)."""
-    return 0 < game.actions_left <= game.fx.attack_credit
+    """Every action left is a free action that only an attack may spend (Hear That Cold Steel Ring; Wyatt Earp's `Game.free_attacks`)."""
+    return 0 < game.actions_left <= game.fx.attack_credit or (game.actions_left > 0 and game.paid_actions <= 0)
 
 
 def turn_goes_on(game) -> bool:
     """The player whose turn it is still has something to do: an action is left and, when all that is left is a free action to attack,
     an attack is possible with the hand they hold (otherwise the turn is over: nothing else may spend it)."""
+    game.prune_free_attacks(game.turn)       # a free action to attack nobody can use is lost (Wyatt Earp)
     if game.actions_left <= 0:
         return False
     if not attack_only(game):

@@ -431,7 +431,7 @@ class EngineState:
                 tuple(f.fid for f in g.fighters.values() if f.alive and not g.fx.can_move(f)),    # pinned by an effect
                 g.maneuver_bonus(g.turn),      # the Maneuver's reach moves with the hero's ability (Sinbad's VOYAGE cards in the pile)
                 g.actions_left if pack.passive(g, g.turn) else None,    # a pack's last action is spent on a blow, not on a walk (`_generate_moves`)
-                tuple(map(tuple, g.fx.tracks)), tracks.attack_only(g))      # John Henry's tracks decide his walks, and a free action to attack allows nothing else
+                tuple(map(tuple, g.fx.tracks)), tracks.attack_only(g), tuple(g.free_attacks))      # John Henry's tracks decide his walks, and a free action to attack allows nothing else (and Wyatt Earp's can be bound to a fighter)
 
     def _generate_moves(self) -> list:
         g = self.game
@@ -474,7 +474,7 @@ class EngineState:
         elif kind == "attack_card":
             att, tgt = self.partial
             self.phase, self.partial = "action", ()
-            g.use_action(attack=True)
+            g.use_action(attack=True, attack_on=tgt)
             self.pending = (att, tgt, by_title(hand, move[2]))
             g.fx.emit("attacked", g.fighters[att], g.fighters[tgt], self.pending[2])   # as Game._declare_attack does
         elif kind == "maneuver":
@@ -676,7 +676,8 @@ class EngineState:
         for f in g.own(p):
             if not self._attack_titles(p, f):
                 continue
-            out += [("attack", f.fid, t.fid) for t in g.foes(p) if g.can_declare_attack(f, t) and self._attack_titles(p, f, t)]
+            out += [("attack", f.fid, t.fid) for t in g.foes(p) if g.can_declare_attack(f, t) and self._attack_titles(p, f, t)
+                    and (g.paid_actions > 0 or g.free_attack_for(t.fid) is not None)]
         return out
 
     def _scheme_moves(self, p: int) -> list:

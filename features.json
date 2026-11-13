@@ -691,6 +691,22 @@
       "note": "Engine additions are additive (docs/effects-dsl.md, section 41). Rules decisions and Pending Iván (what a PATH is, one token per space, the free action, Knock Them Silly's timing): docs/heroes/john-henry.md. Live test pending."
     },
     {
+      "id": "HERO-WYATT-EARP",
+      "title": "Wyatt Earp (Stars and Stripes, with Doc Holliday) playable by the bot and by the human against every hero",
+      "status": "in-progress",
+      "criteria": [
+        "data/heroes/overlay/wyatt-earp.json, data/heroes/wyatt-earp.json, data/heroes/effects/wyatt-earp.json and data/tts/wyatt-earp.json generated and validated (import_hero, validate_effects, import_save); the 12 titles (30 cards, sheet 187, character card 401 on sheet 4) read from the card images and compared with the unverified transcription of Iván's screenshots: no mismatch (docs/heroes/wyatt-earp.md); ai_profile computed by the importer",
+        "His deck is the only one on sheet 187 (CardIDs 18700-18729); no GUID of his is shared with another hero (tests/test_hero_wyatt_earp_data.py)",
+        "SHOWDOWN is the hero's own AFTER with a choose_effect whose options close once a turn (options[].condition, the counters showdown_draw / showdown_attack / showdown_move reset at the start of the owner's turn): at most three SHOWDOWNs and one free action per turn, so the chain free attack - win - free attack is bounded by the data (tests/test_wyatt_earp_effects.py)",
+        "'Free action to attack' is an engine concept: Game.free_attacks marks actions that only an attack can spend (optionally only against a given fighter); a Maneuver or a scheme is refused with only free actions left; every bot loop prunes the free actions nobody can use; persisted, cloned, narrated, shown in the chat and refused at the panel (tests/test_wyatt_earp_effects.py, tests/test_wyatt_earp_human.py, tests/test_wyatt_earp_ai.py)",
+        "All 12 cards on the interpreter for both seats: Second Shot's boost, Fan The Hammer returning to the hand, the draws, the discards, Gunfight's alternating hits, I Have Two Guns (new fighter filter except), Better Swear Me In and Bring 'Em To Justice (the top card of the other deck revealed: plugins wyatt:swear_me_in, wyatt:bring_to_justice over Jill Trent's table side), In Vino Veritas and You Die First (wyatt:free_attack, wyatt:you_die_first)",
+        "The AI picks SHOWDOWN by what each effect brings (ai_wyatt.pick_showdown, verified with the heuristic and with make_bot_ai({'ai': 'ismcts'})), plays the free actions with attacks only, and prices Bring 'Em To Justice, You Die First and Better Swear Me In (tests/test_wyatt_earp_ai.py)",
+        "Wyatt Earp against each of the 22 other heroes in both seats reaches game over on FakeTTS (passive and attacking human) and in the simulator with the heuristic and the search AI (tests/test_wyatt_earp_matrix.py)",
+        "Verified live by Iván (docs/live-checklist.md, section Wyatt Earp)"
+      ],
+      "note": "Rule decisions and Pending Ivan (is the free action attack-only? does SHOWDOWN apply to Doc?): docs/heroes/wyatt-earp.md. Engine additions are additive (docs/effects-dsl.md, section 43). Live test pending."
+    },
+    {
       "id": "F-DEVIL-EMPTY-DECK",
       "title": "Cards go back into an empty draw deck (Devil of Hell's Kitchen, v0.5.0 bug)",
       "status": "done",
