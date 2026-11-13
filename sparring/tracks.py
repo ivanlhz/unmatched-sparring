@@ -41,7 +41,7 @@ def free_spaces(game, fighter, over_tracks: bool = False) -> frozenset[int]:
     fx = getattr(game, "fx", None)
     if fx is None or not any(fx.tracks):
         return frozenset()
-    if over_tracks or (fighter.hero and game.fx.hero_rule(fighter.owner, RULE)):
+    if fighter.hero and game.fx.hero_rule(fighter.owner, RULE):       # only John Henry's own walks (Power Through's `over_tracks` adds nothing for a rival: Iván, 2026-11-13)
         return placed(game)
     return frozenset()
 

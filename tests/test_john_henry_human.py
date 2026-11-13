@@ -180,7 +180,7 @@ def test_without_a_token_on_the_board_the_move_says_nothing_about_tracks(mine):
     assert said(msgs, "hasta 4 casillas") and not said(msgs, "ficha de via"), msgs
 
 
-def test_power_through_names_the_tracks_for_a_move_of_either_fighter_of_the_combat(mine, monkeypatch):
+def test_power_through_names_the_tracks_only_for_a_move_of_john_henry(mine, monkeypatch):
     session, table, game, fake, cfg = mine
     put_adjacent(game, table, cfg, "john", "hellboy")
     bot_defends_with_nothing(session, monkeypatch)
@@ -190,7 +190,7 @@ def test_power_through_names_the_tracks_for_a_move_of_either_fighter_of_the_comb
     human_plays_attack(session, table, game, "john", "hellboy", "Power Through")
     click(session, table, Event.REVEAL)
     msgs = click(session, table, Event.CHOICE, {"i": 2})                  # the fighter to move: Hellboy, the rival's
-    assert said(msgs, "hasta 2 casillas") and said(msgs, "las casillas con ficha de via no cuentan"), msgs
+    assert said(msgs, "hasta 2 casillas") and not said(msgs, "ficha de via"), msgs
 
 
 # ---------------------------------------------------------------- the free action

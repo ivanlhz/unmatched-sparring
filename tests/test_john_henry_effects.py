@@ -463,16 +463,30 @@ def test_momentous_shift_is_three_in_place_and_five_when_he_began_the_turn_elsew
     assert g.attack(john, hellboy, give(g, 0, "Momentous Shift", 1), None).atk_value == 5
 
 
-def test_power_through_moves_either_fighter_of_the_combat_two_spaces_and_the_tracks_are_free(bprd):
+def test_power_through_walks_john_henry_over_the_tracks_for_free(bprd):
+    g = mk(bprd)
+    row = chain(bprd, 8)
+    john, hellboy = fight(g, "hellboy")
+    john.pos, hellboy.pos = row[7], row[0]
+    lay(g, row[2:5])
+    g.fighters["hellboy"].pos = row[0]
+    john.pos = row[1]
+    asked = []
+    g.controllers[0].queue = [lambda req: ["john"], lambda req: asked.append(req.options) or [row[6]]]
+    g.attack(john, hellboy, give(g, 0, "Power Through"), None)
+    assert john.pos == row[6] and row[6] in asked[0] and row[7] not in asked[0]
+
+
+def test_a_rival_moved_by_power_through_pays_full_cost_for_the_track_spaces(bprd):
     g = mk(bprd)
     row = chain(bprd, 8)
     john, hellboy = fight(g, "hellboy")
     john.pos, hellboy.pos = row[0], row[1]
     lay(g, row[2:5])
     asked = []
-    g.controllers[0].queue = [lambda req: ["hellboy"], lambda req: asked.append(req.options) or [row[6]]]
+    g.controllers[0].queue = [lambda req: ["hellboy"], lambda req: asked.append(req.options) or [row[3]]]
     g.attack(john, hellboy, give(g, 0, "Power Through"), None)
-    assert hellboy.pos == row[6] and row[6] in asked[0] and row[7] not in asked[0]
+    assert row[3] in asked[0] and row[4] not in asked[0] and row[6] not in asked[0] and hellboy.pos == row[3]
 
 
 def test_power_through_without_tracks_is_an_ordinary_two_space_move(bprd):
