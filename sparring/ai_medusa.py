@@ -746,13 +746,17 @@ class MedusaAI(Controller):
     # ---------- planning ----------
     def plan(self, game: Game) -> Act:
         act = self._plan(game)
-        decision_log.emit(self, game, "plan", decision_log.describe_act(act), self.plan_alternatives(), expected=act.total)
+        decision_log.emit(self, game, "plan", lambda: self.plan_journal(act))
         return act
 
-    def plan_alternatives(self) -> list[dict]:
-        """The scored candidates of the last `plan` (the decision journal's view of it): same shape as the search's."""
-        return [{"move": decision_log.describe_act(a), "score": round(a.total, 4), "exp_damage": round(a.exp_damage, 3),
-                 "p_kill": round(a.p_kill, 3)} for a in self._ranked]
+    def plan_journal(self, act: Act) -> dict:
+        """The decision journal's view of the last `plan`: the scored candidates, the chosen one flagged (it can be an act the
+        ranking did not put first), same shape as the search's. Built only when a journal is attached."""
+        alternatives = [{"move": decision_log.describe_act(a), "score": round(a.total, 4), "exp_damage": round(a.exp_damage, 3),
+                         "p_kill": round(a.p_kill, 3), **({"chosen": True} if a is act else {})} for a in self._ranked]
+        if not any(a.get("chosen") for a in alternatives):
+            alternatives.append({"move": decision_log.describe_act(act), "score": round(act.total, 4), "chosen": True})
+        return {"chosen": decision_log.describe_act(act), "alternatives": alternatives, "expected": act.total}
 
     def _plan(self, game: Game) -> Act:
         model = Model(game, self.me)
@@ -1747,12 +1751,14 @@ class MedusaAI(Controller):
     def choose_defense(self, game: Game, attacker: Fighter, target: Fighter, attack_card: Card | None = None):
         self._defense_scores = []
         card = self._choose_defense(game, attacker, target, attack_card)
-        scores = self._defense_scores
-        chosen = {"card": None if card is None else card.title, "attacker": attacker.fid, "target": target.fid,
-                  "attack_known": None if attack_card is None else attack_card.title}
-        expected = next((s["score"] for s in scores if s["move"][1] == chosen["card"]), None)
-        decision_log.emit(self, game, "defense", chosen, sorted(scores, key=lambda s: -s["score"]), expected=expected)
+        decision_log.emit(self, game, "defense", lambda: self.defense_journal(attacker, target, attack_card, card))
         return card
+
+    def defense_journal(self, attacker: Fighter, target: Fighter, attack_card: Card | None, card: Card | None) -> dict:
+        title = None if card is None else card.title
+        scores = [{**s, **({"chosen": True} if s["move"][1] == title else {})} for s in sorted(self._defense_scores, key=lambda s: -s["score"])]
+        chosen = {"card": title, "attacker": attacker.fid, "target": target.fid, "attack_known": None if attack_card is None else attack_card.title}
+        return {"chosen": chosen, "alternatives": scores, "expected": next((s["score"] for s in scores if s.get("chosen")), None)}
 
     def _choose_defense(self, game: Game, attacker: Fighter, target: Fighter, attack_card: Card | None = None):
         """`attack_card`: the attack played face up (UNCANNY INTUITION, Perfect Shot): the one card the defense may

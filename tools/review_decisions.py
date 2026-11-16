@@ -53,7 +53,7 @@ def expected_damage(dec: dict) -> float | None:
     """What the heuristic expected its chosen attack to do (its own candidate list carries `exp_damage`)."""
     if dec["ai"] != "heuristic" or dec["kind"] != "plan" or dec["chosen"].get("kind") != "attack":
         return None
-    return next((a["exp_damage"] for a in dec["alternatives"] if a["move"] == dec["chosen"]), None)
+    return next((a["exp_damage"] for a in dec["alternatives"] if a.get("chosen") or a["move"] == dec["chosen"]), None)
 
 
 def surprises(game: dict, gap: float, damage_gap: float) -> list[tuple[dict, dict, str]]:

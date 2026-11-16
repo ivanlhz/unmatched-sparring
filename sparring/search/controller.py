@@ -108,23 +108,21 @@ class IsmctsMedusa(Controller):
         except Exception as exc:
             self._fell_back("plan")
             act = self.heuristic.plan(game)
-            decision_log.emit(self, game, "plan", decision_log.describe_act(act), self.heuristic.plan_alternatives(),
-                              fallback=True, error=repr(exc), expected=act.total)
+            decision_log.emit(self, game, "plan", lambda: {**self.heuristic.plan_journal(act), "fallback": True, "error": repr(exc)})
             return act
-        self._journal(game, "plan", decision_log.describe_act(act), before)
+        decision_log.emit(self, game, "plan", lambda: self._search_journal(decision_log.describe_act(act), before))
         return act
 
-    def _journal(self, game: Game, kind: str, chosen, before: SearchReport | None) -> None:
-        """The decision the search took, with every root alternative it weighed (visits and mean value)."""
+    def _search_journal(self, chosen, before: SearchReport | None) -> dict:
+        """The decision the search took, with every root alternative it weighed (visits and mean value), the chosen one flagged."""
         report = self.last_report if self.last_report is not before else None
         if report is None:
-            decision_log.emit(self, game, kind, chosen, [])
-            return
+            return {"chosen": chosen, "alternatives": []}
         ranked = sorted(report.visits, key=lambda m: -report.visits[m])
-        alternatives = [{"move": list(m), "visits": report.visits[m], "value": None if m not in report.values else round(report.values[m], 4)}
-                        for m in ranked]
-        decision_log.emit(self, game, kind, chosen, alternatives, iterations=report.iterations, elapsed=report.elapsed,
-                          expected=report.values.get(report.move))
+        alternatives = [{"move": list(m), "visits": report.visits[m], "value": None if m not in report.values else round(report.values[m], 4),
+                         **({"chosen": True} if m == report.move else {})} for m in ranked]
+        return {"chosen": chosen, "alternatives": alternatives, "iterations": report.iterations, "elapsed": report.elapsed,
+                "expected": report.values.get(report.move)}
 
     def _fell_back(self, what: str) -> None:
         self.fallbacks += 1
@@ -140,7 +138,6 @@ class IsmctsMedusa(Controller):
 
     def choose_defense(self, game: Game, attacker: Fighter, target: Fighter, attack_card: Card | None = None) -> Card | None:
         before = self.last_report
-        info = {"attacker": attacker.fid, "target": target.fid, "attack_known": None if attack_card is None else attack_card.title}
         try:
             card = self._choose_defense(game, attacker, target, attack_card)
         except AssertionError:
@@ -148,11 +145,17 @@ class IsmctsMedusa(Controller):
         except Exception as exc:
             self._fell_back("defense")
             card = self.heuristic.choose_defense(game, attacker, target, attack_card)
-            scores = sorted(self.heuristic._defense_scores, key=lambda s: -s["score"])
-            decision_log.emit(self, game, "defense", {"card": None if card is None else card.title, **info}, scores, fallback=True, error=repr(exc))
+            decision_log.emit(self, game, "defense", lambda: {**self.heuristic.defense_journal(attacker, target, attack_card, card),
+                                                              "fallback": True, "error": repr(exc)})
             return card
-        self._journal(game, "defense", {"card": None if card is None else card.title, **info}, before)
+        decision_log.emit(self, game, "defense", lambda: self._defense_search_journal(attacker, target, attack_card, card, before))
         return card
+
+    def _defense_search_journal(self, attacker: Fighter, target: Fighter, attack_card: Card | None, card: Card | None,
+                                before: SearchReport | None) -> dict:
+        chosen = {"card": None if card is None else card.title, "attacker": attacker.fid, "target": target.fid,
+                  "attack_known": None if attack_card is None else attack_card.title}
+        return self._search_journal(chosen, before)
 
     def _choose_defense(self, game: Game, attacker: Fighter, target: Fighter, attack_card: Card | None) -> Card | None:
         root = EngineState(game, observer=self.me, knowledge=self.knowledge(game),

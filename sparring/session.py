@@ -598,7 +598,7 @@ class Session:
         self._check_pieces()
         self._preload_identities()
         self.game_log.resumed(ai_label(self.ai))
-        self.journal.new_game(self.game, self.bot, self.ai)
+        self.journal.resume(self.game, self.bot, self.ai)
         self.ai.journal = self.journal
         self.game_log.observe(self.game, self._name)
         self.say(t("sess.resumed"))

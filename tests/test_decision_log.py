@@ -80,7 +80,7 @@ def test_a_journal_that_cannot_write_never_breaks_the_game(tmp_path, capsys):
     ai.journal = decision_log.DecisionJournal(tmp_path / "missing_folder" / "decisions.jsonl")
     outcome = sim.play(1, bot_hero="raptors", human_hero="liz-sherman", medusa=ai, max_turns=3)
     assert outcome.turns >= 1
-    assert capsys.readouterr().err.count("decision journal disabled") == 1
+    assert capsys.readouterr().err.count("decision journal problem") == 1
 
 
 def test_a_journal_that_raises_while_building_the_line_never_breaks_the_game(tmp_path, monkeypatch, capsys):
@@ -88,7 +88,75 @@ def test_a_journal_that_raises_while_building_the_line_never_breaks_the_game(tmp
     ai.journal = decision_log.DecisionJournal(tmp_path / "decisions.jsonl")
     monkeypatch.setattr(decision_log, "_side", lambda *a: 1 / 0)
     assert sim.play(1, bot_hero="raptors", human_hero="liz-sherman", medusa=ai, max_turns=3).turns >= 1
-    assert "decision journal disabled" in capsys.readouterr().err
+    assert "decision journal problem" in capsys.readouterr().err
+
+
+@pytest.mark.parametrize("kind", ["ismcts", "heuristic"])
+def test_a_line_that_cannot_be_described_never_breaks_the_game_and_without_a_journal_nothing_is_computed(tmp_path, monkeypatch, capsys, kind):
+    calls = []
+
+    def boom(act):
+        calls.append(act)
+        raise RuntimeError("cannot describe")
+    monkeypatch.setattr(decision_log, "describe_act", boom)
+    ai = IsmctsMedusa(0, SearchConfig(time_budget=60.0, iterations=10, seed=0)) if kind == "ismcts" else MedusaAI(0)
+    assert sim.play(1, bot_hero="raptors", human_hero="liz-sherman", medusa=ai, max_turns=2).turns >= 1
+    assert calls == [], "no journal attached: nothing is built"
+    ai.journal = decision_log.DecisionJournal(tmp_path / "decisions.jsonl")
+    assert sim.play(1, bot_hero="raptors", human_hero="liz-sherman", medusa=ai, max_turns=3).turns >= 1
+    assert calls and "decision journal problem" in capsys.readouterr().err
+
+
+def test_the_chosen_move_is_always_written_and_the_cut_is_declared(tmp_path):
+    path = tmp_path / "decisions.jsonl"
+    journaled_game(path, "heuristic", turns=8)
+    plans = [r for r in records(path) if r["t"] == "decision" and r["kind"] == "plan"]
+    assert plans and all(p["alternatives_total"] >= len(p["alternatives"]) for p in plans)
+    assert all(sum(1 for a in p["alternatives"] if a.get("chosen")) == 1 for p in plans)
+    assert all(next(a for a in p["alternatives"] if a.get("chosen"))["move"] == p["chosen"] for p in plans)
+    journal = decision_log.DecisionJournal(path)
+    many = [{"move": i, "score": -i} for i in range(100)] + [{"move": "last", "score": -999, "chosen": True}]
+    ai = MedusaAI(0)
+    game = sim_game()
+    journal.decision(game, 0, "plan", ai, "last", many)
+    line = records(path)[-1]
+    assert line["alternatives_total"] == 101 and len(line["alternatives"]) == decision_log.MAX_ALTERNATIVES + 1
+    assert line["alternatives"][-1]["chosen"] is True
+
+
+def sim_game():
+    from sparring.board import Board
+    from sparring.state import Game
+    return Game.new(Board.load("bprd-hq"), 1, {0: MedusaAI(0), 1: MedusaAI(1)}, bot_player=0, heroes=("raptors", "liz-sherman"))
+
+
+def test_the_outcome_names_the_card_played_even_if_it_never_reaches_the_discard_and_keeps_deck_bottom_cards_apart(tmp_path):
+    path = tmp_path / "decisions.jsonl"
+    game = sim_game()
+    journal = decision_log.DecisionJournal(path)
+    me = game.players[0]
+    played = me.hand[0]
+    journal.decision(game, 0, "plan", MedusaAI(0), {"kind": "scheme", "card": played.title}, [{"move": 1, "chosen": True}])
+    game.take_from_hand(0, played)                       # an ONGOING card leaves the hand and stays in play
+    bottom = game.players[1].deck.pop()                   # Wildfire: the bottom card of the rival's deck goes to its discard
+    game.players[1].discard.append(bottom)
+    game.turn_no += 1
+    journal.settle(game)
+    out = records(path)[-1]
+    assert out["t"] == "outcome" and out["own_cards_spent"] == [played.title]
+    assert out["rival_cards_played"] == [] and out["rival_deck_bottom_discards"] == [bottom.title]
+
+
+def test_resuming_keeps_the_game_id_and_the_numbering(tmp_path):
+    path = tmp_path / "decisions.jsonl"
+    ai = journaled_game(path, "heuristic", turns=2)
+    before = ai.journal.game_id, ai.journal.seq
+    ai.journal.resume(sim_game(), 0, ai)
+    line = records(path)[-1]
+    assert line["t"] == "resume" and line["game"] == before[0] and line["seq"] == before[1] and ai.journal.seq == before[1]
+    fresh = decision_log.DecisionJournal(path)
+    fresh.resume(sim_game(), 0, ai)
+    assert records(path)[-1]["t"] == "game" and records(path)[-1]["resumed"] is True
 
 
 def test_the_journal_sits_next_to_the_state_file(tmp_path):

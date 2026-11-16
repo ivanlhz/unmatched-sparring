@@ -97,6 +97,9 @@ def play(job: tuple) -> dict:
         game.log.clear()
         if game.winner is None:
             game.end_turn()
+        if journal_dir:
+            for p in (0, 1):
+                ctl[p].journal.settle(game)         # the outcome closes when the turn changes, as at the table
     for p in (0, 1):
         if ctl[p].journal is not None:
             ctl[p].journal.settle(game, force=True)
@@ -208,6 +211,8 @@ def main(argv: list[str] | None = None) -> int:
     if args.compare:
         compare(*args.compare)
         return 0
+    if args.games < 1:
+        ap.error("--games must be at least 1")
     if not args.matchup:
         ap.error("give at least one --matchup H0:H1")
     a_cfg, b_cfg = parse_config(args.a), parse_config(args.b)
