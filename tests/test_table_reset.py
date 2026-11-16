@@ -976,3 +976,18 @@ def test_a_configuration_error_after_the_gate_is_a_cannot_start_exit_2(gate_live
     monkeypatch.setattr(play, "pregame", lambda cfg, *a, **k: armed.append(1) or cfg)
     code = main(["--config", str(cfg_file()), *ports, "--state", str(tmp_path / "s.json")])
     assert code == 2 and "boom" in capsys.readouterr().err
+
+
+def test_the_audit_takes_the_presence_rows_of_every_pair():
+    """Live 15/11: Raptors vs Hellboy gave 41 rows and Prepare died with "too many objects to audit"."""
+    import itertools
+    from sparring.tts import lua
+    slugs = sorted(p.stem for p in table_reset.TTS_DIR.glob("*.json"))
+    worst = 0
+    for pair in itertools.permutations(slugs, 2):
+        try:
+            own = [k for s in pair for k, _ in table_reset.load_hero_table(s).unpack_items() if k != "deck"]
+        except table_reset.HeroTableError:
+            continue
+        worst = max(worst, len(own) + len(table_reset.other_hero_presence(pair)))
+    assert worst <= lua.MAX_AUDIT_PRESENCE // 2, f"{worst} rows: keep room for the heroes still to come"

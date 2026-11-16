@@ -1630,7 +1630,7 @@ return JSON.encode(out)
 """
 
 
-MAX_AUDIT_PRESENCE = 40
+MAX_AUDIT_PRESENCE = 200  # one row per object group of the pair plus one per OTHER hero with TTS data: it grows with the roster (41 with 31 heroes broke Prepare live, 15/11)
 
 
 @_registered

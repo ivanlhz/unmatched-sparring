@@ -12,7 +12,7 @@ so they disappear the moment the card leaves. Rule modifiers are global ("Player
 modifier belongs to the card's owner (`player: owner`)."""
 from __future__ import annotations
 
-from typing import Iterator
+from collections.abc import Iterator
 
 from . import inventions, table
 from .model import EffectError, load_effects, walk_ops

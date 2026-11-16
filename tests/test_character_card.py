@@ -251,3 +251,39 @@ def test_an_object_without_a_slot_stays_and_the_chat_names_it(medusa_live, cfg_f
         assert "No he colocado estos objetos" in " ".join(table.broadcasts) and "e33604" in " ".join(table.broadcasts)
     finally:
         finish(stop, t, result)
+
+
+def test_raptors_lay_their_third_dial_down_the_column_of_the_other_two():
+    """Live 15/11: Echo's dial had no slot (one sidekick slot per half), then sat half a dial off the column on the borrowed
+    counter slot. It goes under Delta's: Delta's x, the step in z between Blue and Delta."""
+    raw = config_raw()
+    for side in ("bot", "human"):
+        plan = table_layout.plan(raw, side, load_hero_table("raptors"))
+        assert plan.unplaced == [], side
+        pos = {p.guids[0]: p.slot.pos for p in plan.placements}
+        blue, delta, echo = pos["950174"], pos["c93049"], pos["deff03"]
+        assert echo[0] == delta[0], side
+        assert echo[2] - delta[2] == pytest.approx(delta[2] - blue[2]), side
+    bot = {p.guids[0]: p.slot.pos for p in table_layout.plan(raw, "bot", load_hero_table("raptors")).placements}
+    assert bot["deff03"] == pytest.approx((2.30, 1.66, 19.95), abs=0.01)
+
+
+def test_hellboy_keeps_one_sidekick_dial_and_one_counter_dial():
+    plan = table_layout.plan(config_raw(), "human", load_hero_table("hellboy"))
+    roles = [p.role for p in plan.placements]
+    assert roles.count("sidekick_dials") == 1 and roles.count("counter_dials") == 1
+
+
+def _items(*roles):
+    return [table_layout.Item(r, f"{r}{i}", (f"g{i}",), "dial") for i, r in enumerate(roles)]
+
+
+def test_extra_sidekick_dials_continue_the_column_unless_the_hero_also_lays_counter_dials():
+    dial = table_layout.Slot((0.0, 1.0, 10.0), (0.0, 0.0, 0.0))
+    one = table_layout.Slot((0.5, 1.0, 12.0), (0.0, 90.0, 0.0))
+    have = {"dial": dial, "sidekick_dials": [one]}
+    table_layout._extend_sidekick_column(have, _items("dial", "sidekick_dials", "sidekick_dials"))
+    assert have["sidekick_dials"][1] == table_layout.Slot((0.5, 1.0, 14.0), one.rot)
+    have = {"dial": dial, "sidekick_dials": [one]}
+    table_layout._extend_sidekick_column(have, _items("dial", "sidekick_dials", "sidekick_dials", "counter_dials"))
+    assert have["sidekick_dials"] == [one]

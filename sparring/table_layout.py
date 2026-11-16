@@ -134,10 +134,27 @@ def own_token_slots(side: str, table: HeroTable, name: str) -> list[Slot]:
     return [Slot(pos, rot) for pos, rot in table.token_slots.get(name, {}).get(side, ())]
 
 
+def _extend_sidekick_column(have: dict, wanted: list) -> None:
+    """A hero with more sidekick dials than sidekick slots (the Raptors: Delta and Echo, one slot) lays the extra ones down
+    the same column: the x of the last sidekick slot, one more step in z of the one between the last two dials. Live 15/11:
+    Echo's dial on the borrowed counter slot sat half a dial off the column of Blue and Delta. A hero that also lays counter
+    dials gets no extra slot (the column runs into them) and keeps the extra dials where they were unpacked."""
+    sidekicks, dial = have.get("sidekick_dials"), have.get("dial")
+    if not isinstance(sidekicks, list) or not sidekicks or not isinstance(dial, Slot):
+        return
+    need = sum(1 for i in wanted if i.role == "sidekick_dials") - len(sidekicks)
+    if need <= 0 or any(i.role == "counter_dials" for i in wanted):
+        return
+    column = [dial, *sidekicks]
+    (x, y, z), dz = column[-1].pos, column[-1].pos[2] - column[-2].pos[2]
+    have["sidekick_dials"] = sidekicks + [Slot((x, y, z + dz * k), column[-1].rot) for k in range(1, need + 1)]
+
+
 def plan(raw: dict, side: str, table: HeroTable) -> Plan:
     """The placements of `table`'s hero on `side` (everything but the character card, which the gate lays when it takes it
     out of the deck). A list role with fewer slots on `side` than objects borrows the other side's, mirrored."""
     have = _borrowing(raw, side)
+    _extend_sidekick_column(have, items(table))
     out = Plan()
     used: dict[str, int] = {}
     for item in items(table):

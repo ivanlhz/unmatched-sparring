@@ -14,7 +14,15 @@ from . import modifiers, narrate
 from .choose import ControllerChooser, TableChooser
 from .model import EffectError, load_effects
 from .ops_core import OPS, op, plugin, plugin_condition
-from .select import amount, card_ref, find_card, pick_fighters, player_of, players_of, fighter_candidates
+from .select import (
+    amount,
+    card_ref,
+    fighter_candidates,
+    find_card,
+    pick_fighters,
+    player_of,
+    players_of,
+)
 
 
 def _flow(run, name: str):
