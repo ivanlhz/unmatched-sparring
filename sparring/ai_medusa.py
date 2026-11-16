@@ -362,6 +362,12 @@ def kept_hand_value(game, player: int) -> float:
     return sum(sorted((keep_value(c, hand) for c in hand), reverse=True)[:hand_room(game, player)])
 
 
+def exhaustion_owed(shortfall: float) -> float:
+    """Draws owed to exhaustion for a shortfall of `shortfall` draws (the game lasts longer than the deck): quadratic up to BILL_SPAN
+    draws (the marginal draw costs 0, then the whole bill), linear after. Shared with the search's evaluation."""
+    return shortfall * shortfall / (2 * BILL_SPAN) if shortfall < BILL_SPAN else shortfall - BILL_SPAN / 2
+
+
 @dataclass
 class Act:
     kind: str                       # attack | maneuver | glance | frenzy | scheme (any other interpreted hero's)
@@ -1394,9 +1400,7 @@ class MedusaAI(Controller):
         length = min(t_kill, LONG_GAME)
         deck = len(game.players[self.me].deck)
         scale = min(1.0, max(DECK_SCARCITY_FLOOR, length / (deck / DRAWS_PER_TURN + 1)))
-        shortfall = max(0.0, length * DRAWS_PER_TURN - deck)
-        # quadratic up to BILL_SPAN draws of shortfall (marginal draw cost 0 -> EXHAUST_BILL), linear after
-        owed = shortfall * shortfall / (2 * BILL_SPAN) if shortfall < BILL_SPAN else shortfall - BILL_SPAN / 2
+        owed = exhaustion_owed(max(0.0, length * DRAWS_PER_TURN - deck))
         losing = 1 + max(0.0, 1 - t_die / max(t_kill, MIN_NET))     # up to x2: exhaustion on top of a lost race
         return DECK_SCARCITY.get(self.draw_budget(game), 0.0) * scale + EXHAUST_BILL * losing * owed
 

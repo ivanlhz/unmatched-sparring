@@ -6,7 +6,9 @@
     python tools/ai_duel.py --compare master.json branch.json
 
 A configuration is `heuristic` or `ismcts[:key=value,...]` with `iterations` (per decision; default 200, which makes the
-games reproducible), `time` (seconds per decision; then the iterations only cap it) and `seed` (default: the game seed).
+games reproducible), `time` (seconds per decision; then the iterations only cap it), `seed` (default: the game seed) and `eval`
+(`old`, the evaluation as the table has it, or `new`, the one of F-AI-EVAL-RESOLUTION: the weights of `search.adapter.RESOLUTION`;
+default `old`). Any weight can be set on top with `w.NAME=value` (`ismcts:eval=new,w.fighter_threat=0` leaves a term out).
 Both sides are the same engine controller type the table uses (`MedusaAI`, `IsmctsMedusa`), so what is measured is what runs.
 
 `--matchup H0:H1` puts hero H0 on player 0 and H1 on player 1. Each seed is played twice: A drives player 0 and B player 1,
@@ -35,6 +37,7 @@ sys.path.insert(0, str(Path(__file__).resolve().parent.parent))
 from sparring.ai_medusa import MedusaAI                       # noqa: E402
 from sparring.board import Board                              # noqa: E402
 from sparring.decision_log import DecisionJournal             # noqa: E402
+from sparring.search.adapter import RESOLUTION, EvalWeights   # noqa: E402
 from sparring.search.controller import IsmctsMedusa           # noqa: E402
 from sparring.search.ismcts import SearchConfig               # noqa: E402
 from sparring.state import Game                               # noqa: E402
@@ -51,14 +54,17 @@ def parse_config(spec: str) -> dict:
     if kind not in ("heuristic", "ismcts"):
         raise ValueError(f"unknown AI {kind!r} in {spec!r} (heuristic | ismcts)")
     opts = dict(item.split("=", 1) for item in rest.split(",") if item)
-    unknown = set(opts) - {"iterations", "time", "seed"}
-    if unknown or (kind == "heuristic" and opts):
-        raise ValueError(f"bad options in {spec!r}: {sorted(unknown) or 'the heuristic takes none'}")
+    unknown = {k for k in opts if k not in ("iterations", "time", "seed", "eval") and not k.startswith("w.")}
+    if unknown or (kind == "heuristic" and opts) or opts.get("eval", "old") not in ("old", "new"):
+        raise ValueError(f"bad options in {spec!r}: {sorted(unknown) or 'the heuristic takes none, and eval is old or new'}")
     cfg: dict = {"ai": kind, "spec": spec}
     if kind == "ismcts":
         cfg["iterations"] = int(opts["iterations"]) if "iterations" in opts else (None if "time" in opts else DEFAULT_ITERATIONS)
         cfg["time"] = float(opts.get("time", 3600.0))
         cfg["seed"] = int(opts["seed"]) if "seed" in opts else None
+        weights = dict(RESOLUTION) if opts.get("eval") == "new" else {}
+        weights.update({k[2:]: float(v) for k, v in opts.items() if k.startswith("w.")})
+        cfg["weights"] = weights
     return cfg
 
 
@@ -66,7 +72,8 @@ def make_ai(cfg: dict, me: int, game_seed: int):
     if cfg["ai"] == "heuristic":
         return MedusaAI(me)
     seed = game_seed if cfg["seed"] is None else cfg["seed"]
-    return IsmctsMedusa(me, SearchConfig(time_budget=cfg["time"], iterations=cfg["iterations"], seed=seed))
+    return IsmctsMedusa(me, SearchConfig(time_budget=cfg["time"], iterations=cfg["iterations"], seed=seed),
+                        EvalWeights(**cfg["weights"]), frozenset(cfg["weights"]))
 
 
 def wilson(score: float, n: int) -> tuple[float, float]:
