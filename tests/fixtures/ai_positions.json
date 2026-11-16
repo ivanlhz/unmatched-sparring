@@ -1,0 +1,308 @@
+{
+  "raptors_liz_t1_opening": {
+    "source": "Live game 16/11 08:50, Raptors bot vs Liz (state/session.log lines 6507-6560), the bot's first decision of turn 1: its hand as dealt, Echo moved to space 2 by the setup (line 6512)",
+    "heroes": [
+      "raptors",
+      "liz-sherman"
+    ],
+    "board": "bprd-hq",
+    "seed": 3,
+    "turn": 0,
+    "turn_no": 1,
+    "actions_left": 2,
+    "fighters": {
+      "echo": {
+        "pos": 2
+      }
+    },
+    "hands": {
+      "0": [
+        "Decoy",
+        "Pack Hunters",
+        "Working Things Out",
+        "Ambush",
+        "Feint"
+      ]
+    },
+    "good_player": "Turn 1, five cards in hand and no target in reach: move without discarding a boost (the maneuver's draw refills the hand) and keep Ambush. The live bot discarded Ambush as a maneuver boost, then Working Things Out, then Pack Hunters: three cards in one turn."
+  },
+  "raptors_liz_t2_echo_feint": {
+    "source": "Live game 16/11 08:53, Raptors bot vs Liz, turn 2: the second Flame Lash (value 1) on Echo, answered with Feint, the last defence card of the bot's hand (state/session.log lines 6561-6573). Liz stood at 12 HP after Pack Hunters (line 6531) and Wildfire put Fireball (log 6541) and the Flame Lash it discarded (log 6554) back in her hand: those two are the cards of hers the bot knows",
+    "heroes": [
+      "raptors",
+      "liz-sherman"
+    ],
+    "board": "bprd-hq",
+    "seed": 7,
+    "turn": 1,
+    "turn_no": 2,
+    "actions_left": 2,
+    "fighters": {
+      "liz": {
+        "pos": 30,
+        "hp": 12
+      },
+      "blue": {
+        "pos": 29,
+        "hp": 7
+      },
+      "echo": {
+        "pos": 31,
+        "hp": 6
+      },
+      "delta": {
+        "pos": 19
+      }
+    },
+    "hands": {
+      "0": [
+        "Feint",
+        "Disengage"
+      ],
+      "1": [
+        "Fireball",
+        "Flame Lash"
+      ]
+    },
+    "hand_sizes": {
+      "1": 5
+    },
+    "known_in_hand": {
+      "0": [
+        "Fireball",
+        "Flame Lash"
+      ]
+    },
+    "discard": {
+      "0": [
+        "Ambush",
+        "Working Things Out",
+        "Pack Hunters",
+        "Decoy"
+      ],
+      "1": [
+        "Feint"
+      ]
+    },
+    "attack": {
+      "attacker": "liz",
+      "target": "echo"
+    },
+    "kill_probability_limit": 0.25,
+    "good_player": "The attack is face down and the bot sees two of Liz's five cards (Fireball, 5 damage, and Flame Lash, 1); the other three come from the 27 cards of her set that are neither public nor known. The test computes the probability that at least one of those three can kill Echo (value 6 or more, Incinerate), hypergeometric over that pool: an upper bound of the chance that the face-down attack kills. At most 25 % (Ivan, 16/11): a good player keeps the last defence card against a jab; above that the test is skipped with the number. Defending once earlier (Decoy, with three cards in hand) is reasonable, so that position is not a decision test."
+  },
+  "raptors_hellboy_t2_pure_movement": {
+    "source": "Live game 15/11 20:56, Raptors bot vs Hellboy, turn 2 (state/session.log lines 6258-6300): hand of five, then Working Things Out (a scheme that only moves), They Remember as a maneuver boost, Clever Girl and Eaten Alive; the maneuver drew Disengage (line 6274). Spaces and Hellboy's 18 HP are the live ones; Hellboy holds 7 cards after his two maneuvers with a draw (lines 6252 and 6257), their titles are not in the log",
+    "heroes": [
+      "raptors",
+      "hellboy"
+    ],
+    "board": "bprd-hq",
+    "seed": 5,
+    "turn": 0,
+    "turn_no": 2,
+    "actions_left": 2,
+    "fighters": {
+      "blue": {
+        "pos": 30
+      },
+      "delta": {
+        "pos": 31
+      },
+      "echo": {
+        "pos": 28
+      },
+      "hellboy": {
+        "pos": 2,
+        "hp": 18
+      },
+      "lobster": {
+        "pos": 4,
+        "hp": 6
+      }
+    },
+    "hands": {
+      "0": [
+        "Working Things Out",
+        "Decoy",
+        "Eaten Alive",
+        "Clever Girl",
+        "They Remember"
+      ]
+    },
+    "hand_sizes": {
+      "1": 7
+    },
+    "deck_top": {
+      "0": [
+        "Disengage"
+      ]
+    },
+    "pure_movement_limit": 1,
+    "good_player": "Ivan, 16/11: do not spend more than ONE card on pure movement in a turn. Pure movement is a scheme whose only effect is to move (Working Things Out) and any card used as a maneuver boost; cards played to attack or to defend do not count. The live bot spent two (Working Things Out and They Remember as a boost) before attacking with the rest."
+  },
+  "liz_raptors_t6_back_and_forth": {
+    "source": "Live game 16/11 15:59, Liz bot vs Raptors human, turn 6 (state/session.log lines 6909 and 6913): after Searing Clarity, maneuver 8 -> 9 (draws Rekindle) then 9 -> 8. Approximate: Liz's HP and the Raptors' hands are estimates; the spaces and the drawn card are the log's",
+    "heroes": [
+      "liz-sherman",
+      "raptors"
+    ],
+    "board": "bprd-hq",
+    "seed": 11,
+    "turn": 0,
+    "turn_no": 6,
+    "actions_left": 2,
+    "fighters": {
+      "liz": {
+        "pos": 8,
+        "hp": 10
+      },
+      "blue": {
+        "pos": 14,
+        "hp": 7
+      },
+      "delta": {
+        "pos": 15,
+        "hp": 7
+      },
+      "echo": {
+        "pos": 19,
+        "hp": 7
+      }
+    },
+    "hands": {
+      "0": [
+        "Feint",
+        "Flame Lash"
+      ],
+      "1": [
+        "Feint",
+        "Eviscerate",
+        "Pack Hunters",
+        "Decoy"
+      ]
+    },
+    "deck_top": {
+      "0": [
+        "Rekindle"
+      ]
+    },
+    "discard": {
+      "0": [
+        "Fight Or Flight",
+        "Searing Clarity"
+      ],
+      "1": []
+    },
+    "good_player": "Two maneuvers that end on the starting space draw two cards from a deck Wildfire is already burning and gain nothing. A good player moves once toward a useful space (the centre, or several zones for Wildfire) and uses the other action on something else, or does not maneuver twice."
+  },
+  "liz_raptors_t14_back_and_forth": {
+    "source": "Live game 16/11 16:09, Liz bot vs Raptors human, turn 14 (state/session.log lines 7052 and 7056): maneuver 9 -> 8 (draws Burning Barrier) then 8 -> 9. Approximate: Liz's HP and the Raptors' hands are estimates",
+    "heroes": [
+      "liz-sherman",
+      "raptors"
+    ],
+    "board": "bprd-hq",
+    "seed": 11,
+    "turn": 0,
+    "turn_no": 14,
+    "actions_left": 2,
+    "fighters": {
+      "liz": {
+        "pos": 9,
+        "hp": 8
+      },
+      "blue": {
+        "pos": 15,
+        "hp": 7
+      },
+      "delta": {
+        "pos": 26,
+        "hp": 7
+      },
+      "echo": {
+        "pos": 30,
+        "hp": 7
+      }
+    },
+    "hands": {
+      "0": [
+        "Flame Lash",
+        "Rekindle",
+        "Rekindle"
+      ],
+      "1": [
+        "Feint",
+        "Eviscerate",
+        "Pack Hunters",
+        "Decoy"
+      ]
+    },
+    "deck_top": {
+      "0": [
+        "Burning Barrier"
+      ]
+    },
+    "discard": {
+      "0": [
+        "B.P.R.D. Training"
+      ],
+      "1": []
+    },
+    "good_player": "Same as turn 6: out and back with Rekindle x2 and Flame Lash in hand burns two draws for nothing."
+  },
+  "liz_raptors_t20_back_and_forth": {
+    "source": "Live game 16/11 16:13, Liz bot vs Raptors human, turn 20 (state/session.log lines 7163 and 7167): maneuver 9 -> 10 (draws Fireball) then 10 -> 9. Burning Barrier came back to her hand from Wildfire (lines 7161-7162), so it is in the hand and not in the discard. Approximate: only Raptor Blue's space is in that turn's log, the other two Raptors are placed as at turn 14",
+    "heroes": [
+      "liz-sherman",
+      "raptors"
+    ],
+    "board": "bprd-hq",
+    "seed": 11,
+    "turn": 0,
+    "turn_no": 20,
+    "actions_left": 2,
+    "fighters": {
+      "liz": {
+        "pos": 9,
+        "hp": 6
+      },
+      "blue": {
+        "pos": 23,
+        "hp": 7
+      },
+      "delta": {
+        "pos": 26,
+        "hp": 7
+      },
+      "echo": {
+        "pos": 30,
+        "hp": 7
+      }
+    },
+    "hands": {
+      "0": [
+        "Flame Lash",
+        "Pyrotechnics",
+        "Burning Barrier",
+        "Rekindle"
+      ],
+      "1": [
+        "Feint",
+        "Eviscerate",
+        "Pack Hunters",
+        "Decoy"
+      ]
+    },
+    "deck_top": {
+      "0": [
+        "Fireball"
+      ]
+    },
+    "discard": {
+      "0": [],
+      "1": []
+    },
+    "good_player": "Same as turns 6 and 14, now with Pyrotechnics and Burning Barrier in hand: spend the actions on something that changes the position."
+  }
+}

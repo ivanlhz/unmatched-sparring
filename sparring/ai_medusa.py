@@ -61,7 +61,7 @@ from collections import Counter
 from math import ceil, comb
 
 from . import ai_ciri as ciri_ai
-from . import enraged
+from . import decision_log, enraged
 from .cards import can_be_boost
 from .ai_hazards import attack_harm, zone_cover_factor, zone_hazard
 from .combat import GAZE_DAMAGE, GLANCE_DAMAGE, ON_EARTH
@@ -662,6 +662,9 @@ class MedusaAI(Controller):
         self._plan_spot: int | None = None
         self._strike_cache: dict = {}
         self._effect_ai = None
+        self.journal = None                 # decision_log.DecisionJournal: set by whoever wants the decisions written
+        self._ranked: list = []             # the candidates of the last plan and the scores of the last defence: for the journal
+        self._defense_scores: list = []
 
     # ---------- game setup ----------
     def style(self, game: Game) -> frozenset:
@@ -742,8 +745,22 @@ class MedusaAI(Controller):
 
     # ---------- planning ----------
     def plan(self, game: Game) -> Act:
+        act = self._plan(game)
+        decision_log.emit(self, game, "plan", lambda: self.plan_journal(act))
+        return act
+
+    def plan_journal(self, act: Act) -> dict:
+        """The decision journal's view of the last `plan`: the scored candidates, the chosen one flagged (it can be an act the
+        ranking did not put first), same shape as the search's. Built only when a journal is attached."""
+        alternatives = [{"move": decision_log.describe_act(a), "score": round(a.total, 4), "exp_damage": round(a.exp_damage, 3),
+                         "p_kill": round(a.p_kill, 3), **({"chosen": True} if a is act else {})} for a in self._ranked]
+        if not any(a.get("chosen") for a in alternatives):
+            alternatives.append({"move": decision_log.describe_act(act), "score": round(act.total, 4), "chosen": True})
+        return {"chosen": decision_log.describe_act(act), "alternatives": alternatives, "expected": act.total}
+
+    def _plan(self, game: Game) -> Act:
         model = Model(game, self.me)
-        ranked = self.candidates(game, model)
+        ranked = self._ranked = self.candidates(game, model)
         kill = self.lethal_attack(game, ranked)
         # an act the ranking already sees winning the game (Pact Of Peace on a 1 HP hero) beats the shortcut
         if kill is not None and not (ranked[0] is not kill and ranked[0].total >= DEATH / 2):
@@ -1732,6 +1749,18 @@ class MedusaAI(Controller):
         return best
 
     def choose_defense(self, game: Game, attacker: Fighter, target: Fighter, attack_card: Card | None = None):
+        self._defense_scores = []
+        card = self._choose_defense(game, attacker, target, attack_card)
+        decision_log.emit(self, game, "defense", lambda: self.defense_journal(attacker, target, attack_card, card))
+        return card
+
+    def defense_journal(self, attacker: Fighter, target: Fighter, attack_card: Card | None, card: Card | None) -> dict:
+        title = None if card is None else card.title
+        scores = [{**s, **({"chosen": True} if s["move"][1] == title else {})} for s in sorted(self._defense_scores, key=lambda s: -s["score"])]
+        chosen = {"card": title, "attacker": attacker.fid, "target": target.fid, "attack_known": None if attack_card is None else attack_card.title}
+        return {"chosen": chosen, "alternatives": scores, "expected": next((s["score"] for s in scores if s.get("chosen")), None)}
+
+    def _choose_defense(self, game: Game, attacker: Fighter, target: Fighter, attack_card: Card | None = None):
         """`attack_card`: the attack played face up (UNCANNY INTUITION, Perfect Shot): the one card the defense may
         know; otherwise the value is the distribution of what the rival may have committed."""
         model = Model(game, self.me)
@@ -1749,12 +1778,14 @@ class MedusaAI(Controller):
             best, best_v = None, None
             options = [None] + [c for c in hand if c.can_defend and c.usable_by(target.name)]
             seen = set()
+            self._defense_scores = scores = []
             for c in options:
                 if c is not None:
                     if c.title in seen:
                         continue
                     seen.add(c.title)
                 v = self.eval_defense(game, model, dist, target, c)
+                scores.append({"move": ["defend", None if c is None else c.title], "score": round(v, 4)})
                 if best_v is None or v > best_v + 1e-9:
                     best, best_v = c, v
         finally:

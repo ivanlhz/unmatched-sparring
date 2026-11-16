@@ -43,18 +43,18 @@ class GameLog:
         except Exception as e:
             self._warn("line", e)
 
-    def new_game(self, heroes: tuple[str, str]) -> None:
-        """Separator header of a fresh game (also after Restart game)."""
+    def new_game(self, heroes: tuple[str, str], ai: str | None = None) -> None:
+        """Separator header of a fresh game (also after Restart game); `ai` names the AI and its budget."""
         self._prev = None
         try:
             when = time.strftime("%Y-%m-%d %H:%M:%S", time.localtime(self.clock()))
-            self._write(f"\n==== New game {when} | bot: {heroes[0]} vs human: {heroes[1]} ====")
+            self._write(f"\n==== New game {when} | bot: {heroes[0]} vs human: {heroes[1]}{'' if ai is None else f' | ai: {ai}'} ====")
         except Exception as e:
             self._warn("header", e)
 
-    def resumed(self) -> None:
+    def resumed(self, ai: str | None = None) -> None:
         self._prev = None
-        self.line("---- Game resumed from the saved state ----")
+        self.line("---- Game resumed from the saved state" + ("" if ai is None else f" | ai: {ai}") + " ----")
 
     def chat(self, text: str) -> None:
         self.line(str(text))
