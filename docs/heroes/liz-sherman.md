@@ -45,6 +45,7 @@ The other 15 (Fleeting Moments x3, B.P.R.D. Training x2, Rekindle x2, Feint x3, 
 
 ## Hidden information (Iván's rule: it is only looked at when a card says so)
 - Bottom of the deck (ability, Flame Lash): nobody knows it until it is discarded; the bot values Flame Lash with the remaining deck, except for what it put there itself with Pyrotechnics (it remembers it in order). Shuffling (Rekindle, Searing Clarity) erases that memory.
+- Bottom of the bot's REAL deck (F-LIZ-REAL-BOTTOM, 16/11): the engine's deck is rebuilt at every hand read in the order of the card list, not the table's, so its last card is not the real bottom. The bot reads the bottom card of its real deck (`lua.peek_deck_bottom`, `session_peek.read_bottom`) only at the moment an effect discards it: just before its turn starts in the engine (Wildfire) and just before a combat with its Flame Lash resolves. That card becomes the engine's last; nothing else of the order changes. It is never read to decide a play. In a combat it stays pinned as the last card until the combat closes (a pause rereads the hand), then it is forgotten. If the table does not give it, the chat says so and the engine order decides.
 - Fleeting Moments: the rival's random discard is drawn by the human or by a uniform index; the discarded card is public and is discounted from KnownHand. Its draw is an unseen card.
 - Incinerate: the rival chooses which 2 to discard; public when discarded.
 - Wildfire: the burning card that returns to the hand is public: it becomes part of the rival's known hand.

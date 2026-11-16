@@ -337,6 +337,12 @@ class Table:
         else:
             fn()
 
+    def do_peek_deck_bottom(self, s):
+        """`bot_deck` is the real deck, top first (a deal pops its first entries): its last entry is the bottom card."""
+        if not self.bot_deck:
+            return {"found": False, "deck": False}
+        return {"found": True, "id": self.bot_deck[-1], "quantity": len(self.bot_deck)}
+
     def do_read_hand(self, s):
         self._tick()
         if 'Player["Red"]' in s:

@@ -124,6 +124,7 @@ Each hero has two blocks: **H** (you play it) and **B** (the bot plays it). What
 **B (bot)**
 - [ ] **Burning** cards (BOOST 0): it does not use them as a boost; discarded by Wildfire they return to the hand.
 - [ ] **Wildfire** (start of its turn): discards the bottom card and it is projected on the table; costs 1 extra message before its first action (note whether it bothers).
+- [ ] **The bottom card is the real one (F-LIZ-REAL-BOTTOM, never seen live)**: before you end your turn, turn the bot's deck over and note its bottom card; Wildfire must discard exactly that card (not a card from the middle of the deck), also on the turn after its Pyrotechnics put two cards under the deck (the second one it put is the bottom). Same for **Flame Lash**: the card it discards for its BOOST is the one under the deck at that moment. It reads the bottom with one more message (`peek_deck_bottom`: the LAST entry of the deck's contents; verify live that the last entry is the physical bottom) at the start of its turn and one when Flame Lash resolves. If the chat says it could not read the bottom of its deck, it used its own order: check `bot_deck_guid` and the deck's zone.
 - [ ] **Exception**: a burning card discarded for the hand limit (7) at the end of the turn does **NOT** return to the hand; it stays in the discard.
 - [ ] The bot's **Incinerate**: you answer Yes/No on the panel before the damage.
 - [ ] The bot's Fleeting Moments / Confront: the chat **names the card** you must discard; you discard it.

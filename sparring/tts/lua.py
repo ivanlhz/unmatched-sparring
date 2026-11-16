@@ -3713,6 +3713,26 @@ return JSON.encode({{found = true, id = first.CardID, quantity = deck.type == "C
 
 
 @_registered
+def peek_deck_bottom(deck_guid: str, id_range: tuple[int, int] = BOT_CARD_IDS, *, identity,
+                     spot: tuple[float, float] | None = None, zone: str | None = None,
+                     radius: float = DECK_RADIUS) -> str:
+    """Read only: the CardID of the BOTTOM card of a deck, the last of its contents (entry 1 is the draw top, see
+    `lua_deck`), looked up as `ours` (`id_range` and the image of `identity`). A single loose Card is its own bottom.
+    Returns `{found, id, quantity}` (`deck = false` when the deck is not there, `found = false` when its bottom card is
+    not ours). Liz Sherman's WILDFIRE and Flame Lash discard that card: the engine's deck order is not the table's."""
+    own = _ours_lua(identity, id_range) + _deck_finder(spot, radius, zone)
+    return f"""-- sparring:peek_deck_bottom
+{own}local deck = findDeck({_guid(deck_guid)})
+if deck == nil then return JSON.encode({{found = false, deck = false}}) end
+local data = deck.getData()
+local cards = data.ContainedObjects or {{}}
+local last = deck.type == "Card" and data or cards[#cards]
+if last == nil or not cardOurs(last, data.CustomDeck) then return JSON.encode({{found = false}}) end
+return JSON.encode({{found = true, id = last.CardID, quantity = deck.type == "Card" and 1 or #cards}})
+"""
+
+
+@_registered
 def card_home(card_guid: str, pos: tuple[float, float, float], rot: tuple[float, float, float],
               id_range: tuple[int, int] = BOT_CARD_IDS, *, identity) -> str:
     """Puts a loose card of ours (by GUID, in no hand zone) back at `pos` with the turn `rot` (instant): the last card of a

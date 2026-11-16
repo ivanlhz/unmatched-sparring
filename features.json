@@ -1026,6 +1026,23 @@
         "Zone damage of a rival hero (ai_hazards.zone_exposed): per Raptor in the zone, summed, in the search's threat() and the heuristic's zone_hazard_cost; 20 games vs Medusa: 0.46 Raptors in her zone per bot turn against 0.57 unaware and 0.59 hero-only",
         "Still attacks every turn against a rival with no zone damage and against Medusa (tests/test_raptors_ai.py)"
       ]
+    },
+    {
+      "id": "F-LIZ-REAL-BOTTOM",
+      "title": "Bot Liz: Wildfire and Flame Lash discard the bottom card of the REAL deck (live 16/11: a burning card back in the hand every turn)",
+      "status": "done",
+      "criteria": [
+        "Root cause: Session.read_bot_hand rebuilds the engine deck at every button in the order of the card list (session_peek.engine_order), so the engine's last card was the last copy of the list in no hand and no pile (Fight Or Flight, then Searing Clarity twice); the bottom card of the real, shuffled deck was never read and the table moved the engine's card out of the middle of the deck",
+        "lua.peek_deck_bottom (read only): the last entry of the deck's ContainedObjects (entry 1 is the draw top), a lone card is its own bottom; same identity check as peek_deck_top",
+        "session_peek.read_bottom: just before the engine resolves an effect that discards the bottom card of the bot's deck, the real bottom card is read and becomes the engine's last; the rest of the engine order stays. Queued writes go out first. A deck of one card is not read",
+        "Read at the three places a bot turn starts (Session._after_human_action, start_bot_turn, _start_first_turn) only for a hero whose start-of-turn trigger discards the deck bottom (modifiers.start_of_turn_discards_bottom, from the effects data), and in Session._resolve_combat when the bot's card boosts with the deck bottom (combat.deck_boost: Flame Lash, Untested enhancements). Never to decide a play: Ivan's hidden-information rule",
+        "In a combat the card is pinned (peek_pins bottom) so a hand read at a pause keeps it last, and the pin is dropped when the combat closes (a cancelled Flame Lash leaves no knowledge behind)",
+        "A table that does not give the card: the chat says so (peek.own_bottom_failed) and the engine order decides as before",
+        "A card discarded from the bot's deck that an effect returns to its hand in the same step (Flame Lash on a burning bottom card; Wildfire with wildfire_hold 0) is taken out of the real deck by CardID (session_bot_effects._bot_cards -> session_search.take with `returned`: no shuffle, its own chat line search.returned); before, the table dealt the TOP card in its place",
+        "Tests: tests/test_liz_deck_bottom.py (11): ISMCTS bot in a batch session, real bottom Feint -> Wildfire discards Feint and Liz moves; burning real bottom returns to the hand; unreadable deck falls back and says so; one-card deck and a hero without the effect are never read; Flame Lash adds the real bottom card's BOOST; Flame Lash on a burning bottom card moves that card to the hand; the pin survives a hand read and is forgotten; three Lua tests on the stub. The fake table answers peek_deck_bottom with the last entry of its top-first bot_deck",
+        "Tests changed: test_pact_peace_end_of_turn (bot Liz defended with Pyrotechnics and put a Searing Clarity under her deck; Wildfire now turns that card and Baba, in her zone, takes 1 more: 11, not 12); test_multihero_bridge (Liz's bot turn budget 4 -> 5 messages: the read); test_review4 (the new read-only builder in the allowlist)"
+      ],
+      "note": "Needs a live check: the card Wildfire turns is the one physically under the deck (turn the deck over before ending your turn), also right after Pyrotechnics put two cards there; Flame Lash the same; one extra message at the start of Liz's turn and one when Flame Lash resolves."
     }
   ]
 }

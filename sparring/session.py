@@ -554,6 +554,7 @@ class Session:
             g.start_first_turn()
             return
         before, fx_before = self._snapshot_bot(), bot_effects.snapshot(self)
+        peek.turn_start_bottom(self)
         probe = self._wildfire_probe()
         g.start_first_turn()
         self._turn_change_debt(before, fx_before)
@@ -2632,6 +2633,8 @@ class Session:
             else:
                 for b in boosts:
                     self.make_known(b, keep=(human_card, *boosts))
+            if p.bot_card is not None and deck_boost(p.bot_card) and g.fx.interprets(self.bot):
+                p.combat["bottom"] = peek.read_bottom(self, pin=True)     # the bot's Flame Lash discards its real bottom card
             p.combat["fx"] = bot_effects.snapshot(self)   # after the human's cards are known: the diff is the effects'
             if p.declared is not None:           # the `attacked` event already spent a token: project from before it
                 p.combat["fx"]["counters"] = dict(p.declared["counters"])
@@ -2770,6 +2773,7 @@ class Session:
         """The combat is over: the table shows it (flips, discards, dials) and the human resolves what is theirs."""
         g = self.game
         c = p.combat
+        peek.forget_bottom(self, c.get("bottom"))
         flip_cards = [(p.bot_card_guid, "bot"), (c["human_guid"], "human")]
         discarded_now = p.bot_card is not None and p.bot_card in g.players[self.bot].discard
         if discarded_now and c["flip"] and self.cfg.batch and not c.get("flipped"):
@@ -3462,6 +3466,7 @@ class Session:
         hp0 = {fid: f.hp for fid, f in g.fighters.items()}
         self._attack_announced = None             # a new turn: an identical attack is announced again
         g.end_turn()
+        peek.turn_start_bottom(self)
         probe = self._wildfire_probe()
         self._begin_turn(g)                       # the turn change is atomic; what follows is only I/O
         self._turn_change_debt(before, fx_before)
@@ -3476,6 +3481,7 @@ class Session:
 
     def start_bot_turn(self) -> None:
         before, fx_before = self._snapshot_bot(), bot_effects.snapshot(self)
+        peek.turn_start_bottom(self)
         probe = self._wildfire_probe()
         self._begin_turn(self.game)
         self._turn_change_debt(before, fx_before)

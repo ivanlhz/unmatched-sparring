@@ -156,6 +156,60 @@ def engine_order(session, unseen: list) -> list:
             + [by_id[i] for i in pins["bottom"]])
 
 
+# ---------------------------------------------------------------- the bottom card of the bot's own deck
+
+def read_bottom(session, pin: bool = False) -> int | None:
+    """The bot's engine deck is rebuilt at every hand read in the order of its card list (`engine_order`), which is not the
+    shuffled deck's: an effect that discards the BOTTOM card (Liz Sherman's WILDFIRE and Flame Lash, Untested enhancements)
+    would take a card the table does not have there. Called just before the engine resolves one: the bottom card of the real
+    deck is read and becomes the engine's last, the rest of the engine order stays. The card is hidden until a card says to
+    discard it, so it is read only then, never to decide a play. Writes still queued go out first (cards on their way to the
+    bottom of the deck). With `pin` the card stays the engine's last through the hand reads of a combat that stops at a
+    choice; the CardID is returned when this call pinned it (`forget_bottom` undoes it). A table that does not give the card
+    is said, and the engine order decides as before."""
+    from .session import SessionError
+    cfg, st = session.cfg, session.game.players[session.bot]
+    if len(st.deck) < 2:
+        return None
+    try:
+        if session._queue:
+            session._flush()
+        res = session.client.call_lua(lua.peek_deck_bottom(cfg.bot_deck_guid, cfg.bot_card_ids, identity=session._identity(),
+                                                            **session._deck_kw()))
+    except ERRORS + (SessionError, ValueError, TypeError):
+        res = None
+    found = res["id"] if isinstance(res, dict) and res.get("found") and _is_int(res.get("id")) else None
+    card = next((c for c in st.deck if c.card_id == found), None)
+    if card is None:
+        session.say(t("peek.own_bottom_failed"), ChatKind.WARNING)
+        return None
+    st.deck.remove(card)
+    st.deck.append(card)
+    bottoms = session.peek_pins["bottom"]
+    if not pin or bottoms[-1:] == [card.card_id]:
+        return None
+    if card.card_id in bottoms:
+        bottoms.remove(card.card_id)
+    bottoms.append(card.card_id)
+    return card.card_id
+
+
+def forget_bottom(session, card_id: int | None) -> None:
+    """The combat `read_bottom` pinned a card for is over: if the card is still in the deck (the effect was cancelled), the
+    bot does not go on knowing where it is."""
+    if card_id in session.peek_pins["bottom"]:
+        session.peek_pins["bottom"].remove(card_id)
+
+
+def turn_start_bottom(session) -> None:
+    """Before the bot's turn starts in the engine: its hero's start of turn discards the bottom card of the deck (WILDFIRE)."""
+    from .effects.modifiers import start_of_turn_discards_bottom
+    game = session.game
+    slug = game.hero_def(session.bot).slug
+    if slug in game.fx.dsl_heroes and start_of_turn_discards_bottom(slug):
+        read_bottom(session)
+
+
 # ---------------------------------------------------------------- the bot looks at the human's deck
 
 def read_top(session, player: int, n: int | None = None) -> "int | list[int] | None":

@@ -237,7 +237,11 @@ def _bot_cards(session, before: dict, moved: set, intents: list[dict], ctx: Ctx)
              for i in it["cards"] if i in b0["deck"] and i in b1["hand"]]        # picked by what they are: taken out of the real deck by CardID
     if exact:
         checks += translate(session, {"op": "search_deck", "player": bot, "n": len(exact), "cards": exact}, ctx) or []
-    taken -= len(exact)
+    back = list(dict.fromkeys(i for it in intents if it["op"] == "put_in_hand" and it["player"] == bot for i in it["cards"]
+                              if i in b0["deck"] and i in b1["hand"] and i not in moved and i not in exact))
+    if back:           # discarded from the deck and returned by an effect (Wildfire's burning bottom card): that very card, never a top-deck deal
+        checks += translate(session, {"op": "search_deck", "player": bot, "n": len(back), "cards": back, "returned": True}, ctx) or []
+    taken -= len(exact) + len(back)
     if taken > 0:
         checks += translate(session, {"op": "search_deck", "player": bot, "n": taken}, ctx) or []
     return checks

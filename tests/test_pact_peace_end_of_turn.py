@@ -103,5 +103,8 @@ def test_baba_that_attacked_loses_1_at_the_end_of_your_turn_without_koschei_and_
     click(session, table, Event.MANEUVER)
     msgs = click(session, table, Event.END_ACTION)
     baba = game.fighters["baba"]
-    assert baba.hp == 12 and dial(session, table, "baba") == 12
     assert said(msgs, "Pact Of Peace: baba -1 PV (12)")
+    # Liz defended with Pyrotechnics and put a Searing Clarity under her deck: her Wildfire then turns that card, the
+    # bottom of the REAL deck (F-LIZ-REAL-BOTTOM), which is burning: 1 more damage to Baba, who stands in her zone
+    assert table.hand_moves == [("bottom", [table.hand_moves[0][1][0]])] and table.hand_moves[0][1][0] in table.bot_hand
+    assert baba.hp == 11 and dial(session, table, "baba") == 11

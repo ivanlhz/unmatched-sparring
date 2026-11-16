@@ -19,7 +19,8 @@ def take(session, intent: dict, ctx: Ctx) -> list:
     from .session import SessionError
     cfg, by_id = session.cfg, session.game.cards_by_id(session.bot)
     titles = ", ".join(by_id[i].title for i in intent["cards"] if i in by_id)
-    session.say(t("search.revealed", cards=titles), ChatKind.SCHEME)
+    returned = bool(intent.get("returned"))       # discarded from the deck and back in the hand (Wildfire): no search, no shuffle
+    session.say(t("search.returned" if returned else "search.revealed", cards=titles), ChatKind.SCHEME)
     ops = []
     for card_id in intent["cards"]:
         try:
@@ -29,7 +30,7 @@ def take(session, intent: dict, ctx: Ctx) -> list:
         except ERRORS + (SessionError, ValueError, TypeError):
             session.say(t("search.not_taken", card=by_id[card_id].title), ChatKind.WARNING)
 
-    if ops:                                      # a search ends with a shuffle (the real deck, whose order nobody knows)
+    if ops and not returned:                     # a search ends with a shuffle (the real deck, whose order nobody knows)
         try:
             ops.append((None, session._w(lua.shuffle_deck(cfg.bot_deck_guid, cfg.bot_deck_spot, identity=session._identity(),
                                                           id_range=cfg.bot_card_ids, zone=cfg.bot_deck_zone), DOMAIN)))

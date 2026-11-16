@@ -123,12 +123,21 @@ def defers_defeat(card) -> bool:
     return fx is not None and fx.defers_defeat
 
 
+def _discards_deck_bottom(ops) -> bool:
+    return any(o["op"] == "discard" and isinstance(o.get("cards"), dict) and o["cards"].get("zone") == "deck"
+               and o["cards"].get("pick") == "bottom" for o in walk_ops(ops))
+
+
 @lru_cache(maxsize=None)
 def _deck_boost_titles() -> frozenset[str]:
-    return frozenset(
-        title for title, fx in _cards_by_title().items()
-        if any(o["op"] == "discard" and isinstance(o.get("cards"), dict) and o["cards"].get("zone") == "deck"
-               and o["cards"].get("pick") == "bottom" for o in walk_ops(fx.moments.get("during", []))))
+    return frozenset(title for title, fx in _cards_by_title().items() if _discards_deck_bottom(fx.moments.get("during", [])))
+
+
+@lru_cache(maxsize=None)
+def start_of_turn_discards_bottom(slug: str) -> bool:
+    """Liz Sherman's WILDFIRE: the hero's own start of turn discards the bottom card of their deck."""
+    return any(trig["when"]["event"] == "start_of_turn" and _discards_deck_bottom(trig.get("ops", []))
+               for trig in load_effects(slug).triggers)
 
 
 def draws_bottom_for_boost(card) -> bool:
