@@ -102,7 +102,7 @@ class EvalWeights:
 
 
 # The evaluation of F-AI-EVAL-RESOLUTION, to be switched on by configuration (`ai_eval`) until the duels (tools/ai_duel.py `eval=new`) accept it
-RESOLUTION: dict[str, float] = {"normalize": 1.0, "card_hp": 1.0, "deck_hp": 0.15, "race": 1.0, "fighter_threat": 0.5, "unseen": 1.0,
+RESOLUTION: dict[str, float] = {"normalize": 1.0, "card_hp": 1.0, "deck_hp": 0.8, "race": 1.0, "fighter_threat": 0.5, "unseen": 1.0,
                                 "hidden_attack": 1.0, "team_life": 1.0, "reserve": 1.0}
 
 # evaluation weights a hero plays with; the configuration's own values win. Doctor Strange stands in reach (F-STRANGE-AGGRO); the Raptors
@@ -239,6 +239,7 @@ def attack_values(st: PlayerState, fighter_name: str) -> tuple[int, ...]:
 
 _unseen_values_cache: dict[tuple, tuple[int, ...]] = {}
 _best_stats_cache: dict[tuple, tuple[float, float]] = {}
+UNSEEN_BEST, UNSEEN_MEAN = 1.0, 2.0     # `EvalWeights.unseen`: the i-th best attack of the hand the rival holds, or the mean attack of the cards it may still hold
 NO_ATTACK = -1      # in `unseen_values`: a card that cannot attack with that fighter (it still takes a place in the hand)
 
 
@@ -1148,6 +1149,8 @@ class EngineState:
         after_move: list[list[tuple[float, float]]] = []    # same for whoever arrives by maneuvering (factor already applied)
         for e in g.foes(victim):
             values = unseen_values(g.players[attacker], e.name) if w.unseen else attack_values(g.players[attacker], e.name)
+            if w.unseen == UNSEEN_MEAN:
+                values = tuple(v for v in values if v != NO_ATTACK)
             if not values or values[0] == NO_ATTACK:
                 continue
             spots = strike_spots(g.board, hero.pos, e.ranged, e.reach)
@@ -1167,11 +1170,11 @@ class EngineState:
             blows: list[tuple[float, float]] = []
             cards = max(held, 1) if bucket is in_range else held + 1       # a blow after a Maneuver is dealt from a hand with the card it drew
             for rank, answer in enumerate(answers):
-                if blows and answer == answers[0] and not w.unseen:
+                if blows and answer == answers[0] and w.unseen != UNSEEN_BEST:
                     blows.append(blows[0])
                     continue
-                net, kill = best_attack_stats(values, cards, rank, bonus - answer, hero.hp) if w.unseen else attack_stats(values, bonus - answer, hero.hp)
-                cost = net + (w.defend_card_hp if answer and (net or not w.unseen) else 0.0)     # no blow, no defense card spent
+                net, kill = best_attack_stats(values, cards, rank, bonus - answer, hero.hp) if w.unseen == UNSEEN_BEST else attack_stats(values, bonus - answer, hero.hp)
+                cost = net + (w.defend_card_hp if answer and (net or w.unseen != UNSEEN_BEST) else 0.0)     # no blow, no defense card spent
                 if blows:           # `reserve` below 1: part of the way from the best defense to this one
                     first_cost, first_kill = blows[0]
                     cost, kill = first_cost + w.reserve * (cost - first_cost), first_kill + w.reserve * (kill - first_kill)

@@ -46,6 +46,7 @@ MAX_TURNS = 120
 DEFAULT_BOARD = "bprd-hq"
 DEFAULT_ITERATIONS = 200
 Z95 = 1.959964
+GAMES_PER_WORKER = 6        # a worker is replaced after this many games: the engine caches (reach, moves) grow with every game and 18 workers filled 20 GB
 
 
 def parse_config(spec: str) -> dict:
@@ -226,7 +227,7 @@ def main(argv: list[str] | None = None) -> int:
     matchups = [tuple(m.split(":", 1)) for m in args.matchup]
     if args.journal_dir:
         Path(args.journal_dir).mkdir(parents=True, exist_ok=True)
-    pool = ProcessPoolExecutor(max_workers=args.jobs) if args.jobs > 1 else None
+    pool = ProcessPoolExecutor(max_workers=args.jobs, max_tasks_per_child=GAMES_PER_WORKER) if args.jobs > 1 else None
     results, failed = [], 0
     try:
         for heroes in matchups:

@@ -233,3 +233,30 @@ def test_the_pack_rule_lives_in_one_place_and_its_default_is_the_reserve_rule(mo
     assert state._pack_presses(1) is False                                       # not a pack
     other = EngineState(g, observer=1, weights=NEW)
     assert other._pack_presses(0) is True                                        # the pack a bot of another hero models keeps pressing
+
+
+# ---------- the target ----------
+@pytest.mark.parametrize("porter_hp", [6, 2])
+def test_the_raptors_strike_the_hero_that_is_in_reach_before_the_sidekick_even_one_they_could_kill(porter_hp):
+    """Live 16/11 (the heuristic): four blows on the Porter and four on Sinbad, and the pack came apart. With the new evaluation the search
+    attacks Sinbad first, with the Porter weak or not."""
+    hand = ("Eviscerate", "Eaten Alive", "They Remember", "Clever Girl", "Decoy")
+    for seed in (0, 1, 2):
+        ai = make_bot_ai({"ai": "ismcts", "ai_iterations": 150, "ai_time_budget": 60, "ai_seed": seed, "ai_eval": RESOLUTION}, 0)
+        g = Game.new(Board.load("bprd-hq"), seed, controllers={0: ai, 1: ScriptedHellboy(1, seed)}, heroes=("raptors", "sinbad"), bot_player=0)
+        g.turn, g.turn_no = 0, 3
+        g.begin_turn()
+        st = g.players[0]
+        st.deck.extend(st.hand)
+        st.hand.clear()
+        for i, title in enumerate(hand):
+            give(g, 0, title, nth=hand[:i].count(title))
+        g.players[1].hand.clear()
+        sinbad, porter = g.hero(1), g.fighters["porter"]
+        sinbad.pos = 7
+        ring = sorted(g.board.adj[7])
+        porter.pos, porter.hp = ring[0], porter_hp
+        for fid, space in zip(("blue", "delta", "echo"), ring[1:]):
+            g.fighters[fid].pos = space
+        act = ai.plan(g)
+        assert (act.kind, act.target) == ("attack", "sinbad"), (seed, act.kind, act.target)
