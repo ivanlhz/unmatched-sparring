@@ -37,6 +37,8 @@ sys.path.insert(0, str(Path(__file__).resolve().parent.parent))
 from sparring.ai_medusa import MedusaAI                       # noqa: E402
 from sparring.board import Board                              # noqa: E402
 from sparring.decision_log import DecisionJournal             # noqa: E402
+from sparring import guard                                    # noqa: E402
+from sparring.search import adapter                           # noqa: E402
 from sparring.search.adapter import RESOLUTION, EvalWeights   # noqa: E402
 from sparring.search.controller import IsmctsMedusa           # noqa: E402
 from sparring.search.ismcts import SearchConfig               # noqa: E402
@@ -46,7 +48,6 @@ MAX_TURNS = 120
 DEFAULT_BOARD = "bprd-hq"
 DEFAULT_ITERATIONS = 200
 Z95 = 1.959964
-GAMES_PER_WORKER = 6        # a worker is replaced after this many games: the engine caches (reach, moves) grow with every game and 18 workers filled 20 GB
 
 
 def parse_config(spec: str) -> dict:
@@ -85,9 +86,19 @@ def wilson(score: float, n: int) -> tuple[float, float]:
     return max(0.0, centre - half), min(1.0, centre + half)
 
 
+def clear_caches() -> None:
+    """The engine's module caches (reach, moves, attack statistics) are pure, but they grow with every game a worker plays: 18 workers
+    filled 20 GB. Emptied before each game, so a game does not depend on the ones that went before it in the same process either."""
+    for module in (guard, adapter):
+        for name, value in vars(module).items():
+            if name.startswith("_") and name.endswith("_cache") and isinstance(value, dict):
+                value.clear()
+
+
 def play(job: tuple) -> dict:
     """One game: AI A on player `a_seat`, AI B on the other. The seed fixes the shuffles and who moves first."""
     seed, heroes, board, a_cfg, b_cfg, a_seat, journal_dir = job
+    clear_caches()
     started = time.perf_counter()
     cfgs = {a_seat: a_cfg, 1 - a_seat: b_cfg}
     ctl = {p: make_ai(cfgs[p], p, seed) for p in (0, 1)}
@@ -227,7 +238,7 @@ def main(argv: list[str] | None = None) -> int:
     matchups = [tuple(m.split(":", 1)) for m in args.matchup]
     if args.journal_dir:
         Path(args.journal_dir).mkdir(parents=True, exist_ok=True)
-    pool = ProcessPoolExecutor(max_workers=args.jobs, max_tasks_per_child=GAMES_PER_WORKER) if args.jobs > 1 else None
+    pool = ProcessPoolExecutor(max_workers=args.jobs) if args.jobs > 1 else None
     results, failed = [], 0
     try:
         for heroes in matchups:
