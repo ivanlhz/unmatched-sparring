@@ -245,3 +245,32 @@ def test_a_short_duel_plays_both_seats_from_the_same_seeds(tmp_path):
     assert row["games"] == 2 and row["a_wins"] + row["b_wins"] + row["unfinished"] == 2
     assert row["a_as_p0"] is not None and row["a_as_p1"] is not None and 0 <= row["ci95"][0] <= row["score"] <= row["ci95"][1] <= 1
     assert len(list(journal_dir.glob("*.jsonl"))) == 4
+
+
+def test_several_cards_taken_off_the_deck_bottom_in_one_window_are_told_apart(tmp_path):
+    path = tmp_path / "decisions.jsonl"
+    game = sim_game()
+    journal = decision_log.DecisionJournal(path)
+    journal.decision(game, 0, "plan", MedusaAI(0), {"kind": "maneuver"}, [{"move": 1, "chosen": True}])
+    rival = game.players[1]
+    first, second = rival.deck.pop(), rival.deck.pop()
+    played = rival.hand[0]
+    game.take_from_hand(1, played)
+    rival.discard.extend([first, played, second])
+    game.turn_no += 1
+    journal.settle(game)
+    out = records(path)[-1]
+    assert sorted(out["rival_deck_bottom_discards"]) == sorted([first.title, second.title])
+    assert out["rival_cards_played"] == [played.title]
+
+
+def test_review_joins_a_game_resumed_in_another_process(tmp_path):
+    path = tmp_path / "decisions.jsonl"
+    head = {"bot_hero": "Raptor Blue", "rival_hero": "Liz Sherman", "ai": "heuristic"}
+    dec = {"t": "decision", "player": 0, "kind": "plan", "ai": "heuristic", "turn": 1, "chosen": {}, "alternatives": []}
+    lines = [{"t": "game", "game": "a", **head}, {**dec, "game": "a", "seq": 1}, {**dec, "game": "a", "seq": 2},
+             {"t": "game", "game": "b", "resumed": True, **head}, {**dec, "game": "b", "seq": 1},
+             {"t": "outcome", "game": "b", "seq": 1}, {"t": "game", "game": "c", "bot_hero": "Other", "rival_hero": "Liz Sherman", "ai": "heuristic"}]
+    path.write_text("\n".join(json.dumps(l) for l in lines), encoding="utf-8")
+    games = review_decisions.read_games(path)
+    assert set(games) == {"a", "c"} and sorted(games["a"]["decisions"]) == [1, 2, 3] and 3 in games["a"]["outcomes"]

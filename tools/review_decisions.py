@@ -20,20 +20,30 @@ DEFAULT_FILE = Path(__file__).resolve().parent.parent / "state" / "decisions.jso
 
 
 def read_games(path: Path) -> dict[str, dict]:
-    """game id -> {"header", "decisions": {seq: decision}, "outcomes": {seq: outcome}}; a line that does not parse is skipped."""
+    """game id -> {"header", "decisions": {seq: decision}, "outcomes": {seq: outcome}}; a line that does not parse is skipped.
+    A game resumed in another process opens with a header marked `resumed` and a new id: its lines are joined to the previous
+    game of the same heroes in the file, and its numbering goes on after that game's last decision."""
     games: dict[str, dict] = {}
+    into: dict[str, tuple[str, int]] = {}          # resumed id -> (game it continues, seq offset)
     for line in path.read_text(encoding="utf-8", errors="replace").splitlines():
         try:
             rec = json.loads(line)
         except ValueError:
             continue
-        game = games.setdefault(rec.get("game"), {"header": None, "decisions": {}, "outcomes": {}})
+        gid = rec.get("game")
+        if rec.get("t") == "game" and rec.get("resumed"):
+            heroes = (rec.get("bot_hero"), rec.get("rival_hero"))
+            last = next((g for g, v in reversed(list(games.items())) if v["header"] and (v["header"]["bot_hero"], v["header"]["rival_hero"]) == heroes), None)
+            if last is not None:
+                into[gid] = (last, max(games[last]["decisions"], default=0))
+                continue
+        target, offset = into.get(gid, (gid, 0))
+        game = games.setdefault(target, {"header": None, "decisions": {}, "outcomes": {}})
         if rec.get("t") == "game":
             game["header"] = rec
-        elif rec.get("t") == "decision":
-            game["decisions"][rec["seq"]] = rec
-        elif rec.get("t") == "outcome":
-            game["outcomes"][rec["seq"]] = rec
+        elif rec.get("t") in ("decision", "outcome"):
+            rec["seq"] += offset
+            game["decisions" if rec["t"] == "decision" else "outcomes"][rec["seq"]] = rec
     return games
 
 

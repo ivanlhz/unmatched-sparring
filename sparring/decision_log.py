@@ -76,7 +76,7 @@ def _snapshot(game) -> dict:
     return {"turn": (game.turn_no, game.turn),
             "hp": {p: sum(max(0, f.hp) for f in game.fighters.values() if f.owner == p) for p in (0, 1)},
             "discard": {p: [(c.card_id, c.title) for c in game.players[p].discard] for p in (0, 1)},
-            "bottom": {p: (game.players[p].deck[-1].card_id if game.players[p].deck else None) for p in (0, 1)},
+            "deck": {p: [c.card_id for c in game.players[p].deck] for p in (0, 1)},
             "hand": {p: len(game.players[p].hand) for p in (0, 1)}}
 
 
@@ -88,10 +88,17 @@ def _entered_discard(before: list, after: list) -> list:
 
 
 def _split(before: dict, now: dict, p: int) -> tuple[list[str], list[str]]:
-    """(played or discarded from the hand, taken off the bottom of the own deck by Wildfire or Flame Lash)."""
+    """(played or discarded from the hand, taken off the bottom of the own deck by Wildfire or Flame Lash). The bottom cards
+    are the run of cards that were at the end of the deck before and entered the discard; several in one window are told apart."""
+    entered = _entered_discard(before["discard"][p], now["discard"][p])
+    ids = {card_id for card_id, _ in entered}
+    run = 0
+    while run < len(before["deck"][p]) and before["deck"][p][-1 - run] in ids:
+        run += 1
+    from_bottom = set(before["deck"][p][len(before["deck"][p]) - run:])
     hand, bottom = [], []
-    for card_id, title in _entered_discard(before["discard"][p], now["discard"][p]):
-        (bottom if card_id == before["bottom"][p] else hand).append(title)
+    for card_id, title in entered:
+        (bottom if card_id in from_bottom else hand).append(title)
     return hand, bottom
 
 

@@ -5,10 +5,11 @@ baseline that the AI evaluation work (phase 1) has to turn green; the markers ar
 the marker is then removed. The positions are rebuilt from the logs (the real decks are not in them): the spaces, hands and turn
 are the live ones; the cards of the rival's hand that the bot did not see are drawn from the pool it has not seen, as the bot
 would draw them, and the rest is approximate and says so in the fixture."""
+from math import comb
+
 import pytest
 
 from ai_positions import POSITIONS, build, make_ai
-from sparring.ai_medusa import Model
 from sparring.decision_log import describe_act
 
 AIS = ("heuristic", "ismcts")
@@ -21,9 +22,9 @@ def known_fail(reason: str, *cases: tuple[str, str]) -> None:
 
 known_fail("Opening of Raptors vs Liz: the search discards Ambush as a maneuver boost before any attack, as the live bot did",
            ("raptors_liz_t1_opening", "ismcts"))
-known_fail("Raptors vs Hellboy, turn 2: the search spends four cards (scheme, a maneuver boost, two attacks) and ends the turn with fewer than three",
-           ("raptors_hellboy_t2_empties_the_hand", "ismcts"))
-known_fail("Echo pays its last defence card (Feint) against a face-down jab with a 14 % chance of killing it",
+known_fail("Raptors vs Hellboy, turn 2: the bot spends more than one card on pure movement (Working Things Out as a scheme plus a maneuver boost)",
+           ("raptors_hellboy_t2_pure_movement", "ismcts"))
+known_fail("Echo pays its last defence card (Feint) against a face-down jab that is unlikely to kill it",
            ("raptors_liz_t2_echo_feint", "heuristic"), ("raptors_liz_t2_echo_feint", "ismcts"))
 known_fail("Liz maneuvers twice without getting anywhere (out and back, or one space) while Wildfire burns the deck",
            ("liz_raptors_t6_back_and_forth", "heuristic"), ("liz_raptors_t14_back_and_forth", "heuristic"),
@@ -54,13 +55,35 @@ def test_the_opening_does_not_spend_a_card_before_attacking(name, ai_kind):
     assert act["kind"] in ("maneuver", "attack") and "boost" not in act, f"{POSITIONS[name]['good_player']} Bot played {act}"
 
 
-@pytest.mark.parametrize("name, ai_kind", [case("raptors_hellboy_t2_empties_the_hand", k) for k in AIS])
-def test_the_bot_does_not_empty_its_hand_against_hellboy(name, ai_kind):
+MOVE_ONLY_SCHEMES = frozenset({"Working Things Out"})     # schemes whose only effect is to move the pieces
+
+
+def pure_movement_cards(acts: list[dict]) -> int:
+    """Cards spent on movement alone: a scheme that only moves, and any card used as a maneuver boost. Attack and defence cards do not count."""
+    return sum((a["kind"] == "scheme" and a.get("card") in MOVE_ONLY_SCHEMES) or (a["kind"] == "maneuver" and "boost" in a) for a in acts)
+
+
+@pytest.mark.parametrize("name, ai_kind", [case("raptors_hellboy_t2_pure_movement", k) for k in AIS])
+def test_the_bot_spends_at_most_one_card_on_pure_movement_in_a_turn(name, ai_kind):
     ai = make_ai(ai_kind)
     game = build(name, ai)
+    assert len(game.players[1].hand) == 7 and game.players[0].deck[0].title == "Disengage"
     acts = play_turn(ai, game)
-    held = len(game.players[0].hand)
-    assert held >= 3, f"{POSITIONS[name]['good_player']} Bot did {acts} and holds {held}"
+    spent = pure_movement_cards(acts)
+    assert spent <= POSITIONS[name]["pure_movement_limit"], f"{POSITIONS[name]['good_player']} Bot did {acts}: {spent} cards on pure movement"
+
+
+def kill_probability(game, attacker, target) -> float:
+    """Upper bound of the chance that the face-down attack kills `target`: some card among the rival's unknown ones can do it.
+    The unknown cards are the hand minus what the bot knows, drawn from the rival's set minus its public discard and the known cards."""
+    rival = game.players[attacker.owner]
+    known = game.players[1 - attacker.owner].known.cards(rival)
+    gone = {c.card_id for c in rival.discard} | {c.card_id for c in known}
+    pool = [c for c in rival.full_set if c.card_id not in gone]
+    unknown = len(rival.hand) - len(known)
+    bonus = game.attack_bonus(attacker, target)
+    killers = sum(1 for c in pool if c.can_attack and c.usable_by(attacker.name) and c.value + bonus >= target.hp)
+    return 1 - comb(len(pool) - killers, unknown) / comb(len(pool), unknown)
 
 
 @pytest.mark.parametrize("name, ai_kind", [case("raptors_liz_t2_echo_feint", k) for k in AIS])
@@ -69,23 +92,20 @@ def test_echo_keeps_its_last_defence_card_against_a_jab_unless_the_kill_is_likel
     game = build(name, ai)
     spec = POSITIONS[name]
     attacker, target = game.fighters[spec["attack"]["attacker"]], game.fighters[spec["attack"]["target"]]
-    # what the bot can know: Liz's unseen cards are the full set minus what is public (the heuristic's own model of the pool)
-    kill = sum(p for p, value in Model(game, 0).committed_attack_dist(attacker, target) if value >= target.hp)
-    card = ai.choose_defense(game, attacker, target)
+    kill = kill_probability(game, attacker, target)
     if kill > spec["kill_probability_limit"]:
-        return      # the attack is likely to kill Echo: defending is a good decision, the rule does not apply
-    assert card is None, f"probability that the face-down attack kills Echo: {kill:.0%} (limit {spec['kill_probability_limit']:.0%}). {spec['good_player']} Bot defended with {card.title}"
+        pytest.skip(f"the face-down attack can kill Echo with probability {kill:.1%} (limit {spec['kill_probability_limit']:.0%}): defending is fine")
+    card = ai.choose_defense(game, attacker, target)
+    assert card is None, f"probability that the face-down attack kills Echo: {kill:.1%} (limit {spec['kill_probability_limit']:.0%}). {spec['good_player']} Bot defended with {card.title}"
 
 
-def test_the_kill_probability_of_the_echo_position_is_the_documented_one():
-    """The number the rule above hangs on, printed in the failure reason: it comes from the real unseen pool."""
-    ai = make_ai("heuristic")
-    game = build("raptors_liz_t2_echo_feint", ai)
-    liz, echo = game.fighters["liz"], game.fighters["echo"]
-    dist = Model(game, 0).committed_attack_dist(liz, echo)
-    assert abs(sum(p for p, _ in dist) - 1) < 1e-9
-    assert [c.title for c in game.players[0].known.cards(game.players[1])] == ["Fireball"]
-    assert len(game.players[1].hand) == 4 and game.fighters["liz"].hp == 12
+def test_the_echo_position_has_the_documented_knowledge_and_probability():
+    game = build("raptors_liz_t2_echo_feint", make_ai("heuristic"))
+    liz = game.players[1]
+    assert sorted(c.title for c in game.players[0].known.cards(liz)) == ["Fireball", "Flame Lash"]
+    assert len(liz.hand) == 5 and game.fighters["liz"].hp == 12
+    p = kill_probability(game, game.fighters["liz"], game.fighters["echo"])
+    assert 0.10 < p < 0.12, f"3 unknown cards from 27 with one Incinerate: 3/27 = 11.1 %, got {p:.1%}"
 
 
 @pytest.mark.parametrize("name, ai_kind", [case(n, k) for n in

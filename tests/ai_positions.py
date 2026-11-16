@@ -47,7 +47,7 @@ def build(name: str, ai) -> Game:
             saved["hand"] = _ids(player, spec["hands"][str(p)], taken)
             fill = spec.get("hand_sizes", {}).get(str(p), len(saved["hand"])) - len(saved["hand"])
         else:
-            fill = 0
+            fill = spec.get("hand_sizes", {}).get(str(p), len(saved["hand"])) - len(saved["hand"])
         taken.update(saved["hand"])
         saved["discard"] = _ids(player, spec.get("discard", {}).get(str(p), []), taken)
         if fill > 0:       # the cards the bot does not see: drawn from the pool that is neither in the hand nor in a public pile
