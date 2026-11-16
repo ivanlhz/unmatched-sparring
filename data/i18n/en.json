@@ -303,6 +303,7 @@
  "ops.random_one": "card ",
  "ops.random_many": "cards ",
  "ops.random_positions": "{title}, at random: {which} of the {size} in your hand, counting from the left",
+ "ops.random_positions_only": "{title}, at random: your only card",
  "ops.random_alert_one": "RANDOM DISCARD: CARD {which} OF {size} (FROM THE LEFT)",
  "ops.random_alert_many": "RANDOM DISCARD: CARDS {which} OF {size} (FROM THE LEFT)",
  "ops.random_alert_short": "RANDOM: CARDS {which} OF {size}",

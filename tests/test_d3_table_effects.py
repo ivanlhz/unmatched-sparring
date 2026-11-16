@@ -710,6 +710,55 @@ def test_fleeting_moments_names_a_random_position_of_your_hand_without_reading_i
     assert human_reads(table) == []
 
 
+@liz_rig
+def test_the_loud_line_is_said_once_and_leaves_nothing_in_the_save(rig):
+    session, table, game, fake, cfg = rig
+    human_hand(table, game, "Service Pistol", "Excalibur", "Glimpse Of Hell")
+    fleeting = next(c for c in game.players[0].hand if c.title == "Fleeting Moments")
+    bot_turn(session, table, [Act("attack", fid="liz", target="hellboy", card=fleeting)])
+    table.face_down = []
+    msgs = click(session, table, Event.REVEAL)
+    assert len([m for m in msgs if m.startswith("DESCARTE AL AZAR")]) == 1
+    assert game.fx.random_notice is None and "random_notice" not in str(session.to_dict())
+    later = click(session, table, Event.END_ACTION)
+    assert not [m for m in later if "AL AZAR" in m.upper() and m.startswith("DESCARTE")]
+
+
+@liz_rig
+def test_the_loud_line_comes_in_english_with_the_english_language(rig):
+    from sparring import i18n
+    i18n.set_language("en")
+    session, table, game, fake, cfg = rig
+    human_hand(table, game, "Service Pistol", "Excalibur", "Glimpse Of Hell")
+    fleeting = next(c for c in game.players[0].hand if c.title == "Fleeting Moments")
+    bot_turn(session, table, [Act("attack", fid="liz", target="hellboy", card=fleeting)])
+    table.face_down = []
+    size = len(game.players[1].hand)
+    msgs = click(session, table, Event.REVEAL)
+    loud = [m for m in msgs if m.startswith("RANDOM DISCARD: CARD ")]
+    assert len(loud) == 1 and loud[0].endswith(f" OF {size} (FROM THE LEFT)") and loud[0].kind == ChatKind.WARNING, msgs
+
+
+@liz_rig
+def test_a_random_discard_that_asks_nothing_leaves_no_notice_for_the_next_discard(rig):
+    """The reviewer's case: the human already owes their whole hand, so the random discard is never shown; a later discard of
+    their own choice must not carry its loud line."""
+    from sparring.effects.run import Ctx, EffectRun
+    session, table, game, fake, cfg = rig
+    human_hand(table, game, "Excalibur", "Service Pistol")
+    st = game.players[1]
+    st.hand[:] = [c for c in st.full_set if c.card_id in table.human_hand]
+    session.pending_discard = {"n": 2, "baseline": len(st.discard), "kind": "cards", "hand": True}
+    run = EffectRun([{"op": "discard", "cards": {"zone": "hand", "player": "opponent", "pick": "random", "amount": 1}}],
+                    Ctx(owner=0, card_id=next(c for c in game.players[0].hand if c.title == "Fleeting Moments").card_id))
+    run.run(game, None)
+    assert game.fx.random_notice is None
+    session.pending_discard = None
+    first = len(session.messages)
+    game.force_discard(1, 1, "Incinerate", 1)
+    assert not [m for m in session.messages[first:] if "AZAR" in m]
+
+
 # ---------------------------------------------------------------- a pause of the human (E1) survives the save
 
 @baba_rig

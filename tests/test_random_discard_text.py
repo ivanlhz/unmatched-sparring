@@ -73,3 +73,28 @@ def test_every_position_comes_out_and_none_dominates(game):
         counts[game.fx.random_notice[0][0]] += 1
     assert set(counts) == {1, 2, 3, 4, 5}
     assert max(counts.values()) / 500 <= 0.30, counts
+
+
+def test_a_hand_of_one_card_says_so_and_shouts_nothing(game):
+    hand_of(game, 1)
+    assert _random_positions_text(game, fresh_run(), 1, 1, "Ambush") == "Ambush, al azar: tu unica carta"
+    assert game.fx.random_notice is None
+    i18n.set_language("en")
+    assert _random_positions_text(game, fresh_run(), 1, 1, "Ambush") == "Ambush, at random: your only card"
+
+
+def test_the_draw_is_among_the_cards_the_player_still_holds_after_what_they_owe(game, monkeypatch):
+    hand_of(game, 3)
+    monkeypatch.setattr("sparring.effects.ops_core.table.discards_owed", lambda g, p: 2)
+    assert _random_positions_text(game, fresh_run(), 1, 1, "Ambush") == "Ambush, al azar: tu unica carta"
+    monkeypatch.setattr("sparring.effects.ops_core.table.discards_owed", lambda g, p: 3)
+    assert _random_positions_text(game, fresh_run(), 1, 1, "Ambush") == "Ambush"
+
+
+def test_the_bots_own_random_discard_names_no_position_and_shouts_nothing(game):
+    from sparring.effects.random_discard import discard_random_known
+    hand_of(game, 4)
+    run = fresh_run()
+    run._game = game
+    assert discard_random_known(run, game, 1) is not None
+    assert game.fx.random_notice is None and not run.flags

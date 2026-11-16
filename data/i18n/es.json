@@ -303,6 +303,7 @@
  "ops.random_one": "la carta ",
  "ops.random_many": "las cartas ",
  "ops.random_positions": "{title}, al azar: {which} de las {size} de tu mano, contando desde la izquierda",
+ "ops.random_positions_only": "{title}, al azar: tu unica carta",
  "ops.random_alert_one": "DESCARTE AL AZAR: CARTA {which} DE {size} (DESDE LA IZQUIERDA)",
  "ops.random_alert_many": "DESCARTE AL AZAR: CARTAS {which} DE {size} (DESDE LA IZQUIERDA)",
  "ops.random_alert_short": "AL AZAR: CARTAS {which} DE {size}",

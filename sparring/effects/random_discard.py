@@ -24,6 +24,7 @@ def discard_random_known(run, game, victim: int):
     which = _random_positions_text(game, run, victim, 1, _card_title(game, run))
     got = run.ask(game, "cards", victim, _unplayed(st), 1, 1, "put the card in your discard pile", zone="discard", purpose="bonus",
                   of=victim, table_discard=True, pile_mode="reveal", ambush=True, which=which)
+    game.fx.random_notice = None            # still set only if a forced answer skipped the request: nobody was shown it
     card = {c.card_id: c for c in st.full_set}[got[0]]
     table.make_known(game, victim, card)
     game.discard_card(victim, card)
