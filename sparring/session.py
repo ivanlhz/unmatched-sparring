@@ -35,6 +35,7 @@ from .effects import events, narrate, ongoing
 from .effects import table as fx_table
 from .effects.choose import ControllerChooser
 from .effects.run import EffectRun
+from .decision_log import DecisionJournal, ai_label
 from .game_log import GameLog
 from . import session_boost as boost_session
 from . import session_bot_effects as bot_effects
@@ -382,6 +383,7 @@ class Session:
         self.bot_discarded: set[int] = set()
         self.messages: list[Msg] = []
         self.game_log = GameLog()                # no file until play() points it next to the state file
+        self.journal = DecisionJournal()         # the bot's decisions, one JSON line each; the same: no file until play() sets the path
         self._destiny_tried = False
         self.dials_written: dict[str, int] = {}  # dial GUID -> last value the engine wrote and verified
         self.dirty = False                       # the engine moved the bot and the table does not reflect it yet
@@ -517,7 +519,9 @@ class Session:
         self.first_turn_pending = True            # built with `begin_turn(emit=False)`: see `_start_first_turn`
         self._intuition_said = None               # a restart keeps the old game's count otherwise
         self._gadget_shown = None
-        self.game_log.new_game((self.game.hero_def(self.bot).name, self.game.hero_def(self.human).name))
+        self.game_log.new_game((self.game.hero_def(self.bot).name, self.game.hero_def(self.human).name), ai_label(self.ai))
+        self.journal.new_game(self.game, self.bot, self.ai)
+        self.ai.journal = self.journal
         self.game_log.observe(self.game, self._name)
         self._check_config()
         self._check_pieces()
@@ -593,7 +597,9 @@ class Session:
         self._check_config()
         self._check_pieces()
         self._preload_identities()
-        self.game_log.resumed()
+        self.game_log.resumed(ai_label(self.ai))
+        self.journal.new_game(self.game, self.bot, self.ai)
+        self.ai.journal = self.journal
         self.game_log.observe(self.game, self._name)
         self.say(t("sess.resumed"))
         self._intuition_said = None
@@ -1120,6 +1126,7 @@ class Session:
         self.messages.append(Msg(msg, kind, shown))
         self.game_log.observe(self.game, self._name)      # the engine events up to this line, before the line itself
         self.game_log.chat(msg)
+        self.journal.settle(self.game)
 
     def zoom(self) -> lua.ZoomSpec | None:
         return zoom_spec(self.cfg)
@@ -1640,7 +1647,7 @@ class Session:
         """The session moves to the new game, keeping the client, the configuration and the run settings."""
         keep = ("client", "ai", "cfg", "bot", "human", "timing", "state_path", "first_mode", "new_game", "clock",
                 "cost_log", "broadcast", "snap", "_trusted", "_queue", "_post", "_expect_hand", "_snap_spec", "_depth",
-                "_epoch", "messages", "_write_seq", "_deck_ident", "game_log", "_deck_origin")
+                "_epoch", "messages", "_write_seq", "_deck_ident", "game_log", "journal", "_deck_origin")
         saved = {k: self.__dict__[k] for k in keep}
         blank = Session(fresh, self.client, self.ai, self.cfg, self.bot)
         self.__dict__.clear()

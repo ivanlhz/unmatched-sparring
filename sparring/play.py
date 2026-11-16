@@ -33,7 +33,7 @@ from .board import Board, catalog as board_catalog
 from .board_detect import BoardError, choose_board
 from .hero_detect import HeroDetectionError, deck_shifts, detect_heroes, detected_decks, read_table
 from .heroes import HeroDataError, load_hero
-from . import game_log, i18n, map_setup, persist, table_prep, table_reset
+from . import decision_log, game_log, i18n, map_setup, persist, table_prep, table_reset
 from .i18n import t
 from .session import DEFAULT_ACTION_ANNOUNCE_HOLD, DEFAULT_BOT_PAUSE, DEFAULT_ONGOING_HOLD, DEFAULT_WILDFIRE_HOLD, TABLE_ERRORS, Msg, Session, SessionConfig, SessionError, deck_where, piece_guids
 from .state import DEFAULT_HEROES, Game
@@ -1181,6 +1181,7 @@ def play(cfg: PlayConfig, client: TTSClient, first: str, seed: int, stop: thread
     session = Session(game, client, make_bot_ai(ai_config(cfg, ai, ai_time), BOT), scfg, bot=BOT)
     session.state_path = state_path
     session.game_log.path = game_log.log_path(state_path)
+    session.journal.path = decision_log.decisions_path(state_path)
     session.first_mode = first
     session.can_regate = table_reset.gate_enabled(cfg.raw)
     session.new_game = lambda: build_game(cfg, first, secrets.randbelow(2 ** 31))

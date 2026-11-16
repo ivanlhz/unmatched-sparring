@@ -15,7 +15,7 @@ import logging
 import random
 from dataclasses import replace
 
-from .. import enraged, tracks
+from .. import decision_log, enraged, tracks
 from ..ai_medusa import GAZE, Act, MedusaAI, scheme_fighter
 from ..cards import Card
 from ..combat import is_medusa_card
@@ -38,6 +38,7 @@ class IsmctsMedusa(Controller):
         self.heuristic = MedusaAI(me)
         self.last_report: SearchReport | None = None
         self.fallbacks = 0                                       # decisions that fell to the heuristic because of a failure
+        self.journal = None                                      # decision_log.DecisionJournal, if the decisions are being written
 
     def reset(self) -> None:
         """New game (Restart): the last report is forgotten. What was seen of the rival's hand lives in the engine
@@ -99,13 +100,31 @@ class IsmctsMedusa(Controller):
                        iterations=max(50, cfg.iterations // 4) if cfg.iterations is not None else None)
 
     def plan(self, game: Game) -> Act:
+        before = self.last_report
         try:
-            return self._plan(game)
+            act = self._plan(game)
         except AssertionError:                 # the anti-cheating tripwires are not disguised as a search failure
             raise
-        except Exception:
+        except Exception as exc:
             self._fell_back("plan")
-            return self.heuristic.plan(game)
+            act = self.heuristic.plan(game)
+            decision_log.emit(self, game, "plan", decision_log.describe_act(act), self.heuristic.plan_alternatives(),
+                              fallback=True, error=repr(exc), expected=act.total)
+            return act
+        self._journal(game, "plan", decision_log.describe_act(act), before)
+        return act
+
+    def _journal(self, game: Game, kind: str, chosen, before: SearchReport | None) -> None:
+        """The decision the search took, with every root alternative it weighed (visits and mean value)."""
+        report = self.last_report if self.last_report is not before else None
+        if report is None:
+            decision_log.emit(self, game, kind, chosen, [])
+            return
+        ranked = sorted(report.visits, key=lambda m: -report.visits[m])
+        alternatives = [{"move": list(m), "visits": report.visits[m], "value": None if m not in report.values else round(report.values[m], 4)}
+                        for m in ranked]
+        decision_log.emit(self, game, kind, chosen, alternatives, iterations=report.iterations, elapsed=report.elapsed,
+                          expected=report.values.get(report.move))
 
     def _fell_back(self, what: str) -> None:
         self.fallbacks += 1
@@ -120,13 +139,20 @@ class IsmctsMedusa(Controller):
         return self.to_act(game, self._decide(root))
 
     def choose_defense(self, game: Game, attacker: Fighter, target: Fighter, attack_card: Card | None = None) -> Card | None:
+        before = self.last_report
+        info = {"attacker": attacker.fid, "target": target.fid, "attack_known": None if attack_card is None else attack_card.title}
         try:
-            return self._choose_defense(game, attacker, target, attack_card)
+            card = self._choose_defense(game, attacker, target, attack_card)
         except AssertionError:
             raise
-        except Exception:
+        except Exception as exc:
             self._fell_back("defense")
-            return self.heuristic.choose_defense(game, attacker, target, attack_card)
+            card = self.heuristic.choose_defense(game, attacker, target, attack_card)
+            scores = sorted(self.heuristic._defense_scores, key=lambda s: -s["score"])
+            decision_log.emit(self, game, "defense", {"card": None if card is None else card.title, **info}, scores, fallback=True, error=repr(exc))
+            return card
+        self._journal(game, "defense", {"card": None if card is None else card.title, **info}, before)
+        return card
 
     def _choose_defense(self, game: Game, attacker: Fighter, target: Fighter, attack_card: Card | None) -> Card | None:
         root = EngineState(game, observer=self.me, knowledge=self.knowledge(game),
