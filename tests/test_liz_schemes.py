@@ -156,3 +156,29 @@ def test_no_chat_line_loses_a_character_on_the_way_to_the_table(tmp_path, monkey
 def _ascii(text: str) -> str:
     import unicodedata
     return unicodedata.normalize("NFKD", text).encode("ascii", "ignore").decode("ascii")
+
+
+def test_a_shuffle_is_narrated_as_a_shuffle_even_when_the_engine_deck_ends_with_that_card(tmp_path, monkeypatch):
+    """Live 16/11: 'pone 1 carta del descarte al fondo' for a Searing Clarity that says shuffle. The narration read the
+    engine's deck order (the card happened to land last); it has to follow what the card did. The scheme just played
+    stays in the discard and only the card picked reaches the deck."""
+    from sparring.effects import ops_info
+    monkeypatch.setattr(ops_info, "_permutation", lambda run, n: list(range(n)))     # the shuffle leaves the card last
+
+    def plans(game):
+        sc = next(c for c in game.players[BOT].hand if c.title == "Searing Clarity")
+        pos = game.hero(BOT).pos
+        return [Act("scheme", 0, "liz", "", sc, variant="greedy"), Act("maneuver", moves={"liz": pos}),
+                Act("maneuver", moves={"liz": pos})]
+    session, table, game, client = liz_turn(tmp_path, monkeypatch, plans, ["Searing Clarity", "Evade", "Feint"],
+                                            ["Fleeting Moments"])
+    sc, fm = (next(c.card_id for c in game.players[BOT].full_set if c.title == title)
+              for title in ("Searing Clarity", "Fleeting Moments"))
+    session._bot_continue()
+    lines = list(session.messages)
+    client.close()
+    assert any(m.startswith("El bot juega Searing Clarity: baraja 1 carta del descarte en su mazo") for m in lines), lines
+    assert not any("al fondo" in m for m in lines), lines
+    assert fm in table.bot_deck and sc not in table.bot_deck
+    assert table.bot_discard[-1] == sc, "the scheme is the top of the real discard stack"
+

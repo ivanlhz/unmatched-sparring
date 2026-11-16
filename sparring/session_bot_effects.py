@@ -257,7 +257,10 @@ def scheme_cards(session, before: dict | None) -> list[str]:
         out.append(t("bot.scheme_draws", n=drawn))
     back = [i for i in b0["discard"] if i in deck]
     if back:
-        out.append(t("bot.scheme_tail" if is_tail(deck, back) else "bot.scheme_shuffle", cards=plural(len(back), "noun.card")))      # the next line names them
+        said = {it.get("position") for it in g.fx.intents if it["op"] == "return_to_deck" and it["player"] == bot
+                and it["zone"] == "discard" and set(it["cards"]) & set(back)}      # what the card said, not where a shuffle left them
+        bottom = said == {"bottom"} or (not said and is_tail(deck, back))
+        out.append(t("bot.scheme_tail" if bottom else "bot.scheme_shuffle", cards=plural(len(back), "noun.card")))      # the next line names them
     return out
 
 
