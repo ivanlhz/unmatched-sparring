@@ -1043,6 +1043,41 @@
         "Tests changed: test_pact_peace_end_of_turn (bot Liz defended with Pyrotechnics and put a Searing Clarity under her deck; Wildfire now turns that card and Baba, in her zone, takes 1 more: 11, not 12); test_multihero_bridge (Liz's bot turn budget 4 -> 5 messages: the read); test_review4 (the new read-only builder in the allowlist)"
       ],
       "note": "Needs a live check: the card Wildfire turns is the one physically under the deck (turn the deck over before ending your turn), also right after Pyrotechnics put two cards there; Flame Lash the same; one extra message at the start of Liz's turn and one when Flame Lash resolves."
+    },
+    {
+      "id": "F-AI-DECISION-LOG",
+      "title": "AI phase 0: decision journal (what the bot thought, chose and what really happened) and a bot-vs-bot strength bench",
+      "status": "todo",
+      "criteria": [
+        "Every bot decision taken by the search, turn plan AND defence, writes one JSON line to state/decisions.jsonl (same folder rules as session.log, launcher included): game id, turn, decision kind, AI in use (heuristic/ismcts) with its time budget and iterations, own hand/deck/discard sizes and the rival's hand/deck/discard sizes, the rival's cards known in hand, every root alternative with visits and mean value, the chosen move, and whether the heuristic fallback decided (today that only goes to the Python logger)",
+        "The header of each game in session.log and decisions.jsonl names the AI and its budget (today the log cannot tell which AI played: 1 win in 24 could not be attributed)",
+        "After the decision resolves, a linked outcome line records what really happened (damage dealt and taken, cards spent, defence played by the rival when public) so expected and real can be compared",
+        "The heuristic's own decisions (plan and defence) write the same line shape with its scored candidates, so both AIs are reviewable",
+        "tools/review_decisions.py reads one game and lists the turns where the outcome was far from what the bot expected, and the turns where the top two alternatives were within noise",
+        "tools/ai_duel.py plays bot A against bot B (two configs in one process, or two checkouts like tools/style_matchups.py) with shared seeds and swapped seats, several jobs in parallel, and reports win rate with a 95% interval; it can stop early with a sequential test",
+        "The three live games of 15-16/11 (Raptors bot vs Hellboy, Raptors bot vs Liz, Liz bot vs Raptors) give regression positions rebuilt with persist.apply_game (turn 2 defence of Echo, turn 1 card spending, Liz's double maneuvers) in tests/fixtures, each with the decision a good player takes",
+        "Journal writing never blocks or breaks a live game: an error is logged and the game goes on; the files go to an ignored folder (state/), never to commits",
+        "Tests only on the touched files; the full suite is left to the CI or to Ivan"
+      ],
+      "note": "Approved by Ivan 16/11/2026 (phases 0 and 1 of the AI review). Diagnosis and its review live in this session's report; the video notes PDF is estado/guia-planes-de-partida_2026-11-16_1716/. Ivan launches the bot from the terminal."
+    },
+    {
+      "id": "F-AI-EVAL-RESOLUTION",
+      "title": "AI phase 1: an ISMCTS evaluation that tells moves apart, threat on every fighter, rival model from what is left, known-card bug",
+      "status": "todo",
+      "criteria": [
+        "Saturation: the root value no longer sits in the flat tail of squash (adapter.py:121-125). Measured at the opening of Raptors vs Liz (both seats) and Hellboy vs Liz: losing 1 card, 1 hero HP and 1 sidekick HP each move the evaluation by a clearly larger amount than today (0.001 / 0.0035 / 0.007 for Raptors), and the gap between the two best root moves is above the run-to-run noise at 3 s",
+        "Multi-fighter teams are normalised: the Raptors are no longer counted in 'lives of Blue' (adapter.py:830); a team of three 7 HP fighters and a 16 HP hero start near an even evaluation",
+        "threat() covers every friendly fighter, not only the hero (adapter.py:867); a sidekick left adjacent to the rival with few HP shows up as exposed",
+        "threat() and attack_values use the rival's cards that are still unseen (full set minus discard and removed) and scale with the rival's hand size; a rival with an empty hand only threatens what its draw can bring (adapter.py:186-192, 857-913)",
+        "Bug fixed: the face-down attack is no longer forced to be one of the known attack cards (adapter.py:578-582); it is drawn from known plus sampled hidden cards, weighted by how many of each the rival may hold. Test with Liz holding a known Fireball and 4 hidden cards: the sampled attack is not Fireball 100% of the time",
+        "The value of a card in hand and of the deck is expressed in HP equivalents and the deck term no longer flattens above 10 cards (adapter.py:833-834); the exhaustion race (turns until each deck runs out at its real draw rate, Wildfire included) is visible to the search. The heuristic's race/deck_cost (ai_medusa.py:1345-1372) is reused where it fits",
+        "Raptors' fixed rule 'never maneuver with the last action if an attack exists' (adapter.py:457-458, 783-786) becomes a plan-dependent rule, defaulting to the video's pattern for a pack that does not draw (two turns forward, two back); Ivan agreed 16/11",
+        "Strength is measured with tools/ai_duel.py (F-AI-DECISION-LOG): new evaluation vs current one, 200+ seeds x 2 seats per matchup, at least Raptors-Liz, Liz-Raptors, Raptors-Hellboy and two non-team matchups; the change is kept only if no matchup drops beyond the interval and the regression positions of phase 0 improve",
+        "Verified through make_bot_ai({'ai': 'ismcts'}), the AI that runs at the table, and the AI tests of every hero the change reaches are run",
+        "Tests only on the touched files plus those per-hero AI tests; the full suite is left to the CI or to Ivan"
+      ],
+      "note": "Approved by Ivan 16/11/2026. Depends on F-AI-DECISION-LOG for the bench. Liz, per Ivan: aggressive, takes the centre or spaces where several fighters can be hit to get the most out of her hero ability; that belongs to the plan layer (phase 3/4), not here. Phases 2-4 (card counting and beliefs, game plan, per-hero layer) are not opened until phase 0-1 data is in."
     }
   ]
 }
