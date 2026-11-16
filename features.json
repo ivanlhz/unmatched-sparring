@@ -1084,6 +1084,20 @@
         "Tests only on the touched files plus those per-hero AI tests; the full suite is left to the CI or to Ivan"
       ],
       "note": "Approved by Ivan 16/11/2026. Depends on F-AI-DECISION-LOG for the bench. Liz, as Ivan plays her (16/11): might first, value second. Takes the centre or spaces in several zones for Wildfire; attacks with Fireball, Incinerate and Flame Lash (action); keeps the 2-3 versatiles to defend; Fleeting Moments only when her random discard would be a burning card; Searing Clarity and Rekindle to stay ahead in the deck race. That belongs to the plan layer (phase 3/4), not here. Phases 2-4 (card counting and beliefs, game plan, per-hero layer) are not opened until phase 0-1 data is in."
+    },
+    {
+      "id": "F-RANDOM-DISCARD-TEXT",
+      "title": "Random discard of the human's hand says how many cards it was drawn among, and shouts it once",
+      "status": "review",
+      "criteria": [
+        "The random-position text says the hand size: 'la carta 2 de las 3 de tu mano, contando desde la izquierda' / 'cards 1 and 3 of the 5 in your hand' (ops.random_positions with {size}), in es and en",
+        "A separate chat line in capitals and ChatKind.WARNING is said once per draw: 'DESCARTE AL AZAR: CARTA 2 DE 3 (DESDE LA IZQUIERDA)' / 'RANDOM DISCARD: CARD 2 OF 3 (FROM THE LEFT)'; at most 64 characters, only whitelisted chat characters; it is not repeated when the op reruns (the draw is memoized in run.flags)",
+        "Both paths show it: Fleeting Moments and the other force_discard random discards (Session._owe_discard) and the Ambush family (session_pile.start, discard_random_known)",
+        "Draw distribution: 500 fresh runs over a hand of 5 give all 5 positions and none above 30 %",
+        "The notice is tied to the request: a random discard that is never shown (owed cards, a veto, a forced answer) leaves nothing for the next discard; the draw counts the cards the player still holds after what they owe; a hand of one card says so and shouts nothing",
+        "Tests only on the touched files; the full suite is left to the CI or to Ivan"
+      ],
+      "note": "Asked by Ivan 16/11/2026. The draw was already uniform; the human did not know among how many cards it was made."
     }
   ]
 }

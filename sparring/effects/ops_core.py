@@ -173,16 +173,27 @@ def _random_positions_text(game, run, player: int, n: int, title: str) -> str:
     """A random discard from the table player's hand: the engine draws the POSITIONS with the game rng (it only knows
     how many cards they hold, never which) and the human discards those, counted from the left (Ivan, 29/10). The
     draw is memoized in the run so a rerun after a pause names the same positions."""
-    size = len(game.players[player].hand)
+    size = len(game.players[player].hand) - table.discards_owed(game, player)      # the cards they still hold once what they already owe is on the pile (as `force_discard` counts)
     key = f"random_positions:{run.frames[-1].path}:{run.frames[-1].idx}"
     picked = run.flags.get(key)
     if picked is None:
-        picked = sorted(game.rng.sample(range(1, size + 1), min(n, size))) if size else []
+        picked = sorted(game.rng.sample(range(1, size + 1), min(n, size))) if size > 0 else []
         run.flags[key] = picked
+        if picked and size > 1:
+            game.fx.random_notice = (picked, size)      # the session shouts it once, where it shows the request
     if not picked:
         return title
+    if size == 1:
+        return t("ops.random_positions_only", title=title)
     which = t("ops.random_one" if len(picked) == 1 else "ops.random_many") + t("common.and").join(str(p) for p in picked)
-    return t("ops.random_positions", title=title, which=which)
+    return t("ops.random_positions", title=title, which=which, size=size)
+
+
+def random_discard_alert(picked: list[int], size: int) -> str:
+    """The loud line for a random discard of the human's hand: capitals, one chat line (<= 64 characters)."""
+    positions = t("common.and").join(str(p) for p in picked)
+    line = t("ops.random_alert_one" if len(picked) == 1 else "ops.random_alert_many", which=positions, size=size).upper()
+    return line if len(line) <= 64 else t("ops.random_alert_short", which=positions, size=size).upper()
 
 
 @op("discard")
@@ -204,6 +215,7 @@ def _discard(run, game, spec):
             chosen = game.force_discard(player, n, reason, player if voluntary else run.ctx.owner)
         finally:
             game.fx.whole_hand = False
+            game.fx.random_notice = None      # a request the table never showed (nothing owed, a veto) leaves no notice behind
         run.flags["physical_discard"] = True
         if "as" in spec:
             run.bind("cards", spec["as"], [c.card_id for c in chosen])

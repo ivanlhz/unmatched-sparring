@@ -59,6 +59,8 @@ def instruction(session, req: ChoiceRequest) -> str:
 
 def start(session, req: ChoiceRequest) -> None:
     session.say(instruction(session, req), ChatKind.YOUR_TURN)
+    if req.extra.get("ambush"):
+        session.announce_random_discard()
 
 
 def reprompt(session, req: ChoiceRequest) -> str:
