@@ -1053,7 +1053,7 @@
     {
       "id": "F-AI-DECISION-LOG",
       "title": "AI phase 0: decision journal (what the bot thought, chose and what really happened) and a bot-vs-bot strength bench",
-      "status": "review",
+      "status": "done",
       "criteria": [
         "Every bot decision taken by the search, turn plan AND defence, writes one JSON line to state/decisions.jsonl (same folder rules as session.log, launcher included): game id, turn, decision kind, AI in use (heuristic/ismcts) with its time budget and iterations, own hand/deck/discard sizes and the rival's hand/deck/discard sizes, the rival's cards known in hand, every root alternative with visits and mean value, the chosen move, and whether the heuristic fallback decided (today that only goes to the Python logger)",
         "The header of each game in session.log and decisions.jsonl names the AI and its budget (today the log cannot tell which AI played: 1 win in 24 could not be attributed)",
