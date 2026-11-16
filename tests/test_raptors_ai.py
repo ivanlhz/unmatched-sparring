@@ -1,10 +1,14 @@
-"""The bot's Raptors (ISMCTS, what the live bot runs; `make_bot_ai({"ai": "ismcts"})`): super aggressive and a pack.
+"""The bot's Raptors (ISMCTS, what the live bot runs; `make_bot_ai({"ai": "ismcts"})`): aggressive and a pack, with cards left to answer.
 
-Iván's requirements: (1) they swarm and attack every turn they can, and they set up pack attacks (Raptors adjacent to the defender, the
-+1 of their ability); (2) careful with the zone damage of a rival hero (F-RIVAL-ZONE-DAMAGE: Medusa's gaze), priced per fighter because
-they are three fighters of 7 life each, and still attacking a rival with no zone damage. The search is deterministic for a seed and an
-iteration cap, so the scenes below are reproducible."""
+Iván's requirements: (1) they swarm and attack every turn their hand can pay for the blow, and they set up pack attacks (Raptors
+adjacent to the defender, the +1 of their ability); (2) careful with the zone damage of a rival hero (F-RIVAL-ZONE-DAMAGE: Medusa's
+gaze), priced per fighter because they are three fighters of 7 life each, and still attacking a rival with no zone damage; (3) with a
+thin hand they Maneuver and draw instead of spending their last card (live 16/11 against Liz Sherman: they attacked themselves out of
+cards and had nothing to defend with), unless the blow wins the game. The search is deterministic for a seed and an iteration cap, so
+the scenes below are reproducible."""
 from __future__ import annotations
+
+from dataclasses import replace
 
 import pytest
 
@@ -13,12 +17,13 @@ from sparring import pack
 from sparring.ai_hazards import zone_cover_factor, zone_damage, zone_exposed
 from sparring.board import Board
 from sparring.hellboy_script import ScriptedHellboy
-from sparring.search.adapter import EngineState, PACK, attack_values, sidekick_plan
+from sparring.search.adapter import EngineState, EvalWeights, PACK, attack_values, hero_weights, sidekick_plan
 from sparring.search.controller import make_bot_ai
 from sparring.state import Game
 
 BOARD = "bprd-hq"
-ATTACK_HAND = ("Eviscerate", "Eviscerate", "They Remember", "Clever Girl", "Pack Hunters")
+ATTACK_HAND = ("Eviscerate", "Eaten Alive", "They Remember", "Clever Girl", "Decoy")       # blows to land and defenses left after them
+BARE_HAND = ("Eviscerate", "Eviscerate", "They Remember", "Clever Girl", "Pack Hunters")    # five attacks and nothing to defend with
 TEAM = ("blue", "delta", "echo")
 
 
@@ -29,8 +34,9 @@ def raptors_are_interpreted(monkeypatch):
     monkeypatch.setattr(state, "INTERPRETED_HEROES", state.INTERPRETED_HEROES | {"raptors"})
 
 
-def scene(seed: int, foe: str = "hellboy", hand=ATTACK_HAND, iterations: int = 150, bot: str = "raptors"):
-    """The bot's turn with `hand`, the rival's hand empty; every piece wherever the board's setup put it (the caller places them)."""
+def scene(seed: int, foe: str = "hellboy", hand=ATTACK_HAND, iterations: int = 150, bot: str = "raptors", rival_holds: bool = False):
+    """The bot's turn with `hand`, the rival's hand empty (the five cards it was dealt with `rival_holds`); every piece wherever the
+    board's setup put it (the caller places them)."""
     ai = make_bot_ai({"ai": "ismcts", "ai_iterations": iterations, "ai_time_budget": 60, "ai_seed": seed}, 0)
     g = Game.new(Board.load(BOARD), seed, controllers={0: ai, 1: ScriptedHellboy(1, seed)}, heroes=(bot, foe), bot_player=0)
     g.turn, g.turn_no = 0, 3
@@ -40,8 +46,14 @@ def scene(seed: int, foe: str = "hellboy", hand=ATTACK_HAND, iterations: int = 1
     st.hand.clear()
     for i, title in enumerate(hand):
         give(g, 0, title, nth=hand[:i].count(title))
-    g.players[1].hand.clear()
+    if not rival_holds:
+        g.players[1].hand.clear()
     return g, ai
+
+
+def as_the_bot(g) -> EngineState:
+    """The position as the bot's Raptors evaluate it: with their profile (`HERO_EVAL`), as `IsmctsMedusa` builds its root."""
+    return EngineState(g, observer=0, weights=hero_weights(EvalWeights(), "raptors"))
 
 
 def arrange(g, rival_pos: int, beside: tuple, two_away: tuple, far=None):
@@ -116,7 +128,7 @@ def test_a_follower_that_cannot_get_beside_the_rival_gets_as_close_as_it_can():
 
 # ---------------------------------------------------------------- attacks every turn it can
 
-def test_with_a_blow_to_land_the_last_action_is_never_a_maneuver():
+def test_with_a_blow_to_land_and_cards_left_to_answer_the_last_action_is_never_a_maneuver():
     g, _ = scene(0)
     arrange(g, 7, beside=("blue",), two_away=("delta", "echo"))
     for left, walks in ((1, False), (2, True)):
@@ -124,6 +136,22 @@ def test_with_a_blow_to_land_the_last_action_is_never_a_maneuver():
         moves = EngineState(g, observer=0).legal_moves()
         assert any(m[0] == "attack" for m in moves)
         assert any(m[0] == "maneuver" for m in moves) == walks, (left, moves)
+
+
+@pytest.mark.parametrize("hand", [("Disengage",), ("Clever Girl", "Feint"), ("Eviscerate", "Decoy"), BARE_HAND],
+                         ids=["last card", "two cards", "attack and defense", "no defense"])
+def test_a_pack_whose_hand_cannot_pay_for_the_blow_may_maneuver_on_its_last_action_and_walk_away(hand):
+    """After the blow fewer than two cards would be left, or none of them a defense: the Maneuver (a card drawn) is a move again, and
+    its placements are no longer bound to the rival's side."""
+    g, _ = scene(0, hand=hand)
+    arrange(g, 7, beside=("blue",), two_away=("delta", "echo"))
+    g.actions_left = 1
+    state = EngineState(g, observer=0)
+    moves = state.legal_moves()
+    assert any(m[0] == "attack" for m in moves) and ("maneuver", None) in moves
+    state.apply(("maneuver", None))
+    beside = g.board.adj[7]
+    assert any(d not in beside for _, d, _ in state.legal_moves())
 
 
 def test_any_other_hero_keeps_its_maneuver_on_the_last_action():
@@ -153,6 +181,34 @@ def test_ismcts_still_attacks_the_rival_hero_that_deals_zone_damage(seed):
     assert zone_damage(g, 1) == pytest.approx(1.0)
     made, _ = play_the_turn(g, ai)
     assert made, "the Raptors held back from the rival hero because of her zone damage"
+
+
+# ---------------------------------------------------------------- a thin hand draws instead of spending its last card
+
+def thin_turn(seed: int, foe: str, hand=("Disengage",), rival_hp: int | None = None, rival_holds: bool = True):
+    """Blue beside the rival with `hand`, Delta and Echo two spaces off; (attacks made, cards the bot ends its turn with, the game)."""
+    g, ai = scene(seed, foe=foe, hand=hand, rival_holds=rival_holds)
+    arrange(g, SPOTS[seed], beside=("blue",), two_away=("delta", "echo"))
+    if rival_hp is not None:
+        g.hero(1).hp = rival_hp
+    made, _ = play_the_turn(g, ai)
+    return made, len(g.players[0].hand), g
+
+
+@pytest.mark.parametrize("foe", ["hellboy", "liz-sherman"])
+def test_ismcts_with_one_card_left_mostly_maneuvers_twice_instead_of_spending_it(foe):
+    """Live 16/11 against Liz Sherman: hand=[Disengage], attack, and the rival's turn met an empty hand. Before, the last action of a pack
+    with a blow to land was never a Maneuver and eleven of these twelve scenes ended with one card or none."""
+    turns = [thin_turn(seed, foe)[:2] for seed in range(6)]
+    kept = [left for made, left in turns if not made]
+    assert len(kept) >= 4, turns
+    assert all(left == 3 for left in kept), turns              # two Maneuvers: the card it had and the two it drew
+
+
+@pytest.mark.parametrize("seed", range(6))
+def test_ismcts_spends_its_last_card_on_the_blow_that_wins_the_game(seed):
+    made, _, g = thin_turn(seed, "liz-sherman", rival_hp=3, rival_holds=False)
+    assert made and g.winner == 0
 
 
 # ---------------------------------------------------------------- the pack: Raptors beside the defender
@@ -227,6 +283,99 @@ def test_the_search_threat_grows_with_each_follower_in_the_zone():
         values.append(EngineState(g, observer=0).threat(0, urgent=True)[0])
     assert values == sorted(values) and len(set(values)) == 3
     assert values[2] - values[0] == pytest.approx(2 * (values[1] - values[0])) and values[1] - values[0] == pytest.approx(1 / 7)
+
+
+def test_for_the_bots_raptors_each_one_in_the_zone_is_its_share_of_the_teams_life():
+    """One life (`team_life`): 1 damage is 1/21 of it per Raptor in the gaze, and her blows are counted once, on the Raptor they hurt most."""
+    prices, threats = [], []
+    for inside in range(4):
+        g = medusa_scene(inside, order=("delta", "echo", "blue"))
+        prices.append(as_the_bot(g)._zone_exposure(0, g.hero(0))[0])
+        threats.append(as_the_bot(g).threat(0, urgent=True)[0])
+    assert prices == pytest.approx([0, 1 / 21, 2 / 21, 3 / 21])
+    assert threats[1] - threats[0] > 1 / 21                              # the first Raptor in her zone is also the first she strikes
+    assert threats[2] - threats[1] == pytest.approx(1 / 21)
+    g = medusa_scene(1)
+    exposed, = zone_exposed(g, 0, g.hero(1))
+    exposed.hp = 1
+    assert as_the_bot(g)._zone_exposure(0, g.hero(0)) == (pytest.approx(1 / 15), 0.0)     # its last hit point, of the 15 the team has left
+
+
+def test_a_rival_that_reaches_only_a_follower_is_a_threat_on_the_team():
+    """Before, the blows were measured on Blue alone: a pack with Delta and Echo beside the rival and Blue out of its reach had nothing to fear."""
+    g, _ = scene(0, hand=())
+    arrange(g, 7, beside=("delta",), two_away=())
+    b = g.board
+    for fid in ("blue", "echo"):
+        g.fighters[fid].pos = max((s for s in b.spaces if s not in {f.pos for f in g.fighters.values()}), key=lambda s: b.distance(7, s))
+    state = as_the_bot(g)
+    on_delta, on_blue = state._blows_on(0, g.fighters["delta"]), state._blows_on(0, g.fighters["blue"])
+    assert on_blue is None or on_delta[0] > on_blue[0]
+    expected, lethal = state.threat(0, urgent=True)
+    assert expected == pytest.approx(on_delta[0] / 21)
+    assert lethal == 0.0                                                  # a Raptor falling is not the game while another stands
+
+
+# ---------------------------------------------------------------- one life, and a defense card per blow
+
+def test_the_three_raptors_are_one_life_for_the_search():
+    """Each follower was a sidekick on top of a whole hero: the opening position was worth 0.88 to the Raptors and 0.13 to their rival,
+    on the flat end of `squash`, where neither a card kept nor a blow taken moved the leaf."""
+    g, _ = scene(0, foe="liz-sherman", hand=ATTACK_HAND, rival_holds=True)
+    state = as_the_bot(g)
+    assert 0.4 < state.evaluate(0) < 0.6
+    whole = state._side_value(0)
+    g.fighters["echo"].hp -= 3
+    follower_hurt = as_the_bot(g)._side_value(0)
+    g.fighters["echo"].hp += 3
+    g.fighters["blue"].hp -= 3                                           # the same three hit points on the hero fighter: the same price
+    assert follower_hurt == pytest.approx(as_the_bot(g)._side_value(0)) and follower_hurt < whole
+
+
+def test_a_bot_of_another_hero_facing_the_raptors_keeps_the_evaluation_it_had():
+    """One life for the Raptors is their own profile: measured on Liz Sherman, the bot facing them attacked less with it and won no more."""
+    g, _ = scene(0, foe="raptors", bot="liz-sherman", hand=(), rival_holds=True)
+    state = EngineState(g, observer=0, weights=hero_weights(EvalWeights(), "liz-sherman"))
+    assert state.weights == EvalWeights() and state._life_pool(1) == [g.hero(1)]
+    assert state.evaluate(1) > 0.8
+
+
+def test_the_raptors_count_a_defense_card_for_each_blow_and_any_other_hero_its_best_one_twice():
+    assert hero_weights(EvalWeights(), "raptors").reserve == 1.0 and EvalWeights().reserve == 0.0
+    threats = {}
+    for name, weights in (("raptors", replace(EvalWeights(), reserve=1.0)), ("default", EvalWeights())):
+        for decoys in range(3):
+            g, _ = scene(0, hand=("Decoy",) * decoys, rival_holds=True)
+            arrange(g, 7, beside=("blue",), two_away=("delta", "echo"))
+            threats[name, decoys] = EngineState(g, observer=0, weights=weights).threat(0, urgent=True)[0]
+    assert threats["raptors", 0] > threats["raptors", 1] > threats["raptors", 2]      # the second Decoy answers the second blow
+    assert threats["default", 0] > threats["default", 1] == threats["default", 2]
+    assert threats["raptors", 2] == threats["default", 2] and threats["raptors", 0] == threats["default", 0]
+
+
+def test_the_raptors_fear_and_are_credited_with_no_more_blows_than_the_attacker_has_cards_for():
+    """The blows were the average of the attacker's whole deck, twice, whatever it held: a pack with an empty hand beside the rival was
+    credited with two full blows on it, so spending the last card cost the search nothing (the count of a hand is public)."""
+    pressing = replace(EvalWeights(), reserve=1.0)
+    on_the_rival, on_the_pack = {}, {}
+    for cards in range(4):
+        g, _ = scene(0, hand=("Clever Girl",) * 3, rival_holds=True)
+        arrange(g, 7, beside=("blue", "delta", "echo"), two_away=())
+        del g.players[0].hand[cards:]
+        on_the_rival[cards] = EngineState(g, observer=0, weights=pressing).threat(1, urgent=True)[0]
+        g, _ = scene(0, hand=(), rival_holds=True)
+        arrange(g, 7, beside=("blue",), two_away=("delta", "echo"))
+        del g.players[1].hand[cards:]
+        on_the_pack[cards] = EngineState(g, observer=0, weights=pressing).threat(0, urgent=True)[0]
+    for threat in (on_the_rival, on_the_pack):
+        assert threat[0] == threat[1] > 0          # no card: a Maneuver draws one and one blow follows; one card: one blow
+        assert threat[2] == threat[3] > threat[1]  # two actions, two blows at most
+    g, _ = scene(0, hand=(), rival_holds=True)
+    arrange(g, 7, beside=("blue", "delta", "echo"), two_away=())
+    empty_handed = EngineState(g, observer=0).threat(1, urgent=True)[0]                # any other hero: as before, the hand is not counted
+    g, _ = scene(0, hand=("Clever Girl",) * 3, rival_holds=True)
+    arrange(g, 7, beside=("blue", "delta", "echo"), two_away=())
+    assert EngineState(g, observer=0).threat(1, urgent=True)[0] == empty_handed > 0
 
 
 def test_a_hero_with_no_team_is_still_priced_by_its_hero_alone():

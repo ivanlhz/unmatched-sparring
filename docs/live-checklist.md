@@ -399,7 +399,7 @@ Nothing of the Raptors has been seen on a real table. Their deck is sheet 176 li
 - [ ] **Coordinated Attack Pattern (H)**: three buttons named after the miniatures, (ONE question), then the chat tells you to place each of the other two in its zone by hand. **(B)**: the bot places them.
 - [ ] **Decoy (H)**: Yes / No, then the other Raptors; you place her next to the opposing fighter by hand.
 - [ ] **Ambush against a human (bot Raptors)**: the chat names the position of the card you discard ("the card N counting from the left"); you lay it on your discard pile and press Done; the bot reads it and the attack is worth 2 plus its BOOST. **(H)**: your Ambush takes a random card of the bot's hand and adds its BOOST.
-- [ ] **Bot behaviour**: it attacks every turn it can, brings the other Raptors next to the defender, and keeps its Raptors out of a rival hero's zone damage (Medusa) unless attacking.
+- [ ] **Bot behaviour**: with cards to answer your turn (two left after the blow, a defense among them) it attacks every turn it can and brings the other Raptors next to the defender; with one or two cards it mostly Maneuvers to draw instead of attacking with its last card (16/11: it attacked itself out of cards), unless the blow can finish you; it keeps its Raptors out of a rival hero's zone damage (Medusa) unless attacking.
 ### Sinbad (Battle of Legends, Volume One, with The Porter)
 
 Nothing of Sinbad has been seen on a real table. His deck is sheet 176 like Medusa's, the turtles', Doctor Strange's, Bigfoot's and the Tales to Amaze decks': the first things to check are the detection, the Porter's token and the Voyages dial.

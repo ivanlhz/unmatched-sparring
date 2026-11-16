@@ -29,14 +29,16 @@ the threat on its hero next turn (`EngineState.threat`): expected damage from th
 (without passing through its own fighters, so a sidekick in the corridor is a shield), with the average attack of the
 attacker's whole deck against the best defense in hand, plus the probability of being killed. It is generic
 (any hero, any sidekick) and, subtracted from the opposing side, is its own pressure: a sidekick within range of the
-rival hero counts as an attacker, not just as HP to keep. The weights live in `EvalWeights` (F10 tunes them).
+rival hero counts as an attacker, not just as HP to keep. The weights live in `EvalWeights` (F10 tunes them); `HERO_EVAL` holds
+the ones a hero plays with: the bot's Raptors (a team, beaten only with their last fighter) count their three fighters as one life,
+threatened through whichever of them the rival reaches.
 """
 from __future__ import annotations
 
 import random
 from dataclasses import dataclass, field, replace
 from functools import lru_cache
-from math import sqrt
+from math import fsum, prod, sqrt
 
 from .. import enraged, pack, tracks
 from ..ai_hazards import zone_cover_factor, zone_damage, zone_exposed
@@ -63,6 +65,8 @@ ROLLOUT_BOOST_PROB = 0.3
 ROLLOUT_APPROACH_PROB = 0.5   # in the rollout, the hero maneuvering looks for a space from which to strike
 PLACEMENT_KEEP = 6            # maneuver placements in the tree: the best by static evaluation...
 PLACEMENT_STRIKE_KEEP = 2     # ...plus the best ones from which the hero strikes, plus staying still
+HAND_RESERVE = 3              # the cards of a hand that are its reserve (`EvalWeights.hand_reserve`): two blows to answer next turn and one card to play
+PACK_RESERVE = 2              # cards a pack keeps after a blow (a defense among them) for that blow to be forced on its last action: the rival answers with two actions
 
 
 @dataclass(frozen=True)
@@ -81,10 +85,18 @@ class EvalWeights:
     beside: float = 0.0             # share of the sidekicks standing next to their hero, when its cards pay for it (`beside_stake`)
     pack: float = 0.15              # for a hero with the pack bonus (the Raptors): each fighter beyond the first standing beside the same rival, in hero HP (the +1 of every blow it lands is about two points a turn)
     caution: float = 1.0            # multiplier of the expected damage on the bot's own hero (less: it stands in reach); the lethal risk is not scaled
+    reserve: float = 0.0            # cards are counted per blow in `threat`. Above 0 the attacker lands no more blows than it has cards for; and each blow after the first is measured that far from the best defense in hand towards the next one (1: a card defends once)
+    team_life: float = 0.0          # above 0, a team (the Raptors) is one life: the hit points of all its fighters in `_side_value`, threatened through whichever of them the rival reaches (`_life_pool`)
+    hand_reserve: float = 0.0       # the first `HAND_RESERVE` cards of the hand, on top of `hand`: an empty hand answers nothing, a seventh card adds little
     slope: float = 1.5              # scale of `squash` over the difference between sides
 
 
-HERO_EVAL: dict[str, dict[str, float]] = {"doctor-strange": {"caution": 0.3}}      # evaluation weights a hero plays with (F-STRANGE-AGGRO); the configuration's own values win
+# evaluation weights a hero plays with; the configuration's own values win. Doctor Strange stands in reach (F-STRANGE-AGGRO); the Raptors
+# are one life, count a card per blow and keep a reserve (F-RAPTORS-SWARM: they attacked themselves out of cards, and only a third of
+# their deck defends). A bot of another hero facing the Raptors keeps the old evaluation: one life there cost it attacks and, if
+# anything, games (120 paired games of Liz Sherman, features.json)
+HERO_EVAL: dict[str, dict[str, float]] = {"doctor-strange": {"caution": 0.3},
+                                          "raptors": {"team_life": 1.0, "reserve": 1.0, "hand_reserve": 0.45}}
 
 
 def hero_weights(weights: EvalWeights, slug: str, explicit: frozenset[str] = frozenset()) -> EvalWeights:
@@ -454,8 +466,8 @@ class EngineState:
         if tracks.attack_only(g):                   # the action left is a free action to attack: nothing else may spend it
             return attacks
         moves = attacks + self._scheme_moves(p)
-        if attacks and pack.passive(g, p) and g.actions_left <= 1:
-            return moves        # the pack never spends its last action walking when it has a blow to land (Iván: super aggressive); with an action to spare it may close up first (`_placements`)
+        if attacks and g.actions_left <= 1 and self._pack_presses(p):
+            return moves        # the pack whose hand can pay for it never spends its last action walking when it has a blow to land (Iván: super aggressive); with an action to spare it may close up first (`_placements`)
         moves += [("maneuver", c.title if c else None) for c in self._boost_variants(p)]
         return moves
 
@@ -780,7 +792,7 @@ class EngineState:
         g = self.game
         options = sorted(self._hero_options(hero))
         policies = self._policies(p)
-        if pack.passive(g, p) and self._attack_moves(p):
+        if self._pack_presses(p) and self._attack_moves(p):
             # a pack with a blow to land walks only to join it: every Raptor to a space beside the rival, the hero where he strikes from
             options = [d for d in options if d in self._striking_spots(p)] or options
             policies = (PACK,)
@@ -826,18 +838,45 @@ class EngineState:
     def _side_value(self, p: int, urgent: bool = False) -> float:
         g, w = self.game, self.weights
         hero = g.hero(p)
-        side = [f for f in g.own(p, alive_only=False) if not f.hero]
-        side_hp = sum(f.hp for f in side if f.alive) / hero.max_hp      # in hero HP: a Harpy is worth less than Lobster
+        everyone = g.own(p, alive_only=False)
+        side = [f for f in everyone if not f.hero]
+        if w.team_life and g.players[p].hero.team:
+            # a team is one life: with each follower counted as a sidekick on top of a whole hero, three Raptors were worth three heroes
+            # against the rival's one, the leaf sat on the flat end of `squash` and no move (a card kept, a blow taken) changed it
+            life = sqrt(sum(f.hp for f in everyone if f.alive) / sum(f.max_hp for f in everyone))
+            side_hp = 0.0
+        else:
+            # square root: the first HP are worth more than the last; staying alive at 3 HP is not almost the same as dying
+            life = sqrt(max(hero.hp, 0) / hero.max_hp)
+            side_hp = sum(f.hp for f in side if f.alive) / hero.max_hp      # in hero HP: a Harpy is worth less than Lobster
         alive = sum(1 for f in side if f.alive) / len(side) if side else 0.0
         cap = g.hand_cap(p)                                  # a 3-card hero (Michelangelo) is full at 3, not at 7
-        hand = min(len(g.players[p].hand), cap) / cap
+        held = len(g.players[p].hand)
+        hand = min(held, cap) / cap
+        reserve = min(held, HAND_RESERVE, cap) / min(HAND_RESERVE, cap)
         deck = min(len(g.players[p].deck), 10) / 10
-        # square root: the first HP are worth more than the last; staying alive at 3 HP is not almost the same as dying
         next_to = 0.0
         if alive and hero.pos is not None and beside_stake(g, p):
             next_to = sum(1 for f in side if f.alive and f.pos in g.board.adj[hero.pos]) / len(side)
-        return (sqrt(max(hero.hp, 0) / hero.max_hp) + w.sidekicks * side_hp + w.beside * next_to + w.alive * alive + w.hand * hand + w.pack * self._pack_ready(p)
+        return (life + w.sidekicks * side_hp + w.beside * next_to + w.alive * alive + w.hand * hand + w.hand_reserve * reserve + w.pack * self._pack_ready(p)
                 + w.deck * deck + w.ongoing * ongoing.worth(g, p) / hero.max_hp - self._exposure(p, urgent))
+
+    def _pack_presses(self, p: int) -> bool:
+        """A hero with the pack bonus whose hand can pay for a blow: some attack card leaves `PACK_RESERVE` cards behind, a defense
+        among them. Only then is the blow forced on the last action and the walk bound to the rival's side; a pack with a thinner hand
+        is offered the Maneuver too (two of them draw two cards, away from the rival if it likes) and the evaluation chooses. The pack
+        a bot of another hero plays against is modelled as it was, always pressing: its hand is a sample, and that bot's play against
+        the Raptors was not measured with any other model."""
+        g = self.game
+        if not pack.passive(g, p):
+            return False
+        if p != self.observer:
+            return True
+        hand = g.players[p].hand
+        if len(hand) <= PACK_RESERVE:
+            return False
+        defenses = sum(1 for c in hand if c.can_defend)
+        return defenses > 1 or (defenses == 1 and any(c.can_attack and not c.can_defend for c in hand))
 
     def _pack_ready(self, p: int) -> int:
         """Fighters beyond the first of `p` standing beside the same rival, for a hero whose attacks grow with them (`pack.passive`): the pack
@@ -860,21 +899,56 @@ class EngineState:
         (without passing through `victim`'s fighters: sidekicks in the way are a shield), discounted if it needs a
         boost: the biggest one the attacker's side still has to play (`boost_reach`, public), none once its cards are
         gone. The cost of an attack is the average value of the attacker's whole deck against the best defense in
-        hand, plus the defense card it spends. Actions limit: whoever is already in range can hit twice;
+        hand, plus the defense card it spends; with the weight `reserve`, each later blow meets the next defense of the hand
+        (none left: it lands whole). Actions limit: whoever is already in range can hit twice;
         whoever has to maneuver, once. If the threatened one moves first, the threat is discounted, except with `urgent`
-        (the position is seen as an end of turn: used by the placement pruning)."""
+        (the position is seen as an end of turn: used by the placement pruning). For a team that is one life (`_life_pool`)
+        the blows are measured on each of its fighters, the worst counts, over the hit points of all of them, and none of
+        them kills while another stands."""
         g, w = self.game, self.weights
         hero = g.hero(victim)
         if not hero.alive:
             return 0.0, 1.0
+        pool = self._life_pool(victim)
+        blows = [b for b in (self._blows_on(victim, f) for f in pool) if b is not None]
+        gaze_hp, gaze_kill = self._zone_exposure(victim, hero)
+        urgency = w.victim_moves_first if g.turn == victim and not urgent else 1.0
+        if not blows:
+            return gaze_hp * urgency, gaze_kill * urgency
+        expected = max(e for e, _ in blows)
+        lethal = max(k for _, k in blows) if len(pool) == 1 else 0.0       # a team is beaten only with its last fighter
+        # over the current HP, not the maximum: the same expected hit weighs more the less life is left
+        fear = w.caution if victim == self.observer else 1.0       # only of the blows in reach: the zone hazard keeps its weight
+        return (min(1.0, fear * expected / sum(f.hp for f in pool) + gaze_hp) * urgency,
+                1 - (1 - lethal * urgency) * (1 - gaze_kill * urgency))
+
+    def _life_pool(self, p: int) -> list[Fighter]:
+        """The living fighters whose hit points are `p`'s life: the hero, or with the weight `team_life` every fighter of a team (the
+        Raptors lose with the last of the three, so the three are one life and the rival's blows fall on whichever of them it reaches)."""
+        g = self.game
+        return g.own(p) if self.weights.team_life and g.players[p].hero.team else [g.hero(p)]
+
+    def _blows_on(self, victim: int, hero: Fighter) -> tuple[float, float] | None:
+        """(expected damage in hit points, probability of being killed) for `hero`, a fighter of `victim`'s life pool, in the
+        rival's next turn; None when no rival reaches it."""
+        g, w = self.game, self.weights
         attacker = 1 - victim
         hand = g.players[victim].hand
-        best_def = max((c.value for c in hand if c.can_defend and c.usable_by(hero.name)), default=0)
+        defenses = sorted((c.value for c in hand if c.can_defend and c.usable_by(hero.name)), reverse=True)
+        actions = g.actions_left if g.turn == attacker else 2
+        strikes, walk_strikes = actions, actions - 1    # blows from where the rival stands, and after a Maneuver to get in range
+        answers = [defenses[0] if defenses else 0] * strikes       # the defense each of those blows meets
+        if w.reserve:
+            # a card per blow on both sides: the attacker's are the ones it holds (the count is public) plus one drawn per Maneuver
+            held = len(g.players[attacker].hand)
+            strikes = max(min(actions - walks, held + walks) for walks in range(actions + 1))
+            walk_strikes = min(walk_strikes, held + 1)
+            answers = (defenses + [0] * strikes)[:strikes]
         shield = frozenset(g.occupied(victim))
         mates = g.occupied(attacker)
         boost = None                                    # the attacker's boost reach: read only when someone needs it
-        in_range: list[tuple[float, float]] = []       # (cost per attack, p. of killing) of whoever is already in range
-        after_move: list[tuple[float, float]] = []     # same for whoever arrives by maneuvering (factor already applied)
+        in_range: list[list[tuple[float, float]]] = []      # per blow, (cost, p. of killing) of whoever is already in range
+        after_move: list[list[tuple[float, float]]] = []    # same for whoever arrives by maneuvering (factor already applied)
         for e in g.foes(victim):
             values = attack_values(g.players[attacker], e.name)
             if not values:
@@ -892,33 +966,36 @@ class EngineState:
                 if not boost or not reach_from(g.board, e.pos, steps + boost, own, shield) & spots:
                     continue
                 factor, bucket = w.boost_reach, after_move
-            net, kill = attack_stats(values, g.attack_bonus(e, hero if e.pos in spots else None) - best_def, hero.hp)
-            bucket.append((factor * (net + (w.defend_card_hp if best_def else 0.0)), factor * kill))
-        gaze = self._zone_exposure(victim, hero)
-        urgency = w.victim_moves_first if g.turn == victim and not urgent else 1.0
+            bonus = g.attack_bonus(e, hero if e.pos in spots else None)
+            blows: list[tuple[float, float]] = []
+            for answer in answers:
+                if blows and answer == answers[0]:
+                    blows.append(blows[0])
+                    continue
+                net, kill = attack_stats(values, bonus - answer, hero.hp)
+                cost = net + (w.defend_card_hp if answer else 0.0)
+                if blows:           # `reserve` below 1: part of the way from the best defense to this one
+                    first_cost, first_kill = blows[0]
+                    cost, kill = first_cost + w.reserve * (cost - first_cost), first_kill + w.reserve * (kill - first_kill)
+                blows.append((cost, kill))
+            bucket.append([(factor * cost, factor * kill) for cost, kill in blows])
         if not in_range and not after_move:
-            return gaze[0] * urgency, gaze[1] * urgency
-        actions = g.actions_left if g.turn == attacker else 2
-        now_cost = max((c for c, _ in in_range), default=0.0)
-        now_kill = max((k for _, k in in_range), default=0.0)
-        any_cost = max(c for c, _ in in_range + after_move)
-        any_kill = max(k for _, k in in_range + after_move)
+            return None
+        everyone = in_range + after_move
+        now_cost = [max((blows[i][0] for blows in in_range), default=0.0) for i in range(strikes)]
+        now_kill = [max((blows[i][1] for blows in in_range), default=0.0) for i in range(strikes)]
+        any_cost = [max(blows[i][0] for blows in everyone) for i in range(walk_strikes)]
+        any_kill = max(blows[0][1] for blows in everyone) if walk_strikes >= 1 else 0.0
         # two attacks in a row from where it is, or a maneuver and the best attack of all
-        expected = max(actions * now_cost, (actions - 1) * any_cost)
-        lethal = max(1 - (1 - now_kill) ** actions, any_kill if actions >= 2 else 0.0)
-        # over the current HP, not the maximum: the same expected hit weighs more the less life is left
-        gaze_hp, gaze_kill = gaze
-        fear = w.caution if victim == self.observer else 1.0       # only of the blows in reach: the zone hazard keeps its weight
-        return (min(1.0, fear * expected / hero.hp + gaze_hp) * urgency,
-                1 - (1 - lethal * urgency) * (1 - gaze_kill * urgency))
+        return max(fsum(now_cost), fsum(any_cost)), max(1 - prod(1 - k for k in now_kill), any_kill)
 
     def _zone_exposure(self, victim: int, hero: Fighter) -> tuple[float, float]:
         """(expected damage as a fraction of HP, probability of dying) from the rival hero's start-of-turn damage to a fighter in
         its zone (Medusa's gaze, from the effects data), for the fighters of `victim` that stand in that zone: the hero alone, or
         every fighter of a team (the Raptors: many fighters of few hit points, each one standing there is a target the rival
-        picks from, so each is weighed on its own and they add up; the game is lost only when the last one falls). The hit points
-        (never the chance of dying) weigh less the better the fighter's defenses in hand cover the rival hero's average attack
-        (`zone_cover_factor`, as in the heuristic's `zone_hazard_cost`)."""
+        picks from, so each is weighed on its own (as its share of the team's life with the weight `team_life`) and they add up; the
+        game is lost only when the last one falls). The hit points (never the chance of dying) weigh less the better the fighter's defenses in hand cover the
+        rival hero's average attack (`zone_cover_factor`, as in the heuristic's `zone_hazard_cost`)."""
         g = self.game
         rival = g.hero(1 - victim)
         exposed = zone_exposed(g, victim, rival)
@@ -931,7 +1008,10 @@ class EngineState:
         blow = sum(values) / len(values) if values else 0.0
         hand = g.players[victim].hand
         team = g.players[victim].hero.team
-        expected = sum(min(1.0, dmg / f.hp) * zone_cover_factor([c.value for c in hand if c.can_defend and c.usable_by(f.name)], blow)
+        pool = self._life_pool(victim)
+        life = sum(f.hp for f in pool)
+        expected = sum(min(1.0, dmg / f.hp) * (f.hp / life if len(pool) > 1 else 1.0)
+                       * zone_cover_factor([c.value for c in hand if c.can_defend and c.usable_by(f.name)], blow)
                        for f in exposed)
         last = len(g.own(victim)) == 1
         dies = any(dmg >= f.hp for f in exposed) and (last or not team)
