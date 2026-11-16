@@ -1077,7 +1077,7 @@
         "Verified through make_bot_ai({'ai': 'ismcts'}), the AI that runs at the table, and the AI tests of every hero the change reaches are run",
         "Tests only on the touched files plus those per-hero AI tests; the full suite is left to the CI or to Ivan"
       ],
-      "note": "Approved by Ivan 16/11/2026. Depends on F-AI-DECISION-LOG for the bench. Liz, per Ivan: aggressive, takes the centre or spaces where several fighters can be hit to get the most out of her hero ability; that belongs to the plan layer (phase 3/4), not here. Phases 2-4 (card counting and beliefs, game plan, per-hero layer) are not opened until phase 0-1 data is in."
+      "note": "Approved by Ivan 16/11/2026. Depends on F-AI-DECISION-LOG for the bench. Liz, as Ivan plays her (16/11): might first, value second. Takes the centre or spaces in several zones for Wildfire; attacks with Fireball, Incinerate and Flame Lash (action); keeps the 2-3 versatiles to defend; Fleeting Moments only when her random discard would be a burning card; Searing Clarity and Rekindle to stay ahead in the deck race. That belongs to the plan layer (phase 3/4), not here. Phases 2-4 (card counting and beliefs, game plan, per-hero layer) are not opened until phase 0-1 data is in."
     }
   ]
 }
