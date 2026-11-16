@@ -664,6 +664,8 @@ class MedusaAI(Controller):
         self._effect_ai = None
         self.journal = None                 # decision_log.DecisionJournal: set by whoever wants the decisions written
         self._ranked: list = []             # the candidates of the last plan and the scores of the last defence: for the journal
+        self._decided: dict[int, float] = {}    # last plan: the value that decided each first action it weighed (act id -> value), when it chose by the plan of two actions
+        self._decided_via = "ranked"        # how the last plan chose: ranked (the first of the ranking), lethal (the finishing blow) or two_actions (the best first action plus the best second)
         self._defense_scores: list = []
 
     # ---------- game setup ----------
@@ -752,24 +754,33 @@ class MedusaAI(Controller):
     def plan_journal(self, act: Act) -> dict:
         """The decision journal's view of the last `plan`: the scored candidates, the chosen one flagged (it can be an act the
         ranking did not put first), same shape as the search's. Built only when a journal is attached."""
-        alternatives = [{"move": decision_log.describe_act(a), "score": round(a.total, 4), "exp_damage": round(a.exp_damage, 3),
-                         "p_kill": round(a.p_kill, 3), **({"chosen": True} if a is act else {})} for a in self._ranked]
+        deciding = self._decided_via == "two_actions"
+        # the score is the one the choice was made with: the plan of two actions weighs only the first actions it tried (the rest of the ranking
+        # is scored one step ahead and is not comparable), so those alone are listed; `one_step` is the ranking's own score of each
+        shown = [a for a in self._ranked if id(a) in self._decided] if deciding else self._ranked
+        alternatives = [{"move": decision_log.describe_act(a), "score": round(self._decided[id(a)] if deciding else a.total, 4),
+                         "one_step": round(a.total, 4), "exp_damage": round(a.exp_damage, 3), "p_kill": round(a.p_kill, 3),
+                         **({"chosen": True} if a is act else {})} for a in shown]
         if not any(a.get("chosen") for a in alternatives):
-            alternatives.append({"move": decision_log.describe_act(act), "score": round(act.total, 4), "chosen": True})
-        return {"chosen": decision_log.describe_act(act), "alternatives": alternatives, "expected": act.total}
+            alternatives.append({"move": decision_log.describe_act(act), "score": round(act.total, 4), "one_step": round(act.total, 4), "chosen": True})
+        value = self._decided.get(id(act), act.total) if deciding else act.total
+        return {"chosen": decision_log.describe_act(act), "alternatives": alternatives, "expected": value, "via": self._decided_via}
 
     def _plan(self, game: Game) -> Act:
         model = Model(game, self.me)
         ranked = self._ranked = self.candidates(game, model)
+        self._decided, self._decided_via = {}, "ranked"
         kill = self.lethal_attack(game, ranked)
         # an act the ranking already sees winning the game (Pact Of Peace on a 1 HP hero) beats the shortcut
         if kill is not None and not (ranked[0] is not kill and ranked[0].total >= DEATH / 2):
+            self._decided_via = "lethal"
             return kill
         width = TOP_FIRST_DESPERATE if self.desperation(game) >= 0.3 else TOP_FIRST
         firsts = (ranked[:width] + self.approach_acts(game, ranked[width:]) + self.strike_firsts(game, ranked[width:])
                   + self.blow_firsts(game, ranked[width:]))
         if game.actions_left < 2:
             return firsts[0]
+        self._decided_via = "two_actions"
         best, best_v = None, None
         blow = self.holds_a_blow(game, ranked)
         for a1 in firsts:
@@ -781,6 +792,7 @@ class MedusaAI(Controller):
                                        struck=a1.kind == "attack" and a1.fid == game.hero(self.me).fid)
                 second = rest[0].total if rest else 0.0      # nothing: all that is left is a free action to attack and no attack is possible
             total = a1.value + second
+            self._decided[id(a1)] = total
             if best_v is None or total > best_v + 1e-9:
                 best, best_v = a1, total
         return best

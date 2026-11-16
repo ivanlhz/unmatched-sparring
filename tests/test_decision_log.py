@@ -36,7 +36,7 @@ def test_every_plan_and_defense_writes_a_decision_with_its_alternatives(tmp_path
     assert {"plan", "defense"} <= {d["kind"] for d in decisions}
     for d in decisions:
         assert d["ai"] == kind and d["fallback"] is False
-        assert set(d["own"]) == set(d["rival"]) == {"hand", "deck", "discard", "hero_hp"}
+        assert set(d["own"]) == set(d["rival"]) == {"hand", "deck", "discard", "hero_hp", "fighters"}
         assert isinstance(d["rival_known_in_hand"], list) and d["alternatives"] and d["chosen"] is not None
         assert d["game"] == recs[0]["game"] and d["turn"] >= 1
     if kind == "ismcts":
@@ -274,3 +274,34 @@ def test_review_joins_a_game_resumed_in_another_process(tmp_path):
     path.write_text("\n".join(json.dumps(l) for l in lines), encoding="utf-8")
     games = review_decisions.read_games(path)
     assert set(games) == {"a", "c"} and sorted(games["a"]["decisions"]) == [1, 2, 3] and 3 in games["a"]["outcomes"]
+
+
+def test_the_heuristic_scores_every_listed_alternative_with_the_value_that_decided(tmp_path):
+    """Two actions left: the choice is the best first action plus the best second one, so the listed score is that total (the
+    chosen one is the highest), and the journal says how it chose; the ranking's own score stays beside it."""
+    path = tmp_path / "decisions.jsonl"
+    journaled_game(path, "heuristic", turns=6)
+    plans = [r for r in records(path) if r["t"] == "decision" and r["kind"] == "plan"]
+    assert {p["via"] for p in plans} <= {"ranked", "lethal", "two_actions"} and any(p["via"] == "two_actions" for p in plans)
+    for p in plans:
+        chosen = next(a for a in p["alternatives"] if a.get("chosen"))
+        if p["via"] == "two_actions":
+            assert p["expected"] == pytest.approx(chosen["score"], abs=1e-3)
+            assert all(chosen["score"] >= a["score"] - 1e-6 for a in p["alternatives"])
+            assert all("one_step" in a for a in p["alternatives"])
+
+
+def test_a_team_journal_line_carries_the_hit_points_of_every_fighter(tmp_path):
+    path = tmp_path / "decisions.jsonl"
+    journaled_game(path, "heuristic", turns=2)
+    own = next(r for r in records(path) if r["t"] == "decision")["own"]
+    assert len(own["fighters"]) == 3 and all(isinstance(hp, int) for hp in own["fighters"].values())
+
+
+def test_the_fallen_leader_of_a_team_shows_zero_hit_points():
+    from ai_positions import build, make_ai
+    game = build("raptors_liz_t1_opening", make_ai("heuristic"))
+    blue = next(f for f in game.own(0) if f.hero)
+    blue.alive = False        # a fallen fighter keeps the hit points it fell with
+    side = decision_log._side(game, 0)
+    assert blue.hp > 0 and side["fighters"][blue.fid] == 0 and side["hero_hp"] > 0 and sum(side["fighters"].values()) > 0

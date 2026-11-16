@@ -69,7 +69,8 @@ def played_titles(chosen) -> list[str]:
 
 def _side(game, p: int) -> dict:
     st = game.players[p]
-    return {"hand": len(st.hand), "deck": len(st.deck), "discard": len(st.discard), "hero_hp": game.hero(p).hp}
+    return {"hand": len(st.hand), "deck": len(st.deck), "discard": len(st.discard), "hero_hp": game.hero(p).hp,
+            "fighters": {f.fid: max(0, f.hp) if f.alive else 0 for f in game.own(p, alive_only=False)}}      # a team's hero is whoever stands: every fighter's own HP (0 once fallen)
 
 
 def _snapshot(game) -> dict:
@@ -168,9 +169,10 @@ class DecisionJournal:
             self._warn("resume line", e)
 
     def decision(self, game, me: int, kind: str, ai, chosen, alternatives: list[dict], *, iterations: int | None = None,
-                 elapsed: float | None = None, fallback: bool = False, error: str | None = None, expected: float | None = None) -> None:
+                 elapsed: float | None = None, fallback: bool = False, error: str | None = None, expected: float | None = None, via: str | None = None) -> None:
         """One line per decision. `alternatives`: dicts with `move` and `visits`/`value`/`score`, the chosen one flagged
-        `chosen`; `expected`: the chosen move's own value, to compare with the outcome."""
+        `chosen`; `expected`: the chosen move's own value, to compare with the outcome;
+        `via`: how the heuristic chose (ranked, lethal or two_actions), which says on what scale the scores are."""
         try:
             self.settle(game, force=True)
             if self.game_id is None:
@@ -186,6 +188,8 @@ class DecisionJournal:
                       "actions_left": game.actions_left, "own": _side(game, me), "rival": _side(game, rival),
                       "rival_known_in_hand": known, "alternatives_total": len(alternatives), "alternatives": kept, "chosen": chosen,
                       "expected": None if expected is None else round(expected, 4), "fallback": fallback}
+            if via:
+                record["via"] = via
             if error:
                 record["error"] = error
             self._write(record)
