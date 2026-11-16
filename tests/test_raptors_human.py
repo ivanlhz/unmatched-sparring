@@ -10,6 +10,7 @@ from __future__ import annotations
 import pytest
 
 from sparring.ai_medusa import Act
+from sparring.tts.lua import ChatKind
 from sparring.tts.ui import Event
 from test_batch import click
 from test_d3_table_effects import bot_turn, card_ids, human_attack, human_hand, said
@@ -190,6 +191,8 @@ def test_the_bots_ambush_names_a_position_and_reads_the_card_the_human_lays_on_t
     session, table, game, fake, cfg = rig
     msgs = ambush(session, table, game, cfg, "B.P.R.D. Training", "Excalibur", "Service Pistol")
     assert said(msgs, "al azar: la carta"), msgs
+    loud = [m for m in msgs if m.startswith("DESCARTE AL AZAR: CARTA ")]
+    assert len(loud) == 1 and loud[0].endswith(" DE 5 (DESDE LA IZQUIERDA)") and loud[0].kind == ChatKind.WARNING, msgs
     req = awaiting(session)
     assert req.kind == "cards" and req.extra["pile_mode"] == "reveal" and req.extra["ambush"] and (req.min, req.max) == (1, 1)
     hp = game.fighters["hellboy"].hp

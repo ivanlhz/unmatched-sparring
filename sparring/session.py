@@ -61,6 +61,7 @@ from .session_choices import panel_text
 from .spaces import describe, zone_text
 from .combat import FEINT, GLANCE_DAMAGE, can_boost, deck_boost, is_medusa_card, scheme_gain_actions
 from .effects.model import EffectError, load_effects
+from .effects.ops_core import random_discard_alert
 from .effects.modifiers import boost_limit, grants_boost, has_boost_effect
 from .state import ANUNG, DETECTIVE, EXHAUST_DAMAGE, Fighter, Game, RuleError
 from .table_prep import DISCARD_ZONE_KEYS, ZoneSpawn
@@ -3338,9 +3339,17 @@ class Session:
         d["n"] = max(0, d["n"] - d.pop("landed", 0))
         d["baseline"] = len(self.game.players[self.human].discard)
 
+    def announce_random_discard(self) -> None:
+        """The loud line of a random discard of the human's hand (Ivan, 16/11), once per draw: the draw leaves its
+        notice in `fx.random_notice` and the first place that shows the request to the human takes and says it."""
+        notice, self.game.fx.random_notice = self.game.fx.random_notice, None
+        if notice is not None:
+            self.say(random_discard_alert(*notice), ChatKind.WARNING)
+
     def _owe_discard(self, n: int, reason: str) -> None:
         translators.translate(self, {"op": "discard", "player": self.human, "zone": "hand", "n": n, "reason": reason,
                                      "all": self.game.fx.whole_hand}, translators.Ctx())
+        self.announce_random_discard()
 
     def _discard_human_hand(self, n: int, reason: str) -> int:
         """Crown Of Flame (Ivan, 30/10): the bot moves the human's whole hand to their discard pile, face up, and the

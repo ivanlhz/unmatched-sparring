@@ -27,7 +27,7 @@ def default_dsl_heroes(game) -> set[str]:
 
 class EffectState:
     __slots__ = ("statuses", "ongoing", "counters", "modifiers", "dsl_heroes", "turn_start_pos", "attacked", "taken",
-                 "maneuvers", "acting", "parked", "choosers", "said", "intents", "whole_hand", "played", "lost", "won", "tracks", "paths",
+                 "maneuvers", "acting", "parked", "choosers", "said", "intents", "whole_hand", "random_notice", "played", "lost", "won", "tracks", "paths",
                  "attack_credit", "_game_ref")
 
     def __init__(self) -> None:
@@ -52,6 +52,7 @@ class EffectState:
         self.said: list[tuple[str, str]] = []            # (kind, line) narrated for the table player's triggers (E2, transient)
         self.intents: list[dict] | None = None           # what table ops did (`table.intent`); None = nobody listens (clones), transient
         self.whole_hand = False                          # the discard being forced takes the player's whole hand (transient)
+        self.random_notice: tuple[list[int], int] | None = None   # (positions, hand size) of a random discard just drawn, until the session says it (transient)
         self._game_ref = None
 
     def attach(self, game) -> None:

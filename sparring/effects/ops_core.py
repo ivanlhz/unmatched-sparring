@@ -179,10 +179,19 @@ def _random_positions_text(game, run, player: int, n: int, title: str) -> str:
     if picked is None:
         picked = sorted(game.rng.sample(range(1, size + 1), min(n, size))) if size else []
         run.flags[key] = picked
+        if picked:
+            game.fx.random_notice = (picked, size)      # the session shouts it once, where it shows the request
     if not picked:
         return title
     which = t("ops.random_one" if len(picked) == 1 else "ops.random_many") + t("common.and").join(str(p) for p in picked)
-    return t("ops.random_positions", title=title, which=which)
+    return t("ops.random_positions", title=title, which=which, size=size)
+
+
+def random_discard_alert(picked: list[int], size: int) -> str:
+    """The loud line for a random discard of the human's hand: capitals, one chat line (<= 64 characters)."""
+    positions = t("common.and").join(str(p) for p in picked)
+    line = t("ops.random_alert_one" if len(picked) == 1 else "ops.random_alert_many", which=positions, size=size).upper()
+    return line if len(line) <= 64 else t("ops.random_alert_short", which=positions, size=size).upper()
 
 
 @op("discard")

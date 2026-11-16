@@ -26,6 +26,7 @@ from sparring.session import Session
 from sparring.spaces import describe
 from sparring.state import ANUNG, DETECTIVE, Game
 from sparring.tts.client import TTSClient
+from sparring.tts.lua import ChatKind
 from sparring.tts.ui import Event
 from fake_tts import FakeTTS
 from test_batch import click
@@ -697,11 +698,14 @@ def test_fleeting_moments_names_a_random_position_of_your_hand_without_reading_i
     bot_turn(session, table, [Act("attack", fid="liz", target="hellboy", card=fleeting)])
     table.face_down = []
     before = list(game.players[1].discard)
+    size = len(game.players[1].hand)                      # the cards the position is drawn among
     msgs = click(session, table, Event.REVEAL)
     assert session.pending_discard["n"] == 1 and "cards" not in session.pending_discard
     line = next(m for m in msgs if "Descarta 1 carta(s) (Fleeting Moments, al azar: la carta " in m)
     pos = int(line.split("la carta ")[1].split(" ")[0])
-    assert 1 <= pos <= len(game.players[1].hand) and "de tu mano contando desde la izquierda" in line
+    assert 1 <= pos <= size and f"de las {size} de tu mano, contando desde la izquierda" in line
+    loud = [m for m in msgs if m.startswith("DESCARTE AL AZAR")]
+    assert loud == [f"DESCARTE AL AZAR: CARTA {pos} DE {size} (DESDE LA IZQUIERDA)"] and loud[0].kind == ChatKind.WARNING
     assert game.players[1].discard == before, "the engine never names a placeholder card of your hand"
     assert human_reads(table) == []
 
