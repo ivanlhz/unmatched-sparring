@@ -46,7 +46,7 @@ def source_ids(game, player, n):
 def test_the_source_dial_is_in_the_table_data_and_the_session_config(tmp_path):
     session, table, game, fake, cfg, client = build(tmp_path, "ciri", "hellboy", ("Blink",))
     try:
-        dial = cfg.session_config().source_dial
+        dial = cfg.session_config().counter_dials["source"]
         assert dial == "46aa92" and cfg.session_config().destiny_dial is not None      # Hellboy's own dial is a different one
         assert dial in session.guids_in_use() and [dial] in session.guid_groups()
         assert table.dials[dial]["value"] == 0
@@ -58,17 +58,17 @@ def test_the_source_dial_is_in_the_table_data_and_the_session_config(tmp_path):
 @rigged("hellboy", "abe-sapien", "Service Pistol")
 def test_a_game_without_ciri_has_no_source_dial(rig):
     session, table, game, fake, cfg = rig
-    assert cfg.session_config().source_dial is None
+    assert not cfg.session_config().counter_dials
     assert session._write_dials()
 
 
 @rigged("ciri", "hellboy", "Blink", "Lion cub of Cintra")
 def test_the_bots_source_dial_follows_its_discard_pile_up_and_down(rig):
     session, table, game, fake, cfg = rig
-    dial = cfg.session_config().source_dial
+    dial = cfg.session_config().counter_dials["source"]
     to_bot_discard(session, table, game, ids=source_ids(game, 0, 3))
     assert session._write_dials()
-    assert table.dials[dial]["value"] == 3 and session.source_seen == 3
+    assert table.dials[dial]["value"] == 3 and session.counter_seen["source"] == 3
     st = game.players[0]
     gone = next(c for c in st.discard if "source" in c.tags)
     st.discard.remove(gone)                                     # back to the hand, on the table and in the engine
@@ -83,7 +83,7 @@ def test_the_bots_source_dial_follows_its_discard_pile_up_and_down(rig):
 @rigged("ciri", "hellboy", "Lion cub of Cintra", "Blink")
 def test_the_bots_source_dial_counts_the_source_card_it_just_played(rig):
     session, table, game, fake, cfg = rig
-    dial = cfg.session_config().source_dial
+    dial = cfg.session_config().counter_dials["source"]
     put_adjacent(game, table, cfg, "hellboy", "ciri")
     lion = next(c for c in game.players[0].hand if c.title == "Lion cub of Cintra")
     human_hand(table, game, TRAINING)
@@ -95,7 +95,7 @@ def test_the_bots_source_dial_counts_the_source_card_it_just_played(rig):
 @rigged("hellboy", "ciri", "Service Pistol")
 def test_the_humans_source_dial_follows_the_pile_they_play_to(rig, monkeypatch):
     session, table, game, fake, cfg = rig
-    dial = cfg.session_config().source_dial
+    dial = cfg.session_config().counter_dials["source"]
     put_adjacent(game, table, cfg, "ciri", "hellboy")
     monkeypatch.setattr(session.ai, "choose_defense", lambda g, a, t, attack_card=None: None)
     human_hand(table, game, "Lion cub of Cintra", "Zireael", "Blink")
@@ -110,7 +110,7 @@ def test_the_humans_source_dial_follows_the_pile_they_play_to(rig, monkeypatch):
 def test_hellboys_destiny_dial_and_ciris_source_dial_are_two_dials(rig):
     session, table, game, fake, cfg = rig
     scfg = cfg.session_config()
-    assert scfg.destiny_dial and scfg.source_dial and scfg.destiny_dial != scfg.source_dial
+    assert scfg.destiny_dial and scfg.counter_dials.get("source") and scfg.destiny_dial != scfg.counter_dials.get("source")
     destiny = [c for c in game.players[0].full_set if "destiny" in c.tags]
     to_bot_discard(session, table, game, ids=[c.card_id for c in destiny[:3]])
     source = [c for c in game.players[1].full_set if "source" in c.tags][:2]
@@ -118,13 +118,13 @@ def test_hellboys_destiny_dial_and_ciris_source_dial_are_two_dials(rig):
         game.players[1].discard.append(c)
         table.human_discard.append(c.card_id)
     assert session._write_dials()
-    assert table.dials[scfg.destiny_dial]["value"] == 3 and table.dials[scfg.source_dial]["value"] == 2
+    assert table.dials[scfg.destiny_dial]["value"] == 3 and table.dials[scfg.counter_dials.get("source")]["value"] == 2
 
 
 @rigged("ciri", "hellboy", "Blink")
 def test_a_new_game_puts_the_source_dial_back_to_zero(rig):
     session, table, game, fake, cfg = rig
-    dial = cfg.session_config().source_dial
+    dial = cfg.session_config().counter_dials["source"]
     to_bot_discard(session, table, game, ids=source_ids(game, 0, 4))
     session._write_dials()
     assert table.dials[dial]["value"] == 4
