@@ -117,3 +117,93 @@ def test_liz_does_not_maneuver_twice_to_stay_where_she_is(name, ai_kind):
     acts = play_turn(ai, game, limit=POSITIONS[name]["actions_left"])
     net = game.board.distance(start, game.hero(0).pos)
     assert not (len(acts) == 2 and all(a["kind"] == "maneuver" for a in acts) and net <= 1), f"{POSITIONS[name]['good_player']} Bot did {acts}"
+
+
+# ---------- Sinbad against Liz, live game of 17/11 (ISMCTS 3 s, eval=new): the evaluation of F-AI-EVAL-RESOLUTION ----------
+# The bot (Sinbad) maneuvered about twenty times and attacked four in thirteen turns, and died of exhaustion on turn 26. The ISMCTS here runs
+# with `ai_eval` = RESOLUTION at a fixed number of iterations, one test per seed.
+SINBAD_SEEDS = (0, 1, 2, 3)
+T4_WHY = ("Turn 4: two maneuvers that stay put are still the most visited line in 5 of 8 seeds: nothing in the evaluation rewards the tempo of "
+          "approaching (the rival's exposure is discounted x0.1 because she moves first), so a draw above the hand limit costs only a deck card")
+T25_WHY = ("Turn 25: not defending is a near tie in the model, not a clear error. Exploit saves about 1.5 HP of the hero on average but costs 2 HP to "
+           "each fighter (its draw on an empty deck) and the only defence card that the second blow of Liz's two cards would meet; Liz wins "
+           "in 51 % of the leaves after Exploit and 56 % after nothing")
+SINBAD_FAILS = {**{("sinbad_liz_t4_idle_maneuvers", s): T4_WHY for s in (0, 2, 3)},
+                **{("sinbad_liz_t25_defends_with_exploit", s): T25_WHY for s in (0, 1, 3)}}      # (position, seed) -> reason
+
+
+def sinbad_case(name: str, seed: int):
+    reason = SINBAD_FAILS.get((name, seed))
+    marks = [pytest.mark.xfail(reason=reason, strict=False, raises=AssertionError)] if reason else []
+    return pytest.param(name, seed, marks=marks, id=f"{name}-seed{seed}")
+
+
+def play_sinbad_turn(name: str, seed: int):
+    """The bot's turn from the position, action by action: (actions, maneuvers that left the hero where he was with the hand already at the limit)."""
+    ai = make_ai("ismcts", seed=seed, new_eval=True)
+    game = build(name, ai)
+    acts, idle = [], 0
+    while game.actions_left > 0 and game.winner is None and len(acts) < POSITIONS[name]["actions_left"]:
+        act = ai.plan(game)
+        acts.append(describe_act(act))
+        pos, held = game.hero(0).pos, len(game.players[0].hand)
+        ai.execute(game, act)
+        idle += acts[-1]["kind"] == "maneuver" and game.hero(0).pos == pos and held >= game.hand_cap(0)
+    return game, acts, idle
+
+
+def test_the_sinbad_positions_are_the_live_ones():
+    """The counts the decision journal of that game gives for each position (hand, deck and pile of the bot; hand, deck and pile of Liz), so a
+    change of the fixture builder cannot move them quietly. VOYAGE cards in the bot's pile: 0, 2, 4, 4, 1."""
+    expected = {"sinbad_liz_t4_idle_maneuvers": ((7, 20, 3), (7, 20, 3), 0), "sinbad_liz_t6_flees_from_an_attack": ((6, 18, 6), (7, 18, 5), 2),
+                "sinbad_liz_t18_idle_maneuvers": ((4, 6, 20), (4, 9, 17), 4), "sinbad_liz_t24_attacks": ((5, 0, 25), (4, 4, 22), 4),
+                "sinbad_liz_t25_defends_with_exploit": ((7, 0, 23), (2, 6, 22), 1)}
+    for name, (mine, hers, voyages) in expected.items():
+        me, liz = build(name, make_ai("heuristic")).players
+        assert [(len(p.hand), len(p.deck), len(p.discard)) for p in (me, liz)] == [mine, hers], name
+        assert sum("voyage" in c.tags for c in me.discard) == voyages, name
+
+
+@pytest.mark.parametrize("name, seed", [sinbad_case("sinbad_liz_t4_idle_maneuvers", s) for s in SINBAD_SEEDS])
+def test_sinbad_does_not_burn_both_actions_on_maneuvers_that_stay_put_with_a_full_hand(name, seed):
+    game, acts, idle = play_sinbad_turn(name, seed)
+    assert idle <= 1, f"{POSITIONS[name]['good_player']} Bot did {acts}"
+
+
+@pytest.mark.parametrize("name, seed", [sinbad_case("sinbad_liz_t6_flees_from_an_attack", s) for s in SINBAD_SEEDS])
+def test_sinbad_strikes_in_reach_of_liz_instead_of_walking_away(name, seed):
+    game, acts, idle = play_sinbad_turn(name, seed)
+    assert any(a["kind"] == "attack" for a in acts), f"{POSITIONS[name]['good_player']} Bot did {acts}"
+
+
+@pytest.mark.parametrize("name, seed", [sinbad_case("sinbad_liz_t18_idle_maneuvers", s) for s in SINBAD_SEEDS])
+def test_sinbad_does_not_maneuver_twice_to_end_where_he_started(name, seed):
+    start = build(name, make_ai("heuristic")).hero(0).pos
+    game, acts, idle = play_sinbad_turn(name, seed)
+    net = game.board.distance(start, game.hero(0).pos)
+    assert not (len(acts) == 2 and all(a["kind"] == "maneuver" for a in acts) and net <= 1), f"{POSITIONS[name]['good_player']} Bot did {acts}"
+
+
+@pytest.mark.parametrize("name, seed", [sinbad_case("sinbad_liz_t24_attacks", s) for s in SINBAD_SEEDS])
+def test_sinbad_attacks_with_his_voyages_on_an_empty_deck(name, seed):
+    """The CORRECT decision of the live game (0.37 against 0.19-0.27): it must survive every change of the evaluation."""
+    game, acts, idle = play_sinbad_turn(name, seed)
+    assert acts[0]["kind"] == "attack", f"{POSITIONS[name]['good_player']} Bot did {acts}"
+
+
+@pytest.mark.parametrize("name, seed", [sinbad_case("sinbad_liz_t25_defends_with_exploit", s) for s in SINBAD_SEEDS])
+def test_sinbad_defends_with_exploit_at_six_hit_points_with_an_empty_deck(name, seed):
+    ai = make_ai("ismcts", seed=seed, new_eval=True)
+    game = build(name, ai)
+    spec = POSITIONS[name]
+    card = ai.choose_defense(game, game.fighters[spec["attack"]["attacker"]], game.fighters[spec["attack"]["target"]])
+    assert card is not None and card.title == "Exploit", f"{spec['good_player']} Bot defended with {card and card.title}"
+
+
+# ---------- Liz against Sinbad, live game of 17/11 (the opposite defect: she empties her hand attacking) ----------
+@pytest.mark.parametrize("name, seed", [sinbad_case(n, s) for n in ("liz_sinbad_t13_last_card", "liz_sinbad_t15_incinerate") for s in SINBAD_SEEDS])
+def test_liz_does_not_end_the_turn_with_an_empty_hand_in_reach_of_sinbad(name, seed):
+    ai = make_ai("ismcts", seed=seed, new_eval=True)
+    game = build(name, ai)
+    acts = play_turn(ai, game, limit=POSITIONS[name]["actions_left"])
+    assert game.players[0].hand, f"{POSITIONS[name]['good_player']} Bot did {acts}"

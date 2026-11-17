@@ -260,3 +260,46 @@ def test_the_raptors_strike_the_hero_that_is_in_reach_before_the_sidekick_even_o
             g.fighters[fid].pos = space
         act = ai.plan(g)
         assert (act.kind, act.target) == ("attack", "sinbad"), (seed, act.kind, act.target)
+
+
+# ---------- Sinbad against Liz, live game 17/11: what the evaluation got wrong there ----------
+def sinbad_position(name: str = "sinbad_liz_t24_attacks") -> Game:
+    return build(name, make_ai("heuristic"))
+
+
+def test_a_voyage_card_is_valued_at_the_attack_it_will_be_and_each_blow_of_a_turn_adds_one():
+    from sparring.search.adapter import attack_values, pile_bonus
+    g = sinbad_position()
+    me = g.players[0]
+    assert pile_bonus(me) == 4 and pile_bonus(g.players[1]) == 0
+    printed, real = attack_values(me, g.hero(0).name), attack_values(me, g.hero(0).name, True)
+    assert max(printed) == 5 and max(real) == 6 and len([v for v in real if v == 6]) == 7       # Commanding Impact's 5; the seven VOYAGE cards at 2 + 4
+    assert attack_values(g.players[1], "liz") == attack_values(g.players[1], "liz", True)        # nobody else has a pile that counts
+    weak = EvalWeights(**{**RESOLUTION, "piles": 0.0})
+    strong = with_weights(g, NEW).threat(1)
+    assert strong[0] > with_weights(g, weak).threat(1)[0]          # Liz is threatened by the Voyages he holds, not by their printed 2
+
+
+def test_a_hero_with_an_empty_deck_is_worth_nothing_where_the_next_maneuver_kills_him():
+    g = sinbad_position("sinbad_liz_t25_defends_with_exploit")
+    assert not g.players[0].deck
+
+    def life(hp: int, deck: int) -> float:
+        def edit(c):
+            c.fighters["sinbad"].hp = hp
+            c.players[0].deck = c.players[0].full_set[:deck]
+        return with_weights(change(g, edit), NEW)._side_terms(0, False)["life"]
+
+    assert life(2, 0) == life(1, 0)                         # a draw costs 2: at 2 or at 1 he is dead the same way
+    assert life(3, 0) > life(2, 0) and life(6, 0) > life(3, 0)
+    assert life(2, 5) > life(2, 0)                          # with cards in the deck the draw is free
+
+
+def test_a_blow_on_a_deck_that_burns_does_not_shorten_the_exhaustion_race_it_pays_for():
+    """Before: 2 HP taken from Liz moved her exhaustion bill by 0.10 in her favour, twice what the HP were worth (T6 of the live game)."""
+    g = change(build("sinbad_liz_t6_flees_from_an_attack", make_ai("heuristic")), lambda c: c.players[1].deck.__delitem__(slice(0, 12)))     # 6 cards left
+    assert with_weights(g, NEW)._exhaustion(1) > 0
+    hurt = change(g, lambda c: setattr(c.fighters["liz"], "hp", 12))
+    assert with_weights(hurt, NEW)._exhaustion(1) == with_weights(g, NEW)._exhaustion(1)
+    late = change(g, lambda c: setattr(c, "turn_no", 22))
+    assert with_weights(late, NEW)._exhaustion(1) < with_weights(g, NEW)._exhaustion(1)         # the game has less left to run

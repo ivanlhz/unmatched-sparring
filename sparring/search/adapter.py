@@ -68,6 +68,7 @@ PLACEMENT_KEEP = 6            # maneuver placements in the tree: the best by sta
 PLACEMENT_STRIKE_KEEP = 2     # ...plus the best ones from which the hero strikes, plus staying still
 HAND_RESERVE = 3              # the cards of a hand that are its reserve (`EvalWeights.hand_reserve`): two blows to answer next turn and one card to play
 REFERENCE_HP = 16               # the hero hit points that one life is measured in when a card or a deck is priced in hit points (`card_hp`, `deck_hp`), whoever the side is
+MIN_TURNS_LEFT = 2            # the least that an exhaustion race still looks ahead (`EngineState._exhaustion`), however long the game has gone on
 PACK_RESERVE = 2              # cards a pack keeps after a blow (a defense among them) for that blow to be forced on its last action: the rival answers with two actions
 
 
@@ -98,12 +99,14 @@ class EvalWeights:
     race: float = 0.0               # above 0 (with `normalize`), the exhaustion each deck will owe over the length of the game (turns until the first hero falls, at the real draw rate, Wildfire's burn included), scaled by this weight
     fighter_threat: float = 0.0     # above 0, `_exposure` adds the loss of the best-placed sidekick the rival reaches (hit points and the fighter itself), scaled by this weight
     unseen: float = 0.0             # above 0, the rival's blows are valued from the cards it may still hold (its set minus discard and removed) and its hand size: the i-th best attack of a hand of that size
+    next_draw: float = 0.0          # above 0 (with `normalize`), the draws the next turn needs (this many) are charged to the hit points of a side whose deck is short of them: every fighter pays EXHAUST_DAMAGE per missing card, so a hero at that many hit points or fewer cannot afford to maneuver
+    piles: float = 0.0              # above 0, a VOYAGE card (Sinbad's) is valued at the attack it will be, 2 plus the VOYAGE cards in its owner's pile, wherever the evaluation reads the attacks of a hand or a deck
     hidden_attack: float = 0.0      # above 0, the rival's face-down attack is one of the attack cards of the hand it is dealt (known and sampled cards alike), not always one of the known ones
 
 
 # The evaluation of F-AI-EVAL-RESOLUTION, to be switched on by configuration (`ai_eval`) until the duels (tools/ai_duel.py `eval=new`) accept it
 RESOLUTION: dict[str, float] = {"normalize": 1.0, "card_hp": 1.0, "deck_hp": 0.8, "race": 1.0, "fighter_threat": 0.5, "unseen": 1.0,
-                                "hidden_attack": 1.0, "team_life": 1.0, "reserve": 1.0}
+                                "hidden_attack": 1.0, "team_life": 1.0, "reserve": 1.0, "piles": 1.0, "next_draw": 1.0, "caution": 0.5}
 
 # evaluation weights a hero plays with; the configuration's own values win. Doctor Strange stands in reach (F-STRANGE-AGGRO); the Raptors
 # are one life, count a card per blow and keep a reserve (F-RAPTORS-SWARM: they attacked themselves out of cards, and only a third of
@@ -134,9 +137,11 @@ def pack_plan(game: Game, player: int) -> PackPlan:
 
 def hero_weights(weights: EvalWeights, slug: str, explicit: frozenset[str] = frozenset()) -> EvalWeights:
     """`weights` with the hero's profile on top of every field the configuration did not set: those in `explicit` (the keys
-    of `ai_eval`, even when equal to the default) and any field that differs from the default are left alone."""
+    of `ai_eval`, even when equal to the default) and any field that differs from the default are left alone. The values of `RESOLUTION`
+    (`--ai-eval new` puts them all in `ai_eval`) count as the default: a profile (Doctor Strange's caution) still wins over them."""
     base = EvalWeights()
-    mine = {k: v for k, v in HERO_EVAL.get(slug, {}).items() if k not in explicit and getattr(weights, k) == getattr(base, k)}
+    mine = {k: v for k, v in HERO_EVAL.get(slug, {}).items()
+            if getattr(weights, k) in (getattr(base, k), RESOLUTION.get(k)) and (k not in explicit or getattr(weights, k) == RESOLUTION.get(k))}
     return replace(weights, **mine) if mine else weights
 
 
@@ -228,12 +233,20 @@ def attack_stats(values: tuple[int, ...], delta: int, hp: float) -> tuple[float,
     return r
 
 
-def attack_values(st: PlayerState, fighter_name: str) -> tuple[int, ...]:
-    """Attack values of the whole deck that `fighter_name` can use: public information, fixed during the game."""
-    key = (st.hero_name, fighter_name)
+def pile_bonus(st: PlayerState) -> int:
+    """What a VOYAGE card adds to its printed value for `st` now: the VOYAGE cards of its discard pile (0 for any other hero)."""
+    return sum(1 for c in st.discard if "voyage" in c.tags) if "voyage" in st.hero.counters else 0
+
+
+def attack_values(st: PlayerState, fighter_name: str, piles: bool = False) -> tuple[int, ...]:
+    """Attack values of the whole deck that `fighter_name` can use: the printed ones, and a VOYAGE card (Sinbad's) at 2 plus the VOYAGE cards
+    in its owner's pile (`piles`), the value it will have when played (`ai_sinbad.own_value`): the pile is public."""
+    bonus = pile_bonus(st) if piles else 0
+    key = (st.hero_name, fighter_name, bonus)
     v = _attack_values_cache.get(key)
     if v is None:
-        v = _attack_values_cache[key] = tuple(c.value for c in st.full_set if c.can_attack and c.usable_by(fighter_name))
+        v = _attack_values_cache[key] = tuple(c.value + (bonus if "voyage" in c.tags else 0)
+                                              for c in st.full_set if c.can_attack and c.usable_by(fighter_name))
     return v
 
 
@@ -243,16 +256,17 @@ UNSEEN_BEST, UNSEEN_MEAN = 1.0, 2.0     # `EvalWeights.unseen`: the i-th best at
 NO_ATTACK = -1      # in `unseen_values`: a card that cannot attack with that fighter (it still takes a place in the hand)
 
 
-def unseen_values(st: PlayerState, fighter_name: str) -> tuple[int, ...]:
+def unseen_values(st: PlayerState, fighter_name: str, piles: bool = False) -> tuple[int, ...]:
     """The cards `st` may still hold in its hand or deck (its set minus the discard pile and what was removed: public), as the attack value
     each gives `fighter_name`, best first; `NO_ATTACK` for the ones that cannot attack with it."""
     gone = frozenset(c.card_id for c in st.gone)
-    key = (st.hero_name, fighter_name, gone)
+    bonus = pile_bonus(st) if piles else 0
+    key = (st.hero_name, fighter_name, gone, bonus)
     v = _unseen_values_cache.get(key)
     if v is None:
         if len(_unseen_values_cache) >= MOVES_CACHE_MAX:
             _unseen_values_cache.clear()
-        v = _unseen_values_cache[key] = tuple(sorted((c.value if c.can_attack and c.usable_by(fighter_name) else NO_ATTACK
+        v = _unseen_values_cache[key] = tuple(sorted((c.value + (bonus if "voyage" in c.tags else 0) if c.can_attack and c.usable_by(fighter_name) else NO_ATTACK
                                                        for c in st.full_set if c.card_id not in gone), reverse=True))
     return v
 
@@ -971,6 +985,9 @@ class EngineState:
                 + w.deck * deck + w.ongoing * ongoing.worth(g, p) / hero.max_hp - self._exposure(p, urgent))
 
     def _side_value_normalized(self, p: int, urgent: bool) -> float:
+        return sum(self._side_terms(p, urgent).values())
+
+    def _side_terms(self, p: int, urgent: bool) -> dict[str, float]:
         """What `_side_value` measures, with every side at 1.0 for its own full strength, so that the position is judged by what each
         side has lost and not by how many pieces it began with (a hero with a sidekick opened 0.5 ahead of one without, and a bot facing
         the Raptors saw three lives of Blue): the hit points of the hero (square root: the first ones are worth more) and of all the
@@ -981,15 +998,18 @@ class EngineState:
         hero = g.hero(p)
         everyone = g.own(p, alive_only=False)
         side = [f for f in everyone if not f.hero]
+        # the draw the next turn will cost: with fewer cards in the deck than that, every fighter pays EXHAUST_DAMAGE for each one it is short of
+        # (a maneuver is the only way to move), so a hero left at that many hit points or fewer is, for the next turn, a hero that cannot move
+        owed = EXHAUST_DAMAGE * max(0, w.next_draw - len(g.players[p].deck)) if w.next_draw else 0
         if w.team_life and g.players[p].hero.team:
             life_hp = sum(f.max_hp for f in everyone)
-            life = sqrt(sum(f.hp for f in everyone if f.alive) / life_hp)
+            life = sqrt(sum(max(f.hp - owed, 0) for f in everyone if f.alive) / life_hp)
         else:
-            life = sqrt(max(hero.hp, 0) / hero.max_hp)
+            life = sqrt(max(hero.hp - owed, 0) / hero.max_hp)
             if side:
                 side_max = sum(f.max_hp for f in side)
                 share = side_max / (side_max + hero.max_hp)
-                life = (1 - share) * life + share * sum(f.hp for f in side if f.alive) / side_max
+                life = (1 - share) * life + share * sum(max(f.hp - owed, 0) for f in side if f.alive) / side_max
         alive = sum(1 for f in side if f.alive) / len(side) if side else 1.0
         cap = g.hand_cap(p)
         held = len(g.players[p].hand)
@@ -1000,38 +1020,41 @@ class EngineState:
         next_to = 0.0
         if side and hero.pos is not None and beside_stake(g, p):
             next_to = sum(1 for f in side if f.alive and f.pos in g.board.adj[hero.pos]) / len(side)
-        return (life + w.beside * next_to + w.alive * alive + hand + w.hand_reserve * reserve + w.pack * max(0, self._pack_ready(p)) + deck
-                + w.ongoing * ongoing.worth(g, p) / hero.max_hp - self._exposure(p, urgent) - self._exhaustion(p) * hp_life)
+        return {"life": life, "beside": w.beside * next_to, "alive": w.alive * alive, "hand": hand, "hand_reserve": w.hand_reserve * reserve,
+                "pack": w.pack * max(0, self._pack_ready(p)), "deck": deck, "ongoing": w.ongoing * ongoing.worth(g, p) / hero.max_hp,
+                "exposure": -self._exposure(p, urgent), "exhaustion": -self._exhaustion(p) * hp_life}
 
     def _exhaustion(self, p: int) -> float:
         """Hit points that `p`'s deck will cost it through exhaustion over the rest of the game, in the units of `exhaustion_owed`: the draws it
         is short of, over the game's length, at its own rate of draws a turn (one, plus what its start-of-turn triggers discard from the bottom
         of the deck: Wildfire), each costing `EXHAUST_DAMAGE` to every fighter it still has. The length is the turns until a hero falls at the
-        average blow of each deck (the heuristic's `race`), at most `LONG_GAME`."""
+        average blow of each deck (the heuristic's `race`), at most the turns of `LONG_GAME` that the game has left, counted from the hit points
+        each side started with (a blow does not shorten the race: see `_turns_to_kill`)."""
         w = self.weights
         if not w.race:
             return 0.0
         g = self.game
-        length = min(LONG_GAME, self._turns_to_kill(p), self._turns_to_kill(1 - p))
+        length = min(max(MIN_TURNS_LEFT, LONG_GAME - g.turn_no // 2), self._turns_to_kill(p, full=True), self._turns_to_kill(1 - p, full=True))
         st = g.players[p]
         rate = DRAWS_PER_TURN + sum(1 for t in st.hero.triggers if t.get("when") == "start_of_turn" and "discard_bottom" in str(t.get("effect")))
         owed = exhaustion_owed(max(0.0, length * rate - len(st.deck)))
         return w.race * EXHAUST_DAMAGE * len(g.own(p)) * owed if owed else 0.0
 
-    def _turns_to_kill(self, attacker: int) -> float:
+    def _turns_to_kill(self, attacker: int, full: bool = False) -> float:
         """Turns `attacker` needs to bring the rival down at one attack a turn: the hit points of the rival's life (its team, or its hero)
         over the average attack of `attacker`'s whole deck (and its hero's bonus) less the average defense the rival's deck gives, as often as
-        its hand holds one."""
-        g = self.game
+        its hand holds one. With `full`, the rival's hit points are the ones it started with: the length of the game that the exhaustion race
+        is run over then does not shrink with the damage dealt, or a blow on a deck that burns would cancel what it takes from her life."""
+        g, w = self.game, self.weights
         hero, rival = g.hero(attacker), g.hero(1 - attacker)
         mine, theirs = g.players[attacker], g.players[1 - attacker]
-        values = attack_values(mine, hero.name)
+        values = attack_values(mine, hero.name, bool(w.piles))
         if not values:
             return float(LONG_GAME)
         defenses = [c.value for c in theirs.full_set if c.can_defend and c.usable_by(rival.name)]
         cover = (1 - (1 - len(defenses) / len(theirs.full_set)) ** max(1, len(theirs.hand))) * sum(defenses) / len(defenses) if defenses else 0.0
         net = max(MIN_NET, sum(values) / len(values) + g.attack_bonus(hero) - cover)
-        hp = sum(f.hp for f in self._life_pool(1 - attacker))
+        hp = sum(f.max_hp if full else f.hp for f in self._life_pool(1 - attacker))
         return hp / (ATTACKS_PER_TURN * net)
 
     def _pack_presses(self, p: int) -> bool:
@@ -1116,7 +1139,7 @@ class EngineState:
         expected = max(e for e, _ in blows)
         lethal = max(k for _, k in blows) if len(pool) == 1 else 0.0       # a team is beaten only with its last fighter
         # over the current HP, not the maximum: the same expected hit weighs more the less life is left
-        fear = w.caution if victim == self.observer else 1.0       # only of the blows in reach: the zone hazard keeps its weight
+        fear = w.caution if victim == self.observer and not (w.team_life and g.players[victim].hero.team) else 1.0       # only of the blows in reach: the zone hazard keeps its weight; a team keeps the fear its own profile was measured with
         return (min(1.0, fear * expected / sum(f.hp for f in pool) + gaze_hp) * urgency,
                 1 - (1 - lethal * urgency) * (1 - gaze_kill * urgency))
 
@@ -1145,10 +1168,11 @@ class EngineState:
         shield = frozenset(g.occupied(victim))
         mates = g.occupied(attacker)
         boost = None                                    # the attacker's boost reach: read only when someone needs it
+        chained = bool(w.piles) and "voyage" in g.players[attacker].hero.counters      # each VOYAGE blow lands in the pile: the next one is worth one more
         in_range: list[list[tuple[float, float]]] = []      # per blow, (cost, p. of killing) of whoever is already in range
         after_move: list[list[tuple[float, float]]] = []    # same for whoever arrives by maneuvering (factor already applied)
         for e in g.foes(victim):
-            values = unseen_values(g.players[attacker], e.name) if w.unseen else attack_values(g.players[attacker], e.name)
+            values = (unseen_values(g.players[attacker], e.name, bool(w.piles)) if w.unseen else attack_values(g.players[attacker], e.name, bool(w.piles)))
             if w.unseen == UNSEEN_MEAN:
                 values = tuple(v for v in values if v != NO_ATTACK)
             if not values or values[0] == NO_ATTACK:
@@ -1173,7 +1197,8 @@ class EngineState:
                 if blows and answer == answers[0] and w.unseen != UNSEEN_BEST:
                     blows.append(blows[0])
                     continue
-                net, kill = best_attack_stats(values, cards, rank, bonus - answer, hero.hp) if w.unseen == UNSEEN_BEST else attack_stats(values, bonus - answer, hero.hp)
+                delta = bonus + (rank if chained else 0) - answer
+                net, kill = best_attack_stats(values, cards, rank, delta, hero.hp) if w.unseen == UNSEEN_BEST else attack_stats(values, delta, hero.hp)
                 cost = net + (w.defend_card_hp if answer and (net or w.unseen != UNSEEN_BEST) else 0.0)     # no blow, no defense card spent
                 if blows:           # `reserve` below 1: part of the way from the best defense to this one
                     first_cost, first_kill = blows[0]
@@ -1205,7 +1230,7 @@ class EngineState:
         dmg = zone_damage(g, 1 - victim)
         if not dmg:
             return 0.0, 0.0
-        values = attack_values(g.players[1 - victim], rival.name)
+        values = attack_values(g.players[1 - victim], rival.name, bool(self.weights.piles))
         blow = sum(values) / len(values) if values else 0.0
         hand = g.players[victim].hand
         team = g.players[victim].hero.team
