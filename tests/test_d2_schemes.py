@@ -12,7 +12,7 @@ import time
 
 import pytest
 
-from conftest import Scripted, give, place
+from conftest import Scripted, assert_search_kept_its_budget, give, place
 from sparring import sim
 from sparring.ai_effects import EffectAI
 from sparring.ai_medusa import ACTION_VALUE, CARD_VALUE, DEATH, MedusaAI, Model
@@ -236,7 +236,7 @@ def test_a_box_hero_decides_within_the_default_time_budget(bprd):
     t0 = time.perf_counter()
     ai.plan(g)
     elapsed = time.perf_counter() - t0
-    assert elapsed < 4.0 and ai.fallbacks == 0, f"{elapsed:.2f}s"       # the budget is ~1.5 s; the margin absorbs a loaded CPU
+    assert_search_kept_its_budget(ai, elapsed)
     assert ai.last_report.iterations > 50, ai.last_report.iterations     # speed is machine-dependent: only prove the search really ran
 
 
