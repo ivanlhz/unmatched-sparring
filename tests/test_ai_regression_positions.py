@@ -205,3 +205,34 @@ def test_the_sinbad_positions_are_the_live_ones():
         me, liz = build(name, make_ai("heuristic")).players
         assert [(len(p.hand), len(p.deck), len(p.discard)) for p in (me, liz)] == [mine, hers], name
         assert sum("voyage" in c.tags for c in me.discard) == voyages, name
+
+
+# ---------- turn 17 of the live game of 17/11 18:53 (Sinbad bot vs Liz): the only card that can defend is spent as a maneuver boost ----------
+def keeps_a_defender(game, acts, idle):
+    """The hero ends the turn with a card that can defend and that he may use (By Fortune and Fate needs the dead Porter)."""
+    hero = game.hero(0)
+    return any(c.can_defend and c.usable_by(hero.name) for c in game.players[0].hand)
+
+
+KEEP_A_DEFENDER = ("sinbad_liz_t17_keeps_regroup_scheme", "sinbad_liz_t17_keeps_regroup_boost")
+
+
+@pytest.mark.xfail(strict=False, raises=AssertionError, reason=(
+    "Live game 17/11 18:53, turn 17: with the Porter dead the bot spends Regroup, the only card of its hand that can defend, as a maneuver boost "
+    "and takes 1 + 3 damage with no defence on Liz's turn. The tree is only offered [no boost, the top/cheapest boost] (`_boost_variants`) and "
+    "`card_worth` ranks the dead By Fortune and Fate (3.5) above Regroup (1.5), so the dead card is never the boost; the leaf counts cards, not "
+    "which ones. eval=new spends it in 2 of 8 seeds at 300 and at 700 iterations (eval=old: 3/8 at 300, 0/8 at 700)."))
+@pytest.mark.parametrize("name", KEEP_A_DEFENDER)
+def test_the_bot_does_not_spend_its_only_defence_card_as_a_boost(name):
+    """Every seed must keep it: a good player never spends it here (a boost with a dead card, or none, costs nothing)."""
+    ok = [keeps_a_defender(*play_new_eval_turn(name, seed)) for seed in SEEDS]
+    assert all(ok), f"{POSITIONS[name]['good_player']} {sum(ok)}/{len(SEEDS)} seeds keep a card that can defend: {ok}"
+
+
+def test_the_t17_positions_are_the_live_ones():
+    """The counts of the decision journal (decisions 25 and 26 of the game of 18:53): hand, deck and pile of the bot; hand, deck and pile of Liz."""
+    expected = {"sinbad_liz_t17_keeps_regroup_scheme": ((6, 10, 14), (5, 12, 13)), "sinbad_liz_t17_keeps_regroup_boost": ((8, 7, 15), (5, 12, 13))}
+    for name, (mine, hers) in expected.items():
+        game = build(name, make_ai("heuristic"))
+        assert [(len(p.hand), len(p.deck), len(p.discard)) for p in game.players] == [mine, hers], name
+        assert not game.fighters["porter"].alive and game.fighters["sinbad"].hp == 7 and game.fighters["liz"].hp == 4
