@@ -499,7 +499,7 @@
         "Her deck shares CardIDs 17600-17629 with the other decks of sheet 176: told apart by deck image and owner, never by a bare CardID (tests/test_hero_ciri_data.py, tests/test_card_identity.py); none of her GUIDs is another hero's",
         "The SOURCE is the HeroDef counter `source` (the 13 orb cards in her discard pile) and the tiers of Lion cub of Cintra, Zireael, Pushed to the brink, Child of the Elder Blood and The lady of space and time apply the highest threshold reached; UNCONTAINABLE POWER (a passive rule with a while: no effect of her cards can be canceled at SOURCE 7) is read by every cancel",
         "All 11 cards on the interpreter for both seats, the sidekick's included: Channel the source (plugin ciri:channel_the_source, the human lays the Source cards on the pile), Searching strike (a deck search by what the card is: the bot's table take by CardID, the human searches by hand), Bane of the Aen Elle and Blink (moves through rivals), Parry, Unicorn ally (ongoing draw, leaves with 5 cards)",
-        "The bag's Source dial mirrors the counter on either side next to Hellboy's destiny dial (session_source, tests/test_ciri_table.py)",
+        "The bag's Source dial mirrors the counter on either side next to Hellboy's destiny dial (session_counters, tests/test_ciri_table.py)",
         "Ciri against each of the other heroes in both seats reaches game over on FakeTTS (passive and attacking human) and in the simulator (tests/test_ciri_matrix.py)",
         "Verified live by Iván (docs/live-checklist.md, section Ciri)"
       ],
@@ -640,6 +640,7 @@
         "His deck shares CardIDs 17600-17629 with the other sheet-176 decks: told apart by deck image and owner, never by a bare CardID (tests/test_hero_sinbad_data.py, tests/test_card_identity.py); no GUID of his is shared with another hero",
         "The ability (+1 space per VOYAGE card in the discard pile for each fighter in a Maneuver) is the passive rule maneuver_move_per_counter: Game.maneuver adds it, the bot's planners and the search count it, the human gets a chat hint (tests/test_sinbad_effects.py, tests/test_sinbad_human.py)",
         "All 16 cards on the interpreter for both seats: the seven VOYAGE attacks (value 2 plus the other VOYAGE cards in the pile; Voyage Home, the random discard, the look, 2 damage, the heal, the draw, the move), Commanding Impact, By Fortune and Fate, Momentous Shift, Regroup, Toil and Danger, Leap Away, Feint, Exploit and Riches Beyond Compare; no plugin",
+        "The bag's Voyages dial (counter_dials.voyage) shows the VOYAGE cards of his discard pile on either side after any change of it (hand limit, attack, a rival's effect, Voyage Home), starts at 0 and is rewritten after a resume (session_counters, tests/test_sinbad_voyage_dial.py)",
         "Sinbad against each of the 19 other heroes in both seats reaches game over on FakeTTS (passive and attacking human) and in the simulator (tests/test_sinbad_matrix.py)",
         "Verified live by Iván (docs/live-checklist.md, section Sinbad)"
       ],
@@ -1084,6 +1085,35 @@
         "Tests only on the touched files plus those per-hero AI tests; the full suite is left to the CI or to Ivan"
       ],
       "note": "Approved by Ivan 16/11/2026. Depends on F-AI-DECISION-LOG for the bench. Liz, as Ivan plays her (16/11): might first, value second. Takes the centre or spaces in several zones for Wildfire; attacks with Fireball, Incinerate and Flame Lash (action); keeps the 2-3 versatiles to defend; Fleeting Moments only when her random discard would be a burning card; Searing Clarity and Rekindle to stay ahead in the deck race. That belongs to the plan layer (phase 3/4), not here. Phases 2-4 (card counting and beliefs, game plan, per-hero layer) are not opened until phase 0-1 data is in."
+    },
+    {
+      "id": "F-RANDOM-DISCARD-TEXT",
+      "title": "Random discard of the human's hand says how many cards it was drawn among, and shouts it once",
+      "status": "done",
+      "criteria": [
+        "The random-position text says the hand size: 'la carta 2 de las 3 de tu mano, contando desde la izquierda' / 'cards 1 and 3 of the 5 in your hand' (ops.random_positions with {size}), in es and en",
+        "A separate chat line in capitals and ChatKind.WARNING is said once per draw: 'DESCARTE AL AZAR: CARTA 2 DE 3 (DESDE LA IZQUIERDA)' / 'RANDOM DISCARD: CARD 2 OF 3 (FROM THE LEFT)'; at most 64 characters, only whitelisted chat characters; it is not repeated when the op reruns (the draw is memoized in run.flags)",
+        "Both paths show it: Fleeting Moments and the other force_discard random discards (Session._owe_discard) and the Ambush family (session_pile.start, discard_random_known)",
+        "Draw distribution: 500 fresh runs over a hand of 5 give all 5 positions and none above 30 %",
+        "The notice is tied to the request: a random discard that is never shown (owed cards, a veto, a forced answer) leaves nothing for the next discard; the draw counts the cards the player still holds after what they owe; a hand of one card says so and shouts nothing",
+        "Tests only on the touched files; the full suite is left to the CI or to Ivan"
+      ],
+      "note": "Asked by Ivan 16/11/2026. The draw was already uniform; the human did not know among how many cards it was made."
+    },
+    {
+      "id": "F-DISCARD-THEN-MOVE",
+      "title": "A discard settled by End action does not close a hand walk the human still owes (live 17/11, Toil and Danger after Fleeting Moments)",
+      "status": "done",
+      "criteria": [
+        "While a discard is pending, End action does not spend the walks an effect let the human do by hand (Game.hand_moves); the walk survives a press that does not settle the discard (tests/test_discard_then_after_move.py::test_a_press_that_does_not_settle_the_discard_keeps_the_walk_open)",
+        "The press that settles the discard deals the owed cards, says 'Descarte hecho. Ahora mueve a <nombre> hasta N casillas y pulsa Fin de accion' (end.walk_after_discard*) and waits: the bot does not go on until a second End action (test_discard_alone_then_the_walk_gets_its_own_step, test_after_the_second_press_the_bot_does_one_action)",
+        "If the miniature already moved before the press, nothing more is asked (test_discard_and_walk_before_one_press_ask_nothing_more); staying still is legal with the second press (test_staying_put_is_legal_with_a_second_press)",
+        "The text offers leaving the piece only for 'up to' walks, in singular and plural, never for 'exactly' (test_the_text_fits_exactly_and_several_miniatures); a dead fighter is not asked to move (test_a_dead_fighter_is_not_asked_to_move)",
+        "Both orders: the defender's AFTER walk (Liz bot / Sinbad human) and the human attacker's own walk with the bot's Confront discard (test_abe_hits_with_faster_stronger_and_confront_leaves_a_named_discard); a resume keeps waiting (test_a_resume_after_the_discard_keeps_waiting_for_the_walk)",
+        "The permission a plan grants in the same press survives and a longer walk is refused, also with a hand-limit discard after the last action (test_a_plan_move_keeps_its_permission_and_a_longer_walk_is_refused, test_a_plan_move_as_the_last_action_with_a_hand_limit_discard_keeps_the_walk)",
+        "Tests only on the touched files; the full suite is left to the CI or to Ivan"
+      ],
+      "note": "Chosen: always ask the walk in its own step when the discard is settled in the same press, because 'up to' makes standing still legal and the press cannot tell a skipped walk from one not yet made."
     }
   ]
 }

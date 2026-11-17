@@ -163,9 +163,9 @@ def test_table_data_names_the_pieces_the_dials_the_deck_range_and_its_own_images
 def test_the_source_dial_reaches_the_session_defaults_on_either_side():
     for bot, human in (("ciri", "hellboy"), ("hellboy", "ciri"), ("ciri", "medusa"), ("medusa", "ciri")):
         defaults = table_defaults(bot, human)
-        assert defaults["source_dial"] == "46aa92"
+        assert defaults["counter_dials"] == {"source": "46aa92"}
         assert ("destiny_dial" in defaults) is ("hellboy" in (bot, human))
-    assert "source_dial" not in table_defaults("hellboy", "medusa")
+    assert "counter_dials" not in table_defaults("hellboy", "medusa")
 
 
 # ---------------------------------------------------------------- the shared CardID range

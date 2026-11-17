@@ -51,7 +51,7 @@ from . import session_order as order_cards
 from . import session_jill as jill_decks      # noqa: F401  (registers the translators of Jill Trent's deck reveals)
 from . import session_pile as pile
 from . import session_reveal as reveal
-from . import session_source as source_dial
+from . import session_counters
 from . import session_sinbad
 from . import session_tracks, tracks
 from . import session_rosie
@@ -61,6 +61,7 @@ from .session_choices import panel_text
 from .spaces import describe, zone_text
 from .combat import FEINT, GLANCE_DAMAGE, can_boost, deck_boost, is_medusa_card, scheme_gain_actions
 from .effects.model import EffectError, load_effects
+from .effects.ops_core import random_discard_alert
 from .effects.modifiers import boost_limit, grants_boost, has_boost_effect
 from .state import ANUNG, DETECTIVE, EXHAUST_DAMAGE, Fighter, Game, RuleError
 from .table_prep import DISCARD_ZONE_KEYS, ZoneSpawn
@@ -149,7 +150,7 @@ class SessionConfig:
     mulligan_bot: bool = True      # the bot may change its opening hand once if it is bad (house rule)
     mulligan_human: bool = True    # the human has the Mulligan button during setup (house rule)
     destiny_dial: str | None = None   # GUID of the destiny dial (count of Hellboy's destinies in his discard)
-    source_dial: str | None = None    # GUID of the Source dial (count of Ciri's Source cards in her discard: session_source)
+    counter_dials: dict[str, str] = field(default_factory=dict)   # counter name -> GUID of its dial (Ciri's source, Sinbad's voyage: session_counters)
     dead_spot: tuple[float, float, float] | None = None   # where the bot sets aside the miniatures of ITS fallen
     discard_layer: float = 0.15    # height added per full turn of the discard grid
     batch: bool = False            # fast mode: reads from the snapshot and writes in a single script per step
@@ -415,7 +416,7 @@ class Session:
         self._attack_announced: tuple | None = None     # the bot attack already said before its card went down (a retry stays quiet)
         self.declared_carry: dict | None = None            # a cancelled attack already declared (UNCANNY INTUITION spent): the same attack again does not re-spend
         self.destiny_seen: tuple[int, str] | None = None   # (destinies, form) already written and verified on the dial
-        self.source_seen: int | None = None                # Source already written and verified on Ciri's dial
+        self.counter_seen: dict[str, int] = {}             # count of each derived counter already written and verified on its dial
         self._transit: dict[int, int] = {}                 # CardID played by the human -> reads it has gone without reaching the discard
         self.combat_guids: dict[int, str] = {}             # CardID of the human's card at the combat spot -> its GUID (Relentless moves it)
         self._intuition_said: int | None = None            # the human Abe's active tokens already told in chat
@@ -1600,8 +1601,8 @@ class Session:
         want = {g: int(v) for g, v in want.items()}
         if c.destiny_dial:
             want[c.destiny_dial] = 0
-        if c.source_dial:
-            want[c.source_dial] = 0
+        for guid in c.counter_dials.values():
+            want[guid] = 0
         if want:
             self._w(lua.set_health_dials(want), "dials")
         self._flush()
@@ -1890,7 +1891,7 @@ class Session:
         guids = [lua.board_guid(self.game.board), self.configured_decks["bot_deck_guid"] if configured else c.bot_deck_guid,
                  zones["bot_discard_zone"], zones["human_discard_zone"],
                  *(g for v in pcs.values() for g in v), *(self.configured_dials if configured else c.dials).values(),
-                 *([c.destiny_dial] if c.destiny_dial else []), *([c.source_dial] if c.source_dial else []), *self._deck_zones()]
+                 *([c.destiny_dial] if c.destiny_dial else []), *c.counter_dials.values(), *self._deck_zones()]
         return sorted(set(guids))
 
     def _deck_zones(self) -> list[str]:
@@ -1901,7 +1902,7 @@ class Session:
         at a time; the rest of the GUIDs are its own)."""
         c = self.cfg
         singles = [lua.board_guid(self.game.board), c.bot_deck_guid, c.bot_discard_zone, c.human_discard_zone,
-                   *c.dials.values(), *([c.destiny_dial] if c.destiny_dial else []), *([c.source_dial] if c.source_dial else []),
+                   *c.dials.values(), *([c.destiny_dial] if c.destiny_dial else []), *c.counter_dials.values(),
                    *self._deck_zones()]
         return [[g] for g in sorted(set(singles))] + [piece_guids(v) for _, v in sorted(c.pieces.items())]
 
@@ -2960,7 +2961,7 @@ class Session:
         `destiny_seen` only advances after a verified write (`_write_dials`), so a failure is retried on the next read."""
         g, owner = self.game, self._destiny_owner()
         if owner is None:
-            return source_dial.stale(self)        # only the hero with a destiny counter (Hellboy) carries them; Ciri's Source dial rides along
+            return session_counters.stale(self)   # only the hero with a destiny counter (Hellboy) carries them; the derived counters' dials ride along
         now = (g.destiny_count(owner), g.form(owner))
         said = self._destiny_said if self._destiny_said is not None else self.destiny_seen
         prev, self._destiny_said = said, now
@@ -2968,7 +2969,7 @@ class Session:
             self.destiny_seen = now               # without a dial there is nothing to verify
         if prev != now and owner == self.human:   # the bot's discards and its form change are announced where they happen
             self._announce_destiny(prev, now)
-        return now != self.destiny_seen or source_dial.stale(self)
+        return now != self.destiny_seen or session_counters.stale(self)
 
     def _destiny_owner(self) -> int | None:
         """The side whose hero keeps the destiny count (Hellboy, bot or human): the one dial counts for him."""
@@ -3016,7 +3017,7 @@ class Session:
         A dial the human touched by hand (it shows neither the last thing the engine wrote nor what is now due) is NOT
         overwritten: a warning is given and nothing is written; the human reconciles it with +1 / -1 (the engine counts) or by putting it back.
         It is the safe option: neither their correction is lost nor can a dial change the engine's state."""
-        if not self.cfg.destiny_dial and not self.cfg.source_dial and (only_destiny or not self.cfg.dials):
+        if not self.cfg.destiny_dial and not self.cfg.counter_dials and (only_destiny or not self.cfg.dials):
             return lambda: True
         g = self.game
         dials = {} if only_destiny else self._live_dials()
@@ -3027,9 +3028,8 @@ class Session:
             owner = self._destiny_owner()
             want[self.cfg.destiny_dial] = 0 if owner is None else g.destiny_count(owner)
             label[self.cfg.destiny_dial] = t("cause.destiny_dial")
-        if self.cfg.source_dial:
-            want.update(source_dial.want(self))
-            label[self.cfg.source_dial] = source_dial.label()
+        want.update(session_counters.want(self))
+        label.update(session_counters.labels(self))
         try:
             now = self._rd_dials(sorted(want))
             touched = [gd for gd, v in want.items() if self._hand_edited(gd, v, now)]
@@ -3072,7 +3072,7 @@ class Session:
             owner = self._destiny_owner()
             if self.cfg.destiny_dial in want and owner is not None:
                 self.destiny_seen = (want[self.cfg.destiny_dial], g.form(owner))
-            source_dial.written(self, want)
+            session_counters.written(self, want)
             return not touched
         return verify
 
@@ -3160,7 +3160,11 @@ class Session:
         self.sync_positions()
         if self.hand_move_refused():
             return
-        self.game.hand_moves.clear()              # the action is over: what an effect let the human walk is spent
+        walks_open: set[str] = set()              # a discard still to settle keeps the walks an effect let them do (see below)
+        if self.pending_discard is None:
+            self.game.hand_moves.clear()          # the action is over: what an effect let the human walk is spent
+        else:
+            walks_open = {fid for fid in self.game.hand_moves if self.game.fighters[fid].alive}
         if self.scheme_baseline is not None and not self._resolve_human_scheme(wait=False):
             self.say(t("end.no_scheme"), ChatKind.WARNING)
         self.scheme_baseline, self.scheme_returned = None, None
@@ -3180,10 +3184,29 @@ class Session:
         owed_cause = (self.pending_discard or {}).get("draw_cause")
         self.pending_discard = None
         self._deal_owed_draws(owed_cause)         # the draws that came after the discard are dealt now
+        walks_open &= set(self.game.hand_moves)   # only walks open before this press: a plan resolved now grants its own, untouched
+        if walks_open:
+            # F-DISCARD-THEN-MOVE (live 17/11, Toil and Danger after Fleeting Moments): this press settled the discard but the
+            # miniature the effect lets them walk is still where it was (`sync_positions` spends the permission of a piece that moved).
+            # "Up to" makes standing still legal, so the press cannot tell a walk skipped from a walk not yet made: it asks once.
+            self.moving = True
+            self.say(self._walk_after_discard_text(walks_open), ChatKind.YOUR_TURN)
+            return
         if self.game.turn == self.bot:
             self._bot_continue()
         else:
             self._after_human_action()
+
+    def _walk_after_discard_text(self, fids: set[str]) -> str:
+        """The chat line for the walks still open once the discard is settled; only "up to" walks may be left where they are."""
+        open_moves = {fid: self.game.hand_moves[fid] for fid in sorted(fids)}
+        parts = []
+        for fid, m in open_moves.items():
+            how = t("moves.how.up_to" if m.get("up_to", True) else "moves.how.exactly")
+            parts.append(f"{self._name(self.game.fighters[fid])} {how} {moves._plural(m['steps'])}")
+        all_up_to = all(m.get("up_to", True) for m in open_moves.values())
+        key = "end.walk_after_discard" + (("_stay" if len(parts) == 1 else "_stay_many") if all_up_to else "")
+        return t(key, walks="; ".join(parts))
 
     # ---------- HP and casualties from effects (the engine does not see them) ----------
     def _fighter_arg(self, payload: dict) -> Fighter | None:
@@ -3338,9 +3361,17 @@ class Session:
         d["n"] = max(0, d["n"] - d.pop("landed", 0))
         d["baseline"] = len(self.game.players[self.human].discard)
 
+    def announce_random_discard(self) -> None:
+        """The loud line of a random discard of the human's hand (Ivan, 16/11), once per draw: the draw leaves its
+        notice in `fx.random_notice` and the first place that shows the request to the human takes and says it."""
+        notice, self.game.fx.random_notice = self.game.fx.random_notice, None
+        if notice is not None:
+            self.say(random_discard_alert(*notice), ChatKind.WARNING)
+
     def _owe_discard(self, n: int, reason: str) -> None:
         translators.translate(self, {"op": "discard", "player": self.human, "zone": "hand", "n": n, "reason": reason,
                                      "all": self.game.fx.whole_hand}, translators.Ctx())
+        self.announce_random_discard()
 
     def _discard_human_hand(self, n: int, reason: str) -> int:
         """Crown Of Flame (Ivan, 30/10): the bot moves the human's whole hand to their discard pile, face up, and the

@@ -26,6 +26,7 @@ from sparring.session import Session
 from sparring.spaces import describe
 from sparring.state import ANUNG, DETECTIVE, Game
 from sparring.tts.client import TTSClient
+from sparring.tts.lua import ChatKind
 from sparring.tts.ui import Event
 from fake_tts import FakeTTS
 from test_batch import click
@@ -241,8 +242,8 @@ def build(tmp_path, bot, human, hand, table_cls=FxTable, **over):
         session.dials_written[g] = game.fighters[fid].hp
     if scfg.destiny_dial:
         table.dials[scfg.destiny_dial] = {"found": True, "name": "destinos", "value": 0, "max": 11}
-    if scfg.source_dial:
-        table.dials[scfg.source_dial] = {"found": True, "name": "Source", "value": 0, "max": 13}
+    for name, guid in scfg.counter_dials.items():
+        table.dials[guid] = {"found": True, "name": name, "value": 0, "max": 13}
     set_hand(session, table, game, *hand)
     session._preload_identities()                               # as `_begin_game` does: no identity read mid-game
     return session, table, game, fake, cfg, client
@@ -390,7 +391,10 @@ def test_confront_lost_reads_the_human_hand_once_and_the_named_discard_is_owed_u
     table.human_discard += [card_ids(game, 1, "Faster. Stronger.")[0], gone[0]]
     table.human_count = len(real) - 1
     msgs = click(session, table, Event.END_ACTION)
-    assert session.pending_discard is None and said(msgs, "Te quedan 2 accion")
+    # F-DISCARD-THEN-MOVE: Faster. Stronger. still lets Abe walk 2 and this press only settled the discard: the walk gets its own step
+    assert session.pending_discard is None and said(msgs, "Descarte hecho. Ahora mueve a Abe Sapien hasta 2 casillas")
+    msgs = click(session, table, Event.END_ACTION)
+    assert said(msgs, "Te quedan 2 accion")
     assert len(human_reads(table)) == 1, "no other read of the human hand, ever"
 
 
@@ -697,13 +701,65 @@ def test_fleeting_moments_names_a_random_position_of_your_hand_without_reading_i
     bot_turn(session, table, [Act("attack", fid="liz", target="hellboy", card=fleeting)])
     table.face_down = []
     before = list(game.players[1].discard)
+    size = len(game.players[1].hand)                      # the cards the position is drawn among
     msgs = click(session, table, Event.REVEAL)
     assert session.pending_discard["n"] == 1 and "cards" not in session.pending_discard
     line = next(m for m in msgs if "Descarta 1 carta(s) (Fleeting Moments, al azar: la carta " in m)
     pos = int(line.split("la carta ")[1].split(" ")[0])
-    assert 1 <= pos <= len(game.players[1].hand) and "de tu mano contando desde la izquierda" in line
+    assert 1 <= pos <= size and f"de las {size} de tu mano, contando desde la izquierda" in line
+    loud = [m for m in msgs if m.startswith("DESCARTE AL AZAR")]
+    assert loud == [f"DESCARTE AL AZAR: CARTA {pos} DE {size} (DESDE LA IZQUIERDA)"] and loud[0].kind == ChatKind.WARNING
     assert game.players[1].discard == before, "the engine never names a placeholder card of your hand"
     assert human_reads(table) == []
+
+
+@liz_rig
+def test_the_loud_line_is_said_once_and_leaves_nothing_in_the_save(rig):
+    session, table, game, fake, cfg = rig
+    human_hand(table, game, "Service Pistol", "Excalibur", "Glimpse Of Hell")
+    fleeting = next(c for c in game.players[0].hand if c.title == "Fleeting Moments")
+    bot_turn(session, table, [Act("attack", fid="liz", target="hellboy", card=fleeting)])
+    table.face_down = []
+    msgs = click(session, table, Event.REVEAL)
+    assert len([m for m in msgs if m.startswith("DESCARTE AL AZAR")]) == 1
+    assert game.fx.random_notice is None and "random_notice" not in str(session.to_dict())
+    later = click(session, table, Event.END_ACTION)
+    assert not [m for m in later if "AL AZAR" in m.upper() and m.startswith("DESCARTE")]
+
+
+@liz_rig
+def test_the_loud_line_comes_in_english_with_the_english_language(rig):
+    from sparring import i18n
+    i18n.set_language("en")
+    session, table, game, fake, cfg = rig
+    human_hand(table, game, "Service Pistol", "Excalibur", "Glimpse Of Hell")
+    fleeting = next(c for c in game.players[0].hand if c.title == "Fleeting Moments")
+    bot_turn(session, table, [Act("attack", fid="liz", target="hellboy", card=fleeting)])
+    table.face_down = []
+    size = len(game.players[1].hand)
+    msgs = click(session, table, Event.REVEAL)
+    loud = [m for m in msgs if m.startswith("RANDOM DISCARD: CARD ")]
+    assert len(loud) == 1 and loud[0].endswith(f" OF {size} (FROM THE LEFT)") and loud[0].kind == ChatKind.WARNING, msgs
+
+
+@liz_rig
+def test_a_random_discard_that_asks_nothing_leaves_no_notice_for_the_next_discard(rig):
+    """The reviewer's case: the human already owes their whole hand, so the random discard is never shown; a later discard of
+    their own choice must not carry its loud line."""
+    from sparring.effects.run import Ctx, EffectRun
+    session, table, game, fake, cfg = rig
+    human_hand(table, game, "Excalibur", "Service Pistol")
+    st = game.players[1]
+    st.hand[:] = [c for c in st.full_set if c.card_id in table.human_hand]
+    session.pending_discard = {"n": 2, "baseline": len(st.discard), "kind": "cards", "hand": True}
+    run = EffectRun([{"op": "discard", "cards": {"zone": "hand", "player": "opponent", "pick": "random", "amount": 1}}],
+                    Ctx(owner=0, card_id=next(c for c in game.players[0].hand if c.title == "Fleeting Moments").card_id))
+    run.run(game, None)
+    assert game.fx.random_notice is None
+    session.pending_discard = None
+    first = len(session.messages)
+    game.force_discard(1, 1, "Incinerate", 1)
+    assert not [m for m in session.messages[first:] if "AZAR" in m]
 
 
 # ---------------------------------------------------------------- a pause of the human (E1) survives the save
