@@ -166,3 +166,14 @@ def test_the_humans_sinbad_dial_follows_his_own_pile(tmp_path):
         client.close()
         fake.close()
 
+
+
+def test_the_table_snapshot_reads_the_voyage_dial(tmp_path):
+    """Live bug 17/11 (game 4): Prepare always failed with "the reset did not leave the table clean". In batch mode the reset
+    checks the dials from the snapshot, which only read the life and destiny dials: the Voyage dial came back as not found."""
+    session, table, game, fake, cfg, client = build(tmp_path, "sinbad", "hellboy", ("Exploit",), table_cls=HandTable)
+    try:
+        assert DIAL in session.snapshot_spec().dials
+    finally:
+        client.close()
+        fake.close()
