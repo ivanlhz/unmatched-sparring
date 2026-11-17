@@ -4259,7 +4259,7 @@ class Session:
         if self._snap_spec is None:
             c = self.cfg
             pieces = sorted({g for v in c.pieces.values() for g in piece_guids(v)})
-            dials = sorted({*c.dials.values(), *([c.destiny_dial] if c.destiny_dial else [])})
+            dials = sorted({*c.dials.values(), *([c.destiny_dial] if c.destiny_dial else []), *c.counter_dials.values()})
             self._snap_spec = lua.SnapSpec(
                 self.game.board, c.bot_seat, c.human_seat, c.bot_discard_zone, (c.bot_deck_guid,),
                 (tuple(c.bot_deck_spot),), c.human_discard_zone,
