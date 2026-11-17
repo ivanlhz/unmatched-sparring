@@ -33,8 +33,15 @@ def want(session) -> dict[str, int]:
     return {guid: count(session, name) for name, guid in session.cfg.counter_dials.items()}
 
 
+def name_of(name: str) -> str:
+    """The counter's name as the chat says it (`counter.<name>` in the catalogs, no accents: the TTS chat cannot show them)."""
+    key = f"counter.{name}"
+    shown = t(key)
+    return name.capitalize() if shown == key else shown
+
+
 def labels(session) -> dict[str, str]:
-    return {guid: t("cause.counter_dial", name=name) for name, guid in session.cfg.counter_dials.items()}
+    return {guid: t("cause.counter_dial", name=name_of(name)) for name, guid in session.cfg.counter_dials.items()}
 
 
 def written(session, values: dict[str, int]) -> None:

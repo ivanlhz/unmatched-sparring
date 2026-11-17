@@ -1,5 +1,5 @@
 """Ciri's Source dial at the table (FakeTTS, batch mode): the dial of the bag mirrors the Source cards of her discard pile on either side
-(`session_source`), alone and next to Hellboy's destiny dial, and the bot's Ciri takes the card Searching strike finds out of its real
+(`session_counters`), alone and next to Hellboy's destiny dial, and the bot's Ciri takes the card Searching strike finds out of its real
 deck. The cards and tiers themselves are in tests/test_ciri_effects.py and tests/test_ciri_human.py."""
 from __future__ import annotations
 

@@ -4,12 +4,13 @@ of the rival (Fleeting Moments) and Voyage Home taking cards back. Live bug 17/1
 and Ciri's Source were), so it stayed at 0 with four VOYAGE cards in the discard."""
 from __future__ import annotations
 
-from sparring.ai_medusa import Act
+import json
+
 from sparring.tts.ui import Event
 from test_batch import click
-from test_d3_table_effects import bot_turn, build, human_attack, human_hand, set_hand
+from test_d3_table_effects import bot_turn, build, human_attack, human_hand
 from test_e2_human_cards import put_adjacent
-from test_sinbad_human import VOYAGES, bots_attack, pile, run_bot_attack
+from test_sinbad_human import TRAINING, VOYAGES, bot_defends_with_nothing_plain, bots_attack, pile, run_bot_attack
 from test_human_pile_to_hand import HandTable
 
 VOYAGE = "voyage"
@@ -99,18 +100,69 @@ def test_a_rivals_random_discard_of_a_voyage_card_moves_the_dial(tmp_path):
         fake.close()
 
 
-def test_a_resumed_session_writes_the_count_again(tmp_path):
-    session, table, game, fake, cfg, client = build(tmp_path, "sinbad", "hellboy", ("Exploit",), table_cls=HandTable)
+def resumed(tmp_path, saved, dial_now):
+    """A new process (a second session on a fresh table) loads `saved` through `load_dict`; the table shows `dial_now`; one read follows."""
+    (tmp_path / "b").mkdir(exist_ok=True)
+    session, table, game, fake, cfg, client = build(tmp_path / "b", "sinbad", "hellboy", ("Exploit",), table_cls=HandTable)
     try:
-        pile(session, table, game, 0, VOYAGES[0], VOYAGES[1], VOYAGES[2], VOYAGES[3])
-        session._write_dials()
-        assert shown(table) == 4
-        session.counter_seen.clear()                                # a new process: nothing is known to be on the dial
-        table.dials[DIAL]["value"] = 0                              # and the table (a reloaded save) shows another number
-        session.dials_written.pop(DIAL, None)
-        session.dials_attempted.pop(DIAL, None)
+        session.load_dict(saved)
+        game = session.game                                         # the saved game, four VOYAGE cards in the bot's discard
+        table.bot_discard = [c.card_id for c in game.players[0].discard]
+        table.bot_hand = [c.card_id for c in game.players[0].hand]
+        table.bot_deck = [c.card_id for c in game.players[0].deck]
+        table.dials[DIAL]["value"] = dial_now
         bot_turn(session, table, [])
-        assert shown(table) == 4 and session.counter_seen[VOYAGE] == 4
+        return shown(table), dict(session.counter_seen)
     finally:
         client.close()
         fake.close()
+
+
+def saved_with_four(tmp_path):
+    session, table, game, fake, cfg, client = build(tmp_path, "sinbad", "hellboy", ("Exploit",), table_cls=HandTable)
+    try:
+        pile(session, table, game, 0, VOYAGES[0], VOYAGES[1], VOYAGES[2], VOYAGES[3])
+        assert session._write_dials() and shown(table) == 4
+        return json.loads(json.dumps(session.to_dict()))
+    finally:
+        client.close()
+        fake.close()
+
+
+def test_a_resumed_save_made_before_the_dial_existed_writes_the_count(tmp_path):
+    saved = saved_with_four(tmp_path)
+    saved["dials_written"].pop(DIAL, None)                         # the old save knows nothing of the dial
+    assert resumed(tmp_path, saved, 0) == (4, {VOYAGE: 4})
+
+
+def test_a_resumed_save_that_already_has_the_dial_in_dials_written_rewrites_it(tmp_path):
+    saved = saved_with_four(tmp_path)
+    assert saved["dials_written"][DIAL] == 4
+    assert resumed(tmp_path, saved, 4) == (4, {VOYAGE: 4})         # the table already shows it: counter_seen is rebuilt
+    assert resumed(tmp_path, saved, 0) == (0, {})                  # the dial shows 0, neither what the save wrote (4) nor what is due (4): a hand edit, respected like any other dial
+
+
+def test_the_chat_names_the_dials_in_the_catalog_without_accents():
+    from sparring import session_counters
+    assert session_counters.name_of("source") == "Source" and session_counters.name_of("voyage") == "Viajes"
+    assert session_counters.name_of("other") == "Other"            # no catalog entry: the counter's own name
+
+
+def test_the_humans_sinbad_dial_follows_his_own_pile(tmp_path):
+    """Sinbad on the human's side: the dial counts the VOYAGE cards of the pile the human plays to; Voyage Home takes them back."""
+    session, table, game, fake, cfg, client = build(tmp_path, "hellboy", "sinbad", (TRAINING,), table_cls=HandTable)
+    try:
+        assert cfg.session_config().counter_dials == {VOYAGE: DIAL}
+        bot_defends_with_nothing_plain(session)
+        put_adjacent(game, table, cfg, "sinbad", "hellboy")
+        human_hand(table, game, "Voyage Home", "Exploit")
+        pile(session, table, game, 1, VOYAGES[1], VOYAGES[5])
+        assert session._write_dials() and shown(table) == game.counter(1, VOYAGE) == 2
+        human_attack(session, table, game, "sinbad", "hellboy", "Voyage Home")
+        click(session, table, Event.REVEAL)
+        click(session, table, Event.END_ACTION)
+        assert game.counter(1, VOYAGE) == 1 and shown(table) == 1
+    finally:
+        client.close()
+        fake.close()
+

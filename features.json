@@ -640,6 +640,7 @@
         "His deck shares CardIDs 17600-17629 with the other sheet-176 decks: told apart by deck image and owner, never by a bare CardID (tests/test_hero_sinbad_data.py, tests/test_card_identity.py); no GUID of his is shared with another hero",
         "The ability (+1 space per VOYAGE card in the discard pile for each fighter in a Maneuver) is the passive rule maneuver_move_per_counter: Game.maneuver adds it, the bot's planners and the search count it, the human gets a chat hint (tests/test_sinbad_effects.py, tests/test_sinbad_human.py)",
         "All 16 cards on the interpreter for both seats: the seven VOYAGE attacks (value 2 plus the other VOYAGE cards in the pile; Voyage Home, the random discard, the look, 2 damage, the heal, the draw, the move), Commanding Impact, By Fortune and Fate, Momentous Shift, Regroup, Toil and Danger, Leap Away, Feint, Exploit and Riches Beyond Compare; no plugin",
+        "The bag's Voyages dial (counter_dials.voyage) shows the VOYAGE cards of his discard pile on either side after any change of it (hand limit, attack, a rival's effect, Voyage Home), starts at 0 and is rewritten after a resume (session_counters, tests/test_sinbad_voyage_dial.py)",
         "Sinbad against each of the 19 other heroes in both seats reaches game over on FakeTTS (passive and attacking human) and in the simulator (tests/test_sinbad_matrix.py)",
         "Verified live by Iván (docs/live-checklist.md, section Sinbad)"
       ],

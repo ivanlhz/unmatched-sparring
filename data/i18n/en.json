@@ -65,6 +65,8 @@
  "search.returned": "The bot discards {cards} from its deck and it goes back to its hand.",
  "search.not_taken": "I could not take {card} out of the bot's deck: take it out and put it in the bot's hand yourself.",
  "cause.counter_dial": "the {name} dial",
+ "counter.source": "Source",
+ "counter.voyage": "Voyage",
  "rage.instruction_source": "{card}: put in your discard pile the Source cards (the ones with the orb on the art band) you want to discard (+{per} to the value for each one) and press [[btn.done]]. If you discard none, just press [[btn.done]]. I detect which ones you put.",
  "rage.wrong_item_source": "{title} (no Source orb)",
  "rage.wrong_source": "{items} cannot be discarded for {card}: only Source cards count. Take them back to your hand and press [[btn.done]] again.",

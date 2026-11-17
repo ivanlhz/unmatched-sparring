@@ -35,6 +35,7 @@ from .hero_detect import HeroDetectionError, deck_shifts, detect_heroes, detecte
 from .heroes import HeroDataError, load_hero
 from . import decision_log, game_log, i18n, map_setup, persist, table_prep, table_reset
 from .i18n import t
+from . import session_counters
 from .session import DEFAULT_ACTION_ANNOUNCE_HOLD, DEFAULT_BOT_PAUSE, DEFAULT_ONGOING_HOLD, DEFAULT_WILDFIRE_HOLD, TABLE_ERRORS, Msg, Session, SessionConfig, SessionError, deck_where, piece_guids
 from .state import DEFAULT_HEROES, Game
 from .session_translators import ASIDE_STEP
@@ -686,7 +687,7 @@ def read_only_report(client, cfg: PlayConfig) -> list[str]:
     if raw.get("destiny_dial"):
         dials[t("ro.label.destiny")] = raw["destiny_dial"]
     for name, guid in (raw.get("counter_dials") or {}).items():
-        dials[name.capitalize()] = guid
+        dials[session_counters.name_of(name)] = guid
     if dials:
         out.append(t("ro.dials"))
         rows = read(t("ro.read.dials"), lambda: lua.read_health_dials(sorted(set(dials.values())))) or {}
