@@ -244,3 +244,22 @@ def test_the_t17_positions_are_the_live_ones():
         game = build(name, make_ai("heuristic"))
         assert [(len(p.hand), len(p.deck), len(p.discard)) for p in game.players] == [mine, hers], name
         assert not game.fighters["porter"].alive and game.fighters["sinbad"].hp == 7 and game.fighters["liz"].hp == 4
+
+
+# ---------- turns 12 and 14 of the live game of 17/11 20:26 (Liz bot vs Sinbad): maneuvers in near ties with an attack available ----------
+# INFORMATIONAL positions: no behaviour is asserted. Attacking was not shown to be better (see `good_player` in the fixture): the attacks in hand are
+# defence cards played as attacks (Burning Barrier, Pyrotechnics) or Flame Lash, Sinbad has 13-14 HP, and continuing both sides with the new evaluation
+# from a forced first action gives Liz 0.13 (attack) against 0.21 (maneuver) at T14 and 0.21 against 0.19 at T12, inside the noise (n ~ 20, +-0.09).
+# What the positions do give: with eval=new at 300 iterations Liz attacks in 5/8 (T12) and 6/8 (T14) seeds, at 3 s in 3/8 and 6/8, mostly
+# by maneuvering first and attacking with the Incinerate it draws; a criterion "attacks at least once" would be invented, not measured.
+def test_the_t12_and_t14_liz_positions_are_the_live_ones():
+    """The counts of the decision journal of the game of 20:26 (decisions 16, 19 and 20): hand, deck and pile of Liz (the bot); hand, deck and pile of
+    Sinbad; VOYAGE cards in his pile (they give his attacks and maneuvers their bonus: 2 until Voyage Home returned them at T13, then 1); hit points."""
+    expected = {"liz_sinbad_t12_maneuver_over_attack": ((4, 16, 10), (6, 15, 9), 2, (11, 14)),
+                "liz_sinbad_t14_maneuver_over_attack": ((4, 15, 11), (7, 14, 9), 1, (10, 13)),
+                "liz_sinbad_t14_second_action_maneuver_over_attack": ((5, 14, 11), (7, 14, 9), 1, (10, 13))}
+    for name, (mine, his, voyages, hp) in expected.items():
+        game = build(name, make_ai("heuristic"))
+        assert [(len(p.hand), len(p.deck), len(p.discard)) for p in game.players] == [mine, his], name
+        assert sum("voyage" in c.tags for c in game.players[1].discard) == voyages, name
+        assert (game.hero(0).hp, game.hero(1).hp) == hp and not game.fighters["porter"].alive, name
