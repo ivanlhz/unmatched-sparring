@@ -1114,6 +1114,17 @@
         "Tests only on the touched files; the full suite is left to the CI or to Ivan"
       ],
       "note": "Chosen: always ask the walk in its own step when the discard is settled in the same press, because 'up to' makes standing still legal and the press cannot tell a skipped walk from one not yet made."
+    },
+    {
+      "id": "F-HERO-MEMORY-SOURCES",
+      "title": "Provenance debt: four HeroDefs declare an unmatched-memory source file that does not exist",
+      "status": "pending",
+      "criteria": [
+        "george-washington, john-henry, rosie-the-riveter and wyatt-earp declare `_source.memory` files (unmatched-memory/data/heroes/<slug>.json) that unmatched-memory does not hold, although its roster.json lists them; tools/import_hero.py cannot regenerate them",
+        "tests/test_heroes.py keeps them in MEMORY_PENDING: a fifth hero without a memory file, or a bad memory_slug, fails test_the_heroes_missing_from_unmatched_memory_are_exactly_the_known_pending_ones; each pending hero shows as xfail(strict) in test_generated_herodef_is_up_to_date_with_memory_and_overlay, so it fails the day memory gains the file (remove it from MEMORY_PENDING then)",
+        "Resolution (outside this repo, by Ivan): add the four data files to unmatched-memory, or change the HeroDefs to declare the sheet they were really built from"
+      ],
+      "note": "Found 17/11/2026 while making the suite clean. unmatched-memory is read only for this project and was not touched."
     }
   ]
 }

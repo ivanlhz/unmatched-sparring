@@ -117,17 +117,39 @@ def test_memory_dir_hangs_from_the_main_repo_not_from_a_worktree_or_a_closer_fol
     assert memory_dir() == tmp_path / "otro"
 
 
-def test_generated_herodefs_are_up_to_date_with_memory_and_overlays():
-    """`tools/import_hero.py --all --check`: what is versioned is what the importer produces (only if unmatched-memory
-    is on this machine)."""
+OVERLAY_DIR = HEROES_DIR / "overlay"
+OVERLAY_SLUGS = sorted(f.stem for f in OVERLAY_DIR.glob("*.json"))
+# Heroes whose HeroDef declares an `_source.memory` file that unmatched-memory does not hold yet (they are in its roster.json,
+# but with no data file). Provenance debt (features.json F-HERO-MEMORY-SOURCES): the importer cannot regenerate them.
+MEMORY_PENDING = {"george-washington", "john-henry", "rosie-the-riveter", "wyatt-earp"}
+
+
+def memory_file(slug: str) -> Path:
+    """The unmatched-memory data file of an overlay hero (the overlay may file it under another slug)."""
+    overlay = json.loads((OVERLAY_DIR / f"{slug}.json").read_text(encoding="utf-8"))
+    return memory_dir() / "data" / "heroes" / f"{overlay.get('memory_slug', slug)}.json"
+
+
+def require_memory():
     if not (memory_dir() / "data" / "heroes" / "hellboy.json").exists():
         pytest.skip("no unmatched-memory on this machine")
+
+
+def test_the_heroes_missing_from_unmatched_memory_are_exactly_the_known_pending_ones():
+    """A fifth hero without a memory file, or a typo in a `memory_slug`, fails here instead of going unchecked."""
+    require_memory()
+    missing = {slug for slug in OVERLAY_SLUGS if not memory_file(slug).exists()}
+    assert missing == MEMORY_PENDING
+
+
+@pytest.mark.parametrize("slug", [pytest.param(s, marks=pytest.mark.xfail(strict=True, raises=FileNotFoundError, reason="not in unmatched-memory"))
+                                  if s in MEMORY_PENDING else s for s in OVERLAY_SLUGS])
+def test_generated_herodef_is_up_to_date_with_memory_and_overlay(slug):
+    """`tools/import_hero.py <slug> --check`: what is versioned is what the importer produces (only if unmatched-memory is
+    on this machine). The pending heroes show as xfail (`pytest -rx`) and turn into a failure once memory holds them."""
+    require_memory()
     import importlib.util
     spec = importlib.util.spec_from_file_location("import_hero", HEROES_DIR.parent.parent / "tools" / "import_hero.py")
     mod = importlib.util.module_from_spec(spec)
     spec.loader.exec_module(mod)
-    overlays = sorted(f.stem for f in (HEROES_DIR / "overlay").glob("*.json"))
-    in_memory = [slug for slug in overlays
-                 if (memory_dir() / "data" / "heroes" / f"{json.loads((HEROES_DIR / 'overlay' / f'{slug}.json').read_text(encoding='utf-8')).get('memory_slug', slug)}.json").exists()]
-    assert in_memory, "no overlay hero is filed in unmatched-memory"       # heroes the memory repo does not carry yet cannot be regenerated: they are skipped, not failed
-    assert mod.main([*in_memory, "--check"]) == 0
+    assert mod.main([slug, "--check"]) == 0
