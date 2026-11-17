@@ -209,7 +209,9 @@ def test_the_sinbad_positions_are_the_live_ones():
 
 # ---------- turn 17 of the live game of 17/11 18:53 (Sinbad bot vs Liz): the only card that can defend is spent as a maneuver boost ----------
 def keeps_a_defender(game, acts, idle):
-    """The hero ends the turn with a card that can defend and that he may use (By Fortune and Fate needs the dead Porter)."""
+    """The hero ends the turn with a card that can defend and that he may use (By Fortune and Fate needs the dead Porter). Measured after
+    `Game.end_turn()`: the hand-limit discard (7) belongs to the turn, and the bot's own chooser decides it."""
+    game.end_turn()
     hero = game.hero(0)
     return any(c.can_defend and c.usable_by(hero.name) for c in game.players[0].hand)
 
@@ -218,13 +220,19 @@ KEEP_A_DEFENDER = ("sinbad_liz_t17_keeps_regroup_scheme", "sinbad_liz_t17_keeps_
 
 
 @pytest.mark.xfail(strict=False, raises=AssertionError, reason=(
-    "Live game 17/11 18:53, turn 17: with the Porter dead the bot spends Regroup, the only card of its hand that can defend, as a maneuver boost "
-    "and takes 1 + 3 damage with no defence on Liz's turn. The tree is only offered [no boost, the top/cheapest boost] (`_boost_variants`) and "
-    "`card_worth` ranks the dead By Fortune and Fate (3.5) above Regroup (1.5), so the dead card is never the boost; the leaf counts cards, not "
-    "which ones. eval=new spends it in 2 of 8 seeds at 300 and at 700 iterations (eval=old: 3/8 at 300, 0/8 at 700)."))
+    "Live game 17/11 18:53, turn 17: the bot loses Regroup, the only card of its hand that can defend, and takes 1 + 3 damage with no defence on "
+    "Liz's turn. Two causes. (1) The boost: the tree is only offered [no boost, the top/cheapest boost] (`_boost_variants`) and `card_worth` "
+    "(adapter.py:179) ranks the dead By Fortune and Fate (3.5) above Regroup (1.5), so the dead card is never the boost (2 of 8 seeds spend "
+    "Regroup there). (2) The hand limit: even without the boost the hand holds 9 and the end-of-turn discard to 7 throws Regroup away, "
+    "because both choosers rank it the cheapest card: the in-tree `SearchController.choose_discard` (adapter.py:430-431, by `card_worth`) "
+    "and the real one, `MedusaAI.choose_discard` (ai_medusa.py:1724, by `keep`/`keep_value`, which puts Regroup at 1.45 against 1.5 of a "
+    "Voyage); both branches of the tree end with the same 7-card hand, hence their near-equal values. After `end_turn` no seed keeps a "
+    "defender (0/8 on both positions, eval=new and eval=old)."))
 @pytest.mark.parametrize("name", KEEP_A_DEFENDER)
-def test_the_bot_does_not_spend_its_only_defence_card_as_a_boost(name):
-    """Every seed must keep it: a good player never spends it here (a boost with a dead card, or none, costs nothing)."""
+def test_the_bot_does_not_lose_its_only_defence_card_in_the_turn(name):
+    """Every seed must keep it, after the hand-limit discard: a good player neither boosts the maneuver with Regroup (the only possible
+    boosts are Regroup and the dead By Fortune and Fate: the Voyages have boost 0, `can_be_boost`) nor discards it at the limit, where
+    Voyage cards or By Fortune and Fate go first."""
     ok = [keeps_a_defender(*play_new_eval_turn(name, seed)) for seed in SEEDS]
     assert all(ok), f"{POSITIONS[name]['good_player']} {sum(ok)}/{len(SEEDS)} seeds keep a card that can defend: {ok}"
 

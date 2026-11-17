@@ -1056,7 +1056,7 @@
     "good_player": "Hellboy (the bot) at 14 HP with six cards and Liz at 14 HP on the next space, in a game simulated heuristic against heuristic (seed 2, turn 8, first position of the middle game where the heuristic attacks): a good player strikes at least once."
   },
   "sinbad_liz_t17_keeps_regroup_scheme": {
-    "source": "Live game 17/11 18:53 (Sinbad bot, ISMCTS 3 s, eval=new, against Liz Sherman played by Ivan), turn 17, decision 25 (19:12:10 of state/session.log, state/decisions.jsonl). Spaces (Sinbad 2, Liz 17), hit points (Sinbad 7, Liz 4, The Porter dead since turn 16), the bot's hand, its discard pile (14 cards, rebuilt from the discard lines and Voyage Home's return; counts match the journal) and Liz's pile (the 11 cards the journal lists plus two Pyrotechnics) are the live ones; Liz's hand is Burning Barrier (seen) plus four cards drawn from the pool the bot has not seen. The live bot played the scheme Riches Beyond Compare (draw 3: King of Serendib, Regroup, Valley of the Giant Snakes), then spent Regroup as a maneuver boost without moving (decision 26).",
+    "source": "Live game 17/11 18:53 (Sinbad bot, ISMCTS 3 s, eval=new, against Liz Sherman played by Ivan), turn 17, decision 25 (19:12:10 of state/session.log, state/decisions.jsonl). Spaces (Sinbad 2, Liz 17), hit points (Sinbad 7, Liz 4, The Porter dead since turn 16), the bot's hand, its discard pile (14 cards, rebuilt from the discard lines and Voyage Home's return; counts match the journal) and Liz's pile (the journal gives only its count, 13; the composition is approximate: the cards its logged discards and returns leave, plus two Pyrotechnics) are the live ones; Liz's hand is Burning Barrier (seen) plus four cards drawn from the pool the bot has not seen. The live bot played the scheme Riches Beyond Compare (draw 3: King of Serendib, Regroup, Valley of the Giant Snakes), then spent Regroup as a maneuver boost without moving (decision 26) and the hand limit discarded a Voyage.",
     "heroes": [
       "sinbad",
       "liz-sherman"
@@ -1142,10 +1142,10 @@
         "Voyage to the Valley of the Giant Snakes"
       ]
     },
-    "good_player": "The Porter is dead, so By Fortune and Fate (Porter-only attack) is a dead card; after Riches the hand has seven Voyages/dead cards and ONE card that can defend (Regroup). Liz (4 HP, Burning Barrier known) will attack on her turn. A good player ends the turn still holding Regroup: maneuver without a boost, or boost with a dead card (a Voyage or By Fortune and Fate). The live bot spent Regroup and took 1 + 3 damage with no defence."
+    "good_player": "The Porter is dead, so By Fortune and Fate (Porter-only attack) is a dead card; after Riches the hand has six Voyages, the dead card and ONE card that can defend (Regroup). Liz (4 HP, Burning Barrier known) will attack on her turn. The only possible boosts are Regroup and the dead By Fortune and Fate (the Voyages have boost 0 and cannot boost: `can_be_boost`). A good player does not spend Regroup as the boost AND, at the end-of-turn hand limit (7), discards Voyage cards or By Fortune and Fate, never Regroup. The live bot spent Regroup and took 1 + 3 damage with no defence."
   },
   "sinbad_liz_t17_keeps_regroup_boost": {
-    "source": "Live game 17/11 18:53 (Sinbad bot, ISMCTS 3 s, eval=new, against Liz Sherman played by Ivan), turn 17, decision 26 (19:12:17 of state/session.log, state/decisions.jsonl). Spaces (Sinbad 2, Liz 17), hit points (Sinbad 7, Liz 4, The Porter dead since turn 16), the bot's hand, its discard pile (14 cards, rebuilt from the discard lines and Voyage Home's return; counts match the journal) and Liz's pile (the 11 cards the journal lists plus two Pyrotechnics) are the live ones; Liz's hand is Burning Barrier (seen) plus four cards drawn from the pool the bot has not seen. Riches Beyond Compare has been played (it is in the pile, its three cards in hand); one action is left. The live bot maneuvered without moving and spent Regroup as the boost, then discarded a Voyage at the hand limit.",
+    "source": "Live game 17/11 18:53 (Sinbad bot, ISMCTS 3 s, eval=new, against Liz Sherman played by Ivan), turn 17, decision 26 (19:12:17 of state/session.log, state/decisions.jsonl). Spaces (Sinbad 2, Liz 17), hit points (Sinbad 7, Liz 4, The Porter dead since turn 16), the bot's hand, its discard pile (14 cards, rebuilt from the discard lines and Voyage Home's return; counts match the journal) and Liz's pile (the journal gives only its count, 13; the composition is approximate: the cards its logged discards and returns leave, plus two Pyrotechnics) are the live ones; Liz's hand is Burning Barrier (seen) plus four cards drawn from the pool the bot has not seen. Riches Beyond Compare has been played (it is in the pile, its three cards in hand); one action is left. The live bot maneuvered without moving and spent Regroup as the boost, then discarded a Voyage at the hand limit.",
     "heroes": [
       "sinbad",
       "liz-sherman"
@@ -1227,6 +1227,6 @@
         "Pyrotechnics"
       ]
     },
-    "good_player": "Last action of turn 17: the only card that can defend is Regroup (the Voyages only attack, By Fortune and Fate needs the dead Porter). A good player does not spend it: maneuver without boost, or boost with a dead card. The live bot boosted with Regroup (0.5071 against 0.4946 for no boost) and could not defend twice on turn 18."
+    "good_player": "Last action of turn 17: the only card that can defend is Regroup (the Voyages only attack, By Fortune and Fate needs the dead Porter). The only possible boosts are Regroup and the dead By Fortune and Fate (the Voyages have boost 0 and cannot boost: `can_be_boost`). A good player does not spend Regroup as the boost AND, at the end-of-turn hand limit (7), discards Voyage cards or By Fortune and Fate, never Regroup. The live bot boosted with Regroup (0.5071 against 0.4946 for no boost) and could not defend twice on turn 18."
   }
 }
