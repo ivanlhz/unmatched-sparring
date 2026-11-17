@@ -72,8 +72,10 @@ def parse_config(spec: str) -> dict:
         cfg["time"] = float(opts.get("time", 3600.0))
         cfg["seed"] = int(opts["seed"]) if "seed" in opts else None
         weights = dict(RESOLUTION) if opts.get("eval") == "new" else {}
-        weights.update({k[2:]: float(v) for k, v in opts.items() if k.startswith("w.")})
+        chosen = {k[2:]: float(v) for k, v in opts.items() if k.startswith("w.")}
+        weights.update(chosen)
         cfg["weights"] = weights
+        cfg["chosen"] = sorted(chosen)
     return cfg
 
 
@@ -82,7 +84,7 @@ def make_ai(cfg: dict, me: int, game_seed: int):
         return MedusaAI(me)
     seed = game_seed if cfg["seed"] is None else cfg["seed"]
     return IsmctsMedusa(me, SearchConfig(time_budget=cfg["time"], iterations=cfg["iterations"], seed=seed),
-                        EvalWeights(**cfg["weights"]), frozenset(cfg["weights"]))
+                        EvalWeights(**cfg["weights"]), frozenset(cfg.get("chosen", cfg["weights"])))
 
 
 def wilson(score: float, n: int) -> tuple[float, float]:

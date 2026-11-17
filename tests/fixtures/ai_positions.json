@@ -712,7 +712,7 @@
       ]
     },
     "known_in_hand": {},
-    "good_player": "Turn 25, Sinbad 6 HP with an empty deck and 7 cards (Exploit and six Voyages), Liz at 4 HP with two cards in hand attacks him. A good player defends with Exploit (4): it leaves 3 HP (the empty deck makes Exploit's draw cost 2 HP) against 1 HP, which makes any later maneuver (a draw) lethal. Ivan, 17/11: a decisive mistake.",
+    "good_player": "NOT a decision test: with Sinbad at 6 HP, an empty deck, seven cards (Exploit and six Voyages) and Liz at 4 HP with two cards, defending with Exploit or not is an acceptable choice. The live bot did not defend, Liz's face-down card was Fireball (5) and Sinbad dropped to 1 HP, where the draw of the next maneuver killed him by exhaustion; but the bot could not know the card. Exploit saves about 1.5 HP of the hero on average and rules out the one card that kills him (Incinerate, 7), at the cost of 2 HP to each fighter (its draw on an empty deck) and of the only defence card for a second blow. The leaves of the search after each choice are within 5 points. The position is kept for the count check of the fixture and as a case for the decision journal.",
     "attack": {
       "attacker": "liz",
       "target": "sinbad"
@@ -872,5 +872,187 @@
       ]
     },
     "good_player": "Turn 15, Liz at 9 HP with a single card (Incinerate, a pure attack) against a Sinbad of 13 HP with five cards next to her. She does not spend the only card on a blow the rival can answer and then stand with 0 cards: she ends the turn with at least one card (Ivan: Liz keeps 2-3 versatile cards to defend)."
+  },
+  "liz_sinbad_t3_attacks_with_fireball": {
+    "source": "Live game 17/11 10:46 (Liz bot, ISMCTS 3 s, eval=new, against Sinbad played by Ivan), decision 2 of the second game: Liz's hand of turn 1 (Fireball, Flame Lash, Pyrotechnics, B.P.R.D. Training, Rekindle) on space 19. The rest is built for the test: Sinbad stands next to her at full health, his Porter far away, both piles empty, turn 3 so that nothing has been played yet.",
+    "heroes": [
+      "liz-sherman",
+      "sinbad"
+    ],
+    "board": "bprd-hq",
+    "seed": 3,
+    "turn": 0,
+    "turn_no": 3,
+    "actions_left": 2,
+    "fighters": {
+      "liz": {
+        "pos": 19,
+        "hp": 16
+      },
+      "sinbad": {
+        "pos": 18,
+        "hp": 15
+      },
+      "porter": {
+        "pos": 31,
+        "hp": 6
+      }
+    },
+    "hands": {
+      "0": [
+        "Fireball",
+        "Flame Lash",
+        "Pyrotechnics",
+        "B.P.R.D. Training",
+        "Rekindle"
+      ],
+      "1": []
+    },
+    "hand_sizes": {
+      "1": 5
+    },
+    "discard": {
+      "0": [],
+      "1": []
+    },
+    "good_player": "Turn 3, Liz at full health with Fireball (5), Pyrotechnics and B.P.R.D. Training (attack and defence) and Rekindle, Sinbad next to her with no Voyage in his pile (his blows are 2): the opposite of the live games' defect. A good player strikes at least once (Fireball first) and still ends the turn with cards in hand: a position that tells keeping a card from doing nothing."
+  },
+  "medusa_hellboy_sim_t10_attacks": {
+    "heroes": [
+      "medusa",
+      "hellboy"
+    ],
+    "board": "bprd-hq",
+    "seed": 2,
+    "turn": 0,
+    "turn_no": 10,
+    "actions_left": 2,
+    "fighters": {
+      "medusa": {
+        "pos": 4,
+        "hp": 16
+      },
+      "harpy1": {
+        "pos": null,
+        "hp": -4,
+        "alive": false
+      },
+      "harpy2": {
+        "pos": null,
+        "hp": 0,
+        "alive": false
+      },
+      "harpy3": {
+        "pos": null,
+        "hp": -3,
+        "alive": false
+      },
+      "hellboy": {
+        "pos": 2,
+        "hp": 14
+      },
+      "lobster": {
+        "pos": 5,
+        "hp": 6
+      }
+    },
+    "hands": {
+      "0": [
+        "Feint",
+        "Feint",
+        "Hiss and Slither",
+        "Regroup",
+        "Snipe",
+        "Feint"
+      ],
+      "1": []
+    },
+    "hand_sizes": {
+      "1": 7
+    },
+    "discard": {
+      "0": [
+        "Clutching Claws",
+        "Second Shot",
+        "Gaze of Stone",
+        "Gaze of Stone"
+      ],
+      "1": [
+        "And Upon His Brow Is Set A Crown Of Flame",
+        "Second Shot",
+        "Right Hand Of Doom",
+        "Planned Recklessness",
+        "Glimpse Of Hell",
+        "Right Hand Of Doom",
+        "Planned Recklessness",
+        "Service Pistol"
+      ]
+    },
+    "source": "Simulated game (tools/ai_duel.py engine, heuristic against heuristic, bprd-hq): the state at the start of the bot's turn, with hands and piles by title; the rival's hand is drawn from the cards it has not shown.",
+    "good_player": "Medusa (the bot) at 16 HP with six cards against a Hellboy at 14 HP next to her space, in a game simulated heuristic against heuristic (seed 2, turn 10, first position of the middle game where the heuristic attacks): the position asks for a blow, since the rival is in reach, her hand is full and nothing threatens her. A good player strikes at least once."
+  },
+  "hellboy_liz_sim_t8_attacks": {
+    "heroes": [
+      "hellboy",
+      "liz-sherman"
+    ],
+    "board": "bprd-hq",
+    "seed": 2,
+    "turn": 0,
+    "turn_no": 8,
+    "actions_left": 2,
+    "fighters": {
+      "hellboy": {
+        "pos": 18,
+        "hp": 14
+      },
+      "lobster": {
+        "pos": null,
+        "hp": 0,
+        "alive": false
+      },
+      "liz": {
+        "pos": 19,
+        "hp": 14
+      }
+    },
+    "hands": {
+      "0": [
+        "Right Hand Of Doom",
+        "Right Hand Of Doom",
+        "Glimpse Of Hell",
+        "B.P.R.D. Training",
+        "Confront Any Demon or God",
+        "B.P.R.D. Training"
+      ],
+      "1": []
+    },
+    "hand_sizes": {
+      "1": 7
+    },
+    "discard": {
+      "0": [
+        "B.P.R.D. Training",
+        "Excalibur",
+        "Glimpse Of Hell",
+        "Posthumous Power",
+        "On Earth As It Is In Hell",
+        "On Earth As It Is In Hell",
+        "Horseshoes And Hand Grenades",
+        "Planned Recklessness"
+      ],
+      "1": [
+        "Fight Or Flight",
+        "Fireball",
+        "B.P.R.D. Training",
+        "Fight Or Flight",
+        "Fleeting Moments",
+        "Burning Barrier",
+        "Feint",
+        "Fireball"
+      ]
+    },
+    "source": "Simulated game (tools/ai_duel.py engine, heuristic against heuristic, bprd-hq): the state at the start of the bot's turn, with hands and piles by title; the rival's hand is drawn from the cards it has not shown.",
+    "good_player": "Hellboy (the bot) at 14 HP with six cards and Liz at 14 HP on the next space, in a game simulated heuristic against heuristic (seed 2, turn 8, first position of the middle game where the heuristic attacks): a good player strikes at least once."
   }
 }

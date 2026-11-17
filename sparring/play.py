@@ -1095,6 +1095,7 @@ def ai_config(cfg: PlayConfig, ai: str | None, ai_time: float | None, ai_eval: s
     F-AI-EVAL-RESOLUTION (`RESOLUTION`) under whatever `ai_eval` the JSON sets; `old` (or nothing) leaves the evaluation as it was."""
     raw = dict(cfg.raw)
     if ai_eval == "new":
+        raw["ai_eval_set"] = sorted(raw.get("ai_eval", {}))        # what the JSON itself sets: the hero profiles leave those alone, and not the ones from RESOLUTION
         raw["ai_eval"] = {**RESOLUTION, **raw.get("ai_eval", {})}
     if ai is not None:
         raw["ai"] = ai

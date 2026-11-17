@@ -21,6 +21,7 @@ from sparring.state import Game
 
 NEW = EvalWeights(**RESOLUTION)
 OLD = EvalWeights()
+NEW_RACE = EvalWeights(**{**RESOLUTION, "race_rival": 1.0})      # the exhaustion bill of both decks counted, to test the bill itself
 
 
 @pytest.fixture(autouse=True)
@@ -208,13 +209,13 @@ def test_a_card_is_worth_the_same_hit_points_to_a_team_and_to_a_hero_and_the_dec
 def test_the_exhaustion_race_charges_the_deck_that_will_run_out_first_and_wildfire_counts():
     g, _ = opening("liz-sherman", "raptors")
     short = change(g, lambda c: c.players[0].deck.__delitem__(slice(0, len(c.players[0].deck) - 5)))
-    state = with_weights(short, NEW)
+    state = with_weights(short, NEW_RACE)
     assert state._exhaustion(0) > state._exhaustion(1) == 0.0
     plain = change(g, lambda c: c.players[1].deck.__delitem__(slice(0, len(c.players[1].deck) - 5)))
-    wf = with_weights(plain, NEW)
+    wf = with_weights(plain, NEW_RACE)
     # Liz draws one card and Wildfire burns another each turn: the same 5 cards last her half as long as a hero without a burn
-    assert with_weights(short, NEW)._exhaustion(0) > 0 and wf._exhaustion(1) > 0
-    assert with_weights(short, NEW)._side_value(0) < with_weights(g, NEW)._side_value(0) - 0.05
+    assert with_weights(short, NEW_RACE)._exhaustion(0) > 0 and wf._exhaustion(1) > 0
+    assert with_weights(short, NEW_RACE)._side_value(0) < with_weights(g, NEW_RACE)._side_value(0) - 0.05
 
 
 # ---------- the pack rule ----------
@@ -298,8 +299,29 @@ def test_a_hero_with_an_empty_deck_is_worth_nothing_where_the_next_maneuver_kill
 def test_a_blow_on_a_deck_that_burns_does_not_shorten_the_exhaustion_race_it_pays_for():
     """Before: 2 HP taken from Liz moved her exhaustion bill by 0.10 in her favour, twice what the HP were worth (T6 of the live game)."""
     g = change(build("sinbad_liz_t6_flees_from_an_attack", make_ai("heuristic")), lambda c: c.players[1].deck.__delitem__(slice(0, 12)))     # 6 cards left
-    assert with_weights(g, NEW)._exhaustion(1) > 0
+    assert with_weights(g, NEW_RACE)._exhaustion(1) > 0
     hurt = change(g, lambda c: setattr(c.fighters["liz"], "hp", 12))
-    assert with_weights(hurt, NEW)._exhaustion(1) == with_weights(g, NEW)._exhaustion(1)
+    assert with_weights(hurt, NEW_RACE)._exhaustion(1) == with_weights(g, NEW_RACE)._exhaustion(1)
     late = change(g, lambda c: setattr(c, "turn_no", 22))
-    assert with_weights(late, NEW)._exhaustion(1) < with_weights(g, NEW)._exhaustion(1)         # the game has less left to run
+    assert with_weights(late, NEW_RACE)._exhaustion(1) < with_weights(g, NEW_RACE)._exhaustion(1)         # the game has less left to run
+
+
+def test_the_cost_of_the_last_cards_of_a_deck_grows_smoothly_and_the_rivals_bill_is_not_counted_in_the_bots_favour():
+    """Review of 20eef9c: the warning came only with two cards left, and robbing between six and three was a gain."""
+    g = sinbad_position("sinbad_liz_t18_idle_maneuvers")          # turn 18: the game can still last 6 turns of Sinbad's, one draw each
+
+    def own_bill(deck: int) -> float:
+        def edit(c):
+            st = c.players[0]
+            st.discard = st.discard + st.deck[deck:]
+            st.deck = st.deck[:deck]
+        return with_weights(change(g, edit), NEW)._exhaustion(0)
+
+    bills = [own_bill(n) for n in (6, 5, 4, 3, 2, 1, 0)]
+    assert bills[0] == 0.0 and all(b > a for a, b in zip(bills[1:], bills[2:]))
+    assert bills[1] > 0 and bills[-1] < 20                         # starts with the first card past the line, and never the 36-40 HP of the first version
+    steps = [b - a for a, b in zip(bills, bills[1:])]
+    assert all(later >= earlier for earlier, later in zip(steps, steps[1:]))      # each card costs at least as much as the one before
+    liz = with_weights(g, NEW)
+    assert liz._exhaustion(1) == 0.0                               # her deck burns two a turn, but the bot does not bank on it
+    assert with_weights(g, EvalWeights(**{**RESOLUTION, "race_rival": 1.0}))._exhaustion(1) > 0

@@ -21,7 +21,7 @@ def test_without_the_option_the_configuration_is_untouched():
 
 def test_the_new_evaluation_reaches_the_controller_and_is_named_in_the_header_and_the_log_line():
     ai = make_bot_ai(ai_config(CFG, None, None, "new"), 0)
-    assert ai.weights == EvalWeights(**RESOLUTION) and ai.explicit == frozenset(RESOLUTION)
+    assert ai.weights == EvalWeights(**RESOLUTION) and ai.explicit == frozenset()
     assert decision_log.ai_info(ai)["eval"] == "new" and "eval=new" in decision_log.ai_label(ai)
     assert "ai_eval" not in CFG.raw                           # the configuration object is not modified
 
@@ -35,3 +35,12 @@ def test_a_weight_the_json_sets_wins_over_the_new_evaluation():
 
 def test_the_heuristic_has_no_evaluation_to_name():
     assert decision_log.ai_info(MedusaAI(0)) == {"ai": "heuristic"}
+
+
+def test_a_hero_profile_beats_the_new_evaluation_but_not_what_the_json_sets():
+    from sparring.search.adapter import hero_weights
+    ai = make_bot_ai(ai_config(CFG, None, None, "new"), 0)
+    assert hero_weights(ai.weights, "doctor-strange", ai.explicit).caution == 0.3
+    cfg = SimpleNamespace(raw={"ai": "ismcts", "ai_eval": {"caution": 0.5}})        # the JSON sets the very value that RESOLUTION has
+    ai = make_bot_ai(ai_config(cfg, None, None, "new"), 0)
+    assert hero_weights(ai.weights, "doctor-strange", ai.explicit).caution == 0.5

@@ -68,7 +68,8 @@ PLACEMENT_KEEP = 6            # maneuver placements in the tree: the best by sta
 PLACEMENT_STRIKE_KEEP = 2     # ...plus the best ones from which the hero strikes, plus staying still
 HAND_RESERVE = 3              # the cards of a hand that are its reserve (`EvalWeights.hand_reserve`): two blows to answer next turn and one card to play
 REFERENCE_HP = 16               # the hero hit points that one life is measured in when a card or a deck is priced in hit points (`card_hp`, `deck_hp`), whoever the side is
-MIN_TURNS_LEFT = 2            # the least that an exhaustion race still looks ahead (`EngineState._exhaustion`), however long the game has gone on
+GAME_TURNS = 15               # turns of its own that a game can last, for the exhaustion race (`EngineState._exhaustion`): the live games and the duels went 8 to 13
+MIN_HORIZON = 6               # the fewest turns an exhaustion race still looks ahead (`EngineState._exhaustion`), however long the game has gone on
 PACK_RESERVE = 2              # cards a pack keeps after a blow (a defense among them) for that blow to be forced on its last action: the rival answers with two actions
 
 
@@ -97,6 +98,7 @@ class EvalWeights:
     card_hp: float = 0.0            # above 0 (with `normalize`), a card in hand is this many hit points (of the side's life) and the deck counts linearly: `deck_hp` per card, no ceiling
     deck_hp: float = 0.0
     race: float = 0.0               # above 0 (with `normalize`), the exhaustion each deck will owe over the length of the game (turns until the first hero falls, at the real draw rate, Wildfire's burn included), scaled by this weight
+    race_rival: float = 1.0         # the share of the rival's exhaustion bill that the evaluation counts in the bot's favour (the bot's own bill counts whole): the rival's deck is its own to manage, and it is refilled by its cards (Rekindle) or spared by playing them
     fighter_threat: float = 0.0     # above 0, `_exposure` adds the loss of the best-placed sidekick the rival reaches (hit points and the fighter itself), scaled by this weight
     unseen: float = 0.0             # above 0, the rival's blows are valued from the cards it may still hold (its set minus discard and removed) and its hand size: the i-th best attack of a hand of that size
     next_draw: float = 0.0          # above 0 (with `normalize`), the draws the next turn needs (this many) are charged to the hit points of a side whose deck is short of them: every fighter pays EXHAUST_DAMAGE per missing card, so a hero at that many hit points or fewer cannot afford to maneuver
@@ -106,7 +108,7 @@ class EvalWeights:
 
 # The evaluation of F-AI-EVAL-RESOLUTION, to be switched on by configuration (`ai_eval`) until the duels (tools/ai_duel.py `eval=new`) accept it
 RESOLUTION: dict[str, float] = {"normalize": 1.0, "card_hp": 1.0, "deck_hp": 0.8, "race": 1.0, "fighter_threat": 0.5, "unseen": 1.0,
-                                "hidden_attack": 1.0, "team_life": 1.0, "reserve": 1.0, "piles": 1.0, "next_draw": 1.0, "caution": 0.5}
+                                "hidden_attack": 1.0, "team_life": 1.0, "reserve": 1.0, "piles": 1.0, "next_draw": 1.0, "caution": 0.5, "race_rival": 0.0, "victim_moves_first": 0.5}
 
 # evaluation weights a hero plays with; the configuration's own values win. Doctor Strange stands in reach (F-STRANGE-AGGRO); the Raptors
 # are one life, count a card per blow and keep a reserve (F-RAPTORS-SWARM: they attacked themselves out of cards, and only a third of
@@ -136,12 +138,11 @@ def pack_plan(game: Game, player: int) -> PackPlan:
 
 
 def hero_weights(weights: EvalWeights, slug: str, explicit: frozenset[str] = frozenset()) -> EvalWeights:
-    """`weights` with the hero's profile on top of every field the configuration did not set: those in `explicit` (the keys
-    of `ai_eval`, even when equal to the default) and any field that differs from the default are left alone. The values of `RESOLUTION`
-    (`--ai-eval new` puts them all in `ai_eval`) count as the default: a profile (Doctor Strange's caution) still wins over them."""
+    """`weights` with the hero's profile on top of every field the configuration did not set: those in `explicit` (the keys the
+    configuration's own `ai_eval` sets, even when equal to the default) and any field that differs from the default are left alone. The values of
+    `RESOLUTION` count as the default, so a profile (Doctor Strange's caution) still wins over the new evaluation."""
     base = EvalWeights()
-    mine = {k: v for k, v in HERO_EVAL.get(slug, {}).items()
-            if getattr(weights, k) in (getattr(base, k), RESOLUTION.get(k)) and (k not in explicit or getattr(weights, k) == RESOLUTION.get(k))}
+    mine = {k: v for k, v in HERO_EVAL.get(slug, {}).items() if k not in explicit and getattr(weights, k) in (getattr(base, k), RESOLUTION.get(k))}
     return replace(weights, **mine) if mine else weights
 
 
@@ -1026,36 +1027,22 @@ class EngineState:
 
     def _exhaustion(self, p: int) -> float:
         """Hit points that `p`'s deck will cost it through exhaustion over the rest of the game, in the units of `exhaustion_owed`: the draws it
-        is short of, over the game's length, at its own rate of draws a turn (one, plus what its start-of-turn triggers discard from the bottom
-        of the deck: Wildfire), each costing `EXHAUST_DAMAGE` to every fighter it still has. The length is the turns until a hero falls at the
-        average blow of each deck (the heuristic's `race`), at most the turns of `LONG_GAME` that the game has left, counted from the hit points
-        each side started with (a blow does not shorten the race: see `_turns_to_kill`)."""
+        is short of, over the turns the game can still last (`GAME_TURNS` of each player's own, less those played), at its own rate of draws a turn (one, plus what its start-of-turn triggers
+        discard from the bottom of the deck: Wildfire), each costing `EXHAUST_DAMAGE` to every fighter it still has. The bill grows smoothly as
+        the deck runs down (`exhaustion_owed`), so the last cards of a deck are worth more than the first ones. The length is the turns of
+        `GAME_TURNS` the game has left, never fewer than `MIN_HORIZON` (a game can always go on a few turns more), and not a function of the hit
+        points or the hands: the first version took the turns until a hero falls, and every blow on a deck that burns shortened the race and
+        cancelled what it took from her life, while a hand emptied by attacking read as a shorter game."""
         w = self.weights
         if not w.race:
             return 0.0
         g = self.game
-        length = min(max(MIN_TURNS_LEFT, LONG_GAME - g.turn_no // 2), self._turns_to_kill(p, full=True), self._turns_to_kill(1 - p, full=True))
+        length = max(MIN_HORIZON, GAME_TURNS - g.turn_no // 2)
         st = g.players[p]
         rate = DRAWS_PER_TURN + sum(1 for t in st.hero.triggers if t.get("when") == "start_of_turn" and "discard_bottom" in str(t.get("effect")))
         owed = exhaustion_owed(max(0.0, length * rate - len(st.deck)))
-        return w.race * EXHAUST_DAMAGE * len(g.own(p)) * owed if owed else 0.0
-
-    def _turns_to_kill(self, attacker: int, full: bool = False) -> float:
-        """Turns `attacker` needs to bring the rival down at one attack a turn: the hit points of the rival's life (its team, or its hero)
-        over the average attack of `attacker`'s whole deck (and its hero's bonus) less the average defense the rival's deck gives, as often as
-        its hand holds one. With `full`, the rival's hit points are the ones it started with: the length of the game that the exhaustion race
-        is run over then does not shrink with the damage dealt, or a blow on a deck that burns would cancel what it takes from her life."""
-        g, w = self.game, self.weights
-        hero, rival = g.hero(attacker), g.hero(1 - attacker)
-        mine, theirs = g.players[attacker], g.players[1 - attacker]
-        values = attack_values(mine, hero.name, bool(w.piles))
-        if not values:
-            return float(LONG_GAME)
-        defenses = [c.value for c in theirs.full_set if c.can_defend and c.usable_by(rival.name)]
-        cover = (1 - (1 - len(defenses) / len(theirs.full_set)) ** max(1, len(theirs.hand))) * sum(defenses) / len(defenses) if defenses else 0.0
-        net = max(MIN_NET, sum(values) / len(values) + g.attack_bonus(hero) - cover)
-        hp = sum(f.max_hp if full else f.hp for f in self._life_pool(1 - attacker))
-        return hp / (ATTACKS_PER_TURN * net)
+        share = 1.0 if p == self.observer else w.race_rival
+        return share * w.race * EXHAUST_DAMAGE * len(g.own(p)) * owed if owed else 0.0
 
     def _pack_presses(self, p: int) -> bool:
         """Whether a hero with the pack bonus forces the blow on its last action and binds the walk to the rival's side (Iván: super
