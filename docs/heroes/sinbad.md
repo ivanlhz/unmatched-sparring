@@ -64,7 +64,7 @@ His deck is sheet 176 like Medusa's, the four turtles', Doctor Strange's, Bigfoo
 1. **Does the ability reach The Porter?** Implemented: yes ("your fighters"). Alternative: Sinbad only (unmatched-memory says "fighters" too).
 2. **Does the boost card count?** Implemented: yes, a VOYAGE card spent as the Maneuver's boost is already in the pile when the fighters move (only Voyage Home can be one). Alternative: count the pile as it was when the Maneuver began.
 3. **Momentous Shift's "your fighter"**: implemented as the fighter that plays the card. Alternative: any fighter of yours (Sinbad's walk would then pay for a Porter's card).
-4. **The Voyages dial** (`10bbcb`): it is unpacked and laid with Sinbad's other objects (a counter-dial slot of the layout), but the bot does not write it: the count of VOYAGE cards is read from the discard pile it already tracks. Should the bot keep it in step like Hellboy's destiny dial? (Today only a hero with forms writes a counter dial: `session.py` `_put_dials`.)
+4. **The Voyages dial** (`10bbcb`): decided 17/11 after a live bug (four VOYAGE cards in the discard, dial at 0): the session keeps it in step with the engine count (`session_counters.py`, `counter_dials` of the session configuration, the same verified write as the destiny and Source dials), on either side, after any change of the discard and again on `--resume`. Ivan can still correct it by hand: a dial he touched is respected and warned about, never overwritten.
 5. The chat hint of the Maneuver ("VOYAGE: your fighters may move up to +N spaces") only appears for the human's Sinbad; the human's moves are not range-checked (as for every hero), so it is a hint, not a rule check.
 
 ## AI
