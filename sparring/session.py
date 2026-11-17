@@ -3160,7 +3160,9 @@ class Session:
         self.sync_positions()
         if self.hand_move_refused():
             return
-        self.game.hand_moves.clear()              # the action is over: what an effect let the human walk is spent
+        walks_open = self.pending_discard is not None     # a discard still to settle keeps the walks an effect let them do (see below)
+        if not walks_open:
+            self.game.hand_moves.clear()          # the action is over: what an effect let the human walk is spent
         if self.scheme_baseline is not None and not self._resolve_human_scheme(wait=False):
             self.say(t("end.no_scheme"), ChatKind.WARNING)
         self.scheme_baseline, self.scheme_returned = None, None
@@ -3180,10 +3182,26 @@ class Session:
         owed_cause = (self.pending_discard or {}).get("draw_cause")
         self.pending_discard = None
         self._deal_owed_draws(owed_cause)         # the draws that came after the discard are dealt now
+        if walks_open and self.game.hand_moves:
+            # F-DISCARD-THEN-MOVE (live 17/11, Toil and Danger after Fleeting Moments): this press settled the discard but the
+            # miniature the effect lets them walk is still where it was (`sync_positions` spends the permission of a piece that moved).
+            # "Up to" makes standing still legal, so the press cannot tell a walk skipped from a walk not yet made: it asks once.
+            self.moving = True
+            self.say(t("end.walk_after_discard", walks=self._open_walks_text()), ChatKind.YOUR_TURN)
+            return
+        self.game.hand_moves.clear()
         if self.game.turn == self.bot:
             self._bot_continue()
         else:
             self._after_human_action()
+
+    def _open_walks_text(self) -> str:
+        """"sinbad hasta 3 casillas" for each miniature an effect still lets the human walk by hand."""
+        parts = []
+        for fid, m in self.game.hand_moves.items():
+            how = t("moves.how.up_to" if m.get("up_to", True) else "moves.how.exactly")
+            parts.append(f"{self._name(self.game.fighters[fid])} {how} {moves._plural(m['steps'])}")
+        return "; ".join(parts)
 
     # ---------- HP and casualties from effects (the engine does not see them) ----------
     def _fighter_arg(self, payload: dict) -> Fighter | None:
