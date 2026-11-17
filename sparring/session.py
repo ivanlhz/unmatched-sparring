@@ -3160,7 +3160,11 @@ class Session:
         self.sync_positions()
         if self.hand_move_refused():
             return
-        self.game.hand_moves.clear()              # the action is over: what an effect let the human walk is spent
+        walks_open: set[str] = set()              # a discard still to settle keeps the walks an effect let them do (see below)
+        if self.pending_discard is None:
+            self.game.hand_moves.clear()          # the action is over: what an effect let the human walk is spent
+        else:
+            walks_open = {fid for fid in self.game.hand_moves if self.game.fighters[fid].alive}
         if self.scheme_baseline is not None and not self._resolve_human_scheme(wait=False):
             self.say(t("end.no_scheme"), ChatKind.WARNING)
         self.scheme_baseline, self.scheme_returned = None, None
@@ -3180,10 +3184,29 @@ class Session:
         owed_cause = (self.pending_discard or {}).get("draw_cause")
         self.pending_discard = None
         self._deal_owed_draws(owed_cause)         # the draws that came after the discard are dealt now
+        walks_open &= set(self.game.hand_moves)   # only walks open before this press: a plan resolved now grants its own, untouched
+        if walks_open:
+            # F-DISCARD-THEN-MOVE (live 17/11, Toil and Danger after Fleeting Moments): this press settled the discard but the
+            # miniature the effect lets them walk is still where it was (`sync_positions` spends the permission of a piece that moved).
+            # "Up to" makes standing still legal, so the press cannot tell a walk skipped from a walk not yet made: it asks once.
+            self.moving = True
+            self.say(self._walk_after_discard_text(walks_open), ChatKind.YOUR_TURN)
+            return
         if self.game.turn == self.bot:
             self._bot_continue()
         else:
             self._after_human_action()
+
+    def _walk_after_discard_text(self, fids: set[str]) -> str:
+        """The chat line for the walks still open once the discard is settled; only "up to" walks may be left where they are."""
+        open_moves = {fid: self.game.hand_moves[fid] for fid in sorted(fids)}
+        parts = []
+        for fid, m in open_moves.items():
+            how = t("moves.how.up_to" if m.get("up_to", True) else "moves.how.exactly")
+            parts.append(f"{self._name(self.game.fighters[fid])} {how} {moves._plural(m['steps'])}")
+        all_up_to = all(m.get("up_to", True) for m in open_moves.values())
+        key = "end.walk_after_discard" + (("_stay" if len(parts) == 1 else "_stay_many") if all_up_to else "")
+        return t(key, walks="; ".join(parts))
 
     # ---------- HP and casualties from effects (the engine does not see them) ----------
     def _fighter_arg(self, payload: dict) -> Fighter | None:

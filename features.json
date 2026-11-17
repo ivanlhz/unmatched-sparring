@@ -1099,6 +1099,21 @@
         "Tests only on the touched files; the full suite is left to the CI or to Ivan"
       ],
       "note": "Asked by Ivan 16/11/2026. The draw was already uniform; the human did not know among how many cards it was made."
+    },
+    {
+      "id": "F-DISCARD-THEN-MOVE",
+      "title": "A discard settled by End action does not close a hand walk the human still owes (live 17/11, Toil and Danger after Fleeting Moments)",
+      "status": "done",
+      "criteria": [
+        "While a discard is pending, End action does not spend the walks an effect let the human do by hand (Game.hand_moves); the walk survives a press that does not settle the discard (tests/test_discard_then_after_move.py::test_a_press_that_does_not_settle_the_discard_keeps_the_walk_open)",
+        "The press that settles the discard deals the owed cards, says 'Descarte hecho. Ahora mueve a <nombre> hasta N casillas y pulsa Fin de accion' (end.walk_after_discard*) and waits: the bot does not go on until a second End action (test_discard_alone_then_the_walk_gets_its_own_step, test_after_the_second_press_the_bot_does_one_action)",
+        "If the miniature already moved before the press, nothing more is asked (test_discard_and_walk_before_one_press_ask_nothing_more); staying still is legal with the second press (test_staying_put_is_legal_with_a_second_press)",
+        "The text offers leaving the piece only for 'up to' walks, in singular and plural, never for 'exactly' (test_the_text_fits_exactly_and_several_miniatures); a dead fighter is not asked to move (test_a_dead_fighter_is_not_asked_to_move)",
+        "Both orders: the defender's AFTER walk (Liz bot / Sinbad human) and the human attacker's own walk with the bot's Confront discard (test_abe_hits_with_faster_stronger_and_confront_leaves_a_named_discard); a resume keeps waiting (test_a_resume_after_the_discard_keeps_waiting_for_the_walk)",
+        "The permission a plan grants in the same press survives and a longer walk is refused, also with a hand-limit discard after the last action (test_a_plan_move_keeps_its_permission_and_a_longer_walk_is_refused, test_a_plan_move_as_the_last_action_with_a_hand_limit_discard_keeps_the_walk)",
+        "Tests only on the touched files; the full suite is left to the CI or to Ivan"
+      ],
+      "note": "Chosen: always ask the walk in its own step when the discard is settled in the same press, because 'up to' makes standing still legal and the press cannot tell a skipped walk from one not yet made."
     }
   ]
 }
