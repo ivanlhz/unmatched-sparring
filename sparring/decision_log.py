@@ -27,12 +27,21 @@ def decisions_path(state_path: Path | None) -> Path | None:
     return None if state_path is None else Path(state_path).with_name(JOURNAL_NAME)
 
 
+def eval_label(weights) -> str:
+    """`new` (the evaluation of F-AI-EVAL-RESOLUTION, `RESOLUTION`), `old` (the default weights) or `custom`."""
+    from .search.adapter import RESOLUTION, EvalWeights
+    if weights == EvalWeights(**RESOLUTION):
+        return "new"
+    return "old" if weights == EvalWeights() else "custom"
+
+
 def ai_info(ai) -> dict:
     """Which AI is playing and with what budget. The ISMCTS controller carries its `SearchConfig`."""
     config = getattr(ai, "config", None)
     if config is None:
         return {"ai": "heuristic"}
-    return {"ai": "ismcts", "time_budget": config.time_budget, "iterations_cap": config.iterations, "seed": config.seed}
+    return {"ai": "ismcts", "time_budget": config.time_budget, "iterations_cap": config.iterations, "seed": config.seed,
+            "eval": eval_label(ai.weights)}
 
 
 def ai_label(ai) -> str:
@@ -41,7 +50,7 @@ def ai_label(ai) -> str:
     if info["ai"] == "heuristic":
         return "heuristic"
     cap = "" if info["iterations_cap"] is None else f", max {info['iterations_cap']} iterations"
-    return f"ismcts ({info['time_budget']:g} s per decision{cap})"
+    return f"ismcts ({info['time_budget']:g} s per decision{cap}, eval={info['eval']})"
 
 
 def describe_act(act) -> dict:

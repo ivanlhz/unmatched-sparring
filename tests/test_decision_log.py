@@ -174,7 +174,7 @@ def test_the_headers_name_the_ai_and_its_budget(brig, tmp_path):  # noqa: F811
     session.ai = IsmctsMedusa(0, SearchConfig(time_budget=3.0, iterations=None, seed=0))
     session._begin_game()
     header = [l for l in session.game_log.path.read_text(encoding="utf-8").splitlines() if l.startswith("====")][0]
-    assert "| ai: ismcts (3 s per decision)" in header
+    assert "| ai: ismcts (3 s per decision, eval=old)" in header
     first = records(session.journal.path)[0]
     assert first["t"] == "game" and first["ai"] == "ismcts" and first["time_budget"] == 3.0 and first["iterations_cap"] is None
     assert session.ai.journal is session.journal
