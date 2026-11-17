@@ -391,7 +391,10 @@ def test_confront_lost_reads_the_human_hand_once_and_the_named_discard_is_owed_u
     table.human_discard += [card_ids(game, 1, "Faster. Stronger.")[0], gone[0]]
     table.human_count = len(real) - 1
     msgs = click(session, table, Event.END_ACTION)
-    assert session.pending_discard is None and said(msgs, "Te quedan 2 accion")
+    # F-DISCARD-THEN-MOVE: Faster. Stronger. still lets Abe walk 2 and this press only settled the discard: the walk gets its own step
+    assert session.pending_discard is None and said(msgs, "Descarte hecho. Ahora mueve a Abe Sapien hasta 2 casillas")
+    msgs = click(session, table, Event.END_ACTION)
+    assert said(msgs, "Te quedan 2 accion")
     assert len(human_reads(table)) == 1, "no other read of the human hand, ever"
 
 
