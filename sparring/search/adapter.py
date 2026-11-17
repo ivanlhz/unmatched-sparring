@@ -42,8 +42,8 @@ from math import comb, fsum, prod, sqrt
 
 from .. import enraged, pack, tracks
 from ..ai_hazards import zone_cover_factor, zone_damage, zone_exposed
-from ..ai_medusa import (ATTACKS_PER_TURN, DRAWS_PER_TURN, GAZE, LONG_GAME, MIN_NET, beside_stake, boost_effect_value, bot_may_spend, exhaustion_owed,
-                         held_for_plan, maneuver_may_spend, play_signature, scheme_fighter)
+from ..ai_medusa import (ATTACKS_PER_TURN, DRAWS_PER_TURN, GAZE, LONG_GAME, MIN_NET, beside_stake, boost_effect_value, bot_may_spend,
+                         can_use, discard_order, exhaustion_owed, held_for_plan, maneuver_may_spend, play_signature, scheme_fighter)
 from ..cards import Card, can_be_boost
 from ..combat import is_medusa_card, resolve_combat
 from ..controller import Controller
@@ -70,6 +70,7 @@ HAND_RESERVE = 3              # the cards of a hand that are its reserve (`EvalW
 REFERENCE_HP = 16               # the hero hit points that one life is measured in when a card or a deck is priced in hit points (`card_hp`, `deck_hp`), whoever the side is
 GAME_TURNS = 15               # turns of its own that a game can last, for the exhaustion race (`EngineState._exhaustion`): the live games and the duels went 8 to 13
 MIN_HORIZON = 6               # the fewest turns an exhaustion race still looks ahead (`EngineState._exhaustion`), however long the game has gone on
+LAST_DEFENCE_WORTH = 100.0   # the price of the bot's only card able to defend as a maneuver boost (`_boost_variants`): the dearest card, offered only when nothing else boosts as much
 PACK_RESERVE = 2              # cards a pack keeps after a blow (a defense among them) for that blow to be forced on its last action: the rival answers with two actions
 
 
@@ -428,7 +429,7 @@ class SearchController(Controller):
         return best
 
     def choose_discard(self, game: Game, player: int, n: int, reason: str):
-        return sorted(game.players[player].hand, key=lambda c: (card_worth(c), c.card_id))[:n]
+        return discard_order(game, player, game.players[player].hand, card_worth)[:n]
 
     def choose_move(self, game: Game, fighter: Fighter, steps: int, through_enemies: bool = False):
         policy = self.state.variant
@@ -866,16 +867,20 @@ class EngineState:
         """Without boost, the cheapest card with the maximum boost and the cheapest card in hand (if its boost is
         different): at most three reaches."""
         may = maneuver_may_spend if p == self.observer else can_be_boost     # Iván's bans are the bot's own; the modelled rival boosts as the rules allow
-        hand = [c for c in self.game.players[p].hand if may(c) and not (p == self.observer and held_for_plan(self.game, p, c, self.game.players[p].hand))]
+        every = self.game.players[p].hand
+        defenders = [c for c in every if c.can_defend and can_use(self.game, p, c)]
+        last_defence = defenders[0] if len(defenders) == 1 and p == self.observer else None     # the bot's only defence card: the dearest of the hand
+        worth = lambda c: (0.0 if not can_use(self.game, p, c) else card_worth(c) + (LAST_DEFENCE_WORTH if c is last_defence else 0.0))    # a card nobody alive can use is the cheapest of all
+        hand = [c for c in every if may(c) and not (p == self.observer and held_for_plan(self.game, p, c, every))]
         if not hand:
             return [None]
-        cheapest = min(hand, key=lambda c: (card_worth(c), c.card_id))
-        top = max(hand, key=lambda c: (c.boost, -card_worth(c), -c.card_id))
+        cheapest = min(hand, key=lambda c: (worth(c), c.card_id))
+        top = max(hand, key=lambda c: (c.boost, -worth(c), -c.card_id))
         out = [None, top]
         if cheapest.boost != top.boost:
             out.append(cheapest)
         g = self.game
-        rich = max(hand, key=lambda c: (boost_effect_value(g, p, c) - 0.3 * card_worth(c), -c.card_id))    # the best BOOSTED WITH for its price
+        rich = max(hand, key=lambda c: (boost_effect_value(g, p, c) - 0.3 * worth(c), -c.card_id))    # the best BOOSTED WITH for its price
         if boost_effect_value(g, p, rich) > 0 and all(rich.title != c.title for c in out if c is not None):
             out.append(rich)
         return out

@@ -3,13 +3,13 @@ and the search bot plays him on both sides without falling back."""
 import pytest
 
 from sparring import sim
-from sparring.ai_medusa import MedusaAI, keep_value
+from sparring.ai_medusa import MedusaAI, discard_order, keep_value
 from test_donatello_effects import adjacent, attack, g, give, make, to_discard  # noqa: F401
 
 
 def test_the_bot_never_gives_up_an_invention_before_a_plain_card(g):
     hand = [give(g, t) for t in ("Electro grenade", "Self defense grid", "Smoke bomb", "Quick strike", "Turtle power!")]
-    worst = sorted(hand, key=lambda c: (keep_value(c, hand), c.card_id))[:2]
+    worst = discard_order(g, 0, hand, lambda c: keep_value(c, hand))[:2]       # the cheapest two, the best defence card kept
     assert not any("invention" in c.tags for c in worst)
     chosen = MedusaAI(0).choose_discard(g, 0, 2, "hand limit")
     assert sorted(c.card_id for c in chosen) == sorted(c.card_id for c in worst)

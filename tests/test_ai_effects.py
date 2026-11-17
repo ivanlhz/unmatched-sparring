@@ -6,7 +6,7 @@ import pytest
 
 from sparring import ai_effects
 from sparring.ai_effects import EffectAI, blind_clone
-from sparring.ai_medusa import MedusaAI
+from sparring.ai_medusa import MedusaAI, effect_reliance
 from sparring.effects.choose import ChoiceRequest, ControllerChooser, ScriptedChooser, default_answer, worth_paying
 from sparring.effects.model import EffectError
 from sparring.effects.run import Ctx, EffectRun
@@ -187,7 +187,8 @@ def test_the_discard_gives_up_the_least_useful_cards(bprd, ai):
     set_hand(g, 0, "Gaze of Stone", "Dash", "Second Shot", "Feint")
     hand = g.players[0].hand
     ids = [c.card_id for c in hand]
-    worst = [c.card_id for c in MedusaAI(0).choose_discard(g, 0, 2, "")]
+    mine = MedusaAI(0)
+    worst = [c.card_id for c in sorted(hand, key=lambda c: (mine.keep(g, c, hand, effect_reliance(g, 0)), c.card_id))[:2]]      # the effect's own price: the lowest keep (the hand limit also keeps its last defence)
     got = ai.choose_effect(g, req("cards", ids, lo=2, hi=2, zone="hand", purpose="discard", of=0))
     assert sorted(got) == sorted(worst)
     assert by_title(g, 0, "Gaze of Stone").card_id not in got
