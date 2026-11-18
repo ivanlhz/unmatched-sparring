@@ -509,3 +509,18 @@ def test_a_rival_too_far_to_walk_threatens_only_while_a_boost_that_gets_it_there
     st = corridor.players[1]
     play_out(corridor, 1, [c for c in st.full_set if c.boost >= 4])
     assert asked() == (0.0, 3)
+
+
+def test_boost_reach_counts_the_space_a_voyage_boost_adds_as_it_lands_in_the_pile(bprd):
+    """Sinbad's maneuver moves one space more per VOYAGE card in his pile, and a VOYAGE card spent as the boost lands there first: Voyage
+    Home (BOOST 1, VOYAGE) buys two spaces. With Commanding Impact (BOOST 2) played, the rival's reach still grows by two, not one
+    (18/11 T15: the threat model read Sinbad's boost from the printed values)."""
+    from sparring.guard import boost_reach
+    from test_d2_schemes import bot_game
+    g = bot_game(bprd, "ciri", "sinbad")
+    st = g.players[1]
+    assert boost_reach(g, 1) == 2
+    play_out(g, 1, [c for c in st.full_set if c.title == "Commanding Impact"])
+    assert boost_reach(g, 1) == 2               # Voyage Home: 1 + the space it adds from the pile
+    play_out(g, 1, [c for c in st.full_set if c.title == "Voyage Home"])
+    assert boost_reach(g, 1) == 1

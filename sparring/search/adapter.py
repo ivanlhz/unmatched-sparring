@@ -534,7 +534,9 @@ class EngineState:
     def _signature(self) -> tuple:
         g = self.game
         mover = self.player_to_move()
-        return (g.board.key, g.turn, self.phase, self.partial, self.pending[:2] if self.pending else None,
+        # the observer and the weights too: the placements are scored with the weights and the boosts offered depend on whose search it is
+        # (`_boost_variants`), and two controllers of one process (ai_duel's A and B) share this cache: without them, one side's lists leaked into the other's search
+        return (self.observer, self.weights, g.board.key, g.turn, self.phase, self.partial, self.pending[:2] if self.pending else None,
                 g.form(1 - g.turn) if self.phase == "start" else None,
                 tuple((f.fid, f.pos, f.hp) for f in g.fighters.values() if f.alive),
                 tuple(sorted(c.card_id for c in g.players[mover].hand)),

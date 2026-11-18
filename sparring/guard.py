@@ -32,24 +32,30 @@ def strike_spots(board, target_pos: int, ranged: bool, reach: int = 0) -> frozen
     return r
 
 
-_boosts_cache: dict[str, tuple[tuple[int, int], ...]] = {}
+_boosts_cache: dict[str, tuple[tuple[tuple[int, int], ...], dict[int, int]]] = {}   # hero -> (boost steps by value with their copies, steps per card id)
 
 
 def boost_reach(game: Game, player: int) -> int:
     """Most extra steps `player` can buy with a maneuver boost: the biggest boost value among its cards not played yet (its
     whole set minus its public piles: discard, tucked, removed, and its ONGOING card in play), plus what an effect in play adds to its BOOST values
-    (Advisor to the king: +1). Public information: its hand is never read. 0 once no card is left, or none that boosts."""
+    (Advisor to the king: +1). Public information: its hand is never read. 0 once no card is left, or none that boosts.
+    A card that also feeds the hero's maneuver bonus as it lands in the pile (Sinbad's Voyage Home: BOOST 1, and a VOYAGE card in the
+    discard adds a space) is worth that much more (`Game.maneuver_bonus` with the card, less without it)."""
     st = game.players[player]
     by_value = _boosts_cache.get(st.hero_name)
     if by_value is None:
+        base = game.maneuver_bonus(player)
+        steps = {c.card_id: c.boost + game.maneuver_bonus(player, c) - base for c in st.full_set if c.boost > 0}
         counts: dict[int, int] = {}
-        for c in st.full_set:
-            counts[c.boost] = counts.get(c.boost, 0) + 1
-        by_value = _boosts_cache[st.hero_name] = tuple(sorted(counts.items(), reverse=True))
+        for v in steps.values():
+            counts[v] = counts.get(v, 0) + 1
+        by_value = _boosts_cache[st.hero_name] = (tuple(sorted(counts.items(), reverse=True)), steps)
+    by_value, steps = by_value
     played: dict[int, int] = {}
     in_play = game.fx.ongoing_card_id(player)
     for c in st.gone + [c for c in st.full_set if c.card_id == in_play and c not in st.gone]:
-        played[c.boost] = played.get(c.boost, 0) + 1
+        if c.card_id in steps:
+            played[steps[c.card_id]] = played.get(steps[c.card_id], 0) + 1
     best = next((boost for boost, copies in by_value if copies > played.get(boost, 0)), 0)
     return best + game.fx.boost_bonus(player) if best else 0
 
