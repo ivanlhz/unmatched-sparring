@@ -10,7 +10,7 @@ card moment, so a pause inside an effect survives `CombatFlow.to_dict`."""
 from __future__ import annotations
 
 from ..i18n import t
-from . import modifiers, narrate
+from . import modifiers, narrate, table
 from .choose import ControllerChooser, TableChooser
 from .model import EffectError, load_effects
 from .ops_core import OPS, op, plugin, plugin_condition
