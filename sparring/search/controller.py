@@ -13,6 +13,7 @@ from __future__ import annotations
 
 import logging
 import random
+import time
 from dataclasses import replace
 
 from .. import decision_log, enraged, tracks
@@ -22,6 +23,7 @@ from ..combat import is_medusa_card
 from ..controller import Controller
 from ..state import Fighter, Game
 from .adapter import EngineState, EvalWeights, hero_weights, Knowledge, by_title, plan_frenzy, sidekick_plan
+from .plans import compare_plans
 from .ismcts import ISMCTS, SearchConfig, SearchReport
 
 DEFAULT_TIME_BUDGET = 1.5
@@ -71,10 +73,11 @@ class IsmctsMedusa(Controller):
         return self.heuristic.choose_effect(game, req)
 
     # ---------- search ----------
-    def _decide(self, root: EngineState) -> list:
+    def _decide(self, root: EngineState, config: SearchConfig | None = None) -> list:
         """Root move and, if the action is decomposed into sub-moves, the following ones along the principal
         variation of the bot's tree; if the tree does not reach, it searches again from the intermediate state."""
-        search = ISMCTS(self.config)
+        config = config or self.config
+        search = ISMCTS(config)
         move, report = search.search(root, self.me)
         self.last_report = report
         chosen = [move]
@@ -88,14 +91,13 @@ class IsmctsMedusa(Controller):
             if pv and pv[0] in legal:
                 nxt = pv.pop(0)
             else:                       # rare: the tree did not reach; a short search from the intermediate state
-                nxt, _ = ISMCTS(self._fallback_config()).search(state, self.me)
+                nxt, _ = ISMCTS(self._fallback_config(config)).search(state, self.me)
                 pv = []
             chosen.append(nxt)
             state.apply(nxt)
         return chosen
 
-    def _fallback_config(self) -> SearchConfig:
-        cfg = self.config
+    def _fallback_config(self, cfg: SearchConfig) -> SearchConfig:
         return replace(cfg, time_budget=cfg.time_budget / 4,
                        iterations=max(50, cfg.iterations // 4) if cfg.iterations is not None else None)
 
@@ -122,7 +124,8 @@ class IsmctsMedusa(Controller):
         alternatives = [{"move": list(m), "visits": report.visits[m], "value": None if m not in report.values else round(report.values[m], 4),
                          **({"chosen": True} if m == report.move else {})} for m in ranked]
         return {"chosen": chosen, "alternatives": alternatives, "iterations": report.iterations, "elapsed": report.elapsed,
-                "expected": report.values.get(report.move)}
+                "expected": report.plans[report.plans["selected"]] if report.plans else report.values.get(report.move),
+                **({"plans": report.plans} if report.plans else {})}
 
     def _fell_back(self, what: str) -> None:
         self.fallbacks += 1
@@ -134,7 +137,27 @@ class IsmctsMedusa(Controller):
 
     def _plan(self, game: Game) -> Act:
         root = EngineState(game, observer=self.me, knowledge=self.knowledge(game), weights=hero_weights(self.weights, game.players[self.me].hero.slug, self.explicit))
-        return self.to_act(game, self._decide(root))
+        if not root.weights.turn_plans:
+            return self.to_act(game, self._decide(root))
+        started = time.perf_counter()
+        timed = self.config.iterations is None
+        deadline = started + self.config.time_budget if timed else None
+        # An escape has to be judged at the end of both actions. Keep the waypoints and
+        # concentrate visits within this turn when a counterattack could finish the game.
+        hero = game.hero(self.me)
+        danger = hero.hp <= 3 and bool(game.players[self.me].deck) and root.threat(self.me, urgent=True)[1] >= 0.25
+        if danger:
+            root.weights = replace(root.weights, lookahead=1.0, lethal_mix=1.0)
+        cfg = replace(self.config, time_budget=self.config.time_budget * 0.85,
+                      turn_horizon=danger, c_uct=0.2 if danger else self.config.c_uct)
+        line = self._decide(root, cfg)
+        line, plans = compare_plans(root, line, cfg, deadline)
+        report = self.last_report
+        report.plans = plans
+        if plans and plans["selected"] != "tree":
+            report.move = line[0]
+        report.elapsed = time.perf_counter() - started
+        return self.to_act(game, line)
 
     def choose_defense(self, game: Game, attacker: Fighter, target: Fighter, attack_card: Card | None = None) -> Card | None:
         before = self.last_report
@@ -183,7 +206,8 @@ class IsmctsMedusa(Controller):
         if kind == "maneuver":
             boost = by_title(hand, first[1]) if first[1] is not None else None
             _, dest, policy = sub.get("place", ("place", hero.pos, "stay"))
-            plan = sidekick_plan(game, self.me, boost.boost if boost else 0, policy, hero_dest=dest)
+            extra = (boost.boost if boost else 0) + game.maneuver_bonus(self.me, boost)
+            plan = sidekick_plan(game, self.me, extra, policy, hero_dest=dest)
             return Act("maneuver", fid=hero.fid, moves=dict(((hero.fid, dest),) + plan), boost=boost)
         if kind == "scheme" and first[2] is not None:
             return Act("glance", fid=hero.fid, target=first[2], card=by_title(hand, first[1]))

@@ -178,7 +178,7 @@ class DecisionJournal:
             self._warn("resume line", e)
 
     def decision(self, game, me: int, kind: str, ai, chosen, alternatives: list[dict], *, iterations: int | None = None,
-                 elapsed: float | None = None, fallback: bool = False, error: str | None = None, expected: float | None = None, via: str | None = None) -> None:
+                 elapsed: float | None = None, fallback: bool = False, error: str | None = None, expected: float | None = None, via: str | None = None, plans: dict | None = None) -> None:
         """One line per decision. `alternatives`: dicts with `move` and `visits`/`value`/`score`, the chosen one flagged
         `chosen`; `expected`: the chosen move's own value, to compare with the outcome;
         `via`: how the heuristic chose (ranked, lethal or two_actions), which says on what scale the scores are."""
@@ -201,6 +201,8 @@ class DecisionJournal:
                 record["via"] = via
             if error:
                 record["error"] = error
+            if plans:
+                record["plans"] = plans
             self._write(record)
             self._pending = {"seq": self.seq, "me": me, "kind": kind, "expected": record["expected"], "before": _snapshot(game),
                              "played": played_titles(chosen), "weights": getattr(ai, "weights", None),

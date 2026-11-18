@@ -67,6 +67,7 @@ ROLLOUT_BOOST_PROB = 0.3
 ROLLOUT_APPROACH_PROB = 0.5   # in the rollout, the hero maneuvering looks for a space from which to strike
 PLACEMENT_KEEP = 6            # maneuver placements in the tree: the best by static evaluation...
 PLACEMENT_STRIKE_KEEP = 2     # ...plus the best ones from which the hero strikes, plus staying still
+LOOKAHEAD_KEEP = 3            # ...plus, with `EvalWeights.lookahead`, the best waypoints of a two-maneuver turn (`EngineState._lookahead`)
 HAND_RESERVE = 3              # the cards of a hand that are its reserve (`EvalWeights.hand_reserve`): two blows to answer next turn and one card to play
 REFERENCE_HP = 16               # the hero hit points that one life is measured in when a card or a deck is priced in hit points (`card_hp`, `deck_hp`), whoever the side is
 GAME_TURNS = 15               # turns of its own that a game can last, for the exhaustion race (`EngineState._exhaustion`): the live games and the duels went 8 to 13
@@ -105,11 +106,14 @@ class EvalWeights:
     unseen: float = 0.0             # above 0, the rival's blows are valued from the cards it may still hold (its set minus discard and removed) and its hand size: the i-th best attack of a hand of that size
     next_draw: float = 0.0          # above 0 (with `normalize`), the draws the next turn needs (this many) are charged to the hit points of a side whose deck is short of them: every fighter pays EXHAUST_DAMAGE per missing card, so a hero at that many hit points or fewer cannot afford to maneuver
     piles: float = 0.0              # above 0, a VOYAGE card (Sinbad's) is valued at the attack it will be, 2 plus the VOYAGE cards in its owner's pile, wherever the evaluation reads the attacks of a hand or a deck
+    lethal_mix: float = 0.0         # above 0, the leaf is a mixture: lost with the chance the bot's hero is killed next, won with the rival's, the squashed material otherwise (`EngineState._mixed_value`); the lethal term leaves the material
+    turn_plans: float = 0.0         # compare turn plans through the opponent reply in the hard search
+    lookahead: float = 0.0          # a search switch carried with the weights (so `ai_duel` can set it): above 0, the first of two maneuvers also keeps the waypoints of the best ends of the turn (`EngineState._lookahead`, F-AI-LOOKAHEAD)
     hidden_attack: float = 0.0      # above 0, the rival's face-down attack is one of the attack cards of the hand it is dealt (known and sampled cards alike), not always one of the known ones
 
 
 # The evaluation of F-AI-EVAL-RESOLUTION, to be switched on by configuration (`ai_eval`) until the duels (tools/ai_duel.py `eval=new`) accept it
-RESOLUTION: dict[str, float] = {"normalize": 1.0, "card_hp": 1.0, "deck_hp": 0.8, "race": 1.0, "fighter_threat": 0.5, "unseen": 1.0,
+RESOLUTION: dict[str, float] = {"turn_plans": 1.0, "normalize": 1.0, "card_hp": 1.0, "deck_hp": 0.8, "race": 1.0, "fighter_threat": 0.5, "unseen": 1.0,
                                 "hidden_attack": 1.0, "team_life": 1.0, "reserve": 1.0, "piles": 1.0, "next_draw": 1.0, "caution": 0.5, "race_rival": 0.0, "victim_moves_first": 0.5}
 
 # evaluation weights a hero plays with; the configuration's own values win. Doctor Strange stands in reach (F-STRANGE-AGGRO); the Raptors
@@ -542,7 +546,7 @@ class EngineState:
                 tuple(sorted(c.card_id for c in g.players[mover].hand)),
                 tuple(f.fid for f in g.fighters.values() if f.alive and not g.fx.can_move(f)),    # pinned by an effect
                 g.maneuver_bonus(g.turn),      # the Maneuver's reach moves with the hero's ability (Sinbad's VOYAGE cards in the pile)
-                g.actions_left if pack.passive(g, g.turn) else None,    # a pack's last action is spent on a blow, not on a walk (`_generate_moves`)
+                g.actions_left if self.weights.lookahead or pack.passive(g, g.turn) else None,    # a pack's last action is spent on a blow, not on a walk (`_generate_moves`)
                 tuple(map(tuple, g.fx.tracks)), tracks.attack_only(g), tuple(g.free_attacks))      # John Henry's tracks decide his walks, and a free action to attack allows nothing else (and Wyatt Earp's can be bound to a fighter)
 
     def _generate_moves(self) -> list:
@@ -635,8 +639,26 @@ class EngineState:
         if g.winner is not None:
             return 1.0 if g.winner == player else 0.0
         if self._eval is None:      # the search asks for the leaf from both sides: computed once
-            self._eval = squash(self.weights.slope * self._advantage(0))
+            if self.weights.lethal_mix:
+                self._eval = self._mixed_value()
+            else:
+                self._eval = squash(self.weights.slope * self._advantage(0))
         return self._eval if player == 0 else 1.0 - self._eval
+
+    def _mixed_value(self) -> float:
+        """Resolve lethal risks in turn order, then value material if both heroes survive."""
+        g = self.game
+        self._lethal = {}
+        try:
+            base = squash(self.weights.slope * self._advantage(0))      # `_exposure` leaves the lethal term out and records it in `_lethal`
+            l0, l1 = self._lethal.get(0, 0.0), self._lethal.get(1, 0.0)
+        finally:
+            self._lethal = None
+        if g.turn == 1:             # the rival moves first: its blows come before the bot's
+            lose, win = l0, (1 - l0) * l1
+        else:
+            win, lose = l1, (1 - l1) * l0
+        return win + (1 - win - lose) * base
 
     def _advantage(self, p: int, urgent: bool = False) -> float:
         return self._side_value(p, urgent) - self._side_value(1 - p, urgent)
@@ -997,7 +1019,53 @@ class EngineState:
                 score(d, "guard")
         hero.pos = origin[hero.fid]
         keep = pick()[1]
+        if self.weights.lookahead and p == self.observer and g.actions_left >= 2 and not tracks.attack_only(g):
+            keep |= set(self._lookahead(p, hero, options, origin, policies)[:LOOKAHEAD_KEEP])
+            hero.pos = origin[hero.fid]
         return sorted(keep)
+
+    def _lookahead(self, p: int, hero: Fighter, options: list[int], origin: dict[str, int], policies: tuple[str, ...]) -> list[tuple[int, str]]:
+        """Keep first steps that lead to safe end positions after a second maneuver.
+        Price that second boost and deduplicate destinations with identical sidekick positions."""
+        g, w = self.game, self.weights
+        hand = g.players[p].hand
+        spent = by_title(hand, self.partial[0]) if self.partial and self.partial[0] is not None else None
+        if spent is not None:
+            spent_index = hand.index(spent)
+            hand.pop(spent_index)
+        try:
+            boosts = self._boost_variants(p)[:2]
+        finally:
+            if spent is not None:
+                hand.insert(spent_index, spent)
+        card = w.card_hp / (2.0 * REFERENCE_HP) if w.card_hp else w.hand / max(1, g.hand_cap(p))
+        side = [f for f in g.own(p) if not f.hero]
+        ends: dict[tuple, float] = {}
+        ranked = []
+        for d in options:
+            hero.pos = d
+            best = float("-inf")
+            for b in boosts:
+                extra2 = (b.boost if b is not None else 0) + g.maneuver_bonus(p, b)
+                for d2 in sorted(reach(g, hero, hero.move + extra2) | {d}):
+                    for pol in policies:
+                        plan = sidekick_plan(g, p, extra2, pol, hero_dest=d2)
+                        key = (d2, plan)
+                        val = ends.get(key)
+                        if val is None:
+                            hero.pos = d2
+                            for fid, dest in plan:
+                                g.fighters[fid].pos = dest
+                            val = ends[key] = self._exposure(1 - p, True) - self._exposure(p, True)
+                            hero.pos = d
+                            for f in side:
+                                f.pos = origin[f.fid]
+                        val -= card if b is not None else 0.0
+                        best = max(best, val)
+            ranked.append((best, d))
+        hero.pos = origin[hero.fid]
+        ranked.sort(key=lambda x: (-x[0], x[1]))
+        return [(d, "stay") for _, d in ranked]
 
     # ---------- evaluation ----------
     def _side_value(self, p: int, urgent: bool = False) -> float:
@@ -1120,6 +1188,9 @@ class EngineState:
         """What the threat on `p`'s hero subtracts from their side (weighted `threat`)."""
         w = self.weights
         expected, lethal = self.threat(p, urgent)
+        if w.lethal_mix and not urgent and getattr(self, "_lethal", None) is not None:
+            self._lethal[p] = min(1.0, w.lethal_mix * lethal)      # `_mixed_value` turns it into the chance the game ends
+            lethal = 0.0
         return w.threat * expected + w.lethal * lethal + (w.fighter_threat * self._fighters_exposure(p, urgent) if w.fighter_threat else 0.0)
 
     def _fighters_exposure(self, victim: int, urgent: bool) -> float:
