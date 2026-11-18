@@ -79,6 +79,8 @@ def discard_top(run, game, owner: int, count: int, **ask_extra) -> list:
             card = by_id[card_id]
             table.take_from_deck(game, owner, card)
             st.discard.append(card)
+            run.flags.setdefault("deck_discards", []).append(card_id)     # the narration: not a hand discard
+            game.fx.deck_discarded.add(card_id)                           # nor owed from the hand at the projection (also when they laid it by hand)
             game.fx.emit("card_discarded", owner, card, "deck")
             out.append(card)
         return out

@@ -110,6 +110,166 @@ def test_a_card_with_its_own_during_effect_asks_the_ability_first_then_the_card_
     assert table.human_discard == [first, second] and table.top_discards == [1, 1]
 
 
+def lag_virtual_hand(session, game, keep):
+    """The engine's virtual hand falls behind the table's after the last read (the live 18/11 case): it holds `keep` cards."""
+    real = session.sync_human
+
+    def lagging():
+        real()
+        st = game.players[1]
+        while len(st.hand) > keep:
+            st.deck.append(st.hand.pop())
+    session.sync_human = lagging
+
+
+@with_rig()
+def test_the_ability_asks_nothing_when_the_table_hand_is_bigger_than_the_engines_virtual_one(rig, monkeypatch):
+    """Live 18/11 (Man Without Fear): the human held more than 2 cards but the virtual hand lagged behind, so the offer came anyway."""
+    session, table, game, fake, cfg = rig
+    no_defense(session, monkeypatch)
+    on_deck(table, game, "Breather")
+    human_hand(table, game, "Grappling Hook", "Feint", "Breather")
+    table.human_count = 5                                                            # the table: 4 stay in hand once the card is played
+    lag_virtual_hand(session, game, 1)
+    attack(session, table, game, "Grappling Hook", attacker="daredevil", target="hellboy")
+    assert session.effect_run is None or session.effect_run.awaiting is None
+    assert table.top_discards == [] and visible_none(session)
+
+
+@with_rig()
+def test_man_without_fear_with_a_full_hand_offers_only_its_own_blind_boost(rig, monkeypatch):
+    session, table, game, fake, cfg = rig
+    no_defense(session, monkeypatch)
+    on_deck(table, game, "Breather", "Feint")
+    human_hand(table, game, "Man Without Fear", "Feint", "Breather")
+    table.human_count = 5
+    lag_virtual_hand(session, game, 1)
+    attack(session, table, game, "Man Without Fear", attacker="daredevil", target="hellboy")
+    req = session.effect_run.awaiting
+    assert req.extra["blind_count"] and not req.extra.get("ability"), "only the card's own blind boost"
+    done(session, table, 2)
+    assert table.top_discards == [1] and session.effect_run is None
+
+
+@with_rig()
+def test_a_blind_boosted_card_is_never_owed_from_the_hand(rig, monkeypatch):
+    """Live 18/11: the bot moved the top card to the pile, yet the projection asked the human to put it there from their hand."""
+    session, table, game, fake, cfg = rig
+    no_defense(session, monkeypatch)
+    top, _ = on_deck(table, game, "Feint", "Breather")
+    hit(session, table, game, "Grappling Hook", ["Grappling Hook", "Feint", "Breather"])
+    msgs = done(session, table, 2)
+    assert table.human_discard == [top]
+    assert session.pending_discard is None and not said(msgs, "de tu mano en tu descarte")
+    assert not any("descartas" in m and "mazo a tu mano" in m for m in msgs)
+
+
+@with_rig()
+def test_two_blind_boosts_of_one_combat_owe_nothing_from_the_hand(rig, monkeypatch):
+    session, table, game, fake, cfg = rig
+    no_defense(session, monkeypatch)
+    on_deck(table, game, "Breather", "Feint")
+    hit(session, table, game, "Man Without Fear", ["Man Without Fear", "Feint", "Breather"])
+    done(session, table, 2)
+    msgs = done(session, table, 2)
+    assert table.top_discards == [1, 1]
+    assert session.pending_discard is None and not said(msgs, "de tu mano en tu descarte")
+
+
+@with_rig()
+def test_a_named_debt_whose_card_was_shuffled_into_the_deck_is_forgiven_and_said(rig, monkeypatch):
+    """Devil of Hell's Kitchen shuffles the top of the pile into the deck: a card still owed by name there cannot be paid."""
+    session, table, game, fake, cfg = rig
+    st = game.players[1]
+    gone = st.deck[0]
+    session.pending_discard = {"n": 0, "baseline": len(st.discard), "kind": "cards", "cards": [gone.card_id]}
+    session.messages.clear()
+    assert session._discard_done() is True
+    assert said(session.messages, f"Dejo de esperar {gone.title} en tu descarte")
+
+
+@with_rig()
+def test_a_named_debt_whose_card_went_back_to_the_hand_is_not_forgiven(rig, monkeypatch):
+    session, table, game, fake, cfg = rig
+    st = game.players[1]
+    kept = st.hand[0]
+    session.pending_discard = {"n": 0, "baseline": len(st.discard), "kind": "cards", "cards": [kept.card_id]}
+    assert session._discard_done() is False
+
+
+@with_rig()
+def test_when_the_table_refuses_and_they_lay_the_blind_card_by_hand_it_is_not_owed_from_the_hand_either(rig, monkeypatch):
+    session, table, game, fake, cfg = rig
+    no_defense(session, monkeypatch)
+    top, _ = on_deck(table, game, "Feint", "Breather")
+    table.top_discard_fail = "deck"
+    hit(session, table, game, "Grappling Hook", ["Grappling Hook", "Feint", "Breather"])
+    msgs = done(session, table, 2)
+    assert session.effect_run.awaiting.extra["pile_mode"] == "blind"
+    table.human_discard += [top]
+    msgs = done(session, table)
+    assert session.pending_discard is None and not said(msgs, "de tu mano en tu descarte")
+
+
+def hiss_sequence(rig, monkeypatch, discard_before_end: bool):
+    """Daredevil attacks with the Devil, blind boosts the top Feint, Medusa defends with Hiss and Slither, the human discards one
+    real hand card for it and the Devil's AFTER shuffles the pile back: what the chat says, End action by End action."""
+    session, table, game, fake, cfg = rig
+    hiss = next(c for c in game.players[0].hand if c.title == "Hiss and Slither")
+    monkeypatch.setattr(session.ai, "choose_defense", lambda g, a, t, attack_card=None: hiss)
+    on_deck(table, game, "Feint", "Breather")
+    human_hand(table, game, DEVIL, "Son Of A Boxer", "Grappling Hook")
+    attack(session, table, game, DEVIL, attacker="daredevil", target="medusa")
+    out = done(session, table, 2)                                                    # blind boost 1: the top Feint
+    feint, boxer = sid(game, "Feint"), sid(game, "Son Of A Boxer")
+    assert table.human_discard == [feint] and session.pending_discard["n"] == 1 and not session.pending_discard.get("cards")
+
+    def discard_for_hiss():
+        table.human_discard.append(boxer)
+        table.human_hand.remove(boxer)
+        table.human_count -= 1
+    if discard_before_end:
+        discard_for_hiss()
+    out += click(session, table, Event.END_ACTION)                                   # the Devil's AFTER: the bot shuffles the pile cards
+    assert feint not in table.human_discard, "the bot moved the Feint back into the deck"
+    if not discard_before_end:
+        discard_for_hiss()
+    out += click(session, table, Event.END_ACTION)                                   # the first one closed the combat's AFTER; this one checks the debt
+    assert not said(out, "de tu mano en tu descarte") and not said(out, "Aun no veo")
+    assert session.pending_discard is None, (out, session.pending_discard)
+
+
+@with_rig("Hiss and Slither", bot="medusa")
+def test_live_sequence_devil_blind_boost_hiss_then_shuffle_never_blocks_end_action(rig, monkeypatch):
+    """Live 18/11 (16:13-16:15): the blind-boosted Feint was owed from the hand, the Devil's AFTER shuffled it away, End action blocked."""
+    hiss_sequence(rig, monkeypatch, discard_before_end=False)
+
+
+@with_rig("Hiss and Slither", bot="medusa")
+def test_live_sequence_with_the_hiss_discard_already_on_the_pile_at_the_first_end_action(rig, monkeypatch):
+    hiss_sequence(rig, monkeypatch, discard_before_end=True)
+
+
+@with_rig()
+def test_the_deck_discard_marks_are_cleared_on_every_button_even_one_refused_early(rig):
+    session, table, game, fake, cfg = rig
+    game.fx.deck_discarded.update({17604, 17605})
+    click(session, table, Event.STOP_REVEAL)                                         # an early return of `_handle`
+    assert game.fx.deck_discarded == set()
+    game.fx.deck_discarded.add(17604)
+    click(session, table, Event.REVEAL)                                              # "no pending combat": a refused button
+    assert game.fx.deck_discarded == set()
+
+
+@with_rig()
+def test_the_table_hand_counts_the_draws_still_owed_after_a_pending_discard(rig, monkeypatch):
+    session, table, game, fake, cfg = rig
+    human_hand(table, game, "Feint", "Breather", "Grappling Hook")
+    session.pending_discard = {"n": 1, "baseline": 0, "kind": "cards", "hand": True}
+    game.drawn[1] = session.human_dealt + 2
+    assert session._table_hand_size(1) == 3 + 2
+
+
 # ---------------------------------------------------------------- Take A Knee
 
 @with_rig()

@@ -6,6 +6,7 @@ from __future__ import annotations
 
 from typing import NamedTuple
 
+from . import table
 from .model import EffectError
 
 SIDES = {"own", "enemy", "any"}
@@ -377,7 +378,7 @@ def amount(game, run, a):
     elif "count_of" in a:
         value = len(card_ref(game, run, a["count_of"]))
     elif "hand_deficit" in a:       # "draw until you have a hand of N cards": what the owner's hand lacks to reach N
-        value = max(0, int(a["hand_deficit"]) - len(game.players[player_of(game, run, a.get("player", "owner"))].hand))
+        value = max(0, int(a["hand_deficit"]) - hand_size(game, player_of(game, run, a.get("player", "owner"))))
     elif "counter" in a:
         player = player_of(game, run, a.get("player", "owner"))
         value = counter_value(game, player, a["counter"])
@@ -408,6 +409,13 @@ def counter_value(game, player: int, name: str) -> int:
     return game.fx.counter_value(player, name, rng.start)
 
 
+def hand_size(game, player: int) -> int:
+    """The cards `player` holds: the table player's real count when the session can read it (the engine's copy of their hand
+    is virtual and may lag a read behind), else the engine's hand."""
+    real = game.hand_counter(player) if game.hand_counter is not None and table.physical(game, player) else None
+    return len(game.players[player].hand) if real is None else real
+
+
 def _stat(game, run, a):
     stat = a["stat"]
     if stat in ("hp", "max_hp"):
@@ -418,7 +426,7 @@ def _stat(game, run, a):
         return 0 if f is None or f.pos is None else len(game.board.zones(f.pos))
     player = player_of(game, run, a.get("player", "owner"))
     if stat == "hand_size":
-        return len(game.players[player].hand)
+        return hand_size(game, player)
     if stat == "actions_taken_this_turn":
         return game.fx.taken if player == game.turn else 0
     if stat == "maneuvers_this_turn":

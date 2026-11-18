@@ -1065,6 +1065,7 @@ class Session:
         self.fx_in_flight = set()
         self.hand_deck = set()
         self.hand_discarded = set()
+        self.game.fx.deck_discarded.clear()       # the projection of the step has read it (every button ends here); a later step re-reads the pile
         self.game_log.observe(self.game, self._name)
         return self.messages
 
@@ -1184,8 +1185,19 @@ class Session:
         if self.game.fx.intents is None:
             self.game.fx.intents = []             # the ops report what they do to the table: the translators take it
         self.game.hand_reader = self._read_human_hand
+        self.game.hand_counter = self._table_hand_size
         self.game.deck_reader = (lambda player, n=None: peek.read_top(self, player, n)) if self.cfg.human_deck_guid else None
         self.game.hazard_hook = lambda: self._announce_hazards(write_dials=True)
+
+    def _table_hand_size(self, player: int) -> int | None:
+        """`Game.hand_counter`: the cards the human holds right now, from the table (the played card is already on its spot). None
+        when the table cannot be read: the engine's hand answers."""
+        try:
+            count = self._rd_human_count(-1)
+        except TABLE_ERRORS:
+            return None
+        self._hand_seen = count if count >= 0 else self._hand_seen
+        return count + self._undealt_draws() if count >= 0 else None      # as `sync_human` holds the hand: the draws owed after a discard count
 
     def _read_human_hand(self, player: int) -> list[Card]:
         hidden.note_look(self, player)
@@ -3443,7 +3455,14 @@ class Session:
             if d["baseline"] is None:
                 d["baseline"] = len(st.discard)
             # cards a bot effect discarded by name (D3) count once they are on the table pile
-            named = d.get("cards") or []
+            # a card a later effect shuffled from the pile into the deck (Devil of Hell's Kitchen) can no longer be paid: the debt
+            # dies with it. A card the engine moved elsewhere (back to the hand by `_swap_owed_copies`) is not forgiven.
+            in_deck = {c.card_id for c in st.deck}
+            by_id = {c.card_id: c for c in st.full_set}
+            forgiven = [i for i in d.get("cards") or [] if i in in_deck and all(c.card_id != i for c in st.discard)]
+            if forgiven:
+                self.say(t("discard.forgiven", titles=", ".join(by_id[i].title for i in forgiven)), ChatKind.YOUR_TURN)
+            named = d["cards"] = [i for i in d.get("cards") or [] if i not in forgiven]
             on_pile = {r["id"] for r in self._rd_human_discard()} if named else set()
             missing = [i for i in named if i not in on_pile]
             done = not missing and len(st.discard) - len(missing) >= d["baseline"] + d["n"]

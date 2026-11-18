@@ -252,6 +252,9 @@ class Game:
         self.hand_reader: Callable[[int], list[Card]] | None = None
         # the same for the top card of the table player's real deck (The future of Ninjutsu): its CardID or None; never in clones
         self.deck_reader: Callable[[int], int | None] | None = None
+        # the cards the table player really holds in their hand (a condition on its size, Daredevil's ability: the engine's
+        # hand is a virtual one that may lag a read behind); None = the engine's hand. Never in clones.
+        self.hand_counter: Callable[[int], int | None] | None = None
         self.log: list[str] = []
         self.fx = EffectState()    # DSL interpreter state and hooks (docs/effects-dsl.md); inert unless fx.dsl_heroes
         self.fx.dsl_heroes = default_dsl_heroes(self)   # the bot is not known yet: Game.new recomputes it
@@ -315,6 +318,7 @@ class Game:
         g.phantom_draws = self.phantom_draws
         g.hand_reader = None                   # a clone never reads the table: it looks at its determinized hand
         g.deck_reader = None
+        g.hand_counter = None
         g.log = []
         g.fx = self.fx.copy()
         g.fx.attach(g)

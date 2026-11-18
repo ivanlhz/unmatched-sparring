@@ -297,7 +297,7 @@ def _human_cards(session, before: dict, played: frozenset, looked: bool, ctx: Ct
                      and i["player"] == human), {"op": "discard", "zone": "in_play", "player": human, "card": in_play})
         checks += translate(session, left, ctx) or []
     to_discard = [i for i in h1["discard"] if i not in h0["discard"] and i not in played and i != in_play
-                  and i not in session.hand_discarded]
+                  and i not in session.hand_discarded and i not in g.fx.deck_discarded]
     by_bot = len([i for i in h1["discard"] if i not in h0["discard"] and i in session.hand_discarded])    # already moved
     if to_discard:
         checks += translate(session, {"op": "discard", "zone": "hand", "player": human, "cards": to_discard}, ctx) or []

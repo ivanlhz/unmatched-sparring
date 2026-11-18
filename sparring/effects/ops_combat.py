@@ -10,7 +10,7 @@ card moment, so a pause inside an effect survives `CombatFlow.to_dict`."""
 from __future__ import annotations
 
 from ..i18n import t
-from . import modifiers, narrate
+from . import modifiers, narrate, table
 from .choose import ControllerChooser, TableChooser
 from .model import EffectError, load_effects
 from .ops_core import OPS, op, plugin, plugin_condition
@@ -145,6 +145,8 @@ def _boost(run, game, spec):
     top = player.deck.pop(0)
     player.discard.append(top)
     run.flags.setdefault("deck_discards", []).append(top.card_id)
+    if table.physical(game, owner):               # ids repeat across heroes sharing a sheet: only the table player's own are tracked
+        game.fx.deck_discarded.add(top.card_id)
     game.fx.emit("card_discarded", owner, top)
     modifiers.add_value(flow, side, top.boost, t("cf.boost_impulse", title=top.title))
 
