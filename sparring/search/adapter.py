@@ -868,9 +868,10 @@ class EngineState:
         different): at most three reaches."""
         may = maneuver_may_spend if p == self.observer else can_be_boost     # Iván's bans are the bot's own; the modelled rival boosts as the rules allow
         every = self.game.players[p].hand
-        defenders = [c for c in every if c.can_defend and can_use(self.game, p, c)]
+        usable = {c.card_id: can_use(self.game, p, c) for c in every}
+        defenders = [c for c in every if c.can_defend and usable[c.card_id]]
         last_defence = defenders[0] if len(defenders) == 1 and p == self.observer else None     # the bot's only defence card: the dearest of the hand
-        worth = lambda c: (0.0 if not can_use(self.game, p, c) else card_worth(c) + (LAST_DEFENCE_WORTH if c is last_defence else 0.0))    # a card nobody alive can use is the cheapest of all
+        worth = lambda c: (0.0 if not usable[c.card_id] else card_worth(c) + (LAST_DEFENCE_WORTH if c is last_defence else 0.0))    # a card nobody alive can use is the cheapest of all
         hand = [c for c in every if may(c) and not (p == self.observer and held_for_plan(self.game, p, c, every))]
         if not hand:
             return [None]

@@ -72,6 +72,7 @@ from .effects.modifiers import boost_limit, card_effects, defers_defeat, is_unca
 from .ai_profile import FINISHER_BOOSTS, STYLE_HIT_AND_RUN, derive_style
 from . import ai_chupacabra as chupa_ai, ai_philippa, ai_rosie, ai_sinbad, ai_washington, ai_wyatt, tracks
 from .ai_sinbad import own_value as sinbad_own_value, voyage_count, voyage_extra
+from .effects.select import defeated
 from .state import ANUNG, EXHAUST_DAMAGE, Fighter, Game
 
 GAZE = "medusa_gaze"      # Medusa's start-of-turn ability trigger (data/heroes/effects/medusa.json)
@@ -337,31 +338,44 @@ def keep_value(card, hand, reliance: float = 0.0) -> float:
     return v - 0.4 * (sum(1 for c in hand if c.title == card.title) - 1)
 
 
-_REVIVES: dict[str, frozenset[str]] = {}
+_REVIVERS: dict[tuple[str, int], list] = {}
 
 
-def revived_names(card) -> frozenset[str]:
-    """The fighters the card brings back to the board (its `revive` and `summon` ops): their names, or {"*"} when it names none (any defeated
-    fighter). A `role` target (Houdini's own card) is not one: its fighter has to be alive to play it."""
-    if card.title not in _REVIVES:
-        fx, names = card_effects(card), set()
-        for op in walk_ops(fx.moments) if fx is not None else ():
-            if op["op"] == "summon":
-                names.add(op["name"])
-            elif op["op"] == "revive" and "role" not in op["target"] and op["target"].get("side") != "opponent":
-                names.add(op["target"].get("name", "*"))
-        _REVIVES[card.title] = frozenset(names)
-    return _REVIVES[card.title]
-
-
-def can_return(game: Game, player: int, name: str) -> bool:
-    """The fighter called `name` of `player` can still come back: a card that revives or summons it is in the deck or the hand (the set less the
-    cards gone: the discard pile, the tucked and the removed ones) and a living fighter can play it."""
+def revivers(game: Game, player: int) -> list:
+    """The cards of `player`'s set that bring a fighter back, as (card, names it revives from the dead, names it summons from the reserve),
+    by their ops: a revive that names none (Pact Of Mortality) is {"*"}; a `role` target (Houdini's own card) and a rival's fighter are not
+    counted, the first needs its fighter alive to play it. Cached by hero and the set's first CardID: the cards of two heroes can share a title."""
     mine = game.players[player]
-    gone = mine.gone
-    for card in mine.full_set:
-        names = revived_names(card)
-        if names and (name in names or "*" in names) and card not in gone and any(card.usable_by(f.name) for f in game.own(player)):
+    key = (mine.hero.slug, min((c.card_id for c in mine.full_set), default=0))
+    if key not in _REVIVERS:
+        out = []
+        for card in mine.full_set:
+            fx, revive, summon = card_effects(card), set(), set()
+            for op in walk_ops(fx.moments) if fx is not None else ():
+                if op["op"] == "summon":
+                    summon.add(op["name"])
+                elif op["op"] == "revive" and "role" not in op["target"] and op["target"].get("side") != "opponent":
+                    revive.add(op["target"].get("name", "*"))
+            if revive or summon:
+                out.append((card, revive, summon))
+        _REVIVERS[key] = out
+    return _REVIVERS[key]
+
+
+def can_return(game: Game, player: int, fighter) -> bool:
+    """The not-alive `fighter` of `player` can still come back: a card in the deck or the hand revives it (one fallen on the board) or summons
+    it (one still in the reserve, `select.defeated` tells them apart) and a living fighter can play that card. An ONGOING in play or a card in
+    the discard pile is spent: only the deck and the hand count."""
+    mine = game.players[player]
+    fallen = defeated(game, fighter)
+    ids = None
+    for card, revive, summon in revivers(game, player):
+        names = revive if fallen else summon
+        if fighter.name not in names and "*" not in names:
+            continue
+        if ids is None:
+            ids = {c.card_id for c in mine.deck} | {c.card_id for c in mine.hand}
+        if card.card_id in ids and any(card.usable_by(f.name) for f in game.own(player)):
             return True
     return False
 
@@ -371,7 +385,7 @@ def can_use(game: Game, player: int, card) -> bool:
     (a card of The Porter once he has fallen)."""
     if card.fighter == "any" or any(card.usable_by(f.name) for f in game.own(player)):
         return True
-    return any(not f.alive and card.usable_by(f.name) and can_return(game, player, f.name) for f in game.own(player, alive_only=False))
+    return any(card.usable_by(f.name) and can_return(game, player, f) for f in game.own(player, alive_only=False) if not f.alive)
 
 
 def defence_keeper(game: Game, player: int, cards, key):

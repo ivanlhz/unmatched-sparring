@@ -195,9 +195,9 @@ def test_rage_prices_the_damage_the_foe_really_takes():
     assert len(raphael_rage(("Sai", "Heroes in a half shell"), margin=2, foe="luke", hp=4, versus="luke-cage")) == 2
 
 
-def test_rage_does_not_pay_for_damage_the_reduction_takes_off():
-    """The same Luke Cage with 6 life: neither blow (4 or 6) wins and the extra damage is mostly absorbed: nothing is spent."""
-    assert raphael_rage(("Sai", "Sai"), margin=0, foe="luke", hp=6, versus="luke-cage") == []
+def test_rage_sees_that_a_blow_that_looks_lethal_is_not():
+    """Luke Cage on 3 life, margin 3: the raw blow of 3 looks lethal (the old price spent nothing) but 2 less gets through; one card makes it 5."""
+    assert len(raphael_rage(("Sai", "Sai"), margin=3, foe="luke", hp=3, versus="luke-cage")) == 1
 
 
 # ---------------------------------------------------------------- the cards of a fighter that can come back
@@ -239,12 +239,75 @@ def test_a_harpy_card_lives_while_a_reviver_is_in_the_deck_or_the_hand(where):
     assert can_use(g, 0, claws)
 
 
-def test_a_harpy_card_is_dead_if_no_living_fighter_can_play_the_reviver():
-    from sparring.ai_medusa import can_return
-    g = medusa_game()
-    only_reviver_in(g, "deck")
-    g.fighters["medusa"].alive = False
-    assert not can_return(g, 0, "Harpy")
+def start_game(hero, foe="hellboy"):
+    from sparring.board import Board
+    from test_raphael_effects import mk
+    g = Game.new(Board.load("bprd-hq"), 3, controllers=mk(Board.load("bprd-hq"), foe).controllers, heroes=(hero, foe), bot_player=0)
+    me = g.players[0]
+    me.deck.extend(me.hand)
+    me.hand.clear()
+    return g
+
+
+def defeat(g, name):
+    for f in g.own(0, alive_only=False):
+        if f.name == name:
+            f.alive, f.died_at = False, 1
+            f.pos = None
+
+
+def test_a_reviver_nobody_alive_can_play_does_not_count():
+    """Abe's Agent is defeated: Secure The Scene is the Agent's own card, so it cannot bring him back (and is itself dead)."""
+    g = start_game("abe-sapien")
+    defeat(g, "B.P.R.D. Agent")
+    scene = next(c for c in g.players[0].full_set if c.title == "Secure The Scene")
+    assert scene in g.players[0].deck and not can_use(g, 0, scene)
+
+
+def test_koschei_card_lives_while_deathless_is_in_the_deck_and_dies_with_it_in_the_discard():
+    g = start_game("baba-yaga")
+    defeat(g, "Koschei")
+    me = g.players[0]
+    koschei = next(c for c in me.full_set if c.fighter == "Koschei")
+    assert can_use(g, 0, koschei)
+    for c in [c for c in me.full_set if c.title in ("Deathless", "Pact Of Mortality")]:
+        for pile in (me.deck, me.hand):
+            if c in pile:
+                pile.remove(c)
+        me.discard.append(c)
+    assert not can_use(g, 0, koschei)
+
+
+def test_a_pact_of_mortality_in_play_is_spent_but_in_the_deck_it_is_not():
+    from sparring.effects import ongoing
+    g = start_game("baba-yaga")
+    defeat(g, "Koschei")
+    me = g.players[0]
+    koschei = next(c for c in me.full_set if c.fighter == "Koschei")
+    for c in [c for c in me.full_set if c.title == "Deathless"]:
+        me.deck.remove(c)
+        me.discard.append(c)
+    pacts = [c for c in me.full_set if c.title == "Pact Of Mortality"]
+    assert can_use(g, 0, koschei)                  # a Pact is still in the deck
+    for c in pacts[1:]:
+        me.deck.remove(c)
+        me.discard.append(c)
+    me.deck.remove(pacts[0])
+    ongoing.enter_play(g, 0, pacts[0])
+    assert not can_use(g, 0, koschei)              # the last one is in play, in no pile
+
+
+def test_a_reserve_fighter_is_brought_in_only_by_a_summon(monkeypatch):
+    """A fighter still in the reserve (no data hero has one with a reviver today, so `defeated` is told it is): a revive op cannot reach it,
+    and no card summons a Red Rider."""
+    import sparring.ai_medusa as M
+    g = start_game("eredin")
+    rider, other = [f for f in g.own(0, alive_only=False) if f.name == "Red Rider"][:2]
+    rider.alive, rider.pos, rider.died_at = False, None, None
+    other.alive, other.pos, other.died_at = False, None, 1
+    assert M.can_return(g, 0, other)                    # fallen on the board: Unyielding Hordes (played by a living Rider) revives it
+    monkeypatch.setattr(M, "defeated", lambda game, f: f is other)
+    assert not M.can_return(g, 0, rider) and M.can_return(g, 0, other)
 
 
 def test_a_living_harpy_needs_no_reviver():
@@ -256,4 +319,4 @@ def test_a_living_harpy_needs_no_reviver():
 
 def test_the_porter_has_no_card_to_come_back(game):
     from sparring.ai_medusa import can_return
-    assert not can_return(game, 0, "Porter")
+    assert not can_return(game, 0, game.fighters["porter"])
