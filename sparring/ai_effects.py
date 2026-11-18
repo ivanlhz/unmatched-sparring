@@ -33,7 +33,7 @@ from itertools import combinations
 
 from . import ai_washington, ai_wyatt, enraged
 from .ai_medusa import (ACTION_VALUE, DECK_SCARCITY, HARPY_VALUE, KILL_SIDEKICK, LETHAL, SURVIVAL_P, W_HERO, W_MEDUSA_HP,
-                        W_SIDEKICK, MedusaAI, Model, defence_keeper, discard_cut, effect_reliance, hand_room, keep_value, kept_hand_value, kill_value, play_signature)
+                        W_SIDEKICK, MedusaAI, Model, can_use, defence_keeper, discard_cut, effect_reliance, hand_room, keep_value, kept_hand_value, kill_value, play_signature)
 from .controller import Controller
 from .effects import ongoing
 from .effects.choose import ChoiceRequest, ControllerChooser, SyntheticChooser, default_answer, worth_paying
@@ -549,13 +549,18 @@ class EffectAI:
             return []
         by_id = {c.card_id: c for c in hand}
         per, margin = req.extra["per_card"], req.extra["margin"]
-        keeper = defence_keeper(game, me, hand, lambda c: keep_value(c, hand))     # the last card able to defend goes only for the winning blow
         ranked = sorted(req.options, key=lambda i: (keep_value(by_id[i], hand), i))
+        defends = lambda c: c.can_defend and can_use(game, me, c)
+        guarded = any(defends(c) for c in hand)            # the last card able to defend goes only for the blow that wins the game
+        team = game.players[foe.owner].hero.team
+        wins = lambda blow: (game.combat_damage_taken(foe, blow) >= foe.hp
+                             and (foe.hero and not team or team and len(game.own(foe.owner)) == 1))
         base = self.blow_value(foe, max(0, margin), game)
         best, best_net, spent = 0, 0.0, 0.0
         for k, i in enumerate(ranked, 1):
             spent += keep_value(by_id[i], hand)
-            if keeper is not None and keeper.card_id in ranked[:k] and not (foe.hero and margin + per * k >= foe.hp):
+            gone = set(ranked[:k])
+            if guarded and not any(defends(c) for c in hand if c.card_id not in gone) and not wins(margin + per * k):
                 continue
             net = self.blow_value(foe, max(0, margin + per * k), game) - base - spent - BONUS_MARGIN
             if net > best_net:

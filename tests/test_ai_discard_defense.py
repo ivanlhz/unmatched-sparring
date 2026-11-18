@@ -161,8 +161,28 @@ def rage(game, margin):
     return set(EffectAI(0, game.controllers[0])._bonus_discards(game, req))
 
 
-def test_rage_spends_the_last_defence_only_for_the_winning_blow(game):
-    cards = hand_of(game, "Regroup", "Voyage to the City of the Man-Eating Apes")
-    hp = game.fighters["liz"].hp
-    assert rage(game, hp - 2) == {c.card_id for c in cards.values()}       # both cards make the blow lethal: the game is won
-    assert cards["Regroup"].card_id not in rage(game, hp - 4)              # two more points do not kill: Regroup stays
+def raphael_rage(titles, margin, foe="lobster", hp=3):
+    """Raphael's Unbridled rage on Hellboy's side (2 points a card): the cards it gives up from a hand of `titles`."""
+    from sparring.board import Board
+    from test_raphael_effects import give, mk
+    g = mk(Board.load("bprd-hq"), "hellboy")
+    cards = [give(g, 0, t, nth=titles[:k].count(t)) for k, t in enumerate(titles)]      # a repeated title is another copy
+    g.fighters[foe].hp = hp
+    req = ChoiceRequest(player=0, kind="cards", options=[c.card_id for c in cards], min=0, max=len(cards), prompt="",
+                        extra={"zone": "hand", "purpose": "bonus", "of": 0, "foe": foe, "attacking": True, "per_card": 2, "margin": margin})
+    return EffectAI(0)._bonus_discards(g, req)
+
+
+def test_rage_does_not_spend_the_last_defence_for_a_sidekick():
+    """Two cards kill Lobster Johnson and are worth it by price, but they are the whole defence of the hand: the game is not won."""
+    assert raphael_rage(("Sai", "Heroes in a half shell"), margin=0) == []
+
+
+def test_rage_spends_one_of_two_equal_defenders():
+    """Two Sai: giving one up still leaves a defender, so the price decides (one card kills Lobster)."""
+    assert len(raphael_rage(("Sai", "Sai"), margin=1)) == 1
+
+
+def test_rage_spends_the_last_defence_for_the_winning_blow():
+    """Both cards turn the blow into Hellboy's defeat: the game is won, nothing is left to defend."""
+    assert len(raphael_rage(("Sai", "Heroes in a half shell"), margin=0, foe="hellboy", hp=4)) == 2
