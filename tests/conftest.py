@@ -218,3 +218,16 @@ def _spanish_by_default():
     i18n.set_language("es")
     yield
     i18n.set_language("es")
+
+
+def assert_search_kept_its_budget(ai, elapsed):
+    """The search stops at the first clock check after its budget: the overrun is one iteration (the 0.25 s covers a loaded
+    CPU), and what the plan spends outside the search stays small. Its speed in iterations is not checked here."""
+    from sparring.search.controller import DEFAULT_TIME_BUDGET
+    report = ai.last_report
+    assert ai.fallbacks == 0, "a search that falls back to the heuristic proves nothing"
+    assert report.iterations > 0
+    assert report.elapsed - DEFAULT_TIME_BUDGET < max(0.25, 5 * report.elapsed / report.iterations),         f"{report.iterations} iterations in {report.elapsed:.2f}s"
+    assert elapsed - report.elapsed < 0.5, f"{elapsed - report.elapsed:.2f}s outside the search"
+    assert elapsed < 2.5, f"{elapsed:.2f}s"
+

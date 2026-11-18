@@ -140,6 +140,7 @@ def _start_play(monkeypatch, zone_error):
     class FakeSession:
         def __init__(self, *a, **k):
             self.game_log = SimpleNamespace(path=None)
+            self.journal = SimpleNamespace(path=None)
 
         def prepare_table(self, resume, saved_zones=None):
             pass

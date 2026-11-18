@@ -8,7 +8,7 @@ import pytest
 from sparring.ai_medusa import MedusaAI
 from sparring.search.controller import IsmctsMedusa, make_bot_ai
 from sparring.search.ismcts import SearchConfig
-from conftest import give, place
+from conftest import assert_search_kept_its_budget, give, place
 
 ITER = 600
 
@@ -293,7 +293,7 @@ def test_make_bot_ai_defaults_to_the_heuristic():
         make_bot_ai({"ai": "magic"})
 
 
-def test_default_budget_decides_under_two_seconds(game):
+def test_the_search_stops_at_its_default_budget(game):
     place(game, medusa=4, hellboy=2, lobster=3, harpy1=20, harpy2=21, harpy3=22)
     medusa_hand(game, "Second Shot", "Gaze of Stone", "Dash", "Regroup", "A Momentary Glance", "Feint", "Winged Frenzy")
     rival_hand(game, 5)
@@ -301,7 +301,7 @@ def test_default_budget_decides_under_two_seconds(game):
     t0 = time.perf_counter()
     ai.plan(game)
     elapsed = time.perf_counter() - t0
-    assert elapsed < 2.0, f"{elapsed:.2f}s"
+    assert_search_kept_its_budget(ai, elapsed)
     # Measured 18/11/2026 (1.5 s budget, first plan of a fresh process, 4 runs): 689-709 iterations, the same on 72fd360 (no
     # scheme here is a pure loss; Medusa's own are never judged); 500 is ~72 % of that.
     assert ai.last_report.iterations > 500, ai.last_report.iterations
