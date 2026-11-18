@@ -367,6 +367,7 @@ class Session:
         self.token_copies: dict[str, list[str]] = {}   # ability token -> GUIDs of the active copies on the table (D3)
         self.fx_unprojected: dict | None = None       # bot_effects snapshot taken before the turn change, projected at the bot's first write
         self.fx_in_flight: set[int] = set()           # CardIDs a bot effect is moving off its pile or hand in this step
+        self.deck_discarded: set[int] = set()         # CardIDs the bot moved from the top of the human's deck to their pile (blind boost): until the projection of the effects reads them
         self.hand_discarded: set[int] = set()         # CardIDs the bot moved from the human's hand to their pile in this step (Crown Of Flame): nothing left to ask
         self.hand_deck: set[int] = set()              # CardIDs the human put from their discard into their deck by hand (session_pile): not moved again
         self._illegal_fresh: set[str] = set()           # refusals the last sync_positions has just said
@@ -1184,8 +1185,19 @@ class Session:
         if self.game.fx.intents is None:
             self.game.fx.intents = []             # the ops report what they do to the table: the translators take it
         self.game.hand_reader = self._read_human_hand
+        self.game.hand_counter = self._table_hand_size
         self.game.deck_reader = (lambda player, n=None: peek.read_top(self, player, n)) if self.cfg.human_deck_guid else None
         self.game.hazard_hook = lambda: self._announce_hazards(write_dials=True)
+
+    def _table_hand_size(self, player: int) -> int | None:
+        """`Game.hand_counter`: the cards the human holds right now, from the table (the played card is already on its spot). None
+        when the table cannot be read: the engine's hand answers."""
+        try:
+            count = self._rd_human_count(-1)
+        except TABLE_ERRORS:
+            return None
+        self._hand_seen = count if count >= 0 else self._hand_seen
+        return count if count >= 0 else None
 
     def _read_human_hand(self, player: int) -> list[Card]:
         hidden.note_look(self, player)
@@ -3443,7 +3455,9 @@ class Session:
             if d["baseline"] is None:
                 d["baseline"] = len(st.discard)
             # cards a bot effect discarded by name (D3) count once they are on the table pile
-            named = d.get("cards") or []
+            # a card a later effect shuffled away from the pile (Devil of Hell's Kitchen) can no longer be paid: the debt dies with it
+            in_pile = {c.card_id for c in st.discard}
+            named = d["cards"] = [i for i in d.get("cards") or [] if i in in_pile]
             on_pile = {r["id"] for r in self._rd_human_discard()} if named else set()
             missing = [i for i in named if i not in on_pile]
             done = not missing and len(st.discard) - len(missing) >= d["baseline"] + d["n"]

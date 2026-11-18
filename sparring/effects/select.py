@@ -6,6 +6,7 @@ from __future__ import annotations
 
 from typing import NamedTuple
 
+from . import table
 from .model import EffectError
 
 SIDES = {"own", "enemy", "any"}
@@ -418,7 +419,8 @@ def _stat(game, run, a):
         return 0 if f is None or f.pos is None else len(game.board.zones(f.pos))
     player = player_of(game, run, a.get("player", "owner"))
     if stat == "hand_size":
-        return len(game.players[player].hand)
+        real = game.hand_counter(player) if game.hand_counter is not None and table.physical(game, player) else None
+        return len(game.players[player].hand) if real is None else real
     if stat == "actions_taken_this_turn":
         return game.fx.taken if player == game.turn else 0
     if stat == "maneuvers_this_turn":
