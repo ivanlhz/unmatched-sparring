@@ -15,7 +15,7 @@ test('every option maps to its flag', () => {
     aiTime: 3, botPause: 0, resume: true, sendPort: 40001, listenPort: 40002, config: 'C:\\t.json', timing: true };
   assert.deepEqual(buildArgs(o), [
     '--launcher', '--language', 'en', '--config', 'C:\\t.json', '--bot-hero', 'medusa', '--human-hero', 'hellboy',
-    '--send-port', '40001', '--listen-port', '40002', '--first', 'human', '--ai', 'ismcts', '--ai-time', '3',
+    '--send-port', '40001', '--listen-port', '40002', '--first', 'human', '--ai', 'ismcts', '--ai-eval', 'new', '--ai-time', '3',
     '--bot-pause', '0', '--resume', '--timing',
   ]);
 });
@@ -57,4 +57,16 @@ test('language: English on a first run, a saved Spanish choice is kept, and it r
   assert.equal(es.language, 'es');
   assert.deepEqual(buildArgs(es).slice(0, 3), ['--launcher', '--language', 'es']);
   assert.deepEqual(buildArgs(normalize(null, [])).slice(0, 3), ['--launcher', '--language', 'en']);
+});
+
+test('difficulty: Hard by default, Easy and Hard reach the ISMCTS bot as --ai-eval, the heuristic bot takes none', () => {
+  assert.equal(DEFAULTS.difficulty, 'hard');
+  assert.equal(normalize(null, []).difficulty, 'hard');
+  assert.equal(normalize({ difficulty: 'easy' }, []).difficulty, 'easy');
+  assert.equal(normalize({ difficulty: 'insane' }, []).difficulty, 'hard');
+  const evalOf = (o) => { const a = buildArgs(o); return a[a.indexOf('--ai-eval') + 1]; };
+  assert.equal(evalOf({ ...DEFAULTS, ai: 'ismcts' }), 'new');
+  assert.equal(evalOf({ ...DEFAULTS, ai: 'ismcts', difficulty: 'hard' }), 'new');
+  assert.equal(evalOf({ ...DEFAULTS, ai: 'ismcts', difficulty: 'easy' }), 'old');
+  assert.equal(buildArgs({ ...DEFAULTS, difficulty: 'easy' }).includes('--ai-eval'), false);
 });

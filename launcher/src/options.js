@@ -6,6 +6,7 @@ const DEFAULTS = Object.freeze({
   humanHero: 'auto',
   language: 'en',   // the launcher starts in English; the bot's own command line default stays Spanish
   ai: 'heuristic',
+  difficulty: 'hard',   // ISMCTS only: hard = the evaluation of 0.8 (--ai-eval new), easy = the one of 0.7 (--ai-eval old)
   aiTime: 1.5,
   botPause: '',
   resume: false,
@@ -19,6 +20,7 @@ const CHOICES = {
   first: ['human', 'bot', 'random'],
   language: ['es', 'en'],
   ai: ['heuristic', 'ismcts'],
+  difficulty: ['easy', 'hard'],
 };
 
 function isPort(value) {
@@ -54,7 +56,7 @@ function buildArgs(o, { readOnly = false } = {}) {
   args.push('--send-port', String(o.sendPort), '--listen-port', String(o.listenPort));
   if (readOnly) return [...args, '--read-only'];
   args.push('--first', o.first, '--ai', o.ai);
-  if (o.ai === 'ismcts') args.push('--ai-time', String(o.aiTime));
+  if (o.ai === 'ismcts') args.push('--ai-eval', o.difficulty === 'easy' ? 'old' : 'new', '--ai-time', String(o.aiTime));
   if (o.botPause !== '') args.push('--bot-pause', String(o.botPause));
   if (o.resume) args.push('--resume');
   if (o.timing) args.push('--timing');

@@ -21,6 +21,7 @@ Changes since 0.7.2.
 - Doctor Strange attacks more under ISMCTS (F-STRANGE-AGGRO): his own evaluation profile, caution 0.3.
 - The Raptors bot keeps a reserve of cards instead of attacking with its last one.
 - The Liz bot: Wildfire and Flame Lash discard the bottom card of the real deck.
+- Desktop launcher: a Difficulty choice (Easy = the 0.7 evaluation, `--ai-eval old`; Hard = the new one, the default) for the ISMCTS bot.
 - Hellboy plays at most one card on a pure movement turn.
 - Echo's kill chance comes from the known cards and the unseen pool; the bot skips the attack above 25 %.
 
