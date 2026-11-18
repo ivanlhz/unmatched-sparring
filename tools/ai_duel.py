@@ -7,8 +7,8 @@
 
 A configuration is `heuristic` or `ismcts[:key=value,...]` with `iterations` (per decision; default 200, which makes the
 games reproducible), `time` (seconds per decision; then the iterations only cap it), `seed` (default: the game seed) and `eval`
-(`old`, the evaluation as the table has it, or `new`, the one of F-AI-EVAL-RESOLUTION: the weights of `search.adapter.RESOLUTION`;
-default `old`). Any weight can be set on top with `w.NAME=value` (`ismcts:eval=new,w.fighter_threat=0` leaves a term out).
+(`new`, the one of F-AI-EVAL-RESOLUTION that the table plays since 0.8.0: the weights of `search.adapter.RESOLUTION`, or `old`,
+the evaluation before it; default `new`). Any weight can be set on top with `w.NAME=value` (`ismcts:eval=new,w.fighter_threat=0` leaves a term out).
 Both sides are the same engine controller type the table uses (`MedusaAI`, `IsmctsMedusa`), so what is measured is what runs.
 
 `--matchup H0:H1` puts hero H0 on player 0 and H1 on player 1. Each seed is played twice: A drives player 0 and B player 1,
@@ -64,14 +64,14 @@ def parse_config(spec: str) -> dict:
         raise ValueError(f"unknown AI {kind!r} in {spec!r} (heuristic | ismcts)")
     opts = dict(item.split("=", 1) for item in rest.split(",") if item)
     unknown = {k for k in opts if k not in ("iterations", "time", "seed", "eval") and not k.startswith("w.")}
-    if unknown or (kind == "heuristic" and opts) or opts.get("eval", "old") not in ("old", "new"):
+    if unknown or (kind == "heuristic" and opts) or opts.get("eval", "new") not in ("old", "new"):
         raise ValueError(f"bad options in {spec!r}: {sorted(unknown) or 'the heuristic takes none, and eval is old or new'}")
     cfg: dict = {"ai": kind, "spec": spec}
     if kind == "ismcts":
         cfg["iterations"] = int(opts["iterations"]) if "iterations" in opts else (None if "time" in opts else DEFAULT_ITERATIONS)
         cfg["time"] = float(opts.get("time", 3600.0))
         cfg["seed"] = int(opts["seed"]) if "seed" in opts else None
-        weights = dict(RESOLUTION) if opts.get("eval") == "new" else {}
+        weights = {} if opts.get("eval") == "old" else dict(RESOLUTION)
         chosen = {k[2:]: float(v) for k, v in opts.items() if k.startswith("w.")}
         weights.update(chosen)
         cfg["weights"] = weights

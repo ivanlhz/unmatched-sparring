@@ -12,9 +12,10 @@ from sparring.search.controller import make_bot_ai
 CFG = SimpleNamespace(raw={"ai": "ismcts", "ai_time_budget": 3})
 
 
-def test_without_the_option_the_configuration_is_untouched():
-    assert ai_config(CFG, None, None) == CFG.raw == ai_config(CFG, None, None, "old")
-    ai = make_bot_ai(ai_config(CFG, None, None), 0)
+def test_without_the_option_the_new_evaluation_plays_and_old_leaves_the_configuration_untouched():
+    assert ai_config(CFG, None, None) == ai_config(CFG, None, None, "new")          # the default since 0.8.0
+    assert ai_config(CFG, None, None, "old") == CFG.raw
+    ai = make_bot_ai(ai_config(CFG, None, None, "old"), 0)
     assert ai.weights == EvalWeights() and ai.explicit == frozenset()
     assert decision_log.ai_info(ai)["eval"] == "old" and decision_log.ai_label(ai).endswith("eval=old)")
 

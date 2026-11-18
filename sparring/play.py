@@ -1092,10 +1092,11 @@ def run_loop(session: Session, client: TTSClient, stop: threading.Event, announc
 
 
 def ai_config(cfg: PlayConfig, ai: str | None, ai_time: float | None, ai_eval: str | None = None) -> dict:
-    """AI config: the command line wins over the `ai` / `ai_time_budget` keys of the JSON. `ai_eval="new"` puts the weights of
-    F-AI-EVAL-RESOLUTION (`RESOLUTION`) under whatever `ai_eval` the JSON sets; `old` (or nothing) leaves the evaluation as it was."""
+    """AI config: the command line wins over the `ai` / `ai_time_budget` keys of the JSON. The evaluation of F-AI-EVAL-RESOLUTION is the
+    default since 0.8.0: unless `ai_eval="old"`, its weights (`RESOLUTION`) go under whatever `ai_eval` the JSON sets; `old` keeps the
+    evaluation as it was before."""
     raw = dict(cfg.raw)
-    if ai_eval == "new":
+    if ai_eval != "old":
         raw["ai_eval_set"] = sorted(raw.get("ai_eval", {}))        # what the JSON itself sets: the hero profiles leave those alone, and not the ones from RESOLUTION
         raw["ai_eval"] = {**RESOLUTION, **raw.get("ai_eval", {})}
     if ai is not None:
