@@ -555,14 +555,15 @@ class EffectAI:
         team = game.players[foe.owner].hero.team
         wins = lambda blow: (game.combat_damage_taken(foe, blow) >= foe.hp
                              and (foe.hero and not team or team and len(game.own(foe.owner)) == 1))
-        base = self.blow_value(foe, max(0, margin), game)
+        taken = lambda blow: game.combat_damage_taken(foe, max(0, blow))      # what the foe really loses: its damage reduction comes off the blow
+        base = self.blow_value(foe, taken(margin), game)
         best, best_net, spent = 0, 0.0, 0.0
         for k, i in enumerate(ranked, 1):
             spent += keep_value(by_id[i], hand)
             gone = set(ranked[:k])
             if guarded and not any(defends(c) for c in hand if c.card_id not in gone) and not wins(margin + per * k):
                 continue
-            net = self.blow_value(foe, max(0, margin + per * k), game) - base - spent - BONUS_MARGIN
+            net = self.blow_value(foe, taken(margin + per * k), game) - base - spent - BONUS_MARGIN
             if net > best_net:
                 best, best_net = k, net
         return ranked[:best]
