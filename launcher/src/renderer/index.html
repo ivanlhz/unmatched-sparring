@@ -63,11 +63,13 @@
           <select name="humanHero"></select>
         </label>
         <label class="field">
-          <span class="label" data-t="opt.ai"></span>
-          <select name="ai">
-            <option value="heuristic" data-t="ai.heuristic"></option>
-            <option value="ismcts" data-t="ai.ismcts"></option>
+          <span class="label" data-t="opt.difficulty"></span>
+          <select name="difficulty">
+            <option value="easy" data-t="difficulty.easy"></option>
+            <option value="normal" data-t="difficulty.normal"></option>
+            <option value="hard" data-t="difficulty.hard"></option>
           </select>
+          <span id="difficulty-hint" class="hint"></span>
         </label>
         <label class="field" id="ai-time-field">
           <span class="label" data-t="opt.ai_time"></span>

@@ -21,6 +21,7 @@ Changes since 0.7.2.
 - Doctor Strange attacks more under ISMCTS (F-STRANGE-AGGRO): his own evaluation profile, caution 0.3.
 - The Raptors bot keeps a reserve of cards instead of attacking with its last one.
 - The Liz bot: Wildfire and Flame Lash discard the bottom card of the real deck.
+- Desktop launcher: a Difficulty choice replaces the AI select (Easy = heuristic bot, Normal = ISMCTS with the 0.7 evaluation, Hard = ISMCTS with the new evaluation, the default).
 - Hellboy plays at most one card on a pure movement turn.
 - Echo's kill chance comes from the known cards and the unseen pool; the bot skips the attack above 25 %.
 - **New ISMCTS evaluation by default** (F-AI-EVAL-RESOLUTION, with `--ai ismcts`): sides and cards measured in hit points, an exhaustion race that no longer rewards ending the game, the deck priced near its cards, threat per fighter, the face-down attack drawn from the dealt hand. `--ai-eval old` (and `eval=old` in `ai_duel`) keeps the evaluation of 0.7. Weights set under `ai_eval` in the config JSON now apply on top of the new evaluation.
