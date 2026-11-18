@@ -1,0 +1,250 @@
+{
+  "_notes": [
+    "Retail product (set) of each hero of data/catalog/heroes.json and its release month, read by tools/hero_roster.py to order the README picture: sets by release, each set's heroes together. Hand-written; names as in the catalog (the part before a comma is enough).",
+    "Source: the set table of https://en.wikipedia.org/wiki/Unmatched_(board_game) (read 2026-11-18). Same-month sets keep that table's order.",
+    "Doubtful dates: TMNT (table 2025-09; Restoration Games says 2025-10-15, retailers 2025-11), Stars and Stripes (webstore 2026-03, wide retail 2026-06), Hellboy (table 2026-10, distributors 2026-11). None of them changes the order except TMNT against Lee vs. Ali.",
+    "A hero in two products is listed in the first: Bruce Lee in Bruce Lee (2019), not in Lee vs. Ali."
+  ],
+  "sets": [
+    {
+      "name": "Battle of Legends, Volume One",
+      "released": "2019-09",
+      "heroes": [
+        "Alice",
+        "King Arthur",
+        "Medusa",
+        "Sinbad"
+      ]
+    },
+    {
+      "name": "Robin Hood vs. Bigfoot",
+      "released": "2019-10",
+      "heroes": [
+        "Robin Hood",
+        "Bigfoot"
+      ]
+    },
+    {
+      "name": "Bruce Lee",
+      "released": "2019-10",
+      "heroes": [
+        "Bruce Lee"
+      ]
+    },
+    {
+      "name": "Jurassic Park: InGen vs. Raptors",
+      "released": "2020-04",
+      "heroes": [
+        "Robert Muldoon",
+        "Raptors"
+      ]
+    },
+    {
+      "name": "Cobble & Fog",
+      "released": "2020-07",
+      "heroes": [
+        "Invisible Man",
+        "Dr. Jekyll & Mr. Hyde",
+        "Dracula",
+        "Sherlock Holmes"
+      ]
+    },
+    {
+      "name": "Buffy the Vampire Slayer",
+      "released": "2020-10",
+      "heroes": [
+        "Buffy",
+        "Spike",
+        "Willow",
+        "Angel"
+      ]
+    },
+    {
+      "name": "Little Red Riding Hood vs. Beowulf",
+      "released": "2020-12",
+      "heroes": [
+        "Little Red Riding Hood",
+        "Beowulf"
+      ]
+    },
+    {
+      "name": "Marvel: Deadpool",
+      "released": "2021-07",
+      "heroes": [
+        "Deadpool"
+      ]
+    },
+    {
+      "name": "Battle of Legends, Volume Two",
+      "released": "2022-01",
+      "heroes": [
+        "Sun Wukong",
+        "Yennenga",
+        "Achilles",
+        "Bloody Mary"
+      ]
+    },
+    {
+      "name": "Marvel: Hell's Kitchen",
+      "released": "2022-04",
+      "heroes": [
+        "Daredevil",
+        "Elektra",
+        "Bullseye"
+      ]
+    },
+    {
+      "name": "Marvel: Redemption Row",
+      "released": "2022-04",
+      "heroes": [
+        "Luke Cage",
+        "Ghost Rider",
+        "Moon Knight"
+      ]
+    },
+    {
+      "name": "Jurassic Park: Dr. Sattler vs. T. Rex",
+      "released": "2022-05",
+      "heroes": [
+        "Dr. Sattler",
+        "T. Rex"
+      ]
+    },
+    {
+      "name": "Houdini vs. The Genie",
+      "released": "2022-12",
+      "heroes": [
+        "Houdini",
+        "The Genie"
+      ]
+    },
+    {
+      "name": "Marvel: Teen Spirit",
+      "released": "2023-03",
+      "heroes": [
+        "Squirrel Girl",
+        "Cloak & Dagger",
+        "Ms. Marvel"
+      ]
+    },
+    {
+      "name": "Marvel: For King and Country",
+      "released": "2023-04",
+      "heroes": [
+        "Black Widow",
+        "Black Panther",
+        "Winter Soldier"
+      ]
+    },
+    {
+      "name": "Marvel: Brains and Brawn",
+      "released": "2023-06",
+      "heroes": [
+        "She-Hulk",
+        "Doctor Strange",
+        "Spider-Man"
+      ]
+    },
+    {
+      "name": "Unmatched Adventures: Tales to Amaze",
+      "released": "2023-08",
+      "heroes": [
+        "Annie Christmas",
+        "Dr. Jill Trent",
+        "Golden Bat",
+        "Nikola Tesla"
+      ]
+    },
+    {
+      "name": "Sun's Origin",
+      "released": "2024-01",
+      "heroes": [
+        "Oda Nobunaga",
+        "Tomoe Gozen"
+      ]
+    },
+    {
+      "name": "Slings and Arrows",
+      "released": "2024-03",
+      "heroes": [
+        "William Shakespeare",
+        "Queen Titania",
+        "Hamlet",
+        "The Wayward Sisters"
+      ]
+    },
+    {
+      "name": "The Witcher: Steel & Silver",
+      "released": "2024-12",
+      "heroes": [
+        "Geralt Of Rivia",
+        "Ciri",
+        "The Ancient Leshen"
+      ]
+    },
+    {
+      "name": "The Witcher: Realms Fall",
+      "released": "2024-12",
+      "heroes": [
+        "Yennefer & Triss",
+        "Eredin",
+        "Philippa"
+      ]
+    },
+    {
+      "name": "Battle of Legends, Volume Three",
+      "released": "2025-07",
+      "heroes": [
+        "Blackbeard",
+        "Chupacabra",
+        "Pandora",
+        "Loki"
+      ]
+    },
+    {
+      "name": "Unmatched Adventures: Teenage Mutant Ninja Turtles",
+      "released": "2025-09",
+      "heroes": [
+        "Leonardo",
+        "Donatello",
+        "Michelangelo",
+        "Raphael"
+      ]
+    },
+    {
+      "name": "Teenage Mutant Ninja Turtles: Shredder vs. Krang",
+      "released": "2025-09",
+      "heroes": [
+        "Shredder",
+        "Krang"
+      ]
+    },
+    {
+      "name": "Lee vs. Ali",
+      "released": "2025-10",
+      "heroes": [
+        "Muhammad Ali"
+      ]
+    },
+    {
+      "name": "Stars and Stripes",
+      "released": "2026-03",
+      "heroes": [
+        "Wyatt Earp",
+        "Rosie The Riveter",
+        "John Henry",
+        "George Washington"
+      ]
+    },
+    {
+      "name": "Hellboy",
+      "released": "2026-10",
+      "heroes": [
+        "Hellboy",
+        "Liz Sherman",
+        "Abe Sapien",
+        "Baba Yaga"
+      ]
+    }
+  ]
+}

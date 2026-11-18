@@ -1,6 +1,6 @@
 # Houdini (Houdini vs. The Genie)
 
-Set "Houdini vs. The Genie". Playable by the bot and by the human, either side, against every other hero. Data read from the real card images (sheet 178 of the tournament savegame, character card 17700 on its own sheet 177) on 2026-11-02. Verified on FakeTTS only: nothing of Houdini has been seen on a real table (see `docs/live-checklist.md`).
+Set "Houdini vs. The Genie". Playable by the bot and by the human, either side, against every other hero. Data read from the real card images (sheet 178 of the tournament savegame, character card 17700 on its own sheet 177) on 2026-11-02. Played live on a real table (Ivan, 18/11); what is still unchecked is in `docs/live-checklist.md`.
 
 ## Summary
 - Melee hero, 14 life, move 2. Sidekick **Bess**: one, melee, 5 life, move 2 (fid `bess`). The hero card, the miniature and the cards say HOUDINI; unmatched-memory files him as `harry-houdini` / "Harry Houdini" (overlay `memory_slug` and `name`; the slug of the project is the catalog's `houdini`).

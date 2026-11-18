@@ -195,7 +195,7 @@ Everything here is new (1/11) and has only run against FakeTTS. The deck shares 
 
 ### Raphael (Teenage Mutant Ninja Turtles)
 
-Nothing of Raphael has been seen on a real table. His deck is sheet 176 like Medusa's: the first thing to check is that the table is read correctly.
+Raphael has been played live on a real table (Ivan, 18/11); the unticked items below are still unchecked. His deck is sheet 176 like Medusa's: the first thing to check is that the table is read correctly.
 - [ ] **Detection (auto)**: with Raphael's deck at one spot and any other hero's at the other, the start-up line names Raphael (not "unknown deck"); with Medusa on the other side both decks are told apart by their images (the CardID range is the same, 17600-17629).
 - [ ] Pieces: Raphael's miniature and dial (17), Casey Jones' token and dial (8) are found by GUID; the dials follow the engine.
 - [ ] **ANGER ISSUES (H)**: you attack and lose (value lower or equal): the chat says "Your ability: ANGER ISSUES" and the panel shows one more action; the second lost combat of the same turn gives nothing; losing as defender on the bot's turn gives nothing.
@@ -211,7 +211,7 @@ Nothing of Raphael has been seen on a real table. His deck is sheet 176 like Med
 
 ### Doctor Strange (Marvel, Brains and Brawn)
 
-Nothing of Doctor Strange has been seen on a real table. His deck is sheet 176 like Medusa's and the turtles': the first thing to check is that the table is read correctly (docs/heroes/doctor-strange.md has the whole protocol).
+Doctor Strange has been played live on a real table (Ivan, 18/11); the unticked items below are still unchecked. His deck is sheet 176 like Medusa's and the turtles': the first thing to check is that the table is read correctly (docs/heroes/doctor-strange.md has the whole protocol).
 - [ ] **Detection (auto)**: with his deck at one spot and any other hero's at the other (Medusa and a turtle included), the start-up line names Doctor Strange; both decks are told apart by their images (same CardID range 17600-17629).
 - [ ] Pieces: Doctor Strange's miniature `bb001d` and dial `d95e8b` (14), Wong's token `9256f2` and dial `02474c` (6) are found by GUID; the dials follow the engine.
 - [ ] **DARK PACT (H)**: after a combat in which Doctor Strange played a card (attack or defense) the panel shows Yes / No (and nothing else) with the prompt; after one where he played none, or Wong played, nothing appears. Yes: his dial drops by 1, the chat says "I put <card> from your combat zone at the bottom of your deck", the card leaves your combat spot for the bottom of your deck (turn the deck over to check) and you are dealt 1 card after it; no mismatch warning afterwards. No: nothing happens and you discard the card by hand. If the table refuses the chat says to put it at the bottom yourself. **(B)**: the bot pays it sometimes (its dial drops by 1) and its played card leaves its combat spot for the bottom of its deck; it never pays at 4 hit points or fewer.
@@ -224,7 +224,7 @@ Nothing of Doctor Strange has been seen on a real table. His deck is sheet 176 l
 
 ### Houdini (Houdini vs. The Genie)
 
-Nothing of Houdini has been seen on a real table. His deck is sheet 178 (CardIDs 17800-17829) with the character card on a sheet of its own (177): no other hero shares his CardIDs.
+Houdini has been played live on a real table (Ivan, 18/11); the unticked items below are still unchecked. His deck is sheet 178 (CardIDs 17800-17829) with the character card on a sheet of its own (177): no other hero shares his CardIDs.
 - [ ] **Detection (auto)**: with Houdini's deck at one spot and any other hero's at the other, the start-up line names Houdini (not "unknown deck"); the bag holds two images (the character card's and the cards').
 - [ ] Pieces: Houdini's miniature (`3ec3d1`, a Custom_Assetbundle) and dial (`fdb21e`, 14), Bess's token (`a73e79`) and dial (`ede1d4`, 5) are found by GUID; the dials follow the engine.
 - [ ] **ESCAPE ARTIST (B)**: the bot maneuvers spending a boost card and Houdini ends far from Bess; the chat names where, and the miniature really moves there. **(H)**: you put a boost card in your discard pile, place Houdini anywhere and press End action: no warning about the move.
@@ -389,7 +389,7 @@ Nothing of Eredin has been seen on a real table. His deck is sheet 176 like Medu
 - [ ] Brutal Strike (cannot be cancelled; ignores a rival card whose text says IMMEDIATELY), Skirmish (as Bigfoot's) and the numbers as printed.
 ### Raptors (Jurassic Park: InGen vs. Raptors, three Raptors)
 
-Nothing of the Raptors has been seen on a real table. Their deck is sheet 176 like Medusa's and the turtles'; the three miniatures are Custom_Assetbundle with a Custom_Model life dial each (7).
+The Raptors have been played live on a real table (Ivan, 18/11); the unticked items below are still unchecked. Their deck is sheet 176 like Medusa's and the turtles'; the three miniatures are Custom_Assetbundle with a Custom_Model life dial each (7).
 - [ ] **Detection (auto)**: with their deck at one spot and any other hero's at the other, the start-up line names the Raptors; the bag `230e58` holds a deck of 31 cards (character card 313).
 - [ ] **Pieces**: Raptor Blue `1a2945` / dial `950174`, Raptor Delta `4573de` / `c93049`, Raptor Echo `b5c3d5` / `deff03` are found by GUID; a defeated Raptor leaves the table (Blue too: the game goes on).
 - [ ] **Loss rule**: the game ends only when all three are defeated (to confirm with Ivan: all three or any).
@@ -402,7 +402,7 @@ Nothing of the Raptors has been seen on a real table. Their deck is sheet 176 li
 - [ ] **Bot behaviour**: with cards to answer your turn (two left after the blow, a defense among them) it attacks every turn it can and brings the other Raptors next to the defender; with one or two cards it mostly Maneuvers to draw instead of attacking with its last card (16/11: it attacked itself out of cards), unless the blow can finish you; it keeps its Raptors out of a rival hero's zone damage (Medusa) unless attacking.
 ### Sinbad (Battle of Legends, Volume One, with The Porter)
 
-Nothing of Sinbad has been seen on a real table. His deck is sheet 176 like Medusa's, the turtles', Doctor Strange's, Bigfoot's and the Tales to Amaze decks': the first things to check are the detection, the Porter's token and the Voyages dial.
+Sinbad has been played live on a real table (Ivan, 18/11); the unticked items below are still unchecked. His deck is sheet 176 like Medusa's, the turtles', Doctor Strange's, Bigfoot's and the Tales to Amaze decks': the first things to check are the detection, the Porter's token and the Voyages dial.
 - [ ] **Detection (auto)**: with his deck at one spot and any other hero's at the other (any deck of sheet 176 included), the start-up line names Sinbad; the bag `6e6722` holds a deck of 31 cards (character card 303).
 - [ ] **Pieces**: Sinbad's miniature `ff509a` and dial `c48fac` (15), The Porter's token `36ccb4` (a Custom_Token: check it is found as a piece, like Daisy) and dial `7859ab` (6) are found; both life dials follow the engine.
 - [ ] **The Voyages dial `10bbcb`** (a counter 0-7, `MAX_VALUE 7`) comes out of the inner bag with his other objects and is laid on a counter-dial slot (or reported as unplaced). The bot writes it (`session_counters`): it follows the VOYAGE cards of Sinbad's discard pile on either side, starts at 0 and is written again on `--resume`; a dial you move by hand is respected and warned about.
