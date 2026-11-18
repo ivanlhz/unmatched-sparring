@@ -337,9 +337,41 @@ def keep_value(card, hand, reliance: float = 0.0) -> float:
     return v - 0.4 * (sum(1 for c in hand if c.title == card.title) - 1)
 
 
+_REVIVES: dict[str, frozenset[str]] = {}
+
+
+def revived_names(card) -> frozenset[str]:
+    """The fighters the card brings back to the board (its `revive` and `summon` ops): their names, or {"*"} when it names none (any defeated
+    fighter). A `role` target (Houdini's own card) is not one: its fighter has to be alive to play it."""
+    if card.title not in _REVIVES:
+        fx, names = card_effects(card), set()
+        for op in walk_ops(fx.moments) if fx is not None else ():
+            if op["op"] == "summon":
+                names.add(op["name"])
+            elif op["op"] == "revive" and "role" not in op["target"] and op["target"].get("side") != "opponent":
+                names.add(op["target"].get("name", "*"))
+        _REVIVES[card.title] = frozenset(names)
+    return _REVIVES[card.title]
+
+
+def can_return(game: Game, player: int, name: str) -> bool:
+    """The fighter called `name` of `player` can still come back: a card that revives or summons it is in the deck or the hand (the set less the
+    cards gone: the discard pile, the tucked and the removed ones) and a living fighter can play it."""
+    mine = game.players[player]
+    gone = mine.gone
+    for card in mine.full_set:
+        names = revived_names(card)
+        if names and (name in names or "*" in names) and card not in gone and any(card.usable_by(f.name) for f in game.own(player)):
+            return True
+    return False
+
+
 def can_use(game: Game, player: int, card) -> bool:
-    """Some living fighter of `player` can play the card (a card of The Porter is dead weight once he has fallen)."""
-    return any(card.usable_by(f.name) for f in game.own(player))
+    """Some fighter of `player` can play the card: a living one, or one that can still come back (`can_return`). Otherwise it is dead weight
+    (a card of The Porter once he has fallen)."""
+    if card.fighter == "any" or any(card.usable_by(f.name) for f in game.own(player)):
+        return True
+    return any(not f.alive and card.usable_by(f.name) and can_return(game, player, f.name) for f in game.own(player, alive_only=False))
 
 
 def defence_keeper(game: Game, player: int, cards, key):

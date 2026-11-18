@@ -4,6 +4,8 @@ nothing changes. Asked where the bot chooses: `MedusaAI.choose_discard` (the rea
 (inside the search), `EffectAI` (a card effect that makes the bot discard) and `EngineState._boost_variants` (the boosts the tree is offered)."""
 import pytest
 
+from sparring.state import Game
+
 from ai_positions import build, make_ai
 from sparring.ai_effects import EffectAI
 from sparring.ai_medusa import MedusaAI, can_use, discard_cut, keep_value
@@ -161,11 +163,11 @@ def rage(game, margin):
     return set(EffectAI(0, game.controllers[0])._bonus_discards(game, req))
 
 
-def raphael_rage(titles, margin, foe="lobster", hp=3):
+def raphael_rage(titles, margin, foe="lobster", hp=3, versus="hellboy"):
     """Raphael's Unbridled rage on Hellboy's side (2 points a card): the cards it gives up from a hand of `titles`."""
     from sparring.board import Board
     from test_raphael_effects import give, mk
-    g = mk(Board.load("bprd-hq"), "hellboy")
+    g = mk(Board.load("bprd-hq"), versus)
     cards = [give(g, 0, t, nth=titles[:k].count(t)) for k, t in enumerate(titles)]      # a repeated title is another copy
     g.fighters[foe].hp = hp
     req = ChoiceRequest(player=0, kind="cards", options=[c.card_id for c in cards], min=0, max=len(cards), prompt="",
@@ -186,3 +188,72 @@ def test_rage_spends_one_of_two_equal_defenders():
 def test_rage_spends_the_last_defence_for_the_winning_blow():
     """Both cards turn the blow into Hellboy's defeat: the game is won, nothing is left to defend."""
     assert len(raphael_rage(("Sai", "Heroes in a half shell"), margin=0, foe="hellboy", hp=4)) == 2
+
+
+def test_rage_prices_the_damage_the_foe_really_takes():
+    """Luke Cage (4 life, 2 less from every blow) at margin 2: a blow of 4 deals only 2, so one card is not the winning blow; two are."""
+    assert len(raphael_rage(("Sai", "Heroes in a half shell"), margin=2, foe="luke", hp=4, versus="luke-cage")) == 2
+
+
+def test_rage_does_not_pay_for_damage_the_reduction_takes_off():
+    """The same Luke Cage with 6 life: neither blow (4 or 6) wins and the extra damage is mostly absorbed: nothing is spent."""
+    assert raphael_rage(("Sai", "Sai"), margin=0, foe="luke", hp=6, versus="luke-cage") == []
+
+
+# ---------------------------------------------------------------- the cards of a fighter that can come back
+
+def medusa_game():
+    """Medusa (the bot) with both Harpies defeated and empty hands; the cards of the set left in the deck."""
+    from sparring.board import Board
+    from test_raphael_effects import mk
+    g = mk(Board.load("bprd-hq"), "hellboy")
+    g = Game.new(Board.load("bprd-hq"), 3, controllers=g.controllers, heroes=("medusa", "hellboy"), bot_player=0)
+    for f in g.own(0, alive_only=False):
+        if f.name == "Harpy":
+            f.alive, f.pos = False, None
+    g.players[0].hand.clear()
+    return g
+
+
+def only_reviver_in(g, where):
+    """One copy of the Harpy-reviving scheme put in `where` (deck, hand or discard) and no other copy anywhere in the deck or the hand."""
+    me = g.players[0]
+    revivers = [c for c in me.full_set if c.title == "Winged Frenzy"]
+    for pile in (me.deck, me.hand, me.discard):
+        pile[:] = [c for c in pile if c not in revivers]
+    me.discard.extend(revivers[1:])
+    {"deck": me.deck, "hand": me.hand, "discard": me.discard}[where].append(revivers[0])
+    return next(c for c in me.full_set if c.title == "Clutching Claws")
+
+
+def test_a_harpy_card_is_dead_when_nothing_can_bring_the_harpy_back():
+    g = medusa_game()
+    claws = only_reviver_in(g, "discard")
+    assert not can_use(g, 0, claws)
+
+
+@pytest.mark.parametrize("where", ("deck", "hand"))
+def test_a_harpy_card_lives_while_a_reviver_is_in_the_deck_or_the_hand(where):
+    g = medusa_game()
+    claws = only_reviver_in(g, where)
+    assert can_use(g, 0, claws)
+
+
+def test_a_harpy_card_is_dead_if_no_living_fighter_can_play_the_reviver():
+    from sparring.ai_medusa import can_return
+    g = medusa_game()
+    only_reviver_in(g, "deck")
+    g.fighters["medusa"].alive = False
+    assert not can_return(g, 0, "Harpy")
+
+
+def test_a_living_harpy_needs_no_reviver():
+    g = medusa_game()
+    claws = only_reviver_in(g, "discard")
+    next(f for f in g.own(0, alive_only=False) if f.name == "Harpy").alive = True
+    assert can_use(g, 0, claws)
+
+
+def test_the_porter_has_no_card_to_come_back(game):
+    from sparring.ai_medusa import can_return
+    assert not can_return(game, 0, "Porter")
