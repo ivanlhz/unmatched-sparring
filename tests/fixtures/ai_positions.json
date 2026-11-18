@@ -1228,5 +1228,221 @@
       ]
     },
     "good_player": "Last action of turn 17: the only card that can defend is Regroup (the Voyages only attack, By Fortune and Fate needs the dead Porter). The only possible boosts are Regroup and the dead By Fortune and Fate (the Voyages have boost 0 and cannot boost: `can_be_boost`). A good player does not spend Regroup as the boost AND, at the end-of-turn hand limit (7), discards Voyage cards or By Fortune and Fate, never Regroup. The live bot boosted with Regroup (0.5071 against 0.4946 for no boost) and could not defend twice on turn 18."
+  },
+  "liz_sinbad_t12_maneuver_over_attack": {
+    "source": "Live game 17/11 20:26 (Liz bot, ISMCTS 3 s, eval=new, against Sinbad played by Ivan; header 'New game 2026-11-17 20:26:04', game id 20261117-202604-12f0), turn 12, decision 16 (20:46:13). Liz's own pile is rebuilt from the DISCARD lines and the effects of session.log (Rekindle, Searing Clarity and Pyrotechnics returns applied); Sinbad's pile likewise (his two Voyage cards discarded to Incinerate at T6 are in it until Voyage Home returns them at T13). Hand, deck and pile counts match the journal; the order of the decks is not known. Sinbad's hand is drawn from the pool not seen. The live bot maneuvered (0.6301, 359 visits) against attack liz->sinbad (0.6204, 296); next action it maneuvered back and ended the turn without attacking. Liz 11 HP at 7, Sinbad 14 HP at 13 (distance 3), The Porter dead since T8; Liz's hand Evade, Flame Lash, Pyrotechnics, Burning Barrier.",
+    "heroes": [
+      "liz-sherman",
+      "sinbad"
+    ],
+    "board": "bprd-hq",
+    "turn": 0,
+    "turn_no": 12,
+    "seed": 12,
+    "actions_left": 2,
+    "fighters": {
+      "liz": {
+        "pos": 7,
+        "hp": 11
+      },
+      "sinbad": {
+        "pos": 13,
+        "hp": 14
+      },
+      "porter": {
+        "pos": null,
+        "hp": 0,
+        "alive": false
+      }
+    },
+    "hands": {
+      "0": [
+        "Evade",
+        "Flame Lash",
+        "Pyrotechnics",
+        "Burning Barrier"
+      ],
+      "1": []
+    },
+    "hand_sizes": {
+      "1": 6
+    },
+    "discard": {
+      "0": [
+        "Rekindle",
+        "Feint",
+        "Feint",
+        "Feint",
+        "Fight Or Flight",
+        "Fight Or Flight",
+        "Burning Barrier",
+        "B.P.R.D. Training",
+        "Searing Clarity",
+        "Fleeting Moments"
+      ],
+      "1": [
+        "Toil and Danger",
+        "Riches Beyond Compare",
+        "Feint",
+        "Commanding Impact",
+        "By Fortune and Fate",
+        "Voyage to the Creature With Eyes Like Coals of Fire",
+        "Voyage to the Cannibals With the Root of Madness",
+        "Leap Away",
+        "Momentous Shift"
+      ]
+    },
+    "good_player": "Liz is ranged and Sinbad is within reach, yet the bot maneuvers in a near tie while Sinbad's Voyage pile grows. INFORMATIONAL, no criterion: attacking is not clearly better. The only attacks in hand are Burning Barrier and Pyrotechnics (defence cards played as attacks) and Flame Lash (1 + the boost of the bottom card), against Sinbad at 13-14 HP; a maneuver draws a card (Incinerate comes up often and is then played). Playing both sides on with the new evaluation from the position (100 iterations, forced first action) Liz scores 0.13 (attack, n=24) against 0.21 (maneuver, n=19) at T14 and 0.21 (n=24) against 0.19 (n=16) at T12: the differences are inside the noise (about 0.09), and Liz is the loser of the position either way (about 0.2)."
+  },
+  "liz_sinbad_t14_maneuver_over_attack": {
+    "source": "Live game 17/11 20:26 (Liz bot, ISMCTS 3 s, eval=new, against Sinbad played by Ivan; header 'New game 2026-11-17 20:26:04', game id 20261117-202604-12f0), turn 14, decision 19 (20:48:20). Liz's own pile is rebuilt from the DISCARD lines and the effects of session.log (Rekindle, Searing Clarity and Pyrotechnics returns applied); Sinbad's pile likewise (his two Voyage cards discarded to Incinerate at T6 are in it until Voyage Home returns them at T13). Hand, deck and pile counts match the journal; the order of the decks is not known. Sinbad's hand is drawn from the pool not seen. Liz 10 HP at 7, Sinbad 13 HP at 6 (adjacent; Wildfire's 1 damage already applied), The Porter dead. Sinbad's hand (7) holds the two Voyage cards the bot saw come back from Voyage Home. The live bot maneuvered (0.6175, 190 visits) against attack liz->sinbad (0.6121, 176), then (decision 20, Liz at 9, Pyrotechnics drawn) maneuvered again (0.6719 against attack 0.6509) and the turn ended with no attack.",
+    "heroes": [
+      "liz-sherman",
+      "sinbad"
+    ],
+    "board": "bprd-hq",
+    "turn": 0,
+    "turn_no": 14,
+    "seed": 14,
+    "actions_left": 2,
+    "fighters": {
+      "liz": {
+        "pos": 7,
+        "hp": 10
+      },
+      "sinbad": {
+        "pos": 6,
+        "hp": 13
+      },
+      "porter": {
+        "pos": null,
+        "hp": 0,
+        "alive": false
+      }
+    },
+    "hands": {
+      "0": [
+        "Evade",
+        "Burning Barrier",
+        "Flame Lash",
+        "Searing Clarity"
+      ],
+      "1": [
+        "Voyage to the Creature With Eyes Like Coals of Fire",
+        "Voyage to the Cannibals With the Root of Madness"
+      ]
+    },
+    "hand_sizes": {
+      "1": 7
+    },
+    "known_in_hand": {
+      "0": [
+        "Voyage to the Creature With Eyes Like Coals of Fire",
+        "Voyage to the Cannibals With the Root of Madness"
+      ]
+    },
+    "discard": {
+      "0": [
+        "Rekindle",
+        "Feint",
+        "Feint",
+        "Feint",
+        "Fight Or Flight",
+        "Fight Or Flight",
+        "Burning Barrier",
+        "B.P.R.D. Training",
+        "Searing Clarity",
+        "Fleeting Moments",
+        "Pyrotechnics"
+      ],
+      "1": [
+        "Toil and Danger",
+        "Riches Beyond Compare",
+        "Feint",
+        "Commanding Impact",
+        "By Fortune and Fate",
+        "Leap Away",
+        "Momentous Shift",
+        "Voyage Home",
+        "Regroup"
+      ]
+    },
+    "good_player": "Liz is ranged and Sinbad is within reach, yet the bot maneuvers in a near tie while Sinbad's Voyage pile grows. INFORMATIONAL, no criterion: attacking is not clearly better. The only attacks in hand are Burning Barrier and Pyrotechnics (defence cards played as attacks) and Flame Lash (1 + the boost of the bottom card), against Sinbad at 13-14 HP; a maneuver draws a card (Incinerate comes up often and is then played). Playing both sides on with the new evaluation from the position (100 iterations, forced first action) Liz scores 0.13 (attack, n=24) against 0.21 (maneuver, n=19) at T14 and 0.21 (n=24) against 0.19 (n=16) at T12: the differences are inside the noise (about 0.09), and Liz is the loser of the position either way (about 0.2)."
+  },
+  "liz_sinbad_t14_second_action_maneuver_over_attack": {
+    "source": "Live game 17/11 20:26 (Liz bot, ISMCTS 3 s, eval=new, against Sinbad played by Ivan; header 'New game 2026-11-17 20:26:04', game id 20261117-202604-12f0), turn 14, decision 20 (20:48:30), second action. Liz's own pile is rebuilt from the DISCARD lines and the effects of session.log (Rekindle, Searing Clarity and Pyrotechnics returns applied); Sinbad's pile likewise (his two Voyage cards discarded to Incinerate at T6 are in it until Voyage Home returns them at T13). Hand, deck and pile counts match the journal; the order of the decks is not known. Sinbad's hand is drawn from the pool not seen. Liz 10 HP at 9 (she maneuvered there), Sinbad 13 HP at 6 (distance 3); hand Evade, Burning Barrier, Flame Lash, Searing Clarity, Pyrotechnics. Live: maneuver 0.6719 (162 visits) against attack 0.6509 (124).",
+    "heroes": [
+      "liz-sherman",
+      "sinbad"
+    ],
+    "board": "bprd-hq",
+    "turn": 0,
+    "turn_no": 14,
+    "seed": 14,
+    "actions_left": 1,
+    "fighters": {
+      "liz": {
+        "pos": 9,
+        "hp": 10
+      },
+      "sinbad": {
+        "pos": 6,
+        "hp": 13
+      },
+      "porter": {
+        "pos": null,
+        "hp": 0,
+        "alive": false
+      }
+    },
+    "hands": {
+      "0": [
+        "Evade",
+        "Burning Barrier",
+        "Flame Lash",
+        "Searing Clarity",
+        "Pyrotechnics"
+      ],
+      "1": [
+        "Voyage to the Creature With Eyes Like Coals of Fire",
+        "Voyage to the Cannibals With the Root of Madness"
+      ]
+    },
+    "hand_sizes": {
+      "1": 7
+    },
+    "known_in_hand": {
+      "0": [
+        "Voyage to the Creature With Eyes Like Coals of Fire",
+        "Voyage to the Cannibals With the Root of Madness"
+      ]
+    },
+    "discard": {
+      "0": [
+        "Rekindle",
+        "Feint",
+        "Feint",
+        "Feint",
+        "Fight Or Flight",
+        "Fight Or Flight",
+        "Burning Barrier",
+        "B.P.R.D. Training",
+        "Searing Clarity",
+        "Fleeting Moments",
+        "Pyrotechnics"
+      ],
+      "1": [
+        "Toil and Danger",
+        "Riches Beyond Compare",
+        "Feint",
+        "Commanding Impact",
+        "By Fortune and Fate",
+        "Leap Away",
+        "Momentous Shift",
+        "Voyage Home",
+        "Regroup"
+      ]
+    },
+    "good_player": "Liz is ranged and Sinbad is within reach, yet the bot maneuvers in a near tie while Sinbad's Voyage pile grows. INFORMATIONAL, no criterion: attacking is not clearly better. The only attacks in hand are Burning Barrier and Pyrotechnics (defence cards played as attacks) and Flame Lash (1 + the boost of the bottom card), against Sinbad at 13-14 HP; a maneuver draws a card (Incinerate comes up often and is then played). Playing both sides on with the new evaluation from the position (100 iterations, forced first action) Liz scores 0.13 (attack, n=24) against 0.21 (maneuver, n=19) at T14 and 0.21 (n=24) against 0.19 (n=16) at T12: the differences are inside the noise (about 0.09), and Liz is the loser of the position either way (about 0.2)."
   }
 }
