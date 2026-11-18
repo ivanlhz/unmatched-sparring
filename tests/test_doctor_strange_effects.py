@@ -555,3 +555,20 @@ def test_a_game_with_doctor_strange_survives_a_save_and_a_clone(bprd):
     loaded = Game.new(bprd, 0, controllers={}, heroes=("doctor-strange", "liz-sherman"))
     persist.apply_game(loaded, saved)
     assert loaded.fighters["strange"].hp == 13 and loaded.players[0].deck[-1].title == "Feint"
+
+
+def test_no_really_a_card_the_rival_had_seen_in_hand_is_only_the_known_top_now(bprd):
+    """The revealed card leaves the hand for the top of the deck: the rival stops counting it in the hand (the search dealt it
+    there and kept it out of the deck top) and knows it on top instead."""
+    g = mk(bprd, "liz-sherman")
+    s = g.fighters["strange"]
+    s.hp = 6
+    doc = give(g, 0, "No, Really, I'm a Doctor")
+    high = give(g, 0, "Bolts of Balthakk")
+    give(g, 0, "Feint")
+    g.players[1].known.add(high, g.turn_no)                           # seen in Strange's hand before
+    g.controllers[0].choose_effect = lambda game, req: [high.card_id] if req.kind == "cards" else None
+    g.actions_left = 2
+    assert g.play_scheme(0, s, doc) is None
+    known = g.players[1].known
+    assert high.card_id not in known.seen and list(known.top_of_deck) == [high.card_id]
