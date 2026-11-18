@@ -43,7 +43,7 @@ from math import comb, fsum, prod, sqrt
 from .. import enraged, pack, tracks
 from ..ai_hazards import zone_cover_factor, zone_damage, zone_exposed
 from ..ai_medusa import (ATTACKS_PER_TURN, DRAWS_PER_TURN, GAZE, LONG_GAME, MIN_NET, beside_stake, boost_effect_value, bot_may_spend,
-                         can_use, discard_order, exhaustion_owed, held_for_plan, maneuver_may_spend, play_signature, scheme_fighter)
+                         can_use, discard_cut, exhaustion_owed, held_for_plan, maneuver_may_spend, play_signature, scheme_fighter)
 from ..cards import Card, can_be_boost
 from ..combat import is_medusa_card, resolve_combat
 from ..controller import Controller
@@ -429,7 +429,7 @@ class SearchController(Controller):
         return best
 
     def choose_discard(self, game: Game, player: int, n: int, reason: str):
-        return discard_order(game, player, game.players[player].hand, card_worth)[:n]
+        return discard_cut(game, player, game.players[player].hand, card_worth, n)
 
     def choose_move(self, game: Game, fighter: Fighter, steps: int, through_enemies: bool = False):
         policy = self.state.variant

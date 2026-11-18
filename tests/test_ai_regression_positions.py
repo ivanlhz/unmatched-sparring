@@ -29,8 +29,6 @@ known_fail("Echo pays its last defence card (Feint) against a face-down jab that
 known_fail("Liz maneuvers twice without getting anywhere (out and back, or one space) while Wildfire burns the deck",
            ("liz_raptors_t6_back_and_forth", "heuristic"), ("liz_raptors_t14_back_and_forth", "heuristic"),
            ("liz_raptors_t14_back_and_forth", "ismcts"), ("liz_raptors_t20_back_and_forth", "heuristic"))
-known_fail("Liz at turn 20: the two best root moves tie (0.105 against 0.105), so seed 0 at 300 iterations flips with any change of the rollouts (5 of 8 seeds do not maneuver twice, 6 of 8 before the discard fix)",
-           ("liz_raptors_t20_back_and_forth", "ismcts"))
 
 
 def case(name: str, ai: str):

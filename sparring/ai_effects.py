@@ -33,7 +33,7 @@ from itertools import combinations
 
 from . import ai_washington, ai_wyatt, enraged
 from .ai_medusa import (ACTION_VALUE, DECK_SCARCITY, HARPY_VALUE, KILL_SIDEKICK, LETHAL, SURVIVAL_P, W_HERO, W_MEDUSA_HP,
-                        W_SIDEKICK, MedusaAI, Model, effect_reliance, hand_room, keep_value, kept_hand_value, kill_value, play_signature)
+                        W_SIDEKICK, MedusaAI, Model, defence_keeper, discard_cut, effect_reliance, hand_room, keep_value, kept_hand_value, kill_value, play_signature)
 from .controller import Controller
 from .effects import ongoing
 from .effects.choose import ChoiceRequest, ControllerChooser, SyntheticChooser, default_answer, worth_paying
@@ -394,8 +394,15 @@ class EffectAI:
                 ranked = back + [i for i in ranked if i not in back]
                 return ranked[:max(n_min, min(n_max, len(back)))]
             if purpose in GIVE_UP_PURPOSES:
-                junk = [i for i in ranked[n_min:n_max] if keep_value(by_id[i], hand, rel) < 0.9]
-                return ranked[:n_min] + junk if purpose == "discard" else ranked[:n_min]
+                price = lambda c: keep_value(c, hand, rel)
+                offered = [by_id[i] for i in ranked]
+                forced = [c.card_id for c in discard_cut(game, me, offered, price, n_min)] if purpose != "reveal" else ranked[:n_min]
+                if purpose != "discard":
+                    return forced
+                rest = [c for c in offered if c.card_id not in forced]
+                keeper = defence_keeper(game, me, [c for c in hand if c.card_id not in forced], price)    # the optional extras never take the last defence
+                junk = [c.card_id for c in rest if price(c) < 0.9 and c is not keeper][:max(0, n_max - n_min)]
+                return forced + junk
             best = ranked[::-1]
             return best[:n_max] if n_min < n_max else best[:n_min]
         cards = game.cards_by_id(of)
@@ -542,7 +549,8 @@ class EffectAI:
             return []
         by_id = {c.card_id: c for c in hand}
         per, margin = req.extra["per_card"], req.extra["margin"]
-        ranked = sorted(req.options, key=lambda i: (keep_value(by_id[i], hand), i))
+        keeper = defence_keeper(game, me, hand, lambda c: keep_value(c, hand))     # rage never spends the last card able to defend
+        ranked = sorted((i for i in req.options if by_id[i] is not keeper), key=lambda i: (keep_value(by_id[i], hand), i))
         base = self.blow_value(foe, max(0, margin), game)
         best, best_net, spent = 0, 0.0, 0.0
         for k, i in enumerate(ranked, 1):

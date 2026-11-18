@@ -342,27 +342,33 @@ def can_use(game: Game, player: int, card) -> bool:
     return any(card.usable_by(f.name) for f in game.own(player))
 
 
-def best_defender(game: Game, player: int, cards):
-    """The card to keep when the hand is cut: the usable card able to defend with the highest value (None when there is none)."""
-    return max((c for c in cards if c.can_defend and can_use(game, player, c)), key=lambda c: (c.value or 0, -c.card_id), default=None)
+def defence_keeper(game: Game, player: int, cards, key):
+    """Of `cards`, the one able to defend that the hand keeps: the usable defender the caller prices highest by `key` (None when there is none)."""
+    return max((c for c in cards if c.can_defend and can_use(game, player, c)), key=lambda c: (key(c), -c.card_id), default=None)
 
 
 def is_reserved(card) -> bool:
     """A card the owner never gives up for another: a finisher (The Big Reveal, Iván 3/11), the one that brings the hero back, an invention
-    (Donatello: its bonus lasts the game)."""
+    (Donatello: its bonus lasts the game). `discard_cut` never throws one away to save a defender."""
     return boost_limit(card) >= FINISHER_BOOSTS or defers_defeat(card) or "invention" in card.tags
 
 
-def discard_order(game: Game, player: int, cards, key) -> list:
-    """`cards` in the order they are given up: those no living fighter can use first, then the rest by `key` (the caller's price of a card,
-    the cheapest first), then the best card able to defend, so the hand never loses its only defence while an ordinary card can go instead,
-    and last the reserved cards (`is_reserved`), which stay ahead of everything as they always did."""
+def discard_cut(game: Game, player: int, cards, key, n: int) -> list:
+    """The `n` cards of `cards` given up: those no living fighter can use first, then the rest by `key` (the caller's price, the cheapest
+    first), as before. Only when that would leave the hand without a usable card able to defend does it change: the defender the caller
+    prices highest stays and the cheapest kept ordinary card (not `is_reserved`) goes instead; with no such card the cut stands."""
     by_key = lambda group: sorted(group, key=lambda c: (key(c), c.card_id))
     live = [c for c in cards if can_use(game, player, c)]
-    reserved = [c for c in live if is_reserved(c)]
-    keep = best_defender(game, player, [c for c in live if c not in reserved])
-    return (by_key(c for c in cards if c not in live) + by_key(c for c in live if c is not keep and c not in reserved)
-            + ([keep] if keep is not None else []) + by_key(reserved))
+    order = by_key(c for c in cards if c not in live) + by_key(live)
+    out, kept = order[:n], order[n:]
+    defends = lambda c: c.can_defend and can_use(game, player, c)
+    if any(defends(c) for c in kept) or not any(defends(c) for c in out):
+        return out
+    swap = next((c for c in kept if not is_reserved(c)), None)
+    if swap is None:
+        return out
+    save = defence_keeper(game, player, out, key)
+    return [swap if c is save else c for c in out]
 
 
 SETTLED_OPS = {"choose_effect", "heal", "draw", "return_to_deck"}    # what a simulated scheme resolves as the bot will: no fighter or space to pick
@@ -1752,7 +1758,7 @@ class MedusaAI(Controller):
     def choose_discard(self, game: Game, player: int, n: int, reason: str):
         hand = game.players[player].hand
         rel = effect_reliance(game, player)
-        return discard_order(game, player, hand, lambda c: self.keep(game, c, hand, rel))[:n]
+        return discard_cut(game, player, hand, lambda c: self.keep(game, c, hand, rel), n)
 
     def effect_ai(self):
         """The EffectAI (sparring/ai_effects.py) built on this class's evaluation: it answers the DSL decisions and
