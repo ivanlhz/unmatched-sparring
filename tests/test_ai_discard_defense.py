@@ -6,7 +6,7 @@ import pytest
 
 from ai_positions import build, make_ai
 from sparring.ai_effects import EffectAI
-from sparring.ai_medusa import MedusaAI, can_use, keep_value
+from sparring.ai_medusa import MedusaAI, can_use, discard_cut, keep_value
 from sparring.effects.choose import ChoiceRequest
 from sparring.search.adapter import EngineState, SearchController, card_worth
 
@@ -96,7 +96,7 @@ def test_the_optional_extras_of_an_effect_discard_never_take_the_last_defence(ga
 @pytest.mark.parametrize("who", CHOOSERS)
 def test_a_hand_of_defenders_is_cut_by_price(game, who):
     cards = hand_of(game, "Regroup", "Toil and Danger")
-    assert len(CHOOSERS[who](game, 1)) == 1
+    assert CHOOSERS[who](game, 1) == [cards["Regroup"]]        # the cheaper defender goes, the other one still defends
 
 
 @pytest.mark.parametrize("who", ("real", "tree"))
@@ -123,3 +123,46 @@ def test_with_a_second_defender_the_boost_is_free(game):
     cards = hand_of(game, "Regroup", "Toil and Danger", "Voyage to the City of the Man-Eating Apes")
     offered = boosts(game)
     assert cards["Regroup"] in offered or cards["Toil and Danger"] in offered
+
+
+def test_a_defender_left_out_of_the_offer_still_defends(game):
+    """An effect that offers only some cards of the hand: Toil and Danger stays in the hand, so the cut follows the price."""
+    cards = hand_of(game, "Regroup", "Voyage to the City of the Man-Eating Apes", "By Fortune and Fate", "Toil and Danger")
+    offered = [cards[t] for t in ("Regroup", "Voyage to the City of the Man-Eating Apes", "By Fortune and Fate")]
+    hand = list(cards.values())
+    price = lambda c: keep_value(c, hand)
+    plain = discard_cut(game, 0, offered, price, 2)
+    by_price = [cards["By Fortune and Fate"]] + sorted(offered[:2], key=lambda c: (price(c), c.card_id))[:1]     # the dead card, then the cheapest
+    assert discard_cut(game, 0, offered, price, 2, hand=hand) == by_price
+    assert cards["Regroup"] not in plain       # without the whole hand the cut would have protected it
+
+
+@pytest.mark.parametrize("n", (0, 4, 9))
+def test_a_cut_of_nothing_or_of_everything_is_plain(game, n):
+    cards = hand_of(game, "Voyage to the City of the Man-Eating Apes", "Regroup", "Voyage to the Island That Was a Whale", "By Fortune and Fate")
+    got = discard_cut(game, 0, list(cards.values()), card_worth, n)
+    assert len(got) == min(n, 4)
+
+
+def test_a_reserved_card_is_never_given_up_to_save_the_defender(game, monkeypatch):
+    import sparring.ai_medusa as M
+    cards = hand_of(game, "Regroup", "Voyage to the City of the Man-Eating Apes")
+    voyage = cards["Voyage to the City of the Man-Eating Apes"]
+    monkeypatch.setattr(M, "is_reserved", lambda c: c is voyage)
+    price = lambda c: 0.0 if c is cards["Regroup"] else 1.0      # the plain cut gives up Regroup
+    assert discard_cut(game, 0, list(cards.values()), price, 1) == [cards["Regroup"]]
+
+
+def rage(game, margin):
+    """Unbridled rage on Liz: each card given up adds 1 to the blow, which already beats the defence by `margin`."""
+    ids = [c.card_id for c in game.players[0].hand]
+    req = ChoiceRequest(player=0, kind="cards", options=ids, min=0, max=len(ids), prompt="",
+                        extra={"zone": "hand", "purpose": "bonus", "of": 0, "foe": "liz", "attacking": True, "per_card": 1, "margin": margin})
+    return set(EffectAI(0, game.controllers[0])._bonus_discards(game, req))
+
+
+def test_rage_spends_the_last_defence_only_for_the_winning_blow(game):
+    cards = hand_of(game, "Regroup", "Voyage to the City of the Man-Eating Apes")
+    hp = game.fighters["liz"].hp
+    assert rage(game, hp - 2) == {c.card_id for c in cards.values()}       # both cards make the blow lethal: the game is won
+    assert cards["Regroup"].card_id not in rage(game, hp - 4)              # two more points do not kill: Regroup stays

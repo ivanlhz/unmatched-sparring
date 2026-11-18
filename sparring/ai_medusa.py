@@ -353,16 +353,18 @@ def is_reserved(card) -> bool:
     return boost_limit(card) >= FINISHER_BOOSTS or defers_defeat(card) or "invention" in card.tags
 
 
-def discard_cut(game: Game, player: int, cards, key, n: int) -> list:
+def discard_cut(game: Game, player: int, cards, key, n: int, hand=None) -> list:
     """The `n` cards of `cards` given up: those no living fighter can use first, then the rest by `key` (the caller's price, the cheapest
     first), as before. Only when that would leave the hand without a usable card able to defend does it change: the defender the caller
-    prices highest stays and the cheapest kept ordinary card (not `is_reserved`) goes instead; with no such card the cut stands."""
+    prices highest stays and the cheapest kept ordinary card (not `is_reserved`) goes instead; with no such card the cut stands. `hand` is
+    the whole hand when only some of its cards are offered (a defender left out of the offer still defends); `cards` by default."""
     by_key = lambda group: sorted(group, key=lambda c: (key(c), c.card_id))
     live = [c for c in cards if can_use(game, player, c)]
     order = by_key(c for c in cards if c not in live) + by_key(live)
     out, kept = order[:n], order[n:]
     defends = lambda c: c.can_defend and can_use(game, player, c)
-    if any(defends(c) for c in kept) or not any(defends(c) for c in out):
+    left = [c for c in (cards if hand is None else hand) if c not in out]
+    if any(defends(c) for c in left) or not any(defends(c) for c in out):
         return out
     swap = next((c for c in kept if not is_reserved(c)), None)
     if swap is None:

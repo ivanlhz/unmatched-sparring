@@ -396,7 +396,7 @@ class EffectAI:
             if purpose in GIVE_UP_PURPOSES:
                 price = lambda c: keep_value(c, hand, rel)
                 offered = [by_id[i] for i in ranked]
-                forced = [c.card_id for c in discard_cut(game, me, offered, price, n_min)] if purpose != "reveal" else ranked[:n_min]
+                forced = [c.card_id for c in discard_cut(game, me, offered, price, n_min, hand=hand)] if purpose != "reveal" else ranked[:n_min]
                 if purpose != "discard":
                     return forced
                 rest = [c for c in offered if c.card_id not in forced]
@@ -549,12 +549,14 @@ class EffectAI:
             return []
         by_id = {c.card_id: c for c in hand}
         per, margin = req.extra["per_card"], req.extra["margin"]
-        keeper = defence_keeper(game, me, hand, lambda c: keep_value(c, hand))     # rage never spends the last card able to defend
-        ranked = sorted((i for i in req.options if by_id[i] is not keeper), key=lambda i: (keep_value(by_id[i], hand), i))
+        keeper = defence_keeper(game, me, hand, lambda c: keep_value(c, hand))     # the last card able to defend goes only for the winning blow
+        ranked = sorted(req.options, key=lambda i: (keep_value(by_id[i], hand), i))
         base = self.blow_value(foe, max(0, margin), game)
         best, best_net, spent = 0, 0.0, 0.0
         for k, i in enumerate(ranked, 1):
             spent += keep_value(by_id[i], hand)
+            if keeper is not None and keeper.card_id in ranked[:k] and not (foe.hero and margin + per * k >= foe.hp):
+                continue
             net = self.blow_value(foe, max(0, margin + per * k), game) - base - spent - BONUS_MARGIN
             if net > best_net:
                 best, best_net = k, net
