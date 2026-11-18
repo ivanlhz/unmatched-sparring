@@ -409,14 +409,19 @@ def discard_cut(game: Game, player: int, cards, key, n: int, hand=None) -> list:
     order = by_key(c for c in cards if c not in live) + by_key(live)
     out, kept = order[:n], order[n:]
     defends = lambda c: c.can_defend and can_use(game, player, c)
-    left = [c for c in (cards if hand is None else hand) if c not in out]
+    left = list(cards if hand is None else hand)       # what stays, by position: a hand may hold one card object twice (a search clone)
+    for c in out:
+        i = next((i for i, x in enumerate(left) if x is c), None)
+        if i is not None:
+            del left[i]
     if any(defends(c) for c in left) or not any(defends(c) for c in out):
         return out
     swap = next((c for c in kept if not is_reserved(c)), None)
     if swap is None:
         return out
     save = defence_keeper(game, player, out, key)
-    return [swap if c is save else c for c in out]
+    at = next(i for i, c in enumerate(out) if c is save)        # one entry only: the same object twice must not both turn into the swap
+    return out[:at] + [swap] + out[at + 1:]
 
 
 SETTLED_OPS = {"choose_effect", "heal", "draw", "return_to_deck"}    # what a simulated scheme resolves as the bot will: no fighter or space to pick
