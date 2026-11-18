@@ -320,3 +320,23 @@ def test_a_living_harpy_needs_no_reviver():
 def test_the_porter_has_no_card_to_come_back(game):
     from sparring.ai_medusa import can_return
     assert not can_return(game, 0, game.fighters["porter"])
+
+
+def test_a_card_object_twice_in_the_hand_is_cut_once(game):
+    """A search clone once dealt the same card object twice into a hand: the swap replaced both entries and the hand limit tried to
+    remove one card twice (ValueError in force_discard). Only one entry turns into the swap."""
+    cards = hand_of(game, "Voyage to the City of the Man-Eating Apes", "Regroup", "Voyage to the Island That Was a Whale")
+    dead = cards["Voyage to the City of the Man-Eating Apes"]
+    hand = [cards["Regroup"], cards["Regroup"], dead, cards["Voyage to the Island That Was a Whale"]]
+    price = lambda c: 0.0 if c is cards["Regroup"] else 1.0      # the plain cut gives up both Regroup entries
+    got = discard_cut(game, 0, hand, price, 2)
+    assert len(got) == 2 and got.count(cards["Regroup"]) == 1 and len({id(c) for c in got}) == 2
+
+
+def test_a_known_card_is_not_seen_twice():
+    from sparring.state import KnownHand
+    from types import SimpleNamespace
+    known, card = KnownHand(), SimpleNamespace(card_id=7)
+    known.add(card, 1)
+    known.add(card, 1)
+    assert known.seen == [7]
