@@ -23,6 +23,12 @@ Changes since 0.7.2.
 - The Liz bot: Wildfire and Flame Lash discard the bottom card of the real deck.
 - Hellboy plays at most one card on a pure movement turn.
 - Echo's kill chance comes from the known cards and the unseen pool; the bot skips the attack above 25 %.
+- **New ISMCTS evaluation by default** (F-AI-EVAL-RESOLUTION, with `--ai ismcts`): sides and cards measured in hit points, an exhaustion race that no longer rewards ending the game, the deck priced near its cards, threat per fighter, the face-down attack drawn from the dealt hand. `--ai-eval old` (and `eval=old` in `ai_duel`) keeps the evaluation of 0.7. Weights set under `ai_eval` in the config JSON now apply on top of the new evaluation.
+- **The bot keeps its last defence card** (F-AI-DISCARD-DEFENSE): the hand-limit discard, the discards a card effect asks for and the discards inside the search give up an ordinary card instead of the only card able to defend; a defence card is the dearest maneuver boost when it is the last one. Unbridled rage spends it only for the blow that wins the game, and prices the damage the rival really takes (Luke Cage).
+- Cards of a defeated sidekick are given up first only when no card left in the deck or hand can bring it back (Winged Frenzy, Deathless, Pact Of Mortality, Secure The Scene, Unyielding Hordes, Recruit To The Ring).
+- The search is faster again on hands full of schemes: the verdict "this scheme only spends cards" is memoized (Baba Yaga: about a third more iterations on the first decision of a game, 308 to 409-416 in the measured position).
+- Fixed: the search could model the same rival card twice in a hand and crash on the hand-limit discard (it fell back to the heuristic); No, Really, I'm a Doctor left the revealed card counted in Strange's hand instead of on top of his deck.
+- Regression positions from the live games of 17 November (Sinbad keeps Regroup; Liz maneuvers in near ties, informational).
 
 ### Rules and flow
 - The End action warns once about attack-only actions and gives them up only on a repeat press with no action in between.
@@ -40,3 +46,4 @@ Changes since 0.7.2.
 ### Docs and tests
 - Hero docs with the owner's rulings, DSL sections 40-43, card identity, live checklist, README and `features.json` updated.
 - Matrix tests pair the new heroes against the rest of the roster.
+- Stale tests fixed (decision journal in the fake session, heroes missing from unmatched-memory listed as pending); the search time tests check the budget is kept and hold iteration floors measured on 18 November.
