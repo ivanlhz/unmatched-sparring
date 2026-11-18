@@ -367,7 +367,6 @@ class Session:
         self.token_copies: dict[str, list[str]] = {}   # ability token -> GUIDs of the active copies on the table (D3)
         self.fx_unprojected: dict | None = None       # bot_effects snapshot taken before the turn change, projected at the bot's first write
         self.fx_in_flight: set[int] = set()           # CardIDs a bot effect is moving off its pile or hand in this step
-        self.deck_discarded: set[int] = set()         # CardIDs the bot moved from the top of the human's deck to their pile (blind boost): until the projection of the effects reads them
         self.hand_discarded: set[int] = set()         # CardIDs the bot moved from the human's hand to their pile in this step (Crown Of Flame): nothing left to ask
         self.hand_deck: set[int] = set()              # CardIDs the human put from their discard into their deck by hand (session_pile): not moved again
         self._illegal_fresh: set[str] = set()           # refusals the last sync_positions has just said
@@ -1066,6 +1065,8 @@ class Session:
         self.fx_in_flight = set()
         self.hand_deck = set()
         self.hand_discarded = set()
+        if self._paused() is None:                # a combat paused between two blind boosts still has the first one to project
+            self.game.fx.deck_discarded.clear()
         self.game_log.observe(self.game, self._name)
         return self.messages
 
@@ -1197,7 +1198,7 @@ class Session:
         except TABLE_ERRORS:
             return None
         self._hand_seen = count if count >= 0 else self._hand_seen
-        return count if count >= 0 else None
+        return count + self._undealt_draws() if count >= 0 else None      # as `sync_human` holds the hand: the draws owed after a discard count
 
     def _read_human_hand(self, player: int) -> list[Card]:
         hidden.note_look(self, player)
@@ -3455,9 +3456,14 @@ class Session:
             if d["baseline"] is None:
                 d["baseline"] = len(st.discard)
             # cards a bot effect discarded by name (D3) count once they are on the table pile
-            # a card a later effect shuffled away from the pile (Devil of Hell's Kitchen) can no longer be paid: the debt dies with it
-            in_pile = {c.card_id for c in st.discard}
-            named = d["cards"] = [i for i in d.get("cards") or [] if i in in_pile]
+            # a card a later effect shuffled from the pile into the deck (Devil of Hell's Kitchen) can no longer be paid: the debt
+            # dies with it. A card the engine moved elsewhere (back to the hand by `_swap_owed_copies`) is not forgiven.
+            in_deck = {c.card_id for c in st.deck}
+            by_id = {c.card_id: c for c in st.full_set}
+            forgiven = [i for i in d.get("cards") or [] if i in in_deck and all(c.card_id != i for c in st.discard)]
+            if forgiven:
+                self.say(t("discard.forgiven", titles=", ".join(by_id[i].title for i in forgiven)), ChatKind.YOUR_TURN)
+            named = d["cards"] = [i for i in d.get("cards") or [] if i not in forgiven]
             on_pile = {r["id"] for r in self._rd_human_discard()} if named else set()
             missing = [i for i in named if i not in on_pile]
             done = not missing and len(st.discard) - len(missing) >= d["baseline"] + d["n"]

@@ -44,7 +44,6 @@ def declared(session, run, value: list) -> None:
         session.say(t("blind.auto", card=name, n=len(moved), titles=", ".join(by_id[i].title for i in moved),
                       bonus=f"+{sum(by_id[i].boost for i in moved)}"), ChatKind.YOUR_TURN)
     run.flags.setdefault("blind_cards", {})[req.key.rsplit(":", 1)[0]] = moved
-    session.deck_discarded.update(moved)                        # the bot moved them off the deck: the projection never owes them from the hand
 
 
 def _move(session, n: int) -> tuple[list[int] | None, str]:

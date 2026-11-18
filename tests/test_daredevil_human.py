@@ -177,14 +177,55 @@ def test_two_blind_boosts_of_one_combat_owe_nothing_from_the_hand(rig, monkeypat
 
 
 @with_rig()
-def test_a_named_debt_whose_card_left_the_pile_is_forgiven(rig, monkeypatch):
+def test_a_named_debt_whose_card_was_shuffled_into_the_deck_is_forgiven_and_said(rig, monkeypatch):
     """Devil of Hell's Kitchen shuffles the top of the pile into the deck: a card still owed by name there cannot be paid."""
     session, table, game, fake, cfg = rig
     st = game.players[1]
-    gone = st.hand[0]
+    gone = st.deck[0]
     session.pending_discard = {"n": 0, "baseline": len(st.discard), "kind": "cards", "cards": [gone.card_id]}
-    assert gone not in st.discard
+    session.messages.clear()
     assert session._discard_done() is True
+    assert said(session.messages, f"{gone.title} volvio a tu mazo")
+
+
+@with_rig()
+def test_a_named_debt_whose_card_went_back_to_the_hand_is_not_forgiven(rig, monkeypatch):
+    session, table, game, fake, cfg = rig
+    st = game.players[1]
+    kept = st.hand[0]
+    session.pending_discard = {"n": 0, "baseline": len(st.discard), "kind": "cards", "cards": [kept.card_id]}
+    assert session._discard_done() is False
+
+
+@with_rig()
+def test_when_the_table_refuses_and_they_lay_the_blind_card_by_hand_it_is_not_owed_from_the_hand_either(rig, monkeypatch):
+    session, table, game, fake, cfg = rig
+    no_defense(session, monkeypatch)
+    top, _ = on_deck(table, game, "Feint", "Breather")
+    table.top_discard_fail = "deck"
+    hit(session, table, game, "Grappling Hook", ["Grappling Hook", "Feint", "Breather"])
+    msgs = done(session, table, 2)
+    assert session.effect_run.awaiting.extra["pile_mode"] == "blind"
+    table.human_discard += [top]
+    msgs = done(session, table)
+    assert session.pending_discard is None and not said(msgs, "de tu mano en tu descarte")
+
+
+@with_rig()
+def test_live_sequence_devil_blind_boost_then_its_shuffle_never_blocks_end_action(rig, monkeypatch):
+    """Live 18/11: the blind-boosted Feint was owed from the hand, the Devil's AFTER shuffled it into the deck, End action blocked."""
+    session, table, game, fake, cfg = rig
+    no_defense(session, monkeypatch)
+    on_deck(table, game, "Feint", "Breather")
+    hit(session, table, game, DEVIL, [DEVIL, "Feint", "Breather"])
+    msgs = done(session, table, 2)
+    feint = sid(game, "Feint")
+    assert said(msgs, "Feint vuelve al mazo") and session.pending_discard is None
+    assert not said(msgs, "de tu mano en tu descarte")
+    table.human_discard.remove(feint)                                                # the human shuffles it into the deck as told
+    table.human_deck.append(feint)
+    msgs = click(session, table, Event.END_ACTION)
+    assert not said(msgs, "Aun no veo") and not said(msgs, "Descarta") and session.pending_discard is None
 
 
 # ---------------------------------------------------------------- Take A Knee

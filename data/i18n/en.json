@@ -691,6 +691,7 @@
  "discard.hand_done.one": "I discard your hand ({n} card) for {reason}.",
  "discard.hand_done.other": "I discard your hand ({n} cards) for {reason}.",
  "wildfire.hint": " Wildfire: leave the burning card in your discard pile, press [[panel.end_action]] and then pick it up again (that way it is counted and the bot knows which one goes back to your hand).",
+ "discard.forgiven": "{titles} went back into your deck with a later effect: it is no longer owed to your discard pile.",
  "discard.not_seen": "I do not see {titles} in your discard pile yet: put it there and press [[panel.end_action]].",
  "wildfire.assumed": "Wildfire: I take the discard as done (burning cards go back to your hand).",
  "wildfire.ask": "I do not see the discard on the table yet. If you discarded burning cards that went back to your hand, press [[panel.end_action]] again and I will take it as done.",
