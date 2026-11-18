@@ -30,6 +30,8 @@ Changes since 0.7.2.
 - The search is faster again on hands full of schemes: the verdict "this scheme only spends cards" is memoized (Baba Yaga: about a third more iterations on the first decision of a game, 308 to 409-416 in the measured position).
 - Fixed: the search could model the same rival card twice in a hand and crash on the hand-limit discard (it fell back to the heuristic); No, Really, I'm a Doctor left the revealed card counted in Strange's hand instead of on top of his deck.
 - Regression positions from the live games of 17 November (Sinbad keeps Regroup; Liz maneuvers in near ties, informational).
+- The rival-reach estimate counts the extra space a VOYAGE card adds when Sinbad spends it as his maneuver boost (Voyage Home moves him 2).
+- `ai_duel`: the two configurations of a duel no longer share the search's cached maneuver lists, which had mixed their results. Measured again with this fix (200 iterations, swapped seats), the new evaluation beats the 0.7 one: Ciri vs Sinbad 66 % (128 games), Sinbad vs Liz 75 % (40), Medusa vs Daredevil 81 % (32).
 
 ### Rules and flow
 - The End action warns once about attack-only actions and gives them up only on a repeat press with no action in between.
@@ -43,6 +45,7 @@ Changes since 0.7.2.
 - The bot's scheme narration follows what the card says (shuffle), not where the engine's shuffle left the card.
 - Raptors: Echo's dial continues the sidekick column; the audit takes up to 200 presence rows.
 - The bot's ruse chat line no longer names the card; Bullseye's dial collision is allowed.
+- Daredevil (human): a BLIND BOOST card goes from the top of the deck to the discard pile and is no longer asked for "from your hand"; the game could get stuck waiting for it after Devil of Hell's Kitchen shuffled it back. His ability ("2 or fewer cards in your hand") reads the real hand on the table; Man Without Fear still gives its own blind boost. A card the bot was waiting for that a later effect moved into the deck no longer blocks End action (the chat says so).
 
 ### Docs and tests
 - Hero docs with the owner's rulings, DSL sections 40-43, card identity, live checklist, README and `features.json` updated.
