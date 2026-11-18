@@ -1077,6 +1077,7 @@
  "cli.listen_port": "port the bot listens on (39998)",
  "cli.state": "saved game (written after every button)",
  "cli.ai": "the bot's AI (overrides the ai key of the configuration; default heuristic)",
+ "cli.ai_eval": "evaluation of the ISMCTS search: old (default) or new (F-AI-EVAL-RESOLUTION)",
  "cli.ai_time": "search seconds per decision with --ai ismcts (1.5)",
  "cli.resume": "resume the game of the --state save; uses the saved language unless --language is given",
  "cli.seconds": "SECONDS",

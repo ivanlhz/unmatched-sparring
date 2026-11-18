@@ -89,7 +89,7 @@ def test_caution_scales_the_blows_in_reach_not_the_lethal_risk():
 
 def test_caution_leaves_the_zone_hazard_at_full_weight(monkeypatch):
     """Strange inside Medusa's zone with nobody able to hit him: the gaze weighs the same at caution 0.3 and 1.0."""
-    monkeypatch.setattr(adapter, "attack_values", lambda st, name: ())      # no blow to fear: what is left of the threat is the gaze
+    monkeypatch.setattr(adapter, "attack_values", lambda st, name, *_: ())   # no blow to fear: what is left of the threat is the gaze
     board = Board.load("bprd-hq")
     for foe_pos in sorted(board.spaces):
         probe = rival_table("medusa", 5, foe_pos, 1.0)

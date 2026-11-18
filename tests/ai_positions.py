@@ -11,6 +11,7 @@ from pathlib import Path
 
 from sparring import persist
 from sparring.board import Board
+from sparring.search.adapter import RESOLUTION
 from sparring.search.controller import make_bot_ai
 from sparring.state import Game
 
@@ -18,8 +19,12 @@ POSITIONS = json.loads((Path(__file__).parent / "fixtures" / "ai_positions.json"
 ISMCTS_ITERATIONS = 300
 
 
-def make_ai(kind: str, me: int = 0):
-    return make_bot_ai({"ai": kind, "ai_iterations": ISMCTS_ITERATIONS, "ai_seed": 0}, me)
+def make_ai(kind: str, me: int = 0, seed: int = 0, new_eval: bool = False):
+    """The AI under test: `new_eval` plays with the evaluation of F-AI-EVAL-RESOLUTION (`RESOLUTION`), as `play.py --ai-eval new` does."""
+    cfg = {"ai": kind, "ai_iterations": ISMCTS_ITERATIONS, "ai_seed": seed}
+    if new_eval:
+        cfg["ai_eval"] = dict(RESOLUTION)
+    return make_bot_ai(cfg, me)
 
 
 def _ids(player, titles: list[str], taken: set[int]) -> list[int]:

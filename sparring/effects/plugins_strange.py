@@ -153,7 +153,7 @@ def _reveal_to_top(run, game, spec):
                       of=owner, table_discard=True, pile_mode="reveal")
         card = {c.card_id: c for c in st.full_set}[got[0]]
         table.make_known(game, owner, card)
-        st.hand.remove(card)
+        game.take_from_hand(owner, card)          # the rival stops counting it in the hand: it is the known top now
         st.deck.insert(0, card)
         table.intent(game, op="reveal_show", player=owner, cards=[card.card_id])
         table.intent(game, op="stack_top", player=owner, card=card.card_id)
@@ -164,7 +164,7 @@ def _reveal_to_top(run, game, spec):
         got = run.ask(game, "cards", owner, [c.card_id for c in st.hand], 1, 1, "reveal a card", zone="hand",
                       purpose="reveal_top", of=owner, missing=sum(f.max_hp - f.hp for f in game.own(owner)))
         card = {c.card_id: c for c in st.hand}[got[0]]
-        st.hand.remove(card)
+        game.take_from_hand(owner, card)          # the rival stops counting it in the hand: it is the known top now
         st.deck.insert(0, card)
         table.intent(game, op="reveal_show", player=owner, cards=[card.card_id])
         table.intent(game, op="return_to_deck", player=owner, zone="hand", cards=[card.card_id], position="top")

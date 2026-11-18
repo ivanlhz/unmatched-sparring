@@ -72,6 +72,7 @@ from .effects.modifiers import boost_limit, card_effects, defers_defeat, is_unca
 from .ai_profile import FINISHER_BOOSTS, STYLE_HIT_AND_RUN, derive_style
 from . import ai_chupacabra as chupa_ai, ai_philippa, ai_rosie, ai_sinbad, ai_washington, ai_wyatt, tracks
 from .ai_sinbad import own_value as sinbad_own_value, voyage_count, voyage_extra
+from .effects.select import defeated
 from .state import ANUNG, EXHAUST_DAMAGE, Fighter, Game
 
 GAZE = "medusa_gaze"      # Medusa's start-of-turn ability trigger (data/heroes/effects/medusa.json)
@@ -337,6 +338,92 @@ def keep_value(card, hand, reliance: float = 0.0) -> float:
     return v - 0.4 * (sum(1 for c in hand if c.title == card.title) - 1)
 
 
+_REVIVERS: dict[tuple[str, int], list] = {}
+
+
+def revivers(game: Game, player: int) -> list:
+    """The cards of `player`'s set that bring a fighter back, as (card, names it revives from the dead, names it summons from the reserve),
+    by their ops: a revive that names none (Pact Of Mortality) is {"*"}; a `role` target (Houdini's own card) and a rival's fighter are not
+    counted, the first needs its fighter alive to play it. Cached by hero and the set's first CardID: the cards of two heroes can share a title."""
+    mine = game.players[player]
+    key = (mine.hero.slug, min((c.card_id for c in mine.full_set), default=0))
+    if key not in _REVIVERS:
+        out = []
+        for card in mine.full_set:
+            fx, revive, summon = card_effects(card), set(), set()
+            for op in walk_ops(fx.moments) if fx is not None else ():
+                if op["op"] == "summon":
+                    summon.add(op["name"])
+                elif op["op"] == "revive" and "role" not in op["target"] and op["target"].get("side") != "opponent":
+                    revive.add(op["target"].get("name", "*"))
+            if revive or summon:
+                out.append((card, revive, summon))
+        _REVIVERS[key] = out
+    return _REVIVERS[key]
+
+
+def can_return(game: Game, player: int, fighter) -> bool:
+    """The not-alive `fighter` of `player` can still come back: a card in the deck or the hand revives it (one fallen on the board) or summons
+    it (one still in the reserve, `select.defeated` tells them apart) and a living fighter can play that card. An ONGOING in play or a card in
+    the discard pile is spent: only the deck and the hand count."""
+    mine = game.players[player]
+    fallen = defeated(game, fighter)
+    ids = None
+    for card, revive, summon in revivers(game, player):
+        names = revive if fallen else summon
+        if fighter.name not in names and "*" not in names:
+            continue
+        if ids is None:
+            ids = {c.card_id for c in mine.deck} | {c.card_id for c in mine.hand}
+        if card.card_id in ids and any(card.usable_by(f.name) for f in game.own(player)):
+            return True
+    return False
+
+
+def can_use(game: Game, player: int, card) -> bool:
+    """Some fighter of `player` can play the card: a living one, or one that can still come back (`can_return`). Otherwise it is dead weight
+    (a card of The Porter once he has fallen)."""
+    if card.fighter == "any" or any(card.usable_by(f.name) for f in game.own(player)):
+        return True
+    return any(card.usable_by(f.name) and can_return(game, player, f) for f in game.own(player, alive_only=False) if not f.alive)
+
+
+def defence_keeper(game: Game, player: int, cards, key):
+    """Of `cards`, the one able to defend that the hand keeps: the usable defender the caller prices highest by `key` (None when there is none)."""
+    return max((c for c in cards if c.can_defend and can_use(game, player, c)), key=lambda c: (key(c), -c.card_id), default=None)
+
+
+def is_reserved(card) -> bool:
+    """A card the owner never gives up for another: a finisher (The Big Reveal, Iván 3/11), the one that brings the hero back, an invention
+    (Donatello: its bonus lasts the game). `discard_cut` never throws one away to save a defender."""
+    return boost_limit(card) >= FINISHER_BOOSTS or defers_defeat(card) or "invention" in card.tags
+
+
+def discard_cut(game: Game, player: int, cards, key, n: int, hand=None) -> list:
+    """The `n` cards of `cards` given up: those no living fighter can use first, then the rest by `key` (the caller's price, the cheapest
+    first), as before. Only when that would leave the hand without a usable card able to defend does it change: the defender the caller
+    prices highest stays and the cheapest kept ordinary card (not `is_reserved`) goes instead; with no such card the cut stands. `hand` is
+    the whole hand when only some of its cards are offered (a defender left out of the offer still defends); `cards` by default."""
+    by_key = lambda group: sorted(group, key=lambda c: (key(c), c.card_id))
+    live = [c for c in cards if can_use(game, player, c)]
+    order = by_key(c for c in cards if c not in live) + by_key(live)
+    out, kept = order[:n], order[n:]
+    defends = lambda c: c.can_defend and can_use(game, player, c)
+    left = list(cards if hand is None else hand)       # what stays, by position: a hand may hold one card object twice (a search clone)
+    for c in out:
+        i = next((i for i, x in enumerate(left) if x is c), None)
+        if i is not None:
+            del left[i]
+    if any(defends(c) for c in left) or not any(defends(c) for c in out):
+        return out
+    swap = next((c for c in kept if not is_reserved(c)), None)
+    if swap is None:
+        return out
+    save = defence_keeper(game, player, out, key)
+    at = next(i for i, c in enumerate(out) if c is save)        # one entry only: the same object twice must not both turn into the swap
+    return out[:at] + [swap] + out[at + 1:]
+
+
 SETTLED_OPS = {"choose_effect", "heal", "draw", "return_to_deck"}    # what a simulated scheme resolves as the bot will: no fighter or space to pick
 
 
@@ -360,6 +447,12 @@ def kept_hand_value(game, player: int) -> float:
     discards the worst ones. A card drawn past the limit is worth only the worse card it pushes out."""
     hand = game.players[player].hand
     return sum(sorted((keep_value(c, hand) for c in hand), reverse=True)[:hand_room(game, player)])
+
+
+def exhaustion_owed(shortfall: float) -> float:
+    """Draws owed to exhaustion for a shortfall of `shortfall` draws (the game lasts longer than the deck): quadratic up to BILL_SPAN
+    draws (the marginal draw costs 0, then the whole bill), linear after. Shared with the search's evaluation."""
+    return shortfall * shortfall / (2 * BILL_SPAN) if shortfall < BILL_SPAN else shortfall - BILL_SPAN / 2
 
 
 @dataclass
@@ -664,6 +757,8 @@ class MedusaAI(Controller):
         self._effect_ai = None
         self.journal = None                 # decision_log.DecisionJournal: set by whoever wants the decisions written
         self._ranked: list = []             # the candidates of the last plan and the scores of the last defence: for the journal
+        self._decided: dict[int, float] = {}    # last plan: the value that decided each first action it weighed (act id -> value), when it chose by the plan of two actions
+        self._decided_via = "ranked"        # how the last plan chose: ranked (the first of the ranking), lethal (the finishing blow) or two_actions (the best first action plus the best second)
         self._defense_scores: list = []
 
     # ---------- game setup ----------
@@ -752,24 +847,33 @@ class MedusaAI(Controller):
     def plan_journal(self, act: Act) -> dict:
         """The decision journal's view of the last `plan`: the scored candidates, the chosen one flagged (it can be an act the
         ranking did not put first), same shape as the search's. Built only when a journal is attached."""
-        alternatives = [{"move": decision_log.describe_act(a), "score": round(a.total, 4), "exp_damage": round(a.exp_damage, 3),
-                         "p_kill": round(a.p_kill, 3), **({"chosen": True} if a is act else {})} for a in self._ranked]
+        deciding = self._decided_via == "two_actions"
+        # the score is the one the choice was made with: the plan of two actions weighs only the first actions it tried (the rest of the ranking
+        # is scored one step ahead and is not comparable), so those alone are listed; `one_step` is the ranking's own score of each
+        shown = [a for a in self._ranked if id(a) in self._decided] if deciding else self._ranked
+        alternatives = [{"move": decision_log.describe_act(a), "score": round(self._decided[id(a)] if deciding else a.total, 4),
+                         "one_step": round(a.total, 4), "exp_damage": round(a.exp_damage, 3), "p_kill": round(a.p_kill, 3),
+                         **({"chosen": True} if a is act else {})} for a in shown]
         if not any(a.get("chosen") for a in alternatives):
-            alternatives.append({"move": decision_log.describe_act(act), "score": round(act.total, 4), "chosen": True})
-        return {"chosen": decision_log.describe_act(act), "alternatives": alternatives, "expected": act.total}
+            alternatives.append({"move": decision_log.describe_act(act), "score": round(act.total, 4), "one_step": round(act.total, 4), "chosen": True})
+        value = self._decided.get(id(act), act.total) if deciding else act.total
+        return {"chosen": decision_log.describe_act(act), "alternatives": alternatives, "expected": value, "via": self._decided_via}
 
     def _plan(self, game: Game) -> Act:
         model = Model(game, self.me)
         ranked = self._ranked = self.candidates(game, model)
+        self._decided, self._decided_via = {}, "ranked"
         kill = self.lethal_attack(game, ranked)
         # an act the ranking already sees winning the game (Pact Of Peace on a 1 HP hero) beats the shortcut
         if kill is not None and not (ranked[0] is not kill and ranked[0].total >= DEATH / 2):
+            self._decided_via = "lethal"
             return kill
         width = TOP_FIRST_DESPERATE if self.desperation(game) >= 0.3 else TOP_FIRST
         firsts = (ranked[:width] + self.approach_acts(game, ranked[width:]) + self.strike_firsts(game, ranked[width:])
                   + self.blow_firsts(game, ranked[width:]))
         if game.actions_left < 2:
             return firsts[0]
+        self._decided_via = "two_actions"
         best, best_v = None, None
         blow = self.holds_a_blow(game, ranked)
         for a1 in firsts:
@@ -781,6 +885,7 @@ class MedusaAI(Controller):
                                        struck=a1.kind == "attack" and a1.fid == game.hero(self.me).fid)
                 second = rest[0].total if rest else 0.0      # nothing: all that is left is a free action to attack and no attack is possible
             total = a1.value + second
+            self._decided[id(a1)] = total
             if best_v is None or total > best_v + 1e-9:
                 best, best_v = a1, total
         return best
@@ -1382,9 +1487,7 @@ class MedusaAI(Controller):
         length = min(t_kill, LONG_GAME)
         deck = len(game.players[self.me].deck)
         scale = min(1.0, max(DECK_SCARCITY_FLOOR, length / (deck / DRAWS_PER_TURN + 1)))
-        shortfall = max(0.0, length * DRAWS_PER_TURN - deck)
-        # quadratic up to BILL_SPAN draws of shortfall (marginal draw cost 0 -> EXHAUST_BILL), linear after
-        owed = shortfall * shortfall / (2 * BILL_SPAN) if shortfall < BILL_SPAN else shortfall - BILL_SPAN / 2
+        owed = exhaustion_owed(max(0.0, length * DRAWS_PER_TURN - deck))
         losing = 1 + max(0.0, 1 - t_die / max(t_kill, MIN_NET))     # up to x2: exhaustion on top of a lost race
         return DECK_SCARCITY.get(self.draw_budget(game), 0.0) * scale + EXHAUST_BILL * losing * owed
 
@@ -1708,7 +1811,7 @@ class MedusaAI(Controller):
     def choose_discard(self, game: Game, player: int, n: int, reason: str):
         hand = game.players[player].hand
         rel = effect_reliance(game, player)
-        return sorted(hand, key=lambda c: (self.keep(game, c, hand, rel), c.card_id))[:n]
+        return discard_cut(game, player, hand, lambda c: self.keep(game, c, hand, rel), n)
 
     def effect_ai(self):
         """The EffectAI (sparring/ai_effects.py) built on this class's evaluation: it answers the DSL decisions and

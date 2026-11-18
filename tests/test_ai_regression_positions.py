@@ -117,3 +117,121 @@ def test_liz_does_not_maneuver_twice_to_stay_where_she_is(name, ai_kind):
     acts = play_turn(ai, game, limit=POSITIONS[name]["actions_left"])
     net = game.board.distance(start, game.hero(0).pos)
     assert not (len(acts) == 2 and all(a["kind"] == "maneuver" for a in acts) and net <= 1), f"{POSITIONS[name]['good_player']} Bot did {acts}"
+
+
+# ---------- the evaluation of F-AI-EVAL-RESOLUTION (`ai_eval` = RESOLUTION) on the positions of the live games of 17/11 ----------
+# One test per position: the bot plays its turn with the ISMCTS at a fixed number of iterations from `SEEDS` different seeds and must do what
+# the position asks in at least `NEEDED` of them (a single seed is noise; a per-seed xfail hid regressions).
+SEEDS = tuple(range(8))
+NEEDED = 6
+
+
+def play_new_eval_turn(name: str, seed: int):
+    """The bot's turn from the position, action by action: (game, actions, maneuvers that left the hero where he was with the hand at the limit)."""
+    ai = make_ai("ismcts", seed=seed, new_eval=True)
+    game = build(name, ai)
+    acts, idle = [], 0
+    while game.actions_left > 0 and game.winner is None and len(acts) < POSITIONS[name]["actions_left"]:
+        act = ai.plan(game)
+        acts.append(describe_act(act))
+        pos, held = game.hero(0).pos, len(game.players[0].hand)
+        ai.execute(game, act)
+        idle += acts[-1]["kind"] == "maneuver" and game.hero(0).pos == pos and held >= game.hand_cap(0)
+    return game, acts, idle
+
+
+def attacks(game, acts, idle):
+    return any(a["kind"] == "attack" for a in acts)
+
+
+def keeps_a_card(game, acts, idle):
+    return bool(game.players[0].hand)
+
+
+def attacks_first(game, acts, idle):
+    return acts[0]["kind"] == "attack"
+
+
+def does_not_stay_put_twice(game, acts, idle):
+    return idle <= 1
+
+
+def does_not_end_where_it_began(game, acts, idle):
+    return not (len(acts) == 2 and all(a["kind"] == "maneuver" for a in acts) and game.board.distance(game.start_pos, game.hero(0).pos) <= 1)
+
+
+def attacks_and_keeps_a_card(game, acts, idle):
+    return attacks(game, acts, idle) and keeps_a_card(game, acts, idle)
+
+
+# position -> what a good player does there (the numbers behind each are in the fixture's `good_player`)
+NEW_EVAL_POSITIONS = {
+    "sinbad_liz_t4_idle_maneuvers": does_not_stay_put_twice,
+    "sinbad_liz_t6_flees_from_an_attack": attacks,
+    "sinbad_liz_t18_idle_maneuvers": does_not_end_where_it_began,
+    "sinbad_liz_t24_attacks": attacks_first,
+    "liz_sinbad_t13_last_card": keeps_a_card,
+    "liz_sinbad_t15_incinerate": keeps_a_card,
+    "liz_sinbad_t3_attacks_with_fireball": attacks_and_keeps_a_card,
+    "medusa_hellboy_sim_t10_attacks": attacks,
+    "hellboy_liz_sim_t8_attacks": attacks,
+}
+
+
+def new_eval_passes(name: str) -> tuple[int, list]:
+    check, passed, seen = NEW_EVAL_POSITIONS[name], 0, []
+    for seed in SEEDS:
+        game, acts, idle = play_new_eval_turn(name, seed)
+        game.start_pos = build(name, make_ai("heuristic")).hero(0).pos
+        ok = check(game, acts, idle)
+        passed += ok
+        seen.append((seed, ok, [a["kind"] + (":" + str(a.get("card") or a.get("boost")) if a.get("card") or a.get("boost") else "") for a in acts]))
+    return passed, seen
+
+
+@pytest.mark.parametrize("name", list(NEW_EVAL_POSITIONS))
+def test_the_new_evaluation_does_what_the_live_position_asks(name):
+    passed, seen = new_eval_passes(name)
+    assert passed >= NEEDED, f"{POSITIONS[name]['good_player']} {passed}/{len(SEEDS)} seeds do it: {seen}"
+
+
+def test_the_sinbad_positions_are_the_live_ones():
+    """The counts the decision journal of that game gives for each position (hand, deck and pile of the bot; hand, deck and pile of Liz), so a
+    change of the fixture builder cannot move them quietly. VOYAGE cards in the bot's pile: 0, 2, 4, 4, 1."""
+    expected = {"sinbad_liz_t4_idle_maneuvers": ((7, 20, 3), (7, 20, 3), 0), "sinbad_liz_t6_flees_from_an_attack": ((6, 18, 6), (7, 18, 5), 2),
+                "sinbad_liz_t18_idle_maneuvers": ((4, 6, 20), (4, 9, 17), 4), "sinbad_liz_t24_attacks": ((5, 0, 25), (4, 4, 22), 4),
+                "sinbad_liz_t25_defends_with_exploit": ((7, 0, 23), (2, 6, 22), 1)}
+    for name, (mine, hers, voyages) in expected.items():
+        me, liz = build(name, make_ai("heuristic")).players
+        assert [(len(p.hand), len(p.deck), len(p.discard)) for p in (me, liz)] == [mine, hers], name
+        assert sum("voyage" in c.tags for c in me.discard) == voyages, name
+
+
+# ---------- turn 17 of the live game of 17/11 18:53 (Sinbad bot vs Liz): the only card that can defend is spent as a maneuver boost ----------
+def keeps_a_defender(game, acts, idle):
+    """The hero ends the turn with a card that can defend and that he may use (By Fortune and Fate needs the dead Porter). Measured after
+    `Game.end_turn()`: the hand-limit discard (7) belongs to the turn, and the bot's own chooser decides it."""
+    game.end_turn()
+    hero = game.hero(0)
+    return any(c.can_defend and c.usable_by(hero.name) for c in game.players[0].hand)
+
+
+KEEP_A_DEFENDER = ("sinbad_liz_t17_keeps_regroup_scheme", "sinbad_liz_t17_keeps_regroup_boost")
+
+
+@pytest.mark.parametrize("name", KEEP_A_DEFENDER)
+def test_the_bot_does_not_lose_its_only_defence_card_in_the_turn(name):
+    """Every seed must keep it, after the hand-limit discard: a good player neither boosts the maneuver with Regroup (the only possible
+    boosts are Regroup and the dead By Fortune and Fate: the Voyages have boost 0, `can_be_boost`) nor discards it at the limit, where
+    Voyage cards or By Fortune and Fate go first."""
+    ok = [keeps_a_defender(*play_new_eval_turn(name, seed)) for seed in SEEDS]
+    assert all(ok), f"{POSITIONS[name]['good_player']} {sum(ok)}/{len(SEEDS)} seeds keep a card that can defend: {ok}"
+
+
+def test_the_t17_positions_are_the_live_ones():
+    """The counts of the decision journal (decisions 25 and 26 of the game of 18:53): hand, deck and pile of the bot; hand, deck and pile of Liz."""
+    expected = {"sinbad_liz_t17_keeps_regroup_scheme": ((6, 10, 14), (5, 12, 13)), "sinbad_liz_t17_keeps_regroup_boost": ((8, 7, 15), (5, 12, 13))}
+    for name, (mine, hers) in expected.items():
+        game = build(name, make_ai("heuristic"))
+        assert [(len(p.hand), len(p.deck), len(p.discard)) for p in game.players] == [mine, hers], name
+        assert not game.fighters["porter"].alive and game.fighters["sinbad"].hp == 7 and game.fighters["liz"].hp == 4

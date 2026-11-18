@@ -28,6 +28,7 @@ from dataclasses import dataclass, field
 from pathlib import Path
 from typing import Callable
 
+from .search.adapter import RESOLUTION
 from .search.controller import make_bot_ai
 from .board import Board, catalog as board_catalog
 from .board_detect import BoardError, choose_board
@@ -1090,9 +1091,13 @@ def run_loop(session: Session, client: TTSClient, stop: threading.Event, announc
             stop.wait(poll)
 
 
-def ai_config(cfg: PlayConfig, ai: str | None, ai_time: float | None) -> dict:
-    """AI config: the command line wins over the `ai` / `ai_time_budget` keys of the JSON."""
+def ai_config(cfg: PlayConfig, ai: str | None, ai_time: float | None, ai_eval: str | None = None) -> dict:
+    """AI config: the command line wins over the `ai` / `ai_time_budget` keys of the JSON. `ai_eval="new"` puts the weights of
+    F-AI-EVAL-RESOLUTION (`RESOLUTION`) under whatever `ai_eval` the JSON sets; `old` (or nothing) leaves the evaluation as it was."""
     raw = dict(cfg.raw)
+    if ai_eval == "new":
+        raw["ai_eval_set"] = sorted(raw.get("ai_eval", {}))        # what the JSON itself sets: the hero profiles leave those alone, and not the ones from RESOLUTION
+        raw["ai_eval"] = {**RESOLUTION, **raw.get("ai_eval", {})}
     if ai is not None:
         raw["ai"] = ai
     if ai_time is not None:
@@ -1161,7 +1166,7 @@ def pregame(cfg: PlayConfig, client: TTSClient, args: argparse.Namespace, stop: 
 def play(cfg: PlayConfig, client: TTSClient, first: str, seed: int, stop: threading.Event,
          echo: Callable[[str], None] = print, poll: float = 0.1, state_path: Path | None = None,
          resume: bool = False, timing: bool = False, ai: str | None = None,
-         ai_time: float | None = None, bot_pause: float | None = None, unpack: bool = False,
+         ai_time: float | None = None, ai_eval: str | None = None, bot_pause: float | None = None, unpack: bool = False,
          card_zoom: bool = True, on_ready: Callable[[], None] = lambda: None, gated: bool = False) -> bool:
     """Plays until the bot is stopped (False) or the player confirms New game (True: back to the pre-game gate)."""
     i18n.set_language(cfg.language)                  # before the first panel or chat line; --resume takes the current one
@@ -1179,7 +1184,7 @@ def play(cfg: PlayConfig, client: TTSClient, first: str, seed: int, stop: thread
     if gated:
         scfg.remove_plan = ()          # the pre-game gate has cleaned the table with its own guarded report: no silent removal
     game = build_game(cfg, first, seed)
-    session = Session(game, client, make_bot_ai(ai_config(cfg, ai, ai_time), BOT), scfg, bot=BOT)
+    session = Session(game, client, make_bot_ai(ai_config(cfg, ai, ai_time, ai_eval), BOT), scfg, bot=BOT)
     session.state_path = state_path
     session.game_log.path = game_log.log_path(state_path)
     session.journal.path = decision_log.decisions_path(state_path)
@@ -1266,6 +1271,7 @@ def parse_args(argv: list[str] | None) -> argparse.Namespace:
     ap.add_argument("--state", default=str(DEFAULT_STATE), help=t("cli.state"))
     ap.add_argument("--ai", choices=("heuristic", "ismcts"), default=None, help=t("cli.ai"))
     ap.add_argument("--ai-time", type=float, default=None, help=t("cli.ai_time"))
+    ap.add_argument("--ai-eval", choices=("old", "new"), default=None, help=t("cli.ai_eval"))
     ap.add_argument("--resume", action="store_true", help=t("cli.resume"))
     ap.add_argument("--bot-pause", type=float, default=None, metavar=t("cli.seconds"),
                     help=t("cli.bot_pause", default=DEFAULT_BOT_PAUSE))
@@ -1437,7 +1443,7 @@ def _main(args: argparse.Namespace, stop: threading.Event, status: Callable[[str
             state.parent.mkdir(parents=True, exist_ok=True)
             back_to_gate = play(cfg, client, args.first, seed if seed is not None else secrets.randbelow(2 ** 31), stop,
                                 poll=args.poll, state_path=state, resume=resume, timing=args.timing, ai=args.ai,
-                                ai_time=args.ai_time, bot_pause=args.bot_pause, unpack=args.unpack,
+                                ai_time=args.ai_time, ai_eval=args.ai_eval, bot_pause=args.bot_pause, unpack=args.unpack,
                                 card_zoom=not args.no_card_zoom, on_ready=lambda: status("playing"), gated=gated)
             if not back_to_gate:
                 return 0

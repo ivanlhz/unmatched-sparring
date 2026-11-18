@@ -237,6 +237,9 @@ def test_a_box_hero_decides_within_the_default_time_budget(bprd):
     ai.plan(g)
     elapsed = time.perf_counter() - t0
     assert elapsed < 2.0 and ai.fallbacks == 0, f"{elapsed:.2f}s"
+    # Floor from the FIRST plan of a fresh process (what this test runs), 18/11/2026, 1.5 s budget: 409-416 iterations with
+    # the pure-loss verdict memoized; 302-311 without it (72fd360); 628-638 before F-STRANGE-REALLY-FULL-HP (other
+    # features have since cost some too). 300 is ~72 % of today's value.
     assert ai.last_report.iterations > 300, ai.last_report.iterations
 
 

@@ -302,4 +302,6 @@ def test_default_budget_decides_under_two_seconds(game):
     ai.plan(game)
     elapsed = time.perf_counter() - t0
     assert elapsed < 2.0, f"{elapsed:.2f}s"
+    # Measured 18/11/2026 (1.5 s budget, first plan of a fresh process, 4 runs): 689-709 iterations, the same on 72fd360 (no
+    # scheme here is a pure loss; Medusa's own are never judged); 500 is ~72 % of that.
     assert ai.last_report.iterations > 500, ai.last_report.iterations

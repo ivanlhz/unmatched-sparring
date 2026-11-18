@@ -218,5 +218,5 @@ def make_bot_ai(cfg: dict, bot: int = 0):
         return IsmctsMedusa(bot, SearchConfig(time_budget=float(cfg.get("ai_time_budget", DEFAULT_TIME_BUDGET)),
                                               iterations=None if iters is None else int(iters),
                                               seed=int(cfg.get("ai_seed", 0))),
-                            EvalWeights(**cfg.get("ai_eval", {})), frozenset(cfg.get("ai_eval", {})))
+                            EvalWeights(**cfg.get("ai_eval", {})), frozenset(cfg.get("ai_eval_set", cfg.get("ai_eval", {}))))
     raise ValueError(f"unknown ai in the configuration: {kind!r} (heuristic | ismcts)")

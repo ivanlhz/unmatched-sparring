@@ -70,8 +70,10 @@ class KnownHand:
         self.turn_no = turn_no if self.seen else None
 
     def add(self, card: Card, turn_no: int) -> None:
-        """A concrete card came into view in the rival hand (Wildfire: the burning card returns)."""
-        self.seen.append(card.card_id)
+        """A concrete card came into view in the rival hand (Wildfire: the burning card returns). Card ids are one per copy, so an id
+        already seen is not counted twice (a known deck top that still named a card seen in hand made the search deal it twice)."""
+        if card.card_id not in self.seen:
+            self.seen.append(card.card_id)
         if self.turn_no is None:
             self.turn_no = turn_no
 

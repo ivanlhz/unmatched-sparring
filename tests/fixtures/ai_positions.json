@@ -304,5 +304,929 @@
       "1": []
     },
     "good_player": "Same as turns 6 and 14, now with Pyrotechnics and Burning Barrier in hand: spend the actions on something that changes the position."
+  },
+  "sinbad_liz_t4_idle_maneuvers": {
+    "source": "Live game 17/11 09:45 (Sinbad bot, ISMCTS 3 s, eval=new, against Liz Sherman played by Ivan), turn 4, decision 4: state/session.log and decisions.jsonl of that game. Spaces, hit points, the bot's hand and both discard piles are the live ones (rebuilt from the log: the rival's pile is within one card of the logged count); Liz stands out of reach; the live bot maneuvered twice (28 -> 28 the second time) to draw and then discarded two Voyages by the hand limit.",
+    "heroes": [
+      "sinbad",
+      "liz-sherman"
+    ],
+    "board": "bprd-hq",
+    "seed": 4,
+    "turn": 0,
+    "turn_no": 4,
+    "actions_left": 2,
+    "fighters": {
+      "sinbad": {
+        "pos": 18,
+        "hp": 13
+      },
+      "porter": {
+        "pos": 31,
+        "hp": 6
+      },
+      "liz": {
+        "pos": 14,
+        "hp": 16
+      }
+    },
+    "hands": {
+      "0": [
+        "By Fortune and Fate",
+        "Feint",
+        "Leap Away",
+        "Voyage to the Cannibals With the Root of Madness",
+        "Feint",
+        "Exploit",
+        "Voyage to the City of the Man-Eating Apes"
+      ],
+      "1": [
+        "Pyrotechnics"
+      ]
+    },
+    "hand_sizes": {
+      "1": 7
+    },
+    "discard": {
+      "0": [
+        "Regroup",
+        "Riches Beyond Compare",
+        "Regroup"
+      ],
+      "1": [
+        "B.P.R.D. Training",
+        "Fight Or Flight",
+        "Searing Clarity"
+      ]
+    },
+    "known_in_hand": {
+      "0": [
+        "Pyrotechnics"
+      ]
+    },
+    "good_player": "Turn 4, seven cards in hand and Liz out of reach: every maneuver draws a card above the limit of seven, which is discarded at the end of the turn (the live bot lost two Voyages). A good player does not burn the turn's two actions drawing cards it must discard: at most one card is lost to the limit, and at most one card is spent on pure movement (Ivan)."
+  },
+  "sinbad_liz_t6_flees_from_an_attack": {
+    "source": "Live game 17/11 09:45 (Sinbad bot, ISMCTS 3 s, eval=new, against Liz Sherman played by Ivan), turn 6, decision 7: state/session.log and decisions.jsonl of that game. Spaces, hit points, the bot's hand and both discard piles are the live ones (rebuilt from the log: the rival's pile is within one card of the logged count); the live bot maneuvered (28 -> 20, then 20 -> 1) instead of attacking: attack 0.504 against maneuver 0.561, then 0.6355 against 0.641.",
+    "heroes": [
+      "sinbad",
+      "liz-sherman"
+    ],
+    "board": "bprd-hq",
+    "seed": 6,
+    "turn": 0,
+    "turn_no": 6,
+    "actions_left": 2,
+    "fighters": {
+      "sinbad": {
+        "pos": 28,
+        "hp": 10
+      },
+      "porter": {
+        "pos": 18,
+        "hp": 6
+      },
+      "liz": {
+        "pos": 21,
+        "hp": 16
+      }
+    },
+    "hands": {
+      "0": [
+        "By Fortune and Fate",
+        "Leap Away",
+        "Voyage to the Cannibals With the Root of Madness",
+        "Feint",
+        "Exploit",
+        "Feint"
+      ],
+      "1": [
+        "Pyrotechnics"
+      ]
+    },
+    "hand_sizes": {
+      "1": 7
+    },
+    "discard": {
+      "0": [
+        "Regroup",
+        "Riches Beyond Compare",
+        "Regroup",
+        "Voyage to the Valley of the Giant Snakes",
+        "Voyage to the City of the Man-Eating Apes",
+        "Feint"
+      ],
+      "1": [
+        "B.P.R.D. Training",
+        "Fight Or Flight",
+        "Searing Clarity",
+        "Fireball",
+        "Pyrotechnics"
+      ]
+    },
+    "known_in_hand": {
+      "0": [
+        "Pyrotechnics"
+      ]
+    },
+    "good_player": "Turn 6, Liz at 16 HP with 7 cards and Sinbad at 10 HP with a Voyage in hand and two in the pile, in reach of her. A good player strikes (at least one attack in the turn) and does not walk away to the far side of the board with both actions."
+  },
+  "sinbad_liz_t18_idle_maneuvers": {
+    "source": "Live game 17/11 09:45 (Sinbad bot, ISMCTS 3 s, eval=new, against Liz Sherman played by Ivan), turn 18, decision 25: state/session.log and decisions.jsonl of that game. Spaces, hit points, the bot's hand and both discard piles are the live ones (rebuilt from the log: the rival's pile is within one card of the logged count); the live bot maneuvered twice staying on space 2 (decisions 25 and 26) with four Voyages in the discard pile (+4 movement and +4 attack value).",
+    "heroes": [
+      "sinbad",
+      "liz-sherman"
+    ],
+    "board": "bprd-hq",
+    "seed": 18,
+    "turn": 0,
+    "turn_no": 18,
+    "actions_left": 2,
+    "fighters": {
+      "sinbad": {
+        "pos": 2,
+        "hp": 10
+      },
+      "porter": {
+        "pos": 26,
+        "hp": 5
+      },
+      "liz": {
+        "pos": 17,
+        "hp": 12
+      }
+    },
+    "hands": {
+      "0": [
+        "Exploit",
+        "Exploit",
+        "Voyage to the City of the King of Serendib",
+        "Toil and Danger"
+      ],
+      "1": [
+        "Pyrotechnics"
+      ]
+    },
+    "hand_sizes": {
+      "1": 4
+    },
+    "discard": {
+      "0": [
+        "Regroup",
+        "Riches Beyond Compare",
+        "Regroup",
+        "Voyage to the Valley of the Giant Snakes",
+        "Voyage to the City of the Man-Eating Apes",
+        "Feint",
+        "Riches Beyond Compare",
+        "Feint",
+        "Leap Away",
+        "Commanding Impact",
+        "Feint",
+        "By Fortune and Fate",
+        "Toil and Danger",
+        "Voyage to the Island That Was a Whale",
+        "Voyage to the Cannibals With the Root of Madness",
+        "Toil and Danger",
+        "Leap Away",
+        "Momentous Shift",
+        "By Fortune and Fate",
+        "By Fortune and Fate"
+      ],
+      "1": [
+        "B.P.R.D. Training",
+        "Fight Or Flight",
+        "Pyrotechnics",
+        "Feint",
+        "Fleeting Moments",
+        "Burning Barrier",
+        "Flame Lash",
+        "Fight Or Flight",
+        "Evade",
+        "Searing Clarity",
+        "Fleeting Moments",
+        "Feint",
+        "Fight Or Flight",
+        "Searing Clarity",
+        "Burning Barrier",
+        "Burning Barrier",
+        "Searing Clarity"
+      ]
+    },
+    "known_in_hand": {
+      "0": [
+        "Pyrotechnics"
+      ]
+    },
+    "good_player": "Turn 18, Sinbad has four Voyages in the pile (a maneuver moves 4 more, a Voyage attack is worth 2 + 4), Liz at 12 HP on space 17. A good player does not maneuver twice to end where he started while the deck burns (deck 6)."
+  },
+  "sinbad_liz_t24_attacks": {
+    "source": "Live game 17/11 09:45 (Sinbad bot, ISMCTS 3 s, eval=new, against Liz Sherman played by Ivan), turn 24, decision 36: state/session.log and decisions.jsonl of that game. Spaces, hit points, the bot's hand and both discard piles are the live ones (rebuilt from the log: the rival's pile is within one card of the logged count); the live bot attacked here (0.37 against 0.19-0.27) and took Liz from 12 to 4 HP over two attacks: the CORRECT decision, a regression guard.",
+    "heroes": [
+      "sinbad",
+      "liz-sherman"
+    ],
+    "board": "bprd-hq",
+    "seed": 24,
+    "turn": 0,
+    "turn_no": 24,
+    "actions_left": 2,
+    "fighters": {
+      "sinbad": {
+        "pos": 16,
+        "hp": 6
+      },
+      "porter": {
+        "pos": 17,
+        "hp": 3
+      },
+      "liz": {
+        "pos": 26,
+        "hp": 12
+      }
+    },
+    "hands": {
+      "0": [
+        "Exploit",
+        "Voyage to the City of the King of Serendib",
+        "Voyage to the Creature With Eyes Like Coals of Fire",
+        "Voyage Home",
+        "Regroup"
+      ],
+      "1": [
+        "Pyrotechnics"
+      ]
+    },
+    "hand_sizes": {
+      "1": 4
+    },
+    "discard": {
+      "0": [
+        "Regroup",
+        "Riches Beyond Compare",
+        "Regroup",
+        "Voyage to the Valley of the Giant Snakes",
+        "Voyage to the City of the Man-Eating Apes",
+        "Feint",
+        "Riches Beyond Compare",
+        "Feint",
+        "Leap Away",
+        "Commanding Impact",
+        "Feint",
+        "By Fortune and Fate",
+        "Toil and Danger",
+        "Voyage to the Island That Was a Whale",
+        "Voyage to the Cannibals With the Root of Madness",
+        "Toil and Danger",
+        "Leap Away",
+        "Momentous Shift",
+        "By Fortune and Fate",
+        "By Fortune and Fate",
+        "Momentous Shift",
+        "Toil and Danger",
+        "Toil and Danger",
+        "Momentous Shift",
+        "Exploit"
+      ],
+      "1": [
+        "B.P.R.D. Training",
+        "Fight Or Flight",
+        "Pyrotechnics",
+        "Feint",
+        "Burning Barrier",
+        "Flame Lash",
+        "Fight Or Flight",
+        "Evade",
+        "Feint",
+        "Fight Or Flight",
+        "Searing Clarity",
+        "Burning Barrier",
+        "Burning Barrier",
+        "Searing Clarity",
+        "B.P.R.D. Training",
+        "Fleeting Moments",
+        "Flame Lash",
+        "Searing Clarity",
+        "Rekindle",
+        "Flame Lash",
+        "Feint",
+        "Fireball"
+      ]
+    },
+    "known_in_hand": {
+      "0": [
+        "Pyrotechnics"
+      ]
+    },
+    "good_player": "Turn 24, empty deck, Sinbad 6 HP with Voyages worth 6 and 7 against Liz at 12 HP: attack. A maneuver draws from an empty deck and costs 2 HP to every fighter."
+  },
+  "sinbad_liz_t25_defends_with_exploit": {
+    "source": "Live game 17/11 09:45 (Sinbad bot, ISMCTS 3 s, eval=new, against Liz Sherman played by Ivan), turn 25, decision 38: state/session.log and decisions.jsonl of that game. Spaces, hit points, the bot's hand and both discard piles are the live ones (rebuilt from the log: the rival's pile is within one card of the logged count); Liz's face-down attack was Fireball (5): the live bot defended with nothing (0.233 against 0.206 with Exploit) and dropped to 1 HP; maneuvering on turn 26 killed it by exhaustion.",
+    "heroes": [
+      "sinbad",
+      "liz-sherman"
+    ],
+    "board": "bprd-hq",
+    "seed": 25,
+    "turn": 1,
+    "turn_no": 25,
+    "actions_left": 2,
+    "fighters": {
+      "sinbad": {
+        "pos": 16,
+        "hp": 6
+      },
+      "porter": {
+        "pos": 17,
+        "hp": 3
+      },
+      "liz": {
+        "pos": 26,
+        "hp": 4
+      }
+    },
+    "hands": {
+      "0": [
+        "Exploit",
+        "Voyage to the City of the Man-Eating Apes",
+        "Voyage to the Cannibals With the Root of Madness",
+        "Voyage to the City of the King of Serendib",
+        "Voyage to the Island That Was a Whale",
+        "Voyage to the Valley of the Giant Snakes",
+        "Voyage to the Creature With Eyes Like Coals of Fire"
+      ],
+      "1": []
+    },
+    "hand_sizes": {
+      "1": 2
+    },
+    "discard": {
+      "0": [
+        "Regroup",
+        "Riches Beyond Compare",
+        "Regroup",
+        "Feint",
+        "Riches Beyond Compare",
+        "Feint",
+        "Leap Away",
+        "Commanding Impact",
+        "Feint",
+        "By Fortune and Fate",
+        "Toil and Danger",
+        "Toil and Danger",
+        "Leap Away",
+        "Momentous Shift",
+        "By Fortune and Fate",
+        "By Fortune and Fate",
+        "Momentous Shift",
+        "Toil and Danger",
+        "Toil and Danger",
+        "Momentous Shift",
+        "Exploit",
+        "Voyage Home",
+        "Regroup"
+      ],
+      "1": [
+        "B.P.R.D. Training",
+        "Fight Or Flight",
+        "Feint",
+        "Burning Barrier",
+        "Flame Lash",
+        "Fight Or Flight",
+        "Evade",
+        "Feint",
+        "Fight Or Flight",
+        "Burning Barrier",
+        "Burning Barrier",
+        "Searing Clarity",
+        "B.P.R.D. Training",
+        "Fleeting Moments",
+        "Flame Lash",
+        "Searing Clarity",
+        "Flame Lash",
+        "Feint",
+        "Rekindle",
+        "Pyrotechnics",
+        "Pyrotechnics",
+        "Fleeting Moments"
+      ]
+    },
+    "known_in_hand": {},
+    "good_player": "NOT a decision test: with Sinbad at 6 HP, an empty deck, seven cards (Exploit and six Voyages) and Liz at 4 HP with two cards, defending with Exploit or not is an acceptable choice. The live bot did not defend, Liz's face-down card was Fireball (5) and Sinbad dropped to 1 HP, where the draw of the next maneuver killed him by exhaustion; but the bot could not know the card. Exploit saves about 1.5 HP of the hero on average and rules out the one card that kills him (Incinerate, 7), at the cost of 2 HP to each fighter (its draw on an empty deck) and of the only defence card for a second blow. The leaves of the search after each choice are within 5 points. The position is kept for the count check of the fixture and as a case for the decision journal.",
+    "attack": {
+      "attacker": "liz",
+      "target": "sinbad"
+    }
+  },
+  "liz_sinbad_t13_last_card": {
+    "source": "Live game 17/11 10:46 (Liz bot, ISMCTS 3 s, eval=new, against Sinbad played by Ivan), turn 13, decision 22 of the second game (state/session.log and decisions.jsonl). Spaces, hit points, the bot's hand and the piles are the live ones; the rival's hand is drawn from the cards it has not shown. The live bot attacked with its last card (Burning Barrier, 2) and ended the turn with 0 cards.",
+    "heroes": [
+      "liz-sherman",
+      "sinbad"
+    ],
+    "board": "bprd-hq",
+    "seed": 13,
+    "turn": 0,
+    "turn_no": 13,
+    "actions_left": 1,
+    "fighters": {
+      "liz": {
+        "pos": 14,
+        "hp": 10
+      },
+      "sinbad": {
+        "pos": 16,
+        "hp": 13
+      },
+      "porter": {
+        "pos": null,
+        "hp": 0,
+        "alive": false
+      }
+    },
+    "hands": {
+      "0": [
+        "Burning Barrier"
+      ],
+      "1": []
+    },
+    "hand_sizes": {
+      "1": 3
+    },
+    "discard": {
+      "0": [
+        "Rekindle",
+        "Fight Or Flight",
+        "Fleeting Moments",
+        "B.P.R.D. Training",
+        "Feint",
+        "Evade",
+        "Fight Or Flight",
+        "Fleeting Moments",
+        "Burning Barrier",
+        "Fight Or Flight",
+        "Feint",
+        "Incinerate",
+        "Flame Lash",
+        "Searing Clarity",
+        "Flame Lash",
+        "Pyrotechnics",
+        "Feint",
+        "Fleeting Moments"
+      ],
+      "1": [
+        "Feint",
+        "Commanding Impact",
+        "Regroup",
+        "Leap Away",
+        "Toil and Danger",
+        "Voyage to the City of the King of Serendib",
+        "Toil and Danger",
+        "By Fortune and Fate",
+        "Regroup",
+        "Feint",
+        "Voyage to the Valley of the Giant Snakes",
+        "By Fortune and Fate",
+        "Voyage to the Cannibals With the Root of Madness",
+        "Toil and Danger",
+        "Riches Beyond Compare"
+      ]
+    },
+    "good_player": "Turn 13, Liz at 10 HP with one card (Burning Barrier, which attacks and defends) against a Sinbad at 13 HP with three cards and the Voyages in his pile, next to her. Might first, value second (Ivan): a 2-point blow that leaves her with no card to answer the next one is not worth the card; she keeps the versatile card (or maneuvers to draw) instead of ending with 0 cards."
+  },
+  "liz_sinbad_t15_incinerate": {
+    "source": "Live game 17/11 10:46 (Liz bot, ISMCTS 3 s, eval=new, against Sinbad played by Ivan), turn 15, decision 25 of the second game (state/session.log and decisions.jsonl). Spaces, hit points, the bot's hand and the piles are the live ones; the rival's hand is drawn from the cards it has not shown. The live bot maneuvered from an empty hand, drew Incinerate and attacked with it, ending with 0 cards at 9 HP. The bot's pile is two cards short of the logged 20 (cards returned to the deck by Rekindle and Searing Clarity are not all in the log).",
+    "heroes": [
+      "liz-sherman",
+      "sinbad"
+    ],
+    "board": "bprd-hq",
+    "seed": 15,
+    "turn": 0,
+    "turn_no": 15,
+    "actions_left": 1,
+    "fighters": {
+      "liz": {
+        "pos": 14,
+        "hp": 9
+      },
+      "sinbad": {
+        "pos": 16,
+        "hp": 13
+      },
+      "porter": {
+        "pos": null,
+        "hp": 0,
+        "alive": false
+      }
+    },
+    "hands": {
+      "0": [
+        "Incinerate"
+      ],
+      "1": []
+    },
+    "hand_sizes": {
+      "1": 5
+    },
+    "discard": {
+      "0": [
+        "Rekindle",
+        "Fight Or Flight",
+        "B.P.R.D. Training",
+        "Feint",
+        "Evade",
+        "Fight Or Flight",
+        "Fleeting Moments",
+        "Burning Barrier",
+        "Fight Or Flight",
+        "Feint",
+        "Flame Lash",
+        "Searing Clarity",
+        "Flame Lash",
+        "Pyrotechnics",
+        "Feint",
+        "Fleeting Moments",
+        "Burning Barrier",
+        "Fleeting Moments"
+      ],
+      "1": [
+        "Feint",
+        "Commanding Impact",
+        "Regroup",
+        "Leap Away",
+        "Toil and Danger",
+        "Voyage to the City of the King of Serendib",
+        "Toil and Danger",
+        "By Fortune and Fate",
+        "Regroup",
+        "Feint",
+        "Voyage to the Valley of the Giant Snakes",
+        "By Fortune and Fate",
+        "Voyage to the Cannibals With the Root of Madness",
+        "Toil and Danger",
+        "Riches Beyond Compare",
+        "Feint",
+        "Riches Beyond Compare",
+        "Regroup"
+      ]
+    },
+    "good_player": "Turn 15, Liz at 9 HP with a single card (Incinerate, a pure attack) against a Sinbad of 13 HP with five cards next to her. She does not spend the only card on a blow the rival can answer and then stand with 0 cards: she ends the turn with at least one card (Ivan: Liz keeps 2-3 versatile cards to defend)."
+  },
+  "liz_sinbad_t3_attacks_with_fireball": {
+    "source": "Live game 17/11 10:46 (Liz bot, ISMCTS 3 s, eval=new, against Sinbad played by Ivan), decision 2 of the second game: Liz's hand of turn 1 (Fireball, Flame Lash, Pyrotechnics, B.P.R.D. Training, Rekindle) on space 19. The rest is built for the test: Sinbad stands next to her at full health, his Porter far away, both piles empty, turn 3 so that nothing has been played yet.",
+    "heroes": [
+      "liz-sherman",
+      "sinbad"
+    ],
+    "board": "bprd-hq",
+    "seed": 3,
+    "turn": 0,
+    "turn_no": 3,
+    "actions_left": 2,
+    "fighters": {
+      "liz": {
+        "pos": 19,
+        "hp": 16
+      },
+      "sinbad": {
+        "pos": 18,
+        "hp": 15
+      },
+      "porter": {
+        "pos": 31,
+        "hp": 6
+      }
+    },
+    "hands": {
+      "0": [
+        "Fireball",
+        "Flame Lash",
+        "Pyrotechnics",
+        "B.P.R.D. Training",
+        "Rekindle"
+      ],
+      "1": []
+    },
+    "hand_sizes": {
+      "1": 5
+    },
+    "discard": {
+      "0": [],
+      "1": []
+    },
+    "good_player": "Turn 3, Liz at full health with Fireball (5), Pyrotechnics and B.P.R.D. Training (attack and defence) and Rekindle, Sinbad next to her with no Voyage in his pile (his blows are 2): the opposite of the live games' defect. A good player strikes at least once (Fireball first) and still ends the turn with cards in hand: a position that tells keeping a card from doing nothing."
+  },
+  "medusa_hellboy_sim_t10_attacks": {
+    "heroes": [
+      "medusa",
+      "hellboy"
+    ],
+    "board": "bprd-hq",
+    "seed": 2,
+    "turn": 0,
+    "turn_no": 10,
+    "actions_left": 2,
+    "fighters": {
+      "medusa": {
+        "pos": 4,
+        "hp": 16
+      },
+      "harpy1": {
+        "pos": null,
+        "hp": -4,
+        "alive": false
+      },
+      "harpy2": {
+        "pos": null,
+        "hp": 0,
+        "alive": false
+      },
+      "harpy3": {
+        "pos": null,
+        "hp": -3,
+        "alive": false
+      },
+      "hellboy": {
+        "pos": 2,
+        "hp": 14
+      },
+      "lobster": {
+        "pos": 5,
+        "hp": 6
+      }
+    },
+    "hands": {
+      "0": [
+        "Feint",
+        "Feint",
+        "Hiss and Slither",
+        "Regroup",
+        "Snipe",
+        "Feint"
+      ],
+      "1": []
+    },
+    "hand_sizes": {
+      "1": 7
+    },
+    "discard": {
+      "0": [
+        "Clutching Claws",
+        "Second Shot",
+        "Gaze of Stone",
+        "Gaze of Stone"
+      ],
+      "1": [
+        "And Upon His Brow Is Set A Crown Of Flame",
+        "Second Shot",
+        "Right Hand Of Doom",
+        "Planned Recklessness",
+        "Glimpse Of Hell",
+        "Right Hand Of Doom",
+        "Planned Recklessness",
+        "Service Pistol"
+      ]
+    },
+    "source": "Simulated game (tools/ai_duel.py engine, heuristic against heuristic, bprd-hq): the state at the start of the bot's turn, with hands and piles by title; the rival's hand is drawn from the cards it has not shown.",
+    "good_player": "Medusa (the bot) at 16 HP with six cards against a Hellboy at 14 HP next to her space, in a game simulated heuristic against heuristic (seed 2, turn 10, first position of the middle game where the heuristic attacks): the position asks for a blow, since the rival is in reach, her hand is full and nothing threatens her. A good player strikes at least once."
+  },
+  "hellboy_liz_sim_t8_attacks": {
+    "heroes": [
+      "hellboy",
+      "liz-sherman"
+    ],
+    "board": "bprd-hq",
+    "seed": 2,
+    "turn": 0,
+    "turn_no": 8,
+    "actions_left": 2,
+    "fighters": {
+      "hellboy": {
+        "pos": 18,
+        "hp": 14
+      },
+      "lobster": {
+        "pos": null,
+        "hp": 0,
+        "alive": false
+      },
+      "liz": {
+        "pos": 19,
+        "hp": 14
+      }
+    },
+    "hands": {
+      "0": [
+        "Right Hand Of Doom",
+        "Right Hand Of Doom",
+        "Glimpse Of Hell",
+        "B.P.R.D. Training",
+        "Confront Any Demon or God",
+        "B.P.R.D. Training"
+      ],
+      "1": []
+    },
+    "hand_sizes": {
+      "1": 7
+    },
+    "discard": {
+      "0": [
+        "B.P.R.D. Training",
+        "Excalibur",
+        "Glimpse Of Hell",
+        "Posthumous Power",
+        "On Earth As It Is In Hell",
+        "On Earth As It Is In Hell",
+        "Horseshoes And Hand Grenades",
+        "Planned Recklessness"
+      ],
+      "1": [
+        "Fight Or Flight",
+        "Fireball",
+        "B.P.R.D. Training",
+        "Fight Or Flight",
+        "Fleeting Moments",
+        "Burning Barrier",
+        "Feint",
+        "Fireball"
+      ]
+    },
+    "source": "Simulated game (tools/ai_duel.py engine, heuristic against heuristic, bprd-hq): the state at the start of the bot's turn, with hands and piles by title; the rival's hand is drawn from the cards it has not shown.",
+    "good_player": "Hellboy (the bot) at 14 HP with six cards and Liz at 14 HP on the next space, in a game simulated heuristic against heuristic (seed 2, turn 8, first position of the middle game where the heuristic attacks): a good player strikes at least once."
+  },
+  "sinbad_liz_t17_keeps_regroup_scheme": {
+    "source": "Live game 17/11 18:53 (Sinbad bot, ISMCTS 3 s, eval=new, against Liz Sherman played by Ivan), turn 17, decision 25 (19:12:10 of state/session.log, state/decisions.jsonl). Spaces (Sinbad 2, Liz 17), hit points (Sinbad 7, Liz 4, The Porter dead since turn 16), the bot's hand, its discard pile (14 cards, rebuilt from the discard lines and Voyage Home's return; counts match the journal) and Liz's pile (the journal gives only its count, 13; the composition is approximate: the cards its logged discards and returns leave, plus two Pyrotechnics) are the live ones; Liz's hand is Burning Barrier (seen) plus four cards drawn from the pool the bot has not seen. The live bot played the scheme Riches Beyond Compare (draw 3: King of Serendib, Regroup, Valley of the Giant Snakes), then spent Regroup as a maneuver boost without moving (decision 26) and the hand limit discarded a Voyage.",
+    "heroes": [
+      "sinbad",
+      "liz-sherman"
+    ],
+    "board": "bprd-hq",
+    "seed": 17,
+    "turn": 0,
+    "turn_no": 17,
+    "fighters": {
+      "sinbad": {
+        "pos": 2,
+        "hp": 7
+      },
+      "porter": {
+        "pos": null,
+        "hp": 0,
+        "alive": false
+      },
+      "liz": {
+        "pos": 17,
+        "hp": 4
+      }
+    },
+    "known_in_hand": {
+      "0": [
+        "Burning Barrier"
+      ]
+    },
+    "actions_left": 2,
+    "hands": {
+      "0": [
+        "Voyage to the Island That Was a Whale",
+        "Voyage to the Creature With Eyes Like Coals of Fire",
+        "Voyage to the City of the Man-Eating Apes",
+        "By Fortune and Fate",
+        "Voyage to the Cannibals With the Root of Madness",
+        "Riches Beyond Compare"
+      ],
+      "1": [
+        "Burning Barrier"
+      ]
+    },
+    "hand_sizes": {
+      "1": 5
+    },
+    "discard": {
+      "0": [
+        "Momentous Shift",
+        "Toil and Danger",
+        "Leap Away",
+        "Feint",
+        "Leap Away",
+        "Toil and Danger",
+        "Regroup",
+        "Voyage Home",
+        "Toil and Danger",
+        "By Fortune and Fate",
+        "Feint",
+        "Toil and Danger",
+        "Momentous Shift",
+        "Regroup"
+      ],
+      "1": [
+        "Feint",
+        "Feint",
+        "Evade",
+        "Fight Or Flight",
+        "Burning Barrier",
+        "Flame Lash",
+        "Evade",
+        "Searing Clarity",
+        "B.P.R.D. Training",
+        "Fight Or Flight",
+        "Rekindle",
+        "Pyrotechnics",
+        "Pyrotechnics"
+      ]
+    },
+    "deck_top": {
+      "0": [
+        "Voyage to the City of the King of Serendib",
+        "Regroup",
+        "Voyage to the Valley of the Giant Snakes"
+      ]
+    },
+    "good_player": "The Porter is dead, so By Fortune and Fate (Porter-only attack) is a dead card; after Riches the hand has six Voyages, the dead card and ONE card that can defend (Regroup). Liz (4 HP, Burning Barrier known) will attack on her turn. The only possible boosts are Regroup and the dead By Fortune and Fate (the Voyages have boost 0 and cannot boost: `can_be_boost`). A good player does not spend Regroup as the boost AND, at the end-of-turn hand limit (7), discards Voyage cards or By Fortune and Fate, never Regroup. The live bot spent Regroup and took 1 + 3 damage with no defence."
+  },
+  "sinbad_liz_t17_keeps_regroup_boost": {
+    "source": "Live game 17/11 18:53 (Sinbad bot, ISMCTS 3 s, eval=new, against Liz Sherman played by Ivan), turn 17, decision 26 (19:12:17 of state/session.log, state/decisions.jsonl). Spaces (Sinbad 2, Liz 17), hit points (Sinbad 7, Liz 4, The Porter dead since turn 16), the bot's hand, its discard pile (14 cards, rebuilt from the discard lines and Voyage Home's return; counts match the journal) and Liz's pile (the journal gives only its count, 13; the composition is approximate: the cards its logged discards and returns leave, plus two Pyrotechnics) are the live ones; Liz's hand is Burning Barrier (seen) plus four cards drawn from the pool the bot has not seen. Riches Beyond Compare has been played (it is in the pile, its three cards in hand); one action is left. The live bot maneuvered without moving and spent Regroup as the boost, then discarded a Voyage at the hand limit.",
+    "heroes": [
+      "sinbad",
+      "liz-sherman"
+    ],
+    "board": "bprd-hq",
+    "seed": 17,
+    "turn": 0,
+    "turn_no": 17,
+    "fighters": {
+      "sinbad": {
+        "pos": 2,
+        "hp": 7
+      },
+      "porter": {
+        "pos": null,
+        "hp": 0,
+        "alive": false
+      },
+      "liz": {
+        "pos": 17,
+        "hp": 4
+      }
+    },
+    "known_in_hand": {
+      "0": [
+        "Burning Barrier"
+      ]
+    },
+    "actions_left": 1,
+    "hands": {
+      "0": [
+        "Voyage to the Island That Was a Whale",
+        "Voyage to the Creature With Eyes Like Coals of Fire",
+        "Voyage to the City of the Man-Eating Apes",
+        "By Fortune and Fate",
+        "Voyage to the Cannibals With the Root of Madness",
+        "Voyage to the City of the King of Serendib",
+        "Regroup",
+        "Voyage to the Valley of the Giant Snakes"
+      ],
+      "1": [
+        "Burning Barrier"
+      ]
+    },
+    "hand_sizes": {
+      "1": 5
+    },
+    "discard": {
+      "0": [
+        "Momentous Shift",
+        "Toil and Danger",
+        "Leap Away",
+        "Feint",
+        "Leap Away",
+        "Toil and Danger",
+        "Regroup",
+        "Voyage Home",
+        "Toil and Danger",
+        "By Fortune and Fate",
+        "Feint",
+        "Toil and Danger",
+        "Momentous Shift",
+        "Regroup",
+        "Riches Beyond Compare"
+      ],
+      "1": [
+        "Feint",
+        "Feint",
+        "Evade",
+        "Fight Or Flight",
+        "Burning Barrier",
+        "Flame Lash",
+        "Evade",
+        "Searing Clarity",
+        "B.P.R.D. Training",
+        "Fight Or Flight",
+        "Rekindle",
+        "Pyrotechnics",
+        "Pyrotechnics"
+      ]
+    },
+    "good_player": "Last action of turn 17: the only card that can defend is Regroup (the Voyages only attack, By Fortune and Fate needs the dead Porter). The only possible boosts are Regroup and the dead By Fortune and Fate (the Voyages have boost 0 and cannot boost: `can_be_boost`). A good player does not spend Regroup as the boost AND, at the end-of-turn hand limit (7), discards Voyage cards or By Fortune and Fate, never Regroup. The live bot boosted with Regroup (0.5071 against 0.4946 for no boost) and could not defend twice on turn 18."
   }
 }
