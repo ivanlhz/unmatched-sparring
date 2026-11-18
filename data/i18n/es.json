@@ -691,7 +691,7 @@
  "discard.hand_done.one": "Descarto tu mano ({n} carta) por {reason}.",
  "discard.hand_done.other": "Descarto tu mano ({n} cartas) por {reason}.",
  "wildfire.hint": " Wildfire: deja la ardiente en tu descarte, pulsa [[panel.end_action]] y luego vuelve a cogerla (asi se cuenta y el bot sabe cual vuelve a tu mano).",
- "discard.forgiven": "{titles} volvio a tu mazo con un efecto posterior: ya no hace falta ponerla en tu descarte.",
+ "discard.forgiven": "Dejo de esperar {titles} en tu descarte: un efecto posterior la movio al mazo. Si sigue en tu mano, avisame.",
  "discard.not_seen": "Aun no veo en tu descarte {titles}: ponla y pulsa [[panel.end_action]].",
  "wildfire.assumed": "Wildfire: doy el descarte por hecho (las ardientes vuelven a tu mano).",
  "wildfire.ask": "Aun no veo el descarte en la mesa. Si descartaste ardientes que han vuelto a tu mano, pulsa [[panel.end_action]] otra vez y lo doy por hecho.",

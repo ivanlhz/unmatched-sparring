@@ -229,7 +229,8 @@ def _discard(run, game, spec):
             game.players[1 - player].known.drop_top(card.card_id)
             game.players[player].discard.append(card)
             run.flags.setdefault("deck_discards", []).append(card.card_id)     # the narration: not a hand discard
-            game.fx.deck_discarded.add(card.card_id)
+            if table.physical(game, player):          # ids repeat across heroes sharing a sheet: only the table player's own are tracked
+                game.fx.deck_discarded.add(card.card_id)
             game.fx.emit("card_discarded", player, card, "deck")
         elif zone == "in_play":
             game.fx.take_ongoing(player)

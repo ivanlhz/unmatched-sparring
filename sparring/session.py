@@ -1065,8 +1065,7 @@ class Session:
         self.fx_in_flight = set()
         self.hand_deck = set()
         self.hand_discarded = set()
-        if self._paused() is None:                # a combat paused between two blind boosts still has the first one to project
-            self.game.fx.deck_discarded.clear()
+        self.game.fx.deck_discarded.clear()       # the projection of the step has read it (every button ends here); a later step re-reads the pile
         self.game_log.observe(self.game, self._name)
         return self.messages
 

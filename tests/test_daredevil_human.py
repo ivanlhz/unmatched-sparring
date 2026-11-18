@@ -185,7 +185,7 @@ def test_a_named_debt_whose_card_was_shuffled_into_the_deck_is_forgiven_and_said
     session.pending_discard = {"n": 0, "baseline": len(st.discard), "kind": "cards", "cards": [gone.card_id]}
     session.messages.clear()
     assert session._discard_done() is True
-    assert said(session.messages, f"{gone.title} volvio a tu mazo")
+    assert said(session.messages, f"Dejo de esperar {gone.title} en tu descarte")
 
 
 @with_rig()
@@ -211,21 +211,63 @@ def test_when_the_table_refuses_and_they_lay_the_blind_card_by_hand_it_is_not_ow
     assert session.pending_discard is None and not said(msgs, "de tu mano en tu descarte")
 
 
-@with_rig()
-def test_live_sequence_devil_blind_boost_then_its_shuffle_never_blocks_end_action(rig, monkeypatch):
-    """Live 18/11: the blind-boosted Feint was owed from the hand, the Devil's AFTER shuffled it into the deck, End action blocked."""
+def hiss_sequence(rig, monkeypatch, discard_before_end: bool):
+    """Daredevil attacks with the Devil, blind boosts the top Feint, Medusa defends with Hiss and Slither, the human discards one
+    real hand card for it and the Devil's AFTER shuffles the pile back: what the chat says, End action by End action."""
     session, table, game, fake, cfg = rig
-    no_defense(session, monkeypatch)
+    hiss = next(c for c in game.players[0].hand if c.title == "Hiss and Slither")
+    monkeypatch.setattr(session.ai, "choose_defense", lambda g, a, t, attack_card=None: hiss)
     on_deck(table, game, "Feint", "Breather")
-    hit(session, table, game, DEVIL, [DEVIL, "Feint", "Breather"])
-    msgs = done(session, table, 2)
-    feint = sid(game, "Feint")
-    assert said(msgs, "Feint vuelve al mazo") and session.pending_discard is None
-    assert not said(msgs, "de tu mano en tu descarte")
-    table.human_discard.remove(feint)                                                # the human shuffles it into the deck as told
-    table.human_deck.append(feint)
-    msgs = click(session, table, Event.END_ACTION)
-    assert not said(msgs, "Aun no veo") and not said(msgs, "Descarta") and session.pending_discard is None
+    human_hand(table, game, DEVIL, "Son Of A Boxer", "Grappling Hook")
+    attack(session, table, game, DEVIL, attacker="daredevil", target="medusa")
+    out = done(session, table, 2)                                                    # blind boost 1: the top Feint
+    feint, boxer = sid(game, "Feint"), sid(game, "Son Of A Boxer")
+    assert table.human_discard == [feint] and session.pending_discard["n"] == 1 and not session.pending_discard.get("cards")
+
+    def discard_for_hiss():
+        table.human_discard.append(boxer)
+        table.human_hand.remove(boxer)
+        table.human_count -= 1
+    if discard_before_end:
+        discard_for_hiss()
+    out += click(session, table, Event.END_ACTION)                                   # the Devil's AFTER: the bot shuffles the pile cards
+    assert feint not in table.human_discard, "the bot moved the Feint back into the deck"
+    if not discard_before_end:
+        discard_for_hiss()
+    out += click(session, table, Event.END_ACTION)                                   # the first one closed the combat's AFTER; this one checks the debt
+    assert not said(out, "de tu mano en tu descarte") and not said(out, "Aun no veo")
+    assert session.pending_discard is None, (out, session.pending_discard)
+
+
+@with_rig("Hiss and Slither", bot="medusa")
+def test_live_sequence_devil_blind_boost_hiss_then_shuffle_never_blocks_end_action(rig, monkeypatch):
+    """Live 18/11 (16:13-16:15): the blind-boosted Feint was owed from the hand, the Devil's AFTER shuffled it away, End action blocked."""
+    hiss_sequence(rig, monkeypatch, discard_before_end=False)
+
+
+@with_rig("Hiss and Slither", bot="medusa")
+def test_live_sequence_with_the_hiss_discard_already_on_the_pile_at_the_first_end_action(rig, monkeypatch):
+    hiss_sequence(rig, monkeypatch, discard_before_end=True)
+
+
+@with_rig()
+def test_the_deck_discard_marks_are_cleared_on_every_button_even_one_refused_early(rig):
+    session, table, game, fake, cfg = rig
+    game.fx.deck_discarded.update({17604, 17605})
+    click(session, table, Event.STOP_REVEAL)                                         # an early return of `_handle`
+    assert game.fx.deck_discarded == set()
+    game.fx.deck_discarded.add(17604)
+    click(session, table, Event.REVEAL)                                              # "no pending combat": a refused button
+    assert game.fx.deck_discarded == set()
+
+
+@with_rig()
+def test_the_table_hand_counts_the_draws_still_owed_after_a_pending_discard(rig, monkeypatch):
+    session, table, game, fake, cfg = rig
+    human_hand(table, game, "Feint", "Breather", "Grappling Hook")
+    session.pending_discard = {"n": 1, "baseline": 0, "kind": "cards", "hand": True}
+    game.drawn[1] = session.human_dealt + 2
+    assert session._table_hand_size(1) == 3 + 2
 
 
 # ---------------------------------------------------------------- Take A Knee
