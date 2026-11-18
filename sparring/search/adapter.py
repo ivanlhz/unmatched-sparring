@@ -35,6 +35,7 @@ threatened through whichever of them the rival reaches.
 """
 from __future__ import annotations
 
+import os
 import random
 from dataclasses import dataclass, field, replace
 from functools import lru_cache
@@ -188,6 +189,8 @@ def by_title(hand: list[Card], title: str) -> Card:
 _near_cache: dict[tuple, int] = {}
 _moves_cache: dict[tuple, list] = {}
 MOVES_CACHE_MAX = 50_000
+_pure_loss_cache: dict[tuple, bool] = {}
+PURE_LOSS_SHADOW = {"on": os.environ.get("SPARRING_PURE_LOSS_SHADOW") == "1", "verdicts": 0, "hits": 0, "disagree": []}
 
 
 def reach(game: Game, f: Fighter, steps: int, through: bool = False) -> frozenset[int]:
@@ -840,6 +843,38 @@ class EngineState:
         return out
 
     def _pure_loss(self, p: int, card: Card, variant: str | None) -> bool:
+        """`_judge_pure_loss`, memoized by what the verdict reads of the state: everything of the mover's and the
+        public cards and pieces, and of the rival only the sizes of hand and deck (the determinization re-samples
+        their ids and order at every iteration, and a scheme that only spends moves none of them)."""
+        key = self._pure_loss_key(p, card, variant)
+        verdict = _pure_loss_cache.get(key)
+        shadow = PURE_LOSS_SHADOW
+        if shadow["on"]:
+            exact = self._judge_pure_loss(p, card, variant)
+            shadow["verdicts"] += 1
+            if verdict is not None:
+                shadow["hits"] += 1
+                if verdict != exact:
+                    shadow["disagree"].append((card.title, variant, verdict, exact))
+            else:
+                _pure_loss_cache[key] = exact
+            return exact
+        if verdict is None:
+            if len(_pure_loss_cache) >= MOVES_CACHE_MAX:
+                _pure_loss_cache.clear()
+            verdict = _pure_loss_cache[key] = self._judge_pure_loss(p, card, variant)
+        return verdict
+
+    def _pure_loss_key(self, p: int, card: Card, variant: str | None) -> tuple:
+        g = self.game
+        mine, rival = g.players[p], g.players[1 - p]
+        ids = lambda cards: tuple(c.card_id for c in cards)
+        return (card.card_id, variant, p, g.turn, g.actions_left, g.board.key, ids(mine.hand), tuple(sorted(ids(mine.deck))),
+                ids(mine.discard), ids(rival.discard), len(rival.hand), len(rival.deck), tuple(g.drawn),
+                tuple((fid, f.hp, f.pos, f.alive) for fid, f in sorted(g.fighters.items())),
+                tuple(g.fx.ongoing_card_id(q) for q in (0, 1)), repr(g.fx.statuses), repr(g.fx.modifiers), repr(g.fx.counters))
+
+    def _judge_pure_loss(self, p: int, card: Card, variant: str | None) -> bool:
         """The scheme, played here as `apply` would, only spends: its own card and action, and maybe more cards of the
         hand (No, Really, I'm a Doctor with nobody to heal puts one back on the deck). Nothing else moved: no piece, no
         health, no ONGOING or status, no rival card, no draw, no action handed back, no card gained. Such a line is not a

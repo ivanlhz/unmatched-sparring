@@ -302,4 +302,6 @@ def test_default_budget_decides_under_two_seconds(game):
     ai.plan(game)
     elapsed = time.perf_counter() - t0
     assert elapsed < 2.0, f"{elapsed:.2f}s"
+    # Measured 18/11/2026 (1.5 s budget, warm runs): 746-805 iterations, 770-908 before F-STRANGE-REALLY-FULL-HP (no scheme
+    # here is a pure loss); 500 is ~62 % of the median.
     assert ai.last_report.iterations > 500, ai.last_report.iterations

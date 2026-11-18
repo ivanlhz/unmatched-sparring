@@ -237,6 +237,8 @@ def test_a_box_hero_decides_within_the_default_time_budget(bprd):
     ai.plan(g)
     elapsed = time.perf_counter() - t0
     assert elapsed < 2.0 and ai.fallbacks == 0, f"{elapsed:.2f}s"
+    # Floor from measured runs (18/11/2026, 1.5 s budget, warm runs): 414-444 iterations with the pure-loss verdict memoized,
+    # 305-321 without it (72fd360) and 625-669 before F-STRANGE-REALLY-FULL-HP. 300 is ~68 % of today's median.
     assert ai.last_report.iterations > 300, ai.last_report.iterations
 
 

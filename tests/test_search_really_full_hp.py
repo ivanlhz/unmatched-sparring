@@ -7,6 +7,7 @@ import random
 import pytest
 
 from sparring.board import Board
+from sparring.search import adapter
 from sparring.search.adapter import EngineState
 from sparring.search.controller import make_bot_ai
 from sparring.state import Game
@@ -124,3 +125,28 @@ def test_judging_a_scheme_leaves_the_live_rng_alone(scheme):
     before = g.rng.getstate()
     assert scheme in [m[1] for m in scheme_moves(ai, g)]
     assert g.rng.getstate() == before
+
+
+def test_the_verdict_is_judged_once_for_every_hidden_rival_hand(monkeypatch):
+    """The determinization re-samples the rival's hand and deck every iteration: the verdict must not depend on them."""
+    adapter._pure_loss_cache.clear()
+    calls: list = []
+    real = EngineState._judge_pure_loss
+    monkeypatch.setattr(EngineState, "_judge_pure_loss", lambda self, *a: (calls.append(a), real(self, *a))[1])
+    ai, g = table()
+    for resample in range(4):
+        other = g.clone()
+        rival = other.players[1]
+        pile = rival.hand + rival.deck
+        random.Random(resample).shuffle(pile)
+        rival.hand[:], rival.deck[:] = pile[:len(rival.hand)], pile[len(rival.hand):]
+        EngineState(other, observer=0, knowledge=ai.knowledge(other), weights=ai.weights).legal_moves()
+    assert len(calls) == 1
+    adapter._pure_loss_cache.clear()
+
+
+def test_the_verdict_changes_with_the_health_it_is_keyed_on():
+    ai, g = table()
+    hurt = g.clone()
+    hurt.fighters["strange"].hp = 6
+    assert scheme_moves(ai, g) == [] and [m[1] for m in scheme_moves(ai, hurt)] == [REALLY]
