@@ -18,7 +18,7 @@ Electron app that runs the bot as a child process and shows what it says.
 report in the console area.
 
 The options are the command line ones (see the main README, section 4): who goes first, both heroes (automatic or a
-hero, never the same on both sides), language (English by default; the selector at the top right of the window changes it, the window follows it too, and the choice is remembered), the AI, its difficulty (with ISMCTS: Easy is the evaluation of 0.7, `--ai-eval old`; Hard, the default, is the new one, `--ai-eval new`; saved with the other options and applied on the next START, since the form is locked while the bot runs) and its think time, the pause
+hero, never the same on both sides), language (English by default; the selector at the top right of the window changes it, the window follows it too, and the choice is remembered), the difficulty (Easy: the quick heuristic bot, `--ai heuristic`; Normal: ISMCTS with the evaluation of 0.7, `--ai ismcts --ai-eval old`; Hard, the default: ISMCTS with the new evaluation, `--ai-eval new`; saved with the other options and applied on the next START, since the form is locked while the bot runs; options saved by an older launcher map `ai` heuristic to Easy and ismcts to Hard) and, for Normal and Hard, the think time, the pause
 between bot actions, resume the saved game. **Advanced** holds the ports, a configuration file and `--timing`.
 
 Where things are kept:

@@ -5,8 +5,7 @@ const DEFAULTS = Object.freeze({
   botHero: 'auto',
   humanHero: 'auto',
   language: 'en',   // the launcher starts in English; the bot's own command line default stays Spanish
-  ai: 'heuristic',
-  difficulty: 'hard',   // ISMCTS only: hard = the evaluation of 0.8 (--ai-eval new), easy = the one of 0.7 (--ai-eval old)
+  difficulty: 'hard',   // easy = the heuristic bot, normal = ISMCTS with the evaluation of 0.7, hard = ISMCTS with the new one
   aiTime: 1.5,
   botPause: '',
   resume: false,
@@ -19,8 +18,7 @@ const DEFAULTS = Object.freeze({
 const CHOICES = {
   first: ['human', 'bot', 'random'],
   language: ['es', 'en'],
-  ai: ['heuristic', 'ismcts'],
-  difficulty: ['easy', 'hard'],
+  difficulty: ['easy', 'normal', 'hard'],
 };
 
 function isPort(value) {
@@ -33,6 +31,8 @@ function normalize(saved, heroSlugs) {
   for (const key of Object.keys(DEFAULTS)) {
     if (saved && saved[key] !== undefined && typeof saved[key] === typeof DEFAULTS[key]) o[key] = saved[key];
   }
+  // Before the difficulty existed the launcher saved `ai`: the heuristic is Easy, anything else keeps the search at Hard.
+  if (saved && saved.difficulty === undefined && saved.ai === 'heuristic') o.difficulty = 'easy';
   if (saved && typeof saved.botPause === 'number') o.botPause = saved.botPause;
   for (const [key, allowed] of Object.entries(CHOICES)) if (!allowed.includes(o[key])) o[key] = DEFAULTS[key];
   for (const key of ['botHero', 'humanHero']) if (o[key] !== 'auto' && !heroSlugs.includes(o[key])) o[key] = 'auto';
@@ -43,7 +43,7 @@ function normalize(saved, heroSlugs) {
 function validate(o) {
   if (o.botHero !== 'auto' && o.botHero === o.humanHero) return { key: 'error.same_hero' };
   if (!isPort(o.sendPort) || !isPort(o.listenPort) || o.sendPort === o.listenPort) return { key: 'error.ports' };
-  if (o.ai === 'ismcts' && !(o.aiTime >= 0.1 && o.aiTime <= 60)) return { key: 'error.ai_time' };
+  if (o.difficulty !== 'easy' && !(o.aiTime >= 0.1 && o.aiTime <= 60)) return { key: 'error.ai_time' };
   if (o.botPause !== '' && !(o.botPause >= 0 && o.botPause <= 30)) return { key: 'error.bot_pause' };
   return null;
 }
@@ -55,8 +55,8 @@ function buildArgs(o, { readOnly = false } = {}) {
   if (o.humanHero !== 'auto') args.push('--human-hero', o.humanHero);
   args.push('--send-port', String(o.sendPort), '--listen-port', String(o.listenPort));
   if (readOnly) return [...args, '--read-only'];
-  args.push('--first', o.first, '--ai', o.ai);
-  if (o.ai === 'ismcts') args.push('--ai-eval', o.difficulty === 'easy' ? 'old' : 'new', '--ai-time', String(o.aiTime));
+  args.push('--first', o.first, '--ai', o.difficulty === 'easy' ? 'heuristic' : 'ismcts');
+  if (o.difficulty !== 'easy') args.push('--ai-eval', o.difficulty === 'normal' ? 'old' : 'new', '--ai-time', String(o.aiTime));
   if (o.botPause !== '') args.push('--bot-pause', String(o.botPause));
   if (o.resume) args.push('--resume');
   if (o.timing) args.push('--timing');

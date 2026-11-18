@@ -43,7 +43,6 @@ function readOptions() {
     botHero: f.botHero.value,
     humanHero: f.humanHero.value,
     language: f.language.value,
-    ai: f.ai.value,
     difficulty: f.difficulty.value,
     aiTime: Number(f.aiTime.value),
     botPause: number(f.botPause),
@@ -61,7 +60,6 @@ function writeOptions(o) {
   f.language.value = o.language;
   f.botHero.dataset.value = o.botHero;
   f.humanHero.dataset.value = o.humanHero;
-  f.ai.value = o.ai;
   f.difficulty.value = o.difficulty;
   f.aiTime.value = o.aiTime;
   f.botPause.value = o.botPause;
@@ -96,8 +94,8 @@ function showFormError(error) {
 
 function syncForm() {
   const o = readOptions();
-  document.getElementById('ai-time-field').hidden = o.ai !== 'ismcts';
-  document.getElementById('difficulty-field').hidden = o.ai !== 'ismcts';
+  document.getElementById('ai-time-field').hidden = o.difficulty === 'easy';
+  document.getElementById('difficulty-hint').textContent = t(`hint.difficulty.${o.difficulty}`);
   showFormError(o.botHero !== 'auto' && o.botHero === o.humanHero ? { key: 'error.same_hero' } : null);
 }
 
@@ -166,8 +164,8 @@ async function init() {
   syncForm();
   window.sparring.onBot(onBot);
   const onChange = () => {
-    syncForm();
     if (form.elements.language.value !== document.documentElement.lang) translate();
+    syncForm();
     window.sparring.saveOptions(readOptions());
   };
   form.addEventListener('change', onChange);
