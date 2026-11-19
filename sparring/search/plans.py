@@ -11,6 +11,9 @@ import time
 from ..ai_medusa import MedusaAI
 from .adapter import EngineState, by_title, sidekick_plan
 
+PLAN_SAMPLES = 16
+GAIN_SIGMAS = 1.65       # one-sided 95% on the paired gain over the tree's line
+
 
 def best_blow(state, allowed=None):
     game = state.game
@@ -121,6 +124,11 @@ def continuation(sample, line, rng, turns, withdraw=False):
             if blow:
                 apply_line(sample, blow)
                 continue
+            if sample.game.turn_no == start and sample.game.actions_left > 0:
+                walk = withdraw_action(sample)     # no blow this turn: the follow-up is the same unboosted walk to cover for every line, not a random move
+                if walk:
+                    apply_line(sample, walk)
+                    continue
             if rng.random() < 0.4:
                 schemes = [m for m in sample.legal_moves() if m[0] == "scheme"]
                 if schemes:
@@ -137,7 +145,17 @@ def continuation(sample, line, rng, turns, withdraw=False):
     return sample.evaluate(sample.observer)
 
 
-def compare_plans(root: EngineState, chosen, config, deadline):
+def tree_preference(tree_values, chosen, line):
+    """How much the tree's root statistics prefer its own first action over the first action of `line` (0 when either is unvisited or they coincide)."""
+    if not tree_values:
+        return 0.0
+    own, other = tree_values.get(tuple(chosen[0])), tree_values.get(tuple(line[0]))
+    if own is None or other is None:
+        return 0.0
+    return max(0.0, own - other)
+
+
+def compare_plans(root: EngineState, chosen, config, deadline, tree_values=None):
     if chosen[0][0] not in ("maneuver", "attack", "scheme"):
         return chosen, None
     if deadline is not None and time.perf_counter() >= deadline:
@@ -152,7 +170,7 @@ def compare_plans(root: EngineState, chosen, config, deadline):
         lines["hit_and_withdraw"] = pressure
     if len(lines) == 1:
         return chosen, None
-    totals = dict.fromkeys(lines, 0.0)
+    values = {name: [] for name in lines}
     rng = random.Random(config.seed)
     # If the bot is trailing with the shorter deck, delay is expensive. Include one
     # more exchange to see the cards and life the extra maneuvers will cost.
@@ -161,7 +179,7 @@ def compare_plans(root: EngineState, chosen, config, deadline):
     short_deck = len(g.players[me].deck) < len(g.players[1 - me].deck)
     turns = 4 if trailing and short_deck else 2
     samples = 0
-    for _ in range(16):
+    for _ in range(PLAN_SAMPLES):
         if deadline is not None and time.perf_counter() >= deadline:
             break
         world = root.clone()
@@ -172,14 +190,29 @@ def compare_plans(root: EngineState, chosen, config, deadline):
             # Game.clone shares its RNG. Give both alternatives the same independent
             # stream for shuffles and random card effects as well as for the policy.
             trial.game.rng = random.Random(seed)
-            totals[name] += continuation(trial, line, random.Random(seed), turns, withdraw=name == "hit_and_withdraw")
+            values[name].append(continuation(trial, line, random.Random(seed), turns, withdraw=name == "hit_and_withdraw"))
         samples += 1
     if not samples:
         return chosen, None
-    scores = {name: total / samples for name, total in totals.items()}
-    best = max(scores, key=scores.get)
-    selected = best if samples >= 4 and scores[best] > scores["tree"] + 0.01 else "tree"
+    scores = {name: sum(v) / samples for name, v in values.items()}
+    # The samples are paired (same deal, same stream), so an alternative replaces the tree's action only when its mean gain
+    # clears its own standard error: at 16 samples a fixed 0.01 margin picks noise (+0.05 for a plan that skipped the scheme drawing the only defence card).
+    # The gain must also outweigh how much the tree itself preferred its action over the plan's first one: on 18/11 T15 the tree
+    # rated Child of the Elder Blood 0.042 above the attack and the plans' +0.040 swapped it anyway (Cloak cancelled the attack).
+    # On T9 the tree had the two within 0.003 and the swap gave the best blow of the game.
+    selected = "tree"
+    gains_report = {}
+    for name in lines:
+        if name == "tree" or samples < 4:
+            continue
+        gains = [a - b for a, b in zip(values[name], values["tree"])]
+        mean = sum(gains) / samples
+        error = (sum((x - mean) ** 2 for x in gains) / (samples - 1) / samples) ** 0.5
+        preference = tree_preference(tree_values, chosen, lines[name])
+        gains_report[name] = {"gain": round(mean, 4), "error": round(error, 4), "tree_preference": round(preference, 4)}
+        if mean > preference + max(0.01, GAIN_SIGMAS * error) and (selected == "tree" or scores[name] > scores[selected]):
+            selected = name
     return list(lines[selected]), {
-        **scores, "samples": samples, "turns": turns,
+        **scores, "samples": samples, "turns": turns, "gains": gains_report,
         "tree_line": chosen, "pressure_line": pressure, "selected": selected,
     }

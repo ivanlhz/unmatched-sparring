@@ -56,3 +56,34 @@ def test_hellboy_compares_lobsters_attack_with_stalling_on_the_shorter_deck():
     _, result = compare_plans(root, walk, ai.config, deadline=None)
     assert result["turns"] == 4 and result["samples"] == 16
     assert result["pressure_line"][0] == ("attack", "lobster", "wyatt")
+
+
+# Root values of the live tree at 18/11 22:48:53 (decisions.jsonl, game 20261118-223509-dcd5, seq 22).
+CIRI_T15_TREE = {("scheme", "Child of the Elder Blood", None, None): 0.4666, ("maneuver", None): 0.4507,
+                 ("maneuver", "Channel the source"): 0.4303, ("attack", "ciri", "strange"): 0.425,
+                 ("maneuver", "The lady of space and time"): 0.4191}
+
+
+def test_plans_keep_the_action_the_tree_clearly_preferred():
+    """Seed 0 reproduces the live comparison (tree 0.365, hit and withdraw 0.405). The +0.040 gain is consistent across samples,
+    so only the tree's own 0.042 preference for the scheme keeps it; without the tree's values the swap that lost 5 life comes back."""
+    scheme = [("scheme", "Child of the Elder Blood", None, None)]
+    picks = {}
+    for tree_values in (None, CIRI_T15_TREE):
+        ai = make_ai("ismcts", new_eval=True)
+        game = build("ciri_strange_t15_hit_and_withdraw", ai)
+        root = EngineState(game, observer=0, knowledge=ai.knowledge(game), weights=ai.weights)
+        line, result = compare_plans(root, scheme, ai.config, deadline=None, tree_values=tree_values)
+        picks[tree_values is not None] = (result["selected"], line)
+        assert round(result["tree"], 3) == 0.365 and round(result["hit_and_withdraw"], 3) == 0.405
+    assert picks[False][0] == "hit_and_withdraw"
+    assert picks[True] == ("tree", scheme)
+
+
+def test_tree_preference_is_zero_when_the_tree_did_not_weigh_the_plans_first_action():
+    from sparring.search.plans import tree_preference
+    scheme = [("scheme", "Child of the Elder Blood", None, None)]
+    assert tree_preference(CIRI_T15_TREE, scheme, [("attack", "ciri", "strange"), ("attack_card", "ciri", "Blink")]) == 0.4666 - 0.425
+    assert tree_preference(CIRI_T15_TREE, scheme, [("attack", "ihuarraquax", "strange")]) == 0.0
+    assert tree_preference(None, scheme, [("attack", "ciri", "strange")]) == 0.0
+    assert tree_preference(CIRI_T15_TREE, [("attack", "ciri", "strange")], scheme) == 0.0

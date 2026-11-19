@@ -1822,5 +1822,82 @@
       ]
     },
     "good_player": "Compare a Lobster attack against the cost of delaying with one life and the shorter deck."
+  },
+  "ciri_strange_t15_hit_and_withdraw": {
+    "source": "Live game 18/11 22:35 (Ciri bot, ISMCTS 3 s, eval=new, against Doctor Strange played by Ivan; game id 20261118-223509-dcd5), turn 15, decision 22 (22:48:53). Spaces, hit points, the bot's hand and both discard piles are the live ones (DISCARD lines of session.log, Dark Pact returns removed); counts match the journal (both sides hand 6, deck 11, discard 13). Strange's hand is drawn from the pool the bot has not seen. The tree's first choice by visits was Child of the Elder Blood (195 visits, 0.467); the plan comparator swapped in hit_and_withdraw (0.405 against 0.365 over 16 samples): Cloak of Levitation cancelled Blink, the withdrawal moved nobody and Strange dealt 5 the next turn.",
+    "heroes": [
+      "ciri",
+      "doctor-strange"
+    ],
+    "board": "bprd-hq",
+    "seed": 15,
+    "turn": 0,
+    "turn_no": 15,
+    "actions_left": 2,
+    "fighters": {
+      "ciri": {
+        "pos": 3,
+        "hp": 9
+      },
+      "ihuarraquax": {
+        "pos": 22,
+        "hp": 3
+      },
+      "strange": {
+        "pos": 4,
+        "hp": 9
+      },
+      "wong": {
+        "pos": 1,
+        "hp": 6
+      }
+    },
+    "hands": {
+      "0": [
+        "Child of the Elder Blood",
+        "The lady of space and time",
+        "Child of the Elder Blood",
+        "Channel the source",
+        "Blink",
+        "The lady of space and time"
+      ],
+      "1": []
+    },
+    "hand_sizes": {
+      "1": 6
+    },
+    "discard": {
+      "0": [
+        "Bane of the Aen Elle",
+        "Blink",
+        "Zireael",
+        "Lion cub of Cintra",
+        "Parry",
+        "Searching strike",
+        "Bane of the Aen Elle",
+        "Bane of the Aen Elle",
+        "Channel the source",
+        "Unicorn ally",
+        "Pushed to the brink",
+        "Channel the source",
+        "Zireael"
+      ],
+      "1": [
+        "Master of Kamar-Taj",
+        "Steadfast Disciple",
+        "Bolts of Balthakk",
+        "Steadfast Disciple",
+        "Master of Kamar-Taj",
+        "The Winds of Watoomb",
+        "Eye of Agamotto",
+        "Feint",
+        "Bolts of Balthakk",
+        "The Mists of Munnopor",
+        "The Winds of Watoomb",
+        "The Rings of Raggadorr",
+        "Seven Suns of Cinnibus"
+      ]
+    },
+    "good_player": "Keep the tree's scheme unless hitting and withdrawing is clearly better: against a full hand Strange can cancel the attack, so the 0.04 edge over 16 samples is noise."
   }
 }

@@ -151,8 +151,8 @@ class IsmctsMedusa(Controller):
         cfg = replace(self.config, time_budget=self.config.time_budget * 0.85,
                       turn_horizon=danger, c_uct=0.2 if danger else self.config.c_uct)
         line = self._decide(root, cfg)
-        line, plans = compare_plans(root, line, cfg, deadline)
         report = self.last_report
+        line, plans = compare_plans(root, line, cfg, deadline, tree_values=report.values if report else None)
         report.plans = plans
         if plans and plans["selected"] != "tree":
             report.move = line[0]
