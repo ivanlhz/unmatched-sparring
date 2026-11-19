@@ -1,5 +1,15 @@
 # Changelog
 
+## 0.9.0 · 2026-11-19
+
+Changes since 0.8.0.
+
+### AI
+- **Turn plans** (Hard difficulty, ISMCTS with the new evaluation): before acting, the search compares its own line with a pressure plan (the best blow now) and, with two actions left, hitting and then withdrawing. Each plan is played on 16 shared deals through the rival's reply (two turns, four when the bot trails with the shorter deck) and replaces the tree's action only when its gain is clear: above its own noise and above how much the tree preferred its action. The decision journal records the three scores, the gains and the plan chosen.
+- With no blow left in the turn, the comparison spends the remaining action on the same unboosted withdrawal for every plan instead of a random move.
+- Fixed: a plan could skip the scheme that draws the only defence card (Sinbad's Regroup), and a hit-and-withdraw plan overrode a scheme the tree clearly preferred (Ciri against Doctor Strange, turn 15 of the 18/11 game: Cloak of Levitation cancelled the attack).
+- Regression position from the 18/11 Ciri vs Doctor Strange game.
+
 ## 0.8.0 · 2026-11-18
 
 Changes since 0.7.2.
