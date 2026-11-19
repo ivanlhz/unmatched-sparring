@@ -1444,5 +1444,460 @@
       ]
     },
     "good_player": "Liz is ranged and Sinbad is within reach, yet the bot maneuvers in a near tie while Sinbad's Voyage pile grows. INFORMATIONAL, no criterion: attacking is not clearly better. The only attacks in hand are Burning Barrier and Pyrotechnics (defence cards played as attacks) and Flame Lash (1 + the boost of the bottom card), against Sinbad at 13-14 HP; a maneuver draws a card (Incinerate comes up often and is then played). Playing both sides on with the new evaluation from the position (100 iterations, forced first action) Liz scores 0.13 (attack, n=24) against 0.21 (maneuver, n=19) at T14 and 0.21 (n=24) against 0.19 (n=16) at T12: the differences are inside the noise (about 0.09), and Liz is the loser of the position either way (about 0.2)."
+  },
+  "ciri_sinbad_t15_flee": {
+    "source": "Live game 18/11 14:06 (Ciri bot, ISMCTS 3 s, eval=new, against Sinbad played by Ivan; game id 20261118-140628-b775), turn 15, decision 22 (14:21:55). Spaces, hit points, the bot's hand and both discard piles are the live ones (DISCARD lines of state/session.log); counts match the journal (bot hand 5, deck 16; Sinbad hand 7, pile 11 with 4 Voyages). Sinbad's hand is drawn from the pool the bot has not seen. The live bot boosted a maneuver with Bane of the Aen Elle to move Ciri one space (19 -> 20), then boosted again with Child of the Elder Blood to end on Ciri 5 / Ihuarraquax 14, and Sinbad (6 steps: 2 + 4 Voyages) reached her unboosted and killed her.",
+    "heroes": [
+      "ciri",
+      "sinbad"
+    ],
+    "board": "bprd-hq",
+    "seed": 15,
+    "turn": 0,
+    "turn_no": 15,
+    "actions_left": 2,
+    "fighters": {
+      "ciri": {
+        "pos": 19,
+        "hp": 2
+      },
+      "ihuarraquax": {
+        "pos": 4,
+        "hp": 4
+      },
+      "sinbad": {
+        "pos": 18,
+        "hp": 12
+      },
+      "porter": {
+        "pos": null,
+        "hp": 0,
+        "alive": false
+      }
+    },
+    "hands": {
+      "0": [
+        "Child of the Elder Blood",
+        "Child of the Elder Blood",
+        "Channel the source",
+        "Channel the source",
+        "Bane of the Aen Elle"
+      ],
+      "1": []
+    },
+    "hand_sizes": {
+      "1": 7
+    },
+    "discard": {
+      "0": [
+        "Bane of the Aen Elle",
+        "Parry",
+        "Channel the source",
+        "Parry",
+        "Searching strike",
+        "Blink",
+        "The lady of space and time",
+        "Lion cub of Cintra",
+        "Bane of the Aen Elle"
+      ],
+      "1": [
+        "Toil and Danger",
+        "Voyage to the Cannibals With the Root of Madness",
+        "Momentous Shift",
+        "Leap Away",
+        "Voyage to the Valley of the Giant Snakes",
+        "Feint",
+        "By Fortune and Fate",
+        "Regroup",
+        "Exploit",
+        "Voyage to the City of the Man-Eating Apes",
+        "Voyage to the City of the King of Serendib"
+      ]
+    },
+    "good_player": "Ciri at 2 HP; Sinbad on 18 walks 6 (2 + 4 Voyages) and a boost adds 2 more (Commanding Impact unplayed). Any blow kills her. A good player ends the turn where Sinbad cannot reach her unboosted, screening with Ihuarraquax (Ciri 0 / Ihuarraquax 14 is the one such end), and does not spend a card to move one space."
+  },
+  "sinbad_liz_t7_passive": {
+    "source": "Live game 18/11 14:33 (Sinbad bot, ISMCTS 3 s, eval=new, against Liz Sherman played by Ivan; game id 20261118-143356-f564), turn 7, decision 9 (14:42:19). Spaces, hit points and the bot's hand and pile are the live ones; counts match the journal (bot hand 5, deck 20, pile 5; Liz hand 5, deck 19, pile 7). Liz's pile is approximate (Wildfire returns burning cards to her hand; the log does not say every one): its count is the journal's, Pyrotechnics is the card the bot saw in her hand. The Porter is dead (Wildfire at T6). The live bot maneuvered twice (0 -> 3 -> 1) with no Voyage in its pile, and Liz walked in and attacked.",
+    "heroes": [
+      "sinbad",
+      "liz-sherman"
+    ],
+    "board": "bprd-hq",
+    "seed": 7,
+    "turn": 0,
+    "turn_no": 7,
+    "actions_left": 2,
+    "fighters": {
+      "sinbad": {
+        "pos": 0,
+        "hp": 15
+      },
+      "porter": {
+        "pos": null,
+        "hp": 0,
+        "alive": false
+      },
+      "liz": {
+        "pos": 14,
+        "hp": 11
+      }
+    },
+    "hands": {
+      "0": [
+        "Riches Beyond Compare",
+        "Voyage Home",
+        "Feint",
+        "Toil and Danger",
+        "Voyage to the Island That Was a Whale"
+      ],
+      "1": [
+        "Pyrotechnics"
+      ]
+    },
+    "hand_sizes": {
+      "1": 5
+    },
+    "known_in_hand": {
+      "0": [
+        "Pyrotechnics"
+      ]
+    },
+    "discard": {
+      "0": [
+        "Leap Away",
+        "Momentous Shift",
+        "Leap Away",
+        "Exploit",
+        "Exploit"
+      ],
+      "1": [
+        "Fight Or Flight",
+        "Flame Lash",
+        "Pyrotechnics",
+        "Searing Clarity",
+        "Burning Barrier",
+        "Pyrotechnics",
+        "Flame Lash"
+      ]
+    },
+    "good_player": "INFORMATIONAL. Sinbad (melee, 2 + 0 Voyages) against ranged Liz three or more spaces away, with two Voyage attacks and a scheme in hand. The live bot maneuvered twice; Ivan's reading: the bot never builds its Voyage pile and stays where Liz's zone damage and ranged attacks reach it."
+  },
+  "medusa_daredevil_t8_passive": {
+    "source": "Live game 18/11 16:04 (Medusa bot, ISMCTS 3 s, eval=new, against Daredevil played by Ivan; game id 20261118-160441-42ba), turn 8, decision 10 (16:12:00). The three Harpies are dead; spaces, hit points, the bot's hand and both piles are the live ones (Devil of Hell's Kitchen shuffled four of Daredevil's cards back); counts match the journal (bot hand 4, deck 21, pile 5; Daredevil hand 2, deck 18, pile 2). The live bot maneuvered twice (10 -> 5 -> 4) without attacking while Daredevil held two cards.",
+    "heroes": [
+      "medusa",
+      "daredevil"
+    ],
+    "board": "bprd-hq",
+    "seed": 8,
+    "turn": 0,
+    "turn_no": 8,
+    "actions_left": 2,
+    "fighters": {
+      "medusa": {
+        "pos": 10,
+        "hp": 16
+      },
+      "harpy1": {
+        "pos": null,
+        "hp": 0,
+        "alive": false
+      },
+      "harpy2": {
+        "pos": null,
+        "hp": 0,
+        "alive": false
+      },
+      "harpy3": {
+        "pos": null,
+        "hp": 0,
+        "alive": false
+      },
+      "daredevil": {
+        "pos": 26,
+        "hp": 15
+      }
+    },
+    "hands": {
+      "0": [
+        "Regroup",
+        "Regroup",
+        "Hiss and Slither",
+        "Gaze of Stone"
+      ],
+      "1": []
+    },
+    "hand_sizes": {
+      "1": 2
+    },
+    "discard": {
+      "0": [
+        "Winged Frenzy",
+        "Clutching Claws",
+        "Snipe",
+        "Feint",
+        "Dash"
+      ],
+      "1": [
+        "Through Adversity",
+        "Son Of A Boxer"
+      ]
+    },
+    "good_player": "INFORMATIONAL. Medusa (ranged, 16 HP) alone against Daredevil (15 HP, two cards in hand). The live bot maneuvered twice to spaces 5 and 4 and did not attack."
+  },
+  "sinbad_liz_t17": {
+    "source": "18 November 14:33, decision 25. Board, HP, own hand and pile from the table. Liz's pile is approximate (Wildfire returns cards); her hidden hand is sampled.",
+    "heroes": [
+      "sinbad",
+      "liz-sherman"
+    ],
+    "board": "bprd-hq",
+    "seed": 17,
+    "turn": 0,
+    "turn_no": 17,
+    "actions_left": 2,
+    "fighters": {
+      "sinbad": {
+        "pos": 1,
+        "hp": 6
+      },
+      "porter": {
+        "pos": null,
+        "hp": 0,
+        "alive": false
+      },
+      "liz": {
+        "pos": 16,
+        "hp": 11
+      }
+    },
+    "hands": {
+      "0": [
+        "By Fortune and Fate",
+        "Momentous Shift",
+        "Feint",
+        "Toil and Danger",
+        "Commanding Impact",
+        "Voyage to the City of the King of Serendib"
+      ],
+      "1": []
+    },
+    "hand_sizes": {
+      "1": 4
+    },
+    "known_in_hand": {},
+    "discard": {
+      "0": [
+        "Leap Away",
+        "Momentous Shift",
+        "Leap Away",
+        "Exploit",
+        "Exploit",
+        "Toil and Danger",
+        "By Fortune and Fate",
+        "Momentous Shift",
+        "Feint",
+        "Voyage to the Island That Was a Whale",
+        "Voyage Home",
+        "Regroup",
+        "Regroup",
+        "Voyage to the City of the Man-Eating Apes",
+        "Riches Beyond Compare",
+        "Riches Beyond Compare",
+        "Toil and Danger"
+      ],
+      "1": [
+        "Incinerate",
+        "Searing Clarity",
+        "Burning Barrier",
+        "Pyrotechnics",
+        "Burning Barrier",
+        "Burning Barrier",
+        "Flame Lash",
+        "Flame Lash",
+        "Flame Lash",
+        "Pyrotechnics",
+        "Pyrotechnics",
+        "Feint",
+        "Searing Clarity",
+        "B.P.R.D. Training",
+        "Fireball",
+        "Feint",
+        "Fleeting Moments",
+        "Searing Clarity",
+        "Fleeting Moments",
+        "Fireball"
+      ]
+    },
+    "good_player": "Reach Liz without boosting and attack on the second action."
+  },
+  "hellboy_wyatt_t15": {
+    "source": "18 November 20:38, decision 26. Board, both public piles, own hand, both hand sizes and known Wyatt card come from the table. The unseen cards and deck order are sampled.",
+    "heroes": [
+      "hellboy",
+      "wyatt-earp"
+    ],
+    "board": "bprd-hq",
+    "seed": 15,
+    "turn": 0,
+    "turn_no": 15,
+    "actions_left": 2,
+    "fighters": {
+      "hellboy": {
+        "pos": 23,
+        "hp": 1
+      },
+      "lobster": {
+        "pos": 14,
+        "hp": 3
+      },
+      "wyatt": {
+        "pos": 5,
+        "hp": 15
+      },
+      "doc": {
+        "pos": null,
+        "hp": 0,
+        "alive": false
+      }
+    },
+    "hands": {
+      "0": [
+        "Horseshoes And Hand Grenades",
+        "Posthumous Power",
+        "Second Shot"
+      ],
+      "1": [
+        "Bring 'Em To Justice"
+      ]
+    },
+    "hand_sizes": {
+      "1": 3
+    },
+    "known_in_hand": {
+      "0": [
+        "Bring 'Em To Justice"
+      ]
+    },
+    "discard": {
+      "0": [
+        "Pancakes!",
+        "Excalibur",
+        "Planned Recklessness",
+        "Confront Any Demon or God",
+        "Right Hand Of Doom",
+        "Right Hand Of Doom",
+        "Glimpse Of Hell",
+        "Glimpse Of Hell",
+        "B.P.R.D. Training",
+        "Right Hand Of Doom",
+        "Confront Any Demon or God",
+        "Pancakes!",
+        "Posthumous Power",
+        "Horseshoes And Hand Grenades",
+        "And Upon His Brow Is Set A Crown Of Flame",
+        "And Upon His Brow Is Set A Crown Of Flame",
+        "On Earth As It Is In Hell",
+        "On Earth As It Is In Hell",
+        "Glimpse Of Hell",
+        "Posthumous Power"
+      ],
+      "1": [
+        "You're A Daisy If You Do",
+        "You Just Gonna Stand There And Bleed?",
+        "A Marshal And An Outlaw",
+        "You Just Gonna Stand There And Bleed?",
+        "I'm Your Huckleberry",
+        "I'm Your Huckleberry",
+        "A Marshal And An Outlaw",
+        "I Have Two Guns, One For Each Of You",
+        "Better Swear Me In",
+        "Gunfight At The O.K. Corral",
+        "You Just Gonna Stand There And Bleed?",
+        "You Die First",
+        "Second Shot",
+        "Fan The Hammer",
+        "In Vino Veritas",
+        "Second Shot"
+      ]
+    },
+    "good_player": "Compare a Lobster attack against the cost of delaying with one life and the shorter deck."
+  },
+  "ciri_strange_t15_hit_and_withdraw": {
+    "source": "Live game 18/11 22:35 (Ciri bot, ISMCTS 3 s, eval=new, against Doctor Strange played by Ivan; game id 20261118-223509-dcd5), turn 15, decision 22 (22:48:53). Spaces, hit points, the bot's hand and both discard piles are the live ones (DISCARD lines of session.log, Dark Pact returns removed); counts match the journal (both sides hand 6, deck 11, discard 13). Strange's hand is drawn from the pool the bot has not seen. The tree's first choice by visits was Child of the Elder Blood (195 visits, 0.467); the plan comparator swapped in hit_and_withdraw (0.405 against 0.365 over 16 samples): Cloak of Levitation cancelled Blink, the withdrawal moved nobody and Strange dealt 5 the next turn.",
+    "heroes": [
+      "ciri",
+      "doctor-strange"
+    ],
+    "board": "bprd-hq",
+    "seed": 15,
+    "turn": 0,
+    "turn_no": 15,
+    "actions_left": 2,
+    "fighters": {
+      "ciri": {
+        "pos": 3,
+        "hp": 9
+      },
+      "ihuarraquax": {
+        "pos": 22,
+        "hp": 3
+      },
+      "strange": {
+        "pos": 4,
+        "hp": 9
+      },
+      "wong": {
+        "pos": 1,
+        "hp": 6
+      }
+    },
+    "hands": {
+      "0": [
+        "Child of the Elder Blood",
+        "The lady of space and time",
+        "Child of the Elder Blood",
+        "Channel the source",
+        "Blink",
+        "The lady of space and time"
+      ],
+      "1": []
+    },
+    "hand_sizes": {
+      "1": 6
+    },
+    "discard": {
+      "0": [
+        "Bane of the Aen Elle",
+        "Blink",
+        "Zireael",
+        "Lion cub of Cintra",
+        "Parry",
+        "Searching strike",
+        "Bane of the Aen Elle",
+        "Bane of the Aen Elle",
+        "Channel the source",
+        "Unicorn ally",
+        "Pushed to the brink",
+        "Channel the source",
+        "Zireael"
+      ],
+      "1": [
+        "Master of Kamar-Taj",
+        "Steadfast Disciple",
+        "Bolts of Balthakk",
+        "Steadfast Disciple",
+        "Master of Kamar-Taj",
+        "The Winds of Watoomb",
+        "Eye of Agamotto",
+        "Feint",
+        "Bolts of Balthakk",
+        "The Mists of Munnopor",
+        "The Winds of Watoomb",
+        "The Rings of Raggadorr",
+        "Seven Suns of Cinnibus"
+      ]
+    },
+    "good_player": "Keep the tree's scheme unless hitting and withdrawing is clearly better: against a full hand Strange can cancel the attack, so the 0.04 edge over 16 samples is noise."
   }
 }

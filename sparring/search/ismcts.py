@@ -34,6 +34,7 @@ class SearchConfig:
     seed: int = 0
     c_uct: float = 0.7                # rewards in [0, 1]
     rollout_depth: int = 10           # cap on rollout moves; normally it stops earlier, when the turn changes
+    turn_horizon: bool = False        # F-AI-HORIZON: the tree stops where the turn under way ends (the evaluation's threat term models the rival's reply)
 
 
 @dataclass
@@ -43,6 +44,7 @@ class SearchReport:
     elapsed: float
     visits: dict[Hashable, int] = field(default_factory=dict)
     values: dict[Hashable, float] = field(default_factory=dict)
+    plans: dict | None = None
 
 
 class Edge:
@@ -118,7 +120,10 @@ class ISMCTS:
         cursor = {p: tree for p, tree in self.trees.items()}
         path: list[tuple[Edge, int]] = []
         applied: list[tuple[Move, int]] = []
+        owner0 = root.turn_owner()
         while not s.is_terminal():
+            if self.cfg.turn_horizon and s.turn_owner() != owner0:
+                break
             mover = s.player_to_move()
             if mover not in cursor:
                 # new player: its tree is born here and its cursor repeats what was already played as it sees it
@@ -151,7 +156,8 @@ class ISMCTS:
                 break
         depth = 0
         owner = s.turn_owner() if not s.is_terminal() else None
-        while not s.is_terminal() and depth < self.cfg.rollout_depth and s.turn_owner() == owner:
+        while (not s.is_terminal() and depth < self.cfg.rollout_depth and s.turn_owner() == owner
+               and (not self.cfg.turn_horizon or owner == owner0)):
             s.apply(s.rollout_move(rng))
             depth += 1
         rewards: dict[int, float] = {}
