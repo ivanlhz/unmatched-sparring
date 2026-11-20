@@ -299,12 +299,13 @@ def test_the_first_part_card_is_not_evaluated_again_with_the_second_combat(bprd,
     g, hellboy, bigfoot, a, d = mk(bprd)
     flow = CombatFlow(g, hellboy, bigfoot, give(g, a, TITLE), give(g, d, first))
     assert flow.run() is None
-    result, hand = flow.result.attacker_won, list(g.players[d].hand)
+    result, size = flow.result.attacker_won, len(g.players[d].hand)
     first_ctx = flow.runs["after:def"].ctx
     verdict = first_ctx.combat_result
     assert verdict == ("won" if first == WIN else "lost")
     sec = flow.second_flow(give(g, d, second))
     assert sec.run() is None
     assert flow.result.attacker_won == result and flow.runs["after:def"].ctx is first_ctx and first_ctx.combat_result == verdict
-    assert [c for c in g.players[d].hand if c in hand] == hand, "nothing of the first card was drawn or discarded again"
+    own_draw = DRAW_IF_WON[second] if second == WIN else 0
+    assert len(g.players[d].hand) == size + own_draw, "the hand grew only by what the second card drew: the first card did not fire again"
     assert sec.runs["after:def"] is not flow.runs["after:def"]
