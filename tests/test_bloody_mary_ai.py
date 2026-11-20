@@ -269,3 +269,36 @@ def test_on_the_rivals_turn_defending_is_not_penalized(bprd):
     give(g, 0, "Feint")
     four = ai_mary.kept_cards_bonus(g, 0)
     assert three == ai_mary.EXTRA_ACTION_CARDS and four == 0.0, "the rival is already on turn: defending from 4 (ending on 3) is worth the action, keeping the 4 is not"
+
+
+# ---------------------------------------------------------------- Stolen Memories names the highest BOOST (Ivan 2026-11-20)
+
+def name_card(bprd, bot, titles):
+    """The card the bot (player 0, hero `bot`) names out of Golden Bat's hand once a look showed it (ControllerChooser._from_rival_hand)."""
+    from sparring.effects.choose import ChoiceRequest, ControllerChooser
+    from sparring.state import Game
+    from test_bigfoot_effects import Answers
+    g = Game.new(bprd, 3, controllers={0: Answers(), 1: Answers()}, heroes=(bot, "golden-bat"), bot_player=0)
+    g.turn, g.turn_no = 0, 2
+    g.begin_turn()
+    for p in g.players:
+        p.hand.clear()
+    hand = [give(g, 1, t) for t in titles]
+    g.observe_hand(0, hand)
+    req = ChoiceRequest(kind="cards", player=0, options=[c.card_id for c in hand], min=1, max=1, prompt="", extra={"zone": "hand", "of": 1})
+    named, = ControllerChooser._from_rival_hand(g, req, 1)
+    return {c.card_id: c for c in hand}[named].title
+
+
+# Golden Bat's cards: Super Strength is worth 5.5 to them with BOOST 1, Alpine Fortress 3.5 with BOOST 3, He Laughs at Your Feebleness 6.5 with BOOST 3
+def test_stolen_memories_names_the_card_with_the_highest_boost_not_the_most_valuable(bprd):
+    assert name_card(bprd, "bloody-mary", ["Super Strength", "Alpine Fortress"]) == "Alpine Fortress"
+
+
+def test_stolen_memories_breaks_a_tie_of_boost_by_the_card_worth_more_to_them(bprd):
+    assert name_card(bprd, "bloody-mary", ["Alpine Fortress", "He Laughs at Your Feebleness"]) == "He Laughs at Your Feebleness"
+    assert name_card(bprd, "bloody-mary", ["He Laughs at Your Feebleness", "Alpine Fortress"]) == "He Laughs at Your Feebleness"
+
+
+def test_the_boost_rule_is_hers_only_another_hero_keeps_the_shared_ranking(bprd):
+    assert name_card(bprd, "hellboy", ["Super Strength", "Alpine Fortress"]) == "Super Strength"

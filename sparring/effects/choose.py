@@ -161,7 +161,8 @@ class ControllerChooser:
         needs beyond what it has seen is picked by position, never by looking at identities."""
         from ..search.adapter import card_worth
         seen = {c.card_id: c for c in game.players[req.player].known.cards(game.players[of])}
-        ranked = sorted((i for i in req.options if i in seen), key=lambda i: (-card_worth(seen[i]), i))
+        key = (lambda i: (-card_worth(seen[i]), i)) if game.players[req.player].hero.fid != "mary" else (lambda i: (-seen[i].boost, -card_worth(seen[i]), i))
+        ranked = sorted((i for i in req.options if i in seen), key=key)      # Bloody Mary's Stolen Memories names the highest BOOST (Ivan 2026-11-20), ties by worth
         picked = ranked[:max(req.min, min(req.max, len(ranked)))]
         blind = [i for i in req.options if i not in picked]
         short = req.min - len(picked)
