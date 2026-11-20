@@ -174,7 +174,10 @@ class AttackDriver(Driver):
                 if self.session.pending is not None and g.turn == 1:
                     self.press(Event.NO_BOOST)                  # Turtle Power!! offers its free BOOST
                 self.choices()
-                for _ in range(3):                              # the second attack of a double attack: the bot has placed its defense, the human reveals with no card down
+                for _ in range(3):                              # the second attack of a double attack: End action closes the first combat's step and starts it;
+                    if self.session.second_next is None or g.winner is not None:      # the bot places its defense, the human reveals with no card down
+                        break
+                    self.end_action()
                     second = self.session.pending
                     if second is None or getattr(second, "second", None) is None or g.winner is not None:
                         break

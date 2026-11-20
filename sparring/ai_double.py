@@ -2,8 +2,8 @@
 
 The second attack of a card is the `second_attack` op of its AFTER (docs/effects-dsl.md section 45). The AIs read that data: the
 value of the second part given the printed value of the defense card the rival played against the first (`second_value`), what the
-card is expected to add (`second_part`: both the heuristic's `attack_outcome` and the search's evaluation of an attack use it) and how
-to defend the second part (`greedy_defense`, the search's rollouts). The live bot defends the second part with the heuristic's own
+card is expected to add (`second_part`, used by the heuristic's `attack_outcome`; the search needs no estimate, its rollouts play the second
+attack through the engine) and how to defend the second part (`greedy_defense`, the rollouts' defender). The live bot defends the second part with the heuristic's own
 defense choice, fed the exact value (`MedusaAI.choose_second_defense`): the value is public, so there is nothing to sample.
 
 A condition inside the card's AFTER is read for the only shape the box has (`test: card` on the rival's card: "if your opponent played a
@@ -62,7 +62,7 @@ def second_part(game, attacker, target, card, defense_value: int | None, spent: 
     left = target.hp - spent
     if n <= 0 or left <= 0:
         return 0.0, 0.0
-    atk = n + game.attack_bonus(attacker, target)
+    atk = n + second_bonus(game, attacker, target)
     damage = kill = 0.0
     for p, dv in dist:
         net = game.combat_damage_taken(target, max(0, atk - (dv or 0)))
@@ -71,10 +71,20 @@ def second_part(game, attacker, target, card, defense_value: int | None, spent: 
     return damage, kill
 
 
+def second_bonus(game, attacker, target) -> int:
+    """What the attacker adds to the second attack: its hero passives and the fighter's persistent attack bonus, as `CombatFlow._reveal` adds
+    them for a second attack (never the "your next attack" bonus: the first part used it)."""
+    bonus = sum(n for n, _ in game.attack_bonus_parts(attacker, target))
+    if game.fx.statuses:
+        from .effects.modifiers import fighter_attack_bonus
+        bonus += sum(n for n, _ in fighter_attack_bonus(game.fx, attacker.fid))
+    return bonus
+
+
 def greedy_defense(game, hand, attacker, target, value: int, worth: Callable) -> object | None:
     """The card of `hand` that spares the most damage against a second attack of `value`, less what the card is worth (the search's rollouts:
     cheap and deterministic). None when no card pays for itself."""
-    atk = value + game.attack_bonus(attacker, target)
+    atk = value + second_bonus(game, attacker, target)
     now = min(game.combat_damage_taken(target, atk), target.hp)
     best, best_gain = None, 0.0
     for c in hand:

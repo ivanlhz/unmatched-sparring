@@ -162,3 +162,13 @@ def test_a_rollout_defender_spends_a_card_only_when_it_spares_damage(bprd, monke
     hand_card = next(c for c in sim.players[1].hand if c.title == block.title)
     assert controller.choose_second_defense(sim, att, tgt, 3, attack) is hand_card
     assert controller.choose_second_defense(sim, att, tgt, 0, attack) is None
+
+
+def test_the_second_bonus_is_the_engines_one_without_the_next_attack_bonus(bprd):
+    from sparring.effects import modifiers
+    g, hellboy, bigfoot = duel(bprd)
+    before = ai_double.second_bonus(g, hellboy, bigfoot)
+    modifiers.add_status(g.fx, "next_attack_bonus", owner=0, until={"event": "end_of_turn"}, player=0, amount=2, label="test")
+    assert ai_double.second_bonus(g, hellboy, bigfoot) == before, "the first part used the 'next attack' bonus"
+    modifiers.add_status(g.fx, "attack_bonus", owner=0, until={"event": "end_of_turn"}, fid="hellboy", amount=1, label="nunchaku")
+    assert ai_double.second_bonus(g, hellboy, bigfoot) == before + 1, "a bonus to every attack of the fighter stays"

@@ -1,11 +1,4 @@
 # path  agent  task  UTC time   (see BRIEF: short locks only)
-docs/combat-flow.md  double-attack  review fixes  14:27Z
-sparring/ai_medusa.py  double-attack  review fixes AI  14:34Z
-sparring/search/adapter.py  double-attack  review fixes AI  14:34Z
-features.json  double-attack  review fixes AI  14:34Z
-tests/test_doctor_strange_human.py  double-attack  FakeTTS keeps played cards face up  14:37Z
-tests/test_batch.py  double-attack  click tidies the fake's combat spot  14:39Z
-tests/test_tmnt_matrix.py  double-attack  shared driver follows End action starts the second part  14:48Z
 sparring/session.py  wukong  reserve fighters skipped in setup; clone prompt; resume line  14:52Z
 sparring/effects/table.py  wukong  review fixes  14:52Z
 sparring/effects/events.py  wukong  review fixes  14:52Z

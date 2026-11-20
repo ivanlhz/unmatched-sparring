@@ -1894,7 +1894,7 @@ class MedusaAI(Controller):
         self._attacker, self._defender = attacker, target
         try:
             if second is not None:            # the second part of a double attack: its value is known and the card has no effects left
-                dist = [(1.0, second + game.attack_bonus(attacker, target))]
+                dist = [(1.0, second + ai_double.second_bonus(game, attacker, target))]
                 self._attack_harm = self._attack_harm_fixed = {}
             elif attack_card is not None:
                 dist = [(1.0, (attack_card.value or 0) + game.attack_bonus(attacker, target))]

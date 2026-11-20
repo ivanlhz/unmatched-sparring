@@ -1182,7 +1182,7 @@
     {
       "id": "F-DOUBLE-ATTACK",
       "title": "The double attack (Battle of Legends, Volume Two): a card's second attack as an AFTER COMBAT effect, for the bot and the human, in the engine, the table and the AIs",
-      "status": "done",
+      "status": "in-progress",
       "criteria": [
         "DSL: the op `second_attack` (amount) in `effects.after` of a card that attacks (docs/effects-dsl.md section 45, schema.json, validator); a condition is a plain `if` and a printed value is `{attr: value, of: opponent_card}`. tests/test_double_attack_dsl.py",
         "Engine (Ivan 20/11, rules 1-5): the op records `CombatFlow.second_attack`; once both AFTER sides are done the second attack is a combat of its own (`CombatFlow(second=value)`, `resolve_combat` plays it, `result.second`): same defender wherever it stands (a Skirmish never stops it), the defender may defend it with a new card, Feint or any cancel of the card stops it, the defender's AFTER of the first combat goes first. tests/test_double_attack_engine.py (mutation-checked)",

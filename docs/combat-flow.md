@@ -201,14 +201,14 @@ How it is built (one place: `CombatFlow`):
 
 ### Double attack at the table (session)
 
-`Pending.second` (`{"value", "card"}`, saved under `"second"`) marks the pending combat as the second attack of an already played card. `Session._after_combat`
-ends the first combat as always (result, discards, dials) and, if `flow.second_due`, calls `_begin_second_attack` instead of "combat.after":
+`Pending.second` (`{"value", "card", "spent", "guids"}`, saved under `"second"`; `spent`/`guids` are the human's own CardIDs and table objects already used by the attack) marks the pending combat as the second attack of an already played card. `Session._after_combat`
+ends the first combat as always (result, discards, dials) and, if `flow.second_due`, keeps `Session.second_next` (saved) and says `second.after_first` instead of "combat.after": the human first finishes the AFTER step of the first combat (moves by hand, parked choices such as DARK PACT), and only End action (nothing paused) calls `_begin_second_attack`, so the second defense is never asked together with that step and a second attack never starts over an unanswered choice. Then:
 
 - the human attacks: a `human_attacks` pending; the bot reads its hand, chooses with `ai.choose_second_defense` (the value is public) and places its
   defense face down (`_place_bot_card(..., second=...)`, so a late reply is recovered into the same pending); the human presses Reveal with no card down;
 - the bot attacks: a `bot_attacks` pending whose `bot_card` is the bot's card already played; the human puts a defense face down (or none) and presses Reveal.
   The human's defense may carry its own free BOOST (Out Of Time): `session_boost.offered` dry-runs the second flow;
-- `_reveal` does not ask for an attack card in a `human_attacks` second (a leftover of the first part on the table is ignored; any other card of theirs is
+- `_reveal` ignores every card the human already used in this attack (`spent` by CardID of their own deck, `guids` by table object: the real table leaves it face up on the combat spot; FakeTTS imitates that now) before it counts the cards on the table, and does not ask for an attack card in a `human_attacks` second (any other card of theirs there is
   refused), `_resolve_combat` builds `CombatFlow(..., second=value)` (`_second_flow`) instead of `begin_attack` (no action, no `attacked` event), Cancel says the
   card is played and the second part cannot be taken back, and the flow ends in `_after_combat` like any other (a second attack never starts a third).
 - Chat strings: `second.*`, `cancel.second_attack`, `err.second_no_card`, `cf.second_attack`, `narr.second_attack` (English in en.json, Spanish in es.json).
@@ -236,3 +236,9 @@ Her ability lets her owner hand part of the damage meant for her to the Archers 
 - Entering the DAMAGE phase, `step()` first calls `_assignment_wait()`: when the victim is a hero with the ability and an Archer of hers stands in her zone, it starts (or continues) the run `flow.runs["damage:def"]` (a one-op `EffectRun`, plugin `yennenga:assign_damage`, `await_key` `damage:def:assign_damage`) that asks her owner one `amount` request per Archer. A human owner pauses the flow with an ordinary `PendingChoice("effect")` (saved under `pending.flow`, answered through `flow.resume(list)`); the bot answers inside `run`. The answers wait in `run.flags["assigned"]`.
 - `_damage` then applies the shares: each Archer's as combat damage (its events fire, an Archer at 0 falls), the rest on the victim. `result.damage` and `attacker_won` stay the blow that landed on the defender's side, and the chat adds `cf.assigned` lines.
 - A second attack (double attack) is a combat of its own: it asks again. A blow of 0 asks nothing.
+
+### Pending Ivan, added with the second review
+
+10. **When the second attack starts**: after the human has finished the AFTER step of the first combat and pressed End action (for the bot's attack too), never together with it. If the human's own moves or an effect defeat a fighter in that step, the second attack is not played.
+11. **The bot's first-part defense does not look at the second part** (heuristic and search alike): defending Ruyi Jingo Bang with a card triggers its 4 ATK, and a bigger defense raises Bloody Requiem's second value. `attack_outcome` does weigh both parts when the bot attacks (per defense value the rival may hold); the defending side only prices the first part. Left unmodeled until Ivan says whether the bot should avoid defending such a card.
+
