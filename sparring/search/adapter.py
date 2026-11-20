@@ -41,7 +41,7 @@ from dataclasses import dataclass, field, replace
 from functools import lru_cache
 from math import comb, fsum, prod, sqrt
 
-from .. import enraged, pack, tracks
+from .. import ai_achilles, enraged, pack, tracks
 from ..ai_hazards import zone_cover_factor, zone_damage, zone_exposed
 from ..ai_medusa import (ATTACKS_PER_TURN, DRAWS_PER_TURN, GAZE, LONG_GAME, MIN_NET, beside_stake, boost_effect_value, bot_may_spend,
                          can_use, discard_cut, exhaustion_owed, held_for_plan, maneuver_may_spend, play_signature, scheme_fighter)
@@ -1094,7 +1094,7 @@ class EngineState:
         if alive and hero.pos is not None and beside_stake(g, p):
             next_to = sum(1 for f in side if f.alive and f.pos in g.board.adj[hero.pos]) / len(side)
         return (life + w.sidekicks * side_hp + w.beside * next_to + w.alive * alive + w.hand * hand + w.hand_reserve * reserve + w.pack * self._pack_ready(p)
-                + w.deck * deck + w.ongoing * ongoing.worth(g, p) / hero.max_hp - self._exposure(p, urgent))
+                + w.deck * deck + w.ongoing * ongoing.worth(g, p) / hero.max_hp + self._vengeance(p) - self._exposure(p, urgent))
 
     def _side_value_normalized(self, p: int, urgent: bool) -> float:
         return sum(self._side_terms(p, urgent).values())
@@ -1133,8 +1133,16 @@ class EngineState:
         if side and hero.pos is not None and beside_stake(g, p):
             next_to = sum(1 for f in side if f.alive and f.pos in g.board.adj[hero.pos]) / len(side)
         return {"life": life, "beside": w.beside * next_to, "alive": w.alive * alive, "hand": hand, "hand_reserve": w.hand_reserve * reserve,
-                "pack": w.pack * max(0, self._pack_ready(p)), "deck": deck, "ongoing": w.ongoing * ongoing.worth(g, p) / hero.max_hp,
+                "pack": w.pack * max(0, self._pack_ready(p)), "vengeance": self._vengeance(p), "deck": deck, "ongoing": w.ongoing * ongoing.worth(g, p) / hero.max_hp,
                 "exposure": -self._exposure(p, urgent), "exhaustion": -self._exhaustion(p) * hp_life}
+
+    def _vengeance(self, p: int) -> float:
+        """Achilles with Patroclus down: +2 to every attack and a card per combat won are worth `LEAF_EDGE` of life (the discard is already in the hand)."""
+        pas = ai_achilles.passive(self.game, p)
+        if pas is None or not self.game.hero(p).alive:
+            return 0.0
+        patroclus = self.game.fighters.get(pas["sidekick"])
+        return ai_achilles.LEAF_EDGE if patroclus is not None and not patroclus.alive else 0.0
 
     def _exhaustion(self, p: int) -> float:
         """Hit points that `p`'s deck will cost it through exhaustion over the rest of the game, in the units of `exhaustion_owed`: the draws it

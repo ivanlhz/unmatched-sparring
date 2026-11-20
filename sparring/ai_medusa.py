@@ -70,7 +70,7 @@ from .guard import guard_dest, hero_shielded, path_steps
 from .effects.model import walk_ops
 from .effects.modifiers import boost_limit, card_effects, defers_defeat, is_uncancelable
 from .ai_profile import FINISHER_BOOSTS, STYLE_HIT_AND_RUN, derive_style
-from . import ai_chupacabra as chupa_ai, ai_philippa, ai_rosie, ai_sinbad, ai_washington, ai_wyatt, tracks
+from . import ai_achilles, ai_chupacabra as chupa_ai, ai_philippa, ai_rosie, ai_sinbad, ai_washington, ai_wyatt, tracks
 from .ai_sinbad import own_value as sinbad_own_value, voyage_count, voyage_extra
 from .effects.select import defeated
 from .state import ANUNG, EXHAUST_DAMAGE, Fighter, Game
@@ -654,9 +654,9 @@ def kill_value(game: Game, f: Fighter) -> float:
     no sidekick kill outranks it; a big hit on the hero that does not finish it may lose to a valuable kill."""
     prof = fighter_profile(game, f)
     if prof is None:
-        return KILL_SIDEKICK
+        return KILL_SIDEKICK - ai_achilles.fall_net(game, f)
     threat = THREAT_WEIGHT * prof["attack"]["mean"] * (RANGED_THREAT if prof["ranged"] else 1.0)
-    return min(KILL_CAP, KILL_BASE + STAKE_WEIGHT * stake(game, f, prof) + threat)
+    return min(KILL_CAP, KILL_BASE + STAKE_WEIGHT * stake(game, f, prof) + threat) - ai_achilles.fall_net(game, f)     # Patroclus' fall arms Achilles (ai_achilles)
 
 
 def protect_factor(game: Game, f: Fighter) -> float:
@@ -1073,6 +1073,8 @@ class MedusaAI(Controller):
             return 5.0                  # Tomoe Gozen: against a hero this card is worth 5
         if (regicide := ai_philippa.attack_value(c, t)) is not None:
             return regicide             # Philippa: Regicide is 6 against a hero
+        if (doom := ai_achilles.attack_value(game, f, c)) is not None:
+            return doom                 # Achilles: The Day of Your Doom is 5 when Patroclus can pay its 2 damage
         if (chupa_value := chupa_ai.attack_value(game, f.owner, c)) is not None:
             return chupa_value        # Chupacabra: The More They Struggle, Ambush, Wounded Beast
         own = own_value(game, f, c)
