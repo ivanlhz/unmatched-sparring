@@ -56,14 +56,15 @@ def archers_in_zone(game, hero) -> list:
     return sorted((f for f in game.zone_mates(hero) if f.owner == hero.owner and f.name == ARCHER), key=lambda f: f.fid)
 
 
-def ask_shares(run, game, hero, damage: int, source: str) -> dict[str, int]:
+def ask_shares(run, game, hero, damage: int, source: str, reserved: dict | None = None) -> dict[str, int]:
     """What each Archer takes of `damage` meant for `hero` (fighter id -> points, only the ones above 0). Her owner is asked once
     per Archer in her zone, in fighter id order: from 0 to the least of the damage still to place and the Archer's life.
+    `reserved` (fighter id -> damage): what the same effect is about to do to an Archer itself, which its share must leave room for.
     Decisions are asked before anything is applied, so a paused run changes nothing."""
     owner, left, shares = hero.owner, int(damage), {}
     archers = archers_in_zone(game, hero)
     for i, archer in enumerate(archers):
-        room = min(left, int(archer.hp))
+        room = min(left, int(archer.hp - (reserved or {}).get(archer.fid, 0)))
         if room <= 0:
             continue
         got = run.ask(game, "amount", owner, list(range(room + 1)), 1, 1, f"damage to {archer.name}", assign=archer.fid,
@@ -75,11 +76,11 @@ def ask_shares(run, game, hero, damage: int, source: str) -> dict[str, int]:
     return shares
 
 
-def effect_shares(run, game, fighter, n) -> list[tuple]:
-    """(fighter, damage) pairs for `n` effect damage aimed at `fighter`: the Archers' shares first, then what is left for the hero."""
+def effect_shares(run, game, fighter, n, reserved: dict | None = None) -> list[tuple]:
+    """(fighter, damage) pairs for `n` effect damage (already modified) aimed at `fighter`: the Archers' shares first, then what is left for the hero."""
     if not assigns_damage(game, fighter) or n < 1:
         return [(fighter, n)]
-    shares = ask_shares(run, game, fighter, int(n), "effect")
+    shares = ask_shares(run, game, fighter, int(n), "effect", reserved)
     rest = n - sum(shares.values())
     return [(game.fighters[fid], k) for fid, k in shares.items()] + ([(fighter, rest)] if rest > 0 else [])
 
@@ -114,15 +115,9 @@ def combat_wait(flow, victim, damage):
 
 
 def combat_shares(flow, victim, damage) -> list[tuple]:
-    """(fighter, damage) pairs for the combat damage that lands on `victim`: the Archers' shares the run decided (those still on the board
-    and never above their life), then what is left for her."""
+    """(fighter, damage) pairs for the combat damage that lands on `victim`: the Archers' shares the run decided (asked from their life and
+    the damage left, and nothing happens between the question and the damage), then what is left for her."""
     run = flow.runs.get(RUN_KEY)
     assigned = {} if run is None else run.flags.get("assigned") or {}
-    shares, left = [], damage
-    for fid, k in assigned.items():
-        archer = flow.game.fighters[fid]
-        k = min(k, left, int(archer.hp)) if archer.alive else 0
-        if k > 0:
-            shares.append((archer, k))
-            left -= k
-    return shares + ([(victim, left)] if left > 0 else [])
+    shares = [(flow.game.fighters[fid], k) for fid, k in assigned.items()]
+    return shares + ([(victim, damage - sum(assigned.values()))] if damage > sum(assigned.values()) else [])

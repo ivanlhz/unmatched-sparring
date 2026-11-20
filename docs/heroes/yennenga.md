@@ -81,7 +81,7 @@ Every item that is a real doubt is also under "Pending Ivan".
 - Shield Formation, when the bot is the opponent: decided by the generic optional (simulating a discard against the Archer's return).
 - Surprise Volley: the bot returns the Archer whenever it can.
 - **Not done in the heuristic**: the card-value hooks of `MedusaAI` (Momentous Shift worth 5 after a move, Divide and Conquer 4 away from her, Jaws of the Beast +zones, Point Blank / Stallion Charge as damage). The search plays the real engine and sees them; the heuristic reads the printed values.
-- **Measured** (ISMCTS 30 iterations, scripted "chaser" Hellboy, 12 games, bot seat): Yennenga wins 1 of 12, Luke Cage 10, Sinbad 10, Jill Trent 1 of 8, Golden Bat 2 of 8; the heuristic bot wins 15 of 20 (Luke Cage 17, Chupacabra 16). Her Archers (2 life) are killed by turn 4-6 in most games; marking them `keep_away` changed nothing (1 of 12). Not tuned further: a candidate is a position bonus for Archers standing in her zone.
+- **Measured** (the reviewer's numbers, ISMCTS against the scripted chaser Hellboy, 12 games, bot seat): Yennenga 4 of 12 with the ability and 3 of 12 without it, the heuristic bot 10 of 12, 0 fallbacks. An earlier figure of mine (1 of 12) did not reproduce and is withdrawn. It is a search-versus-heuristic weakness of this deck (low printed values, fragile Archers), like Jill Trent's and Golden Bat's, not a fault of the ability. Marking the Archers `keep_away` changed nothing. Not tuned further; a candidate is a position bonus for Archers standing in her zone.
 
 ## Human side
 - The panel asks, for each Archer of hers in her zone, a number (the buttons 0, 1, 2); `--resume` repeats the question.

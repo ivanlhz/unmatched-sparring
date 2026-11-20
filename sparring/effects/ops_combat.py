@@ -263,10 +263,24 @@ def _damage(run, game, spec):
     targets = pick_fighters(game, run, spec["target"], player_of(game, run, spec.get("chooser", "owner")),
                             op="damage", amount=n)
     victims = [_damage_victim(run, game, f, n) for f in targets] if n > 0 else []
-    blows = [blow for f in victims for blow in plugins_yennenga.effect_shares(run, game, f, n)]       # Yennenga: the Archers may take it
     previous = _acting(game, run.ctx.owner)
     try:
-        hit = [f.fid for f, k in blows if game.damage(f, k, "effect") > 0]
+        # Yennenga: her owner splits the blow, once the modifiers have made it what she would take, among her Archers; what this same op
+        # does to an Archer itself is reserved, so no share lands on a fighter the op has already killed
+        reserved: dict[str, float] = {}
+        for f in victims:
+            if not plugins_yennenga.assigns_damage(game, f):
+                reserved[f.fid] = reserved.get(f.fid, 0) + game.fx.adjust_damage(f, n, "effect")
+        blows = []                                       # (fighter hit, damage, the victim it was meant for, adjusted already)
+        for f in victims:
+            if plugins_yennenga.assigns_damage(game, f):
+                blows += [(g, k, f, True) for g, k in plugins_yennenga.effect_shares(run, game, f, game.fx.adjust_damage(f, n, "effect"), reserved)]
+            else:
+                blows.append((f, n, f, False))
+        hit = []
+        for f, k, meant, adjusted in blows:
+            if game.damage(f, k, "effect", adjusted=adjusted) > 0 and meant.fid not in hit:
+                hit.append(meant.fid)
     finally:
         game.fx.acting = previous
     if "as" in spec:

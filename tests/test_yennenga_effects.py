@@ -3,6 +3,8 @@
 printed on the real cards (data/heroes/yennenga.json)."""
 from __future__ import annotations
 
+import pytest
+
 from conftest import give
 from sparring.state import Game
 from test_bigfoot_effects import Answers, empty_spaces
@@ -416,3 +418,100 @@ def test_the_archers_take_their_share_of_the_second_attack_too(bprd):
     res = g.attack(achilles, yen, give(g, 1, "Test For Weakness"), None)
     assert res.second is not None and res.second.damage == 3
     assert (a1.hp, a2.hp, yen.hp) == (1, 1, 15 - 1 - 1)
+
+
+# ---------------------------------------------------------------- effect damage: several hits of one op, modifiers, bindings
+
+def mk_seat(bprd, seat):
+    """Yennenga in `seat`, Hellboy in the other; whoever is not Yennenga plays the effect."""
+    ctl = {0: Answers(), 1: Answers()}
+    heroes = ("yennenga", "hellboy") if seat == 0 else ("hellboy", "yennenga")
+    g = Game.new(bprd, 3, controllers=ctl, heroes=heroes, bot_player=0)
+    g.turn, g.turn_no = 1 - seat, 2
+    g.begin_turn()
+    for p in g.players:
+        p.hand.clear()
+    return g
+
+
+def run_effect(g, seat, ops):
+    from sparring.effects.choose import ControllerChooser
+    from sparring.effects.run import Ctx, EffectRun
+    run = EffectRun(ops, Ctx(owner=1 - seat, this_fid="hellboy"))
+    run.run(g, {0: ControllerChooser(), 1: ControllerChooser()})
+    return run
+
+
+AREA = {"op": "damage", "target": {"side": "enemy", "pick": "all"}, "amount": 1}
+
+
+@pytest.mark.parametrize("seat", (0, 1))
+def test_an_area_effect_leaves_room_for_the_hit_it_deals_to_an_archer_itself(bprd, seat):
+    g = mk_seat(bprd, seat)
+    yen = stack(g)
+    a1, a2 = archers(g)
+    a1.hp = 1
+    g.controllers[seat].queue = [[1]]                      # only the second Archer is asked: the first has no room left once its own hit is counted
+    run_effect(g, seat, [AREA])
+    assert [r.extra["assign"] for r in g.controllers[seat].requests if r.extra.get("assign")] == ["archer2"]
+    assert (yen.hp, a1.hp, a2.hp) == (15, 0, 0)            # 3 points in all: nothing is lost on a fighter the op already killed
+
+
+@pytest.mark.parametrize("seat", (0, 1))
+def test_an_area_effect_declined_by_the_owner_still_hits_everyone_once(bprd, seat):
+    g = mk_seat(bprd, seat)
+    yen = stack(g)
+    g.controllers[seat].queue = [[0], [0]]
+    run_effect(g, seat, [AREA])
+    assert (yen.hp, *[a.hp for a in archers(g)]) == (14, 1, 1)
+
+
+@pytest.mark.parametrize("seat", (0, 1))
+def test_a_damage_bonus_applies_once_to_the_whole_blow_before_it_is_split(bprd, seat):
+    from sparring.effects import modifiers
+    g = mk_seat(bprd, seat)
+    yen = stack(g)
+    modifiers.add_modifier(g.fx, 1 - seat, 50, {"kind": "rule", "rule": "effect_damage_bonus", "amount": 1})
+    g.controllers[seat].queue = [[1], [1]]
+    run_effect(g, seat, [{"op": "damage", "target": {"side": "enemy", "kind": "hero"}, "amount": 2}])
+    asked = [r for r in g.controllers[seat].requests if r.extra.get("assign")]
+    assert asked[0].extra["damage"] == 3 and asked[0].options == [0, 1, 2]       # 2 + 1, offered as 3
+    assert (yen.hp, *[a.hp for a in archers(g)]) == (14, 1, 1)                 # 3 in all, not 4
+
+
+@pytest.mark.parametrize("seat", (0, 1))
+def test_the_fighter_the_damage_op_binds_stays_yennenga_whoever_soaked_it(bprd, seat):
+    g = mk_seat(bprd, seat)
+    stack(g)
+    g.controllers[seat].queue = [[2], [1]]
+    run = run_effect(g, seat, [{"op": "damage", "target": {"side": "enemy", "kind": "hero"}, "amount": 3, "as": "hit"}])
+    assert run.bound("hit", "fighters") == ["yennenga"] and g.fighters["yennenga"].hp == 15
+
+
+# ---------------------------------------------------------------- the two conditional values in defense and in several zones
+
+def test_momentous_shift_in_defense_is_three_unmoved_and_five_when_the_rival_moved_her(bprd):
+    values = []
+    for moved in (False, True):
+        g = mk(bprd, turn=1)
+        yen = stack(g, with_archers=0)
+        hellboy = beside(g, "hellboy", "yennenga")
+        g.fx.emit("start_of_turn", 1)
+        if moved:
+            yen.pos = next(s for s in sorted(g.board.spaces) if s not in (yen.pos, hellboy.pos) and s in g.board.adj[hellboy.pos]
+                           and all(f.pos != s for f in g.fighters.values() if f.alive))
+        res = g.attack(hellboy, yen, foe_attack(g), give(g, 0, "Momentous Shift"))
+        values.append(res.def_value)
+    assert values == [3, 5]
+
+
+def test_jaws_of_the_beast_counts_every_zone_of_a_space_in_several_zones(bprd):
+    g = mk(bprd)
+    yen = stack(g, with_archers=0)
+    taken = {f.pos for f in g.fighters.values() if f.alive}
+    spot = next(s for s in sorted(bprd.spaces) if len(bprd.zones(s)) >= 2 and s not in taken
+                and any(bprd.share_zone(s, z) and z not in taken for z in bprd.spaces))
+    g.fighters["hellboy"].pos = spot
+    yen.pos = next(z for z in sorted(bprd.spaces) if z != spot and bprd.share_zone(spot, z) and z not in taken)
+    res = g.attack(yen, g.fighters["hellboy"], give(g, 0, "Jaws of the Beast"), None)
+    assert res.atk_value == 3 + len(bprd.zones(spot)) >= 5

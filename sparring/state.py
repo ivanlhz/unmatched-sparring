@@ -583,13 +583,14 @@ class Game:
         origin, fighter.pos = fighter.pos, dest
         self.departed(fighter, origin, moved=False)
 
-    def damage(self, fighter: Fighter, n: float, source: str = "effect", by: Fighter | None = None) -> float:
+    def damage(self, fighter: Fighter, n: float, source: str = "effect", by: Fighter | None = None, adjusted: bool = False) -> float:
+        """`adjusted`: `n` already went through `fx.adjust_damage` (Yennenga's owner splits the adjusted blow among her fighters)."""
         if not fighter.alive or n <= 0:
             return 0
         if source == "effect" and self.effect_shield.get(fighter.owner) == self.turn_no:
             self.log.append(f"{fighter.fid}: effect damage prevented")
             return 0
-        n = self.fx.adjust_damage(fighter, n, source)
+        n = n if adjusted else self.fx.adjust_damage(fighter, n, source)
         if n <= 0:
             return 0
         fighter.hp -= n
