@@ -19,7 +19,7 @@ SPEAK, JUMP, OUT, MIRROR = "Speak Three Times", "Jump Scare", "Out Of The Mirror
 THIRD_ACTION_VALUE = 7
 JUMP_VALUE = 6
 TRIGGER_CARDS = 3                   # "exactly 3 cards in hand"
-EXTRA_ACTION_CARDS = 1.5            # what the extra action of next turn is worth, in cards of the hand (a Maneuver's draw and a move, or one more blow)
+EXTRA_ACTION_CARDS = 3.0            # what the extra action of next turn is worth, in cards of the hand: one more blow, about 3 hit points (1.5 and 3 steered no better than chance at 60-300 iterations)
 
 
 def is_hers(game, owner: int) -> bool:

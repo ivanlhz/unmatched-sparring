@@ -115,6 +115,7 @@ def speak_turn(bprd, kind, seed, hand=("Speak Three Times", "Evade", "Evade")):
     g.players[0].hand.clear()
     for title in hand:
         give(g, 0, title, sum(1 for c in g.players[0].hand if c.title == title))
+    g.players[0].deck.sort(key=lambda c: c.can_attack or c.is_scheme)         # the cards the Maneuvers draw cannot attack: Speak Three Times is her only blow
     g.players[1].hand.clear()
     g.begin_turn()
     assert g.actions_left == 3
@@ -123,11 +124,11 @@ def speak_turn(bprd, kind, seed, hand=("Speak Three Times", "Evade", "Evade")):
 
 
 @pytest.mark.parametrize("kind", ["heuristic", "ismcts"])
-@pytest.mark.parametrize("seed", [1, 2, 3])
+@pytest.mark.parametrize("seed", [1, 2, 3, 4])
 def test_the_bot_spends_two_actions_first_and_plays_speak_three_times_as_the_third_for_seven(bprd, kind, seed):
     g, ai, b = speak_turn(bprd, kind, seed)
     ai.take_turn(g)
-    assert b.max_hp - b.hp >= 7, "Speak Three Times was played before the third action (3 damage instead of 7)"
+    assert b.max_hp - b.hp == 7, "Speak Three Times was not played as the third action (3 damage, or none)"
     assert g.players[0].discard[-1].title == "Speak Three Times"
 
 
