@@ -565,6 +565,11 @@ def _cost_context(game, run, cost: list[dict], chooser: int) -> dict:
     return ctx
 
 
+def _is_card_attr(a) -> bool:
+    """An Amount that reads an attribute of a card an earlier op bound (`{"attr": "boost", "of": "$memory"}`)."""
+    return isinstance(a, dict) and "attr" in a and isinstance(a.get("of"), str) and a["of"].startswith("$") and "times" not in a
+
+
 def _choice_context(game, run, spec: dict) -> dict:
     """What the two answers mean, for a panel that names them: `discards` (the cards the yes branch discards, when
     that is all it does: Remove A Painful Memory's "discard it") and `else_damage` (a plain damage in the else branch:
@@ -605,8 +610,8 @@ def _choice_context(game, run, spec: dict) -> dict:
                                             and (isinstance(o.get("amount"), int) or "hand_deficit" in (o.get("amount") or ())) for o in ops):
         ctx["draws"] = sum(amount(game, run, o["amount"]) for o in ops)         # a free draw; `draws_at`: the event of the trigger that offers it
         ctx["draws_at"] = run.ctx.moment
-    if len(other) == 1 and other[0]["op"] == "damage" and isinstance(other[0].get("amount"), int):
-        ctx["else_damage"] = other[0]["amount"]
+    if len(other) == 1 and other[0]["op"] == "damage" and (isinstance(other[0].get("amount"), int) or _is_card_attr(other[0].get("amount"))):
+        ctx["else_damage"] = amount(game, run, other[0]["amount"])          # a fixed number, or the BOOST of the card an earlier op named (Stolen Memories)
         cands, _ = fighter_candidates(game, run, other[0]["target"])
         if len(cands) == 1:
             ctx["else_fighter"] = cands[0].fid       # who takes it: the answer's price in hit points

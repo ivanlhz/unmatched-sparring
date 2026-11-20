@@ -424,3 +424,39 @@ def test_feint_cancels_the_effects_of_the_rivals_card(bprd):
     before = len(g.players[0].hand)
     res = g.attack(b, m, give(g, 1, "Vaporizing Eyebeams"), give(g, 0, "Feint"))
     assert res.def_value == 2 and len(g.players[0].hand) == before
+
+
+# ---------------------------------------------------------------- Bloody Requiem (a DOUBLE ATTACK)
+
+def test_bloody_requiem_second_attack_is_worth_the_printed_value_of_the_card_played_against_it(bprd):
+    g = mk(bprd)
+    m, b = duel(g)
+    hp = b.hp
+    res = attack(g, m, b, "Bloody Requiem", "He Laughs at Your Feebleness")       # 3 against 5: the first part does nothing
+    assert res.damage == 0 and res.second is not None
+    assert res.second.atk_value == 5 and res.second.damage == 5 and b.hp == hp - 5
+
+
+def test_bloody_requiem_against_no_card_has_a_second_attack_of_zero(bprd):
+    g = mk(bprd)
+    m, b = duel(g)
+    hp = b.hp
+    res = attack(g, m, b, "Bloody Requiem")
+    assert res.damage == 3 and (res.second is None or res.second.damage == 0) and b.hp == hp - 3
+
+
+def test_bloody_requiem_second_attack_may_be_defended_with_a_new_card(bprd):
+    g = mk(bprd)
+    m, b = duel(g)
+    wall = give(g, 1, "Imposing Presence")                                            # defense 3 against the second attack of 3: it ties, the defender wins
+    g.controllers[1].choose_second_defense = lambda game, att, tgt, value, card: wall
+    res = attack(g, m, b, "Bloody Requiem", "Terrifying Roar")
+    assert res.second.atk_value == 3 and res.second.def_card is wall and res.second.damage == 0
+
+
+def test_feint_against_bloody_requiem_stops_the_second_attack(bprd):
+    g = mk(bprd)
+    m, b = duel(g)
+    hp = b.hp
+    res = attack(g, m, b, "Bloody Requiem", "Imposing Presence")                       # Golden Bat's Feint: cancels all effects of the card
+    assert res.second is None and b.hp == hp

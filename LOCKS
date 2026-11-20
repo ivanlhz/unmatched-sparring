@@ -6,7 +6,6 @@ sparring/effects/choose.py  yennenga  damage assignment hooks  14:05Z
 sparring/session_choices.py  yennenga  damage assignment hooks  14:05Z
 sparring/ai_medusa.py  achilles  Patroclus fall value in kill_value, Doom value  13:51Z
 sparring/search/adapter.py  achilles  leaf term for a fallen Patroclus  13:51Z
-sparring/effects/ops_core.py  bloody-mary  choice context for a damage read from a chosen card  13:55Z
 sparring/effects/table.py  wukong  start-of-turn trigger of damage/summon is engine-run for the human  13:55Z
 sparring/effects/state.py  yennenga  register hero + strings  14:30Z
 tests/test_heroes.py  yennenga  register hero + strings  14:30Z
