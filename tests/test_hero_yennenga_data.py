@@ -63,7 +63,7 @@ def test_overlay_sheet_matches_the_real_cards_and_the_save_numbering(overlay):
     assert sum(c for c, *_ in REAL_CARDS.values()) == 30
     assert overlay["sidekicks"] == [{"fid": "archer", "name": "Archer"}] and overlay["fid"] == "yennenga"
     assert overlay["forms"] is None and overlay["counters"] == {} and overlay["triggers"] == [] and overlay["passives"] == []
-    assert overlay["tts"] == {"no_dial": ["archer1", "archer2"]}
+    assert overlay["tts"] == {"no_dial": ["archer1", "archer2"], "life_faces": {"2": 0, "1": 180}}
 
 
 def test_generated_herodef_deals_a_real_deck():
@@ -132,6 +132,7 @@ def test_table_data_names_the_pieces_the_deck_range_and_that_the_archers_have_no
     assert set(tts["fighters"]) == {"yennenga", "archer1", "archer2"}
     assert tts["fighters"]["yennenga"]["dial_max"] == 15 and tts["fighters"]["yennenga"]["piece"] == "3ec3d1"
     assert all(tts["fighters"][a]["no_dial"] is True and "dial" not in tts["fighters"][a] for a in ("archer1", "archer2"))
+    assert all(tts["fighters"][a]["faces"] == {"2": 0, "1": 180} and tts["fighters"][a]["verify_live"] for a in ("archer1", "archer2"))      # Ivan 2026-11-20: the token is flipped
     assert tts["tokens"] == {} and tts["counter_dials"] == {}                  # hasTokens: true in unmatched-memory, but her bag holds no token
 
 

@@ -33,7 +33,8 @@ class FighterTable:
     dial: str | None               # life dial (None: 1 HP piece)
     dial_max: int | None
     nickname: str | None           # own name of the token (Abe's agents); otherwise the HeroDef's
-    no_dial: bool = False          # more than 1 HP and the save gives the piece no dial (Yennenga's Archers): the engine and the chat keep its life
+    no_dial: bool = False          # more than 1 HP and the save gives the piece no dial (Yennenga's Archers): its life is told by the face of the piece
+    faces: dict | None = None      # life -> Z rotation of the piece that shows it ({"2": 0, "1": 180}: the Archer token is flipped as it is hurt; verify live)
 
 
 @dataclass(frozen=True)
@@ -95,7 +96,8 @@ def parse_hero_table(raw: dict, hero: HeroDef, where: str = "tts") -> HeroTable:
         ids = deck["card_ids"]
         fighters = {fid: FighterTable(fid, _guid_list(v["piece"], f"{where}: {fid}"), v.get("dial"),
                                       None if v.get("dial") is None else int(v["dial_max"]), v.get("nickname"),
-                                      bool(v.get("no_dial", False)))
+                                      bool(v.get("no_dial", False)),
+                                      None if v.get("faces") is None else {str(k): float(r) for k, r in v["faces"].items()})
                     for fid, v in raw["fighters"].items()}
         table = HeroTable(raw["slug"], raw["bag"]["guid"], raw["bag"]["inner"], deck["guid"], (int(ids[0]), int(ids[1])),
                           int(deck["character_card_id"]),

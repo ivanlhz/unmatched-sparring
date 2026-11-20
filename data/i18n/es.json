@@ -1327,5 +1327,9 @@
  "rosie.token_missing": "No encuentro todas las fichas de mejora de {name}, asi que no las muevo: ponlas a mano como dice la fila del chat.",
  "rosie.token_failed": "No he podido mover las fichas de mejora de {name}; lo reintento en el siguiente paso. Si siguen mal, ponlas a mano como dice la fila del chat.",
  "cf.assigned": "{archer} recibe {n} del dano que iba a {victim}",
- "choice.prompt.assign": "Habilidad de {hero}: cuantos de los {left} puntos de dano por asignar recibe {name}? (el resto lo recibe {hero})"
+ "choice.prompt.assign": "Habilidad de {hero}: cuantos de los {left} puntos de dano por asignar recibe {name}? (el resto lo recibe {hero})",
+ "archer.flipped": "{name} tiene {life} de vida: he girado su ficha a esa cara",
+ "archer.human_flip": "{name} tiene {life} de vida pero su ficha muestra {shows}: girala a la cara de {life}. (La cara con el 2 amarillo pequeno es 2 de vida, la cara sin numero es 1 de vida.)",
+ "archer.missing": "No encuentro la ficha de {name}: ponla a mano en la cara de su vida.",
+ "archer.failed": "No he podido leer ni girar las fichas de los Archers; lo reintento en el siguiente paso."
 }

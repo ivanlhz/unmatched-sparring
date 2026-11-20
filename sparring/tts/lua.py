@@ -3182,6 +3182,43 @@ return JSON.encode({{rot_z = want, flipped = true}})
 
 
 @_registered
+def archer_faces(sets: dict, reads: list) -> str:
+    """Yennenga's Archer tokens: turns each piece of `sets` (GUID -> Z rotation of the face to show) only if it is not there already,
+    and reads the Z rotation of each GUID of `reads` (the human's own pieces). Returns `{set = {guid = {flipped}}, read = {guid = rot_z}}`;
+    a GUID that does not exist is `{found = false}` / absent."""
+    if not isinstance(sets, dict) or not isinstance(reads, (list, tuple)):
+        raise TypeError("a dict of faces and a list of GUIDs expected")
+    wanted = "{" + ", ".join(f"[{_guid(g)}] = {_f(z)}" for g, z in sorted(sets.items())) + "}"
+    looked = "{" + ", ".join(_guid(g) for g in reads) + "}"
+    return f"""-- sparring:archer_faces
+local sets = {wanted}
+local reads = {looked}
+local out = {{set = {{}}, read = {{}}}}
+for g, want in pairs(sets) do
+  local obj = getObjectFromGUID(g)
+  if obj == nil then
+    out.set[g] = {{found = false}}
+  else
+    local r = obj.getRotation()
+    local w = want % 360
+    local diff = math.abs((r.z - w) % 360)
+    if diff < 1 or diff > 359 then
+      out.set[g] = {{found = true, flipped = false}}
+    else
+      obj.setRotation(Vector(r.x, r.y, w))
+      out.set[g] = {{found = true, flipped = true}}
+    end
+  end
+end
+for _, g in ipairs(reads) do
+  local obj = getObjectFromGUID(g)
+  if obj ~= nil then out.read[g] = obj.getRotation().z end
+end
+return JSON.encode(out)
+"""
+
+
+@_registered
 def flip_token(guid: str) -> str:
     """Flips a two-faced token 180 degrees around Z. Instant. Returns `{rot_z, flipped = true}`."""
     return f"""-- sparring:flip_token

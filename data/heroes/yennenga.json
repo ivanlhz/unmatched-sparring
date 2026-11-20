@@ -336,7 +336,11 @@
   "no_dial": [
    "archer1",
    "archer2"
-  ]
+  ],
+  "life_faces": {
+   "2": 0,
+   "1": 180
+  }
  },
  "ai_profile": {
   "yennenga": {

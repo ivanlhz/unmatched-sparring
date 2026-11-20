@@ -1327,5 +1327,9 @@
  "rosie.token_missing": "I cannot find all of {name}'s upgrade tokens, so I will not move them: set them by hand as the row in the chat says.",
  "rosie.token_failed": "I could not move {name}'s upgrade tokens; I will try again next step. If they stay wrong, set them by hand as the row in the chat says.",
  "cf.assigned": "{archer} takes {n} of the damage meant for {victim}",
- "choice.prompt.assign": "{hero}'s ability: how many of the {left} points of damage still to assign does {name} take? (the rest lands on {hero})"
+ "choice.prompt.assign": "{hero}'s ability: how many of the {left} points of damage still to assign does {name} take? (the rest lands on {hero})",
+ "archer.flipped": "{name} has {life} health: I flipped its token to that face",
+ "archer.human_flip": "{name} has {life} health but its token shows {shows}: flip it to the side with {life}. (The side with the small yellow 2 is 2 health, the side with no number is 1 health.)",
+ "archer.missing": "I cannot find the token of {name}: set its face by hand to its health.",
+ "archer.failed": "I could not read or turn the Archer tokens; I will try again next step."
 }

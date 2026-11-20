@@ -54,6 +54,8 @@ class FxTable(Table):
         self.intuition_turns: list[tuple[bool, int]] = []
         self.token_moves: list[tuple[str, tuple[float, float, float], tuple[float, float, float]]] = []   # (GUID, position, rotation) of each move_token
         self.missing_tokens: set[str] = set()               # GUIDs of tokens the player took off the table
+        self.archer_rot: dict[str, float] = {}              # Z rotation of each Archer token (Yennenga: 0 shows 2 health, 180 shows 1); absent = 0
+        self.archer_writes: list[tuple[str, float]] = []    # (GUID, rotation) the bot turned a token to
 
     def snapshot_state(self):
         snap = super().snapshot_state()
@@ -94,6 +96,24 @@ class FxTable(Table):
         vec = [tuple(float(v) for v in m) for m in re.findall(r"Vector\(([-\d.]+), ([-\d.]+), ([-\d.]+)\)", s)]
         self.token_moves.append((guid, vec[0], vec[1]))
         return {"found": True, "moved": True}
+
+    def do_archer_faces(self, s):
+        sets = {g: float(z) for g, z in re.findall(r'\["(\w+)"\] = (-?[\d.]+)', s.split("local reads")[0])}
+        reads = re.findall(r'"(\w+)"', s.split("local reads = ")[1].split(chr(10))[0])
+        out = {"set": {}, "read": {}}
+        for g, want in sets.items():
+            if g in self.missing_pieces:
+                out["set"][g] = {"found": False}
+                continue
+            now = self.archer_rot.get(g, 0.0)
+            gap = abs((now - want) % 360)
+            flipped = 1 <= gap <= 359
+            if flipped:
+                self.archer_rot[g] = want % 360
+                self.archer_writes.append((g, want % 360))
+            out["set"][g] = {"found": True, "flipped": flipped}
+        out["read"] = {g: self.archer_rot.get(g, 0.0) for g in reads if g not in self.missing_pieces}
+        return out
 
     def do_flip_token(self, s):
         self.flipped.append(re.search(r'getObjectFromGUID\("(\w+)"\)', s).group(1))

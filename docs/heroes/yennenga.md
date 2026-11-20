@@ -6,17 +6,18 @@ Playable by the bot and by the human, either side, against every other hero. Dat
 - Ranged hero, 15 life, move 2. Sidekick **Archer**: two of them (fids `archer1`, `archer2`), ranged, 2 life each, move 2. Hero fid `yennenga`. The hero card prints the move once (2) for both.
 - Ability: **If Yennenga would take damage, you may assign any amount of that damage to one or more Archers in her zone instead. (You may not assign more damage to an Archer than their remaining health.)** It is the passive `yennenga:assign_damage` of her effects file, read by the damage code (`sparring/effects/plugins_yennenga.py`).
 - Deck: 30 cards, `CardID = 17600 + idx` (sheet 176), restriction bands YENNENGA, ANY (Surprise Volley, Skirmish, Momentous Shift) and ARCHER (Pin the Prey, Divide and Conquer: only the Archers play them). The deck object of the save holds 31 cards (the 30 plus the character card `319`).
-- Table: Yennenga's miniature `3ec3d1` (**Houdini's miniature has the same GUID**, told apart by name) and dial `1fc8df` (max 15); the two Archer models `cbb5f5` and `b19614`, **with no life dial** (see below).
+- Table: Yennenga's miniature `3ec3d1` (**Houdini's miniature has the same GUID**, told apart by name) and dial `1fc8df` (max 15); the two Archer models `cbb5f5` and `b19614`, **with no life dial: a two-sided token** (see below).
 - **She shares CardIDs 17600-17629 with Medusa, the turtles, Strange, Bigfoot, Luke Cage and the rest of sheet 176**: her deck is told apart by deck image and owner (docs/card-identity.md), never by a bare CardID. `tests/test_yennenga_matrix.py` plays her against every other hero in both seats.
 
 ## `hasTokens: true` in unmatched-memory
 It means nothing for the table. Her bag holds **no token**: the two models nicknamed `Archer` (description "Sidekick Token") are the Archers themselves. She has no counter, no token and no form.
 
-## The Archers have no life dial
-The save gives the Archers 2 life but no dial (every other sidekick with more than 1 life has one). `data/tts/yennenga.json` marks them `no_dial: true` (the overlay says `"tts": {"no_dial": ["archer1", "archer2"]}`; `tools/import_save.py` and `sparring/tts/hero_table.py` accept the combination only when asked). Consequences, all deliberate:
-- The engine is the only place their life lives; the chat says what each Archer took (`archer1 takes 2 of the damage meant for yennenga`) and when one falls.
-- A fallen Archer: the bot's is taken off the board by the bot; the human's miniature is removed by the human (the usual chat line). A returned Archer (Surprise Volley, Shield Formation): the bot puts its own; the human places theirs by hand where the chat says.
-- Nothing is written to or read from a dial for an Archer, so `--read-only` and the dial check do not mention them.
+## The Archers have no life dial: the token is flipped (Ivan, 2026-11-20)
+The save gives the Archers 2 life but no dial: each is a single `Custom_Model` (one mesh, one diffuse image, no states, no second image, no script), flagged `no_dial: true` in `data/tts/yennenga.json` (overlay `"tts": {"no_dial": [...], "life_faces": {...}}`) so the table layer accepts 2 life with no dial. Ivan's rule, with photos of the real component: **each Archer is a two-sided token; the face with a small yellow "2" in the top-right corner is 2 health, the face with no number is 1 health; life is tracked by flipping the token** (there is no dial and none is needed).
+- The save has no second face to read, so `faces` (Z rotation that shows each life, **2 = 0, 1 = 180**) is a guess copied from Abe's and Rosie's convention, marked `verify_live` and on the live checklist: check which face is up in real TTS.
+- **The bot's Archers** (`sparring/session_archers.py`, called wherever the session tracks Rosie's tokens): whenever the engine's life of one changes (a hit, One With The Land, a return from defeat at 2) the bot turns the piece to that face, only if it is not there already, and says it in the chat (`archer.flipped`). At the start of a game, a restart or a resume every Archer is put on the "2" face. A defeated Archer is not touched; it comes back on the "2" face.
+- **The human's Archers**: the human flips them. Every look reads the Z rotation of each living one (`lua.archer_faces`); if the face shows another life than the engine's, the chat says so, asks the human to flip it (`archer.human_flip`) and pings the piece, once per disagreement. The engine stays the authority and neither side is trusted silently.
+- A fallen Archer is removed by whoever plays it (the bot's by the bot); a returned one is placed by hand where the chat says.
 
 ## Cards (as implemented)
 
@@ -48,7 +49,7 @@ The save gives the Archers 2 life but no dial (every other sidekick with more th
 ## How the ability works (engine)
 The damage never changes hands after it landed: the choice comes BEFORE.
 - **Combat damage.** Before the DAMAGE phase of a combat in which Yennenga is the victim and some Archer of hers stands in her zone, the flow runs a small effect run (`flow.runs["damage:def"]`, plugin op `yennenga:assign_damage`). It asks Yennenga's OWNER, once per Archer in fighter id order, "how many of the points still to assign does this Archer take?": options from 0 to the lesser of the points left and the Archer's remaining life. The human answers on the panel (the combat is saved paused, `--resume` repeats the question); the bot answers by `ai_yennenga.archer_share`. Then the damage lands: the Archers' shares as combat damage on each Archer (the events fire for them, an Archer at 0 falls), the rest on Yennenga. The combat's result still says the full blow landed (the attacker won the combat) and the chat adds one line per Archer.
-- **Effect damage** (a `damage` op aimed at her): the same questions inside the op; each share is effect damage on the Archer.
+- **Effect damage** (a `damage` op aimed at her): the same questions inside the op, asked about the blow AFTER the +N modifiers (they apply once to the whole blow, never per share); each share is effect damage on the Archer, applied as already modified. An op that also hits an Archer itself (an area effect) reserves that hit: a share never exceeds the life the Archer will have left after it. The fighter the op binds with `as` stays Yennenga whoever soaked the damage.
 - Reductions that apply to her (a blow cut by a hero's ability, a damage cap) are applied first: she and the Archers split what would really land. A blow of 0 asks nothing. With no Archer in her zone nothing is asked.
 - The second attack of a double attack is a combat of its own: it asks again.
 
@@ -73,7 +74,6 @@ Every item that is a real doubt is also under "Pending Ivan".
 2. **Damage taken**: should an effect that reads "the damage you took" (Luke Cage's Skin Like Titanium against her) see the whole blow or only what landed on Yennenga? (Today the whole blow.)
 3. **Surprise Volley** returns the Archer with its starting 2 life: confirm. And whether the Archer that returns may be one that fell THIS turn (today yes).
 4. **Rain of Arrows**: how the second attack interacts with her ability, boosts and bonuses (the double-attack rulings pending in docs/combat-flow.md): today the second attack is a combat of its own against the same defender, so the question of the Archers' share is asked again for it.
-5. **Archers on the table**: with no dial the human cannot see an Archer's life on the table, only in the chat. Does Iván want a marker (a die or a nickname with the life) next to them?
 
 ## AI
 - The AI profile comes from the data (Yennenga `hero`, the Archers `striker`; exclusive cards: Pin the Prey and Divide and Conquer for the Archers).
@@ -86,7 +86,7 @@ Every item that is a real doubt is also under "Pending Ivan".
 ## Human side
 - The panel asks, for each Archer of hers in her zone, a number (the buttons 0, 1, 2); `--resume` repeats the question.
 - Surprise Volley and Shield Formation: the chat says where the Archer returns; you place your own miniature by hand. Stallion Charge: you move her miniature and name the fighters you passed.
-- The Archers' life is not on the table: the chat keeps it.
+- The Archers' life is the face of their token: you flip it (the chat asks and pings when it disagrees with the engine).
 
 ## Tests
-`tests/test_hero_yennenga_data.py` (data, card identity, detection, the `no_dial` flag), `tests/test_yennenga_effects.py` (the ability and every card on the interpreter, Rain of Arrows on the double-attack engine), `tests/test_yennenga_human.py` (FakeTTS panel: the questions, a resume, the blow left after a defense), `tests/test_yennenga_ai.py` (the assignment policy, the bot playing her with the heuristic and with ISMCTS), `tests/test_yennenga_matrix.py` (full games against every other hero in both seats, passive and attacking human, headless with the heuristic and the search AI).
+`tests/test_hero_yennenga_data.py` (data, card identity, detection, the `no_dial` flag), `tests/test_yennenga_effects.py` (the ability and every card on the interpreter, Rain of Arrows on the double-attack engine), `tests/test_yennenga_human.py` (FakeTTS panel: the questions, a resume, the blow left after a defense), `tests/test_yennenga_faces.py` (the Archer token faces, FakeTTS, both seats), `tests/test_yennenga_ai.py` (the assignment policy, the bot playing her with the heuristic and with ISMCTS), `tests/test_yennenga_matrix.py` (full games against every other hero in both seats, passive and attacking human, headless with the heuristic and the search AI).
