@@ -520,3 +520,44 @@ def test_fiery_eyes_against_an_empty_hand_still_draws_for_both(bprd):
     mine = len(g.players[0].hand)
     play_fiery_eyes(g)
     assert len(g.players[1].hand) == 1 and len(g.players[0].hand) == mine + 1
+
+
+# ---------------------------------------------------------------- Ruyi Jingo Bang (a DOUBLE ATTACK)
+
+def test_ruyi_jingo_bang_tricks_a_defender_with_a_second_attack_of_four(bprd):
+    g = mk(bprd)
+    w, h = pair(g, "wukong", "hellboy")
+    res = g.attack(w, h, give(g, 0, "Ruyi Jingo Bang"), plain(g))
+    assert res.atk_value == 0 and res.damage == 0
+    assert res.second is not None and res.second.atk_value == 4 and res.second.damage == 4 and h.hp == h.max_hp - 4
+
+
+def test_ruyi_jingo_bang_with_no_defense_card_has_no_second_attack(bprd):
+    g = mk(bprd)
+    w, h = pair(g, "wukong", "hellboy")
+    res = g.attack(w, h, give(g, 0, "Ruyi Jingo Bang"), None)
+    assert res.second is None and h.hp == h.max_hp
+
+
+def test_the_defender_may_defend_the_second_attack_of_ruyi_jingo_bang(bprd):
+    g = mk(bprd)
+    w, h = pair(g, "wukong", "hellboy")
+    wall = give(g, 1, "B.P.R.D. Training")                                              # defense 3 < 4: only one point gets through
+    g.controllers[1].choose_second_defense = lambda game, att, tgt, value, card: wall
+    res = g.attack(w, h, give(g, 0, "Ruyi Jingo Bang"), plain(g))
+    assert res.second.atk_value == 4 and res.second.def_card is wall and h.hp == h.max_hp - 1
+
+
+def test_a_cancel_of_the_attack_effects_stops_the_trick(bprd):
+    g = mk(bprd)
+    w, h = pair(g, "wukong", "hellboy")
+    res = g.attack(w, h, give(g, 0, "Ruyi Jingo Bang"), give(g, 1, "Planned Recklessness"))      # cancels every effect of the attack
+    assert res.second is None and h.hp == h.max_hp
+
+
+def test_a_versatile_card_played_to_defend_is_a_defense_card_for_the_trick(bprd):
+    g = mk(bprd)
+    w, h = pair(g, "wukong", "hellboy")
+    versatile = foe_card(g, lambda c: c.type == "versatile" and c.can_defend and "cancel" not in c.text.lower() and "IMMEDIATELY" not in c.text)
+    res = g.attack(w, h, give(g, 0, "Ruyi Jingo Bang"), versatile)
+    assert res.second is not None and res.second.atk_value == 4

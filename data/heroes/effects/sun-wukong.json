@@ -95,11 +95,26 @@
    "effects": {
     "immediately": [],
     "during": [],
-    "after": [],
+    "after": [
+     {
+      "op": "if",
+      "condition": {
+       "test": "card",
+       "card": "opponent_card",
+       "filter": {}
+      },
+      "then": [
+       {
+        "op": "second_attack",
+        "amount": 4
+       }
+      ]
+     }
+    ],
     "scheme": [],
     "boost": []
    },
-   "notes": "Attack 0 / boost 3. DOUBLE ATTACK (Battle of Legends Vol. 2): written last against the double-attack agent's DSL; see docs/heroes/sun-wukong.md."
+   "notes": "Attack 0 / boost 3. A DOUBLE ATTACK (Battle of Legends, Volume Two): the first part is a plain attack of 0; TRICKED YOU is the second attack (4 ATK), which exists only when the opponent played a card against this one (a card played to defend is a defense card: the rival's `opponent_card` exists exactly then). The mechanic itself (who may defend it, Feint, Skirmish) belongs to the double-attack engine: docs/effects-dsl.md section 45."
   },
   {
    "title": "Ox Form",
