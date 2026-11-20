@@ -6,3 +6,11 @@ features.json  double-attack  review fixes AI  14:34Z
 tests/test_doctor_strange_human.py  double-attack  FakeTTS keeps played cards face up  14:37Z
 tests/test_tmnt_matrix.py  achilles  driver: second attack starts at End action  14:38Z
 tests/test_batch.py  double-attack  click tidies the fake's combat spot  14:39Z
+sparring/tts/hero_table.py  yennenga  Archer token faces (Ivan 20/11)  14:43Z
+tools/import_save.py  yennenga  Archer token faces (Ivan 20/11)  14:43Z
+sparring/tts/lua.py  yennenga  Archer token faces (Ivan 20/11)  14:43Z
+sparring/session.py  yennenga  Archer token faces (Ivan 20/11)  14:43Z
+data/i18n/en.json  yennenga  Archer token faces (Ivan 20/11)  14:43Z
+data/i18n/es.json  yennenga  Archer token faces (Ivan 20/11)  14:43Z
+tests/test_d3_table_effects.py  yennenga  Archer token faces (Ivan 20/11)  14:43Z
+docs/live-checklist.md  yennenga  Archer token faces (Ivan 20/11)  14:43Z
