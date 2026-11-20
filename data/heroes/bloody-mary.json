@@ -1,0 +1,427 @@
+{
+ "_source": {
+  "memory": "unmatched-memory/data/heroes/bloody-mary.json",
+  "overlay": "data/heroes/overlay/bloody-mary.json",
+  "generator": "tools/import_hero.py"
+ },
+ "slug": "bloody-mary",
+ "name": "Bloody Mary",
+ "fid": "mary",
+ "hp": 16,
+ "move": 3,
+ "attack": "melee",
+ "set": "battle-of-legends-volume-two",
+ "ability": "At the start of your turn, if you have exactly 3 cards in hand, gain 1 action.",
+ "sidekicks": [],
+ "forms": null,
+ "counters": {},
+ "triggers": [],
+ "passives": [],
+ "deck": {
+  "card_base": 17600,
+  "sheet": 176,
+  "cards": [
+   {
+    "idx": 0,
+    "title": "Speak Three Times",
+    "fighter": "Bloody Mary",
+    "type": "attack",
+    "value": 3,
+    "boost": 2,
+    "text": "DURING COMBAT: If this is your third action this turn, this card's value is 7 instead.",
+    "tags": []
+   },
+   {
+    "idx": 1,
+    "title": "Speak Three Times",
+    "fighter": "Bloody Mary",
+    "type": "attack",
+    "value": 3,
+    "boost": 2,
+    "text": "DURING COMBAT: If this is your third action this turn, this card's value is 7 instead.",
+    "tags": []
+   },
+   {
+    "idx": 2,
+    "title": "Bloody Requiem",
+    "fighter": "Bloody Mary",
+    "type": "attack",
+    "value": 3,
+    "boost": 4,
+    "text": "AFTER COMBAT: BLOODY REPRISE: 0 ATK |  If your opponent played a card against BLOODY REQUIEM, this attack's value is that card's printed value.",
+    "tags": []
+   },
+   {
+    "idx": 3,
+    "title": "Bloody Requiem",
+    "fighter": "Bloody Mary",
+    "type": "attack",
+    "value": 3,
+    "boost": 4,
+    "text": "AFTER COMBAT: BLOODY REPRISE: 0 ATK |  If your opponent played a card against BLOODY REQUIEM, this attack's value is that card's printed value.",
+    "tags": []
+   },
+   {
+    "idx": 4,
+    "title": "Bloody Requiem",
+    "fighter": "Bloody Mary",
+    "type": "attack",
+    "value": 3,
+    "boost": 4,
+    "text": "AFTER COMBAT: BLOODY REPRISE: 0 ATK |  If your opponent played a card against BLOODY REQUIEM, this attack's value is that card's printed value.",
+    "tags": []
+   },
+   {
+    "idx": 5,
+    "title": "Out Of The Mirror",
+    "fighter": "Bloody Mary",
+    "type": "attack",
+    "value": 1,
+    "boost": 2,
+    "text": "DURING COMBAT: Your opponent discards 1 random card. Add its BOOST value to this card's value. AFTER COMBAT: If this is your third action, draw 1 card.",
+    "tags": []
+   },
+   {
+    "idx": 6,
+    "title": "Out Of The Mirror",
+    "fighter": "Bloody Mary",
+    "type": "attack",
+    "value": 1,
+    "boost": 2,
+    "text": "DURING COMBAT: Your opponent discards 1 random card. Add its BOOST value to this card's value. AFTER COMBAT: If this is your third action, draw 1 card.",
+    "tags": []
+   },
+   {
+    "idx": 7,
+    "title": "Ghostly Touch",
+    "fighter": "Bloody Mary",
+    "type": "attack",
+    "value": 1,
+    "boost": 2,
+    "text": "DURING COMBAT: You may BOOST this attack. AFTER COMBAT: If this is your third action this turn, recover 3 health.",
+    "tags": []
+   },
+   {
+    "idx": 8,
+    "title": "Ghostly Touch",
+    "fighter": "Bloody Mary",
+    "type": "attack",
+    "value": 1,
+    "boost": 2,
+    "text": "DURING COMBAT: You may BOOST this attack. AFTER COMBAT: If this is your third action this turn, recover 3 health.",
+    "tags": []
+   },
+   {
+    "idx": 9,
+    "title": "Feint",
+    "fighter": "Bloody Mary",
+    "type": "versatile",
+    "value": 2,
+    "boost": 2,
+    "text": "IMMEDIATELY: Cancel all effects on your opponent's card.",
+    "tags": []
+   },
+   {
+    "idx": 10,
+    "title": "Feint",
+    "fighter": "Bloody Mary",
+    "type": "versatile",
+    "value": 2,
+    "boost": 2,
+    "text": "IMMEDIATELY: Cancel all effects on your opponent's card.",
+    "tags": []
+   },
+   {
+    "idx": 11,
+    "title": "Jump Scare",
+    "fighter": "Bloody Mary",
+    "type": "versatile",
+    "value": 3,
+    "boost": 2,
+    "text": "DURING COMBAT: If Bloody Mary shares no zones with the space she started in this turn, this card's value is 6 instead.",
+    "tags": []
+   },
+   {
+    "idx": 12,
+    "title": "Jump Scare",
+    "fighter": "Bloody Mary",
+    "type": "versatile",
+    "value": 3,
+    "boost": 2,
+    "text": "DURING COMBAT: If Bloody Mary shares no zones with the space she started in this turn, this card's value is 6 instead.",
+    "tags": []
+   },
+   {
+    "idx": 13,
+    "title": "Infinity Mirror",
+    "fighter": "Bloody Mary",
+    "type": "versatile",
+    "value": 4,
+    "boost": 2,
+    "text": "AFTER COMBAT: Choose one of the fighters in the combat and move them up to 4 spaces.",
+    "tags": []
+   },
+   {
+    "idx": 14,
+    "title": "Infinity Mirror",
+    "fighter": "Bloody Mary",
+    "type": "versatile",
+    "value": 4,
+    "boost": 2,
+    "text": "AFTER COMBAT: Choose one of the fighters in the combat and move them up to 4 spaces.",
+    "tags": []
+   },
+   {
+    "idx": 15,
+    "title": "Broken Glass",
+    "fighter": "Bloody Mary",
+    "type": "versatile",
+    "value": 3,
+    "boost": 2,
+    "text": "DURING COMBAT: You may increase or decrease the value of this card by 1. AFTER COMBAT: If the value of this card matches your opponent's card, draw 1 card and the opposing fighter takes 2 damage.",
+    "tags": []
+   },
+   {
+    "idx": 16,
+    "title": "Broken Glass",
+    "fighter": "Bloody Mary",
+    "type": "versatile",
+    "value": 3,
+    "boost": 2,
+    "text": "DURING COMBAT: You may increase or decrease the value of this card by 1. AFTER COMBAT: If the value of this card matches your opponent's card, draw 1 card and the opposing fighter takes 2 damage.",
+    "tags": []
+   },
+   {
+    "idx": 17,
+    "title": "Broken Glass",
+    "fighter": "Bloody Mary",
+    "type": "versatile",
+    "value": 3,
+    "boost": 2,
+    "text": "DURING COMBAT: You may increase or decrease the value of this card by 1. AFTER COMBAT: If the value of this card matches your opponent's card, draw 1 card and the opposing fighter takes 2 damage.",
+    "tags": []
+   },
+   {
+    "idx": 18,
+    "title": "Trick of the Light",
+    "fighter": "Bloody Mary",
+    "type": "versatile",
+    "value": 2,
+    "boost": 3,
+    "text": "AFTER COMBAT: You may place Bloody Mary in any empty space adjacent to the opposing fighter.",
+    "tags": []
+   },
+   {
+    "idx": 19,
+    "title": "Trick of the Light",
+    "fighter": "Bloody Mary",
+    "type": "versatile",
+    "value": 2,
+    "boost": 3,
+    "text": "AFTER COMBAT: You may place Bloody Mary in any empty space adjacent to the opposing fighter.",
+    "tags": []
+   },
+   {
+    "idx": 20,
+    "title": "Trick of the Light",
+    "fighter": "Bloody Mary",
+    "type": "versatile",
+    "value": 2,
+    "boost": 3,
+    "text": "AFTER COMBAT: You may place Bloody Mary in any empty space adjacent to the opposing fighter.",
+    "tags": []
+   },
+   {
+    "idx": 21,
+    "title": "Evade",
+    "fighter": "Bloody Mary",
+    "type": "defense",
+    "value": 3,
+    "boost": 1,
+    "text": "AFTER COMBAT: Draw 1 card.",
+    "tags": []
+   },
+   {
+    "idx": 22,
+    "title": "Evade",
+    "fighter": "Bloody Mary",
+    "type": "defense",
+    "value": 3,
+    "boost": 1,
+    "text": "AFTER COMBAT: Draw 1 card.",
+    "tags": []
+   },
+   {
+    "idx": 23,
+    "title": "Evade",
+    "fighter": "Bloody Mary",
+    "type": "defense",
+    "value": 3,
+    "boost": 1,
+    "text": "AFTER COMBAT: Draw 1 card.",
+    "tags": []
+   },
+   {
+    "idx": 24,
+    "title": "Mirror Image",
+    "fighter": "Bloody Mary",
+    "type": "defense",
+    "value": 0,
+    "boost": 2,
+    "text": "DURING COMBAT: The value of this card is equal to the printed value of your opponent's card.",
+    "tags": []
+   },
+   {
+    "idx": 25,
+    "title": "Mirror Image",
+    "fighter": "Bloody Mary",
+    "type": "defense",
+    "value": 0,
+    "boost": 2,
+    "text": "DURING COMBAT: The value of this card is equal to the printed value of your opponent's card.",
+    "tags": []
+   },
+   {
+    "idx": 26,
+    "title": "Closer Than She Appears",
+    "fighter": "Bloody Mary",
+    "type": "scheme",
+    "value": null,
+    "boost": 2,
+    "text": "Move Bloody Mary up to 1 space. Draw 1 card. Gain 1 action.",
+    "tags": []
+   },
+   {
+    "idx": 27,
+    "title": "Closer Than She Appears",
+    "fighter": "Bloody Mary",
+    "type": "scheme",
+    "value": null,
+    "boost": 2,
+    "text": "Move Bloody Mary up to 1 space. Draw 1 card. Gain 1 action.",
+    "tags": []
+   },
+   {
+    "idx": 28,
+    "title": "Stolen Memories",
+    "fighter": "Bloody Mary",
+    "type": "scheme",
+    "value": null,
+    "boost": 3,
+    "text": "Look at an opponent's hand and choose a card. Your opponent may discard it. If they don't, their hero takes damage equal to its BOOST value.",
+    "tags": []
+   },
+   {
+    "idx": 29,
+    "title": "Stolen Memories",
+    "fighter": "Bloody Mary",
+    "type": "scheme",
+    "value": null,
+    "boost": 3,
+    "text": "Look at an opponent's hand and choose a card. Your opponent may discard it. If they don't, their hero takes damage equal to its BOOST value.",
+    "tags": []
+   }
+  ]
+ },
+ "ai_profile": {
+  "mary": {
+   "name": "Bloody Mary",
+   "hero": true,
+   "count": 1,
+   "max_hp": 16,
+   "move": 3,
+   "ranged": false,
+   "role": "hero",
+   "attack": {
+    "cards": 21,
+    "mean": 2.48,
+    "max": 4
+   },
+   "exclusive": [
+    {
+     "title": "Speak Three Times",
+     "type": "attack",
+     "copies": 2,
+     "impact": 0.96
+    },
+    {
+     "title": "Bloody Requiem",
+     "type": "attack",
+     "copies": 3,
+     "impact": 0.75
+    },
+    {
+     "title": "Out Of The Mirror",
+     "type": "attack",
+     "copies": 2,
+     "impact": 0.92
+    },
+    {
+     "title": "Ghostly Touch",
+     "type": "attack",
+     "copies": 2,
+     "impact": 1.58
+    },
+    {
+     "title": "Feint",
+     "type": "versatile",
+     "copies": 2,
+     "impact": 1.2
+    },
+    {
+     "title": "Jump Scare",
+     "type": "versatile",
+     "copies": 2,
+     "impact": 0.96
+    },
+    {
+     "title": "Infinity Mirror",
+     "type": "versatile",
+     "copies": 2,
+     "impact": 1.08
+    },
+    {
+     "title": "Broken Glass",
+     "type": "versatile",
+     "copies": 3,
+     "impact": 1.85
+    },
+    {
+     "title": "Trick of the Light",
+     "type": "versatile",
+     "copies": 3,
+     "impact": 0.73
+    },
+    {
+     "title": "Evade",
+     "type": "defense",
+     "copies": 3,
+     "impact": 0.99
+    },
+    {
+     "title": "Mirror Image",
+     "type": "defense",
+     "copies": 2,
+     "impact": 0.6
+    },
+    {
+     "title": "Closer Than She Appears",
+     "type": "scheme",
+     "copies": 2,
+     "impact": 2.0
+    },
+    {
+     "title": "Stolen Memories",
+     "type": "scheme",
+     "copies": 2,
+     "impact": 0.36
+    }
+   ]
+  }
+ },
+ "_notes": [
+  "Sheet 176 of the tournament savegame (8x4), read card by card from the image on 2026-11-20. CardID = 17600 + idx; 321 = character card (sheet 3, 10x7, index 21). The deck object of the save holds 31 cards: the 30 of the deck plus the character card. Bloody Mary's deck is sheet 176 like Medusa's, the turtles', Doctor Strange's and the rest: only deck.identity (data/tts/bloody-mary.json) tells the decks apart (docs/card-identity.md).",
+  "Hero card (read from the image): BLOODY MARY, MELEE, START HEALTH 16, MOVE 3; special ability 'At the start of your turn, if you have exactly 3 cards in hand, gain 1 action.' NO sidekick: unmatched-memory lists a 'Patroclus' sidekick with hasSidekicks false (a slip: he is Achilles' sidekick); it is not on the hero card nor in the savegame (the bag holds one miniature and one life dial). The overlay says sidekicks [] so the importer drops it.",
+  "Copies (xN printed on each card), type, value and boost match unmatched-memory for all 13 titles (30 cards). Discrepancy (the real card wins): Closer Than She Appears reads 'Move Bloody Mary up to 1 space' where unmatched-memory has 'Move your fighter up to 1 space'. Every card carries the BLOODY MARY band (none ANY): the restriction changes nothing while she has no sidekicks."
+ ]
+}

@@ -1,0 +1,34 @@
+{
+ "slug": "bloody-mary",
+ "_notes": [
+  "Read from the tournament savegame (read only): infinite bag a3a6c6 'Bloody Mary' (S2: Battle Of Legends Vol. 2) > bag 5a8997. Her deck is sheet 176 (CardIDs 17600-17629, character card 321 on sheet 3) like the other heroes': only deck.identity tells the decks apart (docs/card-identity.md).",
+  "The bag holds one miniature (98d2b5, 'Hero') and one life dial (51c4a7, MAX_VALUE 16, 'Hero Health') and the deck: no sidekick, no tokens (unmatched-memory's 'Patroclus' is a slip)."
+ ],
+ "bag": {
+  "guid": "a3a6c6",
+  "inner": "5a8997"
+ },
+ "deck": {
+  "guid": "48a6aa",
+  "card_ids": [
+   17600,
+   17629
+  ],
+  "character_card_id": 321,
+  "identity": [
+   {
+    "face": "https://steamusercontent-a.akamaihd.net/ugc/13712366737834419332/5E62DF4E11F69B67C7B434EDC31ABF5B3C87FB17/",
+    "back": "https://steamusercontent-a.akamaihd.net/ugc/18424364249945158505/9EC9D28267D741D3311C1A0187D95811290ECD38/"
+   }
+  ]
+ },
+ "fighters": {
+  "mary": {
+   "piece": "98d2b5",
+   "dial": "51c4a7",
+   "dial_max": 16
+  }
+ },
+ "tokens": {},
+ "counter_dials": {}
+}

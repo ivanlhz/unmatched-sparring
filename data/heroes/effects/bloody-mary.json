@@ -1,0 +1,205 @@
+{
+ "schema": 1,
+ "hero": "bloody-mary",
+ "notes": [
+  "Texts read from sheet 176 of the tournament savegame (card images) on 2026-11-20; the character card is 321 on sheet 3 (10x7, index 21). Sheet 176 is also Medusa's DeckID and the other heroes': the CardIDs repeat and only the deck image tells the decks apart (docs/card-identity.md).",
+  "No sidekick: unmatched-memory lists 'Patroclus' with hasSidekicks false, a slip (he is Achilles' sidekick); the overlay says sidekicks [].",
+  "'Third action this turn' (Speak Three Times, Out Of The Mirror, Ghostly Touch) is `actions_taken_this_turn == 3`: every action the owner has SPENT this turn counts (the card's own action already included), whichever way it was gained. See docs/heroes/bloody-mary.md, Pending Ivan.",
+  "One plugin (mary:out_of_the_mirror, the Raptors' and Chupacabra's Ambush); everything else uses ops that already existed. Bloody Requiem's BLOODY REPRISE is the double attack of Battle of Legends, Volume Two, written against the double-attack agent's DSL."
+ ],
+ "ability": {
+  "text": "At the start of your turn, if you have exactly 3 cards in hand, gain 1 action.",
+  "triggers": [
+   {"id": "three_cards_one_action", "when": {"event": "start_of_turn", "player": "owner"},
+    "condition": {"test": "compare", "left": {"stat": "hand_size", "player": "owner"}, "op": "==", "right": 3},
+    "ops": [{"op": "gain_action", "amount": 1}]}
+  ],
+  "passives": [],
+  "notes": "Read when the owner's turn starts, before anything else of that turn: the hand is whatever the owner holds then (the previous turn's cards, minus what the rival made them discard, plus what they drew). With exactly 3 cards the turn has 3 actions instead of 2. Blocked by `cannot_gain_actions` / `no_gain_actions` like any gained action."
+ },
+ "cards": [
+  {
+   "title": "Speak Three Times",
+   "copies": 2,
+   "text": "DURING COMBAT: If this is your third action this turn, this card's value is 7 instead.",
+   "effects": {
+    "immediately": [], "after": [], "scheme": [], "boost": [],
+    "during": [
+     {"op": "if", "condition": {"test": "compare", "left": {"stat": "actions_taken_this_turn", "player": "owner"}, "op": "==", "right": 3},
+      "then": [{"op": "set_value", "card": "this", "amount": 7}]}
+    ]
+   },
+   "notes": "Attack 3 / boost 2. The printed value becomes 7 (bonuses stay) when the attack is exactly the third action the owner has taken this turn."
+  },
+  {
+   "title": "Stolen Memories",
+   "copies": 2,
+   "text": "Look at an opponent's hand and choose a card. Your opponent may discard it. If they don't, their hero takes damage equal to its BOOST value.",
+   "effects": {
+    "immediately": [], "during": [], "after": [], "boost": [],
+    "scheme": [
+     {"op": "look_hand", "player": "opponent"},
+     {"op": "choose", "cards": {"zone": "hand", "player": "opponent", "amount": 1, "chooser": "owner"}, "as": "memory"},
+     {"op": "optional", "chooser": "opponent",
+      "ops": [{"op": "discard", "cards": "$memory"}],
+      "else": [{"op": "damage", "target": {"side": "enemy", "kind": "hero"}, "amount": {"attr": "boost", "of": "$memory"}}]}
+    ]
+   },
+   "notes": "Scheme, boost 3. Baba Yaga's Remove A Painful Memory with the damage read from the chosen card: the owner sees the rival's whole hand (the only time the bot reads the human's hand: look_hand), names one card, and the rival either discards it or their HERO takes damage equal to its BOOST value (effect damage; the card stays in their hand). An empty rival hand asks nothing."
+  },
+  {
+   "title": "Feint",
+   "copies": 2,
+   "text": "IMMEDIATELY: Cancel all effects on your opponent's card.",
+   "effects": {
+    "during": [], "after": [], "scheme": [], "boost": [],
+    "immediately": [{"op": "cancel_effects", "card": "opponent_card"}]
+   },
+   "notes": "Versatile 2 / boost 2."
+  },
+  {
+   "title": "Bloody Requiem",
+   "copies": 3,
+   "text": "AFTER COMBAT: BLOODY REPRISE: 0 ATK |  If your opponent played a card against BLOODY REQUIEM, this attack's value is that card's printed value.",
+   "effects": {
+    "immediately": [], "during": [], "scheme": [], "boost": [],
+    "after": [{"op": "second_attack", "amount": {"attr": "value", "of": "opponent_card"}}]
+   },
+   "notes": "Attack 3 / boost 4. A DOUBLE ATTACK (Battle of Legends, Volume Two): the first part is a plain attack 3; BLOODY REPRISE ('0 ATK') is the second attack, worth the PRINTED value of the card the opponent played against BLOODY REQUIEM (0 when they played none): `second_attack` with `{attr: value, of: opponent_card}` (docs/effects-dsl.md section 45). The mechanic (who may defend it, Feint, Skirmish) belongs to the double-attack engine, not to this file."
+  },
+  {
+   "title": "Infinity Mirror",
+   "copies": 2,
+   "text": "AFTER COMBAT: Choose one of the fighters in the combat and move them up to 4 spaces.",
+   "effects": {
+    "immediately": [], "during": [], "scheme": [], "boost": [],
+    "after": [{"op": "move", "target": "combatant", "amount": 4, "up_to": true, "chooser": "owner"}]
+   },
+   "notes": "Versatile 4 / boost 2. Won or not. The owner picks ONE of the two fighters in the combat (the rival's too) and where it goes, up to 4 spaces, 0 allowed; a fighter that was defeated cannot be picked."
+  },
+  {
+   "title": "Out Of The Mirror",
+   "copies": 2,
+   "text": "DURING COMBAT: Your opponent discards 1 random card. Add its BOOST value to this card's value. AFTER COMBAT: If this is your third action, draw 1 card.",
+   "effects": {
+    "immediately": [], "scheme": [], "boost": [],
+    "during": [{"op": "plugin", "id": "mary:out_of_the_mirror"}],
+    "after": [
+     {"op": "if", "condition": {"test": "compare", "left": {"stat": "actions_taken_this_turn", "player": "owner"}, "op": "==", "right": 3},
+      "then": [{"op": "draw", "player": "owner", "amount": 1}]}
+    ]
+   },
+   "notes": "Attack 1 / boost 2. Plugin `mary:out_of_the_mirror` (the same flow as Chupacabra's and the Raptors' Ambush: the engine draws the rival's card, the table player discards the position the bot names and the bot reads its BOOST value). AFTER: the draw only when the attack is the third action of the owner's turn."
+  },
+  {
+   "title": "Broken Glass",
+   "copies": 3,
+   "text": "DURING COMBAT: You may increase or decrease the value of this card by 1. AFTER COMBAT: If the value of this card matches your opponent's card, draw 1 card and the opposing fighter takes 2 damage.",
+   "effects": {
+    "immediately": [], "scheme": [], "boost": [],
+    "during": [
+     {"op": "choose_effect", "amount": 1, "chooser": "owner", "tag": "broken_glass", "options": [
+      {"label": "+1", "ops": [{"op": "modify_value", "card": "this", "amount": 1}]},
+      {"label": "-1", "ops": [{"op": "modify_value", "card": "this", "amount": -1}]},
+      {"label": "0", "ops": []}
+     ]}
+    ],
+    "after": [
+     {"op": "if", "condition": {"all": [
+       {"test": "card", "card": "opponent_card", "filter": {}},
+       {"test": "compare", "left": {"combat_value": "this"}, "op": "==", "right": {"combat_value": "opponent_card"}}]},
+      "then": [
+       {"op": "draw", "player": "owner", "amount": 1},
+       {"op": "damage", "target": "opposing", "amount": 2}
+      ]}
+    ]
+   },
+   "notes": "Versatile 3 / boost 2. DURING: +1, -1 or no change (never below 0). AFTER: the two cards' TOTAL values in the combat (boosts and bonuses included) are equal and the rival played a card: draw 1 and 2 effect damage to the opposing fighter. See Pending Ivan."
+  },
+  {
+   "title": "Closer Than She Appears",
+   "copies": 2,
+   "text": "Move Bloody Mary up to 1 space. Draw 1 card. Gain 1 action.",
+   "effects": {
+    "immediately": [], "during": [], "after": [], "boost": [],
+    "scheme": [
+     {"op": "move", "target": "hero", "amount": 1, "up_to": true, "chooser": "owner"},
+     {"op": "draw", "player": "owner", "amount": 1},
+     {"op": "gain_action", "amount": 1}
+    ]
+   },
+   "notes": "Scheme, boost 2. The scheme spends one action and gives one back (it still COUNTS as an action taken this turn: it is how she reaches a third action with the base 2)."
+  },
+  {
+   "title": "Evade",
+   "copies": 3,
+   "text": "AFTER COMBAT: Draw 1 card.",
+   "effects": {
+    "immediately": [], "during": [], "scheme": [], "boost": [],
+    "after": [{"op": "draw", "player": "owner", "amount": 1}]
+   },
+   "notes": "Defense 3 / boost 1. Won or not."
+  },
+  {
+   "title": "Ghostly Touch",
+   "copies": 2,
+   "text": "DURING COMBAT: You may BOOST this attack. AFTER COMBAT: If this is your third action this turn, recover 3 health.",
+   "may_boost": true,
+   "effects": {
+    "immediately": [], "during": [], "scheme": [], "boost": [],
+    "after": [
+     {"op": "if", "condition": {"test": "compare", "left": {"stat": "actions_taken_this_turn", "player": "owner"}, "op": "==", "right": 3},
+      "then": [{"op": "heal", "target": "hero", "amount": 3}]}
+    ]
+   },
+   "notes": "Attack 1 / boost 2. `may_boost`: the free BOOST of the attack. The heal (3, not above her maximum) only when the attack is the third action of the owner's turn."
+  },
+  {
+   "title": "Jump Scare",
+   "copies": 2,
+   "text": "DURING COMBAT: If Bloody Mary shares no zones with the space she started in this turn, this card's value is 6 instead.",
+   "effects": {
+    "immediately": [], "after": [], "scheme": [], "boost": [],
+    "during": [
+     {"op": "if", "condition": {"test": "no_zone_with_turn_start", "fighter": "this"},
+      "then": [{"op": "set_value", "card": "this", "amount": 6}]}
+    ]
+   },
+   "notes": "Versatile 3 / boost 2. Golden Bat's Like a Flash of Golden Light test: her space belongs to none of the zones of the space she began the turn on (not having moved is not 'sharing no zones'). The printed value becomes 6, bonuses stay."
+  },
+  {
+   "title": "Mirror Image",
+   "copies": 2,
+   "text": "DURING COMBAT: The value of this card is equal to the printed value of your opponent's card.",
+   "effects": {
+    "immediately": [], "after": [], "scheme": [], "boost": [],
+    "during": [{"op": "set_value", "card": "this", "amount": {"attr": "value", "of": "opponent_card"}}]
+   },
+   "notes": "Defense 0 / boost 2. `set_value` to the PRINTED value of the rival's card (a boost or a bonus on it does not count; no rival card counts 0), as the card says."
+  },
+  {
+   "title": "Trick of the Light",
+   "copies": 3,
+   "text": "AFTER COMBAT: You may place Bloody Mary in any empty space adjacent to the opposing fighter.",
+   "effects": {
+    "immediately": [], "during": [], "scheme": [], "boost": [],
+    "after": [
+     {"op": "if", "condition": {"test": "exists", "fighters": {"role": "opposing"}},
+      "then": [{"op": "optional", "chooser": "owner", "ops": [{"op": "place", "target": "hero", "where": {"adjacent_to": "opposing"}, "chooser": "owner"}]}]}
+    ]
+   },
+   "notes": "Versatile 2 / boost 3. Won or not; optional. Nothing happens if the opposing fighter was defeated."
+  }
+ ],
+ "plugins": [
+  {"id": "mary:out_of_the_mirror", "why": "The rival's random discard whose BOOST value is then read: for a table player the bot names a position, the human discards that card and the bot reads it (random_discard.discard_random_known); the DSL has no op that reads a random discard on a physical hand."}
+ ],
+ "hidden_info": [
+  {"card": "Stolen Memories", "what": "look_hand on the rival's hand, then a card of it is named", "bot_plays_it": "The bot reads the human's hand ONLY when resolving this scheme (look_hand) and keeps it as the human's KnownHand; the human then answers 'discard it' or 'take N damage' on the panel.", "human_plays_it": "The bot shows its hand (chat or face-up row) and the human chooses the card with the panel buttons; the bot answers the discard-or-damage question with its evaluation."},
+  {"card": "Out Of The Mirror", "what": "the rival discards 1 random card and its BOOST value is added", "bot_rule": "The bot's hand is the engine's. The human's real card is discarded by the human at the position the bot draws from the hand size and they press Done; the bot reads the card that landed on the discard pile, never the hand."}
+ ],
+ "open_questions": [
+  "A third action: counted as the third action TAKEN this turn, gained actions included (docs/heroes/bloody-mary.md).",
+  "Broken Glass: 'the value of this card matches your opponent's card' is read as the two TOTAL values in the combat after the DURING choice (boosts and bonuses included)."
+ ]
+}

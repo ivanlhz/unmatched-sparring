@@ -715,3 +715,4 @@ from . import plugins_john  # noqa: E402,F401  (registers john:summon_track and 
 from . import plugins_washington  # noqa: E402,F401  (registers washington:use_ruse, washington:offer_removal and washington:replace_combatant)
 from . import plugins_raptors  # noqa: E402,F401  (registers blue:ambush)
 from . import plugins_achilles  # noqa: E402,F401  (registers achilles:replace_combatant)
+from . import plugins_mary  # noqa: E402,F401  (registers mary:out_of_the_mirror)

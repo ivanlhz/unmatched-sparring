@@ -1,0 +1,172 @@
+{
+ "_notes": [
+  "Sheet 176 of the tournament savegame (8x4), read card by card from the image on 2026-11-20. CardID = 17600 + idx; 321 = character card (sheet 3, 10x7, index 21). The deck object of the save holds 31 cards: the 30 of the deck plus the character card. Bloody Mary's deck is sheet 176 like Medusa's, the turtles', Doctor Strange's and the rest: only deck.identity (data/tts/bloody-mary.json) tells the decks apart (docs/card-identity.md).",
+  "Hero card (read from the image): BLOODY MARY, MELEE, START HEALTH 16, MOVE 3; special ability 'At the start of your turn, if you have exactly 3 cards in hand, gain 1 action.' NO sidekick: unmatched-memory lists a 'Patroclus' sidekick with hasSidekicks false (a slip: he is Achilles' sidekick); it is not on the hero card nor in the savegame (the bag holds one miniature and one life dial). The overlay says sidekicks [] so the importer drops it.",
+  "Copies (xN printed on each card), type, value and boost match unmatched-memory for all 13 titles (30 cards). Discrepancy (the real card wins): Closer Than She Appears reads 'Move Bloody Mary up to 1 space' where unmatched-memory has 'Move your fighter up to 1 space'. Every card carries the BLOODY MARY band (none ANY): the restriction changes nothing while she has no sidekicks."
+ ],
+ "fid": "mary",
+ "sidekicks": [],
+ "forms": null,
+ "counters": {},
+ "triggers": [],
+ "passives": [],
+ "deck": {
+  "card_base": 17600,
+  "sheet_id": 176,
+  "hero_card_id": 321,
+  "sheet": [
+   {
+    "idx": 0,
+    "title": "Speak Three Times",
+    "fighter": "Bloody Mary"
+   },
+   {
+    "idx": 1,
+    "title": "Speak Three Times",
+    "fighter": "Bloody Mary"
+   },
+   {
+    "idx": 2,
+    "title": "Bloody Requiem",
+    "fighter": "Bloody Mary"
+   },
+   {
+    "idx": 3,
+    "title": "Bloody Requiem",
+    "fighter": "Bloody Mary"
+   },
+   {
+    "idx": 4,
+    "title": "Bloody Requiem",
+    "fighter": "Bloody Mary"
+   },
+   {
+    "idx": 5,
+    "title": "Out Of The Mirror",
+    "fighter": "Bloody Mary"
+   },
+   {
+    "idx": 6,
+    "title": "Out Of The Mirror",
+    "fighter": "Bloody Mary"
+   },
+   {
+    "idx": 7,
+    "title": "Ghostly Touch",
+    "fighter": "Bloody Mary"
+   },
+   {
+    "idx": 8,
+    "title": "Ghostly Touch",
+    "fighter": "Bloody Mary"
+   },
+   {
+    "idx": 9,
+    "title": "Feint",
+    "fighter": "Bloody Mary"
+   },
+   {
+    "idx": 10,
+    "title": "Feint",
+    "fighter": "Bloody Mary"
+   },
+   {
+    "idx": 11,
+    "title": "Jump Scare",
+    "fighter": "Bloody Mary"
+   },
+   {
+    "idx": 12,
+    "title": "Jump Scare",
+    "fighter": "Bloody Mary"
+   },
+   {
+    "idx": 13,
+    "title": "Infinity Mirror",
+    "fighter": "Bloody Mary"
+   },
+   {
+    "idx": 14,
+    "title": "Infinity Mirror",
+    "fighter": "Bloody Mary"
+   },
+   {
+    "idx": 15,
+    "title": "Broken Glass",
+    "fighter": "Bloody Mary"
+   },
+   {
+    "idx": 16,
+    "title": "Broken Glass",
+    "fighter": "Bloody Mary"
+   },
+   {
+    "idx": 17,
+    "title": "Broken Glass",
+    "fighter": "Bloody Mary"
+   },
+   {
+    "idx": 18,
+    "title": "Trick of the Light",
+    "fighter": "Bloody Mary"
+   },
+   {
+    "idx": 19,
+    "title": "Trick of the Light",
+    "fighter": "Bloody Mary"
+   },
+   {
+    "idx": 20,
+    "title": "Trick of the Light",
+    "fighter": "Bloody Mary"
+   },
+   {
+    "idx": 21,
+    "title": "Evade",
+    "fighter": "Bloody Mary"
+   },
+   {
+    "idx": 22,
+    "title": "Evade",
+    "fighter": "Bloody Mary"
+   },
+   {
+    "idx": 23,
+    "title": "Evade",
+    "fighter": "Bloody Mary"
+   },
+   {
+    "idx": 24,
+    "title": "Mirror Image",
+    "fighter": "Bloody Mary"
+   },
+   {
+    "idx": 25,
+    "title": "Mirror Image",
+    "fighter": "Bloody Mary"
+   },
+   {
+    "idx": 26,
+    "title": "Closer Than She Appears",
+    "fighter": "Bloody Mary",
+    "text": "Move Bloody Mary up to 1 space. Draw 1 card. Gain 1 action."
+   },
+   {
+    "idx": 27,
+    "title": "Closer Than She Appears",
+    "fighter": "Bloody Mary",
+    "text": "Move Bloody Mary up to 1 space. Draw 1 card. Gain 1 action."
+   },
+   {
+    "idx": 28,
+    "title": "Stolen Memories",
+    "fighter": "Bloody Mary"
+   },
+   {
+    "idx": 29,
+    "title": "Stolen Memories",
+    "fighter": "Bloody Mary"
+   }
+  ]
+ }
+}
