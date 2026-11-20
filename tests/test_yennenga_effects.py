@@ -49,6 +49,12 @@ def stack(g, hero_fid="yennenga", with_archers=2):
     return yen
 
 
+def beside(g, fid, to_fid):
+    g.fighters[fid].pos = next(s for s in sorted(g.board.adj[g.fighters[to_fid].pos])
+                               if all(f.pos != s for f in g.fighters.values() if f.alive))
+    return g.fighters[fid]
+
+
 # ---------------------------------------------------------------- the figures and the sheet
 
 def test_yennenga_is_interpreted_and_has_the_printed_figures(bprd):
@@ -79,8 +85,7 @@ def test_the_archers_take_the_damage_the_owner_assigns_and_yennenga_the_rest(bpr
     g = mk(bprd, turn=1)
     yen = stack(g)
     a1, a2 = archers(g)
-    hellboy = g.fighters["hellboy"]
-    hellboy.pos = next(s for s in sorted(g.board.adj[yen.pos]) if all(f.pos != s for f in g.fighters.values() if f.alive))
+    hellboy = beside(g, "hellboy", "yennenga")
     g.controllers[0].queue = [[1], [1]]                          # one point to each Archer
     atk = foe_attack(g)
     res = g.attack(hellboy, yen, atk, None)
@@ -93,10 +98,9 @@ def test_an_archer_never_takes_more_than_its_remaining_life_and_falls_at_zero(bp
     g = mk(bprd, turn=1)
     yen = stack(g)
     a1, a2 = archers(g)
-    hellboy = g.fighters["hellboy"]
-    hellboy.pos = next(s for s in sorted(g.board.adj[yen.pos]) if all(f.pos != s for f in g.fighters.values() if f.alive))
-    g.controllers[0].queue = [lambda req: seen.append(req.options) or [max(req.options)]] * 2
+    hellboy = beside(g, "hellboy", "yennenga")
     seen = []
+    g.controllers[0].queue = [lambda req: seen.append(req.options) or [max(req.options)]] * 2
     atk = foe_attack(g)
     g.attack(hellboy, yen, atk, None)
     assert all(max(o) <= 2 for o in seen)                        # 2 life: never more than 2
@@ -108,8 +112,7 @@ def test_an_archer_out_of_her_zone_cannot_take_damage(bprd):
     g = mk(bprd, turn=1)
     yen = stack(g, with_archers=1)
     a1, a2 = archers(g)
-    hellboy = g.fighters["hellboy"]
-    hellboy.pos = next(s for s in sorted(g.board.adj[yen.pos]) if all(f.pos != s for f in g.fighters.values() if f.alive))
+    hellboy = beside(g, "hellboy", "yennenga")
     far = max((s for s in g.board.spaces if not g.board.share_zone(yen.pos, s) and all(f.pos != s for f in g.fighters.values() if f.alive)))
     a2.pos = far
     seen = []
@@ -122,19 +125,17 @@ def test_an_archer_out_of_her_zone_cannot_take_damage(bprd):
 def test_a_defeated_archer_is_not_asked_and_with_none_in_her_zone_nothing_is_asked(bprd):
     g = mk(bprd, turn=1)
     yen = stack(g, with_archers=0)
-    hellboy = g.fighters["hellboy"]
-    hellboy.pos = next(s for s in sorted(g.board.adj[yen.pos]) if all(f.pos != s for f in g.fighters.values() if f.alive))
+    hellboy = beside(g, "hellboy", "yennenga")
     g.controllers[0].queue = []
     atk = foe_attack(g)
-    res = g.attack(hellboy, yen, atk, None)
+    g.attack(hellboy, yen, atk, None)
     assert yen.hp == 15 - atk.value and not g.controllers[0].requests
 
 
 def test_the_blow_is_not_assigned_when_it_is_zero(bprd):
     g = mk(bprd, turn=1)
     yen = stack(g)
-    hellboy = g.fighters["hellboy"]
-    hellboy.pos = next(s for s in sorted(g.board.adj[yen.pos]) if all(f.pos != s for f in g.fighters.values() if f.alive))
+    hellboy = beside(g, "hellboy", "yennenga")
     res = g.attack(hellboy, yen, foe_attack(g), give(g, 0, "Shield Formation"), values=(-9, 0))
     assert res.damage == 0 and not [r for r in g.controllers[0].requests if r.extra.get("assign")]
 
@@ -146,9 +147,8 @@ def test_effect_damage_to_yennenga_can_be_assigned_too(bprd):
     yen = stack(g)
     a1, a2 = archers(g)
     g.controllers[0].queue = [[2], [0]]
-    from sparring.effects.ops_core import OPS
-    from sparring.effects.run import Ctx, EffectRun
     from sparring.effects.choose import ControllerChooser
+    from sparring.effects.run import Ctx, EffectRun
     run = EffectRun([{"op": "damage", "target": {"side": "enemy", "kind": "hero"}, "amount": 3}], Ctx(owner=1, this_fid="hellboy"))
     run.run(g, {0: ControllerChooser(), 1: ControllerChooser()})
     assert (a1.hp, yen.hp) == (0, 15 - 1) and not a1.alive and a2.hp == 2
@@ -159,8 +159,7 @@ def test_effect_damage_to_yennenga_can_be_assigned_too(bprd):
 def volley_scene(bprd, dead=1):
     g = mk(bprd)
     yen = stack(g, with_archers=0)
-    hellboy = g.fighters["hellboy"]
-    hellboy.pos = next(s for s in sorted(g.board.adj[yen.pos]) if all(f.pos != s for f in g.fighters.values() if f.alive))
+    hellboy = beside(g, "hellboy", "yennenga")
     for a in archers(g)[:dead]:
         g.defeat(a)
     return g, yen, hellboy
@@ -208,8 +207,7 @@ def test_an_archer_may_play_surprise_volley_and_the_returned_one_replaces_it(bpr
 def shield_scene(bprd, dead=1):
     g = mk(bprd, turn=1)
     yen = stack(g, with_archers=0)
-    hellboy = g.fighters["hellboy"]
-    hellboy.pos = next(s for s in sorted(g.board.adj[yen.pos]) if all(f.pos != s for f in g.fighters.values() if f.alive))
+    hellboy = beside(g, "hellboy", "yennenga")
     for a in archers(g)[:dead]:
         g.defeat(a)
     return g, yen, hellboy
@@ -242,12 +240,6 @@ def test_shield_formation_against_an_empty_hand_brings_the_archer_back(bprd):
 
 
 # ---------------------------------------------------------------- the plain damage and value cards
-
-def beside(g, fid, to_fid):
-    g.fighters[fid].pos = next(s for s in sorted(g.board.adj[g.fighters[to_fid].pos])
-                               if all(f.pos != s for f in g.fighters.values() if f.alive))
-    return g.fighters[fid]
-
 
 def test_point_blank_deals_two_only_when_the_opposing_fighter_is_adjacent_to_yennenga(bprd):
     g = mk(bprd)
