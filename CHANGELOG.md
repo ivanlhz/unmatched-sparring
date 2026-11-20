@@ -1,5 +1,12 @@
 # Changelog
 
+## 0.9.3 · 2026-11-20
+
+Changes since 0.9.2.
+
+### Fixes
+- **Daredevil's Devil of Hell's Kitchen with a BLIND BOOST** (live 20/11): the card the blind boost laid on the discard pile is shuffled back into the deck with the rest, on the table too. Also when that card is drawn again in the same play, and it is never taken for a card from the human's hand.
+
 ## 0.9.2 · 2026-11-20
 
 Changes since 0.9.1.
