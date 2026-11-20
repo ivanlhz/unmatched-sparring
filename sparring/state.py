@@ -7,7 +7,7 @@ from typing import Callable
 from .board import Board
 from .cards import Card, can_be_boost
 from .controller import Controller
-from . import enraged, pack, tracks
+from . import enraged, pack, tracks, vengeance
 from .effects import inventions, ongoing, table
 from .effects.state import EffectState, default_dsl_heroes
 from .heroes import DEFAULT_HAND_LIMIT, DEFAULT_START_HAND, HeroDef, load_hero
@@ -419,7 +419,8 @@ class Game:
         parts = (self.players[fighter.owner].hero.attack_bonuses(self.form(fighter.owner), fighter.hero,
                                                                   self.fx.maneuvered(fighter.owner))
                  + self.combat_bonus_parts(fighter.owner) + inventions.bonus_parts(self, fighter.owner, "attack")
-                 + enraged.bonus_parts(self, fighter.owner) + pack.bonus_parts(self, fighter, target))
+                 + enraged.bonus_parts(self, fighter.owner) + pack.bonus_parts(self, fighter, target)
+                 + vengeance.bonus_parts(self, fighter))
         high = self.board.attack_bonus(fighter.pos, target.pos) if target is not None else 0
         return parts + [(high, t("cf.high_ground"))] if high else parts
 
@@ -457,7 +458,8 @@ class Game:
         passives = self.players[fighter.owner].hero.attack_bonus(self.form(fighter.owner), fighter.hero,
                                                                  self.fx.maneuvered(fighter.owner))
         tucked = (sum(n for n, _ in inventions.bonus_parts(self, fighter.owner, "attack")) + enraged.bonus_total(self, fighter.owner)
-                  + sum(n for n, _ in pack.bonus_parts(self, fighter, target)))
+                  + sum(n for n, _ in pack.bonus_parts(self, fighter, target))
+                  + sum(n for n, _ in vengeance.bonus_parts(self, fighter)))
         high = self.board.attack_bonus(fighter.pos, target.pos) if target is not None else 0
         return passives + tucked + high + (self.combat_bonus_total(fighter.owner) if self.turn == fighter.owner else 0)
 

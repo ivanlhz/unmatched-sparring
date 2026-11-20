@@ -68,6 +68,13 @@
          "name": "Patroclus"
         }
        }
+      },
+      {
+       "test": "exists",
+       "fighters": {
+        "role": "this",
+        "kind": "hero"
+       }
       }
      ]
     },

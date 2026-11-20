@@ -25,7 +25,14 @@
  "forms": null,
  "counters": {},
  "triggers": [],
- "passives": [],
+ "passives": [
+  {
+   "id": "vengeance",
+   "effect": "sidekick_defeated_bonus",
+   "sidekick": "patroclus",
+   "n": 2
+  }
+ ],
  "deck": {
   "card_base": 17600,
   "sheet": 176,
@@ -413,6 +420,7 @@
  "_notes": [
   "Sheet 176 of the tournament savegame (8x4), read card by card from the image on 2026-11-20. CardID = 17600 + idx; 318 = character card (sheet 3, 10x7, index 18). The deck object (70a2b2) holds 31 cards: the 30 plus the character card. Same sheet number as Medusa, the turtles and the other sheet-176 decks: only deck.identity tells them apart (docs/card-identity.md).",
   "Bands (fighter restrictions) read from the images: ACHILLES on Achilles' Heel, Under Achilles' Helm and Spear Throw; PATROCLUS on Battle Frenzy and The Day of Your Doom; ANY on the other seven titles. Restrictions are not in unmatched-memory. Titles, copies (30 in all), type, value, boost and texts of the 12 titles match unmatched-memory.",
-  "Hero card (read from unmatched-memory): ACHILLES, MELEE, START HEALTH 18, MOVE 2; sidekick PATROCLUS, MELEE, START HEALTH 6, MOVE 2. One Patroclus, a Custom_Token in the save (like Daisy and The Porter) with his own sidekick health dial."
+  "Hero card (read from unmatched-memory): ACHILLES, MELEE, START HEALTH 18, MOVE 2; sidekick PATROCLUS, MELEE, START HEALTH 6, MOVE 2. One Patroclus, a Custom_Token in the save (like Daisy and The Porter) with his own sidekick health dial.",
+  "Passive `vengeance` (sparring/vengeance.py): +2 to every attack of Achilles himself while Patroclus is defeated; the trigger (2 random discards) and the draw are DSL (data/heroes/effects/achilles.json)."
  ]
 }
