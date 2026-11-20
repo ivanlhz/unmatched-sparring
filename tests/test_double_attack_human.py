@@ -235,3 +235,35 @@ def test_a_parked_after_combat_choice_of_the_bots_attack_is_answered_before_its_
     assert session.pending is None and session._paused() is None and game.turn == 0
     assert game.fighters["strange"].hp == hp - SECOND, "the second attack resolved on the bot's turn"
 
+
+@pytest.fixture
+def bot_hellboy_vs_baba(tmp_path):
+    session, table, game, fake, cfg, client = build(tmp_path, "hellboy", "baba-yaga", (TITLE, "Service Pistol", "Excalibur", "Right Hand Of Doom", "B.P.R.D. Training"))
+    put_adjacent(game, table, cfg, "hellboy", "baba")
+    yield session, table, game
+    client.close()
+    fake.close()
+
+
+def test_the_human_boosts_the_defense_of_the_second_part_with_out_of_time(bot_hellboy_vs_baba):
+    session, table, game = bot_hellboy_vs_baba
+    horseshoes = next(c for c in game.players[0].hand if c.title == TITLE)
+    human_hand(table, game, "Out Of Time", "Exploit", "Iron Teeth")
+    bot_turn(session, table, [Act("attack", fid="hellboy", target="baba", card=horseshoes)])
+    click(session, table, Event.REVEAL)                      # no defense for the first part
+    click(session, table, Event.END_ACTION)
+    assert session.pending is not None and session.pending.second is not None
+    oot = card_ids(game, 1, "Out Of Time")[0]
+    table.face_down = [{"id": oot, "guid": f"h{oot}"}]
+    table.human_hand.remove(oot)
+    table.human_count -= 1
+    hp = game.fighters["baba"].hp
+    click(session, table, Event.REVEAL)
+    assert session.pending is not None and session.pending.wait is not None, "the free BOOST of the defense is offered for the second part"
+    assert game.fighters["baba"].hp == hp, "nothing is resolved before the boost"
+    exploit = card_ids(game, 1, "Exploit")[0]
+    table.human_hand.remove(exploit)
+    table.human_discard = [*table.human_discard, exploit]
+    table.human_count -= 1
+    click(session, table, Event.BOOST)
+    assert session.pending is None and game.fighters["baba"].hp == hp, "Out Of Time plus the boost stop the 3"

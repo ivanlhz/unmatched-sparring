@@ -3982,6 +3982,8 @@ class Session:
         Checkpoints (saved to disk): at the start of the turn, after Medusa's ability and after each action,
         so that a cut or a resumed Ctrl+C repeats nothing already done."""
         g = self.game
+        if self.second_next is not None and self.pending is None and self._start_second_next():
+            return                                 # DOUBLE ATTACK: the second part of the bot's card comes before its turn goes on
         if self.first_turn_pending and g.turn == self.bot and self.bot_stage == "start":
             self._start_first_turn()              # a table error at game start skipped it
         self._revoke_look_after_button()

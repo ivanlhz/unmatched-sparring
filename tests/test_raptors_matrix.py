@@ -39,7 +39,7 @@ def play_to_the_end(tmp_path, bot: str, human: str):
         wear_down(session, table, game, cfg)
         steps, said = 0, []
         while game.winner is None and steps < MAX_STEPS:
-            if game.turn == session.human or session.pending is not None or session._paused() is not None:
+            if game.turn == session.human or session.pending is not None or session._paused() is not None or session.moving:
                 said += human_step(session, table, game)
             else:
                 session._bot_continue()
