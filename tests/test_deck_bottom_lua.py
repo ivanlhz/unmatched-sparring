@@ -290,13 +290,31 @@ table.insert(OBJECTS, 1, waiting)""")
 
 
 # ---------- resolve_hand_row(deck_bottom=True): the row's chosen card goes under the deck, the rest back to the hand ----------
-def test_the_chosen_card_of_a_hand_row_goes_under_the_deck_and_the_rest_back_to_the_hand(rt):
+def row_of_two(rt):
     deck(rt)
     rt.execute("""mkobj({guid = 'r1', type = 'Card', cid = 201, owner = 'x', pos = Vector(9, 1, 9), is_face_down = false})
 mkobj({guid = 'r2', type = 'Card', cid = 202, owner = 'x', pos = Vector(9, 1, 8), is_face_down = false})""")
-    row = functools.partial(lua.resolve_hand_row, ["r1", "r2"], "Blue", identity=X_IDENT, id_range=X_IDS)
-    out, _, _, _ = in_frames(rt, [row(discard="r1", deck_guid="deck01", deck_spot=SPOT, deck_bottom=True)])
-    assert the_deck(rt)["ids"] == [101, 102, 103, 201]
-    assert out["ops"][0]["discarded"] == 201 and out["ops"][0]["returned"] == [202]
+    return functools.partial(lua.resolve_hand_row, ["r1", "r2"], "Blue", identity=X_IDENT, id_range=X_IDS)
+
+
+def test_the_chosen_card_of_a_hand_row_goes_under_the_deck_while_the_rest_goes_back_and_the_draw_follows(rt):
+    row = row_of_two(rt)
+    out, _, _, _ = in_frames(rt, [row(discard="r1", deck_guid="deck01", deck_spot=SPOT, deck_bottom=True), deal("deck01", 1, "Blue")])
+    res = out["ops"][0]
+    assert the_deck(rt)["ids"] == [102, 103, 201], "the draw came off the untouched top; the chosen card is under the deck"
+    assert res["discarded"] == 201 and res["returned"] == [202] and res["asked"] == "deck01" and res["deck"] == the_deck(rt)["guid"]
+    assert rt.eval("getObjectFromGUID('r2').getPosition().x") == 0 and rt.eval("getObjectFromGUID('r2').use_hands") is True
     with pytest.raises(TypeError):
         lua.resolve_hand_row(["r1"], "Blue", identity=X_IDENT, discard="r1", deck_bottom=True)
+
+
+def test_a_chosen_card_lost_before_the_rebuild_is_reported_as_not_moved(rt):
+    row = row_of_two(rt)
+    rt.execute("FRAME_MODE = true")
+    sent = []
+    rt.globals().JSON = rt.table_from({"encode": lambda v: sent.append(json.loads(json.dumps(conv(v)))) or ""})
+    rt.execute(lua.composite([row(discard="r1", deck_guid="deck01", deck_spot=SPOT, deck_bottom=True)]))
+    rt.execute("getObjectFromGUID('r1').getData = function() error('destroyed') end")
+    rt.execute("tick(240)")
+    res = sent[0]["ops"][0]
+    assert res["discarded"] is False and res["returned"] == [202], "the session's check fails and says where to put the card"

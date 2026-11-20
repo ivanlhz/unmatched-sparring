@@ -556,6 +556,7 @@ def test_the_chosen_card_goes_from_the_row_to_the_bottom_while_the_table_is_slow
     msgs = click(session, table, Event.LOOK_PING, {"guid": f"g{chosen}"})
     table.lag = 0
     assert not said(msgs, "No he podido mover") and not said(msgs, "se queda"), msgs
+    assert not any(said(msgs, bad) for bad in ("no cerro la fila", "Aviso: la mesa", "No he podido confirmar el reparto", "FakeTTS")), msgs
     assert said(msgs, f"{title} va al fondo del mazo del bot"), msgs
     assert not any(chosen in ids for kind, ids in table.hand_moves), table.hand_moves      # moved once, by the row
     assert table.bot_deck[-1] == chosen and chosen not in table.bot_hand

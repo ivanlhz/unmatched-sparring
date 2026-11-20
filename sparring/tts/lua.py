@@ -889,7 +889,14 @@ def resolve_hand_row(guids: list[str], seat_color: str, *, identity, id_range: t
 {home_lua(deck_spot, deck_zone)}if deck == nil and home == nil then return JSON.encode({{discarded = false, returned = {{}}, found = #objs, down = down, deck = false}}) end
 """
         # a one-card deck is a Card in TTS and has no putObject: the chosen card is dropped on it, same facing
-        chosen_goes = f"""bury({_guid(deck_guid)}, home, {{o}}, function() end)
+        # inside a composite the reply is this very table: a failure of the later rebuild (the card destroyed, the table
+        # refusing the new deck) turns `discarded` off, and the rebuilt deck's GUID is reported for the session to adopt
+        chosen_goes = f"""bury({_guid(deck_guid)}, home, {{o}}, function(new, lost)
+      if lost[1] then
+        lostChosen, res.discarded = true, false
+      end
+      if new ~= nil then res.asked, res.deck = {_guid(deck_guid)}, new.getGUID() end
+    end)
     discarded = id""" if deck_bottom else """if deck == nil then
       layFirst(o, home)
     elseif deck.type == "Deck" then
@@ -928,7 +935,8 @@ elseif pick ~= nil then
   if chosen == nil then return JSON.encode({{discarded = false, returned = {{}}, found = #objs, down = down}}) end
 end
 {deck_check}local t = Player[{_color(seat_color)}].getHandTransform(1)
-local discarded, returned = false, {{}}
+local discarded, returned, lostChosen = false, {{}}, false
+local res = {{discarded = false, returned = returned, found = #objs, down = down}}
 for _, o in ipairs(objs) do
   local id = o.getData().CardID
   if o == chosen then
@@ -939,7 +947,8 @@ for _, o in ipairs(objs) do
     table.insert(returned, id)
   end
 end
-{_panel_var_lua('""')}return JSON.encode({{discarded = discarded, returned = returned, found = #objs, down = down}})
+if not lostChosen then res.discarded = discarded end
+{_panel_var_lua('""')}return JSON.encode(res)
 """
 
 

@@ -564,9 +564,9 @@ class Table:
         elif chosen is not None:
             self._later(lambda: self.bot_discard.append(chosen))
         self._later(lambda: self.bot_hand.extend(returned))
+        spot = re.search(r"o\.setPosition\(Vector\(([^)]*)\)\)\n    discarded", s)      # only the discard script lays it at a spot
         self.resolve_args = {"chosen": chosen, "returned": returned,
-                             "spot": tuple(float(v) for v in re.search(
-                                 r"o\.setPosition\(Vector\(([^)]*)\)\)\n    discarded", s).group(1).split(","))}
+                             "spot": tuple(float(v) for v in spot.group(1).split(",")) if spot else None}
         return {"discarded": chosen if chosen is not None else False, "returned": returned, "found": len(row),
                 "down": len(down)}
 
