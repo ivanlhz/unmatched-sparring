@@ -381,3 +381,26 @@ def test_the_question_of_the_bots_out_of_the_mirror_survives_a_save_and_is_answe
     twin.client = session.client
     click(twin, table, Event.CHOICE, {"i": 1})
     assert twin.game.fighters["hellboy"].hp == hp - (1 + 2)
+
+
+# ---------------------------------------------------------------- a "+" in a button label reaches the live panel (live_ui writes it through lua.set_panel)
+
+@pytest.mark.parametrize("labels", [{"btn_choice_1": "+1", "btn_choice_2": "-1", "btn_choice_3": "0"},
+                                    {"btn_choice_1": "Hand card to bottom: +1 action"}])
+def test_the_live_panel_accepts_plus_in_a_button_label(labels):
+    from sparring.tts import lua
+    script = lua.set_panel("Elige", {}, labels=labels)
+    for text in labels.values():
+        assert f'"text", "{text}")' in script
+
+
+@with_rig()
+def test_broken_glass_labels_pass_the_live_panel_check(rig, monkeypatch):
+    from sparring.tts import lua
+    session, table, game, fake, cfg = rig
+    no_defense(session, monkeypatch)
+    human_hand(table, game, "Broken Glass", "Feint")
+    attack(session, table, game, "Broken Glass")
+    labels = {k: v for k, v in session.panel_labels().items() if k.startswith("btn_choice")}
+    assert "+1" in labels.values()
+    assert "text" in lua.set_panel("Elige", {}, labels=labels)

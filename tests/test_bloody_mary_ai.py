@@ -258,3 +258,14 @@ def test_the_held_speak_is_not_spent_as_a_maneuver_boost_and_only_the_bots_own_m
     assert "Speak Three Times" not in own._attack_titles(0, g.fighters["mary"])
     rival_view = EngineState(g, observer=1, knowledge=Knowledge.from_game(g, 1))
     assert "Speak Three Times" in rival_view._attack_titles(0, g.fighters["mary"]), "a human's Mary is modelled as free to attack with it"
+
+
+def test_on_the_rivals_turn_defending_is_not_penalized(bprd):
+    g = mk(bprd, turn=1)
+    m, b = pair(g, "mary", "bat")
+    give(g, 1, "Skirmish")
+    g.players[0].hand[:] = [give(g, 0, "Evade", i) for i in range(3)]
+    three = ai_mary.kept_cards_bonus(g, 0)
+    give(g, 0, "Feint")
+    four = ai_mary.kept_cards_bonus(g, 0)
+    assert three == ai_mary.EXTRA_ACTION_CARDS and four == 0.0, "the rival is already on turn: defending from 4 (ending on 3) is worth the action, keeping the 4 is not"

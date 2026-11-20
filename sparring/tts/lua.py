@@ -2731,7 +2731,7 @@ return ""
 
 
 PANEL_ID = re.compile(r"[A-Za-z0-9_]{1,40}")
-_STATUS = re.compile(r"[A-Za-z0-9 _.\-!:',·]{0,90}")
+_STATUS = re.compile(r"[A-Za-z0-9 _.\-+!:',·]{0,90}")      # the text goes inside a double-quoted Lua string: no quote or backslash, and + is plain text
 
 
 @_registered
