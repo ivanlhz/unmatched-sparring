@@ -1180,6 +1180,21 @@
       "note": "Reported by Ivan in a live game on 20/11/2026 (launcher, bot Hellboy vs human John Henry)."
     },
     {
+      "id": "HERO-YENNENGA",
+      "title": "Yennenga (Battle of Legends, Volume Two) playable by the bot and by the human against every hero",
+      "status": "in-progress",
+      "criteria": [
+        "data/heroes/overlay/yennenga.json, data/heroes/yennenga.json, data/heroes/effects/yennenga.json and data/tts/yennenga.json generated and validated; all 12 titles (30 cards, sheet 176, character card 319) read from the card images; unmatched-memory's hasTokens is a data slip (no token) and Point Blank's printed text is recorded",
+        "Her deck shares CardIDs 17600-17629 with the other sheet-176 decks (told apart by image and owner) and her miniature GUID 3ec3d1 is Houdini's (resolved by name): tests/test_hero_yennenga_data.py, tests/test_piece_identity.py",
+        "The ability (assign any amount of damage meant for her to the Archers in her zone): the owner is asked per Archer before combat damage lands (CombatFlow DAMAGE pause, saved and resumed) and inside the damage op for effect damage (modifiers applied once to the whole blow, an op's own hit on an Archer reserved, the bound fighter stays Yennenga); the bot decides by hit-point weights and next-turn death risk (sparring/ai_yennenga.py); mutation-checked",
+        "All 12 cards on the interpreter for both seats: Surprise Volley (plugin: a defeated Archer returns as the attacker), Shield Formation, Stallion Charge, Rain of Arrows (second_attack 3, the double attack) and the rest",
+        "The Archers have 2 life and no dial: each is a two-sided token (Ivan 2026-11-20); the bot flips its own to the engine's life and says it, the session reads the human's and asks them to flip a wrong one (sparring/session_archers.py, tests/test_yennenga_faces.py); the face rotations are a guess marked verify_live",
+        "Yennenga against every other hero in both seats reaches game over on FakeTTS and in the simulator (tests/test_yennenga_matrix.py); the human's choices are parked runs that survive --resume (tests/test_yennenga_human.py)",
+        "Verified live by Ivan (docs/live-checklist.md, section Yennenga)"
+      ],
+      "note": "Rules decisions and Pending Ivan: docs/heroes/yennenga.md. Engine additions are additive (docs/effects-dsl.md section 47, docs/combat-flow.md Damage assignment). Live test pending."
+    },
+    {
       "id": "F-DOUBLE-ATTACK",
       "title": "The double attack (Battle of Legends, Volume Two): a card's second attack as an AFTER COMBAT effect, for the bot and the human, in the engine, the table and the AIs",
       "status": "in-progress",
