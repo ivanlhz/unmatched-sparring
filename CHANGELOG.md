@@ -1,5 +1,15 @@
 # Changelog
 
+## 0.9.2 · 2026-11-20
+
+Changes since 0.9.1.
+
+### Fixes
+- **The human's Medusa may BOOST Second Shot** (live 20/11): her Second Shot never offered its DURING COMBAT boost, because her cards were treated as the bot's. The combat resolved at once and the bot's AFTER effect ran with no DURING first. Now it waits for the boost like any other Second Shot or Out Of Time.
+
+### Tests
+- **Combat timing order** (Ivan, 20/11): IMMEDIATELY first, then DURING COMBAT, then AFTER COMBAT; on equal timing the defender's effect goes first. A DURING free boost (and its BOOSTED WITH) is settled before any AFTER effect and before the damage. 24 cases: every pair of timings on the engine, cancels at IMMEDIATELY, real cards, and the table session with the human attacking and defending.
+
 ## 0.9.1 · 2026-11-20
 
 Changes since 0.9.0.
