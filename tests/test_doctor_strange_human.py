@@ -434,6 +434,8 @@ def test_no_really_im_a_doctor_reads_the_revealed_card_from_the_pile_and_puts_it
     msgs = done(session, table)
     assert said(msgs, "reveleas Bolts of Balthakk (POTENCIA 3)")
     assert said(msgs, "Pongo Bolts of Balthakk de tu descarte encima de tu mazo")
+    for gone in ("de tu mano en la parte superior", "de tu mano a tu mazo", "devuelves 1 carta", "Devuelve 1 carta"):
+        assert not said(msgs, gone)
     assert table.deck_moves == [("top", [bolts])] and table.human_deck == [bolts] and bolts not in table.human_discard
     assert game.players[1].deck[0].card_id == bolts
     assert game.players[0].known.top_of_deck == [bolts]                           # the bot saw it: it is the top card of their deck
@@ -455,6 +457,47 @@ def test_no_really_the_heal_goes_to_strange_or_to_wong_beside_him_at_the_players
     assert req.kind == "fighter" and sorted(req.options) == ["strange", "wong"]
     click(session, table, Event.CHOICE, {"i": req.options.index("wong") + 1})
     assert game.fighters["wong"].hp == 5 and game.fighters["strange"].hp == 8 and session.effect_run is None
+
+
+@with_rig()
+def test_no_really_does_not_also_ask_for_the_card_the_bot_already_put_on_top(rig, monkeypatch):
+    """Live 20/11: with Wong beside him the heal waited for a choice; the summary then told the card went from the hand
+    to the deck ("devuelves 1 carta") and asked the human to put it there, after the bot had moved it."""
+    session, table, game, fake, cfg = rig
+    put_adjacent(game, table, cfg, "wong", "strange")
+    game.fighters["strange"].hp, game.fighters["wong"].hp = 8, 2
+    human_hand(table, game, "No, Really, I'm a Doctor", "Bolts of Balthakk")
+    human_scheme(session, table, game, "No, Really, I'm a Doctor")
+    bolts = sid(game, "Bolts of Balthakk")
+    table.human_discard.append(bolts)
+    table.human_count -= 1
+    done(session, table)
+    req = session.effect_run.awaiting
+    msgs = click(session, table, Event.CHOICE, {"i": req.options.index("strange") + 1})
+    assert said(msgs, "Pongo Bolts of Balthakk de tu descarte encima de tu mazo")
+    for gone in ("de tu mano en la parte superior", "de tu mano a tu mazo", "devuelves 1 carta", "Devuelve 1 carta"):
+        assert not said(msgs, gone)
+    assert table.deck_moves == [("top", [bolts])]
+
+
+@with_rig()
+def test_no_really_still_puts_the_card_on_top_after_a_save_and_restore_at_the_heal_choice(rig, monkeypatch):
+    session, table, game, fake, cfg = rig
+    put_adjacent(game, table, cfg, "wong", "strange")
+    game.fighters["strange"].hp, game.fighters["wong"].hp = 8, 2
+    human_hand(table, game, "No, Really, I'm a Doctor", "Bolts of Balthakk")
+    human_scheme(session, table, game, "No, Really, I'm a Doctor")
+    bolts = sid(game, "Bolts of Balthakk")
+    table.human_discard.append(bolts)
+    table.human_count -= 1
+    done(session, table)
+    session._restore(session.to_dict())                          # what --resume does
+    req = session.effect_run.awaiting
+    msgs = click(session, table, Event.CHOICE, {"i": req.options.index("strange") + 1})
+    assert said(msgs, "Pongo Bolts of Balthakk de tu descarte encima de tu mazo")
+    for gone in ("de tu mano en la parte superior", "de tu mano a tu mazo"):
+        assert not said(msgs, gone)
+    assert table.deck_moves == [("top", [bolts])]
 
 
 # ---------------------------------------------------------------- Eye of Agamotto
@@ -720,3 +763,36 @@ def test_no_really_lays_the_revealed_card_large_until_the_human_dismisses_it(rig
     assert table.reveal_copies == [bolts] and session.panel_view()[1]["btn_unreveal"] == (True, True)
     click(session, table, Event.STOP_REVEAL)
     assert table.reveal_copies == [] and session.panel_view()[1]["btn_unreveal"] == (True, False)
+
+
+# ---------------------------------------------------------------- the bot's Glimpse Of Hell against the human's attack
+
+GLIMPSE_GONE = ("de tu mano a tu mazo", "Devuelve 1 carta", "Devuelve 2 cartas")
+
+
+@with_rig("Glimpse Of Hell")
+def test_a_blind_boost_against_the_bots_glimpse_does_not_tell_the_human_to_put_a_card_back(rig, monkeypatch):
+    """Live 20/11: the bot's own card back into its own deck was followed by 'Devuelve 1 carta de tu mano a tu mazo'."""
+    session, table, game, fake, cfg = rig
+    defends(session, game, monkeypatch, "Glimpse Of Hell")
+    human_hand(table, game, "Seven Suns of Cinnibus", "Feint")
+    top = on_deck(table, game, "Cloak of Levitation", "Feint")[0]
+    st = game.players[1]                                  # the engine's hand is placeholders: one of them stands for the card
+    by_id = {c.card_id: c for c in st.full_set}
+    st.hand = [by_id[i] for i in table.human_hand[:1]] + [by_id[top]]
+    st.deck = [c for c in st.full_set if c not in st.hand and c not in st.discard]
+    attack(session, table, game, "Seven Suns of Cinnibus")
+    msgs = done(session, table, 2)                                                # "1"
+    assert said(msgs, "Glimpse Of Hell")
+    for gone in GLIMPSE_GONE:
+        assert not said(msgs, gone)
+
+
+@with_rig("Glimpse Of Hell")
+def test_a_plain_attack_against_the_bots_glimpse_does_not_tell_the_human_to_put_a_card_back(rig, monkeypatch):
+    session, table, game, fake, cfg = rig
+    defends(session, game, monkeypatch, "Glimpse Of Hell")
+    human_hand(table, game, "Bolts of Balthakk", "Feint")
+    msgs = attack(session, table, game, "Bolts of Balthakk")
+    for gone in GLIMPSE_GONE:
+        assert not said(msgs, gone)

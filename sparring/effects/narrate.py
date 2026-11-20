@@ -240,6 +240,8 @@ def _cards(game, before: dict, run) -> list[str]:
         # down (or, if the hand grew, came from the deck hidden: Read The Bones); no card does both
         net = len(st.hand) - was["hand"] + from_hand - draws - len(public)
         taken, to_deck = max(net, 0), max(-net, 0)
+        if p == owner:
+            to_deck = max(0, to_deck - len(run.flags.get("stacked_top") or ()))   # the bot put it on top of the deck itself
         if taken > 0:
             out.append(tn("narr.from_deck", taken, poss=own))
         # the human's own return to the deck is done on the table: `on the table` already says it

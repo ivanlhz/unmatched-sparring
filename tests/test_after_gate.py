@@ -5,6 +5,8 @@ from __future__ import annotations
 
 import json
 
+import pytest
+
 from sparring.ai_medusa import Act
 from sparring.tts.ui import Event
 from test_batch import click
@@ -287,3 +289,17 @@ def test_the_defenders_move_by_hand_comes_before_the_attackers_after(rig):
     msgs = click(session, table, Event.END_ACTION)
     assert not session._table_gate(session.pending) and said(msgs, "Aplicado: Right Hand Of Doom"), msgs
     assert game.fighters["john"].pos == away, "the bot's move read where John was left, and he is not adjacent any more"
+
+
+@pytest.mark.parametrize("slug, card, reads", [
+    ("hellboy", "Right Hand Of Doom", True), ("eredin", "Wild Hunt", True),
+    ("leonardo", "Wise beyond his years", True), ("leonardo", "Spatial awareness", True),     # {"stat": "zones"}
+    ("chupacabra", "Tooth and Tail", True), ("philippa", "Chain lightning", True),           # plugins on the board
+    ("jill-trent", "Insightful Deduction", False), ("eredin", "Foul Purpose", False),
+    ("liz-sherman", "Fleeting Moments", False)])                                              # "zone": "hand" is a card zone
+def test_which_bot_after_effects_wait_for_a_move_by_hand(slug, card, reads):
+    """Reviewer, 20/11: a bot AFTER that reads where the fighters stand waits for the human's move by hand, also when it
+    reads the board through a stat (zones) or a plugin; one that only touches cards does not."""
+    from sparring.effects import table
+    from sparring.effects.model import load_effects
+    assert table.reads_board(load_effects(slug).moment_ops(card, "after")) is reads

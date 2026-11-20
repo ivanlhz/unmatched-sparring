@@ -159,6 +159,7 @@ def _reveal_to_top(run, game, spec):
         st.deck.insert(0, card)
         table.intent(game, op="reveal_show", player=owner, cards=[card.card_id])
         table.intent(game, op="stack_top", player=owner, card=card.card_id)
+        run.flags["stacked_top"] = [card.card_id]          # the bot moves it by itself: the summary does not say it went back
     else:
         if not st.hand:
             run.bind("cards", name, [])

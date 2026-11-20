@@ -134,13 +134,19 @@ def hand_step_pending(run) -> bool:
 BOARD_KEYS = frozenset(("adjacent_only", "adjacent_to", "adjacent_to_any", "is_or_adjacent_to", "nearest_to",
                         "next_to_nearest_foe", "no_zone_of", "zone_of", "space", "space_of", "spaces", "within",
                         "where", "through_enemies", "through_sidekicks", "passed_by"))
+BOARD_STATS = frozenset(("zones",))                 # {"stat": "zones"}: how many zones a fighter stands in (Leonardo)
+BOARD_TESTS = frozenset(("moved_this_turn", "no_zone_with_turn_start"))   # conditions on where a fighter went this turn
+BOARD_PLUGINS = frozenset(("chupacabra:tooth_and_tail", "philippa:owlform", "philippa:chain_lightning", "shehulk:throw"))
 
 
 def reads_board(ops) -> bool:
     """The ops move pieces or pick fighters or spaces by where they stand (adjacent, zone, range): what the human
-    still has to move by hand changes their outcome. A plugin reads the table its own way: not counted."""
+    still has to move by hand changes their outcome. A plugin counts when it reads the engine's board (BOARD_PLUGINS);
+    the others only touch cards or the combat."""
     if isinstance(ops, dict):
-        return ops.get("op") in BOARD_OPS or any(k in BOARD_KEYS or reads_board(v) for k, v in ops.items())
+        return (ops.get("op") in BOARD_OPS or ops.get("stat") in BOARD_STATS or ops.get("test") in BOARD_TESTS
+                or (ops.get("op") == "plugin" and ops.get("id") in BOARD_PLUGINS)
+                or any(k in BOARD_KEYS or reads_board(v) for k, v in ops.items()))
     if isinstance(ops, list):
         return any(reads_board(v) for v in ops)
     return False
