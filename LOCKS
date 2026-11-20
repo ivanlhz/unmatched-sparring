@@ -19,3 +19,4 @@ sparring/search/adapter.py  double-attack  AI double attack  14:02Z
 sparring/search/controller.py  double-attack  AI double attack  14:02Z
 docs/combat-flow.md  double-attack  AI double attack  14:02Z
 features.json  double-attack  AI double attack  14:02Z
+sparring/effects/ops_core.py  achilles  bot context for the Doom price and the Helm  14:02Z
