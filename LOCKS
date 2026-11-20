@@ -7,3 +7,11 @@ tests/test_d1_bot_cards.py  achilles  register hero  13:42Z
 tests/test_effects_schema.py  achilles  register hero  13:42Z
 tools/import_save.py  yennenga  no_dial flag for 2-HP Archers  13:42Z
 sparring/tts/hero_table.py  yennenga  no_dial flag for 2-HP Archers  13:42Z
+sparring/combat_flow.py  double-attack  engine double attack  13:42Z
+sparring/combat.py  double-attack  engine double attack  13:42Z
+sparring/controller.py  double-attack  engine double attack  13:42Z
+sparring/effects/narrate.py  double-attack  engine double attack  13:42Z
+sparring/effects/ops_combat.py  double-attack  engine double attack  13:42Z
+data/i18n/en.json  double-attack  engine double attack  13:42Z
+data/i18n/es.json  double-attack  engine double attack  13:42Z
+docs/combat-flow.md  double-attack  engine double attack  13:42Z
