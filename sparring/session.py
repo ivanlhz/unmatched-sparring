@@ -2853,20 +2853,23 @@ class Session:
 
     def reserve_kin(self, f: Fighter) -> list[Fighter]:
         """The other fighters of the same owner that are the same kind of reserve token (Sun Wukong's Clones: the hero starts them
-        in the bag, `start_on_board` 0) and have not fallen: their tokens are interchangeable."""
+        in the bag, `start_on_board` 0): their tokens are interchangeable, also those of a Clone that fell (it goes back to the bag)."""
         if f.hero or not any(s.name == f.name and s.start_on_board == 0 for s in self.game.players[f.owner].hero.sidekicks):
             return []
         return [o for o in self.game.own(f.owner, alive_only=False) if o.fid != f.fid and o.name == f.name and not o.hero]
 
     def _adopt_clone_token(self, fid: str, pieces: dict[str, dict]) -> None:
-        """The engine summoned `fid` and the human put ANOTHER Clone token on the board: `fid` follows that token (its GUID and the
-        engine's record trade places with the token's fid) and takes the space the token was read on."""
+        """The engine summoned `fid` and the human put ANOTHER Clone token on the board: `fid` follows that token (the two fids trade
+        GUIDs) and takes the space the token was read on."""
         f = self.game.fighters[fid]
         if not f.alive or f.owner != self.human:
             return
-        loose = [o for o in self.reserve_kin(f) if self._in_reserve(o) and (pieces.get(o.fid) or {}).get("found")
-                 and self._on_board(pieces[o.fid])]
-        twin = next((o for o in loose if pieces[o.fid]["space"] == f.pos), loose[0] if loose else None)
+        p = self.pending
+        fighting = {x.fid for x in (p.attacker, p.target)} if p is not None and p.attacker is not None else set()
+        loose = [o for o in self.reserve_kin(f) if not o.alive and o.fid not in fighting
+                 and (pieces.get(o.fid) or {}).get("found") and self._on_board(pieces[o.fid])]
+        loose.sort(key=lambda o: (pieces[o.fid]["space"] != f.pos, o.died_at is not None))     # the token on the placed space, then one never summoned, then a fallen one
+        twin = loose[0] if loose else None
         if twin is None:
             return
         space = pieces[twin.fid]["space"]

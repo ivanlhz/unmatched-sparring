@@ -625,9 +625,12 @@ def test_another_clone_token_on_a_different_space_gives_the_clone_its_space(rig)
     taken = {f.pos for f in game.fighters.values() if f.alive} | {new}
     elsewhere = next(s for s in sorted(game.board.spaces) if s not in taken and s != old)
     table.positions[cfg.nicknames[other]] = elsewhere
-    session.game.hand_moves.clear()
+    clone_guid, other_guid = session.cfg.pieces[clone], session.cfg.pieces[other]
+    session._snap_spec = session.snapshot_spec()
     session._settle_placements()
     assert game.fighters[clone].pos == elsewhere and clone not in game.placing, game.placing
+    assert session._snap_spec is None and session.snap is None, "the piece snapshot is read again with the new GUIDs"
+    assert session.resolved_pieces == {clone: [other_guid], other: [clone_guid]}, session.resolved_pieces     # saved: a resume keeps the trade
 
 
 @with_rig("hellboy", "sun-wukong", *HAND)
@@ -644,3 +647,41 @@ def test_named_sidekick_tokens_of_other_heroes_are_not_interchangeable(rig):
     session, table, game, fake, cfg = rig
     sidekicks = [f for f in game.own(1, alive_only=False) if not f.hero]
     assert sidekicks and all(session.reserve_kin(f) == [] for f in sidekicks)
+
+
+@with_rig("hellboy", "sun-wukong", *HAND)
+def test_the_token_on_the_placed_space_is_the_one_adopted(rig):
+    session, table, game, fake, cfg = rig
+    clone, old, new = sly_monkey_then_right_hand(rig)
+    first, second = [c for c in CLONES if c != clone]
+    taken = {f.pos for f in game.fighters.values() if f.alive} | {new}
+    table.positions[cfg.nicknames[first]] = next(s for s in sorted(game.board.spaces) if s not in taken and s != old)
+    table.positions[cfg.nicknames[second]] = old
+    second_guid = session.cfg.pieces[second]
+    session._settle_placements()
+    assert session.cfg.pieces[clone] == second_guid and game.fighters[clone].pos == old
+
+
+@with_rig("hellboy", "sun-wukong", *HAND)
+def test_a_clone_that_fell_earlier_has_an_interchangeable_token_too(rig):
+    """The live bug again with two Clones fallen (their tokens went back to the bag): the human places the token of the other one."""
+    session, table, game, fake, cfg = rig
+    start(rig)
+    put_adjacent(game, table, cfg, "wukong", "hellboy")
+    free = [s for s in sorted(game.board.spaces) if s not in {f.pos for f in game.fighters.values() if f.alive}]
+    for c, s in (("clone1", free[0]), ("clone2", free[1])):
+        f = game.fighters[c]
+        f.alive, f.pos, f.hp, f.died_at = False, None, 0, s
+    human_hand(table, game, "Sly Monkey", "Golden Chain Mail")
+    old = game.fighters["wukong"].pos
+    bot_attacks(session, table, game, "Right Hand Of Doom", "hellboy", "wukong", "Sly Monkey")
+    press(session, table, "clone1")
+    revived = next(c for c in ("clone1", "clone2") if game.fighters[c].alive)
+    other = next(c for c in ("clone1", "clone2") if c != revived)
+    new = next(s for s in sorted(game.board.spaces) if s != old and game.board.share_zone(old, s)
+               and s not in {f.pos for f in game.fighters.values() if f.alive})
+    table.positions[cfg.nicknames["wukong"]] = new
+    table.positions[cfg.nicknames[other]] = old
+    msgs = click(session, table, Event.END_ACTION)
+    assert revived not in game.placing and not said(msgs, "Wukong se mueve") and not said(msgs, "cae"), msgs
+    assert table.positions[cfg.nicknames[other]] == game.fighters[revived].pos != old, msgs
