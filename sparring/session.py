@@ -2829,10 +2829,48 @@ class Session:
         if self.hand_move_refused():
             return
         self.game.hand_moves.clear()
+        self._settle_placements()
         self.sync_human()
         self.moving = False
         if self._guarded(lambda: (p.flow.resume(None), self._drive_flow(p.flow))):
             self._combat_step_done(p)
+
+    def _settle_placements(self) -> None:
+        """The human's step at the gate is over. A piece their card told them to place (Sly Monkey) and that stands on the board
+        now was placed, wherever it stayed (a Clone left on the space the engine summoned it on never changes position, so
+        `sync_positions` does not see it): from here the bot's effects may move it like any other piece.
+
+        The Clones are interchangeable tokens, and the human takes ANY of them out of the bag. When the token on the table is
+        not the one the engine summoned, the engine's two Clones trade places (`_adopt_clone_token`), so each fid keeps
+        following the token that carries its name."""
+        pieces = self._table_pieces()
+        for fid in list(self.game.placing):
+            info = pieces.get(fid) or {}
+            if not (info.get("found") and self._on_board(info)):
+                self._adopt_clone_token(fid, pieces)
+                info = pieces.get(fid) or {}
+            if info.get("found") and self._on_board(info):
+                self.game.placing.discard(fid)
+
+    def _adopt_clone_token(self, fid: str, pieces: dict[str, dict]) -> None:
+        g = self.game
+        f = g.fighters[fid]
+        if f.hero or not f.alive or f.owner != self.human:
+            return
+        twin = next((o for o in g.own(self.human, alive_only=False) if o.fid != fid and o.name == f.name and not o.alive
+                     and (pieces.get(o.fid) or {}).get("found") and self._on_board(pieces[o.fid])), None)
+        if twin is None:
+            return
+        for name in ("pos", "hp", "alive", "died_at"):
+            a, b = getattr(f, name), getattr(twin, name)
+            setattr(f, name, b)
+            setattr(twin, name, a)
+        pieces[fid], pieces[twin.fid] = pieces.get(twin.fid), pieces.get(fid)
+        g.placing.discard(twin.fid)
+        for snap in (*(([self.fx_unprojected]) if self.fx_unprojected else ()),
+                     *(([self.pending.combat.get("fx")]) if self.pending is not None and self.pending.combat else ())):
+            if snap and (held := snap.get("human_pieces")) and fid in held and twin.fid in held:
+                held[fid], held[twin.fid] = held[twin.fid], held[fid]
 
     def _tell_damage_dealt(self, p: Pending) -> Callable[[], bool]:
         """Ivan, 31/10 (Rekindle): the damage is dealt at the reveal and the combat then waits at a choice of the human
@@ -5727,6 +5765,8 @@ class Session:
                 else:
                     moved_from = f.pos if info["space"] != f.pos and f.owner == self.human and not quiet else None
                     placed = fid in self.game.placing or self._escape_artist_placing(f)
+                    if info["space"] != f.pos and placed and f.owner == self.human:
+                        self.hand_moved[fid] = info["space"]      # put there by hand (Sly Monkey): a bot effect of this step never claims it moved it
                     if info["space"] != f.pos:
                         self.game.placing.discard(fid)
                     f.pos = info["space"]

@@ -540,6 +540,7 @@ def test_the_pre_game_panel_hides_the_buttons_of_the_clones_still_in_the_bag(rig
         for ident in (f"att_{fid}", f"hpm_{fid}", f"hpp_{fid}", f"rm_{fid}"):
             assert ident in script, ident
 
+
 @with_rig("hellboy", "sun-wukong", *HAND)
 def test_the_chosen_card_goes_from_the_row_to_the_bottom_while_the_table_is_slow_to_take_cards_into_the_hand(rig):
     """Live bug (20/11): the row gave the chosen card back to the hand and the hand-to-deck move ran before the table had taken it in:
@@ -560,3 +561,53 @@ def test_the_chosen_card_goes_from_the_row_to_the_bottom_while_the_table_is_slow
     assert table.bot_deck[-1] == chosen and chosen not in table.bot_hand
     resolve = next(s for s in table.scripts if s.startswith("-- sparring:resolve_hand_row"))
     assert "bury(" in resolve
+
+
+# ---------------------------------------------------------------- Sly Monkey defends against Right Hand Of Doom (live, Ivan 2026-11-20)
+
+def sly_monkey_then_right_hand(rig):
+    """The bot's Hellboy hits the human's Wukong with Right Hand Of Doom; Wukong answers with Sly Monkey and the human places the
+    Clone on Wukong's old space and Wukong in his zone, by hand. Returns what the table must show after End action."""
+    session, table, game, fake, cfg = rig
+    start(rig)
+    put_adjacent(game, table, cfg, "wukong", "hellboy")
+    human_hand(table, game, "Sly Monkey", "Golden Chain Mail")
+    w = game.fighters["wukong"]
+    old = w.pos
+    bot_attacks(session, table, game, "Right Hand Of Doom", "hellboy", "wukong", "Sly Monkey")
+    clone = next(c for c in CLONES if game.fighters[c].alive)
+    assert clone in game.placing and "wukong" in game.placing, game.placing
+    new = next(s for s in sorted(game.board.spaces) if s != old and game.board.share_zone(old, s)
+               and s not in {f.pos for f in game.fighters.values() if f.alive})
+    table.positions[cfg.nicknames["wukong"]] = new
+    return clone, old, new
+
+
+@with_rig("hellboy", "sun-wukong", *HAND)
+def test_right_hand_of_doom_after_sly_monkey_moves_the_clone_not_wukong(rig):
+    session, table, game, fake, cfg = rig
+    clone, old, new = sly_monkey_then_right_hand(rig)
+    table.positions[cfg.nicknames[clone]] = old
+    msgs = click(session, table, Event.END_ACTION)
+    assert game.fighters["wukong"].pos == new
+    assert not said(msgs, "Sun Wukong se mueve") and not said(msgs, "Wukong se mueve"), msgs
+    h = game.fighters["hellboy"]
+    assert table.positions[cfg.nicknames["hellboy"]] == h.pos
+    for fid, f in game.fighters.items():
+        if f.alive:
+            assert table.positions[cfg.nicknames[fid]] == f.pos, (fid, f.pos, table.positions[cfg.nicknames[fid]], msgs)
+    assert len({f.pos for f in game.fighters.values() if f.alive}) == len([f for f in game.fighters.values() if f.alive])
+
+
+@with_rig("hellboy", "sun-wukong", *HAND)
+def test_right_hand_of_doom_after_sly_monkey_with_another_clone_token(rig):
+    session, table, game, fake, cfg = rig
+    clone, old, new = sly_monkey_then_right_hand(rig)
+    other = next(c for c in CLONES if c != clone)
+    table.positions[cfg.nicknames[other]] = old
+    msgs = click(session, table, Event.END_ACTION)
+    assert game.fighters["wukong"].pos == new and not said(msgs, "Wukong se mueve"), msgs
+    alive = [c for c in CLONES if game.fighters[c].alive]
+    assert alive == [other], (alive, msgs)            # the engine follows the token the human took out of the bag
+    assert table.positions[cfg.nicknames[other]] == game.fighters[other].pos != old, msgs     # and the bot moved that very token
+    assert len({f.pos for f in game.fighters.values() if f.alive}) == len([f for f in game.fighters.values() if f.alive])
