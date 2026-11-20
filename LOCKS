@@ -7,3 +7,4 @@ tests/test_doctor_strange_human.py  double-attack  FakeTTS keeps played cards fa
 tests/test_tmnt_matrix.py  achilles  driver: second attack starts at End action  14:38Z
 sparring/state.py  yennenga  Game.damage adjusted flag (review fix)  16:40Z
 sparring/effects/ops_combat.py  yennenga  effect damage shares review fix  16:40Z
+tests/test_batch.py  double-attack  click tidies the fake's combat spot  14:39Z
