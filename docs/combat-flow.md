@@ -198,3 +198,17 @@ How it is built (one place: `CombatFlow`):
 8. **Where the second part goes in the AFTER list**: when the op is reached; the attacker's other AFTER ops of the same card are not delayed by it
    (the second combat itself is played when the AFTER phase of both sides is over).
 9. **Reach**: not checked again (Ivan's rule 4); this includes a defender that is out of reach for reasons other than a move.
+
+### Double attack at the table (session)
+
+`Pending.second` (`{"value", "card"}`, saved under `"second"`) marks the pending combat as the second attack of an already played card. `Session._after_combat`
+ends the first combat as always (result, discards, dials) and, if `flow.second_due`, calls `_begin_second_attack` instead of "combat.after":
+
+- the human attacks: a `human_attacks` pending; the bot reads its hand, chooses with `ai.choose_second_defense` (the value is public) and places its
+  defense face down (`_place_bot_card(..., second=...)`, so a late reply is recovered into the same pending); the human presses Reveal with no card down;
+- the bot attacks: a `bot_attacks` pending whose `bot_card` is the bot's card already played; the human puts a defense face down (or none) and presses Reveal.
+  The human's defense may carry its own free BOOST (Out Of Time): `session_boost.offered` dry-runs the second flow;
+- `_reveal` does not ask for an attack card in a `human_attacks` second (a leftover of the first part on the table is ignored; any other card of theirs is
+  refused), `_resolve_combat` builds `CombatFlow(..., second=value)` (`_second_flow`) instead of `begin_attack` (no action, no `attacked` event), Cancel says the
+  card is played and the second part cannot be taken back, and the flow ends in `_after_combat` like any other (a second attack never starts a third).
+- Chat strings: `second.*`, `cancel.second_attack`, `err.second_no_card`, `cf.second_attack`, `narr.second_attack` (English in en.json, Spanish in es.json).
