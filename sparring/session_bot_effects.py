@@ -309,7 +309,8 @@ def _human_cards(session, before: dict, played: frozenset, looked: bool, ctx: Ct
     blind = {i for it in intents if it["op"] in ("deck_order", "reveal_top") and it.get("player") == human
              for i in (it["seen"] if it["op"] == "deck_order" else it["cards"])}   # read in the deck (reordered blind or revealed): never from the hand
     stale = set(before.get("top", ())) & set(h0["deck"])      # already known on top of the deck before the step (read blind earlier): not a hand card that went back
-    hand_to_deck = [i for i in h1["deck"] if i in knew and i not in h0["discard"] and i not in blind and i not in stale]
+    hand_to_deck = [i for i in h1["deck"] if i in knew and i not in h0["discard"] and i not in blind and i not in stale
+                    and i not in g.fx.deck_discarded]       # laid on the pile from the real deck this step (a BLIND BOOST): never a hand card
     for intent in _groups(intents, "return_to_deck", human, "hand", hand_to_deck, keep_order=True):
         checks += translate(session, intent, ctx) or []
     # a pile card an effect shuffled into your deck that the engine then drew for you (Back For Seconds, then a draw of
@@ -317,13 +318,17 @@ def _human_cards(session, before: dict, played: frozenset, looked: bool, ctx: Ct
     # it; it is never a pickup from the discard pile
     returned = {c for it in intents if it["op"] == "return_to_deck" and it["player"] == human and it["zone"] == "discard"
                 for c in it["cards"]}
-    redrawn = [i for i in h0["discard"] if i in returned and i in h1["hand"]]
+    # a card of the real deck laid on the pile during this step (a BLIND BOOST, a deck discard) and shuffled back by an effect
+    # (Devil of Hell's Kitchen: "the top four cards of your discard pile", live 20/11) is on the table's pile too
+    laid = [i for i in returned if i in g.fx.deck_discarded and i not in h0["discard"]]
+    redrawn = [i for i in h0["discard"] if i in returned and i in h1["hand"]] + [i for i in laid if i in h1["hand"]]
     drawn = 0 if looked else len([i for i in h1["hand"] if i in h0["deck"]]) + len(redrawn)   # a look moves placeholders, not cards
     played_back = [i for it in intents if it["op"] == "return_to_deck" and it["player"] == human and it["zone"] == "discard"
                    for i in it["cards"] if i in h1["deck"] and i not in h0["discard"] and i not in h0["deck"]]    # Relentless
     if played_back:                               # the bot puts it in the deck BEFORE the draw it owes is dealt
         checks += combat_card_to_deck(session, played_back, ctx) or []
     disc_to_deck = [i for i in h0["discard"] if i in h1["deck"] or i in redrawn]
+    disc_to_deck += [i for i in laid if (i in h1["deck"] or i in redrawn) and i not in played_back and i not in disc_to_deck]
     if redrawn:                                   # the engine drew after the shuffle: the deck gets them first
         for intent in _groups(intents, "return_to_deck", human, "discard", disc_to_deck, keep_order=True):
             checks += translate(session, intent, ctx) or []

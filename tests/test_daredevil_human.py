@@ -432,3 +432,25 @@ def test_the_devil_goes_back_into_a_human_deck_that_is_gone_from_the_table(rig, 
     assert sorted(table.human_deck) == sorted([devil, *old[1:]]), (table.human_deck, msgs)
     assert not said(msgs, "no he podido") and not said(msgs, "hazlo"), msgs
     assert old[0] in table.human_discard and all(i not in table.human_discard for i in old[1:])
+
+
+@with_rig()
+def test_the_devil_shuffles_back_the_card_its_blind_boost_just_laid_on_the_pile(rig, monkeypatch):
+    """Live 20/11 (10:22, 0.9.0): the blind-boosted Son Of A Boxer was the newest card of the pile, the engine sent it back into
+    the deck with the Devil, but the bot only moved the three older ones on the table: the pile and the engine parted."""
+    session, table, game, fake, cfg = rig
+    no_defense(session, monkeypatch)
+    old = [sid(game, "Feint", 2), sid(game, "Breather", 2), sid(game, "Grappling Hook", 0), sid(game, "Take A Knee", 0)]
+    table.human_discard += old
+    for c in game.players[1].full_set:
+        if c.card_id in old and c not in game.players[1].discard:
+            for zone in (game.players[1].deck, game.players[1].hand):
+                if c in zone:
+                    zone.remove(c)
+            game.players[1].discard.append(c)
+    top, _ = on_deck(table, game, "Son Of A Boxer", "Man Without Fear")
+    hit(session, table, game, DEVIL, [DEVIL, "Feint", "Breather"])
+    msgs = done(session, table, 2)                                                    # the ability: "1"
+    ids = [i for _, moved in table.deck_moves for i in moved]
+    assert top in ids and top not in table.human_discard, (ids, table.human_discard, msgs)
+    assert sorted(ids) == sorted([sid(game, DEVIL), top, *old[1:]]), (ids, msgs)
