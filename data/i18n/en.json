@@ -260,6 +260,7 @@
  "fx.ability.wildfire_start": "WILDFIRE: discard the bottom card of your deck. If it is burning, 1 damage to another fighter in {hero}'s zone (use -1 on it; the burning card returns to your hand); if not, move {hero} up to 2 spaces.",
  "fx.ability.team_tactics": "TEAM TACTICS: you may move any fighter 1 space (yours or the rival's). Do it on the table, or skip it.",
  "fx.ability.throw_something": "JUST THROW SOMETHING: if an opposing fighter is in {hero}'s zone you may discard a card of your hand and deal damage equal to its BOOST value to one of them. Do it on the table (the card to your discard pile, the damage on the dial), or skip it.",
+ "fx.ability.clone_summon": "CLONES: you may take 1 damage (use -1 on {hero}'s dial) to summon a Clone on an empty space next to {hero}: take one from the bag, put it on the table and press [[panel.end_action]], or skip it.",
  "choice.no_draw_reason": "an effect in play prevents you from drawing cards, so you do not draw",
  "choice.prompt.fighter": "Choose a fighter",
  "choice.prompt.fighter_adjacent": "Choose a fighter adjacent to {who}",

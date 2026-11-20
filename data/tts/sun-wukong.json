@@ -1,0 +1,39 @@
+{
+ "slug": "sun-wukong",
+ "bag": {
+  "guid": "ce28ea",
+  "inner": "2a729b"
+ },
+ "deck": {
+  "guid": "63ee45",
+  "card_ids": [
+   17600,
+   17629
+  ],
+  "character_card_id": 320,
+  "identity": [
+   {
+    "face": "https://steamusercontent-a.akamaihd.net/ugc/18249208440013495587/A9BBD70CBFD7E380AB87F9BA42FBB578B2C3C9C2/",
+    "back": "https://steamusercontent-a.akamaihd.net/ugc/11713743763891955904/3695B60E57A40C3809A73970960383C87866F2F1/"
+   }
+  ]
+ },
+ "fighters": {
+  "wukong": {
+   "piece": "dad584",
+   "dial": "bfe46d",
+   "dial_max": 17
+  },
+  "clone1": {
+   "piece": "9fdce3"
+  },
+  "clone2": {
+   "piece": "582f73"
+  },
+  "clone3": {
+   "piece": "d17daa"
+  }
+ },
+ "tokens": {},
+ "counter_dials": {}
+}

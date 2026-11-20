@@ -1,11 +1,4 @@
 # path  agent  task  UTC time   (see BRIEF: short locks only)
-sparring/effects/state.py  wukong  register hero + ability prompt  13:48Z
-tests/test_heroes.py  wukong  register hero + ability prompt  13:48Z
-tests/test_card_identity.py  wukong  register hero + ability prompt  13:48Z
-tests/test_d1_bot_cards.py  wukong  register hero + ability prompt  13:48Z
-tests/test_effects_schema.py  wukong  register hero + ability prompt  13:48Z
-data/i18n/en.json  wukong  register hero + ability prompt  13:48Z
-data/i18n/es.json  wukong  register hero + ability prompt  13:48Z
 sparring/session.py  double-attack  session double attack  13:48Z
 sparring/session_boost.py  double-attack  session double attack  13:48Z
 docs/combat-flow.md  double-attack  session double attack  13:48Z

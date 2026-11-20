@@ -260,6 +260,7 @@
  "fx.ability.wildfire_start": "WILDFIRE: descarta la carta del fondo de tu mazo. Si es ardiente, 1 de dano a otro luchador de la zona de {hero} (usa -1 sobre el; la ardiente vuelve a tu mano); si no, mueve a {hero} hasta 2 casillas.",
  "fx.ability.team_tactics": "TEAM TACTICS: puedes mover cualquier luchador 1 casilla (tuyo o rival). Hazlo en la mesa, o no lo uses.",
  "fx.ability.throw_something": "LANZA ALGO: si hay un luchador rival en la zona de {hero} puedes descartar una carta de tu mano y hacer a uno de ellos un dano igual a su valor de POTENCIA. Hazlo en la mesa (la carta a tu descarte, el dano en el dial), o no lo uses.",
+ "fx.ability.clone_summon": "CLONES: puedes recibir 1 de dano (usa -1 en el dial de {hero}) para invocar un Clon en una casilla vacia junto a {hero}: saca uno de la bolsa, ponlo en la mesa y pulsa [[panel.end_action]], o no lo uses.",
  "choice.no_draw_reason": "un efecto en juego te impide robar cartas, asi que no robas",
  "choice.prompt.fighter": "Elige un luchador",
  "choice.prompt.fighter_adjacent": "Elige un luchador adyacente a {who}",

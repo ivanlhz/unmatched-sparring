@@ -1,0 +1,507 @@
+{
+ "schema": 1,
+ "hero": "sun-wukong",
+ "notes": [
+  "Texts read from sheet 176 of the tournament savegame (card images) on 2026-11-20; the character card is 320 on sheet 3 (10x7, index 20). Every card is band ANY.",
+  "First hero that starts with NO sidekick on the board (`start_on_board` 0): the three Clones wait in the reserve and are summoned by the ability and by Sly Monkey. A defeated Clone returns to the supply and can be summoned again (docs/heroes/sun-wukong.md, Pending Ivan): the DSL reads that with `if exists a defeated Clone then revive else summon`."
+ ],
+ "ability": {
+  "text": "At the start of your turn, you may take 1 damage to summon a Clone in an empty space adjacent to Sun Wukong.\nDo not start with any Clones on the board.",
+  "triggers": [
+   {
+    "id": "clone_summon",
+    "when": {
+     "event": "start_of_turn",
+     "player": "owner"
+    },
+    "condition": {
+     "all": [
+      {
+       "test": "compare",
+       "left": {
+        "count": {
+         "side": "own",
+         "name": "Clone"
+        }
+       },
+       "op": "<",
+       "right": 3
+      },
+      {
+       "test": "exists",
+       "space": {
+        "adjacent_to": "hero"
+       }
+      }
+     ]
+    },
+    "ops": [
+     {
+      "op": "optional",
+      "ops": [
+       {
+        "op": "damage",
+        "target": "hero",
+        "amount": 1
+       },
+       {
+        "op": "if",
+        "condition": {
+         "test": "exists",
+         "fighters": {
+          "side": "own",
+          "name": "Clone",
+          "state": "defeated"
+         }
+        },
+        "then": [
+         {
+          "op": "revive",
+          "target": {
+           "side": "own",
+           "name": "Clone",
+           "state": "defeated"
+          },
+          "where": {
+           "adjacent_to": "hero"
+          },
+          "hp": 1
+         }
+        ],
+        "else": [
+         {
+          "op": "summon",
+          "name": "Clone",
+          "where": {
+           "adjacent_to": "hero"
+          }
+         }
+        ]
+       }
+      ]
+     }
+    ],
+    "notes": "Optional: Sun Wukong takes 1 effect damage and a Clone comes out on an empty space next to him. Not offered with three Clones on the board or no empty adjacent space. At the table the human does it by hand (start-of-turn abilities that touch the board are physical): the panel waits for End action."
+   }
+  ],
+  "passives": [],
+  "notes": "The ability is a start-of-turn trigger; the 1 damage is effect damage on Sun Wukong himself, so it can defeat him at 1 health (the card does not forbid it)."
+ },
+ "cards": [
+  {
+   "title": "Ruyi Jingo Bang",
+   "copies": 3,
+   "text": "AFTER COMBAT: If your opponent played a defense card, TRICKED YOU. TRICKED YOU: 4 ATK",
+   "effects": {
+    "immediately": [],
+    "during": [],
+    "after": [],
+    "scheme": [],
+    "boost": []
+   },
+   "notes": "Attack 0 / boost 3. DOUBLE ATTACK (Battle of Legends Vol. 2): written last against the double-attack agent's DSL; see docs/heroes/sun-wukong.md."
+  },
+  {
+   "title": "Ox Form",
+   "copies": 2,
+   "text": "This card's effects cannot be canceled. DURING COMBAT: If your opponent played a card, they may BOOST it.",
+   "uncancelable": true,
+   "effects": {
+    "immediately": [],
+    "during": [
+     {
+      "op": "if",
+      "condition": {
+       "test": "card",
+       "card": "opponent_card",
+       "filter": {}
+      },
+      "then": [
+       {
+        "op": "allow_boost",
+        "card": "opponent_card"
+       }
+      ]
+     }
+    ],
+    "after": [],
+    "scheme": [],
+    "boost": []
+   },
+   "notes": "Attack 7 / boost 2. `uncancelable`; the rival's card (any type) gets the free BOOST of `may_boost` cards after its own DURING (`allow_boost`), only when the rival played a card. A cancelled side runs no DURING and gets no boost, as An Illusion Of My Own Design."
+  },
+  {
+   "title": "Taunting Laughter",
+   "copies": 3,
+   "text": "IMMEDIATELY: Your opponent may discard 1 card from their hand. If they don't, ignore their card's value.",
+   "effects": {
+    "immediately": [
+     {
+      "op": "if",
+      "condition": {
+       "test": "card",
+       "card": "opponent_card",
+       "filter": {}
+      },
+      "then": [
+       {
+        "op": "optional",
+        "chooser": "opponent",
+        "cost": [
+         {
+          "op": "discard",
+          "cards": {
+           "zone": "hand",
+           "player": "opponent",
+           "amount": 1,
+           "chooser": "opponent"
+          }
+         }
+        ],
+        "ops": [],
+        "else": [
+         {
+          "op": "set_value",
+          "card": "opponent_card",
+          "ignore": true
+         }
+        ]
+       }
+      ]
+     }
+    ],
+    "during": [],
+    "after": [],
+    "scheme": [],
+    "boost": []
+   },
+   "notes": "Attack 3 / boost 2. The rival chooses: discard a card of their hand (the card's value counts) or not (their card's value is ignored). With no card played in the combat there is nothing to ignore and nothing is asked. A rival with an empty hand cannot pay, so the value is ignored."
+  },
+  {
+   "title": "Infinite Strikes",
+   "copies": 3,
+   "text": "DURING COMBAT: For each other friendly fighter adjacent to the opposing fighter, increase the value of this card by +1. AFTER COMBAT: Gain 1 action.",
+   "effects": {
+    "immediately": [],
+    "during": [
+     {
+      "op": "modify_value",
+      "card": "this",
+      "amount": {
+       "count": {
+        "side": "own",
+        "other": true,
+        "where": {
+         "adjacent_to": "opposing"
+        },
+        "pick": "all"
+       }
+      }
+     }
+    ],
+    "after": [
+     {
+      "op": "gain_action",
+      "amount": 1
+     }
+    ],
+    "scheme": [],
+    "boost": []
+   },
+   "notes": "Attack 2 / boost 2. +1 per OTHER friendly fighter (Clones) adjacent to the opposing fighter, counted in the DURING; the extra action comes after the combat whatever its result."
+  },
+  {
+   "title": "Sly Monkey",
+   "copies": 4,
+   "text": "AFTER COMBAT: If Sun Wukong played this card, summon a Clone in Sun Wukong's space, then place Sun Wukong in a space in his zone.",
+   "effects": {
+    "immediately": [],
+    "during": [],
+    "after": [
+     {
+      "op": "if",
+      "condition": {
+       "test": "exists",
+       "fighters": {
+        "role": "this",
+        "kind": "hero"
+       }
+      },
+      "then": [
+       {
+        "op": "if",
+        "condition": {
+         "test": "compare",
+         "left": {
+          "count": {
+           "side": "own",
+           "name": "Clone"
+          }
+         },
+         "op": "<",
+         "right": 3
+        },
+        "then": [
+         {
+          "op": "if",
+          "condition": {
+           "test": "exists",
+           "fighters": {
+            "side": "own",
+            "name": "Clone",
+            "state": "defeated"
+           }
+          },
+          "then": [
+           {
+            "op": "revive",
+            "target": {
+             "side": "own",
+             "name": "Clone",
+             "state": "defeated"
+            },
+            "where": {
+             "space_of": "this",
+             "empty": false
+            },
+            "hp": 1
+           }
+          ],
+          "else": [
+           {
+            "op": "summon",
+            "name": "Clone",
+            "where": {
+             "space_of": "this",
+             "empty": false
+            }
+           }
+          ]
+         }
+        ]
+       },
+       {
+        "op": "place",
+        "target": "this",
+        "where": {
+         "zone_of": "this"
+        }
+       }
+      ]
+     }
+    ],
+    "scheme": [],
+    "boost": []
+   },
+   "notes": "Versatile 2 / boost 3. Only when Sun Wukong (not a Clone) played it. The Clone appears on his current space (`empty: false`: for that instant two fighters share it), then he is placed on an empty space of his zone, so the space he stood on is the Clone's. With three Clones already on the board no Clone is summoned and he is placed anyway (the second clause does not depend on the first)."
+  },
+  {
+   "title": "72 Transformations",
+   "copies": 3,
+   "text": "AFTER COMBAT: Take an OX FORM, TORTOISE FORM, or PHOENIX FORM from your discard pile and return it to your hand.",
+   "effects": {
+    "immediately": [],
+    "during": [],
+    "after": [
+     {
+      "op": "put_in_hand",
+      "cards": {
+       "zone": "discard",
+       "player": "owner",
+       "filter": {
+        "tag": "form"
+       },
+       "amount": 1,
+       "chooser": "owner"
+      }
+     }
+    ],
+    "scheme": [],
+    "boost": []
+   },
+   "notes": "Versatile 2 / boost 2. The three Forms carry the tag `form` in the overlay; the owner picks one from the discard pile (the card itself is still in play, so it cannot return itself). Nothing if there is none."
+  },
+  {
+   "title": "Wily Fighting",
+   "copies": 3,
+   "text": "AFTER COMBAT: Deal 1 damage to each opposing fighter adjacent to your fighter.",
+   "effects": {
+    "immediately": [],
+    "during": [],
+    "after": [
+     {
+      "op": "damage",
+      "target": {
+       "side": "enemy",
+       "where": {
+        "adjacent_to": "this"
+       },
+       "pick": "all"
+      },
+      "amount": 1
+     }
+    ],
+    "scheme": [],
+    "boost": []
+   },
+   "notes": "Versatile 3 / boost 1. Effect damage to every rival fighter next to the fighter that played the card, read when the AFTER resolves (a fighter moved by Skirmish counts where it stands then)."
+  },
+  {
+   "title": "Bewilderment",
+   "copies": 2,
+   "text": "DURING COMBAT: Prevent all combat damage. AFTER COMBAT: You may place your fighter in any space.",
+   "effects": {
+    "immediately": [],
+    "during": [
+     {
+      "op": "cap_combat_damage",
+      "target": {
+       "role": "combatant",
+       "pick": "all"
+      },
+      "amount": 0
+     }
+    ],
+    "after": [
+     {
+      "op": "optional",
+      "ops": [
+       {
+        "op": "place",
+        "target": "this",
+        "where": {
+         "any": true
+        }
+       }
+      ]
+     }
+    ],
+    "scheme": [],
+    "boost": []
+   },
+   "notes": "Defense 0 / boost 2. The card says 'combat damage' (unmatched-memory: 'all damage'): a cap of 0 on both combatants, effect damage is not prevented. The placement is the owner's choice (it is a 'may'), on any empty space."
+  },
+  {
+   "title": "Tortoise Form",
+   "copies": 2,
+   "text": "DURING COMBAT: Your opponent may BOOST their attack.",
+   "effects": {
+    "immediately": [],
+    "during": [
+     {
+      "op": "if",
+      "condition": {
+       "test": "card",
+       "card": "opponent_card",
+       "filter": {}
+      },
+      "then": [
+       {
+        "op": "allow_boost",
+        "card": "opponent_card"
+       }
+      ]
+     }
+    ],
+    "after": [],
+    "scheme": [],
+    "boost": []
+   },
+   "notes": "Defense 5 / boost 2. The attacker gets the free BOOST of `may_boost` cards for their attack."
+  },
+  {
+   "title": "Golden Chain Mail",
+   "copies": 2,
+   "text": "DURING COMBAT: Any combat damage you would take is dealt to the opposing fighter instead.",
+   "effects": {
+    "immediately": [],
+    "during": [
+     {
+      "op": "redirect_damage",
+      "from": "this",
+      "to": {
+       "role": "attacker"
+      },
+      "damage": "combat"
+     }
+    ],
+    "after": [],
+    "scheme": [],
+    "boost": []
+   },
+   "notes": "Defense 4 / boost 2. The combat damage that lands on the fighter that played it goes to the attacker (the opposing fighter); effect damage is not redirected."
+  },
+  {
+   "title": "Fiery Eyes That See",
+   "copies": 2,
+   "text": "Look at an opponent's hand and choose a card. Put that card on the bottom of their deck. You each draw 1 card.",
+   "effects": {
+    "immediately": [],
+    "during": [],
+    "after": [],
+    "scheme": [
+     {
+      "op": "look_hand",
+      "player": "opponent"
+     },
+     {
+      "op": "return_to_deck",
+      "cards": {
+       "zone": "hand",
+       "player": "opponent",
+       "amount": 1,
+       "chooser": "owner"
+      },
+      "position": "bottom"
+     },
+     {
+      "op": "draw",
+      "player": "owner",
+      "amount": 1
+     },
+     {
+      "op": "draw",
+      "player": "opponent",
+      "amount": 1
+     }
+    ],
+    "boost": []
+   },
+   "notes": "Scheme, boost 1. The owner sees the rival's hand and puts one card at the bottom of their deck, then both draw (owner first). With an empty rival hand nothing is chosen and both still draw."
+  },
+  {
+   "title": "Phoenix Form",
+   "copies": 1,
+   "text": "Sun Wukong recovers 1 health for each Clone on the board.",
+   "effects": {
+    "immediately": [],
+    "during": [],
+    "after": [],
+    "scheme": [
+     {
+      "op": "heal",
+      "target": "hero",
+      "amount": {
+       "count": {
+        "side": "own",
+        "name": "Clone"
+       }
+      }
+     }
+    ],
+    "boost": []
+   },
+   "notes": "Scheme, boost 1. Heals Sun Wukong by the number of Clones alive on the board when the scheme resolves (never above his maximum)."
+  }
+ ],
+ "plugins": [],
+ "hidden_info": [
+  {
+   "card": "Fiery Eyes That See",
+   "what": "look at the rival's hand and put one of its cards at the bottom of their deck.",
+   "bot_rule": "Like Every Possible Angle (Abe): the bot reads the human's hand only at that instant (look_hand -> KnownHand), chooses with what it saw and discounts the card as it leaves the hand.",
+   "human_plays_it": "the bot shows its hand (face up on the table or in the chat) and the human chooses; the bot only records that a card of its hand went to the bottom of its deck."
+  }
+ ],
+ "open_questions": []
+}
