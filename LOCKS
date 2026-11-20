@@ -5,3 +5,8 @@ sparring/search/controller.py  double-attack  AI double attack  14:02Z
 docs/combat-flow.md  double-attack  AI double attack  14:02Z
 features.json  double-attack  AI double attack  14:02Z
 sparring/ai_effects.py  wukong  hook: the CLONES price  14:07Z
+README.md  bloody-mary  docs and lists  14:07Z
+config/table.json  bloody-mary  docs and lists  14:07Z
+docs/live-checklist.md  bloody-mary  docs and lists  14:07Z
+docs/card-identity.md  bloody-mary  docs and lists  14:07Z
+docs/effects-dsl.md  bloody-mary  docs and lists  14:07Z
