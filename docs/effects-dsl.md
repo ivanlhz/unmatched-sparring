@@ -581,6 +581,11 @@ Doubtful migration decisions (see also the `notes` of each file):
   the human's hand. A bot without its own `choose_effect` decides an optional that costs cards with `worth_paying`: pay
   when the damage avoided is at least 3 per card or would kill the hero (`optional` passes `cost_cards`, `at_stake`
   and `hp` in the request).
+- Ivan's ruling (20/11/2026), the order of every combat effect: each has a timing, IMMEDIATELY (1st), DURING COMBAT (2nd), AFTER
+  COMBAT (3rd). They resolve in timing order and, with the same timing, the defender's first: the defender's effect goes first when
+  its timing is earlier than or equal to the attacker's, else the attacker's. A free BOOST a card allows DURING COMBAT (Second Shot,
+  Out Of Time) and its BOOSTED WITH effects are DURING: settled, a human's boost read from the table included, before any AFTER of
+  either side and before the damage. Locked by `tests/test_effect_timing_order.py`.
 - Ivan's ruling (28/10): effects resolve in timing order (IMMEDIATELY before DURING; same timing, the defender first) and
   a value never drops below 0 at EACH step: Flame Lash (1) vs Arcane Dampener (-3) is 0, then its DURING boost +3 makes 3.
 - `flow.choosers` (player -> Chooser) overrides that; a `PanelChooser` makes the flow stop with an

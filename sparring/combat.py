@@ -89,9 +89,10 @@ def resolve_combat(game: Game, att: Fighter, tgt: Fighter, atk_card: Card, def_c
 
 def can_boost(card: Card) -> bool:
     """The card lets its owner BOOST it for free in DURING COMBAT: from the hand (`may_boost` in the effects data:
-    Second Shot, Out Of Time) or the bottom of the deck (Flame Lash)."""
+    Second Shot, Out Of Time) or the bottom of the deck (Flame Lash). Medusa's Second Shot too: the human may play Medusa
+    (live 20/11: her Second Shot never offered the boost); who chooses the bot's boost is `combat_flow.legacy_chooser`'s call."""
     from .effects.modifiers import may_boost
-    return not is_medusa_card(card) and (may_boost(card) or deck_boost(card))
+    return may_boost(card) or deck_boost(card)
 
 
 def _check_boost(boost: Card) -> None:

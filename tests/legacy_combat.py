@@ -15,6 +15,11 @@ from sparring.effects.modifiers import is_uncancelable
 from sparring.state import ANUNG, Fighter, Game, RuleError
 
 
+def _old_can_boost(card: Card) -> bool:
+    """can_boost as of this oracle: Medusa's Second Shot was boosted by her own controller's pick, never by this check."""
+    return not is_medusa_card(card) and can_boost(card)
+
+
 # ---------------------------------------------------------------- sparring/combat.py @ 71e43bb (deleted by D1)
 
 _MOMENT = re.compile(r"(IMMEDIATELY|DURING COMBAT|AFTER COMBAT):")
@@ -117,7 +122,7 @@ def resolve_combat(game: Game, att: Fighter, tgt: Fighter, atk_card: Card, def_c
             result.boost_card = boost
             result.atk_parts.append(f"potencia con {boost.title} (+{boost.boost})")
 
-    if boost is not None and "atk" not in ctx.cancelled and can_boost(atk_card):
+    if boost is not None and "atk" not in ctx.cancelled and _old_can_boost(atk_card):
         if not deck_boost(atk_card):          # Flame Lash: the bottom deck card adds whatever it is worth, even 0
             _check_boost(boost)
         game.discard_card(pa, boost)
@@ -149,7 +154,7 @@ def resolve_combat(game: Game, att: Fighter, tgt: Fighter, atk_card: Card, def_c
                     result.human_effects.append(f"{card.title}: {after}")
                 elif card.title == PLANNED:
                     result.applied.append(f"{card.title}: aplicado ({card.text})")
-                elif card.text.strip() and not can_boost(card):   # Second Shot's BOOST was already resolved in the DURING
+                elif card.text.strip() and not _old_can_boost(card):   # Second Shot's BOOST was already resolved in the DURING
                     result.human_effects.append(f"{card.title}: {card.text}")
                 # a card without text (Excalibur, Service Pistol) has no effect to resolve
     for owner, card in played:

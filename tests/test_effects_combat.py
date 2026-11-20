@@ -83,7 +83,7 @@ def test_can_boost_reads_the_effects_data(bprd):
     assert deck_boost(card(g, 0, "Flame Lash")) and can_boost(card(g, 0, "Flame Lash"))
     assert not can_boost(card(g, 0, "Feint")) and not deck_boost(card(g, 1, "Out Of Time"))
     h = mk(bprd, ("medusa", "hellboy"), [])
-    assert can_boost(card(h, 1, "Second Shot")) and not can_boost(card(h, 0, "Second Shot"))     # Medusa: own rule
+    assert can_boost(card(h, 1, "Second Shot")) and can_boost(card(h, 0, "Second Shot"))     # Medusa's too: the human may play her (live 20/11)
 
 
 def test_shared_card_titles_have_the_same_boost_and_cancel_flags_in_every_hero():

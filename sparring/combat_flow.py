@@ -738,7 +738,7 @@ def legacy_chooser(game: Game, flow: CombatFlow, boost: Card | None, human: int 
             return default_choosers(game)[choice.player].choose(game, ChoiceRequest.from_dict(choice.extra["request"]))
         player = choice.player
         bot_dsl = _is_bot(game, player) and game.fx.interprets(player)
-        if player == human and not is_medusa_card(flow.card_by_id(choice.card_id, player)):
+        if player == human:                 # the human's own card, Medusa's too (they may play her): the boost read from the table
             return _nth(boost, choice)
         if bot_dsl or player != flow.att.owner or is_medusa_card(flow.card_by_id(choice.card_id, player)):
             return game.controllers[player].choose_combat_boost(game, flow.ctx)

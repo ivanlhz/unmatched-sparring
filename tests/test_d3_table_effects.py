@@ -961,3 +961,32 @@ def test_bot_hellboy_detective_outside_the_rival_start_zone_says_nothing(rig):
     assert game.fighters["hellboy"].pos != game.start_spaces[1]
     msgs = bot_turn(session, table, [])
     assert not any(m.startswith("OCCULT DETECTIVE:") for m in msgs)
+
+
+# ---------------------------------------------------------------- DURING before AFTER: the human's Medusa boosts Second Shot
+
+@pytest.mark.parametrize("rig", [("hellboy", "medusa", ("Confront Any Demon or God", "Right Hand Of Doom", "Service Pistol",
+                                                        "Excalibur", "B.P.R.D. Training"))], indirect=True)
+def test_the_humans_medusa_boosts_second_shot_before_the_bots_after_runs(rig, monkeypatch):
+    """Live 20/11 (09:42): Medusa's Second Shot never offered the BOOST (her cards were taken for the bot's), so the combat
+    resolved at 3 vs 3 and Confront Any Demon or God's AFTER ran with no DURING first. The DURING boost comes first, always."""
+    from test_e2_human_cards import put_adjacent
+    session, table, game, fake, cfg = rig
+    put_adjacent(game, table, cfg, "medusa", "hellboy")
+    confront = next(c for c in game.players[0].hand if c.title == "Confront Any Demon or God")
+    monkeypatch.setattr(session.ai, "choose_defense", lambda g, a, t: confront)
+    human_hand(table, game, "Second Shot", "Gaze of Stone", "Snipe")
+    hp, hand = game.fighters["hellboy"].hp, len(game.players[0].hand)
+    human_attack(session, table, game, "medusa", "hellboy", "Second Shot")
+    click(session, table, Event.REVEAL)
+    p = session.pending
+    assert p is not None and p.boost_wait is not None, "Second Shot waits for its BOOST (DURING)"
+    assert game.fighters["hellboy"].hp == hp and len(game.players[0].hand) == hand, "no AFTER yet: Confront has not drawn"
+    gaze = next(c for c in game.players[1].full_set if c.title == "Gaze of Stone")
+    table.human_hand.remove(gaze.card_id)
+    table.human_discard = [*table.human_discard, gaze.card_id]
+    table.human_count -= 1
+    msgs = click(session, table, Event.BOOST)
+    text = next(m for m in msgs if m.startswith("Combate"))
+    assert "Gaze of Stone" in text and f"total {3 + gaze.boost}" in text
+    assert game.fighters["hellboy"].hp == hp - (3 + gaze.boost - 3)

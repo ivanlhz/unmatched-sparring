@@ -9,6 +9,7 @@ of both sides there) and the legacy rules and methods installed, the human's aft
 from __future__ import annotations
 
 from contextlib import contextmanager
+from dataclasses import replace
 
 from sparring import combat, combat_flow
 from sparring.cards import Card
@@ -155,12 +156,17 @@ def human_card_after(flow: CombatFlow, side: Side) -> None:
         result.human_effects.append(f"{card.title}: {after}")
     elif card.title == PLANNED:
         result.applied.append(f"{card.title}: aplicado ({card.text})")
-    elif card.text.strip() and not can_boost(card):   # the BOOST of Second Shot was already resolved in DURING
+    elif card.text.strip() and not _old_can_boost(card):   # the BOOST of Second Shot was already resolved in DURING
         result.human_effects.append(f"{card.title}: {card.text}")
     # a card without text (Excalibur, Service Pistol) has no effect to resolve
 
 
 # ---------------------------------------------------------------- sparring/combat_flow.py @ f4c26ca
+
+def _old_can_boost(card: Card) -> bool:
+    """can_boost as of this oracle: Medusa's Second Shot is boosted by the `second_shot` rule below, not by `boost_this_attack`."""
+    return not is_medusa_card(card) and can_boost(card)
+
 
 def _is(card: Card, title: str, medusa: bool) -> bool:
     return card.title == title and is_medusa_card(card) == medusa
@@ -206,6 +212,8 @@ def legacy(monkeypatch, keep=()):
         for rule, before in LEGACY_RULES:
             rules.insert(next(i for i, r in enumerate(rules) if r.name == before), rule)
         rules = [r for r in rules if r.name != "human_card_outside_the_interpreter"]
+        rules = [replace(r, match=lambda flow, side, old=r.match: not is_medusa_card(side.card) and old(flow, side))
+                 if r.name == "boost_this_attack" else r for r in rules]
         m.setattr(combat_flow, "RULES", rules)
         m.setattr(Game, "play_scheme", play_scheme)
         m.setattr(Game, "use_ability", use_ability)
