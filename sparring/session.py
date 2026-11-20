@@ -2841,36 +2841,43 @@ class Session:
         `sync_positions` does not see it): from here the bot's effects may move it like any other piece.
 
         The Clones are interchangeable tokens, and the human takes ANY of them out of the bag. When the token on the table is
-        not the one the engine summoned, the engine's two Clones trade places (`_adopt_clone_token`), so each fid keeps
-        following the token that carries its name."""
+        not the one the engine summoned, the two fids trade GUIDs (`_adopt_clone_token`): each fid keeps following the token that
+        stands for it, and no record keyed by fid has to change."""
         pieces = self._table_pieces()
         for fid in list(self.game.placing):
             info = pieces.get(fid) or {}
-            if not (info.get("found") and self._on_board(info)):
-                self._adopt_clone_token(fid, pieces)
-                info = pieces.get(fid) or {}
             if info.get("found") and self._on_board(info):
                 self.game.placing.discard(fid)
+            else:
+                self._adopt_clone_token(fid, pieces)
+
+    def reserve_kin(self, f: Fighter) -> list[Fighter]:
+        """The other fighters of the same owner that are the same kind of reserve token (Sun Wukong's Clones: the hero starts them
+        in the bag, `start_on_board` 0) and have not fallen: their tokens are interchangeable."""
+        if f.hero or not any(s.name == f.name and s.start_on_board == 0 for s in self.game.players[f.owner].hero.sidekicks):
+            return []
+        return [o for o in self.game.own(f.owner, alive_only=False) if o.fid != f.fid and o.name == f.name and not o.hero]
 
     def _adopt_clone_token(self, fid: str, pieces: dict[str, dict]) -> None:
-        g = self.game
-        f = g.fighters[fid]
-        if f.hero or not f.alive or f.owner != self.human:
+        """The engine summoned `fid` and the human put ANOTHER Clone token on the board: `fid` follows that token (its GUID and the
+        engine's record trade places with the token's fid) and takes the space the token was read on."""
+        f = self.game.fighters[fid]
+        if not f.alive or f.owner != self.human:
             return
-        twin = next((o for o in g.own(self.human, alive_only=False) if o.fid != fid and o.name == f.name and not o.alive
-                     and (pieces.get(o.fid) or {}).get("found") and self._on_board(pieces[o.fid])), None)
+        loose = [o for o in self.reserve_kin(f) if self._in_reserve(o) and (pieces.get(o.fid) or {}).get("found")
+                 and self._on_board(pieces[o.fid])]
+        twin = next((o for o in loose if pieces[o.fid]["space"] == f.pos), loose[0] if loose else None)
         if twin is None:
             return
-        for name in ("pos", "hp", "alive", "died_at"):
-            a, b = getattr(f, name), getattr(twin, name)
-            setattr(f, name, b)
-            setattr(twin, name, a)
-        pieces[fid], pieces[twin.fid] = pieces.get(twin.fid), pieces.get(fid)
-        g.placing.discard(twin.fid)
-        for snap in (*(([self.fx_unprojected]) if self.fx_unprojected else ()),
-                     *(([self.pending.combat.get("fx")]) if self.pending is not None and self.pending.combat else ())):
-            if snap and (held := snap.get("human_pieces")) and fid in held and twin.fid in held:
-                held[fid], held[twin.fid] = held[twin.fid], held[fid]
+        space = pieces[twin.fid]["space"]
+        mine, theirs = self._guids(fid), self._guids(twin.fid)
+        for k, guids in ((fid, theirs), (twin.fid, mine)):
+            self.cfg.pieces[k] = guids[0] if len(guids) == 1 else list(guids)
+            self.resolved_pieces[k] = list(guids)
+        self._snap_spec = None
+        self.snap = None
+        f.pos = space
+        self.game.placing.discard(fid)
 
     def _tell_damage_dealt(self, p: Pending) -> Callable[[], bool]:
         """Ivan, 31/10 (Rekindle): the damage is dealt at the reveal and the combat then waits at a choice of the human

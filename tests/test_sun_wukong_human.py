@@ -605,10 +605,42 @@ def test_right_hand_of_doom_after_sly_monkey_with_another_clone_token(rig):
     session, table, game, fake, cfg = rig
     clone, old, new = sly_monkey_then_right_hand(rig)
     other = next(c for c in CLONES if c != clone)
+    clone_guid, other_guid = session.cfg.pieces[clone], session.cfg.pieces[other]
     table.positions[cfg.nicknames[other]] = old
     msgs = click(session, table, Event.END_ACTION)
     assert game.fighters["wukong"].pos == new and not said(msgs, "Wukong se mueve"), msgs
-    alive = [c for c in CLONES if game.fighters[c].alive]
-    assert alive == [other], (alive, msgs)            # the engine follows the token the human took out of the bag
-    assert table.positions[cfg.nicknames[other]] == game.fighters[other].pos != old, msgs     # and the bot moved that very token
+    assert game.fighters[clone].alive and game.fighters[other].pos is None, msgs      # the engine's records did not change hands
+    assert session.cfg.pieces[clone] == other_guid and session.cfg.pieces[other] == clone_guid     # the fid follows the token on the table
+    assert not said(msgs, "cae"), msgs                                                  # nobody left the table
+    assert table.positions[cfg.nicknames[other]] == game.fighters[clone].pos != old, msgs  # the bot moved that very token
     assert len({f.pos for f in game.fighters.values() if f.alive}) == len([f for f in game.fighters.values() if f.alive])
+
+
+@with_rig("hellboy", "sun-wukong", *HAND)
+def test_another_clone_token_on_a_different_space_gives_the_clone_its_space(rig):
+    """The human chose where the token goes: the engine's Clone takes the space the token was read on, not the guessed one."""
+    session, table, game, fake, cfg = rig
+    clone, old, new = sly_monkey_then_right_hand(rig)
+    other = next(c for c in CLONES if c != clone)
+    taken = {f.pos for f in game.fighters.values() if f.alive} | {new}
+    elsewhere = next(s for s in sorted(game.board.spaces) if s not in taken and s != old)
+    table.positions[cfg.nicknames[other]] = elsewhere
+    session.game.hand_moves.clear()
+    session._settle_placements()
+    assert game.fighters[clone].pos == elsewhere and clone not in game.placing, game.placing
+
+
+@with_rig("hellboy", "sun-wukong", *HAND)
+def test_a_same_name_sidekick_is_not_an_interchangeable_token(rig):
+    """Only a reserve token (Wukong's Clones) is adopted: Hellboy's own kind of sidekick pair never trades GUIDs."""
+    session, table, game, fake, cfg = rig
+    start(rig)
+    assert session.reserve_kin(game.fighters["hellboy"]) == [] and session.reserve_kin(game.fighters["lobster"]) == []
+    assert {o.fid for o in session.reserve_kin(game.fighters["clone1"])} == {"clone2", "clone3"}
+
+
+@with_rig("hellboy", "george-washington", *HAND)
+def test_named_sidekick_tokens_of_other_heroes_are_not_interchangeable(rig):
+    session, table, game, fake, cfg = rig
+    sidekicks = [f for f in game.own(1, alive_only=False) if not f.hero]
+    assert sidekicks and all(session.reserve_kin(f) == [] for f in sidekicks)
