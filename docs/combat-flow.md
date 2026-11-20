@@ -154,3 +154,47 @@ it is paused `await_key` is `boost:<side>:<n>:dsl_during` so `awaiting_run` find
 `boosted` and `deferred_loss` (the owner of a hero the combat damage defeated while a `defers_defeat` card was in play: the loss is
 settled when the flow reaches DONE). `replace_combatant` swaps who fights (Smoke And Mirrors) and rebuilds the sides.
 
+
+## Double attack (Battle of Legends, Volume Two)
+
+Ivan's rules (20/11/2026): (1) the card's first part is the main attack, a normal combat; (2) the second part is a second attack against
+the same defender, and the defender may defend it too; (3) it is an AFTER COMBAT effect of the card, so Feint (or anything that cancels the
+card's effects) stops it; (4) a fighter moved in the first combat (Skirmish) does not stop it, even out of range or out of the zone; (5) the
+timing order holds: IMMEDIATELY, DURING, AFTER, the defender's effect first at equal timing. The DSL is docs/effects-dsl.md section 45.
+
+How it is built (one place: `CombatFlow`):
+
+- The attacker's AFTER op `second_attack` only records `flow.second_attack = {"value", "card"}` (saved in `dsl`). A cancelled side never runs its
+  AFTER, so a Feint, `cancel_effects` or `cancelled_after` stop it without any extra code; the defender's AFTER of the first combat already
+  ran, because the defender goes first.
+- `flow.second_due` (finished, a value recorded, the game not over, both fighters alive) and `flow.second_flow(def_card)` build the second
+  attack as a combat of its own: `CombatFlow(..., second=value)`. It never checks reach or zone (rule 4), takes no action, raises no `attacked`
+  event, does not take the attacker's card from the hand again, and the attacker's side has no handler (no effects, no BOOST: it is damage
+  only). The defender's side is a normal side: the card it plays (or none) takes part with its IMMEDIATELY, DURING (its own free BOOST) and AFTER.
+  Its attack total is the recorded value plus the persistent attack bonuses (hero passive, a fighter's `attack_bonus` status), not a "next attack" bonus.
+- `combat.resolve_combat` (the synchronous callers: bot turns, the search, the sim) asks `choose_second_defense` of the defender's controller
+  (`Controller`, defaults to `choose_defense` against a face-up attack) and drives the second flow; its result hangs from the first as
+  `result.second`. The live session drives the two flows itself (docs/combat-flow.md "Session" above and the table section below).
+- The second flow serializes with `"second": value`; the first, with `second_attack` inside `dsl`.
+- The chat says the queued attack (`narr.second_attack`) in the card's line and the second combat's own result with `cf.second_attack`.
+
+### Pending Ivan (double attack, nothing ruled; the most literal reading is implemented)
+
+1. **BOOST on the second attack**: not allowed. The card's "may BOOST" is a DURING effect of the first part, already resolved; the second attack
+   is "an attack of value N", so the attacker has no effects at all in it. The defender's card played against it keeps its own free BOOST (Out Of Time).
+2. **Which combat "won / lost" refers to**: the first. The second combat does not emit `combat_lost` nor `after_attack`, so tallies such as
+   "combats lost this turn" count the card once. Effects of the defender's second card that read "if you won the combat" read the second combat
+   (it is the combat that card is in).
+3. **Passives**: the hero's attack bonus passives (Achilles' +2) and persistent fighter statuses apply to the second attack (it is an attack by that
+   fighter); a "your next attack" bonus does not (the first part used it).
+4. **The defender's second card**: its IMMEDIATELY, DURING and AFTER effects apply normally (it is a defense card played in a combat). A Feint against the
+   second attack cancels nothing (the attacker's card has no effects left there).
+5. **No defender card**: the second attack is undefended. **Defeated by the first part**: if the game ended, nothing more happens; if the defender
+   fighter (a sidekick) fell, there is nobody to attack and the second attack is lost; likewise if the attacker fell in the AFTER effects.
+6. **Action count**: one action for the whole card; the second attack costs none and does not raise `attacked` again (so effects that trigger on
+   being attacked, or tokens they spend, fire once).
+7. **Order against the first combat's end events**: the second attack is played after the first flow is DONE, so `after_combat` of the first combat
+   fires before it (a trigger on "after you attack" does not wait for the second part).
+8. **Where the second part goes in the AFTER list**: when the op is reached; the attacker's other AFTER ops of the same card are not delayed by it
+   (the second combat itself is played when the AFTER phase of both sides is over).
+9. **Reach**: not checked again (Ivan's rule 4); this includes a defender that is out of reach for reasons other than a move.

@@ -67,7 +67,8 @@ def snapshot(game, flow=None) -> dict:
             "caps": {} if flow is None else dict(flow.damage_caps),
             "mods": {} if flow is None else {side: len(mods) for side, mods in flow.mods.items()},
             "printed": {} if flow is None else dict(flow.printed_set),
-            "won_by": None if flow is None else flow.considered_won}
+            "won_by": None if flow is None else flow.considered_won,
+            "second": None if flow is None or not flow.second_attack else flow.second_attack["value"]}
 
 
 def describe(game, before: dict, run, flow=None, title: str | None = None) -> str:
@@ -290,6 +291,8 @@ def _combat(before: dict, flow) -> list[str]:
         else:
             out += [t("narr.value_delta", title=card.title, delta=f"{delta:+d}")
                     for delta, _ in flow.mods[side][before["mods"].get(side, 0):]]
+    if flow.second_attack and flow.second_attack["value"] != before.get("second"):     # DOUBLE ATTACK: the second part was queued
+        out.append(t("narr.second_attack", n=flow.second_attack["value"]))
     if flow.considered_won and flow.considered_won != before.get("won_by"):        # "you are considered to have won this combat"
         owner = flow.att.owner if flow.considered_won == "atk" else flow.tgt.owner
         out.append(t("narr.considered_won.bot" if owner == flow.game.bot_player else "narr.considered_won.human"))

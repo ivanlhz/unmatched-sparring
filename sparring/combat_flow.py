@@ -117,8 +117,9 @@ class CombatFlow:
     `Await` BEFORE mutating anything; after `resume` the same handler runs again and finds its answer."""
 
     def __init__(self, game: Game, att: Fighter, tgt: Fighter, atk_card: Card, def_card: Card | None,
-                 values: tuple[int, int] = (0, 0)):
+                 values: tuple[int, int] = (0, 0), second: int | None = None):
         self.game, self.att, self.tgt = game, att, tgt
+        self.second = second                         # DOUBLE ATTACK: this combat IS the second attack, worth this much (see `second_flow`)
         self.atk_card, self.def_card, self.values = atk_card, def_card, tuple(values)
         self.phase, self.side_idx = Phase.DECLARED, 0
         self.ctx: CombatCtx | None = None
@@ -232,6 +233,8 @@ class CombatFlow:
         return side_name in self.ctx.cancelled or (side_name in self.late_cancelled and self.phase is not Phase.IMMEDIATELY)
 
     def _handler(self, side: Side) -> Rule | None:
+        if self.second is not None and side.name == "atk":
+            return None                     # the card's effects were its first part's: the second attack is only damage
         cancelled = self.is_cancelled(side.name)
         for r in RULES:
             if r.phase is self.phase and r.side in ("any", side.name) and (r.when_cancelled or not cancelled) \
@@ -250,8 +253,22 @@ class CombatFlow:
             if self.game.winner is None:
                 for owner, card in self.played:       # the fighter of each side that played a card (DARK PACT)
                     self.game.fx.emit("after_combat", owner, self.att if owner == self.att.owner else self.tgt, card)
-            if self.game.winner is None:
+            if self.game.winner is None and self.second is None:
                 self.game.fx.emit("after_attack", self.att, self.tgt)
+
+    # ---------- double attack ----------
+    @property
+    def second_due(self) -> bool:
+        """The finished combat leaves a second attack to play (docs/combat-flow.md, "Double attack"): the card's AFTER op registered one,
+        nobody has won the game, and both fighters are still standing. Where they stand does not matter (Skirmish)."""
+        return (self.done and self.second is None and bool(self.second_attack) and self.game.winner is None
+                and self.att.alive and self.tgt.alive)
+
+    def second_flow(self, def_card: Card | None) -> "CombatFlow":
+        """The second attack as a combat of its own, in the same place of the turn (no action, no `attacked` event): the same card and
+        the same two fighters, the value the op recorded, the defender's new card (or none). Drive it like any other flow."""
+        assert self.second_due, "no second attack to play"
+        return CombatFlow(self.game, self.att, self.tgt, self.atk_card, def_card, second=self.second_attack["value"])
 
     # ---------- decisions ----------
     def resume(self, choice: "Card | list | None") -> None:
@@ -295,10 +312,11 @@ class CombatFlow:
             if def_card not in game.players[tgt.owner].hand:
                 raise RuleError(t("err.not_in_hand", title=def_card.title, fid=tgt.fid))
         pa, pd = self.att.owner, tgt.owner
-        game.take_from_hand(pa, self.atk_card)
+        if self.second is None:
+            game.take_from_hand(pa, self.atk_card)      # the second attack's card was played with the first
         if def_card is not None:
             game.take_from_hand(pd, def_card)
-        self.played = [(pa, self.atk_card)] + ([(pd, def_card)] if def_card else [])
+        self.played = ([(pa, self.atk_card)] if self.second is None else []) + ([(pd, def_card)] if def_card else [])
         for owner, _ in self.played:
             game.fx.count_played(owner)
 
@@ -307,8 +325,10 @@ class CombatFlow:
         bonus_parts = game.attack_bonus_parts(att, tgt)   # hero passives (Hellboy in ANUNG UN RAMA: +2)
         if game.fx.statuses:
             from .effects.modifiers import fighter_attack_bonus, take_next_attack_bonus
-            bonus_parts = bonus_parts + take_next_attack_bonus(game.fx, att.owner) + fighter_attack_bonus(game.fx, att.fid)
-        atk_value = (atk_card.value or 0) + values[0] + sum(n for n, _ in bonus_parts)
+            bonus_parts = bonus_parts + ([] if self.second is not None else take_next_attack_bonus(game.fx, att.owner)) \
+                + fighter_attack_bonus(game.fx, att.fid)    # "your next attack" was the first part's
+        printed = (atk_card.value or 0) if self.second is None else self.second
+        atk_value = printed + values[0] + sum(n for n, _ in bonus_parts)
         def_value = (def_card.value or 0) if def_card else 0
         def_value += values[1]
         # the defender's ONGOING adds to its card value (even at 0 or cancelled); no card, no value to add to
@@ -316,7 +336,8 @@ class CombatFlow:
         def_value += self.def_bonus
         self.ctx = CombatCtx(att, tgt, atk_card, def_card, atk_value, def_value, set())
         self.result = CombatResult(att.fid, tgt.fid, atk_card, def_card, atk_value, def_value, 0, False)
-        self.result.atk_parts = [f"{atk_card.title} ({atk_card.value or 0})"]
+        self.result.atk_parts = [f"{atk_card.title} ({printed})"] if self.second is None \
+            else [t("cf.second_attack", title=atk_card.title, n=printed)]
         self.result.atk_parts += [f"{label} (+{n})" for n, label in bonus_parts if n]
         if values[0]:
             self.result.atk_parts.append(t("cf.extra", n=values[0]))
@@ -362,7 +383,8 @@ class CombatFlow:
         result.cancelled = set(ctx.cancelled)
         result.cancelled_after = set(ctx.cancelled_after)
         loser = self.tgt if damage >= 1 else self.att       # a tie is lost by the attacker (the engine's "won")
-        self.game.fx.emit("combat_lost", loser.owner, loser)
+        if self.second is None:                             # the card's combat is counted once
+            self.game.fx.emit("combat_lost", loser.owner, loser)
 
     def replace_attack_card(self, new: Card | None, *, back_to_hand: bool = False) -> None:
         """The attacker's card is replaced inside the running combat, the bonuses of the attack staying.
@@ -461,6 +483,7 @@ class CombatFlow:
         return {
             "phase": self.phase.value, "side_idx": self.side_idx, "after_open": self.after_open,
             "values": list(self.values), "fids": [self.att.fid, self.tgt.fid],
+            **({"second": self.second} if self.second is not None else {}),
             "atk_card": self.atk_card.card_id, "def_card": None if self.def_card is None else self.def_card.card_id,
             "played": [[owner, card.card_id] for owner, card in self.played],
             "def_bonus_parts": [[n, label] for n, label in self.def_bonus_parts],
@@ -486,6 +509,7 @@ class CombatFlow:
         att, tgt = (game.fighters[fid] for fid in raw["fids"])
         flow = cls.__new__(cls)
         flow.game, flow.att, flow.tgt, flow.values = game, att, tgt, tuple(raw["values"])
+        flow.second = raw.get("second")
         flow.atk_card, flow.def_card = card(raw["atk_card"], att.owner), card(raw["def_card"], tgt.owner)
         flow.phase, flow.side_idx, flow.after_open = Phase(raw["phase"]), raw["side_idx"], raw["after_open"]
         flow.played = [(owner, card(card_id, owner)) for owner, card_id in raw["played"]]

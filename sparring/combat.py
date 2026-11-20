@@ -54,6 +54,7 @@ class CombatResult:
     applied: list[str] = field(default_factory=list)        # after-combat effects the engine already applied
     bot_notes: list[str] = field(default_factory=list)      # what the bot does not resolve of its cards (announced)
     cancelled_after: set[str] = field(default_factory=set)  # sides whose AFTER COMBAT alone is cancelled (Short circuit); not in `cancelled`
+    second: "CombatResult | None" = None                    # DOUBLE ATTACK: the result of the card's second attack (its own damage and cards)
 
 
 @dataclass
@@ -84,6 +85,11 @@ def resolve_combat(game: Game, att: Fighter, tgt: Fighter, atk_card: Card, def_c
     from .combat_flow import CombatFlow, legacy_chooser
     flow = CombatFlow(game, att, tgt, atk_card, def_card, values)
     flow.drive(legacy_chooser(game, flow, boost))
+    if flow.second_due:          # DOUBLE ATTACK: the defender's controller defends the second part, the result hangs from the first
+        second = flow.second_flow(game.controllers[flow.tgt.owner].choose_second_defense(
+            game, flow.att, flow.tgt, flow.second_attack["value"], atk_card))
+        second.drive(legacy_chooser(game, second, None))
+        flow.result.second = second.result
     return flow.result
 
 

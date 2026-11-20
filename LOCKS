@@ -1,12 +1,4 @@
 # path  agent  task  UTC time   (see BRIEF: short locks only)
-sparring/combat_flow.py  double-attack  engine double attack  13:42Z
-sparring/combat.py  double-attack  engine double attack  13:42Z
-sparring/controller.py  double-attack  engine double attack  13:42Z
-sparring/effects/narrate.py  double-attack  engine double attack  13:42Z
-sparring/effects/ops_combat.py  double-attack  engine double attack  13:42Z
-data/i18n/en.json  double-attack  engine double attack  13:42Z
-data/i18n/es.json  double-attack  engine double attack  13:42Z
-docs/combat-flow.md  double-attack  engine double attack  13:42Z
 sparring/effects/ops_core.py  bloody-mary  register hero  13:43Z
 sparring/effects/state.py  bloody-mary  register hero  13:43Z
 sparring/effects/table.py  bloody-mary  register hero  13:43Z
