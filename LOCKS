@@ -1,2 +1,5 @@
 # path  agent  task  UTC time   (see BRIEF: short locks only)
 sparring/effects/choose.py  bloody-mary  Stolen Memories names the highest BOOST  16:30Z
+sparring/ai_medusa.py  double-attack  D8 bot defends the first part of a double attack  16:31Z
+sparring/search/controller.py  double-attack  D8 bot defends the first part of a double attack  16:31Z
+docs/combat-flow.md  double-attack  D8 bot defends the first part of a double attack  16:31Z
