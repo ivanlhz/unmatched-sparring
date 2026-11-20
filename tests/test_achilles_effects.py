@@ -367,3 +367,30 @@ def test_the_plus_two_of_achilles_applies_to_both_parts_once_patroclus_is_down(b
     achilles, hellboy = pair(g, "achilles", "hellboy")
     res = g.attack(achilles, hellboy, give(g, 0, "Test For Weakness"), None)
     assert res.damage == 1 + 2 and res.second.damage == 3 + 2                         # the engine's reading: a passive applies to the second attack (docs/combat-flow.md, Pending Ivan 3)
+
+
+# ---------------------------------------------------------------- what the bot is told about the price of The Day of Your Doom
+
+def test_the_doom_request_carries_the_fighter_the_damage_and_the_points_it_really_adds(bprd):
+    g = mk(bprd)
+    patroclus, hellboy = pair(g, "patroclus", "hellboy")
+    g.controllers[0].queue = [[False]]
+    g.attack(patroclus, hellboy, give(g, 0, "The Day of Your Doom"), None)
+    asked = [r for r in g.controllers[0].requests if r.kind == "optional"]
+    assert asked[0].extra["damage_buys"] == {"fighter": "patroclus", "damage": 2, "gain": 2, "target": "hellboy"}
+    g2 = mk(bprd)
+    patroclus, hellboy = pair(g2, "patroclus", "hellboy")
+    g2.controllers[0].queue = [[False]]
+    g2.attack(patroclus, hellboy, give(g2, 0, "The Day of Your Doom"), give(g2, 1, "B.P.R.D. Training"))
+    asked = [r for r in g2.controllers[0].requests if r.kind == "optional"]
+    assert asked[0].extra["damage_buys"]["gain"] == 2                       # Training (3) against 3 and 5: 0 then 2
+
+
+def test_the_helm_request_tells_a_bot_that_the_swap_replaces_the_combatant(bprd):
+    g = mk(bprd, turn=1)
+    hellboy, achilles = pair(g, "hellboy", "achilles")
+    put_adjacent(g, "patroclus", "achilles")
+    g.controllers[0].queue = [[False]]
+    g.attack(hellboy, achilles, foe_attack(g), give(g, 0, "Under Achilles' Helm"))
+    asked = [r for r in g.controllers[0].requests if r.kind == "optional"]
+    assert asked[0].extra["replaces_combatant"] == {"this": "achilles", "role": "defense"}

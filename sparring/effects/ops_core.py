@@ -577,7 +577,7 @@ def _choice_context(game, run, spec: dict) -> dict:
     Delivery: how many moments of the rival's card have effects to cancel)."""
     ctx = {}
     ops, other = spec.get("ops") or [], spec.get("else") or []
-    if any(o["op"] == "plugin" and o["id"] in ("houdini:replace_combatant", "luke:replace_combatant", "washington:replace_combatant") for o in ops):      # Smoke And Mirrors: a bot weighs the swap
+    if any(o["op"] == "plugin" and o["id"] in ("houdini:replace_combatant", "luke:replace_combatant", "washington:replace_combatant", "achilles:replace_combatant") for o in ops):      # Smoke And Mirrors: a bot weighs the swap
         ctx["replaces_combatant"] = {"this": run.ctx.this_fid, "role": run.ctx.played_as}
     if len(ops) == 1 and ops[0]["op"] == "return_to_deck" and isinstance(ops[0]["cards"], dict) \
             and ops[0]["cards"]["zone"] == "deck" and ops[0]["cards"].get("pick") == "top":
@@ -606,6 +606,10 @@ def _choice_context(game, run, spec: dict) -> dict:
         buys = _action_buys(game, run, ops)
         if buys is not None:
             ctx["action_buys"] = buys
+    if any(o["op"] == "damage" for o in spec.get("cost") or []):
+        buys = _damage_buys(game, run, spec.get("cost") or [], ops)
+        if buys is not None:
+            ctx["damage_buys"] = buys
     if not spec.get("cost") and ops and all(o["op"] == "draw" and o.get("player") == "owner"
                                             and (isinstance(o.get("amount"), int) or "hand_deficit" in (o.get("amount") or ())) for o in ops):
         ctx["draws"] = sum(amount(game, run, o["amount"]) for o in ops)         # a free draw; `draws_at`: the event of the trigger that offers it
@@ -630,6 +634,26 @@ def _action_buys(game, run, ops: list[dict]) -> dict | None:
     mine, theirs = (flow.ctx.atk_value, flow.ctx.def_value) if attacking else (flow.ctx.def_value, flow.ctx.atk_value)
     return {"gain": setter["amount"] - (card.value or 0), "mine": mine, "theirs": theirs, "attacking": attacking,
             "target": (flow.tgt if attacking else flow.att).fid}
+
+
+def _damage_buys(game, run, cost: list[dict], ops: list[dict]) -> dict | None:
+    """Hit points of an own fighter paid for a value in the running combat (Achilles' The Day of Your Doom: 2 damage to Patroclus, the printed
+    value becomes 5): the fighter and the damage, the points of blow the new value really adds against the other side's total as things stand
+    (`gain`) and the fighter on the other side (`target`), for a bot to price."""
+    flow = getattr(run, "flow", None)
+    hurt = next((o for o in cost if o["op"] == "damage" and isinstance(o.get("amount"), int)), None)
+    setter = next((o for o in ops if o["op"] == "set_value" and isinstance(o.get("amount"), int)), None)
+    card = None if run.ctx.card_id is None else find_card(game, run.ctx.card_id, run.ctx.owner)
+    if flow is None or flow.ctx is None or hurt is None or setter is None or card is None:
+        return None
+    cands, _ = fighter_candidates(game, run, hurt["target"])
+    if len(cands) != 1 or cands[0].owner != run.ctx.owner:
+        return None
+    attacking = flow.att.owner == run.ctx.owner
+    mine, theirs = (flow.ctx.atk_value, flow.ctx.def_value) if attacking else (flow.ctx.def_value, flow.ctx.atk_value)
+    now, then = mine + setter["amount"] - (card.value or 0), mine
+    gain = max(0, now - theirs) - max(0, then - theirs) if attacking else max(0, theirs - then) - max(0, theirs - now)
+    return {"fighter": cands[0].fid, "damage": hurt["amount"], "gain": gain, "target": (flow.tgt if attacking else flow.att).fid}
 
 
 def _pact_context(game, run, ops: list[dict]) -> dict | None:
