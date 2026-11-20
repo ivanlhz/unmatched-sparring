@@ -400,3 +400,81 @@ def test_resume_while_the_clone_is_waiting_to_be_placed_does_not_call_it_missing
     table.positions[cfg.nicknames["clone1"]] = spot
     click(other, table, Event.END_ACTION)
     assert other.game.fighters["clone1"].pos == spot
+
+
+# ---------------------------------------------------------------- Sly Monkey with the three Clones out (Ivan 2026-11-20, W5)
+
+@with_rig("hellboy", "sun-wukong", *HAND)
+def test_sly_monkey_with_three_clones_out_asks_which_one_moves_and_the_human_places_both(rig, monkeypatch):
+    session, table, game, fake, cfg = rig
+    start(rig)
+    put_adjacent(game, table, cfg, "wukong", "hellboy")
+    far = [s for s in sorted(game.board.spaces, reverse=True) if all(f.pos != s for f in game.fighters.values() if f.alive)
+           and not game.board.share_zone(game.fighters["wukong"].pos, s)]
+    for fid, s in zip(CLONES, far):
+        put_clone(game, table, cfg, fid, s)
+    bot_defends_with_nothing(session, monkeypatch)
+    human_hand(table, game, "Sly Monkey", "Golden Chain Mail")
+    w = game.fighters["wukong"]
+    old = w.pos
+    msgs = attack(session, table, game, "Sly Monkey")
+    assert session.effect_run.awaiting.kind == "fighter" and sorted(session.effect_run.awaiting.options) == CLONES, msgs
+    press(session, table, "Clone 2")
+    assert game.placing >= {"clone2", "wukong"}, game.placing
+    new = next(s for s in sorted(game.board.spaces) if s != old and game.board.share_zone(old, s) and s not in {f.pos for f in game.fighters.values() if f.alive})
+    table.positions[cfg.nicknames["wukong"]] = new
+    table.positions[cfg.nicknames["clone2"]] = old
+    click(session, table, Event.END_ACTION)
+    assert w.pos == new and game.fighters["clone2"].pos == old and len([c for c in CLONES if game.fighters[c].alive]) == 3
+
+
+# ---------------------------------------------------------------- Ox Form and Tortoise Form: the BOOST they grant, DURING as printed (Ivan 2026-11-20, W6)
+
+def spend(table, game, *titles):
+    from test_houdini_human import spend as _spend
+    return _spend(table, game, *titles)
+
+
+def combat_line(msgs):
+    return next(m for m in msgs if m.startswith("Combate:"))
+
+
+def bot_ox_form(rig):
+    session, table, game, fake, cfg = rig
+    h = game.fighters["hellboy"]
+    spot = next(s for s in sorted(game.board.adj[h.pos]) if all(f.pos != s for f in game.fighters.values() if f.alive))
+    game.fighters["wukong"].pos = spot
+    table.positions[cfg.nicknames["wukong"]] = spot
+    human_hand(table, game, TRAINING, "Excalibur", "Service Pistol")
+    return bot_attacks(session, table, game, "Ox Form", "wukong", "hellboy", TRAINING)
+
+
+@with_rig("sun-wukong", "hellboy", *BOT_HAND)
+def test_the_bots_ox_form_lets_the_human_defender_boost_after_the_bots_during(rig):
+    session, table, game, fake, cfg = rig
+    msgs = bot_ox_form(rig)
+    assert session.pending is not None and session.pending.wait is not None, msgs        # the question comes from the attacker's DURING
+    assert said(msgs, "revelado: si quieres potenciar"), msgs
+    spend(table, game, "Excalibur")
+    msgs = click(session, table, Event.BOOST)
+    assert "total 6" in combat_line(msgs), combat_line(msgs)                              # 3 + Excalibur's boost 3
+    assert game.fighters["hellboy"].hp == 18 - 1                                            # Ox Form's 7 against 6
+
+
+@with_rig("sun-wukong", "hellboy", *BOT_HAND)
+def test_declining_the_boost_ox_form_grants_resolves_the_combat(rig):
+    session, table, game, fake, cfg = rig
+    bot_ox_form(rig)
+    msgs = click(session, table, Event.NO_BOOST)
+    assert "total 3" in combat_line(msgs) and game.fighters["hellboy"].hp == 18 - 4
+
+
+@with_rig("hellboy", "sun-wukong", *HAND)
+def test_the_humans_ox_form_lets_the_bot_defender_boost_if_it_wants(rig, monkeypatch):
+    session, table, game, fake, cfg = rig
+    start(rig)
+    put_adjacent(game, table, cfg, "wukong", "hellboy")
+    bot_defends_with(session, game, TRAINING, monkeypatch)
+    human_hand(table, game, "Ox Form", "Sly Monkey")
+    msgs = attack(session, table, game, "Ox Form")
+    assert session.pending is None and game.fighters["hellboy"].hp in (18 - 4, 18 - 1, 18), msgs     # the bot decided its BOOST itself: no pause for the human

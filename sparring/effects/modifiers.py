@@ -92,9 +92,9 @@ def has_boost_effect(card) -> bool:
 
 
 def grants_boost(card) -> bool:
-    """The card's IMMEDIATELY lets the rival BOOST their card (`allow_boost`: An Illusion Of My Own Design)."""
+    """The card's IMMEDIATELY or DURING lets the rival BOOST their card (`allow_boost`: An Illusion Of My Own Design, Ox Form, Tortoise Form)."""
     fx = card_effects(card)
-    return fx is not None and any(o["op"] == "allow_boost" for o in walk_ops(fx.moments.get("immediately", [])))
+    return fx is not None and any(o["op"] == "allow_boost" for m in ("immediately", "during") for o in walk_ops(fx.moments.get(m, [])))
 
 
 def look_shield(card) -> bool:

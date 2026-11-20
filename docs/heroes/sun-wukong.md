@@ -13,10 +13,10 @@ His deck is sheet 176 like Medusa's, the turtles', Doctor Strange's, Eredin's an
 
 ## Cards (as implemented)
 1. **Ruyi Jingo Bang** (attack 0 / boost 3): a DOUBLE ATTACK. AFTER, if the opponent played a card against it (a defense card), a second attack of 4 (`second_attack`, docs/effects-dsl.md section 45; the mechanic, who may defend it, Feint and Skirmish are the double-attack engine's).
-2. **Ox Form** (attack 7 / 2): `uncancelable`. The opponent's card may be BOOSTED (`allow_boost`), only when the opponent played a card. Registered IMMEDIATELY, not DURING (see "Engine notes").
+2. **Ox Form** (attack 7 / 2): `uncancelable`. The opponent's card may be BOOSTED (`allow_boost`), only when the opponent played a card. DURING as printed (Ivan 2026-11-20, W6): the engine offers the defender's BOOST right after the attacker's DURING grants it (`combat_flow._late_boost`; `grants_boost` also reads DURING so the table asks the human at Reveal).
 3. **Taunting Laughter** (attack 3 / 2): IMMEDIATELY the opponent may discard 1 card of their hand; if they do not, the value of their card is ignored (`optional` with a discard `cost` and an `else` with `set_value ignore`, chooser the opponent). Nothing is asked when they played no card.
 4. **Infinite Strikes** (attack 2 / 2): DURING +1 for each other friendly fighter adjacent to the opposing fighter; AFTER gain 1 action.
-5. **Sly Monkey** (versatile 2 / 3): AFTER, if Sun Wukong played it, summon a Clone in his space, then place him in a space of his zone.
+5. **Sly Monkey** (versatile 2 / 3): AFTER, if Sun Wukong played it, summon a Clone in his space, then place him in a space of his zone. With the three Clones already out, one of them (the owner chooses) is repositioned to his space instead (Ivan 2026-11-20, W5).
 6. **72 Transformations** (versatile 2 / 2): AFTER take an Ox Form, Tortoise Form or Phoenix Form from the discard pile into the hand.
 7. **Wily Fighting** (versatile 3 / 1): AFTER 1 damage to each opposing fighter adjacent to the fighter that played it.
 8. **Bewilderment** (defense 0 / 2): DURING prevent all combat damage (`cap_combat_damage` 0 on both combatants); AFTER you may place your fighter in any space.
@@ -31,7 +31,7 @@ His deck is sheet 176 like Medusa's, the turtles', Doctor Strange's, Eredin's an
 
 ## Engine notes (additive; shared code touched)
 - `modifiers._owner_run(game, owner, flow)`: the bare run that reads a combat redirection now knows the attacker and the defender, so `redirect_damage` can name `{"role": "attacker"}` (Golden Chain Mail). Baba Yaga's redirect named a fighter by name and never needed it.
-- Ox Form grants the BOOST IMMEDIATELY: the engine asks a side's free BOOST at the end of that side's own DURING, and the defender's DURING runs before the attacker's; a grant made in the attacker's DURING came too late for the defender (test `test_ox_form_lets_the_rival_boost_the_card_it_played`). Ox Form cannot be canceled, so no effect can take the grant away between the two moments: the result is the printed one.
+- Ox Form's BOOST grant is DURING as printed (Ivan 2026-11-20, W6). The defender's DURING runs before the attacker's, so after the attacker's DURING the flow offers the defender its BOOST (`_late_boost`, answers keyed by the side the boost is for); a defender that already had its free BOOST (a `may_boost` card) is not asked twice. Tortoise Form (a defense granting the attacker) was already in order.
 - `table.ENGINE_RUN_TRIGGERS` (`clone_summon`): this trigger is run by the engine for the table player (a yes/no on the panel, the 1 damage on the dial written by the bot, the Clone placed by hand and read from the table), not left to the table. Keyed by trigger id, not by op, so Medusa's GAZE (optional + damage) stays the table's (regression test `test_the_human_medusas_gaze_is_still_the_tables_to_do`).
 - Setup: a fighter in the reserve (`start_on_board 0`) is not asked to be placed and does not block Ready (`Session._in_reserve`); a summoned Clone the human has not yet taken out of the bag is not reported as missing; the first summon is narrated as "summoned" with names (`narr.fighter.summoned`).
 - Test harness: a fighter in the reserve has no position, so `tests/test_d3_table_effects.build` leaves it out of the fake table (a Clone in the bag is not on the table).
@@ -45,10 +45,10 @@ His deck is sheet 176 like Medusa's, the turtles', Doctor Strange's, Eredin's an
 ## Rule decisions (taken without a ruling: the most literal reading, applied)
 1. **A defeated Clone returns to the supply and can be summoned again** (the DSL reads it as "if a Clone is defeated, revive it, else summon from the reserve"). The hero card gives him three Clones and says nothing about losing them for good; with fewer the ability would end after three deaths.
 2. **The ability's 1 damage is effect damage on himself** and can defeat him at 1 health (the card does not forbid it). The bot never does it (the floor).
-3. **Sly Monkey** summons only when Sun Wukong (not a Clone) played the card, and the Clone appears on his current space for that instant (`empty: false`); he is then placed on an empty space of his zone, so the space he stood on is the Clone's. With three Clones already out no Clone is summoned and he is placed anyway; with no empty space in his zone nobody moves. He may be placed on the space he already holds only when no Clone took it.
+3. **Sly Monkey** summons only when Sun Wukong (not a Clone) played the card, and the Clone appears on his current space for that instant (`empty: false`); he is then placed on an empty space of his zone, so the space he stood on is the Clone's. With three Clones already out one of them is repositioned to his space (the owner chooses which; the human moves the Clone and Wukong by hand, End action reads both) and he is placed (Ivan 2026-11-20, W5); with no empty space in his zone nobody moves. He may be placed on the space he already holds only when no Clone took it.
 4. **Bewilderment** prevents combat damage to both fighters of the combat; its placement is optional (a "may") and goes to any empty space; a Clone that plays it is placed instead of Sun Wukong ("your fighter").
 5. **Golden Chain Mail**: the damage goes to the attacker whatever its range; effect damage is not redirected; the attacker "won" the combat as far as the turn's tally goes when the damage was 1 or more (the engine counts the damage, not who took it).
-6. **Ox Form and Tortoise Form** (Ox Form's grant is registered IMMEDIATELY instead of DURING, see Pending Ivan 8): one free BOOST, after the booster's own DURING, from the booster's hand, like Houdini's An Illusion Of My Own Design (docs/heroes/houdini.md). A cancelled side gets none.
+6. **Ox Form and Tortoise Form** (Ox Form: DURING, Ivan 2026-11-20 W6): one free BOOST, after the booster's own DURING, from the booster's hand, like Houdini's An Illusion Of My Own Design (docs/heroes/houdini.md). A cancelled side gets none.
 7. **Taunting Laughter**: with no opponent card there is nothing to ignore and nothing is asked; a rival with an empty hand cannot pay, so the value is ignored.
 8. **Infinite Strikes**: "other friendly fighter" excludes only the fighter that plays the card, so a Clone attacking counts Sun Wukong when he stands next to the target.
 9. **72 Transformations** looks in the discard pile when its AFTER resolves, so it can never return itself and a Form played in the same combat is not there yet.
@@ -61,10 +61,8 @@ His deck is sheet 176 like Medusa's, the turtles', Doctor Strange's, Eredin's an
 1. **Do defeated Clones come back?** (rule decision 1). Alternative: a defeated Clone is gone for good and "up to 3 Clones" is the lifetime supply.
 2. **May the ability kill him?** (decision 2). Alternative: it cannot be used with 1 health.
 3. **Golden Chain Mail and who "won"** (decision 5): with the damage on the attacker, does the attacker still win the combat for "won the combat" effects?
-4. **Bewilderment on both fighters or only on "you"**: "prevent all combat damage" is read as nobody takes combat damage.
-5. **Sly Monkey placement may keep him where he stands** when no Clone is summoned (three Clones out).
+4. Bewilderment: Ivan confirmed the printed "combat damage" (2026-11-20, W4); reading unchanged.
 6. **The double-attack points** (boost of the second attack, "won/lost", Ruyi Jingo Bang when the first defense is cancelled) are the double-attack agent's list in docs/combat-flow.md.
-8. **Ox Form's BOOST grant is registered IMMEDIATELY, not DURING as printed**: the engine asks the defender's free BOOST at the end of the defender's own DURING, which runs before the attacker's, so a DURING grant would come too late. Ox Form cannot be canceled, so under the timing order of 20/11 the result is the same; confirm you accept the technical move.
 7. **The first turn**: the ability is offered at the start of the very first turn like any other (Wukong may open with a Clone).
 
 ## Tests

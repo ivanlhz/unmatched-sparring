@@ -701,7 +701,20 @@ def dsl_during(flow: CombatFlow, side: Side) -> Await | None:
     from .effects.modifiers import boost_limit
     if (wait := _run_moment(flow, side, "during")) is not None:
         return wait
-    return _free_boost(flow, side, max(boost_limit(side.card), 1 if _may_boost_by_effect(flow, side) else 0))
+    if (wait := _free_boost(flow, side, max(boost_limit(side.card), 1 if _may_boost_by_effect(flow, side) else 0))) is not None:
+        return wait
+    return _late_boost(flow, side)
+
+
+def _late_boost(flow: CombatFlow, side: Side) -> Await | None:
+    """The attacker's DURING granted the DEFENDER a BOOST (Ox Form: "If your opponent played a card, they may BOOST it", Ivan 2026-11-20): the
+    defender's own DURING ran first, when the grant did not exist yet, so its BOOST is offered now, before the values are compared. A defender
+    that already had its free BOOST (a `may_boost` card) is not asked twice, and a cancelled one gets none."""
+    from .effects.modifiers import boost_limit
+    dfn = flow.sides[0]
+    if side.name != "atk" or dfn.name != "def" or "def" not in flow.boost_granted or boost_limit(dfn.card) or flow.is_cancelled("def"):
+        return None
+    return _free_boost(flow, dfn, 1)
 
 
 def _may_boost_by_effect(flow: CombatFlow, side: Side) -> bool:
@@ -720,7 +733,8 @@ def _free_boost(flow: CombatFlow, side: Side, limit: int) -> Await | None:
         return None
     done = flow.boosted.setdefault(side.name, [])
     for n in range(limit):
-        answered, boost = flow.answer("dsl_during" if n == 0 else f"dsl_during:{n}")
+        key = f"{flow.phase.value}:{side.name}:" + ("dsl_during" if n == 0 else f"dsl_during:{n}")       # the side the boost is for: the defender's late one runs in the attacker's handler
+        answered, boost = key in flow.answers, (None if flow.answers.get(key) is None else flow.card_by_id(flow.answers[key], owner))
         if not answered:
             flow.await_key = f"{flow.phase.value}:{side.name}:dsl_during" + (f":{n}" if n else "")     # where `resume` files the card
             return Await(PendingChoice("boost", owner, side.card.card_id, False, {"n": n} if n else {}))

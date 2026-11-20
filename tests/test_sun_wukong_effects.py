@@ -211,15 +211,17 @@ def test_sly_monkey_summons_a_clone_in_his_space_then_places_him_in_his_zone(bpr
     assert w.pos == where and g.board.share_zone(old, where)
 
 
-def test_sly_monkey_with_three_clones_only_places_him(bprd):
+def test_sly_monkey_with_three_clones_repositions_the_one_the_owner_chooses_then_places_him(bprd):
+    """Ivan 2026-11-20 (W5): with the three Clones out, one of them goes to Sun Wukong's space, then he is placed in his zone."""
     g = mk(bprd)
     w, h = pair(g, "wukong", "hellboy")
     for fid in CLONES:
         land(g, fid, max(s for s in g.board.spaces if not g.board.share_zone(w.pos, s) and all(f.pos != s for f in g.fighters.values() if f.alive)))
     old = w.pos
-    g.controllers[0].queue = [lambda req: [next(o for o in req.options if o != old)]]
+    g.controllers[0].queue = [["clone2"], lambda req: [next(o for o in req.options if o != old)]]
     g.attack(w, h, give(g, 0, "Sly Monkey"), plain(g))
-    assert len(alive_clones(g)) == 3 and w.pos != old
+    assert len(alive_clones(g)) == 3 and g.fighters["clone2"].pos == old and w.pos != old
+    assert g.fighters["clone1"].pos != old and g.fighters["clone3"].pos != old
 
 
 def test_sly_monkey_played_by_a_clone_does_nothing_after_combat(bprd):
@@ -586,3 +588,21 @@ def test_golden_chain_mail_sends_the_blow_to_yennenga_and_her_archers_take_their
     blow = attack.value + 3 - 4
     assert blow == 3 and w.hp == 17                                  # nothing lands on Wukong
     assert (a1.hp, a2.hp) == (1, 1) and yen.hp == 15 - (blow - 2)     # the redirected victim is Yennenga: her hook splits it
+
+
+# ---------------------------------------------------------------- the BOOST Ox Form grants the defender (DURING, Ivan 2026-11-20 W6)
+
+def test_ox_form_grants_its_boost_during_and_not_immediately(bprd):
+    from sparring.effects.model import load_effects
+    ox = load_effects("sun-wukong").cards["Ox Form"]
+    assert ox.moments["immediately"] == [] and any(o["op"] == "if" for o in ox.moments["during"])
+
+
+def test_a_defender_that_already_may_boost_its_card_is_asked_once_when_ox_form_grants_it_too(bprd):
+    g = mk(bprd, foe="baba-yaga")
+    w, b = pair(g, "wukong", "baba")
+    out_of_time = give(g, 1, "Out Of Time")                                   # versatile with its own free BOOST
+    spare, spare2 = give(g, 1, "Iron Teeth"), give(g, 1, "Deathless")
+    g.controllers[1].boosts = [spare, spare2]
+    res = g.attack(w, b, give(g, 0, "Ox Form"), out_of_time)
+    assert res.def_value == out_of_time.value + spare.boost and spare2 in g.players[1].hand and spare in g.players[1].discard
