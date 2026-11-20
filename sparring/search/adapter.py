@@ -835,7 +835,7 @@ class EngineState:
     def _attack_titles(self, p: int, f: Fighter, target: Fighter | None = None) -> list[str]:
         """The titles `f` may attack with; with `target`, only the cards that can reach it (an adjacent-only attack)."""
         return list(dict.fromkeys(c.title for c in self.game.players[p].hand if enraged.may_attack_with(self.game, p, c) and c.usable_by(f.name)
-                                  and (target is None or self.game.attack_card_reaches(f, target, c)) and not ai_mary.holds_for_third(self.game, p, c)))
+                                  and (target is None or self.game.attack_card_reaches(f, target, c)) and not (p == self.observer and ai_mary.holds_for_third(self.game, p, c))))
 
     def _attack_moves(self, p: int) -> list:
         g = self.game

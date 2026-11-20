@@ -3718,12 +3718,20 @@ class Session:
         self.fx_unprojected = fx_before
         g = self.game
         self.start_line = (self._anung_start_text(before, fx_before["bot"]["discard"])
+                            or self._gained_action_start_text()
                             or self._detective_start_text(fx_before["drawn"])
                             or self._throw_start_text(fx_before["bot"]["discard"]))
         self.game_log.observe(g, self._name)      # the turn start and its triggers, not folded into the bot's actions
         if (before != self._snapshot_bot() or fx_before["bot"] != bot_effects.zones(g.players[self.bot])
                 or g.drawn[self.bot]):
             self._mark_dirty(before)
+
+    def _gained_action_start_text(self) -> str | None:
+        """The bot Bloody Mary started the turn with exactly 3 cards and gained an action in the engine: the chat says why it has three."""
+        g = self.game
+        if g.actions_left > 2 and g.players[self.bot].hero.slug == "bloody-mary":
+            return t("mary.start")
+        return None
 
     def _anung_start_text(self, before: dict, discard_before: list[int]) -> str | None:
         """What the bot's ANUNG UN RAMA start-of-turn trigger just did in the engine (discard 1, move Hellboy up to that

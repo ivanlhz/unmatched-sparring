@@ -716,6 +716,8 @@
  "wildfire.moves.other": "Not a fire card: {liz} moves {n} spaces",
  "wildfire.stays": "Not a fire card: {liz} stays where she is",
  "anung.start": "ANUNG UN RAMA: the bot discards {title} (BOOST {boost}) and moves {name} up to {boost}: {where}.",
+ "mary.start": "Bloody Mary starts the turn with exactly 3 cards: gains 1 action.",
+ "trigger.title.three_cards_one_action": "Bloody Mary starts the turn with exactly 3 cards",
  "anung.start_still": "ANUNG UN RAMA: the bot discards {title} (BOOST {boost}) and does not move {name}.",
  "shehulk.throw": "JUST THROW SOMETHING: the bot discards {title} (BOOST {boost}) and deals {boost} damage to a fighter in {name}'s zone.",
  "detective.start": "OCCULT DETECTIVE: Hellboy starts the turn on your starting space; the bot draws {n}.",

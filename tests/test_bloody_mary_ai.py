@@ -100,7 +100,7 @@ def test_the_search_leaf_counts_the_third_action_of_a_hand_of_exactly_three_and_
     tempo = {}
     for held in (2, 3, 4):
         g.players[0].hand[:] = g.players[0].deck[:held]
-        g.players[1].hand[:] = g.players[1].deck[:held]
+        g.players[1].hand.clear()                                  # nobody to attack her: the hand she ends with is the one she starts with
         tempo[held] = (leaf(g)._side_terms(0, False)["tempo"], leaf(g)._side_terms(1, False)["tempo"])
     assert tempo[3][0] > 0 and tempo[2][0] == tempo[4][0] == 0
     assert tempo[2][1] == tempo[3][1] == tempo[4][1] == 0, "Golden Bat has no such ability"
@@ -119,7 +119,7 @@ def speak_turn(bprd, kind, seed, hand=("Speak Three Times", "Evade", "Evade")):
     g.players[1].hand.clear()
     g.begin_turn()
     assert g.actions_left == 3
-    ai = bot(g, kind, iterations=300, seed=seed)
+    ai = bot(g, kind, iterations=600, seed=seed)
     return g, ai, b
 
 
@@ -229,3 +229,32 @@ def test_pick_broken_glass_reads_the_labels_and_keeps_to_the_options_offered():
     assert ai_mary.pick_broken_glass([3, 2], [0, 1, 2], labels) == 1
     assert ai_mary.pick_broken_glass([3, 9], [0, 1, 2], labels) == 0
     assert ai_mary.pick_broken_glass([3, 9], [2, 1], labels) == 2
+
+
+def test_the_hand_that_counts_is_the_one_she_starts_the_turn_with_after_defending_once(bprd):
+    g = mk(bprd)
+    arena(g)
+    give(g, 1, "Skirmish")                                          # the rival holds a card: it will attack and she will spend a defense
+    g.players[0].hand[:] = [give(g, 0, "Evade", i) for i in range(3)]
+    assert ai_mary.kept_cards_bonus(g, 0) == 0.0, "3 cards with a defense start the next turn on 2"
+    give(g, 0, "Feint")
+    assert ai_mary.kept_cards_bonus(g, 0) == ai_mary.EXTRA_ACTION_CARDS, "4 cards with a defense start it on 3"
+    g.players[0].hand[:] = [give(g, 0, "Speak Three Times"), give(g, 0, "Out Of The Mirror"), give(g, 0, "Ghostly Touch")]
+    assert ai_mary.kept_cards_bonus(g, 0) == ai_mary.EXTRA_ACTION_CARDS, "3 cards none of which defends stay 3"
+
+
+def test_the_held_speak_is_not_spent_as_a_maneuver_boost_and_only_the_bots_own_mary_is_gated_in_the_search(bprd):
+    from sparring.ai_medusa import held_for_plan
+    from sparring.search.adapter import EngineState, Knowledge
+    g = mk(bprd)
+    arena(g)
+    speak = give(g, 0, "Speak Three Times")
+    g.actions_left, g.fx.taken = 3, 0
+    assert held_for_plan(g, 0, speak, g.players[0].hand)
+    g.fx.taken, g.actions_left = 2, 1
+    assert not held_for_plan(g, 0, speak, g.players[0].hand)
+    g.actions_left, g.fx.taken = 3, 0
+    own = EngineState(g, observer=0, knowledge=Knowledge.from_game(g, 0))
+    assert "Speak Three Times" not in own._attack_titles(0, g.fighters["mary"])
+    rival_view = EngineState(g, observer=1, knowledge=Knowledge.from_game(g, 1))
+    assert "Speak Three Times" in rival_view._attack_titles(0, g.fighters["mary"]), "a human's Mary is modelled as free to attack with it"

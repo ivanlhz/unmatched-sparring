@@ -29,8 +29,8 @@ from .i18n import has, t
 MAX_CHOICE_BUTTONS = 6
 CHOICE_IDS = tuple(f"btn_choice_{i}" for i in range(1, MAX_CHOICE_BUTTONS + 1))
 LABEL_MAX = 40
-_UNSAFE = re.compile(r"[^A-Za-z0-9 _.\-!:',]")
-_PANEL_UNSAFE = re.compile(r"[^A-Za-z0-9 _.\-!:',\u00b7]")
+_UNSAFE = re.compile(r"[^A-Za-z0-9 _.\-+!:',]")
+_PANEL_UNSAFE = re.compile(r"[^A-Za-z0-9 _.\-+!:',\u00b7]")
 
 def __getattr__(name: str):
     """`NO_DRAW_REASON`: why the Maneuver does not draw, in the current language."""

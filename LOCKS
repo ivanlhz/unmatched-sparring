@@ -1,8 +1,1 @@
 # path  agent  task  UTC time   (see BRIEF: short locks only)
-sparring/session.py  bloody-mary  round 2: announce the ability, AI fixes  15:01Z
-sparring/effects/events.py  bloody-mary  round 2: announce the ability, AI fixes  15:01Z
-data/i18n/en.json  bloody-mary  round 2: announce the ability, AI fixes  15:01Z
-data/i18n/es.json  bloody-mary  round 2: announce the ability, AI fixes  15:01Z
-sparring/ai_medusa.py  bloody-mary  round 2: announce the ability, AI fixes  15:01Z
-sparring/search/adapter.py  bloody-mary  round 2: announce the ability, AI fixes  15:01Z
-sparring/session_choices.py  bloody-mary  keep + in button labels  15:02Z

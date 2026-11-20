@@ -716,6 +716,8 @@
  "wildfire.moves.other": "No es de fuego: {liz} se mueve {n} casillas",
  "wildfire.stays": "No es de fuego: {liz} se queda donde esta",
  "anung.start": "ANUNG UN RAMA: el bot descarta {title} (BOOST {boost}) y mueve {name} hasta {boost}: {where}.",
+ "mary.start": "Bloody Mary empieza el turno con exactamente 3 cartas: gana 1 accion.",
+ "trigger.title.three_cards_one_action": "Bloody Mary empieza el turno con exactamente 3 cartas",
  "anung.start_still": "ANUNG UN RAMA: el bot descarta {title} (BOOST {boost}) y no mueve a {name}.",
  "shehulk.throw": "LANZA ALGO: el bot descarta {title} (POTENCIA {boost}) y hace {boost} de dano a un luchador de la zona de {name}.",
  "detective.start": "OCCULT DETECTIVE: Hellboy empieza el turno en tu casilla de salida; el bot roba {n}.",

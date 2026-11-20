@@ -311,9 +311,10 @@ def situational_keep(game: Game, me: int, card, hand, spending_on_finisher: bool
 
 
 def held_for_plan(game: Game, me: int, card, hand) -> bool:
-    """The card serves the finisher (Sleight Of Hand, the Magician) and a Big Reveal may still come: the bot does not play it as a
-    scheme or spend it as a Maneuver boost (a hard gate: the weights lost to the position value and the two-action planner)."""
-    return card.title in SETUP_CARDS and finisher_plan(game, me, card, hand) is not None
+    """The card serves the finisher (Sleight Of Hand, the Magician) and a Big Reveal may still come, or it is Bloody Mary's Speak Three
+    Times waiting for her third action: the bot does not play it as a scheme or spend it as a Maneuver boost (a hard gate: the weights lost to
+    the position value and the two-action planner)."""
+    return (card.title in SETUP_CARDS and finisher_plan(game, me, card, hand) is not None) or ai_mary.holds_for_third(game, me, card)
 
 
 def finisher_plan(game: Game, me: int, card, hand) -> str | None:

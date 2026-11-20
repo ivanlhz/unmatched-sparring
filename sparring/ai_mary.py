@@ -118,9 +118,13 @@ def pick_broken_glass(values: list[int], options: list[int], labels: list[str]) 
 
 
 def kept_cards_bonus(game, owner: int, held: int | None = None) -> float:
-    """In cards: what the next turn's third action is worth when `owner` ends this turn holding `held` cards (default: now). 0 for any
-    other hero, and for a hero that cannot gain actions."""
+    """In cards: what the next turn's third action is worth, judged by the hand she will most likely START that turn with, not the one she
+    ends this one with: the rival's turn comes between, and a rival with cards will attack, so she spends a defense (one card). A hand of
+    4 with a defense in it is the hand that starts on 3; a hand of 3 that defends starts on 2. 0 for any other hero, and for a hero that
+    cannot gain actions. `held` replaces the hand size (the defense is still counted from the hand)."""
     if not is_hers(game, owner) or not game.fx.can_gain_actions(owner):
         return 0.0
-    held = len(game.players[owner].hand) if held is None else held
-    return EXTRA_ACTION_CARDS if held == TRIGGER_CARDS else 0.0
+    hand = game.players[owner].hand
+    held = len(hand) if held is None else held
+    defends = game.players[1 - owner].hand and any(c.can_defend for c in hand)
+    return EXTRA_ACTION_CARDS if held - (1 if defends else 0) == TRIGGER_CARDS else 0.0
