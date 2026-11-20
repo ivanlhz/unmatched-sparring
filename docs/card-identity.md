@@ -79,6 +79,8 @@ Rosie The Riveter (Stars and Stripes, hero card 402 on sheet 4, slug `rosie-the-
 
 The Raptors (Jurassic Park: InGen vs. Raptors, character card 313) are another deck of sheet 176 (`tests/test_hero_raptors_data.py`, `tests/test_raptors_matrix.py`): their own `deck.identity` in `data/tts/raptors.json`, a matrix against every other hero in both seats, and `SHARING` in `tests/test_card_identity.py`. Their Feint (band ANY) is word for word Doctor Strange's idx 16 card, so every Raptors card carries the tag `raptors` to keep cards of different decks unequal. Three miniatures and three dials, none shared with another hero.
 
+Bloody Mary (Battle of Legends, Volume Two, character card 321, slug `bloody-mary`) is another deck of sheet 176 (`tests/test_hero_bloody_mary_data.py`, `tests/test_bloody_mary_matrix.py`): her own `deck.identity` in `data/tts/bloody-mary.json`, a matrix against the other heroes in both seats, and `SHARING` in `tests/test_card_identity.py`. She has no sidekick and no token (unmatched-memory's "Patroclus" is Achilles'). One consequence of the shared range found with her: a card an effect takes from the RIVAL's hand and binds with `as` (Stolen Memories' `$memory`) must carry its owner, or `card_ref` finds the caster's own card with the same CardID (`EffectRun.bind(..., owners=)`).
+
 ## Houdini needs none of this
 
 Houdini's deck is sheet 178 (CardIDs 17800-17829) with the character card on a sheet of its own (177, CardID 17700); no other hero of

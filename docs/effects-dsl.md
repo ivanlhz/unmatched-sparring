@@ -1367,3 +1367,14 @@ A double-attack card has two red (attack) parts. Ivan's rules (20/11/2026): the 
   `{"op": "if", "condition": {"test": "card", "card": "opponent_card", "filter": {}}, "then": [{"op": "second_attack", "amount": 4}]}` (`test: card` is false when there is no such card). Yennenga's Rain of Arrows (3) and Achilles' Test For Weakness (3) are `[{"op": "second_attack", "amount": 3}]`; Bloody Mary's Bloody Requiem is `[{"op": "second_attack", "amount": {"attr": "value", "of": "opponent_card"}}]`.
 - **What the engine does with it** (`CombatFlow.second_attack`, docs/combat-flow.md "Double attack"): the op only records the value; the second attack is played when the AFTER phase of the first combat is over (so the defender's AFTER of the first combat goes first, then the attacker's), against the same defender fighter, wherever it now stands.
 - The unruled points (boosting the second attack, "won/lost", passives, no defender card, action count) are listed under "Pending Ivan" in docs/combat-flow.md.
+
+## 46. Bloody Mary: the third action, a card bound from the rival's hand, a gained action at the start of the turn
+
+No new op, event or schema field: everything is written with what exists (and `second_attack`, section 45, for Bloody Requiem).
+
+- **"Third action this turn"** (Speak Three Times, Out Of The Mirror, Ghostly Touch) is `{"stat": "actions_taken_this_turn", "player": "owner"} == 3`: the actions the owner has SPENT this turn, the card's own included (`fx.taken`, counted by `Game.use_action`, reset at `start_of_turn`). Gained actions count once they are spent; `==`, not `>=`.
+- **Start-of-turn `gain_action`**: her ability is an `ability.triggers` entry (`start_of_turn`, `hand_size == 3`, `gain_action 1`). `table.start_of_turn_is_physical` now lists `gain_action` among the ops that need nothing from the table, so the engine runs it for the human as well.
+- **`EffectRun.bind(kind, name, values, owners=None)`**: a card binding may carry the owner of each id (`bindings[name]["o"]`; saved with the run). `choose` and `discard` record it and `select.card_ref("$name")` looks each id up in its owner's deck first. Decks of sheet 176 share CardIDs, so a card picked from the RIVAL's hand must not be resolved against the caster's deck (Stolen Memories reads the BOOST of the card it named).
+- **Choice context**: `ops_core._choice_context` fills `else_damage` also when the damage of an `optional`'s `else` is `{"attr": ..., "of": "$name"}` (the BOOST of the chosen card), so the human's buttons read "Coger <n>" and the bot's `_discard_or_take` prices it.
+- **Plugin** `mary:out_of_the_mirror` (`sparring/effects/plugins_mary.py`): the rival's random discard whose BOOST is added to the card (Chupacabra's Ambush flow, which reads the discarded card object).
+- **AI** (`sparring/ai_mary.py`): see docs/heroes/bloody-mary.md.

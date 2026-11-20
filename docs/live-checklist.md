@@ -310,6 +310,19 @@ Nothing of Golden Bat has been seen on a real table. His deck is sheet 176 like 
 - [ ] **Alpine Fortress (B)**: the bot shuffles a card of its discard pile into its deck and draws 2: its hand count on the table agrees with the engine. **(H)**: the chat says to shuffle a chosen card into your deck, draw 2 and move Golden Bat up to 4. **Arrive Just in Time**: place Golden Bat in any space.
 - [ ] Imposing Presence (cancel), Super Strength (5), He Laughs at Your Feebleness (5 defense) and the numbers as printed.
 
+### Bloody Mary (Battle of Legends, Volume Two, no sidekick)
+
+Nothing of Bloody Mary has been seen on a real table. Her deck is sheet 176 like the other heroes': the first thing to check is that the table is read right.
+- [ ] **Detection (auto)**: with her deck at one spot and any other hero's at the other, the start-up line names Bloody Mary; the bag `a3a6c6` holds a deck of 31 cards (character card 321). Her miniature `98d2b5` and dial `51c4a7` (16) are found by GUID; nothing else comes out of her bag (no sidekick, no token).
+- [ ] **Ability (H)**: when your turn starts with exactly 3 cards in your hand you have 3 actions (the panel's action counter shows it; with any other hand size, 2). **(B)**: the bot's Bloody Mary with exactly 3 cards at the start of its turn takes three actions.
+- [ ] **Third action (H)**: Closer Than She Appears (an action spent and one gained back), a Maneuver, then Speak Three Times: the result line reads 7. Out Of The Mirror as the third action draws a card; Ghostly Touch as the third action heals 3 on her dial. As a first or second action none of the three does anything extra. **(B)**: the bot plays them the same way.
+- [ ] **Stolen Memories (H)**: the bot's hand is laid face up at the row spot and you ping a card; the bot either discards it or takes its BOOST value on its hero (the chat says which, the dial follows). **(B)**: the panel offers "Descartar <card>" / "Coger <n>" for a card of YOUR hand the bot named; taking it lowers your dial by that card's BOOST.
+- [ ] **Out Of The Mirror**: (H) the bot discards a random card and the chat adds its BOOST to the card; (B) the chat names a position of your hand, you lay that card on your discard pile, press Done and the bot adds its BOOST.
+- [ ] **Mirror Image (defense)**: its value is the PRINTED value of the attacker's card, not what a boost or a bonus added; **Broken Glass**: the panel offers +1 / -1 / 0, and when the two final values are equal she draws a card and the opposing fighter takes 2; **Jump Scare** is 6 when she shares no zone with where she started the turn.
+- [ ] **Movement**: Trick of the Light (optional; place her next to the opposing fighter by hand), Infinity Mirror (the fighter you pick moves up to 4 by hand), Closer Than She Appears (up to 1 space).
+- [ ] **Bloody Requiem (double attack)**: the second attack is worth the printed value of the card the rival played against the first; the rival may defend it with another card, and Feint on the first part stops it (see the double attack in docs/combat-flow.md).
+- [ ] Feint (cancel), Evade (draw 1) and the numbers as printed.
+
 ### Dr. Jill Trent (Tales to Amaze, with Daisy)
 
 Nothing of Jill Trent has been seen on a real table. Her deck is sheet 176 like Medusa's, the turtles', Doctor Strange's, Bigfoot's and the Marvel decks': the first thing to check is that the table is read right (16 heroes with TTS data).
