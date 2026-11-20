@@ -156,6 +156,17 @@ def test_the_hold_ends_when_the_third_action_is_next_or_cannot_come(bprd):
     assert not ai_mary.holds_for_third(g, 0, speak) or any(c.title == "Closer Than She Appears" for c in g.players[0].hand)
 
 
+def test_it_does_not_hold_the_card_when_the_maneuvers_before_it_would_exhaust_her_deck(bprd):
+    g = mk(bprd)
+    m, b = arena(g)
+    speak = give(g, 0, "Speak Three Times")
+    g.actions_left, g.fx.taken = 3, 0
+    del g.players[0].deck[1:]
+    assert len(g.players[0].deck) == 1 and not ai_mary.holds_for_third(g, 0, speak)
+    g.fx.taken = 1
+    assert ai_mary.holds_for_third(g, 0, speak)
+
+
 def test_a_blow_that_finishes_the_rival_is_never_held(bprd):
     g = mk(bprd)
     m, b = arena(g)

@@ -49,8 +49,8 @@ def holds_for_third(game, owner: int, card) -> bool:
     if not is_hers(game, owner) or card.title != SPEAK or game.turn != owner or game.fx.taken > 1 or not game.fx.can_gain_actions(owner):
         return False
     closers = sum(1 for c in game.players[owner].hand if c.title == CLOSER)
-    if game.fx.taken + game.actions_left + closers < 3:
-        return False
+    if game.fx.taken + game.actions_left + closers < 3 or len(game.players[owner].deck) < 2 - game.fx.taken:
+        return False                      # no third action to reach, or the Maneuvers before it would draw from an empty deck (2 damage each)
     return not any(f.hero and f.alive and f.hp <= (card.value or 0) for f in game.foes(owner))
 
 
