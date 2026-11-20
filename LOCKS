@@ -1,7 +1,3 @@
 # path  agent  task  UTC time   (see BRIEF: short locks only)
-sparring/session.py  double-attack  review fixes  14:27Z
-tests/test_session.py  double-attack  review fixes  14:27Z
 docs/combat-flow.md  double-attack  review fixes  14:27Z
-data/i18n/en.json  double-attack  review fixes  14:27Z
-data/i18n/es.json  double-attack  review fixes  14:27Z
 features.json  wukong  HERO-SUN-WUKONG entry  14:32Z

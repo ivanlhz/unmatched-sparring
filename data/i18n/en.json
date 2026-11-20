@@ -916,6 +916,7 @@
  "err.bad_target": "{what}: {fid} is not a valid target",
  "err.tts_no_value": "TTS returned no value (it is busy, paused or reloading: check the TTS window)",
  "cf.extra": "extra value ({n:+d})",
+ "second.after_first": "Finish what your card does on the table (moves, choices...) and press [[panel.end_action]]: the second attack follows.",
  "second.human_attacks": "{title}: second attack of {attacker} against {target}, worth {value}. It can be defended too.",
  "second.bot_defended": "The bot defends {target} with a card face down. Press [[panel.reveal]].",
  "second.bot_no_defense": "The bot defends {target} with no card. Press [[panel.reveal]].",

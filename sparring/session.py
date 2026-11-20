@@ -248,6 +248,11 @@ IDENTITY_KEYS = ("destiny_dial", "bot_seat", "human_seat", "bot_deck_guid", "bot
                  "human_deck_guid", "start_spaces", "dials")
 
 
+def g_alive(game: Game, nxt: dict) -> bool:
+    """Both fighters of a second attack still stand once the human has done their moves (an effect may have defeated one)."""
+    return game.fighters[nxt["att"]].alive and game.fighters[nxt["tgt"]].alive
+
+
 class HumanProxy(Controller):
     """The human decides on the table: when the engine forces them to discard, the bot announces it and waits."""
 
@@ -416,6 +421,7 @@ class Session:
         self._deal_at = -1e9                                # when cards were last dealt to the human (they may still be flying to their hand)
         self.ability_wait: str | None = None               # the human's start-of-turn ability to do on the table before anything else (E2)
         self._attack_announced: tuple | None = None     # the bot attack already said before its card went down (a retry stays quiet)
+        self.second_next: dict | None = None               # DOUBLE ATTACK: the first combat is over, the human is finishing its AFTER step; the second attack starts at End action
         self.declared_carry: dict | None = None            # a cancelled attack already declared (UNCANNY INTUITION spent): the same attack again does not re-spend
         self.destiny_seen: tuple[int, str] | None = None   # (destinies, form) already written and verified on the dial
         self.counter_seen: dict[str, int] = {}             # count of each derived counter already written and verified on its dial
@@ -1717,6 +1723,7 @@ class Session:
             **({"ability_wait": self.ability_wait} if self.ability_wait is not None else {}),
             **({"human_dealt": self.human_dealt} if self.human_dealt != self.game.drawn[self.human] else {}),
             **({"declared_carry": self.declared_carry} if self.declared_carry is not None else {}),
+            **({"second_next": self.second_next} if self.second_next is not None else {}),
             "dials_written": self.dials_written, "dials_attempted": self.dials_attempted,
             "start_spaces": {str(k): v for k, v in self.game.start_spaces.items()},
             "deck_ident": {side: [list(pair) for pair in pairs]
@@ -1802,6 +1809,7 @@ class Session:
             self.ability_wait = d.get("ability_wait")
             self.human_dealt = int(d.get("human_dealt", self.game.drawn[self.human]))     # absent: everything counted was dealt
             self.declared_carry = d.get("declared_carry") if isinstance(d.get("declared_carry"), dict) else None
+            self.second_next = dict(d["second_next"]) if isinstance(d.get("second_next"), dict) else None
             self.dial_debt = bool(d.get("dial_debt", False))
             self.dials_written = {str(k): int(v) for k, v in (d.get("dials_written") or {}).items()}
             self.dials_attempted = {str(k): int(v) for k, v in (d.get("dials_attempted") or {}).items()}
@@ -2389,13 +2397,21 @@ class Session:
         p.bot_card, p.bot_card_guid, p.defended = card, guid, True
 
     # ---------- the double attack's second part (docs/combat-flow.md "Double attack") ----------
-    def _begin_second_attack(self, flow: CombatFlow) -> None:
-        """The first combat of a double-attack card is closed: the second attack is now the pending combat. No action is
-        spent and nothing is declared again. The defender may defend it with a card face down (or none) and reads it with
+    def _spent_in_attack(self, p: Pending) -> tuple[set[int], set[str]]:
+        """The human's own cards (CardIDs of their deck) and table objects (GUIDs) already used by the attack this pending belongs to: the
+        first part of a double attack leaves them on the combat spot, and none of them can defend the second part."""
+        if p.second is None:
+            return set(), set()
+        return set(p.second.get("spent", ())), set(p.second.get("guids", ()))
+
+    def _begin_second_attack(self, nxt: dict) -> None:
+        """The first combat of a double-attack card is closed and its AFTER step done: the second attack is now the pending combat. No
+        action is spent and nothing is declared again. The defender may defend it with a card face down (or none) and reads it with
         Reveal, like any attack; when the human attacks, the bot chooses and places its defense now (the value is public)."""
         g = self.game
-        att, tgt, card, value = flow.att, flow.tgt, flow.atk_card, flow.second_attack["value"]
-        info = {"value": value, "card": card.card_id}
+        att, tgt, value = g.fighters[nxt["att"]], g.fighters[nxt["tgt"]], nxt["value"]
+        card = next(c for c in g.players[att.owner].full_set if c.card_id == nxt["card"])
+        info = {"value": value, "card": card.card_id, "spent": list(nxt["spent"]), "guids": list(nxt["guids"])}
         self.moving = False
         if att.owner == self.human:
             p = self.pending = Pending("human_attacks", att, tgt, None, None, defended=False, second=info)
@@ -2505,19 +2521,19 @@ class Session:
         g = self.game
         seen = self._rd_face("human")
         mine = {c.card_id: c for c in g.players[self.human].full_set}
-        theirs = [r for r in seen if r["id"] in mine]  # by CardID ownership, never by order
+        spent_ids, spent_guids = self._spent_in_attack(p)
+        fresh = lambda r: r["id"] not in spent_ids and r.get("guid") not in spent_guids      # a card of the first part still on the table is no defense
+        theirs = [r for r in seen if r["id"] in mine and fresh(r)]  # by CardID ownership, never by order
         if len(theirs) > 1:
             self.say(t("reveal.many", n=len(theirs)), ChatKind.WARNING)
             return
         face_up = False
         if not theirs:                            # a defense/attack left FACE UP before the Reveal is read as it lies
-            theirs = [r for r in self._rd_combat_spot() if isinstance(r, dict) and r.get("id") in mine and r.get("guid")]
+            theirs = [r for r in self._rd_combat_spot() if isinstance(r, dict) and r.get("id") in mine and r.get("guid") and fresh(r)]
             if len(theirs) > 1:
                 self.say(t("reveal.many", n=len(theirs)), ChatKind.WARNING)
                 return
             face_up = bool(theirs)
-        if p.second is not None:                  # the card of the first part may still lie on the table: it is not a defense
-            theirs = [r for r in theirs if r["id"] != p.second["card"]]
         human_card = mine[theirs[0]["id"]] if theirs else None
         try:
             if p.second is not None:             # the attacker's card is already played: only a defense may be on the table
@@ -2901,14 +2917,16 @@ class Session:
             self.say(t("game.over", winner=g.winner))
             self._game_over_dialog()
             return
-        if p.flow.second_due:                     # DOUBLE ATTACK: the card's second part comes before anything else
-            self._begin_second_attack(p.flow)
-            return
+        if p.flow.second_due:                     # DOUBLE ATTACK: the human finishes this combat's AFTER step first; End action starts the second part
+            flow = p.flow
+            self.second_next = {"att": flow.att.fid, "tgt": flow.tgt.fid, "card": flow.atk_card.card_id,
+                                "value": flow.second_attack["value"], "spent": sorted(self._human_played(p)),
+                                "guids": sorted({c["human_guid"], *self.combat_guids.values()} - {None})}
         self.moving = True
         if (paused := self._paused()) is not None and paused[0] == "parked" and paused[2].ctx.moment == "after_combat":
             self._show_choice(paused[2].awaiting)         # DARK PACT: asked right after the combat; `_effect_done` says the rest
             return
-        self.say(t("combat.after"), ChatKind.YOUR_TURN)
+        self.say(t("combat.after") if self.second_next is None else t("second.after_first"), ChatKind.YOUR_TURN)
 
     def _bot_boost_ids(self, p: Pending) -> set[int]:
         """The cards the bot spent as a boost in this combat, whichever side it was on (an attack's or a defense's)."""
@@ -3263,6 +3281,11 @@ class Session:
             self.moving = True
             self.say(self._walk_after_discard_text(walks_open), ChatKind.YOUR_TURN)
             return
+        if (nxt := self.second_next) is not None:      # DOUBLE ATTACK: the first combat's AFTER step is done, the second attack comes now
+            self.second_next = None
+            if g_alive(self.game, nxt) and self.game.winner is None:
+                self._begin_second_attack(nxt)
+                return
         if self.game.turn == self.bot:
             self._bot_continue()
         else:

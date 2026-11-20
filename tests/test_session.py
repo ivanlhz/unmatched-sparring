@@ -495,10 +495,18 @@ class Table:
         if ", 180.0)" in s:
             self.unflips.append(guid)
             self.turned_up.discard(guid)
+            self._move_row(guid, self.face_up, self.face_down)
         else:
             self.flips.append(guid)
             self.turned_up.add(guid)
+            self._move_row(guid, self.face_down, self.face_up)      # like the real table: a played card lies face up at its spot afterwards
         return {"flipped": guid}
+
+    @staticmethod
+    def _move_row(guid, source, target):
+        for row in [r for r in source if r["guid"] == guid]:
+            source.remove(row)
+            target.append(row)
 
     def do_return_card_to_hand(self, s):
         guid = re.search(r'getObjectFromGUID\("(\w+)"\)', s).group(1)
