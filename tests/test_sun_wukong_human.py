@@ -474,7 +474,43 @@ def test_the_humans_ox_form_lets_the_bot_defender_boost_if_it_wants(rig, monkeyp
     session, table, game, fake, cfg = rig
     start(rig)
     put_adjacent(game, table, cfg, "wukong", "hellboy")
-    bot_defends_with(session, game, TRAINING, monkeypatch)
+    training = bot_defends_with(session, game, TRAINING, monkeypatch)
+    spare = next(c for c in game.players[0].hand if c.title == "Excalibur")
+    monkeypatch.setattr(session.ai, "choose_combat_boost", lambda g, ctx: spare)       # the bot takes the BOOST Ox Form grants it
     human_hand(table, game, "Ox Form", "Sly Monkey")
     msgs = attack(session, table, game, "Ox Form")
-    assert session.pending is None and game.fighters["hellboy"].hp in (18 - 4, 18 - 1, 18), msgs     # the bot decided its BOOST itself: no pause for the human
+    assert game.fighters["hellboy"].hp == 18 - 1, msgs                  # 7 against 3 + Excalibur's boost 3 = 6
+    assert spare in game.players[0].discard and session.pending is None
+
+
+# ---------------------------------------------------------------- grants_boost: only a grant to the RIVAL's card
+
+def test_grants_boost_counts_the_grants_to_the_rival_and_never_a_boost_of_the_cards_own(bprd):
+    from sparring.effects.modifiers import grants_boost
+    from sparring.state import Game
+    g = Game.new(bprd, 3, controllers={}, heroes=("sun-wukong", "chupacabra"), bot_player=0)
+    mine = {c.title: c for c in g.players[0].full_set}
+    theirs = {c.title: c for c in g.players[1].full_set}
+    assert grants_boost(mine["Ox Form"]) and grants_boost(mine["Tortoise Form"])
+    assert not grants_boost(theirs["Blood in the Air"])                     # its own free BOOST (card: this)
+    assert not grants_boost(mine["Infinite Strikes"])
+
+
+def test_the_bots_blood_in_the_air_gives_the_human_defender_no_boost_prompt(tmp_path, monkeypatch):
+    from sparring.ai_medusa import Act
+    from test_d3_table_effects import bot_turn, build
+    session, table, game, fake, cfg, client = build(tmp_path, "chupacabra", "hellboy", ("Blood in the Air",))
+    try:
+        put_adjacent(game, table, cfg, "hellboy", "chupacabra")
+        human_hand(table, game, TRAINING, "Excalibur", "Service Pistol")
+        card = next(c for c in game.players[0].hand if c.title == "Blood in the Air")
+        bot_turn(session, table, [Act("attack", fid="chupacabra", target="hellboy", card=card)])
+        cid = card_ids(game, 1, TRAINING)[0]
+        table.face_down = [{"id": cid, "guid": f"h{cid}"}]
+        table.human_hand.remove(cid)
+        table.human_count -= 1
+        msgs = click(session, table, Event.REVEAL)
+        assert not said(msgs, "si quieres potenciar") and (session.pending is None or session.pending.wait is None), msgs
+    finally:
+        client.close()
+        fake.close()
