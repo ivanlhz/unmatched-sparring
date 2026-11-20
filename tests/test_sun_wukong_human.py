@@ -514,3 +514,28 @@ def test_the_bots_blood_in_the_air_gives_the_human_defender_no_boost_prompt(tmp_
     finally:
         client.close()
         fake.close()
+
+
+def gate_script(session) -> str:
+    """The Lua the pre-game panel (table_reset.Gate.show) sends: set_panel lists every element it sets, all hidden except Clean, Prepare
+    and Start."""
+    from sparring.table_reset import Gate
+    sent = []
+    gate = object.__new__(Gate)
+    gate.session, gate.client = session, type("C", (), {"call_lua": lambda self, s: sent.append(s)})()
+    gate._panel = lambda: None
+    gate.show("gate.status.ready", prep=False, start=True)
+    return "".join(sent)
+
+
+@with_rig("hellboy", "sun-wukong", *HAND)
+def test_the_pre_game_panel_hides_the_buttons_of_the_clones_still_in_the_bag(rig):
+    """Live 20/11: before Start the panel showed "Ataca Clone 1..3" and their -1/+1/Retirar rows (the Clones start in the bag, not
+    alive, and the gate only hid the living fighters' elements)."""
+    session, table, game, fake, cfg = rig
+    for fid in CLONES:
+        game.fighters[fid].alive, game.fighters[fid].died_at = False, None
+    script = gate_script(session)
+    for fid in CLONES:
+        for ident in (f"att_{fid}", f"hpm_{fid}", f"hpp_{fid}", f"rm_{fid}"):
+            assert ident in script, ident

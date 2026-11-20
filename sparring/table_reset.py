@@ -484,7 +484,7 @@ class Gate:
     def _panel(self) -> None:
         """Creates the panel for the current heroes (once per hero pair)."""
         s, cfg = self.session, self.cfg
-        targets = [f.fid for f in s.game.own(s.bot)]
+        targets = [f.fid for f in s.game.own(s.bot, alive_only=False)]   # a bot Wukong's Clones start in the bag: their buttons exist all the same
         key = (tuple(targets), cfg.attacker_ids)
         if self._panel_for == key:
             return
@@ -499,7 +499,7 @@ class Gate:
         """`options`: the heroes the player is asked to choose from, one button each (`btn_choice_1..`, the ones an effect choice uses)."""
         self._panel()
         s = self.session
-        ids = ui.element_ids([f.fid for f in s.game.own(s.bot)], tuple(f.fid for f in s.game.own(s.human)))
+        ids = ui.element_ids([f.fid for f in s.game.own(s.bot, alive_only=False)], tuple(f.fid for f in s.game.own(s.human, alive_only=False)))   # Wukong's Clones in the bag too
         states = {i: (False, False) for i in ids}
         states["btn_clean"], states["btn_prep"], states["btn_start"] = (clean, clean), (prep, prep), (start, start)
         labels = {}
