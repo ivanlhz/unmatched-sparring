@@ -236,7 +236,7 @@ def build(tmp_path, bot, human, hand, table_cls=FxTable, **over):
         game.fighters[fid].pos = spaces[20 + i]
     for i, fid in enumerate(human_fids[1:]):
         game.fighters[fid].pos = spaces[-1 - i]
-    table.positions = {cfg.nicknames[f]: g.pos for f, g in game.fighters.items()}
+    table.positions = {cfg.nicknames[f]: g.pos for f, g in game.fighters.items() if g.pos is not None}      # a Clone in the reserve is in the bag: not on the table
     for fid, g in scfg.dials.items():
         table.dials[g] = {"found": True, "name": g, "value": game.fighters[fid].hp, "max": game.fighters[fid].hp}
         session.dials_written[g] = game.fighters[fid].hp

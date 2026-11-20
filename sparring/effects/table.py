@@ -91,12 +91,16 @@ def piece_is_physical(game, chooser: int, fighter) -> bool:
     return physical(game, chooser) and fighter.owner == chooser
 
 
+# Sun Wukong's CLONES is a yes/no, 1 damage to his own dial and a Clone summoned on a space the human puts it on by hand: nothing hidden, so the engine runs it.
+WUKONG_OPS = ("damage", "if", "summon", "revive")
+
+
 def start_of_turn_is_physical(game, player: int, trig: dict) -> bool:
     """The table player's start-of-turn ability (Hellboy's ANUNG discard and move, Wildfire's bottom card) reads their
     real hand or an unknown discard: it is theirs on the table, announced by the session. A trigger that only draws
     (OCCULT DETECTIVE's optional draw, Jill Trent's choice of a gadget, Bloody Mary's gained action) is not: the engine asks on the panel and the session deals the cards."""
     from .model import walk_ops
-    only_draws = all(o["op"] in ("optional", "draw", "choose_effect", "counter", "gain_action") for o in walk_ops(trig["ops"]))     # Jill's gadget: a button and a counter, nothing on the table
+    only_draws = all(o["op"] in ("optional", "draw", "choose_effect", "counter", "gain_action", *WUKONG_OPS) for o in walk_ops(trig["ops"]))     # Jill's gadget: a button and a counter, nothing on the table
     return physical(game, player) and trig["when"]["event"] == "start_of_turn" and not only_draws
 
 
