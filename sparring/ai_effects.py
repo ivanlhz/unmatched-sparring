@@ -31,7 +31,7 @@ import random
 from functools import lru_cache
 from itertools import combinations
 
-from . import ai_achilles, ai_washington, ai_wyatt, ai_yennenga, enraged
+from . import ai_achilles, ai_washington, ai_wukong, ai_wyatt, ai_yennenga, enraged
 from .ai_medusa import (ACTION_VALUE, DECK_SCARCITY, HARPY_VALUE, KILL_SIDEKICK, LETHAL, SURVIVAL_P, W_HERO, W_MEDUSA_HP,
                         W_SIDEKICK, MedusaAI, Model, can_use, defence_keeper, discard_cut, effect_reliance, hand_room, keep_value, kept_hand_value, kill_value, play_signature)
 from .controller import Controller
@@ -687,6 +687,8 @@ class EffectAI:
         return 1 if card_worth(card) > average else 0
 
     def _optional(self, game: Game, req: ChoiceRequest, nested: bool) -> list | None:
+        if str(req.key).startswith(ai_wukong.CLONES_KEY):     # Sun Wukong's CLONES: 1 hit point for a Clone, priced in ai_wukong
+            return [ai_wukong.summon_pays(self, game, req)]
         if "washington" in req.extra:        # ESPIONAGE: a ruse token on the attack, or the discard that takes it off (ai_washington)
             return [ai_washington.use_ruse(self, game, req) if req.extra["washington"] == "use" else ai_washington.remove_ruse(self, game, req)]
         if "damage_buys" in req.extra:      # The Day of Your Doom: 2 damage to Patroclus for the points the new value really adds (ai_achilles)

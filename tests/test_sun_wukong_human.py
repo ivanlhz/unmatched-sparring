@@ -153,3 +153,53 @@ def test_phoenix_form_heals_one_per_clone_and_writes_the_dial(rig):
     from test_e2_human_cards import human_scheme
     human_scheme(session, table, game, "Phoenix Form")
     assert w.hp == 12 and dial(session, cfg, table, "wukong") == 12
+
+
+# ---------------------------------------------------------------- the bot's Wukong
+
+BOT_HAND = ("Fiery Eyes That See", "Sly Monkey", "Taunting Laughter", "Ox Form")
+
+
+def bot_turn_with_hand(session, table, game, acts, *titles):
+    """Like `bot_turn`, but the table's hand is set to `titles` (as many as the engine's hand holds after the two maneuvers) before the bot plays,
+    so a look at the hand finds what the engine believes is there."""
+    from sparring.ai_medusa import Act
+    plan = list(acts)
+    session.ai.plan = lambda g: plan.pop(0) if plan else Act("maneuver", moves={})
+    session.ai.pick_ability_target = lambda g: None
+    click(session, table, Event.MANEUVER)
+    click(session, table, Event.END_ACTION)
+    click(session, table, Event.MANEUVER)
+    human_hand(table, game, *titles)
+    return click(session, table, Event.END_ACTION)
+
+
+SEVEN = ("Service Pistol", "Excalibur", "Glimpse Of Hell", "B.P.R.D. Training", "Right Hand Of Doom", "Second Shot", "Confront Any Demon or God")
+
+
+@with_rig("sun-wukong", "hellboy", *BOT_HAND)
+def test_the_bots_fiery_eyes_looks_once_and_names_the_card_for_the_bottom_of_your_deck(rig):
+    from sparring.ai_medusa import Act
+    from test_d3_table_effects import human_reads
+    session, table, game, fake, cfg = rig
+    card = next(c for c in game.players[0].hand if c.title == "Fiery Eyes That See")
+    msgs = bot_turn_with_hand(session, table, game, [Act("frenzy", card=card)], *SEVEN)
+    assert len(human_reads(table)) == 1
+    assert said(msgs, "Pon Excalibur de tu mano en el fondo de tu mazo (efecto del bot)"), msgs
+    assert said(msgs, "Te he dado 1 carta (efecto del bot)"), msgs
+    assert not said(msgs, "las eliges tu"), msgs                      # the bot chose the card, not the human
+    known = game.players[0].known
+    assert card_ids(game, 1, "Excalibur")[0] not in known.seen         # it left the hand it had seen
+    assert len(game.players[1].hand) == 7
+
+
+@with_rig("sun-wukong", "hellboy", *BOT_HAND)
+def test_the_bots_clone_is_taken_from_the_bag_and_put_on_the_table_by_the_bot(rig):
+    from test_d3_table_effects import bot_turn
+    session, table, game, fake, cfg = rig
+    msgs = bot_turn(session, table, [])
+    w, c = game.fighters["wukong"], game.fighters["clone1"]
+    assert said(msgs, "Clone 1 vuelve al juego: la he colocado yo"), msgs
+    assert c.alive and w.hp == 16 and c.hp == 1 and c.pos in game.board.adj[w.pos]
+    assert table.positions[cfg.nicknames["clone1"]] == c.pos           # the table follows the engine: the bot moved the Clone itself
+    assert dial(session, cfg, table, "wukong") == 16
