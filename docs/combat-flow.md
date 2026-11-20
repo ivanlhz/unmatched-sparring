@@ -199,6 +199,8 @@ How it is built (one place: `CombatFlow`):
    (the second combat itself is played when the AFTER phase of both sides is over).
 9. **Reach**: not checked again (Ivan's rule 4); this includes a defender that is out of reach for reasons other than a move.
 
+Ivan, 2026-11-20 (Achilles): a hero's AFTER ability flagged `second_attack` also runs for the attacker in the second combat, and one flagged `cardless` for a defender who played no card (`CombatFlow._hero_after`, `ops_combat.hero_after`; docs/effects-dsl.md section 45). Other heroes' "won/lost" readings are unchanged.
+
 ### Double attack at the table (session)
 
 `Pending.second` (`{"value", "card", "spent", "guids"}`, saved under `"second"`; `spent`/`guids` are the human's own CardIDs and table objects already used by the attack) marks the pending combat as the second attack of an already played card. `Session._after_combat`

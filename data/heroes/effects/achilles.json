@@ -54,6 +54,8 @@
   "after": [
    {
     "id": "vengeance_draw",
+    "cardless": true,
+    "second_attack": true,
     "condition": {
      "all": [
       {
@@ -87,7 +89,7 @@
     ]
    }
   ],
-  "notes": "Trigger: the instant Patroclus falls (in a combat, by an effect, by exhaustion) Achilles' owner discards 2 cards of the hand at random (fewer if they hold fewer). While he is defeated: +2 to every attack Achilles plays (attack cards and versatile cards played as attack, as Hellboy's ANUNG) and the owner draws 1 after each combat Achilles wins (the hero's own AFTER runs for every combat the owner played a card in)."
+  "notes": "Trigger: the instant Patroclus falls (in a combat, by an effect, by exhaustion) Achilles' owner discards 2 cards of the hand at random (fewer if they hold fewer). While he is defeated: +2 to every attack Achilles plays (attack cards and versatile cards played as attack, as Hellboy's ANUNG) and the owner draws 1 after each combat Achilles wins (the hero's own AFTER runs for every combat the owner played a card in; flagged `cardless` it also runs when Achilles defends with no card, flagged `second_attack` it also runs in the combat of a second attack he makes: Ivan 2026-11-20)."
  },
  "cards": [
   {

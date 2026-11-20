@@ -50,6 +50,8 @@
        "id": {"$ref": "#/$defs/Name"},
        "condition": {"$ref": "#/$defs/Condition"},
        "ops": {"$ref": "#/$defs/Ops"},
+       "cardless": {"const": true},
+       "second_attack": {"const": true},
        "notes": {"type": "string"}
       }
      }

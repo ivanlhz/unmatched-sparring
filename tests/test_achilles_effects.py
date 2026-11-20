@@ -394,3 +394,66 @@ def test_the_helm_request_tells_a_bot_that_the_swap_replaces_the_combatant(bprd)
     g.attack(hellboy, achilles, foe_attack(g), give(g, 0, "Under Achilles' Helm"))
     asked = [r for r in g.controllers[0].requests if r.kind == "optional"]
     assert asked[0].extra["replaces_combatant"] == {"this": "achilles", "role": "defense"}
+
+
+# ---------------------------------------------------------------- Ivan 2026-11-20: the draw without a card and in the second attack
+
+def test_a_defender_who_plays_no_card_and_wins_draws_while_patroclus_is_down(bprd):
+    g = mk(bprd, turn=1)
+    fall(g)
+    g.players[0].hand.clear()
+    hellboy, achilles = pair(g, "hellboy", "achilles")
+    res = g.attack(hellboy, achilles, foe_attack(g), None, values=(-5, 0))          # the pistol's 5 become 0: Achilles takes no damage and wins
+    assert not res.attacker_won and len(g.players[0].hand) == 1
+
+
+def test_no_draw_without_a_card_when_he_loses_or_when_patroclus_lives(bprd):
+    g = mk(bprd, turn=1)
+    fall(g)
+    g.players[0].hand.clear()
+    hellboy, achilles = pair(g, "hellboy", "achilles")
+    res = g.attack(hellboy, achilles, foe_attack(g), None)                           # 5 on an open defender: he lost
+    assert res.attacker_won and len(g.players[0].hand) == 0
+    g2 = mk(bprd, turn=1)
+    hell, ach = pair(g2, "hellboy", "achilles")
+    res = g2.attack(hell, ach, foe_attack(g2), None, values=(-5, 0))
+    assert not res.attacker_won and len(g2.players[0].hand) == 0
+
+
+def test_winning_both_parts_of_test_for_weakness_draws_two(bprd):
+    g = mk(bprd)
+    fall(g)
+    achilles, hellboy = pair(g, "achilles", "hellboy")
+    card = give(g, 0, "Test For Weakness")
+    res = g.attack(achilles, hellboy, card, None)
+    assert res.attacker_won and res.second.attacker_won and len(g.players[0].hand) == 2
+
+
+def test_each_combat_is_judged_on_its_own_for_the_draw(bprd):
+    g = mk(bprd)
+    fall(g)
+    achilles, hellboy = pair(g, "achilles", "hellboy")
+    block = give(g, 1, "B.P.R.D. Training")                                          # 3 against 1+2: the first part is lost, the second (3+2) is undefended
+    res = g.attack(achilles, hellboy, give(g, 0, "Test For Weakness"), block)
+    assert not res.attacker_won and res.second.attacker_won and len(g.players[0].hand) == 1
+
+
+def test_without_the_flag_nobody_else_reads_the_second_attack_differently(bprd):
+    """Wyatt Earp's and Jill Trent's AFTER abilities carry no `second_attack` flag: the second attack does not run them."""
+    from sparring.effects.model import load_effects
+    for slug in ("wyatt-earp", "jill-trent"):
+        assert not any(e.get("second_attack") or e.get("cardless") for e in load_effects(slug).ability_after)
+    assert [e["id"] for e in load_effects("achilles").ability_after if e.get("second_attack") and e.get("cardless")] == ["vengeance_draw"]
+
+
+def test_achilles_defending_a_double_attack_draws_for_the_second_combat_he_wins(bprd, monkeypatch):
+    from sparring.effects.model import load_effects
+    monkeypatch.setitem(load_effects("hellboy").card("Horseshoes And Hand Grenades").moments, "after", [{"op": "second_attack", "amount": 3}])
+    g = mk(bprd, turn=1)
+    fall(g)
+    hellboy, achilles = pair(g, "hellboy", "achilles")
+    heel = give(g, 0, "Achilles' Heel")
+    g.controllers[0].choose_second_defense = lambda game, att, tgt, value, card: heel
+    res = g.attack(hellboy, achilles, give(g, 1, "Horseshoes And Hand Grenades"), None)
+    assert res.attacker_won and res.second is not None and not res.second.attacker_won     # lost the open first part, won the second with the 4
+    assert len(g.players[0].hand) == 1                                                       # the heel left the hand, one card drawn

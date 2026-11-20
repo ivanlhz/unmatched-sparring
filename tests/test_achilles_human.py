@@ -183,3 +183,20 @@ def test_test_for_weakness_the_bot_attacks_and_you_defend_the_second_part_with_a
     table.human_count -= 1
     click(session, table, Event.REVEAL)
     assert session.pending is None and hellboy.hp == hp - 1               # Training (3) stops the 3
+
+
+@with_rig("hellboy", "achilles", TRAINING)
+def test_winning_both_parts_of_test_for_weakness_draws_two_at_the_table(rig, monkeypatch):
+    session, table, game, fake, cfg = rig
+    put_adjacent(game, table, cfg, "hellboy", "achilles")
+    patroclus = game.fighters["patroclus"]
+    patroclus.hp, patroclus.alive, patroclus.pos = 0, False, None
+    monkeypatch.setattr(session.ai, "choose_defense", lambda g, a, t, attack_card=None: None)
+    monkeypatch.setattr(session.ai, "choose_second_defense", lambda g, att, tgt, value, card: None)
+    human_hand(table, game, "Test For Weakness", "Feint")
+    hp = game.fighters["hellboy"].hp
+    msgs = attack(session, table, game, "achilles", "Test For Weakness")
+    msgs += click(session, table, Event.END_ACTION)
+    msgs += click(session, table, Event.REVEAL)
+    assert game.fighters["hellboy"].hp == hp - 3 - 5, msgs               # 1+2 then 3+2, both undefended
+    assert sum("robas 1" in m for m in msgs) == 2, msgs

@@ -381,6 +381,27 @@ def run_moment(flow, side, moment: str):
     return _continue(flow, flow.runs[key])
 
 
+def hero_after(flow, name: str):
+    """The hero's own AFTER COMBAT ability on a side that has no card effects to run: the defender who played no card (`cardless`: Achilles'
+    draw when he defends and wins, Ivan 2026-11-20) or the attacker of a second attack, whose card's effects were its first part's
+    (`second_attack`: winning the second combat draws too, Ivan 2026-11-20). Only the ability entries that carry that flag run, so
+    every other hero's AFTER ability (Jill Trent's tonic, Wyatt's showdown) reads these combats as before. Returns the Await of a
+    paused effect, else None; `flow.runs` keeps the run so a rerun after a pause never starts it again."""
+    from types import SimpleNamespace
+    key = f"after:{name}"
+    if key not in flow.runs:
+        fighter, rival = (flow.tgt, flow.att) if name == "def" else (flow.att, flow.tgt)
+        if not flow.game.fx.interprets(fighter.owner):
+            return None
+        flag = "cardless" if name == "def" else "second_attack"
+        entries = tuple(e for e in load_effects(flow.game.players[fighter.owner].hero.slug).ability_after if e.get(flag))
+        ops = during_with_ability(entries, []) if entries else []
+        if not ops:
+            return None
+        flow.runs[key] = _start(flow, SimpleNamespace(name=name, fighter=fighter, card=None, rival=rival), ops, "after", None)
+    return _continue(flow, flow.runs[key])
+
+
 def during_with_ability(ability: tuple, card_ops: list) -> list:
     """The ops of a DURING moment of a hero that has DURING COMBAT effects of its own (`ability.during`, Daredevil: "if you
     have other DURING COMBAT effects, choose the order"; ruled by Iván 2026-11-07: the ability always goes first). Each ability

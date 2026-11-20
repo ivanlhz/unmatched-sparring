@@ -183,6 +183,8 @@ class CombatFlow:
         if self.side_idx >= len(self.sides) or (self.phase is Phase.AFTER and not self.after_open):
             self._enter(_NEXT[self.phase])
             return None
+        if self.phase is Phase.AFTER and self.side_idx == 0 and self.def_card is None and (wait := self._hero_after("def")) is not None:
+            return wait                      # the defender who played no card still has the hero's AFTER ability that says so (Achilles' draw)
         side = self.sides[self.side_idx]
         if self.phase is Phase.AFTER and (gate := self._table_gate(side)) is not None:
             self.pending = gate
@@ -196,8 +198,20 @@ class CombatFlow:
             if self.again:
                 self.again = False
                 return None
+        if self.phase is Phase.AFTER and self.second is not None and side.name == "atk" and (wait := self._hero_after("atk")) is not None:
+            return wait                      # the second attack is a combat the attacker can win: its hero's AFTER ability flagged `second_attack`
         self.side_idx += 1
         return None
+
+    def _hero_after(self, name: str) -> Await | None:
+        from .effects.ops_combat import default_choosers, hero_after
+        if self.choosers is None:
+            self.choosers = default_choosers(self.game)
+        self.await_key = f"after:{name}:hero_ability"
+        wait = hero_after(self, name)
+        if wait is not None:
+            self.pending = wait.choice
+        return wait
 
     def _table_gate(self, side: Side) -> PendingChoice | None:
         """Ivan, 31/10 (Glimpse Of Hell, then Fleeting Moments): AFTER effects go one after the other, the defender's
