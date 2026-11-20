@@ -676,6 +676,21 @@
       "note": "Engine additions are additive (docs/effects-dsl.md, section 40). Rules decisions and open questions for Ivan: docs/heroes/philippa.md. Live test pending."
     },
     {
+      "id": "HERO-ACHILLES",
+      "title": "Achilles (Battle of Legends, Volume Two, with Patroclus) playable by the bot and by the human against every hero",
+      "status": "in-progress",
+      "criteria": [
+        "data/heroes/overlay/achilles.json, data/heroes/achilles.json, data/heroes/effects/achilles.json and data/tts/achilles.json generated and validated (import_hero, validate_effects, import_save); the 12 titles (30 cards, sheet 176, character card 318) read from the card images, with the PATROCLUS / ACHILLES / ANY bands that unmatched-memory lacks",
+        "His deck shares CardIDs 17600-17629 with the other sheet-176 decks: told apart by deck image and owner, never by a bare CardID (tests/test_hero_achilles_data.py, tests/test_card_identity.py); no GUID of his is shared with another hero; Patroclus is a Custom_Token with his own life dial",
+        "The ability is a trigger (Patroclus defeated: 2 random cards of the hand), an engine passive (VENGEANCE, +2 to Achilles' attacks while Patroclus is defeated: sparring/vengeance.py) and the hero's own AFTER (draw 1 when Achilles wins); at the table the engine names the two random positions of the human's hand (tests/test_achilles_effects.py, tests/test_achilles_human.py)",
+        "All 12 cards on the interpreter for both seats: Under Achilles' Helm (the swap and Patroclus as the defender, plugin achilles:replace_combatant), The Day of Your Doom (Yes / No for the 2 damage), Battle Frenzy, Spear Throw, Battle Hardened, Wily Fighting, Blessed By Hermes, Skirmish, Feint, Achilles' Heel, Brothers In Arms and Test For Weakness (a DOUBLE ATTACK: second_attack 3, defended at the table in both directions)",
+        "The bot weighs Patroclus' fall as a trade (ai_achilles.py: kill value, search leaf, The Day of Your Doom priced in the combat by EffectAI); with the search AI the vengeance edge moved the games won from 1 to 6 of 8 against the chasing rival (tests/test_achilles_ai.py)",
+        "Achilles against each of the other heroes in both seats reaches game over on FakeTTS (passive and attacking human) and in the simulator with the heuristic and the search AI (tests/test_achilles_matrix.py)",
+        "Verified live by Ivan (docs/live-checklist.md, section Achilles)"
+      ],
+      "note": "Engine additions: sparring/vengeance.py, the plugin achilles:replace_combatant and the optional's damage_buys context (ops_core). Rules decisions and open questions for Ivan (the +2 on the second attack of Test For Weakness): docs/heroes/achilles.md. Live test pending."
+    },
+    {
       "id": "HERO-ROSIE-THE-RIVETER",
       "title": "Rosie the Riveter (Stars and Stripes, with Wendy The Welder) playable by the bot and by the human against every hero",
       "status": "in-progress",
