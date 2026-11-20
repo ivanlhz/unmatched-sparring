@@ -137,11 +137,17 @@ def test_the_heuristic_defends_it_as_well(bprd):
 # ---------------------------------------------------------------- no cheating
 
 class Opaque:
+    """A card of the human's real hand: any read of it, a comparison included (`card in hand`, `hand.remove(card)`), is cheating."""
     card_id = 999999
     destiny = False
 
     def __getattr__(self, name):
         raise AssertionError(f"the defense read the rival's real hand ({name})")
+
+    def __eq__(self, other):
+        raise AssertionError("the defense compared a card with the rival's real hand")
+
+    __hash__ = None
 
 
 def test_the_defense_is_the_same_whatever_card_the_human_put_face_down(bprd):
@@ -165,6 +171,54 @@ def test_the_ledger_alone_never_reads_the_rival_hand(bprd):
     expected = defense.ledger(root_of(g, ai), seed=0)
     g.players[1].hand[:] = [Opaque() for _ in range(5)]
     assert defense.ledger(root_of(g, ai), seed=0) == expected
+
+
+def test_every_world_the_ledger_fights_in_was_dealt_and_holds_none_of_the_real_cards(bprd, monkeypatch):
+    ai = searcher()
+    g, clone, hellboy = clone_attacks(bprd, ai)
+    real = [Opaque() for _ in range(5)]
+    g.players[1].hand[:] = real
+    commit, worlds = EngineState.commit, []
+
+    def spied(self, card):
+        hand = self.game.players[1].hand
+        assert not any(held is card_ for held in hand for card_ in real), "the world still holds the human's real hand"
+        worlds.append(len(hand))
+        return commit(self, card)
+
+    monkeypatch.setattr(EngineState, "commit", spied)
+    defense.ledger(root_of(g, ai), seed=0)
+    assert worlds == [5] * (7 * defense.WORLDS), "seven titles, each in its dealt worlds of five cards"
+
+
+def test_the_tripwire_bites_when_a_world_is_not_determinized(bprd, monkeypatch):
+    """Without the deal the world keeps the human's real hand: committing the attack there is refused, and the search does not swallow it."""
+    ai = searcher(0, iterations=20)
+    g, clone, hellboy = clone_attacks(bprd, ai)
+    root = root_of(g, ai)
+    with pytest.raises(AssertionError, match="not determinized"):
+        root.clone().commit(g.players[1].full_set[0])
+    report = SearchReport(NONE, 20, 0.0, {NONE: 10, TRAINING: 10}, {NONE: 0.5, TRAINING: 0.5}, errors={NONE: 0.01, TRAINING: 0.01})
+    monkeypatch.setattr(EngineState, "determinize", lambda self, observer, rng: None)
+    with pytest.raises(AssertionError, match="not determinized"):
+        defense.settle(root, report, NONE, seed=0)
+
+
+def test_cards_seen_once_that_may_have_left_face_down_weigh_by_their_bounds(bprd):
+    """The bot saw Ox Form and a Ruyi Jingo Bang, then one card of that hand left face down: one or two of them are still there, as
+    `determinize` deals them (1.5 on average, the 3.5 other places among the 26 cards never seen)."""
+    ai = searcher()
+    g, clone, hellboy = clone_attacks(bprd, ai)
+    cards = {c.card_id: c for c in g.players[1].full_set}
+    known = g.players[0].known
+    known.observe([cards[OX], cards[RUYI[0]]], g.turn_no)
+    known.degrade(1, 5)
+    assert (known.possible_lo, known.possible_hi) == (1, 2)
+    chance = {c.title: w for c, w in defense.beliefs(root_of(g, ai))}
+    unseen = 3.5 / 26
+    total = 1.5 + 17 * unseen
+    assert chance["Ox Form"] == pytest.approx((0.75 + unseen) / total) and chance["Ruyi Jingo Bang"] == pytest.approx((0.75 + 2 * unseen) / total)
+    assert chance["Wily Fighting"] == pytest.approx(3 * unseen / total) and sum(chance.values()) == pytest.approx(1)
 
 
 def test_a_card_seen_in_the_rival_hand_counts_whole(bprd):
@@ -197,6 +251,22 @@ def test_an_undecided_tree_that_defended_a_sure_ruyi_is_turned_back(bprd):
     move, report = settled(bprd, {NONE: 0.72, GLIMPSE: 0.725}, errors=0.008, tree=GLIMPSE, **ruyi_likely(bprd, but=()))
     assert report.ledger["loss"]["None"] == 0 and report.ledger["loss"]["Glimpse Of Hell"] >= 1.5
     assert move == NONE
+
+
+def test_an_option_the_tree_visited_less_than_twice_is_not_opened(bprd):
+    """One visit has no spread: nothing says the tree's value of it is noise, so the tree's move stands."""
+    ai = searcher()
+    g, clone, hellboy = clone_attacks(bprd, ai, hellboy_hand=[19700, 19705, 19718])
+    report = SearchReport(NONE, 30, 0.0, {NONE: 29, TRAINING: 1}, {NONE: 0.579, TRAINING: 0.575}, errors={NONE: 0.008})
+    assert defense.settle(root_of(g, ai), report, NONE, seed=0) == NONE
+    assert report.ledger["loss"]["None"] - report.ledger["loss"]["B.P.R.D. Training"] > defense.CLEAR_HP and report.ledger["settled"] is None
+    report.errors[TRAINING] = 0.008        # a second visit gives it a spread: now it is open
+    assert defense.settle(root_of(g, ai), report, NONE, seed=0) == TRAINING
+
+
+def test_the_time_of_the_ledger_is_counted_in_the_decision(bprd):
+    move, report = settled(bprd, {NONE: 0.579, GLIMPSE: 0.564, TRAINING: 0.575}, errors=0.008)
+    assert report.elapsed > 0, "the fabricated search took 0.0 s: all of it is the ledger's"
 
 
 def test_a_tree_sure_of_its_move_keeps_it(bprd):

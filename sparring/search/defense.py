@@ -16,6 +16,7 @@ look effect showed (`Knowledge`)."""
 from __future__ import annotations
 
 import random
+import time
 
 from ..cards import Card
 from ..combat import resolve_combat
@@ -30,7 +31,8 @@ FALLEN = 100.0      # the defender's hero falling, off any scale of hit points
 
 def beliefs(state: EngineState) -> list[tuple[Card, float]]:
     """(card, probability) for every title the face-down attack may be, as `EngineState.determinize` deals it: the known cards of the
-    rival's hand are in it, each unseen card with the chance of a hand of that size holding it."""
+    rival's hand are in it, the cards seen once that may have left face down by their bounds, each unseen card with the chance of a hand of
+    that size holding it."""
     g = state.game
     attacker = g.fighters[state.pending[0]]
     p = attacker.owner
@@ -40,8 +42,17 @@ def beliefs(state: EngineState) -> list[tuple[Card, float]]:
     top = [c for c in state.knowledge.top_of_deck.get(p, ()) if c not in gone and c not in known]
     pool = [c for c in st.full_set if c not in gone and c not in known and c not in top]
     usable = lambda cards: [c for c in cards if c.can_attack and c.usable_by(attacker.name)]
-    share = max(0, len(st.hand) - len(known)) / len(pool) if pool else 0.0
-    weighed = [(c, 1.0) for c in usable(known)] + [(c, share) for c in usable(pool) if share]
+    places = max(0, len(st.hand) - len(known))
+    maybe = [c for c in state.knowledge.possible_in_hand.get(p, ()) if c in pool]
+    held = 0.0              # how many of the cards seen once, maybe gone face down, the hand still holds: any count between its bounds
+    if maybe and places:
+        lo, hi = state.knowledge.possible_bounds.get(p, (0, len(maybe)))
+        lo = min(lo, places, len(maybe))
+        held = (lo + min(max(hi, lo), places, len(maybe))) / 2
+    others = [c for c in pool if c not in maybe] if held else pool
+    share = (places - held) / len(others) if others else 0.0
+    weighed = ([(c, 1.0) for c in usable(known)] + [(c, held / len(maybe)) for c in usable(maybe) if held]
+               + [(c, share) for c in usable(others) if share])
     if not weighed:         # what is public does not explain the attack: any attack card still unseen
         weighed = [(c, 1.0) for c in usable(pool)]
     total = sum(w for _, w in weighed)
@@ -83,7 +94,9 @@ def settle(root: EngineState, report: SearchReport | None, move, seed: int):
     rate clearly below it. The report keeps what was measured."""
     if root.pending is None or root.pending[2] is not None or report is None or not report.values:
         return move         # an attack played face up is one known card: the tree fought exactly that combat
+    started = time.perf_counter()
     loss = ledger(root, seed)
+    report.elapsed += time.perf_counter() - started        # the ledger runs after the search's budget: the decision took both
     if not loss:
         return move
     last_card = len(root.game.players[root.player_to_move()].hand) <= 1
@@ -92,7 +105,7 @@ def settle(root: EngineState, report: SearchReport | None, move, seed: int):
         if other == move or (other[1] is not None and last_card) or loss[move] - loss[other] < CLEAR_HP:
             return False
         if move not in report.errors or other not in report.errors:
-            return True         # too few visits to say anything
+            return False        # under two visits there is no spread to judge the tree's value by: its move stands
         noise = (report.errors[move] ** 2 + report.errors[other] ** 2) ** 0.5
         return report.values[move] - report.values[other] <= GAIN_SIGMAS * noise
 

@@ -773,7 +773,9 @@ class EngineState:
     def commit(self, card: Card) -> None:
         """In this determinization the face-down attack is `card` (the defense ledger fights every card the rival may have played,
         `defense.ledger`): if the hand dealt does not hold it, it takes the place of the card sampled as played, or of another one
-        that is not known to be there."""
+        that is not known to be there. Only in a determinized world (its deal names the card played): any other still holds the rival's
+        real hand, and fighting in it would be reading that hand."""
+        assert self.pending[2] is not None, "the face-down attack was committed in a world that was not determinized (the rival's real hand)"
         attacker = self.game.fighters[self.pending[0]]
         st = self.game.players[attacker.owner]
         if card not in st.hand:
