@@ -1,2 +1,5 @@
 # path  agent  task  UTC time   (see BRIEF: short locks only)
 sparring/ai_effects.py  wukong  hook: the CLONES price  14:07Z
+sparring/ai_medusa.py  bloody-mary  AI hooks for Bloody Mary  14:09Z
+sparring/search/adapter.py  bloody-mary  AI hooks for Bloody Mary  14:09Z
+features.json  bloody-mary  AI hooks for Bloody Mary  14:09Z
