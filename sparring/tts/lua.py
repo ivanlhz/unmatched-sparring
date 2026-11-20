@@ -861,12 +861,13 @@ def resolve_hand_row(guids: list[str], seat_color: str, *, identity, id_range: t
                      discard: str | None = None, face_down: bool = False,
                      spot: tuple[float, float, float] = (0.0, 0.0, 0.0), rot_y: float = 0,
                      deck_guid: str | None = None, deck_spot: tuple[float, float] | None = None,
-                     deck_zone: str | None = None, deck_radius: float = DECK_RADIUS) -> str:
+                     deck_zone: str | None = None, deck_radius: float = DECK_RADIUS, deck_bottom: bool = False) -> str:
     """Closes the row of `show_hand_row`: returns to the seat's hand all the cards of the row (by GUID) except the
     one discarded, which goes to the discard `spot`. The discarded one is the card with GUID `discard` or, with `face_down`, THE ONLY card
     of the row that is face down (if there are 0 or several it moves nothing and returns `down`). Without `discard` or `face_down` it is
     Cancel: everything returns to the hand. With `deck_guid` the chosen card does not go to the discard: it is put ON TOP of that
-    deck (`putObject`; Every Possible Angle), which must be the side's. INSTANT. Only cards of the side count (`id_range`,
+    deck (`putObject`; Every Possible Angle), which must be the side's; with `deck_bottom` it goes UNDER that deck instead (`bury`, on a later
+    frame: Fiery Eyes That See), straight from the row, never through the hand zone. INSTANT. Only cards of the side count (`id_range`,
     image of `identity`). It empties the row noted on the panel. Returns `{discarded: CardID|false, returned: [CardID],
     found, down}` (`discarded` is also the card put on the deck)."""
     if not isinstance(guids, (list, tuple)) or not 1 <= len(guids) <= MAX_LOOK_CARDS:
@@ -877,16 +878,19 @@ def resolve_hand_row(guids: list[str], seat_color: str, *, identity, id_range: t
         raise TypeError("(x, y, z) expected")
     if deck_guid is not None and discard is None:
         raise TypeError("deck_guid needs the chosen card (discard)")
+    if not isinstance(deck_bottom, bool) or (deck_bottom and deck_guid is None):
+        raise TypeError("deck_bottom is a boolean and needs deck_guid")
     own = _ours_lua(identity, id_range)
     pick = _guid(discard) if discard is not None else "nil"
     deck_check = ""
     if deck_guid is not None:                 # the deck is checked before anything moves: a failure moves nothing
-        own += _deck_finder(deck_spot, deck_radius, deck_zone) + DECK_FUNCS
+        own += _deck_finder(deck_spot, deck_radius, deck_zone) + DECK_FUNCS + (BURY_LUA if deck_bottom else "")
         deck_check = f"""local deck = findDeck({_guid(deck_guid)})
 {home_lua(deck_spot, deck_zone)}if deck == nil and home == nil then return JSON.encode({{discarded = false, returned = {{}}, found = #objs, down = down, deck = false}}) end
 """
         # a one-card deck is a Card in TTS and has no putObject: the chosen card is dropped on it, same facing
-        chosen_goes = """if deck == nil then
+        chosen_goes = f"""bury({_guid(deck_guid)}, home, {{o}}, function() end)
+    discarded = id""" if deck_bottom else """if deck == nil then
       layFirst(o, home)
     elseif deck.type == "Deck" then
       deck.putObject(o)

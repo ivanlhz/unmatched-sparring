@@ -559,7 +559,9 @@ class Table:
         returned = [i for i in row if i != chosen]
         for i in row:
             self.look_row.remove(i)
-        if chosen is not None:
+        if chosen is not None and "local deck = findDeck(" in s:      # the real script: onto the deck (under it with bury), never the pile
+            self._later(lambda: self.bot_deck.append(chosen) if "bury(" in s else self.bot_deck.insert(0, chosen))
+        elif chosen is not None:
             self._later(lambda: self.bot_discard.append(chosen))
         self._later(lambda: self.bot_hand.extend(returned))
         self.resolve_args = {"chosen": chosen, "returned": returned,

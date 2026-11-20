@@ -539,3 +539,24 @@ def test_the_pre_game_panel_hides_the_buttons_of_the_clones_still_in_the_bag(rig
     for fid in CLONES:
         for ident in (f"att_{fid}", f"hpm_{fid}", f"hpp_{fid}", f"rm_{fid}"):
             assert ident in script, ident
+
+@with_rig("hellboy", "sun-wukong", *HAND)
+def test_the_chosen_card_goes_from_the_row_to_the_bottom_while_the_table_is_slow_to_take_cards_into_the_hand(rig):
+    """Live bug (20/11): the row gave the chosen card back to the hand and the hand-to-deck move ran before the table had taken it in:
+    'No he podido mover Excalibur de la mano del bot a su mazo'. The row now sends it under the deck itself."""
+    from test_e2_human_cards import human_scheme
+    session, table, game, fake, cfg = rig
+    start(rig)
+    human_hand(table, game, "Fiery Eyes That See", "Sly Monkey")
+    human_scheme(session, table, game, "Fiery Eyes That See")
+    chosen = session.look["ids"][0]
+    title = next(c.title for c in game.players[0].full_set if c.card_id == chosen)
+    table.lag = 3                                # a card put back in the hand needs more than one read to show there
+    msgs = click(session, table, Event.LOOK_PING, {"guid": f"g{chosen}"})
+    table.lag = 0
+    assert not said(msgs, "No he podido mover") and not said(msgs, "se queda"), msgs
+    assert said(msgs, f"{title} va al fondo del mazo del bot"), msgs
+    assert not any(chosen in ids for kind, ids in table.hand_moves), table.hand_moves      # moved once, by the row
+    assert table.bot_deck[-1] == chosen and chosen not in table.bot_hand
+    resolve = next(s for s in table.scripts if s.startswith("-- sparring:resolve_hand_row"))
+    assert "bury(" in resolve

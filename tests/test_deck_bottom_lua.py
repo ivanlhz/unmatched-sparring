@@ -287,3 +287,16 @@ table.insert(OBJECTS, 1, waiting)""")
         assert rt.eval("getObjectFromGUID('c2').is_face_down") is False, "the card that lay as the deck is the one drawn"
         assert rt.eval("getObjectFromGUID('c1').is_face_down") is True
         rt.execute("FRAME_MODE = false")
+
+
+# ---------- resolve_hand_row(deck_bottom=True): the row's chosen card goes under the deck, the rest back to the hand ----------
+def test_the_chosen_card_of_a_hand_row_goes_under_the_deck_and_the_rest_back_to_the_hand(rt):
+    deck(rt)
+    rt.execute("""mkobj({guid = 'r1', type = 'Card', cid = 201, owner = 'x', pos = Vector(9, 1, 9), is_face_down = false})
+mkobj({guid = 'r2', type = 'Card', cid = 202, owner = 'x', pos = Vector(9, 1, 8), is_face_down = false})""")
+    row = functools.partial(lua.resolve_hand_row, ["r1", "r2"], "Blue", identity=X_IDENT, id_range=X_IDS)
+    out, _, _, _ = in_frames(rt, [row(discard="r1", deck_guid="deck01", deck_spot=SPOT, deck_bottom=True)])
+    assert the_deck(rt)["ids"] == [101, 102, 103, 201]
+    assert out["ops"][0]["discarded"] == 201 and out["ops"][0]["returned"] == [202]
+    with pytest.raises(TypeError):
+        lua.resolve_hand_row(["r1"], "Blue", identity=X_IDENT, discard="r1", deck_bottom=True)
