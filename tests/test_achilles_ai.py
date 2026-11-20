@@ -109,3 +109,29 @@ def test_both_leaf_evaluations_count_the_vengeance(bprd, monkeypatch):
         monkeypatch.setattr(ai_achilles, "LEAF_EDGE", 0.0)
         assert with_edge - state._side_value(0) == pytest.approx(edge)
         monkeypatch.undo()
+
+
+def test_the_bot_answers_the_doom_request_by_the_points_it_adds(bprd):
+    """In a real combat: the request carries `damage_buys` and `EffectAI` answers it with `doom_pays` (the controller of the seat decides)."""
+    from sparring.ai_effects import EffectAI
+    from sparring.controller import Controller
+
+    class Asked(Controller):
+        def __init__(self):
+            self.ai, self.answers = EffectAI(0), []
+
+        def choose_effect(self, game, req):
+            answer = self.ai.choose_effect(game, req)
+            self.answers.append((req.extra.get("damage_buys"), answer))
+            return answer
+
+    for foe, defense, expected in (("hellboy", None, True), ("hellboy", "B.P.R.D. Training", True), ("medusa", "Hiss and Slither", False)):
+        g = mk(bprd, foe=foe)
+        g.controllers[0] = Asked()
+        patroclus, rival = pair(g, "patroclus", foe)
+        hand_of(g, 0, 3)
+        card = give(g, 0, "The Day of Your Doom")
+        g.attack(patroclus, rival, card, give(g, 1, defense) if defense else None)
+        (buys, answer), = [a for a in g.controllers[0].answers if a[0] is not None]
+        assert answer == [expected], (foe, defense, buys, answer)
+        assert (patroclus.hp == 4) is expected

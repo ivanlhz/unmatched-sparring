@@ -31,7 +31,7 @@ import random
 from functools import lru_cache
 from itertools import combinations
 
-from . import ai_washington, ai_wyatt, ai_yennenga, enraged
+from . import ai_achilles, ai_washington, ai_wyatt, ai_yennenga, enraged
 from .ai_medusa import (ACTION_VALUE, DECK_SCARCITY, HARPY_VALUE, KILL_SIDEKICK, LETHAL, SURVIVAL_P, W_HERO, W_MEDUSA_HP,
                         W_SIDEKICK, MedusaAI, Model, can_use, defence_keeper, discard_cut, effect_reliance, hand_room, keep_value, kept_hand_value, kill_value, play_signature)
 from .controller import Controller
@@ -689,6 +689,9 @@ class EffectAI:
     def _optional(self, game: Game, req: ChoiceRequest, nested: bool) -> list | None:
         if "washington" in req.extra:        # ESPIONAGE: a ruse token on the attack, or the discard that takes it off (ai_washington)
             return [ai_washington.use_ruse(self, game, req) if req.extra["washington"] == "use" else ai_washington.remove_ruse(self, game, req)]
+        if "damage_buys" in req.extra:      # The Day of Your Doom: 2 damage to Patroclus for the points the new value really adds (ai_achilles)
+            buys = req.extra["damage_buys"]
+            return [ai_achilles.doom_pays(game, game.fighters.get(buys["fighter"]), buys["gain"], game.fighters.get(buys["target"]))]
         if "pact" in req.extra:
             return [self._dark_pact(game, req)]
         if "shield" in req.extra:           # A Magician Never Reveals His Secrets: showing one card costs less than a look at the hand
