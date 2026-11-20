@@ -1176,6 +1176,21 @@
         "The unruled points (BOOST on the second attack, which combat won/lost refers to, passives, defender with no card or defeated, action count, event order) are under \"Pending Ivan\" in docs/combat-flow.md"
       ],
       "note": "Built by the double-attack agent of the batch-3 farm (20/11/2026). The four cards (Ruyi Jingo Bang, Rain of Arrows, Test For Weakness, Bloody Requiem) are written by their hero agents against this op."
+    },
+    {
+      "id": "HERO-SUN-WUKONG",
+      "title": "Sun Wukong (Battle of Legends, Volume Two, three Clones that start off the board) playable by the bot and by the human against every hero",
+      "status": "in-progress",
+      "criteria": [
+        "data/heroes/overlay/sun-wukong.json, data/heroes/sun-wukong.json, data/heroes/effects/sun-wukong.json and data/tts/sun-wukong.json generated and validated (import_hero, validate_effects, import_save); the 12 titles (30 cards, sheet 176, character card 320, every band ANY) read from the card images; Bewilderment reads 'combat damage' as printed (unmatched-memory says 'all damage'); ai_profile computed by the importer",
+        "His deck shares CardIDs 17600-17629 with Medusa, the turtles, Doctor Strange, Eredin and the rest of sheet 176: told apart by deck image and owner, never by a bare CardID (tests/test_hero_sun_wukong_data.py, tests/test_card_identity.py); his three Clone tokens (Custom_Token in the save, Tile in real TTS) and every GUID are his own",
+        "The Clones start in the reserve (start_on_board 0) and come out through the ability and Sly Monkey; a defeated Clone returns to the supply (summon, or revive when one is defeated); the table harness leaves a reserve fighter off the table",
+        "CLONES: a start-of-turn optional (1 effect damage on himself, a Clone on an empty adjacent space); the human answers yes/no on the panel, the dial follows and the Clone is put on the table by hand and read from it (table.WUKONG_OPS); the bot prices it (sparring/ai_wukong.py: floor of 5 hit points, death risk, Clone worth) instead of the generic yes",
+        "All 12 cards on the interpreter for both seats: Ruyi Jingo Bang (a second_attack of 4 behind a defense card), Ox Form (uncancelable, the rival may BOOST), Taunting Laughter, Infinite Strikes, Sly Monkey, 72 Transformations (tag form), Wily Fighting, Bewilderment (cap 0 on both combatants), Tortoise Form, Golden Chain Mail (redirect to the attacker, modifiers._owner_run), Fiery Eyes That See (the bot's chosen card is named for the bottom of the human's deck), Phoenix Form",
+        "Sun Wukong against every other hero in both seats reaches game over on FakeTTS (passive and attacking human) and in the simulator (tests/test_sun_wukong_matrix.py)",
+        "Verified live by Iván (docs/live-checklist.md, section Sun Wukong)"
+      ],
+      "note": "Rules decisions and open questions for Iván: docs/heroes/sun-wukong.md (Pending Ivan). Engine notes: docs/effects-dsl.md section 48. Live test pending."
     }
   ]
 }
