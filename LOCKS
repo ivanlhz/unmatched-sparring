@@ -3,3 +3,4 @@ sparring/effects/choose.py  bloody-mary  Stolen Memories names the highest BOOST
 sparring/ai_medusa.py  double-attack  D8 bot defends the first part of a double attack  16:31Z
 sparring/search/controller.py  double-attack  D8 bot defends the first part of a double attack  16:31Z
 docs/combat-flow.md  double-attack  D8 bot defends the first part of a double attack  16:31Z
+sparring/combat_flow.py  wukong  late BOOST grant to the defender (Ox Form)  16:31Z
