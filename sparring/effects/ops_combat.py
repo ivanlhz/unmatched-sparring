@@ -10,7 +10,7 @@ card moment, so a pause inside an effect survives `CombatFlow.to_dict`."""
 from __future__ import annotations
 
 from ..i18n import t
-from . import modifiers, narrate, table
+from . import modifiers, narrate, plugins_yennenga, table
 from .choose import ControllerChooser, TableChooser
 from .model import EffectError, load_effects
 from .ops_core import OPS, op, plugin, plugin_condition
@@ -263,9 +263,10 @@ def _damage(run, game, spec):
     targets = pick_fighters(game, run, spec["target"], player_of(game, run, spec.get("chooser", "owner")),
                             op="damage", amount=n)
     victims = [_damage_victim(run, game, f, n) for f in targets] if n > 0 else []
+    blows = [blow for f in victims for blow in plugins_yennenga.effect_shares(run, game, f, n)]       # Yennenga: the Archers may take it
     previous = _acting(game, run.ctx.owner)
     try:
-        hit = [f.fid for f in victims if game.damage(f, n, "effect") > 0]
+        hit = [f.fid for f, k in blows if game.damage(f, k, "effect") > 0]
     finally:
         game.fx.acting = previous
     if "as" in spec:

@@ -2955,8 +2955,8 @@ return JSON.encode(out)
 """
 
 
-MAX_HERO_RANGES = 40      # one CardID range per hero with TTS data (data/tts/*.json); only a sanity bound on the generated script (24 was reached by the 24th hero data set), tests/test_hero_detect.py keeps 8 spare
-MAX_HERO_GUIDS = 80
+MAX_HERO_RANGES = 60      # one CardID range per hero with TTS data (data/tts/*.json); only a sanity bound on the generated script (24 was reached by the 24th hero data set), tests/test_hero_detect.py keeps 8 spare
+MAX_HERO_GUIDS = 120
 MAX_PILE_PAIRS = 12      # distinct "face|back" images reported for a deck that is nobody's (to look it up in the catalog)
 
 

@@ -1,19 +1,4 @@
 # path  agent  task  UTC time   (see BRIEF: short locks only)
-sparring/combat_flow.py  yennenga  damage assignment hooks  14:05Z
-sparring/effects/ops_combat.py  yennenga  damage assignment hooks  14:05Z
-sparring/ai_effects.py  yennenga  damage assignment hooks  14:05Z
-sparring/effects/choose.py  yennenga  damage assignment hooks  14:05Z
-sparring/session_choices.py  yennenga  damage assignment hooks  14:05Z
-sparring/effects/state.py  yennenga  register hero + strings  14:30Z
-tests/test_heroes.py  yennenga  register hero + strings  14:30Z
-tests/test_card_identity.py  yennenga  register hero + strings  14:30Z
-tests/test_d1_bot_cards.py  yennenga  register hero + strings  14:30Z
-tests/test_effects_schema.py  yennenga  register hero + strings  14:30Z
-data/i18n/en.json  yennenga  register hero + strings  14:30Z
-data/i18n/es.json  yennenga  register hero + strings  14:30Z
-README.md  yennenga  register hero + strings  14:30Z
-tests/test_piece_identity.py  yennenga  register hero + strings  14:30Z
-sparring/tts/lua.py  yennenga  raise MAX_HERO_RANGES/GUIDS (the roster passed the spare of 8)  14:40Z
 sparring/ai_medusa.py  double-attack  AI double attack  14:02Z
 sparring/search/adapter.py  double-attack  AI double attack  14:02Z
 sparring/search/controller.py  double-attack  AI double attack  14:02Z

@@ -31,7 +31,7 @@ import random
 from functools import lru_cache
 from itertools import combinations
 
-from . import ai_washington, ai_wyatt, enraged
+from . import ai_washington, ai_wyatt, ai_yennenga, enraged
 from .ai_medusa import (ACTION_VALUE, DECK_SCARCITY, HARPY_VALUE, KILL_SIDEKICK, LETHAL, SURVIVAL_P, W_HERO, W_MEDUSA_HP,
                         W_SIDEKICK, MedusaAI, Model, can_use, defence_keeper, discard_cut, effect_reliance, hand_room, keep_value, kept_hand_value, kill_value, play_signature)
 from .controller import Controller
@@ -586,6 +586,8 @@ class EffectAI:
     def _amount(self, game: Game, req: ChoiceRequest, nested: bool) -> list:
         if req.extra.get("blind_count"):
             return [self._blind_boost(game, req)]
+        if req.extra.get("assign"):         # Yennenga's ability: how much of the damage meant for her an Archer takes
+            return [ai_yennenga.archer_share(game, req)]
         top = max(req.options)
         if req.extra.get("zone") in (None, "deck") and top > 0:
             n = min(top, len(game.players[req.player].deck))      # drawing from an empty deck only hurts

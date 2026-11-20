@@ -1,0 +1,42 @@
+{
+ "slug": "yennenga",
+ "_notes": [
+  "Read from the tournament savegame: infinite bag 1362fd > bag 4ed331. Yennenga's deck is sheet 176 (CardIDs 17600-17629) like Medusa's and the turtles': only deck.identity tells the decks apart (docs/card-identity.md). The character card is 319 (sheet 3).",
+  "The bag holds NO token: the two models nicknamed 'Archer' (description 'Sidekick Token') are the Archers themselves, so unmatched-memory's hasTokens flag means nothing for the table. They have 2 HP and the save gives them no life dial: `no_dial` lets the table layer accept that, and their life lives in the engine and the chat (docs/heroes/yennenga.md)."
+ ],
+ "bag": {
+  "guid": "1362fd",
+  "inner": "4ed331"
+ },
+ "deck": {
+  "guid": "4ce5b4",
+  "card_ids": [
+   17600,
+   17629
+  ],
+  "character_card_id": 319,
+  "identity": [
+   {
+    "face": "https://steamusercontent-a.akamaihd.net/ugc/17518359528049112614/266AD03774787AE2EADF19FF34368FA1B235B1FD/",
+    "back": "https://steamusercontent-a.akamaihd.net/ugc/18266348680668468684/91AECC05A6F48D513B9703AFCEF85B76855234C8/"
+   }
+  ]
+ },
+ "fighters": {
+  "yennenga": {
+   "piece": "3ec3d1",
+   "dial": "1fc8df",
+   "dial_max": 15
+  },
+  "archer1": {
+   "piece": "cbb5f5",
+   "no_dial": true
+  },
+  "archer2": {
+   "piece": "b19614",
+   "no_dial": true
+  }
+ },
+ "tokens": {},
+ "counter_dials": {}
+}

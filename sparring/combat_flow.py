@@ -172,6 +172,9 @@ class CombatFlow:
         if self.done:
             return None
         if self.phase not in _SIDED:
+            if self.phase is Phase.DAMAGE and (wait := self._assignment_wait()) is not None:
+                self.pending = wait.choice
+                return wait
             hook = _HOOKS.get(self.phase)
             if hook is not None:
                 hook(self)
@@ -358,22 +361,13 @@ class CombatFlow:
             result.def_parts += [f"{label} ({n:+d})" for n, label in self.mods["def"]]
         if values[1]:
             result.def_parts.append(t("cf.extra", n=values[1]))
-        damage = max(0, ctx.atk_value - ctx.def_value)
-        victim = self.tgt
-        if self.redirects:
-            from .effects.modifiers import combat_redirect_target
-            victim = combat_redirect_target(self)
-            if victim is not self.tgt and damage:
-                result.applied.append(t("cf.redirect", victim=victim.fid, target=self.tgt.fid))
-        taken = self.game.combat_damage_taken(victim, damage)
-        if taken != damage:
-            result.applied.append(t("cf.reduced", victim=victim.fid, n=damage - taken))     # Luke Cage: the ability took some off
-            damage = taken
-        cap = self.damage_caps.get(victim.fid)
-        if cap is not None and damage > cap:
-            result.applied.append(t("cf.capped", victim=victim.fid, n=cap))                # Deeds Of Valor: at most `cap` this combat
-            damage = cap
-        self.game.damage(victim, damage, "combat")
+        victim, damage, notes = self._landing()
+        result.applied += notes
+        shares = self._shares(victim, damage)
+        if shares[0][0] is not victim:
+            result.applied += [t("cf.assigned", archer=f.fid, n=k, victim=victim.fid) for f, k in shares if f is not victim]
+        for f, k in shares:
+            self.game.damage(f, k, "combat")
         if self.game.winner is not None and victim.hero and self._defers_defeat(victim):
             self.game.winner, self.deferred_loss = None, victim.owner     # the AFTER effects may bring the hero back
         result.atk_value, result.def_value, result.damage, result.attacker_won = ctx.atk_value, ctx.def_value, damage, damage >= 1
@@ -385,6 +379,41 @@ class CombatFlow:
         loser = self.tgt if damage >= 1 else self.att       # a tie is lost by the attacker (the engine's "won")
         if self.second is None:                             # the card's combat is counted once
             self.game.fx.emit("combat_lost", loser.owner, loser)
+
+    def _landing(self) -> tuple[Fighter, float, list[str]]:
+        """Who takes the combat damage and how much of the blow lands (a redirection, the hero's reduction and the caps applied), with
+        what to say about it. Nothing is changed."""
+        ctx, notes = self.ctx, []
+        damage = max(0, ctx.atk_value - ctx.def_value)
+        victim = self.tgt
+        if self.redirects:
+            from .effects.modifiers import combat_redirect_target
+            victim = combat_redirect_target(self)
+            if victim is not self.tgt and damage:
+                notes.append(t("cf.redirect", victim=victim.fid, target=self.tgt.fid))
+        taken = self.game.combat_damage_taken(victim, damage)
+        if taken != damage:
+            notes.append(t("cf.reduced", victim=victim.fid, n=damage - taken))     # Luke Cage: the ability took some off
+            damage = taken
+        cap = self.damage_caps.get(victim.fid)
+        if cap is not None and damage > cap:
+            notes.append(t("cf.capped", victim=victim.fid, n=cap))                # Deeds Of Valor: at most `cap` this combat
+            damage = cap
+        return victim, damage, notes
+
+    def _assignment_wait(self) -> Await | None:
+        """Yennenga's ability: her owner may hand part of the combat damage to the Archers in her zone, and decides before it lands
+        (docs/heroes/yennenga.md). The Await of a paused decision, else None."""
+        from .effects import plugins_yennenga
+        victim, damage, _ = self._landing()
+        return plugins_yennenga.combat_wait(self, victim, damage)
+
+    def _shares(self, victim: Fighter, damage: float) -> list[tuple[Fighter, float]]:
+        """(fighter, damage) pairs that take the combat damage: the victim alone, unless the Archers took a share of it."""
+        if "damage:def" not in self.runs:
+            return [(victim, damage)]
+        from .effects import plugins_yennenga
+        return plugins_yennenga.combat_shares(self, victim, damage) or [(victim, damage)]
 
     def replace_attack_card(self, new: Card | None, *, back_to_hand: bool = False) -> None:
         """The attacker's card is replaced inside the running combat, the bonuses of the attack staying.

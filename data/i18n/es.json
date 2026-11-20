@@ -1324,5 +1324,7 @@
  "rosie.reset": "FREEDOM XK-II MECH SUIT: {name} desactiva las {max} mejoras.",
  "fx.rosie.loose_lips": "Loose Lips Sink Ships!: {title}",
  "rosie.token_missing": "No encuentro todas las fichas de mejora de {name}, asi que no las muevo: ponlas a mano como dice la fila del chat.",
- "rosie.token_failed": "No he podido mover las fichas de mejora de {name}; lo reintento en el siguiente paso. Si siguen mal, ponlas a mano como dice la fila del chat."
+ "rosie.token_failed": "No he podido mover las fichas de mejora de {name}; lo reintento en el siguiente paso. Si siguen mal, ponlas a mano como dice la fila del chat.",
+ "cf.assigned": "{archer} recibe {n} del dano que iba a {victim}",
+ "choice.prompt.assign": "Habilidad de {hero}: cuantos de los {left} puntos de dano por asignar recibe {name}? (el resto lo recibe {hero})"
 }

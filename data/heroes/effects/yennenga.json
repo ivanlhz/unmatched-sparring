@@ -1,0 +1,168 @@
+{
+ "schema": 1,
+ "hero": "yennenga",
+ "notes": [
+  "Yennenga (Battle of Legends, Volume Two). Texts read from the card images (sheet 176 of the tournament savegame, character card 319 on sheet 3) on 2026-11-20. Hero Yennenga (ranged, 15 life, move 2) and two Archers (ranged, 2 life, move 2, no life dial in the save). Every card agrees with unmatched-memory; the restriction bands are YENNENGA, ANY (Surprise Volley, Skirmish, Momentous Shift) and ARCHER (Pin the Prey, Divide and Conquer).",
+  "unmatched-memory says hasTokens: true. Her bag holds NO token (the two Archer models are described as 'Sidekick Token' and that is all the flag means): she has no counter, no token and no form.",
+  "The Archers are sidekicks of the HeroDef (fid archer1 / archer2, name 'Archer'). 'Return a defeated Archer' is a `revive` with the Archer's full 2 life (a sidekick comes back with its starting health), as Medusa's Winged Frenzy does for a Harpy.",
+  "Rain of Arrows is a DOUBLE ATTACK (VOLLEY: 3 ATK): its second attack is written against the double-attack mechanic of the engine (docs/effects-dsl.md, double attack)."
+ ],
+ "ability": {
+  "text": "If Yennenga would take damage, you may assign any amount of that damage to one or more Archers in her zone instead. (You may not assign more damage to an Archer that their remaining health.)",
+  "triggers": [],
+  "passives": [
+   {"id": "archers_take_it", "kind": "plugin", "plugin": "yennenga:assign_damage"}
+  ],
+  "notes": "Read by sparring/effects/plugins_yennenga.py (`assign_damage`). Whenever Yennenga's owner would see her take combat damage or effect damage, they are asked for each Archer of theirs standing in her zone (alive, sharing a space-zone with her): how much of that damage it takes, from 0 to the lesser of what is left to assign and the Archer's remaining health (the human answers on the panel, the bot decides by the value of the hit points on each side). What is left lands on Yennenga. An Archer that reaches 0 is defeated (the damage events fire for it as for any fighter). Exhaustion damage is not assigned (Pending Ivan in docs/heroes/yennenga.md)."
+ },
+ "cards": [
+  {
+   "title": "Rain of Arrows",
+   "copies": 3,
+   "text": "AFTER COMBAT: VOLLEY: 3 ATK",
+   "effects": {"immediately": [], "during": [], "after": [], "scheme": [], "boost": []},
+   "notes": "Attack 3 / boost 3, Yennenga only. A DOUBLE ATTACK: the first part is the main attack, VOLLEY is a second attack of 3 against the same defender, an AFTER COMBAT effect of the card (Feint stops it). Pending the double-attack mechanic: see the end of docs/heroes/yennenga.md."
+  },
+  {
+   "title": "Surprise Volley",
+   "copies": 3,
+   "text": "IMMEDIATELY: You may return a defeated Archer to a space in the opposing fighter's zone. If you do, that Archer is now the attacker. If not, gain 1 action.",
+   "effects": {
+    "immediately": [{"op": "plugin", "id": "yennenga:surprise_volley"}],
+    "during": [], "after": [], "scheme": [], "boost": []
+   },
+   "notes": "Attack 3 / boost 3, ANY (Yennenga or an Archer). Plugin `yennenga:surprise_volley`: with a defeated Archer and a free space in the opposing fighter's zone the owner may return the Archer there (2 life) and it takes the place of the attacker in this combat (`CombatFlow.replace_combatant`, as Smoke And Mirrors does); if there is none, or they decline, they gain 1 action. The bot always returns the Archer when it can."
+  },
+  {
+   "title": "Point Blank",
+   "copies": 3,
+   "text": "AFTER COMBAT: If the opposing fighter is adjacent to Yennenga, deal 2 damage to that fighter.",
+   "effects": {
+    "immediately": [], "during": [], "scheme": [], "boost": [],
+    "after": [
+     {"op": "if", "condition": {"test": "fighter_at", "fighter": "opposing", "space": {"adjacent_to": "hero"}},
+      "then": [{"op": "damage", "target": "opposing", "amount": 2}]}
+    ]
+   },
+   "notes": "Versatile 2 / boost 2, Yennenga only. Checked after the combat, where the fighters stand then (a fighter defeated by the combat is nowhere). The damage is effect damage."
+  },
+  {
+   "title": "Stallion Charge",
+   "copies": 3,
+   "text": "AFTER COMBAT: Move Yennenga up to 5 spaces. She may move through opposing fighters. Then, deal 1 damage to each opposing fighter she moved through.",
+   "effects": {
+    "immediately": [], "during": [], "scheme": [], "boost": [],
+    "after": [
+     {"op": "move", "target": "hero", "amount": 5, "up_to": true, "through_enemies": true, "chooser": "owner", "as": "charger"},
+     {"op": "damage", "target": {"side": "enemy", "filter": {"passed_by": "$charger"}, "pick": "all"}, "amount": 1}
+    ]
+   },
+   "notes": "Versatile 3 / boost 3, Yennenga only. 'Moved through' = an opposing fighter on some path of at most 5 spaces from where she started to where she ended (the board has no fixed path: the owner chooses it; Luke Cage's Power Man reads it the same way, CONFIRMED by Iván 2026-11-07). When the human walks her miniature by hand the engine never sees the path and the human names the fighters passed. Not conditional on winning."
+  },
+  {
+   "title": "Jaws of the Beast",
+   "copies": 3,
+   "text": "DURING COMBAT: For each zone the opposing fighter is in, increase the value of this card by +1.",
+   "effects": {
+    "immediately": [], "after": [], "scheme": [], "boost": [],
+    "during": [{"op": "modify_value", "card": "this", "amount": {"stat": "zones", "fighter": "opposing"}}]
+   },
+   "notes": "Versatile 3 / boost 3, Yennenga only. The count is the number of zones the opposing fighter's space belongs to now (Board.zones; 0 for a fighter off the board)."
+  },
+  {
+   "title": "Skirmish",
+   "copies": 2,
+   "text": "AFTER COMBAT: If you won the combat, choose one of the fighters in the combat and move them up to 2 spaces.",
+   "effects": {
+    "immediately": [], "during": [], "scheme": [], "boost": [],
+    "after": [
+     {"op": "if", "condition": {"test": "combat_result", "result": "won"}, "then": [{"op": "move", "target": "combatant", "amount": 2, "up_to": true, "chooser": "owner"}]}
+    ]
+   },
+   "notes": "Versatile 4 / boost 2, ANY. The same effect as Achilles', Bigfoot's, Eredin's and Tomoe Gozen's card."
+  },
+  {
+   "title": "Momentous Shift",
+   "copies": 3,
+   "text": "DURING COMBAT: If your fighter started this turn in a different space, this card's value is 5 instead.",
+   "effects": {
+    "immediately": [], "after": [], "scheme": [], "boost": [],
+    "during": [
+     {"op": "if", "condition": {"test": "moved_this_turn", "fighter": "this"}, "then": [{"op": "set_value", "card": "this", "amount": 5}]}
+    ]
+   },
+   "notes": "Versatile 3 / boost 2, ANY. 'Your fighter' is the one that plays the card; it counts when it stands on another space than the one it started the turn on (the printed value becomes 5, bonuses stay). It works in defense too, with the position it has on the opponent's turn: a fighter that has not moved since the start of the turn it is attacked in 'started this turn' where it stands."
+  },
+  {
+   "title": "Pin the Prey",
+   "copies": 2,
+   "text": "AFTER COMBAT: Move the opposing fighter up to 4 spaces. Your opponent discards 1 card.",
+   "effects": {
+    "immediately": [], "during": [], "scheme": [], "boost": [],
+    "after": [
+     {"op": "move", "target": "opposing", "amount": 4, "up_to": true, "chooser": "owner"},
+     {"op": "discard", "cards": {"zone": "hand", "player": "opponent", "amount": 1, "chooser": "opponent"}}
+    ]
+   },
+   "notes": "Versatile 1 / boost 2, ARCHER only. Both parts are unconditional (as printed): the move is the owner's choice of destination, the opponent chooses the card they discard."
+  },
+  {
+   "title": "Divide and Conquer",
+   "copies": 2,
+   "text": "DURING COMBAT: If your fighter is not in Yennenga's zone, the value of this card is a 4 instead.",
+   "effects": {
+    "immediately": [], "after": [], "scheme": [], "boost": [],
+    "during": [
+     {"op": "if", "condition": {"not": {"test": "fighter_at", "fighter": "this", "space": {"zone_of": "hero"}}},
+      "then": [{"op": "set_value", "card": "this", "amount": 4}]}
+    ]
+   },
+   "notes": "Versatile 2 / boost 1, ARCHER only. 'Not in Yennenga's zone' is a space that shares no zone with the one she stands on (the zone test is the board's: an Archer next to her but in no common zone counts as out)."
+  },
+  {
+   "title": "Shield Formation",
+   "copies": 2,
+   "text": "IMMEDIATELY: Your opponent may discard a card. If they don't, return a defeated Archer to a space in Yennenga's zone.",
+   "effects": {
+    "immediately": [
+     {"op": "optional", "chooser": "opponent",
+      "cost": [{"op": "discard", "cards": {"zone": "hand", "player": "opponent", "amount": 1, "chooser": "opponent"}}],
+      "ops": [],
+      "else": [{"op": "revive", "target": {"side": "own", "name": "Archer", "state": "defeated"}, "where": {"zone_of": "hero"}, "hp": 2, "chooser": "owner"}]}
+    ],
+    "during": [], "after": [], "scheme": [], "boost": []
+   },
+   "notes": "Defense 3 / boost 3, Yennenga only. The opponent (human at the panel, bot by the value of the card against the Archer) discards a card of their choice or lets an Archer come back. With no defeated Archer the Archer part does nothing; an opponent with an empty hand cannot discard, so the Archer returns. 'Their' discard is a voluntary price, so Counterhex Shield and the like do not forbid it."
+  },
+  {
+   "title": "One With The Land",
+   "copies": 2,
+   "text": "Move each of your fighters up to 2 spaces. Each of your fighters recovers 1 health. Draw 1 card.",
+   "effects": {
+    "immediately": [], "during": [], "after": [], "boost": [],
+    "scheme": [
+     {"op": "move", "target": {"side": "own", "pick": "all"}, "amount": 2, "up_to": true, "chooser": "owner"},
+     {"op": "heal", "target": {"side": "own", "pick": "all"}, "amount": 1},
+     {"op": "draw", "player": "owner", "amount": 1}
+    ]
+   },
+   "notes": "Scheme (boost 2), Yennenga only. Each living fighter of the owner moves up to 2 (one after another, sidekicks before the hero) and recovers 1 health (never above its maximum); then one card is drawn."
+  },
+  {
+   "title": "Master of the Hunt",
+   "copies": 2,
+   "text": "Gain 2 actions.",
+   "effects": {
+    "immediately": [], "during": [], "after": [], "boost": [],
+    "scheme": [{"op": "gain_action", "amount": 2}]
+   },
+   "notes": "Scheme (boost 3), Yennenga only."
+  }
+ ],
+ "plugins": [
+  {"id": "yennenga:assign_damage", "why": "The ability: when Yennenga would take damage her owner may assign any amount of it to the Archers in her zone. It needs a decision per Archer (an amount 0..N bounded by the damage left and the Archer's life) and the damage itself is applied by the engine, which no op expresses."},
+  {"id": "yennenga:surprise_volley", "why": "Surprise Volley: a defeated Archer returns to the opposing fighter's zone and becomes the ATTACKER of the running combat (CombatFlow.replace_combatant), or the owner gains an action instead."}
+ ],
+ "hidden_info": [],
+ "open_questions": []
+}

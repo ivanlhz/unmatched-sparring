@@ -81,7 +81,7 @@ def default_answer(req: ChoiceRequest) -> list:
             return [False]
         return [not req.extra.get("pact")]      # a price in hit points (DARK PACT) is never paid without an opinion
     if req.kind == "amount":
-        return [req.max]
+        return [0] if req.extra.get("assign") else [req.max]       # Yennenga's ability: nothing is handed to an Archer without an opinion
     if req.kind == "space":
         return list(req.options[:req.min])
     if req.extra.get("purpose") in ("bonus", "swap_attack", "dust"):    # a free-count discard that adds value (Unbridled rage), a card played instead (Sleight Of Hand): none by default
@@ -178,7 +178,7 @@ class TableChooser:
     def choose(self, game, req: ChoiceRequest) -> list:
         if req.kind == "optional":
             return [False]
-        if req.extra.get("blind_count"):             # BLIND BOOST: no declaration without the panel, so none is made
+        if req.extra.get("blind_count") or req.extra.get("assign"):     # BLIND BOOST, Yennenga's Archers: no declaration without the panel, so none is made
             return [0]
         if req.extra.get("confirm"):                 # Take A Knee: the one option is the effect itself
             return list(req.options)
@@ -235,6 +235,9 @@ class SyntheticChooser:
         return [self.greedy or "cost_cards" not in req.extra]
 
     def _amount(self, game, req: ChoiceRequest) -> list:
+        if req.extra.get("assign"):                  # Yennenga's ability in a rollout: the share the bot's own policy gives the Archer
+            from ..ai_yennenga import archer_share
+            return [archer_share(game, req)]
         if req.extra.get("blind_count"):             # BLIND BOOST: as many as cannot push a card that ignores a value above its limit over it
             limit = req.extra.get("limit")
             safe = [n for n in req.options if limit is None or req.extra["value"] + n * MAX_BOOST <= limit]

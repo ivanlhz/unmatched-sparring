@@ -1,0 +1,185 @@
+{
+ "_notes": [
+  "Sheet 176 of the tournament savegame (8x4), read card by card from the image on 2026-11-20. CardID = 17600 + idx; 319 = character card (sheet 3, 10x7, index 19). The deck object of the save holds 31 cards: the 30 of the deck plus the character card, which is why the catalog says card_count 31 and card_ids [319, 17629]. Sheet 176 is also Medusa's, the turtles', Strange's, Bigfoot's, Luke Cage's...: only deck.identity (data/tts/yennenga.json) tells the decks apart (docs/card-identity.md).",
+  "Restriction band read from the images: YENNENGA (Rain of Arrows, Point Blank, Stallion Charge, Jaws of the Beast, Shield Formation, One With The Land, Master of the Hunt), ANY (Surprise Volley, Skirmish, Momentous Shift) and ARCHER (Pin the Prey, Divide and Conquer: only the Archers play them). Copies (xN printed on each card), type, value, boost and text of the 12 titles agree with unmatched-memory except Point Blank, whose card says \"deal 2 damage to that fighter\" (unmatched-memory: \"deal them 2 damage\"; the overlay carries the printed text).",
+  "Hero card (read from the image): YENNENGA, RANGED, START HEALTH 15, MOVE 2; sidekick ARCHERS (the miniatures are called Archer), RANGED, START HEALTH 2 x2 (two Archer miniatures, no life dial). unmatched-memory says 'hasTokens: true' but her bag holds no token at all: the two Archer models are described as 'Sidekick Token' and that is all the flag means (docs/heroes/yennenga.md)."
+ ],
+ "fid": "yennenga",
+ "ability": "If Yennenga would take damage, you may assign any amount of that damage to one or more Archers in her zone instead. (You may not assign more damage to an Archer that their remaining health.)",
+ "sidekicks": [
+  {
+   "fid": "archer",
+   "name": "Archer"
+  }
+ ],
+ "tts": {
+  "no_dial": [
+   "archer1",
+   "archer2"
+  ]
+ },
+ "forms": null,
+ "counters": {},
+ "triggers": [],
+ "passives": [],
+ "deck": {
+  "card_base": 17600,
+  "sheet_id": 176,
+  "hero_card_id": 319,
+  "sheet": [
+   {
+    "idx": 0,
+    "title": "Rain of Arrows",
+    "fighter": "Yennenga"
+   },
+   {
+    "idx": 1,
+    "title": "Rain of Arrows",
+    "fighter": "Yennenga"
+   },
+   {
+    "idx": 2,
+    "title": "Rain of Arrows",
+    "fighter": "Yennenga"
+   },
+   {
+    "idx": 3,
+    "title": "Surprise Volley",
+    "fighter": "any"
+   },
+   {
+    "idx": 4,
+    "title": "Surprise Volley",
+    "fighter": "any"
+   },
+   {
+    "idx": 5,
+    "title": "Surprise Volley",
+    "fighter": "any"
+   },
+   {
+    "idx": 6,
+    "title": "Point Blank",
+    "fighter": "Yennenga",
+    "text": "AFTER COMBAT: If the opposing fighter is adjacent to Yennenga, deal 2 damage to that fighter."
+   },
+   {
+    "idx": 7,
+    "title": "Point Blank",
+    "fighter": "Yennenga",
+    "text": "AFTER COMBAT: If the opposing fighter is adjacent to Yennenga, deal 2 damage to that fighter."
+   },
+   {
+    "idx": 8,
+    "title": "Point Blank",
+    "fighter": "Yennenga",
+    "text": "AFTER COMBAT: If the opposing fighter is adjacent to Yennenga, deal 2 damage to that fighter."
+   },
+   {
+    "idx": 9,
+    "title": "Stallion Charge",
+    "fighter": "Yennenga"
+   },
+   {
+    "idx": 10,
+    "title": "Stallion Charge",
+    "fighter": "Yennenga"
+   },
+   {
+    "idx": 11,
+    "title": "Stallion Charge",
+    "fighter": "Yennenga"
+   },
+   {
+    "idx": 12,
+    "title": "Jaws of the Beast",
+    "fighter": "Yennenga"
+   },
+   {
+    "idx": 13,
+    "title": "Jaws of the Beast",
+    "fighter": "Yennenga"
+   },
+   {
+    "idx": 14,
+    "title": "Jaws of the Beast",
+    "fighter": "Yennenga"
+   },
+   {
+    "idx": 15,
+    "title": "Skirmish",
+    "fighter": "any"
+   },
+   {
+    "idx": 16,
+    "title": "Skirmish",
+    "fighter": "any"
+   },
+   {
+    "idx": 17,
+    "title": "Momentous Shift",
+    "fighter": "any"
+   },
+   {
+    "idx": 18,
+    "title": "Momentous Shift",
+    "fighter": "any"
+   },
+   {
+    "idx": 19,
+    "title": "Momentous Shift",
+    "fighter": "any"
+   },
+   {
+    "idx": 20,
+    "title": "Pin the Prey",
+    "fighter": "Archer"
+   },
+   {
+    "idx": 21,
+    "title": "Pin the Prey",
+    "fighter": "Archer"
+   },
+   {
+    "idx": 22,
+    "title": "Divide and Conquer",
+    "fighter": "Archer"
+   },
+   {
+    "idx": 23,
+    "title": "Divide and Conquer",
+    "fighter": "Archer"
+   },
+   {
+    "idx": 24,
+    "title": "Shield Formation",
+    "fighter": "Yennenga"
+   },
+   {
+    "idx": 25,
+    "title": "Shield Formation",
+    "fighter": "Yennenga"
+   },
+   {
+    "idx": 26,
+    "title": "One With The Land",
+    "fighter": "Yennenga"
+   },
+   {
+    "idx": 27,
+    "title": "One With The Land",
+    "fighter": "Yennenga"
+   },
+   {
+    "idx": 28,
+    "title": "Master of the Hunt",
+    "fighter": "Yennenga"
+   },
+   {
+    "idx": 29,
+    "title": "Master of the Hunt",
+    "fighter": "Yennenga"
+   }
+  ]
+ }
+}

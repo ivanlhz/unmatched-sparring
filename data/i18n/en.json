@@ -1324,5 +1324,7 @@
  "rosie.reset": "FREEDOM XK-II MECH SUIT: {name} deactivates all {max} upgrades.",
  "fx.rosie.loose_lips": "Loose Lips Sink Ships!: {title}",
  "rosie.token_missing": "I cannot find all of {name}'s upgrade tokens, so I will not move them: set them by hand as the row in the chat says.",
- "rosie.token_failed": "I could not move {name}'s upgrade tokens; I will try again next step. If they stay wrong, set them by hand as the row in the chat says."
+ "rosie.token_failed": "I could not move {name}'s upgrade tokens; I will try again next step. If they stay wrong, set them by hand as the row in the chat says.",
+ "cf.assigned": "{archer} takes {n} of the damage meant for {victim}",
+ "choice.prompt.assign": "{hero}'s ability: how many of the {left} points of damage still to assign does {name} take? (the rest lands on {hero})"
 }
