@@ -267,3 +267,17 @@ def test_the_human_boosts_the_defense_of_the_second_part_with_out_of_time(bot_he
     table.human_count -= 1
     click(session, table, Event.BOOST)
     assert session.pending is None and game.fighters["baba"].hp == hp, "Out Of Time plus the boost stop the 3"
+
+
+def test_the_bots_turn_does_not_go_on_before_its_waiting_second_attack(bot_hellboy):
+    session, game, table = bot_hellboy[0], bot_hellboy[2], bot_hellboy[4]
+    _bot_attacks(session, table, game, ("Feint", "Snipe", "Regroup", "Dash", "Second Shot"))
+    medusa = game.fighters["medusa"]
+    click(session, table, Event.REVEAL)                      # no defense for the first part: the human's AFTER step is open
+    assert session.second_next is not None and game.turn == 0
+    hp, actions = medusa.hp, game.actions_left
+    session._bot_continue()                                  # whoever calls it while the second part waits
+    assert session.pending is not None and session.pending.second is not None and session.second_next is None
+    assert game.turn == 0 and game.actions_left == actions and medusa.hp == hp, "the second attack started, nothing else of the bot's turn"
+    click(session, table, Event.REVEAL)
+    assert session.pending is None and medusa.hp == hp - SECOND and game.turn == 0

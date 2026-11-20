@@ -58,7 +58,7 @@ def play_to_the_end(tmp_path, bot, human):
             table.dials[guid]["value"] = session.dials_written[guid] = HERO_HP
         steps = 0
         while game.winner is None and steps < MAX_STEPS:
-            if game.turn == 1 or session.pending is not None or session._paused() is not None:
+            if game.turn == 1 or session.pending is not None or session._paused() is not None or session.moving:
                 human_step(session, table, game)
             else:
                 session._bot_continue()
