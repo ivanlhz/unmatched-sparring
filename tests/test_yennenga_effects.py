@@ -20,6 +20,9 @@ def mk(bprd, foe="hellboy", seed=3, turn=0):
     return g
 
 
+TRAINING = "B.P.R.D. Training"        # Hellboy's defense of value 3
+
+
 def foe_attack(g, title="Service Pistol"):
     return give(g, 1, title)
 
@@ -375,3 +378,49 @@ def test_master_of_the_hunt_gains_two_actions(bprd):
     actions = g.actions_left
     g.play_scheme(0, g.hero(0), give(g, 0, "Master of the Hunt"))
     assert g.actions_left == actions - 1 + 2
+
+
+# ---------------------------------------------------------------- Rain of Arrows, the double attack
+
+def test_rain_of_arrows_is_a_plain_three_and_then_a_second_attack_of_three(bprd):
+    g = mk(bprd)
+    yen = stack(g, with_archers=0)
+    hellboy = beside(g, "hellboy", "yennenga")
+    before = hellboy.hp
+    res = g.attack(yen, hellboy, give(g, 0, "Rain of Arrows"), None)
+    assert res.damage == 3 and res.second is not None and res.second.damage == res.second.atk_value == 3
+    assert hellboy.hp == before - 6
+
+
+def test_the_defender_may_defend_the_volley_with_a_new_card(bprd):
+    g = mk(bprd)
+    yen = stack(g, with_archers=0)
+    hellboy = beside(g, "hellboy", "yennenga")
+    wall = give(g, 1, TRAINING)
+    g.controllers[1].choose_second_defense = lambda game, att, tgt, value, card: wall
+    before = hellboy.hp
+    res = g.attack(yen, hellboy, give(g, 0, "Rain of Arrows"), None)
+    assert res.second.def_card is wall and res.second.damage == max(0, 3 - wall.value) and hellboy.hp == before - 3 - res.second.damage
+
+
+def test_feint_stops_the_volley(bprd):
+    g = mk(bprd, "bigfoot")
+    yen = stack(g, with_archers=0)
+    bigfoot = beside(g, "bigfoot", "yennenga")
+    g.fx.dsl_heroes = {"yennenga", "bigfoot"}
+    before = bigfoot.hp
+    res = g.attack(yen, bigfoot, give(g, 0, "Rain of Arrows"), give(g, 1, "Feint"))
+    assert res.second is None and bigfoot.hp == before - 1            # the 3 against Feint's 2 still lands; the volley is an AFTER effect Feint cancels
+
+
+def test_the_archers_take_their_share_of_the_second_attack_too(bprd):
+    g = mk(bprd, "achilles", turn=1)
+    yen = stack(g)
+    a1, a2 = archers(g)
+    achilles = beside(g, "achilles", "yennenga")
+    g.fx.dsl_heroes = {"yennenga", "achilles"}
+    g.controllers[0].queue = [[0], [0], [1], [1]]              # the first blow stays on her; one point of each Archer takes the volley
+    g.controllers[0].choose_second_defense = lambda game, att, tgt, value, card: None
+    res = g.attack(achilles, yen, give(g, 1, "Test For Weakness"), None)
+    assert res.second is not None and res.second.damage == 3
+    assert (a1.hp, a2.hp, yen.hp) == (1, 1, 15 - 1 - 1)

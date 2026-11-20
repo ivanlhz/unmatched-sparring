@@ -108,6 +108,7 @@ def test_the_ability_is_a_plugin_passive_read_by_the_damage_code(effects):
 
 def test_card_effects_say_what_the_real_cards_say(effects):
     by = {c["title"]: c["effects"] for c in effects["cards"]}
+    assert by["Rain of Arrows"]["after"] == [{"op": "second_attack", "amount": 3}]
     assert by["Surprise Volley"]["immediately"] == [{"op": "plugin", "id": "yennenga:surprise_volley"}]
     assert by["Point Blank"]["after"][0]["condition"] == {"test": "fighter_at", "fighter": "opposing", "space": {"adjacent_to": "hero"}}
     assert by["Point Blank"]["after"][0]["then"] == [{"op": "damage", "target": "opposing", "amount": 2}]

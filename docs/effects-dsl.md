@@ -1378,3 +1378,14 @@ No new op, event or schema field: everything is written with what exists (and `s
 - **Choice context**: `ops_core._choice_context` fills `else_damage` also when the damage of an `optional`'s `else` is `{"attr": ..., "of": "$name"}` (the BOOST of the chosen card), so the human's buttons read "Coger <n>" and the bot's `_discard_or_take` prices it.
 - **Plugin** `mary:out_of_the_mirror` (`sparring/effects/plugins_mary.py`): the rival's random discard whose BOOST is added to the card (Chupacabra's Ambush flow, which reads the discarded card object).
 - **AI** (`sparring/ai_mary.py`): see docs/heroes/bloody-mary.md.
+
+## 47. Yennenga: damage handed to the Archers, a defeated sidekick that returns as the attacker
+
+No new op, event or schema field; one passive and two plugins (`sparring/effects/plugins_yennenga.py`).
+
+- **The ability** ("if Yennenga would take damage, you may assign any amount of it to one or more Archers in her zone instead") is the passive `{"kind": "plugin", "plugin": "yennenga:assign_damage"}`: it is not run, the damage code reads it (`plugins_yennenga.assigns_damage`: a living hero of an interpreted player whose file declares it). Her OWNER decides, before the damage lands: one `amount` request per Archer of hers in her zone (fighter id order), options `0..min(points left, the Archer's life)`, `extra = {assign: <archer fid>, fighter, left, damage, source: "combat" | "effect", later: [the Archers still to ask]}`. The human answers on the panel (`choice.prompt.assign`), the bot by `sparring/ai_yennenga.archer_share`, a rollout by the same function without the death-risk term, `default_answer` and `TableChooser` assign nothing.
+- **Effect damage**: the `damage` op asks inside itself (`plugins_yennenga.effect_shares`), after any `redirect_damage`, and applies each share as effect damage on the fighter that takes it.
+- **Combat damage**: see docs/combat-flow.md, "Damage assignment".
+- **`yennenga:surprise_volley`** (IMMEDIATELY of an attack): with a defeated Archer of hers and a free space in the opposing fighter's zone the owner is asked (optional); yes: `revive` with the Archer's full life and `CombatFlow.replace_combatant(attacker, Archer)` (the machinery of Smoke And Mirrors); no, or nothing to return: `gain_action 1`.
+- Shield Formation is an `optional` of the OPPONENT with a `discard` cost and a `revive` in the `else`; Stallion Charge is a `move` with `through_enemies` and `as`, then a `damage` on `passed_by` (Luke Cage's Power Man shape); Jaws of the Beast is `modify_value` by the Amount `{"stat": "zones", "fighter": "opposing"}`; Rain of Arrows is `second_attack` 3 (section 45).
+- The Archers have 2 life and no life dial in the save: `data/tts/<slug>.json` marks such a piece `no_dial: true` (overlay `"tts": {"no_dial": [fids]}`), accepted by `tools/import_save.py` and `sparring/tts/hero_table.py` only when asked.

@@ -5,7 +5,7 @@
   "Yennenga (Battle of Legends, Volume Two). Texts read from the card images (sheet 176 of the tournament savegame, character card 319 on sheet 3) on 2026-11-20. Hero Yennenga (ranged, 15 life, move 2) and two Archers (ranged, 2 life, move 2, no life dial in the save). Every card agrees with unmatched-memory; the restriction bands are YENNENGA, ANY (Surprise Volley, Skirmish, Momentous Shift) and ARCHER (Pin the Prey, Divide and Conquer).",
   "unmatched-memory says hasTokens: true. Her bag holds NO token (the two Archer models are described as 'Sidekick Token' and that is all the flag means): she has no counter, no token and no form.",
   "The Archers are sidekicks of the HeroDef (fid archer1 / archer2, name 'Archer'). 'Return a defeated Archer' is a `revive` with the Archer's full 2 life (a sidekick comes back with its starting health), as Medusa's Winged Frenzy does for a Harpy.",
-  "Rain of Arrows is a DOUBLE ATTACK (VOLLEY: 3 ATK): its second attack is written against the double-attack mechanic of the engine (docs/effects-dsl.md, double attack)."
+  "Rain of Arrows is a DOUBLE ATTACK (VOLLEY: 3 ATK): `second_attack` 3 in its AFTER (docs/effects-dsl.md section 45)."
  ],
  "ability": {
   "text": "If Yennenga would take damage, you may assign any amount of that damage to one or more Archers in her zone instead. (You may not assign more damage to an Archer that their remaining health.)",
@@ -20,8 +20,8 @@
    "title": "Rain of Arrows",
    "copies": 3,
    "text": "AFTER COMBAT: VOLLEY: 3 ATK",
-   "effects": {"immediately": [], "during": [], "after": [], "scheme": [], "boost": []},
-   "notes": "Attack 3 / boost 3, Yennenga only. A DOUBLE ATTACK: the first part is the main attack, VOLLEY is a second attack of 3 against the same defender, an AFTER COMBAT effect of the card (Feint stops it). Pending the double-attack mechanic: see the end of docs/heroes/yennenga.md."
+   "effects": {"immediately": [], "during": [], "after": [{"op": "second_attack", "amount": 3}], "scheme": [], "boost": []},
+   "notes": "Attack 3 / boost 3, Yennenga only. A DOUBLE ATTACK (Battle of Legends, Volume Two): the first part is a plain attack 3; VOLLEY (3 ATK) is the second attack, against the same defender, an AFTER COMBAT effect of the card (docs/effects-dsl.md section 45): Feint stops it, a Skirmish does not. The mechanic belongs to the double-attack engine, not to this file. Whether the ability, boosts and bonuses apply to the second attack follows the engine's rulings (Pending Ivan in docs/combat-flow.md)."
   },
   {
    "title": "Surprise Volley",

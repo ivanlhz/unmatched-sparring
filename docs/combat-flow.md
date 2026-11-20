@@ -228,3 +228,11 @@ ends the first combat as always (result, discards, dials) and, if `flow.second_d
   part has `chosen.second_attack` (its value) and, for the search, `via: "heuristic (exact second-attack value)"`.
 - Not modelled: that the rival's first defense may be a Feint (it would stop the second part): the defense distribution carries values only.
 
+
+### Damage assignment (Yennenga, docs/heroes/yennenga.md)
+
+Her ability lets her owner hand part of the damage meant for her to the Archers in her zone. The combat damage is therefore decided in two steps:
+- `CombatFlow._landing()` computes, without changing anything, who takes the damage and how much of the blow lands (redirection, the hero's reduction, damage caps) and what to say about it; `_damage` uses it.
+- Entering the DAMAGE phase, `step()` first calls `_assignment_wait()`: when the victim is a hero with the ability and an Archer of hers stands in her zone, it starts (or continues) the run `flow.runs["damage:def"]` (a one-op `EffectRun`, plugin `yennenga:assign_damage`, `await_key` `damage:def:assign_damage`) that asks her owner one `amount` request per Archer. A human owner pauses the flow with an ordinary `PendingChoice("effect")` (saved under `pending.flow`, answered through `flow.resume(list)`); the bot answers inside `run`. The answers wait in `run.flags["assigned"]`.
+- `_damage` then applies the shares: each Archer's as combat damage (its events fire, an Archer at 0 falls), the rest on the victim. `result.damage` and `attacker_won` stay the blow that landed on the defender's side, and the chat adds `cf.assigned` lines.
+- A second attack (double attack) is a combat of its own: it asks again. A blow of 0 asks nothing.
