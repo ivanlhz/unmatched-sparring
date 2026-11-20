@@ -411,9 +411,11 @@ def redirect_sources(game, fighter) -> list[dict]:
     return out
 
 
-def _owner_run(game, owner: int):
+def _owner_run(game, owner: int, flow=None):
+    """A bare run of `owner`'s hero to read selectors with; inside a combat (`flow`) it knows who attacks and who defends, so a redirection
+    can name them (Golden Chain Mail sends the damage to `attacker`)."""
     from .run import Ctx, EffectRun
-    return EffectRun([], Ctx(owner=owner, this_fid=game.hero(owner).fid))
+    return EffectRun([], Ctx(owner=owner, this_fid=game.hero(owner).fid, **({} if flow is None else {"attacker_fid": flow.att.fid, "defender_fid": flow.tgt.fid})))
 
 
 def combat_redirect_target(flow):
@@ -424,7 +426,7 @@ def combat_redirect_target(flow):
     for r in flow.redirects:
         if r["from"] != flow.tgt.fid or r["damage"] not in ("combat", "any"):
             continue
-        view = _owner_run(game, r["owner"])
+        view = _owner_run(game, r["owner"], flow)
         if r.get("condition") and not condition(game, view, r["condition"]):
             continue
         dests = [f for f in fighter_candidates(game, view, r["to"])[0] if f.fid != flow.tgt.fid]
