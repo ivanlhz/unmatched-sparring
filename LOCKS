@@ -4,3 +4,9 @@ sparring/effects/ops_combat.py  achilles  hero AFTER without a card / in the sec
 data/heroes/effects/schema.json  achilles  hero AFTER without a card / in the second attack  14:59Z
 docs/effects-dsl.md  achilles  hero AFTER without a card / in the second attack  14:59Z
 docs/combat-flow.md  achilles  hero AFTER without a card / in the second attack  14:59Z
+sparring/session.py  bloody-mary  round 2: announce the ability, AI fixes  15:01Z
+sparring/effects/events.py  bloody-mary  round 2: announce the ability, AI fixes  15:01Z
+data/i18n/en.json  bloody-mary  round 2: announce the ability, AI fixes  15:01Z
+data/i18n/es.json  bloody-mary  round 2: announce the ability, AI fixes  15:01Z
+sparring/ai_medusa.py  bloody-mary  round 2: announce the ability, AI fixes  15:01Z
+sparring/search/adapter.py  bloody-mary  round 2: announce the ability, AI fixes  15:01Z
