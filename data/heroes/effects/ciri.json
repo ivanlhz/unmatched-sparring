@@ -4,7 +4,7 @@
  "notes": [
   "Texts read from sheet 176 of the tournament savegame (card images) on 2026-11-09; the character card is 344 on sheet 3 (10x7, index 44). Sheet 176 is also Medusa's, the four turtles', Doctor Strange's, Bigfoot's, Daredevil's, Luke Cage's, Bullseye's and Tomoe Gozen's DeckID: the CardIDs repeat and only the deck image tells the decks apart (docs/card-identity.md).",
   "SOURCE (the orb with a number): the count of Source cards (tag `source`, the orb on the card's art band) in Ciri's discard pile, the HeroDef counter `source` read by `{\"test\": \"counter\", \"name\": \"source\", \"min\": n}` (the dial of the bag, MAX_VALUE 13, mirrors it). A card with several numbered lines applies the highest one the Source reaches (`if` / `else` chains).",
-  "Two additive engine pieces came with her: the fighter filter `within` ('an opposing fighter within 3 spaces of Ciri', Pushed to the brink) and the passive rule `cards_uncancelable` with a `while` (UNCONTAINABLE POWER, `modifiers.is_uncancelable(card, game)`). Channel the source reuses Raphael's mechanism as the plugin `ciri:channel_the_source`; everything else uses ops that already existed."
+  "Two additive engine pieces came with her: the fighter filter `within` ('an opposing fighter within 3 spaces of Ciri', Pushed to the brink) and the passive rule `cards_uncancelable` with a `while` (UNCONTAINABLE POWER, `modifiers.is_uncancelable(card, game, fighter)`). Channel the source reuses Raphael's mechanism as the plugin `ciri:channel_the_source`; everything else uses ops that already existed."
  ],
  "ability": {
   "text": "UNCONTAINABLE POWER\nSOURCE 7: Effects on Ciri's cards cannot be canceled.",
@@ -21,7 +21,7 @@
     }
    }
   ],
-  "notes": "UNCONTAINABLE POWER: while the Source is 7 or more, no effect of a card of Ciri's deck (her own or Ihuarraquax's, whoever plays it) can be canceled: `cancel_effects` (Parry, Feint, Short circuit, Break something...) and the legacy cancels leave it as it was. The Source is read at the moment of the cancellation."
+  "notes": "UNCONTAINABLE POWER: while the Source is 7 or more, no effect of a card played by Ciri herself (the fighter that plays it is her hero fighter; the cards Ihuarraquax plays CAN be canceled, Iván 2026-11-19) can be canceled: `cancel_effects` (Parry, Feint, Short circuit, Break something...) and the legacy cancels leave it as it was. The Source is read at the moment of the cancellation."
  },
  "cards": [
   {
@@ -379,7 +379,7 @@
     "scheme": [],
     "boost": []
    },
-   "notes": "Defense 3 / boost 1, any fighter. Cancels every effect of the opponent's card. It does not cancel the effects of a Ciri card while SOURCE is 7 or more (UNCONTAINABLE POWER); a Ciri Parry is itself uncancelable at SOURCE 7 or more."
+   "notes": "Defense 3 / boost 1, any fighter. Cancels every effect of the opponent's card. It does not cancel the effects of a card Ciri plays while SOURCE is 7 or more (UNCONTAINABLE POWER); a Parry played by Ciri is itself uncancelable at SOURCE 7 or more, one played by Ihuarraquax is not."
   },
   {
    "title": "Child of the Elder Blood",

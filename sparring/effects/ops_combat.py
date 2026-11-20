@@ -60,7 +60,7 @@ def _cancel_effects(run, game, spec):
     if side is None:
         side = _named_side(run, spec["card"])
     card = None if side is None else (flow.atk_card if side == "atk" else flow.def_card)
-    if side is None or (card is not None and modifiers.is_uncancelable(card, game, flow.att.owner if side == "atk" else flow.tgt.owner)):
+    if side is None or (card is not None and modifiers.is_uncancelable(card, game, flow.att if side == "atk" else flow.tgt)):
         return
     moments = spec.get("moments")
     if spec.get("if_won"):                      # "if you win this combat": the result is not known yet, the flow decides it with the damage
@@ -88,7 +88,7 @@ def settle_win_cancels(flow) -> None:
         card = flow.atk_card if victim == "atk" else flow.def_card
         if not flow.won_by(winner) or card is None:
             continue
-        if modifiers.is_uncancelable(card, game, flow.att.owner if victim == "atk" else flow.tgt.owner):
+        if modifiers.is_uncancelable(card, game, flow.att if victim == "atk" else flow.tgt):
             continue
         flow.ctx.cancelled_after.add(victim)
         if modifiers.has_effects(game, flow, victim, ["after"]):

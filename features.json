@@ -1164,7 +1164,8 @@
         "Diagnosis from the live log 20261119 (session.log 22:10:24, TURN 21): bot Ciri attacks Doctor Strange with Lion cub of Cintra (17601), Ivan defends with Feint. Orb cards in her discard before the combat: 17610, 17613, 17616, 17627, 17602, 17600 = 6. The engine reads Source 6 (the card being resolved is not in the pile yet, docs/heroes/ciri.md rule 1), so UNCONTAINABLE POWER is off and the cancel is legal: Lion cub stays at 2 vs 2, no damage",
         "DECIDED by Ivan on 20/11: rule (a). The card being resolved does not count toward its own Source (docs/heroes/ciri.md rule 1): the engine already does this",
         "Not a bug (checked 20/11 against session.log 22:10:15-22:10:28): the whole combat resolves on Reveal (22:10:24) and only then does Lion cub reach her discard. While Ivan chose his defence the Source was 6; the 7 on dial 46aa92 was written after the combat and is the right count then (6 + Lion cub)",
-        "No code change: a dial guard for a card on the pile during an open combat was written and dropped, since the live path never reaches that state (its test had to force the card onto the pile)"
+        "No code change: a dial guard for a card on the pile during an open combat was written and dropped, since the live path never reaches that state (its test had to force the card onto the pile)",
+        "Rule 2 (Ivan, 2026-11-19, merged 20/11 from fix/ciri-uncontainable 6867a56 without its dial part): UNCONTAINABLE POWER protects only the cards Ciri herself plays; Ihuarraquax's can be canceled at SOURCE 7+. modifiers.is_uncancelable(card, game, fighter) takes the fighter that plays the card (tests/test_ciri_effects.py)"
       ],
       "note": "Reported by Ivan in a live game on 19/11/2026 (launcher, bot Ciri vs human Doctor Strange). After the combat Ivan took 5 damage off Strange by hand (10 -> 5)."
     },

@@ -679,7 +679,9 @@ def _cancellable_moments(game, run) -> int:
     from .modifiers import card_effects, is_uncancelable
     cards = card_ref(game, run, "opponent_card")
     fx = card_effects(cards[0]) if cards else None
-    if fx is None or is_uncancelable(cards[0], game, 1 - run.ctx.owner):
+    flow = getattr(run, "flow", None)
+    rival = game.hero(1 - run.ctx.owner) if flow is None else (flow.tgt if run.ctx.played_as == "attack" else flow.att)
+    if fx is None or is_uncancelable(cards[0], game, rival):
         return 0
     return sum(1 for m in ("immediately", "during", "after") if fx.moments.get(m))
 

@@ -253,10 +253,10 @@ def cancels_effects(card) -> bool:
                                   for m in ("immediately", "during") for op in walk_ops(fx.moments.get(m) or []))
 
 
-def uncancelable_harm(game: Game, card, owner: int) -> tuple[float, float, float]:
-    """`attack_harm` of a card of `owner` whose effects cannot be canceled (the card's own rule, or its hero's: Ciri at
-    SOURCE 7), nothing for any other: what a cancel-effects defense does not prevent."""
-    return attack_harm(card) if is_uncancelable(card, game, owner) else (0.0, 0.0, 0.0)
+def uncancelable_harm(game: Game, card, fighter: Fighter) -> tuple[float, float, float]:
+    """`attack_harm` of a card played by `fighter` whose effects cannot be canceled (the card's own rule, or its hero's: Ciri
+    herself at SOURCE 7, not her sidekick), nothing for any other: what a cancel-effects defense does not prevent."""
+    return attack_harm(card) if is_uncancelable(card, game, fighter) else (0.0, 0.0, 0.0)
 
 
 def effect_reliance(game: Game, me: int) -> float:
@@ -532,7 +532,7 @@ class Model:
         cards of the rival's pool that attack with that value (the committed card is, by symmetry, any of them).
         `uncancelable`: only the harm a cancel leaves standing (`uncancelable_harm`)."""
         fn = self.attack_value_fn(f, self.game.attack_bonus(f, target))
-        harm = (lambda c: uncancelable_harm(self.game, c, self.opp)) if uncancelable else attack_harm
+        harm = (lambda c: uncancelable_harm(self.game, c, f)) if uncancelable else attack_harm
         by_value: dict = {}
         for c in self.pool:
             v = fn(c)
@@ -1911,7 +1911,7 @@ class MedusaAI(Controller):
                 dist = [(1.0, (attack_card.value or 0) + game.attack_bonus(attacker, target))]
                 self._attack_cards = {dist[0][1]: [attack_card]}
                 self._attack_harm = {dist[0][1]: attack_harm(attack_card)}
-                self._attack_harm_fixed = {dist[0][1]: uncancelable_harm(game, attack_card, attacker.owner)}
+                self._attack_harm_fixed = {dist[0][1]: uncancelable_harm(game, attack_card, attacker)}
             else:
                 dist = model.committed_attack_dist(attacker, target)
                 self._attack_cards = model.committed_cards_by_value(attacker, target)
@@ -1978,7 +1978,7 @@ class MedusaAI(Controller):
                 continue
             left = target.hp - min(game.combat_damage_taken(target, max(0, av - dv)), target.hp)
             for card in cards:
-                if left <= 0 or not ai_double.has_second(game, attacker.owner, card) or (cancels and not is_uncancelable(card, game, attacker.owner)):
+                if left <= 0 or not ai_double.has_second(game, attacker.owner, card) or (cancels and not is_uncancelable(card, game, attacker)):
                     continue
                 n = ai_double.second_value(game, attacker.owner, card, printed)
                 if n <= 0:

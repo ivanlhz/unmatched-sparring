@@ -160,14 +160,15 @@ def hero_rule_holds(game, player: int, rule: str) -> bool:
     return False
 
 
-def is_uncancelable(card, game=None, owner: int | None = None) -> bool:
-    """The card's effects cannot be canceled: its own `uncancelable`, or, given the `game` and the `owner` (the side that holds the
-    card in the combat, never looked up by value: decks of sheet 176 share cards), the owner's ability (`cards_uncancelable`:
-    Ciri's UNCONTAINABLE POWER covers every card of her deck, the sidekick's too)."""
+def is_uncancelable(card, game=None, fighter=None) -> bool:
+    """The card's effects cannot be canceled: its own `uncancelable`, or, given the `game` and the `fighter` that plays the card in the
+    combat (never looked up by value: decks of sheet 176 share cards), the ability of that fighter's hero (`cards_uncancelable`:
+    Ciri's UNCONTAINABLE POWER, only for the cards Ciri herself plays: the ones her sidekick Ihuarraquax plays can be canceled,
+    Iván 2026-11-19)."""
     fx = card_effects(card)
     if fx is not None and fx.uncancelable:
         return True
-    return game is not None and owner is not None and hero_rule_holds(game, owner, "cards_uncancelable")
+    return game is not None and fighter is not None and fighter.hero and hero_rule_holds(game, fighter.owner, "cards_uncancelable")
 
 
 # ---------------------------------------------------------------- stores
