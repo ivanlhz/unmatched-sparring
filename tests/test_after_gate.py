@@ -252,3 +252,38 @@ def test_a_card_paid_at_the_gate_is_credited_once_not_again_when_a_later_combat_
         table.human_count -= 1
     msgs = click(session, table, Event.END_ACTION)
     assert session.pending_discard is None and not said(msgs, "Aun falta descartar"), msgs
+
+
+HELLBOY_VS_JOHN = ("hellboy", "john-henry", "Right Hand Of Doom", "Second Shot", "Glimpse Of Hell", "Pancakes!", "Excalibur")
+
+
+@with_rig(*HELLBOY_VS_JOHN)
+def test_the_defenders_move_by_hand_comes_before_the_attackers_after(rig):
+    """Ivan, 20/11: bot Hellboy attacks with Right Hand Of Doom, the human John Henry defends with Power Through. John's
+    move is his, on the table, and goes first: Right Hand Of Doom waits for End action and reads where he left them."""
+    session, table, game, fake, cfg = rig
+    put_adjacent(game, table, cfg, "hellboy", "john")
+    human_hand(table, game, "Power Through", "Nine-pound Hammer", "Cool Drink Of Water", "Larger Than Life")
+    rhod = next(c for c in game.players[0].hand if c.title == "Right Hand Of Doom")
+    bot_turn(session, table, [Act("attack", fid="hellboy", target="john", card=rhod)])
+    power = card_ids(game, 1, "Power Through")[0]
+    table.face_down = [{"id": power, "guid": f"h{power}"}]
+    table.human_hand.remove(power)
+    table.human_count -= 1
+    msgs = click(session, table, Event.REVEAL)
+    while session.effect_run is not None and session.effect_run.awaiting is not None:       # who Power Through moves: John
+        opts = session.panel_labels()
+        pick = next(k for k, v in opts.items() if "John" in v)
+        msgs += click(session, table, Event.CHOICE, {"i": int(pick.rsplit("_", 1)[1])})
+    assert session._table_gate(session.pending), msgs
+    assert not said(msgs, "Aplicado: Right Hand Of Doom"), "the attacker's AFTER waits for the defender's move"
+    assert said(msgs, "despues se resuelve Right Hand Of Doom")
+    # John walks 2 spaces away from Hellboy on the table: Right Hand Of Doom reads him there, no longer adjacent
+    b, hb = game.board, game.fighters["hellboy"].pos
+    start, taken = game.fighters["john"].pos, {f.pos for f in game.fighters.values() if f.alive}
+    away = next(s for s in sorted(b.spaces) if s not in taken and b.distance(start, s) == 2 and b.distance(hb, s) >= 2
+                and s not in b.adj[hb])
+    table.positions[cfg.nicknames["john"]] = away
+    msgs = click(session, table, Event.END_ACTION)
+    assert not session._table_gate(session.pending) and said(msgs, "Aplicado: Right Hand Of Doom"), msgs
+    assert game.fighters["john"].pos == away, "the bot's move read where John was left, and he is not adjacent any more"

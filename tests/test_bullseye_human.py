@@ -8,6 +8,8 @@ His deck is sheet 176 like Medusa's, the turtles', Doctor Strange's and Bigfoot'
 the human's deck."""
 from __future__ import annotations
 
+from sparring.effects.model import load_effects
+
 from sparring.ai_medusa import Act
 from sparring.tts.ui import Event
 from test_batch import click
@@ -214,7 +216,11 @@ def test_tactical_retreat_names_the_space_that_shares_no_zone_and_leaves_the_pla
     table.human_count -= 1
     msgs = click(session, table, Event.REVEAL)
     assert said(msgs, "en la mesa: coloca a bullseye en una casilla que no comparta zona con la de tu heroe"), msgs
-    assert session.effect_run is None and session.pending is None
+    assert session.effect_run is None
+    if load_effects("hellboy").moment_ops(attacker.title, "after"):    # Ivan, 20/11: the bot's AFTER reads where you placed him
+        assert session._table_gate(session.pending) and said(msgs, "despues se resuelve " + attacker.title), msgs
+        click(session, table, Event.END_ACTION)
+    assert session.pending is None
 
 
 # ---------------------------------------------------------------- a choice that waits at the panel survives --resume

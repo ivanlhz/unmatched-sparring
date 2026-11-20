@@ -117,12 +117,34 @@ def notes(run) -> list[dict]:
 
 
 HAND_OPS = ("choose", "return_to_deck", "search_deck")
+BOARD_OPS = ("move", "place", "swap", "revive", "summon")
 
 
 def hand_step_pending(run) -> bool:
     """The run left the human a step on their own hand or deck (a card to put back, a pile to look through, a discard
     they owe): what a later effect reads of that hand has to wait until they have done it."""
     return bool(run.flags.get("physical_discard")) or any(n["op"] in HAND_OPS for n in notes(run))
+
+
+BOARD_KEYS = frozenset(("adjacent_only", "adjacent_to", "adjacent_to_any", "is_or_adjacent_to", "nearest_to",
+                        "next_to_nearest_foe", "no_zone_of", "zone_of", "space", "space_of", "spaces", "within",
+                        "where", "through_enemies", "through_sidekicks", "passed_by"))
+
+
+def reads_board(ops) -> bool:
+    """The ops move pieces or pick fighters or spaces by where they stand (adjacent, zone, range): what the human
+    still has to move by hand changes their outcome. A plugin reads the table its own way: not counted."""
+    if isinstance(ops, dict):
+        return ops.get("op") in BOARD_OPS or any(k in BOARD_KEYS or reads_board(v) for k, v in ops.items())
+    if isinstance(ops, list):
+        return any(reads_board(v) for v in ops)
+    return False
+
+
+def table_step_pending(run) -> bool:
+    """`hand_step_pending`, or a miniature the human moves by hand (Ivan, 20/11: Power Through defends Right Hand Of
+    Doom): the next AFTER effect reads where the fighters stand, so it waits until the table has been read."""
+    return hand_step_pending(run) or any(n["op"] in BOARD_OPS for n in notes(run))
 
 
 # ---------------------------------------------------------------- what the chat says

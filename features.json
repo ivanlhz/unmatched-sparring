@@ -1125,6 +1125,29 @@
         "Resolution (outside this repo, by Ivan): add the four data files to unmatched-memory, or change the HeroDefs to declare the sheet they were really built from"
       ],
       "note": "Found 17/11/2026 while making the suite clean. unmatched-memory is read only for this project and was not touched."
+    },
+    {
+      "id": "BUG-CIRI-SOURCE7-CANCEL",
+      "title": "Ciri: Ivan saw the Source dial at 7 and could cancel Lion cub of Cintra with Feint (not a bug)",
+      "status": "done",
+      "criteria": [
+        "Diagnosis from the live log 20261119 (session.log 22:10:24, TURN 21): bot Ciri attacks Doctor Strange with Lion cub of Cintra (17601), Ivan defends with Feint. Orb cards in her discard before the combat: 17610, 17613, 17616, 17627, 17602, 17600 = 6. The engine reads Source 6 (the card being resolved is not in the pile yet, docs/heroes/ciri.md rule 1), so UNCONTAINABLE POWER is off and the cancel is legal: Lion cub stays at 2 vs 2, no damage",
+        "DECIDED by Ivan on 20/11: rule (a). The card being resolved does not count toward its own Source (docs/heroes/ciri.md rule 1): the engine already does this",
+        "Not a bug (checked 20/11 against session.log 22:10:15-22:10:28): the whole combat resolves on Reveal (22:10:24) and only then does Lion cub reach her discard. While Ivan chose his defence the Source was 6; the 7 on dial 46aa92 was written after the combat and is the right count then (6 + Lion cub)",
+        "No code change: a dial guard for a card on the pile during an open combat was written and dropped, since the live path never reaches that state (its test had to force the card onto the pile)"
+      ],
+      "note": "Reported by Ivan in a live game on 19/11/2026 (launcher, bot Ciri vs human Doctor Strange). After the combat Ivan took 5 damage off Strange by hand (10 -> 5)."
+    },
+    {
+      "id": "BUG-AFTER-GATE-HAND-MOVE",
+      "title": "The attacker's AFTER effect ran before the human defender's move by hand (live 20/11, Right Hand Of Doom vs Power Through)",
+      "status": "done",
+      "criteria": [
+        "Diagnosis from the live log 20/11 (session.log 06:57, TURN 10): bot Hellboy attacks John Henry with Right Hand Of Doom, Ivan defends with Power Through. The defender's AFTER goes first, but its move is done by hand on the table; the AFTER gate only waited for hand steps (table.hand_step_pending), so Right Hand Of Doom moved Hellboy 12->11 and John Henry 11->10 on the old positions before Ivan did Power Through",
+        "The AFTER gate also waits for a miniature the human moves, places, swaps, revives or summons by hand (table.table_step_pending, BOARD_OPS), but only when the next effect is the bot's (the engine resolves it) and reads the board (table.reads_board: moves pieces or picks fighters/spaces by adjacency, zone or range). The human's own next effect is done on the table in order; a bot effect that does not read the board (Insightful Deduction, Foul Purpose) does not wait. End action reads the table and the bot's AFTER runs on where the fighters stand",
+        "tests/test_after_gate.py::test_the_defenders_move_by_hand_comes_before_the_attackers_after (John walks away on the table before End action; Right Hand Of Doom finds him no longer adjacent; fails without the fix). Updated on purpose to expect the gate: tests/test_bullseye_human.py Tactical Retreat (placed by hand before Hellboy's AFTER) and tests/test_eredin_human.py Wild Hunt (Lobster moved by B.P.R.D. Training before the adjacency damage)"
+      ],
+      "note": "Reported by Ivan in a live game on 20/11/2026 (launcher, bot Hellboy vs human John Henry)."
     }
   ]
 }

@@ -197,8 +197,9 @@ class CombatFlow:
     def _table_gate(self, side: Side) -> PendingChoice | None:
         """Ivan, 31/10 (Glimpse Of Hell, then Fleeting Moments): AFTER effects go one after the other, the defender's
         first. When the previous side's effect left the human a step on their own hand (a card to put back in the
-        deck, a discard they owe), the next side's effect waits for it: it may read that hand (a random discard) and
-        the cards the first one drew. The gate is answered once the table has been read again (`resume(None)`)."""
+        deck, a discard they owe) or a miniature to move by hand (Ivan, 20/11: Power Through before Right Hand Of Doom),
+        the next side's effect waits for it: it may read that hand (a random discard), the cards the first one drew or
+        where the fighters stand. The gate is answered once the table has been read again (`resume(None)`)."""
         if self.side_idx == 0 or self.runs.get(f"after:{self.sides[self.side_idx - 1].name}") is None:
             return None
         prev = self.sides[self.side_idx - 1]
@@ -208,7 +209,12 @@ class CombatFlow:
         from .effects import table
         from .effects.model import load_effects
         owner = side.fighter.owner
-        if not _dsl(self, side) or not table.hand_step_pending(self.runs[f"after:{prev.name}"])                 or not load_effects(self.game.players[owner].hero.slug).moment_ops(side.card.title, "after"):
+        prev_run = self.runs[f"after:{prev.name}"]
+        ops = load_effects(self.game.players[owner].hero.slug).moment_ops(side.card.title, "after") if _dsl(self, side) else None
+        # a miniature left to move by hand only holds back an effect the engine resolves (the bot's) that reads where
+        # the pieces stand: the human's own next effect is done on the table too, in order
+        board = table.table_step_pending(prev_run) and not table.physical(self.game, owner) and table.reads_board(ops)
+        if not ops or not (table.hand_step_pending(prev_run) or board):
             return None
         self.await_key = key
         return PendingChoice("table", prev.fighter.owner, prev.card.card_id)

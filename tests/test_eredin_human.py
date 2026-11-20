@@ -341,6 +341,9 @@ def test_the_bots_wild_hunt_hurts_every_human_fighter_next_to_a_red_rider_and_th
     put_adjacent(game, table, cfg, "lobster", "hellboy")
     human_hand(table, game, TRAINING, "Right Hand Of Doom", "Service Pistol")
     msgs = bot_attacks(session, table, game, "Wild Hunt", "eredin", "hellboy", TRAINING)
+    # Ivan, 20/11: Training's Lobster move is yours, by hand, and Wild Hunt reads who stands next to a rider: it waits
+    assert session._table_gate(session.pending) and said(msgs, "despues se resuelve Wild Hunt"), msgs
+    msgs = click(session, table, Event.END_ACTION)                 # Lobster stays put (the move is up to)
     assert said(msgs, "Aplicado: Wild Hunt: hellboy -1 PV (17); lobster -1 PV (5)"), msgs
     assert dial(session, cfg, table, "hellboy") == 17 and dial(session, cfg, table, "lobster") == 5
 
