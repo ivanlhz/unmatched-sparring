@@ -198,12 +198,13 @@ class FxTable(Table):
         pile, deck = ((self.human_discard, self.human_deck) if human else (self.bot_discard, self.bot_deck))
         if not self._has_deck(s, deck):
             return {"added": 0, "deck": False, "moved": []}
-        on_spot = {r["id"] for r in self.face_down}          # the human's card at the combat spot (Relentless): GUID h<id>
+        on_spot = {r["id"] for r in self.face_down + self.face_up}   # the human's card at the combat spot (Relentless), face down or turned up: GUID h<id>
         added = [(k, int(g)) for k, g in wanted if int(g) not in self.stuck_in_pile
                  and (int(g) in pile or (k == "h" and int(g) in on_spot and human) or (k == "g" and not human and int(g) in self.bot_play))]
         for k, i in added:
             if k == "h":
                 self.face_down = [r for r in self.face_down if r["id"] != i]
+                self.face_up = [r for r in self.face_up if r["id"] != i]
             elif i in self.bot_play:
                 self.bot_play.remove(i)
             else:
