@@ -4,5 +4,4 @@ sparring/search/adapter.py  double-attack  AI double attack  14:02Z
 sparring/search/controller.py  double-attack  AI double attack  14:02Z
 docs/combat-flow.md  double-attack  AI double attack  14:02Z
 features.json  double-attack  AI double attack  14:02Z
-tests/test_tmnt_matrix.py  bloody-mary  matrix driver presses Reveal for the second attack of a double attack  14:06Z
 sparring/ai_effects.py  wukong  hook: the CLONES price  14:07Z
