@@ -198,6 +198,8 @@ class CombatFlow:
             if self.again:
                 self.again = False
                 return None
+        # Only in a second attack: in a first combat the attacker's hero ability already ran with its card (`dsl_after` / `run_moment`, run key
+        # `after:atk`), and `hero_after` shares that key, so a double draw is impossible; the `second` guard keeps it from even being asked.
         if self.phase is Phase.AFTER and self.second is not None and side.name == "atk" and (wait := self._hero_after("atk")) is not None:
             return wait                      # the second attack is a combat the attacker can win: its hero's AFTER ability flagged `second_attack`
         self.side_idx += 1

@@ -244,3 +244,22 @@ def test_the_day_of_your_doom_question_survives_a_resume_and_either_answer(rig, 
     press(session, table, answer)
     game = session.game
     assert game.fighters["patroclus"].hp == (4 if answer else 6) and game.fighters["hellboy"].hp == hp - (5 if answer else 3)
+
+
+@with_rig("chupacabra", "achilles", "The More They Struggle")
+def test_a_human_achilles_who_defends_without_a_card_and_wins_draws_one_before_the_bots_after(rig):
+    """The cardless draw runs before the attacker's AFTER (defender first). No gate is needed: a draw leaves the human no step on their hand
+    (`table.hand_step_pending` only counts choose / return_to_deck / search_deck and discards), the table deals the card at once, so a bot
+    AFTER that reads the human's hand after it already sees the new count."""
+    session, table, game, fake, cfg = rig
+    put_adjacent(game, table, cfg, "chupacabra", "achilles")
+    patroclus = game.fighters["patroclus"]
+    patroclus.hp, patroclus.alive, patroclus.pos = 0, False, None
+    human_hand(table, game, "Feint")
+    card = next(c for c in game.players[0].hand if c.title == "The More They Struggle")
+    bot_turn(session, table, [Act("attack", fid="chupacabra", target="achilles", card=card)])
+    table.face_down = []
+    before = len(game.players[1].hand)
+    msgs = click(session, table, Event.REVEAL)
+    assert game.fighters["achilles"].hp == 18 and said(msgs, "robas 1"), msgs
+    assert len(game.players[1].hand) == before + 1 and session.pending is None

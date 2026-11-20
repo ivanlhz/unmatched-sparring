@@ -501,3 +501,18 @@ def test_skirmish_moves_one_fighter_of_the_combat_only_when_the_combat_was_won(b
     g2.controllers[0].queue = [lambda req: seen2.append(req) or [req.options[-1]] for _ in range(3)]
     g2.attack(ach, hell, give(g2, 0, "Skirmish"), give(g2, 1, "B.P.R.D. Training"), values=(-2, 0))    # a lost combat: nothing moves
     assert not [r for r in seen2 if r.kind == "space"]
+
+
+def test_a_first_combat_won_by_achilles_with_a_card_draws_once_and_never_asks_the_cardless_hook_for_the_attacker(bprd, monkeypatch):
+    """`hero_after` and `run_moment` share the run key `after:atk`; the flow only calls the hook for the attacker of a second attack. Were the two
+    to diverge, this first combat would draw twice."""
+    from sparring.effects import ops_combat
+    calls = []
+    real = ops_combat.hero_after
+    monkeypatch.setattr(ops_combat, "hero_after", lambda flow, name: calls.append(name) or real(flow, name))
+    g = mk(bprd)
+    fall(g)
+    achilles, hellboy = pair(g, "achilles", "hellboy")
+    res = g.attack(achilles, hellboy, give(g, 0, "Brothers In Arms"), give(g, 1, "B.P.R.D. Training"), values=(5, 0))
+    assert res.attacker_won and res.second is None and len(g.players[0].hand) == 1
+    assert "atk" not in calls and "def" not in calls                   # a card was played on each side: neither side is cardless
