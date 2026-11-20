@@ -14,3 +14,4 @@ tests/test_heroes.py  bloody-mary  register hero  13:43Z
 tests/test_card_identity.py  bloody-mary  register hero  13:43Z
 tests/test_d1_bot_cards.py  bloody-mary  register hero  13:43Z
 tests/test_effects_schema.py  bloody-mary  register hero  13:43Z
+sparring/state.py  achilles  vengeance attack bonus hook  13:46Z
