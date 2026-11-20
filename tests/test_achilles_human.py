@@ -155,6 +155,8 @@ def test_test_for_weakness_you_attack_the_bot_defends_the_second_part_and_the_hi
     human_hand(table, game, "Test For Weakness", "Feint")
     hp = game.fighters["hellboy"].hp
     attack(session, table, game, "achilles", "Test For Weakness")
+    assert session.pending is None and session.second_next is not None, "the second part waits for End action"
+    click(session, table, Event.END_ACTION)
     assert session.pending is not None and session.pending.second["value"] == 3 and game.fighters["hellboy"].hp == hp - 1
     assert asked == [("achilles", "hellboy", 3, "Test For Weakness")]
     click(session, table, Event.REVEAL)
@@ -172,6 +174,7 @@ def test_test_for_weakness_the_bot_attacks_and_you_defend_the_second_part_with_a
     hp = hellboy.hp
     table.face_down = []
     click(session, table, Event.REVEAL)
+    click(session, table, Event.END_ACTION)
     p = session.pending
     assert p is not None and p.kind == "bot_attacks" and p.second["value"] == 3 and hellboy.hp == hp - 1
     block = card_ids(game, 1, "B.P.R.D. Training")[0]
