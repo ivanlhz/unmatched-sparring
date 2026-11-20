@@ -240,3 +240,71 @@ def test_a_second_flow_stopped_at_the_defenders_boost_resumes_from_a_save(bprd, 
     assert again.second == SECOND and again.pending is not None and again.pending.kind == "boost"
     again.resume(None)
     assert again.run() is None and again.done and again.result.def_card is out_of_time
+
+
+# ---------------------------------------------------------------- "won / lost the combat" reads the combat the card is in (Ivan 2026-11-20, D2)
+
+WIN, LOSE = "Momentous Shift", "Regroup"      # defense 3 (beats the 2, ties the 3: wins both parts) / defense 1 (loses both)
+DRAW_IF_WON = {WIN: 1, LOSE: 2}                        # cards drawn by each stub when its own combat is won (nothing when lost)
+
+
+@pytest.fixture
+def reads_won(monkeypatch):
+    """Both defenders get the AFTER "if you won the combat, draw N cards" with a different N, so the hand says which card won what."""
+    for title, n in DRAW_IF_WON.items():
+        monkeypatch.setitem(load_effects("bigfoot").card(title).moments, "after", [
+            {"op": "if", "condition": {"test": "combat_result", "result": "won"}, "then": [{"op": "draw", "player": "owner", "amount": n}]}])
+
+
+def _play(g, hellboy, bigfoot, a, d, first, second):
+    """Both parts through `g.attack`: `first` defends the first part, `second` the second (titles)."""
+    g.controllers[d].choose_second_defense = lambda game, att, tgt, value, card: give(g, d, second)
+    return g.attack(hellboy, bigfoot, give(g, a, TITLE), give(g, d, first))
+
+
+@pytest.mark.parametrize("first, second, drawn", [(WIN, LOSE, DRAW_IF_WON[WIN]), (LOSE, WIN, DRAW_IF_WON[WIN])])
+def test_the_first_part_card_reads_the_first_combat_only(bprd, double, reads_won, first, second, drawn):
+    """Wins the first and loses the second: the first card's AFTER fires. Loses the first and wins the second: it does not."""
+    g, hellboy, bigfoot, a, d = mk(bprd)
+    res = _play(g, hellboy, bigfoot, a, d, first, second)
+    first_won = first == WIN
+    assert res.damage == (0 if first_won else 1) and res.second.damage == (SECOND - 1 if first_won else 0)
+    assert len(g.players[d].hand) == drawn, "only the card that won ITS OWN combat drew"
+
+
+@pytest.mark.parametrize("first, second", [(WIN, LOSE), (LOSE, WIN), (WIN, WIN), (LOSE, LOSE)])
+def test_each_card_reads_its_own_combat_never_both(bprd, double, reads_won, first, second):
+    """The defender's hand is the sum of what each card draws for ITS combat: a card never also reads the other part."""
+    g, hellboy, bigfoot, a, d = mk(bprd)
+    _play(g, hellboy, bigfoot, a, d, first, second)
+    expected = (DRAW_IF_WON[first] if first == WIN else 0) + (DRAW_IF_WON[second] if second == WIN else 0)
+    assert len(g.players[d].hand) == expected
+
+
+def test_the_second_part_card_reads_the_second_combat_only(bprd, double, reads_won):
+    """The second card's result is the second combat's, whatever the first one was."""
+    for first, second, won in ((WIN, LOSE, False), (LOSE, WIN, True)):
+        g, hellboy, bigfoot, a, d = mk(bprd)
+        flow = CombatFlow(g, hellboy, bigfoot, give(g, a, TITLE), give(g, d, first))
+        assert flow.run() is None and flow.second_due
+        before = len(g.players[d].hand)
+        sec = flow.second_flow(give(g, d, second))
+        assert sec.run() is None
+        assert sec.runs["after:def"].ctx.combat_result == ("won" if won else "lost")
+        assert len(g.players[d].hand) - before == (DRAW_IF_WON[second] if won else 0)
+
+
+@pytest.mark.parametrize("first, second", [(WIN, LOSE), (LOSE, WIN)])
+def test_the_first_part_card_is_not_evaluated_again_with_the_second_combat(bprd, double, reads_won, first, second):
+    g, hellboy, bigfoot, a, d = mk(bprd)
+    flow = CombatFlow(g, hellboy, bigfoot, give(g, a, TITLE), give(g, d, first))
+    assert flow.run() is None
+    result, hand = flow.result.attacker_won, list(g.players[d].hand)
+    first_ctx = flow.runs["after:def"].ctx
+    verdict = first_ctx.combat_result
+    assert verdict == ("won" if first == WIN else "lost")
+    sec = flow.second_flow(give(g, d, second))
+    assert sec.run() is None
+    assert flow.result.attacker_won == result and flow.runs["after:def"].ctx is first_ctx and first_ctx.combat_result == verdict
+    assert [c for c in g.players[d].hand if c in hand] == hand, "nothing of the first card was drawn or discarded again"
+    assert sec.runs["after:def"] is not flow.runs["after:def"]
