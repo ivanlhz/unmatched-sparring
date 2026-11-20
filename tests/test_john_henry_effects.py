@@ -1,5 +1,5 @@
 """John Henry on the engine, bot side (player 0 plays him, the controllers answer): STEEL-DRIVING MAN (a track token at the start of his turn,
-the track spaces not counted when he moves, the paths he used), every card of his deck with the numbers printed on it, the free action
+the track spaces not counted when he moves, the paths (edges) he crossed), every card of his deck with the numbers printed on it, the free action
 that only an attack can spend, and the state (clone, save). The human side (panel, FakeTTS) is in tests/test_john_henry_human.py and the
 full games in tests/test_john_henry_matrix.py."""
 from __future__ import annotations
@@ -213,36 +213,48 @@ def test_the_free_walk_pays_the_hazard_of_the_edges_it_crosses(bprd, monkeypatch
 
 # ---------------------------------------------------------------- the paths
 
-def test_the_track_spaces_he_enters_are_his_paths_and_the_start_and_untracked_spaces_are_not(bprd):
+def edges(row):
+    """The paths (edges, `(low, high)`) of a walk along `row`."""
+    return [(min(a, b), max(a, b)) for a, b in zip(row, row[1:])]
+
+
+def test_his_paths_are_the_edges_he_crosses_with_or_without_tracks_on_them(bprd):
     g = mk(bprd)
     row = chain(bprd, 6)
     john = stage(g, row)
     lay(g, [row[0], row[1], row[3]])
-    g.walk(john, row[4], None)
-    assert sorted(g.fx.paths) == sorted([row[1], row[3]]) and tracks.paths_used(g) == 2
+    g.walk(john, row[4], None)                                  # 0 -> 1 -> 2 -> 3 -> 4: four edges, two of them onto untracked spaces
+    assert sorted(g.fx.paths) == sorted(edges(row[:5])) and tracks.paths_used(g) == 4
 
 
-def test_four_different_paths_are_four_different_track_spaces(bprd):
+def test_a_walk_without_any_track_token_also_uses_paths(bprd):
+    g = mk(bprd)
+    row = chain(bprd, 3)
+    john = stage(g, row)
+    g.walk(john, row[2], None)
+    assert sorted(g.fx.paths) == sorted(edges(row)) and tracks.paths_used(g) == 2
+
+
+def test_four_different_paths_make_the_hammers_test_true(bprd):
     g = mk(bprd)
     row = chain(bprd, 7)
     john = stage(g, row)
-    lay(g, row[1:5])
+    lay(g, row[1:4])
     g.players[0].hand.append(g.players[0].deck.pop(0))
-    g.maneuver(0, {"john": row[5]})
-    assert tracks.paths_used(g) == 4
+    g.maneuver(0, {"john": row[4]})                             # three free track spaces and one step: four edges at least
+    assert tracks.paths_used(g) >= 4
     from sparring.effects.ops_core import plugin_test
     assert plugin_test(g, None, {"id": "john:paths", "key": "four"}) is True
 
 
-def test_the_same_track_space_entered_twice_counts_once(bprd):
+def test_the_same_path_crossed_twice_counts_once_in_either_direction(bprd):
     g = mk(bprd)
     row = chain(bprd, 5)
     john = stage(g, row)
-    lay(g, row[1:3])
     g.walk(john, row[2], None)
     g.walk(john, row[0], None)
     g.walk(john, row[1], None)
-    assert sorted(g.fx.paths) == sorted(row[1:3]) and tracks.paths_used(g) == 2
+    assert sorted(g.fx.paths) == sorted(edges(row[:3])) and tracks.paths_used(g) == 2
 
 
 def test_a_placement_and_the_rivals_moves_are_no_paths_and_a_new_turn_forgets_them(bprd):
@@ -252,8 +264,8 @@ def test_a_placement_and_the_rivals_moves_are_no_paths_and_a_new_turn_forgets_th
     lay(g, row[1:3])
     g.place_fighter(john, row[3])
     assert g.fx.paths == []
-    g.walk(john, row[0], None)                                  # 3 -> 2 -> 1 -> 0: the two track spaces are free, the last step is not
-    assert sorted(g.fx.paths) == sorted(row[1:3])
+    g.walk(john, row[0], None)                                  # 3 -> 2 -> 1 -> 0: three edges
+    assert sorted(g.fx.paths) == sorted(edges(row[:4]))
     g.turn = 1
     g.begin_turn()
     assert g.fx.paths == [] and len(g.fx.tracks[0]) == 2, "the tokens stay, the paths are of the turn"
@@ -267,11 +279,69 @@ def test_with_fewer_than_four_the_hammers_do_nothing_extra_and_the_test_says_no(
     g = mk(bprd)
     row = chain(bprd, 5)
     john = stage(g, row)
-    lay(g, row[1:4])
-    g.walk(john, row[4], None)
+    lay(g, row[1:3])
+    g.walk(john, row[3], None)
     assert tracks.paths_used(g) == 3
     from sparring.effects.ops_core import plugin_test
     assert plugin_test(g, None, {"id": "john:paths", "key": "four"}) is False
+
+
+def triangle(g):
+    """Three spaces each adjacent to the other two."""
+    b = g.board
+    for a in sorted(b.spaces):
+        for x in sorted(b.adj[a]):
+            for y in sorted(b.adj[a]):
+                if x < y and y in b.adj[x]:
+                    return [a, x, y]
+    raise AssertionError("no triangle on the board")
+
+
+def test_a_maneuver_that_ends_where_it_began_goes_round_a_triangle_of_tracks(bprd):
+    g = mk(bprd)
+    a, x, y = triangle(g)
+    john = stage(g, [a, x, y])
+    lay(g, [a, x, y])
+    g.players[0].hand.append(g.players[0].deck.pop(0))
+    g.move_fighter(john, a, 0)                                  # no step at all: round the triangle for nothing
+    assert sorted(g.fx.paths) == sorted(edges([a, x, y, a])) and john.pos == a
+    g.fx.paths = []
+    g.maneuver(0, {"john": a})                                  # a Maneuver that leaves him where he was: the round and his 2 steps
+    assert tracks.paths_used(g) >= 4 and john.pos == a
+
+
+def test_staying_puts_no_loop_where_no_step_is_left_for_it(bprd):
+    g = mk(bprd)
+    a, x, y = triangle(g)
+    john = stage(g, [a, x, y])
+    lay(g, [x, y])                                              # the way back onto his untracked space costs a step
+    g.move_fighter(john, a, 0)
+    assert g.fx.paths == []
+    g.move_fighter(john, a, 1)
+    assert sorted(g.fx.paths) == sorted(edges([a, x, y, a]))
+
+
+def test_a_john_henry_who_cannot_move_goes_round_no_loop(bprd, monkeypatch):
+    g = mk(bprd)
+    a, x, y = triangle(g)
+    john = stage(g, [a, x, y])
+    lay(g, [a, x, y])
+    monkeypatch.setattr(type(g.fx), "can_move", lambda self, f: False)      # Burning Barrier keeps him where he is
+    g.move_fighter(john, a, 2)
+    assert g.fx.paths == []
+
+
+def test_the_loop_does_not_cross_a_hazard_he_has_not_paid(bprd, monkeypatch):
+    g = mk(bprd)
+    a, x, y = triangle(g)
+    john = stage(g, [a, x, y])
+    lay(g, [a, x, y])
+    monkeypatch.setattr(g.board, "hazards", {(min(x, y), max(x, y)): 1})
+    g.move_fighter(john, a, 0)
+    assert (min(x, y), max(x, y)) not in g.fx.paths and john.hp == 17
+    g.hazard_taken.add("john")                                  # paid this turn: every hazard edge is free now
+    g.move_fighter(john, a, 0)
+    assert (min(x, y), max(x, y)) in g.fx.paths
 
 
 # ---------------------------------------------------------------- the hammers
@@ -284,7 +354,7 @@ def fight(g, foe="sinbad", at=None):
 
 
 def four_paths(g):
-    g.fx.paths = [90, 91, 92, 93]
+    g.fx.paths = [(90, 91), (91, 92), (92, 93), (93, 94)]
 
 
 def test_the_eighteen_pound_hammer_cancels_the_rivals_card_with_four_paths(bprd):
@@ -302,7 +372,7 @@ def test_the_eighteen_pound_hammer_cancels_nothing_without_four_paths(bprd):
     john, sinbad = fight(g)
     start_turn(g)
     g.fx.turn_start_pos["sinbad"] = -1
-    g.fx.paths = [90, 91, 92]
+    g.fx.paths = [(90, 91), (91, 92), (92, 93)]
     res = g.attack(john, sinbad, give(g, 0, "Eighteen-pound Hammer"), give(g, 1, "Momentous Shift"))
     assert res.def_value == 5
 
@@ -549,14 +619,14 @@ def test_the_state_survives_a_clone_and_a_save(bprd):
     row = chain(bprd, 6)
     stage(g, row)
     lay(g, row[1:4])
-    g.fx.paths = [row[1], row[2]]
+    g.fx.paths = edges(row[:3])
     g.fx.attack_credit = 1
     twin = g.clone()
     assert twin.fx.tracks == g.fx.tracks and twin.fx.paths == g.fx.paths and twin.fx.attack_credit == 1
     twin.fx.tracks[0].append(row[5])
     assert len(g.fx.tracks[0]) == 3, "the clone owns its lists"
     saved = game_to_dict(g)
-    assert saved["fx"]["tracks"] == [row[1:4], []] and saved["fx"]["paths"] == [row[1], row[2]] and saved["fx"]["attack_credit"] == 1
+    assert saved["fx"]["tracks"] == [row[1:4], []] and saved["fx"]["paths"] == [list(e) for e in edges(row[:3])] and saved["fx"]["attack_credit"] == 1
     fresh = Game.new(bprd, 3, controllers={0: Answers(), 1: Answers()}, heroes=("john-henry", "hellboy"), bot_player=0)
     apply_game(fresh, saved)
     assert fresh.fx.tracks == g.fx.tracks and fresh.fx.paths == g.fx.paths and fresh.fx.attack_credit == 1

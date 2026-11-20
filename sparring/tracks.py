@@ -2,8 +2,8 @@
 
 STEEL-DRIVING MAN gives its owner 10 track tokens, one of them summoned at the start of every turn in a space of John Henry's zone,
 and "when you move John Henry, do not count spaces with track tokens". The tokens are board state, not a counter: `fx.tracks[player]`
-lists the spaces of that player's tokens (at most `SUPPLY`, one per space, never taken off) and `fx.paths` the track spaces John
-Henry has entered in the current turn (the reading of "paths" the docs list under Pending Ivan).
+lists the spaces of that player's tokens (at most `SUPPLY`, one per space, never taken off) and `fx.paths` the paths (edges between
+spaces, `(low, high)`) John Henry has crossed in the current turn (Iván, 2026-11-20: a path is a connection, not a track space).
 
 The engine reaches this module from `Game.legal_moves` / `hazard_edges` / `walk` (the walks), from the `move` op (`over_tracks`, Power
 Through, which frees nothing by itself: only John Henry's own walks ignore the tokens), from the SpaceSel `track` and from the plugins of `effects/plugins_john.py`."""
@@ -46,21 +46,34 @@ def free_spaces(game, fighter, over_tracks: bool = False) -> frozenset[int]:
     return frozenset()
 
 
-def record_walk(game, fighter, origin: int | None, dest: int, blocked: frozenset[int]) -> None:
-    """John Henry walked from `origin` to `dest` in his own turn: the track spaces on the way count as paths used this turn.
-    The walk is the cheapest one through the most track spaces (a table only shows where the piece started and ended)."""
-    if origin is None or not fighter.hero or game.turn != fighter.owner or not any(game.fx.tracks):
-        return
-    if not game.fx.hero_rule(fighter.owner, RULE):
-        return
-    free = placed(game)
-    for s in game.board.track_route(origin, dest, free, blocked):
-        if s not in game.fx.paths:
-            game.fx.paths.append(s)
+def record_walk(game, fighter, origin: int | None, dest: int, blocked: frozenset[int], steps: int | None = None) -> int | None:
+    """John Henry walked from `origin` to `dest` (the same space too: a loop) in his own turn with `steps` to spend: the paths (the edges
+    between spaces, Ivan 2026-11-20) the walk crosses count as paths used this turn, with or without track tokens on them. A table (and the
+    bot's move) only gives the two ends, so the walk is the one within `steps` (None: the cheapest cost) that crosses the most paths not
+    used yet, loops over the track spaces (free) included. A hazard edge is only part of that walk when he has paid a hazard this turn
+    (the walk charges the least-hazard way: call this after the charge). A John Henry who cannot move (Burning Barrier) uses none.
+    Returns the steps the walk spent (None when nothing is recorded), for a caller that splits one Maneuver into several reads."""
+    if origin is None or not fighter.hero or game.turn != fighter.owner or not fighter.alive:
+        return None
+    if not game.fx.hero_rule(fighter.owner, RULE) or not game.fx.can_move(fighter):
+        return None
+    free = free_spaces(game, fighter)
+    cheapest = game.board.walk_cost(origin, dest, free, blocked)
+    if cheapest is None:
+        return None
+    budget = cheapest if steps is None else max(steps, cheapest)
+    known = frozenset(game.fx.paths)
+    cap = max(1, NEEDED_PATHS - len(known))
+    avoid = frozenset() if fighter.fid in game.hazard_taken else frozenset(game.board.hazards)
+    got, spent = game.board.most_paths_walk(origin, dest, free, blocked, budget, known, cap, avoid)
+    for edge in sorted(got):
+        if edge not in known:
+            game.fx.paths.append(edge)
+    return cheapest if spent is None else spent
 
 
 def paths_used(game) -> int:
-    """How many different track spaces John Henry has entered this turn."""
+    """How many different paths (edges) John Henry has crossed this turn."""
     return len(game.fx.paths)
 
 

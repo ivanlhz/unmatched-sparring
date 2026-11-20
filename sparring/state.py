@@ -521,6 +521,8 @@ class Game:
     # mutations
     def move_fighter(self, fighter: Fighter, dest: int, steps: int, through_enemies: bool = False, over_tracks: bool = False) -> None:
         if dest == fighter.pos:
+            # staying is a walk that ends where it began: John Henry may have looped over his tracks (his paths)
+            tracks.record_walk(self, fighter, dest, dest, self.blocked_spaces(fighter, through_enemies), steps)
             return
         if dest not in self.legal_moves(fighter, steps, through_enemies, over_tracks):
             raise RuleError(t("err.illegal_move", fid=fighter.fid, dest=dest, steps=steps))
@@ -549,7 +551,7 @@ class Game:
         Every way a fighter walks along spaces (maneuver, move effects, a human's move read from the table) comes here."""
         crossed = self.hazard_edges(fighter, dest, steps, through_enemies, over_tracks)
         origin, fighter.pos = fighter.pos, dest
-        tracks.record_walk(self, fighter, origin, dest, self.blocked_spaces(fighter, through_enemies))      # John Henry's paths
+        blocked = self.blocked_spaces(fighter, through_enemies)
         for edge in crossed:
             self.hazard_taken.add(fighter.fid)
             if fighter.alive:
@@ -557,6 +559,7 @@ class Game:
                 dealt = self.damage(fighter, self.board.hazards[edge], "hazard")
                 if dealt:
                     self.hazard_hits.append((fighter.fid, edge, dealt, before))
+        tracks.record_walk(self, fighter, origin, dest, blocked, steps)     # John Henry's paths, after the hazard he paid
         if self.hazard_hits and self.hazard_hook is not None:
             self.hazard_hook()
         self.departed(fighter, origin)

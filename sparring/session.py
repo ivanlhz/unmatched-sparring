@@ -410,6 +410,7 @@ class Session:
         # that read), with the hand count then: {"cards": [...], "hand": n}
         self.scheme_returned: dict | None = None
         self.maneuver_baseline: list[int] | None = None    # their discard at Maneuver: a BOOST 0 card put there is warned
+        self.maneuver_from: dict | None = None             # the human's John Henry in their Maneuver: start space, spaces the reads saw, provisional paths
         self.maneuver_boosted: int | None = None           # the card this Maneuver was boosted with (once; its effects already ran)
         self._deal_at = -1e9                                # when cards were last dealt to the human (they may still be flying to their hand)
         self.ability_wait: str | None = None               # the human's start-of-turn ability to do on the table before anything else (E2)
@@ -1710,6 +1711,7 @@ class Session:
             **({"scheme_returned": self.scheme_returned} if self.scheme_returned else {}),
             **({"maneuver_baseline": self.maneuver_baseline} if self.maneuver_baseline is not None else {}),
             **({"maneuver_boosted": self.maneuver_boosted} if self.maneuver_boosted is not None else {}),
+            **({"maneuver_from": self.maneuver_from} if self.maneuver_from is not None else {}),
             **({"ability_wait": self.ability_wait} if self.ability_wait is not None else {}),
             **({"human_dealt": self.human_dealt} if self.human_dealt != self.game.drawn[self.human] else {}),
             **({"declared_carry": self.declared_carry} if self.declared_carry is not None else {}),
@@ -1793,6 +1795,7 @@ class Session:
             self.scheme_returned = d.get("scheme_returned")
             self.maneuver_baseline = d.get("maneuver_baseline")
             self.maneuver_boosted = d.get("maneuver_boosted")
+            self.maneuver_from = d.get("maneuver_from") if isinstance(d.get("maneuver_from"), dict) else None
             self.ability_wait = d.get("ability_wait")
             self.human_dealt = int(d.get("human_dealt", self.game.drawn[self.human]))     # absent: everything counted was dealt
             self.declared_carry = d.get("declared_carry") if isinstance(d.get("declared_carry"), dict) else None
@@ -1984,6 +1987,9 @@ class Session:
         st = self.game.players[self.human]
         self.maneuver_baseline = [c.card_id for c in st.discard]
         self.maneuver_boosted = None
+        hero = self.game.hero(self.human)
+        self.maneuver_from = ({"start": hero.pos, "way": [], "edges": []}
+                              if hero.alive and hero.pos is not None and self.game.fx.hero_rule(self.human, tracks.RULE) else None)
         session_sinbad.announce_reach(self)
         if not self.game.fx.can_draw(self.human):
             self.say(t("maneuver.no_draw", reason=choices.NO_DRAW_REASON), ChatKind.YOUR_TURN)
@@ -3185,7 +3191,8 @@ class Session:
         if self.maneuver_baseline is not None:
             if self._read_maneuver_boost()[0]:
                 return                                # old habit (boost card in the pile, End action): effects now, the action ends at the next End action
-            self.maneuver_baseline, self.maneuver_boosted = None, None
+            self._maneuver_paths()
+            self.maneuver_baseline, self.maneuver_boosted, self.maneuver_from = None, None, None
         if self.ability_wait is not None:         # the table was read: your start-of-turn ability is done
             self.ability_wait = None
             self.say(t("end.ability_done"), ChatKind.ABILITY)
@@ -5425,9 +5432,65 @@ class Session:
         g = self.game
         if f.owner != self.human or self.setup is not None or f.fid in g.placing:
             return False
-        if not g.board.hazards and not (f.hero and g.fx.tracks[f.owner]):      # nothing to charge: unless John Henry's track spaces make this walk his paths
+        if not g.board.hazards and not (f.hero and g.fx.hero_rule(f.owner, tracks.RULE)):      # nothing to charge: unless the walk is John Henry's paths
             return False
         return not (f.hero and g.fx.hero_rule(f.owner, "maneuver_boost_places_hero"))
+
+    def _maneuver_steps(self, f: Fighter) -> int | None:
+        """The steps `f` has in the human's open Maneuver (its move, the boost, the hero's bonus); None outside a Maneuver. Only John
+        Henry's paths read it: the table gives the two ends of the walk, the steps say how far round it may have gone. A boost card
+        already in the pile and not read yet (End action reads the table before the boost) counts."""
+        g = self.game
+        if not self.moving or self.maneuver_baseline is None or f.owner != self.human:
+            return None
+        steps = f.move + g.maneuver_bonus(self.human)
+        card = None
+        if self.maneuver_boosted is not None:
+            card = next((c for c in g.players[self.human].full_set if c.card_id == self.maneuver_boosted), None)
+        else:
+            new = [c for c in g.players[self.human].discard if c.card_id not in self.maneuver_baseline and can_be_boost(c)]
+            card = new[0] if len(new) == 1 else None
+        if card is not None:
+            steps += card.boost + g.fx.boost_bonus(self.human)
+        return steps
+
+    def _maneuver_walked(self, f: Fighter, before: list) -> None:
+        """A read of the table moved the human's John Henry during their Maneuver: the space is a waypoint of the one walk the Maneuver
+        is, and the paths that read credited (the cheapest way) are provisional until End action (`_maneuver_paths`)."""
+        mf = self.maneuver_from
+        if not isinstance(mf, dict) or not f.hero or f.owner != self.human:
+            return
+        mf["way"].append(f.pos)
+        mf["edges"].extend(list(e) for e in self.game.fx.paths if e not in before)
+
+    def _maneuver_paths(self) -> None:
+        """End of the human's Maneuver: the paths of John Henry's whole walk, from the space he began it on through every space a read
+        of the table saw him on (none: he ended where he began, a loop), with all the steps the Maneuver had. Each leg may spend what
+        the later legs do not need at their cheapest, so the whole walk never spends more than the Maneuver gives; the provisional
+        paths of the reads are replaced by these."""
+        mf = self.maneuver_from
+        if not isinstance(mf, dict):
+            return
+        g = self.game
+        hero = g.hero(self.human)
+        if not hero.alive or hero.pos is None:
+            return
+        steps = self._maneuver_steps(hero)
+        if steps is None:
+            return
+        provisional = {tuple(e) for e in mf["edges"]}
+        g.fx.paths = [e for e in g.fx.paths if e not in provisional]
+        stops = [mf["start"], *mf["way"]]
+        if len(stops) == 1:
+            stops.append(mf["start"])
+        blocked = g.blocked_spaces(hero)
+        free = tracks.free_spaces(g, hero)
+        legs = list(zip(stops, stops[1:]))
+        cheapest = [g.board.walk_cost(a, b, free, blocked) or 0 for a, b in legs]
+        left = steps
+        for i, (a, b) in enumerate(legs):
+            spent = tracks.record_walk(g, hero, a, b, blocked, max(0, left - sum(cheapest[i + 1:])))
+            left -= spent if spent is not None else cheapest[i]
 
     def _escape_artist_placing(self, f: Fighter) -> bool:
         """The human's hero (ESCAPE ARTIST) is being PLACED by a boosted Maneuver: the boost is already read, or a boost card sits in
@@ -5523,12 +5586,16 @@ class Session:
                     self._illegal_fresh.add(fid)
                 self._warn(fid, "illegal", text)
             else:
-                if fid in self.game.hand_moves and info["space"] != f.pos:
+                effect_move = fid in self.game.hand_moves
+                if effect_move and info["space"] != f.pos:
                     del self.game.hand_moves[fid]                     # walked by hand, legally: the permission is spent
                 if info["space"] != f.pos and f.pos is not None and self._hand_move_pays(f):
                     # the human moved this piece by hand: only the two ends are known, so the least-hazard shortest way is charged
                     with self._announcing_departure():
+                        before = list(self.game.fx.paths)
                         self.game.walk(f, info["space"], None)
+                        if not effect_move:                       # an effect's move by hand is not part of the Maneuver's walk
+                            self._maneuver_walked(f, before)      # John Henry's Maneuver: a waypoint, its paths settled at End action
                 else:
                     moved_from = f.pos if info["space"] != f.pos and f.owner == self.human and not quiet else None
                     placed = fid in self.game.placing or self._escape_artist_placing(f)

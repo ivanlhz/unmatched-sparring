@@ -6,8 +6,8 @@ chooses the space (`ai_john.pick_track_space`) and the session lays the physical
 physical at the table (the engine does not run it: `table.start_of_turn_is_physical`), so the human lays theirs and the session
 reads the table's tokens.
 
-Eighteen-, Twelve- and Nine-pound Hammer: "If John Henry used at least 4 different paths this turn". The test counts the track spaces he
-entered this turn (`tracks.paths_used`); the reading of "paths" is the one open rule of the hero."""
+Eighteen-, Twelve- and Nine-pound Hammer: "If John Henry used at least 4 different paths this turn". The test counts the paths (the edges
+between spaces, Iván 2026-11-20) he crossed this turn (`tracks.paths_used`)."""
 from __future__ import annotations
 
 from .. import tracks
@@ -39,7 +39,7 @@ def _summon_track(run, game, spec):
 
 @plugin_condition("john:paths")
 def _paths_used(game, run, key: str) -> bool:
-    """`four`: John Henry has entered at least four different track spaces this turn."""
+    """`four`: John Henry has crossed at least four different paths (edges) this turn."""
     if key != "four":
         raise EffectError(f"john:paths: unknown key {key!r}")
     return tracks.paths_used(game) >= tracks.NEEDED_PATHS

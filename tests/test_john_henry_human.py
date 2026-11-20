@@ -140,14 +140,74 @@ def test_a_maneuver_by_hand_over_the_tracks_makes_the_paths(mine):
     click(session, table, Event.MANEUVER)
     table.positions[cfg.nicknames["john"]] = row[5]                  # four free spaces and one step: more than his 2
     click(session, table, Event.END_ACTION)
-    assert john.pos == row[5] and tracks.paths_used(game) == 4
+    assert john.pos == row[5] and tracks.paths_used(game) >= 4      # five edges from row[0] to row[5]: the count stops looking at the four the Hammers need
+
+
+def test_a_maneuver_by_hand_that_ends_where_it_began_counts_the_round_of_a_triangle_of_tracks(mine):
+    session, table, game, fake, cfg = mine
+    from test_john_henry_effects import edges, triangle
+    a, x, y = triangle(game)
+    john, foe = game.fighters["john"], game.fighters["hellboy"]
+    foe.pos = next(s for s in sorted(game.board.spaces, reverse=True) if s not in (a, x, y) and not game.board.share_zone(a, s))
+    table.positions[cfg.nicknames["hellboy"]] = foe.pos
+    john.pos = a
+    table.positions[cfg.nicknames["john"]] = a
+    for s in (a, x, y):
+        table.lay(s)
+    game.fx.tracks[1] = [a, x, y]
+    game.fx.paths = []
+    game.turn, game.actions_left = 1, 2
+    click(session, table, Event.MANEUVER)
+    click(session, table, Event.END_ACTION)                         # the miniature is back where it began: only the ends are seen
+    assert john.pos == a and tracks.paths_used(game) >= 4 and session.maneuver_from is None      # the round and his 2 steps
+
+
+def test_a_maneuver_by_hand_that_walked_away_and_back_is_not_given_a_second_round(mine):
+    session, table, game, fake, cfg = mine
+    row = free_row(game, 3)
+    john, foe = game.fighters["john"], game.fighters["hellboy"]
+    foe.pos = next(s for s in sorted(game.board.spaces, reverse=True) if s not in row and not game.board.share_zone(row[0], s))
+    table.positions[cfg.nicknames["hellboy"]] = foe.pos
+    john.pos = row[0]
+    table.positions[cfg.nicknames["john"]] = row[0]
+    table.lay(row[1])
+    game.fx.tracks[1] = [row[1]]
+    game.fx.paths = []
+    game.turn, game.actions_left = 1, 2
+    click(session, table, Event.MANEUVER)
+    table.positions[cfg.nicknames["john"]] = row[1]
+    session.sync_positions()                                        # a read of the table mid-Maneuver: the walk out is counted
+    walked = list(game.fx.paths)
+    table.positions[cfg.nicknames["john"]] = row[0]
+    click(session, table, Event.END_ACTION)
+    assert walked and john.pos == row[0] and session.maneuver_from is None
+
+
+def test_one_maneuver_read_in_pieces_shares_its_steps(mine):
+    session, table, game, fake, cfg = mine
+    row = free_row(game, 3)
+    john, foe = game.fighters["john"], game.fighters["hellboy"]
+    foe.pos = next(s for s in sorted(game.board.spaces, reverse=True) if s not in row and not game.board.share_zone(row[0], s))
+    table.positions[cfg.nicknames["hellboy"]] = foe.pos
+    john.pos = row[0]
+    table.positions[cfg.nicknames["john"]] = row[0]
+    game.fx.tracks[1] = []
+    game.fx.paths = []
+    game.turn, game.actions_left = 1, 2
+    click(session, table, Event.MANEUVER)
+    table.positions[cfg.nicknames["john"]] = row[1]
+    session.sync_positions()
+    table.positions[cfg.nicknames["john"]] = row[0]
+    session.sync_positions()
+    click(session, table, Event.END_ACTION)
+    assert john.pos == row[0] and tracks.paths_used(game) <= 2, "a Maneuver of 2 steps crosses 2 paths at most"
 
 
 def test_the_four_paths_cancel_the_bots_card_with_the_eighteen_pound_hammer(tmp_path, monkeypatch):
     session, table, game, fake, cfg, client = human_rig(tmp_path, "sinbad", ("Momentous Shift",))
     try:
         put_adjacent(game, table, cfg, "john", "sinbad")
-        game.fx.paths = [90, 91, 92, 93]
+        game.fx.paths = [(90, 91), (91, 92), (92, 93), (93, 94)]
         card = next(c for c in game.players[0].hand if c.title == "Momentous Shift")
         game.fx.turn_start_pos["sinbad"] = -1
         human_hand(table, game, "Eighteen-pound Hammer")
@@ -248,7 +308,7 @@ def test_the_bots_john_henry_walks_over_its_tracks_and_the_paths_are_counted_dur
         return Act("maneuver", fid="john", moves={"john": row[5]}) if g.actions_left == 2 else Act("maneuver", moves={})
     session.ai.plan = plan
     session._bot_continue()
-    assert john.pos == row[5] and seen == [(2, 0), (1, 4)]
+    assert john.pos == row[5] and seen[0] == (2, 0) and seen[1][0] == 1 and seen[1][1] >= 4
 
 
 # ---------------------------------------------------------------- tokens left over from another game

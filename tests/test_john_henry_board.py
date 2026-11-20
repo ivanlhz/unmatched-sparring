@@ -95,3 +95,38 @@ def test_hazard_path_is_unchanged_without_free_spaces(steps):
     bprd = Board.load("bprd-hq")
     bprd.hazards = {edge_key(0, 2): 1, edge_key(0, 3): 2}
     assert bprd.hazard_path(0, 4, 2 + steps) == bprd.hazard_path(0, 4, 2 + steps, free=frozenset())
+
+
+def test_the_paths_of_a_walk_are_its_edges_and_the_cheapest_walk_through_the_most_new_ones_is_taken():
+    assert LINE.edge_route(0, 3, frozenset()) == {edge_key(0, 1), edge_key(1, 2), edge_key(2, 3)}       # no track needed
+    assert LINE.edge_route(3, 0, frozenset()) == LINE.edge_route(0, 3, frozenset())                     # an edge has no direction
+    assert LINE.edge_route(2, 2, frozenset({1})) == frozenset()
+    assert LINE.edge_route(0, 3, frozenset(), blocked=frozenset({2})) == frozenset()
+    board = graph({0: [1, 3], 1: [0, 2], 2: [1, 3], 3: [0, 2]})                                         # a ring of four
+    assert board.edge_route(0, 3, frozenset()) == {edge_key(0, 3)}                                      # the shortcut is the only 1-step walk
+    long_way = {edge_key(0, 1), edge_key(1, 2), edge_key(2, 3)}
+    assert board.edge_route(0, 3, frozenset({1, 2})) == long_way                                        # same cost over the tracks: more edges
+    assert DIAMOND.edge_route(0, 3, frozenset(), known=frozenset({edge_key(0, 1), edge_key(1, 3)})) == {edge_key(0, 2), edge_key(2, 3)}
+
+
+TRIANGLE = graph({0: [1, 2, 3], 1: [0, 2], 2: [0, 1], 3: [0]})          # 0-1-2 a triangle, 3 a tail off 0
+
+
+def test_the_most_paths_go_round_a_loop_of_free_spaces_and_may_end_where_they_began():
+    ring = {edge_key(0, 1), edge_key(1, 2), edge_key(0, 2)}
+    assert TRIANGLE.most_paths(0, 0, frozenset({0, 1, 2}), frozenset(), 0) == ring                       # all free: round for nothing
+    assert TRIANGLE.most_paths(0, 0, frozenset({1, 2}), frozenset(), 0) == frozenset()                    # back onto 0 costs a step
+    assert TRIANGLE.most_paths(0, 0, frozenset({1, 2}), frozenset(), 1) == ring
+    assert TRIANGLE.most_paths(3, 3, frozenset({0, 1, 2}), frozenset(), 1) == ring | {edge_key(0, 3)}     # out, round, back
+    assert TRIANGLE.most_paths(0, 0, frozenset({1, 2}), frozenset({2}), 1) == {edge_key(0, 1)}            # blocked: there and back on one edge
+    assert TRIANGLE.most_paths(0, 1, frozenset(), frozenset(), 0) == frozenset()                          # out of reach
+    assert TRIANGLE.most_paths(0, 0, frozenset({0, 1, 2}), frozenset(), 0, known=ring) == frozenset()     # nothing new
+    assert len(TRIANGLE.most_paths(3, 3, frozenset({0, 1, 2}), frozenset(), 1, cap=2)) >= 2
+
+
+def test_the_most_paths_never_cross_an_edge_to_avoid_and_say_what_they_spend():
+    free = frozenset({0, 1, 2})
+    assert TRIANGLE.most_paths(0, 0, free, frozenset(), 0, avoid=frozenset({edge_key(1, 2)})) == {edge_key(0, 1), edge_key(0, 2)}
+    got, spent = TRIANGLE.most_paths_walk(3, 3, free, frozenset(), 1)
+    assert edge_key(0, 3) in got and spent == 1                                   # back onto the untracked 3: one step
+    assert TRIANGLE.most_paths_walk(0, 1, frozenset(), frozenset(), 0) == (frozenset(), None)

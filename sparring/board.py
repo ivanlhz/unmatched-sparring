@@ -249,6 +249,79 @@ class Board:
         walk(src, 0, (src,), frozenset())
         return best[0]
 
+    def edge_route(self, src: int, dst: int, free: frozenset[int], blocked: frozenset[int] = frozenset(),
+                   known: frozenset[tuple[int, int]] = frozenset()) -> frozenset[tuple[int, int]]:
+        """The paths (edges, as `(low, high)` like the hazards) a walk from src to dst crosses: of the cheapest walks (entering a free
+        space costs nothing, no space twice) the one through the most edges not in `known`, the benefit a table that only shows where the
+        piece started and ended is given (John Henry's "different paths"). Empty when there is no walk or src == dst."""
+        back = self.costs_to(dst, free, blocked)
+        need = back.get(src)
+        if need is None or src == dst:
+            return frozenset()
+        best: list = [None, -1]
+        budget = [20000]
+
+        def walk(node: int, spent: int, seen: tuple[int, ...], edges: frozenset[tuple[int, int]]) -> None:
+            budget[0] -= 1
+            if budget[0] < 0:
+                return
+            if node == dst:
+                gain = len(edges - known)
+                if spent == need and gain > best[1]:
+                    best[0], best[1] = edges, gain
+                return
+            for n in sorted(self.moves[node]):
+                if n in seen or n in blocked or n not in back:
+                    continue
+                c = spent + (0 if n in free else 1)
+                if c + back[n] > need:
+                    continue
+                walk(n, c, seen + (n,), edges | {edge_key(node, n)})
+
+        walk(src, 0, (src,), frozenset())
+        return best[0] or frozenset()
+
+    def most_paths(self, src: int, dst: int, free: frozenset[int], blocked: frozenset[int], budget: int,
+                   known: frozenset[tuple[int, int]] = frozenset(), cap: int | None = None,
+                   avoid: frozenset[tuple[int, int]] = frozenset()) -> frozenset[tuple[int, int]]:
+        """The new paths (edges `(low, high)` not in `known`) of the walk from src to dst, at most `budget` steps (entering a free space
+        costs nothing), that crosses the most of them. Unlike `edge_route` a space may be entered again: a loop over free spaces (a
+        triangle of track tokens) adds its edges for nothing, and src == dst is a walk too. The search stops at `cap` new edges (the
+        rest of the way is then the cheapest one). The edges of `avoid` are never crossed (hazards nobody pays for). Empty when dst
+        cannot be reached within the budget."""
+        return self.most_paths_walk(src, dst, free, blocked, budget, known, cap, avoid)[0]
+
+    def most_paths_walk(self, src: int, dst: int, free: frozenset[int], blocked: frozenset[int], budget: int,
+                        known: frozenset[tuple[int, int]] = frozenset(), cap: int | None = None,
+                        avoid: frozenset[tuple[int, int]] = frozenset()) -> tuple[frozenset[tuple[int, int]], int | None]:
+        """`most_paths` and the steps that walk spends (None: no walk within the budget)."""
+        back = self.costs_to(dst, free, blocked)
+        if back.get(src) is None or back[src] > budget:
+            return frozenset(), None
+        best: list = [frozenset(), None]
+        seen: set = set()
+        stack = [(src, 0, frozenset())]
+        work = 200000
+        while stack and work > 0:
+            work -= 1
+            node, spent, got = stack.pop()
+            if (node, spent, got) in seen:
+                continue
+            seen.add((node, spent, got))
+            if cap is not None and len(got) >= cap:
+                return got, spent + back[node]           # enough: the rest of the way is the cheapest one, its paths not needed
+            if node == dst and (best[1] is None or len(got) > len(best[0])):
+                best[0], best[1] = got, spent
+            for n in sorted(self.moves[node]):
+                if n in blocked or n not in back or edge_key(node, n) in avoid:
+                    continue
+                c = spent + (0 if n in free else 1)
+                if c + back[n] > budget:
+                    continue
+                e = edge_key(node, n)
+                stack.append((n, c, got if e in known else got | {e}))
+        return best[0], best[1]
+
     def costs_to(self, dst: int, free: frozenset[int], blocked: frozenset[int]) -> dict[int, int]:
         """The step cost of the cheapest walk from each space to dst (the reverse of `step_costs`): a step onto a free space costs nothing."""
         cost = {dst: 0}

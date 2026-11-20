@@ -44,7 +44,7 @@ class EffectState:
         self.lost = [0, 0]                               # combats each player lost this turn (Raphael's ANGER ISSUES, Payback time!)
         self.won = [0, 0]                                # combats each player won this turn (Bullseye: "if you already won a combat this turn")
         self.tracks: list[list[int]] = [[], []]          # spaces of each player's track tokens (John Henry's STEEL-DRIVING MAN; sparring/tracks.py)
-        self.paths: list[int] = []                       # the track spaces John Henry entered this turn: his "different paths"
+        self.paths: list[tuple[int, int]] = []           # the paths (edges, (low, high)) John Henry crossed this turn: his "different paths"
         self.attack_credit = 0                           # extra actions of the current turn that only an attack may spend (John Henry's Hear That Cold Steel Ring)
         self.acting: int | None = None                   # player whose effect op is running right now (transient)
         self.parked: list = []                           # EffectRuns of triggers a chooser paused, in firing order (saved)
@@ -298,7 +298,7 @@ class EffectState:
         if any(self.tracks):
             out["tracks"] = [list(side) for side in self.tracks]
         if self.paths:
-            out["paths"] = list(self.paths)
+            out["paths"] = [list(e) for e in self.paths]
         if self.attack_credit:
             out["attack_credit"] = self.attack_credit
         if self.parked:
@@ -322,7 +322,7 @@ class EffectState:
         fx.lost = [int(n) for n in raw.get("lost", [0, 0])]
         fx.won = [int(n) for n in raw.get("won", [0, 0])]
         fx.tracks = [[int(n) for n in side] for side in raw.get("tracks", [[], []])]
-        fx.paths = [int(n) for n in raw.get("paths", [])]
+        fx.paths = [(int(e[0]), int(e[1])) for e in raw.get("paths", []) if isinstance(e, (list, tuple)) and len(e) == 2]   # an old save's track spaces are dropped
         fx.attack_credit = int(raw.get("attack_credit", 0))
         if raw.get("parked"):
             from .run import EffectRun                  # run.py imports the combat flow, which imports the engine
