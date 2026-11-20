@@ -1,1 +1,7 @@
 # path  agent  task  UTC time   (see BRIEF: short locks only)
+sparring/effects/ops_core.py  achilles  register hero  13:42Z
+sparring/effects/state.py  achilles  register hero  13:42Z
+tests/test_heroes.py  achilles  register hero  13:42Z
+tests/test_card_identity.py  achilles  register hero  13:42Z
+tests/test_d1_bot_cards.py  achilles  register hero  13:42Z
+tests/test_effects_schema.py  achilles  register hero  13:42Z
