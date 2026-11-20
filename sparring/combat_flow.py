@@ -386,13 +386,17 @@ class CombatFlow:
             self.game.damage(f, k, "combat")
         if self.game.winner is not None and victim.hero and self._defers_defeat(victim):
             self.game.winner, self.deferred_loss = None, victim.owner     # the AFTER effects may bring the hero back
-        result.atk_value, result.def_value, result.damage, result.attacker_won = ctx.atk_value, ctx.def_value, damage, damage >= 1
+        # Iván 2026-11-20 (W3): the attacker wins only if the DEFENDING fighter took combat damage; damage sent to the attacker
+        # (Golden Chain Mail) is taken by the attacker, so the defender won. Damage that stays on the defender's side (Archers,
+        # Koschei) still counts as a hit.
+        hit = damage >= 1 and victim.owner != self.att.owner
+        result.atk_value, result.def_value, result.damage, result.attacker_won = ctx.atk_value, ctx.def_value, damage, hit
         if self.win_cancels:
             from .effects.ops_combat import settle_win_cancels
             settle_win_cancels(self)
         result.cancelled = set(ctx.cancelled)
         result.cancelled_after = set(ctx.cancelled_after)
-        loser = self.tgt if damage >= 1 else self.att       # a tie is lost by the attacker (the engine's "won")
+        loser = self.tgt if hit else self.att       # a tie is lost by the attacker (the engine's "won")
         if self.second is None:                             # the card's combat is counted once
             self.game.fx.emit("combat_lost", loser.owner, loser)
 

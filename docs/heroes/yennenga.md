@@ -74,6 +74,7 @@ Every item that is a real doubt is also under "Pending Ivan".
 - **Area damage**: damage is always dealt to the sidekicks first; if they survive, Yennenga may then redirect her damage to them or take it. This confirms the reading applied: an Archer's share leaves room for the hit the same effect deals that Archer, so no point is lost on a fighter the effect already killed.
 
 ## Pending Ivan
+0. **Archers' share and who "won"** (the W3 ruling of 2026-11-20, docs/heroes/sun-wukong.md: the attacker wins only if the DEFENDING fighter took the combat damage): when Yennenga defends and her Archers take their share of the blow, has she "taken" it? Today `attacker_won` stays true whenever the blow landed on her side (Archers included), exactly as before the ruling; nothing was changed for this case.
 1. **Damage taken**: should an effect that reads "the damage you took" (Luke Cage's Skin Like Titanium against her) see the whole blow or only what landed on Yennenga? (Today the whole blow.)
 2. **Surprise Volley** returns the Archer with its starting 2 life: confirm. And whether the Archer that returns may be one that fell THIS turn (today yes).
 3. **Rain of Arrows**: how the second attack interacts with her ability, boosts and bonuses (the double-attack rulings pending in docs/combat-flow.md): today the second attack is a combat of its own against the same defender, so the question of the Archers' share is asked again for it.

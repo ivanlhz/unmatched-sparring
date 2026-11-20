@@ -47,7 +47,7 @@ His deck is sheet 176 like Medusa's, the turtles', Doctor Strange's, Eredin's an
 2. **The ability's 1 damage is effect damage on himself** and can defeat him at 1 health (the card does not forbid it). The bot never does it (the floor).
 3. **Sly Monkey** summons only when Sun Wukong (not a Clone) played the card, and the Clone appears on his current space for that instant (`empty: false`); he is then placed on an empty space of his zone, so the space he stood on is the Clone's. With three Clones already out one of them is repositioned to his space (the owner chooses which; the human moves the Clone and Wukong by hand, End action reads both) and he is placed (Ivan 2026-11-20, W5); with no empty space in his zone nobody moves. He may be placed on the space he already holds only when no Clone took it.
 4. **Bewilderment** prevents combat damage to both fighters of the combat; its placement is optional (a "may") and goes to any empty space; a Clone that plays it is placed instead of Sun Wukong ("your fighter").
-5. **Golden Chain Mail**: the damage goes to the attacker whatever its range; effect damage is not redirected; the attacker "won" the combat as far as the turn's tally goes when the damage was 1 or more (the engine counts the damage, not who took it).
+5. **Golden Chain Mail**: the damage goes to the attacker whatever its range; effect damage is not redirected; the defender WON the combat and the attacker lost it (Ivan 2026-11-20, W3: see Decided below), because the damage is taken by the attacker; the attacker's "if you lost" effects fire (Hellboy's Confront Any Demon or God looks at the hand and discards).
 6. **Ox Form and Tortoise Form** (Ox Form: DURING, Ivan 2026-11-20 W6): one free BOOST, after the booster's own DURING, from the booster's hand, like Houdini's An Illusion Of My Own Design (docs/heroes/houdini.md). A cancelled side gets none.
 7. **Taunting Laughter**: with no opponent card there is nothing to ignore and nothing is asked; a rival with an empty hand cannot pay, so the value is ignored.
 8. **Infinite Strikes**: "other friendly fighter" excludes only the fighter that plays the card, so a Clone attacking counts Sun Wukong when he stands next to the target.
@@ -57,10 +57,12 @@ His deck is sheet 176 like Medusa's, the turtles', Doctor Strange's, Eredin's an
 12. **A card played to defend is a defense card** for Ruyi Jingo Bang (a versatile card played as a defense counts).
 13. **The human's ability** is a yes/no on the panel at the start of the turn (the first turn too); on yes the dial loses 1 and the human puts a Clone from the bag on an empty adjacent space; the next End action reads it from the table.
 
+## Decided (Ivan 2026-11-20)
+- **W3, who wins when the damage is redirected**: "won / lost the combat" depends on WHO TOOK the combat damage. The attacker wins only if the defending fighter took combat damage; otherwise the defender wins. With Golden Chain Mail the damage lands on the attacker, so the defender wins and the attacker lost (live case: bot Hellboy's Confront Any Demon or God, total 5 against Golden Chain Mail 4: Wukong took 0, Hellboy 1, so Confront's "if you lost" must fire). Implemented in `CombatFlow._damage` (`attacker_won`), read by `won_by`, the `combat_result` test, the `combat_lost` tally and the second attack of a double attack. Tests: `tests/test_combat_winner_redirect.py`.
+
 ## Pending Ivan
 1. **Do defeated Clones come back?** (rule decision 1). Alternative: a defeated Clone is gone for good and "up to 3 Clones" is the lifetime supply.
 2. **May the ability kill him?** (decision 2). Alternative: it cannot be used with 1 health.
-3. **Golden Chain Mail and who "won"** (decision 5): with the damage on the attacker, does the attacker still win the combat for "won the combat" effects?
 4. Bewilderment: Ivan confirmed the printed "combat damage" (2026-11-20, W4); reading unchanged.
 6. **The double-attack points** (boost of the second attack, "won/lost", Ruyi Jingo Bang when the first defense is cancelled) are the double-attack agent's list in docs/combat-flow.md.
 7. **The first turn**: the ability is offered at the start of the very first turn like any other (Wukong may open with a Clone).

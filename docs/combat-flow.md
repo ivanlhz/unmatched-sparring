@@ -231,6 +231,9 @@ ends the first combat as always (result, discards, dials) and, if `flow.second_d
 - Not modelled: that the rival's first defense may be a Feint (it would stop the second part): the defense distribution carries values only.
 
 
+### Who wins the combat (Ivan 2026-11-20, W3)
+`CombatResult.attacker_won` is true only if the blow was 1 or more AND the fighter that took it is not on the attacker's side: damage redirected to the attacker (Sun Wukong's Golden Chain Mail) makes the defender the winner. Damage that stays on the defender's side (Yennenga's Archers, Baba Yaga's Koschei) still counts as a hit, pending Ivan (docs/heroes/yennenga.md). `won_by`, the `combat_result` condition, the `combat_lost` event and each combat of a double attack read it. A tie stays with the defender.
+
 ### Damage assignment (Yennenga, docs/heroes/yennenga.md)
 
 Her ability lets her owner hand part of the damage meant for her to the Archers in her zone. The combat damage is therefore decided in two steps:
