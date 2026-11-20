@@ -9,7 +9,7 @@ from __future__ import annotations
 from sparring.tts.ui import Event
 from test_batch import click
 from test_d3_table_effects import card_ids, human_attack, human_hand, said
-from test_e2_human_cards import bot_defends_with, bot_defends_with_nothing, by_hand, press, put_adjacent, rig, with_rig  # noqa: F401
+from test_e2_human_cards import bot_defends_with, bot_defends_with_nothing, by_hand, labels, press, put_adjacent, rig, with_rig  # noqa: F401
 
 HAND = ("Excalibur", "B.P.R.D. Training", "Service Pistol", "Right Hand Of Doom")
 TRAINING = "B.P.R.D. Training"        # Hellboy's defense of value 3
@@ -234,3 +234,33 @@ def test_taunting_laughter_the_bot_decides_whether_to_discard_and_the_value_foll
     hp = game.fighters["hellboy"].hp
     assert hp in (18, 18 - 3), (hp, msgs)        # the bot paid a card (its 3 ties the 3: no damage) or declined (its value is ignored: 3 damage)
     assert session.pending is None
+
+
+def bot_taunts(rig):
+    """The bot's Sun Wukong, next to Hellboy, attacks with Taunting Laughter; the human defends with B.P.R.D. Training (3)."""
+    session, table, game, fake, cfg = rig
+    h = game.fighters["hellboy"]
+    spot = next(s for s in sorted(game.board.adj[h.pos]) if all(f.pos != s for f in game.fighters.values() if f.alive))
+    game.fighters["wukong"].pos = spot
+    table.positions[cfg.nicknames["wukong"]] = spot
+    human_hand(table, game, TRAINING, "Excalibur", "Service Pistol", "Glimpse Of Hell", "Right Hand Of Doom")
+    return bot_attacks(session, table, game, "Taunting Laughter", "wukong", "hellboy", TRAINING)
+
+
+@with_rig("sun-wukong", "hellboy", *BOT_HAND)
+def test_the_bots_taunting_laughter_asks_the_human_to_discard_or_lose_the_value_of_their_card(rig):
+    session, table, game, fake, cfg = rig
+    msgs = bot_taunts(rig)
+    assert session.effect_run.awaiting.kind == "optional" and session.effect_run.awaiting.extra["cost_cards"] == 1
+    assert said(msgs, "Taunting Laughter") and said(msgs, "Your opponent may discard 1 card from their hand"), msgs
+    press(session, table, False)
+    assert game.fighters["hellboy"].hp == 18 - 3 and session.effect_run is None      # declined: the 3 of Training is ignored, the attack of 3 lands
+
+
+@with_rig("sun-wukong", "hellboy", *BOT_HAND)
+def test_paying_the_card_keeps_the_value_of_the_humans_defense(rig):
+    session, table, game, fake, cfg = rig
+    bot_taunts(rig)
+    msgs = press(session, table, True)
+    assert session.effect_run is None or session.effect_run.awaiting.kind != "optional", msgs
+    assert game.fighters["hellboy"].hp == 18                                         # the 3 ties the 3: the defender wins, nothing lands
