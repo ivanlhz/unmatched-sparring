@@ -426,6 +426,8 @@
     "properties": {"op": {"const": "allow_boost"}, "card": {"$ref": "#/$defs/CardRef"}}},
    {"type": "object", "additionalProperties": false, "required": ["op"],
     "properties": {"op": {"const": "consider_won"}}},
+   {"type": "object", "additionalProperties": false, "required": ["op", "amount"],
+    "properties": {"op": {"const": "second_attack"}, "amount": {"$ref": "#/$defs/Amount"}}},
    {"type": "object", "additionalProperties": false, "required": ["op", "card"],
     "properties": {"op": {"const": "lock_value"}, "card": {"$ref": "#/$defs/CardRef"}}},
    {"type": "object", "additionalProperties": false, "required": ["op", "target"],

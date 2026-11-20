@@ -287,6 +287,11 @@ class Semantics:
                 self.modifier(m, f"{path}.invention.modifiers[{i}]", _Ctx({}, set()))
             for i, t in enumerate(invention["triggers"]):
                 self.trigger(t, f"{path}.invention.triggers[{i}]")
+        for moment in ("immediately", "during", "scheme", "boost"):
+            if any(op["op"] == "second_attack" for op in _walk(card["effects"][moment])):
+                self.errors.append(f"{path}: second_attack is an AFTER COMBAT effect, it only goes in 'after'")
+        if self.hero and self.hero_cards.get(card["title"], {}).get("type") == "defense"                 and any(op["op"] == "second_attack" for op in _walk(card["effects"]["after"])):
+            self.errors.append(f"{path}: second_attack needs a card that can attack")
         if card.get("may_boost"):
             for op in _walk(card["effects"]["during"]):
                 if op["op"] == "boost" and op["card"] == "this":

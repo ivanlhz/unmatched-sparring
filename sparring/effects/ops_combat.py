@@ -151,6 +151,16 @@ def _boost(run, game, spec):
     modifiers.add_value(flow, side, top.boost, t("cf.boost_impulse", title=top.title))
 
 
+@op("second_attack")
+def _second_attack(run, game, spec):
+    """DOUBLE ATTACK (docs/effects-dsl.md section 45): the card's second part, an AFTER effect. It only records the value (computed now,
+    so a printed value read from the rival's card is the one of this combat); the flow plays the second attack once the AFTER effects of
+    both sides are done. A card played as a defense has no second attack."""
+    if run.ctx.played_as != "attack":
+        return
+    _flow(run, "second_attack").second_attack = {"value": max(0, int(amount(game, run, spec["amount"]))), "card": run.ctx.card_id}
+
+
 @op("consider_won")
 def _consider_won(run, game, spec):
     """"You are considered to have won this combat" (Bullseye's Arrogant But Effective), at the card's AFTER: the owner's side
