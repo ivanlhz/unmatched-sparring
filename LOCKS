@@ -17,3 +17,4 @@ data/i18n/es.json  yennenga  register hero + strings  14:30Z
 README.md  yennenga  register hero + strings  14:30Z
 tests/test_piece_identity.py  yennenga  register hero + strings  14:30Z
 tests/test_d3_table_effects.py  wukong  harness: a reserve fighter has no table position  13:57Z
+sparring/tts/lua.py  yennenga  raise MAX_HERO_RANGES/GUIDS (the roster passed the spare of 8)  14:40Z
