@@ -70,7 +70,7 @@ from .guard import guard_dest, hero_shielded, path_steps
 from .effects.model import walk_ops
 from .effects.modifiers import boost_limit, card_effects, defers_defeat, is_uncancelable
 from .ai_profile import FINISHER_BOOSTS, STYLE_HIT_AND_RUN, derive_style
-from . import ai_achilles, ai_chupacabra as chupa_ai, ai_philippa, ai_rosie, ai_sinbad, ai_washington, ai_wyatt, tracks
+from . import ai_achilles, ai_chupacabra as chupa_ai, ai_double, ai_philippa, ai_rosie, ai_sinbad, ai_washington, ai_wyatt, tracks
 from .ai_sinbad import own_value as sinbad_own_value, voyage_count, voyage_extra
 from .effects.select import defeated
 from .state import ANUNG, EXHAUST_DAMAGE, Fighter, Game
@@ -841,7 +841,7 @@ class MedusaAI(Controller):
     # ---------- planning ----------
     def plan(self, game: Game) -> Act:
         act = self._plan(game)
-        decision_log.emit(self, game, "plan", lambda: self.plan_journal(act))
+        decision_log.emit(self, game, "plan", lambda: {**self.plan_journal(act), **ai_double.journal_note(game, self.me, act)})
         return act
 
     def plan_journal(self, act: Act) -> dict:
@@ -1165,7 +1165,9 @@ class MedusaAI(Controller):
             cost -= INVENTION_PLAY
         e_net = p_win = p_kill = gaze_dmg = 0.0
         ignore = self.ignores_defense(game, f, t, c)
-        for p, dv in model.defense_dist(t):
+        dist = model.defense_dist(t)
+        double = ai_double.has_second(game, f.owner, c)
+        for p, dv in dist:
             net = game.combat_damage_taken(t, max(0.0, atk - (0 if ignore else (dv or 0))))     # Luke Cage: 2 less
             won = net >= 1
             e_net += p * min(net, t.hp)
@@ -1173,6 +1175,10 @@ class MedusaAI(Controller):
             extra = min(GAZE_DAMAGE, max(0.0, t.hp - net)) if (c.title == "Gaze of Stone" and won) else 0.0
             gaze_dmg += p * extra
             p_kill += p * (net + extra >= t.hp)
+            if double:                  # DOUBLE ATTACK: the second part, against what is left of the target and a new defense
+                second_dmg, second_kill = ai_double.second_part(game, f, t, c, dv, min(net, t.hp), dist)
+                e_net += p * second_dmg
+                p_kill += p * second_kill
         w = weight(t)
         value = w * (e_net + gaze_dmg) - cost + effects
         if p_kill > 0:      # the kill prize is only looked up when the blow can kill (it scans both decks)
@@ -1853,26 +1859,41 @@ class MedusaAI(Controller):
                 best, best_gain = c, gain
         return best
 
+    def second_defense_choice(self, game: Game, attacker: Fighter, target: Fighter, value: int, card: Card):
+        """DOUBLE ATTACK: the card (or None) that defends the second part of `card`, worth exactly `value` (the attacker's passives on top)."""
+        self._defense_scores = []
+        return self._choose_defense(game, attacker, target, card, second=value)
+
+    def choose_second_defense(self, game: Game, attacker: Fighter, target: Fighter, value: int, card: Card):
+        chosen = self.second_defense_choice(game, attacker, target, value, card)
+        decision_log.emit(self, game, "defense", lambda: self.defense_journal(attacker, target, card, chosen, second=value))
+        return chosen
+
     def choose_defense(self, game: Game, attacker: Fighter, target: Fighter, attack_card: Card | None = None):
         self._defense_scores = []
         card = self._choose_defense(game, attacker, target, attack_card)
         decision_log.emit(self, game, "defense", lambda: self.defense_journal(attacker, target, attack_card, card))
         return card
 
-    def defense_journal(self, attacker: Fighter, target: Fighter, attack_card: Card | None, card: Card | None) -> dict:
+    def defense_journal(self, attacker: Fighter, target: Fighter, attack_card: Card | None, card: Card | None,
+                        second: int | None = None) -> dict:
         title = None if card is None else card.title
         scores = [{**s, **({"chosen": True} if s["move"][1] == title else {})} for s in sorted(self._defense_scores, key=lambda s: -s["score"])]
-        chosen = {"card": title, "attacker": attacker.fid, "target": target.fid, "attack_known": None if attack_card is None else attack_card.title}
+        chosen = {"card": title, "attacker": attacker.fid, "target": target.fid, "attack_known": None if attack_card is None else attack_card.title,
+                  **({"second_attack": second} if second is not None else {})}
         return {"chosen": chosen, "alternatives": scores, "expected": next((s["score"] for s in scores if s.get("chosen")), None)}
 
-    def _choose_defense(self, game: Game, attacker: Fighter, target: Fighter, attack_card: Card | None = None):
+    def _choose_defense(self, game: Game, attacker: Fighter, target: Fighter, attack_card: Card | None = None, second: int | None = None):
         """`attack_card`: the attack played face up (UNCANNY INTUITION, Perfect Shot): the one card the defense may
         know; otherwise the value is the distribution of what the rival may have committed."""
         model = Model(game, self.me)
         hand = game.players[self.me].hand
         self._attacker, self._defender = attacker, target
         try:
-            if attack_card is not None:
+            if second is not None:            # the second part of a double attack: its value is known and the card has no effects left
+                dist = [(1.0, second + game.attack_bonus(attacker, target))]
+                self._attack_harm = self._attack_harm_fixed = {}
+            elif attack_card is not None:
                 dist = [(1.0, (attack_card.value or 0) + game.attack_bonus(attacker, target))]
                 self._attack_harm = {dist[0][1]: attack_harm(attack_card)}
                 self._attack_harm_fixed = {dist[0][1]: uncancelable_harm(game, attack_card, attacker.owner)}

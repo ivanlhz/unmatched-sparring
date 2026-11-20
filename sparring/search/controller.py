@@ -16,7 +16,7 @@ import random
 import time
 from dataclasses import replace
 
-from .. import decision_log, enraged, tracks
+from .. import ai_double, decision_log, enraged, tracks
 from ..ai_medusa import GAZE, Act, MedusaAI, scheme_fighter
 from ..cards import Card
 from ..combat import is_medusa_card
@@ -112,7 +112,8 @@ class IsmctsMedusa(Controller):
             act = self.heuristic.plan(game)
             decision_log.emit(self, game, "plan", lambda: {**self.heuristic.plan_journal(act), "fallback": True, "error": repr(exc)})
             return act
-        decision_log.emit(self, game, "plan", lambda: self._search_journal(decision_log.describe_act(act), before))
+        decision_log.emit(self, game, "plan", lambda: self._search_journal(
+            {**decision_log.describe_act(act), **ai_double.journal_note(game, self.me, act)}, before))
         return act
 
     def _search_journal(self, chosen, before: SearchReport | None) -> dict:
@@ -158,6 +159,14 @@ class IsmctsMedusa(Controller):
             report.move = line[0]
         report.elapsed = time.perf_counter() - started
         return self.to_act(game, line)
+
+    def choose_second_defense(self, game: Game, attacker: Fighter, target: Fighter, value: int, card: Card) -> Card | None:
+        """DOUBLE ATTACK: the second part's value is public, so there is nothing to sample: the heuristic's own choice against that exact
+        value (the search would only re-play the first part). The journal says so."""
+        chosen = self.heuristic.second_defense_choice(game, attacker, target, value, card)
+        decision_log.emit(self, game, "defense", lambda: {**self.heuristic.defense_journal(attacker, target, card, chosen, second=value),
+                                                          "via": "heuristic (exact second-attack value)"})
+        return chosen
 
     def choose_defense(self, game: Game, attacker: Fighter, target: Fighter, attack_card: Card | None = None) -> Card | None:
         before = self.last_report

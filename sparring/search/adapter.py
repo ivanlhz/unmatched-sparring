@@ -41,7 +41,7 @@ from dataclasses import dataclass, field, replace
 from functools import lru_cache
 from math import comb, fsum, prod, sqrt
 
-from .. import ai_achilles, enraged, pack, tracks
+from .. import ai_achilles, ai_double, enraged, pack, tracks
 from ..ai_hazards import zone_cover_factor, zone_damage, zone_exposed
 from ..ai_medusa import (ATTACKS_PER_TURN, DRAWS_PER_TURN, GAZE, LONG_GAME, MIN_NET, beside_stake, boost_effect_value, bot_may_spend,
                          can_use, discard_cut, exhaustion_owed, held_for_plan, maneuver_may_spend, play_signature, scheme_fighter)
@@ -434,6 +434,10 @@ class SearchController(Controller):
             if gain > best_gain:
                 best, best_gain = c, gain
         return best
+
+    def choose_second_defense(self, game: Game, attacker: Fighter, target: Fighter, value: int, card):
+        """DOUBLE ATTACK in a rollout: the defender spends the card that spares the most for what it is worth (`ai_double.greedy_defense`)."""
+        return ai_double.greedy_defense(game, game.players[target.owner].hand, attacker, target, value, card_worth)
 
     def choose_discard(self, game: Game, player: int, n: int, reason: str):
         return discard_cut(game, player, game.players[player].hand, card_worth, n)

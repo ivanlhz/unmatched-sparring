@@ -212,3 +212,19 @@ ends the first combat as always (result, discards, dials) and, if `flow.second_d
   refused), `_resolve_combat` builds `CombatFlow(..., second=value)` (`_second_flow`) instead of `begin_attack` (no action, no `attacked` event), Cancel says the
   card is played and the second part cannot be taken back, and the flow ends in `_after_combat` like any other (a second attack never starts a third).
 - Chat strings: `second.*`, `cancel.second_attack`, `err.second_no_card`, `cf.second_attack`, `narr.second_attack` (English in en.json, Spanish in es.json).
+
+### Double attack in the AIs (`sparring/ai_double.py`)
+
+- **Reading the data**: `has_second` / `second_value(game, owner, card, defense_value)` evaluate the card's AFTER ops for a given printed value of the rival's card
+  (None: no card): a plain amount, the `if test: card on opponent_card` of Wukong ("the rival defended"), the `{attr: value, of: opponent_card}` of Bloody Requiem. Any other
+  condition counts as not met, so an unknown card is never overvalued.
+- **Heuristic, attacking**: `attack_outcome` adds `second_part` to the expected damage and the kill chance of every defense value the rival may answer the first part with:
+  the damage left in the target after the first part, against a new defense drawn from the same distribution; both parts count for the value of the act.
+- **Heuristic, defending**: `MedusaAI.choose_second_defense` is `_choose_defense(second=value)`: the value is exact (plus the attacker's passives), the attacker's card has no effects
+  left, so there is nothing to sample.
+- **Search**: the rollouts play the second attack through the engine (`resolve_combat`); the defender of the rollout is `SearchController.choose_second_defense`, the card that spares the
+  most damage for what it is worth (`greedy_defense`). Live, `IsmctsMedusa.choose_second_defense` decides with the heuristic's exact-value choice (a search would only replay the first part).
+- **Decision log**: the `plan` line of an attack with a double-attack card has `chosen.second_attack.value` (against no defense, a defense of 2 and of 4); the `defense` line of a second
+  part has `chosen.second_attack` (its value) and, for the search, `via: "heuristic (exact second-attack value)"`.
+- Not modelled: that the rival's first defense may be a Feint (it would stop the second part): the defense distribution carries values only.
+
