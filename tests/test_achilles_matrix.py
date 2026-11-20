@@ -10,12 +10,13 @@ from __future__ import annotations
 
 import pytest
 
+from sparring.heroes import available_heroes
 from sparring.tts.ui import Event
 from test_d3_table_effects import build, set_hand
 from test_donatello_session import SPOTS, AsideTable
 from test_tmnt_matrix import HERO_HP, MAX_STEPS, AttackDriver, human_step
 
-OTHERS = ["medusa", "hellboy", "abe-sapien", "baba-yaga", "liz-sherman", "leonardo", "donatello", "michelangelo", "raphael", "doctor-strange", "houdini", "bigfoot", "daredevil", "luke-cage", "bullseye", "golden-bat", "jill-trent", "she-hulk", "tomoe-gozen", "sinbad", "eredin", "ciri", "yennefer-triss", "triss-yennefer", "chupacabra", "philippa", "raptors", "wyatt-earp", "john-henry", "george-washington", "rosie-the-riveter"]
+OTHERS = [h for h in available_heroes() if h != "achilles"]
 PAIRS = [("achilles", h) for h in OTHERS] + [(b, "achilles") for b in OTHERS]
 IDS = [f"{b}-vs-{h}" for b, h in PAIRS]
 
