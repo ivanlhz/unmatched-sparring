@@ -1,5 +1,18 @@
 # Changelog
 
+## 0.9.1 · 2026-11-20
+
+Changes since 0.9.0.
+
+### John Henry
+- **"Paths" are the connections between spaces** (Ivan, 20/11): the Hammers' "at least 4 different paths this turn" counts the distinct edges John Henry crossed while moving, in either direction and with or without track tokens on them. Before, it counted the track spaces he entered.
+- The table (and the bot's move) only shows where he began and ended, so the engine credits the walk within his steps that crosses the most paths. A space may be entered again, so going round a loop of track spaces (a triangle of tokens) counts even when he ends on the space he began on.
+- The human's Maneuver is settled at End action: every space a read of the table saw him on is a waypoint of one walk, with all the steps of the Maneuver (a boost card in the pile counts even if it is read later).
+- A John Henry who cannot move (Burning Barrier) uses no paths, and a hazard edge is only part of the credited walk once he has paid a hazard this turn.
+
+### Fixes
+- The attacker's AFTER effect waits for the human defender's move by hand (live 20/11, Right Hand Of Doom against Power Through): when the bot's next AFTER reads the board, End action reads the table first and the bot's effect runs on where the fighters really stand.
+
 ## 0.9.0 · 2026-11-19
 
 Changes since 0.8.0.
