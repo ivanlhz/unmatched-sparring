@@ -266,8 +266,8 @@ def test_the_day_of_your_doom_can_kill_patroclus_and_costs_the_cards(bprd):
     g.controllers[0].queue = [[True]]
     res = g.attack(patroclus, hellboy, give(g, 0, "The Day of Your Doom"), None)
     assert not patroclus.alive
-    assert len(g.players[0].hand) == 5 - 1 - 2
-    assert res.damage in (0, 5)
+    assert res.damage == 5 and hellboy.hp == hellboy.max_hp - 5            # the 5 of the paid Doom lands, the fall did not undo it
+    assert len(g.players[0].hand) == 4 - 2                                  # four cards held, the Doom played, two thrown away at random
 
 
 def test_battle_frenzy_hurts_both_fighters_of_the_combat(bprd):
@@ -457,3 +457,47 @@ def test_achilles_defending_a_double_attack_draws_for_the_second_combat_he_wins(
     res = g.attack(hellboy, achilles, give(g, 1, "Horseshoes And Hand Grenades"), None)
     assert res.attacker_won and res.second is not None and not res.second.attacker_won     # lost the open first part, won the second with the 4
     assert len(g.players[0].hand) == 1                                                       # the heel left the hand, one card drawn
+
+
+# ---------------------------------------------------------------- the AI's estimate of the next attack (Game.attack_bonus)
+
+def test_the_ai_estimate_of_an_attack_counts_the_vengeance(bprd):
+    g = mk(bprd)
+    achilles, hellboy = pair(g, "achilles", "hellboy")
+    patroclus = g.fighters["patroclus"]
+    assert g.attack_bonus(achilles, hellboy) == 0
+    fall(g)
+    assert g.attack_bonus(achilles, hellboy) == 2 and g.attack_bonus(achilles) == 2
+    assert g.attack_bonus(g.fighters["hellboy"], achilles) == 0 and not patroclus.alive
+
+
+# ---------------------------------------------------------------- Blessed By Hermes and Skirmish
+
+def test_blessed_by_hermes_moves_both_fighters_up_to_three_through_enemies(bprd):
+    g = mk(bprd)
+    achilles, hellboy = pair(g, "achilles", "hellboy")
+    patroclus = g.fighters["patroclus"]
+    seen = []
+    g.controllers[0].queue = [lambda req: seen.append(req) or [req.options[-1]] for _ in range(4)]
+    start = (achilles.pos, patroclus.pos)
+    g.attack(achilles, hellboy, give(g, 0, "Blessed By Hermes"), None)
+    moved = {r.extra["fighter"] for r in seen if r.kind == "space"}
+    assert moved == {"achilles", "patroclus"} and all(r.extra.get("through") is True for r in seen if r.kind == "space")
+    assert all(r.extra["steps"] == 3 for r in seen if r.kind == "space")
+    assert (achilles.pos, patroclus.pos) != start
+
+
+def test_skirmish_moves_one_fighter_of_the_combat_only_when_the_combat_was_won(bprd):
+    g = mk(bprd)
+    achilles, hellboy = pair(g, "achilles", "hellboy")
+    seen = []
+    g.controllers[0].queue = [lambda req: seen.append(req) or [req.options[-1]] for _ in range(3)]
+    g.attack(achilles, hellboy, give(g, 0, "Skirmish"), None)
+    spaces = [r for r in seen if r.kind == "space"]
+    assert spaces and spaces[0].extra["steps"] == 2 and spaces[0].extra["fighter"] in ("achilles", "hellboy")
+    g2 = mk(bprd)
+    ach, hell = pair(g2, "achilles", "hellboy")
+    seen2 = []
+    g2.controllers[0].queue = [lambda req: seen2.append(req) or [req.options[-1]] for _ in range(3)]
+    g2.attack(ach, hell, give(g2, 0, "Skirmish"), give(g2, 1, "B.P.R.D. Training"), values=(-2, 0))    # a lost combat: nothing moves
+    assert not [r for r in seen2 if r.kind == "space"]

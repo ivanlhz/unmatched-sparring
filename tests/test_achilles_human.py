@@ -5,6 +5,8 @@ His deck is sheet 176 like Medusa's, the turtles' and the other decks of the ran
 human's deck."""
 from __future__ import annotations
 
+import pytest
+
 from sparring.ai_medusa import Act
 from sparring.tts.ui import Event
 from test_batch import click
@@ -200,3 +202,45 @@ def test_winning_both_parts_of_test_for_weakness_draws_two_at_the_table(rig, mon
     msgs += click(session, table, Event.REVEAL)
     assert game.fighters["hellboy"].hp == hp - 3 - 5, msgs               # 1+2 then 3+2, both undefended
     assert sum("robas 1" in m for m in msgs) == 2, msgs
+
+
+# ---------------------------------------------------------------- save and resume with a question open
+
+def resumed(session):
+    """What --resume does: the saved session is loaded again and the paused effect is the same question."""
+    session._restore(session.to_dict())
+    return session._paused()[2] if session.effect_run is None else session.effect_run
+
+
+@with_rig("hellboy", "achilles", "Excalibur", TRAINING)
+@pytest.mark.parametrize("answer", [True, False])
+def test_under_achilles_helm_survives_a_resume_and_either_answer(rig, answer):
+    session, table, game, fake, cfg = rig
+    put_adjacent(game, table, cfg, "hellboy", "achilles")
+    patroclus, achilles = game.fighters["patroclus"], game.fighters["achilles"]
+    far = next(s for s in sorted(game.board.spaces, reverse=True) if all(f.pos != s for f in game.fighters.values() if f.alive))
+    patroclus.pos = far
+    table.positions[cfg.nicknames["patroclus"]] = far
+    human_hand(table, game, "Under Achilles' Helm", "Feint")
+    bot_attacks(session, table, game, "Excalibur", "achilles", "Under Achilles' Helm")
+    assert session.effect_run.awaiting.kind == "optional"
+    assert resumed(session).awaiting.kind == "optional"
+    press(session, table, answer)
+    patroclus, achilles = session.game.fighters["patroclus"], session.game.fighters["achilles"]          # the resume rebuilt the game
+    assert (patroclus.hp == 6 - 4) is answer and (achilles.hp == 18 - 4) is (not answer)
+
+
+@with_rig("hellboy", "achilles", TRAINING)
+@pytest.mark.parametrize("answer", [True, False])
+def test_the_day_of_your_doom_question_survives_a_resume_and_either_answer(rig, monkeypatch, answer):
+    session, table, game, fake, cfg = rig
+    put_adjacent(game, table, cfg, "hellboy", "patroclus")
+    bot_defends_with_nothing(session, monkeypatch)
+    human_hand(table, game, "The Day of Your Doom", "Feint")
+    hp = game.fighters["hellboy"].hp
+    attack(session, table, game, "patroclus", "The Day of Your Doom")
+    assert session.effect_run.awaiting.kind == "optional"
+    assert resumed(session).awaiting.kind == "optional"
+    press(session, table, answer)
+    game = session.game
+    assert game.fighters["patroclus"].hp == (4 if answer else 6) and game.fighters["hellboy"].hp == hp - (5 if answer else 3)
