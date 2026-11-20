@@ -23,6 +23,7 @@ from ..combat import is_medusa_card
 from ..controller import Controller
 from ..state import Fighter, Game
 from .adapter import EngineState, EvalWeights, hero_weights, Knowledge, by_title, plan_frenzy, sidekick_plan
+from .defense import settle
 from .plans import compare_plans
 from .ismcts import ISMCTS, SearchConfig, SearchReport
 
@@ -187,7 +188,8 @@ class IsmctsMedusa(Controller):
                                 before: SearchReport | None) -> dict:
         chosen = {"card": None if card is None else card.title, "attacker": attacker.fid, "target": target.fid,
                   "attack_known": None if attack_card is None else attack_card.title,
-                  **({"double_attack_cards_possible": titles} if (titles := ai_double.possible_double_titles(game, attacker.owner)) else {})}
+                  **({"double_attack_cards_possible": titles} if (titles := ai_double.possible_double_titles(game, attacker.owner)) else {}),
+                  **({"combat_ledger": self.last_report.ledger} if self.last_report is not before and self.last_report.ledger else {})}
         return self._search_journal(chosen, before)
 
     def _choose_defense(self, game: Game, attacker: Fighter, target: Fighter, attack_card: Card | None) -> Card | None:
@@ -197,6 +199,7 @@ class IsmctsMedusa(Controller):
         if root.pending is None:              # the attack known (face up) and no defense card: the root resolved it
             return None
         move = self._decide(root)[0]
+        move = settle(root, self.last_report, move, self.config.seed)
         return by_title(game.players[self.me].hand, move[1]) if move[1] is not None else None
 
     def to_act(self, game: Game, chosen: list) -> Act:

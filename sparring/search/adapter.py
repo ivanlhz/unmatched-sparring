@@ -770,6 +770,23 @@ class EngineState:
             card = rng.choice(legal)
         self.pending = (self.pending[0], self.pending[1], card)
 
+    def commit(self, card: Card) -> None:
+        """In this determinization the face-down attack is `card` (the defense ledger fights every card the rival may have played,
+        `defense.ledger`): if the hand dealt does not hold it, it takes the place of the card sampled as played, or of another one
+        that is not known to be there."""
+        attacker = self.game.fighters[self.pending[0]]
+        st = self.game.players[attacker.owner]
+        if card not in st.hand:
+            if card in st.deck:
+                st.deck.remove(card)
+            known = self.knowledge.known_in_hand.get(attacker.owner, ())
+            out = next((c for c in [self.pending[2], *st.hand] if c in st.hand and c not in known), None)
+            if out is not None:
+                st.hand.remove(out)
+                st.deck.append(out)
+            st.hand.append(card)
+        self.pending = (self.pending[0], self.pending[1], card)
+
     # ---------- automatic steps ----------
     def _advance(self) -> None:
         g = self.game

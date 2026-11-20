@@ -45,16 +45,24 @@ class SearchReport:
     visits: dict[Hashable, int] = field(default_factory=dict)
     values: dict[Hashable, float] = field(default_factory=dict)
     plans: dict | None = None
+    errors: dict[Hashable, float] = field(default_factory=dict)      # standard error of each root move's mean value (two visits or more)
+    ledger: dict | None = None        # a defense the combat ledger settled (`defense.settle`): what it measured and why
 
 
 class Edge:
-    __slots__ = ("node", "visits", "reward", "avail")
+    __slots__ = ("node", "visits", "reward", "squares", "avail")
 
     def __init__(self):
         self.node = Node()
         self.visits = 0
         self.reward = 0.0
+        self.squares = 0.0
         self.avail = 0
+
+    def error(self) -> float:
+        """Standard error of the mean reward."""
+        mean = self.reward / self.visits
+        return (max(0.0, self.squares / self.visits - mean * mean) / (self.visits - 1)) ** 0.5
 
 
 class Node:
@@ -92,7 +100,8 @@ class ISMCTS:
         best = max(moves, key=lambda m: edges[m].visits if m in edges else -1)
         visits = {m: edges[m].visits for m in moves if m in edges}
         values = {m: edges[m].reward / edges[m].visits for m in moves if m in edges and edges[m].visits}
-        return best, SearchReport(best, n, elapsed, visits, values)
+        errors = {m: edges[m].error() for m in moves if m in edges and edges[m].visits > 1}
+        return best, SearchReport(best, n, elapsed, visits, values, errors=errors)
 
     def principal_variation(self, player: int, start: Hashable | None = None, min_visits: int = 1) -> list[Hashable]:
         """Most visited keys from the root of `player`'s tree, as long as there are edges with enough visits.
@@ -166,6 +175,7 @@ class ISMCTS:
                 rewards[mover] = s.evaluate(mover)
             edge.visits += 1
             edge.reward += rewards[mover]
+            edge.squares += rewards[mover] ** 2
 
     def _ucb(self, e: Edge) -> float:
         return e.reward / e.visits + self.cfg.c_uct * math.sqrt(math.log(max(e.avail, 1)) / e.visits)
