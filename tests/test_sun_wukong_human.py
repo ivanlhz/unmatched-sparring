@@ -203,3 +203,34 @@ def test_the_bots_clone_is_taken_from_the_bag_and_put_on_the_table_by_the_bot(ri
     assert c.alive and w.hp == 16 and c.hp == 1 and c.pos in game.board.adj[w.pos]
     assert table.positions[cfg.nicknames["clone1"]] == c.pos           # the table follows the engine: the bot moved the Clone itself
     assert dial(session, cfg, table, "wukong") == 16
+
+
+# ---------------------------------------------------------------- Fiery Eyes That See and Taunting Laughter, played by the human
+
+@with_rig("hellboy", "sun-wukong", *HAND)
+def test_the_humans_fiery_eyes_shows_the_bots_hand_and_the_chosen_card_goes_to_the_bottom_of_its_deck(rig):
+    from test_e2_human_cards import human_scheme
+    session, table, game, fake, cfg = rig
+    start(rig)
+    human_hand(table, game, "Fiery Eyes That See", "Sly Monkey")
+    bot_before = len(game.players[0].hand)
+    msgs = human_scheme(session, table, game, "Fiery Eyes That See")
+    assert session.look is not None and session.look["mode"] == "pick" and said(msgs, "El bot pone su mano boca arriba"), msgs
+    chosen = session.look["ids"][0]
+    msgs = click(session, table, Event.LOOK_PING, {"guid": f"g{chosen}"})
+    assert table.bot_deck[-1] == chosen and chosen not in table.bot_hand and session.look is None, msgs      # at the bottom, not on top
+    assert len(game.players[0].hand) == bot_before and chosen not in [c.card_id for c in game.players[0].hand]   # one card less, one drawn
+    assert session.effect_run is None, msgs
+
+
+@with_rig("hellboy", "sun-wukong", *HAND)
+def test_taunting_laughter_the_bot_decides_whether_to_discard_and_the_value_follows(rig, monkeypatch):
+    session, table, game, fake, cfg = rig
+    start(rig)
+    put_adjacent(game, table, cfg, "wukong", "hellboy")
+    bot_defends_with(session, game, TRAINING, monkeypatch)
+    human_hand(table, game, "Taunting Laughter", "Sly Monkey")
+    msgs = attack(session, table, game, "Taunting Laughter")
+    hp = game.fighters["hellboy"].hp
+    assert hp in (18, 18 - 3), (hp, msgs)        # the bot paid a card (its 3 ties the 3: no damage) or declined (its value is ignored: 3 damage)
+    assert session.pending is None
