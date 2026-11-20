@@ -328,3 +328,42 @@ def test_battle_hardened_takes_a_card_back_from_the_discard_pile(bprd):
     g.controllers[0].queue = [lambda req: [gone.card_id]]
     g.attack(achilles, hellboy, give(g, 0, "Battle Hardened"), None)
     assert gone in g.players[0].hand and gone not in g.players[0].discard
+
+
+# ---------------------------------------------------------------- Test For Weakness (the double attack)
+
+def test_test_for_weakness_is_a_one_followed_by_an_undefended_three(bprd):
+    g = mk(bprd)
+    achilles, hellboy = pair(g, "achilles", "hellboy")
+    hp = hellboy.hp
+    res = g.attack(achilles, hellboy, give(g, 0, "Test For Weakness"), None)
+    assert res.damage == 1 and res.second is not None and res.second.damage == 3
+    assert hellboy.hp == hp - 1 - 3
+
+
+def test_the_foe_may_defend_the_second_attack_with_a_new_card(bprd):
+    g = mk(bprd)
+    achilles, hellboy = pair(g, "achilles", "hellboy")
+    block = give(g, 1, "B.P.R.D. Training")                                          # defense 3: stops the 3
+    g.controllers[1].choose_second_defense = lambda game, att, tgt, value, card: block
+    res = g.attack(achilles, hellboy, give(g, 0, "Test For Weakness"), None)
+    assert res.second.def_card is block and res.second.damage == 0
+
+
+def test_a_feint_against_test_for_weakness_leaves_no_second_attack_and_a_plain_defense_does_not(bprd):
+    g = mk(bprd, foe="medusa")
+    achilles, medusa = pair(g, "achilles", "medusa")
+    res = g.attack(achilles, medusa, give(g, 0, "Test For Weakness"), give(g, 1, "Feint"))
+    assert res.second is None and medusa.hp == medusa.max_hp - 0               # the Feint cancels the card's effects, the second attack with them
+    g2 = mk(bprd)
+    ach, hell = pair(g2, "achilles", "hellboy")
+    res = g2.attack(ach, hell, give(g2, 0, "Test For Weakness"), give(g2, 1, "B.P.R.D. Training"))
+    assert res.second is not None
+
+
+def test_the_plus_two_of_achilles_applies_to_both_parts_once_patroclus_is_down(bprd):
+    g = mk(bprd)
+    fall(g)
+    achilles, hellboy = pair(g, "achilles", "hellboy")
+    res = g.attack(achilles, hellboy, give(g, 0, "Test For Weakness"), None)
+    assert res.damage == 1 + 2 and res.second.damage == 3 + 2                         # the engine's reading: a passive applies to the second attack (docs/combat-flow.md, Pending Ivan 3)

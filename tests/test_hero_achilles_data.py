@@ -139,6 +139,7 @@ def test_card_effects_say_what_the_real_cards_say(effects):
     assert by["Blessed By Hermes"]["after"][0]["through_enemies"] is True and by["Blessed By Hermes"]["after"][0]["amount"] == 3
     assert by["Battle Hardened"]["after"][0]["op"] == "put_in_hand"
     assert by["Skirmish"]["after"][0]["then"][0]["target"] == "combatant"
+    assert by["Test For Weakness"]["after"] == [{"op": "second_attack", "amount": 3}]          # RELENTLESS ASSAULT: the double attack (section 45)
 
 
 def test_table_data_names_the_pieces_the_dials_the_deck_range_and_its_own_images():

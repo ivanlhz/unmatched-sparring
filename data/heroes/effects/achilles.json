@@ -251,11 +251,16 @@
    "effects": {
     "immediately": [],
     "during": [],
-    "after": [],
+    "after": [
+     {
+      "op": "second_attack",
+      "amount": 3
+     }
+    ],
     "scheme": [],
     "boost": []
    },
-   "notes": "Attack 1 / boost 3, ANY. DOUBLE ATTACK of Battle of Legends, Volume Two; written last against the double-attack DSL."
+   "notes": "Attack 1 / boost 3, ANY. A DOUBLE ATTACK (Battle of Legends, Volume Two): the first part is a plain attack 1; RELENTLESS ASSAULT (3 ATK) is the second attack, an AFTER effect (docs/effects-dsl.md section 45), so Feint stops it and a Skirmish does not. The mechanic belongs to the double-attack engine, not to this file. Whether Achilles' +2 applies to the second attack is Pending Ivan (docs/heroes/achilles.md)."
   },
   {
    "title": "Battle Frenzy",

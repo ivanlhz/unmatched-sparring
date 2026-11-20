@@ -140,3 +140,43 @@ def test_battle_hardened_takes_the_only_card_of_your_pile_back_and_tells_you_to_
     msgs = attack(session, table, game, "achilles", "Battle Hardened")
     assert said(msgs, "Recoge Skirmish de tu descarte a tu mano"), msgs
     assert gone in [c.card_id for c in game.players[1].hand] and "Battle Hardened" not in [c.title for c in game.players[1].hand]
+
+
+# ---------------------------------------------------------------- Test For Weakness (the double attack at the table)
+
+@with_rig("hellboy", "achilles", TRAINING)
+def test_test_for_weakness_you_attack_the_bot_defends_the_second_part_and_the_hit_points_follow(rig, monkeypatch):
+    session, table, game, fake, cfg = rig
+    put_adjacent(game, table, cfg, "hellboy", "achilles")
+    asked = []
+    monkeypatch.setattr(session.ai, "choose_defense", lambda g, a, t, attack_card=None: None)
+    monkeypatch.setattr(session.ai, "choose_second_defense",
+                        lambda g, att, tgt, value, card: asked.append((att.fid, tgt.fid, value, card.title)) or None)
+    human_hand(table, game, "Test For Weakness", "Feint")
+    hp = game.fighters["hellboy"].hp
+    attack(session, table, game, "achilles", "Test For Weakness")
+    assert session.pending is not None and session.pending.second["value"] == 3 and game.fighters["hellboy"].hp == hp - 1
+    assert asked == [("achilles", "hellboy", 3, "Test For Weakness")]
+    click(session, table, Event.REVEAL)
+    assert session.pending is None and game.fighters["hellboy"].hp == hp - 1 - 3
+
+
+@with_rig("achilles", "hellboy", "Test For Weakness", "Brothers In Arms", "Feint", "Skirmish", "Wily Fighting")
+def test_test_for_weakness_the_bot_attacks_and_you_defend_the_second_part_with_a_new_card(rig):
+    session, table, game, fake, cfg = rig
+    put_adjacent(game, table, cfg, "achilles", "hellboy")
+    card = next(c for c in game.players[0].hand if c.title == "Test For Weakness")
+    human_hand(table, game, "B.P.R.D. Training", "Service Pistol")
+    bot_turn(session, table, [Act("attack", fid="achilles", target="hellboy", card=card)])
+    hellboy = game.fighters["hellboy"]
+    hp = hellboy.hp
+    table.face_down = []
+    click(session, table, Event.REVEAL)
+    p = session.pending
+    assert p is not None and p.kind == "bot_attacks" and p.second["value"] == 3 and hellboy.hp == hp - 1
+    block = card_ids(game, 1, "B.P.R.D. Training")[0]
+    table.face_down = [{"id": block, "guid": f"h{block}"}]
+    table.human_hand.remove(block)
+    table.human_count -= 1
+    click(session, table, Event.REVEAL)
+    assert session.pending is None and hellboy.hp == hp - 1               # Training (3) stops the 3
