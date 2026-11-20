@@ -1,0 +1,418 @@
+{
+ "_source": {
+  "memory": "unmatched-memory/data/heroes/achilles.json",
+  "overlay": "data/heroes/overlay/achilles.json",
+  "generator": "tools/import_hero.py"
+ },
+ "slug": "achilles",
+ "name": "Achilles",
+ "fid": "achilles",
+ "hp": 18,
+ "move": 2,
+ "attack": "melee",
+ "set": "battle-of-legends-volume-two",
+ "ability": "When Patroclus is defeated, discard 2 random cards.\n\nWhile Patroclus is defeated:\n- Add +2 to the value of all Achilles' attacks.\n- If Achilles wins combat, draw 1 card.",
+ "sidekicks": [
+  {
+   "name": "Patroclus",
+   "hp": 6,
+   "move": 2,
+   "attack": "melee",
+   "count": 1,
+   "fid": "patroclus"
+  }
+ ],
+ "forms": null,
+ "counters": {},
+ "triggers": [],
+ "passives": [],
+ "deck": {
+  "card_base": 17600,
+  "sheet": 176,
+  "cards": [
+   {
+    "idx": 0,
+    "title": "Brothers In Arms",
+    "fighter": "any",
+    "type": "attack",
+    "value": 4,
+    "boost": 2,
+    "text": "AFTER COMBAT: If Patroclus is not defeated, gain 1 action.",
+    "tags": []
+   },
+   {
+    "idx": 1,
+    "title": "Brothers In Arms",
+    "fighter": "any",
+    "type": "attack",
+    "value": 4,
+    "boost": 2,
+    "text": "AFTER COMBAT: If Patroclus is not defeated, gain 1 action.",
+    "tags": []
+   },
+   {
+    "idx": 2,
+    "title": "Brothers In Arms",
+    "fighter": "any",
+    "type": "attack",
+    "value": 4,
+    "boost": 2,
+    "text": "AFTER COMBAT: If Patroclus is not defeated, gain 1 action.",
+    "tags": []
+   },
+   {
+    "idx": 3,
+    "title": "Test For Weakness",
+    "fighter": "any",
+    "type": "attack",
+    "value": 1,
+    "boost": 3,
+    "text": "AFTER COMBAT: RELENTLESS ASSAULT: 3 ATK",
+    "tags": []
+   },
+   {
+    "idx": 4,
+    "title": "Test For Weakness",
+    "fighter": "any",
+    "type": "attack",
+    "value": 1,
+    "boost": 3,
+    "text": "AFTER COMBAT: RELENTLESS ASSAULT: 3 ATK",
+    "tags": []
+   },
+   {
+    "idx": 5,
+    "title": "Test For Weakness",
+    "fighter": "any",
+    "type": "attack",
+    "value": 1,
+    "boost": 3,
+    "text": "AFTER COMBAT: RELENTLESS ASSAULT: 3 ATK",
+    "tags": []
+   },
+   {
+    "idx": 6,
+    "title": "Battle Frenzy",
+    "fighter": "Patroclus",
+    "type": "attack",
+    "value": 3,
+    "boost": 2,
+    "text": "AFTER COMBAT: Deal 2 damage to both fighters in the combat.",
+    "tags": []
+   },
+   {
+    "idx": 7,
+    "title": "Battle Frenzy",
+    "fighter": "Patroclus",
+    "type": "attack",
+    "value": 3,
+    "boost": 2,
+    "text": "AFTER COMBAT: Deal 2 damage to both fighters in the combat.",
+    "tags": []
+   },
+   {
+    "idx": 8,
+    "title": "The Day of Your Doom",
+    "fighter": "Patroclus",
+    "type": "attack",
+    "value": 3,
+    "boost": 2,
+    "text": "DURING COMBAT: You may deal 2 damage to Patroclus. If you do, the value of this attack is 5 instead.",
+    "tags": []
+   },
+   {
+    "idx": 9,
+    "title": "The Day of Your Doom",
+    "fighter": "Patroclus",
+    "type": "attack",
+    "value": 3,
+    "boost": 2,
+    "text": "DURING COMBAT: You may deal 2 damage to Patroclus. If you do, the value of this attack is 5 instead.",
+    "tags": []
+   },
+   {
+    "idx": 10,
+    "title": "Battle Hardened",
+    "fighter": "any",
+    "type": "versatile",
+    "value": 2,
+    "boost": 2,
+    "text": "AFTER COMBAT: Choose a card in your discard pile and return it to your hand.",
+    "tags": []
+   },
+   {
+    "idx": 11,
+    "title": "Battle Hardened",
+    "fighter": "any",
+    "type": "versatile",
+    "value": 2,
+    "boost": 2,
+    "text": "AFTER COMBAT: Choose a card in your discard pile and return it to your hand.",
+    "tags": []
+   },
+   {
+    "idx": 12,
+    "title": "Wily Fighting",
+    "fighter": "any",
+    "type": "versatile",
+    "value": 3,
+    "boost": 1,
+    "text": "AFTER COMBAT: Deal 1 damage to each opposing fighter adjacent to your fighter.",
+    "tags": []
+   },
+   {
+    "idx": 13,
+    "title": "Wily Fighting",
+    "fighter": "any",
+    "type": "versatile",
+    "value": 3,
+    "boost": 1,
+    "text": "AFTER COMBAT: Deal 1 damage to each opposing fighter adjacent to your fighter.",
+    "tags": []
+   },
+   {
+    "idx": 14,
+    "title": "Skirmish",
+    "fighter": "any",
+    "type": "versatile",
+    "value": 4,
+    "boost": 1,
+    "text": "AFTER COMBAT: If you won the combat, choose one of the fighters in the combat and move them up to 2 spaces.",
+    "tags": []
+   },
+   {
+    "idx": 15,
+    "title": "Skirmish",
+    "fighter": "any",
+    "type": "versatile",
+    "value": 4,
+    "boost": 1,
+    "text": "AFTER COMBAT: If you won the combat, choose one of the fighters in the combat and move them up to 2 spaces.",
+    "tags": []
+   },
+   {
+    "idx": 16,
+    "title": "Skirmish",
+    "fighter": "any",
+    "type": "versatile",
+    "value": 4,
+    "boost": 1,
+    "text": "AFTER COMBAT: If you won the combat, choose one of the fighters in the combat and move them up to 2 spaces.",
+    "tags": []
+   },
+   {
+    "idx": 17,
+    "title": "Feint",
+    "fighter": "any",
+    "type": "versatile",
+    "value": 2,
+    "boost": 1,
+    "text": "IMMEDIATELY: Cancel all effects on your opponent's card.",
+    "tags": []
+   },
+   {
+    "idx": 18,
+    "title": "Feint",
+    "fighter": "any",
+    "type": "versatile",
+    "value": 2,
+    "boost": 1,
+    "text": "IMMEDIATELY: Cancel all effects on your opponent's card.",
+    "tags": []
+   },
+   {
+    "idx": 19,
+    "title": "Feint",
+    "fighter": "any",
+    "type": "versatile",
+    "value": 2,
+    "boost": 1,
+    "text": "IMMEDIATELY: Cancel all effects on your opponent's card.",
+    "tags": []
+   },
+   {
+    "idx": 20,
+    "title": "Blessed By Hermes",
+    "fighter": "any",
+    "type": "versatile",
+    "value": 3,
+    "boost": 1,
+    "text": "AFTER COMBAT: Move each of your fighters up to 3 spaces. They may move through opposing fighters.",
+    "tags": []
+   },
+   {
+    "idx": 21,
+    "title": "Blessed By Hermes",
+    "fighter": "any",
+    "type": "versatile",
+    "value": 3,
+    "boost": 1,
+    "text": "AFTER COMBAT: Move each of your fighters up to 3 spaces. They may move through opposing fighters.",
+    "tags": []
+   },
+   {
+    "idx": 22,
+    "title": "Achilles' Heel",
+    "fighter": "Achilles",
+    "type": "defense",
+    "value": 4,
+    "boost": 2,
+    "text": "AFTER COMBAT: If you lost the combat, your opponent gains 1 action.",
+    "tags": []
+   },
+   {
+    "idx": 23,
+    "title": "Achilles' Heel",
+    "fighter": "Achilles",
+    "type": "defense",
+    "value": 4,
+    "boost": 2,
+    "text": "AFTER COMBAT: If you lost the combat, your opponent gains 1 action.",
+    "tags": []
+   },
+   {
+    "idx": 24,
+    "title": "Achilles' Heel",
+    "fighter": "Achilles",
+    "type": "defense",
+    "value": 4,
+    "boost": 2,
+    "text": "AFTER COMBAT: If you lost the combat, your opponent gains 1 action.",
+    "tags": []
+   },
+   {
+    "idx": 25,
+    "title": "Under Achilles' Helm",
+    "fighter": "Achilles",
+    "type": "defense",
+    "value": 2,
+    "boost": 4,
+    "text": "IMMEDIATELY: If Patroclus is not defeated, Achilles may swap spaces with him. If he does, Patroclus is now the defender.",
+    "tags": []
+   },
+   {
+    "idx": 26,
+    "title": "Under Achilles' Helm",
+    "fighter": "Achilles",
+    "type": "defense",
+    "value": 2,
+    "boost": 4,
+    "text": "IMMEDIATELY: If Patroclus is not defeated, Achilles may swap spaces with him. If he does, Patroclus is now the defender.",
+    "tags": []
+   },
+   {
+    "idx": 27,
+    "title": "Under Achilles' Helm",
+    "fighter": "Achilles",
+    "type": "defense",
+    "value": 2,
+    "boost": 4,
+    "text": "IMMEDIATELY: If Patroclus is not defeated, Achilles may swap spaces with him. If he does, Patroclus is now the defender.",
+    "tags": []
+   },
+   {
+    "idx": 28,
+    "title": "Spear Throw",
+    "fighter": "Achilles",
+    "type": "scheme",
+    "value": null,
+    "boost": 1,
+    "text": "Deal 2 damage to an opposing fighter in Achilles' zone.",
+    "tags": []
+   },
+   {
+    "idx": 29,
+    "title": "Spear Throw",
+    "fighter": "Achilles",
+    "type": "scheme",
+    "value": null,
+    "boost": 1,
+    "text": "Deal 2 damage to an opposing fighter in Achilles' zone.",
+    "tags": []
+   }
+  ]
+ },
+ "ai_profile": {
+  "achilles": {
+   "name": "Achilles",
+   "hero": true,
+   "count": 1,
+   "max_hp": 18,
+   "move": 2,
+   "ranged": false,
+   "role": "hero",
+   "attack": {
+    "cards": 18,
+    "mean": 2.72,
+    "max": 4
+   },
+   "exclusive": [
+    {
+     "title": "Achilles' Heel",
+     "type": "defense",
+     "copies": 3,
+     "impact": 1.32
+    },
+    {
+     "title": "Under Achilles' Helm",
+     "type": "defense",
+     "copies": 3,
+     "impact": 0.87
+    },
+    {
+     "title": "Spear Throw",
+     "type": "scheme",
+     "copies": 2,
+     "impact": 1.9
+    }
+   ]
+  },
+  "patroclus": {
+   "name": "Patroclus",
+   "hero": false,
+   "count": 1,
+   "max_hp": 6,
+   "move": 2,
+   "ranged": false,
+   "role": "striker",
+   "attack": {
+    "cards": 22,
+    "mean": 2.77,
+    "max": 4
+   },
+   "exclusive": [
+    {
+     "title": "Battle Frenzy",
+     "type": "attack",
+     "copies": 2,
+     "impact": 2.37
+    },
+    {
+     "title": "The Day of Your Doom",
+     "type": "attack",
+     "copies": 2,
+     "impact": 0.99
+    }
+   ],
+   "requires_alive": [
+    {
+     "source": "Brothers In Arms",
+     "kind": "card",
+     "copies": 3,
+     "impact": 0.42
+    },
+    {
+     "source": "Under Achilles' Helm",
+     "kind": "card",
+     "copies": 3,
+     "impact": 0.27
+    }
+   ]
+  }
+ },
+ "_notes": [
+  "Sheet 176 of the tournament savegame (8x4), read card by card from the image on 2026-11-20. CardID = 17600 + idx; 318 = character card (sheet 3, 10x7, index 18). The deck object (70a2b2) holds 31 cards: the 30 plus the character card. Same sheet number as Medusa, the turtles and the other sheet-176 decks: only deck.identity tells them apart (docs/card-identity.md).",
+  "Bands (fighter restrictions) read from the images: ACHILLES on Achilles' Heel, Under Achilles' Helm and Spear Throw; PATROCLUS on Battle Frenzy and The Day of Your Doom; ANY on the other seven titles. Restrictions are not in unmatched-memory. Titles, copies (30 in all), type, value, boost and texts of the 12 titles match unmatched-memory.",
+  "Hero card (read from unmatched-memory): ACHILLES, MELEE, START HEALTH 18, MOVE 2; sidekick PATROCLUS, MELEE, START HEALTH 6, MOVE 2. One Patroclus, a Custom_Token in the save (like Daisy and The Porter) with his own sidekick health dial."
+ ]
+}

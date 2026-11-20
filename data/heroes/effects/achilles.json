@@ -1,0 +1,423 @@
+{
+ "schema": 1,
+ "hero": "achilles",
+ "notes": [
+  "Texts read from sheet 176 of the tournament savegame (card images) on 2026-11-20 and from unmatched-memory: they agree. Character card 318 on sheet 3 (10x7, index 18).",
+  "1v1 reading: 'your opponent' is the only rival; Patroclus 'defeated' is the engine's `alive: false`."
+ ],
+ "ability": {
+  "text": "When Patroclus is defeated, discard 2 random cards.\n\nWhile Patroclus is defeated:\n- Add +2 to the value of all Achilles' attacks.\n- If Achilles wins combat, draw 1 card.",
+  "triggers": [
+   {
+    "id": "patroclus_falls",
+    "when": {
+     "event": "fighter_defeated",
+     "fighter": {
+      "side": "own",
+      "name": "Patroclus"
+     }
+    },
+    "ops": [
+     {
+      "op": "discard",
+      "cards": {
+       "zone": "hand",
+       "player": "owner",
+       "pick": "random",
+       "amount": 2
+      }
+     }
+    ]
+   }
+  ],
+  "passives": [
+   {
+    "id": "vengeance_attack",
+    "kind": "modify_value",
+    "cards": {
+     "player": "owner",
+     "type": "attack",
+     "fighter": "hero"
+    },
+    "amount": 2,
+    "while": {
+     "not": {
+      "test": "exists",
+      "fighters": {
+       "side": "own",
+       "name": "Patroclus"
+      }
+     }
+    }
+   }
+  ],
+  "after": [
+   {
+    "id": "vengeance_draw",
+    "condition": {
+     "all": [
+      {
+       "test": "combat_result",
+       "result": "won"
+      },
+      {
+       "not": {
+        "test": "exists",
+        "fighters": {
+         "side": "own",
+         "name": "Patroclus"
+        }
+       }
+      }
+     ]
+    },
+    "ops": [
+     {
+      "op": "draw",
+      "player": "owner",
+      "amount": 1
+     }
+    ]
+   }
+  ],
+  "notes": "Trigger: the instant Patroclus falls (in a combat, by an effect, by exhaustion) Achilles' owner discards 2 cards of the hand at random (fewer if they hold fewer). While he is defeated: +2 to every attack Achilles plays (attack cards and versatile cards played as attack, as Hellboy's ANUNG) and the owner draws 1 after each combat Achilles wins (the hero's own AFTER runs for every combat the owner played a card in)."
+ },
+ "cards": [
+  {
+   "title": "Achilles' Heel",
+   "copies": 3,
+   "text": "AFTER COMBAT: If you lost the combat, your opponent gains 1 action.",
+   "effects": {
+    "immediately": [],
+    "during": [],
+    "after": [
+     {
+      "op": "if",
+      "condition": {
+       "test": "combat_result",
+       "result": "lost"
+      },
+      "then": [
+       {
+        "op": "gain_action",
+        "amount": 1,
+        "player": "opponent"
+       }
+      ]
+     }
+    ],
+    "scheme": [],
+    "boost": []
+   },
+   "notes": "Defense 4 / boost 2, Achilles only. 'Lost' is 'did not win' (a defender wins ties)."
+  },
+  {
+   "title": "Feint",
+   "copies": 3,
+   "text": "IMMEDIATELY: Cancel all effects on your opponent's card.",
+   "effects": {
+    "immediately": [
+     {
+      "op": "cancel_effects",
+      "card": "opponent_card"
+     }
+    ],
+    "during": [],
+    "after": [],
+    "scheme": [],
+    "boost": []
+   },
+   "notes": "Versatile 2 / boost 1, ANY."
+  },
+  {
+   "title": "Brothers In Arms",
+   "copies": 3,
+   "text": "AFTER COMBAT: If Patroclus is not defeated, gain 1 action.",
+   "effects": {
+    "immediately": [],
+    "during": [],
+    "after": [
+     {
+      "op": "if",
+      "condition": {
+       "test": "exists",
+       "fighters": {
+        "side": "own",
+        "name": "Patroclus"
+       }
+      },
+      "then": [
+       {
+        "op": "gain_action",
+        "amount": 1
+       }
+      ]
+     }
+    ],
+    "scheme": [],
+    "boost": []
+   },
+   "notes": "Attack 4 / boost 2, ANY. Patroclus is checked when the AFTER runs (he may have fallen in this very combat)."
+  },
+  {
+   "title": "Under Achilles' Helm",
+   "copies": 3,
+   "text": "IMMEDIATELY: If Patroclus is not defeated, Achilles may swap spaces with him. If he does, Patroclus is now the defender.",
+   "effects": {
+    "immediately": [
+     {
+      "op": "if",
+      "condition": {
+       "test": "exists",
+       "fighters": {
+        "side": "own",
+        "name": "Patroclus"
+       }
+      },
+      "then": [
+       {
+        "op": "optional",
+        "chooser": "owner",
+        "ops": [
+         {
+          "op": "swap",
+          "target": "this",
+          "with": {
+           "side": "own",
+           "name": "Patroclus"
+          },
+          "as": "swapped"
+         },
+         {
+          "op": "plugin",
+          "id": "achilles:replace_combatant",
+          "args": {
+           "swapped": "$swapped"
+          }
+         }
+        ]
+       }
+      ]
+     }
+    ],
+    "during": [],
+    "after": [],
+    "scheme": [],
+    "boost": []
+   },
+   "notes": "Defense 2 / boost 4, Achilles only (so `this` is Achilles), the mirror of Luke Cage's Got My Back?. Both alive: they swap spaces (anywhere on the board, no range); if they did, Patroclus takes the place of Achilles in this combat as the defender, with this card in play for him: the attacker's card is aimed at Patroclus from now on (damage and the AFTER effects too)."
+  },
+  {
+   "title": "Skirmish",
+   "copies": 3,
+   "text": "AFTER COMBAT: If you won the combat, choose one of the fighters in the combat and move them up to 2 spaces.",
+   "effects": {
+    "immediately": [],
+    "during": [],
+    "after": [
+     {
+      "op": "if",
+      "condition": {
+       "test": "combat_result",
+       "result": "won"
+      },
+      "then": [
+       {
+        "op": "move",
+        "target": "combatant",
+        "amount": 2,
+        "up_to": true,
+        "chooser": "owner"
+       }
+      ]
+     }
+    ],
+    "scheme": [],
+    "boost": []
+   },
+   "notes": "Versatile 4 / boost 1, ANY. The same effect as Bigfoot's, Eredin's and Tomoe Gozen's card."
+  },
+  {
+   "title": "Test For Weakness",
+   "copies": 3,
+   "text": "AFTER COMBAT: RELENTLESS ASSAULT: 3 ATK",
+   "effects": {
+    "immediately": [],
+    "during": [],
+    "after": [],
+    "scheme": [],
+    "boost": []
+   },
+   "notes": "Attack 1 / boost 3, ANY. DOUBLE ATTACK of Battle of Legends, Volume Two; written last against the double-attack DSL."
+  },
+  {
+   "title": "Battle Frenzy",
+   "copies": 2,
+   "text": "AFTER COMBAT: Deal 2 damage to both fighters in the combat.",
+   "effects": {
+    "immediately": [],
+    "during": [],
+    "after": [
+     {
+      "op": "damage",
+      "target": {
+       "role": "combatant",
+       "pick": "all"
+      },
+      "amount": 2
+     }
+    ],
+    "scheme": [],
+    "boost": []
+   },
+   "notes": "Attack 3 / boost 2, Patroclus only. Both fighters of the combat, the player's own included (a defeated one is not there any more)."
+  },
+  {
+   "title": "Spear Throw",
+   "copies": 2,
+   "text": "Deal 2 damage to an opposing fighter in Achilles' zone.",
+   "effects": {
+    "immediately": [],
+    "during": [],
+    "after": [],
+    "scheme": [
+     {
+      "op": "damage",
+      "target": {
+       "side": "enemy",
+       "where": {
+        "zone_of": "hero"
+       }
+      },
+      "amount": 2,
+      "chooser": "owner"
+     }
+    ],
+    "boost": []
+   },
+   "notes": "Scheme (boost 1), Achilles only. Any opposing fighter in a zone of Achilles' space; with several the owner chooses. With no one there the scheme is played for nothing."
+  },
+  {
+   "title": "The Day of Your Doom",
+   "copies": 2,
+   "text": "DURING COMBAT: You may deal 2 damage to Patroclus. If you do, the value of this attack is 5 instead.",
+   "effects": {
+    "immediately": [],
+    "during": [
+     {
+      "op": "optional",
+      "chooser": "owner",
+      "cost": [
+       {
+        "op": "damage",
+        "target": {
+         "side": "own",
+         "name": "Patroclus"
+        },
+        "amount": 2
+       }
+      ],
+      "ops": [
+       {
+        "op": "set_value",
+        "card": "this",
+        "amount": 5
+       }
+      ]
+     }
+    ],
+    "after": [],
+    "scheme": [],
+    "boost": []
+   },
+   "notes": "Attack 3 / boost 2, Patroclus only. The 2 damage is the price of an `optional`. Patroclus can die of it: Achilles then discards 2 random cards and gets the +2 and the draw from then on. `set_value` 5: bonuses stay (Patroclus has none)."
+  },
+  {
+   "title": "Wily Fighting",
+   "copies": 2,
+   "text": "AFTER COMBAT: Deal 1 damage to each opposing fighter adjacent to your fighter.",
+   "effects": {
+    "immediately": [],
+    "during": [],
+    "after": [
+     {
+      "op": "damage",
+      "target": {
+       "side": "enemy",
+       "where": {
+        "adjacent_to": "this"
+       },
+       "pick": "all"
+      },
+      "amount": 1
+     }
+    ],
+    "scheme": [],
+    "boost": []
+   },
+   "notes": "Versatile 3 / boost 1, ANY. 'Your fighter' is the one that played the card; each adjacent opposing fighter, the combat's own opponent included."
+  },
+  {
+   "title": "Battle Hardened",
+   "copies": 2,
+   "text": "AFTER COMBAT: Choose a card in your discard pile and return it to your hand.",
+   "effects": {
+    "immediately": [],
+    "during": [],
+    "after": [
+     {
+      "op": "put_in_hand",
+      "cards": {
+       "zone": "discard",
+       "player": "owner",
+       "amount": 1,
+       "chooser": "owner"
+      }
+     }
+    ],
+    "scheme": [],
+    "boost": []
+   },
+   "notes": "Versatile 2 / boost 2, ANY. Any card of the owner's own discard pile."
+  },
+  {
+   "title": "Blessed By Hermes",
+   "copies": 2,
+   "text": "AFTER COMBAT: Move each of your fighters up to 3 spaces. They may move through opposing fighters.",
+   "effects": {
+    "immediately": [],
+    "during": [],
+    "after": [
+     {
+      "op": "move",
+      "target": {
+       "side": "own",
+       "pick": "all"
+      },
+      "amount": 3,
+      "up_to": true,
+      "through_enemies": true,
+      "chooser": "owner"
+     }
+    ],
+    "scheme": [],
+    "boost": []
+   },
+   "notes": "Versatile 3 / boost 1, ANY. Achilles and Patroclus (if alive), up to 3 each, through opposing fighters."
+  }
+ ],
+ "plugins": [
+  {
+   "id": "achilles:replace_combatant",
+   "why": "Under Achilles' Helm: after the swap Patroclus takes Achilles' place in the combat as the defender. Luke Cage's and Houdini's mechanism (CombatFlow.replace_combatant); no op changes who is in the combat."
+  }
+ ],
+ "hidden_info": [
+  {
+   "card": "Patroclus falls (ability)",
+   "what": "discard 2 random cards from the owner's own hand",
+   "bot_rule": "The bot's hand is the engine's; for the human the engine draws the positions from the hand size and the human gives those cards up, the bot never reads the hand."
+  }
+ ],
+ "open_questions": []
+}

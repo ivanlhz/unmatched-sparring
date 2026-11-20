@@ -1,0 +1,176 @@
+{
+ "_notes": [
+  "Sheet 176 of the tournament savegame (8x4), read card by card from the image on 2026-11-20. CardID = 17600 + idx; 318 = character card (sheet 3, 10x7, index 18). The deck object (70a2b2) holds 31 cards: the 30 plus the character card. Same sheet number as Medusa, the turtles and the other sheet-176 decks: only deck.identity tells them apart (docs/card-identity.md).",
+  "Bands (fighter restrictions) read from the images: ACHILLES on Achilles' Heel, Under Achilles' Helm and Spear Throw; PATROCLUS on Battle Frenzy and The Day of Your Doom; ANY on the other seven titles. Restrictions are not in unmatched-memory. Titles, copies (30 in all), type, value, boost and texts of the 12 titles match unmatched-memory.",
+  "Hero card (read from unmatched-memory): ACHILLES, MELEE, START HEALTH 18, MOVE 2; sidekick PATROCLUS, MELEE, START HEALTH 6, MOVE 2. One Patroclus, a Custom_Token in the save (like Daisy and The Porter) with his own sidekick health dial."
+ ],
+ "fid": "achilles",
+ "ability": "When Patroclus is defeated, discard 2 random cards.\n\nWhile Patroclus is defeated:\n- Add +2 to the value of all Achilles' attacks.\n- If Achilles wins combat, draw 1 card.",
+ "sidekicks": [
+  {
+   "fid": "patroclus",
+   "name": "Patroclus"
+  }
+ ],
+ "forms": null,
+ "counters": {},
+ "triggers": [],
+ "passives": [],
+ "deck": {
+  "card_base": 17600,
+  "sheet_id": 176,
+  "hero_card_id": 318,
+  "sheet": [
+   {
+    "idx": 0,
+    "title": "Brothers In Arms",
+    "fighter": "any"
+   },
+   {
+    "idx": 1,
+    "title": "Brothers In Arms",
+    "fighter": "any"
+   },
+   {
+    "idx": 2,
+    "title": "Brothers In Arms",
+    "fighter": "any"
+   },
+   {
+    "idx": 3,
+    "title": "Test For Weakness",
+    "fighter": "any"
+   },
+   {
+    "idx": 4,
+    "title": "Test For Weakness",
+    "fighter": "any"
+   },
+   {
+    "idx": 5,
+    "title": "Test For Weakness",
+    "fighter": "any"
+   },
+   {
+    "idx": 6,
+    "title": "Battle Frenzy",
+    "fighter": "Patroclus"
+   },
+   {
+    "idx": 7,
+    "title": "Battle Frenzy",
+    "fighter": "Patroclus"
+   },
+   {
+    "idx": 8,
+    "title": "The Day of Your Doom",
+    "fighter": "Patroclus"
+   },
+   {
+    "idx": 9,
+    "title": "The Day of Your Doom",
+    "fighter": "Patroclus"
+   },
+   {
+    "idx": 10,
+    "title": "Battle Hardened",
+    "fighter": "any"
+   },
+   {
+    "idx": 11,
+    "title": "Battle Hardened",
+    "fighter": "any"
+   },
+   {
+    "idx": 12,
+    "title": "Wily Fighting",
+    "fighter": "any"
+   },
+   {
+    "idx": 13,
+    "title": "Wily Fighting",
+    "fighter": "any"
+   },
+   {
+    "idx": 14,
+    "title": "Skirmish",
+    "fighter": "any"
+   },
+   {
+    "idx": 15,
+    "title": "Skirmish",
+    "fighter": "any"
+   },
+   {
+    "idx": 16,
+    "title": "Skirmish",
+    "fighter": "any"
+   },
+   {
+    "idx": 17,
+    "title": "Feint",
+    "fighter": "any"
+   },
+   {
+    "idx": 18,
+    "title": "Feint",
+    "fighter": "any"
+   },
+   {
+    "idx": 19,
+    "title": "Feint",
+    "fighter": "any"
+   },
+   {
+    "idx": 20,
+    "title": "Blessed By Hermes",
+    "fighter": "any"
+   },
+   {
+    "idx": 21,
+    "title": "Blessed By Hermes",
+    "fighter": "any"
+   },
+   {
+    "idx": 22,
+    "title": "Achilles' Heel",
+    "fighter": "Achilles"
+   },
+   {
+    "idx": 23,
+    "title": "Achilles' Heel",
+    "fighter": "Achilles"
+   },
+   {
+    "idx": 24,
+    "title": "Achilles' Heel",
+    "fighter": "Achilles"
+   },
+   {
+    "idx": 25,
+    "title": "Under Achilles' Helm",
+    "fighter": "Achilles"
+   },
+   {
+    "idx": 26,
+    "title": "Under Achilles' Helm",
+    "fighter": "Achilles"
+   },
+   {
+    "idx": 27,
+    "title": "Under Achilles' Helm",
+    "fighter": "Achilles"
+   },
+   {
+    "idx": 28,
+    "title": "Spear Throw",
+    "fighter": "Achilles"
+   },
+   {
+    "idx": 29,
+    "title": "Spear Throw",
+    "fighter": "Achilles"
+   }
+  ]
+ }
+}
