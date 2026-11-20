@@ -1,6 +1,4 @@
 # path  agent  task  UTC time   (see BRIEF: short locks only)
-tools/import_save.py  yennenga  no_dial flag for 2-HP Archers  13:42Z
-sparring/tts/hero_table.py  yennenga  no_dial flag for 2-HP Archers  13:42Z
 sparring/combat_flow.py  double-attack  engine double attack  13:42Z
 sparring/combat.py  double-attack  engine double attack  13:42Z
 sparring/controller.py  double-attack  engine double attack  13:42Z
