@@ -1404,7 +1404,10 @@ class Session:
             for check in checks:
                 check()
         if run.ctx.moment == "after_combat" and self.game.winner is None:
-            self.say(t("combat.after"), ChatKind.YOUR_TURN)       # the combat's own closing line, held back while DARK PACT asked
+            if self.second_next is None:
+                self.say(t("combat.after"), ChatKind.YOUR_TURN)       # the combat's own closing line, held back while DARK PACT asked
+            elif self.game.turn == self.human:
+                self.say(t("second.after_first"), ChatKind.YOUR_TURN)
         scheme = run.flags.get("scheme")
         if scheme:
             player = scheme["player"]
@@ -1421,7 +1424,17 @@ class Session:
             if self.moving and self.game.turn == self.human and self.game.winner is None:
                 self.say(t("maneuver.boost_then_end"), ChatKind.YOUR_TURN)
         if self.game.turn == self.bot and self.pending is None and self.game.winner is None:
+            if self._start_second_next():             # the bot's double attack: the human has answered, the second part comes before its turn goes on
+                return
             self._bot_continue()
+
+    def _start_second_next(self) -> bool:
+        """The first combat's AFTER step is done: starts the second attack that waits in `second_next` (True), unless a fighter fell in that step."""
+        nxt, self.second_next = self.second_next, None
+        if nxt is None or self.game.winner is not None or not g_alive(self.game, nxt):
+            return False
+        self._begin_second_attack(nxt)
+        return True
 
     def _pact_to_bottom(self, cause: str) -> list[Callable[[], None]]:
         """DARK PACT paid by the human: the card they played is still at their combat spot, and the engine sent it to the
@@ -3285,11 +3298,8 @@ class Session:
             self.moving = True
             self.say(self._walk_after_discard_text(walks_open), ChatKind.YOUR_TURN)
             return
-        if (nxt := self.second_next) is not None:      # DOUBLE ATTACK: the first combat's AFTER step is done, the second attack comes now
-            self.second_next = None
-            if g_alive(self.game, nxt) and self.game.winner is None:
-                self._begin_second_attack(nxt)
-                return
+        if self._start_second_next():                  # DOUBLE ATTACK: the first combat's AFTER step is done, the second attack comes now
+            return
         if self.game.turn == self.bot:
             self._bot_continue()
         else:

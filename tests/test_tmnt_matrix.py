@@ -65,8 +65,16 @@ def lay_the_ambush_card(session, table) -> None:
     session.snap = None
 
 
+def assert_second_attack_not_stranded(session, game) -> None:
+    """A double attack's second part waits only for the AFTER step of the first combat: it must start on the attacker's own turn, never
+    be carried into the other player's turn."""
+    nxt = session.second_next
+    assert nxt is None or game.turn == game.fighters[nxt["att"]].owner, f"second attack stranded across turns: {nxt}"
+
+
 def human_step(session, table, game) -> list[str]:
     """One click of the scripted human."""
+    assert_second_attack_not_stranded(session, game)
     lay_the_ambush_card(session, table)
     settle_owed_discard(session, table, game)
     place_by_hand(session, table)
@@ -133,6 +141,7 @@ class AttackDriver(Driver):
     Medusa's Harpies) the human maneuvers instead."""
 
     def press(self, event, payload=None):
+        assert_second_attack_not_stranded(self.session, self.game)
         for _ in range(30):
             if event == Event.CHOICE or self.session._paused() is None:
                 break

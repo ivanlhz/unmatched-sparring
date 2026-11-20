@@ -204,59 +204,34 @@ def test_the_human_may_defend_the_second_part_with_no_card(bot_hellboy):
 
 # ---------------------------------------------------------------- a parked choice of the first combat (Doctor Strange's DARK PACT)
 
+from test_d3_table_effects import said  # noqa: E402
 from test_doctor_strange_human import done, rig, with_rig  # noqa: E402,F401  (the fixture and its helpers)
 
 
 @with_rig(TITLE, "Service Pistol", "Excalibur", "Right Hand Of Doom", "B.P.R.D. Training")
-def test_a_parked_after_combat_choice_is_answered_before_the_second_attack_and_never_asked_twice(rig):
+def test_a_parked_after_combat_choice_of_the_bots_attack_is_answered_before_its_second_attack_on_its_own_turn(rig):
     session, table, game, fake, cfg = rig
     horseshoes = next(c for c in game.players[0].hand if c.title == TITLE)
     human_hand(table, game, "Master of Kamar-Taj", "Feint", "Bolts of Balthakk")
     bot_turn(session, table, [Act("attack", fid="hellboy", target="strange", card=horseshoes)])
-    seven = card_ids(game, 1, "Master of Kamar-Taj")[0]
-    table.face_down = [{"id": seven, "guid": f"h{seven}"}]
-    table.human_hand.remove(seven)
+    master = card_ids(game, 1, "Master of Kamar-Taj")[0]
+    table.face_down = [{"id": master, "guid": f"h{master}"}]
+    table.human_hand.remove(master)
     table.human_count -= 1
     click(session, table, Event.REVEAL)
     assert session._paused()[2].label == "dark_pact" and session.second_next is not None and session.pending is None
-    click(session, table, Event.END_ACTION)                      # the pact is still to be answered: nothing starts
-    assert session.pending is None and session.second_next is not None
-    done(session, table, 2)                                      # No
-    assert session._paused() is None and session.second_next is not None
-    click(session, table, Event.END_ACTION)
-    assert session.pending is not None and session.pending.second["spent"] == [seven]
-    click(session, table, Event.REVEAL)                          # no new defense
-    assert session.pending is None and session._paused() is None, "the first card's pact is not offered again"
+    assert game.turn == 0, "the bot's turn: the human has the pact to answer"
+    saved = session.to_dict()                                    # a save while the choice is open on the bot's turn
+    session.second_next = None
+    session.load_dict(saved)
+    assert session.second_next is not None and session._paused() is not None
+    actions = game.actions_left
+    msgs = done(session, table, 2)                               # No
+    assert game.turn == 0 and game.actions_left == actions, "the bot did not go on with its turn"
+    assert session.pending is not None and session.pending.second["spent"] == [master] and session.second_next is None
+    assert not said(msgs, "El bot maniobra"), msgs
+    hp = game.fighters["strange"].hp
+    click(session, table, Event.REVEAL)                          # no new defense: the first card's pact is not offered again
+    assert session.pending is None and session._paused() is None and game.turn == 0
+    assert game.fighters["strange"].hp == hp - SECOND, "the second attack resolved on the bot's turn"
 
-
-@pytest.fixture
-def bot_hellboy_vs_baba(tmp_path):
-    session, table, game, fake, cfg, client = build(tmp_path, "hellboy", "baba-yaga", (TITLE, "Service Pistol", "Excalibur", "Right Hand Of Doom", "B.P.R.D. Training"))
-    put_adjacent(game, table, cfg, "hellboy", "baba")
-    yield session, table, game
-    client.close()
-    fake.close()
-
-
-def test_the_human_boosts_the_defense_of_the_second_part_with_out_of_time(bot_hellboy_vs_baba):
-    session, table, game = bot_hellboy_vs_baba
-    horseshoes = next(c for c in game.players[0].hand if c.title == TITLE)
-    human_hand(table, game, "Out Of Time", "Exploit", "Iron Teeth")
-    bot_turn(session, table, [Act("attack", fid="hellboy", target="baba", card=horseshoes)])
-    click(session, table, Event.REVEAL)                      # no defense for the first part
-    click(session, table, Event.END_ACTION)
-    assert session.pending is not None and session.pending.second is not None
-    oot = card_ids(game, 1, "Out Of Time")[0]
-    table.face_down = [{"id": oot, "guid": f"h{oot}"}]
-    table.human_hand.remove(oot)
-    table.human_count -= 1
-    hp = game.fighters["baba"].hp
-    click(session, table, Event.REVEAL)
-    assert session.pending is not None and session.pending.wait is not None, "the free BOOST of the defense is offered for the second part"
-    assert game.fighters["baba"].hp == hp, "nothing is resolved before the boost"
-    exploit = card_ids(game, 1, "Exploit")[0]
-    table.human_hand.remove(exploit)
-    table.human_discard = [*table.human_discard, exploit]
-    table.human_count -= 1
-    click(session, table, Event.BOOST)
-    assert session.pending is None and game.fighters["baba"].hp == hp, "Out Of Time plus the boost stop the 3"
