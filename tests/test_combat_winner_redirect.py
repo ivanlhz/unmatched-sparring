@@ -59,4 +59,37 @@ def test_the_bots_confront_looks_at_the_humans_hand_when_golden_chain_mail_sends
     msgs = bot_attacks(session, table, game, CONFRONT, "hellboy", "wukong", "Golden Chain Mail")
     assert game.fighters["hellboy"].hp == 17 and game.fighters["wukong"].hp == 17, msgs
     assert said(msgs, "mira tu mano"), msgs
-    assert session.pending_discard is not None or said(msgs, "descartas"), msgs
+    assert said(msgs, f"Confront Any Demon or God: roba 1; descartas"), msgs
+    assert len(session.pending_discard["cards"]) == 1, session.pending_discard
+
+
+def lost_events(g, monkeypatch):
+    """The `combat_lost` events the engine emits, as (player, fighter id)."""
+    from sparring.effects.state import EffectState
+    seen, emit = [], EffectState.emit
+    def spy(self, name, player=None, *rest, **kw):
+        if name == "combat_lost":
+            seen.append((player, rest[0].fid))
+        return emit(self, name, player, *rest, **kw)
+    monkeypatch.setattr(EffectState, "emit", spy)
+    return seen
+
+
+def test_the_attacker_that_took_its_own_blow_is_the_one_who_lost_the_combat(bprd, monkeypatch):
+    g = mk(bprd, turn=1)
+    w, h = pair(g, "wukong", "hellboy")
+    g.actions_left = 2
+    boosted(monkeypatch)
+    seen = lost_events(g, monkeypatch)
+    g.attack(h, w, foe_card(g, lambda c: c.title == CONFRONT), give(g, 0, "Golden Chain Mail"))
+    assert seen == [(1, "hellboy")]                   # Hellboy's owner lost; Wukong's side won
+
+
+def test_the_defender_that_took_the_blow_is_the_one_who_lost_the_combat(bprd, monkeypatch):
+    g = mk(bprd, turn=1)
+    w, h = pair(g, "wukong", "hellboy")
+    g.actions_left = 2
+    boosted(monkeypatch, 3)
+    seen = lost_events(g, monkeypatch)
+    g.attack(h, w, foe_card(g, lambda c: c.title == CONFRONT), give(g, 0, "Tortoise Form"))
+    assert seen == [(0, "wukong")]
