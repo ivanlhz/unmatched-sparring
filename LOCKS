@@ -1,2 +1,5 @@
 # path  agent  task  UTC time   (see BRIEF: short locks only)
 docs/combat-flow.md  double-attack  review fixes  14:27Z
+sparring/ai_medusa.py  double-attack  review fixes AI  14:34Z
+sparring/search/adapter.py  double-attack  review fixes AI  14:34Z
+features.json  double-attack  review fixes AI  14:34Z

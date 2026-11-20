@@ -157,3 +157,86 @@ def test_the_second_attack_is_a_flow_of_its_own_that_survives_a_save(bprd, doubl
     assert again.second == SECOND and again.atk_card is second.atk_card
     assert second.run() is None and second.result.damage == SECOND and not second.second_due
     assert not second.second_attack and "after:atk" not in second.runs, "the second part is damage only, not the card played again"
+
+
+# ---------------------------------------------------------------- the guards the first review found unproven
+
+def _events(g, monkeypatch):
+    seen = []
+    real = type(g.fx).emit
+    monkeypatch.setattr(type(g.fx), "emit", lambda self, name, *a, **kw: (seen.append(name), real(self, name, *a, **kw))[1])
+    return seen
+
+
+def test_the_combat_is_counted_once_for_the_events_that_count_combats_and_attacks(bprd, double, monkeypatch):
+    g, hellboy, bigfoot, a, d = mk(bprd)
+    seen = _events(g, monkeypatch)
+    res = g.attack(hellboy, bigfoot, give(g, a, TITLE), None)
+    assert res.second is not None
+    assert seen.count("combat_lost") == 1 and seen.count("after_attack") == 1, "the second part is damage of the same card, not another attack"
+
+
+def test_a_card_played_as_a_defense_records_no_second_attack(bprd, monkeypatch):
+    skirmish = load_effects("bigfoot").card("Skirmish")
+    monkeypatch.setitem(skirmish.moments, "after", [{"op": "second_attack", "amount": SECOND}])
+    g, hellboy, bigfoot, a, d = mk(bprd)
+    flow = CombatFlow(g, hellboy, bigfoot, give(g, a, "Service Pistol"), give(g, d, "Skirmish"))
+    assert flow.run() is None and not flow.second_attack and not flow.second_due
+
+
+def test_an_uncancelable_double_attack_card_keeps_its_second_part_against_a_feint(bprd, double, monkeypatch):
+    import dataclasses
+    from sparring.effects import modifiers
+    cards = modifiers._cards_by_title()
+    monkeypatch.setitem(cards, TITLE, dataclasses.replace(cards[TITLE], uncancelable=True))
+    g, hellboy, bigfoot, a, d = mk(bprd)
+    res = g.attack(hellboy, bigfoot, give(g, a, TITLE), give(g, d, "Feint"))
+    assert res.cancelled == set() and res.second is not None and res.second.damage == SECOND
+
+
+def test_a_real_cancel_of_only_the_after_effects_stops_the_second_attack(bprd, double, monkeypatch):
+    monkeypatch.setitem(load_effects("bigfoot").card("Feint").moments, "immediately",
+                        [{"op": "cancel_effects", "card": "opponent_card", "moments": ["after"]}])
+    g, hellboy, bigfoot, a, d = mk(bprd)
+    res = g.attack(hellboy, bigfoot, give(g, a, TITLE), give(g, d, "Feint"))
+    assert res.cancelled_after == {"atk"} and res.second is None
+
+
+def test_the_attacking_sidekick_defeated_by_the_defenders_after_leaves_no_second_attack(bprd, double, monkeypatch):
+    monkeypatch.setitem(load_effects("bigfoot").card("It's Just Your Imagination").moments, "after",
+                        [{"op": "damage", "target": "opposing", "amount": 99}])
+    g, hellboy, bigfoot, a, d = mk(bprd)
+    lobster = g.fighters["lobster"]
+    lobster.pos = next(s for s in sorted(g.board.adj[bigfoot.pos]) if all(f.pos != s for f in g.fighters.values() if f.alive))
+    flow = CombatFlow(g, lobster, bigfoot, give(g, a, TITLE), give(g, d, "It's Just Your Imagination"))
+    assert flow.run() is None
+    assert not lobster.alive and g.winner is None and not flow.second_due, "the dead attacker's AFTER never recorded a second attack"
+
+
+def test_a_fighter_that_falls_after_the_first_part_is_not_attacked_by_or_for_a_second_one(bprd, double):
+    g, hellboy, bigfoot, a, d = mk(bprd)
+    flow = CombatFlow(g, hellboy, bigfoot, give(g, a, TITLE), None)
+    assert flow.run() is None and flow.second_due
+    hellboy.hp = 0
+    hellboy.alive = False
+    assert not flow.second_due
+
+
+def test_a_second_flow_stopped_at_the_defenders_boost_resumes_from_a_save(bprd, double):
+    g = Game.new(bprd, 3, controllers={0: Answers(), 1: Answers()}, heroes=("baba-yaga", "hellboy"), bot_player=0)
+    g.turn, g.turn_no = 1, 2
+    g.begin_turn()
+    for p in g.players:
+        p.hand.clear()
+    g.fx.dsl_heroes = {"baba-yaga", "hellboy"}
+    hellboy, baba = pair(g, "hellboy", "baba")
+    first = CombatFlow(g, hellboy, baba, give(g, 1, TITLE), None)
+    assert first.run() is None and first.second_due
+    out_of_time = give(g, 0, "Out Of Time")
+    second = first.second_flow(out_of_time)
+    wait = second.run()
+    assert wait.choice.kind == "boost" and wait.choice.player == 0 and second.phase.value == "during"
+    again = CombatFlow.from_dict(g, second.to_dict())
+    assert again.second == SECOND and again.pending is not None and again.pending.kind == "boost"
+    again.resume(None)
+    assert again.run() is None and again.done and again.result.def_card is out_of_time
