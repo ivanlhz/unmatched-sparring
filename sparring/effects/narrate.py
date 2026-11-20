@@ -157,21 +157,32 @@ def _title(game, card_id, owner=None) -> str:
     return card.title if card else t("fx.cause_default")
 
 
+def _who(game, f) -> str:
+    """How a fighter is named in the line: its id, except for a hero with a reserve (Sun Wukong's Clones come out of the bag): the name of the piece."""
+    reserve = any(s.start_on_board == 0 for s in game.players[f.owner].hero.sidekicks)
+    return (getattr(game, "nicknames", None) or {}).get(f.fid) or f.name if reserve else f.fid
+
+
 def _fighters(game, before: dict) -> list[str]:
     out = []
     for fid, (hp0, pos0, alive0) in before["fighters"].items():
         f = game.fighters[fid]
+        who = _who(game, f)
         if alive0 and not f.alive:
-            out.append(t("narr.fighter.down", fid=fid))
+            out.append(t("narr.fighter.down", fid=who))
         elif not alive0 and f.alive:
-            out.append(t("narr.fighter.back", fid=fid, spot=describe_space(game, f.pos, (fid,)), hp=f"{f.hp:g}"))
+            if f.died_at is None and not f.hero:        # first time out of the reserve: summoned, not returned
+                out.append(t("narr.fighter.summoned_by_hand" if fid in game.placing else "narr.fighter.summoned",
+                             fid=who, spot=describe_space(game, f.pos, (fid,)), hp=f"{f.hp:g}"))
+            else:
+                out.append(t("narr.fighter.back", fid=who, spot=describe_space(game, f.pos, (fid,)), hp=f"{f.hp:g}"))
         elif f.alive:
             if f.hp < hp0:
-                out.append(t("narr.fighter.loses", fid=fid, n=f"{hp0 - f.hp:g}", hp=f"{f.hp:g}"))
+                out.append(t("narr.fighter.loses", fid=who, n=f"{hp0 - f.hp:g}", hp=f"{f.hp:g}"))
             elif f.hp > hp0:
-                out.append(t("narr.fighter.heals", fid=fid, n=f"{f.hp - hp0:g}", hp=f"{f.hp:g}"))
+                out.append(t("narr.fighter.heals", fid=who, n=f"{f.hp - hp0:g}", hp=f"{f.hp:g}"))
             if f.pos != pos0:
-                out.append(t("narr.fighter.moves", fid=fid, spot=describe_space(game, f.pos, (fid,))))
+                out.append(t("narr.fighter.moves", fid=who, spot=describe_space(game, f.pos, (fid,))))
     return out
 
 

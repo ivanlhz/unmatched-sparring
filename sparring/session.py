@@ -1024,7 +1024,7 @@ class Session:
         self.sync_positions()
         start = g.start_spaces[self.human]
         for fid, f in g.fighters.items():
-            if f.owner != self.human:
+            if f.owner != self.human or self._in_reserve(f):
                 continue
             info = self._table_pieces().get(fid) or {}
             if not self._on_board(info) or not g.board.share_zone(start, info["space"]):
@@ -3317,8 +3317,13 @@ class Session:
         return self.cfg.nicknames.get(f.fid, f.fid)
 
     def _sidekicks(self) -> list[Fighter]:
-        """The human's fighters that they place, not the bot (all but their hero)."""
-        return [f for f in self.game.own(self.human, alive_only=False) if not f.hero]
+        """The human's fighters that they place, not the bot (all but their hero). A fighter in the reserve (Sun Wukong's Clones start in the
+        bag) is not placed at the start: only the ones that are on the board or fell there."""
+        return [f for f in self.game.own(self.human, alive_only=False) if not f.hero and not self._in_reserve(f)]
+
+    @staticmethod
+    def _in_reserve(f: Fighter) -> bool:
+        return not f.alive and f.died_at is None
 
     def _sidekick_names(self) -> str:
         names = [self._name(f) for f in self._sidekicks()]
@@ -4141,7 +4146,7 @@ class Session:
             self.say(t("turn.ability_wait", wait=self.ability_wait), ChatKind.YOUR_TURN)
         paused = self._paused()
         if paused is not None and paused[0] == "parked":
-            self.say(human_effects.ABILITY_TEXT.get(paused[2].label, paused[2].label), ChatKind.YOUR_TURN)
+            self.say(human_effects.ABILITY_TEXT.get(paused[2].label, paused[2].label).replace("{hero}", self._name(g.hero(self.human))), ChatKind.YOUR_TURN)
             self._show_choice(paused[2].awaiting)
 
     # ---------- table I/O: snapshot, write queue and composite script ----------
@@ -5653,7 +5658,8 @@ class Session:
             if quiet and not self._on_board(info):
                 continue
             if not info.get("found"):
-                self._warn(fid, "missing", t("warn.missing", name=name, guid=guid))
+                if fid not in self.game.placing:           # a piece the human is still taking out of the bag to place it (a summoned Clone) is not missing
+                    self._warn(fid, "missing", t("warn.missing", name=name, guid=guid))
             elif not self._on_board(info):
                 self._warn(fid, "off", t("warn.off", name=name, dist=info["dist"], zone=zone_text(self.game, info["space"])))
             elif info["space"] != f.pos and not self.game.fx.can_move(f):

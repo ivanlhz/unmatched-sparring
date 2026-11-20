@@ -561,3 +561,28 @@ def test_a_versatile_card_played_to_defend_is_a_defense_card_for_the_trick(bprd)
     versatile = foe_card(g, lambda c: c.type == "versatile" and c.can_defend and "cancel" not in c.text.lower() and "IMMEDIATELY" not in c.text)
     res = g.attack(w, h, give(g, 0, "Ruyi Jingo Bang"), versatile)
     assert res.second is not None and res.second.atk_value == 4
+
+
+# ---------------------------------------------------------------- Golden Chain Mail against Yennenga's Archers
+
+def test_golden_chain_mail_sends_the_blow_to_yennenga_and_her_archers_take_their_share(bprd, monkeypatch):
+    from test_yennenga_effects import archers, beside, stack
+    ctl = {0: Boosting(), 1: Boosting()}
+    g = Game.new(bprd, 3, controllers=ctl, heroes=("yennenga", "sun-wukong"), bot_player=0)
+    g.turn, g.turn_no = 0, 2
+    ctl[1].queue = [[False]]
+    g.begin_turn()
+    for p in g.players:
+        p.hand.clear()
+    yen = stack(g)
+    a1, a2 = archers(g)
+    w = beside(g, "wukong", "yennenga")
+    attack = next(c for c in g.players[0].full_set if c.can_attack and (c.value or 0) == 4)
+    monkeypatch.setattr(Game, "attack_bonus_parts", lambda self, f, target=None: [(3, "test")] if f.fid == "yennenga" else [])     # 4 + 3 against 4: a blow of 3
+    g.players[0].deck.remove(attack)
+    g.players[0].hand.append(attack)
+    ctl[0].queue = [[1], [1]]                                       # Yennenga assigns one point to each Archer
+    res = g.attack(yen, w, attack, give(g, 1, "Golden Chain Mail"))
+    blow = attack.value + 3 - 4
+    assert blow == 3 and w.hp == 17                                  # nothing lands on Wukong
+    assert (a1.hp, a2.hp) == (1, 1) and yen.hp == 15 - (blow - 2)     # the redirected victim is Yennenga: her hook splits it

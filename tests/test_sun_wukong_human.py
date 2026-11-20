@@ -75,7 +75,7 @@ def test_yes_takes_one_damage_on_the_dial_and_the_human_puts_the_clone_where_the
     msgs = press(session, table, True)
     w, c = game.fighters["wukong"], game.fighters["clone1"]
     assert w.hp == 16 and dial(session, cfg, table, "wukong") == 16 and c.alive and c.hp == 1
-    assert said(msgs, "wukong -1 PV (16)") and said(msgs, "pon a Clone 1 en el tablero (una casilla adyacente) con 1 PV"), msgs
+    assert said(msgs, "Sun Wukong -1 PV (16)") and said(msgs, "Clone 1 es invocado con 1 PV") and not said(msgs, "pegada a") and said(msgs, "pon a Clone 1 en el tablero (una casilla adyacente) con 1 PV"), msgs
     assert game.placing == {"clone1"}
     spot = free_next_to(game, "wukong")[-1]
     table.positions[cfg.nicknames["clone1"]] = spot                 # the human takes the Clone out of the bag and puts it there
@@ -264,3 +264,139 @@ def test_paying_the_card_keeps_the_value_of_the_humans_defense(rig):
     msgs = press(session, table, True)
     assert session.effect_run is None or session.effect_run.awaiting.kind != "optional", msgs
     assert game.fighters["hellboy"].hp == 18                                         # the 3 ties the 3: the defender wins, nothing lands
+
+
+# ---------------------------------------------------------------- the setup: the Clones stay in the bag
+
+def setup_wukong(tmp_path, monkeypatch, first):
+    """The game-start gate (draw, placement, Ready) with Sun Wukong as the human: the table has no Clone on it, as after Prepare."""
+    import dataclasses
+    from sparring.ai_medusa import Act
+    from test_d3_table_effects import build
+    from test_review5_fixes import GOODH, deck_with_first
+    session, table, game, fake, cfg, client = build(tmp_path, "medusa", "sun-wukong", ())
+    session.cfg = dataclasses.replace(session.cfg, setup=True, mulligan_bot=True)
+    session.first_mode = "random"
+    game.turn = first
+    table.bot_hand, table.bot_deck, table.human_count = [], deck_with_first(game, GOODH), 0
+    fids = [f for f, g in game.fighters.items() if not f.startswith("clone")]
+    table.positions = {cfg.nicknames[f]: 10 + i for i, f in enumerate(fids)}          # scrambled, off the start spaces; no Clone on the table
+    table.dial_ignores_writes = False
+    game.fx.parked.clear()                       # build() opened the harness game's first turn: its CLONES question is not the setup's
+    monkeypatch.setattr(session.ai, "plan", lambda g: Act("maneuver", moves={}))
+    monkeypatch.setattr(session.ai, "pick_ability_target", lambda g: None)
+    return session, table, game, fake, cfg, client
+
+
+def test_the_human_wukong_is_never_asked_to_place_the_clones_that_are_in_the_bag(tmp_path, monkeypatch):
+    session, table, game, fake, cfg, client = setup_wukong(tmp_path, monkeypatch, first=0)
+    try:
+        out = session.start()
+        assert session.setup["stage"] == "wait_human" and not any("Clon" in m or "Clone" in m for m in out), out
+        start = game.start_spaces[1]
+        table.positions[cfg.nicknames["wukong"]] = start
+        table.human_count = 5
+        out = session.handle(Event.READY)
+        assert not any("Falta colocar" in m for m in out), out
+        assert session.setup is None and any("Preparacion terminada" in m for m in out), out
+        assert not any(game.fighters[c].alive for c in CLONES)
+    finally:
+        client.close()
+        fake.close()
+
+
+def test_the_bot_wukong_keeps_its_clones_in_the_bag_through_the_setup(tmp_path, monkeypatch):
+    import dataclasses
+    from sparring.ai_medusa import Act
+    from test_d3_table_effects import build
+    from test_review5_fixes import GOODH, deck_with_first
+    session, table, game, fake, cfg, client = build(tmp_path, "sun-wukong", "hellboy", ())
+    try:
+        session.cfg = dataclasses.replace(session.cfg, setup=True, mulligan_bot=True)
+        session.first_mode = "random"
+        game.turn = 0
+        table.bot_hand, table.bot_deck, table.human_count = [], deck_with_first(game, ("Ox Form", "Sly Monkey", "Wily Fighting", "Tortoise Form", "Infinite Strikes")), 0
+        fids = [f for f in game.fighters if not f.startswith("clone")]
+        table.positions = {cfg.nicknames[f]: 10 + i for i, f in enumerate(fids)}
+        monkeypatch.setattr(session.ai, "plan", lambda g: Act("maneuver", moves={}))
+        monkeypatch.setattr(session.ai, "pick_ability_target", lambda g: None)
+        session.start()
+        assert not any(game.fighters[c].alive for c in CLONES)
+        assert all(cfg.nicknames[c] not in table.positions for c in CLONES), "the bot never puts a Clone on the table at the start"
+    finally:
+        client.close()
+        fake.close()
+
+
+# ---------------------------------------------------------------- the text of the question, Medusa's gaze, the chat after Yes
+
+@with_rig("hellboy", "sun-wukong", *HAND)
+def test_the_clones_prompt_names_the_hero_and_tells_what_the_engine_does(rig):
+    session, table, game, fake, cfg = rig
+    said_now = []
+    session.say = lambda text, kind=None: said_now.append(text)
+    session._announce_human_start()
+    text = " ".join(said_now)
+    assert "{hero}" not in text and "Sun Wukong" in text, text
+    assert "no pulses -1" in text and "End action" in text.replace("Fin de accion", "End action"), text      # the engine writes the dial itself
+
+
+def test_the_human_medusas_gaze_is_still_the_tables_to_do(bprd):
+    """CLONES is run by the engine for the table player; nothing else changed: Medusa's GAZE (optional + damage) still waits on the table."""
+    from sparring.effects import table as fx_table
+    from sparring.effects.model import load_effects
+    from sparring.state import Game
+    from test_effects_combat import Asking
+    ctl = {0: Asking(), 1: Asking()}
+    ctl[1].human = True
+    g = Game.new(bprd, 3, controllers=ctl, heroes=("hellboy", "medusa"), bot_player=0)
+    gaze = next(t for t in load_effects("medusa").triggers if t["id"] == "medusa_gaze")
+    assert fx_table.physical(g, 1)
+    if gaze["when"]["event"] == "start_of_turn":
+        assert fx_table.start_of_turn_is_physical(g, 1, gaze)
+    clones = next(t for t in load_effects("sun-wukong").triggers if t["id"] == "clone_summon")
+    g2 = Game.new(bprd, 3, controllers={0: Asking(), 1: Asking()}, heroes=("hellboy", "sun-wukong"), bot_player=0)
+    g2.controllers[1].human = True
+    assert not fx_table.start_of_turn_is_physical(g2, 1, clones)
+
+
+# ---------------------------------------------------------------- save and resume
+
+def reload(session, table, bprd_game_cls=None):
+    """The session as a save brings it back: a fresh Session loaded from the saved dict, then resumed against the same table."""
+    import json
+    from sparring.ai_medusa import MedusaAI
+    from sparring.session import Session
+    from sparring.state import Game
+    saved = json.loads(json.dumps(session.to_dict()))
+    other = Session(Game.new(session.game.board, seed=3, controllers={}, bot_player=session.bot, heroes=tuple(p.hero.slug for p in session.game.players)), session.client, MedusaAI(0), session.cfg)
+    other.game_id = session.game_id
+    other.load_dict(saved)
+    other.snap = None
+    other.resume()
+    return other
+
+
+@with_rig("hellboy", "sun-wukong", *HAND)
+def test_resume_during_the_clones_question_asks_it_again_with_names(rig):
+    session, table, game, fake, cfg = rig
+    other = reload(session, table)
+    assert other.effect_run is not None and other.effect_run.awaiting.kind == "optional"
+    assert any("Elige" in m or "eleccion" in m.lower() or "CLONES" in m for m in other.messages), other.messages
+    press(other, table, True)
+    assert other.game.fighters["clone1"].alive and other.game.fighters["wukong"].hp == 16
+
+
+@with_rig("hellboy", "sun-wukong", *HAND)
+def test_resume_while_the_clone_is_waiting_to_be_placed_does_not_call_it_missing(rig):
+    session, table, game, fake, cfg = rig
+    press(session, table, True)
+    assert game.placing == {"clone1"}
+    table.positions.pop(cfg.nicknames["clone1"], None)           # the Clone is still in the bag
+    other = reload(session, table)
+    assert other.game.placing == {"clone1"} and other.game.fighters["clone1"].alive
+    assert not any("No encuentro la pieza" in m for m in other.messages), other.messages
+    spot = free_next_to(other.game, "wukong")[-1]
+    table.positions[cfg.nicknames["clone1"]] = spot
+    click(other, table, Event.END_ACTION)
+    assert other.game.fighters["clone1"].pos == spot

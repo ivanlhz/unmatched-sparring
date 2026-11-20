@@ -1,6 +1,1 @@
 # path  agent  task  UTC time   (see BRIEF: short locks only)
-sparring/session.py  wukong  reserve fighters skipped in setup; clone prompt; resume line  14:52Z
-sparring/effects/table.py  wukong  review fixes  14:52Z
-sparring/effects/events.py  wukong  review fixes  14:52Z
-data/i18n/en.json  wukong  review fixes  14:52Z
-data/i18n/es.json  wukong  review fixes  14:52Z
