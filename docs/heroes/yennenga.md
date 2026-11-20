@@ -74,6 +74,8 @@ Every item that is a real doubt is also under "Pending Ivan".
 2. **Damage taken**: should an effect that reads "the damage you took" (Luke Cage's Skin Like Titanium against her) see the whole blow or only what landed on Yennenga? (Today the whole blow.)
 3. **Surprise Volley** returns the Archer with its starting 2 life: confirm. And whether the Archer that returns may be one that fell THIS turn (today yes).
 4. **Rain of Arrows**: how the second attack interacts with her ability, boosts and bonuses (the double-attack rulings pending in docs/combat-flow.md): today the second attack is a combat of its own against the same defender, so the question of the Archers' share is asked again for it.
+5. **Area damage** (an effect that hits her and an Archer of hers at once, e.g. Horseshoes And Hand Grenades): an Archer's share leaves room for the hit the same effect deals that Archer, so no point is lost on a fighter the effect already killed. Reading applied; confirm.
+6. **Archer token faces**: on the real table the Archer token may not show a different face when flipped (the save has one `Custom_Model` with a single image), so the two-faces rule (Ivan 2026-11-20) needs a live check of what, if anything, a flip shows.
 
 ## AI
 - The AI profile comes from the data (Yennenga `hero`, the Archers `striker`; exclusive cards: Pin the Prey and Divide and Conquer for the Archers).
