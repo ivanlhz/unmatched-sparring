@@ -1144,12 +1144,9 @@ class EngineState:
                 "exposure": -self._exposure(p, urgent), "exhaustion": -self._exhaustion(p) * hp_life}
 
     def _vengeance(self, p: int) -> float:
-        """Achilles with Patroclus down: +2 to every attack and a card per combat won are worth `LEAF_EDGE` of life (the discard is already in the hand)."""
-        pas = ai_achilles.passive(self.game, p)
-        if pas is None or not self.game.hero(p).alive:
-            return 0.0
-        patroclus = self.game.fighters.get(pas["sidekick"])
-        return ai_achilles.LEAF_EDGE if patroclus is not None and not patroclus.alive else 0.0
+        """Achilles with Patroclus down: +2 to every attack and a card per combat won, `ai_achilles.LEAF_HP` hit points in this evaluation's unit
+        (the discard is already in the simulated hand)."""
+        return ai_achilles.leaf_term(self.game, p, bool(self.weights.normalize))
 
     def _exhaustion(self, p: int) -> float:
         """Hit points that `p`'s deck will cost it through exhaustion over the rest of the game, in the units of `exhaustion_owed`: the draws it

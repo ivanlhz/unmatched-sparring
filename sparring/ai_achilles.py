@@ -8,8 +8,8 @@ loss (`ai_medusa.kill_value`); here `fall_net` is what the trade is worth to the
     even when it kills him, takes a blow on him under the Helm), and keeps him alive while the discard would cost more;
   - a bot facing Achilles values the kill of Patroclus less: it empties the rival's hand of two cards and arms his hero.
 
-The units are the evaluation's hit points (`W_HERO`, `HARPY_VALUE`). The search leaf (`search.adapter._side_terms`) reads the same
-edge in its own units (`LEAF_EDGE`)."""
+The units are the evaluation's hit points (`W_HERO`, `HARPY_VALUE`). The search leaf (`search.adapter.EngineState._vengeance`) reads the same
+edge, `LEAF_HP`, in the units of the evaluation it is in (`leaf_term`)."""
 from __future__ import annotations
 
 from . import vengeance
@@ -21,7 +21,7 @@ DOOM = "The Day of Your Doom"
 DOOM_VALUE = 5.0
 DOOM_DAMAGE = 2
 PAY_MARGIN = 0.1
-LEAF_EDGE = 0.4       # the search leaf: lives gained by an Achilles whose Patroclus is down; 8 games of the search AI against the chasing rival: 1 won with 0, 3 with 0.12, 5 with 0.3, 6 with 0.5
+LEAF_HP = FALL_EDGE   # the search leaf values the vengeance like the heuristic does: this many hit points (the discard is already in the simulated hand)
 
 
 def passive(game, player: int):
@@ -59,3 +59,19 @@ def doom_pays(game, f, gain: float = DOOM_VALUE - 3, target=None) -> bool:
 def attack_value(game, f, card) -> float | None:
     """The value The Day of Your Doom will have when `f` plays it (None for any other card): 5 if the bot will pay for it."""
     return DOOM_VALUE if card.title == DOOM and doom_pays(game, f) else None
+
+
+def leaf_term(game, player: int, normalized: bool) -> float:
+    """What a fallen Patroclus is worth to the search leaf of `player`'s side: `LEAF_HP` hit points in that evaluation's own unit, so the
+    leaf and the heuristic agree on the size of the trade. The normalized evaluation counts a hit point at full health as
+    `1 / (2 * REFERENCE_HP)` lives (the slope of its square root); the default one counts the hit points of a sidekick in hero
+    hit points (`1 / max_hp` of the hero). 0 for any other hero, while Patroclus lives or if Achilles himself has fallen."""
+    from .search.adapter import REFERENCE_HP
+    pas = vengeance.passive(game, player)
+    hero = game.hero(player)
+    if pas is None or not hero.alive:
+        return 0.0
+    patroclus = game.fighters.get(pas["sidekick"])
+    if patroclus is None or patroclus.alive:
+        return 0.0
+    return LEAF_HP / (2.0 * REFERENCE_HP) if normalized else LEAF_HP / hero.max_hp

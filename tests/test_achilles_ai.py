@@ -81,7 +81,7 @@ def test_the_search_leaf_prefers_a_hand_of_cards_ahead_of_an_empty_one_and_count
     assert alive["vengeance"] == 0.0
     fall(g)
     down = leaf(g)._side_terms(0, False)
-    assert down["vengeance"] == ai_achilles.LEAF_EDGE
+    assert down["vengeance"] == pytest.approx(ai_achilles.leaf_term(g, 0, True)) and down["vengeance"] > 0
     assert leaf(mk(bprd, foe="hellboy"))._side_terms(1, False)["vengeance"] == 0.0               # the rival (Hellboy) has no such passive
 
 
@@ -97,18 +97,46 @@ def test_with_the_search_ai_a_whole_game_as_achilles_has_no_fallback_and_ends():
     assert out.turns >= 1 and ai.fallbacks == 0
 
 
-def test_both_leaf_evaluations_count_the_vengeance(bprd, monkeypatch):
-    """The default `EvalWeights()` (not normalized) and the normalized one of RESOLUTION both read the edge of a fallen Patroclus."""
+def test_the_leaf_term_is_the_heuristic_edge_in_the_units_of_each_evaluation(bprd):
+    """FALL_EDGE hit points everywhere: `1 / (2 * REFERENCE_HP)` lives each in the normalized evaluation, `1 / max_hp` of the hero in the default one."""
+    from sparring.search.adapter import REFERENCE_HP
+    g = mk(bprd)
+    assert ai_achilles.leaf_term(g, 0, True) == 0.0                                    # Patroclus lives
+    fall(g)
+    assert ai_achilles.leaf_term(g, 0, True) == pytest.approx(ai_achilles.LEAF_HP / (2.0 * REFERENCE_HP))
+    assert ai_achilles.leaf_term(g, 0, False) == pytest.approx(ai_achilles.LEAF_HP / g.hero(0).max_hp)
+    assert ai_achilles.LEAF_HP == ai_achilles.FALL_EDGE
+    assert ai_achilles.leaf_term(g, 1, True) == 0.0                                    # Hellboy has no such passive
+
+
+def test_both_leaf_evaluations_read_the_term(bprd, monkeypatch):
     g = mk(bprd)
     pair(g, "achilles", "hellboy")
     fall(g)
-    edge = ai_achilles.LEAF_EDGE
     for weights in (EvalWeights(), EvalWeights(**RESOLUTION)):
         state = EngineState(g, observer=0, knowledge=Knowledge.from_game(g, 0), weights=weights)
+        term = ai_achilles.leaf_term(g, 0, bool(weights.normalize))
         with_edge = state._side_value(0)
-        monkeypatch.setattr(ai_achilles, "LEAF_EDGE", 0.0)
-        assert with_edge - state._side_value(0) == pytest.approx(edge)
+        monkeypatch.setattr(ai_achilles, "LEAF_HP", 0.0)
+        assert with_edge - state._side_value(0) == pytest.approx(term) and term > 0
         monkeypatch.undo()
+
+
+def test_finishing_a_wounded_patroclus_looks_good_to_the_rivals_search_in_both_evaluations(bprd):
+    """The review's measurement (tools/measure_achilles_ai.py leaf): a 2-HP Patroclus falling must raise the leaf of the rival's search; a
+    term sized for the wrong evaluation made the rival avoid the kill."""
+    before = mk(bprd)
+    pair(before, "achilles", "hellboy")
+    before.fighters["patroclus"].hp = 2
+    hand_of(before, 0, 4)
+    hand_of(before, 1, 4)
+    after = before.clone()
+    after.damage(after.fighters["patroclus"], 2, "effect")
+    assert not after.fighters["patroclus"].alive and len(after.players[0].hand) == 2
+    for weights in (EvalWeights(), EvalWeights(**RESOLUTION)):
+        rival_before = EngineState(before, observer=1, knowledge=Knowledge.from_game(before, 1), weights=weights).evaluate(1)
+        rival_after = EngineState(after, observer=1, knowledge=Knowledge.from_game(after, 1), weights=weights).evaluate(1)
+        assert rival_after > rival_before, (weights.normalize, rival_before, rival_after)
 
 
 def test_the_bot_answers_the_doom_request_by_the_points_it_adds(bprd):
