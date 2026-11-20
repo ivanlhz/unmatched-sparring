@@ -1,1 +1,6 @@
 # path  agent  task  UTC time   (see BRIEF: short locks only)
+docs/effects-dsl.md  double-attack  DSL shape for double attack  13:38Z
+data/heroes/effects/schema.json  double-attack  DSL shape for double attack  13:38Z
+sparring/effects/ops_combat.py  double-attack  DSL shape for double attack  13:38Z
+sparring/combat_flow.py  double-attack  DSL shape for double attack  13:38Z
+tools/validate_effects.py  double-attack  DSL shape for double attack  13:38Z
