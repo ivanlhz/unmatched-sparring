@@ -106,3 +106,10 @@ def journal_note(game, owner: int, act) -> dict:
     return {"second_attack": {"value": {"no_defense": second_value(game, owner, card, None),
                                         "defense_2": second_value(game, owner, card, 2),
                                         "defense_4": second_value(game, owner, card, 4)}}}
+
+
+def possible_double_titles(game, owner: int) -> list[str]:
+    """Titles of the double-attack cards `owner` may still play (its deck list minus the public piles): what a bot defending a face-down
+    attack weighs, and what its decision journal says it weighed."""
+    st = game.players[owner]
+    return sorted({c.title for c in st.full_set if c not in st.gone and c.can_attack and has_second(game, owner, c)})

@@ -180,13 +180,14 @@ class IsmctsMedusa(Controller):
             decision_log.emit(self, game, "defense", lambda: {**self.heuristic.defense_journal(attacker, target, attack_card, card),
                                                               "fallback": True, "error": repr(exc)})
             return card
-        decision_log.emit(self, game, "defense", lambda: self._defense_search_journal(attacker, target, attack_card, card, before))
+        decision_log.emit(self, game, "defense", lambda: self._defense_search_journal(game, attacker, target, attack_card, card, before))
         return card
 
-    def _defense_search_journal(self, attacker: Fighter, target: Fighter, attack_card: Card | None, card: Card | None,
+    def _defense_search_journal(self, game: Game, attacker: Fighter, target: Fighter, attack_card: Card | None, card: Card | None,
                                 before: SearchReport | None) -> dict:
         chosen = {"card": None if card is None else card.title, "attacker": attacker.fid, "target": target.fid,
-                  "attack_known": None if attack_card is None else attack_card.title}
+                  "attack_known": None if attack_card is None else attack_card.title,
+                  **({"double_attack_cards_possible": titles} if (titles := ai_double.possible_double_titles(game, attacker.owner)) else {})}
         return self._search_journal(chosen, before)
 
     def _choose_defense(self, game: Game, attacker: Fighter, target: Fighter, attack_card: Card | None) -> Card | None:

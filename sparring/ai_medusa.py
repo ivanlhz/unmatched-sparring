@@ -540,6 +540,15 @@ class Model:
                 by_value.setdefault(v, []).append(harm(c))
         return {v: tuple(sum(h[i] for h in hs) / len(hs) for i in range(3)) for v, hs in by_value.items()}
 
+    def committed_cards_by_value(self, f: Fighter, target: Fighter | None = None) -> dict:
+        """The cards the rival may have played as its committed attack, by the attack value they give (what `committed_attack_dist` weighs)."""
+        fn = self.attack_value_fn(f, self.game.attack_bonus(f, target))
+        by_value: dict = {}
+        for c in self.pool:
+            if (v := fn(c)) is not None:
+                by_value.setdefault(v, []).append(c)
+        return by_value
+
     def committed_attack_dist(self, f: Fighter, target: Fighter | None = None):
         """Value of the attack given that the rival has already played a card: without the "has no card" mass, renormalized."""
         bonus = self.game.attack_bonus(f, target)
@@ -1897,30 +1906,36 @@ class MedusaAI(Controller):
             if second is not None:            # the second part of a double attack: its value is known and the card has no effects left
                 dist = [(1.0, second + ai_double.second_bonus(game, attacker, target))]
                 self._attack_harm = self._attack_harm_fixed = {}
+                self._attack_cards = {}
             elif attack_card is not None:
                 dist = [(1.0, (attack_card.value or 0) + game.attack_bonus(attacker, target))]
+                self._attack_cards = {dist[0][1]: [attack_card]}
                 self._attack_harm = {dist[0][1]: attack_harm(attack_card)}
                 self._attack_harm_fixed = {dist[0][1]: uncancelable_harm(game, attack_card, attacker.owner)}
             else:
                 dist = model.committed_attack_dist(attacker, target)
+                self._attack_cards = model.committed_cards_by_value(attacker, target)
                 self._attack_harm = model.committed_harm_by_value(attacker, target)
                 self._attack_harm_fixed = model.committed_harm_by_value(attacker, target, uncancelable=True)
             best, best_v = None, None
             options = [None] + [c for c in hand if c.can_defend and c.usable_by(target.name)]
             seen = set()
             self._defense_scores = scores = []
+            self._second_loss = 0.0
             for c in options:
                 if c is not None:
                     if c.title in seen:
                         continue
                     seen.add(c.title)
                 v = self.eval_defense(game, model, dist, target, c)
-                scores.append({"move": ["defend", None if c is None else c.title], "score": round(v, 4)})
+                scores.append({"move": ["defend", None if c is None else c.title], "score": round(v, 4),
+                               **({"second_part_loss": round(self._second_loss, 4)} if self._second_loss else {})})
                 if best_v is None or v > best_v + 1e-9:
                     best, best_v = c, v
         finally:
             self._attacker = self._defender = None
             self._attack_harm = self._attack_harm_fixed = {}
+            self._attack_cards = {}
         return best
 
     def mists_dist(self, game: Game, model: Model, attacker: Fighter, target: Fighter | None = None) -> list[tuple[float, int]]:
@@ -1942,6 +1957,38 @@ class MedusaAI(Controller):
             if card.can_attack and card.usable_by(attacker.name):
                 by_value.setdefault(card.value + bonus, []).append(attack_harm(card))
         return {v: tuple(sum(h[i] for h in hs) / len(hs) for i in range(3)) for v, hs in by_value.items()}
+
+    def second_part_loss(self, game: Game, target: Fighter, dist, c, dv, price) -> float:
+        """DOUBLE ATTACK (Ivan D8): what the second part of a double-attack card costs the defender once `c` (None: no card) answers the
+        first. The card played face down is not known: each attack value the rival may hold stands for the cards of that value it may still
+        have, the ones with a second part count by what that part is worth against the printed value of `c` (Ruyi Jingo Bang only when a
+        card is played, Bloody Requiem the printed value of `c`). A defense that cancels the card's effects stops it. The damage left in
+        the target after the first part is the room the second one has; no second defense is assumed (an upper bound)."""
+        attacker = getattr(self, "_attacker", None)
+        by_value = getattr(self, "_attack_cards", None)
+        if attacker is None or not by_value:
+            return 0.0
+        cancels = c is not None and cancels_effects(c)
+        printed = None if c is None else (c.value or 0)
+        bonus = ai_double.second_bonus(game, attacker, target)
+        exp = p_dead = p_hit = 0.0
+        for p, av in dist:
+            cards = by_value.get(av)
+            if av is None or not cards:
+                continue
+            left = target.hp - min(game.combat_damage_taken(target, max(0, av - dv)), target.hp)
+            for card in cards:
+                if left <= 0 or not ai_double.has_second(game, attacker.owner, card) or (cancels and not is_uncancelable(card, game, attacker.owner)):
+                    continue
+                n = ai_double.second_value(game, attacker.owner, card, printed)
+                if n <= 0:
+                    continue
+                net = min(game.combat_damage_taken(target, n + bonus), left)
+                w = p / len(cards)
+                exp += w * net
+                p_dead += w * (net >= left)
+                p_hit += w * (net >= 1)
+        return -price(target, exp, p_dead, p_hit) if exp else 0.0
 
     def attack_effect_harm(self, game: Game, dist, target: Fighter, c, harm_of: dict | None = None) -> float:
         """What the effects of the attack card that ends up played cost the defender if they run: forced discards (of what is
@@ -2021,6 +2068,8 @@ class MedusaAI(Controller):
             if price(luke, *swapped[:3]) > v:
                 (exp, p_dead, p_hit, p_block), v = swapped, price(luke, *swapped[:3])
         v -= self.attack_effect_harm(game, effects_dist, target, c, effects_harm)
+        self._second_loss = self.second_part_loss(game, target, dist, c, dv, price)
+        v -= self._second_loss
         if c is None:
             return v
         v -= CARD_VALUE + 0.05 * c.boost

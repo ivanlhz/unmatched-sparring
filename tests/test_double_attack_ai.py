@@ -172,3 +172,81 @@ def test_the_second_bonus_is_the_engines_one_without_the_next_attack_bonus(bprd)
     assert ai_double.second_bonus(g, hellboy, bigfoot) == before, "the first part used the 'next attack' bonus"
     modifiers.add_status(g.fx, "attack_bonus", owner=0, until={"event": "end_of_turn"}, fid="hellboy", amount=1, label="nunchaku")
     assert ai_double.second_bonus(g, hellboy, bigfoot) == before + 1, "a bonus to every attack of the fighter stays"
+
+
+# ---------------------------------------------------------------- the bot defends the first part of a double attack (Ivan D8)
+
+from test_ai_defense_cancel import restrict_attacks_to  # noqa: E402
+from test_effects_combat import hand_filler  # noqa: E402
+
+
+def defender_scenario(bprd, monkeypatch, ops, attack_title=TITLE):
+    """Bigfoot (player 1, the bot) holds one defense of 4 (Skirmish) and is attacked by Hellboy, whose only attack card left is `attack_title`, face down."""
+    stub(monkeypatch, ops)
+    g, hellboy, bigfoot = duel(bprd)
+    restrict_attacks_to_player(g, 0, (attack_title,))
+    hand_filler(g, 0, 3)
+    block = give(g, 1, "Skirmish")
+    return g, hellboy, bigfoot, block
+
+
+def restrict_attacks_to_player(g, player, titles):
+    st = g.players[player]
+    for c in list(st.full_set):
+        if c.can_attack and c.title not in titles and c not in st.discard:
+            st.discard.append(c)
+            for zone in (st.deck, st.hand):
+                if c in zone:
+                    zone.remove(c)
+
+
+def test_the_bot_does_not_defend_a_card_whose_second_part_only_comes_when_it_defends(bprd, monkeypatch):
+    """Ruyi Jingo Bang's shape: 2 now, 4 more only if a defense card is played. Defending stops the 2 and takes the 4; not defending takes the 2."""
+    g, hellboy, bigfoot, block = defender_scenario(bprd, monkeypatch, CONDITIONAL)
+    ai = MedusaAI(1)
+    assert ai.choose_defense(g, hellboy, bigfoot) is None
+    loss = {s["move"][1]: s.get("second_part_loss", 0) for s in ai._defense_scores}
+    assert loss[block.title] > 0 and loss[None] == 0, "the defense is priced with the second part, no card is not"
+
+
+def test_the_bot_still_defends_when_the_conditional_second_part_is_small_next_to_what_the_defense_saves(bprd, monkeypatch):
+    small = [{"op": "if", "condition": {"test": "card", "card": "opponent_card", "filter": {}}, "then": [{"op": "second_attack", "amount": 1}]}]
+    g, hellboy, bigfoot, block = defender_scenario(bprd, monkeypatch, small, attack_title="Excalibur")
+    monkeypatch.setitem(load_effects("hellboy").card("Excalibur").moments, "after", small[0:1])
+    assert MedusaAI(1).choose_defense(g, hellboy, bigfoot) is block, "Excalibur's 6 against a 4, plus a 1: defending is still right"
+
+
+def test_a_bigger_defense_raises_the_printed_value_second_part_and_no_card_makes_it_zero(bprd, monkeypatch):
+    """Bloody Requiem's shape: the second hit is the printed value of the card played against it."""
+    g, hellboy, bigfoot, block = defender_scenario(bprd, monkeypatch, COMPUTED)
+    ai = MedusaAI(1)
+    assert ai.choose_defense(g, hellboy, bigfoot) is None, "defending the 2 with a 4 turns it into 0 + 4"
+    loss = {s["move"][1]: s.get("second_part_loss", 0) for s in ai._defense_scores}
+    assert loss[None] == 0 and loss[block.title] > 0
+
+
+def test_a_feint_still_stops_the_second_part_it_would_otherwise_trigger(bprd, monkeypatch):
+    g, hellboy, bigfoot, block = defender_scenario(bprd, monkeypatch, CONDITIONAL)
+    feint = give(g, 1, "Feint")
+    ai = MedusaAI(1)
+    ai.choose_defense(g, hellboy, bigfoot)
+    loss = {s["move"][1]: s.get("second_part_loss", 0) for s in ai._defense_scores}
+    assert loss["Feint"] == 0 and loss[block.title] > 0, "Feint cancels the card: no second part at all"
+
+
+def test_the_search_defense_weighs_the_second_part_through_its_rollouts_and_the_journal_says_so(bprd, monkeypatch, tmp_path):
+    g, hellboy, bigfoot, block = defender_scenario(bprd, monkeypatch, CONDITIONAL)
+    ai = make_bot_ai({"ai": "ismcts", "ai_iterations": 300, "ai_time_budget": 5.0, "ai_seed": 1}, bot=1)
+    g.controllers[1] = ai
+    ai.journal = decision_log.DecisionJournal(tmp_path / "decisions.jsonl")
+    assert ai.choose_defense(g, hellboy, bigfoot) is None, "the rollouts play Ruyi-like 2 + 4 against the card: not defending is better"
+    line = next(json.loads(x) for x in (tmp_path / "decisions.jsonl").read_text(encoding="utf-8").splitlines()
+                if json.loads(x).get("kind") == "defense")
+    assert line["chosen"]["double_attack_cards_possible"] == [TITLE]
+
+
+def test_the_same_search_defends_when_the_card_has_no_second_part(bprd, monkeypatch):
+    g, hellboy, bigfoot, block = defender_scenario(bprd, monkeypatch, [])
+    ai = make_bot_ai({"ai": "ismcts", "ai_iterations": 300, "ai_time_budget": 5.0, "ai_seed": 1}, bot=1)
+    g.controllers[1] = ai
+    assert ai.choose_defense(g, hellboy, bigfoot) is block, "so it is the second part that made not defending better above"
