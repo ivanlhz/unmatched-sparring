@@ -587,7 +587,7 @@ class EffectAI:
         if req.extra.get("blind_count"):
             return [self._blind_boost(game, req)]
         if req.extra.get("assign"):         # Yennenga's ability: how much of the damage meant for her an Archer takes
-            return [ai_yennenga.archer_share(game, req)]
+            return [ai_yennenga.archer_share(game, req, None if nested else self.medusa(req.player))]
         top = max(req.options)
         if req.extra.get("zone") in (None, "deck") and top > 0:
             n = min(top, len(game.players[req.player].deck))      # drawing from an empty deck only hurts

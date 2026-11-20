@@ -98,3 +98,10 @@ def test_the_search_bot_plays_yennenga_to_the_end_without_falling_back(foe):
 def test_the_heuristic_bot_plays_yennenga_to_the_end(foe):
     from sparring import sim
     assert sim.play(2, bot_hero="yennenga", human_hero=foe).winner != "draw"
+
+
+def test_a_rival_that_can_kill_her_next_turn_makes_the_archers_take_more(bprd):
+    calm, yen_calm = landed(bprd, 15, 7, rival_cards=0)
+    threatened, yen_hit = landed(bprd, 15, 7, rival_cards=5)
+    soaked = lambda g: sum(2 - a.hp for a in archers(g))
+    assert yen_hit.hp > yen_calm.hp and soaked(threatened) > soaked(calm)
