@@ -238,7 +238,7 @@ def _discard(run, game, spec):
                 game.players[player].discard.append(card)
             table.intent(game, op="discard", zone="in_play", player=player, card=card.card_id)
     if "as" in spec:
-        run.bind("cards", spec["as"], [c.card_id for _, _, c in items])
+        run.bind("cards", spec["as"], [c.card_id for _, _, c in items], [p for p, _, _ in items])
 
 
 @op("remove_from_game")
@@ -264,7 +264,7 @@ def _choose(run, game, spec):
         table.note(run, op="choose", amount=int(amount(game, run, sel.get("amount", 1))))
         return
     items = select_cards(game, run, sel, "choose")
-    run.bind("cards", spec["as"], [c.card_id for _, _, c in items])
+    run.bind("cards", spec["as"], [c.card_id for _, _, c in items], [p for p, _, _ in items])
 
 
 @op("choose_effect")

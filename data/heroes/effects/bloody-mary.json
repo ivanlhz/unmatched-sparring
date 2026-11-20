@@ -39,10 +39,12 @@
     "immediately": [], "during": [], "after": [], "boost": [],
     "scheme": [
      {"op": "look_hand", "player": "opponent"},
-     {"op": "choose", "cards": {"zone": "hand", "player": "opponent", "amount": 1, "chooser": "owner"}, "as": "memory"},
-     {"op": "optional", "chooser": "opponent",
-      "ops": [{"op": "discard", "cards": "$memory"}],
-      "else": [{"op": "damage", "target": {"side": "enemy", "kind": "hero"}, "amount": {"attr": "boost", "of": "$memory"}}]}
+     {"op": "if", "condition": {"test": "exists", "cards": {"zone": "hand", "player": "opponent"}}, "then": [
+      {"op": "choose", "cards": {"zone": "hand", "player": "opponent", "amount": 1, "chooser": "owner"}, "as": "memory"},
+      {"op": "optional", "chooser": "opponent",
+       "ops": [{"op": "discard", "cards": "$memory"}],
+       "else": [{"op": "damage", "target": {"side": "enemy", "kind": "hero"}, "amount": {"attr": "boost", "of": "$memory"}}]}
+     ]}
     ]
    },
    "notes": "Scheme, boost 3. Baba Yaga's Remove A Painful Memory with the damage read from the chosen card: the owner sees the rival's whole hand (the only time the bot reads the human's hand: look_hand), names one card, and the rival either discards it or their HERO takes damage equal to its BOOST value (effect damage; the card stays in their hand). An empty rival hand asks nothing."
