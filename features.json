@@ -1019,6 +1019,21 @@
       "note": "Pending Ivan: all three or any Raptor defeated loses (docs/heroes/raptors.md)."
     },
     {
+      "id": "HERO-BLOODY-MARY",
+      "title": "Bloody Mary (Battle of Legends, Volume Two, no sidekick) playable by the bot and by the human against every hero",
+      "status": "in-progress",
+      "criteria": [
+        "Overlay, HeroDef, effects and data/tts/bloody-mary.json generated and validated; 30 cards (sheet 176, character card 321, 13 titles) read from the card images; unmatched-memory's 'Patroclus' sidekick is a slip and is dropped (sidekicks [])",
+        "Her deck shares CardIDs 17600-17629 with the other sheet-176 decks: told apart by deck image and owner (tests/test_hero_bloody_mary_data.py, tests/test_card_identity.py); a card bound from the RIVAL's hand keeps its owner (EffectRun.bind owners) so Stolen Memories reads the right BOOST",
+        "ABILITY: exactly 3 cards in hand at the start of the owner's turn gain 1 action (a start-of-turn trigger run by the engine for both seats); 'third action this turn' is actions_taken_this_turn == 3, the actions SPENT, gained ones included (Speak Three Times 7, Out Of The Mirror draws, Ghostly Touch heals 3)",
+        "All 13 cards on the interpreter for both seats: Mirror Image, Broken Glass, Out Of The Mirror (the Ambush flow), Stolen Memories (look at the hand, discard it or take its BOOST; the human's buttons name it), Jump Scare, Closer Than She Appears, Trick of the Light, Infinity Mirror, Ghostly Touch, Evade, Feint, and Bloody Requiem as a second_attack of the double attack",
+        "AI (both AIs, verified with ISMCTS): Speak Three Times is held for the third action when this turn can still give one (the search's rollouts never saw the 7: 4 of 4 attacked with it first at 1500 iterations; now the bot maneuvers first and plays it for 7), Mirror Image priced as the copy it is, a hand of exactly 3 cards is worth an extra action at the leaf (docs/heroes/bloody-mary.md, AI)",
+        "Against every other hero in both seats the games reach game over on FakeTTS and in the simulator (tests/test_bloody_mary_matrix.py)",
+        "Verified live by Ivan (docs/live-checklist.md, section Bloody Mary)"
+      ],
+      "note": "Engine additions are small and additive (docs/effects-dsl.md, section 46). Pending Ivan: what counts as the third action, Broken Glass's match, Mirror Image against a buffed attack (docs/heroes/bloody-mary.md). Live test pending."
+    },
+    {
       "id": "F-RAPTORS-SWARM",
       "title": "The bot's Raptors swarm, attack every turn their hand can pay for, keep a reserve of cards and price a rival's zone damage per Raptor",
       "status": "in-progress",

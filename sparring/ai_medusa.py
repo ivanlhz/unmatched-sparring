@@ -70,7 +70,7 @@ from .guard import guard_dest, hero_shielded, path_steps
 from .effects.model import walk_ops
 from .effects.modifiers import boost_limit, card_effects, defers_defeat, is_uncancelable
 from .ai_profile import FINISHER_BOOSTS, STYLE_HIT_AND_RUN, derive_style
-from . import ai_achilles, ai_chupacabra as chupa_ai, ai_double, ai_philippa, ai_rosie, ai_sinbad, ai_washington, ai_wyatt, tracks
+from . import ai_achilles, ai_chupacabra as chupa_ai, ai_double, ai_mary, ai_philippa, ai_rosie, ai_sinbad, ai_washington, ai_wyatt, tracks
 from .ai_sinbad import own_value as sinbad_own_value, voyage_count, voyage_extra
 from .effects.select import defeated
 from .state import ANUNG, EXHAUST_DAMAGE, Fighter, Game
@@ -446,7 +446,7 @@ def kept_hand_value(game, player: int) -> float:
     """What the hand of `player` is worth: the keep value of the cards that survive the hand limit (`hand_room`), which
     discards the worst ones. A card drawn past the limit is worth only the worse card it pushes out."""
     hand = game.players[player].hand
-    return sum(sorted((keep_value(c, hand) for c in hand), reverse=True)[:hand_room(game, player)])
+    return sum(sorted((keep_value(c, hand) for c in hand), reverse=True)[:hand_room(game, player)]) + ai_mary.kept_cards_bonus(game, player)
 
 
 def exhaustion_owed(shortfall: float) -> float:
@@ -1012,7 +1012,7 @@ class MedusaAI(Controller):
                 seen = set()
                 for c in hand:
                     if (c.title in seen or not enraged.may_attack_with(game, self.me, c) or not c.usable_by(f.name)
-                            or not game.attack_card_reaches(f, t, c)):
+                            or not game.attack_card_reaches(f, t, c) or ai_mary.holds_for_third(game, self.me, c)):
                         continue
                     seen.add(c.title)
                     value, dmg, kill = self.attack_outcome(game, model, f, t, c)
@@ -1077,6 +1077,8 @@ class MedusaAI(Controller):
             return doom                 # Achilles: The Day of Your Doom is 5 when Patroclus can pay its 2 damage
         if (chupa_value := chupa_ai.attack_value(game, f.owner, c)) is not None:
             return chupa_value        # Chupacabra: The More They Struggle, Ambush, Wounded Beast
+        if (mary_value := ai_mary.attack_value(game, f.owner, c, f)) is not None:
+            return mary_value         # Bloody Mary: Speak Three Times as the third action, Jump Scare away from her start, Out Of The Mirror's BOOST
         own = own_value(game, f, c)
         if own is not None:
             return own                  # Sinbad: a VOYAGE card's +1 per VOYAGE card in the pile, Momentous Shift's 5
@@ -1191,6 +1193,7 @@ class MedusaAI(Controller):
         value += ciri_ai.after_value(game, self.me, c, p_win, w, CARD_VALUE)
         value += ai_sinbad.after_value(game, self.me, c, p_win, w, CARD_VALUE, W_MEDUSA_HP, self.room_after_play(game), t.hp)
         value += chupa_ai.after_value(game, self.me, c, p_win, w, CARD_VALUE, W_MEDUSA_HP, ACTION_VALUE)
+        value += ai_mary.after_value(game, self.me, c, CARD_VALUE, W_MEDUSA_HP)
         value += ai_rosie.after_value(game, self.me, c, p_win, w, CARD_VALUE, W_MEDUSA_HP, t.hp)
         value += ai_washington.after_value(game, self.me, c, p_win, w, CARD_VALUE, W_MEDUSA_HP, t.hp, ACTION_VALUE, HARPY_VALUE)
         value += ai_philippa.after_value(game, self.me, c, p_win, w, CARD_VALUE)
@@ -1988,11 +1991,14 @@ class MedusaAI(Controller):
             dv = 6                                 # Misty Knight (she defends with it) is next to the attacker
         boosts = free_boosts(game, self.me, c, game.players[self.me].hand) if c is not None else []
         dv += BOOST_RELIANCE * sum(x.boost for x in boosts)
+        # Bloody Mary's Mirror Image copies the PRINTED value of the attack it meets: only what the attacker adds to it (a bonus) gets through
+        mirror_bonus = (game.attack_bonus(attacker, target) if attacker is not None else 0) if c is not None and ai_mary.is_mirror(game, target.owner, c) else None
 
         def tally(victim: Fighter):
             exp = p_dead = p_hit = p_block = 0.0
             for p, av in dist:
-                net = game.combat_damage_taken(victim, max(0, (av or 0) - dv)) if av is not None else 0
+                value = dv if mirror_bonus is None else (av or 0) - mirror_bonus
+                net = game.combat_damage_taken(victim, max(0, (av or 0) - value)) if av is not None else 0
                 if c is not None and c.title == DEEDS and victim is target:
                     net = min(net, DEEDS_CAP)          # Tomoe Gozen takes at most 2 combat damage this combat
                 exp += p * min(net, victim.hp)
@@ -2029,6 +2035,7 @@ class MedusaAI(Controller):
         if attacker is not None:
             v += ai_sinbad.after_value(game, self.me, c, p_block, weight(attacker), CARD_VALUE, W_MEDUSA_HP, None, attacker.hp)
             v += chupa_ai.after_value(game, self.me, c, p_block, weight(attacker), CARD_VALUE, W_MEDUSA_HP, ACTION_VALUE)
+            v += ai_mary.after_value(game, self.me, c, CARD_VALUE, W_MEDUSA_HP)
             v += ai_rosie.after_value(game, self.me, c, p_block, weight(attacker), CARD_VALUE, W_MEDUSA_HP, attacker.hp)
             v += ai_washington.after_value(game, self.me, c, p_block, weight(attacker), CARD_VALUE, W_MEDUSA_HP, attacker.hp, ACTION_VALUE, HARPY_VALUE)
             v += ai_philippa.after_value(game, self.me, c, p_block, weight(attacker), CARD_VALUE)

@@ -31,7 +31,7 @@ import random
 from functools import lru_cache
 from itertools import combinations
 
-from . import ai_achilles, ai_washington, ai_wukong, ai_wyatt, ai_yennenga, enraged
+from . import ai_achilles, ai_mary, ai_washington, ai_wukong, ai_wyatt, ai_yennenga, enraged
 from .ai_medusa import (ACTION_VALUE, DECK_SCARCITY, HARPY_VALUE, KILL_SIDEKICK, LETHAL, SURVIVAL_P, W_HERO, W_MEDUSA_HP,
                         W_SIDEKICK, MedusaAI, Model, can_use, defence_keeper, discard_cut, effect_reliance, hand_room, keep_value, kept_hand_value, kill_value, play_signature)
 from .controller import Controller
@@ -608,6 +608,8 @@ class EffectAI:
             return [ai_wyatt.pick_showdown(self.medusa(req.player), game, req.player, list(req.options), req.extra.get("attacker"))]
         if req.extra.get("tag") == "zone":
             return [self._zone(game, req)]
+        if req.extra.get("tag") == "broken_glass":      # Bloody Mary: make the two totals match when a step of 1 can, else a point more
+            return [ai_mary.pick_broken_glass(req.extra["values"], list(req.options), req.extra["labels"])]
         found = self._locate(game, req)
         if nested or found is None:
             return None

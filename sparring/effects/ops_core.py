@@ -16,7 +16,7 @@ from . import table
 from .. import enraged, tracks
 from ..i18n import t
 from .model import EffectError, load_effects
-from .select import (_ref_fighter, _role_fighters, Picked, amount, condition, fighter_candidates, find_card, locate, pick_fighters, player_of,
+from .select import (_ref_fighter, _role_fighters, Picked, amount, combat_value, condition, fighter_candidates, find_card, locate, pick_fighters, player_of,
                      players_of, card_candidates, card_ref, select_cards, space_options)
 
 OPS: dict[str, Callable] = {}
@@ -280,6 +280,8 @@ def _choose_effect(run, game, spec):
         extra = {"tag": spec["tag"]} if "tag" in spec else {}       # what the options are about, for the bot's judgement (Jill's gadgets)
         if "tag" in spec and run.ctx.attacker_fid:
             extra["attacker"] = run.ctx.attacker_fid                 # the fighter that attacked in the combat the choice belongs to (SHOWDOWN moves it)
+        if "tag" in spec and getattr(run, "flow", None) is not None:
+            extra["values"] = [combat_value(game, run, "this"), combat_value(game, run, "opponent_card")]      # the two totals so far (Broken Glass wants them to match)
         k = run.ask(game, "effect", chooser, pool, 1, 1, "choose an effect", labels=labels, **extra)[0]
         picked.append(k)
         if spec.get("distinct"):

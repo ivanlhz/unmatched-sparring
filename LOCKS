@@ -1,9 +1,4 @@
 # path  agent  task  UTC time   (see BRIEF: short locks only)
-sparring/ai_medusa.py  bloody-mary  AI hooks for Bloody Mary  14:09Z
-sparring/search/adapter.py  bloody-mary  AI hooks for Bloody Mary  14:09Z
-features.json  bloody-mary  AI hooks for Bloody Mary  14:09Z
-sparring/effects/ops_core.py  bloody-mary  Broken Glass choice context and pick  14:27Z
-sparring/ai_effects.py  bloody-mary  Broken Glass choice context and pick  14:27Z
 sparring/session.py  double-attack  review fixes  14:27Z
 tests/test_session.py  double-attack  review fixes  14:27Z
 docs/combat-flow.md  double-attack  review fixes  14:27Z

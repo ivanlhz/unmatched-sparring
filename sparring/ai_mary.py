@@ -19,7 +19,7 @@ SPEAK, JUMP, OUT, MIRROR = "Speak Three Times", "Jump Scare", "Out Of The Mirror
 THIRD_ACTION_VALUE = 7
 JUMP_VALUE = 6
 TRIGGER_CARDS = 3                   # "exactly 3 cards in hand"
-EXTRA_ACTION_CARDS = 2.0            # what the extra action of next turn is worth, in cards of the hand (a Maneuver's draw and a move, or one more blow)
+EXTRA_ACTION_CARDS = 1.5            # what the extra action of next turn is worth, in cards of the hand (a Maneuver's draw and a move, or one more blow)
 
 
 def is_hers(game, owner: int) -> bool:
@@ -35,6 +35,23 @@ def _unseen(game, owner: int) -> list:
 def third_action(game, owner: int) -> bool:
     """The action about to be spent is the third of the owner's turn (the tally counts the actions already spent)."""
     return game.turn == owner and game.fx.taken == 2
+
+
+CLOSER = "Closer Than She Appears"
+
+
+def holds_for_third(game, owner: int, card) -> bool:
+    """Speak Three Times is kept in the hand for now: this turn can still give the owner a THIRD action (the actions already taken plus the
+    ones left, plus the Closer Than She Appears in the hand that give one back) and no blow of 3 would finish the rival's hero today, so
+    the bot spends the actions before it (a Maneuver, another card) and plays it as the third, worth 7 instead of 3. A hard gate on the
+    card, like `ai_medusa.held_for_plan`: the search's rollouts play the cards of a turn in random order and never saw the 7 (1500
+    iterations, 4 seeds out of 4 attacked with it first)."""
+    if not is_hers(game, owner) or card.title != SPEAK or game.turn != owner or game.fx.taken > 1 or not game.fx.can_gain_actions(owner):
+        return False
+    closers = sum(1 for c in game.players[owner].hand if c.title == CLOSER)
+    if game.fx.taken + game.actions_left + closers < 3:
+        return False
+    return not any(f.hero and f.alive and f.hp <= (card.value or 0) for f in game.foes(owner))
 
 
 def attack_value(game, owner: int, card, fighter) -> float | None:
@@ -56,6 +73,11 @@ def attack_value(game, owner: int, card, fighter) -> float | None:
     return None
 
 
+def is_mirror(game, owner: int, card) -> bool:
+    """`card` is Mirror Image in the hand of Bloody Mary's player: its value is whatever the attack it meets prints."""
+    return is_hers(game, owner) and card.title == MIRROR
+
+
 def defense_value(game, owner: int, card, attack_card=None) -> float | None:
     """The value `card` will have as a defense of Bloody Mary's player: Mirror Image copies the printed value of the attack it meets (the
     card itself when the bot knows it, else the mean of the attacks the rival may still play); the rest are printed."""
@@ -65,6 +87,34 @@ def defense_value(game, owner: int, card, attack_card=None) -> float | None:
         return float(attack_card.value)
     attacks = [c.value for c in _unseen(game, owner) if c.can_attack and c.value is not None]
     return sum(attacks) / len(attacks) if attacks else 0.0
+
+
+def after_value(game, owner: int, card, card_value: float, hero_hp_weight: float) -> float:
+    """What the AFTER of one of her cards is worth, in the AI's units (`card_value` per card, `hero_hp_weight` per hit point of hers): Evade
+    and the third-action Out Of The Mirror draw, the third-action Ghostly Touch heals up to 3. The rest of her AFTERs are the generic ones."""
+    if not is_hers(game, owner):
+        return 0.0
+    title = card.title
+    if title == "Evade":
+        return card_value
+    if title == OUT and third_action(game, owner):
+        return card_value
+    if title == "Ghostly Touch" and third_action(game, owner):
+        hero = game.hero(owner)
+        return hero_hp_weight * min(3, hero.max_hp - hero.hp) if hero.alive else 0.0
+    return 0.0
+
+
+def pick_broken_glass(values: list[int], options: list[int], labels: list[str]) -> int:
+    """Broken Glass's DURING ("+1", "-1" or "0", labels of the choice): the option that makes the two totals of the combat equal, which draws a
+    card and deals 2 (the exact tie with the rival's card, or a step of 1 either way), else the point more (it wins a tie, or takes one off the
+    blow). `values` = [hers, the rival's] as they stand before the choice."""
+    mine, theirs = values
+    steps = {k: int(labels[k]) for k in options}
+    for k in options:
+        if mine + steps[k] == theirs:
+            return k
+    return next((k for k in options if steps[k] > 0), options[0])
 
 
 def kept_cards_bonus(game, owner: int, held: int | None = None) -> float:
