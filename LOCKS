@@ -4,3 +4,6 @@ sparring/search/adapter.py  double-attack  AI double attack  14:02Z
 sparring/search/controller.py  double-attack  AI double attack  14:02Z
 docs/combat-flow.md  double-attack  AI double attack  14:02Z
 features.json  double-attack  AI double attack  14:02Z
+sparring/ai_effects.py  achilles  Doom price answer, checklist, identity doc  14:04Z
+docs/live-checklist.md  achilles  Doom price answer, checklist, identity doc  14:04Z
+docs/card-identity.md  achilles  Doom price answer, checklist, identity doc  14:04Z
