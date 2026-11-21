@@ -63,7 +63,8 @@ def test_overlay_sheet_matches_the_real_cards_and_the_save_numbering(overlay):
     assert sum(c for c, *_ in REAL_CARDS.values()) == 30
     assert overlay["sidekicks"] == [{"fid": "archer", "name": "Archer"}] and overlay["fid"] == "yennenga"
     assert overlay["forms"] is None and overlay["counters"] == {} and overlay["triggers"] == [] and overlay["passives"] == []
-    assert overlay["tts"] == {"no_dial": ["archer1", "archer2"], "life_faces": {"2": 0, "1": 180}}
+    assert overlay["tts"] == {"no_dial": ["archer1", "archer2"], "life_faces": {"2": 0, "1": 180},
+                              "life_faces_verified": "Ivan 2026-11-21"}
 
 
 def test_generated_herodef_deals_a_real_deck():
