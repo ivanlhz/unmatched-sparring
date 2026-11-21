@@ -31,7 +31,7 @@ def capture(session):
 def test_the_data_records_which_face_is_which():
     tts = json.loads((HEROES_DIR.parent / "tts" / "yennenga.json").read_text(encoding="utf-8"))
     for fid in ("archer1", "archer2"):
-        assert tts["fighters"][fid]["faces"] == {"2": 0, "1": 180} and tts["fighters"][fid]["verify_live"] is True
+        assert tts["fighters"][fid]["faces"] == {"2": 0, "1": 180} and tts["fighters"][fid]["verify_live"] is False
 
 
 # ---------------------------------------------------------------- the bot's Archers
