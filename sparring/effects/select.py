@@ -473,6 +473,9 @@ def condition(game, run, c: dict) -> bool:
     if test == "fighter_at":
         f = _ref_fighter(game, run, c["fighter"])
         return f is not None and f.pos in space_options(game, run, c["space"], default_empty=False)
+    if test == "can_move":                     # no status keeps the fighter where it is (Burning Barrier)
+        f = _ref_fighter(game, run, c["fighter"])
+        return f is not None and game.fx.can_move(f)
     if test == "card":
         cards = card_ref(game, run, c["card"])
         return bool(cards) and _matches(cards[0], c.get("filter") or {})

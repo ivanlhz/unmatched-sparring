@@ -201,6 +201,7 @@ An object with `test` or a combinator `{"all": [...]}`, `{"any": [...]}`, `{"not
 | `counter` | `name`, `min`?, `max`?, `player`? | |
 | `moved_this_turn` | `fighter: FighterRef` | started the turn on another space |
 | `no_zone_with_turn_start` | `fighter: FighterRef` | the fighter's space shares no zone with the space it started the turn on (not having moved is not it; section 32) |
+| `can_move` | `fighter: FighterRef` | no status keeps the fighter on its space (Burning Barrier's `cannot_leave_space`, Counterhex Shield against enemy effects) |
 | `played_as` | `side: attack | defense` | how `this` was played |
 | `compare` | `left: Amount`, `op: < <= == >= > !=`, `right: Amount` | |
 | `effects_canceled` | `card: CardRef` | a cancellation of this combat took effects off that card |
@@ -273,6 +274,7 @@ Every op is `{"op": "<name>", ...args}`. Arguments not listed are an error.
 | `gain_action` | `amount` | `player` | blocked by `cannot_gain_actions` and the `no_gain_actions` rule |
 | `spend_action` | `amount` | | "Spend an additional action" (The Savage She-Hulk): the owner's turn loses that many actions, as an action taken would. Meant as an `optional` `cost`: `optional` does not offer it unless the owner is the player whose turn it is and has that many actions LEFT (the attack's own action is already spent when DURING runs); see section 34 |
 | `end_turn` | | | |
+| `notice` | `text` (a key of `narr.notice.*`) | | does nothing; its reason joins the card's line in the chat ("Sly Monkey: no effect: there is no free space..."), so a branch that was skipped says why. Once per key per run |
 | `look_hand` | `player` | | the owner sees `player`'s hand now (see 6) |
 | `reveal` | `cards: CardSel | CardRef`, `to: PlayerSel` | | show cards |
 | `look_deck` | `player`, `amount`, `as` | `from: top | bottom` | look without moving |

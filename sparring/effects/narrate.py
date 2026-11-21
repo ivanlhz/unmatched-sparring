@@ -84,6 +84,7 @@ def describe(game, before: dict, run, flow=None, title: str | None = None) -> st
         parts.append(t("narr.look_cancelled"))
     elif run.flags.get("looked_hand") and before["seen"][run.ctx.owner] != _seen(game.players[run.ctx.owner]):
         parts.append(t("narr.looks.bot" if run.ctx.owner == game.bot_player else "narr.looks.human"))
+    parts += [t(f"narr.notice.{key}") for key in run.flags.get("notices", ())]      # why a branch did nothing (Sly Monkey with no free space)
     if run.flags.get("attack_face_up"):
         parts.append(t("narr.attack_face_up"))
     parts = _fold_triggers(game, before, parts)

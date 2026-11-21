@@ -514,6 +514,14 @@ def _spend_action(run, game, spec):
         game.use_action()
 
 
+@op("notice")
+def _notice(run, game, spec):
+    """Says why a branch did nothing (Sly Monkey with no free space): `text` is the i18n key of the reason, which the card's line carries."""
+    notices = run.flags.setdefault("notices", [])
+    if spec["text"] not in notices:
+        notices.append(spec["text"])
+
+
 @op("end_turn")
 def _end_turn(run, game, spec):
     run.flags["end_turn"] = game.turn      # the CURRENT turn ends, whoever owns the card (a defense can end the attacker's)

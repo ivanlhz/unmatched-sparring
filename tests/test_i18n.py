@@ -27,6 +27,7 @@ DYNAMIC = {
     "choice.prompt.": ("fighter", "space", "cards", "effect", "optional", "order", "amount", "default", "one_card",
                        "predict", "discards", "else_damage", "redirect", "use_effect"),
     "hidden.fail.where_": ("discard", "deck"),
+    "narr.notice.": ("sly_monkey_no_space", "sly_monkey_pinned"),
     "narr.fstatus.": ("cannot_leave_space", "immune_to_effect_damage", "attack_bonus"),
     "narr.status.": tuple(f"{n}.{side}" for n in ("cannot_gain_actions", "cannot_draw", "immune_to_effect_damage",
                                                    "next_attack_bonus") for side in ("bot", "human")),

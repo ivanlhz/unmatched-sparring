@@ -6,6 +6,7 @@ bag onto the table by GUID. The bot's side of the same cards is in tests/test_su
 The Clones are three Custom_Token in the save, which real TTS may report as "Tile": nothing that reads or moves a piece looks at the type."""
 from __future__ import annotations
 
+from sparring.i18n import t
 from sparring.tts.ui import Event
 from test_batch import click
 from test_d3_table_effects import card_ids, human_attack, human_hand, said
@@ -421,10 +422,27 @@ def test_sly_monkey_with_no_empty_space_in_his_zone_summons_no_clone_for_the_hum
     bot_defends_with_nothing(session, monkeypatch)
     human_hand(table, game, "Sly Monkey", "Golden Chain Mail")
     old = w.pos
-    attack(session, table, game, "Sly Monkey")
+    msgs = attack(session, table, game, "Sly Monkey")
+    assert said(msgs, t("narr.notice.sly_monkey_no_space")), "the human is always told why nothing happened"
     assert w.pos == old and game.placing == set() and {c: (game.fighters[c].alive, game.fighters[c].pos) for c in CLONES} == clones
     spaces = [f.pos for f in game.fighters.values() if f.alive]
     assert len(spaces) == len(set(spaces))
+
+
+@with_rig("hellboy", "sun-wukong", *HAND)
+def test_sly_monkey_with_wukong_pinned_summons_no_clone_for_the_human_and_says_so(rig, monkeypatch):
+    """Ivan 2026-11-21: Burning Barrier keeps Wukong on his space: no Clone lands on it, and the chat says why."""
+    from sparring.effects import modifiers
+    session, table, game, fake, cfg = rig
+    start(rig)
+    put_adjacent(game, table, cfg, "wukong", "hellboy")
+    modifiers.add_status(game.fx, "cannot_leave_space", owner=0, until={"event": "end_of_turn"}, fid="wukong")
+    bot_defends_with_nothing(session, monkeypatch)
+    human_hand(table, game, "Sly Monkey", "Golden Chain Mail")
+    old = game.fighters["wukong"].pos
+    msgs = attack(session, table, game, "Sly Monkey")
+    assert said(msgs, t("narr.notice.sly_monkey_pinned"))
+    assert game.fighters["wukong"].pos == old and not game.fighters["clone1"].alive and game.placing == set()
 
 
 # ---------------------------------------------------------------- Sly Monkey with the three Clones out (Ivan 2026-11-20, W5)

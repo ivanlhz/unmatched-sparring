@@ -7,7 +7,9 @@ from __future__ import annotations
 from conftest import give
 from sparring.ai_effects import card_worth
 from sparring.effects.choose import ControllerChooser
+from sparring.effects import modifiers
 from sparring.effects.modifiers import is_uncancelable
+from sparring.i18n import t
 from sparring.effects.run import Ctx, EffectRun
 from sparring.state import Game
 from test_bigfoot_effects import Answers
@@ -252,16 +254,58 @@ def test_sly_monkey_with_no_empty_space_in_his_zone_summons_nothing_and_he_stays
     assert len(living_spaces(g)) == len(set(living_spaces(g)))
 
 
-def test_sly_monkey_with_no_empty_space_revives_no_defeated_clone_either(bprd):
+def close_zone(g, monkeypatch, w, h):
+    """Sun Wukong's zone is only his space and the rival's: no empty space and no Clone among the blockers."""
+    shared = {w.pos, h.pos}
+    monkeypatch.setattr(g.board, "share_zone", lambda a, b: a == b or {a, b} <= shared)
+
+
+NO_SPACE = t("narr.notice.sly_monkey_no_space")
+PINNED = t("narr.notice.sly_monkey_pinned")
+
+
+def test_sly_monkey_with_no_empty_space_revives_no_defeated_clone_either(bprd, monkeypatch):
     g = mk(bprd)
     w, h = pair(g, "wukong", "hellboy")
-    fill_zone(g, w, h)
+    close_zone(g, monkeypatch, w, h)
     for fid in CLONES:
         g.fighters[fid].alive = False
         g.fighters[fid].pos = None
-    g.attack(w, h, give(g, 0, "Sly Monkey"), plain(g))
-    assert alive_clones(g) == [] or all(g.fighters[c].pos is not None for c in alive_clones(g))
-    assert len(living_spaces(g)) == len(set(living_spaces(g)))
+    old = w.pos
+    res = g.attack(w, h, give(g, 0, "Sly Monkey"), plain(g))
+    assert alive_clones(g) == [] and all(g.fighters[c].pos is None for c in CLONES), "no Clone is revived"
+    assert w.pos == old and len(living_spaces(g)) == len(set(living_spaces(g)))
+    assert any(NO_SPACE in line for line in res.applied), res.applied
+
+
+def test_sly_monkey_with_no_empty_space_says_so_when_a_clone_could_have_been_summoned(bprd, monkeypatch):
+    g = mk(bprd)
+    w, h = pair(g, "wukong", "hellboy")
+    close_zone(g, monkeypatch, w, h)
+    res = g.attack(w, h, give(g, 0, "Sly Monkey"), plain(g))
+    assert alive_clones(g) == [] and any(NO_SPACE in line and "Sly Monkey" in line for line in res.applied), res.applied
+
+
+def test_sly_monkey_with_wukong_pinned_in_his_space_summons_no_clone_and_says_so(bprd):
+    """Ivan 2026-11-21: Burning Barrier ("cannot leave its space this turn") keeps him there: no Clone lands on his space."""
+    g = mk(bprd)
+    w, h = pair(g, "wukong", "hellboy")
+    modifiers.add_status(g.fx, "cannot_leave_space", owner=1, until={"event": "end_of_turn"}, fid="wukong")
+    old = w.pos
+    res = g.attack(w, h, give(g, 0, "Sly Monkey"), plain(g))
+    assert alive_clones(g) == [] and w.pos == old and len(living_spaces(g)) == len(set(living_spaces(g)))
+    assert any(PINNED in line for line in res.applied), res.applied
+
+
+def test_sly_monkey_pinned_with_the_three_clones_out_moves_none_of_them(bprd):
+    g = mk(bprd)
+    w, h = pair(g, "wukong", "hellboy")
+    for fid in CLONES:
+        land(g, fid, max(s for s in g.board.spaces if not g.board.share_zone(w.pos, s) and all(f.pos != s for f in g.fighters.values() if f.alive)))
+    before = {c: g.fighters[c].pos for c in CLONES}
+    modifiers.add_status(g.fx, "cannot_leave_space", owner=1, until={"event": "end_of_turn"}, fid="wukong")
+    res = g.attack(w, h, give(g, 0, "Sly Monkey"), plain(g))
+    assert {c: g.fighters[c].pos for c in CLONES} == before and any(PINNED in line for line in res.applied)
 
 
 def test_sly_monkey_with_three_clones_and_no_empty_space_moves_no_clone(bprd):
@@ -278,8 +322,9 @@ def test_sly_monkey_with_three_clones_and_no_empty_space_moves_no_clone(bprd):
             land(g, fid, s_)
     assert all(s_ in living_spaces(g) for s_ in mates) and len([c for c in CLONES if g.fighters[c].alive]) == 3, "zone not closed"
     before = {c: g.fighters[c].pos for c in CLONES}
-    g.attack(w, h, give(g, 0, "Sly Monkey"), plain(g))
+    res = g.attack(w, h, give(g, 0, "Sly Monkey"), plain(g))
     assert {c: g.fighters[c].pos for c in CLONES} == before and len(living_spaces(g)) == len(set(living_spaces(g)))
+    assert any(NO_SPACE in line for line in res.applied), "nothing happens, but it is announced"
 
 
 def test_sly_monkey_played_by_a_clone_does_nothing_after_combat(bprd):

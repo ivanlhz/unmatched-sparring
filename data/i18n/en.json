@@ -313,6 +313,8 @@
  "ops.random_alert_many": "RANDOM DISCARD: CARDS {which} OF {size} (FROM THE LEFT)",
  "ops.random_alert_short": "RANDOM: CARDS {which} OF {size}",
  "narr.nothing": "no effect",
+ "narr.notice.sly_monkey_no_space": "no effect: there is no free space in Sun Wukong's zone",
+ "narr.notice.sly_monkey_pinned": "no effect: Sun Wukong cannot leave his space this turn",
  "narr.look_cancelled": "reveals a card and cancels the look at its hand",
  "narr.bot_subject": "the bot {verb}",
  "narr.v.draw.bot": "draws",

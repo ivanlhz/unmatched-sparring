@@ -313,6 +313,8 @@
  "ops.random_alert_many": "DESCARTE AL AZAR: CARTAS {which} DE {size} (DESDE LA IZQUIERDA)",
  "ops.random_alert_short": "AL AZAR: CARTAS {which} DE {size}",
  "narr.nothing": "sin efecto",
+ "narr.notice.sly_monkey_no_space": "no tiene efecto: no hay casillas libres en la zona de Sun Wukong",
+ "narr.notice.sly_monkey_pinned": "no tiene efecto: Sun Wukong no puede dejar su casilla este turno",
  "narr.look_cancelled": "revela una carta y cancela que le miren la mano",
  "narr.bot_subject": "el bot {verb}",
  "narr.v.draw.bot": "roba",

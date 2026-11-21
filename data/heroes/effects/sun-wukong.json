@@ -246,83 +246,104 @@
        {
         "op": "if",
         "condition": {
-         "test": "exists",
-         "space": {
-          "zone_of": "this"
-         }
+         "test": "can_move",
+         "fighter": "this"
         },
         "then": [
          {
           "op": "if",
           "condition": {
-           "test": "compare",
-           "left": {
-            "count": {
-             "side": "own",
-             "name": "Clone"
-            }
-           },
-           "op": "<",
-           "right": 3
+           "test": "exists",
+           "space": {
+            "zone_of": "this"
+           }
           },
           "then": [
            {
             "op": "if",
             "condition": {
-             "test": "exists",
-             "fighters": {
-              "side": "own",
-              "name": "Clone",
-              "state": "defeated"
-             }
+             "test": "compare",
+             "left": {
+              "count": {
+               "side": "own",
+               "name": "Clone"
+              }
+             },
+             "op": "<",
+             "right": 3
             },
             "then": [
              {
-              "op": "revive",
-              "target": {
-               "side": "own",
-               "name": "Clone",
-               "state": "defeated"
+              "op": "if",
+              "condition": {
+               "test": "exists",
+               "fighters": {
+                "side": "own",
+                "name": "Clone",
+                "state": "defeated"
+               }
               },
-              "where": {
-               "space_of": "this",
-               "empty": false
-              },
-              "hp": 1
+              "then": [
+               {
+                "op": "revive",
+                "target": {
+                 "side": "own",
+                 "name": "Clone",
+                 "state": "defeated"
+                },
+                "where": {
+                 "space_of": "this",
+                 "empty": false
+                },
+                "hp": 1
+               }
+              ],
+              "else": [
+               {
+                "op": "summon",
+                "name": "Clone",
+                "where": {
+                 "space_of": "this",
+                 "empty": false
+                }
+               }
+              ]
              }
             ],
             "else": [
              {
-              "op": "summon",
-              "name": "Clone",
+              "op": "place",
+              "target": {
+               "side": "own",
+               "name": "Clone"
+              },
               "where": {
                "space_of": "this",
                "empty": false
               }
              }
             ]
+           },
+           {
+            "op": "place",
+            "target": "this",
+            "where": {
+             "zone_of": "this"
+            }
            }
           ],
           "else": [
            {
-            "op": "place",
-            "target": {
-             "side": "own",
-             "name": "Clone"
-            },
-            "where": {
-             "space_of": "this",
-             "empty": false
-            }
+            "op": "notice",
+            "text": "sly_monkey_no_space"
            }
           ]
-         },
+         }
+        ],
+        "else": [
          {
-          "op": "place",
-          "target": "this",
-          "where": {
-           "zone_of": "this"
-          }
+          "op": "notice",
+          "text": "sly_monkey_pinned"
          }
         ]
        }
@@ -332,7 +353,7 @@
     "scheme": [],
     "boost": []
    },
-   "notes": "Versatile 2 / boost 3. Only when Sun Wukong (not a Clone) played it. The Clone appears on his current space (`empty: false`: for that instant two fighters share it), then he is placed on an empty space of his zone, so the space he stood on is the Clone's. With three Clones already on the board one of them (the owner chooses which) is repositioned to his space instead (Ivan 2026-11-20, W5); then he is placed. No empty space in his zone to place him: the Clone is not summoned, revived or repositioned and nothing else happens (Ivan 2026-11-21, live: Clone and Wukong ended on the same space). The test is `exists space {zone_of: this}` (empty by default, his own space is not empty)."
+   "notes": "Versatile 2 / boost 3. Only when Sun Wukong (not a Clone) played it. The Clone appears on his current space (`empty: false`: for that instant two fighters share it), then he is placed on an empty space of his zone, so the space he stood on is the Clone's. With three Clones already on the board one of them (the owner chooses which) is repositioned to his space instead (Ivan 2026-11-20, W5); then he is placed. No empty space in his zone to place him, or he cannot leave his space (Burning Barrier, `can_move`): the Clone is not summoned, revived or repositioned and nothing else happens, and the line of the card says why (`notice` op; Ivan 2026-11-21, live: Clone and Wukong ended on the same space). With three Clones out and one inside his zone but no other free space it stays 'nothing happens' too. The test is `exists space {zone_of: this}` (empty by default, his own space is not empty)."
   },
   {
    "title": "72 Transformations",
