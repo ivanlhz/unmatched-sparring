@@ -129,6 +129,93 @@ def test_surprise_volley_asks_yes_no_and_the_returned_archer_attacks_and_is_plac
 
 
 @with_rig("hellboy", "yennenga", TRAINING)
+def test_surprise_volley_placed_with_the_other_archers_token_is_read_where_it_stands(rig, monkeypatch):
+    """Live, Ivan 2026-11-21: both Archers had fallen, Surprise Volley brought back Archer 1 and Ivan put the OTHER token on the
+    board (the two are the same two-sided token). The engine kept Archer 1 on its guessed space and the bot's Hellboy moved onto the
+    real Archer. Like Wukong's Clones, the returned Archer follows whichever Archer token stands on the board."""
+    from test_e2_human_cards import bot_defends_with_nothing
+    session, table, game, fake, cfg = rig
+    put_adjacent(game, table, cfg, "yennenga", "hellboy")
+    for fid in ("archer2", "archer1"):
+        game.defeat(game.fighters[fid])
+        table.positions.pop(cfg.nicknames[fid], None)
+    bot_defends_with_nothing(session, monkeypatch)
+    human_hand(table, game, "Surprise Volley", "Point Blank")
+    human_attacks(session, table, game, "yennenga", "Surprise Volley")
+    press(session, table, True)
+    a1, hellboy = game.fighters["archer1"], game.fighters["hellboy"]
+    assert a1.alive and not game.fighters["archer2"].alive and game.placing == {"archer1"}
+    taken = {f.pos for f in game.fighters.values() if f.alive}
+    real = next(s for s in sorted(game.board.spaces) if game.board.share_zone(s, hellboy.pos) and s not in taken)
+    table.positions[cfg.nicknames["archer2"]] = real                     # the other token, on another space of Hellboy's zone
+    a1_guid, a2_guid = session.cfg.pieces["archer1"], session.cfg.pieces["archer2"]
+    msgs = click(session, table, Event.END_ACTION)
+    assert a1.pos == real and "archer1" not in game.placing, msgs
+    assert session.cfg.pieces["archer1"] == a2_guid and session.cfg.pieces["archer2"] == a1_guid, msgs
+    assert not said(msgs, "fuera del tablero") and not said(msgs, "cae"), msgs
+
+
+@with_rig("hellboy", "yennenga", TRAINING)
+def test_archers_are_interchangeable_tokens_but_yennenga_is_not(rig):
+    session, table, game, fake, cfg = rig
+    assert [o.fid for o in session.reserve_kin(game.fighters["archer1"])] == ["archer2"]
+    assert session.reserve_kin(game.fighters["yennenga"]) == [] and session.reserve_kin(game.fighters["hellboy"]) == []
+
+
+@with_rig("hellboy", "yennenga", "Excalibur", TRAINING, "Second Shot")
+def test_shield_formation_price_is_told_as_keeping_the_archer_down_not_as_ignoring_its_value(rig):
+    """Live, Ivan 2026-11-21: the bot discarded against Shield Formation and the chat said it did so "to ignore the value of
+    Shield Formation (it becomes 0; avoids 3 damage)", the wording of Incinerate. Shield Formation keeps its value: the discard only
+    stops a defeated Archer from coming back."""
+    session, table, game, fake, cfg = rig
+    put_adjacent(game, table, cfg, "hellboy", "yennenga")
+    game.defeat(game.fighters["archer1"])
+    human_hand(table, game, "Shield Formation", "Point Blank")
+    msgs = bot_attacks(session, table, game, "Excalibur", "yennenga", "Shield Formation")
+    line = next(m for m in msgs if m.startswith("Tu carta: Shield Formation"))
+    assert "ignorar el valor" not in line and "queda a 0" not in line and "dano" not in line, line
+    if game.fighters["archer1"].alive:
+        assert "el bot no paga (descartar 1): Shield Formation hace su efecto" in line, line
+    else:
+        assert "para que Shield Formation no haga su efecto" in line, line
+
+
+@with_rig("hellboy", "yennenga", "Excalibur")
+def test_shield_formation_against_an_empty_bot_hand_says_the_archer_comes_back_not_damage(rig):
+    """The bot cannot pay (its only card is the attack): Shield Formation's effect happens, the chat never speaks of damage."""
+    session, table, game, fake, cfg = rig
+    put_adjacent(game, table, cfg, "hellboy", "yennenga")
+    game.defeat(game.fighters["archer1"])
+    human_hand(table, game, "Shield Formation", "Point Blank")
+    msgs = bot_attacks(session, table, game, "Excalibur", "yennenga", "Shield Formation")
+    assert game.fighters["archer1"].alive, msgs                          # back before the damage: her ability asks about it
+    msgs += click(session, table, Event.CHOICE, {"i": 1})                # none of the damage to the Archer
+    line = next((m for m in msgs if m.startswith("Tu carta: Shield Formation")), None)
+    assert line is not None, msgs
+    assert "el bot no puede pagar (le faltan cartas para descartar 1): Shield Formation hace su efecto" in line, line
+    assert "dano" not in line and game.fighters["archer1"].alive, line
+
+
+@with_rig("hellboy", "yennenga", "Horseshoes And Hand Grenades", TRAINING)
+def test_skirmish_moving_yennenga_by_hand_is_not_told_as_the_bots_move(rig):
+    """Live, Ivan 2026-11-21: Yennenga won with Skirmish against Horseshoes And Hand Grenades, Ivan chose her and walked her by
+    hand, and the chat said "Yennenga se mueve ...: lo he movido yo (efecto del bot)"."""
+    session, table, game, fake, cfg = rig
+    put_adjacent(game, table, cfg, "hellboy", "yennenga")
+    human_hand(table, game, "Skirmish", "Point Blank")
+    msgs = bot_attacks(session, table, game, "Horseshoes And Hand Grenades", "yennenga", "Skirmish")
+    yen = game.fighters["yennenga"]
+    if session.effect_run is not None and session.effect_run.awaiting is not None and session.effect_run.awaiting.kind == "fighter":
+        msgs += press(session, table, "yennenga")
+    taken = {f.pos for f in game.fighters.values() if f.alive}
+    dest = next(s for s in sorted(game.board.adj[yen.pos]) if s not in taken)
+    table.positions[cfg.nicknames["yennenga"]] = dest
+    msgs += click(session, table, Event.END_ACTION)
+    assert yen.pos == dest, msgs
+    assert not said(msgs, "lo he movido yo"), msgs
+
+
+@with_rig("hellboy", "yennenga", TRAINING)
 def test_surprise_volley_with_no_defeated_archer_gives_the_action_back(rig, monkeypatch):
     from test_e2_human_cards import bot_defends_with_nothing
     session, table, game, fake, cfg = rig

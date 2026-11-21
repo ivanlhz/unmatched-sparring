@@ -98,14 +98,20 @@ def describe(game, before: dict, run, flow=None, title: str | None = None) -> st
 
 
 def _say_bot_price(game, run, parts: list[str], priced: dict) -> list[str]:
-    """The bot's answer to a price the human's card offered it, said plainly and never as "no effect". The wording is
-    Incinerate's (a discard price that ignores the card's value); another priced optional needs its own."""
+    """The bot's answer to a price the human's card offered it, said plainly and never as "no effect". A price that ignores the
+    card's value (Incinerate) says what it avoids; any other (Shield Formation: the discard stops an Archer's return) says only
+    that the card's effect is stopped or happens."""
     title = _title(game, run.ctx.card_id, getattr(run.ctx, "owner", None))
     stake, cards = priced["stake"], priced["cards"]
     lethal = priced["hp"] is not None and 0 < priced["hp"] <= stake
+    ignores = priced.get("ignores", True)                 # a record saved before the flag existed is Incinerate's
     if not priced["can_pay"]:
+        if not ignores:
+            return parts + [t("narr.price.cannot_pay_effect", cards=cards, title=title)]
         return parts + [t("narr.price.cannot_pay", cards=cards, stake=f"{stake:g}")]
     if not priced["paid"]:
+        if not ignores:
+            return parts + [t("narr.price.declines", cards=cards, why=t("narr.price.effect_happens", title=title))]
         why = t("narr.price.prefers", stake=f"{stake:g}", cards=cards) if stake else t("narr.price.no_change")
         return parts + [t("narr.price.declines", cards=cards, why=why)]
     why = t("narr.price.lethal") if lethal else t("narr.price.avoids", stake=f"{stake:g}")
@@ -115,6 +121,8 @@ def _say_bot_price(game, run, parts: list[str], priced: dict) -> list[str]:
     becomes = t("narr.value_becomes", title=title, n="")
     rest = [p for p in parts if p.removeprefix(bot_prefix) != discarded and not p.startswith(becomes)]
     paid = discarded or t("narr.price.pays", cards=cards)    # `_cards` words the discard; without it the price still shows
+    if not ignores:
+        return [t("narr.price.stops", paid=paid, title=title)] + rest
     return [t("narr.price.ignores", paid=paid, title=title, why=why)] + rest
 
 

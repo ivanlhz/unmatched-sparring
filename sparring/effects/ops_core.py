@@ -696,7 +696,9 @@ def _optional(run, game, spec):
                               **_choice_context(game, run, spec))[0]
     if cost and chooser != run.ctx.owner and chooser == game.bot_player:
         run.flags["bot_priced"] = {"paid": bool(yes), "can_pay": can_pay, "cards": ctx.get("cost_cards", 0),
-                                   "stake": ctx.get("at_stake", 0), "hp": ctx.get("hp")}
+                                   "stake": ctx.get("at_stake", 0), "hp": ctx.get("hp"),
+                                   # Incinerate's price ignores the card's value; Shield Formation's stops its effect (an Archer's return)
+                                   "ignores": any(o.get("op") == "set_value" and o.get("ignore") for o in spec.get("ops") or [])}
     if yes:
         return ([(("cost",), None)] if cost else []) + [(("ops",), None)]
     return [(("else",), None)] if spec.get("else") else []

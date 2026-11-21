@@ -2852,11 +2852,24 @@ class Session:
                 self._adopt_clone_token(fid, pieces)
 
     def reserve_kin(self, f: Fighter) -> list[Fighter]:
-        """The other fighters of the same owner that are the same kind of reserve token (Sun Wukong's Clones: the hero starts them
-        in the bag, `start_on_board` 0): their tokens are interchangeable, also those of a Clone that fell (it goes back to the bag)."""
-        if f.hero or not any(s.name == f.name and s.start_on_board == 0 for s in self.game.players[f.owner].hero.sidekicks):
+        """The other fighters of the same owner whose tokens are interchangeable with `f`'s: a reserve token (Sun Wukong's Clones:
+        the hero starts them in the bag, `start_on_board` 0), also those of a Clone that fell (it goes back to the bag); or a token
+        that carries its own life and has no dial (`no_dial`: Yennenga's Archers, the same two-sided token twice; Ivan 2026-11-21
+        put the other Archer's token on the board for the one Surprise Volley brought back)."""
+        if f.hero:
+            return []
+        if not any(s.name == f.name and s.start_on_board == 0 for s in self.game.players[f.owner].hero.sidekicks) \
+                and not self._no_dial_token(f):
             return []
         return [o for o in self.game.own(f.owner, alive_only=False) if o.fid != f.fid and o.name == f.name and not o.hero]
+
+    def _no_dial_token(self, f: Fighter) -> bool:
+        """The table data gives `f` no life dial (its life is the face of the piece): the token is the same as its namesakes'."""
+        try:
+            spec = load_hero_table(self.game.hero_def(f.owner).slug).fighters.get(f.fid)
+        except HeroTableError:
+            return False
+        return spec is not None and spec.no_dial
 
     def _adopt_clone_token(self, fid: str, pieces: dict[str, dict]) -> None:
         """The engine summoned `fid` and the human put ANOTHER Clone token on the board: `fid` follows that token (the two fids trade
@@ -5731,10 +5744,26 @@ class Session:
                 self.say(text, ChatKind.WARNING)
         return bool(self.illegal_hand_moves)
 
+    def _adopt_placed_tokens(self, pieces: dict[str, dict]) -> bool:
+        """A piece the human must place (`game.placing`) that is not on the board while an interchangeable token of a fallen namesake
+        is (Surprise Volley, Ivan 2026-11-21: the other Archer's token was put down) follows that token. Outside an AFTER gate too:
+        Surprise Volley ends its combat without one, so `_settle_placements` never runs for it. Whether any fid changed GUIDs."""
+        changed = False
+        for fid in list(self.game.placing):
+            info = pieces.get(fid) or {}
+            if fid not in self.game.fighters or (info.get("found") and self._on_board(info)):
+                continue
+            before = self._guids(fid)
+            self._adopt_clone_token(fid, pieces)
+            changed |= self._guids(fid) != before
+        return changed
+
     def sync_positions(self) -> None:
         self.illegal_hand_moves, self._illegal_fresh = {}, set()
         session_tracks.sync(self)                 # John Henry's track tokens first: they decide what his walk cost and which spaces are his paths
         pieces = self._table_pieces()
+        if self._adopt_placed_tokens(pieces):
+            pieces = self._table_pieces()         # read again with the GUIDs the fids now follow
         table_pos = {fid: info["space"] for fid, info in pieces.items()
                      if self.game.fighters[fid].alive and info.get("found") and self._on_board(info)}
         for fid, info in pieces.items():
@@ -5765,6 +5794,7 @@ class Session:
                 effect_move = fid in self.game.hand_moves
                 if effect_move and info["space"] != f.pos:
                     del self.game.hand_moves[fid]                     # walked by hand, legally: the permission is spent
+                    self.hand_moved[fid] = info["space"]              # Skirmish, Ivan 2026-11-21: a bot effect of this step never claims it moved it
                 if info["space"] != f.pos and f.pos is not None and self._hand_move_pays(f):
                     # the human moved this piece by hand: only the two ends are known, so the least-hazard shortest way is charged
                     with self._announcing_departure():
