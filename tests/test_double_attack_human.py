@@ -281,3 +281,56 @@ def test_the_bots_turn_does_not_go_on_before_its_waiting_second_attack(bot_hellb
     assert game.turn == 0 and game.actions_left == actions and medusa.hp == hp, "the second attack started, nothing else of the bot's turn"
     click(session, table, Event.REVEAL)
     assert session.pending is None and medusa.hp == hp - SECOND and game.turn == 0
+
+
+# ---------------------------------------------------------------- the double-attack card stays on the table until both attacks are resolved
+
+def _on_pile(table, card_id):
+    return table.bot_discard.count(card_id)
+
+
+def test_the_bots_double_attack_card_stays_at_its_spot_until_the_second_attack_closes(bot_hellboy):
+    session, game, table = bot_hellboy[0], bot_hellboy[2], bot_hellboy[4]
+    horseshoes = _bot_attacks(session, table, game, ("Feint", "Snipe", "Regroup", "Dash", "Second Shot"))
+    msgs = click(session, table, Event.REVEAL)
+    assert horseshoes in game.players[0].discard, "the engine settles the card with the first combat"
+    assert _on_pile(table, horseshoes.card_id) == 0, "the table keeps it at its combat spot"
+    assert not any("Descarta" in m and TITLE in m for m in msgs), "and the chat does not say it was discarded yet"
+    saved = session.to_dict()                                # saved while the second part waits: the card is still held
+    session.load_dict(saved)
+    click(session, table, Event.END_ACTION)
+    assert session.pending.second is not None and _on_pile(table, horseshoes.card_id) == 0
+    session._flush_table()                                   # any flush between the two combats leaves it there
+    assert _on_pile(table, horseshoes.card_id) == 0
+    msgs = click(session, table, Event.REVEAL)
+    assert session.pending is None
+    assert _on_pile(table, horseshoes.card_id) == 1, "it goes to the discard when the second combat closes, once"
+    assert sum(1 for c in game.players[0].discard if c is horseshoes) == 1
+
+
+def test_the_held_card_goes_to_the_discard_if_a_fighter_falls_before_the_second_attack(bot_hellboy):
+    session, game, table = bot_hellboy[0], bot_hellboy[2], bot_hellboy[4]
+    horseshoes = _bot_attacks(session, table, game, ("Feint", "Snipe", "Regroup", "Dash", "Second Shot"))
+    click(session, table, Event.REVEAL)
+    assert _on_pile(table, horseshoes.card_id) == 0
+    game.fighters["medusa"].hp = 0
+    game.fighters["medusa"].alive = False
+    session._start_second_next()
+    session._flush_table()
+    assert _on_pile(table, horseshoes.card_id) == 1
+
+
+def test_the_bots_first_defense_goes_to_the_discard_after_its_own_combat_and_the_humans_card_stays(human_hellboy):
+    session, table, game, cfg = human_hellboy
+    _bot_defends(session, game, first="Dash", second="Snipe")
+    human_hand(table, game, *HUMAN_HAND)
+    human_attack(session, table, game, "hellboy", "medusa", TITLE)
+    click(session, table, Event.REVEAL)
+    feint = next(c for c in game.players[0].full_set if c.title == "Dash")
+    snipe = next(c for c in game.players[0].full_set if c.title == "Snipe")
+    assert _on_pile(table, feint.card_id) == 1 and _on_pile(table, snipe.card_id) == 0
+    mine = card_ids(game, 1, TITLE)[0]
+    assert mine in session.second_next["spent"], "the human's card is left on its spot for the second part"
+    click(session, table, Event.END_ACTION)
+    click(session, table, Event.REVEAL)
+    assert _on_pile(table, feint.card_id) == 1 and _on_pile(table, snipe.card_id) == 1

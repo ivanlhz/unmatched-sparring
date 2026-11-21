@@ -1433,9 +1433,21 @@ class Session:
         """The first combat's AFTER step is done: starts the second attack that waits in `second_next` (True), unless a fighter fell in that step."""
         nxt, self.second_next = self.second_next, None
         if nxt is None or self.game.winner is not None or not g_alive(self.game, nxt):
+            if nxt is not None:
+                self._mark_dirty()                    # the card the bot was holding for it goes to the discard pile now
             return False
         self._begin_second_attack(nxt)
         return True
+
+    def _second_held(self) -> set[int]:
+        """CardIDs of the bot's double-attack card that stays at its combat spot (Ivan 2026-11-21): the engine discards it when the first
+        combat closes, the table keeps it there until the second attack is resolved and only then moves it to the discard pile."""
+        g, p = self.game, self.pending
+        if self.second_next is not None and g.fighters[self.second_next["att"]].owner == self.bot:
+            return {self.second_next["card"]}
+        if p is not None and p.kind == "bot_attacks" and p.second is not None and p.bot_card is not None:
+            return {p.bot_card.card_id}
+        return set()
 
     def _pact_to_bottom(self, cause: str) -> list[Callable[[], None]]:
         """DARK PACT paid by the human: the card they played is still at their combat spot, and the engine sent it to the
@@ -2957,7 +2969,8 @@ class Session:
         c = p.combat
         peek.forget_bottom(self, c.get("bottom"))
         flip_cards = [(p.bot_card_guid, "bot"), (c["human_guid"], "human")]
-        discarded_now = p.bot_card is not None and p.bot_card in g.players[self.bot].discard
+        keeps = {p.flow.atk_card.card_id} if p.flow.second_due and p.attacker.owner == self.bot else set()   # DOUBLE ATTACK: its card stays at the spot
+        discarded_now = p.bot_card is not None and p.bot_card in g.players[self.bot].discard and p.bot_card.card_id not in keeps
         if discarded_now and c["flip"] and self.cfg.batch and not c.get("flipped"):
             self.zoom_ids.add(p.bot_card.card_id)         # not flipped on the table: the discard shows it instead
         if c["flip"] and not c.get("flipped"):
@@ -2978,7 +2991,7 @@ class Session:
                 reasons[card.card_id] = why
         for i in self._bot_boost_ids(p):
             reasons[i] = t("cause.combat_boost")
-        listed = self._discard_list(c["bot_seen"], reasons, t("cause.effect"), told=set(told["ids"]) if told else ())
+        listed = self._discard_list(c["bot_seen"], reasons, t("cause.effect"), told=set(told["ids"] if told else ()) | keeps)
         if listed:
             self.say(t("combat.bot_discards", list=listed))
         for e in res.applied[told["applied"] if told else 0:]:
@@ -2996,6 +3009,11 @@ class Session:
         self._track_destiny()
         if told is None and (p.kind == "bot_attacks" or self._bot_answer_moves(c, reasons)):
             self._announce_before(said_first)       # its attack resolved (or its answer to yours moved cards or pieces): said and held before the table moves
+        if p.flow.second_due:                     # DOUBLE ATTACK: the human finishes this combat's AFTER step first (set before the table flush: the bot's card is held at its spot); End action starts the second part
+            flow = p.flow
+            self.second_next = {"att": flow.att.fid, "tgt": flow.tgt.fid, "card": flow.atk_card.card_id,
+                                "value": flow.second_attack["value"], "spent": sorted(self._human_played(p)),
+                                "guids": sorted({c["human_guid"], *self.combat_guids.values()} - {None})}
         cause = t("cause.combat_effects") if human_effects.human_ran(p.flow) else None
         fin_fx = self._project_effects(c.get("fx"), self._human_played(p), cause)
         fin_dials = self._write_dials(defer=True)
@@ -3009,11 +3027,6 @@ class Session:
             self.say(t("game.over", winner=g.winner))
             self._game_over_dialog()
             return
-        if p.flow.second_due:                     # DOUBLE ATTACK: the human finishes this combat's AFTER step first; End action starts the second part
-            flow = p.flow
-            self.second_next = {"att": flow.att.fid, "tgt": flow.tgt.fid, "card": flow.atk_card.card_id,
-                                "value": flow.second_attack["value"], "spent": sorted(self._human_played(p)),
-                                "guids": sorted({c["human_guid"], *self.combat_guids.values()} - {None})}
         self.moving = True
         if (paused := self._paused()) is not None and paused[0] == "parked" and paused[2].ctx.moment == "after_combat":
             self._show_choice(paused[2].awaiting)         # DARK PACT: asked right after the combat; `_effect_done` says the rest
@@ -5298,7 +5311,8 @@ class Session:
         held |= {c.card_id for c in self._bot_cards_in_play()}
         on_pile = self._table_discard()
         self._adopt_extra_discards(on_pile)
-        new = [c.card_id for c in st.discard if c.card_id not in self.bot_discarded]
+        waiting = self._second_held()
+        new = [c.card_id for c in st.discard if c.card_id not in self.bot_discarded and c.card_id not in waiting]
         hand_now = self._table_hand_ids() if g.drawn[self.bot] else []
         discard_op, todo = None, []
         if new:
@@ -5335,7 +5349,7 @@ class Session:
                                              id_range=self.cfg.bot_card_ids, identity=self._identity(),
                                              **self._deck_kw()), "cards")
         # the card played face down counts in the engine's hand but is not in the table's hand
-        want_discard = {c.card_id for c in st.discard}
+        want_discard = {c.card_id for c in st.discard} - waiting
         want_hand = len([c for c in st.hand if c.card_id not in held])
         if discard_op is not None or deal_op is not None:
             self._expect_hand = (self.cfg.bot_seat, want_hand)
