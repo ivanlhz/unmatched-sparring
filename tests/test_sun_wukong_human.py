@@ -685,3 +685,23 @@ def test_a_clone_that_fell_earlier_has_an_interchangeable_token_too(rig):
     msgs = click(session, table, Event.END_ACTION)
     assert revived not in game.placing and not said(msgs, "Wukong se mueve") and not said(msgs, "cae"), msgs
     assert table.positions[cfg.nicknames[other]] == game.fighters[revived].pos != old, msgs
+
+
+@with_rig("sun-wukong", "liz-sherman")
+def test_the_start_up_panel_has_life_rows_for_the_bots_clones_still_in_the_bag(rig):
+    """Live 21/11: bot Wukong summoned Clone 1 and the human's Wildfire could not take its 1 damage off it: the panel built at start-up
+    (play.main) listed only the living bot fighters, so the Clones in the bag had no -1/+1/Retirar row. The start-up and New game
+    panels now share `table_reset.panel_targets`."""
+    import inspect
+    from sparring import play, table_reset
+    from sparring.tts import ui
+    session, table, game, fake, cfg = rig
+    for fid in CLONES:
+        game.fighters[fid].alive, game.fighters[fid].died_at = False, None
+    targets = table_reset.panel_targets(game, session.bot)
+    assert set(CLONES) <= set(targets)
+    xml = ui.panel_xml(targets)
+    for fid in CLONES:
+        assert f'id="hpm_{fid}"' in xml and f'id="rm_{fid}"' in xml, fid
+    assert "table_reset.panel_targets(game, BOT)" in inspect.getsource(play.main) or \
+        "table_reset.panel_targets(game, BOT)" in inspect.getsource(play)

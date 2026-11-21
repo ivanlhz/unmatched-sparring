@@ -1202,7 +1202,7 @@ def play(cfg: PlayConfig, client: TTSClient, first: str, seed: int, stop: thread
         session.prepare_table(resume, None if resume else saved_zones(state_path))            # before anything reads the zones: a missing one is created, a tilted one straightened
     except (TTSLuaError, OSError):
         pass                                     # table not reachable now: the next step says so
-    targets = [f.fid for f in game.own(BOT)]
+    targets = table_reset.panel_targets(game, BOT)
     try:
         session.resolve_pieces()                 # before the panel is built: its snapshot carries the GUIDs found by name
     except TABLE_ERRORS:
