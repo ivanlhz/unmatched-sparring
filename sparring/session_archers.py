@@ -2,10 +2,11 @@
 
 Ivan, 2026-11-20: each Archer is a two-sided token, a small yellow "2" in the corner is 2 health, no number is 1 health, and it is flipped as it
 is hurt (there is no dial). The engine is the authority; `data/tts/yennenga.json` gives the Z rotation of each face (`faces`, verify live).
-- The BOT's Archers: whenever the engine's life of one changes (a hit, a heal, a return from defeat at 2) the bot turns the piece to the face of
-  that life, only if it is not there already, and says it in the chat. At the start of a game every Archer is put on the "2" face.
-- The HUMAN's Archers: the human flips them. Each look reads their rotation; when the face disagrees with the engine's life the chat asks the
-  human to flip it and pings the piece (once per disagreement). Neither side is trusted silently."""
+- EVERY Archer, the bot's and the human's (Ivan, 2026-11-21: like the life dials, which the bot sets on both sides): whenever the engine's life
+  of one changes (a hit, a heal, a return from defeat at 2) the bot turns the piece to the face of that life, only if it is not there already,
+  and says it in the chat. At the start of a game every Archer is put on the "2" face.
+- Between those changes the HUMAN's Archers are read on each look: a token the human flipped by hand to another life is not turned back; the
+  chat asks the human to flip it and pings the piece (once per disagreement), as a dial touched by hand is. Neither side is trusted silently."""
 from __future__ import annotations
 
 from .i18n import t
@@ -56,11 +57,11 @@ def track(session, announce: bool = False) -> None:
             continue
         names[fid] = getattr(game, "nicknames", {}).get(fid, f.name)
         life = int(f.hp)
-        if f.owner == session.human:
-            reads[guids[0]] = fid
-        elif said.get(fid) != life and str(life) in face:
+        if said.get(fid) != life and str(life) in face:
             sets[guids[0]] = face[str(life)]
             written[guids[0]] = fid
+        elif f.owner == session.human:
+            reads[guids[0]] = fid
     if not sets and not reads:
         return
     script = lua.archer_faces(sets, list(reads))

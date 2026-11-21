@@ -1,7 +1,7 @@
 """Yennenga's Archer tokens at the table (Ivan, 2026-11-20): each Archer is a two-sided token, the face with a small yellow "2" is 2 health,
 the face with no number is 1 health, and it is flipped as it is hurt; there is no dial. `data/tts/yennenga.json` gives the Z rotation of each
-face (`faces`: 2 = 0, 1 = 180, to verify live). The bot turns its own tokens to the engine's life and says it; the session reads the human's and
-asks them to flip a token that disagrees with the engine (and pings it). FakeTTS, both seats (sparring/session_archers.py)."""
+face (`faces`: 2 = 0, 1 = 180, to verify live). The bot turns every token, its own and the human's, to the engine's life and says it (Ivan 2026-11-21); between changes the
+session reads the human's and asks them to flip a token they turned by hand to another life (and pings it). FakeTTS, both seats (sparring/session_archers.py)."""
 from __future__ import annotations
 
 import json
@@ -82,37 +82,43 @@ def test_a_restart_puts_every_token_back_on_the_two_face(rig):
 # ---------------------------------------------------------------- the human's Archers
 
 @with_rig("hellboy", "yennenga")
-def test_the_human_who_forgets_to_flip_is_told_and_the_piece_is_pinged_once(rig):
+def test_the_bot_flips_the_human_archer_hit_by_the_engine_like_it_sets_the_life_dials(rig):
+    """Ivan, 2026-11-21: "xq cuando le hacen un dano a una arquera no le das la vuelta a la ficha?" The human's tokens are flipped by the bot too."""
     session, table, game, fake, cfg = rig
     out = capture(session)
     look(session, announce=True)
-    assert out == [] and table.archer_writes == []                         # the human's tokens are never turned by the bot
+    assert out == [] and table.archer_writes == []                         # the start: already on the "2" face, nothing to say
     game.damage(game.fighters["archer1"], 1, "effect")
     look(session)
-    assert said(out, "Archer 1 tiene 1 de vida pero su ficha muestra 2"), out
-    assert any([guid(cfg, "archer1")] in group for group in table.pings), table.pings
+    assert table.archer_rot[guid(cfg, "archer1")] == 180.0
+    assert said(out, "Archer 1 tiene 1 de vida: he girado su ficha"), out
+    assert not said(out, "girala"), out
     n = len(out)
     look(session)
-    assert len(out) == n                                                   # said once while the disagreement stays
-    table.archer_rot[guid(cfg, "archer1")] = 180.0                         # the human flips it
-    look(session)
-    assert len(out) == n and table.archer_writes == []                     # agreement: silence
+    assert len(out) == n                                                   # nothing changed: silence
 
 
 @with_rig("hellboy", "yennenga")
-def test_a_token_flipped_the_wrong_way_is_said_and_a_new_disagreement_is_said_again(rig):
+def test_the_human_who_flips_a_token_by_hand_the_wrong_way_is_told_once_and_it_is_not_turned_back(rig):
     session, table, game, fake, cfg = rig
     out = capture(session)
-    table.archer_rot[guid(cfg, "archer2")] = 180.0                         # shows 1 health while the engine says 2
     look(session, announce=True)
+    writes = len(table.archer_writes)
+    table.archer_rot[guid(cfg, "archer2")] = 180.0                         # the human flips it: shows 1 while the engine says 2
+    look(session)
     assert said(out, "Archer 2 tiene 2 de vida pero su ficha muestra 1"), out
-    game.damage(game.fighters["archer2"], 1, "effect")                    # the engine now agrees with the token ...
+    assert any([guid(cfg, "archer2")] in group for group in table.pings), table.pings
+    assert len(table.archer_writes) == writes and table.archer_rot[guid(cfg, "archer2")] == 180.0
     n = len(out)
     look(session)
-    assert len(out) == n
-    game.heal(game.fighters["archer2"], 1)                                 # ... and disagrees again
+    assert len(out) == n                                                   # said once while the disagreement stays
+    game.damage(game.fighters["archer2"], 1, "effect")                    # the engine now agrees with the token: no flip to say
     look(session)
-    assert len(out) == n + 1
+    assert len(out) == n and table.archer_rot[guid(cfg, "archer2")] == 180.0
+    game.heal(game.fighters["archer2"], 1)                                 # back to 2: the bot turns it
+    look(session)
+    assert table.archer_rot[guid(cfg, "archer2")] == 0.0
+    assert said(out, "Archer 2 tiene 2 de vida: he girado su ficha"), out
 
 
 @with_rig("hellboy", "yennenga")
