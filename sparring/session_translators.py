@@ -274,7 +274,11 @@ def _move_bot(session, intent: dict, ctx: Ctx) -> list[Check]:
     op = session._w(effects_bridge.move_human_piece(session.game.board, guid, f.pos), DOMAIN)
 
     def check() -> None:
-        _move_say(session, intent, ctx, moved=bool(result_of(op).get("moved")))
+        moved = bool(result_of(op).get("moved"))
+        if not moved:                             # the engine has it there, the table does not: the human puts it there by hand, as a placement (no departure, no hazard)
+            session.table_stale[f.fid] = ctx.before["human_pieces"][f.fid][0]
+            session.game.placing.add(f.fid)
+        _move_say(session, intent, ctx, moved=moved)
     return [check]
 
 

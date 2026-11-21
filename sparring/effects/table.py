@@ -228,6 +228,8 @@ def line(n: dict) -> str:
         rest = t({"bottom_random": "tbl.rest.bottom_random", "bottom_ordered": "tbl.rest.bottom_ordered",
                   "top_ordered": "tbl.rest.top_ordered", "shuffle": "tbl.rest.shuffle"}.get(n["rest"], "tbl.rest.bottom"))
         return t("tbl.search", look=look, take=plural(n["take"], "noun.card"), rest=rest)
+    if op == "swap":                                  # an old save: the bot swaps the pieces itself now and no longer notes it
+        return t("tbl.swap_old")
     return op
 
 

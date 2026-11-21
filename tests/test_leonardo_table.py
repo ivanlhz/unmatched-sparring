@@ -72,8 +72,9 @@ def test_for_sensei_moves_the_bots_piece_by_panel_and_yours_by_hand_then_asks_fo
 
 
 @with_rig(*LEO_VS_HELLBOY)
-def test_protective_father_swaps_by_hand_and_heals_both(rig):
+def test_protective_father_swaps_the_two_miniatures_itself_and_heals_both(rig):
     session, table, game, fake, cfg = rig
+    leo_at, splinter_at = game.fighters["leonardo"].pos, game.fighters["splinter"].pos
     game.fighters["leonardo"].hp, game.fighters["splinter"].hp = 10, 4
     human_hand(table, game, "Protective father", "Katana")
     click(session, table, Event.SCHEME)
@@ -82,8 +83,12 @@ def test_protective_father_swaps_by_hand_and_heals_both(rig):
     table.human_count -= 1
     msgs = click(session, table, Event.END_ACTION)
     assert session.effect_run is not None and session.effect_run.awaiting.kind == "optional"
-    press(session, table, True)
+    msgs = press(session, table, True)
     assert game.fighters["leonardo"].hp == 12 and game.fighters["splinter"].hp == 6
+    assert (game.fighters["leonardo"].pos, game.fighters["splinter"].pos) == (splinter_at, leo_at)
+    assert (table.positions[cfg.nicknames["leonardo"]], table.positions[cfg.nicknames["splinter"]]) == (splinter_at, leo_at)
+    assert said(msgs, "he intercambiado yo las miniaturas"), msgs
+    assert not game.placing
     assert game.actions_left >= 1
 
 

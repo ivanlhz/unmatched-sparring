@@ -202,7 +202,7 @@ def _prevented(game, run) -> list[str]:
     out = []
     for source, who in by_source.items():
         why = t("narr.prevented.by", title=source) if source else t("narr.prevented.generic")
-        out.append(t("narr.prevented.several" if len(who) > 1 else "narr.prevented.single", fids=t("narr.and").join(who), why=why))
+        out.append(t("narr.prevented.several" if len(who) > 1 else "narr.prevented.single", fids=t("common.and").join(who), why=why))
     return out
 
 

@@ -124,7 +124,7 @@ def test_wily_fighting_says_the_damage_was_stopped_by_the_bots_planned_recklessn
     lobster = game.fighters["lobster"].hp
     msgs = attack(session, table, game, "achilles", "Wily Fighting")
     assert game.fighters["lobster"].hp == lobster, msgs
-    assert said(msgs, "Wily Fighting: hellboy y lobster no reciben dano de efectos (Planned Recklessness: no reciben dano de efectos este turno)"), msgs
+    assert said(msgs, "Wily Fighting: hellboy y lobster no reciben dano de efectos por Planned Recklessness"), msgs
 
 
 @with_rig("hellboy", "achilles", "Excalibur", TRAINING)

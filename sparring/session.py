@@ -377,6 +377,7 @@ class Session:
         self.hand_deck: set[int] = set()              # CardIDs the human put from their discard into their deck by hand (session_pile): not moved again
         self._illegal_fresh: set[str] = set()           # refusals the last sync_positions has just said
         self.illegal_hand_moves: dict[str, str] = {}    # fid -> why the table's position breaks the effect's move (set by sync_positions)
+        self.table_stale: dict[str, int] = {}         # fid -> space the table still shows for a miniature the bot failed to move: the engine keeps its space until the human puts it there
         self.hand_moved: dict[str, int] = {}          # fid -> space the human put a miniature on by hand (session_moves): not projected again
         self.boost_note: dict | None = None                   # what the bot's Maneuver boost card drew and gained (`_note_boost`)
         self.fx_looked = False                        # a look_hand re-identified the human's virtual hand in this step
@@ -2846,6 +2847,8 @@ class Session:
         pieces = self._table_pieces()
         for fid in list(self.game.placing):
             info = pieces.get(fid) or {}
+            if fid in self.table_stale:
+                continue                              # the bot's move of it failed: it stays owed until the human puts it on the engine's space
             if info.get("found") and self._on_board(info):
                 self.game.placing.discard(fid)
             else:
@@ -5774,6 +5777,11 @@ class Session:
             name, guid = self._name(f), "/".join(self._guids(fid))
             if quiet and not self._on_board(info):
                 continue
+            stale = self.table_stale.get(fid)
+            if stale is not None and info.get("found") and self._on_board(info):
+                if info["space"] == stale and info["space"] != f.pos:
+                    continue                      # the table still shows where the bot's failed move left it: the engine's space stands, nothing was done by hand
+                del self.table_stale[fid]         # the human put it somewhere (the engine's space, or another one): placement semantics (it is in game.placing)
             if not info.get("found"):
                 if fid not in self.game.placing:           # a piece the human is still taking out of the bag to place it (a summoned Clone) is not missing
                     self._warn(fid, "missing", t("warn.missing", name=name, guid=guid))
