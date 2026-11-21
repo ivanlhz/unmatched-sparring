@@ -402,6 +402,31 @@ def test_resume_while_the_clone_is_waiting_to_be_placed_does_not_call_it_missing
     assert other.game.fighters["clone1"].pos == spot
 
 
+@with_rig("hellboy", "sun-wukong", *HAND)
+def test_sly_monkey_with_no_empty_space_in_his_zone_summons_no_clone_for_the_human(rig, monkeypatch):
+    """Ivan 2026-11-21: no free space in his zone, no Clone, nobody to place."""
+    session, table, game, fake, cfg = rig
+    start(rig)
+    put_adjacent(game, table, cfg, "wukong", "hellboy")
+    w = game.fighters["wukong"]
+    mates = [s for s in sorted(game.board.spaces) if s != w.pos and game.board.share_zone(w.pos, s) and s != game.fighters["hellboy"].pos]
+    pieces = [f for f in game.fighters.values() if f.fid not in ("wukong", "hellboy") and f.fid not in CLONES]
+    for f, s in zip(pieces, mates):
+        f.pos = s
+        table.positions[cfg.nicknames[f.fid]] = s
+    for fid, s in zip(CLONES, mates[len(pieces):]):
+        put_clone(game, table, cfg, fid, s)
+    assert all(any(f.alive and f.pos == s for f in game.fighters.values()) for s in mates), "zone not closed"
+    clones = {c: (game.fighters[c].alive, game.fighters[c].pos) for c in CLONES}
+    bot_defends_with_nothing(session, monkeypatch)
+    human_hand(table, game, "Sly Monkey", "Golden Chain Mail")
+    old = w.pos
+    attack(session, table, game, "Sly Monkey")
+    assert w.pos == old and game.placing == set() and {c: (game.fighters[c].alive, game.fighters[c].pos) for c in CLONES} == clones
+    spaces = [f.pos for f in game.fighters.values() if f.alive]
+    assert len(spaces) == len(set(spaces))
+
+
 # ---------------------------------------------------------------- Sly Monkey with the three Clones out (Ivan 2026-11-20, W5)
 
 @with_rig("hellboy", "sun-wukong", *HAND)

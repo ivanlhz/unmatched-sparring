@@ -235,7 +235,7 @@ def _moved_piece(session, intent: dict, ctx: Ctx):
         return None
     if session.hand_moved.get(f.fid) == f.pos:        # the human put it there by hand (session_moves): nothing to project or say
         return None
-    if f.fid in session.game.placing:                 # the card told them to place it (Unyielding Hordes): the bot never moves it
+    if f.fid in session.game.placing and f.fid not in session.table_stale:     # the card told them to place it (Unyielding Hordes): the bot never moves it; a piece owed by a failed bot move still is the bot's
         return None
     return f
 
@@ -275,8 +275,11 @@ def _move_bot(session, intent: dict, ctx: Ctx) -> list[Check]:
 
     def check() -> None:
         moved = bool(result_of(op).get("moved"))
-        if not moved:                             # the engine has it there, the table does not: the human puts it there by hand, as a placement (no departure, no hazard)
-            session.table_stale[f.fid] = ctx.before["human_pieces"][f.fid][0]
+        if moved:                                 # the table now shows the engine's space: nothing is owed any more
+            session.table_stale.pop(f.fid, None)
+            session.game.placing.discard(f.fid)
+        else:                                     # the engine has it there, the table does not: the human puts it there by hand, as a placement (no departure, no hazard)
+            session.table_stale.setdefault(f.fid, ctx.before["human_pieces"][f.fid][0])      # the table keeps showing the first stale space
             session.game.placing.add(f.fid)
         _move_say(session, intent, ctx, moved=moved)
     return [check]

@@ -224,6 +224,64 @@ def test_sly_monkey_with_three_clones_repositions_the_one_the_owner_chooses_then
     assert g.fighters["clone1"].pos != old and g.fighters["clone3"].pos != old
 
 
+def fill_zone(g, w, h):
+    """Every other space of Sun Wukong's zone held by a fighter (the Clones landed there, then the rival's pieces)."""
+    mates = [s for s in sorted(g.board.spaces) if s != w.pos and g.board.share_zone(w.pos, s) and s != h.pos]
+    pieces = [f for f in g.fighters.values() if f.fid not in ("wukong", h.fid)]
+    assert len(pieces) >= len(mates), "the test board must be small enough to fill the zone"
+    for f, s in zip(pieces, mates):
+        f.alive, f.pos = True, s
+        f.hp = f.hp or f.max_hp
+    return mates
+
+
+def living_spaces(g):
+    return [f.pos for f in g.fighters.values() if f.alive]
+
+
+def test_sly_monkey_with_no_empty_space_in_his_zone_summons_nothing_and_he_stays(bprd):
+    """Ivan 2026-11-21 (live: Clone and Wukong ended on the same space): no free space to place him, no Clone."""
+    g = mk(bprd)
+    w, h = pair(g, "wukong", "hellboy")
+    fill_zone(g, w, h)
+    old, before = w.pos, {f.fid: (f.alive, f.pos) for f in g.fighters.values()}
+    clones_before = alive_clones(g)
+    g.attack(w, h, give(g, 0, "Sly Monkey"), plain(g))
+    assert w.pos == old and alive_clones(g) == clones_before
+    assert {f.fid: (f.alive, f.pos) for f in g.fighters.values() if f.fid in CLONES} == {k: v for k, v in before.items() if k in CLONES}
+    assert len(living_spaces(g)) == len(set(living_spaces(g)))
+
+
+def test_sly_monkey_with_no_empty_space_revives_no_defeated_clone_either(bprd):
+    g = mk(bprd)
+    w, h = pair(g, "wukong", "hellboy")
+    fill_zone(g, w, h)
+    for fid in CLONES:
+        g.fighters[fid].alive = False
+        g.fighters[fid].pos = None
+    g.attack(w, h, give(g, 0, "Sly Monkey"), plain(g))
+    assert alive_clones(g) == [] or all(g.fighters[c].pos is not None for c in alive_clones(g))
+    assert len(living_spaces(g)) == len(set(living_spaces(g)))
+
+
+def test_sly_monkey_with_three_clones_and_no_empty_space_moves_no_clone(bprd):
+    g = mk(bprd)
+    w, h = pair(g, "wukong", "hellboy")
+    mates = [s for s in sorted(g.board.spaces) if s != w.pos and g.board.share_zone(w.pos, s) and s != h.pos]
+    others = [f for f in g.fighters.values() if f.fid not in ("wukong", h.fid, *CLONES)]
+    for f, s_ in zip(others + [g.fighters[c] for c in CLONES], mates):          # the rival's pieces first, the Clones close the zone
+        f.alive, f.pos = True, s_
+        f.hp = f.hp or f.max_hp
+    far = [s_ for s_ in sorted(g.board.spaces, reverse=True) if s_ not in mates and s_ not in (w.pos, h.pos)]
+    for fid, s_ in zip(CLONES, far):                                            # any Clone not needed in the zone stays outside it
+        if g.fighters[fid].pos is None or g.fighters[fid].pos not in mates:
+            land(g, fid, s_)
+    assert all(s_ in living_spaces(g) for s_ in mates) and len([c for c in CLONES if g.fighters[c].alive]) == 3, "zone not closed"
+    before = {c: g.fighters[c].pos for c in CLONES}
+    g.attack(w, h, give(g, 0, "Sly Monkey"), plain(g))
+    assert {c: g.fighters[c].pos for c in CLONES} == before and len(living_spaces(g)) == len(set(living_spaces(g)))
+
+
 def test_sly_monkey_played_by_a_clone_does_nothing_after_combat(bprd):
     g = mk(bprd)
     c, h = pair(g, "clone1", "hellboy")

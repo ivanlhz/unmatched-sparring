@@ -1731,7 +1731,7 @@ class Session:
             "bot_discarded": sorted(self.bot_discarded), "dirty": self.dirty,
             "unprojected": None if self.unprojected is None else {k: list(v) for k, v in self.unprojected.items()},
             "bot_stage": self.bot_stage, "first_turn_pending": self.first_turn_pending, "limit_waived": self.limit_waived, "flush_failures": self.flush_failures,
-            "placing": self.placing, "fingerprint": self.fingerprint(),
+            "placing": self.placing, "table_stale": dict(self.table_stale), "fingerprint": self.fingerprint(),
             "destiny_seen": None if self.destiny_seen is None else list(self.destiny_seen),
             "scheme_baseline": self.scheme_baseline, "dial_debt": self.dial_debt, "setup": self.setup,
             **({"scheme_returned": self.scheme_returned} if self.scheme_returned else {}),
@@ -1819,6 +1819,7 @@ class Session:
             self.first_turn_pending = bool(d.get("first_turn_pending", False))
             self.flush_failures = d["flush_failures"]
             self.placing = d.get("placing")
+            self.table_stale = {k: int(v) for k, v in (d.get("table_stale") or {}).items()}
             self.scheme_baseline = d.get("scheme_baseline")
             self.scheme_returned = d.get("scheme_returned")
             self.maneuver_baseline = d.get("maneuver_baseline")
