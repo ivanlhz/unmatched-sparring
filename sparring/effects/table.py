@@ -201,8 +201,6 @@ def line(n: dict) -> str:
         return t("tbl.move_none", fid=n["fid"], squares=plural(n["amount"], "noun.space"))
     if op == "place":
         return t("tbl.place", fid=n["fid"], where=_where(n.get("where")))
-    if op == "swap":
-        return t("tbl.swap", fid=n["fid"], other=n["other"])
     if op in ("revive", "summon"):
         return t("tbl.put", fid=n.get("name") or n["fid"], where=_where(n.get("where")), hp=f"{n['hp']:g}")
     if op == "choose":

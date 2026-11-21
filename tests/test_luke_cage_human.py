@@ -94,8 +94,11 @@ def misty_defends(session, table, game, cfg, answer):
 def test_got_my_back_yes_swaps_your_miniatures_and_luke_takes_the_blow(rig):
     session, table, game, fake, cfg = rig
     misty, luke = game.fighters["misty"], game.fighters["luke"]
+
     msgs = misty_defends(session, table, game, cfg, True)
-    assert said(msgs, "intercambia las casillas de misty y luke"), msgs                  # the two miniatures are yours
+    assert said(msgs, "he intercambiado yo las miniaturas"), msgs                        # the two miniatures are yours: the bot moves them
+    assert game.board.adjacent(game.fighters["hellboy"].pos, luke.pos) and not game.board.adjacent(game.fighters["hellboy"].pos, misty.pos)   # Luke stands where Misty was
+    assert all(table.positions[cfg.nicknames[f]] == game.fighters[f].pos for f in ("misty", "luke"))
     assert game.fighters["luke"].hp == 13 - max(0, 5 - 1 - 2) and misty.hp == 6
     assert said(msgs, "luke defiende con Got My Back?") or said(msgs, "Luke Cage defiende con Got My Back?"), msgs
 

@@ -245,10 +245,11 @@ def _move_say(session, intent: dict, ctx: Ctx, moved: bool) -> None:
     f = g.fighters[intent["fid"]]
     name, space = session._name(f), describe(g, f.pos, (f.fid,), session._name)
     walks = ctx.before["human_pieces"][f.fid][1]
+    key = "swap" if intent["op"] == "swap" else "moves" if walks else "returns"       # a swap moves both pieces: each says where it went
     if moved:
-        session.say(t("tr.moved.moves.done" if walks else "tr.moved.returns.done", name=name, space=space), ChatKind.MOVE)
+        session.say(t(f"tr.moved.{key}.done", name=name, space=space), ChatKind.MOVE)
     else:
-        session.say(t("tr.moved.moves.manual" if walks else "tr.moved.returns.manual", name=name, space=space), ChatKind.YOUR_TURN)
+        session.say(t(f"tr.moved.{key}.manual", name=name, space=space), ChatKind.YOUR_TURN)
 
 
 def _move_human(session, intent: dict, ctx: Ctx) -> list[Check]:

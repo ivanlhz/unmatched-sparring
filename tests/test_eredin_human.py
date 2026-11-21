@@ -247,13 +247,15 @@ def test_implacable_attacks_while_enraged_and_the_panel_offers_its_free_boost(ri
 # ---------------------------------------------------------------- Portal Defense, played by the human
 
 @with_rig("hellboy", "eredin", *HAND)
-def test_portal_defense_swaps_the_humans_miniatures_by_hand_and_the_red_rider_takes_the_blow(rig):
+def test_portal_defense_swaps_the_humans_miniatures_for_them_and_the_red_rider_takes_the_blow(rig):
     session, table, game, fake, cfg = rig
     put_adjacent(game, table, cfg, "hellboy", "eredin")
     put_adjacent(game, table, cfg, "rider1", "eredin")
     human_hand(table, game, "Portal Defense", "Backhand", "Skirmish")
+    eredin_at, rider_at = game.fighters["eredin"].pos, game.fighters["rider1"].pos
     msgs = bot_attacks(session, table, game, "Excalibur", "hellboy", "eredin", "Portal Defense")
-    assert said(msgs, "intercambia las casillas de eredin y rider1"), msgs                   # both miniatures are yours
+    assert said(msgs, "he intercambiado yo las miniaturas"), msgs                            # both are yours, the bot moves them
+    assert game.fighters["eredin"].pos == rider_at and table.positions[cfg.nicknames["eredin"]] == rider_at     # the rider fell on Eredin's old space
     assert said(msgs, "Maxwell defiende con Portal Defense"), msgs
     assert not game.fighters["rider1"].alive and game.fighters["eredin"].hp == 14
     assert said(msgs, "Maxwell cae"), msgs

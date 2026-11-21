@@ -453,16 +453,12 @@ def _swap(run, game, spec):
     if a and b and a[0] is not b[0] and a[0].alive and b[0].alive and game.fx.can_move(a[0]) and game.fx.can_move(b[0]):
         first, second = a[0], b[0]
         swapped = [first.fid, second.fid]
-        if table.piece_is_physical(game, chooser, first) and table.piece_is_physical(game, chooser, second):
-            game.placing.update((first.fid, second.fid))
-            table.note(run, op="swap", fid=first.fid, other=second.fid)      # the table player swaps their miniatures by hand
-        else:
-            origins = (first.pos, second.pos)
-            first.pos, second.pos = second.pos, first.pos
-            for f in (first, second):
-                table.intent(game, op="swap", fid=f.fid, owner=f.owner)
-            for f, origin in zip((first, second), origins):
-                game.departed(f, origin, moved=False)
+        origins = (first.pos, second.pos)                # always in the engine, even for the human's two miniatures: the bot swaps them on the table
+        first.pos, second.pos = second.pos, first.pos
+        for f in (first, second):
+            table.intent(game, op="swap", fid=f.fid, owner=f.owner)
+        for f, origin in zip((first, second), origins):
+            game.departed(f, origin, moved=False)
     if "as" in spec:
         run.bind("fighters", spec["as"], swapped)
 

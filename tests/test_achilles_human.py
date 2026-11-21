@@ -74,12 +74,38 @@ def test_under_achilles_helm_yes_swaps_your_miniatures_and_patroclus_takes_the_b
     far = next(s for s in sorted(game.board.spaces, reverse=True) if all(f.pos != s for f in game.fighters.values() if f.alive))
     patroclus.pos = far
     table.positions[cfg.nicknames["patroclus"]] = far
+    achilles_at = achilles.pos
     human_hand(table, game, "Under Achilles' Helm", "Feint")
     msgs = bot_attacks(session, table, game, "Excalibur", "achilles", "Under Achilles' Helm")
     assert session.effect_run.awaiting.kind == "optional", msgs
     msgs = press(session, table, True)
-    assert said(msgs, "intercambia las casillas de achilles y patroclus"), msgs
+    assert said(msgs, "he intercambiado yo las miniaturas"), msgs
+    assert not said(msgs, "en la mesa: intercambia"), msgs
+    assert (achilles.pos, patroclus.pos) == (far, achilles_at)                     # the engine swapped them at once
+    assert (table.positions[cfg.nicknames["achilles"]], table.positions[cfg.nicknames["patroclus"]]) == (far, achilles_at)   # and the bot moved the miniatures
+    assert not session.game.placing and not session.hand_moved
     assert patroclus.hp == 6 - max(0, 6 - 2) and achilles.hp == 18
+
+
+@with_rig("hellboy", "achilles", "Right Hand Of Doom", TRAINING)
+def test_the_bots_after_move_reads_the_swapped_positions_and_the_table_is_never_read_as_hand_moves(rig):
+    """Live game 21/11: the by-hand swap left the engine on the old spaces, Right Hand Of Doom moved Achilles from his old one and the
+    table read then overwrote it. Now the swap is in the engine before the AFTER runs."""
+    session, table, game, fake, cfg = rig
+    put_adjacent(game, table, cfg, "hellboy", "achilles")
+    patroclus, achilles = game.fighters["patroclus"], game.fighters["achilles"]
+    far = next(s for s in sorted(game.board.spaces, reverse=True) if all(f.pos != s for f in game.fighters.values() if f.alive))
+    patroclus.pos = far
+    table.positions[cfg.nicknames["patroclus"]] = far
+    achilles_at = achilles.pos
+    human_hand(table, game, "Under Achilles' Helm", "Feint")
+    bot_attacks(session, table, game, "Right Hand Of Doom", "achilles", "Under Achilles' Helm")
+    msgs = press(session, table, True)
+    assert patroclus.hp < 6 and achilles.hp == 18, msgs                        # Patroclus is the defender
+    assert achilles.pos == far and patroclus.pos != far, msgs                  # Right Hand Of Doom moved Patroclus from his swapped space, never Achilles from his old one
+    for fid in ("achilles", "patroclus"):
+        assert table.positions[cfg.nicknames[fid]] == game.fighters[fid].pos, (fid, msgs)
+    assert not session.game.placing and not session.hand_moved, msgs
 
 
 @with_rig("hellboy", "achilles", "Excalibur", TRAINING)

@@ -334,6 +334,7 @@ def test_smoke_and_mirrors_asks_to_swap_and_the_other_fighter_takes_the_hit(rig,
     put_adjacent(game, table, cfg, "hellboy", "houdini")
     human_hand(table, game, "Smoke and Mirrors", "Flourish")
     pistol = next(c for c in game.players[0].hand if c.title == "Service Pistol")
+    houdini_at, bess_at = game.fighters["houdini"].pos, game.fighters["bess"].pos
     bot_turn(session, table, [Act("attack", fid="hellboy", target="houdini", card=pistol)])
     cid = card_ids(game, 1, "Smoke and Mirrors")[0]
     table.face_down = [{"id": cid, "guid": f"h{cid}"}]
@@ -344,7 +345,9 @@ def test_smoke_and_mirrors_asks_to_swap_and_the_other_fighter_takes_the_hit(rig,
     assert req.kind == "optional"
     msgs = press(session, table, True)
     assert said(msgs, "Houdini y Bess") is False and said(msgs, "Bess defiende con Smoke and Mirrors"), msgs     # the other one fights
-    assert said(msgs, "intercambia las casillas de houdini y bess")                                          # the miniatures are yours
+    assert said(msgs, "he intercambiado yo las miniaturas")                                                  # the miniatures are yours: the bot moves them
+    assert (game.fighters["houdini"].pos, game.fighters["bess"].pos) == (bess_at, houdini_at)
+    assert (table.positions[cfg.nicknames["houdini"]], table.positions[cfg.nicknames["bess"]]) == (bess_at, houdini_at)
     assert game.fighters["bess"].hp == 5 - 2 and game.fighters["houdini"].hp == 14 and session.pending is None
 
 
