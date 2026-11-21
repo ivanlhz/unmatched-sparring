@@ -76,6 +76,12 @@ class EffectState:
         from .modifiers import adjust_damage
         return adjust_damage(self, fighter, n, source)
 
+    def effect_immunity(self, fighter):
+        if not self._has_modifiers():
+            return None
+        from .modifiers import effect_immunity
+        return effect_immunity(self, fighter)
+
     def can_draw(self, player: int) -> bool:
         if not self._has_modifiers():
             return True

@@ -257,6 +257,21 @@ def _acting(game, owner: int):
     return previous
 
 
+def _note_prevented(run, game, victims, n) -> None:
+    """The fighters whose effect damage an immunity stops, with the card that gave it: the narration says the card was applied
+    and that nothing came of it (`run.flags["prevented"]`: [fid, source title], JSON-safe for a run saved at a question)."""
+    for f in victims:
+        if n <= 0 or not f.alive:
+            continue
+        st = game.fx.effect_immunity(f)
+        if st is None:
+            continue
+        card = find_card(game, st["card_id"], st["owner"]) if st.get("card_id") is not None else None
+        entry = [f.fid, card.title if card else st.get("label") or ""]
+        if entry not in run.flags.setdefault("prevented", []):
+            run.flags["prevented"].append(entry)
+
+
 @op("damage")
 def _damage(run, game, spec):
     n = amount(game, run, spec["amount"])
@@ -268,6 +283,7 @@ def _damage(run, game, spec):
         # Yennenga: her owner splits the blow, once the modifiers have made it what she would take, among her Archers; what this same op
         # does to an Archer itself is reserved, so no share lands on a fighter the op has already killed
         reserved: dict[str, float] = {}
+        _note_prevented(run, game, victims, n)
         for f in victims:
             if not plugins_yennenga.assigns_damage(game, f):
                 reserved[f.fid] = reserved.get(f.fid, 0) + game.fx.adjust_damage(f, n, "effect")

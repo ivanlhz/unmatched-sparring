@@ -11,7 +11,7 @@ from sparring.ai_medusa import Act
 from sparring.tts.ui import Event
 from test_batch import click
 from test_d3_table_effects import bot_turn, card_ids, human_attack, human_hand, said
-from test_e2_human_cards import bot_defends_with_nothing, by_hand, human_scheme, labels, press, put_adjacent, rig, with_rig  # noqa: F401
+from test_e2_human_cards import bot_defends_with, bot_defends_with_nothing, by_hand, human_scheme, labels, press, put_adjacent, rig, with_rig  # noqa: F401
 
 TRAINING = "B.P.R.D. Training"        # Hellboy's defense of value 3
 
@@ -106,6 +106,25 @@ def test_the_bots_after_move_reads_the_swapped_positions_and_the_table_is_never_
     for fid in ("achilles", "patroclus"):
         assert table.positions[cfg.nicknames[fid]] == game.fighters[fid].pos, (fid, msgs)
     assert not session.game.placing and not session.hand_moved, msgs
+
+
+@with_rig("hellboy", "achilles", "Planned Recklessness", TRAINING)
+def test_wily_fighting_says_the_damage_was_stopped_by_the_bots_planned_recklessness(rig, monkeypatch):
+    """Live game 21/11: the chat only said the draw of VENGEANCE and Ivan thought Wily Fighting was not applied."""
+    session, table, game, fake, cfg = rig
+    put_adjacent(game, table, cfg, "hellboy", "achilles")
+    put_adjacent(game, table, cfg, "lobster", "achilles")
+    patroclus = game.fighters["patroclus"]
+    patroclus.hp, patroclus.alive, patroclus.pos = 0, False, None
+    bot_defends_with(session, game, "Planned Recklessness", monkeypatch)
+    human_hand(table, game, "Skirmish", "Wily Fighting", "Feint")
+    attack(session, table, game, "achilles", "Skirmish")
+    click(session, table, Event.END_ACTION)
+    bot_defends_with_nothing(session, monkeypatch)
+    lobster = game.fighters["lobster"].hp
+    msgs = attack(session, table, game, "achilles", "Wily Fighting")
+    assert game.fighters["lobster"].hp == lobster, msgs
+    assert said(msgs, "Wily Fighting: hellboy y lobster no reciben dano de efectos (Planned Recklessness: no reciben dano de efectos este turno)"), msgs
 
 
 @with_rig("hellboy", "achilles", "Excalibur", TRAINING)

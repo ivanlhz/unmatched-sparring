@@ -244,6 +244,18 @@ def _is_enemy_source(fx, owner_of_target: int) -> bool:
 
 # ---------------------------------------------------------------- hooks
 
+def effect_immunity(fx, fighter) -> dict | None:
+    """The status or ONGOING modifier that stops the effect damage `fighter` would take now (None: nothing stops it)."""
+    for st in _status_entries(fx, "immune_to_effect_damage"):
+        if st.get("fid") == fighter.fid:
+            return st
+    if _is_enemy_source(fx, fighter.owner):
+        for st in _status_entries(fx, "immune_to_enemy_effect_damage"):
+            if st.get("player") == fighter.owner:
+                return st
+    return None
+
+
 def adjust_damage(fx, fighter, n, source):
     """Effect damage only (never combat, exhaustion or set_hp): immunities first, then the +N rule."""
     if source == "hazard":                    # Might Of The Aen Elle: "no damage except combat damage or exhaustion", a map hazard included
@@ -251,9 +263,7 @@ def adjust_damage(fx, fighter, n, source):
                                    for m in _modifier_entries(fx)) else n
     if source != "effect":
         return n
-    if _fighter_has(fx, "immune_to_effect_damage", fighter.fid):
-        return 0
-    if _is_enemy_source(fx, fighter.owner) and _player_has(fx, "immune_to_enemy_effect_damage", fighter.owner):
+    if effect_immunity(fx, fighter) is not None:
         return 0
     return n + sum(_rule_amounts(fx, "effect_damage_bonus"))
 

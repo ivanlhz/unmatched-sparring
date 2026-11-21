@@ -301,6 +301,31 @@ def test_wily_fighting_hurts_each_opposing_fighter_adjacent_to_the_fighter(bprd)
     assert lobster.alive
 
 
+def test_wily_fighting_says_when_an_immunity_leaves_its_damage_without_effect(bprd):
+    """Live game 21/11: Planned Recklessness stopped the 1 damage and the chat only said the draw, so it looked unapplied."""
+    from sparring.effects import modifiers
+    g = mk(bprd)
+    achilles, hellboy = pair(g, "achilles", "hellboy")
+    put_adjacent(g, "lobster", "achilles")
+    for fid in ("hellboy", "lobster"):
+        modifiers.add_status(g.fx, "immune_to_effect_damage", owner=1, until={"event": "end_of_turn"}, fid=fid, label="Planned Recklessness")
+    before = hp(g, "lobster")
+    res = g.attack(achilles, hellboy, give(g, 0, "Wily Fighting"), None)
+    assert hp(g, "lobster") == before
+    assert res.applied == ["Wily Fighting: hellboy y lobster no reciben dano de efectos (Planned Recklessness: no reciben dano de efectos este turno)"], res.applied
+
+
+def test_a_prevented_effect_without_a_known_source_says_so_generically(bprd):
+    from sparring.effects import modifiers
+    g = mk(bprd)
+    achilles, hellboy = pair(g, "achilles", "hellboy")
+    modifiers.add_status(g.fx, "immune_to_effect_damage", owner=1, until={"event": "end_of_turn"}, fid="hellboy")
+    modifiers.add_status(g.fx, "immune_to_effect_damage", owner=1, until={"event": "end_of_turn"}, fid="lobster")
+    put_adjacent(g, "lobster", "achilles")
+    res = g.attack(achilles, hellboy, give(g, 0, "Wily Fighting"), None)
+    assert res.applied == ["Wily Fighting: hellboy y lobster no reciben dano de efectos (no pueden recibir dano de efectos este turno)"], res.applied
+
+
 def test_feint_cancels_the_effects_of_the_opponents_card(bprd):
     g = mk(bprd, turn=1)
     hellboy, achilles = pair(g, "hellboy", "achilles")

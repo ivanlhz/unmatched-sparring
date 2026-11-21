@@ -75,7 +75,7 @@ def describe(game, before: dict, run, flow=None, title: str | None = None) -> st
     """One line: `<card>: <what changed>; ...` or `<card>: no effect`. A run of the human's card (E2, table mode)
     ends with what they do on the table themselves (`on the table: ...`). `title`: for a run without a card (an
     ability trigger)."""
-    parts = _fighters(game, before) + _cards(game, before, run) + _turn(game, before, run)
+    parts = _fighters(game, before) + _prevented(game, run) + _cards(game, before, run) + _turn(game, before, run)
     parts += _statuses(game, before) + _combat(before, flow)
     if (swapped := run.flags.get("swapped")) is not None:         # Sleight Of Hand: the card went back to the hand
         side = "bot" if run.ctx.owner == game.bot_player else "human"
@@ -191,6 +191,18 @@ def _fighters(game, before: dict) -> list[str]:
                 out.append(t("narr.fighter.heals", fid=who, n=f"{f.hp - hp0:g}", hp=f"{f.hp:g}"))
             if f.pos != pos0:
                 out.append(t("narr.fighter.moves", fid=who, spot=describe_space(game, f.pos, (fid,))))
+    return out
+
+
+def _prevented(game, run) -> list[str]:
+    """Effect damage the card dealt that an immunity stopped, one clause per source card (Planned Recklessness): the card was applied."""
+    by_source: dict[str, list[str]] = {}
+    for fid, source in run.flags.get("prevented") or ():
+        by_source.setdefault(source, []).append(_who(game, game.fighters[fid]))
+    out = []
+    for source, who in by_source.items():
+        why = t("narr.prevented.by", title=source) if source else t("narr.prevented.generic")
+        out.append(t("narr.prevented.several" if len(who) > 1 else "narr.prevented.single", fids=t("narr.and").join(who), why=why))
     return out
 
 
