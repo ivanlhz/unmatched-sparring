@@ -6,13 +6,15 @@ Stub card: Hellboy's Horseshoes And Hand Grenades (attack 2) with `after: [secon
   * a Feint at the first part stops it; Cancel does not take the card's second part back; a save in between keeps it."""
 from __future__ import annotations
 
+import json
+
 import pytest
 
 from sparring.ai_medusa import Act
 from sparring.effects.model import load_effects
 from sparring.tts.ui import Event
 from test_batch import click
-from test_d3_table_effects import bot_turn, build, card_ids, human_attack, human_hand
+from test_d3_table_effects import bot_turn, build, card_ids, human_attack, human_hand, twin_session
 from test_e2_human_cards import put_adjacent
 
 TITLE = "Horseshoes And Hand Grenades"
@@ -289,35 +291,142 @@ def _on_pile(table, card_id):
     return table.bot_discard.count(card_id)
 
 
+DISCARDED = f"El bot descarta {TITLE} por ataque"
+NO_DEFENSE = ("Feint", "Snipe", "Regroup", "Dash", "Second Shot")
+
+
+def _times_said(msgs, text):
+    return sum(text in m for m in msgs)
+
+
+def _in_one_zone(game, card):
+    """The engine has the held card in the bot's discard and nowhere else."""
+    st = game.players[0]
+    return sum(1 for c in st.discard if c is card) == 1 and card not in st.hand and card not in st.deck
+
+
 def test_the_bots_double_attack_card_stays_at_its_spot_until_the_second_attack_closes(bot_hellboy):
-    session, game, table = bot_hellboy[0], bot_hellboy[2], bot_hellboy[4]
-    horseshoes = _bot_attacks(session, table, game, ("Feint", "Snipe", "Regroup", "Dash", "Second Shot"))
+    session, game, cfg, table = bot_hellboy[0], bot_hellboy[2], bot_hellboy[3], bot_hellboy[4]
+    horseshoes = _bot_attacks(session, table, game, NO_DEFENSE)
     msgs = click(session, table, Event.REVEAL)
     assert horseshoes in game.players[0].discard, "the engine settles the card with the first combat"
     assert _on_pile(table, horseshoes.card_id) == 0, "the table keeps it at its combat spot"
-    assert not any("Descarta" in m and TITLE in m for m in msgs), "and the chat does not say it was discarded yet"
-    saved = session.to_dict()                                # saved while the second part waits: the card is still held
-    session.load_dict(saved)
+    assert not said(msgs, DISCARDED), "and the chat does not say it was discarded yet"
+    saved = json.loads(json.dumps(session.to_dict()))        # saved while the second part waits: the bot dies and is resumed
+    session = table.session = twin_session(session, cfg, saved)
+    session.resume()
+    game = session.game
+    horseshoes = next(c for c in game.players[0].full_set if c.card_id == horseshoes.card_id)
+    assert _on_pile(table, horseshoes.card_id) == 0 and _in_one_zone(game, horseshoes), "the resumed bot still holds it"
     click(session, table, Event.END_ACTION)
     assert session.pending.second is not None and _on_pile(table, horseshoes.card_id) == 0
-    session._flush_table()                                   # any flush between the two combats leaves it there
+    session._mark_dirty()                                    # any flush between the two combats leaves it there
+    session._flush_table()
     assert _on_pile(table, horseshoes.card_id) == 0
-    msgs = click(session, table, Event.REVEAL)
+    click(session, table, Event.REVEAL)
     assert session.pending is None
     assert _on_pile(table, horseshoes.card_id) == 1, "it goes to the discard when the second combat closes, once"
-    assert sum(1 for c in game.players[0].discard if c is horseshoes) == 1
+    assert _in_one_zone(game, horseshoes)
+
+
+def test_the_discard_of_the_held_card_is_said_once_when_the_second_combat_closes(bot_hellboy):
+    session, game, table = bot_hellboy[0], bot_hellboy[2], bot_hellboy[4]
+    _bot_attacks(session, table, game, NO_DEFENSE)
+    early = click(session, table, Event.REVEAL) + click(session, table, Event.END_ACTION)
+    assert not said(early, DISCARDED), early
+    msgs = click(session, table, Event.REVEAL)
+    assert _times_said(msgs, DISCARDED) == 1, msgs
 
 
 def test_the_held_card_goes_to_the_discard_if_a_fighter_falls_before_the_second_attack(bot_hellboy):
     session, game, table = bot_hellboy[0], bot_hellboy[2], bot_hellboy[4]
-    horseshoes = _bot_attacks(session, table, game, ("Feint", "Snipe", "Regroup", "Dash", "Second Shot"))
-    click(session, table, Event.REVEAL)
-    assert _on_pile(table, horseshoes.card_id) == 0
+    horseshoes = _bot_attacks(session, table, game, NO_DEFENSE)
+    msgs = click(session, table, Event.REVEAL)
+    assert _on_pile(table, horseshoes.card_id) == 0 and not said(msgs, DISCARDED)
     game.fighters["medusa"].hp = 0
     game.fighters["medusa"].alive = False
-    session._start_second_next()
-    session._flush_table()
+    msgs = click(session, table, Event.END_ACTION)          # the human closes the AFTER step: no second attack is left to play
+    assert session.pending is None and session.second_next is None
+    assert _on_pile(table, horseshoes.card_id) == 1 and _in_one_zone(game, horseshoes)
+    assert _times_said(msgs, DISCARDED) == 1, msgs
+
+
+@pytest.fixture
+def bot_hellboy_vs_liz(tmp_path):
+    session, table, game, fake, cfg, client = build(tmp_path, "hellboy", "liz-sherman", (TITLE, "Service Pistol", "Excalibur", "Right Hand Of Doom", "B.P.R.D. Training"))
+    put_adjacent(game, table, cfg, "hellboy", "liz")
+    yield session, table, game
+    client.close()
+    fake.close()
+
+
+def test_a_first_combat_that_stops_at_the_humans_after_choice_does_not_say_the_held_card_is_discarded(bot_hellboy_vs_liz):
+    session, table, game = bot_hellboy_vs_liz
+    fireball, evade = card_ids(game, 1, "Fireball", "Evade")
+    table.human_discard = [fireball, evade]
+    horseshoes = next(c for c in game.players[0].hand if c.title == TITLE)
+    human_hand(table, game, "Rekindle", "Pyrotechnics")
+    bot_turn(session, table, [Act("attack", fid="hellboy", target="liz", card=horseshoes)])
+    rekindle = card_ids(game, 1, "Rekindle")[0]
+    table.face_down = [{"id": rekindle, "guid": f"h{rekindle}"}]
+    table.human_hand.remove(rekindle)
+    table.human_count -= 1
+    msgs = click(session, table, Event.REVEAL)
+    assert session.effect_run is not None and session.effect_run.awaiting.kind == "cards", "the combat waits at Rekindle's choice"
+    assert said(msgs, "Combate:") and not said(msgs, DISCARDED), msgs
+    table.human_discard = []                                 # the human shuffles both cards into the deck
+    msgs = click(session, table, Event.CHOICE, {"i": 1})
+    assert session.pending is None and session.second_next is not None
+    assert not said(msgs, DISCARDED) and _on_pile(table, horseshoes.card_id) == 0, msgs
+    msgs = click(session, table, Event.END_ACTION)
+    assert session.pending.second is not None and not said(msgs, DISCARDED)
+    msgs = click(session, table, Event.REVEAL)
+    assert session.pending is None and _times_said(msgs, DISCARDED) == 1, msgs
     assert _on_pile(table, horseshoes.card_id) == 1
+
+
+def test_cancel_on_a_dirty_table_adopts_it_and_keeps_the_card_held_for_the_waiting_second_attack(bot_hellboy):
+    session, game, table = bot_hellboy[0], bot_hellboy[2], bot_hellboy[4]
+    horseshoes = _bot_attacks(session, table, game, NO_DEFENSE)
+    click(session, table, Event.REVEAL)
+    assert session.second_next is not None and session.pending is None
+    session._mark_dirty()
+    adopted = []
+    adopt, session.adopt_table = session.adopt_table, lambda: (adopted.append(1), adopt())
+    click(session, table, Event.CANCEL)
+    assert adopted == [1], "Cancel on a dirty table adopts what the table shows"
+    assert _in_one_zone(game, horseshoes), "and the card is still discarded for the engine"
+    assert _on_pile(table, horseshoes.card_id) == 0 and horseshoes.card_id not in table.bot_hand
+    click(session, table, Event.END_ACTION)
+    msgs = click(session, table, Event.REVEAL)
+    assert session.pending is None and _on_pile(table, horseshoes.card_id) == 1 and _in_one_zone(game, horseshoes)
+    assert _times_said(msgs, DISCARDED) == 1, msgs
+
+
+def test_adopting_the_table_while_the_second_combat_is_pending_keeps_the_held_card(bot_hellboy):
+    session, game, table = bot_hellboy[0], bot_hellboy[2], bot_hellboy[4]
+    horseshoes = _bot_attacks(session, table, game, NO_DEFENSE)
+    click(session, table, Event.REVEAL)
+    click(session, table, Event.END_ACTION)
+    assert session.pending.second is not None
+    session.adopt_table()                                    # what `_flush_failed` does after `adopt_after` failed flushes
+    assert _in_one_zone(game, horseshoes) and session.pending.bot_card is horseshoes
+    assert _on_pile(table, horseshoes.card_id) == 0
+    click(session, table, Event.REVEAL)
+    assert session.pending is None and _on_pile(table, horseshoes.card_id) == 1 and _in_one_zone(game, horseshoes)
+
+
+def test_a_short_deal_does_not_take_the_held_card_for_a_stray(bot_hellboy):
+    session, game, table = bot_hellboy[0], bot_hellboy[2], bot_hellboy[4]
+    horseshoes = _bot_attacks(session, table, game, NO_DEFENSE)
+    click(session, table, Event.REVEAL)
+    assert session.second_next is not None and session.pending is None
+    assert horseshoes.card_id in {r["id"] for r in session._rd_face("bot")}, "it lies at the bot's combat spot"
+    assert session._adopt_strays(1) == 0
+    session._flush()
+    assert horseshoes.card_id not in table.bot_hand and table.returned == []
+    click(session, table, Event.END_ACTION)                  # and while the second combat is pending
+    assert session._adopt_strays(1) == 0 and horseshoes.card_id not in table.bot_hand
 
 
 def test_the_bots_first_defense_goes_to_the_discard_after_its_own_combat_and_the_humans_card_stays(human_hellboy):

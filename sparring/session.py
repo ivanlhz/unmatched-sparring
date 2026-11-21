@@ -26,7 +26,7 @@ from dataclasses import dataclass, field
 from pathlib import Path
 from typing import Callable
 
-from . import enraged, persist
+from . import ai_double, enraged, persist
 from .ai_medusa import GAZE, MedusaAI, play_signature
 from .cards import Card, can_be_boost
 from .controller import Controller
@@ -1434,10 +1434,21 @@ class Session:
         nxt, self.second_next = self.second_next, None
         if nxt is None or self.game.winner is not None or not g_alive(self.game, nxt):
             if nxt is not None:
+                if self.game.fighters[nxt["att"]].owner == self.bot:
+                    self._say_discards(self._held_discard_item(nxt["card"]))
                 self._mark_dirty()                    # the card the bot was holding for it goes to the discard pile now
             return False
         self._begin_second_attack(nxt)
         return True
+
+    def _held_discard_item(self, card_id: int) -> str:
+        """'Horseshoes as attack': the bot's double-attack card, named when it really leaves its combat spot for the discard pile."""
+        card = next((c for c in self.game.players[self.bot].discard if c.card_id == card_id), None)
+        return t("combat.discard_item", title=card.title, why=t("cause.attack")) if card is not None else ""
+
+    def _say_discards(self, *items: str) -> None:
+        if listed := ", ".join(x for x in items if x):
+            self.say(t("combat.bot_discards", list=listed))
 
     def _second_held(self) -> set[int]:
         """CardIDs of the bot's double-attack card that stays at its combat spot (Ivan 2026-11-21): the engine discards it when the first
@@ -2923,14 +2934,16 @@ class Session:
         res, bot = p.flow.result, g.players[self.bot]
         first = len(self.messages)
         self.say(self._combat_text(p, res), ChatKind.COMBAT)
+        # DOUBLE ATTACK: the attacker's AFTER runs after the defender's choice, so its second part is not registered yet; the card that
+        # may stay at its spot is not announced here, and the end of the combat (or of the second one) says it when it really leaves.
+        stays = res.atk_card if p.attacker.owner == self.bot and ai_double.has_second(g, self.bot, res.atk_card) else None
         pending = [(card, why) for card, why in ((res.atk_card, t("cause.attack")), (res.def_card, t("cause.defense")))
-                   if card is not None and card in bot.full_set and card not in bot.discard]    # leave at the end of the flow
+                   if card is not None and card in bot.full_set and card not in bot.discard and card is not stays]    # leave at the end of the flow
         reasons = {card.card_id: why for card, why in pending}
         for i in self._bot_boost_ids(p):
             reasons[i] = t("cause.combat_boost")
-        listed = [self._discard_list(c["bot_seen"], reasons, t("cause.effect"))] + [t("combat.discard_item", title=card.title, why=why) for card, why in pending]
-        if line := ", ".join(x for x in listed if x):
-            self.say(t("combat.bot_discards", list=line))
+        self._say_discards(self._discard_list(c["bot_seen"], reasons, t("cause.effect")),
+                           *(t("combat.discard_item", title=card.title, why=why) for card, why in pending))
         for e in res.applied:
             self.say(t("combat.applied", text=e), ChatKind.WARNING)
         for e in res.bot_notes:
@@ -2991,9 +3004,9 @@ class Session:
                 reasons[card.card_id] = why
         for i in self._bot_boost_ids(p):
             reasons[i] = t("cause.combat_boost")
-        listed = self._discard_list(c["bot_seen"], reasons, t("cause.effect"), told=set(told["ids"] if told else ()) | keeps)
-        if listed:
-            self.say(t("combat.bot_discards", list=listed))
+        released = p.bot_card.card_id if p.second is not None and p.kind == "bot_attacks" and p.bot_card is not None else None   # held since the first combat: it leaves now
+        self._say_discards(self._held_discard_item(released) if released is not None else "",
+                           self._discard_list(c["bot_seen"], reasons, t("cause.effect"), told=set(told["ids"] if told else ()) | keeps | {released}))
         for e in res.applied[told["applied"] if told else 0:]:
             self.say(t("combat.applied", text=e), ChatKind.WARNING)
         for e in res.bot_notes[told["notes"] if told else 0:]:
@@ -5263,7 +5276,8 @@ class Session:
         st = self.game.players[self.bot]
         by_id = {c.card_id: c for c in st.full_set}
         on_pile = self._table_discard() - {c.card_id for c in (*st.tucked, *st.removed)}
-        st.discard[:] = [c for c in st.discard if c.card_id in on_pile] \
+        waiting = self._second_held()             # DOUBLE ATTACK: discarded by the engine, at its combat spot on the table until the second attack closes
+        st.discard[:] = [c for c in st.discard if c.card_id in on_pile or c.card_id in waiting] \
             + [by_id[i] for i in sorted(on_pile) if by_id[i] not in st.discard]
         self.bot_discarded = set(on_pile)
         self.game.drawn[self.bot] = 0
@@ -5280,6 +5294,7 @@ class Session:
         known = set(self._table_hand_ids()) | self._table_discard()
         if self.pending and self.pending.bot_card:
             known.add(self.pending.bot_card.card_id)
+        known |= self._second_held()              # the double-attack card waiting at its spot is no stray
         dx, dz = self.cfg.bot_deck_spot
         rows = [*self._rd_face("bot"),
                 *(self.client.call_lua(lua.read_face_down_cards(dx, dz, self.cfg.reveal_radius)) or [])]
