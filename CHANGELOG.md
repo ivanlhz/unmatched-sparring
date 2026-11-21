@@ -1,5 +1,33 @@
 # Changelog
 
+## 0.10.0 · 2026-11-21
+
+Changes since 0.9.3.
+
+### New heroes
+The four heroes of Battle of Legends, Volume Two, playable by the bot and by the human:
+- **Achilles** with Patroclus: VENGEANCE (+2 to his attacks once Patroclus falls, and a won combat draws), Test For Weakness as a double attack, Under Achilles' Helm swaps the two miniatures by itself, The Day of Your Doom priced by the bot.
+- **Bloody Mary**: three actions when her turn starts with exactly 3 cards, Bloody Requiem as a double attack worth the rival's card, Stolen Memories names the card with the highest BOOST, Broken Glass, Out Of The Mirror and Speak Three Times (the bot holds it for the third action).
+- **Sun Wukong** with up to three Clones: CLONES at the start of the turn (yes/no, the Clone placed by hand for the human), Ruyi Jingo Bang as a double attack, Sly Monkey, the Forms, Golden Chain Mail, Fiery Eyes That See and Taunting Laughter. Sly Monkey does nothing (and says so) when his zone has no empty space or he cannot leave his space.
+- **Yennenga** with her Archers: the damage she takes is shared with the Archers, Rain of Arrows as a double attack, Surprise Volley, Shield Formation; the Archer tokens are flipped to their life on both sides (faces verified live).
+
+### Double attack
+- New engine support for cards with a second attack (`second_attack`): the second part is its own combat against the same defender, it can be defended with another card, and the AIs value and defend it.
+- The attacker's double-attack card stays at its combat spot until both attacks are resolved, and its discard is said once.
+- The chat says to press End action first and defend the second attack after.
+
+### AI
+- The search answers a known lethal reply, compares several pressure approaches (with and without a boost) and weighs the quality of the hand (Ivan).
+- An undecided search tree gives way to the combat ledger when defending.
+
+### Fixes
+- The bot swaps the human's miniatures itself on every swap card; a failed table swap leaves the pieces for the human to place.
+- Damage an immunity stopped is narrated (Planned Recklessness against Wily Fighting).
+- The start-up panel gives life rows to pieces still in the bag (Wukong's Clones), and hides their buttons before the game.
+- A piece the human puts back in a zone is told that zone's colours.
+- Ciri's UNCONTAINABLE POWER covers only the cards Ciri plays.
+- The combat winner follows who took the combat damage (Golden Chain Mail makes the defender win).
+
 ## 0.9.3 · 2026-11-20
 
 Changes since 0.9.2.
