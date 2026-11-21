@@ -194,6 +194,9 @@ def test_shield_formation_against_an_empty_bot_hand_says_the_archer_comes_back_n
     assert line is not None, msgs
     assert "el bot no puede pagar (le faltan cartas para descartar 1): Shield Formation hace su efecto" in line, line
     assert "dano" not in line and game.fighters["archer1"].alive, line
+    # the zone is named as it stands when the card resolves: a bot effect of the same step may move Yennenga before the Archer is put down
+    # (Ivan 2026-11-21: Posthumous Power moved her first and the Archer went into her new zone)
+    assert "pon a Archer 1 en el tablero (la zona de tu heroe: zona" in line, line
 
 
 @with_rig("hellboy", "yennenga", "Horseshoes And Hand Grenades", TRAINING)

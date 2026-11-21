@@ -172,8 +172,10 @@ def _where(where) -> str:
     if "zone_of" in where:
         who = where["zone_of"]
         if where.get("other"):
-            return t("tbl.where.zone_hero_other") if who == "hero" else t("tbl.where.zone_other", who=who)
-        return t("tbl.where.zone_hero") if who in ("hero", "this") else t("tbl.where.zone", who=who)
+            text = t("tbl.where.zone_hero_other") if who == "hero" else t("tbl.where.zone_other", who=who)
+        else:
+            text = t("tbl.where.zone_hero") if who in ("hero", "this") else t("tbl.where.zone", who=who)
+        return t("tbl.where.with_zone", where=text, zone=where["zone_colors"]) if where.get("zone_colors") else text
     if "no_zone_of" in where:
         who = where["no_zone_of"]
         return t("tbl.where.no_zone_hero") if who in ("hero", "this") else t("tbl.where.no_zone", who=who)

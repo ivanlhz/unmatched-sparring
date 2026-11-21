@@ -15,6 +15,7 @@ from typing import Callable
 from . import table
 from .. import enraged, tracks
 from ..i18n import t
+from ..spaces import zone_text
 from .model import EffectError, load_effects
 from .select import (_ref_fighter, _role_fighters, Picked, amount, combat_value, condition, fighter_candidates, find_card, locate, pick_fighters, player_of,
                      players_of, card_candidates, card_ref, select_cards, space_options)
@@ -382,6 +383,10 @@ def _note_where(game, run, where: dict) -> dict:
             ref = _ref_fighter(game, run, where[key])
             if ref is not None:
                 out[key] = "hero" if ref is game.hero(run.ctx.owner) else ref.name
+                if key == "zone_of" and ref.alive and ref.pos is not None:
+                    # the zone as it is NOW: a bot effect of the same step may move that fighter before the human puts the piece down
+                    # (Shield Formation, then Posthumous Power moved Yennenga, Ivan 2026-11-21)
+                    out["zone_colors"] = zone_text(game, ref.pos)
     return out
 
 
