@@ -113,6 +113,9 @@ def continuation(sample, line, rng, turns, withdraw=False):
     for _ in range(32):  # extra actions are legal; bound schemes that keep granting actions
         if sample.is_terminal() or sample.game.turn_no >= start + turns:
             break
+        if move := sample.lethal_reply():
+            sample.apply(move)
+            continue
         if sample.pending is None and sample.phase == "action":
             if withdraw and sample.game.turn_no == start:
                 withdraw = False

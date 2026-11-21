@@ -54,6 +54,7 @@ from ..effects.choose import SCHEME_VARIANTS, SyntheticChooser
 from ..effects.model import load_effects, walk_ops
 from ..guard import boost_reach, guard_dest, free_steps, reach_from, strike_spots
 from ..state import ANUNG, EXHAUST_DAMAGE, Fighter, Game, PlayerState
+from .lethal import known_lethal_reply
 
 SIDEKICK_POLICIES = ("stay", "advance", "retreat", "guard")
 PACK = "pack"           # a follower closes on the rival the hero ends next to, so every Raptor stands beside the defender (the pack bonus); offered only to a hero with that passive
@@ -482,6 +483,7 @@ class EngineState:
         self.partial: tuple = ()
         self.variant: str | None = None
         self._eval: float | None = None
+        self._sampled = False
         self._advance()
 
     # ---------- Protocol ----------
@@ -491,6 +493,7 @@ class EngineState:
         c.game.controllers = {0: SearchController(0, c), 1: SearchController(1, c)}
         c.observer, c.knowledge, c.pending, c.weights = self.observer, self.knowledge, self.pending, self.weights
         c.phase, c.partial, c.variant, c._eval = self.phase, self.partial, self.variant, self._eval
+        c._sampled = self._sampled
         return c
 
     def player_to_move(self) -> int:
@@ -643,11 +646,18 @@ class EngineState:
         if g.winner is not None:
             return 1.0 if g.winner == player else 0.0
         if self._eval is None:      # the search asks for the leaf from both sides: computed once
-            if self.weights.lethal_mix:
+            if self.lethal_reply():
+                self._eval = float(g.turn == 0)
+            elif self.weights.lethal_mix:
                 self._eval = self._mixed_value()
             else:
                 self._eval = squash(self.weights.slope * self._advantage(0))
         return self._eval if player == 0 else 1.0 - self._eval
+
+    def lethal_reply(self):
+        if self._sampled and self.weights.turn_plans:
+            return known_lethal_reply(self)
+        return None
 
     def _mixed_value(self) -> float:
         """Resolve lethal risks in turn order, then value material if both heroes survive."""
@@ -679,6 +689,8 @@ class EngineState:
     def rollout_move(self, rng: random.Random):
         """Move that is legal for the engine; the hero's destination comes from the full reach (without the tree's pruning, which
         costs one evaluation per space and does not pay off in the rollout)."""
+        if move := self.lethal_reply():
+            return move
         g = self.game
         if self.phase == "maneuver_place":
             p = g.turn
@@ -698,6 +710,7 @@ class EngineState:
     def determinize(self, observer: int, rng: random.Random) -> None:
         g = self.game
         self._eval = None
+        self._sampled = True
         g.rng = random.Random(rng.random())     # a shuffle inside a simulated effect never moves the live game's rng
         for p, st in enumerate(g.players):
             if p == observer:
