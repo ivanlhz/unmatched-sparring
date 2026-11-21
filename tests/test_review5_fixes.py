@@ -1834,3 +1834,34 @@ def test_human_first_the_bot_places_the_hero_as_soon_as_the_human_setup_begins(r
     session.handle(Event.READY)
     assert [m for m in table.moves[:moves] if m[0] == "Hellboy"] == [("Hellboy", 3)]
     assert sum(n == "Hellboy" for n, _ in table.moves) == 1, "it is not placed again"
+
+
+def test_a_deferred_dial_check_superseded_by_a_later_write_gives_no_false_warning(rig):
+    """Ivan, 20/11 (live 15:35:31): a check of Hellboy at 17 ran after Pancakes! had healed him to 18 and the 18 was written:
+    'Hellboy deberia marcar 17'. A check whose value a later write replaced leaves it to that write's own check."""
+    session, table, game = rig
+    dial_rig(session, table)
+    hellboy = game.fighters["hellboy"]
+    hellboy.hp = 17
+    first = session._put_dials(False)              # written, its check deferred (fast mode)
+    hellboy.hp = 18
+    second = session._put_dials(False)             # Pancakes!: the later write
+    session.messages = []
+    assert first() is None and second() is True, session.messages      # None: partly superseded, it settles nothing
+    assert not any("No pude comprobar" in m for m in session.messages) and table.dials["dH"]["value"] == 18
+
+
+def test_a_superseded_dial_check_does_not_clear_the_debt_a_later_failed_check_left(rig, monkeypatch):
+    """Reviewer, 20/11: a post check whose values were all superseded verified nothing; when it runs at the close of the
+    button after a later write's check failed, it must not cancel that `dial_debt`."""
+    session, table, game = rig
+    dial_rig(session, table)
+    table.dials["dH"]["value"] = 16
+    table.dial_ignores_writes = True
+    hellboy = game.fighters["hellboy"]
+    hellboy.hp = 17
+    stale = session._put_dials(False)              # the post check of 17, run late
+    hellboy.hp = 18
+    assert session._write_dials() is False and session.dial_debt   # the later write of 18 fails its own check
+    monkeypatch.setattr(session, "_put_dials", lambda only_destiny: stale)
+    assert session._write_dials() is True and session.dial_debt    # the stale check leaves the debt as it was

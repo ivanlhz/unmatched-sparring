@@ -1815,8 +1815,18 @@ class Session:
             self._saved_decks = {side: g for side, g in (d.get("deck_live") or {}).items()
                                  if side in ("bot", "human") and isinstance(g, str) and lua._GUID.fullmatch(g)}
             self._saved_zones = self.read_saved_zones(d.get("zones_live"))
+            self._rebuild_stack_top()
         except (KeyError, TypeError, IndexError, ValueError) as e:
             raise persist.StateError(t("save.invalid", error=repr(e))) from None
+
+    def _rebuild_stack_top(self) -> None:
+        """The intents a paused run buffered are not saved: the human's card that No, Really, I'm a Doctor revealed (the run
+        keeps it in `stacked_top`) is still on their pile, so its two table steps are queued again for the resume."""
+        paused = self._paused()
+        flags = getattr(paused[2], "flags", None) if paused is not None else None     # a prediction or a flow wait has none
+        for card in ((flags or {}).get("stacked_top") or ()):
+            self.game.fx.intents += [{"op": "reveal_show", "player": self.human, "cards": [card]},
+                                     {"op": "stack_top", "player": self.human, "card": card}]
 
     def _load_flow(self, p: dict) -> tuple[CombatFlow | None, dict | None]:
         """The combat stopped inside a card effect and what finishing it needs; saves from before E1 have neither."""
@@ -3013,6 +3023,8 @@ class Session:
 
         def done() -> bool:
             ok = verify()
+            if ok is None:                        # every value was superseded by a later write: it checked nothing
+                return True
             if not ok:
                 self.dial_debt = True
             elif not only_destiny:
@@ -3066,10 +3078,16 @@ class Session:
             self.say(t("dials.update_fail", err=e), ChatKind.WARNING)
             return lambda: False
 
-        def verify() -> bool:
+        def verify() -> bool | None:
             self._dials_pending -= set(want)
+            # Ivan, 20/11 (Pancakes! 17 -> 18 before a deferred check of 17): a later write supersedes this one and
+            # carries its own check; this one checks only the values that are still the last ones written
+            superseded = [gd for gd, v in want.items() if self.dials_attempted.get(gd, v) != v]
+            for gd in superseded:
+                del want[gd]
             if not want:
-                return not touched
+                # all superseded: verified nothing, so it must not settle `dial_debt` either way (None, see `done`)
+                return False if touched else (None if superseded else True)
             seen: dict = {}
 
             def matches() -> bool:
@@ -3091,7 +3109,9 @@ class Session:
             if self.cfg.destiny_dial in want and owner is not None:
                 self.destiny_seen = (want[self.cfg.destiny_dial], g.form(owner))
             session_counters.written(self, want)
-            return not touched
+            if touched:
+                return False
+            return None if superseded else True     # part of it superseded: the later write's check settles the debt
         return verify
 
     def _hand_edited(self, guid: str, want: int, now) -> bool:

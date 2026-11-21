@@ -4,7 +4,7 @@ import random
 
 import pytest
 
-from sparring.search.adapter import PLACEMENT_KEEP, PLACEMENT_STRIKE_KEEP, SIDEKICK_POLICIES, EngineState, Knowledge
+from sparring.search.adapter import PLACEMENT_KEEP, PLACEMENT_STRIKE_KEEP, RESOLUTION, SIDEKICK_POLICIES, EngineState, EvalWeights, Knowledge
 from sparring.state import ANUNG
 from conftest import give, place
 
@@ -24,6 +24,29 @@ def medusa_hand(game, *titles):
     for t in titles:
         seen[t] = seen.get(t, -1) + 1
         give(game, 0, t, seen[t])
+
+
+def test_hand_quality_distinguishes_attacks_with_different_movement_costs(game):
+    give(game, 1, "Excalibur")
+    place(game, medusa=4, harpy1=20, harpy2=21, harpy3=22, lobster=19)
+    weights = EvalWeights(**RESOLUTION, hand_quality=1)
+    values = []
+    for pos in (8, 6, 3):
+        place(game, hellboy=pos)
+        state = EngineState(game, observer=1, weights=weights)
+        values.append(state._side_terms(1, False)["hand"])
+    assert values[0] < values[1] < values[2]
+
+
+def test_hand_quality_keeps_hero_defense_and_discounts_a_dead_sidekicks_card(game):
+    give(game, 1, "Second Shot")
+    give(game, 1, "On Earth As It Is In Hell")
+    weights = EvalWeights(**RESOLUTION, hand_quality=1)
+    before = EngineState(game, observer=1, weights=weights)
+    game.defeat(game.fighters["lobster"])
+    after = EngineState(game, observer=1, weights=weights)
+    assert 1 < after._usable_hand(1, 1) < after._usable_hand(1, 2) < before._usable_hand(1, 2)
+    assert EngineState(game, observer=0, weights=weights)._usable_hand(1, 2) == 2
 
 
 # ---------- determinization ----------

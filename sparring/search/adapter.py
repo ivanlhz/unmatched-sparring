@@ -52,8 +52,10 @@ from ..effects import ongoing
 from ..effects.inventions import INVENTION_WORTH
 from ..effects.choose import SCHEME_VARIANTS, SyntheticChooser
 from ..effects.model import load_effects, walk_ops
+from ..effects.modifiers import adjacent_only
 from ..guard import boost_reach, guard_dest, free_steps, reach_from, strike_spots
 from ..state import ANUNG, EXHAUST_DAMAGE, Fighter, Game, PlayerState
+from .lethal import known_lethal_reply
 
 SIDEKICK_POLICIES = ("stay", "advance", "retreat", "guard")
 PACK = "pack"           # a follower closes on the rival the hero ends next to, so every Raptor stands beside the defender (the pack bonus); offered only to a hero with that passive
@@ -99,6 +101,7 @@ class EvalWeights:
     # F-AI-EVAL-RESOLUTION. Each of these is off at 0 (the evaluation above, untouched); `RESOLUTION` turns them on together
     normalize: float = 0.0          # above 0, every side is measured against its own full strength (`_side_value_normalized`): hit points of the hero and of all the sidekicks as shares of what each started with, so a hero with a sidekick does not open ahead of one without
     card_hp: float = 0.0            # above 0 (with `normalize`), a card in hand is this many hit points (of the side's life) and the deck counts linearly: `deck_hp` per card, no ceiling
+    hand_quality: float = 0.0       # with `normalize`, blend the card count (0) towards the usable hand value (1)
     deck_hp: float = 0.0
     race: float = 0.0               # above 0 (with `normalize`), the exhaustion each deck will owe over the length of the game (turns until the first hero falls, at the real draw rate, Wildfire's burn included), scaled by this weight
     race_rival: float = 1.0         # the share of the rival's exhaustion bill that the evaluation counts in the bot's favour (the bot's own bill counts whole): the rival's deck is its own to manage, and it is refilled by its cards (Rekindle) or spared by playing them
@@ -478,6 +481,7 @@ class EngineState:
         self.partial: tuple = ()
         self.variant: str | None = None
         self._eval: float | None = None
+        self._sampled = False
         self._advance()
 
     # ---------- Protocol ----------
@@ -487,6 +491,7 @@ class EngineState:
         c.game.controllers = {0: SearchController(0, c), 1: SearchController(1, c)}
         c.observer, c.knowledge, c.pending, c.weights = self.observer, self.knowledge, self.pending, self.weights
         c.phase, c.partial, c.variant, c._eval = self.phase, self.partial, self.variant, self._eval
+        c._sampled = self._sampled
         return c
 
     def player_to_move(self) -> int:
@@ -639,11 +644,18 @@ class EngineState:
         if g.winner is not None:
             return 1.0 if g.winner == player else 0.0
         if self._eval is None:      # the search asks for the leaf from both sides: computed once
-            if self.weights.lethal_mix:
+            if self.lethal_reply():
+                self._eval = float(g.turn == 0)
+            elif self.weights.lethal_mix:
                 self._eval = self._mixed_value()
             else:
                 self._eval = squash(self.weights.slope * self._advantage(0))
         return self._eval if player == 0 else 1.0 - self._eval
+
+    def lethal_reply(self):
+        if self._sampled and self.weights.turn_plans:
+            return known_lethal_reply(self)
+        return None
 
     def _mixed_value(self) -> float:
         """Resolve lethal risks in turn order, then value material if both heroes survive."""
@@ -675,6 +687,8 @@ class EngineState:
     def rollout_move(self, rng: random.Random):
         """Move that is legal for the engine; the hero's destination comes from the full reach (without the tree's pruning, which
         costs one evaluation per space and does not pay off in the rollout)."""
+        if move := self.lethal_reply():
+            return move
         g = self.game
         if self.phase == "maneuver_place":
             p = g.turn
@@ -694,6 +708,7 @@ class EngineState:
     def determinize(self, observer: int, rng: random.Random) -> None:
         g = self.game
         self._eval = None
+        self._sampled = True
         g.rng = random.Random(rng.random())     # a shuffle inside a simulated effect never moves the live game's rng
         for p, st in enumerate(g.players):
             if p == observer:
@@ -1099,6 +1114,45 @@ class EngineState:
     def _side_value_normalized(self, p: int, urgent: bool) -> float:
         return sum(self._side_terms(p, urgent).values())
 
+    def _usable_hand(self, p: int, cap: int) -> float:
+        """Estimate the uses of the cards within the hand limit, in units of one ordinary card."""
+        g = self.game
+        st = g.players[p]
+        if p != self.observer and not self._sampled:
+            # At the root, only the size of the opposing hand is public.
+            return min(len(st.hand), cap)
+        fighters = [f for f in g.own(p) if f.pos is not None]
+        targets = [f for f in g.foes(p) if f.pos is not None]
+        protected = {f.name for f in self._life_pool(p)}
+        defenses = sorted((c for c in st.hand if c.can_defend and any(c.usable_by(name) for name in protected)),
+                          key=lambda c: c.value or 0, reverse=True)[:2]
+        approach: dict[str, frozenset[int]] = {}
+        values = []
+        for card in st.hand:
+            users = [f for f in fighters if card.usable_by(f.name)]
+            if not users:
+                value = 0.75 if can_use(g, p, card) else 0.4 if can_be_boost(card) else 0.0
+            elif card in defenses:
+                value = 1.25
+            elif enraged.may_attack_with(g, p, card):
+                value = 0.85 if card.can_defend else 0.6
+                for fighter in users:
+                    if any(g.attack_card_reaches(fighter, target, card) for target in targets):
+                        value = 1.0
+                        break
+                    if not st.deck or not targets:
+                        continue
+                    if fighter.fid not in approach:
+                        approach[fighter.fid] = reach(g, fighter, fighter.move + free_steps(g, fighter))
+                    adjacent = adjacent_only(card)
+                    if any(approach[fighter.fid] & (strike_spots(g.board, target.pos, fighter.ranged, fighter.reach)
+                                                   if not adjacent else g.board.adj[target.pos]) for target in targets):
+                        value = max(value, 0.9)
+            else:
+                value = 1.0
+            values.append(value)
+        return sum(sorted(values, reverse=True)[:cap])
+
     def _side_terms(self, p: int, urgent: bool) -> dict[str, float]:
         """What `_side_value` measures, with every side at 1.0 for its own full strength, so that the position is judged by what each
         side has lost and not by how many pieces it began with (a hero with a sidekick opened 0.5 ahead of one without, and a bot facing
@@ -1126,7 +1180,10 @@ class EngineState:
         cap = g.hand_cap(p)
         held = len(g.players[p].hand)
         hp_life = 1.0 / (2.0 * REFERENCE_HP)             # a hit point in lives at full health (the slope of the square root there), on one scale for every side: a card is worth the same to a team and to a hero
-        hand = (w.card_hp * min(held, cap) * hp_life) if w.card_hp else w.hand * min(held, cap) / cap
+        hand_cards = min(held, cap)
+        if w.hand_quality:
+            hand_cards += w.hand_quality * (self._usable_hand(p, cap) - hand_cards)
+        hand = w.card_hp * hand_cards * hp_life if w.card_hp else w.hand * hand_cards / cap
         reserve = min(held, HAND_RESERVE, cap) / min(HAND_RESERVE, cap)
         deck = (w.deck_hp * len(g.players[p].deck) * hp_life) if w.deck_hp else w.deck * min(len(g.players[p].deck), 10) / 10
         next_to = 0.0

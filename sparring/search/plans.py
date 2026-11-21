@@ -1,6 +1,6 @@
-"""Compare the tree's action with a line that puts immediate pressure on the rival hero.
+"""Compare the tree's action with pressure lines that can attack this turn.
 
-Both continuations see the same sampled deal and play through the rival's reply. The first
+All continuations see the same sampled deal and play through the rival's reply. The first
 action is fixed before sampling. The follow-up uses only cards available after that action.
 """
 from __future__ import annotations
@@ -8,10 +8,11 @@ from __future__ import annotations
 import random
 import time
 
-from ..ai_medusa import MedusaAI
+from ..ai_medusa import MedusaAI, boost_effect_value
 from .adapter import EngineState, by_title, sidekick_plan
 
 PLAN_SAMPLES = 16
+MAX_APPROACHES = 3
 GAIN_SIGMAS = 1.65       # one-sided 95% on the paired gain over the tree's line
 
 
@@ -33,44 +34,91 @@ def best_blow(state, allowed=None):
     return best, value
 
 
-def pressure_action(root, seed, deadline):
-    """A legal attack, or an approach opening one with a card already held."""
+def pressure_actions(root, seed, deadline):
+    """A legal attack, or a short list of distinct ways to maneuver and attack."""
     state = root.clone()
     state.determinize(root.observer, random.Random(seed))
     blow, _ = best_blow(state)
     if blow:
-        return blow
+        return [blow]
     if state.game.paid_actions < 2:
-        return None
+        return []
     p = state.game.turn
+    hand = state.game.players[p].hand
     moves = [m for m in state.legal_moves() if m[0] == "maneuver"]
-    for move in moves:  # the unboosted Maneuver comes first
-        hand = list(state.game.players[p].hand)
-        if move[1] is not None:
-            hand.remove(by_title(hand, move[1]))
-        titles = {c.title for c in hand if c.can_attack}
+    candidates = []
+    seen, free_ends = set(), set()
+    for move in moves:
+        if deadline is not None and time.perf_counter() >= deadline:
+            break
+        boost = by_title(hand, move[1]) if move[1] is not None else None
+        boost_effect = boost_effect_value(state.game, p, boost) if boost else 0
+        titles = {c.title for c in hand if c != boost and c.can_attack}
         if not titles:
             continue
         moved = state.clone()
+        moved.game.rng = random.Random(seed)
         moved.apply(move)
         if moved.phase != "maneuver_place":
             continue
-        best, rank = None, None
-        for placement in moved.legal_moves():
+        hero = moved.game.hero(p)
+        # Include routes that the end-of-turn positioning filter may have dropped.
+        placements = set(moved.legal_moves())
+        for dest in moved._hero_options(hero) & moved._striking_spots(p):
+            placements.update(("place", dest, policy) for policy in moved._policies(p))
+        for placement in sorted(placements):
             if deadline is not None and time.perf_counter() >= deadline:
-                return None
+                break
+            _, dest, policy = placement
+            side = sidekick_plan(moved.game, p, moved._extra(), policy, hero_dest=dest)
+            key = (move, dest, side)
+            if key in seen:
+                continue
+            seen.add(key)
             after = moved.clone()
+            after.game.rng = random.Random(seed)
             after.apply(placement)
             if after.is_terminal() or after.game.turn != p or after.phase != "action":
                 continue
             blow, strength = best_blow(after, titles)
-            if blow:
-                key = (strength, -after.threat(p, urgent=True)[0])
-                if rank is None or key > rank:
-                    best, rank = (move, placement), key
-        if best:
-            return best
-    return None
+            if not blow:
+                continue
+            position = (dest, side)
+            end = (position, tuple(sorted(after.game.counters(p).items())))
+            if boost is None:
+                free_ends.add(end)
+            elif end in free_ends and boost_effect == 0:
+                continue
+            # Rank the position after paying for the attack, without credit for the unknown draw.
+            remaining = after.game.players[p].hand
+            attack_card = by_title(remaining, blow[1][2])
+            remaining[:] = [card for card in remaining if card in hand and card != attack_card]
+            damage, lethal = after.threat(p, urgent=True)
+            candidates.append(((strength - 0.5 * int(boost is not None) - 2 * damage - 4 * lethal,
+                                -lethal, -damage), (move, placement), position))
+    return _shortlist_approaches(candidates)
+
+
+def _shortlist_approaches(candidates):
+    ranked = sorted(candidates, key=lambda candidate: candidate[0], reverse=True)
+    if not ranked:
+        return []
+    # Keep the best free route and the best boosted route, favoring a different position
+    # for the latter. Fill any remaining slot with a different arrangement of fighters.
+    free = next((entry for entry in ranked if entry[1][0][1] is None), None)
+    boosted = [entry for entry in ranked if entry[1][0][1] is not None]
+    first_boosted = next((entry for entry in boosted if free is None or entry[2] != free[2]),
+                         boosted[0] if boosted else None)
+    kept = [entry for entry in (free, first_boosted) if entry is not None]
+    positions = {entry[2] for entry in kept}
+    for entry in ranked:
+        if len(kept) >= MAX_APPROACHES:
+            break
+        if entry[2] not in positions:
+            kept.append(entry)
+            positions.add(entry[2])
+    kept.sort(key=lambda entry: entry[0], reverse=True)
+    return [line for _, line, _ in kept]
 
 
 def apply_line(state, line):
@@ -113,6 +161,9 @@ def continuation(sample, line, rng, turns, withdraw=False):
     for _ in range(32):  # extra actions are legal; bound schemes that keep granting actions
         if sample.is_terminal() or sample.game.turn_no >= start + turns:
             break
+        if move := sample.lethal_reply():
+            sample.apply(move)
+            continue
         if sample.pending is None and sample.phase == "action":
             if withdraw and sample.game.turn_no == start:
                 withdraw = False
@@ -160,12 +211,14 @@ def compare_plans(root: EngineState, chosen, config, deadline, tree_values=None)
         return chosen, None
     if deadline is not None and time.perf_counter() >= deadline:
         return chosen, None
-    pressure = pressure_action(root, config.seed, deadline)
-    if not pressure:
+    approaches = pressure_actions(root, config.seed, deadline)
+    if not approaches:
         return chosen, None
+    pressure = approaches[0]
     lines = {"tree": chosen}
-    if list(pressure) != chosen:
-        lines["pressure"] = pressure
+    for i, approach in enumerate(approaches, 1):
+        if list(approach) != chosen:
+            lines["pressure" if i == 1 else f"pressure_{i}"] = approach
     if pressure[0][0] == "attack" and root.game.paid_actions >= 2:
         lines["hit_and_withdraw"] = pressure
     if len(lines) == 1:
@@ -215,4 +268,6 @@ def compare_plans(root: EngineState, chosen, config, deadline, tree_values=None)
     return list(lines[selected]), {
         **scores, "samples": samples, "turns": turns, "gains": gains_report,
         "tree_line": chosen, "pressure_line": pressure, "selected": selected,
+        **({"pressure_lines": {name: line for name, line in lines.items() if name.startswith("pressure")}}
+           if len(approaches) > 1 else {}),
     }

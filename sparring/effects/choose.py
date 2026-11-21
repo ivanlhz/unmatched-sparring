@@ -159,9 +159,12 @@ class ControllerChooser:
         """A choice among the RIVAL's hand cards. The bot only knows the ones its own `look_hand` showed it
         (`KnownHand`): it takes the most valuable of those, since that is what hurts the rival most. Anything it
         needs beyond what it has seen is picked by position, never by looking at identities."""
+        from ..ai_medusa import can_use
         from ..search.adapter import card_worth
         seen = {c.card_id: c for c in game.players[req.player].known.cards(game.players[of])}
-        ranked = sorted((i for i in req.options if i in seen), key=lambda i: (-card_worth(seen[i]), i))
+        # Ivan, 20/11: a card only a fallen fighter could play (Batter up! with Casey Jones defeated) is worth its boost alone
+        worth = lambda c: card_worth(c) if can_use(game, of, c) else 0.5 * c.boost
+        ranked = sorted((i for i in req.options if i in seen), key=lambda i: (-worth(seen[i]), i))
         picked = ranked[:max(req.min, min(req.max, len(ranked)))]
         blind = [i for i in req.options if i not in picked]
         short = req.min - len(picked)

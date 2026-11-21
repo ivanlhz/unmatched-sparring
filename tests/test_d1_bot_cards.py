@@ -1001,3 +1001,18 @@ def test_owed_discards_count_only_what_has_not_reached_the_pile_yet(tmp_path):
     finally:
         client.close()
         fake.close()
+
+
+@pytest.mark.parametrize("casey_alive", [True, False])
+def test_confront_does_not_take_a_card_only_a_fallen_fighter_could_play(bprd, casey_alive):
+    """Ivan, 20/11 (Hellboy bot vs Raphael): with Casey Jones defeated, Confront made him discard Batter up!, a Casey card
+    Raphael can only boost with. A card no living fighter can play is worth its boost alone: the bot takes Crowd control."""
+    g = mk(bprd, "hellboy", "raphael")
+    pair(g, "hellboy", "raphael")
+    if not casey_alive:
+        g.defeat(g.fighters["casey"])
+    set_hand(g, 1, "Batter up!", "Crowd control")
+    res = fight(g, "hellboy", "raphael", "Confront Any Demon or God", "Heroes in a half shell")    # 3 vs 5: lost
+    assert not res.attacker_won
+    gone = next(c for c in g.players[1].discard if c.title != "Heroes in a half shell")
+    assert gone.title == ("Batter up!" if casey_alive else "Crowd control"), res.applied

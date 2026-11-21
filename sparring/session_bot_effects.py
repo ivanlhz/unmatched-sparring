@@ -308,6 +308,7 @@ def _human_cards(session, before: dict, played: frozenset, looked: bool, ctx: Ct
     knew = set(before["seen"]) | set(known.top_of_deck)
     blind = {i for it in intents if it["op"] in ("deck_order", "reveal_top") and it.get("player") == human
              for i in (it["seen"] if it["op"] == "deck_order" else it["cards"])}   # read in the deck (reordered blind or revealed): never from the hand
+    blind |= {it["card"] for it in intents if it["op"] == "stack_top" and it.get("player") == human}   # the bot moved it from the pile
     stale = set(before.get("top", ())) & set(h0["deck"])      # already known on top of the deck before the step (read blind earlier): not a hand card that went back
     hand_to_deck = [i for i in h1["deck"] if i in knew and i not in h0["discard"] and i not in blind and i not in stale
                     and i not in g.fx.deck_discarded]       # laid on the pile from the real deck this step (a BLIND BOOST): never a hand card
@@ -322,7 +323,10 @@ def _human_cards(session, before: dict, played: frozenset, looked: bool, ctx: Ct
     # (Devil of Hell's Kitchen: "the top four cards of your discard pile", live 20/11) is on the table's pile too
     laid = [i for i in returned if i in g.fx.deck_discarded and i not in h0["discard"]]
     redrawn = [i for i in h0["discard"] if i in returned and i in h1["hand"]] + [i for i in laid if i in h1["hand"]]
-    drawn = 0 if looked else len([i for i in h1["hand"] if i in h0["deck"]]) + len(redrawn)   # a look moves placeholders, not cards
+    # a blind boost took a card the virtual hand stood for: a placeholder of the deck took its place (`table.take_from_deck`),
+    # the hand did not change and nothing was drawn
+    swapped = len([i for i in g.fx.deck_discarded if i in h0["hand"] and i not in h1["hand"]])
+    drawn = 0 if looked else max(0, len([i for i in h1["hand"] if i in h0["deck"]]) - swapped) + len(redrawn)   # a look moves placeholders, not cards
     played_back = [i for it in intents if it["op"] == "return_to_deck" and it["player"] == human and it["zone"] == "discard"
                    for i in it["cards"] if i in h1["deck"] and i not in h0["discard"] and i not in h0["deck"]]    # Relentless
     if played_back:                               # the bot puts it in the deck BEFORE the draw it owes is dealt
@@ -337,7 +341,8 @@ def _human_cards(session, before: dict, played: frozenset, looked: bool, ctx: Ct
     entered = g.fx.ongoing_card_id(human)         # an ONGOING that entered play left the hand without a discard
     from_hand += int(entered is not None and entered != in_play and entered in h0["hand"] and entered not in played)
     whole = sum(i["n"] for i in intents if i["op"] == "hand_to_deck_all" and i["player"] == human)   # Eye of Agamotto: told in its own line
-    unknown = len(h0["hand"]) + drawn - len(h1["hand"]) - from_hand - len(to_discard) - by_bot - len(hand_to_deck) - len(played_back) - whole
+    stacked = len({it["card"] for it in intents if it["op"] == "stack_top" and it.get("player") == human})   # the bot moves it from the pile
+    unknown = len(h0["hand"]) + drawn - len(h1["hand"]) - from_hand - len(to_discard) - by_bot - len(hand_to_deck) - len(played_back) - whole - stacked
     if unknown > 0:
         session.say(t("bot.return_hand", cards=plural(unknown, "noun.card"), cause=cause), ChatKind.YOUR_TURN)
     if not redrawn:

@@ -5,7 +5,7 @@ from ai_positions import build, make_ai
 from sparring.decision_log import describe_act
 from sparring.guard import free_steps, reach_from, strike_spots
 from sparring.search.adapter import EngineState
-from sparring.search.plans import compare_plans
+from sparring.search.plans import apply_line, best_blow, compare_plans, pressure_actions
 
 
 def test_sinbad_can_engage_and_attack_in_one_turn():
@@ -17,6 +17,23 @@ def test_sinbad_can_engage_and_attack_in_one_turn():
     second = ai.plan(game)
     assert second.kind == "attack" and second.target == "liz"
     assert not ai.fallbacks
+
+
+def test_pressure_compares_distinct_approaches_with_and_without_boost():
+    ai = make_ai("ismcts", new_eval=True)
+    game = build("sinbad_liz_t17", ai)
+    root = EngineState(game, observer=0, knowledge=ai.knowledge(game), weights=ai.weights)
+    routes = pressure_actions(root, ai.config.seed, deadline=None)
+    assert len({route[1][1] for route in routes}) >= 2
+    assert {route[0][1] is None for route in routes} == {False, True}
+    for route in routes:
+        trial = root.clone()
+        trial.determinize(0, random.Random(1))
+        apply_line(trial, route)
+        assert best_blow(trial)[0]
+    _, report = compare_plans(root, [("maneuver", None), ("place", game.hero(0).pos, "stay")], ai.config, deadline=None)
+    assert list(report["pressure_lines"].values()) == routes
+    assert all(name in report["gains"] for name in report["pressure_lines"])
 
 
 def test_ciri_escapes_sinbads_six_space_reply():
