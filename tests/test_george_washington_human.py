@@ -304,12 +304,13 @@ def test_the_save_taken_while_the_question_is_open_resumes_with_the_buttons_up(r
 # ---------------------------------------------------------------- Undercover Agent, played by the human
 
 @with_rig("hellboy", "george-washington", *HAND)
-def test_undercover_agent_swaps_the_humans_miniatures_by_hand_and_the_spy_takes_the_blow(rig):
+def test_undercover_agent_swaps_the_humans_miniatures_for_them_and_the_spy_takes_the_blow(rig):
     session, table, game, fake, cfg = rig
     put_adjacent(game, table, cfg, "hellboy", "washington")
     put_adjacent(game, table, cfg, "spy1", "washington")
     human_hand(table, game, "Undercover Agent", "Lead Astray", "Feint")
     bot_card = next(c for c in game.players[0].hand if c.title == "Excalibur")
+    washington_at, spy_at = game.fighters["washington"].pos, game.fighters["spy1"].pos
     bot_turn(session, table, [Act("attack", fid="hellboy", target="washington", card=bot_card)])
     msgs = human_defends(session, table, game, "Undercover Agent")
     paused = session._paused()
@@ -317,7 +318,8 @@ def test_undercover_agent_swaps_the_humans_miniatures_by_hand_and_the_spy_takes_
     msgs = press(session, table, True)
     if session._paused() is not None:
         msgs += press(session, table, session.effect_run.awaiting.options[0])
-    assert said(msgs, "intercambia las casillas de washington y spy1"), msgs
+    assert said(msgs, "he intercambiado yo las miniaturas"), msgs
+    assert game.fighters["washington"].pos == spy_at and table.positions[cfg.nicknames["washington"]] == spy_at     # the Spy fell on his old space
     assert not game.fighters["spy1"].alive and game.fighters["washington"].hp == 14
 
 

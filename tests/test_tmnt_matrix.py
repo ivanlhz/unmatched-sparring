@@ -65,8 +65,16 @@ def lay_the_ambush_card(session, table) -> None:
     session.snap = None
 
 
+def assert_second_attack_not_stranded(session, game) -> None:
+    """A double attack's second part waits only for the AFTER step of the first combat: it must start on the attacker's own turn, never
+    be carried into the other player's turn."""
+    nxt = session.second_next
+    assert nxt is None or game.turn == game.fighters[nxt["att"]].owner, f"second attack stranded across turns: {nxt}"
+
+
 def human_step(session, table, game) -> list[str]:
     """One click of the scripted human."""
+    assert_second_attack_not_stranded(session, game)
     lay_the_ambush_card(session, table)
     settle_owed_discard(session, table, game)
     place_by_hand(session, table)
@@ -90,7 +98,7 @@ def play_to_the_end(tmp_path, bot: str, human: str):
             table.dials[guid]["value"] = session.dials_written[guid] = HERO_HP
         steps, said = 0, []
         while game.winner is None and steps < MAX_STEPS:
-            if game.turn == session.human or session.pending is not None or session._paused() is not None:
+            if game.turn == session.human or session.pending is not None or session._paused() is not None or session.moving:
                 said += human_step(session, table, game)
             else:
                 session._bot_continue()
@@ -133,6 +141,7 @@ class AttackDriver(Driver):
     Medusa's Harpies) the human maneuvers instead."""
 
     def press(self, event, payload=None):
+        assert_second_attack_not_stranded(self.session, self.game)
         for _ in range(30):
             if event == Event.CHOICE or self.session._paused() is None:
                 break
@@ -174,6 +183,16 @@ class AttackDriver(Driver):
                 if self.session.pending is not None and g.turn == 1:
                     self.press(Event.NO_BOOST)                  # Turtle Power!! offers its free BOOST
                 self.choices()
+                for _ in range(3):                              # the second attack of a double attack: End action closes the first combat's step and starts it;
+                    if self.session.second_next is None or g.winner is not None:      # the bot places its defense, the human reveals with no card down
+                        break
+                    self.end_action()
+                    second = self.session.pending
+                    if second is None or getattr(second, "second", None) is None or g.winner is not None:
+                        break
+                    self.table.face_down = []
+                    self.press(Event.REVEAL)
+                    self.choices()
             if g.winner is not None:
                 return
             self.end_action()

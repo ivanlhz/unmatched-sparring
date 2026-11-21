@@ -41,7 +41,7 @@ from dataclasses import dataclass, field, replace
 from functools import lru_cache
 from math import comb, fsum, prod, sqrt
 
-from .. import enraged, pack, tracks
+from .. import ai_achilles, ai_double, ai_mary, enraged, pack, tracks
 from ..ai_hazards import zone_cover_factor, zone_damage, zone_exposed
 from ..ai_medusa import (ATTACKS_PER_TURN, DRAWS_PER_TURN, GAZE, LONG_GAME, MIN_NET, beside_stake, boost_effect_value, bot_may_spend,
                          can_use, discard_cut, exhaustion_owed, held_for_plan, maneuver_may_spend, play_signature, scheme_fighter)
@@ -438,6 +438,10 @@ class SearchController(Controller):
                 best, best_gain = c, gain
         return best
 
+    def choose_second_defense(self, game: Game, attacker: Fighter, target: Fighter, value: int, card):
+        """DOUBLE ATTACK in a rollout: the defender spends the card that spares the most for what it is worth (`ai_double.greedy_defense`)."""
+        return ai_double.greedy_defense(game, game.players[target.owner].hand, attacker, target, value, card_worth)
+
     def choose_discard(self, game: Game, player: int, n: int, reason: str):
         return discard_cut(game, player, game.players[player].hand, card_worth, n)
 
@@ -781,6 +785,25 @@ class EngineState:
             card = rng.choice(legal)
         self.pending = (self.pending[0], self.pending[1], card)
 
+    def commit(self, card: Card) -> None:
+        """In this determinization the face-down attack is `card` (the defense ledger fights every card the rival may have played,
+        `defense.ledger`): if the hand dealt does not hold it, it takes the place of the card sampled as played, or of another one
+        that is not known to be there. Only in a determinized world (its deal names the card played): any other still holds the rival's
+        real hand, and fighting in it would be reading that hand."""
+        assert self.pending[2] is not None, "the face-down attack was committed in a world that was not determinized (the rival's real hand)"
+        attacker = self.game.fighters[self.pending[0]]
+        st = self.game.players[attacker.owner]
+        if card not in st.hand:
+            if card in st.deck:
+                st.deck.remove(card)
+            known = self.knowledge.known_in_hand.get(attacker.owner, ())
+            out = next((c for c in [self.pending[2], *st.hand] if c in st.hand and c not in known), None)
+            if out is not None:
+                st.hand.remove(out)
+                st.deck.append(out)
+            st.hand.append(card)
+        self.pending = (self.pending[0], self.pending[1], card)
+
     # ---------- automatic steps ----------
     def _advance(self) -> None:
         g = self.game
@@ -846,7 +869,7 @@ class EngineState:
     def _attack_titles(self, p: int, f: Fighter, target: Fighter | None = None) -> list[str]:
         """The titles `f` may attack with; with `target`, only the cards that can reach it (an adjacent-only attack)."""
         return list(dict.fromkeys(c.title for c in self.game.players[p].hand if enraged.may_attack_with(self.game, p, c) and c.usable_by(f.name)
-                                  and (target is None or self.game.attack_card_reaches(f, target, c))))
+                                  and (target is None or self.game.attack_card_reaches(f, target, c)) and not (p == self.observer and ai_mary.holds_for_third(self.game, p, c))))
 
     def _attack_moves(self, p: int) -> list:
         g = self.game
@@ -1108,8 +1131,9 @@ class EngineState:
         next_to = 0.0
         if alive and hero.pos is not None and beside_stake(g, p):
             next_to = sum(1 for f in side if f.alive and f.pos in g.board.adj[hero.pos]) / len(side)
+        hand += ai_mary.kept_cards_bonus(g, p) / cap       # Bloody Mary: a hand of exactly 3 cards is a third action next turn, worth cards of hand
         return (life + w.sidekicks * side_hp + w.beside * next_to + w.alive * alive + w.hand * hand + w.hand_reserve * reserve + w.pack * self._pack_ready(p)
-                + w.deck * deck + w.ongoing * ongoing.worth(g, p) / hero.max_hp - self._exposure(p, urgent))
+                + w.deck * deck + w.ongoing * ongoing.worth(g, p) / hero.max_hp + self._vengeance(p) - self._exposure(p, urgent))
 
     def _side_value_normalized(self, p: int, urgent: bool) -> float:
         return sum(self._side_terms(p, urgent).values())
@@ -1184,14 +1208,21 @@ class EngineState:
         if w.hand_quality:
             hand_cards += w.hand_quality * (self._usable_hand(p, cap) - hand_cards)
         hand = w.card_hp * hand_cards * hp_life if w.card_hp else w.hand * hand_cards / cap
+        action_cards = ai_mary.kept_cards_bonus(g, p)      # Bloody Mary: a hand of exactly 3 cards is a third action next turn, worth this many cards of hand
+        tempo = (w.card_hp * action_cards * hp_life) if w.card_hp else w.hand * action_cards / cap
         reserve = min(held, HAND_RESERVE, cap) / min(HAND_RESERVE, cap)
         deck = (w.deck_hp * len(g.players[p].deck) * hp_life) if w.deck_hp else w.deck * min(len(g.players[p].deck), 10) / 10
         next_to = 0.0
         if side and hero.pos is not None and beside_stake(g, p):
             next_to = sum(1 for f in side if f.alive and f.pos in g.board.adj[hero.pos]) / len(side)
-        return {"life": life, "beside": w.beside * next_to, "alive": w.alive * alive, "hand": hand, "hand_reserve": w.hand_reserve * reserve,
-                "pack": w.pack * max(0, self._pack_ready(p)), "deck": deck, "ongoing": w.ongoing * ongoing.worth(g, p) / hero.max_hp,
+        return {"life": life, "beside": w.beside * next_to, "alive": w.alive * alive, "hand": hand, "tempo": tempo, "hand_reserve": w.hand_reserve * reserve,
+                "pack": w.pack * max(0, self._pack_ready(p)), "vengeance": self._vengeance(p), "deck": deck, "ongoing": w.ongoing * ongoing.worth(g, p) / hero.max_hp,
                 "exposure": -self._exposure(p, urgent), "exhaustion": -self._exhaustion(p) * hp_life}
+
+    def _vengeance(self, p: int) -> float:
+        """Achilles with Patroclus down: +2 to every attack and a card per combat won, `ai_achilles.LEAF_HP` hit points in this evaluation's unit
+        (the discard is already in the simulated hand)."""
+        return ai_achilles.leaf_term(self.game, p, bool(self.weights.normalize))
 
     def _exhaustion(self, p: int) -> float:
         """Hit points that `p`'s deck will cost it through exhaustion over the rest of the game, in the units of `exhaustion_owed`: the draws it

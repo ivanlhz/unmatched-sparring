@@ -26,7 +26,7 @@ from dataclasses import dataclass, field
 from pathlib import Path
 from typing import Callable
 
-from . import enraged, persist
+from . import ai_double, enraged, persist
 from .ai_medusa import GAZE, MedusaAI, play_signature
 from .cards import Card, can_be_boost
 from .controller import Controller
@@ -54,7 +54,7 @@ from . import session_reveal as reveal
 from . import session_counters
 from . import session_sinbad
 from . import session_tracks, tracks
-from . import session_rosie
+from . import session_archers, session_rosie
 from . import session_sleight as sleight
 from . import session_translators as translators
 from .session_choices import panel_text
@@ -248,6 +248,11 @@ IDENTITY_KEYS = ("destiny_dial", "bot_seat", "human_seat", "bot_deck_guid", "bot
                  "human_deck_guid", "start_spaces", "dials")
 
 
+def g_alive(game: Game, nxt: dict) -> bool:
+    """Both fighters of a second attack still stand once the human has done their moves (an effect may have defeated one)."""
+    return game.fighters[nxt["att"]].alive and game.fighters[nxt["tgt"]].alive
+
+
 class HumanProxy(Controller):
     """The human decides on the table: when the engine forces them to discard, the bot announces it and waits."""
 
@@ -340,6 +345,7 @@ class Pending:
     predict: dict | None = None         # Perfect Shot: the human's prediction request, while the panel asks it (E3)
     declared: dict | None = None        # the `attacked` event of the human's attack was raised before the bot's defense (E3):
                                         # {"counters": the bot's ability counters before it}, so the token projection sees the spend
+    second: dict | None = None          # DOUBLE ATTACK: this is the card's second attack, {"value", "card"}; the attacker's card is already on its pile
 
     @property
     def boost_wait(self) -> dict | None:
@@ -371,6 +377,7 @@ class Session:
         self.hand_deck: set[int] = set()              # CardIDs the human put from their discard into their deck by hand (session_pile): not moved again
         self._illegal_fresh: set[str] = set()           # refusals the last sync_positions has just said
         self.illegal_hand_moves: dict[str, str] = {}    # fid -> why the table's position breaks the effect's move (set by sync_positions)
+        self.table_stale: dict[str, int] = {}         # fid -> space the table still shows for a miniature the bot failed to move: the engine keeps its space until the human puts it there
         self.hand_moved: dict[str, int] = {}          # fid -> space the human put a miniature on by hand (session_moves): not projected again
         self.boost_note: dict | None = None                   # what the bot's Maneuver boost card drew and gained (`_note_boost`)
         self.fx_looked = False                        # a look_hand re-identified the human's virtual hand in this step
@@ -415,6 +422,7 @@ class Session:
         self._deal_at = -1e9                                # when cards were last dealt to the human (they may still be flying to their hand)
         self.ability_wait: str | None = None               # the human's start-of-turn ability to do on the table before anything else (E2)
         self._attack_announced: tuple | None = None     # the bot attack already said before its card went down (a retry stays quiet)
+        self.second_next: dict | None = None               # DOUBLE ATTACK: the first combat is over, the human is finishing its AFTER step; the second attack starts at End action
         self.declared_carry: dict | None = None            # a cancelled attack already declared (UNCANNY INTUITION spent): the same attack again does not re-spend
         self.destiny_seen: tuple[int, str] | None = None   # (destinies, form) already written and verified on the dial
         self.counter_seen: dict[str, int] = {}             # count of each derived counter already written and verified on its dial
@@ -543,6 +551,7 @@ class Session:
         self._track_intuition(announce=True)
         gadget_token.track(self)
         session_rosie.track(self, announce=True)
+        session_archers.track(self, announce=True)
 
     def _start_first_turn(self) -> None:
         """The first turn's start-of-turn triggers. The game was built with `begin_turn(emit=False)`: before the table
@@ -615,6 +624,7 @@ class Session:
         self._track_intuition(announce=True)
         gadget_token.track(self)
         session_rosie.track(self, announce=True)
+        session_archers.track(self, announce=True)
         self._write_dials(post=True)              # the table already shows the engine's life, not the one from before the cut
         if self.game.winner is not None:
             self.say(t("sess.resume.game_over", winner=self.game.winner))
@@ -957,6 +967,7 @@ class Session:
         self._track_intuition(announce=True)
         gadget_token.track(self)
         session_rosie.track(self, announce=True)
+        session_archers.track(self, announce=True)
         self._start_first_turn()
         if g.turn == self.bot:
             self.bot_stage = "start"
@@ -1014,7 +1025,7 @@ class Session:
         self.sync_positions()
         start = g.start_spaces[self.human]
         for fid, f in g.fighters.items():
-            if f.owner != self.human:
+            if f.owner != self.human or self._in_reserve(f):
                 continue
             info = self._table_pieces().get(fid) or {}
             if not self._on_board(info) or not g.board.share_zone(start, info["space"]):
@@ -1058,6 +1069,7 @@ class Session:
         self._track_intuition()
         gadget_token.track(self)
         session_rosie.track(self)
+        session_archers.track(self)
         hidden.after_step(self)                   # a look of the human at the bot's hand: the row rides this script
         self._tell_blocks()
         self._commit()
@@ -1393,7 +1405,10 @@ class Session:
             for check in checks:
                 check()
         if run.ctx.moment == "after_combat" and self.game.winner is None:
-            self.say(t("combat.after"), ChatKind.YOUR_TURN)       # the combat's own closing line, held back while DARK PACT asked
+            if self.second_next is None:
+                self.say(t("combat.after"), ChatKind.YOUR_TURN)       # the combat's own closing line, held back while DARK PACT asked
+            elif self.game.turn == self.human:
+                self.say(t("second.after_first"), ChatKind.YOUR_TURN)
         scheme = run.flags.get("scheme")
         if scheme:
             player = scheme["player"]
@@ -1410,7 +1425,40 @@ class Session:
             if self.moving and self.game.turn == self.human and self.game.winner is None:
                 self.say(t("maneuver.boost_then_end"), ChatKind.YOUR_TURN)
         if self.game.turn == self.bot and self.pending is None and self.game.winner is None:
+            if self._start_second_next():             # the bot's double attack: the human has answered, the second part comes before its turn goes on
+                return
             self._bot_continue()
+
+    def _start_second_next(self) -> bool:
+        """The first combat's AFTER step is done: starts the second attack that waits in `second_next` (True), unless a fighter fell in that step."""
+        nxt, self.second_next = self.second_next, None
+        if nxt is None or self.game.winner is not None or not g_alive(self.game, nxt):
+            if nxt is not None:
+                if self.game.fighters[nxt["att"]].owner == self.bot:
+                    self._say_discards(self._held_discard_item(nxt["card"]))
+                self._mark_dirty()                    # the card the bot was holding for it goes to the discard pile now
+            return False
+        self._begin_second_attack(nxt)
+        return True
+
+    def _held_discard_item(self, card_id: int) -> str:
+        """'Horseshoes as attack': the bot's double-attack card, named when it really leaves its combat spot for the discard pile."""
+        card = next((c for c in self.game.players[self.bot].discard if c.card_id == card_id), None)
+        return t("combat.discard_item", title=card.title, why=t("cause.attack")) if card is not None else ""
+
+    def _say_discards(self, *items: str) -> None:
+        if listed := ", ".join(x for x in items if x):
+            self.say(t("combat.bot_discards", list=listed))
+
+    def _second_held(self) -> set[int]:
+        """CardIDs of the bot's double-attack card that stays at its combat spot (Ivan 2026-11-21): the engine discards it when the first
+        combat closes, the table keeps it there until the second attack is resolved and only then moves it to the discard pile."""
+        g, p = self.game, self.pending
+        if self.second_next is not None and g.fighters[self.second_next["att"]].owner == self.bot:
+            return {self.second_next["card"]}
+        if p is not None and p.kind == "bot_attacks" and p.second is not None and p.bot_card is not None:
+            return {p.bot_card.card_id}
+        return set()
 
     def _pact_to_bottom(self, cause: str) -> list[Callable[[], None]]:
         """DARK PACT paid by the human: the card they played is still at their combat spot, and the engine sent it to the
@@ -1699,13 +1747,14 @@ class Session:
                 **({"flow": p.flow.to_dict(), "combat": p.combat} if p.flow is not None else {}),
                 **({"prediction": p.prediction} if p.prediction is not None else {}),
                 **({"predict": p.predict} if p.predict is not None else {}),
-                **({"declared": p.declared} if p.declared is not None else {})},
+                **({"declared": p.declared} if p.declared is not None else {}),
+                **({"second": p.second} if p.second is not None else {})},
             "pending_discard": self.pending_discard, "pending_value": self.pending_value, "look": self.look,
             "chosen_attacker": self.chosen_attacker, "moving": self.moving,
             "bot_discarded": sorted(self.bot_discarded), "dirty": self.dirty,
             "unprojected": None if self.unprojected is None else {k: list(v) for k, v in self.unprojected.items()},
             "bot_stage": self.bot_stage, "first_turn_pending": self.first_turn_pending, "limit_waived": self.limit_waived, "flush_failures": self.flush_failures,
-            "placing": self.placing, "fingerprint": self.fingerprint(),
+            "placing": self.placing, "table_stale": dict(self.table_stale), "fingerprint": self.fingerprint(),
             "destiny_seen": None if self.destiny_seen is None else list(self.destiny_seen),
             "scheme_baseline": self.scheme_baseline, "dial_debt": self.dial_debt, "setup": self.setup,
             **({"scheme_returned": self.scheme_returned} if self.scheme_returned else {}),
@@ -1715,6 +1764,7 @@ class Session:
             **({"ability_wait": self.ability_wait} if self.ability_wait is not None else {}),
             **({"human_dealt": self.human_dealt} if self.human_dealt != self.game.drawn[self.human] else {}),
             **({"declared_carry": self.declared_carry} if self.declared_carry is not None else {}),
+            **({"second_next": self.second_next} if self.second_next is not None else {}),
             "dials_written": self.dials_written, "dials_attempted": self.dials_attempted,
             "start_spaces": {str(k): v for k, v in self.game.start_spaces.items()},
             "deck_ident": {side: [list(pair) for pair in pairs]
@@ -1773,7 +1823,8 @@ class Session:
                 bool(p.get("defended", True)),
                 self._load_boost_wait(p.get("boost_wait"), self.human, {c.card_id: c for c in self.game.players[self.human].full_set}),
                 *self._load_flow(p), p.get("prediction"), p.get("predict"),
-                p["declared"] if isinstance(p.get("declared"), dict) else None)
+                p["declared"] if isinstance(p.get("declared"), dict) else None,
+                dict(p["second"]) if isinstance(p.get("second"), dict) else None)
             self.free_effect = None if d.get("effect") is None else EffectRun.from_dict(d["effect"])
             self.look_granted = d.get("look_granted") is True
             self.token_copies = {str(k): [str(g) for g in v] for k, v in (d.get("token_copies") or {}).items()}
@@ -1791,6 +1842,7 @@ class Session:
             self.first_turn_pending = bool(d.get("first_turn_pending", False))
             self.flush_failures = d["flush_failures"]
             self.placing = d.get("placing")
+            self.table_stale = {k: int(v) for k, v in (d.get("table_stale") or {}).items()}
             self.scheme_baseline = d.get("scheme_baseline")
             self.scheme_returned = d.get("scheme_returned")
             self.maneuver_baseline = d.get("maneuver_baseline")
@@ -1799,6 +1851,7 @@ class Session:
             self.ability_wait = d.get("ability_wait")
             self.human_dealt = int(d.get("human_dealt", self.game.drawn[self.human]))     # absent: everything counted was dealt
             self.declared_carry = d.get("declared_carry") if isinstance(d.get("declared_carry"), dict) else None
+            self.second_next = dict(d["second_next"]) if isinstance(d.get("second_next"), dict) else None
             self.dial_debt = bool(d.get("dial_debt", False))
             self.dials_written = {str(k): int(v) for k, v in (d.get("dials_written") or {}).items()}
             self.dials_attempted = {str(k): int(v) for k, v in (d.get("dials_attempted") or {}).items()}
@@ -2395,6 +2448,45 @@ class Session:
         guid = self._place_bot_card(card, "human_attacks", p.attacker, p.target)
         p.bot_card, p.bot_card_guid, p.defended = card, guid, True
 
+    # ---------- the double attack's second part (docs/combat-flow.md "Double attack") ----------
+    def _spent_in_attack(self, p: Pending) -> tuple[set[int], set[str]]:
+        """The human's own cards (CardIDs of their deck) and table objects (GUIDs) already used by the attack this pending belongs to: the
+        first part of a double attack leaves them on the combat spot, and none of them can defend the second part."""
+        if p.second is None:
+            return set(), set()
+        return set(p.second.get("spent", ())), set(p.second.get("guids", ()))
+
+    def _begin_second_attack(self, nxt: dict) -> None:
+        """The first combat of a double-attack card is closed and its AFTER step done: the second attack is now the pending combat. No
+        action is spent and nothing is declared again. The defender may defend it with a card face down (or none) and reads it with
+        Reveal, like any attack; when the human attacks, the bot chooses and places its defense now (the value is public)."""
+        g = self.game
+        att, tgt, value = g.fighters[nxt["att"]], g.fighters[nxt["tgt"]], nxt["value"]
+        card = next(c for c in g.players[att.owner].full_set if c.card_id == nxt["card"])
+        info = {"value": value, "card": card.card_id, "spent": list(nxt["spent"]), "guids": list(nxt["guids"])}
+        self.moving = False
+        if att.owner == self.human:
+            p = self.pending = Pending("human_attacks", att, tgt, None, None, defended=False, second=info)
+            self.say(t("second.human_attacks", title=card.title, attacker=att.fid, target=tgt.fid, value=value), ChatKind.ATTACK)
+            self.read_bot_hand()
+            defense = self.ai.choose_second_defense(g, att, tgt, value, card)
+            guid = self._place_bot_card(defense, "human_attacks", att, tgt, second=info)
+            p.bot_card, p.bot_card_guid, p.defended = defense, guid, True
+            self.say(t("second.bot_defended" if defense is not None else "second.bot_no_defense", target=tgt.fid), ChatKind.ATTACK)
+        else:
+            self.pending = Pending("bot_attacks", att, tgt, card, None, second=info)
+            self.say(t("second.bot_attacks", title=card.title, attacker=att.fid, target=tgt.fid, value=value), ChatKind.ATTACK)
+        self._persist()
+
+    def _second_flow(self, p: Pending, human_card: Card | None) -> CombatFlow:
+        """The pending second attack as a flow: the attacker's card (already played), the defender's new card or none."""
+        if p.kind == "human_attacks":
+            attack = next(c for c in self.game.players[self.human].full_set if c.card_id == p.second["card"])
+            defense = p.bot_card
+        else:
+            attack, defense = p.bot_card, human_card
+        return CombatFlow(self.game, p.attacker, p.target, attack, defense, second=p.second["value"])
+
     def _cancel(self, _: dict) -> None:
         """Emergency exit from any pending human state.
 
@@ -2419,6 +2511,9 @@ class Session:
                 self._cancel_stuck_boost(p)
                 return
             self.say(t("cancel.flipped"), ChatKind.WARNING)
+            return
+        if p is not None and p.second is not None:
+            self.say(t("cancel.second_attack"), ChatKind.WARNING)       # the card was played: its second part cannot be taken back
             return
         if p is not None and p.kind != "human_attacks":
             self.say(t("cancel.bot_attack"), ChatKind.WARNING)
@@ -2478,20 +2573,29 @@ class Session:
         g = self.game
         seen = self._rd_face("human")
         mine = {c.card_id: c for c in g.players[self.human].full_set}
-        theirs = [r for r in seen if r["id"] in mine]  # by CardID ownership, never by order
+        spent_ids, spent_guids = self._spent_in_attack(p)
+        fresh = lambda r: r["id"] not in spent_ids and r.get("guid") not in spent_guids      # a card of the first part still on the table is no defense
+        theirs = [r for r in seen if r["id"] in mine and fresh(r)]  # by CardID ownership, never by order
         if len(theirs) > 1:
             self.say(t("reveal.many", n=len(theirs)), ChatKind.WARNING)
             return
         face_up = False
         if not theirs:                            # a defense/attack left FACE UP before the Reveal is read as it lies
-            theirs = [r for r in self._rd_combat_spot() if isinstance(r, dict) and r.get("id") in mine and r.get("guid")]
+            theirs = [r for r in self._rd_combat_spot() if isinstance(r, dict) and r.get("id") in mine and r.get("guid") and fresh(r)]
             if len(theirs) > 1:
                 self.say(t("reveal.many", n=len(theirs)), ChatKind.WARNING)
                 return
             face_up = bool(theirs)
         human_card = mine[theirs[0]["id"]] if theirs else None
         try:
-            if p.kind == "human_attacks":
+            if p.second is not None:             # the attacker's card is already played: only a defense may be on the table
+                if human_card is not None and p.kind == "human_attacks":
+                    raise RuleError(t("err.second_no_card"))
+                if p.bot_card is not None and p.kind == "human_attacks":
+                    g.check_defense_card(p.target, p.bot_card)
+                if human_card is not None:
+                    g.check_defense_card(p.target, human_card)
+            elif p.kind == "human_attacks":
                 if human_card is None:
                     raise RuleError(t("err.no_card_down"))
                 g.check_attack_card(p.attacker, human_card)
@@ -2512,7 +2616,7 @@ class Session:
         human_guid = theirs[0]["guid"] if theirs else None
         if face_up:
             self.say(t("reveal.face_up", card=human_card.title), ChatKind.COMBAT)
-        granted = p.bot_card is not None and grants_boost(p.bot_card)
+        granted = p.bot_card is not None and grants_boost(p.bot_card) and p.second is None
         if human_card is not None and (can_boost(human_card) or granted or boost_session.by_ability(self, p)):      # your attack (Second Shot), your defense (Out Of Time), a boost the bot's card allows
             if p.bot_card is not None and is_medusa_card(p.bot_card) and p.bot_card.title == FEINT and not boost_session.by_ability(self, p):
                 self.say(t("reveal.feint", bot=p.bot_card.title, card=human_card.title), ChatKind.COMBAT)
@@ -2674,7 +2778,9 @@ class Session:
             p.combat["fx"] = bot_effects.snapshot(self)   # after the human's cards are known: the diff is the effects'
             if p.declared is not None:           # the `attacked` event already spent a token: project from before it
                 p.combat["fx"]["counters"] = dict(p.declared["counters"])
-            if p.kind == "human_attacks":        # `attacked` was raised when the bot chose its defense (`_bot_defends`)
+            if p.second is not None:             # no action, no `attacked`: the played card's second part against its defender
+                p.flow = self._second_flow(p, human_card)
+            elif p.kind == "human_attacks":        # `attacked` was raised when the bot chose its defense (`_bot_defends`)
                 p.flow = g.begin_attack(p.attacker, p.target, human_card, p.bot_card, values=(value, 0),
                                         attacked=p.declared is None)
             else:
@@ -2748,10 +2854,73 @@ class Session:
         if self.hand_move_refused():
             return
         self.game.hand_moves.clear()
+        self._settle_placements()
         self.sync_human()
         self.moving = False
         if self._guarded(lambda: (p.flow.resume(None), self._drive_flow(p.flow))):
             self._combat_step_done(p)
+
+    def _settle_placements(self) -> None:
+        """The human's step at the gate is over. A piece their card told them to place (Sly Monkey) and that stands on the board
+        now was placed, wherever it stayed (a Clone left on the space the engine summoned it on never changes position, so
+        `sync_positions` does not see it): from here the bot's effects may move it like any other piece.
+
+        The Clones are interchangeable tokens, and the human takes ANY of them out of the bag. When the token on the table is
+        not the one the engine summoned, the two fids trade GUIDs (`_adopt_clone_token`): each fid keeps following the token that
+        stands for it, and no record keyed by fid has to change."""
+        pieces = self._table_pieces()
+        for fid in list(self.game.placing):
+            info = pieces.get(fid) or {}
+            if fid in self.table_stale:
+                continue                              # the bot's move of it failed: it stays owed until the human puts it on the engine's space
+            if info.get("found") and self._on_board(info):
+                self.game.placing.discard(fid)
+            else:
+                self._adopt_clone_token(fid, pieces)
+
+    def reserve_kin(self, f: Fighter) -> list[Fighter]:
+        """The other fighters of the same owner whose tokens are interchangeable with `f`'s: a reserve token (Sun Wukong's Clones:
+        the hero starts them in the bag, `start_on_board` 0), also those of a Clone that fell (it goes back to the bag); or a token
+        that carries its own life and has no dial (`no_dial`: Yennenga's Archers, the same two-sided token twice; Ivan 2026-11-21
+        put the other Archer's token on the board for the one Surprise Volley brought back)."""
+        if f.hero:
+            return []
+        if not any(s.name == f.name and s.start_on_board == 0 for s in self.game.players[f.owner].hero.sidekicks) \
+                and not self._no_dial_token(f):
+            return []
+        return [o for o in self.game.own(f.owner, alive_only=False) if o.fid != f.fid and o.name == f.name and not o.hero]
+
+    def _no_dial_token(self, f: Fighter) -> bool:
+        """The table data gives `f` no life dial (its life is the face of the piece): the token is the same as its namesakes'."""
+        try:
+            spec = load_hero_table(self.game.hero_def(f.owner).slug).fighters.get(f.fid)
+        except HeroTableError:
+            return False
+        return spec is not None and spec.no_dial
+
+    def _adopt_clone_token(self, fid: str, pieces: dict[str, dict]) -> None:
+        """The engine summoned `fid` and the human put ANOTHER Clone token on the board: `fid` follows that token (the two fids trade
+        GUIDs) and takes the space the token was read on."""
+        f = self.game.fighters[fid]
+        if not f.alive or f.owner != self.human:
+            return
+        p = self.pending
+        fighting = {x.fid for x in (p.attacker, p.target)} if p is not None and p.attacker is not None else set()
+        loose = [o for o in self.reserve_kin(f) if not o.alive and o.fid not in fighting
+                 and (pieces.get(o.fid) or {}).get("found") and self._on_board(pieces[o.fid])]
+        loose.sort(key=lambda o: (pieces[o.fid]["space"] != f.pos, o.died_at is not None))     # the token on the placed space, then one never summoned, then a fallen one
+        twin = loose[0] if loose else None
+        if twin is None:
+            return
+        space = pieces[twin.fid]["space"]
+        mine, theirs = self._guids(fid), self._guids(twin.fid)
+        for k, guids in ((fid, theirs), (twin.fid, mine)):
+            self.cfg.pieces[k] = guids[0] if len(guids) == 1 else list(guids)
+            self.resolved_pieces[k] = list(guids)
+        self._snap_spec = None
+        self.snap = None
+        f.pos = space
+        self.game.placing.discard(fid)
 
     def _tell_damage_dealt(self, p: Pending) -> Callable[[], bool]:
         """Ivan, 31/10 (Rekindle): the damage is dealt at the reveal and the combat then waits at a choice of the human
@@ -2765,14 +2934,16 @@ class Session:
         res, bot = p.flow.result, g.players[self.bot]
         first = len(self.messages)
         self.say(self._combat_text(p, res), ChatKind.COMBAT)
+        # DOUBLE ATTACK: the attacker's AFTER runs after the defender's choice, so its second part is not registered yet; the card that
+        # may stay at its spot is not announced here, and the end of the combat (or of the second one) says it when it really leaves.
+        stays = res.atk_card if p.attacker.owner == self.bot and ai_double.has_second(g, self.bot, res.atk_card) else None
         pending = [(card, why) for card, why in ((res.atk_card, t("cause.attack")), (res.def_card, t("cause.defense")))
-                   if card is not None and card in bot.full_set and card not in bot.discard]    # leave at the end of the flow
+                   if card is not None and card in bot.full_set and card not in bot.discard and card is not stays]    # leave at the end of the flow
         reasons = {card.card_id: why for card, why in pending}
         for i in self._bot_boost_ids(p):
             reasons[i] = t("cause.combat_boost")
-        listed = [self._discard_list(c["bot_seen"], reasons, t("cause.effect"))] + [t("combat.discard_item", title=card.title, why=why) for card, why in pending]
-        if line := ", ".join(x for x in listed if x):
-            self.say(t("combat.bot_discards", list=line))
+        self._say_discards(self._discard_list(c["bot_seen"], reasons, t("cause.effect")),
+                           *(t("combat.discard_item", title=card.title, why=why) for card, why in pending))
         for e in res.applied:
             self.say(t("combat.applied", text=e), ChatKind.WARNING)
         for e in res.bot_notes:
@@ -2811,7 +2982,8 @@ class Session:
         c = p.combat
         peek.forget_bottom(self, c.get("bottom"))
         flip_cards = [(p.bot_card_guid, "bot"), (c["human_guid"], "human")]
-        discarded_now = p.bot_card is not None and p.bot_card in g.players[self.bot].discard
+        keeps = {p.flow.atk_card.card_id} if p.flow.second_due and p.attacker.owner == self.bot else set()   # DOUBLE ATTACK: its card stays at the spot
+        discarded_now = p.bot_card is not None and p.bot_card in g.players[self.bot].discard and p.bot_card.card_id not in keeps
         if discarded_now and c["flip"] and self.cfg.batch and not c.get("flipped"):
             self.zoom_ids.add(p.bot_card.card_id)         # not flipped on the table: the discard shows it instead
         if c["flip"] and not c.get("flipped"):
@@ -2832,9 +3004,9 @@ class Session:
                 reasons[card.card_id] = why
         for i in self._bot_boost_ids(p):
             reasons[i] = t("cause.combat_boost")
-        listed = self._discard_list(c["bot_seen"], reasons, t("cause.effect"), told=set(told["ids"]) if told else ())
-        if listed:
-            self.say(t("combat.bot_discards", list=listed))
+        released = p.bot_card.card_id if p.second is not None and p.kind == "bot_attacks" and p.bot_card is not None else None   # held since the first combat: it leaves now
+        self._say_discards(self._held_discard_item(released) if released is not None else "",
+                           self._discard_list(c["bot_seen"], reasons, t("cause.effect"), told=set(told["ids"] if told else ()) | keeps | {released}))
         for e in res.applied[told["applied"] if told else 0:]:
             self.say(t("combat.applied", text=e), ChatKind.WARNING)
         for e in res.bot_notes[told["notes"] if told else 0:]:
@@ -2845,10 +3017,16 @@ class Session:
             f = g.fighters[fid]
             if was and not f.alive and f.owner == self.human:    # the bot's are removed by _project
                 self._announce_fall(f)
-        self._grant_look_for(res.atk_card if p.kind == "human_attacks" else res.def_card)
+        if p.second is None:
+            self._grant_look_for(res.atk_card if p.kind == "human_attacks" else res.def_card)
         self._track_destiny()
         if told is None and (p.kind == "bot_attacks" or self._bot_answer_moves(c, reasons)):
             self._announce_before(said_first)       # its attack resolved (or its answer to yours moved cards or pieces): said and held before the table moves
+        if p.flow.second_due:                     # DOUBLE ATTACK: the human finishes this combat's AFTER step first (set before the table flush: the bot's card is held at its spot); End action starts the second part
+            flow = p.flow
+            self.second_next = {"att": flow.att.fid, "tgt": flow.tgt.fid, "card": flow.atk_card.card_id,
+                                "value": flow.second_attack["value"], "spent": sorted(self._human_played(p)),
+                                "guids": sorted({c["human_guid"], *self.combat_guids.values()} - {None})}
         cause = t("cause.combat_effects") if human_effects.human_ran(p.flow) else None
         fin_fx = self._project_effects(c.get("fx"), self._human_played(p), cause)
         fin_dials = self._write_dials(defer=True)
@@ -2866,7 +3044,8 @@ class Session:
         if (paused := self._paused()) is not None and paused[0] == "parked" and paused[2].ctx.moment == "after_combat":
             self._show_choice(paused[2].awaiting)         # DARK PACT: asked right after the combat; `_effect_done` says the rest
             return
-        self.say(t("combat.after"), ChatKind.YOUR_TURN)
+        self.say(t("combat.after") if self.second_next is None
+                 else t("second.after_first_attacker" if p.attacker.owner == self.human else "second.after_first"), ChatKind.YOUR_TURN)
 
     def _bot_boost_ids(self, p: Pending) -> set[int]:
         """The cards the bot spent as a boost in this combat, whichever side it was on (an attack's or a defense's)."""
@@ -3231,6 +3410,8 @@ class Session:
             self.moving = True
             self.say(self._walk_after_discard_text(walks_open), ChatKind.YOUR_TURN)
             return
+        if self._start_second_next():                  # DOUBLE ATTACK: the first combat's AFTER step is done, the second attack comes now
+            return
         if self.game.turn == self.bot:
             self._bot_continue()
         else:
@@ -3258,8 +3439,13 @@ class Session:
         return self.cfg.nicknames.get(f.fid, f.fid)
 
     def _sidekicks(self) -> list[Fighter]:
-        """The human's fighters that they place, not the bot (all but their hero)."""
-        return [f for f in self.game.own(self.human, alive_only=False) if not f.hero]
+        """The human's fighters that they place, not the bot (all but their hero). A fighter in the reserve (Sun Wukong's Clones start in the
+        bag) is not placed at the start: only the ones that are on the board or fell there."""
+        return [f for f in self.game.own(self.human, alive_only=False) if not f.hero and not self._in_reserve(f)]
+
+    @staticmethod
+    def _in_reserve(f: Fighter) -> bool:
+        return not f.alive and f.died_at is None
 
     def _sidekick_names(self) -> str:
         names = [self._name(f) for f in self._sidekicks()]
@@ -3654,12 +3840,20 @@ class Session:
         self.fx_unprojected = fx_before
         g = self.game
         self.start_line = (self._anung_start_text(before, fx_before["bot"]["discard"])
+                            or self._gained_action_start_text()
                             or self._detective_start_text(fx_before["drawn"])
                             or self._throw_start_text(fx_before["bot"]["discard"]))
         self.game_log.observe(g, self._name)      # the turn start and its triggers, not folded into the bot's actions
         if (before != self._snapshot_bot() or fx_before["bot"] != bot_effects.zones(g.players[self.bot])
                 or g.drawn[self.bot]):
             self._mark_dirty(before)
+
+    def _gained_action_start_text(self) -> str | None:
+        """The bot Bloody Mary started the turn with exactly 3 cards and gained an action in the engine: the chat says why it has three."""
+        g = self.game
+        if g.actions_left > 2 and g.players[self.bot].hero.slug == "bloody-mary":
+            return t("mary.start")
+        return None
 
     def _anung_start_text(self, before: dict, discard_before: list[int]) -> str | None:
         """What the bot's ANUNG UN RAMA start-of-turn trigger just did in the engine (discard 1, move Hellboy up to that
@@ -3865,7 +4059,8 @@ class Session:
         if landed:
             card = next(c for c in self.game.players[self.bot].full_set if c.card_id == it["card"])
             fighters = self.game.fighters
-            self.pending = Pending(it["kind"], fighters[it["attacker"]], fighters[it["target"]], card, found["guid"])
+            self.pending = Pending(it["kind"], fighters[it["attacker"]], fighters[it["target"]], card, found["guid"],
+                                   second=it.get("second"))
             self.read_bot_hand()
             self.say(t("bot.card_down", title=card.title), ChatKind.WARNING)
 
@@ -3899,6 +4094,8 @@ class Session:
         Checkpoints (saved to disk): at the start of the turn, after Medusa's ability and after each action,
         so that a cut or a resumed Ctrl+C repeats nothing already done."""
         g = self.game
+        if self.second_next is not None and self.pending is None and self._start_second_next():
+            return                                 # DOUBLE ATTACK: the second part of the bot's card comes before its turn goes on
         if self.first_turn_pending and g.turn == self.bot and self.bot_stage == "start":
             self._start_first_turn()              # a table error at game start skipped it
         self._revoke_look_after_button()
@@ -3914,6 +4111,7 @@ class Session:
         fin_fx, self.fx_unprojected = self._project_effects(self.fx_unprojected), None
         gadget_token.track(self)                  # the token moves in the same flush as the gadget announcement
         session_rosie.track(self)
+        session_archers.track(self)
         if scene is None:
             self._flush_table()
             fin_fx()
@@ -4080,7 +4278,7 @@ class Session:
             self.say(t("turn.ability_wait", wait=self.ability_wait), ChatKind.YOUR_TURN)
         paused = self._paused()
         if paused is not None and paused[0] == "parked":
-            self.say(human_effects.ABILITY_TEXT.get(paused[2].label, paused[2].label), ChatKind.YOUR_TURN)
+            self.say(human_effects.ABILITY_TEXT.get(paused[2].label, paused[2].label).replace("{hero}", self._name(g.hero(self.human))), ChatKind.YOUR_TURN)
             self._show_choice(paused[2].awaiting)
 
     # ---------- table I/O: snapshot, write queue and composite script ----------
@@ -4968,13 +5166,14 @@ class Session:
         st.hand = cards + unseen[:owed]
         st.deck = unseen[owed:]
 
-    def _place_bot_card(self, card: Card | None, kind: str, attacker: Fighter, target: Fighter) -> str | None:
+    def _place_bot_card(self, card: Card | None, kind: str, attacker: Fighter, target: Fighter, second: dict | None = None) -> str | None:
         """Leaves the card face down. If the reply does not arrive (timeout) it is not known whether TTS moved it: `placing`
         remembers it and the next `_flush_table` looks at the table (`_recover_placing`)."""
         if card is None:
             return None
         x, y, z = self.cfg.bot_card_spot
-        self.placing = {"kind": kind, "attacker": attacker.fid, "target": target.fid, "card": card.card_id}
+        self.placing = {"kind": kind, "attacker": attacker.fid, "target": target.fid, "card": card.card_id,
+                        **({"second": second} if second is not None else {})}
         try:
             if self.cfg.batch:
                 self._expect_hand = (self.cfg.bot_seat, len(self._table_hand_ids()) - 1)
@@ -5077,7 +5276,8 @@ class Session:
         st = self.game.players[self.bot]
         by_id = {c.card_id: c for c in st.full_set}
         on_pile = self._table_discard() - {c.card_id for c in (*st.tucked, *st.removed)}
-        st.discard[:] = [c for c in st.discard if c.card_id in on_pile] \
+        waiting = self._second_held()             # DOUBLE ATTACK: discarded by the engine, at its combat spot on the table until the second attack closes
+        st.discard[:] = [c for c in st.discard if c.card_id in on_pile or c.card_id in waiting] \
             + [by_id[i] for i in sorted(on_pile) if by_id[i] not in st.discard]
         self.bot_discarded = set(on_pile)
         self.game.drawn[self.bot] = 0
@@ -5094,6 +5294,7 @@ class Session:
         known = set(self._table_hand_ids()) | self._table_discard()
         if self.pending and self.pending.bot_card:
             known.add(self.pending.bot_card.card_id)
+        known |= self._second_held()              # the double-attack card waiting at its spot is no stray
         dx, dz = self.cfg.bot_deck_spot
         rows = [*self._rd_face("bot"),
                 *(self.client.call_lua(lua.read_face_down_cards(dx, dz, self.cfg.reveal_radius)) or [])]
@@ -5125,7 +5326,8 @@ class Session:
         held |= {c.card_id for c in self._bot_cards_in_play()}
         on_pile = self._table_discard()
         self._adopt_extra_discards(on_pile)
-        new = [c.card_id for c in st.discard if c.card_id not in self.bot_discarded]
+        waiting = self._second_held()
+        new = [c.card_id for c in st.discard if c.card_id not in self.bot_discarded and c.card_id not in waiting]
         hand_now = self._table_hand_ids() if g.drawn[self.bot] else []
         discard_op, todo = None, []
         if new:
@@ -5162,7 +5364,7 @@ class Session:
                                              id_range=self.cfg.bot_card_ids, identity=self._identity(),
                                              **self._deck_kw()), "cards")
         # the card played face down counts in the engine's hand but is not in the table's hand
-        want_discard = {c.card_id for c in st.discard}
+        want_discard = {c.card_id for c in st.discard} - waiting
         want_hand = len([c for c in st.hand if c.card_id not in held])
         if discard_op is not None or deal_op is not None:
             self._expect_hand = (self.cfg.bot_seat, want_hand)
@@ -5576,10 +5778,26 @@ class Session:
                 self.say(text, ChatKind.WARNING)
         return bool(self.illegal_hand_moves)
 
+    def _adopt_placed_tokens(self, pieces: dict[str, dict]) -> bool:
+        """A piece the human must place (`game.placing`) that is not on the board while an interchangeable token of a fallen namesake
+        is (Surprise Volley, Ivan 2026-11-21: the other Archer's token was put down) follows that token. Outside an AFTER gate too:
+        Surprise Volley ends its combat without one, so `_settle_placements` never runs for it. Whether any fid changed GUIDs."""
+        changed = False
+        for fid in list(self.game.placing):
+            info = pieces.get(fid) or {}
+            if fid not in self.game.fighters or (info.get("found") and self._on_board(info)):
+                continue
+            before = self._guids(fid)
+            self._adopt_clone_token(fid, pieces)
+            changed |= self._guids(fid) != before
+        return changed
+
     def sync_positions(self) -> None:
         self.illegal_hand_moves, self._illegal_fresh = {}, set()
         session_tracks.sync(self)                 # John Henry's track tokens first: they decide what his walk cost and which spaces are his paths
         pieces = self._table_pieces()
+        if self._adopt_placed_tokens(pieces):
+            pieces = self._table_pieces()         # read again with the GUIDs the fids now follow
         table_pos = {fid: info["space"] for fid, info in pieces.items()
                      if self.game.fighters[fid].alive and info.get("found") and self._on_board(info)}
         for fid, info in pieces.items():
@@ -5590,8 +5808,14 @@ class Session:
             name, guid = self._name(f), "/".join(self._guids(fid))
             if quiet and not self._on_board(info):
                 continue
+            stale = self.table_stale.get(fid)
+            if stale is not None and info.get("found") and self._on_board(info):
+                if info["space"] == stale and info["space"] != f.pos:
+                    continue                      # the table still shows where the bot's failed move left it: the engine's space stands, nothing was done by hand
+                del self.table_stale[fid]         # the human put it somewhere (the engine's space, or another one): placement semantics (it is in game.placing)
             if not info.get("found"):
-                self._warn(fid, "missing", t("warn.missing", name=name, guid=guid))
+                if fid not in self.game.placing:           # a piece the human is still taking out of the bag to place it (a summoned Clone) is not missing
+                    self._warn(fid, "missing", t("warn.missing", name=name, guid=guid))
             elif not self._on_board(info):
                 self._warn(fid, "off", t("warn.off", name=name, dist=info["dist"], zone=zone_text(self.game, info["space"])))
             elif info["space"] != f.pos and not self.game.fx.can_move(f):
@@ -5609,6 +5833,7 @@ class Session:
                 effect_move = fid in self.game.hand_moves
                 if effect_move and info["space"] != f.pos:
                     del self.game.hand_moves[fid]                     # walked by hand, legally: the permission is spent
+                    self.hand_moved[fid] = info["space"]              # Skirmish, Ivan 2026-11-21: a bot effect of this step never claims it moved it
                 if info["space"] != f.pos and f.pos is not None and self._hand_move_pays(f):
                     # the human moved this piece by hand: only the two ends are known, so the least-hazard shortest way is charged
                     with self._announcing_departure():
@@ -5619,6 +5844,8 @@ class Session:
                 else:
                     moved_from = f.pos if info["space"] != f.pos and f.owner == self.human and not quiet else None
                     placed = fid in self.game.placing or self._escape_artist_placing(f)
+                    if info["space"] != f.pos and placed and f.owner == self.human:
+                        self.hand_moved[fid] = info["space"]      # put there by hand (Sly Monkey): a bot effect of this step never claims it moved it
                     if info["space"] != f.pos:
                         self.game.placing.discard(fid)
                     f.pos = info["space"]

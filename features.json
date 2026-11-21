@@ -676,6 +676,21 @@
       "note": "Engine additions are additive (docs/effects-dsl.md, section 40). Rules decisions and open questions for Ivan: docs/heroes/philippa.md. Live test pending."
     },
     {
+      "id": "HERO-ACHILLES",
+      "title": "Achilles (Battle of Legends, Volume Two, with Patroclus) playable by the bot and by the human against every hero",
+      "status": "in-progress",
+      "criteria": [
+        "data/heroes/overlay/achilles.json, data/heroes/achilles.json, data/heroes/effects/achilles.json and data/tts/achilles.json generated and validated (import_hero, validate_effects, import_save); the 12 titles (30 cards, sheet 176, character card 318) read from the card images, with the PATROCLUS / ACHILLES / ANY bands that unmatched-memory lacks",
+        "His deck shares CardIDs 17600-17629 with the other sheet-176 decks: told apart by deck image and owner, never by a bare CardID (tests/test_hero_achilles_data.py, tests/test_card_identity.py); no GUID of his is shared with another hero; Patroclus is a Custom_Token with his own life dial",
+        "The ability is a trigger (Patroclus defeated: 2 random cards of the hand), an engine passive (VENGEANCE, +2 to Achilles' attacks while Patroclus is defeated: sparring/vengeance.py) and the hero's own AFTER (draw 1 when Achilles wins); at the table the engine names the two random positions of the human's hand (tests/test_achilles_effects.py, tests/test_achilles_human.py)",
+        "All 12 cards on the interpreter for both seats: Under Achilles' Helm (the swap and Patroclus as the defender, plugin achilles:replace_combatant), The Day of Your Doom (Yes / No for the 2 damage), Battle Frenzy, Spear Throw, Battle Hardened, Wily Fighting, Blessed By Hermes, Skirmish, Feint, Achilles' Heel, Brothers In Arms and Test For Weakness (a DOUBLE ATTACK: second_attack 3, defended at the table in both directions)",
+        "The bot weighs Patroclus' fall as a trade (ai_achilles.py: kill value, search leaf in the unit of each evaluation, The Day of Your Doom priced in the combat by EffectAI); reproducible with tools/measure_achilles_ai.py (leaf: a 2-HP Patroclus falling is +0.027 / +0.075 for the rival's search, default / normalized evaluation; games 24 40 0 3.0 6.0: Achilles-bot won 12 / 10 / 13 of 24, rival-bot (Hellboy facing a scripted Achilles) 1 / 6 / 9 of 24; docs/heroes/achilles.md), tests/test_achilles_ai.py",
+        "Achilles against each of the other heroes in both seats reaches game over on FakeTTS (passive and attacking human) and in the simulator with the heuristic and the search AI (tests/test_achilles_matrix.py)",
+        "Verified live by Ivan (docs/live-checklist.md, section Achilles)"
+      ],
+      "note": "Engine additions: sparring/vengeance.py, the plugin achilles:replace_combatant and the optional's damage_buys context (ops_core). Rules decisions and open questions for Ivan (the +2 on the second attack of Test For Weakness): docs/heroes/achilles.md. Live test pending."
+    },
+    {
       "id": "HERO-ROSIE-THE-RIVETER",
       "title": "Rosie the Riveter (Stars and Stripes, with Wendy The Welder) playable by the bot and by the human against every hero",
       "status": "in-progress",
@@ -1019,6 +1034,21 @@
       "note": "Pending Ivan: all three or any Raptor defeated loses (docs/heroes/raptors.md)."
     },
     {
+      "id": "HERO-BLOODY-MARY",
+      "title": "Bloody Mary (Battle of Legends, Volume Two, no sidekick) playable by the bot and by the human against every hero",
+      "status": "in-progress",
+      "criteria": [
+        "Overlay, HeroDef, effects and data/tts/bloody-mary.json generated and validated; 30 cards (sheet 176, character card 321, 13 titles) read from the card images; unmatched-memory's 'Patroclus' sidekick is a slip and is dropped (sidekicks [])",
+        "Her deck shares CardIDs 17600-17629 with the other sheet-176 decks: told apart by deck image and owner (tests/test_hero_bloody_mary_data.py, tests/test_card_identity.py); a card bound from the RIVAL's hand keeps its owner (EffectRun.bind owners) so Stolen Memories reads the right BOOST",
+        "ABILITY: exactly 3 cards in hand at the start of the owner's turn gain 1 action (a start-of-turn trigger run by the engine for both seats); 'third action this turn' is actions_taken_this_turn == 3, the actions SPENT, gained ones included (Speak Three Times 7, Out Of The Mirror draws, Ghostly Touch heals 3)",
+        "All 13 cards on the interpreter for both seats: Mirror Image, Broken Glass, Out Of The Mirror (the Ambush flow), Stolen Memories (look at the hand, discard it or take its BOOST; the human's buttons name it), Jump Scare, Closer Than She Appears, Trick of the Light, Infinity Mirror, Ghostly Touch, Evade, Feint, and Bloody Requiem as a second_attack of the double attack",
+        "AI (both AIs, verified with ISMCTS): Speak Three Times is held for the third action when this turn can still give one (the search's rollouts never saw the 7: 4 of 4 attacked with it first at 1500 iterations; now the bot maneuvers first and plays it for 7), Mirror Image priced as the copy it is, a hand of exactly 3 cards is worth an extra action at the leaf (docs/heroes/bloody-mary.md, AI)",
+        "Against every other hero in both seats the games reach game over on FakeTTS and in the simulator (tests/test_bloody_mary_matrix.py)",
+        "Verified live by Ivan (docs/live-checklist.md, section Bloody Mary)"
+      ],
+      "note": "Engine additions are small and additive (docs/effects-dsl.md, section 46). Pending Ivan: what counts as the third action, Broken Glass's match, Mirror Image against a buffed attack (docs/heroes/bloody-mary.md). Live test pending."
+    },
+    {
       "id": "F-RAPTORS-SWARM",
       "title": "The bot's Raptors swarm, attack every turn their hand can pay for, keep a reserve of cards and price a rival's zone damage per Raptor",
       "status": "in-progress",
@@ -1134,7 +1164,8 @@
         "Diagnosis from the live log 20261119 (session.log 22:10:24, TURN 21): bot Ciri attacks Doctor Strange with Lion cub of Cintra (17601), Ivan defends with Feint. Orb cards in her discard before the combat: 17610, 17613, 17616, 17627, 17602, 17600 = 6. The engine reads Source 6 (the card being resolved is not in the pile yet, docs/heroes/ciri.md rule 1), so UNCONTAINABLE POWER is off and the cancel is legal: Lion cub stays at 2 vs 2, no damage",
         "DECIDED by Ivan on 20/11: rule (a). The card being resolved does not count toward its own Source (docs/heroes/ciri.md rule 1): the engine already does this",
         "Not a bug (checked 20/11 against session.log 22:10:15-22:10:28): the whole combat resolves on Reveal (22:10:24) and only then does Lion cub reach her discard. While Ivan chose his defence the Source was 6; the 7 on dial 46aa92 was written after the combat and is the right count then (6 + Lion cub)",
-        "No code change: a dial guard for a card on the pile during an open combat was written and dropped, since the live path never reaches that state (its test had to force the card onto the pile)"
+        "No code change: a dial guard for a card on the pile during an open combat was written and dropped, since the live path never reaches that state (its test had to force the card onto the pile)",
+        "Rule 2 (Ivan, 2026-11-19, merged 20/11 from fix/ciri-uncontainable 6867a56 without its dial part): UNCONTAINABLE POWER protects only the cards Ciri herself plays; Ihuarraquax's can be canceled at SOURCE 7+. modifiers.is_uncancelable(card, game, fighter) takes the fighter that plays the card (tests/test_ciri_effects.py)"
       ],
       "note": "Reported by Ivan in a live game on 19/11/2026 (launcher, bot Ciri vs human Doctor Strange). After the combat Ivan took 5 damage off Strange by hand (10 -> 5)."
     },
@@ -1148,6 +1179,49 @@
         "tests/test_after_gate.py::test_the_defenders_move_by_hand_comes_before_the_attackers_after (John walks away on the table before End action; Right Hand Of Doom finds him no longer adjacent; fails without the fix). Updated on purpose to expect the gate: tests/test_bullseye_human.py Tactical Retreat (placed by hand before Hellboy's AFTER) and tests/test_eredin_human.py Wild Hunt (Lobster moved by B.P.R.D. Training before the adjacency damage)"
       ],
       "note": "Reported by Ivan in a live game on 20/11/2026 (launcher, bot Hellboy vs human John Henry)."
+    },
+    {
+      "id": "HERO-YENNENGA",
+      "title": "Yennenga (Battle of Legends, Volume Two) playable by the bot and by the human against every hero",
+      "status": "in-progress",
+      "criteria": [
+        "data/heroes/overlay/yennenga.json, data/heroes/yennenga.json, data/heroes/effects/yennenga.json and data/tts/yennenga.json generated and validated; all 12 titles (30 cards, sheet 176, character card 319) read from the card images; unmatched-memory's hasTokens is a data slip (no token) and Point Blank's printed text is recorded",
+        "Her deck shares CardIDs 17600-17629 with the other sheet-176 decks (told apart by image and owner) and her miniature GUID 3ec3d1 is Houdini's (resolved by name): tests/test_hero_yennenga_data.py, tests/test_piece_identity.py",
+        "The ability (assign any amount of damage meant for her to the Archers in her zone): the owner is asked per Archer before combat damage lands (CombatFlow DAMAGE pause, saved and resumed) and inside the damage op for effect damage (modifiers applied once to the whole blow, an op's own hit on an Archer reserved, the bound fighter stays Yennenga); the bot decides by hit-point weights and next-turn death risk (sparring/ai_yennenga.py); mutation-checked",
+        "All 12 cards on the interpreter for both seats: Surprise Volley (plugin: a defeated Archer returns as the attacker), Shield Formation, Stallion Charge, Rain of Arrows (second_attack 3, the double attack) and the rest",
+        "The Archers have 2 life and no dial: each is a two-sided token (Ivan 2026-11-20); the bot flips its own to the engine's life and says it, the session reads the human's and asks them to flip a wrong one (sparring/session_archers.py, tests/test_yennenga_faces.py); the face rotations are a guess marked verify_live",
+        "Yennenga against every other hero in both seats reaches game over on FakeTTS and in the simulator (tests/test_yennenga_matrix.py); the human's choices are parked runs that survive --resume (tests/test_yennenga_human.py)",
+        "Verified live by Ivan (docs/live-checklist.md, section Yennenga)"
+      ],
+      "note": "Rules decisions and Pending Ivan: docs/heroes/yennenga.md. Engine additions are additive (docs/effects-dsl.md section 47, docs/combat-flow.md Damage assignment). Live test pending."
+    },
+    {
+      "id": "F-DOUBLE-ATTACK",
+      "title": "The double attack (Battle of Legends, Volume Two): a card's second attack as an AFTER COMBAT effect, for the bot and the human, in the engine, the table and the AIs",
+      "status": "in-progress",
+      "criteria": [
+        "DSL: the op `second_attack` (amount) in `effects.after` of a card that attacks (docs/effects-dsl.md section 45, schema.json, validator); a condition is a plain `if` and a printed value is `{attr: value, of: opponent_card}`. tests/test_double_attack_dsl.py",
+        "Engine (Ivan 20/11, rules 1-5): the op records `CombatFlow.second_attack`; once both AFTER sides are done the second attack is a combat of its own (`CombatFlow(second=value)`, `resolve_combat` plays it, `result.second`): same defender wherever it stands (a Skirmish never stops it), the defender may defend it with a new card, Feint or any cancel of the card stops it, the defender's AFTER of the first combat goes first. tests/test_double_attack_engine.py (mutation-checked)",
+        "Table: `Pending.second`; the human attacks and the bot places its defense for the second part, or the bot attacks and the human defends it face down (or with no card); Cancel cannot take it back; saved and resumed; strings in English with Spanish in data/i18n/es.json. tests/test_double_attack_human.py on FakeTTS",
+        "AI: the heuristic adds the second part to the expected damage and kill chance of an attack (`ai_double.second_part`) and defends it against its exact value (`MedusaAI.choose_second_defense`); the search plays it in its rollouts (`SearchController.choose_second_defense`) and defends it live with the heuristic's exact-value choice; the decision journal records the card's second-attack values and the defense of the second part. tests/test_double_attack_ai.py",
+        "The unruled points (BOOST on the second attack, which combat won/lost refers to, passives, defender with no card or defeated, action count, event order) are under \"Pending Ivan\" in docs/combat-flow.md"
+      ],
+      "note": "Built by the double-attack agent of the batch-3 farm (20/11/2026). The four cards (Ruyi Jingo Bang, Rain of Arrows, Test For Weakness, Bloody Requiem) are written by their hero agents against this op."
+    },
+    {
+      "id": "HERO-SUN-WUKONG",
+      "title": "Sun Wukong (Battle of Legends, Volume Two, three Clones that start off the board) playable by the bot and by the human against every hero",
+      "status": "in-progress",
+      "criteria": [
+        "data/heroes/overlay/sun-wukong.json, data/heroes/sun-wukong.json, data/heroes/effects/sun-wukong.json and data/tts/sun-wukong.json generated and validated (import_hero, validate_effects, import_save); the 12 titles (30 cards, sheet 176, character card 320, every band ANY) read from the card images; Bewilderment reads 'combat damage' as printed (unmatched-memory says 'all damage'); ai_profile computed by the importer",
+        "His deck shares CardIDs 17600-17629 with Medusa, the turtles, Doctor Strange, Eredin and the rest of sheet 176: told apart by deck image and owner, never by a bare CardID (tests/test_hero_sun_wukong_data.py, tests/test_card_identity.py); his three Clone tokens (Custom_Token in the save, Tile in real TTS) and every GUID are his own",
+        "The Clones start in the reserve (start_on_board 0) and come out through the ability and Sly Monkey; a defeated Clone returns to the supply (summon, or revive when one is defeated); the table harness leaves a reserve fighter off the table",
+        "CLONES: a start-of-turn optional (1 effect damage on himself, a Clone on an empty adjacent space); the human answers yes/no on the panel, the dial follows and the Clone is put on the table by hand and read from it (table.WUKONG_OPS); the bot prices it (sparring/ai_wukong.py: floor of 5 hit points, death risk, Clone worth) instead of the generic yes",
+        "All 12 cards on the interpreter for both seats: Ruyi Jingo Bang (a second_attack of 4 behind a defense card), Ox Form (uncancelable, the rival may BOOST), Taunting Laughter, Infinite Strikes, Sly Monkey, 72 Transformations (tag form), Wily Fighting, Bewilderment (cap 0 on both combatants), Tortoise Form, Golden Chain Mail (redirect to the attacker, modifiers._owner_run), Fiery Eyes That See (the bot's chosen card is named for the bottom of the human's deck), Phoenix Form",
+        "Sun Wukong against every other hero in both seats reaches game over on FakeTTS (passive and attacking human) and in the simulator (tests/test_sun_wukong_matrix.py)",
+        "Verified live by Iván (docs/live-checklist.md, section Sun Wukong)"
+      ],
+      "note": "Rules decisions and open questions for Iván: docs/heroes/sun-wukong.md (Pending Ivan). Engine notes: docs/effects-dsl.md section 48. Live test pending."
     }
   ]
 }

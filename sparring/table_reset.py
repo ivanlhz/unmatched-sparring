@@ -76,6 +76,13 @@ START_FACE = {"ability": "occult_detective", "intuition": "inactive", "merlin_en
               "sedgley_fist_gun": "inactive", "whizbang": "inactive"}     # starting face of each two-faced token (token_faces)
 
 
+def panel_targets(game, bot: int) -> list[str]:
+    """The bot's fighters that get an attack button and a -1/+1/Remove row on the panel: ALL of them, the dead too. A bot Wukong's
+    Clones start in the bag (not alive); built from the living ones only, a summoned Clone had no row and the human could not take
+    the 1 damage of his Wildfire off it (Ivan 2026-11-21). The buttons of a fighter not in play are hidden by the session."""
+    return [f.fid for f in game.own(bot, alive_only=False)]
+
+
 class CleaningSession(Session):
     """A throw-away session that only reads and resets the table: its card scope is the whole table (the cards are told
     apart by CardID range and deck image, so loose cards of the heroes are safe to gather)."""
@@ -484,7 +491,7 @@ class Gate:
     def _panel(self) -> None:
         """Creates the panel for the current heroes (once per hero pair)."""
         s, cfg = self.session, self.cfg
-        targets = [f.fid for f in s.game.own(s.bot)]
+        targets = panel_targets(s.game, s.bot)   # a bot Wukong's Clones start in the bag: their buttons exist all the same
         key = (tuple(targets), cfg.attacker_ids)
         if self._panel_for == key:
             return
@@ -499,7 +506,7 @@ class Gate:
         """`options`: the heroes the player is asked to choose from, one button each (`btn_choice_1..`, the ones an effect choice uses)."""
         self._panel()
         s = self.session
-        ids = ui.element_ids([f.fid for f in s.game.own(s.bot)], tuple(f.fid for f in s.game.own(s.human)))
+        ids = ui.element_ids([f.fid for f in s.game.own(s.bot, alive_only=False)], tuple(f.fid for f in s.game.own(s.human, alive_only=False)))   # Wukong's Clones in the bag too
         states = {i: (False, False) for i in ids}
         states["btn_clean"], states["btn_prep"], states["btn_start"] = (clean, clean), (prep, prep), (start, start)
         labels = {}

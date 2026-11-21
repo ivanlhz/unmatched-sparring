@@ -50,6 +50,10 @@ class StrangeTable(AsideTable):
         return super().do_read_cards_at(s)
 
     human_card_spot = (-20.0, 4.0)
+
+    @staticmethod
+    def _move_row(guid, source, target):
+        """This fake's pact scripts look for the played card among the rows it keeps at the combat spot, turned or not: no turning of rows here."""
     hand_returns: list = []
 
     def do_card_to_discard(self, s):

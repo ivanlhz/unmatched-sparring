@@ -861,12 +861,13 @@ def resolve_hand_row(guids: list[str], seat_color: str, *, identity, id_range: t
                      discard: str | None = None, face_down: bool = False,
                      spot: tuple[float, float, float] = (0.0, 0.0, 0.0), rot_y: float = 0,
                      deck_guid: str | None = None, deck_spot: tuple[float, float] | None = None,
-                     deck_zone: str | None = None, deck_radius: float = DECK_RADIUS) -> str:
+                     deck_zone: str | None = None, deck_radius: float = DECK_RADIUS, deck_bottom: bool = False) -> str:
     """Closes the row of `show_hand_row`: returns to the seat's hand all the cards of the row (by GUID) except the
     one discarded, which goes to the discard `spot`. The discarded one is the card with GUID `discard` or, with `face_down`, THE ONLY card
     of the row that is face down (if there are 0 or several it moves nothing and returns `down`). Without `discard` or `face_down` it is
     Cancel: everything returns to the hand. With `deck_guid` the chosen card does not go to the discard: it is put ON TOP of that
-    deck (`putObject`; Every Possible Angle), which must be the side's. INSTANT. Only cards of the side count (`id_range`,
+    deck (`putObject`; Every Possible Angle), which must be the side's; with `deck_bottom` it goes UNDER that deck instead (`bury`, on a later
+    frame: Fiery Eyes That See), straight from the row, never through the hand zone. INSTANT. Only cards of the side count (`id_range`,
     image of `identity`). It empties the row noted on the panel. Returns `{discarded: CardID|false, returned: [CardID],
     found, down}` (`discarded` is also the card put on the deck)."""
     if not isinstance(guids, (list, tuple)) or not 1 <= len(guids) <= MAX_LOOK_CARDS:
@@ -877,16 +878,26 @@ def resolve_hand_row(guids: list[str], seat_color: str, *, identity, id_range: t
         raise TypeError("(x, y, z) expected")
     if deck_guid is not None and discard is None:
         raise TypeError("deck_guid needs the chosen card (discard)")
+    if not isinstance(deck_bottom, bool) or (deck_bottom and deck_guid is None):
+        raise TypeError("deck_bottom is a boolean and needs deck_guid")
     own = _ours_lua(identity, id_range)
     pick = _guid(discard) if discard is not None else "nil"
     deck_check = ""
     if deck_guid is not None:                 # the deck is checked before anything moves: a failure moves nothing
-        own += _deck_finder(deck_spot, deck_radius, deck_zone) + DECK_FUNCS
+        own += _deck_finder(deck_spot, deck_radius, deck_zone) + DECK_FUNCS + (BURY_LUA if deck_bottom else "")
         deck_check = f"""local deck = findDeck({_guid(deck_guid)})
 {home_lua(deck_spot, deck_zone)}if deck == nil and home == nil then return JSON.encode({{discarded = false, returned = {{}}, found = #objs, down = down, deck = false}}) end
 """
         # a one-card deck is a Card in TTS and has no putObject: the chosen card is dropped on it, same facing
-        chosen_goes = """if deck == nil then
+        # inside a composite the reply is this very table: a failure of the later rebuild (the card destroyed, the table
+        # refusing the new deck) turns `discarded` off, and the rebuilt deck's GUID is reported for the session to adopt
+        chosen_goes = f"""bury({_guid(deck_guid)}, home, {{o}}, function(new, lost)
+      if lost[1] then
+        lostChosen, res.discarded = true, false
+      end
+      if new ~= nil then res.asked, res.deck = {_guid(deck_guid)}, new.getGUID() end
+    end)
+    discarded = id""" if deck_bottom else """if deck == nil then
       layFirst(o, home)
     elseif deck.type == "Deck" then
       deck.putObject(o)
@@ -924,7 +935,8 @@ elseif pick ~= nil then
   if chosen == nil then return JSON.encode({{discarded = false, returned = {{}}, found = #objs, down = down}}) end
 end
 {deck_check}local t = Player[{_color(seat_color)}].getHandTransform(1)
-local discarded, returned = false, {{}}
+local discarded, returned, lostChosen = false, {{}}, false
+local res = {{discarded = false, returned = returned, found = #objs, down = down}}
 for _, o in ipairs(objs) do
   local id = o.getData().CardID
   if o == chosen then
@@ -935,7 +947,8 @@ for _, o in ipairs(objs) do
     table.insert(returned, id)
   end
 end
-{_panel_var_lua('""')}return JSON.encode({{discarded = discarded, returned = returned, found = #objs, down = down}})
+if not lostChosen then res.discarded = discarded end
+{_panel_var_lua('""')}return JSON.encode(res)
 """
 
 
@@ -2731,7 +2744,7 @@ return ""
 
 
 PANEL_ID = re.compile(r"[A-Za-z0-9_]{1,40}")
-_STATUS = re.compile(r"[A-Za-z0-9 _.\-!:',·]{0,90}")
+_STATUS = re.compile(r"[A-Za-z0-9 _.\-+!:',·]{0,90}")      # the text goes inside a double-quoted Lua string: no quote or backslash, and + is plain text
 
 
 @_registered
@@ -2955,8 +2968,8 @@ return JSON.encode(out)
 """
 
 
-MAX_HERO_RANGES = 40      # one CardID range per hero with TTS data (data/tts/*.json); only a sanity bound on the generated script (24 was reached by the 24th hero data set), tests/test_hero_detect.py keeps 8 spare
-MAX_HERO_GUIDS = 80
+MAX_HERO_RANGES = 60      # one CardID range per hero with TTS data (data/tts/*.json); only a sanity bound on the generated script (24 was reached by the 24th hero data set), tests/test_hero_detect.py keeps 8 spare
+MAX_HERO_GUIDS = 120
 MAX_PILE_PAIRS = 12      # distinct "face|back" images reported for a deck that is nobody's (to look it up in the catalog)
 
 
@@ -3178,6 +3191,43 @@ local diff = math.abs((r.z - want) % 360)
 if diff < 1 or diff > 359 then return JSON.encode({{rot_z = want, flipped = false}}) end
 obj.setRotation(Vector(r.x, r.y, want))
 return JSON.encode({{rot_z = want, flipped = true}})
+"""
+
+
+@_registered
+def archer_faces(sets: dict, reads: list) -> str:
+    """Yennenga's Archer tokens: turns each piece of `sets` (GUID -> Z rotation of the face to show) only if it is not there already,
+    and reads the Z rotation of each GUID of `reads` (the human's own pieces). Returns `{set = {guid = {flipped}}, read = {guid = rot_z}}`;
+    a GUID that does not exist is `{found = false}` / absent."""
+    if not isinstance(sets, dict) or not isinstance(reads, (list, tuple)):
+        raise TypeError("a dict of faces and a list of GUIDs expected")
+    wanted = "{" + ", ".join(f"[{_guid(g)}] = {_f(z)}" for g, z in sorted(sets.items())) + "}"
+    looked = "{" + ", ".join(_guid(g) for g in reads) + "}"
+    return f"""-- sparring:archer_faces
+local sets = {wanted}
+local reads = {looked}
+local out = {{set = {{}}, read = {{}}}}
+for g, want in pairs(sets) do
+  local obj = getObjectFromGUID(g)
+  if obj == nil then
+    out.set[g] = {{found = false}}
+  else
+    local r = obj.getRotation()
+    local w = want % 360
+    local diff = math.abs((r.z - w) % 360)
+    if diff < 1 or diff > 359 then
+      out.set[g] = {{found = true, flipped = false}}
+    else
+      obj.setRotation(Vector(r.x, r.y, w))
+      out.set[g] = {{found = true, flipped = true}}
+    end
+  end
+end
+for _, g in ipairs(reads) do
+  local obj = getObjectFromGUID(g)
+  if obj ~= nil then out.read[g] = obj.getRotation().z end
+end
+return JSON.encode(out)
 """
 
 

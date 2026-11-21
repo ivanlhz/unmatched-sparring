@@ -58,7 +58,9 @@ def problems(session, found: dict) -> dict[str, str | None]:
             if not (isinstance(info, dict) and info.get("found")):
                 continue
             hit, seen = True, plain_name(info.get("name"))
-            owners.append(None if seen == own else next((o for o, n in names.items() if n == seen and o != fid), None))
+            kin = {plain_name(session.cfg.nicknames[k.fid]) for k in session.reserve_kin(session.game.fighters[fid])
+                   if k.fid in session.cfg.nicknames}      # Wukong's Clones: the human may put any token for any Clone
+            owners.append(None if seen == own or seen in kin else next((o for o, n in names.items() if n == seen and o != fid), None))
         if not hit:
             out[fid] = None
         elif all(o is not None for o in owners):

@@ -92,9 +92,9 @@ def has_boost_effect(card) -> bool:
 
 
 def grants_boost(card) -> bool:
-    """The card's IMMEDIATELY lets the rival BOOST their card (`allow_boost`: An Illusion Of My Own Design)."""
+    """The card's IMMEDIATELY or DURING lets the RIVAL BOOST their card (`allow_boost` of `opponent_card`, never a boost of the card's own like Blood in the Air: An Illusion Of My Own Design, Ox Form, Tortoise Form)."""
     fx = card_effects(card)
-    return fx is not None and any(o["op"] == "allow_boost" for o in walk_ops(fx.moments.get("immediately", [])))
+    return fx is not None and any(o["op"] == "allow_boost" and o.get("card") == "opponent_card" for m in ("immediately", "during") for o in walk_ops(fx.moments.get(m, [])))
 
 
 def look_shield(card) -> bool:
@@ -160,14 +160,15 @@ def hero_rule_holds(game, player: int, rule: str) -> bool:
     return False
 
 
-def is_uncancelable(card, game=None, owner: int | None = None) -> bool:
-    """The card's effects cannot be canceled: its own `uncancelable`, or, given the `game` and the `owner` (the side that holds the
-    card in the combat, never looked up by value: decks of sheet 176 share cards), the owner's ability (`cards_uncancelable`:
-    Ciri's UNCONTAINABLE POWER covers every card of her deck, the sidekick's too)."""
+def is_uncancelable(card, game=None, fighter=None) -> bool:
+    """The card's effects cannot be canceled: its own `uncancelable`, or, given the `game` and the `fighter` that plays the card in the
+    combat (never looked up by value: decks of sheet 176 share cards), the ability of that fighter's hero (`cards_uncancelable`:
+    Ciri's UNCONTAINABLE POWER, only for the cards Ciri herself plays: the ones her sidekick Ihuarraquax plays can be canceled,
+    Iván 2026-11-19)."""
     fx = card_effects(card)
     if fx is not None and fx.uncancelable:
         return True
-    return game is not None and owner is not None and hero_rule_holds(game, owner, "cards_uncancelable")
+    return game is not None and fighter is not None and fighter.hero and hero_rule_holds(game, fighter.owner, "cards_uncancelable")
 
 
 # ---------------------------------------------------------------- stores
@@ -243,6 +244,18 @@ def _is_enemy_source(fx, owner_of_target: int) -> bool:
 
 # ---------------------------------------------------------------- hooks
 
+def effect_immunity(fx, fighter) -> dict | None:
+    """The status or ONGOING modifier that stops the effect damage `fighter` would take now (None: nothing stops it)."""
+    for st in _status_entries(fx, "immune_to_effect_damage"):
+        if st.get("fid") == fighter.fid:
+            return st
+    if _is_enemy_source(fx, fighter.owner):
+        for st in _status_entries(fx, "immune_to_enemy_effect_damage"):
+            if st.get("player") == fighter.owner:
+                return st
+    return None
+
+
 def adjust_damage(fx, fighter, n, source):
     """Effect damage only (never combat, exhaustion or set_hp): immunities first, then the +N rule."""
     if source == "hazard":                    # Might Of The Aen Elle: "no damage except combat damage or exhaustion", a map hazard included
@@ -250,9 +263,7 @@ def adjust_damage(fx, fighter, n, source):
                                    for m in _modifier_entries(fx)) else n
     if source != "effect":
         return n
-    if _fighter_has(fx, "immune_to_effect_damage", fighter.fid):
-        return 0
-    if _is_enemy_source(fx, fighter.owner) and _player_has(fx, "immune_to_enemy_effect_damage", fighter.owner):
+    if effect_immunity(fx, fighter) is not None:
         return 0
     return n + sum(_rule_amounts(fx, "effect_damage_bonus"))
 
@@ -411,9 +422,11 @@ def redirect_sources(game, fighter) -> list[dict]:
     return out
 
 
-def _owner_run(game, owner: int):
+def _owner_run(game, owner: int, flow=None):
+    """A bare run of `owner`'s hero to read selectors with; inside a combat (`flow`) it knows who attacks and who defends, so a redirection
+    can name them (Golden Chain Mail sends the damage to `attacker`)."""
     from .run import Ctx, EffectRun
-    return EffectRun([], Ctx(owner=owner, this_fid=game.hero(owner).fid))
+    return EffectRun([], Ctx(owner=owner, this_fid=game.hero(owner).fid, **({} if flow is None else {"attacker_fid": flow.att.fid, "defender_fid": flow.tgt.fid})))
 
 
 def combat_redirect_target(flow):
@@ -424,7 +437,7 @@ def combat_redirect_target(flow):
     for r in flow.redirects:
         if r["from"] != flow.tgt.fid or r["damage"] not in ("combat", "any"):
             continue
-        view = _owner_run(game, r["owner"])
+        view = _owner_run(game, r["owner"], flow)
         if r.get("condition") and not condition(game, view, r["condition"]):
             continue
         dests = [f for f in fighter_candidates(game, view, r["to"])[0] if f.fid != flow.tgt.fid]

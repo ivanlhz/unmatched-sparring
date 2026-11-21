@@ -27,6 +27,7 @@ DYNAMIC = {
     "choice.prompt.": ("fighter", "space", "cards", "effect", "optional", "order", "amount", "default", "one_card",
                        "predict", "discards", "else_damage", "redirect", "use_effect"),
     "hidden.fail.where_": ("discard", "deck"),
+    "narr.notice.": ("sly_monkey_no_space", "sly_monkey_pinned"),
     "narr.fstatus.": ("cannot_leave_space", "immune_to_effect_damage", "attack_bonus"),
     "narr.status.": tuple(f"{n}.{side}" for n in ("cannot_gain_actions", "cannot_draw", "immune_to_effect_damage",
                                                    "next_attack_bonus") for side in ("bot", "human")),
@@ -113,6 +114,34 @@ def test_references_to_other_tags_resolve_in_every_catalog():
         assert refs and sorted(r for r in refs if r not in cat) == [], lang
         for tag, text in cat.items():
             assert "[[" not in i18n._expand(text, lang), (lang, tag)
+
+
+def notice_texts() -> dict[str, set[str]]:
+    """The `text` of every `notice` op in the heroes' effect data, with the files that use it."""
+    found: dict[str, set[str]] = {}
+
+    def walk(node, name: str) -> None:
+        if isinstance(node, dict):
+            if node.get("op") == "notice":
+                found.setdefault(node["text"], set()).add(name)
+            for child in node.values():
+                walk(child, name)
+        elif isinstance(node, list):
+            for child in node:
+                walk(child, name)
+    for path in sorted((ROOT / "data" / "heroes" / "effects").glob("*.json")):
+        if path.name != "schema.json":
+            walk(json.loads(path.read_text(encoding="utf-8")), path.name)
+    return found
+
+
+def test_every_notice_of_the_effect_data_has_its_text_in_every_catalog():
+    """The schema types `notice.text` as a free name: a typo there would put the raw tag in the chat."""
+    texts = notice_texts()
+    assert texts, "no notice op found: the walk no longer reads the data"
+    for lang in ("es", "en"):
+        cat = load(lang)
+        assert {key: sorted(files) for key, files in texts.items() if f"narr.notice.{key}" not in cat} == {}, lang
 
 
 def test_chat_names_the_buttons_with_the_tag_that_captions_them():

@@ -117,8 +117,9 @@ class CombatFlow:
     `Await` BEFORE mutating anything; after `resume` the same handler runs again and finds its answer."""
 
     def __init__(self, game: Game, att: Fighter, tgt: Fighter, atk_card: Card, def_card: Card | None,
-                 values: tuple[int, int] = (0, 0)):
+                 values: tuple[int, int] = (0, 0), second: int | None = None):
         self.game, self.att, self.tgt = game, att, tgt
+        self.second = second                         # DOUBLE ATTACK: this combat IS the second attack, worth this much (see `second_flow`)
         self.atk_card, self.def_card, self.values = atk_card, def_card, tuple(values)
         self.phase, self.side_idx = Phase.DECLARED, 0
         self.ctx: CombatCtx | None = None
@@ -147,6 +148,7 @@ class CombatFlow:
         self.considered_won: str | None = None       # the side an effect says is considered to have won, whatever the damage ("atk" | "def"; Bullseye's Arrogant But Effective)
         self.value_locked: set[str] = set()         # sides whose value an effect froze (Jill Trent's Stasis Diffuser): nothing changes it any more
         self.damage_caps: dict[str, int] = {}        # fighter id -> the most combat damage it takes in this combat (Tomoe Gozen's Deeds Of Valor)
+        self.second_attack: dict | None = None      # DOUBLE ATTACK: {"value", "card"} registered by the attacker's AFTER op, played when the AFTER phase ends
         self.win_cancels: list[list[str]] = []       # [winner side, side whose AFTER effects it cancels]: decided when the damage is known (John Henry's Knock Them Silly)
 
     @property
@@ -170,6 +172,9 @@ class CombatFlow:
         if self.done:
             return None
         if self.phase not in _SIDED:
+            if self.phase is Phase.DAMAGE and (wait := self._assignment_wait()) is not None:
+                self.pending = wait.choice
+                return wait
             hook = _HOOKS.get(self.phase)
             if hook is not None:
                 hook(self)
@@ -178,6 +183,8 @@ class CombatFlow:
         if self.side_idx >= len(self.sides) or (self.phase is Phase.AFTER and not self.after_open):
             self._enter(_NEXT[self.phase])
             return None
+        if self.phase is Phase.AFTER and self.side_idx == 0 and self.def_card is None and (wait := self._hero_after("def")) is not None:
+            return wait                      # the defender who played no card still has the hero's AFTER ability that says so (Achilles' draw)
         side = self.sides[self.side_idx]
         if self.phase is Phase.AFTER and (gate := self._table_gate(side)) is not None:
             self.pending = gate
@@ -191,8 +198,22 @@ class CombatFlow:
             if self.again:
                 self.again = False
                 return None
+        # Only in a second attack: in a first combat the attacker's hero ability already ran with its card (`dsl_after` / `run_moment`, run key
+        # `after:atk`), and `hero_after` shares that key, so a double draw is impossible; the `second` guard keeps it from even being asked.
+        if self.phase is Phase.AFTER and self.second is not None and side.name == "atk" and (wait := self._hero_after("atk")) is not None:
+            return wait                      # the second attack is a combat the attacker can win: its hero's AFTER ability flagged `second_attack`
         self.side_idx += 1
         return None
+
+    def _hero_after(self, name: str) -> Await | None:
+        from .effects.ops_combat import default_choosers, hero_after
+        if self.choosers is None:
+            self.choosers = default_choosers(self.game)
+        self.await_key = f"after:{name}:hero_ability"
+        wait = hero_after(self, name)
+        if wait is not None:
+            self.pending = wait.choice
+        return wait
 
     def _table_gate(self, side: Side) -> PendingChoice | None:
         """Ivan, 31/10 (Glimpse Of Hell, then Fleeting Moments): AFTER effects go one after the other, the defender's
@@ -231,6 +252,8 @@ class CombatFlow:
         return side_name in self.ctx.cancelled or (side_name in self.late_cancelled and self.phase is not Phase.IMMEDIATELY)
 
     def _handler(self, side: Side) -> Rule | None:
+        if self.second is not None and side.name == "atk":
+            return None                     # the card's effects were its first part's: the second attack is only damage
         cancelled = self.is_cancelled(side.name)
         for r in RULES:
             if r.phase is self.phase and r.side in ("any", side.name) and (r.when_cancelled or not cancelled) \
@@ -249,8 +272,22 @@ class CombatFlow:
             if self.game.winner is None:
                 for owner, card in self.played:       # the fighter of each side that played a card (DARK PACT)
                     self.game.fx.emit("after_combat", owner, self.att if owner == self.att.owner else self.tgt, card)
-            if self.game.winner is None:
+            if self.game.winner is None and self.second is None:
                 self.game.fx.emit("after_attack", self.att, self.tgt)
+
+    # ---------- double attack ----------
+    @property
+    def second_due(self) -> bool:
+        """The finished combat leaves a second attack to play (docs/combat-flow.md, "Double attack"): the card's AFTER op registered one,
+        nobody has won the game, and both fighters are still standing. Where they stand does not matter (Skirmish)."""
+        return (self.done and self.second is None and bool(self.second_attack) and self.game.winner is None
+                and self.att.alive and self.tgt.alive)
+
+    def second_flow(self, def_card: Card | None) -> "CombatFlow":
+        """The second attack as a combat of its own, in the same place of the turn (no action, no `attacked` event): the same card and
+        the same two fighters, the value the op recorded, the defender's new card (or none). Drive it like any other flow."""
+        assert self.second_due, "no second attack to play"
+        return CombatFlow(self.game, self.att, self.tgt, self.atk_card, def_card, second=self.second_attack["value"])
 
     # ---------- decisions ----------
     def resume(self, choice: "Card | list | None") -> None:
@@ -294,10 +331,11 @@ class CombatFlow:
             if def_card not in game.players[tgt.owner].hand:
                 raise RuleError(t("err.not_in_hand", title=def_card.title, fid=tgt.fid))
         pa, pd = self.att.owner, tgt.owner
-        game.take_from_hand(pa, self.atk_card)
+        if self.second is None:
+            game.take_from_hand(pa, self.atk_card)      # the second attack's card was played with the first
         if def_card is not None:
             game.take_from_hand(pd, def_card)
-        self.played = [(pa, self.atk_card)] + ([(pd, def_card)] if def_card else [])
+        self.played = ([(pa, self.atk_card)] if self.second is None else []) + ([(pd, def_card)] if def_card else [])
         for owner, _ in self.played:
             game.fx.count_played(owner)
 
@@ -306,8 +344,10 @@ class CombatFlow:
         bonus_parts = game.attack_bonus_parts(att, tgt)   # hero passives (Hellboy in ANUNG UN RAMA: +2)
         if game.fx.statuses:
             from .effects.modifiers import fighter_attack_bonus, take_next_attack_bonus
-            bonus_parts = bonus_parts + take_next_attack_bonus(game.fx, att.owner) + fighter_attack_bonus(game.fx, att.fid)
-        atk_value = (atk_card.value or 0) + values[0] + sum(n for n, _ in bonus_parts)
+            bonus_parts = bonus_parts + ([] if self.second is not None else take_next_attack_bonus(game.fx, att.owner)) \
+                + fighter_attack_bonus(game.fx, att.fid)    # "your next attack" was the first part's
+        printed = (atk_card.value or 0) if self.second is None else self.second
+        atk_value = printed + values[0] + sum(n for n, _ in bonus_parts)
         def_value = (def_card.value or 0) if def_card else 0
         def_value += values[1]
         # the defender's ONGOING adds to its card value (even at 0 or cancelled); no card, no value to add to
@@ -315,7 +355,8 @@ class CombatFlow:
         def_value += self.def_bonus
         self.ctx = CombatCtx(att, tgt, atk_card, def_card, atk_value, def_value, set())
         self.result = CombatResult(att.fid, tgt.fid, atk_card, def_card, atk_value, def_value, 0, False)
-        self.result.atk_parts = [f"{atk_card.title} ({atk_card.value or 0})"]
+        self.result.atk_parts = [f"{atk_card.title} ({printed})"] if self.second is None \
+            else [t("cf.second_attack", title=atk_card.title, n=printed)]
         self.result.atk_parts += [f"{label} (+{n})" for n, label in bonus_parts if n]
         if values[0]:
             self.result.atk_parts.append(t("cf.extra", n=values[0]))
@@ -336,32 +377,63 @@ class CombatFlow:
             result.def_parts += [f"{label} ({n:+d})" for n, label in self.mods["def"]]
         if values[1]:
             result.def_parts.append(t("cf.extra", n=values[1]))
+        victim, damage, notes = self._landing()
+        result.applied += notes
+        shares = self._shares(victim, damage)
+        if shares[0][0] is not victim:
+            result.applied += [t("cf.assigned", archer=f.fid, n=k, victim=victim.fid) for f, k in shares if f is not victim]
+        for f, k in shares:
+            self.game.damage(f, k, "combat")
+        if self.game.winner is not None and victim.hero and self._defers_defeat(victim):
+            self.game.winner, self.deferred_loss = None, victim.owner     # the AFTER effects may bring the hero back
+        # Iván 2026-11-20 (W3): the attacker wins only if the DEFENDING fighter took combat damage; damage sent to the attacker
+        # (Golden Chain Mail) is taken by the attacker, so the defender won. Damage that stays on the defender's side (Archers,
+        # Koschei) still counts as a hit.
+        hit = damage >= 1 and victim.owner != self.att.owner
+        result.atk_value, result.def_value, result.damage, result.attacker_won = ctx.atk_value, ctx.def_value, damage, hit
+        if self.win_cancels:
+            from .effects.ops_combat import settle_win_cancels
+            settle_win_cancels(self)
+        result.cancelled = set(ctx.cancelled)
+        result.cancelled_after = set(ctx.cancelled_after)
+        loser = self.tgt if hit else self.att       # a tie is lost by the attacker (the engine's "won")
+        if self.second is None:                             # the card's combat is counted once
+            self.game.fx.emit("combat_lost", loser.owner, loser)
+
+    def _landing(self) -> tuple[Fighter, float, list[str]]:
+        """Who takes the combat damage and how much of the blow lands (a redirection, the hero's reduction and the caps applied), with
+        what to say about it. Nothing is changed."""
+        ctx, notes = self.ctx, []
         damage = max(0, ctx.atk_value - ctx.def_value)
         victim = self.tgt
         if self.redirects:
             from .effects.modifiers import combat_redirect_target
             victim = combat_redirect_target(self)
             if victim is not self.tgt and damage:
-                result.applied.append(t("cf.redirect", victim=victim.fid, target=self.tgt.fid))
+                notes.append(t("cf.redirect", victim=victim.fid, target=self.tgt.fid))
         taken = self.game.combat_damage_taken(victim, damage)
         if taken != damage:
-            result.applied.append(t("cf.reduced", victim=victim.fid, n=damage - taken))     # Luke Cage: the ability took some off
+            notes.append(t("cf.reduced", victim=victim.fid, n=damage - taken))     # Luke Cage: the ability took some off
             damage = taken
         cap = self.damage_caps.get(victim.fid)
         if cap is not None and damage > cap:
-            result.applied.append(t("cf.capped", victim=victim.fid, n=cap))                # Deeds Of Valor: at most `cap` this combat
+            notes.append(t("cf.capped", victim=victim.fid, n=cap))                # Deeds Of Valor: at most `cap` this combat
             damage = cap
-        self.game.damage(victim, damage, "combat")
-        if self.game.winner is not None and victim.hero and self._defers_defeat(victim):
-            self.game.winner, self.deferred_loss = None, victim.owner     # the AFTER effects may bring the hero back
-        result.atk_value, result.def_value, result.damage, result.attacker_won = ctx.atk_value, ctx.def_value, damage, damage >= 1
-        if self.win_cancels:
-            from .effects.ops_combat import settle_win_cancels
-            settle_win_cancels(self)
-        result.cancelled = set(ctx.cancelled)
-        result.cancelled_after = set(ctx.cancelled_after)
-        loser = self.tgt if damage >= 1 else self.att       # a tie is lost by the attacker (the engine's "won")
-        self.game.fx.emit("combat_lost", loser.owner, loser)
+        return victim, damage, notes
+
+    def _assignment_wait(self) -> Await | None:
+        """Yennenga's ability: her owner may hand part of the combat damage to the Archers in her zone, and decides before it lands
+        (docs/heroes/yennenga.md). The Await of a paused decision, else None."""
+        from .effects import plugins_yennenga
+        victim, damage, _ = self._landing()
+        return plugins_yennenga.combat_wait(self, victim, damage)
+
+    def _shares(self, victim: Fighter, damage: float) -> list[tuple[Fighter, float]]:
+        """(fighter, damage) pairs that take the combat damage: the victim alone, unless the Archers took a share of it."""
+        if "damage:def" not in self.runs:
+            return [(victim, damage)]
+        from .effects import plugins_yennenga
+        return plugins_yennenga.combat_shares(self, victim, damage) or [(victim, damage)]
 
     def replace_attack_card(self, new: Card | None, *, back_to_hand: bool = False) -> None:
         """The attacker's card is replaced inside the running combat, the bonuses of the attack staying.
@@ -426,7 +498,7 @@ class CombatFlow:
         if (self.runs or self.printed_set or self.mods["atk"] or self.mods["def"] or self.redirects
                 or self.late_cancelled or self.cancel_hits or self.boost_granted or self.boosted
                 or self.deferred_loss is not None or self.boost_valued or self.returned or self.considered_won
-                or self.value_locked or self.damage_caps or self.win_cancels):
+                or self.value_locked or self.damage_caps or self.win_cancels or self.second_attack):
             out["dsl"] = {"runs": {k: r.to_dict() for k, r in self.runs.items()}, "printed_set": dict(self.printed_set),
                           "mods": {k: [list(m) for m in v] for k, v in self.mods.items()},
                           "redirects": [dict(r) for r in self.redirects]}
@@ -452,12 +524,15 @@ class CombatFlow:
                 out["dsl"]["damage_caps"] = dict(self.damage_caps)
             if self.win_cancels:
                 out["dsl"]["win_cancels"] = [list(w) for w in self.win_cancels]
+            if self.second_attack:
+                out["dsl"]["second_attack"] = dict(self.second_attack)
         return out
 
     def _base_dict(self, ctx, res) -> dict:
         return {
             "phase": self.phase.value, "side_idx": self.side_idx, "after_open": self.after_open,
             "values": list(self.values), "fids": [self.att.fid, self.tgt.fid],
+            **({"second": self.second} if self.second is not None else {}),
             "atk_card": self.atk_card.card_id, "def_card": None if self.def_card is None else self.def_card.card_id,
             "played": [[owner, card.card_id] for owner, card in self.played],
             "def_bonus_parts": [[n, label] for n, label in self.def_bonus_parts],
@@ -483,6 +558,7 @@ class CombatFlow:
         att, tgt = (game.fighters[fid] for fid in raw["fids"])
         flow = cls.__new__(cls)
         flow.game, flow.att, flow.tgt, flow.values = game, att, tgt, tuple(raw["values"])
+        flow.second = raw.get("second")
         flow.atk_card, flow.def_card = card(raw["atk_card"], att.owner), card(raw["def_card"], tgt.owner)
         flow.phase, flow.side_idx, flow.after_open = Phase(raw["phase"]), raw["side_idx"], raw["after_open"]
         flow.played = [(owner, card(card_id, owner)) for owner, card_id in raw["played"]]
@@ -493,7 +569,7 @@ class CombatFlow:
         flow.ctx = flow.result = None
         flow.sides = []
         flow.runs, flow.printed_set, flow.redirects, flow.choosers, flow.again, flow.returned = {}, {}, [], None, False, False
-        flow.considered_won, flow.damage_caps, flow.win_cancels = None, {}, []
+        flow.considered_won, flow.damage_caps, flow.win_cancels, flow.second_attack = None, {}, [], None
         flow.value_locked = set()
         flow.late_cancelled, flow.cancel_hits = set(), set()
         flow.boost_granted, flow.boosted, flow.deferred_loss, flow.boost_valued = set(), {}, None, set()
@@ -517,6 +593,7 @@ class CombatFlow:
             flow.value_locked = set(d.get("value_locked", ()))
             flow.damage_caps = {k: int(v) for k, v in d.get("damage_caps", {}).items()}
             flow.win_cancels = [list(w) for w in d.get("win_cancels", ())]
+            flow.second_attack = dict(d["second_attack"]) if d.get("second_attack") else None
         if raw["ctx"] is not None:
             c, r = raw["ctx"], raw["result"]
             flow.ctx = CombatCtx(att, tgt, flow.atk_card, flow.def_card, c["atk_value"], c["def_value"],
@@ -554,7 +631,7 @@ def _cancel_rival(flow: CombatFlow, side: Side) -> None:
     from .effects.modifiers import is_uncancelable
     target = _other(side)
     card = flow.atk_card if target == "atk" else flow.def_card
-    if card is None or not is_uncancelable(card, flow.game, flow.att.owner if target == "atk" else flow.tgt.owner):
+    if card is None or not is_uncancelable(card, flow.game, flow.att if target == "atk" else flow.tgt):
         flow.ctx.cancelled.add(target)
 
 
@@ -628,7 +705,20 @@ def dsl_during(flow: CombatFlow, side: Side) -> Await | None:
     from .effects.modifiers import boost_limit
     if (wait := _run_moment(flow, side, "during")) is not None:
         return wait
-    return _free_boost(flow, side, max(boost_limit(side.card), 1 if _may_boost_by_effect(flow, side) else 0))
+    if (wait := _free_boost(flow, side, max(boost_limit(side.card), 1 if _may_boost_by_effect(flow, side) else 0))) is not None:
+        return wait
+    return _late_boost(flow, side)
+
+
+def _late_boost(flow: CombatFlow, side: Side) -> Await | None:
+    """The attacker's DURING granted the DEFENDER a BOOST (Ox Form: "If your opponent played a card, they may BOOST it", Ivan 2026-11-20): the
+    defender's own DURING ran first, when the grant did not exist yet, so its BOOST is offered now, before the values are compared. A defender
+    that already had its free BOOST (a `may_boost` card) is not asked twice, and a cancelled one gets none."""
+    from .effects.modifiers import boost_limit
+    dfn = flow.sides[0]
+    if side.name != "atk" or dfn.name != "def" or "def" not in flow.boost_granted or boost_limit(dfn.card) or flow.is_cancelled("def"):
+        return None
+    return _free_boost(flow, dfn, 1)
 
 
 def _may_boost_by_effect(flow: CombatFlow, side: Side) -> bool:
@@ -647,7 +737,8 @@ def _free_boost(flow: CombatFlow, side: Side, limit: int) -> Await | None:
         return None
     done = flow.boosted.setdefault(side.name, [])
     for n in range(limit):
-        answered, boost = flow.answer("dsl_during" if n == 0 else f"dsl_during:{n}")
+        key = f"{flow.phase.value}:{side.name}:" + ("dsl_during" if n == 0 else f"dsl_during:{n}")       # the side the boost is for: the defender's late one runs in the attacker's handler
+        answered, boost = key in flow.answers, (None if flow.answers.get(key) is None else flow.card_by_id(flow.answers[key], owner))
         if not answered:
             flow.await_key = f"{flow.phase.value}:{side.name}:dsl_during" + (f":{n}" if n else "")     # where `resume` files the card
             return Await(PendingChoice("boost", owner, side.card.card_id, False, {"n": n} if n else {}))

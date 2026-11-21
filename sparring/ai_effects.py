@@ -31,7 +31,7 @@ import random
 from functools import lru_cache
 from itertools import combinations
 
-from . import ai_washington, ai_wyatt, enraged
+from . import ai_achilles, ai_mary, ai_washington, ai_wukong, ai_wyatt, ai_yennenga, enraged
 from .ai_medusa import (ACTION_VALUE, DECK_SCARCITY, HARPY_VALUE, KILL_SIDEKICK, LETHAL, SURVIVAL_P, W_HERO, W_MEDUSA_HP,
                         W_SIDEKICK, MedusaAI, Model, can_use, defence_keeper, discard_cut, effect_reliance, hand_room, keep_value, kept_hand_value, kill_value, play_signature)
 from .controller import Controller
@@ -586,6 +586,8 @@ class EffectAI:
     def _amount(self, game: Game, req: ChoiceRequest, nested: bool) -> list:
         if req.extra.get("blind_count"):
             return [self._blind_boost(game, req)]
+        if req.extra.get("assign"):         # Yennenga's ability: how much of the damage meant for her an Archer takes
+            return [ai_yennenga.archer_share(game, req, None if nested else self.medusa(req.player))]
         top = max(req.options)
         if req.extra.get("zone") in (None, "deck") and top > 0:
             n = min(top, len(game.players[req.player].deck))      # drawing from an empty deck only hurts
@@ -606,6 +608,8 @@ class EffectAI:
             return [ai_wyatt.pick_showdown(self.medusa(req.player), game, req.player, list(req.options), req.extra.get("attacker"))]
         if req.extra.get("tag") == "zone":
             return [self._zone(game, req)]
+        if req.extra.get("tag") == "broken_glass":      # Bloody Mary: make the two totals match when a step of 1 can, else a point more
+            return [ai_mary.pick_broken_glass(req.extra["values"], list(req.options), req.extra["labels"])]
         found = self._locate(game, req)
         if nested or found is None:
             return None
@@ -685,8 +689,13 @@ class EffectAI:
         return 1 if card_worth(card) > average else 0
 
     def _optional(self, game: Game, req: ChoiceRequest, nested: bool) -> list | None:
+        if str(req.key).startswith(ai_wukong.CLONES_KEY):     # Sun Wukong's CLONES: 1 hit point for a Clone, priced in ai_wukong
+            return [ai_wukong.summon_pays(self, game, req)]
         if "washington" in req.extra:        # ESPIONAGE: a ruse token on the attack, or the discard that takes it off (ai_washington)
             return [ai_washington.use_ruse(self, game, req) if req.extra["washington"] == "use" else ai_washington.remove_ruse(self, game, req)]
+        if "damage_buys" in req.extra:      # The Day of Your Doom: 2 damage to Patroclus for the points the new value really adds (ai_achilles)
+            buys = req.extra["damage_buys"]
+            return [ai_achilles.doom_pays(game, game.fighters.get(buys["fighter"]), buys["gain"], game.fighters.get(buys["target"]))]
         if "pact" in req.extra:
             return [self._dark_pact(game, req)]
         if "shield" in req.extra:           # A Magician Never Reveals His Secrets: showing one card costs less than a look at the hand

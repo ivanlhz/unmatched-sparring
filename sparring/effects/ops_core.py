@@ -15,8 +15,9 @@ from typing import Callable
 from . import table
 from .. import enraged, tracks
 from ..i18n import t
+from ..spaces import zone_text
 from .model import EffectError, load_effects
-from .select import (_ref_fighter, _role_fighters, Picked, amount, condition, fighter_candidates, find_card, locate, pick_fighters, player_of,
+from .select import (_ref_fighter, _role_fighters, Picked, amount, combat_value, condition, fighter_candidates, find_card, locate, pick_fighters, player_of,
                      players_of, card_candidates, card_ref, select_cards, space_options)
 
 OPS: dict[str, Callable] = {}
@@ -238,7 +239,7 @@ def _discard(run, game, spec):
                 game.players[player].discard.append(card)
             table.intent(game, op="discard", zone="in_play", player=player, card=card.card_id)
     if "as" in spec:
-        run.bind("cards", spec["as"], [c.card_id for _, _, c in items])
+        run.bind("cards", spec["as"], [c.card_id for _, _, c in items], [p for p, _, _ in items])
 
 
 @op("remove_from_game")
@@ -264,7 +265,7 @@ def _choose(run, game, spec):
         table.note(run, op="choose", amount=int(amount(game, run, sel.get("amount", 1))))
         return
     items = select_cards(game, run, sel, "choose")
-    run.bind("cards", spec["as"], [c.card_id for _, _, c in items])
+    run.bind("cards", spec["as"], [c.card_id for _, _, c in items], [p for p, _, _ in items])
 
 
 @op("choose_effect")
@@ -280,6 +281,8 @@ def _choose_effect(run, game, spec):
         extra = {"tag": spec["tag"]} if "tag" in spec else {}       # what the options are about, for the bot's judgement (Jill's gadgets)
         if "tag" in spec and run.ctx.attacker_fid:
             extra["attacker"] = run.ctx.attacker_fid                 # the fighter that attacked in the combat the choice belongs to (SHOWDOWN moves it)
+        if "tag" in spec and getattr(run, "flow", None) is not None:
+            extra["values"] = [combat_value(game, run, "this"), combat_value(game, run, "opponent_card")]      # the two totals so far (Broken Glass wants them to match)
         k = run.ask(game, "effect", chooser, pool, 1, 1, "choose an effect", labels=labels, **extra)[0]
         picked.append(k)
         if spec.get("distinct"):
@@ -380,6 +383,10 @@ def _note_where(game, run, where: dict) -> dict:
             ref = _ref_fighter(game, run, where[key])
             if ref is not None:
                 out[key] = "hero" if ref is game.hero(run.ctx.owner) else ref.name
+                if key == "zone_of" and ref.alive and ref.pos is not None:
+                    # the zone as it is NOW: a bot effect of the same step may move that fighter before the human puts the piece down
+                    # (Shield Formation, then Posthumous Power moved Yennenga, Ivan 2026-11-21)
+                    out["zone_colors"] = zone_text(game, ref.pos)
     return out
 
 
@@ -446,16 +453,12 @@ def _swap(run, game, spec):
     if a and b and a[0] is not b[0] and a[0].alive and b[0].alive and game.fx.can_move(a[0]) and game.fx.can_move(b[0]):
         first, second = a[0], b[0]
         swapped = [first.fid, second.fid]
-        if table.piece_is_physical(game, chooser, first) and table.piece_is_physical(game, chooser, second):
-            game.placing.update((first.fid, second.fid))
-            table.note(run, op="swap", fid=first.fid, other=second.fid)      # the table player swaps their miniatures by hand
-        else:
-            origins = (first.pos, second.pos)
-            first.pos, second.pos = second.pos, first.pos
-            for f in (first, second):
-                table.intent(game, op="swap", fid=f.fid, owner=f.owner)
-            for f, origin in zip((first, second), origins):
-                game.departed(f, origin, moved=False)
+        origins = (first.pos, second.pos)                # always in the engine, even for the human's two miniatures: the bot swaps them on the table
+        first.pos, second.pos = second.pos, first.pos
+        for f in (first, second):
+            table.intent(game, op="swap", fid=f.fid, owner=f.owner)
+        for f, origin in zip((first, second), origins):
+            game.departed(f, origin, moved=False)
     if "as" in spec:
         run.bind("fighters", spec["as"], swapped)
 
@@ -509,6 +512,14 @@ def _spend_action(run, game, spec):
     (`optional` checks the price first: with fewer left the option does not exist)."""
     for _ in range(int(amount(game, run, spec["amount"]))):
         game.use_action()
+
+
+@op("notice")
+def _notice(run, game, spec):
+    """Says why a branch did nothing (Sly Monkey with no free space): `text` is the i18n key of the reason, which the card's line carries."""
+    notices = run.flags.setdefault("notices", [])
+    if spec["text"] not in notices:
+        notices.append(spec["text"])
 
 
 @op("end_turn")
@@ -565,6 +576,11 @@ def _cost_context(game, run, cost: list[dict], chooser: int) -> dict:
     return ctx
 
 
+def _is_card_attr(a) -> bool:
+    """An Amount that reads an attribute of a card an earlier op bound (`{"attr": "boost", "of": "$memory"}`)."""
+    return isinstance(a, dict) and "attr" in a and isinstance(a.get("of"), str) and a["of"].startswith("$") and "times" not in a
+
+
 def _choice_context(game, run, spec: dict) -> dict:
     """What the two answers mean, for a panel that names them: `discards` (the cards the yes branch discards, when
     that is all it does: Remove A Painful Memory's "discard it") and `else_damage` (a plain damage in the else branch:
@@ -572,7 +588,7 @@ def _choice_context(game, run, spec: dict) -> dict:
     Delivery: how many moments of the rival's card have effects to cancel)."""
     ctx = {}
     ops, other = spec.get("ops") or [], spec.get("else") or []
-    if any(o["op"] == "plugin" and o["id"] in ("houdini:replace_combatant", "luke:replace_combatant", "washington:replace_combatant") for o in ops):      # Smoke And Mirrors: a bot weighs the swap
+    if any(o["op"] == "plugin" and o["id"] in ("houdini:replace_combatant", "luke:replace_combatant", "washington:replace_combatant", "achilles:replace_combatant") for o in ops):      # Smoke And Mirrors: a bot weighs the swap
         ctx["replaces_combatant"] = {"this": run.ctx.this_fid, "role": run.ctx.played_as}
     if len(ops) == 1 and ops[0]["op"] == "return_to_deck" and isinstance(ops[0]["cards"], dict) \
             and ops[0]["cards"]["zone"] == "deck" and ops[0]["cards"].get("pick") == "top":
@@ -601,12 +617,16 @@ def _choice_context(game, run, spec: dict) -> dict:
         buys = _action_buys(game, run, ops)
         if buys is not None:
             ctx["action_buys"] = buys
+    if any(o["op"] == "damage" for o in spec.get("cost") or []):
+        buys = _damage_buys(game, run, spec.get("cost") or [], ops)
+        if buys is not None:
+            ctx["damage_buys"] = buys
     if not spec.get("cost") and ops and all(o["op"] == "draw" and o.get("player") == "owner"
                                             and (isinstance(o.get("amount"), int) or "hand_deficit" in (o.get("amount") or ())) for o in ops):
         ctx["draws"] = sum(amount(game, run, o["amount"]) for o in ops)         # a free draw; `draws_at`: the event of the trigger that offers it
         ctx["draws_at"] = run.ctx.moment
-    if len(other) == 1 and other[0]["op"] == "damage" and isinstance(other[0].get("amount"), int):
-        ctx["else_damage"] = other[0]["amount"]
+    if len(other) == 1 and other[0]["op"] == "damage" and (isinstance(other[0].get("amount"), int) or _is_card_attr(other[0].get("amount"))):
+        ctx["else_damage"] = amount(game, run, other[0]["amount"])          # a fixed number, or the BOOST of the card an earlier op named (Stolen Memories)
         cands, _ = fighter_candidates(game, run, other[0]["target"])
         if len(cands) == 1:
             ctx["else_fighter"] = cands[0].fid       # who takes it: the answer's price in hit points
@@ -625,6 +645,26 @@ def _action_buys(game, run, ops: list[dict]) -> dict | None:
     mine, theirs = (flow.ctx.atk_value, flow.ctx.def_value) if attacking else (flow.ctx.def_value, flow.ctx.atk_value)
     return {"gain": setter["amount"] - (card.value or 0), "mine": mine, "theirs": theirs, "attacking": attacking,
             "target": (flow.tgt if attacking else flow.att).fid}
+
+
+def _damage_buys(game, run, cost: list[dict], ops: list[dict]) -> dict | None:
+    """Hit points of an own fighter paid for a value in the running combat (Achilles' The Day of Your Doom: 2 damage to Patroclus, the printed
+    value becomes 5): the fighter and the damage, the points of blow the new value really adds against the other side's total as things stand
+    (`gain`) and the fighter on the other side (`target`), for a bot to price."""
+    flow = getattr(run, "flow", None)
+    hurt = next((o for o in cost if o["op"] == "damage" and isinstance(o.get("amount"), int)), None)
+    setter = next((o for o in ops if o["op"] == "set_value" and isinstance(o.get("amount"), int)), None)
+    card = None if run.ctx.card_id is None else find_card(game, run.ctx.card_id, run.ctx.owner)
+    if flow is None or flow.ctx is None or hurt is None or setter is None or card is None:
+        return None
+    cands, _ = fighter_candidates(game, run, hurt["target"])
+    if len(cands) != 1 or cands[0].owner != run.ctx.owner:
+        return None
+    attacking = flow.att.owner == run.ctx.owner
+    mine, theirs = (flow.ctx.atk_value, flow.ctx.def_value) if attacking else (flow.ctx.def_value, flow.ctx.atk_value)
+    now, then = mine + setter["amount"] - (card.value or 0), mine
+    gain = max(0, now - theirs) - max(0, then - theirs) if attacking else max(0, theirs - then) - max(0, theirs - now)
+    return {"fighter": cands[0].fid, "damage": hurt["amount"], "gain": gain, "target": (flow.tgt if attacking else flow.att).fid}
 
 
 def _pact_context(game, run, ops: list[dict]) -> dict | None:
@@ -648,7 +688,9 @@ def _cancellable_moments(game, run) -> int:
     from .modifiers import card_effects, is_uncancelable
     cards = card_ref(game, run, "opponent_card")
     fx = card_effects(cards[0]) if cards else None
-    if fx is None or is_uncancelable(cards[0], game, 1 - run.ctx.owner):
+    flow = getattr(run, "flow", None)
+    rival = game.hero(1 - run.ctx.owner) if flow is None else (flow.tgt if run.ctx.played_as == "attack" else flow.att)
+    if fx is None or is_uncancelable(cards[0], game, rival):
         return 0
     return sum(1 for m in ("immediately", "during", "after") if fx.moments.get(m))
 
@@ -663,7 +705,9 @@ def _optional(run, game, spec):
                               **_choice_context(game, run, spec))[0]
     if cost and chooser != run.ctx.owner and chooser == game.bot_player:
         run.flags["bot_priced"] = {"paid": bool(yes), "can_pay": can_pay, "cards": ctx.get("cost_cards", 0),
-                                   "stake": ctx.get("at_stake", 0), "hp": ctx.get("hp")}
+                                   "stake": ctx.get("at_stake", 0), "hp": ctx.get("hp"),
+                                   # Incinerate's price ignores the card's value; Shield Formation's stops its effect (an Archer's return)
+                                   "ignores": any(o.get("op") == "set_value" and o.get("ignore") for o in spec.get("ops") or [])}
     if yes:
         return ([(("cost",), None)] if cost else []) + [(("ops",), None)]
     return [(("else",), None)] if spec.get("else") else []
@@ -714,3 +758,5 @@ from . import plugins_philippa  # noqa: E402,F401  (registers philippa: owlform,
 from . import plugins_john  # noqa: E402,F401  (registers john:summon_track and the test john:paths)
 from . import plugins_washington  # noqa: E402,F401  (registers washington:use_ruse, washington:offer_removal and washington:replace_combatant)
 from . import plugins_raptors  # noqa: E402,F401  (registers blue:ambush)
+from . import plugins_achilles  # noqa: E402,F401  (registers achilles:replace_combatant)
+from . import plugins_mary  # noqa: E402,F401  (registers mary:out_of_the_mirror)

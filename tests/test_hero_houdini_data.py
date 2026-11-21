@@ -103,7 +103,8 @@ def test_the_table_data_is_the_save_and_names_every_piece_once():
     assert len(t.identity) == 1
     mine = set(t.all_guids())
     for slug in OTHERS:
-        assert not mine & set(load_hero_table(slug).all_guids()), slug         # no GUID of the other nine is Houdini's
+        shared = mine & set(load_hero_table(slug).all_guids())
+        assert shared == ({"3ec3d1"} if slug == "yennenga" else set()), slug         # no GUID of the others is Houdini's, but Yennenga's miniature (resolved by name, docs/card-identity.md)
 
 
 def test_houdinis_card_range_belongs_to_nobody_else_and_so_does_his_image():

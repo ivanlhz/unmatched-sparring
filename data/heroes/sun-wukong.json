@@ -1,0 +1,399 @@
+{
+ "_source": {
+  "memory": "unmatched-memory/data/heroes/sun-wukong.json",
+  "overlay": "data/heroes/overlay/sun-wukong.json",
+  "generator": "tools/import_hero.py"
+ },
+ "slug": "sun-wukong",
+ "name": "Sun Wukong",
+ "fid": "wukong",
+ "hp": 17,
+ "move": 2,
+ "attack": "melee",
+ "set": "battle-of-legends-volume-two",
+ "ability": "At the start of your turn, you may take 1 damage to summon a Clone in an empty space adjacent to Sun Wukong.\nDo not start with any Clones on the board.",
+ "sidekicks": [
+  {
+   "name": "Clone",
+   "hp": 1,
+   "move": 2,
+   "attack": "melee",
+   "count": 3,
+   "fid": "clone",
+   "start_on_board": 0,
+   "reserve": 3
+  }
+ ],
+ "forms": null,
+ "counters": {},
+ "triggers": [],
+ "passives": [],
+ "deck": {
+  "card_base": 17600,
+  "sheet": 176,
+  "cards": [
+   {
+    "idx": 0,
+    "title": "Ox Form",
+    "fighter": "any",
+    "type": "attack",
+    "value": 7,
+    "boost": 2,
+    "text": "This card's effects cannot be canceled. DURING COMBAT: If your opponent played a card, they may BOOST it.",
+    "tags": [
+     "form"
+    ]
+   },
+   {
+    "idx": 1,
+    "title": "Ox Form",
+    "fighter": "any",
+    "type": "attack",
+    "value": 7,
+    "boost": 2,
+    "text": "This card's effects cannot be canceled. DURING COMBAT: If your opponent played a card, they may BOOST it.",
+    "tags": [
+     "form"
+    ]
+   },
+   {
+    "idx": 2,
+    "title": "Ruyi Jingo Bang",
+    "fighter": "any",
+    "type": "attack",
+    "value": 0,
+    "boost": 3,
+    "text": "AFTER COMBAT: If your opponent played a defense card, TRICKED YOU. TRICKED YOU: 4 ATK",
+    "tags": []
+   },
+   {
+    "idx": 3,
+    "title": "Ruyi Jingo Bang",
+    "fighter": "any",
+    "type": "attack",
+    "value": 0,
+    "boost": 3,
+    "text": "AFTER COMBAT: If your opponent played a defense card, TRICKED YOU. TRICKED YOU: 4 ATK",
+    "tags": []
+   },
+   {
+    "idx": 4,
+    "title": "Ruyi Jingo Bang",
+    "fighter": "any",
+    "type": "attack",
+    "value": 0,
+    "boost": 3,
+    "text": "AFTER COMBAT: If your opponent played a defense card, TRICKED YOU. TRICKED YOU: 4 ATK",
+    "tags": []
+   },
+   {
+    "idx": 5,
+    "title": "Taunting Laughter",
+    "fighter": "any",
+    "type": "attack",
+    "value": 3,
+    "boost": 2,
+    "text": "IMMEDIATELY: Your opponent may discard 1 card from their hand. If they don't, ignore their card's value.",
+    "tags": []
+   },
+   {
+    "idx": 6,
+    "title": "Taunting Laughter",
+    "fighter": "any",
+    "type": "attack",
+    "value": 3,
+    "boost": 2,
+    "text": "IMMEDIATELY: Your opponent may discard 1 card from their hand. If they don't, ignore their card's value.",
+    "tags": []
+   },
+   {
+    "idx": 7,
+    "title": "Taunting Laughter",
+    "fighter": "any",
+    "type": "attack",
+    "value": 3,
+    "boost": 2,
+    "text": "IMMEDIATELY: Your opponent may discard 1 card from their hand. If they don't, ignore their card's value.",
+    "tags": []
+   },
+   {
+    "idx": 8,
+    "title": "Infinite Strikes",
+    "fighter": "any",
+    "type": "attack",
+    "value": 2,
+    "boost": 2,
+    "text": "DURING COMBAT: For each other friendly fighter adjacent to the opposing fighter, increase the value of this card by +1. AFTER COMBAT: Gain 1 action.",
+    "tags": []
+   },
+   {
+    "idx": 9,
+    "title": "Infinite Strikes",
+    "fighter": "any",
+    "type": "attack",
+    "value": 2,
+    "boost": 2,
+    "text": "DURING COMBAT: For each other friendly fighter adjacent to the opposing fighter, increase the value of this card by +1. AFTER COMBAT: Gain 1 action.",
+    "tags": []
+   },
+   {
+    "idx": 10,
+    "title": "Infinite Strikes",
+    "fighter": "any",
+    "type": "attack",
+    "value": 2,
+    "boost": 2,
+    "text": "DURING COMBAT: For each other friendly fighter adjacent to the opposing fighter, increase the value of this card by +1. AFTER COMBAT: Gain 1 action.",
+    "tags": []
+   },
+   {
+    "idx": 11,
+    "title": "Sly Monkey",
+    "fighter": "any",
+    "type": "versatile",
+    "value": 2,
+    "boost": 3,
+    "text": "AFTER COMBAT: If Sun Wukong played this card, summon a Clone in Sun Wukong's space, then place Sun Wukong in a space in his zone.",
+    "tags": []
+   },
+   {
+    "idx": 12,
+    "title": "Sly Monkey",
+    "fighter": "any",
+    "type": "versatile",
+    "value": 2,
+    "boost": 3,
+    "text": "AFTER COMBAT: If Sun Wukong played this card, summon a Clone in Sun Wukong's space, then place Sun Wukong in a space in his zone.",
+    "tags": []
+   },
+   {
+    "idx": 13,
+    "title": "Sly Monkey",
+    "fighter": "any",
+    "type": "versatile",
+    "value": 2,
+    "boost": 3,
+    "text": "AFTER COMBAT: If Sun Wukong played this card, summon a Clone in Sun Wukong's space, then place Sun Wukong in a space in his zone.",
+    "tags": []
+   },
+   {
+    "idx": 14,
+    "title": "Sly Monkey",
+    "fighter": "any",
+    "type": "versatile",
+    "value": 2,
+    "boost": 3,
+    "text": "AFTER COMBAT: If Sun Wukong played this card, summon a Clone in Sun Wukong's space, then place Sun Wukong in a space in his zone.",
+    "tags": []
+   },
+   {
+    "idx": 15,
+    "title": "72 Transformations",
+    "fighter": "any",
+    "type": "versatile",
+    "value": 2,
+    "boost": 2,
+    "text": "AFTER COMBAT: Take an OX FORM, TORTOISE FORM, or PHOENIX FORM from your discard pile and return it to your hand.",
+    "tags": []
+   },
+   {
+    "idx": 16,
+    "title": "72 Transformations",
+    "fighter": "any",
+    "type": "versatile",
+    "value": 2,
+    "boost": 2,
+    "text": "AFTER COMBAT: Take an OX FORM, TORTOISE FORM, or PHOENIX FORM from your discard pile and return it to your hand.",
+    "tags": []
+   },
+   {
+    "idx": 17,
+    "title": "72 Transformations",
+    "fighter": "any",
+    "type": "versatile",
+    "value": 2,
+    "boost": 2,
+    "text": "AFTER COMBAT: Take an OX FORM, TORTOISE FORM, or PHOENIX FORM from your discard pile and return it to your hand.",
+    "tags": []
+   },
+   {
+    "idx": 18,
+    "title": "Wily Fighting",
+    "fighter": "any",
+    "type": "versatile",
+    "value": 3,
+    "boost": 1,
+    "text": "AFTER COMBAT: Deal 1 damage to each opposing fighter adjacent to your fighter.",
+    "tags": []
+   },
+   {
+    "idx": 19,
+    "title": "Wily Fighting",
+    "fighter": "any",
+    "type": "versatile",
+    "value": 3,
+    "boost": 1,
+    "text": "AFTER COMBAT: Deal 1 damage to each opposing fighter adjacent to your fighter.",
+    "tags": []
+   },
+   {
+    "idx": 20,
+    "title": "Wily Fighting",
+    "fighter": "any",
+    "type": "versatile",
+    "value": 3,
+    "boost": 1,
+    "text": "AFTER COMBAT: Deal 1 damage to each opposing fighter adjacent to your fighter.",
+    "tags": []
+   },
+   {
+    "idx": 21,
+    "title": "Bewilderment",
+    "fighter": "any",
+    "type": "defense",
+    "value": 0,
+    "boost": 2,
+    "text": "DURING COMBAT: Prevent all combat damage. AFTER COMBAT: You may place your fighter in any space.",
+    "tags": []
+   },
+   {
+    "idx": 22,
+    "title": "Bewilderment",
+    "fighter": "any",
+    "type": "defense",
+    "value": 0,
+    "boost": 2,
+    "text": "DURING COMBAT: Prevent all combat damage. AFTER COMBAT: You may place your fighter in any space.",
+    "tags": []
+   },
+   {
+    "idx": 23,
+    "title": "Tortoise Form",
+    "fighter": "any",
+    "type": "defense",
+    "value": 5,
+    "boost": 2,
+    "text": "DURING COMBAT: Your opponent may BOOST their attack.",
+    "tags": [
+     "form"
+    ]
+   },
+   {
+    "idx": 24,
+    "title": "Tortoise Form",
+    "fighter": "any",
+    "type": "defense",
+    "value": 5,
+    "boost": 2,
+    "text": "DURING COMBAT: Your opponent may BOOST their attack.",
+    "tags": [
+     "form"
+    ]
+   },
+   {
+    "idx": 25,
+    "title": "Golden Chain Mail",
+    "fighter": "any",
+    "type": "defense",
+    "value": 4,
+    "boost": 2,
+    "text": "DURING COMBAT: Any combat damage you would take is dealt to the opposing fighter instead.",
+    "tags": []
+   },
+   {
+    "idx": 26,
+    "title": "Golden Chain Mail",
+    "fighter": "any",
+    "type": "defense",
+    "value": 4,
+    "boost": 2,
+    "text": "DURING COMBAT: Any combat damage you would take is dealt to the opposing fighter instead.",
+    "tags": []
+   },
+   {
+    "idx": 27,
+    "title": "Fiery Eyes That See",
+    "fighter": "any",
+    "type": "scheme",
+    "value": null,
+    "boost": 1,
+    "text": "Look at an opponent's hand and choose a card. Put that card on the bottom of their deck. You each draw 1 card.",
+    "tags": []
+   },
+   {
+    "idx": 28,
+    "title": "Fiery Eyes That See",
+    "fighter": "any",
+    "type": "scheme",
+    "value": null,
+    "boost": 1,
+    "text": "Look at an opponent's hand and choose a card. Put that card on the bottom of their deck. You each draw 1 card.",
+    "tags": []
+   },
+   {
+    "idx": 29,
+    "title": "Phoenix Form",
+    "fighter": "any",
+    "type": "scheme",
+    "value": null,
+    "boost": 1,
+    "text": "Sun Wukong recovers 1 health for each Clone on the board.",
+    "tags": [
+     "form"
+    ]
+   }
+  ]
+ },
+ "ai_profile": {
+  "wukong": {
+   "name": "Sun Wukong",
+   "hero": true,
+   "count": 1,
+   "max_hp": 17,
+   "move": 2,
+   "ranged": false,
+   "role": "hero",
+   "attack": {
+    "cards": 21,
+    "mean": 2.48,
+    "max": 7
+   },
+   "exclusive": []
+  },
+  "clone": {
+   "name": "Clone",
+   "hero": false,
+   "count": 3,
+   "max_hp": 1,
+   "move": 2,
+   "ranged": false,
+   "role": "keep_away",
+   "attack": {
+    "cards": 21,
+    "mean": 2.48,
+    "max": 7
+   },
+   "exclusive": [],
+   "requires_alive": [
+    {
+     "source": "ability:clone_summon",
+     "kind": "ability",
+     "copies": 1,
+     "impact": 0.12
+    },
+    {
+     "source": "Sly Monkey",
+     "kind": "card",
+     "copies": 4,
+     "impact": 0.44
+    }
+   ]
+  }
+ },
+ "_notes": [
+  "Sheet 176 of the tournament savegame (8x4), read card by card from the image on 2026-11-20. CardID = 17600 + idx; 320 = character card (sheet 3, 10x7, index 20). Sun Wukong's deck is sheet 176 like Medusa's, the turtles', Eredin's and the rest: only deck.identity (data/tts/sun-wukong.json) tells the decks apart (docs/card-identity.md).",
+  "Hero card (read from the image): SUN WUKONG, MELEE, START HEALTH 17, MOVE 2; special ability 'At the start of your turn, you may take 1 damage to summon a Clone in an empty space adjacent to Sun Wukong. Do not start with any Clones on the board.' Sidekick CLONES, MELEE, START HEALTH 1 x3, move 2 (the save has three Custom_Token objects nicknamed Clone, no life dial).",
+  "Every card of the deck is band ANY (read from the images). Order on the sheet: Ox Form 0-1, Ruyi Jingo Bang 2-4, Taunting Laughter 5-7, Infinite Strikes 8-10, Sly Monkey 11-14, 72 Transformations 15-17, Wily Fighting 18-20, Bewilderment 21-22, Tortoise Form 23-24, Golden Chain Mail 25-26, Fiery Eyes That See 27-28, Phoenix Form 29.",
+  "Text differs from unmatched-memory on Bewilderment: the card says 'Prevent all combat damage' (unmatched-memory: 'Prevent all damage'); the card wins."
+ ]
+}

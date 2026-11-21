@@ -306,6 +306,8 @@ def _human_cards(session, before: dict, played: frozenset, looked: bool, ctx: Ct
     # beyond what the discards and the played cards explain (a look re-identifies the hand, which moves
     # placeholders around without moving anything on the table)
     knew = set(before["seen"]) | set(known.top_of_deck)
+    if looked:       # the bot looked at the hand in this step and chose a card (Fiery Eyes That See puts it at the bottom): it knew that card, so it can name it
+        knew |= {c for it in intents if (it["op"], it.get("player"), it.get("zone")) == ("return_to_deck", human, "hand") for c in it["cards"]}
     blind = {i for it in intents if it["op"] in ("deck_order", "reveal_top") and it.get("player") == human
              for i in (it["seen"] if it["op"] == "deck_order" else it["cards"])}   # read in the deck (reordered blind or revealed): never from the hand
     blind |= {it["card"] for it in intents if it["op"] == "stack_top" and it.get("player") == human}   # the bot moved it from the pile

@@ -10,7 +10,7 @@ card moment, so a pause inside an effect survives `CombatFlow.to_dict`."""
 from __future__ import annotations
 
 from ..i18n import t
-from . import modifiers, narrate, table
+from . import modifiers, narrate, plugins_yennenga, table
 from .choose import ControllerChooser, TableChooser
 from .model import EffectError, load_effects
 from .ops_core import OPS, op, plugin, plugin_condition
@@ -60,7 +60,7 @@ def _cancel_effects(run, game, spec):
     if side is None:
         side = _named_side(run, spec["card"])
     card = None if side is None else (flow.atk_card if side == "atk" else flow.def_card)
-    if side is None or (card is not None and modifiers.is_uncancelable(card, game, flow.att.owner if side == "atk" else flow.tgt.owner)):
+    if side is None or (card is not None and modifiers.is_uncancelable(card, game, flow.att if side == "atk" else flow.tgt)):
         return
     moments = spec.get("moments")
     if spec.get("if_won"):                      # "if you win this combat": the result is not known yet, the flow decides it with the damage
@@ -88,7 +88,7 @@ def settle_win_cancels(flow) -> None:
         card = flow.atk_card if victim == "atk" else flow.def_card
         if not flow.won_by(winner) or card is None:
             continue
-        if modifiers.is_uncancelable(card, game, flow.att.owner if victim == "atk" else flow.tgt.owner):
+        if modifiers.is_uncancelable(card, game, flow.att if victim == "atk" else flow.tgt):
             continue
         flow.ctx.cancelled_after.add(victim)
         if modifiers.has_effects(game, flow, victim, ["after"]):
@@ -149,6 +149,16 @@ def _boost(run, game, spec):
         game.fx.deck_discarded.add(top.card_id)
     game.fx.emit("card_discarded", owner, top)
     modifiers.add_value(flow, side, top.boost, t("cf.boost_impulse", title=top.title))
+
+
+@op("second_attack")
+def _second_attack(run, game, spec):
+    """DOUBLE ATTACK (docs/effects-dsl.md section 45): the card's second part, an AFTER effect. It only records the value (computed now,
+    so a printed value read from the rival's card is the one of this combat); the flow plays the second attack once the AFTER effects of
+    both sides are done. A card played as a defense has no second attack."""
+    if run.ctx.played_as != "attack":
+        return
+    _flow(run, "second_attack").second_attack = {"value": max(0, int(amount(game, run, spec["amount"]))), "card": run.ctx.card_id}
 
 
 @op("consider_won")
@@ -247,6 +257,21 @@ def _acting(game, owner: int):
     return previous
 
 
+def _note_prevented(run, game, victims, n) -> None:
+    """The fighters whose effect damage an immunity stops, with the card that gave it: the narration says the card was applied
+    and that nothing came of it (`run.flags["prevented"]`: [fid, source title], JSON-safe for a run saved at a question)."""
+    for f in victims:
+        if n <= 0 or not f.alive:
+            continue
+        st = game.fx.effect_immunity(f)
+        if st is None:
+            continue
+        card = find_card(game, st["card_id"], st["owner"]) if st.get("card_id") is not None else None
+        entry = [f.fid, card.title if card else st.get("label") or ""]
+        if entry not in run.flags.setdefault("prevented", []):
+            run.flags["prevented"].append(entry)
+
+
 @op("damage")
 def _damage(run, game, spec):
     n = amount(game, run, spec["amount"])
@@ -255,7 +280,23 @@ def _damage(run, game, spec):
     victims = [_damage_victim(run, game, f, n) for f in targets] if n > 0 else []
     previous = _acting(game, run.ctx.owner)
     try:
-        hit = [f.fid for f in victims if game.damage(f, n, "effect") > 0]
+        # Yennenga: her owner splits the blow, once the modifiers have made it what she would take, among her Archers; what this same op
+        # does to an Archer itself is reserved, so no share lands on a fighter the op has already killed
+        reserved: dict[str, float] = {}
+        _note_prevented(run, game, victims, n)
+        for f in victims:
+            if not plugins_yennenga.assigns_damage(game, f):
+                reserved[f.fid] = reserved.get(f.fid, 0) + game.fx.adjust_damage(f, n, "effect")
+        blows = []                                       # (fighter hit, damage, the victim it was meant for, adjusted already)
+        for f in victims:
+            if plugins_yennenga.assigns_damage(game, f):
+                blows += [(g, k, f, True) for g, k in plugins_yennenga.effect_shares(run, game, f, game.fx.adjust_damage(f, n, "effect"), reserved)]
+            else:
+                blows.append((f, n, f, False))
+        hit = []
+        for f, k, meant, adjusted in blows:
+            if game.damage(f, k, "effect", adjusted=adjusted) > 0 and meant.fid not in hit:
+                hit.append(meant.fid)
     finally:
         game.fx.acting = previous
     if "as" in spec:
@@ -353,6 +394,27 @@ def run_moment(flow, side, moment: str):
         if not ops:
             return None
         flow.runs[key] = _start(flow, side, ops, moment, side.card.card_id)
+    return _continue(flow, flow.runs[key])
+
+
+def hero_after(flow, name: str):
+    """The hero's own AFTER COMBAT ability on a side that has no card effects to run: the defender who played no card (`cardless`: Achilles'
+    draw when he defends and wins, Ivan 2026-11-20) or the attacker of a second attack, whose card's effects were its first part's
+    (`second_attack`: winning the second combat draws too, Ivan 2026-11-20). Only the ability entries that carry that flag run, so
+    every other hero's AFTER ability (Jill Trent's tonic, Wyatt's showdown) reads these combats as before. Returns the Await of a
+    paused effect, else None; `flow.runs` keeps the run so a rerun after a pause never starts it again."""
+    from types import SimpleNamespace
+    key = f"after:{name}"
+    if key not in flow.runs:
+        fighter, rival = (flow.tgt, flow.att) if name == "def" else (flow.att, flow.tgt)
+        if not flow.game.fx.interprets(fighter.owner):
+            return None
+        flag = "cardless" if name == "def" else "second_attack"
+        entries = tuple(e for e in load_effects(flow.game.players[fighter.owner].hero.slug).ability_after if e.get(flag))
+        ops = during_with_ability(entries, []) if entries else []
+        if not ops:
+            return None
+        flow.runs[key] = _start(flow, SimpleNamespace(name=name, fighter=fighter, card=None, rival=rival), ops, "after", None)
     return _continue(flow, flow.runs[key])
 
 

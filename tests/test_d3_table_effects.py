@@ -54,6 +54,8 @@ class FxTable(Table):
         self.intuition_turns: list[tuple[bool, int]] = []
         self.token_moves: list[tuple[str, tuple[float, float, float], tuple[float, float, float]]] = []   # (GUID, position, rotation) of each move_token
         self.missing_tokens: set[str] = set()               # GUIDs of tokens the player took off the table
+        self.archer_rot: dict[str, float] = {}              # Z rotation of each Archer token (Yennenga: 0 shows 2 health, 180 shows 1); absent = 0
+        self.archer_writes: list[tuple[str, float]] = []    # (GUID, rotation) the bot turned a token to
 
     def snapshot_state(self):
         snap = super().snapshot_state()
@@ -94,6 +96,24 @@ class FxTable(Table):
         vec = [tuple(float(v) for v in m) for m in re.findall(r"Vector\(([-\d.]+), ([-\d.]+), ([-\d.]+)\)", s)]
         self.token_moves.append((guid, vec[0], vec[1]))
         return {"found": True, "moved": True}
+
+    def do_archer_faces(self, s):
+        sets = {g: float(z) for g, z in re.findall(r'\["(\w+)"\] = (-?[\d.]+)', s.split("local reads")[0])}
+        reads = re.findall(r'"(\w+)"', s.split("local reads = ")[1].split(chr(10))[0])
+        out = {"set": {}, "read": {}}
+        for g, want in sets.items():
+            if g in self.missing_pieces:
+                out["set"][g] = {"found": False}
+                continue
+            now = self.archer_rot.get(g, 0.0)
+            gap = abs((now - want) % 360)
+            flipped = 1 <= gap <= 359
+            if flipped:
+                self.archer_rot[g] = want % 360
+                self.archer_writes.append((g, want % 360))
+            out["set"][g] = {"found": True, "flipped": flipped}
+        out["read"] = {g: self.archer_rot.get(g, 0.0) for g in reads if g not in self.missing_pieces}
+        return out
 
     def do_flip_token(self, s):
         self.flipped.append(re.search(r'getObjectFromGUID\("(\w+)"\)', s).group(1))
@@ -178,12 +198,13 @@ class FxTable(Table):
         pile, deck = ((self.human_discard, self.human_deck) if human else (self.bot_discard, self.bot_deck))
         if not self._has_deck(s, deck):
             return {"added": 0, "deck": False, "moved": []}
-        on_spot = {r["id"] for r in self.face_down}          # the human's card at the combat spot (Relentless): GUID h<id>
+        on_spot = {r["id"] for r in self.face_down + self.face_up}   # the human's card at the combat spot (Relentless), face down or turned up: GUID h<id>
         added = [(k, int(g)) for k, g in wanted if int(g) not in self.stuck_in_pile
                  and (int(g) in pile or (k == "h" and int(g) in on_spot and human) or (k == "g" and not human and int(g) in self.bot_play))]
         for k, i in added:
             if k == "h":
                 self.face_down = [r for r in self.face_down if r["id"] != i]
+                self.face_up = [r for r in self.face_up if r["id"] != i]
             elif i in self.bot_play:
                 self.bot_play.remove(i)
             else:
@@ -236,7 +257,7 @@ def build(tmp_path, bot, human, hand, table_cls=FxTable, **over):
         game.fighters[fid].pos = spaces[20 + i]
     for i, fid in enumerate(human_fids[1:]):
         game.fighters[fid].pos = spaces[-1 - i]
-    table.positions = {cfg.nicknames[f]: g.pos for f, g in game.fighters.items()}
+    table.positions = {cfg.nicknames[f]: g.pos for f, g in game.fighters.items() if g.pos is not None}      # a Clone in the reserve is in the bag: not on the table
     for fid, g in scfg.dials.items():
         table.dials[g] = {"found": True, "name": g, "value": game.fighters[fid].hp, "max": game.fighters[fid].hp}
         session.dials_written[g] = game.fighters[fid].hp

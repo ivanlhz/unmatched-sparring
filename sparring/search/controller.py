@@ -16,13 +16,14 @@ import random
 import time
 from dataclasses import replace
 
-from .. import decision_log, enraged, tracks
+from .. import ai_double, decision_log, enraged, tracks
 from ..ai_medusa import GAZE, Act, MedusaAI, scheme_fighter
 from ..cards import Card
 from ..combat import is_medusa_card
 from ..controller import Controller
 from ..state import Fighter, Game
 from .adapter import EngineState, EvalWeights, hero_weights, Knowledge, by_title, plan_frenzy, sidekick_plan
+from .defense import settle
 from .plans import compare_plans
 from .ismcts import ISMCTS, SearchConfig, SearchReport
 
@@ -112,7 +113,8 @@ class IsmctsMedusa(Controller):
             act = self.heuristic.plan(game)
             decision_log.emit(self, game, "plan", lambda: {**self.heuristic.plan_journal(act), "fallback": True, "error": repr(exc)})
             return act
-        decision_log.emit(self, game, "plan", lambda: self._search_journal(decision_log.describe_act(act), before))
+        decision_log.emit(self, game, "plan", lambda: self._search_journal(
+            {**decision_log.describe_act(act), **ai_double.journal_note(game, self.me, act)}, before))
         return act
 
     def _search_journal(self, chosen, before: SearchReport | None) -> dict:
@@ -159,6 +161,14 @@ class IsmctsMedusa(Controller):
         report.elapsed = time.perf_counter() - started
         return self.to_act(game, line)
 
+    def choose_second_defense(self, game: Game, attacker: Fighter, target: Fighter, value: int, card: Card) -> Card | None:
+        """DOUBLE ATTACK: the second part's value is public, so there is nothing to sample: the heuristic's own choice against that exact
+        value (the search would only re-play the first part). The journal says so."""
+        chosen = self.heuristic.second_defense_choice(game, attacker, target, value, card)
+        decision_log.emit(self, game, "defense", lambda: {**self.heuristic.defense_journal(attacker, target, card, chosen, second=value),
+                                                          "via": "heuristic (exact second-attack value)"})
+        return chosen
+
     def choose_defense(self, game: Game, attacker: Fighter, target: Fighter, attack_card: Card | None = None) -> Card | None:
         before = self.last_report
         try:
@@ -171,13 +181,15 @@ class IsmctsMedusa(Controller):
             decision_log.emit(self, game, "defense", lambda: {**self.heuristic.defense_journal(attacker, target, attack_card, card),
                                                               "fallback": True, "error": repr(exc)})
             return card
-        decision_log.emit(self, game, "defense", lambda: self._defense_search_journal(attacker, target, attack_card, card, before))
+        decision_log.emit(self, game, "defense", lambda: self._defense_search_journal(game, attacker, target, attack_card, card, before))
         return card
 
-    def _defense_search_journal(self, attacker: Fighter, target: Fighter, attack_card: Card | None, card: Card | None,
+    def _defense_search_journal(self, game: Game, attacker: Fighter, target: Fighter, attack_card: Card | None, card: Card | None,
                                 before: SearchReport | None) -> dict:
         chosen = {"card": None if card is None else card.title, "attacker": attacker.fid, "target": target.fid,
-                  "attack_known": None if attack_card is None else attack_card.title}
+                  "attack_known": None if attack_card is None else attack_card.title,
+                  **({"double_attack_cards_possible": titles} if (titles := ai_double.possible_double_titles(game, attacker.owner)) else {}),
+                  **({"combat_ledger": self.last_report.ledger} if self.last_report is not before and self.last_report.ledger else {})}
         return self._search_journal(chosen, before)
 
     def _choose_defense(self, game: Game, attacker: Fighter, target: Fighter, attack_card: Card | None) -> Card | None:
@@ -187,6 +199,7 @@ class IsmctsMedusa(Controller):
         if root.pending is None:              # the attack known (face up) and no defense card: the root resolved it
             return None
         move = self._decide(root)[0]
+        move = settle(root, self.last_report, move, self.config.seed)
         return by_title(game.players[self.me].hand, move[1]) if move[1] is not None else None
 
     def to_act(self, game: Game, chosen: list) -> Act:

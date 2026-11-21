@@ -33,6 +33,8 @@ class FighterTable:
     dial: str | None               # life dial (None: 1 HP piece)
     dial_max: int | None
     nickname: str | None           # own name of the token (Abe's agents); otherwise the HeroDef's
+    no_dial: bool = False          # more than 1 HP and the save gives the piece no dial (Yennenga's Archers): its life is told by the face of the piece
+    faces: dict | None = None      # life -> Z rotation of the piece that shows it ({"2": 0, "1": 180}: the Archer token is flipped as it is hurt; verify live)
 
 
 @dataclass(frozen=True)
@@ -93,7 +95,9 @@ def parse_hero_table(raw: dict, hero: HeroDef, where: str = "tts") -> HeroTable:
         deck = raw["deck"]
         ids = deck["card_ids"]
         fighters = {fid: FighterTable(fid, _guid_list(v["piece"], f"{where}: {fid}"), v.get("dial"),
-                                      None if v.get("dial") is None else int(v["dial_max"]), v.get("nickname"))
+                                      None if v.get("dial") is None else int(v["dial_max"]), v.get("nickname"),
+                                      bool(v.get("no_dial", False)),
+                                      None if v.get("faces") is None else {str(k): float(r) for k, r in v["faces"].items()})
                     for fid, v in raw["fighters"].items()}
         table = HeroTable(raw["slug"], raw["bag"]["guid"], raw["bag"]["inner"], deck["guid"], (int(ids[0]), int(ids[1])),
                           int(deck["character_card_id"]),
@@ -120,7 +124,7 @@ def _validate(t: HeroTable, hero: HeroDef, where: str) -> None:
     for fid, f in t.fighters.items():
         if f.dial and f.dial_max != specs[fid].hp:
             raise HeroTableError(f"{where}: {fid}: the dial goes up to {f.dial_max} and the HeroDef says {specs[fid].hp} HP")
-        if f.dial is None and specs[fid].hp > 1:
+        if f.dial is None and specs[fid].hp > 1 and not f.no_dial:
             raise HeroTableError(f"{where}: {fid}: has {specs[fid].hp} HP and there is no dial")
     if hero.card_base is not None and t.card_ids != (hero.card_base, hero.card_base + hero.deck_size - 1):
         raise HeroTableError(f"{where}: CardID range {t.card_ids} differs from the HeroDef's sheet")

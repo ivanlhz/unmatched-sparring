@@ -339,6 +339,8 @@ def close_row(session, value: list, ok: bool) -> None:
         dest, spot = "discard", session._discard_slot([c.card_id for c in st.discard].index(card.card_id))
     elif card is not None and st.deck[:1] == [card]:
         dest = "deck"
+    elif card is not None and st.deck[-1:] == [card]:
+        dest = "bottom"                           # the effect already sent it under the deck (Fiery Eyes That See)
     # a card the table could not take out of the hand (a partial row) is picked by its button and still sits in
     # the bot's hand: the row returns what it holds and the discard reaches the pile through the reconciliation
     in_row = card is not None and card.card_id in look["ids"]
@@ -349,7 +351,8 @@ def close_row(session, value: list, ok: bool) -> None:
     op = session._w(lua.resolve_hand_row(look["guids"], cfg.bot_seat, identity=session._identity(),
                                          id_range=cfg.bot_card_ids, discard=guid, spot=spot,
                                          rot_y=cfg.bot_discard_rot_y,
-                                         deck_guid=cfg.bot_deck_guid if guid and dest == "deck" else None,
+                                         deck_guid=cfg.bot_deck_guid if guid and dest in ("deck", "bottom") else None,
+                                         deck_bottom=dest == "bottom" and guid is not None,
                                          deck_spot=session._deck_kw()["spot"], deck_zone=cfg.bot_deck_zone,
                                          deck_radius=cfg.deck_radius), DOMAIN)
     if guid and dest == "discard":
@@ -362,6 +365,8 @@ def close_row(session, value: list, ok: bool) -> None:
                     ChatKind.SCHEME)
     elif dest == "deck":
         session.say(t("hidden.close.deck_row" if in_row else "hidden.close.deck_hand", card=card.title), ChatKind.SCHEME)
+    elif dest == "bottom":
+        session.say(t("hidden.close.bottom_row" if in_row else "hidden.close.bottom_hand", card=card.title), ChatKind.SCHEME)
     elif card is not None and look.get("purpose") == "discard" and bounces_back(g, session.bot, card):
         session.say(t("hidden.close.wildfire_kept", card=card.title), ChatKind.SCHEME)
     elif card is not None and (hits := _hits_taken(g, session.bot, look)):

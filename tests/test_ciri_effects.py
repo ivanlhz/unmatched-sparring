@@ -324,13 +324,53 @@ def test_uncontainable_power_at_source_seven_protects_her_cards_from_cancelling(
     assert ("atk" in flow.result.cancelled) is canceled
 
 
-def test_uncontainable_power_covers_ihuarraquaxs_cards_too(bprd):
+@pytest.mark.parametrize("title", ["Bane of the Aen Elle", "Searching strike"])
+def test_uncontainable_power_does_not_cover_ihuarraquaxs_attacks(bprd, title):
+    """Iván, 2026-11-19: only the cards Ciri herself plays are protected; her sidekick's can be canceled even at SOURCE 7."""
     g = mk(bprd, "liz-sherman")
     i, liz = pair(g, "ihuarraquax", "liz")
-    set_source(g, 7)
-    flow = g.begin_attack(i, liz, give(g, 0, "Bane of the Aen Elle"), give(g, 1, "Feint"))
+    set_source(g, 7, played=title)
+    flow = g.begin_attack(i, liz, give(g, 0, title), give(g, 1, "Feint"))
     flow.run()
-    assert "atk" not in flow.result.cancelled
+    assert "atk" in flow.result.cancelled
+
+
+def test_cirs_own_cards_are_uncancelable_at_source_seven_the_sidekicks_and_the_rivals_are_not(bprd):
+    from sparring.effects.modifiers import is_uncancelable
+    g = mk(bprd, "liz-sherman")
+    set_source(g, 7)
+    parry = give(g, 0, "Parry")
+    assert is_uncancelable(parry, g, g.fighters["ciri"])
+    assert not is_uncancelable(parry, g, g.fighters["ihuarraquax"])
+    assert not is_uncancelable(parry, g, g.fighters["liz"])
+    assert not is_uncancelable(parry, g, None)
+    set_source(g, 6)
+    assert not is_uncancelable(parry, g, g.fighters["ciri"])
+
+
+@pytest.mark.parametrize("defender,canceled", [("ciri", False), ("ihuarraquax", True)])
+def test_a_rival_spellbreaker_cancels_the_defense_of_ihuarraquax_but_not_the_one_of_ciri_at_source_seven(bprd, defender, canceled):
+    """Iván, 2026-11-19: UNCONTAINABLE POWER protects the cards Ciri plays, defense included, not the sidekick's. The rival's attack
+    is Philippa's Spellbreaker, which cancels the defense card (not a Parry: the defender resolves first and a Parry would cancel the Spellbreaker before it acts)."""
+    g = mk(bprd, "philippa", turn=1)
+    d, phil = pair(g, defender, "philippa")
+    g.actions_left = 2
+    set_source(g, 7)
+    flow = g.begin_attack(phil, d, give(g, 1, "Spellbreaker"), give(g, 0, "Zireael" if defender == "ciri" else "Searching strike"))
+    flow.run()
+    assert ("def" in flow.result.cancelled) is canceled
+
+
+@pytest.mark.parametrize("source,value,canceled", [(6, 2, True), (7, 7, False)])
+def test_the_lion_cub_she_plays_does_not_count_for_her_own_source_so_feint_cancels_at_six(bprd, source, value, canceled):
+    """Iván, 2026-11-19: the card Ciri plays is not in her pile while it resolves: Source 6 + the Lion cub is still 6."""
+    g = mk(bprd, "liz-sherman")
+    c, liz = pair(g, "ciri", "liz")
+    set_source(g, source, played="Lion cub of Cintra")
+    flow = g.begin_attack(c, liz, give(g, 0, "Lion cub of Cintra"), give(g, 1, "Feint"))
+    flow.run()
+    assert ("atk" in flow.result.cancelled) is canceled
+    assert flow.result.atk_value == value
 
 
 def test_uncontainable_power_does_not_protect_the_rivals_cards_from_parry(bprd):
@@ -551,3 +591,18 @@ def test_every_card_has_its_printed_numbers_and_an_entry_in_the_effects(bprd):
         assert len(cards) == copies and (cards[0].type, cards[0].value, cards[0].boost) == (kind, value, boost), title
         assert fx.card(title) is not None
     assert sum(c for *_, c in REAL.values()) == 30
+
+
+def test_the_ai_knows_only_cirs_own_cards_survive_a_cancel_at_source_seven(bprd):
+    """`uncancelable_harm` is what a cancel-effects defense leaves standing: Ciri's Pushed to the brink at Source 7, never the same
+    harm of a card her sidekick plays (Iván, 2026-11-19)."""
+    from sparring.ai_medusa import attack_harm, uncancelable_harm
+    g = mk(bprd, "liz-sherman")
+    set_source(g, 7)
+    pushed, bane = give(g, 0, "Pushed to the brink"), give(g, 0, "Bane of the Aen Elle")
+    assert any(attack_harm(pushed)) and any(attack_harm(bane))
+    assert uncancelable_harm(g, pushed, g.fighters["ciri"]) == attack_harm(pushed)
+    assert uncancelable_harm(g, pushed, g.fighters["ihuarraquax"]) == (0.0, 0.0, 0.0)
+    assert uncancelable_harm(g, bane, g.fighters["ihuarraquax"]) == (0.0, 0.0, 0.0)
+    set_source(g, 6)
+    assert uncancelable_harm(g, pushed, g.fighters["ciri"]) == (0.0, 0.0, 0.0)

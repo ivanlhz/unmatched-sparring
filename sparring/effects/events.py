@@ -13,6 +13,7 @@ from functools import lru_cache
 
 from . import inventions, narrate, table
 from .choose import ControllerChooser
+from ..i18n import t
 from .model import EffectError, load_effects, walk_ops
 from .ongoing import leave_play, spec_of
 from .run import Ctx, EffectRun
@@ -322,7 +323,9 @@ def run_boost(game, player: int, card, choosers=None):
 
 def _say(game, run: EffectRun, before: dict) -> None:
     card_id = run.ctx.card_id
-    line = narrate.describe(game, before, run, title=None if card_id is not None else run.label.replace("_", " ").upper())
+    title = None if card_id is not None else (t(f"trigger.title.{run.label}") if t(f"trigger.title.{run.label}") != f"trigger.title.{run.label}"
+                                               else run.label.replace("_", " ").upper())      # an ability the card does not name: said plainly if the strings have its title
+    line = narrate.describe(game, before, run, title=title)
     if not line.endswith(": " + narrate.NOTHING):
         game.fx.said.append(("card" if card_id is not None else "ability", line))
 

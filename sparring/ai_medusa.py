@@ -70,7 +70,7 @@ from .guard import guard_dest, hero_shielded, path_steps
 from .effects.model import walk_ops
 from .effects.modifiers import boost_limit, card_effects, defers_defeat, is_uncancelable
 from .ai_profile import FINISHER_BOOSTS, STYLE_HIT_AND_RUN, derive_style
-from . import ai_chupacabra as chupa_ai, ai_philippa, ai_rosie, ai_sinbad, ai_washington, ai_wyatt, tracks
+from . import ai_achilles, ai_chupacabra as chupa_ai, ai_double, ai_mary, ai_philippa, ai_rosie, ai_sinbad, ai_washington, ai_wyatt, tracks
 from .ai_sinbad import own_value as sinbad_own_value, voyage_count, voyage_extra
 from .effects.select import defeated
 from .state import ANUNG, EXHAUST_DAMAGE, Fighter, Game
@@ -253,10 +253,10 @@ def cancels_effects(card) -> bool:
                                   for m in ("immediately", "during") for op in walk_ops(fx.moments.get(m) or []))
 
 
-def uncancelable_harm(game: Game, card, owner: int) -> tuple[float, float, float]:
-    """`attack_harm` of a card of `owner` whose effects cannot be canceled (the card's own rule, or its hero's: Ciri at
-    SOURCE 7), nothing for any other: what a cancel-effects defense does not prevent."""
-    return attack_harm(card) if is_uncancelable(card, game, owner) else (0.0, 0.0, 0.0)
+def uncancelable_harm(game: Game, card, fighter: Fighter) -> tuple[float, float, float]:
+    """`attack_harm` of a card played by `fighter` whose effects cannot be canceled (the card's own rule, or its hero's: Ciri
+    herself at SOURCE 7, not her sidekick), nothing for any other: what a cancel-effects defense does not prevent."""
+    return attack_harm(card) if is_uncancelable(card, game, fighter) else (0.0, 0.0, 0.0)
 
 
 def effect_reliance(game: Game, me: int) -> float:
@@ -311,9 +311,10 @@ def situational_keep(game: Game, me: int, card, hand, spending_on_finisher: bool
 
 
 def held_for_plan(game: Game, me: int, card, hand) -> bool:
-    """The card serves the finisher (Sleight Of Hand, the Magician) and a Big Reveal may still come: the bot does not play it as a
-    scheme or spend it as a Maneuver boost (a hard gate: the weights lost to the position value and the two-action planner)."""
-    return card.title in SETUP_CARDS and finisher_plan(game, me, card, hand) is not None
+    """The card serves the finisher (Sleight Of Hand, the Magician) and a Big Reveal may still come, or it is Bloody Mary's Speak Three
+    Times waiting for her third action: the bot does not play it as a scheme or spend it as a Maneuver boost (a hard gate: the weights lost to
+    the position value and the two-action planner)."""
+    return (card.title in SETUP_CARDS and finisher_plan(game, me, card, hand) is not None) or ai_mary.holds_for_third(game, me, card)
 
 
 def finisher_plan(game: Game, me: int, card, hand) -> str | None:
@@ -446,7 +447,7 @@ def kept_hand_value(game, player: int) -> float:
     """What the hand of `player` is worth: the keep value of the cards that survive the hand limit (`hand_room`), which
     discards the worst ones. A card drawn past the limit is worth only the worse card it pushes out."""
     hand = game.players[player].hand
-    return sum(sorted((keep_value(c, hand) for c in hand), reverse=True)[:hand_room(game, player)])
+    return sum(sorted((keep_value(c, hand) for c in hand), reverse=True)[:hand_room(game, player)]) + ai_mary.kept_cards_bonus(game, player)
 
 
 def exhaustion_owed(shortfall: float) -> float:
@@ -531,13 +532,22 @@ class Model:
         cards of the rival's pool that attack with that value (the committed card is, by symmetry, any of them).
         `uncancelable`: only the harm a cancel leaves standing (`uncancelable_harm`)."""
         fn = self.attack_value_fn(f, self.game.attack_bonus(f, target))
-        harm = (lambda c: uncancelable_harm(self.game, c, self.opp)) if uncancelable else attack_harm
+        harm = (lambda c: uncancelable_harm(self.game, c, f)) if uncancelable else attack_harm
         by_value: dict = {}
         for c in self.pool:
             v = fn(c)
             if v is not None:
                 by_value.setdefault(v, []).append(harm(c))
         return {v: tuple(sum(h[i] for h in hs) / len(hs) for i in range(3)) for v, hs in by_value.items()}
+
+    def committed_cards_by_value(self, f: Fighter, target: Fighter | None = None) -> dict:
+        """The cards the rival may have played as its committed attack, by the attack value they give (what `committed_attack_dist` weighs)."""
+        fn = self.attack_value_fn(f, self.game.attack_bonus(f, target))
+        by_value: dict = {}
+        for c in self.pool:
+            if (v := fn(c)) is not None:
+                by_value.setdefault(v, []).append(c)
+        return by_value
 
     def committed_attack_dist(self, f: Fighter, target: Fighter | None = None):
         """Value of the attack given that the rival has already played a card: without the "has no card" mass, renormalized."""
@@ -654,9 +664,9 @@ def kill_value(game: Game, f: Fighter) -> float:
     no sidekick kill outranks it; a big hit on the hero that does not finish it may lose to a valuable kill."""
     prof = fighter_profile(game, f)
     if prof is None:
-        return KILL_SIDEKICK
+        return KILL_SIDEKICK - ai_achilles.fall_net(game, f)
     threat = THREAT_WEIGHT * prof["attack"]["mean"] * (RANGED_THREAT if prof["ranged"] else 1.0)
-    return min(KILL_CAP, KILL_BASE + STAKE_WEIGHT * stake(game, f, prof) + threat)
+    return min(KILL_CAP, KILL_BASE + STAKE_WEIGHT * stake(game, f, prof) + threat) - ai_achilles.fall_net(game, f)     # Patroclus' fall arms Achilles (ai_achilles)
 
 
 def protect_factor(game: Game, f: Fighter) -> float:
@@ -841,7 +851,7 @@ class MedusaAI(Controller):
     # ---------- planning ----------
     def plan(self, game: Game) -> Act:
         act = self._plan(game)
-        decision_log.emit(self, game, "plan", lambda: self.plan_journal(act))
+        decision_log.emit(self, game, "plan", lambda: {**self.plan_journal(act), **ai_double.journal_note(game, self.me, act)})
         return act
 
     def plan_journal(self, act: Act) -> dict:
@@ -1012,7 +1022,7 @@ class MedusaAI(Controller):
                 seen = set()
                 for c in hand:
                     if (c.title in seen or not enraged.may_attack_with(game, self.me, c) or not c.usable_by(f.name)
-                            or not game.attack_card_reaches(f, t, c)):
+                            or not game.attack_card_reaches(f, t, c) or ai_mary.holds_for_third(game, self.me, c)):
                         continue
                     seen.add(c.title)
                     value, dmg, kill = self.attack_outcome(game, model, f, t, c)
@@ -1073,8 +1083,12 @@ class MedusaAI(Controller):
             return 5.0                  # Tomoe Gozen: against a hero this card is worth 5
         if (regicide := ai_philippa.attack_value(c, t)) is not None:
             return regicide             # Philippa: Regicide is 6 against a hero
+        if (doom := ai_achilles.attack_value(game, f, c)) is not None:
+            return doom                 # Achilles: The Day of Your Doom is 5 when Patroclus can pay its 2 damage
         if (chupa_value := chupa_ai.attack_value(game, f.owner, c)) is not None:
             return chupa_value        # Chupacabra: The More They Struggle, Ambush, Wounded Beast
+        if (mary_value := ai_mary.attack_value(game, f.owner, c, f)) is not None:
+            return mary_value         # Bloody Mary: Speak Three Times as the third action, Jump Scare away from her start, Out Of The Mirror's BOOST
         own = own_value(game, f, c)
         if own is not None:
             return own                  # Sinbad: a VOYAGE card's +1 per VOYAGE card in the pile, Momentous Shift's 5
@@ -1163,7 +1177,9 @@ class MedusaAI(Controller):
             cost -= INVENTION_PLAY
         e_net = p_win = p_kill = gaze_dmg = 0.0
         ignore = self.ignores_defense(game, f, t, c)
-        for p, dv in model.defense_dist(t):
+        dist = model.defense_dist(t)
+        double = ai_double.has_second(game, f.owner, c)
+        for p, dv in dist:
             net = game.combat_damage_taken(t, max(0.0, atk - (0 if ignore else (dv or 0))))     # Luke Cage: 2 less
             won = net >= 1
             e_net += p * min(net, t.hp)
@@ -1171,6 +1187,10 @@ class MedusaAI(Controller):
             extra = min(GAZE_DAMAGE, max(0.0, t.hp - net)) if (c.title == "Gaze of Stone" and won) else 0.0
             gaze_dmg += p * extra
             p_kill += p * (net + extra >= t.hp)
+            if double:                  # DOUBLE ATTACK: the second part, against what is left of the target and a new defense
+                second_dmg, second_kill = ai_double.second_part(game, f, t, c, dv, min(net, t.hp), dist)
+                e_net += p * second_dmg
+                p_kill += p * second_kill
         w = weight(t)
         value = w * (e_net + gaze_dmg) - cost + effects
         if p_kill > 0:      # the kill prize is only looked up when the blow can kill (it scans both decks)
@@ -1183,6 +1203,7 @@ class MedusaAI(Controller):
         value += ciri_ai.after_value(game, self.me, c, p_win, w, CARD_VALUE)
         value += ai_sinbad.after_value(game, self.me, c, p_win, w, CARD_VALUE, W_MEDUSA_HP, self.room_after_play(game), t.hp)
         value += chupa_ai.after_value(game, self.me, c, p_win, w, CARD_VALUE, W_MEDUSA_HP, ACTION_VALUE)
+        value += ai_mary.after_value(game, self.me, c, CARD_VALUE, W_MEDUSA_HP)
         value += ai_rosie.after_value(game, self.me, c, p_win, w, CARD_VALUE, W_MEDUSA_HP, t.hp)
         value += ai_washington.after_value(game, self.me, c, p_win, w, CARD_VALUE, W_MEDUSA_HP, t.hp, ACTION_VALUE, HARPY_VALUE)
         value += ai_philippa.after_value(game, self.me, c, p_win, w, CARD_VALUE)
@@ -1851,49 +1872,70 @@ class MedusaAI(Controller):
                 best, best_gain = c, gain
         return best
 
+    def second_defense_choice(self, game: Game, attacker: Fighter, target: Fighter, value: int, card: Card):
+        """DOUBLE ATTACK: the card (or None) that defends the second part of `card`, worth exactly `value` (the attacker's passives on top)."""
+        self._defense_scores = []
+        return self._choose_defense(game, attacker, target, card, second=value)
+
+    def choose_second_defense(self, game: Game, attacker: Fighter, target: Fighter, value: int, card: Card):
+        chosen = self.second_defense_choice(game, attacker, target, value, card)
+        decision_log.emit(self, game, "defense", lambda: self.defense_journal(attacker, target, card, chosen, second=value))
+        return chosen
+
     def choose_defense(self, game: Game, attacker: Fighter, target: Fighter, attack_card: Card | None = None):
         self._defense_scores = []
         card = self._choose_defense(game, attacker, target, attack_card)
         decision_log.emit(self, game, "defense", lambda: self.defense_journal(attacker, target, attack_card, card))
         return card
 
-    def defense_journal(self, attacker: Fighter, target: Fighter, attack_card: Card | None, card: Card | None) -> dict:
+    def defense_journal(self, attacker: Fighter, target: Fighter, attack_card: Card | None, card: Card | None,
+                        second: int | None = None) -> dict:
         title = None if card is None else card.title
         scores = [{**s, **({"chosen": True} if s["move"][1] == title else {})} for s in sorted(self._defense_scores, key=lambda s: -s["score"])]
-        chosen = {"card": title, "attacker": attacker.fid, "target": target.fid, "attack_known": None if attack_card is None else attack_card.title}
+        chosen = {"card": title, "attacker": attacker.fid, "target": target.fid, "attack_known": None if attack_card is None else attack_card.title,
+                  **({"second_attack": second} if second is not None else {})}
         return {"chosen": chosen, "alternatives": scores, "expected": next((s["score"] for s in scores if s.get("chosen")), None)}
 
-    def _choose_defense(self, game: Game, attacker: Fighter, target: Fighter, attack_card: Card | None = None):
+    def _choose_defense(self, game: Game, attacker: Fighter, target: Fighter, attack_card: Card | None = None, second: int | None = None):
         """`attack_card`: the attack played face up (UNCANNY INTUITION, Perfect Shot): the one card the defense may
         know; otherwise the value is the distribution of what the rival may have committed."""
         model = Model(game, self.me)
         hand = game.players[self.me].hand
         self._attacker, self._defender = attacker, target
         try:
-            if attack_card is not None:
+            if second is not None:            # the second part of a double attack: its value is known and the card has no effects left
+                dist = [(1.0, second + ai_double.second_bonus(game, attacker, target))]
+                self._attack_harm = self._attack_harm_fixed = {}
+                self._attack_cards = {}
+            elif attack_card is not None:
                 dist = [(1.0, (attack_card.value or 0) + game.attack_bonus(attacker, target))]
+                self._attack_cards = {dist[0][1]: [attack_card]}
                 self._attack_harm = {dist[0][1]: attack_harm(attack_card)}
-                self._attack_harm_fixed = {dist[0][1]: uncancelable_harm(game, attack_card, attacker.owner)}
+                self._attack_harm_fixed = {dist[0][1]: uncancelable_harm(game, attack_card, attacker)}
             else:
                 dist = model.committed_attack_dist(attacker, target)
+                self._attack_cards = model.committed_cards_by_value(attacker, target)
                 self._attack_harm = model.committed_harm_by_value(attacker, target)
                 self._attack_harm_fixed = model.committed_harm_by_value(attacker, target, uncancelable=True)
             best, best_v = None, None
             options = [None] + [c for c in hand if c.can_defend and c.usable_by(target.name)]
             seen = set()
             self._defense_scores = scores = []
+            self._second_loss = 0.0
             for c in options:
                 if c is not None:
                     if c.title in seen:
                         continue
                     seen.add(c.title)
                 v = self.eval_defense(game, model, dist, target, c)
-                scores.append({"move": ["defend", None if c is None else c.title], "score": round(v, 4)})
+                scores.append({"move": ["defend", None if c is None else c.title], "score": round(v, 4),
+                               **({"second_part_loss": round(self._second_loss, 4)} if self._second_loss else {})})
                 if best_v is None or v > best_v + 1e-9:
                     best, best_v = c, v
         finally:
             self._attacker = self._defender = None
             self._attack_harm = self._attack_harm_fixed = {}
+            self._attack_cards = {}
         return best
 
     def mists_dist(self, game: Game, model: Model, attacker: Fighter, target: Fighter | None = None) -> list[tuple[float, int]]:
@@ -1915,6 +1957,38 @@ class MedusaAI(Controller):
             if card.can_attack and card.usable_by(attacker.name):
                 by_value.setdefault(card.value + bonus, []).append(attack_harm(card))
         return {v: tuple(sum(h[i] for h in hs) / len(hs) for i in range(3)) for v, hs in by_value.items()}
+
+    def second_part_loss(self, game: Game, target: Fighter, dist, c, dv, price) -> float:
+        """DOUBLE ATTACK (Ivan D8): what the second part of a double-attack card costs the defender once `c` (None: no card) answers the
+        first. The card played face down is not known: each attack value the rival may hold stands for the cards of that value it may still
+        have, the ones with a second part count by what that part is worth against the printed value of `c` (Ruyi Jingo Bang only when a
+        card is played, Bloody Requiem the printed value of `c`). A defense that cancels the card's effects stops it. The damage left in
+        the target after the first part is the room the second one has; no second defense is assumed (an upper bound)."""
+        attacker = getattr(self, "_attacker", None)
+        by_value = getattr(self, "_attack_cards", None)
+        if attacker is None or not by_value:
+            return 0.0
+        cancels = c is not None and cancels_effects(c)
+        printed = None if c is None else (c.value or 0)
+        bonus = ai_double.second_bonus(game, attacker, target)
+        exp = p_dead = p_hit = 0.0
+        for p, av in dist:
+            cards = by_value.get(av)
+            if av is None or not cards:
+                continue
+            left = target.hp - min(game.combat_damage_taken(target, max(0, av - dv)), target.hp)
+            for card in cards:
+                if left <= 0 or not ai_double.has_second(game, attacker.owner, card) or (cancels and not is_uncancelable(card, game, attacker)):
+                    continue
+                n = ai_double.second_value(game, attacker.owner, card, printed)
+                if n <= 0:
+                    continue
+                net = min(game.combat_damage_taken(target, n + bonus), left)
+                w = p / len(cards)
+                exp += w * net
+                p_dead += w * (net >= left)
+                p_hit += w * (net >= 1)
+        return -price(target, exp, p_dead, p_hit) if exp else 0.0
 
     def attack_effect_harm(self, game: Game, dist, target: Fighter, c, harm_of: dict | None = None) -> float:
         """What the effects of the attack card that ends up played cost the defender if they run: forced discards (of what is
@@ -1965,11 +2039,14 @@ class MedusaAI(Controller):
             dv = 6                                 # Misty Knight (she defends with it) is next to the attacker
         boosts = free_boosts(game, self.me, c, game.players[self.me].hand) if c is not None else []
         dv += BOOST_RELIANCE * sum(x.boost for x in boosts)
+        # Bloody Mary's Mirror Image copies the PRINTED value of the attack it meets: only what the attacker adds to it (a bonus) gets through
+        mirror_bonus = (game.attack_bonus(attacker, target) if attacker is not None else 0) if c is not None and ai_mary.is_mirror(game, target.owner, c) else None
 
         def tally(victim: Fighter):
             exp = p_dead = p_hit = p_block = 0.0
             for p, av in dist:
-                net = game.combat_damage_taken(victim, max(0, (av or 0) - dv)) if av is not None else 0
+                value = dv if mirror_bonus is None else (av or 0) - mirror_bonus
+                net = game.combat_damage_taken(victim, max(0, (av or 0) - value)) if av is not None else 0
                 if c is not None and c.title == DEEDS and victim is target:
                     net = min(net, DEEDS_CAP)          # Tomoe Gozen takes at most 2 combat damage this combat
                 exp += p * min(net, victim.hp)
@@ -1991,6 +2068,8 @@ class MedusaAI(Controller):
             if price(luke, *swapped[:3]) > v:
                 (exp, p_dead, p_hit, p_block), v = swapped, price(luke, *swapped[:3])
         v -= self.attack_effect_harm(game, effects_dist, target, c, effects_harm)
+        self._second_loss = self.second_part_loss(game, target, dist, c, dv, price)
+        v -= self._second_loss
         if c is None:
             return v
         v -= CARD_VALUE + 0.05 * c.boost
@@ -2006,6 +2085,7 @@ class MedusaAI(Controller):
         if attacker is not None:
             v += ai_sinbad.after_value(game, self.me, c, p_block, weight(attacker), CARD_VALUE, W_MEDUSA_HP, None, attacker.hp)
             v += chupa_ai.after_value(game, self.me, c, p_block, weight(attacker), CARD_VALUE, W_MEDUSA_HP, ACTION_VALUE)
+            v += ai_mary.after_value(game, self.me, c, CARD_VALUE, W_MEDUSA_HP)
             v += ai_rosie.after_value(game, self.me, c, p_block, weight(attacker), CARD_VALUE, W_MEDUSA_HP, attacker.hp)
             v += ai_washington.after_value(game, self.me, c, p_block, weight(attacker), CARD_VALUE, W_MEDUSA_HP, attacker.hp, ACTION_VALUE, HARPY_VALUE)
             v += ai_philippa.after_value(game, self.me, c, p_block, weight(attacker), CARD_VALUE)

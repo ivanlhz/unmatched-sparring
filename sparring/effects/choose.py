@@ -81,7 +81,7 @@ def default_answer(req: ChoiceRequest) -> list:
             return [False]
         return [not req.extra.get("pact")]      # a price in hit points (DARK PACT) is never paid without an opinion
     if req.kind == "amount":
-        return [req.max]
+        return [0] if req.extra.get("assign") else [req.max]       # Yennenga's ability: nothing is handed to an Archer without an opinion
     if req.kind == "space":
         return list(req.options[:req.min])
     if req.extra.get("purpose") in ("bonus", "swap_attack", "dust"):    # a free-count discard that adds value (Unbridled rage), a card played instead (Sleight Of Hand): none by default
@@ -164,7 +164,8 @@ class ControllerChooser:
         seen = {c.card_id: c for c in game.players[req.player].known.cards(game.players[of])}
         # Ivan, 20/11: a card only a fallen fighter could play (Batter up! with Casey Jones defeated) is worth its boost alone
         worth = lambda c: card_worth(c) if can_use(game, of, c) else 0.5 * c.boost
-        ranked = sorted((i for i in req.options if i in seen), key=lambda i: (-worth(seen[i]), i))
+        key = (lambda i: (-worth(seen[i]), i)) if game.players[req.player].hero.fid != "mary" else (lambda i: (-seen[i].boost, -worth(seen[i]), i))
+        ranked = sorted((i for i in req.options if i in seen), key=key)      # Bloody Mary's Stolen Memories names the highest BOOST (Ivan 2026-11-20), ties by worth
         picked = ranked[:max(req.min, min(req.max, len(ranked)))]
         blind = [i for i in req.options if i not in picked]
         short = req.min - len(picked)
@@ -181,7 +182,7 @@ class TableChooser:
     def choose(self, game, req: ChoiceRequest) -> list:
         if req.kind == "optional":
             return [False]
-        if req.extra.get("blind_count"):             # BLIND BOOST: no declaration without the panel, so none is made
+        if req.extra.get("blind_count") or req.extra.get("assign"):     # BLIND BOOST, Yennenga's Archers: no declaration without the panel, so none is made
             return [0]
         if req.extra.get("confirm"):                 # Take A Knee: the one option is the effect itself
             return list(req.options)
@@ -238,6 +239,9 @@ class SyntheticChooser:
         return [self.greedy or "cost_cards" not in req.extra]
 
     def _amount(self, game, req: ChoiceRequest) -> list:
+        if req.extra.get("assign"):                  # Yennenga's ability in a rollout: the share the bot's own policy gives the Archer
+            from ..ai_yennenga import archer_share
+            return [archer_share(game, req)]
         if req.extra.get("blind_count"):             # BLIND BOOST: as many as cannot push a card that ignores a value above its limit over it
             limit = req.extra.get("limit")
             safe = [n for n in req.options if limit is None or req.extra["value"] + n * MAX_BOOST <= limit]

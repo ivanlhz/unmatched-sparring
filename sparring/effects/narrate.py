@@ -67,14 +67,15 @@ def snapshot(game, flow=None) -> dict:
             "caps": {} if flow is None else dict(flow.damage_caps),
             "mods": {} if flow is None else {side: len(mods) for side, mods in flow.mods.items()},
             "printed": {} if flow is None else dict(flow.printed_set),
-            "won_by": None if flow is None else flow.considered_won}
+            "won_by": None if flow is None else flow.considered_won,
+            "second": None if flow is None or not flow.second_attack else flow.second_attack["value"]}
 
 
 def describe(game, before: dict, run, flow=None, title: str | None = None) -> str:
     """One line: `<card>: <what changed>; ...` or `<card>: no effect`. A run of the human's card (E2, table mode)
     ends with what they do on the table themselves (`on the table: ...`). `title`: for a run without a card (an
     ability trigger)."""
-    parts = _fighters(game, before) + _cards(game, before, run) + _turn(game, before, run)
+    parts = _fighters(game, before) + _prevented(game, run) + _cards(game, before, run) + _turn(game, before, run)
     parts += _statuses(game, before) + _combat(before, flow)
     if (swapped := run.flags.get("swapped")) is not None:         # Sleight Of Hand: the card went back to the hand
         side = "bot" if run.ctx.owner == game.bot_player else "human"
@@ -83,6 +84,7 @@ def describe(game, before: dict, run, flow=None, title: str | None = None) -> st
         parts.append(t("narr.look_cancelled"))
     elif run.flags.get("looked_hand") and before["seen"][run.ctx.owner] != _seen(game.players[run.ctx.owner]):
         parts.append(t("narr.looks.bot" if run.ctx.owner == game.bot_player else "narr.looks.human"))
+    parts += [t(f"narr.notice.{key}") for key in run.flags.get("notices", ())]      # why a branch did nothing (Sly Monkey with no free space)
     if run.flags.get("attack_face_up"):
         parts.append(t("narr.attack_face_up"))
     parts = _fold_triggers(game, before, parts)
@@ -97,14 +99,20 @@ def describe(game, before: dict, run, flow=None, title: str | None = None) -> st
 
 
 def _say_bot_price(game, run, parts: list[str], priced: dict) -> list[str]:
-    """The bot's answer to a price the human's card offered it, said plainly and never as "no effect". The wording is
-    Incinerate's (a discard price that ignores the card's value); another priced optional needs its own."""
+    """The bot's answer to a price the human's card offered it, said plainly and never as "no effect". A price that ignores the
+    card's value (Incinerate) says what it avoids; any other (Shield Formation: the discard stops an Archer's return) says only
+    that the card's effect is stopped or happens."""
     title = _title(game, run.ctx.card_id, getattr(run.ctx, "owner", None))
     stake, cards = priced["stake"], priced["cards"]
     lethal = priced["hp"] is not None and 0 < priced["hp"] <= stake
+    ignores = priced.get("ignores", True)                 # a record saved before the flag existed is Incinerate's
     if not priced["can_pay"]:
+        if not ignores:
+            return parts + [t("narr.price.cannot_pay_effect", cards=cards, title=title)]
         return parts + [t("narr.price.cannot_pay", cards=cards, stake=f"{stake:g}")]
     if not priced["paid"]:
+        if not ignores:
+            return parts + [t("narr.price.declines", cards=cards, why=t("narr.price.effect_happens", title=title))]
         why = t("narr.price.prefers", stake=f"{stake:g}", cards=cards) if stake else t("narr.price.no_change")
         return parts + [t("narr.price.declines", cards=cards, why=why)]
     why = t("narr.price.lethal") if lethal else t("narr.price.avoids", stake=f"{stake:g}")
@@ -114,6 +122,8 @@ def _say_bot_price(game, run, parts: list[str], priced: dict) -> list[str]:
     becomes = t("narr.value_becomes", title=title, n="")
     rest = [p for p in parts if p.removeprefix(bot_prefix) != discarded and not p.startswith(becomes)]
     paid = discarded or t("narr.price.pays", cards=cards)    # `_cards` words the discard; without it the price still shows
+    if not ignores:
+        return [t("narr.price.stops", paid=paid, title=title)] + rest
     return [t("narr.price.ignores", paid=paid, title=title, why=why)] + rest
 
 
@@ -156,21 +166,44 @@ def _title(game, card_id, owner=None) -> str:
     return card.title if card else t("fx.cause_default")
 
 
+def _who(game, f) -> str:
+    """How a fighter is named in the line: its id, except for a hero with a reserve (Sun Wukong's Clones come out of the bag): the name of the piece."""
+    reserve = any(s.start_on_board == 0 for s in game.players[f.owner].hero.sidekicks)
+    return (getattr(game, "nicknames", None) or {}).get(f.fid) or f.name if reserve else f.fid
+
+
 def _fighters(game, before: dict) -> list[str]:
     out = []
     for fid, (hp0, pos0, alive0) in before["fighters"].items():
         f = game.fighters[fid]
+        who = _who(game, f)
         if alive0 and not f.alive:
-            out.append(t("narr.fighter.down", fid=fid))
+            out.append(t("narr.fighter.down", fid=who))
         elif not alive0 and f.alive:
-            out.append(t("narr.fighter.back", fid=fid, spot=describe_space(game, f.pos, (fid,)), hp=f"{f.hp:g}"))
+            if f.died_at is None and not f.hero:        # first time out of the reserve: summoned, not returned
+                out.append(t("narr.fighter.summoned_by_hand" if fid in game.placing else "narr.fighter.summoned",
+                             fid=who, spot=describe_space(game, f.pos, (fid,)), hp=f"{f.hp:g}"))
+            else:
+                out.append(t("narr.fighter.back", fid=who, spot=describe_space(game, f.pos, (fid,)), hp=f"{f.hp:g}"))
         elif f.alive:
             if f.hp < hp0:
-                out.append(t("narr.fighter.loses", fid=fid, n=f"{hp0 - f.hp:g}", hp=f"{f.hp:g}"))
+                out.append(t("narr.fighter.loses", fid=who, n=f"{hp0 - f.hp:g}", hp=f"{f.hp:g}"))
             elif f.hp > hp0:
-                out.append(t("narr.fighter.heals", fid=fid, n=f"{f.hp - hp0:g}", hp=f"{f.hp:g}"))
+                out.append(t("narr.fighter.heals", fid=who, n=f"{f.hp - hp0:g}", hp=f"{f.hp:g}"))
             if f.pos != pos0:
-                out.append(t("narr.fighter.moves", fid=fid, spot=describe_space(game, f.pos, (fid,))))
+                out.append(t("narr.fighter.moves", fid=who, spot=describe_space(game, f.pos, (fid,))))
+    return out
+
+
+def _prevented(game, run) -> list[str]:
+    """Effect damage the card dealt that an immunity stopped, one clause per source card (Planned Recklessness): the card was applied."""
+    by_source: dict[str, list[str]] = {}
+    for fid, source in run.flags.get("prevented") or ():
+        by_source.setdefault(source, []).append(_who(game, game.fighters[fid]))
+    out = []
+    for source, who in by_source.items():
+        why = t("narr.prevented.by", title=source) if source else t("narr.prevented.generic")
+        out.append(t("narr.prevented.several" if len(who) > 1 else "narr.prevented.single", fids=t("common.and").join(who), why=why))
     return out
 
 
@@ -292,6 +325,8 @@ def _combat(before: dict, flow) -> list[str]:
         else:
             out += [t("narr.value_delta", title=card.title, delta=f"{delta:+d}")
                     for delta, _ in flow.mods[side][before["mods"].get(side, 0):]]
+    if flow.second_attack and flow.second_attack["value"] != before.get("second"):     # DOUBLE ATTACK: the second part was queued
+        out.append(t("narr.second_attack", n=flow.second_attack["value"]))
     if flow.considered_won and flow.considered_won != before.get("won_by"):        # "you are considered to have won this combat"
         owner = flow.att.owner if flow.considered_won == "atk" else flow.tgt.owner
         out.append(t("narr.considered_won.bot" if owner == flow.game.bot_player else "narr.considered_won.human"))

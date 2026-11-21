@@ -1,0 +1,35 @@
+{
+ "slug": "achilles",
+ "bag": {
+  "guid": "e9df2a",
+  "inner": "42ac50"
+ },
+ "deck": {
+  "guid": "70a2b2",
+  "card_ids": [
+   17600,
+   17629
+  ],
+  "character_card_id": 318,
+  "identity": [
+   {
+    "face": "https://steamusercontent-a.akamaihd.net/ugc/14988772122142714774/49826B2F78138B26A0EBB1DAAF46961F04B60737/",
+    "back": "https://steamusercontent-a.akamaihd.net/ugc/14450238022853722808/3800110BCED715B8369ACA3FFA5711E3C5A9E79E/"
+   }
+  ]
+ },
+ "fighters": {
+  "achilles": {
+   "piece": "6b0ddb",
+   "dial": "feaa22",
+   "dial_max": 18
+  },
+  "patroclus": {
+   "piece": "978237",
+   "dial": "ec605e",
+   "dial_max": 6
+  }
+ },
+ "tokens": {},
+ "counter_dials": {}
+}

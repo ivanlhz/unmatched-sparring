@@ -235,7 +235,7 @@ def _moved_piece(session, intent: dict, ctx: Ctx):
         return None
     if session.hand_moved.get(f.fid) == f.pos:        # the human put it there by hand (session_moves): nothing to project or say
         return None
-    if f.fid in session.game.placing:                 # the card told them to place it (Unyielding Hordes): the bot never moves it
+    if f.fid in session.game.placing and f.fid not in session.table_stale:     # the card told them to place it (Unyielding Hordes): the bot never moves it; a piece owed by a failed bot move still is the bot's
         return None
     return f
 
@@ -245,10 +245,12 @@ def _move_say(session, intent: dict, ctx: Ctx, moved: bool) -> None:
     f = g.fighters[intent["fid"]]
     name, space = session._name(f), describe(g, f.pos, (f.fid,), session._name)
     walks = ctx.before["human_pieces"][f.fid][1]
-    if moved:
-        session.say(t("tr.moved.moves.done" if walks else "tr.moved.returns.done", name=name, space=space), ChatKind.MOVE)
+    if moved:       # a swap moves both pieces: each says where it went
+        done = "tr.moved.swap.done" if intent["op"] == "swap" else "tr.moved.moves.done" if walks else "tr.moved.returns.done"
+        session.say(t(done, name=name, space=space), ChatKind.MOVE)
     else:
-        session.say(t("tr.moved.moves.manual" if walks else "tr.moved.returns.manual", name=name, space=space), ChatKind.YOUR_TURN)
+        manual = "tr.moved.swap.manual" if intent["op"] == "swap" else "tr.moved.moves.manual" if walks else "tr.moved.returns.manual"
+        session.say(t(manual, name=name, space=space), ChatKind.YOUR_TURN)
 
 
 def _move_human(session, intent: dict, ctx: Ctx) -> list[Check]:
@@ -272,7 +274,14 @@ def _move_bot(session, intent: dict, ctx: Ctx) -> list[Check]:
     op = session._w(effects_bridge.move_human_piece(session.game.board, guid, f.pos), DOMAIN)
 
     def check() -> None:
-        _move_say(session, intent, ctx, moved=bool(result_of(op).get("moved")))
+        moved = bool(result_of(op).get("moved"))
+        if moved:                                 # the table now shows the engine's space: nothing is owed any more
+            session.table_stale.pop(f.fid, None)
+            session.game.placing.discard(f.fid)
+        else:                                     # the engine has it there, the table does not: the human puts it there by hand, as a placement (no departure, no hazard)
+            session.table_stale.setdefault(f.fid, ctx.before["human_pieces"][f.fid][0])      # the table keeps showing the first stale space
+            session.game.placing.add(f.fid)
+        _move_say(session, intent, ctx, moved=moved)
     return [check]
 
 

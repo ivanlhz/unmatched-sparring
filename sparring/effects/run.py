@@ -72,8 +72,16 @@ class EffectRun:
         return not self.frames
 
     # ------------------------------------------------------------ bindings
-    def bind(self, kind: str, name: str, values) -> None:
+    def bind(self, kind: str, name: str, values, owners=None) -> None:
+        """`owners` (cards only): whose deck each id belongs to. Decks that share CardIDs (sheet 176) make a bare id mean the card of
+        whoever is looked at first, so a card taken from the RIVAL's hand must say it is theirs (Stolen Memories reads its BOOST)."""
         self.bindings[name] = {"t": kind, "v": list(values) if kind != "num" else values}
+        if owners is not None:
+            self.bindings[name]["o"] = list(owners)
+
+    def bound_owners(self, name: str):
+        """The owner of each bound card id, or None when the binding does not say (the effect's own player is assumed)."""
+        return (self.bindings.get(name) or {}).get("o")
 
     def bound(self, name: str, kind: str):
         b = self.bindings.get(name)

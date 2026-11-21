@@ -1,0 +1,440 @@
+{
+ "_source": {
+  "memory": "unmatched-memory/data/heroes/yennenga.json",
+  "overlay": "data/heroes/overlay/yennenga.json",
+  "generator": "tools/import_hero.py"
+ },
+ "slug": "yennenga",
+ "name": "Yennenga",
+ "fid": "yennenga",
+ "hp": 15,
+ "move": 2,
+ "attack": "range",
+ "set": "battle-of-legends-volume-two",
+ "ability": "If Yennenga would take damage, you may assign any amount of that damage to one or more Archers in her zone instead. (You may not assign more damage to an Archer that their remaining health.)",
+ "sidekicks": [
+  {
+   "name": "Archer",
+   "hp": 2,
+   "move": 2,
+   "attack": "range",
+   "count": 2,
+   "fid": "archer"
+  }
+ ],
+ "forms": null,
+ "counters": {},
+ "triggers": [],
+ "passives": [],
+ "deck": {
+  "card_base": 17600,
+  "sheet": 176,
+  "cards": [
+   {
+    "idx": 0,
+    "title": "Rain of Arrows",
+    "fighter": "Yennenga",
+    "type": "attack",
+    "value": 3,
+    "boost": 3,
+    "text": "AFTER COMBAT: VOLLEY: 3 ATK",
+    "tags": []
+   },
+   {
+    "idx": 1,
+    "title": "Rain of Arrows",
+    "fighter": "Yennenga",
+    "type": "attack",
+    "value": 3,
+    "boost": 3,
+    "text": "AFTER COMBAT: VOLLEY: 3 ATK",
+    "tags": []
+   },
+   {
+    "idx": 2,
+    "title": "Rain of Arrows",
+    "fighter": "Yennenga",
+    "type": "attack",
+    "value": 3,
+    "boost": 3,
+    "text": "AFTER COMBAT: VOLLEY: 3 ATK",
+    "tags": []
+   },
+   {
+    "idx": 3,
+    "title": "Surprise Volley",
+    "fighter": "any",
+    "type": "attack",
+    "value": 3,
+    "boost": 3,
+    "text": "IMMEDIATELY: You may return a defeated Archer to a space in the opposing fighter's zone. If you do, that Archer is now the attacker. If not, gain 1 action.",
+    "tags": []
+   },
+   {
+    "idx": 4,
+    "title": "Surprise Volley",
+    "fighter": "any",
+    "type": "attack",
+    "value": 3,
+    "boost": 3,
+    "text": "IMMEDIATELY: You may return a defeated Archer to a space in the opposing fighter's zone. If you do, that Archer is now the attacker. If not, gain 1 action.",
+    "tags": []
+   },
+   {
+    "idx": 5,
+    "title": "Surprise Volley",
+    "fighter": "any",
+    "type": "attack",
+    "value": 3,
+    "boost": 3,
+    "text": "IMMEDIATELY: You may return a defeated Archer to a space in the opposing fighter's zone. If you do, that Archer is now the attacker. If not, gain 1 action.",
+    "tags": []
+   },
+   {
+    "idx": 6,
+    "title": "Point Blank",
+    "fighter": "Yennenga",
+    "type": "versatile",
+    "value": 2,
+    "boost": 2,
+    "text": "AFTER COMBAT: If the opposing fighter is adjacent to Yennenga, deal 2 damage to that fighter.",
+    "tags": []
+   },
+   {
+    "idx": 7,
+    "title": "Point Blank",
+    "fighter": "Yennenga",
+    "type": "versatile",
+    "value": 2,
+    "boost": 2,
+    "text": "AFTER COMBAT: If the opposing fighter is adjacent to Yennenga, deal 2 damage to that fighter.",
+    "tags": []
+   },
+   {
+    "idx": 8,
+    "title": "Point Blank",
+    "fighter": "Yennenga",
+    "type": "versatile",
+    "value": 2,
+    "boost": 2,
+    "text": "AFTER COMBAT: If the opposing fighter is adjacent to Yennenga, deal 2 damage to that fighter.",
+    "tags": []
+   },
+   {
+    "idx": 9,
+    "title": "Stallion Charge",
+    "fighter": "Yennenga",
+    "type": "versatile",
+    "value": 3,
+    "boost": 3,
+    "text": "AFTER COMBAT: Move Yennenga up to 5 spaces. She may move through opposing fighters. Then, deal 1 damage to each opposing fighter she moved through.",
+    "tags": []
+   },
+   {
+    "idx": 10,
+    "title": "Stallion Charge",
+    "fighter": "Yennenga",
+    "type": "versatile",
+    "value": 3,
+    "boost": 3,
+    "text": "AFTER COMBAT: Move Yennenga up to 5 spaces. She may move through opposing fighters. Then, deal 1 damage to each opposing fighter she moved through.",
+    "tags": []
+   },
+   {
+    "idx": 11,
+    "title": "Stallion Charge",
+    "fighter": "Yennenga",
+    "type": "versatile",
+    "value": 3,
+    "boost": 3,
+    "text": "AFTER COMBAT: Move Yennenga up to 5 spaces. She may move through opposing fighters. Then, deal 1 damage to each opposing fighter she moved through.",
+    "tags": []
+   },
+   {
+    "idx": 12,
+    "title": "Jaws of the Beast",
+    "fighter": "Yennenga",
+    "type": "versatile",
+    "value": 3,
+    "boost": 3,
+    "text": "DURING COMBAT: For each zone the opposing fighter is in, increase the value of this card by +1.",
+    "tags": []
+   },
+   {
+    "idx": 13,
+    "title": "Jaws of the Beast",
+    "fighter": "Yennenga",
+    "type": "versatile",
+    "value": 3,
+    "boost": 3,
+    "text": "DURING COMBAT: For each zone the opposing fighter is in, increase the value of this card by +1.",
+    "tags": []
+   },
+   {
+    "idx": 14,
+    "title": "Jaws of the Beast",
+    "fighter": "Yennenga",
+    "type": "versatile",
+    "value": 3,
+    "boost": 3,
+    "text": "DURING COMBAT: For each zone the opposing fighter is in, increase the value of this card by +1.",
+    "tags": []
+   },
+   {
+    "idx": 15,
+    "title": "Skirmish",
+    "fighter": "any",
+    "type": "versatile",
+    "value": 4,
+    "boost": 2,
+    "text": "AFTER COMBAT: If you won the combat, choose one of the fighters in the combat and move them up to 2 spaces.",
+    "tags": []
+   },
+   {
+    "idx": 16,
+    "title": "Skirmish",
+    "fighter": "any",
+    "type": "versatile",
+    "value": 4,
+    "boost": 2,
+    "text": "AFTER COMBAT: If you won the combat, choose one of the fighters in the combat and move them up to 2 spaces.",
+    "tags": []
+   },
+   {
+    "idx": 17,
+    "title": "Momentous Shift",
+    "fighter": "any",
+    "type": "versatile",
+    "value": 3,
+    "boost": 2,
+    "text": "DURING COMBAT: If your fighter started this turn in a different space, this card's value is 5 instead.",
+    "tags": []
+   },
+   {
+    "idx": 18,
+    "title": "Momentous Shift",
+    "fighter": "any",
+    "type": "versatile",
+    "value": 3,
+    "boost": 2,
+    "text": "DURING COMBAT: If your fighter started this turn in a different space, this card's value is 5 instead.",
+    "tags": []
+   },
+   {
+    "idx": 19,
+    "title": "Momentous Shift",
+    "fighter": "any",
+    "type": "versatile",
+    "value": 3,
+    "boost": 2,
+    "text": "DURING COMBAT: If your fighter started this turn in a different space, this card's value is 5 instead.",
+    "tags": []
+   },
+   {
+    "idx": 20,
+    "title": "Pin the Prey",
+    "fighter": "Archer",
+    "type": "versatile",
+    "value": 1,
+    "boost": 2,
+    "text": "AFTER COMBAT: Move the opposing fighter up to 4 spaces. Your opponent discards 1 card.",
+    "tags": []
+   },
+   {
+    "idx": 21,
+    "title": "Pin the Prey",
+    "fighter": "Archer",
+    "type": "versatile",
+    "value": 1,
+    "boost": 2,
+    "text": "AFTER COMBAT: Move the opposing fighter up to 4 spaces. Your opponent discards 1 card.",
+    "tags": []
+   },
+   {
+    "idx": 22,
+    "title": "Divide and Conquer",
+    "fighter": "Archer",
+    "type": "versatile",
+    "value": 2,
+    "boost": 1,
+    "text": "DURING COMBAT: If your fighter is not in Yennenga's zone, the value of this card is a 4 instead.",
+    "tags": []
+   },
+   {
+    "idx": 23,
+    "title": "Divide and Conquer",
+    "fighter": "Archer",
+    "type": "versatile",
+    "value": 2,
+    "boost": 1,
+    "text": "DURING COMBAT: If your fighter is not in Yennenga's zone, the value of this card is a 4 instead.",
+    "tags": []
+   },
+   {
+    "idx": 24,
+    "title": "Shield Formation",
+    "fighter": "Yennenga",
+    "type": "defense",
+    "value": 3,
+    "boost": 3,
+    "text": "IMMEDIATELY: Your opponent may discard a card. If they don't, return a defeated Archer to a space in Yennenga's zone.",
+    "tags": []
+   },
+   {
+    "idx": 25,
+    "title": "Shield Formation",
+    "fighter": "Yennenga",
+    "type": "defense",
+    "value": 3,
+    "boost": 3,
+    "text": "IMMEDIATELY: Your opponent may discard a card. If they don't, return a defeated Archer to a space in Yennenga's zone.",
+    "tags": []
+   },
+   {
+    "idx": 26,
+    "title": "One With The Land",
+    "fighter": "Yennenga",
+    "type": "scheme",
+    "value": null,
+    "boost": 2,
+    "text": "Move each of your fighters up to 2 spaces. Each of your fighters recovers 1 health. Draw 1 card.",
+    "tags": []
+   },
+   {
+    "idx": 27,
+    "title": "One With The Land",
+    "fighter": "Yennenga",
+    "type": "scheme",
+    "value": null,
+    "boost": 2,
+    "text": "Move each of your fighters up to 2 spaces. Each of your fighters recovers 1 health. Draw 1 card.",
+    "tags": []
+   },
+   {
+    "idx": 28,
+    "title": "Master of the Hunt",
+    "fighter": "Yennenga",
+    "type": "scheme",
+    "value": null,
+    "boost": 3,
+    "text": "Gain 2 actions.",
+    "tags": []
+   },
+   {
+    "idx": 29,
+    "title": "Master of the Hunt",
+    "fighter": "Yennenga",
+    "type": "scheme",
+    "value": null,
+    "boost": 3,
+    "text": "Gain 2 actions.",
+    "tags": []
+   }
+  ]
+ },
+ "tts": {
+  "no_dial": [
+   "archer1",
+   "archer2"
+  ],
+  "life_faces": {
+   "2": 0,
+   "1": 180
+  },
+  "life_faces_verified": "Ivan 2026-11-21"
+ },
+ "ai_profile": {
+  "yennenga": {
+   "name": "Yennenga",
+   "hero": true,
+   "count": 1,
+   "max_hp": 15,
+   "move": 2,
+   "ranged": true,
+   "role": "hero",
+   "attack": {
+    "cards": 20,
+    "mean": 2.95,
+    "max": 4
+   },
+   "exclusive": [
+    {
+     "title": "Rain of Arrows",
+     "type": "attack",
+     "copies": 3,
+     "impact": 0.75
+    },
+    {
+     "title": "Point Blank",
+     "type": "versatile",
+     "copies": 3,
+     "impact": 1.36
+    },
+    {
+     "title": "Stallion Charge",
+     "type": "versatile",
+     "copies": 3,
+     "impact": 1.65
+    },
+    {
+     "title": "Jaws of the Beast",
+     "type": "versatile",
+     "copies": 3,
+     "impact": 0.93
+    },
+    {
+     "title": "Shield Formation",
+     "type": "defense",
+     "copies": 2,
+     "impact": 0.75
+    },
+    {
+     "title": "One With The Land",
+     "type": "scheme",
+     "copies": 2,
+     "impact": 2.35
+    },
+    {
+     "title": "Master of the Hunt",
+     "type": "scheme",
+     "copies": 2,
+     "impact": 2.3
+    }
+   ]
+  },
+  "archer": {
+   "name": "Archer",
+   "hero": false,
+   "count": 2,
+   "max_hp": 2,
+   "move": 2,
+   "ranged": true,
+   "role": "striker",
+   "attack": {
+    "cards": 12,
+    "mean": 2.67,
+    "max": 4
+   },
+   "exclusive": [
+    {
+     "title": "Pin the Prey",
+     "type": "versatile",
+     "copies": 2,
+     "impact": 0.93
+    },
+    {
+     "title": "Divide and Conquer",
+     "type": "versatile",
+     "copies": 2,
+     "impact": 0.81
+    }
+   ],
+   "requires_alive": []
+  }
+ },
+ "_notes": [
+  "Sheet 176 of the tournament savegame (8x4), read card by card from the image on 2026-11-20. CardID = 17600 + idx; 319 = character card (sheet 3, 10x7, index 19). The deck object of the save holds 31 cards: the 30 of the deck plus the character card, which is why the catalog says card_count 31 and card_ids [319, 17629]. Sheet 176 is also Medusa's, the turtles', Strange's, Bigfoot's, Luke Cage's...: only deck.identity (data/tts/yennenga.json) tells the decks apart (docs/card-identity.md).",
+  "Restriction band read from the images: YENNENGA (Rain of Arrows, Point Blank, Stallion Charge, Jaws of the Beast, Shield Formation, One With The Land, Master of the Hunt), ANY (Surprise Volley, Skirmish, Momentous Shift) and ARCHER (Pin the Prey, Divide and Conquer: only the Archers play them). Copies (xN printed on each card), type, value, boost and text of the 12 titles agree with unmatched-memory except Point Blank, whose card says \"deal 2 damage to that fighter\" (unmatched-memory: \"deal them 2 damage\"; the overlay carries the printed text).",
+  "Hero card (read from the image): YENNENGA, RANGED, START HEALTH 15, MOVE 2; sidekick ARCHERS (the miniatures are called Archer), RANGED, START HEALTH 2 x2 (two Archer miniatures, no life dial). unmatched-memory says 'hasTokens: true' but her bag holds no token at all: the two Archer models are described as 'Sidekick Token' and that is all the flag means (docs/heroes/yennenga.md)."
+ ]
+}

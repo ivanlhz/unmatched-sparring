@@ -747,6 +747,7 @@ def test_read_only_allowlist_is_exactly_the_pure_read_builders(bprd):
         "reveal_clear": lambda: lua.reveal_clear(),
         "pile_card_to_hand": lambda: lua.pile_card_to_hand("abc", 1, "Blue", identity=TEST_IDENT),
         "card_home": lambda: lua.card_home("abc", (0.0, 0.0, 0.0), (0.0, 0.0, 180.0), identity=TEST_IDENT),
+        "archer_faces": lambda: lua.archer_faces({"abc": 180.0}, ["def"]),
     }
     registered = {n for n, f in inspect.getmembers(lua, inspect.isfunction) if hasattr(f, "__wrapped__")}
     assert registered == set(builders), registered ^ set(builders)

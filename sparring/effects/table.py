@@ -91,13 +91,18 @@ def piece_is_physical(game, chooser: int, fighter) -> bool:
     return physical(game, chooser) and fighter.owner == chooser
 
 
+# Triggers the engine runs for the table player although they hurt or summon: Sun Wukong's CLONES is a yes/no, 1 damage to his own dial and a Clone
+# placed by hand (nothing hidden). Keyed by id, not by op: Medusa's GAZE (optional + damage) stays the table's.
+ENGINE_RUN_TRIGGERS = frozenset({"clone_summon"})
+
+
 def start_of_turn_is_physical(game, player: int, trig: dict) -> bool:
     """The table player's start-of-turn ability (Hellboy's ANUNG discard and move, Wildfire's bottom card) reads their
     real hand or an unknown discard: it is theirs on the table, announced by the session. A trigger that only draws
-    (OCCULT DETECTIVE's optional draw, Jill Trent's choice of a gadget) is not: the engine asks on the panel and the session deals the cards."""
+    (OCCULT DETECTIVE's optional draw, Jill Trent's choice of a gadget, Bloody Mary's gained action) is not: the engine asks on the panel and the session deals the cards."""
     from .model import walk_ops
-    only_draws = all(o["op"] in ("optional", "draw", "choose_effect", "counter") for o in walk_ops(trig["ops"]))     # Jill's gadget: a button and a counter, nothing on the table
-    return physical(game, player) and trig["when"]["event"] == "start_of_turn" and not only_draws
+    only_draws = all(o["op"] in ("optional", "draw", "choose_effect", "counter", "gain_action") for o in walk_ops(trig["ops"]))     # Jill's gadget: a button and a counter, nothing on the table
+    return physical(game, player) and trig["when"]["event"] == "start_of_turn" and not only_draws and trig["id"] not in ENGINE_RUN_TRIGGERS
 
 
 def intent(game, **fields) -> None:
@@ -167,8 +172,10 @@ def _where(where) -> str:
     if "zone_of" in where:
         who = where["zone_of"]
         if where.get("other"):
-            return t("tbl.where.zone_hero_other") if who == "hero" else t("tbl.where.zone_other", who=who)
-        return t("tbl.where.zone_hero") if who in ("hero", "this") else t("tbl.where.zone", who=who)
+            text = t("tbl.where.zone_hero_other") if who == "hero" else t("tbl.where.zone_other", who=who)
+        else:
+            text = t("tbl.where.zone_hero") if who in ("hero", "this") else t("tbl.where.zone", who=who)
+        return t("tbl.where.with_zone", where=text, zone=where["zone_colors"]) if where.get("zone_colors") else text
     if "no_zone_of" in where:
         who = where["no_zone_of"]
         return t("tbl.where.no_zone_hero") if who in ("hero", "this") else t("tbl.where.no_zone", who=who)
@@ -194,8 +201,6 @@ def line(n: dict) -> str:
         return t("tbl.move_none", fid=n["fid"], squares=plural(n["amount"], "noun.space"))
     if op == "place":
         return t("tbl.place", fid=n["fid"], where=_where(n.get("where")))
-    if op == "swap":
-        return t("tbl.swap", fid=n["fid"], other=n["other"])
     if op in ("revive", "summon"):
         return t("tbl.put", fid=n.get("name") or n["fid"], where=_where(n.get("where")), hp=f"{n['hp']:g}")
     if op == "choose":
@@ -223,6 +228,8 @@ def line(n: dict) -> str:
         rest = t({"bottom_random": "tbl.rest.bottom_random", "bottom_ordered": "tbl.rest.bottom_ordered",
                   "top_ordered": "tbl.rest.top_ordered", "shuffle": "tbl.rest.shuffle"}.get(n["rest"], "tbl.rest.bottom"))
         return t("tbl.search", look=look, take=plural(n["take"], "noun.card"), rest=rest)
+    if op == "swap":                                  # an old save: the bot swaps the pieces itself now and no longer notes it
+        return t("tbl.swap_old")
     return op
 
 

@@ -50,6 +50,8 @@
        "id": {"$ref": "#/$defs/Name"},
        "condition": {"$ref": "#/$defs/Condition"},
        "ops": {"$ref": "#/$defs/Ops"},
+       "cardless": {"const": true},
+       "second_attack": {"const": true},
        "notes": {"type": "string"}
       }
      }
@@ -218,6 +220,8 @@
     "properties": {"test": {"const": "counter"}, "name": {"$ref": "#/$defs/Name"}, "min": {"type": "integer"}, "max": {"type": "integer"}, "player": {"$ref": "#/$defs/PlayerSel"}}},
    {"type": "object", "additionalProperties": false, "required": ["test", "fighter"],
     "properties": {"test": {"const": "moved_this_turn"}, "fighter": {"$ref": "#/$defs/FighterRef"}}},
+   {"type": "object", "additionalProperties": false, "required": ["test", "fighter"],
+    "properties": {"test": {"const": "can_move"}, "fighter": {"$ref": "#/$defs/FighterRef"}}},
    {"type": "object", "additionalProperties": false, "required": ["test", "fighter"],
     "properties": {"test": {"const": "no_zone_with_turn_start"}, "fighter": {"$ref": "#/$defs/FighterRef"}}},
    {"type": "object", "additionalProperties": false, "required": ["test", "side"],
@@ -426,6 +430,8 @@
     "properties": {"op": {"const": "allow_boost"}, "card": {"$ref": "#/$defs/CardRef"}}},
    {"type": "object", "additionalProperties": false, "required": ["op"],
     "properties": {"op": {"const": "consider_won"}}},
+   {"type": "object", "additionalProperties": false, "required": ["op", "amount"],
+    "properties": {"op": {"const": "second_attack"}, "amount": {"$ref": "#/$defs/Amount"}}},
    {"type": "object", "additionalProperties": false, "required": ["op", "card"],
     "properties": {"op": {"const": "lock_value"}, "card": {"$ref": "#/$defs/CardRef"}}},
    {"type": "object", "additionalProperties": false, "required": ["op", "target"],
@@ -442,6 +448,8 @@
     "properties": {"op": {"const": "spend_action"}, "amount": {"$ref": "#/$defs/Amount"}}},
    {"type": "object", "additionalProperties": false, "required": ["op"],
     "properties": {"op": {"const": "end_turn"}}},
+   {"type": "object", "additionalProperties": false, "required": ["op", "text"],
+    "properties": {"op": {"const": "notice"}, "text": {"$ref": "#/$defs/Name"}}},
    {"type": "object", "additionalProperties": false, "required": ["op", "player"],
     "properties": {"op": {"const": "shuffle_deck"}, "player": {"anyOf": [{"$ref": "#/$defs/PlayerSel"}, {"const": "all"}]}}},
    {"type": "object", "additionalProperties": false, "required": ["op", "player"],

@@ -20,6 +20,12 @@ class Controller:
         """`attack_card`: the attack when it is played face up (UNCANNY INTUITION, Perfect Shot), else None."""
         return None
 
+    def choose_second_defense(self, game: "Game", attacker: "Fighter", target: "Fighter", value: int,
+                              card: "Card") -> "Card | None":
+        """DOUBLE ATTACK: the defense against the second part of `card` (worth `value`, a public number: the card was just
+        revealed). Defaults to the choice against a face-up attack."""
+        return self.choose_defense(game, attacker, target, attack_card=card)
+
     def choose_combat_boost(self, game: "Game", ctx) -> "Card | None":
         return None
 

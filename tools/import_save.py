@@ -253,6 +253,11 @@ def extract_hero(objects: list[dict], hero: HeroDef, raw_hero: dict, report: Rep
             claimed.add(dial_hits[0]["GUID"])
             if len(dial_hits) > 1:
                 report.problems.append(f"fighter {spec.fid!r}: several dials match, took {dial_hits[0]['GUID']}")
+        elif spec.fid in hero.tts.get("no_dial", ()):
+            entry["no_dial"] = True          # the save gives this piece no life dial (Yennenga's Archers: 2 HP): the two faces of the token tell it
+            if hero.tts.get("life_faces"):
+                entry["faces"] = dict(hero.tts["life_faces"])
+                entry["verify_live"] = not hero.tts.get("life_faces_verified")   # who saw the faces live, and when
         elif spec.hp > 1:
             report.problems.append(f"fighter {spec.fid!r}: {spec.hp} HP and no dial named {spec.name!r}")
         if not _same(_nick(piece), spec.name):

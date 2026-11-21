@@ -201,6 +201,7 @@ An object with `test` or a combinator `{"all": [...]}`, `{"any": [...]}`, `{"not
 | `counter` | `name`, `min`?, `max`?, `player`? | |
 | `moved_this_turn` | `fighter: FighterRef` | started the turn on another space |
 | `no_zone_with_turn_start` | `fighter: FighterRef` | the fighter's space shares no zone with the space it started the turn on (not having moved is not it; section 32) |
+| `can_move` | `fighter: FighterRef` | no status keeps the fighter on its space (Burning Barrier's `cannot_leave_space`, Counterhex Shield against enemy effects) |
 | `played_as` | `side: attack | defense` | how `this` was played |
 | `compare` | `left: Amount`, `op: < <= == >= > !=`, `right: Amount` | |
 | `effects_canceled` | `card: CardRef` | a cancellation of this combat took effects off that card |
@@ -265,6 +266,7 @@ Every op is `{"op": "<name>", ...args}`. Arguments not listed are an error.
 | `allow_boost` | `card: CardRef` | | "Your opponent may BOOST their card": that card's side is asked for the free BOOST of `may_boost` cards in DURING even if the card has none (An Illusion Of My Own Design) |
 | `defeat` | `target: FighterSel` | `chooser` | the fighter is defeated outright, with no damage (nothing that stops or changes damage applies): the price of "defeat a Red Rider" (Eredin's Icy Guile and Foul Purpose, a `cost` of an `optional`; it cannot be paid with nobody to defeat); see section 37 |
 | `cap_combat_damage` | `target: FighterSel`, `amount` | `chooser` | "X cannot take more than N combat damage this combat" (Tomoe Gozen's Deeds Of Valor, a DURING op); see section 35 |
+| `second_attack` | `amount` | | DOUBLE ATTACK (Volume Two): the card's second red part, only in `after` of a card that attacks; section 45 |
 | `consider_won` | | | "You are considered to have won this combat" (Bullseye's Arrogant But Effective): the owner's side becomes the combat's winner for every later condition and for the turn's tally; see section 31 |
 | `lock_value` | `card: CardRef` | | "the value of that card is equal to its printed value and cannot be changed" (Jill Trent's Stasis Diffuser, section 33): the side's total goes back to the card's printed value and every later change of it in this combat is ignored |
 | `status` | `name`, `until: Event` and `target: FighterSel` or `player: PlayerSel` | `amount` | see the status table |
@@ -272,6 +274,7 @@ Every op is `{"op": "<name>", ...args}`. Arguments not listed are an error.
 | `gain_action` | `amount` | `player` | blocked by `cannot_gain_actions` and the `no_gain_actions` rule |
 | `spend_action` | `amount` | | "Spend an additional action" (The Savage She-Hulk): the owner's turn loses that many actions, as an action taken would. Meant as an `optional` `cost`: `optional` does not offer it unless the owner is the player whose turn it is and has that many actions LEFT (the attack's own action is already spent when DURING runs); see section 34 |
 | `end_turn` | | | |
+| `notice` | `text` (a key of `narr.notice.*`) | | does nothing; its reason joins the card's line in the chat ("Sly Monkey: no effect: there is no free space..."), so a branch that was skipped says why. Once per key per run |
 | `look_hand` | `player` | | the owner sees `player`'s hand now (see 6) |
 | `reveal` | `cards: CardSel | CardRef`, `to: PlayerSel` | | show cards |
 | `look_deck` | `player`, `amount`, `as` | `from: top | bottom` | look without moving |
@@ -1356,3 +1359,48 @@ Everything here is additive: no earlier effects file or HeroDef uses these words
 - Working Things Out is `move` with `pick: all`.
 - Plugin `blue:ambush` (`sparring/effects/plugins_raptors.py`): the opponent discards a card by chance and its BOOST is added to the card's value; for the table player the bot says a position, they discard it and the bot reads it (`random_discard.discard_random_known`).
 - **Washington's later pieces** (2026-11-13): Allies Everywhere uses `gain_action` with `only: "attack"`; Make A Stand uses the plugin TEST `washington:started_here` (`{"test": "plugin", "id": "washington:started_here", "key": "this"}`: the fighter's space equals the one recorded at the start of the turn; its id is a tracking needle in `events.TRACKS` so `fx.turn_start_pos` is recorded).
+
+## 45. The double attack (Battle of Legends, Volume Two)
+
+A double-attack card has two red (attack) parts. Ivan's rules (20/11/2026): the first part is the main attack and resolves as a normal combat; the second part is a second attack against the same defender, and the defender may defend it too; it is an AFTER COMBAT effect of the card, so a Feint (or anything that cancels the card's effects, or only its AFTER effects) stops it; a fighter moved during the first combat (Skirmish) does not stop it, even when the defender ends out of range or out of the zone; the timing order is IMMEDIATELY, DURING, AFTER and the defender's effect goes first at each moment.
+
+- **Op `second_attack`** (`amount`: an Amount): "this card's second attack is worth `amount`". It goes in `effects.after` of a card that can attack (the validator refuses it in any other moment and on a defense card), inside any `if` / `optional` of that list. It is the only thing a hero file writes: no flag on the card, the card's second part is its `after` list. The amount is read when the op runs, in the attacker's AFTER, so "the printed value of the card the opponent played against this card" is `{"attr": "value", "of": "opponent_card"}` (0 when they played none). A card played as a defense records nothing.
+- **A condition is just an `if`**: Wukong's Ruyi Jingo Bang, "if your opponent played a defense card: 4 ATK" is
+  `{"op": "if", "condition": {"test": "card", "card": "opponent_card", "filter": {}}, "then": [{"op": "second_attack", "amount": 4}]}` (`test: card` is false when there is no such card). Yennenga's Rain of Arrows (3) and Achilles' Test For Weakness (3) are `[{"op": "second_attack", "amount": 3}]`; Bloody Mary's Bloody Requiem is `[{"op": "second_attack", "amount": {"attr": "value", "of": "opponent_card"}}]`.
+- **What the engine does with it** (`CombatFlow.second_attack`, docs/combat-flow.md "Double attack"): the op only records the value; the second attack is played when the AFTER phase of the first combat is over (so the defender's AFTER of the first combat goes first, then the attacker's), against the same defender fighter, wherever it now stands.
+- **Hero AFTER abilities in a combat without card effects (Ivan 2026-11-20)**: an entry of `ability.after` may carry `"cardless": true` (it also runs when its owner DEFENDS without playing a card: `ops_combat.hero_after`, called by the flow before the sides' AFTER) and/or `"second_attack": true` (it also runs for the attacker in the combat of a second attack, whose card has no effects left). Only flagged entries run there, so Jill Trent's tonic and Wyatt's showdown read those combats as before; the condition (`combat_result`, `this` is the hero) is evaluated for that combat. Achilles' `vengeance_draw` carries both: he draws when he wins the second combat (winning both draws 2), and when he defends a combat without a card and wins it.
+- The unruled points (boosting the second attack, "won/lost", passives, no defender card, action count) are listed under "Pending Ivan" in docs/combat-flow.md.
+
+## 46. Bloody Mary: the third action, a card bound from the rival's hand, a gained action at the start of the turn
+
+No new op, event or schema field: everything is written with what exists (and `second_attack`, section 45, for Bloody Requiem).
+
+- **"Third action this turn"** (Speak Three Times, Out Of The Mirror, Ghostly Touch) is `{"stat": "actions_taken_this_turn", "player": "owner"} == 3`: the actions the owner has SPENT this turn, the card's own included (`fx.taken`, counted by `Game.use_action`, reset at `start_of_turn`). Gained actions count once they are spent; `==`, not `>=`.
+- **Start-of-turn `gain_action`**: her ability is an `ability.triggers` entry (`start_of_turn`, `hand_size == 3`, `gain_action 1`). `table.start_of_turn_is_physical` now lists `gain_action` among the ops that need nothing from the table, so the engine runs it for the human as well.
+- **`EffectRun.bind(kind, name, values, owners=None)`**: a card binding may carry the owner of each id (`bindings[name]["o"]`; saved with the run). `choose` and `discard` record it and `select.card_ref("$name")` looks each id up in its owner's deck first. Decks of sheet 176 share CardIDs, so a card picked from the RIVAL's hand must not be resolved against the caster's deck (Stolen Memories reads the BOOST of the card it named).
+- **Choice context**: `ops_core._choice_context` fills `else_damage` also when the damage of an `optional`'s `else` is `{"attr": ..., "of": "$name"}` (the BOOST of the chosen card), so the human's buttons read "Coger <n>" and the bot's `_discard_or_take` prices it.
+- **Plugin** `mary:out_of_the_mirror` (`sparring/effects/plugins_mary.py`): the rival's random discard whose BOOST is added to the card (Chupacabra's Ambush flow, which reads the discarded card object).
+- **AI** (`sparring/ai_mary.py`): see docs/heroes/bloody-mary.md.
+
+## 47. Yennenga: damage handed to the Archers, a defeated sidekick that returns as the attacker
+
+No new op, event or schema field; one passive and two plugins (`sparring/effects/plugins_yennenga.py`).
+
+- **The ability** ("if Yennenga would take damage, you may assign any amount of it to one or more Archers in her zone instead") is the passive `{"kind": "plugin", "plugin": "yennenga:assign_damage"}`: it is not run, the damage code reads it (`plugins_yennenga.assigns_damage`: a living hero of an interpreted player whose file declares it). Her OWNER decides, before the damage lands: one `amount` request per Archer of hers in her zone (fighter id order), options `0..min(points left, the Archer's life)`, `extra = {assign: <archer fid>, fighter, left, damage, source: "combat" | "effect", later: [the Archers still to ask]}`. The human answers on the panel (`choice.prompt.assign`), the bot by `sparring/ai_yennenga.archer_share`, a rollout by the same function without the death-risk term, `default_answer` and `TableChooser` assign nothing.
+- **Effect damage**: the `damage` op asks inside itself (`plugins_yennenga.effect_shares`), after any `redirect_damage`, and applies each share as effect damage on the fighter that takes it.
+- **Combat damage**: see docs/combat-flow.md, "Damage assignment".
+- **`yennenga:surprise_volley`** (IMMEDIATELY of an attack): with a defeated Archer of hers and a free space in the opposing fighter's zone the owner is asked (optional); yes: `revive` with the Archer's full life and `CombatFlow.replace_combatant(attacker, Archer)` (the machinery of Smoke And Mirrors); no, or nothing to return: `gain_action 1`.
+- Shield Formation is an `optional` of the OPPONENT with a `discard` cost and a `revive` in the `else`; Stallion Charge is a `move` with `through_enemies` and `as`, then a `damage` on `passed_by` (Luke Cage's Power Man shape); Jaws of the Beast is `modify_value` by the Amount `{"stat": "zones", "fighter": "opposing"}`; Rain of Arrows is `second_attack` 3 (section 45).
+- The Archers have 2 life and no life dial in the save: `data/tts/<slug>.json` marks such a piece `no_dial: true` (overlay `"tts": {"no_dial": [fids]}`), accepted by `tools/import_save.py` and `sparring/tts/hero_table.py` only when asked.
+
+## 48. Sun Wukong: summons from a reserve, a combat redirection that names the attacker, a start-of-turn price in hit points run by the engine
+
+No new op, no new schema field: everything is written with what existed (docs/heroes/sun-wukong.md).
+
+- **Clones that start off the board**: the sidekick group has `start_on_board: 0`, so the three Clones wait in the reserve. `summon` takes a never-placed one (`died_at is None`); a defeated Clone returns to the supply, which the file reads as `if exists {side own, name Clone, state defeated} then revive else summon` (the same `where` in both). With the three Clones out Sly Monkey repositions one instead: `place` of `{side own, name Clone}` on `{space_of this, empty false}` (owner chooses). `summon` into the hero's own space is `{"space_of": "this", "empty": false}` (Sly Monkey: the Clone appears where Sun Wukong stands for that instant, then `place` moves him).
+- **`redirect_damage` may name the combat's fighters**: `to: {"role": "attacker"}` (Golden Chain Mail). The bare run that reads the redirection (`modifiers._owner_run(game, owner, flow)`) now carries `attacker_fid` / `defender_fid` of the flow.
+- **A price in hit points** is an op inside `optional` (`damage` on `hero`), not a `cost`: `_can_pay` assumes any non-card cost payable. The bot answers it with `ai_wukong.summon_pays`, found by the trigger id in the request key (`clone_summon/...`); the generic answer to an optional is yes.
+- **A start-of-turn trigger the engine runs for the table player**: `table.ENGINE_RUN_TRIGGERS` (the id `clone_summon`) exempts that one trigger from being "physical": the panel asks yes/no, the dial is written, the Clone is placed by hand and read from the table.
+- **The free BOOST a card grants its opponent** (`allow_boost`): asked at the end of the opponent's own DURING. When the grant comes from the attacker's DURING and the opponent is the defender (whose DURING ran first), the flow asks the defender right after the attacker's DURING (`combat_flow._late_boost`), before the values are compared (Ox Form, Ivan 2026-11-20). A defender's grant to the attacker (Tortoise Form) is in time. `modifiers.grants_boost` reads IMMEDIATELY and DURING so the table asks the human at Reveal.
+- **Preventing all combat damage** is `cap_combat_damage` of 0 on `{"role": "combatant", "pick": "all"}` (Bewilderment; item 11 of section 9 stays about effect damage).
+- **A tag instead of a title list**: a card that returns "an Ox Form, Tortoise Form or Phoenix Form" filters the discard pile by `{"tag": "form"}` (CardFilter has one `title`); the overlay tags the three cards.

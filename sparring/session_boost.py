@@ -11,7 +11,7 @@ the DURING boost where it was; a cancel of DURING and AFTER (Break something) or
 never touches the session: the real combat runs afterwards from the untouched game."""
 from __future__ import annotations
 
-from .combat_flow import Phase, legacy_chooser
+from .combat_flow import CombatFlow, Phase, legacy_chooser
 
 
 def by_ability(session, p) -> bool:
@@ -32,7 +32,9 @@ def offered(session, p, human_card) -> bool:
     att, tgt = g.fighters[p.attacker.fid], g.fighters[p.target.fid]
     value = session.pending_value
     try:
-        if p.kind == "human_attacks":
+        if p.second is not None:
+            flow = CombatFlow(g, att, tgt, p.bot_card, human_card, second=p.second["value"])    # the human only defends a second attack
+        elif p.kind == "human_attacks":
             flow = g.begin_attack(att, tgt, human_card, p.bot_card, values=(value, 0), attacked=False)
         else:
             flow = g.begin_attack(att, tgt, p.bot_card, human_card, values=(0, value), attacked=False)

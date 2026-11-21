@@ -45,7 +45,11 @@ def brig(bprd):
 
 
 def click(session, table, event, payload=None):
-    """A panel click: it carries the table snapshot at the moment of pressing."""
+    """A panel click: it carries the table snapshot at the moment of pressing. Closing or starting an action, the human has put the cards of
+    the last combat on their pile (the fake turns played cards face up and leaves them at the spot): except while a double attack's second
+    part is still to come, whose first card stays there for the Reveal to ignore."""
+    if event in (Event.END_ACTION, Event.ATTACKER, Event.MANEUVER, Event.SCHEME) and getattr(session, "second_next", None) is None:
+        table.face_up = []
     return session.handle(event, {**(payload or {}), "snapshot": json.dumps(table.snapshot_state())})
 
 

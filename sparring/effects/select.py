@@ -282,7 +282,9 @@ def card_ref(game, run, ref) -> list:
         card = find_card(game, ids[ref], owners[ref]) if ids[ref] is not None else None
         return [] if card is None else [card]
     if isinstance(ref, str) and ref.startswith("$"):
-        return [c for c in (find_card(game, i, ctx.owner) for i in run.bound(ref[1:], "cards")) if c is not None]
+        ids = run.bound(ref[1:], "cards")
+        owners = run.bound_owners(ref[1:]) or [ctx.owner] * len(ids)
+        return [c for c in (find_card(game, i, o) for i, o in zip(ids, owners)) if c is not None]
     raise EffectError(f"bad card reference {ref!r}")
 
 
@@ -471,6 +473,9 @@ def condition(game, run, c: dict) -> bool:
     if test == "fighter_at":
         f = _ref_fighter(game, run, c["fighter"])
         return f is not None and f.pos in space_options(game, run, c["space"], default_empty=False)
+    if test == "can_move":                     # no status keeps the fighter where it is (Burning Barrier)
+        f = _ref_fighter(game, run, c["fighter"])
+        return f is not None and game.fx.can_move(f)
     if test == "card":
         cards = card_ref(game, run, c["card"])
         return bool(cards) and _matches(cards[0], c.get("filter") or {})

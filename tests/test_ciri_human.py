@@ -309,3 +309,31 @@ def test_the_bots_feint_cancels_the_humans_ciri_card_below_source_seven_only(rig
     attack(session, table, game, "ciri", "Pushed to the brink", target="liz")
     lost = hp - game.fighters["liz"].hp
     assert (lost < 2) is canceled, lost
+
+
+@pytest.mark.parametrize("source,lost", [(6, 0), (7, 5)])
+@rigged("Feint", bot="liz-sherman")
+def test_the_lion_cub_the_human_plays_does_not_count_for_their_own_source_so_feint_cancels_it_at_six(rig, monkeypatch, source, lost):
+    """Iván, 2026-11-19: Source 6 in the pile and the Lion cub being played is still Source 6 (a Feint cancels it: a bare 2 against the Feint's 2), Source 7 is not (7 against 2)."""
+    session, table, game, fake, cfg = rig
+    defends(session, game, monkeypatch, "Feint")
+    put_adjacent(game, table, cfg, "ciri", "liz")
+    human_hand(table, game, "Lion cub of Cintra", "Blink")
+    human_source(table, game, source, played="Lion cub of Cintra")
+    hp = game.fighters["liz"].hp
+    attack(session, table, game, "ciri", "Lion cub of Cintra", target="liz")
+    assert hp - game.fighters["liz"].hp == lost
+
+
+@pytest.mark.parametrize("source", [6, 7])
+@rigged("Feint", bot="liz-sherman")
+def test_the_bots_feint_cancels_the_searching_strike_of_ihuarraquax_even_at_source_seven(rig, monkeypatch, source):
+    """Iván, 2026-11-19: UNCONTAINABLE POWER covers only the cards Ciri herself plays: Ihuarraquax's Searching strike is canceled
+    (no 'may search' question) at Source 6 and at Source 7 alike."""
+    session, table, game, fake, cfg = rig
+    defends(session, game, monkeypatch, "Feint")
+    put_adjacent(game, table, cfg, "ihuarraquax", "liz")
+    human_hand(table, game, "Searching strike", "Blink")
+    human_source(table, game, source, played="Searching strike")
+    attack(session, table, game, "ihuarraquax", "Searching strike", target="liz")
+    assert session.effect_run is None
