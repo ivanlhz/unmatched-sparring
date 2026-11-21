@@ -3018,7 +3018,8 @@ class Session:
         if (paused := self._paused()) is not None and paused[0] == "parked" and paused[2].ctx.moment == "after_combat":
             self._show_choice(paused[2].awaiting)         # DARK PACT: asked right after the combat; `_effect_done` says the rest
             return
-        self.say(t("combat.after") if self.second_next is None else t("second.after_first"), ChatKind.YOUR_TURN)
+        self.say(t("combat.after") if self.second_next is None
+                 else t("second.after_first_attacker" if p.attacker.owner == self.human else "second.after_first"), ChatKind.YOUR_TURN)
 
     def _bot_boost_ids(self, p: Pending) -> set[int]:
         """The cards the bot spent as a boost in this combat, whichever side it was on (an attack's or a defense's)."""
