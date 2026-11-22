@@ -9,3 +9,8 @@ sparring/effects/ops_core.py  blackbeard  bot ransom line without 'pays 0 cards'
 sparring/session_choices.py  blackbeard  bot ransom line without 'pays 0 cards', Sea Dog reposition prompt  2026-11-22 10:28Z
 data/i18n/en.json  blackbeard  bot ransom line without 'pays 0 cards', Sea Dog reposition prompt  2026-11-22 10:28Z
 data/i18n/es.json  blackbeard  bot ransom line without 'pays 0 cards', Sea Dog reposition prompt  2026-11-22 10:28Z
+sparring/session.py  loki  Loki TRICKs at the table (session ledger, translators)  2026-11-22 10:29Z
+sparring/session_translators.py  loki  Loki TRICKs at the table (session ledger, translators)  2026-11-22 10:29Z
+sparring/session_bot_effects.py  loki  Loki TRICKs at the table (session ledger, translators)  2026-11-22 10:29Z
+sparring/state.py  loki  Loki TRICKs at the table (session ledger, translators)  2026-11-22 10:29Z
+sparring/tricks.py  loki  Loki TRICKs at the table (session ledger, translators)  2026-11-22 10:29Z
