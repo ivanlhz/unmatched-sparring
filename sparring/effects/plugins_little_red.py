@@ -48,6 +48,31 @@ def basket(game, player: int) -> str:
     return symbol_of(pile[-1]) or NONE
 
 
+def ambiguous_top(game, player: int) -> list:
+    """The cards that landed on `player`'s pile in one step, when the table could not say which of them is on top and they show different symbols
+    (`fx.pile_unsure`, set by the session for the table player's pile only). Empty when nothing is unsure or the marker has gone stale."""
+    ids = game.fx.pile_unsure[player]
+    if not ids:
+        return []
+    pile = game.players[player].discard
+    tail = pile[-len(ids):] if len(ids) <= len(pile) else []
+    if {c.card_id for c in tail} != set(ids) or len({symbol_of(c) for c in tail}) < 2:
+        game.fx.pile_unsure[player] = []
+        return []
+    return tail
+
+
+def _settle_top(game, run, owner: int, tail: list) -> None:
+    """Asks which of the cards laid together is on top, then puts that one last: the engine's order is the player's word from then on."""
+    got = run.ask(game, "cards", owner, [c.card_id for c in tail], 1, 1, "which card of these is on top of your discard pile",
+                  zone="discard", purpose="top", of=owner)
+    card = next(c for c in tail if c.card_id == got[0])
+    pile = game.players[owner].discard
+    pile.remove(card)
+    pile.append(card)
+    game.fx.pile_unsure[owner] = []
+
+
 def top_card(game, player: int):
     """The card on top of `player`'s discard pile (None: only the Basket lies there)."""
     pile = game.players[player].discard
@@ -60,7 +85,12 @@ DEFEND_TAG = "defend_if_axe"          # What Big Ears You Have: "(axe) You may p
 def may_defend_with(game, player: int, card) -> bool:
     """`card` is an attack that may be played as a defense now: Big Ears while the basket is an axe (a wild basket may count as one: the
     line has nothing to resolve, so no question is asked). It is checked when the card is played; a later cancel keeps it a defense."""
-    return DEFEND_TAG in card.tags and basket(game, player) in ("axe", WILD)
+    if DEFEND_TAG not in card.tags:
+        return False
+    unsure = ambiguous_top(game, player)
+    if unsure:                                 # which of them is on top is not known yet: the card may defend if any could be an axe
+        return any((symbol_of(c) or NONE) in ("axe", WILD) for c in unsure)
+    return basket(game, player) in ("axe", WILD)
 
 
 def _choose_symbol(game, run, owner: int) -> str:
@@ -80,6 +110,9 @@ def _basket_shows(game, run, key: str) -> bool:
     if key not in SYMBOLS:
         raise EffectError(f"red:basket: unknown symbol {key!r}")
     owner = run.ctx.owner
+    tail = ambiguous_top(game, owner)
+    if tail:
+        _settle_top(game, run, owner, tail)
     shown = basket(game, owner)
     wild = shown == WILD
     if wild:

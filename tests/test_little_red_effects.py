@@ -476,3 +476,82 @@ def test_a_card_with_no_symbol_on_top_of_the_pile_matches_nothing_and_asks_nothi
     hand = len(st.hand)
     foe_attacks(g, "The Wolf's Skin")
     assert len(st.hand) == hand and not wild_asked(g)
+
+
+# ---------------------------------------------------------------- cards that landed together: which is on top?
+
+def top_unsure(g, *titles):
+    """The pile is exactly `titles` and the last of them all landed together: the table did not say which is on top."""
+    pile(g, *titles)
+    g.fx.pile_unsure[0] = [c.card_id for c in g.players[0].discard[-2:]]
+
+
+def cards_asked(g):
+    return [r for r in asked(g, 0, "cards") if r.extra.get("purpose") == "top"]
+
+
+@pytest.mark.parametrize("on_top,draws", [("The Wolf's Skin", 0), ("Never Leave the Path", 2)])
+def test_two_cards_laid_together_with_different_symbols_ask_which_is_on_top_and_the_answer_is_the_basket(bprd, on_top, draws):
+    g = mk(bprd, turn=1)
+    top_unsure(g, "The Wolf's Skin", "Never Leave the Path")                   # an axe and a wolf
+    both = list(g.fx.pile_unsure[0])
+    chosen = next(c.card_id for c in g.players[0].discard if c.title == on_top)
+    g.controllers[0].queue = [[chosen]]
+    hand = len(g.players[0].hand)
+    foe_attacks(g, "The Wolf's Skin")
+    req, = cards_asked(g)
+    assert sorted(req.options) == sorted(both) and len(g.players[0].hand) == hand + draws and not g.fx.pile_unsure[0]
+    assert [c.title for c in g.players[0].discard][-3:] == [("Never Leave the Path" if on_top == "The Wolf's Skin" else "The Wolf's Skin"), on_top, "The Wolf's Skin"]
+
+
+def test_two_cards_laid_together_with_the_same_symbol_ask_nothing(bprd):
+    g = mk(bprd, turn=1)
+    top_unsure(g, "Never Leave the Path", "Never Leave the Path")
+    foe_attacks(g, "The Wolf's Skin")
+    assert not cards_asked(g) and not g.fx.pile_unsure[0]
+
+
+def test_the_question_is_asked_only_when_a_line_needs_the_basket(bprd):
+    g = mk(bprd)
+    top_unsure(g, "The Wolf's Skin", "Never Leave the Path")
+    g.play_scheme(0, g.fighters["red"], give(g, 0, "Into the Woods"))          # no symbol line
+    assert not cards_asked(g) and g.fx.pile_unsure[0]
+
+
+def test_a_marker_whose_cards_are_no_longer_the_top_is_dropped(bprd):
+    g = mk(bprd, turn=1)
+    top_unsure(g, "The Wolf's Skin", "Never Leave the Path")
+    g.discard_card(0, give(g, 0, "Once Upon a Time"))                           # a newer card covers both
+    foe_attacks(g, "The Wolf's Skin")
+    assert not cards_asked(g) and not g.fx.pile_unsure[0]
+
+
+def test_big_ears_may_defend_while_an_axe_could_be_on_top(bprd):
+    g = mk(bprd, turn=1)
+    top_unsure(g, "Never Leave the Path", "The Wolf's Skin")
+    card = give(g, 0, "What Big Ears You Have")
+    assert g.fx.may_defend_with(0, card)
+    top_unsure(g, "Never Leave the Path", "Once Upon a Time")                   # a wolf and a rose: no axe
+    assert not g.fx.may_defend_with(0, card)
+
+
+def test_the_unsure_marker_survives_a_save_and_a_clone(bprd):
+    g = mk(bprd)
+    top_unsure(g, "The Wolf's Skin", "Never Leave the Path")
+    assert g.clone().fx.pile_unsure[0] == g.fx.pile_unsure[0]
+    fresh = mk(bprd)
+    apply_game(fresh, json.loads(json.dumps(game_to_dict(g))))
+    assert fresh.fx.pile_unsure[0] == g.fx.pile_unsure[0] and fresh.fx.pile_unsure[1] == []
+
+
+# ---------------------------------------------------------------- the chosen symbol is only used while the basket is wild
+
+def test_a_symbol_chosen_while_the_basket_was_wild_is_not_kept_once_a_card_shows_its_own(bprd):
+    from sparring.effects.plugins_little_red import _basket_shows
+    from sparring.effects.run import Ctx, EffectRun
+    g = mk(bprd)
+    card = give(g, 0, "Once Upon a Time")
+    run = EffectRun.for_card(SLUG, card.title, "after", Ctx(owner=0, this_fid="red", card_id=card.card_id))
+    run.flags["basket_symbol"] = "wolf"                                         # chosen earlier, when only the Basket lay there
+    pile(g, "The Wolf's Skin")                                                  # now an axe is on top
+    assert _basket_shows(g, run, "axe") and not _basket_shows(g, run, "wolf")

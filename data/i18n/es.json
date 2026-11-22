@@ -1453,6 +1453,9 @@
  "tbl.where.apart": "en una zona donde no este ninguno de tus otros luchadores",
  "elektra.flip.bot": "{name} resucita: le doy la vuelta al dial de vida (el dial Elektra Resurrected, 9).",
  "elektra.flip.human": "{name} resucita: dale la vuelta a tu dial de vida (el dial Elektra Resurrected, 9). Desde ahora escribo su vida en ese.",
- "choice.prompt.returns_top": "{title}: devuelves {top}, la carta de arriba de tu descarte, a tu mano (en vez de esta carta)?",
- "err.big_ears_basket": "{title} solo se juega como defensa si arriba de tu descarte hay una hacha (o una estrella, o solo esta la Cesta)"
+ "choice.prompt.returns_top": "{title}: devuelves {top}, la carta de arriba de tu descarte, a tu mano?",
+ "err.big_ears_basket": "{title} solo se juega como defensa si arriba de tu descarte hay una hacha (o una estrella, o solo esta la Cesta)",
+ "choice.prompt.pile_top": "Has puesto dos cartas a la vez en tu descarte: cual esta arriba?",
+ "lr.basket_missing": "No encuentro la Cesta de Little Red en la mesa ({side}): ponla en la zona de descarte, aparte de la pila. La partida sigue sin ella.",
+ "lr.basket_keep": "Deja la Cesta de Little Red (la carta suelta) en la esquina de tu zona de descarte, aparte de las cartas de tu pila: apilada con ellas no se distingue de una carta al reiniciar."
 }

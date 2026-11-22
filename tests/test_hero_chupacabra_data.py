@@ -197,8 +197,8 @@ def test_the_catalog_names_chupacabra_and_his_deck_is_his_own():
     assert catalog.identify([f"{f}|{b}" for f, b in load_hero_table("chupacabra").identity]).slug == "chupacabra"
 
 
-def test_only_the_life_dial_guid_is_shared_with_other_heroes_and_only_with_donatello_and_tomoe_gozen():
+def test_only_the_life_dial_guid_is_shared_with_other_heroes_and_only_with_donatello_tomoe_gozen_and_little_red():
     mine = set(load_hero_table("chupacabra").all_guids())
     for slug in [p.stem for p in HEROES_DIR.parent.joinpath("tts").glob("*.json") if p.stem != "chupacabra"]:
         common = mine & set(load_hero_table(slug).all_guids())
-        assert common == ({SHARED_DIAL} if slug in ("donatello", "tomoe-gozen") else set()), slug
+        assert common == ({SHARED_DIAL} if slug in ("donatello", "tomoe-gozen", "little-red-riding-hood") else set()), slug

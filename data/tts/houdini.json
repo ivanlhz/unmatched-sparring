@@ -1,7 +1,7 @@
 {
  "slug": "houdini",
  "_notes": [
-  "Houdini's deck is sheet 178 (CardIDs 17800-17829, its own FaceURL); the character card 17700 is a sheet of its own (177, 1x1) inside the same physical deck, so the catalog lists two images and CardIDs 17700-17829 while deck.identity holds only the playing cards' sheet. No other hero has CardIDs 177xx or 178xx, and no GUID of this file is used by another hero.",
+  "Houdini's deck is sheet 178 (CardIDs 17800-17829, its own FaceURL); the character card 17700 is a sheet of its own (177, 1x1) inside the same physical deck, so the catalog lists two images and CardIDs 17700-17829 while deck.identity holds only the playing cards' sheet. Sheet 177 is shared with Little Red Riding Hood's deck (CardIDs 17700-17729, another image): only the image tells them apart. No GUID of this file is used by another hero.",
   "The Houdini miniature (3ec3d1) is a Custom_Assetbundle; the Custom_Model nicknamed 'Houdini' that carries MAX_VALUE 14 (fdb21e) is his life dial. Bess is a Custom_Token (a73e79); the Custom_Model nicknamed 'Bess' with MAX_VALUE 5 (ede1d4) is her dial."
  ],
  "bag": {

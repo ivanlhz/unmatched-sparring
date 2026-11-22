@@ -28,7 +28,7 @@ def default_dsl_heroes(game) -> set[str]:
 class EffectState:
     __slots__ = ("statuses", "ongoing", "counters", "modifiers", "dsl_heroes", "turn_start_pos", "attacked", "taken",
                  "maneuvers", "acting", "parked", "choosers", "said", "intents", "deck_discarded", "whole_hand", "random_notice", "played", "lost", "won", "tracks", "paths",
-                 "attack_credit", "_game_ref")
+                 "attack_credit", "pile_unsure", "_game_ref")
 
     def __init__(self) -> None:
         self.statuses: list[dict] = []                   # active status effects (name, target, until, amount)
@@ -46,6 +46,7 @@ class EffectState:
         self.tracks: list[list[int]] = [[], []]          # spaces of each player's track tokens (John Henry's STEEL-DRIVING MAN; sparring/tracks.py)
         self.paths: list[tuple[int, int]] = []           # the paths (edges, (low, high)) John Henry crossed this turn: his "different paths"
         self.attack_credit = 0                           # extra actions of the current turn that only an attack may spend (John Henry's Hear That Cold Steel Ring)
+        self.pile_unsure: list[list[int]] = [[], []]     # Little Red's player: CardIDs that landed on their pile together (the table does not say which is on top); the next line that reads the basket asks
         self.acting: int | None = None                   # player whose effect op is running right now (transient)
         self.parked: list = []                           # EffectRuns of triggers a chooser paused, in firing order (saved)
         self.choosers = None                             # who answers trigger decisions; None = the bots' controllers
@@ -182,6 +183,13 @@ class EffectState:
             from .events import run_boost
             run_boost(self.game(), player, card)
 
+    def may_defend_with(self, player: int, card) -> bool:
+        """`card` is an attack its owner may play as a defense now (Little Red's What Big Ears You Have, while her basket is an axe)."""
+        if "little-red-riding-hood" not in self.dsl_heroes:
+            return False
+        from .plugins_little_red import may_defend_with
+        return may_defend_with(self.game(), player, card)
+
     def can_move(self, fighter) -> bool:
         """False when a status keeps `fighter` where it is (Burning Barrier, Counterhex Shield vs. enemy effects)."""
         if not self._has_modifiers():
@@ -248,7 +256,7 @@ class EffectState:
     def is_empty(self) -> bool:
         return not (self.statuses or any(self.ongoing) or any(self.counters) or self.modifiers or self.dsl_heroes
                     or self.turn_start_pos or self.attacked or self.taken or self.maneuvers or any(self.played) or any(self.lost) or any(self.won)
-                    or any(self.tracks) or self.paths or self.attack_credit)
+                    or any(self.tracks) or self.paths or self.attack_credit or any(self.pile_unsure))
 
     def copy(self) -> "EffectState":
         """The state a clone (search, simulation) starts from. `choosers` and `parked` stay with the live game: a
@@ -271,6 +279,7 @@ class EffectState:
         c.tracks = [list(side) for side in self.tracks]
         c.paths = list(self.paths)
         c.attack_credit = self.attack_credit
+        c.pile_unsure = [list(side) for side in self.pile_unsure]
         return c
 
     def to_dict(self) -> dict:
@@ -307,6 +316,8 @@ class EffectState:
             out["paths"] = [list(e) for e in self.paths]
         if self.attack_credit:
             out["attack_credit"] = self.attack_credit
+        if any(self.pile_unsure):
+            out["pile_unsure"] = [list(side) for side in self.pile_unsure]
         if self.parked:
             out["parked"] = [run.to_dict() for run in self.parked]
         return out
@@ -330,6 +341,7 @@ class EffectState:
         fx.tracks = [[int(n) for n in side] for side in raw.get("tracks", [[], []])]
         fx.paths = [(int(e[0]), int(e[1])) for e in raw.get("paths", []) if isinstance(e, (list, tuple)) and len(e) == 2]   # an old save's track spaces are dropped
         fx.attack_credit = int(raw.get("attack_credit", 0))
+        fx.pile_unsure = [[int(n) for n in side] for side in raw.get("pile_unsure", [[], []])]
         if raw.get("parked"):
             from .run import EffectRun                  # run.py imports the combat flow, which imports the engine
             fx.parked = [EffectRun.from_dict(r) for r in raw["parked"]]

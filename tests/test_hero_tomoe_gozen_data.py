@@ -182,7 +182,7 @@ def test_the_catalog_names_tomoe_gozen_and_her_deck_is_her_own():
     assert catalog.identify([f"{f}|{b}" for f, b in load_hero_table("tomoe-gozen").identity]).slug == "tomoe-gozen"
 
 
-def test_the_only_guid_tomoe_gozen_shares_with_other_heroes_is_her_dial_with_donatellos_and_chupacabras():
+def test_the_only_guid_tomoe_gozen_shares_with_other_heroes_is_her_dial_with_donatellos_chupacabras_and_little_reds():
     """The save gives her life dial the GUID of Donatello's (ca8e35, also Chupacabra's and Little Red's): `session_pieces.resolve_dials`
     tells the two apart by the dial's name when both heroes are on the table (the Lobster / Jackalope case). Her bag, deck and
     miniature are nobody else's."""
@@ -191,5 +191,5 @@ def test_the_only_guid_tomoe_gozen_shares_with_other_heroes_is_her_dial_with_don
     for slug in [p.stem for p in HEROES_DIR.parent.joinpath("tts").glob("*.json") if p.stem != "tomoe-gozen"]:
         for guid in mine & set(load_hero_table(slug).all_guids()):
             shared.setdefault(guid, []).append(slug)
-    assert {guid: sorted(slugs) for guid, slugs in shared.items()} == {"ca8e35": ["chupacabra", "donatello"]}
+    assert {guid: sorted(slugs) for guid, slugs in shared.items()} == {"ca8e35": ["chupacabra", "donatello", "little-red-riding-hood"]}
     assert load_hero_table("tomoe-gozen").fighters["tomoe"].dial == "ca8e35"

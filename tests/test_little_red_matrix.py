@@ -15,6 +15,7 @@ from sparring.heroes import available_heroes
 from sparring.tts.ui import Event
 from test_d3_table_effects import build, set_hand
 from test_donatello_session import SPOTS, AsideTable
+from test_little_red_human import BasketMixin
 from test_tmnt_matrix import HERO_HP, MAX_STEPS, AttackDriver, human_step
 
 OTHERS = [h for h in available_heroes() if h != "little-red-riding-hood"]
@@ -23,12 +24,16 @@ IDS = [f"{b}-vs-{h}" for b, h in PAIRS]
 
 
 BASKET_CARD = 17600
-STRAY = ("17600", "La mesa manda:", "estaba suelta en la mesa")      # the Basket as a card, an extra discard adopted, a loose card taken back
+STRAY = ("17600", "La mesa manda:", "estaba suelta en la mesa", "que no es suya")      # the Basket as a card, an extra discard adopted, a loose card taken back
+
+
+class BasketTable(BasketMixin, AsideTable):
+    """The matrix's table with the Basket in the discard zone of whoever plays Little Red."""
 
 
 def lay_the_basket(table, game):
     """The Basket lies in the discard zone of whoever plays Little Red, as the gate leaves it."""
-    (table.bot_discard if game.players[0].hero.slug == "little-red-riding-hood" else table.human_discard).append(BASKET_CARD)
+    table.basket_in = ("bot",) if game.players[0].hero.slug == "little-red-riding-hood" else ("human",)
 
 
 def basket_stayed_out_of_the_game(game, said) -> bool:
@@ -43,7 +48,7 @@ def basket_stayed_out_of_the_game(game, said) -> bool:
 
 
 def play_to_the_end(tmp_path, bot: str, human: str):
-    session, table, game, fake, cfg, client = build(tmp_path, bot, human, (), table_cls=AsideTable, **SPOTS)
+    session, table, game, fake, cfg, client = build(tmp_path, bot, human, (), table_cls=BasketTable, **SPOTS)
     try:
         lay_the_basket(table, game)
         for player in (0, 1):
@@ -76,7 +81,7 @@ def test_a_full_session_game_reaches_game_over(tmp_path, bot, human):
 def test_a_game_where_the_human_attacks_every_turn_reaches_game_over(tmp_path, bot, human):
     """The human walks up to the bot's hero and attacks with a card of their own deck each turn (so the CardIDs the table
     reports for the combat are resolved against the human's deck, never the bot's) and discards to the hand limit."""
-    session, table, game, fake, cfg, client = build(tmp_path, bot, human, (), table_cls=AsideTable, **SPOTS)
+    session, table, game, fake, cfg, client = build(tmp_path, bot, human, (), table_cls=BasketTable, **SPOTS)
     try:
         lay_the_basket(table, game)
         set_hand(session, table, game, *[c.title for c in game.players[0].deck[:game.start_hand(0)]])

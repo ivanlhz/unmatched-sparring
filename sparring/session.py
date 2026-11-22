@@ -56,7 +56,7 @@ from . import session_reveal as reveal
 from . import session_counters
 from . import session_sinbad
 from . import session_tracks, tracks
-from . import session_archers, session_blackbeard, session_rosie
+from . import session_archers, session_blackbeard, session_little_red, session_rosie
 from . import session_sleight as sleight
 from . import session_translators as translators
 from .session_choices import panel_text
@@ -558,6 +558,7 @@ class Session:
         session_rosie.track(self, announce=True)
         session_archers.track(self, announce=True)
         session_blackbeard.track(self, announce=True)
+        session_little_red.start(self)
 
     def _start_first_turn(self) -> None:
         """The first turn's start-of-turn triggers. The game was built with `begin_turn(emit=False)`: before the table
@@ -1655,6 +1656,7 @@ class Session:
         sizes = {"bot": len(fresh.players[self.bot].full_set), "human": len(fresh.players[self.human].full_set)}
         self._flush()
         self._check_reset_plan(scope, sizes)
+        session_little_red.aside(self)                     # Little Red's Basket off every Deck first (a Deck with a card that is nobody's is not gathered)
         decks = {"bot": self._w(lua.reset_deck(c.bot_deck_guid, id_range=c.bot_card_ids, identity=self._identity(),
                                                scope=scope, **self._deck_kw()), "cards")}
         if c.human_deck_guid:
@@ -3657,6 +3659,7 @@ class Session:
         and onto its pile; the bot stops counting on the ones it had seen in the hand."""
         st = self.game.players[self.human]
         by_id = {c.card_id: c for c in st.full_set}
+        landed = []
         for i in sorted(ids & by_id.keys()):
             c = by_id[i]
             if c in st.discard:
@@ -3666,7 +3669,9 @@ class Session:
             elif c in st.deck:
                 st.deck.remove(c)
             st.discard.append(c)
+            landed.append(c)
             self.game.card_left_hand(self.human, c)     # if the bot had seen it in your hand, it stops counting on it
+        session_little_red.landed(self, landed)         # Little Red: which of them is on top is not known (the basket asks when it matters)
 
     def _human_wildfire(self) -> bool:
         """Liz (Wildfire): every burning card the human discards from their hand returns to it, so a forced discard
@@ -4742,9 +4747,9 @@ class Session:
     def _rd_bot_discard(self) -> list[dict]:
         c = self.cfg
         if c.batch:
-            return self._view("cards")["bot_discard"]
-        return self.client.call_lua(lua.read_discard(c.bot_discard_zone, [c.bot_deck_guid], [c.bot_deck_spot],
-                                                     c.deck_exclude_radius, self._skip_zones("bot"))) or []
+            return session_little_red.strip(self, self._view("cards")["bot_discard"])
+        return session_little_red.strip(self, self.client.call_lua(lua.read_discard(c.bot_discard_zone, [c.bot_deck_guid], [c.bot_deck_spot],
+                                                                                    c.deck_exclude_radius, self._skip_zones("bot"))) or [])
 
     def _rd_human_discard(self) -> list[dict]:
         return self._rd_human_discard_raw() or []
@@ -4753,11 +4758,11 @@ class Session:
         """The human's pile as the table answered it: None when there was no reply (an empty pile answers [])."""
         c = self.cfg
         if c.batch:
-            return self._view("cards")["human_discard"]
+            return session_little_red.strip(self, self._view("cards")["human_discard"])
         skip = [c.human_deck_guid] if c.human_deck_guid else []
         spots = [c.human_deck_spot] if c.human_deck_spot else []
-        return self.client.call_lua(lua.read_discard(c.human_discard_zone, skip, spots, c.deck_exclude_radius,
-                                                     self._skip_zones("human")))
+        return session_little_red.strip(self, self.client.call_lua(lua.read_discard(c.human_discard_zone, skip, spots, c.deck_exclude_radius,
+                                                                                    self._skip_zones("human"))))
 
     def _rd_human_count(self, default: int) -> int:
         if self.cfg.batch:

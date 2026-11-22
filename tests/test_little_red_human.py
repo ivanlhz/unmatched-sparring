@@ -22,10 +22,34 @@ from test_donatello_session import SPOTS
 from test_e2_human_cards import labels, press, put_adjacent
 
 BASKET_CARD = 17600                    # the loose Basket card of her bag: CardID 17600 of a one-image sheet, in no deck of hers
+BASKET_GUID = "51f3b8"                 # what tells it from a card of a sheet-176 deck that has the same CardID: its GUID
 TRAINING = "B.P.R.D. Training"         # Hellboy's defense of value 3
 
 
-class LittleRedTable(StrangeTable):
+class BasketMixin:
+    """The Basket as a row of the discard pile of the sides in `basket_in` (its GUID, CardID 17600), in every read of the zone and in the snapshot, as the
+    real table answers; `basket_aside` is what the restart sends first and the fake answers like the Lua does when the Basket is loose."""
+    basket_in: tuple = ()
+    asides: list = []
+
+    def _rows(self, rows, side):
+        return list(rows) + ([{"id": BASKET_CARD, "guid": BASKET_GUID}] if side in self.basket_in else [])
+
+    def do_read_discard(self, s):
+        return self._rows(super().do_read_discard(s), "bot" if '"BOTZ"' in s else "human")
+
+    def snapshot_state(self):
+        snap = super().snapshot_state()
+        snap["bot_discard"] = self._rows(snap["bot_discard"], "bot")
+        snap["human_discard"] = self._rows(snap["human_discard"], "human")
+        return snap
+
+    def do_basket_aside(self, s):
+        self.asides = [*self.asides, s]
+        return {"found": True, "taken": False, "moved": False}
+
+
+class LittleRedTable(BasketMixin, StrangeTable):
     """The fake table plus the human's `pile_card_to_hand` (the bot lifts a card of the pile into the real hand by its id)."""
 
     def do_pile_card_to_hand(self, s):
@@ -145,7 +169,7 @@ def test_the_loose_basket_card_in_the_pile_is_no_card_of_hers(rig, monkeypatch):
     session, table, game, fake, cfg = rig
     no_defense(session, monkeypatch)
     human_hand(table, game, "Once Upon a Time", "The Wolf's Skin")
-    table.human_discard.append(BASKET_CARD)
+    table.basket_in = ("human",)
     msgs = attack(session, table, game, "Once Upon a Time")
     assert game.players[1].discard == [] and BASKET_CARD not in {c.card_id for c in game.players[1].full_set}
     assert session.effect_run.awaiting.extra["tag"] == "basket"              # the engine still sees a pile with only the Basket: wild
@@ -263,7 +287,7 @@ def bot_red(rig, *pile):
     session, table, game, fake, cfg = rig
     put_adjacent(game, table, cfg, "red", "hellboy")
     human_hand(table, game, *HELLBOY_HAND)
-    table.bot_discard.append(BASKET_CARD)                       # the Basket lies in her discard zone from the start
+    table.basket_in = ("bot",)                                  # the Basket lies in her discard zone from the start
     to_bot_discard(session, table, game, *pile)
     return session, table, game, fake, cfg
 
@@ -368,3 +392,124 @@ def test_a_grimm_tale_for_the_human_heals_her_dial_two_or_four_by_the_basket(rig
     msgs = human_scheme(session, table, game, "A Grimm Tale")
     assert game.fighters["red"].hp == 5 + healed and session.effect_run is None, msgs
     assert dial(cfg, table, "red") == 5 + healed
+
+
+# ---------------------------------------------------------------- the loose Basket in the zone of the bot's pile
+
+def e3_rig(tmp_path, hand):
+    """The bot's Little Red against Hellboy on the table of the hidden-information flows, the Basket in the bot's discard zone."""
+    from test_e3_hidden_info import E3Table
+
+    class Table(BasketMixin, E3Table):
+        pass
+
+    session, table, game, fake, cfg, client = build(tmp_path, "little-red-riding-hood", "hellboy", hand, table_cls=Table)
+    game.fx.dsl_heroes.add("hellboy")
+    table.basket_in = ("bot",)
+    return session, table, game, fake, cfg, client
+
+
+def test_a_manual_discard_from_the_bots_hand_ignores_the_basket_that_lies_in_its_zone(tmp_path, monkeypatch):
+    """Confront Any Demon or God lost: the human takes a card out of the bot's hand onto its discard pile. The Basket is already there (its GUID,
+    CardID 17600): it is nobody's card to call foreign, and the manual flow finishes."""
+    from sparring import session_hidden as hidden
+    from test_e3_hidden_info import attack as e3_attack, defend_with, done, human_discards
+    session, table, game, fake, cfg, client = e3_rig(tmp_path, ("What's That In My Basket?", "The Wolf's Skin", "Once Upon a Time", "Stones in the Belly", "Never Leave the Path"))
+    try:
+        defend_with(session, game, monkeypatch, "What's That In My Basket?")
+        human_hand(table, game, "Service Pistol", "Excalibur", "Glimpse Of Hell", "Confront Any Demon or God")
+        e3_attack(session, table, game, "hellboy", "red", "Confront Any Demon or God")
+        click(session, table, Event.REVEAL)
+        assert hidden.manual_request(session) is not None
+        card = sorted(c.card_id for c in game.players[0].hand)[1]
+        human_discards(table, card)
+        msgs = done(session, table)
+        assert hidden.manual_request(session) is None and not said(msgs, "que no es suya"), msgs
+        assert card in {c.card_id for c in game.players[0].discard}
+    finally:
+        client.close()
+        fake.close()
+
+
+def test_the_basket_is_stripped_from_a_read_by_its_guid_and_a_card_of_another_deck_with_the_same_id_is_kept(tmp_path):
+    from sparring import session_little_red
+    session, table, game, fake, cfg, client = e3_rig(tmp_path, ())
+    try:
+        rows = [{"id": 17600, "guid": BASKET_GUID}, {"id": 17600, "guid": "g17600"}, {"id": 17705, "guid": "g17705"}]
+        assert session_little_red.strip(session, rows) == rows[1:]
+        assert session_little_red.strip(session, None) is None
+    finally:
+        client.close()
+        fake.close()
+
+
+@with_rig(TRAINING)
+def test_a_restart_puts_the_basket_back_on_its_own_spot_before_the_decks_are_gathered(rig):
+    session, table, game, fake, cfg = rig
+    table.basket_in = ("human",)
+    click(session, table, Event.RESTART)
+    click(session, table, Event.RESTART)
+    sent = [s.split("\n")[0] for s in table.scripts]
+    assert "-- sparring:basket_aside" in sent and sent.index("-- sparring:basket_aside") < sent.index("-- sparring:reset_deck")
+    aside, = table.asides
+    assert '"51f3b8"' in aside and "-19.6" in aside                       # her own spot on the human's side, off the stacking cards
+
+
+@with_rig(TRAINING)
+def test_a_restart_with_a_basket_that_is_nowhere_says_so_and_goes_on(rig):
+    session, table, game, fake, cfg = rig
+    table.do_basket_aside = lambda s: {"found": False, "taken": False, "moved": False}
+    click(session, table, Event.RESTART)
+    msgs = click(session, table, Event.RESTART)
+    assert said(msgs, "No encuentro la Cesta") and session.game is not game, msgs
+
+
+@with_rig(TRAINING)
+def test_the_human_little_red_is_told_where_to_keep_the_basket_when_the_game_starts(rig):
+    session, table, game, fake, cfg = rig
+    from sparring import session_little_red
+    said_lines = []
+    session.say = lambda text, kind=None: said_lines.append(text)
+    session_little_red.start(session)
+    assert any("Cesta" in m and "aparte" in m for m in said_lines), said_lines
+
+
+# ---------------------------------------------------------------- two cards laid on her pile in one step
+
+@with_rig(TRAINING)
+def test_two_cards_laid_on_the_pile_together_make_the_next_line_ask_which_is_on_top(rig, monkeypatch):
+    session, table, game, fake, cfg = rig
+    no_defense(session, monkeypatch)
+    human_hand(table, game, "Once Upon a Time", "The Wolf's Skin", "Never Leave the Path", "Into the Woods")
+    ids = {c.title: c.card_id for c in game.players[1].full_set}
+    table.human_hand = [i for i in table.human_hand if i not in (ids["The Wolf's Skin"], ids["Never Leave the Path"])]
+    table.human_count = len(table.human_hand)
+    table.human_discard.extend([ids["Never Leave the Path"], ids["The Wolf's Skin"]])        # laid together: an axe and a wolf
+    session.sync_human()
+    assert sorted(game.fx.pile_unsure[1]) == sorted([ids["Never Leave the Path"], ids["The Wolf's Skin"]])
+    hp = game.fighters["hellboy"].hp
+    attack(session, table, game, "Once Upon a Time")
+    req = session.effect_run.awaiting
+    assert req.kind == "cards" and req.extra["purpose"] == "top" and sorted(req.options) == sorted(game.fx.pile_unsure[1])
+    assert sorted(labels(session)) == ["Never Leave the Path", "The Wolf's Skin"]
+    press(session, table, ids["The Wolf's Skin"])                                         # the axe is on top
+    assert game.fighters["hellboy"].hp == hp - 2 - 3 and not game.fx.pile_unsure[1]
+    assert [c.title for c in game.players[1].discard] == ["Never Leave the Path", "The Wolf's Skin", "Once Upon a Time"]
+
+
+@with_rig(TRAINING)
+def test_the_question_about_the_top_card_survives_a_save(rig, monkeypatch):
+    from test_d3_table_effects import twin_session
+    session, table, game, fake, cfg = rig
+    no_defense(session, monkeypatch)
+    human_hand(table, game, "Once Upon a Time")
+    ids = {c.title: c.card_id for c in game.players[1].full_set}
+    table.human_discard.extend([ids["Never Leave the Path"], ids["The Wolf's Skin"]])
+    session.sync_human()
+    attack(session, table, game, "Once Upon a Time")
+    twin = twin_session(session, cfg, json.loads(json.dumps(session.to_dict())))
+    twin.client = session.client
+    assert twin.effect_run.awaiting.extra["purpose"] == "top"
+    hp = twin.game.fighters["hellboy"].hp
+    click(twin, table, Event.CHOICE, {"i": 1 + sorted(twin.effect_run.awaiting.options).index(ids["The Wolf's Skin"])})
+    assert twin.game.fighters["hellboy"].hp == hp - 3

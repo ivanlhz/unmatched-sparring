@@ -874,9 +874,8 @@ class Game:
             raise RuleError(t("err.out_of_reach", attacker=attacker.fid, target=target.fid))
 
     def check_defense_card(self, fighter: Fighter, card: Card) -> None:
-        from .effects.plugins_little_red import DEFEND_TAG, may_defend_with       # What Big Ears You Have: an attack that may defend while the basket is an axe
-        if not (card.can_defend or may_defend_with(self, fighter.owner, card)):
-            if DEFEND_TAG in card.tags:               # the line needs an axe on top of her pile: say so instead of a bare type error
+        if not (card.can_defend or self.fx.may_defend_with(fighter.owner, card)):
+            if "defend_if_axe" in card.tags:          # What Big Ears You Have needs an axe on top of her pile: say so instead of a bare type error
                 raise RuleError(t("err.big_ears_basket", title=card.title))
             raise RuleError(t("err.not_defense_type", title=card.title, type=card.type))
         if not card.usable_by(fighter.name):

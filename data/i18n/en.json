@@ -1453,6 +1453,9 @@
  "tbl.where.apart": "in a zone none of your other fighters is in",
  "elektra.flip.bot": "{name} resurrects: I flip her health dial (the Elektra Resurrected dial, 9).",
  "elektra.flip.human": "{name} resurrects: flip your health dial (the Elektra Resurrected dial, 9). I write her life on it from now on.",
- "choice.prompt.returns_top": "{title}: do you return {top}, the top card of your discard pile, to your hand (instead of this card)?",
- "err.big_ears_basket": "{title} can only be played as a defense while the top of your discard pile shows an axe (or a star, or only the Basket lies there)"
+ "choice.prompt.returns_top": "{title}: do you return {top}, the top card of your discard pile, to your hand?",
+ "err.big_ears_basket": "{title} can only be played as a defense while the top of your discard pile shows an axe (or a star, or only the Basket lies there)",
+ "choice.prompt.pile_top": "You laid two cards on your pile at once: which one is on top?",
+ "lr.basket_missing": "I cannot find Little Red's Basket on the table ({side}): put it in the discard zone, apart from the pile. The game goes on without it.",
+ "lr.basket_keep": "Keep Little Red's Basket (the loose card) in the corner of your discard zone, apart from the cards of your pile: stacked with them it cannot be told from a card on a restart."
 }
