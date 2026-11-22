@@ -17,3 +17,10 @@ tests/test_heroes.py  elektra  register hero (plugin import, hero lists, nicknam
 tests/test_card_identity.py  elektra  register hero (plugin import, hero lists, nickname dedupe in the importer)  2026-11-22 12:13Z
 tests/test_piece_identity.py  elektra  register hero (plugin import, hero lists, nickname dedupe in the importer)  2026-11-22 12:13Z
 tools/import_save.py  elektra  register hero (plugin import, hero lists, nickname dedupe in the importer)  2026-11-22 12:13Z
+
+sparring/effects/choose.py  sherlock  registration, hooks and strings  2026-11-22 12:14Z
+sparring/ai_effects.py  sherlock  registration, hooks and strings  2026-11-22 12:14Z
+sparring/session_choices.py  sherlock  registration, hooks and strings  2026-11-22 12:14Z
+sparring/effects/narrate.py  sherlock  registration, hooks and strings  2026-11-22 12:14Z
+data/i18n/en.json  sherlock  registration, hooks and strings  2026-11-22 12:14Z
+data/i18n/es.json  sherlock  registration, hooks and strings  2026-11-22 12:14Z
