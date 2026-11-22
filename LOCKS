@@ -8,3 +8,5 @@ data/i18n/en.json  robin  review fixes: interchangeable Outlaw tokens, Steal pro
 data/i18n/es.json  robin  review fixes: interchangeable Outlaw tokens, Steal prompt  2026-11-22 13:05Z
 sparring/session_choices.py  robin  review fixes: interchangeable Outlaw tokens, Steal prompt  2026-11-22 13:05Z
 docs/effects-dsl.md  robin  review fixes: interchangeable Outlaw tokens, Steal prompt  2026-11-22 13:05Z
+
+sparring/session_pile.py  sherlock  review fix: a card the human laid for Confirm Suspicion is not asked again  2026-11-22 13:05Z
