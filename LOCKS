@@ -13,3 +13,6 @@ tests/test_card_identity.py  little-red  registration and basket-choice hooks  2
 tools/import_save.py  little-red  a card object named in token_names (the Basket)  2026-11-22 12:04Z
 data/heroes/effects/schema.json  elektra  SpaceSel apart_from_own  2026-11-22 12:04Z
 docs/effects-dsl.md  elektra  SpaceSel apart_from_own, off-board section  2026-11-22 12:04Z
+sparring/session.py  sherlock  Elementary prediction at Reveal, Confirm Suspicion table story  2026-11-22 12:05Z
+sparring/session_hidden.py  sherlock  Elementary prediction at Reveal  2026-11-22 12:05Z
+sparring/session_rage.py  sherlock  Confirm Suspicion pile mode  2026-11-22 12:05Z
