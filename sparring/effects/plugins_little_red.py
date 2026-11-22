@@ -9,10 +9,10 @@ the pile is part of the game state: it is saved, cloned and part of the search's
   * a card whose tag is `symbol:wild` (What's That In My Basket?): wild.
 
 A wild basket counts as ONE symbol its player chooses (Ivan 2026-11-22, LR1). The choice is asked the first time a line with a symbol needs
-it in a card's play and is kept for that play: in a scheme it lives in the run's flags, in a combat in the flags of the runs of that side
-(`flow.runs`, which are saved), so the three moments of one card never ask twice. It is only kept while the basket is still wild: a card that
-reaches the pile in between (a BOOST card, a discard the opponent forced) makes the basket that card's symbol. The test is evaluated when
-each effect line resolves, so the basket can change in the middle of a combat; the combat cards reach the pile last.
+it in a card's play and is kept in the flags of that run (saved with it), so Never Leave the Path, whose three lines are three tests of one run, asks
+once. The deck has no card with a symbol line in two moments, so no choice has to travel between runs. It is only used while the basket is still
+wild: a card that reaches the pile in between (a BOOST card, a discard the opponent forced) makes the basket that card's symbol. The test is
+evaluated when each effect line resolves, so the basket can change in the middle of a combat; the combat cards reach the pile last.
 
 `red:stones` is Stones in the Belly's discard: the rival discards 1 random card and its BOOST is added to this card (Ambush's flow)."""
 from __future__ import annotations
@@ -61,21 +61,8 @@ def may_defend_with(game, player: int, card) -> bool:
     return DEFEND_TAG in card.tags and basket(game, player) in ("axe", WILD)
 
 
-def _remembered(run) -> str | None:
-    if run.flags.get(FLAG):
-        return run.flags[FLAG]
-    flow = getattr(run, "flow", None)
-    if flow is None:
-        return None
-    side = "atk" if run.ctx.played_as == "attack" else "def"
-    for key, other in flow.runs.items():
-        if key.endswith(f":{side}") and other.flags.get(FLAG):
-            return other.flags[FLAG]
-    return None
-
-
 def _choose_symbol(game, run, owner: int) -> str:
-    chosen = _remembered(run)
+    chosen = run.flags.get(FLAG)
     if chosen is None:
         labels = [t(f"basket.symbol.{s}") for s in SYMBOLS]
         got = run.ask(game, "effect", owner, list(range(len(SYMBOLS))), 1, 1, "choose the symbol the basket counts as",
