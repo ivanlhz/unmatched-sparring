@@ -1427,6 +1427,8 @@
  "trigger.title.doubloon_action": "Blackbeard's doubloon for an action",
  "trigger.title.doubloon_damage": "Blackbeard pays a doubloon for the blow",
  "trigger.title.move_after_attack": "After you attack: your attacking fighter may move",
+ "choice.prompt.steal": "Do you discard 1 card so that Robin Hood does not draw another?",
+ "choice.steal.discard": "Discard 1 card",
  "choice.prompt.reposition_zone": "{title}: no Sea Dog is defeated. Do you move one of your Sea Dogs into Blackbeard's zone instead?",
  "choice.prompt.reposition_any": "{title}: no Sea Dog is defeated. Do you move one of your Sea Dogs to any empty space instead?",
  "blackbeard.coins_failed": "{name}: the bot could not move the doubloons on the table. Put them as the chat says: the engine's count is the truth.",

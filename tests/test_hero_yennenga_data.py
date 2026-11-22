@@ -181,11 +181,11 @@ def test_the_catalog_names_yennenga_and_her_deck_is_her_own():
     assert catalog.identify([f"{f}|{b}" for f, b in load_hero_table("yennenga").identity]).slug == "yennenga"
 
 
-def test_the_only_piece_guid_she_shares_is_houdinis_miniature():
+def test_the_only_guids_she_shares_are_houdinis_miniature_and_robin_hoods_dial():
     """The save gives her miniature (3ec3d1) to Houdini's as well: told apart by the piece's name (docs/card-identity.md, "Piece identity")."""
     mine = set(load_hero_table("yennenga").all_guids())
     shared = {}
     for slug in [p.stem for p in HEROES_DIR.parent.joinpath("tts").glob("*.json") if p.stem != "yennenga"]:
         for g in mine & set(load_hero_table(slug).all_guids()):
             shared.setdefault(g, []).append(slug)
-    assert shared == {"3ec3d1": ["houdini"]}
+    assert shared == {"3ec3d1": ["houdini"], "1fc8df": ["robin-hood"]}        # and her life dial is Robin Hood's (tests/test_robin_hood_dials.py)

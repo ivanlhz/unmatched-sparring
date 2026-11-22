@@ -113,7 +113,7 @@
     "immediately": [], "during": [], "scheme": [], "boost": [],
     "after": [
      {"op": "draw", "player": "owner", "amount": 1},
-     {"op": "revive", "target": {"side": "own", "name": "Outlaw", "state": "defeated"}, "where": {"zone_of": "hero"}, "hp": 1, "chooser": "owner"}
+     {"op": "revive", "target": {"side": "own", "name": "Outlaw", "state": "defeated"}, "where": {"zone_of": "hero"}, "hp": 1, "interchangeable": true, "chooser": "owner"}
     ]
    },
    "notes": "Defense 3 / boost 2, any fighter. Any Outlaw that was ever defeated may return (the designer and Discord), with its 1 health, to an empty space of Robin Hood's zone chosen by his player. With no defeated Outlaw or no empty space in his zone only the draw happens."

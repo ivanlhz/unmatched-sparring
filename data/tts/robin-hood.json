@@ -30,16 +30,20 @@
    "dial_max": 13
   },
   "outlaw1": {
-   "piece": "88a446"
+   "piece": "88a446",
+   "same_token": true
   },
   "outlaw2": {
-   "piece": "0d8360"
+   "piece": "0d8360",
+   "same_token": true
   },
   "outlaw3": {
-   "piece": "821507"
+   "piece": "821507",
+   "same_token": true
   },
   "outlaw4": {
-   "piece": "dc6b24"
+   "piece": "dc6b24",
+   "same_token": true
   }
  },
  "tokens": {},

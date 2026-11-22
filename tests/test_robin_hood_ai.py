@@ -161,3 +161,17 @@ def test_the_search_plays_against_a_human_robin_hood(seed):
 def test_the_heuristic_ai_plays_robin_hood_and_wins_most_games_against_the_chaser():
     wins = sum(sim.play(seed, bot_hero="robin-hood", human_hero="hellboy", rival="chaser", max_turns=40).winner == "Robin Hood" for seed in range(6))
     assert wins >= 3
+
+
+def test_snark_and_wily_fighting_are_priced_from_the_fighter_that_plays_them_not_from_robin(bprd, monkeypatch):
+    g = mk(bprd)
+    outlaw, hellboy = pair(g, "outlaw1", "hellboy")                      # the Outlaw stands next to the rival, Robin is far away
+    snark, wily = give(g, 0, "Snark"), give(g, 0, "Wily Fighting")
+    assert ai_robin.after_value(g, 0, snark, 0.5, 1.0, CARD_VALUE) == 0       # no fighter given: Robin Hood, who is not next to anyone
+    assert ai_robin.after_value(g, 0, snark, 0.5, 1.0, CARD_VALUE, outlaw) == CARD_VALUE
+    assert ai_robin.after_value(g, 0, wily, 0.5, 1.0, CARD_VALUE, outlaw) == 1.0
+    seen = []
+    real = ai_robin.after_value
+    monkeypatch.setattr(ai_robin, "after_value", lambda *args: seen.append(args[-1]) or real(*args))
+    MedusaAI(0).attack_outcome(g, Model(g, 0), outlaw, hellboy, snark)
+    assert seen == [outlaw]                                                    # the planner passes the attacker, not the hero

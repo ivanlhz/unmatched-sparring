@@ -24,7 +24,7 @@ from typing import Callable
 
 from .effects.choose import ChoiceRequest
 from .effects.model import EffectError, load_effects, walk_ops
-from . import tricks
+from . import ai_robin, tricks
 from .i18n import has, t
 
 MAX_CHOICE_BUTTONS = 6
@@ -106,6 +106,8 @@ def option_label(game, req: ChoiceRequest, option) -> str:
         return safe_label(labels[option] if isinstance(option, int) and 0 <= option < len(labels) else option)
     if kind == "optional":
         # what each answer means, when the op said so (Remove A Painful Memory: discard it, or take 2)
+        if option is True and ai_robin.is_steal(game, req):           # Steal From the Rich, asked of the rival of Robin Hood
+            return safe_label(t("choice.steal.discard"))
         if option is True and req.extra.get("discards"):
             return safe_label(t("choice.discard", titles=card_titles(game, req.extra["discards"], req.card_owner if req.card_owner is not None else req.player)))
         if "ransom" in req.extra:                             # Blackbeard's "unless N doubloons": pay from the Treasury, or let the line happen
@@ -140,7 +142,7 @@ def options_text(game, req: ChoiceRequest, limit: int = 6) -> str:
 
 def card_text_hint(game, req: ChoiceRequest) -> str:
     """' Card: <printed text>' for a plain yes/no (Pyrotechnics: the question alone did not say what the card does), else ''."""
-    if req.kind != "optional" or req.extra.get("discards") or "reposition" in req.extra or "ransom" in req.extra or "doubloon_action" in req.extra or "rival_value" in req.extra or "to" in req.extra or "shield" in req.extra or "bury_rival" in req.extra:
+    if req.kind != "optional" or ai_robin.is_steal(game, req) or req.extra.get("discards") or "reposition" in req.extra or "ransom" in req.extra or "doubloon_action" in req.extra or "rival_value" in req.extra or "to" in req.extra or "shield" in req.extra or "bury_rival" in req.extra:
         return ""
     card = request_card(game, req)
     text = getattr(card, "text", "") if card is not None else ""
@@ -163,6 +165,8 @@ def ransom_what(game, req: ChoiceRequest) -> str:
 
 def prompt_text(game, req: ChoiceRequest) -> str:
     """Chat line for the request: what is asked and, for the card that asks, its title."""
+    if req.kind == "optional" and ai_robin.is_steal(game, req):      # Steal From the Rich: discard a card or Robin Hood draws one more
+        return t("choice.prompt.steal")
     if req.kind == "optional" and "shield" in req.extra:          # a card is about to look at your hand
         return t("choice.prompt.shield", shield=req.extra["shield"])
     base = _prompt(req.kind) if has_prompt(req.kind) else _prompt("default")

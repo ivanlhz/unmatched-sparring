@@ -28,6 +28,7 @@
  "counters": {},
  "triggers": [],
  "passives": [],
+ "tts": {"same_token": ["outlaw1", "outlaw2", "outlaw3", "outlaw4"]},
  "deck": {
   "card_base": 17600,
   "sheet_id": 176,

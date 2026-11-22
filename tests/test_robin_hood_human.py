@@ -303,20 +303,53 @@ def bot_attacks_robin(session, table, game, human_title, bot_title="Service Pist
 
 
 @with_rig(*HELLBOY_HAND)
-def test_defenders_of_sherwood_asks_which_outlaw_returns_and_the_human_places_it_by_hand(rig):
+def test_defenders_of_sherwood_returns_an_outlaw_without_asking_which_and_the_human_places_it_by_hand(rig):
     session, table, game, fake, cfg = rig
     put_adjacent(game, table, cfg, "hellboy", "robin")
     defeat_outlaws(game, table, cfg, "outlaw1", "outlaw3")
     human_hand(table, game, "Defenders of Sherwood", "Snark", "Feint")
     msgs = bot_attacks_robin(session, table, game, "Defenders of Sherwood")
-    req = awaiting(session)
-    assert req.kind == "fighter" and req.options == ["outlaw1", "outlaw3"] and said(msgs, "Te he dado 1 carta"), msgs
-    msgs = press(session, table, "outlaw3")
-    assert game.placing == {"outlaw3"} and said(msgs, "Outlaw 3") and said(msgs, "la zona de tu heroe"), msgs
+    assert session.effect_run is None and said(msgs, "Te he dado 1 carta"), msgs         # the four tokens are the same: no question
+    assert game.placing == {"outlaw1"} and said(msgs, "la zona de tu heroe"), msgs
     spot = free_in_zone(game, "robin")[0]
-    walk(session, table, cfg, "outlaw3", spot)
-    assert game.fighters["outlaw3"].alive and game.fighters["outlaw3"].pos == spot and not game.fighters["outlaw1"].alive
-    assert game.placing == set() and game.fighters["outlaw3"].hp == 1
+    walk(session, table, cfg, "outlaw1", spot)
+    assert game.fighters["outlaw1"].alive and game.fighters["outlaw1"].pos == spot and not game.fighters["outlaw3"].alive
+    assert game.placing == set() and game.fighters["outlaw1"].hp == 1
+
+
+@with_rig(*HELLBOY_HAND)
+def test_the_human_who_lays_the_token_of_another_fallen_outlaw_is_followed(rig):
+    """The four tokens look alike: the engine returns outlaw1, the human lays outlaw3's. The fids trade tokens and the Outlaw stands where it was laid."""
+    session, table, game, fake, cfg = rig
+    put_adjacent(game, table, cfg, "hellboy", "robin")
+    defeat_outlaws(game, table, cfg, "outlaw1", "outlaw3")
+    human_hand(table, game, "Defenders of Sherwood", "Snark", "Feint")
+    bot_attacks_robin(session, table, game, "Defenders of Sherwood")
+    token1, token3 = session.cfg.pieces["outlaw1"], session.cfg.pieces["outlaw3"]
+    spot = free_in_zone(game, "robin")[0]
+    msgs = walk(session, table, cfg, "outlaw3", spot)
+    o1, o3 = game.fighters["outlaw1"], game.fighters["outlaw3"]
+    assert o1.alive and o1.pos == spot and not o3.alive and game.placing == set(), msgs
+    assert session.cfg.pieces["outlaw1"] == token3 and session.cfg.pieces["outlaw3"] == token1
+    assert not said(msgs, "No encuentro"), msgs
+    again = click(session, table, Event.END_ACTION)
+    assert not said(again, "No encuentro") and o1.pos == spot, again
+
+
+@with_rig(*HELLBOY_HAND)
+def test_the_outlaw_still_to_place_survives_a_save_and_another_token_is_still_followed(rig):
+    session, table, game, fake, cfg = rig
+    put_adjacent(game, table, cfg, "hellboy", "robin")
+    defeat_outlaws(game, table, cfg, "outlaw2", "outlaw4")
+    human_hand(table, game, "Defenders of Sherwood", "Snark", "Feint")
+    bot_attacks_robin(session, table, game, "Defenders of Sherwood")
+    assert game.placing == {"outlaw2"}
+    other = reload(session, table)
+    assert other.game.placing == {"outlaw2"}
+    spot = free_in_zone(other.game, "robin")[0]
+    msgs = walk(other, table, cfg, "outlaw4", spot)
+    assert other.game.fighters["outlaw2"].alive and other.game.fighters["outlaw2"].pos == spot and other.game.placing == set(), msgs
+    assert not said(msgs, "No encuentro"), msgs
 
 
 @with_rig(*HELLBOY_HAND)
@@ -326,35 +359,6 @@ def test_defenders_of_sherwood_with_no_defeated_outlaw_only_deals_the_card(rig):
     human_hand(table, game, "Defenders of Sherwood", "Snark", "Feint")
     msgs = bot_attacks_robin(session, table, game, "Defenders of Sherwood")
     assert session.effect_run is None and game.placing == set() and said(msgs, "Te he dado 1 carta"), msgs
-
-
-@with_rig(*HELLBOY_HAND)
-def test_the_question_of_which_outlaw_returns_survives_a_save(rig):
-    session, table, game, fake, cfg = rig
-    put_adjacent(game, table, cfg, "hellboy", "robin")
-    defeat_outlaws(game, table, cfg, "outlaw2", "outlaw4")
-    human_hand(table, game, "Defenders of Sherwood", "Snark", "Feint")
-    bot_attacks_robin(session, table, game, "Defenders of Sherwood")
-    other = reload(session, table)
-    req = other.effect_run.awaiting
-    assert req.kind == "fighter" and req.options == ["outlaw2", "outlaw4"]
-    press(other, table, "outlaw4")
-    assert other.game.placing == {"outlaw4"}
-
-
-@with_rig(*HELLBOY_HAND)
-def test_the_outlaw_still_to_place_survives_a_save(rig):
-    session, table, game, fake, cfg = rig
-    put_adjacent(game, table, cfg, "hellboy", "robin")
-    defeat_outlaws(game, table, cfg, "outlaw2")
-    human_hand(table, game, "Defenders of Sherwood", "Snark", "Feint")
-    bot_attacks_robin(session, table, game, "Defenders of Sherwood")
-    assert game.placing == {"outlaw2"}
-    other = reload(session, table)
-    assert other.game.placing == {"outlaw2"}
-    spot = free_in_zone(other.game, "robin")[0]
-    walk(other, table, cfg, "outlaw2", spot)
-    assert other.game.fighters["outlaw2"].pos == spot and other.game.placing == set()
 
 
 # ---------------------------------------------------------------- Steal From the Rich (the human plays it, the bot is the rival)
@@ -473,6 +477,7 @@ def test_the_bots_steal_from_the_rich_asks_the_human_and_a_no_gives_the_bot_a_se
     msgs = bot_turn(session, table, [Act("scheme", fid="robin", card=card)])
     req = awaiting(session)
     assert req.kind == "optional" and req.player == 1 and req.card_owner == 0, msgs
+    assert said(msgs, "Descartas 1 carta para que Robin Hood no robe otra?") and said(msgs, "1: Descarto 1 carta, 2: No") and not said(msgs, "Usas el efecto") and not said(msgs, "Carta: Draw 1 card"), msgs
     press(session, table, False)
     assert session.effect_run is None and session.pending_discard is None
     assert len(game.players[0].hand) == hand - 1 + 2 + MANEUVER_DRAWS

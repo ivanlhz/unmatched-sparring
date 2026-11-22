@@ -39,26 +39,27 @@ def ignores_defense(game, owner: int, card) -> bool:
     return is_his(game, owner) and card.title == ROBBERY
 
 
-def _next_to_a_foe(game, owner: int) -> bool:
-    hero = game.hero(owner)
-    return hero.pos is not None and any(f.alive and f.owner != owner and f.pos in game.board.adj[hero.pos] for f in game.fighters.values())
+def _foes_next_to(game, owner: int, fighter) -> list:
+    """The rival fighters standing next to `fighter` (the one that plays the card: Robin Hood or an Outlaw)."""
+    if fighter is None or fighter.pos is None:
+        return []
+    return [f for f in game.fighters.values() if f.alive and f.owner != owner and f.pos in game.board.adj[fighter.pos]]
 
 
-def after_value(game, owner: int, card, p_win: float, foe_hp_weight: float, card_value: float) -> float:
+def after_value(game, owner: int, card, p_win: float, foe_hp_weight: float, card_value: float, fighter=None) -> float:
     """What the AFTER of one of his cards is worth, in the AI's units (`foe_hp_weight` per hit point of an opposing fighter, `card_value` per
-    card). `p_win`: the chance the card's player wins the combat (the chance of no damage for a defense). 0 for any card the AI prices from
+    card). `fighter`: who plays the card (Snark and Wily Fighting read where it stands; the hero when none is given). `p_win`: the chance the card's player wins the combat (the chance of no damage for a defense). 0 for any card the AI prices from
     the data."""
     if not is_his(game, owner) or not game.hero(owner).alive:
         return 0.0
     title = card.title
+    fighter = fighter or game.hero(owner)
     if title == DISARMING:
         return card_value * DISARMING_DRAWS * p_win
     if title == SNARK:
-        return card_value if _next_to_a_foe(game, owner) else 0.0
+        return card_value if _foes_next_to(game, owner, fighter) else 0.0
     if title == WILY:
-        hero = game.hero(owner)
-        near = [f for f in game.fighters.values() if f.alive and f.owner != owner and hero.pos is not None and f.pos in game.board.adj[hero.pos]]
-        return foe_hp_weight * len(near)
+        return foe_hp_weight * len(_foes_next_to(game, owner, fighter))
     if title == DEFENDERS:
         defeated = any(not f.alive and f.owner == owner and not f.hero and f.died_at is not None for f in game.fighters.values())
         return card_value * (1 + (OUTLAW_RETURN if defeated else 0.0))

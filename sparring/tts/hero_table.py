@@ -37,6 +37,7 @@ class FighterTable:
     faces: dict | None = None      # life -> Z rotation of the piece that shows it ({"2": 0, "1": 180}: the Archer token is flipped as it is hurt; verify live)
     dial_flipped: str | None = None    # the other side of the life dial when it is a separate object (Elektra Resurrected: 9), written once the hero is flipped
     dial_flipped_max: int | None = None
+    same_token: bool = False       # the save gives the piece the very image of its namesakes (Robin Hood's Outlaws): the human may lay any of them for the one the engine returns
 
 
 @dataclass(frozen=True)
@@ -102,7 +103,8 @@ def parse_hero_table(raw: dict, hero: HeroDef, where: str = "tts") -> HeroTable:
                                       None if v.get("dial") is None else int(v["dial_max"]), v.get("nickname"),
                                       bool(v.get("no_dial", False)),
                                       None if v.get("faces") is None else {str(k): float(r) for k, r in v["faces"].items()},
-                                      v.get("dial_flipped"), None if v.get("dial_flipped") is None else int(v["dial_flipped_max"]))
+                                      v.get("dial_flipped"), None if v.get("dial_flipped") is None else int(v["dial_flipped_max"]),
+                                      bool(v.get("same_token", False)))
                     for fid, v in raw["fighters"].items()}
         table = HeroTable(raw["slug"], raw["bag"]["guid"], raw["bag"]["inner"], deck["guid"], (int(ids[0]), int(ids[1])),
                           int(deck["character_card_id"]),

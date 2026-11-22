@@ -466,7 +466,11 @@ def _swap(run, game, spec):
 @op("revive")
 def _revive(run, game, spec):
     chooser = _chooser(game, run, spec)
-    targets = [f for f in pick_fighters(game, run, spec["target"], chooser) if not f.alive]
+    if spec.get("interchangeable"):          # identical tokens: which one returns is no choice (the table adopts whichever the human lays)
+        cands = sorted(fighter_candidates(game, run, spec["target"])[0], key=lambda f: f.fid)
+        targets = [f for f in cands[:1] if not f.alive]
+    else:
+        targets = [f for f in pick_fighters(game, run, spec["target"], chooser) if not f.alive]
     _return_to_board(run, game, spec, "revive", targets, amount(game, run, spec["hp"]))
 
 

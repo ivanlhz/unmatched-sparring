@@ -142,7 +142,7 @@ def test_card_effects_say_what_the_real_cards_say(effects):
     assert by["Wily Fighting"]["after"] == [{"op": "damage", "target": {"side": "enemy", "where": {"adjacent_to": "this"}, "pick": "all"}, "amount": 1}]
     assert by["Defenders of Sherwood"]["after"] == [
         {"op": "draw", "player": "owner", "amount": 1},
-        {"op": "revive", "target": {"side": "own", "name": "Outlaw", "state": "defeated"}, "where": {"zone_of": "hero"}, "hp": 1, "chooser": "owner"}]
+        {"op": "revive", "target": {"side": "own", "name": "Outlaw", "state": "defeated"}, "where": {"zone_of": "hero"}, "hp": 1, "interchangeable": True, "chooser": "owner"}]
     steal = by["Steal From the Rich"]["scheme"]
     assert steal[0] == {"op": "draw", "player": "owner", "amount": 1}
     assert steal[1]["chooser"] == "opponent" and steal[1]["ops"] == [] and steal[1]["else"] == [{"op": "draw", "player": "owner", "amount": 1}]

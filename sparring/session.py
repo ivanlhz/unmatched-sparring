@@ -2912,7 +2912,7 @@ class Session:
             spec = load_hero_table(self.game.hero_def(f.owner).slug).fighters.get(f.fid)
         except HeroTableError:
             return False
-        return spec is not None and spec.no_dial
+        return spec is not None and (spec.no_dial or spec.same_token)
 
     def _adopt_clone_token(self, fid: str, pieces: dict[str, dict]) -> None:
         """The engine summoned `fid` and the human put ANOTHER Clone token on the board: `fid` follows that token (the two fids trade

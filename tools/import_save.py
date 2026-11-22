@@ -265,6 +265,8 @@ def extract_hero(objects: list[dict], hero: HeroDef, raw_hero: dict, report: Rep
                 entry["verify_live"] = not hero.tts.get("life_faces_verified")   # who saw the faces live, and when
         elif spec.hp > 1:
             report.problems.append(f"fighter {spec.fid!r}: {spec.hp} HP and no dial named {spec.name!r}")
+        if spec.fid in hero.tts.get("same_token", ()):
+            entry["same_token"] = True        # one image for all of them (Robin Hood's Outlaws): the session adopts whichever token the human lays
         if not _same(_nick(piece), spec.name):
             entry["nickname"] = _nick(piece)
         fighters[spec.fid] = entry

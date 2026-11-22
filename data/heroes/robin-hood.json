@@ -344,6 +344,14 @@
    }
   ]
  },
+ "tts": {
+  "same_token": [
+   "outlaw1",
+   "outlaw2",
+   "outlaw3",
+   "outlaw4"
+  ]
+ },
  "ai_profile": {
   "robin": {
    "name": "Robin Hood",

@@ -600,7 +600,7 @@ Nothing of Robin Hood has been seen on a real table. His deck is sheet 176 like 
 - [ ] **Ambush (H)**: the bot discards a random card of its hand and adds its BOOST. **(B)**: the chat names the position ("la carta N de tu mano") in your hand counting from the left; lay that card on your discard pile and press Done; the bot reads it and adds its BOOST.
 - [ ] **Disarming Shot / Piercing Shot / Regroup / Snark (H)**: the bot deals the cards the chat says ("Te he dado N cartas"); Disarming Shot deals as many as the damage it dealt, the overkill included.
 - [ ] **Defenders of Sherwood (H)**: with several defeated Outlaws the panel asks which comes back; the chat says to put it on an empty space of Robin's zone; put it there and press End action. **(B)**: the bot puts the Outlaw back itself; with no free space in the zone it only draws.
-- [ ] **Steal From the Rich**: **(H)** the panel asks "use the effect?" with the card text: Yes = you discard a card (lay it on your pile, press End action) and the bot draws 1, No = the bot draws 2. **(B as rival)** the chat says whether the bot paid.
+- [ ] **Steal From the Rich**: **(H)** the panel asks "Descartas 1 carta para que Robin Hood no robe otra?": Yes = you discard a card (lay it on your pile, press End action) and the bot draws 1, No = the bot draws 2. **(B as rival)** the chat says whether the bot paid.
 - [ ] **Wily Fighting, Feint, A Hunter's Eye, Snark** and the numbers as printed.
 
 ### Sherlock Holmes (Cobble & Fog)
