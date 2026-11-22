@@ -49,3 +49,13 @@ def test_the_heros_bag_from_the_save_is_recognised(by_guid, slug):
 def test_the_bag_left_after_unpacking_with_only_ignored_objects_is_nobodys(slug):
     """Unpacking leaves the ignored objects in the dropped copy: that leftover must not read as the hero at the next Prepare."""
     assert _bag_hero(list(TABLES[slug].ignored_tokens), TABLES) is None
+
+
+def test_clean_table_counts_the_ignored_objects_as_the_heros():
+    """So the leftover copy holding only them is destroyed by Clean table like any other bag of hero pieces."""
+    from sparring import player_setup
+    raw = json.loads((ROOT / "config" / "table.json").read_text(encoding="utf-8"))
+    script = player_setup.clear_script(raw)
+    for slug, table in TABLES.items():
+        for guid in table.ignored_tokens:
+            assert guid in script, (slug, guid)
