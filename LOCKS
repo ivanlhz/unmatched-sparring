@@ -6,3 +6,6 @@ README.md  blackbeard  hero docs: DSL section, live checklist, features, README 
 sparring/session_bot_effects.py  loki  look_hand reads the ledger, Looking For Trouble at the table  2026-11-22 10:50Z
 sparring/session_rage.py  loki  look_hand reads the ledger, Looking For Trouble at the table  2026-11-22 10:50Z
 sparring/state.py  loki  observe_hand keeps the TRICKs apart  2026-11-22 10:50Z
+sparring/session.py  blackbeard  the bot moves Blackbeard's coins: session hook, i18n  2026-11-22 10:52Z
+data/i18n/en.json  blackbeard  the bot moves Blackbeard's coins: session hook, i18n  2026-11-22 10:52Z
+data/i18n/es.json  blackbeard  the bot moves Blackbeard's coins: session hook, i18n  2026-11-22 10:52Z
