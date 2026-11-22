@@ -15,9 +15,3 @@ data/i18n/en.json  elektra  table story: removal and flip dial, wording  2026-11
 data/i18n/es.json  elektra  table story: removal and flip dial, wording  2026-11-22 12:19Z
 sparring/session_translators.py  elektra  table story: removal and flip dial, wording  2026-11-22 12:19Z
 
-sparring/effects/state.py  sherlock  register hero in the lists  2026-11-22 12:19Z
-tests/test_heroes.py  sherlock  register hero in the lists  2026-11-22 12:19Z
-tests/test_card_identity.py  sherlock  register hero in the lists  2026-11-22 12:19Z
-tests/test_d1_bot_cards.py  sherlock  register hero in the lists  2026-11-22 12:19Z
-tests/test_effects_schema.py  sherlock  register hero in the lists  2026-11-22 12:19Z
-tests/test_piece_identity.py  sherlock  register hero in the lists  2026-11-22 12:19Z
