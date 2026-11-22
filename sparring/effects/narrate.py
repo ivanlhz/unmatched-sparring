@@ -223,6 +223,9 @@ def _cards(game, before: dict, run) -> list[str]:
             out.append(f"{draw_verb} {draws}")
         discard_now = [c.card_id for c in st.discard]
         by_id = {c.card_id: c for c in st.full_set}
+        for c in game.players[1 - p].full_set:                  # a TRICK of Loki's that lay on this pile a moment ago (a scheme played from it)
+            if c.card_id not in by_id and "trick" in c.tags:
+                by_id[c.card_id] = c
         ids = {c.card_id for c in st.hand}
         added = [i for i in discard_now if i not in was["discard"]]
         if p != game.bot_player:                    # the human's deck discard a trigger took straight back (Wildfire)

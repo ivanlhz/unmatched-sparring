@@ -5160,6 +5160,7 @@ class Session:
         res = self._rd_bot_hand()
         st = self.game.players[self.bot]
         by_id = {c.card_id: c for c in st.full_set}
+        loki_tricks.adopt_unknown(self, res)
         cards = [loki_tricks.card_of_row(self, self.bot, r) for r in res]       # a TRICK of the human Loki's deck is told by its GUID
         if None in cards:
             raise SessionError(t("err.unknown_card", err=next(r["id"] for r, c in zip(res, cards) if c is None)))

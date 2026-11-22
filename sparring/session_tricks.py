@@ -65,7 +65,10 @@ def _spot_guid(session, home: int, card_id: int) -> str | None:
     """Where a TRICK that is not in the ledger yet lies: the bot's own at its spot or hand, the human's at their combat spot."""
     if home == session.bot:
         return _bot_place(session, card_id)
-    return session.combat_guids.get(card_id)
+    if card_id in session.combat_guids:
+        return session.combat_guids[card_id]
+    away = ledger(session)                    # a scheme lies on their pile
+    return next((r["guid"] for r in session._rd_human_discard() if isinstance(r, dict) and r.get("id") == card_id and r.get("guid") not in away), None)
 
 
 # ---------------------------------------------------------------- the translators (the bot moves the card)
@@ -208,6 +211,21 @@ def _taken(session, intent: dict, ctx: Ctx) -> list:
 
 # ---------------------------------------------------------------- what the human does by hand
 
+def adopt_unknown(session, rows: list[dict]) -> None:
+    """A TRICK of the human Loki's deck is in the bot's engine hand but the ledger has no GUID for it (the bot could not move it, or the human did):
+    a row of the bot's real hand that the bot's own cards do not explain is that card. Only a row beyond the copies of that CardID the bot's own
+    cards account for is taken, so a bot card of the same CardID is never claimed."""
+    g, bot = session.game, session.bot
+    known = ledger(session)
+    for card in [c for c in g.players[bot].hand if tricks.borrowed(g, bot, c)]:
+        if guid_of(session, 1 - bot, card.card_id) is not None:
+            continue
+        rows_of = [r for r in rows if isinstance(r, dict) and r.get("id") == card.card_id and r.get("guid") not in known]
+        own = sum(1 for c in g.players[bot].hand if c.card_id == card.card_id and not tricks.borrowed(g, bot, c))
+        if len(rows_of) > own:
+            known[rows_of[-1]["guid"]] = [1 - bot, card.card_id]
+
+
 def settle_discards(session) -> None:
     """A TRICK of Loki's deck the human laid on their own pile (a discard of any kind) goes back to Loki's hand: the engine discards it from their
     hand (`Game.discard_card` sends it to Loki and lets the trigger of MISCHIEF-MONGER ask for the top of his deck) and the bot takes the card
@@ -225,6 +243,10 @@ def settle_discards(session) -> None:
             continue
         card = g.card_of(entry[1], entry[0])
         if card is None or card not in g.players[human].hand:
+            continue
+        if session.scheme_baseline is not None and card.is_scheme:      # Scheme was pressed: the card on their pile IS the scheme played (it lands in the engine's
+            g.players[human].hand.remove(card)                          # pile, `recognize_scheme` finds it, and its ops send it to Loki's discard when they are done)
+            g.players[human].discard.append(card)
             continue
         g.discard_card(human, card, cause="table")
         _run_intents(session)

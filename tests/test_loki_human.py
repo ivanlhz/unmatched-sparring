@@ -107,6 +107,9 @@ class LokiTable(FxTable):
                 for r in [r for r in rows if r["id"] == i and r["id"] in self.loki_ids]:
                     rows.remove(r)
                     self.bot_play.append(i)
+            if i in self.loki_ids and i in self.human_discard:      # a scheme lies on the human's pile
+                self.human_discard.remove(i)
+                self.bot_play.append(i)
         return super().do_discard_cards(s)
 
 
@@ -327,3 +330,84 @@ def test_the_ledger_is_saved_and_resumed_with_the_game(loki_rig):
     session.load_dict(saved)
     assert session.trick_guids == {f"h{trick.card_id}": [0, trick.card_id]}
     assert trick in session.game.players[1].hand and session.game.players[0].known.foreign == [trick.card_id]
+
+
+# ---------------------------------------------------------------- a TRICK played as a scheme, by hand
+
+def test_the_human_plays_the_borrowed_lure_as_a_scheme_and_it_goes_to_lokis_discard(loki_rig):
+    """Scheme first, then the card on the pile: the card is the scheme played, not a discard that would send it back to Loki's hand."""
+    session, table, game, fake, cfg = loki_rig
+    trick = lend_to_human(session, table, game, LURE)
+    game.turn, game.turn_no = 1, 3
+    game.begin_turn()
+    click(session, table, Event.SCHEME)
+    table._take(trick.card_id)
+    table._put(trick.card_id, "human_discard")
+    click(session, table, Event.END_ACTION)
+    assert trick in game.players[0].discard and trick not in game.players[0].hand and trick not in game.players[1].hand
+    assert session.pending_discard is not None                                     # NOT LOKI ran: a random card of their hand is owed to the pile
+    assert session.trick_guids == {} and trick.card_id in table.bot_discard and trick.card_id not in table.human_discard
+
+
+def test_the_human_loki_plays_lure_as_a_scheme_and_the_bot_takes_it(human_loki_rig):
+    session, table, game, fake, cfg = human_loki_rig
+    trick = next(c for c in game.players[1].full_set if c.title == LURE)
+    game.players[1].deck.remove(trick)
+    game.players[1].hand.append(trick)
+    table.human_hand.append(trick.card_id)
+    table.human_count = len(table.human_hand)
+    game.turn, game.turn_no = 1, 3
+    game.begin_turn()
+    click(session, table, Event.SCHEME)
+    table._take(trick.card_id)
+    table._put(trick.card_id, "human_discard")
+    msgs = click(session, table, Event.END_ACTION)
+    while session.effect_run is not None and session.effect_run.awaiting is not None:
+        msgs = click(session, table, Event.CHOICE, {"i": 1})
+    assert trick in game.players[0].hand and session.trick_guids == {f"h{trick.card_id}": [1, trick.card_id]}
+    assert trick.card_id in table.bot_hand and trick.card_id not in table.human_discard
+    click(session, table, Event.MANEUVER)
+    msgs = click(session, table, Event.END_ACTION)
+    assert not any("desconocida" in m or "Error" in m for m in msgs), msgs
+
+
+def test_a_trick_the_human_moved_by_hand_is_adopted_by_its_card_id(human_loki_rig):
+    """The bot could not move it (or the human did): the next read of the bot's hand finds a card of the human's deck that the ledger does not know."""
+    session, table, game, fake, cfg = human_loki_rig
+    trick = given_to_bot(session, table, game, SINDRI)
+    session.trick_guids.clear()
+    session.read_bot_hand()
+    assert trick in game.players[0].hand and session.trick_guids == {f"h{trick.card_id}": [1, trick.card_id]}
+
+
+# ---------------------------------------------------------------- Looking For Trouble cannot be ignored
+
+def test_the_human_cannot_keep_their_own_defense_when_looking_for_trouble_names_another(tmp_path):
+    session, table, game, fake, cfg, client = rig(tmp_path, "loki", "hellboy", ("Looking For Trouble", "Underhanded", LURE, FREYJA))
+    try:
+        human_hand(table, game, "B.P.R.D. Training", "Excalibur")
+        trick = lend_to_human(session, table, game, SINDRI)
+        training = next(c for c in game.players[1].full_set if c.title == "B.P.R.D. Training")
+        lfr = next(c for c in game.players[0].hand if c.title == "Looking For Trouble")
+        bot_turn(session, table, [Act("attack", fid="loki", target="hellboy", card=lfr)])
+        table.face_down = [{"id": training.card_id, "guid": f"h{training.card_id}"}]
+        table.human_hand.remove(training.card_id)
+        table.human_count = len(table.human_hand)
+        click(session, table, Event.REVEAL)
+        table.face_down = []
+        table.face_up = [{"id": training.card_id, "guid": f"h{training.card_id}"}]            # they keep their own defense and press Done
+        msgs = click(session, table, Event.CHOICE, {"i": 1})
+        assert session.effect_run is not None and session.effect_run.awaiting is not None, "the choice was accepted"
+        assert trick not in game.players[0].discard and any("Sindri" in m for m in msgs), msgs
+    finally:
+        client.close()
+        fake.close()
+
+
+def test_the_bot_playing_the_humans_trick_does_not_ask_them_to_discard_it(human_loki_rig):
+    session, table, game, fake, cfg = human_loki_rig
+    trick = given_to_bot(session, table, game)
+    bot_turn(session, table, [Act("attack", fid="hellboy", target="loki", card=trick)])
+    table.face_down = []
+    msgs = click(session, table, Event.REVEAL)
+    assert any("va al descarte de Loki" in m for m in msgs) and not any("de tu mano en tu descarte" in m for m in msgs), msgs

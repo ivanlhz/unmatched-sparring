@@ -69,8 +69,9 @@ other game never looks at what it picks.
 The location of a TRICK is public: it was played face up, or discarded face up. So:
 
 - Loki's side (`players[loki].known`) keeps `foreign`: the TRICKs it knows are in the opponent's hand (a list of ids resolved against
-  Loki's OWN deck, never the opponent's). It is exact, never "possible": the opponent cannot hide it (a TRICK left the hand only by a
-  play or a discard, both public). It is cleared by `Game.card_left_hand`, the one place that forgets seen cards.
+  Loki's OWN deck, never the opponent's). It is exact for what the engine does: a TRICK arrives by a card played face up and leaves by a play or a
+  discard, both public, and `Game.card_left_hand` forgets it. It is NOT exact when the human moves cards by hand (a TRICK put back into their
+  deck, lent to nobody): the bot cannot know; the session reads the table at the usual points and the sampler treats the hand size as the truth.
 - The opponent's side learns nothing it does not see: a TRICK the human (Loki) plays lands in the bot's own hand, which the bot knows.
   When the bot discards one it goes back to Loki's hidden hand or deck top: in the bot's search it simply returns to Loki's unseen
   pool (it is in the pool of Loki's full set minus the public piles, which already holds it).
@@ -170,8 +171,15 @@ CardIDs are 19700+; the collision itself is tested in the engine (`tests/test_lo
    (hands, discard zones, combat spots, `ours` by images); the FakeTTS models it. To verify live, with the first TRICK the human plays against a bot Loki.
 8. **Resume with a TRICK in play**: the ledger, the combat flow, the pending combat of the bot and the zone snapshots are saved with qualified ids;
    other saved structures that hold a bare CardID of a played card (a second attack, the boost wait) are not adapted.
-9. **Looking For Trouble at the table** reuses the `play` mode of `session_rage` (written for Do my bidding): its chat text speaks of the attacker; the flip and
-   the tidy-up of the human's old defense card at the end of the combat are the existing ones.
+9. **A TRICK that enters the opponent's DECK** (an effect of theirs that shuffles the hand or a card into the deck: Hellboy, Houdini, Doctor Strange, Liz,
+   Michelangelo, Donatello, Baba Yaga): the card text only routes discards, so the literal reading is implemented: it stays in their deck as a card they
+   may draw later, still Loki's card; played, it goes to Loki's discard. Whether it should go back to Loki instead is asked of Ivan. Every pile of the
+   game save names such a card by its qualified id.
+10. **Looking For Trouble at the table** reuses the `play` mode of `session_rage` with its own texts (`trouble.*`) and the same enforcement as Do my bidding: the
+    named card must be at their combat spot before Done is accepted. The flip and the tidy-up of the human's old defense card are the existing ones.
+11. **A scheme TRICK played by hand** (Svadilfari's Lure): the card laid on the pile after Scheme is the scheme played (it wins over the discard reading);
+    a human Loki's lands in the bot's hand by `trick_given`, and a TRICK the bot could not move is adopted at the next read of the bot's hand by its CardID
+    (`session_tricks.adopt_unknown`).
 
 ## Tests
 

@@ -428,3 +428,36 @@ def test_a_saved_game_keeps_a_trick_in_the_opponents_hand_even_when_their_deck_h
     assert sorted(c.title for c in other.players[1].hand) == sorted(c.title for c in g.players[1].hand)
     assert trick in other.players[1].hand and twin in other.players[1].hand and trick != twin
     assert other.players[0].known.foreign == [trick.card_id] and other.counter(0, "trick_in_rival_hand") == 1
+
+
+@pytest.mark.parametrize("foe", ["hellboy", "medusa"])
+def test_a_trick_shuffled_into_the_opponents_deck_survives_a_save(bprd, foe):
+    """RULE pending Ivan: it stays in their deck (a card they can draw), still Loki's card; every pile of the save names it by its qualified id."""
+    import json
+    from sparring import persist
+    g = mk(bprd, foe=foe)
+    trick = lend(g, 1, BALDR)
+    ops = [{"op": "return_to_deck", "cards": {"zone": "hand", "player": "owner", "pick": "all"}, "position": "shuffle"}]
+    EffectRun(ops, Ctx(owner=1, this_fid=g.hero(1).fid)).run(g, {0: ControllerChooser(), 1: ControllerChooser()})
+    assert trick in g.players[1].deck
+    saved = json.loads(json.dumps(persist.game_to_dict(g)))
+    other = mk(bprd, foe=foe, seed=9)
+    persist.apply_game(other, saved)
+    assert trick in other.players[1].deck and sum(1 for c in other.players[1].deck if c.card_id == trick.card_id) <= 2
+    assert [c for c in other.players[1].deck if c.card_id == trick.card_id and c == trick] == [trick]
+
+
+def test_zone_snapshots_and_ledger_rows_never_confuse_a_trick_with_the_opponents_own_card(bprd):
+    from sparring import session_bot_effects as bot_effects, session_tricks
+    g = mk(bprd)
+    trick = lend(g, 1, BALDR)
+    twin = next(c for c in g.players[1].full_set if c.card_id == trick.card_id)
+    g.players[1].hand.append(twin)
+    g.players[1].deck.insert(0, lend(g, 1, FREYJA))
+    zones = bot_effects.zones(g.players[1])
+    assert tricks.QUALIFIED + trick.card_id in zones["hand"] and twin.card_id in zones["hand"]
+    assert all(i >= tricks.QUALIFIED for i in zones["deck"][:1])
+    class S:                                                           # the ledger and nothing else
+        trick_guids = {"tg": [0, trick.card_id]}
+    rows = [{"id": trick.card_id, "guid": "tg"}, {"id": twin.card_id, "guid": "own"}]
+    assert session_tricks.own_rows(S, rows) == [rows[1]]

@@ -39,10 +39,10 @@ def game_to_dict(g: Game) -> dict:
         **({"combat_bonus": [[list(b) for b in side] for side in legacy]} if any(legacy) else {}),
         **({"fx": fx} if fx else {}),
         "fighters": {fid: {"hp": f.hp, "pos": f.pos, "alive": f.alive, "died_at": f.died_at} for fid, f in g.fighters.items()},
-        "players": [{"deck": [c.card_id for c in p.deck], "hand": [tricks.zone_id(p, c) for c in p.hand],      # a TRICK of Loki's in the other hand by its qualified id
-                     "discard": [c.card_id for c in p.discard],
-                     **({"tucked": [c.card_id for c in p.tucked]} if p.tucked else {}),
-                     **({"removed": [c.card_id for c in p.removed]} if p.removed else {}),
+        "players": [{"deck": [tricks.zone_id(p, c) for c in p.deck], "hand": [tricks.zone_id(p, c) for c in p.hand],      # a TRICK of Loki's in the other player's pile by its qualified id
+                     "discard": [tricks.zone_id(p, c) for c in p.discard],
+                     **({"tucked": [tricks.zone_id(p, c) for c in p.tucked]} if p.tucked else {}),
+                     **({"removed": [tricks.zone_id(p, c) for c in p.removed]} if p.removed else {}),
                      # known rival hand (effect "look at the hand"): only written if there is something to remember
                      **({"known": p.known.to_dict()} if not p.known.is_empty() else {})}
                     for p in g.players],

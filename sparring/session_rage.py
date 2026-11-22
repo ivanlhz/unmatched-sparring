@@ -49,6 +49,8 @@ def instruction(session, req: ChoiceRequest) -> str:
         return t("ambush.instruction", which=req.extra.get("which", card))
     if m == "reveal":
         return t("reveal.instruction", card=card)
+    if m == "play" and req.extra.get("trouble"):             # Loki's Looking For Trouble: the bot names the card the human defends with
+        return t("trouble.instruction", card=card, title=loki_tricks.by_id(session, session.human)[req.options[0]].title)
     if m == "play" and req.extra.get("bidding"):            # Do my bidding: the bot names the card the human must play
         attacker = session.game.fighters.get(req.extra.get("attacker"))
         title = next((c.title for c in session.game.players[session.human].full_set if c.card_id in req.options), "")
@@ -67,6 +69,8 @@ def status(session, req: ChoiceRequest) -> str:
         return panel_text(t("dust.status"))
     if mode(req) == "reveal" and req.extra.get("ambush"):
         return panel_text(t("ambush.status"))
+    if mode(req) == "play" and req.extra.get("trouble"):
+        return panel_text(t("trouble.status"))
     if mode(req) == "play" and req.extra.get("bidding"):
         return panel_text(t("bidding.status"))
     if mode(req) == "play" and req.extra.get("sleight"):
@@ -129,6 +133,8 @@ def _verdict_play(session, req: ChoiceRequest) -> tuple[list[int] | None, str | 
     at_spot = {i for i in loki_tricks.spot_ids(session, _combat_spot(session)) if i in by_id}
     new = sorted(at_spot - {old})
     if not new:
+        if req.extra.get("trouble"):                          # Looking For Trouble: the card Loki chose must be the one they play
+            return None, t("trouble.missing", title=by_id[req.options[0]].title)
         if req.extra.get("bidding"):                          # Do my bidding: the card chosen for them must be the one they play
             return None, t("bidding.missing", title=by_id[req.options[0]].title)
         if req.extra.get("sleight") and old not in at_spot:      # taken back with nothing in its place: neither card is in play
@@ -163,6 +169,8 @@ def counted(session, req: ChoiceRequest, ids: list[int]) -> str:
         return t("ambush.counted", card=card, title=by_id[ids[0]].title, boost=by_id[ids[0]].boost)
     if m == "reveal":
         return t("reveal.counted", card=card, title=by_id[ids[0]].title, boost=by_id[ids[0]].boost)
+    if m == "play" and req.extra.get("trouble"):
+        return t("trouble.counted", card=card, title=by_id[ids[0]].title)
     if m == "play" and req.extra.get("bidding"):
         return t("bidding.counted", card=card, title=by_id[ids[0]].title)
     if m == "play" and req.extra.get("sleight"):
