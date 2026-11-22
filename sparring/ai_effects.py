@@ -31,7 +31,7 @@ import random
 from functools import lru_cache
 from itertools import combinations
 
-from . import ai_achilles, ai_blackbeard, ai_little_red, ai_mary, ai_pandora, ai_sherlock, ai_washington, ai_wukong, ai_wyatt, ai_yennenga, enraged, tricks
+from . import ai_achilles, ai_blackbeard, ai_little_red, ai_mary, ai_pandora, ai_robin, ai_sherlock, ai_washington, ai_wukong, ai_wyatt, ai_yennenga, enraged, tricks
 from .ai_medusa import (ACTION_VALUE, DECK_SCARCITY, HARPY_VALUE, KILL_SIDEKICK, LETHAL, SURVIVAL_P, W_HERO, W_MEDUSA_HP,
                         W_SIDEKICK, MedusaAI, Model, can_use, defence_keeper, discard_cut, effect_reliance, hand_room, keep_value, kept_hand_value, kill_value, play_signature)
 from .controller import Controller
@@ -747,6 +747,8 @@ class EffectAI:
             return [self._action_for_value(game, req)]
         if "returns_card" in req.extra:     # Five Against Thousands: a card given up to take the one just played back
             return [self._returns_card_pays(game, req)]
+        if ai_robin.is_steal(game, req):     # Steal From the Rich: the rival discards its least useful card or lets Robin Hood draw one more (ai_robin)
+            return [ai_robin.steal_pays(game, req)]
         if "cost_cards" in req.extra:      # a price in cards: the interpreter sends the combat context, one policy
             return [worth_paying(req)]
         if "to" in req.extra:               # a redirect passive (FATEFUL BARGAINS): whoever loses the bot less takes it
