@@ -53,14 +53,19 @@ def put_coins(session, player: int) -> None:
     op = session._w(script, DOMAIN)
     name = game.hero(player).name
 
+    def warn(key: str, **kw) -> None:
+        if not session.__dict__.get("_coins_warned"):               # once: the next write would only repeat it
+            session.__dict__["_coins_warned"] = True
+            session.say(t(key, name=name, **kw), ChatKind.WARNING)
+
     def check() -> None:
         try:
             res = op.result or {}
         except ERRORS:
-            session.say(t("blackbeard.coins_failed", name=name), ChatKind.WARNING)
+            warn("blackbeard.coins_failed")
             return
         if int(res.get("total") or 0) < 3:
-            session.say(t("blackbeard.coins_missing", name=name, found=int(res.get("total") or 0)), ChatKind.WARNING)
+            warn("blackbeard.coins_missing", found=int(res.get("total") or 0))
     session._post.append(check)
 
 
@@ -81,3 +86,4 @@ def track(session, announce: bool = False) -> None:
 def forget(session) -> None:
     """A restart or a table adoption: the next look writes the coins again."""
     session.__dict__.pop("_coins_written", None)
+    session.__dict__.pop("_coins_warned", None)

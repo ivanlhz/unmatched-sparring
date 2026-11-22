@@ -2,8 +2,8 @@
 the start of the turn, the payment when he takes combat damage, the Treasury and his own cards at the panel. The human as the OPPONENT of the bot's
 Blackbeard: the ransom ("unless N doubloons") is a yes/no on the panel that names the effect, and Queen Anne's Revenge asks how many doubloons to pay.
 
-The doubloons are counters of the engine, not read from the tokens on the table: the chat says every change with who holds how many, so the table
-player can move the tokens and follow the bot's side. The bot's side of the same cards is in tests/test_blackbeard_effects.py."""
+The doubloons are counters of the engine, never read from the tokens on the table: the chat says every change with who holds how many and the bot
+moves the coins (tests/test_blackbeard_coins_session.py). The bot's side of the same cards is in tests/test_blackbeard_effects.py."""
 from __future__ import annotations
 
 from sparring.effects.select import counter_value
@@ -61,7 +61,7 @@ def test_the_humans_turn_opens_with_the_doubloon_question(rig):
     req = session.effect_run.awaiting
     assert game.turn == 1 and req.kind == "optional" and req.extra["doubloon_action"] == 1
     assert (req.extra["held"], req.extra["treasury"]) == (2, 1) and coins(game, 1) == (2, 1)
-    assert labels(session)[0] == "1: Pagar 1 doblon" or "doblon" in " ".join(labels(session)).lower()
+    assert labels(session) == ["Pagar 1 doblon", "No"]
 
 
 @with_rig("hellboy", "blackbeard", *HELLBOY_HAND)

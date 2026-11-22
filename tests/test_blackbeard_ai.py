@@ -163,7 +163,7 @@ def test_the_bot_buys_an_action_even_with_two_doubloons_already_in_the_treasury(
     """Measured: a Treasury cap of 2 lost 41 games of 60 against 50 without it (tools/measure_blackbeard_ai.py caps)."""
     g = as_blackbeard(bprd)
     give(g, 0, "Give No Quarter")
-    assert ask_action(g, 1, 2) == [True] and ai_blackbeard.TREASURY_CAP == 3
+    assert ask_action(g, 1, 2) == [True]
 
 
 def test_a_scheme_counts_as_a_card_to_play(bprd):

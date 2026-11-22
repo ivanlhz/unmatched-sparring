@@ -92,16 +92,49 @@ def test_the_bots_blackbeard_gets_a_ransom_paid_by_the_human_on_the_table(coin_r
 
 
 @with_coins("hellboy", "blackbeard", *HELLBOY_HAND)
-def test_a_table_with_a_coin_missing_says_so_once(coin_rig):
+def test_a_table_with_a_coin_missing_says_so_once_however_many_writes_follow(coin_rig):
     session, table, game, fake, cfg = coin_rig
     table.coins_on_table = 2
     session_blackbeard.track(session, announce=True)
-    msgs = press(session, table, True)
-    assert said(msgs, "Blackbeard") and said(msgs, "2"), msgs
-    assert any("moneda" in m.lower() or "doblon" in m.lower() for m in msgs), msgs
+    all_msgs = press(session, table, True)                   # a second write: the payment for the action
+    all_msgs += click(session, table, Event.MANEUVER)
+    warnings = [m for m in all_msgs if "solo hay 2 doblon" in m]
+    assert len(table.coin_writes) >= 2 and len(warnings) == 1, (table.coin_writes, all_msgs)
 
 
 @with_coins("hellboy", "leonardo", *HELLBOY_HAND)
 def test_nobody_playing_blackbeard_means_the_coins_are_never_touched(coin_rig):
     session, table, game, fake, cfg = coin_rig
     assert table.coin_writes == [] and session_blackbeard._player(session) is None
+
+
+# ---------------------------------------------------------------- the real begin, setup and resume paths
+
+@with_coins("hellboy", "blackbeard", *HELLBOY_HAND)
+def test_a_new_game_writes_the_engines_treasury_count(coin_rig):
+    session, table, game, fake, cfg = coin_rig
+    session.__dict__.pop("_coins_written", None)             # a fresh session has written nothing: only the announced look writes the start
+    session._begin_game()
+    press(session, table, False)
+    assert table.coin_writes == [1]
+
+
+@with_coins("hellboy", "blackbeard", *HELLBOY_HAND)
+def test_the_end_of_the_setup_writes_the_engines_treasury_count(coin_rig):
+    session, table, game, fake, cfg = coin_rig
+    session.__dict__["_coins_written"] = (2, 1)              # the same count: only forgetting it makes the setup write it again
+    session.setup = {"stage": "wait_human", "mull_done": False, "mull_decision": None, "mull_step": "start", "human_mull": False}
+    session._setup_begin()
+    press(session, table, False)
+    assert table.coin_writes == [1]
+
+
+@with_coins("hellboy", "blackbeard", *HELLBOY_HAND)
+def test_a_resumed_game_writes_the_saved_treasury_count(coin_rig):
+    session, table, game, fake, cfg = coin_rig
+    game.fx.set_counter(1, "doubloons", 0)
+    game.fx.set_counter(1, "treasury", 3)
+    session.__dict__.pop("_coins_written", None)             # a resumed session has written nothing yet
+    session._resume()
+    press(session, table, False)
+    assert table.coin_writes == [3]

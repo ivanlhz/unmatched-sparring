@@ -537,12 +537,28 @@ def _if(run, game, spec):
     return [((branch,), None)] if spec.get(branch) else []
 
 
+def _counters_payable(game, run, cost: list[dict]) -> bool:
+    """A cost of the owner's own ability counters (Blackbeard's Treasury) is payable only when no counter would end below its minimum, `set` and
+    `delta` alike, op after op. Counters of the HeroDef (destiny) and of another player are not checked."""
+    from .select import counter_value
+    rng_of = load_effects(game.players[run.ctx.owner].hero.slug).counter_range
+    held: dict[str, int] = {}
+    for c in cost:
+        if c["op"] != "counter" or c.get("player", "owner") != "owner" or c["name"] in game.players[run.ctx.owner].hero.counters:
+            continue
+        name = c["name"]
+        now = held.get(name, counter_value(game, run.ctx.owner, name))
+        held[name] = c["set"] if "set" in c else now + c["delta"]
+        if held[name] < rng_of(name).min:
+            return False
+    return True
+
+
 def _can_pay(game, run, cost: list[dict]) -> bool:
     """Conservative: a discard (or a card put back in the deck) cost needs enough cards (of the table player's hand, those not
     already owed to their discard pile: `table.discards_owed`), an action cost enough actions left on the owner's own turn; any
     other cost is assumed payable; a counter cost needs the counter to hold that much (Blackbeard's ransom: the Treasury)."""
-    from .plugins_blackbeard import can_pay as counters_can_pay
-    if not counters_can_pay(game, run.ctx.owner, cost):
+    if not _counters_payable(game, run, cost):
         return False
     for c in cost:
         if c["op"] == "spend_action" and (game.turn != run.ctx.owner or game.actions_left < int(amount(game, run, c["amount"]))):
@@ -591,8 +607,7 @@ def _choice_context(game, run, spec: dict) -> dict:
     Delivery: how many moments of the rival's card have effects to cancel)."""
     ctx = {}
     ops, other = spec.get("ops") or [], spec.get("else") or []
-    from .plugins_blackbeard import choice_context
-    ctx.update(choice_context(game, run, spec))        # Blackbeard's doubloons: a ransom the opponent may pay, his action, a Sea Dog repositioned
+    ctx.update(plugins_blackbeard.choice_context(game, run, spec))        # Blackbeard's doubloons: a ransom the opponent may pay, his action, a Sea Dog repositioned
     if any(o["op"] == "plugin" and o["id"] in ("houdini:replace_combatant", "luke:replace_combatant", "washington:replace_combatant", "achilles:replace_combatant") for o in ops):      # Smoke And Mirrors: a bot weighs the swap
         ctx["replaces_combatant"] = {"this": run.ctx.this_fid, "role": run.ctx.played_as}
     if len(ops) == 1 and ops[0]["op"] == "return_to_deck" and isinstance(ops[0]["cards"], dict) \
@@ -708,8 +723,7 @@ def _optional(run, game, spec):
     can_pay = _can_pay(game, run, cost)
     yes = can_pay and run.ask(game, "optional", chooser, [True, False], 1, 1, "do it?", **ctx,
                               **_choice_context(game, run, spec))[0]
-    from .plugins_blackbeard import treasury_cost
-    if cost and chooser != run.ctx.owner and chooser == game.bot_player and not treasury_cost(cost):      # a ransom is paid in doubloons, not cards: the chat says it with the coins
+    if cost and chooser != run.ctx.owner and chooser == game.bot_player and not all(o["op"] == "counter" for o in cost):      # a price in counters (a ransom) is told by the counters, not as cards
         run.flags["bot_priced"] = {"paid": bool(yes), "can_pay": can_pay, "cards": ctx.get("cost_cards", 0),
                                    "stake": ctx.get("at_stake", 0), "hp": ctx.get("hp"),
                                    # Incinerate's price ignores the card's value; Shield Formation's stops its effect (an Archer's return)

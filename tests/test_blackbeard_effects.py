@@ -411,8 +411,10 @@ def test_queen_annes_revenge_never_drops_below_zero(bprd):
     g = mk(bprd)
     set_coins(g, 0, 3)
     b, foe = pair(g, "blackbeard", FOE)
+    queen = give(g, 0, "Queen Anne's Revenge")
+    object.__setattr__(queen, "value", 3)                    # a weakened card: three doubloons would take 6 off a 3
     g.controllers[1].queue = [[3]]
-    assert g.attack(b, foe, give(g, 0, "Queen Anne's Revenge"), None).atk_value == 1 and coins(g) == (3, 0)
+    assert g.attack(b, foe, queen, None).atk_value == 0 and coins(g) == (3, 0)
 
 
 def test_queen_annes_revenge_asks_nothing_with_an_empty_treasury(bprd):
@@ -650,3 +652,18 @@ def test_a_clone_of_the_game_has_its_own_doubloons(bprd):
     c = g.clone()
     set_coins(c, 0, 3)
     assert coins(c) == (0, 3) and coins(g) == (2, 1)
+
+
+# ---------------------------------------------------------------- the generic counter-cost rule
+
+def test_a_counter_cost_is_payable_only_when_no_counter_would_end_below_its_minimum(bprd):
+    from sparring.effects.ops_core import _counters_payable
+    g = mk(bprd)
+    run = EffectRun([], Ctx(owner=0, this_fid="blackbeard"))
+    take = lambda name, delta: {"op": "counter", "name": name, "delta": delta}
+    assert _counters_payable(g, run, [take("treasury", -1), take("doubloons", 1)])
+    assert not _counters_payable(g, run, [take("treasury", -2)])                       # the Treasury holds 1
+    assert not _counters_payable(g, run, [take("treasury", -1), take("treasury", -1)])  # op after op: the second one runs dry
+    assert not _counters_payable(g, run, [{"op": "counter", "name": "treasury", "set": -1}])
+    assert _counters_payable(g, run, [{"op": "counter", "name": "treasury", "set": 0}])
+    assert _counters_payable(g, run, [{"op": "counter", "name": "treasury", "delta": -5, "player": "opponent"}])   # not the owner's: not checked

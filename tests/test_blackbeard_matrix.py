@@ -22,6 +22,15 @@ PAIRS = [("blackbeard", h) for h in OTHERS] + [(b, "blackbeard") for b in OTHERS
 IDS = [f"{b}-vs-{h}" for b, h in PAIRS]
 
 
+def doubloons(game) -> int:
+    """The doubloons in the game: the ones Blackbeard holds and the Treasury's (always three), or 3 when nobody plays him."""
+    from sparring.effects.select import counter_value
+    for player in (0, 1):
+        if game.players[player].hero.slug == "blackbeard":
+            return counter_value(game, player, "doubloons") + counter_value(game, player, "treasury")
+    return 3
+
+
 def play_to_the_end(tmp_path, bot: str, human: str):
     session, table, game, fake, cfg, client = build(tmp_path, bot, human, (), table_cls=AsideTable, **SPOTS)
     try:
@@ -47,6 +56,7 @@ def play_to_the_end(tmp_path, bot: str, human: str):
 def test_a_full_session_game_reaches_game_over(tmp_path, bot, human):
     game, steps, said = play_to_the_end(tmp_path, bot, human)
     assert game.winner is not None, f"no winner after {steps} steps (turn {game.turn_no})"
+    assert doubloons(game) == 3
     assert not any("Accion ilegal" in m or "Illegal action" in m for m in said), said
 
 
@@ -65,7 +75,7 @@ def test_a_game_where_the_human_attacks_every_turn_reaches_game_over(tmp_path, b
             table.dials[guid]["value"] = session.dials_written[guid] = HERO_HP
         d = AttackDriver(session, table, game, cfg, attacks=True)
         d.play_out()
-        assert game.winner is not None
+        assert game.winner is not None and doubloons(game) == 3
         assert any("Combate" in m for m in d.log), "the human never attacked"
         assert not [m for m in d.log if "ilegal" in m.lower()], d.log[-5:]
     finally:

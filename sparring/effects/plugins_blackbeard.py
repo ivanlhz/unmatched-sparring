@@ -2,8 +2,8 @@
 
 The three doubloons are two counters of Blackbeard's player (`ability.counters`): `doubloons` (the ones he holds) and `treasury`; they always
 add up to 3. A RANSOM ("unless N") is an `optional` of the OPPONENT whose cost moves N doubloons from the Treasury to Blackbeard and whose `else`
-is the effect line, so paying ignores that one line (Ivan 2026-11-22, BB1). `can_pay` is what `ops_core._can_pay` asks about a cost that takes
-doubloons: the option does not exist when the Treasury holds fewer than N. `ransom_context` is what the panel and the bot see about the question.
+is the effect line, so paying ignores that one line (Ivan 2026-11-22, BB1). `ops_core._counters_payable` is what makes the option not exist when the
+Treasury holds fewer than N. `ransom_context` is what the panel and the bot see about the question.
 
   * `blackbeard:random_discard` (Avast Ye!, IMMEDIATELY): "Your opponent discards 1 random card unless 1 doubloon". The random card is drawn FIRST, so the
     opponent decides knowing which card it is: a bot's or a simulation's hand is drawn here; the table player's is placeholders, so the engine names a
@@ -16,7 +16,7 @@ from __future__ import annotations
 from ..i18n import plural, t
 from . import table
 from .ops_core import OPS, _card_title, _random_positions_text, plugin
-from .select import amount, counter_value
+from .select import amount, counter_value, hand_size
 
 HELD, TREASURY = "doubloons", "treasury"
 QUEENS_STEP = 2                  # Queen Anne's Revenge: the value falls by this much for each doubloon the opponent pays
@@ -34,16 +34,6 @@ def treasury_cost(cost: list[dict]) -> int:
 def hand_cost(cost: list[dict]) -> int:
     """How many doubloons Blackbeard pays out of his own hand (the action at the start of his turn)."""
     return sum(-int(c["delta"]) for c in cost if c["op"] == "counter" and c["name"] == HELD and int(c.get("delta", 0)) < 0)
-
-
-def can_pay(game, owner: int, cost: list[dict]) -> bool:
-    """A cost of the owner's own counters that would take one below what it holds cannot be paid (the Treasury has fewer than the ransom asks;
-    Blackbeard has no doubloon to give for an action). Any other cost is not this function's business."""
-    need: dict[str, int] = {}
-    for c in cost:
-        if c["op"] == "counter" and int(c.get("delta", 0)) < 0 and c.get("player", "owner") == "owner":
-            need[c["name"]] = need.get(c["name"], 0) - int(c["delta"])
-    return all(stock(game, owner, name) >= n for name, n in need.items())
 
 
 def pay_ransom(run, game, n: int) -> None:
@@ -121,8 +111,8 @@ def coins_snapshot(game) -> dict:
 
 
 def coin_lines(game, before: dict) -> list[str]:
-    """What the doubloons did since `before` (a `coins_snapshot`): who holds how many now. Said by the chat so the table (which the session does not
-    read coins from) can follow: the human moves the tokens, or knows what the bot's side holds."""
+    """What the doubloons did since `before` (a `coins_snapshot`): who holds how many now. Said by the chat, so the table player knows who holds how
+    many (the bot moves the tokens itself: `session_blackbeard`; nothing reads them back)."""
     parts = []
     for key, (held0, _) in (before or {}).items():
         held, treasury = coins_snapshot(game).get(key, (held0, 0))
@@ -141,7 +131,7 @@ def _random_discard(run, game, spec):
     victim = 1 - owner
     st = game.players[victim]
     n = int((spec.get("args") or {}).get("amount", 1))
-    if not st.hand or not game.fx.can_force_discard(victim, owner):
+    if hand_size(game, victim) <= 0 or not game.fx.can_force_discard(victim, owner):
         return
     physical = table.physical(game, victim)
     card = None if physical else run.random_sample(list(st.hand), 1)[0]
