@@ -1,6 +1,6 @@
 """Sherlock Holmes' other cards on the table through the panel (FakeTTS, batch mode), both seats: Master of Disguise (the swap of the two heroes), Administer Aid
-(Watson placed beside Holmes), Eliminate the Impossible and Study Methods (the looks at a hand), The Game is Afoot (the move after the attack) and Deduce
-Strategy (the yes/no that says what the change does). The panel and the table are the engine's own routes (translators, looks, moves by hand): these tests pin
+(Watson placed beside Holmes), Eliminate the Impossible and Study Methods (the looks at a hand), the cards after a combat (Education Never Ends, Study Methods)
+and Watson's band. The Game is Afoot, Deduce Strategy and the saves are in tests/test_sherlock_more_human.py. The panel and the table are the engine's own routes (translators, looks, moves by hand): these tests pin
 that Holmes' cards use them the way the human needs."""
 from __future__ import annotations
 
@@ -47,6 +47,7 @@ def test_the_humans_master_of_disguise_swaps_the_heroes_at_any_distance_and_the_
     human_scheme(session, table, game, "Master of Disguise")
     assert (holmes.pos, hell.pos) == (before[1], before[0]) and hell.hp == hp - 1
     assert table.positions[cfg.nicknames["hellboy"]] == before[0], "the bot moved its own miniature"
+    assert table.positions[cfg.nicknames["holmes"]] == before[1], "and the human's, which it swapped itself"
     assert dial_value(session, cfg, table, "hellboy") == hp - 1
 
 
@@ -61,9 +62,12 @@ def test_the_bots_master_of_disguise_tells_the_human_to_put_their_hero_where_hol
     master = next(c for c in game.players[0].hand if c.title == "Master of Disguise")
     human_hand(table, game, "Excalibur", "Service Pistol", "Glimpse Of Hell")
     before = (holmes.pos, hell.pos)
+    hp = hell.hp
     msgs = bot_turn(session, table, [Act("scheme", fid="holmes", card=master)])
     assert (holmes.pos, hell.pos) == (before[1], before[0]), msgs
-    assert said(msgs, "he intercambiado yo las miniaturas") or said(msgs, "Master of Disguise"), msgs
+    assert (table.positions[cfg.nicknames["holmes"]], table.positions[cfg.nicknames["hellboy"]]) == (before[1], before[0]), "the bot swapped both miniatures"
+    assert hell.hp == hp - 1 and dial_value(session, cfg, table, "hellboy") == hp - 1
+    assert said(msgs, "Hellboy pasa a") and said(msgs, "he intercambiado yo las miniaturas"), msgs
 
 
 # ---------------------------------------------------------------- Administer Aid

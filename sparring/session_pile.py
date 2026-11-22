@@ -155,6 +155,8 @@ def press(session, paused, index) -> None:
         session.say(rage.counted(session, req, ids), ChatKind.YOUR_TURN)
         if rage.mode(req) == "play":
             _settle_play(session, req, ids)
+        if req.extra.get("confirm") is not None:     # Confirm Suspicion: the card is already on their pile, the projection must not ask for it again
+            session.hand_discarded.update(ids)
         session._answer_choice(paused, ids)
         return
     session.hand_deck.update(ids)

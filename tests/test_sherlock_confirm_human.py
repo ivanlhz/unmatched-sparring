@@ -80,6 +80,9 @@ def test_a_matching_card_on_the_pile_is_read_and_its_boost_hurts_the_humans_hero
     assert said(msgs, "descartas B.P.R.D. Training: tu heroe recibe 2 de dano"), msgs
     assert human_reads(table) == []
     assert dial(session, cfg, table, "hellboy") == hp - 2
+    assert session.pending_discard is None and not said(msgs, "de tu mano en tu descarte"), msgs      # the card they laid is not asked for again
+    msgs = click(session, table, Event.MANEUVER)
+    assert not said(msgs, "Ahora no es posible"), msgs                                            # their first action goes through
 
 
 @with_rig(HOLMES, "hellboy", HOLMES_BOT_HAND)
@@ -123,8 +126,10 @@ def test_saying_none_while_holding_a_match_is_found_when_the_hand_is_read_and_th
     by_id = {c.card_id: c.title for c in game.players[1].full_set}
     assert len(human_reads(table)) == 1 and req.extra["recheck"] and [by_id[i] for i in req.options] == ["B.P.R.D. Training"]
     lay_on_pile(table, game, "B.P.R.D. Training")
-    click(session, table, Event.CHOICE, {"i": 1})
+    msgs = click(session, table, Event.CHOICE, {"i": 1})
     assert session.effect_run is None and game.fighters["hellboy"].hp == hp - 2
+    assert session.pending_discard is None and not said(msgs, "de tu mano en tu descarte"), msgs
+    assert not said(click(session, table, Event.MANEUVER), "Ahora no es posible")
 
 
 @with_rig(HOLMES, "hellboy", HOLMES_BOT_HAND)

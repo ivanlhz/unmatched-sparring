@@ -47,7 +47,7 @@ Every HOLMES and DR. WATSON card carries the engine's `uncancelable` flag (`data
 
 ## Table (what the bot does, what the chat asks, what the bot reads back)
 - **Pieces**: Holmes' miniature and dial come out of the bag like any hero's; Watson is a Custom_Token with a life dial; the Watson dial and the Holmes dial share a GUID with Patroclus' and Achilles' (resolved by name).
-- **Bot as Holmes**: Elementary is placed, turned face up and announced with its number; Confirm Suspicion names its value in the chat and asks the human for the discard; Master of Disguise swaps the two miniatures (the bot moves its own, the chat tells the human to move theirs and the bot reads it back, the `swap` translator); Administer Aid places Watson by the bot; the looks (Eliminate, Study Methods, a miss of Confirm Suspicion) read the human's hand once, when the card says so.
+- **Bot as Holmes**: Elementary is placed, turned face up and announced with its number; Confirm Suspicion names its value in the chat and asks the human for the discard; Master of Disguise: the bot swaps BOTH miniatures itself (the `swap` translator moves the human's piece too and says "he intercambiado yo las miniaturas"); Administer Aid places Watson by the bot; the looks (Eliminate, Study Methods, a miss of Confirm Suspicion) read the human's hand once, when the card says so.
 - **Human as Holmes**: Elementary as above; Confirm Suspicion is named on the panel and the bot answers; the other cards go through the interpreter: the human moves their pieces by hand (Game is Afoot, Administer Aid, Master of Disguise) and the bot reads them back.
 
 ## Tests
