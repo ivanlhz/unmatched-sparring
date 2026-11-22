@@ -7,3 +7,10 @@ tests/test_d1_bot_cards.py  blackbeard  register hero + importer extra cards  20
 tests/test_effects_schema.py  blackbeard  register hero + importer extra cards  2026-11-22 10:01Z
 sparring/heroes.py  loki  counter pile rival_hand  2026-11-22 10:02Z
 sparring/state.py  loki  counter pile rival_hand + trick movement hooks  2026-11-22 10:02Z
+sparring/effects/ops_core.py  pandora  engine hooks for the Box (plugin import, engine-run trigger, prompts, AI hook)  2026-11-22 10:04Z
+sparring/effects/table.py  pandora  engine hooks for the Box (plugin import, engine-run trigger, prompts, AI hook)  2026-11-22 10:04Z
+sparring/session_bot_effects.py  pandora  engine hooks for the Box (plugin import, engine-run trigger, prompts, AI hook)  2026-11-22 10:04Z
+sparring/session_choices.py  pandora  engine hooks for the Box (plugin import, engine-run trigger, prompts, AI hook)  2026-11-22 10:04Z
+sparring/ai_effects.py  pandora  engine hooks for the Box (plugin import, engine-run trigger, prompts, AI hook)  2026-11-22 10:04Z
+data/i18n/en.json  pandora  engine hooks for the Box (plugin import, engine-run trigger, prompts, AI hook)  2026-11-22 10:04Z
+data/i18n/es.json  pandora  engine hooks for the Box (plugin import, engine-run trigger, prompts, AI hook)  2026-11-22 10:04Z
