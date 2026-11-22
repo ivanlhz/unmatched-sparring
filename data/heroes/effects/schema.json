@@ -130,7 +130,8 @@
     "start": {"type": "boolean"},
     "track": {"const": true},
     "empty": {"type": "boolean"},
-    "other": {"type": "boolean"}
+    "other": {"type": "boolean"},
+    "apart_from_own": {"const": true}
    }
   },
 
