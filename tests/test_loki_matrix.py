@@ -61,3 +61,26 @@ def test_a_full_session_game_reaches_game_over(tmp_path, bot, human):
 def test_the_matrix_has_loki_in_both_seats_against_every_other_hero():
     assert len(SIM_PAIRS) == 2 * len(OTHERS) and all(("loki", h) in SIM_PAIRS and (h, "loki") in SIM_PAIRS for h in OTHERS)
     assert {"medusa", "chupacabra", "pandora", "blackbeard"} <= set(OTHERS)
+
+
+@pytest.mark.parametrize("bot,human", FAKE_PAIRS, ids=[f"{b}-vs-{h}" for b, h in FAKE_PAIRS])
+def test_a_game_where_the_human_attacks_every_turn_reaches_game_over(tmp_path, bot, human):
+    """The human walks up to the bot's hero and attacks with a card of their own deck each turn (a TRICK of Loki's among them when they are Loki's)
+    and discards to the hand limit."""
+    session, table, game, fake, cfg, client = build(tmp_path, bot, human, (), table_cls=AsideTable, **SPOTS)
+    try:
+        set_hand(session, table, game, *[c.title for c in game.players[0].deck[:game.start_hand(0)]])
+        table.human_count = game.start_hand(1)
+        for player in (0, 1):
+            hero = game.hero(player)
+            hero.hp = HERO_HP
+            guid = cfg.session_config().dials[hero.fid]
+            table.dials[guid]["value"] = session.dials_written[guid] = HERO_HP
+        d = AttackDriver(session, table, game, cfg, attacks=True)
+        d.play_out()
+        assert game.winner is not None
+        assert any("Combate" in m for m in d.log), "the human never attacked"
+        assert not [m for m in d.log if "ilegal" in m.lower()], d.log[-5:]
+    finally:
+        client.close()
+        fake.close()
