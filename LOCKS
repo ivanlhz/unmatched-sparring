@@ -22,3 +22,4 @@ tests/test_heroes.py  pandora  register the hero in the shared lists  2026-11-22
 tests/test_card_identity.py  pandora  register the hero in the shared lists  2026-11-22 10:11Z
 tests/test_d1_bot_cards.py  pandora  register the hero in the shared lists  2026-11-22 10:11Z
 tests/test_effects_schema.py  pandora  register the hero in the shared lists  2026-11-22 10:11Z
+tests/test_tts_translators.py  pandora  registry of translated ops lists the Box's three intents  2026-11-22 10:14Z
