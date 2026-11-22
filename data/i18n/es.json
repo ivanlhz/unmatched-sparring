@@ -1438,5 +1438,14 @@
  "narr.notice.basket_axe": "cesta: hacha",
  "narr.notice.basket_wild_wolf": "cesta comodin contada como lobo",
  "narr.notice.basket_wild_rose": "cesta comodin contada como rosa",
- "narr.notice.basket_wild_axe": "cesta comodin contada como hacha"
+ "narr.notice.basket_wild_axe": "cesta comodin contada como hacha",
+ "bury.off_done_mine": "{name} sale del tablero (no esta derrotada): lo he sacado del tablero.",
+ "bury.off_done_human": "{name} sale del tablero (no esta derrotada): lo he apartado.",
+ "bury.off_failed_mine": "{name} sale del tablero (no esta derrotada): quita su miniatura de la mesa (no he podido apartarla yo).",
+ "bury.off_failed_human": "{name} (tuya) sale del tablero (no esta derrotada): quita su miniatura de la mesa.",
+ "narr.fighter.removed": "{fid} sale del tablero (no esta derrotada)",
+ "narr.fighter.back_by_hand": "{fid} vuelve con {hp} PV",
+ "tbl.where.apart": "en una zona donde no este ninguno de tus otros luchadores",
+ "elektra.flip.bot": "{name} resucita: le doy la vuelta al dial de vida (el dial Elektra Resurrected, 9).",
+ "elektra.flip.human": "{name} resucita: dale la vuelta a tu dial de vida (el dial Elektra Resurrected, 9). Desde ahora escribo su vida en ese."
 }

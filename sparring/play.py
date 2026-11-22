@@ -225,7 +225,7 @@ class PlayConfig:
                 bot_deck_guid=r["bot_deck_guid"], human_discard_zone=r["human_discard_zone"],
                 bot_deck_spot=tuple(r["bot_deck_spot"]), pieces=dict(r["pieces"]),
                 reveal_radius=float(r.get("reveal_radius", 2.0)), rot_y=float(r.get("rot_y", 0.0)),
-                dials=dict(r.get("dials", {})), destiny_dial=r.get("destiny_dial"), counter_dials=dict(r.get("counter_dials") or {}),
+                dials=dict(r.get("dials", {})), flip_dials=dict(r.get("flip_dials") or {}), destiny_dial=r.get("destiny_dial"), counter_dials=dict(r.get("counter_dials") or {}),
                 bot_card_ids=tuple(r.get("bot_card_ids", lua.BOT_CARD_IDS)),
                 human_card_ids=tuple(r.get("human_card_ids", lua.HUMAN_CARD_IDS)),
                 bot_card_shift=self.card_shifts[0], human_card_shift=self.card_shifts[1],

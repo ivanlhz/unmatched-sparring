@@ -1438,5 +1438,14 @@
  "narr.notice.basket_axe": "basket: axe",
  "narr.notice.basket_wild_wolf": "wild basket counted as a wolf",
  "narr.notice.basket_wild_rose": "wild basket counted as a rose",
- "narr.notice.basket_wild_axe": "wild basket counted as an axe"
+ "narr.notice.basket_wild_axe": "wild basket counted as an axe",
+ "bury.off_done_mine": "{name} leaves the board (not defeated): I have moved it off the board.",
+ "bury.off_done_human": "{name} leaves the board (not defeated): I have put it aside.",
+ "bury.off_failed_mine": "{name} leaves the board (not defeated): remove its miniature from the table (I could not move it aside myself).",
+ "bury.off_failed_human": "{name} (yours) leaves the board (not defeated): remove its miniature from the table.",
+ "narr.fighter.removed": "{fid} leaves the board (not defeated)",
+ "narr.fighter.back_by_hand": "{fid} comes back with {hp} health",
+ "tbl.where.apart": "in a zone none of your other fighters is in",
+ "elektra.flip.bot": "{name} resurrects: I flip her health dial (the Elektra Resurrected dial, 9).",
+ "elektra.flip.human": "{name} resurrects: flip your health dial (the Elektra Resurrected dial, 9). I write her life on it from now on."
 }

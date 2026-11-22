@@ -185,9 +185,11 @@ def _fighters(game, before: dict) -> list[str]:
         f = game.fighters[fid]
         who = _who(game, f)
         if alive0 and not f.alive:
-            out.append(t("narr.fighter.down", fid=who))
+            out.append(t("narr.fighter.removed" if f.off_board else "narr.fighter.down", fid=who))
         elif not alive0 and f.alive:
-            if f.died_at is None and not f.hero:        # first time out of the reserve: summoned, not returned
+            if fid in game.placing and f.died_at is not None:      # the human puts it down by hand: the engine's spot is only a placeholder
+                out.append(t("narr.fighter.back_by_hand", fid=who, hp=f"{f.hp:g}"))
+            elif f.died_at is None and not f.hero:        # first time out of the reserve: summoned, not returned
                 out.append(t("narr.fighter.summoned_by_hand" if fid in game.placing else "narr.fighter.summoned",
                              fid=who, spot=describe_space(game, f.pos, (fid,)), hp=f"{f.hp:g}"))
             else:

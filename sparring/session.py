@@ -26,7 +26,7 @@ from dataclasses import dataclass, field
 from pathlib import Path
 from typing import Callable
 
-from . import ai_double, enraged, persist
+from . import ai_double, enraged, off_board, persist
 from .ai_medusa import GAZE, MedusaAI, play_signature
 from .cards import Card, can_be_boost
 from .controller import Controller
@@ -153,6 +153,7 @@ class SessionConfig:
     mulligan_human: bool = True    # the human has the Mulligan button during setup (house rule)
     destiny_dial: str | None = None   # GUID of the destiny dial (count of Hellboy's destinies in his discard)
     counter_dials: dict[str, str] = field(default_factory=dict)   # counter name -> GUID of its dial (Ciri's source, Sinbad's voyage: session_counters)
+    flip_dials: dict[str, str] = field(default_factory=dict)      # fighter id -> GUID of the other side of its health dial, written once the hero is flipped (Elektra Resurrected)
     dead_spot: tuple[float, float, float] | None = None   # where the bot sets aside the miniatures of ITS fallen
     discard_layer: float = 0.15    # height added per full turn of the discard grid
     batch: bool = False            # fast mode: reads from the snapshot and writes in a single script per step
@@ -5491,8 +5492,12 @@ class Session:
         owner = self.game.fighters[fid].owner
         mine = owner == self.bot
         spot = self.cfg.dead_spot if mine else human_dead_spot(self.cfg)
-        done = t("bury.done_mine" if mine else "bury.done_human", name=name)
-        failed = t("bury.failed_mine" if mine else "bury.failed_human", name=name)
+        if self.game.fighters[fid].off_board:      # taken off the board, not defeated (Elektra's first life): the same moves, other words
+            done = t("bury.off_done_mine" if mine else "bury.off_done_human", name=name)
+            failed = t("bury.off_failed_mine" if mine else "bury.off_failed_human", name=name)
+        else:
+            done = t("bury.done_mine" if mine else "bury.done_human", name=name)
+            failed = t("bury.failed_mine" if mine else "bury.failed_human", name=name)
         if spot is not None:
             slot = sorted(f.fid for f in self.game.own(owner, alive_only=False)).index(fid)
             at = fallen_slot(spot, mine, slot)
@@ -5599,6 +5604,7 @@ class Session:
     def _live_dials(self) -> dict[str, str]:
         """fid -> life dial GUID the engine may write and read: two dials with one GUID are told apart by name first (once per
         start / resume / adopt while it works, again at the next write while it does not); one that cannot be is left out and said."""
+        self._sync_flipped_dials()
         if not self._dials_resolved and self.setup is None and piece_id.shared_dials(self):
             notes = piece_id.resolve_dials(self)
             if not self._dial_unresolved:
@@ -5608,6 +5614,20 @@ class Session:
                     self._dial_notes_said.add(line)
                     self.say(line, ChatKind.WARNING)
         return {fid: g for fid, g in self.cfg.dials.items() if fid not in self._dial_unresolved}
+
+    def _sync_flipped_dials(self) -> None:
+        """Elektra's health dial has two objects: the dial of her first life (7) and the Elektra Resurrected dial (9). From her Resurrect on, the engine's life is
+        written to the second one (and read from it); the first stays where it is, out of use. A game that goes back before the Resurrect (undo, a save from earlier)
+        uses the first again. Said once, when it changes."""
+        for fid, flipped in self.cfg.flip_dials.items():
+            owner = self.game.fighters[fid].owner
+            now = off_board.life(self.game, owner) == off_board.RESURRECTED
+            if now and self.cfg.dials.get(fid) != flipped:
+                self._dial_origin.setdefault(fid, self.cfg.dials[fid])
+                self.cfg.dials[fid] = flipped
+                self.say(t("elektra.flip.bot" if owner == self.bot else "elektra.flip.human", name=self._name(self.game.fighters[fid])), ChatKind.ABILITY)
+            elif not now and self.cfg.dials.get(fid) == flipped:
+                self.cfg.dials[fid] = self._dial_origin.pop(fid, self.cfg.dials[fid])
 
     def _tell_piece_notes(self) -> None:
         notes, self._piece_notes = self._piece_notes, []

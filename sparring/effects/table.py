@@ -95,7 +95,7 @@ def piece_is_physical(game, chooser: int, fighter) -> bool:
 
 # Triggers the engine runs for the table player although they hurt or summon: Sun Wukong's CLONES is a yes/no, 1 damage to his own dial and a Clone
 # placed by hand (nothing hidden); Pandora's Box asks which Misery came up (the human holds the real cards) and keeps the counts itself. Keyed by id, not by op: Medusa's GAZE (optional + damage) stays the table's.
-ENGINE_RUN_TRIGGERS = frozenset({"clone_summon", "pandora_box"})
+ENGINE_RUN_TRIGGERS = frozenset({"clone_summon", "pandora_box", "resurrect"})
 
 
 def start_of_turn_is_physical(game, player: int, trig: dict) -> bool:
@@ -165,6 +165,8 @@ def table_step_pending(run) -> bool:
 def _where(where) -> str:
     if not isinstance(where, dict):
         return t("tbl.where.default")
+    if where.get("apart_from_own"):
+        return t("tbl.where.apart")
     if where.get("any"):
         return t("tbl.where.any")
     if where.get("start"):
