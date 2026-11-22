@@ -1,1 +1,8 @@
 # path  agent  task  UTC time   (see BRIEF: short locks only)
+sparring/effects/ops_core.py  robin  register hero (plugin import, hero lists)  2026-11-22 11:59Z
+sparring/effects/state.py  robin  register hero (plugin import, hero lists)  2026-11-22 11:59Z
+tests/test_card_identity.py  robin  register hero (plugin import, hero lists)  2026-11-22 11:59Z
+tests/test_d1_bot_cards.py  robin  register hero (plugin import, hero lists)  2026-11-22 11:59Z
+tests/test_effects_schema.py  robin  register hero (plugin import, hero lists)  2026-11-22 11:59Z
+tests/test_heroes.py  robin  register hero (plugin import, hero lists)  2026-11-22 11:59Z
+tests/test_piece_identity.py  robin  register hero (plugin import, hero lists)  2026-11-22 11:59Z
