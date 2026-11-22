@@ -58,5 +58,5 @@ Every HOLMES and DR. WATSON card carries the engine's `uncancelable` flag (`data
 2. **Naming a value above 7**: the panel offers 0 to 7 for every prediction (Ivan 28/10); no printed value in the game is higher.
 3. **Confirm Suspicion with a card of no printed value** (Stones in the Belly, counted 0): it matches the value 0.
 4. **A human who says "none" while holding a match**: the bot reads the hand and demands the card; the alternative is to trust the human.
-5. **Administer Aid with Watson defeated**: the card cannot be played (a WATSON card needs Watson on the board).
+5. **Administer Aid with Watson defeated**: the engine lets the card be played (it does not check that the fighter of a scheme is alive, as for every sidekick's cards); the placement of a defeated fighter does nothing, Holmes still recovers 1 and the owner draws 1. The bot never plays it (`can_use`: a card of a fallen fighter that cannot return is dead weight). Should a WATSON card need Watson on the board, or should Administer Aid bring him back?
 6. **Deduce Strategy** is decided by the owner's panel yes/no for the human; the bot takes it only when it lowers the value.

@@ -127,3 +127,51 @@ def test_the_bots_eliminate_the_impossible_reads_the_humans_hand_once_and_the_hu
     table.human_count -= 1
     click(session, table, Event.END_ACTION)
     assert named[0] in [c.card_id for c in game.players[1].discard] and session.pending_discard is None
+
+
+# ---------------------------------------------------------------- the AFTER COMBAT cards of the human's Holmes
+
+def human_attacks_with(session, table, game, title):
+    click(session, table, Event.ATTACKER, {"attacker": "att_holmes"})
+    click(session, table, Event.ATTACK, {"target": "hellboy"})
+    from test_d3_table_effects import human_plays
+    played = human_plays(table, game, title)
+    table.human_hand.remove(played.card_id)
+    table.human_count -= 1
+
+
+@with_rig("hellboy", HOLMES, BOT_HAND)
+def test_education_never_ends_lost_deals_the_human_two_cards(rig, monkeypatch):
+    session, table, game, fake, cfg = rig
+    put_adjacent(game, table, cfg, "holmes", "hellboy")
+    training = next(c for c in game.players[0].hand if c.title == "B.P.R.D. Training")
+    monkeypatch.setattr(session.ai, "choose_defense", lambda g, a, t, attack_card=None: training)      # 3 against 3: the defender keeps the tie
+    human_hand(table, game, "Education Never Ends", "Counterpunch", "Feint")
+    human_attacks_with(session, table, game, "Education Never Ends")
+    msgs = click(session, table, Event.REVEAL)
+    assert said(msgs, "Te he dado 2 cartas"), msgs
+
+
+@with_rig("hellboy", HOLMES, BOT_HAND)
+def test_study_methods_won_shows_the_bots_hand_in_a_row(rig, monkeypatch):
+    session, table, game, fake, cfg = rig
+    put_adjacent(game, table, cfg, "holmes", "hellboy")
+    monkeypatch.setattr(session.ai, "choose_defense", lambda g, a, t, attack_card=None: None)
+    human_hand(table, game, "Study Methods", "Counterpunch", "Feint")
+    human_attacks_with(session, table, game, "Study Methods")
+    click(session, table, Event.REVEAL)
+    assert session.look is not None and session.look["mode"] == "reveal"
+    assert human_reads(table) == []
+
+
+@with_rig("hellboy", HOLMES, BOT_HAND)
+def test_study_methods_lost_shows_nothing(rig, monkeypatch):
+    session, table, game, fake, cfg = rig
+    put_adjacent(game, table, cfg, "holmes", "hellboy")
+    training = next(c for c in game.players[0].hand if c.title == "B.P.R.D. Training")
+    monkeypatch.setattr(session.ai, "choose_defense", lambda g, a, t, attack_card=None: training)
+    human_hand(table, game, "Study Methods", "Counterpunch", "Feint")
+    human_attacks_with(session, table, game, "Study Methods")
+    click(session, table, Event.REVEAL)
+    assert session.look is None
+
