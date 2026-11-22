@@ -2460,7 +2460,7 @@ class Session:
             card = self.ai.choose_defense(self.game, p.attacker, p.target)
         guid = self._place_bot_card(card, "human_attacks", p.attacker, p.target)
         p.bot_card, p.bot_card_guid, p.defended = card, guid, True
-        hidden.bot_defense_placed(self, p)        # Sherlock's Elementary: face up, with the number it predicts
+        hidden.bot_defense_placed(self, p, revealed)        # Sherlock's Elementary: face up, with the number it predicts (public when the attack is face up)
 
     # ---------- the double attack's second part (docs/combat-flow.md "Double attack") ----------
     def _spent_in_attack(self, p: Pending) -> tuple[set[int], set[str]]:
@@ -2624,8 +2624,8 @@ class Session:
                 g.check_attack_card(p.attacker, p.bot_card)
                 if human_card:
                     g.check_defense_card(p.target, human_card)
-                    if p.second is None and hidden.ask_elementary(self, p, human_card):
-                        return                    # Elementary: the human says the number before the bot's card is revealed
+                if p.second is None and hidden.ask_elementary(self, p, human_card):
+                    return                        # Elementary: the human says the number before the bot's card is revealed
         except RuleError as e:
             self.say(t("reveal.illegal", err=e), ChatKind.WARNING)
             return

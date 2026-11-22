@@ -78,9 +78,9 @@ def test_the_bots_elementary_is_played_face_up_with_a_number_and_a_right_number_
     elementary = next(c for c in game.players[0].hand if c.title == "Elementary")
     seen = []
     monkeypatch.setattr(session.ai, "choose_defense", lambda g, a, t, attack_card=None: seen.append(attack_card) or elementary)
-    monkeypatch.setattr(hidden, "predict_attack_value", lambda g, me, fid=None: guess)
+    monkeypatch.setattr(hidden, "predict_attack_value", lambda g, me, fid=None, known=None: guess)
     guids, placed = [], hidden.bot_defense_placed
-    monkeypatch.setattr(hidden, "bot_defense_placed", lambda sess, p: guids.append(p.bot_card_guid) or placed(sess, p))
+    monkeypatch.setattr(hidden, "bot_defense_placed", lambda sess, p, revealed=None: guids.append(p.bot_card_guid) or placed(sess, p, revealed))
     put_adjacent(game, table, cfg, "hellboy", "holmes")
     human_hand(table, game, "Excalibur", "Service Pistol", "Glimpse Of Hell")
     human_attacks(session, table, game, "hellboy", "holmes", "Excalibur")

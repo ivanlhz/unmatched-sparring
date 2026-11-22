@@ -487,8 +487,11 @@ def ask_elementary(session, p, card) -> bool:
     """At Reveal of the bot's attack, with Elementary on the table: True while the human still has to say the number (buttons up).
     The bot's card stays face down until the number is given; the card is played face up."""
     if (p.prediction or {}).get("defense") is not None:
+        if card is None or not _has_plugin(session.game, session.human, card, ELEMENTARY):       # the human changed the card after the question: the number no longer counts
+            p.prediction.pop("defense")     # nothing observable follows but the chat line: the other card ignores a number
+            session.say(t("hidden.elementary_withdrawn"), ChatKind.WARNING)
         return False
-    req = elementary_request(session.game, session.human, card)
+    req = None if card is None else elementary_request(session.game, session.human, card)
     if req is None:
         return False
     p.predict = req.to_dict()
@@ -497,13 +500,13 @@ def ask_elementary(session, p, card) -> bool:
     return True
 
 
-def bot_defense_placed(session, p) -> None:
+def bot_defense_placed(session, p, revealed=None) -> None:
     """The bot defends the human's attack with Elementary: it is turned face up and the bot says the number it predicts, guessed from
     public information only (`ai_sherlock.predict_attack_value`: the attacker's deck list minus what is gone), never from the face-down card."""
     g, card = session.game, p.bot_card
     if card is None or not g.fx.interprets(session.bot) or not _has_plugin(g, session.bot, card, ELEMENTARY):
         return
-    n = predict_attack_value(g, session.bot, p.attacker.fid)
+    n = predict_attack_value(g, session.bot, p.attacker.fid, None if revealed is None else revealed.value or 0)     # a face-up attack is public: nothing to guess
     p.prediction = {**(p.prediction or {"value": None}), "defense": {"owner": session.bot, "value": n}}
     if p.bot_card_guid:
         session._w(session._flip_script(p.bot_card_guid, "bot"), "flip")
