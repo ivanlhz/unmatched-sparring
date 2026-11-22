@@ -6,3 +6,5 @@ tests/test_d1_bot_cards.py  robin  register hero (plugin import, hero lists)  20
 tests/test_effects_schema.py  robin  register hero (plugin import, hero lists)  2026-11-22 11:59Z
 tests/test_heroes.py  robin  register hero (plugin import, hero lists)  2026-11-22 11:59Z
 tests/test_piece_identity.py  robin  register hero (plugin import, hero lists)  2026-11-22 11:59Z
+data/heroes/effects/schema.json  sherlock  cancel_effects force  2026-11-22 12:00Z
+sparring/effects/ops_combat.py  sherlock  cancel_effects force (Elementary)  2026-11-22 12:00Z
