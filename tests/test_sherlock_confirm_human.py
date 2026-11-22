@@ -161,7 +161,7 @@ def test_the_human_names_the_value_and_the_bot_discards_a_matching_card_whose_bo
     session, table, game, fake, cfg = rig
     msgs = human_plays_confirm(session, table, game)
     req = awaiting(session)
-    assert req.kind == "amount" and list(req.options) == list(range(8)) and req.extra["confirm"] is True
+    assert req.kind == "amount" and list(req.options) == list(range(8)) and req.extra["name_value"] is True
     assert said(msgs, "Nombra un valor"), msgs
     bot_hand = list(game.players[0].hand)
     hp = game.fighters["hellboy"].hp

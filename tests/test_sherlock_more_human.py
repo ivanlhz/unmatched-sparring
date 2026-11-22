@@ -105,7 +105,7 @@ def test_the_humans_question_to_name_the_value_survives_a_save(rig):
     saved = json.loads(json.dumps(session.to_dict()))
     twin = twin_session(session, cfg, saved)
     again = awaiting(twin)
-    assert again.kind == "amount" and again.extra["confirm"] is True and list(again.options) == list(req.options)
+    assert again.kind == "amount" and again.extra["name_value"] is True and list(again.options) == list(req.options)
     twin.client = session.client
     hand = list(twin.game.players[0].hand)
     hp = twin.game.fighters["hellboy"].hp

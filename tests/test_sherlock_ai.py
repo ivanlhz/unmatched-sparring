@@ -125,7 +125,7 @@ def test_the_value_named_is_never_a_scheme_only_value(bprd):
 
 def test_the_effect_ai_names_a_value_for_the_amount_request(bprd):
     g = mk(bprd)
-    req = ChoiceRequest("amount", 0, list(range(8)), 1, 1, None, "scheme/0:0", "name a value", {"confirm": True, "name_value": True}, 0)
+    req = ChoiceRequest("amount", 0, list(range(8)), 1, 1, None, "scheme/0:0", "name a value", {"name_value": True}, 0)
     assert EffectAI(0).decide(g, req, nested=False) == [ai_sherlock.name_value(g, 0)]
     assert SyntheticChooser(policy="greedy").choose(g, req) == [ai_sherlock.name_value(g, 0)]
 
@@ -214,3 +214,13 @@ def test_a_stale_look_does_not_narrow_the_estimate_once_the_hand_has_grown(bprd)
     foe.hand[:] = foe.hand[:3]
     assert len(ai_sherlock._pool(g, 0)) <= 3
 
+
+
+def test_a_one_button_top_discard_ask_is_not_taken_for_confirm_suspicion(bprd):
+    """Take A Knee, Lady Justice and Hailstorm ask an amount with `confirm` (one button, the bot moves the card): before the
+    `name_value` marker the AI and the table prompt answered it as Sherlock's "name a value" (22/11/2026)."""
+    g = mk(bprd)
+    req = ChoiceRequest("amount", 1, [1], 1, 1, None, "scheme/0:0", "discard the top card",
+                        {"top_discard": True, "confirm": True, "rival_deck": True}, 0)
+    assert EffectAI(1).decide(g, req, nested=False) == [1]
+    assert SyntheticChooser(policy="greedy").choose(g, req) == [1]

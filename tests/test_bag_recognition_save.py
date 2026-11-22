@@ -43,3 +43,9 @@ def test_the_heros_bag_from_the_save_is_recognised(by_guid, slug):
         assert _bag_hero(held, TABLES) in family or _bag_family(held, TABLES) == family
     else:
         assert _bag_hero(held, TABLES) == slug, [g for g in held if g not in {*TABLES[slug].all_guids(), *TABLES[slug].ignored_tokens}]
+
+
+@pytest.mark.parametrize("slug", sorted(s for s in TABLES if TABLES[s].ignored_tokens))
+def test_the_bag_left_after_unpacking_with_only_ignored_objects_is_nobodys(slug):
+    """Unpacking leaves the ignored objects in the dropped copy: that leftover must not read as the hero at the next Prepare."""
+    assert _bag_hero(list(TABLES[slug].ignored_tokens), TABLES) is None
