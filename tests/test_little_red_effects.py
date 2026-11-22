@@ -430,3 +430,38 @@ def test_the_hero_cards_are_for_her_and_the_huntsman_cards_for_him(bprd):
     assert by["A Grimm Tale"].usable_by("Huntsman") and not by["A Grimm Tale"].usable_by("Little Red")
     assert by["Never Leave the Path"].usable_by("Little Red") and not by["Never Leave the Path"].usable_by("Huntsman")
     assert by["Once Upon a Time"].usable_by("Huntsman") and by["Once Upon a Time"].usable_by("Little Red")
+
+
+# ---------------------------------------------------------------- What Big Ears You Have: an attack that may defend
+
+def test_big_ears_may_be_played_as_a_defense_with_an_axe_on_top_with_its_printed_four(bprd):
+    g = mk(bprd, turn=1)
+    pile(g, "The Wolf's Skin")                                     # an axe
+    red, foe = foe_attacks(g, "What Big Ears You Have")
+    assert red.hp == 14 - (6 - 4) and [c.title for c in g.players[0].discard][-1] == "What Big Ears You Have"
+
+
+def test_big_ears_may_be_played_as_a_defense_when_the_basket_is_wild(bprd):
+    g = mk(bprd, turn=1)
+    red, foe = foe_attacks(g, "What Big Ears You Have")             # only the Basket: it may count as an axe
+    assert red.hp == 14 - 2 and not wild_asked(g)
+
+
+@pytest.mark.parametrize("under", ["Never Leave the Path", "Once Upon a Time"])
+def test_big_ears_cannot_defend_with_a_wolf_or_a_rose_on_top(bprd, under):
+    from sparring.state import RuleError
+    g = mk(bprd, turn=1)
+    pile(g, under)
+    foe, red = pair(g, FOE, "red")
+    with pytest.raises(RuleError):
+        g.attack(foe, red, katana(g), give(g, 0, "What Big Ears You Have"))
+
+
+def test_big_ears_is_still_an_attack_with_any_basket(bprd):
+    g = mk(bprd)
+    pile(g, "Never Leave the Path")
+    red, foe = pair(g, "red", FOE)
+    before = foe.hp
+    g.attack(red, foe, give(g, 0, "What Big Ears You Have"), None)
+    assert before - foe.hp == 4
+

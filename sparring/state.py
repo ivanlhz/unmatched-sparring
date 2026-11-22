@@ -873,9 +873,9 @@ class Game:
                 raise RuleError(t("err.adjacent_only", title=card.title, fid=attacker.fid, target=target.fid))
             raise RuleError(t("err.out_of_reach", attacker=attacker.fid, target=target.fid))
 
-    @staticmethod
-    def check_defense_card(fighter: Fighter, card: Card) -> None:
-        if not card.can_defend:
+    def check_defense_card(self, fighter: Fighter, card: Card) -> None:
+        from .effects.plugins_little_red import may_defend_with       # What Big Ears You Have: an attack that may defend while the basket is an axe
+        if not (card.can_defend or may_defend_with(self, fighter.owner, card)):
             raise RuleError(t("err.not_defense_type", title=card.title, type=card.type))
         if not card.usable_by(fighter.name):
             raise RuleError(t("err.wrong_fighter", title=card.title, fighter=card.fighter, name=fighter.name))

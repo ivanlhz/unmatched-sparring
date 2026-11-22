@@ -52,8 +52,13 @@ def top_card(game, player: int):
     return pile[-1] if pile else None
 
 
-def is_little_red(game, player: int) -> bool:
-    return game.players[player].hero.slug == "little-red-riding-hood"
+DEFEND_TAG = "defend_if_axe"          # What Big Ears You Have: "(axe) You may play this card as a defense card"
+
+
+def may_defend_with(game, player: int, card) -> bool:
+    """`card` is an attack that may be played as a defense now: Big Ears while the basket is an axe (a wild basket may count as one: the
+    line has nothing to resolve, so no question is asked). It is checked when the card is played; a later cancel keeps it a defense."""
+    return DEFEND_TAG in card.tags and basket(game, player) in ("axe", WILD)
 
 
 def _remembered(run) -> str | None:

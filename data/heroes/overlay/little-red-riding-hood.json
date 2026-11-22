@@ -58,7 +58,8 @@
     "memory_title": "What Big Ears You Have 🐺",
     "text": "(axe) You may play this card as a defense card.",
     "tags": [
-     "symbol:wolf"
+     "symbol:wolf",
+     "defend_if_axe"
     ]
    },
    {
@@ -68,7 +69,8 @@
     "memory_title": "What Big Ears You Have 🐺",
     "text": "(axe) You may play this card as a defense card.",
     "tags": [
-     "symbol:wolf"
+     "symbol:wolf",
+     "defend_if_axe"
     ]
    },
    {
