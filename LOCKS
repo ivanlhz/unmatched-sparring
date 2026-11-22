@@ -9,3 +9,4 @@ sparring/state.py  loki  observe_hand keeps the TRICKs apart  2026-11-22 10:50Z
 sparring/session.py  blackbeard  the bot moves Blackbeard's coins: session hook, i18n  2026-11-22 10:52Z
 data/i18n/en.json  blackbeard  the bot moves Blackbeard's coins: session hook, i18n  2026-11-22 10:52Z
 data/i18n/es.json  blackbeard  the bot moves Blackbeard's coins: session hook, i18n  2026-11-22 10:52Z
+sparring/combat_flow.py  loki  flow save/load of a borrowed TRICK  2026-11-22 10:52Z
