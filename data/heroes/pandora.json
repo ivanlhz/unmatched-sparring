@@ -1,0 +1,438 @@
+{
+ "_source": {
+  "memory": "unmatched-memory/data/heroes/pandora.json",
+  "overlay": "data/heroes/overlay/pandora.json",
+  "generator": "tools/import_hero.py"
+ },
+ "slug": "pandora",
+ "name": "Pandora",
+ "fid": "pandora",
+ "hp": 14,
+ "move": 2,
+ "attack": "melee",
+ "set": "battle-of-legends-volume-three",
+ "ability": "PANDORA'S BOX\nDo not start with any Kakodaemons on the board.\nAt the start of your turn, open Pandora's Box.",
+ "sidekicks": [
+  {
+   "name": "Kakodaemon",
+   "hp": 1,
+   "move": 2,
+   "attack": "melee",
+   "count": 2,
+   "fid": "kakodaemon",
+   "start_on_board": 0,
+   "reserve": 2,
+   "tts_tokens": [
+    "Thanatos",
+    "Olethros"
+   ]
+  }
+ ],
+ "forms": null,
+ "counters": {},
+ "triggers": [],
+ "passives": [],
+ "deck": {
+  "card_base": 17600,
+  "sheet": 176,
+  "cards": [
+   {
+    "idx": 0,
+    "title": "Hera's Curiosity",
+    "fighter": "Pandora",
+    "type": "attack",
+    "value": 3,
+    "boost": 4,
+    "text": "DURING COMBAT: Add +1 to this card's value for each revealed MISERY. AFTER COMBAT: Look at your opponent's hand.",
+    "tags": []
+   },
+   {
+    "idx": 1,
+    "title": "Hera's Curiosity",
+    "fighter": "Pandora",
+    "type": "attack",
+    "value": 3,
+    "boost": 4,
+    "text": "DURING COMBAT: Add +1 to this card's value for each revealed MISERY. AFTER COMBAT: Look at your opponent's hand.",
+    "tags": []
+   },
+   {
+    "idx": 2,
+    "title": "Hera's Curiosity",
+    "fighter": "Pandora",
+    "type": "attack",
+    "value": 3,
+    "boost": 4,
+    "text": "DURING COMBAT: Add +1 to this card's value for each revealed MISERY. AFTER COMBAT: Look at your opponent's hand.",
+    "tags": []
+   },
+   {
+    "idx": 3,
+    "title": "Hindsight",
+    "fighter": "Pandora",
+    "type": "attack",
+    "value": 3,
+    "boost": 2,
+    "text": "AFTER COMBAT: If you won the combat, return a card from your discard pile to the top of your deck.",
+    "tags": []
+   },
+   {
+    "idx": 4,
+    "title": "Hindsight",
+    "fighter": "Pandora",
+    "type": "attack",
+    "value": 3,
+    "boost": 2,
+    "text": "AFTER COMBAT: If you won the combat, return a card from your discard pile to the top of your deck.",
+    "tags": []
+   },
+   {
+    "idx": 5,
+    "title": "Hindsight",
+    "fighter": "Pandora",
+    "type": "attack",
+    "value": 3,
+    "boost": 2,
+    "text": "AFTER COMBAT: If you won the combat, return a card from your discard pile to the top of your deck.",
+    "tags": []
+   },
+   {
+    "idx": 6,
+    "title": "Aphrodite's Beauty",
+    "fighter": "any",
+    "type": "attack",
+    "value": 0,
+    "boost": 3,
+    "text": "IMMEDIATELY: Cancel all effects on your opponent's card. AFTER COMBAT: Pandora recovers 1 health for each revealed MISERY.",
+    "tags": []
+   },
+   {
+    "idx": 7,
+    "title": "Aphrodite's Beauty",
+    "fighter": "any",
+    "type": "attack",
+    "value": 0,
+    "boost": 3,
+    "text": "IMMEDIATELY: Cancel all effects on your opponent's card. AFTER COMBAT: Pandora recovers 1 health for each revealed MISERY.",
+    "tags": []
+   },
+   {
+    "idx": 8,
+    "title": "Aphrodite's Beauty",
+    "fighter": "any",
+    "type": "attack",
+    "value": 0,
+    "boost": 3,
+    "text": "IMMEDIATELY: Cancel all effects on your opponent's card. AFTER COMBAT: Pandora recovers 1 health for each revealed MISERY.",
+    "tags": []
+   },
+   {
+    "idx": 9,
+    "title": "Spite",
+    "fighter": "Kakodaemon",
+    "type": "attack",
+    "value": 3,
+    "boost": 2,
+    "text": "AFTER COMBAT: Deal 1 damage to each fighter adjacent to your fighter.",
+    "tags": []
+   },
+   {
+    "idx": 10,
+    "title": "Spite",
+    "fighter": "Kakodaemon",
+    "type": "attack",
+    "value": 3,
+    "boost": 2,
+    "text": "AFTER COMBAT: Deal 1 damage to each fighter adjacent to your fighter.",
+    "tags": []
+   },
+   {
+    "idx": 11,
+    "title": "Divine Intervention",
+    "fighter": "Pandora",
+    "type": "versatile",
+    "value": 3,
+    "boost": 1,
+    "text": "AFTER COMBAT: Move Pandora up to 5 spaces.",
+    "tags": []
+   },
+   {
+    "idx": 12,
+    "title": "Divine Intervention",
+    "fighter": "Pandora",
+    "type": "versatile",
+    "value": 3,
+    "boost": 1,
+    "text": "AFTER COMBAT: Move Pandora up to 5 spaces.",
+    "tags": []
+   },
+   {
+    "idx": 13,
+    "title": "Feint",
+    "fighter": "any",
+    "type": "versatile",
+    "value": 2,
+    "boost": 2,
+    "text": "IMMEDIATELY: Cancel all effects on your opponent's card.",
+    "tags": [
+     "pandora"
+    ]
+   },
+   {
+    "idx": 14,
+    "title": "Feint",
+    "fighter": "any",
+    "type": "versatile",
+    "value": 2,
+    "boost": 2,
+    "text": "IMMEDIATELY: Cancel all effects on your opponent's card.",
+    "tags": [
+     "pandora"
+    ]
+   },
+   {
+    "idx": 15,
+    "title": "Feint",
+    "fighter": "any",
+    "type": "versatile",
+    "value": 2,
+    "boost": 2,
+    "text": "IMMEDIATELY: Cancel all effects on your opponent's card.",
+    "tags": [
+     "pandora"
+    ]
+   },
+   {
+    "idx": 16,
+    "title": "Guided by the Fates",
+    "fighter": "any",
+    "type": "versatile",
+    "value": 2,
+    "boost": 3,
+    "text": "DURING COMBAT: Discard the top card of your deck. Add its BOOST value to this card's value. AFTER COMBAT: If you won the combat, Pandora recovers 2 health.",
+    "tags": []
+   },
+   {
+    "idx": 17,
+    "title": "Guided by the Fates",
+    "fighter": "any",
+    "type": "versatile",
+    "value": 2,
+    "boost": 3,
+    "text": "DURING COMBAT: Discard the top card of your deck. Add its BOOST value to this card's value. AFTER COMBAT: If you won the combat, Pandora recovers 2 health.",
+    "tags": []
+   },
+   {
+    "idx": 18,
+    "title": "Guided by the Fates",
+    "fighter": "any",
+    "type": "versatile",
+    "value": 2,
+    "boost": 3,
+    "text": "DURING COMBAT: Discard the top card of your deck. Add its BOOST value to this card's value. AFTER COMBAT: If you won the combat, Pandora recovers 2 health.",
+    "tags": []
+   },
+   {
+    "idx": 19,
+    "title": "Malice",
+    "fighter": "Kakodaemon",
+    "type": "versatile",
+    "value": 2,
+    "boost": 2,
+    "text": "AFTER COMBAT: Your opponent discards 1 card.",
+    "tags": []
+   },
+   {
+    "idx": 20,
+    "title": "Malice",
+    "fighter": "Kakodaemon",
+    "type": "versatile",
+    "value": 2,
+    "boost": 2,
+    "text": "AFTER COMBAT: Your opponent discards 1 card.",
+    "tags": []
+   },
+   {
+    "idx": 21,
+    "title": "Offering to the Gods",
+    "fighter": "Pandora",
+    "type": "defense",
+    "value": 2,
+    "boost": 1,
+    "text": "DURING COMBAT: You may BOOST this card. AFTER COMBAT: If you won the combat, deal 2 damage to the opposing fighter.",
+    "tags": []
+   },
+   {
+    "idx": 22,
+    "title": "Offering to the Gods",
+    "fighter": "Pandora",
+    "type": "defense",
+    "value": 2,
+    "boost": 1,
+    "text": "DURING COMBAT: You may BOOST this card. AFTER COMBAT: If you won the combat, deal 2 damage to the opposing fighter.",
+    "tags": []
+   },
+   {
+    "idx": 23,
+    "title": "Celestial Raiments",
+    "fighter": "Pandora",
+    "type": "defense",
+    "value": 0,
+    "boost": 3,
+    "text": "DURING COMBAT: Ignore the value of your opponent's card.",
+    "tags": []
+   },
+   {
+    "idx": 24,
+    "title": "Celestial Raiments",
+    "fighter": "Pandora",
+    "type": "defense",
+    "value": 0,
+    "boost": 3,
+    "text": "DURING COMBAT: Ignore the value of your opponent's card.",
+    "tags": []
+   },
+   {
+    "idx": 25,
+    "title": "Zeus's Mischief",
+    "fighter": "Pandora",
+    "type": "scheme",
+    "value": null,
+    "boost": 1,
+    "text": "Draw 1 card for each revealed MISERY.\nMove an opposing fighter up to 1 space.\nGain 1 action.",
+    "tags": []
+   },
+   {
+    "idx": 26,
+    "title": "Zeus's Mischief",
+    "fighter": "Pandora",
+    "type": "scheme",
+    "value": null,
+    "boost": 1,
+    "text": "Draw 1 card for each revealed MISERY.\nMove an opposing fighter up to 1 space.\nGain 1 action.",
+    "tags": []
+   },
+   {
+    "idx": 27,
+    "title": "Forged by Hephaestus",
+    "fighter": "any",
+    "type": "scheme",
+    "value": null,
+    "boost": 1,
+    "text": "Place your fighter in any space.\nGain 1 action.",
+    "tags": []
+   },
+   {
+    "idx": 28,
+    "title": "Forged by Hephaestus",
+    "fighter": "any",
+    "type": "scheme",
+    "value": null,
+    "boost": 1,
+    "text": "Place your fighter in any space.\nGain 1 action.",
+    "tags": []
+   },
+   {
+    "idx": 29,
+    "title": "Forged by Hephaestus",
+    "fighter": "any",
+    "type": "scheme",
+    "value": null,
+    "boost": 1,
+    "text": "Place your fighter in any space.\nGain 1 action.",
+    "tags": []
+   }
+  ]
+ },
+ "ai_profile": {
+  "pandora": {
+   "name": "Pandora",
+   "hero": true,
+   "count": 1,
+   "max_hp": 14,
+   "move": 2,
+   "ranged": false,
+   "role": "hero",
+   "attack": {
+    "cards": 17,
+    "mean": 2.12,
+    "max": 3
+   },
+   "exclusive": [
+    {
+     "title": "Hera's Curiosity",
+     "type": "attack",
+     "copies": 3,
+     "impact": 1.11
+    },
+    {
+     "title": "Hindsight",
+     "type": "attack",
+     "copies": 3,
+     "impact": 0.96
+    },
+    {
+     "title": "Divine Intervention",
+     "type": "versatile",
+     "copies": 2,
+     "impact": 0.93
+    },
+    {
+     "title": "Offering to the Gods",
+     "type": "defense",
+     "copies": 2,
+     "impact": 1.36
+    },
+    {
+     "title": "Celestial Raiments",
+     "type": "defense",
+     "copies": 2,
+     "impact": 0.51
+    },
+    {
+     "title": "Zeus's Mischief",
+     "type": "scheme",
+     "copies": 2,
+     "impact": 2.0
+    }
+   ]
+  },
+  "kakodaemon": {
+   "name": "Kakodaemon",
+   "hero": false,
+   "count": 2,
+   "max_hp": 1,
+   "move": 2,
+   "ranged": false,
+   "role": "keep_away",
+   "attack": {
+    "cards": 13,
+    "mean": 1.69,
+    "max": 3
+   },
+   "exclusive": [
+    {
+     "title": "Spite",
+     "type": "attack",
+     "copies": 2,
+     "impact": 1.56
+    },
+    {
+     "title": "Malice",
+     "type": "versatile",
+     "copies": 2,
+     "impact": 0.9
+    }
+   ],
+   "requires_alive": []
+  }
+ },
+ "_notes": [
+  "Sheet 176 of the tournament savegame (8x4), read card by card from the image on 2026-11-22. CardID = 17600 + idx; 359 = character card (sheet 3, 10x7, index 59). Pandora's deck is sheet 176 like Medusa's and the rest: only deck.identity (data/tts/pandora.json) tells the decks apart (docs/card-identity.md).",
+  "Hero card: PANDORA, MELEE, START HEALTH 14, MOVE 2 (unmatched-memory agrees). Sidekick KAKODAEMON, MELEE, START HEALTH 1 x2, move 2: the save has two Custom_Token objects nicknamed Thanatos and Olethros (no life dial) and the hero card says 'Do not start with any Kakodaemons on the board'.",
+  "Bands read from the images: PANDORA on Hera's Curiosity, Hindsight, Divine Intervention, Offering to the Gods, Celestial Raiments and Zeus's Mischief; KAKODAEMON on Spite and Malice (only a Kakodaemon may play them); ANY on Aphrodite's Beauty, Feint, Guided by the Fates and Forged by Hephaestus. Order on the sheet: Hera's Curiosity 0-2, Hindsight 3-5, Aphrodite's Beauty 6-8, Spite 9-10, Divine Intervention 11-12, Feint 13-15, Guided by the Fates 16-18, Malice 19-20, Offering to the Gods 21-22, Celestial Raiments 23-24, Zeus's Mischief 25-26, Forged by Hephaestus 27-29.",
+  "Discrepancy with unmatched-memory (the card wins): Aphrodite's Beauty is printed value 0 and BOOST 3 (unmatched-memory: 3 and 2), band ANY. Everything else (titles, copies, type, value, BOOST, 30 cards, texts) agrees with the images.",
+  "The seven MISERIES are a separate deck of sheet 177 (8x2, CardIDs 17700-17706, a Deck in the bag): Woe 17700, Toil 17701, Pain 17702, Misfortune 17703, Hope 17704, Greed 17705, Confusion 17706 (the order of the image; the Deck object lists them 17706..17700 from the top).",
+  "Pandora's Feint (idx 13-15) is word for word Medusa's Feint, and Medusa's idx 15 has the same CardID 17615: two equal Card values in two decks of one sheet, which tests/test_card_identity.py forbids (a card is told from the rival's by value when the id repeats). The three Feints carry the tag `pandora` so that they differ; nothing reads the tag."
+ ]
+}

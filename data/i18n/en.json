@@ -1351,5 +1351,20 @@
  "archer.flipped": "{name} has {life} health: I flipped its token to that face",
  "archer.human_flip": "{name} has {life} health but its token shows {shows}: flip it to the side with {life}. (The side with the small yellow 2 is 2 health, the side with no number is 1 health.)",
  "archer.missing": "I cannot find the token of {name}: set its face by hand to its health.",
- "archer.failed": "I could not read or turn the Archer tokens; I will try again next step."
+ "archer.failed": "I could not read or turn the Archer tokens; I will try again next step.",
+ "choice.prompt.ability.pandora_box": "PANDORA'S BOX: do you reveal another Misery? (three feathers make you stop and take 1 damage for each revealed Misery)",
+ "choice.prompt.misery": "PANDORA'S BOX: which Misery did you reveal?",
+ "fx.ability.pandora_box": "PANDORA'S BOX: open the Box and reveal the Miseries.",
+ "pandora.misery.woe": "WOE (summon a Kakodaemon in Pandora's zone)",
+ "pandora.misery.toil": "TOIL (1 feather: +1 to the value of Pandora's attacks this turn)",
+ "pandora.misery.pain": "PAIN (1 feather: 1 damage to each opposing fighter adjacent to Pandora)",
+ "pandora.misery.misfortune": "MISFORTUNE (2 feathers)",
+ "pandora.misery.hope": "HOPE (look at the top card of the Box before deciding whether to reveal it)",
+ "pandora.misery.greed": "GREED (1 feather: draw 1 card)",
+ "pandora.misery.confusion": "CONFUSION (move Pandora up to 1 space)",
+ "tr.pandora.reveal": "{hero} (bot) reveals {misery}. Feathers revealed: {feathers}.",
+ "tr.pandora.stop": "{hero} (bot) stops revealing Miseries.",
+ "tr.pandora.stop_damage": "{hero} (bot) has {feathers} feathers: it must stop, and takes {damage} damage, 1 for each revealed Misery.",
+ "tr.pandora.stop_damage_human": "Three feathers or more ({feathers}): you must stop revealing, and {hero} takes {damage} damage, 1 for each revealed Misery.",
+ "tr.pandora.hope_bot": "{hero} (bot) looked at the top card of its Box."
 }

@@ -760,3 +760,4 @@ from . import plugins_washington  # noqa: E402,F401  (registers washington:use_r
 from . import plugins_raptors  # noqa: E402,F401  (registers blue:ambush)
 from . import plugins_achilles  # noqa: E402,F401  (registers achilles:replace_combatant)
 from . import plugins_mary  # noqa: E402,F401  (registers mary:out_of_the_mirror)
+from . import plugins_pandora  # noqa: E402,F401  (registers pandora:reveal, pandora:look, pandora:close)

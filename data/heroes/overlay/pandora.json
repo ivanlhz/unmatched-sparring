@@ -1,0 +1,232 @@
+{
+ "_notes": [
+  "Sheet 176 of the tournament savegame (8x4), read card by card from the image on 2026-11-22. CardID = 17600 + idx; 359 = character card (sheet 3, 10x7, index 59). Pandora's deck is sheet 176 like Medusa's and the rest: only deck.identity (data/tts/pandora.json) tells the decks apart (docs/card-identity.md).",
+  "Hero card: PANDORA, MELEE, START HEALTH 14, MOVE 2 (unmatched-memory agrees). Sidekick KAKODAEMON, MELEE, START HEALTH 1 x2, move 2: the save has two Custom_Token objects nicknamed Thanatos and Olethros (no life dial) and the hero card says 'Do not start with any Kakodaemons on the board'.",
+  "Bands read from the images: PANDORA on Hera's Curiosity, Hindsight, Divine Intervention, Offering to the Gods, Celestial Raiments and Zeus's Mischief; KAKODAEMON on Spite and Malice (only a Kakodaemon may play them); ANY on Aphrodite's Beauty, Feint, Guided by the Fates and Forged by Hephaestus. Order on the sheet: Hera's Curiosity 0-2, Hindsight 3-5, Aphrodite's Beauty 6-8, Spite 9-10, Divine Intervention 11-12, Feint 13-15, Guided by the Fates 16-18, Malice 19-20, Offering to the Gods 21-22, Celestial Raiments 23-24, Zeus's Mischief 25-26, Forged by Hephaestus 27-29.",
+  "Discrepancy with unmatched-memory (the card wins): Aphrodite's Beauty is printed value 0 and BOOST 3 (unmatched-memory: 3 and 2), band ANY. Everything else (titles, copies, type, value, BOOST, 30 cards, texts) agrees with the images.",
+  "The seven MISERIES are a separate deck of sheet 177 (8x2, CardIDs 17700-17706, a Deck in the bag): Woe 17700, Toil 17701, Pain 17702, Misfortune 17703, Hope 17704, Greed 17705, Confusion 17706 (the order of the image; the Deck object lists them 17706..17700 from the top).",
+  "Pandora's Feint (idx 13-15) is word for word Medusa's Feint, and Medusa's idx 15 has the same CardID 17615: two equal Card values in two decks of one sheet, which tests/test_card_identity.py forbids (a card is told from the rival's by value when the id repeats). The three Feints carry the tag `pandora` so that they differ; nothing reads the tag."
+ ],
+ "fid": "pandora",
+ "ability": "PANDORA'S BOX\nDo not start with any Kakodaemons on the board.\nAt the start of your turn, open Pandora's Box.",
+ "sidekicks": [
+  {
+   "fid": "kakodaemon",
+   "name": "Kakodaemon",
+   "count": 2,
+   "hp": 1,
+   "move": 2,
+   "attack": "melee",
+   "start_on_board": 0,
+   "reserve": 2,
+   "tts_tokens": [
+    "Thanatos",
+    "Olethros"
+   ]
+  }
+ ],
+ "forms": null,
+ "counters": {},
+ "triggers": [],
+ "passives": [],
+ "deck": {
+  "card_base": 17600,
+  "sheet_id": 176,
+  "hero_card_id": 359,
+  "sheet": [
+   {
+    "idx": 0,
+    "title": "Hera's Curiosity",
+    "fighter": "Pandora",
+    "memory_title": "HERA'S CURIOSITY"
+   },
+   {
+    "idx": 1,
+    "title": "Hera's Curiosity",
+    "fighter": "Pandora",
+    "memory_title": "HERA'S CURIOSITY"
+   },
+   {
+    "idx": 2,
+    "title": "Hera's Curiosity",
+    "fighter": "Pandora",
+    "memory_title": "HERA'S CURIOSITY"
+   },
+   {
+    "idx": 3,
+    "title": "Hindsight",
+    "fighter": "Pandora",
+    "memory_title": "HINDSIGHT"
+   },
+   {
+    "idx": 4,
+    "title": "Hindsight",
+    "fighter": "Pandora",
+    "memory_title": "HINDSIGHT"
+   },
+   {
+    "idx": 5,
+    "title": "Hindsight",
+    "fighter": "Pandora",
+    "memory_title": "HINDSIGHT"
+   },
+   {
+    "idx": 6,
+    "title": "Aphrodite's Beauty",
+    "fighter": "any",
+    "memory_title": "APHRODITE'S BEAUTY",
+    "value": 0,
+    "boost": 3
+   },
+   {
+    "idx": 7,
+    "title": "Aphrodite's Beauty",
+    "fighter": "any",
+    "memory_title": "APHRODITE'S BEAUTY",
+    "value": 0,
+    "boost": 3
+   },
+   {
+    "idx": 8,
+    "title": "Aphrodite's Beauty",
+    "fighter": "any",
+    "memory_title": "APHRODITE'S BEAUTY",
+    "value": 0,
+    "boost": 3
+   },
+   {
+    "idx": 9,
+    "title": "Spite",
+    "fighter": "Kakodaemon"
+   },
+   {
+    "idx": 10,
+    "title": "Spite",
+    "fighter": "Kakodaemon"
+   },
+   {
+    "idx": 11,
+    "title": "Divine Intervention",
+    "fighter": "Pandora",
+    "memory_title": "DIVINE INTERVENTION"
+   },
+   {
+    "idx": 12,
+    "title": "Divine Intervention",
+    "fighter": "Pandora",
+    "memory_title": "DIVINE INTERVENTION"
+   },
+   {
+    "idx": 13,
+    "title": "Feint",
+    "fighter": "any",
+    "tags": [
+     "pandora"
+    ]
+   },
+   {
+    "idx": 14,
+    "title": "Feint",
+    "fighter": "any",
+    "tags": [
+     "pandora"
+    ]
+   },
+   {
+    "idx": 15,
+    "title": "Feint",
+    "fighter": "any",
+    "tags": [
+     "pandora"
+    ]
+   },
+   {
+    "idx": 16,
+    "title": "Guided by the Fates",
+    "fighter": "any",
+    "memory_title": "GUIDED BY THE FATES"
+   },
+   {
+    "idx": 17,
+    "title": "Guided by the Fates",
+    "fighter": "any",
+    "memory_title": "GUIDED BY THE FATES"
+   },
+   {
+    "idx": 18,
+    "title": "Guided by the Fates",
+    "fighter": "any",
+    "memory_title": "GUIDED BY THE FATES"
+   },
+   {
+    "idx": 19,
+    "title": "Malice",
+    "fighter": "Kakodaemon"
+   },
+   {
+    "idx": 20,
+    "title": "Malice",
+    "fighter": "Kakodaemon"
+   },
+   {
+    "idx": 21,
+    "title": "Offering to the Gods",
+    "fighter": "Pandora",
+    "memory_title": "OFFERING TO THE GODS"
+   },
+   {
+    "idx": 22,
+    "title": "Offering to the Gods",
+    "fighter": "Pandora",
+    "memory_title": "OFFERING TO THE GODS"
+   },
+   {
+    "idx": 23,
+    "title": "Celestial Raiments",
+    "fighter": "Pandora",
+    "memory_title": "CELESTIAL RAIMENTS"
+   },
+   {
+    "idx": 24,
+    "title": "Celestial Raiments",
+    "fighter": "Pandora",
+    "memory_title": "CELESTIAL RAIMENTS"
+   },
+   {
+    "idx": 25,
+    "title": "Zeus's Mischief",
+    "fighter": "Pandora",
+    "memory_title": "ZEUS'S MISCHIEF",
+    "value": null
+   },
+   {
+    "idx": 26,
+    "title": "Zeus's Mischief",
+    "fighter": "Pandora",
+    "memory_title": "ZEUS'S MISCHIEF",
+    "value": null
+   },
+   {
+    "idx": 27,
+    "title": "Forged by Hephaestus",
+    "fighter": "any",
+    "memory_title": "FORGED BY HEPHAESTUS",
+    "value": null
+   },
+   {
+    "idx": 28,
+    "title": "Forged by Hephaestus",
+    "fighter": "any",
+    "memory_title": "FORGED BY HEPHAESTUS",
+    "value": null
+   },
+   {
+    "idx": 29,
+    "title": "Forged by Hephaestus",
+    "fighter": "any",
+    "memory_title": "FORGED BY HEPHAESTUS",
+    "value": null
+   }
+  ]
+ }
+}

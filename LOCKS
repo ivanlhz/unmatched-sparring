@@ -1,13 +1,6 @@
 # path  agent  task  UTC time   (see BRIEF: short locks only)
 sparring/heroes.py  loki  counter pile rival_hand  2026-11-22 10:02Z
 sparring/state.py  loki  counter pile rival_hand + trick movement hooks  2026-11-22 10:02Z
-sparring/effects/ops_core.py  pandora  engine hooks for the Box (plugin import, engine-run trigger, prompts, AI hook)  2026-11-22 10:04Z
-sparring/effects/table.py  pandora  engine hooks for the Box (plugin import, engine-run trigger, prompts, AI hook)  2026-11-22 10:04Z
-sparring/session_bot_effects.py  pandora  engine hooks for the Box (plugin import, engine-run trigger, prompts, AI hook)  2026-11-22 10:04Z
-sparring/session_choices.py  pandora  engine hooks for the Box (plugin import, engine-run trigger, prompts, AI hook)  2026-11-22 10:04Z
-sparring/ai_effects.py  pandora  engine hooks for the Box (plugin import, engine-run trigger, prompts, AI hook)  2026-11-22 10:04Z
-data/i18n/en.json  pandora  engine hooks for the Box (plugin import, engine-run trigger, prompts, AI hook)  2026-11-22 10:04Z
-data/i18n/es.json  pandora  engine hooks for the Box (plugin import, engine-run trigger, prompts, AI hook)  2026-11-22 10:04Z
 data/heroes/effects/schema.json  loki  lent TRICK cards, Ctx.card_home, trick cleanup  2026-11-22 10:07Z
 sparring/effects/model.py  loki  lent TRICK cards, Ctx.card_home, trick cleanup  2026-11-22 10:07Z
 sparring/effects/run.py  loki  lent TRICK cards, Ctx.card_home, trick cleanup  2026-11-22 10:07Z
@@ -17,10 +10,4 @@ sparring/effects/inventions.py  loki  lent TRICK cards, Ctx.card_home, trick cle
 sparring/effects/modifiers.py  loki  lent TRICK cards, Ctx.card_home, trick cleanup  2026-11-22 10:07Z
 sparring/effects/select.py  loki  card_ref by flow side (borrowed TRICK ids)  2026-11-22 10:10Z
 sparring/combat_flow.py  loki  replace_defense_card (Looking For Trouble)  2026-11-22 10:10Z
-sparring/effects/state.py  pandora  register the hero in the shared lists  2026-11-22 10:11Z
-tests/test_heroes.py  pandora  register the hero in the shared lists  2026-11-22 10:11Z
-tests/test_card_identity.py  pandora  register the hero in the shared lists  2026-11-22 10:11Z
-tests/test_d1_bot_cards.py  pandora  register the hero in the shared lists  2026-11-22 10:11Z
-tests/test_effects_schema.py  pandora  register the hero in the shared lists  2026-11-22 10:11Z
-tests/test_tts_translators.py  pandora  registry of translated ops lists the Box's three intents  2026-11-22 10:14Z
 sparring/effects/choose.py  loki  OWN_JUDGEMENT_PURPOSES trouble  2026-11-22 10:15Z

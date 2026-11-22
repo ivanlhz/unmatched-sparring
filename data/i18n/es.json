@@ -1351,5 +1351,20 @@
  "archer.flipped": "{name} tiene {life} de vida: he girado su ficha a esa cara",
  "archer.human_flip": "{name} tiene {life} de vida pero su ficha muestra {shows}: girala a la cara de {life}. (La cara con el 2 amarillo pequeno es 2 de vida, la cara sin numero es 1 de vida.)",
  "archer.missing": "No encuentro la ficha de {name}: ponla a mano en la cara de su vida.",
- "archer.failed": "No he podido leer ni girar las fichas de los Archers; lo reintento en el siguiente paso."
+ "archer.failed": "No he podido leer ni girar las fichas de los Archers; lo reintento en el siguiente paso.",
+ "choice.prompt.ability.pandora_box": "LA CAJA DE PANDORA: ¿revelas otra Miseria? (con tres plumas debes parar y recibes 1 de daño por cada Miseria revelada)",
+ "choice.prompt.misery": "LA CAJA DE PANDORA: ¿qué Miseria has revelado?",
+ "fx.ability.pandora_box": "LA CAJA DE PANDORA: abre la Caja y revela las Miserias.",
+ "pandora.misery.woe": "WOE (invoca un Kakodaemon en la zona de Pandora)",
+ "pandora.misery.toil": "TOIL (1 pluma: +1 al valor de los ataques de Pandora este turno)",
+ "pandora.misery.pain": "PAIN (1 pluma: 1 de daño a cada luchador rival adyacente a Pandora)",
+ "pandora.misery.misfortune": "MISFORTUNE (2 plumas)",
+ "pandora.misery.hope": "HOPE (mira la carta de arriba de la Caja antes de decidir si la revelas)",
+ "pandora.misery.greed": "GREED (1 pluma: roba 1 carta)",
+ "pandora.misery.confusion": "CONFUSION (mueve a Pandora hasta 1 casilla)",
+ "tr.pandora.reveal": "{hero} (bot) revela {misery}. Plumas reveladas: {feathers}.",
+ "tr.pandora.stop": "{hero} (bot) deja de revelar Miserias.",
+ "tr.pandora.stop_damage": "{hero} (bot) tiene {feathers} plumas: debe parar y recibe {damage} de daño, 1 por cada Miseria revelada.",
+ "tr.pandora.stop_damage_human": "Tres plumas o más ({feathers}): debes dejar de revelar y {hero} recibe {damage} de daño, 1 por cada Miseria revelada.",
+ "tr.pandora.hope_bot": "{hero} (bot) ha mirado la carta de arriba de su Caja."
 }

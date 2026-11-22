@@ -37,14 +37,14 @@ from typing import Callable
 
 from .cards import Card
 from .i18n import plural, t
-from . import session_reveal as reveal
+from . import session_pandora, session_reveal as reveal    # session_pandora registers the translators of Pandora's Box
 from .session_translators import Ctx, combat_card_to_deck, is_tail, translate
 from .tts import lua
 from .tts.lua import ChatKind
 
 
 
-DIRECT_OPS = ("tuck", "remove", "reveal_deck", "shuffle_deck", "stack_top", "hand_to_deck_all", "future_look", "reveal_top", "deck_order", "track")     # translated as they were reported, no diff involved
+DIRECT_OPS = ("tuck", "remove", "reveal_deck", "shuffle_deck", "stack_top", "hand_to_deck_all", "future_look", "reveal_top", "deck_order", "track", "pandora_reveal", "pandora_look", "pandora_stop")     # translated as they were reported, no diff involved
 
 
 def bot_cause() -> str:

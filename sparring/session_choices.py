@@ -162,6 +162,8 @@ def prompt_text(game, req: ChoiceRequest) -> str:
         base = _prompt("one_card")
     elif req.kind == "effect" and req.extra.get("tag") == "gadget":      # Jill Trent: the gadget of the turn
         base = _prompt("gadget")
+    elif req.kind == "effect" and req.extra.get("tag") == "misery":      # Pandora's Box: which of the seven cards the human revealed
+        base = _prompt("misery")
     elif req.kind == "effect" and req.extra.get("tag") == "showdown":    # Wyatt Earp: one of the effects not used yet this turn
         base = _prompt("showdown")
     elif req.kind == "optional" and "bury_rival" in req.extra:           # Better Swear Me In: the rival's top card, revealed
