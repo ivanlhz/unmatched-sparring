@@ -1,1 +1,8 @@
 # path  agent  task  UTC time   (see BRIEF: short locks only)
+sparring/session.py  loki  review fixes: scheme TRICKs, Looking For Trouble enforcement, persistence  2026-11-22 11:27Z
+sparring/session_rage.py  loki  review fixes: scheme TRICKs, Looking For Trouble enforcement, persistence  2026-11-22 11:27Z
+sparring/persist.py  loki  review fixes: scheme TRICKs, Looking For Trouble enforcement, persistence  2026-11-22 11:27Z
+data/i18n/en.json  loki  review fixes: scheme TRICKs, Looking For Trouble enforcement, persistence  2026-11-22 11:27Z
+data/i18n/es.json  loki  review fixes: scheme TRICKs, Looking For Trouble enforcement, persistence  2026-11-22 11:27Z
+sparring/session_effects.py  loki  review fixes: scheme TRICKs, Looking For Trouble enforcement, persistence  2026-11-22 11:27Z
+sparring/session_bot_effects.py  loki  review fixes: scheme TRICKs, Looking For Trouble enforcement, persistence  2026-11-22 11:27Z
