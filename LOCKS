@@ -3,3 +3,4 @@ sparring/state.py  elektra  review fixes: maneuver skips off-board movers  2026-
 sparring/session.py  elektra  review fixes  2026-11-22 13:35Z
 sparring/search/adapter.py  elektra  review fixes  2026-11-22 13:35Z
 sparring/effects/select.py  elektra  review fixes  2026-11-22 13:35Z
+sparring/session_choices.py  little-red  pile_top prompt order  2026-11-22 13:38Z
