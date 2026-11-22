@@ -17,3 +17,5 @@ sparring/ai_effects.py  blackbeard  ransom/doubloon hooks: can_pay, prompts, AI,
 data/i18n/en.json  blackbeard  ransom/doubloon hooks: can_pay, prompts, AI, narration  2026-11-22 10:18Z
 data/i18n/es.json  blackbeard  ransom/doubloon hooks: can_pay, prompts, AI, narration  2026-11-22 10:18Z
 sparring/effects/narrate.py  blackbeard  ransom/doubloon hooks: can_pay, prompts, AI, narration  2026-11-22 10:18Z
+sparring/search/adapter.py  loki  Loki AI: foreign TRICKs in the determinization  2026-11-22 10:19Z
+sparring/ai_medusa.py  loki  Loki AI: ai_loki pricing hooks  2026-11-22 10:19Z
