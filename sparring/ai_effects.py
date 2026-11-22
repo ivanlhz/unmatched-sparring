@@ -31,7 +31,7 @@ import random
 from functools import lru_cache
 from itertools import combinations
 
-from . import ai_achilles, ai_mary, ai_pandora, ai_washington, ai_wukong, ai_wyatt, ai_yennenga, enraged
+from . import ai_achilles, ai_blackbeard, ai_mary, ai_pandora, ai_washington, ai_wukong, ai_wyatt, ai_yennenga, enraged
 from .ai_medusa import (ACTION_VALUE, DECK_SCARCITY, HARPY_VALUE, KILL_SIDEKICK, LETHAL, SURVIVAL_P, W_HERO, W_MEDUSA_HP,
                         W_SIDEKICK, MedusaAI, Model, can_use, defence_keeper, discard_cut, effect_reliance, hand_room, keep_value, kept_hand_value, kill_value, play_signature)
 from .controller import Controller
@@ -586,6 +586,8 @@ class EffectAI:
     def _amount(self, game: Game, req: ChoiceRequest, nested: bool) -> list:
         if req.extra.get("blind_count"):
             return [self._blind_boost(game, req)]
+        if req.extra.get("queens"):         # Queen Anne's Revenge: how many doubloons the rival pays (ai_blackbeard)
+            return [ai_blackbeard.queens_amount(self, game, req)]
         if req.extra.get("assign"):         # Yennenga's ability: how much of the damage meant for her an Archer takes
             return [ai_yennenga.archer_share(game, req, None if nested else self.medusa(req.player))]
         top = max(req.options)
@@ -689,6 +691,10 @@ class EffectAI:
         return 1 if card_worth(card) > average else 0
 
     def _optional(self, game: Game, req: ChoiceRequest, nested: bool) -> list | None:
+        if "ransom" in req.extra:            # Blackbeard's "unless N doubloons": paid when the line costs more than the doubloons (ai_blackbeard)
+            return [ai_blackbeard.ransom_pays(self, game, req)]
+        if "doubloon_action" in req.extra:   # Blackbeard's start of turn: a doubloon to the Treasury for an action (ai_blackbeard)
+            return [ai_blackbeard.action_pays(self, game, req)]
         if str(req.key).startswith(ai_pandora.BOX_KEY):       # Pandora's Box: keep revealing Miseries or stop, priced in ai_pandora
             return [ai_pandora.keep_revealing(self, game, req)]
         if str(req.key).startswith(ai_wukong.CLONES_KEY):     # Sun Wukong's CLONES: 1 hit point for a Clone, priced in ai_wukong

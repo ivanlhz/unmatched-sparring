@@ -11,7 +11,7 @@ from __future__ import annotations
 
 import re
 
-from . import table
+from . import plugins_blackbeard, table
 from ..i18n import has, t, tn
 from ..spaces import describe as describe_space
 
@@ -59,6 +59,7 @@ def snapshot(game, flow=None) -> dict:
                          for p in (0, 1)],
             "drawn": list(game.drawn), "actions": game.actions_left, "free": list(game.free_attacks), "turn": game.turn, "said": len(game.fx.said),
             "statuses": len(game.fx.statuses),
+            "coins": plugins_blackbeard.coins_snapshot(game),
             "seen": [_seen(p) for p in game.players],
             "in_play": [game.fx.ongoing_card_id(p) for p in (0, 1)],
             "cancelled": [] if flow is None or flow.ctx is None else sorted(flow.ctx.cancelled | flow.late_cancelled),
@@ -77,6 +78,7 @@ def describe(game, before: dict, run, flow=None, title: str | None = None) -> st
     ability trigger)."""
     parts = _fighters(game, before) + _prevented(game, run) + _cards(game, before, run) + _turn(game, before, run)
     parts += _statuses(game, before) + _combat(before, flow)
+    parts += plugins_blackbeard.coin_lines(game, before.get("coins"))
     if (swapped := run.flags.get("swapped")) is not None:         # Sleight Of Hand: the card went back to the hand
         side = "bot" if run.ctx.owner == game.bot_player else "human"
         parts.append(t(f"narr.swapped.{side}", title=_title(game, swapped["new"], run.ctx.owner)))

@@ -540,7 +540,10 @@ def _if(run, game, spec):
 def _can_pay(game, run, cost: list[dict]) -> bool:
     """Conservative: a discard (or a card put back in the deck) cost needs enough cards (of the table player's hand, those not
     already owed to their discard pile: `table.discards_owed`), an action cost enough actions left on the owner's own turn; any
-    other cost is assumed payable."""
+    other cost is assumed payable; a counter cost needs the counter to hold that much (Blackbeard's ransom: the Treasury)."""
+    from .plugins_blackbeard import can_pay as counters_can_pay
+    if not counters_can_pay(game, run.ctx.owner, cost):
+        return False
     for c in cost:
         if c["op"] == "spend_action" and (game.turn != run.ctx.owner or game.actions_left < int(amount(game, run, c["amount"]))):
             return False
@@ -588,6 +591,8 @@ def _choice_context(game, run, spec: dict) -> dict:
     Delivery: how many moments of the rival's card have effects to cancel)."""
     ctx = {}
     ops, other = spec.get("ops") or [], spec.get("else") or []
+    from .plugins_blackbeard import action_context, ransom_context
+    ctx.update(ransom_context(game, run, spec) or action_context(game, run, spec))        # Blackbeard's doubloons: a ransom the opponent may pay, or his action
     if any(o["op"] == "plugin" and o["id"] in ("houdini:replace_combatant", "luke:replace_combatant", "washington:replace_combatant", "achilles:replace_combatant") for o in ops):      # Smoke And Mirrors: a bot weighs the swap
         ctx["replaces_combatant"] = {"this": run.ctx.this_fid, "role": run.ctx.played_as}
     if len(ops) == 1 and ops[0]["op"] == "return_to_deck" and isinstance(ops[0]["cards"], dict) \
@@ -761,3 +766,4 @@ from . import plugins_raptors  # noqa: E402,F401  (registers blue:ambush)
 from . import plugins_achilles  # noqa: E402,F401  (registers achilles:replace_combatant)
 from . import plugins_mary  # noqa: E402,F401  (registers mary:out_of_the_mirror)
 from . import plugins_pandora  # noqa: E402,F401  (registers pandora:reveal, pandora:look, pandora:close)
+from . import plugins_blackbeard  # noqa: E402,F401  (registers blackbeard:random_discard, blackbeard:queens_revenge)
