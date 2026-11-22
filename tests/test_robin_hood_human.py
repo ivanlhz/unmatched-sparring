@@ -124,7 +124,7 @@ def test_after_the_attack_the_chat_says_which_fighter_may_move_and_how_far(rig, 
     no_defense(session, monkeypatch)
     human_hand(table, game, *ROBIN_HAND)
     msgs = attack(session, table, game, "A Hunter's Eye")
-    assert said(msgs, "MOVE AFTER ATTACK") and said(msgs, "hasta 2 casillas"), msgs
+    assert said(msgs, "puede moverse") and said(msgs, "hasta 2 casillas"), msgs
     assert game.hand_moves == {"robin": {"steps": 2, "up_to": True, "through": False}}
     assert session.effect_run is None                                   # nothing waits for a button: the move is made on the table
 
@@ -359,7 +359,7 @@ def human_scheme(session, table, game, title):
 @with_rig(*HELLBOY_HAND)
 def test_steal_from_the_rich_the_bot_that_keeps_its_hand_gives_the_human_a_second_card(rig, monkeypatch):
     session, table, game, fake, cfg = rig
-    monkeypatch.setattr("sparring.ai_effects.worth_paying", lambda req: False)
+    monkeypatch.setattr("sparring.ai_robin.steal_pays", lambda game, req: False)
     human_hand(table, game, "Steal From the Rich", "Snark")
     dealt, hand = len(table.human_deals), len(game.players[0].hand)
     msgs = human_scheme(session, table, game, "Steal From the Rich")
@@ -369,7 +369,7 @@ def test_steal_from_the_rich_the_bot_that_keeps_its_hand_gives_the_human_a_secon
 @with_rig(*HELLBOY_HAND)
 def test_steal_from_the_rich_the_bot_that_discards_a_card_leaves_the_human_one_draw(rig, monkeypatch):
     session, table, game, fake, cfg = rig
-    monkeypatch.setattr("sparring.ai_effects.worth_paying", lambda req: True)
+    monkeypatch.setattr("sparring.ai_robin.steal_pays", lambda game, req: True)
     human_hand(table, game, "Steal From the Rich", "Snark")
     dealt, hand = len(table.human_deals), len(game.players[0].hand)
     msgs = human_scheme(session, table, game, "Steal From the Rich")

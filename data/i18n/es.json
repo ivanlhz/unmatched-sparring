@@ -1426,6 +1426,7 @@
  "narr.coins.in": "Blackbeard recibe {n} del Tesoro (tiene {held}, el Tesoro {treasury})",
  "trigger.title.doubloon_action": "El doblon de Blackbeard por una accion",
  "trigger.title.doubloon_damage": "Blackbeard paga un doblon por el golpe",
+ "trigger.title.move_after_attack": "Despues de atacar: tu luchador atacante puede moverse",
  "choice.prompt.reposition_zone": "{title}: no hay ningun Sea Dog derrotado. Mueves uno de tus Sea Dogs a la zona de Blackbeard?",
  "choice.prompt.reposition_any": "{title}: no hay ningun Sea Dog derrotado. Mueves uno de tus Sea Dogs a cualquier casilla vacia?",
  "blackbeard.coins_failed": "{name}: el bot no pudo mover los doblones en la mesa. Colocalos como dice el chat: la cuenta del motor es la que vale.",
