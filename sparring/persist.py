@@ -9,7 +9,7 @@ import os
 import time
 from pathlib import Path
 
-from . import enraged, upgrades
+from . import enraged, tricks, upgrades
 from .effects import ongoing
 from .effects.state import EffectState, default_dsl_heroes
 from .i18n import t
@@ -39,7 +39,7 @@ def game_to_dict(g: Game) -> dict:
         **({"combat_bonus": [[list(b) for b in side] for side in legacy]} if any(legacy) else {}),
         **({"fx": fx} if fx else {}),
         "fighters": {fid: {"hp": f.hp, "pos": f.pos, "alive": f.alive, "died_at": f.died_at} for fid, f in g.fighters.items()},
-        "players": [{"deck": [c.card_id for c in p.deck], "hand": [c.card_id for c in p.hand],
+        "players": [{"deck": [c.card_id for c in p.deck], "hand": [tricks.zone_id(p, c) for c in p.hand],      # a TRICK of Loki's in the other hand by its qualified id
                      "discard": [c.card_id for c in p.discard],
                      **({"tucked": [c.card_id for c in p.tucked]} if p.tucked else {}),
                      **({"removed": [c.card_id for c in p.removed]} if p.removed else {}),
@@ -74,8 +74,9 @@ def apply_game(g: Game, d: dict) -> None:
             f.died_at = st.get("died_at")
         enraged.sync_move(g)
         upgrades.sync(g)
-        for p, saved in zip(g.players, d["players"]):
+        for i, (p, saved) in enumerate(zip(g.players, d["players"])):
             by_id = {c.card_id: c for c in p.full_set}
+            by_id.update({tricks.QUALIFIED + c.card_id: c for c in g.players[1 - i].full_set if tricks.is_trick(c)})
             p.deck[:] = [by_id[i] for i in saved["deck"]]
             p.hand[:] = [by_id[i] for i in saved["hand"]]
             p.discard[:] = [by_id[i] for i in saved["discard"]]

@@ -305,3 +305,25 @@ def test_looking_for_trouble_makes_the_human_play_the_trick_the_bot_names(tmp_pa
     finally:
         client.close()
         fake.close()
+
+
+def test_a_trick_the_bot_plays_as_a_scheme_lands_in_the_humans_hand(loki_rig):
+    session, table, game, fake, cfg = loki_rig
+    lure = next(c for c in game.players[0].hand if c.title == LURE)
+    msgs = bot_turn(session, table, [Act("frenzy", card=lure)])                         # any scheme is an Act "frenzy" in these rigs
+    assert lure in game.players[1].hand and lure not in game.players[0].discard
+    assert lure.card_id in table.human_hand and lure.card_id not in table.bot_hand + table.bot_discard
+    assert session.trick_guids == {f"h{lure.card_id}": [0, lure.card_id]}
+    assert any("va a tu mano" in m for m in msgs), msgs
+
+
+def test_the_ledger_is_saved_and_resumed_with_the_game(loki_rig):
+    import json
+    session, table, game, fake, cfg = loki_rig
+    trick = lend_to_human(session, table, game, SINDRI)
+    saved = json.loads(json.dumps(session.to_dict()))
+    assert saved["trick_guids"] == {f"h{trick.card_id}": [0, trick.card_id]}
+    session.trick_guids.clear()
+    session.load_dict(saved)
+    assert session.trick_guids == {f"h{trick.card_id}": [0, trick.card_id]}
+    assert trick in session.game.players[1].hand and session.game.players[0].known.foreign == [trick.card_id]

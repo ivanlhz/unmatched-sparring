@@ -411,3 +411,20 @@ def test_a_trick_and_a_card_of_the_opponent_with_the_same_id_are_told_apart(bprd
     assert res.atk_card == trick and res.atk_value == 4
     assert twin in g.players[1].hand and trick in g.players[0].discard
     assert g.players[0].known.cards(g.players[1]) == []                          # nothing of the rival's own deck is "seen"
+
+
+# ---------------------------------------------------------------- saving the game with a TRICK in the other hand
+
+def test_a_saved_game_keeps_a_trick_in_the_opponents_hand_even_when_their_deck_has_a_card_of_the_same_id(bprd):
+    import json
+    from sparring import persist
+    g = mk(bprd)
+    trick = lend(g, 1, BALDR)                                                        # 17609 ...
+    twin = next(c for c in g.players[1].full_set if c.card_id == trick.card_id)
+    g.players[1].hand.append(twin)                                                   # ... and the opponent's own 17609 in the same hand
+    saved = json.loads(json.dumps(persist.game_to_dict(g)))
+    other = mk(bprd, seed=9)
+    persist.apply_game(other, saved)
+    assert sorted(c.title for c in other.players[1].hand) == sorted(c.title for c in g.players[1].hand)
+    assert trick in other.players[1].hand and twin in other.players[1].hand and trick != twin
+    assert other.players[0].known.foreign == [trick.card_id] and other.counter(0, "trick_in_rival_hand") == 1
