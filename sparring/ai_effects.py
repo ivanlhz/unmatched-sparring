@@ -31,7 +31,7 @@ import random
 from functools import lru_cache
 from itertools import combinations
 
-from . import ai_achilles, ai_blackbeard, ai_mary, ai_pandora, ai_washington, ai_wukong, ai_wyatt, ai_yennenga, enraged, tricks
+from . import ai_achilles, ai_blackbeard, ai_little_red, ai_mary, ai_pandora, ai_washington, ai_wukong, ai_wyatt, ai_yennenga, enraged, tricks
 from .ai_medusa import (ACTION_VALUE, DECK_SCARCITY, HARPY_VALUE, KILL_SIDEKICK, LETHAL, SURVIVAL_P, W_HERO, W_MEDUSA_HP,
                         W_SIDEKICK, MedusaAI, Model, can_use, defence_keeper, discard_cut, effect_reliance, hand_room, keep_value, kept_hand_value, kill_value, play_signature)
 from .controller import Controller
@@ -608,6 +608,8 @@ class EffectAI:
 
     # ------------------------------------------------------------------ simulated choices
     def _effect(self, game: Game, req: ChoiceRequest, nested: bool) -> list | None:
+        if req.extra.get("tag") == "basket":      # Little Red's wild basket: which symbol it counts as (ai_little_red)
+            return [ai_little_red.pick_symbol(game, req)]
         if req.extra.get("op") == PREDICT_OP:
             return [predict_value(game, req.player)]
         if req.extra.get("future") == "deck":

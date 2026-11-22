@@ -1411,5 +1411,15 @@
  "choice.prompt.reposition_zone": "{title}: no hay ningun Sea Dog derrotado. Mueves uno de tus Sea Dogs a la zona de Blackbeard?",
  "choice.prompt.reposition_any": "{title}: no hay ningun Sea Dog derrotado. Mueves uno de tus Sea Dogs a cualquier casilla vacia?",
  "blackbeard.coins_failed": "{name}: el bot no pudo mover los doblones en la mesa. Colocalos como dice el chat: la cuenta del motor es la que vale.",
- "blackbeard.coins_missing": "{name}: solo hay {found} doblon(es) en la mesa (son tres). Pon el que falta en el Tesoro o junto a la pila de {name}."
+ "blackbeard.coins_missing": "{name}: solo hay {found} doblon(es) en la mesa (son tres). Pon el que falta en el Tesoro o junto a la pila de {name}.",
+ "choice.prompt.basket": "Tu cesta es comodin (la Cesta del principio o una carta con estrella): como que simbolo cuenta para esta carta?",
+ "basket.symbol.wolf": "lobo",
+ "basket.symbol.rose": "rosa",
+ "basket.symbol.axe": "hacha",
+ "narr.notice.basket_wolf": "cesta: lobo",
+ "narr.notice.basket_rose": "cesta: rosa",
+ "narr.notice.basket_axe": "cesta: hacha",
+ "narr.notice.basket_wild_wolf": "cesta comodin contada como lobo",
+ "narr.notice.basket_wild_rose": "cesta comodin contada como rosa",
+ "narr.notice.basket_wild_axe": "cesta comodin contada como hacha"
 }

@@ -1411,5 +1411,15 @@
  "choice.prompt.reposition_zone": "{title}: no Sea Dog is defeated. Do you move one of your Sea Dogs into Blackbeard's zone instead?",
  "choice.prompt.reposition_any": "{title}: no Sea Dog is defeated. Do you move one of your Sea Dogs to any empty space instead?",
  "blackbeard.coins_failed": "{name}: the bot could not move the doubloons on the table. Put them as the chat says: the engine's count is the truth.",
- "blackbeard.coins_missing": "{name}: only {found} doubloon(s) found on the table (there are three). Put the missing one on the Treasury tile or beside {name}'s stack."
+ "blackbeard.coins_missing": "{name}: only {found} doubloon(s) found on the table (there are three). Put the missing one on the Treasury tile or beside {name}'s stack.",
+ "choice.prompt.basket": "Your basket is wild (the starting Basket or a star card): which symbol does it count as for this card?",
+ "basket.symbol.wolf": "wolf",
+ "basket.symbol.rose": "rose",
+ "basket.symbol.axe": "axe",
+ "narr.notice.basket_wolf": "basket: wolf",
+ "narr.notice.basket_rose": "basket: rose",
+ "narr.notice.basket_axe": "basket: axe",
+ "narr.notice.basket_wild_wolf": "wild basket counted as a wolf",
+ "narr.notice.basket_wild_rose": "wild basket counted as a rose",
+ "narr.notice.basket_wild_axe": "wild basket counted as an axe"
 }

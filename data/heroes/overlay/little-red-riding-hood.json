@@ -1,0 +1,347 @@
+{
+ "_notes": [
+  "Sheet 177 of the tournament savegame (8x4, CustomDeck key 177), read card by card from the image on 2026-11-22. CardID = 17700 + idx; 310 = character card (sheet 3, 10x7, index 10); the deck object holds 31 cards: the 30 playing cards and the character card (the catalog says card_ids [310, 17729]). Sheet 177 is shared: Houdini's character card is 17700 (another image), Rosie's loose rules card is 17700 and Pandora's seven Miseries are 17700-17706 (another deck): only deck.identity tells them apart (docs/card-identity.md).",
+  "Order on the sheet: What Large Hands You Have 0-1, What Big Ears You Have 2-3, Long Have I Sought You 4-6, What Big Eyes You Have 7-8, What's That In My Basket? 9-12, Once Upon a Time 13-14, Stones in the Belly 15-17, What a Terrible Big Mouth You Have 18-19, The Wolf's Skin 20-22, Never Leave the Path 23-24, Into the Woods 25-27, A Grimm Tale 28-29. Bands read from the card backs: LITTLE RED (Large Hands, Big Ears, Big Eyes, Basket, Terrible Big Mouth, Never Leave the Path, Into the Woods), HUNTSMAN (Long Have I Sought You, A Grimm Tale), ANY (Once Upon a Time, Stones in the Belly, The Wolf's Skin).",
+  "SLIPS in unmatched-memory found against the images: What Big Eyes You Have is VERSATILE 3 / BOOST 2 (memory says value 2); Stones in the Belly prints value 2 / BOOST 1 (memory has no value, and Ivan's note 'no printed value' came from it; the image shows a 2 in the purple banner). Every other value, boost, copy count and the 30 cards agree.",
+  "The symbol in the lower left corner of each card is the symbol the card shows when it is on top of the discard pile (the basket): wolf, rose or axe, or the star of What's That In My Basket? (wild). It is the tag `symbol:<x>` of each copy (`wild` for the star). The three copies of Into the Woods print ONE symbol each (rose, wolf, axe: idx 25, 26, 27), not three at once: unmatched-memory's title lists them together because the three copies differ. This makes Ivan's LR1 about Into the Woods moot (only the star and the starting Basket are wild); see docs/heroes/little-red-riding-hood.md.",
+  "Hero card 310 read from the image: LITTLE RED, MELEE, START HEALTH 14, MOVE 2, sidekick HUNTSMAN, RANGED, START HEALTH 9 (one). Little Red's Basket is a loose CardCustom (51f3b8, a sheet of its own, CardID 17600 of a one-image deck 176) in the inner bag: it is a component, not a card of the deck."
+ ],
+ "memory_slug": "little-red",
+ "name": "Little Red",
+ "fid": "red",
+ "sidekicks": [
+  {
+   "fid": "huntsman",
+   "name": "Huntsman",
+   "count": 1,
+   "hp": 9,
+   "move": 2,
+   "attack": "range",
+   "tts_tokens": [
+    "Huntsman"
+   ]
+  }
+ ],
+ "forms": null,
+ "counters": {},
+ "triggers": [],
+ "passives": [],
+ "deck": {
+  "card_base": 17700,
+  "sheet_id": 177,
+  "hero_card_id": 310,
+  "sheet": [
+   {
+    "idx": 0,
+    "title": "What Large Hands You Have",
+    "fighter": "Little Red",
+    "memory_title": "What Large Hands You Have 🐺",
+    "text": "AFTER COMBAT: You may return this card to your hand. (rose) Instead, you may return the top card of your discard pile to your hand.",
+    "tags": [
+     "symbol:wolf"
+    ]
+   },
+   {
+    "idx": 1,
+    "title": "What Large Hands You Have",
+    "fighter": "Little Red",
+    "memory_title": "What Large Hands You Have 🐺",
+    "text": "AFTER COMBAT: You may return this card to your hand. (rose) Instead, you may return the top card of your discard pile to your hand.",
+    "tags": [
+     "symbol:wolf"
+    ]
+   },
+   {
+    "idx": 2,
+    "title": "What Big Ears You Have",
+    "fighter": "Little Red",
+    "memory_title": "What Big Ears You Have 🐺",
+    "text": "(axe) You may play this card as a defense card.",
+    "tags": [
+     "symbol:wolf"
+    ]
+   },
+   {
+    "idx": 3,
+    "title": "What Big Ears You Have",
+    "fighter": "Little Red",
+    "memory_title": "What Big Ears You Have 🐺",
+    "text": "(axe) You may play this card as a defense card.",
+    "tags": [
+     "symbol:wolf"
+    ]
+   },
+   {
+    "idx": 4,
+    "title": "Long Have I Sought You",
+    "fighter": "Huntsman",
+    "memory_title": "Long Have I Sought You ⚔️",
+    "text": "DURING COMBAT: If the Huntsman is adjacent to the opposing fighter, the value of this card is 6 instead.",
+    "tags": [
+     "symbol:axe"
+    ]
+   },
+   {
+    "idx": 5,
+    "title": "Long Have I Sought You",
+    "fighter": "Huntsman",
+    "memory_title": "Long Have I Sought You ⚔️",
+    "text": "DURING COMBAT: If the Huntsman is adjacent to the opposing fighter, the value of this card is 6 instead.",
+    "tags": [
+     "symbol:axe"
+    ]
+   },
+   {
+    "idx": 6,
+    "title": "Long Have I Sought You",
+    "fighter": "Huntsman",
+    "memory_title": "Long Have I Sought You ⚔️",
+    "text": "DURING COMBAT: If the Huntsman is adjacent to the opposing fighter, the value of this card is 6 instead.",
+    "tags": [
+     "symbol:axe"
+    ]
+   },
+   {
+    "idx": 7,
+    "title": "What Big Eyes You Have",
+    "fighter": "Little Red",
+    "memory_title": "What Big Eyes You Have 🐺",
+    "text": "IMMEDIATELY: Cancel all effects on your opponent's card. (rose) Also ignore the value of your opponent's card.",
+    "tags": [
+     "symbol:wolf"
+    ],
+    "value": 3
+   },
+   {
+    "idx": 8,
+    "title": "What Big Eyes You Have",
+    "fighter": "Little Red",
+    "memory_title": "What Big Eyes You Have 🐺",
+    "text": "IMMEDIATELY: Cancel all effects on your opponent's card. (rose) Also ignore the value of your opponent's card.",
+    "tags": [
+     "symbol:wolf"
+    ],
+    "value": 3
+   },
+   {
+    "idx": 9,
+    "title": "What's That In My Basket?",
+    "fighter": "Little Red",
+    "memory_title": "What's That In My Basket? 🌟",
+    "text": "(The star counts as any one wolf, rose or axe symbol.)",
+    "tags": [
+     "symbol:wild"
+    ]
+   },
+   {
+    "idx": 10,
+    "title": "What's That In My Basket?",
+    "fighter": "Little Red",
+    "memory_title": "What's That In My Basket? 🌟",
+    "text": "(The star counts as any one wolf, rose or axe symbol.)",
+    "tags": [
+     "symbol:wild"
+    ]
+   },
+   {
+    "idx": 11,
+    "title": "What's That In My Basket?",
+    "fighter": "Little Red",
+    "memory_title": "What's That In My Basket? 🌟",
+    "text": "(The star counts as any one wolf, rose or axe symbol.)",
+    "tags": [
+     "symbol:wild"
+    ]
+   },
+   {
+    "idx": 12,
+    "title": "What's That In My Basket?",
+    "fighter": "Little Red",
+    "memory_title": "What's That In My Basket? 🌟",
+    "text": "(The star counts as any one wolf, rose or axe symbol.)",
+    "tags": [
+     "symbol:wild"
+    ]
+   },
+   {
+    "idx": 13,
+    "title": "Once Upon a Time",
+    "fighter": "any",
+    "memory_title": "Once Upon a Time 🌹",
+    "text": "AFTER COMBAT: (axe) Deal 3 damage to the opposing fighter.",
+    "tags": [
+     "symbol:rose"
+    ]
+   },
+   {
+    "idx": 14,
+    "title": "Once Upon a Time",
+    "fighter": "any",
+    "memory_title": "Once Upon a Time 🌹",
+    "text": "AFTER COMBAT: (axe) Deal 3 damage to the opposing fighter.",
+    "tags": [
+     "symbol:rose"
+    ]
+   },
+   {
+    "idx": 15,
+    "title": "Stones in the Belly",
+    "fighter": "any",
+    "memory_title": "Stones in the Belly 🌹",
+    "text": "DURING COMBAT: (axe) Your opponent discards 1 random card. Add its BOOST value to this card's value.",
+    "tags": [
+     "symbol:rose"
+    ],
+    "value": 2
+   },
+   {
+    "idx": 16,
+    "title": "Stones in the Belly",
+    "fighter": "any",
+    "memory_title": "Stones in the Belly 🌹",
+    "text": "DURING COMBAT: (axe) Your opponent discards 1 random card. Add its BOOST value to this card's value.",
+    "tags": [
+     "symbol:rose"
+    ],
+    "value": 2
+   },
+   {
+    "idx": 17,
+    "title": "Stones in the Belly",
+    "fighter": "any",
+    "memory_title": "Stones in the Belly 🌹",
+    "text": "DURING COMBAT: (axe) Your opponent discards 1 random card. Add its BOOST value to this card's value.",
+    "tags": [
+     "symbol:rose"
+    ],
+    "value": 2
+   },
+   {
+    "idx": 18,
+    "title": "What a Terrible Big Mouth You Have",
+    "fighter": "Little Red",
+    "memory_title": "What a Terrible Big Mouth You Have ⚔️",
+    "text": "AFTER COMBAT: (wolf) Deal damage to the opposing fighter equal to the printed value of their card.",
+    "tags": [
+     "symbol:axe"
+    ]
+   },
+   {
+    "idx": 19,
+    "title": "What a Terrible Big Mouth You Have",
+    "fighter": "Little Red",
+    "memory_title": "What a Terrible Big Mouth You Have ⚔️",
+    "text": "AFTER COMBAT: (wolf) Deal damage to the opposing fighter equal to the printed value of their card.",
+    "tags": [
+     "symbol:axe"
+    ]
+   },
+   {
+    "idx": 20,
+    "title": "The Wolf's Skin",
+    "fighter": "any",
+    "memory_title": "The Wolf's Skin ⚔️",
+    "text": "AFTER COMBAT: (wolf) Draw 2 cards.",
+    "tags": [
+     "symbol:axe"
+    ]
+   },
+   {
+    "idx": 21,
+    "title": "The Wolf's Skin",
+    "fighter": "any",
+    "memory_title": "The Wolf's Skin ⚔️",
+    "text": "AFTER COMBAT: (wolf) Draw 2 cards.",
+    "tags": [
+     "symbol:axe"
+    ]
+   },
+   {
+    "idx": 22,
+    "title": "The Wolf's Skin",
+    "fighter": "any",
+    "memory_title": "The Wolf's Skin ⚔️",
+    "text": "AFTER COMBAT: (wolf) Draw 2 cards.",
+    "tags": [
+     "symbol:axe"
+    ]
+   },
+   {
+    "idx": 23,
+    "title": "Never Leave the Path",
+    "fighter": "Little Red",
+    "memory_title": "Never Leave the Path 🐺",
+    "text": "(wolf) Place Little Red in any space. Gain 1 action. (axe) Deal 2 damage to each opposing fighter in Little Red's zone. (rose) Draw 3 cards.",
+    "tags": [
+     "symbol:wolf"
+    ]
+   },
+   {
+    "idx": 24,
+    "title": "Never Leave the Path",
+    "fighter": "Little Red",
+    "memory_title": "Never Leave the Path 🐺",
+    "text": "(wolf) Place Little Red in any space. Gain 1 action. (axe) Deal 2 damage to each opposing fighter in Little Red's zone. (rose) Draw 3 cards.",
+    "tags": [
+     "symbol:wolf"
+    ]
+   },
+   {
+    "idx": 25,
+    "title": "Into the Woods",
+    "fighter": "Little Red",
+    "memory_title": "Into the Woods 🐺🌹⚔️",
+    "text": "Move Little Red up to 3 spaces. Gain 1 action.",
+    "tags": [
+     "symbol:rose"
+    ]
+   },
+   {
+    "idx": 26,
+    "title": "Into the Woods",
+    "fighter": "Little Red",
+    "memory_title": "Into the Woods 🐺🌹⚔️",
+    "text": "Move Little Red up to 3 spaces. Gain 1 action.",
+    "tags": [
+     "symbol:wolf"
+    ]
+   },
+   {
+    "idx": 27,
+    "title": "Into the Woods",
+    "fighter": "Little Red",
+    "memory_title": "Into the Woods 🐺🌹⚔️",
+    "text": "Move Little Red up to 3 spaces. Gain 1 action.",
+    "tags": [
+     "symbol:axe"
+    ]
+   },
+   {
+    "idx": 28,
+    "title": "A Grimm Tale",
+    "fighter": "Huntsman",
+    "memory_title": "A Grimm Tale 🌹",
+    "text": "Little Red recovers 2 health. (wolf) Little Red recovers 4 health instead.",
+    "tags": [
+     "symbol:rose"
+    ]
+   },
+   {
+    "idx": 29,
+    "title": "A Grimm Tale",
+    "fighter": "Huntsman",
+    "memory_title": "A Grimm Tale 🌹",
+    "text": "Little Red recovers 2 health. (wolf) Little Red recovers 4 health instead.",
+    "tags": [
+     "symbol:rose"
+    ]
+   }
+  ]
+ },
+ "token_names": {
+  "51f3b8": "basket"
+ },
+ "tts": {
+  "bag_name": "Little Red Riding Hood"
+ }
+}

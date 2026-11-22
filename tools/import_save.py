@@ -276,8 +276,8 @@ def extract_hero(objects: list[dict], hero: HeroDef, raw_hero: dict, report: Rep
     ignored = set(raw_hero.get("ignored_tokens") or ())          # tokens of the bag the bot deliberately does not use (Jill Trent's gadget token)
     names = dict(raw_hero.get("token_names") or {})              # tokens with no nickname the bot does use, by GUID (Jill Trent's gadget token)
     for o in pieces:
-        if o["GUID"] in claimed or o["GUID"] in ignored or not o.get("Name", "").startswith("Custom_Token"):
-            continue
+        if o["GUID"] in claimed or o["GUID"] in ignored or not (o.get("Name", "").startswith("Custom_Token") or o["GUID"] in names):
+            continue                    # a loose card the overlay names (Little Red's Basket) is a token too
         key = names.get(o["GUID"]) or _token_key(_nick(o))
         if key not in expected_tokens:
             report.problems.append(f"token {key!r} ({o['GUID']}, nickname {_nick(o)!r}): {hero.name} uses no such "

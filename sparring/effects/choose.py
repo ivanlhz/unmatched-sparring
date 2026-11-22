@@ -256,6 +256,9 @@ class SyntheticChooser:
         last. Taking the first two options blindly played Pancakes! as heal + a return of nothing."""
         from ..ai_effects import EffectAI
         n = min(req.max, len(req.options))
+        if req.extra.get("tag") == "basket":       # Little Red's wild basket in a rollout: the same pick as the bot's own
+            from ..ai_little_red import pick_symbol
+            return [pick_symbol(game, req)]
         if req.extra.get("tag") == "showdown":      # Wyatt Earp: the ability's choice is not a card's (its key names the combat card)
             from ..ai_wyatt import rollout_showdown
             return [rollout_showdown(game, req.player, list(req.options), self.greedy)]
