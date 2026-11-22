@@ -29,6 +29,10 @@ class SleightTable(FxTable):
     refuse_placing = False
     refuse_returning = False
 
+    @staticmethod
+    def _move_row(guid, source, target):
+        """Here `face_down` is everything at the human's combat spot, face up or down: a revealed card stays in it."""
+
     def do_place_card_face_up(self, s):
         z = float(re.search(r"setPosition\(Vector\([-\d.]+, [-\d.]+, ([-\d.]+)\)\)", s).group(1))
         if abs(z - self.bot_spot_z) > 0.01:
