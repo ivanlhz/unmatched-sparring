@@ -1,0 +1,30 @@
+{
+ "slug": "loki",
+ "bag": {
+  "guid": "213b55",
+  "inner": "1d7bfd"
+ },
+ "deck": {
+  "guid": "83366b",
+  "card_ids": [
+   17600,
+   17629
+  ],
+  "character_card_id": 361,
+  "identity": [
+   {
+    "face": "https://steamusercontent-a.akamaihd.net/ugc/16671283642518356960/7A456C707E545594717D3D0FC76DA62C8671582B/",
+    "back": "https://steamusercontent-a.akamaihd.net/ugc/15925748682134440000/35FC04BC16992CF8A2A6D7041E0E55815511187F/"
+   }
+  ]
+ },
+ "fighters": {
+  "loki": {
+   "piece": "c55ac8",
+   "dial": "bcd809",
+   "dial_max": 16
+  }
+ },
+ "tokens": {},
+ "counter_dials": {}
+}

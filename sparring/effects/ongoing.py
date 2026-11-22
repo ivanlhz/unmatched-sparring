@@ -14,6 +14,7 @@ from __future__ import annotations
 
 from collections.abc import Iterator
 
+from .. import tricks
 from . import inventions, table
 from .model import EffectError, load_effects, walk_ops
 from .select import find_card
@@ -250,8 +251,10 @@ def resolve_scheme(game, player: int, fighter, card, choosers=None):
     from .run import Ctx, EffectRun
     from .events import default_choosers
     begin_scheme(game, player, card)
+    home = tricks.home_of(game, player, card)               # a borrowed TRICK: its requests name Loki's deck
     run = EffectRun.for_card(game.players[player].hero.slug, card.title, "scheme",
-                             Ctx(owner=player, this_fid=fighter.fid, card_id=card.card_id))
+                             Ctx(owner=player, this_fid=fighter.fid, card_id=card.card_id,
+                                 card_home=None if home == player else home))
     pending = run.run(game, choosers or default_choosers(game))
     if pending is None:
         finish_scheme(game, player, card)

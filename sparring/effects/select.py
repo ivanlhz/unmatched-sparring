@@ -275,8 +275,19 @@ def card_ref(game, run, ref) -> list:
     ctx = run.ctx
     ids = {"this": ctx.card_id, "opponent_card": ctx.opp_card_id, "attack_card": ctx.attack_card_id,
            "defense_card": ctx.defense_card_id}
+    flow = getattr(run, "flow", None)
+    if ref in ids and flow is not None and ctx.played_as is not None and ctx.moment != "boost":
+        # inside a combat the cards are the flow's own objects: decks of sheet 176 share CardIDs, so a card of the other deck (Loki's TRICK
+        # in a Medusa player's hand) would be looked up as the owner's card of the same id (docs/heroes/loki.md)
+        own = "atk" if ctx.played_as == "attack" else "def"
+        side = {"this": own, "opponent_card": "def" if own == "atk" else "atk", "attack_card": "atk", "defense_card": "def"}[ref]
+        card = flow.atk_card if side == "atk" else flow.def_card
+        if ids[ref] is None:
+            return []
+        if card is not None and card.card_id == ids[ref]:
+            return [card]
     if ref in ids:
-        owners = {"this": ctx.owner, "opponent_card": 1 - ctx.owner,
+        owners = {"this": ctx.owner if ctx.card_home is None else ctx.card_home, "opponent_card": 1 - ctx.owner,
                   "attack_card": game.fighters[ctx.attacker_fid].owner if ctx.attacker_fid else None,
                   "defense_card": game.fighters[ctx.defender_fid].owner if ctx.defender_fid else None}
         card = find_card(game, ids[ref], owners[ref]) if ids[ref] is not None else None

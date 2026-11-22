@@ -1,0 +1,196 @@
+{
+ "schema": 1,
+ "hero": "loki",
+ "notes": [
+  "Texts read from sheet 176 of the tournament savegame (card images) on 2026-11-22; the character card is 361 on sheet 3 (10x7, index 61). Sheet 176 is also Medusa's DeckID and the other heroes': the CardIDs repeat and only the deck image tells the decks apart (docs/card-identity.md).",
+  "The four TRICK cards are `lent`: every other hero's effects accept them (`HeroEffects.card`), because a TRICK is played by whoever holds it. The LOKI and NOT LOKI parts are told by a condition on the PLAYER's hero (an own hero named Loki), so one entry serves both. Rulings: Ivan 2026-11-22 (LO1-LO4) and docs/heroes/loki.md.",
+  "Plugins: loki:swap_values, loki:laevateinn, loki:looking_for_trouble, loki:return_trick (docs/heroes/loki.md). The rest uses ops that already existed."
+ ],
+ "ability": {
+  "text": "MISCHIEF-MONGER\nAfter you play a TRICK, put that card into your opponent's hand instead of your discard pile.\nIf an opponent discards a TRICK from their hand, return that card to your hand or the top of your deck.\nAdd +1 to your move value for each TRICK in your opponents' hands.",
+  "triggers": [
+   {"id": "mischief_return", "when": {"event": "card_discarded", "player": "opponent", "from": ["hand"], "filter": {"tag": "trick"}},
+    "ops": [{"op": "plugin", "id": "loki:return_trick"}]}
+  ],
+  "passives": [
+   {"id": "trick_reach", "kind": "rule", "rule": "maneuver_move_per_counter", "counter": "trick_in_rival_hand"}
+  ],
+  "notes": "First sentence: the cleanup of a played TRICK is the engine's (`sparring/tricks.py`, called from `inventions.settle_played`): Loki's goes to the opponent's hand, the opponent's to LOKI's discard pile. Second: the engine (`Game.discard_card`) sends the card to Loki's hand at once and this trigger lets Loki move it to the top of his deck instead. Third: the counter `trick_in_rival_hand` of the HeroDef, read by the Maneuver like Sinbad's VOYAGE."
+ },
+ "cards": [
+  {
+   "title": "Ragnarök",
+   "copies": 2,
+   "text": "This card's effects cannot be canceled. DURING COMBAT: Add +3 to this card's value for each TRICK in your opponent's hand.",
+   "uncancelable": true,
+   "effects": {
+    "immediately": [], "after": [], "scheme": [], "boost": [],
+    "during": [
+     {"op": "modify_value", "card": "this", "amount": {"count_cards": {"zone": "hand", "player": "opponent", "filter": {"tag": "trick"}}, "times": 3}}
+    ]
+   },
+   "notes": "Attack 0 / boost 3. Counts the TRICKs the engine tracks in the opponent's hand (a count shows nothing hidden)."
+  },
+  {
+   "title": "Shapeshifter",
+   "copies": 4,
+   "text": "DURING COMBAT: Choose one effect:\n- add +1 to this card's value for each card in your opponent's hand\n- gain 1 action",
+   "effects": {
+    "immediately": [], "after": [], "scheme": [], "boost": [],
+    "during": [
+     {"op": "choose_effect", "amount": 1, "chooser": "owner", "options": [
+      {"label": "+1 per card in their hand", "ops": [
+       {"op": "modify_value", "card": "this", "amount": {"stat": "hand_size", "player": "opponent"}}]},
+      {"label": "gain 1 action", "ops": [{"op": "gain_action", "amount": 1}]}
+     ]}
+    ]
+   },
+   "notes": "Attack 0 / boost 2 (unmatched-memory says 3; the card prints 2). The card count is the opponent's hand when the effect runs."
+  },
+  {
+   "title": "Looking For Trouble",
+   "copies": 3,
+   "text": "IMMEDIATELY: If your opponent played a card, return it to their hand, look at their hand, and choose a card for them to play.",
+   "effects": {
+    "immediately": [{"op": "plugin", "id": "loki:looking_for_trouble"}],
+    "during": [], "after": [], "scheme": [], "boost": []
+   },
+   "notes": "Attack 4 / boost 3. Philippa's Do my bidding with one difference: Loki may also choose a TRICK of the opponent's hand (Ivan 2026-11-22, LO4); a TRICK the opponent plays this way goes to Loki's discard as any played TRICK."
+  },
+  {
+   "title": "Trick: Baldr's Downfall",
+   "copies": 3,
+   "lent": true,
+   "text": "LOKI: AFTER COMBAT: Draw 1 card. NOT LOKI: AFTER COMBAT: Deal 2 damage to your hero.",
+   "effects": {
+    "immediately": [], "during": [], "scheme": [], "boost": [],
+    "after": [
+     {"op": "if", "condition": {"test": "exists", "fighters": {"side": "own", "kind": "hero", "name": "Loki"}},
+      "then": [{"op": "draw", "player": "owner", "amount": 1}],
+      "else": [{"op": "damage", "target": "hero", "amount": 2}]}
+    ]
+   },
+   "notes": "Attack 4, band ANY, TRICK, boost 0. `hero` is the owner's hero: the player who plays the card takes the 2 damage (the NOT LOKI part)."
+  },
+  {
+   "title": "God Of Mischief",
+   "copies": 3,
+   "text": "IMMEDIATELY: If your opponent played a TRICK, ignore that card's value.\nOtherwise, cancel all effects on your opponent's card.",
+   "effects": {
+    "during": [], "after": [], "scheme": [], "boost": [],
+    "immediately": [
+     {"op": "if", "condition": {"test": "card", "card": "opponent_card", "filter": {"tag": "trick"}},
+      "then": [{"op": "set_value", "card": "opponent_card", "ignore": true}],
+      "else": [{"op": "cancel_effects", "card": "opponent_card"}]}
+    ]
+   },
+   "notes": "Versatile 2 / boost 3. \"Ignore the value\" is `set_value ignore` (the total is 0 at that moment; a later BOOST still adds). With no opponent card the `else` finds nothing to cancel."
+  },
+  {
+   "title": "Malicious Flyting",
+   "copies": 3,
+   "text": "AFTER COMBAT: Draw 1 card.\nIf your opponent played a TRICK, draw 2 cards instead.",
+   "effects": {
+    "immediately": [], "during": [], "scheme": [], "boost": [],
+    "after": [
+     {"op": "if", "condition": {"test": "card", "card": "opponent_card", "filter": {"tag": "trick"}},
+      "then": [{"op": "draw", "player": "owner", "amount": 2}],
+      "else": [{"op": "draw", "player": "owner", "amount": 1}]}
+    ]
+   },
+   "notes": "Versatile 3 / boost 3."
+  },
+  {
+   "title": "Underhanded",
+   "copies": 3,
+   "text": "DURING COMBAT: If your opponent has more cards in their hand than you, this card's value is 6 instead.",
+   "effects": {
+    "immediately": [], "after": [], "scheme": [], "boost": [],
+    "during": [
+     {"op": "if", "condition": {"test": "compare", "left": {"stat": "hand_size", "player": "opponent"}, "op": ">", "right": {"stat": "hand_size", "player": "owner"}},
+      "then": [{"op": "set_value", "card": "this", "amount": 6}]}
+    ]
+   },
+   "notes": "Versatile 3 / boost 2. Hands are compared when DURING runs (the card is already out of its owner's hand). `set_value` replaces the printed value, bonuses stay."
+  },
+  {
+   "title": "Laevateinn",
+   "copies": 3,
+   "text": "DURING COMBAT: Reveal a card in your opponent's hand. Add its BOOST value to this card's value. If you reveal a TRICK, put it in your hand.",
+   "effects": {
+    "immediately": [], "after": [], "scheme": [], "boost": [],
+    "during": [{"op": "plugin", "id": "loki:laevateinn"}]
+   },
+   "notes": "Versatile 2 / boost 3. Loki chooses the card blind (Ivan 2026-11-22, LO1): a uniform random position, never by hidden information. A revealed TRICK has BOOST 0 and goes to Loki's hand."
+  },
+  {
+   "title": "Trick: Freyja's Rescue",
+   "copies": 2,
+   "lent": true,
+   "text": "LOKI: DURING COMBAT: Swap the values of your card and your opponent's card. NOT LOKI: AFTER COMBAT: Loki recovers 3 health.",
+   "effects": {
+    "immediately": [], "scheme": [], "boost": [],
+    "during": [
+     {"op": "if", "condition": {"test": "exists", "fighters": {"side": "own", "kind": "hero", "name": "Loki"}},
+      "then": [{"op": "plugin", "id": "loki:swap_values"}]}
+    ],
+    "after": [
+     {"op": "if", "condition": {"not": {"test": "exists", "fighters": {"side": "own", "kind": "hero", "name": "Loki"}}},
+      "then": [{"op": "heal", "target": {"side": "enemy", "kind": "hero"}, "amount": 3}]}
+    ]
+   },
+   "notes": "Versatile 2, band ANY, TRICK, boost 0. Swap: the running totals of the two cards at that moment (printed value, bonuses and earlier DURING effects); see Pending Ivan."
+  },
+  {
+   "title": "Trick: Sindri's Bet",
+   "copies": 2,
+   "lent": true,
+   "text": "LOKI: DURING COMBAT: Your opponent may discard a card. If they don't, subtract 3 from their card's value. NOT LOKI: AFTER COMBAT: Loki returns the top card of their discard pile to their hand.",
+   "effects": {
+    "immediately": [], "scheme": [], "boost": [],
+    "during": [
+     {"op": "if", "condition": {"test": "exists", "fighters": {"side": "own", "kind": "hero", "name": "Loki"}},
+      "then": [
+       {"op": "optional", "chooser": "opponent",
+        "cost": [{"op": "discard", "cards": {"zone": "hand", "player": "opponent", "pick": "chosen", "chooser": "opponent"}}],
+        "ops": [],
+        "else": [{"op": "modify_value", "card": "opponent_card", "amount": -3}]}
+      ]}
+    ],
+    "after": [
+     {"op": "if", "condition": {"not": {"test": "exists", "fighters": {"side": "own", "kind": "hero", "name": "Loki"}}},
+      "then": [{"op": "put_in_hand", "cards": {"zone": "discard", "player": "opponent", "pick": "last", "amount": 1}}]}
+    ]
+   },
+   "notes": "Defense 3, band ANY, TRICK, boost 0. LOKI part: the opponent decides to discard a card of their hand or lose 3 from their card (no card to discard: -3; Ivan 2026-11-22, LO3). NOT LOKI part: the top card of LOKI's discard pile returns to Loki's hand; his own card of the combat reaches the pile only after the AFTER, so it is the card that was on top before the combat."
+  },
+  {
+   "title": "Trick: Svadilfari's Lure",
+   "copies": 2,
+   "lent": true,
+   "text": "LOKI: Place an opposing fighter adjacent to Loki. NOT LOKI: Loki reveals a card in your hand. Discard that card.",
+   "effects": {
+    "immediately": [], "during": [], "after": [], "boost": [],
+    "scheme": [
+     {"op": "if", "condition": {"test": "exists", "fighters": {"side": "own", "kind": "hero", "name": "Loki"}},
+      "then": [{"op": "place", "target": {"side": "enemy"}, "where": {"adjacent_to": "hero"}}],
+      "else": [{"op": "discard", "cards": {"zone": "hand", "player": "owner", "pick": "random", "amount": 1}}]}
+    ]
+   },
+   "notes": "Scheme, band ANY, TRICK, no printed value. LOKI part: the player places one opposing fighter on an empty space adjacent to Loki. NOT LOKI part: Loki picks a card of the player's hand blind (LO1) and it is discarded: a uniform random card of the hand (a TRICK discarded returns to Loki)."
+  }
+ ],
+ "plugins": [
+  {"id": "loki:swap_values", "why": "Freyja's Rescue swaps the running values of the two cards of the combat: no op reads one value to write the other."},
+  {"id": "loki:laevateinn", "why": "Laevateinn reveals a blind-picked card of the opponent's hand, adds its BOOST value to the card and, when it is a TRICK, moves it to Loki's hand."},
+  {"id": "loki:looking_for_trouble", "why": "Looking For Trouble: return the opponent's card, look at their hand and choose a card for them to play, a TRICK included (Philippa's do_my_bidding, with the owner of each option)."},
+  {"id": "loki:return_trick", "why": "MISCHIEF-MONGER: the TRICK an opponent discarded is in Loki's hand; Loki may put it on top of his deck instead."}
+ ],
+ "hidden_info": [
+  {"card": "Laevateinn", "what": "Loki picks a position blind (random); the bot never reads the human's hand for it. The human states what the revealed card is."},
+  {"card": "Looking For Trouble", "what": "look_hand: the bot reads the human's hand only when this card says so, at that moment."},
+  {"card": "Trick: Svadilfari's Lure", "what": "A random discard from the hand of the player who plays it (Loki's blind pick)."}
+ ],
+ "open_questions": [],
+ "discrepancies": []
+}

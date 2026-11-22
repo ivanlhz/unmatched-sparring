@@ -339,7 +339,7 @@ def has_effects(game, flow, side: str, moments=None) -> bool:
     slug = game.players[owner].hero.slug
     if slug not in game.fx.dsl_heroes:
         return bool(card.text.strip())
-    fx = load_effects(slug).cards.get(card.title)
+    fx = load_effects(slug).find(card.title)
     names = tuple(moments or COMBAT_MOMENTS)
     return fx is not None and (any(fx.moments.get(m) for m in names) or ("during" in names and fx.may_boost))
 

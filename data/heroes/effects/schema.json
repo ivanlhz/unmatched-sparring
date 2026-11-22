@@ -362,6 +362,7 @@
     "adjacent_only": {"type": "boolean"},
     "face_up": {"type": "boolean"},
     "uncancelable": {"type": "boolean"},
+    "lent": {"type": "boolean"},
     "effects": {
      "type": "object",
      "additionalProperties": false,

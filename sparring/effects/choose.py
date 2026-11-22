@@ -99,7 +99,7 @@ def worth_paying(req: ChoiceRequest) -> bool:
     return stake >= 3 * req.extra["cost_cards"] or (stake > 0 and stake >= req.extra.get("hp", float("inf")))
 
 
-OWN_JUDGEMENT_PURPOSES = ("bidding", "ruse")      # a pick among the RIVAL's cards that the controller decides itself (Philippa)
+OWN_JUDGEMENT_PURPOSES = ("bidding", "ruse", "trouble")      # a pick among the RIVAL's cards that the controller decides itself (Philippa, Loki's Looking For Trouble)
 
 
 class ControllerChooser:

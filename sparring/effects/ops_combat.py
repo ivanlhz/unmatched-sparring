@@ -9,6 +9,7 @@ to tell the hooks whose effect is running (`fx.acting`) and to honour redirectio
 card moment, so a pause inside an effect survives `CombatFlow.to_dict`."""
 from __future__ import annotations
 
+from .. import tricks
 from ..i18n import t
 from . import modifiers, narrate, plugins_yennenga, table
 from .choose import ControllerChooser, TableChooser
@@ -39,7 +40,7 @@ def _side(run, game, ref) -> str | None:
 
 
 def _label(run, game) -> str:
-    card = find_card(game, run.ctx.card_id, run.ctx.owner) if run.ctx.card_id is not None else None
+    card = find_card(game, run.ctx.card_id, run.ctx.owner if run.ctx.card_home is None else run.ctx.card_home) if run.ctx.card_id is not None else None
     return card.title if card else t("cause.effect")
 
 
@@ -457,6 +458,9 @@ def _start(flow, side, ops, moment: str, card_id: int):
         ctx.combat_result = "won" if won else "lost"
         dealt = flow.result.damage if flow.result.attacker_won == (side.name == "atk") else 0
         ctx.damage_dealt, ctx.damage_taken = (dealt, 0) if won else (0, flow.result.damage)
+    if side.card is not None and side.card.card_id == card_id:
+        home = tricks.home_of(game, owner, side.card)          # a TRICK of the other deck: its requests name Loki's deck
+        ctx.card_home = None if home == owner else home
     run = EffectRun(ops, ctx, label=moment)
     run.flow = flow
     run.flags["before"] = narrate.snapshot(game, flow)

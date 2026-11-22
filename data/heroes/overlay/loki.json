@@ -1,0 +1,247 @@
+{
+ "_notes": [
+  "Sheet 176 of the tournament savegame (8x4), read card by card from the image on 2026-11-22. CardID = 17600 + idx; 361 = character card (sheet 3, 10x7, index 61). The deck object of the save holds 31 cards: the 30 of the deck plus the character card. His deck is sheet 176 like Medusa's, the turtles' and the other heroes': only deck.identity (data/tts/loki.json) tells the decks apart (docs/card-identity.md).",
+  "Hero card (read from the image): LOKI, MELEE, START HEALTH 16, MOVE 2, MISCHIEF-MONGER. NO sidekick: unmatched-memory has an empty sidekick entry (a slip), the overlay says sidekicks [].",
+  "Slip fixed from the image: Shapeshifter prints BOOST 2 (unmatched-memory has 3). Titles in Title Case; the unmatched-memory spellings are in `memory_title` (Shapershifter, the TRICK: prefix, Svadilfari). The four TRICK cards (Baldr's Downfall, Freyja's Rescue, Sindri's Bet, Svadilfari's Lure) carry the band ANY (Ivan 2026-11-22, LO2: any fighter of the opponent may play one) and the tag `trick`, have no BOOST (0: they cannot boost) and print two parts, LOKI and NOT LOKI; their `text` writes both. Svadilfari's Lure is a scheme with no printed value (null)."
+ ],
+ "fid": "loki",
+ "sidekicks": [],
+ "forms": null,
+ "counters": {
+  "trick_in_rival_hand": {
+   "pile": "rival_hand",
+   "tag": "trick"
+  }
+ },
+ "triggers": [],
+ "passives": [],
+ "deck": {
+  "card_base": 17600,
+  "sheet_id": 176,
+  "hero_card_id": 361,
+  "sheet": [
+   {
+    "idx": 0,
+    "title": "Ragnarök",
+    "fighter": "Loki",
+    "memory_title": "RAGNARÖK"
+   },
+   {
+    "idx": 1,
+    "title": "Ragnarök",
+    "fighter": "Loki",
+    "memory_title": "RAGNARÖK"
+   },
+   {
+    "idx": 2,
+    "title": "Shapeshifter",
+    "fighter": "Loki",
+    "memory_title": "Shapershifter",
+    "boost": 2
+   },
+   {
+    "idx": 3,
+    "title": "Shapeshifter",
+    "fighter": "Loki",
+    "memory_title": "Shapershifter",
+    "boost": 2
+   },
+   {
+    "idx": 4,
+    "title": "Shapeshifter",
+    "fighter": "Loki",
+    "memory_title": "Shapershifter",
+    "boost": 2
+   },
+   {
+    "idx": 5,
+    "title": "Shapeshifter",
+    "fighter": "Loki",
+    "memory_title": "Shapershifter",
+    "boost": 2
+   },
+   {
+    "idx": 6,
+    "title": "Looking For Trouble",
+    "fighter": "Loki",
+    "memory_title": "Looking for trouble"
+   },
+   {
+    "idx": 7,
+    "title": "Looking For Trouble",
+    "fighter": "Loki",
+    "memory_title": "Looking for trouble"
+   },
+   {
+    "idx": 8,
+    "title": "Looking For Trouble",
+    "fighter": "Loki",
+    "memory_title": "Looking for trouble"
+   },
+   {
+    "idx": 9,
+    "title": "Trick: Baldr's Downfall",
+    "fighter": "any",
+    "memory_title": "Trick: Baldr's downfall",
+    "tags": [
+     "trick"
+    ],
+    "text": "LOKI: AFTER COMBAT: Draw 1 card. NOT LOKI: AFTER COMBAT: Deal 2 damage to your hero."
+   },
+   {
+    "idx": 10,
+    "title": "Trick: Baldr's Downfall",
+    "fighter": "any",
+    "memory_title": "Trick: Baldr's downfall",
+    "tags": [
+     "trick"
+    ],
+    "text": "LOKI: AFTER COMBAT: Draw 1 card. NOT LOKI: AFTER COMBAT: Deal 2 damage to your hero."
+   },
+   {
+    "idx": 11,
+    "title": "Trick: Baldr's Downfall",
+    "fighter": "any",
+    "memory_title": "Trick: Baldr's downfall",
+    "tags": [
+     "trick"
+    ],
+    "text": "LOKI: AFTER COMBAT: Draw 1 card. NOT LOKI: AFTER COMBAT: Deal 2 damage to your hero."
+   },
+   {
+    "idx": 12,
+    "title": "God Of Mischief",
+    "fighter": "Loki",
+    "memory_title": "GOD OF MISCHIEF"
+   },
+   {
+    "idx": 13,
+    "title": "God Of Mischief",
+    "fighter": "Loki",
+    "memory_title": "GOD OF MISCHIEF"
+   },
+   {
+    "idx": 14,
+    "title": "God Of Mischief",
+    "fighter": "Loki",
+    "memory_title": "GOD OF MISCHIEF"
+   },
+   {
+    "idx": 15,
+    "title": "Malicious Flyting",
+    "fighter": "Loki",
+    "memory_title": "MALICIOUS FLYTING"
+   },
+   {
+    "idx": 16,
+    "title": "Malicious Flyting",
+    "fighter": "Loki",
+    "memory_title": "MALICIOUS FLYTING"
+   },
+   {
+    "idx": 17,
+    "title": "Malicious Flyting",
+    "fighter": "Loki",
+    "memory_title": "MALICIOUS FLYTING"
+   },
+   {
+    "idx": 18,
+    "title": "Underhanded",
+    "fighter": "Loki",
+    "memory_title": "UNDERHANDED"
+   },
+   {
+    "idx": 19,
+    "title": "Underhanded",
+    "fighter": "Loki",
+    "memory_title": "UNDERHANDED"
+   },
+   {
+    "idx": 20,
+    "title": "Underhanded",
+    "fighter": "Loki",
+    "memory_title": "UNDERHANDED"
+   },
+   {
+    "idx": 21,
+    "title": "Laevateinn",
+    "fighter": "Loki",
+    "memory_title": "LAEVATEINN"
+   },
+   {
+    "idx": 22,
+    "title": "Laevateinn",
+    "fighter": "Loki",
+    "memory_title": "LAEVATEINN"
+   },
+   {
+    "idx": 23,
+    "title": "Laevateinn",
+    "fighter": "Loki",
+    "memory_title": "LAEVATEINN"
+   },
+   {
+    "idx": 24,
+    "title": "Trick: Freyja's Rescue",
+    "fighter": "any",
+    "memory_title": "TRICK: FREYJA'S RESCUE",
+    "tags": [
+     "trick"
+    ],
+    "text": "LOKI: DURING COMBAT: Swap the values of your card and your opponent's card. NOT LOKI: AFTER COMBAT: Loki recovers 3 health."
+   },
+   {
+    "idx": 25,
+    "title": "Trick: Freyja's Rescue",
+    "fighter": "any",
+    "memory_title": "TRICK: FREYJA'S RESCUE",
+    "tags": [
+     "trick"
+    ],
+    "text": "LOKI: DURING COMBAT: Swap the values of your card and your opponent's card. NOT LOKI: AFTER COMBAT: Loki recovers 3 health."
+   },
+   {
+    "idx": 26,
+    "title": "Trick: Sindri's Bet",
+    "fighter": "any",
+    "memory_title": "TRICK: SINDRI'S BET",
+    "tags": [
+     "trick"
+    ],
+    "text": "LOKI: DURING COMBAT: Your opponent may discard a card. If they don't, subtract 3 from their card's value. NOT LOKI: AFTER COMBAT: Loki returns the top card of their discard pile to their hand."
+   },
+   {
+    "idx": 27,
+    "title": "Trick: Sindri's Bet",
+    "fighter": "any",
+    "memory_title": "TRICK: SINDRI'S BET",
+    "tags": [
+     "trick"
+    ],
+    "text": "LOKI: DURING COMBAT: Your opponent may discard a card. If they don't, subtract 3 from their card's value. NOT LOKI: AFTER COMBAT: Loki returns the top card of their discard pile to their hand."
+   },
+   {
+    "idx": 28,
+    "title": "Trick: Svadilfari's Lure",
+    "fighter": "any",
+    "memory_title": "TRICK: SVADILFARI'S LURE",
+    "tags": [
+     "trick"
+    ],
+    "value": null,
+    "text": "LOKI: Place an opposing fighter adjacent to Loki. NOT LOKI: Loki reveals a card in your hand. Discard that card."
+   },
+   {
+    "idx": 29,
+    "title": "Trick: Svadilfari's Lure",
+    "fighter": "any",
+    "memory_title": "TRICK: SVADILFARI'S LURE",
+    "tags": [
+     "trick"
+    ],
+    "value": null,
+    "text": "LOKI: Place an opposing fighter adjacent to Loki. NOT LOKI: Loki reveals a card in your hand. Discard that card."
+   }
+  ]
+ }
+}

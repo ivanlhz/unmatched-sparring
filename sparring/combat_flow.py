@@ -8,6 +8,7 @@ from typing import Callable
 from .cards import Card
 from .combat import (ON_EARTH, PLANNED, CombatCtx, CombatResult, _check_boost, _side_cards, can_boost, deck_boost,
                      is_medusa_card)
+from . import tricks
 from .effects import inventions
 from .i18n import t
 from .state import ANUNG, Fighter, Game, RuleError
@@ -116,6 +117,8 @@ class CombatFlow:
     """One combat advanced in small steps, so it can stop at a decision (`Await`) and be saved. Handlers return an
     `Await` BEFORE mutating anything; after `resume` the same handler runs again and finds its answer."""
 
+    redo: int | None = None                          # the side index to run again: the defender's card was replaced (Looking For Trouble); consumed in the same step, never saved
+
     def __init__(self, game: Game, att: Fighter, tgt: Fighter, atk_card: Card, def_card: Card | None,
                  values: tuple[int, int] = (0, 0), second: int | None = None):
         self.game, self.att, self.tgt = game, att, tgt
@@ -197,6 +200,9 @@ class CombatFlow:
                 return wait
             if self.again:
                 self.again = False
+                return None
+            if self.redo is not None:                # the defender's card changed under the attacker's IMMEDIATELY: its side runs again
+                self.side_idx, self.redo = self.redo, None
                 return None
         # Only in a second attack: in a first combat the attacker's hero ability already ran with its card (`dsl_after` / `run_moment`, run key
         # `after:atk`), and `hero_after` shares that key, so a double draw is impossible; the `second` guard keeps it from even being asked.
@@ -464,6 +470,24 @@ class CombatFlow:
             self.game.players[owner].discard.append(old)
         self.atk_card = ctx.atk_card = res.atk_card = new
         res.atk_parts[0] = f"{new.title} ({new.value or 0})"
+        self.sides = [Side(*s) for s in _side_cards(ctx)]
+
+    def replace_defense_card(self, new: Card) -> None:
+        """Looking For Trouble (Loki's IMMEDIATELY, the attacker's): the defender's card went back to their hand and `new`, chosen from that hand,
+        is played instead. Its value takes the old one's place (bonuses stay) and the defender's IMMEDIATELY runs again with the new card
+        (`redo`): the old card's had already run, before the attacker's."""
+        old, ctx, res = self.def_card, self.ctx, self.result
+        owner = self.tgt.owner
+        ctx.def_value = max(0, ctx.def_value + (new.value or 0) - (old.value or 0))
+        self.played = [(o, new if c is old else c) for o, c in self.played]
+        self.game.take_from_hand(owner, new)
+        self.game.players[owner].hand.append(old)
+        tricks.note_in_hand(self.game, owner, old)
+        self.runs.pop("immediately:def", None)
+        self.redo = 0
+        self.def_card = ctx.def_card = res.def_card = new
+        if res.def_parts:
+            res.def_parts[0] = f"{new.title} ({new.value or 0})"
         self.sides = [Side(*s) for s in _side_cards(ctx)]
 
     def replace_combatant(self, old: Fighter, new: Fighter) -> bool:

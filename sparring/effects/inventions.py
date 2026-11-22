@@ -10,6 +10,7 @@ A tucked card is out of every pile: effects that read the discard pile never see
 the scheme that tucks it (it is tucked after it)."""
 from __future__ import annotations
 
+from .. import tricks
 from . import table
 from .model import EffectError, load_effects
 
@@ -35,6 +36,8 @@ def settle_played(game, player: int, card) -> None:
     """A card of `player` has been played and resolved: it is tucked if it is an invention (and the hero is on the
     interpreter), else it goes to the discard pile."""
     pile = game.players[player]
+    if tricks.settled(game, player, card):       # Loki's MISCHIEF-MONGER: a TRICK changes hands instead of going to its player's pile
+        return
     if game.fx.interprets(player) and spec_of(game, player, card) is not None:
         pile.tucked.append(card)
         table.intent(game, op="tuck", player=player, card=card.card_id)
