@@ -3,7 +3,7 @@
 The engine reports each reveal, a look (HOPE) and the stop as intents (`pandora_reveal`, `pandora_look`, `pandora_stop`, from
 `effects/plugins_pandora.py`). The bot's Box is virtual (the engine draws the Miseries), so the chat names each one and what it does; the
 pieces and dials it moves (a Kakodaemon in her zone, the damage) follow the usual projection. The human's Box is the real deck on the table:
-they reveal the cards and the panel asks which one came up, so the chat only adds the stop at three feathers, which the rules make them do."""
+they reveal the cards and the panel asks which one came up, so the chat adds nothing: the line of the trigger already says the damage ("Pandora -3 PV")."""
 from __future__ import annotations
 
 from .effects import plugins_pandora as box
@@ -37,14 +37,7 @@ def _look_bot(session, intent: dict, ctx: Ctx) -> list:
     return []
 
 
-def _stop_human(session, intent: dict, ctx: Ctx) -> list:
-    if intent["damage"]:
-        session.say(t("tr.pandora.stop_damage_human", hero=_hero(session, intent), feathers=intent["feathers"],
-                      damage=intent["damage"]), ChatKind.ABILITY)
-    return []
-
-
-@register("pandora_stop", mode=_mode, human=_stop_human)
+@register("pandora_stop", mode=_mode, human=_nothing)
 def _stop_bot(session, intent: dict, ctx: Ctx) -> list:
     if intent["damage"]:
         session.say(t("tr.pandora.stop_damage", hero=_hero(session, intent), feathers=intent["feathers"], damage=intent["damage"]),
