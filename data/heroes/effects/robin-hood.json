@@ -9,10 +9,10 @@
   "text": "After you attack, you may move your attacking fighter up to 2 spaces.",
   "triggers": [
    {"id": "robin_step", "when": {"event": "after_attack", "fighter": {"side": "own"}},
-    "ops": [{"op": "optional", "chooser": "owner", "ops": [{"op": "move", "target": "$attacker", "amount": 2, "up_to": true}]}]}
+    "ops": [{"op": "move", "target": "$attacker", "amount": 2, "up_to": true}]}
   ],
   "passives": [],
-  "notes": "'After you attack' is any attack of the player (Robin Hood or an Outlaw: 'your attacking fighter'), once the combat is over: the engine raises `after_attack` when the combat reaches DONE, after every AFTER COMBAT effect of both cards (Ivan 2026-11-22: the designer's order). The event selector (side own, living fighters by default) is the attacker still standing: a fighter defeated by the combat or by an AFTER effect does not trigger the ability and does not move, while a defeated DEFENDER changes nothing, the attacker moves. It is ordinary movement (the `move` op: along the printed adjacency, not through opposing fighters), up to 2, optional: the bot decides with its evaluation, the human is asked Yes / No and then moves the miniature by hand and presses Done."
+  "notes": "'After you attack' is any attack of the player (Robin Hood or an Outlaw: 'your attacking fighter'), once the combat is over: the engine raises `after_attack` when the combat reaches DONE, after every AFTER COMBAT effect of both cards (Ivan 2026-11-22: the designer's order). The event selector (side own, living fighters by default) is the attacker still standing: a fighter defeated by the combat or by an AFTER effect does not trigger the ability and does not move, while a defeated DEFENDER changes nothing, the attacker moves. It is ordinary movement (the move op: along the printed adjacency, not through opposing fighters), up to 2 and so optional by itself (a move up to N may stay): there is no Yes / No in front of it. The bot chooses a space or none with its evaluation; the human is told what to move, moves the miniature by hand and presses Done, or presses Do not move."
  },
  "cards": [
   {

@@ -118,11 +118,11 @@ def test_effects_validate_and_every_card_has_ops(effects):
     assert [p["id"] for p in effects["plugins"]] == ["robin:ambush"]
 
 
-def test_the_ability_is_an_optional_move_of_up_to_two_after_each_attack_of_the_player(effects):
+def test_the_ability_is_a_move_of_up_to_two_after_each_attack_of_the_player(effects):
     assert effects["ability"]["passives"] == []
     assert effects["ability"]["triggers"] == [{
         "id": "robin_step", "when": {"event": "after_attack", "fighter": {"side": "own"}},
-        "ops": [{"op": "optional", "chooser": "owner", "ops": [{"op": "move", "target": "$attacker", "amount": 2, "up_to": True}]}]}]
+        "ops": [{"op": "move", "target": "$attacker", "amount": 2, "up_to": True}]}]
 
 
 def test_card_effects_say_what_the_real_cards_say(effects):

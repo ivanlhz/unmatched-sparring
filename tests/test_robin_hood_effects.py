@@ -91,7 +91,7 @@ def test_the_owner_who_says_yes_moves_the_attacker_up_to_two_spaces_after_the_at
     g = mk(bprd)
     robin, rival = pair(g, "robin", "hellboy")
     away = first_free(g, robin.pos)[0]
-    g.controllers[0].queue = [[True], [away]]
+    g.controllers[0].queue = [[away]]
     g.attack(robin, rival, give(g, 0, "A Hunter's Eye"), give(g, 1, TRAINING))
     assert robin.pos == away and g.board.distance(robin.pos, rival.pos) >= 1
     (ask,) = spaces_requests(g)
@@ -99,20 +99,21 @@ def test_the_owner_who_says_yes_moves_the_attacker_up_to_two_spaces_after_the_at
     assert away in ask.options
 
 
-def test_the_owner_who_declines_does_not_move(bprd):
+def test_the_owner_who_answers_with_no_space_does_not_move(bprd):
     g = mk(bprd)
     robin, rival = pair(g, "robin", "hellboy")
     spot = robin.pos
-    g.controllers[0].queue = [[False]]
+    g.controllers[0].queue = [[]]
     g.attack(robin, rival, give(g, 0, "A Hunter's Eye"), give(g, 1, TRAINING))
-    assert robin.pos == spot and not spaces_requests(g)
+    (ask,) = spaces_requests(g)
+    assert robin.pos == spot and ask.min == 0                    # "up to": no space is a legal answer
 
 
 def test_the_move_is_ordinary_movement_never_to_an_occupied_space_and_never_more_than_two_away(bprd):
     g = mk(bprd)
     robin, rival = pair(g, "robin", "hellboy")
     start = robin.pos
-    g.controllers[0].queue = [[True], None]
+    g.controllers[0].queue = [None]
     g.attack(robin, rival, give(g, 0, "A Hunter's Eye"), None)
     (ask,) = spaces_requests(g)
     occupied = {f.pos for f in g.fighters.values() if f.alive and f is not robin}
@@ -127,7 +128,7 @@ def test_an_outlaw_that_attacks_is_the_fighter_that_moves(bprd):
     robin = g.fighters["robin"]
     robin_spot = robin.pos
     away = first_free(g, outlaw.pos)[0]
-    g.controllers[0].queue = [[True], [away]]
+    g.controllers[0].queue = [[away]]
     g.attack(outlaw, rival, give(g, 0, "Highway Robbery"), give(g, 1, TRAINING))
     assert outlaw.pos == away and robin.pos == robin_spot
     assert spaces_requests(g)[0].extra["fighter"] == "outlaw1"
@@ -138,7 +139,7 @@ def test_the_move_comes_after_every_after_combat_effect_of_both_cards(bprd):
     g = mk(bprd)
     robin, rival = pair(g, "robin", "hellboy")
     start, seen = robin.pos, []
-    g.controllers[0].queue = [[True], lambda req: seen.append(len(g.players[0].hand)) or [first_free(g, robin.pos)[0]]]
+    g.controllers[0].queue = [lambda req: seen.append(len(g.players[0].hand)) or [first_free(g, robin.pos)[0]]]
     g.attack(robin, rival, give(g, 0, "Snark"), give(g, 1, TRAINING))
     assert seen == [1]                                   # the Snark card is gone, the card it drew is in the hand
     assert robin.pos != start
@@ -149,7 +150,7 @@ def test_the_move_follows_the_defenders_after_effects_too(bprd):
     g = mk(bprd, foe="medusa")
     robin, rival = pair(g, "robin", "medusa")
     seen = []
-    g.controllers[0].queue = [[True], lambda req: seen.append(len(g.players[1].hand)) or [first_free(g, robin.pos)[0]]]
+    g.controllers[0].queue = [lambda req: seen.append(len(g.players[1].hand)) or [first_free(g, robin.pos)[0]]]
     g.attack(robin, rival, give(g, 0, "A Hunter's Eye"), give(g, 1, "Regroup"))
     assert seen == [1]
 
@@ -157,13 +158,13 @@ def test_the_move_follows_the_defenders_after_effects_too(bprd):
 def test_a_defeated_attacker_does_not_move(bprd):
     g = mk(bprd, foe="baba-yaga")
     outlaw, rival = pair(g, "outlaw1", "baba")
-    g.controllers[0].queue = [[True]]
+    g.controllers[0].queue = [[]]
     g.attack(outlaw, rival, give(g, 0, "Highway Robbery"), give(g, 1, "Hasten Towards Death"))
     # Highway Robbery cancels Hasten Towards Death: the Outlaw lives. Same fight with the effect left alone:
     assert outlaw.alive and spaces_requests(g)
     g2 = mk(bprd, foe="baba-yaga")
     outlaw2, rival2 = pair(g2, "outlaw1", "baba")
-    g2.controllers[0].queue = [[True]]
+    g2.controllers[0].queue = [[]]
     g2.attack(outlaw2, rival2, give(g2, 0, "Snark"), give(g2, 1, "Hasten Towards Death"))
     assert not outlaw2.alive and not spaces_requests(g2) and not g2.controllers[0].requests
 
@@ -172,7 +173,7 @@ def test_a_defeated_defender_does_not_stop_the_attacker_moving(bprd):
     g = mk(bprd, foe="yennenga")
     robin, archer = pair(g, "robin", "archer1")
     away = first_free(g, robin.pos)[0]
-    g.controllers[0].queue = [[True], [away]]
+    g.controllers[0].queue = [[away]]
     g.attack(robin, archer, give(g, 0, "A Hunter's Eye"), None)
     assert not archer.alive and robin.pos == away
 
@@ -180,23 +181,23 @@ def test_a_defeated_defender_does_not_stop_the_attacker_moving(bprd):
 def test_the_ability_does_not_fire_when_robin_defends(bprd):
     g = mk(bprd, turn=1)
     robin, rival = pair(g, "robin", "hellboy")
-    g.controllers[0].queue = [[True]]
+    g.controllers[0].queue = [[]]
     g.attack(rival, robin, give(g, 1, "Service Pistol"), give(g, 0, "Defenders of Sherwood"))
-    assert not spaces_requests(g) and g.controllers[0].queue == [[True]]
+    assert not spaces_requests(g) and g.controllers[0].queue == [[]]
 
 
 # ---------------------------------------------------------------- the attacks
 
 def test_a_hunters_eye_is_a_plain_five(bprd):
     g = mk(bprd)
-    g.controllers[0].queue = [[False]]
+    g.controllers[0].queue = [[]]
     res, robin, rival = fight(g, "A Hunter's Eye", TRAINING)
     assert (res.atk_value, res.def_value, res.damage) == (5, 3, 2) and rival.hp == rival.max_hp - 2
 
 
 def test_piercing_shot_draws_two_after_the_combat(bprd):
     g = mk(bprd)
-    g.controllers[0].queue = [[False]]
+    g.controllers[0].queue = [[]]
     deck = len(g.players[0].deck)
     fight(g, "Piercing Shot", TRAINING)
     assert len(g.players[0].hand) == 2 and len(g.players[0].deck) == deck - 3
@@ -204,11 +205,11 @@ def test_piercing_shot_draws_two_after_the_combat(bprd):
 
 def test_disarming_shot_draws_as_many_cards_as_the_combat_damage(bprd):
     g = mk(bprd)
-    g.controllers[0].queue = [[False]]
+    g.controllers[0].queue = [[]]
     res, _, rival = fight(g, "Disarming Shot", TRAINING)
     assert res.damage == 1 and len(g.players[0].hand) == 1
     g2 = mk(bprd)
-    g2.controllers[0].queue = [[False]]
+    g2.controllers[0].queue = [[]]
     res2, _, rival2 = fight(g2, "Disarming Shot")
     assert res2.damage == 4 and len(g2.players[0].hand) == 4 and rival2.hp == rival2.max_hp - 4
 
@@ -216,35 +217,35 @@ def test_disarming_shot_draws_as_many_cards_as_the_combat_damage(bprd):
 def test_disarming_shot_counts_the_overkill(bprd):
     g = mk(bprd, foe="yennenga")
     robin, archer = pair(g, "robin", "archer1")
-    g.controllers[0].queue = [[False]]
+    g.controllers[0].queue = [[]]
     g.attack(robin, archer, give(g, 0, "Disarming Shot"), None)
     assert not archer.alive and archer.hp <= 0 and len(g.players[0].hand) == 4          # 4 dealt to a fighter with 2 health
 
 
 def test_disarming_shot_draws_what_the_damage_reduction_left(bprd):
     g = mk(bprd, foe="luke-cage")
-    g.controllers[0].queue = [[False]]
+    g.controllers[0].queue = [[]]
     res, _, rival = fight(g, "Disarming Shot", foe="luke")
     assert res.damage == 2 and len(g.players[0].hand) == 2
 
 
 def test_disarming_shot_draws_nothing_when_no_damage_lands(bprd):
     g = mk(bprd, foe="medusa")
-    g.controllers[0].queue = [[False]]
+    g.controllers[0].queue = [[]]
     res, *_ = fight(g, "Disarming Shot", "Hiss and Slither", foe="medusa")           # a 4 against a 4
     assert res.damage == 0 and not g.players[0].hand
 
 
 def test_disarming_shot_cancelled_by_a_feint_draws_nothing(bprd):
     g = mk(bprd, foe="medusa")
-    g.controllers[0].queue = [[False]]
+    g.controllers[0].queue = [[]]
     res, *_ = fight(g, "Disarming Shot", "Feint", foe="medusa")
     assert res.damage == 2 and not g.players[0].hand
 
 
 def test_ambush_discards_a_random_card_of_the_hand_and_adds_its_boost(bprd):
     g = mk(bprd)
-    g.controllers[0].queue = [[False]]
+    g.controllers[0].queue = [[]]
     robin, rival = pair(g, "robin", "hellboy")
     victim = give(g, 1, "Excalibur")
     res = g.attack(robin, rival, give(g, 0, "Ambush"), None)
@@ -254,14 +255,14 @@ def test_ambush_discards_a_random_card_of_the_hand_and_adds_its_boost(bprd):
 
 def test_ambush_against_an_empty_hand_is_a_plain_two(bprd):
     g = mk(bprd)
-    g.controllers[0].queue = [[False]]
+    g.controllers[0].queue = [[]]
     res, *_ = fight(g, "Ambush")
     assert res.atk_value == 2
 
 
 def test_ambush_takes_one_card_of_the_hand_only_never_from_the_deck(bprd):
     g = mk(bprd)
-    g.controllers[0].queue = [[False]]
+    g.controllers[0].queue = [[]]
     robin, rival = pair(g, "robin", "hellboy")
     cards = [give(g, 1, t) for t in ("Excalibur", "Service Pistol", TRAINING)]
     deck, discard = len(g.players[1].deck), len(g.players[1].discard)
@@ -273,7 +274,7 @@ def test_ambush_takes_one_card_of_the_hand_only_never_from_the_deck(bprd):
 
 def test_a_cancelled_ambush_discards_nothing(bprd):
     g = mk(bprd, foe="medusa")
-    g.controllers[0].queue = [[False]]
+    g.controllers[0].queue = [[]]
     robin, rival = pair(g, "robin", "medusa")
     kept = give(g, 1, "Snipe")
     res = g.attack(robin, rival, give(g, 0, "Ambush"), give(g, 1, "Feint"))
@@ -282,14 +283,14 @@ def test_a_cancelled_ambush_discards_nothing(bprd):
 
 def test_highway_robbery_cancels_the_effects_and_ignores_the_defense_value(bprd):
     g = mk(bprd)
-    g.controllers[0].queue = [[False]]
+    g.controllers[0].queue = [[]]
     res, outlaw, rival = fight(g, "Highway Robbery", TRAINING, att="outlaw1")
     assert (res.atk_value, res.def_value, res.damage) == (2, 0, 2) and rival.hp == rival.max_hp - 2
 
 
 def test_highway_robbery_against_no_defense_is_a_plain_two(bprd):
     g = mk(bprd)
-    g.controllers[0].queue = [[False]]
+    g.controllers[0].queue = [[]]
     res, *_ = fight(g, "Highway Robbery", att="outlaw1")
     assert (res.atk_value, res.def_value) == (2, 0)
 
@@ -297,7 +298,7 @@ def test_highway_robbery_against_no_defense_is_a_plain_two(bprd):
 def test_highway_robbery_cancels_the_defenders_after_effects(bprd):
     g = mk(bprd, foe="baba-yaga")
     outlaw, rival = pair(g, "outlaw1", "baba")
-    g.controllers[0].queue = [[False]]
+    g.controllers[0].queue = [[]]
     g.attack(outlaw, rival, give(g, 0, "Highway Robbery"), give(g, 1, "Hasten Towards Death"))
     assert outlaw.alive and rival.hp == rival.max_hp - 2          # Hasten Towards Death (4) is ignored and its damage to the attacker is cancelled
 
@@ -306,11 +307,11 @@ def test_highway_robbery_cancels_the_defenders_after_effects(bprd):
 
 def test_regroup_draws_one_and_two_if_the_combat_was_won(bprd):
     g = mk(bprd)
-    g.controllers[0].queue = [[False]]
+    g.controllers[0].queue = [[]]
     fight(g, "Regroup")                                          # 1 against nothing: the attacker's damage lands, it wins
     assert len(g.players[0].hand) == 2
     g2 = mk(bprd)
-    g2.controllers[0].queue = [[False]]
+    g2.controllers[0].queue = [[]]
     fight(g2, "Regroup", TRAINING)                               # 1 against 3: no damage, the defender wins
     assert len(g2.players[0].hand) == 1
 
@@ -324,7 +325,7 @@ def test_regroup_as_a_defense_that_does_not_hold_draws_one(bprd):
 
 def test_feint_cancels_the_effects_of_the_opponents_card(bprd):
     g = mk(bprd, foe="medusa")
-    g.controllers[0].queue = [[False]]
+    g.controllers[0].queue = [[]]
     robin, rival = pair(g, "robin", "medusa")
     g.attack(robin, rival, give(g, 0, "Piercing Shot"), give(g, 1, "Feint"))
     assert not g.players[0].hand                                 # the Piercing Shot draw was cancelled
@@ -332,11 +333,11 @@ def test_feint_cancels_the_effects_of_the_opponents_card(bprd):
 
 def test_snark_draws_one_only_if_the_fighter_is_adjacent_to_the_opposing_fighter(bprd):
     g = mk(bprd)
-    g.controllers[0].queue = [[False]]
+    g.controllers[0].queue = [[]]
     fight(g, "Snark", TRAINING)
     assert len(g.players[0].hand) == 1
     g2 = mk(bprd)
-    g2.controllers[0].queue = [[False]]
+    g2.controllers[0].queue = [[]]
     robin, rival = pair(g2, "robin", "hellboy")
     zone = next(s for s in sorted(g2.board.spaces) if s != robin.pos and s not in g2.board.adj[robin.pos]
                 and g2.board.share_zone(robin.pos, s) and all(f.pos != s for f in g2.fighters.values() if f.alive))
@@ -347,7 +348,7 @@ def test_snark_draws_one_only_if_the_fighter_is_adjacent_to_the_opposing_fighter
 
 def test_wily_fighting_hurts_every_enemy_next_to_the_fighter(bprd):
     g = mk(bprd, foe="yennenga")
-    g.controllers[0].queue = [[False]]
+    g.controllers[0].queue = [[]]
     robin, yen = pair(g, "robin", "yennenga")
     near = put_adjacent(g, "archer1", "robin")
     far = g.fighters["archer2"]
@@ -357,7 +358,7 @@ def test_wily_fighting_hurts_every_enemy_next_to_the_fighter(bprd):
 
 def test_wily_fighting_played_by_an_outlaw_counts_the_enemies_next_to_the_outlaw_not_next_to_robin(bprd):
     g = mk(bprd, foe="yennenga")
-    g.controllers[0].queue = [[False]]
+    g.controllers[0].queue = [[]]
     outlaw, yen = pair(g, "outlaw1", "yennenga")
     put_adjacent(g, "archer1", "outlaw1")
     far = [s for s in sorted(g.board.spaces, reverse=True) if not g.board.share_zone(outlaw.pos, s) and all(f.pos != s for f in g.fighters.values() if f.alive)]
@@ -370,7 +371,7 @@ def test_wily_fighting_played_by_an_outlaw_counts_the_enemies_next_to_the_outlaw
 
 def test_wily_fighting_spares_the_fighters_of_its_own_side(bprd):
     g = mk(bprd, foe="yennenga")
-    g.controllers[0].queue = [[False]]
+    g.controllers[0].queue = [[]]
     robin, yen = pair(g, "robin", "yennenga")
     put_adjacent(g, "outlaw1", "robin")
     g.attack(robin, yen, give(g, 0, "Wily Fighting"), give(g, 1, "Shield Formation"))
