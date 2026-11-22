@@ -173,3 +173,46 @@ def test_the_bots_hope_is_said(rig, order, monkeypatch):
     keeps(monkeypatch, False)
     msgs = bot_turn(session, table, [])
     assert said(msgs, t("tr.pandora.hope_bot", hero="Pandora")), msgs
+
+
+# ---------------------------------------------------------------- save and resume
+
+def reload(session, table):
+    """The session as a save brings it back: a fresh Session loaded from the saved dict, then resumed against the same table."""
+    import json
+    from sparring.ai_medusa import MedusaAI
+    from sparring.session import Session
+    from sparring.state import Game
+    saved = json.loads(json.dumps(session.to_dict()))
+    other = Session(Game.new(session.game.board, seed=3, controllers={}, bot_player=session.bot,
+                             heroes=tuple(p.hero.slug for p in session.game.players)), session.client, MedusaAI(0), session.cfg)
+    other.game_id = session.game_id
+    other.load_dict(saved)
+    other.snap = None
+    other.resume()
+    return other
+
+
+@with_rig("hellboy", "pandora", *HAND)
+def test_resume_while_the_box_asks_which_misery_asks_it_again(rig):
+    session, table, game, fake, cfg = rig
+    other = reload(session, table)
+    req = other.effect_run.awaiting
+    assert req.kind == "effect" and req.extra["tag"] == "misery"
+    reveal(other, table, "Pain")
+    assert other.effect_run.awaiting.kind == "optional" and other.game.fx.counter_value(1, "box_mask") == 1 << IDX["Pain"]
+
+
+@with_rig("hellboy", "pandora", *HAND)
+def test_resume_in_the_middle_of_the_box_keeps_the_revealed_miseries_and_finishes_the_count(rig):
+    session, table, game, fake, cfg = rig
+    reveal(session, table, "Toil")
+    press(session, table, True)
+    reveal(session, table, "Greed")
+    assert session.effect_run.awaiting.kind == "optional"             # 2 feathers out, deciding
+    other = reload(session, table)
+    assert other.game.fx.counter_value(1, "box_mask") == 1 << IDX["Toil"] | 1 << IDX["Greed"]
+    assert other.effect_run.awaiting.kind == "optional" and other.effect_run.awaiting.extra["feathers"] == 2
+    press(other, table, True)
+    reveal(other, table, "Misfortune")
+    assert other.effect_run is None and other.game.fighters["pandora"].hp == 14 - 3

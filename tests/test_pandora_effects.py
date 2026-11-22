@@ -258,7 +258,7 @@ def test_woe_brings_back_a_defeated_kakodaemon_before_taking_one_from_the_reserv
     order.append(IDX["Woe"])
     g.controllers[0].keeps = [False]
     start_turn(g)
-    assert kakodaemons(g) == ["kakodaemon1"] and k.hp == 1
+    assert kakodaemons(g) == ["kakodaemon1"] and k.hp == 1 and g.board.share_zone(k.pos, g.fighters["pandora"].pos)
 
 
 def test_toil_adds_one_to_pandoras_attacks_this_turn_and_not_to_a_kakodaemons(bprd, order):
@@ -322,7 +322,7 @@ def test_hope_fixes_the_top_card_and_the_next_reveal_is_that_card(bprd, order):
     ask = keep_asks(g)[0]
     assert ask.extra["top"] == IDX["Misfortune"]
     assert counter(g, "revealed") == 2 and counter(g, "box_mask") == 1 << IDX["Hope"] | 1 << IDX["Misfortune"]
-    assert order == []
+    assert order == [] and counter(g, "box_top") == 0              # the card Hope looked at is the one revealed: nothing is on top any more
 
 
 def test_a_dead_pandora_ends_the_box(bprd, order):

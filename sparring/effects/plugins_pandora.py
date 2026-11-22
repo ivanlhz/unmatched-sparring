@@ -39,7 +39,7 @@ def feathers(mask: int) -> int:
 def top_known(game, owner: int) -> int | None:
     """The index of the Misery on top of the Box when HOPE has looked at it, else None."""
     top = game.fx.counter_value(owner, "box_top")
-    return top - 1 if top else None
+    return top - 1 if top and not mask_of(game, owner) >> (top - 1) & 1 else None       # a top card already revealed is no longer the top
 
 
 def reveal_now(game, owner: int, idx: int) -> int:
