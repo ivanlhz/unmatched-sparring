@@ -19,3 +19,10 @@ data/i18n/es.json  blackbeard  ransom/doubloon hooks: can_pay, prompts, AI, narr
 sparring/effects/narrate.py  blackbeard  ransom/doubloon hooks: can_pay, prompts, AI, narration  2026-11-22 10:18Z
 sparring/search/adapter.py  loki  Loki AI: foreign TRICKs in the determinization  2026-11-22 10:19Z
 sparring/ai_medusa.py  loki  Loki AI: ai_loki pricing hooks  2026-11-22 10:19Z
+sparring/effects/state.py  loki  register the hero in the shared lists  2026-11-22 10:22Z
+tests/test_heroes.py  loki  register the hero in the shared lists  2026-11-22 10:22Z
+tests/test_card_identity.py  loki  register the hero in the shared lists  2026-11-22 10:22Z
+tests/test_d1_bot_cards.py  loki  register the hero in the shared lists  2026-11-22 10:22Z
+tests/test_effects_schema.py  loki  register the hero in the shared lists  2026-11-22 10:22Z
+tools/import_save.py  loki  register the hero in the shared lists  2026-11-22 10:22Z
+tests/test_piece_identity.py  loki  register the hero in the shared lists  2026-11-22 10:22Z
