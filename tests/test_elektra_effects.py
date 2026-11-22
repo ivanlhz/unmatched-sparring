@@ -293,12 +293,36 @@ def test_a_maneuver_goes_on_when_the_first_mover_takes_everyone_off_the_board(bp
 
 
 def test_whatever_spaces_her_owner_picks_the_five_still_end_in_five_different_zones(bprd):
-    """A greedy pick can paint the last Hand into a corner (one in 461 Resurrects did): the options always leave room for the fighters still to come."""
-    import random
-    rng = random.Random(7)
-    for _ in range(120):
-        g = mk(bprd, seed=rng.randrange(1000))
-        remove_elektra(g)
-        resurrect(g, [lambda r: [rng.choice(r.options)] if r.kind == "space" else list(r.options)] * 12)
-        spots = [g.fighters[f].pos for f in ["elektra"] + HANDS]
-        assert len(set(spots)) == 5 and all(not g.board.share_zone(a, b) for i, a in enumerate(spots) for b in spots[i + 1:]), spots
+    """A greedy pick can paint the last Hand into a corner (one in 461 Resurrects did): the options always leave room for the fighters still to come.
+    The chooser here is the worst one: each time it takes the space that leaves the fewest zone-free spaces for the others."""
+    g = mk(bprd)
+    remove_elektra(g)
+    board = g.board
+
+    def worst(req):
+        if req.kind != "space":
+            return list(req.options)
+        taken = [f.pos for f in g.fighters.values() if f.alive]
+        free = [s for s in board.spaces if s not in taken]
+        left = lambda s: sum(1 for o in free if o != s and not board.share_zone(o, s) and all(not board.share_zone(o, t) for t in taken))
+        return [min(req.options, key=lambda s: (left(s), s))]
+    resurrect(g, [worst] * 12)
+    spots = [g.fighters[f].pos for f in ["elektra"] + HANDS]
+    assert len(set(spots)) == 5 and all(not board.share_zone(a, b) for i, a in enumerate(spots) for b in spots[i + 1:]), spots
+
+
+class ToyBoard:
+    """Six spaces; space 0 shares a zone with 1-4, and 1-4 with nobody else: starting with 0 leaves one zone-free space, starting with 1 leaves four."""
+    spaces = range(6)
+
+    @staticmethod
+    def share_zone(a, b):
+        return a == b or (0 in (a, b) and 5 not in (a, b))
+
+
+def test_the_search_for_room_refuses_a_first_space_that_leaves_too_few_zones():
+    from sparring.effects.select import _zones_left
+    free = set(ToyBoard.spaces)
+    assert not _zones_left(ToyBoard, [0], free - {0}, 2)       # only space 5 is free of space 0: two more fighters do not fit
+    assert _zones_left(ToyBoard, [1], free - {1}, 2)
+    assert _zones_left(ToyBoard, [0], free - {0}, 1)

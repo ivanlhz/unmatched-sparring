@@ -1,5 +1,1 @@
 # path  agent  task  UTC time   (see BRIEF: short locks only)
-sparring/state.py  elektra  review fixes: maneuver skips off-board movers  2026-11-22 13:35Z
-sparring/session.py  elektra  review fixes  2026-11-22 13:35Z
-sparring/search/adapter.py  elektra  review fixes  2026-11-22 13:35Z
-sparring/effects/select.py  elektra  review fixes  2026-11-22 13:35Z
